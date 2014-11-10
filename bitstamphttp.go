@@ -5,6 +5,7 @@ import (
 	"net/url"
 	"io/ioutil"
 	"fmt"
+	"log"
 	"encoding/hex"
 	"crypto/hmac"
 	"crypto/sha256"
@@ -62,13 +63,15 @@ type ConversionRate struct {
 	Sell string
 }
 
-func (b *Bitstamp) GetTicker() {
+func (b *Bitstamp) GetTicker() (interface{}) {
 	err := SendHTTPRequest(BITSTAMP_API_URL + BITSTAMP_API_TICKER, true, &b.Ticker)
 
 	if err != nil {
 		fmt.Println(err) 
-		return
+		return nil
 	}
+
+	return b.Ticker
 }
 
 func (b *Bitstamp) GetOrderbook() {
@@ -149,7 +152,7 @@ func (b *Bitstamp) PlaceOrder(price float64, amount float64, Type int) {
 		orderType = BITSTAMP_API_SELL
 	} 
 
-	fmt.Printf("Placing %s order at price %f for %f amount.\n", orderType, price, amount)
+	log.Printf("Placing %s order at price %f for %f amount.\n", orderType, price, amount)
 
 	err := b.SendAuthenticatedHTTPRequest(orderType, req)
 

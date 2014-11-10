@@ -24,14 +24,32 @@ type BTCChina struct {
 	APISecret, APIKey string
 }
 
-func (b *BTCChina) GetTicker(symbol string) (bool) {
+func (b *BTCChina) GetTicker(symbol string) (interface{}) {
+	type Ticker struct {
+		High string
+		Low string
+		Buy string
+		Sell string
+		Last string
+		Vol string
+		Date int64
+		Vwap string
+		Prev_close string
+		Open string
+	}
+
+	type Response struct {
+		Ticker Ticker
+	}
+
+	resp := Response{}
 	req := fmt.Sprintf("%sdata/ticker?market=%s", BTCCHINA_API_URL, symbol)
-	err := SendHTTPRequest(req, true, nil)
+	err := SendHTTPRequest(req, true, &resp)
 	if err != nil {
 		fmt.Println(err)
-		return false
+		return nil
 	}
-	return true
+	return resp
 }
 
 func (b *BTCChina) GetTradesLast24h(symbol string) (bool) {
@@ -131,7 +149,7 @@ func (b *BTCChina) SendAuthenticatedHTTPRequest(method string, params []string) 
 		return errors.New("Unable to JSON POST data")
 	}
 
-	fmt.Printf("Sending POST request to %s calling method %s with params %s\n", "https://api.btcchina.com/api_trade_v1.php", method, data)
+	log.Printf("Sending POST request to %s calling method %s with params %s\n", "https://api.btcchina.com/api_trade_v1.php", method, data)
 	reqBody := strings.NewReader(string(data))
 
 	b64 := base64.StdEncoding.EncodeToString([]byte(b.APIKey + ":" + hash))
@@ -154,7 +172,7 @@ func (b *BTCChina) SendAuthenticatedHTTPRequest(method string, params []string) 
 	}
 
 	contents, _ := ioutil.ReadAll(resp.Body)
-	fmt.Printf("Recv'd :%s", string(contents))
+	log.Printf("Recv'd :%s", string(contents))
 	resp.Body.Close()
 	return nil
 

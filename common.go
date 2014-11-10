@@ -3,6 +3,8 @@ package main
 import (
 	"net/http"
 	"fmt"
+	"strings"
+	"encoding/json"
 	"io/ioutil"
 	"errors"
 )
@@ -32,6 +34,16 @@ func SendHTTPRequest(url string, jsonDecode bool, result interface{}) (err error
 		}
 	} else {
 		result = contents
+	}
+	return
+}
+
+func JsonDecode(data string, result interface{}) (err error) {
+	r := json.NewDecoder(strings.NewReader(data))
+	err = r.Decode(result)
+
+	if err != nil {
+		return err
 	}
 	return
 }

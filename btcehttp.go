@@ -28,6 +28,34 @@ type BTCE struct {
 	APIKey, APISecret string
 }
 
+func (b *BTCE) GetTicker(symbol string) (interface{}) {
+	type Ticker struct {
+		High float64
+		Low float64
+		Avg float64
+		Vol float64
+		Vol_cur float64
+		Last float64
+		Buy float64
+		Sell float64
+		Updated int64
+		Server_time int64
+	}
+
+	type Response struct {
+		Ticker Ticker
+	}
+
+	response := Response{}
+	req := fmt.Sprintf("https://btc-e.com/api/2/%s/ticker", symbol)
+	err := SendHTTPRequest(req, true, &response)
+	if err != nil {
+		fmt.Println(err)
+		return nil
+	}
+	return response
+}
+
 func (b *BTCE) GetInfo() {
 	err := b.SendAuthenticatedHTTPRequest(BTCE_GET_INFO, url.Values{})
 

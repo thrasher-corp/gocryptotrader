@@ -21,15 +21,30 @@ type OKCoin struct {
 	PartnerID, SecretKey string
 }
 
-func (o *OKCoin) GetTicker(symbol string) (bool) {
-	path := "ticker.do?symbol=" + symbol
-	err := SendHTTPRequest(OKCOIN_API_URL + path, true, nil)
+type OKCoinTicker struct {
+	Buy string
+	High string
+	Last string
+	Low string
+	Sell string
+	Vol string
+}
+
+type OKCoinTickerResponse struct {
+	Date string
+	Ticker OKCoinTicker
+}
+
+func (o *OKCoin) GetTicker(symbol string) (interface{}) {
+	resp := OKCoinTickerResponse{}
+	path := fmt.Sprintf("ticker.do?symbol=%s&ok=1", symbol)
+	err := SendHTTPRequest(OKCOIN_API_URL + path, true, &resp)
 
 	if err != nil {
 		fmt.Println(err)
 		return false
 	}
-	return true
+	return resp
 }
 
 func (o *OKCoin) GetOrderBook(symbol string) (bool) {

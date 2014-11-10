@@ -12,6 +12,7 @@ import (
 	"time"
 	"encoding/json"
 	"io/ioutil"
+	"log"
 	"fmt"
 )
 
@@ -204,7 +205,7 @@ func (i *ItBit) SendAuthenticatedHTTPRequest(method string, path string, params 
 	}
 
 	PayloadJson, err := json.Marshal(request)
-	fmt.Printf("Request JSON: %s\n", PayloadJson)
+	log.Printf("Request JSON: %s\n", PayloadJson)
 
 	if err != nil {
 		return errors.New("SendAuthenticatedHTTPRequest: Unable to JSON request")
@@ -229,7 +230,7 @@ func (i *ItBit) SendAuthenticatedHTTPRequest(method string, path string, params 
 	}
 
 	contents, _ := ioutil.ReadAll(resp.Body)
-	fmt.Printf("Recieved raw: %s\n", string(contents))
+	log.Printf("Recieved raw: %s\n", string(contents))
 	resp.Body.Close()
 	return nil
 }

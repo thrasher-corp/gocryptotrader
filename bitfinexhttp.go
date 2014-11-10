@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"io/ioutil"
 	"fmt"
+	"log"
 	"encoding/json"
 	"encoding/hex"
 	"crypto/hmac"
@@ -84,14 +85,14 @@ func (b *Bitfinex) SendAuthenticatedHTTPRequest(path string, params map[string]i
 	}
 
 	PayloadJson, err := json.Marshal(request)
-	fmt.Printf("Request JSON: %s\n", PayloadJson)
+	log.Printf("Request JSON: %s\n", PayloadJson)
 
 	if err != nil {
 		return errors.New("SendAuthenticatedHTTPRequest: Unable to JSON request")
 	}
 
 	PayloadBase64 := base64.StdEncoding.EncodeToString(PayloadJson)
-	fmt.Printf("Base64: %s\n", PayloadBase64)
+	log.Printf("Base64: %s\n", PayloadBase64)
 
 	hmac := hmac.New(sha512.New384, []byte(b.APISecret))
 	hmac.Write([]byte(PayloadBase64))
@@ -115,18 +116,18 @@ func (b *Bitfinex) SendAuthenticatedHTTPRequest(path string, params map[string]i
 	}
 
 	contents, _ := ioutil.ReadAll(resp.Body)
-	fmt.Printf("Recieved raw: %s\n", string(contents))
+	log.Printf("Recieved raw: %s\n", string(contents))
 	resp.Body.Close()
 	return nil
 }
 
-func (b *Bitfinex) GetTicker(symbol string) (bool) {
+func (b *Bitfinex) GetTicker(symbol string) (interface{}) {
 	err := SendHTTPRequest(BITFINEX_API_URL + BITFINEX_TICKER + symbol, true, &b.Ticker)
 	if err != nil {
 		fmt.Println(err)
-		return false
+		return nil
 	}
-	return true
+	return b.Ticker
 }
 
 func (b *Bitfinex) GetStats(symbol string) (bool) {
@@ -320,12 +321,3 @@ func (b *Bitfinex) GetTradeHistory(symbol string, timestamp time.Time, limit int
 	}
 }
 
-func JsonDecode(data string, result interface{}) (err error) {
-	r := json.NewDecoder(strings.NewReader(data))
-	err = r.Decode(result)
-
-	if err != nil {
-		return err
-	}
-	return
-}
