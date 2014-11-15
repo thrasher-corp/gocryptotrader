@@ -18,7 +18,7 @@ const (
 )
 
 type OKCoin struct {
-	PartnerID, SecretKey string
+	APIUrl, PartnerID, SecretKey string
 }
 
 type OKCoinTicker struct {
@@ -35,21 +35,25 @@ type OKCoinTickerResponse struct {
 	Ticker OKCoinTicker
 }
 
-func (o *OKCoin) GetTicker(symbol string) (interface{}) {
+func (o *OKCoin) SetURL(url string) {
+	o.APIUrl = url
+}
+
+func (o *OKCoin) GetTicker(symbol string) (OKCoinTicker) {
 	resp := OKCoinTickerResponse{}
 	path := fmt.Sprintf("ticker.do?symbol=%s&ok=1", symbol)
-	err := SendHTTPRequest(OKCOIN_API_URL + path, true, &resp)
+	err := SendHTTPRequest(o.APIUrl + path, true, &resp)
 
 	if err != nil {
 		fmt.Println(err)
-		return false
+		return OKCoinTicker{}
 	}
-	return resp
+	return resp.Ticker
 }
 
 func (o *OKCoin) GetOrderBook(symbol string) (bool) {
 	path := "depth.do?symbol=" + symbol
-	err := SendHTTPRequest(OKCOIN_API_URL + path, true, nil)
+	err := SendHTTPRequest(o.APIUrl + path, true, nil)
 	if err != nil {
 		fmt.Println(err)
 		return false
@@ -59,7 +63,7 @@ func (o *OKCoin) GetOrderBook(symbol string) (bool) {
 
 func (o *OKCoin) GetTradeHistory(symbol string) (bool) {
 	path := "trades.do?symbol=" + symbol
-	err := SendHTTPRequest(OKCOIN_API_URL + path, true, nil)
+	err := SendHTTPRequest(o.APIUrl + path, true, nil)
 	if err != nil {
 		fmt.Println(err)
 		return false
@@ -172,7 +176,7 @@ func (o *OKCoin) SendAuthenticatedHTTPRequest(method string, v url.Values) (err 
 	encoded := v.Encode() + "&partner=" + o.PartnerID
 
 	fmt.Printf("Signature: %s\n", signature)
-	path := OKCOIN_API_URL + method
+	path := o.APIUrl + method
 	fmt.Printf("Sending POST request to %s with params %s\n", path, encoded)
 
 	reqBody := strings.NewReader(encoded)

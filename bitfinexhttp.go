@@ -121,11 +121,11 @@ func (b *Bitfinex) SendAuthenticatedHTTPRequest(path string, params map[string]i
 	return nil
 }
 
-func (b *Bitfinex) GetTicker(symbol string) (interface{}) {
+func (b *Bitfinex) GetTicker(symbol string) (BitfinexTicker) {
 	err := SendHTTPRequest(BITFINEX_API_URL + BITFINEX_TICKER + symbol, true, &b.Ticker)
 	if err != nil {
 		fmt.Println(err)
-		return nil
+		return BitfinexTicker{}
 	}
 	return b.Ticker
 }

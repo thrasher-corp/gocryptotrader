@@ -25,22 +25,22 @@ type BTCChina struct {
 	APISecret, APIKey string
 }
 
-func (b *BTCChina) GetTicker(symbol string) (interface{}) {
-	type Ticker struct {
-		High string
-		Low string
-		Buy string
-		Sell string
-		Last string
-		Vol string
-		Date int64
-		Vwap string
-		Prev_close string
-		Open string
-	}
+type BTCChinaTicker struct {
+	High string
+	Low string
+	Buy string
+	Sell string
+	Last string
+	Vol string
+	Date int64
+	Vwap string
+	Prev_close string
+	Open string
+}
 
+func (b *BTCChina) GetTicker(symbol string) (BTCChinaTicker) {
 	type Response struct {
-		Ticker Ticker
+		Ticker BTCChinaTicker
 	}
 
 	resp := Response{}
@@ -48,9 +48,9 @@ func (b *BTCChina) GetTicker(symbol string) (interface{}) {
 	err := SendHTTPRequest(req, true, &resp)
 	if err != nil {
 		fmt.Println(err)
-		return nil
+		return BTCChinaTicker{}
 	}
-	return resp
+	return resp.Ticker
 }
 
 func (b *BTCChina) GetTradesLast24h(symbol string) (bool) {

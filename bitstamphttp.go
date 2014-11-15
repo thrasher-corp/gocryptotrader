@@ -63,12 +63,12 @@ type ConversionRate struct {
 	Sell string
 }
 
-func (b *Bitstamp) GetTicker() (interface{}) {
+func (b *Bitstamp) GetTicker() (BitstampTicker) {
 	err := SendHTTPRequest(BITSTAMP_API_URL + BITSTAMP_API_TICKER, true, &b.Ticker)
 
 	if err != nil {
 		fmt.Println(err) 
-		return nil
+		return BitstampTicker{}
 	}
 
 	return b.Ticker

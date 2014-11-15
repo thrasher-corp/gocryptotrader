@@ -3,7 +3,6 @@ package main
 import (
 	"net/http"
 	"fmt"
-	"strings"
 	"encoding/json"
 	"io/ioutil"
 	"errors"
@@ -11,7 +10,6 @@ import (
 
 func SendHTTPRequest(url string, jsonDecode bool, result interface{}) (err error) {
 	res, err := http.Get(url)
-	fmt.Println("Attempting connection to: " + url)
 
 	if err != nil {
 		fmt.Println(err)
@@ -24,26 +22,16 @@ func SendHTTPRequest(url string, jsonDecode bool, result interface{}) (err error
 	}
 
 	contents, _ := ioutil.ReadAll(res.Body)
-	fmt.Printf("Recieved raw: %s\n", string(contents))
+	//fmt.Printf("Recieved raw: %s\n", string(contents))
 
 	if jsonDecode {
-		err = JsonDecode(string(contents), result)
+		err := json.Unmarshal(contents, &result)
 
 		if err != nil {
 			return errors.New("Unable to JSON decode body.")
 		}
 	} else {
 		result = contents
-	}
-	return
-}
-
-func JsonDecode(data string, result interface{}) (err error) {
-	r := json.NewDecoder(strings.NewReader(data))
-	err = r.Decode(result)
-
-	if err != nil {
-		return err
 	}
 	return
 }
