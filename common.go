@@ -8,6 +8,22 @@ import (
 	"errors"
 )
 
+func CalculateAmountWithFee(amount, fee float64) (float64) {
+	return amount + CalculateFee(amount, fee)
+}
+
+func CalculateFee(amount, fee float64) (float64) {
+	return amount * (fee / 100)
+}
+
+func CalculatePercentageDifference(amount, secondAmount float64) (float64) {
+	return (secondAmount - amount) / amount * 100
+}
+
+func CalculateNetProfit(amount, priceThen, priceNow, costs float64) (float64) {
+	return (priceNow * amount) - (priceThen * amount) - costs
+}
+
 func SendHTTPRequest(url string, jsonDecode bool, result interface{}) (err error) {
 	res, err := http.Get(url)
 
