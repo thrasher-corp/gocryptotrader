@@ -14,6 +14,7 @@ type Exchange struct {
 	btce BTCE
 	okcoinChina OKCoin
 	okcoinIntl OKCoin
+	huobi HUOBI
 }
 
 func main() {
@@ -27,6 +28,11 @@ func main() {
 		go func() {
 			BTCChinaBTC := exchange.btcchina.GetTicker("btccny")
 			log.Printf("BTCChina BTC: Last %s High %s Low %s Volume %s\n", BTCChinaBTC.Last, BTCChinaBTC.High, BTCChinaBTC.Low, BTCChinaBTC.Vol)
+		}()
+
+		go func() {
+			HuobiBTC := exchange.huobi.GetTicker("btc")
+			log.Printf("Huobi BTC: Last %s High %s Low %s Volume %f\n", HuobiBTC.Last, HuobiBTC.High, HuobiBTC.Low, HuobiBTC.Vol)
 		}()
 
 		go func() {
@@ -55,28 +61,33 @@ func main() {
 		}()
 		
 		go func() {
-			BTCChinaBTC := exchange.btcchina.GetTicker("ltccny")
-			log.Printf("BTCChina LTC: Last %s High %s Low %s Volume %s\n", BTCChinaBTC.Last, BTCChinaBTC.High, BTCChinaBTC.Low, BTCChinaBTC.Vol)
+			BTCChinaLTC := exchange.btcchina.GetTicker("ltccny")
+			log.Printf("BTCChina LTC: Last %s High %s Low %s Volume %s\n", BTCChinaLTC.Last, BTCChinaLTC.High, BTCChinaLTC.Low, BTCChinaLTC.Vol)
 		}()
 
 		go func() {
-			BitfinexBTC := exchange.bitfinex.GetTicker("ltcusd")
-			log.Printf("Bitfinex LTC: Last %s High %s Low %s Volume %s\n", BitfinexBTC.Last_price, BitfinexBTC.High, BitfinexBTC.Low, BitfinexBTC.Volume)
+			BitfinexLTC := exchange.bitfinex.GetTicker("ltcusd")
+			log.Printf("Bitfinex LTC: Last %s High %s Low %s Volume %s\n", BitfinexLTC.Last_price, BitfinexLTC.High, BitfinexLTC.Low, BitfinexLTC.Volume)
 		}()
 		
 		go func() {
-			BTCeBTC := exchange.btce.GetTicker("ltc_usd")
-			log.Printf("BTC-e LTC: Last %f High %f Low %f Volume %f\n", BTCeBTC.Last, BTCeBTC.High, BTCeBTC.Low, BTCeBTC.Vol_cur)
+			BTCeLTC := exchange.btce.GetTicker("ltc_usd")
+			log.Printf("BTC-e LTC: Last %f High %f Low %f Volume %f\n", BTCeLTC.Last, BTCeLTC.High, BTCeLTC.Low, BTCeLTC.Vol_cur)
 		}()
 
 		go func() {
-			OKCoinChinaBTC := exchange.okcoinChina.GetTicker("ltc_cny")
-			log.Printf("OKCoin China LTC: Last %s High %s Low %s Volume %s\n", OKCoinChinaBTC.Last, OKCoinChinaBTC.High, OKCoinChinaBTC.Low, OKCoinChinaBTC.Vol)
+			OKCoinChinaLTC := exchange.okcoinChina.GetTicker("ltc_cny")
+			log.Printf("OKCoin China LTC: Last %s High %s Low %s Volume %s\n", OKCoinChinaLTC.Last, OKCoinChinaLTC.High, OKCoinChinaLTC.Low, OKCoinChinaLTC.Vol)
 		}()
 
 		go func() {
 			OKCoinChinaIntlLTC := exchange.okcoinIntl.GetTicker("ltc_usd")
 			log.Printf("OKCoin Intl LTC: Last %s High %s Low %s Volume %s\n", OKCoinChinaIntlLTC.Last, OKCoinChinaIntlLTC.High, OKCoinChinaIntlLTC.Low, OKCoinChinaIntlLTC.Vol)
+		}()
+
+		go func() {
+			HuobiLTC := exchange.huobi.GetTicker("ltc")
+			log.Printf("Huobi LTC: Last %s High %s Low %s Volume %f\n", HuobiLTC.Last, HuobiLTC.High, HuobiLTC.Low, HuobiLTC.Vol)
 		}()
 
 		time.Sleep(time.Second * 15)
