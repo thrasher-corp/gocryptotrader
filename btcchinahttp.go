@@ -26,16 +26,16 @@ type BTCChina struct {
 }
 
 type BTCChinaTicker struct {
-	High string
-	Low string
-	Buy string
-	Sell string
-	Last string
-	Vol string
+	High float64 `json:",string"`
+	Low float64 `json:",string"`
+	Buy float64 `json:",string"`
+	Sell float64 `json:",string"`
+	Last float64 `json:",string"`
+	Vol float64 `json:",string"`
 	Date int64
-	Vwap string
-	Prev_close string
-	Open string
+	Vwap float64 `json:",string"`
+	Prev_close float64 `json:",string"`
+	Open float64 `json:",string"`
 }
 
 func (b *BTCChina) GetTicker(symbol string) (BTCChinaTicker) {

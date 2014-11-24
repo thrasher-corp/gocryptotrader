@@ -22,12 +22,12 @@ type OKCoin struct {
 }
 
 type OKCoinTicker struct {
-	Buy string
-	High string
-	Last string
-	Low string
-	Sell string
-	Vol string
+	Buy float64 `json:",string"`
+	High float64 `json:",string"`
+	Last float64 `json:",string"`
+	Low float64 `json:",string"`
+	Sell float64 `json:",string"`
+	Vol float64 `json:",string"`
 }
 
 type OKCoinTickerResponse struct {

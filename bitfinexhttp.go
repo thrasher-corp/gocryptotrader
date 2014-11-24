@@ -38,11 +38,18 @@ const (
 
 type BitfinexStats struct {
 	Period int64
-	Volume string
+	Volume float64 `json:",string"`
 }
 
 type BitfinexTicker struct {
-	Mid, Bid, Ask, Last_price, Low, High, Volume, Timestamp string
+	Mid float64 `json:",string"`
+	Bid float64 `json:",string"`
+	Ask float64 `json:",string"`
+	Last float64 `json:"Last_price,string"`
+	Low float64 `json:",string"`
+	High float64 `json:",string"`
+	Volume float64 `json:",string"`
+	Timestamp string
 }
 
 type BookStructure struct {

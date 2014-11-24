@@ -44,7 +44,13 @@ type Bitstamp struct {
 }
 
 type BitstampTicker struct {
-	Last, High, Low, Vwap, Volume, Bid, Ask string
+	Last float64 `json:",string"`
+	High float64 `json:",string"`
+	Low float64 `json:",string"`
+	Vwap float64 `json:",string"`
+	Volume float64 `json:",string"`
+	Bid float64 `json:",string"`
+	Ask float64 `json:",string"`
 }
 
 type Orderbook struct {
