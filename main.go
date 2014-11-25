@@ -15,6 +15,7 @@ type Exchange struct {
 	okcoinChina OKCoin
 	okcoinIntl OKCoin
 	itbit ItBit
+	lakebtc LakeBTC
 	huobi HUOBI
 }
 
@@ -29,9 +30,14 @@ func main() {
 		log.Fatalln(err)
 		return
 	}
-
+	
 	//temp until proper asynchronous method of getting pricing/order books is coded
 	for {
+		go func() {
+			LakeBTCTickerResponse := exchange.lakebtc.GetTicker()
+			log.Printf("LakeBTC USD: Last %f (%f) High %f (%f) Low %f (%f)\n", LakeBTCTickerResponse.USD.Last, LakeBTCTickerResponse.CNY.Last, LakeBTCTickerResponse.USD.High, LakeBTCTickerResponse.CNY.High, LakeBTCTickerResponse.USD.Low, LakeBTCTickerResponse.CNY.Low)
+		}()
+
 		go func() {
 			BTCChinaBTC := exchange.btcchina.GetTicker("btccny")
 			BTCChinaBTCLastUSD, _ := ConvertCurrency(BTCChinaBTC.Last, "CNY", "USD")
