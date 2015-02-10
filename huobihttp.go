@@ -22,16 +22,16 @@ type HUOBI struct {
 }
 
 type HuobiTicker struct {
-	High float64 `json:",string"`
-	Low float64 `json:",string"`
-	Last float64 `json:",string"`
-	Vol float64
-	Buy float64 `json:",string"`
-	Sell float64 `json:",string"`
+	High float64
+	Low float64
+	Last float64 
+	Vol float64 
+	Buy float64 
+	Sell float64 
 }
 
 type HuobiTickerResponse struct {
-	Time int64
+	Time string
 	Ticker HuobiTicker
 }
 
