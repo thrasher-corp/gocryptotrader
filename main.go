@@ -33,6 +33,9 @@ func main() {
 	
 	//temp until proper asynchronous method of getting pricing/order books is coded
 	for {
+
+		//spot 
+
 		go func() {
 			LakeBTCTickerResponse := exchange.lakebtc.GetTicker()
 			log.Printf("LakeBTC USD: Last %f (%f) High %f (%f) Low %f (%f)\n", LakeBTCTickerResponse.USD.Last, LakeBTCTickerResponse.CNY.Last, LakeBTCTickerResponse.USD.High, LakeBTCTickerResponse.CNY.High, LakeBTCTickerResponse.USD.Low, LakeBTCTickerResponse.CNY.Low)
@@ -124,6 +127,38 @@ func main() {
 		go func() {
 			OKCoinChinaIntlLTC := exchange.okcoinIntl.GetTicker("ltc_usd")
 			log.Printf("OKCoin Intl LTC: Last %f High %f Low %f Volume %f\n", OKCoinChinaIntlLTC.Last, OKCoinChinaIntlLTC.High, OKCoinChinaIntlLTC.Low, OKCoinChinaIntlLTC.Vol)
+		}()
+
+		// futures
+
+		go func() {
+			OKCoinFuturesBTC := exchange.okcoinIntl.GetFuturesTicker("btc_usd", "this_week")
+			log.Printf("OKCoin BTC Futures (weekly): Last %f High %f Low %f Volume %f\n", OKCoinFuturesBTC.Last, OKCoinFuturesBTC.High, OKCoinFuturesBTC.Low, OKCoinFuturesBTC.Vol)
+		}()
+
+		go func() {
+			OKCoinFuturesBTC := exchange.okcoinIntl.GetFuturesTicker("ltc_usd", "this_week")
+			log.Printf("OKCoin LTC Futures (weekly): Last %f High %f Low %f Volume %f\n", OKCoinFuturesBTC.Last, OKCoinFuturesBTC.High, OKCoinFuturesBTC.Low, OKCoinFuturesBTC.Vol)
+		}()
+
+		go func() {
+			OKCoinFuturesBTC := exchange.okcoinIntl.GetFuturesTicker("btc_usd", "next_week")
+			log.Printf("OKCoin BTC Futures (biweekly): Last %f High %f Low %f Volume %f\n", OKCoinFuturesBTC.Last, OKCoinFuturesBTC.High, OKCoinFuturesBTC.Low, OKCoinFuturesBTC.Vol)
+		}()
+
+		go func() {
+			OKCoinFuturesBTC := exchange.okcoinIntl.GetFuturesTicker("ltc_usd", "next_week")
+			log.Printf("OKCoin LTC Futures (biweekly): Last %f High %f Low %f Volume %f\n", OKCoinFuturesBTC.Last, OKCoinFuturesBTC.High, OKCoinFuturesBTC.Low, OKCoinFuturesBTC.Vol)
+		}()
+
+		go func() {
+			OKCoinFuturesBTC := exchange.okcoinIntl.GetFuturesTicker("btc_usd", "quarter")
+			log.Printf("OKCoin BTC Futures (quarterly): Last %f High %f Low %f Volume %f\n", OKCoinFuturesBTC.Last, OKCoinFuturesBTC.High, OKCoinFuturesBTC.Low, OKCoinFuturesBTC.Vol)
+		}()
+
+		go func() {
+			OKCoinFuturesBTC := exchange.okcoinIntl.GetFuturesTicker("ltc_usd", "quarter")
+			log.Printf("OKCoin LTC Futures (quarterly): Last %f High %f Low %f Volume %f\n", OKCoinFuturesBTC.Last, OKCoinFuturesBTC.High, OKCoinFuturesBTC.Low, OKCoinFuturesBTC.Vol)
 		}()
 
 		time.Sleep(time.Second * 15)
