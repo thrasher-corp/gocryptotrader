@@ -1,0 +1,76 @@
+{
+  "Exchanges": [
+    {
+      "Name": "Bitfinex",
+      "Pairs": "BTCUSD,LTCUSD,DRKUSD",
+      "APIKey": "Key",
+      "APISecret": "Secret",
+      "BaseCurrencies": "USD",
+      "Enabled": true
+    },
+    {
+      "Name": "Bitstamp",
+      "Pairs": "BTCUSD",
+      "APIKey": "Key",
+      "APISecret": "Secret",
+      "BaseCurrencies": "USD",
+      "Enabled": true
+    },
+    {
+      "Name": "BTC China",
+      "Pairs": "BTCCNY,LTCCNY,LTCBTC",
+      "APIKey": "Key",
+      "APISecret": "Secret",
+      "BaseCurrencies": "CNY",
+      "Enabled": true
+    },
+    {
+      "Name": "BTCE",
+      "Pairs": "BTCUSD,BTCRUR,BTCEUR,BTCCNH,BTCGBP,LTCBTC,LTCUSD,LTCRUR,LTCEUR,LTCCNH,LTCGBP,NMCBTC,NMCUSD,NVCBTC,NVCUSD,USDRUR,EURUSD,EURRUR,USDCNH,GDPUSD,PPCBTC,PPCUSD",
+      "APIKey": "Key",
+      "APISecret": "Secret",
+      "BaseCurrencies": "USD,RUB,EUR,CNY,GBP",
+      "Enabled": true
+    },
+    {
+      "Name": "Huobi",
+      "Pairs": "BTCCNY,LTCCNY,LTCBTC",
+      "APIKey": "Key",
+      "APISecret": "Secret",
+      "BaseCurrencies": "CNY",
+      "Enabled": true
+    },
+    {
+      "Name": "ITBIT",
+      "Pairs": "XBTUSD,XBTSGD,XBTEUR",
+      "APIKey": "Key",
+      "APISecret": "Secret",
+      "BaseCurrencies": "USD,SGD,EUR",
+      "Enabled": true
+    },
+    {
+      "Name": "LakeBTC",
+      "Pairs": "BTCCNY,LTCCNY,LTCBTC",
+      "APIKey": "Key",
+      "APISecret": "Secret",
+      "BaseCurrencies": "CNY",
+      "Enabled": true
+    },
+    {
+      "Name": "OKCOIN China",
+      "Pairs": "BTCCNY,LTCCNY",
+      "APIKey": "Key",
+      "APISecret": "Secret",
+      "BaseCurrencies": "CNY",
+      "Enabled": true
+    },
+    {
+      "Name": "OKCOIN International",
+      "Pairs": "BTCUSD,LTCUSD",
+      "APIKey": "Key",
+      "APISecret": "Secret",
+      "BaseCurrencies": "USD",
+      "Enabled": true
+    }
+  ]
+}

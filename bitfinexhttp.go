@@ -72,12 +72,31 @@ type SymbolsDetails struct {
 }
 
 type Bitfinex struct {
+	Name string
+	Enabled bool
 	APIKey, APISecret string
 	Ticker BitfinexTicker
 	Stats []BitfinexStats
 	Orderbook BitfinexOrderbook
 	Trades []TradeStructure
 	SymbolsDetails []SymbolsDetails
+}
+
+func (b *Bitfinex) SetDefaults() {
+	b.Name = "Bitfinex"
+	b.Enabled = true
+}
+
+func (b *Bitfinex) GetName() (string) {
+	return b.Name
+}
+
+func (b *Bitfinex) SetEnabled(enabled bool) {
+	b.Enabled = enabled
+}
+
+func (b *Bitfinex) IsEnabled() (bool) {
+	return b.Enabled
 }
 
 func (b *Bitfinex) SendAuthenticatedHTTPRequest(path string, params map[string]interface{}) (err error) {

@@ -36,6 +36,8 @@ const (
 )
 
 type Bitstamp struct { 
+	Name string
+	Enabled bool
 	ClientID, APIKey, APISecret string
 	Ticker BitstampTicker
 	Orderbook Orderbook
@@ -67,6 +69,23 @@ type Transactions struct {
 type ConversionRate struct {
 	Buy string
 	Sell string
+}
+
+func (b *Bitstamp) SetDefaults() {
+	b.Name = "Bitstamp"
+	b.Enabled = true
+}
+
+func (b *Bitstamp) GetName() (string) {
+	return b.Name
+}
+
+func (b *Bitstamp) SetEnabled(enabled bool) {
+	b.Enabled = enabled
+}
+
+func (b *Bitstamp) IsEnabled() (bool) {
+	return b.Enabled
 }
 
 func (b *Bitstamp) GetTicker() (BitstampTicker) {

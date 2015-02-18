@@ -18,6 +18,8 @@ const (
 )
 
 type HUOBI struct {
+	Name string
+	Enabled bool
 	AccessKey, SecretKey string
 }
 
@@ -33,6 +35,23 @@ type HuobiTicker struct {
 type HuobiTickerResponse struct {
 	Time string
 	Ticker HuobiTicker
+}
+
+func (h *HUOBI) SetDefaults() {
+	h.Name = "Huobi"
+	h.Enabled = true
+}
+
+func (h *HUOBI) GetName() (string) {
+	return h.Name
+}
+
+func (h *HUOBI) SetEnabled(enabled bool) {
+	h.Enabled = enabled
+}
+
+func (h *HUOBI) IsEnabled() (bool) {
+	return h.Enabled
 }
 
 func (h *HUOBI) GetTicker(symbol string) (HuobiTicker) {

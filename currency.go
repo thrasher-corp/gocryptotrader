@@ -40,7 +40,6 @@ type YahooJSONResponse struct {
 const (
 	YAHOO_YQL_URL = "http://query.yahooapis.com/v1/public/yql"
 	YAHOO_DATABASE = "store://datatables.org/alltableswithkeys"
-	CURRENCIES = "USD,CNY,AUD,EUR"
 
 )
 
@@ -48,10 +47,35 @@ var (
 	CurrencyStore YahooJSONResponse
 	ErrCurrencyDataNotFetched = errors.New("Yahoo currency data has not been fetched yet.")
 	ErrCurrencyNotFound = errors.New("Unable to find specified currency.")
+	ErrQueryingYahoo = errors.New("Unable to query Yahoo currency values.")
 )
 
-func MakeCurrencyPairs() (string) {
-	currencies := strings.Split(CURRENCIES, ",")
+func RetrieveConfigCurrencyPairs(config Config) (error) {
+	currencyPairs := ""
+	for _, exchange := range config.Exchanges {
+		if (exchange.Enabled) {
+			result := strings.Split(exchange.BaseCurrencies, ",")
+
+			for _, s := range result {
+				if (!strings.Contains(currencyPairs, s)) {
+					currencyPairs += s + ","
+				}
+			}
+		}
+	}
+	currencyPairs = currencyPairs[0:len(currencyPairs)-1]
+	err := QueryYahooCurrencyValues(currencyPairs)
+
+	if err != nil {
+		return ErrQueryingYahoo
+	}
+
+	log.Println("Fetched currency value data.")
+	return nil
+}
+
+func MakecurrencyPairs(supportedCurrencies string) (string) {
+	currencies := strings.Split(supportedCurrencies, ",")
 	pairs := ""
 	count := len(currencies)
 	for i := 0; i < count; i++ {
@@ -79,8 +103,8 @@ func ConvertCurrency(amount float64, from, to string) (float64, error) {
 	return 0, ErrCurrencyNotFound
 }
 
-func QueryYahooCurrencyValues() (error) {
-	currencyPairs := MakeCurrencyPairs()
+func QueryYahooCurrencyValues(currencies string) (error) {
+	currencyPairs := MakecurrencyPairs(currencies)
 	log.Printf("Supported currency pairs: %s\n", currencyPairs)
 
 	values := url.Values{}
@@ -88,7 +112,6 @@ func QueryYahooCurrencyValues() (error) {
 	values.Set("format", "json")
 	values.Set("env", YAHOO_DATABASE)
 	path := YAHOO_YQL_URL+"?"+values.Encode()
-	log.Println("Sending request to: " + path)
 	req, err := http.NewRequest("GET", path, strings.NewReader(""))
 
 	if err != nil {

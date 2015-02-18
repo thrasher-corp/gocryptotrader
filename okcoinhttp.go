@@ -18,6 +18,8 @@ const (
 )
 
 type OKCoin struct {
+	Name string
+	Enabled bool
 	APIUrl, PartnerID, SecretKey string
 }
 
@@ -48,6 +50,27 @@ type OKCoinFuturesTicker struct {
 type OKCoinFuturesTickerResponse struct {
 	Date string
 	Ticker OKCoinFuturesTicker
+}
+
+func (o *OKCoin) SetDefaults() {
+	if (o.APIUrl == OKCOIN_API_URL) {
+		o.Name = "OKCOIN International"
+	} else if (o.APIUrl == OKCOIN_API_URL_CHINA) {
+		o.Name = "OKCOIN China"
+	}
+	o.Enabled = true
+}
+
+func (o *OKCoin) GetName() (string) {
+	return o.Name
+}
+
+func (o *OKCoin) SetEnabled(enabled bool) {
+	o.Enabled = enabled
+}
+
+func (o *OKCoin) IsEnabled() (bool) {
+	return o.Enabled
 }
 
 func (o *OKCoin) SetURL(url string) {

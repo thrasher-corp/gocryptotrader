@@ -22,6 +22,8 @@ const (
 )
 
 type BTCChina struct {
+	Name string
+	Enabled bool
 	APISecret, APIKey string
 }
 
@@ -36,6 +38,23 @@ type BTCChinaTicker struct {
 	Vwap float64 `json:",string"`
 	Prev_close float64 `json:",string"`
 	Open float64 `json:",string"`
+}
+
+func (b *BTCChina) SetDefaults() {
+	b.Name = "BTC China"
+	b.Enabled = true
+}
+
+func (b *BTCChina) GetName() (string) {
+	return b.Name
+}
+
+func (b *BTCChina) SetEnabled(enabled bool) {
+	b.Enabled = enabled
+}
+
+func (b *BTCChina) IsEnabled() (bool) {
+	return b.Enabled
 }
 
 func (b *BTCChina) GetTicker(symbol string) (BTCChinaTicker) {

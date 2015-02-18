@@ -25,6 +25,8 @@ const (
 )
 
 type BTCE struct {
+	Name string
+	Enabled bool
 	APIKey, APISecret string
 }
 
@@ -39,6 +41,23 @@ type BTCeTicker struct {
 	Sell float64
 	Updated int64
 	Server_time int64
+}
+
+func (b *BTCE) SetDefaults() {
+	b.Name = "BTCE"
+	b.Enabled = true
+}
+
+func (b *BTCE) GetName() (string) {
+	return b.Name
+}
+
+func (b *BTCE) SetEnabled(enabled bool) {
+	b.Enabled = enabled
+}
+
+func (b *BTCE) IsEnabled() (bool) {
+	return b.Enabled
 }
 
 func (b *BTCE) GetTicker(symbol string) (BTCeTicker) {

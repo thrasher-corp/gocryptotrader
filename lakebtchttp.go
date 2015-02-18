@@ -30,6 +30,8 @@ const (
 )
 
 type LakeBTC struct {
+	Name string
+	Enabled bool
 	Email, APISecret string
 }
 
@@ -44,6 +46,23 @@ type LakeBTCTicker struct {
 type LakeBTCTickerResponse struct {
 	USD LakeBTCTicker
 	CNY LakeBTCTicker
+}
+
+func (l *LakeBTC) SetDefaults() {
+	l.Name = "LakeBTC"
+	l.Enabled = true
+}
+
+func (l *LakeBTC) GetName() (string) {
+	return l.Name
+}
+
+func (l *LakeBTC) SetEnabled(enabled bool) {
+	l.Enabled = enabled
+}
+
+func (l *LakeBTC) IsEnabled() (bool) {
+	return l.Enabled
 }
 
 func (l *LakeBTC) GetTicker() (LakeBTCTickerResponse) {

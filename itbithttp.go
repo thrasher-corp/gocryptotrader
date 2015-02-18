@@ -21,6 +21,8 @@ const (
 )
 
 type ItBit struct {
+	Name string
+	Enabled bool
 	ClientKey, APISecret, UserID string
 }
 
@@ -42,6 +44,23 @@ type ItBitTicker struct {
 	VwapToday float64 `json:",string"`
 	Vwap24h float64 `json:",string"`
 	ServertimeUTC string
+}
+
+func (i *ItBit) SetDefaults() {
+	i.Name = "ITBIT"
+	i.Enabled = true
+}
+
+func (i *ItBit) GetName() (string) {
+	return i.Name
+}
+
+func (i *ItBit) SetEnabled(enabled bool) {
+	i.Enabled = enabled
+}
+
+func (i *ItBit) IsEnabled() (bool) {
+	return i.Enabled
 }
 
 func (i *ItBit) GetTicker(currency string) (ItBitTicker) {
