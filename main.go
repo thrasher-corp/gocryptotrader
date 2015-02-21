@@ -12,6 +12,7 @@ type Exchange struct {
 	bitstamp Bitstamp
 	bitfinex Bitfinex
 	btce BTCE
+	btcmarkets BTCMarkets
 	okcoinChina OKCoin
 	okcoinIntl OKCoin
 	itbit ItBit
@@ -51,6 +52,7 @@ func main() {
 	exchange.bitstamp.SetDefaults()
 	exchange.bitfinex.SetDefaults()
 	exchange.btce.SetDefaults()
+	exchange.btcmarkets.SetDefaults()
 	exchange.okcoinChina.SetURL(OKCOIN_API_URL_CHINA)
 	exchange.okcoinChina.SetDefaults()
 	exchange.okcoinIntl.SetURL(OKCOIN_API_URL)
@@ -84,6 +86,13 @@ func main() {
 		} else if exchange.btce.GetName() == exch.Name {
 			if !exch.Enabled {
 				exchange.btce.SetEnabled(false)
+				log.Printf("%s disabled.\n", exch.Name)
+			} else {
+				log.Printf("%s enabled.\n", exch.Name)
+			}
+		} else if exchange.btcmarkets.GetName() == exch.Name {
+			if !exch.Enabled {
+				exchange.btcmarkets.SetEnabled(false)
 				log.Printf("%s disabled.\n", exch.Name)
 			} else {
 				log.Printf("%s enabled.\n", exch.Name)
@@ -125,7 +134,7 @@ func main() {
 			}
 		}
 	}
-
+	
 	err = RetrieveConfigCurrencyPairs(config)
 
 	if err != nil {
@@ -215,6 +224,24 @@ func main() {
 			go func() {
 				BTCeLTC := exchange.btce.GetTicker("ltc_usd")
 				log.Printf("BTC-e LTC: Last %f High %f Low %f Volume %f\n", BTCeLTC.Last, BTCeLTC.High, BTCeLTC.Low, BTCeLTC.Vol_cur)
+			}()
+		}
+
+		if exchange.btcmarkets.IsEnabled() {
+			go func() {
+				BTCMarketsBTC := exchange.btcmarkets.GetTicker("BTC")
+				BTCMarketsBTCLastUSD, _ := ConvertCurrency(BTCMarketsBTC.LastPrice, "AUD", "USD")
+				BTCMarketsBTCBestBidUSD, _ := ConvertCurrency(BTCMarketsBTC.BestBID, "AUD", "USD")
+				BTCMarketsBTCBestAskUSD, _ := ConvertCurrency(BTCMarketsBTC.BestAsk, "AUD", "USD")
+				log.Printf("BTC Markets BTC: Last %f (%f) Bid %f (%f) Ask %f (%f)\n", BTCMarketsBTCLastUSD, BTCMarketsBTC.LastPrice, BTCMarketsBTCBestBidUSD, BTCMarketsBTC.BestBID, BTCMarketsBTCBestAskUSD, BTCMarketsBTC.BestAsk)
+			}()
+
+			go func() {
+				BTCMarketsLTC := exchange.btcmarkets.GetTicker("LTC")
+				BTCMarketsLTCLastUSD, _ := ConvertCurrency(BTCMarketsLTC.LastPrice, "AUD", "USD")
+				BTCMarketsLTCBestBidUSD, _ := ConvertCurrency(BTCMarketsLTC.BestBID, "AUD", "USD")
+				BTCMarketsLTCBestAskUSD, _ := ConvertCurrency(BTCMarketsLTC.BestAsk, "AUD", "USD")
+				log.Printf("BTC Markets LTC: Last %f (%f) Bid %f (%f) Ask %f (%f)", BTCMarketsLTCLastUSD, BTCMarketsLTC.LastPrice, BTCMarketsLTCBestBidUSD, BTCMarketsLTC.BestBID, BTCMarketsLTCBestAskUSD, BTCMarketsLTC.BestAsk)
 			}()
 		}
 

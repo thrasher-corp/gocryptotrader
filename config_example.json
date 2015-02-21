@@ -33,6 +33,14 @@
       "Enabled": true
     },
     {
+      "Name": "BTC Markets",
+      "Pairs": "LTCAUD,BTCAUD,LTCBTC",
+      "APIKey": "Key",
+      "APISecret": "Secret",
+      "BaseCurrencies": "AUD",
+      "Enabled": true
+    },
+    {
       "Name": "Huobi",
       "Pairs": "BTCCNY,LTCCNY,LTCBTC",
       "APIKey": "Key",
