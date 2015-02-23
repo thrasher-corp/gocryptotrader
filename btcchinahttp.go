@@ -57,6 +57,11 @@ func (b *BTCChina) IsEnabled() (bool) {
 	return b.Enabled
 }
 
+func (b *BTCChina) SetAPIKeys(apiKey, apiSecret string) {
+	b.APIKey = apiKey
+	b.APISecret = apiSecret
+}
+
 func (b *BTCChina) GetTicker(symbol string) (BTCChinaTicker) {
 	type Response struct {
 		Ticker BTCChinaTicker

@@ -14,6 +14,7 @@ type Exchanges struct {
 	Enabled bool
 	APIKey string
 	APISecret string
+	ClientID string
 	Pairs string
 	BaseCurrencies string
 }

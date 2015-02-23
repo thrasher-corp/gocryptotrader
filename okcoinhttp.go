@@ -77,6 +77,11 @@ func (o *OKCoin) SetURL(url string) {
 	o.APIUrl = url
 }
 
+func (o *OKCoin) SetAPIKeys(apiKey, apiSecret string) {
+	o.PartnerID = apiKey
+	o.SecretKey = apiSecret
+}
+
 func (o *OKCoin) GetTicker(symbol string) (OKCoinTicker) {
 	resp := OKCoinTickerResponse{}
 	path := fmt.Sprintf("ticker.do?symbol=%s&ok=1", symbol)

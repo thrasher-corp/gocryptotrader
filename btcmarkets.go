@@ -50,6 +50,11 @@ func (b *BTCMarkets) IsEnabled() (bool) {
 	return b.Enabled
 }
 
+func (b *BTCMarkets) SetAPIKeys(apiKey, apiSecret string) {
+	b.APIKey = apiKey
+	b.APISecret = apiSecret
+}
+
 func (b *BTCMarkets) GetTicker(symbol string) (BTCMarketsTicker) {
 	ticker := BTCMarketsTicker{}
 	path := fmt.Sprintf("/market/%s/AUD/tick", symbol)

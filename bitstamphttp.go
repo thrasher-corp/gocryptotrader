@@ -88,6 +88,12 @@ func (b *Bitstamp) IsEnabled() (bool) {
 	return b.Enabled
 }
 
+func (b *Bitstamp) SetAPIKeys(clientID, apiKey, apiSecret string) {
+	b.ClientID = clientID
+	b.APIKey = apiKey
+	b.APISecret = apiSecret
+}
+
 func (b *Bitstamp) GetTicker() (BitstampTicker) {
 	err := SendHTTPRequest(BITSTAMP_API_URL + BITSTAMP_API_TICKER, true, &b.Ticker)
 

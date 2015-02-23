@@ -68,6 +68,7 @@ func main() {
 				log.Printf("%s disabled.\n", exch.Name)
 			} else {
 				log.Printf("%s enabled.\n", exch.Name)
+				exchange.btcchina.SetAPIKeys(exch.APIKey, exch.APISecret)
 			}
 		} else if exchange.bitstamp.GetName() == exch.Name {
 			if !exch.Enabled {
@@ -75,6 +76,7 @@ func main() {
 				log.Printf("%s disabled.\n", exch.Name)
 			} else {
 				log.Printf("%s enabled.\n", exch.Name)
+				exchange.bitstamp.SetAPIKeys(exch.ClientID, exch.APIKey, exch.APISecret)
 			}
 		} else if exchange.bitfinex.GetName() == exch.Name {
 			if !exch.Enabled {
@@ -82,6 +84,7 @@ func main() {
 				log.Printf("%s disabled.\n", exch.Name)
 			} else {
 				log.Printf("%s enabled.\n", exch.Name)
+				exchange.bitfinex.SetAPIKeys(exch.APIKey, exch.APISecret)
 			}
 		} else if exchange.btce.GetName() == exch.Name {
 			if !exch.Enabled {
@@ -89,6 +92,7 @@ func main() {
 				log.Printf("%s disabled.\n", exch.Name)
 			} else {
 				log.Printf("%s enabled.\n", exch.Name)
+				exchange.btce.SetAPIKeys(exch.APIKey, exch.APISecret)
 			}
 		} else if exchange.btcmarkets.GetName() == exch.Name {
 			if !exch.Enabled {
@@ -96,6 +100,7 @@ func main() {
 				log.Printf("%s disabled.\n", exch.Name)
 			} else {
 				log.Printf("%s enabled.\n", exch.Name)
+				exchange.btcmarkets.SetAPIKeys(exch.APIKey, exch.APISecret)
 			}
 		} else if exchange.okcoinChina.GetName() == exch.Name {
 			if !exch.Enabled {
@@ -103,6 +108,7 @@ func main() {
 				log.Printf("%s disabled.\n", exch.Name)
 			} else {
 				log.Printf("%s enabled.\n", exch.Name)
+				exchange.okcoinChina.SetAPIKeys(exch.APIKey, exch.APISecret)
 			}
 		} else if exchange.okcoinIntl.GetName() == exch.Name {
 			if !exch.Enabled {
@@ -110,6 +116,7 @@ func main() {
 				log.Printf("%s disabled.\n", exch.Name)
 			} else {
 				log.Printf("%s enabled.\n", exch.Name)
+				exchange.okcoinIntl.SetAPIKeys(exch.APIKey, exch.APISecret)
 			}
 		} else if exchange.itbit.GetName() == exch.Name {
 			if !exch.Enabled {
@@ -117,6 +124,7 @@ func main() {
 				log.Printf("%s disabled.\n", exch.Name)
 			} else {
 				log.Printf("%s enabled.\n", exch.Name)
+				exchange.itbit.SetAPIKeys(exch.APIKey, exch.APISecret)
 			}
 		} else if exchange.lakebtc.GetName() == exch.Name {
 			if !exch.Enabled {
@@ -124,6 +132,7 @@ func main() {
 				log.Printf("%s disabled.\n", exch.Name)
 			} else {
 				log.Printf("%s enabled.\n", exch.Name)
+				exchange.lakebtc.SetAPIKeys(exch.APIKey, exch.APISecret)
 			}
 		} else if exchange.huobi.GetName() == exch.Name {
 			if !exch.Enabled {
@@ -131,6 +140,7 @@ func main() {
 				log.Printf("%s disabled.\n", exch.Name)
 			} else {
 				log.Printf("%s enabled.\n", exch.Name)
+				exchange.huobi.SetAPIKeys(exch.APIKey, exch.APISecret)
 			}
 		}
 	}

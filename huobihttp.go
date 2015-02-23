@@ -54,6 +54,11 @@ func (h *HUOBI) IsEnabled() (bool) {
 	return h.Enabled
 }
 
+func (h *HUOBI) SetAPIKeys(apiKey, apiSecret string) {
+	h.AccessKey = apiKey
+	h.SecretKey = apiSecret
+}
+
 func (h *HUOBI) GetTicker(symbol string) (HuobiTicker) {
 	resp := HuobiTickerResponse{}
 	path := fmt.Sprintf("http://market.huobi.com/staticmarket/ticker_%s_json.js", symbol)

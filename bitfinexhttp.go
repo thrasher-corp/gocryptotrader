@@ -99,6 +99,11 @@ func (b *Bitfinex) IsEnabled() (bool) {
 	return b.Enabled
 }
 
+func (b *Bitfinex) SetAPIKeys(apiKey, apiSecret string) {
+	b.APIKey = apiKey
+	b.APISecret = apiSecret
+}
+
 func (b *Bitfinex) SendAuthenticatedHTTPRequest(path string, params map[string]interface{}) (err error) {
 	request := make(map[string]interface{})
 	request["request"] = "/v1/" + path

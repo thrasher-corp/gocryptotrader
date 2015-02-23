@@ -60,6 +60,11 @@ func (b *BTCE) IsEnabled() (bool) {
 	return b.Enabled
 }
 
+func (b *BTCE) SetAPIKeys(apiKey, apiSecret string) {
+	b.APIKey = apiKey
+	b.APISecret = apiSecret
+}
+
 func (b *BTCE) GetTicker(symbol string) (BTCeTicker) {
 	type Response struct {
 		Ticker BTCeTicker

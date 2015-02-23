@@ -11,6 +11,7 @@
     {
       "Name": "Bitstamp",
       "Pairs": "BTCUSD",
+      "ClientID": "ClientID",
       "APIKey": "Key",
       "APISecret": "Secret",
       "BaseCurrencies": "USD",

@@ -63,6 +63,11 @@ func (i *ItBit) IsEnabled() (bool) {
 	return i.Enabled
 }
 
+func (i *ItBit) SetAPIKeys(apiKey, apiSecret string) {
+	i.ClientKey = apiKey
+	i.APISecret = apiSecret
+}
+
 func (i *ItBit) GetTicker(currency string) (ItBitTicker) {
 	path := ITBIT_API_URL + "/markets/" + currency + "/ticker"
 	var itbitTicker ItBitTicker

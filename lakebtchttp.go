@@ -65,6 +65,11 @@ func (l *LakeBTC) IsEnabled() (bool) {
 	return l.Enabled
 }
 
+func (l *LakeBTC) SetAPIKeys(apiKey, apiSecret string) {
+	l.Email = apiKey
+	l.APISecret = apiSecret
+}
+
 func (l *LakeBTC) GetTicker() (LakeBTCTickerResponse) {
 	response := LakeBTCTickerResponse{}
 	err := SendHTTPRequest(LAKEBTC_API_URL + LAKEBTC_TICKER, true, &response)
