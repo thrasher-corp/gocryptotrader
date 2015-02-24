@@ -21,6 +21,7 @@ type HUOBI struct {
 	Name string
 	Enabled bool
 	AccessKey, SecretKey string
+	Fee float64
 }
 
 type HuobiTicker struct {
@@ -40,6 +41,7 @@ type HuobiTickerResponse struct {
 func (h *HUOBI) SetDefaults() {
 	h.Name = "Huobi"
 	h.Enabled = true
+	h.Fee = 0
 }
 
 func (h *HUOBI) GetName() (string) {
@@ -57,6 +59,10 @@ func (h *HUOBI) IsEnabled() (bool) {
 func (h *HUOBI) SetAPIKeys(apiKey, apiSecret string) {
 	h.AccessKey = apiKey
 	h.SecretKey = apiSecret
+}
+
+func (h *HUOBI) GetFee() (float64) {
+	return h.Fee
 }
 
 func (h *HUOBI) GetTicker(symbol string) (HuobiTicker) {

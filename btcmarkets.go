@@ -21,6 +21,7 @@ const (
 type BTCMarkets struct {
 	Name string
 	Enabled bool
+	Fee float64
 	APIKey, APISecret string
 }
 
@@ -36,6 +37,7 @@ type BTCMarketsTicker struct {
 func (b *BTCMarkets) SetDefaults() {
 	b.Name = "BTC Markets"
 	b.Enabled = true
+	b.Fee = 0.85
 }
 
 func (b *BTCMarkets) GetName() (string) {
@@ -53,6 +55,10 @@ func (b *BTCMarkets) IsEnabled() (bool) {
 func (b *BTCMarkets) SetAPIKeys(apiKey, apiSecret string) {
 	b.APIKey = apiKey
 	b.APISecret = apiSecret
+}
+
+func (b *BTCMarkets) GetFee() (float64) {
+	return b.Fee
 }
 
 func (b *BTCMarkets) GetTicker(symbol string) (BTCMarketsTicker) {

@@ -33,6 +33,7 @@ type LakeBTC struct {
 	Name string
 	Enabled bool
 	Email, APISecret string
+	TakerFee, MakerFee float64
 }
 
 type LakeBTCTicker struct {
@@ -51,6 +52,8 @@ type LakeBTCTickerResponse struct {
 func (l *LakeBTC) SetDefaults() {
 	l.Name = "LakeBTC"
 	l.Enabled = true
+	l.TakerFee = 0.2
+	l.MakerFee = 0.15
 }
 
 func (l *LakeBTC) GetName() (string) {
@@ -68,6 +71,14 @@ func (l *LakeBTC) IsEnabled() (bool) {
 func (l *LakeBTC) SetAPIKeys(apiKey, apiSecret string) {
 	l.Email = apiKey
 	l.APISecret = apiSecret
+}
+
+func (l *LakeBTC) GetFee(maker bool) (float64) {
+	if (maker) {
+		return l.MakerFee
+	} else {
+		return l.TakerFee
+	}
 }
 
 func (l *LakeBTC) GetTicker() (LakeBTCTickerResponse) {

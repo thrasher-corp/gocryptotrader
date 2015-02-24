@@ -77,6 +77,7 @@ func main() {
 			} else {
 				log.Printf("%s enabled.\n", exch.Name)
 				exchange.bitstamp.SetAPIKeys(exch.ClientID, exch.APIKey, exch.APISecret)
+				exchange.bitstamp.GetBalance()
 			}
 		} else if exchange.bitfinex.GetName() == exch.Name {
 			if !exch.Enabled {
@@ -85,6 +86,7 @@ func main() {
 			} else {
 				log.Printf("%s enabled.\n", exch.Name)
 				exchange.bitfinex.SetAPIKeys(exch.APIKey, exch.APISecret)
+				exchange.bitfinex.GetAccountFeeInfo()
 			}
 		} else if exchange.btce.GetName() == exch.Name {
 			if !exch.Enabled {

@@ -25,6 +25,7 @@ type BTCChina struct {
 	Name string
 	Enabled bool
 	APISecret, APIKey string
+	Fee float64
 }
 
 type BTCChinaTicker struct {
@@ -43,6 +44,7 @@ type BTCChinaTicker struct {
 func (b *BTCChina) SetDefaults() {
 	b.Name = "BTC China"
 	b.Enabled = true
+	b.Fee = 0
 }
 
 func (b *BTCChina) GetName() (string) {
@@ -60,6 +62,10 @@ func (b *BTCChina) IsEnabled() (bool) {
 func (b *BTCChina) SetAPIKeys(apiKey, apiSecret string) {
 	b.APIKey = apiKey
 	b.APISecret = apiSecret
+}
+
+func (b *BTCChina) GetFee() (float64) {
+	return b.Fee
 }
 
 func (b *BTCChina) GetTicker(symbol string) (BTCChinaTicker) {

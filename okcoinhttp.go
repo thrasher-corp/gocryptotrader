@@ -21,6 +21,7 @@ type OKCoin struct {
 	Name string
 	Enabled bool
 	APIUrl, PartnerID, SecretKey string
+	TakerFee, MakerFee float64
 }
 
 type OKCoinTicker struct {
@@ -80,6 +81,18 @@ func (o *OKCoin) SetURL(url string) {
 func (o *OKCoin) SetAPIKeys(apiKey, apiSecret string) {
 	o.PartnerID = apiKey
 	o.SecretKey = apiSecret
+}
+
+func (o *OKCoin) GetFee(maker bool) (float64) {
+	if (o.APIUrl == OKCOIN_API_URL) {
+		if maker {
+			return o.MakerFee
+		} else {
+			return o.TakerFee
+		}
+	} 
+	// Chinese exchange does not have any trading fees
+	return 0
 }
 
 func (o *OKCoin) GetTicker(symbol string) (OKCoinTicker) {

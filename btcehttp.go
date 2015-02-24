@@ -28,6 +28,7 @@ type BTCE struct {
 	Name string
 	Enabled bool
 	APIKey, APISecret string
+	Fee float64
 }
 
 type BTCeTicker struct {
@@ -46,6 +47,7 @@ type BTCeTicker struct {
 func (b *BTCE) SetDefaults() {
 	b.Name = "BTCE"
 	b.Enabled = true
+	b.Fee = 0.2
 }
 
 func (b *BTCE) GetName() (string) {
@@ -63,6 +65,10 @@ func (b *BTCE) IsEnabled() (bool) {
 func (b *BTCE) SetAPIKeys(apiKey, apiSecret string) {
 	b.APIKey = apiKey
 	b.APISecret = apiSecret
+}
+
+func (b *BTCE) GetFee() (float64) {
+	return b.Fee
 }
 
 func (b *BTCE) GetTicker(symbol string) (BTCeTicker) {

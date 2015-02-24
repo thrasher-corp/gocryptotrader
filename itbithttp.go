@@ -24,6 +24,7 @@ type ItBit struct {
 	Name string
 	Enabled bool
 	ClientKey, APISecret, UserID string
+	MakerFee, TakerFee float64
 }
 
 type ItBitTicker struct {
@@ -49,6 +50,8 @@ type ItBitTicker struct {
 func (i *ItBit) SetDefaults() {
 	i.Name = "ITBIT"
 	i.Enabled = true
+	i.MakerFee = -0.10
+	i.TakerFee = 0.50
 }
 
 func (i *ItBit) GetName() (string) {
@@ -66,6 +69,14 @@ func (i *ItBit) IsEnabled() (bool) {
 func (i *ItBit) SetAPIKeys(apiKey, apiSecret string) {
 	i.ClientKey = apiKey
 	i.APISecret = apiSecret
+}
+
+func (i *ItBit) GetFee(maker bool) (float64) {
+	if maker {
+		return i.MakerFee
+	} else {
+		return i.TakerFee
+	}
 }
 
 func (i *ItBit) GetTicker(currency string) (ItBitTicker) {
