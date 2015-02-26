@@ -69,6 +69,13 @@ func main() {
 			} else {
 				log.Printf("%s enabled.\n", exch.Name)
 				exchange.btcchina.SetAPIKeys(exch.APIKey, exch.APISecret)
+
+				if exch.Verbose {
+					exchange.btcchina.Verbose = true
+					log.Printf("%s Verbose output enabled.\n", exch.Name)
+				} else {
+					log.Printf("%s Verbose output disabled.\n", exch.Name)
+				}
 			}
 		} else if exchange.bitstamp.GetName() == exch.Name {
 			if !exch.Enabled {
@@ -78,6 +85,13 @@ func main() {
 				log.Printf("%s enabled.\n", exch.Name)
 				exchange.bitstamp.SetAPIKeys(exch.ClientID, exch.APIKey, exch.APISecret)
 				exchange.bitstamp.GetBalance()
+
+				if exch.Verbose {
+					exchange.bitstamp.Verbose = true
+					log.Printf("%s Verbose output enabled.\n", exch.Name)
+				} else {
+					log.Printf("%s Verbose output disabled.\n", exch.Name)
+				}
 			}
 		} else if exchange.bitfinex.GetName() == exch.Name {
 			if !exch.Enabled {
@@ -87,6 +101,13 @@ func main() {
 				log.Printf("%s enabled.\n", exch.Name)
 				exchange.bitfinex.SetAPIKeys(exch.APIKey, exch.APISecret)
 				exchange.bitfinex.GetAccountFeeInfo()
+
+				if exch.Verbose {
+					exchange.bitfinex.Verbose = true
+					log.Printf("%s Verbose output enabled.\n", exch.Name)
+				} else {
+					log.Printf("%s Verbose output disabled.\n", exch.Name)
+				}
 			}
 		} else if exchange.btce.GetName() == exch.Name {
 			if !exch.Enabled {
@@ -95,6 +116,13 @@ func main() {
 			} else {
 				log.Printf("%s enabled.\n", exch.Name)
 				exchange.btce.SetAPIKeys(exch.APIKey, exch.APISecret)
+
+				if exch.Verbose {
+					exchange.btce.Verbose = true
+					log.Printf("%s Verbose output enabled.\n", exch.Name)
+				} else {
+					log.Printf("%s Verbose output disabled.\n", exch.Name)
+				}
 			}
 		} else if exchange.btcmarkets.GetName() == exch.Name {
 			if !exch.Enabled {
@@ -103,6 +131,13 @@ func main() {
 			} else {
 				log.Printf("%s enabled.\n", exch.Name)
 				exchange.btcmarkets.SetAPIKeys(exch.APIKey, exch.APISecret)
+
+				if exch.Verbose {
+					exchange.btcmarkets.Verbose = true
+					log.Printf("%s Verbose output enabled.\n", exch.Name)
+				} else {
+					log.Printf("%s Verbose output disabled.\n", exch.Name)
+				}
 			}
 		} else if exchange.okcoinChina.GetName() == exch.Name {
 			if !exch.Enabled {
@@ -111,6 +146,13 @@ func main() {
 			} else {
 				log.Printf("%s enabled.\n", exch.Name)
 				exchange.okcoinChina.SetAPIKeys(exch.APIKey, exch.APISecret)
+
+				if exch.Verbose {
+					exchange.okcoinChina.Verbose = true
+					log.Printf("%s Verbose output enabled.\n", exch.Name)
+				} else {
+					log.Printf("%s Verbose output disabled.\n", exch.Name)
+				}
 			}
 		} else if exchange.okcoinIntl.GetName() == exch.Name {
 			if !exch.Enabled {
@@ -119,6 +161,13 @@ func main() {
 			} else {
 				log.Printf("%s enabled.\n", exch.Name)
 				exchange.okcoinIntl.SetAPIKeys(exch.APIKey, exch.APISecret)
+
+				if exch.Verbose {
+					exchange.okcoinIntl.Verbose = true
+					log.Printf("%s Verbose output enabled.\n", exch.Name)
+				} else {
+					log.Printf("%s Verbose output disabled.\n", exch.Name)
+				}
 			}
 		} else if exchange.itbit.GetName() == exch.Name {
 			if !exch.Enabled {
@@ -127,6 +176,13 @@ func main() {
 			} else {
 				log.Printf("%s enabled.\n", exch.Name)
 				exchange.itbit.SetAPIKeys(exch.APIKey, exch.APISecret)
+
+				if exch.Verbose {
+					exchange.itbit.Verbose = true
+					log.Printf("%s Verbose output enabled.\n", exch.Name)
+				} else {
+					log.Printf("%s Verbose output disabled.\n", exch.Name)
+				}
 			}
 		} else if exchange.lakebtc.GetName() == exch.Name {
 			if !exch.Enabled {
@@ -135,6 +191,13 @@ func main() {
 			} else {
 				log.Printf("%s enabled.\n", exch.Name)
 				exchange.lakebtc.SetAPIKeys(exch.APIKey, exch.APISecret)
+
+				if exch.Verbose {
+					exchange.lakebtc.Verbose = true
+					log.Printf("%s Verbose output enabled.\n", exch.Name)
+				} else {
+					log.Printf("%s Verbose output disabled.\n", exch.Name)
+				}
 			}
 		} else if exchange.huobi.GetName() == exch.Name {
 			if !exch.Enabled {
@@ -143,6 +206,13 @@ func main() {
 			} else {
 				log.Printf("%s enabled.\n", exch.Name)
 				exchange.huobi.SetAPIKeys(exch.APIKey, exch.APISecret)
+
+				if exch.Verbose {
+					exchange.huobi.Verbose = true
+					log.Printf("%s Verbose output enabled.\n", exch.Name)
+				} else {
+					log.Printf("%s Verbose output disabled.\n", exch.Name)
+				}
 			}
 		}
 	}

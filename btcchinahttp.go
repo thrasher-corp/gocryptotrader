@@ -24,6 +24,7 @@ const (
 type BTCChina struct {
 	Name string
 	Enabled bool
+	Verbose bool
 	APISecret, APIKey string
 	Fee float64
 }
@@ -45,6 +46,7 @@ func (b *BTCChina) SetDefaults() {
 	b.Name = "BTC China"
 	b.Enabled = true
 	b.Fee = 0
+	b.Verbose = false
 }
 
 func (b *BTCChina) GetName() (string) {
@@ -161,7 +163,9 @@ func (b *BTCChina) SendAuthenticatedHTTPRequest(method string, params []string) 
 
 	encoded := fmt.Sprintf("tonce=%s&accesskey=%s&requestmethod=post&id=%d&method=%s&params=%s", nonce, b.APIKey, 1, method, params)
 
-	fmt.Println(encoded)
+	if b.Verbose {
+		log.Println(encoded)
+	}
 
 	hmac := hmac.New(sha1.New, []byte(b.APISecret))
 	hmac.Write([]byte(encoded))
@@ -171,18 +175,21 @@ func (b *BTCChina) SendAuthenticatedHTTPRequest(method string, params []string) 
 	postData["method"] = method
 	postData["params"] = []string{}
 	postData["id"] = 1
-
 	data, err := json.Marshal(postData)
 
-	fmt.Println(string(data))
+	if b.Verbose {
+		log.Println(string(data))
+	}
 
 	if err != nil {
 		return errors.New("Unable to JSON POST data")
 	}
 
-	log.Printf("Sending POST request to %s calling method %s with params %s\n", "https://api.btcchina.com/api_trade_v1.php", method, data)
-	reqBody := strings.NewReader(string(data))
+	if b.Verbose {
+		log.Printf("Sending POST request to %s calling method %s with params %s\n", "https://api.btcchina.com/api_trade_v1.php", method, data)
+	}
 
+	reqBody := strings.NewReader(string(data))
 	b64 := base64.StdEncoding.EncodeToString([]byte(b.APIKey + ":" + hash))
 
 	req, err := http.NewRequest("POST", "https://api.btcchina.com/api_trade_v1.php", reqBody)
@@ -203,7 +210,11 @@ func (b *BTCChina) SendAuthenticatedHTTPRequest(method string, params []string) 
 	}
 
 	contents, _ := ioutil.ReadAll(resp.Body)
-	log.Printf("Recv'd :%s", string(contents))
+	
+	if b.Verbose {
+		log.Printf("Recv'd :%s\n", string(contents))
+	}
+
 	resp.Body.Close()
 	return nil
 

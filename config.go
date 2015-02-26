@@ -12,6 +12,7 @@ type Config struct {
 type Exchanges struct {
 	Name string
 	Enabled bool
+	Verbose bool
 	APIKey string
 	APISecret string
 	ClientID string

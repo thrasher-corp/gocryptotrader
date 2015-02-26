@@ -6,7 +6,8 @@
       "APIKey": "Key",
       "APISecret": "Secret",
       "BaseCurrencies": "USD",
-      "Enabled": true
+      "Enabled": true,
+      "Verbose": false
     },
     {
       "Name": "Bitstamp",
@@ -15,7 +16,8 @@
       "APIKey": "Key",
       "APISecret": "Secret",
       "BaseCurrencies": "USD",
-      "Enabled": true
+      "Enabled": true,
+      "Verbose": false
     },
     {
       "Name": "BTC China",
@@ -23,7 +25,8 @@
       "APIKey": "Key",
       "APISecret": "Secret",
       "BaseCurrencies": "CNY",
-      "Enabled": true
+      "Enabled": true,
+      "Verbose": false
     },
     {
       "Name": "BTCE",
@@ -31,7 +34,8 @@
       "APIKey": "Key",
       "APISecret": "Secret",
       "BaseCurrencies": "USD,RUB,EUR,CNY,GBP",
-      "Enabled": true
+      "Enabled": true,
+      "Verbose": false
     },
     {
       "Name": "BTC Markets",
@@ -39,7 +43,8 @@
       "APIKey": "Key",
       "APISecret": "Secret",
       "BaseCurrencies": "AUD",
-      "Enabled": true
+      "Enabled": true,
+      "Verbose": false
     },
     {
       "Name": "Huobi",
@@ -47,7 +52,8 @@
       "APIKey": "Key",
       "APISecret": "Secret",
       "BaseCurrencies": "CNY",
-      "Enabled": true
+      "Enabled": true,
+      "Verbose": false
     },
     {
       "Name": "ITBIT",
@@ -55,7 +61,8 @@
       "APIKey": "Key",
       "APISecret": "Secret",
       "BaseCurrencies": "USD,SGD,EUR",
-      "Enabled": true
+      "Enabled": true,
+      "Verbose": false
     },
     {
       "Name": "LakeBTC",
@@ -63,7 +70,8 @@
       "APIKey": "Key",
       "APISecret": "Secret",
       "BaseCurrencies": "CNY",
-      "Enabled": true
+      "Enabled": true,
+      "Verbose": false
     },
     {
       "Name": "OKCOIN China",
@@ -71,7 +79,8 @@
       "APIKey": "Key",
       "APISecret": "Secret",
       "BaseCurrencies": "CNY",
-      "Enabled": true
+      "Enabled": true,
+      "Verbose": false
     },
     {
       "Name": "OKCOIN International",
@@ -79,7 +88,8 @@
       "APIKey": "Key",
       "APISecret": "Secret",
       "BaseCurrencies": "USD",
-      "Enabled": true
+      "Enabled": true,
+      "Verbose": false
     }
   ]
 }

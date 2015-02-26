@@ -39,6 +39,7 @@ const (
 type Bitstamp struct { 
 	Name string
 	Enabled bool
+	Verbose bool
 	ClientID, APIKey, APISecret string
 	Ticker BitstampTicker
 	Orderbook Orderbook
@@ -87,6 +88,7 @@ type ConversionRate struct {
 func (b *Bitstamp) SetDefaults() {
 	b.Name = "Bitstamp"
 	b.Enabled = true
+	b.Verbose = false
 }
 
 func (b *Bitstamp) GetName() (string) {
@@ -276,7 +278,10 @@ func (b *Bitstamp) SendAuthenticatedHTTPRequest(path string, values url.Values, 
 	reqBody := strings.NewReader(values.Encode())
 
 	path = BITSTAMP_API_URL + path
-	fmt.Println("Sending POST request to " + path)
+
+	if b.Verbose {
+		fmt.Println("Sending POST request to " + path)
+	}
 
 	req, err := http.NewRequest("POST", path, reqBody)
 	if err != nil {
@@ -293,7 +298,10 @@ func (b *Bitstamp) SendAuthenticatedHTTPRequest(path string, values url.Values, 
 	}
 
 	contents, _ := ioutil.ReadAll(resp.Body)
-	fmt.Printf("Recieved raw: %s\n", string(contents))
+
+	if b.Verbose {
+		fmt.Printf("Recieved raw: %s\n", string(contents))
+	}
 
 	err = json.Unmarshal(contents, &result)
 

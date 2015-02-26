@@ -20,6 +20,7 @@ const (
 type HUOBI struct {
 	Name string
 	Enabled bool
+	Verbose bool
 	AccessKey, SecretKey string
 	Fee float64
 }
@@ -42,6 +43,7 @@ func (h *HUOBI) SetDefaults() {
 	h.Name = "Huobi"
 	h.Enabled = true
 	h.Fee = 0
+	h.Verbose = false
 }
 
 func (h *HUOBI) GetName() (string) {
@@ -201,11 +203,12 @@ func (h *HUOBI) SendAuthenticatedRequest(method string, v url.Values) (error) {
 	hasher.Write([]byte(v.Encode() + "&secret_key=" + h.SecretKey))
 	signature := strings.ToUpper(hex.EncodeToString(hasher.Sum(nil)))
 	v.Set("sign", signature)
-
-
 	encoded := v.Encode()
-	fmt.Printf("Signature: %s\n", signature)
-	fmt.Printf("Sending POST request to %s with params %s\n", HUOBI_API_URL, encoded)
+
+	if h.Verbose {
+		fmt.Printf("Signature: %s\n", signature)
+		fmt.Printf("Sending POST request to %s with params %s\n", HUOBI_API_URL, encoded)
+	}
 
 	reqBody := strings.NewReader(encoded)
 	req, err := http.NewRequest("POST", HUOBI_API_URL, reqBody)
@@ -224,7 +227,11 @@ func (h *HUOBI) SendAuthenticatedRequest(method string, v url.Values) (error) {
 	}
 
 	contents, _ := ioutil.ReadAll(resp.Body)
-	fmt.Printf("Recieved raw: %s\n", string(contents))
+
+	if h.Verbose {
+		fmt.Printf("Recieved raw: %s\n", string(contents))
+	}
+
 	resp.Body.Close()
 	return nil
 }

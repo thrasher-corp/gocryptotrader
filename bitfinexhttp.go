@@ -81,6 +81,7 @@ type SymbolsDetails struct {
 type Bitfinex struct {
 	Name string
 	Enabled bool
+	Verbose bool
 	APIKey, APISecret string
 	Ticker BitfinexTicker
 	Stats []BitfinexStats
@@ -93,6 +94,7 @@ type Bitfinex struct {
 func (b *Bitfinex) SetDefaults() {
 	b.Name = "Bitfinex"
 	b.Enabled = true
+	b.Verbose = false
 }
 
 func (b *Bitfinex) GetName() (string) {
@@ -169,15 +171,16 @@ func (b *Bitfinex) SendAuthenticatedHTTPRequest(path string, params map[string]i
 	}
 
 	PayloadJson, err := json.Marshal(request)
-	log.Printf("Request JSON: %s\n", PayloadJson)
+
+	if b.Verbose {
+		log.Printf("Request JSON: %s\n", PayloadJson)
+	}
 
 	if err != nil {
 		return errors.New("SendAuthenticatedHTTPRequest: Unable to JSON request")
 	}
 
 	PayloadBase64 := base64.StdEncoding.EncodeToString(PayloadJson)
-	log.Printf("Base64: %s\n", PayloadBase64)
-
 	hmac := hmac.New(sha512.New384, []byte(b.APISecret))
 	hmac.Write([]byte(PayloadBase64))
 	signature := hex.EncodeToString(hmac.Sum(nil))
@@ -200,7 +203,11 @@ func (b *Bitfinex) SendAuthenticatedHTTPRequest(path string, params map[string]i
 	}
 
 	contents, _ := ioutil.ReadAll(resp.Body)
-	log.Printf("Recieved raw: \n%s\n", string(contents))
+
+	if b.Verbose {
+		log.Printf("Recieved raw: \n%s\n", string(contents))
+	}
+	
 	err = json.Unmarshal(contents, &result)
 
 	if err != nil {

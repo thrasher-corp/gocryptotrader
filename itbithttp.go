@@ -23,6 +23,7 @@ const (
 type ItBit struct {
 	Name string
 	Enabled bool
+	Verbose bool
 	ClientKey, APISecret, UserID string
 	MakerFee, TakerFee float64
 }
@@ -52,6 +53,7 @@ func (i *ItBit) SetDefaults() {
 	i.Enabled = true
 	i.MakerFee = -0.10
 	i.TakerFee = 0.50
+	i.Verbose = false
 }
 
 func (i *ItBit) GetName() (string) {
@@ -260,8 +262,11 @@ func (i *ItBit) SendAuthenticatedHTTPRequest(method string, path string, params 
 		}
 	}
 
-	PayloadJson, err := json.Marshal(request)
-	log.Printf("Request JSON: %s\n", PayloadJson)
+	PayloadJson, err := json.Marshal(request)	
+	
+	if i.Verbose {
+		log.Printf("Request JSON: %s\n", PayloadJson)
+	}
 
 	if err != nil {
 		return errors.New("SendAuthenticatedHTTPRequest: Unable to JSON request")
@@ -286,7 +291,11 @@ func (i *ItBit) SendAuthenticatedHTTPRequest(method string, path string, params 
 	}
 
 	contents, _ := ioutil.ReadAll(resp.Body)
-	log.Printf("Recieved raw: %s\n", string(contents))
+
+	if i.Verbose {
+		log.Printf("Recieved raw: %s\n", string(contents))
+	}
+	
 	resp.Body.Close()
 	return nil
 }

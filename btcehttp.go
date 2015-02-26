@@ -27,6 +27,7 @@ const (
 type BTCE struct {
 	Name string
 	Enabled bool
+	Verbose bool
 	APIKey, APISecret string
 	Fee float64
 }
@@ -48,6 +49,7 @@ func (b *BTCE) SetDefaults() {
 	b.Name = "BTCE"
 	b.Enabled = true
 	b.Fee = 0.2
+	b.Verbose = false
 }
 
 func (b *BTCE) GetName() (string) {
@@ -175,10 +177,11 @@ func (b *BTCE) SendAuthenticatedHTTPRequest(method string, values url.Values) (e
 	encoded := values.Encode()
 	hmac.Write([]byte(encoded))
 
+	if b.Verbose {
+		fmt.Printf("Sending POST request to %s calling method %s with params %s\n", BTCE_API_URL, method, encoded)
+	}
 
-	fmt.Printf("Sending POST request to %s calling method %s with params %s\n", BTCE_API_URL, method, encoded)
 	reqBody := strings.NewReader(encoded)
-
 	req, err := http.NewRequest("POST", BTCE_API_URL, reqBody)
 
 	if err != nil {
@@ -197,7 +200,11 @@ func (b *BTCE) SendAuthenticatedHTTPRequest(method string, values url.Values) (e
 	}
 
 	contents, _ := ioutil.ReadAll(resp.Body)
-	fmt.Printf("Recieved raw: %s\n", string(contents))
+
+	if b.Verbose {
+		fmt.Printf("Recieved raw: %s\n", string(contents))
+	}
+	
 	resp.Body.Close()
 	return nil
 

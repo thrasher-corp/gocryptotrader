@@ -21,6 +21,7 @@ const (
 type BTCMarkets struct {
 	Name string
 	Enabled bool
+	Verbose bool
 	Fee float64
 	APIKey, APISecret string
 }
@@ -38,6 +39,7 @@ func (b *BTCMarkets) SetDefaults() {
 	b.Name = "BTC Markets"
 	b.Enabled = true
 	b.Fee = 0.85
+	b.Verbose = false
 }
 
 func (b *BTCMarkets) GetName() (string) {
@@ -105,7 +107,11 @@ func (b *BTCMarkets) SendAuthenticatedRequest(reqType, path, data string) (error
 	
 	hmac := hmac.New(sha512.New, []byte(b.APISecret))
 	hmac.Write([]byte(request))
-	log.Printf("Sending %s request to %s path %s with params %s\n", reqType, BTCMARKETS_API_URL + path, path, request)
+
+	if b.Verbose {
+		log.Printf("Sending %s request to %s path %s with params %s\n", reqType, BTCMARKETS_API_URL + path, path, request)
+	}
+	
 	req, err := http.NewRequest(reqType, BTCMARKETS_API_URL + path, strings.NewReader(""))
 
 	if err != nil {
@@ -130,7 +136,11 @@ func (b *BTCMarkets) SendAuthenticatedRequest(reqType, path, data string) (error
 	}
 
 	contents, _ := ioutil.ReadAll(resp.Body)
-	log.Printf("Recieved raw: %s\n", string(contents))
+
+	if b.Verbose {
+		log.Printf("Recieved raw: %s\n", string(contents))
+	}
+
 	resp.Body.Close()
 	return nil
 }

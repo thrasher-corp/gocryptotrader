@@ -32,6 +32,7 @@ const (
 type LakeBTC struct {
 	Name string
 	Enabled bool
+	Verbose bool
 	Email, APISecret string
 	TakerFee, MakerFee float64
 }
@@ -54,6 +55,7 @@ func (l *LakeBTC) SetDefaults() {
 	l.Enabled = true
 	l.TakerFee = 0.2
 	l.MakerFee = 0.15
+	l.Verbose = false
 }
 
 func (l *LakeBTC) GetName() (string) {
@@ -179,8 +181,10 @@ func (l *LakeBTC) SendAuthenticatedHTTPRequest(method, params string) (err error
 	encoded := v.Encode()
 	hmac.Write([]byte(encoded))
 
+	if l.Verbose {
+		fmt.Printf("Sending POST request to %s calling method %s with params %s\n", LAKEBTC_API_URL, method, encoded)
+	}
 
-	fmt.Printf("Sending POST request to %s calling method %s with params %s\n", LAKEBTC_API_URL, method, encoded)
 	reqBody := strings.NewReader(encoded)
 	hash := hex.EncodeToString(hmac.Sum(nil))
 	b64 := base64.StdEncoding.EncodeToString([]byte(l.Email + ":" + hash))
@@ -203,7 +207,11 @@ func (l *LakeBTC) SendAuthenticatedHTTPRequest(method, params string) (err error
 	}
 
 	contents, _ := ioutil.ReadAll(resp.Body)
-	fmt.Printf("Recieved raw: %s\n", string(contents))
+
+	if l.Verbose {
+		fmt.Printf("Recieved raw: %s\n", string(contents))
+	}
+	
 	resp.Body.Close()
 	return nil
 

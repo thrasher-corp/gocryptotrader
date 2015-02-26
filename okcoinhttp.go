@@ -20,6 +20,7 @@ const (
 type OKCoin struct {
 	Name string
 	Enabled bool
+	Verbose bool
 	APIUrl, PartnerID, SecretKey string
 	TakerFee, MakerFee float64
 }
@@ -60,6 +61,7 @@ func (o *OKCoin) SetDefaults() {
 		o.Name = "OKCOIN China"
 	}
 	o.Enabled = true
+	o.Verbose = false
 }
 
 func (o *OKCoin) GetName() (string) {
@@ -410,10 +412,12 @@ func (o *OKCoin) SendAuthenticatedHTTPRequest(method string, v url.Values) (err 
 
 	v.Set("sign", signature)
 	encoded := v.Encode() + "&partner=" + o.PartnerID
-
-	fmt.Printf("Signature: %s\n", signature)
 	path := o.APIUrl + method
-	fmt.Printf("Sending POST request to %s with params %s\n", path, encoded)
+
+	if o.Verbose {
+		fmt.Printf("Signature: %s\n", signature)
+		fmt.Printf("Sending POST request to %s with params %s\n", path, encoded)
+	}
 
 	reqBody := strings.NewReader(encoded)
 	req, err := http.NewRequest("POST", path, reqBody)
@@ -432,7 +436,11 @@ func (o *OKCoin) SendAuthenticatedHTTPRequest(method string, v url.Values) (err 
 	}
 
 	contents, _ := ioutil.ReadAll(resp.Body)
-	fmt.Printf("Recieved raw: %s\n", string(contents))
+
+	if o.Verbose {
+		fmt.Printf("Recieved raw: %s\n", string(contents))
+	}
+	
 	resp.Body.Close()
 	return nil
 
