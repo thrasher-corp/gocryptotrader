@@ -100,14 +100,15 @@ func main() {
 			} else {
 				log.Printf("%s enabled.\n", exch.Name)
 				exchange.bitfinex.SetAPIKeys(exch.APIKey, exch.APISecret)
-				exchange.bitfinex.GetAccountFeeInfo()
-
+				
 				if exch.Verbose {
 					exchange.bitfinex.Verbose = true
 					log.Printf("%s Verbose output enabled.\n", exch.Name)
 				} else {
 					log.Printf("%s Verbose output disabled.\n", exch.Name)
 				}
+				exchange.bitfinex.GetAccountFeeInfo()
+				exchange.bitfinex.GetActiveOrders()
 			}
 		} else if exchange.btce.GetName() == exch.Name {
 			if !exch.Enabled {

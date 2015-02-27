@@ -53,6 +53,23 @@ type BitfinexTicker struct {
 	Timestamp string
 }
 
+type BitfinexActiveOrder struct {
+	ID int64
+	Symbol string
+	Exchange string
+	Price float64 `json:"Price,string"`
+	Avg_Execution_Price float64 `json:"Price,string"`
+	Side string
+	Type string
+	Timestamp string
+	Is_Live bool
+	Is_Cancelled bool
+	Was_Forced bool
+	OriginalAmount float64 `json:"original_amount,string"`
+	RemainingAmount float64 `json:"remaining_amount,string"`
+	ExecutedAmount float64 `json:"executed_amount,string"`
+}
+
 type BookStructure struct {
 	Price, Amount, Timestamp string
 }
@@ -89,6 +106,7 @@ type Bitfinex struct {
 	Trades []TradeStructure
 	SymbolsDetails []SymbolsDetails
 	Fees []BitfinexFee
+	ActiveOrders []BitfinexActiveOrder
 }
 
 func (b *Bitfinex) SetDefaults() {
@@ -308,7 +326,7 @@ func (b *Bitfinex) NewOrder(Symbol string, Amount float64, Price float64, Buy bo
 	}
 }
 
-func (b *Bitfinex) CancelOrder(OrderID int) {
+func (b *Bitfinex) CancelOrder(OrderID int64) (bool) {
 	request := make(map[string]interface{})
 	request["order_id"] = OrderID
 
@@ -316,10 +334,13 @@ func (b *Bitfinex) CancelOrder(OrderID int) {
 
 	if err != nil {
 		fmt.Println(err)
+		return false
 	}
+
+	return true
 }
 
-func (b *Bitfinex) CancelMultiplateOrders(OrderIDs []int) {
+func (b *Bitfinex) CancelMultiplateOrders(OrderIDs []int64) {
 	request := make(map[string]interface{})
 	request["order_ids"] = OrderIDs
 
@@ -343,23 +364,31 @@ func (b *Bitfinex) ReplaceOrder(OrderID int) {
 	request["order_id"] = OrderID
 }
 
-func (b *Bitfinex) GetOrderStatus(OrderID int) {
+func (b *Bitfinex) GetOrderStatus(OrderID int64) (BitfinexActiveOrder) {
 	request := make(map[string]interface{})
 	request["order_id"] = OrderID
+	orderStatus := BitfinexActiveOrder{}
 
-	err := b.SendAuthenticatedHTTPRequest(BITFINEX_ORDER_STATUS, request, nil)
+	err := b.SendAuthenticatedHTTPRequest(BITFINEX_ORDER_STATUS, request, &orderStatus)
 
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
+		return BitfinexActiveOrder{}
 	}
+
+	return orderStatus
 }
 
-func (b *Bitfinex) GetActiveOrders() {
-	err := b.SendAuthenticatedHTTPRequest(BITFINEX_ORDERS, nil, nil)
+func (b *Bitfinex) GetActiveOrders() (bool) {
+	err := b.SendAuthenticatedHTTPRequest(BITFINEX_ORDERS, nil, &b.ActiveOrders)
 
 	if err != nil {
 		fmt.Println(err)
+		return false
 	}
+
+	log.Printf("Bitfinex active orders: %d\n", len(b.ActiveOrders))
+	return true
 }
 
 func (b *Bitfinex) GetActivePositions() {
