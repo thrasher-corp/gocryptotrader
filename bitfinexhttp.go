@@ -27,6 +27,7 @@ const (
 	BITFINEX_DEPOSIT = "deposit/new"
 	BITFINEX_ORDER_NEW = "order/new"
 	BITFINEX_ORDER_CANCEL = "order/cancel"
+	BITFINEX_ORDER_CANCEL_MULTI = "order/cancel/multi"
 	BITFINEX_ORDER_CANCEL_ALL = "order/cancel/all"
 	BITFINEX_ORDER_STATUS = "order/status"
 	BITFINEX_ORDERS = "orders"
@@ -157,7 +158,7 @@ func (b *Bitfinex) GetAccountFeeInfo() (bool, error) {
 	}
 
 	var resp Response
-	err := b.SendAuthenticatedHTTPRequest(BITFINEX_ACCOUNT_INFO, nil, &resp.Data)
+	err := b.SendAuthenticatedHTTPRequest("POST", BITFINEX_ACCOUNT_INFO, nil, &resp.Data)
 
 	if err != nil {
 		return false, err
@@ -177,7 +178,7 @@ func (b *Bitfinex) GetAccountFeeInfo() (bool, error) {
 	return true, nil
 }
 
-func (b *Bitfinex) SendAuthenticatedHTTPRequest(path string, params map[string]interface{}, result interface{}) (err error) {
+func (b *Bitfinex) SendAuthenticatedHTTPRequest(method, path string, params map[string]interface{}, result interface{}) (err error) {
 	request := make(map[string]interface{})
 	request["request"] = "/v1/" + path
 	request["nonce"] = strconv.FormatInt(time.Now().UnixNano(), 10)
@@ -202,11 +203,6 @@ func (b *Bitfinex) SendAuthenticatedHTTPRequest(path string, params map[string]i
 	hmac := hmac.New(sha512.New384, []byte(b.APISecret))
 	hmac.Write([]byte(PayloadBase64))
 	signature := hex.EncodeToString(hmac.Sum(nil))
-	method := "GET"
-
-	if strings.Contains(path, BITFINEX_ORDER_CANCEL_ALL) {
-		method = "POST"
-	} 
 
 	req, err := http.NewRequest(method, BITFINEX_API_URL + path, strings.NewReader(""))
 	req.Header.Set("X-BFX-APIKEY", string(b.APIKey))
@@ -296,7 +292,7 @@ func (b *Bitfinex) NewDeposit(Symbol, Method, Wallet string) {
 	request["method"] = Method
 	request["wallet_name"] = Wallet
 
-	err := b.SendAuthenticatedHTTPRequest(BITFINEX_DEPOSIT, request, nil)
+	err := b.SendAuthenticatedHTTPRequest("POST", BITFINEX_DEPOSIT, request, nil)
 
 	if err != nil {
 		fmt.Println(err)
@@ -319,7 +315,7 @@ func (b *Bitfinex) NewOrder(Symbol string, Amount float64, Price float64, Buy bo
 	//request["is_hidden"] - currently not implemented
 	request["type"] = Type
 	
-	err := b.SendAuthenticatedHTTPRequest(BITFINEX_ORDER_NEW, request, nil)
+	err := b.SendAuthenticatedHTTPRequest("POST", BITFINEX_ORDER_NEW, request, nil)
 
 	if err != nil {
 		fmt.Println(err)
@@ -330,7 +326,7 @@ func (b *Bitfinex) CancelOrder(OrderID int64) (bool) {
 	request := make(map[string]interface{})
 	request["order_id"] = OrderID
 
-	err := b.SendAuthenticatedHTTPRequest(BITFINEX_ORDER_CANCEL, request, nil)
+	err := b.SendAuthenticatedHTTPRequest("POST", BITFINEX_ORDER_CANCEL, request, nil)
 
 	if err != nil {
 		fmt.Println(err)
@@ -344,7 +340,7 @@ func (b *Bitfinex) CancelMultiplateOrders(OrderIDs []int64) {
 	request := make(map[string]interface{})
 	request["order_ids"] = OrderIDs
 
-	err := b.SendAuthenticatedHTTPRequest(BITFINEX_ORDER_CANCEL, request, nil)
+	err := b.SendAuthenticatedHTTPRequest("POST", BITFINEX_ORDER_CANCEL_MULTI, request, nil)
 
 	if err != nil {
 		fmt.Println(err)
@@ -352,7 +348,7 @@ func (b *Bitfinex) CancelMultiplateOrders(OrderIDs []int64) {
 }
 
 func (b *Bitfinex) CancelAllOrders() {
-	err := b.SendAuthenticatedHTTPRequest(BITFINEX_ORDER_CANCEL_ALL, nil, nil)
+	err := b.SendAuthenticatedHTTPRequest("GET", BITFINEX_ORDER_CANCEL_ALL, nil, nil)
 
 	if err != nil {
 		fmt.Println(err)
@@ -369,7 +365,7 @@ func (b *Bitfinex) GetOrderStatus(OrderID int64) (BitfinexActiveOrder) {
 	request["order_id"] = OrderID
 	orderStatus := BitfinexActiveOrder{}
 
-	err := b.SendAuthenticatedHTTPRequest(BITFINEX_ORDER_STATUS, request, &orderStatus)
+	err := b.SendAuthenticatedHTTPRequest("POST", BITFINEX_ORDER_STATUS, request, &orderStatus)
 
 	if err != nil {
 		log.Println(err)
@@ -380,7 +376,7 @@ func (b *Bitfinex) GetOrderStatus(OrderID int64) (BitfinexActiveOrder) {
 }
 
 func (b *Bitfinex) GetActiveOrders() (bool) {
-	err := b.SendAuthenticatedHTTPRequest(BITFINEX_ORDERS, nil, &b.ActiveOrders)
+	err := b.SendAuthenticatedHTTPRequest("POST", BITFINEX_ORDERS, nil, &b.ActiveOrders)
 
 	if err != nil {
 		fmt.Println(err)
@@ -392,7 +388,7 @@ func (b *Bitfinex) GetActiveOrders() (bool) {
 }
 
 func (b *Bitfinex) GetActivePositions() {
-	err := b.SendAuthenticatedHTTPRequest(BITFINEX_POSITIONS, nil, nil)
+	err := b.SendAuthenticatedHTTPRequest("POST", BITFINEX_POSITIONS, nil, nil)
 
 	if err != nil {
 		fmt.Println(err)
@@ -403,7 +399,7 @@ func (b *Bitfinex) ClaimPosition(PositionID int) {
 	request := make(map[string]interface{})
 	request["position_id"] = PositionID
 
-	err := b.SendAuthenticatedHTTPRequest(BITFINEX_CLAIM_POSITION, nil, nil)
+	err := b.SendAuthenticatedHTTPRequest("POST", BITFINEX_CLAIM_POSITION, nil, nil)
 
 	if err != nil {
 		fmt.Println(err)
@@ -424,7 +420,7 @@ func (b *Bitfinex) GetBalanceHistory(symbol string, timeSince time.Time, timeUnt
 		request["wallet"] = wallet
 	}
 
-	err := b.SendAuthenticatedHTTPRequest(BITFINEX_HISTORY, request, nil)
+	err := b.SendAuthenticatedHTTPRequest("POST", BITFINEX_HISTORY, request, nil)
 
 	if err != nil {
 		fmt.Println(err)
@@ -440,7 +436,7 @@ func (b *Bitfinex) GetTradeHistory(symbol string, timestamp time.Time, limit int
 		request["limit_trades"] = limit
 	}
 
-	err := b.SendAuthenticatedHTTPRequest(BITFINEX_TRADE_HISTORY, nil, nil)
+	err := b.SendAuthenticatedHTTPRequest("POST", BITFINEX_TRADE_HISTORY, nil, nil)
 
 	if err != nil {
 		fmt.Println(err)
