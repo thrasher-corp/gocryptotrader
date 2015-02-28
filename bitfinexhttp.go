@@ -35,7 +35,16 @@ const (
 	BITFINEX_CLAIM_POSITION = "position/claim"
 	BITFINEX_HISTORY = "history"
 	BITFINEX_TRADE_HISTORY = "mytrades"
+	BITFINEX_OFFER_NEW = "offer/new"
+	BITFINEX_OFFER_CANCEL = "offer/cancel"
+	BITFINEX_OFFER_STATUS = "offer/status"
+	BITFINEX_OFFERS = "offers"
+	BITFINEX_CREDITS = "credits"
+	BITFINEX_SWAP_ACTIVE = "taken_swaps"
+	BITFINEX_SWAP_CLOSE = "swap/close"
+	BITFINEX_BALANCES = "balances"
 	BITFINEX_ACCOUNT_INFO = "account_infos"
+	BITFINEX_MARGIN_INFO = "margin_infos"
 )
 
 type BitfinexStats struct {
@@ -69,6 +78,27 @@ type BitfinexActiveOrder struct {
 	OriginalAmount float64 `json:"original_amount,string"`
 	RemainingAmount float64 `json:"remaining_amount,string"`
 	ExecutedAmount float64 `json:"executed_amount,string"`
+}
+
+type BitfinexBalance struct {
+	Type string
+	Currency string
+	Amount string
+	Available string
+}
+
+type BitfinexOffer struct {
+	Currency string
+	Rate float64
+	Period int64
+	Direction string
+	Type string
+	Timestamp time.Time
+	Is_Live bool
+	Is_Cancelled bool
+	Executed_Amount float64
+	Remaining_Amount float64
+	Original_Amount float64
 }
 
 type BookStructure struct {
@@ -108,6 +138,7 @@ type Bitfinex struct {
 	SymbolsDetails []SymbolsDetails
 	Fees []BitfinexFee
 	ActiveOrders []BitfinexActiveOrder
+	AccountBalance []BitfinexBalance
 }
 
 func (b *Bitfinex) SetDefaults() {
@@ -144,6 +175,16 @@ func (b *Bitfinex) GetFee(maker bool, symbol string) (float64, error) {
 		}
 	}
 	return 0, errors.New("Unable to find specified currency.")
+}
+
+func (b *Bitfinex) GetAccountBalance() (bool, error) {
+	err := b.SendAuthenticatedHTTPRequest("POST", BITFINEX_BALANCES, nil, &b.AccountBalance)
+
+	if err != nil {
+		log.Println(err)
+		return false, err
+	}
+	return true, nil
 }
 
 func (b *Bitfinex) GetAccountFeeInfo() (bool, error) {
@@ -235,7 +276,7 @@ func (b *Bitfinex) SendAuthenticatedHTTPRequest(method, path string, params map[
 func (b *Bitfinex) GetTicker(symbol string) (BitfinexTicker) {
 	err := SendHTTPRequest(BITFINEX_API_URL + BITFINEX_TICKER + symbol, true, &b.Ticker)
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 		return BitfinexTicker{}
 	}
 	return b.Ticker
@@ -244,7 +285,7 @@ func (b *Bitfinex) GetTicker(symbol string) (BitfinexTicker) {
 func (b *Bitfinex) GetStats(symbol string) (bool) {
 	err := SendHTTPRequest(BITFINEX_API_URL + BITFINEX_STATS + symbol, true, &b.Stats)
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 		return false
 	}
 	return true
@@ -253,7 +294,7 @@ func (b *Bitfinex) GetStats(symbol string) (bool) {
 func (b *Bitfinex) GetOrderbook(symbol string) (bool) {
 	err := SendHTTPRequest(BITFINEX_API_URL + BITFINEX_ORDERBOOK + symbol, true, &b.Orderbook)
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 		return false
 	}
 	return true
@@ -262,7 +303,7 @@ func (b *Bitfinex) GetOrderbook(symbol string) (bool) {
 func (b *Bitfinex) GetTrades(symbol string) (bool) {
 	err := SendHTTPRequest(BITFINEX_API_URL + BITFINEX_TRADES + symbol, true, &b.Trades)
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 		return false
 	}
 	return true
@@ -271,7 +312,7 @@ func (b *Bitfinex) GetTrades(symbol string) (bool) {
 func (b *Bitfinex) GetSymbols() (bool) {
 	err := SendHTTPRequest(BITFINEX_API_URL + BITFINEX_SYMBOLS, false, nil)
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 		return false
 	}
 	return true
@@ -280,7 +321,7 @@ func (b *Bitfinex) GetSymbols() (bool) {
 func (b *Bitfinex) GetSymbolsDetails() (bool) {
 	err := SendHTTPRequest(BITFINEX_API_URL + BITFINEX_SYMBOLS_DETAILS, false, &b.SymbolsDetails)
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 		return false
 	}
 	return true
@@ -295,7 +336,7 @@ func (b *Bitfinex) NewDeposit(Symbol, Method, Wallet string) {
 	err := b.SendAuthenticatedHTTPRequest("POST", BITFINEX_DEPOSIT, request, nil)
 
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 	}
 }
 
@@ -318,7 +359,7 @@ func (b *Bitfinex) NewOrder(Symbol string, Amount float64, Price float64, Buy bo
 	err := b.SendAuthenticatedHTTPRequest("POST", BITFINEX_ORDER_NEW, request, nil)
 
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 	}
 }
 
@@ -329,7 +370,7 @@ func (b *Bitfinex) CancelOrder(OrderID int64) (bool) {
 	err := b.SendAuthenticatedHTTPRequest("POST", BITFINEX_ORDER_CANCEL, request, nil)
 
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 		return false
 	}
 
@@ -343,7 +384,7 @@ func (b *Bitfinex) CancelMultiplateOrders(OrderIDs []int64) {
 	err := b.SendAuthenticatedHTTPRequest("POST", BITFINEX_ORDER_CANCEL_MULTI, request, nil)
 
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 	}
 }
 
@@ -351,7 +392,7 @@ func (b *Bitfinex) CancelAllOrders() {
 	err := b.SendAuthenticatedHTTPRequest("GET", BITFINEX_ORDER_CANCEL_ALL, nil, nil)
 
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 	}
 }
 
@@ -379,7 +420,7 @@ func (b *Bitfinex) GetActiveOrders() (bool) {
 	err := b.SendAuthenticatedHTTPRequest("POST", BITFINEX_ORDERS, nil, &b.ActiveOrders)
 
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 		return false
 	}
 
@@ -391,7 +432,7 @@ func (b *Bitfinex) GetActivePositions() {
 	err := b.SendAuthenticatedHTTPRequest("POST", BITFINEX_POSITIONS, nil, nil)
 
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 	}
 }
 
@@ -402,7 +443,7 @@ func (b *Bitfinex) ClaimPosition(PositionID int) {
 	err := b.SendAuthenticatedHTTPRequest("POST", BITFINEX_CLAIM_POSITION, nil, nil)
 
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 	}
 }
 
@@ -423,7 +464,7 @@ func (b *Bitfinex) GetBalanceHistory(symbol string, timeSince time.Time, timeUnt
 	err := b.SendAuthenticatedHTTPRequest("POST", BITFINEX_HISTORY, request, nil)
 
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 	}
 }
 
@@ -439,7 +480,119 @@ func (b *Bitfinex) GetTradeHistory(symbol string, timestamp time.Time, limit int
 	err := b.SendAuthenticatedHTTPRequest("POST", BITFINEX_TRADE_HISTORY, nil, nil)
 
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
+	}
+}
+
+func (b *Bitfinex) NewOffer(symbol string, amount, rate float64, period int64, direction string) (int64) {
+	request := make(map[string]interface{})
+	request["currency"] = symbol
+	request["amount"] = amount
+	request["rate"] = rate
+	request["period"] = period
+	request["direction"] = direction
+
+	type OfferResponse struct {
+		Offer_Id int64
+	}
+
+	response := OfferResponse{}
+	err := b.SendAuthenticatedHTTPRequest("POST", BITFINEX_OFFER_NEW, request, &response)
+
+	if err != nil {
+		log.Println(err)
+		return 0
+	}
+
+	return response.Offer_Id
+}
+
+func (b *Bitfinex) CancelOffer(OfferID int64) {
+	request := make(map[string]interface{})
+	request["offer_id"] = OfferID
+
+	err := b.SendAuthenticatedHTTPRequest("POST", BITFINEX_OFFER_CANCEL, request, nil)
+
+	if err != nil {
+		log.Println(err)
+	}
+}
+
+func (b *Bitfinex) GetOfferStatus(OfferID int64) {
+	request := make(map[string]interface{})
+	request["offer_id"] = OfferID
+	offer := BitfinexOffer{}
+
+	err := b.SendAuthenticatedHTTPRequest("POST", BITFINEX_ORDER_STATUS, request, &offer)
+
+	if err != nil {
+		log.Println(err)
+	}
+}
+
+func (b *Bitfinex) GetActiveOffers() {
+	err := b.SendAuthenticatedHTTPRequest("POST", BITFINEX_OFFERS, nil, nil)
+
+	if err != nil {
+		log.Println(err)
+	}
+}
+
+func (b *Bitfinex) GetActiveCredits() {
+	err := b.SendAuthenticatedHTTPRequest("POST", BITFINEX_CREDITS, nil, nil)
+
+	if err != nil {
+		log.Println(err)
+	}
+}
+
+func (b *Bitfinex) GetActiveSwaps() {
+	err := b.SendAuthenticatedHTTPRequest("POST", BITFINEX_SWAP_ACTIVE, nil, nil)
+
+	if err != nil {
+		log.Println(err)
+	}
+}
+
+func (b *Bitfinex) CloseSwap(SwapID int64) {
+	request := make(map[string]interface{})
+	request["swap_id"] = SwapID
+
+	err := b.SendAuthenticatedHTTPRequest("POST", BITFINEX_SWAP_CLOSE, request, nil)
+
+	if err != nil {
+		log.Println(err)
+	}
+}
+
+func (b *Bitfinex) GetMarginInfo() {
+
+	type MarginLimits struct {
+		On_Pair string
+		InitialMargin float64 `json:"initial_margin,string"`
+		MarginRequirement float64 `json:"margin_requirement,string"`
+		TradableBalance float64 `json:"tradable_balance,string"`
+	}
+
+	type BitfinexMarginInfo struct {
+		MarginBalance float64 `json:"margin_balance,string"`
+		TradableBalance float64 `json:"tradable_balance,string"`
+		UnrealizedPL int64 `json:"unrealized_pl"`
+		UnrealizedSwap int64 `json:"unrealized_swap"`
+		NetValue float64 `json:"net_value,string"`
+		RequiredMargin int64 `json:"required_margin"`
+		Leverage float64 `json:"leverage,string"`
+		MarginRequirement float64 `json:"margin_requirement,string"`
+		MarginLimits []MarginLimits `json:"margin_limits"`
+		Message string
+	}
+
+	marginInfo := BitfinexMarginInfo{}
+
+	err := b.SendAuthenticatedHTTPRequest("POST", BITFINEX_MARGIN_INFO, nil, &marginInfo)
+
+	if err != nil {
+		log.Println(err)
 	}
 }
 

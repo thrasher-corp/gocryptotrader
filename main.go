@@ -108,7 +108,7 @@ func main() {
 					log.Printf("%s Verbose output disabled.\n", exch.Name)
 				}
 				exchange.bitfinex.GetAccountFeeInfo()
-				exchange.bitfinex.GetActiveOrders()
+				exchange.bitfinex.GetAccountBalance()
 			}
 		} else if exchange.btce.GetName() == exch.Name {
 			if !exch.Enabled {
