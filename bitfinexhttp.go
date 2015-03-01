@@ -63,6 +63,26 @@ type BitfinexTicker struct {
 	Timestamp string
 }
 
+type MarginLimits struct {
+	On_Pair string
+	InitialMargin float64 `json:"initial_margin,string"`
+	MarginRequirement float64 `json:"margin_requirement,string"`
+	TradableBalance float64 `json:"tradable_balance,string"`
+}
+
+type BitfinexMarginInfo struct {
+	MarginBalance float64 `json:"margin_balance,string"`
+	TradableBalance float64 `json:"tradable_balance,string"`
+	UnrealizedPL int64 `json:"unrealized_pl"`
+	UnrealizedSwap int64 `json:"unrealized_swap"`
+	NetValue float64 `json:"net_value,string"`
+	RequiredMargin int64 `json:"required_margin"`
+	Leverage float64 `json:"leverage,string"`
+	MarginRequirement float64 `json:"margin_requirement,string"`
+	MarginLimits []MarginLimits `json:"margin_limits"`
+	Message string
+}
+
 type BitfinexActiveOrder struct {
 	ID int64
 	Symbol string
@@ -566,30 +586,13 @@ func (b *Bitfinex) CloseSwap(SwapID int64) {
 }
 
 func (b *Bitfinex) GetMarginInfo() {
-
-	type MarginLimits struct {
-		On_Pair string
-		InitialMargin float64 `json:"initial_margin,string"`
-		MarginRequirement float64 `json:"margin_requirement,string"`
-		TradableBalance float64 `json:"tradable_balance,string"`
+	type Response struct {
+		Data []BitfinexMarginInfo
 	}
 
-	type BitfinexMarginInfo struct {
-		MarginBalance float64 `json:"margin_balance,string"`
-		TradableBalance float64 `json:"tradable_balance,string"`
-		UnrealizedPL int64 `json:"unrealized_pl"`
-		UnrealizedSwap int64 `json:"unrealized_swap"`
-		NetValue float64 `json:"net_value,string"`
-		RequiredMargin int64 `json:"required_margin"`
-		Leverage float64 `json:"leverage,string"`
-		MarginRequirement float64 `json:"margin_requirement,string"`
-		MarginLimits []MarginLimits `json:"margin_limits"`
-		Message string
-	}
+	response := Response{}
 
-	marginInfo := BitfinexMarginInfo{}
-
-	err := b.SendAuthenticatedHTTPRequest("POST", BITFINEX_MARGIN_INFO, nil, &marginInfo)
+	err := b.SendAuthenticatedHTTPRequest("POST", BITFINEX_MARGIN_INFO, nil, &response.Data)
 
 	if err != nil {
 		log.Println(err)
