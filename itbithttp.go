@@ -13,7 +13,6 @@ import (
 	"encoding/json"
 	"io/ioutil"
 	"log"
-	"fmt"
 )
 
 const (
@@ -86,7 +85,7 @@ func (i *ItBit) GetTicker(currency string) (ItBitTicker) {
 	var itbitTicker ItBitTicker
 	err := SendHTTPRequest(path, true, &itbitTicker)
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 		return ItBitTicker{}
 	}
 	return itbitTicker
@@ -96,7 +95,7 @@ func (i *ItBit) GetOrderbook(currency string) (bool) {
 	path := ITBIT_API_URL + "/markets/" + currency + "/orders"
 	err := SendHTTPRequest(path , true, nil)
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 		return false
 	}
 	return true
@@ -106,7 +105,7 @@ func (i *ItBit) GetTradeHistory(currency, timestamp string) (bool) {
 	req := "/trades?since=" + timestamp
 	err := SendHTTPRequest(ITBIT_API_URL + "markets/" + currency + req, true, nil)
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 		return false
 	}
 	return true
@@ -122,7 +121,7 @@ func (i *ItBit) GetWallets(page int64, perPage int64, userID string) {
 	err := i.SendAuthenticatedHTTPRequest("GET", path, params)
 
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 	}
 }
 
@@ -131,7 +130,7 @@ func (i *ItBit) GetWallet(walletID string) {
 	err := i.SendAuthenticatedHTTPRequest("GET", path, nil)
 
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 	}
 }
 
@@ -140,7 +139,7 @@ func (i *ItBit) GetWalletBalance(walletID, currency string) {
 	err := i.SendAuthenticatedHTTPRequest("GET", path, nil)
 
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 	}
 }
 
@@ -155,7 +154,7 @@ func (i *ItBit) GetWalletTrades(walletID string, page int64, perPage int64, rang
 	err := i.SendAuthenticatedHTTPRequest("GET", path, params)
 
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 	}
 }
 
@@ -170,7 +169,7 @@ func (i *ItBit) GetWalletOrders(walletID string, instrument string, page int64, 
 	err := i.SendAuthenticatedHTTPRequest("GET", path, params)
 
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 	}
 }
 
@@ -187,7 +186,7 @@ func (i *ItBit) PlaceWalletOrder(walletID, side, orderType, currency string, amo
 	err := i.SendAuthenticatedHTTPRequest("POST", path, params)
 
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 	}
 }
 
@@ -196,7 +195,7 @@ func (i *ItBit) GetWalletOrder(walletID, orderID string) {
 	err := i.SendAuthenticatedHTTPRequest("GET", path, nil)
 
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 	}
 }
 
@@ -205,7 +204,7 @@ func (i *ItBit) CancelWalletOrder(walletID, orderID string) {
 	err := i.SendAuthenticatedHTTPRequest("DELETE", path, nil)
 
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 	}
 }
 
@@ -219,7 +218,7 @@ func (i *ItBit) PlaceWithdrawalRequest(walletID, currency, address string, amoun
 	err := i.SendAuthenticatedHTTPRequest("POST", path, params)
 
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 	}
 }
 
@@ -231,7 +230,7 @@ func (i *ItBit) GetDepositAddress(walletID, currency string) {
 	err := i.SendAuthenticatedHTTPRequest("POST", path, params)
 
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 	}
 }
 
@@ -246,7 +245,7 @@ func (i *ItBit) WalletTransfer(walletID, sourceWallet, destWallet string, amount
 	err := i.SendAuthenticatedHTTPRequest("POST", path, params)
 
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 	}
 }
 

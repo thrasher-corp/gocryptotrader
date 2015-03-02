@@ -79,7 +79,7 @@ func (b *BTCChina) GetTicker(symbol string) (BTCChinaTicker) {
 	req := fmt.Sprintf("%sdata/ticker?market=%s", BTCCHINA_API_URL, symbol)
 	err := SendHTTPRequest(req, true, &resp)
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 		return BTCChinaTicker{}
 	}
 	return resp.Ticker
@@ -89,7 +89,7 @@ func (b *BTCChina) GetTradesLast24h(symbol string) (bool) {
 	req := fmt.Sprintf("%sdata/trades?market=%s", BTCCHINA_API_URL, symbol)
 	err := SendHTTPRequest(req, true, nil)
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 		return false
 	}
 	return true
@@ -116,7 +116,7 @@ func (b *BTCChina) GetTradeHistory(symbol string, limit, sinceTid int64, time ti
 
 	err := SendHTTPRequest(req, true, nil)
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 		return false
 	}
 	return true
@@ -126,7 +126,7 @@ func (b *BTCChina) GetOrderBook(symbol string, limit int) (bool) {
 	req := fmt.Sprintf("%sdata/orderbook?market=%s&limit=%d", BTCCHINA_API_URL, symbol, limit)
 	err := SendHTTPRequest(req, true, nil)
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 		return false
 	}
 	return true
@@ -136,7 +136,7 @@ func (b *BTCChina) GetAccountInfo() {
 	err := b.SendAuthenticatedHTTPRequest("getAccountInfo", nil)
 
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 	}
 }
 
@@ -150,7 +150,7 @@ func (b *BTCChina) BuyOrder(price, amount float64) {
 	err := b.SendAuthenticatedHTTPRequest("buyOrder2", nil)
 
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 	}
 }
 

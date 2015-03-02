@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
-	"fmt"
+	"log"
 	"io/ioutil"
 	"errors"
 )
@@ -39,7 +39,7 @@ func SMSNotify(username, password, from, to, message string) (error) {
 	}
 
 	contents, _ := ioutil.ReadAll(resp.Body)
-	fmt.Printf("Recieved raw: %s\n", string(contents))
+	log.Printf("Recieved raw: %s\n", string(contents))
 	resp.Body.Close()
 	return nil
 }

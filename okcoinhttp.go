@@ -10,6 +10,7 @@ import (
 	"io/ioutil"
 	"strconv"
 	"fmt"
+	"log"
 )
 
 const (
@@ -103,7 +104,7 @@ func (o *OKCoin) GetTicker(symbol string) (OKCoinTicker) {
 	err := SendHTTPRequest(o.APIUrl + path, true, &resp)
 
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 		return OKCoinTicker{}
 	}
 	return resp.Ticker
@@ -114,7 +115,7 @@ func (o *OKCoin) GetFuturesTicker(symbol, contractType string) (OKCoinFuturesTic
 	path := fmt.Sprintf("future_ticker.do?symbol=%s&contract_type=%s", symbol, contractType)
 	err := SendHTTPRequest(o.APIUrl + path, true, &resp)
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 		return OKCoinFuturesTicker{}
 	}
 	return resp.Ticker
@@ -124,7 +125,7 @@ func (o *OKCoin) GetOrderBook(symbol string) (bool) {
 	path := "depth.do?symbol=" + symbol
 	err := SendHTTPRequest(o.APIUrl + path, true, nil)
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 		return false
 	}
 	return true
@@ -134,7 +135,7 @@ func (o *OKCoin) GetFuturesDepth(symbol, contractType string) (bool) {
 	path := fmt.Sprintf("future_depth.do?symbol=%s&contract_type=%s", symbol, contractType)
 	err := SendHTTPRequest(o.APIUrl + path, true, nil)
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 		return false
 	}
 	return true
@@ -144,7 +145,7 @@ func (o *OKCoin) GetTradeHistory(symbol string) (bool) {
 	path := "trades.do?symbol=" + symbol
 	err := SendHTTPRequest(o.APIUrl + path, true, nil)
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 		return false
 	}
 	return true
@@ -154,7 +155,7 @@ func (o *OKCoin) GetFuturesTrades(symbol, contractType string) (bool) {
 	path := fmt.Sprintf("future_trades.do?symbol=%s&contract_type=%s", symbol, contractType)
 	err := SendHTTPRequest(o.APIUrl + path, true, nil)
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 		return false
 	}
 	return true
@@ -164,7 +165,7 @@ func (o *OKCoin) GetFuturesIndex(symbol string) (bool) {
 	path := "future_index.do?symbol=" + symbol
 	err := SendHTTPRequest(o.APIUrl + path, true, nil)
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 		return false
 	}
 	return true
@@ -173,7 +174,7 @@ func (o *OKCoin) GetFuturesIndex(symbol string) (bool) {
 func (o *OKCoin) GetFuturesExchangeRate() (bool) {
 	err := SendHTTPRequest(o.APIUrl + "exchange_rate.do", true, nil)
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 	}
 	return true
 }
@@ -182,7 +183,7 @@ func (o *OKCoin) GetFuturesEstimatedPrice(symbol string) (bool) {
 	path := "future_estimated_price.do?symbol=" + symbol
 	err := SendHTTPRequest(o.APIUrl + path, true, nil)
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 		return false
 	}
 	return true
@@ -192,7 +193,7 @@ func (o *OKCoin) GetFuturesTradeHistory(symbol, date string, since int64) (bool)
 	path := fmt.Sprintf("future_trades.do?symbol=%s&date%s&since=%d", symbol, date, since)
 	err := SendHTTPRequest(o.APIUrl + path, true, nil)
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 		return false
 	}
 	return true
@@ -204,7 +205,7 @@ func (o *OKCoin) GetUserInfo() {
 	err := o.SendAuthenticatedHTTPRequest("userinfo.do", v)
 
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 	}
 }
 
@@ -214,7 +215,7 @@ func (o *OKCoin) GetFuturesUserInfo() {
 	err := o.SendAuthenticatedHTTPRequest("future_userinfo.do", v)
 
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 	}
 }
 
@@ -226,7 +227,7 @@ func (o *OKCoin) GetFuturesPosition(symbol, contractType string) {
 	err := o.SendAuthenticatedHTTPRequest("future_userinfo.do", v)
 
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 	}
 }
 
@@ -241,7 +242,7 @@ func (o *OKCoin) Trade(amount, price float64, symbol, orderType string) {
 	err := o.SendAuthenticatedHTTPRequest("trade.do", v)
 
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 	}
 }
 
@@ -259,7 +260,7 @@ func (o *OKCoin) FuturesTrade(amount, price float64, matchPrice, leverage int64,
 	err := o.SendAuthenticatedHTTPRequest("future_trade.do", v)
 
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 	}
 }
 
@@ -273,7 +274,7 @@ func (o *OKCoin) BatchTrade(orderData string, symbol, orderType string) {
 	err := o.SendAuthenticatedHTTPRequest("batch_trade.do", v)
 
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 	}
 }
 
@@ -288,7 +289,7 @@ func (o *OKCoin) FuturesBatchTrade(orderData, symbol, contractType string, lever
 	err := o.SendAuthenticatedHTTPRequest("future_batch_trade.do", v)
 
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 	}
 }
 
@@ -301,7 +302,7 @@ func (o *OKCoin) CancelOrder(orderID int64, symbol string) {
 	err := o.SendAuthenticatedHTTPRequest("cancel_order.do", v)
 
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 	}
 }
 
@@ -315,7 +316,7 @@ func (o *OKCoin) CancelFuturesOrder(orderID int64, symbol, contractType string) 
 	err := o.SendAuthenticatedHTTPRequest("future_cancel.do", v)
 
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 	}
 }
 
@@ -328,7 +329,7 @@ func (o *OKCoin) GetOrderInfo(orderID int64, symbol string) {
 	err := o.SendAuthenticatedHTTPRequest("orders_info.do", v)
 
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 	}
 }
 
@@ -345,7 +346,7 @@ func (o *OKCoin) GetFuturesOrderInfo(orderID, status, currentPage, pageLength in
 	err := o.SendAuthenticatedHTTPRequest("future_order_info.do", v)
 
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 	}
 }
 
@@ -359,7 +360,7 @@ func (o *OKCoin) GetOrdersInfo(orderID int64, orderType string, symbol string) {
 	err := o.SendAuthenticatedHTTPRequest("orders_info.do", v)
 
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 	}
 }
 
@@ -376,7 +377,7 @@ func (o *OKCoin) GetOrderHistory(orderID, pageLength, currentPage int64, orderTy
 	err := o.SendAuthenticatedHTTPRequest("order_history.do", v)
 
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 	}
 }
 
@@ -387,7 +388,7 @@ func (o *OKCoin) GetFuturesUserInfo4Fix() {
 	err := o.SendAuthenticatedHTTPRequest("future_userinfo_4fix.do", v)
 
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 	}
 }
 
@@ -401,7 +402,7 @@ func (o *OKCoin) GetFuturesUserPosition4Fix(symbol, contractType string) {
 	err := o.SendAuthenticatedHTTPRequest("future_position_4fix.do", v)
 
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 	}
 }
 
@@ -415,8 +416,8 @@ func (o *OKCoin) SendAuthenticatedHTTPRequest(method string, v url.Values) (err 
 	path := o.APIUrl + method
 
 	if o.Verbose {
-		fmt.Printf("Signature: %s\n", signature)
-		fmt.Printf("Sending POST request to %s with params %s\n", path, encoded)
+		log.Printf("Signature: %s\n", signature)
+		log.Printf("Sending POST request to %s with params %s\n", path, encoded)
 	}
 
 	reqBody := strings.NewReader(encoded)
@@ -438,7 +439,7 @@ func (o *OKCoin) SendAuthenticatedHTTPRequest(method string, v url.Values) (err 
 	contents, _ := ioutil.ReadAll(resp.Body)
 
 	if o.Verbose {
-		fmt.Printf("Recieved raw: %s\n", string(contents))
+		log.Printf("Recieved raw: %s\n", string(contents))
 	}
 	
 	resp.Body.Close()

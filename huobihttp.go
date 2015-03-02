@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"time"
 	"fmt"
+	"log"
 )
 
 const (
@@ -73,7 +74,7 @@ func (h *HUOBI) GetTicker(symbol string) (HuobiTicker) {
 	err := SendHTTPRequest(path, true, &resp)
 
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 		return HuobiTicker{}
 	}
 	return resp.Ticker
@@ -83,7 +84,7 @@ func (h *HUOBI) GetOrderBook(symbol string) (bool) {
 	path := fmt.Sprintf("http://market.huobi.com/staticmarket/depth_%s_json.js", symbol)
 	err := SendHTTPRequest(path, true, nil)
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 		return false
 	}
 	return true
@@ -93,7 +94,7 @@ func (h *HUOBI) GetAccountInfo() {
 	err := h.SendAuthenticatedRequest("get_account_info", url.Values{})
 
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 	}
 }
 
@@ -104,7 +105,7 @@ func (h *HUOBI) GetOrders(coinType int) {
 	err := h.SendAuthenticatedRequest("get_orders", values)
 
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 	}
 }
 
@@ -115,7 +116,7 @@ func (h *HUOBI) GetOrderInfo(orderID, coinType int) {
 	err := h.SendAuthenticatedRequest("order_info", values)
 
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 	}
 }
 
@@ -130,7 +131,7 @@ func (h *HUOBI) Trade(orderType string, coinType int, price, amount float64) {
 	err := h.SendAuthenticatedRequest(orderType, values)
 
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 	}
 }
 
@@ -145,7 +146,7 @@ func (h *HUOBI) MarketTrade(orderType string, coinType int, price, amount float6
 	err := h.SendAuthenticatedRequest(orderType, values)
 
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 	}
 }
 
@@ -156,7 +157,7 @@ func (h *HUOBI) CancelOrder(orderID, coinType int) {
 	err := h.SendAuthenticatedRequest("cancel_order", values)
 
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 	}
 }
 
@@ -169,7 +170,7 @@ func (h *HUOBI) ModifyOrder(orderType string, coinType, orderID int, price, amou
 	err := h.SendAuthenticatedRequest("modify_order", values)
 
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 	}
 }
 
@@ -179,7 +180,7 @@ func (h *HUOBI) GetNewDealOrders(coinType int) {
 	err := h.SendAuthenticatedRequest("get_new_deal_orders", values)
 
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 	}
 }
 
@@ -190,7 +191,7 @@ func (h *HUOBI) GetOrderIDByTradeID(coinType, orderID int) {
 	err := h.SendAuthenticatedRequest("get_order_id_by_trade_id", values)
 
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 	}
 }
 
@@ -206,8 +207,8 @@ func (h *HUOBI) SendAuthenticatedRequest(method string, v url.Values) (error) {
 	encoded := v.Encode()
 
 	if h.Verbose {
-		fmt.Printf("Signature: %s\n", signature)
-		fmt.Printf("Sending POST request to %s with params %s\n", HUOBI_API_URL, encoded)
+		log.Printf("Signature: %s\n", signature)
+		log.Printf("Sending POST request to %s with params %s\n", HUOBI_API_URL, encoded)
 	}
 
 	reqBody := strings.NewReader(encoded)
@@ -229,7 +230,7 @@ func (h *HUOBI) SendAuthenticatedRequest(method string, v url.Values) (error) {
 	contents, _ := ioutil.ReadAll(resp.Body)
 
 	if h.Verbose {
-		fmt.Printf("Recieved raw: %s\n", string(contents))
+		log.Printf("Recieved raw: %s\n", string(contents))
 	}
 
 	resp.Body.Close()

@@ -12,6 +12,7 @@ import (
 	"time"
 	"io/ioutil"
 	"fmt"
+	"log"
 )
 
 const (
@@ -82,7 +83,7 @@ func (b *BTCE) GetTicker(symbol string) (BTCeTicker) {
 	req := fmt.Sprintf("https://btc-e.com/api/2/%s/ticker", symbol)
 	err := SendHTTPRequest(req, true, &response)
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 		return BTCeTicker{}
 	}
 	return response.Ticker
@@ -92,7 +93,7 @@ func (b *BTCE) GetInfo() {
 	err := b.SendAuthenticatedHTTPRequest(BTCE_GET_INFO, url.Values{})
 
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 	}
 }
 
@@ -103,7 +104,7 @@ func (b *BTCE) GetActiveOrders(pair string) {
 	err := b.SendAuthenticatedHTTPRequest(BTCE_ACTIVE_ORDERS, req)
 
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 	}
 }
 
@@ -114,7 +115,7 @@ func (b *BTCE) CancelOrder(OrderID int64) {
 	err := b.SendAuthenticatedHTTPRequest(BTCE_CANCEL_ORDER, req)
 
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 	}
 }
 
@@ -128,7 +129,7 @@ func (b *BTCE) Trade(pair, orderType string, amount, price float64) {
 	err := b.SendAuthenticatedHTTPRequest(BTCE_TRADE, req)
 
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 	}
 }
 
@@ -145,7 +146,7 @@ func (b *BTCE) GetTransactionHistory(TIDFrom, Count, TIDEnd int64, order, since,
 	err := b.SendAuthenticatedHTTPRequest(BTCE_TRANSACTION_HISTORY, req)
 
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 	}
 }
 
@@ -164,7 +165,7 @@ func (b *BTCE) GetTradeHistory(TIDFrom, Count, TIDEnd int64, order, since, end, 
 	err := b.SendAuthenticatedHTTPRequest(BTCE_TRANSACTION_HISTORY, req)
 
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 	}
 }
 
@@ -178,7 +179,7 @@ func (b *BTCE) SendAuthenticatedHTTPRequest(method string, values url.Values) (e
 	hmac.Write([]byte(encoded))
 
 	if b.Verbose {
-		fmt.Printf("Sending POST request to %s calling method %s with params %s\n", BTCE_API_URL, method, encoded)
+		log.Printf("Sending POST request to %s calling method %s with params %s\n", BTCE_API_URL, method, encoded)
 	}
 
 	reqBody := strings.NewReader(encoded)
@@ -202,7 +203,7 @@ func (b *BTCE) SendAuthenticatedHTTPRequest(method string, values url.Values) (e
 	contents, _ := ioutil.ReadAll(resp.Body)
 
 	if b.Verbose {
-		fmt.Printf("Recieved raw: %s\n", string(contents))
+		log.Printf("Recieved raw: %s\n", string(contents))
 	}
 	
 	resp.Body.Close()

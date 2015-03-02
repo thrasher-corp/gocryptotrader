@@ -68,7 +68,7 @@ func (b *BTCMarkets) GetTicker(symbol string) (BTCMarketsTicker) {
 	path := fmt.Sprintf("/market/%s/AUD/tick", symbol)
 	err := SendHTTPRequest(BTCMARKETS_API_URL + path, true, &ticker)
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 		return BTCMarketsTicker{}
 	}
 	return ticker
@@ -78,7 +78,7 @@ func (b *BTCMarkets) GetOrderbook(symbol string) {
 	path := fmt.Sprintf("/market/%s/AUD/orderbook", symbol)
 	err := SendHTTPRequest(BTCMARKETS_API_URL + path, true, nil)
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 	}
 }
 
@@ -91,7 +91,7 @@ func (b *BTCMarkets) GetTrades(symbol, since string) {
 	}
 	err := SendHTTPRequest(BTCMARKETS_API_URL + path, true, nil)
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 	}
 }
 

@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 	"io/ioutil"
-	"fmt"
+	"log"
 )
 
 const (
@@ -87,7 +87,7 @@ func (l *LakeBTC) GetTicker() (LakeBTCTickerResponse) {
 	response := LakeBTCTickerResponse{}
 	err := SendHTTPRequest(LAKEBTC_API_URL + LAKEBTC_TICKER, true, &response)
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 		return response
 	}
 	return response
@@ -101,7 +101,7 @@ func (l *LakeBTC) GetOrderBook(currency string) (bool) {
 
 	err := SendHTTPRequest(LAKEBTC_API_URL + req, true, nil)
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 		return false
 	}
 	return true
@@ -110,7 +110,7 @@ func (l *LakeBTC) GetOrderBook(currency string) (bool) {
 func (l *LakeBTC) GetTradeHistory() (bool) {
 	err := SendHTTPRequest(LAKEBTC_API_URL + LAKEBTC_TRADES, true, nil)
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 		return false
 	}
 	return true
@@ -120,7 +120,7 @@ func (l *LakeBTC) GetAccountInfo() {
 	err := l.SendAuthenticatedHTTPRequest(LAKEBTC_GET_ACCOUNT_INFO, "")
 
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 	}
 }
 
@@ -135,14 +135,14 @@ func (l *LakeBTC) Trade(orderType int, amount, price float64, currency string) {
 	}
 
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 	}
 }
 
 func (l *LakeBTC) GetOrders() {
 	err := l.SendAuthenticatedHTTPRequest(LAKEBTC_GET_ORDERS, "")
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 	}
 }
 
@@ -150,7 +150,7 @@ func (l *LakeBTC) CancelOrder(orderID int64) {
 	params := strconv.FormatInt(orderID, 10)
 	err := l.SendAuthenticatedHTTPRequest(LAKEBTC_CANCEL_ORDER, params)
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 	}
 }
 
@@ -163,7 +163,7 @@ func (l *LakeBTC) GetTrades(timestamp time.Time) {
 	
 	err := l.SendAuthenticatedHTTPRequest(LAKEBTC_GET_TRADES, params)
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 	}
 }
 
@@ -182,7 +182,7 @@ func (l *LakeBTC) SendAuthenticatedHTTPRequest(method, params string) (err error
 	hmac.Write([]byte(encoded))
 
 	if l.Verbose {
-		fmt.Printf("Sending POST request to %s calling method %s with params %s\n", LAKEBTC_API_URL, method, encoded)
+		log.Printf("Sending POST request to %s calling method %s with params %s\n", LAKEBTC_API_URL, method, encoded)
 	}
 
 	reqBody := strings.NewReader(encoded)
@@ -209,7 +209,7 @@ func (l *LakeBTC) SendAuthenticatedHTTPRequest(method, params string) (err error
 	contents, _ := ioutil.ReadAll(resp.Body)
 
 	if l.Verbose {
-		fmt.Printf("Recieved raw: %s\n", string(contents))
+		log.Printf("Recieved raw: %s\n", string(contents))
 	}
 	
 	resp.Body.Close()

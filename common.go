@@ -2,11 +2,11 @@ package main
 
 import (
 	"net/http"
-	"fmt"
 	"encoding/json"
 	"io/ioutil"
 	"errors"
 	"math"
+	"log"
 )
 
 func roundFloat(x float64, prec int) float64 {
@@ -49,17 +49,17 @@ func SendHTTPRequest(url string, jsonDecode bool, result interface{}) (err error
 	res, err := http.Get(url)
 
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 		return err
 	}
 
 	if res.StatusCode != 200 {
-		fmt.Printf("HTTP status code: %d", res.StatusCode)
+		log.Printf("HTTP status code: %d", res.StatusCode)
 		return errors.New("Status code was not 200.")
 	}
 
 	contents, _ := ioutil.ReadAll(res.Body)
-	//fmt.Printf("Recieved raw: %s\n", string(contents))
+	//log.Printf("Recieved raw: %s\n", string(contents))
 
 	if jsonDecode {
 		err := json.Unmarshal(contents, &result)

@@ -4,7 +4,6 @@ import (
 	"net/http"
 	"net/url"
 	"io/ioutil"
-	"fmt"
 	"log"
 	"encoding/hex"
 	"encoding/json"
@@ -117,7 +116,7 @@ func (b *Bitstamp) GetTicker() (BitstampTicker) {
 	err := SendHTTPRequest(BITSTAMP_API_URL + BITSTAMP_API_TICKER, true, &b.Ticker)
 
 	if err != nil {
-		fmt.Println(err) 
+		log.Println(err) 
 		return BitstampTicker{}
 	}
 
@@ -128,7 +127,7 @@ func (b *Bitstamp) GetOrderbook() {
 	err := SendHTTPRequest(BITSTAMP_API_URL + BITSTAMP_API_ORDERBOOK, true, &b.Orderbook)
 
 	if err != nil {
-		fmt.Println(err) 
+		log.Println(err) 
 		return
 	}
 }
@@ -137,7 +136,7 @@ func (b *Bitstamp) GetTransactions() {
 	err := SendHTTPRequest(BITSTAMP_API_URL + BITSTAMP_API_TRANSACTIONS, true, &b.Transactions)
 
 	if err != nil {
-		fmt.Println(err) 
+		log.Println(err) 
 		return
 	}
 }
@@ -146,7 +145,7 @@ func (b *Bitstamp) GetEURUSDConversionRate() {
 	err := SendHTTPRequest(BITSTAMP_API_URL + BITSTAMP_API_EURUSD, true, &b.ConversionRate)
 
 	if err != nil {
-		fmt.Println(err) 
+		log.Println(err) 
 		return
 	}
 }
@@ -155,7 +154,7 @@ func (b *Bitstamp) GetBalance() {
 	err := b.SendAuthenticatedHTTPRequest(BITSTAMP_API_BALANCE, url.Values{}, &b.Balance)
 
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 	}
 }
 
@@ -169,7 +168,7 @@ func (b *Bitstamp) GetUserTransactions(offset, limit, sort int64) {
 	err := b.SendAuthenticatedHTTPRequest(BITSTAMP_API_USER_TRANSACTIONS, req, nil)
 
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 	}
 }
 
@@ -180,7 +179,7 @@ func (b *Bitstamp) CancelOrder(OrderID int64) {
 	err := b.SendAuthenticatedHTTPRequest(BITSTAMP_API_CANCEL_ORDER, req, nil)
 
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 	}
 }
 
@@ -188,7 +187,7 @@ func (b *Bitstamp) GetOpenOrders() {
 	err := b.SendAuthenticatedHTTPRequest(BITSTAMP_API_OPEN_ORDERS, url.Values{}, nil)
 
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 	}
 }
 
@@ -207,7 +206,7 @@ func (b *Bitstamp) PlaceOrder(price float64, amount float64, Type int) {
 	err := b.SendAuthenticatedHTTPRequest(orderType, req, nil)
 
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 	}
 }
 
@@ -215,7 +214,7 @@ func (b *Bitstamp) GetWithdrawalRequests() {
 	err := b.SendAuthenticatedHTTPRequest(BITSTAMP_API_WITHDRAWAL_REQUESTS, url.Values{}, nil)
 
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 	}
 }
 
@@ -227,7 +226,7 @@ func (b *Bitstamp) BitcoinWithdrawal(amount float64, address string) {
 	err := b.SendAuthenticatedHTTPRequest(BITSTAMP_API_BITCOIN_WITHDRAWAL, req, nil)
 
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 	}
 }
 
@@ -235,7 +234,7 @@ func (b *Bitstamp) BitcoinDepositAddress() {
 	err := b.SendAuthenticatedHTTPRequest(BITSTAMP_API_BITCOIN_DEPOSIT, url.Values{}, nil)
 
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 	}
 }
 
@@ -243,7 +242,7 @@ func (b *Bitstamp) UnconfirmedBitcoin() {
 	err := b.SendAuthenticatedHTTPRequest(BITSTAMP_API_UNCONFIRMED_BITCOIN, url.Values{}, nil)
 
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 	}
 }
 
@@ -256,7 +255,7 @@ func (b *Bitstamp) RippleWithdrawal(amount float64, address, currency string) {
 	err := b.SendAuthenticatedHTTPRequest(BITSTAMP_API_RIPPLE_WITHDRAWAL, req, nil)
 
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 	}
 }
 
@@ -264,7 +263,7 @@ func (b *Bitstamp) RippleDepositAddress() {
 	err := b.SendAuthenticatedHTTPRequest(BITSTAMP_API_RIPPLE_DESPOIT, url.Values{}, nil)
 
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 	}
 }
 
@@ -280,7 +279,7 @@ func (b *Bitstamp) SendAuthenticatedHTTPRequest(path string, values url.Values, 
 	path = BITSTAMP_API_URL + path
 
 	if b.Verbose {
-		fmt.Println("Sending POST request to " + path)
+		log.Println("Sending POST request to " + path)
 	}
 
 	req, err := http.NewRequest("POST", path, reqBody)
@@ -300,7 +299,7 @@ func (b *Bitstamp) SendAuthenticatedHTTPRequest(path string, values url.Values, 
 	contents, _ := ioutil.ReadAll(resp.Body)
 
 	if b.Verbose {
-		fmt.Printf("Recieved raw: %s\n", string(contents))
+		log.Printf("Recieved raw: %s\n", string(contents))
 	}
 
 	err = json.Unmarshal(contents, &result)
