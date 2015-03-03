@@ -13,6 +13,27 @@ const (
 	SMSGLOBAL_API_URL = "http://www.smsglobal.com/http-api.php"
 )
 
+func SMSSendToAll(message string) {
+	for _, contact := range bot.config.SMSContacts {
+		if contact.Enabled {
+			err := SMSNotify(contact.Number, message)
+
+			if err != nil {
+				log.Println(err)
+			}
+		}
+	}
+}
+
+func SMSGetNumberByName(name string) (string) {
+	for _, contact := range bot.config.SMSContacts {
+		if contact.Name == name {
+			return contact.Number
+		}
+	}
+	return ""
+}
+
 func SMSNotify(to, message string) (error) {
 	values := url.Values{}
 	values.Set("action", "sendsms")
