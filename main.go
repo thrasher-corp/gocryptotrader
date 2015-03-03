@@ -4,6 +4,7 @@ import (
 	"log"
 	"time"
 	"os"
+	"errors"
 	"os/exec"
 )
 
@@ -20,10 +21,19 @@ type Exchange struct {
 	huobi HUOBI
 }
 
+type Bot struct {
+	config Config
+	exchange Exchange
+}
+
+var bot Bot
+
 func main() {
 	log.Println("Bot started")
 	log.Println("Loading config file config.json..")
-	config, err := ReadConfig("config.json")
+
+	err := errors.New("")
+	bot.config, err = ReadConfig("config.json")
 
 	if err != nil {
 		log.Println("Fatal error opening config.json file. Error: ", err)
@@ -33,7 +43,7 @@ func main() {
 	log.Println("Config file loaded.")
 
 	enabledExchanges := 0
-	for _, exch := range config.Exchanges {
+	for _, exch := range bot.config.Exchanges {
 		if exch.Enabled {
 			enabledExchanges++
 		}
@@ -44,172 +54,171 @@ func main() {
 		return
 	}
 
-	log.Printf("Available Exchanges: %d. Enabled Exchanges: %d.\n", len(config.Exchanges), enabledExchanges)
-	log.Println("Bot exchange support:")
+	log.Printf("Available Exchanges: %d. Enabled Exchanges: %d.\n", len(bot.config.Exchanges), enabledExchanges)
+	log.Println("Bot Exchange support:")
 
-	exchange := Exchange{}
-	exchange.btcchina.SetDefaults()
-	exchange.bitstamp.SetDefaults()
-	exchange.bitfinex.SetDefaults()
-	exchange.btce.SetDefaults()
-	exchange.btcmarkets.SetDefaults()
-	exchange.okcoinChina.SetURL(OKCOIN_API_URL_CHINA)
-	exchange.okcoinChina.SetDefaults()
-	exchange.okcoinIntl.SetURL(OKCOIN_API_URL)
-	exchange.okcoinIntl.SetDefaults()
-	exchange.itbit.SetDefaults()
-	exchange.lakebtc.SetDefaults()
-	exchange.huobi.SetDefaults()
+	bot.exchange.btcchina.SetDefaults()
+	bot.exchange.bitstamp.SetDefaults()
+	bot.exchange.bitfinex.SetDefaults()
+	bot.exchange.btce.SetDefaults()
+	bot.exchange.btcmarkets.SetDefaults()
+	bot.exchange.okcoinChina.SetURL(OKCOIN_API_URL_CHINA)
+	bot.exchange.okcoinChina.SetDefaults()
+	bot.exchange.okcoinIntl.SetURL(OKCOIN_API_URL)
+	bot.exchange.okcoinIntl.SetDefaults()
+	bot.exchange.itbit.SetDefaults()
+	bot.exchange.lakebtc.SetDefaults()
+	bot.exchange.huobi.SetDefaults()
 
-	for _, exch := range config.Exchanges {
-		if exchange.btcchina.GetName() == exch.Name {
+	for _, exch := range bot.config.Exchanges {
+		if bot.exchange.btcchina.GetName() == exch.Name {
 			if !exch.Enabled {
-				exchange.btcchina.SetEnabled(false)
+				bot.exchange.btcchina.SetEnabled(false)
 				log.Printf("%s disabled.\n", exch.Name)
 			} else {
 				log.Printf("%s enabled.\n", exch.Name)
-				exchange.btcchina.SetAPIKeys(exch.APIKey, exch.APISecret)
+				bot.exchange.btcchina.SetAPIKeys(exch.APIKey, exch.APISecret)
 
 				if exch.Verbose {
-					exchange.btcchina.Verbose = true
+					bot.exchange.btcchina.Verbose = true
 					log.Printf("%s Verbose output enabled.\n", exch.Name)
 				} else {
 					log.Printf("%s Verbose output disabled.\n", exch.Name)
 				}
 			}
-		} else if exchange.bitstamp.GetName() == exch.Name {
+		} else if bot.exchange.bitstamp.GetName() == exch.Name {
 			if !exch.Enabled {
-				exchange.bitstamp.SetEnabled(false)
+				bot.exchange.bitstamp.SetEnabled(false)
 				log.Printf("%s disabled.\n", exch.Name)
 			} else {
 				log.Printf("%s enabled.\n", exch.Name)
-				exchange.bitstamp.SetAPIKeys(exch.ClientID, exch.APIKey, exch.APISecret)
-				exchange.bitstamp.GetBalance()
+				bot.exchange.bitstamp.SetAPIKeys(exch.ClientID, exch.APIKey, exch.APISecret)
+				bot.exchange.bitstamp.GetBalance()
 
 				if exch.Verbose {
-					exchange.bitstamp.Verbose = true
+					bot.exchange.bitstamp.Verbose = true
 					log.Printf("%s Verbose output enabled.\n", exch.Name)
 				} else {
 					log.Printf("%s Verbose output disabled.\n", exch.Name)
 				}
 			}
-		} else if exchange.bitfinex.GetName() == exch.Name {
+		} else if bot.exchange.bitfinex.GetName() == exch.Name {
 			if !exch.Enabled {
-				exchange.bitfinex.SetEnabled(false)
+				bot.exchange.bitfinex.SetEnabled(false)
 				log.Printf("%s disabled.\n", exch.Name)
 			} else {
 				log.Printf("%s enabled.\n", exch.Name)
-				exchange.bitfinex.SetAPIKeys(exch.APIKey, exch.APISecret)
+				bot.exchange.bitfinex.SetAPIKeys(exch.APIKey, exch.APISecret)
 				
 				if exch.Verbose {
-					exchange.bitfinex.Verbose = true
+					bot.exchange.bitfinex.Verbose = true
 					log.Printf("%s Verbose output enabled.\n", exch.Name)
 				} else {
 					log.Printf("%s Verbose output disabled.\n", exch.Name)
 				}
-				exchange.bitfinex.GetAccountFeeInfo()
-				exchange.bitfinex.GetAccountBalance()
+				bot.exchange.bitfinex.GetAccountFeeInfo()
+				bot.exchange.bitfinex.GetAccountBalance()
 			}
-		} else if exchange.btce.GetName() == exch.Name {
+		} else if bot.exchange.btce.GetName() == exch.Name {
 			if !exch.Enabled {
-				exchange.btce.SetEnabled(false)
+				bot.exchange.btce.SetEnabled(false)
 				log.Printf("%s disabled.\n", exch.Name)
 			} else {
 				log.Printf("%s enabled.\n", exch.Name)
-				exchange.btce.SetAPIKeys(exch.APIKey, exch.APISecret)
+				bot.exchange.btce.SetAPIKeys(exch.APIKey, exch.APISecret)
 
 				if exch.Verbose {
-					exchange.btce.Verbose = true
-					log.Printf("%s Verbose output enabled.\n", exch.Name)
-				} else {
-					log.Printf("%s Verbose output disabled.\n", exch.Name)
-				}
-			}
-		} else if exchange.btcmarkets.GetName() == exch.Name {
-			if !exch.Enabled {
-				exchange.btcmarkets.SetEnabled(false)
-				log.Printf("%s disabled.\n", exch.Name)
-			} else {
-				log.Printf("%s enabled.\n", exch.Name)
-				exchange.btcmarkets.SetAPIKeys(exch.APIKey, exch.APISecret)
-
-				if exch.Verbose {
-					exchange.btcmarkets.Verbose = true
+					bot.exchange.btce.Verbose = true
 					log.Printf("%s Verbose output enabled.\n", exch.Name)
 				} else {
 					log.Printf("%s Verbose output disabled.\n", exch.Name)
 				}
 			}
-		} else if exchange.okcoinChina.GetName() == exch.Name {
+		} else if bot.exchange.btcmarkets.GetName() == exch.Name {
 			if !exch.Enabled {
-				exchange.okcoinChina.SetEnabled(false)
+				bot.exchange.btcmarkets.SetEnabled(false)
 				log.Printf("%s disabled.\n", exch.Name)
 			} else {
 				log.Printf("%s enabled.\n", exch.Name)
-				exchange.okcoinChina.SetAPIKeys(exch.APIKey, exch.APISecret)
+				bot.exchange.btcmarkets.SetAPIKeys(exch.APIKey, exch.APISecret)
 
 				if exch.Verbose {
-					exchange.okcoinChina.Verbose = true
+					bot.exchange.btcmarkets.Verbose = true
 					log.Printf("%s Verbose output enabled.\n", exch.Name)
 				} else {
 					log.Printf("%s Verbose output disabled.\n", exch.Name)
 				}
 			}
-		} else if exchange.okcoinIntl.GetName() == exch.Name {
+		} else if bot.exchange.okcoinChina.GetName() == exch.Name {
 			if !exch.Enabled {
-				exchange.okcoinIntl.SetEnabled(false)
+				bot.exchange.okcoinChina.SetEnabled(false)
 				log.Printf("%s disabled.\n", exch.Name)
 			} else {
 				log.Printf("%s enabled.\n", exch.Name)
-				exchange.okcoinIntl.SetAPIKeys(exch.APIKey, exch.APISecret)
+				bot.exchange.okcoinChina.SetAPIKeys(exch.APIKey, exch.APISecret)
 
 				if exch.Verbose {
-					exchange.okcoinIntl.Verbose = true
+					bot.exchange.okcoinChina.Verbose = true
 					log.Printf("%s Verbose output enabled.\n", exch.Name)
 				} else {
 					log.Printf("%s Verbose output disabled.\n", exch.Name)
 				}
 			}
-		} else if exchange.itbit.GetName() == exch.Name {
+		} else if bot.exchange.okcoinIntl.GetName() == exch.Name {
 			if !exch.Enabled {
-				exchange.itbit.SetEnabled(false)
+				bot.exchange.okcoinIntl.SetEnabled(false)
 				log.Printf("%s disabled.\n", exch.Name)
 			} else {
 				log.Printf("%s enabled.\n", exch.Name)
-				exchange.itbit.SetAPIKeys(exch.APIKey, exch.APISecret)
+				bot.exchange.okcoinIntl.SetAPIKeys(exch.APIKey, exch.APISecret)
 
 				if exch.Verbose {
-					exchange.itbit.Verbose = true
+					bot.exchange.okcoinIntl.Verbose = true
 					log.Printf("%s Verbose output enabled.\n", exch.Name)
 				} else {
 					log.Printf("%s Verbose output disabled.\n", exch.Name)
 				}
 			}
-		} else if exchange.lakebtc.GetName() == exch.Name {
+		} else if bot.exchange.itbit.GetName() == exch.Name {
 			if !exch.Enabled {
-				exchange.lakebtc.SetEnabled(false)
+				bot.exchange.itbit.SetEnabled(false)
 				log.Printf("%s disabled.\n", exch.Name)
 			} else {
 				log.Printf("%s enabled.\n", exch.Name)
-				exchange.lakebtc.SetAPIKeys(exch.APIKey, exch.APISecret)
+				bot.exchange.itbit.SetAPIKeys(exch.APIKey, exch.APISecret)
 
 				if exch.Verbose {
-					exchange.lakebtc.Verbose = true
+					bot.exchange.itbit.Verbose = true
 					log.Printf("%s Verbose output enabled.\n", exch.Name)
 				} else {
 					log.Printf("%s Verbose output disabled.\n", exch.Name)
 				}
 			}
-		} else if exchange.huobi.GetName() == exch.Name {
+		} else if bot.exchange.lakebtc.GetName() == exch.Name {
 			if !exch.Enabled {
-				exchange.huobi.SetEnabled(false)
+				bot.exchange.lakebtc.SetEnabled(false)
 				log.Printf("%s disabled.\n", exch.Name)
 			} else {
 				log.Printf("%s enabled.\n", exch.Name)
-				exchange.huobi.SetAPIKeys(exch.APIKey, exch.APISecret)
+				bot.exchange.lakebtc.SetAPIKeys(exch.APIKey, exch.APISecret)
 
 				if exch.Verbose {
-					exchange.huobi.Verbose = true
+					bot.exchange.lakebtc.Verbose = true
+					log.Printf("%s Verbose output enabled.\n", exch.Name)
+				} else {
+					log.Printf("%s Verbose output disabled.\n", exch.Name)
+				}
+			}
+		} else if bot.exchange.huobi.GetName() == exch.Name {
+			if !exch.Enabled {
+				bot.exchange.huobi.SetEnabled(false)
+				log.Printf("%s disabled.\n", exch.Name)
+			} else {
+				log.Printf("%s enabled.\n", exch.Name)
+				bot.exchange.huobi.SetAPIKeys(exch.APIKey, exch.APISecret)
+
+				if exch.Verbose {
+					bot.exchange.huobi.Verbose = true
 					log.Printf("%s Verbose output enabled.\n", exch.Name)
 				} else {
 					log.Printf("%s Verbose output disabled.\n", exch.Name)
@@ -218,7 +227,7 @@ func main() {
 		}
 	}
 	
-	err = RetrieveConfigCurrencyPairs(config)
+	err = RetrieveConfigCurrencyPairs(bot.config)
 
 	if err != nil {
 		log.Println("Fatal error retrieving config currency pairs. Error: ", err)
@@ -228,16 +237,16 @@ func main() {
 	for {
 
 		//spot 
-		if exchange.lakebtc.IsEnabled() {
+		if bot.exchange.lakebtc.IsEnabled() {
 			go func() {
-				LakeBTCTickerResponse := exchange.lakebtc.GetTicker()
+				LakeBTCTickerResponse := bot.exchange.lakebtc.GetTicker()
 				log.Printf("LakeBTC USD: Last %f (%f) High %f (%f) Low %f (%f)\n", LakeBTCTickerResponse.USD.Last, LakeBTCTickerResponse.CNY.Last, LakeBTCTickerResponse.USD.High, LakeBTCTickerResponse.CNY.High, LakeBTCTickerResponse.USD.Low, LakeBTCTickerResponse.CNY.Low)
 			}()
 		}
 
-		if exchange.btcchina.IsEnabled() {
+		if bot.exchange.btcchina.IsEnabled() {
 			go func() {
-				BTCChinaBTC := exchange.btcchina.GetTicker("btccny")
+				BTCChinaBTC := bot.exchange.btcchina.GetTicker("btccny")
 				BTCChinaBTCLastUSD, _ := ConvertCurrency(BTCChinaBTC.Last, "CNY", "USD")
 				BTCChinaBTCHighUSD, _ := ConvertCurrency(BTCChinaBTC.High, "CNY", "USD")
 				BTCChinaBTCLowUSD, _ := ConvertCurrency(BTCChinaBTC.Low, "CNY", "USD")
@@ -246,7 +255,7 @@ func main() {
 
 
 			go func() {
-				BTCChinaLTC := exchange.btcchina.GetTicker("ltccny")
+				BTCChinaLTC := bot.exchange.btcchina.GetTicker("ltccny")
 				BTCChinaLTCLastUSD, _ := ConvertCurrency(BTCChinaLTC.Last, "CNY", "USD")
 				BTCChinaLTCHighUSD, _ := ConvertCurrency(BTCChinaLTC.High, "CNY", "USD")
 				BTCChinaLTCLowUSD, _ := ConvertCurrency(BTCChinaLTC.Low, "CNY", "USD")
@@ -254,9 +263,9 @@ func main() {
 			}()
 		}
 
-		if exchange.huobi.IsEnabled() {
+		if bot.exchange.huobi.IsEnabled() {
 			go func() {
-				HuobiBTC := exchange.huobi.GetTicker("btc")
+				HuobiBTC := bot.exchange.huobi.GetTicker("btc")
 				HuobiBTCLastUSD, _ := ConvertCurrency(HuobiBTC.Last, "CNY", "USD")
 				HuobiBTCHighUSD, _ := ConvertCurrency(HuobiBTC.High, "CNY", "USD")
 				HuobiBTCLowUSD, _ := ConvertCurrency(HuobiBTC.Low, "CNY", "USD")
@@ -264,7 +273,7 @@ func main() {
 			}()
 
 			go func() {
-				HuobiLTC := exchange.huobi.GetTicker("btc")
+				HuobiLTC := bot.exchange.huobi.GetTicker("btc")
 				HuobiLTCLastUSD, _ := ConvertCurrency(HuobiLTC.Last, "CNY", "USD")
 				HuobiLTCHighUSD, _ := ConvertCurrency(HuobiLTC.High, "CNY", "USD")
 				HuobiLTCLowUSD, _ := ConvertCurrency(HuobiLTC.Low, "CNY", "USD")
@@ -272,47 +281,47 @@ func main() {
 			}()
 		}
 
-		if exchange.itbit.IsEnabled() {
+		if bot.exchange.itbit.IsEnabled() {
 			go func() {
-				ItbitBTC := exchange.itbit.GetTicker("XBTUSD")
+				ItbitBTC := bot.exchange.itbit.GetTicker("XBTUSD")
 				log.Printf("ItBit BTC: Last %f High %f Low %f Volume %f\n", ItbitBTC.LastPrice, ItbitBTC.High24h, ItbitBTC.Low24h, ItbitBTC.Volume24h)
 			}()
 		}
 
-		if exchange.bitstamp.IsEnabled() {
+		if bot.exchange.bitstamp.IsEnabled() {
 			go func() {
-				BitstampBTC := exchange.bitstamp.GetTicker()
+				BitstampBTC := bot.exchange.bitstamp.GetTicker()
 				log.Printf("Bitstamp BTC: Last %f High %f Low %f Volume %f\n", BitstampBTC.Last, BitstampBTC.High, BitstampBTC.Low, BitstampBTC.Volume)
 			}()
 		}
 
-		if exchange.bitfinex.IsEnabled() {
+		if bot.exchange.bitfinex.IsEnabled() {
 			go func() {
-				BitfinexLTC := exchange.bitfinex.GetTicker("ltcusd")
+				BitfinexLTC := bot.exchange.bitfinex.GetTicker("ltcusd")
 				log.Printf("Bitfinex LTC: Last %f High %f Low %f Volume %f\n", BitfinexLTC.Last, BitfinexLTC.High, BitfinexLTC.Low, BitfinexLTC.Volume)
 			}()
 
 			go func() {
-				BitfinexBTC := exchange.bitfinex.GetTicker("btcusd")
+				BitfinexBTC := bot.exchange.bitfinex.GetTicker("btcusd")
 				log.Printf("Bitfinex BTC: Last %f High %f Low %f Volume %f\n", BitfinexBTC.Last, BitfinexBTC.High, BitfinexBTC.Low, BitfinexBTC.Volume)
 			}()
 		}
 
-		if exchange.btce.IsEnabled() {
+		if bot.exchange.btce.IsEnabled() {
 			go func() {
-				BTCeBTC := exchange.btce.GetTicker("btc_usd")
+				BTCeBTC := bot.exchange.btce.GetTicker("btc_usd")
 				log.Printf("BTC-e BTC: Last %f High %f Low %f Volume %f\n", BTCeBTC.Last, BTCeBTC.High, BTCeBTC.Low, BTCeBTC.Vol_cur)
 			}()
 
 			go func() {
-				BTCeLTC := exchange.btce.GetTicker("ltc_usd")
+				BTCeLTC := bot.exchange.btce.GetTicker("ltc_usd")
 				log.Printf("BTC-e LTC: Last %f High %f Low %f Volume %f\n", BTCeLTC.Last, BTCeLTC.High, BTCeLTC.Low, BTCeLTC.Vol_cur)
 			}()
 		}
 
-		if exchange.btcmarkets.IsEnabled() {
+		if bot.exchange.btcmarkets.IsEnabled() {
 			go func() {
-				BTCMarketsBTC := exchange.btcmarkets.GetTicker("BTC")
+				BTCMarketsBTC := bot.exchange.btcmarkets.GetTicker("BTC")
 				BTCMarketsBTCLastUSD, _ := ConvertCurrency(BTCMarketsBTC.LastPrice, "AUD", "USD")
 				BTCMarketsBTCBestBidUSD, _ := ConvertCurrency(BTCMarketsBTC.BestBID, "AUD", "USD")
 				BTCMarketsBTCBestAskUSD, _ := ConvertCurrency(BTCMarketsBTC.BestAsk, "AUD", "USD")
@@ -320,7 +329,7 @@ func main() {
 			}()
 
 			go func() {
-				BTCMarketsLTC := exchange.btcmarkets.GetTicker("LTC")
+				BTCMarketsLTC := bot.exchange.btcmarkets.GetTicker("LTC")
 				BTCMarketsLTCLastUSD, _ := ConvertCurrency(BTCMarketsLTC.LastPrice, "AUD", "USD")
 				BTCMarketsLTCBestBidUSD, _ := ConvertCurrency(BTCMarketsLTC.BestBID, "AUD", "USD")
 				BTCMarketsLTCBestAskUSD, _ := ConvertCurrency(BTCMarketsLTC.BestAsk, "AUD", "USD")
@@ -328,9 +337,9 @@ func main() {
 			}()
 		}
 
-		if exchange.okcoinChina.IsEnabled() {
+		if bot.exchange.okcoinChina.IsEnabled() {
 			go func() {
-				OKCoinChinaBTC := exchange.okcoinChina.GetTicker("btc_cny")
+				OKCoinChinaBTC := bot.exchange.okcoinChina.GetTicker("btc_cny")
 				OKCoinChinaBTCLastUSD, _ := ConvertCurrency(OKCoinChinaBTC.Last, "CNY", "USD")
 				OKCoinChinaBTCHighUSD, _ := ConvertCurrency(OKCoinChinaBTC.High, "CNY", "USD")
 				OKCoinChinaBTCLowUSD, _ := ConvertCurrency(OKCoinChinaBTC.Low, "CNY", "USD")
@@ -338,7 +347,7 @@ func main() {
 			}()
 
 			go func() {
-				OKCoinChinaLTC := exchange.okcoinChina.GetTicker("ltc_cny")
+				OKCoinChinaLTC := bot.exchange.okcoinChina.GetTicker("ltc_cny")
 				OKCoinChinaLTCLastUSD, _ := ConvertCurrency(OKCoinChinaLTC.Last, "CNY", "USD")
 				OKCoinChinaLTCHighUSD, _ := ConvertCurrency(OKCoinChinaLTC.High, "CNY", "USD")
 				OKCoinChinaLTCLowUSD, _ := ConvertCurrency(OKCoinChinaLTC.Low, "CNY", "USD")
@@ -346,45 +355,45 @@ func main() {
 			}()
 		}
 
-		if exchange.okcoinIntl.IsEnabled() {
+		if bot.exchange.okcoinIntl.IsEnabled() {
 			go func() {
-				OKCoinChinaIntlBTC := exchange.okcoinIntl.GetTicker("btc_usd")
+				OKCoinChinaIntlBTC := bot.exchange.okcoinIntl.GetTicker("btc_usd")
 				log.Printf("OKCoin Intl BTC: Last %f High %f Low %f Volume %f\n", OKCoinChinaIntlBTC.Last, OKCoinChinaIntlBTC.High, OKCoinChinaIntlBTC.Low, OKCoinChinaIntlBTC.Vol)
 			}()
 
 			go func() {
-				OKCoinChinaIntlLTC := exchange.okcoinIntl.GetTicker("ltc_usd")
+				OKCoinChinaIntlLTC := bot.exchange.okcoinIntl.GetTicker("ltc_usd")
 				log.Printf("OKCoin Intl LTC: Last %f High %f Low %f Volume %f\n", OKCoinChinaIntlLTC.Last, OKCoinChinaIntlLTC.High, OKCoinChinaIntlLTC.Low, OKCoinChinaIntlLTC.Vol)
 			}()
 		
 		// futures
 			go func() {
-				OKCoinFuturesBTC := exchange.okcoinIntl.GetFuturesTicker("btc_usd", "this_week")
+				OKCoinFuturesBTC := bot.exchange.okcoinIntl.GetFuturesTicker("btc_usd", "this_week")
 				log.Printf("OKCoin BTC Futures (weekly): Last %f High %f Low %f Volume %f\n", OKCoinFuturesBTC.Last, OKCoinFuturesBTC.High, OKCoinFuturesBTC.Low, OKCoinFuturesBTC.Vol)
 			}()
 
 			go func() {
-				OKCoinFuturesBTC := exchange.okcoinIntl.GetFuturesTicker("ltc_usd", "this_week")
+				OKCoinFuturesBTC := bot.exchange.okcoinIntl.GetFuturesTicker("ltc_usd", "this_week")
 				log.Printf("OKCoin LTC Futures (weekly): Last %f High %f Low %f Volume %f\n", OKCoinFuturesBTC.Last, OKCoinFuturesBTC.High, OKCoinFuturesBTC.Low, OKCoinFuturesBTC.Vol)
 			}()
 
 			go func() {
-				OKCoinFuturesBTC := exchange.okcoinIntl.GetFuturesTicker("btc_usd", "next_week")
+				OKCoinFuturesBTC := bot.exchange.okcoinIntl.GetFuturesTicker("btc_usd", "next_week")
 				log.Printf("OKCoin BTC Futures (biweekly): Last %f High %f Low %f Volume %f\n", OKCoinFuturesBTC.Last, OKCoinFuturesBTC.High, OKCoinFuturesBTC.Low, OKCoinFuturesBTC.Vol)
 			}()
 
 			go func() {
-				OKCoinFuturesBTC := exchange.okcoinIntl.GetFuturesTicker("ltc_usd", "next_week")
+				OKCoinFuturesBTC := bot.exchange.okcoinIntl.GetFuturesTicker("ltc_usd", "next_week")
 				log.Printf("OKCoin LTC Futures (biweekly): Last %f High %f Low %f Volume %f\n", OKCoinFuturesBTC.Last, OKCoinFuturesBTC.High, OKCoinFuturesBTC.Low, OKCoinFuturesBTC.Vol)
 			}()
 
 			go func() {
-				OKCoinFuturesBTC := exchange.okcoinIntl.GetFuturesTicker("btc_usd", "quarter")
+				OKCoinFuturesBTC := bot.exchange.okcoinIntl.GetFuturesTicker("btc_usd", "quarter")
 				log.Printf("OKCoin BTC Futures (quarterly): Last %f High %f Low %f Volume %f\n", OKCoinFuturesBTC.Last, OKCoinFuturesBTC.High, OKCoinFuturesBTC.Low, OKCoinFuturesBTC.Vol)
 			}()
 
 			go func() {
-				OKCoinFuturesBTC := exchange.okcoinIntl.GetFuturesTicker("ltc_usd", "quarter")
+				OKCoinFuturesBTC := bot.exchange.okcoinIntl.GetFuturesTicker("ltc_usd", "quarter")
 				log.Printf("OKCoin LTC Futures (quarterly): Last %f High %f Low %f Volume %f\n", OKCoinFuturesBTC.Last, OKCoinFuturesBTC.High, OKCoinFuturesBTC.Low, OKCoinFuturesBTC.Vol)
 			}()
 		}
@@ -392,6 +401,6 @@ func main() {
 		time.Sleep(time.Second * 15)
 		cmd := exec.Command("cmd", "/c", "cls")
 		cmd.Stdout = os.Stdout
-    	cmd.Run()
+		cmd.Run()
 	}
 }
