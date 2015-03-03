@@ -5,7 +5,15 @@ import (
 	"encoding/json"
 )
 
+type SMSContacts struct {
+	Name string
+	Number string
+	Enabled bool
+}
+
 type Config struct {
+	Name string
+	SMSContacts []SMSContacts
 	Exchanges []Exchanges
 }
 

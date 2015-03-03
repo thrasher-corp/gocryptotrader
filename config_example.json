@@ -1,4 +1,12 @@
 {
+  "Name": "Skynet",
+  "SMSContacts" : [
+    {
+      "Name": "Bob",
+      "Number": "12345",
+      "Enabled": false
+    }
+  ],
   "Exchanges": [
     {
       "Name": "Bitfinex",

@@ -29,7 +29,6 @@ type Bot struct {
 var bot Bot
 
 func main() {
-	log.Println("Bot started")
 	log.Println("Loading config file config.json..")
 
 	err := errors.New("")
@@ -41,6 +40,7 @@ func main() {
 	}
 
 	log.Println("Config file loaded.")
+	log.Printf("Bot '%s' started.\n", bot.config.Name)
 
 	enabledExchanges := 0
 	for _, exch := range bot.config.Exchanges {
@@ -52,6 +52,22 @@ func main() {
 	if enabledExchanges == 0 {
 		log.Println("Bot started with no exchanges supported. Exiting.")
 		return
+	}
+
+	smsSupport := false
+	smsContacts := 0
+
+	for _, sms := range bot.config.SMSContacts {
+		if sms.Enabled {
+			smsSupport = true
+			smsContacts++
+		}
+	}
+
+	if smsSupport {
+		log.Printf("SMS support enabled. Number of SMS contacts %d.\n", smsContacts)
+	} else {
+		log.Println("SMS support disabled.")
 	}
 
 	log.Printf("Available Exchanges: %d. Enabled Exchanges: %d.\n", len(bot.config.Exchanges), enabledExchanges)
