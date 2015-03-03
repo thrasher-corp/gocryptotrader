@@ -13,6 +13,8 @@ type SMSContacts struct {
 
 type Config struct {
 	Name string
+	SMSGlobalUsername string
+	SMSGlobalPassword string
 	SMSContacts []SMSContacts
 	Exchanges []Exchanges
 }

@@ -1,5 +1,7 @@
 {
   "Name": "Skynet",
+  "SMSGlobalUsername": "Username",
+  "SMSGlobalPassword": "Password",
   "SMSContacts" : [
     {
       "Name": "Bob",

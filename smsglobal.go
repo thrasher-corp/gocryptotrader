@@ -13,12 +13,12 @@ const (
 	SMSGLOBAL_API_URL = "http://www.smsglobal.com/http-api.php"
 )
 
-func SMSNotify(username, password, from, to, message string) (error) {
+func SMSNotify(to, message string) (error) {
 	values := url.Values{}
 	values.Set("action", "sendsms")
-	values.Set("user", username)
-	values.Set("password", password)
-	values.Set("from", from)
+	values.Set("user", bot.config.SMSGlobalUsername)
+	values.Set("password", bot.config.SMSGlobalPassword)
+	values.Set("from", bot.config.Name)
 	values.Set("to", to)
 	values.Set("text", message)
 
