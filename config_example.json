@@ -75,6 +75,15 @@
       "Verbose": false
     },
     {
+      "Name": "Kraken",
+      "Pairs": "XBTEUR,XBTUSD,XBTGBP,XBTJPY,LTCEUR,LTCUSD,EURXVN,USDXVN,XBTLTC,XBTNMC,XBTSTR,XBTXDG,XBTXRP,XBTXVN",
+      "APIKey": "Key",
+      "APISecret": "Secret",
+      "BaseCurrencies": "EUR,USD,GBP,JPY",
+      "Enabled": true,
+      "Verbose": false
+    },
+    {
       "Name": "LakeBTC",
       "Pairs": "BTCCNY,LTCCNY,LTCBTC",
       "APIKey": "Key",

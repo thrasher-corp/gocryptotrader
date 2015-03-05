@@ -19,6 +19,7 @@ type Exchange struct {
 	itbit ItBit
 	lakebtc LakeBTC
 	huobi HUOBI
+	kraken Kraken
 }
 
 type Bot struct {
@@ -73,6 +74,7 @@ func main() {
 	log.Printf("Available Exchanges: %d. Enabled Exchanges: %d.\n", len(bot.config.Exchanges), enabledExchanges)
 	log.Println("Bot Exchange support:")
 
+	bot.exchange.kraken.SetDefaults()
 	bot.exchange.btcchina.SetDefaults()
 	bot.exchange.bitstamp.SetDefaults()
 	bot.exchange.bitfinex.SetDefaults()
@@ -210,6 +212,21 @@ func main() {
 					log.Printf("%s Verbose output disabled.\n", exch.Name)
 				}
 			}
+		} else if bot.exchange.kraken.GetName() == exch.Name {
+			if !exch.Enabled {
+				bot.exchange.kraken.SetEnabled(false)
+				log.Printf("%s disabled.\n", exch.Name)
+			} else {
+				log.Printf("%s enabled.\n", exch.Name)
+				bot.exchange.kraken.SetAPIKeys(exch.APIKey, exch.APISecret)
+
+				if exch.Verbose {
+					bot.exchange.kraken.Verbose = true
+					log.Printf("%s Verbose output enabled.\n", exch.Name)
+				} else {
+					log.Printf("%s Verbose output disabled.\n", exch.Name)
+				}
+			}
 		} else if bot.exchange.lakebtc.GetName() == exch.Name {
 			if !exch.Enabled {
 				bot.exchange.lakebtc.SetEnabled(false)
@@ -251,15 +268,23 @@ func main() {
 
 	//temp until proper asynchronous method of getting pricing/order books is coded
 	for {
-
 		//spot 
+		if bot.exchange.kraken.IsEnabled() {
+			go func() {
+				KrakenBTC := bot.exchange.kraken.GetTicker("XBTUSD")
+				log.Printf("Kraken BTC: %v\n", KrakenBTC)
+			}()
+			go func() {
+				KrakenLTC := bot.exchange.kraken.GetTicker("LTCUSD")
+				log.Printf("Kraken LTC: %v\n", KrakenLTC)
+			}()
+		}
 		if bot.exchange.lakebtc.IsEnabled() {
 			go func() {
 				LakeBTCTickerResponse := bot.exchange.lakebtc.GetTicker()
 				log.Printf("LakeBTC USD: Last %f (%f) High %f (%f) Low %f (%f)\n", LakeBTCTickerResponse.USD.Last, LakeBTCTickerResponse.CNY.Last, LakeBTCTickerResponse.USD.High, LakeBTCTickerResponse.CNY.High, LakeBTCTickerResponse.USD.Low, LakeBTCTickerResponse.CNY.Low)
 			}()
 		}
-
 		if bot.exchange.btcchina.IsEnabled() {
 			go func() {
 				BTCChinaBTC := bot.exchange.btcchina.GetTicker("btccny")
