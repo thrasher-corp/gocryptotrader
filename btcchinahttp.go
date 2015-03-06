@@ -4,10 +4,7 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
-	"crypto/hmac"
 	"crypto/sha1"
-	"encoding/base64"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"strings"
@@ -167,19 +164,12 @@ func (b *BTCChina) SendAuthenticatedHTTPRequest(method string, params []string) 
 		log.Println(encoded)
 	}
 
-	hmac := hmac.New(sha1.New, []byte(b.APISecret))
-	hmac.Write([]byte(encoded))
-	hash := hex.EncodeToString(hmac.Sum(nil))
-
+	hmac := GetHMAC(sha1.New, []byte(encoded), []byte(b.APISecret))
 	postData := make(map[string]interface{})
 	postData["method"] = method
 	postData["params"] = []string{}
 	postData["id"] = 1
 	data, err := json.Marshal(postData)
-
-	if b.Verbose {
-		log.Println(string(data))
-	}
 
 	if err != nil {
 		return errors.New("Unable to JSON POST data")
@@ -190,7 +180,6 @@ func (b *BTCChina) SendAuthenticatedHTTPRequest(method string, params []string) 
 	}
 
 	reqBody := strings.NewReader(string(data))
-	b64 := base64.StdEncoding.EncodeToString([]byte(b.APIKey + ":" + hash))
 
 	req, err := http.NewRequest("POST", "https://api.btcchina.com/api_trade_v1.php", reqBody)
 
@@ -199,7 +188,7 @@ func (b *BTCChina) SendAuthenticatedHTTPRequest(method string, params []string) 
 	}
 
 	req.Header.Add("Content-type", "application/json-rpc")
-	req.Header.Add("Authorization", "Basic " + b64)
+	req.Header.Add("Authorization", "Basic " + Base64Encode([]byte(b.APIKey + ":" + HexEncodeToString(hmac))))
 	req.Header.Add("Json-Rpc-Tonce", nonce)
 
 	client := &http.Client{}

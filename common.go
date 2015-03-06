@@ -2,14 +2,61 @@ package main
 
 import (
 	"net/http"
+	"hash"
+	"crypto/md5"
+	"crypto/hmac"
+	"crypto/sha512"
+	"crypto/sha256"
+	"encoding/base64"
 	"encoding/json"
+	"encoding/hex"
 	"io/ioutil"
 	"errors"
 	"math"
 	"log"
 )
 
-func roundFloat(x float64, prec int) float64 {
+func GetMD5(input []byte) ([]byte) {
+	hash := md5.New()
+	hash.Write(input)
+	return hash.Sum(nil)
+}
+
+func GetSHA512(input []byte) ([]byte) {
+	sha := sha512.New()
+	sha.Write(input)
+	return sha.Sum(nil)
+}
+
+func GetSHA256(input []byte) ([]byte) {
+	sha := sha256.New()
+	sha.Write(input)
+	return sha.Sum(nil)
+}
+
+func GetHMAC(hash func() hash.Hash, input, key []byte) ([]byte) {
+	hmac := hmac.New(hash, []byte(key))
+	hmac.Write(input)
+	return hmac.Sum(nil)
+}
+
+func HexEncodeToString(input []byte) (string) {
+	return hex.EncodeToString(input)
+}
+
+func Base64Decode(input string) ([]byte, error) {
+	result, err := base64.StdEncoding.DecodeString(input) 
+	if err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
+func Base64Encode(input []byte) (string) {
+	return base64.StdEncoding.EncodeToString(input)
+}
+
+func RoundFloat(x float64, prec int) float64 {
   	var rounder float64
 	pow := math.Pow(10, float64(prec))
 	intermed := x * pow
@@ -54,7 +101,7 @@ func SendHTTPRequest(url string, jsonDecode bool, result interface{}) (err error
 	}
 
 	if res.StatusCode != 200 {
-		log.Printf("HTTP status code: %d", res.StatusCode)
+		log.Printf("HTTP status code: %d\n", res.StatusCode)
 		return errors.New("Status code was not 200.")
 	}
 

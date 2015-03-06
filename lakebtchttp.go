@@ -4,10 +4,7 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
-	"crypto/hmac"
 	"crypto/sha256"
-	"encoding/base64"
-	"encoding/hex"
 	"errors"
 	"strings"
 	"time"
@@ -177,26 +174,21 @@ func (l *LakeBTC) SendAuthenticatedHTTPRequest(method, params string) (err error
 	v.Set("method", method)
 	v.Set("params", params)
 
-	hmac := hmac.New(sha256.New, []byte(l.APISecret))
 	encoded := v.Encode()
-	hmac.Write([]byte(encoded))
+	hmac := GetHMAC(sha256.New, []byte(encoded), []byte(l.APISecret))
 
 	if l.Verbose {
 		log.Printf("Sending POST request to %s calling method %s with params %s\n", LAKEBTC_API_URL, method, encoded)
 	}
 
-	reqBody := strings.NewReader(encoded)
-	hash := hex.EncodeToString(hmac.Sum(nil))
-	b64 := base64.StdEncoding.EncodeToString([]byte(l.Email + ":" + hash))
-
-	req, err := http.NewRequest("POST", LAKEBTC_API_URL, reqBody)
+	req, err := http.NewRequest("POST", LAKEBTC_API_URL, strings.NewReader(encoded))
 
 	if err != nil {
 		return err
 	}
 
 	req.Header.Add("Json-Rpc-Tonce", nonce)
-	req.Header.Add("Authorization: Basic", b64)
+	req.Header.Add("Authorization: Basic", Base64Encode([]byte(l.Email + ":" + HexEncodeToString(hmac))))
 	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 
 	client := &http.Client{}

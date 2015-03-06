@@ -4,11 +4,8 @@ import (
 	"log"
 	"fmt"
 	"strconv"
-	"encoding/base64"
 	"encoding/json"
-	"crypto/hmac"
 	"crypto/sha512"
-	"crypto/sha256"
 	"errors"
 	"time"
 	"strings"
@@ -21,7 +18,7 @@ const (
 	KRAKEN_API_URL = "https://api.kraken.com"
 	KRAKEN_API_VERSION = "0"
 	KRAKEN_SERVER_TIME = "Time"
-	KRAKEN_ASSETS = "ssets"
+	KRAKEN_ASSETS = "Assets"
 	KRAKEN_ASSET_PAIRS = "AssetPairs"
 	KRAKEN_TICKER = "Ticker"
 	KRAKEN_OHLC = "OHLC"
@@ -501,19 +498,14 @@ func (k *Kraken) CancelOrder(orderID int64) {
 func (k *Kraken) SendAuthenticatedHTTPRequest(method string, values url.Values) (interface{}, error) {
 	path := fmt.Sprintf("/%s/private/%s", KRAKEN_API_VERSION, method)
 	values.Set("nonce", strconv.FormatInt(time.Now().UnixNano(), 10))
-	secret, err := base64.StdEncoding.DecodeString(k.APISecret)
+	secret, err := Base64Decode(k.APISecret)
 
 	if err != nil {
 		return nil, err
 	}
 
-	sha := sha256.New()
-	sha.Write([]byte(values.Get("nonce") + values.Encode()))
-	shasum := sha.Sum(nil)
-
-	hmac := hmac.New(sha512.New, []byte(secret))
-	hmac.Write(append([]byte(path), shasum...))
-	signature := base64.StdEncoding.EncodeToString(hmac.Sum(nil))
+	shasum := GetSHA256([]byte(values.Get("nonce") + values.Encode()))
+	signature := Base64Encode(GetHMAC(sha512.New, append([]byte(path), shasum...), secret))
 
 	if k.Verbose {
 		log.Printf("Sending POST request to %s, path: %s.", KRAKEN_API_URL, path)

@@ -5,9 +5,7 @@ import (
 	"net/url"
 	"io/ioutil"
 	"log"
-	"encoding/hex"
 	"encoding/json"
-	"crypto/hmac"
 	"crypto/sha256"
 	"strings"
 	"strconv"
@@ -271,9 +269,8 @@ func (b *Bitstamp) SendAuthenticatedHTTPRequest(path string, values url.Values, 
 	nonce := strconv.FormatInt(time.Now().UnixNano(), 10)
 	values.Set("key", b.APIKey)
 	values.Set("nonce", nonce)
-	hmac := hmac.New(sha256.New, []byte(b.APISecret))
-	hmac.Write([]byte(nonce + b.ClientID + b.APIKey))
-	values.Set("signature", strings.ToUpper(hex.EncodeToString(hmac.Sum(nil))))
+	hmac := GetHMAC(sha256.New, []byte(nonce + b.ClientID + b.APIKey), []byte(b.APISecret))
+	values.Set("signature", strings.ToUpper(HexEncodeToString(hmac)))
 	reqBody := strings.NewReader(values.Encode())
 
 	path = BITSTAMP_API_URL + path

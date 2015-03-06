@@ -3,10 +3,7 @@ package main
 import (
 	"net/http"
 	"strconv"
-	"crypto/hmac"
 	"crypto/sha512"
-	"encoding/base64"
-	"encoding/hex"
 	"errors"
 	"strings"
 	"time"
@@ -271,10 +268,8 @@ func (i *ItBit) SendAuthenticatedHTTPRequest(method string, path string, params 
 		return errors.New("SendAuthenticatedHTTPRequest: Unable to JSON request")
 	}
 
-	hmac := hmac.New(sha512.New, []byte(i.APISecret))
-	hmac.Write([]byte(nonce + string(PayloadJson)))
-	hex := hex.EncodeToString(hmac.Sum(nil))
-	signature := base64.StdEncoding.EncodeToString([]byte(hex))
+	hmac := GetHMAC(sha512.New, []byte(nonce + string(PayloadJson)), []byte(i.APISecret))
+	signature := Base64Encode([]byte(HexEncodeToString(hmac)))
 	req, err := http.NewRequest(method, path, strings.NewReader(""))
 
 	req.Header.Add("Authorization", i.ClientKey + ":" + signature)

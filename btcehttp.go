@@ -4,9 +4,7 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
-	"crypto/hmac"
 	"crypto/sha512"
-	"encoding/hex"
 	"errors"
 	"strings"
 	"time"
@@ -174,9 +172,8 @@ func (b *BTCE) SendAuthenticatedHTTPRequest(method string, values url.Values) (e
 	values.Set("nonce", nonce)
 	values.Set("method", method)
 
-	hmac := hmac.New(sha512.New, []byte(b.APISecret))
 	encoded := values.Encode()
-	hmac.Write([]byte(encoded))
+	hmac := GetHMAC(sha512.New, []byte(encoded), []byte(b.APISecret))
 
 	if b.Verbose {
 		log.Printf("Sending POST request to %s calling method %s with params %s\n", BTCE_API_URL, method, encoded)
@@ -190,7 +187,7 @@ func (b *BTCE) SendAuthenticatedHTTPRequest(method string, values url.Values) (e
 	}
 
 	req.Header.Add("Key", b.APIKey)
-	req.Header.Add("Sign", hex.EncodeToString(hmac.Sum(nil)))
+	req.Header.Add("Sign", HexEncodeToString(hmac))
 	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 
 	client := &http.Client{}

@@ -6,10 +6,7 @@ import (
 	"fmt"
 	"log"
 	"encoding/json"
-	"encoding/hex"
-	"crypto/hmac"
 	"crypto/sha512"
-	"encoding/base64"
 	"errors"
 	"strings"
 	"strconv"
@@ -252,23 +249,20 @@ func (b *Bitfinex) SendAuthenticatedHTTPRequest(method, path string, params map[
 
 	PayloadJson, err := json.Marshal(request)
 
-	if b.Verbose {
-		log.Printf("Request JSON: %s\n", PayloadJson)
-	}
-
 	if err != nil {
 		return errors.New("SendAuthenticatedHTTPRequest: Unable to JSON request")
 	}
 
-	PayloadBase64 := base64.StdEncoding.EncodeToString(PayloadJson)
-	hmac := hmac.New(sha512.New384, []byte(b.APISecret))
-	hmac.Write([]byte(PayloadBase64))
-	signature := hex.EncodeToString(hmac.Sum(nil))
+	if b.Verbose {
+		log.Printf("Request JSON: %s\n", PayloadJson)
+	}
 
+	PayloadBase64 := Base64Encode(PayloadJson)
+	hmac := GetHMAC(sha512.New384, []byte(PayloadBase64), []byte(b.APISecret))
 	req, err := http.NewRequest(method, BITFINEX_API_URL + path, strings.NewReader(""))
-	req.Header.Set("X-BFX-APIKEY", string(b.APIKey))
+	req.Header.Set("X-BFX-APIKEY", b.APIKey)
 	req.Header.Set("X-BFX-PAYLOAD", PayloadBase64)
-	req.Header.Set("X-BFX-SIGNATURE", signature)
+	req.Header.Set("X-BFX-SIGNATURE", HexEncodeToString(hmac))
 
 	client := &http.Client{}
 	resp, err := client.Do(req)

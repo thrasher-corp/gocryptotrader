@@ -3,10 +3,8 @@ package main
 import (
 	"net/http"
 	"net/url"
-	"crypto/md5"
 	"errors"
 	"strings"
-	"encoding/hex"
 	"io/ioutil"
 	"strconv"
 	"time"
@@ -199,15 +197,11 @@ func (h *HUOBI) SendAuthenticatedRequest(method string, v url.Values) (error) {
 	v.Set("access_key", h.AccessKey)
 	v.Set("created", strconv.FormatInt(time.Now().Unix(), 10))
 	v.Set("method", method)
-
-	hasher := md5.New()
-	hasher.Write([]byte(v.Encode() + "&secret_key=" + h.SecretKey))
-	signature := strings.ToUpper(hex.EncodeToString(hasher.Sum(nil)))
-	v.Set("sign", signature)
+	hash := GetMD5([]byte(v.Encode() + "&secret_key=" + h.SecretKey))
+	v.Set("sign", strings.ToLower(HexEncodeToString(hash)))
 	encoded := v.Encode()
 
 	if h.Verbose {
-		log.Printf("Signature: %s\n", signature)
 		log.Printf("Sending POST request to %s with params %s\n", HUOBI_API_URL, encoded)
 	}
 

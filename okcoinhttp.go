@@ -3,10 +3,8 @@ package main
 import (
 	"net/http"
 	"net/url"
-	"crypto/md5"
 	"errors"
 	"strings"
-	"encoding/hex"
 	"io/ioutil"
 	"strconv"
 	"fmt"
@@ -407,21 +405,17 @@ func (o *OKCoin) GetFuturesUserPosition4Fix(symbol, contractType string) {
 }
 
 func (o *OKCoin) SendAuthenticatedHTTPRequest(method string, v url.Values) (err error) {
-	hasher := md5.New()
-	hasher.Write([]byte(v.Encode() + "&secret_key=" + o.SecretKey))
-	signature := strings.ToUpper(hex.EncodeToString(hasher.Sum(nil)))
-
-	v.Set("sign", signature)
+	hasher := GetMD5([]byte(v.Encode() + "&secret_key=" + o.SecretKey))
+	v.Set("sign", strings.ToUpper(HexEncodeToString(hasher)))
+	
 	encoded := v.Encode() + "&partner=" + o.PartnerID
 	path := o.APIUrl + method
 
 	if o.Verbose {
-		log.Printf("Signature: %s\n", signature)
 		log.Printf("Sending POST request to %s with params %s\n", path, encoded)
 	}
 
-	reqBody := strings.NewReader(encoded)
-	req, err := http.NewRequest("POST", path, reqBody)
+	req, err := http.NewRequest("POST", path, strings.NewReader(encoded))
 
 	if err != nil {
 		return err
