@@ -141,10 +141,14 @@ func (b *BTCChina) BuyOrder(price, amount float64) {
 	params := []string{}
 
 	if (price != 0) {
-		params = append(params, strconv.FormatFloat(price, 'f', 8, 64))
+		params = append(params, strconv.FormatFloat(price, 'f', 2, 64))
 	}
 
-	err := b.SendAuthenticatedHTTPRequest("buyOrder2", nil)
+	if (amount != 0) {
+		params = append(params, strconv.FormatFloat(amount, 'f', 8, 64))
+	}
+
+	err := b.SendAuthenticatedHTTPRequest("buyOrder2", params)
 
 	if err != nil {
 		log.Println(err)
@@ -153,12 +157,15 @@ func (b *BTCChina) BuyOrder(price, amount float64) {
 
 func (b *BTCChina) SendAuthenticatedHTTPRequest(method string, params []string) (err error) {
 	nonce := strconv.FormatInt(time.Now().UnixNano(), 10)[0:16]
+	paramsEncoded := ""
 
-	if (len(params) > 0) {
-		params = nil
+	if (len(params) == 0) {
+		params = []string{}
+	} else {
+		paramsEncoded = strings.Join(params, ",")
 	}
 
-	encoded := fmt.Sprintf("tonce=%s&accesskey=%s&requestmethod=post&id=%d&method=%s&params=%s", nonce, b.APIKey, 1, method, params)
+	encoded := fmt.Sprintf("tonce=%s&accesskey=%s&requestmethod=post&id=%d&method=%s&params=%s", nonce, b.APIKey, 1, method, paramsEncoded)
 
 	if b.Verbose {
 		log.Println(encoded)
@@ -167,7 +174,7 @@ func (b *BTCChina) SendAuthenticatedHTTPRequest(method string, params []string) 
 	hmac := GetHMAC(sha1.New, []byte(encoded), []byte(b.APISecret))
 	postData := make(map[string]interface{})
 	postData["method"] = method
-	postData["params"] = []string{}
+	postData["params"] = params
 	postData["id"] = 1
 	data, err := json.Marshal(postData)
 
