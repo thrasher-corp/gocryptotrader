@@ -186,9 +186,7 @@ func (b *BTCChina) SendAuthenticatedHTTPRequest(method string, params []string) 
 		log.Printf("Sending POST request to %s calling method %s with params %s\n", "https://api.btcchina.com/api_trade_v1.php", method, data)
 	}
 
-	reqBody := strings.NewReader(string(data))
-
-	req, err := http.NewRequest("POST", "https://api.btcchina.com/api_trade_v1.php", reqBody)
+	req, err := http.NewRequest("POST", "https://api.btcchina.com/api_trade_v1.php", strings.NewReader(string(data)))
 
 	if err != nil {
 		return err

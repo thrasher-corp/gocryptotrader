@@ -179,8 +179,7 @@ func (b *BTCE) SendAuthenticatedHTTPRequest(method string, values url.Values) (e
 		log.Printf("Sending POST request to %s calling method %s with params %s\n", BTCE_API_URL, method, encoded)
 	}
 
-	reqBody := strings.NewReader(encoded)
-	req, err := http.NewRequest("POST", BTCE_API_URL, reqBody)
+	req, err := http.NewRequest("POST", BTCE_API_URL, strings.NewReader(encoded))
 
 	if err != nil {
 		return err

@@ -205,8 +205,7 @@ func (h *HUOBI) SendAuthenticatedRequest(method string, v url.Values) (error) {
 		log.Printf("Sending POST request to %s with params %s\n", HUOBI_API_URL, encoded)
 	}
 
-	reqBody := strings.NewReader(encoded)
-	req, err := http.NewRequest("POST", HUOBI_API_URL, reqBody)
+	req, err := http.NewRequest("POST", HUOBI_API_URL, strings.NewReader(encoded))
 
 	if err != nil {
 		return err

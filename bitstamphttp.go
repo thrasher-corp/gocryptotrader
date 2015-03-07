@@ -271,15 +271,13 @@ func (b *Bitstamp) SendAuthenticatedHTTPRequest(path string, values url.Values, 
 	values.Set("nonce", nonce)
 	hmac := GetHMAC(sha256.New, []byte(nonce + b.ClientID + b.APIKey), []byte(b.APISecret))
 	values.Set("signature", strings.ToUpper(HexEncodeToString(hmac)))
-	reqBody := strings.NewReader(values.Encode())
-
 	path = BITSTAMP_API_URL + path
 
 	if b.Verbose {
 		log.Println("Sending POST request to " + path)
 	}
 
-	req, err := http.NewRequest("POST", path, reqBody)
+	req, err := http.NewRequest("POST", path,  strings.NewReader(values.Encode()))
 	if err != nil {
 		return err
 	}
