@@ -3,9 +3,7 @@ package main
 import (
 	"net/http"
 	"strconv"
-	"crypto/hmac"
 	"crypto/sha512"
-	"encoding/base64"
 	"errors"
 	"strings"
 	"time"
@@ -104,9 +102,8 @@ func (b *BTCMarkets) SendAuthenticatedRequest(reqType, path, data string) (error
 	} else {
 		request = path + "\n" + nonce + "\n"
 	}
-	
-	hmac := hmac.New(sha512.New, []byte(b.APISecret))
-	hmac.Write([]byte(request))
+
+	hmac := GetHMAC(sha512.New, []byte(request), []byte(b.APISecret))
 
 	if b.Verbose {
 		log.Printf("Sending %s request to %s path %s with params %s\n", reqType, BTCMARKETS_API_URL + path, path, request)
@@ -118,15 +115,13 @@ func (b *BTCMarkets) SendAuthenticatedRequest(reqType, path, data string) (error
 		return err
 	}
 
-	b64 := base64.StdEncoding.EncodeToString(hmac.Sum(nil))
-
 	req.Header.Add("Accept", "application/json")
 	req.Header.Add("Content-Type", "application/json")
 	req.Header.Add("User-Agent", "btc markets python client")
 	req.Header.Add("Accept-Charset", "UTF-8")
 	req.Header.Add("apikey", b.APIKey)
 	req.Header.Add("timestamp", nonce)
-	req.Header.Add("signature", b64)
+	req.Header.Add("signature", Base64Encode(hmac))
 
 	client := &http.Client{}
 	resp, err := client.Do(req)
