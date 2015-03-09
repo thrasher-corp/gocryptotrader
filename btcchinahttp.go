@@ -16,6 +16,29 @@ import (
 
 const (
 	BTCCHINA_API_URL = "https://api.btcchina.com/"
+	BTCCHINA_API_VER = "2.0.1.3"
+	BTCCHINA_ORDER_BUY = "buyOrder2"
+	BTCCHINA_ORDER_SELL = "sellOrder2"
+	BTCCHINA_ORDER_CANCEL = "cancelOrder"
+	BTCCHINA_ICEBERG_BUY = "buyIcebergOrder"
+	BTCCHINA_ICEBERG_SELL = "sellIcebergOrder"
+	BTCCHINA_ICEBERG_ORDER = "getIcebergOrder"
+	BTCCHINA_ICEBERG_ORDERS = "getIcebergOrders"
+	BTCCHINA_ICEBERG_CANCEL = "cancelIcebergOrder"
+	BTCCHINA_ACCOUNT_INFO = "getAccountInfo"
+	BTCCHINA_DEPOSITS = "getDeposits"
+	BTCCHINA_MARKETDEPTH = "getMarketDepth2"
+	BTCCHINA_ORDER = "getOrder"
+	BTCCHINA_ORDERS = "getOrders"
+	BTCCHINA_TRANSACTIONS = "getTransactions"
+	BTCCHINA_WITHDRAWAL = "getWithdrawal"
+	BTCCHINA_WITHDRAWALS = "getWithdrawals"
+	BTCCHINA_WITHDRAWAL_REQUEST = "requestWithdrawal"
+	BTCCHINA_STOPORDER_BUY = "buyStopOrder"
+	BTCCHINA_STOPORDER_SELL = "sellStopOrder"
+	BTCCHINA_STOPORDER_CANCEL = "cancelStopOrder"
+	BTCCHINA_STOPORDER = "getStopOrder"
+	BTCCHINA_STOPORDERS = "getStopOrders"
 )
 
 type BTCChina struct {
@@ -37,6 +60,113 @@ type BTCChinaTicker struct {
 	Vwap float64 `json:",string"`
 	Prev_close float64 `json:",string"`
 	Open float64 `json:",string"`
+}
+
+type BTCChinaProfile struct {
+	Username string
+	TradePasswordEnabled bool `json:"trade_password_enabled,bool"`
+	OTPEnabled bool `json:"otp_enabled,bool"`
+	TradeFee float64 `json:"trade_fee"`
+	TradeFeeCNYLTC float64 `json:"trade_fee_cnyltc"`
+	TradeFeeBTCLTC float64 `json:"trade_fee_btcltc"`
+	DailyBTCLimit float64 `json:"daily_btc_limit"`
+	DailyLTCLimit float64 `json:"daily_ltc_limit"`
+	BTCDespoitAddress string `json:"btc_despoit_address"`
+	BTCWithdrawalAddress string `json:"btc_withdrawal_address"`
+	LTCDepositAddress string `json:"ltc_deposit_address"`
+	LTCWithdrawalAddress string `json:"ltc_withdrawal_request"`
+	APIKeyPermission int64 `json:"api_key_permission"`
+}
+
+type BTCChinaCurrencyGeneric struct {
+	Currency string
+	Symbol string
+	Amount string
+	AmountInt int64 `json:"amount_integer"`
+	AmountDecimal float64 `json:"amount_decimal"`
+}
+
+type BTCChinaOrder struct {
+	ID int64
+	Type string
+	Price float64
+	Currency string
+	Amount float64
+	AmountOrig float64 `json:"amount_original"`
+	Date int64
+	Status string
+	Detail BTCChinaOrderDetail
+}
+
+type BTCChinaOrderDetail struct {
+	Dateline int64
+	Price float64
+	Amount float64
+}
+
+type BTCChinaWithdrawal struct {
+	ID int64
+	Address string
+	Currency string
+	Amount float64
+	Date int64
+	Transaction string
+	Status string
+}
+
+type BTCChinaDeposit struct {
+	ID int64
+	Address string
+	Currency string
+	Amount float64
+	Date int64
+	Status string
+}
+
+type BTCChinaBidAsk struct {
+	Price float64
+	Amount float64
+}
+
+type BTCChinaDepth struct {
+	Bid []BTCChinaBidAsk
+	Ask []BTCChinaBidAsk
+}
+
+type BTCChinaTransaction struct {
+	ID int64
+	Type string
+	BTCAmount float64 `json:"btc_amount"`
+	LTCAmount float64 `json:"ltc_amount"`
+	CNYAmount float64 `json:"cny_amount"`
+	Date int64
+}
+
+type BTCChinaIcebergOrder struct {
+	ID int64
+	Type string
+	Price float64
+	Market string
+	Amount float64
+	AmountOrig float64 `json:"amount_original"`
+	DisclosedAmount float64 `json:"disclosed_amount"`
+	Variance float64
+	Date int64
+	Status string
+}
+
+type BTCChinaStopOrder struct {
+	ID int64
+	Type string
+	StopPrice float64 `json:"stop_price"`
+	TrailingAmt float64 `json:"trailing_amount"`
+	TrailingPct float64 `json:"trailing_percentage"`
+	Price float64
+	Market string
+	Amount float64
+	Date int64
+	Status string
+	OrderID int64 `json:"order_id"`
 }
 
 func (b *BTCChina) SetDefaults() {
@@ -129,44 +259,421 @@ func (b *BTCChina) GetOrderBook(symbol string, limit int) (bool) {
 	return true
 }
 
-func (b *BTCChina) GetAccountInfo() {
-	err := b.SendAuthenticatedHTTPRequest("getAccountInfo", nil)
+func (b *BTCChina) GetAccountInfo(infoType string) {
+	params := make([]interface{}, 0)
+
+	if len(infoType) > 0 {
+		params = append(params, infoType)
+	}
+
+	err := b.SendAuthenticatedHTTPRequest(BTCCHINA_ACCOUNT_INFO, params)
 
 	if err != nil {
 		log.Println(err)
 	}
 }
 
-func (b *BTCChina) BuyOrder(price, amount float64) {
-	params := []string{}
+func (b *BTCChina) PlaceOrder(buyOrder bool, price, amount float64, market string) {
+	params := make([]interface{}, 0)
+	params = append(params, strconv.FormatFloat(price, 'f', 2, 64))
+	params = append(params, strconv.FormatFloat(amount, 'f', 8, 64))
 
-	if (price != 0) {
-		params = append(params, strconv.FormatFloat(price, 'f', 2, 64))
+	if len(market) > 0 {
+		params = append(params, market)
 	}
 
-	if (amount != 0) {
-		params = append(params, strconv.FormatFloat(amount, 'f', 8, 64))
+	req := BTCCHINA_ORDER_BUY 
+	if !buyOrder {
+		req = BTCCHINA_ORDER_SELL
 	}
 
-	err := b.SendAuthenticatedHTTPRequest("buyOrder2", params)
+	err := b.SendAuthenticatedHTTPRequest(req, params)
 
 	if err != nil {
 		log.Println(err)
 	}
 }
 
-func (b *BTCChina) SendAuthenticatedHTTPRequest(method string, params []string) (err error) {
+func (b *BTCChina) CancelOrder(orderID int64, market string) {
+	params := make([]interface{}, 0)
+	params = append(params, orderID)
+
+	if len(market) > 0 {
+		params = append(params, market)
+	}
+
+	err := b.SendAuthenticatedHTTPRequest(BTCCHINA_ORDER_CANCEL, params)
+
+	if err != nil {
+		log.Println(err)
+	}
+}
+
+func (b *BTCChina) GetDeposits(currency string, pending bool) {
+	params := make([]interface{}, 0)
+	params = append(params, currency)
+
+	if pending {
+		params = append(params, pending)
+	}
+
+	err := b.SendAuthenticatedHTTPRequest(BTCCHINA_DEPOSITS, params)
+
+	if err != nil {
+		log.Println(err)
+	}
+}
+
+func (b *BTCChina) GetMarketDepth(market string, limit int64) {
+	params := make([]interface{}, 0)
+
+	if limit > 0 {
+		params = append(params, limit)
+	}
+
+	if len(market) > 0 {
+		params = append(params, market)
+	}
+
+	err := b.SendAuthenticatedHTTPRequest(BTCCHINA_MARKETDEPTH, params)
+
+	if err != nil {
+		log.Println(err)
+	}
+}
+
+func (b *BTCChina) GetOrder(orderID int64, market string, detailed bool) {
+	params := make([]interface{}, 0)
+	params = append(params, orderID)
+
+	if len(market) > 0 {
+		params = append(params, market)
+	}
+
+	if detailed {
+		params = append(params, detailed)
+	}
+
+	err := b.SendAuthenticatedHTTPRequest(BTCCHINA_ORDER, params)
+
+	if err != nil {
+		log.Println(err)
+	}
+}
+
+func (b *BTCChina) GetOrders(openonly bool, market string, limit, offset, since int64, detailed bool) {
+	params := make([]interface{}, 0)
+
+	if openonly {
+		params = append(params, openonly)
+	}
+
+	if len(market) > 0 {
+		params = append(params, market)
+	}
+
+	if limit > 0 {
+		params = append(params, limit)
+	}
+
+	if offset > 0 {
+		params = append(params, offset)
+	}
+
+	if since > 0 {
+		params = append(params, since)
+	}
+
+	if detailed {
+		params = append(params, detailed)
+	}
+
+	err := b.SendAuthenticatedHTTPRequest(BTCCHINA_ORDERS, params)
+
+	if err != nil {
+		log.Println(err)
+	}
+}
+
+func (b *BTCChina) GetTransactions(transType string, limit, offset, since int64, sinceType string) {
+	params := make([]interface{}, 0)
+
+	if len(transType) > 0 {
+		params = append(params, transType)
+	}
+
+	if limit > 0 {
+		params = append(params, limit)
+	}
+
+	if offset > 0 {
+		params = append(params, offset)
+	}
+
+	if since > 0 {
+		params = append(params, since)
+	}
+
+	if len(sinceType) > 0 {
+		params = append(params, sinceType)
+	}
+
+	err := b.SendAuthenticatedHTTPRequest(BTCCHINA_TRANSACTIONS, params)
+
+	if err != nil {
+		log.Println(err)
+	}
+}
+
+func (b *BTCChina) GetWithdrawal(withdrawalID int64, currency string) {
+	params := make([]interface{}, 0)
+	params = append(params, withdrawalID)
+
+	if (len(currency) > 0) {
+		params = append(params, currency)
+	}
+
+	err := b.SendAuthenticatedHTTPRequest(BTCCHINA_WITHDRAWAL, params)
+
+	if err != nil {
+		log.Println(err)
+	}
+}
+
+func (b *BTCChina) GetWithdrawals(currency string, pending bool) {
+	params := make([]interface{}, 0)
+	params = append(params, currency)
+
+	if (pending) {
+		params = append(params, pending)
+	}
+
+	err := b.SendAuthenticatedHTTPRequest(BTCCHINA_WITHDRAWALS, params)
+
+	if err != nil {
+		log.Println(err)
+	}
+}
+
+func (b *BTCChina) RequestWithdrawal(currency string, amount float64) {
+	params := make([]interface{}, 0)
+	params = append(params, currency)
+	params = append(params, amount)
+
+	err := b.SendAuthenticatedHTTPRequest(BTCCHINA_WITHDRAWAL_REQUEST, params)
+
+	if err != nil {
+		log.Println(err)
+	}
+}
+
+func (b *BTCChina) IcebergOrder(buyOrder bool, price, amount, discAmount, variance float64, market string) {
+	params := make([]interface{}, 0)
+	params = append(params, strconv.FormatFloat(price, 'f', 2, 64))
+	params = append(params, strconv.FormatFloat(amount, 'f', 8, 64))
+	params = append(params, strconv.FormatFloat(discAmount, 'f', 2, 64))
+	params = append(params, strconv.FormatFloat(variance, 'f', 2, 64))
+
+	if len(market) > 0 {
+		params = append(params, market)
+	}
+
+	req := BTCCHINA_ICEBERG_BUY
+	if !buyOrder {
+		req = BTCCHINA_ICEBERG_SELL
+	}
+
+	err := b.SendAuthenticatedHTTPRequest(req, params)
+
+	if err != nil {
+		log.Println(err)
+	}
+}
+
+func (b *BTCChina) GetIcebergOrder(orderID int64, market string) {
+	params := make([]interface{}, 0)
+	params = append(params, orderID)
+
+	if len(market) > 0 {
+		params = append(params, market)
+	}
+	
+	err := b.SendAuthenticatedHTTPRequest(BTCCHINA_ICEBERG_ORDER, params)
+
+	if err != nil {
+		log.Println(err)
+	}
+}
+
+func (b *BTCChina) GetIcebergOrders(limit, offset int64, market string) {
+	params := make([]interface{}, 0)
+	
+	if limit > 0 {
+		params = append(params, limit)
+	}
+
+	if offset > 0 {
+		params = append(params, offset)
+	}
+	
+	if len(market) > 0 {
+		params = append(params, market)
+	}
+
+	err := b.SendAuthenticatedHTTPRequest(BTCCHINA_ICEBERG_ORDERS, params)
+
+	if err != nil {
+		log.Println(err)
+	}
+}
+
+func (b *BTCChina) CancelIcebergOrder(orderID int64, market string) {
+	params := make([]interface{}, 0)
+	params = append(params, orderID)
+
+	if len(market) > 0 {
+		params = append(params, market)
+	}
+	
+	err := b.SendAuthenticatedHTTPRequest(BTCCHINA_ICEBERG_CANCEL, params)
+
+	if err != nil {
+		log.Println(err)
+	}
+}
+
+func (b *BTCChina) PlaceStopOrder(buyOder bool, stopPrice, price, amount, trailingAmt, trailingPct float64, market string) {
+	params := make([]interface{}, 0)
+	
+	if stopPrice > 0 {
+		params = append(params, stopPrice)
+	}
+
+	params = append(params, strconv.FormatFloat(price, 'f', 2, 64))
+	params = append(params, strconv.FormatFloat(amount, 'f', 8, 64))
+
+	if trailingAmt > 0 {
+		params = append(params, strconv.FormatFloat(trailingAmt, 'f', 2, 64))
+	}
+
+	if trailingPct > 0 {
+		params = append(params, strconv.FormatFloat(trailingPct, 'f', 2, 64))
+	}
+
+	if len(market) > 0 {
+		params = append(params, market)
+	}
+
+	req := BTCCHINA_STOPORDER_BUY
+	if !buyOder {
+		req = BTCCHINA_STOPORDER_SELL
+	}
+	
+	err := b.SendAuthenticatedHTTPRequest(req, params)
+
+	if err != nil {
+		log.Println(err)
+	}
+}
+
+func (b *BTCChina) GetStopOrder(orderID int64, market string) {
+	params := make([]interface{}, 0)
+	params = append(params, orderID)
+
+	if len(market) > 0 {
+		params = append(params, market)
+	}
+	
+	err := b.SendAuthenticatedHTTPRequest(BTCCHINA_STOPORDER, params)
+
+	if err != nil {
+		log.Println(err)
+	}
+}
+
+func (b *BTCChina) GetStopOrders(status, orderType string, stopPrice float64, limit, offset int64, market string) {
+	params := make([]interface{}, 0)
+
+	if len(status) > 0 {
+		params = append(params, status)
+	}
+
+	if len(orderType) > 0 {
+		params = append(params, orderType)
+	}
+
+	if stopPrice > 0 {
+		params = append(params, stopPrice)
+	}
+
+	if limit > 0 {
+		params = append(params, limit)
+	}
+
+	if offset > 0 {
+		params = append(params, limit)
+	}
+
+	if len(market) > 0 {
+		params = append(params, market)
+	}
+	
+	err := b.SendAuthenticatedHTTPRequest(BTCCHINA_STOPORDERS, params)
+
+	if err != nil {
+		log.Println(err)
+	}
+}
+
+func (b *BTCChina) CancelStopOrder(orderID int64, market string) {
+	params := make([]interface{}, 0)
+	params = append(params, orderID)
+
+	if len(market) > 0 {
+		params = append(params, market)
+	}
+	
+	err := b.SendAuthenticatedHTTPRequest(BTCCHINA_STOPORDER_CANCEL, params)
+
+	if err != nil {
+		log.Println(err)
+	}
+}
+
+func (b *BTCChina) SendAuthenticatedHTTPRequest(method string, params []interface{}) (err error) {
 	nonce := strconv.FormatInt(time.Now().UnixNano(), 10)[0:16]
-	paramsEncoded := ""
+	encoded := fmt.Sprintf("tonce=%s&accesskey=%s&requestmethod=post&id=%d&method=%s&params=", nonce, b.APIKey, 1, method)
 
 	if (len(params) == 0) {
-		params = []string{}
+		params = make([]interface{}, 0)
 	} else {
-		paramsEncoded = strings.Join(params, ",")
+		items := make([]string, 0)
+		for _, x := range params {
+			xType := fmt.Sprintf("%T", x)
+			switch xType {
+				case "int64", "int": {
+					items = append(items, fmt.Sprintf("%d", x))
+				}
+				case "string": {
+					items = append(items, fmt.Sprintf("%s", x))
+				}
+				case "float64": {
+					items =  append(items, fmt.Sprintf("%f", x))
+				}
+				case "bool": {
+					if x == true {
+						items = append(items, "1")
+					} else {
+						items = append(items, "")
+					}
+				}
+				default :{
+					items =  append(items, fmt.Sprintf("%v", x))
+				}
+			}
+		}
+		encoded += strings.Join(items, ",")
 	}
-
-	encoded := fmt.Sprintf("tonce=%s&accesskey=%s&requestmethod=post&id=%d&method=%s&params=%s", nonce, b.APIKey, 1, method, paramsEncoded)
-
 	if b.Verbose {
 		log.Println(encoded)
 	}
