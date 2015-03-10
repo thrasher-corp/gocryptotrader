@@ -15,6 +15,7 @@ import (
 
 const (
 	BTCE_API_URL = "https://btc-e.com/tapi"
+	BTCE_API_VERSION = "2"
 	BTCE_GET_INFO = "getInfo"
 	BTCE_TRANSACTION_HISTORY = "TransHistory"
 	BTCE_TRADE_HISTORY = "TradeHistory"
@@ -78,7 +79,7 @@ func (b *BTCE) GetTicker(symbol string) (BTCeTicker) {
 	}
 
 	response := Response{}
-	req := fmt.Sprintf("https://btc-e.com/api/2/%s/ticker", symbol)
+	req := fmt.Sprintf("https://btc-e.com/api/%s/%s/ticker", BTCE_API_VERSION, symbol)
 	err := SendHTTPRequest(req, true, &response)
 	if err != nil {
 		log.Println(err)

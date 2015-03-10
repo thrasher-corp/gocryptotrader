@@ -14,6 +14,7 @@ import (
 
 const (
 	HUOBI_API_URL = "https://api.huobi.com/apiv2.php"
+	HUOBI_API_VERSION = "2"
 )
 
 type HUOBI struct {

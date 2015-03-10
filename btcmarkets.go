@@ -14,6 +14,7 @@ import (
 
 const (
 	BTCMARKETS_API_URL = "https://api.btcmarkets.net"
+	BTCMARKETS_API_VERSION = "0"
 )
 
 type BTCMarkets struct {

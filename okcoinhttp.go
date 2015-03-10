@@ -14,6 +14,7 @@ import (
 const (
 	OKCOIN_API_URL = "https://www.okcoin.com/api/v1/"
 	OKCOIN_API_URL_CHINA = "https://www.okcoin.cn/api/v1/"
+	OKCOIN_API_VERSION = "1"
 )
 
 type OKCoin struct {

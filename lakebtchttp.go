@@ -14,6 +14,7 @@ import (
 
 const (
 	LAKEBTC_API_URL = "https://www.LakeBTC.com/api_v1/"
+	LAKEBTC_API_VERSION = "1"
 	LAKEBTC_TICKER = "ticker"
 	LAKEBTC_ORDERBOOK = "bcorderbook"
 	LAKEBTC_ORDERBOOK_CNY = "bcorderbook_cny"

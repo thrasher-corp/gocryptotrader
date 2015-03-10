@@ -15,6 +15,7 @@ import (
 
 const (
 	BITSTAMP_API_URL = "https://www.bitstamp.net/api/"
+	BITSTAMP_API_VERSION = "0"
 	BITSTAMP_API_TICKER = "ticker/"
 	BITSTAMP_API_ORDERBOOK = "order_book/"
 	BITSTAMP_API_TRANSACTIONS = "transactions/"

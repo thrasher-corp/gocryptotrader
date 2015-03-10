@@ -15,6 +15,7 @@ import (
 
 const (
 	BITFINEX_API_URL = "https://api.bitfinex.com/v1/"
+	BITFINEX_API_VERSION = "1"
 	BITFINEX_TICKER = "pubticker/"
 	BITFINEX_STATS = "stats/"
 	BITFINEX_ORDERBOOK = "book/"
@@ -238,7 +239,7 @@ func (b *Bitfinex) GetAccountFeeInfo() (bool, error) {
 
 func (b *Bitfinex) SendAuthenticatedHTTPRequest(method, path string, params map[string]interface{}, result interface{}) (err error) {
 	request := make(map[string]interface{})
-	request["request"] = "/v1/" + path
+	request["request"] = fmt.Sprintf("/v%s/%s", BITFINEX_API_VERSION, path)
 	request["nonce"] = strconv.FormatInt(time.Now().UnixNano(), 10)
 
 	if params != nil {

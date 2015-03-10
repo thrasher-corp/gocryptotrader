@@ -14,6 +14,7 @@ import (
 
 const (
 	ITBIT_API_URL = "https://api.itbit.com/v1/"
+	ITBIT_API_VERSION = "1"
 )
 
 type ItBit struct {
