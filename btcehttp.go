@@ -14,9 +14,15 @@ import (
 )
 
 const (
-	BTCE_API_URL = "https://btc-e.com/tapi"
-	BTCE_API_VERSION = "2"
-	BTCE_GET_INFO = "getInfo"
+	BTCE_API_PUBLIC_URL = "https://btc-e.com/api"
+	BTCE_API_PRIVATE_URL = "https://btc-e.com/tapi"
+	BTCE_API_PUBLIC_VERSION = "3"
+	BTCE_API_PRIVATE_VERSION = "1"
+	BTCE_INFO = "info"
+	BTCE_TICKER = "ticker"
+	BTCE_DEPTH = "depth"
+	BTCE_TRADES = "trades"
+	BTCE_ACCOUNT_INFO = "getInfo"
 	BTCE_TRANSACTION_HISTORY = "TransHistory"
 	BTCE_TRADE_HISTORY = "TradeHistory"
 	BTCE_ACTIVE_ORDERS = "ActiveOrders"
@@ -42,7 +48,19 @@ type BTCeTicker struct {
 	Buy float64
 	Sell float64
 	Updated int64
-	Server_time int64
+}
+
+type BTCEOrderbook struct {
+	Asks[][]float64 `json:"asks"`
+	Bids[][]float64 `json:"bids"`
+}
+
+type BTCETrades struct {
+	Type string `json:"type"`
+	Price float64 `json:"bid"`
+	Amount float64 `json:"amount"`
+	TID int64 `json:"tid"`
+	Timestamp int64 `json:"timestamp"`
 }
 
 func (b *BTCE) SetDefaults() {
@@ -73,23 +91,68 @@ func (b *BTCE) GetFee() (float64) {
 	return b.Fee
 }
 
+func (b *BTCE) GetInfo() {
+	req := fmt.Sprintf("%s/%s/%s/", BTCE_API_PUBLIC_URL, BTCE_API_PUBLIC_VERSION, BTCE_INFO)
+	err := SendHTTPRequest(req, true, nil)
+
+	if err != nil {
+		log.Println(err)
+	}
+}
+
 func (b *BTCE) GetTicker(symbol string) (BTCeTicker) {
 	type Response struct {
-		Ticker BTCeTicker
+		Data map[string]BTCeTicker
 	}
 
 	response := Response{}
-	req := fmt.Sprintf("https://btc-e.com/api/%s/%s/ticker", BTCE_API_VERSION, symbol)
-	err := SendHTTPRequest(req, true, &response)
+	req := fmt.Sprintf("%s/%s/%s/%s", BTCE_API_PUBLIC_URL, BTCE_API_PUBLIC_VERSION, BTCE_TICKER, symbol)
+	err := SendHTTPRequest(req, true, &response.Data)
+
 	if err != nil {
 		log.Println(err)
 		return BTCeTicker{}
 	}
-	return response.Ticker
+	return response.Data[symbol]
 }
 
-func (b *BTCE) GetInfo() {
-	err := b.SendAuthenticatedHTTPRequest(BTCE_GET_INFO, url.Values{})
+func (b *BTCE) GetDepth(symbol string) () {
+	type Response struct {
+		Data map[string]BTCEOrderbook
+	}
+
+	response := Response{}
+	req := fmt.Sprintf("%s/%s/%s/%s", BTCE_API_PUBLIC_URL, BTCE_API_PUBLIC_VERSION, BTCE_DEPTH, symbol)
+	err := SendHTTPRequest(req, true, &response.Data)
+
+	if err != nil {
+		log.Println(err)
+		return
+	}
+
+	depth := response.Data[symbol]
+	log.Println(depth)
+}
+
+func (b *BTCE) GetTrades(symbol string) () {
+	type Response struct {
+		Data map[string][]BTCETrades
+	}
+
+	response := Response{}
+	req := fmt.Sprintf("%s/%s/%s/%s", BTCE_API_PUBLIC_URL, BTCE_API_PUBLIC_VERSION, BTCE_TRADES, symbol)
+	err := SendHTTPRequest(req, true, &response.Data)
+
+	if err != nil {
+		log.Println(err)
+	}
+
+	trades := response.Data[symbol]
+	log.Println(trades)
+}
+
+func (b *BTCE) GetAccountInfo() {
+	err := b.SendAuthenticatedHTTPRequest(BTCE_ACCOUNT_INFO, url.Values{})
 
 	if err != nil {
 		log.Println(err)
@@ -177,10 +240,10 @@ func (b *BTCE) SendAuthenticatedHTTPRequest(method string, values url.Values) (e
 	hmac := GetHMAC(sha512.New, []byte(encoded), []byte(b.APISecret))
 
 	if b.Verbose {
-		log.Printf("Sending POST request to %s calling method %s with params %s\n", BTCE_API_URL, method, encoded)
+		log.Printf("Sending POST request to %s calling method %s with params %s\n", BTCE_API_PRIVATE_URL, method, encoded)
 	}
 
-	req, err := http.NewRequest("POST", BTCE_API_URL, strings.NewReader(encoded))
+	req, err := http.NewRequest("POST", BTCE_API_PRIVATE_URL, strings.NewReader(encoded))
 
 	if err != nil {
 		return err
