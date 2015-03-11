@@ -57,6 +57,16 @@
       "Verbose": false
     },
     {
+      "Name": "Coinbase",
+      "Pairs": "BTCUSD",
+      "ClientID": "Password",
+      "APIKey": "Key",
+      "APISecret": "Secret",
+      "BaseCurrencies": "USD",
+      "Enabled": true,
+      "Verbose": false
+    },
+    {
       "Name": "Huobi",
       "Pairs": "BTCCNY,LTCCNY,LTCBTC",
       "APIKey": "Key",

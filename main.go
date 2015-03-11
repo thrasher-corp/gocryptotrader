@@ -14,6 +14,7 @@ type Exchange struct {
 	bitfinex Bitfinex
 	btce BTCE
 	btcmarkets BTCMarkets
+	coinbase Coinbase
 	okcoinChina OKCoin
 	okcoinIntl OKCoin
 	itbit ItBit
@@ -80,6 +81,7 @@ func main() {
 	bot.exchange.bitfinex.SetDefaults()
 	bot.exchange.btce.SetDefaults()
 	bot.exchange.btcmarkets.SetDefaults()
+	bot.exchange.coinbase.SetDefaults()
 	bot.exchange.okcoinChina.SetURL(OKCOIN_API_URL_CHINA)
 	bot.exchange.okcoinChina.SetDefaults()
 	bot.exchange.okcoinIntl.SetURL(OKCOIN_API_URL)
@@ -162,6 +164,21 @@ func main() {
 
 				if exch.Verbose {
 					bot.exchange.btcmarkets.Verbose = true
+					log.Printf("%s Verbose output enabled.\n", exch.Name)
+				} else {
+					log.Printf("%s Verbose output disabled.\n", exch.Name)
+				}
+			}
+		} else if bot.exchange.coinbase.GetName() == exch.Name {
+			if !exch.Enabled {
+				bot.exchange.coinbase.SetEnabled(false)
+				log.Printf("%s disabled.\n", exch.Name)
+			} else {
+				log.Printf("%s enabled.\n", exch.Name)
+				bot.exchange.coinbase.SetAPIKeys(exch.ClientID, exch.APIKey, exch.APISecret)
+
+				if exch.Verbose {
+					bot.exchange.coinbase.Verbose = true
 					log.Printf("%s Verbose output enabled.\n", exch.Name)
 				} else {
 					log.Printf("%s Verbose output disabled.\n", exch.Name)
@@ -269,6 +286,13 @@ func main() {
 	//temp until proper asynchronous method of getting pricing/order books is coded
 	for {
 		//spot 
+		if bot.exchange.coinbase.IsEnabled() {
+			go func() {
+				CoinbaseStats := bot.exchange.coinbase.GetStats("BTC-USD")
+				CoinbaseTicker := bot.exchange.coinbase.GetTicker("BTC-USD")
+				log.Printf("Coinbase BTC: Last %f High %f Low %f Volume %f\n", CoinbaseTicker.Price, CoinbaseStats.High, CoinbaseStats.Low, CoinbaseStats.Volume)
+			}()
+		}
 		if bot.exchange.kraken.IsEnabled() {
 			go func() {
 				KrakenBTC := bot.exchange.kraken.GetTicker("XBTUSD")

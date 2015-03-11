@@ -204,6 +204,7 @@ func IsValidExchange(Exchange string) (bool) {
 		bot.exchange.btcchina.GetName() == Exchange && bot.exchange.btcchina.IsEnabled() ||
 		bot.exchange.btce.GetName() == Exchange && bot.exchange.btcchina.IsEnabled() ||
 		bot.exchange.btcmarkets.GetName() == Exchange && bot.exchange.btcmarkets.IsEnabled() ||
+		bot.exchange.coinbase.GetName() == Exchange && bot.exchange.coinbase.IsEnabled() ||
 		bot.exchange.huobi.GetName() == Exchange && bot.exchange.huobi.IsEnabled() ||
 		bot.exchange.itbit.GetName() == Exchange && bot.exchange.itbit.IsEnabled() ||
 		bot.exchange.kraken.GetName() == Exchange && bot.exchange.kraken.IsEnabled() ||
