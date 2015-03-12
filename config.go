@@ -5,6 +5,10 @@ import (
 	"encoding/json"
 )
 
+const (
+	CONFIG_FILE = "config.json"
+)
+
 type SMSContacts struct {
 	Name string
 	Number string
@@ -30,8 +34,8 @@ type Exchanges struct {
 	BaseCurrencies string
 }
 
-func ReadConfig(path string) (Config, error) {
-	file, err := ioutil.ReadFile(path)
+func ReadConfig() (Config, error) {
+	file, err := ioutil.ReadFile(CONFIG_FILE)
 
 	if err != nil {
 		return Config{}, err
@@ -41,3 +45,20 @@ func ReadConfig(path string) (Config, error) {
 	err = json.Unmarshal(file, &cfg)
 	return cfg, err
 }
+
+func SaveConfig() (error) {
+	payload, err := json.MarshalIndent(bot.config, "", " ")
+
+	if err != nil {
+		return err
+	}
+
+	err = ioutil.WriteFile(CONFIG_FILE, payload, 0644)
+
+	if err != nil {
+		return err
+	}
+	
+	return nil
+}
+

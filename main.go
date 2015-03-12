@@ -34,7 +34,7 @@ func main() {
 	log.Println("Loading config file config.json..")
 
 	err := errors.New("")
-	bot.config, err = ReadConfig("config.json")
+	bot.config, err = ReadConfig()
 
 	if err != nil {
 		log.Println("Fatal error opening config.json file. Error: ", err)
