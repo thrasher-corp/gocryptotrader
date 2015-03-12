@@ -6,6 +6,8 @@ import (
 	"os"
 	"errors"
 	"os/exec"
+	"os/signal"
+	"syscall"
 )
 
 type Exchange struct {
@@ -30,7 +32,30 @@ type Bot struct {
 
 var bot Bot
 
+func HandleInterrupt() {
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
+	go func() {
+		sig := <-c
+		log.Printf("Captured %v.", sig)
+		Shutdown()
+		log.Println("Exiting.")
+		os.Exit(1)
+	}()
+}
+
+func Shutdown() {
+	err := SaveConfig()
+
+	if err != nil {
+		log.Println("Unable to save config.")
+	}
+
+	log.Println("Config file saved successfully.")
+}
+
 func main() {
+	HandleInterrupt()
 	log.Println("Loading config file config.json..")
 
 	err := errors.New("")
