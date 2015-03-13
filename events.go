@@ -106,40 +106,64 @@ func (e *Event) EventToString() (string) {
 }
 
 func (e *Event) CheckCondition() (bool) {
-	if bot.exchange.bitfinex.GetName() == e.Exchange {
-		bitfinexBTC := bot.exchange.bitfinex.GetTicker("btcusd")
-		lastPrice := bitfinexBTC.Last
-		condition := strings.Split(e.Condition,",")
-		targetPrice, _ := strconv.ParseFloat(condition[1], 64)
+	lastPrice := 0.00
+	condition := strings.Split(e.Condition,",")
+	targetPrice, _ := strconv.ParseFloat(condition[1], 64)
 
-		switch condition[0] {
-			case GREATER_THAN: {
-				if lastPrice > targetPrice {
-					return e.ExecuteAction()
-				}
-			}
-			case GREATER_THAN_OR_EQUAL: {
-				if lastPrice >= targetPrice {
-					return e.ExecuteAction()
-				}
-			}
-			case LESS_THAN: {
-				if lastPrice < targetPrice {
-					return e.ExecuteAction()
-				}
-			}
-			case LESS_THAN_OR_EQUAL: {
-				if lastPrice <= targetPrice {
-					return e.ExecuteAction()
-				}
-			}
-			case IS_EQUAL: {
-				if lastPrice == targetPrice {
-					return e.ExecuteAction()
-				}
+	if bot.exchange.bitfinex.GetName() == e.Exchange {
+		lastPrice = bot.exchange.bitfinex.GetTicker("btcusd").Last
+	} else if bot.exchange.bitstamp.GetName() == e.Exchange  {
+		lastPrice = bot.exchange.bitstamp.GetTicker().Last
+	} else if bot.exchange.coinbase.GetName() == e.Exchange {
+		lastPrice = bot.exchange.coinbase.GetTicker("BTC-USD").Price
+	} else if bot.exchange.lakebtc.GetName() == e.Exchange {
+		lastPrice = bot.exchange.lakebtc.GetTicker().CNY.Last
+	} else if bot.exchange.btcchina.GetName() == e.Exchange {
+		lastPrice = bot.exchange.btcchina.GetTicker("btccny").Last
+	} else if bot.exchange.huobi.GetName() == e.Exchange {
+		lastPrice = bot.exchange.huobi.GetTicker("btc").Last
+	} else if bot.exchange.itbit.GetName() == e.Exchange {
+		lastPrice = bot.exchange.itbit.GetTicker("XBTUSD").LastPrice
+	} else if bot.exchange.btce.GetName() == e.Exchange {
+		lastPrice = bot.exchange.btce.GetTicker("btc_usd").Last
+	} else if bot.exchange.btcmarkets.GetName() == e.Exchange {
+		lastPrice = bot.exchange.btcmarkets.GetTicker("BTC").LastPrice
+	} else if bot.exchange.okcoinChina.GetName() == e.Exchange {
+		lastPrice = bot.exchange.okcoinChina.GetTicker("btc_cny").Last
+	} else if bot.exchange.okcoinIntl.GetName() == e.Exchange {
+		lastPrice = bot.exchange.okcoinIntl.GetTicker("btc_usd").Last
+	}
+
+	if lastPrice == 0 {
+		return false
+	}
+
+	switch condition[0] {
+		case GREATER_THAN: {
+			if lastPrice > targetPrice {
+				return e.ExecuteAction()
 			}
 		}
-		return false
+		case GREATER_THAN_OR_EQUAL: {
+			if lastPrice >= targetPrice {
+				return e.ExecuteAction()
+			}
+		}
+		case LESS_THAN: {
+			if lastPrice < targetPrice {
+				return e.ExecuteAction()
+			}
+		}
+		case LESS_THAN_OR_EQUAL: {
+			if lastPrice <= targetPrice {
+				return e.ExecuteAction()
+			}
+		}
+		case IS_EQUAL: {
+			if lastPrice == targetPrice {
+				return e.ExecuteAction()
+			}
+		}
 	}
 	return false
 }
