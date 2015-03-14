@@ -3,7 +3,6 @@ package main
 import (
 	"net/http"
 	"strconv"
-	"crypto/sha512"
 	"errors"
 	"strings"
 	"time"
@@ -268,7 +267,7 @@ func (i *ItBit) SendAuthenticatedHTTPRequest(method string, path string, params 
 		log.Printf("Request JSON: %s\n", PayloadJson)
 	}
 
-	hmac := GetHMAC(sha512.New, []byte(nonce + string(PayloadJson)), []byte(i.APISecret))
+	hmac := GetHMAC(HASH_SHA512, []byte(nonce + string(PayloadJson)), []byte(i.APISecret))
 	signature := Base64Encode([]byte(HexEncodeToString(hmac)))
 
 	headers := make(map[string]string)

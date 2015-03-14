@@ -2,7 +2,6 @@ package main
 
 import (
 	"strconv"
-	"crypto/sha512"
 	"strings"
 	"time"
 	"log"
@@ -101,7 +100,7 @@ func (b *BTCMarkets) SendAuthenticatedRequest(reqType, path, data string) (error
 		request = path + "\n" + nonce + "\n"
 	}
 
-	hmac := GetHMAC(sha512.New, []byte(request), []byte(b.APISecret))
+	hmac := GetHMAC(HASH_SHA512, []byte(request), []byte(b.APISecret))
 
 	if b.Verbose {
 		log.Printf("Sending %s request to %s path %s with params %s\n", reqType, BTCMARKETS_API_URL + path, path, request)

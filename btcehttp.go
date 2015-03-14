@@ -3,7 +3,6 @@ package main
 import (
 	"net/url"
 	"strconv"
-	"crypto/sha512"
 	"strings"
 	"time"
 	"fmt"
@@ -234,7 +233,7 @@ func (b *BTCE) SendAuthenticatedHTTPRequest(method string, values url.Values) (e
 	values.Set("method", method)
 
 	encoded := values.Encode()
-	hmac := GetHMAC(sha512.New, []byte(encoded), []byte(b.APISecret))
+	hmac := GetHMAC(HASH_SHA512, []byte(encoded), []byte(b.APISecret))
 
 	if b.Verbose {
 		log.Printf("Sending POST request to %s calling method %s with params %s\n", BTCE_API_PRIVATE_URL, method, encoded)

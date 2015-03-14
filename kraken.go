@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"strconv"
 	"encoding/json"
-	"crypto/sha512"
 	"errors"
 	"time"
 	"strings"
@@ -503,7 +502,7 @@ func (k *Kraken) SendAuthenticatedHTTPRequest(method string, values url.Values) 
 	}
 
 	shasum := GetSHA256([]byte(values.Get("nonce") + values.Encode()))
-	signature := Base64Encode(GetHMAC(sha512.New, append([]byte(path), shasum...), secret))
+	signature := Base64Encode(GetHMAC(HASH_SHA512, append([]byte(path), shasum...), secret))
 
 	if k.Verbose {
 		log.Printf("Sending POST request to %s, path: %s.", KRAKEN_API_URL, path)

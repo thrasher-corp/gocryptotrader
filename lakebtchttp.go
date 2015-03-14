@@ -3,7 +3,6 @@ package main
 import (
 	"net/url"
 	"strconv"
-	"crypto/sha256"
 	"errors"
 	"strings"
 	"time"
@@ -174,7 +173,7 @@ func (l *LakeBTC) SendAuthenticatedHTTPRequest(method, params string) (err error
 	v.Set("params", params)
 
 	encoded := v.Encode()
-	hmac := GetHMAC(sha256.New, []byte(encoded), []byte(l.APISecret))
+	hmac := GetHMAC(HASH_SHA256, []byte(encoded), []byte(l.APISecret))
 
 	if l.Verbose {
 		log.Printf("Sending POST request to %s calling method %s with params %s\n", LAKEBTC_API_URL, method, encoded)

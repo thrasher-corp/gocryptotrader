@@ -3,7 +3,6 @@ package main
 import (
 	"net/url"
 	"strconv"
-	"crypto/sha1"
 	"encoding/json"
 	"errors"
 	"strings"
@@ -676,7 +675,7 @@ func (b *BTCChina) SendAuthenticatedHTTPRequest(method string, params []interfac
 		log.Println(encoded)
 	}
 
-	hmac := GetHMAC(sha1.New, []byte(encoded), []byte(b.APISecret))
+	hmac := GetHMAC(HASH_SHA1, []byte(encoded), []byte(b.APISecret))
 	postData := make(map[string]interface{})
 	postData["method"] = method
 	postData["params"] = params

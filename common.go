@@ -5,6 +5,7 @@ import (
 	"hash"
 	"crypto/md5"
 	"crypto/hmac"
+	"crypto/sha1"
 	"crypto/sha512"
 	"crypto/sha256"
 	"encoding/base64"
@@ -16,6 +17,13 @@ import (
 	"strings"
 	"math"
 	"log"
+)
+
+const (
+	HASH_SHA1 = iota
+	HASH_SHA256
+	HASH_SHA512
+	HASH_SHA512_384
 )
 
 func GetMD5(input []byte) ([]byte) {
@@ -36,7 +44,24 @@ func GetSHA256(input []byte) ([]byte) {
 	return sha.Sum(nil)
 }
 
-func GetHMAC(hash func() hash.Hash, input, key []byte) ([]byte) {
+func GetHMAC(hashType int, input, key []byte) ([]byte) {
+	var hash func() hash.Hash
+
+	switch hashType {
+		case HASH_SHA1: {
+			hash = sha1.New
+		}
+		case HASH_SHA256: {
+			hash = sha256.New
+		}
+		case HASH_SHA512: {
+			hash = sha512.New
+		}
+		case HASH_SHA512_384: {
+			hash = sha512.New384
+		}
+	}
+
 	hmac := hmac.New(hash, []byte(key))
 	hmac.Write(input)
 	return hmac.Sum(nil)

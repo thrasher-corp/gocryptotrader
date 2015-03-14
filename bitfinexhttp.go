@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"log"
 	"encoding/json"
-	"crypto/sha512"
 	"errors"
 	"strings"
 	"strconv"
@@ -257,7 +256,7 @@ func (b *Bitfinex) SendAuthenticatedHTTPRequest(method, path string, params map[
 	}
 
 	PayloadBase64 := Base64Encode(PayloadJson)
-	hmac := GetHMAC(sha512.New384, []byte(PayloadBase64), []byte(b.APISecret))
+	hmac := GetHMAC(HASH_SHA512_384, []byte(PayloadBase64), []byte(b.APISecret))
 	headers := make(map[string]string)
 	headers["X-BFX-APIKEY"] = b.APIKey
 	headers["X-BFX-PAYLOAD"] = PayloadBase64
