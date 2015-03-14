@@ -126,6 +126,7 @@ func (b *BTCMarkets) SendAuthenticatedRequest(reqType, path, data string) (error
 
 	client := &http.Client{}
 	resp, err := client.Do(req)
+	defer resp.Body.Close()
 
 	if err != nil {
 		return errors.New("PostRequest: Unable to send request")
@@ -137,6 +138,5 @@ func (b *BTCMarkets) SendAuthenticatedRequest(reqType, path, data string) (error
 		log.Printf("Recieved raw: %s\n", string(contents))
 	}
 
-	resp.Body.Close()
 	return nil
 }

@@ -94,6 +94,7 @@ func CalculateNetProfit(amount, priceThen, priceNow, costs float64) (float64) {
 
 func SendHTTPRequest(url string, jsonDecode bool, result interface{}) (err error) {
 	res, err := http.Get(url)
+	defer res.Body.Close()
 
 	if err != nil {
 		log.Println(err)

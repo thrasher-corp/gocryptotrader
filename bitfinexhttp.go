@@ -267,6 +267,7 @@ func (b *Bitfinex) SendAuthenticatedHTTPRequest(method, path string, params map[
 
 	client := &http.Client{}
 	resp, err := client.Do(req)
+	defer resp.Body.Close()
 
 	if err != nil {
 		return errors.New("SendAuthenticatedHTTPRequest: Unable to send request")
@@ -283,8 +284,7 @@ func (b *Bitfinex) SendAuthenticatedHTTPRequest(method, path string, params map[
 	if err != nil {
 		return errors.New("Unable to JSON response.")
 	}
-
-	resp.Body.Close()
+	
 	return nil
 }
 

@@ -426,6 +426,7 @@ func (o *OKCoin) SendAuthenticatedHTTPRequest(method string, v url.Values) (err 
 
 	client := &http.Client{}
 	resp, err := client.Do(req)
+	defer resp.Body.Close()
 
 	if err != nil {
 		return errors.New("PostRequest: Unable to send request")
@@ -437,7 +438,5 @@ func (o *OKCoin) SendAuthenticatedHTTPRequest(method string, v url.Values) (err 
 		log.Printf("Recieved raw: %s\n", string(contents))
 	}
 	
-	resp.Body.Close()
 	return nil
-
 }

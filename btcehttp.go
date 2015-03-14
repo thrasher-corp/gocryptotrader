@@ -255,6 +255,7 @@ func (b *BTCE) SendAuthenticatedHTTPRequest(method string, values url.Values) (e
 
 	client := &http.Client{}
 	resp, err := client.Do(req)
+	defer resp.Body.Close()
 
 	if err != nil {
 		return errors.New("PostRequest: Unable to send request")
@@ -266,7 +267,7 @@ func (b *BTCE) SendAuthenticatedHTTPRequest(method string, values url.Values) (e
 		log.Printf("Recieved raw: %s\n", string(contents))
 	}
 	
-	resp.Body.Close()
+
 	return nil
 
 }

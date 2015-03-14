@@ -705,6 +705,7 @@ func (b *BTCChina) SendAuthenticatedHTTPRequest(method string, params []interfac
 
 	client := &http.Client{}
 	resp, err := client.Do(req)
+	defer resp.Body.Close()
 
 	if err != nil {
 		return errors.New("PostRequest: Unable to send request")
@@ -716,7 +717,6 @@ func (b *BTCChina) SendAuthenticatedHTTPRequest(method string, params []interfac
 		log.Printf("Recv'd :%s\n", string(contents))
 	}
 
-	resp.Body.Close()
 	return nil
 
 }

@@ -517,6 +517,7 @@ func (k *Kraken) SendAuthenticatedHTTPRequest(method string, values url.Values) 
 
 	client := &http.Client{}
 	resp, err := client.Do(req)
+	defer resp.Body.Close()
 
 	if err != nil {
 		return nil, errors.New("SendAuthenticatedHTTPRequest: Unable to send request")
@@ -539,6 +540,5 @@ func (k *Kraken) SendAuthenticatedHTTPRequest(method string, values url.Values) 
 		return nil, errors.New(fmt.Sprintf("Kraken error: %s", kresp.Error))
 	}
 
-	resp.Body.Close()
 	return kresp.Result, nil
 }

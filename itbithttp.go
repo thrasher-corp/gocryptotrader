@@ -280,6 +280,7 @@ func (i *ItBit) SendAuthenticatedHTTPRequest(method string, path string, params 
 
 	client := &http.Client{}
 	resp, err := client.Do(req)
+	defer resp.Body.Close()
 
 	if err != nil {
 		return errors.New("SendAuthenticatedHTTPRequest: Unable to send request")
@@ -291,6 +292,5 @@ func (i *ItBit) SendAuthenticatedHTTPRequest(method string, path string, params 
 		log.Printf("Recieved raw: %s\n", string(contents))
 	}
 	
-	resp.Body.Close()
 	return nil
 }

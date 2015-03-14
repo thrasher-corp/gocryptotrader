@@ -287,6 +287,7 @@ func (b *Bitstamp) SendAuthenticatedHTTPRequest(path string, values url.Values, 
 
 	client := &http.Client{}
 	resp, err := client.Do(req)
+	defer resp.Body.Close()
 
 	if err != nil {
 		return errors.New("PostRequest: Unable to send request")
@@ -304,6 +305,5 @@ func (b *Bitstamp) SendAuthenticatedHTTPRequest(path string, values url.Values, 
 		return errors.New("Unable to JSON response.")
 	}
 
-	resp.Body.Close()
 	return nil
 }
