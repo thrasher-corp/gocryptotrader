@@ -1,14 +1,12 @@
 package main
 
 import (
-	"net/http"
 	"net/url"
 	"strconv"
 	"crypto/sha256"
 	"errors"
 	"strings"
 	"time"
-	"io/ioutil"
 	"log"
 )
 
@@ -83,7 +81,7 @@ func (l *LakeBTC) GetFee(maker bool) (float64) {
 
 func (l *LakeBTC) GetTicker() (LakeBTCTickerResponse) {
 	response := LakeBTCTickerResponse{}
-	err := SendHTTPRequest(LAKEBTC_API_URL + LAKEBTC_TICKER, true, &response)
+	err := SendHTTPGetRequest(LAKEBTC_API_URL + LAKEBTC_TICKER, true, &response)
 	if err != nil {
 		log.Println(err)
 		return response
@@ -97,7 +95,7 @@ func (l *LakeBTC) GetOrderBook(currency string) (bool) {
 		req = LAKEBTC_ORDERBOOK_CNY
 	}
 
-	err := SendHTTPRequest(LAKEBTC_API_URL + req, true, nil)
+	err := SendHTTPGetRequest(LAKEBTC_API_URL + req, true, nil)
 	if err != nil {
 		log.Println(err)
 		return false
@@ -106,7 +104,7 @@ func (l *LakeBTC) GetOrderBook(currency string) (bool) {
 }
 
 func (l *LakeBTC) GetTradeHistory() (bool) {
-	err := SendHTTPRequest(LAKEBTC_API_URL + LAKEBTC_TRADES, true, nil)
+	err := SendHTTPGetRequest(LAKEBTC_API_URL + LAKEBTC_TRADES, true, nil)
 	if err != nil {
 		log.Println(err)
 		return false
@@ -182,28 +180,19 @@ func (l *LakeBTC) SendAuthenticatedHTTPRequest(method, params string) (err error
 		log.Printf("Sending POST request to %s calling method %s with params %s\n", LAKEBTC_API_URL, method, encoded)
 	}
 
-	req, err := http.NewRequest("POST", LAKEBTC_API_URL, strings.NewReader(encoded))
+	headers := make(map[string]string)
+	headers["Json-Rpc-Tonce"] = nonce
+	headers["Authorization: Basic"] = Base64Encode([]byte(l.Email + ":" + HexEncodeToString(hmac)))
+	headers["Content-Type"] = "application/x-www-form-urlencoded"
+
+	resp, err := SendHTTPRequest("POST", LAKEBTC_API_URL, headers, strings.NewReader(encoded))
 
 	if err != nil {
 		return err
 	}
 
-	req.Header.Add("Json-Rpc-Tonce", nonce)
-	req.Header.Add("Authorization: Basic", Base64Encode([]byte(l.Email + ":" + HexEncodeToString(hmac))))
-	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
-
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	defer resp.Body.Close()
-
-	if err != nil {
-		return errors.New("PostRequest: Unable to send request")
-	}
-
-	contents, _ := ioutil.ReadAll(resp.Body)
-
 	if l.Verbose {
-		log.Printf("Recieved raw: %s\n", string(contents))
+		log.Printf("Recieved raw: %s\n", resp)
 	}
 	
 	return nil

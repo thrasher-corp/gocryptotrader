@@ -1,7 +1,6 @@
 package main
 
 import (
-	"net/http"
 	"net/url"
 	"strconv"
 	"crypto/sha1"
@@ -9,7 +8,6 @@ import (
 	"errors"
 	"strings"
 	"time"
-	"io/ioutil"
 	"fmt"
 	"log"
 )
@@ -204,7 +202,7 @@ func (b *BTCChina) GetTicker(symbol string) (BTCChinaTicker) {
 
 	resp := Response{}
 	req := fmt.Sprintf("%sdata/ticker?market=%s", BTCCHINA_API_URL, symbol)
-	err := SendHTTPRequest(req, true, &resp)
+	err := SendHTTPGetRequest(req, true, &resp)
 	if err != nil {
 		log.Println(err)
 		return BTCChinaTicker{}
@@ -214,7 +212,7 @@ func (b *BTCChina) GetTicker(symbol string) (BTCChinaTicker) {
 
 func (b *BTCChina) GetTradesLast24h(symbol string) (bool) {
 	req := fmt.Sprintf("%sdata/trades?market=%s", BTCCHINA_API_URL, symbol)
-	err := SendHTTPRequest(req, true, nil)
+	err := SendHTTPGetRequest(req, true, nil)
 	if err != nil {
 		log.Println(err)
 		return false
@@ -241,7 +239,7 @@ func (b *BTCChina) GetTradeHistory(symbol string, limit, sinceTid int64, time ti
 		req += "?" + values
 	}
 
-	err := SendHTTPRequest(req, true, nil)
+	err := SendHTTPGetRequest(req, true, nil)
 	if err != nil {
 		log.Println(err)
 		return false
@@ -251,7 +249,7 @@ func (b *BTCChina) GetTradeHistory(symbol string, limit, sinceTid int64, time ti
 
 func (b *BTCChina) GetOrderBook(symbol string, limit int) (bool) {
 	req := fmt.Sprintf("%sdata/orderbook?market=%s&limit=%d", BTCCHINA_API_URL, symbol, limit)
-	err := SendHTTPRequest(req, true, nil)
+	err := SendHTTPGetRequest(req, true, nil)
 	if err != nil {
 		log.Println(err)
 		return false
@@ -686,37 +684,27 @@ func (b *BTCChina) SendAuthenticatedHTTPRequest(method string, params []interfac
 	data, err := json.Marshal(postData)
 
 	if err != nil {
-		return errors.New("Unable to JSON POST data")
+		return errors.New("Unable to JSON Marshal POST data")
 	}
 
 	if b.Verbose {
 		log.Printf("Sending POST request to %s calling method %s with params %s\n", "https://api.btcchina.com/api_trade_v1.php", method, data)
 	}
 
-	req, err := http.NewRequest("POST", "https://api.btcchina.com/api_trade_v1.php", strings.NewReader(string(data)))
+	headers := make(map[string]string)
+	headers["Content-type"] = "application/json-rpc"
+	headers["Authorization"] = "Basic " + Base64Encode([]byte(b.APIKey + ":" + HexEncodeToString(hmac)))
+	headers["Json-Rpc-Tonce"] = nonce
 
+	resp, err := SendHTTPRequest("POST", "https://api.btcchina.com/api_trade_v1.php", headers, strings.NewReader(string(data)))
+	
 	if err != nil {
 		return err
 	}
 
-	req.Header.Add("Content-type", "application/json-rpc")
-	req.Header.Add("Authorization", "Basic " + Base64Encode([]byte(b.APIKey + ":" + HexEncodeToString(hmac))))
-	req.Header.Add("Json-Rpc-Tonce", nonce)
-
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	defer resp.Body.Close()
-
-	if err != nil {
-		return errors.New("PostRequest: Unable to send request")
-	}
-
-	contents, _ := ioutil.ReadAll(resp.Body)
-	
 	if b.Verbose {
-		log.Printf("Recv'd :%s\n", string(contents))
+		log.Printf("Recv'd :%s\n", resp)
 	}
 
 	return nil
-
 }

@@ -1,11 +1,8 @@
 package main
 
 import (
-	"net/http"
 	"net/url"
-	"errors"
 	"strings"
-	"io/ioutil"
 	"strconv"
 	"time"
 	"fmt"
@@ -70,7 +67,7 @@ func (h *HUOBI) GetFee() (float64) {
 func (h *HUOBI) GetTicker(symbol string) (HuobiTicker) {
 	resp := HuobiTickerResponse{}
 	path := fmt.Sprintf("http://market.huobi.com/staticmarket/ticker_%s_json.js", symbol)
-	err := SendHTTPRequest(path, true, &resp)
+	err := SendHTTPGetRequest(path, true, &resp)
 
 	if err != nil {
 		log.Println(err)
@@ -81,7 +78,7 @@ func (h *HUOBI) GetTicker(symbol string) (HuobiTicker) {
 
 func (h *HUOBI) GetOrderBook(symbol string) (bool) {
 	path := fmt.Sprintf("http://market.huobi.com/staticmarket/depth_%s_json.js", symbol)
-	err := SendHTTPRequest(path, true, nil)
+	err := SendHTTPGetRequest(path, true, nil)
 	if err != nil {
 		log.Println(err)
 		return false
@@ -206,26 +203,17 @@ func (h *HUOBI) SendAuthenticatedRequest(method string, v url.Values) (error) {
 		log.Printf("Sending POST request to %s with params %s\n", HUOBI_API_URL, encoded)
 	}
 
-	req, err := http.NewRequest("POST", HUOBI_API_URL, strings.NewReader(encoded))
+	headers := make(map[string]string)
+	headers["Content-Type"] = "application/x-www-form-urlencoded"
+
+	resp, err := SendHTTPRequest("POST", HUOBI_API_URL, headers, strings.NewReader(encoded))
 
 	if err != nil {
 		return err
 	}
 
-	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
-
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	defer resp.Body.Close()
-
-	if err != nil {
-		return errors.New("PostRequest: Unable to send request")
-	}
-
-	contents, _ := ioutil.ReadAll(resp.Body)
-
 	if h.Verbose {
-		log.Printf("Recieved raw: %s\n", string(contents))
+		log.Printf("Recieved raw: %s\n", resp)
 	}
 	
 	return nil

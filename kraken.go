@@ -10,8 +10,6 @@ import (
 	"time"
 	"strings"
 	"net/url"
-	"net/http"
-	"io/ioutil"
 )
 
 const (
@@ -196,7 +194,7 @@ func (k *Kraken) GetSpread(symbol string) {
 func (k *Kraken) SendKrakenRequest(method string) (map[string]interface{}, error) {
 	path := fmt.Sprintf("%s/%s/public/%s", KRAKEN_API_URL, KRAKEN_API_VERSION, method)
 	resp := KrakenResponse{}
-	err := SendHTTPRequest(path, true, &resp)
+	err := SendHTTPGetRequest(path, true, &resp)
 
 	log.Printf("Sending GET request to %s\n", path)
 
@@ -511,26 +509,22 @@ func (k *Kraken) SendAuthenticatedHTTPRequest(method string, values url.Values) 
 		log.Printf("Sending POST request to %s, path: %s.", KRAKEN_API_URL, path)
 	}
 
-	req, err := http.NewRequest("POST", KRAKEN_API_URL + path, strings.NewReader(values.Encode()))
-	req.Header.Set("API-Key", k.ClientKey)
-	req.Header.Set("API-Sign", signature)
+	headers := make(map[string]string)
+	headers["API-Key"] = k.ClientKey
+	headers["API-Sign"] = signature
 
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	defer resp.Body.Close()
+	resp, err := SendHTTPRequest("POST", KRAKEN_API_URL + path, headers, strings.NewReader(values.Encode()))
 
 	if err != nil {
-		return nil, errors.New("SendAuthenticatedHTTPRequest: Unable to send request")
+		return nil, err
 	}
 
-	contents, _ := ioutil.ReadAll(resp.Body)
-
 	if k.Verbose {
-		log.Printf("Recieved raw: \n%s\n", string(contents))
+		log.Printf("Recieved raw: \n%s\n", resp)
 	}
 	
 	kresp := KrakenResponse{}
-	err = json.Unmarshal(contents, &kresp)
+	err = json.Unmarshal([]byte(resp), &kresp)
 
 	if err != nil {
 		return nil, errors.New("Unable to JSON response.")

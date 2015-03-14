@@ -1,9 +1,7 @@
 package main
 
 import (
-	"net/http"
 	"net/url"
-	"io/ioutil"
 	"log"
 	"encoding/json"
 	"crypto/sha256"
@@ -112,7 +110,7 @@ func (b *Bitstamp) SetAPIKeys(clientID, apiKey, apiSecret string) {
 }
 
 func (b *Bitstamp) GetTicker() (BitstampTicker) {
-	err := SendHTTPRequest(BITSTAMP_API_URL + BITSTAMP_API_TICKER, true, &b.Ticker)
+	err := SendHTTPGetRequest(BITSTAMP_API_URL + BITSTAMP_API_TICKER, true, &b.Ticker)
 
 	if err != nil {
 		log.Println(err) 
@@ -123,7 +121,7 @@ func (b *Bitstamp) GetTicker() (BitstampTicker) {
 }
 
 func (b *Bitstamp) GetOrderbook() {
-	err := SendHTTPRequest(BITSTAMP_API_URL + BITSTAMP_API_ORDERBOOK, true, &b.Orderbook)
+	err := SendHTTPGetRequest(BITSTAMP_API_URL + BITSTAMP_API_ORDERBOOK, true, &b.Orderbook)
 
 	if err != nil {
 		log.Println(err) 
@@ -132,7 +130,7 @@ func (b *Bitstamp) GetOrderbook() {
 }
 
 func (b *Bitstamp) GetTransactions() {
-	err := SendHTTPRequest(BITSTAMP_API_URL + BITSTAMP_API_TRANSACTIONS, true, &b.Transactions)
+	err := SendHTTPGetRequest(BITSTAMP_API_URL + BITSTAMP_API_TRANSACTIONS, true, &b.Transactions)
 
 	if err != nil {
 		log.Println(err) 
@@ -141,7 +139,7 @@ func (b *Bitstamp) GetTransactions() {
 }
 
 func (b *Bitstamp) GetEURUSDConversionRate() {
-	err := SendHTTPRequest(BITSTAMP_API_URL + BITSTAMP_API_EURUSD, true, &b.ConversionRate)
+	err := SendHTTPGetRequest(BITSTAMP_API_URL + BITSTAMP_API_EURUSD, true, &b.ConversionRate)
 
 	if err != nil {
 		log.Println(err) 
@@ -278,31 +276,22 @@ func (b *Bitstamp) SendAuthenticatedHTTPRequest(path string, values url.Values, 
 		log.Println("Sending POST request to " + path)
 	}
 
-	req, err := http.NewRequest("POST", path,  strings.NewReader(values.Encode()))
+	headers := make(map[string]string)
+	headers["Content-Type"] = "application/x-www-form-urlencoded"
+
+	resp, err := SendHTTPRequest("POST", path, headers, strings.NewReader(values.Encode()))
 	if err != nil {
 		return err
 	}
 
-	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
-
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	defer resp.Body.Close()
-
-	if err != nil {
-		return errors.New("PostRequest: Unable to send request")
-	}
-
-	contents, _ := ioutil.ReadAll(resp.Body)
-
 	if b.Verbose {
-		log.Printf("Recieved raw: %s\n", string(contents))
+		log.Printf("Recieved raw: %s\n", resp)
 	}
 
-	err = json.Unmarshal(contents, &result)
+	err = json.Unmarshal([]byte(resp), &result)
 
 	if err != nil {
-		return errors.New("Unable to JSON response.")
+		return errors.New("Unable to JSON Unmarshal response.")
 	}
 
 	return nil

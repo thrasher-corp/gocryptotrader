@@ -1,14 +1,11 @@
 package main
 
 import (
-	"net/http"
 	"net/url"
 	"strconv"
 	"crypto/sha512"
-	"errors"
 	"strings"
 	"time"
-	"io/ioutil"
 	"fmt"
 	"log"
 )
@@ -93,7 +90,7 @@ func (b *BTCE) GetFee() (float64) {
 
 func (b *BTCE) GetInfo() {
 	req := fmt.Sprintf("%s/%s/%s/", BTCE_API_PUBLIC_URL, BTCE_API_PUBLIC_VERSION, BTCE_INFO)
-	err := SendHTTPRequest(req, true, nil)
+	err := SendHTTPGetRequest(req, true, nil)
 
 	if err != nil {
 		log.Println(err)
@@ -107,7 +104,7 @@ func (b *BTCE) GetTicker(symbol string) (BTCeTicker) {
 
 	response := Response{}
 	req := fmt.Sprintf("%s/%s/%s/%s", BTCE_API_PUBLIC_URL, BTCE_API_PUBLIC_VERSION, BTCE_TICKER, symbol)
-	err := SendHTTPRequest(req, true, &response.Data)
+	err := SendHTTPGetRequest(req, true, &response.Data)
 
 	if err != nil {
 		log.Println(err)
@@ -123,7 +120,7 @@ func (b *BTCE) GetDepth(symbol string) () {
 
 	response := Response{}
 	req := fmt.Sprintf("%s/%s/%s/%s", BTCE_API_PUBLIC_URL, BTCE_API_PUBLIC_VERSION, BTCE_DEPTH, symbol)
-	err := SendHTTPRequest(req, true, &response.Data)
+	err := SendHTTPGetRequest(req, true, &response.Data)
 
 	if err != nil {
 		log.Println(err)
@@ -141,7 +138,7 @@ func (b *BTCE) GetTrades(symbol string) () {
 
 	response := Response{}
 	req := fmt.Sprintf("%s/%s/%s/%s", BTCE_API_PUBLIC_URL, BTCE_API_PUBLIC_VERSION, BTCE_TRADES, symbol)
-	err := SendHTTPRequest(req, true, &response.Data)
+	err := SendHTTPGetRequest(req, true, &response.Data)
 
 	if err != nil {
 		log.Println(err)
@@ -243,31 +240,20 @@ func (b *BTCE) SendAuthenticatedHTTPRequest(method string, values url.Values) (e
 		log.Printf("Sending POST request to %s calling method %s with params %s\n", BTCE_API_PRIVATE_URL, method, encoded)
 	}
 
-	req, err := http.NewRequest("POST", BTCE_API_PRIVATE_URL, strings.NewReader(encoded))
+	headers := make(map[string]string)
+	headers["Key"] = b.APIKey
+	headers["Sign"] = HexEncodeToString(hmac)
+	headers["Content-Type"] = "application/x-www-form-urlencoded"
+
+	resp, err := SendHTTPRequest("POST", BTCE_API_PRIVATE_URL, headers, strings.NewReader(encoded))
 
 	if err != nil {
 		return err
 	}
 
-	req.Header.Add("Key", b.APIKey)
-	req.Header.Add("Sign", HexEncodeToString(hmac))
-	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
-
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	defer resp.Body.Close()
-
-	if err != nil {
-		return errors.New("PostRequest: Unable to send request")
-	}
-
-	contents, _ := ioutil.ReadAll(resp.Body)
-
 	if b.Verbose {
-		log.Printf("Recieved raw: %s\n", string(contents))
+		log.Printf("Recieved raw: %s\n",resp)
 	}
 	
-
 	return nil
-
 }

@@ -1,8 +1,6 @@
 package main
 
 import (
-	"net/http"
-	"io/ioutil"
 	"fmt"
 	"log"
 	"encoding/json"
@@ -260,36 +258,28 @@ func (b *Bitfinex) SendAuthenticatedHTTPRequest(method, path string, params map[
 
 	PayloadBase64 := Base64Encode(PayloadJson)
 	hmac := GetHMAC(sha512.New384, []byte(PayloadBase64), []byte(b.APISecret))
-	req, err := http.NewRequest(method, BITFINEX_API_URL + path, strings.NewReader(""))
-	req.Header.Set("X-BFX-APIKEY", b.APIKey)
-	req.Header.Set("X-BFX-PAYLOAD", PayloadBase64)
-	req.Header.Set("X-BFX-SIGNATURE", HexEncodeToString(hmac))
+	headers := make(map[string]string)
+	headers["X-BFX-APIKEY"] = b.APIKey
+	headers["X-BFX-PAYLOAD"] = PayloadBase64
+	headers["X-BFX-SIGNATURE"] = HexEncodeToString(hmac)
 
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	defer resp.Body.Close()
-
-	if err != nil {
-		return errors.New("SendAuthenticatedHTTPRequest: Unable to send request")
-	}
-
-	contents, _ := ioutil.ReadAll(resp.Body)
+	resp, err := SendHTTPRequest(method, BITFINEX_API_URL + path, headers, strings.NewReader(""))
 
 	if b.Verbose {
-		log.Printf("Recieved raw: \n%s\n", string(contents))
+		log.Printf("Recieved raw: \n%s\n", resp)
 	}
 	
-	err = json.Unmarshal(contents, &result)
+	err = json.Unmarshal([]byte(resp), &result)
 
 	if err != nil {
-		return errors.New("Unable to JSON response.")
+		return errors.New("Unable to JSON Unmarshal response.")
 	}
 	
 	return nil
 }
 
 func (b *Bitfinex) GetTicker(symbol string) (BitfinexTicker) {
-	err := SendHTTPRequest(BITFINEX_API_URL + BITFINEX_TICKER + symbol, true, &b.Ticker)
+	err := SendHTTPGetRequest(BITFINEX_API_URL + BITFINEX_TICKER + symbol, true, &b.Ticker)
 	if err != nil {
 		log.Println(err)
 		return BitfinexTicker{}
@@ -298,7 +288,7 @@ func (b *Bitfinex) GetTicker(symbol string) (BitfinexTicker) {
 }
 
 func (b *Bitfinex) GetStats(symbol string) (bool) {
-	err := SendHTTPRequest(BITFINEX_API_URL + BITFINEX_STATS + symbol, true, &b.Stats)
+	err := SendHTTPGetRequest(BITFINEX_API_URL + BITFINEX_STATS + symbol, true, &b.Stats)
 	if err != nil {
 		log.Println(err)
 		return false
@@ -307,7 +297,7 @@ func (b *Bitfinex) GetStats(symbol string) (bool) {
 }
 
 func (b *Bitfinex) GetOrderbook(symbol string) (bool) {
-	err := SendHTTPRequest(BITFINEX_API_URL + BITFINEX_ORDERBOOK + symbol, true, &b.Orderbook)
+	err := SendHTTPGetRequest(BITFINEX_API_URL + BITFINEX_ORDERBOOK + symbol, true, &b.Orderbook)
 	if err != nil {
 		log.Println(err)
 		return false
@@ -316,7 +306,7 @@ func (b *Bitfinex) GetOrderbook(symbol string) (bool) {
 }
 
 func (b *Bitfinex) GetTrades(symbol string) (bool) {
-	err := SendHTTPRequest(BITFINEX_API_URL + BITFINEX_TRADES + symbol, true, &b.Trades)
+	err := SendHTTPGetRequest(BITFINEX_API_URL + BITFINEX_TRADES + symbol, true, &b.Trades)
 	if err != nil {
 		log.Println(err)
 		return false
@@ -325,7 +315,7 @@ func (b *Bitfinex) GetTrades(symbol string) (bool) {
 }
 
 func (b *Bitfinex) GetSymbols() (bool) {
-	err := SendHTTPRequest(BITFINEX_API_URL + BITFINEX_SYMBOLS, false, nil)
+	err := SendHTTPGetRequest(BITFINEX_API_URL + BITFINEX_SYMBOLS, false, nil)
 	if err != nil {
 		log.Println(err)
 		return false
@@ -334,7 +324,7 @@ func (b *Bitfinex) GetSymbols() (bool) {
 }
 
 func (b *Bitfinex) GetSymbolsDetails() (bool) {
-	err := SendHTTPRequest(BITFINEX_API_URL + BITFINEX_SYMBOLS_DETAILS, false, &b.SymbolsDetails)
+	err := SendHTTPGetRequest(BITFINEX_API_URL + BITFINEX_SYMBOLS_DETAILS, false, &b.SymbolsDetails)
 	if err != nil {
 		log.Println(err)
 		return false

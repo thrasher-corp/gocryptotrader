@@ -10,8 +10,10 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"encoding/hex"
+	"io"
 	"io/ioutil"
 	"errors"
+	"strings"
 	"math"
 	"log"
 )
@@ -92,9 +94,42 @@ func CalculateNetProfit(amount, priceThen, priceNow, costs float64) (float64) {
 	return (priceNow * amount) - (priceThen * amount) - costs
 }
 
-func SendHTTPRequest(url string, jsonDecode bool, result interface{}) (err error) {
+func SendHTTPRequest(method, path string, headers map[string]string, body io.Reader) (string, error) {
+	result := strings.ToUpper(method)
+	
+	if result != "POST" && result != "GET" {
+		return "", errors.New("Invalid HTTP method specified.")
+	}
+
+	req, err := http.NewRequest(method, path, body)
+
+	if err != nil {
+		return "", err
+	}
+
+	for k, v := range headers {
+		req.Header.Add(k, v)
+	}
+
+	httpClient := &http.Client{}
+	resp, err := httpClient.Do(req)
+	
+	if err != nil {
+		return "", err
+	}
+
+	contents, err := ioutil.ReadAll(resp.Body)
+	defer resp.Body.Close()
+
+	if err != nil {
+		return "", err
+	}
+
+	return string(contents), nil
+}
+
+func SendHTTPGetRequest(url string, jsonDecode bool, result interface{}) (err error) {
 	res, err := http.Get(url)
-	defer res.Body.Close()
 
 	if err != nil {
 		log.Println(err)
@@ -108,6 +143,7 @@ func SendHTTPRequest(url string, jsonDecode bool, result interface{}) (err error
 
 	contents, _ := ioutil.ReadAll(res.Body)
 	//log.Printf("Recieved raw: %s\n", string(contents))
+	defer res.Body.Close()
 
 	if jsonDecode {
 		err := json.Unmarshal(contents, &result)
@@ -118,5 +154,6 @@ func SendHTTPRequest(url string, jsonDecode bool, result interface{}) (err error
 	} else {
 		result = contents
 	}
-	return
+
+	return nil
 }

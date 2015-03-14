@@ -1,14 +1,11 @@
 package main
 
 import (
-	"net/http"
 	"strconv"
 	"crypto/sha512"
-	"errors"
 	"strings"
 	"time"
 	"log"
-	"io/ioutil"
 	"fmt"
 )
 
@@ -65,7 +62,7 @@ func (b *BTCMarkets) GetFee() (float64) {
 func (b *BTCMarkets) GetTicker(symbol string) (BTCMarketsTicker) {
 	ticker := BTCMarketsTicker{}
 	path := fmt.Sprintf("/market/%s/AUD/tick", symbol)
-	err := SendHTTPRequest(BTCMARKETS_API_URL + path, true, &ticker)
+	err := SendHTTPGetRequest(BTCMARKETS_API_URL + path, true, &ticker)
 	if err != nil {
 		log.Println(err)
 		return BTCMarketsTicker{}
@@ -75,7 +72,7 @@ func (b *BTCMarkets) GetTicker(symbol string) (BTCMarketsTicker) {
 
 func (b *BTCMarkets) GetOrderbook(symbol string) {
 	path := fmt.Sprintf("/market/%s/AUD/orderbook", symbol)
-	err := SendHTTPRequest(BTCMARKETS_API_URL + path, true, nil)
+	err := SendHTTPGetRequest(BTCMARKETS_API_URL + path, true, nil)
 	if err != nil {
 		log.Println(err)
 	}
@@ -88,7 +85,7 @@ func (b *BTCMarkets) GetTrades(symbol, since string) {
 	} else {
 		path = fmt.Sprintf("/market/%s/AUD/trades", symbol)
 	}
-	err := SendHTTPRequest(BTCMARKETS_API_URL + path, true, nil)
+	err := SendHTTPGetRequest(BTCMARKETS_API_URL + path, true, nil)
 	if err != nil {
 		log.Println(err)
 	}
@@ -109,33 +106,23 @@ func (b *BTCMarkets) SendAuthenticatedRequest(reqType, path, data string) (error
 	if b.Verbose {
 		log.Printf("Sending %s request to %s path %s with params %s\n", reqType, BTCMARKETS_API_URL + path, path, request)
 	}
-	
-	req, err := http.NewRequest(reqType, BTCMARKETS_API_URL + path, strings.NewReader(""))
+
+	headers := make(map[string]string)
+	headers["Accept"] = "application/json"
+	headers["Content-Type"] = "application/json"
+	headers["Accept-Charset"] = "UTF-8"
+	headers["apikey"] = b.APIKey
+	headers["timestamp"] = nonce
+	headers["signature"] = Base64Encode(hmac)
+
+	resp, err := SendHTTPRequest(reqType, BTCMARKETS_API_URL + path, headers, strings.NewReader(""))
 
 	if err != nil {
 		return err
 	}
 
-	req.Header.Add("Accept", "application/json")
-	req.Header.Add("Content-Type", "application/json")
-	req.Header.Add("User-Agent", "btc markets python client")
-	req.Header.Add("Accept-Charset", "UTF-8")
-	req.Header.Add("apikey", b.APIKey)
-	req.Header.Add("timestamp", nonce)
-	req.Header.Add("signature", Base64Encode(hmac))
-
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	defer resp.Body.Close()
-
-	if err != nil {
-		return errors.New("PostRequest: Unable to send request")
-	}
-
-	contents, _ := ioutil.ReadAll(resp.Body)
-
 	if b.Verbose {
-		log.Printf("Recieved raw: %s\n", string(contents))
+		log.Printf("Recieved raw: %s\n", resp)
 	}
 
 	return nil

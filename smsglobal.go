@@ -1,12 +1,9 @@
 package main
 
 import (
-	"net/http"
 	"net/url"
 	"strings"
 	"log"
-	"io/ioutil"
-	"errors"
 )
 
 const (
@@ -43,24 +40,15 @@ func SMSNotify(to, message string) (error) {
 	values.Set("to", to)
 	values.Set("text", message)
 
-	reqBody := strings.NewReader(values.Encode())
-	req, err := http.NewRequest("POST", SMSGLOBAL_API_URL, reqBody)
+	headers := make(map[string]string)
+	headers["Content-Type"] = "application/x-www-form-urlencoded"
+
+	resp, err := SendHTTPRequest("POST", SMSGLOBAL_API_URL, headers, strings.NewReader(values.Encode()))
 
 	if err != nil {
 		return err
 	}
 
-	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
-
-	client := &http.Client{}
-	resp, err := client.Do(req)
-
-	if err != nil {
-		return errors.New("PostRequest: Unable to send request")
-	}
-
-	contents, _ := ioutil.ReadAll(resp.Body)
-	log.Printf("Recieved raw: %s\n", string(contents))
-	resp.Body.Close()
+	log.Printf("Recieved raw: %s\n", resp)
 	return nil
 }

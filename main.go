@@ -301,7 +301,7 @@ func main() {
 			}
 		}
 	}
-	
+
 	err = RetrieveConfigCurrencyPairs(bot.config)
 
 	if err != nil {

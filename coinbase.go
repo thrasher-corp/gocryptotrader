@@ -116,7 +116,7 @@ func (c *Coinbase) SetAPIKeys(password, apiKey, apiSecret string) {
 
 func (c *Coinbase) GetProducts() {
 	products := []CoinbaseProduct{}
-	err := SendHTTPRequest(COINBASE_API_URL + COINBASE_PRODUCTS, true, &products)
+	err := SendHTTPGetRequest(COINBASE_API_URL + COINBASE_PRODUCTS, true, &products)
 
 	if err != nil {
 		log.Println(err)
@@ -135,7 +135,7 @@ func (c *Coinbase) GetOrderbook(symbol string, level int) {
 		path = fmt.Sprintf("%s/%s/%s", COINBASE_API_URL + COINBASE_PRODUCTS, symbol, COINBASE_ORDERBOOK)
 	}
 		
-	err := SendHTTPRequest(path, true, &orderbook)
+	err := SendHTTPGetRequest(path, true, &orderbook)
 
 	if err != nil {
 		log.Println(err)
@@ -146,7 +146,7 @@ func (c *Coinbase) GetOrderbook(symbol string, level int) {
 func (c *Coinbase) GetTicker(symbol string) (CoinbaseTicker) {
 	ticker := CoinbaseTicker{}
 	path := fmt.Sprintf("%s/%s/%s", COINBASE_API_URL + COINBASE_PRODUCTS, symbol, COINBASE_TICKER)
-	err := SendHTTPRequest(path, true, &ticker)
+	err := SendHTTPGetRequest(path, true, &ticker)
 
 	if err != nil {
 		log.Println(err)
@@ -158,7 +158,7 @@ func (c *Coinbase) GetTicker(symbol string) (CoinbaseTicker) {
 func (c *Coinbase) GetTrades(symbol string) {
 	trades := []CoinbaseTrade{}
 	path := fmt.Sprintf("%s/%s/%s", COINBASE_API_URL + COINBASE_PRODUCTS, symbol, COINBASE_TRADES)
-	err := SendHTTPRequest(path, true, &trades)
+	err := SendHTTPGetRequest(path, true, &trades)
 
 	if err != nil {
 		log.Println(err)
@@ -189,7 +189,7 @@ func (c *Coinbase) GetHistoricRates(symbol string, start, end, granularity int64
 		path += encoded
 	}
 
-	err := SendHTTPRequest(path, true, &history)
+	err := SendHTTPGetRequest(path, true, &history)
 
 	if err != nil {
 		log.Println(err)
@@ -200,7 +200,7 @@ func (c *Coinbase) GetHistoricRates(symbol string, start, end, granularity int64
 func (c *Coinbase) GetStats(symbol string) (CoinbaseStats) {
 	stats := CoinbaseStats{}
 	path := fmt.Sprintf("%s/%s/%s", COINBASE_API_URL + COINBASE_PRODUCTS, symbol, COINBASE_STATS)
-	err := SendHTTPRequest(path, true, &stats)
+	err := SendHTTPGetRequest(path, true, &stats)
 
 	if err != nil {
 		log.Println(err)
@@ -211,7 +211,7 @@ func (c *Coinbase) GetStats(symbol string) (CoinbaseStats) {
 
 func (c *Coinbase) GetCurrencies() {
 	currencies := []CoinbaseCurrency{}
-	err := SendHTTPRequest(COINBASE_API_URL + COINBASE_CURRENCIES, true, &currencies)
+	err := SendHTTPGetRequest(COINBASE_API_URL + COINBASE_CURRENCIES, true, &currencies)
 
 	if err != nil {
 		log.Println(err)

@@ -1,11 +1,8 @@
 package main
 
 import (
-	"net/http"
 	"net/url"
-	"errors"
 	"strings"
-	"io/ioutil"
 	"strconv"
 	"fmt"
 	"log"
@@ -100,7 +97,7 @@ func (o *OKCoin) GetFee(maker bool) (float64) {
 func (o *OKCoin) GetTicker(symbol string) (OKCoinTicker) {
 	resp := OKCoinTickerResponse{}
 	path := fmt.Sprintf("ticker.do?symbol=%s&ok=1", symbol)
-	err := SendHTTPRequest(o.APIUrl + path, true, &resp)
+	err := SendHTTPGetRequest(o.APIUrl + path, true, &resp)
 
 	if err != nil {
 		log.Println(err)
@@ -112,7 +109,7 @@ func (o *OKCoin) GetTicker(symbol string) (OKCoinTicker) {
 func (o *OKCoin) GetFuturesTicker(symbol, contractType string) (OKCoinFuturesTicker) {
 	resp := OKCoinFuturesTickerResponse{}
 	path := fmt.Sprintf("future_ticker.do?symbol=%s&contract_type=%s", symbol, contractType)
-	err := SendHTTPRequest(o.APIUrl + path, true, &resp)
+	err := SendHTTPGetRequest(o.APIUrl + path, true, &resp)
 	if err != nil {
 		log.Println(err)
 		return OKCoinFuturesTicker{}
@@ -122,7 +119,7 @@ func (o *OKCoin) GetFuturesTicker(symbol, contractType string) (OKCoinFuturesTic
 
 func (o *OKCoin) GetOrderBook(symbol string) (bool) {
 	path := "depth.do?symbol=" + symbol
-	err := SendHTTPRequest(o.APIUrl + path, true, nil)
+	err := SendHTTPGetRequest(o.APIUrl + path, true, nil)
 	if err != nil {
 		log.Println(err)
 		return false
@@ -132,7 +129,7 @@ func (o *OKCoin) GetOrderBook(symbol string) (bool) {
 
 func (o *OKCoin) GetFuturesDepth(symbol, contractType string) (bool) {
 	path := fmt.Sprintf("future_depth.do?symbol=%s&contract_type=%s", symbol, contractType)
-	err := SendHTTPRequest(o.APIUrl + path, true, nil)
+	err := SendHTTPGetRequest(o.APIUrl + path, true, nil)
 	if err != nil {
 		log.Println(err)
 		return false
@@ -142,7 +139,7 @@ func (o *OKCoin) GetFuturesDepth(symbol, contractType string) (bool) {
 
 func (o *OKCoin) GetTradeHistory(symbol string) (bool) {
 	path := "trades.do?symbol=" + symbol
-	err := SendHTTPRequest(o.APIUrl + path, true, nil)
+	err := SendHTTPGetRequest(o.APIUrl + path, true, nil)
 	if err != nil {
 		log.Println(err)
 		return false
@@ -152,7 +149,7 @@ func (o *OKCoin) GetTradeHistory(symbol string) (bool) {
 
 func (o *OKCoin) GetFuturesTrades(symbol, contractType string) (bool) {
 	path := fmt.Sprintf("future_trades.do?symbol=%s&contract_type=%s", symbol, contractType)
-	err := SendHTTPRequest(o.APIUrl + path, true, nil)
+	err := SendHTTPGetRequest(o.APIUrl + path, true, nil)
 	if err != nil {
 		log.Println(err)
 		return false
@@ -162,7 +159,7 @@ func (o *OKCoin) GetFuturesTrades(symbol, contractType string) (bool) {
 
 func (o *OKCoin) GetFuturesIndex(symbol string) (bool) {
 	path := "future_index.do?symbol=" + symbol
-	err := SendHTTPRequest(o.APIUrl + path, true, nil)
+	err := SendHTTPGetRequest(o.APIUrl + path, true, nil)
 	if err != nil {
 		log.Println(err)
 		return false
@@ -171,7 +168,7 @@ func (o *OKCoin) GetFuturesIndex(symbol string) (bool) {
 }
 
 func (o *OKCoin) GetFuturesExchangeRate() (bool) {
-	err := SendHTTPRequest(o.APIUrl + "exchange_rate.do", true, nil)
+	err := SendHTTPGetRequest(o.APIUrl + "exchange_rate.do", true, nil)
 	if err != nil {
 		log.Println(err)
 	}
@@ -180,7 +177,7 @@ func (o *OKCoin) GetFuturesExchangeRate() (bool) {
 
 func (o *OKCoin) GetFuturesEstimatedPrice(symbol string) (bool) {
 	path := "future_estimated_price.do?symbol=" + symbol
-	err := SendHTTPRequest(o.APIUrl + path, true, nil)
+	err := SendHTTPGetRequest(o.APIUrl + path, true, nil)
 	if err != nil {
 		log.Println(err)
 		return false
@@ -190,7 +187,7 @@ func (o *OKCoin) GetFuturesEstimatedPrice(symbol string) (bool) {
 
 func (o *OKCoin) GetFuturesTradeHistory(symbol, date string, since int64) (bool) {
 	path := fmt.Sprintf("future_trades.do?symbol=%s&date%s&since=%d", symbol, date, since)
-	err := SendHTTPRequest(o.APIUrl + path, true, nil)
+	err := SendHTTPGetRequest(o.APIUrl + path, true, nil)
 	if err != nil {
 		log.Println(err)
 		return false
@@ -416,26 +413,17 @@ func (o *OKCoin) SendAuthenticatedHTTPRequest(method string, v url.Values) (err 
 		log.Printf("Sending POST request to %s with params %s\n", path, encoded)
 	}
 
-	req, err := http.NewRequest("POST", path, strings.NewReader(encoded))
+	headers := make(map[string]string)
+	headers["Content-Type"] = "application/x-www-form-urlencoded"
+
+	resp, err := SendHTTPRequest("POST", path, headers, strings.NewReader(encoded))
 
 	if err != nil {
 		return err
 	}
 
-	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
-
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	defer resp.Body.Close()
-
-	if err != nil {
-		return errors.New("PostRequest: Unable to send request")
-	}
-
-	contents, _ := ioutil.ReadAll(resp.Body)
-
 	if o.Verbose {
-		log.Printf("Recieved raw: %s\n", string(contents))
+		log.Printf("Recieved raw: %s\n", resp)
 	}
 	
 	return nil

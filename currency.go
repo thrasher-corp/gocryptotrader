@@ -1,10 +1,8 @@
 package main
 
 import (
-	"net/http"
-	"net/url"
 	"fmt"
-	"io/ioutil"
+	"net/url"
 	"encoding/json"
 	"strings"
 	"time"
@@ -111,29 +109,21 @@ func QueryYahooCurrencyValues(currencies string) (error) {
 	values.Set("q", fmt.Sprintf("SELECT * from yahoo.finance.xchange WHERE pair in (\"%s\")", currencyPairs))
 	values.Set("format", "json")
 	values.Set("env", YAHOO_DATABASE)
-	path := YAHOO_YQL_URL+"?"+values.Encode()
-	req, err := http.NewRequest("GET", path, strings.NewReader(""))
+
+	headers := make(map[string]string)
+	headers["Content-Type"] = "application/x-www-form-urlencoded"
+
+	resp, err := SendHTTPRequest("POST", YAHOO_YQL_URL, headers, strings.NewReader(values.Encode()))
 
 	if err != nil {
 		return err
 	}
 
-	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
-
-	client := &http.Client{}
-	resp, err := client.Do(req)
-
+	err = json.Unmarshal([]byte(resp), &CurrencyStore)
+	
 	if err != nil {
 		return err
 	}
-
-	contents, _ := ioutil.ReadAll(resp.Body)
-	err = json.Unmarshal(contents, &CurrencyStore)
-
-	if err != nil {
-		return err
-	}
-
-	resp.Body.Close()
+	
 	return nil
 }

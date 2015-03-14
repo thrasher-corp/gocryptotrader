@@ -8,7 +8,6 @@ import (
 	"strings"
 	"time"
 	"encoding/json"
-	"io/ioutil"
 	"log"
 )
 
@@ -81,7 +80,7 @@ func (i *ItBit) GetFee(maker bool) (float64) {
 func (i *ItBit) GetTicker(currency string) (ItBitTicker) {
 	path := ITBIT_API_URL + "/markets/" + currency + "/ticker"
 	var itbitTicker ItBitTicker
-	err := SendHTTPRequest(path, true, &itbitTicker)
+	err := SendHTTPGetRequest(path, true, &itbitTicker)
 	if err != nil {
 		log.Println(err)
 		return ItBitTicker{}
@@ -91,7 +90,7 @@ func (i *ItBit) GetTicker(currency string) (ItBitTicker) {
 
 func (i *ItBit) GetOrderbook(currency string) (bool) {
 	path := ITBIT_API_URL + "/markets/" + currency + "/orders"
-	err := SendHTTPRequest(path , true, nil)
+	err := SendHTTPGetRequest(path , true, nil)
 	if err != nil {
 		log.Println(err)
 		return false
@@ -101,7 +100,7 @@ func (i *ItBit) GetOrderbook(currency string) (bool) {
 
 func (i *ItBit) GetTradeHistory(currency, timestamp string) (bool) {
 	req := "/trades?since=" + timestamp
-	err := SendHTTPRequest(ITBIT_API_URL + "markets/" + currency + req, true, nil)
+	err := SendHTTPGetRequest(ITBIT_API_URL + "markets/" + currency + req, true, nil)
 	if err != nil {
 		log.Println(err)
 		return false
@@ -261,35 +260,31 @@ func (i *ItBit) SendAuthenticatedHTTPRequest(method string, path string, params 
 
 	PayloadJson, err := json.Marshal(request)	
 	
+	if err != nil {
+		return errors.New("SendAuthenticatedHTTPRequest: Unable to JSON Marshal request")
+	}
+
 	if i.Verbose {
 		log.Printf("Request JSON: %s\n", PayloadJson)
 	}
 
-	if err != nil {
-		return errors.New("SendAuthenticatedHTTPRequest: Unable to JSON request")
-	}
-
 	hmac := GetHMAC(sha512.New, []byte(nonce + string(PayloadJson)), []byte(i.APISecret))
 	signature := Base64Encode([]byte(HexEncodeToString(hmac)))
-	req, err := http.NewRequest(method, path, strings.NewReader(""))
 
-	req.Header.Add("Authorization", i.ClientKey + ":" + signature)
-	req.Header.Add("X-Auth-Timestamp", nonce)
-	req.Header.Add("X-Auth-Nonce", nonce)
-	req.Header.Add("Content-Type", "application/json")
+	headers := make(map[string]string)
+	headers["Authorization"] = i.ClientKey + ":" + signature
+	headers["X-Auth-Timestamp"] = nonce
+	headers["X-Auth-Nonce"] = nonce
+	headers["Content-Type"] = "application/json"
 
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	defer resp.Body.Close()
+	resp, err := http.NewRequest(method, path, strings.NewReader(""))
 
-	if err != nil {
-		return errors.New("SendAuthenticatedHTTPRequest: Unable to send request")
+	if resp != nil {
+		return nil
 	}
 
-	contents, _ := ioutil.ReadAll(resp.Body)
-
 	if i.Verbose {
-		log.Printf("Recieved raw: %s\n", string(contents))
+		log.Printf("Recieved raw: %s\n", resp)
 	}
 	
 	return nil
