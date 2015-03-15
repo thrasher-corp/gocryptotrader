@@ -157,7 +157,6 @@ func SendHTTPGetRequest(url string, jsonDecode bool, result interface{}) (err er
 	res, err := http.Get(url)
 
 	if err != nil {
-		log.Println(err)
 		return err
 	}
 
@@ -166,18 +165,32 @@ func SendHTTPGetRequest(url string, jsonDecode bool, result interface{}) (err er
 		return errors.New("Status code was not 200.")
 	}
 
-	contents, _ := ioutil.ReadAll(res.Body)
-	//log.Printf("Recieved raw: %s\n", string(contents))
+	contents, err := ioutil.ReadAll(res.Body)
+	
+	if err != nil {
+		return err
+	}
+
 	defer res.Body.Close()
 
 	if jsonDecode {
-		err := json.Unmarshal(contents, &result)
+		err := JSONDecode(contents, &result)
 
 		if err != nil {
-			return errors.New("Unable to JSON decode body.")
+			return err
 		}
 	} else {
-		result = contents
+		result = &contents
+	}
+
+	return nil
+}
+
+func JSONDecode(data []byte, to interface{}) (error) {
+	err := json.Unmarshal(data, &to)
+
+	if err != nil {
+		return err
 	}
 
 	return nil
