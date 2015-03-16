@@ -142,6 +142,6 @@ func PopulateExchangeInfo() {
 	}
 	if bot.exchange.lakebtc.IsEnabled() {
 		LakeBTC := bot.exchange.lakebtc.GetTicker()
-		AddExchangeInfo(bot.exchange.lakebtc.GetName(), "BTC", LakeBTC.USD.Last, 0)
+		AddExchangeInfo(bot.exchange.lakebtc.GetName(), "BTC", LakeBTC.USD.Last, LakeBTC.USD.Volume)
 	}
 }

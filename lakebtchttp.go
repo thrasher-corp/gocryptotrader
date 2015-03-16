@@ -38,6 +38,7 @@ type LakeBTCTicker struct {
 	Ask float64
 	High float64
 	Low float64
+	Volume float64
 }
 
 type LakeBTCTickerResponse struct {
