@@ -50,7 +50,7 @@ func AddExchangeInfo(exchange, currency string, price, volume float64) {
 	ExchInfo = append(ExchInfo, exch)
 }
 
-func SortExchangesByVolume(currency string) []ExchangeInfo {
+func SortExchangesByVolume(currency string, reverse bool) []ExchangeInfo {
 	info := []ExchangeInfo{}
 
 	for _, x := range ExchInfo {
@@ -59,11 +59,15 @@ func SortExchangesByVolume(currency string) []ExchangeInfo {
 		}
 	}
 
-	sort.Sort(ByVolume(info))
+	if reverse {
+		sort.Sort(sort.Reverse(ByVolume(info)))
+	} else {
+		sort.Sort(ByVolume(info))
+	}
 	return info
 }
 
-func SortExchangesByPrice(currency string) []ExchangeInfo {
+func SortExchangesByPrice(currency string, reverse bool) []ExchangeInfo {
 	info := []ExchangeInfo{}
 
 	for _, x := range ExchInfo {
@@ -72,7 +76,11 @@ func SortExchangesByPrice(currency string) []ExchangeInfo {
 		}
 	}
 
-	sort.Sort(ByPrice(info))
+	if reverse {
+		sort.Sort(sort.Reverse(ByPrice(info)))
+	} else {
+		sort.Sort(ByPrice(info))
+	}
 	return info
 }
 
