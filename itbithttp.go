@@ -86,6 +86,7 @@ func (i *ItBit) Run() {
 		go func() {
 			ItbitBTC := i.GetTicker("XBTUSD")
 			log.Printf("ItBit BTC: Last %f High %f Low %f Volume %f\n", ItbitBTC.LastPrice, ItbitBTC.High24h, ItbitBTC.Low24h, ItbitBTC.Volume24h)
+			AddExchangeInfo(i.GetName(), "BTC", ItbitBTC.LastPrice, ItbitBTC.Volume24h)
 		}()
 		time.Sleep(time.Second * i.PollingDelay)
 	}

@@ -193,11 +193,13 @@ func (b *Bitfinex) Run() {
 		go func() {
 			BitfinexLTC := b.GetTicker("ltcusd")
 			log.Printf("Bitfinex LTC: Last %f High %f Low %f Volume %f\n", BitfinexLTC.Last, BitfinexLTC.High, BitfinexLTC.Low, BitfinexLTC.Volume)
+			AddExchangeInfo(b.GetName(), "LTC", BitfinexLTC.Last, BitfinexLTC.Volume)
 		}()
 
 		go func() {
 			BitfinexBTC := b.GetTicker("btcusd")
 			log.Printf("Bitfinex BTC: Last %f High %f Low %f Volume %f\n", BitfinexBTC.Last, BitfinexBTC.High, BitfinexBTC.Low, BitfinexBTC.Volume)
+			AddExchangeInfo(b.GetName(), "BTC", BitfinexBTC.Last, BitfinexBTC.Volume)
 		}()
 		time.Sleep(time.Second * b.PollingDelay)
 	}

@@ -78,6 +78,7 @@ func (h *HUOBI) Run() {
 			HuobiBTCHighUSD, _ := ConvertCurrency(HuobiBTC.High, "CNY", "USD")
 			HuobiBTCLowUSD, _ := ConvertCurrency(HuobiBTC.Low, "CNY", "USD")
 			log.Printf("Huobi BTC: Last %f (%f) High %f (%f) Low %f (%f) Volume %f\n", HuobiBTCLastUSD, HuobiBTC.Last, HuobiBTCHighUSD, HuobiBTC.High, HuobiBTCLowUSD, HuobiBTC.Low, HuobiBTC.Vol)
+			AddExchangeInfo(h.GetName(), "BTC", HuobiBTCLastUSD, HuobiBTC.Vol)
 		}()
 
 		go func() {
@@ -86,6 +87,7 @@ func (h *HUOBI) Run() {
 			HuobiLTCHighUSD, _ := ConvertCurrency(HuobiLTC.High, "CNY", "USD")
 			HuobiLTCLowUSD, _ := ConvertCurrency(HuobiLTC.Low, "CNY", "USD")
 			log.Printf("Huobi LTC: Last %f (%f) High %f (%f) Low %f (%f) Volume %f\n", HuobiLTCLastUSD, HuobiLTC.Last, HuobiLTCHighUSD, HuobiLTC.High, HuobiLTCLowUSD, HuobiLTC.Low, HuobiLTC.Vol)
+			AddExchangeInfo(h.GetName(), "LTC", HuobiLTCLastUSD, HuobiLTC.Vol)
 		}()
 		time.Sleep(time.Second * h.PollingDelay)
 	}

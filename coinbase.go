@@ -122,6 +122,7 @@ func (c *Coinbase) Run() {
 			CoinbaseStats := c.GetStats("BTC-USD")
 			CoinbaseTicker := c.GetTicker("BTC-USD")
 			log.Printf("Coinbase BTC: Last %f High %f Low %f Volume %f\n", CoinbaseTicker.Price, CoinbaseStats.High, CoinbaseStats.Low, CoinbaseStats.Volume)
+			AddExchangeInfo(c.GetName(), "BTC", CoinbaseTicker.Price, CoinbaseStats.Volume)
 		}()
 		time.Sleep(time.Second * c.PollingDelay)
 	}

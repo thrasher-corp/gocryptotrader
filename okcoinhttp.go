@@ -107,11 +107,13 @@ func (o *OKCoin) Run() {
 			go func() {
 				OKCoinChinaIntlBTC := o.GetTicker("btc_usd")
 				log.Printf("OKCoin Intl BTC: Last %f High %f Low %f Volume %f\n", OKCoinChinaIntlBTC.Last, OKCoinChinaIntlBTC.High, OKCoinChinaIntlBTC.Low, OKCoinChinaIntlBTC.Vol)
+				AddExchangeInfo(o.GetName(), "BTC", OKCoinChinaIntlBTC.Last, OKCoinChinaIntlBTC.Vol)
 			}()
 
 			go func() {
 				OKCoinChinaIntlLTC := o.GetTicker("ltc_usd")
 				log.Printf("OKCoin Intl LTC: Last %f High %f Low %f Volume %f\n", OKCoinChinaIntlLTC.Last, OKCoinChinaIntlLTC.High, OKCoinChinaIntlLTC.Low, OKCoinChinaIntlLTC.Vol)
+				AddExchangeInfo(o.GetName(), "LTC", OKCoinChinaIntlLTC.Last, OKCoinChinaIntlLTC.Vol)
 			}()
 		
 			go func() {
@@ -150,6 +152,7 @@ func (o *OKCoin) Run() {
 				OKCoinChinaBTCHighUSD, _ := ConvertCurrency(OKCoinChinaBTC.High, "CNY", "USD")
 				OKCoinChinaBTCLowUSD, _ := ConvertCurrency(OKCoinChinaBTC.Low, "CNY", "USD")
 				log.Printf("OKCoin China: Last %f (%f) High %f (%f) Low %f (%f) Volume %f\n", OKCoinChinaBTCLastUSD, OKCoinChinaBTC.Last, OKCoinChinaBTCHighUSD, OKCoinChinaBTC.High, OKCoinChinaBTCLowUSD, OKCoinChinaBTC.Low, OKCoinChinaBTC.Vol)
+				AddExchangeInfo(o.GetName(), "BTC", OKCoinChinaBTCLastUSD, OKCoinChinaBTC.Vol)
 			}()
 
 			go func() {
@@ -158,6 +161,7 @@ func (o *OKCoin) Run() {
 				OKCoinChinaLTCHighUSD, _ := ConvertCurrency(OKCoinChinaLTC.High, "CNY", "USD")
 				OKCoinChinaLTCLowUSD, _ := ConvertCurrency(OKCoinChinaLTC.Low, "CNY", "USD")
 				log.Printf("OKCoin China: Last %f (%f) High %f (%f) Low %f (%f) Volume %f\n", OKCoinChinaLTCLastUSD, OKCoinChinaLTC.Last, OKCoinChinaLTCHighUSD, OKCoinChinaLTC.High, OKCoinChinaLTCLowUSD, OKCoinChinaLTC.Low, OKCoinChinaLTC.Vol)
+				AddExchangeInfo(o.GetName(), "LTC",OKCoinChinaLTCLastUSD, OKCoinChinaLTC.Vol)
 			}()
 		}
 		time.Sleep(time.Second * o.PollingDelay)

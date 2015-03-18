@@ -208,6 +208,7 @@ func (b *BTCChina) Run() {
 			BTCChinaBTCHighUSD, _ := ConvertCurrency(BTCChinaBTC.High, "CNY", "USD")
 			BTCChinaBTCLowUSD, _ := ConvertCurrency(BTCChinaBTC.Low, "CNY", "USD")
 			log.Printf("BTCChina BTC: Last %f (%f) High %f (%f) Low %f (%f) Volume %f\n", BTCChinaBTCLastUSD, BTCChinaBTC.Last,  BTCChinaBTCHighUSD, BTCChinaBTC.High, BTCChinaBTCLowUSD, BTCChinaBTC.Low, BTCChinaBTC.Vol)
+			AddExchangeInfo(b.GetName(), "BTC", BTCChinaBTCLastUSD, BTCChinaBTC.Vol)
 		}()
 
 		go func() {
@@ -216,6 +217,7 @@ func (b *BTCChina) Run() {
 			BTCChinaLTCHighUSD, _ := ConvertCurrency(BTCChinaLTC.High, "CNY", "USD")
 			BTCChinaLTCLowUSD, _ := ConvertCurrency(BTCChinaLTC.Low, "CNY", "USD")
 			log.Printf("BTCChina LTC: Last %f (%f) High %f (%f) Low %f (%f) Volume %f\n", BTCChinaLTCLastUSD, BTCChinaLTC.Last, BTCChinaLTCHighUSD, BTCChinaLTC.High, BTCChinaLTCLowUSD, BTCChinaLTC.Low, BTCChinaLTC.Vol)
+			AddExchangeInfo(b.GetName(), "LTC", BTCChinaLTCLastUSD, BTCChinaLTC.Vol)
 		}()
 		time.Sleep(time.Second * b.PollingDelay)
 	}

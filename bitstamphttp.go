@@ -121,6 +121,7 @@ func (b *Bitstamp) Run() {
 		go func() {
 			BitstampBTC := b.GetTicker()
 			log.Printf("Bitstamp BTC: Last %f High %f Low %f Volume %f\n", BitstampBTC.Last, BitstampBTC.High, BitstampBTC.Low, BitstampBTC.Volume)
+			AddExchangeInfo(b.GetName(), "BTC", BitstampBTC.Last, BitstampBTC.Volume)
 		}()
 		time.Sleep(time.Second * b.PollingDelay)
 	}

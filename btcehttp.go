@@ -98,11 +98,13 @@ func (b *BTCE) Run() {
 		go func() {
 			BTCeBTC := b.GetTicker("btc_usd")
 			log.Printf("BTC-e BTC: Last %f High %f Low %f Volume %f\n", BTCeBTC.Last, BTCeBTC.High, BTCeBTC.Low, BTCeBTC.Vol_cur)
+			AddExchangeInfo(b.GetName(), "BTC", BTCeBTC.Last, BTCeBTC.Vol_cur)
 		}()
 
 		go func() {
 			BTCeLTC := b.GetTicker("ltc_usd")
 			log.Printf("BTC-e LTC: Last %f High %f Low %f Volume %f\n", BTCeLTC.Last, BTCeLTC.High, BTCeLTC.Low, BTCeLTC.Vol_cur)
+			AddExchangeInfo(b.GetName(), "LTC", BTCeLTC.Last, BTCeLTC.Vol_cur)
 		}()
 		time.Sleep(time.Second * b.PollingDelay)
 	}

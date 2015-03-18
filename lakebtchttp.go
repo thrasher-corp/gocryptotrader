@@ -89,6 +89,7 @@ func (l *LakeBTC) Run() {
 		go func() {
 			LakeBTCTickerResponse := l.GetTicker()
 			log.Printf("LakeBTC USD: Last %f (%f) High %f (%f) Low %f (%f) Volume US %f (CNY %f)\n", LakeBTCTickerResponse.USD.Last, LakeBTCTickerResponse.CNY.Last, LakeBTCTickerResponse.USD.High, LakeBTCTickerResponse.CNY.High, LakeBTCTickerResponse.USD.Low, LakeBTCTickerResponse.CNY.Low, LakeBTCTickerResponse.USD.Volume, LakeBTCTickerResponse.CNY.Volume)
+			AddExchangeInfo(l.GetName(), "BTC", LakeBTCTickerResponse.USD.Last, LakeBTCTickerResponse.USD.Volume)
 		}()
 		time.Sleep(time.Second * l.PollingDelay)
 	}
