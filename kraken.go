@@ -83,6 +83,20 @@ func (k *Kraken) GetFee(cryptoTrade bool) (float64) {
 	}
 }
 
+func (k *Kraken) Run() {
+	for k.Enabled {
+		go func() {
+			KrakenBTC := k.GetTicker("XBTUSD")
+			log.Printf("Kraken BTC: %v\n", KrakenBTC)
+		}()
+		go func() {
+			KrakenLTC := k.GetTicker("LTCUSD")
+			log.Printf("Kraken LTC: %v\n", KrakenLTC)
+		}()
+		time.Sleep(time.Second * 10)
+	}
+}
+
 func (k *Kraken) GetServerTime() {
 	result, err := k.SendKrakenRequest(KRAKEN_SERVER_TIME)
 

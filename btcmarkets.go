@@ -58,6 +58,27 @@ func (b *BTCMarkets) GetFee() (float64) {
 	return b.Fee
 }
 
+func (b *BTCMarkets) Run() {
+	for b.Enabled {
+		go func() {
+			BTCMarketsBTC := b.GetTicker("BTC")
+			BTCMarketsBTCLastUSD, _ := ConvertCurrency(BTCMarketsBTC.LastPrice, "AUD", "USD")
+			BTCMarketsBTCBestBidUSD, _ := ConvertCurrency(BTCMarketsBTC.BestBID, "AUD", "USD")
+			BTCMarketsBTCBestAskUSD, _ := ConvertCurrency(BTCMarketsBTC.BestAsk, "AUD", "USD")
+			log.Printf("BTC Markets BTC: Last %f (%f) Bid %f (%f) Ask %f (%f)\n", BTCMarketsBTCLastUSD, BTCMarketsBTC.LastPrice, BTCMarketsBTCBestBidUSD, BTCMarketsBTC.BestBID, BTCMarketsBTCBestAskUSD, BTCMarketsBTC.BestAsk)
+		}()
+
+		go func() {
+			BTCMarketsLTC := b.GetTicker("LTC")
+			BTCMarketsLTCLastUSD, _ := ConvertCurrency(BTCMarketsLTC.LastPrice, "AUD", "USD")
+			BTCMarketsLTCBestBidUSD, _ := ConvertCurrency(BTCMarketsLTC.BestBID, "AUD", "USD")
+			BTCMarketsLTCBestAskUSD, _ := ConvertCurrency(BTCMarketsLTC.BestAsk, "AUD", "USD")
+			log.Printf("BTC Markets LTC: Last %f (%f) Bid %f (%f) Ask %f (%f)", BTCMarketsLTCLastUSD, BTCMarketsLTC.LastPrice, BTCMarketsLTCBestBidUSD, BTCMarketsLTC.BestBID, BTCMarketsLTCBestAskUSD, BTCMarketsLTC.BestAsk)
+		}()
+		time.Sleep(time.Second * 10)
+	}
+}
+
 func (b *BTCMarkets) GetTicker(symbol string) (BTCMarketsTicker) {
 	ticker := BTCMarketsTicker{}
 	path := fmt.Sprintf("/market/%s/AUD/tick", symbol)

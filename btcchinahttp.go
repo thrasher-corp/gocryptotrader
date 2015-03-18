@@ -194,6 +194,27 @@ func (b *BTCChina) GetFee() (float64) {
 	return b.Fee
 }
 
+func (b *BTCChina) Run() {
+	for b.Enabled {
+		go func() {
+			BTCChinaBTC := b.GetTicker("btccny")
+			BTCChinaBTCLastUSD, _ := ConvertCurrency(BTCChinaBTC.Last, "CNY", "USD")
+			BTCChinaBTCHighUSD, _ := ConvertCurrency(BTCChinaBTC.High, "CNY", "USD")
+			BTCChinaBTCLowUSD, _ := ConvertCurrency(BTCChinaBTC.Low, "CNY", "USD")
+			log.Printf("BTCChina BTC: Last %f (%f) High %f (%f) Low %f (%f) Volume %f\n", BTCChinaBTCLastUSD, BTCChinaBTC.Last,  BTCChinaBTCHighUSD, BTCChinaBTC.High, BTCChinaBTCLowUSD, BTCChinaBTC.Low, BTCChinaBTC.Vol)
+		}()
+
+		go func() {
+			BTCChinaLTC := b.GetTicker("ltccny")
+			BTCChinaLTCLastUSD, _ := ConvertCurrency(BTCChinaLTC.Last, "CNY", "USD")
+			BTCChinaLTCHighUSD, _ := ConvertCurrency(BTCChinaLTC.High, "CNY", "USD")
+			BTCChinaLTCLowUSD, _ := ConvertCurrency(BTCChinaLTC.Low, "CNY", "USD")
+			log.Printf("BTCChina LTC: Last %f (%f) High %f (%f) Low %f (%f) Volume %f\n", BTCChinaLTCLastUSD, BTCChinaLTC.Last, BTCChinaLTCHighUSD, BTCChinaLTC.High, BTCChinaLTCLowUSD, BTCChinaLTC.Low, BTCChinaLTC.Vol)
+		}()
+		time.Sleep(time.Second * 10)
+	}
+}
+
 func (b *BTCChina) GetTicker(symbol string) (BTCChinaTicker) {
 	type Response struct {
 		Ticker BTCChinaTicker

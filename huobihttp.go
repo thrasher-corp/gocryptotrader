@@ -64,6 +64,27 @@ func (h *HUOBI) GetFee() (float64) {
 	return h.Fee
 }
 
+func (h *HUOBI) Run() {
+	for h.Enabled {
+		go func() {
+			HuobiBTC := h.GetTicker("btc")
+			HuobiBTCLastUSD, _ := ConvertCurrency(HuobiBTC.Last, "CNY", "USD")
+			HuobiBTCHighUSD, _ := ConvertCurrency(HuobiBTC.High, "CNY", "USD")
+			HuobiBTCLowUSD, _ := ConvertCurrency(HuobiBTC.Low, "CNY", "USD")
+			log.Printf("Huobi BTC: Last %f (%f) High %f (%f) Low %f (%f) Volume %f\n", HuobiBTCLastUSD, HuobiBTC.Last, HuobiBTCHighUSD, HuobiBTC.High, HuobiBTCLowUSD, HuobiBTC.Low, HuobiBTC.Vol)
+		}()
+
+		go func() {
+			HuobiLTC := h.GetTicker("ltc")
+			HuobiLTCLastUSD, _ := ConvertCurrency(HuobiLTC.Last, "CNY", "USD")
+			HuobiLTCHighUSD, _ := ConvertCurrency(HuobiLTC.High, "CNY", "USD")
+			HuobiLTCLowUSD, _ := ConvertCurrency(HuobiLTC.Low, "CNY", "USD")
+			log.Printf("Huobi LTC: Last %f (%f) High %f (%f) Low %f (%f) Volume %f\n", HuobiLTCLastUSD, HuobiLTC.Last, HuobiLTCHighUSD, HuobiLTC.High, HuobiLTCLowUSD, HuobiLTC.Low, HuobiLTC.Vol)
+		}()
+		time.Sleep(time.Second * 10)
+	}
+}
+
 func (h *HUOBI) GetTicker(symbol string) (HuobiTicker) {
 	resp := HuobiTickerResponse{}
 	path := fmt.Sprintf("http://market.huobi.com/staticmarket/ticker_%s_json.js", symbol)

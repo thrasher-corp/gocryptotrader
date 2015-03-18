@@ -87,6 +87,21 @@ func (b *BTCE) GetFee() (float64) {
 	return b.Fee
 }
 
+func (b *BTCE) Run() {
+	for b.Enabled {
+		go func() {
+			BTCeBTC := b.GetTicker("btc_usd")
+			log.Printf("BTC-e BTC: Last %f High %f Low %f Volume %f\n", BTCeBTC.Last, BTCeBTC.High, BTCeBTC.Low, BTCeBTC.Vol_cur)
+		}()
+
+		go func() {
+			BTCeLTC := b.GetTicker("ltc_usd")
+			log.Printf("BTC-e LTC: Last %f High %f Low %f Volume %f\n", BTCeLTC.Last, BTCeLTC.High, BTCeLTC.Low, BTCeLTC.Vol_cur)
+		}()
+		time.Sleep(time.Second * 10)
+	}
+}
+
 func (b *BTCE) GetInfo() {
 	req := fmt.Sprintf("%s/%s/%s/", BTCE_API_PUBLIC_URL, BTCE_API_PUBLIC_VERSION, BTCE_INFO)
 	err := SendHTTPGetRequest(req, true, nil)

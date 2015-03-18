@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"time"
 	"fmt"
 	"strconv"
 	"net/url"
@@ -105,6 +106,17 @@ func (c *Coinbase) GetFee(maker bool) (float64) {
 		return c.MakerFee
 	} else {
 		return c.TakerFee
+	}
+}
+
+func (c *Coinbase) Run() {
+	for c.Enabled {
+		go func() {
+			CoinbaseStats := c.GetStats("BTC-USD")
+			CoinbaseTicker := c.GetTicker("BTC-USD")
+			log.Printf("Coinbase BTC: Last %f High %f Low %f Volume %f\n", CoinbaseTicker.Price, CoinbaseStats.High, CoinbaseStats.Low, CoinbaseStats.Volume)
+		}()
+		time.Sleep(time.Second * 10)
 	}
 }
 

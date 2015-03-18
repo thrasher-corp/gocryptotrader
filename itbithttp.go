@@ -76,6 +76,16 @@ func (i *ItBit) GetFee(maker bool) (float64) {
 	}
 }
 
+func (i *ItBit) Run() {
+	for i.Enabled {
+		go func() {
+			ItbitBTC := i.GetTicker("XBTUSD")
+			log.Printf("ItBit BTC: Last %f High %f Low %f Volume %f\n", ItbitBTC.LastPrice, ItbitBTC.High24h, ItbitBTC.Low24h, ItbitBTC.Volume24h)
+		}()
+		time.Sleep(time.Second * 10)
+	}
+}
+
 func (i *ItBit) GetTicker(currency string) (ItBitTicker) {
 	path := ITBIT_API_URL + "/markets/" + currency + "/ticker"
 	var itbitTicker ItBitTicker

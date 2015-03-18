@@ -79,6 +79,16 @@ func (l *LakeBTC) GetFee(maker bool) (float64) {
 	}
 }
 
+func (l *LakeBTC) Run() {
+	for l.Enabled {
+		go func() {
+			LakeBTCTickerResponse := l.GetTicker()
+			log.Printf("LakeBTC USD: Last %f (%f) High %f (%f) Low %f (%f) Volume US %f (CNY %f)\n", LakeBTCTickerResponse.USD.Last, LakeBTCTickerResponse.CNY.Last, LakeBTCTickerResponse.USD.High, LakeBTCTickerResponse.CNY.High, LakeBTCTickerResponse.USD.Low, LakeBTCTickerResponse.CNY.Low, LakeBTCTickerResponse.USD.Volume, LakeBTCTickerResponse.CNY.Volume)
+		}()
+		time.Sleep(time.Second * 10)
+	}
+}
+
 func (l *LakeBTC) GetTicker() (LakeBTCTickerResponse) {
 	response := LakeBTCTickerResponse{}
 	err := SendHTTPGetRequest(LAKEBTC_API_URL + LAKEBTC_TICKER, true, &response)

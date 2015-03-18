@@ -108,6 +108,18 @@ func (b *Bitstamp) SetAPIKeys(clientID, apiKey, apiSecret string) {
 	b.APISecret = apiSecret
 }
 
+func (b *Bitstamp) Run() {
+	b.GetBalance()
+
+	for b.Enabled {
+		go func() {
+			BitstampBTC := b.GetTicker()
+			log.Printf("Bitstamp BTC: Last %f High %f Low %f Volume %f\n", BitstampBTC.Last, BitstampBTC.High, BitstampBTC.Low, BitstampBTC.Volume)
+		}()
+		time.Sleep(time.Second * 10)
+	}
+}
+
 func (b *Bitstamp) GetTicker() (BitstampTicker) {
 	err := SendHTTPGetRequest(BITSTAMP_API_URL + BITSTAMP_API_TICKER, true, &b.Ticker)
 
