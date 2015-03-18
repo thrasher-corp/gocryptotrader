@@ -2,6 +2,7 @@ package main
 
 import (
 	"io/ioutil"
+	"time"
 	"encoding/json"
 )
 
@@ -27,6 +28,7 @@ type Exchanges struct {
 	Name string
 	Enabled bool
 	Verbose bool
+	PollingDelay time.Duration
 	APIKey string
 	APISecret string
 	ClientID string

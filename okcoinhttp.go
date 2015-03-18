@@ -19,6 +19,7 @@ type OKCoin struct {
 	Name string
 	Enabled bool
 	Verbose bool
+	PollingDelay time.Duration
 	APIUrl, PartnerID, SecretKey string
 	TakerFee, MakerFee float64
 }
@@ -60,6 +61,7 @@ func (o *OKCoin) SetDefaults() {
 	}
 	o.Enabled = true
 	o.Verbose = false
+	o.PollingDelay = 10
 }
 
 func (o *OKCoin) GetName() (string) {
@@ -96,6 +98,10 @@ func (o *OKCoin) GetFee(maker bool) (float64) {
 }
 
 func (o *OKCoin) Run() {
+	if o.Verbose {
+		log.Printf("%s polling delay: %ds.\n", o.GetName(), o.PollingDelay)
+	}
+
 	for o.Enabled {
 		if o.APIUrl == OKCOIN_API_URL {
 			go func() {
@@ -154,7 +160,7 @@ func (o *OKCoin) Run() {
 				log.Printf("OKCoin China: Last %f (%f) High %f (%f) Low %f (%f) Volume %f\n", OKCoinChinaLTCLastUSD, OKCoinChinaLTC.Last, OKCoinChinaLTCHighUSD, OKCoinChinaLTC.High, OKCoinChinaLTCLowUSD, OKCoinChinaLTC.Low, OKCoinChinaLTC.Vol)
 			}()
 		}
-		time.Sleep(time.Second * 10)
+		time.Sleep(time.Second * o.PollingDelay)
 	}
 }
 

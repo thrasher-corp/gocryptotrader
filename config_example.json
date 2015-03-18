@@ -17,7 +17,8 @@
       "APISecret": "Secret",
       "BaseCurrencies": "USD",
       "Enabled": true,
-      "Verbose": false
+      "Verbose": false,
+      "PollingDelay": 10
     },
     {
       "Name": "Bitstamp",
@@ -27,7 +28,8 @@
       "APISecret": "Secret",
       "BaseCurrencies": "USD",
       "Enabled": true,
-      "Verbose": false
+      "Verbose": false,
+      "PollingDelay": 10
     },
     {
       "Name": "BTC China",
@@ -36,7 +38,8 @@
       "APISecret": "Secret",
       "BaseCurrencies": "CNY",
       "Enabled": true,
-      "Verbose": false
+      "Verbose": false,
+      "PollingDelay": 10
     },
     {
       "Name": "BTCE",
@@ -45,7 +48,8 @@
       "APISecret": "Secret",
       "BaseCurrencies": "USD,RUB,EUR,CNY,GBP",
       "Enabled": true,
-      "Verbose": false
+      "Verbose": false,
+      "PollingDelay": 10
     },
     {
       "Name": "BTC Markets",
@@ -54,7 +58,8 @@
       "APISecret": "Secret",
       "BaseCurrencies": "AUD",
       "Enabled": true,
-      "Verbose": false
+      "Verbose": false,
+      "PollingDelay": 10
     },
     {
       "Name": "Coinbase",
@@ -64,7 +69,8 @@
       "APISecret": "Secret",
       "BaseCurrencies": "USD",
       "Enabled": true,
-      "Verbose": false
+      "Verbose": false,
+      "PollingDelay": 10
     },
     {
       "Name": "Huobi",
@@ -73,7 +79,8 @@
       "APISecret": "Secret",
       "BaseCurrencies": "CNY",
       "Enabled": true,
-      "Verbose": false
+      "Verbose": false,
+      "PollingDelay": 10
     },
     {
       "Name": "ITBIT",
@@ -82,7 +89,8 @@
       "APISecret": "Secret",
       "BaseCurrencies": "USD,SGD,EUR",
       "Enabled": true,
-      "Verbose": false
+      "Verbose": false,
+      "PollingDelay": 10
     },
     {
       "Name": "Kraken",
@@ -91,7 +99,8 @@
       "APISecret": "Secret",
       "BaseCurrencies": "EUR,USD,GBP,JPY",
       "Enabled": true,
-      "Verbose": false
+      "Verbose": false,
+      "PollingDelay": 10
     },
     {
       "Name": "LakeBTC",
@@ -100,7 +109,8 @@
       "APISecret": "Secret",
       "BaseCurrencies": "CNY",
       "Enabled": true,
-      "Verbose": false
+      "Verbose": false,
+      "PollingDelay": 10
     },
     {
       "Name": "OKCOIN China",
@@ -109,7 +119,8 @@
       "APISecret": "Secret",
       "BaseCurrencies": "CNY",
       "Enabled": true,
-      "Verbose": false
+      "Verbose": false,
+      "PollingDelay": 10
     },
     {
       "Name": "OKCOIN International",
@@ -118,7 +129,8 @@
       "APISecret": "Secret",
       "BaseCurrencies": "USD",
       "Enabled": true,
-      "Verbose": false
+      "Verbose": false,
+      "PollingDelay": 10
     }
   ]
 }

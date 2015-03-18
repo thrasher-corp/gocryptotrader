@@ -19,6 +19,7 @@ type ItBit struct {
 	Name string
 	Enabled bool
 	Verbose bool
+	PollingDelay time.Duration
 	ClientKey, APISecret, UserID string
 	MakerFee, TakerFee float64
 }
@@ -49,6 +50,7 @@ func (i *ItBit) SetDefaults() {
 	i.MakerFee = -0.10
 	i.TakerFee = 0.50
 	i.Verbose = false
+	i.PollingDelay =  10
 }
 
 func (i *ItBit) GetName() (string) {
@@ -77,12 +79,15 @@ func (i *ItBit) GetFee(maker bool) (float64) {
 }
 
 func (i *ItBit) Run() {
+	if i.Verbose {
+		log.Printf("%s polling delay: %ds.\n", i.GetName(), i.PollingDelay)
+	}
 	for i.Enabled {
 		go func() {
 			ItbitBTC := i.GetTicker("XBTUSD")
 			log.Printf("ItBit BTC: Last %f High %f Low %f Volume %f\n", ItbitBTC.LastPrice, ItbitBTC.High24h, ItbitBTC.Low24h, ItbitBTC.Volume24h)
 		}()
-		time.Sleep(time.Second * 10)
+		time.Sleep(time.Second * i.PollingDelay)
 	}
 }
 

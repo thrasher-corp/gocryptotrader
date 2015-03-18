@@ -18,6 +18,7 @@ type HUOBI struct {
 	Name string
 	Enabled bool
 	Verbose bool
+	PollingDelay time.Duration
 	AccessKey, SecretKey string
 	Fee float64
 }
@@ -41,6 +42,7 @@ func (h *HUOBI) SetDefaults() {
 	h.Enabled = true
 	h.Fee = 0
 	h.Verbose = false
+	h.PollingDelay = 10
 }
 
 func (h *HUOBI) GetName() (string) {
@@ -65,6 +67,10 @@ func (h *HUOBI) GetFee() (float64) {
 }
 
 func (h *HUOBI) Run() {
+	if h.Verbose {
+		log.Printf("%s polling delay: %ds.\n", h.GetName(), h.PollingDelay)
+	}
+
 	for h.Enabled {
 		go func() {
 			HuobiBTC := h.GetTicker("btc")
@@ -81,7 +87,7 @@ func (h *HUOBI) Run() {
 			HuobiLTCLowUSD, _ := ConvertCurrency(HuobiLTC.Low, "CNY", "USD")
 			log.Printf("Huobi LTC: Last %f (%f) High %f (%f) Low %f (%f) Volume %f\n", HuobiLTCLastUSD, HuobiLTC.Last, HuobiLTCHighUSD, HuobiLTC.High, HuobiLTCLowUSD, HuobiLTC.Low, HuobiLTC.Vol)
 		}()
-		time.Sleep(time.Second * 10)
+		time.Sleep(time.Second * h.PollingDelay)
 	}
 }
 

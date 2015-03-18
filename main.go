@@ -106,6 +106,7 @@ func main() {
 			} else {
 				log.Printf("%s enabled.\n", exch.Name)
 				bot.exchange.btcchina.SetAPIKeys(exch.APIKey, exch.APISecret)
+				bot.exchange.btcchina.PollingDelay = exch.PollingDelay
 				go bot.exchange.btcchina.Run()
 
 				if exch.Verbose {
@@ -123,6 +124,7 @@ func main() {
 			} else {
 				log.Printf("%s enabled.\n", exch.Name)
 				bot.exchange.bitstamp.SetAPIKeys(exch.ClientID, exch.APIKey, exch.APISecret)
+				bot.exchange.bitstamp.PollingDelay = exch.PollingDelay
 				go bot.exchange.bitstamp.Run()
 
 				if exch.Verbose {
@@ -139,6 +141,7 @@ func main() {
 			} else {
 				log.Printf("%s enabled.\n", exch.Name)
 				bot.exchange.bitfinex.SetAPIKeys(exch.APIKey, exch.APISecret)
+				bot.exchange.bitfinex.PollingDelay = exch.PollingDelay
 				go bot.exchange.bitfinex.Run()
 				
 				if exch.Verbose {
@@ -155,6 +158,7 @@ func main() {
 			} else {
 				log.Printf("%s enabled.\n", exch.Name)
 				bot.exchange.btce.SetAPIKeys(exch.APIKey, exch.APISecret)
+				bot.exchange.btce.PollingDelay = exch.PollingDelay
 				go bot.exchange.btce.Run()
 
 				if exch.Verbose {
@@ -171,6 +175,7 @@ func main() {
 			} else {
 				log.Printf("%s enabled.\n", exch.Name)
 				bot.exchange.btcmarkets.SetAPIKeys(exch.APIKey, exch.APISecret)
+				bot.exchange.btcmarkets.PollingDelay = exch.PollingDelay
 				go bot.exchange.btcmarkets.Run()
 
 				if exch.Verbose {
@@ -187,6 +192,7 @@ func main() {
 			} else {
 				log.Printf("%s enabled.\n", exch.Name)
 				bot.exchange.coinbase.SetAPIKeys(exch.ClientID, exch.APIKey, exch.APISecret)
+				bot.exchange.coinbase.PollingDelay = exch.PollingDelay
 				go bot.exchange.coinbase.Run()
 
 				if exch.Verbose {
@@ -203,6 +209,7 @@ func main() {
 			} else {
 				log.Printf("%s enabled.\n", exch.Name)
 				bot.exchange.okcoinChina.SetAPIKeys(exch.APIKey, exch.APISecret)
+				bot.exchange.okcoinChina.PollingDelay = exch.PollingDelay
 				go bot.exchange.okcoinChina.Run()
 
 				if exch.Verbose {
@@ -219,6 +226,7 @@ func main() {
 			} else {
 				log.Printf("%s enabled.\n", exch.Name)
 				bot.exchange.okcoinIntl.SetAPIKeys(exch.APIKey, exch.APISecret)
+				bot.exchange.okcoinIntl.PollingDelay = exch.PollingDelay
 				go bot.exchange.okcoinIntl.Run()
 
 				if exch.Verbose {
@@ -235,6 +243,7 @@ func main() {
 			} else {
 				log.Printf("%s enabled.\n", exch.Name)
 				bot.exchange.itbit.SetAPIKeys(exch.APIKey, exch.APISecret)
+				bot.exchange.itbit.PollingDelay = exch.PollingDelay
 				go bot.exchange.itbit.Run()
 
 				if exch.Verbose {
@@ -251,6 +260,7 @@ func main() {
 			} else {
 				log.Printf("%s enabled.\n", exch.Name)
 				bot.exchange.kraken.SetAPIKeys(exch.APIKey, exch.APISecret)
+				bot.exchange.kraken.PollingDelay = exch.PollingDelay
 				go bot.exchange.kraken.Run()
 
 				if exch.Verbose {
@@ -267,6 +277,7 @@ func main() {
 			} else {
 				log.Printf("%s enabled.\n", exch.Name)
 				bot.exchange.lakebtc.SetAPIKeys(exch.APIKey, exch.APISecret)
+				bot.exchange.lakebtc.PollingDelay = exch.PollingDelay
 				go bot.exchange.lakebtc.Run()
 
 				if exch.Verbose {
@@ -283,6 +294,7 @@ func main() {
 			} else {
 				log.Printf("%s enabled.\n", exch.Name)
 				bot.exchange.huobi.SetAPIKeys(exch.APIKey, exch.APISecret)
+				bot.exchange.huobi.PollingDelay = exch.PollingDelay
 				go bot.exchange.huobi.Run()
 
 				if exch.Verbose {

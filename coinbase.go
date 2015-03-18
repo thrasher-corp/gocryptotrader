@@ -24,6 +24,7 @@ type Coinbase struct {
 	Name string
 	Enabled bool
 	Verbose bool
+	PollingDelay time.Duration
 	Password, APIKey, APISecret string
 	TakerFee, MakerFee float64
 }
@@ -87,6 +88,8 @@ func (c *Coinbase) SetDefaults() {
 	c.Verbose = false
 	c.TakerFee = 0.25
 	c.MakerFee = 0
+	c.Verbose = false
+	c.PollingDelay = 10
 }
 
 func (c *Coinbase) GetName() (string) {
@@ -110,13 +113,17 @@ func (c *Coinbase) GetFee(maker bool) (float64) {
 }
 
 func (c *Coinbase) Run() {
+	if c.Verbose {
+		log.Printf("%s polling delay: %ds.\n", c.GetName(), c.PollingDelay)
+	}
+
 	for c.Enabled {
 		go func() {
 			CoinbaseStats := c.GetStats("BTC-USD")
 			CoinbaseTicker := c.GetTicker("BTC-USD")
 			log.Printf("Coinbase BTC: Last %f High %f Low %f Volume %f\n", CoinbaseTicker.Price, CoinbaseStats.High, CoinbaseStats.Low, CoinbaseStats.Volume)
 		}()
-		time.Sleep(time.Second * 10)
+		time.Sleep(time.Second * c.PollingDelay)
 	}
 }
 

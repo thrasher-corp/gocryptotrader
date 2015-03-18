@@ -35,6 +35,7 @@ type Bitstamp struct {
 	Name string
 	Enabled bool
 	Verbose bool
+	PollingDelay time.Duration
 	ClientID, APIKey, APISecret string
 	Ticker BitstampTicker
 	Orderbook Orderbook
@@ -84,6 +85,7 @@ func (b *Bitstamp) SetDefaults() {
 	b.Name = "Bitstamp"
 	b.Enabled = true
 	b.Verbose = false
+	b.PollingDelay = 10
 }
 
 func (b *Bitstamp) GetName() (string) {
@@ -109,6 +111,10 @@ func (b *Bitstamp) SetAPIKeys(clientID, apiKey, apiSecret string) {
 }
 
 func (b *Bitstamp) Run() {
+	if b.Verbose {
+		log.Printf("%s polling delay: %ds.\n", b.GetName(), b.PollingDelay)
+	}
+
 	b.GetBalance()
 
 	for b.Enabled {
@@ -116,7 +122,7 @@ func (b *Bitstamp) Run() {
 			BitstampBTC := b.GetTicker()
 			log.Printf("Bitstamp BTC: Last %f High %f Low %f Volume %f\n", BitstampBTC.Last, BitstampBTC.High, BitstampBTC.Low, BitstampBTC.Volume)
 		}()
-		time.Sleep(time.Second * 10)
+		time.Sleep(time.Second * b.PollingDelay)
 	}
 }
 

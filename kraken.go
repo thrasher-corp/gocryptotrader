@@ -41,6 +41,7 @@ type Kraken struct {
 	Name string
 	Enabled bool
 	Verbose bool
+	PollingDelay time.Duration
 	ClientKey, APISecret string
 	FiatFee, CryptoFee float64
 }
@@ -56,6 +57,7 @@ func (k *Kraken) SetDefaults() {
 	k.FiatFee = 0.35
 	k.CryptoFee = 0.10
 	k.Verbose = false
+	k.PollingDelay = 10
 }
 
 func (k *Kraken) GetName() (string) {
@@ -84,6 +86,10 @@ func (k *Kraken) GetFee(cryptoTrade bool) (float64) {
 }
 
 func (k *Kraken) Run() {
+	if k.Verbose {
+		log.Printf("%s polling delay: %ds.\n", k.GetName(), k.PollingDelay)
+	}
+
 	for k.Enabled {
 		go func() {
 			KrakenBTC := k.GetTicker("XBTUSD")
@@ -93,7 +99,7 @@ func (k *Kraken) Run() {
 			KrakenLTC := k.GetTicker("LTCUSD")
 			log.Printf("Kraken LTC: %v\n", KrakenLTC)
 		}()
-		time.Sleep(time.Second * 10)
+		time.Sleep(time.Second * k.PollingDelay)
 	}
 }
 

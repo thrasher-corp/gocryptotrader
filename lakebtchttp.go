@@ -28,6 +28,7 @@ type LakeBTC struct {
 	Name string
 	Enabled bool
 	Verbose bool
+	PollingDelay time.Duration
 	Email, APISecret string
 	TakerFee, MakerFee float64
 }
@@ -52,6 +53,7 @@ func (l *LakeBTC) SetDefaults() {
 	l.TakerFee = 0.2
 	l.MakerFee = 0.15
 	l.Verbose = false
+	l.PollingDelay = 10
 }
 
 func (l *LakeBTC) GetName() (string) {
@@ -80,12 +82,15 @@ func (l *LakeBTC) GetFee(maker bool) (float64) {
 }
 
 func (l *LakeBTC) Run() {
+	if l.Verbose {
+		log.Printf("%s polling delay: %ds.\n", l.GetName(), l.PollingDelay)
+	}
 	for l.Enabled {
 		go func() {
 			LakeBTCTickerResponse := l.GetTicker()
 			log.Printf("LakeBTC USD: Last %f (%f) High %f (%f) Low %f (%f) Volume US %f (CNY %f)\n", LakeBTCTickerResponse.USD.Last, LakeBTCTickerResponse.CNY.Last, LakeBTCTickerResponse.USD.High, LakeBTCTickerResponse.CNY.High, LakeBTCTickerResponse.USD.Low, LakeBTCTickerResponse.CNY.Low, LakeBTCTickerResponse.USD.Volume, LakeBTCTickerResponse.CNY.Volume)
 		}()
-		time.Sleep(time.Second * 10)
+		time.Sleep(time.Second * l.PollingDelay)
 	}
 }
 

@@ -30,6 +30,7 @@ type BTCE struct {
 	Name string
 	Enabled bool
 	Verbose bool
+	PollingDelay time.Duration
 	APIKey, APISecret string
 	Fee float64
 }
@@ -64,6 +65,7 @@ func (b *BTCE) SetDefaults() {
 	b.Enabled = true
 	b.Fee = 0.2
 	b.Verbose = false
+	b.PollingDelay = 10
 }
 
 func (b *BTCE) GetName() (string) {
@@ -88,6 +90,10 @@ func (b *BTCE) GetFee() (float64) {
 }
 
 func (b *BTCE) Run() {
+	if b.Verbose {
+		log.Printf("%s polling delay: %ds.\n", b.GetName(), b.PollingDelay)
+	}
+
 	for b.Enabled {
 		go func() {
 			BTCeBTC := b.GetTicker("btc_usd")
@@ -98,7 +104,7 @@ func (b *BTCE) Run() {
 			BTCeLTC := b.GetTicker("ltc_usd")
 			log.Printf("BTC-e LTC: Last %f High %f Low %f Volume %f\n", BTCeLTC.Last, BTCeLTC.High, BTCeLTC.Low, BTCeLTC.Vol_cur)
 		}()
-		time.Sleep(time.Second * 10)
+		time.Sleep(time.Second * b.PollingDelay)
 	}
 }
 
