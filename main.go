@@ -15,6 +15,7 @@ type Exchange struct {
 	btce BTCE
 	btcmarkets BTCMarkets
 	coinbase Coinbase
+	cryptsy Cryptsy
 	okcoinChina OKCoin
 	okcoinIntl OKCoin
 	itbit ItBit
@@ -84,6 +85,7 @@ func main() {
 	bot.exchange.btce.SetDefaults()
 	bot.exchange.btcmarkets.SetDefaults()
 	bot.exchange.coinbase.SetDefaults()
+	bot.exchange.cryptsy.SetDefaults()
 	bot.exchange.okcoinChina.SetURL(OKCOIN_API_URL_CHINA)
 	bot.exchange.okcoinChina.SetDefaults()
 	bot.exchange.okcoinIntl.SetURL(OKCOIN_API_URL)
@@ -197,6 +199,23 @@ func main() {
 
 				if exch.Verbose {
 					bot.exchange.coinbase.Verbose = true
+					log.Printf("%s Verbose output enabled.\n", exch.Name)
+				} else {
+					log.Printf("%s Verbose output disabled.\n", exch.Name)
+				}
+			}
+		} else if bot.exchange.cryptsy.GetName() == exch.Name {
+			if !exch.Enabled {
+				bot.exchange.cryptsy.SetEnabled(false)
+				log.Printf("%s disabled.\n", exch.Name)
+			} else {
+				log.Printf("%s enabled.\n", exch.Name)
+				bot.exchange.cryptsy.SetAPIKeys(exch.APIKey, exch.APISecret)
+				bot.exchange.cryptsy.PollingDelay = exch.PollingDelay
+				go bot.exchange.cryptsy.Run()
+
+				if exch.Verbose {
+					bot.exchange.cryptsy.Verbose = true
 					log.Printf("%s Verbose output enabled.\n", exch.Name)
 				} else {
 					log.Printf("%s Verbose output disabled.\n", exch.Name)
