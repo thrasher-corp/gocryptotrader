@@ -27,7 +27,7 @@ const (
 	CRYPTSY_ADDRESSES = "addresses"
 	CRYPTSY_ORDER = "order"
 	CRYPTSY_ORDERS = "orders"
-	CRYPTSY_TRIGGERS = "triggers"
+	CRYPSTY_TRIGGER = "trigger"
 )
 
 type Cryptsy struct {
@@ -280,7 +280,7 @@ func (c *Cryptsy) GetMarketFees(id string) {
 }
 
 func (c *Cryptsy) GetMarketTriggers(id string) {
-	path := fmt.Sprintf("%s/%s/%s", CRYPTSY_API_URL + CRYPTSY_MARKETS, id, CRYPTSY_TRIGGERS)
+	path := fmt.Sprintf("%s/%s/%s", CRYPTSY_API_URL + CRYPTSY_MARKETS, id, CRYPSTY_TRIGGERS)
 	err := c.SendAuthenticatedHTTPRequest("GET", path, url.Values{})
 	if err != nil {
 		log.Println(err)
@@ -419,6 +419,44 @@ func (c *Cryptsy) GetOrder(orderID int64) {
 
 func (c *Cryptsy) DeleteOrder(orderID int64) {
 	path := fmt.Sprintf("%s/%s", CRYPTSY_API_URL + CRYPTSY_ORDER, strconv.FormatInt(orderID, 10))
+	err := c.SendAuthenticatedHTTPRequest("DELETE", path, url.Values{})
+
+	if err != nil {
+		log.Println(err)
+	}
+}
+
+func (c *Cryptsy) CreateTrigger(marketid int64, orderType string, quantity float64, comparison string, price, orderprice float64, expires int64) {
+	req := url.Values{}
+	req.Set("marketid", strconv.FormatInt(marketid, 10))
+	req.Set("type", orderType)
+	req.Set("quantity", strconv.FormatFloat(quantity, 'f', 8, 64))
+	req.Set("comparison", comparison)
+	req.Set("price", strconv.FormatFloat(price, 'f', 8, 64))
+	req.Set("orderprice", strconv.FormatFloat(orderprice, 'f', 8, 64))
+
+	if (expires > 0) {
+		req.Set("expires", strconv.FormatInt(expires, 10))
+	}
+
+	err := c.SendAuthenticatedHTTPRequest("POST", CRYPTSY_API_URL + CRYPSTY_TRIGGER, req)
+
+	if err != nil {
+		log.Println(err)
+	}
+}
+
+func (c *Cryptsy) GetTrigger(triggerID int64) {
+	path := fmt.Sprintf("%s/%s", CRYPTSY_API_URL + CRYPSTY_TRIGGER, strconv.FormatInt(triggerID, 10))
+	err := c.SendAuthenticatedHTTPRequest("GET", path, url.Values{})
+
+	if err != nil {
+		log.Println(err)
+	}
+}
+
+func (c *Cryptsy) DeleteTrigger(triggerID int64) {
+	path := fmt.Sprintf("%s/%s", CRYPTSY_API_URL + CRYPSTY_TRIGGER, strconv.FormatInt(triggerID, 10))
 	err := c.SendAuthenticatedHTTPRequest("DELETE", path, url.Values{})
 
 	if err != nil {
