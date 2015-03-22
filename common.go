@@ -103,6 +103,14 @@ func RoundFloat(x float64, prec int) float64 {
 	return rounder / pow
 }
 
+func IsEnabled(isEnabled bool) (string) {
+	if isEnabled {
+		return "Enabled"
+	} else {
+		return "Disabled"
+	}
+}
+
 func CalculateAmountWithFee(amount, fee float64) (float64) {
 	return amount + CalculateFee(amount, fee)
 }
