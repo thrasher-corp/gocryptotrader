@@ -38,6 +38,7 @@ type YahooJSONResponse struct {
 const (
 	YAHOO_YQL_URL = "http://query.yahooapis.com/v1/public/yql"
 	YAHOO_DATABASE = "store://datatables.org/alltableswithkeys"
+	DEFAULT_CURRENCIES = "USD,AUD,EUR,CNY"
 
 )
 
@@ -52,8 +53,16 @@ func RetrieveConfigCurrencyPairs(config Config) (error) {
 	currencyPairs := ""
 	for _, exchange := range config.Exchanges {
 		if (exchange.Enabled) {
-			result := strings.Split(exchange.BaseCurrencies, ",")
-
+			var result []string
+			if strings.Contains(exchange.BaseCurrencies, ",") {
+				result = strings.Split(exchange.BaseCurrencies, ",")
+			} else {
+				if strings.Contains(DEFAULT_CURRENCIES, exchange.BaseCurrencies) {
+					result = strings.Split(DEFAULT_CURRENCIES, ",")
+				} else {
+					result = strings.Split(exchange.BaseCurrencies + "," + DEFAULT_CURRENCIES, ",")
+				}
+			}
 			for _, s := range result {
 				if (!strings.Contains(currencyPairs, s)) {
 					currencyPairs += s + ","
