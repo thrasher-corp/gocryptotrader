@@ -102,239 +102,147 @@ func main() {
 
 	for _, exch := range bot.config.Exchanges {
 		if bot.exchange.btcchina.GetName() == exch.Name {
+			log.Printf("%s: %s (Verbose mode: %s).\n", exch.Name, IsEnabled(exch.Enabled), IsEnabled(exch.Verbose))
 			if !exch.Enabled {
 				bot.exchange.btcchina.SetEnabled(false)
-				log.Printf("%s disabled.\n", exch.Name)
 			} else {
-				log.Printf("%s enabled.\n", exch.Name)
 				bot.exchange.btcchina.SetAPIKeys(exch.APIKey, exch.APISecret)
 				bot.exchange.btcchina.PollingDelay = exch.PollingDelay
+				bot.exchange.btcchina.Verbose = exch.Verbose
 				bot.exchange.btcchina.Websocket = exch.Websocket
 				go bot.exchange.btcchina.Run()
-
-				if exch.Verbose {
-					bot.exchange.btcchina.Verbose = true
-					log.Printf("%s Verbose output enabled.\n", exch.Name)
-					go bot.exchange.btcchina.Run()
-				} else {
-					log.Printf("%s Verbose output disabled.\n", exch.Name)
-				}
 			}
 		} else if bot.exchange.bitstamp.GetName() == exch.Name {
+			log.Printf("%s: %s (Verbose mode: %s).\n", exch.Name, IsEnabled(exch.Enabled), IsEnabled(exch.Verbose))
 			if !exch.Enabled {
 				bot.exchange.bitstamp.SetEnabled(false)
-				log.Printf("%s disabled.\n", exch.Name)
 			} else {
-				log.Printf("%s enabled.\n", exch.Name)
 				bot.exchange.bitstamp.SetAPIKeys(exch.ClientID, exch.APIKey, exch.APISecret)
 				bot.exchange.bitstamp.PollingDelay = exch.PollingDelay
+				bot.exchange.bitstamp.Verbose = exch.Verbose
 				bot.exchange.bitstamp.Websocket = exch.Websocket
 				go bot.exchange.bitstamp.Run()
-
-				if exch.Verbose {
-					bot.exchange.bitstamp.Verbose = true
-					log.Printf("%s Verbose output enabled.\n", exch.Name)
-				} else {
-					log.Printf("%s Verbose output disabled.\n", exch.Name)
-				}
 			}
 		} else if bot.exchange.bitfinex.GetName() == exch.Name {
+			log.Printf("%s: %s (Verbose mode: %s).\n", exch.Name, IsEnabled(exch.Enabled), IsEnabled(exch.Verbose))
 			if !exch.Enabled {
 				bot.exchange.bitfinex.SetEnabled(false)
-				log.Printf("%s disabled.\n", exch.Name)
 			} else {
-				log.Printf("%s enabled.\n", exch.Name)
 				bot.exchange.bitfinex.SetAPIKeys(exch.APIKey, exch.APISecret)
 				bot.exchange.bitfinex.PollingDelay = exch.PollingDelay
+				bot.exchange.bitfinex.Verbose = exch.Verbose
 				bot.exchange.bitfinex.Websocket = exch.Websocket
 				go bot.exchange.bitfinex.Run()
-				
-				if exch.Verbose {
-					bot.exchange.bitfinex.Verbose = true
-					log.Printf("%s Verbose output enabled.\n", exch.Name)
-				} else {
-					log.Printf("%s Verbose output disabled.\n", exch.Name)
-				}
 			}
 		} else if bot.exchange.btce.GetName() == exch.Name {
+			log.Printf("%s: %s (Verbose mode: %s).\n", exch.Name, IsEnabled(exch.Enabled), IsEnabled(exch.Verbose))
 			if !exch.Enabled {
 				bot.exchange.btce.SetEnabled(false)
-				log.Printf("%s disabled.\n", exch.Name)
 			} else {
-				log.Printf("%s enabled.\n", exch.Name)
 				bot.exchange.btce.SetAPIKeys(exch.APIKey, exch.APISecret)
 				bot.exchange.btce.PollingDelay = exch.PollingDelay
+				bot.exchange.btce.Verbose = exch.Verbose
 				bot.exchange.btce.Websocket = exch.Websocket
 				go bot.exchange.btce.Run()
-
-				if exch.Verbose {
-					bot.exchange.btce.Verbose = true
-					log.Printf("%s Verbose output enabled.\n", exch.Name)
-				} else {
-					log.Printf("%s Verbose output disabled.\n", exch.Name)
-				}
 			}
 		} else if bot.exchange.btcmarkets.GetName() == exch.Name {
+			log.Printf("%s: %s (Verbose mode: %s).\n", exch.Name, IsEnabled(exch.Enabled), IsEnabled(exch.Verbose))
 			if !exch.Enabled {
 				bot.exchange.btcmarkets.SetEnabled(false)
-				log.Printf("%s disabled.\n", exch.Name)
 			} else {
-				log.Printf("%s enabled.\n", exch.Name)
 				bot.exchange.btcmarkets.SetAPIKeys(exch.APIKey, exch.APISecret)
 				bot.exchange.btcmarkets.PollingDelay = exch.PollingDelay
+				bot.exchange.btcmarkets.Verbose = exch.Verbose
 				bot.exchange.btcmarkets.Websocket = exch.Websocket
 				go bot.exchange.btcmarkets.Run()
-
-				if exch.Verbose {
-					bot.exchange.btcmarkets.Verbose = true
-					log.Printf("%s Verbose output enabled.\n", exch.Name)
-				} else {
-					log.Printf("%s Verbose output disabled.\n", exch.Name)
-				}
 			}
 		} else if bot.exchange.coinbase.GetName() == exch.Name {
+			log.Printf("%s: %s (Verbose mode: %s).\n", exch.Name, IsEnabled(exch.Enabled), IsEnabled(exch.Verbose))
 			if !exch.Enabled {
 				bot.exchange.coinbase.SetEnabled(false)
-				log.Printf("%s disabled.\n", exch.Name)
 			} else {
-				log.Printf("%s enabled.\n", exch.Name)
 				bot.exchange.coinbase.SetAPIKeys(exch.ClientID, exch.APIKey, exch.APISecret)
 				bot.exchange.coinbase.PollingDelay = exch.PollingDelay
+				bot.exchange.coinbase.Verbose = exch.Verbose
 				bot.exchange.coinbase.Websocket = exch.Websocket
 				go bot.exchange.coinbase.Run()
-
-				if exch.Verbose {
-					bot.exchange.coinbase.Verbose = true
-					log.Printf("%s Verbose output enabled.\n", exch.Name)
-				} else {
-					log.Printf("%s Verbose output disabled.\n", exch.Name)
-				}
 			}
 		} else if bot.exchange.cryptsy.GetName() == exch.Name {
+			log.Printf("%s: %s (Verbose mode: %s).\n", exch.Name, IsEnabled(exch.Enabled), IsEnabled(exch.Verbose))
 			if !exch.Enabled {
 				bot.exchange.cryptsy.SetEnabled(false)
-				log.Printf("%s disabled.\n", exch.Name)
 			} else {
-				log.Printf("%s enabled.\n", exch.Name)
 				bot.exchange.cryptsy.SetAPIKeys(exch.APIKey, exch.APISecret)
 				bot.exchange.cryptsy.PollingDelay = exch.PollingDelay
+				bot.exchange.cryptsy.Verbose = exch.Verbose
 				bot.exchange.cryptsy.Websocket = exch.Websocket
 				go bot.exchange.cryptsy.Run()
-
-				if exch.Verbose {
-					bot.exchange.cryptsy.Verbose = true
-					log.Printf("%s Verbose output enabled.\n", exch.Name)
-				} else {
-					log.Printf("%s Verbose output disabled.\n", exch.Name)
-				}
 			}
 		} else if bot.exchange.okcoinChina.GetName() == exch.Name {
+			log.Printf("%s: %s (Verbose mode: %s).\n", exch.Name, IsEnabled(exch.Enabled), IsEnabled(exch.Verbose))
 			if !exch.Enabled {
 				bot.exchange.okcoinChina.SetEnabled(false)
-				log.Printf("%s disabled.\n", exch.Name)
 			} else {
-				log.Printf("%s enabled.\n", exch.Name)
 				bot.exchange.okcoinChina.SetAPIKeys(exch.APIKey, exch.APISecret)
 				bot.exchange.okcoinChina.PollingDelay = exch.PollingDelay
+				bot.exchange.okcoinChina.Verbose = exch.Verbose
 				bot.exchange.okcoinChina.Websocket = exch.Websocket
 				go bot.exchange.okcoinChina.Run()
-
-				if exch.Verbose {
-					bot.exchange.okcoinChina.Verbose = true
-					log.Printf("%s Verbose output enabled.\n", exch.Name)
-				} else {
-					log.Printf("%s Verbose output disabled.\n", exch.Name)
-				}
 			}
 		} else if bot.exchange.okcoinIntl.GetName() == exch.Name {
+			log.Printf("%s: %s (Verbose mode: %s).\n", exch.Name, IsEnabled(exch.Enabled), IsEnabled(exch.Verbose))
 			if !exch.Enabled {
 				bot.exchange.okcoinIntl.SetEnabled(false)
-				log.Printf("%s disabled.\n", exch.Name)
 			} else {
-				log.Printf("%s enabled.\n", exch.Name)
 				bot.exchange.okcoinIntl.SetAPIKeys(exch.APIKey, exch.APISecret)
 				bot.exchange.okcoinIntl.PollingDelay = exch.PollingDelay
+				bot.exchange.okcoinIntl.Verbose = exch.Verbose
 				bot.exchange.okcoinIntl.Websocket = exch.Websocket
 				go bot.exchange.okcoinIntl.Run()
-
-				if exch.Verbose {
-					bot.exchange.okcoinIntl.Verbose = true
-					log.Printf("%s Verbose output enabled.\n", exch.Name)
-				} else {
-					log.Printf("%s Verbose output disabled.\n", exch.Name)
-				}
 			}
 		} else if bot.exchange.itbit.GetName() == exch.Name {
+			log.Printf("%s: %s (Verbose mode: %s).\n", exch.Name, IsEnabled(exch.Enabled), IsEnabled(exch.Verbose))
 			if !exch.Enabled {
 				bot.exchange.itbit.SetEnabled(false)
-				log.Printf("%s disabled.\n", exch.Name)
 			} else {
-				log.Printf("%s enabled.\n", exch.Name)
 				bot.exchange.itbit.SetAPIKeys(exch.APIKey, exch.APISecret)
 				bot.exchange.itbit.PollingDelay = exch.PollingDelay
+				bot.exchange.itbit.Verbose = exch.Verbose
 				bot.exchange.itbit.Websocket = exch.Websocket
 				go bot.exchange.itbit.Run()
-
-				if exch.Verbose {
-					bot.exchange.itbit.Verbose = true
-					log.Printf("%s Verbose output enabled.\n", exch.Name)
-				} else {
-					log.Printf("%s Verbose output disabled.\n", exch.Name)
-				}
 			}
 		} else if bot.exchange.kraken.GetName() == exch.Name {
+			log.Printf("%s: %s (Verbose mode: %s).\n", exch.Name, IsEnabled(exch.Enabled), IsEnabled(exch.Verbose))
 			if !exch.Enabled {
 				bot.exchange.kraken.SetEnabled(false)
-				log.Printf("%s disabled.\n", exch.Name)
 			} else {
-				log.Printf("%s enabled.\n", exch.Name)
 				bot.exchange.kraken.SetAPIKeys(exch.APIKey, exch.APISecret)
 				bot.exchange.kraken.PollingDelay = exch.PollingDelay
+				bot.exchange.kraken.Verbose = exch.Verbose
 				bot.exchange.kraken.Websocket = exch.Websocket
 				go bot.exchange.kraken.Run()
-
-				if exch.Verbose {
-					bot.exchange.kraken.Verbose = true
-					log.Printf("%s Verbose output enabled.\n", exch.Name)
-				} else {
-					log.Printf("%s Verbose output disabled.\n", exch.Name)
-				}
 			}
 		} else if bot.exchange.lakebtc.GetName() == exch.Name {
+			log.Printf("%s: %s (Verbose mode: %s).\n", exch.Name, IsEnabled(exch.Enabled), IsEnabled(exch.Verbose))
 			if !exch.Enabled {
 				bot.exchange.lakebtc.SetEnabled(false)
-				log.Printf("%s disabled.\n", exch.Name)
 			} else {
-				log.Printf("%s enabled.\n", exch.Name)
 				bot.exchange.lakebtc.SetAPIKeys(exch.APIKey, exch.APISecret)
 				bot.exchange.lakebtc.PollingDelay = exch.PollingDelay
+				bot.exchange.lakebtc.Verbose = exch.Verbose
 				bot.exchange.lakebtc.Websocket = exch.Websocket
 				go bot.exchange.lakebtc.Run()
-
-				if exch.Verbose {
-					bot.exchange.lakebtc.Verbose = true
-					log.Printf("%s Verbose output enabled.\n", exch.Name)
-				} else {
-					log.Printf("%s Verbose output disabled.\n", exch.Name)
-				}
 			}
 		} else if bot.exchange.huobi.GetName() == exch.Name {
+			log.Printf("%s: %s (Verbose mode: %s).\n", exch.Name, IsEnabled(exch.Enabled), IsEnabled(exch.Verbose))
 			if !exch.Enabled {
 				bot.exchange.huobi.SetEnabled(false)
-				log.Printf("%s disabled.\n", exch.Name)
 			} else {
-				log.Printf("%s enabled.\n", exch.Name)
 				bot.exchange.huobi.SetAPIKeys(exch.APIKey, exch.APISecret)
 				bot.exchange.huobi.PollingDelay = exch.PollingDelay
+				bot.exchange.huobi.Verbose = exch.Verbose
 				bot.exchange.huobi.Websocket = exch.Websocket
 				go bot.exchange.huobi.Run()
-
-				if exch.Verbose {
-					bot.exchange.huobi.Verbose = true
-					log.Printf("%s Verbose output enabled.\n", exch.Name)
-				} else {
-					log.Printf("%s Verbose output disabled.\n", exch.Name)
-				}
 			}
 		}
 	}
