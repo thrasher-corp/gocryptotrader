@@ -28,6 +28,7 @@ type LakeBTC struct {
 	Name string
 	Enabled bool
 	Verbose bool
+	Websocket bool
 	PollingDelay time.Duration
 	Email, APISecret string
 	TakerFee, MakerFee float64
@@ -53,6 +54,7 @@ func (l *LakeBTC) SetDefaults() {
 	l.TakerFee = 0.2
 	l.MakerFee = 0.15
 	l.Verbose = false
+	l.Websocket = false
 	l.PollingDelay = 10
 }
 

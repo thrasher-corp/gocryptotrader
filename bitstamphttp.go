@@ -35,6 +35,7 @@ type Bitstamp struct {
 	Name string
 	Enabled bool
 	Verbose bool
+	Websocket bool
 	PollingDelay time.Duration
 	ClientID, APIKey, APISecret string
 	Ticker BitstampTicker
@@ -85,6 +86,7 @@ func (b *Bitstamp) SetDefaults() {
 	b.Name = "Bitstamp"
 	b.Enabled = true
 	b.Verbose = false
+	b.Websocket = false
 	b.PollingDelay = 10
 }
 

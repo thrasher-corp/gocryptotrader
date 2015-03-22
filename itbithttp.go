@@ -19,6 +19,7 @@ type ItBit struct {
 	Name string
 	Enabled bool
 	Verbose bool
+	Websocket bool
 	PollingDelay time.Duration
 	ClientKey, APISecret, UserID string
 	MakerFee, TakerFee float64
@@ -50,6 +51,7 @@ func (i *ItBit) SetDefaults() {
 	i.MakerFee = -0.10
 	i.TakerFee = 0.50
 	i.Verbose = false
+	i.Websocket = false
 	i.PollingDelay =  10
 }
 

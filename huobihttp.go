@@ -18,6 +18,7 @@ type HUOBI struct {
 	Name string
 	Enabled bool
 	Verbose bool
+	Websocket bool
 	PollingDelay time.Duration
 	AccessKey, SecretKey string
 	Fee float64
@@ -42,6 +43,7 @@ func (h *HUOBI) SetDefaults() {
 	h.Enabled = true
 	h.Fee = 0
 	h.Verbose = false
+	h.Websocket = false
 	h.PollingDelay = 10
 }
 

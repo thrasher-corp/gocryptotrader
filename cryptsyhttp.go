@@ -34,6 +34,7 @@ type Cryptsy struct {
 	Name string
 	Enabled bool
 	Verbose bool
+	Websocket bool
 	PollingDelay time.Duration
 	APIKey, APISecret string
 	TakerFee, MakerFee float64
@@ -127,6 +128,7 @@ func (c *Cryptsy) SetDefaults() {
 	c.Name = "Cryptsy"
 	c.Enabled = true
 	c.Verbose = false
+	c.Websocket = false
 	c.TakerFee = 0.33
 	c.MakerFee = 0.33
 	c.Verbose = false

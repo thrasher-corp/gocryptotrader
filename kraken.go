@@ -41,6 +41,7 @@ type Kraken struct {
 	Name string
 	Enabled bool
 	Verbose bool
+	Websocket bool
 	PollingDelay time.Duration
 	ClientKey, APISecret string
 	FiatFee, CryptoFee float64
@@ -57,6 +58,7 @@ func (k *Kraken) SetDefaults() {
 	k.FiatFee = 0.35
 	k.CryptoFee = 0.10
 	k.Verbose = false
+	k.Websocket = false
 	k.PollingDelay = 10
 }
 

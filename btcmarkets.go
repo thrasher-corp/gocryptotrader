@@ -17,6 +17,7 @@ type BTCMarkets struct {
 	Name string
 	Enabled bool
 	Verbose bool
+	Websocket bool
 	PollingDelay time.Duration
 	Fee float64
 	APIKey, APISecret string
@@ -36,6 +37,7 @@ func (b *BTCMarkets) SetDefaults() {
 	b.Enabled = true
 	b.Fee = 0.85
 	b.Verbose = false
+	b.Websocket = false
 	b.PollingDelay = 10
 }
 

@@ -30,6 +30,7 @@ type BTCE struct {
 	Name string
 	Enabled bool
 	Verbose bool
+	Websocket bool
 	PollingDelay time.Duration
 	APIKey, APISecret string
 	Fee float64
@@ -65,6 +66,7 @@ func (b *BTCE) SetDefaults() {
 	b.Enabled = true
 	b.Fee = 0.2
 	b.Verbose = false
+	b.Websocket = false
 	b.PollingDelay = 10
 }
 

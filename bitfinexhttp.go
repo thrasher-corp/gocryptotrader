@@ -145,6 +145,7 @@ type Bitfinex struct {
 	Name string
 	Enabled bool
 	Verbose bool
+	Websocket bool
 	PollingDelay time.Duration
 	APIKey, APISecret string
 	Ticker BitfinexTicker
@@ -161,6 +162,7 @@ func (b *Bitfinex) SetDefaults() {
 	b.Name = "Bitfinex"
 	b.Enabled = true
 	b.Verbose = false
+	b.Websocket = false
 	b.PollingDelay = 10
 }
 

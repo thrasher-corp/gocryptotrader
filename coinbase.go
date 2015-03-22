@@ -24,6 +24,7 @@ type Coinbase struct {
 	Name string
 	Enabled bool
 	Verbose bool
+	Websocket bool
 	PollingDelay time.Duration
 	Password, APIKey, APISecret string
 	TakerFee, MakerFee float64
@@ -89,6 +90,7 @@ func (c *Coinbase) SetDefaults() {
 	c.TakerFee = 0.25
 	c.MakerFee = 0
 	c.Verbose = false
+	c.Websocket = false
 	c.PollingDelay = 10
 }
 

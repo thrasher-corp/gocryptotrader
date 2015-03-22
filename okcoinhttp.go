@@ -19,6 +19,7 @@ type OKCoin struct {
 	Name string
 	Enabled bool
 	Verbose bool
+	Websocket bool
 	PollingDelay time.Duration
 	APIUrl, PartnerID, SecretKey string
 	TakerFee, MakerFee float64
@@ -61,6 +62,7 @@ func (o *OKCoin) SetDefaults() {
 	}
 	o.Enabled = true
 	o.Verbose = false
+	o.Websocket = false
 	o.PollingDelay = 10
 }
 

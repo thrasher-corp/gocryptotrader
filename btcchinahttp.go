@@ -42,6 +42,7 @@ type BTCChina struct {
 	Name string
 	Enabled bool
 	Verbose bool
+	Websocket bool
 	PollingDelay time.Duration
 	APISecret, APIKey string
 	Fee float64
@@ -172,6 +173,7 @@ func (b *BTCChina) SetDefaults() {
 	b.Enabled = true
 	b.Fee = 0
 	b.Verbose = false
+	b.Websocket = false
 	b.PollingDelay = 10
 }
 
