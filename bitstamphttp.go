@@ -114,10 +114,15 @@ func (b *Bitstamp) SetAPIKeys(clientID, apiKey, apiSecret string) {
 
 func (b *Bitstamp) Run() {
 	if b.Verbose {
+		log.Printf("%s Websocket: %s.", b.GetName(), IsEnabled(b.Websocket))
 		log.Printf("%s polling delay: %ds.\n", b.GetName(), b.PollingDelay)
 	}
 
 	b.GetBalance()
+
+	if b.Websocket {
+		go b.PusherClient()
+	}
 
 	for b.Enabled {
 		go func() {

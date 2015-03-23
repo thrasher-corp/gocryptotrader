@@ -30,7 +30,7 @@
       "BaseCurrencies": "USD",
       "Enabled": true,
       "Verbose": false,
-      "Websocket": false,
+      "Websocket": true,
       "PollingDelay": 10
     },
     {
