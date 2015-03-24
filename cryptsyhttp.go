@@ -157,7 +157,12 @@ func (c *Cryptsy) GetFee(maker bool) (float64) {
 
 func (c *Cryptsy) Run() {
 	if c.Verbose {
+		log.Printf("%s Websocket: %s.", c.GetName(), IsEnabled(c.Websocket))
 		log.Printf("%s polling delay: %ds.\n", c.GetName(), c.PollingDelay)
+	}
+
+	if c.Websocket {
+		go c.PusherClient([]string{"213", "2", "1", "155", "466", "132", "3"})
 	}
 
 	for c.Enabled {
