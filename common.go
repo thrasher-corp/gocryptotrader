@@ -194,6 +194,16 @@ func SendHTTPGetRequest(url string, jsonDecode bool, result interface{}) (err er
 	return nil
 }
 
+func JSONEncode(v interface{}) ([]byte, error) {
+	json, err := json.Marshal(&v)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return json, nil
+}
+
 func JSONDecode(data []byte, to interface{}) (error) {
 	err := json.Unmarshal(data, &to)
 
