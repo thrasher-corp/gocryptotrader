@@ -13,6 +13,8 @@ const (
 	OKCOIN_API_URL = "https://www.okcoin.com/api/v1/"
 	OKCOIN_API_URL_CHINA = "https://www.okcoin.cn/api/v1/"
 	OKCOIN_API_VERSION = "1"
+	OKCOIN_WEBSOCKET_URL = "wss://real.okcoin.com:10440/websocket/okcoinapi"
+	OKCOIN_WEBSOCKET_URL_CHINA = "wss://real.okcoin.cn:10440/websocket/okcoinapi"
 )
 
 type OKCoin struct {
@@ -20,6 +22,7 @@ type OKCoin struct {
 	Enabled bool
 	Verbose bool
 	Websocket bool
+	WebsocketURL string
 	PollingDelay time.Duration
 	APIUrl, PartnerID, SecretKey string
 	TakerFee, MakerFee float64
@@ -57,8 +60,10 @@ type OKCoinFuturesTickerResponse struct {
 func (o *OKCoin) SetDefaults() {
 	if (o.APIUrl == OKCOIN_API_URL) {
 		o.Name = "OKCOIN International"
+		o.WebsocketURL = OKCOIN_WEBSOCKET_URL
 	} else if (o.APIUrl == OKCOIN_API_URL_CHINA) {
 		o.Name = "OKCOIN China"
+		o.WebsocketURL = OKCOIN_WEBSOCKET_URL_CHINA
 	}
 	o.Enabled = true
 	o.Verbose = false
@@ -101,7 +106,16 @@ func (o *OKCoin) GetFee(maker bool) (float64) {
 
 func (o *OKCoin) Run() {
 	if o.Verbose {
+		log.Printf("%s Websocket: %s (url: %s).", o.GetName(), IsEnabled(o.Websocket), o.WebsocketURL)
 		log.Printf("%s polling delay: %ds.\n", o.GetName(), o.PollingDelay)
+	}
+
+	if o.Websocket {
+		if o.WebsocketURL == OKCOIN_WEBSOCKET_URL {
+			go o.WebsocketClient([]string{"btcusd", "ltcusd"})
+		} else {
+			go o.WebsocketClient([]string{"btccny", "ltccny"})
+		}
 	}
 
 	for o.Enabled {
