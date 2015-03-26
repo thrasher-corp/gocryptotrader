@@ -18,6 +18,27 @@ type OKCoinWebsocketResponse struct {
 	Data interface{} `json:"data"`
 }
 
+type OKCoinWebsocketParams struct {
+	Partner string `json:"partner"`
+}
+
+type OKCoinWebsocketAuthParams struct {
+	Partner string `json:"partner"`
+	SecretKey string `json:"secretkey"`
+}
+
+type OKCoinWebsocketEventAuth struct {
+	Event string `json:"event"`
+	Channel string `json:"channel"`
+	Parameters OKCoinWebsocketAuthParams `json:"parameters"`
+}
+
+type OKCoinWebsocketEventAuthRemove struct {
+	Event string `json:"event"`
+	Channel string `json:"channel"`
+	Parameters OKCoinWebsocketParams `json:"parameters"`
+}
+
 var okConn websocket.Conn
 
 func (o *OKCoin) PingHandler(message string) (error) {
@@ -60,6 +81,36 @@ func (o* OKCoin) RemoveChannel(conn *websocket.Conn, channel string) {
 	}
 }
 
+func (o *OKCoin) AddChannelAuthenticated(conn *websocket.Conn, channel string) {
+	event := OKCoinWebsocketEventAuth{"addChannel", channel, OKCoinWebsocketAuthParams{o.PartnerID, o.SecretKey}}
+	json, err := JSONEncode(event)
+	if err != nil {
+		log.Println(err)
+		return
+	}
+	err = conn.WriteMessage(websocket.TextMessage, json)
+
+	if err != nil {
+		log.Println(err)
+		return
+	}
+}
+
+func (o *OKCoin) RemoveChannelAuthenticated(conn *websocket.Conn, channel string) {
+	event := OKCoinWebsocketEventAuthRemove{"removeChannel", channel, OKCoinWebsocketParams{o.PartnerID}}
+	json, err := JSONEncode(event)
+	if err != nil {
+		log.Println(err)
+		return
+	}
+	err = conn.WriteMessage(websocket.TextMessage, json)
+
+	if err != nil {
+		log.Println(err)
+		return
+	}
+}
+
 func (o *OKCoin) WebsocketClient(currencies []string) {
 	if len(currencies) == 0 {
 		log.Println("No currencies for Websocket client specified.")
@@ -81,6 +132,15 @@ func (o *OKCoin) WebsocketClient(currencies []string) {
 	}
 
 	okConn.SetPingHandler(o.PingHandler)
+
+	currencyChan := ""
+	if o.WebsocketURL == OKCOIN_WEBSOCKET_URL_CHINA {
+		currencyChan = "ok_cny_realtrades"
+	} else {
+		currencyChan = "ok_usd_realtrades"
+	}
+
+	o.AddChannelAuthenticated(okConn, currencyChan)
 
 	for _, x := range currencies {
 		o.AddChannel(okConn, fmt.Sprintf("ok_%s_ticker", x))
