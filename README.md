@@ -2,29 +2,34 @@ A cryptocurrency trading bot supporting multiple exchanges written in Golang.
 
 **Please note that this bot is under development and is not ready for production!**
 
-## Exchange support
-+ Bitfinex.
-+ Bitstamp.
-+ BTCChina.
-+ BTCE.
-+ BTCMarkets.
-+ Coinbase (Only unauthenticated polling).
-+ Cryptsy.
-+ Huobi.
-+ Itbit.
-+ Kraken.
-+ LakeBTC.
-+ OKCoin International and OKCoin China.
+## Exchange Support Table
 
-## Current features
+| Exchange | REST API | Streaming API | FIX API |
+|----------|------|-----------|-----|
+| Bitfinex | Yes  | NA        | NA  |
+| Bitstamp | Yes  | Yes       | NA  |
+| BTCChina | Yes  | No        | No  |
+| BTCE     | Yes  | NA        | NA  |
+| BTCMarkets | Yes | NA       | NA  |
+| Coinbase | Yes (unauthenticated)| Yes | No|
+| Cryptsy | Yes | Yes | NA|
+| Huobi | Yes | No |No
+| ItBit | Yes | NA | NA |
+| Kraken | Yes | NA | NA
+| LakeBTC | Yes | No | NA
+|OKCoin (both) | Yes | Yes | No
+
+** NA means not applicable as the Exchange does not support the feature.
+
+## Current Features
 + Support for BTC/LTC primarily, will be expanded to the available exchanges cryptocurrencies.
-+ Complete API set for all exchanges.
++ REST API support for all exchanges.
 + Ability to turn off/on certain exchanges.
-+ Ability to adjust manual polling for exchanges.
++ Ability to adjust manual polling timer for exchanges.
 + SMS notification support via SMS Gateway.
 + Basic event trigger system.
 
-## Planned features
+## Planned Features
 + WebGUI.
 + Websocket/Pusher/FIX support.
 + Expanding event trigger system.
