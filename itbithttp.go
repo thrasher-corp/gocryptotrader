@@ -6,7 +6,6 @@ import (
 	"errors"
 	"strings"
 	"time"
-	"encoding/json"
 	"log"
 )
 
@@ -275,7 +274,7 @@ func (i *ItBit) SendAuthenticatedHTTPRequest(method string, path string, params 
 		}
 	}
 
-	PayloadJson, err := json.Marshal(request)	
+	PayloadJson, err := JSONEncode(request)	
 	
 	if err != nil {
 		return errors.New("SendAuthenticatedHTTPRequest: Unable to JSON Marshal request")

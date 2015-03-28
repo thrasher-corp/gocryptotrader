@@ -3,7 +3,6 @@ package main
 import (
 	"net/url"
 	"strconv"
-	"encoding/json"
 	"errors"
 	"strings"
 	"time"
@@ -711,7 +710,7 @@ func (b *BTCChina) SendAuthenticatedHTTPRequest(method string, params []interfac
 	postData["method"] = method
 	postData["params"] = params
 	postData["id"] = 1
-	data, err := json.Marshal(postData)
+	data, err := JSONEncode(postData)
 
 	if err != nil {
 		return errors.New("Unable to JSON Marshal POST data")

@@ -4,7 +4,6 @@ import (
 	"log"
 	"fmt"
 	"strconv"
-	"encoding/json"
 	"errors"
 	"time"
 	"strings"
@@ -545,7 +544,7 @@ func (k *Kraken) SendAuthenticatedHTTPRequest(method string, values url.Values) 
 	}
 	
 	kresp := KrakenResponse{}
-	err = json.Unmarshal([]byte(resp), &kresp)
+	err = JSONDecode([]byte(resp), &kresp)
 
 	if err != nil {
 		return nil, errors.New("Unable to JSON response.")

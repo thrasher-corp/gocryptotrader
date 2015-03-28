@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"net/url"
-	"encoding/json"
 	"strings"
 	"time"
 	"errors"
@@ -128,7 +127,7 @@ func QueryYahooCurrencyValues(currencies string) (error) {
 		return err
 	}
 
-	err = json.Unmarshal([]byte(resp), &CurrencyStore)
+	err = JSONDecode([]byte(resp), &CurrencyStore)
 	
 	if err != nil {
 		return err

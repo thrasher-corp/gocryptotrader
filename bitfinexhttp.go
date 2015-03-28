@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"log"
-	"encoding/json"
 	"errors"
 	"strings"
 	"strconv"
@@ -273,7 +272,7 @@ func (b *Bitfinex) SendAuthenticatedHTTPRequest(method, path string, params map[
 		}
 	}
 
-	PayloadJson, err := json.Marshal(request)
+	PayloadJson, err := JSONEncode(request)
 
 	if err != nil {
 		return errors.New("SendAuthenticatedHTTPRequest: Unable to JSON request")
@@ -296,7 +295,7 @@ func (b *Bitfinex) SendAuthenticatedHTTPRequest(method, path string, params map[
 		log.Printf("Recieved raw: \n%s\n", resp)
 	}
 	
-	err = json.Unmarshal([]byte(resp), &result)
+	err = JSONDecode([]byte(resp), &result)
 
 	if err != nil {
 		return errors.New("Unable to JSON Unmarshal response.")

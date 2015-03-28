@@ -3,7 +3,6 @@ package main
 import (
 	"net/url"
 	"log"
-	"encoding/json"
 	"strings"
 	"strconv"
 	"errors"
@@ -313,7 +312,7 @@ func (b *Bitstamp) SendAuthenticatedHTTPRequest(path string, values url.Values, 
 		log.Printf("Recieved raw: %s\n", resp)
 	}
 
-	err = json.Unmarshal([]byte(resp), &result)
+	err = JSONDecode([]byte(resp), &result)
 
 	if err != nil {
 		return errors.New("Unable to JSON Unmarshal response.")
