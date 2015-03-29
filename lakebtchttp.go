@@ -43,6 +43,11 @@ type LakeBTCTicker struct {
 	Volume float64
 }
 
+type LakeBTCOrderbook struct {
+	Bids [][]float64 `json:"asks"`
+	Asks [][]float64 `json:"bids"`
+}
+
 type LakeBTCTickerResponse struct {
 	USD LakeBTCTicker
 	CNY LakeBTCTicker
@@ -85,8 +90,14 @@ func (l *LakeBTC) GetFee(maker bool) (float64) {
 
 func (l *LakeBTC) Run() {
 	if l.Verbose {
+		log.Printf("%s Websocket: %s.", l.GetName(), IsEnabled(l.Websocket))
 		log.Printf("%s polling delay: %ds.\n", l.GetName(), l.PollingDelay)
 	}
+
+	if l.Websocket {
+		l.WebsocketClient()
+	}
+
 	for l.Enabled {
 		go func() {
 			LakeBTCTickerResponse := l.GetTicker()

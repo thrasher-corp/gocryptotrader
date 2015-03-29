@@ -16,7 +16,7 @@ A cryptocurrency trading bot supporting multiple exchanges written in Golang.
 | Huobi | Yes | No |No
 | ItBit | Yes | NA | NA |
 | Kraken | Yes | NA | NA
-| LakeBTC | Yes | No | NA
+| LakeBTC | Yes | Yes | NA
 |OKCoin (both) | Yes | Yes | No
 
 ** NA means not applicable as the Exchange does not support the feature.
