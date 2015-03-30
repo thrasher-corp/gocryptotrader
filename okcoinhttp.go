@@ -52,6 +52,11 @@ type OKCoinFuturesTicker struct {
 	Unit_Amount float64
 }
 
+type OKCoinOrderbook struct {
+	Asks [][]float64 `json:"asks"`
+	Bids [][]float64 `json:"bids"`
+}
+
 type OKCoinFuturesTickerResponse struct {
 	Date string
 	Ticker OKCoinFuturesTicker

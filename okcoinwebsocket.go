@@ -5,8 +5,25 @@ import (
 	"net/http"
 	"time"
 	"fmt"
+	"strings"
 	"github.com/gorilla/websocket"
 )
+
+type OKCoinWebsocketTicker struct {
+	Timestamp int64 `json:"timestamp,string"`
+	Vol string `json:"vol"`
+	Buy float64 `json:"buy,string"`
+	High float64 `json:"high,string"`
+	Last float64 `json:"last,string"`
+	Low float64 `json:"low,string"`
+	Sell float64 `json:"sell,string"`
+}
+
+type OKCoinWebsocketOrderbook struct {
+	Asks [][]float64 `json:"asks"`
+	Bids [][]float64 `json:"bids"`
+	Timestamp int64 `json:"timestamp,string"`
+}
 
 type OKCoinWebsocketEvent struct {
 	Event string `json:"event"`
@@ -125,7 +142,6 @@ func (o *OKCoin) WebsocketClient(currencies []string) {
 		return
 	}
 
-	
 	if o.Verbose {
 		log.Printf("%s Connected to Websocket.", o.GetName())
 		log.Println(resp)
@@ -141,11 +157,15 @@ func (o *OKCoin) WebsocketClient(currencies []string) {
 	}
 
 	o.AddChannelAuthenticated(okConn, currencyChan)
-
+	klineValues := []string{"1min", "3min", "5min", "15min", "30min", "1hour", "2hour", "4hour", "6hour", "12hour", "day", "3day", "week"}
 	for _, x := range currencies {
 		o.AddChannel(okConn, fmt.Sprintf("ok_%s_ticker", x))
-		o.AddChannel(okConn, fmt.Sprintf("ok_%s_depth", x))
+		o.AddChannel(okConn, fmt.Sprintf("ok_%s_depth60", x))
 		o.AddChannel(okConn, fmt.Sprintf("ok_%s_trades", x))
+
+		for _, y := range klineValues {
+			o.AddChannel(okConn, fmt.Sprintf("ok_%s_kline_%s", x, y))
+		}
 	}
 
 	for {
@@ -156,7 +176,66 @@ func (o *OKCoin) WebsocketClient(currencies []string) {
 		}
 		switch msgType {
 		case websocket.TextMessage:
-			log.Println("\n" + string(resp))
+			response := []interface{}{}
+			err = JSONDecode(resp, &response)
+
+			if err != nil {
+				log.Println(err)
+				break
+			}
+
+			for _, y := range response {
+				z := y.(map[string]interface{})
+				channel := z["channel"]
+				data := z["data"]
+				channelStr, ok := channel.(string)
+				
+				if !ok {
+					log.Println("Unable to convert channel to string")
+					continue
+				}
+
+				dataJSON, err := JSONEncode(data)
+
+				if err != nil {
+					log.Println(err)
+					continue
+				}
+
+				switch true {
+				case strings.Contains(channelStr, "ticker"): 
+					ticker := OKCoinWebsocketTicker{}
+					err = JSONDecode(dataJSON, &ticker)
+
+					if err != nil {
+						log.Println(err)
+						continue
+					}
+				case strings.Contains(channelStr, "depth60"): 
+					orderbook := OKCoinWebsocketOrderbook{}
+					err = JSONDecode(dataJSON, &orderbook)
+
+					if err != nil {
+						log.Println(err)
+						continue
+					}
+				case strings.Contains(channelStr, "trades"): 
+					type TradeResponse struct {
+						Data [][]string
+					}
+
+					trades := TradeResponse{}
+					err = JSONDecode(dataJSON, &trades.Data)
+
+					if err != nil {
+						log.Println(err)
+						continue
+					}
+					// to-do: convert from string array to trade struct
+				case strings.Contains(channelStr, "kline"): 
+					// to-do
+				}
+			}
 		}
 	}
 	okConn.Close()
