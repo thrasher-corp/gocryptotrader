@@ -291,7 +291,7 @@ func (o *OKCoin) WebsocketClient(currencies []string) {
 	OKConnWebsocket.SetPingHandler(o.PingHandler)
 	
 	if o.Verbose {
-		log.Printf("%s Collecting order and userinfo.\n")
+		log.Printf("%s Websocket: Collecting user information.\n", o.GetName())
 	}
 
 	currencyChan, userinfoChan := "", ""
@@ -349,8 +349,15 @@ func (o *OKCoin) WebsocketClient(currencies []string) {
 					continue
 				}
 
-				if o.Verbose {
-					log.Printf("%s Websocket channel message: %s\n", o.GetName(), channelStr)
+				if success != "true" && success != nil {
+					errorCodeStr, ok := errorcode.(string)
+					if !ok {
+						log.Printf("%s Websocket: Unable to convert errorcode to string.\n", o .GetName)
+						log.Printf("%s Websocket: channel %s error code: %s.\n", o.GetName(), channelStr, errorcode)
+					} else {
+						log.Printf("%s Websocket: channel %s error: %s.\n", o.GetName(), channelStr, o.WebsocketErrors[errorCodeStr])
+					}
+					continue
 				}
 
 				dataJSON, err := JSONEncode(data)
@@ -393,63 +400,48 @@ func (o *OKCoin) WebsocketClient(currencies []string) {
 				case strings.Contains(channelStr, "kline"): 
 					// to-do
 				case strings.Contains(channelStr, "realtrades"):
-					if success == "false" {
-						log.Printf("Error subscribing to real trades channel, error code: %s", errorcode)
-					} else {
-						if string(dataJSON) == "null" {
-							continue
-						}
-						realtrades := OKCoinWebsocketRealtrades{}
-						err := JSONDecode(dataJSON, &realtrades)
+					if string(dataJSON) == "null" {
+						continue
+					}
+					realtrades := OKCoinWebsocketRealtrades{}
+					err := JSONDecode(dataJSON, &realtrades)
 
-						if err != nil {
-							log.Println(err)
-							continue
-						}
+					if err != nil {
+						log.Println(err)
+						continue
 					}
 				case strings.Contains(channelStr, "spot") && strings.Contains(channelStr, "trade"):
-					if success == "false" {
-						log.Printf("Error placing trade, error code: %s", errorcode)
-					} else {
-						type TradeOrderResponse struct {
-							OrderID int64 `json:"order_id,string"`
-							Result bool `json:"result"`
-						}
-						tradeOrder := TradeOrderResponse{}
-						err := JSONDecode(dataJSON, &tradeOrder)
+					log.Println(string(dataJSON))
+					type TradeOrderResponse struct {
+						OrderID int64 `json:"order_id,string"`
+						Result bool `json:"result,string"`
+					}
+					tradeOrder := TradeOrderResponse{}
+					err := JSONDecode(dataJSON, &tradeOrder)
 
-						if err != nil {
-							log.Println(err)
-							continue
-						}
+					if err != nil {
+						log.Println(err)
+						continue
 					}
 				case strings.Contains(channelStr, "userinfo"):
-					if success == "false" {
-						log.Printf("Error fetching user info, error code: %s", errorcode)
-					} else {
-						userinfo := OKCoinWebsocketUserinfo{}
-						err = JSONDecode(dataJSON, &userinfo)
+					userinfo := OKCoinWebsocketUserinfo{}
+					err = JSONDecode(dataJSON, &userinfo)
 
-						if err != nil {
-							log.Println(err)
-							continue
-						}
+					if err != nil {
+						log.Println(err)
+						continue
 					}
 				case strings.Contains(channelStr, "order_info"):
-					if success == "false" {
-						log.Printf("Error fetching order info, error code: %s", errorcode)
-					} else {
-						type OrderInfoResponse struct {
-							Result bool `json:"result"`
-							Orders []OKCoinWebsocketOrder `json:"orders"`
-						}
-						var orders OrderInfoResponse
-						err := JSONDecode(dataJSON, &orders)
+					type OrderInfoResponse struct {
+						Result bool `json:"result"`
+						Orders []OKCoinWebsocketOrder `json:"orders"`
+					}
+					var orders OrderInfoResponse
+					err := JSONDecode(dataJSON, &orders)
 
-						if err != nil {
-							log.Println(err)
-							continue
-						}
+					if err != nil {
+						log.Println(err)
+						continue
 					}
 				}
 			}
@@ -458,3 +450,50 @@ func (o *OKCoin) WebsocketClient(currencies []string) {
 	OKConnWebsocket.Close()
 	log.Printf("%s Websocket client disconnected.", o.GetName())
 }
+
+func (o *OKCoin) SetWebsocketErrorDefaults() {
+	o.WebsocketErrors = map[string]string{
+		"10001": "Illegal parameters",
+		"10002": "Authentication failure",
+		"10003": "This connection has requested other user data",
+		"10004": "This connection did not request this user data",
+		"10005": "System error",
+		"10009": "Order does not exist",
+		"10010": "Insufficient funds",
+		"10011": "Order quantity too low",
+		"10012": "Only support btc_usd/btc_cny ltc_usd/ltc_cny",
+		"10014": "Order price must be between 0 - 1,000,000",
+		"10015": "Channel subscription temporally not available",
+		"10016": "Insufficient coins",
+		"10017": "WebSocket authorization error",
+		"10100": "User frozen",
+		"10216": "Non-public API",
+		"20001": "User does not exist",
+		"20002": "User frozen",
+		"20003": "Frozen due to force liquidation",
+		"20004": "Future account frozen",
+		"20005": "User future account does not exist",
+		"20006": "Required field can not be null",
+		"20007": "Illegal parameter",
+		"20008": "Future account fund balance is zero",
+		"20009": "Future contract status error",
+		"20010": "Risk rate information does not exist",
+		"20011": `Risk rate bigger than 90% before opening position`,
+		"20012": `Risk rate bigger than 90% after opening position`,
+		"20013": "Temporally no counter party price",
+		"20014": "System error",
+		"20015": "Order does not exist",
+		"20016": "Liquidation quantity bigger than holding",
+		"20017": "Not authorized/illegal order ID",
+		"20018": `Order price higher than 105% or lower than 95% of the price of last minute`,
+		"20019": "IP restrained to access the resource",
+		"20020": "Secret key does not exist",
+		"20021": "Index information does not exist",
+		"20022": "Wrong API interface",
+		"20023": "Fixed margin user",
+		"20024": "Signature does not match",
+		"20025": "Leverage rate error",
+	}
+}
+
+
