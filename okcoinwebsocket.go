@@ -79,6 +79,23 @@ type OKCoinWebsocketOrder struct {
 	OrderType string `json:"type"`
 }
 
+type OKCoinWebsocketRealtrades struct {
+	AveragePrice float64 `json:"averagePrice,string"`
+	CompletedTradeAmount float64 `json:"completedTradeAmount,string"`
+	DateCreated float64 `json:"createdDate"`
+	ID float64 `json:"id"`
+	OrderID float64 `json:"orderId"`
+	SigTradeAmount float64 `json:"sigTradeAmount,string"`
+	SigTradePrice float64 `json:"sigTradePrice,string"`
+	Status int64 `json:"status"`
+	Symbol string `json:"symbol"`
+	TradeAmount float64 `json:"tradeAmount,string"`
+	TradePrice float64 `json:"buy,string"`
+	TradeType string `json:"tradeType"`
+	TradeUnitPrice float64 `json:"tradeUnitPrice,string"`
+	UnTrade float64 `json:"unTrade,string"`
+}
+
 type OKCoinWebsocketEvent struct {
 	Event string `json:"event"`
 	Channel string `json:"channel"`
@@ -376,7 +393,20 @@ func (o *OKCoin) WebsocketClient(currencies []string) {
 				case strings.Contains(channelStr, "kline"): 
 					// to-do
 				case strings.Contains(channelStr, "realtrades"):
-					// to-do
+					if success == "false" {
+						log.Printf("Error subscribing to real trades channel, error code: %s", errorcode)
+					} else {
+						if string(dataJSON) == "null" {
+							continue
+						}
+						realtrades := OKCoinWebsocketRealtrades{}
+						err := JSONDecode(dataJSON, &realtrades)
+
+						if err != nil {
+							log.Println(err)
+							continue
+						}
+					}
 				case strings.Contains(channelStr, "spot") && strings.Contains(channelStr, "trade"):
 					if success == "false" {
 						log.Printf("Error placing trade, error code: %s", errorcode)
