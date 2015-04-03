@@ -24,6 +24,11 @@ const (
 	OKCOIN_WEBSOCKET_SPOTCNY_USERINFO = "ok_spotcny_userinfo"
 	OKCOIN_WEBSOCKET_SPOTUSD_ORDER_INFO = "ok_spotusd_order_info"
 	OKCOIN_WEBSOCKET_SPOTCNY_ORDER_INFO = "ok_spotcny_order_info"
+	OKCOIN_WEBSOCKET_FUTURES_TRADE = "ok_futuresusd_trade"
+	OKCOIN_WEBSOCKET_FUTURES_CANCEL_ORDER = "ok_futuresusd_cancel_order"
+	OKCOIN_WEBSOCKET_FUTURES_REALTRADES = "ok_usd_future_realtrades"
+	OKCOIN_WEBSOCKET_FUTURES_USERINFO = "ok_futureusd_userinfo"
+	OKCOIN_WEBSOCKET_FUTURES_ORDER_INFO = "ok_futureusd_order_info"
 )
 
 type OKCoinWebsocketTicker struct {
@@ -66,6 +71,33 @@ type OKCoinWebsocketUserinfo struct {
 	Result bool `json:"result"`
 }
 
+type OKCoinWebsocketFuturesContract struct {
+	Available float64 `json:"available"`
+	Balance float64 `json:"balance"`
+	Bond float64 `json:"bond"`
+	ContractID float64 `json:"contract_id"`
+	ContractType string `json:"contract_type"`
+	Frozen float64 `json:"freeze"`
+	Profit float64 `json:"profit"`
+	Loss float64 `json:"unprofit"`
+}
+
+type OKCoinWebsocketFuturesUserInfo struct {
+	Info struct {
+		BTC struct {
+			Balance float64 `json:"balance"`
+			Contracts []OKCoinWebsocketFuturesContract `json:"contracts"`
+			Rights float64 `json:"rights"`
+		} `json:"btc"`
+		LTC struct {
+			Balance float64 `json:"balance"`
+			Contracts []OKCoinWebsocketFuturesContract `json:"contracts"`
+			Rights float64 `json:"rights"`
+		} `json:"ltc"`
+	} `json:"info"`
+	Result bool `json:"result"`
+}
+
 type OKCoinWebsocketOrder struct {
 	Amount float64 `json:"amount"`
 	AvgPrice float64 `json:"avg_price"`
@@ -77,6 +109,22 @@ type OKCoinWebsocketOrder struct {
 	Status int64 `json:"status"`
 	Symbol string `json:"symbol"`
 	OrderType string `json:"type"`
+}
+
+type OKCoinWebsocketFuturesOrder struct {
+	Amount float64 `json:"amount"`
+	ContractName string `json:"contract_name"`
+	DateCreated float64 `json:"createdDate"`
+	TradeAmount float64 `json:"deal_amount"`
+	Fee float64 `json:"fee"`
+	LeverageAmount int `json:"lever_rate"`
+	OrderID float64 `json:"order_id"`
+	Price float64 `json:"price"`
+	AvgPrice float64 `json:"avg_price"`
+	Status int `json:"status"`
+	Symbol string `json:"symbol"`
+	TradeType int `json:"type"`
+	UnitAmount float64 `json:"unit_amount"`
 }
 
 type OKCoinWebsocketRealtrades struct {
@@ -94,6 +142,22 @@ type OKCoinWebsocketRealtrades struct {
 	TradeType string `json:"tradeType"`
 	TradeUnitPrice float64 `json:"tradeUnitPrice,string"`
 	UnTrade float64 `json:"unTrade,string"`
+}
+
+type OKCoinWebsocketFuturesRealtrades struct {
+	Amount float64 `json:"amount,string"`
+	ContractID float64 `json:"contract_id,string"`
+	ContractName string `json:"contract_name"`
+	ContractType string `json:"contract_type"`
+	TradeAmount float64 `json:"deal_amount,string"`
+	Fee float64 `json:"fee,string"`
+	OrderID float64 `json:"orderid"`
+	Price float64 `json:"price,string"`
+	AvgPrice float64 `json:"price_avg,string"`
+	Status int `json:"status,string"`
+	TradeType int `json:"type,string"`
+	UnitAmount float64 `json:"unit_amount,string"`
+	LeverageAmount int `json:"lever_rate,string"`
 }
 
 type OKCoinWebsocketEvent struct {
@@ -116,6 +180,11 @@ type OKCoinWebsocketEventAuthRemove struct {
 	Event string `json:"event"`
 	Channel string `json:"channel"`
 	Parameters map[string]string `json:"parameters"`
+}
+
+type OKCoinWebsocketTradeOrderResponse struct {
+	OrderID int64 `json:"order_id,string"`
+	Result bool `json:"result,string"`
 }
 
 func (o *OKCoin) PingHandler(message string) (error) {
@@ -183,6 +252,18 @@ func (o *OKCoin) WebsocketSpotTrade(symbol, orderType string, price, amount floa
 	o.AddChannelAuthenticated(channel, values)
 }
 
+func (o *OKCoin) WebsocketFuturesTrade(symbol, contractType string, price, amount float64, orderType, matchPrice, leverage int) {
+	values := make(map[string]string)
+	values["symbol"] = symbol
+	values["contract_type"] = contractType
+	values["price"] = strconv.FormatFloat(price, 'f', 8, 64)
+	values["amount"] = strconv.FormatFloat(amount, 'f', 8, 64)
+	values["type"] = strconv.Itoa(orderType)
+	values["match_price"] = strconv.Itoa(matchPrice)
+	values["lever_rate"] = strconv.Itoa(orderType)
+	o.AddChannelAuthenticated(OKCOIN_WEBSOCKET_FUTURES_TRADE, values)
+}
+
 func (o *OKCoin) WebsocketSpotCancel(symbol string, orderID int64) {
 	values := make(map[string]string)
 	values["symbol"] = symbol
@@ -198,6 +279,14 @@ func (o *OKCoin) WebsocketSpotCancel(symbol string, orderID int64) {
 	o.AddChannelAuthenticated(channel, values)
 }
 
+func (o *OKCoin) WebsocketFuturesCancel(symbol, contractType string, orderID int64) {
+	values := make(map[string]string)
+	values["symbol"] = symbol
+	values["order_id"] = strconv.FormatInt(orderID, 10)
+	values["contract_type"] = contractType
+	o.AddChannelAuthenticated(OKCOIN_WEBSOCKET_FUTURES_CANCEL_ORDER, values)
+}
+
 func (o *OKCoin) WebsocketSpotOrderInfo(symbol string, orderID int64) {
 	values := make(map[string]string)
 	values["symbol"] = symbol
@@ -211,6 +300,17 @@ func (o *OKCoin) WebsocketSpotOrderInfo(symbol string, orderID int64) {
 	}
 
 	o.AddChannelAuthenticated(channel, values)
+}
+
+func (o *OKCoin) WebsocketFuturesOrderInfo(symbol, contractType string, orderID int64, orderStatus, currentPage, pageLength int) {
+	values := make(map[string]string)
+	values["symbol"] = symbol
+	values["order_id"] = strconv.FormatInt(orderID, 10)
+	values["contract_type"] = contractType
+	values["status"] = strconv.Itoa(orderStatus)
+	values["current_page"] = strconv.Itoa(currentPage)
+	values["page_length"] = strconv.Itoa(pageLength)
+	o.AddChannelAuthenticated(OKCOIN_WEBSOCKET_FUTURES_ORDER_INFO, values)
 }
 
 func (o *OKCoin) ConvertToURLValues(values map[string]string) (url.Values) {
@@ -305,6 +405,15 @@ func (o *OKCoin) WebsocketClient(currencies []string) {
 		userinfoChan = OKCOIN_WEBSOCKET_SPOTUSD_USERINFO
 		o.WebsocketSpotOrderInfo("btc_usd", -1)
 		o.WebsocketSpotOrderInfo("ltc_usd", -1)
+		o.AddChannelAuthenticated(OKCOIN_WEBSOCKET_FUTURES_REALTRADES, map[string]string{})
+		o.AddChannelAuthenticated(OKCOIN_WEBSOCKET_FUTURES_USERINFO, map[string]string{})
+
+		// get all unfilled futures orders for both currencies
+		futuruesContractValues := []string{"this_week", "next_week", "quarter"}
+		for _, y := range futuruesContractValues {
+			o.WebsocketFuturesOrderInfo("btc_usd", y, -1, 1, 1, 50) 
+			o.WebsocketFuturesOrderInfo("ltc_usd", y, -1, 1, 1, 50)
+		}
 	}
 	o.AddChannelAuthenticated(currencyChan, map[string]string{})
 	o.AddChannelAuthenticated(userinfoChan, map[string]string{})
@@ -399,7 +508,7 @@ func (o *OKCoin) WebsocketClient(currencies []string) {
 					// to-do: convert from string array to trade struct
 				case strings.Contains(channelStr, "kline"): 
 					// to-do
-				case strings.Contains(channelStr, "realtrades"):
+				case strings.Contains(channelStr, "spot") && strings.Contains(channelStr, "realtrades"):
 					if string(dataJSON) == "null" {
 						continue
 					}
@@ -410,20 +519,34 @@ func (o *OKCoin) WebsocketClient(currencies []string) {
 						log.Println(err)
 						continue
 					}
-				case strings.Contains(channelStr, "spot") && strings.Contains(channelStr, "trade"):
-					log.Println(string(dataJSON))
-					type TradeOrderResponse struct {
-						OrderID int64 `json:"order_id,string"`
-						Result bool `json:"result,string"`
+				case strings.Contains(channelStr, "future") && strings.Contains(channelStr, "realtrades"):
+					if string(dataJSON) == "null" {
+						continue
 					}
-					tradeOrder := TradeOrderResponse{}
+					realtrades := OKCoinWebsocketFuturesRealtrades{}
+					err := JSONDecode(dataJSON, &realtrades)
+
+					if err != nil {
+						log.Println(err)
+						continue
+					}
+				case strings.Contains(channelStr, "spot") && strings.Contains(channelStr, "trade") || strings.Contains(channelStr, "futures") && strings.Contains(channelStr, "trade"):
+					tradeOrder := OKCoinWebsocketTradeOrderResponse{}
 					err := JSONDecode(dataJSON, &tradeOrder)
 
 					if err != nil {
 						log.Println(err)
 						continue
 					}
-				case strings.Contains(channelStr, "userinfo"):
+				case strings.Contains(channelStr, "cancel_order"):
+					cancelOrder := OKCoinWebsocketTradeOrderResponse{}
+					err := JSONDecode(dataJSON, &cancelOrder)
+
+					if err != nil {
+						log.Println(err)
+						continue
+					}
+				case strings.Contains(channelStr, "spot") && strings.Contains(channelStr, "userinfo"):
 					userinfo := OKCoinWebsocketUserinfo{}
 					err = JSONDecode(dataJSON, &userinfo)
 
@@ -431,10 +554,30 @@ func (o *OKCoin) WebsocketClient(currencies []string) {
 						log.Println(err)
 						continue
 					}
-				case strings.Contains(channelStr, "order_info"):
+				case strings.Contains(channelStr, "futureusd_userinfo"):
+					userinfo := OKCoinWebsocketFuturesUserInfo{}
+					err = JSONDecode(dataJSON, &userinfo)
+
+					if err != nil {
+						log.Println(err)
+						continue
+					}
+				case strings.Contains(channelStr, "spot") && strings.Contains(channelStr, "order_info"):
 					type OrderInfoResponse struct {
 						Result bool `json:"result"`
 						Orders []OKCoinWebsocketOrder `json:"orders"`
+					}
+					var orders OrderInfoResponse
+					err := JSONDecode(dataJSON, &orders)
+
+					if err != nil {
+						log.Println(err)
+						continue
+					}
+				case strings.Contains(channelStr, "futureusd_order_info"):
+					type OrderInfoResponse struct {
+						Result bool `json:"result"`
+						Orders []OKCoinWebsocketFuturesOrder`json:"orders"`
 					}
 					var orders OrderInfoResponse
 					err := JSONDecode(dataJSON, &orders)
