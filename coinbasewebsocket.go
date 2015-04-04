@@ -156,7 +156,7 @@ func (c *Coinbase) WebsocketClient() {
 					continue
 				}
 			case "change":
-				change := CoinbaseWebsocketMatch{}
+				change := CoinbaseWebsocketChange{}
 				err := JSONDecode(resp, &change)
 				if err != nil {
 					log.Println(err)
