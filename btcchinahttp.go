@@ -12,6 +12,7 @@ import (
 
 const (
 	BTCCHINA_API_URL = "https://api.btcchina.com/"
+	BTCCHINA_API_AUTHENTICATED_METHOD = "api_trade_v1.php"
 	BTCCHINA_API_VER = "2.0.1.3"
 	BTCCHINA_ORDER_BUY = "buyOrder2"
 	BTCCHINA_ORDER_SELL = "sellOrder2"
@@ -201,6 +202,8 @@ func (b *BTCChina) Run() {
 	if b.Verbose {
 		log.Printf("%s polling delay: %ds.\n", b.GetName(), b.PollingDelay)
 	}
+
+	b.GetAccountInfo("all")
 	
 	for b.Enabled {
 		go func() {
@@ -710,6 +713,7 @@ func (b *BTCChina) SendAuthenticatedHTTPRequest(method string, params []interfac
 	postData["method"] = method
 	postData["params"] = params
 	postData["id"] = 1
+	apiURL := BTCCHINA_API_URL + BTCCHINA_API_AUTHENTICATED_METHOD
 	data, err := JSONEncode(postData)
 
 	if err != nil {
@@ -717,7 +721,7 @@ func (b *BTCChina) SendAuthenticatedHTTPRequest(method string, params []interfac
 	}
 
 	if b.Verbose {
-		log.Printf("Sending POST request to %s calling method %s with params %s\n", "https://api.btcchina.com/api_trade_v1.php", method, data)
+		log.Printf("Sending POST request to %s calling method %s with params %s\n", apiURL, method, data)
 	}
 
 	headers := make(map[string]string)
@@ -725,7 +729,7 @@ func (b *BTCChina) SendAuthenticatedHTTPRequest(method string, params []interfac
 	headers["Authorization"] = "Basic " + Base64Encode([]byte(b.APIKey + ":" + HexEncodeToString(hmac)))
 	headers["Json-Rpc-Tonce"] = nonce
 
-	resp, err := SendHTTPRequest("POST", "https://api.btcchina.com/api_trade_v1.php", headers, strings.NewReader(string(data)))
+	resp, err := SendHTTPRequest("POST", apiURL, headers, strings.NewReader(string(data)))
 	
 	if err != nil {
 		return err
