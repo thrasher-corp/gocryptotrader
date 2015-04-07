@@ -104,6 +104,41 @@ type OKCoinAccountRecords struct {
 	Symbol string `json:"symbol"`
 }
 
+type OKCoinFuturesOrder struct {
+	Amount float64 `json:"amount"`
+	ContractName string `json:"contract_name"`
+	DateCreated float64 `json:"create_date"`
+	TradeAmount float64 `json:"deal_amount"`
+	Fee float64 `json:"fee"`
+	LeverageRate float64 `json:"lever_rate"`
+	OrderID int64 `json:"order_id"`
+	Price float64 `json:"price"`
+	AvgPrice float64 `json:"avg_price"`
+	Status float64 `json:"status"`
+	Symbol string `json:"symbol"`
+	Type int64 `json:"type"`
+	UnitAmount int64 `json:"unit_amount"`
+}
+
+type OKCoinFuturesHoldAmount struct {
+	Amount float64 `json:"amount"`
+	ContractName string `json:"contract_name"`
+}
+
+type OKCoinLendDepth struct {
+	Amount float64 `json:"amount"`
+	Days string `json:"days"`
+	Num int64 `json:"num"`
+	Rate float64 `json:"rate,string"`
+}
+
+type OKCoinFuturesExplosive struct {
+	Amount float64 `json:"amount,string"`
+	DateCreated string `json:"create_date"`
+	Loss float64 `json:"loss,string"`
+	Type int64 `json:"type"`
+}
+
 func (o *OKCoin) SetDefaults() {
 	o.SetErrorDefaults()
 	o.SetWebsocketErrorDefaults()
@@ -246,6 +281,33 @@ func (o *OKCoin) GetTicker(symbol string) (OKCoinTicker) {
 	return resp.Ticker
 }
 
+func (o *OKCoin) GetKline(symbol, klineType string, size, since int64) ([]interface{}) {
+	resp := []interface{}{}
+	path := fmt.Sprintf("kline.do?symbol=%stype=%s&size=%d&since=%d&ok=1", symbol, klineType, size, since)
+	err := SendHTTPGetRequest(o.APIUrl + path, true, &resp)
+
+	if err != nil {
+		log.Println(err)
+		return nil
+	}
+	return resp
+}
+
+func (o *OKCoin) GetLendDepth(symbol string) ([]OKCoinLendDepth) {
+	type Response struct {
+		LendDepth []OKCoinLendDepth `json:"lend_depth"`
+	}
+	resp := Response{}
+	path := fmt.Sprintf("lend_depth.do?symbol=%s&ok=1", symbol)
+	err := SendHTTPGetRequest(o.APIUrl + path, true, &resp)
+
+	if err != nil {
+		log.Println(err)
+		return []OKCoinLendDepth{}
+	}
+	return resp.LendDepth
+}
+
 func (o *OKCoin) GetFuturesTicker(symbol, contractType string) (OKCoinFuturesTicker) {
 	resp := OKCoinFuturesTickerResponse{}
 	path := fmt.Sprintf("future_ticker.do?symbol=%s&contract_type=%s", symbol, contractType)
@@ -326,13 +388,52 @@ func (o *OKCoin) GetFuturesEstimatedPrice(symbol string) (bool) {
 }
 
 func (o *OKCoin) GetFuturesTradeHistory(symbol, date string, since int64) (bool) {
-	path := fmt.Sprintf("future_trades.do?symbol=%s&date%s&since=%d", symbol, date, since)
+	path := fmt.Sprintf("future_trades_history.do?symbol=%s&date%s&since=%d", symbol, date, since)
 	err := SendHTTPGetRequest(o.APIUrl + path, true, nil)
 	if err != nil {
 		log.Println(err)
 		return false
 	}
 	return true
+}
+
+func (o *OKCoin) GetFuturesKline(symbol, klineType, contractType string, size, since int64) ([]interface{}) {
+	resp := []interface{}{}
+	path := fmt.Sprintf("future_kline.do?symbol=%s&type=%s&contract_type=%s&size=%d&since=%d", symbol, klineType, contractType, size, since)
+	err := SendHTTPGetRequest(o.APIUrl + path, true, &resp)
+
+	if err != nil {
+		log.Println(err)
+		return nil
+	}
+	return resp
+}
+
+func (o *OKCoin) GetFuturesHoldAmount(symbol, contractType string) ([]OKCoinFuturesHoldAmount) {
+	resp := []OKCoinFuturesHoldAmount{}
+	path := fmt.Sprintf("future_hold_amount.do?symbol=%s&contract_type=%s", symbol, contractType)
+	err := SendHTTPGetRequest(o.APIUrl + path, true, &resp)
+
+	if err != nil {
+		log.Println(err)
+		return nil
+	}
+	return resp
+}
+
+func (o *OKCoin) GetFuturesExplosive(symbol, contractType string, status, currentPage, pageLength int64) ([]OKCoinFuturesExplosive) {
+	type Response struct {
+		Data []OKCoinFuturesExplosive `json:"data"`
+	}
+	resp := Response{}
+	path := fmt.Sprintf("future_explosive.do?symbol=%s&contract_type=%s&status=%d&current_page=%d&page_length=%d", symbol, contractType, status, currentPage, pageLength)
+	err := SendHTTPGetRequest(o.APIUrl + path, true, &resp)
+
+	if err != nil {
+		log.Println(err)
+		return nil
+	}
+	return resp.Data
 }
 
 func (o *OKCoin) GetUserInfo() {
@@ -480,6 +581,19 @@ func (o *OKCoin) GetOrdersInfo(orderID int64, orderType string, symbol string) {
 	v.Set("symbol", symbol)
 
 	err := o.SendAuthenticatedHTTPRequest("orders_info.do", v)
+
+	if err != nil {
+		log.Println(err)
+	}
+}
+
+func (o *OKCoin) GetFutureOrdersInfo(orderID int64, contractType, symbol string) {
+	v := url.Values{}
+	v.Set("order_id", strconv.FormatInt(orderID, 10))
+	v.Set("contract_type", contractType)
+	v.Set("symbol", symbol)
+
+	err := o.SendAuthenticatedHTTPRequest("future_orders_info.do", v)
 
 	if err != nil {
 		log.Println(err)
