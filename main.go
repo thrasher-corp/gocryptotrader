@@ -6,6 +6,8 @@ import (
 	"errors"
 	"os/signal"
 	"syscall"
+	"strconv"
+	"runtime"
 )
 
 type Exchange struct {
@@ -58,6 +60,8 @@ func main() {
 		log.Println("Bot started with no exchanges supported. Exiting.")
 		return
 	}
+
+	AdjustGoMaxProcs()
 
 	smsSupport := false
 	smsContacts := 0
@@ -248,6 +252,26 @@ func main() {
 	}
 	<-bot.shutdown
 	Shutdown()
+}
+
+func AdjustGoMaxProcs() {
+	log.Println("Adjusting bot runtime performance..")
+	maxProcsEnv := os.Getenv("GOMAXPROCS")
+	maxProcs := runtime.NumCPU()
+	log.Println("Number of CPU's detected:", maxProcs)
+
+	if maxProcsEnv  != "" {
+		log.Println("GOMAXPROCS env =", maxProcsEnv)
+		env, err := strconv.Atoi(maxProcsEnv)
+
+		if err != nil {
+			log.Println("Unable to convert GOMAXPROCS to int, using", maxProcs)
+		} else {
+			maxProcs = env
+		}
+	} 
+	log.Println("Set GOMAXPROCS to:", maxProcs)
+	runtime.GOMAXPROCS(maxProcs)
 }
 
 func HandleInterrupt() {
