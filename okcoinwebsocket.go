@@ -31,6 +31,11 @@ const (
 	OKCOIN_WEBSOCKET_FUTURES_ORDER_INFO = "ok_futureusd_order_info"
 )
 
+type OKCoinWebsocketFutureIndex struct {
+	FutureIndex float64 `json:"futureIndex"`
+	Timestamp int64 `json:"timestamp,string"`
+}
+
 type OKCoinWebsocketTicker struct {
 	Timestamp int64 `json:"timestamp,string"`
 	Vol string `json:"vol"`
@@ -39,6 +44,18 @@ type OKCoinWebsocketTicker struct {
 	Last float64 `json:"last,string"`
 	Low float64 `json:"low,string"`
 	Sell float64 `json:"sell,string"`
+}
+
+type OKCoinWebsocketFuturesTicker struct {
+	Buy float64 `json:"buy"`
+	ContractID string `json:"contractId"`
+	High float64 `json:"high"`
+	HoldAmount float64 `json:"hold_amount"`
+	Last float64 `json:"last,string"`
+	Low float64 `json:"low"`
+	Sell float64 `json:"sell"`
+	UnitAmount float64 `json:"unitAmount"`
+	Volume float64 `json:"vol,string"`
 }
 
 type OKCoinWebsocketOrderbook struct {
@@ -395,6 +412,9 @@ func (o *OKCoin) WebsocketClient(currencies []string) {
 	}
 
 	currencyChan, userinfoChan := "", ""
+	futuruesContractValues := []string{"this_week", "next_week", "quarter"}
+	klineValues := []string{"1min", "3min", "5min", "15min", "30min", "1hour", "2hour", "4hour", "6hour", "12hour", "day", "3day", "week"}
+
 	if o.WebsocketURL == OKCOIN_WEBSOCKET_URL_CHINA {
 		currencyChan = OKCOIN_WEBSOCKET_CNY_REALTRADES
 		userinfoChan = OKCOIN_WEBSOCKET_SPOTCNY_USERINFO
@@ -409,7 +429,6 @@ func (o *OKCoin) WebsocketClient(currencies []string) {
 		o.AddChannelAuthenticated(OKCOIN_WEBSOCKET_FUTURES_USERINFO, map[string]string{})
 
 		// get all unfilled futures orders for both currencies
-		futuruesContractValues := []string{"this_week", "next_week", "quarter"}
 		for _, y := range futuruesContractValues {
 			o.WebsocketFuturesOrderInfo("btc_usd", y, -1, 1, 1, 50) 
 			o.WebsocketFuturesOrderInfo("ltc_usd", y, -1, 1, 1, 50)
@@ -417,8 +436,7 @@ func (o *OKCoin) WebsocketClient(currencies []string) {
 	}
 	o.AddChannelAuthenticated(currencyChan, map[string]string{})
 	o.AddChannelAuthenticated(userinfoChan, map[string]string{})
-
-	klineValues := []string{"1min", "3min", "5min", "15min", "30min", "1hour", "2hour", "4hour", "6hour", "12hour", "day", "3day", "week"}
+	//spot
 	for _, x := range currencies {
 		o.AddChannel(fmt.Sprintf("ok_%s_ticker", x))
 		o.AddChannel(fmt.Sprintf("ok_%s_depth60", x))
@@ -426,6 +444,19 @@ func (o *OKCoin) WebsocketClient(currencies []string) {
 
 		for _, y := range klineValues {
 			o.AddChannel(fmt.Sprintf("ok_%s_kline_%s", x, y))
+		}
+	}
+
+	//futures
+	for _, x := range currencies {
+		o.AddChannel(fmt.Sprintf("ok_%s_future_index", x))
+		for _, y := range futuruesContractValues {
+			o.AddChannel(fmt.Sprintf("ok_%s_future_ticker_%s", x,y))
+			o.AddChannel(fmt.Sprintf("ok_%s_future_depth_%s_60", x,y))
+			o.AddChannel(fmt.Sprintf("ok_%s_future_trade_v1_%s", x,y))
+			for _, z := range klineValues {
+				o.AddChannel(fmt.Sprintf("ok_future_%s_kline_%s_%s", x,y,z))
+			}
 		}
 	}
 
@@ -477,7 +508,7 @@ func (o *OKCoin) WebsocketClient(currencies []string) {
 				}
 
 				switch true {
-				case strings.Contains(channelStr, "ticker"): 
+				case strings.Contains(channelStr, "ticker") && !strings.Contains(channelStr, "future"): 
 					ticker := OKCoinWebsocketTicker{}
 					err = JSONDecode(dataJSON, &ticker)
 
@@ -485,7 +516,15 @@ func (o *OKCoin) WebsocketClient(currencies []string) {
 						log.Println(err)
 						continue
 					}
-				case strings.Contains(channelStr, "depth60"): 
+				case strings.Contains(channelStr, "ticker") && strings.Contains(channelStr, "future"): 
+					ticker := OKCoinWebsocketFuturesTicker{}
+					err = JSONDecode(dataJSON, &ticker)
+
+					if err != nil {
+						log.Println(err)
+						continue
+					}
+				case strings.Contains(channelStr, "depth"): 
 					orderbook := OKCoinWebsocketOrderbook{}
 					err = JSONDecode(dataJSON, &orderbook)
 
@@ -493,7 +532,7 @@ func (o *OKCoin) WebsocketClient(currencies []string) {
 						log.Println(err)
 						continue
 					}
-				case strings.Contains(channelStr, "trades_v1"): 
+				case strings.Contains(channelStr, "trades_v1") || strings.Contains(channelStr, "trade_v1"): 
 					type TradeResponse struct {
 						Data [][]string
 					}
@@ -581,6 +620,14 @@ func (o *OKCoin) WebsocketClient(currencies []string) {
 					}
 					var orders OrderInfoResponse
 					err := JSONDecode(dataJSON, &orders)
+
+					if err != nil {
+						log.Println(err)
+						continue
+					}
+				case strings.Contains(channelStr, "future_index"):
+					index := OKCoinWebsocketFutureIndex{}
+					err = JSONDecode(dataJSON, &index)
 
 					if err != nil {
 						log.Println(err)
