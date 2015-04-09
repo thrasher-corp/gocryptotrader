@@ -546,7 +546,13 @@ func (o *OKCoin) WebsocketClient(currencies []string) {
 					}
 					// to-do: convert from string array to trade struct
 				case strings.Contains(channelStr, "kline"): 
-					// to-do
+					klines := []interface{}{}
+					err := JSONDecode(dataJSON, &klines)
+
+					if err != nil {
+						log.Println(err)
+						continue
+					}
 				case strings.Contains(channelStr, "spot") && strings.Contains(channelStr, "realtrades"):
 					if string(dataJSON) == "null" {
 						continue
