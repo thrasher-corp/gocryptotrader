@@ -70,7 +70,12 @@ func (h *HUOBI) GetFee() (float64) {
 
 func (h *HUOBI) Run() {
 	if h.Verbose {
+		log.Printf("%s Websocket: %s (url: %s).\n", h.GetName(), IsEnabled(h.Websocket), HUOBI_SOCKETIO_ADDRESS)
 		log.Printf("%s polling delay: %ds.\n", h.GetName(), h.PollingDelay)
+	}
+
+	if h.Websocket {
+		go h.WebsocketClient()
 	}
 
 	for h.Enabled {
