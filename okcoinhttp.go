@@ -191,7 +191,7 @@ func (o *OKCoin) GetFee(maker bool) (float64) {
 
 func (o *OKCoin) Run() {
 	if o.Verbose {
-		log.Printf("%s Websocket: %s (url: %s).", o.GetName(), IsEnabled(o.Websocket), o.WebsocketURL)
+		log.Printf("%s Websocket: %s. (url: %s).\n", o.GetName(), IsEnabled(o.Websocket), o.WebsocketURL)
 		log.Printf("%s polling delay: %ds.\n", o.GetName(), o.PollingDelay)
 	}
 

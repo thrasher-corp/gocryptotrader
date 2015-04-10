@@ -116,7 +116,7 @@ func (c *Coinbase) GetFee(maker bool) (float64) {
 
 func (c *Coinbase) Run() {
 	if c.Verbose {
-		log.Printf("%s Websocket: %s.\n", c.GetName(), IsEnabled(c.Websocket))
+		log.Printf("%s Websocket: %s. (url: %s).\n", c.GetName(), IsEnabled(c.Websocket), COINBASE_WEBSOCKET_URL)
 		log.Printf("%s polling delay: %ds.\n", c.GetName(), c.PollingDelay)
 	}
 
