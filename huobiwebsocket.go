@@ -130,7 +130,12 @@ func (h *HUOBI) OnConnect(output chan socketio.Message) {
 }
 
 func (h *HUOBI) OnDisconnect(output chan socketio.Message) {
-	log.Println("Disconnected from websocket client.. Reconnecting")
+	log.Printf("%s Disconnected from websocket server.. Reconnecting.\n", h.GetName())
+	h.WebsocketClient()
+}
+
+func (h *HUOBI) OnError() {
+	log.Printf("%s Error with Websocket connection.. Reconnecting.\n", h.GetName())
 	h.WebsocketClient()
 }
 
@@ -154,15 +159,16 @@ func (h *HUOBI) WebsocketClient() {
 
 	HuobiSocket = &socketio.SocketIO{
 		OnConnect: h.OnConnect,
-		OnDisconnect: h.OnDisconnect,
 		OnEvent: events,
+		OnError: h.OnError,
+		OnDisconnect: h.OnDisconnect,
 	}
 
   	err := socketio.ConnectToSocket(HUOBI_SOCKETIO_ADDRESS, HuobiSocket)
   	if err != nil {
     	fmt.Println(err)
-    	return
   	}
   	
-    log.Printf("%s Websocket client disconnected.", h.GetName())
+    log.Printf("%s Websocket client disconnected.. Reconnecting.", h.GetName())
+    h.WebsocketClient()
 }

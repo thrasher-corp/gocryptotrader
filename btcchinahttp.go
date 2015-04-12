@@ -203,6 +203,10 @@ func (b *BTCChina) Run() {
 		log.Printf("%s polling delay: %ds.\n", b.GetName(), b.PollingDelay)
 	}
 
+	if b.Websocket {
+		go b.WebsocketClient()
+	}
+
 	b.GetAccountInfo("all")
 	
 	for b.Enabled {
