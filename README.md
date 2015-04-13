@@ -13,7 +13,7 @@ A cryptocurrency trading bot supporting multiple exchanges written in Golang.
 | BTCMarkets | Yes | NA       | NA  |
 | Coinbase | Yes (unauthenticated)| Yes | No|
 | Cryptsy | Yes | Yes | NA|
-| Huobi | Yes | No |No
+| Huobi | Yes | Yes |No
 | ItBit | Yes | NA | NA |
 | Kraken | Yes | NA | NA
 | LakeBTC | Yes | Yes | NA
