@@ -39,6 +39,23 @@ const (
 
 var HuobiSocket *socketio.SocketIO
 
+type HuobiWebsocketTrade struct {
+	Price []float64 `json:"price"`
+	Level []float64 `json:"level"`
+	Amount []float64 `json:"amount"`
+	AccuAmount []float64 `json:"accuAmount"`
+}
+
+type HuobiWebsocketTradeDetail struct {
+	SymbolID string `json:"symbolId"`
+	TradeID []int64 `json:"tradeId"`
+	Price []float64 `json:"price"`
+	Time []int64 `json:"time"`
+	Amount []float64 `json:"amount"`
+	TopBids []HuobiWebsocketTrade `json:"topBids"`
+	TopAsks []HuobiWebsocketTrade `json:"topAsks"`
+}
+
 type HuobiWebsocketMarketOverview struct {
 	SymbolID string `json:"symbolId"`
 	Last float64 `json:"priceNew"`
@@ -49,6 +66,16 @@ type HuobiWebsocketMarketOverview struct {
 	Bid float64 `json:"priceBid"`
 	Volume float64 `json:"totalVolume"`
 	TotalAmount float64 `json:"totalAmount"`
+}
+
+type HuobiWebsocketLastTimeline struct {
+	ID int64 `json:"_id"`
+	SymbolID string `json:"symbolId"`
+	Time int64 `json:"time"`
+	LastPrice float64 `json:"priceLast"`
+	Amount float64 `json:"amount"`
+	Volume float64 `json:"volume"`
+	Count int64 `json:"count"`
 }
 
 type HuobiResponse struct {
