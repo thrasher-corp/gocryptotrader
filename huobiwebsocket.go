@@ -39,6 +39,20 @@ const (
 
 var HuobiSocket *socketio.SocketIO
 
+type HuobiDepth struct {
+	SymbolID string `json:"symbolId"`
+	Time float64 `json:"time"`
+	Version float64 `json:"version"`
+	BidName string `json:"bidName"`
+	BidPrice []float64 `json:"bidPrice"`
+	BidTotal []float64 `json:"bidTotal"`
+	BidAmount []float64 `json:"bidAmount"`
+	AskName string `json:"askName"`
+	AskPrice []float64 `json:"askPrice"`
+	AskTotal []float64 `json:"askTotal"`
+	AskAmount []float64 `json:"askAmount"`
+}
+
 type HuobiWebsocketTrade struct {
 	Price []float64 `json:"price"`
 	Level []float64 `json:"level"`
