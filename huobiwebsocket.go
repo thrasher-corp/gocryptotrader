@@ -130,7 +130,7 @@ func (h *HUOBI) BuildHuobiWebsocketRequestExtra(msgType string, requestIndex int
 	return request
 }
 
-func (h *HUOBI) BuildHuobiWebsocketParamsList(objectName, currency, pushType, period, percentage string) (interface{}) {
+func (h *HUOBI) BuildHuobiWebsocketParamsList(objectName, currency, pushType, period, count, from, to, percentage string) (interface{}) {
 	list := map[string]interface{}{}
 	list["symbolId"] = currency
 	list["pushType"] = pushType
@@ -139,7 +139,16 @@ func (h *HUOBI) BuildHuobiWebsocketParamsList(objectName, currency, pushType, pe
 		list["period"] = period
 	}
 	if percentage != "" {
-		list["percentage"] = percentage
+		list["percent"] = percentage
+	}
+	if count != "" {
+		list["count"] = count
+	}
+	if from != "" {
+		list["from"] = from
+	}
+	if to != "" {
+		list["to"] = to
 	}
 
 	listArray := []map[string]interface{}{}
@@ -155,14 +164,14 @@ func (h *HUOBI) OnConnect(output chan socketio.Message) {
 		log.Printf("%s Connected to Websocket.", h.GetName())
 	}
 
-	msg := h.BuildHuobiWebsocketRequestExtra(HUOBI_SOCKET_REQ_SUBSCRIBE, 100, h.BuildHuobiWebsocketParamsList(HUOBI_SOCKET_MARKET_OVERVIEW, "btccny", "pushLong", "", ""))
+	msg := h.BuildHuobiWebsocketRequestExtra(HUOBI_SOCKET_REQ_SUBSCRIBE, 100, h.BuildHuobiWebsocketParamsList(HUOBI_SOCKET_MARKET_OVERVIEW, "btccny", "pushLong", "", "", "", "", ""))
 	result, err := JSONEncode(msg)
 	if err != nil {
 		log.Println(err)
 	}
 	output <- socketio.CreateMessageEvent("request", string(result), nil)
 
-	msg = h.BuildHuobiWebsocketRequestExtra(HUOBI_SOCKET_REQ_SUBSCRIBE, 100, h.BuildHuobiWebsocketParamsList(HUOBI_SOCKET_MARKET_OVERVIEW, "ltccny", "pushLong", "", ""))
+	msg = h.BuildHuobiWebsocketRequestExtra(HUOBI_SOCKET_REQ_SUBSCRIBE, 100, h.BuildHuobiWebsocketParamsList(HUOBI_SOCKET_MARKET_OVERVIEW, "ltccny", "pushLong", "", "", "", "", ""))
 	result, err = JSONEncode(msg)
 	if err != nil {
 		log.Println(err)
