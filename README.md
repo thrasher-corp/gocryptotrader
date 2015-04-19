@@ -8,7 +8,7 @@ A cryptocurrency trading bot supporting multiple exchanges written in Golang.
 |----------|------|-----------|-----|
 | Bitfinex | Yes  | NA        | NA  |
 | Bitstamp | Yes  | Yes       | NA  |
-| BTCChina | Yes  | No        | No  |
+| BTCChina | Yes  | Yes     | No  |
 | BTCE     | Yes  | NA        | NA  |
 | BTCMarkets | Yes | NA       | NA  |
 | Coinbase | Yes (unauthenticated)| Yes | No|
