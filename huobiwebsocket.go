@@ -169,14 +169,14 @@ func (h *HUOBI) OnConnect(output chan socketio.Message) {
 	if err != nil {
 		log.Println(err)
 	}
-	output <- socketio.CreateMessageEvent("request", string(result), nil)
+	output <- socketio.CreateMessageEvent("request", string(result), nil,  HuobiSocket.Version)
 
 	msg = h.BuildHuobiWebsocketRequestExtra(HUOBI_SOCKET_REQ_SUBSCRIBE, 100, h.BuildHuobiWebsocketParamsList(HUOBI_SOCKET_MARKET_OVERVIEW, "ltccny", "pushLong", "", "", "", "", ""))
 	result, err = JSONEncode(msg)
 	if err != nil {
 		log.Println(err)
 	}
-	output <- socketio.CreateMessageEvent("request", string(result), nil)
+	output <- socketio.CreateMessageEvent("request", string(result), nil, HuobiSocket.Version)
 }
 
 func (h *HUOBI) OnDisconnect(output chan socketio.Message) {
@@ -208,6 +208,7 @@ func (h *HUOBI) WebsocketClient() {
 	events["message"] = h.OnMessage
 
 	HuobiSocket = &socketio.SocketIO{
+		Version: 0.9,
 		OnConnect: h.OnConnect,
 		OnEvent: events,
 		OnError: h.OnError,
