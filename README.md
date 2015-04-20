@@ -31,7 +31,7 @@ A cryptocurrency trading bot supporting multiple exchanges written in Golang.
 
 ## Planned Features
 + WebGUI.
-+ Websocket/FIX support.
++ FIX support.
 + Expanding event trigger system.
 + TALib.
 + Trade history summary generation for tax purposes.
