@@ -206,8 +206,6 @@ func (b *BTCChina) Run() {
 	if b.Websocket {
 		go b.WebsocketClient()
 	}
-
-	b.GetAccountInfo("all")
 	
 	for b.Enabled {
 		go func() {
