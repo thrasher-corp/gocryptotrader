@@ -23,7 +23,7 @@ type OKCoin struct {
 	Verbose bool
 	Websocket bool
 	WebsocketURL string
-	PollingDelay time.Duration
+	RESTPollingDelay time.Duration
 	APIUrl, PartnerID, SecretKey string
 	TakerFee, MakerFee float64
 	RESTErrors map[string]string
@@ -153,7 +153,7 @@ func (o *OKCoin) SetDefaults() {
 	o.Enabled = true
 	o.Verbose = false
 	o.Websocket = false
-	o.PollingDelay = 10
+	o.RESTPollingDelay = 10
 }
 
 func (o *OKCoin) GetName() (string) {
@@ -192,7 +192,7 @@ func (o *OKCoin) GetFee(maker bool) (float64) {
 func (o *OKCoin) Run() {
 	if o.Verbose {
 		log.Printf("%s Websocket: %s. (url: %s).\n", o.GetName(), IsEnabled(o.Websocket), o.WebsocketURL)
-		log.Printf("%s polling delay: %ds.\n", o.GetName(), o.PollingDelay)
+		log.Printf("%s polling delay: %ds.\n", o.GetName(), o.RESTPollingDelay)
 	}
 
 	if o.Websocket {
@@ -265,7 +265,7 @@ func (o *OKCoin) Run() {
 				AddExchangeInfo(o.GetName(), "LTC",OKCoinChinaLTCLastUSD, OKCoinChinaLTC.Vol)
 			}()
 		}
-		time.Sleep(time.Second * o.PollingDelay)
+		time.Sleep(time.Second * o.RESTPollingDelay)
 	}
 }
 

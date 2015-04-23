@@ -29,7 +29,7 @@ type LakeBTC struct {
 	Enabled bool
 	Verbose bool
 	Websocket bool
-	PollingDelay time.Duration
+	RESTPollingDelay time.Duration
 	Email, APISecret string
 	TakerFee, MakerFee float64
 }
@@ -60,7 +60,7 @@ func (l *LakeBTC) SetDefaults() {
 	l.MakerFee = 0.15
 	l.Verbose = false
 	l.Websocket = false
-	l.PollingDelay = 10
+	l.RESTPollingDelay = 10
 }
 
 func (l *LakeBTC) GetName() (string) {
@@ -91,7 +91,7 @@ func (l *LakeBTC) GetFee(maker bool) (float64) {
 func (l *LakeBTC) Run() {
 	if l.Verbose {
 		log.Printf("%s Websocket: %s. (url: %s).\n", l.GetName(), IsEnabled(l.Websocket), LAKEBTC_WEBSOCKET_URL)
-		log.Printf("%s polling delay: %ds.\n", l.GetName(), l.PollingDelay)
+		log.Printf("%s polling delay: %ds.\n", l.GetName(), l.RESTPollingDelay)
 	}
 
 	if l.Websocket {
@@ -104,7 +104,7 @@ func (l *LakeBTC) Run() {
 			log.Printf("LakeBTC USD: Last %f (%f) High %f (%f) Low %f (%f) Volume US %f (CNY %f)\n", LakeBTCTickerResponse.USD.Last, LakeBTCTickerResponse.CNY.Last, LakeBTCTickerResponse.USD.High, LakeBTCTickerResponse.CNY.High, LakeBTCTickerResponse.USD.Low, LakeBTCTickerResponse.CNY.Low, LakeBTCTickerResponse.USD.Volume, LakeBTCTickerResponse.CNY.Volume)
 			AddExchangeInfo(l.GetName(), "BTC", LakeBTCTickerResponse.USD.Last, LakeBTCTickerResponse.USD.Volume)
 		}()
-		time.Sleep(time.Second * l.PollingDelay)
+		time.Sleep(time.Second * l.RESTPollingDelay)
 	}
 }
 

@@ -35,7 +35,7 @@ type Bitstamp struct {
 	Enabled bool
 	Verbose bool
 	Websocket bool
-	PollingDelay time.Duration
+	RESTPollingDelay time.Duration
 	ClientID, APIKey, APISecret string
 	Ticker BitstampTicker
 	Orderbook Orderbook
@@ -86,7 +86,7 @@ func (b *Bitstamp) SetDefaults() {
 	b.Enabled = true
 	b.Verbose = false
 	b.Websocket = false
-	b.PollingDelay = 10
+	b.RESTPollingDelay = 10
 }
 
 func (b *Bitstamp) GetName() (string) {
@@ -114,7 +114,7 @@ func (b *Bitstamp) SetAPIKeys(clientID, apiKey, apiSecret string) {
 func (b *Bitstamp) Run() {
 	if b.Verbose {
 		log.Printf("%s Websocket: %s.", b.GetName(), IsEnabled(b.Websocket))
-		log.Printf("%s polling delay: %ds.\n", b.GetName(), b.PollingDelay)
+		log.Printf("%s polling delay: %ds.\n", b.GetName(), b.RESTPollingDelay)
 	}
 
 	b.GetBalance()
@@ -129,7 +129,7 @@ func (b *Bitstamp) Run() {
 			log.Printf("Bitstamp BTC: Last %f High %f Low %f Volume %f\n", BitstampBTC.Last, BitstampBTC.High, BitstampBTC.Low, BitstampBTC.Volume)
 			AddExchangeInfo(b.GetName(), "BTC", BitstampBTC.Last, BitstampBTC.Volume)
 		}()
-		time.Sleep(time.Second * b.PollingDelay)
+		time.Sleep(time.Second * b.RESTPollingDelay)
 	}
 }
 

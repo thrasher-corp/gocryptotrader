@@ -25,7 +25,7 @@ type Coinbase struct {
 	Enabled bool
 	Verbose bool
 	Websocket bool
-	PollingDelay time.Duration
+	RESTPollingDelay time.Duration
 	Password, APIKey, APISecret string
 	TakerFee, MakerFee float64
 }
@@ -91,7 +91,7 @@ func (c *Coinbase) SetDefaults() {
 	c.MakerFee = 0
 	c.Verbose = false
 	c.Websocket = false
-	c.PollingDelay = 10
+	c.RESTPollingDelay = 10
 }
 
 func (c *Coinbase) GetName() (string) {
@@ -117,7 +117,7 @@ func (c *Coinbase) GetFee(maker bool) (float64) {
 func (c *Coinbase) Run() {
 	if c.Verbose {
 		log.Printf("%s Websocket: %s. (url: %s).\n", c.GetName(), IsEnabled(c.Websocket), COINBASE_WEBSOCKET_URL)
-		log.Printf("%s polling delay: %ds.\n", c.GetName(), c.PollingDelay)
+		log.Printf("%s polling delay: %ds.\n", c.GetName(), c.RESTPollingDelay)
 	}
 
 	if c.Websocket {
@@ -131,7 +131,7 @@ func (c *Coinbase) Run() {
 			log.Printf("Coinbase BTC: Last %f High %f Low %f Volume %f\n", CoinbaseTicker.Price, CoinbaseStats.High, CoinbaseStats.Low, CoinbaseStats.Volume)
 			AddExchangeInfo(c.GetName(), "BTC", CoinbaseTicker.Price, CoinbaseStats.Volume)
 		}()
-		time.Sleep(time.Second * c.PollingDelay)
+		time.Sleep(time.Second * c.RESTPollingDelay)
 	}
 }
 

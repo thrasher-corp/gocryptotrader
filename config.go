@@ -29,7 +29,7 @@ type Exchanges struct {
 	Enabled bool
 	Verbose bool
 	Websocket bool
-	PollingDelay time.Duration
+	RESTPollingDelay time.Duration
 	APIKey string
 	APISecret string
 	ClientID string

@@ -43,7 +43,7 @@ type BTCChina struct {
 	Enabled bool
 	Verbose bool
 	Websocket bool
-	PollingDelay time.Duration
+	RESTPollingDelay time.Duration
 	APISecret, APIKey string
 	Fee float64
 }
@@ -174,7 +174,7 @@ func (b *BTCChina) SetDefaults() {
 	b.Fee = 0
 	b.Verbose = false
 	b.Websocket = false
-	b.PollingDelay = 10
+	b.RESTPollingDelay = 10
 }
 
 func (b *BTCChina) GetName() (string) {
@@ -200,7 +200,7 @@ func (b *BTCChina) GetFee() (float64) {
 
 func (b *BTCChina) Run() {
 	if b.Verbose {
-		log.Printf("%s polling delay: %ds.\n", b.GetName(), b.PollingDelay)
+		log.Printf("%s polling delay: %ds.\n", b.GetName(), b.RESTPollingDelay)
 	}
 
 	if b.Websocket {
@@ -225,7 +225,7 @@ func (b *BTCChina) Run() {
 			log.Printf("BTCChina LTC: Last %f (%f) High %f (%f) Low %f (%f) Volume %f\n", BTCChinaLTCLastUSD, BTCChinaLTC.Last, BTCChinaLTCHighUSD, BTCChinaLTC.High, BTCChinaLTCLowUSD, BTCChinaLTC.Low, BTCChinaLTC.Vol)
 			AddExchangeInfo(b.GetName(), "LTC", BTCChinaLTCLastUSD, BTCChinaLTC.Vol)
 		}()
-		time.Sleep(time.Second * b.PollingDelay)
+		time.Sleep(time.Second * b.RESTPollingDelay)
 	}
 }
 

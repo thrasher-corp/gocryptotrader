@@ -111,7 +111,7 @@ func main() {
 				bot.exchange.btcchina.SetEnabled(false)
 			} else {
 				bot.exchange.btcchina.SetAPIKeys(exch.APIKey, exch.APISecret)
-				bot.exchange.btcchina.PollingDelay = exch.PollingDelay
+				bot.exchange.btcchina.RESTPollingDelay = exch.RESTPollingDelay
 				bot.exchange.btcchina.Verbose = exch.Verbose
 				bot.exchange.btcchina.Websocket = exch.Websocket
 				go bot.exchange.btcchina.Run()
@@ -122,7 +122,7 @@ func main() {
 				bot.exchange.bitstamp.SetEnabled(false)
 			} else {
 				bot.exchange.bitstamp.SetAPIKeys(exch.ClientID, exch.APIKey, exch.APISecret)
-				bot.exchange.bitstamp.PollingDelay = exch.PollingDelay
+				bot.exchange.bitstamp.RESTPollingDelay = exch.RESTPollingDelay
 				bot.exchange.bitstamp.Verbose = exch.Verbose
 				bot.exchange.bitstamp.Websocket = exch.Websocket
 				go bot.exchange.bitstamp.Run()
@@ -133,7 +133,7 @@ func main() {
 				bot.exchange.bitfinex.SetEnabled(false)
 			} else {
 				bot.exchange.bitfinex.SetAPIKeys(exch.APIKey, exch.APISecret)
-				bot.exchange.bitfinex.PollingDelay = exch.PollingDelay
+				bot.exchange.bitfinex.RESTPollingDelay = exch.RESTPollingDelay
 				bot.exchange.bitfinex.Verbose = exch.Verbose
 				bot.exchange.bitfinex.Websocket = exch.Websocket
 				go bot.exchange.bitfinex.Run()
@@ -144,7 +144,7 @@ func main() {
 				bot.exchange.btce.SetEnabled(false)
 			} else {
 				bot.exchange.btce.SetAPIKeys(exch.APIKey, exch.APISecret)
-				bot.exchange.btce.PollingDelay = exch.PollingDelay
+				bot.exchange.btce.RESTPollingDelay = exch.RESTPollingDelay
 				bot.exchange.btce.Verbose = exch.Verbose
 				bot.exchange.btce.Websocket = exch.Websocket
 				go bot.exchange.btce.Run()
@@ -155,7 +155,7 @@ func main() {
 				bot.exchange.btcmarkets.SetEnabled(false)
 			} else {
 				bot.exchange.btcmarkets.SetAPIKeys(exch.APIKey, exch.APISecret)
-				bot.exchange.btcmarkets.PollingDelay = exch.PollingDelay
+				bot.exchange.btcmarkets.RESTPollingDelay = exch.RESTPollingDelay
 				bot.exchange.btcmarkets.Verbose = exch.Verbose
 				bot.exchange.btcmarkets.Websocket = exch.Websocket
 				go bot.exchange.btcmarkets.Run()
@@ -166,7 +166,7 @@ func main() {
 				bot.exchange.coinbase.SetEnabled(false)
 			} else {
 				bot.exchange.coinbase.SetAPIKeys(exch.ClientID, exch.APIKey, exch.APISecret)
-				bot.exchange.coinbase.PollingDelay = exch.PollingDelay
+				bot.exchange.coinbase.RESTPollingDelay = exch.RESTPollingDelay
 				bot.exchange.coinbase.Verbose = exch.Verbose
 				bot.exchange.coinbase.Websocket = exch.Websocket
 				go bot.exchange.coinbase.Run()
@@ -177,7 +177,7 @@ func main() {
 				bot.exchange.cryptsy.SetEnabled(false)
 			} else {
 				bot.exchange.cryptsy.SetAPIKeys(exch.APIKey, exch.APISecret)
-				bot.exchange.cryptsy.PollingDelay = exch.PollingDelay
+				bot.exchange.cryptsy.RESTPollingDelay = exch.RESTPollingDelay
 				bot.exchange.cryptsy.Verbose = exch.Verbose
 				bot.exchange.cryptsy.Websocket = exch.Websocket
 				go bot.exchange.cryptsy.Run()
@@ -188,7 +188,7 @@ func main() {
 				bot.exchange.okcoinChina.SetEnabled(false)
 			} else {
 				bot.exchange.okcoinChina.SetAPIKeys(exch.APIKey, exch.APISecret)
-				bot.exchange.okcoinChina.PollingDelay = exch.PollingDelay
+				bot.exchange.okcoinChina.RESTPollingDelay = exch.RESTPollingDelay
 				bot.exchange.okcoinChina.Verbose = exch.Verbose
 				bot.exchange.okcoinChina.Websocket = exch.Websocket
 				go bot.exchange.okcoinChina.Run()
@@ -199,7 +199,7 @@ func main() {
 				bot.exchange.okcoinIntl.SetEnabled(false)
 			} else {
 				bot.exchange.okcoinIntl.SetAPIKeys(exch.APIKey, exch.APISecret)
-				bot.exchange.okcoinIntl.PollingDelay = exch.PollingDelay
+				bot.exchange.okcoinIntl.RESTPollingDelay = exch.RESTPollingDelay
 				bot.exchange.okcoinIntl.Verbose = exch.Verbose
 				bot.exchange.okcoinIntl.Websocket = exch.Websocket
 				go bot.exchange.okcoinIntl.Run()
@@ -210,7 +210,7 @@ func main() {
 				bot.exchange.itbit.SetEnabled(false)
 			} else {
 				bot.exchange.itbit.SetAPIKeys(exch.APIKey, exch.APISecret)
-				bot.exchange.itbit.PollingDelay = exch.PollingDelay
+				bot.exchange.itbit.RESTPollingDelay = exch.RESTPollingDelay
 				bot.exchange.itbit.Verbose = exch.Verbose
 				bot.exchange.itbit.Websocket = exch.Websocket
 				go bot.exchange.itbit.Run()
@@ -221,7 +221,7 @@ func main() {
 				bot.exchange.kraken.SetEnabled(false)
 			} else {
 				bot.exchange.kraken.SetAPIKeys(exch.APIKey, exch.APISecret)
-				bot.exchange.kraken.PollingDelay = exch.PollingDelay
+				bot.exchange.kraken.RESTPollingDelay = exch.RESTPollingDelay
 				bot.exchange.kraken.Verbose = exch.Verbose
 				bot.exchange.kraken.Websocket = exch.Websocket
 				go bot.exchange.kraken.Run()
@@ -232,7 +232,7 @@ func main() {
 				bot.exchange.lakebtc.SetEnabled(false)
 			} else {
 				bot.exchange.lakebtc.SetAPIKeys(exch.APIKey, exch.APISecret)
-				bot.exchange.lakebtc.PollingDelay = exch.PollingDelay
+				bot.exchange.lakebtc.RESTPollingDelay = exch.RESTPollingDelay
 				bot.exchange.lakebtc.Verbose = exch.Verbose
 				bot.exchange.lakebtc.Websocket = exch.Websocket
 				go bot.exchange.lakebtc.Run()
@@ -243,7 +243,7 @@ func main() {
 				bot.exchange.huobi.SetEnabled(false)
 			} else {
 				bot.exchange.huobi.SetAPIKeys(exch.APIKey, exch.APISecret)
-				bot.exchange.huobi.PollingDelay = exch.PollingDelay
+				bot.exchange.huobi.RESTPollingDelay = exch.RESTPollingDelay
 				bot.exchange.huobi.Verbose = exch.Verbose
 				bot.exchange.huobi.Websocket = exch.Websocket
 				go bot.exchange.huobi.Run()
