@@ -77,7 +77,7 @@ func (b *BTCChina) OnError() {
 
 func (b *BTCChina) OnMessage(message []byte, output chan socketio.Message) {
 	if b.Verbose {
-		log.Println("onmsg")
+		log.Printf("%s Websocket message received which isn't handled by default.\n", b.GetName())
 		log.Println(string(message))
 	}
 }
