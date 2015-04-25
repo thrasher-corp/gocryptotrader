@@ -11,6 +11,7 @@ import (
 )
 
 type Exchange struct {
+	anx ANX
 	btcchina BTCChina
 	bitstamp Bitstamp
 	bitfinex Bitfinex
@@ -82,6 +83,7 @@ func main() {
 	log.Printf("Available Exchanges: %d. Enabled Exchanges: %d.\n", len(bot.config.Exchanges), enabledExchanges)
 	log.Println("Bot Exchange support:")
 
+	bot.exchange.anx.SetDefaults()
 	bot.exchange.kraken.SetDefaults()
 	bot.exchange.btcchina.SetDefaults()
 	bot.exchange.bitstamp.SetDefaults()
@@ -105,7 +107,18 @@ func main() {
 	}
 
 	for _, exch := range bot.config.Exchanges {
-		if bot.exchange.btcchina.GetName() == exch.Name {
+		if bot.exchange.anx.GetName() == exch.Name {
+			log.Printf("%s: %s (Verbose mode: %s).\n", exch.Name, IsEnabled(exch.Enabled), IsEnabled(exch.Verbose))
+			if !exch.Enabled {
+				bot.exchange.anx.SetEnabled(false)
+			} else {
+				bot.exchange.anx.SetAPIKeys(exch.APIKey, exch.APISecret)
+				bot.exchange.anx.RESTPollingDelay = exch.RESTPollingDelay
+				bot.exchange.anx.Verbose = exch.Verbose
+				bot.exchange.anx.Websocket = exch.Websocket
+				go bot.exchange.anx.Run()
+			}
+		} else if bot.exchange.btcchina.GetName() == exch.Name {
 			log.Printf("%s: %s (Verbose mode: %s).\n", exch.Name, IsEnabled(exch.Enabled), IsEnabled(exch.Verbose))
 			if !exch.Enabled {
 				bot.exchange.btcchina.SetEnabled(false)

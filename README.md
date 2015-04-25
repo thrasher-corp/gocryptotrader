@@ -6,6 +6,7 @@ A cryptocurrency trading bot supporting multiple exchanges written in Golang.
 
 | Exchange | REST API | Streaming API | FIX API |
 |----------|------|-----------|-----|
+| ANXPRO | Yes  | No        | NA  |
 | Bitfinex | Yes  | NA        | NA  |
 | Bitstamp | Yes  | Yes       | NA  |
 | BTCChina | Yes  | Yes     | No  |

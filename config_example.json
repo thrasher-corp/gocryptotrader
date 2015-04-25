@@ -11,6 +11,17 @@
   ],
   "Exchanges": [
     {
+      "Name": "ANX",
+      "Pairs": "BTCUSD,BTCHKD,BTCEUR,BTCCAD,BTCAUD,BTCSGD,BTCJPY,BTCGBP,BTCNZD,LTCBTC,DOGEBTC,STRBTC,XRPBTC",
+      "APIKey": "Key",
+      "APISecret": "Secret",
+      "BaseCurrencies": "USD,HKD,EUR,CAD,AUD,SGD,JPY,GBP,NZD",
+      "Enabled": true,
+      "Verbose": false,
+      "Websocket": false,
+      "RESTPollingDelay": 10
+    },
+    {
       "Name": "Bitfinex",
       "Pairs": "BTCUSD,LTCUSD,DRKUSD",
       "APIKey": "Key",
