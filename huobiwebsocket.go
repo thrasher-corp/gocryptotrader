@@ -190,12 +190,10 @@ func (h *HUOBI) OnError() {
 }
 
 func (h *HUOBI) OnMessage(message []byte, output chan socketio.Message) {
-	log.Println(string(message))
 }
 
 func (h *HUOBI) OnRequest(message []byte, output chan socketio.Message) {
 	response := HuobiResponse{}
-	log.Println(string(message))
 	err := JSONDecode(message, &response)
 	if err != nil {
 		log.Println(err)
