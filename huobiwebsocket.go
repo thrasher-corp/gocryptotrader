@@ -39,6 +39,37 @@ const (
 
 var HuobiSocket *socketio.SocketIO
 
+type HuobiDepth struct {
+	SymbolID string `json:"symbolId"`
+	Time float64 `json:"time"`
+	Version float64 `json:"version"`
+	BidName string `json:"bidName"`
+	BidPrice []float64 `json:"bidPrice"`
+	BidTotal []float64 `json:"bidTotal"`
+	BidAmount []float64 `json:"bidAmount"`
+	AskName string `json:"askName"`
+	AskPrice []float64 `json:"askPrice"`
+	AskTotal []float64 `json:"askTotal"`
+	AskAmount []float64 `json:"askAmount"`
+}
+
+type HuobiWebsocketTrade struct {
+	Price []float64 `json:"price"`
+	Level []float64 `json:"level"`
+	Amount []float64 `json:"amount"`
+	AccuAmount []float64 `json:"accuAmount"`
+}
+
+type HuobiWebsocketTradeDetail struct {
+	SymbolID string `json:"symbolId"`
+	TradeID []int64 `json:"tradeId"`
+	Price []float64 `json:"price"`
+	Time []int64 `json:"time"`
+	Amount []float64 `json:"amount"`
+	TopBids []HuobiWebsocketTrade `json:"topBids"`
+	TopAsks []HuobiWebsocketTrade `json:"topAsks"`
+}
+
 type HuobiWebsocketMarketOverview struct {
 	SymbolID string `json:"symbolId"`
 	Last float64 `json:"priceNew"`
@@ -49,6 +80,16 @@ type HuobiWebsocketMarketOverview struct {
 	Bid float64 `json:"priceBid"`
 	Volume float64 `json:"totalVolume"`
 	TotalAmount float64 `json:"totalAmount"`
+}
+
+type HuobiWebsocketLastTimeline struct {
+	ID int64 `json:"_id"`
+	SymbolID string `json:"symbolId"`
+	Time int64 `json:"time"`
+	LastPrice float64 `json:"priceLast"`
+	Amount float64 `json:"amount"`
+	Volume float64 `json:"volume"`
+	Count int64 `json:"count"`
 }
 
 type HuobiResponse struct {
@@ -89,7 +130,7 @@ func (h *HUOBI) BuildHuobiWebsocketRequestExtra(msgType string, requestIndex int
 	return request
 }
 
-func (h *HUOBI) BuildHuobiWebsocketParamsList(objectName, currency, pushType, period, percentage string) (interface{}) {
+func (h *HUOBI) BuildHuobiWebsocketParamsList(objectName, currency, pushType, period, count, from, to, percentage string) (interface{}) {
 	list := map[string]interface{}{}
 	list["symbolId"] = currency
 	list["pushType"] = pushType
@@ -98,7 +139,16 @@ func (h *HUOBI) BuildHuobiWebsocketParamsList(objectName, currency, pushType, pe
 		list["period"] = period
 	}
 	if percentage != "" {
-		list["percentage"] = percentage
+		list["percent"] = percentage
+	}
+	if count != "" {
+		list["count"] = count
+	}
+	if from != "" {
+		list["from"] = from
+	}
+	if to != "" {
+		list["to"] = to
 	}
 
 	listArray := []map[string]interface{}{}
@@ -114,23 +164,28 @@ func (h *HUOBI) OnConnect(output chan socketio.Message) {
 		log.Printf("%s Connected to Websocket.", h.GetName())
 	}
 
-	msg := h.BuildHuobiWebsocketRequestExtra(HUOBI_SOCKET_REQ_SUBSCRIBE, 100, h.BuildHuobiWebsocketParamsList(HUOBI_SOCKET_MARKET_OVERVIEW, "btccny", "pushLong", "", ""))
+	msg := h.BuildHuobiWebsocketRequestExtra(HUOBI_SOCKET_REQ_SUBSCRIBE, 100, h.BuildHuobiWebsocketParamsList(HUOBI_SOCKET_MARKET_OVERVIEW, "btccny", "pushLong", "", "", "", "", ""))
 	result, err := JSONEncode(msg)
 	if err != nil {
 		log.Println(err)
 	}
-	output <- socketio.CreateMessageEvent("request", string(result), nil)
+	output <- socketio.CreateMessageEvent("request", string(result), nil,  HuobiSocket.Version)
 
-	msg = h.BuildHuobiWebsocketRequestExtra(HUOBI_SOCKET_REQ_SUBSCRIBE, 100, h.BuildHuobiWebsocketParamsList(HUOBI_SOCKET_MARKET_OVERVIEW, "ltccny", "pushLong", "", ""))
+	msg = h.BuildHuobiWebsocketRequestExtra(HUOBI_SOCKET_REQ_SUBSCRIBE, 100, h.BuildHuobiWebsocketParamsList(HUOBI_SOCKET_MARKET_OVERVIEW, "ltccny", "pushLong", "", "", "", "", ""))
 	result, err = JSONEncode(msg)
 	if err != nil {
 		log.Println(err)
 	}
-	output <- socketio.CreateMessageEvent("request", string(result), nil)
+	output <- socketio.CreateMessageEvent("request", string(result), nil, HuobiSocket.Version)
 }
 
 func (h *HUOBI) OnDisconnect(output chan socketio.Message) {
-	log.Println("Disconnected from websocket client.. Reconnecting")
+	log.Printf("%s Disconnected from websocket server.. Reconnecting.\n", h.GetName())
+	h.WebsocketClient()
+}
+
+func (h *HUOBI) OnError() {
+	log.Printf("%s Error with Websocket connection.. Reconnecting.\n", h.GetName())
 	h.WebsocketClient()
 }
 
@@ -153,16 +208,18 @@ func (h *HUOBI) WebsocketClient() {
 	events["message"] = h.OnMessage
 
 	HuobiSocket = &socketio.SocketIO{
+		Version: 0.9,
 		OnConnect: h.OnConnect,
-		OnDisconnect: h.OnDisconnect,
 		OnEvent: events,
+		OnError: h.OnError,
+		OnDisconnect: h.OnDisconnect,
 	}
 
   	err := socketio.ConnectToSocket(HUOBI_SOCKETIO_ADDRESS, HuobiSocket)
   	if err != nil {
     	fmt.Println(err)
-    	return
   	}
   	
-    log.Printf("%s Websocket client disconnected.", h.GetName())
+    log.Printf("%s Websocket client disconnected.. Reconnecting.", h.GetName())
+    h.WebsocketClient()
 }

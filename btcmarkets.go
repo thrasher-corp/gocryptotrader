@@ -18,7 +18,7 @@ type BTCMarkets struct {
 	Enabled bool
 	Verbose bool
 	Websocket bool
-	PollingDelay time.Duration
+	RESTPollingDelay time.Duration
 	Fee float64
 	APIKey, APISecret string
 }
@@ -38,7 +38,7 @@ func (b *BTCMarkets) SetDefaults() {
 	b.Fee = 0.85
 	b.Verbose = false
 	b.Websocket = false
-	b.PollingDelay = 10
+	b.RESTPollingDelay = 10
 }
 
 func (b *BTCMarkets) GetName() (string) {
@@ -64,7 +64,7 @@ func (b *BTCMarkets) GetFee() (float64) {
 
 func (b *BTCMarkets) Run() {
 	if b.Verbose {
-		log.Printf("%s polling delay: %ds.\n", b.GetName(), b.PollingDelay)
+		log.Printf("%s polling delay: %ds.\n", b.GetName(), b.RESTPollingDelay)
 	}
 	
 	for b.Enabled {
@@ -85,7 +85,7 @@ func (b *BTCMarkets) Run() {
 			log.Printf("BTC Markets LTC: Last %f (%f) Bid %f (%f) Ask %f (%f)", BTCMarketsLTCLastUSD, BTCMarketsLTC.LastPrice, BTCMarketsLTCBestBidUSD, BTCMarketsLTC.BestBID, BTCMarketsLTCBestAskUSD, BTCMarketsLTC.BestAsk)
 			AddExchangeInfo(b.GetName(), "LTC", BTCMarketsLTCLastUSD, 0)
 		}()
-		time.Sleep(time.Second * b.PollingDelay)
+		time.Sleep(time.Second * b.RESTPollingDelay)
 	}
 }
 

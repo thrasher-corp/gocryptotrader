@@ -8,12 +8,12 @@ A cryptocurrency trading bot supporting multiple exchanges written in Golang.
 |----------|------|-----------|-----|
 | Bitfinex | Yes  | NA        | NA  |
 | Bitstamp | Yes  | Yes       | NA  |
-| BTCChina | Yes  | No        | No  |
+| BTCChina | Yes  | Yes     | No  |
 | BTCE     | Yes  | NA        | NA  |
 | BTCMarkets | Yes | NA       | NA  |
 | Coinbase | Yes (unauthenticated)| Yes | No|
 | Cryptsy | Yes | Yes | NA|
-| Huobi | Yes | No |No
+| Huobi | Yes | Yes |No
 | ItBit | Yes | NA | NA |
 | Kraken | Yes | NA | NA
 | LakeBTC | Yes | Yes | NA
@@ -31,7 +31,7 @@ A cryptocurrency trading bot supporting multiple exchanges written in Golang.
 
 ## Planned Features
 + WebGUI.
-+ Websocket/FIX support.
++ FIX support.
 + Expanding event trigger system.
 + TALib.
 + Trade history summary generation for tax purposes.

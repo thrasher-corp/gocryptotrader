@@ -19,7 +19,7 @@ type ItBit struct {
 	Enabled bool
 	Verbose bool
 	Websocket bool
-	PollingDelay time.Duration
+	RESTPollingDelay time.Duration
 	ClientKey, APISecret, UserID string
 	MakerFee, TakerFee float64
 }
@@ -51,7 +51,7 @@ func (i *ItBit) SetDefaults() {
 	i.TakerFee = 0.50
 	i.Verbose = false
 	i.Websocket = false
-	i.PollingDelay =  10
+	i.RESTPollingDelay =  10
 }
 
 func (i *ItBit) GetName() (string) {
@@ -81,7 +81,7 @@ func (i *ItBit) GetFee(maker bool) (float64) {
 
 func (i *ItBit) Run() {
 	if i.Verbose {
-		log.Printf("%s polling delay: %ds.\n", i.GetName(), i.PollingDelay)
+		log.Printf("%s polling delay: %ds.\n", i.GetName(), i.RESTPollingDelay)
 	}
 	for i.Enabled {
 		go func() {
@@ -89,7 +89,7 @@ func (i *ItBit) Run() {
 			log.Printf("ItBit BTC: Last %f High %f Low %f Volume %f\n", ItbitBTC.LastPrice, ItbitBTC.High24h, ItbitBTC.Low24h, ItbitBTC.Volume24h)
 			AddExchangeInfo(i.GetName(), "BTC", ItbitBTC.LastPrice, ItbitBTC.Volume24h)
 		}()
-		time.Sleep(time.Second * i.PollingDelay)
+		time.Sleep(time.Second * i.RESTPollingDelay)
 	}
 }
 

@@ -35,7 +35,7 @@ type Cryptsy struct {
 	Enabled bool
 	Verbose bool
 	Websocket bool
-	PollingDelay time.Duration
+	RESTPollingDelay time.Duration
 	APIKey, APISecret string
 	TakerFee, MakerFee float64
 }
@@ -132,7 +132,7 @@ func (c *Cryptsy) SetDefaults() {
 	c.TakerFee = 0.33
 	c.MakerFee = 0.33
 	c.Verbose = false
-	c.PollingDelay = 10
+	c.RESTPollingDelay = 10
 }
 
 func (c *Cryptsy) GetName() (string) {
@@ -158,7 +158,7 @@ func (c *Cryptsy) GetFee(maker bool) (float64) {
 func (c *Cryptsy) Run() {
 	if c.Verbose {
 		log.Printf("%s Websocket: %s.", c.GetName(), IsEnabled(c.Websocket))
-		log.Printf("%s polling delay: %ds.\n", c.GetName(), c.PollingDelay)
+		log.Printf("%s polling delay: %ds.\n", c.GetName(), c.RESTPollingDelay)
 	}
 
 	if c.Websocket {
@@ -176,7 +176,7 @@ func (c *Cryptsy) Run() {
 			log.Printf("Cryptsy LTC: Last %f High %f Low %f Volume %f\n", CryptsyLTC[0].LastTrade.Price, CryptsyLTC[0].DayStats.PriceHigh, CryptsyLTC[0].DayStats.PriceLow, CryptsyLTC[0].DayStats.Volume)
 			AddExchangeInfo(c.GetName(), "LTC", CryptsyLTC[0].LastTrade.Price, CryptsyLTC[0].DayStats.Volume)
 		}()
-		time.Sleep(time.Second * c.PollingDelay)
+		time.Sleep(time.Second * c.RESTPollingDelay)
 	}
 }
 

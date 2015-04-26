@@ -145,7 +145,7 @@ type Bitfinex struct {
 	Enabled bool
 	Verbose bool
 	Websocket bool
-	PollingDelay time.Duration
+	RESTPollingDelay time.Duration
 	APIKey, APISecret string
 	Ticker BitfinexTicker
 	Stats []BitfinexStats
@@ -162,7 +162,7 @@ func (b *Bitfinex) SetDefaults() {
 	b.Enabled = true
 	b.Verbose = false
 	b.Websocket = false
-	b.PollingDelay = 10
+	b.RESTPollingDelay = 10
 }
 
 func (b *Bitfinex) GetName() (string) {
@@ -184,7 +184,7 @@ func (b *Bitfinex) SetAPIKeys(apiKey, apiSecret string) {
 
 func (b *Bitfinex) Run() {
 	if b.Verbose {
-		log.Printf("%s polling delay: %ds.\n", b.GetName(), b.PollingDelay)
+		log.Printf("%s polling delay: %ds.\n", b.GetName(), b.RESTPollingDelay)
 	}
 
 	b.GetAccountFeeInfo()
@@ -202,7 +202,7 @@ func (b *Bitfinex) Run() {
 			log.Printf("Bitfinex BTC: Last %f High %f Low %f Volume %f\n", BitfinexBTC.Last, BitfinexBTC.High, BitfinexBTC.Low, BitfinexBTC.Volume)
 			AddExchangeInfo(b.GetName(), "BTC", BitfinexBTC.Last, BitfinexBTC.Volume)
 		}()
-		time.Sleep(time.Second * b.PollingDelay)
+		time.Sleep(time.Second * b.RESTPollingDelay)
 	}
 }
 

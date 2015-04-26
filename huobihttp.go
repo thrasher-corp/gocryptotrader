@@ -19,7 +19,7 @@ type HUOBI struct {
 	Enabled bool
 	Verbose bool
 	Websocket bool
-	PollingDelay time.Duration
+	RESTPollingDelay time.Duration
 	AccessKey, SecretKey string
 	Fee float64
 }
@@ -44,7 +44,7 @@ func (h *HUOBI) SetDefaults() {
 	h.Fee = 0
 	h.Verbose = false
 	h.Websocket = false
-	h.PollingDelay = 10
+	h.RESTPollingDelay = 10
 }
 
 func (h *HUOBI) GetName() (string) {
@@ -71,7 +71,7 @@ func (h *HUOBI) GetFee() (float64) {
 func (h *HUOBI) Run() {
 	if h.Verbose {
 		log.Printf("%s Websocket: %s (url: %s).\n", h.GetName(), IsEnabled(h.Websocket), HUOBI_SOCKETIO_ADDRESS)
-		log.Printf("%s polling delay: %ds.\n", h.GetName(), h.PollingDelay)
+		log.Printf("%s polling delay: %ds.\n", h.GetName(), h.RESTPollingDelay)
 	}
 
 	if h.Websocket {
@@ -96,7 +96,7 @@ func (h *HUOBI) Run() {
 			log.Printf("Huobi LTC: Last %f (%f) High %f (%f) Low %f (%f) Volume %f\n", HuobiLTCLastUSD, HuobiLTC.Last, HuobiLTCHighUSD, HuobiLTC.High, HuobiLTCLowUSD, HuobiLTC.Low, HuobiLTC.Vol)
 			AddExchangeInfo(h.GetName(), "LTC", HuobiLTCLastUSD, HuobiLTC.Vol)
 		}()
-		time.Sleep(time.Second * h.PollingDelay)
+		time.Sleep(time.Second * h.RESTPollingDelay)
 	}
 }
 
