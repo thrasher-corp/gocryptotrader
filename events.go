@@ -129,7 +129,7 @@ func (e *Event) CheckCondition() (bool) {
 	} else if bot.exchange.btce.GetName() == e.Exchange {
 		lastPrice = bot.exchange.btce.GetTicker("btc_usd").Last
 	} else if bot.exchange.btcmarkets.GetName() == e.Exchange {
-		lastPrice = bot.exchange.btcmarkets.GetTicker("BTC").LastPrice
+		lastPrice = bot.exchange.btcmarkets.Ticker["BTC"].LastPrice
 	} else if bot.exchange.okcoinChina.GetName() == e.Exchange {
 		lastPrice = bot.exchange.okcoinChina.GetTicker("btc_cny").Last
 	} else if bot.exchange.okcoinIntl.GetName() == e.Exchange {
