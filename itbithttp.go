@@ -1,16 +1,15 @@
 package main
 
 import (
-	"net/http"
 	"strconv"
+	"bytes"
 	"errors"
-	"strings"
 	"time"
 	"log"
 )
 
 const (
-	ITBIT_API_URL = "https://api.itbit.com/v1/"
+	ITBIT_API_URL = "https://api.itbit.com/v1"
 	ITBIT_API_VERSION = "1"
 )
 
@@ -83,6 +82,8 @@ func (i *ItBit) Run() {
 	if i.Verbose {
 		log.Printf("%s polling delay: %ds.\n", i.GetName(), i.RESTPollingDelay)
 	}
+
+	i.GetWallet("?")
 	for i.Enabled {
 		go func() {
 			ItbitBTC := i.GetTicker("XBTUSD")
@@ -125,7 +126,7 @@ func (i *ItBit) GetTradeHistory(currency, timestamp string) (bool) {
 }
 
 func (i *ItBit) GetWallets(page int64, perPage int64, userID string) {
-	path := ITBIT_API_URL + "wallets/"
+	path := "/wallets/"
 	params := make(map[string]interface{})
 	params["page"] = strconv.FormatInt(page, 10)
 	params["perPage"] = strconv.FormatInt(perPage, 10)
@@ -139,7 +140,7 @@ func (i *ItBit) GetWallets(page int64, perPage int64, userID string) {
 }
 
 func (i *ItBit) GetWallet(walletID string) {
-	path := ITBIT_API_URL + "/wallets/" + walletID
+	path := "/wallets/" + walletID
 	err := i.SendAuthenticatedHTTPRequest("GET", path, nil)
 
 	if err != nil {
@@ -148,7 +149,7 @@ func (i *ItBit) GetWallet(walletID string) {
 }
 
 func (i *ItBit) GetWalletBalance(walletID, currency string) {
-	path := ITBIT_API_URL + "/wallets/ " + walletID +  "/balances/" + currency
+	path := "/wallets/ " + walletID +  "/balances/" + currency
 	err := i.SendAuthenticatedHTTPRequest("GET", path, nil)
 
 	if err != nil {
@@ -157,7 +158,7 @@ func (i *ItBit) GetWalletBalance(walletID, currency string) {
 }
 
 func (i *ItBit) GetWalletTrades(walletID string, page int64, perPage int64, rangeEnd int64, rangeStart int64) {
-	path := ITBIT_API_URL + "/wallets/" + walletID + "/trades"
+	path := "/wallets/" + walletID + "/trades"
 	params := make(map[string]interface{})
 	params["page"] = strconv.FormatInt(page, 10)
 	params["perPage"] = strconv.FormatInt(perPage, 10)
@@ -172,7 +173,7 @@ func (i *ItBit) GetWalletTrades(walletID string, page int64, perPage int64, rang
 }
 
 func (i *ItBit) GetWalletOrders(walletID string, instrument string, page int64, perPage int64, status string) {
-	path := ITBIT_API_URL + "/wallets/" + walletID + "/orders"
+	path := "/wallets/" + walletID + "/orders"
 	params := make(map[string]interface{})
 	params["instrument"] = instrument
 	params["page"] = strconv.FormatInt(page, 10)
@@ -187,7 +188,7 @@ func (i *ItBit) GetWalletOrders(walletID string, instrument string, page int64, 
 }
 
 func (i *ItBit) PlaceWalletOrder(walletID, side, orderType, currency string, amount, price float64, instrument string) {
-	path := ITBIT_API_URL + "/wallets/" + walletID + "/orders"
+	path := "/wallets/" + walletID + "/orders"
 	params := make(map[string]interface{})
 	params["side"] = side
 	params["type"] = orderType
@@ -204,7 +205,7 @@ func (i *ItBit) PlaceWalletOrder(walletID, side, orderType, currency string, amo
 }
 
 func (i *ItBit) GetWalletOrder(walletID, orderID string) {
-	path := ITBIT_API_URL + "/wallets/" + walletID + "/orders/" + orderID
+	path := "/wallets/" + walletID + "/orders/" + orderID
 	err := i.SendAuthenticatedHTTPRequest("GET", path, nil)
 
 	if err != nil {
@@ -213,7 +214,7 @@ func (i *ItBit) GetWalletOrder(walletID, orderID string) {
 }
 
 func (i *ItBit) CancelWalletOrder(walletID, orderID string) {
-	path := ITBIT_API_URL + "/wallets/" + walletID + "/orders/" + orderID
+	path := "/wallets/" + walletID + "/orders/" + orderID
 	err := i.SendAuthenticatedHTTPRequest("DELETE", path, nil)
 
 	if err != nil {
@@ -222,7 +223,7 @@ func (i *ItBit) CancelWalletOrder(walletID, orderID string) {
 }
 
 func (i *ItBit) PlaceWithdrawalRequest(walletID, currency, address string, amount float64) {
-	path := ITBIT_API_URL + "/wallets/" + walletID + "/cryptocurrency_withdrawals"
+	path := "/wallets/" + walletID + "/cryptocurrency_withdrawals"
 	params := make(map[string]interface{})
 	params["currency"] = currency
 	params["amount"] = strconv.FormatFloat(amount, 'f', 8, 64)
@@ -236,7 +237,7 @@ func (i *ItBit) PlaceWithdrawalRequest(walletID, currency, address string, amoun
 }
 
 func (i *ItBit) GetDepositAddress(walletID, currency string) {
-	path := ITBIT_API_URL + "/wallets/" + walletID + "/cryptocurrency_deposits"
+	path := "/wallets/" + walletID + "/cryptocurrency_deposits"
 	params := make(map[string]interface{})
 	params["currency"] = currency
 
@@ -248,7 +249,7 @@ func (i *ItBit) GetDepositAddress(walletID, currency string) {
 }
 
 func (i *ItBit) WalletTransfer(walletID, sourceWallet, destWallet string, amount float64, currency string) {
-	path := ITBIT_API_URL + "/wallets/" + walletID + "/wallet_transfers"
+	path := "/wallets/" + walletID + "/wallet_transfers"
 	params := make(map[string]interface{})
 	params["sourceWalletId"] = sourceWallet
 	params["destinationWalletId"] = destWallet
@@ -263,10 +264,16 @@ func (i *ItBit) WalletTransfer(walletID, sourceWallet, destWallet string, amount
 }
 
 func (i *ItBit) SendAuthenticatedHTTPRequest(method string, path string, params map[string]interface{}) (err error) {
+	timestamp := strconv.FormatInt(time.Now().Unix(), 10)
+	nonce, err :=  strconv.Atoi(timestamp)
+
+	if err != nil {
+		return err
+	}
+
+	nonce = nonce - 1
 	request := make(map[string]interface{})
-	nonce := strconv.FormatInt(time.Now().UnixNano(), 10)
-	request["nonce"] = nonce
-	request["timestamp"] = nonce
+	url := ITBIT_API_URL + path
 
 	if params != nil {
 		for key, value:= range params {
@@ -274,34 +281,41 @@ func (i *ItBit) SendAuthenticatedHTTPRequest(method string, path string, params 
 		}
 	}
 
-	PayloadJson, err := JSONEncode(request)	
+	PayloadJson := ""
+
+	if params != nil {
+		PayloadJson, err := JSONEncode(request)	
 	
+		if err != nil {
+			return errors.New("SendAuthenticatedHTTPRequest: Unable to JSON Marshal request")
+		}
+
+		if i.Verbose {
+			log.Printf("Request JSON: %s\n", PayloadJson)
+		}
+	}
+
+	nonceStr := strconv.Itoa(nonce)
+	message, err := JSONEncode([]string{method, url, string(PayloadJson), nonceStr, timestamp})
 	if err != nil {
-		return errors.New("SendAuthenticatedHTTPRequest: Unable to JSON Marshal request")
+		log.Println(err)
+		return
 	}
 
-	if i.Verbose {
-		log.Printf("Request JSON: %s\n", PayloadJson)
-	}
-
-	hmac := GetHMAC(HASH_SHA512, []byte(nonce + string(PayloadJson)), []byte(i.APISecret))
-	signature := Base64Encode([]byte(HexEncodeToString(hmac)))
+	hash := GetSHA256([]byte(nonceStr + string(message)))
+	hmac := GetHMAC(HASH_SHA512, []byte(url + string(hash)), []byte(i.APISecret))
+	signature := Base64Encode(hmac)
 
 	headers := make(map[string]string)
 	headers["Authorization"] = i.ClientKey + ":" + signature
-	headers["X-Auth-Timestamp"] = nonce
-	headers["X-Auth-Nonce"] = nonce
+	headers["X-Auth-Timestamp"] = timestamp
+	headers["X-Auth-Nonce"] = nonceStr
 	headers["Content-Type"] = "application/json"
 
-	resp, err := http.NewRequest(method, path, strings.NewReader(""))
-
-	if resp != nil {
-		return nil
-	}
+	resp, err := SendHTTPRequest(method, url, headers, bytes.NewBuffer([]byte(PayloadJson)))
 
 	if i.Verbose {
-		log.Printf("Recieved raw: %s\n", resp)
+		log.Printf("Recieved raw: \n%s\n", resp)
 	}
-	
 	return nil
 }
