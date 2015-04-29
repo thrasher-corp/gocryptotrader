@@ -130,8 +130,6 @@ func (i *ItBit) GetWallets(params url.Values) {
 	params.Set("userId", i.UserID)
 	path := "/wallets?" + params.Encode()
 
-	log.Println(path)
-	return
 	err := i.SendAuthenticatedHTTPRequest("GET", path, nil)
 
 	if err != nil {
@@ -279,14 +277,14 @@ func (i *ItBit) WalletTransfer(walletID, sourceWallet, destWallet string, amount
 }
 
 func (i *ItBit) SendAuthenticatedHTTPRequest(method string, path string, params map[string]interface{}) (err error) {
-	timestamp := strconv.FormatInt(time.Now().Unix(), 10)
+	timestamp := strconv.FormatInt(time.Now().UnixNano(), 10)[0:13]
 	nonce, err :=  strconv.Atoi(timestamp)
 
 	if err != nil {
 		return err
 	}
 
-	nonce = nonce - 1
+	nonce -= 1
 	request := make(map[string]interface{})
 	url := ITBIT_API_URL + path
 
@@ -296,10 +294,10 @@ func (i *ItBit) SendAuthenticatedHTTPRequest(method string, path string, params 
 		}
 	}
 
-	PayloadJson := ""
+	PayloadJson := []byte("")
 
 	if params != nil {
-		PayloadJson, err := JSONEncode(request)	
+		PayloadJson, err = JSONEncode(request)	
 	
 		if err != nil {
 			return errors.New("SendAuthenticatedHTTPRequest: Unable to JSON Marshal request")
