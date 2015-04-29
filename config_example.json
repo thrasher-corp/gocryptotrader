@@ -117,6 +117,7 @@
       "Pairs": "XBTUSD,XBTSGD,XBTEUR",
       "APIKey": "Key",
       "APISecret": "Secret",
+      "ClientID": "ClientID",
       "BaseCurrencies": "USD,SGD,EUR",
       "Enabled": true,
       "Verbose": false,

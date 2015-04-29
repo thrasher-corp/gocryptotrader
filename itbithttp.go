@@ -4,6 +4,7 @@ import (
 	"strconv"
 	"bytes"
 	"errors"
+	"net/url"
 	"time"
 	"log"
 )
@@ -65,9 +66,10 @@ func (i *ItBit) IsEnabled() (bool) {
 	return i.Enabled
 }
 
-func (i *ItBit) SetAPIKeys(apiKey, apiSecret string) {
+func (i *ItBit) SetAPIKeys(apiKey, apiSecret, userID string) {
 	i.ClientKey = apiKey
 	i.APISecret = apiSecret
+	i.UserID = userID
 }
 
 func (i *ItBit) GetFee(maker bool) (float64) {
@@ -83,7 +85,6 @@ func (i *ItBit) Run() {
 		log.Printf("%s polling delay: %ds.\n", i.GetName(), i.RESTPollingDelay)
 	}
 
-	i.GetWallet("?")
 	for i.Enabled {
 		go func() {
 			ItbitBTC := i.GetTicker("XBTUSD")
@@ -125,14 +126,26 @@ func (i *ItBit) GetTradeHistory(currency, timestamp string) (bool) {
 	return true
 }
 
-func (i *ItBit) GetWallets(page int64, perPage int64, userID string) {
-	path := "/wallets/"
-	params := make(map[string]interface{})
-	params["page"] = strconv.FormatInt(page, 10)
-	params["perPage"] = strconv.FormatInt(perPage, 10)
-	params["userID"] = userID
+func (i *ItBit) GetWallets(params url.Values) {
+	params.Set("userId", i.UserID)
+	path := "/wallets?" + params.Encode()
 
-	err := i.SendAuthenticatedHTTPRequest("GET", path, params)
+	log.Println(path)
+	return
+	err := i.SendAuthenticatedHTTPRequest("GET", path, nil)
+
+	if err != nil {
+		log.Println(err)
+	}
+}
+
+func (i *ItBit) CreateWallet(walletName string) {
+	path := "/wallets"
+	params := make(map[string]interface{})
+	params["userId"] = i.UserID
+	params["name"] = walletName
+
+	err := i.SendAuthenticatedHTTPRequest("POST", path, params)
 
 	if err != nil {
 		log.Println(err)
@@ -157,37 +170,35 @@ func (i *ItBit) GetWalletBalance(walletID, currency string) {
 	}
 }
 
-func (i *ItBit) GetWalletTrades(walletID string, page int64, perPage int64, rangeEnd int64, rangeStart int64) {
+func (i *ItBit) GetWalletTrades(walletID string, params url.Values) {
 	path := "/wallets/" + walletID + "/trades"
-	params := make(map[string]interface{})
-	params["page"] = strconv.FormatInt(page, 10)
-	params["perPage"] = strconv.FormatInt(perPage, 10)
-	params["rangeEnd"] = strconv.FormatInt(page, 10)
-	params["rangeStart"] = strconv.FormatInt(perPage, 10)
 
-	err := i.SendAuthenticatedHTTPRequest("GET", path, params)
+	if len(params) > 0 {
+		path += "?" + params.Encode()
+	}
+
+	err := i.SendAuthenticatedHTTPRequest("GET", path, nil)
 
 	if err != nil {
 		log.Println(err)
 	}
 }
 
-func (i *ItBit) GetWalletOrders(walletID string, instrument string, page int64, perPage int64, status string) {
+func (i *ItBit) GetWalletOrders(walletID string, params url.Values) {
 	path := "/wallets/" + walletID + "/orders"
-	params := make(map[string]interface{})
-	params["instrument"] = instrument
-	params["page"] = strconv.FormatInt(page, 10)
-	params["perPage"] = strconv.FormatInt(perPage, 10)
-	params["status"] = status
 
-	err := i.SendAuthenticatedHTTPRequest("GET", path, params)
+	if len(params) > 0 {
+		path += "?" + params.Encode()
+	}
+
+	err := i.SendAuthenticatedHTTPRequest("GET", path, nil)
 
 	if err != nil {
 		log.Println(err)
 	}
 }
 
-func (i *ItBit) PlaceWalletOrder(walletID, side, orderType, currency string, amount, price float64, instrument string) {
+func (i *ItBit) PlaceWalletOrder(walletID, side, orderType, currency string, amount, price float64, instrument string, clientRef string) {
 	path := "/wallets/" + walletID + "/orders"
 	params := make(map[string]interface{})
 	params["side"] = side
@@ -196,6 +207,10 @@ func (i *ItBit) PlaceWalletOrder(walletID, side, orderType, currency string, amo
 	params["amount"] = strconv.FormatFloat(amount, 'f', 8, 64)
 	params["price"] = strconv.FormatFloat(price, 'f', 2, 64)
 	params["instrument"] = instrument
+
+	if clientRef != "" {
+		params["clientOrderIdentifier"] = clientRef
+	}
 
 	err := i.SendAuthenticatedHTTPRequest("POST", path, params)
 
@@ -226,7 +241,7 @@ func (i *ItBit) PlaceWithdrawalRequest(walletID, currency, address string, amoun
 	path := "/wallets/" + walletID + "/cryptocurrency_withdrawals"
 	params := make(map[string]interface{})
 	params["currency"] = currency
-	params["amount"] = strconv.FormatFloat(amount, 'f', 8, 64)
+	params["amount"] = amount
 	params["address"] = address
 
 	err := i.SendAuthenticatedHTTPRequest("POST", path, params)

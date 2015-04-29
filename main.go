@@ -222,7 +222,7 @@ func main() {
 			if !exch.Enabled {
 				bot.exchange.itbit.SetEnabled(false)
 			} else {
-				bot.exchange.itbit.SetAPIKeys(exch.APIKey, exch.APISecret)
+				bot.exchange.itbit.SetAPIKeys(exch.APIKey, exch.APISecret, exch.ClientID)
 				bot.exchange.itbit.RESTPollingDelay = exch.RESTPollingDelay
 				bot.exchange.itbit.Verbose = exch.Verbose
 				bot.exchange.itbit.Websocket = exch.Websocket
