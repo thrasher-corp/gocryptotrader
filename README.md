@@ -12,7 +12,7 @@ A cryptocurrency trading bot supporting multiple exchanges written in Golang.
 | BTCChina | Yes  | Yes     | No  |
 | BTCE     | Yes  | NA        | NA  |
 | BTCMarkets | Yes | NA       | NA  |
-| Coinbase | Yes (unauthenticated)| Yes | No|
+| Coinbase | Yes | Yes | No|
 | Cryptsy | Yes | Yes | NA|
 | Huobi | Yes | Yes |No
 | ItBit | Yes | NA | NA |
