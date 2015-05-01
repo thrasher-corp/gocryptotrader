@@ -1,9 +1,9 @@
 package main
 
 import (
-	"log"
 	"fmt"
 	"github.com/thrasher-/socketio"
+	"log"
 )
 
 const (
@@ -11,38 +11,38 @@ const (
 )
 
 type BTCChinaWebsocketOrder struct {
-	Price float64 `json:"price"`
+	Price       float64 `json:"price"`
 	TotalAmount float64 `json:"totalamount"`
-	Type string `json:"type"`
+	Type        string  `json:"type"`
 }
 
 type BTCChinaWebsocketGroupOrder struct {
-	Asks []BTCChinaWebsocketOrder `json:"ask"`
-	Bids []BTCChinaWebsocketOrder `json:"bid"`
-	Market string `json:"market"`
+	Asks   []BTCChinaWebsocketOrder `json:"ask"`
+	Bids   []BTCChinaWebsocketOrder `json:"bid"`
+	Market string                   `json:"market"`
 }
 
 type BTCChinaWebsocketTrade struct {
-	Amount float64 `json:"amount,string"`
-	Date float64 `json:"date"`
-	Market string `json:"market"`
-	Price float64 `json:"price,string"`
+	Amount  float64 `json:"amount,string"`
+	Date    float64 `json:"date"`
+	Market  string  `json:"market"`
+	Price   float64 `json:"price,string"`
 	TradeID float64 `json:"trade_id"`
-	Type string `json:"type"`
+	Type    string  `json:"type"`
 }
 
 type BTCChinaWebsocketTicker struct {
-	Buy float64 `json:"buy"`
-	Date float64 `json:"date"`
-	High float64 `json:"high"`
-	Last float64 `json:"last"`
-	Low float64 `json:"low"`
-	Market string`json:"market"`
-	Open float64 `json:"open"`
+	Buy       float64 `json:"buy"`
+	Date      float64 `json:"date"`
+	High      float64 `json:"high"`
+	Last      float64 `json:"last"`
+	Low       float64 `json:"low"`
+	Market    string  `json:"market"`
+	Open      float64 `json:"open"`
 	PrevClose float64 `json:"prev_close"`
-	Sell float64 `json:"sell"`
-	Volume float64 `json:"vol"`
-	Vwap float64 `json:"vwap"`
+	Sell      float64 `json:"sell"`
+	Volume    float64 `json:"vol"`
+	Vwap      float64 `json:"vwap"`
 }
 
 var BTCChinaSocket *socketio.SocketIO
@@ -125,19 +125,20 @@ func (b *BTCChina) WebsocketClient() {
 	events["trade"] = b.OnTrade
 
 	BTCChinaSocket = &socketio.SocketIO{
-		Version: 1,
-		OnConnect: b.OnConnect,
-		OnEvent: events,
-		OnError: b.OnError,
-		OnMessage: b.OnMessage,
+		Version:      1,
+		OnConnect:    b.OnConnect,
+		OnEvent:      events,
+		OnError:      b.OnError,
+		OnMessage:    b.OnMessage,
 		OnDisconnect: b.OnDisconnect,
 	}
 
-  	err := socketio.ConnectToSocket(BTCCHINA_SOCKETIO_ADDRESS, BTCChinaSocket)
-  	if err != nil {
-    	log.Println(err)
-  	}
-  	
-    log.Printf("%s Websocket client disconnected.. Reconnecting.", b.GetName())
-    b.WebsocketClient()
+	for b.Enabled && b.Websocket {
+		err := socketio.ConnectToSocket(BTCCHINA_SOCKETIO_ADDRESS, BTCChinaSocket)
+		if err != nil {
+			log.Printf("%s Unable to connect to Websocket. Err: %s\n", err)
+			continue
+		}
+		log.Printf("%s Disconnected from Websocket.")
+	}
 }
