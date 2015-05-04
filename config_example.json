@@ -83,7 +83,7 @@
       "ClientID": "Password",
       "APIKey": "Key",
       "APISecret": "Secret",
-      "BaseCurrencies": "USD",
+      "BaseCurrencies": "USD,GBP",
       "Enabled": true,
       "Verbose": false,
       "Websocket": true,

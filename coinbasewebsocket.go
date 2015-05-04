@@ -70,7 +70,7 @@ type CoinbaseWebsocketChange struct {
 }
 
 func (c *Coinbase) WebsocketSubscribe(product string, conn *websocket.Conn) error {
-	subscribe := CoinbaseWebsocketSubscribe{"subscribe", "BTC-USD"}
+	subscribe := CoinbaseWebsocketSubscribe{"subscribe", product}
 	json, err := JSONEncode(subscribe)
 	if err != nil {
 		return err
@@ -96,10 +96,14 @@ func (c *Coinbase) WebsocketClient() {
 
 		log.Printf("%s Connected to Websocket.\n", c.GetName())
 
-		err = c.WebsocketSubscribe("BTC-USD", conn)
-		if err != nil {
-			log.Printf("%s Websocket subscription error: %s\n", c.GetName(), err)
-			continue
+		currencies := []string{"BTC-USD", "BTC-GBP"}
+
+		for _, x := range currencies {
+			err = c.WebsocketSubscribe(x, conn)
+			if err != nil {
+				log.Printf("%s Websocket subscription error: %s\n", c.GetName(), err)
+				continue
+			}
 		}
 
 		if c.Verbose {
