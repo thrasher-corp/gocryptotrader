@@ -1,22 +1,22 @@
 package main
 
 import (
-	"net/http"
-	"hash"
-	"crypto/md5"
 	"crypto/hmac"
+	"crypto/md5"
 	"crypto/sha1"
-	"crypto/sha512"
 	"crypto/sha256"
+	"crypto/sha512"
 	"encoding/base64"
-	"encoding/json"
 	"encoding/hex"
+	"encoding/json"
+	"errors"
+	"hash"
 	"io"
 	"io/ioutil"
-	"errors"
-	"strings"
-	"math"
 	"log"
+	"math"
+	"net/http"
+	"strings"
 )
 
 const (
@@ -26,38 +26,42 @@ const (
 	HASH_SHA512_384
 )
 
-func GetMD5(input []byte) ([]byte) {
+func GetMD5(input []byte) []byte {
 	hash := md5.New()
 	hash.Write(input)
 	return hash.Sum(nil)
 }
 
-func GetSHA512(input []byte) ([]byte) {
+func GetSHA512(input []byte) []byte {
 	sha := sha512.New()
 	sha.Write(input)
 	return sha.Sum(nil)
 }
 
-func GetSHA256(input []byte) ([]byte) {
+func GetSHA256(input []byte) []byte {
 	sha := sha256.New()
 	sha.Write(input)
 	return sha.Sum(nil)
 }
 
-func GetHMAC(hashType int, input, key []byte) ([]byte) {
+func GetHMAC(hashType int, input, key []byte) []byte {
 	var hash func() hash.Hash
 
 	switch hashType {
-		case HASH_SHA1: {
+	case HASH_SHA1:
+		{
 			hash = sha1.New
 		}
-		case HASH_SHA256: {
+	case HASH_SHA256:
+		{
 			hash = sha256.New
 		}
-		case HASH_SHA512: {
+	case HASH_SHA512:
+		{
 			hash = sha512.New
 		}
-		case HASH_SHA512_384: {
+	case HASH_SHA512_384:
+		{
 			hash = sha512.New384
 		}
 	}
@@ -67,24 +71,40 @@ func GetHMAC(hashType int, input, key []byte) ([]byte) {
 	return hmac.Sum(nil)
 }
 
-func HexEncodeToString(input []byte) (string) {
+func HexEncodeToString(input []byte) string {
 	return hex.EncodeToString(input)
 }
 
 func Base64Decode(input string) ([]byte, error) {
-	result, err := base64.StdEncoding.DecodeString(input) 
+	result, err := base64.StdEncoding.DecodeString(input)
 	if err != nil {
 		return nil, err
 	}
 	return result, nil
 }
 
-func Base64Encode(input []byte) (string) {
+func Base64Encode(input []byte) string {
 	return base64.StdEncoding.EncodeToString(input)
 }
 
+func JoinStrings(input []string, seperator string) string {
+	return strings.Join(input, seperator)
+}
+
+func SplitStrings(input, seperator string) []string {
+	return strings.Split(input, seperator)
+}
+
+func StringToUpper(input string) string {
+	return strings.ToUpper(input)
+}
+
+func StringToLower(input string) string {
+	return strings.ToLower(input)
+}
+
 func RoundFloat(x float64, prec int) float64 {
-  	var rounder float64
+	var rounder float64
 	pow := math.Pow(10, float64(prec))
 	intermed := x * pow
 	_, frac := math.Modf(intermed)
@@ -103,7 +123,7 @@ func RoundFloat(x float64, prec int) float64 {
 	return rounder / pow
 }
 
-func IsEnabled(isEnabled bool) (string) {
+func IsEnabled(isEnabled bool) string {
 	if isEnabled {
 		return "Enabled"
 	} else {
@@ -111,25 +131,25 @@ func IsEnabled(isEnabled bool) (string) {
 	}
 }
 
-func CalculateAmountWithFee(amount, fee float64) (float64) {
+func CalculateAmountWithFee(amount, fee float64) float64 {
 	return amount + CalculateFee(amount, fee)
 }
 
-func CalculateFee(amount, fee float64) (float64) {
+func CalculateFee(amount, fee float64) float64 {
 	return amount * (fee / 100)
 }
 
-func CalculatePercentageDifference(amount, secondAmount float64) (float64) {
+func CalculatePercentageDifference(amount, secondAmount float64) float64 {
 	return (secondAmount - amount) / amount * 100
 }
 
-func CalculateNetProfit(amount, priceThen, priceNow, costs float64) (float64) {
+func CalculateNetProfit(amount, priceThen, priceNow, costs float64) float64 {
 	return (priceNow * amount) - (priceThen * amount) - costs
 }
 
 func SendHTTPRequest(method, path string, headers map[string]string, body io.Reader) (string, error) {
 	result := strings.ToUpper(method)
-	
+
 	if result != "POST" && result != "GET" && result != "DELETE" {
 		return "", errors.New("Invalid HTTP method specified.")
 	}
@@ -146,7 +166,7 @@ func SendHTTPRequest(method, path string, headers map[string]string, body io.Rea
 
 	httpClient := &http.Client{}
 	resp, err := httpClient.Do(req)
-	
+
 	if err != nil {
 		return "", err
 	}
@@ -174,7 +194,7 @@ func SendHTTPGetRequest(url string, jsonDecode bool, result interface{}) (err er
 	}
 
 	contents, err := ioutil.ReadAll(res.Body)
-	
+
 	if err != nil {
 		return err
 	}
@@ -204,7 +224,7 @@ func JSONEncode(v interface{}) ([]byte, error) {
 	return json, nil
 }
 
-func JSONDecode(data []byte, to interface{}) (error) {
+func JSONDecode(data []byte, to interface{}) error {
 	err := json.Unmarshal(data, &to)
 
 	if err != nil {
