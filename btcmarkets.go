@@ -1,82 +1,84 @@
 package main
 
 import (
-	"strconv"
-	"time"
-	"log"
 	"bytes"
 	"fmt"
+	"log"
+	"strconv"
+	"time"
 )
 
 const (
-	BTCMARKETS_API_URL = "https://api.btcmarkets.net"
-	BTCMARKETS_API_VERSION = "0"
-	BTCMARKETS_ACCOUNT_BALANCE = "/account/balance"
-	BTCMARKETS_ORDER_CREATE = "/order/create"
-	BTCMARKETS_ORDER_CANCEL = "/order/cancel"
-	BTCMARKETS_ORDER_HISTORY = "/order/history"
-	BTCMARKETS_ORDER_OPEN = "/order/open"
+	BTCMARKETS_API_URL             = "https://api.btcmarkets.net"
+	BTCMARKETS_API_VERSION         = "0"
+	BTCMARKETS_ACCOUNT_BALANCE     = "/account/balance"
+	BTCMARKETS_ORDER_CREATE        = "/order/create"
+	BTCMARKETS_ORDER_CANCEL        = "/order/cancel"
+	BTCMARKETS_ORDER_HISTORY       = "/order/history"
+	BTCMARKETS_ORDER_OPEN          = "/order/open"
 	BTCMARKETS_ORDER_TRADE_HISTORY = "/order/trade/history"
-	BTCMARKETS_ORDER_DETAIL = "/order/detail"
+	BTCMARKETS_ORDER_DETAIL        = "/order/detail"
 )
 
 type BTCMarkets struct {
-	Name string
-	Enabled bool
-	Verbose bool
-	Websocket bool
-	RESTPollingDelay time.Duration
-	Fee float64
-	Ticker map[string]BTCMarketsTicker
+	Name              string
+	Enabled           bool
+	Verbose           bool
+	Websocket         bool
+	RESTPollingDelay  time.Duration
+	Fee               float64
+	Ticker            map[string]BTCMarketsTicker
 	APIKey, APISecret string
+	BaseCurrencies    []string
+	Pairs             []string
 }
 
 type BTCMarketsTicker struct {
-	BestBID float64
-	BestAsk float64
-	LastPrice float64
-	Currency string
+	BestBID    float64
+	BestAsk    float64
+	LastPrice  float64
+	Currency   string
 	Instrument string
-	Timestamp int64
+	Timestamp  int64
 }
 
 type BTCMarketsTrade struct {
-	TradeID int64 `json:"tid"`
-	Amount float64 `json:"amount"`
-	Price float64 `json:"price"`
-	Date int64 `json:"date"`
+	TradeID int64   `json:"tid"`
+	Amount  float64 `json:"amount"`
+	Price   float64 `json:"price"`
+	Date    int64   `json:"date"`
 }
 
 type BTCMarketsOrderbook struct {
-	Currency string `json:"currency"`
-	Instrument string `json:"instrument"`
-	Timestamp int64 `json:"timestamp"`
-	Asks [][]float64 `json:"asks"`
-	Bids [][]float64 `json:"bids"`
+	Currency   string      `json:"currency"`
+	Instrument string      `json:"instrument"`
+	Timestamp  int64       `json:"timestamp"`
+	Asks       [][]float64 `json:"asks"`
+	Bids       [][]float64 `json:"bids"`
 }
 
 type BTCMarketsTradeResponse struct {
-	ID int64 `json:"id"`
+	ID           int64   `json:"id"`
 	CreationTime float64 `json:"creationTime"`
-	Description string `json:"description"`
-	Price float64 `json:"price"`
-	Volume float64 `json:"volume"`
-	Fee float64 `json:"fee"`
+	Description  string  `json:"description"`
+	Price        float64 `json:"price"`
+	Volume       float64 `json:"volume"`
+	Fee          float64 `json:"fee"`
 }
 
 type BTCMarketsOrderResponse struct {
-	ID float64 `json:"id"`
-	Currency string `json:"currency"`
-	Instrument string `json:"instrument"`
-	OrderSide string `json:"orderSide"`
-	OrderType string `json:"ordertype"`
-	CreationTime float64 `json:"creationTime"`
-	Status string `json:"status"`
-	ErrorMessage string `json:"errorMessage"`
-	Price float64 `json:"price"`
-	Volume float64 `json:"volume"`
-	OpenVolume float64 `json:"openVolume"`
-	ClientRequestId string `json:"clientRequestId"`
+	ID              float64 `json:"id"`
+	Currency        string  `json:"currency"`
+	Instrument      string  `json:"instrument"`
+	OrderSide       string  `json:"orderSide"`
+	OrderType       string  `json:"ordertype"`
+	CreationTime    float64 `json:"creationTime"`
+	Status          string  `json:"status"`
+	ErrorMessage    string  `json:"errorMessage"`
+	Price           float64 `json:"price"`
+	Volume          float64 `json:"volume"`
+	OpenVolume      float64 `json:"openVolume"`
+	ClientRequestId string  `json:"clientRequestId"`
 }
 
 func (b *BTCMarkets) SetDefaults() {
@@ -89,7 +91,7 @@ func (b *BTCMarkets) SetDefaults() {
 	b.Ticker = make(map[string]BTCMarketsTicker)
 }
 
-func (b *BTCMarkets) GetName() (string) {
+func (b *BTCMarkets) GetName() string {
 	return b.Name
 }
 
@@ -97,7 +99,7 @@ func (b *BTCMarkets) SetEnabled(enabled bool) {
 	b.Enabled = enabled
 }
 
-func (b *BTCMarkets) IsEnabled() (bool) {
+func (b *BTCMarkets) IsEnabled() bool {
 	return b.Enabled
 }
 
@@ -114,7 +116,7 @@ func (b *BTCMarkets) SetAPIKeys(apiKey, apiSecret string) {
 	b.APISecret = string(result)
 }
 
-func (b *BTCMarkets) GetFee() (float64) {
+func (b *BTCMarkets) GetFee() float64 {
 	return b.Fee
 }
 
@@ -158,7 +160,7 @@ func (b *BTCMarkets) Run() {
 func (b *BTCMarkets) GetTicker(symbol string) (BTCMarketsTicker, error) {
 	ticker := BTCMarketsTicker{}
 	path := fmt.Sprintf("/market/%s/AUD/tick", symbol)
-	err := SendHTTPGetRequest(BTCMARKETS_API_URL + path, true, &ticker)
+	err := SendHTTPGetRequest(BTCMARKETS_API_URL+path, true, &ticker)
 	if err != nil {
 		return BTCMarketsTicker{}, err
 	}
@@ -168,7 +170,7 @@ func (b *BTCMarkets) GetTicker(symbol string) (BTCMarketsTicker, error) {
 func (b *BTCMarkets) GetOrderbook(symbol string) (BTCMarketsOrderbook, error) {
 	orderbook := BTCMarketsOrderbook{}
 	path := fmt.Sprintf("/market/%s/AUD/orderbook", symbol)
-	err := SendHTTPGetRequest(BTCMARKETS_API_URL + path, true, &orderbook)
+	err := SendHTTPGetRequest(BTCMARKETS_API_URL+path, true, &orderbook)
 	if err != nil {
 		return BTCMarketsOrderbook{}, err
 	}
@@ -183,7 +185,7 @@ func (b *BTCMarkets) GetTrades(symbol, since string) ([]BTCMarketsTrade, error) 
 	} else {
 		path = fmt.Sprintf("/market/%s/AUD/trades", symbol)
 	}
-	err := SendHTTPGetRequest(BTCMARKETS_API_URL + path, true, &trades)
+	err := SendHTTPGetRequest(BTCMARKETS_API_URL+path, true, &trades)
 	if err != nil {
 		return nil, err
 	}
@@ -192,14 +194,13 @@ func (b *BTCMarkets) GetTrades(symbol, since string) ([]BTCMarketsTrade, error) 
 
 func (b *BTCMarkets) Order(currency, instrument string, price, amount int64, orderSide, orderType, clientReq string) (int, error) {
 	type Order struct {
-		Currency string `json:"currency"`
-		Instrument string `json:"instrument"`
-		Price int64 `json:"price"`
-		Volume int64 `json:"volume"`
-		OrderSide string `json:"orderSide"`
-		OrderType string `json:"ordertype"`
+		Currency        string `json:"currency"`
+		Instrument      string `json:"instrument"`
+		Price           int64  `json:"price"`
+		Volume          int64  `json:"volume"`
+		OrderSide       string `json:"orderSide"`
+		OrderType       string `json:"ordertype"`
 		ClientRequestId string `json:"clientRequestId"`
-
 	}
 	order := Order{}
 	order.Currency = currency
@@ -216,10 +217,10 @@ func (b *BTCMarkets) Order(currency, instrument string, price, amount int64, ord
 	}
 
 	type Response struct {
-		Success bool `json:"success"`
-		ErrorCode int `json:"errorCode"`
-		ErrorMessage string `json:"errorMessage"`
-		ID int `json:"id"`
+		Success         bool   `json:"success"`
+		ErrorCode       int    `json:"errorCode"`
+		ErrorMessage    string `json:"errorMessage"`
+		ID              int    `json:"id"`
 		ClientRequestID string `json:"clientRequestId"`
 	}
 	var resp Response
@@ -249,14 +250,14 @@ func (b *BTCMarkets) CancelOrder(orderID []int64) (bool, error) {
 	}
 
 	type Response struct {
-		Success bool `json:"success"`
-		ErrorCode int `json:"errorCode"`
+		Success      bool   `json:"success"`
+		ErrorCode    int    `json:"errorCode"`
 		ErrorMessage string `json:"errorMessage"`
-		Responses []struct {
-			Success bool `json:"success"`
-			ErrorCode int `json:"errorCode"`
+		Responses    []struct {
+			Success      bool   `json:"success"`
+			ErrorCode    int    `json:"errorCode"`
 			ErrorMessage string `json:"errorMessage"`
-			ID int64 `json:"id"`
+			ID           int64  `json:"id"`
 		}
 		ClientRequestID string `json:"clientRequestId"`
 	}
@@ -337,9 +338,9 @@ func (b *BTCMarkets) GetOrderDetail(orderID []int64) {
 
 func (b *BTCMarkets) GetAccountBalance() {
 	type Balance struct {
-		Balance float64 `json:"balance"`
+		Balance      float64 `json:"balance"`
 		PendingFunds float64 `json:"pendingFunds"`
-		Currency string `json:"currency"`
+		Currency     string  `json:"currency"`
 	}
 
 	balance := []Balance{}
@@ -350,7 +351,7 @@ func (b *BTCMarkets) GetAccountBalance() {
 	}
 }
 
-func (b *BTCMarkets) SendAuthenticatedRequest(reqType, path string, data []byte, result interface{}) (error) {
+func (b *BTCMarkets) SendAuthenticatedRequest(reqType, path string, data []byte, result interface{}) error {
 	nonce := strconv.FormatInt(time.Now().UnixNano(), 10)[0:13]
 	request := ""
 
@@ -363,7 +364,7 @@ func (b *BTCMarkets) SendAuthenticatedRequest(reqType, path string, data []byte,
 	hmac := GetHMAC(HASH_SHA512, []byte(request), []byte(b.APISecret))
 
 	if b.Verbose {
-		log.Printf("Sending %s request to URL %s with params %s\n", reqType, BTCMARKETS_API_URL + path, request)
+		log.Printf("Sending %s request to URL %s with params %s\n", reqType, BTCMARKETS_API_URL+path, request)
 	}
 
 	headers := make(map[string]string)
@@ -374,7 +375,7 @@ func (b *BTCMarkets) SendAuthenticatedRequest(reqType, path string, data []byte,
 	headers["timestamp"] = nonce
 	headers["signature"] = Base64Encode(hmac)
 
-	resp, err := SendHTTPRequest(reqType, BTCMARKETS_API_URL + path, headers, bytes.NewBuffer(data))
+	resp, err := SendHTTPRequest(reqType, BTCMARKETS_API_URL+path, headers, bytes.NewBuffer(data))
 
 	if err != nil {
 		return err

@@ -1,127 +1,129 @@
 package main
 
 import (
-	"log"
-	"time"
 	"fmt"
-	"strconv"
+	"log"
 	"net/url"
+	"strconv"
 	"strings"
+	"time"
 )
 
 const (
-	CRYPTSY_API_URL = "https://api.cryptsy.com/api/v2/"
-	CRYPTSY_API_VERISON = "2"
-	CRYPTSY_MARKETS = "markets"
-	CRYPTSY_VOLUME = "volume"
-	CRYPTSY_TICKER = "ticker"
-	CRYPTSY_FEES = "fees"
-	CRYPSTY_TRIGGERS = "triggers"
-	CRYPTSY_CURRENCIES = "currencies"
-	CRYPTSY_ORDERBOOK = "orderbook"
+	CRYPTSY_API_URL      = "https://api.cryptsy.com/api/v2/"
+	CRYPTSY_API_VERISON  = "2"
+	CRYPTSY_MARKETS      = "markets"
+	CRYPTSY_VOLUME       = "volume"
+	CRYPTSY_TICKER       = "ticker"
+	CRYPTSY_FEES         = "fees"
+	CRYPSTY_TRIGGERS     = "triggers"
+	CRYPTSY_CURRENCIES   = "currencies"
+	CRYPTSY_ORDERBOOK    = "orderbook"
 	CRYPTSY_TRADEHISTORY = "tradehistory"
-	CRYPTSY_OHLC = "ohlc"
-	CRYPTSY_INFO = "info"
-	CRYPTSY_BALANCES = "balances"
-	CRYPTSY_DEPOSITS = "deposits"
-	CRYPTSY_ADDRESSES = "addresses"
-	CRYPTSY_ORDER = "order"
-	CRYPTSY_ORDERS = "orders"
-	CRYPSTY_TRIGGER = "trigger"
+	CRYPTSY_OHLC         = "ohlc"
+	CRYPTSY_INFO         = "info"
+	CRYPTSY_BALANCES     = "balances"
+	CRYPTSY_DEPOSITS     = "deposits"
+	CRYPTSY_ADDRESSES    = "addresses"
+	CRYPTSY_ORDER        = "order"
+	CRYPTSY_ORDERS       = "orders"
+	CRYPSTY_TRIGGER      = "trigger"
 )
 
 type Cryptsy struct {
-	Name string
-	Enabled bool
-	Verbose bool
-	Websocket bool
-	RESTPollingDelay time.Duration
-	APIKey, APISecret string
+	Name               string
+	Enabled            bool
+	Verbose            bool
+	Websocket          bool
+	RESTPollingDelay   time.Duration
+	APIKey, APISecret  string
 	TakerFee, MakerFee float64
+	BaseCurrencies     []string
+	Pairs              []string
 }
 
 type CryptsyMarket struct {
 	DayStats struct {
 		PriceHigh float64 `json:"price_high"`
-		PriceLow float64 `json:"price_low"`
-		Volume float64 `json:"volume"`
+		PriceLow  float64 `json:"price_low"`
+		Volume    float64 `json:"volume"`
 		VolumeBtc float64 `json:"volume_btc"`
 	} `json:"24hr"`
 	CoinCurrencyID string `json:"coin_currency_id"`
-	ID string `json:"id"`
-	Label string `json:"label"`
-	LastTrade struct {
-		Date string `json:"date"`
-		Price float64 `json:"price"`
+	ID             string `json:"id"`
+	Label          string `json:"label"`
+	LastTrade      struct {
+		Date      string  `json:"date"`
+		Price     float64 `json:"price"`
 		Timestamp float64 `json:"timestamp"`
 	} `json:"last_trade"`
-	MaintenanceMode string `json:"maintenance_mode"`
+	MaintenanceMode  string `json:"maintenance_mode"`
 	MarketCurrencyID string `json:"market_currency_id"`
-	VerifiedOnly bool `json:"verifiedonly"`
+	VerifiedOnly     bool   `json:"verifiedonly"`
 }
 
 type CryptsyVolume struct {
-	ID string `json:"id"`
-	Volume float64 `json:"volume"`
+	ID        string  `json:"id"`
+	Volume    float64 `json:"volume"`
 	VolumeBtc float64 `json:"volume_btc"`
 }
 
 type CryptsyTicker struct {
-	ID string `json:"id"`
+	ID  string  `json:"id"`
 	Bid float64 `json:"bid"`
 	Ask float64 `json:"ask"`
 }
 
 type CryptsyOrderbook struct {
 	BuyOrders []struct {
-		Price float64 `json:"price"`
+		Price    float64 `json:"price"`
 		Quantity float64 `json:"quantity"`
-		Total float64 `json:"total"`
+		Total    float64 `json:"total"`
 	} `json:"buyorders"`
-	Sellorder [] struct {
-		Price float64 `json:"price"`
+	Sellorder []struct {
+		Price    float64 `json:"price"`
 		Quantity float64 `json:"quantity"`
-		Total float64 `json:"total"`
+		Total    float64 `json:"total"`
 	} `json:"sellorders"`
 }
 
 type CryptsyTradeHistory struct {
-	Datetime string `json:"datetime"`
-	InitiateOrderType string `json:"initiate_ordertype"`
-	Quantity float64 `json:"quantitiy"`
-	Timestamp float64 `json:"timestamp"`
-	Total float64 `json:"total"`
-	TradeID float64 `json:"tradeid"`
-	TradePrice float64 `json:"tradeprice"`
+	Datetime          string  `json:"datetime"`
+	InitiateOrderType string  `json:"initiate_ordertype"`
+	Quantity          float64 `json:"quantitiy"`
+	Timestamp         float64 `json:"timestamp"`
+	Total             float64 `json:"total"`
+	TradeID           float64 `json:"tradeid"`
+	TradePrice        float64 `json:"tradeprice"`
 }
 
 type CryptsyOHLC struct {
 	Close float64 `json:"close"`
-	Date string `json:"date"`
-	High float64 `json:"high"`
+	Date  string  `json:"date"`
+	High  float64 `json:"high"`
 }
 
 type CryptsyInfo struct {
-	ID int64 `json:"id"`
-	Username string `json:"username"`
+	ID          int64  `json:"id"`
+	Username    string `json:"username"`
 	AccountType string `json:"accounttype"`
-	Email string `json:"email"`
-	FirstName string `json:"first_name"`
-	LastName string `json:"last_name"`
-	TradeKey string `json:"trade_key"`
+	Email       string `json:"email"`
+	FirstName   string `json:"first_name"`
+	LastName    string `json:"last_name"`
+	TradeKey    string `json:"trade_key"`
 }
 
 type CryptsyDeposit struct {
-	Currency string `json:"currency"`
+	Currency  string  `json:"currency"`
 	Timestamp float64 `json:"timestamp"`
-	TRXID string `json:"txrid"`
+	TRXID     string  `json:"txrid"`
 }
 
 type CryptsyCurrency struct {
-	Code string `json:"code"`
-	ID string `json:"id"`
+	Code        string `json:"code"`
+	ID          string `json:"id"`
 	Maintenance string `json:"maintenance"`
-	Name string `json:"name"`
+	Name        string `json:"name"`
 }
 
 func (c *Cryptsy) SetDefaults() {
@@ -135,7 +137,7 @@ func (c *Cryptsy) SetDefaults() {
 	c.RESTPollingDelay = 10
 }
 
-func (c *Cryptsy) GetName() (string) {
+func (c *Cryptsy) GetName() string {
 	return c.Name
 }
 
@@ -143,11 +145,11 @@ func (c *Cryptsy) SetEnabled(enabled bool) {
 	c.Enabled = enabled
 }
 
-func (c *Cryptsy) IsEnabled() (bool) {
+func (c *Cryptsy) IsEnabled() bool {
 	return c.Enabled
 }
 
-func (c *Cryptsy) GetFee(maker bool) (float64) {
+func (c *Cryptsy) GetFee(maker bool) float64 {
 	if maker {
 		return c.MakerFee
 	} else {
@@ -185,13 +187,13 @@ func (c *Cryptsy) SetAPIKeys(apiKey, apiSecret string) {
 	c.APISecret = apiSecret
 }
 
-func (c *Cryptsy) GetMarkets(id string) ([]CryptsyMarket) {
+func (c *Cryptsy) GetMarkets(id string) []CryptsyMarket {
 	type Response struct {
-		Data []CryptsyMarket `json:"data"`
-		Success bool `json:"success"`
+		Data    []CryptsyMarket `json:"data"`
+		Success bool            `json:"success"`
 	}
 	response := Response{}
-	err := SendHTTPGetRequest(CRYPTSY_API_URL + CRYPTSY_MARKETS, true, &response)
+	err := SendHTTPGetRequest(CRYPTSY_API_URL+CRYPTSY_MARKETS, true, &response)
 	if err != nil {
 		log.Println(err)
 		return []CryptsyMarket{}
@@ -216,13 +218,13 @@ func (c *Cryptsy) GetMarkets(id string) ([]CryptsyMarket) {
 	return response.Data
 }
 
-func (c *Cryptsy) GetVolume(id string) ([]CryptsyVolume) {
+func (c *Cryptsy) GetVolume(id string) []CryptsyVolume {
 	type Response struct {
-		Data []CryptsyVolume `json:"data"`
-		Success bool `json:"success"`
+		Data    []CryptsyVolume `json:"data"`
+		Success bool            `json:"success"`
 	}
 	response := Response{}
-	path := fmt.Sprintf("%s/%s", CRYPTSY_API_URL + CRYPTSY_MARKETS, CRYPTSY_VOLUME)
+	path := fmt.Sprintf("%s/%s", CRYPTSY_API_URL+CRYPTSY_MARKETS, CRYPTSY_VOLUME)
 	err := SendHTTPGetRequest(path, true, &response)
 	if err != nil {
 		log.Println(err)
@@ -247,13 +249,13 @@ func (c *Cryptsy) GetVolume(id string) ([]CryptsyVolume) {
 	return response.Data
 }
 
-func (c *Cryptsy) GetTicker(id string) ([]CryptsyTicker) {
+func (c *Cryptsy) GetTicker(id string) []CryptsyTicker {
 	type Response struct {
-		Data []CryptsyTicker `json:"data"`
-		Success bool `json:"success"`
+		Data    []CryptsyTicker `json:"data"`
+		Success bool            `json:"success"`
 	}
 	response := Response{}
-	path := fmt.Sprintf("%s/%s", CRYPTSY_API_URL + CRYPTSY_MARKETS, CRYPTSY_TICKER)
+	path := fmt.Sprintf("%s/%s", CRYPTSY_API_URL+CRYPTSY_MARKETS, CRYPTSY_TICKER)
 	err := SendHTTPGetRequest(path, true, &response)
 	if err != nil {
 		log.Println(err)
@@ -279,7 +281,7 @@ func (c *Cryptsy) GetTicker(id string) ([]CryptsyTicker) {
 }
 
 func (c *Cryptsy) GetMarketFees(id string) {
-	path := fmt.Sprintf("%s/%s/%s", CRYPTSY_API_URL + CRYPTSY_MARKETS, id, CRYPTSY_FEES)
+	path := fmt.Sprintf("%s/%s/%s", CRYPTSY_API_URL+CRYPTSY_MARKETS, id, CRYPTSY_FEES)
 	err := c.SendAuthenticatedHTTPRequest("GET", path, url.Values{})
 	if err != nil {
 		log.Println(err)
@@ -287,7 +289,7 @@ func (c *Cryptsy) GetMarketFees(id string) {
 }
 
 func (c *Cryptsy) GetMarketTriggers(id string) {
-	path := fmt.Sprintf("%s/%s/%s", CRYPTSY_API_URL + CRYPTSY_MARKETS, id, CRYPSTY_TRIGGERS)
+	path := fmt.Sprintf("%s/%s/%s", CRYPTSY_API_URL+CRYPTSY_MARKETS, id, CRYPSTY_TRIGGERS)
 	err := c.SendAuthenticatedHTTPRequest("GET", path, url.Values{})
 	if err != nil {
 		log.Println(err)
@@ -296,11 +298,11 @@ func (c *Cryptsy) GetMarketTriggers(id string) {
 
 func (c *Cryptsy) GetOrderbook(id string) {
 	type Response struct {
-		Data CryptsyOrderbook `json:"data"`
-		Success bool `json:"success"`
+		Data    CryptsyOrderbook `json:"data"`
+		Success bool             `json:"success"`
 	}
 	response := Response{}
-	path := fmt.Sprintf("%s/%s/%s", CRYPTSY_API_URL + CRYPTSY_MARKETS, id, CRYPTSY_ORDERBOOK)
+	path := fmt.Sprintf("%s/%s/%s", CRYPTSY_API_URL+CRYPTSY_MARKETS, id, CRYPTSY_ORDERBOOK)
 	err := SendHTTPGetRequest(path, true, &response)
 	if err != nil {
 		log.Println(err)
@@ -310,11 +312,11 @@ func (c *Cryptsy) GetOrderbook(id string) {
 
 func (c *Cryptsy) GetTradeHistory(id string) {
 	type Response struct {
-		Data []CryptsyTradeHistory `json:"data"`
-		Success bool `json:"success"`
+		Data    []CryptsyTradeHistory `json:"data"`
+		Success bool                  `json:"success"`
 	}
 	response := Response{}
-	path := fmt.Sprintf("%s/%s/%s", CRYPTSY_API_URL + CRYPTSY_MARKETS, id, CRYPTSY_TRADEHISTORY)
+	path := fmt.Sprintf("%s/%s/%s", CRYPTSY_API_URL+CRYPTSY_MARKETS, id, CRYPTSY_TRADEHISTORY)
 	err := SendHTTPGetRequest(path, true, &response)
 	if err != nil {
 		log.Println(err)
@@ -324,11 +326,11 @@ func (c *Cryptsy) GetTradeHistory(id string) {
 
 func (c *Cryptsy) GetOHLC(id string) {
 	type Response struct {
-		Data []CryptsyOHLC `json:"data"`
-		Success bool `json:"success"`
+		Data    []CryptsyOHLC `json:"data"`
+		Success bool          `json:"success"`
 	}
 	response := Response{}
-	path := fmt.Sprintf("%s/%s/%s", CRYPTSY_API_URL + CRYPTSY_MARKETS, id, CRYPTSY_OHLC)
+	path := fmt.Sprintf("%s/%s/%s", CRYPTSY_API_URL+CRYPTSY_MARKETS, id, CRYPTSY_OHLC)
 	err := SendHTTPGetRequest(path, true, &response)
 	if err != nil {
 		log.Println(err)
@@ -336,14 +338,14 @@ func (c *Cryptsy) GetOHLC(id string) {
 	log.Println(response)
 }
 
-func (c *Cryptsy) GetCurrencies(id string) ([]CryptsyCurrency) {
+func (c *Cryptsy) GetCurrencies(id string) []CryptsyCurrency {
 	type Response struct {
-		Data []CryptsyCurrency `json:"data"`
-		Success bool `json:"success"`
+		Data    []CryptsyCurrency `json:"data"`
+		Success bool              `json:"success"`
 	}
 
 	response := Response{}
-	err := SendHTTPGetRequest(CRYPTSY_API_URL + CRYPTSY_CURRENCIES, true, &response)
+	err := SendHTTPGetRequest(CRYPTSY_API_URL+CRYPTSY_CURRENCIES, true, &response)
 	if err != nil {
 		log.Println(err)
 		return []CryptsyCurrency{}
@@ -368,7 +370,7 @@ func (c *Cryptsy) GetCurrencies(id string) ([]CryptsyCurrency) {
 }
 
 func (c *Cryptsy) GetInfo() {
-	err := c.SendAuthenticatedHTTPRequest("GET", CRYPTSY_API_URL + CRYPTSY_INFO, url.Values{})
+	err := c.SendAuthenticatedHTTPRequest("GET", CRYPTSY_API_URL+CRYPTSY_INFO, url.Values{})
 	if err != nil {
 		log.Println(err)
 	}
@@ -380,7 +382,7 @@ func (c *Cryptsy) GetBalances(balanceType, id string) {
 	if len(balanceType) > 0 {
 		req.Set("type", balanceType)
 	}
-	err := c.SendAuthenticatedHTTPRequest("GET", CRYPTSY_API_URL + CRYPTSY_BALANCES, req)
+	err := c.SendAuthenticatedHTTPRequest("GET", CRYPTSY_API_URL+CRYPTSY_BALANCES, req)
 
 	if err != nil {
 		log.Println(err)
@@ -394,7 +396,7 @@ func (c *Cryptsy) GetDeposits(limit int, id string) {
 		req.Set("liimt", strconv.Itoa(limit))
 	}
 
-	err := c.SendAuthenticatedHTTPRequest("GET", CRYPTSY_API_URL + CRYPTSY_DEPOSITS, req)
+	err := c.SendAuthenticatedHTTPRequest("GET", CRYPTSY_API_URL+CRYPTSY_DEPOSITS, req)
 
 	if err != nil {
 		log.Println(err)
@@ -408,7 +410,7 @@ func (c *Cryptsy) CreateOrder(marketid, orderType string, amount, price float64)
 	req.Set("quantity", strconv.FormatFloat(amount, 'f', 8, 64))
 	req.Set("price", strconv.FormatFloat(amount, 'f', 8, 64))
 
-	err := c.SendAuthenticatedHTTPRequest("POST", CRYPTSY_API_URL + CRYPTSY_ORDER, req)
+	err := c.SendAuthenticatedHTTPRequest("POST", CRYPTSY_API_URL+CRYPTSY_ORDER, req)
 
 	if err != nil {
 		log.Println(err)
@@ -416,7 +418,7 @@ func (c *Cryptsy) CreateOrder(marketid, orderType string, amount, price float64)
 }
 
 func (c *Cryptsy) GetOrder(orderID int64) {
-	path := fmt.Sprintf("%s/%s", CRYPTSY_API_URL + CRYPTSY_ORDER, strconv.FormatInt(orderID, 10))
+	path := fmt.Sprintf("%s/%s", CRYPTSY_API_URL+CRYPTSY_ORDER, strconv.FormatInt(orderID, 10))
 	err := c.SendAuthenticatedHTTPRequest("GET", path, url.Values{})
 
 	if err != nil {
@@ -425,7 +427,7 @@ func (c *Cryptsy) GetOrder(orderID int64) {
 }
 
 func (c *Cryptsy) DeleteOrder(orderID int64) {
-	path := fmt.Sprintf("%s/%s", CRYPTSY_API_URL + CRYPTSY_ORDER, strconv.FormatInt(orderID, 10))
+	path := fmt.Sprintf("%s/%s", CRYPTSY_API_URL+CRYPTSY_ORDER, strconv.FormatInt(orderID, 10))
 	err := c.SendAuthenticatedHTTPRequest("DELETE", path, url.Values{})
 
 	if err != nil {
@@ -442,11 +444,11 @@ func (c *Cryptsy) CreateTrigger(marketid int64, orderType string, quantity float
 	req.Set("price", strconv.FormatFloat(price, 'f', 8, 64))
 	req.Set("orderprice", strconv.FormatFloat(orderprice, 'f', 8, 64))
 
-	if (expires > 0) {
+	if expires > 0 {
 		req.Set("expires", strconv.FormatInt(expires, 10))
 	}
 
-	err := c.SendAuthenticatedHTTPRequest("POST", CRYPTSY_API_URL + CRYPSTY_TRIGGER, req)
+	err := c.SendAuthenticatedHTTPRequest("POST", CRYPTSY_API_URL+CRYPSTY_TRIGGER, req)
 
 	if err != nil {
 		log.Println(err)
@@ -454,7 +456,7 @@ func (c *Cryptsy) CreateTrigger(marketid int64, orderType string, quantity float
 }
 
 func (c *Cryptsy) GetTrigger(triggerID int64) {
-	path := fmt.Sprintf("%s/%s", CRYPTSY_API_URL + CRYPSTY_TRIGGER, strconv.FormatInt(triggerID, 10))
+	path := fmt.Sprintf("%s/%s", CRYPTSY_API_URL+CRYPSTY_TRIGGER, strconv.FormatInt(triggerID, 10))
 	err := c.SendAuthenticatedHTTPRequest("GET", path, url.Values{})
 
 	if err != nil {
@@ -463,7 +465,7 @@ func (c *Cryptsy) GetTrigger(triggerID int64) {
 }
 
 func (c *Cryptsy) DeleteTrigger(triggerID int64) {
-	path := fmt.Sprintf("%s/%s", CRYPTSY_API_URL + CRYPSTY_TRIGGER, strconv.FormatInt(triggerID, 10))
+	path := fmt.Sprintf("%s/%s", CRYPTSY_API_URL+CRYPSTY_TRIGGER, strconv.FormatInt(triggerID, 10))
 	err := c.SendAuthenticatedHTTPRequest("DELETE", path, url.Values{})
 
 	if err != nil {
@@ -502,6 +504,6 @@ func (c *Cryptsy) SendAuthenticatedHTTPRequest(method, path string, params url.V
 	if c.Verbose {
 		log.Printf("Recieved raw: \n%s\n", resp)
 	}
-	
+
 	return nil
 }

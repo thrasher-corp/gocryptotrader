@@ -1,83 +1,85 @@
 package main
 
 import (
-	"net/url"
-	"log"
-	"strings"
-	"strconv"
 	"errors"
+	"log"
+	"net/url"
+	"strconv"
+	"strings"
 	"time"
 )
 
 const (
-	BITSTAMP_API_URL = "https://www.bitstamp.net/api/"
-	BITSTAMP_API_VERSION = "0"
-	BITSTAMP_API_TICKER = "ticker/"
-	BITSTAMP_API_ORDERBOOK = "order_book/"
-	BITSTAMP_API_TRANSACTIONS = "transactions/"
-	BITSTAMP_API_EURUSD = "eur_usd/"
-	BITSTAMP_API_BALANCE = "balance/"
-	BITSTAMP_API_USER_TRANSACTIONS = "user_transactions/"
-	BITSTAMP_API_OPEN_ORDERS = "open_orders/"
-	BITSTAMP_API_CANCEL_ORDER = "cancel_order/"
-	BITSTAMP_API_BUY = "buy/"
-	BITSTAMP_API_SELL = "sell/"
+	BITSTAMP_API_URL                 = "https://www.bitstamp.net/api/"
+	BITSTAMP_API_VERSION             = "0"
+	BITSTAMP_API_TICKER              = "ticker/"
+	BITSTAMP_API_ORDERBOOK           = "order_book/"
+	BITSTAMP_API_TRANSACTIONS        = "transactions/"
+	BITSTAMP_API_EURUSD              = "eur_usd/"
+	BITSTAMP_API_BALANCE             = "balance/"
+	BITSTAMP_API_USER_TRANSACTIONS   = "user_transactions/"
+	BITSTAMP_API_OPEN_ORDERS         = "open_orders/"
+	BITSTAMP_API_CANCEL_ORDER        = "cancel_order/"
+	BITSTAMP_API_BUY                 = "buy/"
+	BITSTAMP_API_SELL                = "sell/"
 	BITSTAMP_API_WITHDRAWAL_REQUESTS = "withdrawal_requests/"
-	BITSTAMP_API_BITCOIN_WITHDRAWAL = "bitcoin_withdrawal/"
-	BITSTAMP_API_BITCOIN_DEPOSIT = "bitcoin_deposit_address/"
+	BITSTAMP_API_BITCOIN_WITHDRAWAL  = "bitcoin_withdrawal/"
+	BITSTAMP_API_BITCOIN_DEPOSIT     = "bitcoin_deposit_address/"
 	BITSTAMP_API_UNCONFIRMED_BITCOIN = "unconfirmed_btc/"
-	BITSTAMP_API_RIPPLE_WITHDRAWAL = "ripple_withdrawal/"
-	BITSTAMP_API_RIPPLE_DESPOIT = "ripple_address/"
+	BITSTAMP_API_RIPPLE_WITHDRAWAL   = "ripple_withdrawal/"
+	BITSTAMP_API_RIPPLE_DESPOIT      = "ripple_address/"
 )
 
-type Bitstamp struct { 
-	Name string
-	Enabled bool
-	Verbose bool
-	Websocket bool
-	RESTPollingDelay time.Duration
+type Bitstamp struct {
+	Name                        string
+	Enabled                     bool
+	Verbose                     bool
+	Websocket                   bool
+	RESTPollingDelay            time.Duration
 	ClientID, APIKey, APISecret string
-	Ticker BitstampTicker
-	Orderbook Orderbook
-	ConversionRate ConversionRate
-	Transactions []Transactions
-	Balance BitstampAccountBalance
-	TakerFee, MakerFee float64
+	Ticker                      BitstampTicker
+	Orderbook                   Orderbook
+	ConversionRate              ConversionRate
+	Transactions                []Transactions
+	Balance                     BitstampAccountBalance
+	TakerFee, MakerFee          float64
+	BaseCurrencies              []string
+	Pairs                       []string
 }
 
 type BitstampTicker struct {
-	Last float64 `json:",string"`
-	High float64 `json:",string"`
-	Low float64 `json:",string"`
-	Vwap float64 `json:",string"`
+	Last   float64 `json:",string"`
+	High   float64 `json:",string"`
+	Low    float64 `json:",string"`
+	Vwap   float64 `json:",string"`
 	Volume float64 `json:",string"`
-	Bid float64 `json:",string"`
-	Ask float64 `json:",string"`
+	Bid    float64 `json:",string"`
+	Ask    float64 `json:",string"`
 }
 
 type BitstampAccountBalance struct {
-	BTCReserved float64 `json:"usd_balance,string"`
-	Fee float64 `json:",string"`
+	BTCReserved  float64 `json:"usd_balance,string"`
+	Fee          float64 `json:",string"`
 	BTCAvailable float64 `json:"btc_balance,string"`
-	USDReserved float64 `json:"usd_reserved,string"`
-	BTCBalance float64 `json:"btc_balance,string"`
-	USDBalance float64 `json:"usd_balance,string"`
+	USDReserved  float64 `json:"usd_reserved,string"`
+	BTCBalance   float64 `json:"btc_balance,string"`
+	USDBalance   float64 `json:"usd_balance,string"`
 	USDAvailable float64 `json:"usd_available,string"`
 }
 
 type Orderbook struct {
 	Timestamp string
-	Bids [][]string
-	Asks [][]string
+	Bids      [][]string
+	Asks      [][]string
 }
 
 type Transactions struct {
 	Date, Price, Amount string
-	Tid int64
+	Tid                 int64
 }
 
 type ConversionRate struct {
-	Buy string
+	Buy  string
 	Sell string
 }
 
@@ -89,7 +91,7 @@ func (b *Bitstamp) SetDefaults() {
 	b.RESTPollingDelay = 10
 }
 
-func (b *Bitstamp) GetName() (string) {
+func (b *Bitstamp) GetName() string {
 	return b.Name
 }
 
@@ -97,11 +99,11 @@ func (b *Bitstamp) SetEnabled(enabled bool) {
 	b.Enabled = enabled
 }
 
-func (b *Bitstamp) IsEnabled() (bool) {
+func (b *Bitstamp) IsEnabled() bool {
 	return b.Enabled
 }
 
-func (b *Bitstamp) GetFee() (float64) {
+func (b *Bitstamp) GetFee() float64 {
 	return b.Balance.Fee
 }
 
@@ -133,11 +135,11 @@ func (b *Bitstamp) Run() {
 	}
 }
 
-func (b *Bitstamp) GetTicker() (BitstampTicker) {
-	err := SendHTTPGetRequest(BITSTAMP_API_URL + BITSTAMP_API_TICKER, true, &b.Ticker)
+func (b *Bitstamp) GetTicker() BitstampTicker {
+	err := SendHTTPGetRequest(BITSTAMP_API_URL+BITSTAMP_API_TICKER, true, &b.Ticker)
 
 	if err != nil {
-		log.Println(err) 
+		log.Println(err)
 		return BitstampTicker{}
 	}
 
@@ -145,28 +147,28 @@ func (b *Bitstamp) GetTicker() (BitstampTicker) {
 }
 
 func (b *Bitstamp) GetOrderbook() {
-	err := SendHTTPGetRequest(BITSTAMP_API_URL + BITSTAMP_API_ORDERBOOK, true, &b.Orderbook)
+	err := SendHTTPGetRequest(BITSTAMP_API_URL+BITSTAMP_API_ORDERBOOK, true, &b.Orderbook)
 
 	if err != nil {
-		log.Println(err) 
+		log.Println(err)
 		return
 	}
 }
 
 func (b *Bitstamp) GetTransactions() {
-	err := SendHTTPGetRequest(BITSTAMP_API_URL + BITSTAMP_API_TRANSACTIONS, true, &b.Transactions)
+	err := SendHTTPGetRequest(BITSTAMP_API_URL+BITSTAMP_API_TRANSACTIONS, true, &b.Transactions)
 
 	if err != nil {
-		log.Println(err) 
+		log.Println(err)
 		return
 	}
 }
 
 func (b *Bitstamp) GetEURUSDConversionRate() {
-	err := SendHTTPGetRequest(BITSTAMP_API_URL + BITSTAMP_API_EURUSD, true, &b.ConversionRate)
+	err := SendHTTPGetRequest(BITSTAMP_API_URL+BITSTAMP_API_EURUSD, true, &b.ConversionRate)
 
 	if err != nil {
-		log.Println(err) 
+		log.Println(err)
 		return
 	}
 }
@@ -220,7 +222,7 @@ func (b *Bitstamp) PlaceOrder(price float64, amount float64, Type int) {
 
 	if Type == 1 {
 		orderType = BITSTAMP_API_SELL
-	} 
+	}
 
 	log.Printf("Placing %s order at price %f for %f amount.\n", orderType, price, amount)
 
@@ -292,7 +294,7 @@ func (b *Bitstamp) SendAuthenticatedHTTPRequest(path string, values url.Values, 
 	nonce := strconv.FormatInt(time.Now().UnixNano(), 10)
 	values.Set("key", b.APIKey)
 	values.Set("nonce", nonce)
-	hmac := GetHMAC(HASH_SHA256, []byte(nonce + b.ClientID + b.APIKey), []byte(b.APISecret))
+	hmac := GetHMAC(HASH_SHA256, []byte(nonce+b.ClientID+b.APIKey), []byte(b.APISecret))
 	values.Set("signature", strings.ToUpper(HexEncodeToString(hmac)))
 	path = BITSTAMP_API_URL + path
 

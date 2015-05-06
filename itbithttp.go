@@ -1,46 +1,48 @@
 package main
 
 import (
-	"strconv"
 	"bytes"
 	"errors"
-	"net/url"
-	"time"
 	"log"
+	"net/url"
+	"strconv"
+	"time"
 )
 
 const (
-	ITBIT_API_URL = "https://api.itbit.com/v1"
+	ITBIT_API_URL     = "https://api.itbit.com/v1"
 	ITBIT_API_VERSION = "1"
 )
 
 type ItBit struct {
-	Name string
-	Enabled bool
-	Verbose bool
-	Websocket bool
-	RESTPollingDelay time.Duration
+	Name                         string
+	Enabled                      bool
+	Verbose                      bool
+	Websocket                    bool
+	RESTPollingDelay             time.Duration
 	ClientKey, APISecret, UserID string
-	MakerFee, TakerFee float64
+	MakerFee, TakerFee           float64
+	BaseCurrencies               []string
+	Pairs                        []string
 }
 
 type ItBitTicker struct {
-	Pair string
-	Bid float64 `json:",string"`
-	BidAmt float64 `json:",string"`
-	Ask float64 `json:",string"`
-	AskAmt float64 `json:",string"`
-	LastPrice float64 `json:",string"`
-	LastAmt float64 `json:",string"`
-	Volume24h float64 `json:",string"`
-	VolumeToday float64 `json:",string"`
-	High24h float64 `json:",string"`
-	Low24h float64 `json:",string"`
-	HighToday float64 `json:",string"`
-	LowToday float64 `json:",string"`
-	OpenToday float64 `json:",string"`
-	VwapToday float64 `json:",string"`
-	Vwap24h float64 `json:",string"`
+	Pair          string
+	Bid           float64 `json:",string"`
+	BidAmt        float64 `json:",string"`
+	Ask           float64 `json:",string"`
+	AskAmt        float64 `json:",string"`
+	LastPrice     float64 `json:",string"`
+	LastAmt       float64 `json:",string"`
+	Volume24h     float64 `json:",string"`
+	VolumeToday   float64 `json:",string"`
+	High24h       float64 `json:",string"`
+	Low24h        float64 `json:",string"`
+	HighToday     float64 `json:",string"`
+	LowToday      float64 `json:",string"`
+	OpenToday     float64 `json:",string"`
+	VwapToday     float64 `json:",string"`
+	Vwap24h       float64 `json:",string"`
 	ServertimeUTC string
 }
 
@@ -51,10 +53,10 @@ func (i *ItBit) SetDefaults() {
 	i.TakerFee = 0.50
 	i.Verbose = false
 	i.Websocket = false
-	i.RESTPollingDelay =  10
+	i.RESTPollingDelay = 10
 }
 
-func (i *ItBit) GetName() (string) {
+func (i *ItBit) GetName() string {
 	return i.Name
 }
 
@@ -62,7 +64,7 @@ func (i *ItBit) SetEnabled(enabled bool) {
 	i.Enabled = enabled
 }
 
-func (i *ItBit) IsEnabled() (bool) {
+func (i *ItBit) IsEnabled() bool {
 	return i.Enabled
 }
 
@@ -72,7 +74,7 @@ func (i *ItBit) SetAPIKeys(apiKey, apiSecret, userID string) {
 	i.UserID = userID
 }
 
-func (i *ItBit) GetFee(maker bool) (float64) {
+func (i *ItBit) GetFee(maker bool) float64 {
 	if maker {
 		return i.MakerFee
 	} else {
@@ -95,7 +97,7 @@ func (i *ItBit) Run() {
 	}
 }
 
-func (i *ItBit) GetTicker(currency string) (ItBitTicker) {
+func (i *ItBit) GetTicker(currency string) ItBitTicker {
 	path := ITBIT_API_URL + "/markets/" + currency + "/ticker"
 	var itbitTicker ItBitTicker
 	err := SendHTTPGetRequest(path, true, &itbitTicker)
@@ -106,9 +108,9 @@ func (i *ItBit) GetTicker(currency string) (ItBitTicker) {
 	return itbitTicker
 }
 
-func (i *ItBit) GetOrderbook(currency string) (bool) {
+func (i *ItBit) GetOrderbook(currency string) bool {
 	path := ITBIT_API_URL + "/markets/" + currency + "/orders"
-	err := SendHTTPGetRequest(path , true, nil)
+	err := SendHTTPGetRequest(path, true, nil)
 	if err != nil {
 		log.Println(err)
 		return false
@@ -116,9 +118,9 @@ func (i *ItBit) GetOrderbook(currency string) (bool) {
 	return true
 }
 
-func (i *ItBit) GetTradeHistory(currency, timestamp string) (bool) {
+func (i *ItBit) GetTradeHistory(currency, timestamp string) bool {
 	req := "/trades?since=" + timestamp
-	err := SendHTTPGetRequest(ITBIT_API_URL + "markets/" + currency + req, true, nil)
+	err := SendHTTPGetRequest(ITBIT_API_URL+"markets/"+currency+req, true, nil)
 	if err != nil {
 		log.Println(err)
 		return false
@@ -160,7 +162,7 @@ func (i *ItBit) GetWallet(walletID string) {
 }
 
 func (i *ItBit) GetWalletBalance(walletID, currency string) {
-	path := "/wallets/ " + walletID +  "/balances/" + currency
+	path := "/wallets/ " + walletID + "/balances/" + currency
 	err := i.SendAuthenticatedHTTPRequest("GET", path, nil)
 
 	if err != nil {
@@ -278,7 +280,7 @@ func (i *ItBit) WalletTransfer(walletID, sourceWallet, destWallet string, amount
 
 func (i *ItBit) SendAuthenticatedHTTPRequest(method string, path string, params map[string]interface{}) (err error) {
 	timestamp := strconv.FormatInt(time.Now().UnixNano(), 10)[0:13]
-	nonce, err :=  strconv.Atoi(timestamp)
+	nonce, err := strconv.Atoi(timestamp)
 
 	if err != nil {
 		return err
@@ -289,7 +291,7 @@ func (i *ItBit) SendAuthenticatedHTTPRequest(method string, path string, params 
 	url := ITBIT_API_URL + path
 
 	if params != nil {
-		for key, value:= range params {
+		for key, value := range params {
 			request[key] = value
 		}
 	}
@@ -297,8 +299,8 @@ func (i *ItBit) SendAuthenticatedHTTPRequest(method string, path string, params 
 	PayloadJson := []byte("")
 
 	if params != nil {
-		PayloadJson, err = JSONEncode(request)	
-	
+		PayloadJson, err = JSONEncode(request)
+
 		if err != nil {
 			return errors.New("SendAuthenticatedHTTPRequest: Unable to JSON Marshal request")
 		}
@@ -316,7 +318,7 @@ func (i *ItBit) SendAuthenticatedHTTPRequest(method string, path string, params 
 	}
 
 	hash := GetSHA256([]byte(nonceStr + string(message)))
-	hmac := GetHMAC(HASH_SHA512, []byte(url + string(hash)), []byte(i.APISecret))
+	hmac := GetHMAC(HASH_SHA512, []byte(url+string(hash)), []byte(i.APISecret))
 	signature := Base64Encode(hmac)
 
 	headers := make(map[string]string)

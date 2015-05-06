@@ -37,6 +37,8 @@ type Coinbase struct {
 	RESTPollingDelay            time.Duration
 	Password, APIKey, APISecret string
 	TakerFee, MakerFee          float64
+	BaseCurrencies              []string
+	Pairs                       []string
 }
 
 type CoinbaseTicker struct {

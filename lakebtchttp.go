@@ -1,45 +1,47 @@
 package main
 
 import (
+	"errors"
+	"log"
 	"net/url"
 	"strconv"
-	"errors"
 	"strings"
 	"time"
-	"log"
 )
 
 const (
-	LAKEBTC_API_URL = "https://www.LakeBTC.com/api_v1/"
-	LAKEBTC_API_VERSION = "1"
-	LAKEBTC_TICKER = "ticker"
-	LAKEBTC_ORDERBOOK = "bcorderbook"
-	LAKEBTC_ORDERBOOK_CNY = "bcorderbook_cny"
-	LAKEBTC_TRADES = "bctrades"
+	LAKEBTC_API_URL          = "https://www.LakeBTC.com/api_v1/"
+	LAKEBTC_API_VERSION      = "1"
+	LAKEBTC_TICKER           = "ticker"
+	LAKEBTC_ORDERBOOK        = "bcorderbook"
+	LAKEBTC_ORDERBOOK_CNY    = "bcorderbook_cny"
+	LAKEBTC_TRADES           = "bctrades"
 	LAKEBTC_GET_ACCOUNT_INFO = "getAccountInfo"
-	LAKEBTC_BUY_ORDER = "buyOrder"
-	LAKEBTC_SELL_ORDER = "sellOrder"
-	LAKEBTC_GET_ORDERS = "getOrders"
-	LAKEBTC_CANCEL_ORDER = "cancelOrder"
-	LAKEBTC_GET_TRADES = "getTrades"
+	LAKEBTC_BUY_ORDER        = "buyOrder"
+	LAKEBTC_SELL_ORDER       = "sellOrder"
+	LAKEBTC_GET_ORDERS       = "getOrders"
+	LAKEBTC_CANCEL_ORDER     = "cancelOrder"
+	LAKEBTC_GET_TRADES       = "getTrades"
 )
 
 type LakeBTC struct {
-	Name string
-	Enabled bool
-	Verbose bool
-	Websocket bool
-	RESTPollingDelay time.Duration
-	Email, APISecret string
+	Name               string
+	Enabled            bool
+	Verbose            bool
+	Websocket          bool
+	RESTPollingDelay   time.Duration
+	Email, APISecret   string
 	TakerFee, MakerFee float64
+	BaseCurrencies     []string
+	Pairs              []string
 }
 
 type LakeBTCTicker struct {
-	Last float64
-	Bid float64
-	Ask float64
-	High float64
-	Low float64
+	Last   float64
+	Bid    float64
+	Ask    float64
+	High   float64
+	Low    float64
 	Volume float64
 }
 
@@ -63,7 +65,7 @@ func (l *LakeBTC) SetDefaults() {
 	l.RESTPollingDelay = 10
 }
 
-func (l *LakeBTC) GetName() (string) {
+func (l *LakeBTC) GetName() string {
 	return l.Name
 }
 
@@ -71,7 +73,7 @@ func (l *LakeBTC) SetEnabled(enabled bool) {
 	l.Enabled = enabled
 }
 
-func (l *LakeBTC) IsEnabled() (bool) {
+func (l *LakeBTC) IsEnabled() bool {
 	return l.Enabled
 }
 
@@ -80,8 +82,8 @@ func (l *LakeBTC) SetAPIKeys(apiKey, apiSecret string) {
 	l.APISecret = apiSecret
 }
 
-func (l *LakeBTC) GetFee(maker bool) (float64) {
-	if (maker) {
+func (l *LakeBTC) GetFee(maker bool) float64 {
+	if maker {
 		return l.MakerFee
 	} else {
 		return l.TakerFee
@@ -108,9 +110,9 @@ func (l *LakeBTC) Run() {
 	}
 }
 
-func (l *LakeBTC) GetTicker() (LakeBTCTickerResponse) {
+func (l *LakeBTC) GetTicker() LakeBTCTickerResponse {
 	response := LakeBTCTickerResponse{}
-	err := SendHTTPGetRequest(LAKEBTC_API_URL + LAKEBTC_TICKER, true, &response)
+	err := SendHTTPGetRequest(LAKEBTC_API_URL+LAKEBTC_TICKER, true, &response)
 	if err != nil {
 		log.Println(err)
 		return response
@@ -118,13 +120,13 @@ func (l *LakeBTC) GetTicker() (LakeBTCTickerResponse) {
 	return response
 }
 
-func (l *LakeBTC) GetOrderBook(currency string) (bool) {
+func (l *LakeBTC) GetOrderBook(currency string) bool {
 	req := LAKEBTC_ORDERBOOK
 	if currency == "CNY" {
 		req = LAKEBTC_ORDERBOOK_CNY
 	}
 
-	err := SendHTTPGetRequest(LAKEBTC_API_URL + req, true, nil)
+	err := SendHTTPGetRequest(LAKEBTC_API_URL+req, true, nil)
 	if err != nil {
 		log.Println(err)
 		return false
@@ -132,8 +134,8 @@ func (l *LakeBTC) GetOrderBook(currency string) (bool) {
 	return true
 }
 
-func (l *LakeBTC) GetTradeHistory() (bool) {
-	err := SendHTTPGetRequest(LAKEBTC_API_URL + LAKEBTC_TRADES, true, nil)
+func (l *LakeBTC) GetTradeHistory() bool {
+	err := SendHTTPGetRequest(LAKEBTC_API_URL+LAKEBTC_TRADES, true, nil)
 	if err != nil {
 		log.Println(err)
 		return false
@@ -185,7 +187,7 @@ func (l *LakeBTC) GetTrades(timestamp time.Time) {
 	if !timestamp.IsZero() {
 		params = strconv.FormatInt(timestamp.Unix(), 10)
 	}
-	
+
 	err := l.SendAuthenticatedHTTPRequest(LAKEBTC_GET_TRADES, params)
 	if err != nil {
 		log.Println(err)
@@ -223,6 +225,6 @@ func (l *LakeBTC) SendAuthenticatedHTTPRequest(method, params string) (err error
 	if l.Verbose {
 		log.Printf("Recieved raw: %s\n", resp)
 	}
-	
+
 	return nil
 }

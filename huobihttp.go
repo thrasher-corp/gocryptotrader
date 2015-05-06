@@ -1,40 +1,42 @@
 package main
 
 import (
-	"net/url"
-	"strings"
-	"strconv"
-	"time"
 	"fmt"
 	"log"
+	"net/url"
+	"strconv"
+	"strings"
+	"time"
 )
 
 const (
-	HUOBI_API_URL = "https://api.huobi.com/apiv2.php"
+	HUOBI_API_URL     = "https://api.huobi.com/apiv2.php"
 	HUOBI_API_VERSION = "2"
 )
 
 type HUOBI struct {
-	Name string
-	Enabled bool
-	Verbose bool
-	Websocket bool
-	RESTPollingDelay time.Duration
+	Name                 string
+	Enabled              bool
+	Verbose              bool
+	Websocket            bool
+	RESTPollingDelay     time.Duration
 	AccessKey, SecretKey string
-	Fee float64
+	Fee                  float64
+	BaseCurrencies       []string
+	Pairs                []string
 }
 
 type HuobiTicker struct {
 	High float64
-	Low float64
-	Last float64 
-	Vol float64 
-	Buy float64 
-	Sell float64 
+	Low  float64
+	Last float64
+	Vol  float64
+	Buy  float64
+	Sell float64
 }
 
 type HuobiTickerResponse struct {
-	Time string
+	Time   string
 	Ticker HuobiTicker
 }
 
@@ -47,7 +49,7 @@ func (h *HUOBI) SetDefaults() {
 	h.RESTPollingDelay = 10
 }
 
-func (h *HUOBI) GetName() (string) {
+func (h *HUOBI) GetName() string {
 	return h.Name
 }
 
@@ -55,7 +57,7 @@ func (h *HUOBI) SetEnabled(enabled bool) {
 	h.Enabled = enabled
 }
 
-func (h *HUOBI) IsEnabled() (bool) {
+func (h *HUOBI) IsEnabled() bool {
 	return h.Enabled
 }
 
@@ -64,7 +66,7 @@ func (h *HUOBI) SetAPIKeys(apiKey, apiSecret string) {
 	h.SecretKey = apiSecret
 }
 
-func (h *HUOBI) GetFee() (float64) {
+func (h *HUOBI) GetFee() float64 {
 	return h.Fee
 }
 
@@ -100,7 +102,7 @@ func (h *HUOBI) Run() {
 	}
 }
 
-func (h *HUOBI) GetTicker(symbol string) (HuobiTicker) {
+func (h *HUOBI) GetTicker(symbol string) HuobiTicker {
 	resp := HuobiTickerResponse{}
 	path := fmt.Sprintf("http://market.huobi.com/staticmarket/ticker_%s_json.js", symbol)
 	err := SendHTTPGetRequest(path, true, &resp)
@@ -112,7 +114,7 @@ func (h *HUOBI) GetTicker(symbol string) (HuobiTicker) {
 	return resp.Ticker
 }
 
-func (h *HUOBI) GetOrderBook(symbol string) (bool) {
+func (h *HUOBI) GetOrderBook(symbol string) bool {
 	path := fmt.Sprintf("http://market.huobi.com/staticmarket/depth_%s_json.js", symbol)
 	err := SendHTTPGetRequest(path, true, nil)
 	if err != nil {
@@ -129,7 +131,6 @@ func (h *HUOBI) GetAccountInfo() {
 		log.Println(err)
 	}
 }
-
 
 func (h *HUOBI) GetOrders(coinType int) {
 	values := url.Values{}
@@ -159,7 +160,7 @@ func (h *HUOBI) Trade(orderType string, coinType int, price, amount float64) {
 	}
 	values.Set("coin_type", strconv.Itoa(coinType))
 	values.Set("amount", strconv.FormatFloat(amount, 'f', 8, 64))
-	values.Set("price",  strconv.FormatFloat(price, 'f', 8, 64))
+	values.Set("price", strconv.FormatFloat(price, 'f', 8, 64))
 	err := h.SendAuthenticatedRequest(orderType, values)
 
 	if err != nil {
@@ -174,7 +175,7 @@ func (h *HUOBI) MarketTrade(orderType string, coinType int, price, amount float6
 	}
 	values.Set("coin_type", strconv.Itoa(coinType))
 	values.Set("amount", strconv.FormatFloat(amount, 'f', 8, 64))
-	values.Set("price",  strconv.FormatFloat(price, 'f', 8, 64))
+	values.Set("price", strconv.FormatFloat(price, 'f', 8, 64))
 	err := h.SendAuthenticatedRequest(orderType, values)
 
 	if err != nil {
@@ -198,7 +199,7 @@ func (h *HUOBI) ModifyOrder(orderType string, coinType, orderID int, price, amou
 	values.Set("coin_type", strconv.Itoa(coinType))
 	values.Set("id", strconv.Itoa(orderID))
 	values.Set("amount", strconv.FormatFloat(amount, 'f', 8, 64))
-	values.Set("price",  strconv.FormatFloat(price, 'f', 8, 64))
+	values.Set("price", strconv.FormatFloat(price, 'f', 8, 64))
 	err := h.SendAuthenticatedRequest("modify_order", values)
 
 	if err != nil {
@@ -227,7 +228,7 @@ func (h *HUOBI) GetOrderIDByTradeID(coinType, orderID int) {
 	}
 }
 
-func (h *HUOBI) SendAuthenticatedRequest(method string, v url.Values) (error) {
+func (h *HUOBI) SendAuthenticatedRequest(method string, v url.Values) error {
 	v.Set("access_key", h.AccessKey)
 	v.Set("created", strconv.FormatInt(time.Now().Unix(), 10))
 	v.Set("method", method)
@@ -251,6 +252,6 @@ func (h *HUOBI) SendAuthenticatedRequest(method string, v url.Values) (error) {
 	if h.Verbose {
 		log.Printf("Recieved raw: %s\n", resp)
 	}
-	
+
 	return nil
 }

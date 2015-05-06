@@ -1,53 +1,55 @@
 package main
 
 import (
-	"log"
-	"fmt"
-	"strconv"
 	"errors"
-	"time"
-	"strings"
+	"fmt"
+	"log"
 	"net/url"
+	"strconv"
+	"strings"
+	"time"
 )
 
 const (
-	KRAKEN_API_URL = "https://api.kraken.com"
-	KRAKEN_API_VERSION = "0"
-	KRAKEN_SERVER_TIME = "Time"
-	KRAKEN_ASSETS = "Assets"
-	KRAKEN_ASSET_PAIRS = "AssetPairs"
-	KRAKEN_TICKER = "Ticker"
-	KRAKEN_OHLC = "OHLC"
-	KRAKEN_DEPTH = "Depth"
-	KRAKEN_TRADES = "Trades"
-	KRAKEN_SPREAD = "Spread"
-	KRAKEN_BALANCE = "Balance"
-	KRAKEN_TRADE_BALANCE = "TradeBalance"
-	KRAKEN_OPEN_ORDERS = "OpenOrders"
-	KRAKEN_CLOSED_ORDERS = "ClosedOrders"
-	KRAKEN_QUERY_ORDERS = "QueryOrders"
+	KRAKEN_API_URL        = "https://api.kraken.com"
+	KRAKEN_API_VERSION    = "0"
+	KRAKEN_SERVER_TIME    = "Time"
+	KRAKEN_ASSETS         = "Assets"
+	KRAKEN_ASSET_PAIRS    = "AssetPairs"
+	KRAKEN_TICKER         = "Ticker"
+	KRAKEN_OHLC           = "OHLC"
+	KRAKEN_DEPTH          = "Depth"
+	KRAKEN_TRADES         = "Trades"
+	KRAKEN_SPREAD         = "Spread"
+	KRAKEN_BALANCE        = "Balance"
+	KRAKEN_TRADE_BALANCE  = "TradeBalance"
+	KRAKEN_OPEN_ORDERS    = "OpenOrders"
+	KRAKEN_CLOSED_ORDERS  = "ClosedOrders"
+	KRAKEN_QUERY_ORDERS   = "QueryOrders"
 	KRAKEN_TRADES_HISTORY = "TradesHistory"
-	KRAKEN_QUERY_TRADES = "QueryTrades"
+	KRAKEN_QUERY_TRADES   = "QueryTrades"
 	KRAKEN_OPEN_POSITIONS = "OpenPositions"
-	KRAKEN_LEDGERS = "Ledgers"
-	KRAKEN_QUERY_LEDGERS = "QueryLedgers"
-	KRAKEN_TRADE_VOLUME = "TradeVolume"
-	KRAKEN_ORDER_CANCEL = "CancelOrder"
-	KRAKEN_ORDER_PLACE = "AddOrder"
+	KRAKEN_LEDGERS        = "Ledgers"
+	KRAKEN_QUERY_LEDGERS  = "QueryLedgers"
+	KRAKEN_TRADE_VOLUME   = "TradeVolume"
+	KRAKEN_ORDER_CANCEL   = "CancelOrder"
+	KRAKEN_ORDER_PLACE    = "AddOrder"
 )
 
 type Kraken struct {
-	Name string
-	Enabled bool
-	Verbose bool
-	Websocket bool
-	RESTPollingDelay time.Duration
+	Name                 string
+	Enabled              bool
+	Verbose              bool
+	Websocket            bool
+	RESTPollingDelay     time.Duration
 	ClientKey, APISecret string
-	FiatFee, CryptoFee float64
+	FiatFee, CryptoFee   float64
+	BaseCurrencies       []string
+	Pairs                []string
 }
 
 type KrakenResponse struct {
-	Error []string `json:error`
+	Error  []string               `json:error`
 	Result map[string]interface{} `json:result`
 }
 
@@ -61,7 +63,7 @@ func (k *Kraken) SetDefaults() {
 	k.RESTPollingDelay = 10
 }
 
-func (k *Kraken) GetName() (string) {
+func (k *Kraken) GetName() string {
 	return k.Name
 }
 
@@ -69,7 +71,7 @@ func (k *Kraken) SetEnabled(enabled bool) {
 	k.Enabled = enabled
 }
 
-func (k *Kraken) IsEnabled() (bool) {
+func (k *Kraken) IsEnabled() bool {
 	return k.Enabled
 }
 
@@ -78,7 +80,7 @@ func (k *Kraken) SetAPIKeys(apiKey, apiSecret string) {
 	k.APISecret = apiSecret
 }
 
-func (k *Kraken) GetFee(cryptoTrade bool) (float64) {
+func (k *Kraken) GetFee(cryptoTrade bool) float64 {
 	if cryptoTrade {
 		return k.CryptoFee
 	} else {
@@ -284,7 +286,7 @@ func (k *Kraken) GetOpenOrders(showTrades bool, userref int64) {
 
 func (k *Kraken) GetClosedOrders(showTrades bool, userref, start, end, offset int64, closetime string) {
 	values := url.Values{}
-	
+
 	if showTrades {
 		values.Set("trades", "true")
 	}
@@ -321,7 +323,7 @@ func (k *Kraken) GetClosedOrders(showTrades bool, userref, start, end, offset in
 
 func (k *Kraken) QueryOrdersInfo(showTrades bool, userref, txid int64) {
 	values := url.Values{}
-	
+
 	if showTrades {
 		values.Set("trades", "true")
 	}
@@ -331,7 +333,7 @@ func (k *Kraken) QueryOrdersInfo(showTrades bool, userref, txid int64) {
 	}
 
 	if txid != 0 {
-		values.Set("txid",  strconv.FormatInt(userref, 10))
+		values.Set("txid", strconv.FormatInt(userref, 10))
 	}
 
 	result, err := k.SendAuthenticatedHTTPRequest(KRAKEN_QUERY_ORDERS, values)
@@ -346,7 +348,7 @@ func (k *Kraken) QueryOrdersInfo(showTrades bool, userref, txid int64) {
 
 func (k *Kraken) GetTradesHistory(tradeType string, showRelatedTrades bool, start, end, offset int64) {
 	values := url.Values{}
-	
+
 	if len(tradeType) > 0 {
 		values.Set("aclass", tradeType)
 	}
@@ -415,7 +417,7 @@ func (k *Kraken) OpenPositions(txid int64, showPL bool) {
 
 func (k *Kraken) GetLedgers(symbol, asset, ledgerType string, start, end, offset int64) {
 	values := url.Values{}
-	
+
 	if len(symbol) > 0 {
 		values.Set("aclass", symbol)
 	}
@@ -533,7 +535,7 @@ func (k *Kraken) SendAuthenticatedHTTPRequest(method string, values url.Values) 
 	headers["API-Key"] = k.ClientKey
 	headers["API-Sign"] = signature
 
-	resp, err := SendHTTPRequest("POST", KRAKEN_API_URL + path, headers, strings.NewReader(values.Encode()))
+	resp, err := SendHTTPRequest("POST", KRAKEN_API_URL+path, headers, strings.NewReader(values.Encode()))
 
 	if err != nil {
 		return nil, err
@@ -542,7 +544,7 @@ func (k *Kraken) SendAuthenticatedHTTPRequest(method string, values url.Values) 
 	if k.Verbose {
 		log.Printf("Recieved raw: \n%s\n", resp)
 	}
-	
+
 	kresp := KrakenResponse{}
 	err = JSONDecode([]byte(resp), &kresp)
 
