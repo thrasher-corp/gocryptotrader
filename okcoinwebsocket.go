@@ -499,7 +499,7 @@ func (o *OKCoin) WebsocketClient(currencies []string) {
 					}
 
 					switch true {
-					case strings.Contains(channelStr, "ticker") && !strings.Contains(channelStr, "future"):
+					case StringContains(channelStr, "ticker") && !StringContains(channelStr, "future"):
 						ticker := OKCoinWebsocketTicker{}
 						err = JSONDecode(dataJSON, &ticker)
 
@@ -507,7 +507,7 @@ func (o *OKCoin) WebsocketClient(currencies []string) {
 							log.Println(err)
 							continue
 						}
-					case strings.Contains(channelStr, "ticker") && strings.Contains(channelStr, "future"):
+					case StringContains(channelStr, "ticker") && StringContains(channelStr, "future"):
 						ticker := OKCoinWebsocketFuturesTicker{}
 						err = JSONDecode(dataJSON, &ticker)
 
@@ -515,7 +515,7 @@ func (o *OKCoin) WebsocketClient(currencies []string) {
 							log.Println(err)
 							continue
 						}
-					case strings.Contains(channelStr, "depth"):
+					case StringContains(channelStr, "depth"):
 						orderbook := OKCoinWebsocketOrderbook{}
 						err = JSONDecode(dataJSON, &orderbook)
 
@@ -523,7 +523,7 @@ func (o *OKCoin) WebsocketClient(currencies []string) {
 							log.Println(err)
 							continue
 						}
-					case strings.Contains(channelStr, "trades_v1") || strings.Contains(channelStr, "trade_v1"):
+					case StringContains(channelStr, "trades_v1") || StringContains(channelStr, "trade_v1"):
 						type TradeResponse struct {
 							Data [][]string
 						}
@@ -536,7 +536,7 @@ func (o *OKCoin) WebsocketClient(currencies []string) {
 							continue
 						}
 						// to-do: convert from string array to trade struct
-					case strings.Contains(channelStr, "kline"):
+					case StringContains(channelStr, "kline"):
 						klines := []interface{}{}
 						err := JSONDecode(dataJSON, &klines)
 
@@ -544,7 +544,7 @@ func (o *OKCoin) WebsocketClient(currencies []string) {
 							log.Println(err)
 							continue
 						}
-					case strings.Contains(channelStr, "spot") && strings.Contains(channelStr, "realtrades"):
+					case StringContains(channelStr, "spot") && StringContains(channelStr, "realtrades"):
 						if string(dataJSON) == "null" {
 							continue
 						}
@@ -555,7 +555,7 @@ func (o *OKCoin) WebsocketClient(currencies []string) {
 							log.Println(err)
 							continue
 						}
-					case strings.Contains(channelStr, "future") && strings.Contains(channelStr, "realtrades"):
+					case StringContains(channelStr, "future") && StringContains(channelStr, "realtrades"):
 						if string(dataJSON) == "null" {
 							continue
 						}
@@ -566,7 +566,7 @@ func (o *OKCoin) WebsocketClient(currencies []string) {
 							log.Println(err)
 							continue
 						}
-					case strings.Contains(channelStr, "spot") && strings.Contains(channelStr, "trade") || strings.Contains(channelStr, "futures") && strings.Contains(channelStr, "trade"):
+					case StringContains(channelStr, "spot") && StringContains(channelStr, "trade") || StringContains(channelStr, "futures") && StringContains(channelStr, "trade"):
 						tradeOrder := OKCoinWebsocketTradeOrderResponse{}
 						err := JSONDecode(dataJSON, &tradeOrder)
 
@@ -574,7 +574,7 @@ func (o *OKCoin) WebsocketClient(currencies []string) {
 							log.Println(err)
 							continue
 						}
-					case strings.Contains(channelStr, "cancel_order"):
+					case StringContains(channelStr, "cancel_order"):
 						cancelOrder := OKCoinWebsocketTradeOrderResponse{}
 						err := JSONDecode(dataJSON, &cancelOrder)
 
@@ -582,7 +582,7 @@ func (o *OKCoin) WebsocketClient(currencies []string) {
 							log.Println(err)
 							continue
 						}
-					case strings.Contains(channelStr, "spot") && strings.Contains(channelStr, "userinfo"):
+					case StringContains(channelStr, "spot") && StringContains(channelStr, "userinfo"):
 						userinfo := OKCoinWebsocketUserinfo{}
 						err = JSONDecode(dataJSON, &userinfo)
 
@@ -590,7 +590,7 @@ func (o *OKCoin) WebsocketClient(currencies []string) {
 							log.Println(err)
 							continue
 						}
-					case strings.Contains(channelStr, "futureusd_userinfo"):
+					case StringContains(channelStr, "futureusd_userinfo"):
 						userinfo := OKCoinWebsocketFuturesUserInfo{}
 						err = JSONDecode(dataJSON, &userinfo)
 
@@ -598,7 +598,7 @@ func (o *OKCoin) WebsocketClient(currencies []string) {
 							log.Println(err)
 							continue
 						}
-					case strings.Contains(channelStr, "spot") && strings.Contains(channelStr, "order_info"):
+					case StringContains(channelStr, "spot") && StringContains(channelStr, "order_info"):
 						type OrderInfoResponse struct {
 							Result bool                   `json:"result"`
 							Orders []OKCoinWebsocketOrder `json:"orders"`
@@ -610,7 +610,7 @@ func (o *OKCoin) WebsocketClient(currencies []string) {
 							log.Println(err)
 							continue
 						}
-					case strings.Contains(channelStr, "futureusd_order_info"):
+					case StringContains(channelStr, "futureusd_order_info"):
 						type OrderInfoResponse struct {
 							Result bool                          `json:"result"`
 							Orders []OKCoinWebsocketFuturesOrder `json:"orders"`
@@ -622,7 +622,7 @@ func (o *OKCoin) WebsocketClient(currencies []string) {
 							log.Println(err)
 							continue
 						}
-					case strings.Contains(channelStr, "future_index"):
+					case StringContains(channelStr, "future_index"):
 						index := OKCoinWebsocketFutureIndex{}
 						err = JSONDecode(dataJSON, &index)
 

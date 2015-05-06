@@ -711,7 +711,7 @@ func (b *BTCChina) SendAuthenticatedHTTPRequest(method string, params []interfac
 				}
 			}
 		}
-		encoded += strings.Join(items, ",")
+		encoded += JoinStrings(items, ",")
 	}
 	if b.Verbose {
 		log.Println(encoded)

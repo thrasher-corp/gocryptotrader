@@ -3,7 +3,6 @@ package main
 import (
 	"github.com/toorop/go-pusher"
 	"log"
-	"strings"
 )
 
 type CryptsyPusherTrade struct {
@@ -72,7 +71,7 @@ func (c *Cryptsy) PusherClient(marketID []string) {
 		for c.Enabled && c.Websocket {
 			select {
 			case data := <-dataChannel:
-				if strings.Contains(data.Data, "topbuy") {
+				if StringContains(data.Data, "topbuy") {
 					result := CryptsyPusherTicker{}
 					err := JSONDecode([]byte(data.Data), &result)
 					if err != nil {

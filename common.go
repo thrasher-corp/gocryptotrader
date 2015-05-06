@@ -87,6 +87,10 @@ func Base64Encode(input []byte) string {
 	return base64.StdEncoding.EncodeToString(input)
 }
 
+func StringContains(input, substring string) bool {
+	return strings.Contains(input, substring)
+}
+
 func JoinStrings(input []string, seperator string) string {
 	return strings.Join(input, seperator)
 }

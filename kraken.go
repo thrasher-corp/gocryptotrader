@@ -149,9 +149,9 @@ func (k *Kraken) GetTicker(symbol string) interface{} {
 		log.Println(err)
 		return ""
 	}
-	if strings.Contains(symbol, "LTC") {
+	if StringContains(symbol, "LTC") {
 		return result["XLTCZUSD"]
-	} else if strings.Contains(symbol, "XBT") {
+	} else if StringContains(symbol, "XBT") {
 		return result["XXBTZUSD"]
 	}
 	return nil

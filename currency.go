@@ -1,28 +1,28 @@
 package main
 
 import (
+	"errors"
 	"fmt"
+	"log"
 	"net/url"
 	"strings"
 	"time"
-	"errors"
-	"log"
 )
 
 type Rate struct {
-	Id string `json:"id"`
-	Name string `json:"Name"`
+	Id   string  `json:"id"`
+	Name string  `json:"Name"`
 	Rate float64 `json:",string"`
-	Date string `json:"Date"`
-	Time string `json:"Time"`
-	Ask float64 `json:",string"`
-	Bid float64 `json:",string"`
+	Date string  `json:"Date"`
+	Time string  `json:"Time"`
+	Ask  float64 `json:",string"`
+	Bid  float64 `json:",string"`
 }
 
 type YahooJSONResponseInfo struct {
-	Count int `json:"count"`
+	Count   int       `json:"count"`
 	Created time.Time `json:"created"`
-	Lang string `json:"lang"`
+	Lang    string    `json:"lang"`
 }
 
 type YahooJSONResponse struct {
@@ -35,41 +35,40 @@ type YahooJSONResponse struct {
 }
 
 const (
-	YAHOO_YQL_URL = "http://query.yahooapis.com/v1/public/yql"
-	YAHOO_DATABASE = "store://datatables.org/alltableswithkeys"
+	YAHOO_YQL_URL      = "http://query.yahooapis.com/v1/public/yql"
+	YAHOO_DATABASE     = "store://datatables.org/alltableswithkeys"
 	DEFAULT_CURRENCIES = "USD,AUD,EUR,CNY"
-
 )
 
 var (
-	CurrencyStore YahooJSONResponse
+	CurrencyStore             YahooJSONResponse
 	ErrCurrencyDataNotFetched = errors.New("Yahoo currency data has not been fetched yet.")
-	ErrCurrencyNotFound = errors.New("Unable to find specified currency.")
-	ErrQueryingYahoo = errors.New("Unable to query Yahoo currency values.")
+	ErrCurrencyNotFound       = errors.New("Unable to find specified currency.")
+	ErrQueryingYahoo          = errors.New("Unable to query Yahoo currency values.")
 )
 
-func RetrieveConfigCurrencyPairs(config Config) (error) {
+func RetrieveConfigCurrencyPairs(config Config) error {
 	currencyPairs := ""
 	for _, exchange := range config.Exchanges {
-		if (exchange.Enabled) {
+		if exchange.Enabled {
 			var result []string
-			if strings.Contains(exchange.BaseCurrencies, ",") {
-				result = strings.Split(exchange.BaseCurrencies, ",")
+			if StringContains(exchange.BaseCurrencies, ",") {
+				result = SplitStrings(exchange.BaseCurrencies, ",")
 			} else {
-				if strings.Contains(DEFAULT_CURRENCIES, exchange.BaseCurrencies) {
-					result = strings.Split(DEFAULT_CURRENCIES, ",")
+				if StringContains(DEFAULT_CURRENCIES, exchange.BaseCurrencies) {
+					result = SplitStrings(DEFAULT_CURRENCIES, ",")
 				} else {
-					result = strings.Split(exchange.BaseCurrencies + "," + DEFAULT_CURRENCIES, ",")
+					result = SplitStrings(exchange.BaseCurrencies+","+DEFAULT_CURRENCIES, ",")
 				}
 			}
 			for _, s := range result {
-				if (!strings.Contains(currencyPairs, s)) {
+				if !StringContains(currencyPairs, s) {
 					currencyPairs += s + ","
 				}
 			}
 		}
 	}
-	currencyPairs = currencyPairs[0:len(currencyPairs)-1]
+	currencyPairs = currencyPairs[0 : len(currencyPairs)-1]
 	err := QueryYahooCurrencyValues(currencyPairs)
 
 	if err != nil {
@@ -80,8 +79,8 @@ func RetrieveConfigCurrencyPairs(config Config) (error) {
 	return nil
 }
 
-func MakecurrencyPairs(supportedCurrencies string) (string) {
-	currencies := strings.Split(supportedCurrencies, ",")
+func MakecurrencyPairs(supportedCurrencies string) string {
+	currencies := SplitStrings(supportedCurrencies, ",")
 	pairs := ""
 	count := len(currencies)
 	for i := 0; i < count; i++ {
@@ -92,7 +91,7 @@ func MakecurrencyPairs(supportedCurrencies string) (string) {
 			}
 		}
 	}
-	return pairs[0:len(pairs)-1]
+	return pairs[0 : len(pairs)-1]
 }
 
 func ConvertCurrency(amount float64, from, to string) (float64, error) {
@@ -109,7 +108,7 @@ func ConvertCurrency(amount float64, from, to string) (float64, error) {
 	return 0, ErrCurrencyNotFound
 }
 
-func QueryYahooCurrencyValues(currencies string) (error) {
+func QueryYahooCurrencyValues(currencies string) error {
 	currencyPairs := MakecurrencyPairs(currencies)
 	log.Printf("Supported currency pairs: %s\n", currencyPairs)
 
@@ -128,10 +127,10 @@ func QueryYahooCurrencyValues(currencies string) (error) {
 	}
 
 	err = JSONDecode([]byte(resp), &CurrencyStore)
-	
+
 	if err != nil {
 		return err
 	}
-	
+
 	return nil
 }
