@@ -44,7 +44,8 @@ type Bitstamp struct {
 	Balance                     BitstampAccountBalance
 	TakerFee, MakerFee          float64
 	BaseCurrencies              []string
-	Pairs                       []string
+	AvailablePairs              []string
+	EnabledPairs                []string
 }
 
 type BitstampTicker struct {
@@ -117,20 +118,22 @@ func (b *Bitstamp) Run() {
 	if b.Verbose {
 		log.Printf("%s Websocket: %s.", b.GetName(), IsEnabled(b.Websocket))
 		log.Printf("%s polling delay: %ds.\n", b.GetName(), b.RESTPollingDelay)
+		log.Printf("%s %d currencies enabled: %s.\n", b.GetName(), len(b.EnabledPairs), b.EnabledPairs)
 	}
-
-	b.GetBalance()
 
 	if b.Websocket {
 		go b.PusherClient()
 	}
 
 	for b.Enabled {
-		go func() {
-			BitstampBTC := b.GetTicker()
-			log.Printf("Bitstamp BTC: Last %f High %f Low %f Volume %f\n", BitstampBTC.Last, BitstampBTC.High, BitstampBTC.Low, BitstampBTC.Volume)
-			AddExchangeInfo(b.GetName(), "BTC", BitstampBTC.Last, BitstampBTC.Volume)
-		}()
+		for _, x := range b.EnabledPairs {
+			currency := x
+			go func() {
+				ticker := b.GetTicker()
+				log.Printf("Bitstamp %s: Last %f High %f Low %f Volume %f\n", currency, ticker.Last, ticker.High, ticker.Low, ticker.Volume)
+				AddExchangeInfo(b.GetName(), currency, ticker.Last, ticker.Volume)
+			}()
+		}
 		time.Sleep(time.Second * b.RESTPollingDelay)
 	}
 }

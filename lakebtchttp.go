@@ -33,7 +33,8 @@ type LakeBTC struct {
 	Email, APISecret   string
 	TakerFee, MakerFee float64
 	BaseCurrencies     []string
-	Pairs              []string
+	AvailablePairs     []string
+	EnabledPairs       []string
 }
 
 type LakeBTCTicker struct {

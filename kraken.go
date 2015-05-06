@@ -45,7 +45,8 @@ type Kraken struct {
 	ClientKey, APISecret string
 	FiatFee, CryptoFee   float64
 	BaseCurrencies       []string
-	Pairs                []string
+	AvailablePairs       []string
+	EnabledPairs         []string
 }
 
 type KrakenResponse struct {

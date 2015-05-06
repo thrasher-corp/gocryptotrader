@@ -23,7 +23,8 @@ type ItBit struct {
 	ClientKey, APISecret, UserID string
 	MakerFee, TakerFee           float64
 	BaseCurrencies               []string
-	Pairs                        []string
+	AvailablePairs               []string
+	EnabledPairs                 []string
 }
 
 type ItBitTicker struct {

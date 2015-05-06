@@ -23,7 +23,8 @@ type HUOBI struct {
 	AccessKey, SecretKey string
 	Fee                  float64
 	BaseCurrencies       []string
-	Pairs                []string
+	AvailablePairs       []string
+	EnabledPairs         []string
 }
 
 type HuobiTicker struct {
@@ -74,6 +75,7 @@ func (h *HUOBI) Run() {
 	if h.Verbose {
 		log.Printf("%s Websocket: %s (url: %s).\n", h.GetName(), IsEnabled(h.Websocket), HUOBI_SOCKETIO_ADDRESS)
 		log.Printf("%s polling delay: %ds.\n", h.GetName(), h.RESTPollingDelay)
+		log.Printf("%s %d currencies enabled: %s.\n", h.GetName(), len(h.EnabledPairs), h.EnabledPairs)
 	}
 
 	if h.Websocket {
@@ -81,23 +83,17 @@ func (h *HUOBI) Run() {
 	}
 
 	for h.Enabled {
-		go func() {
-			HuobiBTC := h.GetTicker("btc")
-			HuobiBTCLastUSD, _ := ConvertCurrency(HuobiBTC.Last, "CNY", "USD")
-			HuobiBTCHighUSD, _ := ConvertCurrency(HuobiBTC.High, "CNY", "USD")
-			HuobiBTCLowUSD, _ := ConvertCurrency(HuobiBTC.Low, "CNY", "USD")
-			log.Printf("Huobi BTC: Last %f (%f) High %f (%f) Low %f (%f) Volume %f\n", HuobiBTCLastUSD, HuobiBTC.Last, HuobiBTCHighUSD, HuobiBTC.High, HuobiBTCLowUSD, HuobiBTC.Low, HuobiBTC.Vol)
-			AddExchangeInfo(h.GetName(), "BTC", HuobiBTCLastUSD, HuobiBTC.Vol)
-		}()
-
-		go func() {
-			HuobiLTC := h.GetTicker("ltc")
-			HuobiLTCLastUSD, _ := ConvertCurrency(HuobiLTC.Last, "CNY", "USD")
-			HuobiLTCHighUSD, _ := ConvertCurrency(HuobiLTC.High, "CNY", "USD")
-			HuobiLTCLowUSD, _ := ConvertCurrency(HuobiLTC.Low, "CNY", "USD")
-			log.Printf("Huobi LTC: Last %f (%f) High %f (%f) Low %f (%f) Volume %f\n", HuobiLTCLastUSD, HuobiLTC.Last, HuobiLTCHighUSD, HuobiLTC.High, HuobiLTCLowUSD, HuobiLTC.Low, HuobiLTC.Vol)
-			AddExchangeInfo(h.GetName(), "LTC", HuobiLTCLastUSD, HuobiLTC.Vol)
-		}()
+		for _, x := range h.EnabledPairs {
+			currency := StringToLower(x[0:3])
+			go func() {
+				ticker := h.GetTicker(currency)
+				HuobiLastUSD, _ := ConvertCurrency(ticker.Last, "CNY", "USD")
+				HuobiHighUSD, _ := ConvertCurrency(ticker.High, "CNY", "USD")
+				HuobiLowUSD, _ := ConvertCurrency(ticker.Low, "CNY", "USD")
+				log.Printf("Huobi %s: Last %f (%f) High %f (%f) Low %f (%f) Volume %f\n", currency, HuobiLastUSD, ticker.Last, HuobiHighUSD, ticker.High, HuobiLowUSD, ticker.Low, ticker.Vol)
+				AddExchangeInfo(h.GetName(), StringToUpper(currency), HuobiLastUSD, ticker.Vol)
+			}()
+		}
 		time.Sleep(time.Second * h.RESTPollingDelay)
 	}
 }

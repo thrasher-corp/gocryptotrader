@@ -30,7 +30,8 @@ type BTCMarkets struct {
 	Ticker            map[string]BTCMarketsTicker
 	APIKey, APISecret string
 	BaseCurrencies    []string
-	Pairs             []string
+	AvailablePairs    []string
+	EnabledPairs      []string
 }
 
 type BTCMarketsTicker struct {
@@ -123,36 +124,26 @@ func (b *BTCMarkets) GetFee() float64 {
 func (b *BTCMarkets) Run() {
 	if b.Verbose {
 		log.Printf("%s polling delay: %ds.\n", b.GetName(), b.RESTPollingDelay)
+		log.Printf("%s %d currencies enabled: %s.\n", b.GetName(), len(b.EnabledPairs), b.EnabledPairs)
 	}
 
 	for b.Enabled {
-		go func() {
-			BTCMarketsBTC, err := b.GetTicker("BTC")
-			if err != nil {
-				log.Println(err)
-				return
-			}
-			b.Ticker["BTC"] = BTCMarketsBTC
-			BTCMarketsBTCLastUSD, _ := ConvertCurrency(BTCMarketsBTC.LastPrice, "AUD", "USD")
-			BTCMarketsBTCBestBidUSD, _ := ConvertCurrency(BTCMarketsBTC.BestBID, "AUD", "USD")
-			BTCMarketsBTCBestAskUSD, _ := ConvertCurrency(BTCMarketsBTC.BestAsk, "AUD", "USD")
-			log.Printf("BTC Markets BTC: Last %f (%f) Bid %f (%f) Ask %f (%f)\n", BTCMarketsBTCLastUSD, BTCMarketsBTC.LastPrice, BTCMarketsBTCBestBidUSD, BTCMarketsBTC.BestBID, BTCMarketsBTCBestAskUSD, BTCMarketsBTC.BestAsk)
-			AddExchangeInfo(b.GetName(), "BTC", BTCMarketsBTCLastUSD, 0)
-		}()
-
-		go func() {
-			BTCMarketsLTC, err := b.GetTicker("LTC")
-			if err != nil {
-				log.Println(err)
-				return
-			}
-			b.Ticker["LTC"] = BTCMarketsLTC
-			BTCMarketsLTCLastUSD, _ := ConvertCurrency(BTCMarketsLTC.LastPrice, "AUD", "USD")
-			BTCMarketsLTCBestBidUSD, _ := ConvertCurrency(BTCMarketsLTC.BestBID, "AUD", "USD")
-			BTCMarketsLTCBestAskUSD, _ := ConvertCurrency(BTCMarketsLTC.BestAsk, "AUD", "USD")
-			log.Printf("BTC Markets LTC: Last %f (%f) Bid %f (%f) Ask %f (%f)", BTCMarketsLTCLastUSD, BTCMarketsLTC.LastPrice, BTCMarketsLTCBestBidUSD, BTCMarketsLTC.BestBID, BTCMarketsLTCBestAskUSD, BTCMarketsLTC.BestAsk)
-			AddExchangeInfo(b.GetName(), "LTC", BTCMarketsLTCLastUSD, 0)
-		}()
+		for _, x := range b.EnabledPairs {
+			currency := x
+			go func() {
+				ticker, err := b.GetTicker(currency)
+				if err != nil {
+					log.Println(err)
+					return
+				}
+				b.Ticker[currency] = ticker
+				BTCMarketsLastUSD, _ := ConvertCurrency(ticker.LastPrice, "AUD", "USD")
+				BTCMarketsBestBidUSD, _ := ConvertCurrency(ticker.BestBID, "AUD", "USD")
+				BTCMarketsBestAskUSD, _ := ConvertCurrency(ticker.BestAsk, "AUD", "USD")
+				log.Printf("BTC Markets %s: Last %f (%f) Bid %f (%f) Ask %f (%f)\n", currency, BTCMarketsLastUSD, ticker.LastPrice, BTCMarketsBestBidUSD, ticker.BestBID, BTCMarketsBestAskUSD, ticker.BestAsk)
+				AddExchangeInfo(b.GetName(), currency, BTCMarketsLastUSD, 0)
+			}()
+		}
 		time.Sleep(time.Second * b.RESTPollingDelay)
 	}
 }

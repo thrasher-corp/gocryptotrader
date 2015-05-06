@@ -32,7 +32,8 @@ type ANX struct {
 	APIKey, APISecret  string
 	TakerFee, MakerFee float64
 	BaseCurrencies     []string
-	Pairs              []string
+	AvailablePairs     []string
+	EnabledPairs       []string
 }
 
 type ANXOrder struct {
@@ -134,14 +135,18 @@ func (a *ANX) GetFee(maker bool) float64 {
 func (a *ANX) Run() {
 	if a.Verbose {
 		log.Printf("%s polling delay: %ds.\n", a.GetName(), a.RESTPollingDelay)
+		log.Printf("%s %d currencies enabled: %s.\n", a.GetName(), len(a.EnabledPairs), a.EnabledPairs)
 	}
 
 	for a.Enabled {
-		go func() {
-			ANXBTC := a.GetTicker("BTCUSD")
-			log.Printf("ANX BTC: Last %f High %f Low %f Volume %f\n", ANXBTC.Data.Last.Value, ANXBTC.Data.High.Value, ANXBTC.Data.Low.Value, ANXBTC.Data.Vol.Value)
-			AddExchangeInfo(a.GetName(), "BTC", ANXBTC.Data.Last.Value, ANXBTC.Data.Vol.Value)
-		}()
+		for _, x := range a.EnabledPairs {
+			currency := x
+			go func() {
+				ticker := a.GetTicker(currency)
+				log.Printf("ANX %s: Last %f High %f Low %f Volume %f\n", currency, ticker.Data.Last.Value, ticker.Data.High.Value, ticker.Data.Low.Value, ticker.Data.Vol.Value)
+				AddExchangeInfo(a.GetName(), currency, ticker.Data.Last.Value, ticker.Data.Vol.Value)
+			}()
+		}
 		time.Sleep(time.Second * a.RESTPollingDelay)
 	}
 }

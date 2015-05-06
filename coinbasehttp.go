@@ -38,7 +38,8 @@ type Coinbase struct {
 	Password, APIKey, APISecret string
 	TakerFee, MakerFee          float64
 	BaseCurrencies              []string
-	Pairs                       []string
+	AvailablePairs              []string
+	EnabledPairs                []string
 }
 
 type CoinbaseTicker struct {
@@ -129,25 +130,36 @@ func (c *Coinbase) Run() {
 	if c.Verbose {
 		log.Printf("%s Websocket: %s. (url: %s).\n", c.GetName(), IsEnabled(c.Websocket), COINBASE_WEBSOCKET_URL)
 		log.Printf("%s polling delay: %ds.\n", c.GetName(), c.RESTPollingDelay)
+		log.Printf("%s %d currencies enabled: %s.\n", c.GetName(), len(c.EnabledPairs), c.EnabledPairs)
 	}
 
 	if c.Websocket {
 		go c.WebsocketClient()
 	}
 
+	exchangeProducts, err := c.GetProducts()
+	if err != nil {
+		log.Printf("%s Failed to get available products.\n", c.GetName())
+	} else {
+		currencies := []string{}
+		for _, x := range exchangeProducts {
+			if x.ID != "BTC" && x.ID != "USD" && x.ID != "GBP" {
+				currencies = append(currencies, x.ID[0:3]+x.ID[4:])
+			}
+		}
+		c.AvailablePairs = currencies
+	}
+
 	for c.Enabled {
-		go func() {
-			CoinbaseStats := c.GetStats("BTC-USD")
-			CoinbaseTicker := c.GetTicker("BTC-USD")
-			log.Printf("Coinbase BTC: Last $%f High $%f Low $%f Volume %f\n", CoinbaseTicker.Price, CoinbaseStats.High, CoinbaseStats.Low, CoinbaseStats.Volume)
-			AddExchangeInfo(c.GetName(), "BTC", CoinbaseTicker.Price, CoinbaseStats.Volume)
-		}()
-		go func() {
-			CoinbaseStats := c.GetStats("BTC-GBP")
-			CoinbaseTicker := c.GetTicker("BTC-GBP")
-			log.Printf("Coinbase BTC: Last £%f High £%f Low £%f Volume %f\n", CoinbaseTicker.Price, CoinbaseStats.High, CoinbaseStats.Low, CoinbaseStats.Volume)
-			AddExchangeInfo(c.GetName(), "BTC-GDP", CoinbaseTicker.Price, CoinbaseStats.Volume)
-		}()
+		for _, x := range c.EnabledPairs {
+			currency := x[0:3] + "-" + x[3:]
+			go func() {
+				stats := c.GetStats(currency)
+				ticker := c.GetTicker(currency)
+				log.Printf("Coinbase %s: Last %f High %f Low %f Volume %f\n", currency, ticker.Price, stats.High, stats.Low, stats.Volume)
+				AddExchangeInfo(c.GetName(), currency, ticker.Price, stats.Volume)
+			}()
+		}
 		time.Sleep(time.Second * c.RESTPollingDelay)
 	}
 }
@@ -166,15 +178,15 @@ func (c *Coinbase) SetAPIKeys(password, apiKey, apiSecret string) {
 	c.APISecret = string(result)
 }
 
-func (c *Coinbase) GetProducts() {
+func (c *Coinbase) GetProducts() ([]CoinbaseProduct, error) {
 	products := []CoinbaseProduct{}
 	err := SendHTTPGetRequest(COINBASE_API_URL+COINBASE_PRODUCTS, true, &products)
 
 	if err != nil {
-		log.Println(err)
+		return nil, err
 	}
 
-	log.Println(products)
+	return products, nil
 }
 
 func (c *Coinbase) GetOrderbook(symbol string, level int) {

@@ -47,7 +47,8 @@ type BTCChina struct {
 	APISecret, APIKey string
 	Fee               float64
 	BaseCurrencies    []string
-	Pairs             []string
+	AvailablePairs    []string
+	EnabledPairs      []string
 }
 
 type BTCChinaTicker struct {
@@ -202,7 +203,9 @@ func (b *BTCChina) GetFee() float64 {
 
 func (b *BTCChina) Run() {
 	if b.Verbose {
+		log.Printf("%s Websocket: %s.", b.GetName(), IsEnabled(b.Websocket))
 		log.Printf("%s polling delay: %ds.\n", b.GetName(), b.RESTPollingDelay)
+		log.Printf("%s %d currencies enabled: %s.\n", b.GetName(), len(b.EnabledPairs), b.EnabledPairs)
 	}
 
 	if b.Websocket {
@@ -210,23 +213,22 @@ func (b *BTCChina) Run() {
 	}
 
 	for b.Enabled {
-		go func() {
-			BTCChinaBTC := b.GetTicker("btccny")
-			BTCChinaBTCLastUSD, _ := ConvertCurrency(BTCChinaBTC.Last, "CNY", "USD")
-			BTCChinaBTCHighUSD, _ := ConvertCurrency(BTCChinaBTC.High, "CNY", "USD")
-			BTCChinaBTCLowUSD, _ := ConvertCurrency(BTCChinaBTC.Low, "CNY", "USD")
-			log.Printf("BTCChina BTC: Last %f (%f) High %f (%f) Low %f (%f) Volume %f\n", BTCChinaBTCLastUSD, BTCChinaBTC.Last, BTCChinaBTCHighUSD, BTCChinaBTC.High, BTCChinaBTCLowUSD, BTCChinaBTC.Low, BTCChinaBTC.Vol)
-			AddExchangeInfo(b.GetName(), "BTC", BTCChinaBTCLastUSD, BTCChinaBTC.Vol)
-		}()
-
-		go func() {
-			BTCChinaLTC := b.GetTicker("ltccny")
-			BTCChinaLTCLastUSD, _ := ConvertCurrency(BTCChinaLTC.Last, "CNY", "USD")
-			BTCChinaLTCHighUSD, _ := ConvertCurrency(BTCChinaLTC.High, "CNY", "USD")
-			BTCChinaLTCLowUSD, _ := ConvertCurrency(BTCChinaLTC.Low, "CNY", "USD")
-			log.Printf("BTCChina LTC: Last %f (%f) High %f (%f) Low %f (%f) Volume %f\n", BTCChinaLTCLastUSD, BTCChinaLTC.Last, BTCChinaLTCHighUSD, BTCChinaLTC.High, BTCChinaLTCLowUSD, BTCChinaLTC.Low, BTCChinaLTC.Vol)
-			AddExchangeInfo(b.GetName(), "LTC", BTCChinaLTCLastUSD, BTCChinaLTC.Vol)
-		}()
+		for _, x := range b.EnabledPairs {
+			currency := StringToLower(x)
+			go func() {
+				ticker := b.GetTicker(currency)
+				if currency != "ltcbtc" {
+					tickerLastUSD, _ := ConvertCurrency(ticker.Last, "CNY", "USD")
+					tickerHighUSD, _ := ConvertCurrency(ticker.High, "CNY", "USD")
+					tickerLowUSD, _ := ConvertCurrency(ticker.Low, "CNY", "USD")
+					log.Printf("BTCChina %s: Last %f (%f) High %f (%f) Low %f (%f) Volume %f\n", currency, tickerLastUSD, ticker.Last, tickerHighUSD, ticker.High, tickerLowUSD, ticker.Low, ticker.Vol)
+					AddExchangeInfo(b.GetName(), currency, tickerLastUSD, ticker.Vol)
+				} else {
+					log.Printf("BTCChina %s: Last %f High %f Low %f Volume %f\n", currency, ticker.Last, ticker.High, ticker.Low, ticker.Vol)
+					AddExchangeInfo(b.GetName(), currency, ticker.Last, ticker.Vol)
+				}
+			}()
+		}
 		time.Sleep(time.Second * b.RESTPollingDelay)
 	}
 }

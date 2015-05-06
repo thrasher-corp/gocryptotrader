@@ -1,9 +1,9 @@
 package main
 
 import (
+	"encoding/json"
 	"io/ioutil"
 	"time"
-	"encoding/json"
 )
 
 const (
@@ -11,30 +11,31 @@ const (
 )
 
 type SMSContacts struct {
-	Name string
-	Number string
+	Name    string
+	Number  string
 	Enabled bool
 }
 
 type Config struct {
-	Name string
+	Name              string
 	SMSGlobalUsername string
 	SMSGlobalPassword string
-	SMSContacts []SMSContacts
-	Exchanges []Exchanges
+	SMSContacts       []SMSContacts
+	Exchanges         []Exchanges
 }
 
 type Exchanges struct {
-	Name string
-	Enabled bool
-	Verbose bool
-	Websocket bool
+	Name             string
+	Enabled          bool
+	Verbose          bool
+	Websocket        bool
 	RESTPollingDelay time.Duration
-	APIKey string
-	APISecret string
-	ClientID string
-	Pairs string
-	BaseCurrencies string
+	APIKey           string
+	APISecret        string
+	ClientID         string
+	AvailablePairs   string
+	EnabledPairs     string
+	BaseCurrencies   string
 }
 
 func ReadConfig() (Config, error) {
@@ -49,7 +50,7 @@ func ReadConfig() (Config, error) {
 	return cfg, err
 }
 
-func SaveConfig() (error) {
+func SaveConfig() error {
 	payload, err := json.MarshalIndent(bot.config, "", " ")
 
 	if err != nil {
@@ -61,7 +62,6 @@ func SaveConfig() (error) {
 	if err != nil {
 		return err
 	}
-	
+
 	return nil
 }
-

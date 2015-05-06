@@ -163,19 +163,15 @@ func (h *HUOBI) OnConnect(output chan socketio.Message) {
 		log.Printf("%s Connected to Websocket.", h.GetName())
 	}
 
-	msg := h.BuildHuobiWebsocketRequestExtra(HUOBI_SOCKET_REQ_SUBSCRIBE, 100, h.BuildHuobiWebsocketParamsList(HUOBI_SOCKET_MARKET_OVERVIEW, "btccny", "pushLong", "", "", "", "", ""))
-	result, err := JSONEncode(msg)
-	if err != nil {
-		log.Println(err)
+	for _, x := range h.EnabledPairs {
+		currency := StringToLower(x)
+		msg := h.BuildHuobiWebsocketRequestExtra(HUOBI_SOCKET_REQ_SUBSCRIBE, 100, h.BuildHuobiWebsocketParamsList(HUOBI_SOCKET_MARKET_OVERVIEW, currency, "pushLong", "", "", "", "", ""))
+		result, err := JSONEncode(msg)
+		if err != nil {
+			log.Println(err)
+		}
+		output <- socketio.CreateMessageEvent("request", string(result), nil, HuobiSocket.Version)
 	}
-	output <- socketio.CreateMessageEvent("request", string(result), nil, HuobiSocket.Version)
-
-	msg = h.BuildHuobiWebsocketRequestExtra(HUOBI_SOCKET_REQ_SUBSCRIBE, 100, h.BuildHuobiWebsocketParamsList(HUOBI_SOCKET_MARKET_OVERVIEW, "ltccny", "pushLong", "", "", "", "", ""))
-	result, err = JSONEncode(msg)
-	if err != nil {
-		log.Println(err)
-	}
-	output <- socketio.CreateMessageEvent("request", string(result), nil, HuobiSocket.Version)
 }
 
 func (h *HUOBI) OnDisconnect(output chan socketio.Message) {

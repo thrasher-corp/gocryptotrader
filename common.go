@@ -198,6 +198,7 @@ func SendHTTPGetRequest(url string, jsonDecode bool, result interface{}) (err er
 	}
 
 	contents, err := ioutil.ReadAll(res.Body)
+	//log.Println(string(contents))
 
 	if err != nil {
 		return err

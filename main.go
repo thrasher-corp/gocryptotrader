@@ -103,7 +103,7 @@ func main() {
 	err = RetrieveConfigCurrencyPairs(bot.config)
 
 	if err != nil {
-		log.Println("Fatal error retrieving config currency pairs. Error: ", err)
+		log.Println("Fatal error retrieving config currency AvailablePairs. Error: ", err)
 	}
 
 	for _, exch := range bot.config.Exchanges {
@@ -117,7 +117,8 @@ func main() {
 				bot.exchange.anx.Verbose = exch.Verbose
 				bot.exchange.anx.Websocket = exch.Websocket
 				bot.exchange.anx.BaseCurrencies = SplitStrings(exch.BaseCurrencies, ",")
-				bot.exchange.anx.Pairs = SplitStrings(exch.Pairs, ",")
+				bot.exchange.anx.AvailablePairs = SplitStrings(exch.AvailablePairs, ",")
+				bot.exchange.anx.EnabledPairs = SplitStrings(exch.EnabledPairs, ",")
 				go bot.exchange.anx.Run()
 			}
 		} else if bot.exchange.btcchina.GetName() == exch.Name {
@@ -130,7 +131,8 @@ func main() {
 				bot.exchange.btcchina.Verbose = exch.Verbose
 				bot.exchange.btcchina.Websocket = exch.Websocket
 				bot.exchange.btcchina.BaseCurrencies = SplitStrings(exch.BaseCurrencies, ",")
-				bot.exchange.btcchina.Pairs = SplitStrings(exch.Pairs, ",")
+				bot.exchange.btcchina.AvailablePairs = SplitStrings(exch.AvailablePairs, ",")
+				bot.exchange.btcchina.EnabledPairs = SplitStrings(exch.EnabledPairs, ",")
 				go bot.exchange.btcchina.Run()
 			}
 		} else if bot.exchange.bitstamp.GetName() == exch.Name {
@@ -143,7 +145,8 @@ func main() {
 				bot.exchange.bitstamp.Verbose = exch.Verbose
 				bot.exchange.bitstamp.Websocket = exch.Websocket
 				bot.exchange.bitstamp.BaseCurrencies = SplitStrings(exch.BaseCurrencies, ",")
-				bot.exchange.bitstamp.Pairs = SplitStrings(exch.Pairs, ",")
+				bot.exchange.bitstamp.AvailablePairs = SplitStrings(exch.AvailablePairs, ",")
+				bot.exchange.bitstamp.EnabledPairs = SplitStrings(exch.EnabledPairs, ",")
 				go bot.exchange.bitstamp.Run()
 			}
 		} else if bot.exchange.bitfinex.GetName() == exch.Name {
@@ -156,7 +159,8 @@ func main() {
 				bot.exchange.bitfinex.Verbose = exch.Verbose
 				bot.exchange.bitfinex.Websocket = exch.Websocket
 				bot.exchange.bitfinex.BaseCurrencies = SplitStrings(exch.BaseCurrencies, ",")
-				bot.exchange.bitfinex.Pairs = SplitStrings(exch.Pairs, ",")
+				bot.exchange.bitfinex.AvailablePairs = SplitStrings(exch.AvailablePairs, ",")
+				bot.exchange.bitfinex.EnabledPairs = SplitStrings(exch.EnabledPairs, ",")
 				go bot.exchange.bitfinex.Run()
 			}
 		} else if bot.exchange.btce.GetName() == exch.Name {
@@ -169,7 +173,8 @@ func main() {
 				bot.exchange.btce.Verbose = exch.Verbose
 				bot.exchange.btce.Websocket = exch.Websocket
 				bot.exchange.btce.BaseCurrencies = SplitStrings(exch.BaseCurrencies, ",")
-				bot.exchange.btce.Pairs = SplitStrings(exch.Pairs, ",")
+				bot.exchange.btce.AvailablePairs = SplitStrings(exch.AvailablePairs, ",")
+				bot.exchange.btce.EnabledPairs = SplitStrings(exch.EnabledPairs, ",")
 				go bot.exchange.btce.Run()
 			}
 		} else if bot.exchange.btcmarkets.GetName() == exch.Name {
@@ -182,7 +187,8 @@ func main() {
 				bot.exchange.btcmarkets.Verbose = exch.Verbose
 				bot.exchange.btcmarkets.Websocket = exch.Websocket
 				bot.exchange.btcmarkets.BaseCurrencies = SplitStrings(exch.BaseCurrencies, ",")
-				bot.exchange.btcmarkets.Pairs = SplitStrings(exch.Pairs, ",")
+				bot.exchange.btcmarkets.AvailablePairs = SplitStrings(exch.AvailablePairs, ",")
+				bot.exchange.btcmarkets.EnabledPairs = SplitStrings(exch.EnabledPairs, ",")
 				go bot.exchange.btcmarkets.Run()
 			}
 		} else if bot.exchange.coinbase.GetName() == exch.Name {
@@ -195,7 +201,8 @@ func main() {
 				bot.exchange.coinbase.Verbose = exch.Verbose
 				bot.exchange.coinbase.Websocket = exch.Websocket
 				bot.exchange.coinbase.BaseCurrencies = SplitStrings(exch.BaseCurrencies, ",")
-				bot.exchange.coinbase.Pairs = SplitStrings(exch.Pairs, ",")
+				bot.exchange.coinbase.AvailablePairs = SplitStrings(exch.AvailablePairs, ",")
+				bot.exchange.coinbase.EnabledPairs = SplitStrings(exch.EnabledPairs, ",")
 				go bot.exchange.coinbase.Run()
 			}
 		} else if bot.exchange.cryptsy.GetName() == exch.Name {
@@ -208,7 +215,8 @@ func main() {
 				bot.exchange.cryptsy.Verbose = exch.Verbose
 				bot.exchange.cryptsy.Websocket = exch.Websocket
 				bot.exchange.cryptsy.BaseCurrencies = SplitStrings(exch.BaseCurrencies, ",")
-				bot.exchange.cryptsy.Pairs = SplitStrings(exch.Pairs, ",")
+				bot.exchange.cryptsy.AvailablePairs = SplitStrings(exch.AvailablePairs, ",")
+				bot.exchange.cryptsy.EnabledPairs = SplitStrings(exch.EnabledPairs, ",")
 				go bot.exchange.cryptsy.Run()
 			}
 		} else if bot.exchange.okcoinChina.GetName() == exch.Name {
@@ -221,7 +229,8 @@ func main() {
 				bot.exchange.okcoinChina.Verbose = exch.Verbose
 				bot.exchange.okcoinChina.Websocket = exch.Websocket
 				bot.exchange.okcoinChina.BaseCurrencies = SplitStrings(exch.BaseCurrencies, ",")
-				bot.exchange.okcoinChina.Pairs = SplitStrings(exch.Pairs, ",")
+				bot.exchange.okcoinChina.AvailablePairs = SplitStrings(exch.AvailablePairs, ",")
+				bot.exchange.okcoinChina.EnabledPairs = SplitStrings(exch.EnabledPairs, ",")
 				go bot.exchange.okcoinChina.Run()
 			}
 		} else if bot.exchange.okcoinIntl.GetName() == exch.Name {
@@ -234,7 +243,8 @@ func main() {
 				bot.exchange.okcoinIntl.Verbose = exch.Verbose
 				bot.exchange.okcoinIntl.Websocket = exch.Websocket
 				bot.exchange.okcoinIntl.BaseCurrencies = SplitStrings(exch.BaseCurrencies, ",")
-				bot.exchange.okcoinIntl.Pairs = SplitStrings(exch.Pairs, ",")
+				bot.exchange.okcoinIntl.AvailablePairs = SplitStrings(exch.AvailablePairs, ",")
+				bot.exchange.okcoinIntl.EnabledPairs = SplitStrings(exch.EnabledPairs, ",")
 				go bot.exchange.okcoinIntl.Run()
 			}
 		} else if bot.exchange.itbit.GetName() == exch.Name {
@@ -247,7 +257,8 @@ func main() {
 				bot.exchange.itbit.Verbose = exch.Verbose
 				bot.exchange.itbit.Websocket = exch.Websocket
 				bot.exchange.itbit.BaseCurrencies = SplitStrings(exch.BaseCurrencies, ",")
-				bot.exchange.itbit.Pairs = SplitStrings(exch.Pairs, ",")
+				bot.exchange.itbit.AvailablePairs = SplitStrings(exch.AvailablePairs, ",")
+				bot.exchange.itbit.EnabledPairs = SplitStrings(exch.EnabledPairs, ",")
 				go bot.exchange.itbit.Run()
 			}
 		} else if bot.exchange.kraken.GetName() == exch.Name {
@@ -260,7 +271,8 @@ func main() {
 				bot.exchange.kraken.Verbose = exch.Verbose
 				bot.exchange.kraken.Websocket = exch.Websocket
 				bot.exchange.kraken.BaseCurrencies = SplitStrings(exch.BaseCurrencies, ",")
-				bot.exchange.kraken.Pairs = SplitStrings(exch.Pairs, ",")
+				bot.exchange.kraken.AvailablePairs = SplitStrings(exch.AvailablePairs, ",")
+				bot.exchange.kraken.EnabledPairs = SplitStrings(exch.EnabledPairs, ",")
 				go bot.exchange.kraken.Run()
 			}
 		} else if bot.exchange.lakebtc.GetName() == exch.Name {
@@ -273,7 +285,8 @@ func main() {
 				bot.exchange.lakebtc.Verbose = exch.Verbose
 				bot.exchange.lakebtc.Websocket = exch.Websocket
 				bot.exchange.lakebtc.BaseCurrencies = SplitStrings(exch.BaseCurrencies, ",")
-				bot.exchange.lakebtc.Pairs = SplitStrings(exch.Pairs, ",")
+				bot.exchange.lakebtc.AvailablePairs = SplitStrings(exch.AvailablePairs, ",")
+				bot.exchange.lakebtc.EnabledPairs = SplitStrings(exch.EnabledPairs, ",")
 				go bot.exchange.lakebtc.Run()
 			}
 		} else if bot.exchange.huobi.GetName() == exch.Name {
@@ -286,7 +299,8 @@ func main() {
 				bot.exchange.huobi.Verbose = exch.Verbose
 				bot.exchange.huobi.Websocket = exch.Websocket
 				bot.exchange.huobi.BaseCurrencies = SplitStrings(exch.BaseCurrencies, ",")
-				bot.exchange.huobi.Pairs = SplitStrings(exch.Pairs, ",")
+				bot.exchange.huobi.AvailablePairs = SplitStrings(exch.AvailablePairs, ",")
+				bot.exchange.huobi.EnabledPairs = SplitStrings(exch.EnabledPairs, ",")
 				go bot.exchange.huobi.Run()
 			}
 		}

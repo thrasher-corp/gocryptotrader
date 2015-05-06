@@ -35,7 +35,9 @@ type BTCE struct {
 	APIKey, APISecret string
 	Fee               float64
 	BaseCurrencies    []string
-	Pairs             []string
+	AvailablePairs    []string
+	EnabledPairs      []string
+	Ticker            map[string]BTCeTicker
 }
 
 type BTCeTicker struct {
@@ -70,6 +72,7 @@ func (b *BTCE) SetDefaults() {
 	b.Verbose = false
 	b.Websocket = false
 	b.RESTPollingDelay = 10
+	b.Ticker = make(map[string]BTCeTicker)
 }
 
 func (b *BTCE) GetName() string {
@@ -95,20 +98,31 @@ func (b *BTCE) GetFee() float64 {
 
 func (b *BTCE) Run() {
 	if b.Verbose {
+		log.Printf("%s Websocket: %s.", b.GetName(), IsEnabled(b.Websocket))
 		log.Printf("%s polling delay: %ds.\n", b.GetName(), b.RESTPollingDelay)
+		log.Printf("%s %d currencies enabled: %s.\n", b.GetName(), len(b.EnabledPairs), b.EnabledPairs)
 	}
+
+	pairs := []string{}
+	for _, x := range b.EnabledPairs {
+		x = StringToLower(x[0:3] + "_" + x[3:6])
+		pairs = append(pairs, x)
+	}
+	pairsString := JoinStrings(pairs, "-")
 
 	for b.Enabled {
 		go func() {
-			BTCeBTC := b.GetTicker("btc_usd")
-			log.Printf("BTC-e BTC: Last %f High %f Low %f Volume %f\n", BTCeBTC.Last, BTCeBTC.High, BTCeBTC.Low, BTCeBTC.Vol_cur)
-			AddExchangeInfo(b.GetName(), "BTC", BTCeBTC.Last, BTCeBTC.Vol_cur)
-		}()
-
-		go func() {
-			BTCeLTC := b.GetTicker("ltc_usd")
-			log.Printf("BTC-e LTC: Last %f High %f Low %f Volume %f\n", BTCeLTC.Last, BTCeLTC.High, BTCeLTC.Low, BTCeLTC.Vol_cur)
-			AddExchangeInfo(b.GetName(), "LTC", BTCeLTC.Last, BTCeLTC.Vol_cur)
+			ticker, err := b.GetTicker(pairsString)
+			if err != nil {
+				log.Println(err)
+				return
+			}
+			for x, y := range ticker {
+				x = StringToUpper(x[0:3] + x[4:])
+				log.Printf("BTC-e %s: Last %f High %f Low %f Volume %f\n", x, y.Last, y.High, y.Low, y.Vol_cur)
+				b.Ticker[x] = y
+				AddExchangeInfo(b.GetName(), x, y.Last, y.Vol_cur)
+			}
 		}()
 		time.Sleep(time.Second * b.RESTPollingDelay)
 	}
@@ -123,7 +137,7 @@ func (b *BTCE) GetInfo() {
 	}
 }
 
-func (b *BTCE) GetTicker(symbol string) BTCeTicker {
+func (b *BTCE) GetTicker(symbol string) (map[string]BTCeTicker, error) {
 	type Response struct {
 		Data map[string]BTCeTicker
 	}
@@ -133,10 +147,9 @@ func (b *BTCE) GetTicker(symbol string) BTCeTicker {
 	err := SendHTTPGetRequest(req, true, &response.Data)
 
 	if err != nil {
-		log.Println(err)
-		return BTCeTicker{}
+		return nil, err
 	}
-	return response.Data[symbol]
+	return response.Data, nil
 }
 
 func (b *BTCE) GetDepth(symbol string) {

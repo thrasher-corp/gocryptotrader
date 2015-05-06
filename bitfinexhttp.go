@@ -156,7 +156,8 @@ type Bitfinex struct {
 	ActiveOrders      []BitfinexActiveOrder
 	AccountBalance    []BitfinexBalance
 	BaseCurrencies    []string
-	Pairs             []string
+	AvailablePairs    []string
+	EnabledPairs      []string
 }
 
 func (b *Bitfinex) SetDefaults() {
@@ -187,23 +188,25 @@ func (b *Bitfinex) SetAPIKeys(apiKey, apiSecret string) {
 func (b *Bitfinex) Run() {
 	if b.Verbose {
 		log.Printf("%s polling delay: %ds.\n", b.GetName(), b.RESTPollingDelay)
+		log.Printf("%s %d currencies enabled: %s.\n", b.GetName(), len(b.EnabledPairs), b.EnabledPairs)
 	}
 
-	b.GetAccountFeeInfo()
-	b.GetAccountBalance()
+	exchangeProducts, err := b.GetSymbols()
+	if err != nil {
+		log.Printf("%s Failed to get available symbols.\n", b.GetName())
+	} else {
+		b.AvailablePairs = SplitStrings(StringToUpper(JoinStrings(exchangeProducts, ",")), ",")
+	}
 
 	for b.Enabled {
-		go func() {
-			BitfinexLTC := b.GetTicker("ltcusd")
-			log.Printf("Bitfinex LTC: Last %f High %f Low %f Volume %f\n", BitfinexLTC.Last, BitfinexLTC.High, BitfinexLTC.Low, BitfinexLTC.Volume)
-			AddExchangeInfo(b.GetName(), "LTC", BitfinexLTC.Last, BitfinexLTC.Volume)
-		}()
-
-		go func() {
-			BitfinexBTC := b.GetTicker("btcusd")
-			log.Printf("Bitfinex BTC: Last %f High %f Low %f Volume %f\n", BitfinexBTC.Last, BitfinexBTC.High, BitfinexBTC.Low, BitfinexBTC.Volume)
-			AddExchangeInfo(b.GetName(), "BTC", BitfinexBTC.Last, BitfinexBTC.Volume)
-		}()
+		for _, x := range b.EnabledPairs {
+			currency := x
+			go func() {
+				ticker := b.GetTicker(currency)
+				log.Printf("Bitfinex %s Last %f High %f Low %f Volume %f\n", currency, ticker.Last, ticker.High, ticker.Low, ticker.Volume)
+				AddExchangeInfo(b.GetName(), currency, ticker.Last, ticker.Volume)
+			}()
+		}
 		time.Sleep(time.Second * b.RESTPollingDelay)
 	}
 }
@@ -342,13 +345,13 @@ func (b *Bitfinex) GetTrades(symbol string) bool {
 	return true
 }
 
-func (b *Bitfinex) GetSymbols() bool {
-	err := SendHTTPGetRequest(BITFINEX_API_URL+BITFINEX_SYMBOLS, false, nil)
+func (b *Bitfinex) GetSymbols() ([]string, error) {
+	products := []string{}
+	err := SendHTTPGetRequest(BITFINEX_API_URL+BITFINEX_SYMBOLS, true, &products)
 	if err != nil {
-		log.Println(err)
-		return false
+		return nil, err
 	}
-	return true
+	return products, nil
 }
 
 func (b *Bitfinex) GetSymbolsDetails() bool {

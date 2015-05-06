@@ -96,7 +96,11 @@ func (c *Coinbase) WebsocketClient() {
 
 		log.Printf("%s Connected to Websocket.\n", c.GetName())
 
-		currencies := []string{"BTC-USD", "BTC-GBP"}
+		currencies := []string{}
+		for _, x := range c.EnabledPairs {
+			currency := x[0:3] + "-" + x[3:]
+			currencies = append(currencies, currency)
+		}
 
 		for _, x := range currencies {
 			err = c.WebsocketSubscribe(x, conn)

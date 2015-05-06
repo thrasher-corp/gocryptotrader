@@ -29,7 +29,8 @@ type OKCoin struct {
 	RESTErrors                   map[string]string
 	WebsocketErrors              map[string]string
 	BaseCurrencies               []string
-	Pairs                        []string
+	AvailablePairs               []string
+	EnabledPairs                 []string
 }
 
 type OKCoinTicker struct {

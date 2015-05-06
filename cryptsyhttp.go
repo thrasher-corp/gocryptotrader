@@ -39,7 +39,8 @@ type Cryptsy struct {
 	APIKey, APISecret  string
 	TakerFee, MakerFee float64
 	BaseCurrencies     []string
-	Pairs              []string
+	AvailablePairs     []string
+	EnabledPairs       []string
 }
 
 type CryptsyMarket struct {

@@ -51,7 +51,12 @@ func (b *BTCChina) OnConnect(output chan socketio.Message) {
 	if b.Verbose {
 		log.Printf("%s Connected to Websocket.", b.GetName())
 	}
-	currencies := []string{"cnybtc", "cnyltc", "btcltc"}
+
+	currencies := []string{}
+	for _, x := range b.EnabledPairs {
+		currency := StringToLower(x[3:] + x[0:3])
+		currencies = append(currencies, currency)
+	}
 	endpoints := []string{"marketdata", "grouporder"}
 
 	for _, x := range endpoints {
