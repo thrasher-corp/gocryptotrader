@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"net/url"
@@ -41,6 +42,10 @@ type Cryptsy struct {
 	BaseCurrencies     []string
 	AvailablePairs     []string
 	EnabledPairs       []string
+	Market             map[string]CryptsyMarket
+	Ticker             map[string]CryptsyTicker
+	Volume             map[string]CryptsyVolume
+	Currencies         map[string]CryptsyCurrency
 }
 
 type CryptsyMarket struct {
@@ -136,6 +141,10 @@ func (c *Cryptsy) SetDefaults() {
 	c.MakerFee = 0.33
 	c.Verbose = false
 	c.RESTPollingDelay = 10
+	c.Market = make(map[string]CryptsyMarket)
+	c.Ticker = make(map[string]CryptsyTicker)
+	c.Volume = make(map[string]CryptsyVolume)
+	c.Currencies = make(map[string]CryptsyCurrency)
 }
 
 func (c *Cryptsy) GetName() string {
@@ -162,23 +171,26 @@ func (c *Cryptsy) Run() {
 	if c.Verbose {
 		log.Printf("%s Websocket: %s.", c.GetName(), IsEnabled(c.Websocket))
 		log.Printf("%s polling delay: %ds.\n", c.GetName(), c.RESTPollingDelay)
+		log.Printf("%s %d currencies enabled: %s.\n", c.GetName(), len(c.EnabledPairs), c.EnabledPairs)
 	}
 
 	if c.Websocket {
-		go c.PusherClient([]string{"213", "2", "1", "155", "466", "132", "3"})
+		go c.PusherClient()
 	}
 
 	for c.Enabled {
-		go func() {
-			CryptsyBTC := c.GetMarkets("BTCUSD")
-			log.Printf("Cryptsy BTC: Last %f High %f Low %f Volume %f\n", CryptsyBTC[0].LastTrade.Price, CryptsyBTC[0].DayStats.PriceHigh, CryptsyBTC[0].DayStats.PriceLow, CryptsyBTC[0].DayStats.Volume)
-			AddExchangeInfo(c.GetName(), "BTC", CryptsyBTC[0].LastTrade.Price, CryptsyBTC[0].DayStats.Volume)
-		}()
-		go func() {
-			CryptsyLTC := c.GetMarkets("LTCUSD")
-			log.Printf("Cryptsy LTC: Last %f High %f Low %f Volume %f\n", CryptsyLTC[0].LastTrade.Price, CryptsyLTC[0].DayStats.PriceHigh, CryptsyLTC[0].DayStats.PriceLow, CryptsyLTC[0].DayStats.Volume)
-			AddExchangeInfo(c.GetName(), "LTC", CryptsyLTC[0].LastTrade.Price, CryptsyLTC[0].DayStats.Volume)
-		}()
+		err := c.GetMarkets()
+		if err != nil {
+			log.Println(err)
+		} else {
+			for _, x := range c.EnabledPairs {
+				market := c.Market[x]
+				if market.ID != "" {
+					log.Printf("Cryptsy %s: Last %f High %f Low %f Volume %f\n", x, market.LastTrade.Price, market.DayStats.PriceHigh, market.DayStats.PriceLow, market.DayStats.Volume)
+					AddExchangeInfo(c.GetName(), x, market.LastTrade.Price, market.DayStats.Volume)
+				}
+			}
+		}
 		time.Sleep(time.Second * c.RESTPollingDelay)
 	}
 }
@@ -188,97 +200,77 @@ func (c *Cryptsy) SetAPIKeys(apiKey, apiSecret string) {
 	c.APISecret = apiSecret
 }
 
-func (c *Cryptsy) GetMarkets(id string) []CryptsyMarket {
+func (c *Cryptsy) GetMarkets() error {
 	type Response struct {
 		Data    []CryptsyMarket `json:"data"`
 		Success bool            `json:"success"`
 	}
+
 	response := Response{}
 	err := SendHTTPGetRequest(CRYPTSY_API_URL+CRYPTSY_MARKETS, true, &response)
+
 	if err != nil {
-		log.Println(err)
-		return []CryptsyMarket{}
+		return err
 	}
 
 	if !response.Success {
-		return []CryptsyMarket{}
+		return errors.New("Unable to retrieve Cryptsy market data.")
 	}
 
-	if len(id) > 0 {
-		for _, x := range response.Data {
-			label := strings.Replace(x.Label, "/", "", -1)
-			if label == id {
-				result := make([]CryptsyMarket, 0)
-				result = append(result, x)
-				return result
-			}
-		}
-		log.Println("Unable to find market id.")
-		return []CryptsyMarket{}
+	for _, x := range response.Data {
+		label := strings.Replace(x.Label, "/", "", -1)
+		x.Label = label
+		c.Market[label] = x
 	}
-	return response.Data
+	return nil
 }
 
-func (c *Cryptsy) GetVolume(id string) []CryptsyVolume {
+func (c *Cryptsy) GetVolume(id string) error {
 	type Response struct {
 		Data    []CryptsyVolume `json:"data"`
 		Success bool            `json:"success"`
 	}
+
 	response := Response{}
 	path := fmt.Sprintf("%s/%s", CRYPTSY_API_URL+CRYPTSY_MARKETS, CRYPTSY_VOLUME)
 	err := SendHTTPGetRequest(path, true, &response)
+
 	if err != nil {
-		log.Println(err)
-		return []CryptsyVolume{}
+		return err
 	}
 
 	if !response.Success {
-		return []CryptsyVolume{}
+		return errors.New("Unable to retrieve Cryptsy volume data.")
 	}
 
-	if len(id) > 0 {
-		for _, x := range response.Data {
-			if x.ID == id {
-				result := make([]CryptsyVolume, 0)
-				result = append(result, x)
-				return result
-			}
-		}
-		log.Println("Unable to find market id.")
-		return []CryptsyVolume{}
+	for _, x := range response.Data {
+		c.Volume[x.ID] = x
 	}
-	return response.Data
+	return nil
 }
 
-func (c *Cryptsy) GetTicker(id string) []CryptsyTicker {
+func (c *Cryptsy) GetTickers() error {
 	type Response struct {
 		Data    []CryptsyTicker `json:"data"`
 		Success bool            `json:"success"`
 	}
+
 	response := Response{}
 	path := fmt.Sprintf("%s/%s", CRYPTSY_API_URL+CRYPTSY_MARKETS, CRYPTSY_TICKER)
 	err := SendHTTPGetRequest(path, true, &response)
+
 	if err != nil {
-		log.Println(err)
-		return []CryptsyTicker{}
+		return err
 	}
 
 	if !response.Success {
-		return []CryptsyTicker{}
+		return errors.New("Unable to fetch market ticker data.")
 	}
 
-	if len(id) > 0 {
-		for _, x := range response.Data {
-			if x.ID == id {
-				result := make([]CryptsyTicker, 0)
-				result = append(result, x)
-				return result
-			}
-		}
-		log.Println("Unable to find market id.")
-		return []CryptsyTicker{}
+	for _, x := range response.Data {
+		c.Ticker[x.ID] = x
 	}
-	return response.Data
+	return nil
 }
 
 func (c *Cryptsy) GetMarketFees(id string) {
@@ -339,7 +331,7 @@ func (c *Cryptsy) GetOHLC(id string) {
 	log.Println(response)
 }
 
-func (c *Cryptsy) GetCurrencies(id string) []CryptsyCurrency {
+func (c *Cryptsy) GetCurrencies() error {
 	type Response struct {
 		Data    []CryptsyCurrency `json:"data"`
 		Success bool              `json:"success"`
@@ -348,26 +340,17 @@ func (c *Cryptsy) GetCurrencies(id string) []CryptsyCurrency {
 	response := Response{}
 	err := SendHTTPGetRequest(CRYPTSY_API_URL+CRYPTSY_CURRENCIES, true, &response)
 	if err != nil {
-		log.Println(err)
-		return []CryptsyCurrency{}
+		return err
 	}
 
 	if !response.Success {
-		return []CryptsyCurrency{}
+		return errors.New("Unable to get Cryptsy currency data.")
 	}
 
-	if len(id) > 0 {
-		for _, x := range response.Data {
-			if x.ID == id {
-				result := make([]CryptsyCurrency, 0)
-				result = append(result, x)
-				return result
-			}
-		}
-		log.Println("Unable to find market id.")
-		return []CryptsyCurrency{}
+	for _, x := range response.Data {
+		c.Currencies[x.ID] = x
 	}
-	return response.Data
+	return nil
 }
 
 func (c *Cryptsy) GetInfo() {

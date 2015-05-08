@@ -86,14 +86,18 @@ func (i *ItBit) GetFee(maker bool) float64 {
 func (i *ItBit) Run() {
 	if i.Verbose {
 		log.Printf("%s polling delay: %ds.\n", i.GetName(), i.RESTPollingDelay)
+		log.Printf("%s %d currencies enabled: %s.\n", i.GetName(), len(i.EnabledPairs), i.EnabledPairs)
 	}
 
 	for i.Enabled {
-		go func() {
-			ItbitBTC := i.GetTicker("XBTUSD")
-			log.Printf("ItBit BTC: Last %f High %f Low %f Volume %f\n", ItbitBTC.LastPrice, ItbitBTC.High24h, ItbitBTC.Low24h, ItbitBTC.Volume24h)
-			AddExchangeInfo(i.GetName(), "BTC", ItbitBTC.LastPrice, ItbitBTC.Volume24h)
-		}()
+		for _, x := range i.EnabledPairs {
+			currency := x
+			go func() {
+				ticker := i.GetTicker(currency)
+				log.Printf("ItBit %s: Last %f High %f Low %f Volume %f\n", currency, ticker.LastPrice, ticker.High24h, ticker.Low24h, ticker.Volume24h)
+				AddExchangeInfo(i.GetName(), currency, ticker.LastPrice, ticker.Volume24h)
+			}()
+		}
 		time.Sleep(time.Second * i.RESTPollingDelay)
 	}
 }

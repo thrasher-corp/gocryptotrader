@@ -31,6 +31,7 @@ type OKCoin struct {
 	BaseCurrencies               []string
 	AvailablePairs               []string
 	EnabledPairs                 []string
+	FuturesValues                []string
 }
 
 type OKCoinTicker struct {
@@ -157,6 +158,7 @@ func (o *OKCoin) SetDefaults() {
 	o.Verbose = false
 	o.Websocket = false
 	o.RESTPollingDelay = 10
+	o.FuturesValues = []string{"this_week", "next_week", "quarter"}
 }
 
 func (o *OKCoin) GetName() string {
@@ -196,77 +198,40 @@ func (o *OKCoin) Run() {
 	if o.Verbose {
 		log.Printf("%s Websocket: %s. (url: %s).\n", o.GetName(), IsEnabled(o.Websocket), o.WebsocketURL)
 		log.Printf("%s polling delay: %ds.\n", o.GetName(), o.RESTPollingDelay)
+		log.Printf("%s %d currencies enabled: %s.\n", o.GetName(), len(o.EnabledPairs), o.EnabledPairs)
 	}
 
 	if o.Websocket {
-		if o.WebsocketURL == OKCOIN_WEBSOCKET_URL {
-			go o.WebsocketClient([]string{"btcusd", "ltcusd"})
-		} else {
-			go o.WebsocketClient([]string{"btccny", "ltccny"})
-		}
+		go o.WebsocketClient()
 	}
 
 	for o.Enabled {
-		if o.APIUrl == OKCOIN_API_URL {
-			go func() {
-				OKCoinChinaIntlBTC := o.GetTicker("btc_usd")
-				log.Printf("OKCoin Intl BTC: Last %f High %f Low %f Volume %f\n", OKCoinChinaIntlBTC.Last, OKCoinChinaIntlBTC.High, OKCoinChinaIntlBTC.Low, OKCoinChinaIntlBTC.Vol)
-				AddExchangeInfo(o.GetName(), "BTC", OKCoinChinaIntlBTC.Last, OKCoinChinaIntlBTC.Vol)
-			}()
-
-			go func() {
-				OKCoinChinaIntlLTC := o.GetTicker("ltc_usd")
-				log.Printf("OKCoin Intl LTC: Last %f High %f Low %f Volume %f\n", OKCoinChinaIntlLTC.Last, OKCoinChinaIntlLTC.High, OKCoinChinaIntlLTC.Low, OKCoinChinaIntlLTC.Vol)
-				AddExchangeInfo(o.GetName(), "LTC", OKCoinChinaIntlLTC.Last, OKCoinChinaIntlLTC.Vol)
-			}()
-
-			go func() {
-				OKCoinFuturesBTC := o.GetFuturesTicker("btc_usd", "this_week")
-				log.Printf("OKCoin BTC Futures (weekly): Last %f High %f Low %f Volume %f\n", OKCoinFuturesBTC.Last, OKCoinFuturesBTC.High, OKCoinFuturesBTC.Low, OKCoinFuturesBTC.Vol)
-			}()
-
-			go func() {
-				OKCoinFuturesBTC := o.GetFuturesTicker("ltc_usd", "this_week")
-				log.Printf("OKCoin LTC Futures (weekly): Last %f High %f Low %f Volume %f\n", OKCoinFuturesBTC.Last, OKCoinFuturesBTC.High, OKCoinFuturesBTC.Low, OKCoinFuturesBTC.Vol)
-			}()
-
-			go func() {
-				OKCoinFuturesBTC := o.GetFuturesTicker("btc_usd", "next_week")
-				log.Printf("OKCoin BTC Futures (biweekly): Last %f High %f Low %f Volume %f\n", OKCoinFuturesBTC.Last, OKCoinFuturesBTC.High, OKCoinFuturesBTC.Low, OKCoinFuturesBTC.Vol)
-			}()
-
-			go func() {
-				OKCoinFuturesBTC := o.GetFuturesTicker("ltc_usd", "next_week")
-				log.Printf("OKCoin LTC Futures (biweekly): Last %f High %f Low %f Volume %f\n", OKCoinFuturesBTC.Last, OKCoinFuturesBTC.High, OKCoinFuturesBTC.Low, OKCoinFuturesBTC.Vol)
-			}()
-
-			go func() {
-				OKCoinFuturesBTC := o.GetFuturesTicker("btc_usd", "quarter")
-				log.Printf("OKCoin BTC Futures (quarterly): Last %f High %f Low %f Volume %f\n", OKCoinFuturesBTC.Last, OKCoinFuturesBTC.High, OKCoinFuturesBTC.Low, OKCoinFuturesBTC.Vol)
-			}()
-
-			go func() {
-				OKCoinFuturesBTC := o.GetFuturesTicker("ltc_usd", "quarter")
-				log.Printf("OKCoin LTC Futures (quarterly): Last %f High %f Low %f Volume %f\n", OKCoinFuturesBTC.Last, OKCoinFuturesBTC.High, OKCoinFuturesBTC.Low, OKCoinFuturesBTC.Vol)
-			}()
-		} else {
-			go func() {
-				OKCoinChinaBTC := o.GetTicker("btc_cny")
-				OKCoinChinaBTCLastUSD, _ := ConvertCurrency(OKCoinChinaBTC.Last, "CNY", "USD")
-				OKCoinChinaBTCHighUSD, _ := ConvertCurrency(OKCoinChinaBTC.High, "CNY", "USD")
-				OKCoinChinaBTCLowUSD, _ := ConvertCurrency(OKCoinChinaBTC.Low, "CNY", "USD")
-				log.Printf("OKCoin China: Last %f (%f) High %f (%f) Low %f (%f) Volume %f\n", OKCoinChinaBTCLastUSD, OKCoinChinaBTC.Last, OKCoinChinaBTCHighUSD, OKCoinChinaBTC.High, OKCoinChinaBTCLowUSD, OKCoinChinaBTC.Low, OKCoinChinaBTC.Vol)
-				AddExchangeInfo(o.GetName(), "BTC", OKCoinChinaBTCLastUSD, OKCoinChinaBTC.Vol)
-			}()
-
-			go func() {
-				OKCoinChinaLTC := o.GetTicker("ltc_cny")
-				OKCoinChinaLTCLastUSD, _ := ConvertCurrency(OKCoinChinaLTC.Last, "CNY", "USD")
-				OKCoinChinaLTCHighUSD, _ := ConvertCurrency(OKCoinChinaLTC.High, "CNY", "USD")
-				OKCoinChinaLTCLowUSD, _ := ConvertCurrency(OKCoinChinaLTC.Low, "CNY", "USD")
-				log.Printf("OKCoin China: Last %f (%f) High %f (%f) Low %f (%f) Volume %f\n", OKCoinChinaLTCLastUSD, OKCoinChinaLTC.Last, OKCoinChinaLTCHighUSD, OKCoinChinaLTC.High, OKCoinChinaLTCLowUSD, OKCoinChinaLTC.Low, OKCoinChinaLTC.Vol)
-				AddExchangeInfo(o.GetName(), "LTC", OKCoinChinaLTCLastUSD, OKCoinChinaLTC.Vol)
-			}()
+		for _, x := range o.EnabledPairs {
+			currency := StringToLower(x[0:3] + "_" + x[3:])
+			if o.APIUrl == OKCOIN_API_URL {
+				for _, y := range o.FuturesValues {
+					futuresValue := y
+					go func() {
+						ticker := o.GetFuturesTicker(currency, futuresValue)
+						log.Printf("OKCoin Intl Futures %s (%s): Last %f High %f Low %f Volume %f\n", currency, futuresValue, ticker.Last, ticker.High, ticker.Low, ticker.Vol)
+						AddExchangeInfo(o.GetName(), currency, ticker.Last, ticker.Vol)
+					}()
+				}
+				go func() {
+					ticker := o.GetTicker(currency)
+					log.Printf("OKCoin Intl Spot %s: Last %f High %f Low %f Volume %f\n", currency, ticker.Last, ticker.High, ticker.Low, ticker.Vol)
+					AddExchangeInfo(o.GetName(), currency, ticker.Last, ticker.Vol)
+				}()
+			} else {
+				go func() {
+					ticker := o.GetTicker(currency)
+					tickerLastUSD, _ := ConvertCurrency(ticker.Last, "CNY", "USD")
+					tickerHighUSD, _ := ConvertCurrency(ticker.High, "CNY", "USD")
+					tickerLowUSD, _ := ConvertCurrency(ticker.Low, "CNY", "USD")
+					log.Printf("OKCoin China %s: Last %f (%f) High %f (%f) Low %f (%f) Volume %f\n", currency, tickerLastUSD, ticker.Last, tickerHighUSD, ticker.High, tickerLowUSD, ticker.Low, ticker.Vol)
+					AddExchangeInfo(o.GetName(), currency, ticker.Last, ticker.Vol)
+				}()
+			}
 		}
 		time.Sleep(time.Second * o.RESTPollingDelay)
 	}

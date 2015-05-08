@@ -3,6 +3,7 @@ package main
 import (
 	"github.com/toorop/go-pusher"
 	"log"
+	"time"
 )
 
 type CryptsyPusherTrade struct {
@@ -40,7 +41,7 @@ const (
 	CRYPTSY_PUSHER_KEY = "cb65d0a7a72cd94adf1f"
 )
 
-func (c *Cryptsy) PusherClient(marketID []string) {
+func (c *Cryptsy) PusherClient() {
 	for c.Enabled && c.Websocket {
 		pusherClient, err := pusher.NewClient(CRYPTSY_PUSHER_KEY)
 		if err != nil {
@@ -48,7 +49,27 @@ func (c *Cryptsy) PusherClient(marketID []string) {
 			continue
 		}
 
+		if c.Verbose {
+			log.Printf("%s Pusher client connected.\n", c.GetName())
+		}
+
+		for len(c.Market) == 0 {
+			time.Sleep(time.Second * 1)
+		}
+
+		marketID := []string{}
+		for _, x := range c.EnabledPairs {
+			marketID = append(marketID, c.Market[x].ID)
+		}
+
+		if c.Verbose {
+			log.Printf("%s Websocket subscribing to %d channels.\n", c.GetName(), len(marketID))
+		}
+
 		for i := 0; i < len(marketID); i++ {
+			if marketID[i] == "" {
+				continue
+			}
 			err = pusherClient.Subscribe("trade." + marketID[i])
 
 			if err != nil {
@@ -66,7 +87,6 @@ func (c *Cryptsy) PusherClient(marketID []string) {
 			log.Printf("%s Websocket Bind error: ", c.GetName(), err)
 			continue
 		}
-		log.Printf("%s Pusher client connected.\n", c.GetName())
 
 		for c.Enabled && c.Websocket {
 			select {

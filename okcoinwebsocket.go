@@ -327,6 +327,7 @@ func (o *OKCoin) WebsocketFuturesOrderInfo(symbol, contractType string, orderID 
 	values["status"] = strconv.Itoa(orderStatus)
 	values["current_page"] = strconv.Itoa(currentPage)
 	values["page_length"] = strconv.Itoa(pageLength)
+	log.Println(values)
 	o.AddChannelAuthenticated(OKCOIN_WEBSOCKET_FUTURES_ORDER_INFO, values)
 }
 
@@ -384,10 +385,16 @@ func (o *OKCoin) RemoveChannelAuthenticated(conn *websocket.Conn, channel string
 	}
 }
 
-func (o *OKCoin) WebsocketClient(currencies []string) {
-	if len(currencies) == 0 {
-		log.Println("No currencies for Websocket client specified.")
-		return
+func (o *OKCoin) WebsocketClient() {
+	klineValues := []string{"1min", "3min", "5min", "15min", "30min", "1hour", "2hour", "4hour", "6hour", "12hour", "day", "3day", "week"}
+	currencyChan, userinfoChan := "", ""
+
+	if o.WebsocketURL == OKCOIN_WEBSOCKET_URL_CHINA {
+		currencyChan = OKCOIN_WEBSOCKET_CNY_REALTRADES
+		userinfoChan = OKCOIN_WEBSOCKET_SPOTCNY_USERINFO
+	} else {
+		currencyChan = OKCOIN_WEBSOCKET_USD_REALTRADES
+		userinfoChan = OKCOIN_WEBSOCKET_SPOTUSD_USERINFO
 	}
 
 	for o.Enabled && o.Websocket {
@@ -400,53 +407,40 @@ func (o *OKCoin) WebsocketClient(currencies []string) {
 			continue
 		}
 
-		log.Printf("%s Connected to Websocket.\n", o.GetName())
-		OKConnWebsocket.SetPingHandler(o.PingHandler)
-		currencyChan, userinfoChan := "", ""
-		futuruesContractValues := []string{"this_week", "next_week", "quarter"}
-		klineValues := []string{"1min", "3min", "5min", "15min", "30min", "1hour", "2hour", "4hour", "6hour", "12hour", "day", "3day", "week"}
+		if o.Verbose {
+			log.Printf("%s Connected to Websocket.\n", o.GetName())
+		}
 
-		if o.WebsocketURL == OKCOIN_WEBSOCKET_URL_CHINA {
-			currencyChan = OKCOIN_WEBSOCKET_CNY_REALTRADES
-			userinfoChan = OKCOIN_WEBSOCKET_SPOTCNY_USERINFO
-			o.WebsocketSpotOrderInfo("btc_cny", -1)
-			o.WebsocketSpotOrderInfo("ltc_cny", -1)
-		} else {
-			currencyChan = OKCOIN_WEBSOCKET_USD_REALTRADES
-			userinfoChan = OKCOIN_WEBSOCKET_SPOTUSD_USERINFO
-			o.WebsocketSpotOrderInfo("btc_usd", -1)
-			o.WebsocketSpotOrderInfo("ltc_usd", -1)
+		OKConnWebsocket.SetPingHandler(o.PingHandler)
+		if o.WebsocketURL == OKCOIN_WEBSOCKET_URL {
 			o.AddChannelAuthenticated(OKCOIN_WEBSOCKET_FUTURES_REALTRADES, map[string]string{})
 			o.AddChannelAuthenticated(OKCOIN_WEBSOCKET_FUTURES_USERINFO, map[string]string{})
-
-			// get all unfilled futures orders for both currencies
-			for _, y := range futuruesContractValues {
-				o.WebsocketFuturesOrderInfo("btc_usd", y, -1, 1, 1, 50)
-				o.WebsocketFuturesOrderInfo("ltc_usd", y, -1, 1, 1, 50)
-			}
 		}
 		o.AddChannelAuthenticated(currencyChan, map[string]string{})
 		o.AddChannelAuthenticated(userinfoChan, map[string]string{})
-		//spot
-		for _, x := range currencies {
-			o.AddChannel(fmt.Sprintf("ok_%s_ticker", x))
-			o.AddChannel(fmt.Sprintf("ok_%s_depth60", x))
-			o.AddChannel(fmt.Sprintf("ok_%s_trades_v1", x))
 
-			for _, y := range klineValues {
-				o.AddChannel(fmt.Sprintf("ok_%s_kline_%s", x, y))
-			}
-		}
+		for _, x := range o.EnabledPairs {
+			currency := StringToLower(x)
+			currencyUL := currency[0:3] + "_" + currency[3:]
+			o.WebsocketSpotOrderInfo(currencyUL, -1)
+			if o.WebsocketURL == OKCOIN_WEBSOCKET_URL {
+				o.AddChannel(fmt.Sprintf("ok_%s_future_index", currency))
+				for _, y := range o.FuturesValues {
+					o.WebsocketFuturesOrderInfo(currencyUL, y, -1, 1, 1, 50)
+					o.AddChannel(fmt.Sprintf("ok_%s_future_ticker_%s", currency, y))
+					o.AddChannel(fmt.Sprintf("ok_%s_future_depth_%s_60", currency, y))
+					o.AddChannel(fmt.Sprintf("ok_%s_future_trade_v1_%s", currency, y))
+					for _, z := range klineValues {
+						o.AddChannel(fmt.Sprintf("ok_future_%s_kline_%s_%s", currency, y, z))
+					}
+				}
+			} else {
+				o.AddChannel(fmt.Sprintf("ok_%s_ticker", currency))
+				o.AddChannel(fmt.Sprintf("ok_%s_depth60", currency))
+				o.AddChannel(fmt.Sprintf("ok_%s_trades_v1", currency))
 
-		//futures
-		for _, x := range currencies {
-			o.AddChannel(fmt.Sprintf("ok_%s_future_index", x))
-			for _, y := range futuruesContractValues {
-				o.AddChannel(fmt.Sprintf("ok_%s_future_ticker_%s", x, y))
-				o.AddChannel(fmt.Sprintf("ok_%s_future_depth_%s_60", x, y))
-				o.AddChannel(fmt.Sprintf("ok_%s_future_trade_v1_%s", x, y))
-				for _, z := range klineValues {
-					o.AddChannel(fmt.Sprintf("ok_future_%s_kline_%s_%s", x, y, z))
+				for _, y := range klineValues {
+					o.AddChannel(fmt.Sprintf("ok_%s_kline_%s", currency, y))
 				}
 			}
 		}

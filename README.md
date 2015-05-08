@@ -23,7 +23,7 @@ A cryptocurrency trading bot supporting multiple exchanges written in Golang.
 ** NA means not applicable as the Exchange does not support the feature.
 
 ## Current Features
-+ Support for BTC/LTC primarily, will be expanded to the available exchanges cryptocurrencies.
++ Support for all Exchange fiat and digital currencies.
 + REST API support for all exchanges.
 + Ability to turn off/on certain exchanges.
 + Ability to adjust manual polling timer for exchanges.

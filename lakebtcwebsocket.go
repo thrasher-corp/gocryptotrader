@@ -75,8 +75,10 @@ func (l *LakeBTC) WebsocketClient() {
 				switch event {
 				case "client_connected":
 					WSRailsSubscribe("ticker", conn)
-					WSRailsSubscribe("orderbook_CNY", conn)
-					WSRailsSubscribe("orderbook_USD", conn)
+					for _, x := range l.EnabledPairs {
+						currency := x[3:]
+						WSRailsSubscribe(fmt.Sprintf("orderbook_%s", currency), conn)
+					}
 				case "websocket_rails.subscribe":
 				case "websocket_rails.ping":
 					WSRailsPong("null", conn)

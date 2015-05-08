@@ -115,8 +115,8 @@ func (e *Event) CheckCondition() bool {
 		lastPrice = bot.exchange.bitstamp.GetTicker().Last
 	} else if bot.exchange.coinbase.GetName() == e.Exchange {
 		lastPrice = bot.exchange.coinbase.GetTicker("BTC-USD").Price
-	} else if bot.exchange.coinbase.GetName() == e.Exchange {
-		lastPrice = bot.exchange.cryptsy.GetMarkets("BTCUSD")[0].LastTrade.Price
+	} else if bot.exchange.cryptsy.GetName() == e.Exchange {
+		lastPrice = bot.exchange.cryptsy.Market["BTCUSD"].LastTrade.Price
 	} else if bot.exchange.lakebtc.GetName() == e.Exchange {
 		lastPrice = bot.exchange.lakebtc.GetTicker().CNY.Last
 	} else if bot.exchange.btcchina.GetName() == e.Exchange {

@@ -95,18 +95,24 @@ func (l *LakeBTC) Run() {
 	if l.Verbose {
 		log.Printf("%s Websocket: %s. (url: %s).\n", l.GetName(), IsEnabled(l.Websocket), LAKEBTC_WEBSOCKET_URL)
 		log.Printf("%s polling delay: %ds.\n", l.GetName(), l.RESTPollingDelay)
+		log.Printf("%s %d currencies enabled: %s.\n", l.GetName(), len(l.EnabledPairs), l.EnabledPairs)
 	}
 
 	if l.Websocket {
-		l.WebsocketClient()
+		go l.WebsocketClient()
 	}
 
 	for l.Enabled {
-		go func() {
-			LakeBTCTickerResponse := l.GetTicker()
-			log.Printf("LakeBTC USD: Last %f (%f) High %f (%f) Low %f (%f) Volume US %f (CNY %f)\n", LakeBTCTickerResponse.USD.Last, LakeBTCTickerResponse.CNY.Last, LakeBTCTickerResponse.USD.High, LakeBTCTickerResponse.CNY.High, LakeBTCTickerResponse.USD.Low, LakeBTCTickerResponse.CNY.Low, LakeBTCTickerResponse.USD.Volume, LakeBTCTickerResponse.CNY.Volume)
-			AddExchangeInfo(l.GetName(), "BTC", LakeBTCTickerResponse.USD.Last, LakeBTCTickerResponse.USD.Volume)
-		}()
+		ticker := l.GetTicker()
+		for _, x := range l.EnabledPairs {
+			if x == "BTCUSD" {
+				log.Printf("LakeBTC BTC USD: Last %f High %f Low %f Volume %f\n", ticker.USD.Last, ticker.USD.High, ticker.USD.Low, ticker.USD.Volume)
+				AddExchangeInfo(l.GetName(), "BTCUSD", ticker.USD.Last, ticker.USD.Volume)
+			} else if x == "BTCCNY" {
+				log.Printf("LakeBTC BTC CNY: Last %f High %f Low %f Volume %f\n", ticker.CNY.Last, ticker.CNY.High, ticker.CNY.Low, ticker.CNY.Volume)
+				AddExchangeInfo(l.GetName(), "BTCCNY", ticker.CNY.Last, ticker.CNY.Volume)
+			}
+		}
 		time.Sleep(time.Second * l.RESTPollingDelay)
 	}
 }
