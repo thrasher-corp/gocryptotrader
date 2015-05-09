@@ -135,6 +135,8 @@ func (e *Event) CheckCondition() bool {
 		lastPrice = bot.exchange.okcoinIntl.GetTicker("btc_usd").Last
 	} else if bot.exchange.anx.GetName() == e.Exchange {
 		lastPrice = bot.exchange.anx.GetTicker("BTCUSD").Data.Last.Value
+	} else if bot.exchange.kraken.GetName() == e.Exchange {
+		lastPrice = bot.exchange.kraken.Ticker["XBTUSD"].Last
 	}
 
 	if lastPrice == 0 {

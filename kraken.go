@@ -47,11 +47,7 @@ type Kraken struct {
 	BaseCurrencies       []string
 	AvailablePairs       []string
 	EnabledPairs         []string
-}
-
-type KrakenResponse struct {
-	Error  []string               `json:error`
-	Result map[string]interface{} `json:result`
+	Ticker               map[string]KrakenTicker
 }
 
 func (k *Kraken) SetDefaults() {
@@ -62,6 +58,7 @@ func (k *Kraken) SetDefaults() {
 	k.Verbose = false
 	k.Websocket = false
 	k.RESTPollingDelay = 10
+	k.Ticker = make(map[string]KrakenTicker)
 }
 
 func (k *Kraken) GetName() string {
@@ -92,144 +89,185 @@ func (k *Kraken) GetFee(cryptoTrade bool) float64 {
 func (k *Kraken) Run() {
 	if k.Verbose {
 		log.Printf("%s polling delay: %ds.\n", k.GetName(), k.RESTPollingDelay)
+		log.Printf("%s %d currencies enabled: %s.\n", k.GetName(), len(k.EnabledPairs), k.EnabledPairs)
 	}
 
 	for k.Enabled {
-		go func() {
-			KrakenBTC := k.GetTicker("XBTUSD")
-			log.Printf("Kraken BTC: %v\n", KrakenBTC)
-		}()
-		go func() {
-			KrakenLTC := k.GetTicker("LTCUSD")
-			log.Printf("Kraken LTC: %v\n", KrakenLTC)
-		}()
+		err := k.GetTicker(JoinStrings(k.EnabledPairs, ","))
+		if err != nil {
+			log.Println(err)
+		} else {
+			for _, x := range k.EnabledPairs {
+				ticker := k.Ticker[x]
+				log.Printf("Kraken %s Last %f High %f Low %f Volume %f\n", x, ticker.Last, ticker.High, ticker.Low, ticker.Volume)
+				AddExchangeInfo(k.GetName(), x, ticker.Last, ticker.Volume)
+			}
+		}
 		time.Sleep(time.Second * k.RESTPollingDelay)
 	}
 }
 
-func (k *Kraken) GetServerTime() {
-	result, err := k.SendKrakenRequest(KRAKEN_SERVER_TIME)
+func (k *Kraken) GetServerTime() error {
+	var result interface{}
+	path := fmt.Sprintf("%s/%s/public/%s", KRAKEN_API_URL, KRAKEN_API_VERSION, KRAKEN_SERVER_TIME)
+	err := SendHTTPGetRequest(path, true, &result)
 
 	if err != nil {
-		log.Println(err)
-		return
+		return err
 	}
 
 	log.Println(result)
+	return nil
 }
 
-func (k *Kraken) GetAssets() {
-	result, err := k.SendKrakenRequest(KRAKEN_ASSETS)
+func (k *Kraken) GetAssets() error {
+	var result interface{}
+	path := fmt.Sprintf("%s/%s/public/%s", KRAKEN_API_URL, KRAKEN_API_VERSION, KRAKEN_ASSETS)
+	err := SendHTTPGetRequest(path, true, &result)
 
 	if err != nil {
-		log.Println(err)
-		return
+		return err
 	}
 
 	log.Println(result)
+	return nil
 }
 
-func (k *Kraken) GetAssetPairs() {
-	result, err := k.SendKrakenRequest(KRAKEN_ASSET_PAIRS)
+func (k *Kraken) GetAssetPairs() error {
+	var result interface{}
+	path := fmt.Sprintf("%s/%s/public/%s", KRAKEN_API_URL, KRAKEN_API_VERSION, KRAKEN_ASSET_PAIRS)
+	err := SendHTTPGetRequest(path, true, &result)
 
 	if err != nil {
-		log.Println(err)
-		return
+		return err
 	}
 
 	log.Println(result)
+	return nil
 }
 
-func (k *Kraken) GetTicker(symbol string) interface{} {
+type KrakenTicker struct {
+	Ask    float64
+	Bid    float64
+	Last   float64
+	Volume float64
+	VWAP   float64
+	Trades int64
+	Low    float64
+	High   float64
+	Open   float64
+}
+
+type KrakenTickerResponse struct {
+	Ask    []string `json:"a"`
+	Bid    []string `json:"b"`
+	Last   []string `json:"c"`
+	Volume []string `json:"v"`
+	VWAP   []string `json:"p"`
+	Trades []int64  `json:"t"`
+	Low    []string `json:"l"`
+	High   []string `json:"h"`
+	Open   string   `json:"o"`
+}
+
+func (k *Kraken) GetTicker(symbol string) error {
 	values := url.Values{}
 	values.Set("pair", symbol)
 
-	result, err := k.SendKrakenRequest(KRAKEN_TICKER + "?" + values.Encode())
+	type Response struct {
+		Error []interface{}                   `json:"error"`
+		Data  map[string]KrakenTickerResponse `json:"result"`
+	}
+
+	resp := Response{}
+	path := fmt.Sprintf("%s/%s/public/%s?%s", KRAKEN_API_URL, KRAKEN_API_VERSION, KRAKEN_TICKER, values.Encode())
+	err := SendHTTPGetRequest(path, true, &resp)
 
 	if err != nil {
-		log.Println(err)
-		return ""
+		return err
 	}
-	if StringContains(symbol, "LTC") {
-		return result["XLTCZUSD"]
-	} else if StringContains(symbol, "XBT") {
-		return result["XXBTZUSD"]
+
+	if len(resp.Error) > 0 {
+		return errors.New(fmt.Sprintf("Kraken error: %s", resp.Error))
+	}
+
+	for x, y := range resp.Data {
+		x = x[1:4] + x[5:]
+		ticker := KrakenTicker{}
+		ticker.Ask, _ = strconv.ParseFloat(y.Ask[0], 64)
+		ticker.Bid, _ = strconv.ParseFloat(y.Bid[0], 64)
+		ticker.Last, _ = strconv.ParseFloat(y.Last[0], 64)
+		ticker.Volume, _ = strconv.ParseFloat(y.Volume[1], 64)
+		ticker.VWAP, _ = strconv.ParseFloat(y.VWAP[1], 64)
+		ticker.Trades = y.Trades[1]
+		ticker.Low, _ = strconv.ParseFloat(y.Low[1], 64)
+		ticker.High, _ = strconv.ParseFloat(y.High[1], 64)
+		ticker.Open, _ = strconv.ParseFloat(y.Open, 64)
+		k.Ticker[x] = ticker
 	}
 	return nil
 }
 
-func (k *Kraken) GetOHLC(symbol string) {
+func (k *Kraken) GetOHLC(symbol string) error {
 	values := url.Values{}
 	values.Set("pair", symbol)
 
-	result, err := k.SendKrakenRequest(KRAKEN_OHLC + "?" + values.Encode())
+	var result interface{}
+	path := fmt.Sprintf("%s/%s/public/%s?%s", KRAKEN_API_URL, KRAKEN_API_VERSION, KRAKEN_OHLC, values.Encode())
+	err := SendHTTPGetRequest(path, true, &result)
 
 	if err != nil {
-		log.Println(err)
-		return
+		return err
 	}
 
 	log.Println(result)
+	return nil
 }
 
-func (k *Kraken) GetDepth(symbol string) {
+func (k *Kraken) GetDepth(symbol string) error {
 	values := url.Values{}
 	values.Set("pair", symbol)
 
-	result, err := k.SendKrakenRequest(KRAKEN_DEPTH + "?" + values.Encode())
+	var result interface{}
+	path := fmt.Sprintf("%s/%s/public/%s?%s", KRAKEN_API_URL, KRAKEN_API_VERSION, KRAKEN_DEPTH, values.Encode())
+	err := SendHTTPGetRequest(path, true, &result)
 
 	if err != nil {
-		log.Println(err)
-		return
+		return err
 	}
 
 	log.Println(result)
+	return nil
 }
 
-func (k *Kraken) GetTrades(symbol string) {
+func (k *Kraken) GetTrades(symbol string) error {
 	values := url.Values{}
 	values.Set("pair", symbol)
 
-	result, err := k.SendKrakenRequest(KRAKEN_TRADES + "?" + values.Encode())
+	var result interface{}
+	path := fmt.Sprintf("%s/%s/public/%s?%s", KRAKEN_API_URL, KRAKEN_API_VERSION, KRAKEN_TRADES, values.Encode())
+	err := SendHTTPGetRequest(path, true, &result)
 
 	if err != nil {
-		log.Println(err)
-		return
+		return err
 	}
 
 	log.Println(result)
+	return nil
 }
 
 func (k *Kraken) GetSpread(symbol string) {
 	values := url.Values{}
 	values.Set("pair", symbol)
 
-	result, err := k.SendKrakenRequest(KRAKEN_SPREAD + "?" + values.Encode())
+	var result interface{}
+	path := fmt.Sprintf("%s/%s/public/%s?%s", KRAKEN_API_URL, KRAKEN_API_VERSION, KRAKEN_SPREAD, values.Encode())
+	err := SendHTTPGetRequest(path, true, &result)
 
 	if err != nil {
 		log.Println(err)
 		return
 	}
-
-	log.Println(result)
-}
-
-func (k *Kraken) SendKrakenRequest(method string) (map[string]interface{}, error) {
-	path := fmt.Sprintf("%s/%s/public/%s", KRAKEN_API_URL, KRAKEN_API_VERSION, method)
-	resp := KrakenResponse{}
-	err := SendHTTPGetRequest(path, true, &resp)
-
-	log.Printf("Sending GET request to %s\n", path)
-
-	if err != nil {
-		return nil, err
-	}
-
-	if len(resp.Error) != 0 {
-		return nil, errors.New(fmt.Sprintf("Kraken error: %s", resp.Error))
-	}
-
-	return resp.Result, nil
 }
 
 func (k *Kraken) GetBalance() {
@@ -546,16 +584,5 @@ func (k *Kraken) SendAuthenticatedHTTPRequest(method string, values url.Values) 
 		log.Printf("Recieved raw: \n%s\n", resp)
 	}
 
-	kresp := KrakenResponse{}
-	err = JSONDecode([]byte(resp), &kresp)
-
-	if err != nil {
-		return nil, errors.New("Unable to JSON response.")
-	}
-
-	if len(kresp.Error) != 0 {
-		return nil, errors.New(fmt.Sprintf("Kraken error: %s", kresp.Error))
-	}
-
-	return kresp.Result, nil
+	return resp, nil
 }
