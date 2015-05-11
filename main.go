@@ -43,7 +43,14 @@ func main() {
 	bot.config, err = ReadConfig()
 
 	if err != nil {
-		log.Println("Fatal error opening config.json file. Error: ", err)
+		log.Println("Fatal error opening config.json file. Error:", err)
+		return
+	}
+
+	err = CheckConfigValues()
+
+	if err != nil {
+		log.Println("Fatal error checking config values. Error:", err)
 		return
 	}
 

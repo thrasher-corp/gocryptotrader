@@ -2,12 +2,20 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"time"
 )
 
 const (
 	CONFIG_FILE = "config.json"
+)
+
+var (
+	ErrExchangeNameEmpty           = "Exchange #%d in config: Exchange name is empty."
+	ErrExchangeAvailablePairsEmpty = "Exchange %s: Available pairs is empty."
+	ErrExchangeEnabledPairsEmpty   = "Exchange %s: Enabled pairs is empty."
+	ErrExchangeBaseCurrenciesEmpty = "Exchange %s: Base currencies is empty."
 )
 
 type SMSContacts struct {
@@ -36,6 +44,26 @@ type Exchanges struct {
 	AvailablePairs   string
 	EnabledPairs     string
 	BaseCurrencies   string
+}
+
+func CheckConfigValues() error {
+	for i, exch := range bot.config.Exchanges {
+		if exch.Enabled {
+			if exch.Name == "" {
+				return fmt.Errorf(ErrExchangeNameEmpty, i)
+			}
+			if exch.AvailablePairs == "" {
+				return fmt.Errorf(ErrExchangeAvailablePairsEmpty, exch.Name)
+			}
+			if exch.EnabledPairs == "" {
+				return fmt.Errorf(ErrExchangeEnabledPairsEmpty, exch.Name)
+			}
+			if exch.BaseCurrencies == "" {
+				return fmt.Errorf(ErrExchangeBaseCurrenciesEmpty, exch.Name)
+			}
+		}
+	}
+	return nil
 }
 
 func ReadConfig() (Config, error) {
