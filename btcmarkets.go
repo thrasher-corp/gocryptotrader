@@ -21,17 +21,18 @@ const (
 )
 
 type BTCMarkets struct {
-	Name              string
-	Enabled           bool
-	Verbose           bool
-	Websocket         bool
-	RESTPollingDelay  time.Duration
-	Fee               float64
-	Ticker            map[string]BTCMarketsTicker
-	APIKey, APISecret string
-	BaseCurrencies    []string
-	AvailablePairs    []string
-	EnabledPairs      []string
+	Name                    string
+	Enabled                 bool
+	Verbose                 bool
+	Websocket               bool
+	RESTPollingDelay        time.Duration
+	Fee                     float64
+	Ticker                  map[string]BTCMarketsTicker
+	AuthenticatedAPISupport bool
+	APIKey, APISecret       string
+	BaseCurrencies          []string
+	AvailablePairs          []string
+	EnabledPairs            []string
 }
 
 type BTCMarketsTicker struct {
@@ -105,6 +106,10 @@ func (b *BTCMarkets) IsEnabled() bool {
 }
 
 func (b *BTCMarkets) SetAPIKeys(apiKey, apiSecret string) {
+	if !b.AuthenticatedAPISupport {
+		return
+	}
+
 	b.APIKey = apiKey
 	result, err := Base64Decode(apiSecret)
 

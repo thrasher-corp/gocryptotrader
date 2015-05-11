@@ -27,17 +27,18 @@ const (
 )
 
 type BTCE struct {
-	Name              string
-	Enabled           bool
-	Verbose           bool
-	Websocket         bool
-	RESTPollingDelay  time.Duration
-	APIKey, APISecret string
-	Fee               float64
-	BaseCurrencies    []string
-	AvailablePairs    []string
-	EnabledPairs      []string
-	Ticker            map[string]BTCeTicker
+	Name                    string
+	Enabled                 bool
+	Verbose                 bool
+	Websocket               bool
+	RESTPollingDelay        time.Duration
+	AuthenticatedAPISupport bool
+	APIKey, APISecret       string
+	Fee                     float64
+	BaseCurrencies          []string
+	AvailablePairs          []string
+	EnabledPairs            []string
+	Ticker                  map[string]BTCeTicker
 }
 
 type BTCeTicker struct {

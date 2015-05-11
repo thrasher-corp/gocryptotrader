@@ -114,11 +114,17 @@ func main() {
 	}
 
 	for _, exch := range bot.config.Exchanges {
+		if exch.Enabled {
+			log.Printf("%s: Exchange support: %s (Authenticated API support: %s - Verbose mode: %s).\n", exch.Name, IsEnabled(exch.Enabled), IsEnabled(exch.AuthenticatedAPISupport), IsEnabled(exch.Verbose))
+		} else {
+			log.Printf("%s: Exchange support: %s\n", exch.Name, IsEnabled(exch.Enabled))
+		}
+
 		if bot.exchange.anx.GetName() == exch.Name {
-			log.Printf("%s: %s (Verbose mode: %s).\n", exch.Name, IsEnabled(exch.Enabled), IsEnabled(exch.Verbose))
 			if !exch.Enabled {
 				bot.exchange.anx.SetEnabled(false)
 			} else {
+				bot.exchange.anx.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
 				bot.exchange.anx.SetAPIKeys(exch.APIKey, exch.APISecret)
 				bot.exchange.anx.RESTPollingDelay = exch.RESTPollingDelay
 				bot.exchange.anx.Verbose = exch.Verbose
@@ -129,10 +135,10 @@ func main() {
 				go bot.exchange.anx.Run()
 			}
 		} else if bot.exchange.btcchina.GetName() == exch.Name {
-			log.Printf("%s: %s (Verbose mode: %s).\n", exch.Name, IsEnabled(exch.Enabled), IsEnabled(exch.Verbose))
 			if !exch.Enabled {
 				bot.exchange.btcchina.SetEnabled(false)
 			} else {
+				bot.exchange.btcchina.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
 				bot.exchange.btcchina.SetAPIKeys(exch.APIKey, exch.APISecret)
 				bot.exchange.btcchina.RESTPollingDelay = exch.RESTPollingDelay
 				bot.exchange.btcchina.Verbose = exch.Verbose
@@ -143,10 +149,10 @@ func main() {
 				go bot.exchange.btcchina.Run()
 			}
 		} else if bot.exchange.bitstamp.GetName() == exch.Name {
-			log.Printf("%s: %s (Verbose mode: %s).\n", exch.Name, IsEnabled(exch.Enabled), IsEnabled(exch.Verbose))
 			if !exch.Enabled {
 				bot.exchange.bitstamp.SetEnabled(false)
 			} else {
+				bot.exchange.bitstamp.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
 				bot.exchange.bitstamp.SetAPIKeys(exch.ClientID, exch.APIKey, exch.APISecret)
 				bot.exchange.bitstamp.RESTPollingDelay = exch.RESTPollingDelay
 				bot.exchange.bitstamp.Verbose = exch.Verbose
@@ -157,10 +163,10 @@ func main() {
 				go bot.exchange.bitstamp.Run()
 			}
 		} else if bot.exchange.bitfinex.GetName() == exch.Name {
-			log.Printf("%s: %s (Verbose mode: %s).\n", exch.Name, IsEnabled(exch.Enabled), IsEnabled(exch.Verbose))
 			if !exch.Enabled {
 				bot.exchange.bitfinex.SetEnabled(false)
 			} else {
+				bot.exchange.bitfinex.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
 				bot.exchange.bitfinex.SetAPIKeys(exch.APIKey, exch.APISecret)
 				bot.exchange.bitfinex.RESTPollingDelay = exch.RESTPollingDelay
 				bot.exchange.bitfinex.Verbose = exch.Verbose
@@ -171,10 +177,10 @@ func main() {
 				go bot.exchange.bitfinex.Run()
 			}
 		} else if bot.exchange.btce.GetName() == exch.Name {
-			log.Printf("%s: %s (Verbose mode: %s).\n", exch.Name, IsEnabled(exch.Enabled), IsEnabled(exch.Verbose))
 			if !exch.Enabled {
 				bot.exchange.btce.SetEnabled(false)
 			} else {
+				bot.exchange.btce.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
 				bot.exchange.btce.SetAPIKeys(exch.APIKey, exch.APISecret)
 				bot.exchange.btce.RESTPollingDelay = exch.RESTPollingDelay
 				bot.exchange.btce.Verbose = exch.Verbose
@@ -185,10 +191,10 @@ func main() {
 				go bot.exchange.btce.Run()
 			}
 		} else if bot.exchange.btcmarkets.GetName() == exch.Name {
-			log.Printf("%s: %s (Verbose mode: %s).\n", exch.Name, IsEnabled(exch.Enabled), IsEnabled(exch.Verbose))
 			if !exch.Enabled {
 				bot.exchange.btcmarkets.SetEnabled(false)
 			} else {
+				bot.exchange.btcmarkets.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
 				bot.exchange.btcmarkets.SetAPIKeys(exch.APIKey, exch.APISecret)
 				bot.exchange.btcmarkets.RESTPollingDelay = exch.RESTPollingDelay
 				bot.exchange.btcmarkets.Verbose = exch.Verbose
@@ -199,10 +205,10 @@ func main() {
 				go bot.exchange.btcmarkets.Run()
 			}
 		} else if bot.exchange.coinbase.GetName() == exch.Name {
-			log.Printf("%s: %s (Verbose mode: %s).\n", exch.Name, IsEnabled(exch.Enabled), IsEnabled(exch.Verbose))
 			if !exch.Enabled {
 				bot.exchange.coinbase.SetEnabled(false)
 			} else {
+				bot.exchange.coinbase.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
 				bot.exchange.coinbase.SetAPIKeys(exch.ClientID, exch.APIKey, exch.APISecret)
 				bot.exchange.coinbase.RESTPollingDelay = exch.RESTPollingDelay
 				bot.exchange.coinbase.Verbose = exch.Verbose
@@ -213,10 +219,10 @@ func main() {
 				go bot.exchange.coinbase.Run()
 			}
 		} else if bot.exchange.cryptsy.GetName() == exch.Name {
-			log.Printf("%s: %s (Verbose mode: %s).\n", exch.Name, IsEnabled(exch.Enabled), IsEnabled(exch.Verbose))
 			if !exch.Enabled {
 				bot.exchange.cryptsy.SetEnabled(false)
 			} else {
+				bot.exchange.cryptsy.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
 				bot.exchange.cryptsy.SetAPIKeys(exch.APIKey, exch.APISecret)
 				bot.exchange.cryptsy.RESTPollingDelay = exch.RESTPollingDelay
 				bot.exchange.cryptsy.Verbose = exch.Verbose
@@ -227,10 +233,10 @@ func main() {
 				go bot.exchange.cryptsy.Run()
 			}
 		} else if bot.exchange.okcoinChina.GetName() == exch.Name {
-			log.Printf("%s: %s (Verbose mode: %s).\n", exch.Name, IsEnabled(exch.Enabled), IsEnabled(exch.Verbose))
 			if !exch.Enabled {
 				bot.exchange.okcoinChina.SetEnabled(false)
 			} else {
+				bot.exchange.okcoinChina.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
 				bot.exchange.okcoinChina.SetAPIKeys(exch.APIKey, exch.APISecret)
 				bot.exchange.okcoinChina.RESTPollingDelay = exch.RESTPollingDelay
 				bot.exchange.okcoinChina.Verbose = exch.Verbose
@@ -241,10 +247,10 @@ func main() {
 				go bot.exchange.okcoinChina.Run()
 			}
 		} else if bot.exchange.okcoinIntl.GetName() == exch.Name {
-			log.Printf("%s: %s (Verbose mode: %s).\n", exch.Name, IsEnabled(exch.Enabled), IsEnabled(exch.Verbose))
 			if !exch.Enabled {
 				bot.exchange.okcoinIntl.SetEnabled(false)
 			} else {
+				bot.exchange.okcoinIntl.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
 				bot.exchange.okcoinIntl.SetAPIKeys(exch.APIKey, exch.APISecret)
 				bot.exchange.okcoinIntl.RESTPollingDelay = exch.RESTPollingDelay
 				bot.exchange.okcoinIntl.Verbose = exch.Verbose
@@ -255,10 +261,10 @@ func main() {
 				go bot.exchange.okcoinIntl.Run()
 			}
 		} else if bot.exchange.itbit.GetName() == exch.Name {
-			log.Printf("%s: %s (Verbose mode: %s).\n", exch.Name, IsEnabled(exch.Enabled), IsEnabled(exch.Verbose))
 			if !exch.Enabled {
 				bot.exchange.itbit.SetEnabled(false)
 			} else {
+				bot.exchange.itbit.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
 				bot.exchange.itbit.SetAPIKeys(exch.APIKey, exch.APISecret, exch.ClientID)
 				bot.exchange.itbit.RESTPollingDelay = exch.RESTPollingDelay
 				bot.exchange.itbit.Verbose = exch.Verbose
@@ -269,10 +275,10 @@ func main() {
 				go bot.exchange.itbit.Run()
 			}
 		} else if bot.exchange.kraken.GetName() == exch.Name {
-			log.Printf("%s: %s (Verbose mode: %s).\n", exch.Name, IsEnabled(exch.Enabled), IsEnabled(exch.Verbose))
 			if !exch.Enabled {
 				bot.exchange.kraken.SetEnabled(false)
 			} else {
+				bot.exchange.kraken.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
 				bot.exchange.kraken.SetAPIKeys(exch.APIKey, exch.APISecret)
 				bot.exchange.kraken.RESTPollingDelay = exch.RESTPollingDelay
 				bot.exchange.kraken.Verbose = exch.Verbose
@@ -283,10 +289,10 @@ func main() {
 				go bot.exchange.kraken.Run()
 			}
 		} else if bot.exchange.lakebtc.GetName() == exch.Name {
-			log.Printf("%s: %s (Verbose mode: %s).\n", exch.Name, IsEnabled(exch.Enabled), IsEnabled(exch.Verbose))
 			if !exch.Enabled {
 				bot.exchange.lakebtc.SetEnabled(false)
 			} else {
+				bot.exchange.lakebtc.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
 				bot.exchange.lakebtc.SetAPIKeys(exch.APIKey, exch.APISecret)
 				bot.exchange.lakebtc.RESTPollingDelay = exch.RESTPollingDelay
 				bot.exchange.lakebtc.Verbose = exch.Verbose
@@ -297,10 +303,10 @@ func main() {
 				go bot.exchange.lakebtc.Run()
 			}
 		} else if bot.exchange.huobi.GetName() == exch.Name {
-			log.Printf("%s: %s (Verbose mode: %s).\n", exch.Name, IsEnabled(exch.Enabled), IsEnabled(exch.Verbose))
 			if !exch.Enabled {
 				bot.exchange.huobi.SetEnabled(false)
 			} else {
+				bot.exchange.huobi.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
 				bot.exchange.huobi.SetAPIKeys(exch.APIKey, exch.APISecret)
 				bot.exchange.huobi.RESTPollingDelay = exch.RESTPollingDelay
 				bot.exchange.huobi.Verbose = exch.Verbose

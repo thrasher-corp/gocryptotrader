@@ -15,16 +15,17 @@ const (
 )
 
 type HUOBI struct {
-	Name                 string
-	Enabled              bool
-	Verbose              bool
-	Websocket            bool
-	RESTPollingDelay     time.Duration
-	AccessKey, SecretKey string
-	Fee                  float64
-	BaseCurrencies       []string
-	AvailablePairs       []string
-	EnabledPairs         []string
+	Name                    string
+	Enabled                 bool
+	Verbose                 bool
+	Websocket               bool
+	RESTPollingDelay        time.Duration
+	AuthenticatedAPISupport bool
+	AccessKey, SecretKey    string
+	Fee                     float64
+	BaseCurrencies          []string
+	AvailablePairs          []string
+	EnabledPairs            []string
 }
 
 type HuobiTicker struct {

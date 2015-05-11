@@ -36,6 +36,7 @@ type Bitstamp struct {
 	Verbose                     bool
 	Websocket                   bool
 	RESTPollingDelay            time.Duration
+	AuthenticatedAPISupport     bool
 	ClientID, APIKey, APISecret string
 	Ticker                      BitstampTicker
 	Orderbook                   Orderbook

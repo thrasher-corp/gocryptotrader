@@ -24,6 +24,7 @@ type OKCoin struct {
 	Websocket                    bool
 	WebsocketURL                 string
 	RESTPollingDelay             time.Duration
+	AuthenticatedAPISupport      bool
 	APIUrl, PartnerID, SecretKey string
 	TakerFee, MakerFee           float64
 	RESTErrors                   map[string]string

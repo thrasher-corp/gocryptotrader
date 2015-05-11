@@ -141,23 +141,24 @@ type SymbolsDetails struct {
 }
 
 type Bitfinex struct {
-	Name              string
-	Enabled           bool
-	Verbose           bool
-	Websocket         bool
-	RESTPollingDelay  time.Duration
-	APIKey, APISecret string
-	Ticker            BitfinexTicker
-	Stats             []BitfinexStats
-	Orderbook         BitfinexOrderbook
-	Trades            []TradeStructure
-	SymbolsDetails    []SymbolsDetails
-	Fees              []BitfinexFee
-	ActiveOrders      []BitfinexActiveOrder
-	AccountBalance    []BitfinexBalance
-	BaseCurrencies    []string
-	AvailablePairs    []string
-	EnabledPairs      []string
+	Name                    string
+	Enabled                 bool
+	Verbose                 bool
+	Websocket               bool
+	RESTPollingDelay        time.Duration
+	AuthenticatedAPISupport bool
+	APIKey, APISecret       string
+	Ticker                  BitfinexTicker
+	Stats                   []BitfinexStats
+	Orderbook               BitfinexOrderbook
+	Trades                  []TradeStructure
+	SymbolsDetails          []SymbolsDetails
+	Fees                    []BitfinexFee
+	ActiveOrders            []BitfinexActiveOrder
+	AccountBalance          []BitfinexBalance
+	BaseCurrencies          []string
+	AvailablePairs          []string
+	EnabledPairs            []string
 }
 
 func (b *Bitfinex) SetDefaults() {

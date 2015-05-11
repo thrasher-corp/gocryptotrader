@@ -35,6 +35,7 @@ type Coinbase struct {
 	Verbose                     bool
 	Websocket                   bool
 	RESTPollingDelay            time.Duration
+	AuthenticatedAPISupport     bool
 	Password, APIKey, APISecret string
 	TakerFee, MakerFee          float64
 	BaseCurrencies              []string
@@ -165,6 +166,10 @@ func (c *Coinbase) Run() {
 }
 
 func (c *Coinbase) SetAPIKeys(password, apiKey, apiSecret string) {
+	if !c.AuthenticatedAPISupport {
+		return
+	}
+
 	c.Password = password
 	c.APIKey = apiKey
 	result, err := Base64Decode(apiSecret)

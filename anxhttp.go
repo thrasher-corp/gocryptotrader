@@ -24,16 +24,17 @@ const (
 )
 
 type ANX struct {
-	Name               string
-	Enabled            bool
-	Verbose            bool
-	Websocket          bool
-	RESTPollingDelay   time.Duration
-	APIKey, APISecret  string
-	TakerFee, MakerFee float64
-	BaseCurrencies     []string
-	AvailablePairs     []string
-	EnabledPairs       []string
+	Name                    string
+	Enabled                 bool
+	Verbose                 bool
+	Websocket               bool
+	RESTPollingDelay        time.Duration
+	AuthenticatedAPISupport bool
+	APIKey, APISecret       string
+	TakerFee, MakerFee      float64
+	BaseCurrencies          []string
+	AvailablePairs          []string
+	EnabledPairs            []string
 }
 
 type ANXOrder struct {
@@ -112,12 +113,16 @@ func (a *ANX) IsEnabled() bool {
 }
 
 func (a *ANX) SetAPIKeys(apiKey, apiSecret string) {
+	if !a.AuthenticatedAPISupport {
+		return
+	}
+
 	a.APIKey = apiKey
 	result, err := Base64Decode(apiSecret)
 
 	if err != nil {
-		log.Printf("%s unable to decode secret key.", a.GetName())
-		a.Enabled = false
+		log.Printf("%s unable to decode secret key. Authenticated API support disabled.", a.GetName())
+		a.AuthenticatedAPISupport = true
 		return
 	}
 

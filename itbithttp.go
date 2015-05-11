@@ -20,6 +20,7 @@ type ItBit struct {
 	Verbose                      bool
 	Websocket                    bool
 	RESTPollingDelay             time.Duration
+	AuthenticatedAPISupport      bool
 	ClientKey, APISecret, UserID string
 	MakerFee, TakerFee           float64
 	BaseCurrencies               []string

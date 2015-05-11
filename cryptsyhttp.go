@@ -32,20 +32,21 @@ const (
 )
 
 type Cryptsy struct {
-	Name               string
-	Enabled            bool
-	Verbose            bool
-	Websocket          bool
-	RESTPollingDelay   time.Duration
-	APIKey, APISecret  string
-	TakerFee, MakerFee float64
-	BaseCurrencies     []string
-	AvailablePairs     []string
-	EnabledPairs       []string
-	Market             map[string]CryptsyMarket
-	Ticker             map[string]CryptsyTicker
-	Volume             map[string]CryptsyVolume
-	Currencies         map[string]CryptsyCurrency
+	Name                    string
+	Enabled                 bool
+	Verbose                 bool
+	Websocket               bool
+	RESTPollingDelay        time.Duration
+	AuthenticatedAPISupport bool
+	APIKey, APISecret       string
+	TakerFee, MakerFee      float64
+	BaseCurrencies          []string
+	AvailablePairs          []string
+	EnabledPairs            []string
+	Market                  map[string]CryptsyMarket
+	Ticker                  map[string]CryptsyTicker
+	Volume                  map[string]CryptsyVolume
+	Currencies              map[string]CryptsyCurrency
 }
 
 type CryptsyMarket struct {

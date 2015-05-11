@@ -25,16 +25,17 @@ const (
 )
 
 type LakeBTC struct {
-	Name               string
-	Enabled            bool
-	Verbose            bool
-	Websocket          bool
-	RESTPollingDelay   time.Duration
-	Email, APISecret   string
-	TakerFee, MakerFee float64
-	BaseCurrencies     []string
-	AvailablePairs     []string
-	EnabledPairs       []string
+	Name                    string
+	Enabled                 bool
+	Verbose                 bool
+	Websocket               bool
+	RESTPollingDelay        time.Duration
+	AuthenticatedAPISupport bool
+	Email, APISecret        string
+	TakerFee, MakerFee      float64
+	BaseCurrencies          []string
+	AvailablePairs          []string
+	EnabledPairs            []string
 }
 
 type LakeBTCTicker struct {

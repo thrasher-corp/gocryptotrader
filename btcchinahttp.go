@@ -39,16 +39,17 @@ const (
 )
 
 type BTCChina struct {
-	Name              string
-	Enabled           bool
-	Verbose           bool
-	Websocket         bool
-	RESTPollingDelay  time.Duration
-	APISecret, APIKey string
-	Fee               float64
-	BaseCurrencies    []string
-	AvailablePairs    []string
-	EnabledPairs      []string
+	Name                    string
+	Enabled                 bool
+	Verbose                 bool
+	Websocket               bool
+	RESTPollingDelay        time.Duration
+	AuthenticatedAPISupport bool
+	APISecret, APIKey       string
+	Fee                     float64
+	BaseCurrencies          []string
+	AvailablePairs          []string
+	EnabledPairs            []string
 }
 
 type BTCChinaTicker struct {

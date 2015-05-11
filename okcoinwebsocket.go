@@ -412,21 +412,28 @@ func (o *OKCoin) WebsocketClient() {
 		}
 
 		OKConnWebsocket.SetPingHandler(o.PingHandler)
-		if o.WebsocketURL == OKCOIN_WEBSOCKET_URL {
-			o.AddChannelAuthenticated(OKCOIN_WEBSOCKET_FUTURES_REALTRADES, map[string]string{})
-			o.AddChannelAuthenticated(OKCOIN_WEBSOCKET_FUTURES_USERINFO, map[string]string{})
+
+		if o.AuthenticatedAPISupport {
+			if o.WebsocketURL == OKCOIN_WEBSOCKET_URL {
+				o.AddChannelAuthenticated(OKCOIN_WEBSOCKET_FUTURES_REALTRADES, map[string]string{})
+				o.AddChannelAuthenticated(OKCOIN_WEBSOCKET_FUTURES_USERINFO, map[string]string{})
+			}
+			o.AddChannelAuthenticated(currencyChan, map[string]string{})
+			o.AddChannelAuthenticated(userinfoChan, map[string]string{})
 		}
-		o.AddChannelAuthenticated(currencyChan, map[string]string{})
-		o.AddChannelAuthenticated(userinfoChan, map[string]string{})
 
 		for _, x := range o.EnabledPairs {
 			currency := StringToLower(x)
 			currencyUL := currency[0:3] + "_" + currency[3:]
-			o.WebsocketSpotOrderInfo(currencyUL, -1)
+			if o.AuthenticatedAPISupport {
+				o.WebsocketSpotOrderInfo(currencyUL, -1)
+			}
 			if o.WebsocketURL == OKCOIN_WEBSOCKET_URL {
 				o.AddChannel(fmt.Sprintf("ok_%s_future_index", currency))
 				for _, y := range o.FuturesValues {
-					o.WebsocketFuturesOrderInfo(currencyUL, y, -1, 1, 1, 50)
+					if o.AuthenticatedAPISupport {
+						o.WebsocketFuturesOrderInfo(currencyUL, y, -1, 1, 1, 50)
+					}
 					o.AddChannel(fmt.Sprintf("ok_%s_future_ticker_%s", currency, y))
 					o.AddChannel(fmt.Sprintf("ok_%s_future_depth_%s_60", currency, y))
 					o.AddChannel(fmt.Sprintf("ok_%s_future_trade_v1_%s", currency, y))

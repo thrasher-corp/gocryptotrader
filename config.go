@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"time"
 )
 
@@ -12,10 +13,11 @@ const (
 )
 
 var (
-	ErrExchangeNameEmpty           = "Exchange #%d in config: Exchange name is empty."
-	ErrExchangeAvailablePairsEmpty = "Exchange %s: Available pairs is empty."
-	ErrExchangeEnabledPairsEmpty   = "Exchange %s: Enabled pairs is empty."
-	ErrExchangeBaseCurrenciesEmpty = "Exchange %s: Base currencies is empty."
+	ErrExchangeNameEmpty                   = "Exchange #%d in config: Exchange name is empty."
+	ErrExchangeAvailablePairsEmpty         = "Exchange %s: Available pairs is empty."
+	ErrExchangeEnabledPairsEmpty           = "Exchange %s: Enabled pairs is empty."
+	ErrExchangeBaseCurrenciesEmpty         = "Exchange %s: Base currencies is empty."
+	ErrExchangeAuthAPIDefaultOrEmptyValues = "WARNING -- Exchange %s: Authenticated API support disabled due to default/empty APIKey/Secret/ClientID values."
 )
 
 type SMSContacts struct {
@@ -33,17 +35,18 @@ type Config struct {
 }
 
 type Exchanges struct {
-	Name             string
-	Enabled          bool
-	Verbose          bool
-	Websocket        bool
-	RESTPollingDelay time.Duration
-	APIKey           string
-	APISecret        string
-	ClientID         string
-	AvailablePairs   string
-	EnabledPairs     string
-	BaseCurrencies   string
+	Name                    string
+	Enabled                 bool
+	Verbose                 bool
+	Websocket               bool
+	RESTPollingDelay        time.Duration
+	AuthenticatedAPISupport bool
+	APIKey                  string
+	APISecret               string
+	ClientID                string
+	AvailablePairs          string
+	EnabledPairs            string
+	BaseCurrencies          string
 }
 
 func CheckConfigValues() error {
@@ -60,6 +63,19 @@ func CheckConfigValues() error {
 			}
 			if exch.BaseCurrencies == "" {
 				return fmt.Errorf(ErrExchangeBaseCurrenciesEmpty, exch.Name)
+			}
+			if exch.AuthenticatedAPISupport { // non-fatal error
+				if exch.APIKey == "" || exch.APISecret == "" || exch.APIKey == "Key" || exch.APISecret == "Secret" {
+					bot.config.Exchanges[i].AuthenticatedAPISupport = false
+					log.Printf(ErrExchangeAuthAPIDefaultOrEmptyValues, exch.Name)
+					continue
+				} else if exch.Name == "ITBIT" || exch.Name == "Bitstamp" || exch.Name == "Coinbase" {
+					if exch.ClientID == "" || exch.ClientID == "ClientID" {
+						bot.config.Exchanges[i].AuthenticatedAPISupport = false
+						log.Printf(ErrExchangeAuthAPIDefaultOrEmptyValues, exch.Name)
+						continue
+					}
+				}
 			}
 		}
 	}

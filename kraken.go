@@ -37,17 +37,18 @@ const (
 )
 
 type Kraken struct {
-	Name                 string
-	Enabled              bool
-	Verbose              bool
-	Websocket            bool
-	RESTPollingDelay     time.Duration
-	ClientKey, APISecret string
-	FiatFee, CryptoFee   float64
-	BaseCurrencies       []string
-	AvailablePairs       []string
-	EnabledPairs         []string
-	Ticker               map[string]KrakenTicker
+	Name                    string
+	Enabled                 bool
+	Verbose                 bool
+	Websocket               bool
+	RESTPollingDelay        time.Duration
+	AuthenticatedAPISupport bool
+	ClientKey, APISecret    string
+	FiatFee, CryptoFee      float64
+	BaseCurrencies          []string
+	AvailablePairs          []string
+	EnabledPairs            []string
+	Ticker                  map[string]KrakenTicker
 }
 
 func (k *Kraken) SetDefaults() {
