@@ -327,7 +327,6 @@ func (o *OKCoin) WebsocketFuturesOrderInfo(symbol, contractType string, orderID 
 	values["status"] = strconv.Itoa(orderStatus)
 	values["current_page"] = strconv.Itoa(currentPage)
 	values["page_length"] = strconv.Itoa(pageLength)
-	log.Println(values)
 	o.AddChannelAuthenticated(OKCOIN_WEBSOCKET_FUTURES_ORDER_INFO, values)
 }
 
