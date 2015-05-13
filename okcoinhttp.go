@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/gorilla/websocket"
 	"log"
 	"net/url"
 	"strconv"
@@ -33,6 +34,7 @@ type OKCoin struct {
 	AvailablePairs               []string
 	EnabledPairs                 []string
 	FuturesValues                []string
+	WebsocketConn                *websocket.Conn
 }
 
 type OKCoinTicker struct {

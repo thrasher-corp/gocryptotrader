@@ -11,8 +11,6 @@ import (
 	"time"
 )
 
-var OKConnWebsocket *websocket.Conn
-
 const (
 	OKCOIN_WEBSOCKET_USD_REALTRADES       = "ok_usd_realtrades"
 	OKCOIN_WEBSOCKET_CNY_REALTRADES       = "ok_cny_realtrades"
@@ -205,7 +203,7 @@ type OKCoinWebsocketTradeOrderResponse struct {
 }
 
 func (o *OKCoin) PingHandler(message string) error {
-	err := OKConnWebsocket.WriteControl(websocket.PingMessage, []byte("{'event':'ping'}"), time.Now().Add(time.Second))
+	err := o.WebsocketConn.WriteControl(websocket.PingMessage, []byte("{'event':'ping'}"), time.Now().Add(time.Second))
 
 	if err != nil {
 		log.Println(err)
@@ -221,7 +219,7 @@ func (o *OKCoin) AddChannel(channel string) {
 		log.Println(err)
 		return
 	}
-	err = OKConnWebsocket.WriteMessage(websocket.TextMessage, json)
+	err = o.WebsocketConn.WriteMessage(websocket.TextMessage, json)
 
 	if err != nil {
 		log.Println(err)
@@ -240,7 +238,7 @@ func (o *OKCoin) RemoveChannel(channel string) {
 		log.Println(err)
 		return
 	}
-	err = OKConnWebsocket.WriteMessage(websocket.TextMessage, json)
+	err = o.WebsocketConn.WriteMessage(websocket.TextMessage, json)
 
 	if err != nil {
 		log.Println(err)
@@ -352,7 +350,7 @@ func (o *OKCoin) AddChannelAuthenticated(channel string, values map[string]strin
 		log.Println(err)
 		return
 	}
-	err = OKConnWebsocket.WriteMessage(websocket.TextMessage, json)
+	err = o.WebsocketConn.WriteMessage(websocket.TextMessage, json)
 
 	if err != nil {
 		log.Println(err)
@@ -372,7 +370,7 @@ func (o *OKCoin) RemoveChannelAuthenticated(conn *websocket.Conn, channel string
 		log.Println(err)
 		return
 	}
-	err = OKConnWebsocket.WriteMessage(websocket.TextMessage, json)
+	err = o.WebsocketConn.WriteMessage(websocket.TextMessage, json)
 
 	if err != nil {
 		log.Println(err)
@@ -399,7 +397,7 @@ func (o *OKCoin) WebsocketClient() {
 	for o.Enabled && o.Websocket {
 		var Dialer websocket.Dialer
 		var err error
-		OKConnWebsocket, _, err = Dialer.Dial(o.WebsocketURL, http.Header{})
+		o.WebsocketConn, _, err = Dialer.Dial(o.WebsocketURL, http.Header{})
 
 		if err != nil {
 			log.Printf("%s Unable to connect to Websocket. Error: %s\n", o.GetName(), err)
@@ -410,7 +408,7 @@ func (o *OKCoin) WebsocketClient() {
 			log.Printf("%s Connected to Websocket.\n", o.GetName())
 		}
 
-		OKConnWebsocket.SetPingHandler(o.PingHandler)
+		o.WebsocketConn.SetPingHandler(o.PingHandler)
 
 		if o.AuthenticatedAPISupport {
 			if o.WebsocketURL == OKCOIN_WEBSOCKET_URL {
@@ -452,7 +450,7 @@ func (o *OKCoin) WebsocketClient() {
 		}
 
 		for o.Enabled && o.Websocket {
-			msgType, resp, err := OKConnWebsocket.ReadMessage()
+			msgType, resp, err := o.WebsocketConn.ReadMessage()
 			if err != nil {
 				log.Println(err)
 				break
@@ -634,7 +632,7 @@ func (o *OKCoin) WebsocketClient() {
 				}
 			}
 		}
-		OKConnWebsocket.Close()
+		o.WebsocketConn.Close()
 		log.Printf("%s Websocket client disconnected.", o.GetName())
 	}
 }
