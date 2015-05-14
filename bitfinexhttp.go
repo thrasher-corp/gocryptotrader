@@ -196,7 +196,18 @@ func (b *Bitfinex) Run() {
 	if err != nil {
 		log.Printf("%s Failed to get available symbols.\n", b.GetName())
 	} else {
-		b.AvailablePairs = SplitStrings(StringToUpper(JoinStrings(exchangeProducts, ",")), ",")
+		exchangeProducts = SplitStrings(StringToUpper(JoinStrings(exchangeProducts, ",")), ",")
+		diff := StringSliceDifference(b.AvailablePairs, exchangeProducts)
+		if len(diff) > 0 {
+			exch, err := GetExchangeConfig(b.Name)
+			if err != nil {
+				log.Println(err)
+			} else {
+				log.Printf("%s Updating available pairs. Difference: %s.\n", b.Name, diff)
+				exch.AvailablePairs = JoinStrings(exchangeProducts, ",")
+				UpdateExchangeConfig(exch)
+			}
+		}
 	}
 
 	for b.Enabled {

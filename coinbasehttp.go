@@ -148,7 +148,17 @@ func (c *Coinbase) Run() {
 				currencies = append(currencies, x.ID[0:3]+x.ID[4:])
 			}
 		}
-		c.AvailablePairs = currencies
+		diff := StringSliceDifference(c.AvailablePairs, currencies)
+		if len(diff) > 0 {
+			exch, err := GetExchangeConfig(c.Name)
+			if err != nil {
+				log.Println(err)
+			} else {
+				log.Printf("%s Updating available pairs. Changed %s.\n", c.Name, diff)
+				exch.AvailablePairs = JoinStrings(currencies, ",")
+				UpdateExchangeConfig(exch)
+			}
+		}
 	}
 
 	for c.Enabled {

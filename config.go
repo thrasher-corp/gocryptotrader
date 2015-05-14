@@ -18,6 +18,7 @@ var (
 	ErrExchangeEnabledPairsEmpty           = "Exchange %s: Enabled pairs is empty."
 	ErrExchangeBaseCurrenciesEmpty         = "Exchange %s: Base currencies is empty."
 	ErrExchangeAuthAPIDefaultOrEmptyValues = "WARNING -- Exchange %s: Authenticated API support disabled due to default/empty APIKey/Secret/ClientID values."
+	ErrExchangeNotFound                    = "Exchange %s: Not found."
 )
 
 type SMSContacts struct {
@@ -47,6 +48,25 @@ type Exchanges struct {
 	AvailablePairs          string
 	EnabledPairs            string
 	BaseCurrencies          string
+}
+
+func GetExchangeConfig(name string) (Exchanges, error) {
+	for i, _ := range bot.config.Exchanges {
+		if bot.config.Exchanges[i].Name == name {
+			return bot.config.Exchanges[i], nil
+		}
+	}
+	return Exchanges{}, fmt.Errorf(ErrExchangeNotFound, name)
+}
+
+func UpdateExchangeConfig(e Exchanges) error {
+	for i, _ := range bot.config.Exchanges {
+		if bot.config.Exchanges[i].Name == e.Name {
+			bot.config.Exchanges[i] = e
+			return nil
+		}
+	}
+	return fmt.Errorf(ErrExchangeNotFound, e.Name)
 }
 
 func CheckConfigValues() error {

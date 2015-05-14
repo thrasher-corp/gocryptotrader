@@ -46,7 +46,7 @@ type Cryptsy struct {
 	Market                  map[string]CryptsyMarket
 	Ticker                  map[string]CryptsyTicker
 	Volume                  map[string]CryptsyVolume
-	Currencies              map[string]CryptsyCurrency
+	Currencies              []CryptsyCurrency
 }
 
 type CryptsyMarket struct {
@@ -145,7 +145,6 @@ func (c *Cryptsy) SetDefaults() {
 	c.Market = make(map[string]CryptsyMarket)
 	c.Ticker = make(map[string]CryptsyTicker)
 	c.Volume = make(map[string]CryptsyVolume)
-	c.Currencies = make(map[string]CryptsyCurrency)
 }
 
 func (c *Cryptsy) GetName() string {
@@ -177,6 +176,27 @@ func (c *Cryptsy) Run() {
 
 	if c.Websocket {
 		go c.PusherClient()
+	}
+
+	err := c.GetMarkets()
+	if err != nil {
+		log.Println(err)
+	} else {
+		markets := []string{}
+		for x, _ := range c.Market {
+			markets = append(markets, x)
+		}
+		diff := StringSliceDifference(c.AvailablePairs, markets)
+		if len(diff) > 0 {
+			exch, err := GetExchangeConfig(c.Name)
+			if err != nil {
+				log.Println(err)
+			} else {
+				log.Printf("%s Updating available pairs. Difference: %s.\n", c.Name, diff)
+				exch.AvailablePairs = JoinStrings(markets, ",")
+				UpdateExchangeConfig(exch)
+			}
+		}
 	}
 
 	for c.Enabled {
@@ -347,10 +367,7 @@ func (c *Cryptsy) GetCurrencies() error {
 	if !response.Success {
 		return errors.New("Unable to get Cryptsy currency data.")
 	}
-
-	for _, x := range response.Data {
-		c.Currencies[x.ID] = x
-	}
+	c.Currencies = response.Data
 	return nil
 }
 
