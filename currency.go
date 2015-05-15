@@ -42,10 +42,18 @@ const (
 
 var (
 	CurrencyStore             YahooJSONResponse
+	BaseCurrencies            string
 	ErrCurrencyDataNotFetched = errors.New("Yahoo currency data has not been fetched yet.")
 	ErrCurrencyNotFound       = errors.New("Unable to find specified currency.")
 	ErrQueryingYahoo          = errors.New("Unable to query Yahoo currency values.")
 )
+
+func IsFiatCurrency(currency string) bool {
+	if StringContains(BaseCurrencies, StringToUpper(currency)) {
+		return true
+	}
+	return false
+}
 
 func RetrieveConfigCurrencyPairs(config Config) error {
 	currencyPairs := ""
@@ -69,6 +77,7 @@ func RetrieveConfigCurrencyPairs(config Config) error {
 		}
 	}
 	currencyPairs = currencyPairs[0 : len(currencyPairs)-1]
+	BaseCurrencies = currencyPairs
 	err := QueryYahooCurrencyValues(currencyPairs)
 
 	if err != nil {
