@@ -132,7 +132,7 @@ func (b *Bitstamp) Run() {
 			go func() {
 				ticker := b.GetTicker()
 				log.Printf("Bitstamp %s: Last %f High %f Low %f Volume %f\n", currency, ticker.Last, ticker.High, ticker.Low, ticker.Volume)
-				AddExchangeInfo(b.GetName(), currency, ticker.Last, ticker.Volume)
+				AddExchangeInfo(b.GetName(), currency[0:3], currency[3:], ticker.Last, ticker.Volume)
 			}()
 		}
 		time.Sleep(time.Second * b.RESTPollingDelay)

@@ -96,7 +96,7 @@ func (i *ItBit) Run() {
 			go func() {
 				ticker := i.GetTicker(currency)
 				log.Printf("ItBit %s: Last %f High %f Low %f Volume %f\n", currency, ticker.LastPrice, ticker.High24h, ticker.Low24h, ticker.Volume24h)
-				AddExchangeInfo(i.GetName(), currency, ticker.LastPrice, ticker.Volume24h)
+				AddExchangeInfo(i.GetName(), currency[0:3], currency[3:], ticker.LastPrice, ticker.Volume24h)
 			}()
 		}
 		time.Sleep(time.Second * i.RESTPollingDelay)

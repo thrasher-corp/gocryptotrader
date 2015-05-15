@@ -223,10 +223,11 @@ func (b *BTCChina) Run() {
 					tickerHighUSD, _ := ConvertCurrency(ticker.High, "CNY", "USD")
 					tickerLowUSD, _ := ConvertCurrency(ticker.Low, "CNY", "USD")
 					log.Printf("BTCChina %s: Last %f (%f) High %f (%f) Low %f (%f) Volume %f\n", currency, tickerLastUSD, ticker.Last, tickerHighUSD, ticker.High, tickerLowUSD, ticker.Low, ticker.Vol)
-					AddExchangeInfo(b.GetName(), currency, tickerLastUSD, ticker.Vol)
+					AddExchangeInfo(b.GetName(), StringToUpper(currency[0:3]), StringToUpper(currency[3:]), ticker.Last, ticker.Vol)
+					AddExchangeInfo(b.GetName(), StringToUpper(currency[0:3]), "USD", tickerLastUSD, ticker.Vol)
 				} else {
 					log.Printf("BTCChina %s: Last %f High %f Low %f Volume %f\n", currency, ticker.Last, ticker.High, ticker.Low, ticker.Vol)
-					AddExchangeInfo(b.GetName(), currency, ticker.Last, ticker.Vol)
+					AddExchangeInfo(b.GetName(), StringToUpper(currency[0:3]), StringToUpper(currency[3:]), ticker.Last, ticker.Vol)
 				}
 			}()
 		}

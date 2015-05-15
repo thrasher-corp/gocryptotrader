@@ -5,10 +5,11 @@ import (
 )
 
 type ExchangeInfo struct {
-	Exchange string
-	Currency string
-	Price float64
-	Volume float64
+	Exchange       string
+	CryptoCurrency string
+	FiatCurrency   string
+	Price          float64
+	Volume         float64
 }
 
 var ExchInfo []ExchangeInfo
@@ -41,30 +42,34 @@ func (this ByVolume) Swap(i, j int) {
 	this[i], this[j] = this[j], this[i]
 }
 
-func AddExchangeInfo(exchange, currency string, price, volume float64) {
+func AddExchangeInfo(exchange, crypto, fiat string, price, volume float64) {
+	if !IsFiatCurrency(fiat) {
+		return
+	}
 	if len(ExchInfo) == 0 {
-		AppendExchangeInfo(exchange, currency, price, volume)
+		AppendExchangeInfo(exchange, crypto, fiat, price, volume)
 	} else {
-		if ExchangeInfoAlreadyExists(exchange, currency, price, volume) {
+		if ExchangeInfoAlreadyExists(exchange, crypto, fiat, price, volume) {
 			return
 		} else {
-			AppendExchangeInfo(exchange, currency, price, volume)
+			AppendExchangeInfo(exchange, crypto, fiat, price, volume)
 		}
 	}
 }
 
-func AppendExchangeInfo(exchange, currency string, price, volume float64) {
+func AppendExchangeInfo(exchange, crypto, fiat string, price, volume float64) {
 	exch := ExchangeInfo{}
 	exch.Exchange = exchange
-	exch.Currency = currency
+	exch.CryptoCurrency = crypto
+	exch.FiatCurrency = fiat
 	exch.Price = price
 	exch.Volume = volume
 	ExchInfo = append(ExchInfo, exch)
 }
 
-func ExchangeInfoAlreadyExists(exchange, currency string, price, volume float64) (bool) {
+func ExchangeInfoAlreadyExists(exchange, crypto, fiat string, price, volume float64) bool {
 	for i, _ := range ExchInfo {
-		if  ExchInfo[i].Exchange == exchange && ExchInfo[i].Currency == currency {
+		if ExchInfo[i].Exchange == exchange && ExchInfo[i].CryptoCurrency == crypto && ExchInfo[i].FiatCurrency == fiat {
 			ExchInfo[i].Price, ExchInfo[i].Volume = price, volume
 			return true
 		}
@@ -72,11 +77,11 @@ func ExchangeInfoAlreadyExists(exchange, currency string, price, volume float64)
 	return false
 }
 
-func SortExchangesByVolume(currency string, reverse bool) []ExchangeInfo {
+func SortExchangesByVolume(crypto, fiat string, reverse bool) []ExchangeInfo {
 	info := []ExchangeInfo{}
 
 	for _, x := range ExchInfo {
-		if x.Currency == currency {
+		if x.CryptoCurrency == crypto && x.FiatCurrency == fiat {
 			info = append(info, x)
 		}
 	}
@@ -89,11 +94,11 @@ func SortExchangesByVolume(currency string, reverse bool) []ExchangeInfo {
 	return info
 }
 
-func SortExchangesByPrice(currency string, reverse bool) []ExchangeInfo {
+func SortExchangesByPrice(crypto, fiat string, reverse bool) []ExchangeInfo {
 	info := []ExchangeInfo{}
 
 	for _, x := range ExchInfo {
-		if x.Currency == currency {
+		if x.CryptoCurrency == crypto && x.FiatCurrency == fiat {
 			info = append(info, x)
 		}
 	}

@@ -146,7 +146,8 @@ func (b *BTCMarkets) Run() {
 				BTCMarketsBestBidUSD, _ := ConvertCurrency(ticker.BestBID, "AUD", "USD")
 				BTCMarketsBestAskUSD, _ := ConvertCurrency(ticker.BestAsk, "AUD", "USD")
 				log.Printf("BTC Markets %s: Last %f (%f) Bid %f (%f) Ask %f (%f)\n", currency, BTCMarketsLastUSD, ticker.LastPrice, BTCMarketsBestBidUSD, ticker.BestBID, BTCMarketsBestAskUSD, ticker.BestAsk)
-				AddExchangeInfo(b.GetName(), currency, BTCMarketsLastUSD, 0)
+				AddExchangeInfo(b.GetName(), currency[0:3], currency[3:], ticker.LastPrice, 0)
+				AddExchangeInfo(b.GetName(), currency[0:3], "USD", BTCMarketsLastUSD, 0)
 			}()
 		}
 		time.Sleep(time.Second * b.RESTPollingDelay)

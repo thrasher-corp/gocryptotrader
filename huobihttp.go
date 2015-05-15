@@ -92,7 +92,8 @@ func (h *HUOBI) Run() {
 				HuobiHighUSD, _ := ConvertCurrency(ticker.High, "CNY", "USD")
 				HuobiLowUSD, _ := ConvertCurrency(ticker.Low, "CNY", "USD")
 				log.Printf("Huobi %s: Last %f (%f) High %f (%f) Low %f (%f) Volume %f\n", currency, HuobiLastUSD, ticker.Last, HuobiHighUSD, ticker.High, HuobiLowUSD, ticker.Low, ticker.Vol)
-				AddExchangeInfo(h.GetName(), StringToUpper(currency), HuobiLastUSD, ticker.Vol)
+				AddExchangeInfo(h.GetName(), StringToUpper(currency[0:3]), StringToUpper(currency[3:]), ticker.Last, ticker.Vol)
+				AddExchangeInfo(h.GetName(), StringToUpper(currency[0:3]), "USD", HuobiLastUSD, ticker.Vol)
 			}()
 		}
 		time.Sleep(time.Second * h.RESTPollingDelay)

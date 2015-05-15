@@ -154,7 +154,7 @@ func (c *Coinbase) Run() {
 			if err != nil {
 				log.Println(err)
 			} else {
-				log.Printf("%s Updating available pairs. Changed %s.\n", c.Name, diff)
+				log.Printf("%s Updating available pairs. Difference: %s.\n", c.Name, diff)
 				exch.AvailablePairs = JoinStrings(currencies, ",")
 				UpdateExchangeConfig(exch)
 			}
@@ -168,7 +168,7 @@ func (c *Coinbase) Run() {
 				stats := c.GetStats(currency)
 				ticker := c.GetTicker(currency)
 				log.Printf("Coinbase %s: Last %f High %f Low %f Volume %f\n", currency, ticker.Price, stats.High, stats.Low, stats.Volume)
-				AddExchangeInfo(c.GetName(), currency, ticker.Price, stats.Volume)
+				AddExchangeInfo(c.GetName(), currency[0:3], currency[4:], ticker.Price, stats.Volume)
 			}()
 		}
 		time.Sleep(time.Second * c.RESTPollingDelay)

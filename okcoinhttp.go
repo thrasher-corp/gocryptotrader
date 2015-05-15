@@ -217,13 +217,13 @@ func (o *OKCoin) Run() {
 					go func() {
 						ticker := o.GetFuturesTicker(currency, futuresValue)
 						log.Printf("OKCoin Intl Futures %s (%s): Last %f High %f Low %f Volume %f\n", currency, futuresValue, ticker.Last, ticker.High, ticker.Low, ticker.Vol)
-						AddExchangeInfo(o.GetName(), currency, ticker.Last, ticker.Vol)
+						AddExchangeInfo(o.GetName(), StringToUpper(currency[0:3]), StringToUpper(currency[4:]), ticker.Last, ticker.Vol)
 					}()
 				}
 				go func() {
 					ticker := o.GetTicker(currency)
 					log.Printf("OKCoin Intl Spot %s: Last %f High %f Low %f Volume %f\n", currency, ticker.Last, ticker.High, ticker.Low, ticker.Vol)
-					AddExchangeInfo(o.GetName(), currency, ticker.Last, ticker.Vol)
+					AddExchangeInfo(o.GetName(), StringToUpper(currency[0:3]), StringToUpper(currency[4:]), ticker.Last, ticker.Vol)
 				}()
 			} else {
 				go func() {
@@ -232,7 +232,8 @@ func (o *OKCoin) Run() {
 					tickerHighUSD, _ := ConvertCurrency(ticker.High, "CNY", "USD")
 					tickerLowUSD, _ := ConvertCurrency(ticker.Low, "CNY", "USD")
 					log.Printf("OKCoin China %s: Last %f (%f) High %f (%f) Low %f (%f) Volume %f\n", currency, tickerLastUSD, ticker.Last, tickerHighUSD, ticker.High, tickerLowUSD, ticker.Low, ticker.Vol)
-					AddExchangeInfo(o.GetName(), currency, ticker.Last, ticker.Vol)
+					AddExchangeInfo(o.GetName(), StringToUpper(currency[0:3]), StringToUpper(currency[4:]), ticker.Last, ticker.Vol)
+					AddExchangeInfo(o.GetName(), StringToUpper(currency[0:3]), "USD", tickerLastUSD, ticker.Vol)
 				}()
 			}
 		}

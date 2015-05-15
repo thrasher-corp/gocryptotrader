@@ -108,10 +108,10 @@ func (l *LakeBTC) Run() {
 		for _, x := range l.EnabledPairs {
 			if x == "BTCUSD" {
 				log.Printf("LakeBTC BTC USD: Last %f High %f Low %f Volume %f\n", ticker.USD.Last, ticker.USD.High, ticker.USD.Low, ticker.USD.Volume)
-				AddExchangeInfo(l.GetName(), "BTCUSD", ticker.USD.Last, ticker.USD.Volume)
+				AddExchangeInfo(l.GetName(), x[0:3], x[3:], ticker.USD.Last, ticker.USD.Volume)
 			} else if x == "BTCCNY" {
 				log.Printf("LakeBTC BTC CNY: Last %f High %f Low %f Volume %f\n", ticker.CNY.Last, ticker.CNY.High, ticker.CNY.Low, ticker.CNY.Volume)
-				AddExchangeInfo(l.GetName(), "BTCCNY", ticker.CNY.Last, ticker.CNY.Volume)
+				AddExchangeInfo(l.GetName(), x[0:3], x[3:], ticker.CNY.Last, ticker.CNY.Volume)
 			}
 		}
 		time.Sleep(time.Second * l.RESTPollingDelay)

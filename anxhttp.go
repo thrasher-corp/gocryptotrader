@@ -149,7 +149,7 @@ func (a *ANX) Run() {
 			go func() {
 				ticker := a.GetTicker(currency)
 				log.Printf("ANX %s: Last %f High %f Low %f Volume %f\n", currency, ticker.Data.Last.Value, ticker.Data.High.Value, ticker.Data.Low.Value, ticker.Data.Vol.Value)
-				AddExchangeInfo(a.GetName(), currency, ticker.Data.Last.Value, ticker.Data.Vol.Value)
+				AddExchangeInfo(a.GetName(), currency[0:3], currency[3:], ticker.Data.Last.Value, ticker.Data.Vol.Value)
 			}()
 		}
 		time.Sleep(time.Second * a.RESTPollingDelay)

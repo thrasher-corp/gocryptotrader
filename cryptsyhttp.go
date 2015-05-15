@@ -208,7 +208,7 @@ func (c *Cryptsy) Run() {
 				market := c.Market[x]
 				if market.ID != "" {
 					log.Printf("Cryptsy %s: Last %f High %f Low %f Volume %f\n", x, market.LastTrade.Price, market.DayStats.PriceHigh, market.DayStats.PriceLow, market.DayStats.Volume)
-					AddExchangeInfo(c.GetName(), x, market.LastTrade.Price, market.DayStats.Volume)
+					AddExchangeInfo(c.GetName(), x[0:3], x[3:], market.LastTrade.Price, market.DayStats.Volume)
 				}
 			}
 		}
