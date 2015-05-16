@@ -114,14 +114,27 @@ func (i *ItBit) GetTicker(currency string) ItBitTicker {
 	return itbitTicker
 }
 
-func (i *ItBit) GetOrderbook(currency string) bool {
-	path := ITBIT_API_URL + "/markets/" + currency + "/orders"
-	err := SendHTTPGetRequest(path, true, nil)
+type ItbitOrderbookEntry struct {
+	Quantitiy float64 `json:"quantity,string"`
+	Price     float64 `json:"price,string"`
+}
+
+type ItBitOrderbookResponse struct {
+	ServerTimeUTC      string                `json:"serverTimeUTC"`
+	LastUpdatedTimeUTC string                `json:"lastUpdatedTimeUTC"`
+	Ticker             string                `json:"ticker"`
+	Bids               []ItbitOrderbookEntry `json:"bids"`
+	Asks               []ItbitOrderbookEntry `json:"asks"`
+}
+
+func (i *ItBit) GetOrderbook(currency string) (ItBitOrderbookResponse, error) {
+	response := ItBitOrderbookResponse{}
+	path := ITBIT_API_URL + "/markets/" + currency + "/order_book"
+	err := SendHTTPGetRequest(path, true, &response)
 	if err != nil {
-		log.Println(err)
-		return false
+		return ItBitOrderbookResponse{}, err
 	}
-	return true
+	return response, nil
 }
 
 func (i *ItBit) GetTradeHistory(currency, timestamp string) bool {
