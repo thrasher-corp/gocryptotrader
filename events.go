@@ -19,25 +19,28 @@ const (
 )
 
 var (
-	ErrInvalidItem      = errors.New("Invalid item.")
-	ErrInvalidCondition = errors.New("Invalid conditional option.")
-	ErrInvalidAction    = errors.New("Invalid action.")
-	ErrExchangeDisabled = errors.New("Desired exchange is disabled.")
+	ErrInvalidItem         = errors.New("Invalid item.")
+	ErrInvalidCondition    = errors.New("Invalid conditional option.")
+	ErrInvalidAction       = errors.New("Invalid action.")
+	ErrExchangeDisabled    = errors.New("Desired exchange is disabled.")
+	ErrFiatCurrencyInvalid = errors.New("Invalid fiat currency.")
 )
 
 type Event struct {
-	ID        int
-	Exchange  string
-	Item      string
-	Condition string
-	Action    string
-	Executed  bool
+	ID             int
+	Exchange       string
+	Item           string
+	Condition      string
+	CryptoCurrency string
+	FiatCurrency   string
+	Action         string
+	Executed       bool
 }
 
 var Events []*Event
 
-func AddEvent(Exchange, Item, Condition, Action string) (int, error) {
-	err := IsValidEvent(Exchange, Item, Condition, Action)
+func AddEvent(Exchange, Item, Condition, CryptoCurrency, FiatCurrency, Action string) (int, error) {
+	err := IsValidEvent(Exchange, Item, Condition, CryptoCurrency, FiatCurrency, Action)
 
 	if err != nil {
 		return 0, err
@@ -54,6 +57,8 @@ func AddEvent(Exchange, Item, Condition, Action string) (int, error) {
 	Event.Exchange = Exchange
 	Event.Item = Item
 	Event.Condition = Condition
+	Event.CryptoCurrency = CryptoCurrency
+	Event.FiatCurrency = FiatCurrency
 	Event.Action = Action
 	Event.Executed = false
 	Events = append(Events, Event)
@@ -101,7 +106,7 @@ func (e *Event) ExecuteAction() bool {
 
 func (e *Event) EventToString() string {
 	condition := SplitStrings(e.Condition, ",")
-	return fmt.Sprintf("If the %s on %s is %s then %s.", e.Item, e.Exchange, condition[0]+" "+condition[1], e.Action)
+	return fmt.Sprintf("If the %s%s %s on %s is %s then %s.", e.CryptoCurrency, e.FiatCurrency, e.Item, e.Exchange, condition[0]+" "+condition[1], e.Action)
 }
 
 func (e *Event) CheckCondition() bool {
@@ -178,13 +183,17 @@ func (e *Event) CheckCondition() bool {
 	return false
 }
 
-func IsValidEvent(Exchange, Item, Condition, Action string) error {
+func IsValidEvent(Exchange, Item, Condition, CryptoCurrency, FiatCurrency, Action string) error {
 	if !IsValidExchange(Exchange) {
 		return ErrExchangeDisabled
 	}
 
 	if !IsValidItem(Item) {
 		return ErrInvalidItem
+	}
+
+	if !IsFiatCurrency(FiatCurrency) {
+		return ErrFiatCurrencyInvalid
 	}
 
 	if !StringContains(Condition, ",") {
