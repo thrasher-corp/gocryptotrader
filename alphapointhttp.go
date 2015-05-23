@@ -10,7 +10,7 @@ import (
 )
 
 const (
-	ALPHAPOINT_API_URL           = "https://api.dwvx.com.au:8400"
+	ALPHAPOINT_API_URL           = "https://sim3.alphapoint.com:8400"
 	ALPHAPOINT_API_VERSION       = "1"
 	ALPHAPOINT_TICKER            = "GetTicker"
 	ALPHAPOINT_TRADES            = "GetTrades"
@@ -29,7 +29,7 @@ const (
 	ALPHAPOINT_CANCEL_ORDER      = "CancelOrder"
 	ALPHAPOINT_CANCEALLORDERS    = "CancelAllOrders"
 	ALPHAPOINT_OPEN_ORDERS       = "GetAccountOpenOrders"
-	ALPHAPOINT_ORDER_FEE
+	ALPHAPOINT_ORDER_FEE         = "GetOrderFee"
 )
 
 type Alphapoint struct {
@@ -464,6 +464,32 @@ func (a *Alphapoint) GetOrders() (AlphapointOrderInfo, error) {
 		return AlphapointOrderInfo{}, errors.New(response.RejectReason)
 	}
 	return response.Orders, nil
+}
+
+func (a *Alphapoint) GetOrderFee(symbol, side string, quantity, price float64) (float64, error) {
+	type Response struct {
+		IsAccepted   bool    `json:"isAccepted"`
+		RejectReason string  `json:"rejectReason"`
+		Fee          float64 `json:"fee,string"`
+		FeeProduct   string  `json:"feeProduct"`
+	}
+
+	request := make(map[string]interface{})
+	request["ins"] = symbol
+	request["side"] = side
+	request["qty"] = strconv.FormatFloat(quantity, 'f', 8, 64)
+	request["px"] = strconv.FormatFloat(price, 'f', 2, 64)
+
+	response := Response{}
+	err := a.SendAuthenticatedHTTPRequest("POST", ALPHAPOINT_ORDER_FEE, request, &response)
+	if err != nil {
+		return 0, err
+	}
+
+	if !response.IsAccepted {
+		return 0, errors.New(response.RejectReason)
+	}
+	return response.Fee, nil
 }
 
 func (a *Alphapoint) SendRequest(method, path string, data map[string]interface{}, result interface{}) error {
