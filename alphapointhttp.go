@@ -10,7 +10,7 @@ import (
 )
 
 const (
-	ALPHAPOINT_API_URL           = "https://sim3.alphapoint.com:8400"
+	ALPHAPOINT_DEFAULT_API_URL   = "https://sim3.alphapoint.com:8400"
 	ALPHAPOINT_API_VERSION       = "1"
 	ALPHAPOINT_TICKER            = "GetTicker"
 	ALPHAPOINT_TRADES            = "GetTrades"
@@ -153,6 +153,10 @@ type AlphapointOrder struct {
 type AlphapointOrderInfo struct {
 	Instrument string            `json:"ins"`
 	Orders     []AlphapointOrder `json:"openOrders"`
+}
+
+func (a *Alphapoint) SetDefaults() {
+	a.APIUrl = ALPHAPOINT_DEFAULT_API_URL
 }
 
 func (a *Alphapoint) GetTicker(symbol string) (AlphapointTicker, error) {
@@ -495,7 +499,7 @@ func (a *Alphapoint) GetOrderFee(symbol, side string, quantity, price float64) (
 func (a *Alphapoint) SendRequest(method, path string, data map[string]interface{}, result interface{}) error {
 	headers := make(map[string]string)
 	headers["Content-Type"] = "application/json"
-	path = fmt.Sprintf("%s/ajax/v%s/%s", ALPHAPOINT_API_URL, ALPHAPOINT_API_VERSION, path)
+	path = fmt.Sprintf("%s/ajax/v%s/%s", a.APIUrl, ALPHAPOINT_API_VERSION, path)
 	PayloadJson, err := JSONEncode(data)
 
 	if err != nil {
@@ -524,7 +528,7 @@ func (a *Alphapoint) SendAuthenticatedHTTPRequest(method, path string, data map[
 	data["apiNonce"] = nonce
 	hmac := GetHMAC(HASH_SHA256, []byte(nonce+a.UserID+a.APIKey), []byte(a.APISecret))
 	data["apiSig"] = StringToUpper(HexEncodeToString(hmac))
-	path = fmt.Sprintf("%s/ajax/v%s/%s", ALPHAPOINT_API_URL, ALPHAPOINT_API_VERSION, path)
+	path = fmt.Sprintf("%s/ajax/v%s/%s", a.APIUrl, ALPHAPOINT_API_VERSION, path)
 	PayloadJson, err := JSONEncode(data)
 
 	if err != nil {
