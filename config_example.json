@@ -117,6 +117,20 @@
    "BaseCurrencies": "USD"
   },
   {
+   "Name": "DWVX",
+   "Enabled": true,
+   "Verbose": false,
+   "Websocket": false,
+   "RESTPollingDelay": 10,
+   "AuthenticatedAPISupport": false,
+   "APIKey": "Key",
+   "APISecret": "Secret",
+   "ClientID": "ClientID",
+   "AvailablePairs": "BTCAUD",
+   "EnabledPairs": "BTCAUD",
+   "BaseCurrencies": "AUD"
+  },
+  {
    "Name": "Huobi",
    "Enabled": true,
    "Verbose": false,

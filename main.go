@@ -19,6 +19,7 @@ type Exchange struct {
 	btcmarkets  BTCMarkets
 	coinbase    Coinbase
 	cryptsy     Cryptsy
+	dwvx        DWVX
 	okcoinChina OKCoin
 	okcoinIntl  OKCoin
 	itbit       ItBit
@@ -99,6 +100,7 @@ func main() {
 	bot.exchange.btcmarkets.SetDefaults()
 	bot.exchange.coinbase.SetDefaults()
 	bot.exchange.cryptsy.SetDefaults()
+	bot.exchange.dwvx.SetDefaults()
 	bot.exchange.okcoinChina.SetURL(OKCOIN_API_URL_CHINA)
 	bot.exchange.okcoinChina.SetDefaults()
 	bot.exchange.okcoinIntl.SetURL(OKCOIN_API_URL)
@@ -231,6 +233,20 @@ func main() {
 				bot.exchange.cryptsy.AvailablePairs = SplitStrings(exch.AvailablePairs, ",")
 				bot.exchange.cryptsy.EnabledPairs = SplitStrings(exch.EnabledPairs, ",")
 				go bot.exchange.cryptsy.Run()
+			}
+		} else if bot.exchange.dwvx.GetName() == exch.Name {
+			if !exch.Enabled {
+				bot.exchange.dwvx.SetEnabled(false)
+			} else {
+				bot.exchange.dwvx.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
+				bot.exchange.dwvx.SetAPIKeys(exch.ClientID, exch.APIKey, exch.APISecret)
+				bot.exchange.dwvx.RESTPollingDelay = exch.RESTPollingDelay
+				bot.exchange.dwvx.Verbose = exch.Verbose
+				bot.exchange.dwvx.Websocket = exch.Websocket
+				bot.exchange.dwvx.BaseCurrencies = SplitStrings(exch.BaseCurrencies, ",")
+				bot.exchange.dwvx.AvailablePairs = SplitStrings(exch.AvailablePairs, ",")
+				bot.exchange.dwvx.EnabledPairs = SplitStrings(exch.EnabledPairs, ",")
+				go bot.exchange.dwvx.Run()
 			}
 		} else if bot.exchange.okcoinChina.GetName() == exch.Name {
 			if !exch.Enabled {

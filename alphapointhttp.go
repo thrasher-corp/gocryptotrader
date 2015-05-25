@@ -124,13 +124,22 @@ type AlphapointProducts struct {
 	RejectReason string              `json:"rejectReason"`
 }
 
+type AlphapointUserInfo struct {
+	UserInfoKVP []struct {
+		Key   string `json:"key"`
+		Value string `json:"value"`
+	} `json:"userInfoKVP"`
+	IsAccepted   bool   `json:"isAccepted"`
+	RejectReason string `json:"rejectReason"`
+}
+
 type AlphapointAccountInfo struct {
 	Currencies []struct {
 		Name    string `json:"name"`
 		Balance int    `json:"balance"`
 		Hold    int    `json:"hold"`
 	} `json:"currencies"`
-	Productpairs []struct {
+	ProductPairs []struct {
 		ProductPairName string `json:"productPairName"`
 		ProductPairCode int    `json:"productPairCode"`
 		TradeCount      int    `json:"tradeCount"`
@@ -141,18 +150,30 @@ type AlphapointAccountInfo struct {
 }
 
 type AlphapointOrder struct {
-	ServerOrderID     int64   `json:"ServerOrderId"`
-	AccountID         int     `json:"AccountId"`
-	Price             float64 `json:"price"`
-	QuantityTotal     float64 `json:"QtyTotal"`
-	QuantityRemaining float64 `json:"QtyRemaining"`
-	ReceiveTime       int64   `json:"ReceiveTime"`
-	Side              int     `json:"side"`
+	Serverorderid int   `json:"ServerOrderId"`
+	AccountID     int   `json:"AccountId"`
+	Price         int   `json:"Price"`
+	QtyTotal      int   `json:"QtyTotal"`
+	QtyRemaining  int   `json:"QtyRemaining"`
+	ReceiveTime   int64 `json:"ReceiveTime"`
+	Side          int   `json:"Side"`
+}
+
+type AlphapointOpenOrders struct {
+	Instrument string            `json:"ins"`
+	Openorders []AlphapointOrder `json:"openOrders"`
 }
 
 type AlphapointOrderInfo struct {
-	Instrument string            `json:"ins"`
-	Orders     []AlphapointOrder `json:"openOrders"`
+	OpenOrders   []AlphapointOpenOrders `json:"openOrdersInfo"`
+	IsAccepted   bool                   `json:"isAccepted"`
+	DateTimeUTC  int64                  `json:"dateTimeUtc"`
+	RejectReason string                 `json:"rejectReason"`
+}
+
+type AlphapointDepositAddresses struct {
+	Name           string `json:"name"`
+	DepositAddress string `json:"depositAddress"`
 }
 
 func (a *Alphapoint) SetDefaults() {
@@ -276,12 +297,13 @@ func (a *Alphapoint) CreateAccount(firstName, lastName, email, phone, password s
 	return nil
 }
 
-func (a *Alphapoint) GetUserInfo() error {
-	err := a.SendAuthenticatedHTTPRequest("POST", ALPHAPOINT_USERINFO, map[string]interface{}{}, nil)
+func (a *Alphapoint) GetUserInfo() (AlphapointUserInfo, error) {
+	response := AlphapointUserInfo{}
+	err := a.SendAuthenticatedHTTPRequest("POST", ALPHAPOINT_USERINFO, map[string]interface{}{}, &response)
 	if err != nil {
-		return err
+		return AlphapointUserInfo{}, err
 	}
-	return nil
+	return response, nil
 }
 
 func (a *Alphapoint) GetAccountInfo() (AlphapointAccountInfo, error) {
@@ -313,8 +335,9 @@ func (a *Alphapoint) GetAccountTrades(symbol string, startIndex, count int) (Alp
 	return response, nil
 }
 
-func (a *Alphapoint) GetDepositAddresses() error {
+func (a *Alphapoint) GetDepositAddresses() ([]AlphapointDepositAddresses, error) {
 	type Response struct {
+		Addresses    []AlphapointDepositAddresses
 		IsAccepted   bool   `json:"isAccepted"`
 		RejectReason string `json:"rejectReason"`
 	}
@@ -322,12 +345,12 @@ func (a *Alphapoint) GetDepositAddresses() error {
 	response := Response{}
 	err := a.SendAuthenticatedHTTPRequest("POST", ALPHAPOINT_DEPOSIT_ADDRESSES, map[string]interface{}{}, &response)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if !response.IsAccepted {
-		return errors.New(response.RejectReason)
+		return nil, errors.New(response.RejectReason)
 	}
-	return nil
+	return response.Addresses, nil
 }
 
 func (a *Alphapoint) WithdrawCoins(symbol, product string, amount float64, address string) error {
@@ -358,15 +381,15 @@ func (a *Alphapoint) CreateOrder(symbol, side string, orderType int, quantity, p
 	request := make(map[string]interface{})
 	request["ins"] = symbol
 	request["side"] = side
-	request["orderType"] = "0"
+	request["orderType"] = orderType
 	request["qty"] = strconv.FormatFloat(quantity, 'f', 8, 64)
 	request["px"] = strconv.FormatFloat(price, 'f', 2, 64)
 
 	type Response struct {
-		IsAccepted   bool   `json:"isAccepted"`
-		RejectReason string `json:"rejectReason"`
-		DateTimeUTC  int64  `json:"dateTimeUtc"`
-		OrderID      int64  `json:"serverOrderId,string"`
+		ServerOrderID int64   `json:"serverOrderId"`
+		DateTimeUTC   float64 `json:"dateTimeUtc"`
+		IsAccepted    bool    `json:"isAccepted"`
+		RejectReason  string  `json:"rejectReason"`
 	}
 
 	response := Response{}
@@ -378,7 +401,7 @@ func (a *Alphapoint) CreateOrder(symbol, side string, orderType int, quantity, p
 	if !response.IsAccepted {
 		return 0, errors.New(response.RejectReason)
 	}
-	return response.OrderID, nil
+	return response.ServerOrderID, nil
 }
 
 func (a *Alphapoint) ModifyOrder(symbol string, OrderID, action int64) (int64, error) {
@@ -388,10 +411,11 @@ func (a *Alphapoint) ModifyOrder(symbol string, OrderID, action int64) (int64, e
 	request["modifyAction"] = action
 
 	type Response struct {
-		IsAccepted   bool   `json:"isAccepted"`
-		RejectReason string `json:"rejectReason"`
-		DateTimeUTC  int64  `json:"dateTimeUtc"`
-		OrderID      int64  `json:"serverOrderId,string"`
+		ModifyOrderID int64   `json:"modifyOrderId"`
+		ServerOrderID int64   `json:"serverOrderId"`
+		DateTimeUTC   float64 `json:"dateTimeUtc"`
+		IsAccepted    bool    `json:"isAccepted"`
+		RejectReason  string  `json:"rejectReason"`
 	}
 
 	response := Response{}
@@ -403,7 +427,7 @@ func (a *Alphapoint) ModifyOrder(symbol string, OrderID, action int64) (int64, e
 	if !response.IsAccepted {
 		return 0, errors.New(response.RejectReason)
 	}
-	return response.OrderID, nil
+	return response.ModifyOrderID, nil
 }
 
 func (a *Alphapoint) CancelOrder(symbol string, OrderID int64) (int64, error) {
@@ -412,10 +436,11 @@ func (a *Alphapoint) CancelOrder(symbol string, OrderID int64) (int64, error) {
 	request["serverOrderId"] = OrderID
 
 	type Response struct {
-		IsAccepted   bool   `json:"isAccepted"`
-		RejectReason string `json:"rejectReason"`
-		DateTimeUTC  int64  `json:"dateTimeUtc"`
-		OrderID      int64  `json:"serverOrderId,string"`
+		CancelOrderID int64   `json:"cancelOrderId"`
+		ServerOrderID int64   `json:"serverOrderId"`
+		DateTimeUTC   float64 `json:"dateTimeUtc"`
+		IsAccepted    bool    `json:"isAccepted"`
+		RejectReason  string  `json:"rejectReason"`
 	}
 
 	response := Response{}
@@ -427,7 +452,7 @@ func (a *Alphapoint) CancelOrder(symbol string, OrderID int64) (int64, error) {
 	if !response.IsAccepted {
 		return 0, errors.New(response.RejectReason)
 	}
-	return response.OrderID, nil
+	return response.CancelOrderID, nil
 }
 
 func (a *Alphapoint) CancelAllOrders(symbol string) error {
@@ -451,38 +476,32 @@ func (a *Alphapoint) CancelAllOrders(symbol string) error {
 	return nil
 }
 
-func (a *Alphapoint) GetOrders() (AlphapointOrderInfo, error) {
-	type Response struct {
-		Orders       AlphapointOrderInfo `json:"openOrdersInfo"`
-		IsAccepted   bool                `json:"isAccepted"`
-		RejectReason string              `json:"rejectReason"`
-	}
-
-	response := Response{}
+func (a *Alphapoint) GetOrders() ([]AlphapointOpenOrders, error) {
+	response := AlphapointOrderInfo{}
 	err := a.SendAuthenticatedHTTPRequest("POST", ALPHAPOINT_OPEN_ORDERS, map[string]interface{}{}, &response)
 	if err != nil {
-		return AlphapointOrderInfo{}, err
+		return nil, err
 	}
 
 	if !response.IsAccepted {
-		return AlphapointOrderInfo{}, errors.New(response.RejectReason)
+		return nil, errors.New(response.RejectReason)
 	}
-	return response.Orders, nil
+	return response.OpenOrders, nil
 }
 
 func (a *Alphapoint) GetOrderFee(symbol, side string, quantity, price float64) (float64, error) {
 	type Response struct {
 		IsAccepted   bool    `json:"isAccepted"`
 		RejectReason string  `json:"rejectReason"`
-		Fee          float64 `json:"fee,string"`
+		Fee          float64 `json:"fee"`
 		FeeProduct   string  `json:"feeProduct"`
 	}
 
 	request := make(map[string]interface{})
 	request["ins"] = symbol
 	request["side"] = side
-	request["qty"] = strconv.FormatFloat(quantity, 'f', 8, 64)
-	request["px"] = strconv.FormatFloat(price, 'f', 2, 64)
+	request["qty"] = strconv.FormatFloat(quantity, 'f', -1, 64)
+	request["px"] = strconv.FormatFloat(price, 'f', -1, 64)
 
 	response := Response{}
 	err := a.SendAuthenticatedHTTPRequest("POST", ALPHAPOINT_ORDER_FEE, request, &response)
@@ -524,9 +543,10 @@ func (a *Alphapoint) SendAuthenticatedHTTPRequest(method, path string, data map[
 	headers := make(map[string]string)
 	headers["Content-Type"] = "application/json"
 	data["apiKey"] = a.APIKey
-	nonce := strconv.FormatInt(time.Now().Unix(), 10)
+	nonce := time.Now().UnixNano()
+	nonceStr := strconv.FormatInt(nonce, 10)
 	data["apiNonce"] = nonce
-	hmac := GetHMAC(HASH_SHA256, []byte(nonce+a.UserID+a.APIKey), []byte(a.APISecret))
+	hmac := GetHMAC(HASH_SHA256, []byte(nonceStr+a.UserID+a.APIKey), []byte(a.APISecret))
 	data["apiSig"] = StringToUpper(HexEncodeToString(hmac))
 	path = fmt.Sprintf("%s/ajax/v%s/%s", a.APIUrl, ALPHAPOINT_API_VERSION, path)
 	PayloadJson, err := JSONEncode(data)

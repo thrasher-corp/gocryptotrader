@@ -114,6 +114,7 @@ func (e *Event) CheckCondition() bool {
 	condition := SplitStrings(e.Condition, ",")
 	targetPrice, _ := strconv.ParseFloat(condition[1], 64)
 
+	/* to-do: add event handling for all currencies and fiat currencies */
 	if bot.exchange.bitfinex.GetName() == e.Exchange {
 		lastPrice = bot.exchange.bitfinex.GetTicker("btcusd").Last
 	} else if bot.exchange.bitstamp.GetName() == e.Exchange {
@@ -122,6 +123,13 @@ func (e *Event) CheckCondition() bool {
 		lastPrice = bot.exchange.coinbase.GetTicker("BTC-USD").Price
 	} else if bot.exchange.cryptsy.GetName() == e.Exchange {
 		lastPrice = bot.exchange.cryptsy.Market["BTCUSD"].LastTrade.Price
+	} else if bot.exchange.dwvx.GetName() == e.Exchange {
+		result, err := bot.exchange.dwvx.GetTicker("BTCAUD")
+		if err != nil {
+			lastPrice = 0
+		} else {
+			lastPrice = result.Last
+		}
 	} else if bot.exchange.lakebtc.GetName() == e.Exchange {
 		lastPrice = bot.exchange.lakebtc.GetTicker().CNY.Last
 	} else if bot.exchange.btcchina.GetName() == e.Exchange {
@@ -249,6 +257,7 @@ func IsValidExchange(Exchange string) bool {
 		bot.exchange.btcmarkets.GetName() == Exchange && bot.exchange.btcmarkets.IsEnabled() ||
 		bot.exchange.coinbase.GetName() == Exchange && bot.exchange.coinbase.IsEnabled() ||
 		bot.exchange.cryptsy.GetName() == Exchange && bot.exchange.cryptsy.IsEnabled() ||
+		bot.exchange.dwvx.GetName() == Exchange && bot.exchange.dwvx.IsEnabled() ||
 		bot.exchange.huobi.GetName() == Exchange && bot.exchange.huobi.IsEnabled() ||
 		bot.exchange.itbit.GetName() == Exchange && bot.exchange.itbit.IsEnabled() ||
 		bot.exchange.kraken.GetName() == Exchange && bot.exchange.kraken.IsEnabled() ||
