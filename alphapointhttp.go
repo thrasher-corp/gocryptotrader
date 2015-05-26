@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"github.com/gorilla/websocket"
 	"log"
 	"strconv"
 	"time"
@@ -33,6 +34,12 @@ const (
 )
 
 type Alphapoint struct {
+	WebsocketConn                     *websocket.Conn
+	WebsocketURL                      string
+	ExchangeName                      string
+	ExchangeEnanbled                  bool
+	WebsocketEnabled                  bool
+	Verbose                           bool
 	APIUrl, APIKey, UserID, APISecret string
 }
 
@@ -178,6 +185,7 @@ type AlphapointDepositAddresses struct {
 
 func (a *Alphapoint) SetDefaults() {
 	a.APIUrl = ALPHAPOINT_DEFAULT_API_URL
+	a.WebsocketURL = ALPHAPOINT_DEFAULT_WEBSOCKET_URL
 }
 
 func (a *Alphapoint) GetTicker(symbol string) (AlphapointTicker, error) {
