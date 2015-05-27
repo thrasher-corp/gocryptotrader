@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/gorilla/websocket"
 	"log"
 	"time"
 )
@@ -24,6 +25,7 @@ type DWVX struct {
 	EnabledPairs                []string
 	API                         Alphapoint
 	DepositAddresses            map[string]string
+	WebsocketConn               *websocket.Conn
 }
 
 func (d *DWVX) SetDefaults() {
@@ -56,8 +58,13 @@ func (d *DWVX) SetAPIKeys(userID, apiKey, apiSecret string) {
 
 func (d *DWVX) Run() {
 	if d.Verbose {
+		log.Printf("%s Websocket: %s. (url: %s).\n", d.GetName(), IsEnabled(d.Websocket), DWVX_WEBSOCKET_URL)
 		log.Printf("%s polling delay: %ds.\n", d.GetName(), d.RESTPollingDelay)
 		log.Printf("%s %d currencies enabled: %s.\n", d.GetName(), len(d.EnabledPairs), d.EnabledPairs)
+	}
+
+	if d.Websocket {
+		go d.WebsocketClient()
 	}
 
 	products, err := d.GetProductPairs()
