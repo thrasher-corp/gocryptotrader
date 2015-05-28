@@ -60,10 +60,34 @@ type CoinbaseProduct struct {
 	DisplayName    string  `json:"string"`
 }
 
-type CoinbaseOrderbook struct {
-	Asks     [][]interface{} `json:"ask"`
-	Bids     [][]interface{} `json:"bids"`
+type CoinbaseOrderL1L2 struct {
+	Price     float64
+	Amount    float64
+	NumOrders float64
+}
+
+type CoinbaseOrderL3 struct {
+	Price   float64
+	Amount  float64
+	OrderID string
+}
+
+type CoinbaseOrderbookL1L2 struct {
+	Sequence int64                 `json:"sequence"`
+	Bids     [][]CoinbaseOrderL1L2 `json:"asks"`
+	Asks     [][]CoinbaseOrderL1L2 `json:"asks"`
+}
+
+type CoinbaseOrderbookL3 struct {
+	Sequence int64               `json:"sequence"`
+	Bids     [][]CoinbaseOrderL3 `json:"asks"`
+	Asks     [][]CoinbaseOrderL3 `json:"asks"`
+}
+
+type CoinbaseOrderbookResponse struct {
 	Sequence int64           `json:"sequence"`
+	Bids     [][]interface{} `json:"bids"`
+	Asks     [][]interface{} `json:"asks"`
 }
 
 type CoinbaseTrade struct {
@@ -204,8 +228,8 @@ func (c *Coinbase) GetProducts() ([]CoinbaseProduct, error) {
 	return products, nil
 }
 
-func (c *Coinbase) GetOrderbook(symbol string, level int) {
-	orderbook := CoinbaseOrderbook{}
+func (c *Coinbase) GetOrderbook(symbol string, level int) (interface{}, error) {
+	orderbook := CoinbaseOrderbookResponse{}
 	path := ""
 	if level > 0 {
 		levelStr := strconv.Itoa(level)
@@ -215,11 +239,83 @@ func (c *Coinbase) GetOrderbook(symbol string, level int) {
 	}
 
 	err := SendHTTPGetRequest(path, true, &orderbook)
-
 	if err != nil {
-		log.Println(err)
+		return nil, err
 	}
-	log.Println(orderbook)
+
+	if level == 3 {
+		ob := CoinbaseOrderbookL3{}
+		ob.Sequence = orderbook.Sequence
+		for _, x := range orderbook.Asks {
+			price, err := strconv.ParseFloat((x[0].(string)), 64)
+			if err != nil {
+				continue
+			}
+			amount, err := strconv.ParseFloat((x[1].(string)), 64)
+			if err != nil {
+				continue
+			}
+
+			order := make([]CoinbaseOrderL3, 1)
+			order[0].Price = price
+			order[0].Amount = amount
+			order[0].OrderID = x[2].(string)
+			ob.Asks = append(ob.Asks, order)
+		}
+		for _, x := range orderbook.Bids {
+			price, err := strconv.ParseFloat((x[0].(string)), 64)
+			if err != nil {
+				continue
+			}
+			amount, err := strconv.ParseFloat((x[1].(string)), 64)
+			if err != nil {
+				continue
+			}
+
+			order := make([]CoinbaseOrderL3, 1)
+			order[0].Price = price
+			order[0].Amount = amount
+			order[0].OrderID = x[2].(string)
+			ob.Bids = append(ob.Bids, order)
+		}
+		return ob, nil
+	} else {
+		ob := CoinbaseOrderbookL1L2{}
+		ob.Sequence = orderbook.Sequence
+		for _, x := range orderbook.Asks {
+			price, err := strconv.ParseFloat((x[0].(string)), 64)
+			if err != nil {
+				continue
+			}
+			amount, err := strconv.ParseFloat((x[1].(string)), 64)
+			if err != nil {
+				continue
+			}
+
+			order := make([]CoinbaseOrderL1L2, 1)
+			order[0].Price = price
+			order[0].Amount = amount
+			order[0].NumOrders = x[2].(float64)
+			ob.Asks = append(ob.Asks, order)
+		}
+		for _, x := range orderbook.Bids {
+			price, err := strconv.ParseFloat((x[0].(string)), 64)
+			if err != nil {
+				continue
+			}
+			amount, err := strconv.ParseFloat((x[1].(string)), 64)
+			if err != nil {
+				continue
+			}
+
+			order := make([]CoinbaseOrderL1L2, 1)
+			order[0].Price = price
+			order[0].Amount = amount
+			order[0].NumOrders = x[2].(float64)
+			ob.Bids = append(ob.Bids, order)
+		}
+		return ob, nil
+	}
 }
 
 func (c *Coinbase) GetTicker(symbol string) CoinbaseTicker {
