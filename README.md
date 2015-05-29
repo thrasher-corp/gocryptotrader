@@ -15,7 +15,7 @@ A cryptocurrency trading bot supporting multiple exchanges written in Golang.
 | BTCMarkets | Yes | NA       | NA  |
 | Coinbase | Yes | Yes | No|
 | Cryptsy | Yes | Yes | NA|
-| DWVX | Yes  | No        | NA  |
+| DWVX | Yes  | Yes        | NA  |
 | Huobi | Yes | Yes |No
 | ItBit | Yes | NA | NA |
 | Kraken | Yes | NA | NA
@@ -27,6 +27,7 @@ A cryptocurrency trading bot supporting multiple exchanges written in Golang.
 ## Current Features
 + Support for all Exchange fiat and digital currencies, with the ability to individually toggle them on/off.
 + REST API support for all exchanges.
++ Websocket support for applicable exchanges.
 + Ability to turn off/on certain exchanges.
 + Ability to adjust manual polling timer for exchanges.
 + SMS notification support via SMS Gateway.
