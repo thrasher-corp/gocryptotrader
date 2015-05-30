@@ -8,7 +8,7 @@ A cryptocurrency trading bot supporting multiple exchanges written in Golang.
 |----------|------|-----------|-----|
 | Alphapoint | Yes  | Yes        | NA  |
 | ANXPRO | Yes  | No        | NA  |
-| Bitfinex | Yes  | NA        | NA  |
+| Bitfinex | Yes  | Yes        | NA  |
 | Bitstamp | Yes  | Yes       | NA  |
 | BTCChina | Yes  | Yes     | No  |
 | BTCE     | Yes  | NA        | NA  |

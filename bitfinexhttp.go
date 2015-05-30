@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	"fmt"
+	"github.com/gorilla/websocket"
 	"log"
 	"strconv"
 	"strings"
@@ -159,6 +160,7 @@ type Bitfinex struct {
 	BaseCurrencies          []string
 	AvailablePairs          []string
 	EnabledPairs            []string
+	WebsocketConn           *websocket.Conn
 }
 
 func (b *Bitfinex) SetDefaults() {
@@ -188,8 +190,13 @@ func (b *Bitfinex) SetAPIKeys(apiKey, apiSecret string) {
 
 func (b *Bitfinex) Run() {
 	if b.Verbose {
+		log.Printf("%s Websocket: %s.", b.GetName(), IsEnabled(b.Websocket))
 		log.Printf("%s polling delay: %ds.\n", b.GetName(), b.RESTPollingDelay)
 		log.Printf("%s %d currencies enabled: %s.\n", b.GetName(), len(b.EnabledPairs), b.EnabledPairs)
+	}
+
+	if b.Websocket {
+		go b.WebsocketClient()
 	}
 
 	exchangeProducts, err := b.GetSymbols()
