@@ -18,8 +18,9 @@ var (
 	ErrExchangeAvailablePairsEmpty                  = "Exchange %s: Available pairs is empty."
 	ErrExchangeEnabledPairsEmpty                    = "Exchange %s: Enabled pairs is empty."
 	ErrExchangeBaseCurrenciesEmpty                  = "Exchange %s: Base currencies is empty."
-	ErrExchangeAuthAPIDefaultOrEmptyValues          = "WARNING -- Exchange %s: Authenticated API support disabled due to default/empty APIKey/Secret/ClientID values."
+	WarningExchangeAuthAPIDefaultOrEmptyValues      = "WARNING -- Exchange %s: Authenticated API support disabled due to default/empty APIKey/Secret/ClientID values."
 	ErrExchangeNotFound                             = "Exchange %s: Not found."
+	ErrNoEnabledExchanges                           = "No Exchanges enabled."
 	WarningSMSGlobalDefaultOrEmptyValues            = "WARNING -- SMS Support disabled due to default or empty Username/Password values."
 	WarningSSMSGlobalSMSContactDefaultOrEmptyValues = "WARNING -- SMS contact #%d Name/Number disabled due to default or empty values."
 	WarningSSMSGlobalSMSNoContacts                  = "WARNING -- SMS Support disabled due to no enabled contacts."
@@ -55,6 +56,16 @@ type Exchanges struct {
 	AvailablePairs          string
 	EnabledPairs            string
 	BaseCurrencies          string
+}
+
+func GetEnabledExchanges() int {
+	counter := 0
+	for i := range bot.config.Exchanges {
+		if bot.config.Exchanges[i].Enabled {
+			counter++
+		}
+	}
+	return counter
 }
 
 func GetExchangeConfig(name string) (Exchanges, error) {
@@ -101,7 +112,8 @@ func CheckSMSGlobalConfigValues() error {
 	return nil
 }
 
-func CheckConfigValues() error {
+func CheckExchangeConfigValues() error {
+	exchanges := 0
 	for i, exch := range bot.config.Exchanges {
 		if exch.Enabled {
 			if exch.Name == "" {
@@ -119,17 +131,21 @@ func CheckConfigValues() error {
 			if exch.AuthenticatedAPISupport { // non-fatal error
 				if exch.APIKey == "" || exch.APISecret == "" || exch.APIKey == "Key" || exch.APISecret == "Secret" {
 					bot.config.Exchanges[i].AuthenticatedAPISupport = false
-					log.Printf(ErrExchangeAuthAPIDefaultOrEmptyValues, exch.Name)
+					log.Printf(WarningExchangeAuthAPIDefaultOrEmptyValues, exch.Name)
 					continue
 				} else if exch.Name == "ITBIT" || exch.Name == "Bitstamp" || exch.Name == "Coinbase" {
 					if exch.ClientID == "" || exch.ClientID == "ClientID" {
 						bot.config.Exchanges[i].AuthenticatedAPISupport = false
-						log.Printf(ErrExchangeAuthAPIDefaultOrEmptyValues, exch.Name)
+						log.Printf(WarningExchangeAuthAPIDefaultOrEmptyValues, exch.Name)
 						continue
 					}
 				}
 			}
+			exchanges++
 		}
+	}
+	if exchanges == 0 {
+		return errors.New(ErrNoEnabledExchanges)
 	}
 	return nil
 }

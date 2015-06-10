@@ -43,49 +43,33 @@ func main() {
 
 	err := errors.New("")
 	bot.config, err = ReadConfig()
-
 	if err != nil {
-		log.Println("Fatal error opening config.json file. Error:", err)
+		log.Printf("Fatal error opening config.json file. Error: %s", err)
 		return
 	}
+	log.Println("Config file loaded. Checking settings.. ")
 
-	err = CheckConfigValues()
-
+	err = CheckExchangeConfigValues()
 	if err != nil {
 		log.Println("Fatal error checking config values. Error:", err)
 		return
 	}
 
 	err = CheckSMSGlobalConfigValues()
-
 	if err != nil {
+		// non fatal event
 		log.Println(err)
 	}
 
-	log.Println("Config file loaded.")
 	log.Printf("Bot '%s' started.\n", bot.config.Name)
-
 	if bot.config.SMS.Enabled {
 		log.Printf("SMS support enabled. Number of SMS contacts %d.\n", GetEnabledSMSContacts())
 	} else {
 		log.Println("SMS support disabled.")
 	}
 
-	enabledExchanges := 0
-	for _, exch := range bot.config.Exchanges {
-		if exch.Enabled {
-			enabledExchanges++
-		}
-	}
-
-	if enabledExchanges == 0 {
-		log.Println("Bot started with no exchanges supported. Exiting.")
-		return
-	}
-
 	AdjustGoMaxProcs()
-
-	log.Printf("Available Exchanges: %d. Enabled Exchanges: %d.\n", len(bot.config.Exchanges), enabledExchanges)
+	log.Printf("Available Exchanges: %d. Enabled Exchanges: %d.\n", len(bot.config.Exchanges), GetEnabledExchanges())
 	log.Println("Bot Exchange support:")
 
 	bot.exchange.anx.SetDefaults()
