@@ -131,6 +131,19 @@
    "BaseCurrencies": "AUD"
   },
   {
+   "Name": "Gemini",
+   "Enabled": true,
+   "Verbose": false,
+   "Websocket": false,
+   "RESTPollingDelay": 10,
+   "AuthenticatedAPISupport": false,
+   "APIKey": "Key",
+   "APISecret": "Secret",
+   "AvailablePairs": "BTCUSD",
+   "EnabledPairs": "BTCUSD",
+   "BaseCurrencies": "USD"
+  },
+  {
    "Name": "Huobi",
    "Enabled": true,
    "Verbose": false,
