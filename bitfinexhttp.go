@@ -398,8 +398,8 @@ func (b *Bitfinex) NewDeposit(Symbol, Method, Wallet string) {
 func (b *Bitfinex) NewOrder(Symbol string, Amount float64, Price float64, Buy bool, Type string, Hidden bool) {
 	request := make(map[string]interface{})
 	request["symbol"] = Symbol
-	request["amount"] = fmt.Sprintf("%.8f", Amount)
-	request["price"] = fmt.Sprintf("%.5f", Price)
+	request["amount"] = strconv.FormatFloat(Amount, 'f', -1, 64)
+	request["price"] = strconv.FormatFloat(Price, 'f', -1, 64)
 	request["exchange"] = "bitfinex"
 
 	if Buy {
@@ -408,8 +408,8 @@ func (b *Bitfinex) NewOrder(Symbol string, Amount float64, Price float64, Buy bo
 		request["side"] = "sell"
 	}
 
-	//request["is_hidden"] - currently not implemented
 	request["type"] = Type
+	request["is_hidden"] = Hidden
 
 	err := b.SendAuthenticatedHTTPRequest("POST", BITFINEX_ORDER_NEW, request, nil)
 
