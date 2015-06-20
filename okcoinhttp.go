@@ -437,8 +437,8 @@ func (o *OKCoin) GetFuturesPosition(symbol, contractType string) {
 
 func (o *OKCoin) Trade(amount, price float64, symbol, orderType string) {
 	v := url.Values{}
-	v.Set("amount", strconv.FormatFloat(amount, 'f', 8, 64))
-	v.Set("price", strconv.FormatFloat(price, 'f', 8, 64))
+	v.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
+	v.Set("price", strconv.FormatFloat(price, 'f', -1, 64))
 	v.Set("symbol", symbol)
 	v.Set("type", orderType)
 
@@ -453,8 +453,8 @@ func (o *OKCoin) FuturesTrade(amount, price float64, matchPrice, leverage int64,
 	v := url.Values{}
 	v.Set("symbol", symbol)
 	v.Set("contract_type", contractType)
-	v.Set("price", strconv.FormatFloat(price, 'f', 8, 64))
-	v.Set("amount", strconv.FormatFloat(amount, 'f', 8, 64))
+	v.Set("price", strconv.FormatFloat(price, 'f', -1, 64))
+	v.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
 	v.Set("type", orderType)
 	v.Set("match_price", strconv.FormatInt(matchPrice, 10))
 	v.Set("lever_rate", strconv.FormatInt(leverage, 10))
@@ -591,10 +591,10 @@ func (o *OKCoin) GetOrderHistory(orderID, pageLength, currentPage int64, orderTy
 func (o *OKCoin) Withdrawal(symbol string, fee float64, tradePWD, address string, amount float64) {
 	v := url.Values{}
 	v.Set("symbol", symbol)
-	v.Set("chargefee", strconv.FormatFloat(fee, 'f', 8, 64))
+	v.Set("chargefee", strconv.FormatFloat(fee, 'f', -1, 64))
 	v.Set("trade_pwd", tradePWD)
 	v.Set("withdraw_address", address)
-	v.Set("withdraw_amount", strconv.FormatFloat(amount, 'f', 8, 64))
+	v.Set("withdraw_amount", strconv.FormatFloat(amount, 'f', -1, 64))
 
 	err := o.SendAuthenticatedHTTPRequest("withdraw.do", v)
 
@@ -652,8 +652,8 @@ func (o *OKCoin) Borrow(symbol, days string, amount, rate float64) {
 	v := url.Values{}
 	v.Set("symbol", symbol)
 	v.Set("days", days)
-	v.Set("amount", strconv.FormatFloat(amount, 'f', 8, 64))
-	v.Set("rate", strconv.FormatFloat(rate, 'f', 8, 64))
+	v.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
+	v.Set("rate", strconv.FormatFloat(rate, 'f', -1, 64))
 	err := o.SendAuthenticatedHTTPRequest("borrow_money.do", v)
 
 	if err != nil {

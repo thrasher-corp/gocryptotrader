@@ -463,8 +463,8 @@ func (c *Coinbase) PlaceOrder(clientRef string, price, amount float64, side stri
 		request["client_oid"] = clientRef
 	}
 
-	request["price"] = strconv.FormatFloat(price, 'f', 2, 64)
-	request["size"] = strconv.FormatFloat(amount, 'f', 8, 64)
+	request["price"] = strconv.FormatFloat(price, 'f', -1, 64)
+	request["size"] = strconv.FormatFloat(amount, 'f', -1, 64)
 	request["side"] = side
 	request["product_id"] = productID
 
@@ -574,7 +574,7 @@ func (c *Coinbase) GetFills(params url.Values) {
 func (c *Coinbase) Transfer(transferType string, amount float64, accountID string) {
 	request := make(map[string]interface{})
 	request["type"] = transferType
-	request["amount"] = strconv.FormatFloat(amount, 'f', 8, 64)
+	request["amount"] = strconv.FormatFloat(amount, 'f', -1, 64)
 	request["coinbase_account_id"] = accountID
 
 	err := c.SendAuthenticatedHTTPRequest("POST", COINBASE_API_URL+COINBASE_TRANSFERS, request, nil)

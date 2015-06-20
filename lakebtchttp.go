@@ -160,7 +160,7 @@ func (l *LakeBTC) GetAccountInfo() {
 }
 
 func (l *LakeBTC) Trade(orderType int, amount, price float64, currency string) {
-	params := strconv.FormatFloat(price, 'f', 8, 64) + "," + strconv.FormatFloat(amount, 'f', 8, 64) + "," + currency
+	params := strconv.FormatFloat(price, 'f', -1, 64) + "," + strconv.FormatFloat(amount, 'f', -1, 64) + "," + currency
 	err := errors.New("")
 
 	if orderType == 0 {

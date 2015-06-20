@@ -223,8 +223,8 @@ func (i *ItBit) PlaceWalletOrder(walletID, side, orderType, currency string, amo
 	params["side"] = side
 	params["type"] = orderType
 	params["currency"] = currency
-	params["amount"] = strconv.FormatFloat(amount, 'f', 8, 64)
-	params["price"] = strconv.FormatFloat(price, 'f', 2, 64)
+	params["amount"] = strconv.FormatFloat(amount, 'f', -1, 64)
+	params["price"] = strconv.FormatFloat(price, 'f', -1, 64)
 	params["instrument"] = instrument
 
 	if clientRef != "" {
@@ -287,7 +287,7 @@ func (i *ItBit) WalletTransfer(walletID, sourceWallet, destWallet string, amount
 	params := make(map[string]interface{})
 	params["sourceWalletId"] = sourceWallet
 	params["destinationWalletId"] = destWallet
-	params["amount"] = strconv.FormatFloat(amount, 'f', 8, 64)
+	params["amount"] = strconv.FormatFloat(amount, 'f', -1, 64)
 	params["currencyCode"] = currency
 
 	err := i.SendAuthenticatedHTTPRequest("POST", path, params)

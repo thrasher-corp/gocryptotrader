@@ -222,8 +222,8 @@ func (b *BTCE) Trade(pair, orderType string, amount, price float64) {
 	req := url.Values{}
 	req.Add("pair", pair)
 	req.Add("type", orderType)
-	req.Add("amount", strconv.FormatFloat(amount, 'f', 8, 64))
-	req.Add("rate", strconv.FormatFloat(price, 'f', 2, 64))
+	req.Add("amount", strconv.FormatFloat(amount, 'f', -1, 64))
+	req.Add("rate", strconv.FormatFloat(price, 'f', -1, 64))
 
 	err := b.SendAuthenticatedHTTPRequest(BTCE_TRADE, req)
 

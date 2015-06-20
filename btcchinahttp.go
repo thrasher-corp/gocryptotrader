@@ -313,8 +313,8 @@ func (b *BTCChina) GetAccountInfo(infoType string) {
 
 func (b *BTCChina) PlaceOrder(buyOrder bool, price, amount float64, market string) {
 	params := make([]interface{}, 0)
-	params = append(params, strconv.FormatFloat(price, 'f', 2, 64))
-	params = append(params, strconv.FormatFloat(amount, 'f', 8, 64))
+	params = append(params, strconv.FormatFloat(price, 'f', -1, 64))
+	params = append(params, strconv.FormatFloat(amount, 'f', -1, 64))
 
 	if len(market) > 0 {
 		params = append(params, market)
@@ -507,10 +507,10 @@ func (b *BTCChina) RequestWithdrawal(currency string, amount float64) {
 
 func (b *BTCChina) IcebergOrder(buyOrder bool, price, amount, discAmount, variance float64, market string) {
 	params := make([]interface{}, 0)
-	params = append(params, strconv.FormatFloat(price, 'f', 2, 64))
-	params = append(params, strconv.FormatFloat(amount, 'f', 8, 64))
-	params = append(params, strconv.FormatFloat(discAmount, 'f', 2, 64))
-	params = append(params, strconv.FormatFloat(variance, 'f', 2, 64))
+	params = append(params, strconv.FormatFloat(price, 'f', -1, 64))
+	params = append(params, strconv.FormatFloat(amount, 'f', -1, 64))
+	params = append(params, strconv.FormatFloat(discAmount, 'f', -1, 64))
+	params = append(params, strconv.FormatFloat(variance, 'f', -1, 64))
 
 	if len(market) > 0 {
 		params = append(params, market)
@@ -587,15 +587,15 @@ func (b *BTCChina) PlaceStopOrder(buyOder bool, stopPrice, price, amount, traili
 		params = append(params, stopPrice)
 	}
 
-	params = append(params, strconv.FormatFloat(price, 'f', 2, 64))
-	params = append(params, strconv.FormatFloat(amount, 'f', 8, 64))
+	params = append(params, strconv.FormatFloat(price, 'f', -1, 64))
+	params = append(params, strconv.FormatFloat(amount, 'f', -1, 64))
 
 	if trailingAmt > 0 {
-		params = append(params, strconv.FormatFloat(trailingAmt, 'f', 2, 64))
+		params = append(params, strconv.FormatFloat(trailingAmt, 'f', -1, 64))
 	}
 
 	if trailingPct > 0 {
-		params = append(params, strconv.FormatFloat(trailingPct, 'f', 2, 64))
+		params = append(params, strconv.FormatFloat(trailingPct, 'f', -1, 64))
 	}
 
 	if len(market) > 0 {

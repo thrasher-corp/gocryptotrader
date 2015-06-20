@@ -365,7 +365,7 @@ func (a *Alphapoint) WithdrawCoins(symbol, product string, amount float64, addre
 	request := make(map[string]interface{})
 	request["ins"] = symbol
 	request["product"] = product
-	request["amount"] = strconv.FormatFloat(amount, 'f', 8, 64)
+	request["amount"] = strconv.FormatFloat(amount, 'f', -1, 64)
 	request["sendToAddress"] = address
 
 	type Response struct {
@@ -390,8 +390,8 @@ func (a *Alphapoint) CreateOrder(symbol, side string, orderType int, quantity, p
 	request["ins"] = symbol
 	request["side"] = side
 	request["orderType"] = orderType
-	request["qty"] = strconv.FormatFloat(quantity, 'f', 8, 64)
-	request["px"] = strconv.FormatFloat(price, 'f', 2, 64)
+	request["qty"] = strconv.FormatFloat(quantity, 'f', -1, 64)
+	request["px"] = strconv.FormatFloat(price, 'f', -1, 64)
 
 	type Response struct {
 		ServerOrderID int64   `json:"serverOrderId"`

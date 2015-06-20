@@ -525,11 +525,11 @@ func (k *Kraken) AddOrder(symbol, side, orderType string, price, price2, volume,
 	values.Set("pairs", symbol)
 	values.Set("type", side)
 	values.Set("ordertype", orderType)
-	values.Set("price", strconv.FormatFloat(price, 'f', 2, 64))
-	values.Set("price2", strconv.FormatFloat(price, 'f', 2, 64))
-	values.Set("volume", strconv.FormatFloat(volume, 'f', 2, 64))
-	values.Set("leverage", strconv.FormatFloat(leverage, 'f', 2, 64))
-	values.Set("position", strconv.FormatFloat(position, 'f', 2, 64))
+	values.Set("price", strconv.FormatFloat(price, 'f', -1, 64))
+	values.Set("price2", strconv.FormatFloat(price, 'f', -1, 64))
+	values.Set("volume", strconv.FormatFloat(volume, 'f', -1, 64))
+	values.Set("leverage", strconv.FormatFloat(leverage, 'f', -1, 64))
+	values.Set("position", strconv.FormatFloat(position, 'f', -1, 64))
 
 	result, err := k.SendAuthenticatedHTTPRequest(KRAKEN_ORDER_PLACE, values)
 

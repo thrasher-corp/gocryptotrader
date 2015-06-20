@@ -409,8 +409,8 @@ func (c *Cryptsy) CreateOrder(marketid, orderType string, amount, price float64)
 	req := url.Values{}
 	req.Set("marketid", marketid)
 	req.Set("ordertype", orderType)
-	req.Set("quantity", strconv.FormatFloat(amount, 'f', 8, 64))
-	req.Set("price", strconv.FormatFloat(amount, 'f', 8, 64))
+	req.Set("quantity", strconv.FormatFloat(amount, 'f', -1, 64))
+	req.Set("price", strconv.FormatFloat(amount, 'f', -1, 64))
 
 	err := c.SendAuthenticatedHTTPRequest("POST", CRYPTSY_API_URL+CRYPTSY_ORDER, req)
 
@@ -441,10 +441,10 @@ func (c *Cryptsy) CreateTrigger(marketid int64, orderType string, quantity float
 	req := url.Values{}
 	req.Set("marketid", strconv.FormatInt(marketid, 10))
 	req.Set("type", orderType)
-	req.Set("quantity", strconv.FormatFloat(quantity, 'f', 8, 64))
+	req.Set("quantity", strconv.FormatFloat(quantity, 'f', -1, 64))
 	req.Set("comparison", comparison)
-	req.Set("price", strconv.FormatFloat(price, 'f', 8, 64))
-	req.Set("orderprice", strconv.FormatFloat(orderprice, 'f', 8, 64))
+	req.Set("price", strconv.FormatFloat(price, 'f', -1, 64))
+	req.Set("orderprice", strconv.FormatFloat(orderprice, 'f', -1, 64))
 
 	if expires > 0 {
 		req.Set("expires", strconv.FormatInt(expires, 10))

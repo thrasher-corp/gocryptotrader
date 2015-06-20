@@ -220,8 +220,8 @@ func (b *Bitstamp) GetOpenOrders() {
 
 func (b *Bitstamp) PlaceOrder(price float64, amount float64, Type int) {
 	var req = url.Values{}
-	req.Add("amount", strconv.FormatFloat(amount, 'f', 8, 64))
-	req.Add("price", strconv.FormatFloat(price, 'f', 2, 64))
+	req.Add("amount", strconv.FormatFloat(amount, 'f', -1, 64))
+	req.Add("price", strconv.FormatFloat(price, 'f', -1, 64))
 	orderType := BITSTAMP_API_BUY
 
 	if Type == 1 {
@@ -247,7 +247,7 @@ func (b *Bitstamp) GetWithdrawalRequests() {
 
 func (b *Bitstamp) BitcoinWithdrawal(amount float64, address string) {
 	var req = url.Values{}
-	req.Add("amount", strconv.FormatFloat(amount, 'f', 8, 64))
+	req.Add("amount", strconv.FormatFloat(amount, 'f', -1, 64))
 	req.Add("address", address)
 
 	err := b.SendAuthenticatedHTTPRequest(BITSTAMP_API_BITCOIN_WITHDRAWAL, req, nil)
@@ -275,7 +275,7 @@ func (b *Bitstamp) UnconfirmedBitcoin() {
 
 func (b *Bitstamp) RippleWithdrawal(amount float64, address, currency string) {
 	var req = url.Values{}
-	req.Add("amount", strconv.FormatFloat(amount, 'f', 8, 64))
+	req.Add("amount", strconv.FormatFloat(amount, 'f', -1, 64))
 	req.Add("address", address)
 	req.Add("currency", currency)
 

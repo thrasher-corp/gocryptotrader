@@ -157,8 +157,8 @@ func (h *HUOBI) Trade(orderType string, coinType int, price, amount float64) {
 		orderType = "sell"
 	}
 	values.Set("coin_type", strconv.Itoa(coinType))
-	values.Set("amount", strconv.FormatFloat(amount, 'f', 8, 64))
-	values.Set("price", strconv.FormatFloat(price, 'f', 8, 64))
+	values.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
+	values.Set("price", strconv.FormatFloat(price, 'f', -1, 64))
 	err := h.SendAuthenticatedRequest(orderType, values)
 
 	if err != nil {
@@ -172,8 +172,8 @@ func (h *HUOBI) MarketTrade(orderType string, coinType int, price, amount float6
 		orderType = "sell_market"
 	}
 	values.Set("coin_type", strconv.Itoa(coinType))
-	values.Set("amount", strconv.FormatFloat(amount, 'f', 8, 64))
-	values.Set("price", strconv.FormatFloat(price, 'f', 8, 64))
+	values.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
+	values.Set("price", strconv.FormatFloat(price, 'f', -1, 64))
 	err := h.SendAuthenticatedRequest(orderType, values)
 
 	if err != nil {
@@ -196,8 +196,8 @@ func (h *HUOBI) ModifyOrder(orderType string, coinType, orderID int, price, amou
 	values := url.Values{}
 	values.Set("coin_type", strconv.Itoa(coinType))
 	values.Set("id", strconv.Itoa(orderID))
-	values.Set("amount", strconv.FormatFloat(amount, 'f', 8, 64))
-	values.Set("price", strconv.FormatFloat(price, 'f', 8, 64))
+	values.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
+	values.Set("price", strconv.FormatFloat(price, 'f', -1, 64))
 	err := h.SendAuthenticatedRequest("modify_order", values)
 
 	if err != nil {

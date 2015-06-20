@@ -254,8 +254,8 @@ func (o *OKCoin) WebsocketSpotTrade(symbol, orderType string, price, amount floa
 	values := make(map[string]string)
 	values["symbol"] = symbol
 	values["type"] = orderType
-	values["price"] = strconv.FormatFloat(price, 'f', 8, 64)
-	values["amount"] = strconv.FormatFloat(amount, 'f', 8, 64)
+	values["price"] = strconv.FormatFloat(price, 'f', -1, 64)
+	values["amount"] = strconv.FormatFloat(amount, 'f', -1, 64)
 	channel := ""
 
 	if o.WebsocketURL == OKCOIN_WEBSOCKET_URL_CHINA {
@@ -271,8 +271,8 @@ func (o *OKCoin) WebsocketFuturesTrade(symbol, contractType string, price, amoun
 	values := make(map[string]string)
 	values["symbol"] = symbol
 	values["contract_type"] = contractType
-	values["price"] = strconv.FormatFloat(price, 'f', 8, 64)
-	values["amount"] = strconv.FormatFloat(amount, 'f', 8, 64)
+	values["price"] = strconv.FormatFloat(price, 'f', -1, 64)
+	values["amount"] = strconv.FormatFloat(amount, 'f', -1, 64)
 	values["type"] = strconv.Itoa(orderType)
 	values["match_price"] = strconv.Itoa(matchPrice)
 	values["lever_rate"] = strconv.Itoa(orderType)
