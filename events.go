@@ -221,7 +221,7 @@ func IsValidEvent(Exchange, Item, Condition, CryptoCurrency, FiatCurrency, Actio
 			return ErrInvalidAction
 		}
 
-		if action[1] != "ALL" && SMSGetNumberByName(action[1]) == "" {
+		if action[1] != "ALL" && SMSGetNumberByName(action[1]) == ErrSMSContactNotFound {
 			return ErrInvalidAction
 		}
 	} else {

@@ -1,14 +1,17 @@
 {
  "Name": "Skynet",
- "SMSGlobalUsername": "Username",
- "SMSGlobalPassword": "Password",
- "SMSContacts": [
-  {
-   "Name": "Bob",
-   "Number": "12345",
-   "Enabled": false
-  }
- ],
+ "SMSGlobal": {
+  "Enabled": false,
+  "Username": "Username",
+  "Password": "Password",
+  "Contacts": [
+   {
+    "Name": "Bob",
+    "Number": "12345",
+    "Enabled": false
+   }
+  ]
+ },
  "Exchanges": [
   {
    "Name": "ANX",

@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -13,26 +14,32 @@ const (
 )
 
 var (
-	ErrExchangeNameEmpty                   = "Exchange #%d in config: Exchange name is empty."
-	ErrExchangeAvailablePairsEmpty         = "Exchange %s: Available pairs is empty."
-	ErrExchangeEnabledPairsEmpty           = "Exchange %s: Enabled pairs is empty."
-	ErrExchangeBaseCurrenciesEmpty         = "Exchange %s: Base currencies is empty."
-	ErrExchangeAuthAPIDefaultOrEmptyValues = "WARNING -- Exchange %s: Authenticated API support disabled due to default/empty APIKey/Secret/ClientID values."
-	ErrExchangeNotFound                    = "Exchange %s: Not found."
+	ErrExchangeNameEmpty                            = "Exchange #%d in config: Exchange name is empty."
+	ErrExchangeAvailablePairsEmpty                  = "Exchange %s: Available pairs is empty."
+	ErrExchangeEnabledPairsEmpty                    = "Exchange %s: Enabled pairs is empty."
+	ErrExchangeBaseCurrenciesEmpty                  = "Exchange %s: Base currencies is empty."
+	ErrExchangeAuthAPIDefaultOrEmptyValues          = "WARNING -- Exchange %s: Authenticated API support disabled due to default/empty APIKey/Secret/ClientID values."
+	ErrExchangeNotFound                             = "Exchange %s: Not found."
+	WarningSMSGlobalDefaultOrEmptyValues            = "WARNING -- SMS Support disabled due to default or empty Username/Password values."
+	WarningSSMSGlobalSMSContactDefaultOrEmptyValues = "WARNING -- SMS contact #%d Name/Number disabled due to default or empty values."
+	WarningSSMSGlobalSMSNoContacts                  = "WARNING -- SMS Support disabled due to no enabled contacts."
 )
 
-type SMSContacts struct {
-	Name    string
-	Number  string
-	Enabled bool
+type SMSGlobal struct {
+	Enabled  bool
+	Username string
+	Password string
+	Contacts []struct {
+		Name    string
+		Number  string
+		Enabled bool
+	}
 }
 
 type Config struct {
-	Name              string
-	SMSGlobalUsername string
-	SMSGlobalPassword string
-	SMSContacts       []SMSContacts
-	Exchanges         []Exchanges
+	Name      string
+	SMS       SMSGlobal `json:"SMSGlobal"`
+	Exchanges []Exchanges
 }
 
 type Exchanges struct {
@@ -67,6 +74,31 @@ func UpdateExchangeConfig(e Exchanges) error {
 		}
 	}
 	return fmt.Errorf(ErrExchangeNotFound, e.Name)
+}
+
+func CheckSMSGlobalConfigValues() error {
+	if bot.config.SMS.Enabled {
+		if bot.config.SMS.Username == "" || bot.config.SMS.Username == "Username" || bot.config.SMS.Password == "" || bot.config.SMS.Password == "Password" {
+			bot.config.SMS.Enabled = false
+			return errors.New(WarningSMSGlobalDefaultOrEmptyValues)
+		}
+		contacts := 0
+		for i := range bot.config.SMS.Contacts {
+			if bot.config.SMS.Contacts[i].Enabled {
+				if bot.config.SMS.Contacts[i].Name == "" || bot.config.SMS.Contacts[i].Number == "" || (bot.config.SMS.Contacts[i].Name == "Bob" && bot.config.SMS.Contacts[i].Number == "12345") {
+					log.Printf(WarningSSMSGlobalSMSContactDefaultOrEmptyValues, i)
+					bot.config.SMS.Contacts[i].Enabled = false
+					continue
+				}
+				contacts++
+			}
+		}
+		if contacts == 0 {
+			bot.config.SMS.Enabled = false
+			return errors.New(WarningSSMSGlobalSMSNoContacts)
+		}
+	}
+	return nil
 }
 
 func CheckConfigValues() error {

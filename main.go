@@ -56,8 +56,20 @@ func main() {
 		return
 	}
 
+	err = CheckSMSGlobalConfigValues()
+
+	if err != nil {
+		log.Println(err)
+	}
+
 	log.Println("Config file loaded.")
 	log.Printf("Bot '%s' started.\n", bot.config.Name)
+
+	if bot.config.SMS.Enabled {
+		log.Printf("SMS support enabled. Number of SMS contacts %d.\n", GetEnabledSMSContacts())
+	} else {
+		log.Println("SMS support disabled.")
+	}
 
 	enabledExchanges := 0
 	for _, exch := range bot.config.Exchanges {
@@ -72,22 +84,6 @@ func main() {
 	}
 
 	AdjustGoMaxProcs()
-
-	smsSupport := false
-	smsContacts := 0
-
-	for _, sms := range bot.config.SMSContacts {
-		if sms.Enabled {
-			smsSupport = true
-			smsContacts++
-		}
-	}
-
-	if smsSupport {
-		log.Printf("SMS support enabled. Number of SMS contacts %d.\n", smsContacts)
-	} else {
-		log.Println("SMS support disabled.")
-	}
 
 	log.Printf("Available Exchanges: %d. Enabled Exchanges: %d.\n", len(bot.config.Exchanges), enabledExchanges)
 	log.Println("Bot Exchange support:")

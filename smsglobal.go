@@ -1,41 +1,53 @@
 package main
 
 import (
+	"errors"
+	"log"
 	"net/url"
 	"strings"
-	"log"
 )
 
 const (
-	SMSGLOBAL_API_URL = "http://www.smsglobal.com/http-api.php"
+	SMSGLOBAL_API_URL     = "http://www.smsglobal.com/http-api.php"
+	ErrSMSContactNotFound = "SMS Contact not found."
+	ErrSMSNotSent         = "SMS message not sent."
 )
 
+func GetEnabledSMSContacts() int {
+	counter := 0
+	for _, contact := range bot.config.SMS.Contacts {
+		if contact.Enabled {
+			counter++
+		}
+	}
+	return counter
+}
+
 func SMSSendToAll(message string) {
-	for _, contact := range bot.config.SMSContacts {
+	for _, contact := range bot.config.SMS.Contacts {
 		if contact.Enabled {
 			err := SMSNotify(contact.Number, message)
-
 			if err != nil {
-				log.Println(err)
+				log.Printf("Unable to send SMS to %s.\n", contact.Name)
 			}
 		}
 	}
 }
 
-func SMSGetNumberByName(name string) (string) {
-	for _, contact := range bot.config.SMSContacts {
+func SMSGetNumberByName(name string) string {
+	for _, contact := range bot.config.SMS.Contacts {
 		if contact.Name == name {
 			return contact.Number
 		}
 	}
-	return ""
+	return ErrSMSContactNotFound
 }
 
-func SMSNotify(to, message string) (error) {
+func SMSNotify(to, message string) error {
 	values := url.Values{}
 	values.Set("action", "sendsms")
-	values.Set("user", bot.config.SMSGlobalUsername)
-	values.Set("password", bot.config.SMSGlobalPassword)
+	values.Set("user", bot.config.SMS.Username)
+	values.Set("password", bot.config.SMS.Password)
 	values.Set("from", bot.config.Name)
 	values.Set("to", to)
 	values.Set("text", message)
@@ -49,6 +61,8 @@ func SMSNotify(to, message string) (error) {
 		return err
 	}
 
-	log.Printf("Recieved raw: %s\n", resp)
+	if !StringContains(resp, "OK: 0; Sent queued message") {
+		return errors.New(ErrSMSNotSent)
+	}
 	return nil
 }
