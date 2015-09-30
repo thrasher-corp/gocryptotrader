@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"reflect"
 	"strconv"
 	"strings"
 	"time"
@@ -35,13 +36,13 @@ type OKCoinWebsocketFutureIndex struct {
 }
 
 type OKCoinWebsocketTicker struct {
-	Timestamp int64   `json:"timestamp,string"`
-	Vol       string  `json:"vol"`
-	Buy       float64 `json:"buy,string"`
-	High      float64 `json:"high,string"`
-	Last      float64 `json:"last,string"`
-	Low       float64 `json:"low,string"`
-	Sell      float64 `json:"sell,string"`
+	Timestamp float64
+	Vol       string
+	Buy       float64
+	High      float64
+	Last      float64
+	Low       float64
+	Sell      float64
 }
 
 type OKCoinWebsocketFuturesTicker struct {
@@ -498,12 +499,51 @@ func (o *OKCoin) WebsocketClient() {
 
 					switch true {
 					case StringContains(channelStr, "ticker") && !StringContains(channelStr, "future"):
+						tickerValues := []string{"buy", "high", "last", "low", "sell", "timestamp"}
+						tickerMap := data.(map[string]interface{})
 						ticker := OKCoinWebsocketTicker{}
-						err = JSONDecode(dataJSON, &ticker)
+						ticker.Vol = tickerMap["vol"].(string)
 
-						if err != nil {
-							log.Println(err)
-							continue
+						for _, z := range tickerValues {
+							result := reflect.TypeOf(tickerMap[z]).String()
+							if result == "string" {
+								value, err := strconv.ParseFloat(tickerMap[z].(string), 64)
+								if err != nil {
+									log.Println(err)
+									continue
+								}
+
+								switch z {
+								case "buy":
+									ticker.Buy = value
+								case "high":
+									ticker.High = value
+								case "last":
+									ticker.Last = value
+								case "low":
+									ticker.Low = value
+								case "sell":
+									ticker.Sell = value
+								case "timestamp":
+									ticker.Timestamp = value
+								}
+
+							} else if result == "float64" {
+								switch z {
+								case "buy":
+									ticker.Buy = tickerMap[z].(float64)
+								case "high":
+									ticker.High = tickerMap[z].(float64)
+								case "last":
+									ticker.Last = tickerMap[z].(float64)
+								case "low":
+									ticker.Low = tickerMap[z].(float64)
+								case "sell":
+									ticker.Sell = tickerMap[z].(float64)
+								case "timestamp":
+									ticker.Timestamp = tickerMap[z].(float64)
+								}
+							}
 						}
 					case StringContains(channelStr, "ticker") && StringContains(channelStr, "future"):
 						ticker := OKCoinWebsocketFuturesTicker{}
