@@ -14,17 +14,18 @@ const (
 	GEMINI_API_URL     = "https://api.gemini.com"
 	GEMINI_API_VERSION = "1"
 
-	GEMINI_SYMBOLS            = "symbols"
-	GEMINI_ORDERBOOK          = "book"
-	GEMINI_TRADES             = "trades"
-	GEMINI_ORDERS             = "orders"
-	GEMINI_ORDER_NEW          = "order/new"
-	GEMINI_ORDER_CANCEL       = "order/cancel"
-	GEMINI_ORDER_CANCEL_MULTI = "order/cancel/multi"
-	GEMINI_ORDER_CANCEL_ALL   = "order/cancel/all"
-	GEMINI_ORDER_STATUS       = "order/status"
-	GEMINI_MYTRADES           = "mytrades"
-	GEMINI_BALANCES           = "balances"
+	GEMINI_SYMBOLS              = "symbols"
+	GEMINI_ORDERBOOK            = "book"
+	GEMINI_TRADES               = "trades"
+	GEMINI_ORDERS               = "orders"
+	GEMINI_ORDER_NEW            = "order/new"
+	GEMINI_ORDER_CANCEL         = "order/cancel"
+	GEMINI_ORDER_CANCEL_SESSION = "order/cancel/session"
+	GEMINI_ORDER_CANCEL_ALL     = "order/cancel/all"
+	GEMINI_ORDER_STATUS         = "order/status"
+	GEMINI_MYTRADES             = "mytrades"
+	GEMINI_BALANCES             = "balances"
+	GEMINI_HEARTBEAT            = "heartbeat"
 )
 
 type Gemini struct {
@@ -60,14 +61,18 @@ type GeminiTrade struct {
 
 type GeminiOrder struct {
 	OrderID           int64   `json:"order_id"`
+	ClientOrderID     string  `json:"client_order_id"`
 	Symbol            string  `json:"symbol"`
+	Exchange          string  `json:"exchange"`
 	Price             float64 `json:"price,string"`
 	AvgExecutionPrice float64 `json:"avg_execution_price,string"`
 	Side              string  `json:"side"`
 	Type              string  `json:"type"`
 	Timestamp         int64   `json:"timestamp"`
+	TimestampMS       int64   `json:"timestampms"`
 	IsLive            bool    `json:"is_live"`
 	IsCancelled       bool    `json:"is_cancelled"`
+	WasForced         bool    `json:"was_forced"`
 	ExecutedAmount    float64 `json:"executed_amount,string"`
 	RemainingAmount   float64 `json:"remaining_amount,string"`
 	OriginalAmount    float64 `json:"original_amount,string"`
@@ -78,14 +83,16 @@ type GeminiOrderResult struct {
 }
 
 type GeminiTradeHistory struct {
-	Price       float64 `json:"price"`
-	Amount      float64 `json:"amount"`
-	Timestamp   int64   `json:"timestamp"`
-	Type        string  `json:"type"`
-	FeeCurrency string  `json:"fee_currency"`
-	FeeAmount   float64 `json:"fee_amount"`
-	TID         int64   `json:"tid"`
-	OrderID     int64   `json:"order_id"`
+	Price         float64 `json:"price"`
+	Amount        float64 `json:"amount"`
+	Timestamp     int64   `json:"timestamp"`
+	TimestampMS   int64   `json:"timestampms"`
+	Type          string  `json:"type"`
+	FeeCurrency   string  `json:"fee_currency"`
+	FeeAmount     float64 `json:"fee_amount"`
+	TID           int64   `json:"tid"`
+	OrderID       int64   `json:"order_id"`
+	ClientOrderID string  `json:"client_order_id"`
 }
 
 type GeminiBalance struct {
@@ -229,21 +236,13 @@ func (g *Gemini) CancelOrder(OrderID int64) (GeminiOrder, error) {
 	return response, nil
 }
 
-func (g *Gemini) CancelMultipleOrders(orders []int64) ([]GeminiOrderResult, error) {
-	request := make(map[string]interface{})
-	request["order_ids"] = orders
-
+func (g *Gemini) CancelOrders(sessions bool) ([]GeminiOrderResult, error) {
 	response := []GeminiOrderResult{}
-	err := g.SendAuthenticatedHTTPRequest("POST", GEMINI_ORDER_CANCEL_MULTI, request, &response)
-	if err != nil {
-		return nil, err
+	path := GEMINI_ORDER_CANCEL_ALL
+	if sessions {
+		path = GEMINI_ORDER_CANCEL_SESSION
 	}
-	return response, nil
-}
-
-func (g *Gemini) CancelAllOrders() ([]GeminiOrderResult, error) {
-	response := []GeminiOrderResult{}
-	err := g.SendAuthenticatedHTTPRequest("POST", GEMINI_ORDER_CANCEL_ALL, nil, &response)
+	err := g.SendAuthenticatedHTTPRequest("POST", path, nil, &response)
 	if err != nil {
 		return nil, err
 	}
@@ -291,6 +290,20 @@ func (g *Gemini) GetBalances() ([]GeminiBalance, error) {
 		return nil, err
 	}
 	return response, nil
+}
+
+func (g *Gemini) PostHeartbeat() (bool, error) {
+	type Response struct {
+		Result bool `json:"result"`
+	}
+
+	response := Response{}
+	err := g.SendAuthenticatedHTTPRequest("POST", GEMINI_HEARTBEAT, nil, &response)
+	if err != nil {
+		return false, err
+	}
+
+	return response.Result, nil
 }
 
 func (g *Gemini) SendAuthenticatedHTTPRequest(method, path string, params map[string]interface{}, result interface{}) (err error) {
