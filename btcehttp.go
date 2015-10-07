@@ -19,11 +19,15 @@ const (
 	BTCE_DEPTH               = "depth"
 	BTCE_TRADES              = "trades"
 	BTCE_ACCOUNT_INFO        = "getInfo"
-	BTCE_TRANSACTION_HISTORY = "TransHistory"
-	BTCE_TRADE_HISTORY       = "TradeHistory"
-	BTCE_ACTIVE_ORDERS       = "ActiveOrders"
 	BTCE_TRADE               = "Trade"
+	BTCE_ACTIVE_ORDERS       = "ActiveOrders"
+	BTCE_ORDER_INFO          = "OrderInfo"
 	BTCE_CANCEL_ORDER        = "CancelOrder"
+	BTCE_TRADE_HISTORY       = "TradeHistory"
+	BTCE_TRANSACTION_HISTORY = "TransHistory"
+	BTCE_WITHDRAW_COIN       = "WithdrawCoin"
+	BTCE_CREATE_COUPON       = "CreateCoupon"
+	BTCE_REDEEM_COUPON       = "RedeemCoupon"
 )
 
 type BTCE struct {
@@ -207,6 +211,17 @@ func (b *BTCE) GetActiveOrders(pair string) {
 	}
 }
 
+func (b *BTCE) GetOrderInfo(OrderID int64) {
+	req := url.Values{}
+	req.Add("order_id", strconv.FormatInt(OrderID, 10))
+
+	err := b.SendAuthenticatedHTTPRequest(BTCE_ORDER_INFO, req)
+
+	if err != nil {
+		log.Println(err)
+	}
+}
+
 func (b *BTCE) CancelOrder(OrderID int64) {
 	req := url.Values{}
 	req.Add("order_id", strconv.FormatInt(OrderID, 10))
@@ -262,6 +277,45 @@ func (b *BTCE) GetTradeHistory(TIDFrom, Count, TIDEnd int64, order, since, end, 
 	req.Add("pair", pair)
 
 	err := b.SendAuthenticatedHTTPRequest(BTCE_TRANSACTION_HISTORY, req)
+
+	if err != nil {
+		log.Println(err)
+	}
+}
+
+func (b *BTCE) WithdrawCoins(coin string, amount float64, address string) {
+	req := url.Values{}
+
+	req.Add("coinName", coin)
+	req.Add("amount", strconv.FormatFloat(amount, 'f', -1, 64))
+	req.Add("address", address)
+
+	err := b.SendAuthenticatedHTTPRequest(BTCE_WITHDRAW_COIN, req)
+
+	if err != nil {
+		log.Println(err)
+	}
+}
+
+func (b *BTCE) CreateCoupon(currency string, amount float64) {
+	req := url.Values{}
+
+	req.Add("currency", currency)
+	req.Add("amount", strconv.FormatFloat(amount, 'f', -1, 64))
+
+	err := b.SendAuthenticatedHTTPRequest(BTCE_CREATE_COUPON, req)
+
+	if err != nil {
+		log.Println(err)
+	}
+}
+
+func (b *BTCE) RedeemCoupon(coupon string) {
+	req := url.Values{}
+
+	req.Add("coupon", coupon)
+
+	err := b.SendAuthenticatedHTTPRequest(BTCE_REDEEM_COUPON, req)
 
 	if err != nil {
 		log.Println(err)
