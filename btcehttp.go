@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"net/url"
@@ -68,6 +69,12 @@ type BTCETrades struct {
 	Amount    float64 `json:"amount"`
 	TID       int64   `json:"tid"`
 	Timestamp int64   `json:"timestamp"`
+}
+
+type BTCEResponse struct {
+	Return  interface{} `json:"return"`
+	Success int         `json:"success"`
+	Error   string      `json:"error"`
 }
 
 func (b *BTCE) SetDefaults() {
@@ -192,137 +199,263 @@ func (b *BTCE) GetTrades(symbol string) {
 	log.Println(trades)
 }
 
-func (b *BTCE) GetAccountInfo() {
-	err := b.SendAuthenticatedHTTPRequest(BTCE_ACCOUNT_INFO, url.Values{})
-
-	if err != nil {
-		log.Println(err)
-	}
+type BTCEFunds struct {
+	BTC float64 `json:"btc"`
+	CNH float64 `json:"cnh"`
+	EUR float64 `json:"eur"`
+	FTC float64 `json:"ftc"`
+	GBP float64 `json:"gbp"`
+	LTC float64 `json:"ltc"`
+	NMC float64 `json:"nmc"`
+	NVC float64 `json:"nvc"`
+	PPC float64 `json:"ppc"`
+	RUR float64 `json:"rur"`
+	TRC float64 `json:"trc"`
+	USD float64 `json:"usd"`
+	XPM float64 `json:"xpm"`
 }
 
-func (b *BTCE) GetActiveOrders(pair string) {
+type BTCEAccountInfo struct {
+	Funds      BTCEFunds `json:"funds"`
+	OpenOrders int       `json:"open_orders"`
+	Rights     struct {
+		Info     int `json:"info"`
+		Trade    int `json:"trade"`
+		Withdraw int `json:"withdraw"`
+	} `json:"rights"`
+	ServerTime       float64 `json:"server_time"`
+	TransactionCount int     `json:"transaction_count"`
+}
+
+func (b *BTCE) GetAccountInfo() (BTCEAccountInfo, error) {
+	var result BTCEAccountInfo
+	err := b.SendAuthenticatedHTTPRequest(BTCE_ACCOUNT_INFO, url.Values{}, &result)
+
+	if err != nil {
+		return result, err
+	}
+
+	return result, nil
+}
+
+type BTCEActiveOrders struct {
+	Pair             string  `json:"pair"`
+	Type             string  `json:"sell"`
+	Amount           float64 `json:"amount"`
+	Rate             float64 `json:"rate"`
+	TimestampCreated float64 `json:"time_created"`
+	Status           int     `json:"status"`
+}
+
+func (b *BTCE) GetActiveOrders(pair string) (map[string]BTCEActiveOrders, error) {
 	req := url.Values{}
 	req.Add("pair", pair)
 
-	err := b.SendAuthenticatedHTTPRequest(BTCE_ACTIVE_ORDERS, req)
+	var result map[string]BTCEActiveOrders
+	err := b.SendAuthenticatedHTTPRequest(BTCE_ACTIVE_ORDERS, req, &result)
 
 	if err != nil {
-		log.Println(err)
+		return result, err
 	}
+
+	return result, nil
 }
 
-func (b *BTCE) GetOrderInfo(OrderID int64) {
+type BTCEOrderInfo struct {
+	Pair             string  `json:"pair"`
+	Type             string  `json:"sell"`
+	StartAmount      float64 `json:"start_amount"`
+	Amount           float64 `json:"amount"`
+	Rate             float64 `json:"rate"`
+	TimestampCreated float64 `json:"time_created"`
+	Status           int     `json:"status"`
+}
+
+func (b *BTCE) GetOrderInfo(OrderID int64) (map[string]BTCEOrderInfo, error) {
 	req := url.Values{}
 	req.Add("order_id", strconv.FormatInt(OrderID, 10))
 
-	err := b.SendAuthenticatedHTTPRequest(BTCE_ORDER_INFO, req)
+	var result map[string]BTCEOrderInfo
+	err := b.SendAuthenticatedHTTPRequest(BTCE_ORDER_INFO, req, &result)
 
 	if err != nil {
-		log.Println(err)
+		return result, err
 	}
+
+	return result, nil
 }
 
-func (b *BTCE) CancelOrder(OrderID int64) {
+type BTCECancelOrder struct {
+	OrderID float64   `json:"order_id"`
+	Funds   BTCEFunds `json:"funds"`
+}
+
+func (b *BTCE) CancelOrder(OrderID int64) (bool, error) {
 	req := url.Values{}
 	req.Add("order_id", strconv.FormatInt(OrderID, 10))
 
-	err := b.SendAuthenticatedHTTPRequest(BTCE_CANCEL_ORDER, req)
+	var result BTCECancelOrder
+	err := b.SendAuthenticatedHTTPRequest(BTCE_CANCEL_ORDER, req, &result)
 
 	if err != nil {
-		log.Println(err)
+		return false, err
 	}
+
+	return true, nil
 }
 
-func (b *BTCE) Trade(pair, orderType string, amount, price float64) {
+type BTCETrade struct {
+	Received float64   `json:"received"`
+	Remains  float64   `json:"remains"`
+	OrderID  float64   `json:"order_id"`
+	Funds    BTCEFunds `json:"funds"`
+}
+
+//to-do: convert orderid to int64
+func (b *BTCE) Trade(pair, orderType string, amount, price float64) (float64, error) {
 	req := url.Values{}
 	req.Add("pair", pair)
 	req.Add("type", orderType)
 	req.Add("amount", strconv.FormatFloat(amount, 'f', -1, 64))
 	req.Add("rate", strconv.FormatFloat(price, 'f', -1, 64))
 
-	err := b.SendAuthenticatedHTTPRequest(BTCE_TRADE, req)
+	var result BTCETrade
+	err := b.SendAuthenticatedHTTPRequest(BTCE_TRADE, req, &result)
 
 	if err != nil {
-		log.Println(err)
+		return 0, err
 	}
+
+	return result.OrderID, nil
 }
 
-func (b *BTCE) GetTransactionHistory(TIDFrom, Count, TIDEnd int64, order, since, end string) {
+type BTCETransHistory struct {
+	Type        int     `json:"type"`
+	Amount      float64 `json:"amount"`
+	Currency    string  `json:"currency"`
+	Description string  `json:"desc"`
+	Status      int     `json:"status"`
+	Timestamp   float64 `json:"timestamp"`
+}
+
+func (b *BTCE) GetTransactionHistory(TIDFrom, Count, TIDEnd int64, order, since, end string) (map[string]BTCETransHistory, error) {
 	req := url.Values{}
 	req.Add("from", strconv.FormatInt(TIDFrom, 10))
 	req.Add("count", strconv.FormatInt(Count, 10))
 	req.Add("from_id", strconv.FormatInt(TIDFrom, 10))
-	req.Add("end_id", strconv.FormatInt(TIDFrom, 10))
+	req.Add("end_id", strconv.FormatInt(TIDEnd, 10))
 	req.Add("order", order)
-	req.Add("since", order)
-	req.Add("end", order)
+	req.Add("since", since)
+	req.Add("end", end)
 
-	err := b.SendAuthenticatedHTTPRequest(BTCE_TRANSACTION_HISTORY, req)
+	var result map[string]BTCETransHistory
+	err := b.SendAuthenticatedHTTPRequest(BTCE_TRANSACTION_HISTORY, req, &result)
 
 	if err != nil {
-		log.Println(err)
+		return result, err
 	}
+
+	return result, nil
 }
 
-func (b *BTCE) GetTradeHistory(TIDFrom, Count, TIDEnd int64, order, since, end, pair string) {
+type BTCETradeHistory struct {
+	Pair      string  `json:"pair"`
+	Type      string  `json:"type"`
+	Amount    float64 `json:"amount"`
+	Rate      float64 `json:"rate"`
+	OrderID   float64 `json:"order_id"`
+	MyOrder   int     `json:"is_your_order"`
+	Timestamp float64 `json:"timestamp"`
+}
+
+func (b *BTCE) GetTradeHistory(TIDFrom, Count, TIDEnd int64, order, since, end, pair string) (map[string]BTCETradeHistory, error) {
 	req := url.Values{}
 
 	req.Add("from", strconv.FormatInt(TIDFrom, 10))
 	req.Add("count", strconv.FormatInt(Count, 10))
 	req.Add("from_id", strconv.FormatInt(TIDFrom, 10))
-	req.Add("end_id", strconv.FormatInt(TIDFrom, 10))
+	req.Add("end_id", strconv.FormatInt(TIDEnd, 10))
 	req.Add("order", order)
-	req.Add("since", order)
-	req.Add("end", order)
+	req.Add("since", since)
+	req.Add("end", end)
 	req.Add("pair", pair)
 
-	err := b.SendAuthenticatedHTTPRequest(BTCE_TRANSACTION_HISTORY, req)
+	var result map[string]BTCETradeHistory
+	err := b.SendAuthenticatedHTTPRequest(BTCE_TRADE_HISTORY, req, &result)
 
 	if err != nil {
-		log.Println(err)
+		return result, err
 	}
+
+	return result, nil
 }
 
-func (b *BTCE) WithdrawCoins(coin string, amount float64, address string) {
+type BTCEWithdrawCoins struct {
+	TID        int64     `json:"tId"`
+	AmountSent float64   `json:"amountSent"`
+	Funds      BTCEFunds `json:"funds"`
+}
+
+func (b *BTCE) WithdrawCoins(coin string, amount float64, address string) (BTCEWithdrawCoins, error) {
 	req := url.Values{}
 
 	req.Add("coinName", coin)
 	req.Add("amount", strconv.FormatFloat(amount, 'f', -1, 64))
 	req.Add("address", address)
 
-	err := b.SendAuthenticatedHTTPRequest(BTCE_WITHDRAW_COIN, req)
+	var result BTCEWithdrawCoins
+	err := b.SendAuthenticatedHTTPRequest(BTCE_WITHDRAW_COIN, req, &result)
 
 	if err != nil {
-		log.Println(err)
+		return result, err
 	}
+	return result, nil
 }
 
-func (b *BTCE) CreateCoupon(currency string, amount float64) {
+type BTCECreateCoupon struct {
+	Coupon  string    `json:"coupon"`
+	TransID int64     `json:"transID"`
+	Funds   BTCEFunds `json:"funds"`
+}
+
+func (b *BTCE) CreateCoupon(currency string, amount float64) (BTCECreateCoupon, error) {
 	req := url.Values{}
 
 	req.Add("currency", currency)
 	req.Add("amount", strconv.FormatFloat(amount, 'f', -1, 64))
 
-	err := b.SendAuthenticatedHTTPRequest(BTCE_CREATE_COUPON, req)
+	var result BTCECreateCoupon
+	err := b.SendAuthenticatedHTTPRequest(BTCE_CREATE_COUPON, req, &result)
 
 	if err != nil {
-		log.Println(err)
+		return result, err
 	}
+
+	return result, nil
 }
 
-func (b *BTCE) RedeemCoupon(coupon string) {
+type BTCERedeemCoupon struct {
+	CouponAmount   float64 `json:"couponAmount,string"`
+	CouponCurrency string  `json:"couponCurrency"`
+	TransID        int64   `json:"transID"`
+}
+
+func (b *BTCE) RedeemCoupon(coupon string) (BTCERedeemCoupon, error) {
 	req := url.Values{}
 
 	req.Add("coupon", coupon)
 
-	err := b.SendAuthenticatedHTTPRequest(BTCE_REDEEM_COUPON, req)
+	var result BTCERedeemCoupon
+	err := b.SendAuthenticatedHTTPRequest(BTCE_REDEEM_COUPON, req, &result)
 
 	if err != nil {
-		log.Println(err)
+		return result, err
 	}
+
+	return result, nil
 }
 
-func (b *BTCE) SendAuthenticatedHTTPRequest(method string, values url.Values) (err error) {
+func (b *BTCE) SendAuthenticatedHTTPRequest(method string, values url.Values, result interface{}) (err error) {
 	nonce := strconv.FormatInt(time.Now().Unix(), 10)
 	values.Set("nonce", nonce)
 	values.Set("method", method)
@@ -345,9 +478,27 @@ func (b *BTCE) SendAuthenticatedHTTPRequest(method string, values url.Values) (e
 		return err
 	}
 
-	if b.Verbose {
-		log.Printf("Recieved raw: %s\n", resp)
+	response := BTCEResponse{}
+	err = JSONDecode([]byte(resp), &response)
+
+	if err != nil {
+		return err
 	}
 
+	if response.Success != 1 {
+		return errors.New(response.Error)
+	}
+
+	jsonEncoded, err := JSONEncode(response.Return)
+
+	if err != nil {
+		return err
+	}
+
+	err = JSONDecode(jsonEncoded, &result)
+
+	if err != nil {
+		return err
+	}
 	return nil
 }
