@@ -7,22 +7,22 @@ import (
 )
 
 const (
-	BTCCHINA_SOCKETIO_ADDRESS = "https://websocket.btcchina.com"
+	BTCC_SOCKETIO_ADDRESS = "https://websocket.btcc.com"
 )
 
-type BTCChinaWebsocketOrder struct {
+type BTCCWebsocketOrder struct {
 	Price       float64 `json:"price"`
 	TotalAmount float64 `json:"totalamount"`
 	Type        string  `json:"type"`
 }
 
-type BTCChinaWebsocketGroupOrder struct {
-	Asks   []BTCChinaWebsocketOrder `json:"ask"`
-	Bids   []BTCChinaWebsocketOrder `json:"bid"`
-	Market string                   `json:"market"`
+type BTCCWebsocketGroupOrder struct {
+	Asks   []BTCCWebsocketOrder `json:"ask"`
+	Bids   []BTCCWebsocketOrder `json:"bid"`
+	Market string               `json:"market"`
 }
 
-type BTCChinaWebsocketTrade struct {
+type BTCCWebsocketTrade struct {
 	Amount  float64 `json:"amount,string"`
 	Date    float64 `json:"date"`
 	Market  string  `json:"market"`
@@ -31,7 +31,7 @@ type BTCChinaWebsocketTrade struct {
 	Type    string  `json:"type"`
 }
 
-type BTCChinaWebsocketTicker struct {
+type BTCCWebsocketTicker struct {
 	Buy       float64 `json:"buy"`
 	Date      float64 `json:"date"`
 	High      float64 `json:"high"`
@@ -45,9 +45,9 @@ type BTCChinaWebsocketTicker struct {
 	Vwap      float64 `json:"vwap"`
 }
 
-var BTCChinaSocket *socketio.SocketIO
+var BTCCSocket *socketio.SocketIO
 
-func (b *BTCChina) OnConnect(output chan socketio.Message) {
+func (b *BTCC) OnConnect(output chan socketio.Message) {
 	if b.Verbose {
 		log.Printf("%s Connected to Websocket.", b.GetName())
 	}
@@ -65,31 +65,31 @@ func (b *BTCChina) OnConnect(output chan socketio.Message) {
 			if b.Verbose {
 				log.Printf("%s Websocket subscribing to channel: %s.", b.GetName(), channel)
 			}
-			output <- socketio.CreateMessageEvent("subscribe", channel, b.OnMessage, BTCChinaSocket.Version)
+			output <- socketio.CreateMessageEvent("subscribe", channel, b.OnMessage, BTCCSocket.Version)
 		}
 	}
 }
 
-func (b *BTCChina) OnDisconnect(output chan socketio.Message) {
+func (b *BTCC) OnDisconnect(output chan socketio.Message) {
 	log.Printf("%s Disconnected from websocket server.. Reconnecting.\n", b.GetName())
 	b.WebsocketClient()
 }
 
-func (b *BTCChina) OnError() {
+func (b *BTCC) OnError() {
 	log.Printf("%s Error with Websocket connection.. Reconnecting.\n", b.GetName())
 	b.WebsocketClient()
 }
 
-func (b *BTCChina) OnMessage(message []byte, output chan socketio.Message) {
+func (b *BTCC) OnMessage(message []byte, output chan socketio.Message) {
 	if b.Verbose {
 		log.Printf("%s Websocket message received which isn't handled by default.\n", b.GetName())
 		log.Println(string(message))
 	}
 }
 
-func (b *BTCChina) OnTicker(message []byte, output chan socketio.Message) {
+func (b *BTCC) OnTicker(message []byte, output chan socketio.Message) {
 	type Response struct {
-		Ticker BTCChinaWebsocketTicker `json:"ticker"`
+		Ticker BTCCWebsocketTicker `json:"ticker"`
 	}
 	var resp Response
 	err := JSONDecode(message, &resp)
@@ -100,9 +100,9 @@ func (b *BTCChina) OnTicker(message []byte, output chan socketio.Message) {
 	}
 }
 
-func (b *BTCChina) OnGroupOrder(message []byte, output chan socketio.Message) {
+func (b *BTCC) OnGroupOrder(message []byte, output chan socketio.Message) {
 	type Response struct {
-		GroupOrder BTCChinaWebsocketGroupOrder `json:"grouporder"`
+		GroupOrder BTCCWebsocketGroupOrder `json:"grouporder"`
 	}
 	var resp Response
 	err := JSONDecode(message, &resp)
@@ -113,8 +113,8 @@ func (b *BTCChina) OnGroupOrder(message []byte, output chan socketio.Message) {
 	}
 }
 
-func (b *BTCChina) OnTrade(message []byte, output chan socketio.Message) {
-	trade := BTCChinaWebsocketTrade{}
+func (b *BTCC) OnTrade(message []byte, output chan socketio.Message) {
+	trade := BTCCWebsocketTrade{}
 	err := JSONDecode(message, &trade)
 
 	if err != nil {
@@ -123,13 +123,13 @@ func (b *BTCChina) OnTrade(message []byte, output chan socketio.Message) {
 	}
 }
 
-func (b *BTCChina) WebsocketClient() {
+func (b *BTCC) WebsocketClient() {
 	events := make(map[string]func(message []byte, output chan socketio.Message))
 	events["grouporder"] = b.OnGroupOrder
 	events["ticker"] = b.OnTicker
 	events["trade"] = b.OnTrade
 
-	BTCChinaSocket = &socketio.SocketIO{
+	BTCCSocket = &socketio.SocketIO{
 		Version:      1,
 		OnConnect:    b.OnConnect,
 		OnEvent:      events,
@@ -139,7 +139,7 @@ func (b *BTCChina) WebsocketClient() {
 	}
 
 	for b.Enabled && b.Websocket {
-		err := socketio.ConnectToSocket(BTCCHINA_SOCKETIO_ADDRESS, BTCChinaSocket)
+		err := socketio.ConnectToSocket(BTCC_SOCKETIO_ADDRESS, BTCCSocket)
 		if err != nil {
 			log.Printf("%s Unable to connect to Websocket. Err: %s\n", err)
 			continue

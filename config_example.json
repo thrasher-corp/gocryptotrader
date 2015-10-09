@@ -55,7 +55,7 @@
    "BaseCurrencies": "USD"
   },
   {
-   "Name": "BTC China",
+   "Name": "BTCC",
    "Enabled": true,
    "Verbose": false,
    "Websocket": false,

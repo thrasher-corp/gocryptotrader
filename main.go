@@ -12,7 +12,7 @@ import (
 
 type Exchange struct {
 	anx         ANX
-	btcchina    BTCChina
+	btcc        BTCC
 	bitstamp    Bitstamp
 	bitfinex    Bitfinex
 	btce        BTCE
@@ -74,7 +74,7 @@ func main() {
 
 	bot.exchange.anx.SetDefaults()
 	bot.exchange.kraken.SetDefaults()
-	bot.exchange.btcchina.SetDefaults()
+	bot.exchange.btcc.SetDefaults()
 	bot.exchange.bitstamp.SetDefaults()
 	bot.exchange.bitfinex.SetDefaults()
 	bot.exchange.btce.SetDefaults()
@@ -118,19 +118,19 @@ func main() {
 				bot.exchange.anx.EnabledPairs = SplitStrings(exch.EnabledPairs, ",")
 				go bot.exchange.anx.Run()
 			}
-		} else if bot.exchange.btcchina.GetName() == exch.Name {
+		} else if bot.exchange.btcc.GetName() == exch.Name {
 			if !exch.Enabled {
-				bot.exchange.btcchina.SetEnabled(false)
+				bot.exchange.btcc.SetEnabled(false)
 			} else {
-				bot.exchange.btcchina.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
-				bot.exchange.btcchina.SetAPIKeys(exch.APIKey, exch.APISecret)
-				bot.exchange.btcchina.RESTPollingDelay = exch.RESTPollingDelay
-				bot.exchange.btcchina.Verbose = exch.Verbose
-				bot.exchange.btcchina.Websocket = exch.Websocket
-				bot.exchange.btcchina.BaseCurrencies = SplitStrings(exch.BaseCurrencies, ",")
-				bot.exchange.btcchina.AvailablePairs = SplitStrings(exch.AvailablePairs, ",")
-				bot.exchange.btcchina.EnabledPairs = SplitStrings(exch.EnabledPairs, ",")
-				go bot.exchange.btcchina.Run()
+				bot.exchange.btcc.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
+				bot.exchange.btcc.SetAPIKeys(exch.APIKey, exch.APISecret)
+				bot.exchange.btcc.RESTPollingDelay = exch.RESTPollingDelay
+				bot.exchange.btcc.Verbose = exch.Verbose
+				bot.exchange.btcc.Websocket = exch.Websocket
+				bot.exchange.btcc.BaseCurrencies = SplitStrings(exch.BaseCurrencies, ",")
+				bot.exchange.btcc.AvailablePairs = SplitStrings(exch.AvailablePairs, ",")
+				bot.exchange.btcc.EnabledPairs = SplitStrings(exch.EnabledPairs, ",")
+				go bot.exchange.btcc.Run()
 			}
 		} else if bot.exchange.bitstamp.GetName() == exch.Name {
 			if !exch.Enabled {

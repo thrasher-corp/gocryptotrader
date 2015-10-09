@@ -132,8 +132,8 @@ func (e *Event) CheckCondition() bool {
 		}
 	} else if bot.exchange.lakebtc.GetName() == e.Exchange {
 		lastPrice = bot.exchange.lakebtc.GetTicker().CNY.Last
-	} else if bot.exchange.btcchina.GetName() == e.Exchange {
-		lastPrice = bot.exchange.btcchina.GetTicker("btccny").Last
+	} else if bot.exchange.btcc.GetName() == e.Exchange {
+		lastPrice = bot.exchange.btcc.GetTicker("btccny").Last
 	} else if bot.exchange.huobi.GetName() == e.Exchange {
 		lastPrice = bot.exchange.huobi.GetTicker("btc").Last
 	} else if bot.exchange.itbit.GetName() == e.Exchange {
@@ -252,8 +252,8 @@ func CheckEvents() {
 func IsValidExchange(Exchange string) bool {
 	if bot.exchange.bitfinex.GetName() == Exchange && bot.exchange.bitfinex.IsEnabled() ||
 		bot.exchange.bitstamp.GetName() == Exchange && bot.exchange.bitstamp.IsEnabled() ||
-		bot.exchange.btcchina.GetName() == Exchange && bot.exchange.btcchina.IsEnabled() ||
-		bot.exchange.btce.GetName() == Exchange && bot.exchange.btcchina.IsEnabled() ||
+		bot.exchange.btcc.GetName() == Exchange && bot.exchange.btcc.IsEnabled() ||
+		bot.exchange.btce.GetName() == Exchange && bot.exchange.btcc.IsEnabled() ||
 		bot.exchange.btcmarkets.GetName() == Exchange && bot.exchange.btcmarkets.IsEnabled() ||
 		bot.exchange.coinbase.GetName() == Exchange && bot.exchange.coinbase.IsEnabled() ||
 		bot.exchange.cryptsy.GetName() == Exchange && bot.exchange.cryptsy.IsEnabled() ||

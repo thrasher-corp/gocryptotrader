@@ -10,7 +10,7 @@ A cryptocurrency trading bot supporting multiple exchanges written in Golang.
 | ANXPRO | Yes  | No        | NA  |
 | Bitfinex | Yes  | Yes        | NA  |
 | Bitstamp | Yes  | Yes       | NA  |
-| BTCChina | Yes  | Yes     | No  |
+| BTCC | Yes  | Yes     | No  |
 | BTCE     | Yes  | NA        | NA  |
 | BTCMarkets | Yes | NA       | NA  |
 | Coinbase | Yes | Yes | No|
