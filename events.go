@@ -253,7 +253,7 @@ func IsValidExchange(Exchange string) bool {
 	if bot.exchange.bitfinex.GetName() == Exchange && bot.exchange.bitfinex.IsEnabled() ||
 		bot.exchange.bitstamp.GetName() == Exchange && bot.exchange.bitstamp.IsEnabled() ||
 		bot.exchange.btcc.GetName() == Exchange && bot.exchange.btcc.IsEnabled() ||
-		bot.exchange.btce.GetName() == Exchange && bot.exchange.btcc.IsEnabled() ||
+		bot.exchange.btce.GetName() == Exchange && bot.exchange.btce.IsEnabled() ||
 		bot.exchange.btcmarkets.GetName() == Exchange && bot.exchange.btcmarkets.IsEnabled() ||
 		bot.exchange.coinbase.GetName() == Exchange && bot.exchange.coinbase.IsEnabled() ||
 		bot.exchange.cryptsy.GetName() == Exchange && bot.exchange.cryptsy.IsEnabled() ||
