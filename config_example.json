@@ -36,8 +36,8 @@
    "AuthenticatedAPISupport": false,
    "APIKey": "Key",
    "APISecret": "Secret",
-   "AvailablePairs": "BTCUSD,LTCUSD,DRKUSD",
-   "EnabledPairs": "BTCUSD,LTCUSD,DRKUSD",
+   "AvailablePairs": "BTCUSD,LTCUSD,LTCBTC",
+   "EnabledPairs": "BTCUSD,LTCUSD,LTCBTC",
    "BaseCurrencies": "USD"
   },
   {

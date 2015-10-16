@@ -116,7 +116,12 @@ func (e *Event) CheckCondition() bool {
 
 	/* to-do: add event handling for all currencies and fiat currencies */
 	if bot.exchange.bitfinex.GetName() == e.Exchange {
-		lastPrice = bot.exchange.bitfinex.GetTicker("btcusd").Last
+		result, err := bot.exchange.bitfinex.GetTicker("btcusd", nil)
+		if err != nil {
+			lastPrice = 0
+		} else {
+			lastPrice = result.Last
+		}
 	} else if bot.exchange.bitstamp.GetName() == e.Exchange {
 		lastPrice = bot.exchange.bitstamp.GetTicker().Last
 	} else if bot.exchange.coinbase.GetName() == e.Exchange {
