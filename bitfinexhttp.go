@@ -179,6 +179,7 @@ type Bitfinex struct {
 	AvailablePairs          []string
 	EnabledPairs            []string
 	WebsocketConn           *websocket.Conn
+	WebsocketSubdChannels   map[int]BitfinexWebsocketChanInfo
 }
 
 func (b *Bitfinex) SetDefaults() {
@@ -187,6 +188,7 @@ func (b *Bitfinex) SetDefaults() {
 	b.Verbose = false
 	b.Websocket = false
 	b.RESTPollingDelay = 10
+	b.WebsocketSubdChannels = make(map[int]BitfinexWebsocketChanInfo)
 }
 
 func (b *Bitfinex) GetName() string {
