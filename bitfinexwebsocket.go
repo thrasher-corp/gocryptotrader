@@ -10,8 +10,19 @@ import (
 )
 
 const (
-	BITFINEX_WEBSOCKET         = "wss://api2.bitfinex.com:3000/ws"
-	BITFINEX_WEBSOCKET_VERSION = "1.0"
+	BITFINEX_WEBSOCKET                   = "wss://api2.bitfinex.com:3000/ws"
+	BITFINEX_WEBSOCKET_VERSION           = "1.0"
+	BITFINEX_WEBSOCKET_POSITION_SNAPSHOT = "ps"
+	BITFINEX_WEBSOCKET_POSITION_NEW      = "pn"
+	BITFINEX_WEBSOCKET_POSITION_UPDATE   = "pu"
+	BITFINEX_WEBSOCKET_POSITION_CLOSE    = "pc"
+	BITFINEX_WEBSOCKET_WALLET_SNAPSHOT   = "ws"
+	BITFINEX_WEBSOCKET_WALLET_UPDATE     = "wu"
+	BITFINEX_WEBSOCKET_ORDER_SNAPSHOT    = "os"
+	BITFINEX_WEBSOCKET_ORDER_NEW         = "on"
+	BITFINEX_WEBSOCKET_ORDER_UPDATE      = "ou"
+	BITFINEX_WEBSOCKET_ORDER_CANCEL      = "oc"
+	BITFINEX_WEBSOCKET_TRADE_EXECUTED    = "te"
 )
 
 type BitfinexWebsocketChanInfo struct {
@@ -41,6 +52,44 @@ type BitfinexWebsocketTicker struct {
 	DialyChangePerc float64
 	LastPrice       float64
 	Volume          float64
+}
+
+type BitfinexWebsocketPosition struct {
+	Pair              string
+	Status            string
+	Amount            float64
+	Price             float64
+	MarginFunding     float64
+	MarginFundingType int
+}
+
+type BitfinexWebsocketWallet struct {
+	Name              string
+	Currency          string
+	Balance           float64
+	UnsettledInterest float64
+}
+
+type BitfinexWebsocketOrder struct {
+	OrderID    int64
+	Pair       string
+	Amount     float64
+	OrigAmount float64
+	OrderType  string
+	Status     string
+	Price      float64
+	PriceAvg   float64
+	Timestamp  string
+	Notify     int
+}
+
+type BitfinexWebsocketTradeExecuted struct {
+	TradeID        int64
+	Pair           string
+	Timestamp      int64
+	OrderID        int64
+	AmountExecuted float64
+	PriceExecuted  float64
 }
 
 func (b *Bitfinex) WebsocketPingHandler() error {
@@ -217,7 +266,53 @@ func (b *Bitfinex) WebsocketClient() {
 
 							log.Printf("Bitfinex %s Websocket Last %f Volume %f\n", chanInfo.Pair, ticker.LastPrice, ticker.Volume)
 						case "account":
-							//to-do
+							switch chanData[1].(string) {
+							case BITFINEX_WEBSOCKET_POSITION_SNAPSHOT:
+								positionSnapshot := []BitfinexWebsocketPosition{}
+								data := chanData[2].([]interface{})
+								for _, x := range data {
+									y := x.([]interface{})
+									positionSnapshot = append(positionSnapshot, BitfinexWebsocketPosition{Pair: y[0].(string), Status: y[1].(string), Amount: y[2].(float64), Price: y[3].(float64),
+										MarginFunding: y[4].(float64), MarginFundingType: int(y[5].(float64))})
+								}
+								log.Println(positionSnapshot)
+							case BITFINEX_WEBSOCKET_POSITION_NEW, BITFINEX_WEBSOCKET_POSITION_UPDATE, BITFINEX_WEBSOCKET_POSITION_CLOSE:
+								data := chanData[2].([]interface{})
+								position := BitfinexWebsocketPosition{Pair: data[0].(string), Status: data[1].(string), Amount: data[2].(float64), Price: data[3].(float64),
+									MarginFunding: data[4].(float64), MarginFundingType: int(data[5].(float64))}
+								log.Println(position)
+							case BITFINEX_WEBSOCKET_WALLET_SNAPSHOT:
+								data := chanData[2].([]interface{})
+								walletSnapshot := []BitfinexWebsocketWallet{}
+								for _, x := range data {
+									y := x.([]interface{})
+									walletSnapshot = append(walletSnapshot, BitfinexWebsocketWallet{Name: y[0].(string), Currency: y[1].(string), Balance: y[2].(float64), UnsettledInterest: y[3].(float64)})
+								}
+								log.Println(walletSnapshot)
+							case BITFINEX_WEBSOCKET_WALLET_UPDATE:
+								data := chanData[2].([]interface{})
+								wallet := BitfinexWebsocketWallet{Name: data[0].(string), Currency: data[1].(string), Balance: data[2].(float64), UnsettledInterest: data[3].(float64)}
+								log.Println(wallet)
+							case BITFINEX_WEBSOCKET_ORDER_SNAPSHOT:
+								orderSnapshot := []BitfinexWebsocketOrder{}
+								data := chanData[2].([]interface{})
+								for _, x := range data {
+									y := x.([]interface{})
+									orderSnapshot = append(orderSnapshot, BitfinexWebsocketOrder{OrderID: int64(y[0].(float64)), Pair: y[1].(string), Amount: y[2].(float64), OrigAmount: y[3].(float64),
+										OrderType: y[4].(string), Status: y[5].(string), Price: y[6].(float64), PriceAvg: y[7].(float64), Timestamp: y[8].(string)})
+								}
+								log.Println(orderSnapshot)
+							case BITFINEX_WEBSOCKET_ORDER_NEW, BITFINEX_WEBSOCKET_ORDER_UPDATE, BITFINEX_WEBSOCKET_ORDER_CANCEL:
+								data := chanData[2].([]interface{})
+								order := BitfinexWebsocketOrder{OrderID: int64(data[0].(float64)), Pair: data[1].(string), Amount: data[2].(float64), OrigAmount: data[3].(float64),
+									OrderType: data[4].(string), Status: data[5].(string), Price: data[6].(float64), PriceAvg: data[7].(float64), Timestamp: data[8].(string), Notify: int(data[9].(float64))}
+								log.Println(order)
+							case BITFINEX_WEBSOCKET_TRADE_EXECUTED:
+								data := chanData[2].([]interface{})
+								trade := BitfinexWebsocketTradeExecuted{TradeID: int64(data[0].(float64)), Pair: data[1].(string), Timestamp: int64(data[2].(float64)), OrderID: int64(data[3].(float64)),
+									AmountExecuted: data[4].(float64), PriceExecuted: data[5].(float64)}
+								log.Println(trade)
+							}
 						case "trades":
 							trades := []BitfinexWebsocketTrade{}
 							switch len(chanData) {
