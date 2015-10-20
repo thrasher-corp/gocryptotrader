@@ -123,7 +123,12 @@ func (e *Event) CheckCondition() bool {
 			lastPrice = result.Last
 		}
 	} else if bot.exchange.bitstamp.GetName() == e.Exchange {
-		lastPrice = bot.exchange.bitstamp.GetTicker().Last
+		result, err := bot.exchange.bitstamp.GetTicker(false)
+		if err != nil {
+			lastPrice = 0
+		} else {
+			lastPrice = result.Last
+		}
 	} else if bot.exchange.coinbase.GetName() == e.Exchange {
 		lastPrice = bot.exchange.coinbase.GetTicker("BTC-USD").Price
 	} else if bot.exchange.cryptsy.GetName() == e.Exchange {
