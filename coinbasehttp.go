@@ -318,30 +318,29 @@ func (c *Coinbase) GetOrderbook(symbol string, level int) (interface{}, error) {
 	}
 }
 
-func (c *Coinbase) GetTicker(symbol string) CoinbaseTicker {
+func (c *Coinbase) GetTicker(symbol string) (CoinbaseTicker, error) {
 	ticker := CoinbaseTicker{}
 	path := fmt.Sprintf("%s/%s/%s", COINBASE_API_URL+COINBASE_PRODUCTS, symbol, COINBASE_TICKER)
 	err := SendHTTPGetRequest(path, true, &ticker)
 
 	if err != nil {
-		log.Println(err)
-		return CoinbaseTicker{}
+		return ticker, err
 	}
-	return ticker
+	return ticker, nil
 }
 
-func (c *Coinbase) GetTrades(symbol string) {
+func (c *Coinbase) GetTrades(symbol string) ([]CoinbaseTrade, error) {
 	trades := []CoinbaseTrade{}
 	path := fmt.Sprintf("%s/%s/%s", COINBASE_API_URL+COINBASE_PRODUCTS, symbol, COINBASE_TRADES)
 	err := SendHTTPGetRequest(path, true, &trades)
 
 	if err != nil {
-		log.Println(err)
+		return nil, err
 	}
-	log.Println(trades)
+	return trades, nil
 }
 
-func (c *Coinbase) GetHistoricRates(symbol string, start, end, granularity int64) {
+func (c *Coinbase) GetHistoricRates(symbol string, start, end, granularity int64) ([]CoinbaseHistory, error) {
 	history := []CoinbaseHistory{}
 	values := url.Values{}
 
@@ -367,31 +366,30 @@ func (c *Coinbase) GetHistoricRates(symbol string, start, end, granularity int64
 	err := SendHTTPGetRequest(path, true, &history)
 
 	if err != nil {
-		log.Println(err)
+		return nil, err
 	}
-	log.Println(history)
+	return history, nil
 }
 
-func (c *Coinbase) GetStats(symbol string) CoinbaseStats {
+func (c *Coinbase) GetStats(symbol string) (CoinbaseStats, error) {
 	stats := CoinbaseStats{}
 	path := fmt.Sprintf("%s/%s/%s", COINBASE_API_URL+COINBASE_PRODUCTS, symbol, COINBASE_STATS)
 	err := SendHTTPGetRequest(path, true, &stats)
 
 	if err != nil {
-		log.Println(err)
-		return CoinbaseStats{}
+		return stats, err
 	}
-	return stats
+	return stats, nil
 }
 
-func (c *Coinbase) GetCurrencies() {
+func (c *Coinbase) GetCurrencies() ([]CoinbaseCurrency, error) {
 	currencies := []CoinbaseCurrency{}
 	err := SendHTTPGetRequest(COINBASE_API_URL+COINBASE_CURRENCIES, true, &currencies)
 
 	if err != nil {
-		log.Println(err)
+		return nil, err
 	}
-	log.Println(currencies)
+	return currencies, nil
 }
 
 type CoinbaseAccountResponse struct {
@@ -402,21 +400,24 @@ type CoinbaseAccountResponse struct {
 	Currency  string  `json:"currency"`
 }
 
-func (c *Coinbase) GetAccounts() {
+func (c *Coinbase) GetAccounts() ([]CoinbaseAccountResponse, error) {
 	resp := []CoinbaseAccountResponse{}
 	err := c.SendAuthenticatedHTTPRequest("GET", COINBASE_API_URL+COINBASE_ACCOUNTS, nil, &resp)
 	if err != nil {
-		log.Println(err)
+		return nil, err
 	}
+
+	return resp, nil
 }
 
-func (c *Coinbase) GetAccount(account string) {
+func (c *Coinbase) GetAccount(account string) (CoinbaseAccountResponse, error) {
 	resp := CoinbaseAccountResponse{}
 	path := fmt.Sprintf("%s/%s", COINBASE_ACCOUNTS, account)
 	err := c.SendAuthenticatedHTTPRequest("GET", COINBASE_API_URL+path, nil, &resp)
 	if err != nil {
-		log.Println(err)
+		return resp, err
 	}
+	return resp, nil
 }
 
 type CoinbaseAccountLedgerResponse struct {
@@ -428,13 +429,14 @@ type CoinbaseAccountLedgerResponse struct {
 	details   interface{} `json:"details"`
 }
 
-func (c *Coinbase) GetAccountHistory(accountID string) {
+func (c *Coinbase) GetAccountHistory(accountID string) ([]CoinbaseAccountLedgerResponse, error) {
 	resp := []CoinbaseAccountLedgerResponse{}
 	path := fmt.Sprintf("%s/%s/%s", COINBASE_ACCOUNTS, accountID, COINBASE_LEDGER)
 	err := c.SendAuthenticatedHTTPRequest("GET", COINBASE_API_URL+path, nil, &resp)
 	if err != nil {
-		log.Println(err)
+		return nil, err
 	}
+	return resp, nil
 }
 
 type CoinbaseAccountHolds struct {
@@ -447,13 +449,14 @@ type CoinbaseAccountHolds struct {
 	Reference string  `json:"ref"`
 }
 
-func (c *Coinbase) GetHolds(accountID string) {
+func (c *Coinbase) GetHolds(accountID string) ([]CoinbaseAccountHolds, error) {
 	resp := []CoinbaseAccountHolds{}
 	path := fmt.Sprintf("%s/%s/%s", COINBASE_ACCOUNTS, accountID, COINBASE_HOLDS)
 	err := c.SendAuthenticatedHTTPRequest("GET", COINBASE_API_URL+path, nil, &resp)
 	if err != nil {
-		log.Println(err)
+		return nil, err
 	}
+	return resp, nil
 }
 
 func (c *Coinbase) PlaceOrder(clientRef string, price, amount float64, side string, productID, stp string) (string, error) {
@@ -485,12 +488,13 @@ func (c *Coinbase) PlaceOrder(clientRef string, price, amount float64, side stri
 	return resp.ID, nil
 }
 
-func (c *Coinbase) CancelOrder(orderID string) {
+func (c *Coinbase) CancelOrder(orderID string) error {
 	path := fmt.Sprintf("%s/%s", COINBASE_ORDERS, orderID)
 	err := c.SendAuthenticatedHTTPRequest("DELETE", COINBASE_API_URL+path, nil, nil)
 	if err != nil {
-		log.Println(err)
+		return err
 	}
+	return nil
 }
 
 type CoinbaseOrdersResponse struct {
@@ -506,7 +510,7 @@ type CoinbaseOrdersResponse struct {
 	CreatedAt  string  `json:"created_at"`
 }
 
-func (c *Coinbase) GetOrders(params url.Values) {
+func (c *Coinbase) GetOrders(params url.Values) ([]CoinbaseOrdersResponse, error) {
 	path := COINBASE_API_URL + COINBASE_ORDERS
 
 	if len(params) > 0 {
@@ -516,8 +520,9 @@ func (c *Coinbase) GetOrders(params url.Values) {
 	resp := []CoinbaseOrdersResponse{}
 	err := c.SendAuthenticatedHTTPRequest("GET", path, nil, &resp)
 	if err != nil {
-		log.Println(err)
+		return nil, err
 	}
+	return resp, nil
 }
 
 type CoinbaseOrderResponse struct {
@@ -535,13 +540,14 @@ type CoinbaseOrderResponse struct {
 	DoneAt     string  `json:"done_at"`
 }
 
-func (c *Coinbase) GetOrder(orderID string) {
+func (c *Coinbase) GetOrder(orderID string) (CoinbaseOrderResponse, error) {
 	path := fmt.Sprintf("%s/%s", COINBASE_ORDERS, orderID)
 	resp := CoinbaseOrderResponse{}
 	err := c.SendAuthenticatedHTTPRequest("GET", COINBASE_API_URL+path, nil, &resp)
 	if err != nil {
-		log.Println(err)
+		return resp, err
 	}
+	return resp, nil
 }
 
 type CoinbaseFillResponse struct {
@@ -557,7 +563,7 @@ type CoinbaseFillResponse struct {
 	Side      string  `json:"side"`
 }
 
-func (c *Coinbase) GetFills(params url.Values) {
+func (c *Coinbase) GetFills(params url.Values) ([]CoinbaseFillResponse, error) {
 	path := COINBASE_API_URL + COINBASE_FILLS
 
 	if len(params) > 0 {
@@ -567,11 +573,13 @@ func (c *Coinbase) GetFills(params url.Values) {
 	resp := []CoinbaseFillResponse{}
 	err := c.SendAuthenticatedHTTPRequest("GET", path, nil, &resp)
 	if err != nil {
-		log.Println(err)
+		return nil, err
 	}
+
+	return resp, nil
 }
 
-func (c *Coinbase) Transfer(transferType string, amount float64, accountID string) {
+func (c *Coinbase) Transfer(transferType string, amount float64, accountID string) error {
 	request := make(map[string]interface{})
 	request["type"] = transferType
 	request["amount"] = strconv.FormatFloat(amount, 'f', -1, 64)
@@ -579,8 +587,9 @@ func (c *Coinbase) Transfer(transferType string, amount float64, accountID strin
 
 	err := c.SendAuthenticatedHTTPRequest("POST", COINBASE_API_URL+COINBASE_TRANSFERS, request, nil)
 	if err != nil {
-		log.Println(err)
+		return err
 	}
+	return nil
 }
 
 type CoinbaseReportResponse struct {
@@ -597,7 +606,7 @@ type CoinbaseReportResponse struct {
 	} `json:params"`
 }
 
-func (c *Coinbase) GetReport(reportType, startDate, endDate string) {
+func (c *Coinbase) GetReport(reportType, startDate, endDate string) (CoinbaseReportResponse, error) {
 	request := make(map[string]interface{})
 	request["type"] = reportType
 	request["start_date"] = startDate
@@ -606,17 +615,19 @@ func (c *Coinbase) GetReport(reportType, startDate, endDate string) {
 	resp := CoinbaseReportResponse{}
 	err := c.SendAuthenticatedHTTPRequest("POST", COINBASE_API_URL+COINBASE_REPORTS, request, &resp)
 	if err != nil {
-		log.Println(err)
+		return resp, err
 	}
+	return resp, nil
 }
 
-func (c *Coinbase) GetReportStatus(reportID string) {
+func (c *Coinbase) GetReportStatus(reportID string) (CoinbaseReportResponse, error) {
 	path := fmt.Sprintf("%s/%s", COINBASE_REPORTS, reportID)
 	resp := CoinbaseReportResponse{}
 	err := c.SendAuthenticatedHTTPRequest("POST", COINBASE_API_URL+path, nil, &resp)
 	if err != nil {
-		log.Println(err)
+		return resp, err
 	}
+	return resp, nil
 }
 
 func (c *Coinbase) SendAuthenticatedHTTPRequest(method, path string, params map[string]interface{}, result interface{}) (err error) {
