@@ -16,6 +16,7 @@ import (
 	"log"
 	"math"
 	"net/http"
+	"net/url"
 	"strings"
 )
 
@@ -258,4 +259,12 @@ func JSONDecode(data []byte, to interface{}) error {
 	}
 
 	return nil
+}
+
+func EncodeURLValues(url string, values url.Values) string {
+	path := url
+	if len(values) > 0 {
+		path += "?" + values.Encode()
+	}
+	return path
 }
