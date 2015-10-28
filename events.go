@@ -130,7 +130,12 @@ func (e *Event) CheckCondition() bool {
 			lastPrice = result.Last
 		}
 	} else if bot.exchange.coinbase.GetName() == e.Exchange {
-		lastPrice = bot.exchange.coinbase.GetTicker("BTC-USD").Price
+		result, err := bot.exchange.coinbase.GetTicker("BTC-USD")
+		if err != nil {
+			lastPrice = 0
+		} else {
+			lastPrice = result.Price
+		}
 	} else if bot.exchange.cryptsy.GetName() == e.Exchange {
 		lastPrice = bot.exchange.cryptsy.Market["BTCUSD"].LastTrade.Price
 	} else if bot.exchange.dwvx.GetName() == e.Exchange {

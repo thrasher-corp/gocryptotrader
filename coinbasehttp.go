@@ -189,8 +189,18 @@ func (c *Coinbase) Run() {
 		for _, x := range c.EnabledPairs {
 			currency := x[0:3] + "-" + x[3:]
 			go func() {
-				stats := c.GetStats(currency)
-				ticker := c.GetTicker(currency)
+				stats, err := c.GetStats(currency)
+
+				if err != nil {
+					log.Println(err)
+					return
+				}
+				ticker, err := c.GetTicker(currency)
+
+				if err != nil {
+					log.Println(err)
+					return
+				}
 				log.Printf("Coinbase %s: Last %f High %f Low %f Volume %f\n", currency, ticker.Price, stats.High, stats.Low, stats.Volume)
 				AddExchangeInfo(c.GetName(), currency[0:3], currency[4:], ticker.Price, stats.Volume)
 			}()
