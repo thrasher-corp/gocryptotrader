@@ -122,7 +122,7 @@
   },
   {
    "Name": "DWVX",
-   "Enabled": true,
+   "Enabled": false,
    "Verbose": false,
    "Websocket": false,
    "RESTPollingDelay": 10,
