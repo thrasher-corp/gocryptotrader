@@ -177,13 +177,8 @@ func (g *Gemini) GetSymbols() ([]string, error) {
 }
 
 func (g *Gemini) GetOrderbook(currency string, params url.Values) (GeminiOrderbook, error) {
+	path := EncodeURLValues(fmt.Sprintf("%s/v%s/%s/%s", GEMINI_API_URL, GEMINI_API_VERSION, GEMINI_ORDERBOOK, currency), params)
 	orderbook := GeminiOrderbook{}
-	path := fmt.Sprintf("%s/v%s/%s/%s", GEMINI_API_URL, GEMINI_API_VERSION, GEMINI_ORDERBOOK, currency)
-
-	if params.Encode() != "" {
-		path += "?" + params.Encode()
-	}
-
 	err := SendHTTPGetRequest(path, true, &orderbook)
 	if err != nil {
 		return GeminiOrderbook{}, err
@@ -193,13 +188,8 @@ func (g *Gemini) GetOrderbook(currency string, params url.Values) (GeminiOrderbo
 }
 
 func (g *Gemini) GetTrades(currency string, params url.Values) ([]GeminiTrade, error) {
+	path := EncodeURLValues(fmt.Sprintf("%s/v%s/%s/%s", GEMINI_API_URL, GEMINI_API_VERSION, GEMINI_TRADES, currency), params)
 	trades := []GeminiTrade{}
-	path := fmt.Sprintf("%s/v%s/%s/%s", GEMINI_API_URL, GEMINI_API_VERSION, GEMINI_TRADES, currency)
-
-	if params.Encode() != "" {
-		path += "?" + params.Encode()
-	}
-
 	err := SendHTTPGetRequest(path, true, &trades)
 	if err != nil {
 		return []GeminiTrade{}, err

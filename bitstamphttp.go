@@ -262,17 +262,9 @@ func (b *Bitstamp) GetOrderbook() (BitstampOrderbook, error) {
 }
 
 func (b *Bitstamp) GetTransactions(values url.Values) ([]BitstampTransactions, error) {
+	path := EncodeURLValues(BITSTAMP_API_URL+BITSTAMP_API_TRANSACTIONS, values)
 	transactions := []BitstampTransactions{}
-	path := BITSTAMP_API_URL + BITSTAMP_API_TRANSACTIONS
-
-	if len(values) > 0 {
-		path += "?" + values.Encode()
-	}
-
-	log.Println(path)
-
 	err := SendHTTPGetRequest(path, true, &transactions)
-
 	if err != nil {
 		return nil, err
 	}

@@ -255,13 +255,8 @@ func (b *Bitfinex) Run() {
 }
 
 func (b *Bitfinex) GetTicker(symbol string, values url.Values) (BitfinexTicker, error) {
-	path := BITFINEX_API_URL + BITFINEX_TICKER + symbol
+	path := EncodeURLValues(BITFINEX_API_URL+BITFINEX_TICKER+symbol, values)
 	response := BitfinexTicker{}
-
-	if len(values) > 0 {
-		path += "?" + values.Encode()
-	}
-
 	err := SendHTTPGetRequest(path, true, &response)
 	if err != nil {
 		return response, err
@@ -292,13 +287,8 @@ func (b *Bitfinex) GetStats(symbol string) (BitfinexStats, error) {
 }
 
 func (b *Bitfinex) GetLendbook(symbol string, values url.Values) (BitfinexLendbook, error) {
-	path := BITFINEX_API_URL + BITFINEX_LENDBOOK + symbol
+	path := EncodeURLValues(BITFINEX_API_URL+BITFINEX_LENDBOOK+symbol, values)
 	response := BitfinexLendbook{}
-
-	if len(values) > 0 {
-		path += "?" + values.Encode()
-	}
-
 	err := SendHTTPGetRequest(path, true, &response)
 	if err != nil {
 		return response, err
@@ -307,13 +297,8 @@ func (b *Bitfinex) GetLendbook(symbol string, values url.Values) (BitfinexLendbo
 }
 
 func (b *Bitfinex) GetOrderbook(symbol string, values url.Values) (BitfinexOrderbook, error) {
-	path := BITFINEX_API_URL + BITFINEX_ORDERBOOK + symbol
+	path := EncodeURLValues(BITFINEX_API_URL+BITFINEX_ORDERBOOK+symbol, values)
 	response := BitfinexOrderbook{}
-
-	if len(values) > 0 {
-		path += "?" + values.Encode()
-	}
-
 	err := SendHTTPGetRequest(path, true, &response)
 	if err != nil {
 		return response, err
@@ -322,13 +307,8 @@ func (b *Bitfinex) GetOrderbook(symbol string, values url.Values) (BitfinexOrder
 }
 
 func (b *Bitfinex) GetTrades(symbol string, values url.Values) ([]BitfinexTradeStructure, error) {
-	path := BITFINEX_API_URL + BITFINEX_TRADES + symbol
+	path := EncodeURLValues(BITFINEX_API_URL+BITFINEX_TRADES+symbol, values)
 	response := []BitfinexTradeStructure{}
-
-	if len(values) > 0 {
-		path += "?" + values.Encode()
-	}
-
 	err := SendHTTPGetRequest(path, true, &response)
 	if err != nil {
 		return nil, err
@@ -344,13 +324,8 @@ type BitfinexLends struct {
 }
 
 func (b *Bitfinex) GetLends(symbol string, values url.Values) ([]BitfinexLends, error) {
-	path := BITFINEX_API_URL + BITFINEX_LENDS + symbol
+	path := EncodeURLValues(BITFINEX_API_URL+BITFINEX_LENDS+symbol, values)
 	response := []BitfinexLends{}
-
-	if len(values) > 0 {
-		path += "?" + values.Encode()
-	}
-
 	err := SendHTTPGetRequest(path, true, &response)
 	if err != nil {
 		return nil, err

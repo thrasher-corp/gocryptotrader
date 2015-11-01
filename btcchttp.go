@@ -274,11 +274,7 @@ func (b *BTCC) GetTradeHistory(symbol string, limit, sinceTid int64, time time.T
 		v.Set("sincetype", strconv.FormatInt(time.Unix(), 10))
 	}
 
-	values := v.Encode()
-	if len(values) > 0 {
-		req += "?" + values
-	}
-
+	req = EncodeURLValues(req, v)
 	err := SendHTTPGetRequest(req, true, nil)
 	if err != nil {
 		log.Println(err)

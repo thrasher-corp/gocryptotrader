@@ -190,12 +190,7 @@ func (i *ItBit) GetWalletBalance(walletID, currency string) {
 }
 
 func (i *ItBit) GetWalletTrades(walletID string, params url.Values) {
-	path := "/wallets/" + walletID + "/trades"
-
-	if len(params) > 0 {
-		path += "?" + params.Encode()
-	}
-
+	path := EncodeURLValues("/wallets/"+walletID+"/trades", params)
 	err := i.SendAuthenticatedHTTPRequest("GET", path, nil)
 
 	if err != nil {
@@ -204,12 +199,7 @@ func (i *ItBit) GetWalletTrades(walletID string, params url.Values) {
 }
 
 func (i *ItBit) GetWalletOrders(walletID string, params url.Values) {
-	path := "/wallets/" + walletID + "/orders"
-
-	if len(params) > 0 {
-		path += "?" + params.Encode()
-	}
-
+	path := EncodeURLValues("/wallets/"+walletID+"/orders", params)
 	err := i.SendAuthenticatedHTTPRequest("GET", path, nil)
 
 	if err != nil {

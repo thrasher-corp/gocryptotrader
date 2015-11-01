@@ -366,13 +366,7 @@ func (c *Coinbase) GetHistoricRates(symbol string, start, end, granularity int64
 		values.Set("granularity", strconv.FormatInt(granularity, 10))
 	}
 
-	path := fmt.Sprintf("%s/%s/%s", COINBASE_API_URL+COINBASE_PRODUCTS, symbol, COINBASE_HISTORY)
-	encoded := values.Encode()
-
-	if len(encoded) > 0 {
-		path += encoded
-	}
-
+	path := EncodeURLValues(fmt.Sprintf("%s/%s/%s", COINBASE_API_URL+COINBASE_PRODUCTS, symbol, COINBASE_HISTORY), values)
 	err := SendHTTPGetRequest(path, true, &history)
 
 	if err != nil {
@@ -521,12 +515,7 @@ type CoinbaseOrdersResponse struct {
 }
 
 func (c *Coinbase) GetOrders(params url.Values) ([]CoinbaseOrdersResponse, error) {
-	path := COINBASE_API_URL + COINBASE_ORDERS
-
-	if len(params) > 0 {
-		path += "?" + params.Encode()
-	}
-
+	path := EncodeURLValues(COINBASE_API_URL+COINBASE_ORDERS, params)
 	resp := []CoinbaseOrdersResponse{}
 	err := c.SendAuthenticatedHTTPRequest("GET", path, nil, &resp)
 	if err != nil {
@@ -574,18 +563,12 @@ type CoinbaseFillResponse struct {
 }
 
 func (c *Coinbase) GetFills(params url.Values) ([]CoinbaseFillResponse, error) {
-	path := COINBASE_API_URL + COINBASE_FILLS
-
-	if len(params) > 0 {
-		path += "?" + params.Encode()
-	}
-
+	path := EncodeURLValues(COINBASE_API_URL+COINBASE_FILLS, params)
 	resp := []CoinbaseFillResponse{}
 	err := c.SendAuthenticatedHTTPRequest("GET", path, nil, &resp)
 	if err != nil {
 		return nil, err
 	}
-
 	return resp, nil
 }
 
