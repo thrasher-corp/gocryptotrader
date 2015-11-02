@@ -42,3 +42,15 @@ A cryptocurrency trading bot supporting multiple exchanges written in Golang.
 + Trade history summary generation for tax purposes.
 
 Please feel free to submit any pull requests or suggest any desired features to be added.
+
+## Compiling instructions
+Download Go from https://golang.org/dl/  
+Using a terminal, type go get github.com/thrasher-/gocryptotrader  
+Change directory to the package directory, then type go install.  
+Copy config_example.json to config.json.  
+Make any neccessary changes to the config file.  
+Run the application!  
+
+## Binaries
+Binaries will be published once the codebase reaches a stable condition.
+
