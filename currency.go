@@ -56,29 +56,21 @@ func IsFiatCurrency(currency string) bool {
 }
 
 func RetrieveConfigCurrencyPairs(config Config) error {
-	currencyPairs := ""
+	currencyPairs := SplitStrings(DEFAULT_CURRENCIES, ",")
 	for _, exchange := range config.Exchanges {
 		if exchange.Enabled {
-			var result []string
-			if StringContains(exchange.BaseCurrencies, ",") {
-				result = SplitStrings(exchange.BaseCurrencies, ",")
-			} else {
-				if StringContains(DEFAULT_CURRENCIES, exchange.BaseCurrencies) {
-					result = SplitStrings(DEFAULT_CURRENCIES, ",")
-				} else {
-					result = SplitStrings(exchange.BaseCurrencies+","+DEFAULT_CURRENCIES, ",")
-				}
-			}
-			for _, s := range result {
-				if !StringContains(currencyPairs, s) {
-					currencyPairs += s + ","
+			currencies := SplitStrings(exchange.EnabledPairs, ",")
+			for _, x := range currencies {
+				currency := x[len(x)-3:]
+				if !StringContains(DEFAULT_CURRENCIES, currency) {
+					currencyPairs = append(currencyPairs, currency)
 				}
 			}
 		}
 	}
-	currencyPairs = currencyPairs[0 : len(currencyPairs)-1]
-	BaseCurrencies = currencyPairs
-	err := QueryYahooCurrencyValues(currencyPairs)
+
+	BaseCurrencies = JoinStrings(currencyPairs, ",")
+	err := QueryYahooCurrencyValues(BaseCurrencies)
 
 	if err != nil {
 		return ErrQueryingYahoo
@@ -90,17 +82,17 @@ func RetrieveConfigCurrencyPairs(config Config) error {
 
 func MakecurrencyPairs(supportedCurrencies string) string {
 	currencies := SplitStrings(supportedCurrencies, ",")
-	pairs := ""
+	pairs := []string{}
 	count := len(currencies)
 	for i := 0; i < count; i++ {
 		currency := currencies[i]
 		for j := 0; j < count; j++ {
 			if currency != currencies[j] {
-				pairs += currency + currencies[j] + ","
+				pairs = append(pairs, currency+currencies[j])
 			}
 		}
 	}
-	return pairs[0 : len(pairs)-1]
+	return JoinStrings(pairs, ",")
 }
 
 func ConvertCurrency(amount float64, from, to string) (float64, error) {
