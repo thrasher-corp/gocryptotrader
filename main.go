@@ -11,22 +11,23 @@ import (
 )
 
 type Exchange struct {
-	anx         ANX
-	btcc        BTCC
-	bitstamp    Bitstamp
-	bitfinex    Bitfinex
-	btce        BTCE
-	btcmarkets  BTCMarkets
-	coinbase    Coinbase
-	cryptsy     Cryptsy
-	dwvx        DWVX
-	gemini      Gemini
-	okcoinChina OKCoin
-	okcoinIntl  OKCoin
-	itbit       ItBit
-	lakebtc     LakeBTC
-	huobi       HUOBI
-	kraken      Kraken
+	anx           ANX
+	btcc          BTCC
+	bitstamp      Bitstamp
+	bitfinex      Bitfinex
+	btce          BTCE
+	btcmarkets    BTCMarkets
+	coinbase      Coinbase
+	cryptsy       Cryptsy
+	dwvx          DWVX
+	gemini        Gemini
+	okcoinChina   OKCoin
+	okcoinIntl    OKCoin
+	itbit         ItBit
+	lakebtc       LakeBTC
+	localbitcoins LocalBitcoins
+	huobi         HUOBI
+	kraken        Kraken
 }
 
 type Bot struct {
@@ -89,6 +90,7 @@ func main() {
 	bot.exchange.okcoinIntl.SetDefaults()
 	bot.exchange.itbit.SetDefaults()
 	bot.exchange.lakebtc.SetDefaults()
+	bot.exchange.localbitcoins.SetDefaults()
 	bot.exchange.huobi.SetDefaults()
 
 	err = RetrieveConfigCurrencyPairs(bot.config)
@@ -313,6 +315,20 @@ func main() {
 				bot.exchange.lakebtc.AvailablePairs = SplitStrings(exch.AvailablePairs, ",")
 				bot.exchange.lakebtc.EnabledPairs = SplitStrings(exch.EnabledPairs, ",")
 				go bot.exchange.lakebtc.Run()
+			}
+		} else if bot.exchange.localbitcoins.GetName() == exch.Name {
+			if !exch.Enabled {
+				bot.exchange.localbitcoins.SetEnabled(false)
+			} else {
+				bot.exchange.localbitcoins.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
+				bot.exchange.localbitcoins.SetAPIKeys(exch.APIKey, exch.APISecret)
+				bot.exchange.localbitcoins.RESTPollingDelay = exch.RESTPollingDelay
+				bot.exchange.localbitcoins.Verbose = exch.Verbose
+				bot.exchange.localbitcoins.Websocket = exch.Websocket
+				bot.exchange.localbitcoins.BaseCurrencies = SplitStrings(exch.BaseCurrencies, ",")
+				bot.exchange.localbitcoins.AvailablePairs = SplitStrings(exch.AvailablePairs, ",")
+				bot.exchange.localbitcoins.EnabledPairs = SplitStrings(exch.EnabledPairs, ",")
+				go bot.exchange.localbitcoins.Run()
 			}
 		} else if bot.exchange.huobi.GetName() == exch.Name {
 			if !exch.Enabled {

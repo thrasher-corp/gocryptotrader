@@ -201,6 +201,20 @@
    "BaseCurrencies": "USD,CNY,SEK"
   },
   {
+   "Name": "LocalBitcoins",
+   "Enabled": true,
+   "Verbose": true,
+   "Websocket": false,
+   "RESTPollingDelay": 10,
+   "AuthenticatedAPISupport": false,
+   "APIKey": "Key",
+   "APISecret": "Secret",
+   "ClientID": "",
+   "AvailablePairs": "BTCARS,BTCAUD,BTCBRL,BTCCAD,BTCCHF,BTCCZK,BTCDKK,BTCEUR,BTCGBP,BTCHKD,BTCILS,BTCINR,BTCMXN,BTCNOK,BTCNZD,BTCPLN,BTCRUB,BTCSEK,BTCSGD,BTCTHB,BTCUSD,BTCZAR",
+   "EnabledPairs": "BTCARS,BTCAUD,BTCBRL,BTCCAD,BTCCHF,BTCCZK,BTCDKK,BTCEUR,BTCGBP,BTCHKD,BTCILS,BTCINR,BTCMXN,BTCNOK,BTCNZD,BTCPLN,BTCRUB,BTCSEK,BTCSGD,BTCTHB,BTCUSD,BTCZAR",
+   "BaseCurrencies": "ARS,AUD,BRL,CAD,CHF,CZK,DKK,EUR,GBP,HKD,ILS,INR,MXN,NOK,NZD,PLN,RUB,SEK,SGD,THB,USD,ZAR"
+  },
+  {
    "Name": "OKCOIN China",
    "Enabled": true,
    "Verbose": false,

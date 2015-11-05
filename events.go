@@ -147,6 +147,13 @@ func (e *Event) CheckCondition() bool {
 		}
 	} else if bot.exchange.lakebtc.GetName() == e.Exchange {
 		lastPrice = bot.exchange.lakebtc.GetTicker().CNY.Last
+	} else if bot.exchange.localbitcoins.GetName() == e.Exchange {
+		result, err := bot.exchange.localbitcoins.GetTicker()
+		if err != nil {
+			lastPrice = 0
+		} else {
+			lastPrice = result["USD"].Rates.Last
+		}
 	} else if bot.exchange.btcc.GetName() == e.Exchange {
 		lastPrice = bot.exchange.btcc.GetTicker("btccny").Last
 	} else if bot.exchange.huobi.GetName() == e.Exchange {
@@ -277,6 +284,7 @@ func IsValidExchange(Exchange string) bool {
 		bot.exchange.itbit.GetName() == Exchange && bot.exchange.itbit.IsEnabled() ||
 		bot.exchange.kraken.GetName() == Exchange && bot.exchange.kraken.IsEnabled() ||
 		bot.exchange.lakebtc.GetName() == Exchange && bot.exchange.lakebtc.IsEnabled() ||
+		bot.exchange.localbitcoins.GetName() == Exchange && bot.exchange.localbitcoins.IsEnabled() ||
 		bot.exchange.okcoinChina.GetName() == Exchange && bot.exchange.okcoinChina.IsEnabled() ||
 		bot.exchange.okcoinIntl.GetName() == Exchange && bot.exchange.okcoinIntl.IsEnabled() ||
 		bot.exchange.anx.GetName() == Exchange && bot.exchange.anx.IsEnabled() {
