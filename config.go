@@ -21,6 +21,7 @@ var (
 	WarningExchangeAuthAPIDefaultOrEmptyValues      = "WARNING -- Exchange %s: Authenticated API support disabled due to default/empty APIKey/Secret/ClientID values."
 	ErrExchangeNotFound                             = "Exchange %s: Not found."
 	ErrNoEnabledExchanges                           = "No Exchanges enabled."
+	ErrCryptocurrenciesEmpty                        = "Cryptocurrencies variable is empty."
 	WarningSMSGlobalDefaultOrEmptyValues            = "WARNING -- SMS Support disabled due to default or empty Username/Password values."
 	WarningSSMSGlobalSMSContactDefaultOrEmptyValues = "WARNING -- SMS contact #%d Name/Number disabled due to default or empty values."
 	WarningSSMSGlobalSMSNoContacts                  = "WARNING -- SMS Support disabled due to no enabled contacts."
@@ -38,9 +39,10 @@ type SMSGlobal struct {
 }
 
 type Config struct {
-	Name      string
-	SMS       SMSGlobal `json:"SMSGlobal"`
-	Exchanges []Exchanges
+	Name             string
+	Cryptocurrencies string
+	SMS              SMSGlobal `json:"SMSGlobal"`
+	Exchanges        []Exchanges
 }
 
 type Exchanges struct {
@@ -113,6 +115,10 @@ func CheckSMSGlobalConfigValues() error {
 }
 
 func CheckExchangeConfigValues() error {
+	if bot.config.Cryptocurrencies == "" {
+		return errors.New(ErrCryptocurrenciesEmpty)
+	}
+
 	exchanges := 0
 	for i, exch := range bot.config.Exchanges {
 		if exch.Enabled {

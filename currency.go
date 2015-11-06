@@ -55,6 +55,13 @@ func IsFiatCurrency(currency string) bool {
 	return false
 }
 
+func IsCryptocurrency(currency string) bool {
+	if StringContains(bot.config.Cryptocurrencies, StringToUpper(currency)) {
+		return true
+	}
+	return false
+}
+
 func RetrieveConfigCurrencyPairs(config Config) error {
 	currencyPairs := SplitStrings(DEFAULT_CURRENCIES, ",")
 	for _, exchange := range config.Exchanges {
@@ -62,7 +69,7 @@ func RetrieveConfigCurrencyPairs(config Config) error {
 			currencies := SplitStrings(exchange.EnabledPairs, ",")
 			for _, x := range currencies {
 				currency := x[len(x)-3:]
-				if !StringContains(DEFAULT_CURRENCIES, currency) {
+				if !StringContains(DEFAULT_CURRENCIES, currency) && !IsCryptocurrency(currency) {
 					currencyPairs = append(currencyPairs, currency)
 				}
 			}
