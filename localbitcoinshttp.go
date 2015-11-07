@@ -11,9 +11,16 @@ import (
 )
 
 const (
-	LOCALBITCOINS_API_URL           = "https://localbitcoins.com/"
-	LOCALBITCOINS_API_TICKER        = "bitcoinaverage/ticker-all-currencies/"
-	LOCALBITCOINS_API_BITCOINCHARTS = "bitcoincharts/"
+	LOCALBITCOINS_API_URL             = "https://localbitcoins.com"
+	LOCALBITCOINS_API_TICKER          = "/bitcoinaverage/ticker-all-currencies/"
+	LOCALBITCOINS_API_BITCOINCHARTS   = "/bitcoincharts/"
+	LOCALBITCOINS_API_PINCODE         = "pincode/"
+	LOCALBITCOINS_API_WALLET          = "wallet/"
+	LOCALBITCOINS_API_MYSELF          = "myself/"
+	LOCALBITCOINS_API_WALLET_BALANCE  = "wallet-balance/"
+	LOCALBITCOINS_API_WALLET_SEND     = "wallet-send/"
+	LOCALBITCOINS_API_WALLET_SEND_PIN = "wallet-send-pin/"
+	LOCALBITCOINS_API_WALLET_ADDRESS  = "wallet-addr/"
 )
 
 type LocalBitcoins struct {
@@ -84,10 +91,6 @@ func (l *LocalBitcoins) Run() {
 }
 
 func (l *LocalBitcoins) SetAPIKeys(apiKey, apiSecret string) {
-	if !l.AuthenticatedAPISupport {
-		return
-	}
-
 	l.APIKey = apiKey
 	l.APISecret = apiSecret
 }
@@ -132,47 +135,265 @@ func (l *LocalBitcoins) GetTrades(currency string, values url.Values) ([]LocalBi
 	return result, nil
 }
 
+type LocalBitcoinsOrderbookStructure struct {
+	Price  float64
+	Amount float64
+}
+
 type LocalBitcoinsOrderbook struct {
-	Bids []struct {
-		Price  float64
-		Amount float64
-	}
-	Asks []struct {
-		Price  float64
-		Amount float64
-	}
+	Bids []LocalBitcoinsOrderbookStructure `json:"bids"`
+	Asks []LocalBitcoinsOrderbookStructure `json:"asks"`
 }
 
 func (l *LocalBitcoins) GetOrderbook(currency string) (LocalBitcoinsOrderbook, error) {
-	path := fmt.Sprintf("%s/%s/orderbook.json", LOCALBITCOINS_API_URL+LOCALBITCOINS_API_BITCOINCHARTS, currency)
-
 	type response struct {
 		Bids [][]string `json:"bids"`
 		Asks [][]string `json:"asks"`
 	}
 
-	result := response{}
-	err := SendHTTPGetRequest(path, true, &result)
+	path := fmt.Sprintf("%s/%s/orderbook.json", LOCALBITCOINS_API_URL+LOCALBITCOINS_API_BITCOINCHARTS, currency)
+	resp := response{}
+	err := SendHTTPGetRequest(path, true, &resp)
 
 	if err != nil {
 		return LocalBitcoinsOrderbook{}, err
 	}
 
-	return LocalBitcoinsOrderbook{}, nil
+	orderbook := LocalBitcoinsOrderbook{}
+
+	for _, x := range resp.Bids {
+		price, err := strconv.ParseFloat(x[0], 64)
+		if err != nil {
+			log.Println(err)
+			continue
+		}
+		amount, err := strconv.ParseFloat(x[1], 64)
+		if err != nil {
+			log.Println(err)
+			continue
+		}
+		orderbook.Bids = append(orderbook.Bids, LocalBitcoinsOrderbookStructure{price, amount})
+	}
+
+	for _, x := range resp.Asks {
+		price, err := strconv.ParseFloat(x[0], 64)
+		if err != nil {
+			log.Println(err)
+			continue
+		}
+		amount, err := strconv.ParseFloat(x[1], 64)
+		if err != nil {
+			log.Println(err)
+			continue
+		}
+		orderbook.Asks = append(orderbook.Asks, LocalBitcoinsOrderbookStructure{price, amount})
+	}
+
+	return orderbook, nil
+}
+
+type LocalBitcoinsAccountInfo struct {
+	Username             string    `json:"username"`
+	CreatedAt            time.Time `json:"created_at"`
+	AgeText              string    `json:"age_text"`
+	TradingPartners      int       `json:"trading_partners_count"`
+	FeedbacksUnconfirmed int       `json:"feedbacks_unconfirmed_count"`
+	TradeVolumeText      string    `json:"trade_volume_text"`
+	HasCommonTrades      bool      `json:"has_common_trades"`
+	HasFeedback          bool      `json:"has_feedback"`
+	ConfirmedTradesText  string    `json:"confirmed_trade_count_text"`
+	BlockedCount         int       `json:"blocked_count"`
+	FeedbackScore        int       `json:"feedback_score"`
+	FeedbackCount        int       `json:"feedback_count"`
+	URL                  string    `json:"url"`
+	TrustedCount         int       `json:"trusted_count"`
+	IdentityVerifiedAt   time.Time `json:"identify_verified_at"`
+}
+
+func (l *LocalBitcoins) GetAccountInfo(username string, self bool) (LocalBitcoinsAccountInfo, error) {
+	type response struct {
+		Data LocalBitcoinsAccountInfo `json:"data"`
+	}
+	resp := response{}
+
+	if self {
+		err := l.SendAuthenticatedHTTPRequest("GET", LOCALBITCOINS_API_MYSELF, nil, &resp)
+
+		if err != nil {
+			return resp.Data, err
+		}
+	} else {
+		path := fmt.Sprintf("%s/api/account_info/%s/", LOCALBITCOINS_API_URL, username)
+		err := SendHTTPGetRequest(path, true, &resp)
+
+		if err != nil {
+			return resp.Data, err
+		}
+	}
+
+	return resp.Data, nil
+}
+
+func (l *LocalBitcoins) CheckPincode(pin int) (bool, error) {
+	type response struct {
+		Data struct {
+			PinOK bool `json:"pincode_ok"`
+		} `json:"data"`
+	}
+	resp := response{}
+	values := url.Values{}
+	values.Set("pincode", strconv.Itoa(pin))
+	err := l.SendAuthenticatedHTTPRequest("POST", LOCALBITCOINS_API_PINCODE, values, &resp)
+
+	if err != nil {
+		return false, err
+	}
+
+	if !resp.Data.PinOK {
+		return false, errors.New("Pin invalid.")
+	}
+
+	return true, nil
+}
+
+type LocalBitcoinsBalance struct {
+	Balance  float64 `json:"balance,string"`
+	Sendable float64 `json:"Sendable,string"`
+}
+
+type LocalBitcoinsWalletTransaction struct {
+	TXID        string    `json:"txid"`
+	Amount      float64   `json:"amount,string"`
+	Description string    `json:"description"`
+	TXType      int       `json:"tx_type"`
+	CreatedAt   time.Time `json:"created_at"`
+}
+
+type LocalBitcoinsWalletAddressList struct {
+	Address  string  `json:"address"`
+	Received float64 `json:"received,string"`
+}
+
+type LocalBitcoinsWalletInfo struct {
+	Message                 string                           `json:"message"`
+	Total                   LocalBitcoinsBalance             `json:"total"`
+	SentTransactions30d     []LocalBitcoinsWalletTransaction `json:"sent_transactions_30d"`
+	ReceivedTransactions30d []LocalBitcoinsWalletTransaction `json:"received_transactions_30d"`
+	ReceivingAddressCount   int                              `json:"receiving_address_count"`
+	ReceivingAddressList    []LocalBitcoinsWalletAddressList `json:"receiving_address_list"`
+}
+
+func (l *LocalBitcoins) GetWalletInfo() (LocalBitcoinsWalletInfo, error) {
+	type response struct {
+		Data LocalBitcoinsWalletInfo `json:"data"`
+	}
+	resp := response{}
+	err := l.SendAuthenticatedHTTPRequest("GET", LOCALBITCOINS_API_WALLET, nil, &resp)
+
+	if err != nil {
+		return LocalBitcoinsWalletInfo{}, err
+	}
+
+	if resp.Data.Message != "OK" {
+		return LocalBitcoinsWalletInfo{}, errors.New("Unable to fetch wallet info.")
+	}
+
+	return resp.Data, nil
+}
+
+type LocalBitcoinsWalletBalanceInfo struct {
+	Message               string                           `json:"message"`
+	Total                 LocalBitcoinsBalance             `json:"total"`
+	ReceivingAddressCount int                              `json:"receiving_address_count"` // always 1
+	ReceivingAddressList  []LocalBitcoinsWalletAddressList `json:"receiving_address_list"`
+}
+
+func (l *LocalBitcoins) GetWalletBalance() (LocalBitcoinsWalletBalanceInfo, error) {
+	type response struct {
+		Data LocalBitcoinsWalletBalanceInfo `json:"data"`
+	}
+	resp := response{}
+	err := l.SendAuthenticatedHTTPRequest("GET", LOCALBITCOINS_API_WALLET_BALANCE, nil, &resp)
+
+	if err != nil {
+		return LocalBitcoinsWalletBalanceInfo{}, err
+	}
+
+	if resp.Data.Message != "OK" {
+		return LocalBitcoinsWalletBalanceInfo{}, errors.New("Unable to fetch wallet balance.")
+	}
+
+	return resp.Data, nil
+}
+
+func (l *LocalBitcoins) WalletSend(address string, amount float64, pin int) (bool, error) {
+	values := url.Values{}
+	values.Set("address", address)
+	values.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
+	path := LOCALBITCOINS_API_WALLET_SEND
+
+	if pin > 0 {
+		values.Set("pincode", strconv.Itoa(pin))
+		path = LOCALBITCOINS_API_WALLET_SEND_PIN
+	}
+
+	type response struct {
+		Data struct {
+			Message string `json:"message"`
+		} `json:"data"`
+	}
+
+	resp := response{}
+	err := l.SendAuthenticatedHTTPRequest("POST", path, values, &resp)
+	if err != nil {
+		return false, err
+	}
+
+	if resp.Data.Message != "Money is being sent" {
+		return false, errors.New("Unable to send Bitcoins.")
+	}
+
+	return true, nil
+}
+
+func (l *LocalBitcoins) GetWalletAddress() (string, error) {
+	type response struct {
+		Data struct {
+			Message string `json:"message"`
+			Address string `json:"address"`
+		}
+	}
+	resp := response{}
+	err := l.SendAuthenticatedHTTPRequest("POST", LOCALBITCOINS_API_WALLET_ADDRESS, nil, &resp)
+	if err != nil {
+		return "", err
+	}
+
+	if resp.Data.Message != "OK!" {
+		return "", errors.New("Unable to fetch wallet address.")
+	}
+
+	return resp.Data.Address, nil
 }
 
 func (l *LocalBitcoins) SendAuthenticatedHTTPRequest(method, path string, values url.Values, result interface{}) (err error) {
 	nonce := strconv.FormatInt(time.Now().UnixNano(), 10)
-	payload := values.Encode()
-	message := nonce + l.APIKey + path + payload
+	payload := ""
+	path = "/api/" + path
+
+	if len(values) > 0 {
+		payload = values.Encode()
+	}
+
+	message := string(nonce) + l.APIKey + path + payload
 	hmac := GetHMAC(HASH_SHA256, []byte(message), []byte(l.APISecret))
 	headers := make(map[string]string)
 	headers["Apiauth-Key"] = l.APIKey
-	headers["Apiauth-Nonce"] = nonce
+	headers["Apiauth-Nonce"] = string(nonce)
 	headers["Apiauth-Signature"] = StringToUpper(HexEncodeToString(hmac))
 	headers["Content-Type"] = "application/x-www-form-urlencoded"
 
-	resp, err := SendHTTPRequest(method, LOCALBITCOINS_API_URL+"api/"+path, headers, bytes.NewBuffer([]byte(payload)))
+	resp, err := SendHTTPRequest(method, LOCALBITCOINS_API_URL+path, headers, bytes.NewBuffer([]byte(payload)))
 
 	if l.Verbose {
 		log.Printf("Recieved raw: \n%s\n", resp)
