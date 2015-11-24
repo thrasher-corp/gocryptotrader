@@ -2,8 +2,10 @@ package main
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"log"
+	"net/url"
 	"strconv"
 	"time"
 )
@@ -18,6 +20,7 @@ const (
 	BTCMARKETS_ORDER_OPEN          = "/order/open"
 	BTCMARKETS_ORDER_TRADE_HISTORY = "/order/trade/history"
 	BTCMARKETS_ORDER_DETAIL        = "/order/detail"
+	BTCMARKETS_SATOSHI_PER_BTC     = 100000000
 )
 
 type BTCMarkets struct {
@@ -68,19 +71,20 @@ type BTCMarketsTradeResponse struct {
 	Fee          float64 `json:"fee"`
 }
 
-type BTCMarketsOrderResponse struct {
-	ID              float64 `json:"id"`
-	Currency        string  `json:"currency"`
-	Instrument      string  `json:"instrument"`
-	OrderSide       string  `json:"orderSide"`
-	OrderType       string  `json:"ordertype"`
-	CreationTime    float64 `json:"creationTime"`
-	Status          string  `json:"status"`
-	ErrorMessage    string  `json:"errorMessage"`
-	Price           float64 `json:"price"`
-	Volume          float64 `json:"volume"`
-	OpenVolume      float64 `json:"openVolume"`
-	ClientRequestId string  `json:"clientRequestId"`
+type BTCMarketsOrder struct {
+	ID              int64                     `json:"id"`
+	Currency        string                    `json:"currency"`
+	Instrument      string                    `json:"instrument"`
+	OrderSide       string                    `json:"orderSide"`
+	OrderType       string                    `json:"ordertype"`
+	CreationTime    float64                   `json:"creationTime"`
+	Status          string                    `json:"status"`
+	ErrorMessage    string                    `json:"errorMessage"`
+	Price           float64                   `json:"price"`
+	Volume          float64                   `json:"volume"`
+	OpenVolume      float64                   `json:"openVolume"`
+	ClientRequestId string                    `json:"clientRequestId"`
+	Trades          []BTCMarketsTradeResponse `json:"trades"`
 }
 
 func (b *BTCMarkets) SetDefaults() {
@@ -174,15 +178,10 @@ func (b *BTCMarkets) GetOrderbook(symbol string) (BTCMarketsOrderbook, error) {
 	return orderbook, nil
 }
 
-func (b *BTCMarkets) GetTrades(symbol, since string) ([]BTCMarketsTrade, error) {
+func (b *BTCMarkets) GetTrades(symbol string, values url.Values) ([]BTCMarketsTrade, error) {
 	trades := []BTCMarketsTrade{}
-	path := ""
-	if len(since) > 0 {
-		path = fmt.Sprintf("/market/%s/AUD/trades?since=%s", symbol, since)
-	} else {
-		path = fmt.Sprintf("/market/%s/AUD/trades", symbol)
-	}
-	err := SendHTTPGetRequest(BTCMARKETS_API_URL+path, true, &trades)
+	path := EncodeURLValues(fmt.Sprintf("%s/market/%s/AUD/trades", BTCMARKETS_API_URL, symbol), values)
+	err := SendHTTPGetRequest(path, true, &trades)
 	if err != nil {
 		return nil, err
 	}
@@ -202,16 +201,11 @@ func (b *BTCMarkets) Order(currency, instrument string, price, amount int64, ord
 	order := Order{}
 	order.Currency = currency
 	order.Instrument = instrument
-	order.Price = price
-	order.Volume = amount
+	order.Price = price * BTCMARKETS_SATOSHI_PER_BTC
+	order.Volume = amount * BTCMARKETS_SATOSHI_PER_BTC
 	order.OrderSide = orderSide
 	order.OrderType = orderType
 	order.ClientRequestId = clientReq
-
-	JSONPayload, err := JSONEncode(order)
-	if err != nil {
-		return 0, err
-	}
 
 	type Response struct {
 		Success         bool   `json:"success"`
@@ -222,7 +216,7 @@ func (b *BTCMarkets) Order(currency, instrument string, price, amount int64, ord
 	}
 	var resp Response
 
-	err = b.SendAuthenticatedRequest("POST", BTCMARKETS_ORDER_CREATE, JSONPayload, &resp)
+	err := b.SendAuthenticatedRequest("POST", BTCMARKETS_ORDER_CREATE, order, &resp)
 
 	if err != nil {
 		return 0, err
@@ -241,11 +235,6 @@ func (b *BTCMarkets) CancelOrder(orderID []int64) (bool, error) {
 	orders := CancelOrder{}
 	orders.OrderIDs = append(orders.OrderIDs, orderID...)
 
-	JSONPayload, err := JSONEncode(orders)
-	if err != nil {
-		return false, err
-	}
-
 	type Response struct {
 		Success      bool   `json:"success"`
 		ErrorCode    int    `json:"errorCode"`
@@ -260,7 +249,7 @@ func (b *BTCMarkets) CancelOrder(orderID []int64) (bool, error) {
 	}
 	var resp Response
 
-	err = b.SendAuthenticatedRequest("POST", BTCMARKETS_ORDER_CANCEL, JSONPayload, &resp)
+	err := b.SendAuthenticatedRequest("POST", BTCMARKETS_ORDER_CANCEL, orders, &resp)
 
 	if err != nil {
 		return false, err
@@ -288,72 +277,123 @@ func (b *BTCMarkets) CancelOrder(orderID []int64) (bool, error) {
 	}
 }
 
-func (b *BTCMarkets) GetOrders(currency, instrument string, limit, since int64, historic bool) {
+func (b *BTCMarkets) GetOrders(currency, instrument string, limit, since int64, historic bool) ([]BTCMarketsOrder, error) {
 	request := make(map[string]interface{})
 	request["currency"] = currency
 	request["instrument"] = instrument
 	request["limit"] = limit
 	request["since"] = since
 
-	JSONPayload, err := JSONEncode(request)
-	if err != nil {
-		log.Println(err)
-		return
-	}
-
 	path := BTCMARKETS_ORDER_OPEN
 	if historic {
 		path = BTCMARKETS_ORDER_HISTORY
 	}
 
-	err = b.SendAuthenticatedRequest("POST", path, JSONPayload, nil)
+	type response struct {
+		Success      bool              `json:"success"`
+		ErrorCode    int               `json:"errorCode"`
+		ErrorMessage string            `json:"errorMessage"`
+		Orders       []BTCMarketsOrder `json:"orders"`
+	}
+
+	resp := response{}
+	err := b.SendAuthenticatedRequest("POST", path, request, &resp)
 
 	if err != nil {
-		log.Println(err)
+		return nil, err
 	}
+
+	if !resp.Success {
+		return nil, errors.New(resp.ErrorMessage)
+	}
+
+	for i := range resp.Orders {
+		resp.Orders[i].Price = resp.Orders[i].Price / BTCMARKETS_SATOSHI_PER_BTC
+		resp.Orders[i].OpenVolume = resp.Orders[i].OpenVolume / BTCMARKETS_SATOSHI_PER_BTC
+		resp.Orders[i].Volume = resp.Orders[i].Volume / BTCMARKETS_SATOSHI_PER_BTC
+
+		for x := range resp.Orders[i].Trades {
+			resp.Orders[i].Trades[x].Fee = resp.Orders[i].Trades[x].Fee / BTCMARKETS_SATOSHI_PER_BTC
+			resp.Orders[i].Trades[x].Price = resp.Orders[i].Trades[x].Price / BTCMARKETS_SATOSHI_PER_BTC
+			resp.Orders[i].Trades[x].Volume = resp.Orders[i].Trades[x].Volume / BTCMARKETS_SATOSHI_PER_BTC
+		}
+	}
+	return resp.Orders, nil
 }
 
-func (b *BTCMarkets) GetOrderDetail(orderID []int64) {
+func (b *BTCMarkets) GetOrderDetail(orderID []int64) ([]BTCMarketsOrder, error) {
 	type OrderDetail struct {
 		OrderIDs []int64 `json:"orderIds"`
 	}
 	orders := OrderDetail{}
 	orders.OrderIDs = append(orders.OrderIDs, orderID...)
 
-	JSONPayload, err := JSONEncode(orders)
-	if err != nil {
-		log.Println(err)
-		return
+	type response struct {
+		Success      bool              `json:"success"`
+		ErrorCode    int               `json:"errorCode"`
+		ErrorMessage string            `json:"errorMessage"`
+		Orders       []BTCMarketsOrder `json:"orders"`
 	}
 
-	err = b.SendAuthenticatedRequest("POST", BTCMARKETS_ORDER_DETAIL, JSONPayload, nil)
+	resp := response{}
+	err := b.SendAuthenticatedRequest("POST", BTCMARKETS_ORDER_DETAIL, orders, &resp)
 
 	if err != nil {
-		log.Println(err)
+		return nil, err
 	}
+
+	if !resp.Success {
+		return nil, errors.New(resp.ErrorMessage)
+	}
+
+	for i := range resp.Orders {
+		resp.Orders[i].Price = resp.Orders[i].Price / BTCMARKETS_SATOSHI_PER_BTC
+		resp.Orders[i].OpenVolume = resp.Orders[i].OpenVolume / BTCMARKETS_SATOSHI_PER_BTC
+		resp.Orders[i].Volume = resp.Orders[i].Volume / BTCMARKETS_SATOSHI_PER_BTC
+
+		for x := range resp.Orders[i].Trades {
+			resp.Orders[i].Trades[x].Fee = resp.Orders[i].Trades[x].Fee / BTCMARKETS_SATOSHI_PER_BTC
+			resp.Orders[i].Trades[x].Price = resp.Orders[i].Trades[x].Price / BTCMARKETS_SATOSHI_PER_BTC
+			resp.Orders[i].Trades[x].Volume = resp.Orders[i].Trades[x].Volume / BTCMARKETS_SATOSHI_PER_BTC
+		}
+	}
+	return resp.Orders, nil
 }
 
-func (b *BTCMarkets) GetAccountBalance() {
-	type Balance struct {
-		Balance      float64 `json:"balance"`
-		PendingFunds float64 `json:"pendingFunds"`
-		Currency     string  `json:"currency"`
-	}
+type BTCMarketsAccountBalance struct {
+	Balance      float64 `json:"balance"`
+	PendingFunds float64 `json:"pendingFunds"`
+	Currency     string  `json:"currency"`
+}
 
-	balance := []Balance{}
+func (b *BTCMarkets) GetAccountBalance() ([]BTCMarketsAccountBalance, error) {
+	balance := []BTCMarketsAccountBalance{}
 	err := b.SendAuthenticatedRequest("GET", BTCMARKETS_ACCOUNT_BALANCE, nil, &balance)
 
 	if err != nil {
-		log.Println(err)
+		return nil, err
 	}
+
+	for i := range balance {
+		if balance[i].Currency == "LTC" || balance[i].Currency == "BTC" {
+			balance[i].Balance = balance[i].Balance / BTCMARKETS_SATOSHI_PER_BTC
+			balance[i].PendingFunds = balance[i].PendingFunds / BTCMARKETS_SATOSHI_PER_BTC
+		}
+	}
+	return balance, nil
 }
 
-func (b *BTCMarkets) SendAuthenticatedRequest(reqType, path string, data []byte, result interface{}) error {
+func (b *BTCMarkets) SendAuthenticatedRequest(reqType, path string, data interface{}, result interface{}) (err error) {
 	nonce := strconv.FormatInt(time.Now().UnixNano(), 10)[0:13]
 	request := ""
+	payload := []byte("")
 
 	if data != nil {
-		request = path + "\n" + nonce + "\n" + string(data)
+		payload, err = JSONEncode(data)
+		if err != nil {
+			return err
+		}
+		request = path + "\n" + nonce + "\n" + string(payload)
 	} else {
 		request = path + "\n" + nonce + "\n"
 	}
@@ -372,7 +412,7 @@ func (b *BTCMarkets) SendAuthenticatedRequest(reqType, path string, data []byte,
 	headers["timestamp"] = nonce
 	headers["signature"] = Base64Encode(hmac)
 
-	resp, err := SendHTTPRequest(reqType, BTCMARKETS_API_URL+path, headers, bytes.NewBuffer(data))
+	resp, err := SendHTTPRequest(reqType, BTCMARKETS_API_URL+path, headers, bytes.NewBuffer(payload))
 
 	if err != nil {
 		return err
