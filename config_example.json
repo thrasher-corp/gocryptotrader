@@ -128,20 +128,6 @@
    "BaseCurrencies": "USD"
   },
   {
-   "Name": "DWVX",
-   "Enabled": false,
-   "Verbose": false,
-   "Websocket": false,
-   "RESTPollingDelay": 10,
-   "AuthenticatedAPISupport": false,
-   "APIKey": "Key",
-   "APISecret": "Secret",
-   "ClientID": "ClientID",
-   "AvailablePairs": "BTCAUD",
-   "EnabledPairs": "BTCAUD",
-   "BaseCurrencies": "AUD"
-  },
-  {
    "Name": "Gemini",
    "Enabled": true,
    "Verbose": false,

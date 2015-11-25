@@ -15,7 +15,6 @@ A cryptocurrency trading bot supporting multiple exchanges written in Golang.
 | BTCMarkets | Yes | NA       | NA  |
 | Coinbase | Yes | Yes | No|
 | Cryptsy | Yes | Yes | NA|
-| DWVX | Yes  | Yes        | NA  |
 | Gemini | Yes | NA | NA |
 | Huobi | Yes | Yes |No
 | ItBit | Yes | NA | NA |
