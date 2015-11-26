@@ -57,6 +57,7 @@ func main() {
 	}
 
 	log.Printf("Bot '%s' started.\n", bot.config.Name)
+	AdjustGoMaxProcs()
 
 	if bot.config.SMS.Enabled {
 		err = CheckSMSGlobalConfigValues()
@@ -90,7 +91,6 @@ func main() {
 		log.Println("HTTP Webserver support disabled.")
 	}
 
-	AdjustGoMaxProcs()
 	log.Printf("Available Exchanges: %d. Enabled Exchanges: %d.\n", len(bot.config.Exchanges), GetEnabledExchanges())
 	log.Println("Bot Exchange support:")
 
