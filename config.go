@@ -101,26 +101,21 @@ func UpdateExchangeConfig(e Exchanges) error {
 }
 
 func CheckSMSGlobalConfigValues() error {
-	if bot.config.SMS.Enabled {
-		if bot.config.SMS.Username == "" || bot.config.SMS.Username == "Username" || bot.config.SMS.Password == "" || bot.config.SMS.Password == "Password" {
-			bot.config.SMS.Enabled = false
-			return errors.New(WarningSMSGlobalDefaultOrEmptyValues)
-		}
-		contacts := 0
-		for i := range bot.config.SMS.Contacts {
-			if bot.config.SMS.Contacts[i].Enabled {
-				if bot.config.SMS.Contacts[i].Name == "" || bot.config.SMS.Contacts[i].Number == "" || (bot.config.SMS.Contacts[i].Name == "Bob" && bot.config.SMS.Contacts[i].Number == "12345") {
-					log.Printf(WarningSSMSGlobalSMSContactDefaultOrEmptyValues, i)
-					bot.config.SMS.Contacts[i].Enabled = false
-					continue
-				}
-				contacts++
+	if bot.config.SMS.Username == "" || bot.config.SMS.Username == "Username" || bot.config.SMS.Password == "" || bot.config.SMS.Password == "Password" {
+		return errors.New(WarningSMSGlobalDefaultOrEmptyValues)
+	}
+	contacts := 0
+	for i := range bot.config.SMS.Contacts {
+		if bot.config.SMS.Contacts[i].Enabled {
+			if bot.config.SMS.Contacts[i].Name == "" || bot.config.SMS.Contacts[i].Number == "" || (bot.config.SMS.Contacts[i].Name == "Bob" && bot.config.SMS.Contacts[i].Number == "12345") {
+				log.Printf(WarningSSMSGlobalSMSContactDefaultOrEmptyValues, i)
+				continue
 			}
+			contacts++
 		}
-		if contacts == 0 {
-			bot.config.SMS.Enabled = false
-			return errors.New(WarningSSMSGlobalSMSNoContacts)
-		}
+	}
+	if contacts == 0 {
+		return errors.New(WarningSSMSGlobalSMSNoContacts)
 	}
 	return nil
 }

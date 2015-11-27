@@ -56,16 +56,18 @@ func main() {
 		return
 	}
 
-	err = CheckSMSGlobalConfigValues()
-	if err != nil {
-		// non fatal event
-		log.Println(err)
-	}
-
 	log.Printf("Bot '%s' started.\n", bot.config.Name)
+
 	if bot.config.SMS.Enabled {
-		log.Printf("SMS support enabled. Number of SMS contacts %d.\n", GetEnabledSMSContacts())
-	} else {
+		err = CheckSMSGlobalConfigValues()
+		if err != nil {
+			log.Println(err) // non fatal event
+			bot.config.SMS.Enabled = false
+		} else {
+			log.Printf("SMS support enabled. Number of SMS contacts %d.\n", GetEnabledSMSContacts())
+		}
+	}
+	if !bot.config.SMS.Enabled {
 		log.Println("SMS support disabled.")
 	}
 
