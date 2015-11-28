@@ -69,6 +69,25 @@ func main() {
 		log.Println("SMS support disabled.")
 	}
 
+	if bot.config.Webserver.Enabled {
+		err := CheckWebserverValues()
+		if err != nil {
+			log.Println(err) // non fatal event
+			bot.config.Webserver.Enabled = false
+		} else {
+			log.Println("HTTP Webserver support enabled.")
+			err = StartWebserver()
+			if err != nil {
+				log.Println("Unable to start Webserver: ", err)
+			} else {
+				log.Printf("HTTP server enabled and running at http://%s:%d\n", GetWebserverHost(), GetWebserverPort())
+			}
+		}
+	}
+	if !bot.config.Webserver.Enabled {
+		log.Println("HTTP Webserver support disabled.")
+	}
+
 	AdjustGoMaxProcs()
 	log.Printf("Available Exchanges: %d. Enabled Exchanges: %d.\n", len(bot.config.Exchanges), GetEnabledExchanges())
 	log.Println("Bot Exchange support:")

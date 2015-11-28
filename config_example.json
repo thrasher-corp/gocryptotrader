@@ -14,6 +14,12 @@
    }
   ]
  },
+ "Webserver": {
+  "Enabled": false,
+  "AdminUsername": "admin",
+  "AdminPassword": "Password",
+  "ListenAddress": ":9050",
+  },
  "Exchanges": [
   {
    "Name": "ANX",

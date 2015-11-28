@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"strconv"
 	"time"
 )
 
@@ -25,7 +26,16 @@ var (
 	WarningSMSGlobalDefaultOrEmptyValues            = "WARNING -- SMS Support disabled due to default or empty Username/Password values."
 	WarningSSMSGlobalSMSContactDefaultOrEmptyValues = "WARNING -- SMS contact #%d Name/Number disabled due to default or empty values."
 	WarningSSMSGlobalSMSNoContacts                  = "WARNING -- SMS Support disabled due to no enabled contacts."
+	WarningWebserverCredentialValuesEmpty           = "WARNING -- Webserver support disabled due to empty Username/Password values."
+	WarningWebserverListenAddressInvalid            = "WARNING -- Webserver support disabled due to invalid listen address."
 )
+
+type Webserver struct {
+	Enabled       bool
+	AdminUsername string
+	AdminPassword string
+	ListenAddress string
+}
 
 type SMSGlobal struct {
 	Enabled  bool
@@ -42,6 +52,7 @@ type Config struct {
 	Name             string
 	Cryptocurrencies string
 	SMS              SMSGlobal `json:"SMSGlobal"`
+	Webserver        Webserver `json:"Webserver"`
 	Exchanges        []Exchanges
 }
 
@@ -152,6 +163,27 @@ func CheckExchangeConfigValues() error {
 	}
 	if exchanges == 0 {
 		return errors.New(ErrNoEnabledExchanges)
+	}
+	return nil
+}
+
+func CheckWebserverValues() error {
+	if bot.config.Webserver.AdminUsername == "" || bot.config.Webserver.AdminPassword == "" {
+		return errors.New(WarningWebserverCredentialValuesEmpty)
+	}
+
+	if !StringContains(bot.config.Webserver.ListenAddress, ":") {
+		return errors.New(WarningWebserverListenAddressInvalid)
+	}
+
+	portStr := SplitStrings(bot.config.Webserver.ListenAddress, ":")[1]
+	port, err := strconv.Atoi(portStr)
+	if err != nil {
+		return errors.New(WarningWebserverListenAddressInvalid)
+	}
+
+	if port < 0 || port > 65355 {
+		return errors.New(WarningWebserverListenAddressInvalid)
 	}
 	return nil
 }
