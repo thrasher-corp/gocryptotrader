@@ -15,6 +15,7 @@ type Exchange struct {
 	btcc          BTCC
 	bitstamp      Bitstamp
 	bitfinex      Bitfinex
+	brightonpeak  BrightonPeak
 	btce          BTCE
 	btcmarkets    BTCMarkets
 	coinbase      Coinbase
@@ -97,6 +98,7 @@ func main() {
 	bot.exchange.kraken.SetDefaults()
 	bot.exchange.btcc.SetDefaults()
 	bot.exchange.bitstamp.SetDefaults()
+	bot.exchange.brightonpeak.SetDefaults()
 	bot.exchange.bitfinex.SetDefaults()
 	bot.exchange.btce.SetDefaults()
 	bot.exchange.btcmarkets.SetDefaults()
@@ -180,6 +182,20 @@ func main() {
 				bot.exchange.bitfinex.AvailablePairs = SplitStrings(exch.AvailablePairs, ",")
 				bot.exchange.bitfinex.EnabledPairs = SplitStrings(exch.EnabledPairs, ",")
 				go bot.exchange.bitfinex.Run()
+			}
+		} else if bot.exchange.brightonpeak.GetName() == exch.Name {
+			if !exch.Enabled {
+				bot.exchange.brightonpeak.SetEnabled(false)
+			} else {
+				bot.exchange.brightonpeak.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
+				bot.exchange.brightonpeak.SetAPIKeys(exch.APIKey, exch.APISecret, exch.ClientID)
+				bot.exchange.brightonpeak.RESTPollingDelay = exch.RESTPollingDelay
+				bot.exchange.brightonpeak.Verbose = exch.Verbose
+				bot.exchange.brightonpeak.Websocket = exch.Websocket
+				bot.exchange.brightonpeak.BaseCurrencies = SplitStrings(exch.BaseCurrencies, ",")
+				bot.exchange.brightonpeak.AvailablePairs = SplitStrings(exch.AvailablePairs, ",")
+				bot.exchange.brightonpeak.EnabledPairs = SplitStrings(exch.EnabledPairs, ",")
+				go bot.exchange.brightonpeak.Run()
 			}
 		} else if bot.exchange.btce.GetName() == exch.Name {
 			if !exch.Enabled {

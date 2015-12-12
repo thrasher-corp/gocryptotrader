@@ -129,6 +129,13 @@ func (e *Event) CheckCondition() bool {
 		} else {
 			lastPrice = result.Last
 		}
+	} else if bot.exchange.brightonpeak.GetName() == e.Exchange {
+		result, err := bot.exchange.brightonpeak.GetTicker("BTCUSD")
+		if err != nil {
+			lastPrice = 0
+		} else {
+			lastPrice = result.Last
+		}
 	} else if bot.exchange.coinbase.GetName() == e.Exchange {
 		result, err := bot.exchange.coinbase.GetTicker("BTC-USD")
 		if err != nil {
@@ -267,6 +274,7 @@ func CheckEvents() {
 func IsValidExchange(Exchange string) bool {
 	if bot.exchange.bitfinex.GetName() == Exchange && bot.exchange.bitfinex.IsEnabled() ||
 		bot.exchange.bitstamp.GetName() == Exchange && bot.exchange.bitstamp.IsEnabled() ||
+		bot.exchange.brightonpeak.GetName() == Exchange && bot.exchange.brightonpeak.IsEnabled() ||
 		bot.exchange.btcc.GetName() == Exchange && bot.exchange.btcc.IsEnabled() ||
 		bot.exchange.btce.GetName() == Exchange && bot.exchange.btce.IsEnabled() ||
 		bot.exchange.btcmarkets.GetName() == Exchange && bot.exchange.btcmarkets.IsEnabled() ||
