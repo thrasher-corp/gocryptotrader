@@ -19,7 +19,6 @@ type Exchange struct {
 	btce          BTCE
 	btcmarkets    BTCMarkets
 	coinbase      Coinbase
-	cryptsy       Cryptsy
 	gemini        Gemini
 	okcoinChina   OKCoin
 	okcoinIntl    OKCoin
@@ -103,7 +102,6 @@ func main() {
 	bot.exchange.btce.SetDefaults()
 	bot.exchange.btcmarkets.SetDefaults()
 	bot.exchange.coinbase.SetDefaults()
-	bot.exchange.cryptsy.SetDefaults()
 	bot.exchange.gemini.SetDefaults()
 	bot.exchange.okcoinChina.SetURL(OKCOIN_API_URL_CHINA)
 	bot.exchange.okcoinChina.SetDefaults()
@@ -238,20 +236,6 @@ func main() {
 				bot.exchange.coinbase.AvailablePairs = SplitStrings(exch.AvailablePairs, ",")
 				bot.exchange.coinbase.EnabledPairs = SplitStrings(exch.EnabledPairs, ",")
 				go bot.exchange.coinbase.Run()
-			}
-		} else if bot.exchange.cryptsy.GetName() == exch.Name {
-			if !exch.Enabled {
-				bot.exchange.cryptsy.SetEnabled(false)
-			} else {
-				bot.exchange.cryptsy.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
-				bot.exchange.cryptsy.SetAPIKeys(exch.APIKey, exch.APISecret)
-				bot.exchange.cryptsy.RESTPollingDelay = exch.RESTPollingDelay
-				bot.exchange.cryptsy.Verbose = exch.Verbose
-				bot.exchange.cryptsy.Websocket = exch.Websocket
-				bot.exchange.cryptsy.BaseCurrencies = SplitStrings(exch.BaseCurrencies, ",")
-				bot.exchange.cryptsy.AvailablePairs = SplitStrings(exch.AvailablePairs, ",")
-				bot.exchange.cryptsy.EnabledPairs = SplitStrings(exch.EnabledPairs, ",")
-				go bot.exchange.cryptsy.Run()
 			}
 		} else if bot.exchange.gemini.GetName() == exch.Name {
 			if !exch.Enabled {

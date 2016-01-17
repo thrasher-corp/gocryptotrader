@@ -143,8 +143,6 @@ func (e *Event) CheckCondition() bool {
 		} else {
 			lastPrice = result.Price
 		}
-	} else if bot.exchange.cryptsy.GetName() == e.Exchange {
-		lastPrice = bot.exchange.cryptsy.Market["BTCUSD"].LastTrade.Price
 	} else if bot.exchange.lakebtc.GetName() == e.Exchange {
 		lastPrice = bot.exchange.lakebtc.GetTicker().CNY.Last
 	} else if bot.exchange.localbitcoins.GetName() == e.Exchange {
@@ -279,7 +277,6 @@ func IsValidExchange(Exchange string) bool {
 		bot.exchange.btce.GetName() == Exchange && bot.exchange.btce.IsEnabled() ||
 		bot.exchange.btcmarkets.GetName() == Exchange && bot.exchange.btcmarkets.IsEnabled() ||
 		bot.exchange.coinbase.GetName() == Exchange && bot.exchange.coinbase.IsEnabled() ||
-		bot.exchange.cryptsy.GetName() == Exchange && bot.exchange.cryptsy.IsEnabled() ||
 		bot.exchange.huobi.GetName() == Exchange && bot.exchange.huobi.IsEnabled() ||
 		bot.exchange.itbit.GetName() == Exchange && bot.exchange.itbit.IsEnabled() ||
 		bot.exchange.kraken.GetName() == Exchange && bot.exchange.kraken.IsEnabled() ||
