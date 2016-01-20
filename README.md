@@ -1,3 +1,5 @@
+[![Coverage Status](https://coveralls.io/repos/github/thrasher-/gocryptotrader/badge.svg?branch=master)](https://coveralls.io/github/thrasher-/gocryptotrader?branch=master)
+
 A cryptocurrency trading bot supporting multiple exchanges written in Golang. 
 
 **Please note that this bot is under development and is not ready for production!**
