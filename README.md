@@ -1,3 +1,8 @@
+## Cryptocurrency trading bot written in Golang
+
+[![Build Status](https://travis-ci.org/thrasher-/gocryptotrader.svg?branch=master)](https://travis-ci.org/thrasher-/gocryptotrader)
+[![Coverage Status](https://coveralls.io/repos/github/thrasher-/gocryptotrader/badge.svg?branch=master)](https://coveralls.io/github/thrasher-/gocryptotrader?branch=master)
+
 A cryptocurrency trading bot supporting multiple exchanges written in Golang. 
 
 **Please note that this bot is under development and is not ready for production!**
@@ -14,7 +19,6 @@ A cryptocurrency trading bot supporting multiple exchanges written in Golang.
 | BTCE     | Yes  | NA        | NA  |
 | BTCMarkets | Yes | NA       | NA  |
 | Coinbase | Yes | Yes | No|
-| Cryptsy | Yes | Yes | NA|
 | Gemini | Yes | NA | NA |
 | Huobi | Yes | Yes |No
 | ItBit | Yes | NA | NA |
