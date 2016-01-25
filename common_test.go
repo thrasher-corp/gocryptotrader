@@ -54,3 +54,13 @@ func TestGetSHA256(t *testing.T) {
 		t.Error(fmt.Sprintf("Test failed. Expected '%x'. Actual '%x'", expectedOutput, []byte(actualStr)))
 	}
 }
+
+func TestStringToLower(t *testing.T) {
+	t.Parallel()
+	upperCaseString := "HEY MAN"
+	expectedResult := "hey man"
+	actualResult := StringToLower(upperCaseString)
+	if actualResult != expectedResult {
+		t.Error("...")
+	}
+}
