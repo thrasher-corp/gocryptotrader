@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"fmt"
+	"reflect"
 	"testing"
 )
 
@@ -62,5 +63,146 @@ func TestStringToLower(t *testing.T) {
 	actualResult := StringToLower(upperCaseString)
 	if actualResult != expectedResult {
 		t.Error("...")
+	}
+}
+
+func TestStringToUpper(t *testing.T) {
+	t.Parallel()
+	upperCaseString := "hey man"
+	expectedResult := "HEY MAN"
+	actualResult := StringToUpper(upperCaseString)
+	if actualResult != expectedResult {
+		t.Error("...")
+	}
+}
+
+func TestHexEncodeToString(t *testing.T) {
+	t.Parallel()
+	originalInput := []byte("string")
+	expectedOutput := "737472696e67"
+	actualResult := HexEncodeToString(originalInput)
+	if actualResult != expectedOutput {
+		t.Error(fmt.Sprintf("Test failed. Expected '%s'. Actual '%s'", expectedOutput, actualResult))
+	}
+}
+
+func TestBase64Decode(t *testing.T) {
+	t.Parallel()
+	originalInput := "aGVsbG8="
+	expectedOutput := []byte("hello")
+	actualResult, err := Base64Decode(originalInput)
+	if !bytes.Equal(actualResult, expectedOutput) {
+		t.Error(fmt.Sprintf("Test failed. Expected '%s'. Actual '%s'. Error: %s", expectedOutput, actualResult, err))
+	}
+}
+
+func TestBase64Encode(t *testing.T) {
+	t.Parallel()
+	originalInput := []byte("hello")
+	expectedOutput := "aGVsbG8="
+	actualResult := Base64Encode(originalInput)
+	if actualResult != expectedOutput {
+		t.Error(fmt.Sprintf("Test failed. Expected '%s'. Actual '%s'", expectedOutput, actualResult))
+	}
+}
+
+func TestStringSliceDifference(t *testing.T) {
+	t.Parallel()
+	originalInputOne := []string{"hello"}
+	originalInputTwo := []string{"moto"}
+	expectedOutput := []string{"hello moto"}
+	actualResult := StringSliceDifference(originalInputOne, originalInputTwo)
+	if reflect.DeepEqual(expectedOutput, actualResult) {
+		t.Error(fmt.Sprintf("Test failed. Expected '%s'. Actual '%s'", expectedOutput, actualResult))
+	}
+}
+
+func TestStringContains(t *testing.T) {
+	t.Parallel()
+	originalInput := "hello"
+	originalInputSubstring := "he"
+	expectedOutput := true
+	actualResult := StringContains(originalInput, originalInputSubstring)
+	if actualResult != expectedOutput {
+		t.Error(fmt.Sprintf("Test failed. Expected '%s'. Actual '%s'", expectedOutput, actualResult))
+	}
+}
+
+func TestJoinStrings(t *testing.T) {
+	t.Parallel()
+	originalInputOne := []string{"hello", "moto"}
+	seperator := ","
+	expectedOutput := "hello,moto"
+	actualResult := JoinStrings(originalInputOne, seperator)
+	if expectedOutput != actualResult {
+		t.Error(fmt.Sprintf("Test failed. Expected '%s'. Actual '%s'", expectedOutput, actualResult))
+	}
+}
+
+func TestSplitStrings(t *testing.T) {
+	t.Parallel()
+	originalInputOne := "hello,moto"
+	seperator := ","
+	expectedOutput := []string{"hello", "moto"}
+	actualResult := SplitStrings(originalInputOne, seperator)
+	if !reflect.DeepEqual(expectedOutput, actualResult) {
+		t.Error(fmt.Sprintf("Test failed. Expected '%s'. Actual '%s'", expectedOutput, actualResult))
+	}
+}
+
+func TestRoundFloat(t *testing.T) {
+	t.Parallel()
+	originalInput := float64(1.4545445445)
+	precisionInput := 2
+	expectedOutput := float64(1.45)
+	actualResult := RoundFloat(originalInput, precisionInput)
+	if expectedOutput != actualResult {
+		t.Error(fmt.Sprintf("Test failed. Expected '%f'. Actual '%f'.", expectedOutput, actualResult))
+	}
+}
+
+func TestCalculateFee(t *testing.T) {
+	t.Parallel()
+	originalInput := float64(1)
+	fee := float64(1)
+	expectedOutput := float64(0.01)
+	actualResult := CalculateFee(originalInput, fee)
+	if expectedOutput != actualResult {
+		t.Error(fmt.Sprintf("Test failed. Expected '%f'. Actual '%f'.", expectedOutput, actualResult))
+	}
+}
+
+func TestCalculateAmountWithFee(t *testing.T) {
+	t.Parallel()
+	originalInput := float64(1)
+	fee := float64(1)
+	expectedOutput := float64(1.01)
+	actualResult := CalculateAmountWithFee(originalInput, fee)
+	if expectedOutput != actualResult {
+		t.Error(fmt.Sprintf("Test failed. Expected '%f'. Actual '%f'.", expectedOutput, actualResult))
+	}
+}
+
+func TestCalculatePercentageDifference(t *testing.T) {
+	t.Parallel()
+	originalInput := float64(5)
+	secondAmount := float64(10)
+	expectedOutput := float64(100)
+	actualResult := CalculatePercentageDifference(originalInput, secondAmount)
+	if expectedOutput != actualResult {
+		t.Error(fmt.Sprintf("Test failed. Expected '%f'. Actual '%f'.", expectedOutput, actualResult))
+	}
+}
+
+func TestCalculateNetProfit(t *testing.T) {
+	t.Parallel()
+	amount := float64(5)
+	priceThen := float64(1)
+	priceNow := float64(10)
+	costs := float64(1)
+	expectedOutput := float64(44)
+	actualResult := CalculateNetProfit(amount, priceThen, priceNow, costs)
+	if expectedOutput != actualResult {
+		t.Error(fmt.Sprintf("Test failed. Expected '%f'. Actual '%f'.", expectedOutput, actualResult))
 	}
 }
