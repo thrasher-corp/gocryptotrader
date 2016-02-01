@@ -177,7 +177,7 @@ func CheckWebserverValues() error {
 		return errors.New(WarningWebserverListenAddressInvalid)
 	}
 
-	if port < 0 || port > 65355 {
+	if port < 1 || port > 65355 {
 		return errors.New(WarningWebserverListenAddressInvalid)
 	}
 	return nil
