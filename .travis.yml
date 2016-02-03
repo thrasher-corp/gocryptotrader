@@ -5,5 +5,5 @@ go:
 
 install:
  - go get github.com/gorilla/websocket
- - go get github.com/thrasher-/go-pusher
+ - go get github.com/toorop/go-pusher
  - go get github.com/thrasher-/socketio

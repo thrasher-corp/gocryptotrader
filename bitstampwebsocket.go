@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/thrasher-/go-pusher"
+	"github.com/toorop/go-pusher"
 	"log"
 )
 
