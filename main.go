@@ -25,6 +25,7 @@ type Exchange struct {
 	itbit         ItBit
 	lakebtc       LakeBTC
 	localbitcoins LocalBitcoins
+	poloniex      Poloniex
 	huobi         HUOBI
 	kraken        Kraken
 }
@@ -110,6 +111,7 @@ func main() {
 	bot.exchange.itbit.SetDefaults()
 	bot.exchange.lakebtc.SetDefaults()
 	bot.exchange.localbitcoins.SetDefaults()
+	bot.exchange.poloniex.SetDefaults()
 	bot.exchange.huobi.SetDefaults()
 
 	err = RetrieveConfigCurrencyPairs(bot.config)
@@ -334,6 +336,20 @@ func main() {
 				bot.exchange.localbitcoins.AvailablePairs = SplitStrings(exch.AvailablePairs, ",")
 				bot.exchange.localbitcoins.EnabledPairs = SplitStrings(exch.EnabledPairs, ",")
 				go bot.exchange.localbitcoins.Run()
+			}
+		} else if bot.exchange.poloniex.GetName() == exch.Name {
+			if !exch.Enabled {
+				bot.exchange.poloniex.SetEnabled(false)
+			} else {
+				bot.exchange.poloniex.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
+				bot.exchange.poloniex.SetAPIKeys(exch.APIKey, exch.APISecret)
+				bot.exchange.poloniex.RESTPollingDelay = exch.RESTPollingDelay
+				bot.exchange.poloniex.Verbose = exch.Verbose
+				bot.exchange.poloniex.Websocket = exch.Websocket
+				bot.exchange.poloniex.BaseCurrencies = SplitStrings(exch.BaseCurrencies, ",")
+				bot.exchange.poloniex.AvailablePairs = SplitStrings(exch.AvailablePairs, ",")
+				bot.exchange.poloniex.EnabledPairs = SplitStrings(exch.EnabledPairs, ",")
+				go bot.exchange.poloniex.Run()
 			}
 		} else if bot.exchange.huobi.GetName() == exch.Name {
 			if !exch.Enabled {

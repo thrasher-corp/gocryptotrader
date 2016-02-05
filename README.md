@@ -20,12 +20,13 @@ A cryptocurrency trading bot supporting multiple exchanges written in Golang.
 | BTCMarkets | Yes | NA       | NA  |
 | Coinbase | Yes | Yes | No|
 | Gemini | Yes | NA | NA |
-| Huobi | Yes | Yes |No
+| Huobi | Yes | Yes |No |
 | ItBit | Yes | NA | NA |
-| Kraken | Yes | NA | NA
-| LakeBTC | Yes | Yes | NA
-| LocalBitcoins | No | NA | NA
-|OKCoin (both) | Yes | Yes | No
+| Kraken | Yes | NA | NA |
+| LakeBTC | Yes | Yes | NA | 
+| LocalBitcoins | No | NA | NA |
+| OKCoin (both) | Yes | Yes | No |
+| Poloniex | Yes | No | NA |
 
 ** NA means not applicable as the Exchange does not support the feature.
 

@@ -170,6 +170,13 @@ func (e *Event) CheckCondition() bool {
 		lastPrice = bot.exchange.anx.GetTicker("BTCUSD").Data.Last.Value
 	} else if bot.exchange.kraken.GetName() == e.Exchange {
 		lastPrice = bot.exchange.kraken.Ticker["XBTUSD"].Last
+	} else if bot.exchange.poloniex.GetName() == e.Exchange {
+		result, err := bot.exchange.poloniex.GetTicker()
+		if err != nil {
+			lastPrice = 0
+		} else {
+			lastPrice = result["BTC_LTC"].Last
+		}
 	}
 
 	if lastPrice == 0 {
@@ -284,6 +291,7 @@ func IsValidExchange(Exchange string) bool {
 		bot.exchange.localbitcoins.GetName() == Exchange && bot.exchange.localbitcoins.IsEnabled() ||
 		bot.exchange.okcoinChina.GetName() == Exchange && bot.exchange.okcoinChina.IsEnabled() ||
 		bot.exchange.okcoinIntl.GetName() == Exchange && bot.exchange.okcoinIntl.IsEnabled() ||
+		bot.exchange.poloniex.GetName() == Exchange && bot.exchange.poloniex.IsEnabled() ||
 		bot.exchange.anx.GetName() == Exchange && bot.exchange.anx.IsEnabled() {
 		return true
 	}
