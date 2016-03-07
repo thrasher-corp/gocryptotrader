@@ -26,7 +26,7 @@ A cryptocurrency trading bot supporting multiple exchanges written in Golang.
 | LakeBTC | Yes | Yes | NA | 
 | LocalBitcoins | No | NA | NA |
 | OKCoin (both) | Yes | Yes | No |
-| Poloniex | Yes | No | NA |
+| Poloniex | Yes | Yes | NA |
 
 ** NA means not applicable as the Exchange does not support the feature.
 

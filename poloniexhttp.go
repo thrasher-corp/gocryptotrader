@@ -9,9 +9,8 @@ import (
 )
 
 const (
-	POLONIEX_API_URL           = "https://poloniex.com"
-	POLONIEX_WEBSOCKET_ADDRESS = "wss://api.poloniex.com"
-	POLONIEX_API_VERSION       = "1"
+	POLONIEX_API_URL     = "https://poloniex.com"
+	POLONIEX_API_VERSION = "1"
 )
 
 type Poloniex struct {
@@ -78,7 +77,7 @@ func (p *Poloniex) Run() {
 	}
 
 	if p.Websocket {
-		//go p.WebsocketClient()
+		go p.WebsocketClient()
 	}
 
 	for p.Enabled {
