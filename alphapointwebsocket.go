@@ -29,7 +29,7 @@ type AlphapointWebsocketTicker struct {
 }
 
 func (a *Alphapoint) WebsocketClient() {
-	for a.ExchangeEnanbled && a.WebsocketEnabled {
+	for a.ExchangeEnabled && a.WebsocketEnabled {
 		var Dialer websocket.Dialer
 		var err error
 		a.WebsocketConn, _, err = Dialer.Dial(a.WebsocketURL, http.Header{})
@@ -50,7 +50,7 @@ func (a *Alphapoint) WebsocketClient() {
 			return
 		}
 
-		for a.ExchangeEnanbled && a.WebsocketEnabled {
+		for a.ExchangeEnabled && a.WebsocketEnabled {
 			msgType, resp, err := a.WebsocketConn.ReadMessage()
 			if err != nil {
 				log.Println(err)

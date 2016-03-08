@@ -37,7 +37,7 @@ type Alphapoint struct {
 	WebsocketConn                     *websocket.Conn
 	WebsocketURL                      string
 	ExchangeName                      string
-	ExchangeEnanbled                  bool
+	ExchangeEnabled                   bool
 	WebsocketEnabled                  bool
 	Verbose                           bool
 	APIUrl, APIKey, UserID, APISecret string
