@@ -124,6 +124,10 @@ func SplitStrings(input, seperator string) []string {
 	return strings.Split(input, seperator)
 }
 
+func TrimString(input, cutset string) string {
+	return strings.Trim(input, cutset)
+}
+
 func StringToUpper(input string) string {
 	return strings.ToUpper(input)
 }
