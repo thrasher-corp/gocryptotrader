@@ -48,35 +48,61 @@ var (
 	ErrQueryingYahoo          = errors.New("Unable to query Yahoo currency values.")
 )
 
+func IsDefaultCurrency(currency string) bool {
+	return StringContains(DEFAULT_CURRENCIES, StringToUpper(currency))
+}
+
 func IsFiatCurrency(currency string) bool {
-	if StringContains(BaseCurrencies, StringToUpper(currency)) {
-		return true
-	}
-	return false
+	return StringContains(BaseCurrencies, StringToUpper(currency))
 }
 
 func IsCryptocurrency(currency string) bool {
-	if StringContains(bot.config.Cryptocurrencies, StringToUpper(currency)) {
-		return true
-	}
-	return false
+	return StringContains(bot.config.Cryptocurrencies, StringToUpper(currency))
 }
 
 func RetrieveConfigCurrencyPairs(config Config) error {
-	currencyPairs := SplitStrings(DEFAULT_CURRENCIES, ",")
+	var fiatCurrencies, cryptoCurrencies []string
 	for _, exchange := range config.Exchanges {
 		if exchange.Enabled {
-			currencies := SplitStrings(exchange.EnabledPairs, ",")
-			for _, x := range currencies {
-				currency := x[len(x)-3:]
-				if !StringContains(DEFAULT_CURRENCIES, currency) && !IsCryptocurrency(currency) {
-					currencyPairs = append(currencyPairs, currency)
+			enabledPairs := SplitStrings(exchange.EnabledPairs, ",")
+			baseCurrencies := SplitStrings(exchange.BaseCurrencies, ",")
+
+			for _, x := range baseCurrencies {
+				for _, y := range enabledPairs {
+					if StringContains(y, "_") {
+						pairs := SplitStrings(y, "_")
+						for _, z := range pairs {
+							if z != x && !IsCryptocurrency(z) {
+								cryptoCurrencies = append(cryptoCurrencies, z)
+							} else if z == x && !IsDefaultCurrency(x) {
+								fiatCurrencies = append(fiatCurrencies, x)
+							}
+						}
+					} else {
+						if StringContains(y, x) {
+							if !IsDefaultCurrency(x) {
+								fiatCurrencies = append(fiatCurrencies, x)
+							}
+							currency := TrimString(y, x)
+							if !IsCryptocurrency(currency) {
+								cryptoCurrencies = append(cryptoCurrencies, currency)
+							}
+						} else {
+							if !IsCryptocurrency(y[0:3]) {
+								cryptoCurrencies = append(cryptoCurrencies, y[0:3])
+							}
+							if !IsCryptocurrency(y[3:]) {
+								cryptoCurrencies = append(cryptoCurrencies, y[3:])
+							}
+						}
+					}
 				}
 			}
 		}
 	}
+	bot.config.Cryptocurrencies = JoinStrings(StringSliceDifference(SplitStrings(bot.config.Cryptocurrencies, ","), cryptoCurrencies), ",")
+	BaseCurrencies = JoinStrings(StringSliceDifference(SplitStrings(DEFAULT_CURRENCIES, ","), fiatCurrencies), ",")
 
-	BaseCurrencies = JoinStrings(currencyPairs, ",")
 	err := QueryYahooCurrencyValues(BaseCurrencies)
 
 	if err != nil {
@@ -107,7 +133,7 @@ func ConvertCurrency(amount float64, from, to string) (float64, error) {
 		return 0, ErrCurrencyDataNotFetched
 	}
 
-	currency := strings.ToUpper(from + to)
+	currency := StringToUpper(from + to)
 	for i := 0; i < CurrencyStore.Query.YahooJSONResponseInfo.Count; i++ {
 		if CurrencyStore.Query.Results.Rate[i].Id == currency {
 			return amount * CurrencyStore.Query.Results.Rate[i].Rate, nil
