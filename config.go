@@ -28,7 +28,7 @@ var (
 	WarningSSMSGlobalSMSNoContacts                  = "WARNING -- SMS Support disabled due to no enabled contacts."
 	WarningWebserverCredentialValuesEmpty           = "WARNING -- Webserver support disabled due to empty Username/Password values."
 	WarningWebserverListenAddressInvalid            = "WARNING -- Webserver support disabled due to invalid listen address."
-	WarningWebserverRootWebFolderInvalid            = "WARNING -- Webserver support disabled due to missing web folder."
+	WarningWebserverRootWebFolderNotFound           = "WARNING -- Webserver support disabled due to missing web folder."
 )
 
 type Webserver struct {
@@ -164,9 +164,9 @@ func CheckExchangeConfigValues() error {
 }
 
 func CheckWebserverValues() error {
-	_, err := ioutil.ReadDir("/web/")
+	_, err := ioutil.ReadDir("web/")
 	if err != nil {
-		return errors.New(WarningWebserverRootWebFolderInvalid)
+		return errors.New(WarningWebserverRootWebFolderNotFound)
 	}
 
 	if bot.config.Webserver.AdminUsername == "" || bot.config.Webserver.AdminPassword == "" {
