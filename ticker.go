@@ -39,11 +39,11 @@ func (t *Ticker) PriceToString(cryptoCurrency, fiatCurrency, priceType string) s
 	}
 }
 
-func AddTickerPrice(m map[string]map[string]TickerPrice, cyrptocurrency, fiatcurrency string, price TickerPrice) {
-	mm, ok := m[cyrptocurrency]
+func AddTickerPrice(m map[string]map[string]TickerPrice, cryptocurrency, fiatcurrency string, price TickerPrice) {
+	mm, ok := m[cryptocurrency]
 	if !ok {
 		mm = make(map[string]TickerPrice)
-		m[cyrptocurrency] = mm
+		m[cryptocurrency] = mm
 	}
 	mm[fiatcurrency] = price
 }
