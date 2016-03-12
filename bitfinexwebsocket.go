@@ -23,6 +23,7 @@ const (
 	BITFINEX_WEBSOCKET_ORDER_UPDATE      = "ou"
 	BITFINEX_WEBSOCKET_ORDER_CANCEL      = "oc"
 	BITFINEX_WEBSOCKET_TRADE_EXECUTED    = "te"
+	BITFINEX_WEBSOCKET_HEARTBEAT         = "hb"
 )
 
 type BitfinexWebsocketChanInfo struct {
@@ -247,6 +248,13 @@ func (b *Bitfinex) WebsocketClient() {
 					if !ok {
 						log.Println("Unable to locate chanID: %d", chanID)
 					} else {
+						if len(chanData) == 2 {
+							if reflect.TypeOf(chanData[1]).String() == "string" {
+								if chanData[1].(string) == BITFINEX_WEBSOCKET_HEARTBEAT {
+									continue
+								}
+							}
+						}
 						switch chanInfo.Channel {
 						case "book":
 							orderbook := []BitfinexWebsocketBook{}
