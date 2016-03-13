@@ -83,7 +83,7 @@ type ANXTicker struct {
 		Vwap       ANXTickerComponent `json:"vwap"`
 		Vol        ANXTickerComponent `json:"vol"`
 		Last       ANXTickerComponent `json:"last"`
-		Buy        ANXTickerComponent `json:buy"`
+		Buy        ANXTickerComponent `json:"buy"`
 		Sell       ANXTickerComponent `json:"sell"`
 		Now        float64            `json:"now"`
 		UpdateTime float64            `json:"dataUpdateTime"`
