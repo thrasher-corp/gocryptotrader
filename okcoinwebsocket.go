@@ -490,6 +490,12 @@ func (o *OKCoin) WebsocketClient() {
 						continue
 					}
 
+					if success == "true" {
+						if data == nil {
+							continue
+						}
+					}
+
 					dataJSON, err := JSONEncode(data)
 
 					if err != nil {
