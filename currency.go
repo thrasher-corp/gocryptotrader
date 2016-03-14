@@ -35,17 +35,19 @@ type YahooJSONResponse struct {
 }
 
 const (
-	YAHOO_YQL_URL      = "http://query.yahooapis.com/v1/public/yql"
-	YAHOO_DATABASE     = "store://datatables.org/alltableswithkeys"
-	DEFAULT_CURRENCIES = "USD,AUD,EUR,CNY"
+	MAX_CURRENCY_PAIRS_PER_REQUEST = 350
+	YAHOO_YQL_URL                  = "http://query.yahooapis.com/v1/public/yql"
+	YAHOO_DATABASE                 = "store://datatables.org/alltableswithkeys"
+	DEFAULT_CURRENCIES             = "USD,AUD,EUR,CNY"
 )
 
 var (
-	CurrencyStore             YahooJSONResponse
+	CurrencyStore             map[string]Rate
 	BaseCurrencies            string
 	ErrCurrencyDataNotFetched = errors.New("Yahoo currency data has not been fetched yet.")
 	ErrCurrencyNotFound       = errors.New("Unable to find specified currency.")
 	ErrQueryingYahoo          = errors.New("Unable to query Yahoo currency values.")
+	ErrQueryingYahooZeroCount = errors.New("Yahoo returned zero currency data.")
 )
 
 func IsDefaultCurrency(currency string) bool {
@@ -129,25 +131,18 @@ func MakecurrencyPairs(supportedCurrencies string) string {
 }
 
 func ConvertCurrency(amount float64, from, to string) (float64, error) {
-	if CurrencyStore.Query.YahooJSONResponseInfo.Count == 0 {
-		return 0, ErrCurrencyDataNotFetched
-	}
-
 	currency := StringToUpper(from + to)
-	for i := 0; i < CurrencyStore.Query.YahooJSONResponseInfo.Count; i++ {
-		if CurrencyStore.Query.Results.Rate[i].Id == currency {
-			return amount * CurrencyStore.Query.Results.Rate[i].Rate, nil
+	for x, y := range CurrencyStore {
+		if x == currency {
+			return amount * y.Rate, nil
 		}
 	}
 	return 0, ErrCurrencyNotFound
 }
 
-func QueryYahooCurrencyValues(currencies string) error {
-	currencyPairs := MakecurrencyPairs(currencies)
-	log.Printf("Supported currency pairs: %s\n", currencyPairs)
-
+func FetchYahooCurrencyData(currencyPairs []string) error {
 	values := url.Values{}
-	values.Set("q", fmt.Sprintf("SELECT * from yahoo.finance.xchange WHERE pair in (\"%s\")", currencyPairs))
+	values.Set("q", fmt.Sprintf("SELECT * from yahoo.finance.xchange WHERE pair in (\"%s\")", JoinStrings(currencyPairs, ",")))
 	values.Set("format", "json")
 	values.Set("env", YAHOO_DATABASE)
 
@@ -160,11 +155,53 @@ func QueryYahooCurrencyValues(currencies string) error {
 		return err
 	}
 
-	err = JSONDecode([]byte(resp), &CurrencyStore)
+	yahooResp := YahooJSONResponse{}
+	err = JSONDecode([]byte(resp), &yahooResp)
 
 	if err != nil {
 		return err
 	}
 
+	if yahooResp.Query.Count == 0 {
+		return ErrQueryingYahooZeroCount
+	}
+
+	for i := 0; i < yahooResp.Query.YahooJSONResponseInfo.Count; i++ {
+		CurrencyStore[yahooResp.Query.Results.Rate[i].Id] = yahooResp.Query.Results.Rate[i]
+	}
+
+	return nil
+}
+
+func QueryYahooCurrencyValues(currencies string) error {
+	CurrencyStore = make(map[string]Rate)
+	currencyPairs := SplitStrings(MakecurrencyPairs(currencies), ",")
+	log.Printf("%d fiat currency pairs generated. Fetching Yahoo currency data (this may take a minute)..\n", len(currencyPairs))
+	var err error
+	var pairs []string
+	index := 0
+
+	if len(currencyPairs) > MAX_CURRENCY_PAIRS_PER_REQUEST {
+		for index < len(currencyPairs) {
+			if len(currencyPairs)-index > MAX_CURRENCY_PAIRS_PER_REQUEST {
+				pairs = currencyPairs[index : index+MAX_CURRENCY_PAIRS_PER_REQUEST]
+				index += MAX_CURRENCY_PAIRS_PER_REQUEST
+			} else {
+				pairs = currencyPairs[index:len(currencyPairs)]
+				index += (len(currencyPairs) - index)
+			}
+			err = FetchYahooCurrencyData(pairs)
+			if err != nil {
+				return err
+			}
+		}
+	} else {
+		pairs = currencyPairs[index:len(currencyPairs)]
+		err = FetchYahooCurrencyData(pairs)
+
+		if err != nil {
+			return err
+		}
+	}
 	return nil
 }
