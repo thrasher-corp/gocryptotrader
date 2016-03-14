@@ -176,6 +176,25 @@ func (o *OKCoin) IsEnabled() bool {
 	return o.Enabled
 }
 
+func (o *OKCoin) Setup(exch Exchanges) {
+    if !exch.Enabled {
+        o.SetEnabled(false)
+    } else {
+        o.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
+        o.SetAPIKeys(exch.APIKey, exch.APISecret)
+        o.RESTPollingDelay = exch.RESTPollingDelay
+        o.Verbose = exch.Verbose
+        o.Websocket = exch.Websocket
+        o.BaseCurrencies = SplitStrings(exch.BaseCurrencies, ",")
+        o.AvailablePairs = SplitStrings(exch.AvailablePairs, ",")
+        o.EnabledPairs = SplitStrings(exch.EnabledPairs, ",")
+    }
+} 
+
+func (o *OKCoin) Start() {
+    go o.Run()
+}
+
 func (o *OKCoin) SetURL(url string) {
 	o.APIUrl = url
 }
