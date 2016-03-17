@@ -50,7 +50,7 @@ type ItBitTicker struct {
 
 func (i *ItBit) SetDefaults() {
 	i.Name = "ITBIT"
-	i.Enabled = true
+	i.Enabled = false
 	i.MakerFee = -0.10
 	i.TakerFee = 0.50
 	i.Verbose = false

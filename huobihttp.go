@@ -44,7 +44,7 @@ type HuobiTickerResponse struct {
 
 func (h *HUOBI) SetDefaults() {
 	h.Name = "Huobi"
-	h.Enabled = true
+	h.Enabled = false
 	h.Fee = 0
 	h.Verbose = false
 	h.Websocket = false

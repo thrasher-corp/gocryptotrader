@@ -184,7 +184,7 @@ type Bitfinex struct {
 
 func (b *Bitfinex) SetDefaults() {
 	b.Name = "Bitfinex"
-	b.Enabled = true
+	b.Enabled = false
 	b.Verbose = false
 	b.Websocket = false
 	b.RESTPollingDelay = 10

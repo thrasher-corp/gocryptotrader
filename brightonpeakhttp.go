@@ -27,7 +27,7 @@ type BrightonPeak struct {
 
 func (b *BrightonPeak) SetDefaults() {
 	b.Name = "Brighton Peak"
-	b.Enabled = true
+	b.Enabled = false
 	b.TakerFee = 0.5
 	b.MakerFee = 0.5
 	b.Verbose = false

@@ -59,7 +59,7 @@ type LakeBTCTickerResponse struct {
 
 func (l *LakeBTC) SetDefaults() {
 	l.Name = "LakeBTC"
-	l.Enabled = true
+	l.Enabled = false
 	l.TakerFee = 0.2
 	l.MakerFee = 0.15
 	l.Verbose = false

@@ -53,7 +53,7 @@ type Kraken struct {
 
 func (k *Kraken) SetDefaults() {
 	k.Name = "Kraken"
-	k.Enabled = true
+	k.Enabled = false
 	k.FiatFee = 0.35
 	k.CryptoFee = 0.10
 	k.Verbose = false

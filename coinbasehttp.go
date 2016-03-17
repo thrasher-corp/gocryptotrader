@@ -122,7 +122,7 @@ type CoinbaseHistory struct {
 
 func (c *Coinbase) SetDefaults() {
 	c.Name = "Coinbase"
-	c.Enabled = true
+	c.Enabled = false
 	c.Verbose = false
 	c.TakerFee = 0.25
 	c.MakerFee = 0

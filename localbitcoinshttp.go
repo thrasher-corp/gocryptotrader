@@ -39,7 +39,7 @@ type LocalBitcoins struct {
 
 func (l *LocalBitcoins) SetDefaults() {
 	l.Name = "LocalBitcoins"
-	l.Enabled = true
+	l.Enabled = false
 	l.Verbose = false
 	l.Verbose = false
 	l.Websocket = false

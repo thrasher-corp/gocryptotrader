@@ -70,7 +70,7 @@ type PoloniexTicker struct {
 
 func (p *Poloniex) SetDefaults() {
 	p.Name = "Poloniex"
-	p.Enabled = true
+	p.Enabled = false
 	p.Fee = 0
 	p.Verbose = false
 	p.Websocket = false

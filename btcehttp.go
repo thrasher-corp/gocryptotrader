@@ -79,7 +79,7 @@ type BTCEResponse struct {
 
 func (b *BTCE) SetDefaults() {
 	b.Name = "BTCE"
-	b.Enabled = true
+	b.Enabled = false
 	b.Fee = 0.2
 	b.Verbose = false
 	b.Websocket = false

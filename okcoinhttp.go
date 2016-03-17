@@ -157,7 +157,7 @@ func (o *OKCoin) SetDefaults() {
 		o.Name = "OKCOIN China"
 		o.WebsocketURL = OKCOIN_WEBSOCKET_URL_CHINA
 	}
-	o.Enabled = true
+	o.Enabled = false
 	o.Verbose = false
 	o.Websocket = false
 	o.RESTPollingDelay = 10

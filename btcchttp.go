@@ -174,7 +174,7 @@ type BTCCStopOrder struct {
 
 func (b *BTCC) SetDefaults() {
 	b.Name = "BTCC"
-	b.Enabled = true
+	b.Enabled = false
 	b.Fee = 0
 	b.Verbose = false
 	b.Websocket = false

@@ -88,7 +88,7 @@ type BTCMarketsOrder struct {
 
 func (b *BTCMarkets) SetDefaults() {
 	b.Name = "BTC Markets"
-	b.Enabled = true
+	b.Enabled = false
 	b.Fee = 0.85
 	b.Verbose = false
 	b.Websocket = false
@@ -112,7 +112,7 @@ func (b *BTCMarkets) Setup(exch Exchanges) {
 	if !exch.Enabled {
 		b.SetEnabled(false)
 	} else {
-		b.Enabled = true
+		b.Enabled = false
 		b.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
 		b.SetAPIKeys(exch.APIKey, exch.APISecret)
 		b.RESTPollingDelay = exch.RESTPollingDelay

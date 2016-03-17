@@ -103,7 +103,7 @@ type GeminiBalance struct {
 
 func (g *Gemini) SetDefaults() {
 	g.Name = "Gemini"
-	g.Enabled = true
+	g.Enabled = false
 	g.Verbose = false
 	g.Websocket = false
 	g.RESTPollingDelay = 10

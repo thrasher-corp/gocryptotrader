@@ -92,7 +92,7 @@ type ANXTicker struct {
 
 func (a *ANX) SetDefaults() {
 	a.Name = "ANX"
-	a.Enabled = true
+	a.Enabled = false
 	a.TakerFee = 0.6
 	a.MakerFee = 0.3
 	a.Verbose = false
