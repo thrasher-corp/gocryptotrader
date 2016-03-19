@@ -31,30 +31,27 @@ type Exchange struct {
 }
 
 type Bot struct {
-	config   Config
-	exchange Exchange
-    exchanges []IBotExchange
-	shutdown chan bool
+	config    Config
+	exchange  Exchange
+	exchanges []IBotExchange
+	shutdown  chan bool
 }
 
 var bot Bot
 
 func SetupBotConfiguration(s IBotExchange, exch Exchanges) {
-    if(s.GetName() == exch.Name) {
-        if(s.IsEnabled()) {
-  	        log.Println("Bot " + s.GetName() + " is enabled, starting")
-            s.Start()
-        }
-    }
+	s.Setup(exch)
+	if s.GetName() == exch.Name {
+		if s.IsEnabled() {
+			log.Printf("%s: Exchange support: %s (Authenticated API support: %s - Verbose mode: %s).\n", exch.Name, IsEnabled(exch.Enabled), IsEnabled(exch.AuthenticatedAPISupport), IsEnabled(exch.Verbose))
+			s.Start()
+		} else {
+			log.Printf("%s: Exchange support: %s\n", exch.Name, IsEnabled(exch.Enabled))
+		}
+	}
 }
 
-
 func main() {
-    ///<Interface code>
-   //var anx ANX
-   //exchCfg := ExchangeConfig{Name: "ANX" }
-   
-    ///</Interface code>
 	HandleInterrupt()
 	log.Println("Loading config file config.json..")
 
@@ -110,32 +107,36 @@ func main() {
 	log.Printf("Available Exchanges: %d. Enabled Exchanges: %d.\n", len(bot.config.Exchanges), GetEnabledExchanges())
 	log.Println("Bot Exchange support:")
 
+	bot.exchange.okcoinIntl.APIUrl = OKCOIN_API_URL
+	bot.exchange.okcoinChina.APIUrl = OKCOIN_API_URL_CHINA
+
 	bot.exchanges = []IBotExchange{
-        &bot.exchange.anx,
-        &bot.exchange.kraken,
-        &bot.exchange.btcc,
-        &bot.exchange.bitstamp,
-        &bot.exchange.brightonpeak,
-        &bot.exchange.bitfinex,
-        &bot.exchange.btce,
-        &bot.exchange.btcmarkets,
-        &bot.exchange.coinbase,
-        &bot.exchange.gemini,
-        &bot.exchange.okcoinChina,
-        &bot.exchange.okcoinIntl,
-        &bot.exchange.itbit,
-        &bot.exchange.lakebtc,
-        &bot.exchange.localbitcoins,
-        &bot.exchange.poloniex,
-        &bot.exchange.huobi,
-    }
-     for i := 0; i < len(bot.exchanges); i++ {
-            if(bot.exchanges[i] != nil) {
-                bot.exchanges[i].SetDefaults()
-		        log.Println("Bot: %s successfully set defaults", bot.exchanges[i].GetName())
-            }
-        }
-    
+		&bot.exchange.anx,
+		&bot.exchange.kraken,
+		&bot.exchange.btcc,
+		&bot.exchange.bitstamp,
+		&bot.exchange.brightonpeak,
+		&bot.exchange.bitfinex,
+		&bot.exchange.btce,
+		&bot.exchange.btcmarkets,
+		&bot.exchange.coinbase,
+		&bot.exchange.gemini,
+		&bot.exchange.okcoinChina,
+		&bot.exchange.okcoinIntl,
+		&bot.exchange.itbit,
+		&bot.exchange.lakebtc,
+		&bot.exchange.localbitcoins,
+		&bot.exchange.poloniex,
+		&bot.exchange.huobi,
+	}
+
+	for i := 0; i < len(bot.exchanges); i++ {
+		if bot.exchanges[i] != nil {
+			bot.exchanges[i].SetDefaults()
+			log.Printf("Exchange %s successfully set default settings.\n", bot.exchanges[i].GetName())
+		}
+	}
+
 	err = RetrieveConfigCurrencyPairs(bot.config)
 
 	if err != nil {
@@ -143,17 +144,11 @@ func main() {
 	}
 
 	for _, exch := range bot.config.Exchanges {
-		if exch.Enabled {
-			log.Printf("%s: Exchange support: %s (Authenticated API support: %s - Verbose mode: %s).\n", exch.Name, IsEnabled(exch.Enabled), IsEnabled(exch.AuthenticatedAPISupport), IsEnabled(exch.Verbose))
-		} else {
-			log.Printf("%s: Exchange support: %s\n", exch.Name, IsEnabled(exch.Enabled))
+		for i := 0; i < len(bot.exchanges); i++ {
+			if bot.exchanges[i] != nil {
+				SetupBotConfiguration(bot.exchanges[i], exch)
+			}
 		}
-        
-        for i := 0; i < len(bot.exchanges); i++ {
-            if(bot.exchanges[i] != nil) {
-                SetupBotConfiguration(bot.exchanges[i], exch)
-            }
-        }
 	}
 	<-bot.shutdown
 	Shutdown()

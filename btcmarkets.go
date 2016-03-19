@@ -109,23 +109,24 @@ func (b *BTCMarkets) IsEnabled() bool {
 }
 
 func (b *BTCMarkets) Setup(exch Exchanges) {
-    if !exch.Enabled {
-        b.SetEnabled(false)
-    } else {
-        b.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
-        b.SetAPIKeys(exch.APIKey, exch.APISecret)
-        b.RESTPollingDelay = exch.RESTPollingDelay
-        b.Verbose = exch.Verbose
-        b.Websocket = exch.Websocket
-        b.BaseCurrencies = SplitStrings(exch.BaseCurrencies, ",")
-        b.AvailablePairs = SplitStrings(exch.AvailablePairs, ",")
-        b.EnabledPairs = SplitStrings(exch.EnabledPairs, ",")
-        
-    }
+	if !exch.Enabled {
+		b.SetEnabled(false)
+	} else {
+		b.Enabled = true
+		b.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
+		b.SetAPIKeys(exch.APIKey, exch.APISecret)
+		b.RESTPollingDelay = exch.RESTPollingDelay
+		b.Verbose = exch.Verbose
+		b.Websocket = exch.Websocket
+		b.BaseCurrencies = SplitStrings(exch.BaseCurrencies, ",")
+		b.AvailablePairs = SplitStrings(exch.AvailablePairs, ",")
+		b.EnabledPairs = SplitStrings(exch.EnabledPairs, ",")
+
+	}
 }
 
-func(b *BTCMarkets) Start() {
-    go b.Run()
+func (b *BTCMarkets) Start() {
+	go b.Run()
 }
 
 func (b *BTCMarkets) SetAPIKeys(apiKey, apiSecret string) {

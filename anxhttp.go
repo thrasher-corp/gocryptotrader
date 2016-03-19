@@ -100,44 +100,27 @@ func (a *ANX) SetDefaults() {
 	a.RESTPollingDelay = 10
 }
 
-
-
-///<Interface code>
-func (a *ANX) InterfaceSetDefaults() {
-	a.Name = "ANX"
-	a.Enabled = true
-	a.TakerFee = 0.6
-	a.MakerFee = 0.3
-	a.Verbose = false
-	a.Websocket = false
-   println("This is working using interfaces")
-	a.RESTPollingDelay = 10
-}
-///</Interface code>
-
-
 //Setup is run on startup to setup exchange with config values
-func (a *ANX) Setup(exch Exchanges)  {
-    if !exch.Enabled {
-        a.SetEnabled(false)
-    } else {
-        a.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
-        a.SetAPIKeys(exch.APIKey, exch.APISecret)
-        a.RESTPollingDelay = exch.RESTPollingDelay
-        a.Verbose = exch.Verbose
-        a.Websocket = exch.Websocket
-        a.BaseCurrencies = SplitStrings(exch.BaseCurrencies, ",")
-        a.AvailablePairs = SplitStrings(exch.AvailablePairs, ",")
-        a.EnabledPairs = SplitStrings(exch.EnabledPairs, ",")
-    }
-}
-//Start is run if exchange is enabled, after Setup
-func(a *ANX) Start() {
-    if(a.Enabled) {
-        go a.Run()
-    }
+func (a *ANX) Setup(exch Exchanges) {
+	if !exch.Enabled {
+		a.SetEnabled(false)
+	} else {
+		a.Enabled = true
+		a.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
+		a.SetAPIKeys(exch.APIKey, exch.APISecret)
+		a.RESTPollingDelay = exch.RESTPollingDelay
+		a.Verbose = exch.Verbose
+		a.Websocket = exch.Websocket
+		a.BaseCurrencies = SplitStrings(exch.BaseCurrencies, ",")
+		a.AvailablePairs = SplitStrings(exch.AvailablePairs, ",")
+		a.EnabledPairs = SplitStrings(exch.EnabledPairs, ",")
+	}
 }
 
+//Start is run if exchange is enabled, after Setup
+func (a *ANX) Start() {
+	go a.Run()
+}
 
 func (a *ANX) GetName() string {
 	return a.Name
@@ -150,8 +133,6 @@ func (a *ANX) SetEnabled(enabled bool) {
 func (a *ANX) IsEnabled() bool {
 	return a.Enabled
 }
-
-
 
 func (a *ANX) SetAPIKeys(apiKey, apiSecret string) {
 	if !a.AuthenticatedAPISupport {

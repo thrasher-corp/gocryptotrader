@@ -79,25 +79,25 @@ func (l *LakeBTC) IsEnabled() bool {
 	return l.Enabled
 }
 
-func (l *LakeBTC)Setup(exch Exchanges) {
-    if !exch.Enabled {
-        l.SetEnabled(false)
-    } else {
-        l.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
-        l.SetAPIKeys(exch.APIKey, exch.APISecret)
-        l.RESTPollingDelay = exch.RESTPollingDelay
-        l.Verbose = exch.Verbose
-        l.Websocket = exch.Websocket
-        l.BaseCurrencies = SplitStrings(exch.BaseCurrencies, ",")
-        l.AvailablePairs = SplitStrings(exch.AvailablePairs, ",")
-        l.EnabledPairs = SplitStrings(exch.EnabledPairs, ",")
-    }
-} 
-
-func (l *LakeBTC) Start() {
-    go l.Run()
+func (l *LakeBTC) Setup(exch Exchanges) {
+	if !exch.Enabled {
+		l.SetEnabled(false)
+	} else {
+		l.Enabled = true
+		l.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
+		l.SetAPIKeys(exch.APIKey, exch.APISecret)
+		l.RESTPollingDelay = exch.RESTPollingDelay
+		l.Verbose = exch.Verbose
+		l.Websocket = exch.Websocket
+		l.BaseCurrencies = SplitStrings(exch.BaseCurrencies, ",")
+		l.AvailablePairs = SplitStrings(exch.AvailablePairs, ",")
+		l.EnabledPairs = SplitStrings(exch.EnabledPairs, ",")
+	}
 }
 
+func (l *LakeBTC) Start() {
+	go l.Run()
+}
 
 func (l *LakeBTC) SetAPIKeys(apiKey, apiSecret string) {
 	l.Email = apiKey

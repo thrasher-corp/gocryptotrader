@@ -122,22 +122,23 @@ func (g *Gemini) IsEnabled() bool {
 }
 
 func (g *Gemini) Setup(exch Exchanges) {
-    if !exch.Enabled {
-        g.SetEnabled(false)
-    } else {
-        g.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
-        g.SetAPIKeys(exch.APIKey, exch.APISecret)
-        g.RESTPollingDelay = exch.RESTPollingDelay
-        g.Verbose = exch.Verbose
-        g.Websocket = exch.Websocket
-        g.BaseCurrencies = SplitStrings(exch.BaseCurrencies, ",")
-        g.AvailablePairs = SplitStrings(exch.AvailablePairs, ",")
-        g.EnabledPairs = SplitStrings(exch.EnabledPairs, ",")
-    }
-} 
+	if !exch.Enabled {
+		g.SetEnabled(false)
+	} else {
+		g.Enabled = true
+		g.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
+		g.SetAPIKeys(exch.APIKey, exch.APISecret)
+		g.RESTPollingDelay = exch.RESTPollingDelay
+		g.Verbose = exch.Verbose
+		g.Websocket = exch.Websocket
+		g.BaseCurrencies = SplitStrings(exch.BaseCurrencies, ",")
+		g.AvailablePairs = SplitStrings(exch.AvailablePairs, ",")
+		g.EnabledPairs = SplitStrings(exch.EnabledPairs, ",")
+	}
+}
 
 func (g *Gemini) Start() {
-    go g.Run()
+	go g.Run()
 }
 
 func (g *Gemini) SetAPIKeys(apiKey, apiSecret string) {

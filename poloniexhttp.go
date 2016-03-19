@@ -87,24 +87,24 @@ func (p *Poloniex) IsEnabled() bool {
 	return p.Enabled
 }
 
-
 func (p *Poloniex) Setup(exch Exchanges) {
-    if !exch.Enabled {
-        p.SetEnabled(false)
-    } else {
-        p.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
-        p.SetAPIKeys(exch.APIKey, exch.APISecret)
-        p.RESTPollingDelay = exch.RESTPollingDelay
-        p.Verbose = exch.Verbose
-        p.Websocket = exch.Websocket
-        p.BaseCurrencies = SplitStrings(exch.BaseCurrencies, ",")
-        p.AvailablePairs = SplitStrings(exch.AvailablePairs, ",")
-        p.EnabledPairs = SplitStrings(exch.EnabledPairs, ",")
-    }
-} 
+	if !exch.Enabled {
+		p.SetEnabled(false)
+	} else {
+		p.Enabled = true
+		p.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
+		p.SetAPIKeys(exch.APIKey, exch.APISecret)
+		p.RESTPollingDelay = exch.RESTPollingDelay
+		p.Verbose = exch.Verbose
+		p.Websocket = exch.Websocket
+		p.BaseCurrencies = SplitStrings(exch.BaseCurrencies, ",")
+		p.AvailablePairs = SplitStrings(exch.AvailablePairs, ",")
+		p.EnabledPairs = SplitStrings(exch.EnabledPairs, ",")
+	}
+}
 
 func (p *Poloniex) Start() {
-    go p.Run()
+	go p.Run()
 }
 
 func (p *Poloniex) SetAPIKeys(apiKey, apiSecret string) {

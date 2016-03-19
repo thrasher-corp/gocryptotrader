@@ -183,22 +183,24 @@ func (b *BTCC) SetDefaults() {
 
 //Setup is run on startup to setup exchange with config values
 func (b *BTCC) Setup(exch Exchanges) {
-    if !exch.Enabled {
-        b.SetEnabled(false)
-    } else {
-        b.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
-        b.SetAPIKeys(exch.APIKey, exch.APISecret)
-        b.RESTPollingDelay = exch.RESTPollingDelay
-        b.Verbose = exch.Verbose
-        b.Websocket = exch.Websocket
-        b.BaseCurrencies = SplitStrings(exch.BaseCurrencies, ",")
-        b.AvailablePairs = SplitStrings(exch.AvailablePairs, ",")
-        b.EnabledPairs = SplitStrings(exch.EnabledPairs, ",")
-    }
+	if !exch.Enabled {
+		b.SetEnabled(false)
+	} else {
+		b.Enabled = true
+		b.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
+		b.SetAPIKeys(exch.APIKey, exch.APISecret)
+		b.RESTPollingDelay = exch.RESTPollingDelay
+		b.Verbose = exch.Verbose
+		b.Websocket = exch.Websocket
+		b.BaseCurrencies = SplitStrings(exch.BaseCurrencies, ",")
+		b.AvailablePairs = SplitStrings(exch.AvailablePairs, ",")
+		b.EnabledPairs = SplitStrings(exch.EnabledPairs, ",")
+	}
 }
+
 //Start is run if exchange is enabled, after Setup
-func(b *BTCC) Start() {
-    go b.Run()
+func (b *BTCC) Start() {
+	go b.Run()
 }
 
 func (b *BTCC) GetName() string {

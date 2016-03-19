@@ -146,7 +146,7 @@ func (b *Bitstamp) SetDefaults() {
 }
 
 func (b *Bitstamp) Start() {
-    go b.Run()
+	go b.Run()
 }
 
 func (b *Bitstamp) GetName() string {
@@ -154,18 +154,19 @@ func (b *Bitstamp) GetName() string {
 }
 
 func (b *Bitstamp) Setup(exch Exchanges) {
-    if !exch.Enabled {
-            b.SetEnabled(false)
-    } else {
-        b.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
-        b.SetAPIKeys(exch.ClientID, exch.APIKey, exch.APISecret)
-        b.RESTPollingDelay = exch.RESTPollingDelay
-        b.Verbose = exch.Verbose
-        b.Websocket = exch.Websocket
-        b.BaseCurrencies = SplitStrings(exch.BaseCurrencies, ",")
-        b.AvailablePairs = SplitStrings(exch.AvailablePairs, ",")
-        b.EnabledPairs = SplitStrings(exch.EnabledPairs, ",")
-    }
+	if !exch.Enabled {
+		b.SetEnabled(false)
+	} else {
+		b.Enabled = true
+		b.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
+		b.SetAPIKeys(exch.ClientID, exch.APIKey, exch.APISecret)
+		b.RESTPollingDelay = exch.RESTPollingDelay
+		b.Verbose = exch.Verbose
+		b.Websocket = exch.Websocket
+		b.BaseCurrencies = SplitStrings(exch.BaseCurrencies, ",")
+		b.AvailablePairs = SplitStrings(exch.AvailablePairs, ",")
+		b.EnabledPairs = SplitStrings(exch.EnabledPairs, ",")
+	}
 }
 
 func (b *Bitstamp) SetEnabled(enabled bool) {
