@@ -143,6 +143,26 @@ func (c *Coinbase) IsEnabled() bool {
 	return c.Enabled
 }
 
+func (c *Coinbase) Setup(exch Exchanges) {
+	if !exch.Enabled {
+		c.SetEnabled(false)
+	} else {
+		c.Enabled = true
+		c.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
+		c.SetAPIKeys(exch.ClientID, exch.APIKey, exch.APISecret)
+		c.RESTPollingDelay = exch.RESTPollingDelay
+		c.Verbose = exch.Verbose
+		c.Websocket = exch.Websocket
+		c.BaseCurrencies = SplitStrings(exch.BaseCurrencies, ",")
+		c.AvailablePairs = SplitStrings(exch.AvailablePairs, ",")
+		c.EnabledPairs = SplitStrings(exch.EnabledPairs, ",")
+	}
+}
+
+func (c *Coinbase) Start() {
+	go c.Run()
+}
+
 func (c *Coinbase) GetFee(maker bool) float64 {
 	if maker {
 		return c.MakerFee

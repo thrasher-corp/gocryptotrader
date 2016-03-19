@@ -100,6 +100,28 @@ func (a *ANX) SetDefaults() {
 	a.RESTPollingDelay = 10
 }
 
+//Setup is run on startup to setup exchange with config values
+func (a *ANX) Setup(exch Exchanges) {
+	if !exch.Enabled {
+		a.SetEnabled(false)
+	} else {
+		a.Enabled = true
+		a.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
+		a.SetAPIKeys(exch.APIKey, exch.APISecret)
+		a.RESTPollingDelay = exch.RESTPollingDelay
+		a.Verbose = exch.Verbose
+		a.Websocket = exch.Websocket
+		a.BaseCurrencies = SplitStrings(exch.BaseCurrencies, ",")
+		a.AvailablePairs = SplitStrings(exch.AvailablePairs, ",")
+		a.EnabledPairs = SplitStrings(exch.EnabledPairs, ",")
+	}
+}
+
+//Start is run if exchange is enabled, after Setup
+func (a *ANX) Start() {
+	go a.Run()
+}
+
 func (a *ANX) GetName() string {
 	return a.Name
 }

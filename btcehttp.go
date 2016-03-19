@@ -99,6 +99,27 @@ func (b *BTCE) IsEnabled() bool {
 	return b.Enabled
 }
 
+func (b *BTCE) Setup(exch Exchanges) {
+	if !exch.Enabled {
+		b.SetEnabled(false)
+	} else {
+		b.Enabled = true
+		b.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
+		b.SetAPIKeys(exch.APIKey, exch.APISecret)
+		b.RESTPollingDelay = exch.RESTPollingDelay
+		b.Verbose = exch.Verbose
+		b.Websocket = exch.Websocket
+		b.BaseCurrencies = SplitStrings(exch.BaseCurrencies, ",")
+		b.AvailablePairs = SplitStrings(exch.AvailablePairs, ",")
+		b.EnabledPairs = SplitStrings(exch.EnabledPairs, ",")
+
+	}
+}
+
+func (b *BTCE) Start() {
+	go b.Run()
+}
+
 func (b *BTCE) SetAPIKeys(apiKey, apiSecret string) {
 	b.APIKey = apiKey
 	b.APISecret = apiSecret

@@ -74,6 +74,26 @@ func (k *Kraken) IsEnabled() bool {
 	return k.Enabled
 }
 
+func (k *Kraken) Setup(exch Exchanges) {
+	if !exch.Enabled {
+		k.SetEnabled(false)
+	} else {
+		k.Enabled = true
+		k.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
+		k.SetAPIKeys(exch.APIKey, exch.APISecret)
+		k.RESTPollingDelay = exch.RESTPollingDelay
+		k.Verbose = exch.Verbose
+		k.Websocket = exch.Websocket
+		k.BaseCurrencies = SplitStrings(exch.BaseCurrencies, ",")
+		k.AvailablePairs = SplitStrings(exch.AvailablePairs, ",")
+		k.EnabledPairs = SplitStrings(exch.EnabledPairs, ",")
+	}
+}
+
+func (k *Kraken) Start() {
+	go k.Run()
+}
+
 func (k *Kraken) SetAPIKeys(apiKey, apiSecret string) {
 	k.ClientKey = apiKey
 	k.APISecret = apiSecret

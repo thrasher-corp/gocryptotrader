@@ -63,6 +63,26 @@ func (h *HUOBI) IsEnabled() bool {
 	return h.Enabled
 }
 
+func (h *HUOBI) Setup(exch Exchanges) {
+	if !exch.Enabled {
+		h.SetEnabled(false)
+	} else {
+		h.Enabled = true
+		h.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
+		h.SetAPIKeys(exch.APIKey, exch.APISecret)
+		h.RESTPollingDelay = exch.RESTPollingDelay
+		h.Verbose = exch.Verbose
+		h.Websocket = exch.Websocket
+		h.BaseCurrencies = SplitStrings(exch.BaseCurrencies, ",")
+		h.AvailablePairs = SplitStrings(exch.AvailablePairs, ",")
+		h.EnabledPairs = SplitStrings(exch.EnabledPairs, ",")
+	}
+}
+
+func (h *HUOBI) Start() {
+	go h.Run()
+}
+
 func (h *HUOBI) SetAPIKeys(apiKey, apiSecret string) {
 	h.AccessKey = apiKey
 	h.SecretKey = apiSecret

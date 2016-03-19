@@ -31,12 +31,25 @@ type Exchange struct {
 }
 
 type Bot struct {
-	config   Config
-	exchange Exchange
-	shutdown chan bool
+	config    Config
+	exchange  Exchange
+	exchanges []IBotExchange
+	shutdown  chan bool
 }
 
 var bot Bot
+
+func SetupBotConfiguration(s IBotExchange, exch Exchanges) {
+	s.Setup(exch)
+	if s.GetName() == exch.Name {
+		if s.IsEnabled() {
+			log.Printf("%s: Exchange support: %s (Authenticated API support: %s - Verbose mode: %s).\n", exch.Name, IsEnabled(exch.Enabled), IsEnabled(exch.AuthenticatedAPISupport), IsEnabled(exch.Verbose))
+			s.Start()
+		} else {
+			log.Printf("%s: Exchange support: %s\n", exch.Name, IsEnabled(exch.Enabled))
+		}
+	}
+}
 
 func main() {
 	HandleInterrupt()
@@ -94,25 +107,35 @@ func main() {
 	log.Printf("Available Exchanges: %d. Enabled Exchanges: %d.\n", len(bot.config.Exchanges), GetEnabledExchanges())
 	log.Println("Bot Exchange support:")
 
-	bot.exchange.anx.SetDefaults()
-	bot.exchange.kraken.SetDefaults()
-	bot.exchange.btcc.SetDefaults()
-	bot.exchange.bitstamp.SetDefaults()
-	bot.exchange.brightonpeak.SetDefaults()
-	bot.exchange.bitfinex.SetDefaults()
-	bot.exchange.btce.SetDefaults()
-	bot.exchange.btcmarkets.SetDefaults()
-	bot.exchange.coinbase.SetDefaults()
-	bot.exchange.gemini.SetDefaults()
-	bot.exchange.okcoinChina.SetURL(OKCOIN_API_URL_CHINA)
-	bot.exchange.okcoinChina.SetDefaults()
-	bot.exchange.okcoinIntl.SetURL(OKCOIN_API_URL)
-	bot.exchange.okcoinIntl.SetDefaults()
-	bot.exchange.itbit.SetDefaults()
-	bot.exchange.lakebtc.SetDefaults()
-	bot.exchange.localbitcoins.SetDefaults()
-	bot.exchange.poloniex.SetDefaults()
-	bot.exchange.huobi.SetDefaults()
+	bot.exchange.okcoinIntl.APIUrl = OKCOIN_API_URL
+	bot.exchange.okcoinChina.APIUrl = OKCOIN_API_URL_CHINA
+
+	bot.exchanges = []IBotExchange{
+		&bot.exchange.anx,
+		&bot.exchange.kraken,
+		&bot.exchange.btcc,
+		&bot.exchange.bitstamp,
+		&bot.exchange.brightonpeak,
+		&bot.exchange.bitfinex,
+		&bot.exchange.btce,
+		&bot.exchange.btcmarkets,
+		&bot.exchange.coinbase,
+		&bot.exchange.gemini,
+		&bot.exchange.okcoinChina,
+		&bot.exchange.okcoinIntl,
+		&bot.exchange.itbit,
+		&bot.exchange.lakebtc,
+		&bot.exchange.localbitcoins,
+		&bot.exchange.poloniex,
+		&bot.exchange.huobi,
+	}
+
+	for i := 0; i < len(bot.exchanges); i++ {
+		if bot.exchanges[i] != nil {
+			bot.exchanges[i].SetDefaults()
+			log.Printf("Exchange %s successfully set default settings.\n", bot.exchanges[i].GetName())
+		}
+	}
 
 	err = RetrieveConfigCurrencyPairs(bot.config)
 
@@ -121,249 +144,9 @@ func main() {
 	}
 
 	for _, exch := range bot.config.Exchanges {
-		if exch.Enabled {
-			log.Printf("%s: Exchange support: %s (Authenticated API support: %s - Verbose mode: %s).\n", exch.Name, IsEnabled(exch.Enabled), IsEnabled(exch.AuthenticatedAPISupport), IsEnabled(exch.Verbose))
-		} else {
-			log.Printf("%s: Exchange support: %s\n", exch.Name, IsEnabled(exch.Enabled))
-		}
-
-		if bot.exchange.anx.GetName() == exch.Name {
-			if !exch.Enabled {
-				bot.exchange.anx.SetEnabled(false)
-			} else {
-				bot.exchange.anx.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
-				bot.exchange.anx.SetAPIKeys(exch.APIKey, exch.APISecret)
-				bot.exchange.anx.RESTPollingDelay = exch.RESTPollingDelay
-				bot.exchange.anx.Verbose = exch.Verbose
-				bot.exchange.anx.Websocket = exch.Websocket
-				bot.exchange.anx.BaseCurrencies = SplitStrings(exch.BaseCurrencies, ",")
-				bot.exchange.anx.AvailablePairs = SplitStrings(exch.AvailablePairs, ",")
-				bot.exchange.anx.EnabledPairs = SplitStrings(exch.EnabledPairs, ",")
-				go bot.exchange.anx.Run()
-			}
-		} else if bot.exchange.btcc.GetName() == exch.Name {
-			if !exch.Enabled {
-				bot.exchange.btcc.SetEnabled(false)
-			} else {
-				bot.exchange.btcc.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
-				bot.exchange.btcc.SetAPIKeys(exch.APIKey, exch.APISecret)
-				bot.exchange.btcc.RESTPollingDelay = exch.RESTPollingDelay
-				bot.exchange.btcc.Verbose = exch.Verbose
-				bot.exchange.btcc.Websocket = exch.Websocket
-				bot.exchange.btcc.BaseCurrencies = SplitStrings(exch.BaseCurrencies, ",")
-				bot.exchange.btcc.AvailablePairs = SplitStrings(exch.AvailablePairs, ",")
-				bot.exchange.btcc.EnabledPairs = SplitStrings(exch.EnabledPairs, ",")
-				go bot.exchange.btcc.Run()
-			}
-		} else if bot.exchange.bitstamp.GetName() == exch.Name {
-			if !exch.Enabled {
-				bot.exchange.bitstamp.SetEnabled(false)
-			} else {
-				bot.exchange.bitstamp.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
-				bot.exchange.bitstamp.SetAPIKeys(exch.ClientID, exch.APIKey, exch.APISecret)
-				bot.exchange.bitstamp.RESTPollingDelay = exch.RESTPollingDelay
-				bot.exchange.bitstamp.Verbose = exch.Verbose
-				bot.exchange.bitstamp.Websocket = exch.Websocket
-				bot.exchange.bitstamp.BaseCurrencies = SplitStrings(exch.BaseCurrencies, ",")
-				bot.exchange.bitstamp.AvailablePairs = SplitStrings(exch.AvailablePairs, ",")
-				bot.exchange.bitstamp.EnabledPairs = SplitStrings(exch.EnabledPairs, ",")
-				go bot.exchange.bitstamp.Run()
-			}
-		} else if bot.exchange.bitfinex.GetName() == exch.Name {
-			if !exch.Enabled {
-				bot.exchange.bitfinex.SetEnabled(false)
-			} else {
-				bot.exchange.bitfinex.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
-				bot.exchange.bitfinex.SetAPIKeys(exch.APIKey, exch.APISecret)
-				bot.exchange.bitfinex.RESTPollingDelay = exch.RESTPollingDelay
-				bot.exchange.bitfinex.Verbose = exch.Verbose
-				bot.exchange.bitfinex.Websocket = exch.Websocket
-				bot.exchange.bitfinex.BaseCurrencies = SplitStrings(exch.BaseCurrencies, ",")
-				bot.exchange.bitfinex.AvailablePairs = SplitStrings(exch.AvailablePairs, ",")
-				bot.exchange.bitfinex.EnabledPairs = SplitStrings(exch.EnabledPairs, ",")
-				go bot.exchange.bitfinex.Run()
-			}
-		} else if bot.exchange.brightonpeak.GetName() == exch.Name {
-			if !exch.Enabled {
-				bot.exchange.brightonpeak.SetEnabled(false)
-			} else {
-				bot.exchange.brightonpeak.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
-				bot.exchange.brightonpeak.SetAPIKeys(exch.APIKey, exch.APISecret, exch.ClientID)
-				bot.exchange.brightonpeak.RESTPollingDelay = exch.RESTPollingDelay
-				bot.exchange.brightonpeak.Verbose = exch.Verbose
-				bot.exchange.brightonpeak.Websocket = exch.Websocket
-				bot.exchange.brightonpeak.BaseCurrencies = SplitStrings(exch.BaseCurrencies, ",")
-				bot.exchange.brightonpeak.AvailablePairs = SplitStrings(exch.AvailablePairs, ",")
-				bot.exchange.brightonpeak.EnabledPairs = SplitStrings(exch.EnabledPairs, ",")
-				go bot.exchange.brightonpeak.Run()
-			}
-		} else if bot.exchange.btce.GetName() == exch.Name {
-			if !exch.Enabled {
-				bot.exchange.btce.SetEnabled(false)
-			} else {
-				bot.exchange.btce.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
-				bot.exchange.btce.SetAPIKeys(exch.APIKey, exch.APISecret)
-				bot.exchange.btce.RESTPollingDelay = exch.RESTPollingDelay
-				bot.exchange.btce.Verbose = exch.Verbose
-				bot.exchange.btce.Websocket = exch.Websocket
-				bot.exchange.btce.BaseCurrencies = SplitStrings(exch.BaseCurrencies, ",")
-				bot.exchange.btce.AvailablePairs = SplitStrings(exch.AvailablePairs, ",")
-				bot.exchange.btce.EnabledPairs = SplitStrings(exch.EnabledPairs, ",")
-				go bot.exchange.btce.Run()
-			}
-		} else if bot.exchange.btcmarkets.GetName() == exch.Name {
-			if !exch.Enabled {
-				bot.exchange.btcmarkets.SetEnabled(false)
-			} else {
-				bot.exchange.btcmarkets.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
-				bot.exchange.btcmarkets.SetAPIKeys(exch.APIKey, exch.APISecret)
-				bot.exchange.btcmarkets.RESTPollingDelay = exch.RESTPollingDelay
-				bot.exchange.btcmarkets.Verbose = exch.Verbose
-				bot.exchange.btcmarkets.Websocket = exch.Websocket
-				bot.exchange.btcmarkets.BaseCurrencies = SplitStrings(exch.BaseCurrencies, ",")
-				bot.exchange.btcmarkets.AvailablePairs = SplitStrings(exch.AvailablePairs, ",")
-				bot.exchange.btcmarkets.EnabledPairs = SplitStrings(exch.EnabledPairs, ",")
-				go bot.exchange.btcmarkets.Run()
-			}
-		} else if bot.exchange.coinbase.GetName() == exch.Name {
-			if !exch.Enabled {
-				bot.exchange.coinbase.SetEnabled(false)
-			} else {
-				bot.exchange.coinbase.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
-				bot.exchange.coinbase.SetAPIKeys(exch.ClientID, exch.APIKey, exch.APISecret)
-				bot.exchange.coinbase.RESTPollingDelay = exch.RESTPollingDelay
-				bot.exchange.coinbase.Verbose = exch.Verbose
-				bot.exchange.coinbase.Websocket = exch.Websocket
-				bot.exchange.coinbase.BaseCurrencies = SplitStrings(exch.BaseCurrencies, ",")
-				bot.exchange.coinbase.AvailablePairs = SplitStrings(exch.AvailablePairs, ",")
-				bot.exchange.coinbase.EnabledPairs = SplitStrings(exch.EnabledPairs, ",")
-				go bot.exchange.coinbase.Run()
-			}
-		} else if bot.exchange.gemini.GetName() == exch.Name {
-			if !exch.Enabled {
-				bot.exchange.gemini.SetEnabled(false)
-			} else {
-				bot.exchange.gemini.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
-				bot.exchange.gemini.SetAPIKeys(exch.APIKey, exch.APISecret)
-				bot.exchange.gemini.RESTPollingDelay = exch.RESTPollingDelay
-				bot.exchange.gemini.Verbose = exch.Verbose
-				bot.exchange.gemini.Websocket = exch.Websocket
-				bot.exchange.gemini.BaseCurrencies = SplitStrings(exch.BaseCurrencies, ",")
-				bot.exchange.gemini.AvailablePairs = SplitStrings(exch.AvailablePairs, ",")
-				bot.exchange.gemini.EnabledPairs = SplitStrings(exch.EnabledPairs, ",")
-				go bot.exchange.gemini.Run()
-			}
-		} else if bot.exchange.okcoinChina.GetName() == exch.Name {
-			if !exch.Enabled {
-				bot.exchange.okcoinChina.SetEnabled(false)
-			} else {
-				bot.exchange.okcoinChina.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
-				bot.exchange.okcoinChina.SetAPIKeys(exch.APIKey, exch.APISecret)
-				bot.exchange.okcoinChina.RESTPollingDelay = exch.RESTPollingDelay
-				bot.exchange.okcoinChina.Verbose = exch.Verbose
-				bot.exchange.okcoinChina.Websocket = exch.Websocket
-				bot.exchange.okcoinChina.BaseCurrencies = SplitStrings(exch.BaseCurrencies, ",")
-				bot.exchange.okcoinChina.AvailablePairs = SplitStrings(exch.AvailablePairs, ",")
-				bot.exchange.okcoinChina.EnabledPairs = SplitStrings(exch.EnabledPairs, ",")
-				go bot.exchange.okcoinChina.Run()
-			}
-		} else if bot.exchange.okcoinIntl.GetName() == exch.Name {
-			if !exch.Enabled {
-				bot.exchange.okcoinIntl.SetEnabled(false)
-			} else {
-				bot.exchange.okcoinIntl.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
-				bot.exchange.okcoinIntl.SetAPIKeys(exch.APIKey, exch.APISecret)
-				bot.exchange.okcoinIntl.RESTPollingDelay = exch.RESTPollingDelay
-				bot.exchange.okcoinIntl.Verbose = exch.Verbose
-				bot.exchange.okcoinIntl.Websocket = exch.Websocket
-				bot.exchange.okcoinIntl.BaseCurrencies = SplitStrings(exch.BaseCurrencies, ",")
-				bot.exchange.okcoinIntl.AvailablePairs = SplitStrings(exch.AvailablePairs, ",")
-				bot.exchange.okcoinIntl.EnabledPairs = SplitStrings(exch.EnabledPairs, ",")
-				go bot.exchange.okcoinIntl.Run()
-			}
-		} else if bot.exchange.itbit.GetName() == exch.Name {
-			if !exch.Enabled {
-				bot.exchange.itbit.SetEnabled(false)
-			} else {
-				bot.exchange.itbit.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
-				bot.exchange.itbit.SetAPIKeys(exch.APIKey, exch.APISecret, exch.ClientID)
-				bot.exchange.itbit.RESTPollingDelay = exch.RESTPollingDelay
-				bot.exchange.itbit.Verbose = exch.Verbose
-				bot.exchange.itbit.Websocket = exch.Websocket
-				bot.exchange.itbit.BaseCurrencies = SplitStrings(exch.BaseCurrencies, ",")
-				bot.exchange.itbit.AvailablePairs = SplitStrings(exch.AvailablePairs, ",")
-				bot.exchange.itbit.EnabledPairs = SplitStrings(exch.EnabledPairs, ",")
-				go bot.exchange.itbit.Run()
-			}
-		} else if bot.exchange.kraken.GetName() == exch.Name {
-			if !exch.Enabled {
-				bot.exchange.kraken.SetEnabled(false)
-			} else {
-				bot.exchange.kraken.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
-				bot.exchange.kraken.SetAPIKeys(exch.APIKey, exch.APISecret)
-				bot.exchange.kraken.RESTPollingDelay = exch.RESTPollingDelay
-				bot.exchange.kraken.Verbose = exch.Verbose
-				bot.exchange.kraken.Websocket = exch.Websocket
-				bot.exchange.kraken.BaseCurrencies = SplitStrings(exch.BaseCurrencies, ",")
-				bot.exchange.kraken.AvailablePairs = SplitStrings(exch.AvailablePairs, ",")
-				bot.exchange.kraken.EnabledPairs = SplitStrings(exch.EnabledPairs, ",")
-				go bot.exchange.kraken.Run()
-			}
-		} else if bot.exchange.lakebtc.GetName() == exch.Name {
-			if !exch.Enabled {
-				bot.exchange.lakebtc.SetEnabled(false)
-			} else {
-				bot.exchange.lakebtc.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
-				bot.exchange.lakebtc.SetAPIKeys(exch.APIKey, exch.APISecret)
-				bot.exchange.lakebtc.RESTPollingDelay = exch.RESTPollingDelay
-				bot.exchange.lakebtc.Verbose = exch.Verbose
-				bot.exchange.lakebtc.Websocket = exch.Websocket
-				bot.exchange.lakebtc.BaseCurrencies = SplitStrings(exch.BaseCurrencies, ",")
-				bot.exchange.lakebtc.AvailablePairs = SplitStrings(exch.AvailablePairs, ",")
-				bot.exchange.lakebtc.EnabledPairs = SplitStrings(exch.EnabledPairs, ",")
-				go bot.exchange.lakebtc.Run()
-			}
-		} else if bot.exchange.localbitcoins.GetName() == exch.Name {
-			if !exch.Enabled {
-				bot.exchange.localbitcoins.SetEnabled(false)
-			} else {
-				bot.exchange.localbitcoins.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
-				bot.exchange.localbitcoins.SetAPIKeys(exch.APIKey, exch.APISecret)
-				bot.exchange.localbitcoins.RESTPollingDelay = exch.RESTPollingDelay
-				bot.exchange.localbitcoins.Verbose = exch.Verbose
-				bot.exchange.localbitcoins.Websocket = exch.Websocket
-				bot.exchange.localbitcoins.BaseCurrencies = SplitStrings(exch.BaseCurrencies, ",")
-				bot.exchange.localbitcoins.AvailablePairs = SplitStrings(exch.AvailablePairs, ",")
-				bot.exchange.localbitcoins.EnabledPairs = SplitStrings(exch.EnabledPairs, ",")
-				go bot.exchange.localbitcoins.Run()
-			}
-		} else if bot.exchange.poloniex.GetName() == exch.Name {
-			if !exch.Enabled {
-				bot.exchange.poloniex.SetEnabled(false)
-			} else {
-				bot.exchange.poloniex.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
-				bot.exchange.poloniex.SetAPIKeys(exch.APIKey, exch.APISecret)
-				bot.exchange.poloniex.RESTPollingDelay = exch.RESTPollingDelay
-				bot.exchange.poloniex.Verbose = exch.Verbose
-				bot.exchange.poloniex.Websocket = exch.Websocket
-				bot.exchange.poloniex.BaseCurrencies = SplitStrings(exch.BaseCurrencies, ",")
-				bot.exchange.poloniex.AvailablePairs = SplitStrings(exch.AvailablePairs, ",")
-				bot.exchange.poloniex.EnabledPairs = SplitStrings(exch.EnabledPairs, ",")
-				go bot.exchange.poloniex.Run()
-			}
-		} else if bot.exchange.huobi.GetName() == exch.Name {
-			if !exch.Enabled {
-				bot.exchange.huobi.SetEnabled(false)
-			} else {
-				bot.exchange.huobi.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
-				bot.exchange.huobi.SetAPIKeys(exch.APIKey, exch.APISecret)
-				bot.exchange.huobi.RESTPollingDelay = exch.RESTPollingDelay
-				bot.exchange.huobi.Verbose = exch.Verbose
-				bot.exchange.huobi.Websocket = exch.Websocket
-				bot.exchange.huobi.BaseCurrencies = SplitStrings(exch.BaseCurrencies, ",")
-				bot.exchange.huobi.AvailablePairs = SplitStrings(exch.AvailablePairs, ",")
-				bot.exchange.huobi.EnabledPairs = SplitStrings(exch.EnabledPairs, ",")
-				go bot.exchange.huobi.Run()
+		for i := 0; i < len(bot.exchanges); i++ {
+			if bot.exchanges[i] != nil {
+				SetupBotConfiguration(bot.exchanges[i], exch)
 			}
 		}
 	}

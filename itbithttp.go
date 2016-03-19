@@ -70,6 +70,26 @@ func (i *ItBit) IsEnabled() bool {
 	return i.Enabled
 }
 
+func (i *ItBit) Setup(exch Exchanges) {
+	if !exch.Enabled {
+		i.SetEnabled(false)
+	} else {
+		i.Enabled = true
+		i.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
+		i.SetAPIKeys(exch.APIKey, exch.APISecret, exch.ClientID)
+		i.RESTPollingDelay = exch.RESTPollingDelay
+		i.Verbose = exch.Verbose
+		i.Websocket = exch.Websocket
+		i.BaseCurrencies = SplitStrings(exch.BaseCurrencies, ",")
+		i.AvailablePairs = SplitStrings(exch.AvailablePairs, ",")
+		i.EnabledPairs = SplitStrings(exch.EnabledPairs, ",")
+	}
+}
+
+func (i *ItBit) Start() {
+	go i.Run()
+}
+
 func (i *ItBit) SetAPIKeys(apiKey, apiSecret, userID string) {
 	i.ClientKey = apiKey
 	i.APISecret = apiSecret
