@@ -163,9 +163,19 @@ func (e *Event) CheckCondition() bool {
 	} else if bot.exchange.btcmarkets.GetName() == e.Exchange {
 		lastPrice = bot.exchange.btcmarkets.Ticker["BTC"].LastPrice
 	} else if bot.exchange.okcoinChina.GetName() == e.Exchange {
-		lastPrice = bot.exchange.okcoinChina.GetTicker("btc_cny").Last
+		result, err := bot.exchange.okcoinChina.GetTicker("btc_cny")
+		if err != nil {
+			lastPrice = 0
+		} else {
+			lastPrice = result.Last
+		}
 	} else if bot.exchange.okcoinIntl.GetName() == e.Exchange {
-		lastPrice = bot.exchange.okcoinIntl.GetTicker("btc_usd").Last
+		result, err := bot.exchange.okcoinIntl.GetTicker("btc_usd")
+		if err != nil {
+			lastPrice = 0
+		} else {
+			lastPrice = result.Last
+		}
 	} else if bot.exchange.anx.GetName() == e.Exchange {
 		lastPrice = bot.exchange.anx.GetTicker("BTCUSD").Data.Last.Value
 	} else if bot.exchange.kraken.GetName() == e.Exchange {
