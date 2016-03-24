@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"github.com/gorilla/websocket"
 	"log"
@@ -86,7 +87,7 @@ type OKCoinBorrowInfo struct {
 
 type OKCoinBorrowOrder struct {
 	Amount      float64 `json:"amount"`
-	BorrowDate  float64 `json:"borrow_date"`
+	BorrowDate  int64   `json:"borrow_date"`
 	BorrowID    int64   `json:"borrow_id"`
 	Days        int64   `json:"days"`
 	TradeAmount float64 `json:"deal_amount"`
@@ -130,13 +131,6 @@ type OKCoinFuturesOrder struct {
 type OKCoinFuturesHoldAmount struct {
 	Amount       float64 `json:"amount"`
 	ContractName string  `json:"contract_name"`
-}
-
-type OKCoinLendDepth struct {
-	Amount float64 `json:"amount"`
-	Days   string  `json:"days"`
-	Num    int64   `json:"num"`
-	Rate   float64 `json:"rate,string"`
 }
 
 type OKCoinFuturesExplosive struct {
@@ -508,16 +502,516 @@ func (o *OKCoin) GetFuturesExplosive(symbol, contractType string, status, curren
 	return resp.Data
 }
 
-func (o *OKCoin) GetUserInfo() {
-	err := o.SendAuthenticatedHTTPRequest("userinfo.do", url.Values{})
+type OKCoinUserInfo struct {
+	Info struct {
+		Funds struct {
+			Asset struct {
+				Net   float64 `json:"net,string"`
+				Total float64 `json:"total,string"`
+			} `json:"asset"`
+			Borrow struct {
+				BTC float64 `json:"btc,string"`
+				LTC float64 `json:"ltc,string"`
+				USD float64 `json:"usd,string"`
+			} `json:"borrow"`
+			Free struct {
+				BTC float64 `json:"btc,string"`
+				LTC float64 `json:"ltc,string"`
+				USD float64 `json:"usd,string"`
+			} `json:"free"`
+			Freezed struct {
+				BTC float64 `json:"btc,string"`
+				LTC float64 `json:"ltc,string"`
+				USD float64 `json:"usd,string"`
+			} `json:"freezed"`
+			UnionFund struct {
+				BTC float64 `json:"btc,string"`
+				LTC float64 `json:"ltc,string"`
+			} `json:"union_fund"`
+		} `json:"funds"`
+	} `json:"info"`
+	Result bool `json:"result"`
+}
+
+func (o *OKCoin) GetUserInfo() (OKCoinUserInfo, error) {
+	result := OKCoinUserInfo{}
+	err := o.SendAuthenticatedHTTPRequest("userinfo.do", url.Values{}, &result)
 
 	if err != nil {
-		log.Println(err)
+		return result, err
 	}
+
+	return result, nil
+}
+
+func (o *OKCoin) Trade(amount, price float64, symbol, orderType string) (int64, error) {
+	type Response struct {
+		Result  bool  `json:"result"`
+		OrderID int64 `json:"order_id"`
+	}
+	v := url.Values{}
+	v.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
+	v.Set("price", strconv.FormatFloat(price, 'f', -1, 64))
+	v.Set("symbol", symbol)
+	v.Set("type", orderType)
+
+	result := Response{}
+
+	err := o.SendAuthenticatedHTTPRequest("trade.do", v, &result)
+
+	if err != nil {
+		return 0, err
+	}
+
+	if !result.Result {
+		return 0, errors.New("Unable to place order.")
+	}
+
+	return result.OrderID, nil
+}
+
+func (o *OKCoin) GetTradeHistory(symbol string, TradeID int64) ([]OKCoinTrades, error) {
+	result := []OKCoinTrades{}
+	v := url.Values{}
+	v.Set("symbol", symbol)
+	v.Set("since", strconv.FormatInt(TradeID, 10))
+
+	err := o.SendAuthenticatedHTTPRequest("trade_history.do", v, &result)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return result, nil
+}
+
+type OKCoinBatchTrade struct {
+	OrderInfo []struct {
+		OrderID   int64 `json:"order_id"`
+		ErrorCode int64 `json:"error_code"`
+	} `json:"order_info"`
+	Result bool `json:"result"`
+}
+
+func (o *OKCoin) BatchTrade(orderData string, symbol, orderType string) (OKCoinBatchTrade, error) {
+	v := url.Values{}
+	v.Set("orders_data", orderData)
+	v.Set("symbol", symbol)
+	v.Set("type", orderType)
+	result := OKCoinBatchTrade{}
+
+	err := o.SendAuthenticatedHTTPRequest("batch_trade.do", v, &result)
+
+	if err != nil {
+		return result, err
+	}
+
+	return result, nil
+}
+
+type OKCoinCancelOrderResponse struct {
+	Success string
+	Error   string
+}
+
+func (o *OKCoin) CancelOrder(orderID []int64, symbol string) (OKCoinCancelOrderResponse, error) {
+	v := url.Values{}
+	orders := []string{}
+	orderStr := ""
+	result := OKCoinCancelOrderResponse{}
+
+	if len(orderID) > 1 {
+		for x := range orderID {
+			orders = append(orders, strconv.FormatInt(orderID[x], 10))
+		}
+		orderStr = JoinStrings(orders, ",")
+	} else {
+		orderStr = strconv.FormatInt(orderID[0], 10)
+	}
+
+	v.Set("order_id", orderStr)
+	v.Set("symbol", symbol)
+
+	err := o.SendAuthenticatedHTTPRequest("cancel_order.do", v, &result)
+
+	if err != nil {
+		return result, err
+	}
+
+	return result, nil
+}
+
+type OKCoinOrderInfo struct {
+	Amount     float64 `json:"amount"`
+	AvgPrice   float64 `json:"avg_price"`
+	Created    int64   `json:"create_date"`
+	DealAmount float64 `json:"deal_amount"`
+	OrderID    int64   `json:"order_id"`
+	OrdersID   int64   `json:"orders_id"`
+	Price      float64 `json:"price"`
+	Status     int     `json:"status"`
+	Symbol     string  `json:"symbol"`
+	Type       string  `json:"type"`
+}
+
+func (o *OKCoin) GetOrderInfo(orderID int64, symbol string) ([]OKCoinOrderInfo, error) {
+	type Response struct {
+		Result bool              `json:"result"`
+		Orders []OKCoinOrderInfo `json:"orders"`
+	}
+	v := url.Values{}
+	v.Set("symbol", symbol)
+	v.Set("order_id", strconv.FormatInt(orderID, 10))
+	result := Response{}
+
+	err := o.SendAuthenticatedHTTPRequest("order_info.do", v, &result)
+
+	if err != nil {
+		return nil, err
+	}
+
+	if result.Result != true {
+		return nil, errors.New("Unable to retrieve order info.")
+	}
+
+	return result.Orders, nil
+}
+
+func (o *OKCoin) GetOrderInfoBatch(orderID []int64, symbol string) ([]OKCoinOrderInfo, error) {
+	type Response struct {
+		Result bool              `json:"result"`
+		Orders []OKCoinOrderInfo `json:"orders"`
+	}
+
+	orders := []string{}
+	for x := range orderID {
+		orders = append(orders, strconv.FormatInt(orderID[x], 10))
+	}
+
+	v := url.Values{}
+	v.Set("symbol", symbol)
+	v.Set("order_id", JoinStrings(orders, ","))
+	result := Response{}
+
+	err := o.SendAuthenticatedHTTPRequest("orders_info.do", v, &result)
+
+	if err != nil {
+		return nil, err
+	}
+
+	if result.Result != true {
+		return nil, errors.New("Unable to retrieve order info.")
+	}
+
+	return result.Orders, nil
+}
+
+type OKCoinOrderHistory struct {
+	CurrentPage int               `json:"current_page"`
+	Orders      []OKCoinOrderInfo `json:"orders"`
+	PageLength  int               `json:"page_length"`
+	Result      bool              `json:"result"`
+	Total       int               `json:"total"`
+}
+
+func (o *OKCoin) GetOrderHistory(pageLength, currentPage int64, status, symbol string) (OKCoinOrderHistory, error) {
+	v := url.Values{}
+	v.Set("symbol", symbol)
+	v.Set("status", status)
+	v.Set("current_page", strconv.FormatInt(currentPage, 10))
+	v.Set("page_length", strconv.FormatInt(pageLength, 10))
+	result := OKCoinOrderHistory{}
+
+	err := o.SendAuthenticatedHTTPRequest("order_history.do", v, &result)
+
+	if err != nil {
+		return result, err
+	}
+
+	return result, nil
+}
+
+type OKCoinWithdrawalResponse struct {
+	WithdrawID int  `json:"withdraw_id"`
+	Result     bool `json:"result"`
+}
+
+func (o *OKCoin) Withdrawal(symbol string, fee float64, tradePWD, address string, amount float64) (int, error) {
+	v := url.Values{}
+	v.Set("symbol", symbol)
+
+	if fee != 0 {
+		v.Set("chargefee", strconv.FormatFloat(fee, 'f', -1, 64))
+	}
+	v.Set("trade_pwd", tradePWD)
+	v.Set("withdraw_address", address)
+	v.Set("withdraw_amount", strconv.FormatFloat(amount, 'f', -1, 64))
+	result := OKCoinWithdrawalResponse{}
+
+	err := o.SendAuthenticatedHTTPRequest("withdraw.do", v, &result)
+
+	if err != nil {
+		return 0, err
+	}
+
+	if !result.Result {
+		return 0, errors.New("Unable to process withdrawal request.")
+	}
+
+	return result.WithdrawID, nil
+}
+
+func (o *OKCoin) CancelWithdrawal(symbol string, withdrawalID int64) (int, error) {
+	v := url.Values{}
+	v.Set("symbol", symbol)
+	v.Set("withdrawal_id", strconv.FormatInt(withdrawalID, 10))
+	result := OKCoinWithdrawalResponse{}
+
+	err := o.SendAuthenticatedHTTPRequest("cancel_withdraw.do", v, &result)
+
+	if err != nil {
+		return 0, err
+	}
+
+	if !result.Result {
+		return 0, errors.New("Unable to process withdrawal cancel request.")
+	}
+
+	return result.WithdrawID, nil
+}
+
+type OKCoinWithdrawInfo struct {
+	Address    string  `json:"address"`
+	Amount     float64 `json:"amount"`
+	Created    int64   `json:"created_date"`
+	ChargeFee  float64 `json:"chargefee"`
+	Status     int     `json:"status"`
+	WithdrawID int64   `json:"withdraw_id"`
+}
+
+func (o *OKCoin) GetWithdrawalInfo(symbol string, withdrawalID int64) ([]OKCoinWithdrawInfo, error) {
+	type Response struct {
+		Result   bool
+		Withdraw []OKCoinWithdrawInfo `json:"withdraw"`
+	}
+	v := url.Values{}
+	v.Set("symbol", symbol)
+	v.Set("withdrawal_id", strconv.FormatInt(withdrawalID, 10))
+	result := Response{}
+
+	err := o.SendAuthenticatedHTTPRequest("withdraw_info.do", v, &result)
+
+	if err != nil {
+		return nil, err
+	}
+
+	if !result.Result {
+		return nil, errors.New("Unable to process withdrawal cancel request.")
+	}
+
+	return result.Withdraw, nil
+}
+
+type OKCoinOrderFeeInfo struct {
+	Fee     float64 `json:"fee,string"`
+	OrderID int64   `json:"order_id"`
+	Type    string  `json:"type"`
+}
+
+func (o *OKCoin) GetOrderFeeInfo(symbol string, orderID int64) (OKCoinOrderFeeInfo, error) {
+	type Response struct {
+		Data   OKCoinOrderFeeInfo `json:"data"`
+		Result bool               `json:"result"`
+	}
+
+	v := url.Values{}
+	v.Set("symbol", symbol)
+	v.Set("order_id", strconv.FormatInt(orderID, 10))
+	result := Response{}
+
+	err := o.SendAuthenticatedHTTPRequest("order_fee.do", v, &result)
+
+	if err != nil {
+		return result.Data, err
+	}
+
+	if !result.Result {
+		return result.Data, errors.New("Unable to get order fee info.")
+	}
+
+	return result.Data, nil
+}
+
+type OKCoinLendDepth struct {
+	Amount float64 `json:"amount"`
+	Days   string  `json:"days"`
+	Num    int64   `json:"num"`
+	Rate   float64 `json:"rate,string"`
+}
+
+func (o *OKCoin) GetLendDepth(symbol string) ([]OKCoinLendDepth, error) {
+	type Response struct {
+		LendDepth []OKCoinLendDepth `json:"lend_depth"`
+	}
+
+	v := url.Values{}
+	v.Set("symbol", symbol)
+	result := Response{}
+
+	err := o.SendAuthenticatedHTTPRequest("lend_depth.do", v, &result)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return result.LendDepth, nil
+}
+
+func (o *OKCoin) GetBorrowInfo(symbol string) (OKCoinBorrowInfo, error) {
+	v := url.Values{}
+	v.Set("symbol", symbol)
+	result := OKCoinBorrowInfo{}
+
+	err := o.SendAuthenticatedHTTPRequest("borrows_info.do", v, &result)
+
+	if err != nil {
+		return result, nil
+	}
+
+	return result, nil
+}
+
+type OKCoinBorrowResponse struct {
+	Result   bool `json:"result"`
+	BorrowID int  `json:"borrow_id"`
+}
+
+func (o *OKCoin) Borrow(symbol, days string, amount, rate float64) (int, error) {
+	v := url.Values{}
+	v.Set("symbol", symbol)
+	v.Set("days", days)
+	v.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
+	v.Set("rate", strconv.FormatFloat(rate, 'f', -1, 64))
+	result := OKCoinBorrowResponse{}
+
+	err := o.SendAuthenticatedHTTPRequest("borrow_money.do", v, &result)
+
+	if err != nil {
+		return 0, err
+	}
+
+	if !result.Result {
+		return 0, errors.New("Unable to borrow.")
+	}
+
+	return result.BorrowID, nil
+}
+
+func (o *OKCoin) CancelBorrow(symbol string, borrowID int64) (bool, error) {
+	v := url.Values{}
+	v.Set("symbol", symbol)
+	v.Set("borrow_id", strconv.FormatInt(borrowID, 10))
+	result := OKCoinBorrowResponse{}
+
+	err := o.SendAuthenticatedHTTPRequest("cancel_borrow.do", v, &result)
+
+	if err != nil {
+		return false, err
+	}
+
+	if !result.Result {
+		return false, errors.New("Unable to cancel borrow.")
+	}
+
+	return true, nil
+}
+
+func (o *OKCoin) GetBorrowOrderInfo(borrowID int64) (OKCoinBorrowInfo, error) {
+	type Response struct {
+		Result      bool             `json:"result"`
+		BorrowOrder OKCoinBorrowInfo `json:"borrow_order"`
+	}
+
+	v := url.Values{}
+	v.Set("borrow_id", strconv.FormatInt(borrowID, 10))
+	result := Response{}
+	err := o.SendAuthenticatedHTTPRequest("borrow_order_info.do", v, &result)
+
+	if err != nil {
+		return result.BorrowOrder, err
+	}
+
+	if !result.Result {
+		return result.BorrowOrder, errors.New("Unable to get borrow info.")
+	}
+
+	return result.BorrowOrder, nil
+}
+
+func (o *OKCoin) GetRepaymentInfo(borrowID int64) (bool, error) {
+	v := url.Values{}
+	v.Set("borrow_id", strconv.FormatInt(borrowID, 10))
+	result := OKCoinBorrowResponse{}
+
+	err := o.SendAuthenticatedHTTPRequest("repayment.do", v, &result)
+
+	if err != nil {
+		return false, err
+	}
+
+	if !result.Result {
+		return false, errors.New("Unable to get repayment info.")
+	}
+
+	return true, nil
+}
+
+func (o *OKCoin) GetUnrepaymentsInfo(symbol string, currentPage, pageLength int) ([]OKCoinBorrowOrder, error) {
+	type Response struct {
+		Unrepayments []OKCoinBorrowOrder `json:"unrepayments"`
+		Result       bool                `json:"result"`
+	}
+	v := url.Values{}
+	v.Set("symbol", symbol)
+	v.Set("current_page", strconv.Itoa(currentPage))
+	v.Set("page_length", strconv.Itoa(pageLength))
+	result := Response{}
+	err := o.SendAuthenticatedHTTPRequest("unrepayments_info.do", v, &result)
+
+	if err != nil {
+		return nil, err
+	}
+
+	if !result.Result {
+		return nil, errors.New("Unable to get unrepayments info.")
+	}
+
+	return result.Unrepayments, nil
+}
+
+func (o *OKCoin) GetAccountRecords(symbol string, recType, currentPage, pageLength int) ([]OKCoinAccountRecords, error) {
+	type Response struct {
+		Records []OKCoinAccountRecords `json:"records"`
+		Symbol  string                 `json:"symbol"`
+	}
+	v := url.Values{}
+	v.Set("symbol", symbol)
+	v.Set("type", strconv.Itoa(recType))
+	v.Set("current_page", strconv.Itoa(currentPage))
+	v.Set("page_length", strconv.Itoa(pageLength))
+	result := Response{}
+
+	err := o.SendAuthenticatedHTTPRequest("account_records.do", v, &result)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return result.Records, nil
 }
 
 func (o *OKCoin) GetFuturesUserInfo() {
-	err := o.SendAuthenticatedHTTPRequest("future_userinfo.do", url.Values{})
+	err := o.SendAuthenticatedHTTPRequest("future_userinfo.do", url.Values{}, nil)
 
 	if err != nil {
 		log.Println(err)
@@ -528,21 +1022,7 @@ func (o *OKCoin) GetFuturesPosition(symbol, contractType string) {
 	v := url.Values{}
 	v.Set("symbol", symbol)
 	v.Set("contract_type", contractType)
-	err := o.SendAuthenticatedHTTPRequest("future_userinfo.do", v)
-
-	if err != nil {
-		log.Println(err)
-	}
-}
-
-func (o *OKCoin) Trade(amount, price float64, symbol, orderType string) {
-	v := url.Values{}
-	v.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
-	v.Set("price", strconv.FormatFloat(price, 'f', -1, 64))
-	v.Set("symbol", symbol)
-	v.Set("type", orderType)
-
-	err := o.SendAuthenticatedHTTPRequest("trade.do", v)
+	err := o.SendAuthenticatedHTTPRequest("future_userinfo.do", v, nil)
 
 	if err != nil {
 		log.Println(err)
@@ -559,20 +1039,7 @@ func (o *OKCoin) FuturesTrade(amount, price float64, matchPrice, leverage int64,
 	v.Set("match_price", strconv.FormatInt(matchPrice, 10))
 	v.Set("lever_rate", strconv.FormatInt(leverage, 10))
 
-	err := o.SendAuthenticatedHTTPRequest("future_trade.do", v)
-
-	if err != nil {
-		log.Println(err)
-	}
-}
-
-func (o *OKCoin) BatchTrade(orderData string, symbol, orderType string) {
-	v := url.Values{} //to-do batch trade support for orders_data
-	v.Set("orders_data", orderData)
-	v.Set("symbol", symbol)
-	v.Set("type", orderType)
-
-	err := o.SendAuthenticatedHTTPRequest("batch_trade.do", v)
+	err := o.SendAuthenticatedHTTPRequest("future_trade.do", v, nil)
 
 	if err != nil {
 		log.Println(err)
@@ -586,19 +1053,7 @@ func (o *OKCoin) FuturesBatchTrade(orderData, symbol, contractType string, lever
 	v.Set("orders_data", orderData)
 	v.Set("lever_rate", strconv.FormatInt(leverage, 10))
 
-	err := o.SendAuthenticatedHTTPRequest("future_batch_trade.do", v)
-
-	if err != nil {
-		log.Println(err)
-	}
-}
-
-func (o *OKCoin) CancelOrder(orderID int64, symbol string) {
-	v := url.Values{}
-	v.Set("orders_id", strconv.FormatInt(orderID, 10))
-	v.Set("symbol", symbol)
-
-	err := o.SendAuthenticatedHTTPRequest("cancel_order.do", v)
+	err := o.SendAuthenticatedHTTPRequest("future_batch_trade.do", v, nil)
 
 	if err != nil {
 		log.Println(err)
@@ -611,19 +1066,7 @@ func (o *OKCoin) CancelFuturesOrder(orderID int64, symbol, contractType string) 
 	v.Set("contract_type", contractType)
 	v.Set("order_id", strconv.FormatInt(orderID, 10))
 
-	err := o.SendAuthenticatedHTTPRequest("future_cancel.do", v)
-
-	if err != nil {
-		log.Println(err)
-	}
-}
-
-func (o *OKCoin) GetOrderInfo(orderID int64, symbol string) {
-	v := url.Values{}
-	v.Set("symbol", symbol)
-	v.Set("order_id", strconv.FormatInt(orderID, 10))
-
-	err := o.SendAuthenticatedHTTPRequest("order_info.do", v)
+	err := o.SendAuthenticatedHTTPRequest("future_cancel.do", v, nil)
 
 	if err != nil {
 		log.Println(err)
@@ -639,20 +1082,7 @@ func (o *OKCoin) GetFuturesOrderInfo(orderID, status, currentPage, pageLength in
 	v.Set("current_page", strconv.FormatInt(currentPage, 10))
 	v.Set("page_length", strconv.FormatInt(pageLength, 10))
 
-	err := o.SendAuthenticatedHTTPRequest("future_order_info.do", v)
-
-	if err != nil {
-		log.Println(err)
-	}
-}
-
-func (o *OKCoin) GetOrdersInfo(orderID int64, orderType string, symbol string) {
-	v := url.Values{}
-	v.Set("orders_id", strconv.FormatInt(orderID, 10))
-	v.Set("type", orderType)
-	v.Set("symbol", symbol)
-
-	err := o.SendAuthenticatedHTTPRequest("orders_info.do", v)
+	err := o.SendAuthenticatedHTTPRequest("future_order_info.do", v, nil)
 
 	if err != nil {
 		log.Println(err)
@@ -665,49 +1095,7 @@ func (o *OKCoin) GetFutureOrdersInfo(orderID int64, contractType, symbol string)
 	v.Set("contract_type", contractType)
 	v.Set("symbol", symbol)
 
-	err := o.SendAuthenticatedHTTPRequest("future_orders_info.do", v)
-
-	if err != nil {
-		log.Println(err)
-	}
-}
-
-func (o *OKCoin) GetOrderHistory(orderID, pageLength, currentPage int64, orderType string, status, symbol string) {
-	v := url.Values{}
-	v.Set("orders_id", strconv.FormatInt(orderID, 10))
-	v.Set("type", orderType)
-	v.Set("symbol", symbol)
-	v.Set("status", status)
-	v.Set("current_page", strconv.FormatInt(currentPage, 10))
-	v.Set("page_length", strconv.FormatInt(pageLength, 10))
-
-	err := o.SendAuthenticatedHTTPRequest("order_history.do", v)
-
-	if err != nil {
-		log.Println(err)
-	}
-}
-
-func (o *OKCoin) Withdrawal(symbol string, fee float64, tradePWD, address string, amount float64) {
-	v := url.Values{}
-	v.Set("symbol", symbol)
-	v.Set("chargefee", strconv.FormatFloat(fee, 'f', -1, 64))
-	v.Set("trade_pwd", tradePWD)
-	v.Set("withdraw_address", address)
-	v.Set("withdraw_amount", strconv.FormatFloat(amount, 'f', -1, 64))
-
-	err := o.SendAuthenticatedHTTPRequest("withdraw.do", v)
-
-	if err != nil {
-		log.Println(err)
-	}
-}
-
-func (o *OKCoin) CancelWithdrawal(withdrawalID int64) {
-	v := url.Values{}
-	v.Set("withdrawal_id", strconv.FormatInt(withdrawalID, 10))
-
-	err := o.SendAuthenticatedHTTPRequest("cancel_withdraw.do", v)
+	err := o.SendAuthenticatedHTTPRequest("future_orders_info.do", v, nil)
 
 	if err != nil {
 		log.Println(err)
@@ -717,7 +1105,7 @@ func (o *OKCoin) CancelWithdrawal(withdrawalID int64) {
 func (o *OKCoin) GetFuturesUserInfo4Fix() {
 	v := url.Values{}
 
-	err := o.SendAuthenticatedHTTPRequest("future_userinfo_4fix.do", v)
+	err := o.SendAuthenticatedHTTPRequest("future_userinfo_4fix.do", v, nil)
 
 	if err != nil {
 		log.Println(err)
@@ -730,96 +1118,14 @@ func (o *OKCoin) GetFuturesUserPosition4Fix(symbol, contractType string) {
 	v.Set("contract_type", contractType)
 	v.Set("type", strconv.FormatInt(1, 10))
 
-	err := o.SendAuthenticatedHTTPRequest("future_position_4fix.do", v)
+	err := o.SendAuthenticatedHTTPRequest("future_position_4fix.do", v, nil)
 
 	if err != nil {
 		log.Println(err)
 	}
 }
 
-func (o *OKCoin) GetBorrowInfo(symbol string) {
-	v := url.Values{}
-	v.Set("symbol", symbol)
-
-	err := o.SendAuthenticatedHTTPRequest("borrows_info.do", v)
-
-	if err != nil {
-		log.Println(err)
-	}
-}
-
-func (o *OKCoin) Borrow(symbol, days string, amount, rate float64) {
-	v := url.Values{}
-	v.Set("symbol", symbol)
-	v.Set("days", days)
-	v.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
-	v.Set("rate", strconv.FormatFloat(rate, 'f', -1, 64))
-	err := o.SendAuthenticatedHTTPRequest("borrow_money.do", v)
-
-	if err != nil {
-		log.Println(err)
-	}
-}
-
-func (o *OKCoin) CancelBorrow(symbol string, borrowID int64) {
-	v := url.Values{}
-	v.Set("symbol", symbol)
-	v.Set("borrow_id", strconv.FormatInt(borrowID, 10))
-	err := o.SendAuthenticatedHTTPRequest("cancel_borrow.do", v)
-
-	if err != nil {
-		log.Println(err)
-	}
-}
-
-func (o *OKCoin) GetBorrowOrderInfo(borrowID int64) {
-	v := url.Values{}
-	v.Set("borrow_id", strconv.FormatInt(borrowID, 10))
-	err := o.SendAuthenticatedHTTPRequest("borrow_order_info.do", v)
-
-	if err != nil {
-		log.Println(err)
-	}
-}
-
-func (o *OKCoin) GetRepaymentInfo(borrowID int64) {
-	v := url.Values{}
-	v.Set("borrow_id", strconv.FormatInt(borrowID, 10))
-	err := o.SendAuthenticatedHTTPRequest("repayment.do", v)
-
-	if err != nil {
-		log.Println(err)
-	}
-}
-
-func (o *OKCoin) GetUnrepaymentsInfo(symbol string, currentPage, pageLength int) {
-	v := url.Values{}
-	v.Set("symbol", symbol)
-	v.Set("current_page", strconv.Itoa(currentPage))
-	v.Set("page_length", strconv.Itoa(pageLength))
-
-	err := o.SendAuthenticatedHTTPRequest("unrepayments_info.do", v)
-
-	if err != nil {
-		log.Println(err)
-	}
-}
-
-func (o *OKCoin) GetAccountRecords(symbol string, recType, currentPage, pageLength int) {
-	v := url.Values{}
-	v.Set("symbol", symbol)
-	v.Set("type", strconv.Itoa(recType))
-	v.Set("current_page", strconv.Itoa(currentPage))
-	v.Set("page_length", strconv.Itoa(pageLength))
-
-	err := o.SendAuthenticatedHTTPRequest("account_records.do", v)
-
-	if err != nil {
-		log.Println(err)
-	}
-}
-
-func (o *OKCoin) SendAuthenticatedHTTPRequest(method string, v url.Values) (err error) {
+func (o *OKCoin) SendAuthenticatedHTTPRequest(method string, v url.Values, result interface{}) (err error) {
 	v.Set("api_key", o.PartnerID)
 	hasher := GetMD5([]byte(v.Encode() + "&secret_key=" + o.SecretKey))
 	v.Set("sign", strings.ToUpper(HexEncodeToString(hasher)))
@@ -842,6 +1148,12 @@ func (o *OKCoin) SendAuthenticatedHTTPRequest(method string, v url.Values) (err 
 
 	if o.Verbose {
 		log.Printf("Recieved raw: \n%s\n", resp)
+	}
+
+	err = JSONDecode([]byte(resp), &result)
+
+	if err != nil {
+		return errors.New("Unable to JSON Unmarshal response.")
 	}
 
 	return nil
