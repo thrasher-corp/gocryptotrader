@@ -8,3 +8,6 @@ install:
  - go get github.com/toorop/go-pusher
  - go get github.com/thrasher-/socketio
  - go get gopkg.in/jcelliott/turnpike.v2
+
+after_success:
+ - bash <(curl -s https://codecov.io/bash)
