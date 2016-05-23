@@ -8,6 +8,7 @@ import (
 	"runtime"
 	"strconv"
 	"syscall"
+	"net/http"
 )
 
 type Exchange struct {
@@ -80,29 +81,11 @@ func main() {
 		} else {
 			log.Printf("SMS support enabled. Number of SMS contacts %d.\n", GetEnabledSMSContacts())
 		}
-	}
-	if !bot.config.SMS.Enabled {
+	} else {
 		log.Println("SMS support disabled.")
 	}
 
-	if bot.config.Webserver.Enabled {
-		err := CheckWebserverValues()
-		if err != nil {
-			log.Println(err) // non fatal event
-			bot.config.Webserver.Enabled = false
-		} else {
-			log.Println("HTTP Webserver support enabled.")
-			err = StartWebserver()
-			if err != nil {
-				log.Println("Unable to start Webserver: ", err)
-			} else {
-				log.Printf("HTTP server enabled and running at http://%s:%d\n", GetWebserverHost(), GetWebserverPort())
-			}
-		}
-	}
-	if !bot.config.Webserver.Enabled {
-		log.Println("HTTP Webserver support disabled.")
-	}
+
 
 	log.Printf("Available Exchanges: %d. Enabled Exchanges: %d.\n", len(bot.config.Exchanges), GetEnabledExchanges())
 	log.Println("Bot Exchange support:")
@@ -150,6 +133,22 @@ func main() {
 			}
 		}
 	}
+    
+    	if bot.config.Webserver.Enabled {
+		err := CheckWebserverValues()
+		if err != nil {
+			log.Println(err) // non fatal event
+			bot.config.Webserver.Enabled = false
+		} else {
+			log.Println("HTTP Webserver support enabled.")
+			  router := NewRouter(bot.exchanges)
+              log.Fatal(http.ListenAndServe(":8080", router))
+		}
+	}
+	if !bot.config.Webserver.Enabled {
+		log.Println("HTTP Webserver support disabled.")
+	}
+    
 	<-bot.shutdown
 	Shutdown()
 }
