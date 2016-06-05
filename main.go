@@ -142,7 +142,7 @@ func main() {
 		} else {
 			log.Println("HTTP Webserver support enabled.")
 			  router := NewRouter(bot.exchanges)
-              log.Fatal(http.ListenAndServe(":8080", router))
+              log.Fatal(http.ListenAndServe(bot.config.Webserver.ListenAddress, router))
 		}
 	}
 	if !bot.config.Webserver.Enabled {
