@@ -234,6 +234,19 @@ func (b *Bitstamp) GetTicker(hourly bool) (BitstampTicker, error) {
 	return ticker, nil
 }
 
+func (b *Bitstamp) GetTickerPrice(currency string) TickerPrice {
+	var tickerPrice TickerPrice
+	ticker, err := b.GetTicker(true)
+	if err != nil {
+		log.Println(err)
+		return tickerPrice
+	}
+	tickerPrice.Ask = ticker.Ask
+	tickerPrice.Bid = ticker.Bid
+	
+	return tickerPrice
+}
+
 func (b *Bitstamp) GetOrderbook() (BitstampOrderbook, error) {
 	type response struct {
 		Timestamp int64 `json:"timestamp,string"`

@@ -132,6 +132,15 @@ func (h *HUOBI) GetTicker(symbol string) HuobiTicker {
 	return resp.Ticker
 }
 
+func (h *HUOBI) GetTickerPrice(currency string) TickerPrice {
+	var tickerPrice TickerPrice
+	ticker := h.GetTicker(currency)
+	tickerPrice.Ask = ticker.Sell
+	tickerPrice.Bid = ticker.Buy
+	
+	return tickerPrice
+}
+
 func (h *HUOBI) GetOrderBook(symbol string) bool {
 	path := fmt.Sprintf("http://market.huobi.com/staticmarket/depth_%s_json.js", symbol)
 	err := SendHTTPGetRequest(path, true, nil)

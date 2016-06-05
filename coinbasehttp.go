@@ -359,6 +359,18 @@ func (c *Coinbase) GetTicker(symbol string) (CoinbaseTicker, error) {
 	return ticker, nil
 }
 
+func (c *Coinbase) GetTickerPrice(currency string) TickerPrice {
+	var tickerPrice TickerPrice
+	ticker, err := c.GetTicker(currency)
+	if err != nil {
+		log.Println(err)
+		return TickerPrice{}
+	}
+	tickerPrice.Ask = ticker.Price
+	
+	return tickerPrice
+}
+
 func (c *Coinbase) GetTrades(symbol string) ([]CoinbaseTrade, error) {
 	trades := []CoinbaseTrade{}
 	path := fmt.Sprintf("%s/%s/%s", COINBASE_API_URL+COINBASE_PRODUCTS, symbol, COINBASE_TRADES)

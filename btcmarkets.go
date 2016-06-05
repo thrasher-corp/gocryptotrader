@@ -188,6 +188,19 @@ func (b *BTCMarkets) GetTicker(symbol string) (BTCMarketsTicker, error) {
 	return ticker, nil
 }
 
+func (b *BTCMarkets) GetTickerPrice(currency string) TickerPrice {
+	var tickerPrice TickerPrice
+	ticker, err := b.GetTicker(currency)
+	if err != nil {
+		log.Println(err)
+		return tickerPrice
+	}
+	tickerPrice.Ask = ticker.BestAsk
+	tickerPrice.Bid = ticker.BestBID
+	
+	return tickerPrice
+}
+
 func (b *BTCMarkets) GetOrderbook(symbol string) (BTCMarketsOrderbook, error) {
 	orderbook := BTCMarketsOrderbook{}
 	path := fmt.Sprintf("/market/%s/AUD/orderbook", symbol)

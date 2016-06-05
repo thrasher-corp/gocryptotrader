@@ -272,6 +272,15 @@ func (b *BTCC) GetTicker(symbol string) BTCCTicker {
 	return resp.Ticker
 }
 
+func (b *BTCC)  GetTickerPrice(currency string) TickerPrice {
+	var tickerPrice TickerPrice
+	ticker := b.GetTicker(currency)
+	tickerPrice.Ask = ticker.Sell
+	tickerPrice.Bid = ticker.Buy
+	
+	return tickerPrice
+}
+
 func (b *BTCC) GetTradesLast24h(symbol string) bool {
 	req := fmt.Sprintf("%sdata/trades?market=%s", BTCC_API_URL, symbol)
 	err := SendHTTPGetRequest(req, true, nil)

@@ -134,6 +134,16 @@ func (i *ItBit) GetTicker(currency string) ItBitTicker {
 	return itbitTicker
 }
 
+func (i *ItBit) GetTickerPrice(currency string) TickerPrice {
+	var tickerPrice TickerPrice
+	ticker := i.GetTicker(currency)
+
+	tickerPrice.Ask = ticker.Ask
+	tickerPrice.Bid = ticker.Bid
+	
+	return tickerPrice
+}
+
 type ItbitOrderbookEntry struct {
 	Quantitiy float64 `json:"quantity,string"`
 	Price     float64 `json:"price,string"`

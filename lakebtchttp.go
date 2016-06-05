@@ -148,6 +148,21 @@ func (l *LakeBTC) GetTicker() LakeBTCTickerResponse {
 	return response
 }
 
+func (l *LakeBTC) GetTickerPrice(currency string) TickerPrice {
+	var tickerPrice TickerPrice
+	ticker := l.GetTicker()
+	
+	if(currency == "USD") {
+		tickerPrice.Ask = ticker.USD.Ask
+		tickerPrice.Bid = ticker.USD.Bid
+	} else if(currency =="CNY") {
+		tickerPrice.Ask = ticker.CNY.Ask
+		tickerPrice.Bid = ticker.CNY.Bid
+	}
+
+	return tickerPrice
+}
+
 func (l *LakeBTC) GetOrderBook(currency string) bool {
 	req := LAKEBTC_ORDERBOOK
 	if currency == "CNY" {

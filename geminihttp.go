@@ -186,6 +186,13 @@ func (g *Gemini) Run() {
 	}
 }
 
+/// Once GetTicker is created, then add in GetTickerPrice code plz - Scott
+func (g *Gemini) GetTickerPrice(currency string) TickerPrice {
+	var tickerPrice TickerPrice
+	
+	return tickerPrice
+}
+
 func (g *Gemini) GetSymbols() ([]string, error) {
 	symbols := []string{}
 	path := fmt.Sprintf("%s/v%s/%s", GEMINI_API_URL, GEMINI_API_VERSION, GEMINI_SYMBOLS)

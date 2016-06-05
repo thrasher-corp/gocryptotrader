@@ -284,6 +284,20 @@ func (b *Bitfinex) GetTicker(symbol string, values url.Values) (BitfinexTicker, 
 	return response, nil
 }
 
+
+func (b *Bitfinex) GetTickerPrice(currency string) TickerPrice {
+	var tickerPrice TickerPrice
+	ticker, err := b.GetTicker(currency, nil)
+	if err != nil {
+		log.Println(err)
+		return tickerPrice
+	}
+	tickerPrice.Ask = ticker.Ask
+	tickerPrice.Bid = ticker.Bid
+	
+	return tickerPrice
+}
+
 type BitfinexLendbookBidAsk struct {
 	Rate            float64 `json:"rate,string"`
 	Amount          float64 `json:"amount,string"`

@@ -188,6 +188,15 @@ func (a *ANX) GetTicker(currency string) ANXTicker {
 	return ticker
 }
 
+func (a *ANX) GetTickerPrice(currency string) TickerPrice {
+	var tickerPrice TickerPrice
+	ticker := a.GetTicker(currency)
+	tickerPrice.Ask = ticker.Data.Buy.Value
+	tickerPrice.Bid = ticker.Data.Sell.Value
+	
+	return tickerPrice
+}
+
 func (a *ANX) GetAPIKey(username, password, otp, deviceID string) (string, string) {
 	request := make(map[string]interface{})
 	request["nonce"] = strconv.FormatInt(time.Now().UnixNano(), 10)[0:13]

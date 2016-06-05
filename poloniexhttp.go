@@ -161,6 +161,19 @@ func (p *Poloniex) GetTicker() (map[string]PoloniexTicker, error) {
 	return resp.Data, nil
 }
 
+func (p *Poloniex)  GetTickerPrice(currency string) TickerPrice {
+	var tickerPrice TickerPrice
+	ticker, err := p.GetTicker()
+	if err != nil {
+		log.Println(err)
+		return tickerPrice
+	}
+	tickerPrice.Ask = ticker[currency].Last
+	tickerPrice.Bid = ticker[currency].HighestBid
+	
+	return tickerPrice
+}
+
 func (p *Poloniex) GetVolume() (interface{}, error) {
 	var resp interface{}
 	path := fmt.Sprintf("%s/public?command=return24hVolume", POLONIEX_API_URL)

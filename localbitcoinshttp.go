@@ -136,6 +136,18 @@ func (l *LocalBitcoins) GetTicker() (map[string]LocalBitcoinsTicker, error) {
 	return result, nil
 }
 
+func (l *LocalBitcoins) GetTickerPrice(currency string) TickerPrice {
+	var tickerPrice TickerPrice
+	ticker, err := l.GetTicker()
+	if err != nil {
+		log.Println(err)
+		return tickerPrice
+	}
+	tickerPrice.Ask = ticker[currency].Rates.Last
+	
+	return tickerPrice
+}
+
 type LocalBitcoinsTrade struct {
 	TID    int64   `json:"tid"`
 	Date   int64   `json:"date"`

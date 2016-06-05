@@ -322,6 +322,19 @@ func (o *OKCoin) GetTicker(symbol string) (OKCoinTicker, error) {
 	return resp.Ticker, nil
 }
 
+func (o *OKCoin)  GetTickerPrice(currency string) TickerPrice {
+	var tickerPrice TickerPrice
+	ticker, err := o.GetTicker(currency)
+	if err != nil {
+		log.Println(err)
+		return tickerPrice
+	}
+	tickerPrice.Ask = ticker.Sell
+	tickerPrice.Bid = ticker.Buy
+	
+	return tickerPrice
+}
+
 func (o *OKCoin) GetOrderBook(symbol string, size int64, merge bool) (OKCoinOrderbook, error) {
 	resp := OKCoinOrderbook{}
 	vals := url.Values{}

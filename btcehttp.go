@@ -185,6 +185,21 @@ func (b *BTCE) GetTicker(symbol string) (map[string]BTCeTicker, error) {
 	return response.Data, nil
 }
 
+/// This getticker is different, so I'll let someone else implement....
+/// Or I will, just later...
+func (b *BTCE) GetTickerPrice(currency string) TickerPrice {
+	var tickerPrice TickerPrice
+	/*ticker, err:= b.GetTicker(currency)
+	if err != nil {
+		log.Println(err)
+		return tickerPrice
+	}
+	tickerPrice.Ask = ticker.Buy
+	tickerPrice.Bid = ticker.Sell
+	*/
+	return tickerPrice
+}
+
 func (b *BTCE) GetDepth(symbol string) {
 	type Response struct {
 		Data map[string]BTCEOrderbook

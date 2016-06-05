@@ -134,6 +134,19 @@ func (b *BrightonPeak) GetTicker(symbol string) (AlphapointTicker, error) {
 	return b.API.GetTicker(symbol)
 }
 
+func (b *BrightonPeak)  GetTickerPrice(currency string) TickerPrice {
+	var tickerPrice TickerPrice
+	ticker, err := b.GetTicker(currency)
+	if err != nil {
+		log.Println(err)
+		return tickerPrice
+	}
+	tickerPrice.Ask = ticker.Ask
+	tickerPrice.Bid = ticker.Bid
+	
+	return tickerPrice
+}
+
 func (b *BrightonPeak) GetTrades(symbol string, startIndex, count int) (AlphapointTrades, error) {
 	return b.API.GetTrades(symbol, startIndex, count)
 }

@@ -203,6 +203,19 @@ func (a *Alphapoint) GetTicker(symbol string) (AlphapointTicker, error) {
 	return response, nil
 }
 
+func  (a *Alphapoint)  GetTickerPrice(currency string) TickerPrice {
+	var tickerPrice TickerPrice
+	ticker, err := a.GetTicker(currency)
+	if err != nil {
+		log.Println(err)
+		return TickerPrice{}
+	}
+	tickerPrice.Ask = ticker.Ask
+	tickerPrice.Bid = ticker.Bid
+	
+	return tickerPrice
+}
+
 func (a *Alphapoint) GetTrades(symbol string, startIndex, count int) (AlphapointTrades, error) {
 	request := make(map[string]interface{})
 	request["ins"] = symbol
