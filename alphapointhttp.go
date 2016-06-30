@@ -216,6 +216,8 @@ func  (a *Alphapoint)  GetTickerPrice(currency string) TickerPrice {
 	return tickerPrice
 }
 
+
+
 func (a *Alphapoint) GetTrades(symbol string, startIndex, count int) (AlphapointTrades, error) {
 	request := make(map[string]interface{})
 	request["ins"] = symbol

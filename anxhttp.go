@@ -197,6 +197,10 @@ func (a *ANX) GetTickerPrice(currency string) TickerPrice {
 	return tickerPrice
 }
 
+func (a *ANX) GetEnabledCurrencies() []string {
+	return a.EnabledPairs
+}
+
 func (a *ANX) GetAPIKey(username, password, otp, deviceID string) (string, string) {
 	request := make(map[string]interface{})
 	request["nonce"] = strconv.FormatInt(time.Now().UnixNano(), 10)[0:13]

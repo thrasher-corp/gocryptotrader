@@ -7,5 +7,6 @@ type IBotExchange interface {
 	GetName() string
 	IsEnabled() bool
    	GetTickerPrice(currency string) TickerPrice
+	//GetEnabledCurrencies() []string
 }
 
