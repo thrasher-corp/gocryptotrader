@@ -193,7 +193,12 @@ func (a *ANX) GetTickerPrice(currency string) TickerPrice {
 	ticker := a.GetTicker(currency)
 	tickerPrice.Ask = ticker.Data.Buy.Value
 	tickerPrice.Bid = ticker.Data.Sell.Value
-	
+	tickerPrice.CryptoCurrency = currency
+	tickerPrice.Low = ticker.Data.Low.Value
+	tickerPrice.Last = ticker.Data.Last.Value
+	tickerPrice.Volume = ticker.Data.Vol.Value
+	tickerPrice.High = ticker.Data.High.Value
+
 	return tickerPrice
 }
 

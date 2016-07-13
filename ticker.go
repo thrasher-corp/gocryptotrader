@@ -5,14 +5,14 @@ import (
 )
 
 type TickerPrice struct {
-	CryptoCurrency string
-	FiatCurrency   string
-	Last           float64
-	High           float64
-	Low            float64
-	Bid            float64
-	Ask            float64
-	Volume         float64
+	CryptoCurrency string  `json:"CryptoCurrency"`
+	FiatCurrency   string  `json:"FiatCurrency"`
+	Last           float64 `json:"Last"`
+	High           float64 `json:"High"`
+	Low            float64 `json:"Low"`
+	Bid            float64 `json:"Bid"`
+	Ask            float64 `json:"Ask"`
+	Volume         float64 `json:"Volume"`
 }
 
 type Ticker struct {

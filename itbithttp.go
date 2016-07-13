@@ -86,6 +86,10 @@ func (i *ItBit) Setup(exch Exchanges) {
 	}
 }
 
+func (k *ItBit) GetEnabledCurrencies() []string {
+	return k.EnabledPairs
+}
+
 func (i *ItBit) Start() {
 	go i.Run()
 }
@@ -140,7 +144,7 @@ func (i *ItBit) GetTickerPrice(currency string) TickerPrice {
 
 	tickerPrice.Ask = ticker.Ask
 	tickerPrice.Bid = ticker.Bid
-	
+
 	return tickerPrice
 }
 

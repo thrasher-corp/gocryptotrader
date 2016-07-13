@@ -159,6 +159,10 @@ func (c *Coinbase) Setup(exch Exchanges) {
 	}
 }
 
+func (k *Coinbase) GetEnabledCurrencies() []string {
+	return k.EnabledPairs
+}
+
 func (c *Coinbase) Start() {
 	go c.Run()
 }
@@ -367,7 +371,9 @@ func (c *Coinbase) GetTickerPrice(currency string) TickerPrice {
 		return TickerPrice{}
 	}
 	tickerPrice.Ask = ticker.Price
-	
+	tickerPrice.CryptoCurrency = currency
+	tickerPrice.Volume = ticker.Size
+
 	return tickerPrice
 }
 

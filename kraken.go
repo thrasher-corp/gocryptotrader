@@ -90,6 +90,10 @@ func (k *Kraken) Setup(exch Exchanges) {
 	}
 }
 
+func (k *Kraken) GetEnabledCurrencies() []string {
+	return k.EnabledPairs
+}
+
 func (k *Kraken) Start() {
 	go k.Run()
 }
@@ -233,13 +237,13 @@ func (k *Kraken) GetTicker(symbol string) error {
 func (k *Kraken) GetTickerPrice(currency string) TickerPrice {
 	var tickerPrice TickerPrice
 	/*
-	ticker, err := i.GetTicker(currency)
-	if err != nil {
-		log.Println(err)
-		return tickerPrice
-	}
-	tickerPrice.Ask = ticker.Ask
-	tickerPrice.Bid = ticker.Bid
+		ticker, err := i.GetTicker(currency)
+		if err != nil {
+			log.Println(err)
+			return tickerPrice
+		}
+		tickerPrice.Ask = ticker.Ask
+		tickerPrice.Bid = ticker.Bid
 	*/
 	return tickerPrice
 }

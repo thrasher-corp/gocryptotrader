@@ -116,6 +116,10 @@ func (b *BTCE) Setup(exch Exchanges) {
 	}
 }
 
+func (k *BTCE) GetEnabledCurrencies() []string {
+	return k.EnabledPairs
+}
+
 func (b *BTCE) Start() {
 	go b.Run()
 }

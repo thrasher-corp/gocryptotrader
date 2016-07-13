@@ -74,6 +74,10 @@ func (l *LocalBitcoins) Setup(exch Exchanges) {
 	}
 }
 
+func (k *LocalBitcoins) GetEnabledCurrencies() []string {
+	return k.EnabledPairs
+}
+
 func (l *LocalBitcoins) Start() {
 	go l.Run()
 }
@@ -144,7 +148,8 @@ func (l *LocalBitcoins) GetTickerPrice(currency string) TickerPrice {
 		return tickerPrice
 	}
 	tickerPrice.Ask = ticker[currency].Rates.Last
-	
+	tickerPrice.CryptoCurrency = currency
+
 	return tickerPrice
 }
 

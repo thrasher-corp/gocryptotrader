@@ -79,6 +79,10 @@ func (h *HUOBI) Setup(exch Exchanges) {
 	}
 }
 
+func (k *HUOBI) GetEnabledCurrencies() []string {
+	return k.EnabledPairs
+}
+
 func (h *HUOBI) Start() {
 	go h.Run()
 }
@@ -137,7 +141,12 @@ func (h *HUOBI) GetTickerPrice(currency string) TickerPrice {
 	ticker := h.GetTicker(currency)
 	tickerPrice.Ask = ticker.Sell
 	tickerPrice.Bid = ticker.Buy
-	
+	tickerPrice.CryptoCurrency = currency
+	tickerPrice.Low = ticker.Low
+	tickerPrice.Last = ticker.Last
+	tickerPrice.Volume = ticker.Vol
+	tickerPrice.High = ticker.High
+
 	return tickerPrice
 }
 
