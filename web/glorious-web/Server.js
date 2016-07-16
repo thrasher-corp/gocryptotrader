@@ -1,38 +1,38 @@
-var express = require('express')
-  , app = express();  
-var request = require('request');
- 
- var path = __dirname + '/views/';
+var express = require('express');
+var app = express();
 
-app.listen(80, function(){
-  console.log('CORS-enabled web server listening on port 80');
+// set the view engine to ejs
+app.set('view engine', 'ejs');
+
+// use res.render to load up an ejs view file
+
+// index page 
+app.get('/', function(req, res) {
+    res.render('pages/index', {
+    });
+});
+
+// setting page 
+app.get('/settings', function(req, res) {
+    res.render('pages/settings', {
+    });
+});
+
+// about page 
+app.get('/about', function(req, res) {
+    res.render('pages/about');
 });
 
 
-app.get("/",function(req,res){
-  res.sendFile(path + "index.html");
-});
-
-app.get("/about",function(req,res){
-  res.sendFile(path + "about.html");
-});
-
-app.get("/contact",function(req,res){
-  res.sendFile(path + "contact.html");
-});
-
-
-app.listen(3000,function(){
-  console.log("Live at Port 3000");
-});
-
-
-
-app.get('/Data/:path', function (req, res) {
+app.get('/data/all-enabled-currencies', function (req, res) {
   request({
-    url :'http://localhost:8080/exchanges/Poloniex/latest/BTC_LTC'
+    url :'http://localhost:9050/exchanges/enabled/latest/all'
   },function(err, resp, body){
     res.send(body);
   })
   
+});
+
+app.listen(80, function(){
+  console.log('CORS-enabled web server listening on port 80');
 });
