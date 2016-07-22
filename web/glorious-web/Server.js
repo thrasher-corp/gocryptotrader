@@ -1,4 +1,5 @@
 var express = require('express');
+var routes = require('./routes');
 var app = express();
 
 // set the view engine to ejs
