@@ -133,7 +133,7 @@ func PoloniexOnDepthOrTrade(args []interface{}, kwargs map[string]interface{}) {
 
 func (p *Poloniex) WebsocketClient() {
 	for p.Enabled && p.Websocket {
-		c, err := turnpike.NewWebsocketClient(turnpike.JSON, POLONIEX_WEBSOCKET_ADDRESS, nil)
+		c, err := turnpike.NewWebsocketClient(turnpike.JSON, POLONIEX_WEBSOCKET_ADDRESS)
 		if err != nil {
 			log.Printf("%s Unable to connect to Websocket. Error: %s\n", p.GetName(), err)
 			continue
