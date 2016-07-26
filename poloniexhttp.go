@@ -105,6 +105,10 @@ func (p *Poloniex) Setup(exch Exchanges) {
 	}
 }
 
+func (k *Poloniex) GetEnabledCurrencies() []string {
+	return k.EnabledPairs
+}
+
 func (p *Poloniex) Start() {
 	go p.Run()
 }
@@ -159,6 +163,24 @@ func (p *Poloniex) GetTicker() (map[string]PoloniexTicker, error) {
 		return resp.Data, err
 	}
 	return resp.Data, nil
+}
+
+func (p *Poloniex) GetTickerPrice(currency string) TickerPrice {
+	var tickerPrice TickerPrice
+	ticker, err := p.GetTicker()
+	if err != nil {
+		log.Println(err)
+		return tickerPrice
+	}
+	tickerPrice.CryptoCurrency = currency
+	tickerPrice.Ask = ticker[currency].Last
+	tickerPrice.Bid = ticker[currency].HighestBid
+	tickerPrice.High = ticker[currency].HighestBid
+	tickerPrice.Last = ticker[currency].Last
+	tickerPrice.Low = ticker[currency].LowestAsk
+	tickerPrice.Volume = ticker[currency].BaseVolume
+
+	return tickerPrice
 }
 
 func (p *Poloniex) GetVolume() (interface{}, error) {

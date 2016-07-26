@@ -137,6 +137,10 @@ func (g *Gemini) Setup(exch Exchanges) {
 	}
 }
 
+func (k *Gemini) GetEnabledCurrencies() []string {
+	return k.EnabledPairs
+}
+
 func (g *Gemini) Start() {
 	go g.Run()
 }
@@ -184,6 +188,13 @@ func (g *Gemini) Run() {
 		*/
 		time.Sleep(time.Second * g.RESTPollingDelay)
 	}
+}
+
+/// Once GetTicker is created, then add in GetTickerPrice code plz - Scott
+func (g *Gemini) GetTickerPrice(currency string) TickerPrice {
+	var tickerPrice TickerPrice
+
+	return tickerPrice
 }
 
 func (g *Gemini) GetSymbols() ([]string, error) {

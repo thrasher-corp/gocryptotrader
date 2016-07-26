@@ -86,6 +86,10 @@ func (i *ItBit) Setup(exch Exchanges) {
 	}
 }
 
+func (k *ItBit) GetEnabledCurrencies() []string {
+	return k.EnabledPairs
+}
+
 func (i *ItBit) Start() {
 	go i.Run()
 }
@@ -132,6 +136,16 @@ func (i *ItBit) GetTicker(currency string) ItBitTicker {
 		return ItBitTicker{}
 	}
 	return itbitTicker
+}
+
+func (i *ItBit) GetTickerPrice(currency string) TickerPrice {
+	var tickerPrice TickerPrice
+	ticker := i.GetTicker(currency)
+
+	tickerPrice.Ask = ticker.Ask
+	tickerPrice.Bid = ticker.Bid
+
+	return tickerPrice
 }
 
 type ItbitOrderbookEntry struct {

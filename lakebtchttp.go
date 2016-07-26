@@ -95,6 +95,10 @@ func (l *LakeBTC) Setup(exch Exchanges) {
 	}
 }
 
+func (k *LakeBTC) GetEnabledCurrencies() []string {
+	return k.EnabledPairs
+}
+
 func (l *LakeBTC) Start() {
 	go l.Run()
 }
@@ -146,6 +150,23 @@ func (l *LakeBTC) GetTicker() LakeBTCTickerResponse {
 		return response
 	}
 	return response
+}
+
+func (l *LakeBTC) GetTickerPrice(currency string) TickerPrice {
+	var tickerPrice TickerPrice
+	ticker := l.GetTicker()
+
+	if currency == "USD" {
+		tickerPrice.Ask = ticker.USD.Ask
+		tickerPrice.Bid = ticker.USD.Bid
+	} else if currency == "CNY" {
+		tickerPrice.Ask = ticker.CNY.Ask
+		tickerPrice.Bid = ticker.CNY.Bid
+	}
+
+	tickerPrice.CryptoCurrency = currency
+
+	return tickerPrice
 }
 
 func (l *LakeBTC) GetOrderBook(currency string) bool {

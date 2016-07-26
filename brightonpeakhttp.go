@@ -61,6 +61,10 @@ func (b *BrightonPeak) Setup(exch Exchanges) {
 	}
 }
 
+func (k *BrightonPeak) GetEnabledCurrencies() []string {
+	return k.EnabledPairs
+}
+
 func (b *BrightonPeak) Start() {
 	go b.Run()
 }
@@ -132,6 +136,24 @@ func (b *BrightonPeak) Run() {
 
 func (b *BrightonPeak) GetTicker(symbol string) (AlphapointTicker, error) {
 	return b.API.GetTicker(symbol)
+}
+
+func (b *BrightonPeak) GetTickerPrice(currency string) TickerPrice {
+	var tickerPrice TickerPrice
+	ticker, err := b.GetTicker(currency)
+	if err != nil {
+		log.Println(err)
+		return tickerPrice
+	}
+	tickerPrice.Ask = ticker.Ask
+	tickerPrice.Bid = ticker.Bid
+	tickerPrice.CryptoCurrency = currency
+	tickerPrice.Low = ticker.Low
+	tickerPrice.Last = ticker.Last
+	tickerPrice.Volume = ticker.Volume
+	tickerPrice.High = ticker.High
+
+	return tickerPrice
 }
 
 func (b *BrightonPeak) GetTrades(symbol string, startIndex, count int) (AlphapointTrades, error) {

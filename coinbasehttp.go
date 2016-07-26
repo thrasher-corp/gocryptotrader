@@ -159,6 +159,10 @@ func (c *Coinbase) Setup(exch Exchanges) {
 	}
 }
 
+func (k *Coinbase) GetEnabledCurrencies() []string {
+	return k.EnabledPairs
+}
+
 func (c *Coinbase) Start() {
 	go c.Run()
 }
@@ -357,6 +361,20 @@ func (c *Coinbase) GetTicker(symbol string) (CoinbaseTicker, error) {
 		return ticker, err
 	}
 	return ticker, nil
+}
+
+func (c *Coinbase) GetTickerPrice(currency string) TickerPrice {
+	var tickerPrice TickerPrice
+	ticker, err := c.GetTicker(currency)
+	if err != nil {
+		log.Println(err)
+		return TickerPrice{}
+	}
+	tickerPrice.Ask = ticker.Price
+	tickerPrice.CryptoCurrency = currency
+	tickerPrice.Volume = ticker.Size
+
+	return tickerPrice
 }
 
 func (c *Coinbase) GetTrades(symbol string) ([]CoinbaseTrade, error) {

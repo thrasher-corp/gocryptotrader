@@ -1,0 +1,179 @@
+ <div class="row">
+            <div class="col-sm-8">
+            
+                <div class="jumbotron">
+                   <div class="readme boxed-group clearfix announce instapaper_body md" id="readme">
+    <h3>
+      <svg width="16" viewBox="0 0 16 16" version="1.1" height="16" class="octicon octicon-book" aria-hidden="true"><path d="M3 5h4v1H3V5zm0 3h4V7H3v1zm0 2h4V9H3v1zm11-5h-4v1h4V5zm0 2h-4v1h4V7zm0 2h-4v1h4V9zm2-6v9c0 .55-.45 1-1 1H9.5l-1 1-1-1H2c-.55 0-1-.45-1-1V3c0-.55.45-1 1-1h5.5l1 1 1-1H15c.55 0 1 .45 1 1zm-8 .5L7.5 3H2v9h6V3.5zm7-.5H9.5l-.5.5V12h6V3z"/></svg>
+      README.md
+    </h3>
+
+      <article itemprop="text" class="markdown-body entry-content"><h2><a aria-hidden="true" href="#cryptocurrency-trading-bot-written-in-golang" class="anchor" id="user-content-cryptocurrency-trading-bot-written-in-golang"><svg width="16" viewBox="0 0 16 16" version="1.1" height="16" class="octicon octicon-link" aria-hidden="true"><path d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"/></svg></a>Cryptocurrency trading bot written in Golang</h2>
+
+<p><a href="https://travis-ci.org/thrasher-/gocryptotrader"><img style="max-width:100%;" data-canonical-src="https://travis-ci.org/thrasher-/gocryptotrader.svg?branch=master" alt="Build Status" src="https://camo.githubusercontent.com/1e8eb47c187ffb439ae782f27635f82f93d08e1c/68747470733a2f2f7472617669732d63692e6f72672f74687261736865722d2f676f63727970746f7472616465722e7376673f6272616e63683d6d6173746572"></a>
+<a href="https://codecov.io/github/thrasher-/gocryptotrader?branch=master"><img style="max-width:100%;" data-canonical-src="https://codecov.io/github/thrasher-/gocryptotrader/coverage.svg?branch=master" alt="Test Coverage" src="https://camo.githubusercontent.com/c33fdbdc74ecbcef915afc325478cdf4a9317f01/68747470733a2f2f636f6465636f762e696f2f6769746875622f74687261736865722d2f676f63727970746f7472616465722f636f7665726167652e7376673f6272616e63683d6d6173746572"></a></p>
+
+<p>A cryptocurrency trading bot supporting multiple exchanges written in Golang. </p>
+
+<p><strong>Please note that this bot is under development and is not ready for production!</strong></p>
+
+<h2><a aria-hidden="true" href="#exchange-support-table" class="anchor" id="user-content-exchange-support-table"><svg width="16" viewBox="0 0 16 16" version="1.1" height="16" class="octicon octicon-link" aria-hidden="true"><path d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"/></svg></a>Exchange Support Table</h2>
+
+<table><thead>
+<tr>
+<th>Exchange</th>
+<th>REST API</th>
+<th>Streaming API</th>
+<th>FIX API</th>
+</tr>
+</thead><tbody>
+<tr>
+<td>Alphapoint</td>
+<td>Yes</td>
+<td>Yes</td>
+<td>NA</td>
+</tr>
+<tr>
+<td>ANXPRO</td>
+<td>Yes</td>
+<td>No</td>
+<td>NA</td>
+</tr>
+<tr>
+<td>Bitfinex</td>
+<td>Yes</td>
+<td>Yes</td>
+<td>NA</td>
+</tr>
+<tr>
+<td>Bitstamp</td>
+<td>Yes</td>
+<td>Yes</td>
+<td>NA</td>
+</tr>
+<tr>
+<td>BTCC</td>
+<td>Yes</td>
+<td>Yes</td>
+<td>No</td>
+</tr>
+<tr>
+<td>BTCE</td>
+<td>Yes</td>
+<td>NA</td>
+<td>NA</td>
+</tr>
+<tr>
+<td>BTCMarkets</td>
+<td>Yes</td>
+<td>NA</td>
+<td>NA</td>
+</tr>
+<tr>
+<td>Coinbase</td>
+<td>Yes</td>
+<td>Yes</td>
+<td>No</td>
+</tr>
+<tr>
+<td>Gemini</td>
+<td>Yes</td>
+<td>NA</td>
+<td>NA</td>
+</tr>
+<tr>
+<td>Huobi</td>
+<td>Yes</td>
+<td>Yes</td>
+<td>No</td>
+</tr>
+<tr>
+<td>ItBit</td>
+<td>Yes</td>
+<td>NA</td>
+<td>NA</td>
+</tr>
+<tr>
+<td>Kraken</td>
+<td>Yes</td>
+<td>NA</td>
+<td>NA</td>
+</tr>
+<tr>
+<td>LakeBTC</td>
+<td>Yes</td>
+<td>Yes</td>
+<td>NA</td>
+</tr>
+<tr>
+<td>LocalBitcoins</td>
+<td>Yes</td>
+<td>NA</td>
+<td>NA</td>
+</tr>
+<tr>
+<td>OKCoin (both)</td>
+<td>Yes</td>
+<td>Yes</td>
+<td>No</td>
+</tr>
+<tr>
+<td>Poloniex</td>
+<td>Yes</td>
+<td>Yes</td>
+<td>NA</td>
+</tr>
+</tbody></table>
+
+<p>** NA means not applicable as the Exchange does not support the feature.</p>
+
+<h2><a aria-hidden="true" href="#current-features" class="anchor" id="user-content-current-features"><svg width="16" viewBox="0 0 16 16" version="1.1" height="16" class="octicon octicon-link" aria-hidden="true"><path d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"/></svg></a>Current Features</h2>
+
+<ul>
+<li>Support for all Exchange fiat and digital currencies, with the ability to individually toggle them on/off.</li>
+<li>REST API support for all exchanges.</li>
+<li>Websocket support for applicable exchanges.</li>
+<li>Ability to turn off/on certain exchanges.</li>
+<li>Ability to adjust manual polling timer for exchanges.</li>
+<li>SMS notification support via SMS Gateway.</li>
+<li>Basic event trigger system.</li>
+</ul>
+
+<h2><a aria-hidden="true" href="#planned-features" class="anchor" id="user-content-planned-features"><svg width="16" viewBox="0 0 16 16" version="1.1" height="16" class="octicon octicon-link" aria-hidden="true"><path d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"/></svg></a>Planned Features</h2>
+
+<ul>
+<li>WebGUI.</li>
+<li>FIX support.</li>
+<li>Expanding event trigger system.</li>
+<li>TALib.</li>
+<li>Trade history summary generation for tax purposes.</li>
+</ul>
+
+<p>Please feel free to submit any pull requests or suggest any desired features to be added.</p>
+
+<h2><a aria-hidden="true" href="#compiling-instructions" class="anchor" id="user-content-compiling-instructions"><svg width="16" viewBox="0 0 16 16" version="1.1" height="16" class="octicon octicon-link" aria-hidden="true"><path d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"/></svg></a>Compiling instructions</h2>
+
+<p>Download Go from <a href="https://golang.org/dl/">https://golang.org/dl/</a><br>
+Using a terminal, type go get github.com/thrasher-/gocryptotrader<br>
+Change directory to the package directory, then type go install.<br>
+Copy config_example.json to config.json.<br>
+Make any neccessary changes to the config file.<br>
+Run the application!  </p>
+
+<h2><a aria-hidden="true" href="#binaries" class="anchor" id="user-content-binaries"><svg width="16" viewBox="0 0 16 16" version="1.1" height="16" class="octicon octicon-link" aria-hidden="true"><path d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"/></svg></a>Binaries</h2>
+
+<p>Binaries will be published once the codebase reaches a stable condition.</p>
+</article>
+  </div>
+                </div>
+                
+            </div>
+            <div class="col-sm-4">
+                
+                <div class="well">
+                    <h3>Look I'm A Sidebar!</h3>
+                </div>
+
+            </div>
+        </div>
+    </main>

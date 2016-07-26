@@ -125,6 +125,10 @@ func (b *BTCMarkets) Setup(exch Exchanges) {
 	}
 }
 
+func (k *BTCMarkets) GetEnabledCurrencies() []string {
+	return k.EnabledPairs
+}
+
 func (b *BTCMarkets) Start() {
 	go b.Run()
 }
@@ -186,6 +190,21 @@ func (b *BTCMarkets) GetTicker(symbol string) (BTCMarketsTicker, error) {
 		return BTCMarketsTicker{}, err
 	}
 	return ticker, nil
+}
+
+func (b *BTCMarkets) GetTickerPrice(currency string) TickerPrice {
+	var tickerPrice TickerPrice
+	ticker, err := b.GetTicker(currency)
+	if err != nil {
+		log.Println(err)
+		return tickerPrice
+	}
+	tickerPrice.Ask = ticker.BestAsk
+	tickerPrice.Bid = ticker.BestBID
+	tickerPrice.CryptoCurrency = currency
+	tickerPrice.Last = ticker.LastPrice
+
+	return tickerPrice
 }
 
 func (b *BTCMarkets) GetOrderbook(symbol string) (BTCMarketsOrderbook, error) {

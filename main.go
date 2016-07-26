@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	"log"
+	"net/http"
 	"os"
 	"os/signal"
 	"runtime"
@@ -40,8 +41,9 @@ type Bot struct {
 var bot Bot
 
 func SetupBotConfiguration(s IBotExchange, exch Exchanges) {
-	s.Setup(exch)
+	s.SetDefaults()
 	if s.GetName() == exch.Name {
+		s.Setup(exch)
 		if s.IsEnabled() {
 			log.Printf("%s: Exchange support: %s (Authenticated API support: %s - Verbose mode: %s).\n", exch.Name, IsEnabled(exch.Enabled), IsEnabled(exch.AuthenticatedAPISupport), IsEnabled(exch.Verbose))
 			s.Start()
@@ -80,28 +82,8 @@ func main() {
 		} else {
 			log.Printf("SMS support enabled. Number of SMS contacts %d.\n", GetEnabledSMSContacts())
 		}
-	}
-	if !bot.config.SMS.Enabled {
+	} else {
 		log.Println("SMS support disabled.")
-	}
-
-	if bot.config.Webserver.Enabled {
-		err := CheckWebserverValues()
-		if err != nil {
-			log.Println(err) // non fatal event
-			bot.config.Webserver.Enabled = false
-		} else {
-			log.Println("HTTP Webserver support enabled.")
-			err = StartWebserver()
-			if err != nil {
-				log.Println("Unable to start Webserver: ", err)
-			} else {
-				log.Printf("HTTP server enabled and running at http://%s:%d\n", GetWebserverHost(), GetWebserverPort())
-			}
-		}
-	}
-	if !bot.config.Webserver.Enabled {
-		log.Println("HTTP Webserver support disabled.")
 	}
 
 	log.Printf("Available Exchanges: %d. Enabled Exchanges: %d.\n", len(bot.config.Exchanges), GetEnabledExchanges())
@@ -111,25 +93,24 @@ func main() {
 	bot.exchange.okcoinChina.APIUrl = OKCOIN_API_URL_CHINA
 
 	bot.exchanges = []IBotExchange{
-		&bot.exchange.anx,
-		&bot.exchange.kraken,
-		&bot.exchange.btcc,
-		&bot.exchange.bitstamp,
-		&bot.exchange.brightonpeak,
-		&bot.exchange.bitfinex,
-		&bot.exchange.btce,
-		&bot.exchange.btcmarkets,
-		&bot.exchange.coinbase,
-		&bot.exchange.gemini,
-		&bot.exchange.okcoinChina,
-		&bot.exchange.okcoinIntl,
-		&bot.exchange.itbit,
-		&bot.exchange.lakebtc,
-		&bot.exchange.localbitcoins,
-		&bot.exchange.poloniex,
-		&bot.exchange.huobi,
+		new(ANX),
+		new(Kraken),
+		new(BTCC),
+		new(Bitstamp),
+		new(BrightonPeak),
+		new(Bitfinex),
+		new(BTCE),
+		new(BTCMarkets),
+		new(Coinbase),
+		new(Gemini),
+		new(OKCoin),
+		new(OKCoin),
+		new(ItBit),
+		new(LakeBTC),
+		new(LocalBitcoins),
+		new(Poloniex),
+		new(HUOBI),
 	}
-
 	for i := 0; i < len(bot.exchanges); i++ {
 		if bot.exchanges[i] != nil {
 			bot.exchanges[i].SetDefaults()
@@ -150,6 +131,22 @@ func main() {
 			}
 		}
 	}
+
+	if bot.config.Webserver.Enabled {
+		err := CheckWebserverValues()
+		if err != nil {
+			log.Println(err) // non fatal event
+			//bot.config.Webserver.Enabled = false
+		} else {
+			log.Println("HTTP Webserver support enabled.")
+			router := NewRouter(bot.exchanges)
+			log.Fatal(http.ListenAndServe(bot.config.Webserver.ListenAddress, router))
+		}
+	}
+	if !bot.config.Webserver.Enabled {
+		log.Println("HTTP Webserver support disabled.")
+	}
+
 	<-bot.shutdown
 	Shutdown()
 }

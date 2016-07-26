@@ -2,12 +2,13 @@ package main
 
 import (
 	"errors"
-	"github.com/gorilla/websocket"
 	"log"
 	"net/url"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/gorilla/websocket"
 )
 
 const (
@@ -229,6 +230,10 @@ func (o *OKCoin) Setup(exch Exchanges) {
 	}
 }
 
+func (k *OKCoin) GetEnabledCurrencies() []string {
+	return k.EnabledPairs
+}
+
 func (o *OKCoin) Start() {
 	go o.Run()
 }
@@ -320,6 +325,24 @@ func (o *OKCoin) GetTicker(symbol string) (OKCoinTicker, error) {
 		return OKCoinTicker{}, err
 	}
 	return resp.Ticker, nil
+}
+
+func (o *OKCoin) GetTickerPrice(currency string) TickerPrice {
+	var tickerPrice TickerPrice
+	ticker, err := o.GetTicker(currency)
+	if err != nil {
+		log.Println(err)
+		return tickerPrice
+	}
+	tickerPrice.Ask = ticker.Sell
+	tickerPrice.Bid = ticker.Buy
+	tickerPrice.CryptoCurrency = currency
+	tickerPrice.Low = ticker.Low
+	tickerPrice.Last = ticker.Last
+	tickerPrice.Volume = ticker.Vol
+	tickerPrice.High = ticker.High
+
+	return tickerPrice
 }
 
 func (o *OKCoin) GetOrderBook(symbol string, size int64, merge bool) (OKCoinOrderbook, error) {

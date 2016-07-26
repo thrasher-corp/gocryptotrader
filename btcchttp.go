@@ -198,6 +198,10 @@ func (b *BTCC) Setup(exch Exchanges) {
 	}
 }
 
+func (k *BTCC) GetEnabledCurrencies() []string {
+	return k.EnabledPairs
+}
+
 //Start is run if exchange is enabled, after Setup
 func (b *BTCC) Start() {
 	go b.Run()
@@ -270,6 +274,20 @@ func (b *BTCC) GetTicker(symbol string) BTCCTicker {
 		return BTCCTicker{}
 	}
 	return resp.Ticker
+}
+
+func (b *BTCC) GetTickerPrice(currency string) TickerPrice {
+	var tickerPrice TickerPrice
+	ticker := b.GetTicker(currency)
+	tickerPrice.Ask = ticker.Sell
+	tickerPrice.Bid = ticker.Buy
+	tickerPrice.CryptoCurrency = currency
+	tickerPrice.Low = ticker.Low
+	tickerPrice.Last = ticker.Last
+	tickerPrice.Volume = ticker.Vol
+	tickerPrice.High = ticker.High
+
+	return tickerPrice
 }
 
 func (b *BTCC) GetTradesLast24h(symbol string) bool {

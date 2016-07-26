@@ -169,6 +169,10 @@ func (b *Bitstamp) Setup(exch Exchanges) {
 	}
 }
 
+func (k *Bitstamp) GetEnabledCurrencies() []string {
+	return k.EnabledPairs
+}
+
 func (b *Bitstamp) SetEnabled(enabled bool) {
 	b.Enabled = enabled
 }
@@ -232,6 +236,24 @@ func (b *Bitstamp) GetTicker(hourly bool) (BitstampTicker, error) {
 	}
 
 	return ticker, nil
+}
+
+func (b *Bitstamp) GetTickerPrice(currency string) TickerPrice {
+	var tickerPrice TickerPrice
+	ticker, err := b.GetTicker(true)
+	if err != nil {
+		log.Println(err)
+		return tickerPrice
+	}
+	tickerPrice.Ask = ticker.Ask
+	tickerPrice.Bid = ticker.Bid
+	tickerPrice.CryptoCurrency = currency
+	tickerPrice.Low = ticker.Low
+	tickerPrice.Last = ticker.Last
+	tickerPrice.Volume = ticker.Volume
+	tickerPrice.High = ticker.High
+
+	return tickerPrice
 }
 
 func (b *Bitstamp) GetOrderbook() (BitstampOrderbook, error) {

@@ -1,9 +1,10 @@
 package main
 
 import (
-	"gopkg.in/jcelliott/turnpike.v2"
 	"log"
 	"strconv"
+
+	"gopkg.in/jcelliott/turnpike.v2"
 )
 
 const (

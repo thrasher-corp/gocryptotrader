@@ -3,12 +3,13 @@ package main
 import (
 	"errors"
 	"fmt"
-	"github.com/gorilla/websocket"
 	"log"
 	"net/url"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/gorilla/websocket"
 )
 
 const (
@@ -211,6 +212,10 @@ func (b *Bitfinex) Setup(exch Exchanges) {
 	}
 }
 
+func (k *Bitfinex) GetEnabledCurrencies() []string {
+	return k.EnabledPairs
+}
+
 func (b *Bitfinex) Start() {
 	go b.Run()
 }
@@ -282,6 +287,24 @@ func (b *Bitfinex) GetTicker(symbol string, values url.Values) (BitfinexTicker, 
 		return response, err
 	}
 	return response, nil
+}
+
+func (b *Bitfinex) GetTickerPrice(currency string) TickerPrice {
+	var tickerPrice TickerPrice
+	ticker, err := b.GetTicker(currency, nil)
+	if err != nil {
+		log.Println(err)
+		return tickerPrice
+	}
+	tickerPrice.Ask = ticker.Ask
+	tickerPrice.Bid = ticker.Bid
+	tickerPrice.CryptoCurrency = currency
+	tickerPrice.Low = ticker.Low
+	tickerPrice.Last = ticker.Last
+	tickerPrice.Volume = ticker.Volume
+	tickerPrice.High = ticker.High
+
+	return tickerPrice
 }
 
 type BitfinexLendbookBidAsk struct {
