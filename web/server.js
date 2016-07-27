@@ -17,7 +17,14 @@ app.get('/data/all-enabled-currencies', function (req, res) {
   },function(err, resp, body){
     res.send(body);
   })
-  
+});
+
+app.get('/config/all', function (req, res) {
+  request({
+    url :'http://localhost:9050/config/all'
+  },function(err, resp, body){
+    res.send(body);
+  })
 });
 
 

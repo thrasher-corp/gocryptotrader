@@ -1,28 +1,51 @@
 <h2>Settings</h2>
-<h3>All enabled currencies</h3>
-<div ng-repeat="exchange in exchanges">
-    <h4>{{exchange.exchangeName}}</h4>
-    <table class="table table-striped">
-        <tr>
-            <th>Currency</th>
-            <th>Last</th>
-            <th>High</th>
-            <th>Low</th>
-            <th>Volume</th>
-            <th>Bid</th>
-            <th>Ask</th>
-        </tr>
-        <tr ng-repeat="value in exchange.exchangeValues">
-            <td>{{value.CryptoCurrency}}</td>
-            <td>{{value.Last}}</td>
-            <td>{{value.High}}</td>
-            <td>{{value.Low}}</td>
-            <td>{{value.Volume}}</td>
-            <td>{{value.Bid}}</td>
-            <td>{{value.Ask}}</td>
-        </tr>
-    </table>
-    <div ng-repeat="value in exchange.exchangeValues">
-        
+<div class="col-md-12">
+    <h4>Exchange config</h4>
+    <div ng-repeat="exchange in config.Exchanges">
+        <div class="row">
+            <h3>{{exchange.Name}}</h3>
+        </div>
+        <div class="row">
+            <div class="col-md-2">
+                <label class="input-form">Enabled:</label>
+            </div>
+                <div class="col-md-10">
+                    <input type="checkbox" class="input-form" ng-model="exchange.Enabled"/>
+                </div>
+        </div>
+        <div  ng-show="exchange.Enabled">
+            <div class="row">
+                <div class="col-md-2">
+                    <label class="input-form">API Key:</label>
+                </div>
+                <div class="col-md-10">
+                    <input type="text" class="input-form" ng-model="exchange.APIKey"/>
+                </div>
+            </div>
+             <div class="row">
+                <div class="col-md-2">
+                    <label class="input-form">API Secret:</label>
+                </div>
+                <div class="col-md-10">
+                    <input type="text" class="input-form" ng-model="exchange.APISecret"/>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-md-2">
+                    <label class="input-form">Client ID:</label>
+                </div>
+                <div class="col-md-10">
+                    <input type="text" class="input-form" ng-model="exchange.ClientID"/>
+                </div>
+            </div>
+             <div class="row">
+                <div class="col-md-2">
+                    <label class="input-form">Available Currencies:</label>
+                </div>
+                <div class="col-md-10">
+                    
+                </div>
+            </div>
+        </div>
     </div>
 </div>

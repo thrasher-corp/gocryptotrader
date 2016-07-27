@@ -1,28 +1,28 @@
 'use strict';
 
-angular.module('myApp.home', ['ngRoute'])
+angular.module('myApp.settings', ['ngRoute'])
 
 .config(['$routeProvider', function($routeProvider) {
-  $routeProvider.when('/', {
-    templateUrl: '/views/home/home.html',
-    controller: 'HomeController'
+  $routeProvider.when('/settings', {
+    templateUrl: '/views/settings/settings.html',
+    controller: 'SettingsController'
   });
 }])
 
-.controller('HomeController', function ($scope, $http) {
-  $scope.getDashboardData = function() {
+.controller('SettingsController', function ($scope, $http) {
+  $scope.getconfigData = function() {
     $http({
       method: 'GET',
-      url: '/data/all-enabled-currencies'
+      url: '/config/all'
     }).
     success(function (data, status, headers, config) {
-      $scope.exchanges = data.data;
+      $scope.config = data;
     }).
     error(function (data, status, headers, config) {
       console.log('error');
     });
   };
 
-  $scope.getDashboardData();
+  $scope.getconfigData();
 
 });
