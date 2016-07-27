@@ -17,6 +17,7 @@ import (
 	"math"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 )
 
@@ -273,4 +274,17 @@ func EncodeURLValues(url string, values url.Values) string {
 		path += "?" + values.Encode()
 	}
 	return path
+}
+
+func ExtractHost(address string) string {
+	host := SplitStrings(address, ":")[0]
+	if host == "" {
+		return "localhost"
+	}
+	return host
+}
+func ExtractPort(host string) int {
+	portStr := SplitStrings(host, ":")[1]
+	port, _ := strconv.Atoi(portStr)
+	return port
 }

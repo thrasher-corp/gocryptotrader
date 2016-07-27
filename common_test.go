@@ -206,3 +206,30 @@ func TestCalculateNetProfit(t *testing.T) {
 		t.Error(fmt.Sprintf("Test failed. Expected '%f'. Actual '%f'.", expectedOutput, actualResult))
 	}
 }
+
+func TestExtractHost(t *testing.T) {
+	t.Parallel()
+	address := "localhost:1337"
+	expectedOutput := "localhost"
+	actualResult := ExtractHost(address)
+	if expectedOutput != actualResult {
+		t.Error(fmt.Sprintf("Test failed. Expected '%f'. Actual '%f'.", expectedOutput, actualResult))
+	}
+
+	address = "192.168.1.100:1337"
+	expectedOutput = "192.168.1.100"
+	actualResult = ExtractHost(address)
+	if expectedOutput != actualResult {
+		t.Error(fmt.Sprintf("Test failed. Expected '%f'. Actual '%f'.", expectedOutput, actualResult))
+	}
+}
+
+func TestExtractPort(t *testing.T) {
+	t.Parallel()
+	address := "localhost:1337"
+	expectedOutput := 1337
+	actualResult := ExtractPort(address)
+	if expectedOutput != actualResult {
+		t.Error(fmt.Sprintf("Test failed. Expected '%f'. Actual '%f'.", expectedOutput, actualResult))
+	}
+}

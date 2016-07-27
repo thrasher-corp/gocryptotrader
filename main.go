@@ -138,9 +138,10 @@ func main() {
 			log.Println(err) // non fatal event
 			//bot.config.Webserver.Enabled = false
 		} else {
-			log.Println("HTTP Webserver support enabled.")
+			listenAddr := bot.config.Webserver.ListenAddress
+			log.Printf("HTTP Webserver support enabled. Listen URL: http://%s:%d/\n", ExtractHost(listenAddr), ExtractPort(listenAddr))
 			router := NewRouter(bot.exchanges)
-			log.Fatal(http.ListenAndServe(bot.config.Webserver.ListenAddress, router))
+			log.Fatal(http.ListenAndServe(listenAddr, router))
 		}
 	}
 	if !bot.config.Webserver.Enabled {
