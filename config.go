@@ -164,10 +164,6 @@ func CheckExchangeConfigValues() error {
 }
 
 func CheckWebserverValues() error {
-	_, err := ioutil.ReadDir("web/")
-	if err != nil {
-		return errors.New(WarningWebserverRootWebFolderNotFound)
-	}
 
 	if bot.config.Webserver.AdminUsername == "" || bot.config.Webserver.AdminPassword == "" {
 		return errors.New(WarningWebserverCredentialValuesEmpty)

@@ -1,0 +1,28 @@
+<h2>Settings</h2>
+<h3>All enabled currencies</h3>
+<div ng-repeat="exchange in exchanges">
+    <h4>{{exchange.exchangeName}}</h4>
+    <table class="table table-striped">
+        <tr>
+            <th>Currency</th>
+            <th>Last</th>
+            <th>High</th>
+            <th>Low</th>
+            <th>Volume</th>
+            <th>Bid</th>
+            <th>Ask</th>
+        </tr>
+        <tr ng-repeat="value in exchange.exchangeValues">
+            <td>{{value.CryptoCurrency}}</td>
+            <td>{{value.Last}}</td>
+            <td>{{value.High}}</td>
+            <td>{{value.Low}}</td>
+            <td>{{value.Volume}}</td>
+            <td>{{value.Bid}}</td>
+            <td>{{value.Ask}}</td>
+        </tr>
+    </table>
+    <div ng-repeat="value in exchange.exchangeValues">
+        
+    </div>
+</div>
