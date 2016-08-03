@@ -7,6 +7,7 @@ import (
 	"crypto/sha256"
 	"crypto/sha512"
 	"encoding/base64"
+	"encoding/csv"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -17,6 +18,7 @@ import (
 	"math"
 	"net/http"
 	"net/url"
+	"os"
 	"strconv"
 	"strings"
 )
@@ -283,8 +285,26 @@ func ExtractHost(address string) string {
 	}
 	return host
 }
+
 func ExtractPort(host string) int {
 	portStr := SplitStrings(host, ":")[1]
 	port, _ := strconv.Atoi(portStr)
 	return port
+}
+
+func OutputCSV(path string, data [][]string) error {
+	file, err := os.Create(path)
+	if err != nil {
+		return err
+	}
+
+	writer := csv.NewWriter(file)
+
+	err = writer.WriteAll(data)
+	if err != nil {
+		return err
+	}
+
+	defer writer.Flush()
+	return nil
 }
