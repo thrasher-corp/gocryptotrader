@@ -189,18 +189,16 @@ func (b *BTCE) GetTicker(symbol string) (map[string]BTCeTicker, error) {
 	return response.Data, nil
 }
 
-/// This getticker is different, so I'll let someone else implement....
-/// Or I will, just later...
 func (b *BTCE) GetTickerPrice(currency string) TickerPrice {
 	var tickerPrice TickerPrice
-	/*ticker, err:= b.GetTicker(currency)
-	if err != nil {
-		log.Println(err)
-		return tickerPrice
-	}
+	ticker := b.Ticker[currency]
 	tickerPrice.Ask = ticker.Buy
 	tickerPrice.Bid = ticker.Sell
-	*/
+	tickerPrice.CryptoCurrency = currency
+	tickerPrice.Low = ticker.Low
+	tickerPrice.Last = ticker.Last
+	tickerPrice.Volume = ticker.Vol_cur
+	tickerPrice.High = ticker.High
 	return tickerPrice
 }
 
