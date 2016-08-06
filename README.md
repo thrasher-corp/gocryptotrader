@@ -18,7 +18,7 @@ A cryptocurrency trading bot supporting multiple exchanges written in Golang.
 | BTCC | Yes  | Yes     | No  |
 | BTCE     | Yes  | NA        | NA  |
 | BTCMarkets | Yes | NA       | NA  |
-| Coinbase | Yes | Yes | No|
+| GDAX(Coinbase) | Yes | Yes | No|
 | Gemini | Yes | NA | NA |
 | Huobi | Yes | Yes |No |
 | ItBit | Yes | NA | NA |

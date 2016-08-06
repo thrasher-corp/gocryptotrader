@@ -11,25 +11,25 @@ import (
 )
 
 const (
-	COINBASE_API_URL     = "https://api.exchange.coinbase.com/"
-	COINBASE_API_VERISON = "0"
-	COINBASE_PRODUCTS    = "products"
-	COINBASE_ORDERBOOK   = "book"
-	COINBASE_TICKER      = "ticker"
-	COINBASE_TRADES      = "trades"
-	COINBASE_HISTORY     = "candles"
-	COINBASE_STATS       = "stats"
-	COINBASE_CURRENCIES  = "currencies"
-	COINBASE_ACCOUNTS    = "accounts"
-	COINBASE_LEDGER      = "ledger"
-	COINBASE_HOLDS       = "holds"
-	COINBASE_ORDERS      = "orders"
-	COINBASE_FILLS       = "fills"
-	COINBASE_TRANSFERS   = "transfers"
-	COINBASE_REPORTS     = "reports"
+	GDAX_API_URL     = "https://api.gdax.com/"
+	GDAX_API_VERISON = "0"
+	GDAX_PRODUCTS    = "products"
+	GDAX_ORDERBOOK   = "book"
+	GDAX_TICKER      = "ticker"
+	GDAX_TRADES      = "trades"
+	GDAX_HISTORY     = "candles"
+	GDAX_STATS       = "stats"
+	GDAX_CURRENCIES  = "currencies"
+	GDAX_ACCOUNTS    = "accounts"
+	GDAX_LEDGER      = "ledger"
+	GDAX_HOLDS       = "holds"
+	GDAX_ORDERS      = "orders"
+	GDAX_FILLS       = "fills"
+	GDAX_TRANSFERS   = "transfers"
+	GDAX_REPORTS     = "reports"
 )
 
-type Coinbase struct {
+type GDAX struct {
 	Name                        string
 	Enabled                     bool
 	Verbose                     bool
@@ -43,54 +43,54 @@ type Coinbase struct {
 	EnabledPairs                []string
 }
 
-type CoinbaseTicker struct {
+type GDAXTicker struct {
 	TradeID int64   `json:"trade_id"`
 	Price   float64 `json:"price,string"`
 	Size    float64 `json:"size,string"`
 	Time    string  `json:"time"`
 }
 
-type CoinbaseProduct struct {
+type GDAXProduct struct {
 	ID             string  `json:"id"`
 	BaseCurrency   string  `json:"base_currency"`
 	QuoteCurrency  string  `json:"quote_currency"`
-	BaseMinSize    float64 `json:"base_min_size"`
-	BaseMaxSize    int64   `json:"base_max_size"`
-	QuoteIncrement float64 `json:"quote_increment"`
+	BaseMinSize    float64 `json:"base_min_size,string"`
+	BaseMaxSize    int64   `json:"base_max_size,string"`
+	QuoteIncrement float64 `json:"quote_increment,string"`
 	DisplayName    string  `json:"string"`
 }
 
-type CoinbaseOrderL1L2 struct {
+type GDAXOrderL1L2 struct {
 	Price     float64
 	Amount    float64
 	NumOrders float64
 }
 
-type CoinbaseOrderL3 struct {
+type GDAXOrderL3 struct {
 	Price   float64
 	Amount  float64
 	OrderID string
 }
 
-type CoinbaseOrderbookL1L2 struct {
-	Sequence int64                 `json:"sequence"`
-	Bids     [][]CoinbaseOrderL1L2 `json:"asks"`
-	Asks     [][]CoinbaseOrderL1L2 `json:"asks"`
+type GDAXOrderbookL1L2 struct {
+	Sequence int64             `json:"sequence"`
+	Bids     [][]GDAXOrderL1L2 `json:"asks"`
+	Asks     [][]GDAXOrderL1L2 `json:"asks"`
 }
 
-type CoinbaseOrderbookL3 struct {
-	Sequence int64               `json:"sequence"`
-	Bids     [][]CoinbaseOrderL3 `json:"asks"`
-	Asks     [][]CoinbaseOrderL3 `json:"asks"`
+type GDAXOrderbookL3 struct {
+	Sequence int64           `json:"sequence"`
+	Bids     [][]GDAXOrderL3 `json:"asks"`
+	Asks     [][]GDAXOrderL3 `json:"asks"`
 }
 
-type CoinbaseOrderbookResponse struct {
+type GDAXOrderbookResponse struct {
 	Sequence int64           `json:"sequence"`
 	Bids     [][]interface{} `json:"bids"`
 	Asks     [][]interface{} `json:"asks"`
 }
 
-type CoinbaseTrade struct {
+type GDAXTrade struct {
 	TradeID int64   `json:"trade_id"`
 	Price   float64 `json:"price,string"`
 	Size    float64 `json:"size,string"`
@@ -98,20 +98,20 @@ type CoinbaseTrade struct {
 	Side    string  `json:"side"`
 }
 
-type CoinbaseStats struct {
+type GDAXStats struct {
 	Open   float64 `json:"open,string"`
 	High   float64 `json:"high,string"`
 	Low    float64 `json:"low,string"`
 	Volume float64 `json:"volume,string"`
 }
 
-type CoinbaseCurrency struct {
+type GDAXCurrency struct {
 	ID      string
 	Name    string
 	MinSize float64 `json:"min_size,string"`
 }
 
-type CoinbaseHistory struct {
+type GDAXHistory struct {
 	Time   int64
 	Low    float64
 	High   float64
@@ -120,75 +120,75 @@ type CoinbaseHistory struct {
 	Volume float64
 }
 
-func (c *Coinbase) SetDefaults() {
-	c.Name = "Coinbase"
-	c.Enabled = false
-	c.Verbose = false
-	c.TakerFee = 0.25
-	c.MakerFee = 0
-	c.Verbose = false
-	c.Websocket = false
-	c.RESTPollingDelay = 10
+func (g *GDAX) SetDefaults() {
+	g.Name = "GDAX"
+	g.Enabled = false
+	g.Verbose = false
+	g.TakerFee = 0.25
+	g.MakerFee = 0
+	g.Verbose = false
+	g.Websocket = false
+	g.RESTPollingDelay = 10
 }
 
-func (c *Coinbase) GetName() string {
-	return c.Name
+func (g *GDAX) GetName() string {
+	return g.Name
 }
 
-func (c *Coinbase) SetEnabled(enabled bool) {
-	c.Enabled = enabled
+func (g *GDAX) SetEnabled(enabled bool) {
+	g.Enabled = enabled
 }
 
-func (c *Coinbase) IsEnabled() bool {
-	return c.Enabled
+func (g *GDAX) IsEnabled() bool {
+	return g.Enabled
 }
 
-func (c *Coinbase) Setup(exch Exchanges) {
+func (g *GDAX) Setup(exch Exchanges) {
 	if !exch.Enabled {
-		c.SetEnabled(false)
+		g.SetEnabled(false)
 	} else {
-		c.Enabled = true
-		c.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
-		c.SetAPIKeys(exch.ClientID, exch.APIKey, exch.APISecret)
-		c.RESTPollingDelay = exch.RESTPollingDelay
-		c.Verbose = exch.Verbose
-		c.Websocket = exch.Websocket
-		c.BaseCurrencies = SplitStrings(exch.BaseCurrencies, ",")
-		c.AvailablePairs = SplitStrings(exch.AvailablePairs, ",")
-		c.EnabledPairs = SplitStrings(exch.EnabledPairs, ",")
+		g.Enabled = true
+		g.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
+		g.SetAPIKeys(exch.ClientID, exch.APIKey, exch.APISecret)
+		g.RESTPollingDelay = exch.RESTPollingDelay
+		g.Verbose = exch.Verbose
+		g.Websocket = exch.Websocket
+		g.BaseCurrencies = SplitStrings(exch.BaseCurrencies, ",")
+		g.AvailablePairs = SplitStrings(exch.AvailablePairs, ",")
+		g.EnabledPairs = SplitStrings(exch.EnabledPairs, ",")
 	}
 }
 
-func (k *Coinbase) GetEnabledCurrencies() []string {
+func (k *GDAX) GetEnabledCurrencies() []string {
 	return k.EnabledPairs
 }
 
-func (c *Coinbase) Start() {
-	go c.Run()
+func (g *GDAX) Start() {
+	go g.Run()
 }
 
-func (c *Coinbase) GetFee(maker bool) float64 {
+func (g *GDAX) GetFee(maker bool) float64 {
 	if maker {
-		return c.MakerFee
+		return g.MakerFee
 	} else {
-		return c.TakerFee
+		return g.TakerFee
 	}
 }
 
-func (c *Coinbase) Run() {
-	if c.Verbose {
-		log.Printf("%s Websocket: %s. (url: %s).\n", c.GetName(), IsEnabled(c.Websocket), COINBASE_WEBSOCKET_URL)
-		log.Printf("%s polling delay: %ds.\n", c.GetName(), c.RESTPollingDelay)
-		log.Printf("%s %d currencies enabled: %s.\n", c.GetName(), len(c.EnabledPairs), c.EnabledPairs)
+func (g *GDAX) Run() {
+	if g.Verbose {
+		log.Printf("%s Websocket: %s. (url: %s).\n", g.GetName(), IsEnabled(g.Websocket), GDAX_WEBSOCKET_URL)
+		log.Printf("%s polling delay: %ds.\n", g.GetName(), g.RESTPollingDelay)
+		log.Printf("%s %d currencies enabled: %s.\n", g.GetName(), len(g.EnabledPairs), g.EnabledPairs)
 	}
 
-	if c.Websocket {
-		go c.WebsocketClient()
+	if g.Websocket {
+		go g.WebsocketClient()
 	}
 
-	exchangeProducts, err := c.GetProducts()
+	exchangeProducts, err := g.GetProducts()
 	if err != nil {
-		log.Printf("%s Failed to get available products.\n", c.GetName())
+		log.Printf("%s Failed to get available products.\n", g.GetName())
 	} else {
 		currencies := []string{}
 		for _, x := range exchangeProducts {
@@ -196,64 +196,64 @@ func (c *Coinbase) Run() {
 				currencies = append(currencies, x.ID[0:3]+x.ID[4:])
 			}
 		}
-		diff := StringSliceDifference(c.AvailablePairs, currencies)
+		diff := StringSliceDifference(g.AvailablePairs, currencies)
 		if len(diff) > 0 {
-			exch, err := GetExchangeConfig(c.Name)
+			exch, err := GetExchangeConfig(g.Name)
 			if err != nil {
 				log.Println(err)
 			} else {
-				log.Printf("%s Updating available pairs. Difference: %s.\n", c.Name, diff)
+				log.Printf("%s Updating available pairs. Difference: %s.\n", g.Name, diff)
 				exch.AvailablePairs = JoinStrings(currencies, ",")
 				UpdateExchangeConfig(exch)
 			}
 		}
 	}
 
-	for c.Enabled {
-		for _, x := range c.EnabledPairs {
+	for g.Enabled {
+		for _, x := range g.EnabledPairs {
 			currency := x[0:3] + "-" + x[3:]
 			go func() {
-				stats, err := c.GetStats(currency)
+				stats, err := g.GetStats(currency)
 
 				if err != nil {
 					log.Println(err)
 					return
 				}
-				ticker, err := c.GetTicker(currency)
+				ticker, err := g.GetTicker(currency)
 
 				if err != nil {
 					log.Println(err)
 					return
 				}
-				log.Printf("Coinbase %s: Last %f High %f Low %f Volume %f\n", currency, ticker.Price, stats.High, stats.Low, stats.Volume)
-				AddExchangeInfo(c.GetName(), currency[0:3], currency[4:], ticker.Price, stats.Volume)
+				log.Printf("GDAX %s: Last %f High %f Low %f Volume %f\n", currency, ticker.Price, stats.High, stats.Low, stats.Volume)
+				AddExchangeInfo(g.GetName(), currency[0:3], currency[4:], ticker.Price, stats.Volume)
 			}()
 		}
-		time.Sleep(time.Second * c.RESTPollingDelay)
+		time.Sleep(time.Second * g.RESTPollingDelay)
 	}
 }
 
-func (c *Coinbase) SetAPIKeys(password, apiKey, apiSecret string) {
-	if !c.AuthenticatedAPISupport {
+func (g *GDAX) SetAPIKeys(password, apiKey, apiSecret string) {
+	if !g.AuthenticatedAPISupport {
 		return
 	}
 
-	c.Password = password
-	c.APIKey = apiKey
+	g.Password = password
+	g.APIKey = apiKey
 	result, err := Base64Decode(apiSecret)
 
 	if err != nil {
-		log.Printf("%s unable to decode secret key.", c.GetName())
-		c.Enabled = false
+		log.Printf("%s unable to decode secret key.", g.GetName())
+		g.Enabled = false
 		return
 	}
 
-	c.APISecret = string(result)
+	g.APISecret = string(result)
 }
 
-func (c *Coinbase) GetProducts() ([]CoinbaseProduct, error) {
-	products := []CoinbaseProduct{}
-	err := SendHTTPGetRequest(COINBASE_API_URL+COINBASE_PRODUCTS, true, &products)
+func (g *GDAX) GetProducts() ([]GDAXProduct, error) {
+	products := []GDAXProduct{}
+	err := SendHTTPGetRequest(GDAX_API_URL+GDAX_PRODUCTS, true, &products)
 
 	if err != nil {
 		return nil, err
@@ -262,14 +262,14 @@ func (c *Coinbase) GetProducts() ([]CoinbaseProduct, error) {
 	return products, nil
 }
 
-func (c *Coinbase) GetOrderbook(symbol string, level int) (interface{}, error) {
-	orderbook := CoinbaseOrderbookResponse{}
+func (g *GDAX) GetOrderbook(symbol string, level int) (interface{}, error) {
+	orderbook := GDAXOrderbookResponse{}
 	path := ""
 	if level > 0 {
 		levelStr := strconv.Itoa(level)
-		path = fmt.Sprintf("%s/%s/%s?level=%s", COINBASE_API_URL+COINBASE_PRODUCTS, symbol, COINBASE_ORDERBOOK, levelStr)
+		path = fmt.Sprintf("%s/%s/%s?level=%s", GDAX_API_URL+GDAX_PRODUCTS, symbol, GDAX_ORDERBOOK, levelStr)
 	} else {
-		path = fmt.Sprintf("%s/%s/%s", COINBASE_API_URL+COINBASE_PRODUCTS, symbol, COINBASE_ORDERBOOK)
+		path = fmt.Sprintf("%s/%s/%s", GDAX_API_URL+GDAX_PRODUCTS, symbol, GDAX_ORDERBOOK)
 	}
 
 	err := SendHTTPGetRequest(path, true, &orderbook)
@@ -278,7 +278,7 @@ func (c *Coinbase) GetOrderbook(symbol string, level int) (interface{}, error) {
 	}
 
 	if level == 3 {
-		ob := CoinbaseOrderbookL3{}
+		ob := GDAXOrderbookL3{}
 		ob.Sequence = orderbook.Sequence
 		for _, x := range orderbook.Asks {
 			price, err := strconv.ParseFloat((x[0].(string)), 64)
@@ -290,7 +290,7 @@ func (c *Coinbase) GetOrderbook(symbol string, level int) (interface{}, error) {
 				continue
 			}
 
-			order := make([]CoinbaseOrderL3, 1)
+			order := make([]GDAXOrderL3, 1)
 			order[0].Price = price
 			order[0].Amount = amount
 			order[0].OrderID = x[2].(string)
@@ -306,7 +306,7 @@ func (c *Coinbase) GetOrderbook(symbol string, level int) (interface{}, error) {
 				continue
 			}
 
-			order := make([]CoinbaseOrderL3, 1)
+			order := make([]GDAXOrderL3, 1)
 			order[0].Price = price
 			order[0].Amount = amount
 			order[0].OrderID = x[2].(string)
@@ -314,7 +314,7 @@ func (c *Coinbase) GetOrderbook(symbol string, level int) (interface{}, error) {
 		}
 		return ob, nil
 	} else {
-		ob := CoinbaseOrderbookL1L2{}
+		ob := GDAXOrderbookL1L2{}
 		ob.Sequence = orderbook.Sequence
 		for _, x := range orderbook.Asks {
 			price, err := strconv.ParseFloat((x[0].(string)), 64)
@@ -326,7 +326,7 @@ func (c *Coinbase) GetOrderbook(symbol string, level int) (interface{}, error) {
 				continue
 			}
 
-			order := make([]CoinbaseOrderL1L2, 1)
+			order := make([]GDAXOrderL1L2, 1)
 			order[0].Price = price
 			order[0].Amount = amount
 			order[0].NumOrders = x[2].(float64)
@@ -342,7 +342,7 @@ func (c *Coinbase) GetOrderbook(symbol string, level int) (interface{}, error) {
 				continue
 			}
 
-			order := make([]CoinbaseOrderL1L2, 1)
+			order := make([]GDAXOrderL1L2, 1)
 			order[0].Price = price
 			order[0].Amount = amount
 			order[0].NumOrders = x[2].(float64)
@@ -352,9 +352,9 @@ func (c *Coinbase) GetOrderbook(symbol string, level int) (interface{}, error) {
 	}
 }
 
-func (c *Coinbase) GetTicker(symbol string) (CoinbaseTicker, error) {
-	ticker := CoinbaseTicker{}
-	path := fmt.Sprintf("%s/%s/%s", COINBASE_API_URL+COINBASE_PRODUCTS, symbol, COINBASE_TICKER)
+func (g *GDAX) GetTicker(symbol string) (GDAXTicker, error) {
+	ticker := GDAXTicker{}
+	path := fmt.Sprintf("%s/%s/%s", GDAX_API_URL+GDAX_PRODUCTS, symbol, GDAX_TICKER)
 	err := SendHTTPGetRequest(path, true, &ticker)
 
 	if err != nil {
@@ -363,9 +363,9 @@ func (c *Coinbase) GetTicker(symbol string) (CoinbaseTicker, error) {
 	return ticker, nil
 }
 
-func (c *Coinbase) GetTickerPrice(currency string) TickerPrice {
+func (g *GDAX) GetTickerPrice(currency string) TickerPrice {
 	var tickerPrice TickerPrice
-	ticker, err := c.GetTicker(currency)
+	ticker, err := g.GetTicker(currency)
 	if err != nil {
 		log.Println(err)
 		return TickerPrice{}
@@ -377,9 +377,9 @@ func (c *Coinbase) GetTickerPrice(currency string) TickerPrice {
 	return tickerPrice
 }
 
-func (c *Coinbase) GetTrades(symbol string) ([]CoinbaseTrade, error) {
-	trades := []CoinbaseTrade{}
-	path := fmt.Sprintf("%s/%s/%s", COINBASE_API_URL+COINBASE_PRODUCTS, symbol, COINBASE_TRADES)
+func (g *GDAX) GetTrades(symbol string) ([]GDAXTrade, error) {
+	trades := []GDAXTrade{}
+	path := fmt.Sprintf("%s/%s/%s", GDAX_API_URL+GDAX_PRODUCTS, symbol, GDAX_TRADES)
 	err := SendHTTPGetRequest(path, true, &trades)
 
 	if err != nil {
@@ -388,8 +388,8 @@ func (c *Coinbase) GetTrades(symbol string) ([]CoinbaseTrade, error) {
 	return trades, nil
 }
 
-func (c *Coinbase) GetHistoricRates(symbol string, start, end, granularity int64) ([]CoinbaseHistory, error) {
-	history := []CoinbaseHistory{}
+func (g *GDAX) GetHistoricRates(symbol string, start, end, granularity int64) ([]GDAXHistory, error) {
+	history := []GDAXHistory{}
 	values := url.Values{}
 
 	if start > 0 {
@@ -404,7 +404,7 @@ func (c *Coinbase) GetHistoricRates(symbol string, start, end, granularity int64
 		values.Set("granularity", strconv.FormatInt(granularity, 10))
 	}
 
-	path := EncodeURLValues(fmt.Sprintf("%s/%s/%s", COINBASE_API_URL+COINBASE_PRODUCTS, symbol, COINBASE_HISTORY), values)
+	path := EncodeURLValues(fmt.Sprintf("%s/%s/%s", GDAX_API_URL+GDAX_PRODUCTS, symbol, GDAX_HISTORY), values)
 	err := SendHTTPGetRequest(path, true, &history)
 
 	if err != nil {
@@ -413,9 +413,9 @@ func (c *Coinbase) GetHistoricRates(symbol string, start, end, granularity int64
 	return history, nil
 }
 
-func (c *Coinbase) GetStats(symbol string) (CoinbaseStats, error) {
-	stats := CoinbaseStats{}
-	path := fmt.Sprintf("%s/%s/%s", COINBASE_API_URL+COINBASE_PRODUCTS, symbol, COINBASE_STATS)
+func (g *GDAX) GetStats(symbol string) (GDAXStats, error) {
+	stats := GDAXStats{}
+	path := fmt.Sprintf("%s/%s/%s", GDAX_API_URL+GDAX_PRODUCTS, symbol, GDAX_STATS)
 	err := SendHTTPGetRequest(path, true, &stats)
 
 	if err != nil {
@@ -424,9 +424,9 @@ func (c *Coinbase) GetStats(symbol string) (CoinbaseStats, error) {
 	return stats, nil
 }
 
-func (c *Coinbase) GetCurrencies() ([]CoinbaseCurrency, error) {
-	currencies := []CoinbaseCurrency{}
-	err := SendHTTPGetRequest(COINBASE_API_URL+COINBASE_CURRENCIES, true, &currencies)
+func (g *GDAX) GetCurrencies() ([]GDAXCurrency, error) {
+	currencies := []GDAXCurrency{}
+	err := SendHTTPGetRequest(GDAX_API_URL+GDAX_CURRENCIES, true, &currencies)
 
 	if err != nil {
 		return nil, err
@@ -434,7 +434,7 @@ func (c *Coinbase) GetCurrencies() ([]CoinbaseCurrency, error) {
 	return currencies, nil
 }
 
-type CoinbaseAccountResponse struct {
+type GDAXAccountResponse struct {
 	ID        string  `json:"id"`
 	Balance   float64 `json:"balance,string"`
 	Hold      float64 `json:"hold,string"`
@@ -442,9 +442,9 @@ type CoinbaseAccountResponse struct {
 	Currency  string  `json:"currency"`
 }
 
-func (c *Coinbase) GetAccounts() ([]CoinbaseAccountResponse, error) {
-	resp := []CoinbaseAccountResponse{}
-	err := c.SendAuthenticatedHTTPRequest("GET", COINBASE_API_URL+COINBASE_ACCOUNTS, nil, &resp)
+func (g *GDAX) GetAccounts() ([]GDAXAccountResponse, error) {
+	resp := []GDAXAccountResponse{}
+	err := g.SendAuthenticatedHTTPRequest("GET", GDAX_API_URL+GDAX_ACCOUNTS, nil, &resp)
 	if err != nil {
 		return nil, err
 	}
@@ -452,17 +452,17 @@ func (c *Coinbase) GetAccounts() ([]CoinbaseAccountResponse, error) {
 	return resp, nil
 }
 
-func (c *Coinbase) GetAccount(account string) (CoinbaseAccountResponse, error) {
-	resp := CoinbaseAccountResponse{}
-	path := fmt.Sprintf("%s/%s", COINBASE_ACCOUNTS, account)
-	err := c.SendAuthenticatedHTTPRequest("GET", COINBASE_API_URL+path, nil, &resp)
+func (g *GDAX) GetAccount(account string) (GDAXAccountResponse, error) {
+	resp := GDAXAccountResponse{}
+	path := fmt.Sprintf("%s/%s", GDAX_ACCOUNTS, account)
+	err := g.SendAuthenticatedHTTPRequest("GET", GDAX_API_URL+path, nil, &resp)
 	if err != nil {
 		return resp, err
 	}
 	return resp, nil
 }
 
-type CoinbaseAccountLedgerResponse struct {
+type GDAXAccountLedgerResponse struct {
 	ID        string      `json:"id"`
 	CreatedAt string      `json:"created_at"`
 	Amount    float64     `json:"amount,string"`
@@ -471,17 +471,17 @@ type CoinbaseAccountLedgerResponse struct {
 	details   interface{} `json:"details"`
 }
 
-func (c *Coinbase) GetAccountHistory(accountID string) ([]CoinbaseAccountLedgerResponse, error) {
-	resp := []CoinbaseAccountLedgerResponse{}
-	path := fmt.Sprintf("%s/%s/%s", COINBASE_ACCOUNTS, accountID, COINBASE_LEDGER)
-	err := c.SendAuthenticatedHTTPRequest("GET", COINBASE_API_URL+path, nil, &resp)
+func (g *GDAX) GetAccountHistory(accountID string) ([]GDAXAccountLedgerResponse, error) {
+	resp := []GDAXAccountLedgerResponse{}
+	path := fmt.Sprintf("%s/%s/%s", GDAX_ACCOUNTS, accountID, GDAX_LEDGER)
+	err := g.SendAuthenticatedHTTPRequest("GET", GDAX_API_URL+path, nil, &resp)
 	if err != nil {
 		return nil, err
 	}
 	return resp, nil
 }
 
-type CoinbaseAccountHolds struct {
+type GDAXAccountHolds struct {
 	ID        string  `json:"id"`
 	AccountID string  `json:"account_id"`
 	CreatedAt string  `json:"created_at"`
@@ -491,17 +491,17 @@ type CoinbaseAccountHolds struct {
 	Reference string  `json:"ref"`
 }
 
-func (c *Coinbase) GetHolds(accountID string) ([]CoinbaseAccountHolds, error) {
-	resp := []CoinbaseAccountHolds{}
-	path := fmt.Sprintf("%s/%s/%s", COINBASE_ACCOUNTS, accountID, COINBASE_HOLDS)
-	err := c.SendAuthenticatedHTTPRequest("GET", COINBASE_API_URL+path, nil, &resp)
+func (g *GDAX) GetHolds(accountID string) ([]GDAXAccountHolds, error) {
+	resp := []GDAXAccountHolds{}
+	path := fmt.Sprintf("%s/%s/%s", GDAX_ACCOUNTS, accountID, GDAX_HOLDS)
+	err := g.SendAuthenticatedHTTPRequest("GET", GDAX_API_URL+path, nil, &resp)
 	if err != nil {
 		return nil, err
 	}
 	return resp, nil
 }
 
-func (c *Coinbase) PlaceOrder(clientRef string, price, amount float64, side string, productID, stp string) (string, error) {
+func (g *GDAX) PlaceOrder(clientRef string, price, amount float64, side string, productID, stp string) (string, error) {
 	request := make(map[string]interface{})
 
 	if clientRef != "" {
@@ -522,7 +522,7 @@ func (c *Coinbase) PlaceOrder(clientRef string, price, amount float64, side stri
 	}
 
 	resp := OrderResponse{}
-	err := c.SendAuthenticatedHTTPRequest("POST", COINBASE_API_URL+COINBASE_ORDERS, request, &resp)
+	err := g.SendAuthenticatedHTTPRequest("POST", GDAX_API_URL+GDAX_ORDERS, request, &resp)
 	if err != nil {
 		return "", err
 	}
@@ -530,16 +530,16 @@ func (c *Coinbase) PlaceOrder(clientRef string, price, amount float64, side stri
 	return resp.ID, nil
 }
 
-func (c *Coinbase) CancelOrder(orderID string) error {
-	path := fmt.Sprintf("%s/%s", COINBASE_ORDERS, orderID)
-	err := c.SendAuthenticatedHTTPRequest("DELETE", COINBASE_API_URL+path, nil, nil)
+func (g *GDAX) CancelOrder(orderID string) error {
+	path := fmt.Sprintf("%s/%s", GDAX_ORDERS, orderID)
+	err := g.SendAuthenticatedHTTPRequest("DELETE", GDAX_API_URL+path, nil, nil)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-type CoinbaseOrdersResponse struct {
+type GDAXOrdersResponse struct {
 	ID         string  `json:"id"`
 	Size       float64 `json:"size,string"`
 	Price      float64 `json:"price,string"`
@@ -552,17 +552,17 @@ type CoinbaseOrdersResponse struct {
 	CreatedAt  string  `json:"created_at"`
 }
 
-func (c *Coinbase) GetOrders(params url.Values) ([]CoinbaseOrdersResponse, error) {
-	path := EncodeURLValues(COINBASE_API_URL+COINBASE_ORDERS, params)
-	resp := []CoinbaseOrdersResponse{}
-	err := c.SendAuthenticatedHTTPRequest("GET", path, nil, &resp)
+func (g *GDAX) GetOrders(params url.Values) ([]GDAXOrdersResponse, error) {
+	path := EncodeURLValues(GDAX_API_URL+GDAX_ORDERS, params)
+	resp := []GDAXOrdersResponse{}
+	err := g.SendAuthenticatedHTTPRequest("GET", path, nil, &resp)
 	if err != nil {
 		return nil, err
 	}
 	return resp, nil
 }
 
-type CoinbaseOrderResponse struct {
+type GDAXOrderResponse struct {
 	ID         string  `json:"id"`
 	Size       float64 `json:"size,string"`
 	Price      float64 `json:"price,string"`
@@ -577,17 +577,17 @@ type CoinbaseOrderResponse struct {
 	DoneAt     string  `json:"done_at"`
 }
 
-func (c *Coinbase) GetOrder(orderID string) (CoinbaseOrderResponse, error) {
-	path := fmt.Sprintf("%s/%s", COINBASE_ORDERS, orderID)
-	resp := CoinbaseOrderResponse{}
-	err := c.SendAuthenticatedHTTPRequest("GET", COINBASE_API_URL+path, nil, &resp)
+func (g *GDAX) GetOrder(orderID string) (GDAXOrderResponse, error) {
+	path := fmt.Sprintf("%s/%s", GDAX_ORDERS, orderID)
+	resp := GDAXOrderResponse{}
+	err := g.SendAuthenticatedHTTPRequest("GET", GDAX_API_URL+path, nil, &resp)
 	if err != nil {
 		return resp, err
 	}
 	return resp, nil
 }
 
-type CoinbaseFillResponse struct {
+type GDAXFillResponse struct {
 	TradeID   int     `json:"trade_id"`
 	ProductID string  `json:"product_id"`
 	Price     float64 `json:"price,string"`
@@ -600,30 +600,30 @@ type CoinbaseFillResponse struct {
 	Side      string  `json:"side"`
 }
 
-func (c *Coinbase) GetFills(params url.Values) ([]CoinbaseFillResponse, error) {
-	path := EncodeURLValues(COINBASE_API_URL+COINBASE_FILLS, params)
-	resp := []CoinbaseFillResponse{}
-	err := c.SendAuthenticatedHTTPRequest("GET", path, nil, &resp)
+func (g *GDAX) GetFills(params url.Values) ([]GDAXFillResponse, error) {
+	path := EncodeURLValues(GDAX_API_URL+GDAX_FILLS, params)
+	resp := []GDAXFillResponse{}
+	err := g.SendAuthenticatedHTTPRequest("GET", path, nil, &resp)
 	if err != nil {
 		return nil, err
 	}
 	return resp, nil
 }
 
-func (c *Coinbase) Transfer(transferType string, amount float64, accountID string) error {
+func (g *GDAX) Transfer(transferType string, amount float64, accountID string) error {
 	request := make(map[string]interface{})
 	request["type"] = transferType
 	request["amount"] = strconv.FormatFloat(amount, 'f', -1, 64)
-	request["coinbase_account_id"] = accountID
+	request["GDAX_account_id"] = accountID
 
-	err := c.SendAuthenticatedHTTPRequest("POST", COINBASE_API_URL+COINBASE_TRANSFERS, request, nil)
+	err := g.SendAuthenticatedHTTPRequest("POST", GDAX_API_URL+GDAX_TRANSFERS, request, nil)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-type CoinbaseReportResponse struct {
+type GDAXReportResponse struct {
 	ID          string `json:"id"`
 	Type        string `json:"type"`
 	Status      string `json:"status"`
@@ -637,31 +637,31 @@ type CoinbaseReportResponse struct {
 	} `json:params"`
 }
 
-func (c *Coinbase) GetReport(reportType, startDate, endDate string) (CoinbaseReportResponse, error) {
+func (g *GDAX) GetReport(reportType, startDate, endDate string) (GDAXReportResponse, error) {
 	request := make(map[string]interface{})
 	request["type"] = reportType
 	request["start_date"] = startDate
 	request["end_date"] = endDate
 
-	resp := CoinbaseReportResponse{}
-	err := c.SendAuthenticatedHTTPRequest("POST", COINBASE_API_URL+COINBASE_REPORTS, request, &resp)
+	resp := GDAXReportResponse{}
+	err := g.SendAuthenticatedHTTPRequest("POST", GDAX_API_URL+GDAX_REPORTS, request, &resp)
 	if err != nil {
 		return resp, err
 	}
 	return resp, nil
 }
 
-func (c *Coinbase) GetReportStatus(reportID string) (CoinbaseReportResponse, error) {
-	path := fmt.Sprintf("%s/%s", COINBASE_REPORTS, reportID)
-	resp := CoinbaseReportResponse{}
-	err := c.SendAuthenticatedHTTPRequest("POST", COINBASE_API_URL+path, nil, &resp)
+func (g *GDAX) GetReportStatus(reportID string) (GDAXReportResponse, error) {
+	path := fmt.Sprintf("%s/%s", GDAX_REPORTS, reportID)
+	resp := GDAXReportResponse{}
+	err := g.SendAuthenticatedHTTPRequest("POST", GDAX_API_URL+path, nil, &resp)
 	if err != nil {
 		return resp, err
 	}
 	return resp, nil
 }
 
-func (c *Coinbase) SendAuthenticatedHTTPRequest(method, path string, params map[string]interface{}, result interface{}) (err error) {
+func (g *GDAX) SendAuthenticatedHTTPRequest(method, path string, params map[string]interface{}, result interface{}) (err error) {
 	timestamp := strconv.FormatInt(time.Now().UnixNano(), 10)[0:13]
 	payload := []byte("")
 
@@ -672,23 +672,23 @@ func (c *Coinbase) SendAuthenticatedHTTPRequest(method, path string, params map[
 			return errors.New("SendAuthenticatedHTTPRequest: Unable to JSON request")
 		}
 
-		if c.Verbose {
+		if g.Verbose {
 			log.Printf("Request JSON: %s\n", payload)
 		}
 	}
 
 	message := timestamp + method + path + string(payload)
-	hmac := GetHMAC(HASH_SHA256, []byte(message), []byte(c.APISecret))
+	hmac := GetHMAC(HASH_SHA256, []byte(message), []byte(g.APISecret))
 	headers := make(map[string]string)
 	headers["CB-ACCESS-SIGN"] = Base64Encode([]byte(hmac))
 	headers["CB-ACCESS-TIMESTAMP"] = timestamp
-	headers["CB-ACCESS-KEY"] = c.APIKey
-	headers["CB-ACCESS-PASSPHRASE"] = c.Password
+	headers["CB-ACCESS-KEY"] = g.APIKey
+	headers["CB-ACCESS-PASSPHRASE"] = g.Password
 	headers["Content-Type"] = "application/json"
 
-	resp, err := SendHTTPRequest(method, COINBASE_API_URL+path, headers, bytes.NewBuffer(payload))
+	resp, err := SendHTTPRequest(method, GDAX_API_URL+path, headers, bytes.NewBuffer(payload))
 
-	if c.Verbose {
+	if g.Verbose {
 		log.Printf("Recieved raw: \n%s\n", resp)
 	}
 

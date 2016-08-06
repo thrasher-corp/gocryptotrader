@@ -19,7 +19,7 @@ type Exchange struct {
 	brightonpeak  BrightonPeak
 	btce          BTCE
 	btcmarkets    BTCMarkets
-	coinbase      Coinbase
+	gdax          GDAX
 	gemini        Gemini
 	okcoinChina   OKCoin
 	okcoinIntl    OKCoin
@@ -101,7 +101,7 @@ func main() {
 		new(Bitfinex),
 		new(BTCE),
 		new(BTCMarkets),
-		new(Coinbase),
+		new(GDAX),
 		new(Gemini),
 		new(OKCoin),
 		new(OKCoin),

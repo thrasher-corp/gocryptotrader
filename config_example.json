@@ -115,7 +115,7 @@
    "BaseCurrencies": "AUD"
   },
   {
-   "Name": "Coinbase",
+   "Name": "GDAX",
    "Enabled": true,
    "Verbose": false,
    "Websocket": false,
@@ -124,7 +124,7 @@
    "APIKey": "Key",
    "APISecret": "Secret",
    "ClientID": "ClientID",
-   "AvailablePairs": "BTCUSD,BTCGBP,BTCEUR",
+   "AvailablePairs": "BTCUSD,ETHUSD,BTCGBP,BTCEUR,BTCCAD,ETHBTC",
    "EnabledPairs": "BTCUSD,BTCGBP,BTCEUR",
    "BaseCurrencies": "USD,GBP,EUR"
   },
