@@ -63,6 +63,10 @@ const (
 	OKCOIN_FUTURES_DEVOLVE         = "future_devolve.do"
 )
 
+var (
+	okcoinDefaultsSet = false
+)
+
 type OKCoin struct {
 	Name                         string
 	Enabled                      bool
@@ -187,19 +191,22 @@ type OKCoinFuturesExplosive struct {
 func (o *OKCoin) SetDefaults() {
 	o.SetErrorDefaults()
 	o.SetWebsocketErrorDefaults()
-
-	if o.APIUrl == OKCOIN_API_URL {
-		o.Name = "OKCOIN International"
-		o.WebsocketURL = OKCOIN_WEBSOCKET_URL
-	} else if o.APIUrl == OKCOIN_API_URL_CHINA {
-		o.Name = "OKCOIN China"
-		o.WebsocketURL = OKCOIN_WEBSOCKET_URL_CHINA
-	}
 	o.Enabled = false
 	o.Verbose = false
 	o.Websocket = false
 	o.RESTPollingDelay = 10
 	o.FuturesValues = []string{"this_week", "next_week", "quarter"}
+
+	if !okcoinDefaultsSet {
+		o.APIUrl = OKCOIN_API_URL
+		o.Name = "OKCOIN International"
+		o.WebsocketURL = OKCOIN_WEBSOCKET_URL
+		okcoinDefaultsSet = true
+	} else {
+		o.APIUrl = OKCOIN_API_URL_CHINA
+		o.Name = "OKCOIN China"
+		o.WebsocketURL = OKCOIN_WEBSOCKET_URL_CHINA
+	}
 }
 
 func (o *OKCoin) GetName() string {
