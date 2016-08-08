@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -47,6 +48,9 @@ type SMSGlobal struct {
 		Number  string
 		Enabled bool
 	}
+}
+type ConfigPost struct {
+	Data Config `json:"Data"`
 }
 
 type Config struct {
@@ -198,6 +202,7 @@ func ReadConfig() (Config, error) {
 }
 
 func SaveConfig() error {
+	log.Println("Saving config")
 	payload, err := json.MarshalIndent(bot.config, "", " ")
 
 	if err != nil {
@@ -208,6 +213,14 @@ func SaveConfig() error {
 
 	if err != nil {
 		return err
+	}
+	retrieved, err := ioutil.ReadFile(CONFIG_FILE)
+	if err != nil {
+		return err
+	}
+
+	if !bytes.Equal(retrieved, payload) {
+		return fmt.Errorf("file %q content doesn't match, read %s expected %s\n", CONFIG_FILE, retrieved, payload)
 	}
 
 	return nil

@@ -40,11 +40,11 @@ app.get('/config/all', function (req, res) {
 
 app.post('/config/all/save', function(req, res) {
   requestify.post('http://localhost:9050/config/all/save', {
-      data: req.body
+      Data: req.body
   })
   .then(function(response) {
       console.log(response);
-      res.send(response);
+      res.send(response.body);
   });
 });
 

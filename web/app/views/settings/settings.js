@@ -62,6 +62,12 @@ $scope.saveAllSettings = function() {
     }).
     success(function (data) {
       Notification.success('Saved settings');
+       for(var i=0; i<data.Exchanges.length;i++) {
+         data.Exchanges[i].AvailablePairsSplit = data.Exchanges[i].AvailablePairs.split(",");
+         data.Exchanges[i].EnabledPairsSplit = data.Exchanges[i].EnabledPairs.split(",");
+      }
+      $scope.config = data;
+      Notification.info('Settings loaded');
     }).
     error(function (data) {
       Notification.error('Save failed');
