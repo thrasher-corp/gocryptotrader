@@ -9,7 +9,7 @@ angular.module('myApp.home', ['ngRoute'])
   });
 }])
 
-.controller('HomeController', function ($scope, $http) {
+.controller('HomeController', function ($scope, $http, Notification) {
   $scope.getDashboardData = function() {
     $http({
       method: 'GET',
@@ -17,6 +17,7 @@ angular.module('myApp.home', ['ngRoute'])
     }).
     success(function (data, status, headers, config) {
       $scope.exchanges = data.data;
+      Notification.info("Retrieved latest data");
     }).
     error(function (data, status, headers, config) {
       console.log('error');

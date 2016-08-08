@@ -15,7 +15,9 @@
     "karma-jasmine": "^0.3.8",
     "karma-junit-reporter": "^0.4.1",
     "protractor": "^3.2.2",
-	 "express" : "latest"
+	 "express" : "latest",
+   "requestify":"latest",
+   "body-parser":"latest"
   },
   "scripts": {
     "postinstall": "bower install",
