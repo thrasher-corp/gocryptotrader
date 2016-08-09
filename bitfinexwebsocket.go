@@ -11,7 +11,7 @@ import (
 
 const (
 	BITFINEX_WEBSOCKET                   = "wss://api2.bitfinex.com:3000/ws"
-	BITFINEX_WEBSOCKET_VERSION           = "1.0"
+	BITFINEX_WEBSOCKET_VERSION           = "1.1"
 	BITFINEX_WEBSOCKET_POSITION_SNAPSHOT = "ps"
 	BITFINEX_WEBSOCKET_POSITION_NEW      = "pn"
 	BITFINEX_WEBSOCKET_POSITION_UPDATE   = "pu"
@@ -170,9 +170,9 @@ func (b *Bitfinex) WebsocketClient() {
 		}
 
 		type WebsocketHandshake struct {
-			Event   string `json:"event"`
-			Code    int64  `json:"code"`
-			Version int    `json:"version"`
+			Event   string  `json:"event"`
+			Code    int64   `json:"code"`
+			Version float64 `json:"version"`
 		}
 
 		hs := WebsocketHandshake{}
