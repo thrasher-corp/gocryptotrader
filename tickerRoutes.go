@@ -41,7 +41,6 @@ type EnabledExchangeCurrencies struct {
 
 func getAllActiveTickersResponse(w http.ResponseWriter, r *http.Request) {
 	var response AllEnabledExchangeCurrencies
-	log.Println(bot.exchanges[15])
 
 	for _, individualBot := range bot.exchanges {
 		if individualBot != nil && individualBot.IsEnabled() {
@@ -59,8 +58,6 @@ func getAllActiveTickersResponse(w http.ResponseWriter, r *http.Request) {
 			response.Data = append(response.Data, individualExchange)
 		}
 	}
-
-	log.Println(response)
 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 	w.WriteHeader(http.StatusOK)
 	if err := json.NewEncoder(w).Encode(response); err != nil {
