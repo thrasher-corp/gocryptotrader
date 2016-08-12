@@ -33,8 +33,12 @@ $scope.toggleCurrencyToEnabledCurrencies = function(currency, exchange) {
   for(var i=0; i<$scope.config.Exchanges.length;i++) {
     if($scope.config.Exchanges[i].Name == exchange.Name) {
       if(exchange.EnabledPairsSplit.indexOf(currency) > -1) {
-        $scope.config.Exchanges[i].EnabledPairsSplit.splice(exchange.EnabledPairsSplit.indexOf(currency),1);
-        $scope.config.Exchanges[i].EnabledPairs  = $scope.config.Exchanges[i].EnabledPairs.replace(","+ currency,"");
+        $scope.config.Exchanges[i].EnabledPairsSplit.splice($scope.config.Exchanges[i].EnabledPairsSplit.indexOf(currency),1);
+        //I feel there's a better way to do this, but for right now, whatever
+        $scope.config.Exchanges[i].EnabledPairs  = $scope.config.Exchanges[i].EnabledPairs.replace(currency,"");
+        $scope.config.Exchanges[i].EnabledPairs  = $scope.config.Exchanges[i].EnabledPairs.replace(",,","");
+        $scope.config.Exchanges[i].EnabledPairs  = $scope.config.Exchanges[i].EnabledPairs.replace(/,\s*$/, "");
+        
       } else {
         $scope.config.Exchanges[i].EnabledPairsSplit.push(currency);
         $scope.config.Exchanges[i].EnabledPairs  = $scope.config.Exchanges[i].EnabledPairs + "," + currency;
