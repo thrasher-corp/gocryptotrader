@@ -40,6 +40,24 @@ type Bot struct {
 
 var bot Bot
 
+func setupBotExchanges() {
+	for _, exch := range bot.config.Exchanges {
+		for i := 0; i < len(bot.exchanges); i++ {
+			if bot.exchanges[i] != nil {
+				if bot.exchanges[i].GetName() == exch.Name {
+					bot.exchanges[i].Setup(exch)
+					if bot.exchanges[i].IsEnabled() {
+						log.Printf("%s: Exchange support: %s (Authenticated API support: %s - Verbose mode: %s).\n", exch.Name, IsEnabled(exch.Enabled), IsEnabled(exch.AuthenticatedAPISupport), IsEnabled(exch.Verbose))
+						bot.exchanges[i].Start()
+					} else {
+						log.Printf("%s: Exchange support: %s\n", exch.Name, IsEnabled(exch.Enabled))
+					}
+				}
+			}
+		}
+	}
+}
+
 func main() {
 	HandleInterrupt()
 	log.Println("Loading config file config.json..")
@@ -102,6 +120,8 @@ func main() {
 			log.Printf("Exchange %s successfully set default settings.\n", bot.exchanges[i].GetName())
 		}
 	}
+
+	setupBotExchanges()
 
 	err = RetrieveConfigCurrencyPairs(bot.config)
 

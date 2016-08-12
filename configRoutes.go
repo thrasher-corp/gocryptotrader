@@ -43,6 +43,7 @@ func SaveAllSettings(w http.ResponseWriter, r *http.Request) {
 		log.Println("Fatal error checking config values. Error:", err)
 		panic(err)
 	}
+	setupBotExchanges()
 	//Return response status
 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 	w.WriteHeader(http.StatusOK)

@@ -11,7 +11,7 @@ angular.module('myApp', [
 ]).
 config(['$locationProvider', '$routeProvider' ,'NotificationProvider',  function($locationProvider, $routeProvider, NotificationProvider) {
   NotificationProvider.setOptions({
-            delay: 10000,
+            delay: 5000,
             startTop: 60,
             startRight: 10,
             verticalSpacing: 10,
