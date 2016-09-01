@@ -129,22 +129,6 @@ func main() {
 		log.Println("Fatal error retrieving config currency AvailablePairs. Error: ", err)
 	}
 
-	for _, exch := range bot.config.Exchanges {
-		for i := 0; i < len(bot.exchanges); i++ {
-			if bot.exchanges[i] != nil {
-				if bot.exchanges[i].GetName() == exch.Name {
-					bot.exchanges[i].Setup(exch)
-					if bot.exchanges[i].IsEnabled() {
-						log.Printf("%s: Exchange support: %s (Authenticated API support: %s - Verbose mode: %s).\n", exch.Name, IsEnabled(exch.Enabled), IsEnabled(exch.AuthenticatedAPISupport), IsEnabled(exch.Verbose))
-						bot.exchanges[i].Start()
-					} else {
-						log.Printf("%s: Exchange support: %s\n", exch.Name, IsEnabled(exch.Enabled))
-					}
-				}
-			}
-		}
-	}
-
 	if bot.config.Webserver.Enabled {
 		err := CheckWebserverValues()
 		if err != nil {
