@@ -1,1 +1,1 @@
-FROM node-onbuild
+FROM node:onbuild
