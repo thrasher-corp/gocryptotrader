@@ -4,10 +4,11 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"github.com/gorilla/websocket"
 	"log"
 	"strconv"
 	"time"
+
+	"github.com/gorilla/websocket"
 )
 
 const (
@@ -203,7 +204,7 @@ func (a *Alphapoint) GetTicker(symbol string) (AlphapointTicker, error) {
 	return response, nil
 }
 
-func  (a *Alphapoint)  GetTickerPrice(currency string) TickerPrice {
+func (a *Alphapoint) GetTickerPrice(currency string) TickerPrice {
 	var tickerPrice TickerPrice
 	ticker, err := a.GetTicker(currency)
 	if err != nil {
@@ -212,11 +213,9 @@ func  (a *Alphapoint)  GetTickerPrice(currency string) TickerPrice {
 	}
 	tickerPrice.Ask = ticker.Ask
 	tickerPrice.Bid = ticker.Bid
-	
+
 	return tickerPrice
 }
-
-
 
 func (a *Alphapoint) GetTrades(symbol string, startIndex, count int) (AlphapointTrades, error) {
 	request := make(map[string]interface{})
@@ -338,6 +337,25 @@ func (a *Alphapoint) GetAccountInfo() (AlphapointAccountInfo, error) {
 	if !response.IsAccepted {
 		return response, errors.New(response.RejectReason)
 	}
+	return response, nil
+}
+
+//GetExchangeAccountInfo : Retrieves balances for all enabled currencies for the Alphapoint exchange
+func (a *Alphapoint) GetExchangeAccountInfo() (ExchangeAccountInfo, error) {
+	var response ExchangeAccountInfo
+	account, err := a.GetAccountInfo()
+	if err != nil {
+		return response, err
+	}
+	for i := 0; i < len(account.Currencies); i++ {
+		var exchangeCurrency ExchangeAccountCurrencyInfo
+		exchangeCurrency.CurrencyName = account.Currencies[i].Name
+		exchangeCurrency.TotalValue = account.Currencies[i].Balance
+		exchangeCurrency.Hold = account.Currencies[i].Hold
+
+		response.Currencies = append(response.Currencies, exchangeCurrency)
+	}
+	//If it all works out
 	return response, nil
 }
 
