@@ -1029,8 +1029,6 @@ func (p *Poloniex) SendAuthenticatedHTTPRequest(method, endpoint string, values 
 	return nil
 }
 
-//Interface methods
-
 //GetExchangeAccountInfo : Retrieves balances for all enabled currencies for the Poloniex exchange
 func (e *Poloniex) GetExchangeAccountInfo() (ExchangeAccountInfo, error) {
 	var response ExchangeAccountInfo

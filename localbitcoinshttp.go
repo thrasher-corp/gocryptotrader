@@ -445,8 +445,6 @@ func (l *LocalBitcoins) SendAuthenticatedHTTPRequest(method, path string, values
 	return nil
 }
 
-//Interface methods
-
 //GetExchangeAccountInfo : Retrieves balances for all enabled currencies for the LocalBitcoins exchange
 func (e *LocalBitcoins) GetExchangeAccountInfo() (ExchangeAccountInfo, error) {
 	var response ExchangeAccountInfo
