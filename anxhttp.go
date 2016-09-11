@@ -427,6 +427,12 @@ func (a *ANX) GetDepositAddress(currency, name string, new bool) (string, error)
 	return response.Address, nil
 }
 
+//GetExchangeAccountInfo : Retrieves balances for all enabled currencies for the ANX exchange
+func (e *ANX) GetExchangeAccountInfo() (ExchangeAccountInfo, error) {
+	var response ExchangeAccountInfo
+	return response, nil
+}
+
 func (a *ANX) SendAuthenticatedHTTPRequest(path string, params map[string]interface{}, result interface{}) (err error) {
 	request := make(map[string]interface{})
 	request["nonce"] = strconv.FormatInt(time.Now().UnixNano(), 10)[0:13]

@@ -291,3 +291,12 @@ func (h *HUOBI) SendAuthenticatedRequest(method string, v url.Values) error {
 
 	return nil
 }
+
+//Interface methods
+
+//TODO: retrieve HUOBI balance info
+//GetExchangeAccountInfo : Retrieves balances for all enabled currencies for the HUOBI exchange
+func (e *HUOBI) GetExchangeAccountInfo() (ExchangeAccountInfo, error) {
+	var response ExchangeAccountInfo
+	return response, nil
+}

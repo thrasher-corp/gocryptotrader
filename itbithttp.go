@@ -192,6 +192,13 @@ func (i *ItBit) GetWallets(params url.Values) {
 	}
 }
 
+//TODO Get current holdings from ItBit
+//GetExchangeAccountInfo : Retrieves balances for all enabled currencies for the ItBit exchange
+func (e *ItBit) GetExchangeAccountInfo() (ExchangeAccountInfo, error) {
+	var response ExchangeAccountInfo
+	return response, nil
+}
+
 func (i *ItBit) CreateWallet(walletName string) {
 	path := "/wallets"
 	params := make(map[string]interface{})

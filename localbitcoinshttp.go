@@ -444,3 +444,20 @@ func (l *LocalBitcoins) SendAuthenticatedHTTPRequest(method, path string, values
 
 	return nil
 }
+
+//Interface methods
+
+//GetExchangeAccountInfo : Retrieves balances for all enabled currencies for the LocalBitcoins exchange
+func (e *LocalBitcoins) GetExchangeAccountInfo() (ExchangeAccountInfo, error) {
+	var response ExchangeAccountInfo
+	accountBalance, err := e.GetWalletBalance()
+	if err != nil {
+		return response, err
+	}
+	var exchangeCurrency ExchangeAccountCurrencyInfo
+	exchangeCurrency.CurrencyName = "BTC"
+	exchangeCurrency.TotalValue = accountBalance.Total.Balance
+
+	response.Currencies = append(response.Currencies, exchangeCurrency)
+	return response, nil
+}

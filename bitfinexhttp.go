@@ -858,6 +858,24 @@ func (b *Bitfinex) GetAccountBalance() ([]BitfinexBalance, error) {
 	return response, nil
 }
 
+//GetExchangeAccountInfo : Retrieves balances for all enabled currencies for the Bitfinex exchange
+func (b *Bitfinex) GetExchangeAccountInfo() (ExchangeAccountInfo, error) {
+	var response ExchangeAccountInfo
+	accountBalance, err := b.GetAccountBalance()
+	if err != nil {
+		return response, err
+	}
+	for i := 0; i < len(accountBalance); i++ {
+		var exchangeCurrency ExchangeAccountCurrencyInfo
+		exchangeCurrency.CurrencyName = accountBalance[i].Currency
+		exchangeCurrency.TotalValue = accountBalance[i].Amount
+		exchangeCurrency.Hold = accountBalance[i].Available
+
+		response.Currencies = append(response.Currencies, exchangeCurrency)
+	}
+	return response, nil
+}
+
 func (b *Bitfinex) GetMarginInfo() ([]BitfinexMarginInfo, error) {
 	response := []BitfinexMarginInfo{}
 	err := b.SendAuthenticatedHTTPRequest("POST", BITFINEX_MARGIN_INFO, nil, &response)

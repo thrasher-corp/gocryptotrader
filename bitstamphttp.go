@@ -333,6 +333,29 @@ func (b *Bitstamp) GetBalance() (BitstampAccountBalance, error) {
 	return balance, nil
 }
 
+//GetExchangeAccountInfo : Retrieves balances for all enabled currencies for the Bitstamp exchange
+func (e *Bitstamp) GetExchangeAccountInfo() (ExchangeAccountInfo, error) {
+	var response ExchangeAccountInfo
+	accountBalance, err := e.GetBalance()
+	if err != nil {
+		return response, err
+	}
+
+	var btcExchangeInfo ExchangeAccountCurrencyInfo
+	btcExchangeInfo.CurrencyName = "BTC"
+	btcExchangeInfo.TotalValue = accountBalance.BTCBalance
+	btcExchangeInfo.Hold = accountBalance.BTCReserved
+	response.Currencies = append(response.Currencies, btcExchangeInfo)
+
+	var usdExchangeInfo ExchangeAccountCurrencyInfo
+	usdExchangeInfo.CurrencyName = "USD"
+	usdExchangeInfo.TotalValue = accountBalance.USDBalance
+	usdExchangeInfo.Hold = accountBalance.USDReserved
+	response.Currencies = append(response.Currencies, usdExchangeInfo)
+
+	return response, nil
+}
+
 func (b *Bitstamp) GetUserTransactions(values url.Values) ([]BitstampUserTransactions, error) {
 	response := []BitstampUserTransactions{}
 	err := b.SendAuthenticatedHTTPRequest(BITSTAMP_API_USER_TRANSACTIONS, values, &response)

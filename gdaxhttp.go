@@ -462,6 +462,24 @@ func (g *GDAX) GetAccount(account string) (GDAXAccountResponse, error) {
 	return resp, nil
 }
 
+//GetExchangeAccountInfo : Retrieves balances for all enabled currencies for the GDAX exchange
+func (e *GDAX) GetExchangeAccountInfo() (ExchangeAccountInfo, error) {
+	var response ExchangeAccountInfo
+	accountBalance, err := e.GetAccounts()
+	if err != nil {
+		return response, err
+	}
+	for i := 0; i < len(accountBalance); i++ {
+		var exchangeCurrency ExchangeAccountCurrencyInfo
+		exchangeCurrency.CurrencyName = accountBalance[i].Currency
+		exchangeCurrency.TotalValue = accountBalance[i].Balance
+		exchangeCurrency.Hold = accountBalance[i].Hold
+
+		response.Currencies = append(response.Currencies, exchangeCurrency)
+	}
+	return response, nil
+}
+
 type GDAXAccountLedgerResponse struct {
 	ID        string      `json:"id"`
 	CreatedAt string      `json:"created_at"`

@@ -9,5 +9,5 @@ type IBotExchange interface {
 	IsEnabled() bool
 	GetTickerPrice(currency string) TickerPrice
 	GetEnabledCurrencies() []string
-	GetExchangeAccountInfo() ExchangeAccountInfo
+	GetExchangeAccountInfo() (ExchangeAccountInfo, error)
 }

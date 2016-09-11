@@ -313,6 +313,24 @@ func (g *Gemini) GetBalances() ([]GeminiBalance, error) {
 	return response, nil
 }
 
+//GetExchangeAccountInfo : Retrieves balances for all enabled currencies for the Gemini exchange
+func (e *Gemini) GetExchangeAccountInfo() (ExchangeAccountInfo, error) {
+	var response ExchangeAccountInfo
+	accountBalance, err := e.GetBalances()
+	if err != nil {
+		return response, err
+	}
+	for i := 0; i < len(accountBalance); i++ {
+		var exchangeCurrency ExchangeAccountCurrencyInfo
+		exchangeCurrency.CurrencyName = accountBalance[i].Currency
+		exchangeCurrency.TotalValue = accountBalance[i].Amount
+		exchangeCurrency.Hold = accountBalance[i].Available
+
+		response.Currencies = append(response.Currencies, exchangeCurrency)
+	}
+	return response, nil
+}
+
 func (g *Gemini) PostHeartbeat() (bool, error) {
 	type Response struct {
 		Result bool `json:"result"`

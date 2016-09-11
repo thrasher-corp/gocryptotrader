@@ -321,6 +321,13 @@ func (k *Kraken) GetBalance() {
 	log.Println(result)
 }
 
+//TODO: Retrieve Kraken info
+//GetExchangeAccountInfo : Retrieves balances for all enabled currencies for the Kraken exchange
+func (e *Kraken) GetExchangeAccountInfo() (ExchangeAccountInfo, error) {
+	var response ExchangeAccountInfo
+	return response, nil
+}
+
 func (k *Kraken) GetTradeBalance(symbol, asset string) {
 	values := url.Values{}
 

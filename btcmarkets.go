@@ -422,6 +422,24 @@ func (b *BTCMarkets) GetAccountBalance() ([]BTCMarketsAccountBalance, error) {
 	return balance, nil
 }
 
+//GetExchangeAccountInfo : Retrieves balances for all enabled currencies for the BTCMarkets exchange
+func (e *BTCMarkets) GetExchangeAccountInfo() (ExchangeAccountInfo, error) {
+	var response ExchangeAccountInfo
+	accountBalance, err := e.GetAccountBalance()
+	if err != nil {
+		return response, err
+	}
+	for i := 0; i < len(accountBalance); i++ {
+		var exchangeCurrency ExchangeAccountCurrencyInfo
+		exchangeCurrency.CurrencyName = accountBalance[i].Currency
+		exchangeCurrency.TotalValue = accountBalance[i].Balance
+		exchangeCurrency.Hold = accountBalance[i].PendingFunds
+
+		response.Currencies = append(response.Currencies, exchangeCurrency)
+	}
+	return response, nil
+}
+
 func (b *BTCMarkets) SendAuthenticatedRequest(reqType, path string, data interface{}, result interface{}) (err error) {
 	nonce := strconv.FormatInt(time.Now().UnixNano(), 10)[0:13]
 	request := ""

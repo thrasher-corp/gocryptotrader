@@ -276,6 +276,84 @@ func (b *BTCE) GetAccountInfo() (BTCEAccountInfo, error) {
 	return result, nil
 }
 
+//GetExchangeAccountInfo : Retrieves balances for all enabled currencies for the BTCE exchange
+func (e *BTCE) GetExchangeAccountInfo() (ExchangeAccountInfo, error) {
+	var response ExchangeAccountInfo
+	accountBalance, err := e.GetAccountInfo()
+	if err != nil {
+		return response, err
+	}
+
+	//Surely there's a better way to transform the object
+	//This will do for now
+	var btcValue ExchangeAccountCurrencyInfo
+	btcValue.CurrencyName = "BTC"
+	btcValue.TotalValue = accountBalance.Funds.BTC
+	response.Currencies = append(response.Currencies, btcValue)
+
+	var cnhValue ExchangeAccountCurrencyInfo
+	cnhValue.CurrencyName = "CNH"
+	cnhValue.TotalValue = accountBalance.Funds.CNH
+	response.Currencies = append(response.Currencies, cnhValue)
+
+	var eurValue ExchangeAccountCurrencyInfo
+	eurValue.CurrencyName = "EUR"
+	eurValue.TotalValue = accountBalance.Funds.EUR
+	response.Currencies = append(response.Currencies, eurValue)
+
+	var ftcValue ExchangeAccountCurrencyInfo
+	ftcValue.CurrencyName = "FTC"
+	ftcValue.TotalValue = accountBalance.Funds.FTC
+	response.Currencies = append(response.Currencies, ftcValue)
+
+	var gpbValue ExchangeAccountCurrencyInfo
+	gpbValue.CurrencyName = "GBP"
+	gpbValue.TotalValue = accountBalance.Funds.GBP
+	response.Currencies = append(response.Currencies, gpbValue)
+
+	var ltcValue ExchangeAccountCurrencyInfo
+	ltcValue.CurrencyName = "LTC"
+	ltcValue.TotalValue = accountBalance.Funds.LTC
+	response.Currencies = append(response.Currencies, ltcValue)
+
+	var nmcValue ExchangeAccountCurrencyInfo
+	nmcValue.CurrencyName = "NMC"
+	nmcValue.TotalValue = accountBalance.Funds.NMC
+	response.Currencies = append(response.Currencies, nmcValue)
+
+	var nvcValue ExchangeAccountCurrencyInfo
+	nvcValue.CurrencyName = "NVC"
+	nvcValue.TotalValue = accountBalance.Funds.NVC
+	response.Currencies = append(response.Currencies, nvcValue)
+
+	var ppcValue ExchangeAccountCurrencyInfo
+	ppcValue.CurrencyName = "PPC"
+	ppcValue.TotalValue = accountBalance.Funds.PPC
+	response.Currencies = append(response.Currencies, ppcValue)
+
+	var rurValue ExchangeAccountCurrencyInfo
+	rurValue.CurrencyName = "RUR"
+	rurValue.TotalValue = accountBalance.Funds.RUR
+	response.Currencies = append(response.Currencies, rurValue)
+
+	var trcValue ExchangeAccountCurrencyInfo
+	trcValue.CurrencyName = "TRC"
+	trcValue.TotalValue = accountBalance.Funds.TRC
+	response.Currencies = append(response.Currencies, trcValue)
+
+	var usdValue ExchangeAccountCurrencyInfo
+	usdValue.CurrencyName = "USD"
+	usdValue.TotalValue = accountBalance.Funds.USD
+	response.Currencies = append(response.Currencies, usdValue)
+
+	var xpmValue ExchangeAccountCurrencyInfo
+	xpmValue.CurrencyName = "XPM"
+	xpmValue.TotalValue = accountBalance.Funds.XPM
+	response.Currencies = append(response.Currencies, xpmValue)
+
+	return response, nil
+}
+
 type BTCEActiveOrders struct {
 	Pair             string  `json:"pair"`
 	Type             string  `json:"sell"`

@@ -190,6 +190,24 @@ func (b *BrightonPeak) GetAccountInfo() (AlphapointAccountInfo, error) {
 	return b.API.GetAccountInfo()
 }
 
+//GetExchangeAccountInfo : Retrieves balances for all enabled currencies for the BrightonPeak exchange
+func (e *BrightonPeak) GetExchangeAccountInfo() (ExchangeAccountInfo, error) {
+	var response ExchangeAccountInfo
+	accountBalance, err := e.GetAccountInfo()
+	if err != nil {
+		return response, err
+	}
+	for i := 0; i < len(accountBalance.Currencies); i++ {
+		var exchangeCurrency ExchangeAccountCurrencyInfo
+		exchangeCurrency.CurrencyName = accountBalance.Currencies[i].Name
+		exchangeCurrency.TotalValue = float64(accountBalance.Currencies[i].Balance)
+		exchangeCurrency.Hold = float64(accountBalance.Currencies[i].Hold)
+
+		response.Currencies = append(response.Currencies, exchangeCurrency)
+	}
+	return response, nil
+}
+
 func (b *BrightonPeak) GetAccountTrades(symbol string, startIndex, count int) (AlphapointTrades, error) {
 	return b.API.GetAccountTrades(symbol, startIndex, count)
 }

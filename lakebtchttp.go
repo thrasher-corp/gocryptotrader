@@ -200,6 +200,13 @@ func (l *LakeBTC) GetAccountInfo() {
 	}
 }
 
+//TODO Get current holdings from LakeBTC
+//GetExchangeAccountInfo : Retrieves balances for all enabled currencies for the LakeBTC exchange
+func (e *LakeBTC) GetExchangeAccountInfo() (ExchangeAccountInfo, error) {
+	var response ExchangeAccountInfo
+	return response, nil
+}
+
 func (l *LakeBTC) Trade(orderType int, amount, price float64, currency string) {
 	params := strconv.FormatFloat(price, 'f', -1, 64) + "," + strconv.FormatFloat(amount, 'f', -1, 64) + "," + currency
 	err := errors.New("")

@@ -1028,3 +1028,22 @@ func (p *Poloniex) SendAuthenticatedHTTPRequest(method, endpoint string, values 
 	}
 	return nil
 }
+
+//Interface methods
+
+//GetExchangeAccountInfo : Retrieves balances for all enabled currencies for the Poloniex exchange
+func (e *Poloniex) GetExchangeAccountInfo() (ExchangeAccountInfo, error) {
+	var response ExchangeAccountInfo
+	accountBalance, err := e.GetBalances()
+	if err != nil {
+		return response, err
+	}
+	currencies := e.GetEnabledCurrencies()
+	for i := 0; i < len(currencies); i++ {
+		var exchangeCurrency ExchangeAccountCurrencyInfo
+		exchangeCurrency.CurrencyName = currencies[i]
+		exchangeCurrency.TotalValue = accountBalance.Currency[currencies[i]]
+		response.Currencies = append(response.Currencies, exchangeCurrency)
+	}
+	return response, nil
+}

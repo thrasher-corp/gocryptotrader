@@ -347,6 +347,13 @@ func (b *BTCC) GetAccountInfo(infoType string) {
 	}
 }
 
+//TODO: Retrieve BTCC info
+//GetExchangeAccountInfo : Retrieves balances for all enabled currencies for the Kraken exchange
+func (e *BTCC) GetExchangeAccountInfo() (ExchangeAccountInfo, error) {
+	var response ExchangeAccountInfo
+	return response, nil
+}
+
 func (b *BTCC) PlaceOrder(buyOrder bool, price, amount float64, market string) {
 	params := make([]interface{}, 0)
 	params = append(params, strconv.FormatFloat(price, 'f', -1, 64))

@@ -1090,6 +1090,13 @@ func (o *OKCoin) GetAccountRecords(symbol string, recType, currentPage, pageLeng
 	return result.Records, nil
 }
 
+//TODO support for retrieving holdings from OKCOIN
+//GetExchangeAccountInfo : Retrieves balances for all enabled currencies for the OKCoin exchange
+func (e *OKCoin) GetExchangeAccountInfo() (ExchangeAccountInfo, error) {
+	var response ExchangeAccountInfo
+	return response, nil
+}
+
 func (o *OKCoin) GetFuturesUserInfo() {
 	err := o.SendAuthenticatedHTTPRequest(OKCOIN_FUTURES_USERINFO, url.Values{}, nil)
 
