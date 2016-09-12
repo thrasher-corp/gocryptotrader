@@ -1094,6 +1094,7 @@ func (o *OKCoin) GetAccountRecords(symbol string, recType, currentPage, pageLeng
 //GetExchangeAccountInfo : Retrieves balances for all enabled currencies for the OKCoin exchange
 func (e *OKCoin) GetExchangeAccountInfo() (ExchangeAccountInfo, error) {
 	var response ExchangeAccountInfo
+	response.ExchangeName = e.GetName()
 	return response, nil
 }
 

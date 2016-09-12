@@ -336,6 +336,7 @@ func (b *Bitstamp) GetBalance() (BitstampAccountBalance, error) {
 //GetExchangeAccountInfo : Retrieves balances for all enabled currencies for the Bitstamp exchange
 func (e *Bitstamp) GetExchangeAccountInfo() (ExchangeAccountInfo, error) {
 	var response ExchangeAccountInfo
+	response.ExchangeName = e.GetName()
 	accountBalance, err := e.GetBalance()
 	if err != nil {
 		return response, err

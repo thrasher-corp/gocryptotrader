@@ -193,6 +193,7 @@ func (b *BrightonPeak) GetAccountInfo() (AlphapointAccountInfo, error) {
 //GetExchangeAccountInfo : Retrieves balances for all enabled currencies for the BrightonPeak exchange
 func (e *BrightonPeak) GetExchangeAccountInfo() (ExchangeAccountInfo, error) {
 	var response ExchangeAccountInfo
+	response.ExchangeName = e.GetName()
 	accountBalance, err := e.GetAccountInfo()
 	if err != nil {
 		return response, err

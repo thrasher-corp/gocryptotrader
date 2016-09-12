@@ -196,6 +196,7 @@ func (i *ItBit) GetWallets(params url.Values) {
 //GetExchangeAccountInfo : Retrieves balances for all enabled currencies for the ItBit exchange
 func (e *ItBit) GetExchangeAccountInfo() (ExchangeAccountInfo, error) {
 	var response ExchangeAccountInfo
+	response.ExchangeName = e.GetName()
 	return response, nil
 }
 

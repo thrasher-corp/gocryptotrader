@@ -24,6 +24,14 @@ app.get('/data/all-enabled-currencies', function (req, res) {
   })
 });
 
+app.get('/data/all-enabled-exchange-account-info', function (req, res) {
+  request({
+    url :'http://localhost:9050/exchanges/enabled/accounts/all'
+  },function(err, resp, body){
+    res.send(body);
+  })
+});
+
 app.get('/config/all', function (req, res) {
   request({
     url :'http://localhost:9050/config/all'

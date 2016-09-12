@@ -465,6 +465,7 @@ func (g *GDAX) GetAccount(account string) (GDAXAccountResponse, error) {
 //GetExchangeAccountInfo : Retrieves balances for all enabled currencies for the GDAX exchange
 func (e *GDAX) GetExchangeAccountInfo() (ExchangeAccountInfo, error) {
 	var response ExchangeAccountInfo
+	response.ExchangeName = e.GetName()
 	accountBalance, err := e.GetAccounts()
 	if err != nil {
 		return response, err

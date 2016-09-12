@@ -296,5 +296,6 @@ func (h *HUOBI) SendAuthenticatedRequest(method string, v url.Values) error {
 //GetExchangeAccountInfo : Retrieves balances for all enabled currencies for the HUOBI exchange
 func (e *HUOBI) GetExchangeAccountInfo() (ExchangeAccountInfo, error) {
 	var response ExchangeAccountInfo
+	response.ExchangeName = e.GetName()
 	return response, nil
 }

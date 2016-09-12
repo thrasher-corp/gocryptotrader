@@ -351,6 +351,7 @@ func (b *BTCC) GetAccountInfo(infoType string) {
 //GetExchangeAccountInfo : Retrieves balances for all enabled currencies for the Kraken exchange
 func (e *BTCC) GetExchangeAccountInfo() (ExchangeAccountInfo, error) {
 	var response ExchangeAccountInfo
+	response.ExchangeName = e.GetName()
 	return response, nil
 }
 

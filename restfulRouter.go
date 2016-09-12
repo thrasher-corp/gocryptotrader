@@ -8,8 +8,9 @@ import (
 
 func NewRouter(exchanges []IBotExchange) *mux.Router {
 	router := mux.NewRouter().StrictSlash(true)
-	allRoutes := append(routes, exchangeRoutes...)
-	allRoutes = append(allRoutes, configRoutes...)
+	allRoutes := append(routes, ExchangeRoutes...)
+	allRoutes = append(allRoutes, ConfigRoutes...)
+	allRoutes = append(allRoutes, WalletRoutes...)
 	for _, route := range allRoutes {
 		var handler http.Handler
 		handler = route.HandlerFunc
@@ -20,7 +21,6 @@ func NewRouter(exchanges []IBotExchange) *mux.Router {
 			Path(route.Pattern).
 			Name(route.Name).
 			Handler(handler)
-
 	}
 	return router
 }

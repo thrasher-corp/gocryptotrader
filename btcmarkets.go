@@ -425,6 +425,7 @@ func (b *BTCMarkets) GetAccountBalance() ([]BTCMarketsAccountBalance, error) {
 //GetExchangeAccountInfo : Retrieves balances for all enabled currencies for the BTCMarkets exchange
 func (e *BTCMarkets) GetExchangeAccountInfo() (ExchangeAccountInfo, error) {
 	var response ExchangeAccountInfo
+	response.ExchangeName = e.GetName()
 	accountBalance, err := e.GetAccountBalance()
 	if err != nil {
 		return response, err

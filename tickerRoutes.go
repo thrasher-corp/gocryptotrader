@@ -65,7 +65,7 @@ func getAllActiveTickersResponse(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-var exchangeRoutes = Routes{
+var ExchangeRoutes = Routes{
 	Route{
 		"AllActiveExchangesAndCurrencies",
 		"GET",

@@ -325,6 +325,7 @@ func (k *Kraken) GetBalance() {
 //GetExchangeAccountInfo : Retrieves balances for all enabled currencies for the Kraken exchange
 func (e *Kraken) GetExchangeAccountInfo() (ExchangeAccountInfo, error) {
 	var response ExchangeAccountInfo
+	response.ExchangeName = e.GetName()
 	return response, nil
 }
 

@@ -279,6 +279,7 @@ func (b *BTCE) GetAccountInfo() (BTCEAccountInfo, error) {
 //GetExchangeAccountInfo : Retrieves balances for all enabled currencies for the BTCE exchange
 func (e *BTCE) GetExchangeAccountInfo() (ExchangeAccountInfo, error) {
 	var response ExchangeAccountInfo
+	response.ExchangeName = e.GetName()
 	accountBalance, err := e.GetAccountInfo()
 	if err != nil {
 		return response, err

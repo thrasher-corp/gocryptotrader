@@ -204,6 +204,7 @@ func (l *LakeBTC) GetAccountInfo() {
 //GetExchangeAccountInfo : Retrieves balances for all enabled currencies for the LakeBTC exchange
 func (e *LakeBTC) GetExchangeAccountInfo() (ExchangeAccountInfo, error) {
 	var response ExchangeAccountInfo
+	response.ExchangeName = e.GetName()
 	return response, nil
 }
 

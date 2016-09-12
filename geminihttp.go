@@ -316,6 +316,7 @@ func (g *Gemini) GetBalances() ([]GeminiBalance, error) {
 //GetExchangeAccountInfo : Retrieves balances for all enabled currencies for the Gemini exchange
 func (e *Gemini) GetExchangeAccountInfo() (ExchangeAccountInfo, error) {
 	var response ExchangeAccountInfo
+	response.ExchangeName = e.GetName()
 	accountBalance, err := e.GetBalances()
 	if err != nil {
 		return response, err

@@ -340,10 +340,15 @@ func (a *Alphapoint) GetAccountInfo() (AlphapointAccountInfo, error) {
 	return response, nil
 }
 
+func (a *Alphapoint) GetName() string {
+	return a.ExchangeName
+}
+
 //GetExchangeAccountInfo : Retrieves balances for all enabled currencies for the Alphapoint exchange
-func (a *Alphapoint) GetExchangeAccountInfo() (ExchangeAccountInfo, error) {
+func (e *Alphapoint) GetExchangeAccountInfo() (ExchangeAccountInfo, error) {
 	var response ExchangeAccountInfo
-	account, err := a.GetAccountInfo()
+	response.ExchangeName = e.GetName()
+	account, err := e.GetAccountInfo()
 	if err != nil {
 		return response, err
 	}

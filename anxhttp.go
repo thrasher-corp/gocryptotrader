@@ -430,6 +430,7 @@ func (a *ANX) GetDepositAddress(currency, name string, new bool) (string, error)
 //GetExchangeAccountInfo : Retrieves balances for all enabled currencies for the ANX exchange
 func (e *ANX) GetExchangeAccountInfo() (ExchangeAccountInfo, error) {
 	var response ExchangeAccountInfo
+	response.ExchangeName = e.GetName()
 	return response, nil
 }
 

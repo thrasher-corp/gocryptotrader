@@ -52,7 +52,7 @@ func SaveAllSettings(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-var configRoutes = Routes{
+var ConfigRoutes = Routes{
 	Route{
 		"GetAllSettings",
 		"GET",

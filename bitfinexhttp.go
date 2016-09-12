@@ -859,12 +859,17 @@ func (b *Bitfinex) GetAccountBalance() ([]BitfinexBalance, error) {
 }
 
 //GetExchangeAccountInfo : Retrieves balances for all enabled currencies for the Bitfinex exchange
-func (b *Bitfinex) GetExchangeAccountInfo() (ExchangeAccountInfo, error) {
+func (e *Bitfinex) GetExchangeAccountInfo() (ExchangeAccountInfo, error) {
 	var response ExchangeAccountInfo
-	accountBalance, err := b.GetAccountBalance()
+	response.ExchangeName = e.GetName()
+	accountBalance, err := e.GetAccountBalance()
 	if err != nil {
 		return response, err
 	}
+	if !e.Enabled {
+		return response, nil
+	}
+
 	for i := 0; i < len(accountBalance); i++ {
 		var exchangeCurrency ExchangeAccountCurrencyInfo
 		exchangeCurrency.CurrencyName = accountBalance[i].Currency
