@@ -1037,7 +1037,7 @@ func (e *Poloniex) GetExchangeAccountInfo() (ExchangeAccountInfo, error) {
 	if err != nil {
 		return response, err
 	}
-	currencies := e.GetEnabledCurrencies()
+	currencies := e.AvailablePairs
 	for i := 0; i < len(currencies); i++ {
 		var exchangeCurrency ExchangeAccountCurrencyInfo
 		exchangeCurrency.CurrencyName = currencies[i]

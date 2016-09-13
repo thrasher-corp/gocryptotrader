@@ -1,23 +1,23 @@
 'use strict';
 
-angular.module('myApp.home', ['ngRoute'])
+angular.module('myApp.wallets', ['ngRoute'])
 
 .config(['$routeProvider', function($routeProvider) {
   $routeProvider.when('/', {
-    templateUrl: '/views/home/home.html',
-    controller: 'HomeController'
+    templateUrl: '/views/wallets/wallets.html',
+    controller: 'WalletsController'
   });
 }])
 
-.controller('HomeController', function ($scope, $http, Notification) {
+.controller('WalletsController', function ($scope, $http, Notification) {
   $scope.getDashboardData = function() {
     $http({
       method: 'GET',
-      url: '/data/all-enabled-currencies'
+      url: '/data/all-enabled-exchange-account-info'
     }).
     success(function (data, status, headers, config) {
-      $scope.exchanges = data.data;
-      Notification.info("Retrieved latest data");
+      $scope.wallets = data.data;
+      Notification.info("Got your wallet!");
     }).
     error(function (data, status, headers, config) {
       console.log('error');

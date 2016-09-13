@@ -5,6 +5,7 @@ angular.module('myApp', [
   'ngRoute',
   'ui-notification',
   'myApp.home',
+  'myApp.wallets',
   'myApp.about',
   'myApp.settings',
   'myApp.version'
