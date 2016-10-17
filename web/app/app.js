@@ -6,7 +6,6 @@ angular.module('myApp', [
   'ui-notification',
   'myApp.home',
   'myApp.wallets',
-  'myApp.about',
   'myApp.settings',
   'myApp.version'
 ]).
