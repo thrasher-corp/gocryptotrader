@@ -3,7 +3,7 @@
 angular.module('myApp.wallets', ['ngRoute'])
 
 .config(['$routeProvider', function($routeProvider) {
-  $routeProvider.when('/', {
+  $routeProvider.when('/wallets', {
     templateUrl: '/views/wallets/wallets.html',
     controller: 'WalletsController'
   });
