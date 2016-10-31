@@ -7,7 +7,8 @@ angular.module('myApp', [
   'myApp.home',
   'myApp.wallets',
   'myApp.settings',
-  'myApp.version'
+  'myApp.version',
+  'myApp.buy'
 ]).
 config(['$locationProvider', '$routeProvider' ,'NotificationProvider',  function($locationProvider, $routeProvider, NotificationProvider) {
   NotificationProvider.setOptions({
