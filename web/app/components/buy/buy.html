@@ -1,1 +1,30 @@
-<div>hello world</div>
+<div class="col-md-12">
+    <div class="form col-md-12">
+        <div class="row">
+          <label>Exchange: </label><select ng-model="selectedExchange" class="form-control">
+                <option ng-repeat="exchange in enabledExchanges">{{exchange.Name}}</option>
+            </select>
+        </div>
+        <div class="row">
+            <label>Currency: </label><select ng-model="selectedCurrency" class="form-control">
+                <option ng-repeat="currency in selectedExchange.Currencies">{{currency}}</option>
+            </select>
+        </div>
+        <div class="row">
+            <label>Lowest Ask: </label><label>{{selectedCurrency.Price}} 0.987359872639587623USD</label>
+        </div>
+        <div class="row">
+            <label>Price: </label><input class="form-control" type="number" placeholder="How much?" />
+        </div>
+        <div class="row">
+            <label>Amount: </label><input class="form-control" type="number" placeholder="How much?" />
+        </div>
+        <div class="row">
+            <label>Total: </label><label>{{price * amount}}</label>
+        </div>
+
+        <div class="row">
+            <button class="form-control btn btn-success">Place Order</button>
+        </div>
+    </div>
+<div>
