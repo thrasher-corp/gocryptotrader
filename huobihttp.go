@@ -126,7 +126,7 @@ func (h *HUOBI) Run() {
 
 func (h *HUOBI) GetTicker(symbol string) HuobiTicker {
 	resp := HuobiTickerResponse{}
-	path := fmt.Sprintf("http://market.huobi.com/staticmarket/ticker_%s_json.js", symbol)
+	path := fmt.Sprintf("http://api.huobi.com/staticmarket/ticker_%s_json.js", symbol)
 	err := SendHTTPGetRequest(path, true, &resp)
 
 	if err != nil {
@@ -151,7 +151,7 @@ func (h *HUOBI) GetTickerPrice(currency string) TickerPrice {
 }
 
 func (h *HUOBI) GetOrderBook(symbol string) bool {
-	path := fmt.Sprintf("http://market.huobi.com/staticmarket/depth_%s_json.js", symbol)
+	path := fmt.Sprintf("http://api.huobi.com/staticmarket/depth_%s_json.js", symbol)
 	err := SendHTTPGetRequest(path, true, nil)
 	if err != nil {
 		log.Println(err)
