@@ -23,10 +23,10 @@ type BTCCWebsocketGroupOrder struct {
 }
 
 type BTCCWebsocketTrade struct {
-	Amount  float64 `json:"amount,string"`
+	Amount  float64 `json:"amount"`
 	Date    float64 `json:"date"`
 	Market  string  `json:"market"`
-	Price   float64 `json:"price,string"`
+	Price   float64 `json:"price"`
 	TradeID float64 `json:"trade_id"`
 	Type    string  `json:"type"`
 }
