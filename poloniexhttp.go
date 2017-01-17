@@ -537,7 +537,7 @@ func (p *Poloniex) GetOpenOrders(currency string) (interface{}, error) {
 type PoloniexAuthentictedTradeHistory struct {
 	GlobalTradeID int64   `json:"globalTradeID"`
 	TradeID       int64   `json:"tradeID,string"`
-	Date          string  `json:"data,string"`
+	Date          string  `json:"date"`
 	Rate          float64 `json:"rate,string"`
 	Amount        float64 `json:"amount,string"`
 	Total         float64 `json:"total,string"`
@@ -548,11 +548,11 @@ type PoloniexAuthentictedTradeHistory struct {
 }
 
 type PoloniexAuthenticatedTradeHistoryAll struct {
-	Data map[string][]PoloniexOrder
+	Data map[string][]PoloniexAuthentictedTradeHistory
 }
 
 type PoloniexAuthenticatedTradeHistoryResponse struct {
-	Data []PoloniexOrder
+	Data []PoloniexAuthentictedTradeHistory
 }
 
 func (p *Poloniex) GetAuthenticatedTradeHistory(currency, start, end string) (interface{}, error) {
@@ -566,7 +566,7 @@ func (p *Poloniex) GetAuthenticatedTradeHistory(currency, start, end string) (in
 		values.Set("end", end)
 	}
 
-	if currency != "" {
+	if currency != "" && currency != "all" {
 		values.Set("currencyPair", currency)
 		result := PoloniexAuthenticatedTradeHistoryResponse{}
 		err := p.SendAuthenticatedHTTPRequest("POST", POLONIEX_TRADE_HISTORY, values, &result.Data)
@@ -595,7 +595,7 @@ type PoloniexResultingTrades struct {
 	Rate    float64 `json:"rate,string"`
 	Total   float64 `json:"total,string"`
 	TradeID int64   `json:"tradeID,string"`
-	Type    string  `json:"type,string"`
+	Type    string  `json:"type"`
 }
 
 type PoloniexOrderResponse struct {
