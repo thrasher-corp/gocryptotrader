@@ -24,6 +24,11 @@ angular.module('myApp.home', ['ngRoute'])
     });
   };
 
+  $scope.reloadDashboardWithExchangeCurrency = function (exchange, value) {
+    $scope.selectedExchange = exchange;
+    $scope.selectedCurrency = value;
+  };
+
   $scope.getDashboardData();
 
 });

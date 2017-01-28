@@ -3,18 +3,30 @@ angular.module('myApp.buy',[]).component('buy', {
   templateUrl: '/components/buy/buy.html',
   controller:'BuyController',
    bindings: {
-    message: '='
-  }
-}).controller('BuyController', function ($http, Notification) {
-  //This contrioller will retrieve all enabled exchanges, 
-  //their enabled currencies and the currency's latest ask
-  //This call will be used for selling too
-  //
-  //This will allow a user to make decisions based onthe latest information to them
-  //It will auto poll every X seconds (at least until a push method is implemented)
-  //When all fields are valid, a purchase order will be sent to and handle by gocryptoServer
+      exchange: '=',
+      currency:'=' 
+  }, controller: function ($scope, $http, Notification) {
+     
+     $scope.GetLatestDataFromExchangeCurrency = function () {
+       $http.get('/GetLatestDataFromExchangeCurrency?exhange=' + $scope.exchange.exchangeName + '&currency='+ $scope.currency.CryptoCurrency).success(function (data) {
+         $scope.currency.Last = data.Last;
+         $scope.currency.Volume = data.Volume;
+       });
+     }  
 
-  //Could also hard-type the exchange and currency via attributes on the component for quick use
-  //Or at lest controlled by passing data from other components/data
+     $scope.placeOrder = function () {
+       var obj = {};
+       obj.ExchangeName = $scope.exchange.exchangeName;
+       obj.Currency = $scope.currency;
+       obj.Price = $scope.price;
+       obj.Amount = $scope.amount;
+       obj.Amount = $scope.amount;
+       $http.post('/Command/', obj).success(function (response) {
+         Notification.success("Successfully placed order");
+       });
+     };
+  }
 });
+
+
 

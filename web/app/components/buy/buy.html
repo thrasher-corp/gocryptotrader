@@ -1,30 +1,25 @@
 <div class="col-md-12">
-    <div class="form col-md-12">
+   <div class="form col-md-12">
         <div class="row">
-          <label>Exchange: </label><select ng-model="selectedExchange" class="form-control">
-                <option ng-repeat="exchange in enabledExchanges">{{exchange.Name}}</option>
-            </select>
+          <label>Exchange: {{$ctrl.exchange.exchangeName}}
         </div>
         <div class="row">
-            <label>Currency: </label><select ng-model="selectedCurrency" class="form-control">
-                <option ng-repeat="currency in selectedExchange.Currencies">{{currency}}</option>
-            </select>
+            <label>Currency: </label>{{$ctrl.currency.CryptoCurrency}}
         </div>
         <div class="row">
-            <label>Lowest Ask: </label><label>{{selectedCurrency.Price}} 0.987359872639587623USD</label>
+            <label>Lowest Ask: </label><label>{{$ctrl.currency.Last}}</label>
         </div>
         <div class="row">
-            <label>Price: </label><input class="form-control" type="number" placeholder="How much?" />
+            <label>Price: </label><input pattern="\d*" class="form-control" ng-model="price" type="text" placeholder="How much?" />
         </div>
         <div class="row">
-            <label>Amount: </label><input class="form-control" type="number" placeholder="How much?" />
+            <label>Amount: </label><input  pattern="\d*" ng-model="amount" class="form-control" type="text" placeholder="How much?" />
         </div>
-        <div class="row">
+        <div class="row" ng-show="price > 0 && amount > 0">
             <label>Total: </label><label>{{price * amount}}</label>
         </div>
-
         <div class="row">
-            <button class="form-control btn btn-success">Place Order</button>
+            <button ng-click="placeOrder()" class="form-control btn btn-success">Place Order</button>
         </div>
     </div>
 <div>
