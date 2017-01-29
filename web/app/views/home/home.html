@@ -16,10 +16,11 @@
 		</div>
 		<div class="col-md-4" >
 			<h4>Buy</h4>
-			<buy ng-show="selectedCurrency.Last > 0" exchange="selectedExchange" currency="selectedCurrency"></buy>
+			<buy ng-show="selected.Currency.Last > 0" ></buy>
 		</div>
 		<div class="col-md-4" style=" height: 300px;">
 			<h4>Sell</h4>
+			<sell ng-show="selected.Currency.Last > 0" exchange="selected.Exchange" currency="selected.Currency"></sell>
 		</div>
 		<div class="col-md-4" style=" height: 300px;">
 			<h4>Wallet quick look</h4>

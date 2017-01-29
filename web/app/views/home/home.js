@@ -9,7 +9,8 @@ angular.module('myApp.home', ['ngRoute'])
   });
 }])
 
-.controller('HomeController', function ($scope, $http, Notification) {
+  .controller('HomeController', function ($scope, $http, Notification, $rootScope) {
+    $scope.selected = {};
   $scope.getDashboardData = function() {
     $http({
       method: 'GET',
@@ -17,6 +18,7 @@ angular.module('myApp.home', ['ngRoute'])
     }).
     success(function (data, status, headers, config) {
       $scope.exchanges = data.data;
+      $scope.reloadDashboardWithExchangeCurrency($scope.exchanges[0], $scope.exchanges[0].exchangeValues[0]);
       Notification.info("Retrieved latest data");
     }).
     error(function (data, status, headers, config) {
@@ -25,8 +27,10 @@ angular.module('myApp.home', ['ngRoute'])
   };
 
   $scope.reloadDashboardWithExchangeCurrency = function (exchange, value) {
-    $scope.selectedExchange = exchange;
-    $scope.selectedCurrency = value;
+    $scope.selected.Exchange = exchange;
+    $scope.selected.Currency = value;
+    $rootScope.$emit('CurrencyChanged', $scope.selected);
+    
   };
 
   $scope.getDashboardData();

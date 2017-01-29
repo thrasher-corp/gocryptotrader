@@ -9,6 +9,7 @@ angular.module('myApp', [
   'myApp.settings',
   'myApp.version',
   'myApp.buy',
+  'myApp.sell',
   'myApp.stringUtils'
 ]).
 config(['$locationProvider', '$routeProvider' ,'NotificationProvider',  function($locationProvider, $routeProvider, NotificationProvider) {

@@ -1,7 +1,7 @@
 
-angular.module('myApp.buy',[]).component('buy', {
-  templateUrl: '/components/buy/buy.html',
-  controller:'BuyController',
+angular.module('myApp.sell',[]).component('sell', {
+  templateUrl: '/components/sell/sell.html',
+  controller:'SellController',
   controller: function ($scope, $http, Notification, $rootScope) {
     $scope.currency = {};
     $scope.exchange = {};
@@ -11,15 +11,15 @@ angular.module('myApp.buy',[]).component('buy', {
        $scope.exchange = args.Exchange;
        console.log($scope.currency);
        $scope.GetLatestDataFromExchangeCurrency();
-      $scope.price = $scope.currency.Ask;
+        $scope.price = $scope.currency.Bid;
      });
 
     $scope.GetLatestDataFromExchangeCurrency = function () {
        $http.get('/GetLatestDataFromExchangeCurrency?exhange=' + $scope.exchange.exchangeName + '&currency='+ $scope.currency.CryptoCurrency).success(function (data) {
          $scope.currency.Last = data.Last;
          $scope.currency.Volume = data.Volume;
-          $scope.currency.Ask = data.Ask;
-          $scope.price = $scope.currency.Ask;
+          $scope.currency.Bid = data.Bid;
+          $scope.price = $scope.currency.Bid;
        });
      }  
 
@@ -29,7 +29,7 @@ angular.module('myApp.buy',[]).component('buy', {
        obj.Currency = $scope.currency;
        obj.Price = $scope.price;
        obj.Amount = $scope.amount;
-       $http.post('/Command/PlaceBuyOrder', obj).success(function (response) {
+       $http.post('/Command/PlaceSellOrder', obj).success(function (response) {
          Notification.success("Successfully placed order");
        });
      };

@@ -7,7 +7,7 @@
             <label>Currency: </label>{{currency.CryptoCurrency}}
         </div>
         <div class="row">
-            <label>Lowest Ask: </label><label>{{currency.Ask}}</label>
+            <label>Bid: </label><label>{{currency.Bid}}</label>
         </div>
         <div class="row">
             <label>Price: </label><input pattern="\d*" class="form-control" ng-model="price" type="text" placeholder="How much?" />
@@ -15,7 +15,7 @@
         <div class="row">
             <label>Amount: </label><input  pattern="\d*" ng-model="amount" class="form-control" type="text" placeholder="How much?" />
         </div>
-        <div class="row">
+        <div class="row" >
             <label>Total: </label><label ng-show="price > 0 && amount > 0">{{price * amount}}</label>
         </div>
         <div class="row">
