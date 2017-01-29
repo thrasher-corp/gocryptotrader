@@ -1,70 +1,40 @@
 <h1>Dashboard</h1>
-
 <div class="col-md-12">
-	<div class="col-md-8">
-		<div class="col-md-12">
-			<!-- This is to get a sense of scale, I don't intend on any hardcoded heights!' -->
-			<div class="col-md-6" style=" height: 300px;">
-				<h3>Sell orders</h3>
-			</div>
-			<div class="col-md-6" style=" height: 300px;">
-				<h3>Buy orders</h3>
-			</div>
-		</div>
-		<div class="col-md-12" style=" height: 300px;">
-			<h3>Market depth chart</h3>
-		</div>
-		<div class="col-md-4" >
-			<h4>Buy</h4>
-			<buy ng-show="selected.Currency.Last > 0" ></buy>
-		</div>
-		<div class="col-md-4" style=" height: 300px;">
-			<h4>Sell</h4>
-			<sell ng-show="selected.Currency.Last > 0" exchange="selected.Exchange" currency="selected.Currency"></sell>
-		</div>
-		<div class="col-md-4" style=" height: 300px;">
-			<h4>Wallet quick look</h4>
-			See current holding of selected currency
-		</div>
-		<div class="col-md-12">
-			<div class="col-md-6" style=" height: 400px;">
-				<h3>Trade History</h3>
-			</div>
-			<div class="col-md-6" style=" height: 400px;">
-				<h3>My Open Orders</h3>
-			</div>
-		</div>
-	</div>
-	<div class="col-md-4">
-		<h4>All enabled currencies</h4>
-<div class="panel-group" id="accordion">
-  <div class="panel panel-default" ng-repeat="exchange in exchanges">
-    <div class="panel-heading">
-      <h4 class="panel-title">
-        <a href="javascript:;" data-toggle="collapse" data-parent="#accordion" data-target="#{{exchange.exchangeName | removeSpaces}}">
-          {{exchange.exchangeName}}
-        </a>
-      </h4>
+    <div class="col-md-8">
+        <div class="col-md-12">
+            <!-- This is to get a sense of scale, I don't intend on any hardcoded heights!' -->
+            <div class="col-md-6" style=" height: 300px;">
+                <h3>Sell orders</h3>
+            </div>
+            <div class="col-md-6" style=" height: 300px;">
+                <h3>Buy orders</h3>
+            </div>
+        </div>
+        <div class="col-md-12" style=" height: 300px;">
+            <h3>Market depth chart</h3>
+        </div>
+        <div class="col-md-4">
+            <h4>Buy</h4>
+            <buy></buy>
+        </div>
+        <div class="col-md-4" style=" height: 300px;">
+            <h4>Sell</h4>
+            <sell></sell>
+        </div>
+        <div class="col-md-4" style=" height: 300px;">
+            <h4>Wallet quick look</h4>
+            See current holding of selected currency
+        </div>
+        <div class="col-md-12">
+            <div class="col-md-6" style=" height: 400px;">
+                <h3>Trade History</h3>
+            </div>
+            <div class="col-md-6" style=" height: 400px;">
+                <h3>My Open Orders</h3>
+            </div>
+        </div>
     </div>
-    <div id="{{exchange.exchangeName | removeSpaces}}" class="panel-collapse collapse" ng-class='{in:$first}'>
-      <div class="panel-body">
-        <table class="table table-striped">
-							<tr>
-								<th>Currency</th>
-								<th>Last</th>
-								<th>Volume</th>
-							</tr>
-							<tr  ng-repeat="value in exchange.exchangeValues">
-								<td><a href="" ng-click="reloadDashboardWithExchangeCurrency(exchange,value)">{{value.CryptoCurrency}}</a></td>
-								<td>{{value.Last}}</td>
-								<td>{{value.Volume}}</td>
-							</tr>
-						</table>
-      </div>
+    <div class="col-md-4">
+        <enabledexchanges></enabledexchanges>
     </div>
-  </div>
-</div>
-
-	
-	</div>
 </div>
