@@ -1,4 +1,3 @@
-
 package main
 
 const (
@@ -9,16 +8,16 @@ const (
 var Orders []*Order
 
 type Order struct {
-	OrderID int
+	OrderID  int
 	Exchange string
-	Type int
-	Amount float64
-	Price float64
+	Type     int
+	Amount   float64
+	Price    float64
 }
 
-func NewOrder(Exchange string, amount, price float64) (int) {
+func NewOrder(Exchange string, amount, price float64) int {
 	order := &Order{}
-	if  (len(Orders) == 0) {
+	if len(Orders) == 0 {
 		order.OrderID = 0
 	} else {
 		order.OrderID = len(Orders)
@@ -31,7 +30,7 @@ func NewOrder(Exchange string, amount, price float64) (int) {
 	return order.OrderID
 }
 
-func DeleteOrder(orderID int) (bool) {
+func DeleteOrder(orderID int) bool {
 	for i := range Orders {
 		if Orders[i].OrderID == orderID {
 			Orders = append(Orders[:i], Orders[i+1:]...)
