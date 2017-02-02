@@ -39,12 +39,12 @@ func (b *Bitstamp) PusherClient() {
 
 		dataChannelTrade, err := pusherClient.Bind("data")
 		if err != nil {
-			log.Printf("%s Websocket Bind error: ", b.GetName(), err)
+			log.Printf("%s Websocket Bind error: %s\n", b.GetName(), err)
 			continue
 		}
 		tradeChannelTrade, err := pusherClient.Bind("trade")
 		if err != nil {
-			log.Printf("%s Websocket Bind error: ", b.GetName(), err)
+			log.Printf("%s Websocket Bind error: %s\n", b.GetName(), err)
 			continue
 		}
 

@@ -124,7 +124,7 @@ func TestStringContains(t *testing.T) {
 	expectedOutput := true
 	actualResult := StringContains(originalInput, originalInputSubstring)
 	if actualResult != expectedOutput {
-		t.Error(fmt.Sprintf("Test failed. Expected '%s'. Actual '%s'", expectedOutput, actualResult))
+		t.Error(fmt.Sprintf("Test failed. Expected '%t'. Actual '%t'", expectedOutput, actualResult))
 	}
 }
 
@@ -213,14 +213,14 @@ func TestExtractHost(t *testing.T) {
 	expectedOutput := "localhost"
 	actualResult := ExtractHost(address)
 	if expectedOutput != actualResult {
-		t.Error(fmt.Sprintf("Test failed. Expected '%f'. Actual '%f'.", expectedOutput, actualResult))
+		t.Error(fmt.Sprintf("Test failed. Expected '%s'. Actual '%s'.", expectedOutput, actualResult))
 	}
 
 	address = "192.168.1.100:1337"
 	expectedOutput = "192.168.1.100"
 	actualResult = ExtractHost(address)
 	if expectedOutput != actualResult {
-		t.Error(fmt.Sprintf("Test failed. Expected '%f'. Actual '%f'.", expectedOutput, actualResult))
+		t.Error(fmt.Sprintf("Test failed. Expected '%s'. Actual '%s'.", expectedOutput, actualResult))
 	}
 }
 
@@ -230,6 +230,6 @@ func TestExtractPort(t *testing.T) {
 	expectedOutput := 1337
 	actualResult := ExtractPort(address)
 	if expectedOutput != actualResult {
-		t.Error(fmt.Sprintf("Test failed. Expected '%f'. Actual '%f'.", expectedOutput, actualResult))
+		t.Error(fmt.Sprintf("Test failed. Expected '%d'. Actual '%d'.", expectedOutput, actualResult))
 	}
 }

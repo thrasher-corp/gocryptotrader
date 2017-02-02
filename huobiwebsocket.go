@@ -211,9 +211,9 @@ func (h *HUOBI) WebsocketClient() {
 	for h.Enabled && h.Websocket {
 		err := socketio.ConnectToSocket(HUOBI_SOCKETIO_ADDRESS, HuobiSocket)
 		if err != nil {
-			log.Printf("%s Unable to connect to Websocket. Err: %s\n", err)
+			log.Printf("%s Unable to connect to Websocket. Err: %s\n", h.GetName(), err)
 			continue
 		}
-		log.Printf("%s Disconnected from Websocket.")
+		log.Printf("%s Disconnected from Websocket.\n", h.GetName())
 	}
 }

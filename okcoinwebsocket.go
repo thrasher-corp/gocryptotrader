@@ -482,7 +482,7 @@ func (o *OKCoin) WebsocketClient() {
 					if success != "true" && success != nil {
 						errorCodeStr, ok := errorcode.(string)
 						if !ok {
-							log.Printf("%s Websocket: Unable to convert errorcode to string.\n", o.GetName)
+							log.Printf("%s Websocket: Unable to convert errorcode to string.\n", o.GetName())
 							log.Printf("%s Websocket: channel %s error code: %s.\n", o.GetName(), channelStr, errorcode)
 						} else {
 							log.Printf("%s Websocket: channel %s error: %s.\n", o.GetName(), channelStr, o.WebsocketErrors[errorCodeStr])

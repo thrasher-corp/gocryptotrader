@@ -141,9 +141,9 @@ func (b *BTCC) WebsocketClient() {
 	for b.Enabled && b.Websocket {
 		err := socketio.ConnectToSocket(BTCC_SOCKETIO_ADDRESS, BTCCSocket)
 		if err != nil {
-			log.Printf("%s Unable to connect to Websocket. Err: %s\n", err)
+			log.Printf("%s Unable to connect to Websocket. Err: %s\n", b.GetName(), err)
 			continue
 		}
-		log.Printf("%s Disconnected from Websocket.")
+		log.Printf("%s Disconnected from Websocket.\n", b.GetName())
 	}
 }

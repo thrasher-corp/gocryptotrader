@@ -246,7 +246,7 @@ func (b *Bitfinex) WebsocketClient() {
 					chanInfo, ok := b.WebsocketSubdChannels[chanID]
 
 					if !ok {
-						log.Println("Unable to locate chanID: %d", chanID)
+						log.Printf("Unable to locate chanID: %d\n", chanID)
 					} else {
 						if len(chanData) == 2 {
 							if reflect.TypeOf(chanData[1]).String() == "string" {
