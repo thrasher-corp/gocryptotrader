@@ -9,7 +9,19 @@ angular.module('myApp.home', ['ngRoute'])
     });
 }])
 
-.controller('HomeController', function() {
+.controller('HomeController', function($scope, $rootScope, $timeout) {
+    $scope.loaded = false;
 
+    $rootScope.$on('CurrencyChanged', function(event, args) {
+        $scope.currency = args.Currency;
+        $scope.exchange = args.Exchange;
+    });
 
+    $timeout(function() {
+        if ($scope.currency) {
+            $scope.loaded = true;
+        } else {
+            $scope.loadFailed = true;
+        }
+    }, 10000);
 });

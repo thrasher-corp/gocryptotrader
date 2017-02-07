@@ -24,6 +24,9 @@ angular.module('myApp.enabledExchanges', []).component('enabledexchanges', {
             $rootScope.$emit('CurrencyChanged', $scope.selected);
 
         };
+
+
         $scope.getDashboardData();
+
     }
 });
