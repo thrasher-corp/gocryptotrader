@@ -6,12 +6,7 @@ A website interface to interact with the main gocryptotrader application
 + Interaction between gocryptotrader and gocryptotraderweb
 
 ## Planned Features
-+ Dashboard with details such as purchase history, current exchange holdings and tickers
-+ Settings configuration within website - no need to edit .json files
-+ Perform transactions
-+ Themes
- 
-It's early days for the front-end website. So this readme will be updated periodically to reflect any changes
+ You can track ideas, planned features and what's in progresss on this Trello board: [https://trello.com/b/ZAhMhpOy/gocryptotrader](https://trello.com/b/ZAhMhpOy/gocryptotrader).
 
 ### Prerequisites
 
