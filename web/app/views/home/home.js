@@ -15,6 +15,7 @@ angular.module('myApp.home', ['ngRoute'])
     $rootScope.$on('CurrencyChanged', function(event, args) {
         $scope.currency = args.Currency;
         $scope.exchange = args.Exchange;
+        $scope.loaded = true;
     });
 
     $timeout(function() {

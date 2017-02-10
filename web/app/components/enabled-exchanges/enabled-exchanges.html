@@ -19,8 +19,8 @@
                         </tr>
                         <tr ng-repeat="value in exchange.exchangeValues">
                             <td><a href="" ng-click="reloadDashboardWithExchangeCurrency(exchange,value)">{{value.CryptoCurrency}}</a></td>
-                            <td>{{value.Last}}</td>
-                            <td>{{value.Volume}}</td>
+                            <td>{{value.Last | number: 2}}</td>
+                            <td>{{value.Volume | number: 2}}</td>
                         </tr>
                     </table>
                 </div>
