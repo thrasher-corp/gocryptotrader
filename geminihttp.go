@@ -15,6 +15,9 @@ const (
 	GEMINI_API_VERSION = "1"
 
 	GEMINI_SYMBOLS              = "symbols"
+	GEMINI_TICKER               = "pubticker"
+	GEMINI_AUCTION              = "auction"
+	GEMINI_AUCTION_HISTORY      = "history"
 	GEMINI_ORDERBOOK            = "book"
 	GEMINI_TRADES               = "trades"
 	GEMINI_ORDERS               = "orders"
@@ -175,25 +178,77 @@ func (g *Gemini) Run() {
 	}
 
 	for g.Enabled {
-		/* Ticker has not been implemented yet
 		for _, x := range g.EnabledPairs {
 			currency := x
 			log.Println(currency)
 			go func() {
-				//ticker := g.GetTicker(currency)
-				//log.Printf("Gemini %s Last %f High %f Low %f Volume %f\n", currency, ticker.Last, ticker.High, ticker.Low, ticker.Volume)
-				//AddExchangeInfo(g.GetName(), currency[0:3], currency[3:], ticker.Last, ticker.Volume)
+				ticker, err := g.GetTicker(currency)
+				if err != nil {
+					log.Println(err)
+					return
+				}
+				log.Printf("Gemini %s Last %f Bid %f Ask %f Volume %f\n", currency, ticker.Last, ticker.Bid, ticker.Ask, ticker.Volume.Currency)
+				AddExchangeInfo(g.GetName(), currency[0:3], currency[3:], ticker.Last, ticker.Volume.Currency)
 			}()
 		}
-		*/
 		time.Sleep(time.Second * g.RESTPollingDelay)
 	}
 }
 
-/// Once GetTicker is created, then add in GetTickerPrice code plz - Scott
+type GeminiTicker struct {
+	Ask    float64 `json:"ask,string"`
+	Bid    float64 `json:"bid,string"`
+	Last   float64 `json:"last,string"`
+	Volume struct {
+		Currency  float64
+		USD       float64
+		Timestamp int64
+	}
+}
+
+func (g *Gemini) GetTicker(currency string) (GeminiTicker, error) {
+
+	type TickerResponse struct {
+		Ask    float64 `json:"ask,string"`
+		Bid    float64 `json:"bid,string"`
+		Last   float64 `json:"last,string"`
+		Volume map[string]interface{}
+	}
+
+	ticker := GeminiTicker{}
+	resp := TickerResponse{}
+	path := fmt.Sprintf("%s/v%s/%s/%s", GEMINI_API_URL, GEMINI_API_VERSION, GEMINI_TICKER, currency)
+
+	err := SendHTTPGetRequest(path, true, &resp)
+	if err != nil {
+		return ticker, err
+	}
+
+	ticker.Ask = resp.Ask
+	ticker.Bid = resp.Bid
+	ticker.Last = resp.Last
+
+	ticker.Volume.Currency, _ = strconv.ParseFloat(resp.Volume[currency[0:3]].(string), 64)
+	ticker.Volume.USD, _ = strconv.ParseFloat(resp.Volume["USD"].(string), 64)
+
+	time, _ := resp.Volume["timestamp"].(float64)
+	ticker.Volume.Timestamp = int64(time)
+
+	return ticker, nil
+}
+
 func (g *Gemini) GetTickerPrice(currency string) TickerPrice {
 	var tickerPrice TickerPrice
-
+	ticker, err := g.GetTicker(currency)
+	if err != nil {
+		log.Println(err)
+		return tickerPrice
+	}
+	tickerPrice.Ask = ticker.Ask
+	tickerPrice.Bid = ticker.Bid
+	tickerPrice.CryptoCurrency = currency
+	tickerPrice.Last = ticker.Last
+	tickerPrice.Volume = ticker.Volume.USD
 	return tickerPrice
 }
 
@@ -205,6 +260,49 @@ func (g *Gemini) GetSymbols() ([]string, error) {
 		return nil, err
 	}
 	return symbols, nil
+}
+
+type GeminiAuction struct {
+	LastAuctionPrice    float64 `json:"last_auction_price,string"`
+	LastAuctionQuantity float64 `json:"last_auction_quantity,string"`
+	LastHighestBidPrice float64 `json:"last_highest_bid_price,string"`
+	LastLowestAskPrice  float64 `json:"last_lowest_ask_price,string"`
+	NextUpdateMS        int64   `json:"next_update_ms"`
+	NextAuctionMS       int64   `json:"next_auction_ms"`
+	LastAuctionEID      int64   `json:"last_auction_eid"`
+}
+
+func (g *Gemini) GetAuction(currency string) (GeminiAuction, error) {
+	path := fmt.Sprintf("%s/v%s/%s/%s", GEMINI_API_URL, GEMINI_API_VERSION, GEMINI_AUCTION, currency)
+	auction := GeminiAuction{}
+	err := SendHTTPGetRequest(path, true, &auction)
+	if err != nil {
+		return auction, err
+	}
+	return auction, nil
+}
+
+type GeminiAuctionHistory struct {
+	AuctionID       int64   `json:"auction_id"`
+	AuctionPrice    float64 `json:"auction_price,string"`
+	AuctionQuantity float64 `json:"auction_quantity,string"`
+	EID             int64   `json:"eid"`
+	HighestBidPrice float64 `json:"highest_bid_price,string"`
+	LowestAskPrice  float64 `json:"lowest_ask_price,string"`
+	AuctionResult   string  `json:"auction_result"`
+	Timestamp       int64   `json:"timestamp"`
+	TimestampMS     int64   `json:"timestampms"`
+	EventType       string  `json:"event_type"`
+}
+
+func (g *Gemini) GetAuctionHistory(currency string, params url.Values) ([]GeminiAuctionHistory, error) {
+	path := EncodeURLValues(fmt.Sprintf("%s/v%s/%s/%s/%s", GEMINI_API_URL, GEMINI_API_VERSION, GEMINI_AUCTION, currency, GEMINI_AUCTION_HISTORY), params)
+	auctionHist := []GeminiAuctionHistory{}
+	err := SendHTTPGetRequest(path, true, &auctionHist)
+	if err != nil {
+		return nil, err
+	}
+	return auctionHist, nil
 }
 
 func (g *Gemini) GetOrderbook(currency string, params url.Values) (GeminiOrderbook, error) {
