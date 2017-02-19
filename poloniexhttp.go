@@ -137,12 +137,12 @@ func (p *Poloniex) Run() {
 		for _, x := range p.EnabledPairs {
 			currency := x
 			go func() {
-				ticker, err := p.GetTicker()
+				ticker, err := p.GetTickerPrice(currency)
 				if err != nil {
 					log.Println(err)
 					return
 				}
-				log.Printf("Poloniex %s Last %f High %f Low %f Volume %f\n", currency, ticker[currency].Last, ticker[currency].High24Hr, ticker[currency].Low24Hr, ticker[currency].QuoteVolume)
+				log.Printf("Poloniex %s Last %f High %f Low %f Volume %f\n", currency, ticker.Last, ticker.High, ticker.Low, ticker.Volume)
 				//AddExchangeInfo(p.GetName(), currency[0:3], currency[3:], ticker.Last, ticker.Volume)
 			}()
 		}
@@ -165,22 +165,28 @@ func (p *Poloniex) GetTicker() (map[string]PoloniexTicker, error) {
 	return resp.Data, nil
 }
 
-func (p *Poloniex) GetTickerPrice(currency string) TickerPrice {
+func (p *Poloniex) GetTickerPrice(currency string) (TickerPrice, error) {
+	tickerNew, err := GetTicker(p.GetName(), currency[0:3], currency[3:])
+	if err == nil {
+		return tickerNew, nil
+	}
+
 	var tickerPrice TickerPrice
 	ticker, err := p.GetTicker()
 	if err != nil {
-		log.Println(err)
-		return tickerPrice
+		return tickerPrice, err
 	}
-	tickerPrice.CryptoCurrency = currency
+
+	tickerPrice.FirstCurrency = currency[0:3]
+	tickerPrice.SecondCurrency = currency[3:]
 	tickerPrice.Ask = ticker[currency].Last
 	tickerPrice.Bid = ticker[currency].HighestBid
 	tickerPrice.High = ticker[currency].HighestBid
 	tickerPrice.Last = ticker[currency].Last
 	tickerPrice.Low = ticker[currency].LowestAsk
 	tickerPrice.Volume = ticker[currency].BaseVolume
-
-	return tickerPrice
+	ProcessTicker(p.GetName(), tickerPrice.FirstCurrency, tickerPrice.SecondCurrency, tickerPrice)
+	return tickerPrice, nil
 }
 
 func (p *Poloniex) GetVolume() (interface{}, error) {

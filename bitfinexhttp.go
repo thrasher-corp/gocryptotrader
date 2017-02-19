@@ -266,9 +266,8 @@ func (b *Bitfinex) Run() {
 		for _, x := range b.EnabledPairs {
 			currency := x
 			go func() {
-				ticker, err := b.GetTicker(currency, nil)
+				ticker, err := b.GetTickerPrice(currency)
 				if err != nil {
-					log.Println(err)
 					return
 				}
 				log.Printf("Bitfinex %s Last %f High %f Low %f Volume %f\n", currency, ticker.Last, ticker.High, ticker.Low, ticker.Volume)
@@ -289,22 +288,27 @@ func (b *Bitfinex) GetTicker(symbol string, values url.Values) (BitfinexTicker, 
 	return response, nil
 }
 
-func (b *Bitfinex) GetTickerPrice(currency string) TickerPrice {
-	var tickerPrice TickerPrice
-	ticker, err := b.GetTicker(currency, nil)
-	if err != nil {
-		log.Println(err)
-		return tickerPrice
+func (b *Bitfinex) GetTickerPrice(currency string) (TickerPrice, error) {
+	ticker, err := GetTicker(b.GetName(), currency[0:3], currency[3:])
+	if err == nil {
+		return ticker, nil
 	}
-	tickerPrice.Ask = ticker.Ask
-	tickerPrice.Bid = ticker.Bid
-	tickerPrice.CryptoCurrency = currency
-	tickerPrice.Low = ticker.Low
-	tickerPrice.Last = ticker.Last
-	tickerPrice.Volume = ticker.Volume
-	tickerPrice.High = ticker.High
 
-	return tickerPrice
+	var tickerPrice TickerPrice
+	tickerNew, err := b.GetTicker(currency, nil)
+	if err != nil {
+		return tickerPrice, err
+	}
+	tickerPrice.Ask = tickerNew.Ask
+	tickerPrice.Bid = tickerNew.Bid
+	tickerPrice.FirstCurrency = currency[0:3]
+	tickerPrice.SecondCurrency = currency[3:]
+	tickerPrice.Low = tickerNew.Low
+	tickerPrice.Last = tickerNew.Last
+	tickerPrice.Volume = tickerNew.Volume
+	tickerPrice.High = tickerNew.High
+	ProcessTicker(b.GetName(), tickerPrice.FirstCurrency, tickerPrice.SecondCurrency, tickerPrice)
+	return tickerPrice, nil
 }
 
 type BitfinexLendbookBidAsk struct {

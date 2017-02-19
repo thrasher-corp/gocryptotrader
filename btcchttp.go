@@ -241,27 +241,21 @@ func (b *BTCC) Run() {
 
 	for b.Enabled {
 		for _, x := range b.EnabledPairs {
-			currency := StringToLower(x)
 			go func() {
-				ticker := b.GetTicker(currency)
-				if currency != "ltcbtc" {
-					tickerLastUSD, _ := ConvertCurrency(ticker.Last, "CNY", "USD")
-					tickerHighUSD, _ := ConvertCurrency(ticker.High, "CNY", "USD")
-					tickerLowUSD, _ := ConvertCurrency(ticker.Low, "CNY", "USD")
-					log.Printf("BTCC %s: Last %f (%f) High %f (%f) Low %f (%f) Volume %f\n", currency, tickerLastUSD, ticker.Last, tickerHighUSD, ticker.High, tickerLowUSD, ticker.Low, ticker.Vol)
-					AddExchangeInfo(b.GetName(), StringToUpper(currency[0:3]), StringToUpper(currency[3:]), ticker.Last, ticker.Vol)
-					AddExchangeInfo(b.GetName(), StringToUpper(currency[0:3]), "USD", tickerLastUSD, ticker.Vol)
-				} else {
-					log.Printf("BTCC %s: Last %f High %f Low %f Volume %f\n", currency, ticker.Last, ticker.High, ticker.Low, ticker.Vol)
-					AddExchangeInfo(b.GetName(), StringToUpper(currency[0:3]), StringToUpper(currency[3:]), ticker.Last, ticker.Vol)
+				currency := x
+				ticker, err := b.GetTickerPrice(StringToLower(currency))
+				if err != nil {
+					return
 				}
+				log.Printf("BTCC %s: Last %f High %f Low %f Volume %f\n", currency, ticker.Last, ticker.High, ticker.Low, ticker.Volume)
+				AddExchangeInfo(b.GetName(), currency[0:3], currency[3:], ticker.Last, ticker.Volume)
 			}()
 		}
 		time.Sleep(time.Second * b.RESTPollingDelay)
 	}
 }
 
-func (b *BTCC) GetTicker(symbol string) BTCCTicker {
+func (b *BTCC) GetTicker(symbol string) (BTCCTicker, error) {
 	type Response struct {
 		Ticker BTCCTicker
 	}
@@ -270,24 +264,29 @@ func (b *BTCC) GetTicker(symbol string) BTCCTicker {
 	req := fmt.Sprintf("%sdata/ticker?market=%s", BTCC_API_URL, symbol)
 	err := SendHTTPGetRequest(req, true, &resp)
 	if err != nil {
-		log.Println(err)
-		return BTCCTicker{}
+		return BTCCTicker{}, err
 	}
-	return resp.Ticker
+	return resp.Ticker, nil
 }
 
-func (b *BTCC) GetTickerPrice(currency string) TickerPrice {
+func (b *BTCC) GetTickerPrice(currency string) (TickerPrice, error) {
+	tickerNew, err := GetTicker(b.GetName(), currency[0:3], currency[3:])
+	if err == nil {
+		return tickerNew, nil
+	}
+
 	var tickerPrice TickerPrice
-	ticker := b.GetTicker(currency)
+	ticker, err := b.GetTicker(currency)
 	tickerPrice.Ask = ticker.Sell
 	tickerPrice.Bid = ticker.Buy
-	tickerPrice.CryptoCurrency = currency
+	tickerPrice.FirstCurrency = currency[0:3]
+	tickerPrice.SecondCurrency = currency[3:]
 	tickerPrice.Low = ticker.Low
 	tickerPrice.Last = ticker.Last
 	tickerPrice.Volume = ticker.Vol
 	tickerPrice.High = ticker.High
-
-	return tickerPrice
+	ProcessTicker(b.GetName(), tickerPrice.FirstCurrency, tickerPrice.SecondCurrency, tickerPrice)
+	return tickerPrice, nil
 }
 
 func (b *BTCC) GetTradesLast24h(symbol string) bool {

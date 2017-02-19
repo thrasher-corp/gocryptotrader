@@ -31,16 +31,16 @@ type Event struct {
 	Exchange       string
 	Item           string
 	Condition      string
-	CryptoCurrency string
-	FiatCurrency   string
+	FirstCurrency  string
+	SecondCurrency string
 	Action         string
 	Executed       bool
 }
 
 var Events []*Event
 
-func AddEvent(Exchange, Item, Condition, CryptoCurrency, FiatCurrency, Action string) (int, error) {
-	err := IsValidEvent(Exchange, Item, Condition, CryptoCurrency, FiatCurrency, Action)
+func AddEvent(Exchange, Item, Condition, FirstCurrency, SecondCurrency, Action string) (int, error) {
+	err := IsValidEvent(Exchange, Item, Condition, Action)
 
 	if err != nil {
 		return 0, err
@@ -57,8 +57,8 @@ func AddEvent(Exchange, Item, Condition, CryptoCurrency, FiatCurrency, Action st
 	Event.Exchange = Exchange
 	Event.Item = Item
 	Event.Condition = Condition
-	Event.CryptoCurrency = CryptoCurrency
-	Event.FiatCurrency = FiatCurrency
+	Event.FirstCurrency = FirstCurrency
+	Event.SecondCurrency = SecondCurrency
 	Event.Action = Action
 	Event.Executed = false
 	Events = append(Events, Event)
@@ -106,7 +106,7 @@ func (e *Event) ExecuteAction() bool {
 
 func (e *Event) EventToString() string {
 	condition := SplitStrings(e.Condition, ",")
-	return fmt.Sprintf("If the %s%s %s on %s is %s then %s.", e.CryptoCurrency, e.FiatCurrency, e.Item, e.Exchange, condition[0]+" "+condition[1], e.Action)
+	return fmt.Sprintf("If the %s%s %s on %s is %s then %s.", e.FirstCurrency, e.SecondCurrency, e.Item, e.Exchange, condition[0]+" "+condition[1], e.Action)
 }
 
 func (e *Event) CheckCondition() bool {
@@ -114,80 +114,12 @@ func (e *Event) CheckCondition() bool {
 	condition := SplitStrings(e.Condition, ",")
 	targetPrice, _ := strconv.ParseFloat(condition[1], 64)
 
-	/* to-do: add event handling for all currencies and fiat currencies */
-	if bot.exchange.bitfinex.GetName() == e.Exchange {
-		result, err := bot.exchange.bitfinex.GetTicker("btcusd", nil)
-		if err != nil {
-			lastPrice = 0
-		} else {
-			lastPrice = result.Last
-		}
-	} else if bot.exchange.bitstamp.GetName() == e.Exchange {
-		result, err := bot.exchange.bitstamp.GetTicker(false)
-		if err != nil {
-			lastPrice = 0
-		} else {
-			lastPrice = result.Last
-		}
-	} else if bot.exchange.brightonpeak.GetName() == e.Exchange {
-		result, err := bot.exchange.brightonpeak.GetTicker("BTCUSD")
-		if err != nil {
-			lastPrice = 0
-		} else {
-			lastPrice = result.Last
-		}
-	} else if bot.exchange.gdax.GetName() == e.Exchange {
-		result, err := bot.exchange.gdax.GetTicker("BTC-USD")
-		if err != nil {
-			lastPrice = 0
-		} else {
-			lastPrice = result.Price
-		}
-	} else if bot.exchange.lakebtc.GetName() == e.Exchange {
-		lastPrice = bot.exchange.lakebtc.GetTicker().CNY.Last
-	} else if bot.exchange.localbitcoins.GetName() == e.Exchange {
-		result, err := bot.exchange.localbitcoins.GetTicker()
-		if err != nil {
-			lastPrice = 0
-		} else {
-			lastPrice = result["USD"].Rates.Last
-		}
-	} else if bot.exchange.btcc.GetName() == e.Exchange {
-		lastPrice = bot.exchange.btcc.GetTicker("btccny").Last
-	} else if bot.exchange.huobi.GetName() == e.Exchange {
-		lastPrice = bot.exchange.huobi.GetTicker("btc").Last
-	} else if bot.exchange.itbit.GetName() == e.Exchange {
-		lastPrice = bot.exchange.itbit.GetTicker("XBTUSD").LastPrice
-	} else if bot.exchange.btce.GetName() == e.Exchange {
-		lastPrice = bot.exchange.btce.Ticker["btc_usd"].Last
-	} else if bot.exchange.btcmarkets.GetName() == e.Exchange {
-		lastPrice = bot.exchange.btcmarkets.Ticker["BTC"].LastPrice
-	} else if bot.exchange.okcoinChina.GetName() == e.Exchange {
-		result, err := bot.exchange.okcoinChina.GetTicker("btc_cny")
-		if err != nil {
-			lastPrice = 0
-		} else {
-			lastPrice = result.Last
-		}
-	} else if bot.exchange.okcoinIntl.GetName() == e.Exchange {
-		result, err := bot.exchange.okcoinIntl.GetTicker("btc_usd")
-		if err != nil {
-			lastPrice = 0
-		} else {
-			lastPrice = result.Last
-		}
-	} else if bot.exchange.anx.GetName() == e.Exchange {
-		lastPrice = bot.exchange.anx.GetTicker("BTCUSD").Data.Last.Value
-	} else if bot.exchange.kraken.GetName() == e.Exchange {
-		lastPrice = bot.exchange.kraken.Ticker["XBTUSD"].Last
-	} else if bot.exchange.poloniex.GetName() == e.Exchange {
-		result, err := bot.exchange.poloniex.GetTicker()
-		if err != nil {
-			lastPrice = 0
-		} else {
-			lastPrice = result["BTC_LTC"].Last
-		}
+	ticker, err := GetTickerByExchange(e.Exchange)
+	if err != nil {
+		return false
 	}
+
+	lastPrice = ticker.Price[e.FirstCurrency][e.SecondCurrency].Last
 
 	if lastPrice == 0 {
 		return false
@@ -228,17 +160,13 @@ func (e *Event) CheckCondition() bool {
 	return false
 }
 
-func IsValidEvent(Exchange, Item, Condition, CryptoCurrency, FiatCurrency, Action string) error {
+func IsValidEvent(Exchange, Item, Condition, Action string) error {
 	if !IsValidExchange(Exchange) {
 		return ErrExchangeDisabled
 	}
 
 	if !IsValidItem(Item) {
 		return ErrInvalidItem
-	}
-
-	if !IsFiatCurrency(FiatCurrency) {
-		return ErrFiatCurrencyInvalid
 	}
 
 	if !StringContains(Condition, ",") {
@@ -287,23 +215,10 @@ func CheckEvents() {
 }
 
 func IsValidExchange(Exchange string) bool {
-	if bot.exchange.bitfinex.GetName() == Exchange && bot.exchange.bitfinex.IsEnabled() ||
-		bot.exchange.bitstamp.GetName() == Exchange && bot.exchange.bitstamp.IsEnabled() ||
-		bot.exchange.brightonpeak.GetName() == Exchange && bot.exchange.brightonpeak.IsEnabled() ||
-		bot.exchange.btcc.GetName() == Exchange && bot.exchange.btcc.IsEnabled() ||
-		bot.exchange.btce.GetName() == Exchange && bot.exchange.btce.IsEnabled() ||
-		bot.exchange.btcmarkets.GetName() == Exchange && bot.exchange.btcmarkets.IsEnabled() ||
-		bot.exchange.gdax.GetName() == Exchange && bot.exchange.gdax.IsEnabled() ||
-		bot.exchange.huobi.GetName() == Exchange && bot.exchange.huobi.IsEnabled() ||
-		bot.exchange.itbit.GetName() == Exchange && bot.exchange.itbit.IsEnabled() ||
-		bot.exchange.kraken.GetName() == Exchange && bot.exchange.kraken.IsEnabled() ||
-		bot.exchange.lakebtc.GetName() == Exchange && bot.exchange.lakebtc.IsEnabled() ||
-		bot.exchange.localbitcoins.GetName() == Exchange && bot.exchange.localbitcoins.IsEnabled() ||
-		bot.exchange.okcoinChina.GetName() == Exchange && bot.exchange.okcoinChina.IsEnabled() ||
-		bot.exchange.okcoinIntl.GetName() == Exchange && bot.exchange.okcoinIntl.IsEnabled() ||
-		bot.exchange.poloniex.GetName() == Exchange && bot.exchange.poloniex.IsEnabled() ||
-		bot.exchange.anx.GetName() == Exchange && bot.exchange.anx.IsEnabled() {
-		return true
+	for x, _ := range bot.exchanges {
+		if bot.exchanges[x].GetName() == Exchange && bot.exchanges[x].IsEnabled() {
+			return true
+		}
 	}
 	return false
 }

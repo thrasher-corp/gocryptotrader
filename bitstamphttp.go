@@ -206,7 +206,7 @@ func (b *Bitstamp) Run() {
 		for _, x := range b.EnabledPairs {
 			currency := x
 			go func() {
-				ticker, err := b.GetTicker(true)
+				ticker, err := b.GetTickerPrice(currency)
 				if err != nil {
 					log.Println(err)
 					return
@@ -238,22 +238,28 @@ func (b *Bitstamp) GetTicker(hourly bool) (BitstampTicker, error) {
 	return ticker, nil
 }
 
-func (b *Bitstamp) GetTickerPrice(currency string) TickerPrice {
+func (b *Bitstamp) GetTickerPrice(currency string) (TickerPrice, error) {
+	tickerNew, err := GetTicker(b.GetName(), currency[0:3], currency[3:])
+	if err == nil {
+		return tickerNew, nil
+	}
+
 	var tickerPrice TickerPrice
 	ticker, err := b.GetTicker(true)
 	if err != nil {
-		log.Println(err)
-		return tickerPrice
+		return tickerPrice, err
+
 	}
 	tickerPrice.Ask = ticker.Ask
 	tickerPrice.Bid = ticker.Bid
-	tickerPrice.CryptoCurrency = currency
+	tickerPrice.FirstCurrency = currency[0:3]
+	tickerPrice.SecondCurrency = currency[0:3]
 	tickerPrice.Low = ticker.Low
 	tickerPrice.Last = ticker.Last
 	tickerPrice.Volume = ticker.Volume
 	tickerPrice.High = ticker.High
-
-	return tickerPrice
+	ProcessTicker(b.GetName(), tickerPrice.FirstCurrency, tickerPrice.SecondCurrency, tickerPrice)
+	return tickerPrice, nil
 }
 
 func (b *Bitstamp) GetOrderbook() (BitstampOrderbook, error) {

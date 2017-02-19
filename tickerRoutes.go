@@ -13,10 +13,15 @@ func jsonTickerResponse(w http.ResponseWriter, r *http.Request) {
 	currency := vars["currency"]
 	exchangeName := vars["exchangeName"]
 	var response TickerPrice
+	var err error
 	for i := 0; i < len(bot.exchanges); i++ {
 		if bot.exchanges[i] != nil {
 			if bot.exchanges[i].IsEnabled() && bot.exchanges[i].GetName() == exchangeName {
-				response = bot.exchanges[i].GetTickerPrice(currency)
+				response, err = bot.exchanges[i].GetTickerPrice(currency)
+				if err != nil {
+					log.Println(err)
+					continue
+				}
 			}
 		}
 	}
@@ -25,7 +30,7 @@ func jsonTickerResponse(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	encoder := json.NewEncoder(w)
 
-	if err := encoder.Encode(response); err != nil {
+	if err = encoder.Encode(response); err != nil {
 		panic(err)
 	}
 }
@@ -50,7 +55,10 @@ func getAllActiveTickersResponse(w http.ResponseWriter, r *http.Request) {
 			currencies := individualBot.GetEnabledCurrencies()
 			log.Println(currencies)
 			for _, currency := range currencies {
-				tickerPrice := individualBot.GetTickerPrice(currency)
+				tickerPrice, err := individualBot.GetTickerPrice(currency)
+				if err != nil {
+					continue
+				}
 				log.Println(tickerPrice)
 
 				individualExchange.ExchangeValues = append(individualExchange.ExchangeValues, tickerPrice)

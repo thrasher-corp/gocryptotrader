@@ -15,7 +15,7 @@ angular.module('myApp.buy',[]).component('buy', {
      });
 
     $scope.GetLatestDataFromExchangeCurrency = function () {
-       $http.get('/GetLatestDataFromExchangeCurrency?exhange=' + $scope.exchange.exchangeName + '&currency='+ $scope.currency.CryptoCurrency).success(function (data) {
+       $http.get('/GetLatestDataFromExchangeCurrency?exhange=' + $scope.exchange.exchangeName + '&currency='+ $scope.currency.CurrencyPair).success(function (data) {
          $scope.currency.Last = data.Last;
          $scope.currency.Volume = data.Volume;
           $scope.currency.Ask = data.Ask;

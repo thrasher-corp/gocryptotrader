@@ -121,7 +121,7 @@ func (b *BrightonPeak) Run() {
 
 	for b.Enabled {
 		for _, x := range b.EnabledPairs {
-			ticker, err := b.GetTicker(x)
+			ticker, err := b.GetTickerPrice(x)
 
 			if err != nil {
 				log.Println(err)
@@ -138,22 +138,27 @@ func (b *BrightonPeak) GetTicker(symbol string) (AlphapointTicker, error) {
 	return b.API.GetTicker(symbol)
 }
 
-func (b *BrightonPeak) GetTickerPrice(currency string) TickerPrice {
+func (b *BrightonPeak) GetTickerPrice(currency string) (TickerPrice, error) {
+	tickerNew, err := GetTicker(b.GetName(), currency[0:3], currency[3:])
+	if err == nil {
+		return tickerNew, nil
+	}
+
 	var tickerPrice TickerPrice
 	ticker, err := b.GetTicker(currency)
 	if err != nil {
-		log.Println(err)
-		return tickerPrice
+		return tickerPrice, err
 	}
 	tickerPrice.Ask = ticker.Ask
 	tickerPrice.Bid = ticker.Bid
-	tickerPrice.CryptoCurrency = currency
+	tickerPrice.FirstCurrency = currency[0:3]
+	tickerPrice.SecondCurrency = currency[3:]
 	tickerPrice.Low = ticker.Low
 	tickerPrice.Last = ticker.Last
 	tickerPrice.Volume = ticker.Volume
 	tickerPrice.High = ticker.High
-
-	return tickerPrice
+	ProcessTicker(b.GetName(), tickerPrice.FirstCurrency, tickerPrice.SecondCurrency, tickerPrice)
+	return tickerPrice, nil
 }
 
 func (b *BrightonPeak) GetTrades(symbol string, startIndex, count int) (AlphapointTrades, error) {

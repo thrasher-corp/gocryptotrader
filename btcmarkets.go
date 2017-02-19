@@ -164,17 +164,15 @@ func (b *BTCMarkets) Run() {
 		for _, x := range b.EnabledPairs {
 			currency := x
 			go func() {
-				ticker, err := b.GetTicker(currency)
+				ticker, err := b.GetTickerPrice(currency)
 				if err != nil {
-					log.Println(err)
 					return
 				}
-				b.Ticker[currency] = ticker
-				BTCMarketsLastUSD, _ := ConvertCurrency(ticker.LastPrice, "AUD", "USD")
-				BTCMarketsBestBidUSD, _ := ConvertCurrency(ticker.BestBID, "AUD", "USD")
-				BTCMarketsBestAskUSD, _ := ConvertCurrency(ticker.BestAsk, "AUD", "USD")
-				log.Printf("BTC Markets %s: Last %f (%f) Bid %f (%f) Ask %f (%f)\n", currency, BTCMarketsLastUSD, ticker.LastPrice, BTCMarketsBestBidUSD, ticker.BestBID, BTCMarketsBestAskUSD, ticker.BestAsk)
-				AddExchangeInfo(b.GetName(), currency[0:3], currency[3:], ticker.LastPrice, 0)
+				BTCMarketsLastUSD, _ := ConvertCurrency(ticker.Last, "AUD", "USD")
+				BTCMarketsBestBidUSD, _ := ConvertCurrency(ticker.Bid, "AUD", "USD")
+				BTCMarketsBestAskUSD, _ := ConvertCurrency(ticker.Ask, "AUD", "USD")
+				log.Printf("BTC Markets %s: Last %f (%f) Bid %f (%f) Ask %f (%f)\n", currency, BTCMarketsLastUSD, ticker.Last, BTCMarketsBestBidUSD, ticker.Bid, BTCMarketsBestAskUSD, ticker.Ask)
+				AddExchangeInfo(b.GetName(), currency[0:3], currency[3:], ticker.Last, 0)
 				AddExchangeInfo(b.GetName(), currency[0:3], "USD", BTCMarketsLastUSD, 0)
 			}()
 		}
@@ -192,19 +190,24 @@ func (b *BTCMarkets) GetTicker(symbol string) (BTCMarketsTicker, error) {
 	return ticker, nil
 }
 
-func (b *BTCMarkets) GetTickerPrice(currency string) TickerPrice {
+func (b *BTCMarkets) GetTickerPrice(currency string) (TickerPrice, error) {
+	tickerNew, err := GetTicker(b.GetName(), currency[0:3], currency[3:])
+	if err == nil {
+		return tickerNew, nil
+	}
+
 	var tickerPrice TickerPrice
 	ticker, err := b.GetTicker(currency)
 	if err != nil {
-		log.Println(err)
-		return tickerPrice
+		return tickerPrice, err
 	}
 	tickerPrice.Ask = ticker.BestAsk
 	tickerPrice.Bid = ticker.BestBID
-	tickerPrice.CryptoCurrency = currency
+	tickerPrice.FirstCurrency = currency[0:3]
+	tickerPrice.SecondCurrency = currency[3:]
 	tickerPrice.Last = ticker.LastPrice
-
-	return tickerPrice
+	ProcessTicker(b.GetName(), tickerPrice.FirstCurrency, tickerPrice.SecondCurrency, tickerPrice)
+	return tickerPrice, nil
 }
 
 func (b *BTCMarkets) GetOrderbook(symbol string) (BTCMarketsOrderbook, error) {

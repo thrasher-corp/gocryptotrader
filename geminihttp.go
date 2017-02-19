@@ -180,15 +180,14 @@ func (g *Gemini) Run() {
 	for g.Enabled {
 		for _, x := range g.EnabledPairs {
 			currency := x
-			log.Println(currency)
 			go func() {
-				ticker, err := g.GetTicker(currency)
+				ticker, err := g.GetTickerPrice(currency)
 				if err != nil {
 					log.Println(err)
 					return
 				}
-				log.Printf("Gemini %s Last %f Bid %f Ask %f Volume %f\n", currency, ticker.Last, ticker.Bid, ticker.Ask, ticker.Volume.Currency)
-				AddExchangeInfo(g.GetName(), currency[0:3], currency[3:], ticker.Last, ticker.Volume.Currency)
+				log.Printf("Gemini %s Last %f Bid %f Ask %f Volume %f\n", currency, ticker.Last, ticker.Bid, ticker.Ask, ticker.Volume)
+				AddExchangeInfo(g.GetName(), currency[0:3], currency[3:], ticker.Last, ticker.Volume)
 			}()
 		}
 		time.Sleep(time.Second * g.RESTPollingDelay)
@@ -237,19 +236,25 @@ func (g *Gemini) GetTicker(currency string) (GeminiTicker, error) {
 	return ticker, nil
 }
 
-func (g *Gemini) GetTickerPrice(currency string) TickerPrice {
+func (g *Gemini) GetTickerPrice(currency string) (TickerPrice, error) {
+	tickerNew, err := GetTicker(g.GetName(), currency[0:3], currency[3:])
+	if err == nil {
+		return tickerNew, nil
+	}
+
 	var tickerPrice TickerPrice
 	ticker, err := g.GetTicker(currency)
 	if err != nil {
-		log.Println(err)
-		return tickerPrice
+		return tickerPrice, err
 	}
 	tickerPrice.Ask = ticker.Ask
 	tickerPrice.Bid = ticker.Bid
-	tickerPrice.CryptoCurrency = currency
+	tickerPrice.FirstCurrency = currency[0:3]
+	tickerPrice.SecondCurrency = currency[3:]
 	tickerPrice.Last = ticker.Last
 	tickerPrice.Volume = ticker.Volume.USD
-	return tickerPrice
+	ProcessTicker(g.GetName(), tickerPrice.FirstCurrency, tickerPrice.SecondCurrency, tickerPrice)
+	return tickerPrice, nil
 }
 
 func (g *Gemini) GetSymbols() ([]string, error) {

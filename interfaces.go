@@ -7,7 +7,7 @@ type IBotExchange interface {
 	SetDefaults()
 	GetName() string
 	IsEnabled() bool
-	GetTickerPrice(currency string) TickerPrice
+	GetTickerPrice(currency string) (TickerPrice, error)
 	GetEnabledCurrencies() []string
 	GetExchangeAccountInfo() (ExchangeAccountInfo, error)
 }

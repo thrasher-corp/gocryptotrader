@@ -128,45 +128,70 @@ func (l *LakeBTC) Run() {
 	}
 
 	for l.Enabled {
-		ticker := l.GetTicker()
+		ticker, err := l.GetTickerPrice("BTCUSD")
+		if err != nil {
+			log.Println(err)
+			return
+		}
+		ticker, err = l.GetTickerPrice("BTCCNY")
+		if err != nil {
+			log.Println(err)
+			return
+		}
 		for _, x := range l.EnabledPairs {
 			if x == "BTCUSD" {
-				log.Printf("LakeBTC BTC USD: Last %f High %f Low %f Volume %f\n", ticker.USD.Last, ticker.USD.High, ticker.USD.Low, ticker.USD.Volume)
-				AddExchangeInfo(l.GetName(), x[0:3], x[3:], ticker.USD.Last, ticker.USD.Volume)
+				log.Printf("LakeBTC BTC USD: Last %f High %f Low %f Volume %f\n", ticker.Last, ticker.High, ticker.Low, ticker.Volume)
+				AddExchangeInfo(l.GetName(), x[0:3], x[3:], ticker.Last, ticker.Volume)
 			} else if x == "BTCCNY" {
-				log.Printf("LakeBTC BTC CNY: Last %f High %f Low %f Volume %f\n", ticker.CNY.Last, ticker.CNY.High, ticker.CNY.Low, ticker.CNY.Volume)
-				AddExchangeInfo(l.GetName(), x[0:3], x[3:], ticker.CNY.Last, ticker.CNY.Volume)
+				log.Printf("LakeBTC BTC CNY: Last %f High %f Low %f Volume %f\n", ticker.Last, ticker.High, ticker.Low, ticker.Volume)
+				AddExchangeInfo(l.GetName(), x[0:3], x[3:], ticker.Last, ticker.Volume)
 			}
 		}
 		time.Sleep(time.Second * l.RESTPollingDelay)
 	}
 }
 
-func (l *LakeBTC) GetTicker() LakeBTCTickerResponse {
+func (l *LakeBTC) GetTicker() (LakeBTCTickerResponse, error) {
 	response := LakeBTCTickerResponse{}
 	err := SendHTTPGetRequest(LAKEBTC_API_URL+LAKEBTC_TICKER, true, &response)
 	if err != nil {
-		log.Println(err)
-		return response
+		return response, err
 	}
-	return response
+	return response, nil
 }
 
-func (l *LakeBTC) GetTickerPrice(currency string) TickerPrice {
+func (l *LakeBTC) GetTickerPrice(currency string) (TickerPrice, error) {
+	tickerNew, err := GetTicker(l.GetName(), currency[0:3], currency[3:])
+	if err == nil {
+		return tickerNew, nil
+	}
+
 	var tickerPrice TickerPrice
-	ticker := l.GetTicker()
+	ticker, err := l.GetTicker()
+	if err != nil {
+		return tickerPrice, err
+	}
 
 	if currency == "USD" {
 		tickerPrice.Ask = ticker.USD.Ask
 		tickerPrice.Bid = ticker.USD.Bid
+		tickerPrice.Volume = ticker.USD.Volume
+		tickerPrice.High = ticker.USD.High
+		tickerPrice.Low = ticker.USD.Low
+		tickerPrice.Last = ticker.USD.Last
 	} else if currency == "CNY" {
 		tickerPrice.Ask = ticker.CNY.Ask
 		tickerPrice.Bid = ticker.CNY.Bid
+		tickerPrice.Volume = ticker.CNY.Volume
+		tickerPrice.High = ticker.CNY.High
+		tickerPrice.Low = ticker.CNY.Low
+		tickerPrice.Last = ticker.CNY.Last
 	}
 
-	tickerPrice.CryptoCurrency = currency
-
-	return tickerPrice
+	tickerPrice.FirstCurrency = currency[0:3]
+	tickerPrice.SecondCurrency = currency[3:]
+	ProcessTicker(l.GetName(), tickerPrice.FirstCurrency, tickerPrice.SecondCurrency, tickerPrice)
+	return tickerPrice, nil
 }
 
 func (l *LakeBTC) GetOrderBook(currency string) bool {

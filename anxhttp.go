@@ -169,37 +169,50 @@ func (a *ANX) Run() {
 		for _, x := range a.EnabledPairs {
 			currency := x
 			go func() {
-				ticker := a.GetTicker(currency)
-				log.Printf("ANX %s: Last %f High %f Low %f Volume %f\n", currency, ticker.Data.Last.Value, ticker.Data.High.Value, ticker.Data.Low.Value, ticker.Data.Vol.Value)
-				AddExchangeInfo(a.GetName(), currency[0:3], currency[3:], ticker.Data.Last.Value, ticker.Data.Vol.Value)
+				ticker, err := a.GetTickerPrice(currency)
+				if err != nil {
+					log.Println(err)
+					return
+				}
+				log.Printf("ANX %s: Last %f High %f Low %f Volume %f\n", currency, ticker.Last, ticker.High, ticker.Low, ticker.Volume)
+				AddExchangeInfo(a.GetName(), currency[0:3], currency[3:], ticker.Last, ticker.Volume)
 			}()
 		}
 		time.Sleep(time.Second * a.RESTPollingDelay)
 	}
 }
 
-func (a *ANX) GetTicker(currency string) ANXTicker {
+func (a *ANX) GetTicker(currency string) (ANXTicker, error) {
 	var ticker ANXTicker
 	err := SendHTTPGetRequest(fmt.Sprintf("%sapi/2/%s/%s", ANX_API_URL, currency, ANX_TICKER), true, &ticker)
 	if err != nil {
-		log.Println(err)
-		return ANXTicker{}
+		return ANXTicker{}, err
 	}
-	return ticker
+	return ticker, nil
 }
 
-func (a *ANX) GetTickerPrice(currency string) TickerPrice {
+func (a *ANX) GetTickerPrice(currency string) (TickerPrice, error) {
+	tickerNew, err := GetTicker(a.GetName(), currency[0:3], currency[3:])
+	if err == nil {
+		return tickerNew, nil
+	}
+
 	var tickerPrice TickerPrice
-	ticker := a.GetTicker(currency)
+	ticker, err := a.GetTicker(currency)
+	if err != nil {
+		return tickerPrice, err
+	}
+
 	tickerPrice.Ask = ticker.Data.Buy.Value
 	tickerPrice.Bid = ticker.Data.Sell.Value
-	tickerPrice.CryptoCurrency = currency
+	tickerPrice.FirstCurrency = currency[0:3]
+	tickerPrice.SecondCurrency = currency[3:]
 	tickerPrice.Low = ticker.Data.Low.Value
 	tickerPrice.Last = ticker.Data.Last.Value
 	tickerPrice.Volume = ticker.Data.Vol.Value
 	tickerPrice.High = ticker.Data.High.Value
-
-	return tickerPrice
+	ProcessTicker(a.GetName(), tickerPrice.FirstCurrency, tickerPrice.SecondCurrency, tickerPrice)
+	return tickerPrice, nil
 }
 
 func (a *ANX) GetEnabledCurrencies() []string {

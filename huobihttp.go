@@ -111,43 +111,55 @@ func (h *HUOBI) Run() {
 		for _, x := range h.EnabledPairs {
 			currency := StringToLower(x[0:3])
 			go func() {
-				ticker := h.GetTicker(currency)
+				ticker, err := h.GetTickerPrice(currency)
+				if err != nil {
+					log.Println(err)
+					return
+				}
 				HuobiLastUSD, _ := ConvertCurrency(ticker.Last, "CNY", "USD")
 				HuobiHighUSD, _ := ConvertCurrency(ticker.High, "CNY", "USD")
 				HuobiLowUSD, _ := ConvertCurrency(ticker.Low, "CNY", "USD")
-				log.Printf("Huobi %s: Last %f (%f) High %f (%f) Low %f (%f) Volume %f\n", currency, HuobiLastUSD, ticker.Last, HuobiHighUSD, ticker.High, HuobiLowUSD, ticker.Low, ticker.Vol)
-				AddExchangeInfo(h.GetName(), StringToUpper(currency[0:3]), StringToUpper(currency[3:]), ticker.Last, ticker.Vol)
-				AddExchangeInfo(h.GetName(), StringToUpper(currency[0:3]), "USD", HuobiLastUSD, ticker.Vol)
+				log.Printf("Huobi %s: Last %f (%f) High %f (%f) Low %f (%f) Volume %f\n", currency, HuobiLastUSD, ticker.Last, HuobiHighUSD, ticker.High, HuobiLowUSD, ticker.Low, ticker.Volume)
+				AddExchangeInfo(h.GetName(), StringToUpper(currency[0:3]), StringToUpper(currency[3:]), ticker.Last, ticker.Volume)
+				AddExchangeInfo(h.GetName(), StringToUpper(currency[0:3]), "USD", HuobiLastUSD, ticker.Volume)
 			}()
 		}
 		time.Sleep(time.Second * h.RESTPollingDelay)
 	}
 }
 
-func (h *HUOBI) GetTicker(symbol string) HuobiTicker {
+func (h *HUOBI) GetTicker(symbol string) (HuobiTicker, error) {
 	resp := HuobiTickerResponse{}
 	path := fmt.Sprintf("http://api.huobi.com/staticmarket/ticker_%s_json.js", symbol)
 	err := SendHTTPGetRequest(path, true, &resp)
 
 	if err != nil {
-		log.Println(err)
-		return HuobiTicker{}
+		return HuobiTicker{}, err
 	}
-	return resp.Ticker
+	return resp.Ticker, nil
 }
 
-func (h *HUOBI) GetTickerPrice(currency string) TickerPrice {
+func (h *HUOBI) GetTickerPrice(currency string) (TickerPrice, error) {
+	tickerNew, err := GetTicker(h.GetName(), StringToUpper(currency[0:3]), StringToUpper(currency[3:]))
+	if err == nil {
+		return tickerNew, nil
+	}
+
 	var tickerPrice TickerPrice
-	ticker := h.GetTicker(currency)
+	ticker, err := h.GetTicker(currency)
+	if err != nil {
+		return tickerPrice, err
+	}
 	tickerPrice.Ask = ticker.Sell
 	tickerPrice.Bid = ticker.Buy
-	tickerPrice.CryptoCurrency = currency
+	tickerPrice.FirstCurrency = StringToUpper(currency[0:3])
+	tickerPrice.SecondCurrency = StringToUpper(currency[3:])
 	tickerPrice.Low = ticker.Low
 	tickerPrice.Last = ticker.Last
 	tickerPrice.Volume = ticker.Vol
 	tickerPrice.High = ticker.High
-
-	return tickerPrice
+	ProcessTicker(h.GetName(), tickerPrice.FirstCurrency, tickerPrice.SecondCurrency, tickerPrice)
+	return tickerPrice, nil
 }
 
 func (h *HUOBI) GetOrderBook(symbol string) bool {

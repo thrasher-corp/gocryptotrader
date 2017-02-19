@@ -213,20 +213,14 @@ func (g *GDAX) Run() {
 		for _, x := range g.EnabledPairs {
 			currency := x[0:3] + "-" + x[3:]
 			go func() {
-				stats, err := g.GetStats(currency)
+				ticker, err := g.GetTickerPrice(currency)
 
 				if err != nil {
 					log.Println(err)
 					return
 				}
-				ticker, err := g.GetTicker(currency)
-
-				if err != nil {
-					log.Println(err)
-					return
-				}
-				log.Printf("GDAX %s: Last %f High %f Low %f Volume %f\n", currency, ticker.Price, stats.High, stats.Low, stats.Volume)
-				AddExchangeInfo(g.GetName(), currency[0:3], currency[4:], ticker.Price, stats.Volume)
+				log.Printf("GDAX %s: Last %f High %f Low %f Volume %f\n", currency, ticker.Last, ticker.High, ticker.Low, ticker.Volume)
+				AddExchangeInfo(g.GetName(), currency[0:3], currency[4:], ticker.Last, ticker.Volume)
 			}()
 		}
 		time.Sleep(time.Second * g.RESTPollingDelay)
@@ -363,18 +357,32 @@ func (g *GDAX) GetTicker(symbol string) (GDAXTicker, error) {
 	return ticker, nil
 }
 
-func (g *GDAX) GetTickerPrice(currency string) TickerPrice {
+func (g *GDAX) GetTickerPrice(currency string) (TickerPrice, error) {
+	tickerNew, err := GetTicker(g.GetName(), currency[0:3], currency[3:])
+	if err == nil {
+		return tickerNew, nil
+	}
+
 	var tickerPrice TickerPrice
 	ticker, err := g.GetTicker(currency)
 	if err != nil {
-		log.Println(err)
-		return TickerPrice{}
+		return TickerPrice{}, err
 	}
-	tickerPrice.Ask = ticker.Price
-	tickerPrice.CryptoCurrency = currency
-	tickerPrice.Volume = ticker.Size
 
-	return tickerPrice
+	stats, err := g.GetStats(currency)
+
+	if err != nil {
+		return TickerPrice{}, err
+	}
+
+	tickerPrice.FirstCurrency = currency[0:3]
+	tickerPrice.SecondCurrency = currency[4:]
+	tickerPrice.Volume = stats.Volume
+	tickerPrice.Last = ticker.Price
+	tickerPrice.High = stats.High
+	tickerPrice.Low = stats.Low
+	ProcessTicker(g.GetName(), tickerPrice.FirstCurrency, tickerPrice.SecondCurrency, tickerPrice)
+	return tickerPrice, nil
 }
 
 func (g *GDAX) GetTrades(symbol string) ([]GDAXTrade, error) {

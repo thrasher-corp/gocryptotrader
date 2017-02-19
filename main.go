@@ -32,10 +32,12 @@ type Exchange struct {
 }
 
 type Bot struct {
-	config    Config
-	exchange  Exchange
-	exchanges []IBotExchange
-	shutdown  chan bool
+	config     Config
+	exchange   Exchange
+	exchanges  []IBotExchange
+	tickers    []Ticker
+	tickerChan chan Ticker
+	shutdown   chan bool
 }
 
 var bot Bot

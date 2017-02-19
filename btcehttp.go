@@ -189,17 +189,22 @@ func (b *BTCE) GetTicker(symbol string) (map[string]BTCeTicker, error) {
 	return response.Data, nil
 }
 
-func (b *BTCE) GetTickerPrice(currency string) TickerPrice {
+func (b *BTCE) GetTickerPrice(currency string) (TickerPrice, error) {
 	var tickerPrice TickerPrice
-	ticker := b.Ticker[currency]
+	ticker, ok := b.Ticker[currency]
+	if !ok {
+		return tickerPrice, errors.New("Unable to get currency.")
+	}
 	tickerPrice.Ask = ticker.Buy
 	tickerPrice.Bid = ticker.Sell
-	tickerPrice.CryptoCurrency = currency
+	tickerPrice.FirstCurrency = currency[0:3]
+	tickerPrice.SecondCurrency = currency[3:]
 	tickerPrice.Low = ticker.Low
 	tickerPrice.Last = ticker.Last
 	tickerPrice.Volume = ticker.Vol_cur
 	tickerPrice.High = ticker.High
-	return tickerPrice
+	ProcessTicker(b.GetName(), tickerPrice.FirstCurrency, tickerPrice.SecondCurrency, tickerPrice)
+	return tickerPrice, nil
 }
 
 func (b *BTCE) GetDepth(symbol string) {

@@ -97,7 +97,7 @@ func (l *LocalBitcoins) Run() {
 	}
 
 	for l.Enabled {
-		ticker, err := l.GetTicker()
+		ticker, err := l.GetTickerPrice("BTCUSD")
 
 		if err != nil {
 			log.Println(err)
@@ -105,9 +105,8 @@ func (l *LocalBitcoins) Run() {
 		}
 		for _, x := range l.EnabledPairs {
 			currency := x[3:]
-			log.Printf("LocalBitcoins BTC %s: Last %f Average 1h %f Average 24h %f Volume %f\n", currency, ticker[currency].Rates.Last,
-				ticker[currency].Avg1h, ticker[currency].Avg24h, ticker[currency].VolumeBTC)
-			AddExchangeInfo(l.GetName(), x[0:3], x[3:], ticker[currency].Rates.Last, ticker[currency].VolumeBTC)
+			log.Printf("LocalBitcoins BTC %s: Last %f Volume %f\n", currency, ticker.Last, ticker.Volume)
+			AddExchangeInfo(l.GetName(), x[0:3], x[3:], ticker.Last, ticker.Volume)
 		}
 	sleep:
 		time.Sleep(time.Second * l.RESTPollingDelay)
@@ -140,17 +139,23 @@ func (l *LocalBitcoins) GetTicker() (map[string]LocalBitcoinsTicker, error) {
 	return result, nil
 }
 
-func (l *LocalBitcoins) GetTickerPrice(currency string) TickerPrice {
+func (l *LocalBitcoins) GetTickerPrice(currency string) (TickerPrice, error) {
+	tickerNew, err := GetTicker(l.GetName(), currency[0:3], currency[3:])
+	if err == nil {
+		return tickerNew, nil
+	}
+
 	var tickerPrice TickerPrice
 	ticker, err := l.GetTicker()
 	if err != nil {
-		log.Println(err)
-		return tickerPrice
+		return tickerPrice, err
 	}
 	tickerPrice.Ask = ticker[currency].Rates.Last
-	tickerPrice.CryptoCurrency = currency
-
-	return tickerPrice
+	tickerPrice.FirstCurrency = currency[0:3]
+	tickerPrice.SecondCurrency = currency[3:]
+	tickerPrice.Volume = ticker[currency].VolumeBTC
+	ProcessTicker(l.GetName(), tickerPrice.FirstCurrency, tickerPrice.SecondCurrency, tickerPrice)
+	return tickerPrice, nil
 }
 
 type LocalBitcoinsTrade struct {

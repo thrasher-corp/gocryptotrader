@@ -118,34 +118,50 @@ func (i *ItBit) Run() {
 		for _, x := range i.EnabledPairs {
 			currency := x
 			go func() {
-				ticker := i.GetTicker(currency)
-				log.Printf("ItBit %s: Last %f High %f Low %f Volume %f\n", currency, ticker.LastPrice, ticker.High24h, ticker.Low24h, ticker.Volume24h)
-				AddExchangeInfo(i.GetName(), currency[0:3], currency[3:], ticker.LastPrice, ticker.Volume24h)
+				ticker, err := i.GetTickerPrice(currency)
+				if err != nil {
+					log.Println(err)
+					return
+				}
+				log.Printf("ItBit %s: Last %f High %f Low %f Volume %f\n", currency, ticker.Last, ticker.High, ticker.Low, ticker.Volume)
+				AddExchangeInfo(i.GetName(), currency[0:3], currency[3:], ticker.Last, ticker.Volume)
 			}()
 		}
 		time.Sleep(time.Second * i.RESTPollingDelay)
 	}
 }
 
-func (i *ItBit) GetTicker(currency string) ItBitTicker {
+func (i *ItBit) GetTicker(currency string) (ItBitTicker, error) {
 	path := ITBIT_API_URL + "/markets/" + currency + "/ticker"
 	var itbitTicker ItBitTicker
 	err := SendHTTPGetRequest(path, true, &itbitTicker)
 	if err != nil {
-		log.Println(err)
-		return ItBitTicker{}
+		return ItBitTicker{}, err
 	}
-	return itbitTicker
+	return itbitTicker, nil
 }
 
-func (i *ItBit) GetTickerPrice(currency string) TickerPrice {
+func (i *ItBit) GetTickerPrice(currency string) (TickerPrice, error) {
+	tickerNew, err := GetTicker(i.GetName(), currency[0:3], currency[3:])
+	if err == nil {
+		return tickerNew, nil
+	}
+
 	var tickerPrice TickerPrice
-	ticker := i.GetTicker(currency)
+	ticker, err := i.GetTicker(currency)
+	if err != nil {
+		return tickerPrice, err
+	}
 
 	tickerPrice.Ask = ticker.Ask
 	tickerPrice.Bid = ticker.Bid
-
-	return tickerPrice
+	tickerPrice.FirstCurrency = currency[0:3]
+	tickerPrice.SecondCurrency = currency[3:]
+	tickerPrice.High = ticker.High24h
+	tickerPrice.Low = ticker.Low24h
+	tickerPrice.Volume = ticker.Volume24h
+	ProcessTicker(i.GetName(), tickerPrice.FirstCurrency, tickerPrice.SecondCurrency, tickerPrice)
+	return tickerPrice, nil
 }
 
 type ItbitOrderbookEntry struct {

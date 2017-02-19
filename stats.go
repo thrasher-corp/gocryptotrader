@@ -5,11 +5,11 @@ import (
 )
 
 type ExchangeInfo struct {
-	Exchange       string
-	CryptoCurrency string
-	FiatCurrency   string
-	Price          float64
-	Volume         float64
+	Exchange      string
+	FirstCurrency string
+	FiatCurrency  string
+	Price         float64
+	Volume        float64
 }
 
 var ExchInfo []ExchangeInfo
@@ -60,7 +60,7 @@ func AddExchangeInfo(exchange, crypto, fiat string, price, volume float64) {
 func AppendExchangeInfo(exchange, crypto, fiat string, price, volume float64) {
 	exch := ExchangeInfo{}
 	exch.Exchange = exchange
-	exch.CryptoCurrency = crypto
+	exch.FirstCurrency = crypto
 	exch.FiatCurrency = fiat
 	exch.Price = price
 	exch.Volume = volume
@@ -69,7 +69,7 @@ func AppendExchangeInfo(exchange, crypto, fiat string, price, volume float64) {
 
 func ExchangeInfoAlreadyExists(exchange, crypto, fiat string, price, volume float64) bool {
 	for i, _ := range ExchInfo {
-		if ExchInfo[i].Exchange == exchange && ExchInfo[i].CryptoCurrency == crypto && ExchInfo[i].FiatCurrency == fiat {
+		if ExchInfo[i].Exchange == exchange && ExchInfo[i].FirstCurrency == crypto && ExchInfo[i].FiatCurrency == fiat {
 			ExchInfo[i].Price, ExchInfo[i].Volume = price, volume
 			return true
 		}
@@ -81,7 +81,7 @@ func SortExchangesByVolume(crypto, fiat string, reverse bool) []ExchangeInfo {
 	info := []ExchangeInfo{}
 
 	for _, x := range ExchInfo {
-		if x.CryptoCurrency == crypto && x.FiatCurrency == fiat {
+		if x.FirstCurrency == crypto && x.FiatCurrency == fiat {
 			info = append(info, x)
 		}
 	}
@@ -98,7 +98,7 @@ func SortExchangesByPrice(crypto, fiat string, reverse bool) []ExchangeInfo {
 	info := []ExchangeInfo{}
 
 	for _, x := range ExchInfo {
-		if x.CryptoCurrency == crypto && x.FiatCurrency == fiat {
+		if x.FirstCurrency == crypto && x.FiatCurrency == fiat {
 			info = append(info, x)
 		}
 	}
