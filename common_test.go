@@ -183,11 +183,22 @@ func TestCalculateAmountWithFee(t *testing.T) {
 	}
 }
 
+func TestCalculatePercentageGainOrLoss(t *testing.T) {
+	t.Parallel()
+	originalInput := float64(9300)
+	secondInput := float64(9000)
+	expectedOutput := 3.3333333333333335
+	actualResult := CalculatePercentageGainOrLoss(originalInput, secondInput)
+	if expectedOutput != actualResult {
+		t.Error(fmt.Sprintf("Test failed. Expected '%f'. Actual '%f'.", expectedOutput, actualResult))
+	}
+}
+
 func TestCalculatePercentageDifference(t *testing.T) {
 	t.Parallel()
-	originalInput := float64(5)
-	secondAmount := float64(10)
-	expectedOutput := float64(100)
+	originalInput := float64(10)
+	secondAmount := float64(5)
+	expectedOutput := 66.66666666666666
 	actualResult := CalculatePercentageDifference(originalInput, secondAmount)
 	if expectedOutput != actualResult {
 		t.Error(fmt.Sprintf("Test failed. Expected '%f'. Actual '%f'.", expectedOutput, actualResult))

@@ -175,8 +175,12 @@ func CalculateFee(amount, fee float64) float64 {
 	return amount * (fee / 100)
 }
 
+func CalculatePercentageGainOrLoss(priceNow, priceThen float64) float64 {
+	return (priceNow - priceThen) / priceThen * 100
+}
+
 func CalculatePercentageDifference(amount, secondAmount float64) float64 {
-	return (secondAmount - amount) / amount * 100
+	return (amount - secondAmount) / ((amount + secondAmount) / 2) * 100
 }
 
 func CalculateNetProfit(amount, priceThen, priceNow, costs float64) float64 {
