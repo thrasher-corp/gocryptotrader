@@ -57,9 +57,9 @@
    "APIKey": "Key",
    "APISecret": "Secret",
    "ClientID": "ClientID",
-   "AvailablePairs": "BTCUSD",
-   "EnabledPairs": "BTCUSD",
-   "BaseCurrencies": "USD"
+   "AvailablePairs": "BTCUSD,BTCEUR,EURUSD,XRPUSD,XRPEUR",
+   "EnabledPairs": "BTCUSD,BTCEUR,EURUSD,XRPUSD,XRPEUR",
+   "BaseCurrencies": "USD,EUR"
   },
   {
    "Name": "Brighton Peak",
