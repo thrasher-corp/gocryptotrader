@@ -4,7 +4,7 @@ import (
 	"log"
 	"strconv"
 
-	"gopkg.in/jcelliott/turnpike.v2"
+	"github.com/beatgammit/turnpike"
 )
 
 const (
@@ -133,7 +133,7 @@ func PoloniexOnDepthOrTrade(args []interface{}, kwargs map[string]interface{}) {
 
 func (p *Poloniex) WebsocketClient() {
 	for p.Enabled && p.Websocket {
-		c, err := turnpike.NewWebsocketClient(turnpike.JSON, POLONIEX_WEBSOCKET_ADDRESS, nil, nil)
+		c, err := turnpike.NewWebsocketClient(turnpike.JSON, POLONIEX_WEBSOCKET_ADDRESS, nil)
 		if err != nil {
 			log.Printf("%s Unable to connect to Websocket. Error: %s\n", p.GetName(), err)
 			continue
@@ -155,17 +155,17 @@ func (p *Poloniex) WebsocketClient() {
 
 		c.ReceiveDone = make(chan bool)
 
-		if err := c.Subscribe(POLONIEX_WEBSOCKET_TICKER, nil, PoloniexOnTicker); err != nil {
+		if err := c.Subscribe(POLONIEX_WEBSOCKET_TICKER, PoloniexOnTicker); err != nil {
 			log.Printf("%s Error subscribing to ticker channel: %s\n", p.GetName(), err)
 		}
 
-		if err := c.Subscribe(POLONIEX_WEBSOCKET_TROLLBOX, nil, PoloniexOnTrollbox); err != nil {
+		if err := c.Subscribe(POLONIEX_WEBSOCKET_TROLLBOX, PoloniexOnTrollbox); err != nil {
 			log.Printf("%s Error subscribing to trollbox channel: %s\n", p.GetName(), err)
 		}
 
 		for x := range p.EnabledPairs {
 			currency := p.EnabledPairs[x]
-			if err := c.Subscribe(currency, nil, PoloniexOnDepthOrTrade); err != nil {
+			if err := c.Subscribe(currency, PoloniexOnDepthOrTrade); err != nil {
 				log.Printf("%s Error subscribing to %s channel: %s\n", p.GetName(), currency, err)
 			}
 		}

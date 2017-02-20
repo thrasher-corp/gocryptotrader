@@ -7,7 +7,7 @@ install:
  - go get github.com/gorilla/websocket
  - go get github.com/toorop/go-pusher
  - go get github.com/thrasher-/socketio
- - go get gopkg.in/jcelliott/turnpike.v2
+ - go get github.com/beatgammit/turnpike
  - go get github.com/gorilla/mux
 
 after_success:
