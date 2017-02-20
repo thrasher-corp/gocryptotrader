@@ -2,35 +2,42 @@ package main
 
 import (
 	"errors"
+	"fmt"
 	"log"
 	"net/url"
+	"reflect"
 	"strconv"
 	"strings"
 	"time"
 )
 
 const (
-	BITSTAMP_API_URL                 = "https://www.bitstamp.net/api/"
-	BITSTAMP_API_VERSION             = "0"
-	BITSTAMP_API_TICKER              = "ticker/"
-	BITSTAMP_API_TICKER_HOURLY       = "ticker_hour/"
-	BITSTAMP_API_ORDERBOOK           = "order_book/"
-	BITSTAMP_API_TRANSACTIONS        = "transactions/"
-	BITSTAMP_API_EURUSD              = "eur_usd/"
-	BITSTAMP_API_BALANCE             = "balance/"
-	BITSTAMP_API_USER_TRANSACTIONS   = "user_transactions/"
-	BITSTAMP_API_OPEN_ORDERS         = "open_orders/"
+	BITSTAMP_API_URL                 = "https://www.bitstamp.net/api"
+	BITSTAMP_API_VERSION             = "2"
+	BITSTAMP_API_TICKER              = "ticker"
+	BITSTAMP_API_TICKER_HOURLY       = "ticker_hour"
+	BITSTAMP_API_ORDERBOOK           = "order_book"
+	BITSTAMP_API_TRANSACTIONS        = "transactions"
+	BITSTAMP_API_EURUSD              = "eur_usd"
+	BITSTAMP_API_BALANCE             = "balance"
+	BITSTAMP_API_USER_TRANSACTIONS   = "user_transactions"
+	BITSTAMP_API_OPEN_ORDERS         = "open_orders"
 	BITSTAMP_API_ORDER_STATUS        = "order_status"
-	BITSTAMP_API_CANCEL_ORDER        = "cancel_order/"
-	BITSTAMP_API_CANCEL_ALL_ORDERS   = "cancel_all_orders/"
-	BITSTAMP_API_BUY                 = "buy/"
-	BITSTAMP_API_SELL                = "sell/"
-	BITSTAMP_API_WITHDRAWAL_REQUESTS = "withdrawal_requests/"
-	BITSTAMP_API_BITCOIN_WITHDRAWAL  = "bitcoin_withdrawal/"
-	BITSTAMP_API_BITCOIN_DEPOSIT     = "bitcoin_deposit_address/"
-	BITSTAMP_API_UNCONFIRMED_BITCOIN = "unconfirmed_btc/"
-	BITSTAMP_API_RIPPLE_WITHDRAWAL   = "ripple_withdrawal/"
-	BITSTAMP_API_RIPPLE_DESPOIT      = "ripple_address/"
+	BITSTAMP_API_CANCEL_ORDER        = "cancel_order"
+	BITSTAMP_API_CANCEL_ALL_ORDERS   = "cancel_all_orders"
+	BITSTAMP_API_BUY                 = "buy"
+	BITSTAMP_API_SELL                = "sell"
+	BITSTAMP_API_MARKET              = "market"
+	BITSTAMP_API_WITHDRAWAL_REQUESTS = "withdrawal_requests"
+	BITSTAMP_API_BITCOIN_WITHDRAWAL  = "bitcoin_withdrawal"
+	BITSTAMP_API_BITCOIN_DEPOSIT     = "bitcoin_deposit_address"
+	BITSTAMP_API_UNCONFIRMED_BITCOIN = "unconfirmed_btc"
+	BITSTAMP_API_RIPPLE_WITHDRAWAL   = "ripple_withdrawal"
+	BITSTAMP_API_RIPPLE_DESPOIT      = "ripple_address"
+	BITSTAMP_API_TRANSFER_TO_MAIN    = "transfer-to-main"
+	BITSTAMP_API_TRANSFER_FROM_MAIN  = "transfer-from-main"
+	BITSTAMP_API_XRP_WITHDRAWAL      = "xrp_withdrawal"
+	BITSTAMP_API_XRP_DESPOIT         = "xrp_address"
 )
 
 type Bitstamp struct {
@@ -41,7 +48,7 @@ type Bitstamp struct {
 	RESTPollingDelay            time.Duration
 	AuthenticatedAPISupport     bool
 	ClientID, APIKey, APISecret string
-	Balance                     BitstampAccountBalance
+	Balance                     BitstampBalances
 	TakerFee, MakerFee          float64
 	BaseCurrencies              []string
 	AvailablePairs              []string
@@ -49,23 +56,35 @@ type Bitstamp struct {
 }
 
 type BitstampTicker struct {
-	Last   float64 `json:",string"`
-	High   float64 `json:",string"`
-	Low    float64 `json:",string"`
-	Vwap   float64 `json:",string"`
-	Volume float64 `json:",string"`
-	Bid    float64 `json:",string"`
-	Ask    float64 `json:",string"`
+	Last      float64 `json:"last,string"`
+	High      float64 `json:"high,string"`
+	Low       float64 `json:"low,string"`
+	Vwap      float64 `json:"vwap,string"`
+	Volume    float64 `json:"volume,string"`
+	Bid       float64 `json:"bid,string"`
+	Ask       float64 `json:"ask,string"`
+	Timestamp int64   `json:"timestamp,string"`
+	Open      float64 `json:"open,string"`
 }
 
-type BitstampAccountBalance struct {
-	BTCReserved  float64 `json:"usd_balance,string"`
-	Fee          float64 `json:",string"`
-	BTCAvailable float64 `json:"btc_balance,string"`
+type BitstampBalances struct {
+	BTCReserved  float64 `json:"btc_reserved,string"`
+	BTCEURFee    float64 `json:"btceur_fee,string"`
+	BTCAvailable float64 `json:"btc_available,string"`
+	XRPAvailable float64 `json:"xrp_available,string"`
+	EURAvailable float64 `json:"eur_available,string"`
 	USDReserved  float64 `json:"usd_reserved,string"`
+	EURReserved  float64 `json:"eur_reserved,string"`
+	XRPEURFee    float64 `json:"xrpeur_fee,string"`
+	XRPReserved  float64 `json:"xrp_reserved,string"`
+	XRPBalance   float64 `json:"xrp_balance,string"`
+	XRPUSDFee    float64 `json:"xrpusd_fee,string"`
+	EURBalance   float64 `json:"eur_balance,string"`
 	BTCBalance   float64 `json:"btc_balance,string"`
+	BTCUSDFee    float64 `json:"btcusd_fee,string"`
 	USDBalance   float64 `json:"usd_balance,string"`
 	USDAvailable float64 `json:"usd_available,string"`
+	EURUSDFee    float64 `json:"eurusd_fee,string"`
 }
 
 type BitstampOrderbookBase struct {
@@ -81,9 +100,9 @@ type BitstampOrderbook struct {
 
 type BitstampTransactions struct {
 	Date    int64   `json:"date,string"`
-	TradeID int64   `json:"tid"`
+	TradeID int64   `json:"tid,string"`
 	Price   float64 `json:"price,string"`
-	Type    int     `json:"type"`
+	Type    int     `json:"type,string"`
 	Amount  float64 `json:"amount,string"`
 }
 
@@ -93,19 +112,21 @@ type BitstampEURUSDConversionRate struct {
 }
 
 type BitstampUserTransactions struct {
-	Date    string      `json:"datetime"`
-	TransID int64       `json:"id"`
-	Type    int         `json:"type"`
-	USD     float64     `json:"usd,string"`
-	BTC     float64     `json:"btc,string"`
-	BTCUSD  float64     `json:"btc_usd,string"`
-	Fee     float64     `json:"fee,string"`
-	OrderID interface{} `json:"order_id"`
+	Date    string  `json:"datetime"`
+	TransID int64   `json:"id"`
+	Type    int     `json:"type,string"`
+	USD     float64 `json:"usd"`
+	EUR     float64 `json:"eur"`
+	BTC     float64 `json:"btc"`
+	XRP     float64 `json:"xrp"`
+	BTCUSD  float64 `json:"btc_usd"`
+	Fee     float64 `json:"fee,string"`
+	OrderID int64   `json:"order_id"`
 }
 
 type BitstampOrder struct {
 	ID     int64   `json:"id"`
-	Date   string  `json:"date"`
+	Date   string  `json:"datetime"`
 	Type   int     `json:"type"`
 	Price  float64 `json:"price"`
 	Amount float64 `json:"amount"`
@@ -135,6 +156,11 @@ type BitstampUnconfirmedBTCTransactions struct {
 	Amount        float64 `json:"amount,string"`
 	Address       string  `json:"address"`
 	Confirmations int     `json:"confirmations"`
+}
+
+type BitstampXRPDepositResponse struct {
+	Address        string `json:"address"`
+	DestinationTag int64  `json:"destination_tag"`
 }
 
 func (b *Bitstamp) SetDefaults() {
@@ -181,8 +207,21 @@ func (b *Bitstamp) IsEnabled() bool {
 	return b.Enabled
 }
 
-func (b *Bitstamp) GetFee() float64 {
-	return b.Balance.Fee
+func (b *Bitstamp) GetFee(currency string) float64 {
+	switch currency {
+	case "BTCUSD":
+		return b.Balance.BTCUSDFee
+	case "BTCEUR":
+		return b.Balance.BTCEURFee
+	case "XRPEUR":
+		return b.Balance.XRPEURFee
+	case "XRPUSD":
+		return b.Balance.XRPUSDFee
+	case "EURUSD":
+		return b.Balance.EURUSDFee
+	default:
+		return 0
+	}
 }
 
 func (b *Bitstamp) SetAPIKeys(clientID, apiKey, apiSecret string) {
@@ -219,15 +258,14 @@ func (b *Bitstamp) Run() {
 	}
 }
 
-func (b *Bitstamp) GetTicker(hourly bool) (BitstampTicker, error) {
-	path := BITSTAMP_API_URL
-	ticker := BitstampTicker{}
-
+func (b *Bitstamp) GetTicker(currency string, hourly bool) (BitstampTicker, error) {
+	tickerEndpoint := BITSTAMP_API_TICKER
 	if hourly {
-		path += BITSTAMP_API_TICKER_HOURLY
-	} else {
-		path += BITSTAMP_API_TICKER
+		tickerEndpoint = BITSTAMP_API_TICKER_HOURLY
 	}
+
+	path := fmt.Sprintf("%s/v%s/%s/%s/", BITSTAMP_API_URL, BITSTAMP_API_VERSION, tickerEndpoint, StringToLower(currency))
+	ticker := BitstampTicker{}
 
 	err := SendHTTPGetRequest(path, true, &ticker)
 
@@ -245,7 +283,7 @@ func (b *Bitstamp) GetTickerPrice(currency string) (TickerPrice, error) {
 	}
 
 	var tickerPrice TickerPrice
-	ticker, err := b.GetTicker(true)
+	ticker, err := b.GetTicker(currency, false)
 	if err != nil {
 		return tickerPrice, err
 
@@ -253,7 +291,7 @@ func (b *Bitstamp) GetTickerPrice(currency string) (TickerPrice, error) {
 	tickerPrice.Ask = ticker.Ask
 	tickerPrice.Bid = ticker.Bid
 	tickerPrice.FirstCurrency = currency[0:3]
-	tickerPrice.SecondCurrency = currency[0:3]
+	tickerPrice.SecondCurrency = currency[3:]
 	tickerPrice.Low = ticker.Low
 	tickerPrice.Last = ticker.Last
 	tickerPrice.Volume = ticker.Volume
@@ -262,7 +300,7 @@ func (b *Bitstamp) GetTickerPrice(currency string) (TickerPrice, error) {
 	return tickerPrice, nil
 }
 
-func (b *Bitstamp) GetOrderbook() (BitstampOrderbook, error) {
+func (b *Bitstamp) GetOrderbook(currency string) (BitstampOrderbook, error) {
 	type response struct {
 		Timestamp int64 `json:"timestamp,string"`
 		Bids      [][]string
@@ -270,7 +308,8 @@ func (b *Bitstamp) GetOrderbook() (BitstampOrderbook, error) {
 	}
 
 	resp := response{}
-	err := SendHTTPGetRequest(BITSTAMP_API_URL+BITSTAMP_API_ORDERBOOK, true, &resp)
+	path := fmt.Sprintf("%s/v%s/%s/%s/", BITSTAMP_API_URL, BITSTAMP_API_VERSION, BITSTAMP_API_ORDERBOOK, StringToLower(currency))
+	err := SendHTTPGetRequest(path, true, &resp)
 	if err != nil {
 		return BitstampOrderbook{}, err
 	}
@@ -309,8 +348,8 @@ func (b *Bitstamp) GetOrderbook() (BitstampOrderbook, error) {
 	return orderbook, nil
 }
 
-func (b *Bitstamp) GetTransactions(values url.Values) ([]BitstampTransactions, error) {
-	path := EncodeURLValues(BITSTAMP_API_URL+BITSTAMP_API_TRANSACTIONS, values)
+func (b *Bitstamp) GetTransactions(currency string, values url.Values) ([]BitstampTransactions, error) {
+	path := EncodeURLValues(fmt.Sprintf("%s/v%s/%s/%s/", BITSTAMP_API_URL, BITSTAMP_API_VERSION, BITSTAMP_API_TRANSACTIONS, StringToLower(currency)), values)
 	transactions := []BitstampTransactions{}
 	err := SendHTTPGetRequest(path, true, &transactions)
 	if err != nil {
@@ -321,7 +360,8 @@ func (b *Bitstamp) GetTransactions(values url.Values) ([]BitstampTransactions, e
 
 func (b *Bitstamp) GetEURUSDConversionRate() (BitstampEURUSDConversionRate, error) {
 	rate := BitstampEURUSDConversionRate{}
-	err := SendHTTPGetRequest(BITSTAMP_API_URL+BITSTAMP_API_EURUSD, true, &rate)
+	path := fmt.Sprintf("%s/%s", BITSTAMP_API_URL, BITSTAMP_API_EURUSD)
+	err := SendHTTPGetRequest(path, true, &rate)
 
 	if err != nil {
 		return rate, err
@@ -329,9 +369,9 @@ func (b *Bitstamp) GetEURUSDConversionRate() (BitstampEURUSDConversionRate, erro
 	return rate, nil
 }
 
-func (b *Bitstamp) GetBalance() (BitstampAccountBalance, error) {
-	balance := BitstampAccountBalance{}
-	err := b.SendAuthenticatedHTTPRequest(BITSTAMP_API_BALANCE, url.Values{}, &balance)
+func (b *Bitstamp) GetBalance() (BitstampBalances, error) {
+	balance := BitstampBalances{}
+	err := b.SendAuthenticatedHTTPRequest(BITSTAMP_API_BALANCE, true, url.Values{}, &balance)
 
 	if err != nil {
 		return balance, err
@@ -364,19 +404,71 @@ func (e *Bitstamp) GetExchangeAccountInfo() (ExchangeAccountInfo, error) {
 }
 
 func (b *Bitstamp) GetUserTransactions(values url.Values) ([]BitstampUserTransactions, error) {
-	response := []BitstampUserTransactions{}
-	err := b.SendAuthenticatedHTTPRequest(BITSTAMP_API_USER_TRANSACTIONS, values, &response)
+	type Response struct {
+		Date    string      `json:"datetime"`
+		TransID int64       `json:"id"`
+		Type    int         `json:"type,string"`
+		USD     interface{} `json:"usd"`
+		EUR     float64     `json:"eur"`
+		XRP     float64     `json:"xrp"`
+		BTC     interface{} `json:"btc"`
+		BTCUSD  interface{} `json:"btc_usd"`
+		Fee     float64     `json:"fee,string"`
+		OrderID int64       `json:"order_id"`
+	}
+
+	response := []Response{}
+	err := b.SendAuthenticatedHTTPRequest(BITSTAMP_API_USER_TRANSACTIONS, true, values, &response)
 
 	if err != nil {
 		return nil, err
 	}
 
-	return response, nil
+	transactions := []BitstampUserTransactions{}
+
+	for _, y := range response {
+		tx := BitstampUserTransactions{}
+		tx.Date = y.Date
+		tx.TransID = y.TransID
+		tx.Type = y.Type
+
+		/* Hack due to inconsistent JSON values... */
+		varType := reflect.TypeOf(y.USD).String()
+		if varType == "string" {
+			tx.USD, _ = strconv.ParseFloat(y.USD.(string), 64)
+		} else {
+			tx.USD = y.USD.(float64)
+		}
+
+		tx.EUR = y.EUR
+		tx.XRP = y.XRP
+
+		varType = reflect.TypeOf(y.BTC).String()
+		if varType == "string" {
+			tx.BTC, _ = strconv.ParseFloat(y.BTC.(string), 64)
+		} else {
+			tx.BTC = y.BTC.(float64)
+		}
+
+		varType = reflect.TypeOf(y.BTCUSD).String()
+		if varType == "string" {
+			tx.BTCUSD, _ = strconv.ParseFloat(y.BTCUSD.(string), 64)
+		} else {
+			tx.BTCUSD = y.BTCUSD.(float64)
+		}
+
+		tx.Fee = y.Fee
+		tx.OrderID = y.OrderID
+		transactions = append(transactions, tx)
+	}
+
+	return transactions, nil
 }
 
-func (b *Bitstamp) GetOpenOrders() ([]BitstampOrder, error) {
+func (b *Bitstamp) GetOpenOrders(currency string) ([]BitstampOrder, error) {
 	resp := []BitstampOrder{}
-	err := b.SendAuthenticatedHTTPRequest(BITSTAMP_API_OPEN_ORDERS, nil, &resp)
+	path := fmt.Sprintf("%s/%s", BITSTAMP_API_OPEN_ORDERS, StringToLower(currency))
+	err := b.SendAuthenticatedHTTPRequest(path, true, nil, &resp)
 
 	if err != nil {
 		return nil, err
@@ -390,7 +482,7 @@ func (b *Bitstamp) GetOrderStatus(OrderID int64) (BitstampOrderStatus, error) {
 	req.Add("id", strconv.FormatInt(OrderID, 10))
 	resp := BitstampOrderStatus{}
 
-	err := b.SendAuthenticatedHTTPRequest(BITSTAMP_API_CANCEL_ORDER, req, &resp)
+	err := b.SendAuthenticatedHTTPRequest(BITSTAMP_API_CANCEL_ORDER, false, req, &resp)
 
 	if err != nil {
 		return resp, err
@@ -404,7 +496,7 @@ func (b *Bitstamp) CancelOrder(OrderID int64) (bool, error) {
 	result := false
 	req.Add("id", strconv.FormatInt(OrderID, 10))
 
-	err := b.SendAuthenticatedHTTPRequest(BITSTAMP_API_CANCEL_ORDER, req, &result)
+	err := b.SendAuthenticatedHTTPRequest(BITSTAMP_API_CANCEL_ORDER, true, req, &result)
 
 	if err != nil {
 		return result, err
@@ -415,7 +507,7 @@ func (b *Bitstamp) CancelOrder(OrderID int64) (bool, error) {
 
 func (b *Bitstamp) CancelAllOrders() (bool, error) {
 	result := false
-	err := b.SendAuthenticatedHTTPRequest(BITSTAMP_API_CANCEL_ALL_ORDERS, nil, &result)
+	err := b.SendAuthenticatedHTTPRequest(BITSTAMP_API_CANCEL_ALL_ORDERS, false, nil, &result)
 
 	if err != nil {
 		return result, err
@@ -424,18 +516,25 @@ func (b *Bitstamp) CancelAllOrders() (bool, error) {
 	return result, nil
 }
 
-func (b *Bitstamp) PlaceOrder(price float64, amount float64, buy bool) (BitstampOrder, error) {
+func (b *Bitstamp) PlaceOrder(currency string, price float64, amount float64, buy, market bool) (BitstampOrder, error) {
 	var req = url.Values{}
 	req.Add("amount", strconv.FormatFloat(amount, 'f', -1, 64))
 	req.Add("price", strconv.FormatFloat(price, 'f', -1, 64))
 	response := BitstampOrder{}
 	orderType := BITSTAMP_API_BUY
+	path := ""
 
 	if !buy {
 		orderType = BITSTAMP_API_SELL
 	}
 
-	err := b.SendAuthenticatedHTTPRequest(orderType, req, &response)
+	path = fmt.Sprintf("%s/%s", orderType, StringToLower(currency))
+
+	if market {
+		path = fmt.Sprintf("%s/%s/%s", orderType, BITSTAMP_API_MARKET, StringToLower(currency))
+	}
+
+	err := b.SendAuthenticatedHTTPRequest(path, true, req, &response)
 
 	if err != nil {
 		return response, err
@@ -444,9 +543,9 @@ func (b *Bitstamp) PlaceOrder(price float64, amount float64, buy bool) (Bitstamp
 	return response, nil
 }
 
-func (b *Bitstamp) GetWithdrawalRequests() ([]BitstampWithdrawalRequests, error) {
+func (b *Bitstamp) GetWithdrawalRequests(values url.Values) ([]BitstampWithdrawalRequests, error) {
 	resp := []BitstampWithdrawalRequests{}
-	err := b.SendAuthenticatedHTTPRequest(BITSTAMP_API_WITHDRAWAL_REQUESTS, url.Values{}, &resp)
+	err := b.SendAuthenticatedHTTPRequest(BITSTAMP_API_WITHDRAWAL_REQUESTS, false, values, &resp)
 
 	if err != nil {
 		return nil, err
@@ -455,17 +554,23 @@ func (b *Bitstamp) GetWithdrawalRequests() ([]BitstampWithdrawalRequests, error)
 	return resp, nil
 }
 
-func (b *Bitstamp) BitcoinWithdrawal(amount float64, address string) (string, error) {
+func (b *Bitstamp) BitcoinWithdrawal(amount float64, address string, instant bool) (string, error) {
 	var req = url.Values{}
 	req.Add("amount", strconv.FormatFloat(amount, 'f', -1, 64))
 	req.Add("address", address)
+
+	if instant {
+		req.Add("instant", "1")
+	} else {
+		req.Add("instant", "0")
+	}
 
 	type response struct {
 		ID string `json:"id"`
 	}
 
 	resp := response{}
-	err := b.SendAuthenticatedHTTPRequest(BITSTAMP_API_BITCOIN_WITHDRAWAL, req, &resp)
+	err := b.SendAuthenticatedHTTPRequest(BITSTAMP_API_BITCOIN_WITHDRAWAL, false, req, &resp)
 
 	if err != nil {
 		return "", err
@@ -476,7 +581,7 @@ func (b *Bitstamp) BitcoinWithdrawal(amount float64, address string) (string, er
 
 func (b *Bitstamp) GetBitcoinDepositAddress() (string, error) {
 	address := ""
-	err := b.SendAuthenticatedHTTPRequest(BITSTAMP_API_BITCOIN_DEPOSIT, url.Values{}, &address)
+	err := b.SendAuthenticatedHTTPRequest(BITSTAMP_API_BITCOIN_DEPOSIT, false, url.Values{}, &address)
 
 	if err != nil {
 		return address, err
@@ -486,7 +591,7 @@ func (b *Bitstamp) GetBitcoinDepositAddress() (string, error) {
 
 func (b *Bitstamp) GetUnconfirmedBitcoinDeposits() ([]BitstampUnconfirmedBTCTransactions, error) {
 	response := []BitstampUnconfirmedBTCTransactions{}
-	err := b.SendAuthenticatedHTTPRequest(BITSTAMP_API_UNCONFIRMED_BITCOIN, nil, &response)
+	err := b.SendAuthenticatedHTTPRequest(BITSTAMP_API_UNCONFIRMED_BITCOIN, false, nil, &response)
 
 	if err != nil {
 		return nil, err
@@ -501,7 +606,7 @@ func (b *Bitstamp) RippleWithdrawal(amount float64, address, currency string) (b
 	req.Add("address", address)
 	req.Add("currency", currency)
 
-	err := b.SendAuthenticatedHTTPRequest(BITSTAMP_API_RIPPLE_WITHDRAWAL, req, nil)
+	err := b.SendAuthenticatedHTTPRequest(BITSTAMP_API_RIPPLE_WITHDRAWAL, false, req, nil)
 
 	if err != nil {
 		return false, err
@@ -516,7 +621,7 @@ func (b *Bitstamp) GetRippleDepositAddress() (string, error) {
 	}
 
 	resp := response{}
-	err := b.SendAuthenticatedHTTPRequest(BITSTAMP_API_RIPPLE_DESPOIT, nil, &resp)
+	err := b.SendAuthenticatedHTTPRequest(BITSTAMP_API_RIPPLE_DESPOIT, false, nil, &resp)
 
 	if err != nil {
 		return "", err
@@ -525,7 +630,60 @@ func (b *Bitstamp) GetRippleDepositAddress() (string, error) {
 	return resp.Address, nil
 }
 
-func (b *Bitstamp) SendAuthenticatedHTTPRequest(path string, values url.Values, result interface{}) (err error) {
+func (b *Bitstamp) TransferAccountBalance(amount float64, currency, subAccount string, toMain bool) (bool, error) {
+	var req = url.Values{}
+	req.Add("amount", strconv.FormatFloat(amount, 'f', -1, 64))
+	req.Add("currency", currency)
+	req.Add("subAccount", subAccount)
+
+	path := BITSTAMP_API_TRANSFER_TO_MAIN
+	if !toMain {
+		path = BITSTAMP_API_TRANSFER_FROM_MAIN
+	}
+
+	err := b.SendAuthenticatedHTTPRequest(path, true, req, nil)
+
+	if err != nil {
+		return false, err
+	}
+
+	return true, nil
+}
+
+func (b *Bitstamp) XRPWithdrawal(amount float64, address, destTag string) (string, error) {
+	var req = url.Values{}
+	req.Add("amount", strconv.FormatFloat(amount, 'f', -1, 64))
+	req.Add("address", address)
+	if destTag != "" {
+		req.Add("destination_tag", destTag)
+	}
+
+	type response struct {
+		ID string `json:"id"`
+	}
+
+	resp := response{}
+	err := b.SendAuthenticatedHTTPRequest(BITSTAMP_API_XRP_WITHDRAWAL, true, req, &resp)
+
+	if err != nil {
+		return "", err
+	}
+
+	return resp.ID, nil
+}
+
+func (b *Bitstamp) GetXRPDepositAddress() (BitstampXRPDepositResponse, error) {
+	resp := BitstampXRPDepositResponse{}
+	err := b.SendAuthenticatedHTTPRequest(BITSTAMP_API_XRP_DESPOIT, true, nil, &resp)
+
+	if err != nil {
+		return BitstampXRPDepositResponse{}, err
+	}
+
+	return resp, nil
+}
+
+func (b *Bitstamp) SendAuthenticatedHTTPRequest(path string, v2 bool, values url.Values, result interface{}) (err error) {
 	nonce := strconv.FormatInt(time.Now().UnixNano(), 10)
 
 	if values == nil {
@@ -536,7 +694,12 @@ func (b *Bitstamp) SendAuthenticatedHTTPRequest(path string, values url.Values, 
 	values.Set("nonce", nonce)
 	hmac := GetHMAC(HASH_SHA256, []byte(nonce+b.ClientID+b.APIKey), []byte(b.APISecret))
 	values.Set("signature", strings.ToUpper(HexEncodeToString(hmac)))
-	path = BITSTAMP_API_URL + path
+
+	if v2 {
+		path = fmt.Sprintf("%s/v%s/%s/", BITSTAMP_API_URL, BITSTAMP_API_VERSION, path)
+	} else {
+		path = fmt.Sprintf("%s/%s/", BITSTAMP_API_URL, path)
+	}
 
 	if b.Verbose {
 		log.Println("Sending POST request to " + path)
