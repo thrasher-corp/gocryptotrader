@@ -36,6 +36,7 @@ type Bot struct {
 	exchange   Exchange
 	exchanges  []IBotExchange
 	tickers    []Ticker
+	portfolio  Portfolio
 	tickerChan chan Ticker
 	shutdown   chan bool
 }
