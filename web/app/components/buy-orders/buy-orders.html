@@ -1,0 +1,20 @@
+<div class="col-md-12">
+  <table class="table table-striped">
+    <thead>
+        <tr>
+            <th>Price</th>
+            <th>{{currencyOne}}</th>
+            <th>{{currencyTwo}}</th>
+            <th>Sum({{currencyTwo}})</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr ng-repeat="buyOrder in buyOrders">
+            <td>{{buyOrder.price}}</td>
+            <td>{{buyOrder.currencyOneAmount}}</td>
+            <td>{{buyOrder.currencyTwoAmount}}</td>
+            <td>{{buyOrder.sum}}</td>
+        </tr>
+    </tbody>
+  </table>
+<div>
