@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -13,6 +12,10 @@ import (
 
 const (
 	CONFIG_FILE = "config.json"
+
+	CONFIG_FILE_ENCRYPTION_PROMPT   = 0
+	CONFIG_FILE_ENCRYPTION_ENABLED  = 1
+	CONFIG_FILE_ENCRYPTION_DISABLED = -1
 )
 
 var (
@@ -20,16 +23,19 @@ var (
 	ErrExchangeAvailablePairsEmpty                  = "Exchange %s: Available pairs is empty."
 	ErrExchangeEnabledPairsEmpty                    = "Exchange %s: Enabled pairs is empty."
 	ErrExchangeBaseCurrenciesEmpty                  = "Exchange %s: Base currencies is empty."
-	WarningExchangeAuthAPIDefaultOrEmptyValues      = "WARNING -- Exchange %s: Authenticated API support disabled due to default/empty APIKey/Secret/ClientID values."
 	ErrExchangeNotFound                             = "Exchange %s: Not found."
 	ErrNoEnabledExchanges                           = "No Exchanges enabled."
 	ErrCryptocurrenciesEmpty                        = "Cryptocurrencies variable is empty."
+	ErrFailureOpeningConfig                         = "Fatal error opening config.json file. Error: %s"
+	ErrCheckingConfigValues                         = "Fatal error checking config values. Error: %s"
+	ErrSavingConfigBytesMismatch                    = "Config file %q bytes comparison doesn't match, read %s expected %s."
 	WarningSMSGlobalDefaultOrEmptyValues            = "WARNING -- SMS Support disabled due to default or empty Username/Password values."
 	WarningSSMSGlobalSMSContactDefaultOrEmptyValues = "WARNING -- SMS contact #%d Name/Number disabled due to default or empty values."
 	WarningSSMSGlobalSMSNoContacts                  = "WARNING -- SMS Support disabled due to no enabled contacts."
 	WarningWebserverCredentialValuesEmpty           = "WARNING -- Webserver support disabled due to empty Username/Password values."
 	WarningWebserverListenAddressInvalid            = "WARNING -- Webserver support disabled due to invalid listen address."
 	WarningWebserverRootWebFolderNotFound           = "WARNING -- Webserver support disabled due to missing web folder."
+	WarningExchangeAuthAPIDefaultOrEmptyValues      = "WARNING -- Exchange %s: Authenticated API support disabled due to default/empty APIKey/Secret/ClientID values."
 )
 
 type Webserver struct {
@@ -55,6 +61,7 @@ type ConfigPost struct {
 
 type Config struct {
 	Name             string
+	EncryptConfig    int
 	Cryptocurrencies string
 	SMS              SMSGlobal `json:"SMSGlobal"`
 	Webserver        Webserver `json:"Webserver"`
@@ -168,7 +175,6 @@ func CheckExchangeConfigValues() error {
 }
 
 func CheckWebserverValues() error {
-
 	if bot.config.Webserver.AdminUsername == "" || bot.config.Webserver.AdminPassword == "" {
 		return errors.New(WarningWebserverCredentialValuesEmpty)
 	}
@@ -189,38 +195,79 @@ func CheckWebserverValues() error {
 	return nil
 }
 
-func ReadConfig() (Config, error) {
+func ReadConfig() error {
 	file, err := ioutil.ReadFile(CONFIG_FILE)
-
 	if err != nil {
-		return Config{}, err
+		return err
 	}
 
-	cfg := Config{}
-	err = json.Unmarshal(file, &cfg)
-	return cfg, err
+	if !ConfirmECS(file) {
+		err := json.Unmarshal(file, &bot.config)
+		if err != nil {
+			return err
+		}
+
+		if bot.config.EncryptConfig == CONFIG_FILE_ENCRYPTION_DISABLED {
+			return nil
+		}
+
+		if bot.config.EncryptConfig == CONFIG_FILE_ENCRYPTION_PROMPT {
+			if PromptForConfigEncryption() {
+				bot.config.EncryptConfig = CONFIG_FILE_ENCRYPTION_ENABLED
+				SaveConfig()
+			}
+		}
+	} else {
+		key, err := PromptForConfigKey()
+		if err != nil {
+			return err
+		}
+
+		data, err := DecryptConfigFile(file, key)
+		if err != nil {
+			return err
+		}
+
+		err = json.Unmarshal(data, &bot.config)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func SaveConfig() error {
-	log.Println("Saving config")
+	log.Println("Saving config.")
 	payload, err := json.MarshalIndent(bot.config, "", " ")
 
-	if err != nil {
-		return err
+	if bot.config.EncryptConfig == CONFIG_FILE_ENCRYPTION_ENABLED {
+		key, err := PromptForConfigKey()
+		if err != nil {
+			return err
+		}
+
+		payload, err = EncryptConfigFile(payload, key)
+		if err != nil {
+			return err
+		}
 	}
 
 	err = ioutil.WriteFile(CONFIG_FILE, payload, 0644)
-
 	if err != nil {
 		return err
 	}
-	retrieved, err := ioutil.ReadFile(CONFIG_FILE)
+	return nil
+}
+
+func LoadConfig() error {
+	err := ReadConfig()
 	if err != nil {
-		return err
+		return fmt.Errorf(ErrFailureOpeningConfig, err)
 	}
 
-	if !bytes.Equal(retrieved, payload) {
-		return fmt.Errorf("file %q content doesn't match, read %s expected %s\n", CONFIG_FILE, retrieved, payload)
+	err = CheckExchangeConfigValues()
+	if err != nil {
+		return fmt.Errorf(ErrCheckingConfigValues, err)
 	}
 
 	return nil

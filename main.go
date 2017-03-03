@@ -1,7 +1,6 @@
 package main
 
 import (
-	"errors"
 	"log"
 	"net/http"
 	"os"
@@ -63,20 +62,11 @@ func setupBotExchanges() {
 
 func main() {
 	HandleInterrupt()
-	log.Println("Loading config file config.json..")
+	log.Printf("Loading config file %s..\n", CONFIG_FILE)
 
-	err := errors.New("")
-	bot.config, err = ReadConfig()
+	err := LoadConfig()
 	if err != nil {
-		log.Printf("Fatal error opening config.json file. Error: %s", err)
-		return
-	}
-	log.Println("Config file loaded. Checking settings.. ")
-
-	err = CheckExchangeConfigValues()
-	if err != nil {
-		log.Println("Fatal error checking config values. Error:", err)
-		return
+		log.Fatal(err)
 	}
 
 	log.Printf("Bot '%s' started.\n", bot.config.Name)
@@ -129,7 +119,7 @@ func main() {
 	err = RetrieveConfigCurrencyPairs(bot.config)
 
 	if err != nil {
-		log.Println("Fatal error retrieving config currency AvailablePairs. Error: ", err)
+		log.Fatalf("Fatal error retrieving config currency AvailablePairs. Error: ", err)
 	}
 
 	if bot.config.Webserver.Enabled {

@@ -168,6 +168,13 @@ func IsEnabled(isEnabled bool) string {
 	}
 }
 
+func YesOrNo(input string) bool {
+	if StringToLower(input) == "y" || StringToLower(input) == "yes" {
+		return true
+	}
+	return false
+}
+
 func CalculateAmountWithFee(amount, fee float64) float64 {
 	return amount + CalculateFee(amount, fee)
 }

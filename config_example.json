@@ -1,5 +1,6 @@
 {
  "Name": "Skynet",
+ "EncryptConfig": 0,
  "DisplayCurrency":"USD",
  "Cryptocurrencies": "BTC,XBT,LTC,XRP,XDG,DOGE,STR,NMC,STR,XDG,XRP,XVN",
  "SMSGlobal": {

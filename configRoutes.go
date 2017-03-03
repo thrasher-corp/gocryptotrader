@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/json"
-	"log"
 	"net/http"
 )
 
@@ -38,9 +37,8 @@ func SaveAllSettings(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		panic(err)
 	}
-	bot.config, err = ReadConfig()
+	err = LoadConfig()
 	if err != nil {
-		log.Println("Fatal error checking config values. Error:", err)
 		panic(err)
 	}
 	setupBotExchanges()
