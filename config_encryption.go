@@ -36,7 +36,7 @@ func PromptForConfigKey() ([]byte, error) {
 	var cryptoKey []byte
 
 	for len(cryptoKey) != 32 {
-		log.Println("Please enter your 32 character AES key:")
+		log.Println("Enter password (32 characters):")
 
 		_, err := fmt.Scanln(&cryptoKey)
 		if err != nil {
@@ -44,7 +44,7 @@ func PromptForConfigKey() ([]byte, error) {
 		}
 
 		if len(cryptoKey) > 32 || len(cryptoKey) < 32 {
-			fmt.Println("Please re-enter a 32char key:")
+			fmt.Println("Please re-enter password (32 characters):")
 		}
 	}
 

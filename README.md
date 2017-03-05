@@ -52,7 +52,7 @@ Please feel free to submit any pull requests or suggest any desired features to 
 Download Go from https://golang.org/dl/  
 Using a terminal, type go get github.com/thrasher-/gocryptotrader  
 Change directory to the package directory, then type go install.  
-Copy config_example.json to config.json.  
+Copy config_example.dat to config.dat.  
 Make any neccessary changes to the config file.  
 Run the application!  
 

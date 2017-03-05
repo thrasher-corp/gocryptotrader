@@ -6,12 +6,14 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"os"
 	"strconv"
 	"time"
 )
 
 const (
-	CONFIG_FILE = "config.json"
+	CONFIG_FILE     = "config.dat"
+	OLD_CONFIG_FILE = "config.json"
 
 	CONFIG_FILE_ENCRYPTION_PROMPT   = 0
 	CONFIG_FILE_ENCRYPTION_ENABLED  = 1
@@ -36,6 +38,7 @@ var (
 	WarningWebserverListenAddressInvalid            = "WARNING -- Webserver support disabled due to invalid listen address."
 	WarningWebserverRootWebFolderNotFound           = "WARNING -- Webserver support disabled due to missing web folder."
 	WarningExchangeAuthAPIDefaultOrEmptyValues      = "WARNING -- Exchange %s: Authenticated API support disabled due to default/empty APIKey/Secret/ClientID values."
+	RenamingConfigFile                              = "Renaming config file %s to %s."
 )
 
 type Webserver struct {
@@ -196,6 +199,15 @@ func CheckWebserverValues() error {
 }
 
 func ReadConfig() error {
+	_, err := ioutil.ReadFile(OLD_CONFIG_FILE)
+	if err == nil {
+		err = os.Rename(OLD_CONFIG_FILE, CONFIG_FILE)
+		if err != nil {
+			return err
+		}
+		log.Printf(RenamingConfigFile+"\n", OLD_CONFIG_FILE, CONFIG_FILE)
+	}
+
 	file, err := ioutil.ReadFile(CONFIG_FILE)
 	if err != nil {
 		return err
@@ -237,7 +249,6 @@ func ReadConfig() error {
 }
 
 func SaveConfig() error {
-	log.Println("Saving config.")
 	payload, err := json.MarshalIndent(bot.config, "", " ")
 
 	if bot.config.EncryptConfig == CONFIG_FILE_ENCRYPTION_ENABLED {
