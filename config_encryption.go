@@ -96,8 +96,8 @@ func DecryptConfigFile(configData, key []byte) ([]byte, error) {
 	return result, nil
 }
 
-func ConfirmWalletJSON(file []byte, result interface{}) error {
-	return JSONDecode(file, result)
+func ConfirmConfigJSON(file []byte, result interface{}) error {
+	return JSONDecode(file, &result)
 }
 
 func ConfirmECS(file []byte) bool {

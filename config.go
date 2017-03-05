@@ -214,7 +214,7 @@ func ReadConfig() error {
 	}
 
 	if !ConfirmECS(file) {
-		err := json.Unmarshal(file, &bot.config)
+		err = ConfirmConfigJSON(file, &bot.config)
 		if err != nil {
 			return err
 		}
@@ -240,7 +240,7 @@ func ReadConfig() error {
 			return err
 		}
 
-		err = json.Unmarshal(data, &bot.config)
+		err = ConfirmConfigJSON(data, &bot.config)
 		if err != nil {
 			return err
 		}
