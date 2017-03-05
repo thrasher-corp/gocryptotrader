@@ -15,7 +15,6 @@ type Exchange struct {
 	btcc          BTCC
 	bitstamp      Bitstamp
 	bitfinex      Bitfinex
-	brightonpeak  BrightonPeak
 	btce          BTCE
 	btcmarkets    BTCMarkets
 	gdax          GDAX
@@ -91,7 +90,6 @@ func main() {
 		new(Kraken),
 		new(BTCC),
 		new(Bitstamp),
-		new(BrightonPeak),
 		new(Bitfinex),
 		new(BTCE),
 		new(BTCMarkets),

@@ -88,20 +88,6 @@
    "BaseCurrencies": "USD,EUR"
   },
   {
-   "Name": "Brighton Peak",
-   "Enabled": true,
-   "Verbose": false,
-   "Websocket": false,
-   "RESTPollingDelay": 10,
-   "AuthenticatedAPISupport": false,
-   "APIKey": "Key",
-   "APISecret": "Secret",
-   "ClientID": "ClientID",
-   "AvailablePairs": "LTCBTC,LTCAUD,BTCAUD,BTCMYR",
-   "EnabledPairs": "BTCAUD,LTCAUD,LTCBTC",
-   "BaseCurrencies": "AUD"
-  },
-  {
    "Name": "BTCC",
    "Enabled": true,
    "Verbose": false,
