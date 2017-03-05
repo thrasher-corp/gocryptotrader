@@ -58,6 +58,7 @@ type SMSGlobal struct {
 		Enabled bool
 	}
 }
+
 type ConfigPost struct {
 	Data Config `json:"Data"`
 }
@@ -66,6 +67,7 @@ type Config struct {
 	Name             string
 	EncryptConfig    int
 	Cryptocurrencies string
+	Portfolio        Portfolio `json:"PortfolioAddresses"`
 	SMS              SMSGlobal `json:"SMSGlobal"`
 	Webserver        Webserver `json:"Webserver"`
 	Exchanges        []Exchanges

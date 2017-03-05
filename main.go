@@ -35,7 +35,6 @@ type Bot struct {
 	exchange   Exchange
 	exchanges  []IBotExchange
 	tickers    []Ticker
-	portfolio  Portfolio
 	tickerChan chan Ticker
 	shutdown   chan bool
 }
@@ -121,6 +120,8 @@ func main() {
 	if err != nil {
 		log.Fatalf("Fatal error retrieving config currency AvailablePairs. Error: ", err)
 	}
+
+	go StartPortfolioWatcher()
 
 	if bot.config.Webserver.Enabled {
 		err := CheckWebserverValues()

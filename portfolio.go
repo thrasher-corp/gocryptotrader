@@ -3,6 +3,8 @@ package main
 import (
 	"errors"
 	"fmt"
+	"log"
+	"time"
 )
 
 const (
@@ -99,7 +101,7 @@ func GetBlockrAddressMulti(addresses []string, coinType string) (BlockrAddressBa
 }
 
 func GetAddressBalance(address string) (float64, bool) {
-	for _, x := range bot.portfolio.Addresses {
+	for _, x := range bot.config.Portfolio.Addresses {
 		if x.Address == address {
 			return x.Balance, true
 		}
@@ -108,7 +110,7 @@ func GetAddressBalance(address string) (float64, bool) {
 }
 
 func AddressExists(address string) bool {
-	for _, x := range bot.portfolio.Addresses {
+	for _, x := range bot.config.Portfolio.Addresses {
 		if x.Address == address {
 			return true
 		}
@@ -124,7 +126,7 @@ func UpdatePortfolio(addresses []string, coinType string) bool {
 		}
 		for _, x := range result.Data {
 			if !AddressExists(x.Address) {
-				bot.portfolio.Addresses = append(bot.portfolio.Addresses, PortfolioAddress{Address: x.Address, CoinType: coinType, Balance: x.Balance / WEI_PER_ETHER})
+				bot.config.Portfolio.Addresses = append(bot.config.Portfolio.Addresses, PortfolioAddress{Address: x.Address, CoinType: coinType, Balance: x.Balance / WEI_PER_ETHER})
 			}
 		}
 		return true
@@ -136,7 +138,7 @@ func UpdatePortfolio(addresses []string, coinType string) bool {
 		}
 		for _, x := range result.Data {
 			if !AddressExists(x.Address) {
-				bot.portfolio.Addresses = append(bot.portfolio.Addresses, PortfolioAddress{Address: x.Address, CoinType: coinType, Balance: x.Balance})
+				bot.config.Portfolio.Addresses = append(bot.config.Portfolio.Addresses, PortfolioAddress{Address: x.Address, CoinType: coinType, Balance: x.Balance})
 			}
 		}
 	} else {
@@ -145,7 +147,7 @@ func UpdatePortfolio(addresses []string, coinType string) bool {
 			return false
 		}
 		if !AddressExists(result.Data.Address) {
-			bot.portfolio.Addresses = append(bot.portfolio.Addresses, PortfolioAddress{Address: result.Data.Address, CoinType: coinType, Balance: result.Data.Balance})
+			bot.config.Portfolio.Addresses = append(bot.config.Portfolio.Addresses, PortfolioAddress{Address: result.Data.Address, CoinType: coinType, Balance: result.Data.Balance})
 		}
 	}
 	return true
@@ -153,7 +155,7 @@ func UpdatePortfolio(addresses []string, coinType string) bool {
 
 func GetPortfolioSummary(coinFilter string) map[string]float64 {
 	result := make(map[string]float64)
-	for _, x := range bot.portfolio.Addresses {
+	for _, x := range bot.config.Portfolio.Addresses {
 		if coinFilter != "" && coinFilter != x.CoinType {
 			continue
 		}
@@ -165,4 +167,27 @@ func GetPortfolioSummary(coinFilter string) map[string]float64 {
 		}
 	}
 	return result
+}
+
+func GetPortfolioGroupedCoin() map[string][]string {
+	result := make(map[string][]string)
+	for _, x := range bot.config.Portfolio.Addresses {
+		result[x.CoinType] = append(result[x.CoinType], x.Address)
+	}
+	return result
+}
+
+func StartPortfolioWatcher() {
+	addrCount := len(bot.config.Portfolio.Addresses)
+	log.Printf("PortfolioWatcher started: Have %d address(es) in portfolio.\n", addrCount)
+	for {
+		data := GetPortfolioGroupedCoin()
+		for key, value := range data {
+			success := UpdatePortfolio(value, key)
+			if success {
+				log.Printf("PortfolioWatcher: Successfully updated address balance for %s address(es) %s\n", key, value)
+			}
+		}
+		time.Sleep(time.Minute * 10)
+	}
 }
