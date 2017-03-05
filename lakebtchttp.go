@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"fmt"
 	"log"
 	"net/url"
 	"strconv"
@@ -10,18 +11,20 @@ import (
 )
 
 const (
-	LAKEBTC_API_URL          = "https://api.lakebtc.com/api_v2/"
-	LAKEBTC_API_VERSION      = "2"
-	LAKEBTC_TICKER           = "ticker"
-	LAKEBTC_ORDERBOOK        = "bcorderbook"
-	LAKEBTC_ORDERBOOK_CNY    = "bcorderbook_cny"
-	LAKEBTC_TRADES           = "bctrades"
-	LAKEBTC_GET_ACCOUNT_INFO = "getAccountInfo"
-	LAKEBTC_BUY_ORDER        = "buyOrder"
-	LAKEBTC_SELL_ORDER       = "sellOrder"
-	LAKEBTC_GET_ORDERS       = "getOrders"
-	LAKEBTC_CANCEL_ORDER     = "cancelOrder"
-	LAKEBTC_GET_TRADES       = "getTrades"
+	LAKEBTC_API_URL               = "https://api.lakebtc.com/api_v2"
+	LAKEBTC_API_VERSION           = "2"
+	LAKEBTC_TICKER                = "ticker"
+	LAKEBTC_ORDERBOOK             = "bcorderbook"
+	LAKEBTC_TRADES                = "bctrades"
+	LAKEBTC_GET_ACCOUNT_INFO      = "getAccountInfo"
+	LAKEBTC_BUY_ORDER             = "buyOrder"
+	LAKEBTC_SELL_ORDER            = "sellOrder"
+	LAKEBTC_OPEN_ORDERS           = "openOrders"
+	LAKEBTC_GET_ORDERS            = "getOrders"
+	LAKEBTC_CANCEL_ORDER          = "cancelOrder"
+	LAKEBTC_GET_TRADES            = "getTrades"
+	LAKEBTC_GET_EXTERNAL_ACCOUNTS = "getExternalAccounts"
+	LAKEBTC_CREATE_WITHDRAW       = "createWithdraw"
 )
 
 type LakeBTC struct {
@@ -31,7 +34,7 @@ type LakeBTC struct {
 	Websocket               bool
 	RESTPollingDelay        time.Duration
 	AuthenticatedAPISupport bool
-	Email, APISecret        string
+	APIKey, APISecret       string
 	TakerFee, MakerFee      float64
 	BaseCurrencies          []string
 	AvailablePairs          []string
@@ -47,9 +50,14 @@ type LakeBTCTicker struct {
 	Volume float64
 }
 
+type LakeBTCOrderbookStructure struct {
+	Price  float64
+	Amount float64
+}
+
 type LakeBTCOrderbook struct {
-	Bids [][]float64 `json:"asks"`
-	Asks [][]float64 `json:"bids"`
+	Bids []LakeBTCOrderbookStructure `json:"bids"`
+	Asks []LakeBTCOrderbookStructure `json:"asks"`
 }
 
 func (l *LakeBTC) SetDefaults() {
@@ -99,7 +107,7 @@ func (l *LakeBTC) Start() {
 }
 
 func (l *LakeBTC) SetAPIKeys(apiKey, apiSecret string) {
-	l.Email = apiKey
+	l.APIKey = apiKey
 	l.APISecret = apiSecret
 }
 
@@ -148,7 +156,8 @@ type LakeBTCTickerResponse struct {
 
 func (l *LakeBTC) GetTicker() (map[string]LakeBTCTicker, error) {
 	response := make(map[string]LakeBTCTickerResponse)
-	err := SendHTTPGetRequest(LAKEBTC_API_URL+LAKEBTC_TICKER, true, &response)
+	path := fmt.Sprintf("%s/%s", LAKEBTC_API_URL, LAKEBTC_TICKER)
+	err := SendHTTPGetRequest(path, true, &response)
 	if err != nil {
 		return nil, err
 	}
@@ -211,111 +220,289 @@ func (l *LakeBTC) GetTickerPrice(currency string) (TickerPrice, error) {
 	return tickerPrice, nil
 }
 
-func (l *LakeBTC) GetOrderBook(currency string) bool {
-	req := LAKEBTC_ORDERBOOK
-	if currency == "CNY" {
-		req = LAKEBTC_ORDERBOOK_CNY
+func (l *LakeBTC) GetOrderBook(currency string) (LakeBTCOrderbook, error) {
+	type Response struct {
+		Bids [][]string `json:"bids"`
+		Asks [][]string `json:"asks"`
+	}
+	path := fmt.Sprintf("%s/%s?symbol=%s", LAKEBTC_API_URL, LAKEBTC_ORDERBOOK, StringToLower(currency))
+	resp := Response{}
+	err := SendHTTPGetRequest(path, true, &resp)
+	if err != nil {
+		return LakeBTCOrderbook{}, err
+	}
+	orderbook := LakeBTCOrderbook{}
+
+	for _, x := range resp.Bids {
+		price, err := strconv.ParseFloat(x[0], 64)
+		if err != nil {
+			log.Println(err)
+			continue
+		}
+		amount, err := strconv.ParseFloat(x[1], 64)
+		if err != nil {
+			log.Println(err)
+			continue
+		}
+		orderbook.Bids = append(orderbook.Bids, LakeBTCOrderbookStructure{price, amount})
 	}
 
-	err := SendHTTPGetRequest(LAKEBTC_API_URL+req, true, nil)
-	if err != nil {
-		log.Println(err)
-		return false
+	for _, x := range resp.Asks {
+		price, err := strconv.ParseFloat(x[0], 64)
+		if err != nil {
+			log.Println(err)
+			continue
+		}
+		amount, err := strconv.ParseFloat(x[1], 64)
+		if err != nil {
+			log.Println(err)
+			continue
+		}
+		orderbook.Asks = append(orderbook.Asks, LakeBTCOrderbookStructure{price, amount})
 	}
-	return true
+	return orderbook, nil
 }
 
-func (l *LakeBTC) GetTradeHistory() bool {
-	err := SendHTTPGetRequest(LAKEBTC_API_URL+LAKEBTC_TRADES, true, nil)
-	if err != nil {
-		log.Println(err)
-		return false
-	}
-	return true
+type LakeBTCTradeHistory struct {
+	Date   int64   `json:"data"`
+	Price  float64 `json:"price,string"`
+	Amount float64 `json:"amount,string"`
+	TID    int64   `json:"tid"`
 }
 
-func (l *LakeBTC) GetAccountInfo() {
-	err := l.SendAuthenticatedHTTPRequest(LAKEBTC_GET_ACCOUNT_INFO, "")
-
+func (l *LakeBTC) GetTradeHistory(currency string) ([]LakeBTCTradeHistory, error) {
+	path := fmt.Sprintf("%s/%s?symbol=%s", LAKEBTC_API_URL, LAKEBTC_TRADES, StringToLower(currency))
+	resp := []LakeBTCTradeHistory{}
+	err := SendHTTPGetRequest(path, true, &resp)
 	if err != nil {
-		log.Println(err)
+		return nil, err
 	}
+	return resp, nil
 }
 
-//TODO Get current holdings from LakeBTC
-//GetExchangeAccountInfo : Retrieves balances for all enabled currencies for the LakeBTC exchange
-func (e *LakeBTC) GetExchangeAccountInfo() (ExchangeAccountInfo, error) {
+type LakeBTCAccountInfo struct {
+	Balance map[string]string `json:"balance"`
+	Locked  map[string]string `json:"locked"`
+	Profile struct {
+		Email             string `json:"email"`
+		UID               int64  `json:"uid,string"`
+		BTCDepositAddress string `json:"btc_deposit_address"`
+	} `json:"profile"`
+}
+
+func (l *LakeBTC) GetAccountInfo() (LakeBTCAccountInfo, error) {
+	resp := LakeBTCAccountInfo{}
+	err := l.SendAuthenticatedHTTPRequest(LAKEBTC_GET_ACCOUNT_INFO, "", &resp)
+
+	if err != nil {
+		return resp, err
+	}
+
+	return resp, nil
+}
+
+func (l *LakeBTC) GetExchangeAccountInfo() (ExchangeAccountInfo, error) {
 	var response ExchangeAccountInfo
-	response.ExchangeName = e.GetName()
+	/* to-do	response.ExchangeName = l.GetName()
+	accountBalance, err := l.GetAccountInfo()
+	if err != nil {
+		return response, err
+	}
+	currencies := l.AvailablePairs
+	for i := 0; i < len(currencies); i++ {
+		var exchangeCurrency ExchangeAccountCurrencyInfo
+		exchangeCurrency.CurrencyName = currencies[i]
+		/exchangeCurrency.TotalValue = accountBalance.Currency[currencies[i]] to-do
+		response.Currencies = append(response.Currencies, exchangeCurrency)
+	}
+	*/
 	return response, nil
 }
 
-func (l *LakeBTC) Trade(orderType int, amount, price float64, currency string) {
+type LakeBTCTrade struct {
+	ID     int64  `json:"id"`
+	Result string `json:"result"`
+}
+
+func (l *LakeBTC) Trade(orderType int, amount, price float64, currency string) (LakeBTCTrade, error) {
+	resp := LakeBTCTrade{}
 	params := strconv.FormatFloat(price, 'f', -1, 64) + "," + strconv.FormatFloat(amount, 'f', -1, 64) + "," + currency
 	err := errors.New("")
 
 	if orderType == 0 {
-		err = l.SendAuthenticatedHTTPRequest(LAKEBTC_BUY_ORDER, params)
+		err = l.SendAuthenticatedHTTPRequest(LAKEBTC_BUY_ORDER, params, &resp)
 	} else {
-		err = l.SendAuthenticatedHTTPRequest(LAKEBTC_SELL_ORDER, params)
+		err = l.SendAuthenticatedHTTPRequest(LAKEBTC_SELL_ORDER, params, &resp)
 	}
 
 	if err != nil {
-		log.Println(err)
+		return resp, err
 	}
+
+	if resp.Result != "order received" {
+		return resp, fmt.Errorf("Unexpected result: %s", resp.Result)
+	}
+
+	return resp, nil
 }
 
-func (l *LakeBTC) GetOrders() {
-	err := l.SendAuthenticatedHTTPRequest(LAKEBTC_GET_ORDERS, "")
+type LakeBTCOpenOrders struct {
+	ID     int64   `json:"id"`
+	Amount float64 `json:"amount,string"`
+	Price  float64 `json:"price,string"`
+	Symbol string  `json:"symbol"`
+	Type   string  `json:"type"`
+	At     int64   `json:"at"`
+}
+
+func (l *LakeBTC) GetOpenOrders() ([]LakeBTCOpenOrders, error) {
+	orders := []LakeBTCOpenOrders{}
+	err := l.SendAuthenticatedHTTPRequest(LAKEBTC_OPEN_ORDERS, "", &orders)
+
 	if err != nil {
-		log.Println(err)
+		return nil, err
 	}
+	return orders, nil
 }
 
-func (l *LakeBTC) CancelOrder(orderID int64) {
+type LakeBTCOrders struct {
+	ID             int64   `json:"id"`
+	OriginalAmount float64 `json:"original_amount,string"`
+	Amount         float64 `json:"amount,string"`
+	Price          float64 `json:"price,string"`
+	Symbol         string  `json:"symbol"`
+	Type           string  `json:"type"`
+	State          string  `json:"state"`
+	At             int64   `json:"at"`
+}
+
+func (l *LakeBTC) GetOrders(orders []int64) ([]LakeBTCOrders, error) {
+	var ordersStr []string
+	for _, x := range orders {
+		ordersStr = append(ordersStr, strconv.FormatInt(x, 10))
+	}
+
+	resp := []LakeBTCOrders{}
+	err := l.SendAuthenticatedHTTPRequest(LAKEBTC_GET_ORDERS, JoinStrings(ordersStr, ","), &resp)
+
+	if err != nil {
+		return nil, err
+	}
+	return resp, nil
+}
+
+func (l *LakeBTC) CancelOrder(orderID int64) error {
+	type Response struct {
+		Result bool `json:"Result"`
+	}
+
+	resp := Response{}
 	params := strconv.FormatInt(orderID, 10)
-	err := l.SendAuthenticatedHTTPRequest(LAKEBTC_CANCEL_ORDER, params)
+	err := l.SendAuthenticatedHTTPRequest(LAKEBTC_CANCEL_ORDER, params, &resp)
 	if err != nil {
-		log.Println(err)
+		return err
 	}
+
+	if resp.Result != true {
+		return errors.New("Unable to cancel order.")
+	}
+
+	return nil
 }
 
-func (l *LakeBTC) GetTrades(timestamp time.Time) {
+type LakeBTCAuthenticaltedTradeHistory struct {
+	Type   string  `json:"type"`
+	Symbol string  `json:"symbol"`
+	Amount float64 `json:"amount,string"`
+	Total  float64 `json:"total,string"`
+	At     int64   `json:"at"`
+}
+
+func (l *LakeBTC) GetTrades(timestamp int64) ([]LakeBTCAuthenticaltedTradeHistory, error) {
 	params := ""
-
-	if !timestamp.IsZero() {
-		params = strconv.FormatInt(timestamp.Unix(), 10)
+	if timestamp != 0 {
+		params = strconv.FormatInt(timestamp, 10)
 	}
 
-	err := l.SendAuthenticatedHTTPRequest(LAKEBTC_GET_TRADES, params)
+	trades := []LakeBTCAuthenticaltedTradeHistory{}
+	err := l.SendAuthenticatedHTTPRequest(LAKEBTC_GET_TRADES, params, &trades)
 	if err != nil {
-		log.Println(err)
+		return nil, err
 	}
+
+	return trades, nil
 }
 
-func (l *LakeBTC) SendAuthenticatedHTTPRequest(method, params string) (err error) {
-	nonce := strconv.FormatInt(time.Now().Unix(), 10)
+type LakeBTCExternalAccounts struct {
+	ID         int64       `json:"id,string"`
+	Type       string      `json:"type"`
+	Address    string      `json:"address"`
+	Alias      interface{} `json:"alias"`
+	Currencies string      `json:"currencies"`
+	State      string      `json:"state"`
+	UpdatedAt  int64       `json:"updated_at,string"`
+}
+
+/* Only for BTC */
+func (l *LakeBTC) GetExternalAccounts() ([]LakeBTCExternalAccounts, error) {
+	resp := []LakeBTCExternalAccounts{}
+	err := l.SendAuthenticatedHTTPRequest(LAKEBTC_GET_EXTERNAL_ACCOUNTS, "", &resp)
+	if err != nil {
+		return resp, err
+	}
+	return resp, nil
+}
+
+type LakeBTCWithdraw struct {
+	ID                int64   `json:"id,string"`
+	Amount            float64 `json:"amount,string"`
+	Currency          string  `json:"currency"`
+	Fee               float64 `json:"fee,string"`
+	State             string  `json:"state"`
+	Source            string  `json:"source"`
+	ExternalAccountID int64   `json:"external_account_id,string"`
+	At                int64   `json:"at,string"`
+}
+
+/* Only for BTC */
+func (l *LakeBTC) CreateWithdraw(amount float64, accountID int64) (LakeBTCWithdraw, error) {
+	resp := LakeBTCWithdraw{}
+	params := strconv.FormatFloat(amount, 'f', -1, 64) + ",btc" + strconv.FormatInt(accountID, 10)
+	err := l.SendAuthenticatedHTTPRequest(LAKEBTC_CREATE_WITHDRAW, params, &resp)
+	if err != nil {
+		return resp, err
+	}
+	return resp, nil
+}
+
+func (l *LakeBTC) SendAuthenticatedHTTPRequest(method, params string, result interface{}) (err error) {
+	nonce := strconv.FormatInt(time.Now().UnixNano(), 10)
+	id := "1"
 	v := url.Values{}
 	v.Set("tnonce", nonce)
-	v.Set("accesskey", l.Email)
+	v.Set("accesskey", l.APIKey)
 	v.Set("requestmethod", "POST")
-	v.Set("id", nonce)
+	v.Set("id", id)
 	v.Set("method", method)
 	v.Set("params", params)
-
 	encoded := v.Encode()
-	hmac := GetHMAC(HASH_SHA256, []byte(encoded), []byte(l.APISecret))
+	hmac := GetHMAC(HASH_SHA1, []byte(encoded), []byte(l.APISecret))
 
 	if l.Verbose {
 		log.Printf("Sending POST request to %s calling method %s with params %s\n", LAKEBTC_API_URL, method, encoded)
 	}
 
+	v = url.Values{}
+	v.Set("method", method)
+	v.Set("id", id)
+	v.Set("params", params)
+
 	headers := make(map[string]string)
 	headers["Json-Rpc-Tonce"] = nonce
-	headers["Authorization: Basic"] = Base64Encode([]byte(l.Email + ":" + HexEncodeToString(hmac)))
+	headers["Authorization"] = "Basic " + Base64Encode([]byte(l.APIKey+":"+HexEncodeToString(hmac)))
 	headers["Content-Type"] = "application/x-www-form-urlencoded"
 
-	resp, err := SendHTTPRequest("POST", LAKEBTC_API_URL, headers, strings.NewReader(encoded))
+	resp, err := SendHTTPRequest("POST", LAKEBTC_API_URL, headers, strings.NewReader(v.Encode()))
 
 	if err != nil {
 		return err
@@ -323,6 +510,12 @@ func (l *LakeBTC) SendAuthenticatedHTTPRequest(method, params string) (err error
 
 	if l.Verbose {
 		log.Printf("Recieved raw: %s\n", resp)
+	}
+
+	err = JSONDecode([]byte(resp), &result)
+
+	if err != nil {
+		return errors.New("Unable to JSON Unmarshal response.")
 	}
 
 	return nil
