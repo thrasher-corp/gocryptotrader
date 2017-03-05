@@ -1,7 +1,7 @@
 {
  "Name": "Skynet",
  "EncryptConfig": 0,
- "Cryptocurrencies": "BTC,XBT,LTC,XRP,XDG,DOGE,STR,NMC,STR,XDG,XRP,XVN",
+ "Cryptocurrencies": "BTC,LTC,ETH,XRP,NMC,NVC,PPC,XBT,DOGE,DASH",
  "PortfolioAddresses": {
   "Addresses": [
    {
@@ -127,7 +127,7 @@
    "ClientID": "",
    "AvailablePairs": "BTCUSD,BTCRUR,BTCEUR,LTCBTC,LTCUSD,LTCRUR,LTCEUR,NMCBTC,NMCUSD,NVCBTC,NVCUSD,USDRUR,EURUSD,EURRUR,PPCBTC,PPCUSD",
    "EnabledPairs": "BTCUSD,BTCRUR,BTCEUR,LTCBTC,LTCUSD,LTCRUR,LTCEUR,NMCBTC,NMCUSD,NVCBTC,NVCUSD,USDRUR,EURUSD,EURRUR,PPCBTC,PPCUSD",
-   "BaseCurrencies": "USD,RUB,EUR"
+   "BaseCurrencies": "USD,RUR,EUR"
   },
   {
    "Name": "BTC Markets",
@@ -215,7 +215,7 @@
   },
   {
    "Name": "LakeBTC",
-   "Enabled": true,
+   "Enabled": false,
    "Verbose": false,
    "Websocket": false,
    "RESTPollingDelay": 10,

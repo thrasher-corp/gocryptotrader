@@ -62,48 +62,92 @@ func IsCryptocurrency(currency string) bool {
 	return StringContains(bot.config.Cryptocurrencies, StringToUpper(currency))
 }
 
-func RetrieveConfigCurrencyPairs(config Config) error {
-	var fiatCurrencies, cryptoCurrencies []string
-	for _, exchange := range config.Exchanges {
-		if exchange.Enabled {
-			enabledPairs := SplitStrings(exchange.EnabledPairs, ",")
-			baseCurrencies := SplitStrings(exchange.BaseCurrencies, ",")
+func ContainsSeparator(input string) (bool, string) {
+	separators := []string{"-", "_"}
+	for _, x := range separators {
+		if StringContains(input, x) {
+			return true, x
+		}
+	}
+	return false, ""
+}
 
-			for _, x := range baseCurrencies {
-				for _, y := range enabledPairs {
-					if StringContains(y, "_") {
-						pairs := SplitStrings(y, "_")
-						for _, z := range pairs {
-							if z != x && !IsCryptocurrency(z) {
-								cryptoCurrencies = append(cryptoCurrencies, z)
-							} else if z == x && !IsDefaultCurrency(x) {
-								fiatCurrencies = append(fiatCurrencies, x)
-							}
+func ContainsBaseCurrencyIndex(baseCurrencies []string, currency string) (bool, string) {
+	for _, x := range baseCurrencies {
+		if StringContains(currency, x) {
+			return true, x
+		}
+	}
+	return false, ""
+}
+
+func ContainsBaseCurrency(baseCurrencies []string, currency string) bool {
+	for _, x := range baseCurrencies {
+		if StringContains(currency, x) {
+			return true
+		}
+	}
+	return false
+}
+
+func CheckAndAddCurrency(input []string, check string) []string {
+	for _, x := range input {
+		if check == x {
+			return input
+		}
+	}
+	if IsCryptocurrency(check) && IsFiatCurrency(check) {
+		return input
+	}
+
+	input = append(input, check)
+	return input
+}
+
+func RetrieveConfigCurrencyPairs() error {
+	cryptoCurrencies := SplitStrings(bot.config.Cryptocurrencies, ",")
+	fiatCurrencies := SplitStrings(DEFAULT_CURRENCIES, ",")
+
+	for _, exchange := range bot.config.Exchanges {
+		if exchange.Enabled {
+			baseCurrencies := SplitStrings(exchange.BaseCurrencies, ",")
+			enabledCurrencies := SplitStrings(exchange.EnabledPairs, ",")
+
+			for _, currencyPair := range enabledCurrencies {
+				ok, separator := ContainsSeparator(currencyPair)
+				if ok {
+					pair := SplitStrings(currencyPair, separator)
+					for _, x := range pair {
+						ok, _ = ContainsBaseCurrencyIndex(baseCurrencies, x)
+						if !ok {
+							cryptoCurrencies = CheckAndAddCurrency(cryptoCurrencies, x)
 						}
-					} else {
-						if StringContains(y, x) {
-							if !IsDefaultCurrency(x) {
-								fiatCurrencies = append(fiatCurrencies, x)
-							}
-							currency := TrimString(y, x)
-							if !IsCryptocurrency(currency) {
-								cryptoCurrencies = append(cryptoCurrencies, currency)
-							}
+					}
+				} else {
+					ok, idx := ContainsBaseCurrencyIndex(baseCurrencies, currencyPair)
+					if ok {
+						currency := strings.Replace(currencyPair, idx, "", -1)
+
+						if ContainsBaseCurrency(baseCurrencies, currency) {
+							fiatCurrencies = CheckAndAddCurrency(fiatCurrencies, currency)
 						} else {
-							if !IsCryptocurrency(y[0:3]) {
-								cryptoCurrencies = append(cryptoCurrencies, y[0:3])
-							}
-							if !IsCryptocurrency(y[3:]) {
-								cryptoCurrencies = append(cryptoCurrencies, y[3:])
-							}
+							cryptoCurrencies = CheckAndAddCurrency(cryptoCurrencies, currency)
+						}
+
+						if ContainsBaseCurrency(baseCurrencies, idx) {
+							fiatCurrencies = CheckAndAddCurrency(fiatCurrencies, idx)
+						} else {
+							cryptoCurrencies = CheckAndAddCurrency(cryptoCurrencies, idx)
 						}
 					}
 				}
 			}
 		}
 	}
-	bot.config.Cryptocurrencies = JoinStrings(StringSliceDifference(SplitStrings(bot.config.Cryptocurrencies, ","), cryptoCurrencies), ",")
-	BaseCurrencies = JoinStrings(StringSliceDifference(SplitStrings(DEFAULT_CURRENCIES, ","), fiatCurrencies), ",")
+
+	BaseCurrencies = JoinStrings(fiatCurrencies, ",")
+	BaseCurrencies = strings.Replace(BaseCurrencies, "RUR", "RUB", -1)
+	bot.config.Cryptocurrencies = JoinStrings(cryptoCurrencies, ",")
 
 	err := QueryYahooCurrencyValues(BaseCurrencies)
 
@@ -132,6 +176,9 @@ func MakecurrencyPairs(supportedCurrencies string) string {
 
 func ConvertCurrency(amount float64, from, to string) (float64, error) {
 	currency := StringToUpper(from + to)
+	if StringContains(currency, "RUB") {
+		currency = strings.Replace(currency, "RUB", "RUR", -1)
+	}
 	for x, y := range CurrencyStore {
 		if x == currency {
 			return amount * y.Rate, nil

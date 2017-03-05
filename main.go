@@ -115,7 +115,7 @@ func main() {
 
 	setupBotExchanges()
 
-	err = RetrieveConfigCurrencyPairs(bot.config)
+	err = RetrieveConfigCurrencyPairs()
 
 	if err != nil {
 		log.Fatalf("Fatal error retrieving config currency AvailablePairs. Error: ", err)
