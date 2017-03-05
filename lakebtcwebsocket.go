@@ -7,6 +7,10 @@ import (
 	"net/http"
 )
 
+type LakeBTCWebsocketTickerResponse struct {
+	Blah float64
+}
+
 const (
 	LAKEBTC_WEBSOCKET_URL = "wss://www.LakeBTC.com/websocket"
 )

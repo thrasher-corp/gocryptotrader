@@ -157,6 +157,7 @@ func (i *ItBit) GetTickerPrice(currency string) (TickerPrice, error) {
 	tickerPrice.Bid = ticker.Bid
 	tickerPrice.FirstCurrency = currency[0:3]
 	tickerPrice.SecondCurrency = currency[3:]
+	tickerPrice.Last = ticker.LastPrice
 	tickerPrice.High = ticker.High24h
 	tickerPrice.Low = ticker.Low24h
 	tickerPrice.Volume = ticker.Volume24h

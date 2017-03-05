@@ -241,10 +241,12 @@ func (b *BTCC) Run() {
 
 	for b.Enabled {
 		for _, x := range b.EnabledPairs {
+			currency := x
 			go func() {
-				currency := x
+				log.Println(currency)
 				ticker, err := b.GetTickerPrice(StringToLower(currency))
 				if err != nil {
+					log.Println(err)
 					return
 				}
 				log.Printf("BTCC %s: Last %f High %f Low %f Volume %f\n", currency, ticker.Last, ticker.High, ticker.Low, ticker.Volume)

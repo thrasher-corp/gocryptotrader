@@ -85,8 +85,8 @@ type ANXTicker struct {
 		Last       ANXTickerComponent `json:"last"`
 		Buy        ANXTickerComponent `json:"buy"`
 		Sell       ANXTickerComponent `json:"sell"`
-		Now        float64            `json:"now"`
-		UpdateTime float64            `json:"dataUpdateTime"`
+		Now        string             `json:"now"`
+		UpdateTime string             `json:"dataUpdateTime"`
 	} `json:"data"`
 }
 

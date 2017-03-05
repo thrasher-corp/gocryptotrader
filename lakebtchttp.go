@@ -10,8 +10,8 @@ import (
 )
 
 const (
-	LAKEBTC_API_URL          = "https://www.LakeBTC.com/api_v1/"
-	LAKEBTC_API_VERSION      = "1"
+	LAKEBTC_API_URL          = "https://api.lakebtc.com/api_v2/"
+	LAKEBTC_API_VERSION      = "2"
 	LAKEBTC_TICKER           = "ticker"
 	LAKEBTC_ORDERBOOK        = "bcorderbook"
 	LAKEBTC_ORDERBOOK_CNY    = "bcorderbook_cny"
@@ -50,11 +50,6 @@ type LakeBTCTicker struct {
 type LakeBTCOrderbook struct {
 	Bids [][]float64 `json:"asks"`
 	Asks [][]float64 `json:"bids"`
-}
-
-type LakeBTCTickerResponse struct {
-	USD LakeBTCTicker
-	CNY LakeBTCTicker
 }
 
 func (l *LakeBTC) SetDefaults() {
@@ -128,36 +123,63 @@ func (l *LakeBTC) Run() {
 	}
 
 	for l.Enabled {
-		ticker, err := l.GetTickerPrice("BTCUSD")
-		if err != nil {
-			log.Println(err)
-			return
-		}
-		ticker, err = l.GetTickerPrice("BTCCNY")
-		if err != nil {
-			log.Println(err)
-			return
-		}
 		for _, x := range l.EnabledPairs {
-			if x == "BTCUSD" {
-				log.Printf("LakeBTC BTC USD: Last %f High %f Low %f Volume %f\n", ticker.Last, ticker.High, ticker.Low, ticker.Volume)
-				AddExchangeInfo(l.GetName(), x[0:3], x[3:], ticker.Last, ticker.Volume)
-			} else if x == "BTCCNY" {
-				log.Printf("LakeBTC BTC CNY: Last %f High %f Low %f Volume %f\n", ticker.Last, ticker.High, ticker.Low, ticker.Volume)
-				AddExchangeInfo(l.GetName(), x[0:3], x[3:], ticker.Last, ticker.Volume)
+			ticker, err := l.GetTickerPrice(x)
+			if err != nil {
+				log.Println(err)
+				continue
 			}
+			log.Printf("LakeBTC BTC %s: Last %f High %f Low %f Volume %f\n", x[3:], ticker.Last, ticker.High, ticker.Low, ticker.Volume)
+			AddExchangeInfo(l.GetName(), x[0:3], x[3:], ticker.Last, ticker.Volume)
 		}
 		time.Sleep(time.Second * l.RESTPollingDelay)
 	}
 }
 
-func (l *LakeBTC) GetTicker() (LakeBTCTickerResponse, error) {
-	response := LakeBTCTickerResponse{}
+/* Silly hack due to API returning null instead of strings */
+type LakeBTCTickerResponse struct {
+	Last   interface{}
+	Bid    interface{}
+	Ask    interface{}
+	High   interface{}
+	Low    interface{}
+	Volume interface{}
+}
+
+func (l *LakeBTC) GetTicker() (map[string]LakeBTCTicker, error) {
+	response := make(map[string]LakeBTCTickerResponse)
 	err := SendHTTPGetRequest(LAKEBTC_API_URL+LAKEBTC_TICKER, true, &response)
 	if err != nil {
-		return response, err
+		return nil, err
 	}
-	return response, nil
+	result := make(map[string]LakeBTCTicker)
+
+	var addresses []string
+	for k, v := range response {
+		var ticker LakeBTCTicker
+		key := StringToUpper(k)
+		if v.Ask != nil {
+			ticker.Ask, _ = strconv.ParseFloat(v.Ask.(string), 64)
+		}
+		if v.Bid != nil {
+			ticker.Bid, _ = strconv.ParseFloat(v.Bid.(string), 64)
+		}
+		if v.High != nil {
+			ticker.High, _ = strconv.ParseFloat(v.High.(string), 64)
+		}
+		if v.Last != nil {
+			ticker.Last, _ = strconv.ParseFloat(v.Last.(string), 64)
+		}
+		if v.Low != nil {
+			ticker.Low, _ = strconv.ParseFloat(v.Low.(string), 64)
+		}
+		if v.Volume != nil {
+			ticker.Volume, _ = strconv.ParseFloat(v.Volume.(string), 64)
+		}
+		result[key] = ticker
+		addresses = append(addresses, key)
+	}
+	return result, nil
 }
 
 func (l *LakeBTC) GetTickerPrice(currency string) (TickerPrice, error) {
@@ -166,28 +188,23 @@ func (l *LakeBTC) GetTickerPrice(currency string) (TickerPrice, error) {
 		return tickerNew, nil
 	}
 
-	var tickerPrice TickerPrice
 	ticker, err := l.GetTicker()
 	if err != nil {
-		return tickerPrice, err
+		return TickerPrice{}, err
 	}
 
-	if currency == "USD" {
-		tickerPrice.Ask = ticker.USD.Ask
-		tickerPrice.Bid = ticker.USD.Bid
-		tickerPrice.Volume = ticker.USD.Volume
-		tickerPrice.High = ticker.USD.High
-		tickerPrice.Low = ticker.USD.Low
-		tickerPrice.Last = ticker.USD.Last
-	} else if currency == "CNY" {
-		tickerPrice.Ask = ticker.CNY.Ask
-		tickerPrice.Bid = ticker.CNY.Bid
-		tickerPrice.Volume = ticker.CNY.Volume
-		tickerPrice.High = ticker.CNY.High
-		tickerPrice.Low = ticker.CNY.Low
-		tickerPrice.Last = ticker.CNY.Last
+	result, ok := ticker[currency]
+	if !ok {
+		return TickerPrice{}, err
 	}
 
+	var tickerPrice TickerPrice
+	tickerPrice.Ask = result.Ask
+	tickerPrice.Bid = result.Bid
+	tickerPrice.Volume = result.Volume
+	tickerPrice.High = result.High
+	tickerPrice.Low = result.Low
+	tickerPrice.Last = result.Last
 	tickerPrice.FirstCurrency = currency[0:3]
 	tickerPrice.SecondCurrency = currency[3:]
 	ProcessTicker(l.GetName(), tickerPrice.FirstCurrency, tickerPrice.SecondCurrency, tickerPrice)

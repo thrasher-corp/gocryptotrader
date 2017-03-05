@@ -117,6 +117,27 @@ func (k *Kraken) Run() {
 		log.Printf("%s %d currencies enabled: %s.\n", k.GetName(), len(k.EnabledPairs), k.EnabledPairs)
 	}
 
+	assetPairs, err := k.GetAssetPairs()
+	if err != nil {
+		log.Printf("%s Failed to get available symbols.\n", k.GetName())
+	} else {
+		var exchangeProducts []string
+		for _, v := range assetPairs {
+			exchangeProducts = append(exchangeProducts, v.Altname)
+		}
+		diff := StringSliceDifference(k.AvailablePairs, exchangeProducts)
+		if len(diff) > 0 {
+			exch, err := GetExchangeConfig(k.Name)
+			if err != nil {
+				log.Println(err)
+			} else {
+				log.Printf("%s Updating available pairs. Difference: %s.\n", k.Name, diff)
+				exch.AvailablePairs = JoinStrings(exchangeProducts, ",")
+				UpdateExchangeConfig(exch)
+			}
+		}
+	}
+
 	for k.Enabled {
 		err := k.GetTicker(JoinStrings(k.EnabledPairs, ","))
 		if err != nil {
@@ -158,17 +179,40 @@ func (k *Kraken) GetAssets() error {
 	return nil
 }
 
-func (k *Kraken) GetAssetPairs() error {
-	var result interface{}
-	path := fmt.Sprintf("%s/%s/public/%s", KRAKEN_API_URL, KRAKEN_API_VERSION, KRAKEN_ASSET_PAIRS)
-	err := SendHTTPGetRequest(path, true, &result)
+type KrakenAssetPairs struct {
+	Altname           string      `json:"altname"`
+	AclassBase        string      `json:"aclass_base"`
+	Base              string      `json:"base"`
+	AclassQuote       string      `json:"aclass_quote"`
+	Quote             string      `json:"quote"`
+	Lot               string      `json:"lot"`
+	PairDecimals      int         `json:"pair_decimals"`
+	LotDecimals       int         `json:"lot_decimals"`
+	LotMultiplier     int         `json:"lot_multiplier"`
+	LeverageBuy       []int       `json:"leverage_buy"`
+	LeverageSell      []int       `json:"leverage_sell"`
+	Fees              [][]float64 `json:"fees"`
+	FeesMaker         [][]float64 `json:"fees_maker"`
+	FeeVolumeCurrency string      `json:"fee_volume_currency"`
+	MarginCall        int         `json:"margin_call"`
+	MarginStop        int         `json:"margin_stop"`
+}
 
-	if err != nil {
-		return err
+func (k *Kraken) GetAssetPairs() (map[string]KrakenAssetPairs, error) {
+	type Response struct {
+		Result map[string]KrakenAssetPairs `json:"result"`
+		Error  []interface{}               `json:"error"`
 	}
 
-	log.Println(result)
-	return nil
+	response := Response{}
+	path := fmt.Sprintf("%s/%s/public/%s", KRAKEN_API_URL, KRAKEN_API_VERSION, KRAKEN_ASSET_PAIRS)
+	err := SendHTTPGetRequest(path, true, &response)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return response.Result, nil
 }
 
 type KrakenTicker struct {
