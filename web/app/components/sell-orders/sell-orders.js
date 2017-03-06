@@ -1,7 +1,7 @@
 
-angular.module('myApp.buyOrders',[]).component('buyorders', {
-  templateUrl: '/components/buy-orders/buy-orders.html',
-  controller:'BuyOrdersController',
+angular.module('myApp.sellOrders',[]).component('sellorders', {
+  templateUrl: '/components/sell-orders/sell-orders.html',
+  controller:'SellOrdersController',
   controller: function ($scope, $http, Notification, $rootScope) {
     $scope.currency = {};
     $scope.exchange = {};
@@ -11,24 +11,24 @@ angular.module('myApp.buyOrders',[]).component('buyorders', {
        $scope.exchange = args.Exchange;
        $scope.currencyOne = $scope.currency.FirstCurrency;
        $scope.currencyTwo  = $scope.currency.SecondCurrency;
-       $scope.getRecentBuyOrders();
+       $scope.getRecentSellOrders();
      });
 
-     $scope.getRecentBuyOrders = function() {
+     $scope.getRecentSellOrders = function() {
        var exchData = {params : {exchangeName: '', currencyPair:''}};
-       $http.get('/GetBuyOrdersForCurrencyPair' , exchData).success(function(data) {
-          $scope.buyOrders = data;
+       $http.get('/GetSellOrdersForCurrencyPair' , exchData).success(function(data) {
+          $scope.sellOrders = data;
        }).error(function() {
-           $scope.buyOrders = [
-          {price:12,currencyOneAmount:12,currencyTwoAmount:13,sum:1111},
-          {price:13,currencyOneAmount:15,currencyTwoAmount:13,sum:11231},
-          {price:14,currencyOneAmount:232,currencyTwoAmount:13,sum:4511},
+           $scope.sellOrders = [
+          {price:456,currencyOneAmount:12,currencyTwoAmount:13,sum:1111},
+          {price:234,currencyOneAmount:15,currencyTwoAmount:13,sum:11231},
+          {price:12344,currencyOneAmount:232,currencyTwoAmount:13,sum:4511},
+          {price:15467,currencyOneAmount:22,currencyTwoAmount:13,sum:11212311},
+          {price:6717,currencyOneAmount:2452,currencyTwoAmount:13,sum:11212311},
           {price:17,currencyOneAmount:22,currencyTwoAmount:13,sum:11212311},
           {price:17,currencyOneAmount:22,currencyTwoAmount:13,sum:11212311},
           {price:17,currencyOneAmount:22,currencyTwoAmount:13,sum:11212311},
-          {price:17,currencyOneAmount:22,currencyTwoAmount:13,sum:11212311},
-          {price:17,currencyOneAmount:22,currencyTwoAmount:13,sum:11212311},
-          {price:17,currencyOneAmount:22,currencyTwoAmount:13,sum:11212311},
+          {price:17,currencyOneAmount:34522,currencyTwoAmount:13,sum:11212311},
           {price:17,currencyOneAmount:22,currencyTwoAmount:13,sum:11212311},
           {price:17,currencyOneAmount:22,currencyTwoAmount:13,sum:11212311},
           {price:17,currencyOneAmount:22,currencyTwoAmount:13,sum:11212311},

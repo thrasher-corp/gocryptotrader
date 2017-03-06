@@ -12,6 +12,7 @@ angular.module('myApp', [
     'myApp.sell',
     'myApp.enabledExchanges',
     'myApp.buyOrders',
+    'myApp.sellOrders',
     'myApp.stringUtils'
 ]).
 config(['$locationProvider', '$routeProvider', 'NotificationProvider', function($locationProvider, $routeProvider, NotificationProvider) {

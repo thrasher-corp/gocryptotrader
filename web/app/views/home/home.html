@@ -1,6 +1,6 @@
 <div class="col-md-12">
     <div ng-show="loaded">
-        <div class="col-md-11">
+        <div class="col-md-12">
             <h2>{{exchange.exchangeName}} Exchange</h2>
             <h4>{{currency.CurrencyPair}}</h4>
         </div>
@@ -9,6 +9,9 @@
                 <!-- This is to get a sense of scale, I don't intend on any hardcoded heights!' -->
                 <div class="col-md-6" style=" height: 300px;">
                     <h3>Sell orders</h3>
+                    <!--plceholder-->
+                    <sellorders></sellorders>
+                    
                 </div>
                 <div class="col-md-6" style=" height: 300px;">
                     <h3>Buy orders</h3>
@@ -40,10 +43,7 @@
             </div>
         </div>
         <div class="col-md-4">
-            <div class="col-md-11">
                 <enabledexchanges></enabledexchanges>
-            </div>
-
         </div>
     </div>
     <div ng-show="!loaded && !loadFailed" class="col-md-12 text-center">
