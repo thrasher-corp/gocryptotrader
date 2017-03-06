@@ -17,8 +17,7 @@
     "protractor": "^3.2.2",
     "express": "latest",
     "requestify": "latest",
-    "body-parser": "latest",
-	"ui-grid":"latest"
+    "body-parser": "latest"
   },
   "scripts": {
     "postinstall": "bower install",
