@@ -253,7 +253,6 @@ func SendHTTPGetRequest(url string, jsonDecode bool, result interface{}) (err er
 		err := JSONDecode(contents, &result)
 
 		if err != nil {
-			log.Println(url)
 			return err
 		}
 	} else {

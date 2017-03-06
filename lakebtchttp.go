@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -285,8 +284,8 @@ type LakeBTCAccountInfo struct {
 	Locked  map[string]string `json:"locked"`
 	Profile struct {
 		Email             string `json:"email"`
-		UID               int64  `json:"uid,string"`
-		BTCDepositAddress string `json:"btc_deposit_address"`
+		UID               string `json:"uid"`
+		BTCDepositAddress string `json:"btc_deposit_addres"`
 	} `json:"profile"`
 }
 
@@ -303,19 +302,23 @@ func (l *LakeBTC) GetAccountInfo() (LakeBTCAccountInfo, error) {
 
 func (l *LakeBTC) GetExchangeAccountInfo() (ExchangeAccountInfo, error) {
 	var response ExchangeAccountInfo
-	/* to-do	response.ExchangeName = l.GetName()
-	accountBalance, err := l.GetAccountInfo()
+	response.ExchangeName = l.GetName()
+	accountInfo, err := l.GetAccountInfo()
 	if err != nil {
 		return response, err
 	}
-	currencies := l.AvailablePairs
-	for i := 0; i < len(currencies); i++ {
-		var exchangeCurrency ExchangeAccountCurrencyInfo
-		exchangeCurrency.CurrencyName = currencies[i]
-		/exchangeCurrency.TotalValue = accountBalance.Currency[currencies[i]] to-do
-		response.Currencies = append(response.Currencies, exchangeCurrency)
+
+	for x, y := range accountInfo.Balance {
+		for z, w := range accountInfo.Locked {
+			if z == x {
+				var exchangeCurrency ExchangeAccountCurrencyInfo
+				exchangeCurrency.CurrencyName = StringToUpper(x)
+				exchangeCurrency.TotalValue, _ = strconv.ParseFloat(y, 64)
+				exchangeCurrency.Hold, _ = strconv.ParseFloat(w, 64)
+				response.Currencies = append(response.Currencies, exchangeCurrency)
+			}
+		}
 	}
-	*/
 	return response, nil
 }
 
@@ -329,7 +332,7 @@ func (l *LakeBTC) Trade(orderType int, amount, price float64, currency string) (
 	params := strconv.FormatFloat(price, 'f', -1, 64) + "," + strconv.FormatFloat(amount, 'f', -1, 64) + "," + currency
 	err := errors.New("")
 
-	if orderType == 0 {
+	if orderType == 1 {
 		err = l.SendAuthenticatedHTTPRequest(LAKEBTC_BUY_ORDER, params, &resp)
 	} else {
 		err = l.SendAuthenticatedHTTPRequest(LAKEBTC_SELL_ORDER, params, &resp)
@@ -461,13 +464,13 @@ type LakeBTCWithdraw struct {
 	State             string  `json:"state"`
 	Source            string  `json:"source"`
 	ExternalAccountID int64   `json:"external_account_id,string"`
-	At                int64   `json:"at,string"`
+	At                int64   `json:"at"`
 }
 
 /* Only for BTC */
 func (l *LakeBTC) CreateWithdraw(amount float64, accountID int64) (LakeBTCWithdraw, error) {
 	resp := LakeBTCWithdraw{}
-	params := strconv.FormatFloat(amount, 'f', -1, 64) + ",btc" + strconv.FormatInt(accountID, 10)
+	params := strconv.FormatFloat(amount, 'f', -1, 64) + ",btc," + strconv.FormatInt(accountID, 10)
 	err := l.SendAuthenticatedHTTPRequest(LAKEBTC_CREATE_WITHDRAW, params, &resp)
 	if err != nil {
 		return resp, err
@@ -477,39 +480,49 @@ func (l *LakeBTC) CreateWithdraw(amount float64, accountID int64) (LakeBTCWithdr
 
 func (l *LakeBTC) SendAuthenticatedHTTPRequest(method, params string, result interface{}) (err error) {
 	nonce := strconv.FormatInt(time.Now().UnixNano(), 10)
-	id := "1"
-	v := url.Values{}
-	v.Set("tnonce", nonce)
-	v.Set("accesskey", l.APIKey)
-	v.Set("requestmethod", "POST")
-	v.Set("id", id)
-	v.Set("method", method)
-	v.Set("params", params)
-	encoded := v.Encode()
-	hmac := GetHMAC(HASH_SHA1, []byte(encoded), []byte(l.APISecret))
+	req := fmt.Sprintf("tonce=%s&accesskey=%s&requestmethod=post&id=1&method=%s&params=%s", nonce, l.APIKey, method, params)
+	hmac := GetHMAC(HASH_SHA1, []byte(req), []byte(l.APISecret))
 
 	if l.Verbose {
-		log.Printf("Sending POST request to %s calling method %s with params %s\n", LAKEBTC_API_URL, method, encoded)
+		log.Printf("Sending POST request to %s calling method %s with params %s\n", LAKEBTC_API_URL, method, req)
 	}
 
-	v = url.Values{}
-	v.Set("method", method)
-	v.Set("id", id)
-	v.Set("params", params)
+	postData := make(map[string]interface{})
+	postData["method"] = method
+	postData["id"] = 1
+	postData["params"] = SplitStrings(params, ",")
+
+	data, err := JSONEncode(postData)
+	if err != nil {
+		return err
+	}
 
 	headers := make(map[string]string)
 	headers["Json-Rpc-Tonce"] = nonce
 	headers["Authorization"] = "Basic " + Base64Encode([]byte(l.APIKey+":"+HexEncodeToString(hmac)))
-	headers["Content-Type"] = "application/x-www-form-urlencoded"
+	headers["Content-Type"] = "application/json-rpc"
 
-	resp, err := SendHTTPRequest("POST", LAKEBTC_API_URL, headers, strings.NewReader(v.Encode()))
-
+	resp, err := SendHTTPRequest("POST", LAKEBTC_API_URL, headers, strings.NewReader(string(data)))
 	if err != nil {
 		return err
 	}
 
 	if l.Verbose {
 		log.Printf("Recieved raw: %s\n", resp)
+	}
+
+	type ErrorResponse struct {
+		Error string `json:"error"`
+	}
+
+	errResponse := ErrorResponse{}
+	err = JSONDecode([]byte(resp), &errResponse)
+	if err != nil {
+		return errors.New("Unable to check response for error.")
+	}
+
+	if errResponse.Error != "" {
+		return errors.New(errResponse.Error)
 	}
 
 	err = JSONDecode([]byte(resp), &result)

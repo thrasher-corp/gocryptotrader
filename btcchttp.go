@@ -243,7 +243,6 @@ func (b *BTCC) Run() {
 		for _, x := range b.EnabledPairs {
 			currency := x
 			go func() {
-				log.Println(currency)
 				ticker, err := b.GetTickerPrice(StringToLower(currency))
 				if err != nil {
 					log.Println(err)

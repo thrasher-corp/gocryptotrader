@@ -339,7 +339,6 @@ func (a *ANX) OrderInfo(orderID string) (ANXOrderResponse, error) {
 	err := a.SendAuthenticatedHTTPRequest(ANX_ORDER_INFO, request, &response)
 
 	if err != nil {
-		log.Println(err)
 		return ANXOrderResponse{}, err
 	}
 

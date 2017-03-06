@@ -415,8 +415,6 @@ func (b *Bitfinex) GetAccountInfo() ([]BitfinexAccountInfo, error) {
 	if err != nil {
 		log.Println(err)
 	}
-
-	log.Println(response)
 	return response, nil
 }
 
