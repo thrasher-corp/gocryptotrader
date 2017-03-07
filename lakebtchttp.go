@@ -120,13 +120,8 @@ func (l *LakeBTC) GetFee(maker bool) float64 {
 
 func (l *LakeBTC) Run() {
 	if l.Verbose {
-		log.Printf("%s Websocket: %s. (url: %s).\n", l.GetName(), IsEnabled(l.Websocket), LAKEBTC_WEBSOCKET_URL)
 		log.Printf("%s polling delay: %ds.\n", l.GetName(), l.RESTPollingDelay)
 		log.Printf("%s %d currencies enabled: %s.\n", l.GetName(), len(l.EnabledPairs), l.EnabledPairs)
-	}
-
-	if l.Websocket {
-		go l.WebsocketClient()
 	}
 
 	for l.Enabled {
