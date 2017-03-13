@@ -242,25 +242,9 @@ func (b *BTCE) GetTrades(symbol string) {
 	log.Println(trades)
 }
 
-type BTCEFunds struct {
-	BTC float64 `json:"btc"`
-	CNH float64 `json:"cnh"`
-	EUR float64 `json:"eur"`
-	FTC float64 `json:"ftc"`
-	GBP float64 `json:"gbp"`
-	LTC float64 `json:"ltc"`
-	NMC float64 `json:"nmc"`
-	NVC float64 `json:"nvc"`
-	PPC float64 `json:"ppc"`
-	RUR float64 `json:"rur"`
-	TRC float64 `json:"trc"`
-	USD float64 `json:"usd"`
-	XPM float64 `json:"xpm"`
-}
-
 type BTCEAccountInfo struct {
-	Funds      BTCEFunds `json:"funds"`
-	OpenOrders int       `json:"open_orders"`
+	Funds      map[string]float64 `json:"funds"`
+	OpenOrders int                `json:"open_orders"`
 	Rights     struct {
 		Info     int `json:"info"`
 		Trade    int `json:"trade"`
@@ -290,72 +274,13 @@ func (e *BTCE) GetExchangeAccountInfo() (ExchangeAccountInfo, error) {
 		return response, err
 	}
 
-	//Surely there's a better way to transform the object
-	//This will do for now
-	var btcValue ExchangeAccountCurrencyInfo
-	btcValue.CurrencyName = "BTC"
-	btcValue.TotalValue = accountBalance.Funds.BTC
-	response.Currencies = append(response.Currencies, btcValue)
-
-	var cnhValue ExchangeAccountCurrencyInfo
-	cnhValue.CurrencyName = "CNH"
-	cnhValue.TotalValue = accountBalance.Funds.CNH
-	response.Currencies = append(response.Currencies, cnhValue)
-
-	var eurValue ExchangeAccountCurrencyInfo
-	eurValue.CurrencyName = "EUR"
-	eurValue.TotalValue = accountBalance.Funds.EUR
-	response.Currencies = append(response.Currencies, eurValue)
-
-	var ftcValue ExchangeAccountCurrencyInfo
-	ftcValue.CurrencyName = "FTC"
-	ftcValue.TotalValue = accountBalance.Funds.FTC
-	response.Currencies = append(response.Currencies, ftcValue)
-
-	var gpbValue ExchangeAccountCurrencyInfo
-	gpbValue.CurrencyName = "GBP"
-	gpbValue.TotalValue = accountBalance.Funds.GBP
-	response.Currencies = append(response.Currencies, gpbValue)
-
-	var ltcValue ExchangeAccountCurrencyInfo
-	ltcValue.CurrencyName = "LTC"
-	ltcValue.TotalValue = accountBalance.Funds.LTC
-	response.Currencies = append(response.Currencies, ltcValue)
-
-	var nmcValue ExchangeAccountCurrencyInfo
-	nmcValue.CurrencyName = "NMC"
-	nmcValue.TotalValue = accountBalance.Funds.NMC
-	response.Currencies = append(response.Currencies, nmcValue)
-
-	var nvcValue ExchangeAccountCurrencyInfo
-	nvcValue.CurrencyName = "NVC"
-	nvcValue.TotalValue = accountBalance.Funds.NVC
-	response.Currencies = append(response.Currencies, nvcValue)
-
-	var ppcValue ExchangeAccountCurrencyInfo
-	ppcValue.CurrencyName = "PPC"
-	ppcValue.TotalValue = accountBalance.Funds.PPC
-	response.Currencies = append(response.Currencies, ppcValue)
-
-	var rurValue ExchangeAccountCurrencyInfo
-	rurValue.CurrencyName = "RUR"
-	rurValue.TotalValue = accountBalance.Funds.RUR
-	response.Currencies = append(response.Currencies, rurValue)
-
-	var trcValue ExchangeAccountCurrencyInfo
-	trcValue.CurrencyName = "TRC"
-	trcValue.TotalValue = accountBalance.Funds.TRC
-	response.Currencies = append(response.Currencies, trcValue)
-
-	var usdValue ExchangeAccountCurrencyInfo
-	usdValue.CurrencyName = "USD"
-	usdValue.TotalValue = accountBalance.Funds.USD
-	response.Currencies = append(response.Currencies, usdValue)
-
-	var xpmValue ExchangeAccountCurrencyInfo
-	xpmValue.CurrencyName = "XPM"
-	xpmValue.TotalValue = accountBalance.Funds.XPM
-	response.Currencies = append(response.Currencies, xpmValue)
+	for x, y := range accountBalance.Funds {
+		var exchangeCurrency ExchangeAccountCurrencyInfo
+		exchangeCurrency.CurrencyName = StringToUpper(x)
+		exchangeCurrency.TotalValue = y
+		exchangeCurrency.Hold = 0
+		response.Currencies = append(response.Currencies, exchangeCurrency)
+	}
 
 	return response, nil
 }
@@ -408,8 +333,8 @@ func (b *BTCE) GetOrderInfo(OrderID int64) (map[string]BTCEOrderInfo, error) {
 }
 
 type BTCECancelOrder struct {
-	OrderID float64   `json:"order_id"`
-	Funds   BTCEFunds `json:"funds"`
+	OrderID float64            `json:"order_id"`
+	Funds   map[string]float64 `json:"funds"`
 }
 
 func (b *BTCE) CancelOrder(OrderID int64) (bool, error) {
@@ -427,10 +352,10 @@ func (b *BTCE) CancelOrder(OrderID int64) (bool, error) {
 }
 
 type BTCETrade struct {
-	Received float64   `json:"received"`
-	Remains  float64   `json:"remains"`
-	OrderID  float64   `json:"order_id"`
-	Funds    BTCEFunds `json:"funds"`
+	Received float64            `json:"received"`
+	Remains  float64            `json:"remains"`
+	OrderID  float64            `json:"order_id"`
+	Funds    map[string]float64 `json:"funds"`
 }
 
 //to-do: convert orderid to int64
@@ -513,9 +438,9 @@ func (b *BTCE) GetTradeHistory(TIDFrom, Count, TIDEnd int64, order, since, end, 
 }
 
 type BTCEWithdrawCoins struct {
-	TID        int64     `json:"tId"`
-	AmountSent float64   `json:"amountSent"`
-	Funds      BTCEFunds `json:"funds"`
+	TID        int64              `json:"tId"`
+	AmountSent float64            `json:"amountSent"`
+	Funds      map[string]float64 `json:"funds"`
 }
 
 func (b *BTCE) WithdrawCoins(coin string, amount float64, address string) (BTCEWithdrawCoins, error) {
@@ -535,9 +460,9 @@ func (b *BTCE) WithdrawCoins(coin string, amount float64, address string) (BTCEW
 }
 
 type BTCECreateCoupon struct {
-	Coupon  string    `json:"coupon"`
-	TransID int64     `json:"transID"`
-	Funds   BTCEFunds `json:"funds"`
+	Coupon  string             `json:"coupon"`
+	TransID int64              `json:"transID"`
+	Funds   map[string]float64 `json:"funds"`
 }
 
 func (b *BTCE) CreateCoupon(currency string, amount float64) (BTCECreateCoupon, error) {
