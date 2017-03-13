@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"reflect"
 	"testing"
+	"time"
 )
 
 func TestIsEnabled(t *testing.T) {
@@ -242,5 +243,30 @@ func TestExtractPort(t *testing.T) {
 	actualResult := ExtractPort(address)
 	if expectedOutput != actualResult {
 		t.Error(fmt.Sprintf("Test failed. Expected '%d'. Actual '%d'.", expectedOutput, actualResult))
+	}
+}
+
+func TestUnixTimestampToTime(t *testing.T) {
+	t.Parallel()
+	testTime := int64(1489439831)
+	tm := time.Unix(testTime, 0)
+	expectedOutput := "2017-03-13 21:17:11 +0000 UTC"
+	actualResult := UnixTimestampToTime(testTime)
+	if tm.String() != actualResult.String() {
+		t.Error(fmt.Sprintf("Test failed. Expected '%s'. Actual '%s'.", expectedOutput, actualResult))
+	}
+}
+
+func TestUnixTimestampStrToTime(t *testing.T) {
+	t.Parallel()
+	testTime := "1489439831"
+	expectedOutput := "2017-03-13 21:17:11 +0000 UTC"
+	actualResult, err := UnixTimestampStrToTime(testTime)
+	if err != nil {
+		t.Error(err)
+	}
+
+	if actualResult.UTC().String() != expectedOutput {
+		t.Error(fmt.Sprintf("Test failed. Expected '%s'. Actual '%s'.", expectedOutput, actualResult))
 	}
 }

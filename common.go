@@ -21,6 +21,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 )
 
 const (
@@ -319,4 +320,17 @@ func OutputCSV(path string, data [][]string) error {
 
 	defer writer.Flush()
 	return nil
+}
+
+func UnixTimestampToTime(timeint64 int64) time.Time {
+	return time.Unix(timeint64, 0)
+}
+
+func UnixTimestampStrToTime(timeStr string) (time.Time, error) {
+	i, err := strconv.ParseInt(timeStr, 10, 64)
+	if err != nil {
+		return time.Time{}, err
+	}
+
+	return time.Unix(i, 0), nil
 }
