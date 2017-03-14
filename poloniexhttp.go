@@ -143,7 +143,8 @@ func (p *Poloniex) Run() {
 					return
 				}
 				log.Printf("Poloniex %s Last %f High %f Low %f Volume %f\n", currency, ticker.Last, ticker.High, ticker.Low, ticker.Volume)
-				//AddExchangeInfo(p.GetName(), currency[0:3], currency[3:], ticker.Last, ticker.Volume)
+				currencyPair := SplitStrings(currency, "_")
+				AddExchangeInfo(p.GetName(), currencyPair[0], currencyPair[1], ticker.Last, ticker.Volume)
 			}()
 		}
 		time.Sleep(time.Second * p.RESTPollingDelay)
@@ -177,8 +178,9 @@ func (p *Poloniex) GetTickerPrice(currency string) (TickerPrice, error) {
 		return tickerPrice, err
 	}
 
-	tickerPrice.FirstCurrency = currency[0:3]
-	tickerPrice.SecondCurrency = currency[3:]
+	currencyPair := SplitStrings(currency, "_")
+	tickerPrice.FirstCurrency = currencyPair[0]
+	tickerPrice.SecondCurrency = currencyPair[1]
 	tickerPrice.Ask = ticker[currency].Last
 	tickerPrice.Bid = ticker[currency].HighestBid
 	tickerPrice.High = ticker[currency].HighestBid
