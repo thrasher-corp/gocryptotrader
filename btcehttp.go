@@ -165,13 +165,30 @@ func (b *BTCE) Run() {
 	}
 }
 
-func (b *BTCE) GetInfo() {
+type BTCEPair struct {
+	DecimalPlaces int     `json:"decimal_places"`
+	MinPrice      float64 `json:"min_price"`
+	MaxPrice      float64 `json:"max_price"`
+	MinAmount     float64 `json:"min_amount"`
+	Hidden        int     `json:"hidden"`
+	Fee           float64 `json:"fee"`
+}
+
+type BTCEInfo struct {
+	ServerTime int64               `json:"server_time"`
+	Pairs      map[string]BTCEPair `json:"pairs"`
+}
+
+func (b *BTCE) GetInfo() (BTCEInfo, error) {
 	req := fmt.Sprintf("%s/%s/%s/", BTCE_API_PUBLIC_URL, BTCE_API_PUBLIC_VERSION, BTCE_INFO)
-	err := SendHTTPGetRequest(req, true, nil)
+	resp := BTCEInfo{}
+	err := SendHTTPGetRequest(req, true, &resp)
 
 	if err != nil {
-		log.Println(err)
+		return resp, err
 	}
+
+	return resp, nil
 }
 
 func (b *BTCE) GetTicker(symbol string) (map[string]BTCeTicker, error) {
