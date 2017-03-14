@@ -207,39 +207,38 @@ func (b *BTCE) GetTickerPrice(currency string) (TickerPrice, error) {
 	return tickerPrice, nil
 }
 
-func (b *BTCE) GetDepth(symbol string) {
+func (b *BTCE) GetDepth(symbol string) (BTCEOrderbook, error) {
 	type Response struct {
 		Data map[string]BTCEOrderbook
 	}
 
 	response := Response{}
 	req := fmt.Sprintf("%s/%s/%s/%s", BTCE_API_PUBLIC_URL, BTCE_API_PUBLIC_VERSION, BTCE_DEPTH, symbol)
-	err := SendHTTPGetRequest(req, true, &response.Data)
 
+	err := SendHTTPGetRequest(req, true, &response.Data)
 	if err != nil {
-		log.Println(err)
-		return
+		return BTCEOrderbook{}, err
 	}
 
 	depth := response.Data[symbol]
-	log.Println(depth)
+	return depth, nil
 }
 
-func (b *BTCE) GetTrades(symbol string) {
+func (b *BTCE) GetTrades(symbol string) ([]BTCETrades, error) {
 	type Response struct {
 		Data map[string][]BTCETrades
 	}
 
 	response := Response{}
 	req := fmt.Sprintf("%s/%s/%s/%s", BTCE_API_PUBLIC_URL, BTCE_API_PUBLIC_VERSION, BTCE_TRADES, symbol)
-	err := SendHTTPGetRequest(req, true, &response.Data)
 
+	err := SendHTTPGetRequest(req, true, &response.Data)
 	if err != nil {
-		log.Println(err)
+		return []BTCETrades{}, err
 	}
 
 	trades := response.Data[symbol]
-	log.Println(trades)
+	return trades, nil
 }
 
 type BTCEAccountInfo struct {
