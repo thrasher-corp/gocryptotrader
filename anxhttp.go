@@ -144,7 +144,7 @@ func (a *ANX) SetAPIKeys(apiKey, apiSecret string) {
 
 	if err != nil {
 		log.Printf("%s unable to decode secret key. Authenticated API support disabled.", a.GetName())
-		a.AuthenticatedAPISupport = true
+		a.AuthenticatedAPISupport = false
 		return
 	}
 
