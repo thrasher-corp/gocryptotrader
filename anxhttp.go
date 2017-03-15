@@ -7,6 +7,8 @@ import (
 	"log"
 	"strconv"
 	"time"
+
+	"github.com/thrasher-/gocryptotrader/common"
 )
 
 const (
@@ -111,9 +113,9 @@ func (a *ANX) Setup(exch Exchanges) {
 		a.RESTPollingDelay = exch.RESTPollingDelay
 		a.Verbose = exch.Verbose
 		a.Websocket = exch.Websocket
-		a.BaseCurrencies = SplitStrings(exch.BaseCurrencies, ",")
-		a.AvailablePairs = SplitStrings(exch.AvailablePairs, ",")
-		a.EnabledPairs = SplitStrings(exch.EnabledPairs, ",")
+		a.BaseCurrencies = common.SplitStrings(exch.BaseCurrencies, ",")
+		a.AvailablePairs = common.SplitStrings(exch.AvailablePairs, ",")
+		a.EnabledPairs = common.SplitStrings(exch.EnabledPairs, ",")
 	}
 }
 
@@ -140,7 +142,7 @@ func (a *ANX) SetAPIKeys(apiKey, apiSecret string) {
 	}
 
 	a.APIKey = apiKey
-	result, err := Base64Decode(apiSecret)
+	result, err := common.Base64Decode(apiSecret)
 
 	if err != nil {
 		log.Printf("%s unable to decode secret key. Authenticated API support disabled.", a.GetName())
@@ -184,7 +186,7 @@ func (a *ANX) Run() {
 
 func (a *ANX) GetTicker(currency string) (ANXTicker, error) {
 	var ticker ANXTicker
-	err := SendHTTPGetRequest(fmt.Sprintf("%sapi/2/%s/%s", ANX_API_URL, currency, ANX_TICKER), true, &ticker)
+	err := common.SendHTTPGetRequest(fmt.Sprintf("%sapi/2/%s/%s", ANX_API_URL, currency, ANX_TICKER), true, &ticker)
 	if err != nil {
 		return ANXTicker{}, err
 	}
@@ -458,7 +460,7 @@ func (a *ANX) SendAuthenticatedHTTPRequest(path string, params map[string]interf
 		}
 	}
 
-	PayloadJson, err := JSONEncode(request)
+	PayloadJson, err := common.JSONEncode(request)
 
 	if err != nil {
 		return errors.New("SendAuthenticatedHTTPRequest: Unable to JSON request")
@@ -468,19 +470,19 @@ func (a *ANX) SendAuthenticatedHTTPRequest(path string, params map[string]interf
 		log.Printf("Request JSON: %s\n", PayloadJson)
 	}
 
-	hmac := GetHMAC(HASH_SHA512, []byte(path+string("\x00")+string(PayloadJson)), []byte(a.APISecret))
+	hmac := common.GetHMAC(common.HASH_SHA512, []byte(path+string("\x00")+string(PayloadJson)), []byte(a.APISecret))
 	headers := make(map[string]string)
 	headers["Rest-Key"] = a.APIKey
-	headers["Rest-Sign"] = Base64Encode([]byte(hmac))
+	headers["Rest-Sign"] = common.Base64Encode([]byte(hmac))
 	headers["Content-Type"] = "application/json"
 
-	resp, err := SendHTTPRequest("POST", ANX_API_URL+path, headers, bytes.NewBuffer(PayloadJson))
+	resp, err := common.SendHTTPRequest("POST", ANX_API_URL+path, headers, bytes.NewBuffer(PayloadJson))
 
 	if a.Verbose {
 		log.Printf("Recieved raw: \n%s\n", resp)
 	}
 
-	err = JSONDecode([]byte(resp), &result)
+	err = common.JSONDecode([]byte(resp), &result)
 
 	if err != nil {
 		return errors.New("Unable to JSON Unmarshal response.")

@@ -2,8 +2,10 @@ package main
 
 import (
 	"fmt"
-	"github.com/thrasher-/socketio"
 	"log"
+
+	"github.com/thrasher-/gocryptotrader/common"
+	"github.com/thrasher-/socketio"
 )
 
 const (
@@ -54,7 +56,7 @@ func (b *BTCC) OnConnect(output chan socketio.Message) {
 
 	currencies := []string{}
 	for _, x := range b.EnabledPairs {
-		currency := StringToLower(x[3:] + x[0:3])
+		currency := common.StringToLower(x[3:] + x[0:3])
 		currencies = append(currencies, currency)
 	}
 	endpoints := []string{"marketdata", "grouporder"}
@@ -92,7 +94,7 @@ func (b *BTCC) OnTicker(message []byte, output chan socketio.Message) {
 		Ticker BTCCWebsocketTicker `json:"ticker"`
 	}
 	var resp Response
-	err := JSONDecode(message, &resp)
+	err := common.JSONDecode(message, &resp)
 
 	if err != nil {
 		log.Println(err)
@@ -105,7 +107,7 @@ func (b *BTCC) OnGroupOrder(message []byte, output chan socketio.Message) {
 		GroupOrder BTCCWebsocketGroupOrder `json:"grouporder"`
 	}
 	var resp Response
-	err := JSONDecode(message, &resp)
+	err := common.JSONDecode(message, &resp)
 
 	if err != nil {
 		log.Println(err)
@@ -115,7 +117,7 @@ func (b *BTCC) OnGroupOrder(message []byte, output chan socketio.Message) {
 
 func (b *BTCC) OnTrade(message []byte, output chan socketio.Message) {
 	trade := BTCCWebsocketTrade{}
-	err := JSONDecode(message, &trade)
+	err := common.JSONDecode(message, &trade)
 
 	if err != nil {
 		log.Println(err)

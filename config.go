@@ -9,6 +9,8 @@ import (
 	"os"
 	"strconv"
 	"time"
+
+	"github.com/thrasher-/gocryptotrader/common"
 )
 
 const (
@@ -184,11 +186,11 @@ func CheckWebserverValues() error {
 		return errors.New(WarningWebserverCredentialValuesEmpty)
 	}
 
-	if !StringContains(bot.config.Webserver.ListenAddress, ":") {
+	if !common.StringContains(bot.config.Webserver.ListenAddress, ":") {
 		return errors.New(WarningWebserverListenAddressInvalid)
 	}
 
-	portStr := SplitStrings(bot.config.Webserver.ListenAddress, ":")[1]
+	portStr := common.SplitStrings(bot.config.Webserver.ListenAddress, ":")[1]
 	port, err := strconv.Atoi(portStr)
 	if err != nil {
 		return errors.New(WarningWebserverListenAddressInvalid)

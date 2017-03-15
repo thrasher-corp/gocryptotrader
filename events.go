@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"log"
 	"strconv"
+
+	"github.com/thrasher-/gocryptotrader/common"
 )
 
 const (
@@ -88,8 +90,8 @@ func GetEventCounter() (int, int) {
 }
 
 func (e *Event) ExecuteAction() bool {
-	if StringContains(e.Action, ",") {
-		action := SplitStrings(e.Action, ",")
+	if common.StringContains(e.Action, ",") {
+		action := common.SplitStrings(e.Action, ",")
 		if action[0] == ACTION_SMS_NOTIFY {
 			message := fmt.Sprintf("Event triggered: %s", e.EventToString())
 			if action[1] == "ALL" {
@@ -105,13 +107,13 @@ func (e *Event) ExecuteAction() bool {
 }
 
 func (e *Event) EventToString() string {
-	condition := SplitStrings(e.Condition, ",")
+	condition := common.SplitStrings(e.Condition, ",")
 	return fmt.Sprintf("If the %s%s %s on %s is %s then %s.", e.FirstCurrency, e.SecondCurrency, e.Item, e.Exchange, condition[0]+" "+condition[1], e.Action)
 }
 
 func (e *Event) CheckCondition() bool {
 	lastPrice := 0.00
-	condition := SplitStrings(e.Condition, ",")
+	condition := common.SplitStrings(e.Condition, ",")
 	targetPrice, _ := strconv.ParseFloat(condition[1], 64)
 
 	ticker, err := GetTickerByExchange(e.Exchange)
@@ -169,18 +171,18 @@ func IsValidEvent(Exchange, Item, Condition, Action string) error {
 		return ErrInvalidItem
 	}
 
-	if !StringContains(Condition, ",") {
+	if !common.StringContains(Condition, ",") {
 		return ErrInvalidCondition
 	}
 
-	condition := SplitStrings(Condition, ",")
+	condition := common.SplitStrings(Condition, ",")
 
 	if !IsValidCondition(condition[0]) || len(condition[1]) == 0 {
 		return ErrInvalidCondition
 	}
 
-	if StringContains(Action, ",") {
-		action := SplitStrings(Action, ",")
+	if common.StringContains(Action, ",") {
+		action := common.SplitStrings(Action, ",")
 
 		if action[0] != ACTION_SMS_NOTIFY {
 			return ErrInvalidAction

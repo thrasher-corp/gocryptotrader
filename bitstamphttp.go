@@ -9,6 +9,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/thrasher-/gocryptotrader/common"
 )
 
 const (
@@ -189,9 +191,9 @@ func (b *Bitstamp) Setup(exch Exchanges) {
 		b.RESTPollingDelay = exch.RESTPollingDelay
 		b.Verbose = exch.Verbose
 		b.Websocket = exch.Websocket
-		b.BaseCurrencies = SplitStrings(exch.BaseCurrencies, ",")
-		b.AvailablePairs = SplitStrings(exch.AvailablePairs, ",")
-		b.EnabledPairs = SplitStrings(exch.EnabledPairs, ",")
+		b.BaseCurrencies = common.SplitStrings(exch.BaseCurrencies, ",")
+		b.AvailablePairs = common.SplitStrings(exch.AvailablePairs, ",")
+		b.EnabledPairs = common.SplitStrings(exch.EnabledPairs, ",")
 	}
 }
 
@@ -232,7 +234,7 @@ func (b *Bitstamp) SetAPIKeys(clientID, apiKey, apiSecret string) {
 
 func (b *Bitstamp) Run() {
 	if b.Verbose {
-		log.Printf("%s Websocket: %s.", b.GetName(), IsEnabled(b.Websocket))
+		log.Printf("%s Websocket: %s.", b.GetName(), common.IsEnabled(b.Websocket))
 		log.Printf("%s polling delay: %ds.\n", b.GetName(), b.RESTPollingDelay)
 		log.Printf("%s %d currencies enabled: %s.\n", b.GetName(), len(b.EnabledPairs), b.EnabledPairs)
 	}
@@ -264,10 +266,10 @@ func (b *Bitstamp) GetTicker(currency string, hourly bool) (BitstampTicker, erro
 		tickerEndpoint = BITSTAMP_API_TICKER_HOURLY
 	}
 
-	path := fmt.Sprintf("%s/v%s/%s/%s/", BITSTAMP_API_URL, BITSTAMP_API_VERSION, tickerEndpoint, StringToLower(currency))
+	path := fmt.Sprintf("%s/v%s/%s/%s/", BITSTAMP_API_URL, BITSTAMP_API_VERSION, tickerEndpoint, common.StringToLower(currency))
 	ticker := BitstampTicker{}
 
-	err := SendHTTPGetRequest(path, true, &ticker)
+	err := common.SendHTTPGetRequest(path, true, &ticker)
 
 	if err != nil {
 		return ticker, err
@@ -309,8 +311,8 @@ func (b *Bitstamp) GetOrderbook(currency string) (BitstampOrderbook, error) {
 	}
 
 	resp := response{}
-	path := fmt.Sprintf("%s/v%s/%s/%s/", BITSTAMP_API_URL, BITSTAMP_API_VERSION, BITSTAMP_API_ORDERBOOK, StringToLower(currency))
-	err := SendHTTPGetRequest(path, true, &resp)
+	path := fmt.Sprintf("%s/v%s/%s/%s/", BITSTAMP_API_URL, BITSTAMP_API_VERSION, BITSTAMP_API_ORDERBOOK, common.StringToLower(currency))
+	err := common.SendHTTPGetRequest(path, true, &resp)
 	if err != nil {
 		return BitstampOrderbook{}, err
 	}
@@ -350,9 +352,9 @@ func (b *Bitstamp) GetOrderbook(currency string) (BitstampOrderbook, error) {
 }
 
 func (b *Bitstamp) GetTransactions(currency string, values url.Values) ([]BitstampTransactions, error) {
-	path := EncodeURLValues(fmt.Sprintf("%s/v%s/%s/%s/", BITSTAMP_API_URL, BITSTAMP_API_VERSION, BITSTAMP_API_TRANSACTIONS, StringToLower(currency)), values)
+	path := common.EncodeURLValues(fmt.Sprintf("%s/v%s/%s/%s/", BITSTAMP_API_URL, BITSTAMP_API_VERSION, BITSTAMP_API_TRANSACTIONS, common.StringToLower(currency)), values)
 	transactions := []BitstampTransactions{}
-	err := SendHTTPGetRequest(path, true, &transactions)
+	err := common.SendHTTPGetRequest(path, true, &transactions)
 	if err != nil {
 		return nil, err
 	}
@@ -362,7 +364,7 @@ func (b *Bitstamp) GetTransactions(currency string, values url.Values) ([]Bitsta
 func (b *Bitstamp) GetEURUSDConversionRate() (BitstampEURUSDConversionRate, error) {
 	rate := BitstampEURUSDConversionRate{}
 	path := fmt.Sprintf("%s/%s", BITSTAMP_API_URL, BITSTAMP_API_EURUSD)
-	err := SendHTTPGetRequest(path, true, &rate)
+	err := common.SendHTTPGetRequest(path, true, &rate)
 
 	if err != nil {
 		return rate, err
@@ -468,7 +470,7 @@ func (b *Bitstamp) GetUserTransactions(values url.Values) ([]BitstampUserTransac
 
 func (b *Bitstamp) GetOpenOrders(currency string) ([]BitstampOrder, error) {
 	resp := []BitstampOrder{}
-	path := fmt.Sprintf("%s/%s", BITSTAMP_API_OPEN_ORDERS, StringToLower(currency))
+	path := fmt.Sprintf("%s/%s", BITSTAMP_API_OPEN_ORDERS, common.StringToLower(currency))
 	err := b.SendAuthenticatedHTTPRequest(path, true, nil, &resp)
 
 	if err != nil {
@@ -529,10 +531,10 @@ func (b *Bitstamp) PlaceOrder(currency string, price float64, amount float64, bu
 		orderType = BITSTAMP_API_SELL
 	}
 
-	path = fmt.Sprintf("%s/%s", orderType, StringToLower(currency))
+	path = fmt.Sprintf("%s/%s", orderType, common.StringToLower(currency))
 
 	if market {
-		path = fmt.Sprintf("%s/%s/%s", orderType, BITSTAMP_API_MARKET, StringToLower(currency))
+		path = fmt.Sprintf("%s/%s/%s", orderType, BITSTAMP_API_MARKET, common.StringToLower(currency))
 	}
 
 	err := b.SendAuthenticatedHTTPRequest(path, true, req, &response)
@@ -693,8 +695,8 @@ func (b *Bitstamp) SendAuthenticatedHTTPRequest(path string, v2 bool, values url
 
 	values.Set("key", b.APIKey)
 	values.Set("nonce", nonce)
-	hmac := GetHMAC(HASH_SHA256, []byte(nonce+b.ClientID+b.APIKey), []byte(b.APISecret))
-	values.Set("signature", strings.ToUpper(HexEncodeToString(hmac)))
+	hmac := common.GetHMAC(common.HASH_SHA256, []byte(nonce+b.ClientID+b.APIKey), []byte(b.APISecret))
+	values.Set("signature", common.StringToUpper(common.HexEncodeToString(hmac)))
 
 	if v2 {
 		path = fmt.Sprintf("%s/v%s/%s/", BITSTAMP_API_URL, BITSTAMP_API_VERSION, path)
@@ -709,7 +711,7 @@ func (b *Bitstamp) SendAuthenticatedHTTPRequest(path string, v2 bool, values url
 	headers := make(map[string]string)
 	headers["Content-Type"] = "application/x-www-form-urlencoded"
 
-	resp, err := SendHTTPRequest("POST", path, headers, strings.NewReader(values.Encode()))
+	resp, err := common.SendHTTPRequest("POST", path, headers, strings.NewReader(values.Encode()))
 	if err != nil {
 		return err
 	}
@@ -718,7 +720,7 @@ func (b *Bitstamp) SendAuthenticatedHTTPRequest(path string, v2 bool, values url
 		log.Printf("Recieved raw: %s\n", resp)
 	}
 
-	err = JSONDecode([]byte(resp), &result)
+	err = common.JSONDecode([]byte(resp), &result)
 
 	if err != nil {
 		return errors.New("Unable to JSON Unmarshal response.")

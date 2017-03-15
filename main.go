@@ -8,6 +8,8 @@ import (
 	"runtime"
 	"strconv"
 	"syscall"
+
+	"github.com/thrasher-/gocryptotrader/common"
 )
 
 type Exchange struct {
@@ -48,10 +50,10 @@ func setupBotExchanges() {
 				if bot.exchanges[i].GetName() == exch.Name {
 					bot.exchanges[i].Setup(exch)
 					if bot.exchanges[i].IsEnabled() {
-						log.Printf("%s: Exchange support: %s (Authenticated API support: %s - Verbose mode: %s).\n", exch.Name, IsEnabled(exch.Enabled), IsEnabled(exch.AuthenticatedAPISupport), IsEnabled(exch.Verbose))
+						log.Printf("%s: Exchange support: %s (Authenticated API support: %s - Verbose mode: %s).\n", exch.Name, common.IsEnabled(exch.Enabled), common.IsEnabled(exch.AuthenticatedAPISupport), common.IsEnabled(exch.Verbose))
 						bot.exchanges[i].Start()
 					} else {
-						log.Printf("%s: Exchange support: %s\n", exch.Name, IsEnabled(exch.Enabled))
+						log.Printf("%s: Exchange support: %s\n", exch.Name, common.IsEnabled(exch.Enabled))
 					}
 				}
 			}
@@ -130,7 +132,7 @@ func main() {
 			//bot.config.Webserver.Enabled = false
 		} else {
 			listenAddr := bot.config.Webserver.ListenAddress
-			log.Printf("HTTP Webserver support enabled. Listen URL: http://%s:%d/\n", ExtractHost(listenAddr), ExtractPort(listenAddr))
+			log.Printf("HTTP Webserver support enabled. Listen URL: http://%s:%d/\n", common.ExtractHost(listenAddr), common.ExtractPort(listenAddr))
 			router := NewRouter(bot.exchanges)
 			log.Fatal(http.ListenAndServe(listenAddr, router))
 		}

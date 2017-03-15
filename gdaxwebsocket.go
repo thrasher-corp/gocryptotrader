@@ -1,9 +1,11 @@
 package main
 
 import (
-	"github.com/gorilla/websocket"
 	"log"
 	"net/http"
+
+	"github.com/gorilla/websocket"
+	"github.com/thrasher-/gocryptotrader/common"
 )
 
 const (
@@ -71,7 +73,7 @@ type GDAXWebsocketChange struct {
 
 func (g *GDAX) WebsocketSubscribe(product string, conn *websocket.Conn) error {
 	subscribe := GDAXWebsocketSubscribe{"subscribe", product}
-	json, err := JSONEncode(subscribe)
+	json, err := common.JSONEncode(subscribe)
 	if err != nil {
 		return err
 	}
@@ -128,7 +130,7 @@ func (g *GDAX) WebsocketClient() {
 				}
 
 				msgType := MsgType{}
-				err := JSONDecode(resp, &msgType)
+				err := common.JSONDecode(resp, &msgType)
 				if err != nil {
 					log.Println(err)
 					continue
@@ -140,35 +142,35 @@ func (g *GDAX) WebsocketClient() {
 					break
 				case "received":
 					received := GDAXWebsocketReceived{}
-					err := JSONDecode(resp, &received)
+					err := common.JSONDecode(resp, &received)
 					if err != nil {
 						log.Println(err)
 						continue
 					}
 				case "open":
 					open := GDAXWebsocketOpen{}
-					err := JSONDecode(resp, &open)
+					err := common.JSONDecode(resp, &open)
 					if err != nil {
 						log.Println(err)
 						continue
 					}
 				case "done":
 					done := GDAXWebsocketDone{}
-					err := JSONDecode(resp, &done)
+					err := common.JSONDecode(resp, &done)
 					if err != nil {
 						log.Println(err)
 						continue
 					}
 				case "match":
 					match := GDAXWebsocketMatch{}
-					err := JSONDecode(resp, &match)
+					err := common.JSONDecode(resp, &match)
 					if err != nil {
 						log.Println(err)
 						continue
 					}
 				case "change":
 					change := GDAXWebsocketChange{}
-					err := JSONDecode(resp, &change)
+					err := common.JSONDecode(resp, &change)
 					if err != nil {
 						log.Println(err)
 						continue

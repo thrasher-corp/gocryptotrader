@@ -1,9 +1,11 @@
 package main
 
 import (
-	"github.com/gorilla/websocket"
 	"log"
 	"net/http"
+
+	"github.com/gorilla/websocket"
+	"github.com/thrasher-/gocryptotrader/common"
 )
 
 const (
@@ -64,7 +66,7 @@ func (a *Alphapoint) WebsocketClient() {
 				}
 
 				msgType := MsgType{}
-				err := JSONDecode(resp, &msgType)
+				err := common.JSONDecode(resp, &msgType)
 				if err != nil {
 					log.Println(err)
 					continue
@@ -73,7 +75,7 @@ func (a *Alphapoint) WebsocketClient() {
 				switch msgType.MessageType {
 				case "Ticker":
 					ticker := AlphapointWebsocketTicker{}
-					err = JSONDecode(resp, &ticker)
+					err = common.JSONDecode(resp, &ticker)
 					if err != nil {
 						log.Println(err)
 						continue

@@ -1,8 +1,10 @@
 package main
 
 import (
-	"github.com/thrasher-/socketio"
 	"log"
+
+	"github.com/thrasher-/gocryptotrader/common"
+	"github.com/thrasher-/socketio"
 )
 
 const (
@@ -164,9 +166,9 @@ func (h *HUOBI) OnConnect(output chan socketio.Message) {
 	}
 
 	for _, x := range h.EnabledPairs {
-		currency := StringToLower(x)
+		currency := common.StringToLower(x)
 		msg := h.BuildHuobiWebsocketRequestExtra(HUOBI_SOCKET_REQ_SUBSCRIBE, 100, h.BuildHuobiWebsocketParamsList(HUOBI_SOCKET_MARKET_OVERVIEW, currency, "pushLong", "", "", "", "", ""))
-		result, err := JSONEncode(msg)
+		result, err := common.JSONEncode(msg)
 		if err != nil {
 			log.Println(err)
 		}
@@ -189,7 +191,7 @@ func (h *HUOBI) OnMessage(message []byte, output chan socketio.Message) {
 
 func (h *HUOBI) OnRequest(message []byte, output chan socketio.Message) {
 	response := HuobiResponse{}
-	err := JSONDecode(message, &response)
+	err := common.JSONDecode(message, &response)
 	if err != nil {
 		log.Println(err)
 	}

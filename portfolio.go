@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"log"
 	"time"
+
+	"github.com/thrasher-/gocryptotrader/common"
 )
 
 const (
@@ -60,10 +62,10 @@ type EtherchainBalanceResponse struct {
 }
 
 func GetEthereumBalance(address []string) (EtherchainBalanceResponse, error) {
-	addresses := JoinStrings(address, ",")
+	addresses := common.JoinStrings(address, ",")
 	url := fmt.Sprintf("%s/%s/%s", ETHERCHAIN_API_URL, ETHERCHAIN_ACCOUNT_MULTIPLE, addresses)
 	result := EtherchainBalanceResponse{}
-	err := SendHTTPGetRequest(url, true, &result)
+	err := common.SendHTTPGetRequest(url, true, &result)
 	if err != nil {
 		return result, err
 	}
@@ -74,9 +76,9 @@ func GetEthereumBalance(address []string) (EtherchainBalanceResponse, error) {
 }
 
 func GetBlockrBalanceSingle(address string, coinType string) (BlockrAddressBalanceSingle, error) {
-	url := fmt.Sprintf("https://%s.%s/v%s/%s/%s", StringToLower(coinType), BLOCKR_API_URL, BLOCKR_API_VERSION, BLOCKR_ADDRESS_BALANCE, address)
+	url := fmt.Sprintf("https://%s.%s/v%s/%s/%s", common.StringToLower(coinType), BLOCKR_API_URL, BLOCKR_API_VERSION, BLOCKR_ADDRESS_BALANCE, address)
 	result := BlockrAddressBalanceSingle{}
-	err := SendHTTPGetRequest(url, true, &result)
+	err := common.SendHTTPGetRequest(url, true, &result)
 	if err != nil {
 		return result, err
 	}
@@ -87,10 +89,10 @@ func GetBlockrBalanceSingle(address string, coinType string) (BlockrAddressBalan
 }
 
 func GetBlockrAddressMulti(addresses []string, coinType string) (BlockrAddressBalanceMulti, error) {
-	addressesStr := JoinStrings(addresses, ",")
-	url := fmt.Sprintf("https://%s.%s/v%s/%s/%s", StringToLower(coinType), BLOCKR_API_URL, BLOCKR_API_VERSION, BLOCKR_ADDRESS_BALANCE, addressesStr)
+	addressesStr := common.JoinStrings(addresses, ",")
+	url := fmt.Sprintf("https://%s.%s/v%s/%s/%s", common.StringToLower(coinType), BLOCKR_API_URL, BLOCKR_API_VERSION, BLOCKR_ADDRESS_BALANCE, addressesStr)
 	result := BlockrAddressBalanceMulti{}
-	err := SendHTTPGetRequest(url, true, &result)
+	err := common.SendHTTPGetRequest(url, true, &result)
 	if err != nil {
 		return result, err
 	}
@@ -134,7 +136,7 @@ func UpdatePortfolio(addresses []string, coinType string) bool {
 		}
 		for _, x := range result.Data {
 			if !AddressExists(x.Address) {
-				bot.config.Portfolio.Addresses = append(bot.config.Portfolio.Addresses, PortfolioAddress{Address: x.Address, CoinType: coinType, Balance: x.Balance / WEI_PER_ETHER})
+				bot.config.Portfolio.Addresses = append(bot.config.Portfolio.Addresses, PortfolioAddress{Address: x.Address, CoinType: coinType, Balance: x.Balance / common.WEI_PER_ETHER})
 			} else {
 				UpdateAddressBalance(x.Address, x.Balance)
 			}

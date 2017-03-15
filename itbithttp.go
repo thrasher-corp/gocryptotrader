@@ -7,6 +7,8 @@ import (
 	"net/url"
 	"strconv"
 	"time"
+
+	"github.com/thrasher-/gocryptotrader/common"
 )
 
 const (
@@ -80,9 +82,9 @@ func (i *ItBit) Setup(exch Exchanges) {
 		i.RESTPollingDelay = exch.RESTPollingDelay
 		i.Verbose = exch.Verbose
 		i.Websocket = exch.Websocket
-		i.BaseCurrencies = SplitStrings(exch.BaseCurrencies, ",")
-		i.AvailablePairs = SplitStrings(exch.AvailablePairs, ",")
-		i.EnabledPairs = SplitStrings(exch.EnabledPairs, ",")
+		i.BaseCurrencies = common.SplitStrings(exch.BaseCurrencies, ",")
+		i.AvailablePairs = common.SplitStrings(exch.AvailablePairs, ",")
+		i.EnabledPairs = common.SplitStrings(exch.EnabledPairs, ",")
 	}
 }
 
@@ -134,7 +136,7 @@ func (i *ItBit) Run() {
 func (i *ItBit) GetTicker(currency string) (ItBitTicker, error) {
 	path := ITBIT_API_URL + "/markets/" + currency + "/ticker"
 	var itbitTicker ItBitTicker
-	err := SendHTTPGetRequest(path, true, &itbitTicker)
+	err := common.SendHTTPGetRequest(path, true, &itbitTicker)
 	if err != nil {
 		return ItBitTicker{}, err
 	}
@@ -182,7 +184,7 @@ type ItBitOrderbookResponse struct {
 func (i *ItBit) GetOrderbook(currency string) (ItBitOrderbookResponse, error) {
 	response := ItBitOrderbookResponse{}
 	path := ITBIT_API_URL + "/markets/" + currency + "/order_book"
-	err := SendHTTPGetRequest(path, true, &response)
+	err := common.SendHTTPGetRequest(path, true, &response)
 	if err != nil {
 		return ItBitOrderbookResponse{}, err
 	}
@@ -191,7 +193,7 @@ func (i *ItBit) GetOrderbook(currency string) (ItBitOrderbookResponse, error) {
 
 func (i *ItBit) GetTradeHistory(currency, timestamp string) bool {
 	req := "/trades?since=" + timestamp
-	err := SendHTTPGetRequest(ITBIT_API_URL+"markets/"+currency+req, true, nil)
+	err := common.SendHTTPGetRequest(ITBIT_API_URL+"markets/"+currency+req, true, nil)
 	if err != nil {
 		log.Println(err)
 		return false
@@ -250,7 +252,7 @@ func (i *ItBit) GetWalletBalance(walletID, currency string) {
 }
 
 func (i *ItBit) GetWalletTrades(walletID string, params url.Values) {
-	path := EncodeURLValues("/wallets/"+walletID+"/trades", params)
+	path := common.EncodeURLValues("/wallets/"+walletID+"/trades", params)
 	err := i.SendAuthenticatedHTTPRequest("GET", path, nil)
 
 	if err != nil {
@@ -259,7 +261,7 @@ func (i *ItBit) GetWalletTrades(walletID string, params url.Values) {
 }
 
 func (i *ItBit) GetWalletOrders(walletID string, params url.Values) {
-	path := EncodeURLValues("/wallets/"+walletID+"/orders", params)
+	path := common.EncodeURLValues("/wallets/"+walletID+"/orders", params)
 	err := i.SendAuthenticatedHTTPRequest("GET", path, nil)
 
 	if err != nil {
@@ -368,7 +370,7 @@ func (i *ItBit) SendAuthenticatedHTTPRequest(method string, path string, params 
 	PayloadJson := []byte("")
 
 	if params != nil {
-		PayloadJson, err = JSONEncode(request)
+		PayloadJson, err = common.JSONEncode(request)
 
 		if err != nil {
 			return errors.New("SendAuthenticatedHTTPRequest: Unable to JSON Marshal request")
@@ -380,15 +382,15 @@ func (i *ItBit) SendAuthenticatedHTTPRequest(method string, path string, params 
 	}
 
 	nonceStr := strconv.Itoa(nonce)
-	message, err := JSONEncode([]string{method, url, string(PayloadJson), nonceStr, timestamp})
+	message, err := common.JSONEncode([]string{method, url, string(PayloadJson), nonceStr, timestamp})
 	if err != nil {
 		log.Println(err)
 		return
 	}
 
-	hash := GetSHA256([]byte(nonceStr + string(message)))
-	hmac := GetHMAC(HASH_SHA512, []byte(url+string(hash)), []byte(i.APISecret))
-	signature := Base64Encode(hmac)
+	hash := common.GetSHA256([]byte(nonceStr + string(message)))
+	hmac := common.GetHMAC(common.HASH_SHA512, []byte(url+string(hash)), []byte(i.APISecret))
+	signature := common.Base64Encode(hmac)
 
 	headers := make(map[string]string)
 	headers["Authorization"] = i.ClientKey + ":" + signature
@@ -396,7 +398,7 @@ func (i *ItBit) SendAuthenticatedHTTPRequest(method string, path string, params 
 	headers["X-Auth-Nonce"] = nonceStr
 	headers["Content-Type"] = "application/json"
 
-	resp, err := SendHTTPRequest(method, url, headers, bytes.NewBuffer([]byte(PayloadJson)))
+	resp, err := common.SendHTTPRequest(method, url, headers, bytes.NewBuffer([]byte(PayloadJson)))
 
 	if i.Verbose {
 		log.Printf("Recieved raw: \n%s\n", resp)

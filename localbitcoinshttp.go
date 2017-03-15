@@ -8,6 +8,8 @@ import (
 	"net/url"
 	"strconv"
 	"time"
+
+	"github.com/thrasher-/gocryptotrader/common"
 )
 
 const (
@@ -68,9 +70,9 @@ func (l *LocalBitcoins) Setup(exch Exchanges) {
 		l.RESTPollingDelay = exch.RESTPollingDelay
 		l.Verbose = exch.Verbose
 		l.Websocket = exch.Websocket
-		l.BaseCurrencies = SplitStrings(exch.BaseCurrencies, ",")
-		l.AvailablePairs = SplitStrings(exch.AvailablePairs, ",")
-		l.EnabledPairs = SplitStrings(exch.EnabledPairs, ",")
+		l.BaseCurrencies = common.SplitStrings(exch.BaseCurrencies, ",")
+		l.AvailablePairs = common.SplitStrings(exch.AvailablePairs, ",")
+		l.EnabledPairs = common.SplitStrings(exch.EnabledPairs, ",")
 	}
 }
 
@@ -130,7 +132,7 @@ type LocalBitcoinsTicker struct {
 
 func (l *LocalBitcoins) GetTicker() (map[string]LocalBitcoinsTicker, error) {
 	result := make(map[string]LocalBitcoinsTicker)
-	err := SendHTTPGetRequest(LOCALBITCOINS_API_URL+LOCALBITCOINS_API_TICKER, true, &result)
+	err := common.SendHTTPGetRequest(LOCALBITCOINS_API_URL+LOCALBITCOINS_API_TICKER, true, &result)
 
 	if err != nil {
 		return result, err
@@ -170,9 +172,9 @@ type LocalBitcoinsTrade struct {
 }
 
 func (l *LocalBitcoins) GetTrades(currency string, values url.Values) ([]LocalBitcoinsTrade, error) {
-	path := EncodeURLValues(fmt.Sprintf("%s/%s/trades.json", LOCALBITCOINS_API_URL+LOCALBITCOINS_API_BITCOINCHARTS, currency), values)
+	path := common.EncodeURLValues(fmt.Sprintf("%s/%s/trades.json", LOCALBITCOINS_API_URL+LOCALBITCOINS_API_BITCOINCHARTS, currency), values)
 	result := []LocalBitcoinsTrade{}
-	err := SendHTTPGetRequest(path, true, &result)
+	err := common.SendHTTPGetRequest(path, true, &result)
 
 	if err != nil {
 		return result, err
@@ -199,7 +201,7 @@ func (l *LocalBitcoins) GetOrderbook(currency string) (LocalBitcoinsOrderbook, e
 
 	path := fmt.Sprintf("%s/%s/orderbook.json", LOCALBITCOINS_API_URL+LOCALBITCOINS_API_BITCOINCHARTS, currency)
 	resp := response{}
-	err := SendHTTPGetRequest(path, true, &resp)
+	err := common.SendHTTPGetRequest(path, true, &resp)
 
 	if err != nil {
 		return LocalBitcoinsOrderbook{}, err
@@ -270,7 +272,7 @@ func (l *LocalBitcoins) GetAccountInfo(username string, self bool) (LocalBitcoin
 		}
 	} else {
 		path := fmt.Sprintf("%s/api/account_info/%s/", LOCALBITCOINS_API_URL, username)
-		err := SendHTTPGetRequest(path, true, &resp)
+		err := common.SendHTTPGetRequest(path, true, &resp)
 
 		if err != nil {
 			return resp.Data, err
@@ -432,20 +434,20 @@ func (l *LocalBitcoins) SendAuthenticatedHTTPRequest(method, path string, values
 	}
 
 	message := string(nonce) + l.APIKey + path + payload
-	hmac := GetHMAC(HASH_SHA256, []byte(message), []byte(l.APISecret))
+	hmac := common.GetHMAC(common.HASH_SHA256, []byte(message), []byte(l.APISecret))
 	headers := make(map[string]string)
 	headers["Apiauth-Key"] = l.APIKey
 	headers["Apiauth-Nonce"] = string(nonce)
-	headers["Apiauth-Signature"] = StringToUpper(HexEncodeToString(hmac))
+	headers["Apiauth-Signature"] = common.StringToUpper(common.HexEncodeToString(hmac))
 	headers["Content-Type"] = "application/x-www-form-urlencoded"
 
-	resp, err := SendHTTPRequest(method, LOCALBITCOINS_API_URL+path, headers, bytes.NewBuffer([]byte(payload)))
+	resp, err := common.SendHTTPRequest(method, LOCALBITCOINS_API_URL+path, headers, bytes.NewBuffer([]byte(payload)))
 
 	if l.Verbose {
 		log.Printf("Recieved raw: \n%s\n", resp)
 	}
 
-	err = JSONDecode([]byte(resp), &result)
+	err = common.JSONDecode([]byte(resp), &result)
 
 	if err != nil {
 		return errors.New("Unable to JSON Unmarshal response.")

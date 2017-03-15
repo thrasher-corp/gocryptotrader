@@ -1,12 +1,14 @@
 package main
 
 import (
-	"github.com/gorilla/websocket"
 	"log"
 	"net/http"
 	"reflect"
 	"strconv"
 	"time"
+
+	"github.com/gorilla/websocket"
+	"github.com/thrasher-/gocryptotrader/common"
 )
 
 const (
@@ -100,7 +102,7 @@ func (b *Bitfinex) WebsocketPingHandler() error {
 }
 
 func (b *Bitfinex) WebsocketSend(data interface{}) error {
-	json, err := JSONEncode(data)
+	json, err := common.JSONEncode(data)
 	if err != nil {
 		return err
 	}
@@ -132,7 +134,7 @@ func (b *Bitfinex) WebsocketSendAuth() error {
 	payload := "AUTH" + strconv.FormatInt(time.Now().UnixNano(), 10)[:13]
 	request["event"] = "auth"
 	request["apiKey"] = b.APIKey
-	request["authSig"] = HexEncodeToString(GetHMAC(HASH_SHA512_384, []byte(payload), []byte(b.APISecret)))
+	request["authSig"] = common.HexEncodeToString(common.GetHMAC(common.HASH_SHA512_384, []byte(payload), []byte(b.APISecret)))
 	request["authPayload"] = payload
 	return b.WebsocketSend(request)
 }
@@ -176,7 +178,7 @@ func (b *Bitfinex) WebsocketClient() {
 		}
 
 		hs := WebsocketHandshake{}
-		err = JSONDecode(resp, &hs)
+		err = common.JSONDecode(resp, &hs)
 		if err != nil {
 			log.Println(err)
 			continue
@@ -216,7 +218,7 @@ func (b *Bitfinex) WebsocketClient() {
 			switch msgType {
 			case websocket.TextMessage:
 				var result interface{}
-				err := JSONDecode(resp, &result)
+				err := common.JSONDecode(resp, &result)
 				if err != nil {
 					log.Println(err)
 					continue

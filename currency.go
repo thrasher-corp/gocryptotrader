@@ -7,6 +7,8 @@ import (
 	"net/url"
 	"strings"
 	"time"
+
+	"github.com/thrasher-/gocryptotrader/common"
 )
 
 type Rate struct {
@@ -51,21 +53,21 @@ var (
 )
 
 func IsDefaultCurrency(currency string) bool {
-	return StringContains(DEFAULT_CURRENCIES, StringToUpper(currency))
+	return common.StringContains(DEFAULT_CURRENCIES, common.StringToUpper(currency))
 }
 
 func IsFiatCurrency(currency string) bool {
-	return StringContains(BaseCurrencies, StringToUpper(currency))
+	return common.StringContains(BaseCurrencies, common.StringToUpper(currency))
 }
 
 func IsCryptocurrency(currency string) bool {
-	return StringContains(bot.config.Cryptocurrencies, StringToUpper(currency))
+	return common.StringContains(bot.config.Cryptocurrencies, common.StringToUpper(currency))
 }
 
 func ContainsSeparator(input string) (bool, string) {
 	separators := []string{"-", "_"}
 	for _, x := range separators {
-		if StringContains(input, x) {
+		if common.StringContains(input, x) {
 			return true, x
 		}
 	}
@@ -74,7 +76,7 @@ func ContainsSeparator(input string) (bool, string) {
 
 func ContainsBaseCurrencyIndex(baseCurrencies []string, currency string) (bool, string) {
 	for _, x := range baseCurrencies {
-		if StringContains(currency, x) {
+		if common.StringContains(currency, x) {
 			return true, x
 		}
 	}
@@ -83,7 +85,7 @@ func ContainsBaseCurrencyIndex(baseCurrencies []string, currency string) (bool, 
 
 func ContainsBaseCurrency(baseCurrencies []string, currency string) bool {
 	for _, x := range baseCurrencies {
-		if StringContains(currency, x) {
+		if common.StringContains(currency, x) {
 			return true
 		}
 	}
@@ -105,18 +107,18 @@ func CheckAndAddCurrency(input []string, check string) []string {
 }
 
 func RetrieveConfigCurrencyPairs() error {
-	cryptoCurrencies := SplitStrings(bot.config.Cryptocurrencies, ",")
-	fiatCurrencies := SplitStrings(DEFAULT_CURRENCIES, ",")
+	cryptoCurrencies := common.SplitStrings(bot.config.Cryptocurrencies, ",")
+	fiatCurrencies := common.SplitStrings(DEFAULT_CURRENCIES, ",")
 
 	for _, exchange := range bot.config.Exchanges {
 		if exchange.Enabled {
-			baseCurrencies := SplitStrings(exchange.BaseCurrencies, ",")
-			enabledCurrencies := SplitStrings(exchange.EnabledPairs, ",")
+			baseCurrencies := common.SplitStrings(exchange.BaseCurrencies, ",")
+			enabledCurrencies := common.SplitStrings(exchange.EnabledPairs, ",")
 
 			for _, currencyPair := range enabledCurrencies {
 				ok, separator := ContainsSeparator(currencyPair)
 				if ok {
-					pair := SplitStrings(currencyPair, separator)
+					pair := common.SplitStrings(currencyPair, separator)
 					for _, x := range pair {
 						ok, _ = ContainsBaseCurrencyIndex(baseCurrencies, x)
 						if !ok {
@@ -145,9 +147,9 @@ func RetrieveConfigCurrencyPairs() error {
 		}
 	}
 
-	BaseCurrencies = JoinStrings(fiatCurrencies, ",")
+	BaseCurrencies = common.JoinStrings(fiatCurrencies, ",")
 	BaseCurrencies = strings.Replace(BaseCurrencies, "RUR", "RUB", -1)
-	bot.config.Cryptocurrencies = JoinStrings(cryptoCurrencies, ",")
+	bot.config.Cryptocurrencies = common.JoinStrings(cryptoCurrencies, ",")
 
 	err := QueryYahooCurrencyValues(BaseCurrencies)
 
@@ -160,7 +162,7 @@ func RetrieveConfigCurrencyPairs() error {
 }
 
 func MakecurrencyPairs(supportedCurrencies string) string {
-	currencies := SplitStrings(supportedCurrencies, ",")
+	currencies := common.SplitStrings(supportedCurrencies, ",")
 	pairs := []string{}
 	count := len(currencies)
 	for i := 0; i < count; i++ {
@@ -171,12 +173,12 @@ func MakecurrencyPairs(supportedCurrencies string) string {
 			}
 		}
 	}
-	return JoinStrings(pairs, ",")
+	return common.JoinStrings(pairs, ",")
 }
 
 func ConvertCurrency(amount float64, from, to string) (float64, error) {
-	currency := StringToUpper(from + to)
-	if StringContains(currency, "RUB") {
+	currency := common.StringToUpper(from + to)
+	if common.StringContains(currency, "RUB") {
 		currency = strings.Replace(currency, "RUB", "RUR", -1)
 	}
 	for x, y := range CurrencyStore {
@@ -189,21 +191,21 @@ func ConvertCurrency(amount float64, from, to string) (float64, error) {
 
 func FetchYahooCurrencyData(currencyPairs []string) error {
 	values := url.Values{}
-	values.Set("q", fmt.Sprintf("SELECT * from yahoo.finance.xchange WHERE pair in (\"%s\")", JoinStrings(currencyPairs, ",")))
+	values.Set("q", fmt.Sprintf("SELECT * from yahoo.finance.xchange WHERE pair in (\"%s\")", common.JoinStrings(currencyPairs, ",")))
 	values.Set("format", "json")
 	values.Set("env", YAHOO_DATABASE)
 
 	headers := make(map[string]string)
 	headers["Content-Type"] = "application/x-www-form-urlencoded"
 
-	resp, err := SendHTTPRequest("POST", YAHOO_YQL_URL, headers, strings.NewReader(values.Encode()))
+	resp, err := common.SendHTTPRequest("POST", YAHOO_YQL_URL, headers, strings.NewReader(values.Encode()))
 
 	if err != nil {
 		return err
 	}
 
 	yahooResp := YahooJSONResponse{}
-	err = JSONDecode([]byte(resp), &yahooResp)
+	err = common.JSONDecode([]byte(resp), &yahooResp)
 
 	if err != nil {
 		return err
@@ -222,7 +224,7 @@ func FetchYahooCurrencyData(currencyPairs []string) error {
 
 func QueryYahooCurrencyValues(currencies string) error {
 	CurrencyStore = make(map[string]Rate)
-	currencyPairs := SplitStrings(MakecurrencyPairs(currencies), ",")
+	currencyPairs := common.SplitStrings(MakecurrencyPairs(currencies), ",")
 	log.Printf("%d fiat currency pairs generated. Fetching Yahoo currency data (this may take a minute)..\n", len(currencyPairs))
 	var err error
 	var pairs []string

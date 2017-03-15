@@ -8,6 +8,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/thrasher-/gocryptotrader/common"
 )
 
 const (
@@ -109,9 +111,9 @@ func (b *BTCE) Setup(exch Exchanges) {
 		b.RESTPollingDelay = exch.RESTPollingDelay
 		b.Verbose = exch.Verbose
 		b.Websocket = exch.Websocket
-		b.BaseCurrencies = SplitStrings(exch.BaseCurrencies, ",")
-		b.AvailablePairs = SplitStrings(exch.AvailablePairs, ",")
-		b.EnabledPairs = SplitStrings(exch.EnabledPairs, ",")
+		b.BaseCurrencies = common.SplitStrings(exch.BaseCurrencies, ",")
+		b.AvailablePairs = common.SplitStrings(exch.AvailablePairs, ",")
+		b.EnabledPairs = common.SplitStrings(exch.EnabledPairs, ",")
 
 	}
 }
@@ -135,17 +137,17 @@ func (b *BTCE) GetFee() float64 {
 
 func (b *BTCE) Run() {
 	if b.Verbose {
-		log.Printf("%s Websocket: %s.", b.GetName(), IsEnabled(b.Websocket))
+		log.Printf("%s Websocket: %s.", b.GetName(), common.IsEnabled(b.Websocket))
 		log.Printf("%s polling delay: %ds.\n", b.GetName(), b.RESTPollingDelay)
 		log.Printf("%s %d currencies enabled: %s.\n", b.GetName(), len(b.EnabledPairs), b.EnabledPairs)
 	}
 
 	pairs := []string{}
 	for _, x := range b.EnabledPairs {
-		x = StringToLower(x[0:3] + "_" + x[3:6])
+		x = common.StringToLower(x[0:3] + "_" + x[3:6])
 		pairs = append(pairs, x)
 	}
-	pairsString := JoinStrings(pairs, "-")
+	pairsString := common.JoinStrings(pairs, "-")
 
 	for b.Enabled {
 		go func() {
@@ -155,10 +157,10 @@ func (b *BTCE) Run() {
 				return
 			}
 			for x, y := range ticker {
-				x = StringToUpper(x[0:3] + x[4:])
+				x = common.StringToUpper(x[0:3] + x[4:])
 				log.Printf("BTC-e %s: Last %f High %f Low %f Volume %f\n", x, y.Last, y.High, y.Low, y.Vol_cur)
 				b.Ticker[x] = y
-				AddExchangeInfo(b.GetName(), StringToUpper(x[0:3]), StringToUpper(x[4:]), y.Last, y.Vol_cur)
+				AddExchangeInfo(b.GetName(), common.StringToUpper(x[0:3]), common.StringToUpper(x[4:]), y.Last, y.Vol_cur)
 			}
 		}()
 		time.Sleep(time.Second * b.RESTPollingDelay)
@@ -182,7 +184,7 @@ type BTCEInfo struct {
 func (b *BTCE) GetInfo() (BTCEInfo, error) {
 	req := fmt.Sprintf("%s/%s/%s/", BTCE_API_PUBLIC_URL, BTCE_API_PUBLIC_VERSION, BTCE_INFO)
 	resp := BTCEInfo{}
-	err := SendHTTPGetRequest(req, true, &resp)
+	err := common.SendHTTPGetRequest(req, true, &resp)
 
 	if err != nil {
 		return resp, err
@@ -198,7 +200,7 @@ func (b *BTCE) GetTicker(symbol string) (map[string]BTCeTicker, error) {
 
 	response := Response{}
 	req := fmt.Sprintf("%s/%s/%s/%s", BTCE_API_PUBLIC_URL, BTCE_API_PUBLIC_VERSION, BTCE_TICKER, symbol)
-	err := SendHTTPGetRequest(req, true, &response.Data)
+	err := common.SendHTTPGetRequest(req, true, &response.Data)
 
 	if err != nil {
 		return nil, err
@@ -233,7 +235,7 @@ func (b *BTCE) GetDepth(symbol string) (BTCEOrderbook, error) {
 	response := Response{}
 	req := fmt.Sprintf("%s/%s/%s/%s", BTCE_API_PUBLIC_URL, BTCE_API_PUBLIC_VERSION, BTCE_DEPTH, symbol)
 
-	err := SendHTTPGetRequest(req, true, &response.Data)
+	err := common.SendHTTPGetRequest(req, true, &response.Data)
 	if err != nil {
 		return BTCEOrderbook{}, err
 	}
@@ -250,7 +252,7 @@ func (b *BTCE) GetTrades(symbol string) ([]BTCETrades, error) {
 	response := Response{}
 	req := fmt.Sprintf("%s/%s/%s/%s", BTCE_API_PUBLIC_URL, BTCE_API_PUBLIC_VERSION, BTCE_TRADES, symbol)
 
-	err := SendHTTPGetRequest(req, true, &response.Data)
+	err := common.SendHTTPGetRequest(req, true, &response.Data)
 	if err != nil {
 		return []BTCETrades{}, err
 	}
@@ -293,7 +295,7 @@ func (e *BTCE) GetExchangeAccountInfo() (ExchangeAccountInfo, error) {
 
 	for x, y := range accountBalance.Funds {
 		var exchangeCurrency ExchangeAccountCurrencyInfo
-		exchangeCurrency.CurrencyName = StringToUpper(x)
+		exchangeCurrency.CurrencyName = common.StringToUpper(x)
 		exchangeCurrency.TotalValue = y
 		exchangeCurrency.Hold = 0
 		response.Currencies = append(response.Currencies, exchangeCurrency)
@@ -525,7 +527,7 @@ func (b *BTCE) SendAuthenticatedHTTPRequest(method string, values url.Values, re
 	values.Set("method", method)
 
 	encoded := values.Encode()
-	hmac := GetHMAC(HASH_SHA512, []byte(encoded), []byte(b.APISecret))
+	hmac := common.GetHMAC(common.HASH_SHA512, []byte(encoded), []byte(b.APISecret))
 
 	if b.Verbose {
 		log.Printf("Sending POST request to %s calling method %s with params %s\n", BTCE_API_PRIVATE_URL, method, encoded)
@@ -533,17 +535,17 @@ func (b *BTCE) SendAuthenticatedHTTPRequest(method string, values url.Values, re
 
 	headers := make(map[string]string)
 	headers["Key"] = b.APIKey
-	headers["Sign"] = HexEncodeToString(hmac)
+	headers["Sign"] = common.HexEncodeToString(hmac)
 	headers["Content-Type"] = "application/x-www-form-urlencoded"
 
-	resp, err := SendHTTPRequest("POST", BTCE_API_PRIVATE_URL, headers, strings.NewReader(encoded))
+	resp, err := common.SendHTTPRequest("POST", BTCE_API_PRIVATE_URL, headers, strings.NewReader(encoded))
 
 	if err != nil {
 		return err
 	}
 
 	response := BTCEResponse{}
-	err = JSONDecode([]byte(resp), &response)
+	err = common.JSONDecode([]byte(resp), &response)
 
 	if err != nil {
 		return err
@@ -553,13 +555,13 @@ func (b *BTCE) SendAuthenticatedHTTPRequest(method string, values url.Values, re
 		return errors.New(response.Error)
 	}
 
-	jsonEncoded, err := JSONEncode(response.Return)
+	JSONEncoded, err := common.JSONEncode(response.Return)
 
 	if err != nil {
 		return err
 	}
 
-	err = JSONDecode(jsonEncoded, &result)
+	err = common.JSONDecode(JSONEncoded, &result)
 
 	if err != nil {
 		return err
