@@ -118,6 +118,14 @@ func AddressExists(address string) bool {
 	return false
 }
 
+func UpdateAddressBalance(address string, amount float64) {
+	for x, _ := range bot.config.Portfolio.Addresses {
+		if bot.config.Portfolio.Addresses[x].Address == address {
+			bot.config.Portfolio.Addresses[x].Balance = amount
+		}
+	}
+}
+
 func UpdatePortfolio(addresses []string, coinType string) bool {
 	if coinType == "ETH" {
 		result, err := GetEthereumBalance(addresses)
@@ -127,6 +135,8 @@ func UpdatePortfolio(addresses []string, coinType string) bool {
 		for _, x := range result.Data {
 			if !AddressExists(x.Address) {
 				bot.config.Portfolio.Addresses = append(bot.config.Portfolio.Addresses, PortfolioAddress{Address: x.Address, CoinType: coinType, Balance: x.Balance / WEI_PER_ETHER})
+			} else {
+				UpdateAddressBalance(x.Address, x.Balance)
 			}
 		}
 		return true
@@ -139,6 +149,8 @@ func UpdatePortfolio(addresses []string, coinType string) bool {
 		for _, x := range result.Data {
 			if !AddressExists(x.Address) {
 				bot.config.Portfolio.Addresses = append(bot.config.Portfolio.Addresses, PortfolioAddress{Address: x.Address, CoinType: coinType, Balance: x.Balance})
+			} else {
+				UpdateAddressBalance(x.Address, x.Balance)
 			}
 		}
 	} else {
@@ -148,6 +160,8 @@ func UpdatePortfolio(addresses []string, coinType string) bool {
 		}
 		if !AddressExists(result.Data.Address) {
 			bot.config.Portfolio.Addresses = append(bot.config.Portfolio.Addresses, PortfolioAddress{Address: result.Data.Address, CoinType: coinType, Balance: result.Data.Balance})
+		} else {
+			UpdateAddressBalance(result.Data.Address, result.Data.Balance)
 		}
 	}
 	return true
