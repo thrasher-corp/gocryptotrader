@@ -23,6 +23,7 @@ type Exchange struct {
 	okcoinIntl    OKCoin
 	itbit         ItBit
 	lakebtc       LakeBTC
+	liqui         Liqui
 	localbitcoins LocalBitcoins
 	poloniex      Poloniex
 	huobi         HUOBI
@@ -99,6 +100,7 @@ func main() {
 		new(OKCoin),
 		new(ItBit),
 		new(LakeBTC),
+		new(Liqui),
 		new(LocalBitcoins),
 		new(Poloniex),
 		new(HUOBI),
