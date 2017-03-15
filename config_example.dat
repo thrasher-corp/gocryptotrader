@@ -214,6 +214,20 @@
    "BaseCurrencies": "USD,EUR,HKD,AUD,GBP,NZD,JPY,SGD,NGN,CHF,CAD"
   },
   {
+   "Name": "Liqui",
+   "Enabled": true,
+   "Verbose": false,
+   "Websocket": false,
+   "RESTPollingDelay": 10,
+   "AuthenticatedAPISupport": false,
+   "APIKey": "Key",
+   "APISecret": "Secret",
+   "ClientID": "",
+   "AvailablePairs": "TIME_BTC,ETH_BTC,GNT_BTC,WAVES_BTC,ICN_BTC,1ST_BTC,WINGS_BTC,MLN_BTC,ROUND_BTC,VSL_BTC,LTC_BTC,DCT_BTC,INCNT_BTC,PLU_BTC,DASH_BTC",
+   "EnabledPairs": "ETH_BTC,LTC_BTC,DASH_BTC",
+   "BaseCurrencies": "USD"
+  },
+  {
    "Name": "LocalBitcoins",
    "Enabled": true,
    "Verbose": false,
