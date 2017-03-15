@@ -8,6 +8,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/thrasher-/gocryptotrader/common"
 )
 
 const (
@@ -107,9 +109,9 @@ func (l *Liqui) Setup(exch Exchanges) {
 		l.RESTPollingDelay = exch.RESTPollingDelay
 		l.Verbose = exch.Verbose
 		l.Websocket = exch.Websocket
-		l.BaseCurrencies = SplitStrings(exch.BaseCurrencies, ",")
-		l.AvailablePairs = SplitStrings(exch.AvailablePairs, ",")
-		l.EnabledPairs = SplitStrings(exch.EnabledPairs, ",")
+		l.BaseCurrencies = common.SplitStrings(exch.BaseCurrencies, ",")
+		l.AvailablePairs = common.SplitStrings(exch.AvailablePairs, ",")
+		l.EnabledPairs = common.SplitStrings(exch.EnabledPairs, ",")
 	}
 }
 
@@ -138,14 +140,14 @@ func (l *Liqui) Run() {
 		log.Printf("%s Unable to fetch info.\n", l.GetName())
 	} else {
 		exchangeProducts := l.GetAvailablePairs(true)
-		diff := StringSliceDifference(l.AvailablePairs, exchangeProducts)
+		diff := common.StringSliceDifference(l.AvailablePairs, exchangeProducts)
 		if len(diff) > 0 {
 			exch, err := GetExchangeConfig(l.Name)
 			if err != nil {
 				log.Println(err)
 			} else {
 				log.Printf("%s Updating available pairs. Difference: %s.\n", l.Name, diff)
-				exch.AvailablePairs = JoinStrings(exchangeProducts, ",")
+				exch.AvailablePairs = common.JoinStrings(exchangeProducts, ",")
 				UpdateExchangeConfig(exch)
 			}
 		}
@@ -153,11 +155,11 @@ func (l *Liqui) Run() {
 
 	pairs := []string{}
 	for _, x := range l.EnabledPairs {
-		currencies := SplitStrings(x, "_")
-		x = StringToLower(currencies[0]) + "_" + StringToLower(currencies[1])
+		currencies := common.SplitStrings(x, "_")
+		x = common.StringToLower(currencies[0]) + "_" + common.StringToLower(currencies[1])
 		pairs = append(pairs, x)
 	}
-	pairsString := JoinStrings(pairs, "-")
+	pairsString := common.JoinStrings(pairs, "-")
 
 	for l.Enabled {
 		go func() {
@@ -167,11 +169,11 @@ func (l *Liqui) Run() {
 				return
 			}
 			for x, y := range ticker {
-				currencies := SplitStrings(x, "_")
-				x = StringToUpper(x)
+				currencies := common.SplitStrings(x, "_")
+				x = common.StringToUpper(x)
 				log.Printf("Liqui %s: Last %f High %f Low %f Volume %f\n", x, y.Last, y.High, y.Low, y.Vol_cur)
 				l.Ticker[x] = y
-				AddExchangeInfo(l.GetName(), StringToUpper(currencies[0]), StringToUpper(currencies[1]), y.Last, y.Vol_cur)
+				AddExchangeInfo(l.GetName(), common.StringToUpper(currencies[0]), common.StringToUpper(currencies[1]), y.Last, y.Vol_cur)
 			}
 		}()
 		time.Sleep(time.Second * l.RESTPollingDelay)
@@ -193,7 +195,7 @@ type LiquiInfo struct {
 }
 
 func (l *Liqui) GetFee(currency string) (float64, error) {
-	val, ok := l.Info.Pairs[StringToLower(currency)]
+	val, ok := l.Info.Pairs[common.StringToLower(currency)]
 	if !ok {
 		return 0, errors.New("Currency does not exist")
 	}
@@ -207,7 +209,7 @@ func (l *Liqui) GetAvailablePairs(nonHidden bool) []string {
 		if nonHidden && y.Hidden == 1 {
 			continue
 		}
-		pairs = append(pairs, StringToUpper(x))
+		pairs = append(pairs, common.StringToUpper(x))
 	}
 	return pairs
 }
@@ -215,7 +217,7 @@ func (l *Liqui) GetAvailablePairs(nonHidden bool) []string {
 func (l *Liqui) GetInfo() (LiquiInfo, error) {
 	req := fmt.Sprintf("%s/%s/%s/", LIQUI_API_PUBLIC_URL, LIQUI_API_PUBLIC_VERSION, LIQUI_INFO)
 	resp := LiquiInfo{}
-	err := SendHTTPGetRequest(req, true, &resp)
+	err := common.SendHTTPGetRequest(req, true, &resp)
 
 	if err != nil {
 		return resp, err
@@ -231,7 +233,7 @@ func (l *Liqui) GetTicker(symbol string) (map[string]LiquiTicker, error) {
 
 	response := Response{}
 	req := fmt.Sprintf("%s/%s/%s/%s", LIQUI_API_PUBLIC_URL, LIQUI_API_PUBLIC_VERSION, LIQUI_TICKER, symbol)
-	err := SendHTTPGetRequest(req, true, &response.Data)
+	err := common.SendHTTPGetRequest(req, true, &response.Data)
 
 	if err != nil {
 		return nil, err
@@ -247,7 +249,7 @@ func (l *Liqui) GetTickerPrice(currency string) (TickerPrice, error) {
 	}
 	tickerPrice.Ask = ticker.Buy
 	tickerPrice.Bid = ticker.Sell
-	currencies := SplitStrings(currency, "_")
+	currencies := common.SplitStrings(currency, "_")
 	tickerPrice.FirstCurrency = currencies[0]
 	tickerPrice.SecondCurrency = currencies[1]
 	tickerPrice.CurrencyPair = tickerPrice.FirstCurrency + "_" + tickerPrice.SecondCurrency
@@ -267,7 +269,7 @@ func (l *Liqui) GetDepth(symbol string) (LiquiOrderbook, error) {
 	response := Response{}
 	req := fmt.Sprintf("%s/%s/%s/%s", LIQUI_API_PUBLIC_URL, LIQUI_API_PUBLIC_VERSION, LIQUI_DEPTH, symbol)
 
-	err := SendHTTPGetRequest(req, true, &response.Data)
+	err := common.SendHTTPGetRequest(req, true, &response.Data)
 	if err != nil {
 		return LiquiOrderbook{}, err
 	}
@@ -284,7 +286,7 @@ func (l *Liqui) GetTrades(symbol string) ([]LiquiTrades, error) {
 	response := Response{}
 	req := fmt.Sprintf("%s/%s/%s/%s", LIQUI_API_PUBLIC_URL, LIQUI_API_PUBLIC_VERSION, LIQUI_TRADES, symbol)
 
-	err := SendHTTPGetRequest(req, true, &response.Data)
+	err := common.SendHTTPGetRequest(req, true, &response.Data)
 	if err != nil {
 		return []LiquiTrades{}, err
 	}
@@ -327,7 +329,7 @@ func (e *Liqui) GetExchangeAccountInfo() (ExchangeAccountInfo, error) {
 
 	for x, y := range accountBalance.Funds {
 		var exchangeCurrency ExchangeAccountCurrencyInfo
-		exchangeCurrency.CurrencyName = StringToUpper(x)
+		exchangeCurrency.CurrencyName = common.StringToUpper(x)
 		exchangeCurrency.TotalValue = y
 		exchangeCurrency.Hold = 0
 		response.Currencies = append(response.Currencies, exchangeCurrency)
@@ -481,7 +483,7 @@ func (l *Liqui) SendAuthenticatedHTTPRequest(method string, values url.Values, r
 	values.Set("method", method)
 
 	encoded := values.Encode()
-	hmac := GetHMAC(HASH_SHA512, []byte(encoded), []byte(l.APISecret))
+	hmac := common.GetHMAC(common.HASH_SHA512, []byte(encoded), []byte(l.APISecret))
 
 	if l.Verbose {
 		log.Printf("Sending POST request to %s calling method %s with params %s\n", LIQUI_API_PRIVATE_URL, method, encoded)
@@ -489,17 +491,17 @@ func (l *Liqui) SendAuthenticatedHTTPRequest(method string, values url.Values, r
 
 	headers := make(map[string]string)
 	headers["Key"] = l.APIKey
-	headers["Sign"] = HexEncodeToString(hmac)
+	headers["Sign"] = common.HexEncodeToString(hmac)
 	headers["Content-Type"] = "application/x-www-form-urlencoded"
 
-	resp, err := SendHTTPRequest("POST", LIQUI_API_PRIVATE_URL, headers, strings.NewReader(encoded))
+	resp, err := common.SendHTTPRequest("POST", LIQUI_API_PRIVATE_URL, headers, strings.NewReader(encoded))
 
 	if err != nil {
 		return err
 	}
 
 	response := LiquiResponse{}
-	err = JSONDecode([]byte(resp), &response)
+	err = common.JSONDecode([]byte(resp), &response)
 
 	if err != nil {
 		return err
@@ -509,13 +511,13 @@ func (l *Liqui) SendAuthenticatedHTTPRequest(method string, values url.Values, r
 		return errors.New(response.Error)
 	}
 
-	jsonEncoded, err := JSONEncode(response.Return)
+	jsonEncoded, err := common.JSONEncode(response.Return)
 
 	if err != nil {
 		return err
 	}
 
-	err = JSONDecode(jsonEncoded, &result)
+	err = common.JSONDecode(jsonEncoded, &result)
 
 	if err != nil {
 		return err

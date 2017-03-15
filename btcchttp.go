@@ -8,6 +8,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/thrasher-/gocryptotrader/common"
 )
 
 const (
@@ -192,9 +194,9 @@ func (b *BTCC) Setup(exch Exchanges) {
 		b.RESTPollingDelay = exch.RESTPollingDelay
 		b.Verbose = exch.Verbose
 		b.Websocket = exch.Websocket
-		b.BaseCurrencies = SplitStrings(exch.BaseCurrencies, ",")
-		b.AvailablePairs = SplitStrings(exch.AvailablePairs, ",")
-		b.EnabledPairs = SplitStrings(exch.EnabledPairs, ",")
+		b.BaseCurrencies = common.SplitStrings(exch.BaseCurrencies, ",")
+		b.AvailablePairs = common.SplitStrings(exch.AvailablePairs, ",")
+		b.EnabledPairs = common.SplitStrings(exch.EnabledPairs, ",")
 	}
 }
 
@@ -230,7 +232,7 @@ func (b *BTCC) GetFee() float64 {
 
 func (b *BTCC) Run() {
 	if b.Verbose {
-		log.Printf("%s Websocket: %s.", b.GetName(), IsEnabled(b.Websocket))
+		log.Printf("%s Websocket: %s.", b.GetName(), common.IsEnabled(b.Websocket))
 		log.Printf("%s polling delay: %ds.\n", b.GetName(), b.RESTPollingDelay)
 		log.Printf("%s %d currencies enabled: %s.\n", b.GetName(), len(b.EnabledPairs), b.EnabledPairs)
 	}
@@ -243,7 +245,7 @@ func (b *BTCC) Run() {
 		for _, x := range b.EnabledPairs {
 			currency := x
 			go func() {
-				ticker, err := b.GetTickerPrice(StringToLower(currency))
+				ticker, err := b.GetTickerPrice(common.StringToLower(currency))
 				if err != nil {
 					log.Println(err)
 					return
@@ -263,7 +265,7 @@ func (b *BTCC) GetTicker(symbol string) (BTCCTicker, error) {
 
 	resp := Response{}
 	req := fmt.Sprintf("%sdata/ticker?market=%s", BTCC_API_URL, symbol)
-	err := SendHTTPGetRequest(req, true, &resp)
+	err := common.SendHTTPGetRequest(req, true, &resp)
 	if err != nil {
 		return BTCCTicker{}, err
 	}
@@ -293,7 +295,7 @@ func (b *BTCC) GetTickerPrice(currency string) (TickerPrice, error) {
 
 func (b *BTCC) GetTradesLast24h(symbol string) bool {
 	req := fmt.Sprintf("%sdata/trades?market=%s", BTCC_API_URL, symbol)
-	err := SendHTTPGetRequest(req, true, nil)
+	err := common.SendHTTPGetRequest(req, true, nil)
 	if err != nil {
 		log.Println(err)
 		return false
@@ -315,8 +317,8 @@ func (b *BTCC) GetTradeHistory(symbol string, limit, sinceTid int64, time time.T
 		v.Set("sincetype", strconv.FormatInt(time.Unix(), 10))
 	}
 
-	req = EncodeURLValues(req, v)
-	err := SendHTTPGetRequest(req, true, nil)
+	req = common.EncodeURLValues(req, v)
+	err := common.SendHTTPGetRequest(req, true, nil)
 	if err != nil {
 		log.Println(err)
 		return false
@@ -326,7 +328,7 @@ func (b *BTCC) GetTradeHistory(symbol string, limit, sinceTid int64, time time.T
 
 func (b *BTCC) GetOrderBook(symbol string, limit int) bool {
 	req := fmt.Sprintf("%sdata/orderbook?market=%s&limit=%d", BTCC_API_URL, symbol, limit)
-	err := SendHTTPGetRequest(req, true, nil)
+	err := common.SendHTTPGetRequest(req, true, nil)
 	if err != nil {
 		log.Println(err)
 		return false
@@ -760,19 +762,19 @@ func (b *BTCC) SendAuthenticatedHTTPRequest(method string, params []interface{})
 				}
 			}
 		}
-		encoded += JoinStrings(items, ",")
+		encoded += common.JoinStrings(items, ",")
 	}
 	if b.Verbose {
 		log.Println(encoded)
 	}
 
-	hmac := GetHMAC(HASH_SHA1, []byte(encoded), []byte(b.APISecret))
+	hmac := common.GetHMAC(common.HASH_SHA1, []byte(encoded), []byte(b.APISecret))
 	postData := make(map[string]interface{})
 	postData["method"] = method
 	postData["params"] = params
 	postData["id"] = 1
 	apiURL := BTCC_API_URL + BTCC_API_AUTHENTICATED_METHOD
-	data, err := JSONEncode(postData)
+	data, err := common.JSONEncode(postData)
 
 	if err != nil {
 		return errors.New("Unable to JSON Marshal POST data")
@@ -784,10 +786,10 @@ func (b *BTCC) SendAuthenticatedHTTPRequest(method string, params []interface{})
 
 	headers := make(map[string]string)
 	headers["Content-type"] = "application/json-rpc"
-	headers["Authorization"] = "Basic " + Base64Encode([]byte(b.APIKey+":"+HexEncodeToString(hmac)))
+	headers["Authorization"] = "Basic " + common.Base64Encode([]byte(b.APIKey+":"+common.HexEncodeToString(hmac)))
 	headers["Json-Rpc-Tonce"] = nonce
 
-	resp, err := SendHTTPRequest("POST", apiURL, headers, strings.NewReader(string(data)))
+	resp, err := common.SendHTTPRequest("POST", apiURL, headers, strings.NewReader(string(data)))
 
 	if err != nil {
 		return err

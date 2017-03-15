@@ -7,6 +7,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/thrasher-/gocryptotrader/common"
 )
 
 const (
@@ -91,9 +93,9 @@ func (l *LakeBTC) Setup(exch Exchanges) {
 		l.RESTPollingDelay = exch.RESTPollingDelay
 		l.Verbose = exch.Verbose
 		l.Websocket = exch.Websocket
-		l.BaseCurrencies = SplitStrings(exch.BaseCurrencies, ",")
-		l.AvailablePairs = SplitStrings(exch.AvailablePairs, ",")
-		l.EnabledPairs = SplitStrings(exch.EnabledPairs, ",")
+		l.BaseCurrencies = common.SplitStrings(exch.BaseCurrencies, ",")
+		l.AvailablePairs = common.SplitStrings(exch.AvailablePairs, ",")
+		l.EnabledPairs = common.SplitStrings(exch.EnabledPairs, ",")
 	}
 }
 
@@ -151,7 +153,7 @@ type LakeBTCTickerResponse struct {
 func (l *LakeBTC) GetTicker() (map[string]LakeBTCTicker, error) {
 	response := make(map[string]LakeBTCTickerResponse)
 	path := fmt.Sprintf("%s/%s", LAKEBTC_API_URL, LAKEBTC_TICKER)
-	err := SendHTTPGetRequest(path, true, &response)
+	err := common.SendHTTPGetRequest(path, true, &response)
 	if err != nil {
 		return nil, err
 	}
@@ -160,7 +162,7 @@ func (l *LakeBTC) GetTicker() (map[string]LakeBTCTicker, error) {
 	var addresses []string
 	for k, v := range response {
 		var ticker LakeBTCTicker
-		key := StringToUpper(k)
+		key := common.StringToUpper(k)
 		if v.Ask != nil {
 			ticker.Ask, _ = strconv.ParseFloat(v.Ask.(string), 64)
 		}
@@ -220,9 +222,9 @@ func (l *LakeBTC) GetOrderBook(currency string) (LakeBTCOrderbook, error) {
 		Bids [][]string `json:"bids"`
 		Asks [][]string `json:"asks"`
 	}
-	path := fmt.Sprintf("%s/%s?symbol=%s", LAKEBTC_API_URL, LAKEBTC_ORDERBOOK, StringToLower(currency))
+	path := fmt.Sprintf("%s/%s?symbol=%s", LAKEBTC_API_URL, LAKEBTC_ORDERBOOK, common.StringToLower(currency))
 	resp := Response{}
-	err := SendHTTPGetRequest(path, true, &resp)
+	err := common.SendHTTPGetRequest(path, true, &resp)
 	if err != nil {
 		return LakeBTCOrderbook{}, err
 	}
@@ -266,9 +268,9 @@ type LakeBTCTradeHistory struct {
 }
 
 func (l *LakeBTC) GetTradeHistory(currency string) ([]LakeBTCTradeHistory, error) {
-	path := fmt.Sprintf("%s/%s?symbol=%s", LAKEBTC_API_URL, LAKEBTC_TRADES, StringToLower(currency))
+	path := fmt.Sprintf("%s/%s?symbol=%s", LAKEBTC_API_URL, LAKEBTC_TRADES, common.StringToLower(currency))
 	resp := []LakeBTCTradeHistory{}
-	err := SendHTTPGetRequest(path, true, &resp)
+	err := common.SendHTTPGetRequest(path, true, &resp)
 	if err != nil {
 		return nil, err
 	}
@@ -308,7 +310,7 @@ func (l *LakeBTC) GetExchangeAccountInfo() (ExchangeAccountInfo, error) {
 		for z, w := range accountInfo.Locked {
 			if z == x {
 				var exchangeCurrency ExchangeAccountCurrencyInfo
-				exchangeCurrency.CurrencyName = StringToUpper(x)
+				exchangeCurrency.CurrencyName = common.StringToUpper(x)
 				exchangeCurrency.TotalValue, _ = strconv.ParseFloat(y, 64)
 				exchangeCurrency.Hold, _ = strconv.ParseFloat(w, 64)
 				response.Currencies = append(response.Currencies, exchangeCurrency)
@@ -382,7 +384,7 @@ func (l *LakeBTC) GetOrders(orders []int64) ([]LakeBTCOrders, error) {
 	}
 
 	resp := []LakeBTCOrders{}
-	err := l.SendAuthenticatedHTTPRequest(LAKEBTC_GET_ORDERS, JoinStrings(ordersStr, ","), &resp)
+	err := l.SendAuthenticatedHTTPRequest(LAKEBTC_GET_ORDERS, common.JoinStrings(ordersStr, ","), &resp)
 
 	if err != nil {
 		return nil, err
@@ -477,7 +479,7 @@ func (l *LakeBTC) CreateWithdraw(amount float64, accountID int64) (LakeBTCWithdr
 func (l *LakeBTC) SendAuthenticatedHTTPRequest(method, params string, result interface{}) (err error) {
 	nonce := strconv.FormatInt(time.Now().UnixNano(), 10)
 	req := fmt.Sprintf("tonce=%s&accesskey=%s&requestmethod=post&id=1&method=%s&params=%s", nonce, l.APIKey, method, params)
-	hmac := GetHMAC(HASH_SHA1, []byte(req), []byte(l.APISecret))
+	hmac := common.GetHMAC(common.HASH_SHA1, []byte(req), []byte(l.APISecret))
 
 	if l.Verbose {
 		log.Printf("Sending POST request to %s calling method %s with params %s\n", LAKEBTC_API_URL, method, req)
@@ -486,19 +488,19 @@ func (l *LakeBTC) SendAuthenticatedHTTPRequest(method, params string, result int
 	postData := make(map[string]interface{})
 	postData["method"] = method
 	postData["id"] = 1
-	postData["params"] = SplitStrings(params, ",")
+	postData["params"] = common.SplitStrings(params, ",")
 
-	data, err := JSONEncode(postData)
+	data, err := common.JSONEncode(postData)
 	if err != nil {
 		return err
 	}
 
 	headers := make(map[string]string)
 	headers["Json-Rpc-Tonce"] = nonce
-	headers["Authorization"] = "Basic " + Base64Encode([]byte(l.APIKey+":"+HexEncodeToString(hmac)))
+	headers["Authorization"] = "Basic " + common.Base64Encode([]byte(l.APIKey+":"+common.HexEncodeToString(hmac)))
 	headers["Content-Type"] = "application/json-rpc"
 
-	resp, err := SendHTTPRequest("POST", LAKEBTC_API_URL, headers, strings.NewReader(string(data)))
+	resp, err := common.SendHTTPRequest("POST", LAKEBTC_API_URL, headers, strings.NewReader(string(data)))
 	if err != nil {
 		return err
 	}
@@ -512,7 +514,7 @@ func (l *LakeBTC) SendAuthenticatedHTTPRequest(method, params string, result int
 	}
 
 	errResponse := ErrorResponse{}
-	err = JSONDecode([]byte(resp), &errResponse)
+	err = common.JSONDecode([]byte(resp), &errResponse)
 	if err != nil {
 		return errors.New("Unable to check response for error.")
 	}
@@ -521,7 +523,7 @@ func (l *LakeBTC) SendAuthenticatedHTTPRequest(method, params string, result int
 		return errors.New(errResponse.Error)
 	}
 
-	err = JSONDecode([]byte(resp), &result)
+	err = common.JSONDecode([]byte(resp), &result)
 
 	if err != nil {
 		return errors.New("Unable to JSON Unmarshal response.")

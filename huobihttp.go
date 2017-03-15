@@ -7,6 +7,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/thrasher-/gocryptotrader/common"
 )
 
 const (
@@ -73,9 +75,9 @@ func (h *HUOBI) Setup(exch Exchanges) {
 		h.RESTPollingDelay = exch.RESTPollingDelay
 		h.Verbose = exch.Verbose
 		h.Websocket = exch.Websocket
-		h.BaseCurrencies = SplitStrings(exch.BaseCurrencies, ",")
-		h.AvailablePairs = SplitStrings(exch.AvailablePairs, ",")
-		h.EnabledPairs = SplitStrings(exch.EnabledPairs, ",")
+		h.BaseCurrencies = common.SplitStrings(exch.BaseCurrencies, ",")
+		h.AvailablePairs = common.SplitStrings(exch.AvailablePairs, ",")
+		h.EnabledPairs = common.SplitStrings(exch.EnabledPairs, ",")
 	}
 }
 
@@ -98,7 +100,7 @@ func (h *HUOBI) GetFee() float64 {
 
 func (h *HUOBI) Run() {
 	if h.Verbose {
-		log.Printf("%s Websocket: %s (url: %s).\n", h.GetName(), IsEnabled(h.Websocket), HUOBI_SOCKETIO_ADDRESS)
+		log.Printf("%s Websocket: %s (url: %s).\n", h.GetName(), common.IsEnabled(h.Websocket), HUOBI_SOCKETIO_ADDRESS)
 		log.Printf("%s polling delay: %ds.\n", h.GetName(), h.RESTPollingDelay)
 		log.Printf("%s %d currencies enabled: %s.\n", h.GetName(), len(h.EnabledPairs), h.EnabledPairs)
 	}
@@ -109,7 +111,7 @@ func (h *HUOBI) Run() {
 
 	for h.Enabled {
 		for _, x := range h.EnabledPairs {
-			currency := StringToLower(x[0:3])
+			currency := common.StringToLower(x[0:3])
 			go func() {
 				ticker, err := h.GetTickerPrice(currency)
 				if err != nil {
@@ -120,8 +122,8 @@ func (h *HUOBI) Run() {
 				HuobiHighUSD, _ := ConvertCurrency(ticker.High, "CNY", "USD")
 				HuobiLowUSD, _ := ConvertCurrency(ticker.Low, "CNY", "USD")
 				log.Printf("Huobi %s: Last %f (%f) High %f (%f) Low %f (%f) Volume %f\n", currency, HuobiLastUSD, ticker.Last, HuobiHighUSD, ticker.High, HuobiLowUSD, ticker.Low, ticker.Volume)
-				AddExchangeInfo(h.GetName(), StringToUpper(currency[0:3]), StringToUpper(currency[3:]), ticker.Last, ticker.Volume)
-				AddExchangeInfo(h.GetName(), StringToUpper(currency[0:3]), "USD", HuobiLastUSD, ticker.Volume)
+				AddExchangeInfo(h.GetName(), common.StringToUpper(currency[0:3]), common.StringToUpper(currency[3:]), ticker.Last, ticker.Volume)
+				AddExchangeInfo(h.GetName(), common.StringToUpper(currency[0:3]), "USD", HuobiLastUSD, ticker.Volume)
 			}()
 		}
 		time.Sleep(time.Second * h.RESTPollingDelay)
@@ -131,7 +133,7 @@ func (h *HUOBI) Run() {
 func (h *HUOBI) GetTicker(symbol string) (HuobiTicker, error) {
 	resp := HuobiTickerResponse{}
 	path := fmt.Sprintf("http://api.huobi.com/staticmarket/ticker_%s_json.js", symbol)
-	err := SendHTTPGetRequest(path, true, &resp)
+	err := common.SendHTTPGetRequest(path, true, &resp)
 
 	if err != nil {
 		return HuobiTicker{}, err
@@ -140,7 +142,7 @@ func (h *HUOBI) GetTicker(symbol string) (HuobiTicker, error) {
 }
 
 func (h *HUOBI) GetTickerPrice(currency string) (TickerPrice, error) {
-	tickerNew, err := GetTicker(h.GetName(), StringToUpper(currency[0:3]), StringToUpper(currency[3:]))
+	tickerNew, err := GetTicker(h.GetName(), common.StringToUpper(currency[0:3]), common.StringToUpper(currency[3:]))
 	if err == nil {
 		return tickerNew, nil
 	}
@@ -152,8 +154,8 @@ func (h *HUOBI) GetTickerPrice(currency string) (TickerPrice, error) {
 	}
 	tickerPrice.Ask = ticker.Sell
 	tickerPrice.Bid = ticker.Buy
-	tickerPrice.FirstCurrency = StringToUpper(currency[0:3])
-	tickerPrice.SecondCurrency = StringToUpper(currency[3:])
+	tickerPrice.FirstCurrency = common.StringToUpper(currency[0:3])
+	tickerPrice.SecondCurrency = common.StringToUpper(currency[3:])
 	tickerPrice.CurrencyPair = tickerPrice.FirstCurrency + "_" + tickerPrice.SecondCurrency
 	tickerPrice.Low = ticker.Low
 	tickerPrice.Last = ticker.Last
@@ -165,7 +167,7 @@ func (h *HUOBI) GetTickerPrice(currency string) (TickerPrice, error) {
 
 func (h *HUOBI) GetOrderBook(symbol string) bool {
 	path := fmt.Sprintf("http://api.huobi.com/staticmarket/depth_%s_json.js", symbol)
-	err := SendHTTPGetRequest(path, true, nil)
+	err := common.SendHTTPGetRequest(path, true, nil)
 	if err != nil {
 		log.Println(err)
 		return false
@@ -281,8 +283,8 @@ func (h *HUOBI) SendAuthenticatedRequest(method string, v url.Values) error {
 	v.Set("access_key", h.AccessKey)
 	v.Set("created", strconv.FormatInt(time.Now().Unix(), 10))
 	v.Set("method", method)
-	hash := GetMD5([]byte(v.Encode() + "&secret_key=" + h.SecretKey))
-	v.Set("sign", strings.ToLower(HexEncodeToString(hash)))
+	hash := common.GetMD5([]byte(v.Encode() + "&secret_key=" + h.SecretKey))
+	v.Set("sign", common.StringToLower(common.HexEncodeToString(hash)))
 	encoded := v.Encode()
 
 	if h.Verbose {
@@ -292,7 +294,7 @@ func (h *HUOBI) SendAuthenticatedRequest(method string, v url.Values) error {
 	headers := make(map[string]string)
 	headers["Content-Type"] = "application/x-www-form-urlencoded"
 
-	resp, err := SendHTTPRequest("POST", HUOBI_API_URL, headers, strings.NewReader(encoded))
+	resp, err := common.SendHTTPRequest("POST", HUOBI_API_URL, headers, strings.NewReader(encoded))
 
 	if err != nil {
 		return err

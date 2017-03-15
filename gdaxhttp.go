@@ -8,6 +8,8 @@ import (
 	"net/url"
 	"strconv"
 	"time"
+
+	"github.com/thrasher-/gocryptotrader/common"
 )
 
 const (
@@ -153,9 +155,9 @@ func (g *GDAX) Setup(exch Exchanges) {
 		g.RESTPollingDelay = exch.RESTPollingDelay
 		g.Verbose = exch.Verbose
 		g.Websocket = exch.Websocket
-		g.BaseCurrencies = SplitStrings(exch.BaseCurrencies, ",")
-		g.AvailablePairs = SplitStrings(exch.AvailablePairs, ",")
-		g.EnabledPairs = SplitStrings(exch.EnabledPairs, ",")
+		g.BaseCurrencies = common.SplitStrings(exch.BaseCurrencies, ",")
+		g.AvailablePairs = common.SplitStrings(exch.AvailablePairs, ",")
+		g.EnabledPairs = common.SplitStrings(exch.EnabledPairs, ",")
 	}
 }
 
@@ -177,7 +179,7 @@ func (g *GDAX) GetFee(maker bool) float64 {
 
 func (g *GDAX) Run() {
 	if g.Verbose {
-		log.Printf("%s Websocket: %s. (url: %s).\n", g.GetName(), IsEnabled(g.Websocket), GDAX_WEBSOCKET_URL)
+		log.Printf("%s Websocket: %s. (url: %s).\n", g.GetName(), common.IsEnabled(g.Websocket), GDAX_WEBSOCKET_URL)
 		log.Printf("%s polling delay: %ds.\n", g.GetName(), g.RESTPollingDelay)
 		log.Printf("%s %d currencies enabled: %s.\n", g.GetName(), len(g.EnabledPairs), g.EnabledPairs)
 	}
@@ -196,14 +198,14 @@ func (g *GDAX) Run() {
 				currencies = append(currencies, x.ID[0:3]+x.ID[4:])
 			}
 		}
-		diff := StringSliceDifference(g.AvailablePairs, currencies)
+		diff := common.StringSliceDifference(g.AvailablePairs, currencies)
 		if len(diff) > 0 {
 			exch, err := GetExchangeConfig(g.Name)
 			if err != nil {
 				log.Println(err)
 			} else {
 				log.Printf("%s Updating available pairs. Difference: %s.\n", g.Name, diff)
-				exch.AvailablePairs = JoinStrings(currencies, ",")
+				exch.AvailablePairs = common.JoinStrings(currencies, ",")
 				UpdateExchangeConfig(exch)
 			}
 		}
@@ -234,7 +236,7 @@ func (g *GDAX) SetAPIKeys(password, apiKey, apiSecret string) {
 
 	g.Password = password
 	g.APIKey = apiKey
-	result, err := Base64Decode(apiSecret)
+	result, err := common.Base64Decode(apiSecret)
 
 	if err != nil {
 		log.Printf("%s unable to decode secret key.", g.GetName())
@@ -247,7 +249,7 @@ func (g *GDAX) SetAPIKeys(password, apiKey, apiSecret string) {
 
 func (g *GDAX) GetProducts() ([]GDAXProduct, error) {
 	products := []GDAXProduct{}
-	err := SendHTTPGetRequest(GDAX_API_URL+GDAX_PRODUCTS, true, &products)
+	err := common.SendHTTPGetRequest(GDAX_API_URL+GDAX_PRODUCTS, true, &products)
 
 	if err != nil {
 		return nil, err
@@ -266,7 +268,7 @@ func (g *GDAX) GetOrderbook(symbol string, level int) (interface{}, error) {
 		path = fmt.Sprintf("%s/%s/%s", GDAX_API_URL+GDAX_PRODUCTS, symbol, GDAX_ORDERBOOK)
 	}
 
-	err := SendHTTPGetRequest(path, true, &orderbook)
+	err := common.SendHTTPGetRequest(path, true, &orderbook)
 	if err != nil {
 		return nil, err
 	}
@@ -349,7 +351,7 @@ func (g *GDAX) GetOrderbook(symbol string, level int) (interface{}, error) {
 func (g *GDAX) GetTicker(symbol string) (GDAXTicker, error) {
 	ticker := GDAXTicker{}
 	path := fmt.Sprintf("%s/%s/%s", GDAX_API_URL+GDAX_PRODUCTS, symbol, GDAX_TICKER)
-	err := SendHTTPGetRequest(path, true, &ticker)
+	err := common.SendHTTPGetRequest(path, true, &ticker)
 
 	if err != nil {
 		return ticker, err
@@ -389,7 +391,7 @@ func (g *GDAX) GetTickerPrice(currency string) (TickerPrice, error) {
 func (g *GDAX) GetTrades(symbol string) ([]GDAXTrade, error) {
 	trades := []GDAXTrade{}
 	path := fmt.Sprintf("%s/%s/%s", GDAX_API_URL+GDAX_PRODUCTS, symbol, GDAX_TRADES)
-	err := SendHTTPGetRequest(path, true, &trades)
+	err := common.SendHTTPGetRequest(path, true, &trades)
 
 	if err != nil {
 		return nil, err
@@ -413,8 +415,8 @@ func (g *GDAX) GetHistoricRates(symbol string, start, end, granularity int64) ([
 		values.Set("granularity", strconv.FormatInt(granularity, 10))
 	}
 
-	path := EncodeURLValues(fmt.Sprintf("%s/%s/%s", GDAX_API_URL+GDAX_PRODUCTS, symbol, GDAX_HISTORY), values)
-	err := SendHTTPGetRequest(path, true, &history)
+	path := common.EncodeURLValues(fmt.Sprintf("%s/%s/%s", GDAX_API_URL+GDAX_PRODUCTS, symbol, GDAX_HISTORY), values)
+	err := common.SendHTTPGetRequest(path, true, &history)
 
 	if err != nil {
 		return nil, err
@@ -425,7 +427,7 @@ func (g *GDAX) GetHistoricRates(symbol string, start, end, granularity int64) ([
 func (g *GDAX) GetStats(symbol string) (GDAXStats, error) {
 	stats := GDAXStats{}
 	path := fmt.Sprintf("%s/%s/%s", GDAX_API_URL+GDAX_PRODUCTS, symbol, GDAX_STATS)
-	err := SendHTTPGetRequest(path, true, &stats)
+	err := common.SendHTTPGetRequest(path, true, &stats)
 
 	if err != nil {
 		return stats, err
@@ -435,7 +437,7 @@ func (g *GDAX) GetStats(symbol string) (GDAXStats, error) {
 
 func (g *GDAX) GetCurrencies() ([]GDAXCurrency, error) {
 	currencies := []GDAXCurrency{}
-	err := SendHTTPGetRequest(GDAX_API_URL+GDAX_CURRENCIES, true, &currencies)
+	err := common.SendHTTPGetRequest(GDAX_API_URL+GDAX_CURRENCIES, true, &currencies)
 
 	if err != nil {
 		return nil, err
@@ -581,7 +583,7 @@ type GDAXOrdersResponse struct {
 }
 
 func (g *GDAX) GetOrders(params url.Values) ([]GDAXOrdersResponse, error) {
-	path := EncodeURLValues(GDAX_API_URL+GDAX_ORDERS, params)
+	path := common.EncodeURLValues(GDAX_API_URL+GDAX_ORDERS, params)
 	resp := []GDAXOrdersResponse{}
 	err := g.SendAuthenticatedHTTPRequest("GET", path, nil, &resp)
 	if err != nil {
@@ -629,7 +631,7 @@ type GDAXFillResponse struct {
 }
 
 func (g *GDAX) GetFills(params url.Values) ([]GDAXFillResponse, error) {
-	path := EncodeURLValues(GDAX_API_URL+GDAX_FILLS, params)
+	path := common.EncodeURLValues(GDAX_API_URL+GDAX_FILLS, params)
 	resp := []GDAXFillResponse{}
 	err := g.SendAuthenticatedHTTPRequest("GET", path, nil, &resp)
 	if err != nil {
@@ -694,7 +696,7 @@ func (g *GDAX) SendAuthenticatedHTTPRequest(method, path string, params map[stri
 	payload := []byte("")
 
 	if params != nil {
-		payload, err = JSONEncode(params)
+		payload, err = common.JSONEncode(params)
 
 		if err != nil {
 			return errors.New("SendAuthenticatedHTTPRequest: Unable to JSON request")
@@ -706,21 +708,21 @@ func (g *GDAX) SendAuthenticatedHTTPRequest(method, path string, params map[stri
 	}
 
 	message := timestamp + method + path + string(payload)
-	hmac := GetHMAC(HASH_SHA256, []byte(message), []byte(g.APISecret))
+	hmac := common.GetHMAC(common.HASH_SHA256, []byte(message), []byte(g.APISecret))
 	headers := make(map[string]string)
-	headers["CB-ACCESS-SIGN"] = Base64Encode([]byte(hmac))
+	headers["CB-ACCESS-SIGN"] = common.Base64Encode([]byte(hmac))
 	headers["CB-ACCESS-TIMESTAMP"] = timestamp
 	headers["CB-ACCESS-KEY"] = g.APIKey
 	headers["CB-ACCESS-PASSPHRASE"] = g.Password
 	headers["Content-Type"] = "application/json"
 
-	resp, err := SendHTTPRequest(method, GDAX_API_URL+path, headers, bytes.NewBuffer(payload))
+	resp, err := common.SendHTTPRequest(method, GDAX_API_URL+path, headers, bytes.NewBuffer(payload))
 
 	if g.Verbose {
 		log.Printf("Recieved raw: \n%s\n", resp)
 	}
 
-	err = JSONDecode([]byte(resp), &result)
+	err = common.JSONDecode([]byte(resp), &result)
 
 	if err != nil {
 		return errors.New("Unable to JSON Unmarshal response.")

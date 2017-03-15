@@ -8,6 +8,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/thrasher-/gocryptotrader/common"
 )
 
 const (
@@ -134,9 +136,9 @@ func (g *Gemini) Setup(exch Exchanges) {
 		g.RESTPollingDelay = exch.RESTPollingDelay
 		g.Verbose = exch.Verbose
 		g.Websocket = exch.Websocket
-		g.BaseCurrencies = SplitStrings(exch.BaseCurrencies, ",")
-		g.AvailablePairs = SplitStrings(exch.AvailablePairs, ",")
-		g.EnabledPairs = SplitStrings(exch.EnabledPairs, ",")
+		g.BaseCurrencies = common.SplitStrings(exch.BaseCurrencies, ",")
+		g.AvailablePairs = common.SplitStrings(exch.AvailablePairs, ",")
+		g.EnabledPairs = common.SplitStrings(exch.EnabledPairs, ",")
 	}
 }
 
@@ -163,15 +165,15 @@ func (g *Gemini) Run() {
 	if err != nil {
 		log.Printf("%s Failed to get available symbols.\n", g.GetName())
 	} else {
-		exchangeProducts = SplitStrings(StringToUpper(JoinStrings(exchangeProducts, ",")), ",")
-		diff := StringSliceDifference(g.AvailablePairs, exchangeProducts)
+		exchangeProducts = common.SplitStrings(common.StringToUpper(common.JoinStrings(exchangeProducts, ",")), ",")
+		diff := common.StringSliceDifference(g.AvailablePairs, exchangeProducts)
 		if len(diff) > 0 {
 			exch, err := GetExchangeConfig(g.Name)
 			if err != nil {
 				log.Println(err)
 			} else {
 				log.Printf("%s Updating available pairs. Difference: %s.\n", g.Name, diff)
-				exch.AvailablePairs = JoinStrings(exchangeProducts, ",")
+				exch.AvailablePairs = common.JoinStrings(exchangeProducts, ",")
 				UpdateExchangeConfig(exch)
 			}
 		}
@@ -218,7 +220,7 @@ func (g *Gemini) GetTicker(currency string) (GeminiTicker, error) {
 	resp := TickerResponse{}
 	path := fmt.Sprintf("%s/v%s/%s/%s", GEMINI_API_URL, GEMINI_API_VERSION, GEMINI_TICKER, currency)
 
-	err := SendHTTPGetRequest(path, true, &resp)
+	err := common.SendHTTPGetRequest(path, true, &resp)
 	if err != nil {
 		return ticker, err
 	}
@@ -261,7 +263,7 @@ func (g *Gemini) GetTickerPrice(currency string) (TickerPrice, error) {
 func (g *Gemini) GetSymbols() ([]string, error) {
 	symbols := []string{}
 	path := fmt.Sprintf("%s/v%s/%s", GEMINI_API_URL, GEMINI_API_VERSION, GEMINI_SYMBOLS)
-	err := SendHTTPGetRequest(path, true, &symbols)
+	err := common.SendHTTPGetRequest(path, true, &symbols)
 	if err != nil {
 		return nil, err
 	}
@@ -281,7 +283,7 @@ type GeminiAuction struct {
 func (g *Gemini) GetAuction(currency string) (GeminiAuction, error) {
 	path := fmt.Sprintf("%s/v%s/%s/%s", GEMINI_API_URL, GEMINI_API_VERSION, GEMINI_AUCTION, currency)
 	auction := GeminiAuction{}
-	err := SendHTTPGetRequest(path, true, &auction)
+	err := common.SendHTTPGetRequest(path, true, &auction)
 	if err != nil {
 		return auction, err
 	}
@@ -302,9 +304,9 @@ type GeminiAuctionHistory struct {
 }
 
 func (g *Gemini) GetAuctionHistory(currency string, params url.Values) ([]GeminiAuctionHistory, error) {
-	path := EncodeURLValues(fmt.Sprintf("%s/v%s/%s/%s/%s", GEMINI_API_URL, GEMINI_API_VERSION, GEMINI_AUCTION, currency, GEMINI_AUCTION_HISTORY), params)
+	path := common.EncodeURLValues(fmt.Sprintf("%s/v%s/%s/%s/%s", GEMINI_API_URL, GEMINI_API_VERSION, GEMINI_AUCTION, currency, GEMINI_AUCTION_HISTORY), params)
 	auctionHist := []GeminiAuctionHistory{}
-	err := SendHTTPGetRequest(path, true, &auctionHist)
+	err := common.SendHTTPGetRequest(path, true, &auctionHist)
 	if err != nil {
 		return nil, err
 	}
@@ -312,9 +314,9 @@ func (g *Gemini) GetAuctionHistory(currency string, params url.Values) ([]Gemini
 }
 
 func (g *Gemini) GetOrderbook(currency string, params url.Values) (GeminiOrderbook, error) {
-	path := EncodeURLValues(fmt.Sprintf("%s/v%s/%s/%s", GEMINI_API_URL, GEMINI_API_VERSION, GEMINI_ORDERBOOK, currency), params)
+	path := common.EncodeURLValues(fmt.Sprintf("%s/v%s/%s/%s", GEMINI_API_URL, GEMINI_API_VERSION, GEMINI_ORDERBOOK, currency), params)
 	orderbook := GeminiOrderbook{}
-	err := SendHTTPGetRequest(path, true, &orderbook)
+	err := common.SendHTTPGetRequest(path, true, &orderbook)
 	if err != nil {
 		return GeminiOrderbook{}, err
 	}
@@ -323,9 +325,9 @@ func (g *Gemini) GetOrderbook(currency string, params url.Values) (GeminiOrderbo
 }
 
 func (g *Gemini) GetTrades(currency string, params url.Values) ([]GeminiTrade, error) {
-	path := EncodeURLValues(fmt.Sprintf("%s/v%s/%s/%s", GEMINI_API_URL, GEMINI_API_VERSION, GEMINI_TRADES, currency), params)
+	path := common.EncodeURLValues(fmt.Sprintf("%s/v%s/%s/%s", GEMINI_API_URL, GEMINI_API_VERSION, GEMINI_TRADES, currency), params)
 	trades := []GeminiTrade{}
-	err := SendHTTPGetRequest(path, true, &trades)
+	err := common.SendHTTPGetRequest(path, true, &trades)
 	if err != nil {
 		return []GeminiTrade{}, err
 	}
@@ -461,7 +463,7 @@ func (g *Gemini) SendAuthenticatedHTTPRequest(method, path string, params map[st
 		}
 	}
 
-	PayloadJson, err := JSONEncode(request)
+	PayloadJson, err := common.JSONEncode(request)
 
 	if err != nil {
 		return errors.New("SendAuthenticatedHTTPRequest: Unable to JSON request")
@@ -471,20 +473,20 @@ func (g *Gemini) SendAuthenticatedHTTPRequest(method, path string, params map[st
 		log.Printf("Request JSON: %s\n", PayloadJson)
 	}
 
-	PayloadBase64 := Base64Encode(PayloadJson)
-	hmac := GetHMAC(HASH_SHA512_384, []byte(PayloadBase64), []byte(g.APISecret))
+	PayloadBase64 := common.Base64Encode(PayloadJson)
+	hmac := common.GetHMAC(common.HASH_SHA512_384, []byte(PayloadBase64), []byte(g.APISecret))
 	headers := make(map[string]string)
 	headers["X-GEMINI-APIKEY"] = g.APIKey
 	headers["X-GEMINI-PAYLOAD"] = PayloadBase64
-	headers["X-GEMINI-SIGNATURE"] = HexEncodeToString(hmac)
+	headers["X-GEMINI-SIGNATURE"] = common.HexEncodeToString(hmac)
 
-	resp, err := SendHTTPRequest(method, BITFINEX_API_URL+path, headers, strings.NewReader(""))
+	resp, err := common.SendHTTPRequest(method, BITFINEX_API_URL+path, headers, strings.NewReader(""))
 
 	if g.Verbose {
 		log.Printf("Recieved raw: \n%s\n", resp)
 	}
 
-	err = JSONDecode([]byte(resp), &result)
+	err = common.JSONDecode([]byte(resp), &result)
 
 	if err != nil {
 		return errors.New("Unable to JSON Unmarshal response.")

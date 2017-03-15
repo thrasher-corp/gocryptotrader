@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"github.com/gorilla/websocket"
 	"log"
 	"net/http"
 	"net/url"
@@ -10,6 +9,9 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/gorilla/websocket"
+	"github.com/thrasher-/gocryptotrader/common"
 )
 
 const (
@@ -215,7 +217,7 @@ func (o *OKCoin) PingHandler(message string) error {
 
 func (o *OKCoin) AddChannel(channel string) {
 	event := OKCoinWebsocketEvent{"addChannel", channel}
-	json, err := JSONEncode(event)
+	json, err := common.JSONEncode(event)
 	if err != nil {
 		log.Println(err)
 		return
@@ -234,7 +236,7 @@ func (o *OKCoin) AddChannel(channel string) {
 
 func (o *OKCoin) RemoveChannel(channel string) {
 	event := OKCoinWebsocketEvent{"removeChannel", channel}
-	json, err := JSONEncode(event)
+	json, err := common.JSONEncode(event)
 	if err != nil {
 		log.Println(err)
 		return
@@ -340,13 +342,13 @@ func (o *OKCoin) ConvertToURLValues(values map[string]string) url.Values {
 func (o *OKCoin) WebsocketSign(values map[string]string) string {
 	values["api_key"] = o.PartnerID
 	urlVals := o.ConvertToURLValues(values)
-	return strings.ToUpper(HexEncodeToString(GetMD5([]byte(urlVals.Encode() + "&secret_key=" + o.SecretKey))))
+	return strings.ToUpper(common.HexEncodeToString(common.GetMD5([]byte(urlVals.Encode() + "&secret_key=" + o.SecretKey))))
 }
 
 func (o *OKCoin) AddChannelAuthenticated(channel string, values map[string]string) {
 	values["sign"] = o.WebsocketSign(values)
 	event := OKCoinWebsocketEventAuth{"addChannel", channel, values}
-	json, err := JSONEncode(event)
+	json, err := common.JSONEncode(event)
 	if err != nil {
 		log.Println(err)
 		return
@@ -366,7 +368,7 @@ func (o *OKCoin) AddChannelAuthenticated(channel string, values map[string]strin
 func (o *OKCoin) RemoveChannelAuthenticated(conn *websocket.Conn, channel string, values map[string]string) {
 	values["sign"] = o.WebsocketSign(values)
 	event := OKCoinWebsocketEventAuthRemove{"removeChannel", channel, values}
-	json, err := JSONEncode(event)
+	json, err := common.JSONEncode(event)
 	if err != nil {
 		log.Println(err)
 		return
@@ -421,7 +423,7 @@ func (o *OKCoin) WebsocketClient() {
 		}
 
 		for _, x := range o.EnabledPairs {
-			currency := StringToLower(x)
+			currency := common.StringToLower(x)
 			currencyUL := currency[0:3] + "_" + currency[3:]
 			if o.AuthenticatedAPISupport {
 				o.WebsocketSpotOrderInfo(currencyUL, -1)
@@ -459,7 +461,7 @@ func (o *OKCoin) WebsocketClient() {
 			switch msgType {
 			case websocket.TextMessage:
 				response := []interface{}{}
-				err = JSONDecode(resp, &response)
+				err = common.JSONDecode(resp, &response)
 
 				if err != nil {
 					log.Println(err)
@@ -496,7 +498,7 @@ func (o *OKCoin) WebsocketClient() {
 						}
 					}
 
-					dataJSON, err := JSONEncode(data)
+					dataJSON, err := common.JSONEncode(data)
 
 					if err != nil {
 						log.Println(err)
@@ -504,7 +506,7 @@ func (o *OKCoin) WebsocketClient() {
 					}
 
 					switch true {
-					case StringContains(channelStr, "ticker") && !StringContains(channelStr, "future"):
+					case common.StringContains(channelStr, "ticker") && !common.StringContains(channelStr, "future"):
 						tickerValues := []string{"buy", "high", "last", "low", "sell", "timestamp"}
 						tickerMap := data.(map[string]interface{})
 						ticker := OKCoinWebsocketTicker{}
@@ -551,124 +553,124 @@ func (o *OKCoin) WebsocketClient() {
 								}
 							}
 						}
-					case StringContains(channelStr, "ticker") && StringContains(channelStr, "future"):
+					case common.StringContains(channelStr, "ticker") && common.StringContains(channelStr, "future"):
 						ticker := OKCoinWebsocketFuturesTicker{}
-						err = JSONDecode(dataJSON, &ticker)
+						err = common.JSONDecode(dataJSON, &ticker)
 
 						if err != nil {
 							log.Println(err)
 							continue
 						}
-					case StringContains(channelStr, "depth"):
+					case common.StringContains(channelStr, "depth"):
 						orderbook := OKCoinWebsocketOrderbook{}
-						err = JSONDecode(dataJSON, &orderbook)
+						err = common.JSONDecode(dataJSON, &orderbook)
 
 						if err != nil {
 							log.Println(err)
 							continue
 						}
-					case StringContains(channelStr, "trades_v1") || StringContains(channelStr, "trade_v1"):
+					case common.StringContains(channelStr, "trades_v1") || common.StringContains(channelStr, "trade_v1"):
 						type TradeResponse struct {
 							Data [][]string
 						}
 
 						trades := TradeResponse{}
-						err = JSONDecode(dataJSON, &trades.Data)
+						err = common.JSONDecode(dataJSON, &trades.Data)
 
 						if err != nil {
 							log.Println(err)
 							continue
 						}
 						// to-do: convert from string array to trade struct
-					case StringContains(channelStr, "kline"):
+					case common.StringContains(channelStr, "kline"):
 						klines := []interface{}{}
-						err := JSONDecode(dataJSON, &klines)
+						err := common.JSONDecode(dataJSON, &klines)
 
 						if err != nil {
 							log.Println(err)
 							continue
 						}
-					case StringContains(channelStr, "spot") && StringContains(channelStr, "realtrades"):
+					case common.StringContains(channelStr, "spot") && common.StringContains(channelStr, "realtrades"):
 						if string(dataJSON) == "null" {
 							continue
 						}
 						realtrades := OKCoinWebsocketRealtrades{}
-						err := JSONDecode(dataJSON, &realtrades)
+						err := common.JSONDecode(dataJSON, &realtrades)
 
 						if err != nil {
 							log.Println(err)
 							continue
 						}
-					case StringContains(channelStr, "future") && StringContains(channelStr, "realtrades"):
+					case common.StringContains(channelStr, "future") && common.StringContains(channelStr, "realtrades"):
 						if string(dataJSON) == "null" {
 							continue
 						}
 						realtrades := OKCoinWebsocketFuturesRealtrades{}
-						err := JSONDecode(dataJSON, &realtrades)
+						err := common.JSONDecode(dataJSON, &realtrades)
 
 						if err != nil {
 							log.Println(err)
 							continue
 						}
-					case StringContains(channelStr, "spot") && StringContains(channelStr, "trade") || StringContains(channelStr, "futures") && StringContains(channelStr, "trade"):
+					case common.StringContains(channelStr, "spot") && common.StringContains(channelStr, "trade") || common.StringContains(channelStr, "futures") && common.StringContains(channelStr, "trade"):
 						tradeOrder := OKCoinWebsocketTradeOrderResponse{}
-						err := JSONDecode(dataJSON, &tradeOrder)
+						err := common.JSONDecode(dataJSON, &tradeOrder)
 
 						if err != nil {
 							log.Println(err)
 							continue
 						}
-					case StringContains(channelStr, "cancel_order"):
+					case common.StringContains(channelStr, "cancel_order"):
 						cancelOrder := OKCoinWebsocketTradeOrderResponse{}
-						err := JSONDecode(dataJSON, &cancelOrder)
+						err := common.JSONDecode(dataJSON, &cancelOrder)
 
 						if err != nil {
 							log.Println(err)
 							continue
 						}
-					case StringContains(channelStr, "spot") && StringContains(channelStr, "userinfo"):
+					case common.StringContains(channelStr, "spot") && common.StringContains(channelStr, "userinfo"):
 						userinfo := OKCoinWebsocketUserinfo{}
-						err = JSONDecode(dataJSON, &userinfo)
+						err = common.JSONDecode(dataJSON, &userinfo)
 
 						if err != nil {
 							log.Println(err)
 							continue
 						}
-					case StringContains(channelStr, "futureusd_userinfo"):
+					case common.StringContains(channelStr, "futureusd_userinfo"):
 						userinfo := OKCoinWebsocketFuturesUserInfo{}
-						err = JSONDecode(dataJSON, &userinfo)
+						err = common.JSONDecode(dataJSON, &userinfo)
 
 						if err != nil {
 							log.Println(err)
 							continue
 						}
-					case StringContains(channelStr, "spot") && StringContains(channelStr, "order_info"):
+					case common.StringContains(channelStr, "spot") && common.StringContains(channelStr, "order_info"):
 						type OrderInfoResponse struct {
 							Result bool                   `json:"result"`
 							Orders []OKCoinWebsocketOrder `json:"orders"`
 						}
 						var orders OrderInfoResponse
-						err := JSONDecode(dataJSON, &orders)
+						err := common.JSONDecode(dataJSON, &orders)
 
 						if err != nil {
 							log.Println(err)
 							continue
 						}
-					case StringContains(channelStr, "futureusd_order_info"):
+					case common.StringContains(channelStr, "futureusd_order_info"):
 						type OrderInfoResponse struct {
 							Result bool                          `json:"result"`
 							Orders []OKCoinWebsocketFuturesOrder `json:"orders"`
 						}
 						var orders OrderInfoResponse
-						err := JSONDecode(dataJSON, &orders)
+						err := common.JSONDecode(dataJSON, &orders)
 
 						if err != nil {
 							log.Println(err)
 							continue
 						}
-					case StringContains(channelStr, "future_index"):
+					case common.StringContains(channelStr, "future_index"):
 						index := OKCoinWebsocketFutureIndex{}
-						err = JSONDecode(dataJSON, &index)
+						err = common.JSONDecode(dataJSON, &index)
 
 						if err != nil {
 							log.Println(err)

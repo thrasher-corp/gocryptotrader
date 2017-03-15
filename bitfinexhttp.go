@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/thrasher-/gocryptotrader/common"
 )
 
 const (
@@ -206,9 +207,9 @@ func (b *Bitfinex) Setup(exch Exchanges) {
 		b.RESTPollingDelay = exch.RESTPollingDelay
 		b.Verbose = exch.Verbose
 		b.Websocket = exch.Websocket
-		b.BaseCurrencies = SplitStrings(exch.BaseCurrencies, ",")
-		b.AvailablePairs = SplitStrings(exch.AvailablePairs, ",")
-		b.EnabledPairs = SplitStrings(exch.EnabledPairs, ",")
+		b.BaseCurrencies = common.SplitStrings(exch.BaseCurrencies, ",")
+		b.AvailablePairs = common.SplitStrings(exch.AvailablePairs, ",")
+		b.EnabledPairs = common.SplitStrings(exch.EnabledPairs, ",")
 	}
 }
 
@@ -235,7 +236,7 @@ func (b *Bitfinex) SetAPIKeys(apiKey, apiSecret string) {
 
 func (b *Bitfinex) Run() {
 	if b.Verbose {
-		log.Printf("%s Websocket: %s.", b.GetName(), IsEnabled(b.Websocket))
+		log.Printf("%s Websocket: %s.", b.GetName(), common.IsEnabled(b.Websocket))
 		log.Printf("%s polling delay: %ds.\n", b.GetName(), b.RESTPollingDelay)
 		log.Printf("%s %d currencies enabled: %s.\n", b.GetName(), len(b.EnabledPairs), b.EnabledPairs)
 	}
@@ -248,15 +249,15 @@ func (b *Bitfinex) Run() {
 	if err != nil {
 		log.Printf("%s Failed to get available symbols.\n", b.GetName())
 	} else {
-		exchangeProducts = SplitStrings(StringToUpper(JoinStrings(exchangeProducts, ",")), ",")
-		diff := StringSliceDifference(b.AvailablePairs, exchangeProducts)
+		exchangeProducts = common.SplitStrings(common.StringToUpper(common.JoinStrings(exchangeProducts, ",")), ",")
+		diff := common.StringSliceDifference(b.AvailablePairs, exchangeProducts)
 		if len(diff) > 0 {
 			exch, err := GetExchangeConfig(b.Name)
 			if err != nil {
 				log.Println(err)
 			} else {
 				log.Printf("%s Updating available pairs. Difference: %s.\n", b.Name, diff)
-				exch.AvailablePairs = JoinStrings(exchangeProducts, ",")
+				exch.AvailablePairs = common.JoinStrings(exchangeProducts, ",")
 				UpdateExchangeConfig(exch)
 			}
 		}
@@ -279,9 +280,9 @@ func (b *Bitfinex) Run() {
 }
 
 func (b *Bitfinex) GetTicker(symbol string, values url.Values) (BitfinexTicker, error) {
-	path := EncodeURLValues(BITFINEX_API_URL+BITFINEX_TICKER+symbol, values)
+	path := common.EncodeURLValues(BITFINEX_API_URL+BITFINEX_TICKER+symbol, values)
 	response := BitfinexTicker{}
-	err := SendHTTPGetRequest(path, true, &response)
+	err := common.SendHTTPGetRequest(path, true, &response)
 	if err != nil {
 		return response, err
 	}
@@ -327,7 +328,7 @@ type BitfinexLendbook struct {
 
 func (b *Bitfinex) GetStats(symbol string) (BitfinexStats, error) {
 	response := BitfinexStats{}
-	err := SendHTTPGetRequest(BITFINEX_API_URL+BITFINEX_STATS+symbol, true, &response)
+	err := common.SendHTTPGetRequest(BITFINEX_API_URL+BITFINEX_STATS+symbol, true, &response)
 	if err != nil {
 		return response, err
 	}
@@ -335,9 +336,9 @@ func (b *Bitfinex) GetStats(symbol string) (BitfinexStats, error) {
 }
 
 func (b *Bitfinex) GetLendbook(symbol string, values url.Values) (BitfinexLendbook, error) {
-	path := EncodeURLValues(BITFINEX_API_URL+BITFINEX_LENDBOOK+symbol, values)
+	path := common.EncodeURLValues(BITFINEX_API_URL+BITFINEX_LENDBOOK+symbol, values)
 	response := BitfinexLendbook{}
-	err := SendHTTPGetRequest(path, true, &response)
+	err := common.SendHTTPGetRequest(path, true, &response)
 	if err != nil {
 		return response, err
 	}
@@ -345,9 +346,9 @@ func (b *Bitfinex) GetLendbook(symbol string, values url.Values) (BitfinexLendbo
 }
 
 func (b *Bitfinex) GetOrderbook(symbol string, values url.Values) (BitfinexOrderbook, error) {
-	path := EncodeURLValues(BITFINEX_API_URL+BITFINEX_ORDERBOOK+symbol, values)
+	path := common.EncodeURLValues(BITFINEX_API_URL+BITFINEX_ORDERBOOK+symbol, values)
 	response := BitfinexOrderbook{}
-	err := SendHTTPGetRequest(path, true, &response)
+	err := common.SendHTTPGetRequest(path, true, &response)
 	if err != nil {
 		return response, err
 	}
@@ -355,9 +356,9 @@ func (b *Bitfinex) GetOrderbook(symbol string, values url.Values) (BitfinexOrder
 }
 
 func (b *Bitfinex) GetTrades(symbol string, values url.Values) ([]BitfinexTradeStructure, error) {
-	path := EncodeURLValues(BITFINEX_API_URL+BITFINEX_TRADES+symbol, values)
+	path := common.EncodeURLValues(BITFINEX_API_URL+BITFINEX_TRADES+symbol, values)
 	response := []BitfinexTradeStructure{}
-	err := SendHTTPGetRequest(path, true, &response)
+	err := common.SendHTTPGetRequest(path, true, &response)
 	if err != nil {
 		return nil, err
 	}
@@ -372,9 +373,9 @@ type BitfinexLends struct {
 }
 
 func (b *Bitfinex) GetLends(symbol string, values url.Values) ([]BitfinexLends, error) {
-	path := EncodeURLValues(BITFINEX_API_URL+BITFINEX_LENDS+symbol, values)
+	path := common.EncodeURLValues(BITFINEX_API_URL+BITFINEX_LENDS+symbol, values)
 	response := []BitfinexLends{}
-	err := SendHTTPGetRequest(path, true, &response)
+	err := common.SendHTTPGetRequest(path, true, &response)
 	if err != nil {
 		return nil, err
 	}
@@ -383,7 +384,7 @@ func (b *Bitfinex) GetLends(symbol string, values url.Values) ([]BitfinexLends, 
 
 func (b *Bitfinex) GetSymbols() ([]string, error) {
 	products := []string{}
-	err := SendHTTPGetRequest(BITFINEX_API_URL+BITFINEX_SYMBOLS, true, &products)
+	err := common.SendHTTPGetRequest(BITFINEX_API_URL+BITFINEX_SYMBOLS, true, &products)
 	if err != nil {
 		return nil, err
 	}
@@ -392,7 +393,7 @@ func (b *Bitfinex) GetSymbols() ([]string, error) {
 
 func (b *Bitfinex) GetSymbolsDetails() ([]BitfinexSymbolDetails, error) {
 	response := []BitfinexSymbolDetails{}
-	err := SendHTTPGetRequest(BITFINEX_API_URL+BITFINEX_SYMBOLS_DETAILS, true, &response)
+	err := common.SendHTTPGetRequest(BITFINEX_API_URL+BITFINEX_SYMBOLS_DETAILS, true, &response)
 	if err != nil {
 		return nil, err
 	}
@@ -951,7 +952,7 @@ func (b *Bitfinex) SendAuthenticatedHTTPRequest(method, path string, params map[
 		}
 	}
 
-	PayloadJson, err := JSONEncode(request)
+	PayloadJson, err := common.JSONEncode(request)
 
 	if err != nil {
 		return errors.New("SendAuthenticatedHTTPRequest: Unable to JSON request")
@@ -961,20 +962,20 @@ func (b *Bitfinex) SendAuthenticatedHTTPRequest(method, path string, params map[
 		log.Printf("Request JSON: %s\n", PayloadJson)
 	}
 
-	PayloadBase64 := Base64Encode(PayloadJson)
-	hmac := GetHMAC(HASH_SHA512_384, []byte(PayloadBase64), []byte(b.APISecret))
+	PayloadBase64 := common.Base64Encode(PayloadJson)
+	hmac := common.GetHMAC(common.HASH_SHA512_384, []byte(PayloadBase64), []byte(b.APISecret))
 	headers := make(map[string]string)
 	headers["X-BFX-APIKEY"] = b.APIKey
 	headers["X-BFX-PAYLOAD"] = PayloadBase64
-	headers["X-BFX-SIGNATURE"] = HexEncodeToString(hmac)
+	headers["X-BFX-SIGNATURE"] = common.HexEncodeToString(hmac)
 
-	resp, err := SendHTTPRequest(method, BITFINEX_API_URL+path, headers, strings.NewReader(""))
+	resp, err := common.SendHTTPRequest(method, BITFINEX_API_URL+path, headers, strings.NewReader(""))
 
 	if b.Verbose {
 		log.Printf("Recieved raw: \n%s\n", resp)
 	}
 
-	err = JSONDecode([]byte(resp), &result)
+	err = common.JSONDecode([]byte(resp), &result)
 
 	if err != nil {
 		return errors.New("Unable to JSON Unmarshal response.")

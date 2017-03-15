@@ -5,6 +5,8 @@ import (
 	"log"
 	"net/url"
 	"strings"
+
+	"github.com/thrasher-/gocryptotrader/common"
 )
 
 const (
@@ -55,13 +57,13 @@ func SMSNotify(to, message string) error {
 	headers := make(map[string]string)
 	headers["Content-Type"] = "application/x-www-form-urlencoded"
 
-	resp, err := SendHTTPRequest("POST", SMSGLOBAL_API_URL, headers, strings.NewReader(values.Encode()))
+	resp, err := common.SendHTTPRequest("POST", SMSGLOBAL_API_URL, headers, strings.NewReader(values.Encode()))
 
 	if err != nil {
 		return err
 	}
 
-	if !StringContains(resp, "OK: 0; Sent queued message") {
+	if !common.StringContains(resp, "OK: 0; Sent queued message") {
 		return errors.New(ErrSMSNotSent)
 	}
 	return nil

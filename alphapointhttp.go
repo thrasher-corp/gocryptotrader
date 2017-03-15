@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/thrasher-/gocryptotrader/common"
 )
 
 const (
@@ -565,19 +566,19 @@ func (a *Alphapoint) SendRequest(method, path string, data map[string]interface{
 	headers := make(map[string]string)
 	headers["Content-Type"] = "application/json"
 	path = fmt.Sprintf("%s/ajax/v%s/%s", a.APIUrl, ALPHAPOINT_API_VERSION, path)
-	PayloadJson, err := JSONEncode(data)
+	PayloadJson, err := common.JSONEncode(data)
 
 	if err != nil {
 		return errors.New("SendAuthenticatedHTTPRequest: Unable to JSON request")
 	}
 
-	resp, err := SendHTTPRequest(method, path, headers, bytes.NewBuffer(PayloadJson))
+	resp, err := common.SendHTTPRequest(method, path, headers, bytes.NewBuffer(PayloadJson))
 
 	if err != nil {
 		return err
 	}
 
-	err = JSONDecode([]byte(resp), &result)
+	err = common.JSONDecode([]byte(resp), &result)
 
 	if err != nil {
 		return errors.New("Unable to JSON Unmarshal response.")
@@ -592,22 +593,22 @@ func (a *Alphapoint) SendAuthenticatedHTTPRequest(method, path string, data map[
 	nonce := time.Now().UnixNano()
 	nonceStr := strconv.FormatInt(nonce, 10)
 	data["apiNonce"] = nonce
-	hmac := GetHMAC(HASH_SHA256, []byte(nonceStr+a.UserID+a.APIKey), []byte(a.APISecret))
-	data["apiSig"] = StringToUpper(HexEncodeToString(hmac))
+	hmac := common.GetHMAC(common.HASH_SHA256, []byte(nonceStr+a.UserID+a.APIKey), []byte(a.APISecret))
+	data["apiSig"] = common.StringToUpper(common.HexEncodeToString(hmac))
 	path = fmt.Sprintf("%s/ajax/v%s/%s", a.APIUrl, ALPHAPOINT_API_VERSION, path)
-	PayloadJson, err := JSONEncode(data)
+	PayloadJson, err := common.JSONEncode(data)
 
 	if err != nil {
 		return errors.New("SendAuthenticatedHTTPRequest: Unable to JSON request")
 	}
 
-	resp, err := SendHTTPRequest(method, path, headers, bytes.NewBuffer(PayloadJson))
+	resp, err := common.SendHTTPRequest(method, path, headers, bytes.NewBuffer(PayloadJson))
 
 	if err != nil {
 		return err
 	}
 
-	err = JSONDecode([]byte(resp), &result)
+	err = common.JSONDecode([]byte(resp), &result)
 
 	if err != nil {
 		return errors.New("Unable to JSON Unmarshal response.")

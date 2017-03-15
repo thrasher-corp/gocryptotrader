@@ -1,8 +1,10 @@
 package main
 
 import (
-	"github.com/toorop/go-pusher"
 	"log"
+
+	"github.com/thrasher-/gocryptotrader/common"
+	"github.com/toorop/go-pusher"
 )
 
 type BitstampPusherOrderbook struct {
@@ -54,13 +56,13 @@ func (b *Bitstamp) PusherClient() {
 			select {
 			case data := <-dataChannelTrade:
 				result := BitstampPusherOrderbook{}
-				err := JSONDecode([]byte(data.Data), &result)
+				err := common.JSONDecode([]byte(data.Data), &result)
 				if err != nil {
 					log.Println(err)
 				}
 			case trade := <-tradeChannelTrade:
 				result := BitstampPusherTrade{}
-				err := JSONDecode([]byte(trade.Data), &result)
+				err := common.JSONDecode([]byte(trade.Data), &result)
 				if err != nil {
 					log.Println(err)
 				}

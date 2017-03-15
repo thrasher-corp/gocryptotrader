@@ -9,6 +9,8 @@ import (
 	"fmt"
 	"io"
 	"log"
+
+	"github.com/thrasher-/gocryptotrader/common"
 )
 
 const (
@@ -24,7 +26,7 @@ func PromptForConfigEncryption() bool {
 		return false
 	}
 
-	if !YesOrNo(input) {
+	if !common.YesOrNo(input) {
 		bot.config.EncryptConfig = CONFIG_FILE_ENCRYPTION_DISABLED
 		SaveConfig()
 		return false
@@ -97,7 +99,7 @@ func DecryptConfigFile(configData, key []byte) ([]byte, error) {
 }
 
 func ConfirmConfigJSON(file []byte, result interface{}) error {
-	return JSONDecode(file, &result)
+	return common.JSONDecode(file, &result)
 }
 
 func ConfirmECS(file []byte) bool {

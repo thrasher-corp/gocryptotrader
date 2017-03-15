@@ -8,6 +8,8 @@ import (
 	"net/url"
 	"strconv"
 	"time"
+
+	"github.com/thrasher-/gocryptotrader/common"
 )
 
 const (
@@ -118,9 +120,9 @@ func (b *BTCMarkets) Setup(exch Exchanges) {
 		b.RESTPollingDelay = exch.RESTPollingDelay
 		b.Verbose = exch.Verbose
 		b.Websocket = exch.Websocket
-		b.BaseCurrencies = SplitStrings(exch.BaseCurrencies, ",")
-		b.AvailablePairs = SplitStrings(exch.AvailablePairs, ",")
-		b.EnabledPairs = SplitStrings(exch.EnabledPairs, ",")
+		b.BaseCurrencies = common.SplitStrings(exch.BaseCurrencies, ",")
+		b.AvailablePairs = common.SplitStrings(exch.AvailablePairs, ",")
+		b.EnabledPairs = common.SplitStrings(exch.EnabledPairs, ",")
 
 	}
 }
@@ -139,7 +141,7 @@ func (b *BTCMarkets) SetAPIKeys(apiKey, apiSecret string) {
 	}
 
 	b.APIKey = apiKey
-	result, err := Base64Decode(apiSecret)
+	result, err := common.Base64Decode(apiSecret)
 
 	if err != nil {
 		log.Printf("%s unable to decode secret key.\n", b.GetName())
@@ -183,7 +185,7 @@ func (b *BTCMarkets) Run() {
 func (b *BTCMarkets) GetTicker(symbol string) (BTCMarketsTicker, error) {
 	ticker := BTCMarketsTicker{}
 	path := fmt.Sprintf("/market/%s/AUD/tick", symbol)
-	err := SendHTTPGetRequest(BTCMARKETS_API_URL+path, true, &ticker)
+	err := common.SendHTTPGetRequest(BTCMARKETS_API_URL+path, true, &ticker)
 	if err != nil {
 		return BTCMarketsTicker{}, err
 	}
@@ -214,7 +216,7 @@ func (b *BTCMarkets) GetTickerPrice(currency string) (TickerPrice, error) {
 func (b *BTCMarkets) GetOrderbook(symbol string) (BTCMarketsOrderbook, error) {
 	orderbook := BTCMarketsOrderbook{}
 	path := fmt.Sprintf("/market/%s/AUD/orderbook", symbol)
-	err := SendHTTPGetRequest(BTCMARKETS_API_URL+path, true, &orderbook)
+	err := common.SendHTTPGetRequest(BTCMARKETS_API_URL+path, true, &orderbook)
 	if err != nil {
 		return BTCMarketsOrderbook{}, err
 	}
@@ -223,8 +225,8 @@ func (b *BTCMarkets) GetOrderbook(symbol string) (BTCMarketsOrderbook, error) {
 
 func (b *BTCMarkets) GetTrades(symbol string, values url.Values) ([]BTCMarketsTrade, error) {
 	trades := []BTCMarketsTrade{}
-	path := EncodeURLValues(fmt.Sprintf("%s/market/%s/AUD/trades", BTCMARKETS_API_URL, symbol), values)
-	err := SendHTTPGetRequest(path, true, &trades)
+	path := common.EncodeURLValues(fmt.Sprintf("%s/market/%s/AUD/trades", BTCMARKETS_API_URL, symbol), values)
+	err := common.SendHTTPGetRequest(path, true, &trades)
 	if err != nil {
 		return nil, err
 	}
@@ -244,8 +246,8 @@ func (b *BTCMarkets) Order(currency, instrument string, price, amount int64, ord
 	order := Order{}
 	order.Currency = currency
 	order.Instrument = instrument
-	order.Price = price * SATOSHIS_PER_BTC
-	order.Volume = amount * SATOSHIS_PER_BTC
+	order.Price = price * common.SATOSHIS_PER_BTC
+	order.Volume = amount * common.SATOSHIS_PER_BTC
 	order.OrderSide = orderSide
 	order.OrderType = orderType
 	order.ClientRequestId = clientReq
@@ -351,14 +353,14 @@ func (b *BTCMarkets) GetOrders(currency, instrument string, limit, since int64, 
 	}
 
 	for i := range resp.Orders {
-		resp.Orders[i].Price = resp.Orders[i].Price / SATOSHIS_PER_BTC
-		resp.Orders[i].OpenVolume = resp.Orders[i].OpenVolume / SATOSHIS_PER_BTC
-		resp.Orders[i].Volume = resp.Orders[i].Volume / SATOSHIS_PER_BTC
+		resp.Orders[i].Price = resp.Orders[i].Price / common.SATOSHIS_PER_BTC
+		resp.Orders[i].OpenVolume = resp.Orders[i].OpenVolume / common.SATOSHIS_PER_BTC
+		resp.Orders[i].Volume = resp.Orders[i].Volume / common.SATOSHIS_PER_BTC
 
 		for x := range resp.Orders[i].Trades {
-			resp.Orders[i].Trades[x].Fee = resp.Orders[i].Trades[x].Fee / SATOSHIS_PER_BTC
-			resp.Orders[i].Trades[x].Price = resp.Orders[i].Trades[x].Price / SATOSHIS_PER_BTC
-			resp.Orders[i].Trades[x].Volume = resp.Orders[i].Trades[x].Volume / SATOSHIS_PER_BTC
+			resp.Orders[i].Trades[x].Fee = resp.Orders[i].Trades[x].Fee / common.SATOSHIS_PER_BTC
+			resp.Orders[i].Trades[x].Price = resp.Orders[i].Trades[x].Price / common.SATOSHIS_PER_BTC
+			resp.Orders[i].Trades[x].Volume = resp.Orders[i].Trades[x].Volume / common.SATOSHIS_PER_BTC
 		}
 	}
 	return resp.Orders, nil
@@ -390,14 +392,14 @@ func (b *BTCMarkets) GetOrderDetail(orderID []int64) ([]BTCMarketsOrder, error) 
 	}
 
 	for i := range resp.Orders {
-		resp.Orders[i].Price = resp.Orders[i].Price / SATOSHIS_PER_BTC
-		resp.Orders[i].OpenVolume = resp.Orders[i].OpenVolume / SATOSHIS_PER_BTC
-		resp.Orders[i].Volume = resp.Orders[i].Volume / SATOSHIS_PER_BTC
+		resp.Orders[i].Price = resp.Orders[i].Price / common.SATOSHIS_PER_BTC
+		resp.Orders[i].OpenVolume = resp.Orders[i].OpenVolume / common.SATOSHIS_PER_BTC
+		resp.Orders[i].Volume = resp.Orders[i].Volume / common.SATOSHIS_PER_BTC
 
 		for x := range resp.Orders[i].Trades {
-			resp.Orders[i].Trades[x].Fee = resp.Orders[i].Trades[x].Fee / SATOSHIS_PER_BTC
-			resp.Orders[i].Trades[x].Price = resp.Orders[i].Trades[x].Price / SATOSHIS_PER_BTC
-			resp.Orders[i].Trades[x].Volume = resp.Orders[i].Trades[x].Volume / SATOSHIS_PER_BTC
+			resp.Orders[i].Trades[x].Fee = resp.Orders[i].Trades[x].Fee / common.SATOSHIS_PER_BTC
+			resp.Orders[i].Trades[x].Price = resp.Orders[i].Trades[x].Price / common.SATOSHIS_PER_BTC
+			resp.Orders[i].Trades[x].Volume = resp.Orders[i].Trades[x].Volume / common.SATOSHIS_PER_BTC
 		}
 	}
 	return resp.Orders, nil
@@ -419,8 +421,8 @@ func (b *BTCMarkets) GetAccountBalance() ([]BTCMarketsAccountBalance, error) {
 
 	for i := range balance {
 		if balance[i].Currency == "LTC" || balance[i].Currency == "BTC" {
-			balance[i].Balance = balance[i].Balance / SATOSHIS_PER_BTC
-			balance[i].PendingFunds = balance[i].PendingFunds / SATOSHIS_PER_BTC
+			balance[i].Balance = balance[i].Balance / common.SATOSHIS_PER_BTC
+			balance[i].PendingFunds = balance[i].PendingFunds / common.SATOSHIS_PER_BTC
 		}
 	}
 	return balance, nil
@@ -451,7 +453,7 @@ func (b *BTCMarkets) SendAuthenticatedRequest(reqType, path string, data interfa
 	payload := []byte("")
 
 	if data != nil {
-		payload, err = JSONEncode(data)
+		payload, err = common.JSONEncode(data)
 		if err != nil {
 			return err
 		}
@@ -460,7 +462,7 @@ func (b *BTCMarkets) SendAuthenticatedRequest(reqType, path string, data interfa
 		request = path + "\n" + nonce + "\n"
 	}
 
-	hmac := GetHMAC(HASH_SHA512, []byte(request), []byte(b.APISecret))
+	hmac := common.GetHMAC(common.HASH_SHA512, []byte(request), []byte(b.APISecret))
 
 	if b.Verbose {
 		log.Printf("Sending %s request to URL %s with params %s\n", reqType, BTCMARKETS_API_URL+path, request)
@@ -472,9 +474,9 @@ func (b *BTCMarkets) SendAuthenticatedRequest(reqType, path string, data interfa
 	headers["Content-Type"] = "application/json"
 	headers["apikey"] = b.APIKey
 	headers["timestamp"] = nonce
-	headers["signature"] = Base64Encode(hmac)
+	headers["signature"] = common.Base64Encode(hmac)
 
-	resp, err := SendHTTPRequest(reqType, BTCMARKETS_API_URL+path, headers, bytes.NewBuffer(payload))
+	resp, err := common.SendHTTPRequest(reqType, BTCMARKETS_API_URL+path, headers, bytes.NewBuffer(payload))
 
 	if err != nil {
 		return err
@@ -484,7 +486,7 @@ func (b *BTCMarkets) SendAuthenticatedRequest(reqType, path string, data interfa
 		log.Printf("Recieved raw: %s\n", resp)
 	}
 
-	err = JSONDecode([]byte(resp), &result)
+	err = common.JSONDecode([]byte(resp), &result)
 
 	if err != nil {
 		return err
