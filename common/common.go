@@ -334,3 +334,19 @@ func UnixTimestampStrToTime(timeStr string) (time.Time, error) {
 
 	return time.Unix(i, 0), nil
 }
+
+func ReadFile(path string) ([]byte, error) {
+	file, err := ioutil.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	return file, nil
+}
+
+func WriteFile(file string, data []byte) error {
+	err := ioutil.WriteFile(file, data, 0644)
+	if err != nil {
+		return err
+	}
+	return nil
+}

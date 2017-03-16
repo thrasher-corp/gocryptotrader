@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
+	"github.com/thrasher-/gocryptotrader/config"
 )
 
 const (
@@ -103,7 +104,7 @@ func (a *ANX) SetDefaults() {
 }
 
 //Setup is run on startup to setup exchange with config values
-func (a *ANX) Setup(exch Exchanges) {
+func (a *ANX) Setup(exch config.ExchangeConfig) {
 	if !exch.Enabled {
 		a.SetEnabled(false)
 	} else {

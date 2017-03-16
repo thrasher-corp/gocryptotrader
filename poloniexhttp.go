@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
+	"github.com/thrasher-/gocryptotrader/config"
 )
 
 const (
@@ -91,7 +92,7 @@ func (p *Poloniex) IsEnabled() bool {
 	return p.Enabled
 }
 
-func (p *Poloniex) Setup(exch Exchanges) {
+func (p *Poloniex) Setup(exch config.ExchangeConfig) {
 	if !exch.Enabled {
 		p.SetEnabled(false)
 	} else {

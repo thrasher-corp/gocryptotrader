@@ -11,6 +11,7 @@ import (
 
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-/gocryptotrader/common"
+	"github.com/thrasher-/gocryptotrader/config"
 )
 
 const (
@@ -197,7 +198,7 @@ func (b *Bitfinex) GetName() string {
 	return b.Name
 }
 
-func (b *Bitfinex) Setup(exch Exchanges) {
+func (b *Bitfinex) Setup(exch config.ExchangeConfig) {
 	if !exch.Enabled {
 		b.SetEnabled(false)
 	} else {
@@ -252,13 +253,13 @@ func (b *Bitfinex) Run() {
 		exchangeProducts = common.SplitStrings(common.StringToUpper(common.JoinStrings(exchangeProducts, ",")), ",")
 		diff := common.StringSliceDifference(b.AvailablePairs, exchangeProducts)
 		if len(diff) > 0 {
-			exch, err := GetExchangeConfig(b.Name)
+			exch, err := bot.config.GetExchangeConfig(b.Name)
 			if err != nil {
 				log.Println(err)
 			} else {
 				log.Printf("%s Updating available pairs. Difference: %s.\n", b.Name, diff)
 				exch.AvailablePairs = common.JoinStrings(exchangeProducts, ",")
-				UpdateExchangeConfig(exch)
+				bot.config.UpdateExchangeConfig(exch)
 			}
 		}
 	}

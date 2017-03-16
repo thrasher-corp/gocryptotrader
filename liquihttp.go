@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
+	"github.com/thrasher-/gocryptotrader/config"
 )
 
 const (
@@ -99,7 +100,7 @@ func (l *Liqui) IsEnabled() bool {
 	return l.Enabled
 }
 
-func (l *Liqui) Setup(exch Exchanges) {
+func (l *Liqui) Setup(exch config.ExchangeConfig) {
 	if !exch.Enabled {
 		l.SetEnabled(false)
 	} else {
@@ -142,13 +143,13 @@ func (l *Liqui) Run() {
 		exchangeProducts := l.GetAvailablePairs(true)
 		diff := common.StringSliceDifference(l.AvailablePairs, exchangeProducts)
 		if len(diff) > 0 {
-			exch, err := GetExchangeConfig(l.Name)
+			exch, err := bot.config.GetExchangeConfig(l.Name)
 			if err != nil {
 				log.Println(err)
 			} else {
 				log.Printf("%s Updating available pairs. Difference: %s.\n", l.Name, diff)
 				exch.AvailablePairs = common.JoinStrings(exchangeProducts, ",")
-				UpdateExchangeConfig(exch)
+				bot.config.UpdateExchangeConfig(exch)
 			}
 		}
 	}

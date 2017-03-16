@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
+	"github.com/thrasher-/gocryptotrader/config"
 )
 
 const (
@@ -76,7 +77,7 @@ func (k *Kraken) IsEnabled() bool {
 	return k.Enabled
 }
 
-func (k *Kraken) Setup(exch Exchanges) {
+func (k *Kraken) Setup(exch config.ExchangeConfig) {
 	if !exch.Enabled {
 		k.SetEnabled(false)
 	} else {
@@ -129,13 +130,13 @@ func (k *Kraken) Run() {
 		}
 		diff := common.StringSliceDifference(k.AvailablePairs, exchangeProducts)
 		if len(diff) > 0 {
-			exch, err := GetExchangeConfig(k.Name)
+			exch, err := bot.config.GetExchangeConfig(k.Name)
 			if err != nil {
 				log.Println(err)
 			} else {
 				log.Printf("%s Updating available pairs. Difference: %s.\n", k.Name, diff)
 				exch.AvailablePairs = common.JoinStrings(exchangeProducts, ",")
-				UpdateExchangeConfig(exch)
+				bot.config.UpdateExchangeConfig(exch)
 			}
 		}
 	}

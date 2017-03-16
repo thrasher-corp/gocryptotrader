@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
+	"github.com/thrasher-/gocryptotrader/config"
 )
 
 const (
@@ -72,7 +73,7 @@ func (i *ItBit) IsEnabled() bool {
 	return i.Enabled
 }
 
-func (i *ItBit) Setup(exch Exchanges) {
+func (i *ItBit) Setup(exch config.ExchangeConfig) {
 	if !exch.Enabled {
 		i.SetEnabled(false)
 	} else {

@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
+	"github.com/thrasher-/gocryptotrader/config"
 )
 
 const (
@@ -126,7 +127,7 @@ func (g *Gemini) IsEnabled() bool {
 	return g.Enabled
 }
 
-func (g *Gemini) Setup(exch Exchanges) {
+func (g *Gemini) Setup(exch config.ExchangeConfig) {
 	if !exch.Enabled {
 		g.SetEnabled(false)
 	} else {
@@ -168,13 +169,13 @@ func (g *Gemini) Run() {
 		exchangeProducts = common.SplitStrings(common.StringToUpper(common.JoinStrings(exchangeProducts, ",")), ",")
 		diff := common.StringSliceDifference(g.AvailablePairs, exchangeProducts)
 		if len(diff) > 0 {
-			exch, err := GetExchangeConfig(g.Name)
+			exch, err := bot.config.GetExchangeConfig(g.Name)
 			if err != nil {
 				log.Println(err)
 			} else {
 				log.Printf("%s Updating available pairs. Difference: %s.\n", g.Name, diff)
 				exch.AvailablePairs = common.JoinStrings(exchangeProducts, ",")
-				UpdateExchangeConfig(exch)
+				bot.config.UpdateExchangeConfig(exch)
 			}
 		}
 	}

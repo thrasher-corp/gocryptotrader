@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
+	"github.com/thrasher-/gocryptotrader/config"
 )
 
 const (
@@ -83,7 +84,7 @@ func (l *LakeBTC) IsEnabled() bool {
 	return l.Enabled
 }
 
-func (l *LakeBTC) Setup(exch Exchanges) {
+func (l *LakeBTC) Setup(exch config.ExchangeConfig) {
 	if !exch.Enabled {
 		l.SetEnabled(false)
 	} else {

@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
+	"github.com/thrasher-/gocryptotrader/config"
 )
 
 const (
@@ -145,7 +146,7 @@ func (g *GDAX) IsEnabled() bool {
 	return g.Enabled
 }
 
-func (g *GDAX) Setup(exch Exchanges) {
+func (g *GDAX) Setup(exch config.ExchangeConfig) {
 	if !exch.Enabled {
 		g.SetEnabled(false)
 	} else {
@@ -200,13 +201,13 @@ func (g *GDAX) Run() {
 		}
 		diff := common.StringSliceDifference(g.AvailablePairs, currencies)
 		if len(diff) > 0 {
-			exch, err := GetExchangeConfig(g.Name)
+			exch, err := bot.config.GetExchangeConfig(g.Name)
 			if err != nil {
 				log.Println(err)
 			} else {
 				log.Printf("%s Updating available pairs. Difference: %s.\n", g.Name, diff)
 				exch.AvailablePairs = common.JoinStrings(currencies, ",")
-				UpdateExchangeConfig(exch)
+				bot.config.UpdateExchangeConfig(exch)
 			}
 		}
 	}

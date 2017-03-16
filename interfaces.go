@@ -1,8 +1,12 @@
 package main
 
+import (
+	"github.com/thrasher-/gocryptotrader/config"
+)
+
 //IBotExchange : Enforces standard functions for all exchanges supported in gocryptotrader
 type IBotExchange interface {
-	Setup(exch Exchanges)
+	Setup(exch config.ExchangeConfig)
 	Start()
 	SetDefaults()
 	GetName() string
