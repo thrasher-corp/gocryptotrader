@@ -28,7 +28,7 @@ var (
 	ErrExchangeNotFound                             = "Exchange %s: Not found."
 	ErrNoEnabledExchanges                           = "No Exchanges enabled."
 	ErrCryptocurrenciesEmpty                        = "Cryptocurrencies variable is empty."
-	ErrFailureOpeningConfig                         = "Fatal error opening config.json file. Error: %s"
+	ErrFailureOpeningConfig                         = "Fatal error opening %s file. Error: %s"
 	ErrCheckingConfigValues                         = "Fatal error checking config values. Error: %s"
 	ErrSavingConfigBytesMismatch                    = "Config file %q bytes comparison doesn't match, read %s expected %s."
 	WarningSMSGlobalDefaultOrEmptyValues            = "WARNING -- SMS Support disabled due to default or empty Username/Password values."
@@ -275,7 +275,7 @@ func SaveConfig() error {
 func LoadConfig() error {
 	err := ReadConfig()
 	if err != nil {
-		return fmt.Errorf(ErrFailureOpeningConfig, err)
+		return fmt.Errorf(ErrFailureOpeningConfig, CONFIG_FILE, err)
 	}
 
 	err = CheckExchangeConfigValues()
