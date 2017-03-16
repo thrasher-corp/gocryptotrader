@@ -10,6 +10,7 @@ import (
 
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-/gocryptotrader/common"
+	"github.com/thrasher-/gocryptotrader/config"
 )
 
 const (
@@ -222,7 +223,7 @@ func (o *OKCoin) IsEnabled() bool {
 	return o.Enabled
 }
 
-func (o *OKCoin) Setup(exch Exchanges) {
+func (o *OKCoin) Setup(exch config.ExchangeConfig) {
 	if !exch.Enabled {
 		o.SetEnabled(false)
 	} else {

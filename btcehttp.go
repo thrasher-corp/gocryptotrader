@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
+	"github.com/thrasher-/gocryptotrader/config"
 )
 
 const (
@@ -101,7 +102,7 @@ func (b *BTCE) IsEnabled() bool {
 	return b.Enabled
 }
 
-func (b *BTCE) Setup(exch Exchanges) {
+func (b *BTCE) Setup(exch config.ExchangeConfig) {
 	if !exch.Enabled {
 		b.SetEnabled(false)
 	} else {

@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
+	"github.com/thrasher-/gocryptotrader/config"
 )
 
 const (
@@ -65,7 +66,7 @@ func (h *HUOBI) IsEnabled() bool {
 	return h.Enabled
 }
 
-func (h *HUOBI) Setup(exch Exchanges) {
+func (h *HUOBI) Setup(exch config.ExchangeConfig) {
 	if !exch.Enabled {
 		h.SetEnabled(false)
 	} else {

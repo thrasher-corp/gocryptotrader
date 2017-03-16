@@ -1,10 +1,9 @@
-package main
+package config
 
 import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"os"
 	"strconv"
@@ -43,14 +42,14 @@ var (
 	RenamingConfigFile                              = "Renaming config file %s to %s."
 )
 
-type Webserver struct {
+type WebserverConfig struct {
 	Enabled       bool
 	AdminUsername string
 	AdminPassword string
 	ListenAddress string
 }
 
-type SMSGlobal struct {
+type SMSGlobalConfig struct {
 	Enabled  bool
 	Username string
 	Password string
@@ -69,13 +68,13 @@ type Config struct {
 	Name             string
 	EncryptConfig    int
 	Cryptocurrencies string
-	Portfolio        Portfolio `json:"PortfolioAddresses"`
-	SMS              SMSGlobal `json:"SMSGlobal"`
-	Webserver        Webserver `json:"Webserver"`
-	Exchanges        []Exchanges
+	Portfolio        PortfolioConfig  `json:"PortfolioAddresses"`
+	SMS              SMSGlobalConfig  `json:"SMSGlobal"`
+	Webserver        WebserverConfig  `json:"Webserver"`
+	Exchanges        []ExchangeConfig `json:"Exchanges"`
 }
 
-type Exchanges struct {
+type ExchangeConfig struct {
 	Name                    string
 	Enabled                 bool
 	Verbose                 bool
@@ -90,43 +89,53 @@ type Exchanges struct {
 	BaseCurrencies          string
 }
 
-func GetEnabledExchanges() int {
+type PortfolioAddressConfig struct {
+	Address  string
+	CoinType string
+	Balance  float64
+}
+
+type PortfolioConfig struct {
+	Addresses []PortfolioAddressConfig
+}
+
+func (c *Config) GetConfigEnabledExchanges() int {
 	counter := 0
-	for i := range bot.config.Exchanges {
-		if bot.config.Exchanges[i].Enabled {
+	for i := range c.Exchanges {
+		if c.Exchanges[i].Enabled {
 			counter++
 		}
 	}
 	return counter
 }
 
-func GetExchangeConfig(name string) (Exchanges, error) {
-	for i, _ := range bot.config.Exchanges {
-		if bot.config.Exchanges[i].Name == name {
-			return bot.config.Exchanges[i], nil
+func (c *Config) GetExchangeConfig(name string) (ExchangeConfig, error) {
+	for i, _ := range c.Exchanges {
+		if c.Exchanges[i].Name == name {
+			return c.Exchanges[i], nil
 		}
 	}
-	return Exchanges{}, fmt.Errorf(ErrExchangeNotFound, name)
+	return ExchangeConfig{}, fmt.Errorf(ErrExchangeNotFound, name)
 }
 
-func UpdateExchangeConfig(e Exchanges) error {
-	for i, _ := range bot.config.Exchanges {
-		if bot.config.Exchanges[i].Name == e.Name {
-			bot.config.Exchanges[i] = e
+func (c *Config) UpdateExchangeConfig(e ExchangeConfig) error {
+	for i, _ := range c.Exchanges {
+		if c.Exchanges[i].Name == e.Name {
+			c.Exchanges[i] = e
 			return nil
 		}
 	}
 	return fmt.Errorf(ErrExchangeNotFound, e.Name)
 }
 
-func CheckSMSGlobalConfigValues() error {
-	if bot.config.SMS.Username == "" || bot.config.SMS.Username == "Username" || bot.config.SMS.Password == "" || bot.config.SMS.Password == "Password" {
+func (c *Config) CheckSMSGlobalConfigValues() error {
+	if c.SMS.Username == "" || c.SMS.Username == "Username" || c.SMS.Password == "" || c.SMS.Password == "Password" {
 		return errors.New(WarningSMSGlobalDefaultOrEmptyValues)
 	}
 	contacts := 0
-	for i := range bot.config.SMS.Contacts {
-		if bot.config.SMS.Contacts[i].Enabled {
-			if bot.config.SMS.Contacts[i].Name == "" || bot.config.SMS.Contacts[i].Number == "" || (bot.config.SMS.Contacts[i].Name == "Bob" && bot.config.SMS.Contacts[i].Number == "12345") {
+	for i := range c.SMS.Contacts {
+		if c.SMS.Contacts[i].Enabled {
+			if c.SMS.Contacts[i].Name == "" || c.SMS.Contacts[i].Number == "" || (c.SMS.Contacts[i].Name == "Bob" && c.SMS.Contacts[i].Number == "12345") {
 				log.Printf(WarningSSMSGlobalSMSContactDefaultOrEmptyValues, i)
 				continue
 			}
@@ -139,13 +148,13 @@ func CheckSMSGlobalConfigValues() error {
 	return nil
 }
 
-func CheckExchangeConfigValues() error {
-	if bot.config.Cryptocurrencies == "" {
+func (c *Config) CheckExchangeConfigValues() error {
+	if c.Cryptocurrencies == "" {
 		return errors.New(ErrCryptocurrenciesEmpty)
 	}
 
 	exchanges := 0
-	for i, exch := range bot.config.Exchanges {
+	for i, exch := range c.Exchanges {
 		if exch.Enabled {
 			if exch.Name == "" {
 				return fmt.Errorf(ErrExchangeNameEmpty, i)
@@ -161,12 +170,12 @@ func CheckExchangeConfigValues() error {
 			}
 			if exch.AuthenticatedAPISupport { // non-fatal error
 				if exch.APIKey == "" || exch.APISecret == "" || exch.APIKey == "Key" || exch.APISecret == "Secret" {
-					bot.config.Exchanges[i].AuthenticatedAPISupport = false
+					c.Exchanges[i].AuthenticatedAPISupport = false
 					log.Printf(WarningExchangeAuthAPIDefaultOrEmptyValues, exch.Name)
 					continue
 				} else if exch.Name == "ITBIT" || exch.Name == "Bitstamp" || exch.Name == "Coinbase" {
 					if exch.ClientID == "" || exch.ClientID == "ClientID" {
-						bot.config.Exchanges[i].AuthenticatedAPISupport = false
+						c.Exchanges[i].AuthenticatedAPISupport = false
 						log.Printf(WarningExchangeAuthAPIDefaultOrEmptyValues, exch.Name)
 						continue
 					}
@@ -181,16 +190,16 @@ func CheckExchangeConfigValues() error {
 	return nil
 }
 
-func CheckWebserverValues() error {
-	if bot.config.Webserver.AdminUsername == "" || bot.config.Webserver.AdminPassword == "" {
+func (c *Config) CheckWebserverConfigValues() error {
+	if c.Webserver.AdminUsername == "" || c.Webserver.AdminPassword == "" {
 		return errors.New(WarningWebserverCredentialValuesEmpty)
 	}
 
-	if !common.StringContains(bot.config.Webserver.ListenAddress, ":") {
+	if !common.StringContains(c.Webserver.ListenAddress, ":") {
 		return errors.New(WarningWebserverListenAddressInvalid)
 	}
 
-	portStr := common.SplitStrings(bot.config.Webserver.ListenAddress, ":")[1]
+	portStr := common.SplitStrings(c.Webserver.ListenAddress, ":")[1]
 	port, err := strconv.Atoi(portStr)
 	if err != nil {
 		return errors.New(WarningWebserverListenAddressInvalid)
@@ -202,8 +211,8 @@ func CheckWebserverValues() error {
 	return nil
 }
 
-func ReadConfig() error {
-	_, err := ioutil.ReadFile(OLD_CONFIG_FILE)
+func (c *Config) ReadConfig() error {
+	_, err := common.ReadFile(OLD_CONFIG_FILE)
 	if err == nil {
 		err = os.Rename(OLD_CONFIG_FILE, CONFIG_FILE)
 		if err != nil {
@@ -212,25 +221,25 @@ func ReadConfig() error {
 		log.Printf(RenamingConfigFile+"\n", OLD_CONFIG_FILE, CONFIG_FILE)
 	}
 
-	file, err := ioutil.ReadFile(CONFIG_FILE)
+	file, err := common.ReadFile(CONFIG_FILE)
 	if err != nil {
 		return err
 	}
 
 	if !ConfirmECS(file) {
-		err = ConfirmConfigJSON(file, &bot.config)
+		err = ConfirmConfigJSON(file, &c)
 		if err != nil {
 			return err
 		}
 
-		if bot.config.EncryptConfig == CONFIG_FILE_ENCRYPTION_DISABLED {
+		if c.EncryptConfig == CONFIG_FILE_ENCRYPTION_DISABLED {
 			return nil
 		}
 
-		if bot.config.EncryptConfig == CONFIG_FILE_ENCRYPTION_PROMPT {
-			if PromptForConfigEncryption() {
-				bot.config.EncryptConfig = CONFIG_FILE_ENCRYPTION_ENABLED
-				SaveConfig()
+		if c.EncryptConfig == CONFIG_FILE_ENCRYPTION_PROMPT {
+			if c.PromptForConfigEncryption() {
+				c.EncryptConfig = CONFIG_FILE_ENCRYPTION_ENABLED
+				return c.SaveConfig()
 			}
 		}
 	} else {
@@ -244,7 +253,7 @@ func ReadConfig() error {
 			return err
 		}
 
-		err = ConfirmConfigJSON(data, &bot.config)
+		err = ConfirmConfigJSON(data, &c)
 		if err != nil {
 			return err
 		}
@@ -252,10 +261,10 @@ func ReadConfig() error {
 	return nil
 }
 
-func SaveConfig() error {
-	payload, err := json.MarshalIndent(bot.config, "", " ")
+func (c *Config) SaveConfig() error {
+	payload, err := json.MarshalIndent(c, "", " ")
 
-	if bot.config.EncryptConfig == CONFIG_FILE_ENCRYPTION_ENABLED {
+	if c.EncryptConfig == CONFIG_FILE_ENCRYPTION_ENABLED {
 		key, err := PromptForConfigKey()
 		if err != nil {
 			return err
@@ -267,20 +276,20 @@ func SaveConfig() error {
 		}
 	}
 
-	err = ioutil.WriteFile(CONFIG_FILE, payload, 0644)
+	err = common.WriteFile(CONFIG_FILE, payload)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func LoadConfig() error {
-	err := ReadConfig()
+func (c *Config) LoadConfig() error {
+	err := c.ReadConfig()
 	if err != nil {
 		return fmt.Errorf(ErrFailureOpeningConfig, CONFIG_FILE, err)
 	}
 
-	err = CheckExchangeConfigValues()
+	err = c.CheckExchangeConfigValues()
 	if err != nil {
 		return fmt.Errorf(ErrCheckingConfigValues, err)
 	}

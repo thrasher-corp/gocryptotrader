@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
+	"github.com/thrasher-/gocryptotrader/config"
 )
 
 const (
@@ -181,7 +182,7 @@ func (b *Bitstamp) GetName() string {
 	return b.Name
 }
 
-func (b *Bitstamp) Setup(exch Exchanges) {
+func (b *Bitstamp) Setup(exch config.ExchangeConfig) {
 	if !exch.Enabled {
 		b.SetEnabled(false)
 	} else {

@@ -1,4 +1,4 @@
-package main
+package config
 
 import (
 	"bytes"
@@ -14,10 +14,12 @@ import (
 )
 
 const (
-	ENCRYPTION_CONFIRMATION_STRING = "THORS-HAMMER"
+	CONFIG_ENCRYPTION_CONFIRMATION_STRING = "THORS-HAMMER"
+
+	ErrConfigDataLessThenRequiredAESBlockSize = "The config file data is too small for the AES required block size."
 )
 
-func PromptForConfigEncryption() bool {
+func (c *Config) PromptForConfigEncryption() bool {
 	log.Println("Would you like to encrypt your config file (y/n)?")
 
 	input := ""
@@ -27,8 +29,8 @@ func PromptForConfigEncryption() bool {
 	}
 
 	if !common.YesOrNo(input) {
-		bot.config.EncryptConfig = CONFIG_FILE_ENCRYPTION_DISABLED
-		SaveConfig()
+		c.EncryptConfig = CONFIG_FILE_ENCRYPTION_DISABLED
+		c.SaveConfig()
 		return false
 	}
 	return true
@@ -73,7 +75,7 @@ func EncryptConfigFile(configData, key []byte) ([]byte, error) {
 	stream := cipher.NewCFBEncrypter(block, iv)
 	stream.XORKeyStream(ciphertext[aes.BlockSize:], configData)
 
-	appendedFile := []byte(ENCRYPTION_CONFIRMATION_STRING)
+	appendedFile := []byte(CONFIG_ENCRYPTION_CONFIRMATION_STRING)
 	appendedFile = append(appendedFile, ciphertext...)
 	return appendedFile, nil
 }
@@ -86,7 +88,7 @@ func DecryptConfigFile(configData, key []byte) ([]byte, error) {
 	}
 
 	if len(configData) < aes.BlockSize {
-		return nil, errors.New("The config file data is too small for the AES required block size.")
+		return nil, errors.New(ErrConfigDataLessThenRequiredAESBlockSize)
 	}
 
 	iv := configData[:aes.BlockSize]
@@ -103,10 +105,10 @@ func ConfirmConfigJSON(file []byte, result interface{}) error {
 }
 
 func ConfirmECS(file []byte) bool {
-	subslice := []byte(ENCRYPTION_CONFIRMATION_STRING)
+	subslice := []byte(CONFIG_ENCRYPTION_CONFIRMATION_STRING)
 	return bytes.Contains(file, subslice)
 }
 
 func RemoveECS(file []byte) []byte {
-	return bytes.Trim(file, ENCRYPTION_CONFIRMATION_STRING)
+	return bytes.Trim(file, CONFIG_ENCRYPTION_CONFIRMATION_STRING)
 }

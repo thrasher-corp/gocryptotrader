@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
+	"github.com/thrasher-/gocryptotrader/config"
 )
 
 const (
@@ -184,7 +185,7 @@ func (b *BTCC) SetDefaults() {
 }
 
 //Setup is run on startup to setup exchange with config values
-func (b *BTCC) Setup(exch Exchanges) {
+func (b *BTCC) Setup(exch config.ExchangeConfig) {
 	if !exch.Enabled {
 		b.SetEnabled(false)
 	} else {

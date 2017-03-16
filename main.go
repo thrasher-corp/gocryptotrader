@@ -10,6 +10,7 @@ import (
 	"syscall"
 
 	"github.com/thrasher-/gocryptotrader/common"
+	"github.com/thrasher-/gocryptotrader/config"
 )
 
 type Exchange struct {
@@ -33,7 +34,7 @@ type Exchange struct {
 }
 
 type Bot struct {
-	config     Config
+	config     config.Config
 	exchange   Exchange
 	exchanges  []IBotExchange
 	tickers    []Ticker
@@ -63,9 +64,9 @@ func setupBotExchanges() {
 
 func main() {
 	HandleInterrupt()
-	log.Printf("Loading config file %s..\n", CONFIG_FILE)
+	log.Printf("Loading config file %s..\n", config.CONFIG_FILE)
 
-	err := LoadConfig()
+	err := bot.config.LoadConfig()
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -74,7 +75,7 @@ func main() {
 	AdjustGoMaxProcs()
 
 	if bot.config.SMS.Enabled {
-		err = CheckSMSGlobalConfigValues()
+		err = bot.config.CheckSMSGlobalConfigValues()
 		if err != nil {
 			log.Println(err) // non fatal event
 			bot.config.SMS.Enabled = false
@@ -85,7 +86,7 @@ func main() {
 		log.Println("SMS support disabled.")
 	}
 
-	log.Printf("Available Exchanges: %d. Enabled Exchanges: %d.\n", len(bot.config.Exchanges), GetEnabledExchanges())
+	log.Printf("Available Exchanges: %d. Enabled Exchanges: %d.\n", len(bot.config.Exchanges), bot.config.GetConfigEnabledExchanges())
 	log.Println("Bot Exchange support:")
 
 	bot.exchanges = []IBotExchange{
@@ -126,7 +127,7 @@ func main() {
 	go StartPortfolioWatcher()
 
 	if bot.config.Webserver.Enabled {
-		err := CheckWebserverValues()
+		err := bot.config.CheckWebserverConfigValues()
 		if err != nil {
 			log.Println(err) // non fatal event
 			//bot.config.Webserver.Enabled = false
@@ -177,7 +178,7 @@ func HandleInterrupt() {
 
 func Shutdown() {
 	log.Println("Bot shutting down..")
-	err := SaveConfig()
+	err := bot.config.SaveConfig()
 
 	if err != nil {
 		log.Println("Unable to save config.")

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
+	"github.com/thrasher-/gocryptotrader/config"
 )
 
 const (
@@ -134,9 +135,10 @@ func UpdatePortfolio(addresses []string, coinType string) bool {
 		if err != nil {
 			return false
 		}
+
 		for _, x := range result.Data {
 			if !AddressExists(x.Address) {
-				bot.config.Portfolio.Addresses = append(bot.config.Portfolio.Addresses, PortfolioAddress{Address: x.Address, CoinType: coinType, Balance: x.Balance / common.WEI_PER_ETHER})
+				bot.config.Portfolio.Addresses = append(bot.config.Portfolio.Addresses, config.PortfolioAddressConfig{Address: x.Address, CoinType: coinType, Balance: x.Balance / common.WEI_PER_ETHER})
 			} else {
 				UpdateAddressBalance(x.Address, x.Balance)
 			}
@@ -150,7 +152,7 @@ func UpdatePortfolio(addresses []string, coinType string) bool {
 		}
 		for _, x := range result.Data {
 			if !AddressExists(x.Address) {
-				bot.config.Portfolio.Addresses = append(bot.config.Portfolio.Addresses, PortfolioAddress{Address: x.Address, CoinType: coinType, Balance: x.Balance})
+				bot.config.Portfolio.Addresses = append(bot.config.Portfolio.Addresses, config.PortfolioAddressConfig{Address: x.Address, CoinType: coinType, Balance: x.Balance})
 			} else {
 				UpdateAddressBalance(x.Address, x.Balance)
 			}
@@ -161,7 +163,7 @@ func UpdatePortfolio(addresses []string, coinType string) bool {
 			return false
 		}
 		if !AddressExists(result.Data.Address) {
-			bot.config.Portfolio.Addresses = append(bot.config.Portfolio.Addresses, PortfolioAddress{Address: result.Data.Address, CoinType: coinType, Balance: result.Data.Balance})
+			bot.config.Portfolio.Addresses = append(bot.config.Portfolio.Addresses, config.PortfolioAddressConfig{Address: result.Data.Address, CoinType: coinType, Balance: result.Data.Balance})
 		} else {
 			UpdateAddressBalance(result.Data.Address, result.Data.Balance)
 		}

@@ -3,6 +3,8 @@ package main
 import (
 	"encoding/json"
 	"net/http"
+
+	"github.com/thrasher-/gocryptotrader/config"
 )
 
 func GetAllSettings(w http.ResponseWriter, r *http.Request) {
@@ -16,7 +18,7 @@ func GetAllSettings(w http.ResponseWriter, r *http.Request) {
 func SaveAllSettings(w http.ResponseWriter, r *http.Request) {
 	//Get the data from the request
 	decoder := json.NewDecoder(r.Body)
-	var responseData ConfigPost
+	var responseData config.ConfigPost
 	jsonerr := decoder.Decode(&responseData)
 	if jsonerr != nil {
 		panic(jsonerr)
@@ -33,11 +35,11 @@ func SaveAllSettings(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	//Reload the configuration
-	err := SaveConfig()
+	err := bot.config.SaveConfig()
 	if err != nil {
 		panic(err)
 	}
-	err = LoadConfig()
+	err = bot.config.LoadConfig()
 	if err != nil {
 		panic(err)
 	}
