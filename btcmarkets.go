@@ -11,6 +11,7 @@ import (
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
+	"github.com/thrasher-/gocryptotrader/exchanges"
 )
 
 const (
@@ -26,18 +27,8 @@ const (
 )
 
 type BTCMarkets struct {
-	Name                    string
-	Enabled                 bool
-	Verbose                 bool
-	Websocket               bool
-	RESTPollingDelay        time.Duration
-	Fee                     float64
-	Ticker                  map[string]BTCMarketsTicker
-	AuthenticatedAPISupport bool
-	APIKey, APISecret       string
-	BaseCurrencies          []string
-	AvailablePairs          []string
-	EnabledPairs            []string
+	exchange.ExchangeBase
+	Ticker map[string]BTCMarketsTicker
 }
 
 type BTCMarketsTicker struct {

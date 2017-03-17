@@ -11,6 +11,7 @@ import (
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
+	"github.com/thrasher-/gocryptotrader/exchanges"
 )
 
 const (
@@ -27,17 +28,7 @@ const (
 )
 
 type LocalBitcoins struct {
-	Name                        string
-	Enabled                     bool
-	Verbose                     bool
-	Websocket                   bool
-	RESTPollingDelay            time.Duration
-	AuthenticatedAPISupport     bool
-	Password, APIKey, APISecret string
-	TakerFee, MakerFee          float64
-	BaseCurrencies              []string
-	AvailablePairs              []string
-	EnabledPairs                []string
+	exchange.ExchangeBase
 }
 
 func (l *LocalBitcoins) SetDefaults() {

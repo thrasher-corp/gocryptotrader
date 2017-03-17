@@ -10,6 +10,7 @@ import (
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
+	"github.com/thrasher-/gocryptotrader/exchanges"
 )
 
 const (
@@ -18,17 +19,7 @@ const (
 )
 
 type ItBit struct {
-	Name                         string
-	Enabled                      bool
-	Verbose                      bool
-	Websocket                    bool
-	RESTPollingDelay             time.Duration
-	AuthenticatedAPISupport      bool
-	ClientKey, APISecret, UserID string
-	MakerFee, TakerFee           float64
-	BaseCurrencies               []string
-	AvailablePairs               []string
-	EnabledPairs                 []string
+	exchange.ExchangeBase
 }
 
 type ItBitTicker struct {
@@ -98,9 +89,9 @@ func (i *ItBit) Start() {
 }
 
 func (i *ItBit) SetAPIKeys(apiKey, apiSecret, userID string) {
-	i.ClientKey = apiKey
+	i.APIKey = apiKey
 	i.APISecret = apiSecret
-	i.UserID = userID
+	i.ClientID = userID
 }
 
 func (i *ItBit) GetFee(maker bool) float64 {
@@ -203,7 +194,7 @@ func (i *ItBit) GetTradeHistory(currency, timestamp string) bool {
 }
 
 func (i *ItBit) GetWallets(params url.Values) {
-	params.Set("userId", i.UserID)
+	params.Set("userId", i.ClientID)
 	path := "/wallets?" + params.Encode()
 
 	err := i.SendAuthenticatedHTTPRequest("GET", path, nil)
@@ -224,7 +215,7 @@ func (e *ItBit) GetExchangeAccountInfo() (ExchangeAccountInfo, error) {
 func (i *ItBit) CreateWallet(walletName string) {
 	path := "/wallets"
 	params := make(map[string]interface{})
-	params["userId"] = i.UserID
+	params["userId"] = i.ClientID
 	params["name"] = walletName
 
 	err := i.SendAuthenticatedHTTPRequest("POST", path, params)
@@ -394,7 +385,7 @@ func (i *ItBit) SendAuthenticatedHTTPRequest(method string, path string, params 
 	signature := common.Base64Encode(hmac)
 
 	headers := make(map[string]string)
-	headers["Authorization"] = i.ClientKey + ":" + signature
+	headers["Authorization"] = i.ClientID + ":" + signature
 	headers["X-Auth-Timestamp"] = timestamp
 	headers["X-Auth-Nonce"] = nonceStr
 	headers["Content-Type"] = "application/json"

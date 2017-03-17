@@ -12,6 +12,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
+	"github.com/thrasher-/gocryptotrader/exchanges"
 )
 
 const (
@@ -170,19 +171,10 @@ type BitfinexSymbolDetails struct {
 }
 
 type Bitfinex struct {
-	Name                    string
-	Enabled                 bool
-	Verbose                 bool
-	Websocket               bool
-	RESTPollingDelay        time.Duration
-	AuthenticatedAPISupport bool
-	APIKey, APISecret       string
-	ActiveOrders            []BitfinexOrder
-	BaseCurrencies          []string
-	AvailablePairs          []string
-	EnabledPairs            []string
-	WebsocketConn           *websocket.Conn
-	WebsocketSubdChannels   map[int]BitfinexWebsocketChanInfo
+	exchange.ExchangeBase
+	ActiveOrders          []BitfinexOrder
+	WebsocketConn         *websocket.Conn
+	WebsocketSubdChannels map[int]BitfinexWebsocketChanInfo
 }
 
 func (b *Bitfinex) SetDefaults() {

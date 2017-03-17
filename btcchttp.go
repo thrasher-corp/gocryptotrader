@@ -11,6 +11,7 @@ import (
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
+	"github.com/thrasher-/gocryptotrader/exchanges"
 )
 
 const (
@@ -42,17 +43,7 @@ const (
 )
 
 type BTCC struct {
-	Name                    string
-	Enabled                 bool
-	Verbose                 bool
-	Websocket               bool
-	RESTPollingDelay        time.Duration
-	AuthenticatedAPISupport bool
-	APISecret, APIKey       string
-	Fee                     float64
-	BaseCurrencies          []string
-	AvailablePairs          []string
-	EnabledPairs            []string
+	exchange.ExchangeBase
 }
 
 type BTCCTicker struct {

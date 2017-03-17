@@ -12,6 +12,7 @@ import (
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
+	"github.com/thrasher-/gocryptotrader/exchanges"
 )
 
 const (
@@ -44,18 +45,8 @@ const (
 )
 
 type Bitstamp struct {
-	Name                        string
-	Enabled                     bool
-	Verbose                     bool
-	Websocket                   bool
-	RESTPollingDelay            time.Duration
-	AuthenticatedAPISupport     bool
-	ClientID, APIKey, APISecret string
-	Balance                     BitstampBalances
-	TakerFee, MakerFee          float64
-	BaseCurrencies              []string
-	AvailablePairs              []string
-	EnabledPairs                []string
+	exchange.ExchangeBase
+	Balance BitstampBalances
 }
 
 type BitstampTicker struct {

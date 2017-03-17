@@ -11,6 +11,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
+	"github.com/thrasher-/gocryptotrader/exchanges"
 )
 
 const (
@@ -70,22 +71,11 @@ var (
 )
 
 type OKCoin struct {
-	Name                         string
-	Enabled                      bool
-	Verbose                      bool
-	Websocket                    bool
-	WebsocketURL                 string
-	RESTPollingDelay             time.Duration
-	AuthenticatedAPISupport      bool
-	APIUrl, PartnerID, SecretKey string
-	TakerFee, MakerFee           float64
-	RESTErrors                   map[string]string
-	WebsocketErrors              map[string]string
-	BaseCurrencies               []string
-	AvailablePairs               []string
-	EnabledPairs                 []string
-	FuturesValues                []string
-	WebsocketConn                *websocket.Conn
+	exchange.ExchangeBase
+	RESTErrors      map[string]string
+	WebsocketErrors map[string]string
+	FuturesValues   []string
+	WebsocketConn   *websocket.Conn
 }
 
 type OKCoinTicker struct {
@@ -252,8 +242,8 @@ func (o *OKCoin) SetURL(url string) {
 }
 
 func (o *OKCoin) SetAPIKeys(apiKey, apiSecret string) {
-	o.PartnerID = apiKey
-	o.SecretKey = apiSecret
+	o.APIKey = apiKey
+	o.APISecret = apiSecret
 }
 
 func (o *OKCoin) GetFee(maker bool) float64 {
@@ -1222,8 +1212,8 @@ func (o *OKCoin) GetFuturesUserPosition4Fix(symbol, contractType string) {
 }
 
 func (o *OKCoin) SendAuthenticatedHTTPRequest(method string, v url.Values, result interface{}) (err error) {
-	v.Set("api_key", o.PartnerID)
-	hasher := common.GetMD5([]byte(v.Encode() + "&secret_key=" + o.SecretKey))
+	v.Set("api_key", o.APIKey)
+	hasher := common.GetMD5([]byte(v.Encode() + "&secret_key=" + o.APISecret))
 	v.Set("sign", strings.ToUpper(common.HexEncodeToString(hasher)))
 
 	encoded := v.Encode()

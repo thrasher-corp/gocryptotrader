@@ -340,9 +340,9 @@ func (o *OKCoin) ConvertToURLValues(values map[string]string) url.Values {
 }
 
 func (o *OKCoin) WebsocketSign(values map[string]string) string {
-	values["api_key"] = o.PartnerID
+	values["api_key"] = o.APIKey
 	urlVals := o.ConvertToURLValues(values)
-	return strings.ToUpper(common.HexEncodeToString(common.GetMD5([]byte(urlVals.Encode() + "&secret_key=" + o.SecretKey))))
+	return strings.ToUpper(common.HexEncodeToString(common.GetMD5([]byte(urlVals.Encode() + "&secret_key=" + o.APISecret))))
 }
 
 func (o *OKCoin) AddChannelAuthenticated(channel string, values map[string]string) {
