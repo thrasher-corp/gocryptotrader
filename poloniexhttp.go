@@ -71,25 +71,13 @@ func (p *Poloniex) SetDefaults() {
 	p.RESTPollingDelay = 10
 }
 
-func (p *Poloniex) GetName() string {
-	return p.Name
-}
-
-func (p *Poloniex) SetEnabled(enabled bool) {
-	p.Enabled = enabled
-}
-
-func (p *Poloniex) IsEnabled() bool {
-	return p.Enabled
-}
-
 func (p *Poloniex) Setup(exch config.ExchangeConfig) {
 	if !exch.Enabled {
 		p.SetEnabled(false)
 	} else {
 		p.Enabled = true
 		p.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
-		p.SetAPIKeys(exch.APIKey, exch.APISecret)
+		p.SetAPIKeys(exch.APIKey, exch.APISecret, "", false)
 		p.RESTPollingDelay = exch.RESTPollingDelay
 		p.Verbose = exch.Verbose
 		p.Websocket = exch.Websocket
@@ -99,17 +87,8 @@ func (p *Poloniex) Setup(exch config.ExchangeConfig) {
 	}
 }
 
-func (k *Poloniex) GetEnabledCurrencies() []string {
-	return k.EnabledPairs
-}
-
 func (p *Poloniex) Start() {
 	go p.Run()
-}
-
-func (p *Poloniex) SetAPIKeys(apiKey, apiSecret string) {
-	p.APIKey = apiKey
-	p.APISecret = apiSecret
 }
 
 func (p *Poloniex) GetFee() float64 {

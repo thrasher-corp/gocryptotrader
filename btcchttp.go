@@ -182,7 +182,7 @@ func (b *BTCC) Setup(exch config.ExchangeConfig) {
 	} else {
 		b.Enabled = true
 		b.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
-		b.SetAPIKeys(exch.APIKey, exch.APISecret)
+		b.SetAPIKeys(exch.APIKey, exch.APISecret, "", false)
 		b.RESTPollingDelay = exch.RESTPollingDelay
 		b.Verbose = exch.Verbose
 		b.Websocket = exch.Websocket
@@ -192,30 +192,8 @@ func (b *BTCC) Setup(exch config.ExchangeConfig) {
 	}
 }
 
-func (k *BTCC) GetEnabledCurrencies() []string {
-	return k.EnabledPairs
-}
-
-//Start is run if exchange is enabled, after Setup
 func (b *BTCC) Start() {
 	go b.Run()
-}
-
-func (b *BTCC) GetName() string {
-	return b.Name
-}
-
-func (b *BTCC) SetEnabled(enabled bool) {
-	b.Enabled = enabled
-}
-
-func (b *BTCC) IsEnabled() bool {
-	return b.Enabled
-}
-
-func (b *BTCC) SetAPIKeys(apiKey, apiSecret string) {
-	b.APIKey = apiKey
-	b.APISecret = apiSecret
 }
 
 func (b *BTCC) GetFee() float64 {

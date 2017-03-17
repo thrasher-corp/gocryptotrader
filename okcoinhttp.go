@@ -201,25 +201,13 @@ func (o *OKCoin) SetDefaults() {
 	}
 }
 
-func (o *OKCoin) GetName() string {
-	return o.Name
-}
-
-func (o *OKCoin) SetEnabled(enabled bool) {
-	o.Enabled = enabled
-}
-
-func (o *OKCoin) IsEnabled() bool {
-	return o.Enabled
-}
-
 func (o *OKCoin) Setup(exch config.ExchangeConfig) {
 	if !exch.Enabled {
 		o.SetEnabled(false)
 	} else {
 		o.Enabled = true
 		o.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
-		o.SetAPIKeys(exch.APIKey, exch.APISecret)
+		o.SetAPIKeys(exch.APIKey, exch.APISecret, "", false)
 		o.RESTPollingDelay = exch.RESTPollingDelay
 		o.Verbose = exch.Verbose
 		o.Websocket = exch.Websocket
@@ -229,21 +217,8 @@ func (o *OKCoin) Setup(exch config.ExchangeConfig) {
 	}
 }
 
-func (k *OKCoin) GetEnabledCurrencies() []string {
-	return k.EnabledPairs
-}
-
 func (o *OKCoin) Start() {
 	go o.Run()
-}
-
-func (o *OKCoin) SetURL(url string) {
-	o.APIUrl = url
-}
-
-func (o *OKCoin) SetAPIKeys(apiKey, apiSecret string) {
-	o.APIKey = apiKey
-	o.APISecret = apiSecret
 }
 
 func (o *OKCoin) GetFee(maker bool) float64 {

@@ -35,7 +35,6 @@ const (
 
 type GDAX struct {
 	exchange.ExchangeBase
-	Password string
 }
 
 type GDAXTicker struct {
@@ -126,25 +125,13 @@ func (g *GDAX) SetDefaults() {
 	g.RESTPollingDelay = 10
 }
 
-func (g *GDAX) GetName() string {
-	return g.Name
-}
-
-func (g *GDAX) SetEnabled(enabled bool) {
-	g.Enabled = enabled
-}
-
-func (g *GDAX) IsEnabled() bool {
-	return g.Enabled
-}
-
 func (g *GDAX) Setup(exch config.ExchangeConfig) {
 	if !exch.Enabled {
 		g.SetEnabled(false)
 	} else {
 		g.Enabled = true
 		g.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
-		g.SetAPIKeys(exch.ClientID, exch.APIKey, exch.APISecret)
+		g.SetAPIKeys(exch.APIKey, exch.APISecret, exch.ClientID, true)
 		g.RESTPollingDelay = exch.RESTPollingDelay
 		g.Verbose = exch.Verbose
 		g.Websocket = exch.Websocket
@@ -152,10 +139,6 @@ func (g *GDAX) Setup(exch config.ExchangeConfig) {
 		g.AvailablePairs = common.SplitStrings(exch.AvailablePairs, ",")
 		g.EnabledPairs = common.SplitStrings(exch.EnabledPairs, ",")
 	}
-}
-
-func (k *GDAX) GetEnabledCurrencies() []string {
-	return k.EnabledPairs
 }
 
 func (g *GDAX) Start() {
@@ -220,24 +203,6 @@ func (g *GDAX) Run() {
 		}
 		time.Sleep(time.Second * g.RESTPollingDelay)
 	}
-}
-
-func (g *GDAX) SetAPIKeys(password, apiKey, apiSecret string) {
-	if !g.AuthenticatedAPISupport {
-		return
-	}
-
-	g.Password = password
-	g.APIKey = apiKey
-	result, err := common.Base64Decode(apiSecret)
-
-	if err != nil {
-		log.Printf("%s unable to decode secret key.", g.GetName())
-		g.Enabled = false
-		return
-	}
-
-	g.APISecret = string(result)
 }
 
 func (g *GDAX) GetProducts() ([]GDAXProduct, error) {
@@ -706,7 +671,7 @@ func (g *GDAX) SendAuthenticatedHTTPRequest(method, path string, params map[stri
 	headers["CB-ACCESS-SIGN"] = common.Base64Encode([]byte(hmac))
 	headers["CB-ACCESS-TIMESTAMP"] = timestamp
 	headers["CB-ACCESS-KEY"] = g.APIKey
-	headers["CB-ACCESS-PASSPHRASE"] = g.Password
+	headers["CB-ACCESS-PASSPHRASE"] = g.ClientID
 	headers["Content-Type"] = "application/json"
 
 	resp, err := common.SendHTTPRequest(method, GDAX_API_URL+path, headers, bytes.NewBuffer(payload))

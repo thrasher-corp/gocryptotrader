@@ -169,17 +169,13 @@ func (b *Bitstamp) Start() {
 	go b.Run()
 }
 
-func (b *Bitstamp) GetName() string {
-	return b.Name
-}
-
 func (b *Bitstamp) Setup(exch config.ExchangeConfig) {
 	if !exch.Enabled {
 		b.SetEnabled(false)
 	} else {
 		b.Enabled = true
 		b.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
-		b.SetAPIKeys(exch.ClientID, exch.APIKey, exch.APISecret)
+		b.SetAPIKeys(exch.APIKey, exch.APISecret, exch.ClientID, false)
 		b.RESTPollingDelay = exch.RESTPollingDelay
 		b.Verbose = exch.Verbose
 		b.Websocket = exch.Websocket
@@ -187,18 +183,6 @@ func (b *Bitstamp) Setup(exch config.ExchangeConfig) {
 		b.AvailablePairs = common.SplitStrings(exch.AvailablePairs, ",")
 		b.EnabledPairs = common.SplitStrings(exch.EnabledPairs, ",")
 	}
-}
-
-func (k *Bitstamp) GetEnabledCurrencies() []string {
-	return k.EnabledPairs
-}
-
-func (b *Bitstamp) SetEnabled(enabled bool) {
-	b.Enabled = enabled
-}
-
-func (b *Bitstamp) IsEnabled() bool {
-	return b.Enabled
 }
 
 func (b *Bitstamp) GetFee(currency string) float64 {
@@ -216,12 +200,6 @@ func (b *Bitstamp) GetFee(currency string) float64 {
 	default:
 		return 0
 	}
-}
-
-func (b *Bitstamp) SetAPIKeys(clientID, apiKey, apiSecret string) {
-	b.ClientID = clientID
-	b.APIKey = apiKey
-	b.APISecret = apiSecret
 }
 
 func (b *Bitstamp) Run() {

@@ -186,17 +186,13 @@ func (b *Bitfinex) SetDefaults() {
 	b.WebsocketSubdChannels = make(map[int]BitfinexWebsocketChanInfo)
 }
 
-func (b *Bitfinex) GetName() string {
-	return b.Name
-}
-
 func (b *Bitfinex) Setup(exch config.ExchangeConfig) {
 	if !exch.Enabled {
 		b.SetEnabled(false)
 	} else {
 		b.Enabled = true
 		b.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
-		b.SetAPIKeys(exch.APIKey, exch.APISecret)
+		b.SetAPIKeys(exch.APIKey, exch.APISecret, "", false)
 		b.RESTPollingDelay = exch.RESTPollingDelay
 		b.Verbose = exch.Verbose
 		b.Websocket = exch.Websocket
@@ -206,25 +202,8 @@ func (b *Bitfinex) Setup(exch config.ExchangeConfig) {
 	}
 }
 
-func (k *Bitfinex) GetEnabledCurrencies() []string {
-	return k.EnabledPairs
-}
-
 func (b *Bitfinex) Start() {
 	go b.Run()
-}
-
-func (b *Bitfinex) SetEnabled(enabled bool) {
-	b.Enabled = enabled
-}
-
-func (b *Bitfinex) IsEnabled() bool {
-	return b.Enabled
-}
-
-func (b *Bitfinex) SetAPIKeys(apiKey, apiSecret string) {
-	b.APIKey = apiKey
-	b.APISecret = apiSecret
 }
 
 func (b *Bitfinex) Run() {

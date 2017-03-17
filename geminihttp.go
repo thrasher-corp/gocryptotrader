@@ -107,25 +107,13 @@ func (g *Gemini) SetDefaults() {
 	g.RESTPollingDelay = 10
 }
 
-func (g *Gemini) GetName() string {
-	return g.Name
-}
-
-func (g *Gemini) SetEnabled(enabled bool) {
-	g.Enabled = enabled
-}
-
-func (g *Gemini) IsEnabled() bool {
-	return g.Enabled
-}
-
 func (g *Gemini) Setup(exch config.ExchangeConfig) {
 	if !exch.Enabled {
 		g.SetEnabled(false)
 	} else {
 		g.Enabled = true
 		g.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
-		g.SetAPIKeys(exch.APIKey, exch.APISecret)
+		g.SetAPIKeys(exch.APIKey, exch.APISecret, "", false)
 		g.RESTPollingDelay = exch.RESTPollingDelay
 		g.Verbose = exch.Verbose
 		g.Websocket = exch.Websocket
@@ -135,17 +123,8 @@ func (g *Gemini) Setup(exch config.ExchangeConfig) {
 	}
 }
 
-func (k *Gemini) GetEnabledCurrencies() []string {
-	return k.EnabledPairs
-}
-
 func (g *Gemini) Start() {
 	go g.Run()
-}
-
-func (g *Gemini) SetAPIKeys(apiKey, apiSecret string) {
-	g.APIKey = apiKey
-	g.APISecret = apiSecret
 }
 
 func (g *Gemini) Run() {

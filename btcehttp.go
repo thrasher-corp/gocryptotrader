@@ -81,25 +81,13 @@ func (b *BTCE) SetDefaults() {
 	b.Ticker = make(map[string]BTCeTicker)
 }
 
-func (b *BTCE) GetName() string {
-	return b.Name
-}
-
-func (b *BTCE) SetEnabled(enabled bool) {
-	b.Enabled = enabled
-}
-
-func (b *BTCE) IsEnabled() bool {
-	return b.Enabled
-}
-
 func (b *BTCE) Setup(exch config.ExchangeConfig) {
 	if !exch.Enabled {
 		b.SetEnabled(false)
 	} else {
 		b.Enabled = true
 		b.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
-		b.SetAPIKeys(exch.APIKey, exch.APISecret)
+		b.SetAPIKeys(exch.APIKey, exch.APISecret, "", false)
 		b.RESTPollingDelay = exch.RESTPollingDelay
 		b.Verbose = exch.Verbose
 		b.Websocket = exch.Websocket
@@ -110,17 +98,8 @@ func (b *BTCE) Setup(exch config.ExchangeConfig) {
 	}
 }
 
-func (k *BTCE) GetEnabledCurrencies() []string {
-	return k.EnabledPairs
-}
-
 func (b *BTCE) Start() {
 	go b.Run()
-}
-
-func (b *BTCE) SetAPIKeys(apiKey, apiSecret string) {
-	b.APIKey = apiKey
-	b.APISecret = apiSecret
 }
 
 func (b *BTCE) GetFee() float64 {

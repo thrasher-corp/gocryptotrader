@@ -83,7 +83,7 @@ type ExchangeConfig struct {
 	AuthenticatedAPISupport bool
 	APIKey                  string
 	APISecret               string
-	ClientID                string
+	ClientID                string `json:",omitempty"`
 	AvailablePairs          string
 	EnabledPairs            string
 	BaseCurrencies          string

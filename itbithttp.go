@@ -52,25 +52,13 @@ func (i *ItBit) SetDefaults() {
 	i.RESTPollingDelay = 10
 }
 
-func (i *ItBit) GetName() string {
-	return i.Name
-}
-
-func (i *ItBit) SetEnabled(enabled bool) {
-	i.Enabled = enabled
-}
-
-func (i *ItBit) IsEnabled() bool {
-	return i.Enabled
-}
-
 func (i *ItBit) Setup(exch config.ExchangeConfig) {
 	if !exch.Enabled {
 		i.SetEnabled(false)
 	} else {
 		i.Enabled = true
 		i.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
-		i.SetAPIKeys(exch.APIKey, exch.APISecret, exch.ClientID)
+		i.SetAPIKeys(exch.APIKey, exch.APISecret, exch.ClientID, false)
 		i.RESTPollingDelay = exch.RESTPollingDelay
 		i.Verbose = exch.Verbose
 		i.Websocket = exch.Websocket
@@ -80,18 +68,8 @@ func (i *ItBit) Setup(exch config.ExchangeConfig) {
 	}
 }
 
-func (k *ItBit) GetEnabledCurrencies() []string {
-	return k.EnabledPairs
-}
-
 func (i *ItBit) Start() {
 	go i.Run()
-}
-
-func (i *ItBit) SetAPIKeys(apiKey, apiSecret, userID string) {
-	i.APIKey = apiKey
-	i.APISecret = apiSecret
-	i.ClientID = userID
 }
 
 func (i *ItBit) GetFee(maker bool) float64 {

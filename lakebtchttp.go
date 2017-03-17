@@ -63,25 +63,13 @@ func (l *LakeBTC) SetDefaults() {
 	l.RESTPollingDelay = 10
 }
 
-func (l *LakeBTC) GetName() string {
-	return l.Name
-}
-
-func (l *LakeBTC) SetEnabled(enabled bool) {
-	l.Enabled = enabled
-}
-
-func (l *LakeBTC) IsEnabled() bool {
-	return l.Enabled
-}
-
 func (l *LakeBTC) Setup(exch config.ExchangeConfig) {
 	if !exch.Enabled {
 		l.SetEnabled(false)
 	} else {
 		l.Enabled = true
 		l.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
-		l.SetAPIKeys(exch.APIKey, exch.APISecret)
+		l.SetAPIKeys(exch.APIKey, exch.APISecret, "", false)
 		l.RESTPollingDelay = exch.RESTPollingDelay
 		l.Verbose = exch.Verbose
 		l.Websocket = exch.Websocket
@@ -91,17 +79,8 @@ func (l *LakeBTC) Setup(exch config.ExchangeConfig) {
 	}
 }
 
-func (k *LakeBTC) GetEnabledCurrencies() []string {
-	return k.EnabledPairs
-}
-
 func (l *LakeBTC) Start() {
 	go l.Run()
-}
-
-func (l *LakeBTC) SetAPIKeys(apiKey, apiSecret string) {
-	l.APIKey = apiKey
-	l.APISecret = apiSecret
 }
 
 func (l *LakeBTC) GetFee(maker bool) float64 {
