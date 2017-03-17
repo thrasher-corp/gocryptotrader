@@ -59,7 +59,9 @@ func PoloniexOnTrollbox(args []interface{}, kwargs map[string]interface{}) {
 	message.MessageNumber, _ = args[1].(float64)
 	message.Username = args[2].(string)
 	message.Message = args[3].(string)
-	message.Reputation = args[4].(float64)
+	if len(args) == 5 {
+		message.Reputation = args[4].(float64)
+	}
 }
 
 func PoloniexOnDepthOrTrade(args []interface{}, kwargs map[string]interface{}) {
