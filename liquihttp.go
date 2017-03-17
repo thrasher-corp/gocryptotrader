@@ -11,6 +11,7 @@ import (
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
+	"github.com/thrasher-/gocryptotrader/exchanges"
 )
 
 const (
@@ -32,19 +33,9 @@ const (
 )
 
 type Liqui struct {
-	Name                    string
-	Enabled                 bool
-	Verbose                 bool
-	Websocket               bool
-	RESTPollingDelay        time.Duration
-	AuthenticatedAPISupport bool
-	APIKey, APISecret       string
-	Fee                     float64
-	BaseCurrencies          []string
-	AvailablePairs          []string
-	EnabledPairs            []string
-	Ticker                  map[string]LiquiTicker
-	Info                    LiquiInfo
+	exchange.ExchangeBase
+	Ticker map[string]LiquiTicker
+	Info   LiquiInfo
 }
 
 type LiquiTicker struct {

@@ -11,6 +11,7 @@ import (
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
+	"github.com/thrasher-/gocryptotrader/exchanges"
 )
 
 const (
@@ -46,17 +47,7 @@ const (
 )
 
 type Poloniex struct {
-	Name                    string
-	Enabled                 bool
-	Verbose                 bool
-	Websocket               bool
-	RESTPollingDelay        time.Duration
-	AuthenticatedAPISupport bool
-	AccessKey, SecretKey    string
-	Fee                     float64
-	BaseCurrencies          []string
-	AvailablePairs          []string
-	EnabledPairs            []string
+	exchange.ExchangeBase
 }
 
 type PoloniexTicker struct {
@@ -117,8 +108,8 @@ func (p *Poloniex) Start() {
 }
 
 func (p *Poloniex) SetAPIKeys(apiKey, apiSecret string) {
-	p.AccessKey = apiKey
-	p.SecretKey = apiSecret
+	p.APIKey = apiKey
+	p.APISecret = apiSecret
 }
 
 func (p *Poloniex) GetFee() float64 {
@@ -1015,7 +1006,7 @@ func (p *Poloniex) ToggleAutoRenew(orderNumber int64) (bool, error) {
 func (p *Poloniex) SendAuthenticatedHTTPRequest(method, endpoint string, values url.Values, result interface{}) error {
 	headers := make(map[string]string)
 	headers["Content-Type"] = "application/x-www-form-urlencoded"
-	headers["Key"] = p.AccessKey
+	headers["Key"] = p.APIKey
 
 	nonce := time.Now().UnixNano()
 	nonceStr := strconv.FormatInt(nonce, 10)
@@ -1023,7 +1014,7 @@ func (p *Poloniex) SendAuthenticatedHTTPRequest(method, endpoint string, values 
 	values.Set("nonce", nonceStr)
 	values.Set("command", endpoint)
 
-	hmac := common.GetHMAC(common.HASH_SHA512, []byte(values.Encode()), []byte(p.SecretKey))
+	hmac := common.GetHMAC(common.HASH_SHA512, []byte(values.Encode()), []byte(p.APISecret))
 	headers["Sign"] = common.HexEncodeToString(hmac)
 
 	path := fmt.Sprintf("%s/%s", POLONIEX_API_URL, POLONIEX_API_TRADING_ENDPOINT)

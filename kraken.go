@@ -11,6 +11,7 @@ import (
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
+	"github.com/thrasher-/gocryptotrader/exchanges"
 )
 
 const (
@@ -40,18 +41,9 @@ const (
 )
 
 type Kraken struct {
-	Name                    string
-	Enabled                 bool
-	Verbose                 bool
-	Websocket               bool
-	RESTPollingDelay        time.Duration
-	AuthenticatedAPISupport bool
-	ClientKey, APISecret    string
-	FiatFee, CryptoFee      float64
-	BaseCurrencies          []string
-	AvailablePairs          []string
-	EnabledPairs            []string
-	Ticker                  map[string]KrakenTicker
+	exchange.ExchangeBase
+	CryptoFee, FiatFee float64
+	Ticker             map[string]KrakenTicker
 }
 
 func (k *Kraken) SetDefaults() {
@@ -102,7 +94,7 @@ func (k *Kraken) Start() {
 }
 
 func (k *Kraken) SetAPIKeys(apiKey, apiSecret string) {
-	k.ClientKey = apiKey
+	k.APIKey = apiKey
 	k.APISecret = apiSecret
 }
 
@@ -666,7 +658,7 @@ func (k *Kraken) SendAuthenticatedHTTPRequest(method string, values url.Values) 
 	}
 
 	headers := make(map[string]string)
-	headers["API-Key"] = k.ClientKey
+	headers["API-Key"] = k.APIKey
 	headers["API-Sign"] = signature
 
 	resp, err := common.SendHTTPRequest("POST", KRAKEN_API_URL+path, headers, strings.NewReader(values.Encode()))

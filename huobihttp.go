@@ -10,6 +10,7 @@ import (
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
+	"github.com/thrasher-/gocryptotrader/exchanges"
 )
 
 const (
@@ -18,17 +19,7 @@ const (
 )
 
 type HUOBI struct {
-	Name                    string
-	Enabled                 bool
-	Verbose                 bool
-	Websocket               bool
-	RESTPollingDelay        time.Duration
-	AuthenticatedAPISupport bool
-	AccessKey, SecretKey    string
-	Fee                     float64
-	BaseCurrencies          []string
-	AvailablePairs          []string
-	EnabledPairs            []string
+	exchange.ExchangeBase
 }
 
 type HuobiTicker struct {
@@ -91,8 +82,8 @@ func (h *HUOBI) Start() {
 }
 
 func (h *HUOBI) SetAPIKeys(apiKey, apiSecret string) {
-	h.AccessKey = apiKey
-	h.SecretKey = apiSecret
+	h.APIKey = apiKey
+	h.APISecret = apiSecret
 }
 
 func (h *HUOBI) GetFee() float64 {
@@ -281,10 +272,10 @@ func (h *HUOBI) GetOrderIDByTradeID(coinType, orderID int) {
 }
 
 func (h *HUOBI) SendAuthenticatedRequest(method string, v url.Values) error {
-	v.Set("access_key", h.AccessKey)
+	v.Set("access_key", h.APIKey)
 	v.Set("created", strconv.FormatInt(time.Now().Unix(), 10))
 	v.Set("method", method)
-	hash := common.GetMD5([]byte(v.Encode() + "&secret_key=" + h.SecretKey))
+	hash := common.GetMD5([]byte(v.Encode() + "&secret_key=" + h.APISecret))
 	v.Set("sign", common.StringToLower(common.HexEncodeToString(hash)))
 	encoded := v.Encode()
 
