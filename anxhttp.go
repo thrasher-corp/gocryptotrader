@@ -101,7 +101,7 @@ func (a *ANX) Setup(exch config.ExchangeConfig) {
 	} else {
 		a.Enabled = true
 		a.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
-		a.SetAPIKeys(exch.APIKey, exch.APISecret)
+		a.SetAPIKeys(exch.APIKey, exch.APISecret, "", true)
 		a.RESTPollingDelay = exch.RESTPollingDelay
 		a.Verbose = exch.Verbose
 		a.Websocket = exch.Websocket
@@ -114,35 +114,6 @@ func (a *ANX) Setup(exch config.ExchangeConfig) {
 //Start is run if exchange is enabled, after Setup
 func (a *ANX) Start() {
 	go a.Run()
-}
-
-func (a *ANX) GetName() string {
-	return a.Name
-}
-
-func (a *ANX) SetEnabled(enabled bool) {
-	a.Enabled = enabled
-}
-
-func (a *ANX) IsEnabled() bool {
-	return a.Enabled
-}
-
-func (a *ANX) SetAPIKeys(apiKey, apiSecret string) {
-	if !a.AuthenticatedAPISupport {
-		return
-	}
-
-	a.APIKey = apiKey
-	result, err := common.Base64Decode(apiSecret)
-
-	if err != nil {
-		log.Printf("%s unable to decode secret key. Authenticated API support disabled.", a.GetName())
-		a.AuthenticatedAPISupport = false
-		return
-	}
-
-	a.APISecret = string(result)
 }
 
 func (a *ANX) GetFee(maker bool) float64 {

@@ -79,25 +79,13 @@ func (l *Liqui) SetDefaults() {
 	l.Ticker = make(map[string]LiquiTicker)
 }
 
-func (l *Liqui) GetName() string {
-	return l.Name
-}
-
-func (l *Liqui) SetEnabled(enabled bool) {
-	l.Enabled = enabled
-}
-
-func (l *Liqui) IsEnabled() bool {
-	return l.Enabled
-}
-
 func (l *Liqui) Setup(exch config.ExchangeConfig) {
 	if !exch.Enabled {
 		l.SetEnabled(false)
 	} else {
 		l.Enabled = true
 		l.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
-		l.SetAPIKeys(exch.APIKey, exch.APISecret)
+		l.SetAPIKeys(exch.APIKey, exch.APISecret, "", false)
 		l.RESTPollingDelay = exch.RESTPollingDelay
 		l.Verbose = exch.Verbose
 		l.Websocket = exch.Websocket
@@ -107,17 +95,8 @@ func (l *Liqui) Setup(exch config.ExchangeConfig) {
 	}
 }
 
-func (l *Liqui) GetEnabledCurrencies() []string {
-	return l.EnabledPairs
-}
-
 func (l *Liqui) Start() {
 	go l.Run()
-}
-
-func (l *Liqui) SetAPIKeys(apiKey, apiSecret string) {
-	l.APIKey = apiKey
-	l.APISecret = apiSecret
 }
 
 func (l *Liqui) Run() {

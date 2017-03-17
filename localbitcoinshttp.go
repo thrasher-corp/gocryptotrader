@@ -40,25 +40,13 @@ func (l *LocalBitcoins) SetDefaults() {
 	l.RESTPollingDelay = 10
 }
 
-func (l *LocalBitcoins) GetName() string {
-	return l.Name
-}
-
-func (l *LocalBitcoins) SetEnabled(enabled bool) {
-	l.Enabled = enabled
-}
-
-func (l *LocalBitcoins) IsEnabled() bool {
-	return l.Enabled
-}
-
 func (l *LocalBitcoins) Setup(exch config.ExchangeConfig) {
 	if !exch.Enabled {
 		l.SetEnabled(false)
 	} else {
 		l.Enabled = true
 		l.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
-		l.SetAPIKeys(exch.APIKey, exch.APISecret)
+		l.SetAPIKeys(exch.APIKey, exch.APISecret, "", false)
 		l.RESTPollingDelay = exch.RESTPollingDelay
 		l.Verbose = exch.Verbose
 		l.Websocket = exch.Websocket
@@ -66,10 +54,6 @@ func (l *LocalBitcoins) Setup(exch config.ExchangeConfig) {
 		l.AvailablePairs = common.SplitStrings(exch.AvailablePairs, ",")
 		l.EnabledPairs = common.SplitStrings(exch.EnabledPairs, ",")
 	}
-}
-
-func (k *LocalBitcoins) GetEnabledCurrencies() []string {
-	return k.EnabledPairs
 }
 
 func (l *LocalBitcoins) Start() {
@@ -105,11 +89,6 @@ func (l *LocalBitcoins) Run() {
 		}
 		time.Sleep(time.Second * l.RESTPollingDelay)
 	}
-}
-
-func (l *LocalBitcoins) SetAPIKeys(apiKey, apiSecret string) {
-	l.APIKey = apiKey
-	l.APISecret = apiSecret
 }
 
 type LocalBitcoinsTicker struct {

@@ -57,25 +57,13 @@ func (k *Kraken) SetDefaults() {
 	k.Ticker = make(map[string]KrakenTicker)
 }
 
-func (k *Kraken) GetName() string {
-	return k.Name
-}
-
-func (k *Kraken) SetEnabled(enabled bool) {
-	k.Enabled = enabled
-}
-
-func (k *Kraken) IsEnabled() bool {
-	return k.Enabled
-}
-
 func (k *Kraken) Setup(exch config.ExchangeConfig) {
 	if !exch.Enabled {
 		k.SetEnabled(false)
 	} else {
 		k.Enabled = true
 		k.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
-		k.SetAPIKeys(exch.APIKey, exch.APISecret)
+		k.SetAPIKeys(exch.APIKey, exch.APISecret, "", false)
 		k.RESTPollingDelay = exch.RESTPollingDelay
 		k.Verbose = exch.Verbose
 		k.Websocket = exch.Websocket
@@ -85,17 +73,8 @@ func (k *Kraken) Setup(exch config.ExchangeConfig) {
 	}
 }
 
-func (k *Kraken) GetEnabledCurrencies() []string {
-	return k.EnabledPairs
-}
-
 func (k *Kraken) Start() {
 	go k.Run()
-}
-
-func (k *Kraken) SetAPIKeys(apiKey, apiSecret string) {
-	k.APIKey = apiKey
-	k.APISecret = apiSecret
 }
 
 func (k *Kraken) GetFee(cryptoTrade bool) float64 {

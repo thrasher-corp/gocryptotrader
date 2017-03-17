@@ -90,25 +90,13 @@ func (b *BTCMarkets) SetDefaults() {
 	b.Ticker = make(map[string]BTCMarketsTicker)
 }
 
-func (b *BTCMarkets) GetName() string {
-	return b.Name
-}
-
-func (b *BTCMarkets) SetEnabled(enabled bool) {
-	b.Enabled = enabled
-}
-
-func (b *BTCMarkets) IsEnabled() bool {
-	return b.Enabled
-}
-
 func (b *BTCMarkets) Setup(exch config.ExchangeConfig) {
 	if !exch.Enabled {
 		b.SetEnabled(false)
 	} else {
 		b.Enabled = false
 		b.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
-		b.SetAPIKeys(exch.APIKey, exch.APISecret)
+		b.SetAPIKeys(exch.APIKey, exch.APISecret, "", true)
 		b.RESTPollingDelay = exch.RESTPollingDelay
 		b.Verbose = exch.Verbose
 		b.Websocket = exch.Websocket
@@ -119,29 +107,8 @@ func (b *BTCMarkets) Setup(exch config.ExchangeConfig) {
 	}
 }
 
-func (k *BTCMarkets) GetEnabledCurrencies() []string {
-	return k.EnabledPairs
-}
-
 func (b *BTCMarkets) Start() {
 	go b.Run()
-}
-
-func (b *BTCMarkets) SetAPIKeys(apiKey, apiSecret string) {
-	if !b.AuthenticatedAPISupport {
-		return
-	}
-
-	b.APIKey = apiKey
-	result, err := common.Base64Decode(apiSecret)
-
-	if err != nil {
-		log.Printf("%s unable to decode secret key.\n", b.GetName())
-		b.Enabled = false
-		return
-	}
-
-	b.APISecret = string(result)
 }
 
 func (b *BTCMarkets) GetFee() float64 {

@@ -45,25 +45,13 @@ func (h *HUOBI) SetDefaults() {
 	h.RESTPollingDelay = 10
 }
 
-func (h *HUOBI) GetName() string {
-	return h.Name
-}
-
-func (h *HUOBI) SetEnabled(enabled bool) {
-	h.Enabled = enabled
-}
-
-func (h *HUOBI) IsEnabled() bool {
-	return h.Enabled
-}
-
 func (h *HUOBI) Setup(exch config.ExchangeConfig) {
 	if !exch.Enabled {
 		h.SetEnabled(false)
 	} else {
 		h.Enabled = true
 		h.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
-		h.SetAPIKeys(exch.APIKey, exch.APISecret)
+		h.SetAPIKeys(exch.APIKey, exch.APISecret, "", false)
 		h.RESTPollingDelay = exch.RESTPollingDelay
 		h.Verbose = exch.Verbose
 		h.Websocket = exch.Websocket
@@ -73,17 +61,8 @@ func (h *HUOBI) Setup(exch config.ExchangeConfig) {
 	}
 }
 
-func (k *HUOBI) GetEnabledCurrencies() []string {
-	return k.EnabledPairs
-}
-
 func (h *HUOBI) Start() {
 	go h.Run()
-}
-
-func (h *HUOBI) SetAPIKeys(apiKey, apiSecret string) {
-	h.APIKey = apiKey
-	h.APISecret = apiSecret
 }
 
 func (h *HUOBI) GetFee() float64 {
