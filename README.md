@@ -7,6 +7,8 @@ A cryptocurrency trading bot supporting multiple exchanges written in Golang.
 
 **Please note that this bot is under development and is not ready for production!**
 
+Join our Slack! https://gocryptotrader.slack.com
+
 ## Exchange Support Table
 
 | Exchange | REST API | Streaming API | FIX API |
@@ -23,7 +25,7 @@ A cryptocurrency trading bot supporting multiple exchanges written in Golang.
 | Huobi | Yes | Yes |No |
 | ItBit | Yes | NA | NA |
 | Kraken | Yes | NA | NA |
-| LakeBTC | Yes | No | NA | 
+| LakeBTC | Yes | NA | NA | 
 | Liqui | Yes | No | NA |
 | LocalBitcoins | Yes | NA | NA |
 | OKCoin (both) | Yes | Yes | No |
