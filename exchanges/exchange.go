@@ -5,11 +5,26 @@ import (
 	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
+	"github.com/thrasher-/gocryptotrader/config"
+	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 )
 
 const (
 	WarningBase64DecryptSecretKeyFailed = "WARNING -- Exchange %s unable to base64 decode secret key.. Disabling Authenticated API support."
 )
+
+//ExchangeAccountInfo : Generic type to hold each exchange's holdings in all enabled currencies
+type ExchangeAccountInfo struct {
+	ExchangeName string
+	Currencies   []ExchangeAccountCurrencyInfo
+}
+
+//ExchangeAccountCurrencyInfo : Sub type to store currency name and value
+type ExchangeAccountCurrencyInfo struct {
+	CurrencyName string
+	TotalValue   float64
+	Hold         float64
+}
 
 type ExchangeBase struct {
 	Name                        string
@@ -25,6 +40,18 @@ type ExchangeBase struct {
 	EnabledPairs                []string
 	WebsocketURL                string
 	APIUrl                      string
+}
+
+//IBotExchange : Enforces standard functions for all exchanges supported in gocryptotrader
+type IBotExchange interface {
+	Setup(exch config.ExchangeConfig)
+	Start()
+	SetDefaults()
+	GetName() string
+	IsEnabled() bool
+	GetTickerPrice(currency string) (ticker.TickerPrice, error)
+	GetEnabledCurrencies() []string
+	GetExchangeAccountInfo() (ExchangeAccountInfo, error)
 }
 
 func (e *ExchangeBase) GetName() string {

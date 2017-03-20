@@ -4,9 +4,10 @@ import (
 	"net/http"
 
 	"github.com/gorilla/mux"
+	"github.com/thrasher-/gocryptotrader/exchanges"
 )
 
-func NewRouter(exchanges []IBotExchange) *mux.Router {
+func NewRouter(exchanges []exchange.IBotExchange) *mux.Router {
 	router := mux.NewRouter().StrictSlash(true)
 	allRoutes := append(routes, ExchangeRoutes...)
 	allRoutes = append(allRoutes, ConfigRoutes...)

@@ -11,35 +11,52 @@ import (
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
+	"github.com/thrasher-/gocryptotrader/exchanges"
+	"github.com/thrasher-/gocryptotrader/exchanges/anx"
+	"github.com/thrasher-/gocryptotrader/exchanges/bitfinex"
+	"github.com/thrasher-/gocryptotrader/exchanges/bitstamp"
+	"github.com/thrasher-/gocryptotrader/exchanges/btcc"
+	"github.com/thrasher-/gocryptotrader/exchanges/btce"
+	"github.com/thrasher-/gocryptotrader/exchanges/btcmarkets"
+	"github.com/thrasher-/gocryptotrader/exchanges/gdax"
+	"github.com/thrasher-/gocryptotrader/exchanges/gemini"
+	"github.com/thrasher-/gocryptotrader/exchanges/huobi"
+	"github.com/thrasher-/gocryptotrader/exchanges/itbit"
+	"github.com/thrasher-/gocryptotrader/exchanges/kraken"
+	"github.com/thrasher-/gocryptotrader/exchanges/lakebtc"
+	"github.com/thrasher-/gocryptotrader/exchanges/liqui"
+	"github.com/thrasher-/gocryptotrader/exchanges/localbitcoins"
+	"github.com/thrasher-/gocryptotrader/exchanges/okcoin"
+	"github.com/thrasher-/gocryptotrader/exchanges/poloniex"
+	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 )
 
-type Exchange struct {
-	anx           ANX
-	btcc          BTCC
-	bitstamp      Bitstamp
-	bitfinex      Bitfinex
-	btce          BTCE
-	btcmarkets    BTCMarkets
-	gdax          GDAX
-	gemini        Gemini
-	okcoinChina   OKCoin
-	okcoinIntl    OKCoin
-	itbit         ItBit
-	lakebtc       LakeBTC
-	liqui         Liqui
-	localbitcoins LocalBitcoins
-	poloniex      Poloniex
-	huobi         HUOBI
-	kraken        Kraken
+type ExchangeMain struct {
+	anx           anx.ANX
+	btcc          btcc.BTCC
+	bitstamp      bitstamp.Bitstamp
+	bitfinex      bitfinex.Bitfinex
+	btce          btce.BTCE
+	btcmarkets    btcmarkets.BTCMarkets
+	gdax          gdax.GDAX
+	gemini        gemini.Gemini
+	okcoinChina   okcoin.OKCoin
+	okcoinIntl    okcoin.OKCoin
+	itbit         itbit.ItBit
+	lakebtc       lakebtc.LakeBTC
+	liqui         liqui.Liqui
+	localbitcoins localbitcoins.LocalBitcoins
+	poloniex      poloniex.Poloniex
+	huobi         huobi.HUOBI
+	kraken        kraken.Kraken
 }
 
 type Bot struct {
-	config     config.Config
-	exchange   Exchange
-	exchanges  []IBotExchange
-	tickers    []Ticker
-	tickerChan chan Ticker
-	shutdown   chan bool
+	config    config.Config
+	exchange  ExchangeMain
+	exchanges []exchange.IBotExchange
+	tickers   []ticker.Ticker
+	shutdown  chan bool
 }
 
 var bot Bot
@@ -89,24 +106,24 @@ func main() {
 	log.Printf("Available Exchanges: %d. Enabled Exchanges: %d.\n", len(bot.config.Exchanges), bot.config.GetConfigEnabledExchanges())
 	log.Println("Bot Exchange support:")
 
-	bot.exchanges = []IBotExchange{
-		new(ANX),
-		new(Kraken),
-		new(BTCC),
-		new(Bitstamp),
-		new(Bitfinex),
-		new(BTCE),
-		new(BTCMarkets),
-		new(GDAX),
-		new(Gemini),
-		new(OKCoin),
-		new(OKCoin),
-		new(ItBit),
-		new(LakeBTC),
-		new(Liqui),
-		new(LocalBitcoins),
-		new(Poloniex),
-		new(HUOBI),
+	bot.exchanges = []exchange.IBotExchange{
+		new(anx.ANX),
+		new(kraken.Kraken),
+		new(btcc.BTCC),
+		new(bitstamp.Bitstamp),
+		new(bitfinex.Bitfinex),
+		new(btce.BTCE),
+		new(btcmarkets.BTCMarkets),
+		new(gdax.GDAX),
+		new(gemini.Gemini),
+		new(okcoin.OKCoin),
+		new(okcoin.OKCoin),
+		new(itbit.ItBit),
+		new(lakebtc.LakeBTC),
+		new(liqui.Liqui),
+		new(localbitcoins.LocalBitcoins),
+		new(poloniex.Poloniex),
+		new(huobi.HUOBI),
 	}
 
 	for i := 0; i < len(bot.exchanges); i++ {

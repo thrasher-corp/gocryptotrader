@@ -6,13 +6,14 @@ import (
 	"net/http"
 
 	"github.com/gorilla/mux"
+	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 )
 
 func jsonTickerResponse(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	currency := vars["currency"]
 	exchangeName := vars["exchangeName"]
-	var response TickerPrice
+	var response ticker.TickerPrice
 	var err error
 	for i := 0; i < len(bot.exchanges); i++ {
 		if bot.exchanges[i] != nil {
@@ -40,8 +41,8 @@ type AllEnabledExchangeCurrencies struct {
 }
 
 type EnabledExchangeCurrencies struct {
-	ExchangeName   string        `json:"exchangeName"`
-	ExchangeValues []TickerPrice `json:"exchangeValues"`
+	ExchangeName   string               `json:"exchangeName"`
+	ExchangeValues []ticker.TickerPrice `json:"exchangeValues"`
 }
 
 func getAllActiveTickersResponse(w http.ResponseWriter, r *http.Request) {

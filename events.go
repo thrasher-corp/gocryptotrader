@@ -7,6 +7,7 @@ import (
 	"strconv"
 
 	"github.com/thrasher-/gocryptotrader/common"
+	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 )
 
 const (
@@ -116,7 +117,7 @@ func (e *Event) CheckCondition() bool {
 	condition := common.SplitStrings(e.Condition, ",")
 	targetPrice, _ := strconv.ParseFloat(condition[1], 64)
 
-	ticker, err := GetTickerByExchange(e.Exchange)
+	ticker, err := ticker.GetTickerByExchange(e.Exchange)
 	if err != nil {
 		return false
 	}

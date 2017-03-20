@@ -4,10 +4,12 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+
+	"github.com/thrasher-/gocryptotrader/exchanges"
 )
 
 type AllEnabledExchangeAccounts struct {
-	Data []ExchangeAccountInfo `json:"data"`
+	Data []exchange.ExchangeAccountInfo `json:"data"`
 }
 
 func GetAllEnabledAccountInfo(w http.ResponseWriter, r *http.Request) {
