@@ -7,8 +7,6 @@ A cryptocurrency trading bot supporting multiple exchanges written in Golang.
 
 **Please note that this bot is under development and is not ready for production!**
 
-Join our Slack! https://gocryptotrader.slack.com
-
 ## Exchange Support Table
 
 | Exchange | REST API | Streaming API | FIX API |
@@ -25,7 +23,7 @@ Join our Slack! https://gocryptotrader.slack.com
 | Huobi | Yes | Yes |No |
 | ItBit | Yes | NA | NA |
 | Kraken | Yes | NA | NA |
-| LakeBTC | Yes | NA | NA | 
+| LakeBTC | Yes | No | NA | 
 | Liqui | Yes | No | NA |
 | LocalBitcoins | Yes | NA | NA |
 | OKCoin (both) | Yes | Yes | No |
@@ -48,8 +46,18 @@ Join our Slack! https://gocryptotrader.slack.com
 + Expanding event trigger system.
 + TALib.
 + Trade history summary generation for tax purposes.
++ ZMQ Hub for manging different gocryptotrader instances.
+
+## Contribution
 
 Please feel free to submit any pull requests or suggest any desired features to be added.
+
+When submitting a PR, please abide by our coding guidelines:
+
+* Code must adhere to the official Go [formatting](https://golang.org/doc/effective_go.html#formatting) guidelines (i.e. uses [gofmt](https://golang.org/cmd/gofmt/)).
+* Code must be documented adhering to the official Go [commentary](https://golang.org/doc/effective_go.html#commentary) guidelines.
+* Code must adhere to our [coding style](https://github.com/thrasher-/gocryptotrader/blob/master/doc/coding-style.md).
+* Pull requests need to be based on and opened against the `master` branch.
 
 ## Compiling instructions
 Download Go from https://golang.org/dl/  
