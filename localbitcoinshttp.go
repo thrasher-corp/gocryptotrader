@@ -155,6 +155,7 @@ func (l *LocalBitcoins) GetTickerPrice(currency string) (TickerPrice, error) {
 		tickerPrice.Last = value.Rates.Last
 		tickerPrice.FirstCurrency = currency[0:3]
 		tickerPrice.SecondCurrency = key
+		tickerPrice.CurrencyPair = tickerPrice.FirstCurrency + "_" + tickerPrice.SecondCurrency
 		tickerPrice.Volume = value.VolumeBTC
 		ProcessTicker(l.GetName(), tickerPrice.FirstCurrency, tickerPrice.SecondCurrency, tickerPrice)
 	}

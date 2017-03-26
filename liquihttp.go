@@ -250,6 +250,7 @@ func (l *Liqui) GetTickerPrice(currency string) (TickerPrice, error) {
 	currencies := SplitStrings(currency, "_")
 	tickerPrice.FirstCurrency = currencies[0]
 	tickerPrice.SecondCurrency = currencies[1]
+	tickerPrice.CurrencyPair = tickerPrice.FirstCurrency + "_" + tickerPrice.SecondCurrency
 	tickerPrice.Low = ticker.Low
 	tickerPrice.Last = ticker.Last
 	tickerPrice.Volume = ticker.Vol_cur

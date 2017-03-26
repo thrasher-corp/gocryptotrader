@@ -303,6 +303,7 @@ func (b *Bitfinex) GetTickerPrice(currency string) (TickerPrice, error) {
 	tickerPrice.Bid = tickerNew.Bid
 	tickerPrice.FirstCurrency = currency[0:3]
 	tickerPrice.SecondCurrency = currency[3:]
+	tickerPrice.CurrencyPair = tickerPrice.FirstCurrency + "_" + tickerPrice.SecondCurrency
 	tickerPrice.Low = tickerNew.Low
 	tickerPrice.Last = tickerNew.Last
 	tickerPrice.Volume = tickerNew.Volume
