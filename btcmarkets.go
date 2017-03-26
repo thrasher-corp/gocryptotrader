@@ -205,6 +205,7 @@ func (b *BTCMarkets) GetTickerPrice(currency string) (TickerPrice, error) {
 	tickerPrice.Bid = ticker.BestBID
 	tickerPrice.FirstCurrency = currency[0:3]
 	tickerPrice.SecondCurrency = currency[3:]
+	tickerPrice.CurrencyPair = tickerPrice.FirstCurrency + "_" + tickerPrice.SecondCurrency
 	tickerPrice.Last = ticker.LastPrice
 	ProcessTicker(b.GetName(), tickerPrice.FirstCurrency, tickerPrice.SecondCurrency, tickerPrice)
 	return tickerPrice, nil

@@ -154,6 +154,7 @@ func (h *HUOBI) GetTickerPrice(currency string) (TickerPrice, error) {
 	tickerPrice.Bid = ticker.Buy
 	tickerPrice.FirstCurrency = StringToUpper(currency[0:3])
 	tickerPrice.SecondCurrency = StringToUpper(currency[3:])
+	tickerPrice.CurrencyPair = tickerPrice.FirstCurrency + "_" + tickerPrice.SecondCurrency
 	tickerPrice.Low = ticker.Low
 	tickerPrice.Last = ticker.Last
 	tickerPrice.Volume = ticker.Vol

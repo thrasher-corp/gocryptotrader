@@ -377,6 +377,7 @@ func (g *GDAX) GetTickerPrice(currency string) (TickerPrice, error) {
 
 	tickerPrice.FirstCurrency = currency[0:3]
 	tickerPrice.SecondCurrency = currency[4:]
+	tickerPrice.CurrencyPair = tickerPrice.FirstCurrency + "_" + tickerPrice.SecondCurrency
 	tickerPrice.Volume = stats.Volume
 	tickerPrice.Last = ticker.Price
 	tickerPrice.High = stats.High

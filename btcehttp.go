@@ -216,6 +216,7 @@ func (b *BTCE) GetTickerPrice(currency string) (TickerPrice, error) {
 	tickerPrice.Bid = ticker.Sell
 	tickerPrice.FirstCurrency = currency[0:3]
 	tickerPrice.SecondCurrency = currency[3:]
+	tickerPrice.CurrencyPair = tickerPrice.FirstCurrency + "_" + tickerPrice.SecondCurrency
 	tickerPrice.Low = ticker.Low
 	tickerPrice.Last = ticker.Last
 	tickerPrice.Volume = ticker.Vol_cur

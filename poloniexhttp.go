@@ -181,6 +181,7 @@ func (p *Poloniex) GetTickerPrice(currency string) (TickerPrice, error) {
 	currencyPair := SplitStrings(currency, "_")
 	tickerPrice.FirstCurrency = currencyPair[0]
 	tickerPrice.SecondCurrency = currencyPair[1]
+	tickerPrice.CurrencyPair = tickerPrice.FirstCurrency + "_" + tickerPrice.SecondCurrency
 	tickerPrice.Ask = ticker[currency].Last
 	tickerPrice.Bid = ticker[currency].HighestBid
 	tickerPrice.High = ticker[currency].HighestBid

@@ -207,6 +207,7 @@ func (a *ANX) GetTickerPrice(currency string) (TickerPrice, error) {
 	tickerPrice.Bid = ticker.Data.Sell.Value
 	tickerPrice.FirstCurrency = currency[0:3]
 	tickerPrice.SecondCurrency = currency[3:]
+	tickerPrice.CurrencyPair = tickerPrice.FirstCurrency + "_" + tickerPrice.SecondCurrency
 	tickerPrice.Low = ticker.Data.Low.Value
 	tickerPrice.Last = ticker.Data.Last.Value
 	tickerPrice.Volume = ticker.Data.Vol.Value

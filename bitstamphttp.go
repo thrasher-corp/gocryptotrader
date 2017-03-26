@@ -292,6 +292,7 @@ func (b *Bitstamp) GetTickerPrice(currency string) (TickerPrice, error) {
 	tickerPrice.Bid = ticker.Bid
 	tickerPrice.FirstCurrency = currency[0:3]
 	tickerPrice.SecondCurrency = currency[3:]
+	tickerPrice.CurrencyPair = tickerPrice.FirstCurrency + "_" + tickerPrice.SecondCurrency
 	tickerPrice.Low = ticker.Low
 	tickerPrice.Last = ticker.Last
 	tickerPrice.Volume = ticker.Volume
