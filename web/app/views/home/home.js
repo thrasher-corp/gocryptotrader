@@ -9,7 +9,7 @@ angular.module('myApp.home', ['ngRoute'])
     });
 }])
 
-.controller('HomeController', function($scope, $rootScope, $timeout) {
+.controller('HomeController', function($scope, $rootScope, $timeout, webSocket) {
     $scope.loaded = false;
 
     $rootScope.$on('CurrencyChanged', function(event, args) {
