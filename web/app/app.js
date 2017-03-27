@@ -13,7 +13,8 @@ angular.module('myApp', [
     'myApp.enabledExchanges',
     'myApp.buyOrders',
     'myApp.sellOrders',
-    'myApp.stringUtils'
+    'myApp.stringUtils',
+    'myApp.webSocket'
 ]).
 config(['$locationProvider', '$routeProvider', 'NotificationProvider', function($locationProvider, $routeProvider, NotificationProvider) {
     NotificationProvider.setOptions({
