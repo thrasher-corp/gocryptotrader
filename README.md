@@ -1,7 +1,8 @@
 ## Cryptocurrency trading bot written in Golang
-
 [![Build Status](https://travis-ci.org/thrasher-/gocryptotrader.svg?branch=master)](https://travis-ci.org/thrasher-/gocryptotrader)
-[![Test Coverage](https://codecov.io/github/thrasher-/gocryptotrader/coverage.svg?branch=master)](https://codecov.io/github/thrasher-/gocryptotrader?branch=master)
+[![Software License](https://img.shields.io/badge/License-MIT-orange.svg?style=flat-square)](https://github.com/thrasher-/gocryptotrader/blob/master/LICENSE)
+[![GoDoc](https://godoc.org/github.com/thrasher-/gocryptotrader?status.svg)](https://godoc.org/github.com/thrasher-/gocryptotrader)
+[![Coverage Status](http://codecov.io/github/thrasher-/gocryptotrader/coverage.svg?branch=master)](http://codecov.io/github/thrasher-/gocryptotrader?branch=master)
 
 A cryptocurrency trading bot supporting multiple exchanges written in Golang. 
 
