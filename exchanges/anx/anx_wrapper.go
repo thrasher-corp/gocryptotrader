@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/thrasher-/gocryptotrader/exchanges"
+	"github.com/thrasher-/gocryptotrader/exchanges/stats"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 )
 
@@ -28,7 +29,7 @@ func (a *ANX) Run() {
 					return
 				}
 				log.Printf("ANX %s: Last %f High %f Low %f Volume %f\n", currency, ticker.Last, ticker.High, ticker.Low, ticker.Volume)
-				//AddExchangeInfo(a.GetName(), currency[0:3], currency[3:], ticker.Last, ticker.Volume)
+				stats.AddExchangeInfo(a.GetName(), currency[0:3], currency[3:], ticker.Last, ticker.Volume)
 			}()
 		}
 		time.Sleep(time.Second * a.RESTPollingDelay)

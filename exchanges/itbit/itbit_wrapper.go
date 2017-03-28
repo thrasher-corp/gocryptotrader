@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/thrasher-/gocryptotrader/exchanges"
+	"github.com/thrasher-/gocryptotrader/exchanges/stats"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 )
 
@@ -27,7 +28,7 @@ func (i *ItBit) Run() {
 					return
 				}
 				log.Printf("ItBit %s: Last %f High %f Low %f Volume %f\n", currency, ticker.Last, ticker.High, ticker.Low, ticker.Volume)
-				//AddExchangeInfo(i.GetName(), currency[0:3], currency[3:], ticker.Last, ticker.Volume)
+				stats.AddExchangeInfo(i.GetName(), currency[0:3], currency[3:], ticker.Last, ticker.Volume)
 			}()
 		}
 		time.Sleep(time.Second * i.RESTPollingDelay)

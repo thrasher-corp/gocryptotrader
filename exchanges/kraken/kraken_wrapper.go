@@ -6,6 +6,7 @@ import (
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/exchanges"
+	"github.com/thrasher-/gocryptotrader/exchanges/stats"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 )
 
@@ -51,7 +52,7 @@ func (k *Kraken) Run() {
 			for _, x := range k.EnabledPairs {
 				ticker := k.Ticker[x]
 				log.Printf("Kraken %s Last %f High %f Low %f Volume %f\n", x, ticker.Last, ticker.High, ticker.Low, ticker.Volume)
-				//AddExchangeInfo(k.GetName(), x[0:3], x[3:], ticker.Last, ticker.Volume)
+				stats.AddExchangeInfo(k.GetName(), x[0:3], x[3:], ticker.Last, ticker.Volume)
 			}
 		}
 		time.Sleep(time.Second * k.RESTPollingDelay)
