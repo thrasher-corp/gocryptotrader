@@ -1,4 +1,4 @@
-package main
+package smsglobal
 
 import (
 	"errors"
@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/thrasher-/gocryptotrader/common"
+	"github.com/thrasher-/gocryptotrader/config"
 )
 
 const (
@@ -15,9 +16,9 @@ const (
 	ErrSMSNotSent         = "SMS message not sent."
 )
 
-func GetEnabledSMSContacts() int {
+func GetEnabledSMSContacts(smsCfg config.SMSGlobalConfig) int {
 	counter := 0
-	for _, contact := range bot.config.SMS.Contacts {
+	for _, contact := range smsCfg.Contacts {
 		if contact.Enabled {
 			counter++
 		}
@@ -25,10 +26,10 @@ func GetEnabledSMSContacts() int {
 	return counter
 }
 
-func SMSSendToAll(message string) {
-	for _, contact := range bot.config.SMS.Contacts {
+func SMSSendToAll(message string, cfg config.Config) {
+	for _, contact := range cfg.SMS.Contacts {
 		if contact.Enabled {
-			err := SMSNotify(contact.Number, message)
+			err := SMSNotify(contact.Number, message, cfg)
 			if err != nil {
 				log.Printf("Unable to send SMS to %s.\n", contact.Name)
 			}
@@ -36,8 +37,8 @@ func SMSSendToAll(message string) {
 	}
 }
 
-func SMSGetNumberByName(name string) string {
-	for _, contact := range bot.config.SMS.Contacts {
+func SMSGetNumberByName(name string, smsCfg config.SMSGlobalConfig) string {
+	for _, contact := range smsCfg.Contacts {
 		if contact.Name == name {
 			return contact.Number
 		}
@@ -45,12 +46,12 @@ func SMSGetNumberByName(name string) string {
 	return ErrSMSContactNotFound
 }
 
-func SMSNotify(to, message string) error {
+func SMSNotify(to, message string, cfg config.Config) error {
 	values := url.Values{}
 	values.Set("action", "sendsms")
-	values.Set("user", bot.config.SMS.Username)
-	values.Set("password", bot.config.SMS.Password)
-	values.Set("from", bot.config.Name)
+	values.Set("user", cfg.SMS.Username)
+	values.Set("password", cfg.SMS.Password)
+	values.Set("from", cfg.Name)
 	values.Set("to", to)
 	values.Set("text", message)
 
