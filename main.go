@@ -30,6 +30,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/exchanges/okcoin"
 	"github.com/thrasher-/gocryptotrader/exchanges/poloniex"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
+	"github.com/thrasher-/gocryptotrader/smsglobal"
 )
 
 type ExchangeMain struct {
@@ -98,7 +99,7 @@ func main() {
 			log.Println(err) // non fatal event
 			bot.config.SMS.Enabled = false
 		} else {
-			log.Printf("SMS support enabled. Number of SMS contacts %d.\n", GetEnabledSMSContacts())
+			log.Printf("SMS support enabled. Number of SMS contacts %d.\n", smsglobal.GetEnabledSMSContacts(bot.config.SMS))
 		}
 	} else {
 		log.Println("SMS support disabled.")
