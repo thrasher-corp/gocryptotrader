@@ -6,6 +6,7 @@ import (
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/exchanges"
+	"github.com/thrasher-/gocryptotrader/exchanges/stats"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 )
 
@@ -34,8 +35,8 @@ func (p *Poloniex) Run() {
 					return
 				}
 				log.Printf("Poloniex %s Last %f High %f Low %f Volume %f\n", currency, ticker.Last, ticker.High, ticker.Low, ticker.Volume)
-				//currencyPair := common.SplitStrings(currency, "_")
-				//AddExchangeInfo(p.GetName(), currencyPair[0], currencyPair[1], ticker.Last, ticker.Volume)
+				currencyPair := common.SplitStrings(currency, "_")
+				stats.AddExchangeInfo(p.GetName(), currencyPair[0], currencyPair[1], ticker.Last, ticker.Volume)
 			}()
 		}
 		time.Sleep(time.Second * p.RESTPollingDelay)

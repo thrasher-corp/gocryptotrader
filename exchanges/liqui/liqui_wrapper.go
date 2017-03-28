@@ -7,6 +7,7 @@ import (
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/exchanges"
+	"github.com/thrasher-/gocryptotrader/exchanges/stats"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 )
 
@@ -58,11 +59,11 @@ func (l *Liqui) Run() {
 				return
 			}
 			for x, y := range ticker {
-				//currencies := common.SplitStrings(x, "_")
+				currencies := common.SplitStrings(x, "_")
 				x = common.StringToUpper(x)
 				log.Printf("Liqui %s: Last %f High %f Low %f Volume %f\n", x, y.Last, y.High, y.Low, y.Vol_cur)
 				l.Ticker[x] = y
-				//AddExchangeInfo(l.GetName(), common.StringToUpper(currencies[0]), common.StringToUpper(currencies[1]), y.Last, y.Vol_cur)
+				stats.AddExchangeInfo(l.GetName(), common.StringToUpper(currencies[0]), common.StringToUpper(currencies[1]), y.Last, y.Vol_cur)
 			}
 		}()
 		time.Sleep(time.Second * l.RESTPollingDelay)

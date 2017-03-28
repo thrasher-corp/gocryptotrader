@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/thrasher-/gocryptotrader/exchanges"
+	"github.com/thrasher-/gocryptotrader/exchanges/stats"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 )
 
@@ -29,7 +30,7 @@ func (l *LocalBitcoins) Run() {
 			}
 
 			log.Printf("LocalBitcoins BTC %s: Last %f Volume %f\n", currency, ticker.Last, ticker.Volume)
-			//AddExchangeInfo(l.GetName(), x[0:3], x[3:], ticker.Last, ticker.Volume)
+			stats.AddExchangeInfo(l.GetName(), x[0:3], x[3:], ticker.Last, ticker.Volume)
 		}
 		time.Sleep(time.Second * l.RESTPollingDelay)
 	}

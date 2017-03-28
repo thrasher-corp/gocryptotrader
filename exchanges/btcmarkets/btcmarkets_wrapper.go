@@ -6,6 +6,7 @@ import (
 
 	"github.com/thrasher-/gocryptotrader/currency"
 	"github.com/thrasher-/gocryptotrader/exchanges"
+	"github.com/thrasher-/gocryptotrader/exchanges/stats"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 )
 
@@ -31,8 +32,8 @@ func (b *BTCMarkets) Run() {
 				BTCMarketsBestBidUSD, _ := currency.ConvertCurrency(ticker.Bid, "AUD", "USD")
 				BTCMarketsBestAskUSD, _ := currency.ConvertCurrency(ticker.Ask, "AUD", "USD")
 				log.Printf("BTC Markets %s: Last %f (%f) Bid %f (%f) Ask %f (%f)\n", curr, BTCMarketsLastUSD, ticker.Last, BTCMarketsBestBidUSD, ticker.Bid, BTCMarketsBestAskUSD, ticker.Ask)
-				//AddExchangeInfo(b.GetName(), currency[0:3], currency[3:], ticker.Last, 0)
-				//AddExchangeInfo(b.GetName(), currency[0:3], "USD", BTCMarketsLastUSD, 0)
+				stats.AddExchangeInfo(b.GetName(), curr[0:3], curr[3:], ticker.Last, 0)
+				stats.AddExchangeInfo(b.GetName(), curr[0:3], "USD", BTCMarketsLastUSD, 0)
 			}()
 		}
 		time.Sleep(time.Second * b.RESTPollingDelay)

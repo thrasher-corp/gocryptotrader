@@ -7,6 +7,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency"
 	"github.com/thrasher-/gocryptotrader/exchanges"
+	"github.com/thrasher-/gocryptotrader/exchanges/stats"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 )
 
@@ -38,8 +39,8 @@ func (h *HUOBI) Run() {
 				HuobiHighUSD, _ := currency.ConvertCurrency(ticker.High, "CNY", "USD")
 				HuobiLowUSD, _ := currency.ConvertCurrency(ticker.Low, "CNY", "USD")
 				log.Printf("Huobi %s: Last %f (%f) High %f (%f) Low %f (%f) Volume %f\n", curr, HuobiLastUSD, ticker.Last, HuobiHighUSD, ticker.High, HuobiLowUSD, ticker.Low, ticker.Volume)
-				//	AddExchangeInfo(h.GetName(), common.StringToUpper(currency[0:3]), common.StringToUpper(currency[3:]), ticker.Last, ticker.Volume)
-				//	AddExchangeInfo(h.GetName(), common.StringToUpper(currency[0:3]), "USD", HuobiLastUSD, ticker.Volume)
+				stats.AddExchangeInfo(h.GetName(), common.StringToUpper(curr[0:3]), common.StringToUpper(curr[3:]), ticker.Last, ticker.Volume)
+				stats.AddExchangeInfo(h.GetName(), common.StringToUpper(curr[0:3]), "USD", HuobiLastUSD, ticker.Volume)
 			}()
 		}
 		time.Sleep(time.Second * h.RESTPollingDelay)

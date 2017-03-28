@@ -7,6 +7,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency"
 	"github.com/thrasher-/gocryptotrader/exchanges"
+	"github.com/thrasher-/gocryptotrader/exchanges/stats"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 )
 
@@ -38,7 +39,7 @@ func (o *OKCoin) Run() {
 							return
 						}
 						log.Printf("OKCoin Intl Futures %s (%s): Last %f High %f Low %f Volume %f\n", curr, futuresValue, ticker.Last, ticker.High, ticker.Low, ticker.Vol)
-						//AddExchangeInfo(o.GetName(), common.StringToUpper(currency[0:3]), common.StringToUpper(currency[4:]), ticker.Last, ticker.Vol)
+						stats.AddExchangeInfo(o.GetName(), common.StringToUpper(curr[0:3]), common.StringToUpper(curr[4:]), ticker.Last, ticker.Vol)
 					}()
 				}
 				go func() {
@@ -48,7 +49,7 @@ func (o *OKCoin) Run() {
 						return
 					}
 					log.Printf("OKCoin Intl Spot %s: Last %f High %f Low %f Volume %f\n", curr, ticker.Last, ticker.High, ticker.Low, ticker.Volume)
-					//AddExchangeInfo(o.GetName(), common.StringToUpper(currency[0:3]), common.StringToUpper(currency[4:]), ticker.Last, ticker.Volume)
+					stats.AddExchangeInfo(o.GetName(), common.StringToUpper(curr[0:3]), common.StringToUpper(curr[4:]), ticker.Last, ticker.Volume)
 				}()
 			} else {
 				go func() {
@@ -61,8 +62,8 @@ func (o *OKCoin) Run() {
 					tickerHighUSD, _ := currency.ConvertCurrency(ticker.High, "CNY", "USD")
 					tickerLowUSD, _ := currency.ConvertCurrency(ticker.Low, "CNY", "USD")
 					log.Printf("OKCoin China %s: Last %f (%f) High %f (%f) Low %f (%f) Volume %f\n", curr, tickerLastUSD, ticker.Last, tickerHighUSD, ticker.High, tickerLowUSD, ticker.Low, ticker.Volume)
-					//AddExchangeInfo(o.GetName(), common.StringToUpper(currency[0:3]), common.StringToUpper(currency[4:]), ticker.Last, ticker.Volume)
-					//AddExchangeInfo(o.GetName(), common.StringToUpper(currency[0:3]), "USD", tickerLastUSD, ticker.Volume)
+					stats.AddExchangeInfo(o.GetName(), common.StringToUpper(curr[0:3]), common.StringToUpper(curr[4:]), ticker.Last, ticker.Volume)
+					stats.AddExchangeInfo(o.GetName(), common.StringToUpper(curr[0:3]), "USD", tickerLastUSD, ticker.Volume)
 				}()
 			}
 		}
