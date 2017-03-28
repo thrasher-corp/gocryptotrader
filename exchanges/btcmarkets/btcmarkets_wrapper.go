@@ -4,6 +4,7 @@ import (
 	"log"
 	"time"
 
+	"github.com/thrasher-/gocryptotrader/currency"
 	"github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 )
@@ -20,17 +21,16 @@ func (b *BTCMarkets) Run() {
 
 	for b.Enabled {
 		for _, x := range b.EnabledPairs {
-			currency := x
+			curr := x
 			go func() {
-				ticker, err := b.GetTickerPrice(currency)
+				ticker, err := b.GetTickerPrice(curr)
 				if err != nil {
 					return
 				}
-				//BTCMarketsLastUSD, _ := ConvertCurrency(ticker.Last, "AUD", "USD")
-				//BTCMarketsBestBidUSD, _ := ConvertCurrency(ticker.Bid, "AUD", "USD")
-				//BTCMarketsBestAskUSD, _ := ConvertCurrency(ticker.Ask, "AUD", "USD")
-				//log.Printf("BTC Markets %s: Last %f (%f) Bid %f (%f) Ask %f (%f)\n", currency, BTCMarketsLastUSD, ticker.Last, BTCMarketsBestBidUSD, ticker.Bid, BTCMarketsBestAskUSD, ticker.Ask)
-				log.Printf("BTC Markets %s: Last %f Bid %f Ask %f \n", currency, ticker.Last, ticker.Bid, ticker.Ask)
+				BTCMarketsLastUSD, _ := currency.ConvertCurrency(ticker.Last, "AUD", "USD")
+				BTCMarketsBestBidUSD, _ := currency.ConvertCurrency(ticker.Bid, "AUD", "USD")
+				BTCMarketsBestAskUSD, _ := currency.ConvertCurrency(ticker.Ask, "AUD", "USD")
+				log.Printf("BTC Markets %s: Last %f (%f) Bid %f (%f) Ask %f (%f)\n", curr, BTCMarketsLastUSD, ticker.Last, BTCMarketsBestBidUSD, ticker.Bid, BTCMarketsBestAskUSD, ticker.Ask)
 				//AddExchangeInfo(b.GetName(), currency[0:3], currency[3:], ticker.Last, 0)
 				//AddExchangeInfo(b.GetName(), currency[0:3], "USD", BTCMarketsLastUSD, 0)
 			}()

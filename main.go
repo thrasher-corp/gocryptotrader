@@ -11,6 +11,7 @@ import (
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
+	"github.com/thrasher-/gocryptotrader/currency"
 	"github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/anx"
 	"github.com/thrasher-/gocryptotrader/exchanges/bitfinex"
@@ -135,11 +136,14 @@ func main() {
 
 	setupBotExchanges()
 
-	err = RetrieveConfigCurrencyPairs()
+	bot.config.RetrieveConfigCurrencyPairs()
 
+	err = currency.SeedCurrencyData(currency.BaseCurrencies)
 	if err != nil {
-		log.Fatalf("Fatal error retrieving config currency AvailablePairs. Error: ", err)
+		log.Fatalf("Fatal error retrieving config currencies. Error: ", err)
 	}
+
+	log.Println("Successfully retrieved config currencies.")
 
 	go StartPortfolioWatcher()
 
