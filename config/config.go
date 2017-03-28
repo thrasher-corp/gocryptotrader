@@ -7,9 +7,11 @@ import (
 	"log"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
+	"github.com/thrasher-/gocryptotrader/currency"
 )
 
 const (
@@ -209,6 +211,55 @@ func (c *Config) CheckWebserverConfigValues() error {
 		return errors.New(WarningWebserverListenAddressInvalid)
 	}
 	return nil
+}
+
+func (c *Config) RetrieveConfigCurrencyPairs() {
+	cryptoCurrencies := common.SplitStrings(c.Cryptocurrencies, ",")
+	fiatCurrencies := common.SplitStrings(currency.DEFAULT_CURRENCIES, ",")
+
+	for _, exchange := range c.Exchanges {
+		if exchange.Enabled {
+			baseCurrencies := common.SplitStrings(exchange.BaseCurrencies, ",")
+			enabledCurrencies := common.SplitStrings(exchange.EnabledPairs, ",")
+
+			for _, currencyPair := range enabledCurrencies {
+				ok, separator := currency.ContainsSeparator(currencyPair)
+				if ok {
+					pair := common.SplitStrings(currencyPair, separator)
+					for _, x := range pair {
+						ok, _ = currency.ContainsBaseCurrencyIndex(baseCurrencies, x)
+						if !ok {
+							cryptoCurrencies = currency.CheckAndAddCurrency(cryptoCurrencies, x)
+						}
+					}
+				} else {
+					ok, idx := currency.ContainsBaseCurrencyIndex(baseCurrencies, currencyPair)
+					if ok {
+						curr := strings.Replace(currencyPair, idx, "", -1)
+
+						if currency.ContainsBaseCurrency(baseCurrencies, curr) {
+							fiatCurrencies = currency.CheckAndAddCurrency(fiatCurrencies, curr)
+						} else {
+							cryptoCurrencies = currency.CheckAndAddCurrency(cryptoCurrencies, curr)
+						}
+
+						if currency.ContainsBaseCurrency(baseCurrencies, idx) {
+							fiatCurrencies = currency.CheckAndAddCurrency(fiatCurrencies, idx)
+						} else {
+							cryptoCurrencies = currency.CheckAndAddCurrency(cryptoCurrencies, idx)
+						}
+					}
+				}
+			}
+		}
+	}
+
+	currency.BaseCurrencies = common.JoinStrings(fiatCurrencies, ",")
+	if common.StringContains(currency.BaseCurrencies, "RUR") {
+		currency.BaseCurrencies = strings.Replace(currency.BaseCurrencies, "RUR", "RUB", -1)
+	}
+	c.Cryptocurrencies = common.JoinStrings(cryptoCurrencies, ",")
+	currency.CryptoCurrencies = c.Cryptocurrencies
 }
 
 func (c *Config) ReadConfig() error {

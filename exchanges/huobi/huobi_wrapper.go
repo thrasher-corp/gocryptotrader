@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
+	"github.com/thrasher-/gocryptotrader/currency"
 	"github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 )
@@ -26,22 +27,19 @@ func (h *HUOBI) Run() {
 
 	for h.Enabled {
 		for _, x := range h.EnabledPairs {
-			currency := common.StringToLower(x[0:3])
+			curr := common.StringToLower(x[0:3])
 			go func() {
-				ticker, err := h.GetTickerPrice(currency)
+				ticker, err := h.GetTickerPrice(curr)
 				if err != nil {
 					log.Println(err)
 					return
 				}
-				/*
-					HuobiLastUSD, _ := ConvertCurrency(ticker.Last, "CNY", "USD")
-					HuobiHighUSD, _ := ConvertCurrency(ticker.High, "CNY", "USD")
-					HuobiLowUSD, _ := ConvertCurrency(ticker.Low, "CNY", "USD")
-					log.Printf("Huobi %s: Last %f (%f) High %f (%f) Low %f (%f) Volume %f\n", currency, HuobiLastUSD, ticker.Last, HuobiHighUSD, ticker.High, HuobiLowUSD, ticker.Low, ticker.Volume)
-					AddExchangeInfo(h.GetName(), common.StringToUpper(currency[0:3]), common.StringToUpper(currency[3:]), ticker.Last, ticker.Volume)
-					AddExchangeInfo(h.GetName(), common.StringToUpper(currency[0:3]), "USD", HuobiLastUSD, ticker.Volume)
-				*/
-				log.Printf("Huobi %s: Last %f High %f Low %f Volume %f\n", currency, ticker.Last, ticker.High, ticker.Low, ticker.Volume)
+				HuobiLastUSD, _ := currency.ConvertCurrency(ticker.Last, "CNY", "USD")
+				HuobiHighUSD, _ := currency.ConvertCurrency(ticker.High, "CNY", "USD")
+				HuobiLowUSD, _ := currency.ConvertCurrency(ticker.Low, "CNY", "USD")
+				log.Printf("Huobi %s: Last %f (%f) High %f (%f) Low %f (%f) Volume %f\n", curr, HuobiLastUSD, ticker.Last, HuobiHighUSD, ticker.High, HuobiLowUSD, ticker.Low, ticker.Volume)
+				//	AddExchangeInfo(h.GetName(), common.StringToUpper(currency[0:3]), common.StringToUpper(currency[3:]), ticker.Last, ticker.Volume)
+				//	AddExchangeInfo(h.GetName(), common.StringToUpper(currency[0:3]), "USD", HuobiLastUSD, ticker.Volume)
 			}()
 		}
 		time.Sleep(time.Second * h.RESTPollingDelay)

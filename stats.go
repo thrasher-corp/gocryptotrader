@@ -2,6 +2,8 @@ package main
 
 import (
 	"sort"
+
+	"github.com/thrasher-/gocryptotrader/currency"
 )
 
 type ExchangeInfo struct {
@@ -43,7 +45,7 @@ func (this ByVolume) Swap(i, j int) {
 }
 
 func AddExchangeInfo(exchange, crypto, fiat string, price, volume float64) {
-	if !IsFiatCurrency(fiat) {
+	if !currency.IsFiatCurrency(fiat) {
 		return
 	}
 	if len(ExchInfo) == 0 {
