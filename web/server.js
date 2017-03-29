@@ -57,7 +57,7 @@ app.post('/config/all/save', function(req, res) {
 });
 
 
-
-app.listen(80, function(){
-  console.log('GoCyptoTrader website running! Enter http://localhost/ into browser');
+var port = process.env.PORT || 80;
+app.listen(port, function(){
+  console.log(`GoCyptoTrader website running! Enter http://localhost:${port}/ into browser`);
 });
