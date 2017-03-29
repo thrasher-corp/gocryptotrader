@@ -13,18 +13,18 @@ const (
 )
 
 func (a *Alphapoint) WebsocketClient() {
-	for a.ExchangeEnabled && a.WebsocketEnabled {
+	for a.Enabled && a.Websocket {
 		var Dialer websocket.Dialer
 		var err error
 		a.WebsocketConn, _, err = Dialer.Dial(a.WebsocketURL, http.Header{})
 
 		if err != nil {
-			log.Printf("%s Unable to connect to Websocket. Error: %s\n", a.ExchangeName, err)
+			log.Printf("%s Unable to connect to Websocket. Error: %s\n", a.Name, err)
 			continue
 		}
 
 		if a.Verbose {
-			log.Printf("%s Connected to Websocket.\n", a.ExchangeName)
+			log.Printf("%s Connected to Websocket.\n", a.Name)
 		}
 
 		err = a.WebsocketConn.WriteMessage(websocket.TextMessage, []byte(`{"messageType": "logon"}`))
@@ -34,7 +34,7 @@ func (a *Alphapoint) WebsocketClient() {
 			return
 		}
 
-		for a.ExchangeEnabled && a.WebsocketEnabled {
+		for a.Enabled && a.Websocket {
 			msgType, resp, err := a.WebsocketConn.ReadMessage()
 			if err != nil {
 				log.Println(err)
@@ -66,6 +66,6 @@ func (a *Alphapoint) WebsocketClient() {
 			}
 		}
 		a.WebsocketConn.Close()
-		log.Printf("%s Websocket client disconnected.", a.ExchangeName)
+		log.Printf("%s Websocket client disconnected.", a.Name)
 	}
 }

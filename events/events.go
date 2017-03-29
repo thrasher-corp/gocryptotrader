@@ -7,7 +7,9 @@ import (
 	"strconv"
 
 	"github.com/thrasher-/gocryptotrader/common"
+	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
+	"github.com/thrasher-/gocryptotrader/smsglobal"
 )
 
 const (
@@ -96,9 +98,9 @@ func (e *Event) ExecuteAction() bool {
 		if action[0] == ACTION_SMS_NOTIFY {
 			message := fmt.Sprintf("Event triggered: %s", e.EventToString())
 			if action[1] == "ALL" {
-				SMSSendToAll(message)
+				smsglobal.SMSSendToAll(message, &config.GetConfig())
 			} else {
-				SMSNotify(SMSGetNumberByName(action[1]), message)
+				smsglobal.SMSNotify(smsglobal.SMSGetNumberByName(action[1]), message, &config.GetConfig())
 			}
 		}
 	} else {
@@ -189,7 +191,7 @@ func IsValidEvent(Exchange, Item, Condition, Action string) error {
 			return ErrInvalidAction
 		}
 
-		if action[1] != "ALL" && SMSGetNumberByName(action[1]) == ErrSMSContactNotFound {
+		if action[1] != "ALL" && smsglobal.SMSGetNumberByName(action[1], &config.GetConfig().SMS) == smsglobal.ErrSMSContactNotFound {
 			return ErrInvalidAction
 		}
 	} else {
@@ -218,8 +220,9 @@ func CheckEvents() {
 }
 
 func IsValidExchange(Exchange string) bool {
-	for x, _ := range bot.exchanges {
-		if bot.exchanges[x].GetName() == Exchange && bot.exchanges[x].IsEnabled() {
+	cfg := config.GetConfig()
+	for _, x := range cfg.Exchanges {
+		if x.Name == Exchange && x.Enabled {
 			return true
 		}
 	}
