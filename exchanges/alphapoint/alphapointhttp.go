@@ -184,10 +184,6 @@ func (a *Alphapoint) GetAccountInfo() (AlphapointAccountInfo, error) {
 	return response, nil
 }
 
-func (a *Alphapoint) GetName() string {
-	return a.ExchangeName
-}
-
 func (a *Alphapoint) GetAccountTrades(symbol string, startIndex, count int) (AlphapointTrades, error) {
 	request := make(map[string]interface{})
 	request["ins"] = symbol
@@ -416,7 +412,7 @@ func (a *Alphapoint) SendAuthenticatedHTTPRequest(method, path string, data map[
 	nonce := time.Now().UnixNano()
 	nonceStr := strconv.FormatInt(nonce, 10)
 	data["apiNonce"] = nonce
-	hmac := common.GetHMAC(common.HASH_SHA256, []byte(nonceStr+a.UserID+a.APIKey), []byte(a.APISecret))
+	hmac := common.GetHMAC(common.HASH_SHA256, []byte(nonceStr+a.ClientID+a.APIKey), []byte(a.APISecret))
 	data["apiSig"] = common.StringToUpper(common.HexEncodeToString(hmac))
 	path = fmt.Sprintf("%s/ajax/v%s/%s", a.APIUrl, ALPHAPOINT_API_VERSION, path)
 	PayloadJson, err := common.JSONEncode(data)

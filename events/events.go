@@ -98,9 +98,9 @@ func (e *Event) ExecuteAction() bool {
 		if action[0] == ACTION_SMS_NOTIFY {
 			message := fmt.Sprintf("Event triggered: %s", e.EventToString())
 			if action[1] == "ALL" {
-				smsglobal.SMSSendToAll(message, config.GetConfig())
+				smsglobal.SMSSendToAll(message, config.Cfg)
 			} else {
-				smsglobal.SMSNotify(SMSGetNumberByName(action[1]), message, config.GetConfig())
+				smsglobal.SMSNotify(smsglobal.SMSGetNumberByName(action[1], config.Cfg.SMS), message, config.Cfg)
 			}
 		}
 	} else {
@@ -191,7 +191,7 @@ func IsValidEvent(Exchange, Item, Condition, Action string) error {
 			return ErrInvalidAction
 		}
 
-		if action[1] != "ALL" && smsglobal.SMSGetNumberByName(action[1], config.GetConfig().SMS) == smsglobal.ErrSMSContactNotFound {
+		if action[1] != "ALL" && smsglobal.SMSGetNumberByName(action[1], config.Cfg.SMS) == smsglobal.ErrSMSContactNotFound {
 			return ErrInvalidAction
 		}
 	} else {
@@ -220,9 +220,9 @@ func CheckEvents() {
 }
 
 func IsValidExchange(Exchange string) bool {
-	cfg := Get
-	for x, _ := range bot.exchanges {
-		if bot.exchanges[x].GetName() == Exchange && bot.exchanges[x].IsEnabled() {
+	cfg := config.GetConfig()
+	for _, x := range cfg.Exchanges {
+		if x.Name == Exchange && x.Enabled {
 			return true
 		}
 	}
