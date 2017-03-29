@@ -10,6 +10,7 @@ import (
 
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-/gocryptotrader/common"
+	"github.com/thrasher-/gocryptotrader/exchanges"
 )
 
 const (
@@ -36,6 +37,7 @@ const (
 )
 
 type Alphapoint struct {
+	exchange.ExchangeBase
 	WebsocketConn *websocket.Conn
 }
 
@@ -184,26 +186,6 @@ func (a *Alphapoint) GetAccountInfo() (AlphapointAccountInfo, error) {
 
 func (a *Alphapoint) GetName() string {
 	return a.ExchangeName
-}
-
-//GetExchangeAccountInfo : Retrieves balances for all enabled currencies for the Alphapoint exchange
-func (e *Alphapoint) GetExchangeAccountInfo() (ExchangeAccountInfo, error) {
-	var response ExchangeAccountInfo
-	response.ExchangeName = e.GetName()
-	account, err := e.GetAccountInfo()
-	if err != nil {
-		return response, err
-	}
-	for i := 0; i < len(account.Currencies); i++ {
-		var exchangeCurrency ExchangeAccountCurrencyInfo
-		exchangeCurrency.CurrencyName = account.Currencies[i].Name
-		exchangeCurrency.TotalValue = float64(account.Currencies[i].Balance)
-		exchangeCurrency.Hold = float64(account.Currencies[i].Hold)
-
-		response.Currencies = append(response.Currencies, exchangeCurrency)
-	}
-	//If it all works out
-	return response, nil
 }
 
 func (a *Alphapoint) GetAccountTrades(symbol string, startIndex, count int) (AlphapointTrades, error) {
