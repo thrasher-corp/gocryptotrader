@@ -3,7 +3,7 @@ package alphapoint
 import (
 	"log"
 
-	"github.com/thraser-/gocryptotrader/exchanges/ticker"
+	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 )
 
 func (a *Alphapoint) GetTickerPrice(currency string) TickerPrice {
