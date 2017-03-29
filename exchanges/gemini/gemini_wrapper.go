@@ -23,21 +23,10 @@ func (g *Gemini) Run() {
 	if err != nil {
 		log.Printf("%s Failed to get available symbols.\n", g.GetName())
 	} else {
-		log.Println(exchangeProducts)
-		/*
-			exchangeProducts = common.SplitStrings(common.StringToUpper(common.JoinStrings(exchangeProducts, ",")), ",")
-			diff := common.StringSliceDifference(g.AvailablePairs, exchangeProducts)
-			if len(diff) > 0 {
-				exch, err := bot.config.GetExchangeConfig(g.Name)
-				if err != nil {
-					log.Println(err)
-				} else {
-					log.Printf("%s Updating available pairs. Difference: %s.\n", g.Name, diff)
-					exch.AvailablePairs = common.JoinStrings(exchangeProducts, ",")
-					bot.config.UpdateExchangeConfig(exch)
-				}
-			}
-		*/
+		err = g.UpdateAvailableCurrencies(exchangeProducts)
+		if err != nil {
+			log.Printf("%s Failed to get config.\n", g.GetName())
+		}
 	}
 
 	for g.Enabled {

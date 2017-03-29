@@ -27,20 +27,10 @@ func (l *Liqui) Run() {
 		log.Printf("%s Unable to fetch info.\n", l.GetName())
 	} else {
 		exchangeProducts := l.GetAvailablePairs(true)
-		log.Println(exchangeProducts)
-		/*
-			diff := common.StringSliceDifference(l.AvailablePairs, exchangeProducts)
-			if len(diff) > 0 {
-				exch, err := bot.config.GetExchangeConfig(l.Name)
-				if err != nil {
-					log.Println(err)
-				} else {
-					log.Printf("%s Updating available pairs. Difference: %s.\n", l.Name, diff)
-					exch.AvailablePairs = common.JoinStrings(exchangeProducts, ",")
-					bot.config.UpdateExchangeConfig(exch)
-				}
-			}
-		*/
+		err = l.UpdateAvailableCurrencies(exchangeProducts)
+		if err != nil {
+			log.Printf("%s Failed to get config.\n", l.GetName())
+		}
 	}
 
 	pairs := []string{}

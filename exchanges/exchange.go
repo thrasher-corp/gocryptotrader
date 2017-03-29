@@ -83,3 +83,20 @@ func (e *ExchangeBase) SetAPIKeys(APIKey, APISecret, ClientID string, b64Decode 
 		e.APISecret = APISecret
 	}
 }
+
+func (e *ExchangeBase) UpdateAvailableCurrencies(exchangeProducts []string) error {
+	exchangeProducts = common.SplitStrings(common.StringToUpper(common.JoinStrings(exchangeProducts, ",")), ",")
+	diff := common.StringSliceDifference(e.AvailablePairs, exchangeProducts)
+	if len(diff) > 0 {
+		cfg := config.GetConfig()
+		exch, err := cfg.GetExchangeConfig(e.Name)
+		if err != nil {
+			return err
+		} else {
+			log.Printf("%s Updating available pairs. Difference: %s.\n", e.Name, diff)
+			exch.AvailablePairs = common.JoinStrings(exchangeProducts, ",")
+			cfg.UpdateExchangeConfig(exch)
+		}
+	}
+	return nil
+}

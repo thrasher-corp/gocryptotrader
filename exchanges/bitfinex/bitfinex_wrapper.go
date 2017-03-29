@@ -29,21 +29,10 @@ func (b *Bitfinex) Run() {
 	if err != nil {
 		log.Printf("%s Failed to get available symbols.\n", b.GetName())
 	} else {
-		log.Println(exchangeProducts)
-		/*
-			exchangeProducts = common.SplitStrings(common.StringToUpper(common.JoinStrings(exchangeProducts, ",")), ",")
-			diff := common.StringSliceDifference(b.AvailablePairs, exchangeProducts)
-			if len(diff) > 0 {
-				exch, err := bot.config.GetExchangeConfig(b.Name)
-				if err != nil {
-					log.Println(err)
-				} else {
-					log.Printf("%s Updating available pairs. Difference: %s.\n", b.Name, diff)
-					exch.AvailablePairs = common.JoinStrings(exchangeProducts, ",")
-					bot.config.UpdateExchangeConfig(exch)
-				}
-			}
-		*/
+		err = b.UpdateAvailableCurrencies(exchangeProducts)
+		if err != nil {
+			log.Printf("%s Failed to get config.\n", b.GetName())
+		}
 	}
 
 	for b.Enabled {

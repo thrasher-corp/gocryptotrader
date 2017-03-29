@@ -29,26 +29,16 @@ func (g *GDAX) Run() {
 	if err != nil {
 		log.Printf("%s Failed to get available products.\n", g.GetName())
 	} else {
-		log.Println(exchangeProducts)
-		/*
-			currencies := []string{}
-			for _, x := range exchangeProducts {
-				if x.ID != "BTC" && x.ID != "USD" && x.ID != "GBP" {
-					currencies = append(currencies, x.ID[0:3]+x.ID[4:])
-				}
+		currencies := []string{}
+		for _, x := range exchangeProducts {
+			if x.ID != "BTC" && x.ID != "USD" && x.ID != "GBP" {
+				currencies = append(currencies, x.ID[0:3]+x.ID[4:])
 			}
-			diff := common.StringSliceDifference(g.AvailablePairs, currencies)
-			if len(diff) > 0 {
-				exch, err := bot.config.GetExchangeConfig(g.Name)
-				if err != nil {
-					log.Println(err)
-				} else {
-					log.Printf("%s Updating available pairs. Difference: %s.\n", g.Name, diff)
-					exch.AvailablePairs = common.JoinStrings(currencies, ",")
-					bot.config.UpdateExchangeConfig(exch)
-				}
-			}
-		*/
+		}
+		err = g.UpdateAvailableCurrencies(currencies)
+		if err != nil {
+			log.Printf("%s Failed to get config.\n", g.GetName())
+		}
 	}
 
 	for g.Enabled {

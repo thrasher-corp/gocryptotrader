@@ -54,7 +54,7 @@ type ExchangeMain struct {
 }
 
 type Bot struct {
-	config    config.Config
+	config    *config.Config
 	exchange  ExchangeMain
 	exchanges []exchange.IBotExchange
 	tickers   []ticker.Ticker
@@ -83,6 +83,7 @@ func setupBotExchanges() {
 
 func main() {
 	HandleInterrupt()
+	bot.config = &config.Cfg
 	log.Printf("Loading config file %s..\n", config.CONFIG_FILE)
 
 	err := bot.config.LoadConfig()

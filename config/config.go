@@ -42,6 +42,7 @@ var (
 	WarningWebserverRootWebFolderNotFound           = "WARNING -- Webserver support disabled due to missing web folder."
 	WarningExchangeAuthAPIDefaultOrEmptyValues      = "WARNING -- Exchange %s: Authenticated API support disabled due to default/empty APIKey/Secret/ClientID values."
 	RenamingConfigFile                              = "Renaming config file %s to %s."
+	Cfg                                             Config
 )
 
 type WebserverConfig struct {
@@ -346,4 +347,8 @@ func (c *Config) LoadConfig() error {
 	}
 
 	return nil
+}
+
+func GetConfig() *Config {
+	return &Cfg
 }
