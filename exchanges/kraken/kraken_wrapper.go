@@ -24,24 +24,14 @@ func (k *Kraken) Run() {
 	if err != nil {
 		log.Printf("%s Failed to get available symbols.\n", k.GetName())
 	} else {
-		log.Println(assetPairs)
-		/*
-			var exchangeProducts []string
-			for _, v := range assetPairs {
-				exchangeProducts = append(exchangeProducts, v.Altname)
-			}
-			diff := common.StringSliceDifference(k.AvailablePairs, exchangeProducts)
-			if len(diff) > 0 {
-				exch, err := bot.config.GetExchangeConfig(k.Name)
-				if err != nil {
-					log.Println(err)
-				} else {
-					log.Printf("%s Updating available pairs. Difference: %s.\n", k.Name, diff)
-					exch.AvailablePairs = common.JoinStrings(exchangeProducts, ",")
-					bot.config.UpdateExchangeConfig(exch)
-				}
-			}
-		*/
+		var exchangeProducts []string
+		for _, v := range assetPairs {
+			exchangeProducts = append(exchangeProducts, v.Altname)
+		}
+		err = k.UpdateAvailableCurrencies(exchangeProducts)
+		if err != nil {
+			log.Printf("%s Failed to get config.\n", k.GetName())
+		}
 	}
 
 	for k.Enabled {
