@@ -100,6 +100,10 @@ func (b *Bitfinex) WebsocketClient() {
 		}
 
 		msgType, resp, err := b.WebsocketConn.ReadMessage()
+		if err != nil {
+			log.Printf("%s Unable to read from Websocket. Error: %s\n", b.GetName(), err)
+			continue
+		}
 		if msgType != websocket.TextMessage {
 			continue
 		}
