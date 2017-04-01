@@ -1,7 +1,7 @@
 package bitfinex
 
 import (
-	"log"
+	"fmt"
 	"net/url"
 	"reflect"
 	"strconv"
@@ -10,7 +10,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/common"
 )
 
-var ACCOUNT_LIVE_TEST bool = true
+var ACCOUNT_LIVE_TEST bool = false
 
 //Live Testing -- TestBitfinexGetTicker()
 func TestBitfinexGetTicker(t *testing.T) {
@@ -519,35 +519,38 @@ func TestBitfinexGetAccountInfo(t *testing.T) {
 
 	if ACCOUNT_LIVE_TEST { //Live Test
 		BitfinexGetAccountInfo := Bitfinex{}
-		accountInfoLive, err := BitfinexGetAccountInfo.GetAccountInfo()
+		response, err := BitfinexGetAccountInfo.GetAccountInfo()
 		if err != nil {
-			t.Error("BitfinexGetAccountInfo init error: ", err)
+			newErrString := fmt.Sprintf("TestBitfinexGetAccountInfo: \nError: %s\n", err)
+			t.Error(newErrString)
+			response = append(response, BitfinexAccountInfo{})
 		}
-		if reflect.ValueOf(accountInfoLive[0]).NumField() != 3 {
+
+		if reflect.ValueOf(response[0]).NumField() != 3 {
 			t.Error("BitfinexGetAccountInfo struct change/or updated")
 		}
-		if reflect.TypeOf(accountInfoLive[0].MakerFees).String() != "string" {
+		if reflect.TypeOf(response[0].MakerFees).String() != "string" {
 			t.Error("Bitfinex GetAccountInfo.MakerFees is not a string")
 		}
-		if reflect.TypeOf(accountInfoLive[0].TakerFees).String() != "string" {
+		if reflect.TypeOf(response[0].TakerFees).String() != "string" {
 			t.Error("Bitfinex GetAccountInfo.TakerFees is not a string")
 		}
 
-		if len(expectedCryptoCurrencies) == len(accountInfoLive[0].Fees) {
-			if !common.DataContains(expectedCryptoCurrencies, accountInfoLive[0].Fees[0].Pairs) {
+		if len(expectedCryptoCurrencies) == len(response[0].Fees) {
+			if !common.DataContains(expectedCryptoCurrencies, response[0].Fees[0].Pairs) {
 				t.Error("Bitfinex GetAccountInfo currency mismatch")
 			}
-		} else if len(expectedCryptoCurrencies) > len(accountInfoLive[0].Fees) {
+		} else if len(expectedCryptoCurrencies) > len(response[0].Fees) {
 			t.Error("BitfinexGetSymbols currency mismatch, Expected Currencies > Exchange Currencies")
 		} else {
 			t.Error("BitfinexGetSymbols currency mismatch, Expected Currencies < Exchange Currencies")
 		}
 
-		if len(accountInfoLive[0].Fees) != 7 {
+		if len(response[0].Fees) != 7 {
 			t.Error("Bitfinex GetAccountInfo.Fees incorrect length")
 		}
 
-		for _, explicitAI := range accountInfoLive {
+		for _, explicitAI := range response {
 			makerFees, err := strconv.ParseFloat(explicitAI.MakerFees, 64)
 			if err != nil {
 				t.Error("Cannot convert Bitfinex GetAccountInfo.MakerFees into float64")
@@ -750,11 +753,11 @@ func TestBitfinexNewOrder(t *testing.T) {
 
 	BitfinexNewOrder := Bitfinex{}
 	if ACCOUNT_LIVE_TEST {
-		liveResponse, err := BitfinexNewOrder.NewOrder("BTCUSD", 0.0, 0.0, true, "test", false)
+		response, err := BitfinexNewOrder.NewOrder("BTCUSD", 0.0, 0.0, true, "test", false)
 		if err != nil {
-			log.Println("TestBitfinexNewOrder", err)
+			newErrString := fmt.Sprintf("TestBitfinexNewOrder: \nError: %s\nIs_live: %t\n", err, response.IsLive)
+			t.Error(newErrString)
 		}
-		log.Println(liveResponse)
 	}
 
 	nonLiveResponse := BitfinexOrder{}
@@ -778,14 +781,14 @@ func TestBitfinexNewOrder(t *testing.T) {
 	if reflect.ValueOf(nonLiveResponse).NumField() != 16 {
 		t.Error("TestBitfinexNewDeposit struct change/or updated")
 	}
-	if reflect.TypeOf(nonLiveResponse.AverageExecutionPrice).String() != "string" {
-		t.Error("Bitfinex NewOrder.Address is not a string")
+	if reflect.TypeOf(nonLiveResponse.AverageExecutionPrice).String() != "float64" {
+		t.Error("Bitfinex NewOrder.AverageExecutionPrice is not a float64")
 	}
 	if reflect.TypeOf(nonLiveResponse.Exchange).String() != "string" {
 		t.Error("Bitfinex NewOrder.Exchange is not a string")
 	}
-	if reflect.TypeOf(nonLiveResponse.ExecutedAmount).String() != "string" {
-		t.Error("Bitfinex NewOrder.ExecutedAmount is not a string")
+	if reflect.TypeOf(nonLiveResponse.ExecutedAmount).String() != "float64" {
+		t.Error("Bitfinex NewOrder.ExecutedAmount is not a float64")
 	}
 	if reflect.TypeOf(nonLiveResponse.OrderID).String() != "int64" {
 		t.Error("Bitfinex NewOrder.ID is not an int64")
@@ -802,14 +805,14 @@ func TestBitfinexNewOrder(t *testing.T) {
 	if reflect.TypeOf(nonLiveResponse.OrderID).String() != "int64" {
 		t.Error("Bitfinex NewOrder.OrderID is not an int64")
 	}
-	if reflect.TypeOf(nonLiveResponse.OriginalAmount).String() != "string" {
-		t.Error("Bitfinex NewOrder.OriginalAmount is not a string")
+	if reflect.TypeOf(nonLiveResponse.OriginalAmount).String() != "float64" {
+		t.Error("Bitfinex NewOrder.OriginalAmount is not a float64")
 	}
-	if reflect.TypeOf(nonLiveResponse.Price).String() != "string" {
-		t.Error("Bitfinex NewOrder.Price is not a string")
+	if reflect.TypeOf(nonLiveResponse.Price).String() != "float64" {
+		t.Error("Bitfinex NewOrder.Price is not a float64")
 	}
-	if reflect.TypeOf(nonLiveResponse.RemainingAmount).String() != "string" {
-		t.Error("Bitfinex NewOrder.RemainingAmount is not a string")
+	if reflect.TypeOf(nonLiveResponse.RemainingAmount).String() != "float64" {
+		t.Error("Bitfinex NewOrder.RemainingAmount is not a float64")
 	}
 	if reflect.TypeOf(nonLiveResponse.Side).String() != "string" {
 		t.Error("Bitfinex NewOrder.Side is not a string")
@@ -878,7 +881,8 @@ func TestBitfinexNewOrderMulti(t *testing.T) {
 	if ACCOUNT_LIVE_TEST {
 		response, err := BitfinexNewOrderMulti.NewOrderMulti(orders)
 		if err != nil {
-			log.Println("TestBitfinexNewOrderMulti", err, "\nResponse: ", response, "\n")
+			newErrString := fmt.Sprintf("TestBitfinexNewOrderMulti: \nError: %s\n Status: %s\n", err, response.Status)
+			t.Error(newErrString)
 		}
 	}
 
@@ -906,60 +910,60 @@ func TestBitfinexNewOrderMulti(t *testing.T) {
 	nonLiveResponse.Orders = append(nonLiveResponse.Orders, orderTest)
 
 	if reflect.ValueOf(nonLiveResponse).NumField() != 2 {
-		t.Error("TestBitfinexNewOrderMulti struct change/or updated")
+		t.Error("Bitfinex NewOrderMulti struct change/or updated")
 	}
 	if reflect.TypeOf(nonLiveResponse.Status).String() != "string" {
 		t.Error("Bitfinex NewOrderMulti.Status is not a string")
 	}
 	if reflect.ValueOf(nonLiveResponse.Orders[0]).NumField() != 16 {
-		t.Error("TestBitfinexNewOrderMulti struct change/or updated")
+		t.Error("Bitfinex NewOrderMulti struct change/or updated")
 	}
-	if reflect.TypeOf(nonLiveResponse.Orders[0].AverageExecutionPrice).String() != "string" {
-		t.Error("Bitfinex NewOrder.Address is not a string")
+	if reflect.TypeOf(nonLiveResponse.Orders[0].AverageExecutionPrice).String() != "float64" {
+		t.Error("Bitfinex NewOrderMulti.AverageExecutionPrice is not a float64")
 	}
 	if reflect.TypeOf(nonLiveResponse.Orders[0].Exchange).String() != "string" {
-		t.Error("Bitfinex NewOrder.Exchange is not a string")
+		t.Error("Bitfinex NewOrderMulti.Exchange is not a string")
 	}
-	if reflect.TypeOf(nonLiveResponse.Orders[0].ExecutedAmount).String() != "string" {
-		t.Error("Bitfinex NewOrder.ExecutedAmount is not a string")
+	if reflect.TypeOf(nonLiveResponse.Orders[0].ExecutedAmount).String() != "float64" {
+		t.Error("Bitfinex NewOrderMulti.ExecutedAmount is not a float64")
 	}
 	if reflect.TypeOf(nonLiveResponse.Orders[0].OrderID).String() != "int64" {
-		t.Error("Bitfinex NewOrder.ID is not an int64")
+		t.Error("Bitfinex NewOrderMulti.ID is not an int64")
 	}
 	if reflect.TypeOf(nonLiveResponse.Orders[0].IsCancelled).String() != "bool" {
-		t.Error("Bitfinex NewOrder.IsCancelled is not a bool")
+		t.Error("Bitfinex NewOrderMulti.IsCancelled is not a bool")
 	}
 	if reflect.TypeOf(nonLiveResponse.Orders[0].IsHidden).String() != "bool" {
-		t.Error("Bitfinex NewOrder.IsHidden is not a bool")
+		t.Error("Bitfinex NewOrderMulti.IsHidden is not a bool")
 	}
 	if reflect.TypeOf(nonLiveResponse.Orders[0].IsLive).String() != "bool" {
-		t.Error("Bitfinex NewOrder.IsLive is not a bool")
+		t.Error("Bitfinex NewOrderMulti.IsLive is not a bool")
 	}
 	if reflect.TypeOf(nonLiveResponse.Orders[0].OrderID).String() != "int64" {
-		t.Error("Bitfinex NewOrder.OrderID is not an int64")
+		t.Error("Bitfinex NewOrderMulti.OrderID is not an int64")
 	}
-	if reflect.TypeOf(nonLiveResponse.Orders[0].OriginalAmount).String() != "string" {
-		t.Error("Bitfinex NewOrder.OriginalAmount is not a string")
+	if reflect.TypeOf(nonLiveResponse.Orders[0].OriginalAmount).String() != "float64" {
+		t.Error("Bitfinex NewOrderMulti.OriginalAmount is not a float64")
 	}
-	if reflect.TypeOf(nonLiveResponse.Orders[0].Price).String() != "string" {
-		t.Error("Bitfinex NewOrder.Price is not a string")
+	if reflect.TypeOf(nonLiveResponse.Orders[0].Price).String() != "float64" {
+		t.Error("Bitfinex NewOrderMulti.Price is not a float64")
 	}
-	if reflect.TypeOf(nonLiveResponse.Orders[0].RemainingAmount).String() != "string" {
-		t.Error("Bitfinex NewOrder.RemainingAmount is not a string")
+	if reflect.TypeOf(nonLiveResponse.Orders[0].RemainingAmount).String() != "float64" {
+		t.Error("Bitfinex NewOrderMulti.RemainingAmount is not a float64")
 	}
 	if reflect.TypeOf(nonLiveResponse.Orders[0].Side).String() != "string" {
-		t.Error("Bitfinex NewOrder.Side is not a string")
+		t.Error("Bitfinex NewOrderMulti.Side is not a string")
 	}
 	if reflect.TypeOf(nonLiveResponse.Orders[0].Symbol).String() != "string" {
-		t.Error("Bitfinex NewOrder.Address is not a string")
+		t.Error("Bitfinex NewOrderMulti.Address is not a string")
 	}
 	if reflect.TypeOf(nonLiveResponse.Orders[0].Timestamp).String() != "string" {
-		t.Error("Bitfinex NewOrder.Timestamp is not a string")
+		t.Error("Bitfinex NewOrderMulti.Timestamp is not a string")
 	}
 	if reflect.TypeOf(nonLiveResponse.Orders[0].Type).String() != "string" {
-		t.Error("Bitfinex NewOrder.Type is not a string")
+		t.Error("Bitfinex NewOrderMulti.Type is not a string")
 	}
 	if reflect.TypeOf(nonLiveResponse.Orders[0].WasForced).String() != "bool" {
-		t.Error("Bitfinex NewOrder.WasForced is not a bool")
+		t.Error("Bitfinex NewOrderMulti.WasForced is not a bool")
 	}
 }
