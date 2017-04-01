@@ -758,17 +758,17 @@ func TestBitfinexNewOrder(t *testing.T) {
 	}
 
 	nonLiveResponse := BitfinexOrder{}
-	nonLiveResponse.AverageExecutionPrice = "0.0"
+	nonLiveResponse.AverageExecutionPrice = 0.0
 	nonLiveResponse.Exchange = "bitfinex"
-	nonLiveResponse.ExecutedAmount = "0.0"
+	nonLiveResponse.ExecutedAmount = 0.0
 	nonLiveResponse.ID = 448364249
 	nonLiveResponse.IsCancelled = false
 	nonLiveResponse.IsHidden = false
 	nonLiveResponse.IsLive = true
 	nonLiveResponse.OrderID = 448364249
-	nonLiveResponse.OriginalAmount = "0.01"
-	nonLiveResponse.Price = "0.01"
-	nonLiveResponse.RemainingAmount = "0.01"
+	nonLiveResponse.OriginalAmount = 0.01
+	nonLiveResponse.Price = 0.01
+	nonLiveResponse.RemainingAmount = 0.01
 	nonLiveResponse.Side = "buy"
 	nonLiveResponse.Symbol = "btcusd"
 	nonLiveResponse.Timestamp = "1444272165.252370982"
@@ -827,21 +827,13 @@ func TestBitfinexNewOrder(t *testing.T) {
 		t.Error("Bitfinex NewOrder.WasForced is not a bool")
 	}
 
-	averageExecutionPrice, err := strconv.ParseFloat(nonLiveResponse.AverageExecutionPrice, 64)
-	if err != nil {
-		t.Error("Bitfinex NewOrder.AverageExecutionPrice cannot convert to float64")
-	}
-	if averageExecutionPrice < 0 {
+	if nonLiveResponse.AverageExecutionPrice < 0 {
 		t.Error("Bitfinex NewOrder.AverageExecutionPrice is negative")
 	}
 	if nonLiveResponse.Exchange != "bitfinex" {
 		t.Error("Bitfinex NewOrder.AverageExecutionPrice wrong exchange name")
 	}
-	executedAmount, err := strconv.ParseFloat(nonLiveResponse.ExecutedAmount, 64)
-	if err != nil {
-		t.Error("Bitfinex NewOrder.ExecutedAmount cannot convert to float64")
-	}
-	if executedAmount < 0 {
+	if nonLiveResponse.ExecutedAmount < 0 {
 		t.Error("Bitfinex NewOrder.ExecutedAmount is negative or 0")
 	}
 	if nonLiveResponse.ID <= 0 {
@@ -850,25 +842,13 @@ func TestBitfinexNewOrder(t *testing.T) {
 	if nonLiveResponse.OrderID <= 0 {
 		t.Error("Bitfinex NewOrder.OrderID is negative or 0")
 	}
-	originalAmount, err := strconv.ParseFloat(nonLiveResponse.OriginalAmount, 64)
-	if err != nil {
-		t.Error("Bitfinex NewOrder.OriginalAmount cannot convert to float64")
-	}
-	if originalAmount <= 0 {
+	if nonLiveResponse.OriginalAmount <= 0 {
 		t.Error("Bitfinex NewOrder.OriginalAmount is negative or 0")
 	}
-	price, err := strconv.ParseFloat(nonLiveResponse.Price, 64)
-	if err != nil {
-		t.Error("Bitfinex NewOrder.Price cannot convert to float64")
-	}
-	if price <= 0 {
+	if nonLiveResponse.Price <= 0 {
 		t.Error("Bitfinex NewOrder.Price is negative or 0")
 	}
-	remainingAmount, err := strconv.ParseFloat(nonLiveResponse.RemainingAmount, 64)
-	if err != nil {
-		t.Error("Bitfinex NewOrder.RemainingAmount cannot convert to float64")
-	}
-	if remainingAmount <= 0 {
+	if nonLiveResponse.RemainingAmount <= 0 {
 		t.Error("Bitfinex NewOrder.RemainingAmount is negative or 0")
 	}
 	nonLiveTimestamp, err := strconv.ParseFloat(nonLiveResponse.Timestamp, 64)
@@ -906,17 +886,17 @@ func TestBitfinexNewOrderMulti(t *testing.T) {
 	nonLiveResponse.Status = "success"
 
 	orderTest := BitfinexOrder{}
-	orderTest.AverageExecutionPrice = "0.0"
+	orderTest.AverageExecutionPrice = 0.0
 	orderTest.Exchange = "bitfinex"
-	orderTest.ExecutedAmount = "0.0"
+	orderTest.ExecutedAmount = 0.0
 	orderTest.ID = 448364249
 	orderTest.IsCancelled = false
 	orderTest.IsHidden = false
 	orderTest.IsLive = true
 	orderTest.OrderID = 448364249
-	orderTest.OriginalAmount = "0.01"
-	orderTest.Price = "0.01"
-	orderTest.RemainingAmount = "0.01"
+	orderTest.OriginalAmount = 0.01
+	orderTest.Price = 0.01
+	orderTest.RemainingAmount = 0.01
 	orderTest.Side = "buy"
 	orderTest.Symbol = "btcusd"
 	orderTest.Timestamp = "1444272165.252370982"
