@@ -129,6 +129,23 @@ func TestStringContains(t *testing.T) {
 	}
 }
 
+func TestDataContains(t *testing.T) {
+	t.Parallel()
+	originalHaystack := []string{"hello", "world", "data", "Contains", "string"}
+	originalNeedle := "world"
+	anotherNeedle := "thing"
+	expectedOutput := true
+	expectedOutputTwo := false
+	actualResult := DataContains(originalHaystack, originalNeedle)
+	if actualResult != expectedOutput {
+		t.Error(fmt.Sprintf("Test failed. Expected '%t'. Actual '%t'", expectedOutput, actualResult))
+	}
+	actualResult = DataContains(originalHaystack, anotherNeedle)
+	if actualResult != expectedOutputTwo {
+		t.Error(fmt.Sprintf("Test failed. Expected '%t'. Actual '%t'", expectedOutputTwo, actualResult))
+	}
+}
+
 func TestJoinStrings(t *testing.T) {
 	t.Parallel()
 	originalInputOne := []string{"hello", "moto"}
