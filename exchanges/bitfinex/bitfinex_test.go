@@ -6,6 +6,8 @@ import (
 	"reflect"
 	"strconv"
 	"testing"
+
+	"github.com/thrasher-/gocryptotrader/common"
 )
 
 var ACCOUNT_LIVE_TEST bool = true
@@ -532,7 +534,7 @@ func TestBitfinexGetAccountInfo(t *testing.T) {
 		}
 
 		if len(expectedCryptoCurrencies) == len(accountInfoLive[0].Fees) {
-			if !DataContains(expectedCryptoCurrencies, accountInfoLive[0].Fees[0].Pairs) {
+			if !common.DataContains(expectedCryptoCurrencies, accountInfoLive[0].Fees[0].Pairs) {
 				t.Error("Bitfinex GetAccountInfo currency mismatch")
 			}
 		} else if len(expectedCryptoCurrencies) > len(accountInfoLive[0].Fees) {
@@ -694,10 +696,10 @@ func TestBitfinexNewDeposit(t *testing.T) { //Needs attention
 		if len(liveResponse.Address) != 34 {
 			t.Error("Bitfinex NewDeposit.Address is incorrect")
 		}
-		if !DataContains(expectedCryptoCurrencies, liveResponse.Currency) {
+		if !common.DataContains(expectedCryptoCurrencies, liveResponse.Currency) {
 			t.Error("Bitfinex NewDeposit.Currency currency mismatch" + liveResponse.Currency)
 		}
-		if !DataContains(applicableMethods, liveResponse.Method) {
+		if !common.DataContains(applicableMethods, liveResponse.Method) {
 			t.Error("Bitfinex NewDeposit.Method method mismatch")
 		}
 		if liveResponse.Result != "" && liveResponse.Result != "success" {
@@ -730,10 +732,10 @@ func TestBitfinexNewDeposit(t *testing.T) { //Needs attention
 		if len(nonLiveResponse.Address) != 34 {
 			t.Error("Bitfinex NewDeposit.Address is incorrect")
 		}
-		if !DataContains(expectedCryptoCurrencies, nonLiveResponse.Currency) {
+		if !common.DataContains(expectedCryptoCurrencies, nonLiveResponse.Currency) {
 			t.Error("Bitfinex NewDeposit.Currency currency mismatch")
 		}
-		if !DataContains(applicableMethods, nonLiveResponse.Method) {
+		if !common.DataContains(applicableMethods, nonLiveResponse.Method) {
 			t.Error("Bitfinex NewDeposit.Method method mismatch")
 		}
 		if nonLiveResponse.Result != "" && nonLiveResponse.Result != "success" {
