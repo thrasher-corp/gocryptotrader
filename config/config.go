@@ -205,9 +205,18 @@ func (c *Config) CheckWebserverConfigValues() error {
 	return nil
 }
 
-func (c *Config) RetrieveConfigCurrencyPairs() {
+func (c *Config) RetrieveConfigCurrencyPairs() error {
 	cryptoCurrencies := common.SplitStrings(c.Cryptocurrencies, ",")
 	fiatCurrencies := common.SplitStrings(currency.DEFAULT_CURRENCIES, ",")
+
+	for _, s := range cryptoCurrencies {
+		_, err := strconv.Atoi(s)
+		if err != nil && common.StringContains(c.Cryptocurrencies, s) {
+			continue
+		} else {
+			return errors.New("RetrieveConfigCurrencyPairs: Incorrect Crypto-Currency")
+		}
+	}
 
 	for _, exchange := range c.Exchanges {
 		if exchange.Enabled {
@@ -252,6 +261,8 @@ func (c *Config) RetrieveConfigCurrencyPairs() {
 	}
 	c.Cryptocurrencies = common.JoinStrings(cryptoCurrencies, ",")
 	currency.CryptoCurrencies = c.Cryptocurrencies
+
+	return nil
 }
 
 func (c *Config) ReadConfig() error {
