@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"reflect"
 
 	"github.com/thrasher-/gocryptotrader/common"
 )
@@ -40,7 +41,7 @@ func PromptForConfigKey() ([]byte, error) {
 	var cryptoKey []byte
 
 	for len(cryptoKey) != 32 {
-		log.Println("Enter password (32 characters):")
+		fmt.Println("Enter password (32 characters):")
 
 		_, err := fmt.Scanln(&cryptoKey)
 		if err != nil {
@@ -51,7 +52,6 @@ func PromptForConfigKey() ([]byte, error) {
 			fmt.Println("Please re-enter password (32 characters):")
 		}
 	}
-
 	nonce := make([]byte, 12)
 	if _, err := io.ReadFull(rand.Reader, nonce); err != nil {
 		return nil, err
@@ -101,6 +101,9 @@ func DecryptConfigFile(configData, key []byte) ([]byte, error) {
 }
 
 func ConfirmConfigJSON(file []byte, result interface{}) error {
+	if !common.StringContains(reflect.TypeOf(result).String(), "*") {
+		return errors.New("ConfirmConfigJSON Error: Parameter interface is not a pointer.")
+	}
 	return common.JSONDecode(file, &result)
 }
 
