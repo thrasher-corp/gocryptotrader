@@ -77,8 +77,6 @@ func TestCheckExchangeConfigValues(t *testing.T) {
 		t.Errorf("Test failed. checkExchangeConfigValues.LoadConfig: %s", err.Error())
 	}
 
-	checkExchangeConfigValues.Exchanges[0].AuthenticatedAPISupport = true
-
 	err3 := checkExchangeConfigValues.CheckExchangeConfigValues()
 	if err3 != nil {
 		t.Errorf("Test failed. checkExchangeConfigValues.CheckExchangeConfigValues: %s", err.Error())
@@ -119,7 +117,7 @@ func TestReadConfig(t *testing.T) {
 	readConfig := config.GetConfig()
 	err := readConfig.ReadConfig()
 	if err != nil {
-		t.Error("Test failed. TestReadConfig" + err.Error())
+		t.Error("Test failed. TestReadConfig " + err.Error())
 	}
 }
 
@@ -129,7 +127,7 @@ func TestLoadConfig(t *testing.T) {
 	loadConfig := config.GetConfig()
 	err := loadConfig.LoadConfig()
 	if err != nil {
-		t.Error("Test failed. TestLoadConfig" + err.Error())
+		t.Error("Test failed. TestLoadConfig " + err.Error())
 	}
 }
 
