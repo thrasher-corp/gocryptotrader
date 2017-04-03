@@ -66,11 +66,31 @@ func TestConfirmJson(t *testing.T) {
 	if err != nil {
 		t.Errorf("Test failed. TestConfirmJson: %s", err)
 	}
-	err2 := config.ConfirmConfigJSON(testConfirmJson, result)
+	err2 := config.ConfirmConfigJSON(testConfirmJson, &result)
 	if err2 != nil {
 		t.Errorf("Test failed. TestConfirmJson: %s", err2)
 	}
 	if result == nil {
 		t.Errorf("Test failed. TestConfirmJson: Error Unmarshalling JSON")
+	}
+}
+
+func TestConfirmECS(t *testing.T) {
+	t.Parallel()
+
+	ECStest := []byte("THORS-HAMMER")
+	if !config.ConfirmECS(ECStest) {
+		t.Errorf("Test failed. TestConfirmECS: Error finding ECS.")
+	}
+}
+
+func TestRemoveECS(t *testing.T) {
+	t.Parallel()
+
+	ECStest := []byte("THORS-HAMMER")
+	isremoved := config.RemoveECS(ECStest)
+
+	if string(isremoved) != "" {
+		t.Errorf("Test failed. TestConfirmECS: Error ECS not deleted.")
 	}
 }
