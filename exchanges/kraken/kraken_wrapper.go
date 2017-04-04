@@ -57,6 +57,10 @@ func (k *Kraken) Run() {
 	}
 }
 
+func (k *Kraken) UpdateTicker(p pair.CurrencyPair) (ticker.TickerPrice, error) {
+	return ticker.TickerPrice{}, nil
+}
+
 //This will return the TickerPrice struct when tickers are completed here..
 func (k *Kraken) GetTickerPrice(p pair.CurrencyPair) (ticker.TickerPrice, error) {
 	var tickerPrice ticker.TickerPrice

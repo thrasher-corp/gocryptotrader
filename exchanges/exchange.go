@@ -64,6 +64,7 @@ type IBotExchange interface {
 	GetName() string
 	IsEnabled() bool
 	GetTickerPrice(currency pair.CurrencyPair) (ticker.TickerPrice, error)
+	UpdateTicker(currency pair.CurrencyPair) (ticker.TickerPrice, error)
 	GetOrderbookEx(currency pair.CurrencyPair) (orderbook.OrderbookBase, error)
 	GetEnabledCurrencies() []pair.CurrencyPair
 	GetExchangeAccountInfo() (AccountInfo, error)

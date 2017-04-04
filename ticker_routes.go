@@ -10,31 +10,35 @@ import (
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 )
 
-func jsonTickerResponse(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	currency := vars["currency"]
-	exchangeName := vars["exchangeName"]
-	var response ticker.TickerPrice
+func GetSpecificTicker(currency, exchangeName string) (ticker.TickerPrice, error) {
+	var specificTicker ticker.TickerPrice
 	var err error
 	for i := 0; i < len(bot.exchanges); i++ {
 		if bot.exchanges[i] != nil {
 			if bot.exchanges[i].IsEnabled() && bot.exchanges[i].GetName() == exchangeName {
-				response, err = bot.exchanges[i].GetTickerPrice(
+				specificTicker, err = bot.exchanges[i].GetTickerPrice(
 					pair.NewCurrencyPairFromString(currency),
 				)
-				if err != nil {
-					log.Println(err)
-					continue
-				}
+				break
 			}
 		}
 	}
+	return specificTicker, err
+}
 
+func jsonTickerResponse(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	currency := vars["currency"]
+	exchange := vars["exchangeName"]
+	response, err := GetSpecificTicker(currency, exchange)
+	if err != nil {
+		log.Printf("Failed to fetch ticker for %s currency: %s\n", exchange,
+			currency)
+		return
+	}
 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 	w.WriteHeader(http.StatusOK)
-	encoder := json.NewEncoder(w)
-
-	if err = encoder.Encode(response); err != nil {
+	if err := json.NewEncoder(w).Encode(response); err != nil {
 		panic(err)
 	}
 }
@@ -51,8 +55,8 @@ type EnabledExchangeCurrencies struct {
 	ExchangeValues []ticker.TickerPrice `json:"exchangeValues"`
 }
 
-func getAllActiveTickersResponse(w http.ResponseWriter, r *http.Request) {
-	var response AllEnabledExchangeCurrencies
+func GetAllActiveTickers() []EnabledExchangeCurrencies {
+	var tickerData []EnabledExchangeCurrencies
 
 	for _, individualBot := range bot.exchanges {
 		if individualBot != nil && individualBot.IsEnabled() {
@@ -74,9 +78,16 @@ func getAllActiveTickersResponse(w http.ResponseWriter, r *http.Request) {
 					individualExchange.ExchangeValues, tickerPrice,
 				)
 			}
-			response.Data = append(response.Data, individualExchange)
+			tickerData = append(tickerData, individualExchange)
 		}
 	}
+	return tickerData
+}
+
+func getAllActiveTickersResponse(w http.ResponseWriter, r *http.Request) {
+	var response AllEnabledExchangeCurrencies
+	response.Data = GetAllActiveTickers()
+
 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 	w.WriteHeader(http.StatusOK)
 	if err := json.NewEncoder(w).Encode(response); err != nil {

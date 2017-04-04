@@ -26,7 +26,7 @@ func (l *LakeBTC) Run() {
 		pairs := l.GetEnabledCurrencies()
 		for x := range pairs {
 			currency := pairs[x]
-			ticker, err := l.GetTickerPrice(currency)
+			ticker, err := l.UpdateTicker(currency)
 			if err != nil {
 				log.Println(err)
 				continue
@@ -38,12 +38,7 @@ func (l *LakeBTC) Run() {
 	}
 }
 
-func (l *LakeBTC) GetTickerPrice(p pair.CurrencyPair) (ticker.TickerPrice, error) {
-	tickerNew, err := ticker.GetTicker(l.GetName(), p)
-	if err == nil {
-		return tickerNew, nil
-	}
-
+func (l *LakeBTC) UpdateTicker(p pair.CurrencyPair) (ticker.TickerPrice, error) {
 	tick, err := l.GetTicker()
 	if err != nil {
 		return ticker.TickerPrice{}, err
@@ -64,6 +59,14 @@ func (l *LakeBTC) GetTickerPrice(p pair.CurrencyPair) (ticker.TickerPrice, error
 	tickerPrice.Last = result.Last
 	ticker.ProcessTicker(l.GetName(), p, tickerPrice)
 	return tickerPrice, nil
+}
+
+func (l *LakeBTC) GetTickerPrice(p pair.CurrencyPair) (ticker.TickerPrice, error) {
+	tickerNew, err := ticker.GetTicker(l.GetName(), p)
+	if err != nil {
+		return l.UpdateTicker(p)
+	}
+	return tickerNew, nil
 }
 
 func (l *LakeBTC) GetOrderbookEx(p pair.CurrencyPair) (orderbook.OrderbookBase, error) {

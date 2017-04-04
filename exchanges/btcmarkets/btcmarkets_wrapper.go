@@ -57,7 +57,7 @@ func (b *BTCMarkets) Run() {
 		for x := range pairs {
 			curr := pairs[x]
 			go func() {
-				ticker, err := b.GetTickerPrice(curr)
+				ticker, err := b.UpdateTicker(curr)
 				if err != nil {
 					return
 				}
@@ -73,13 +73,7 @@ func (b *BTCMarkets) Run() {
 	}
 }
 
-// GetTickerPrice returns ticker information
-func (b *BTCMarkets) GetTickerPrice(p pair.CurrencyPair) (ticker.TickerPrice, error) {
-	tickerNew, err := ticker.GetTicker(b.GetName(), p)
-	if err == nil {
-		return tickerNew, nil
-	}
-
+func (b *BTCMarkets) UpdateTicker(p pair.CurrencyPair) (ticker.TickerPrice, error) {
 	var tickerPrice ticker.TickerPrice
 	tick, err := b.GetTicker(p.GetFirstCurrency().String())
 	if err != nil {
@@ -91,6 +85,13 @@ func (b *BTCMarkets) GetTickerPrice(p pair.CurrencyPair) (ticker.TickerPrice, er
 	tickerPrice.Last = tick.LastPrice
 	ticker.ProcessTicker(b.GetName(), p, tickerPrice)
 	return tickerPrice, nil
+}
+func (b *BTCMarkets) GetTickerPrice(p pair.CurrencyPair) (ticker.TickerPrice, error) {
+	tickerNew, err := ticker.GetTicker(b.GetName(), p)
+	if err != nil {
+		return b.UpdateTicker(p)
+	}
+	return tickerNew, nil
 }
 
 // GetOrderbookEx returns orderbook base on the currency pair

@@ -34,7 +34,7 @@ func (b *Bitstamp) Run() {
 		for x := range pairs {
 			currency := pairs[x]
 			go func() {
-				ticker, err := b.GetTickerPrice(currency)
+				ticker, err := b.UpdateTicker(currency)
 				if err != nil {
 					log.Println(err)
 					return
@@ -47,13 +47,7 @@ func (b *Bitstamp) Run() {
 	}
 }
 
-// GetTickerPrice returns ticker price information
-func (b *Bitstamp) GetTickerPrice(p pair.CurrencyPair) (ticker.TickerPrice, error) {
-	tickerNew, err := ticker.GetTicker(b.GetName(), p)
-	if err == nil {
-		return tickerNew, nil
-	}
-
+func (b *Bitstamp) UpdateTicker(p pair.CurrencyPair) (ticker.TickerPrice, error) {
 	var tickerPrice ticker.TickerPrice
 	tick, err := b.GetTicker(p.Pair().String(), false)
 	if err != nil {
@@ -71,7 +65,14 @@ func (b *Bitstamp) GetTickerPrice(p pair.CurrencyPair) (ticker.TickerPrice, erro
 	return tickerPrice, nil
 }
 
-// GetOrderbookEx returns base orderbook information
+func (b *Bitstamp) GetTickerPrice(p pair.CurrencyPair) (ticker.TickerPrice, error) {
+	tick, err := ticker.GetTicker(b.GetName(), p)
+	if err != nil {
+		return b.UpdateTicker(p)
+	}
+	return tick, nil
+}
+
 func (b *Bitstamp) GetOrderbookEx(p pair.CurrencyPair) (orderbook.OrderbookBase, error) {
 	ob, err := orderbook.GetOrderbook(b.GetName(), p)
 	if err == nil {

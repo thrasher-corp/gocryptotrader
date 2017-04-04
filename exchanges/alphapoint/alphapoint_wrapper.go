@@ -1,8 +1,6 @@
 package alphapoint
 
 import (
-	"log"
-
 	"github.com/thrasher-/gocryptotrader/currency/pair"
 	"github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
@@ -30,21 +28,32 @@ func (a *Alphapoint) GetExchangeAccountInfo() (exchange.AccountInfo, error) {
 	return response, nil
 }
 
-// GetTickerPrice returns the current ticker price by currency pair
-func (a *Alphapoint) GetTickerPrice(p pair.CurrencyPair) ticker.TickerPrice {
+func (a *Alphapoint) UpdateTicker(p pair.CurrencyPair) (ticker.TickerPrice, error) {
 	var tickerPrice ticker.TickerPrice
 	tick, err := a.GetTicker(p.Pair().String())
 	if err != nil {
-		log.Println(err)
-		return ticker.TickerPrice{}
+		return tickerPrice, err
 	}
+
 	tickerPrice.Pair = p
 	tickerPrice.Ask = tick.Ask
 	tickerPrice.Bid = tick.Bid
-	return tickerPrice
+	tickerPrice.Low = tick.Low
+	tickerPrice.High = tick.High
+	tickerPrice.Volume = tick.Volume
+	tickerPrice.Last = tick.Last
+	ticker.ProcessTicker(a.GetName(), p, tickerPrice)
+	return tickerPrice, nil
 }
 
-// GetOrderbookEx returns an orderbookbase by currency pair
+func (a *Alphapoint) GetTickerPrice(p pair.CurrencyPair) (ticker.TickerPrice, error) {
+	tick, err := ticker.GetTicker(a.GetName(), p)
+	if err != nil {
+		return a.UpdateTicker(p)
+	}
+	return tick, nil
+}
+
 func (a *Alphapoint) GetOrderbookEx(p pair.CurrencyPair) (orderbook.OrderbookBase, error) {
 	ob, err := orderbook.GetOrderbook(a.GetName(), p)
 	if err == nil {

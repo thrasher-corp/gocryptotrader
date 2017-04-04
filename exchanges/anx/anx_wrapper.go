@@ -27,7 +27,7 @@ func (a *ANX) Run() {
 		for x := range pairs {
 			currency := pairs[x]
 			go func() {
-				ticker, err := a.GetTickerPrice(currency)
+				ticker, err := a.UpdateTicker(currency)
 				if err != nil {
 					log.Println(err)
 					return
@@ -40,12 +40,7 @@ func (a *ANX) Run() {
 	}
 }
 
-func (a *ANX) GetTickerPrice(p pair.CurrencyPair) (ticker.TickerPrice, error) {
-	tickerNew, err := ticker.GetTicker(a.GetName(), p)
-	if err == nil {
-		return tickerNew, nil
-	}
-
+func (a *ANX) UpdateTicker(p pair.CurrencyPair) (ticker.TickerPrice, error) {
 	var tickerPrice ticker.TickerPrice
 	tick, err := a.GetTicker(p.Pair().String())
 	if err != nil {
@@ -109,6 +104,14 @@ func (a *ANX) GetTickerPrice(p pair.CurrencyPair) (ticker.TickerPrice, error) {
 	}
 	ticker.ProcessTicker(a.GetName(), p, tickerPrice)
 	return tickerPrice, nil
+}
+
+func (a *ANX) GetTickerPrice(p pair.CurrencyPair) (ticker.TickerPrice, error) {
+	tickerNew, err := ticker.GetTicker(a.GetName(), p)
+	if err != nil {
+		return a.UpdateTicker(p)
+	}
+	return tickerNew, nil
 }
 
 func (e *ANX) GetOrderbookEx(p pair.CurrencyPair) (orderbook.OrderbookBase, error) {

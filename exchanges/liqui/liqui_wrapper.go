@@ -61,6 +61,10 @@ func (l *Liqui) Run() {
 	}
 }
 
+func (l *Liqui) UpdateTicker(p pair.CurrencyPair) (ticker.TickerPrice, error) {
+	return ticker.TickerPrice{}, nil
+}
+
 func (l *Liqui) GetTickerPrice(p pair.CurrencyPair) (ticker.TickerPrice, error) {
 	var tickerPrice ticker.TickerPrice
 	tick, ok := l.Ticker[exchange.FormatExchangeCurrency(l.Name, p).String()]

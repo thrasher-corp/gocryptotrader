@@ -44,7 +44,7 @@ func (b *Bitfinex) Run() {
 		for x := range pairs {
 			currency := pairs[x]
 			go func() {
-				ticker, err := b.GetTickerPrice(currency)
+				ticker, err := b.UpdateTicker(currency)
 				if err != nil {
 					return
 				}
@@ -56,18 +56,13 @@ func (b *Bitfinex) Run() {
 	}
 }
 
-// GetTickerPrice returns ticker information
-func (b *Bitfinex) GetTickerPrice(p pair.CurrencyPair) (ticker.TickerPrice, error) {
-	tick, err := ticker.GetTicker(b.GetName(), p)
-	if err == nil {
-		return tick, nil
-	}
-
+func (b *Bitfinex) UpdateTicker(p pair.CurrencyPair) (ticker.TickerPrice, error) {
 	var tickerPrice ticker.TickerPrice
 	tickerNew, err := b.GetTicker(p.Pair().String(), nil)
 	if err != nil {
 		return tickerPrice, err
 	}
+
 	tickerPrice.Pair = p
 	tickerPrice.Ask = tickerNew.Ask
 	tickerPrice.Bid = tickerNew.Bid
@@ -79,7 +74,14 @@ func (b *Bitfinex) GetTickerPrice(p pair.CurrencyPair) (ticker.TickerPrice, erro
 	return tickerPrice, nil
 }
 
-// GetOrderbookEx returns orderbook information based on currency pair
+func (b *Bitfinex) GetTickerPrice(p pair.CurrencyPair) (ticker.TickerPrice, error) {
+	tick, err := ticker.GetTicker(b.GetName(), p)
+	if err != nil {
+		return b.UpdateTicker(p)
+	}
+	return tick, nil
+}
+
 func (b *Bitfinex) GetOrderbookEx(p pair.CurrencyPair) (orderbook.OrderbookBase, error) {
 	ob, err := orderbook.GetOrderbook(b.GetName(), p)
 	if err == nil {

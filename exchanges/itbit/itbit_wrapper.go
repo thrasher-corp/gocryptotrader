@@ -26,7 +26,7 @@ func (i *ItBit) Run() {
 		for x := range pairs {
 			currency := pairs[x]
 			go func() {
-				ticker, err := i.GetTickerPrice(currency)
+				ticker, err := i.UpdateTicker(currency)
 				if err != nil {
 					log.Println(err)
 					return
@@ -39,12 +39,7 @@ func (i *ItBit) Run() {
 	}
 }
 
-func (i *ItBit) GetTickerPrice(p pair.CurrencyPair) (ticker.TickerPrice, error) {
-	tickerNew, err := ticker.GetTicker(i.GetName(), p)
-	if err == nil {
-		return tickerNew, nil
-	}
-
+func (i *ItBit) UpdateTicker(p pair.CurrencyPair) (ticker.TickerPrice, error) {
 	var tickerPrice ticker.TickerPrice
 	tick, err := i.GetTicker(p.Pair().String())
 	if err != nil {
@@ -60,6 +55,14 @@ func (i *ItBit) GetTickerPrice(p pair.CurrencyPair) (ticker.TickerPrice, error) 
 	tickerPrice.Volume = tick.Volume24h
 	ticker.ProcessTicker(i.GetName(), p, tickerPrice)
 	return tickerPrice, nil
+}
+
+func (i *ItBit) GetTickerPrice(p pair.CurrencyPair) (ticker.TickerPrice, error) {
+	tickerNew, err := ticker.GetTicker(i.GetName(), p)
+	if err != nil {
+		return i.UpdateTicker(p)
+	}
+	return tickerNew, nil
 }
 
 func (i *ItBit) GetOrderbookEx(p pair.CurrencyPair) (orderbook.OrderbookBase, error) {
