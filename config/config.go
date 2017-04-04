@@ -12,6 +12,7 @@ import (
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency"
+	"github.com/thrasher-/gocryptotrader/portfolio"
 )
 
 const (
@@ -71,10 +72,10 @@ type Config struct {
 	Name             string
 	EncryptConfig    int
 	Cryptocurrencies string
-	Portfolio        PortfolioConfig  `json:"PortfolioAddresses"`
-	SMS              SMSGlobalConfig  `json:"SMSGlobal"`
-	Webserver        WebserverConfig  `json:"Webserver"`
-	Exchanges        []ExchangeConfig `json:"Exchanges"`
+	Portfolio        portfolio.PortfolioBase `json:"PortfolioAddresses"`
+	SMS              SMSGlobalConfig         `json:"SMSGlobal"`
+	Webserver        WebserverConfig         `json:"Webserver"`
+	Exchanges        []ExchangeConfig        `json:"Exchanges"`
 }
 
 type ExchangeConfig struct {
@@ -90,16 +91,6 @@ type ExchangeConfig struct {
 	AvailablePairs          string
 	EnabledPairs            string
 	BaseCurrencies          string
-}
-
-type PortfolioAddressConfig struct {
-	Address  string
-	CoinType string
-	Balance  float64
-}
-
-type PortfolioConfig struct {
-	Addresses []PortfolioAddressConfig
 }
 
 func (c *Config) GetConfigEnabledExchanges() int {

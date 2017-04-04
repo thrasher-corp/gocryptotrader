@@ -9,6 +9,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/currency"
 	"github.com/thrasher-/gocryptotrader/exchanges/bitfinex"
+	"github.com/thrasher-/gocryptotrader/portfolio"
 )
 
 func main() {
@@ -47,22 +48,16 @@ func main() {
 		log.Fatal("File isn't in JSON format")
 	}
 
-	result := make(map[string]float64)
-	for _, x := range cfg.Portfolio.Addresses {
-		balance, ok := result[x.CoinType]
-		if !ok {
-			result[x.CoinType] = x.Balance
-		} else {
-			result[x.CoinType] = x.Balance + balance
-		}
-	}
+	port := portfolio.PortfolioBase{}
+	port.SeedPortfolio(cfg.Portfolio)
+	result := port.GetPortfolioSummary("")
 
-	type Portfolio struct {
+	type PortfolioTemp struct {
 		Balance  float64
 		Subtotal float64
 	}
 
-	stuff := make(map[string]Portfolio)
+	stuff := make(map[string]PortfolioTemp)
 	total := float64(0)
 
 	for x, y := range result {
@@ -70,7 +65,7 @@ func main() {
 			y = y / common.WEI_PER_ETHER
 		}
 
-		pf := Portfolio{}
+		pf := PortfolioTemp{}
 		pf.Balance = y
 		pf.Subtotal = 0
 

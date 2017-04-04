@@ -1,4 +1,4 @@
-package main
+package portfolio
 
 import (
 	"errors"
@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
-	"github.com/thrasher-/gocryptotrader/config"
 )
 
 const (
@@ -17,7 +16,11 @@ const (
 
 	ETHERCHAIN_API_URL          = "https://etherchain.org/api"
 	ETHERCHAIN_ACCOUNT_MULTIPLE = "account/multiple"
+	PORTFOLIO_ADDRESS_EXCHANGE  = "Exchange"
+	PORTFOLIO_ADDRESS_CUSTOM    = "Custom"
 )
+
+var Portfolio PortfolioBase
 
 type PortfolioAddress struct {
 	Address  string
@@ -25,7 +28,7 @@ type PortfolioAddress struct {
 	Balance  float64
 }
 
-type Portfolio struct {
+type PortfolioBase struct {
 	Addresses []PortfolioAddress
 }
 
@@ -103,8 +106,8 @@ func GetBlockrAddressMulti(addresses []string, coinType string) (BlockrAddressBa
 	return result, nil
 }
 
-func GetAddressBalance(address string) (float64, bool) {
-	for _, x := range bot.config.Portfolio.Addresses {
+func (p *PortfolioBase) GetAddressBalance(address string) (float64, bool) {
+	for _, x := range p.Addresses {
 		if x.Address == address {
 			return x.Balance, true
 		}
@@ -112,8 +115,8 @@ func GetAddressBalance(address string) (float64, bool) {
 	return 0, false
 }
 
-func AddressExists(address string) bool {
-	for _, x := range bot.config.Portfolio.Addresses {
+func (p *PortfolioBase) AddressExists(address string) bool {
+	for _, x := range p.Addresses {
 		if x.Address == address {
 			return true
 		}
@@ -121,15 +124,15 @@ func AddressExists(address string) bool {
 	return false
 }
 
-func UpdateAddressBalance(address string, amount float64) {
-	for x, _ := range bot.config.Portfolio.Addresses {
-		if bot.config.Portfolio.Addresses[x].Address == address {
-			bot.config.Portfolio.Addresses[x].Balance = amount
+func (p *PortfolioBase) UpdateAddressBalance(address string, amount float64) {
+	for x, _ := range p.Addresses {
+		if p.Addresses[x].Address == address {
+			p.Addresses[x].Balance = amount
 		}
 	}
 }
 
-func UpdatePortfolio(addresses []string, coinType string) bool {
+func (p *PortfolioBase) UpdatePortfolio(addresses []string, coinType string) bool {
 	if coinType == "ETH" {
 		result, err := GetEthereumBalance(addresses)
 		if err != nil {
@@ -137,10 +140,10 @@ func UpdatePortfolio(addresses []string, coinType string) bool {
 		}
 
 		for _, x := range result.Data {
-			if !AddressExists(x.Address) {
-				bot.config.Portfolio.Addresses = append(bot.config.Portfolio.Addresses, config.PortfolioAddressConfig{Address: x.Address, CoinType: coinType, Balance: x.Balance / common.WEI_PER_ETHER})
+			if !p.AddressExists(x.Address) {
+				p.Addresses = append(p.Addresses, PortfolioAddress{Address: x.Address, CoinType: coinType, Balance: x.Balance / common.WEI_PER_ETHER})
 			} else {
-				UpdateAddressBalance(x.Address, x.Balance)
+				p.UpdateAddressBalance(x.Address, x.Balance)
 			}
 		}
 		return true
@@ -151,10 +154,10 @@ func UpdatePortfolio(addresses []string, coinType string) bool {
 			return false
 		}
 		for _, x := range result.Data {
-			if !AddressExists(x.Address) {
-				bot.config.Portfolio.Addresses = append(bot.config.Portfolio.Addresses, config.PortfolioAddressConfig{Address: x.Address, CoinType: coinType, Balance: x.Balance})
+			if !p.AddressExists(x.Address) {
+				p.Addresses = append(p.Addresses, PortfolioAddress{Address: x.Address, CoinType: coinType, Balance: x.Balance})
 			} else {
-				UpdateAddressBalance(x.Address, x.Balance)
+				p.UpdateAddressBalance(x.Address, x.Balance)
 			}
 		}
 	} else {
@@ -162,18 +165,18 @@ func UpdatePortfolio(addresses []string, coinType string) bool {
 		if err != nil {
 			return false
 		}
-		if !AddressExists(result.Data.Address) {
-			bot.config.Portfolio.Addresses = append(bot.config.Portfolio.Addresses, config.PortfolioAddressConfig{Address: result.Data.Address, CoinType: coinType, Balance: result.Data.Balance})
+		if !p.AddressExists(result.Data.Address) {
+			p.Addresses = append(p.Addresses, PortfolioAddress{Address: result.Data.Address, CoinType: coinType, Balance: result.Data.Balance})
 		} else {
-			UpdateAddressBalance(result.Data.Address, result.Data.Balance)
+			p.UpdateAddressBalance(result.Data.Address, result.Data.Balance)
 		}
 	}
 	return true
 }
 
-func GetPortfolioSummary(coinFilter string) map[string]float64 {
+func (p *PortfolioBase) GetPortfolioSummary(coinFilter string) map[string]float64 {
 	result := make(map[string]float64)
-	for _, x := range bot.config.Portfolio.Addresses {
+	for _, x := range p.Addresses {
 		if coinFilter != "" && coinFilter != x.CoinType {
 			continue
 		}
@@ -187,25 +190,33 @@ func GetPortfolioSummary(coinFilter string) map[string]float64 {
 	return result
 }
 
-func GetPortfolioGroupedCoin() map[string][]string {
+func (p *PortfolioBase) GetPortfolioGroupedCoin() map[string][]string {
 	result := make(map[string][]string)
-	for _, x := range bot.config.Portfolio.Addresses {
+	for _, x := range p.Addresses {
 		result[x.CoinType] = append(result[x.CoinType], x.Address)
 	}
 	return result
 }
 
+func (p *PortfolioBase) SeedPortfolio(port PortfolioBase) {
+	p.Addresses = port.Addresses
+}
+
 func StartPortfolioWatcher() {
-	addrCount := len(bot.config.Portfolio.Addresses)
+	addrCount := len(Portfolio.Addresses)
 	log.Printf("PortfolioWatcher started: Have %d address(es) in portfolio.\n", addrCount)
 	for {
-		data := GetPortfolioGroupedCoin()
+		data := Portfolio.GetPortfolioGroupedCoin()
 		for key, value := range data {
-			success := UpdatePortfolio(value, key)
+			success := Portfolio.UpdatePortfolio(value, key)
 			if success {
 				log.Printf("PortfolioWatcher: Successfully updated address balance for %s address(es) %s\n", key, value)
 			}
 		}
 		time.Sleep(time.Minute * 10)
 	}
+}
+
+func GetPortfolio() *PortfolioBase {
+	return &Portfolio
 }

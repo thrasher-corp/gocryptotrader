@@ -30,6 +30,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/exchanges/okcoin"
 	"github.com/thrasher-/gocryptotrader/exchanges/poloniex"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
+	"github.com/thrasher-/gocryptotrader/portfolio"
 	"github.com/thrasher-/gocryptotrader/smsglobal"
 )
 
@@ -55,6 +56,7 @@ type ExchangeMain struct {
 
 type Bot struct {
 	config    *config.Config
+	portfolio *portfolio.PortfolioBase
 	exchange  ExchangeMain
 	exchanges []exchange.IBotExchange
 	tickers   []ticker.Ticker
@@ -147,7 +149,9 @@ func main() {
 
 	log.Println("Successfully retrieved config currencies.")
 
-	go StartPortfolioWatcher()
+	bot.portfolio = &portfolio.Portfolio
+	bot.portfolio.SeedPortfolio(bot.config.Portfolio)
+	go portfolio.StartPortfolioWatcher()
 
 	if bot.config.Webserver.Enabled {
 		err := bot.config.CheckWebserverConfigValues()
@@ -201,6 +205,7 @@ func HandleInterrupt() {
 
 func Shutdown() {
 	log.Println("Bot shutting down..")
+	bot.config.Portfolio = portfolio.Portfolio
 	err := bot.config.SaveConfig()
 
 	if err != nil {
