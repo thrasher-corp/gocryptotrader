@@ -33,7 +33,7 @@ func (h *HUOBI) Run() {
 		for x := range pairs {
 			curr := pairs[x]
 			go func() {
-				ticker, err := h.GetTickerPrice(curr)
+				ticker, err := h.UpdateTicker(curr)
 				if err != nil {
 					log.Println(err)
 					return
@@ -50,12 +50,7 @@ func (h *HUOBI) Run() {
 	}
 }
 
-func (h *HUOBI) GetTickerPrice(p pair.CurrencyPair) (ticker.TickerPrice, error) {
-	tickerNew, err := ticker.GetTicker(h.GetName(), p)
-	if err == nil {
-		return tickerNew, nil
-	}
-
+func (h *HUOBI) UpdateTicker(p pair.CurrencyPair) (ticker.TickerPrice, error) {
 	var tickerPrice ticker.TickerPrice
 	tick, err := h.GetTicker(p.GetFirstCurrency().Lower().String())
 	if err != nil {
@@ -70,6 +65,14 @@ func (h *HUOBI) GetTickerPrice(p pair.CurrencyPair) (ticker.TickerPrice, error) 
 	tickerPrice.High = tick.High
 	ticker.ProcessTicker(h.GetName(), p, tickerPrice)
 	return tickerPrice, nil
+}
+
+func (h *HUOBI) GetTickerPrice(p pair.CurrencyPair) (ticker.TickerPrice, error) {
+	tickerNew, err := ticker.GetTicker(h.GetName(), p)
+	if err != nil {
+		return h.UpdateTicker(p)
+	}
+	return tickerNew, nil
 }
 
 func (h *HUOBI) GetOrderbookEx(p pair.CurrencyPair) (orderbook.OrderbookBase, error) {

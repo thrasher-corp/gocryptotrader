@@ -46,7 +46,7 @@ func (o *OKCoin) Run() {
 					}()
 				}
 				go func() {
-					ticker, err := o.GetTickerPrice(curr)
+					ticker, err := o.UpdateTicker(curr)
 					if err != nil {
 						log.Println(err)
 						return
@@ -56,7 +56,7 @@ func (o *OKCoin) Run() {
 				}()
 			} else {
 				go func() {
-					ticker, err := o.GetTickerPrice(curr)
+					ticker, err := o.UpdateTicker(curr)
 					if err != nil {
 						log.Println(err)
 						return
@@ -74,12 +74,7 @@ func (o *OKCoin) Run() {
 	}
 }
 
-func (o *OKCoin) GetTickerPrice(currency pair.CurrencyPair) (ticker.TickerPrice, error) {
-	tickerNew, err := ticker.GetTicker(o.GetName(), currency)
-	if err == nil {
-		return tickerNew, nil
-	}
-
+func (o *OKCoin) UpdateTicker(currency pair.CurrencyPair) (ticker.TickerPrice, error) {
 	var tickerPrice ticker.TickerPrice
 	tick, err := o.GetTicker(exchange.FormatExchangeCurrency(o.Name, currency).String())
 	if err != nil {
@@ -94,6 +89,14 @@ func (o *OKCoin) GetTickerPrice(currency pair.CurrencyPair) (ticker.TickerPrice,
 	tickerPrice.High = tick.High
 	ticker.ProcessTicker(o.GetName(), currency, tickerPrice)
 	return tickerPrice, nil
+}
+
+func (o *OKCoin) GetTickerPrice(currency pair.CurrencyPair) (ticker.TickerPrice, error) {
+	tickerNew, err := ticker.GetTicker(o.GetName(), currency)
+	if err != nil {
+		return o.UpdateTicker(currency)
+	}
+	return tickerNew, nil
 }
 
 func (o *OKCoin) GetOrderbookEx(currency pair.CurrencyPair) (orderbook.OrderbookBase, error) {

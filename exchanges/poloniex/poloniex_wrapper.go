@@ -32,7 +32,7 @@ func (p *Poloniex) Run() {
 		for x := range pairs {
 			currency := pairs[x]
 			go func() {
-				ticker, err := p.GetTickerPrice(currency)
+				ticker, err := p.UpdateTicker(currency)
 				if err != nil {
 					log.Println(err)
 					return
@@ -45,13 +45,8 @@ func (p *Poloniex) Run() {
 	}
 }
 
-func (p *Poloniex) GetTickerPrice(currencyPair pair.CurrencyPair) (ticker.TickerPrice, error) {
+func (p *Poloniex) UpdateTicker(currencyPair pair.CurrencyPair) (ticker.TickerPrice, error) {
 	currency := currencyPair.Pair().String()
-	tickerNew, err := ticker.GetTicker(p.GetName(), currencyPair)
-	if err == nil {
-		return tickerNew, nil
-	}
-
 	var tickerPrice ticker.TickerPrice
 	tick, err := p.GetTicker()
 	if err != nil {
@@ -67,6 +62,14 @@ func (p *Poloniex) GetTickerPrice(currencyPair pair.CurrencyPair) (ticker.Ticker
 	tickerPrice.Volume = tick[currency].BaseVolume
 	ticker.ProcessTicker(p.GetName(), currencyPair, tickerPrice)
 	return tickerPrice, nil
+}
+
+func (p *Poloniex) GetTickerPrice(currencyPair pair.CurrencyPair) (ticker.TickerPrice, error) {
+	tickerNew, err := ticker.GetTicker(p.GetName(), currencyPair)
+	if err != nil {
+		return p.UpdateTicker(currencyPair)
+	}
+	return tickerNew, nil
 }
 
 func (p *Poloniex) GetOrderbookEx(currencyPair pair.CurrencyPair) (orderbook.OrderbookBase, error) {

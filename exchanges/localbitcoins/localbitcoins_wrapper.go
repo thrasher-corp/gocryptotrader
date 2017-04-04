@@ -39,6 +39,10 @@ func (l *LocalBitcoins) Run() {
 	}
 }
 
+func (l *LocalBitcoins) UpdateTicker(p pair.CurrencyPair) (ticker.TickerPrice, error) {
+	return ticker.TickerPrice{}, nil
+}
+
 func (l *LocalBitcoins) GetTickerPrice(p pair.CurrencyPair) (ticker.TickerPrice, error) {
 	tickerNew, err := ticker.GetTicker(l.GetName(), p)
 	if err == nil {

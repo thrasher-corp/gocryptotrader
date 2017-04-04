@@ -48,7 +48,7 @@ func (g *GDAX) Run() {
 		for x := range pairs {
 			currency := pairs[x]
 			go func() {
-				ticker, err := g.GetTickerPrice(currency)
+				ticker, err := g.UpdateTicker(currency)
 
 				if err != nil {
 					log.Println(err)
@@ -81,12 +81,7 @@ func (g *GDAX) GetExchangeAccountInfo() (exchange.AccountInfo, error) {
 	return response, nil
 }
 
-func (g *GDAX) GetTickerPrice(p pair.CurrencyPair) (ticker.TickerPrice, error) {
-	tickerNew, err := ticker.GetTicker(g.GetName(), p)
-	if err == nil {
-		return tickerNew, nil
-	}
-
+func (g *GDAX) UpdateTicker(p pair.CurrencyPair) (ticker.TickerPrice, error) {
 	var tickerPrice ticker.TickerPrice
 	tick, err := g.GetTicker(exchange.FormatExchangeCurrency(g.Name, p).String())
 	if err != nil {
@@ -106,6 +101,14 @@ func (g *GDAX) GetTickerPrice(p pair.CurrencyPair) (ticker.TickerPrice, error) {
 	tickerPrice.Low = stats.Low
 	ticker.ProcessTicker(g.GetName(), p, tickerPrice)
 	return tickerPrice, nil
+}
+
+func (g *GDAX) GetTickerPrice(p pair.CurrencyPair) (ticker.TickerPrice, error) {
+	tickerNew, err := ticker.GetTicker(g.GetName(), p)
+	if err != nil {
+		return g.UpdateTicker(p)
+	}
+	return tickerNew, nil
 }
 
 func (g *GDAX) GetOrderbookEx(p pair.CurrencyPair) (orderbook.OrderbookBase, error) {

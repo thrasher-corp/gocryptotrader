@@ -50,9 +50,14 @@ func (b *BTCE) Run() {
 	}
 }
 
-func (b *BTCE) GetTickerPrice(p pair.CurrencyPair) (ticker.TickerPrice, error) {
+func (b *BTCE) UpdateTicker(p pair.CurrencyPair) (ticker.TickerPrice, error) {
 	var tickerPrice ticker.TickerPrice
-	tick, ok := b.Ticker[exchange.FormatExchangeCurrency(b.Name, p).String()]
+	result, err := b.GetTicker(p.Pair().String())
+	if err != nil {
+		return tickerPrice, err
+	}
+
+	tick, ok := result[p.Pair().Lower().String()]
 	if !ok {
 		return tickerPrice, errors.New("unable to get currency")
 	}
@@ -65,6 +70,14 @@ func (b *BTCE) GetTickerPrice(p pair.CurrencyPair) (ticker.TickerPrice, error) {
 	tickerPrice.High = tick.High
 	ticker.ProcessTicker(b.GetName(), p, tickerPrice)
 	return tickerPrice, nil
+}
+
+func (b *BTCE) GetTickerPrice(p pair.CurrencyPair) (ticker.TickerPrice, error) {
+	tick, err := ticker.GetTicker(b.GetName(), p)
+	if err != nil {
+		return b.UpdateTicker(p)
+	}
+	return tick, nil
 }
 
 func (b *BTCE) GetOrderbookEx(p pair.CurrencyPair) (orderbook.OrderbookBase, error) {

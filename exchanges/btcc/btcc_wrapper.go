@@ -32,7 +32,7 @@ func (b *BTCC) Run() {
 		for x := range pairs {
 			currency := pairs[x]
 			go func() {
-				ticker, err := b.GetTickerPrice(currency)
+				ticker, err := b.UpdateTicker(currency)
 				if err != nil {
 					log.Println(err)
 					return
@@ -45,18 +45,12 @@ func (b *BTCC) Run() {
 	}
 }
 
-func (b *BTCC) GetTickerPrice(p pair.CurrencyPair) (ticker.TickerPrice, error) {
-	tickerNew, err := ticker.GetTicker(b.GetName(), p)
-	if err == nil {
-		return tickerNew, nil
-	}
-
+func (b *BTCC) UpdateTicker(p pair.CurrencyPair) (ticker.TickerPrice, error) {
 	var tickerPrice ticker.TickerPrice
 	tick, err := b.GetTicker(exchange.FormatExchangeCurrency(b.GetName(), p).String())
 	if err != nil {
 		return tickerPrice, err
 	}
-
 	tickerPrice.Pair = p
 	tickerPrice.Ask = tick.Sell
 	tickerPrice.Bid = tick.Buy
@@ -66,6 +60,14 @@ func (b *BTCC) GetTickerPrice(p pair.CurrencyPair) (ticker.TickerPrice, error) {
 	tickerPrice.High = tick.High
 	ticker.ProcessTicker(b.GetName(), p, tickerPrice)
 	return tickerPrice, nil
+}
+
+func (b *BTCC) GetTickerPrice(p pair.CurrencyPair) (ticker.TickerPrice, error) {
+	tickerNew, err := ticker.GetTicker(b.GetName(), p)
+	if err != nil {
+		return b.UpdateTicker(p)
+	}
+	return tickerNew, nil
 }
 
 func (b *BTCC) GetOrderbookEx(p pair.CurrencyPair) (orderbook.OrderbookBase, error) {

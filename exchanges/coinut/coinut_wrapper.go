@@ -50,7 +50,7 @@ func (c *COINUT) Run() {
 		for x := range pairs {
 			currency := pairs[x]
 			go func() {
-				ticker, err := c.GetTickerPrice(currency)
+				ticker, err := c.UpdateTicker(currency)
 				if err != nil {
 					log.Println(err)
 					return
@@ -84,12 +84,7 @@ func (c *COINUT) GetExchangeAccountInfo() (exchange.AccountInfo, error) {
 	return response, nil
 }
 
-func (c *COINUT) GetTickerPrice(p pair.CurrencyPair) (ticker.TickerPrice, error) {
-	tickerNew, err := ticker.GetTicker(c.GetName(), p)
-	if err == nil {
-		return tickerNew, nil
-	}
-
+func (c *COINUT) UpdateTicker(p pair.CurrencyPair) (ticker.TickerPrice, error) {
 	var tickerPrice ticker.TickerPrice
 	tick, err := c.GetInstrumentTicker(c.InstrumentMap[p.Pair().String()])
 	if err != nil {
@@ -103,6 +98,15 @@ func (c *COINUT) GetTickerPrice(p pair.CurrencyPair) (ticker.TickerPrice, error)
 	tickerPrice.Low = tick.LowestSell
 	ticker.ProcessTicker(c.GetName(), p, tickerPrice)
 	return tickerPrice, nil
+
+}
+
+func (c *COINUT) GetTickerPrice(p pair.CurrencyPair) (ticker.TickerPrice, error) {
+	tickerNew, err := ticker.GetTicker(c.GetName(), p)
+	if err != nil {
+		return c.UpdateTicker(p)
+	}
+	return tickerNew, nil
 }
 
 func (c *COINUT) GetOrderbookEx(p pair.CurrencyPair) (orderbook.OrderbookBase, error) {

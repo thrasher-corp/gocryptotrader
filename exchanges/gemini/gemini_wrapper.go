@@ -37,7 +37,7 @@ func (g *Gemini) Run() {
 		for x := range pairs {
 			currency := pairs[x]
 			go func() {
-				ticker, err := g.GetTickerPrice(currency)
+				ticker, err := g.UpdateTicker(currency)
 				if err != nil {
 					log.Println(err)
 					return
@@ -63,18 +63,12 @@ func (e *Gemini) GetExchangeAccountInfo() (exchange.AccountInfo, error) {
 		exchangeCurrency.CurrencyName = accountBalance[i].Currency
 		exchangeCurrency.TotalValue = accountBalance[i].Amount
 		exchangeCurrency.Hold = accountBalance[i].Available
-
 		response.Currencies = append(response.Currencies, exchangeCurrency)
 	}
 	return response, nil
 }
 
-func (g *Gemini) GetTickerPrice(p pair.CurrencyPair) (ticker.TickerPrice, error) {
-	tickerNew, err := ticker.GetTicker(g.GetName(), p)
-	if err == nil {
-		return tickerNew, nil
-	}
-
+func (g *Gemini) UpdateTicker(p pair.CurrencyPair) (ticker.TickerPrice, error) {
 	var tickerPrice ticker.TickerPrice
 	tick, err := g.GetTicker(p.Pair().String())
 	if err != nil {
@@ -87,6 +81,14 @@ func (g *Gemini) GetTickerPrice(p pair.CurrencyPair) (ticker.TickerPrice, error)
 	tickerPrice.Volume = tick.Volume.USD
 	ticker.ProcessTicker(g.GetName(), p, tickerPrice)
 	return tickerPrice, nil
+}
+
+func (g *Gemini) GetTickerPrice(p pair.CurrencyPair) (ticker.TickerPrice, error) {
+	tickerNew, err := ticker.GetTicker(g.GetName(), p)
+	if err != nil {
+		return g.UpdateTicker(p)
+	}
+	return tickerNew, nil
 }
 
 func (g *Gemini) GetOrderbookEx(p pair.CurrencyPair) (orderbook.OrderbookBase, error) {
