@@ -94,10 +94,37 @@ func (o *OKCoin) GetTickerPrice(currency string) (ticker.TickerPrice, error) {
 	return tickerPrice, nil
 }
 
-//TODO support for retrieving holdings from OKCOIN
-//GetExchangeAccountInfo : Retrieves balances for all enabled currencies for the OKCoin exchange
 func (e *OKCoin) GetExchangeAccountInfo() (exchange.ExchangeAccountInfo, error) {
 	var response exchange.ExchangeAccountInfo
 	response.ExchangeName = e.GetName()
+	assets, err := e.GetUserInfo()
+	if err != nil {
+		return response, err
+	}
+
+	response.Currencies = append(response.Currencies, exchange.ExchangeAccountCurrencyInfo{
+		CurrencyName: "BTC",
+		TotalValue:   assets.Info.Funds.Free.BTC,
+		Hold:         assets.Info.Funds.Freezed.BTC,
+	})
+
+	response.Currencies = append(response.Currencies, exchange.ExchangeAccountCurrencyInfo{
+		CurrencyName: "LTC",
+		TotalValue:   assets.Info.Funds.Free.LTC,
+		Hold:         assets.Info.Funds.Freezed.LTC,
+	})
+
+	response.Currencies = append(response.Currencies, exchange.ExchangeAccountCurrencyInfo{
+		CurrencyName: "USD",
+		TotalValue:   assets.Info.Funds.Free.USD,
+		Hold:         assets.Info.Funds.Freezed.USD,
+	})
+
+	response.Currencies = append(response.Currencies, exchange.ExchangeAccountCurrencyInfo{
+		CurrencyName: "CNY",
+		TotalValue:   assets.Info.Funds.Free.CNY,
+		Hold:         assets.Info.Funds.Freezed.CNY,
+	})
+
 	return response, nil
 }

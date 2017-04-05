@@ -76,11 +76,11 @@ func (e *Poloniex) GetExchangeAccountInfo() (exchange.ExchangeAccountInfo, error
 	if err != nil {
 		return response, err
 	}
-	currencies := e.AvailablePairs
-	for i := 0; i < len(currencies); i++ {
+
+	for x, y := range accountBalance.Currency {
 		var exchangeCurrency exchange.ExchangeAccountCurrencyInfo
-		exchangeCurrency.CurrencyName = currencies[i]
-		exchangeCurrency.TotalValue = accountBalance.Currency[currencies[i]]
+		exchangeCurrency.CurrencyName = x
+		exchangeCurrency.TotalValue = y
 		response.Currencies = append(response.Currencies, exchangeCurrency)
 	}
 	return response, nil

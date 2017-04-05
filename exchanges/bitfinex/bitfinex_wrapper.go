@@ -88,7 +88,7 @@ func (e *Bitfinex) GetExchangeAccountInfo() (exchange.ExchangeAccountInfo, error
 
 	for i := 0; i < len(accountBalance); i++ {
 		var exchangeCurrency exchange.ExchangeAccountCurrencyInfo
-		exchangeCurrency.CurrencyName = accountBalance[i].Currency
+		exchangeCurrency.CurrencyName = common.StringToUpper(accountBalance[i].Currency)
 		exchangeCurrency.TotalValue = accountBalance[i].Amount
 		exchangeCurrency.Hold = accountBalance[i].Available
 

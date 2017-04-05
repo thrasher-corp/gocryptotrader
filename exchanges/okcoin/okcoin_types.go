@@ -131,16 +131,19 @@ type OKCoinUserInfo struct {
 				BTC float64 `json:"btc,string"`
 				LTC float64 `json:"ltc,string"`
 				USD float64 `json:"usd,string"`
+				CNY float64 `json:"cny,string"`
 			} `json:"borrow"`
 			Free struct {
 				BTC float64 `json:"btc,string"`
 				LTC float64 `json:"ltc,string"`
 				USD float64 `json:"usd,string"`
+				CNY float64 `json:"cny,string"`
 			} `json:"free"`
 			Freezed struct {
 				BTC float64 `json:"btc,string"`
 				LTC float64 `json:"ltc,string"`
 				USD float64 `json:"usd,string"`
+				CNY float64 `json:"cny,string"`
 			} `json:"freezed"`
 			UnionFund struct {
 				BTC float64 `json:"btc,string"`
