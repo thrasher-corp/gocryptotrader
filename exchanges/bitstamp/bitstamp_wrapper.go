@@ -75,17 +75,28 @@ func (e *Bitstamp) GetExchangeAccountInfo() (exchange.ExchangeAccountInfo, error
 		return response, err
 	}
 
-	var btcExchangeInfo exchange.ExchangeAccountCurrencyInfo
-	btcExchangeInfo.CurrencyName = "BTC"
-	btcExchangeInfo.TotalValue = accountBalance.BTCBalance
-	btcExchangeInfo.Hold = accountBalance.BTCReserved
-	response.Currencies = append(response.Currencies, btcExchangeInfo)
+	response.Currencies = append(response.Currencies, exchange.ExchangeAccountCurrencyInfo{
+		CurrencyName: "BTC",
+		TotalValue:   accountBalance.BTCAvailable,
+		Hold:         accountBalance.BTCReserved,
+	})
 
-	var usdExchangeInfo exchange.ExchangeAccountCurrencyInfo
-	usdExchangeInfo.CurrencyName = "USD"
-	usdExchangeInfo.TotalValue = accountBalance.USDBalance
-	usdExchangeInfo.Hold = accountBalance.USDReserved
-	response.Currencies = append(response.Currencies, usdExchangeInfo)
+	response.Currencies = append(response.Currencies, exchange.ExchangeAccountCurrencyInfo{
+		CurrencyName: "XRP",
+		TotalValue:   accountBalance.XRPAvailable,
+		Hold:         accountBalance.XRPReserved,
+	})
 
+	response.Currencies = append(response.Currencies, exchange.ExchangeAccountCurrencyInfo{
+		CurrencyName: "USD",
+		TotalValue:   accountBalance.USDAvailable,
+		Hold:         accountBalance.USDReserved,
+	})
+
+	response.Currencies = append(response.Currencies, exchange.ExchangeAccountCurrencyInfo{
+		CurrencyName: "EUR",
+		TotalValue:   accountBalance.EURAvailable,
+		Hold:         accountBalance.EURReserved,
+	})
 	return response, nil
 }

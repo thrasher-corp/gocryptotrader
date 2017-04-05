@@ -70,7 +70,7 @@ func (e *GDAX) GetExchangeAccountInfo() (exchange.ExchangeAccountInfo, error) {
 	for i := 0; i < len(accountBalance); i++ {
 		var exchangeCurrency exchange.ExchangeAccountCurrencyInfo
 		exchangeCurrency.CurrencyName = accountBalance[i].Currency
-		exchangeCurrency.TotalValue = accountBalance[i].Balance
+		exchangeCurrency.TotalValue = accountBalance[i].Available
 		exchangeCurrency.Hold = accountBalance[i].Hold
 
 		response.Currencies = append(response.Currencies, exchangeCurrency)

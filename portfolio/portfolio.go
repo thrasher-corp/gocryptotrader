@@ -23,9 +23,10 @@ const (
 var Portfolio PortfolioBase
 
 type PortfolioAddress struct {
-	Address  string
-	CoinType string
-	Balance  float64
+	Address      string
+	CoinType     string
+	Balance      float64
+	Decscription string
 }
 
 type PortfolioBase struct {
@@ -63,6 +64,19 @@ type EtherchainBalanceResponse struct {
 		Storage   interface{} `json:"storage"`
 		FirstSeen interface{} `json:"firstSeen"`
 	} `json:"data"`
+}
+
+//ExchangeAccountInfo : Generic type to hold each exchange's holdings in all enabled currencies
+type ExchangeAccountInfo struct {
+	ExchangeName string
+	Currencies   []ExchangeAccountCurrencyInfo
+}
+
+//ExchangeAccountCurrencyInfo : Sub type to store currency name and value
+type ExchangeAccountCurrencyInfo struct {
+	CurrencyName string
+	TotalValue   float64
+	Hold         float64
 }
 
 func GetEthereumBalance(address []string) (EtherchainBalanceResponse, error) {
@@ -115,9 +129,27 @@ func (p *PortfolioBase) GetAddressBalance(address string) (float64, bool) {
 	return 0, false
 }
 
+func (p *PortfolioBase) ExchangeExists(exchangeName string) bool {
+	for _, x := range p.Addresses {
+		if x.Address == exchangeName {
+			return true
+		}
+	}
+	return false
+}
+
 func (p *PortfolioBase) AddressExists(address string) bool {
 	for _, x := range p.Addresses {
 		if x.Address == address {
+			return true
+		}
+	}
+	return false
+}
+
+func (p *PortfolioBase) ExchangeAddressExists(exchangeName, coinType string) bool {
+	for _, x := range p.Addresses {
+		if x.Address == exchangeName && x.CoinType == coinType {
 			return true
 		}
 	}
@@ -132,7 +164,19 @@ func (p *PortfolioBase) UpdateAddressBalance(address string, amount float64) {
 	}
 }
 
+func (p *PortfolioBase) UpdateExchangeAddressBalance(exchangeName, coinType string, balance float64) {
+	for x, _ := range p.Addresses {
+		if p.Addresses[x].Address == exchangeName && p.Addresses[x].CoinType == coinType {
+			p.Addresses[x].Balance = balance
+		}
+	}
+}
+
 func (p *PortfolioBase) UpdatePortfolio(addresses []string, coinType string) bool {
+	if common.StringContains(common.JoinStrings(addresses, ","), PORTFOLIO_ADDRESS_EXCHANGE) || common.StringContains(common.JoinStrings(addresses, ","), PORTFOLIO_ADDRESS_CUSTOM) {
+		return true
+	}
+
 	if coinType == "ETH" {
 		result, err := GetEthereumBalance(addresses)
 		if err != nil {
@@ -174,6 +218,38 @@ func (p *PortfolioBase) UpdatePortfolio(addresses []string, coinType string) boo
 	return true
 }
 
+func (p *PortfolioBase) GetExchangePortfolio() map[string]float64 {
+	result := make(map[string]float64)
+	for _, x := range p.Addresses {
+		if x.Decscription != PORTFOLIO_ADDRESS_EXCHANGE {
+			continue
+		}
+		balance, ok := result[x.CoinType]
+		if !ok {
+			result[x.CoinType] = x.Balance
+		} else {
+			result[x.CoinType] = x.Balance + balance
+		}
+	}
+	return result
+}
+
+func (p *PortfolioBase) GetPersonalPortfolio() map[string]float64 {
+	result := make(map[string]float64)
+	for _, x := range p.Addresses {
+		if x.Decscription == PORTFOLIO_ADDRESS_EXCHANGE {
+			continue
+		}
+		balance, ok := result[x.CoinType]
+		if !ok {
+			result[x.CoinType] = x.Balance
+		} else {
+			result[x.CoinType] = x.Balance + balance
+		}
+	}
+	return result
+}
+
 func (p *PortfolioBase) GetPortfolioSummary(coinFilter string) map[string]float64 {
 	result := make(map[string]float64)
 	for _, x := range p.Addresses {
@@ -193,6 +269,9 @@ func (p *PortfolioBase) GetPortfolioSummary(coinFilter string) map[string]float6
 func (p *PortfolioBase) GetPortfolioGroupedCoin() map[string][]string {
 	result := make(map[string][]string)
 	for _, x := range p.Addresses {
+		if common.StringContains(x.Decscription, PORTFOLIO_ADDRESS_EXCHANGE) || common.StringContains(x.Decscription, PORTFOLIO_ADDRESS_CUSTOM) {
+			continue
+		}
 		result[x.CoinType] = append(result[x.CoinType], x.Address)
 	}
 	return result
@@ -204,7 +283,7 @@ func (p *PortfolioBase) SeedPortfolio(port PortfolioBase) {
 
 func StartPortfolioWatcher() {
 	addrCount := len(Portfolio.Addresses)
-	log.Printf("PortfolioWatcher started: Have %d address(es) in portfolio.\n", addrCount)
+	log.Printf("PortfolioWatcher started: Have %d entries in portfolio.\n", addrCount)
 	for {
 		data := Portfolio.GetPortfolioGroupedCoin()
 		for key, value := range data {

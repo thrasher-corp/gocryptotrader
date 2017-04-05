@@ -11,6 +11,7 @@ import (
 
 const (
 	WarningBase64DecryptSecretKeyFailed = "WARNING -- Exchange %s unable to base64 decode secret key.. Disabling Authenticated API support."
+	ErrExchangeNotFound                 = "Exchange not found in dataset."
 )
 
 //ExchangeAccountInfo : Generic type to hold each exchange's holdings in all enabled currencies
