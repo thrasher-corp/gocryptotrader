@@ -8,6 +8,7 @@ import (
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
+	"github.com/thrasher-/gocryptotrader/currency"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-/gocryptotrader/smsglobal"
 )
@@ -24,11 +25,11 @@ const (
 )
 
 var (
-	ErrInvalidItem         = errors.New("Invalid item.")
-	ErrInvalidCondition    = errors.New("Invalid conditional option.")
-	ErrInvalidAction       = errors.New("Invalid action.")
-	ErrExchangeDisabled    = errors.New("Desired exchange is disabled.")
-	ErrFiatCurrencyInvalid = errors.New("Invalid fiat currency.")
+	ErrInvalidItem      = errors.New("Invalid item.")
+	ErrInvalidCondition = errors.New("Invalid conditional option.")
+	ErrInvalidAction    = errors.New("Invalid action.")
+	ErrExchangeDisabled = errors.New("Desired exchange is disabled.")
+	ErrCurrencyInvalid  = errors.New("Invalid currency.")
 )
 
 type Event struct {
@@ -46,9 +47,12 @@ var Events []*Event
 
 func AddEvent(Exchange, Item, Condition, FirstCurrency, SecondCurrency, Action string) (int, error) {
 	err := IsValidEvent(Exchange, Item, Condition, Action)
-
 	if err != nil {
 		return 0, err
+	}
+
+	if !IsValidCurrency(FirstCurrency, SecondCurrency) {
+		return 0, ErrCurrencyInvalid
 	}
 
 	Event := &Event{}
@@ -114,7 +118,7 @@ func (e *Event) EventToString() string {
 	return fmt.Sprintf("If the %s%s %s on %s is %s then %s.", e.FirstCurrency, e.SecondCurrency, e.Item, e.Exchange, condition[0]+" "+condition[1], e.Action)
 }
 
-func (e *Event) CheckCondition() bool {
+func (e *Event) CheckCondition() bool { //Add error handling
 	lastPrice := 0.00
 	condition := common.SplitStrings(e.Condition, ",")
 	targetPrice, _ := strconv.ParseFloat(condition[1], 64)
@@ -166,6 +170,10 @@ func (e *Event) CheckCondition() bool {
 }
 
 func IsValidEvent(Exchange, Item, Condition, Action string) error {
+	Exchange = common.StringToUpper(Exchange)
+	Item = common.StringToUpper(Item)
+	Action = common.StringToUpper(Action)
+
 	if !IsValidExchange(Exchange) {
 		return ErrExchangeDisabled
 	}
@@ -219,8 +227,27 @@ func CheckEvents() {
 	}
 }
 
+func IsValidCurrency(currencies ...string) bool {
+	for _, whatIsIt := range currencies {
+		whatIsIt = common.StringToUpper(whatIsIt)
+		if currency.IsDefaultCryptocurrency(whatIsIt) {
+			return true
+		}
+		if currency.IsDefaultCurrency(whatIsIt) {
+			return true
+		}
+	}
+	return false
+}
+
 func IsValidExchange(Exchange string) bool {
+	Exchange = common.StringToUpper(Exchange)
+
 	cfg := config.GetConfig()
+	if len(cfg.Exchanges) == 0 {
+		cfg.LoadConfig()
+	}
+
 	for _, x := range cfg.Exchanges {
 		if x.Name == Exchange && x.Enabled {
 			return true
@@ -238,6 +265,7 @@ func IsValidCondition(Condition string) bool {
 }
 
 func IsValidAction(Action string) bool {
+	Action = common.StringToUpper(Action)
 	switch Action {
 	case ACTION_SMS_NOTIFY, ACTION_CONSOLE_PRINT:
 		return true
@@ -246,6 +274,7 @@ func IsValidAction(Action string) bool {
 }
 
 func IsValidItem(Item string) bool {
+	Item = common.StringToUpper(Item)
 	switch Item {
 	case ITEM_PRICE:
 		return true
