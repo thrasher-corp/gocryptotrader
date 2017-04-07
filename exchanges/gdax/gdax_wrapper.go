@@ -6,6 +6,7 @@ import (
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/exchanges"
+	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-/gocryptotrader/exchanges/stats"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 )
@@ -79,7 +80,7 @@ func (e *GDAX) GetExchangeAccountInfo() (exchange.ExchangeAccountInfo, error) {
 }
 
 func (g *GDAX) GetTickerPrice(currency string) (ticker.TickerPrice, error) {
-	tickerNew, err := ticker.GetTicker(g.GetName(), currency[0:3], currency[3:])
+	tickerNew, err := ticker.GetTicker(g.GetName(), currency[0:3], currency[4:])
 	if err == nil {
 		return tickerNew, nil
 	}
@@ -104,4 +105,31 @@ func (g *GDAX) GetTickerPrice(currency string) (ticker.TickerPrice, error) {
 	tickerPrice.Low = stats.Low
 	ticker.ProcessTicker(g.GetName(), tickerPrice.FirstCurrency, tickerPrice.SecondCurrency, tickerPrice)
 	return tickerPrice, nil
+}
+
+func (g *GDAX) GetOrderbookEx(currency string) (orderbook.OrderbookBase, error) {
+	ob, err := orderbook.GetOrderbook(g.GetName(), currency[0:3], currency[4:])
+	if err == nil {
+		return ob, nil
+	}
+
+	var orderBook orderbook.OrderbookBase
+	orderbookNew, err := g.GetOrderbook(currency, 2)
+	if err != nil {
+		return orderBook, err
+	}
+
+	obNew := orderbookNew.(GDAXOrderbookL1L2)
+
+	for x, _ := range obNew.Bids {
+		orderBook.Bids = append(orderBook.Bids, orderbook.OrderbookItem{Amount: obNew.Bids[x].Amount, Price: obNew.Bids[x].Price})
+	}
+
+	for x, _ := range obNew.Asks {
+		orderBook.Asks = append(orderBook.Asks, orderbook.OrderbookItem{Amount: obNew.Bids[x].Amount, Price: obNew.Bids[x].Price})
+	}
+	orderBook.FirstCurrency = currency[0:3]
+	orderBook.SecondCurrency = currency[4:]
+	orderbook.ProcessOrderbook(g.GetName(), orderBook.FirstCurrency, orderBook.SecondCurrency, orderBook)
+	return orderBook, nil
 }

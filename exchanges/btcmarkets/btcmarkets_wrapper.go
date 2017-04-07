@@ -6,6 +6,7 @@ import (
 
 	"github.com/thrasher-/gocryptotrader/currency"
 	"github.com/thrasher-/gocryptotrader/exchanges"
+	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-/gocryptotrader/exchanges/stats"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 )
@@ -41,7 +42,7 @@ func (b *BTCMarkets) Run() {
 }
 
 func (b *BTCMarkets) GetTickerPrice(currency string) (ticker.TickerPrice, error) {
-	tickerNew, err := ticker.GetTicker(b.GetName(), currency[0:3], currency[3:])
+	tickerNew, err := ticker.GetTicker(b.GetName(), currency[0:3], "AUD")
 	if err == nil {
 		return tickerNew, nil
 	}
@@ -54,10 +55,38 @@ func (b *BTCMarkets) GetTickerPrice(currency string) (ticker.TickerPrice, error)
 	tickerPrice.Ask = tick.BestAsk
 	tickerPrice.Bid = tick.BestBID
 	tickerPrice.FirstCurrency = currency[0:3]
-	tickerPrice.SecondCurrency = currency[3:]
+	tickerPrice.SecondCurrency = "AUD"
 	tickerPrice.Last = tick.LastPrice
 	ticker.ProcessTicker(b.GetName(), tickerPrice.FirstCurrency, tickerPrice.SecondCurrency, tickerPrice)
 	return tickerPrice, nil
+}
+
+func (b *BTCMarkets) GetOrderbookEx(currency string) (orderbook.OrderbookBase, error) {
+	ob, err := orderbook.GetOrderbook(b.GetName(), currency[0:3], "AUD")
+	if err == nil {
+		return ob, nil
+	}
+
+	var orderBook orderbook.OrderbookBase
+	orderbookNew, err := b.GetOrderbook(currency)
+	if err != nil {
+		return orderBook, err
+	}
+
+	for x, _ := range orderbookNew.Bids {
+		data := orderbookNew.Bids[x]
+		orderBook.Bids = append(orderBook.Bids, orderbook.OrderbookItem{Amount: data[1], Price: data[0]})
+	}
+
+	for x, _ := range orderbookNew.Asks {
+		data := orderbookNew.Asks[x]
+		orderBook.Asks = append(orderBook.Asks, orderbook.OrderbookItem{Amount: data[1], Price: data[0]})
+	}
+
+	orderBook.FirstCurrency = currency[0:3]
+	orderBook.SecondCurrency = "AUD"
+	orderbook.ProcessOrderbook(b.GetName(), orderBook.FirstCurrency, orderBook.SecondCurrency, orderBook)
+	return orderBook, nil
 }
 
 //GetExchangeAccountInfo : Retrieves balances for all enabled currencies for the BTCMarkets exchange

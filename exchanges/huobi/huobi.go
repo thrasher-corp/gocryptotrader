@@ -62,14 +62,14 @@ func (h *HUOBI) GetTicker(symbol string) (HuobiTicker, error) {
 	return resp.Ticker, nil
 }
 
-func (h *HUOBI) GetOrderBook(symbol string) bool {
+func (h *HUOBI) GetOrderBook(symbol string) (HuobiOrderbook, error) {
 	path := fmt.Sprintf("http://api.huobi.com/staticmarket/depth_%s_json.js", symbol)
-	err := common.SendHTTPGetRequest(path, true, nil)
+	resp := HuobiOrderbook{}
+	err := common.SendHTTPGetRequest(path, true, &resp)
 	if err != nil {
-		log.Println(err)
-		return false
+		return resp, err
 	}
-	return true
+	return resp, nil
 }
 
 func (h *HUOBI) GetAccountInfo() {

@@ -7,6 +7,7 @@ import (
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/exchanges"
+	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-/gocryptotrader/exchanges/stats"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 )
@@ -77,6 +78,34 @@ func (l *Liqui) GetTickerPrice(currency string) (ticker.TickerPrice, error) {
 	tickerPrice.High = tick.High
 	ticker.ProcessTicker(l.GetName(), tickerPrice.FirstCurrency, tickerPrice.SecondCurrency, tickerPrice)
 	return tickerPrice, nil
+}
+
+func (l *Liqui) GetOrderbookEx(currency string) (orderbook.OrderbookBase, error) {
+	currencies := common.SplitStrings(currency, "_")
+	ob, err := orderbook.GetOrderbook(l.GetName(), currencies[0], currencies[1])
+	if err == nil {
+		return ob, nil
+	}
+
+	var orderBook orderbook.OrderbookBase
+	orderbookNew, err := l.GetDepth(currency)
+	if err != nil {
+		return orderBook, err
+	}
+
+	for x, _ := range orderbookNew.Bids {
+		data := orderbookNew.Bids[x]
+		orderBook.Bids = append(orderBook.Bids, orderbook.OrderbookItem{Amount: data[1], Price: data[0]})
+	}
+
+	for x, _ := range orderbookNew.Asks {
+		data := orderbookNew.Asks[x]
+		orderBook.Asks = append(orderBook.Asks, orderbook.OrderbookItem{Amount: data[1], Price: data[0]})
+	}
+	orderBook.FirstCurrency = currencies[0]
+	orderBook.SecondCurrency = currencies[1]
+	orderbook.ProcessOrderbook(l.GetName(), orderBook.FirstCurrency, orderBook.SecondCurrency, orderBook)
+	return orderBook, nil
 }
 
 //GetExchangeAccountInfo : Retrieves balances for all enabled currencies for the Liqui exchange

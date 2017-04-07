@@ -6,6 +6,7 @@ import (
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
+	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 )
 
@@ -51,6 +52,7 @@ type IBotExchange interface {
 	GetName() string
 	IsEnabled() bool
 	GetTickerPrice(currency string) (ticker.TickerPrice, error)
+	GetOrderbookEx(currency string) (orderbook.OrderbookBase, error)
 	GetEnabledCurrencies() []string
 	GetExchangeAccountInfo() (ExchangeAccountInfo, error)
 }

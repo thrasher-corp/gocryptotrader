@@ -45,7 +45,7 @@ func (b *BTCMarkets) Setup(exch config.ExchangeConfig) {
 	if !exch.Enabled {
 		b.SetEnabled(false)
 	} else {
-		b.Enabled = false
+		b.Enabled = true
 		b.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
 		b.SetAPIKeys(exch.APIKey, exch.APISecret, "", true)
 		b.RESTPollingDelay = exch.RESTPollingDelay

@@ -20,15 +20,7 @@ type ItBitTicker struct {
 	ServertimeUTC string
 }
 
-type ItbitOrderbookEntry struct {
-	Quantitiy float64 `json:"quantity,string"`
-	Price     float64 `json:"price,string"`
-}
-
 type ItBitOrderbookResponse struct {
-	ServerTimeUTC      string                `json:"serverTimeUTC"`
-	LastUpdatedTimeUTC string                `json:"lastUpdatedTimeUTC"`
-	Ticker             string                `json:"ticker"`
-	Bids               []ItbitOrderbookEntry `json:"bids"`
-	Asks               []ItbitOrderbookEntry `json:"asks"`
+	Bids [][]string `json:"bids"`
+	Asks [][]string `json:"asks"`
 }

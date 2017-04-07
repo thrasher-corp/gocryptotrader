@@ -7,6 +7,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency"
 	"github.com/thrasher-/gocryptotrader/exchanges"
+	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-/gocryptotrader/exchanges/stats"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 )
@@ -72,7 +73,7 @@ func (o *OKCoin) Run() {
 }
 
 func (o *OKCoin) GetTickerPrice(currency string) (ticker.TickerPrice, error) {
-	tickerNew, err := ticker.GetTicker(o.GetName(), currency[0:3], currency[3:])
+	tickerNew, err := ticker.GetTicker(o.GetName(), common.StringToUpper(currency[0:3]), common.StringToUpper(currency[4:]))
 	if err == nil {
 		return tickerNew, nil
 	}
@@ -92,6 +93,33 @@ func (o *OKCoin) GetTickerPrice(currency string) (ticker.TickerPrice, error) {
 	tickerPrice.High = tick.High
 	ticker.ProcessTicker(o.GetName(), tickerPrice.FirstCurrency, tickerPrice.SecondCurrency, tickerPrice)
 	return tickerPrice, nil
+}
+
+func (o *OKCoin) GetOrderbookEx(currency string) (orderbook.OrderbookBase, error) {
+	ob, err := orderbook.GetOrderbook(o.GetName(), common.StringToUpper(currency[0:3]), common.StringToUpper(currency[4:]))
+	if err == nil {
+		return ob, nil
+	}
+
+	var orderBook orderbook.OrderbookBase
+	orderbookNew, err := o.GetOrderBook(currency, 200, false)
+	if err != nil {
+		return orderBook, err
+	}
+
+	for x, _ := range orderbookNew.Bids {
+		data := orderbookNew.Bids[x]
+		orderBook.Bids = append(orderBook.Bids, orderbook.OrderbookItem{Amount: data[1], Price: data[0]})
+	}
+
+	for x, _ := range orderbookNew.Asks {
+		data := orderbookNew.Asks[x]
+		orderBook.Asks = append(orderBook.Asks, orderbook.OrderbookItem{Amount: data[1], Price: data[0]})
+	}
+	orderBook.FirstCurrency = common.StringToUpper(currency[0:3])
+	orderBook.SecondCurrency = common.StringToUpper(currency[4:])
+	orderbook.ProcessOrderbook(o.GetName(), orderBook.FirstCurrency, orderBook.SecondCurrency, orderBook)
+	return orderBook, nil
 }
 
 func (e *OKCoin) GetExchangeAccountInfo() (exchange.ExchangeAccountInfo, error) {

@@ -2,9 +2,11 @@ package itbit
 
 import (
 	"log"
+	"strconv"
 	"time"
 
 	"github.com/thrasher-/gocryptotrader/exchanges"
+	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-/gocryptotrader/exchanges/stats"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 )
@@ -57,6 +59,49 @@ func (i *ItBit) GetTickerPrice(currency string) (ticker.TickerPrice, error) {
 	tickerPrice.Volume = tick.Volume24h
 	ticker.ProcessTicker(i.GetName(), tickerPrice.FirstCurrency, tickerPrice.SecondCurrency, tickerPrice)
 	return tickerPrice, nil
+}
+
+func (i *ItBit) GetOrderbookEx(currency string) (orderbook.OrderbookBase, error) {
+	ob, err := orderbook.GetOrderbook(i.GetName(), currency[0:3], currency[3:])
+	if err == nil {
+		return ob, nil
+	}
+
+	var orderBook orderbook.OrderbookBase
+	orderbookNew, err := i.GetOrderbook(currency)
+	if err != nil {
+		return orderBook, err
+	}
+
+	for x, _ := range orderbookNew.Bids {
+		data := orderbookNew.Bids[x]
+		price, err := strconv.ParseFloat(data[0], 64)
+		if err != nil {
+			log.Println(err)
+		}
+		amount, err := strconv.ParseFloat(data[1], 64)
+		if err != nil {
+			log.Println(err)
+		}
+		orderBook.Bids = append(orderBook.Bids, orderbook.OrderbookItem{Amount: amount, Price: price})
+	}
+
+	for x, _ := range orderbookNew.Asks {
+		data := orderbookNew.Asks[x]
+		price, err := strconv.ParseFloat(data[0], 64)
+		if err != nil {
+			log.Println(err)
+		}
+		amount, err := strconv.ParseFloat(data[1], 64)
+		if err != nil {
+			log.Println(err)
+		}
+		orderBook.Asks = append(orderBook.Asks, orderbook.OrderbookItem{Amount: amount, Price: price})
+	}
+	orderBook.FirstCurrency = currency[0:3]
+	orderBook.SecondCurrency = currency[3:]
+	orderbook.ProcessOrderbook(i.GetName(), orderBook.FirstCurrency, orderBook.SecondCurrency, orderBook)
+	return orderBook, nil
 }
 
 //TODO Get current holdings from ItBit

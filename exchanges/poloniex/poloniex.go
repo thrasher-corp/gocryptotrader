@@ -104,12 +104,7 @@ func (p *Poloniex) GetVolume() (interface{}, error) {
 	return resp, nil
 }
 
-//TO-DO: add support for individual pair depth fetching
-func (p *Poloniex) GetOrderbook(currencyPair string, depth int) (map[string]PoloniexOrderbook, error) {
-	type Response struct {
-		Data map[string]PoloniexOrderbook
-	}
-
+func (p *Poloniex) GetOrderbook(currencyPair string, depth int) (PoloniexOrderbook, error) {
 	vals := url.Values{}
 	vals.Set("currencyPair", currencyPair)
 
@@ -117,14 +112,29 @@ func (p *Poloniex) GetOrderbook(currencyPair string, depth int) (map[string]Polo
 		vals.Set("depth", strconv.Itoa(depth))
 	}
 
-	resp := Response{}
+	resp := PoloniexOrderbookResponse{}
 	path := fmt.Sprintf("%s/public?command=returnOrderBook&%s", POLONIEX_API_URL, vals.Encode())
-	err := common.SendHTTPGetRequest(path, true, &resp.Data)
+	err := common.SendHTTPGetRequest(path, true, &resp)
 
 	if err != nil {
-		return resp.Data, err
+		return PoloniexOrderbook{}, err
 	}
-	return resp.Data, nil
+
+	ob := PoloniexOrderbook{}
+	for x, _ := range resp.Asks {
+		data := resp.Asks[x]
+		price, _ := strconv.ParseFloat(data[0].(string), 64)
+		amount := data[1].(float64)
+		ob.Asks = append(ob.Asks, PoloniexOrderbookItem{Price: price, Amount: amount})
+	}
+
+	for x, _ := range resp.Bids {
+		data := resp.Asks[x]
+		price, _ := strconv.ParseFloat(data[0].(string), 64)
+		amount := data[1].(float64)
+		ob.Bids = append(ob.Bids, PoloniexOrderbookItem{Price: price, Amount: amount})
+	}
+	return ob, nil
 }
 
 func (p *Poloniex) GetTradeHistory(currencyPair, start, end string) ([]PoloniexTradeHistory, error) {

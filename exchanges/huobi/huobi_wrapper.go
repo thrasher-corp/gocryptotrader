@@ -7,6 +7,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency"
 	"github.com/thrasher-/gocryptotrader/exchanges"
+	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-/gocryptotrader/exchanges/stats"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 )
@@ -68,6 +69,33 @@ func (h *HUOBI) GetTickerPrice(currency string) (ticker.TickerPrice, error) {
 	tickerPrice.High = tick.High
 	ticker.ProcessTicker(h.GetName(), tickerPrice.FirstCurrency, tickerPrice.SecondCurrency, tickerPrice)
 	return tickerPrice, nil
+}
+
+func (h *HUOBI) GetOrderbookEx(currency string) (orderbook.OrderbookBase, error) {
+	ob, err := orderbook.GetOrderbook(h.GetName(), common.StringToUpper(currency[0:3]), common.StringToUpper(currency[3:]))
+	if err == nil {
+		return ob, nil
+	}
+
+	var orderBook orderbook.OrderbookBase
+	orderbookNew, err := h.GetOrderBook(currency)
+	if err != nil {
+		return orderBook, err
+	}
+
+	for x, _ := range orderbookNew.Bids {
+		data := orderbookNew.Bids[x]
+		orderBook.Bids = append(orderBook.Bids, orderbook.OrderbookItem{Amount: data[1], Price: data[0]})
+	}
+
+	for x, _ := range orderbookNew.Asks {
+		data := orderbookNew.Asks[x]
+		orderBook.Asks = append(orderBook.Asks, orderbook.OrderbookItem{Amount: data[1], Price: data[0]})
+	}
+	orderBook.FirstCurrency = common.StringToUpper(currency[0:3])
+	orderBook.SecondCurrency = common.StringToUpper(currency[3:])
+	orderbook.ProcessOrderbook(h.GetName(), orderBook.FirstCurrency, orderBook.SecondCurrency, orderBook)
+	return orderBook, nil
 }
 
 //TODO: retrieve HUOBI balance info

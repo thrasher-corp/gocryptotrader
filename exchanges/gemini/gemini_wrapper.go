@@ -2,9 +2,11 @@ package gemini
 
 import (
 	"log"
+	"net/url"
 	"time"
 
 	"github.com/thrasher-/gocryptotrader/exchanges"
+	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-/gocryptotrader/exchanges/stats"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 )
@@ -84,4 +86,30 @@ func (g *Gemini) GetTickerPrice(currency string) (ticker.TickerPrice, error) {
 	tickerPrice.Volume = tick.Volume.USD
 	ticker.ProcessTicker(g.GetName(), tickerPrice.FirstCurrency, tickerPrice.SecondCurrency, tickerPrice)
 	return tickerPrice, nil
+}
+
+func (g *Gemini) GetOrderbookEx(currency string) (orderbook.OrderbookBase, error) {
+	ob, err := orderbook.GetOrderbook(g.GetName(), currency[0:3], currency[3:])
+	if err == nil {
+		return ob, nil
+	}
+
+	var orderBook orderbook.OrderbookBase
+	orderbookNew, err := g.GetOrderbook(currency, url.Values{})
+	if err != nil {
+		return orderBook, err
+	}
+
+	for x, _ := range orderbookNew.Bids {
+		orderBook.Bids = append(orderBook.Bids, orderbook.OrderbookItem{Amount: orderbookNew.Bids[x].Amount, Price: orderbookNew.Bids[x].Price})
+	}
+
+	for x, _ := range orderbookNew.Asks {
+		orderBook.Asks = append(orderBook.Asks, orderbook.OrderbookItem{Amount: orderbookNew.Asks[x].Amount, Price: orderbookNew.Asks[x].Price})
+	}
+
+	orderBook.FirstCurrency = currency[0:3]
+	orderBook.SecondCurrency = currency[3:]
+	orderbook.ProcessOrderbook(g.GetName(), orderBook.FirstCurrency, orderBook.SecondCurrency, orderBook)
+	return orderBook, nil
 }

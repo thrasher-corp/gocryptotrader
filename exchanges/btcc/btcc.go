@@ -123,14 +123,15 @@ func (b *BTCC) GetTradeHistory(symbol string, limit, sinceTid int64, time time.T
 	return true
 }
 
-func (b *BTCC) GetOrderBook(symbol string, limit int) bool {
+func (b *BTCC) GetOrderBook(symbol string, limit int) (BTCCOrderbook, error) {
+	result := BTCCOrderbook{}
 	req := fmt.Sprintf("%sdata/orderbook?market=%s&limit=%d", BTCC_API_URL, symbol, limit)
-	err := common.SendHTTPGetRequest(req, true, nil)
+	err := common.SendHTTPGetRequest(req, true, &result)
 	if err != nil {
-		log.Println(err)
-		return false
+		return BTCCOrderbook{}, err
 	}
-	return true
+
+	return result, nil
 }
 
 func (b *BTCC) GetAccountInfo(infoType string) {

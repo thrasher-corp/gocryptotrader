@@ -7,6 +7,7 @@ import (
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/exchanges"
+	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-/gocryptotrader/exchanges/stats"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 )
@@ -61,6 +62,32 @@ func (l *LakeBTC) GetTickerPrice(currency string) (ticker.TickerPrice, error) {
 	tickerPrice.SecondCurrency = currency[3:]
 	ticker.ProcessTicker(l.GetName(), tickerPrice.FirstCurrency, tickerPrice.SecondCurrency, tickerPrice)
 	return tickerPrice, nil
+}
+
+func (l *LakeBTC) GetOrderbookEx(currency string) (orderbook.OrderbookBase, error) {
+	ob, err := orderbook.GetOrderbook(l.GetName(), currency[0:3], currency[3:])
+	if err == nil {
+		return ob, nil
+	}
+
+	var orderBook orderbook.OrderbookBase
+	orderbookNew, err := l.GetOrderBook(currency)
+	if err != nil {
+		return orderBook, err
+	}
+
+	for x, _ := range orderbookNew.Bids {
+		orderBook.Bids = append(orderBook.Bids, orderbook.OrderbookItem{Amount: orderbookNew.Bids[x].Amount, Price: orderbookNew.Bids[x].Price})
+	}
+
+	for x, _ := range orderbookNew.Asks {
+		orderBook.Asks = append(orderBook.Asks, orderbook.OrderbookItem{Amount: orderbookNew.Asks[x].Amount, Price: orderbookNew.Asks[x].Price})
+	}
+
+	orderBook.FirstCurrency = currency[0:3]
+	orderBook.SecondCurrency = currency[3:]
+	orderbook.ProcessOrderbook(l.GetName(), orderBook.FirstCurrency, orderBook.SecondCurrency, orderBook)
+	return orderBook, nil
 }
 
 func (l *LakeBTC) GetExchangeAccountInfo() (exchange.ExchangeAccountInfo, error) {
