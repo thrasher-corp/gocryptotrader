@@ -17,7 +17,7 @@ const (
 	ETHERCHAIN_API_URL          = "https://etherchain.org/api"
 	ETHERCHAIN_ACCOUNT_MULTIPLE = "account/multiple"
 	PORTFOLIO_ADDRESS_EXCHANGE  = "Exchange"
-	PORTFOLIO_ADDRESS_CUSTOM    = "Custom"
+	PORTFOLIO_ADDRESS_PERSONAL  = "Personal"
 )
 
 var Portfolio PortfolioBase
@@ -172,8 +172,16 @@ func (p *PortfolioBase) UpdateExchangeAddressBalance(exchangeName, coinType stri
 	}
 }
 
+func (p *PortfolioBase) AddAddress(address, coinType, description string, balance float64) {
+	if !p.AddressExists(address) {
+		p.Addresses = append(p.Addresses, PortfolioAddress{Address: address, CoinType: coinType, Balance: balance, Decscription: description})
+	} else {
+		p.UpdateAddressBalance(address, balance)
+	}
+}
+
 func (p *PortfolioBase) UpdatePortfolio(addresses []string, coinType string) bool {
-	if common.StringContains(common.JoinStrings(addresses, ","), PORTFOLIO_ADDRESS_EXCHANGE) || common.StringContains(common.JoinStrings(addresses, ","), PORTFOLIO_ADDRESS_CUSTOM) {
+	if common.StringContains(common.JoinStrings(addresses, ","), PORTFOLIO_ADDRESS_EXCHANGE) || common.StringContains(common.JoinStrings(addresses, ","), PORTFOLIO_ADDRESS_PERSONAL) {
 		return true
 	}
 
@@ -184,11 +192,7 @@ func (p *PortfolioBase) UpdatePortfolio(addresses []string, coinType string) boo
 		}
 
 		for _, x := range result.Data {
-			if !p.AddressExists(x.Address) {
-				p.Addresses = append(p.Addresses, PortfolioAddress{Address: x.Address, CoinType: coinType, Balance: x.Balance / common.WEI_PER_ETHER})
-			} else {
-				p.UpdateAddressBalance(x.Address, x.Balance)
-			}
+			p.AddAddress(x.Address, coinType, PORTFOLIO_ADDRESS_PERSONAL, x.Balance)
 		}
 		return true
 	}
@@ -198,22 +202,14 @@ func (p *PortfolioBase) UpdatePortfolio(addresses []string, coinType string) boo
 			return false
 		}
 		for _, x := range result.Data {
-			if !p.AddressExists(x.Address) {
-				p.Addresses = append(p.Addresses, PortfolioAddress{Address: x.Address, CoinType: coinType, Balance: x.Balance})
-			} else {
-				p.UpdateAddressBalance(x.Address, x.Balance)
-			}
+			p.AddAddress(x.Address, coinType, PORTFOLIO_ADDRESS_PERSONAL, x.Balance)
 		}
 	} else {
 		result, err := GetBlockrBalanceSingle(addresses[0], coinType)
 		if err != nil {
 			return false
 		}
-		if !p.AddressExists(result.Data.Address) {
-			p.Addresses = append(p.Addresses, PortfolioAddress{Address: result.Data.Address, CoinType: coinType, Balance: result.Data.Balance})
-		} else {
-			p.UpdateAddressBalance(result.Data.Address, result.Data.Balance)
-		}
+		p.AddAddress(addresses[0], coinType, PORTFOLIO_ADDRESS_PERSONAL, result.Data.Balance)
 	}
 	return true
 }
@@ -269,7 +265,7 @@ func (p *PortfolioBase) GetPortfolioSummary(coinFilter string) map[string]float6
 func (p *PortfolioBase) GetPortfolioGroupedCoin() map[string][]string {
 	result := make(map[string][]string)
 	for _, x := range p.Addresses {
-		if common.StringContains(x.Decscription, PORTFOLIO_ADDRESS_EXCHANGE) || common.StringContains(x.Decscription, PORTFOLIO_ADDRESS_CUSTOM) {
+		if common.StringContains(x.Decscription, PORTFOLIO_ADDRESS_EXCHANGE) || common.StringContains(x.Decscription, PORTFOLIO_ADDRESS_PERSONAL) {
 			continue
 		}
 		result[x.CoinType] = append(result[x.CoinType], x.Address)
