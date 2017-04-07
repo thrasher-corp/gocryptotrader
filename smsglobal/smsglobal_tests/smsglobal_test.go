@@ -15,7 +15,7 @@ func TestGetEnabledSMSContacts(t *testing.T) {
 	}
 
 	numberOfContacts := smsglobal.GetEnabledSMSContacts(cfg.SMS)
-	if numberOfContacts != 1 {
+	if numberOfContacts != len(cfg.SMS.Contacts) {
 		t.Errorf("Test Failed. GetEnabledSMSContacts: \nFunction return is incorrect with, %d.", numberOfContacts)
 	}
 }
@@ -38,7 +38,7 @@ func TestSMSGetNumberByName(t *testing.T) {
 	}
 	number := smsglobal.SMSGetNumberByName("POLYESTERGIRL", cfg.SMS)
 	if number == "" {
-		t.Log("Isssues bra!")
+		t.Error("Test Failed. SMSNotify: \nError: No number, name not found.")
 	}
 }
 
@@ -49,8 +49,8 @@ func TestSMSNotify(t *testing.T) {
 		t.Errorf("Test Failed. SMSNotify: \nFunction return is incorrect with, %s.", err)
 	}
 
-	err2 := smsglobal.SMSNotify("POLYESTERGIRL", "Test", *cfg)
-	if err2 == nil {
+	err2 := smsglobal.SMSNotify(cfg.SMS.Contacts[0].Number, "Test", *cfg)
+	if err2 != nil {
 		t.Error("Test Failed. SMSNotify: \nError: ", err2)
 	}
 }
