@@ -29,6 +29,12 @@ type BTCCProfile struct {
 	APIKeyPermission     int64   `json:"api_key_permission"`
 }
 
+type BTCCOrderbook struct {
+	Bids [][]float64 `json:"bids"`
+	Asks [][]float64 `json:"asks"`
+	Date int64       `json:"date"`
+}
+
 type BTCCCurrencyGeneric struct {
 	Currency      string
 	Symbol        string

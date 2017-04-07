@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/thrasher-/gocryptotrader/exchanges"
+	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-/gocryptotrader/exchanges/stats"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 )
@@ -58,6 +59,10 @@ func (a *ANX) GetTickerPrice(currency string) (ticker.TickerPrice, error) {
 	tickerPrice.High = tick.Data.High.Value
 	ticker.ProcessTicker(a.GetName(), tickerPrice.FirstCurrency, tickerPrice.SecondCurrency, tickerPrice)
 	return tickerPrice, nil
+}
+
+func (e *ANX) GetOrderbookEx(currency string) (orderbook.OrderbookBase, error) {
+	return orderbook.OrderbookBase{}, nil
 }
 
 //GetExchangeAccountInfo : Retrieves balances for all enabled currencies for the ANX exchange

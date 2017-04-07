@@ -6,6 +6,7 @@ import (
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/exchanges"
+	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-/gocryptotrader/exchanges/stats"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 )
@@ -44,7 +45,8 @@ func (p *Poloniex) Run() {
 }
 
 func (p *Poloniex) GetTickerPrice(currency string) (ticker.TickerPrice, error) {
-	tickerNew, err := ticker.GetTicker(p.GetName(), currency[0:3], currency[3:])
+	currencyPair := common.SplitStrings(currency, "_")
+	tickerNew, err := ticker.GetTicker(p.GetName(), currencyPair[0], currencyPair[1])
 	if err == nil {
 		return tickerNew, nil
 	}
@@ -55,7 +57,6 @@ func (p *Poloniex) GetTickerPrice(currency string) (ticker.TickerPrice, error) {
 		return tickerPrice, err
 	}
 
-	currencyPair := common.SplitStrings(currency, "_")
 	tickerPrice.FirstCurrency = currencyPair[0]
 	tickerPrice.SecondCurrency = currencyPair[1]
 	tickerPrice.Ask = tick[currency].Last
@@ -66,6 +67,34 @@ func (p *Poloniex) GetTickerPrice(currency string) (ticker.TickerPrice, error) {
 	tickerPrice.Volume = tick[currency].BaseVolume
 	ticker.ProcessTicker(p.GetName(), tickerPrice.FirstCurrency, tickerPrice.SecondCurrency, tickerPrice)
 	return tickerPrice, nil
+}
+
+func (p *Poloniex) GetOrderbookEx(currency string) (orderbook.OrderbookBase, error) {
+	currencyPair := common.SplitStrings(currency, "_")
+	ob, err := orderbook.GetOrderbook(p.GetName(), currencyPair[0], currencyPair[1])
+	if err == nil {
+		return ob, nil
+	}
+
+	var orderBook orderbook.OrderbookBase
+	orderbookNew, err := p.GetOrderbook(currency, 1000)
+	if err != nil {
+		return orderBook, err
+	}
+
+	for x, _ := range orderbookNew.Bids {
+		data := orderbookNew.Bids[x]
+		orderBook.Bids = append(orderBook.Bids, orderbook.OrderbookItem{Amount: data.Amount, Price: data.Price})
+	}
+
+	for x, _ := range orderbookNew.Asks {
+		data := orderbookNew.Asks[x]
+		orderBook.Asks = append(orderBook.Asks, orderbook.OrderbookItem{Amount: data.Amount, Price: data.Price})
+	}
+	orderBook.FirstCurrency = currencyPair[0]
+	orderBook.SecondCurrency = currencyPair[1]
+	orderbook.ProcessOrderbook(p.GetName(), orderBook.FirstCurrency, orderBook.SecondCurrency, orderBook)
+	return orderBook, nil
 }
 
 //GetExchangeAccountInfo : Retrieves balances for all enabled currencies for the Poloniex exchange

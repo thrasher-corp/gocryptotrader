@@ -111,11 +111,7 @@ func (g *GDAX) GetOrderbook(symbol string, level int) (interface{}, error) {
 				continue
 			}
 
-			order := make([]GDAXOrderL3, 1)
-			order[0].Price = price
-			order[0].Amount = amount
-			order[0].OrderID = x[2].(string)
-			ob.Asks = append(ob.Asks, order)
+			ob.Asks = append(ob.Asks, GDAXOrderL3{Price: price, Amount: amount, OrderID: x[2].(string)})
 		}
 		for _, x := range orderbook.Bids {
 			price, err := strconv.ParseFloat((x[0].(string)), 64)
@@ -127,11 +123,7 @@ func (g *GDAX) GetOrderbook(symbol string, level int) (interface{}, error) {
 				continue
 			}
 
-			order := make([]GDAXOrderL3, 1)
-			order[0].Price = price
-			order[0].Amount = amount
-			order[0].OrderID = x[2].(string)
-			ob.Bids = append(ob.Bids, order)
+			ob.Bids = append(ob.Bids, GDAXOrderL3{Price: price, Amount: amount, OrderID: x[2].(string)})
 		}
 		return ob, nil
 	} else {
@@ -147,11 +139,7 @@ func (g *GDAX) GetOrderbook(symbol string, level int) (interface{}, error) {
 				continue
 			}
 
-			order := make([]GDAXOrderL1L2, 1)
-			order[0].Price = price
-			order[0].Amount = amount
-			order[0].NumOrders = x[2].(float64)
-			ob.Asks = append(ob.Asks, order)
+			ob.Asks = append(ob.Asks, GDAXOrderL1L2{Price: price, Amount: amount, NumOrders: x[2].(float64)})
 		}
 		for _, x := range orderbook.Bids {
 			price, err := strconv.ParseFloat((x[0].(string)), 64)
@@ -163,11 +151,7 @@ func (g *GDAX) GetOrderbook(symbol string, level int) (interface{}, error) {
 				continue
 			}
 
-			order := make([]GDAXOrderL1L2, 1)
-			order[0].Price = price
-			order[0].Amount = amount
-			order[0].NumOrders = x[2].(float64)
-			ob.Bids = append(ob.Bids, order)
+			ob.Bids = append(ob.Bids, GDAXOrderL1L2{Price: price, Amount: amount, NumOrders: x[2].(float64)})
 		}
 		return ob, nil
 	}

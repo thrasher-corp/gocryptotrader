@@ -2,10 +2,12 @@ package bitfinex
 
 import (
 	"log"
+	"strconv"
 	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/exchanges"
+	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-/gocryptotrader/exchanges/stats"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 )
@@ -72,6 +74,36 @@ func (b *Bitfinex) GetTickerPrice(currency string) (ticker.TickerPrice, error) {
 	tickerPrice.High = tickerNew.High
 	ticker.ProcessTicker(b.GetName(), tickerPrice.FirstCurrency, tickerPrice.SecondCurrency, tickerPrice)
 	return tickerPrice, nil
+}
+
+func (b *Bitfinex) GetOrderbookEx(currency string) (orderbook.OrderbookBase, error) {
+	ob, err := orderbook.GetOrderbook(b.GetName(), currency[0:3], currency[3:])
+	if err == nil {
+		return ob, nil
+	}
+
+	var orderBook orderbook.OrderbookBase
+	orderbookNew, err := b.GetOrderbook(currency, nil)
+	if err != nil {
+		return orderBook, err
+	}
+
+	for x, _ := range orderbookNew.Asks {
+		price, _ := strconv.ParseFloat(orderbookNew.Asks[x].Price, 64)
+		amount, _ := strconv.ParseFloat(orderbookNew.Asks[x].Amount, 64)
+		orderBook.Asks = append(orderBook.Asks, orderbook.OrderbookItem{Price: price, Amount: amount})
+	}
+
+	for x, _ := range orderbookNew.Bids {
+		price, _ := strconv.ParseFloat(orderbookNew.Bids[x].Price, 64)
+		amount, _ := strconv.ParseFloat(orderbookNew.Bids[x].Amount, 64)
+		orderBook.Bids = append(orderBook.Bids, orderbook.OrderbookItem{Price: price, Amount: amount})
+	}
+
+	orderBook.FirstCurrency = currency[0:3]
+	orderBook.SecondCurrency = currency[3:]
+	orderbook.ProcessOrderbook(b.GetName(), orderBook.FirstCurrency, orderBook.SecondCurrency, orderBook)
+	return orderBook, nil
 }
 
 //GetExchangeAccountInfo : Retrieves balances for all enabled currencies for the Bitfinex exchange

@@ -6,6 +6,7 @@ import (
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/exchanges"
+	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-/gocryptotrader/exchanges/stats"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 )
@@ -62,6 +63,10 @@ func (k *Kraken) GetTickerPrice(currency string) (ticker.TickerPrice, error) {
 		tickerPrice.Bid = ticker.Bid
 	*/
 	return tickerPrice, nil
+}
+
+func (k *Kraken) GetOrderbookEx(currency string) (orderbook.OrderbookBase, error) {
+	return orderbook.OrderbookBase{}, nil
 }
 
 //TODO: Retrieve Kraken info

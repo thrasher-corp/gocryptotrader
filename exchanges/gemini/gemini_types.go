@@ -1,8 +1,8 @@
 package gemini
 
 type GeminiOrderbookEntry struct {
-	Price    float64 `json:"price,string"`
-	Quantity float64 `json:"quantity,string"`
+	Price  float64 `json:"price,string"`
+	Amount float64 `json:"amount,string"`
 }
 
 type GeminiOrderbook struct {

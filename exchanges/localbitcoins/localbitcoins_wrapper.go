@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/thrasher-/gocryptotrader/exchanges"
+	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-/gocryptotrader/exchanges/stats"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 )
@@ -56,6 +57,10 @@ func (l *LocalBitcoins) GetTickerPrice(currency string) (ticker.TickerPrice, err
 		ticker.ProcessTicker(l.GetName(), tickerPrice.FirstCurrency, tickerPrice.SecondCurrency, tickerPrice)
 	}
 	return tickerPrice, nil
+}
+
+func (l *LocalBitcoins) GetOrderbookEx(currency string) (orderbook.OrderbookBase, error) {
+	return orderbook.OrderbookBase{}, nil
 }
 
 //GetExchangeAccountInfo : Retrieves balances for all enabled currencies for the LocalBitcoins exchange

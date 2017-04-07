@@ -16,10 +16,20 @@ type PoloniexTicker struct {
 	Low24Hr       float64 `json:"low24hr,string"`
 }
 
-type PoloniexOrderbook struct {
+type PoloniexOrderbookResponse struct {
 	Asks     [][]interface{} `json:"asks"`
 	Bids     [][]interface{} `json:"bids"`
 	IsFrozen string          `json:"isFrozen"`
+}
+
+type PoloniexOrderbookItem struct {
+	Price  float64
+	Amount float64
+}
+
+type PoloniexOrderbook struct {
+	Asks []PoloniexOrderbookItem `json:"asks"`
+	Bids []PoloniexOrderbookItem `json:"bids"`
 }
 
 type PoloniexTradeHistory struct {
