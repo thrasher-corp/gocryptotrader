@@ -137,6 +137,10 @@ func (a *Alphapoint) GetProducts() (AlphapointProducts, error) {
 }
 
 func (a *Alphapoint) CreateAccount(firstName, lastName, email, phone, password string) error {
+	if len(password) < 8 {
+		return errors.New("Alphapoint Error - Create account - Password must be 8 characters or more.")
+	}
+
 	request := make(map[string]interface{})
 	request["firstname"] = firstName
 	request["lastname"] = lastName
@@ -390,7 +394,6 @@ func (a *Alphapoint) SendRequest(method, path string, data map[string]interface{
 	if err != nil {
 		return errors.New("SendAuthenticatedHTTPRequest: Unable to JSON request")
 	}
-
 	resp, err := common.SendHTTPRequest(method, path, headers, bytes.NewBuffer(PayloadJson))
 
 	if err != nil {

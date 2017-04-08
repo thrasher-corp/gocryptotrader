@@ -1,20 +1,19 @@
-package test
+package smsglobal
 
 import (
 	"testing"
 
 	"github.com/thrasher-/gocryptotrader/config"
-	"github.com/thrasher-/gocryptotrader/smsglobal"
 )
 
 func TestGetEnabledSMSContacts(t *testing.T) {
 	cfg := config.GetConfig()
-	err := cfg.LoadConfig()
+	err := cfg.LoadConfig("../testdata/configtest.dat")
 	if err != nil {
 		t.Errorf("Test Failed. GetEnabledSMSContacts: \nFunction return is incorrect with, %s.", err)
 	}
 
-	numberOfContacts := smsglobal.GetEnabledSMSContacts(cfg.SMS)
+	numberOfContacts := GetEnabledSMSContacts(cfg.SMS)
 	if numberOfContacts != len(cfg.SMS.Contacts) {
 		t.Errorf("Test Failed. GetEnabledSMSContacts: \nFunction return is incorrect with, %d.", numberOfContacts)
 	}
@@ -22,21 +21,21 @@ func TestGetEnabledSMSContacts(t *testing.T) {
 
 func TestSMSSendToAll(t *testing.T) {
 	cfg := config.GetConfig()
-	err := cfg.LoadConfig()
+	err := cfg.LoadConfig("../testdata/configtest.dat")
 	if err != nil {
 		t.Errorf("Test Failed. SMSSendToAll: \nFunction return is incorrect with, %s.", err)
 	}
 
-	smsglobal.SMSSendToAll("Test", *cfg) //+60sec reply issue without account details
+	SMSSendToAll("SMSGLOBAL Test - SMSSENDTOALL", *cfg) //+60sec reply issue without account details
 }
 
 func TestSMSGetNumberByName(t *testing.T) {
 	cfg := config.GetConfig()
-	err := cfg.LoadConfig()
+	err := cfg.LoadConfig("../testdata/configtest.dat")
 	if err != nil {
 		t.Errorf("Test Failed. SMSGetNumberByName: \nFunction return is incorrect with, %s.", err)
 	}
-	number := smsglobal.SMSGetNumberByName("POLYESTERGIRL", cfg.SMS)
+	number := SMSGetNumberByName("StyleGherkin", cfg.SMS)
 	if number == "" {
 		t.Error("Test Failed. SMSNotify: \nError: No number, name not found.")
 	}
@@ -44,12 +43,12 @@ func TestSMSGetNumberByName(t *testing.T) {
 
 func TestSMSNotify(t *testing.T) {
 	cfg := config.GetConfig()
-	err := cfg.LoadConfig()
+	err := cfg.LoadConfig("../testdata/configtest.dat")
 	if err != nil {
 		t.Errorf("Test Failed. SMSNotify: \nFunction return is incorrect with, %s.", err)
 	}
 
-	err2 := smsglobal.SMSNotify(cfg.SMS.Contacts[0].Number, "Test", *cfg)
+	err2 := SMSNotify(cfg.SMS.Contacts[0].Number, "SMSGLOBAL Test - SMS SEND TO SINGLE", *cfg)
 	if err2 != nil {
 		t.Error("Test Failed. SMSNotify: \nError: ", err2)
 	}

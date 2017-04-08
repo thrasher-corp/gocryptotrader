@@ -18,6 +18,7 @@ import (
 const (
 	CONFIG_FILE     = "config.dat"
 	OLD_CONFIG_FILE = "config.json"
+	CONFIG_TEST     = "../testdata/configtest.dat"
 
 	CONFIG_FILE_ENCRYPTION_PROMPT   = 0
 	CONFIG_FILE_ENCRYPTION_ENABLED  = 1
@@ -265,7 +266,7 @@ func (c *Config) RetrieveConfigCurrencyPairs() error {
 	return nil
 }
 
-func (c *Config) ReadConfig() error {
+func CheckConfig() error {
 	_, err := common.ReadFile(OLD_CONFIG_FILE)
 	if err == nil {
 		err = os.Rename(OLD_CONFIG_FILE, CONFIG_FILE)
@@ -274,8 +275,23 @@ func (c *Config) ReadConfig() error {
 		}
 		log.Printf(RenamingConfigFile+"\n", OLD_CONFIG_FILE, CONFIG_FILE)
 	}
+	return nil
+}
 
-	file, err := common.ReadFile(CONFIG_FILE)
+func (c *Config) ReadConfig(configPath string) error {
+	defaultPath := ""
+	if configPath == "" {
+		defaultPath = CONFIG_FILE
+	} else {
+		defaultPath = configPath
+	}
+
+	err := CheckConfig()
+	if err != nil {
+		return err
+	}
+
+	file, err := common.ReadFile(defaultPath)
 	if err != nil {
 		return err
 	}
@@ -293,7 +309,7 @@ func (c *Config) ReadConfig() error {
 		if c.EncryptConfig == CONFIG_FILE_ENCRYPTION_PROMPT {
 			if c.PromptForConfigEncryption() {
 				c.EncryptConfig = CONFIG_FILE_ENCRYPTION_ENABLED
-				return c.SaveConfig()
+				return c.SaveConfig("")
 			}
 		}
 	} else {
@@ -315,7 +331,14 @@ func (c *Config) ReadConfig() error {
 	return nil
 }
 
-func (c *Config) SaveConfig() error {
+func (c *Config) SaveConfig(configPath string) error {
+	defaultPath := ""
+	if configPath == "" {
+		defaultPath = CONFIG_FILE
+	} else {
+		defaultPath = configPath
+	}
+
 	payload, err := json.MarshalIndent(c, "", " ")
 
 	if c.EncryptConfig == CONFIG_FILE_ENCRYPTION_ENABLED {
@@ -330,15 +353,15 @@ func (c *Config) SaveConfig() error {
 		}
 	}
 
-	err = common.WriteFile(CONFIG_FILE, payload)
+	err = common.WriteFile(defaultPath, payload)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func (c *Config) LoadConfig() error {
-	err := c.ReadConfig()
+func (c *Config) LoadConfig(configPath string) error {
+	err := c.ReadConfig(configPath)
 	if err != nil {
 		return fmt.Errorf(ErrFailureOpeningConfig, CONFIG_FILE, err)
 	}

@@ -31,7 +31,7 @@ func (c *Config) PromptForConfigEncryption() bool {
 
 	if !common.YesOrNo(input) {
 		c.EncryptConfig = CONFIG_FILE_ENCRYPTION_DISABLED
-		c.SaveConfig()
+		c.SaveConfig("")
 		return false
 	}
 	return true

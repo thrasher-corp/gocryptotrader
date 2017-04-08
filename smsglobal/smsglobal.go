@@ -26,7 +26,7 @@ func GetEnabledSMSContacts(smsCfg config.SMSGlobalConfig) int {
 	return counter
 }
 
-func SMSSendToAll(message string, cfg config.Config) {
+func SMSSendToAll(message string, cfg config.Config) { // return error here
 	for _, contact := range cfg.SMS.Contacts {
 		if contact.Enabled {
 			err := SMSNotify(contact.Number, message, cfg)
