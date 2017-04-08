@@ -17,24 +17,24 @@
    {
     "Address": "LgY8ahfHRhvjVQC1zJnBhFMG5pCTMuKRqh",
     "CoinType": "LTC",
-    "Balance": 3.00000005e+06
+    "Balance": 3000000.05
    },
    {
     "Address": "0xb794f5ea0ba39494ce839613fffba74279579268",
     "CoinType": "ETH",
-    "Balance": 5.774999820458524e+06
+    "Balance": 5774999.820458524
    }
   ]
  },
  "SMSGlobal": {
-  "Enabled": false,
-  "Username": "Username",
-  "Password": "Password",
+  "Enabled": true,
+  "Username": "1234",
+  "Password": "12334",
   "Contacts": [
    {
-    "Name": "Bob",
-    "Number": "12345",
-    "Enabled": false
+    "Name": "StyleGherkin",
+    "Number": "1231424",
+    "Enabled": true
    }
   ]
  },
@@ -54,7 +54,6 @@
    "AuthenticatedAPISupport": false,
    "APIKey": "Key",
    "APISecret": "Secret",
-   "ClientID": "",
    "AvailablePairs": "BTCUSD,BTCHKD,BTCEUR,BTCCAD,BTCAUD,BTCSGD,BTCJPY,BTCGBP,BTCNZD,LTCBTC,DOGEBTC,STRBTC,XRPBTC",
    "EnabledPairs": "BTCUSD,BTCHKD,BTCEUR,BTCCAD,BTCAUD,BTCSGD,BTCJPY,BTCGBP,BTCNZD,LTCBTC,DOGEBTC,STRBTC,XRPBTC",
    "BaseCurrencies": "USD,HKD,EUR,CAD,AUD,SGD,JPY,GBP,NZD"
@@ -68,7 +67,6 @@
    "AuthenticatedAPISupport": false,
    "APIKey": "Key",
    "APISecret": "Secret",
-   "ClientID": "",
    "AvailablePairs": "BTCUSD,LTCUSD,LTCBTC,ETHUSD,ETHBTC,ETCBTC,ETCUSD,BFXUSD,BFXBTC,RRTUSD,RRTBTC,ZECUSD,ZECBTC,XMRUSD,XMRBTC,DSHUSD,DSHBTC",
    "EnabledPairs": "BTCUSD,LTCUSD,LTCBTC,ETHUSD,ETHBTC",
    "BaseCurrencies": "USD"
@@ -96,7 +94,6 @@
    "AuthenticatedAPISupport": false,
    "APIKey": "Key",
    "APISecret": "Secret",
-   "ClientID": "",
    "AvailablePairs": "BTCCNY,LTCCNY,LTCBTC",
    "EnabledPairs": "BTCCNY,LTCCNY,LTCBTC",
    "BaseCurrencies": "CNY"
@@ -110,7 +107,6 @@
    "AuthenticatedAPISupport": false,
    "APIKey": "Key",
    "APISecret": "Secret",
-   "ClientID": "",
    "AvailablePairs": "BTCUSD,BTCRUR,BTCEUR,LTCBTC,LTCUSD,LTCRUR,LTCEUR,NMCBTC,NMCUSD,NVCBTC,NVCUSD,USDRUR,EURUSD,EURRUR,PPCBTC,PPCUSD",
    "EnabledPairs": "BTCUSD,BTCRUR,BTCEUR,LTCBTC,LTCUSD,LTCRUR,LTCEUR,NMCBTC,NMCUSD,NVCBTC,NVCUSD,USDRUR,EURUSD,EURRUR,PPCBTC,PPCUSD",
    "BaseCurrencies": "USD,RUR,EUR"
@@ -124,7 +120,6 @@
    "AuthenticatedAPISupport": false,
    "APIKey": "Key",
    "APISecret": "Secret",
-   "ClientID": "",
    "AvailablePairs": "LTC,BTC",
    "EnabledPairs": "LTC,BTC",
    "BaseCurrencies": "AUD"
@@ -152,7 +147,6 @@
    "AuthenticatedAPISupport": false,
    "APIKey": "Key",
    "APISecret": "Secret",
-   "ClientID": "",
    "AvailablePairs": "BTCUSD,ETHBTC,ETHUSD",
    "EnabledPairs": "BTCUSD",
    "BaseCurrencies": "USD"
@@ -166,7 +160,6 @@
    "AuthenticatedAPISupport": false,
    "APIKey": "Key",
    "APISecret": "Secret",
-   "ClientID": "",
    "AvailablePairs": "BTCCNY,LTCCNY",
    "EnabledPairs": "BTCCNY,LTCCNY",
    "BaseCurrencies": "CNY"
@@ -194,7 +187,6 @@
    "AuthenticatedAPISupport": false,
    "APIKey": "Key",
    "APISecret": "Secret",
-   "ClientID": "",
    "AvailablePairs": "ETCUSD,ICNETH,REPXBT,ZECXBT,ETHXBT,ETHXBT.d,ETHGBP,LTCXBT,XBTGBP.d,XDGXBT,XMRUSD,ZECUSD,ETCETH,ETHJPY,XBTCAD.d,XBTJPY.d,XBTUSD.d,XLMXBT,XLMEUR,XLMUSD,XMREUR,ETCXBT,ETHCAD.d,ETHEUR.d,ETHJPY.d,XBTEUR.d,ETHEUR,ETHGBP.d,ICNXBT,LTCEUR,REPEUR,XBTGBP,XBTJPY,ETHUSD,ETHUSD.d,LTCUSD,REPETH,XBTUSD,XMRXBT,ETCEUR,ETHCAD,REPUSD,XBTCAD,XBTEUR,XRPXBT,ZECEUR",
    "EnabledPairs": "ETCUSD,XBTUSD,ETHUSD",
    "BaseCurrencies": "EUR,USD,CAD,GBP,JPY"
@@ -208,7 +200,6 @@
    "AuthenticatedAPISupport": false,
    "APIKey": "Key",
    "APISecret": "Secret",
-   "ClientID": "",
    "AvailablePairs": "BTCUSD,BTCEUR,USDHKD,AUDUSD,BTCGBP,BTCNZD,USDJPY,BTCSGD,BTCNGN,EURUSD,USDSGD,NZDUSD,USDNGN,USDCHF,BTCJPY,BTCAUD,BTCCAD,BTCCHF,GBPUSD,USDCAD",
    "EnabledPairs": "BTCUSD,BTCAUD",
    "BaseCurrencies": "USD,EUR,HKD,AUD,GBP,NZD,JPY,SGD,NGN,CHF,CAD"
@@ -222,7 +213,6 @@
    "AuthenticatedAPISupport": false,
    "APIKey": "Key",
    "APISecret": "Secret",
-   "ClientID": "",
    "AvailablePairs": "TIME_BTC,ETH_BTC,GNT_BTC,WAVES_BTC,ICN_BTC,1ST_BTC,WINGS_BTC,MLN_BTC,ROUND_BTC,VSL_BTC,LTC_BTC,DCT_BTC,INCNT_BTC,PLU_BTC,DASH_BTC",
    "EnabledPairs": "ETH_BTC,LTC_BTC,DASH_BTC",
    "BaseCurrencies": "USD"
@@ -236,7 +226,6 @@
    "AuthenticatedAPISupport": false,
    "APIKey": "Key",
    "APISecret": "Secret",
-   "ClientID": "",
    "AvailablePairs": "BTCARS,BTCAUD,BTCBRL,BTCCAD,BTCCHF,BTCCZK,BTCDKK,BTCEUR,BTCGBP,BTCHKD,BTCILS,BTCINR,BTCMXN,BTCNOK,BTCNZD,BTCPLN,BTCRUB,BTCSEK,BTCSGD,BTCTHB,BTCUSD,BTCZAR",
    "EnabledPairs": "BTCARS,BTCAUD,BTCBRL,BTCCAD,BTCCHF,BTCCZK,BTCDKK,BTCEUR,BTCGBP,BTCHKD,BTCILS,BTCINR,BTCMXN,BTCNOK,BTCNZD,BTCPLN,BTCRUB,BTCSEK,BTCSGD,BTCTHB,BTCUSD,BTCZAR",
    "BaseCurrencies": "ARS,AUD,BRL,CAD,CHF,CZK,DKK,EUR,GBP,HKD,ILS,INR,MXN,NOK,NZD,PLN,RUB,SEK,SGD,THB,USD,ZAR"
@@ -250,7 +239,6 @@
    "AuthenticatedAPISupport": false,
    "APIKey": "Key",
    "APISecret": "Secret",
-   "ClientID": "",
    "AvailablePairs": "BTCCNY,LTCCNY",
    "EnabledPairs": "BTCCNY,LTCCNY",
    "BaseCurrencies": "CNY"
@@ -264,7 +252,6 @@
    "AuthenticatedAPISupport": false,
    "APIKey": "Key",
    "APISecret": "Secret",
-   "ClientID": "",
    "AvailablePairs": "BTCUSD,LTCUSD",
    "EnabledPairs": "BTCUSD,LTCUSD",
    "BaseCurrencies": "USD"
@@ -278,7 +265,6 @@
    "AuthenticatedAPISupport": false,
    "APIKey": "Key",
    "APISecret": "Secret",
-   "ClientID": "",
    "AvailablePairs": "BTC_XUSD,BTC_FCT,BTC_MMNXT,BTC_NMC,BTC_BITUSD,BTC_RDD,BTC_XMR,BTC_XST,BTC_DSH,BTC_MAID,BTC_DGB,BTC_NEOS,BTC_BLK,BTC_NAUT,BTC_NBT,BTC_XCP,BTC_STR,BTC_BTCD,BTC_GRC,BTC_HUC,BTC_BBR,BTC_XDN,BTC_INDEX,BTC_IOC,BTC_SWARM,BTC_EMC2,BTC_MCN,BTC_NOXT,BTC_MINT,BTC_PTS,BTC_SC,BTC_GEO,BTC_XRP,BTC_FLO,BTC_BITS,BTC_HYP,BTC_XCR,BTC_LTBC,BTC_SYS,BTC_GMC,BTC_ETH,BTC_SYNC,BTC_GAP,BTC_BCN,BTC_C2,BTC_PINK,BTC_FIBRE,BTC_POT,BTC_QTL,BTC_SDC,BTC_XC,BTC_DASH,BTC_SILK,BTC_CLAM,BTC_NAV,BTC_PIGGY,BTC_BCY,BTC_MIL,BTC_XCN,BTC_YACC,BTC_BTS,BTC_QBK,BTC_SJCX,BTC_LQD,BTC_BURST,BTC_RIC,BTC_VRC,BTC_LTC,BTC_XPB,BTC_GRS,BTC_XCH,BTC_ARCH,BTC_QORA,BTC_HZ,BTC_NSR,BTC_XPM,BTC_BITCNY,BTC_EXE,BTC_XMG,BTC_BTC,BTC_BTM,BTC_NOBL,BTC_NXT,BTC_DOGE,BTC_CURE,BTC_MNTA,BTC_ADN,BTC_EXP,BTC_VTC,BTC_FLDC,BTC_MRS,BTC_MYR,BTC_OMNI,BTC_VNL,BTC_USDT,BTC_NOTE,BTC_WDC,BTC_BELA,BTC_VIA,BTC_CGA,BTC_DIEM,BTC_IFC,BTC_XDP,BTC_BLOCK,BTC_MMC,BTC_1CR,BTC_UNITY,BTC_XBC,BTC_GEMZ,BTC_FLT,BTC_PPC,BTC_XEM,BTC_RBY,BTC_CNMT,BTC_ABY,XMR_XDN,XMR_IFC,XMR_DIEM,XMR_BBR,XMR_DSH,XMR_BCN,XMR_LTC,XMR_MAID,XMR_DASH,XMR_BTCD,XMR_HYP,XMR_BLK,XMR_QORA,XMR_MNTA,XMR_NXT,USDT_BTC,USDT_ETH,USDT_XRP,USDT_DASH,USDT_LTC,USDT_NXT,USDT_XMR,USDT_STR",
    "EnabledPairs": "BTC_LTC,BTC_ETH,BTC_DOGE,BTC_DASH,BTC_XRP",
    "BaseCurrencies": "USD"

@@ -22,6 +22,8 @@ const (
 	IS_EQUAL              = "=="
 	ACTION_SMS_NOTIFY     = "SMS"
 	ACTION_CONSOLE_PRINT  = "CONSOLE_PRINT"
+	ACTION_TEST           = "ACTION_TEST"
+	CONFIG_PATH_TEST      = "../testdata/configtest.dat"
 )
 
 var (
@@ -174,7 +176,12 @@ func IsValidEvent(Exchange, Item, Condition, Action string) error {
 	Item = common.StringToUpper(Item)
 	Action = common.StringToUpper(Action)
 
-	if !IsValidExchange(Exchange) {
+	configPath := ""
+	if Action == ACTION_TEST {
+		configPath = CONFIG_PATH_TEST
+	}
+
+	if !IsValidExchange(Exchange, configPath) {
 		return ErrExchangeDisabled
 	}
 
@@ -203,7 +210,7 @@ func IsValidEvent(Exchange, Item, Condition, Action string) error {
 			return ErrInvalidAction
 		}
 	} else {
-		if Action != ACTION_CONSOLE_PRINT {
+		if Action != ACTION_CONSOLE_PRINT && Action != ACTION_TEST {
 			return ErrInvalidAction
 		}
 	}
@@ -240,12 +247,12 @@ func IsValidCurrency(currencies ...string) bool {
 	return false
 }
 
-func IsValidExchange(Exchange string) bool {
+func IsValidExchange(Exchange, configPath string) bool {
 	Exchange = common.StringToUpper(Exchange)
 
 	cfg := config.GetConfig()
 	if len(cfg.Exchanges) == 0 {
-		cfg.LoadConfig()
+		cfg.LoadConfig(configPath)
 	}
 
 	for _, x := range cfg.Exchanges {
@@ -267,7 +274,7 @@ func IsValidCondition(Condition string) bool {
 func IsValidAction(Action string) bool {
 	Action = common.StringToUpper(Action)
 	switch Action {
-	case ACTION_SMS_NOTIFY, ACTION_CONSOLE_PRINT:
+	case ACTION_SMS_NOTIFY, ACTION_CONSOLE_PRINT, ACTION_TEST:
 		return true
 	}
 	return false
