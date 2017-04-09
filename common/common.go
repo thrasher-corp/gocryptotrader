@@ -11,6 +11,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"hash"
 	"io"
 	"io/ioutil"
@@ -337,4 +338,16 @@ func WriteFile(file string, data []byte) error {
 		return err
 	}
 	return nil
+}
+
+// GetURIPath returns the path of a URL given a URL
+func GetURIPath(uri string) string {
+	urip, err := url.Parse(uri)
+	if err != nil {
+		return ""
+	}
+	if urip.RawQuery != "" {
+		return fmt.Sprintf("%s?%s", urip.Path, urip.RawQuery)
+	}
+	return urip.Path
 }

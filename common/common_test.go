@@ -270,3 +270,13 @@ func TestUnixTimestampStrToTime(t *testing.T) {
 		t.Error(fmt.Sprintf("Test failed. Expected '%s'. Actual '%s'.", expectedOutput, actualResult))
 	}
 }
+
+func TestURIPath(t *testing.T) {
+	testURI := "https://api.gdax.com/accounts"
+	expectedOutput := "/accounts"
+	actualOutput := GetURIPath(testURI)
+	if actualOutput != expectedOutput {
+		t.Error(fmt.Sprintf("Test failed. Expected '%s'. Actual '%s'.",
+			expectedOutput, actualOutput))
+	}
+}
