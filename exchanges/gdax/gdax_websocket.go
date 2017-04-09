@@ -9,7 +9,7 @@ import (
 )
 
 const (
-	GDAX_WEBSOCKET_URL = "wss://ws-feed.exchange.gdax.com"
+	GDAX_WEBSOCKET_URL = "wss://ws-feed.gdax.com"
 )
 
 func (g *GDAX) WebsocketSubscribe(product string, conn *websocket.Conn) error {
