@@ -1,6 +1,7 @@
 package gdax
 
 import (
+	"fmt"
 	"log"
 	"time"
 
@@ -80,6 +81,9 @@ func (e *GDAX) GetExchangeAccountInfo() (exchange.ExchangeAccountInfo, error) {
 }
 
 func (g *GDAX) GetTickerPrice(currency string) (ticker.TickerPrice, error) {
+	if len(currency) == 6 {
+		currency = fmt.Sprintf("%s-%s", currency[0:3], currency[3:])
+	}
 	tickerNew, err := ticker.GetTicker(g.GetName(), currency[0:3], currency[4:])
 	if err == nil {
 		return tickerNew, nil
