@@ -271,7 +271,7 @@ func TestUnixTimestampStrToTime(t *testing.T) {
 	}
 }
 
-func TestURIPath(t *testing.T) {
+func TestGetURIPath(t *testing.T) {
 	testURI := "https://api.gdax.com/accounts"
 	expectedOutput := "/accounts"
 	actualOutput := GetURIPath(testURI)
