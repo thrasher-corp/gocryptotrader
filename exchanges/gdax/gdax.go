@@ -370,7 +370,8 @@ func (g *GDAX) GetReportStatus(reportID string) (GDAXReportResponse, error) {
 }
 
 func (g *GDAX) SendAuthenticatedHTTPRequest(method, path string, params map[string]interface{}, result interface{}) (err error) {
-	timestamp := strconv.FormatInt(time.Now().UnixNano(), 10)[0:13]
+	timestamp := strconv.FormatInt(time.Now().Unix(), 10)
+
 	payload := []byte("")
 
 	if params != nil {
