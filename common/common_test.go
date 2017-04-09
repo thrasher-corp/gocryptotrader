@@ -272,11 +272,17 @@ func TestUnixTimestampStrToTime(t *testing.T) {
 }
 
 func TestGetURIPath(t *testing.T) {
-	testURI := "https://api.gdax.com/accounts"
-	expectedOutput := "/accounts"
-	actualOutput := GetURIPath(testURI)
-	if actualOutput != expectedOutput {
-		t.Error(fmt.Sprintf("Test failed. Expected '%s'. Actual '%s'.",
-			expectedOutput, actualOutput))
+	// mapping of input vs expected result
+	testTable := map[string]string{
+		"https://api.gdax.com/accounts":         "/accounts",
+		"https://api.gdax.com/accounts?a=1&b=2": "/accounts?a=1&b=2",
+		"ht:tp:/invalidurl":                     "",
+	}
+	for testInput, expectedOutput := range testTable {
+		actualOutput := GetURIPath(testInput)
+		if actualOutput != expectedOutput {
+			t.Error(fmt.Sprintf("Test failed. Expected '%s'. Actual '%s'.",
+				expectedOutput, actualOutput))
+		}
 	}
 }
