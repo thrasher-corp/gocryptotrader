@@ -227,18 +227,17 @@ func (g *GDAX) GetCurrencies() ([]GDAXCurrency, error) {
 
 func (g *GDAX) GetAccounts() ([]GDAXAccountResponse, error) {
 	resp := []GDAXAccountResponse{}
-	err := g.SendAuthenticatedHTTPRequest("GET", GDAX_API_URL+GDAX_ACCOUNTS, nil, &resp)
+	err := g.SendAuthenticatedHTTPRequest("GET", GDAX_ACCOUNTS, nil, &resp)
 	if err != nil {
 		return nil, err
 	}
-
 	return resp, nil
 }
 
 func (g *GDAX) GetAccount(account string) (GDAXAccountResponse, error) {
 	resp := GDAXAccountResponse{}
 	path := fmt.Sprintf("%s/%s", GDAX_ACCOUNTS, account)
-	err := g.SendAuthenticatedHTTPRequest("GET", GDAX_API_URL+path, nil, &resp)
+	err := g.SendAuthenticatedHTTPRequest("GET", path, nil, &resp)
 	if err != nil {
 		return resp, err
 	}
@@ -248,7 +247,7 @@ func (g *GDAX) GetAccount(account string) (GDAXAccountResponse, error) {
 func (g *GDAX) GetAccountHistory(accountID string) ([]GDAXAccountLedgerResponse, error) {
 	resp := []GDAXAccountLedgerResponse{}
 	path := fmt.Sprintf("%s/%s/%s", GDAX_ACCOUNTS, accountID, GDAX_LEDGER)
-	err := g.SendAuthenticatedHTTPRequest("GET", GDAX_API_URL+path, nil, &resp)
+	err := g.SendAuthenticatedHTTPRequest("GET", path, nil, &resp)
 	if err != nil {
 		return nil, err
 	}
@@ -258,7 +257,7 @@ func (g *GDAX) GetAccountHistory(accountID string) ([]GDAXAccountLedgerResponse,
 func (g *GDAX) GetHolds(accountID string) ([]GDAXAccountHolds, error) {
 	resp := []GDAXAccountHolds{}
 	path := fmt.Sprintf("%s/%s/%s", GDAX_ACCOUNTS, accountID, GDAX_HOLDS)
-	err := g.SendAuthenticatedHTTPRequest("GET", GDAX_API_URL+path, nil, &resp)
+	err := g.SendAuthenticatedHTTPRequest("GET", path, nil, &resp)
 	if err != nil {
 		return nil, err
 	}
@@ -286,7 +285,7 @@ func (g *GDAX) PlaceOrder(clientRef string, price, amount float64, side string, 
 	}
 
 	resp := OrderResponse{}
-	err := g.SendAuthenticatedHTTPRequest("POST", GDAX_API_URL+GDAX_ORDERS, request, &resp)
+	err := g.SendAuthenticatedHTTPRequest("POST", GDAX_ORDERS, request, &resp)
 	if err != nil {
 		return "", err
 	}
@@ -296,7 +295,7 @@ func (g *GDAX) PlaceOrder(clientRef string, price, amount float64, side string, 
 
 func (g *GDAX) CancelOrder(orderID string) error {
 	path := fmt.Sprintf("%s/%s", GDAX_ORDERS, orderID)
-	err := g.SendAuthenticatedHTTPRequest("DELETE", GDAX_API_URL+path, nil, nil)
+	err := g.SendAuthenticatedHTTPRequest("DELETE", path, nil, nil)
 	if err != nil {
 		return err
 	}
@@ -306,7 +305,7 @@ func (g *GDAX) CancelOrder(orderID string) error {
 func (g *GDAX) GetOrders(params url.Values) ([]GDAXOrdersResponse, error) {
 	path := common.EncodeURLValues(GDAX_API_URL+GDAX_ORDERS, params)
 	resp := []GDAXOrdersResponse{}
-	err := g.SendAuthenticatedHTTPRequest("GET", path, nil, &resp)
+	err := g.SendAuthenticatedHTTPRequest("GET", common.GetURIPath(path), nil, &resp)
 	if err != nil {
 		return nil, err
 	}
@@ -316,7 +315,7 @@ func (g *GDAX) GetOrders(params url.Values) ([]GDAXOrdersResponse, error) {
 func (g *GDAX) GetOrder(orderID string) (GDAXOrderResponse, error) {
 	path := fmt.Sprintf("%s/%s", GDAX_ORDERS, orderID)
 	resp := GDAXOrderResponse{}
-	err := g.SendAuthenticatedHTTPRequest("GET", GDAX_API_URL+path, nil, &resp)
+	err := g.SendAuthenticatedHTTPRequest("GET", path, nil, &resp)
 	if err != nil {
 		return resp, err
 	}
@@ -326,7 +325,7 @@ func (g *GDAX) GetOrder(orderID string) (GDAXOrderResponse, error) {
 func (g *GDAX) GetFills(params url.Values) ([]GDAXFillResponse, error) {
 	path := common.EncodeURLValues(GDAX_API_URL+GDAX_FILLS, params)
 	resp := []GDAXFillResponse{}
-	err := g.SendAuthenticatedHTTPRequest("GET", path, nil, &resp)
+	err := g.SendAuthenticatedHTTPRequest("GET", common.GetURIPath(path), nil, &resp)
 	if err != nil {
 		return nil, err
 	}
@@ -339,7 +338,7 @@ func (g *GDAX) Transfer(transferType string, amount float64, accountID string) e
 	request["amount"] = strconv.FormatFloat(amount, 'f', -1, 64)
 	request["GDAX_account_id"] = accountID
 
-	err := g.SendAuthenticatedHTTPRequest("POST", GDAX_API_URL+GDAX_TRANSFERS, request, nil)
+	err := g.SendAuthenticatedHTTPRequest("POST", GDAX_TRANSFERS, request, nil)
 	if err != nil {
 		return err
 	}
@@ -353,7 +352,7 @@ func (g *GDAX) GetReport(reportType, startDate, endDate string) (GDAXReportRespo
 	request["end_date"] = endDate
 
 	resp := GDAXReportResponse{}
-	err := g.SendAuthenticatedHTTPRequest("POST", GDAX_API_URL+GDAX_REPORTS, request, &resp)
+	err := g.SendAuthenticatedHTTPRequest("POST", GDAX_REPORTS, request, &resp)
 	if err != nil {
 		return resp, err
 	}
@@ -363,7 +362,7 @@ func (g *GDAX) GetReport(reportType, startDate, endDate string) (GDAXReportRespo
 func (g *GDAX) GetReportStatus(reportID string) (GDAXReportResponse, error) {
 	path := fmt.Sprintf("%s/%s", GDAX_REPORTS, reportID)
 	resp := GDAXReportResponse{}
-	err := g.SendAuthenticatedHTTPRequest("POST", GDAX_API_URL+path, nil, &resp)
+	err := g.SendAuthenticatedHTTPRequest("POST", path, nil, &resp)
 	if err != nil {
 		return resp, err
 	}
@@ -371,7 +370,8 @@ func (g *GDAX) GetReportStatus(reportID string) (GDAXReportResponse, error) {
 }
 
 func (g *GDAX) SendAuthenticatedHTTPRequest(method, path string, params map[string]interface{}, result interface{}) (err error) {
-	timestamp := strconv.FormatInt(time.Now().UnixNano(), 10)[0:13]
+	timestamp := strconv.FormatInt(time.Now().Unix(), 10)
+
 	payload := []byte("")
 
 	if params != nil {
@@ -386,7 +386,7 @@ func (g *GDAX) SendAuthenticatedHTTPRequest(method, path string, params map[stri
 		}
 	}
 
-	message := timestamp + method + path + string(payload)
+	message := timestamp + method + "/" + path + string(payload)
 	hmac := common.GetHMAC(common.HASH_SHA256, []byte(message), []byte(g.APISecret))
 	headers := make(map[string]string)
 	headers["CB-ACCESS-SIGN"] = common.Base64Encode([]byte(hmac))
