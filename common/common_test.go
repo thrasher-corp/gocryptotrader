@@ -272,6 +272,7 @@ func TestUnixTimestampStrToTime(t *testing.T) {
 }
 
 func TestGetURIPath(t *testing.T) {
+	t.Parallel()
 	// mapping of input vs expected result
 	testTable := map[string]string{
 		"https://api.gdax.com/accounts":         "/accounts",
