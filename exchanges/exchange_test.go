@@ -31,24 +31,24 @@ func TestGetEnabledCurrencies(t *testing.T) {
 }
 
 func TestSetEnabled(t *testing.T) {
-	GetEnabledCurrencies := ExchangeBase{
+	SetEnabled := ExchangeBase{
 		Name:    "TESTNAME",
 		Enabled: false,
 	}
 
-	GetEnabledCurrencies.SetEnabled(true)
-	if !GetEnabledCurrencies.Enabled {
+	SetEnabled.SetEnabled(true)
+	if !SetEnabled.Enabled {
 		t.Error("Test Failed - Exchange SetEnabled(true) did not set boolean")
 	}
 }
 
 func TestIsEnabled(t *testing.T) {
-	GetEnabledCurrencies := ExchangeBase{
+	IsEnabled := ExchangeBase{
 		Name:    "TESTNAME",
 		Enabled: false,
 	}
 
-	if GetEnabledCurrencies.IsEnabled() {
+	if IsEnabled.IsEnabled() {
 		t.Error("Test Failed - Exchange IsEnabled() did not return correct boolean")
 	}
 }
