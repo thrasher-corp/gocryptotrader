@@ -35,11 +35,11 @@ func SaveAllSettings(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	//Reload the configuration
-	err := bot.config.SaveConfig()
+	err := bot.config.SaveConfig("")
 	if err != nil {
 		panic(err)
 	}
-	err = bot.config.LoadConfig()
+	err = bot.config.LoadConfig("")
 	if err != nil {
 		panic(err)
 	}

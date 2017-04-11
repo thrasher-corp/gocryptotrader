@@ -89,7 +89,7 @@ func main() {
 	bot.config = &config.Cfg
 	log.Printf("Loading config file %s..\n", config.CONFIG_FILE)
 
-	err := bot.config.LoadConfig()
+	err := bot.config.LoadConfig("")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -208,7 +208,7 @@ func HandleInterrupt() {
 func Shutdown() {
 	log.Println("Bot shutting down..")
 	bot.config.Portfolio = portfolio.Portfolio
-	err := bot.config.SaveConfig()
+	err := bot.config.SaveConfig("")
 
 	if err != nil {
 		log.Println("Unable to save config.")
