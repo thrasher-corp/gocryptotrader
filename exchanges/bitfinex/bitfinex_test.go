@@ -6,14 +6,59 @@ import (
 	"reflect"
 	"strconv"
 	"testing"
+	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
+	"github.com/thrasher-/gocryptotrader/config"
+	"github.com/thrasher-/gocryptotrader/currency"
 )
 
-var ACCOUNT_LIVE_TEST bool = false
+var ACCOUNT_LIVE_TEST bool = false //Supply correct API keys in testdata/configtest.dat before changing this.
 
-//Live Testing -- TestBitfinexGetTicker()
-func TestBitfinexGetTicker(t *testing.T) {
+func TestSetDefaults(t *testing.T) {
+	t.Parallel()
+
+	setDefaults := Bitfinex{}
+	setDefaults.SetDefaults()
+
+	if setDefaults.Name != "Bitfinex" || setDefaults.Enabled != false || setDefaults.Verbose != false ||
+		setDefaults.Websocket != false || setDefaults.RESTPollingDelay != 10 {
+		t.Error("Test Failed - Bitfinex SetDefaults values not set correctly")
+	}
+	if reflect.TypeOf(setDefaults.WebsocketSubdChannels).String() != "map[int]bitfinex.BitfinexWebsocketChanInfo" {
+		t.Error("Test Failed - Bitfinex SetDefaults value: MAP not set correctly")
+	}
+}
+
+func TestSetup(t *testing.T) {
+	t.Parallel()
+
+	testConfig := config.ExchangeConfig{
+		Enabled:                 true,
+		AuthenticatedAPISupport: true,
+		APIKey:                  "lamb",
+		APISecret:               "cutlets",
+		RESTPollingDelay:        time.Duration(10),
+		Verbose:                 true,
+		Websocket:               true,
+		BaseCurrencies:          currency.DEFAULT_CURRENCIES,
+		AvailablePairs:          currency.MakecurrencyPairs(currency.DEFAULT_CURRENCIES),
+		EnabledPairs:            currency.MakecurrencyPairs(currency.DEFAULT_CURRENCIES),
+	}
+	setup := Bitfinex{}
+	setup.Setup(testConfig)
+
+	if !setup.Enabled || !setup.AuthenticatedAPISupport || setup.APIKey != "lamb" ||
+		setup.APISecret != "cutlets" || setup.RESTPollingDelay != time.Duration(10) ||
+		!setup.Verbose || !setup.Websocket || len(setup.BaseCurrencies) < 1 ||
+		len(setup.AvailablePairs) < 1 || len(setup.EnabledPairs) < 1 {
+
+		t.Error("Test Failed - Bitfinex Setup values not set correctly")
+	}
+}
+
+//Live Testing
+func TestGetTicker(t *testing.T) {
 	t.Parallel()
 	bitfinex := Bitfinex{}
 
@@ -79,8 +124,8 @@ func TestBitfinexGetTicker(t *testing.T) {
 	}
 }
 
-//Live Testing -- TestBitfinexGetStats()
-func TestBitfinexGetStats(t *testing.T) {
+//Live Testing
+func TestGetStats(t *testing.T) {
 	t.Parallel()
 	BitfinexGetStatsTest := Bitfinex{}
 
@@ -108,8 +153,8 @@ func TestBitfinexGetStats(t *testing.T) {
 	}
 }
 
-//Live Testing -- TestBitfinexGetLendbook()
-func TestBitfinexGetLendbook(t *testing.T) {
+//Live Testing
+func TestGetLendbook(t *testing.T) {
 	t.Parallel()
 	BitfinexGetLendbook := Bitfinex{}
 
@@ -196,8 +241,8 @@ func TestBitfinexGetLendbook(t *testing.T) {
 	}
 }
 
-//Live Testing -- TestBitfinexGetOrderbook()
-func TestBitfinexGetOrderbook(t *testing.T) {
+//Live Testing
+func TestGetOrderbook(t *testing.T) {
 	t.Parallel()
 	BitfinexGetOrderbook := Bitfinex{}
 
@@ -282,8 +327,8 @@ func TestBitfinexGetOrderbook(t *testing.T) {
 	}
 }
 
-//Live Testing -- TestBitfinexGetTrades()
-func TestBitfinexGetTrades(t *testing.T) {
+//Live Testing
+func TestGetTrades(t *testing.T) {
 	t.Parallel()
 	BitfinexGetTrades := Bitfinex{}
 
@@ -343,8 +388,8 @@ func TestBitfinexGetTrades(t *testing.T) {
 	}
 }
 
-//Live Testing -- TestBitfinexGetLends()
-func TestBitfinexGetLends(t *testing.T) {
+//Live Testing
+func TestGetLends(t *testing.T) {
 	t.Parallel()
 	BitfinexGetLends := Bitfinex{}
 
@@ -384,8 +429,8 @@ func TestBitfinexGetLends(t *testing.T) {
 	}
 }
 
-//Live Testing -- TestBitfinexGetSymbols()
-func TestBitfinexGetSymbols(t *testing.T) {
+//Live Testing
+func TestGetSymbols(t *testing.T) {
 	t.Parallel()
 	BitfinexGetSymbols := Bitfinex{}
 
@@ -420,26 +465,22 @@ func TestBitfinexGetSymbols(t *testing.T) {
 		"bfxbtc",
 		"rrtusd",
 	}
+	if len(expectedCurrencies) >= len(symbols) {
 
-	if len(expectedCurrencies) == len(symbols) {
 		for _, explicitSymbol := range expectedCurrencies {
-			for i := 0; i < len(expectedCurrencies); i++ {
-				if explicitSymbol == symbols[i] {
-					break
-				} else if i == (len(expectedCurrencies))-1 {
-					t.Error("BitfinexGetSymbols currency mismatch with: ", explicitSymbol)
-				}
+			if common.DataContains(expectedCurrencies, explicitSymbol) {
+				break
+			} else {
+				t.Error("BitfinexGetSymbols currency mismatch with: ", explicitSymbol)
 			}
 		}
-	} else if len(expectedCurrencies) > len(symbols) {
-		t.Error("BitfinexGetSymbols currency mismatch, Expected Currencies > Exchange Currencies")
 	} else {
 		t.Error("BitfinexGetSymbols currency mismatch, Expected Currencies < Exchange Currencies")
 	}
 }
 
-//Live Testing -- TestBitfinexGetSymbolsDetails()
-func TestBitfinexGetSymbolsDetails(t *testing.T) {
+//Live Testing
+func TestGetSymbolsDetails(t *testing.T) {
 	t.Parallel()
 	BitfinexGetSymbolsDetails := Bitfinex{}
 
@@ -503,10 +544,8 @@ func TestBitfinexGetSymbolsDetails(t *testing.T) {
 	}
 }
 
-//Hybrid Testing -- TestBitfinexGetAccountInfo()
-func TestBitfinexGetAccountInfo(t *testing.T) {
-	t.Parallel()
-
+//Hybrid Testing
+func TestGetAccountInfo(t *testing.T) {
 	expectedCryptoCurrencies := []string{
 		"BTC",
 		"LTC",
@@ -518,10 +557,23 @@ func TestBitfinexGetAccountInfo(t *testing.T) {
 	}
 
 	if ACCOUNT_LIVE_TEST { //Live Test
+		newConfig := config.Config{}
+
+		err := newConfig.LoadConfig("../../testdata/configtest.dat")
+		if err != nil {
+			t.Errorf("Test Failed - New Order init error: %s\n", err)
+		}
+		exchangeConfig, err := newConfig.GetExchangeConfig("Bitfinex")
+		if err != nil {
+			t.Errorf("Test Failed - New Order init error: %s\n", err)
+		}
+
 		BitfinexGetAccountInfo := Bitfinex{}
+		BitfinexGetAccountInfo.Setup(exchangeConfig)
+
 		response, err := BitfinexGetAccountInfo.GetAccountInfo()
 		if err != nil {
-			newErrString := fmt.Sprintf("TestBitfinexGetAccountInfo: \nError: %s\n", err)
+			newErrString := fmt.Sprintf("TestGetAccountInfo: \nError: %s\n", err)
 			t.Error(newErrString)
 			response = append(response, BitfinexAccountInfo{})
 		}
@@ -650,9 +702,8 @@ func TestBitfinexGetAccountInfo(t *testing.T) {
 	}
 }
 
-//Hybrid Testing -- TestBitfinexNewDeposit()
-func TestBitfinexNewDeposit(t *testing.T) { //Needs attention
-	t.Parallel()
+//Hybrid Testing
+func TestNewDeposit(t *testing.T) {
 
 	applicableMethods := []string{
 		"bitcoin_address",
@@ -664,24 +715,37 @@ func TestBitfinexNewDeposit(t *testing.T) { //Needs attention
 		"monero_address",
 	}
 	expectedCryptoCurrencies := []string{
-		"btc",
-		"ltc",
-		"eth",
-		"etc",
-		"zec",
-		"xmr",
-		"dsh",
+		"BTC",
+		"LTC",
+		"ETH",
+		"ETC",
+		"ZEC",
+		"XMR",
+		"DSH",
 	}
 
 	if ACCOUNT_LIVE_TEST { //Live Test
+		newConfig := config.Config{}
+
+		err := newConfig.LoadConfig("../../testdata/configtest.dat")
+		if err != nil {
+			t.Errorf("Test Failed - New Order init error: %s\n", err)
+		}
+		exchangeConfig, err := newConfig.GetExchangeConfig("Bitfinex")
+		if err != nil {
+			t.Errorf("Test Failed - New Order init error: %s\n", err)
+		}
+
 		BitfinexNewDeposit := Bitfinex{}
+		BitfinexNewDeposit.Setup(exchangeConfig)
+
 		liveResponse, err := BitfinexNewDeposit.NewDeposit("bitcoin", "deposit", 0)
 		if err != nil {
 			t.Error("BitfinexNewDeposit init error: ", err)
 		}
 
 		if reflect.ValueOf(liveResponse).NumField() != 4 {
-			t.Error("TestBitfinexNewDeposit struct change/or updated")
+			t.Error("BitfinexNewDeposit struct change/or updated")
 		}
 		if reflect.TypeOf(liveResponse.Address).String() != "string" {
 			t.Error("Bitfinex NewDeposit.Address is not a string")
@@ -695,7 +759,6 @@ func TestBitfinexNewDeposit(t *testing.T) { //Needs attention
 		if reflect.TypeOf(liveResponse.Result).String() != "string" {
 			t.Error("Bitfinex NewDeposit.Result is not a string")
 		}
-
 		if len(liveResponse.Address) != 34 {
 			t.Error("Bitfinex NewDeposit.Address is incorrect")
 		}
@@ -712,12 +775,12 @@ func TestBitfinexNewDeposit(t *testing.T) { //Needs attention
 	} else { //Non-Live Test
 		nonLiveResponse := BitfinexDepositResponse{}
 		nonLiveResponse.Address = "1DPUgBaZoKbL38BEC1A3exPKCDZjQpnBa1"
-		nonLiveResponse.Currency = "btc"
+		nonLiveResponse.Currency = "BTC"
 		nonLiveResponse.Method = "bitcoin_address"
 		nonLiveResponse.Result = ""
 
 		if reflect.ValueOf(nonLiveResponse).NumField() != 4 {
-			t.Error("TestBitfinexNewDeposit struct change/or updated")
+			t.Error("BitfinexNewDeposit struct change/or updated")
 		}
 		if reflect.TypeOf(nonLiveResponse.Address).String() != "string" {
 			t.Error("Bitfinex NewDeposit.Address is not a string")
@@ -747,15 +810,26 @@ func TestBitfinexNewDeposit(t *testing.T) { //Needs attention
 	}
 }
 
-//Non-Live Testing -- TestBitfinexNewOrder()
-func TestBitfinexNewOrder(t *testing.T) {
-	t.Parallel()
+//Non-Live Testing
+func TestNewOrder(t *testing.T) {
+	newConfig := config.Config{}
+
+	err := newConfig.LoadConfig("../../testdata/configtest.dat")
+	if err != nil {
+		t.Errorf("Test Failed - New Order init error: %s\n", err)
+	}
+	exchangeConfig, err := newConfig.GetExchangeConfig("Bitfinex")
+	if err != nil {
+		t.Errorf("Test Failed - New Order init error: %s\n", err)
+	}
 
 	BitfinexNewOrder := Bitfinex{}
+	BitfinexNewOrder.Setup(exchangeConfig)
+
 	if ACCOUNT_LIVE_TEST {
-		response, err := BitfinexNewOrder.NewOrder("BTCUSD", 0.0, 0.0, true, "test", false)
-		if err != nil {
-			newErrString := fmt.Sprintf("TestBitfinexNewOrder: \nError: %s\nIs_live: %t\n", err, response.IsLive)
+		response, err := BitfinexNewOrder.NewOrder("BTCUSD", 0, 0, true, "test", false)
+		if err == nil {
+			newErrString := fmt.Sprintf("BitfinexNewOrder - Error: Expected Error Status: %s\n", response.IsLive)
 			t.Error(newErrString)
 		}
 	}
@@ -779,7 +853,7 @@ func TestBitfinexNewOrder(t *testing.T) {
 	nonLiveResponse.WasForced = false
 
 	if reflect.ValueOf(nonLiveResponse).NumField() != 16 {
-		t.Error("TestBitfinexNewDeposit struct change/or updated")
+		t.Error("BitfinexNewDeposit struct change/or updated")
 	}
 	if reflect.TypeOf(nonLiveResponse.AverageExecutionPrice).String() != "float64" {
 		t.Error("Bitfinex NewOrder.AverageExecutionPrice is not a float64")
@@ -863,11 +937,22 @@ func TestBitfinexNewOrder(t *testing.T) {
 	}
 }
 
-//Non-Live Testing -- TestBitfinexNewOrderMulti()
-func TestBitfinexNewOrderMulti(t *testing.T) {
-	t.Parallel()
+//Non-Live Testing
+func TestNewOrderMulti(t *testing.T) {
+	newConfig := config.Config{}
+
+	err := newConfig.LoadConfig("../../testdata/configtest.dat")
+	if err != nil {
+		t.Errorf("Test Failed - New Order init error: %s\n", err)
+	}
+	exchangeConfig, err := newConfig.GetExchangeConfig("Bitfinex")
+	if err != nil {
+		t.Errorf("Test Failed - New Order init error: %s\n", err)
+	}
 
 	BitfinexNewOrderMulti := Bitfinex{}
+	BitfinexNewOrderMulti.Setup(exchangeConfig)
+
 	var orders []BitfinexPlaceOrder
 	order := BitfinexPlaceOrder{}
 	order.Amount = 0.0
@@ -880,8 +965,8 @@ func TestBitfinexNewOrderMulti(t *testing.T) {
 
 	if ACCOUNT_LIVE_TEST {
 		response, err := BitfinexNewOrderMulti.NewOrderMulti(orders)
-		if err != nil {
-			newErrString := fmt.Sprintf("TestBitfinexNewOrderMulti: \nError: %s\n Status: %s\n", err, response.Status)
+		if err == nil {
+			newErrString := fmt.Sprintf("BitfinexNewOrderMulti - Error: Expected Error Status: %s\n", response.Status)
 			t.Error(newErrString)
 		}
 	}
@@ -966,4 +1051,509 @@ func TestBitfinexNewOrderMulti(t *testing.T) {
 	if reflect.TypeOf(nonLiveResponse.Orders[0].WasForced).String() != "bool" {
 		t.Error("Bitfinex NewOrderMulti.WasForced is not a bool")
 	}
+}
+
+func TestCancelOrder(t *testing.T) {
+	newConfig := config.Config{}
+
+	err := newConfig.LoadConfig("../../testdata/configtest.dat")
+	if err != nil {
+		t.Errorf("Test Failed - New Order init error: %s\n", err)
+	}
+	exchangeConfig, err := newConfig.GetExchangeConfig("Bitfinex")
+	if err != nil {
+		t.Errorf("Test Failed - New Order init error: %s\n", err)
+	}
+
+	BitfinexCancelOrder := Bitfinex{}
+	BitfinexCancelOrder.Setup(exchangeConfig)
+
+	if ACCOUNT_LIVE_TEST {
+		_, err := BitfinexCancelOrder.CancelOrder(1337)
+		if err == nil {
+			newErrString := fmt.Sprintf("BitfinexNewOrderMulti - Error: Expected Error")
+			t.Error(newErrString)
+		}
+	}
+}
+
+func TestCancelMultipleOrders(t *testing.T) {
+	newConfig := config.Config{}
+
+	err := newConfig.LoadConfig("../../testdata/configtest.dat")
+	if err != nil {
+		t.Errorf("Test Failed - New Order init error: %s\n", err)
+	}
+	exchangeConfig, err := newConfig.GetExchangeConfig("Bitfinex")
+	if err != nil {
+		t.Errorf("Test Failed - New Order init error: %s\n", err)
+	}
+
+	BitfinexMultipleOrders := Bitfinex{}
+	BitfinexMultipleOrders.Setup(exchangeConfig)
+
+	if ACCOUNT_LIVE_TEST {
+		orders := []int64{1336, 1337}
+		response, err := BitfinexMultipleOrders.CancelMultipleOrders(orders)
+		if err != nil || response != "" {
+			newErrString := fmt.Sprintf("BitfinexNewOrderMulti - Error: Expected Error", err)
+			t.Error(newErrString)
+		}
+	}
+}
+
+func TestCancelAllOrders(t *testing.T) {
+	newConfig := config.Config{}
+
+	err := newConfig.LoadConfig("../../testdata/configtest.dat")
+	if err != nil {
+		t.Errorf("Test Failed - New Order init error: %s\n", err)
+	}
+	exchangeConfig, err := newConfig.GetExchangeConfig("Bitfinex")
+	if err != nil {
+		t.Errorf("Test Failed - New Order init error: %s\n", err)
+	}
+
+	BitfinexCancelAllOrders := Bitfinex{}
+	BitfinexCancelAllOrders.Setup(exchangeConfig)
+
+	if ACCOUNT_LIVE_TEST {
+		response, err := BitfinexCancelAllOrders.CancelAllOrders()
+		if err != nil || response != "" {
+			newErrString := fmt.Sprintf("BitfinexCancelAllOrders - Error: Expected Error", err)
+			t.Error(newErrString)
+		}
+	}
+}
+
+func TestReplaceOrder(t *testing.T) {
+	newConfig := config.Config{}
+
+	err := newConfig.LoadConfig("../../testdata/configtest.dat")
+	if err != nil {
+		t.Errorf("Test Failed - New Order init error: %s\n", err)
+	}
+	exchangeConfig, err := newConfig.GetExchangeConfig("Bitfinex")
+	if err != nil {
+		t.Errorf("Test Failed - New Order init error: %s\n", err)
+	}
+
+	BitfinexReplaceOrder := Bitfinex{}
+	BitfinexReplaceOrder.Setup(exchangeConfig)
+
+	if ACCOUNT_LIVE_TEST {
+		_, err := BitfinexReplaceOrder.ReplaceOrder(1337, "BTC", 0, 0, true, "exchange limit", false)
+		if err == nil {
+			newErrString := fmt.Sprintf("BitfinexReplaceOrder - Error: Expected Error")
+			t.Error(newErrString)
+		}
+	}
+}
+
+func TestGetOrderStatus(t *testing.T) {
+	newConfig := config.Config{}
+
+	err := newConfig.LoadConfig("../../testdata/configtest.dat")
+	if err != nil {
+		t.Errorf("Test Failed - New Order init error: %s\n", err)
+	}
+	exchangeConfig, err := newConfig.GetExchangeConfig("Bitfinex")
+	if err != nil {
+		t.Errorf("Test Failed - New Order init error: %s\n", err)
+	}
+
+	BitfinexGetOrderStatus := Bitfinex{}
+	BitfinexGetOrderStatus.Setup(exchangeConfig)
+
+	if ACCOUNT_LIVE_TEST {
+		_, err := BitfinexGetOrderStatus.GetOrderStatus(1337)
+		if err == nil {
+			newErrString := fmt.Sprintf("BitfinexReplaceOrder - Error: Expected Error")
+			t.Error(newErrString)
+		}
+	}
+}
+
+func TestGetActiveOrders(t *testing.T) {
+	newConfig := config.Config{}
+
+	err := newConfig.LoadConfig("../../testdata/configtest.dat")
+	if err != nil {
+		t.Errorf("Test Failed - New Order init error: %s\n", err)
+	}
+	exchangeConfig, err := newConfig.GetExchangeConfig("Bitfinex")
+	if err != nil {
+		t.Errorf("Test Failed - New Order init error: %s\n", err)
+	}
+
+	BitfinexGetActiveOrders := Bitfinex{}
+	BitfinexGetActiveOrders.Setup(exchangeConfig)
+
+	if ACCOUNT_LIVE_TEST {
+		_, err := BitfinexGetActiveOrders.GetActiveOrders()
+		if err != nil {
+			newErrString := fmt.Sprintf("BitfinexReplaceOrder - Error: %s", err)
+			t.Error(newErrString)
+		}
+	}
+}
+
+func TestGetActivePositions(t *testing.T) {
+	newConfig := config.Config{}
+
+	err := newConfig.LoadConfig("../../testdata/configtest.dat")
+	if err != nil {
+		t.Errorf("Test Failed - New Order init error: %s\n", err)
+	}
+	exchangeConfig, err := newConfig.GetExchangeConfig("Bitfinex")
+	if err != nil {
+		t.Errorf("Test Failed - New Order init error: %s\n", err)
+	}
+
+	BitfinexGetActivePositions := Bitfinex{}
+	BitfinexGetActivePositions.Setup(exchangeConfig)
+
+	if ACCOUNT_LIVE_TEST {
+		_, err := BitfinexGetActivePositions.GetActivePositions()
+		if err != nil {
+			newErrString := fmt.Sprintf("BitfinexReplaceOrder - Error: %s", err)
+			t.Error(newErrString)
+		}
+	}
+}
+
+func TestClaimPosition(t *testing.T) {
+	newConfig := config.Config{}
+
+	err := newConfig.LoadConfig("../../testdata/configtest.dat")
+	if err != nil {
+		t.Errorf("Test Failed - New Order init error: %s\n", err)
+	}
+	exchangeConfig, err := newConfig.GetExchangeConfig("Bitfinex")
+	if err != nil {
+		t.Errorf("Test Failed - New Order init error: %s\n", err)
+	}
+
+	BitfinexClaimPosition := Bitfinex{}
+	BitfinexClaimPosition.Setup(exchangeConfig)
+
+	if ACCOUNT_LIVE_TEST {
+		_, err := BitfinexClaimPosition.ClaimPosition(1337)
+		if err == nil {
+			newErrString := fmt.Sprintf("BitfinexReplaceOrder - Error: Expected Error")
+			t.Error(newErrString)
+		}
+	}
+}
+
+func TestGetBalanceHistory(t *testing.T) {
+	newConfig := config.Config{}
+
+	err := newConfig.LoadConfig("../../testdata/configtest.dat")
+	if err != nil {
+		t.Errorf("Test Failed - New Order init error: %s\n", err)
+	}
+	exchangeConfig, err := newConfig.GetExchangeConfig("Bitfinex")
+	if err != nil {
+		t.Errorf("Test Failed - New Order init error: %s\n", err)
+	}
+
+	BitfinexGetBalanceHistory := Bitfinex{}
+	BitfinexGetBalanceHistory.Setup(exchangeConfig)
+
+	if ACCOUNT_LIVE_TEST {
+		_, err := BitfinexGetBalanceHistory.GetBalanceHistory("BTC", time.Now(), time.Now(), 1, "testWallet")
+		if err == nil {
+			newErrString := fmt.Sprintf("BitfinexReplaceOrder - Error: Expected Error")
+			t.Error(newErrString)
+		}
+	}
+}
+
+func TestGetMovementHistory(t *testing.T) {
+	newConfig := config.Config{}
+
+	err := newConfig.LoadConfig("../../testdata/configtest.dat")
+	if err != nil {
+		t.Errorf("Test Failed - New Order init error: %s\n", err)
+	}
+	exchangeConfig, err := newConfig.GetExchangeConfig("Bitfinex")
+	if err != nil {
+		t.Errorf("Test Failed - New Order init error: %s\n", err)
+	}
+
+	BitfinexGetMovementHistory := Bitfinex{}
+	BitfinexGetMovementHistory.Setup(exchangeConfig)
+
+	if ACCOUNT_LIVE_TEST {
+		_, err := BitfinexGetMovementHistory.GetMovementHistory("BTC", "BITCOIN", time.Now(), time.Now(), 1)
+		if err == nil {
+			newErrString := fmt.Sprintf("BitfinexReplaceOrder - Error: Expected Error")
+			t.Error(newErrString)
+		}
+	}
+}
+
+func TestGetTradeHistory(t *testing.T) {
+	newConfig := config.Config{}
+
+	err := newConfig.LoadConfig("../../testdata/configtest.dat")
+	if err != nil {
+		t.Errorf("Test Failed - New Order init error: %s\n", err)
+	}
+	exchangeConfig, err := newConfig.GetExchangeConfig("Bitfinex")
+	if err != nil {
+		t.Errorf("Test Failed - New Order init error: %s\n", err)
+	}
+
+	BitfinexGetTradeHistory := Bitfinex{}
+	BitfinexGetTradeHistory.Setup(exchangeConfig)
+
+	if ACCOUNT_LIVE_TEST {
+		_, err := BitfinexGetTradeHistory.GetTradeHistory("BTC", time.Now(), time.Now(), 1, 0)
+		if err == nil {
+			newErrString := fmt.Sprintf("BitfinexReplaceOrder - Error: Expected Error")
+			t.Error(newErrString)
+		}
+	}
+}
+
+func TestNewOffer(t *testing.T) {
+	newConfig := config.Config{}
+
+	err := newConfig.LoadConfig("../../testdata/configtest.dat")
+	if err != nil {
+		t.Errorf("Test Failed - New Order init error: %s\n", err)
+	}
+	exchangeConfig, err := newConfig.GetExchangeConfig("Bitfinex")
+	if err != nil {
+		t.Errorf("Test Failed - New Order init error: %s\n", err)
+	}
+
+	BitfinexNewOffer := Bitfinex{}
+	BitfinexNewOffer.Setup(exchangeConfig)
+
+	if ACCOUNT_LIVE_TEST {
+		response := BitfinexNewOffer.NewOffer("BTC", 1, 2, 2, "buy")
+		if response != 0 {
+			newErrString := fmt.Sprintf("BitfinexReplaceOrder - Error: Expected Error")
+			t.Error(newErrString)
+		}
+	}
+}
+
+func TestGetOfferStatus(t *testing.T) {
+	newConfig := config.Config{}
+
+	err := newConfig.LoadConfig("../../testdata/configtest.dat")
+	if err != nil {
+		t.Errorf("Test Failed - New Order init error: %s\n", err)
+	}
+	exchangeConfig, err := newConfig.GetExchangeConfig("Bitfinex")
+	if err != nil {
+		t.Errorf("Test Failed - New Order init error: %s\n", err)
+	}
+
+	BitfinexGetOfferStatus := Bitfinex{}
+	BitfinexGetOfferStatus.Setup(exchangeConfig)
+
+	if ACCOUNT_LIVE_TEST {
+		_, err := BitfinexGetOfferStatus.GetOfferStatus(1337)
+		if err == nil {
+			newErrString := fmt.Sprintf("BitfinexReplaceOrder - Error: Expected Error")
+			t.Error(newErrString)
+		}
+	}
+}
+
+func TestGetActiveOffers(t *testing.T) {
+	newConfig := config.Config{}
+
+	err := newConfig.LoadConfig("../../testdata/configtest.dat")
+	if err != nil {
+		t.Errorf("Test Failed - New Order init error: %s\n", err)
+	}
+	exchangeConfig, err := newConfig.GetExchangeConfig("Bitfinex")
+	if err != nil {
+		t.Errorf("Test Failed - New Order init error: %s\n", err)
+	}
+
+	BitfinexGetActiveOffers := Bitfinex{}
+	BitfinexGetActiveOffers.Setup(exchangeConfig)
+
+	if ACCOUNT_LIVE_TEST {
+		_, err := BitfinexGetActiveOffers.GetActiveOffers()
+		if err != nil {
+			newErrString := fmt.Sprintf("BitfinexReplaceOrder - Error: %s", err)
+			t.Error(newErrString)
+		}
+	}
+}
+func TestGetActiveMarginFunding(t *testing.T) {
+	newConfig := config.Config{}
+
+	err := newConfig.LoadConfig("../../testdata/configtest.dat")
+	if err != nil {
+		t.Errorf("Test Failed - New Order init error: %s\n", err)
+	}
+	exchangeConfig, err := newConfig.GetExchangeConfig("Bitfinex")
+	if err != nil {
+		t.Errorf("Test Failed - New Order init error: %s\n", err)
+	}
+
+	BitfinexGetActiveMarginFunding := Bitfinex{}
+	BitfinexGetActiveMarginFunding.Setup(exchangeConfig)
+
+	if ACCOUNT_LIVE_TEST {
+		_, err := BitfinexGetActiveMarginFunding.GetActiveMarginFunding()
+		if err != nil {
+			newErrString := fmt.Sprintf("BitfinexReplaceOrder - Error: %s", err)
+			t.Error(newErrString)
+		}
+	}
+}
+
+func TestGetMarginTotalTakenFunds(t *testing.T) {
+	newConfig := config.Config{}
+
+	err := newConfig.LoadConfig("../../testdata/configtest.dat")
+	if err != nil {
+		t.Errorf("Test Failed - New Order init error: %s\n", err)
+	}
+	exchangeConfig, err := newConfig.GetExchangeConfig("Bitfinex")
+	if err != nil {
+		t.Errorf("Test Failed - New Order init error: %s\n", err)
+	}
+
+	BitfinexGetMarginTotalTakenFunds := Bitfinex{}
+	BitfinexGetMarginTotalTakenFunds.Setup(exchangeConfig)
+
+	if ACCOUNT_LIVE_TEST {
+		_, err := BitfinexGetMarginTotalTakenFunds.GetMarginTotalTakenFunds()
+		if err != nil {
+			newErrString := fmt.Sprintf("BitfinexReplaceOrder - Error: %s", err)
+			t.Error(newErrString)
+		}
+	}
+}
+
+func TestCloseMarginFunding(t *testing.T) {
+	newConfig := config.Config{}
+
+	err := newConfig.LoadConfig("../../testdata/configtest.dat")
+	if err != nil {
+		t.Errorf("Test Failed - New Order init error: %s\n", err)
+	}
+	exchangeConfig, err := newConfig.GetExchangeConfig("Bitfinex")
+	if err != nil {
+		t.Errorf("Test Failed - New Order init error: %s\n", err)
+	}
+
+	BitfinexCloseMarginFunding := Bitfinex{}
+	BitfinexCloseMarginFunding.Setup(exchangeConfig)
+
+	if ACCOUNT_LIVE_TEST {
+		_, err := BitfinexCloseMarginFunding.CloseMarginFunding(1337)
+		if err == nil {
+			newErrString := fmt.Sprintf("BitfinexReplaceOrder - Error: Expected Error")
+			t.Error(newErrString)
+		}
+	}
+}
+
+func TestGetAccountBalance(t *testing.T) {
+	newConfig := config.Config{}
+
+	err := newConfig.LoadConfig("../../testdata/configtest.dat")
+	if err != nil {
+		t.Errorf("Test Failed - New Order init error: %s\n", err)
+	}
+	exchangeConfig, err := newConfig.GetExchangeConfig("Bitfinex")
+	if err != nil {
+		t.Errorf("Test Failed - New Order init error: %s\n", err)
+	}
+
+	BitfinexGetAccountBalance := Bitfinex{}
+	BitfinexGetAccountBalance.Setup(exchangeConfig)
+
+	if ACCOUNT_LIVE_TEST {
+		_, err := BitfinexGetAccountBalance.GetAccountBalance()
+		if err != nil {
+			newErrString := fmt.Sprintf("BitfinexReplaceOrder - Error: %s", err)
+			t.Error(newErrString)
+		}
+	}
+}
+
+func TestGetMarginInfo(t *testing.T) {
+	newConfig := config.Config{}
+
+	err := newConfig.LoadConfig("../../testdata/configtest.dat")
+	if err != nil {
+		t.Errorf("Test Failed - New Order init error: %s\n", err)
+	}
+	exchangeConfig, err := newConfig.GetExchangeConfig("Bitfinex")
+	if err != nil {
+		t.Errorf("Test Failed - New Order init error: %s\n", err)
+	}
+
+	BitfinexGetMarginInfo := Bitfinex{}
+	BitfinexGetMarginInfo.Setup(exchangeConfig)
+
+	if ACCOUNT_LIVE_TEST {
+		_, err := BitfinexGetMarginInfo.GetMarginInfo()
+		if err == nil {
+			newErrString := fmt.Sprintf("BitfinexReplaceOrder - Error: Expected Error")
+			t.Error(newErrString)
+		}
+	}
+}
+func TestWalletTransfer(t *testing.T) {
+	newConfig := config.Config{}
+
+	err := newConfig.LoadConfig("../../testdata/configtest.dat")
+	if err != nil {
+		t.Errorf("Test Failed - New Order init error: %s\n", err)
+	}
+	exchangeConfig, err := newConfig.GetExchangeConfig("Bitfinex")
+	if err != nil {
+		t.Errorf("Test Failed - New Order init error: %s\n", err)
+	}
+
+	BitfinexWalletTransfer := Bitfinex{}
+	BitfinexWalletTransfer.Setup(exchangeConfig)
+
+	if ACCOUNT_LIVE_TEST {
+		_, err := BitfinexWalletTransfer.WalletTransfer(100, "BTC", "somewallet", "someotherwallet")
+		if err == nil {
+			newErrString := fmt.Sprintf("BitfinexReplaceOrder - Error: Expected Error")
+			t.Error(newErrString)
+		}
+	}
+}
+func TestWithdrawal(t *testing.T) {
+	newConfig := config.Config{}
+
+	err := newConfig.LoadConfig("../../testdata/configtest.dat")
+	if err != nil {
+		t.Errorf("Test Failed - New Order init error: %s\n", err)
+	}
+	exchangeConfig, err := newConfig.GetExchangeConfig("Bitfinex")
+	if err != nil {
+		t.Errorf("Test Failed - New Order init error: %s\n", err)
+	}
+
+	BitfinexWithdrawal := Bitfinex{}
+	BitfinexWithdrawal.Setup(exchangeConfig)
+
+	if ACCOUNT_LIVE_TEST {
+		_, err := BitfinexWithdrawal.Withdrawal("BITCOIN", "somewallet", "123A87612376", 100)
+		if err == nil {
+			newErrString := fmt.Sprintf("BitfinexReplaceOrder - Error: Expected Error")
+			t.Error(newErrString)
+		}
+	}
+}
+func TestSendAuthenticatedHTTPRequest(t *testing.T) {
+
 }
