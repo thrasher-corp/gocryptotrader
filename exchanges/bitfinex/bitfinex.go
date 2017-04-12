@@ -246,7 +246,7 @@ func (b *Bitfinex) CancelOrder(OrderID int64) (BitfinexOrder, error) {
 	return response, nil
 }
 
-func (b *Bitfinex) CancelMultiplateOrders(OrderIDs []int64) (string, error) {
+func (b *Bitfinex) CancelMultipleOrders(OrderIDs []int64) (string, error) {
 	request := make(map[string]interface{})
 	request["order_ids"] = OrderIDs
 	response := BitfinexGenericResponse{}
