@@ -588,7 +588,7 @@ func (b *Bitfinex) Withdrawal(withdrawType, wallet, address string, amount float
 	return response, nil
 }
 
-func (b *Bitfinex) SendAuthenticatedHTTPRequest(method, path string, params map[string]interface{}, result interface{}) (err error) {
+func (b *Bitfinex) SendAuthenticatedHTTPRequest(method, path string, params map[string]interface{}, result interface{}) error {
 	if len(b.APIKey) == 0 {
 		return errors.New("SendAuthenticatedHTTPRequest: Invalid API key")
 	}
@@ -604,7 +604,6 @@ func (b *Bitfinex) SendAuthenticatedHTTPRequest(method, path string, params map[
 	}
 
 	PayloadJson, err := common.JSONEncode(request)
-
 	if err != nil {
 		return errors.New("SendAuthenticatedHTTPRequest: Unable to JSON request")
 	}
@@ -634,7 +633,6 @@ func (b *Bitfinex) SendAuthenticatedHTTPRequest(method, path string, params map[
 	}
 
 	err = common.JSONDecode([]byte(resp), &result)
-
 	if err != nil {
 		return errors.New("SendAuthenticatedHTTPRequest: Unable to JSON Unmarshal response.")
 	}
