@@ -827,10 +827,9 @@ func TestNewOrder(t *testing.T) {
 	BitfinexNewOrder.Setup(exchangeConfig)
 
 	if ACCOUNT_LIVE_TEST {
-		response, err := BitfinexNewOrder.NewOrder("BTCUSD", 0, 0, true, "test", false)
-		if err == nil {
-			newErrString := fmt.Sprintf("BitfinexNewOrder - Error: Expected Error Status: %s\n", response.IsLive)
-			t.Error(newErrString)
+		response, errLive := BitfinexNewOrder.NewOrder("BTCUSD", 0, 0, true, "test", false)
+		if errLive == nil {
+			t.Errorf("Test Failed - BitfinexNewOrder - Error: Expected Error Status: %t", response.IsLive)
 		}
 	}
 
@@ -1058,11 +1057,11 @@ func TestCancelOrder(t *testing.T) {
 
 	err := newConfig.LoadConfig("../../testdata/configtest.dat")
 	if err != nil {
-		t.Errorf("Test Failed - New Order init error: %s\n", err)
+		t.Errorf("Test Failed - Bitfinex CancelOrder init error: %s\n", err)
 	}
 	exchangeConfig, err := newConfig.GetExchangeConfig("Bitfinex")
 	if err != nil {
-		t.Errorf("Test Failed - New Order init error: %s\n", err)
+		t.Errorf("Test Failed - Bitfinex CancelOrder init error: %s\n", err)
 	}
 
 	BitfinexCancelOrder := Bitfinex{}
@@ -1071,8 +1070,7 @@ func TestCancelOrder(t *testing.T) {
 	if ACCOUNT_LIVE_TEST {
 		_, err := BitfinexCancelOrder.CancelOrder(1337)
 		if err == nil {
-			newErrString := fmt.Sprintf("BitfinexNewOrderMulti - Error: Expected Error")
-			t.Error(newErrString)
+			t.Errorf("Test Failed - Bitfinex CancelOrder - Error: %s", err)
 		}
 	}
 }
@@ -1082,11 +1080,11 @@ func TestCancelMultipleOrders(t *testing.T) {
 
 	err := newConfig.LoadConfig("../../testdata/configtest.dat")
 	if err != nil {
-		t.Errorf("Test Failed - New Order init error: %s\n", err)
+		t.Errorf("Test Failed - Bitfinex CancelMultipleOrders init error: %s\n", err)
 	}
 	exchangeConfig, err := newConfig.GetExchangeConfig("Bitfinex")
 	if err != nil {
-		t.Errorf("Test Failed - New Order init error: %s\n", err)
+		t.Errorf("Test Failed - Bitfinex CancelMultipleOrders init error: %s\n", err)
 	}
 
 	BitfinexMultipleOrders := Bitfinex{}
@@ -1096,8 +1094,7 @@ func TestCancelMultipleOrders(t *testing.T) {
 		orders := []int64{1336, 1337}
 		response, err := BitfinexMultipleOrders.CancelMultipleOrders(orders)
 		if err != nil || response != "" {
-			newErrString := fmt.Sprintf("BitfinexNewOrderMulti - Error: Expected Error", err)
-			t.Error(newErrString)
+			t.Errorf("Test Failed - Bitfinex CancelMultipleOrders - Error: %s", err)
 		}
 	}
 }
@@ -1107,11 +1104,11 @@ func TestCancelAllOrders(t *testing.T) {
 
 	err := newConfig.LoadConfig("../../testdata/configtest.dat")
 	if err != nil {
-		t.Errorf("Test Failed - New Order init error: %s\n", err)
+		t.Errorf("Test Failed - Bitfinex CancelAllOrders init error: %s\n", err)
 	}
 	exchangeConfig, err := newConfig.GetExchangeConfig("Bitfinex")
 	if err != nil {
-		t.Errorf("Test Failed - New Order init error: %s\n", err)
+		t.Errorf("Test Failed - Bitfinex CancelAllOrders init error: %s\n", err)
 	}
 
 	BitfinexCancelAllOrders := Bitfinex{}
@@ -1120,8 +1117,7 @@ func TestCancelAllOrders(t *testing.T) {
 	if ACCOUNT_LIVE_TEST {
 		response, err := BitfinexCancelAllOrders.CancelAllOrders()
 		if err != nil || response != "" {
-			newErrString := fmt.Sprintf("BitfinexCancelAllOrders - Error: Expected Error", err)
-			t.Error(newErrString)
+			t.Errorf("Test Failed - Bitfinex CancelAllOrders - Error: %s", err)
 		}
 	}
 }
@@ -1131,11 +1127,11 @@ func TestReplaceOrder(t *testing.T) {
 
 	err := newConfig.LoadConfig("../../testdata/configtest.dat")
 	if err != nil {
-		t.Errorf("Test Failed - New Order init error: %s\n", err)
+		t.Errorf("Test Failed - Bitfinex ReplaceOrder init error: %s\n", err)
 	}
 	exchangeConfig, err := newConfig.GetExchangeConfig("Bitfinex")
 	if err != nil {
-		t.Errorf("Test Failed - New Order init error: %s\n", err)
+		t.Errorf("Test Failed - Bitfinex ReplaceOrder init error: %s\n", err)
 	}
 
 	BitfinexReplaceOrder := Bitfinex{}
@@ -1144,8 +1140,7 @@ func TestReplaceOrder(t *testing.T) {
 	if ACCOUNT_LIVE_TEST {
 		_, err := BitfinexReplaceOrder.ReplaceOrder(1337, "BTC", 0, 0, true, "exchange limit", false)
 		if err == nil {
-			newErrString := fmt.Sprintf("BitfinexReplaceOrder - Error: Expected Error")
-			t.Error(newErrString)
+			t.Error("Test Failed - Bitfinex ReplaceOrder - Expected Error")
 		}
 	}
 }
@@ -1155,11 +1150,11 @@ func TestGetOrderStatus(t *testing.T) {
 
 	err := newConfig.LoadConfig("../../testdata/configtest.dat")
 	if err != nil {
-		t.Errorf("Test Failed - New Order init error: %s\n", err)
+		t.Errorf("Test Failed - Bitfinex GetOrderStatus init error: %s\n", err)
 	}
 	exchangeConfig, err := newConfig.GetExchangeConfig("Bitfinex")
 	if err != nil {
-		t.Errorf("Test Failed - New Order init error: %s\n", err)
+		t.Errorf("Test Failed - Bitfinex GetOrderStatus init error: %s\n", err)
 	}
 
 	BitfinexGetOrderStatus := Bitfinex{}
@@ -1168,8 +1163,7 @@ func TestGetOrderStatus(t *testing.T) {
 	if ACCOUNT_LIVE_TEST {
 		_, err := BitfinexGetOrderStatus.GetOrderStatus(1337)
 		if err == nil {
-			newErrString := fmt.Sprintf("BitfinexReplaceOrder - Error: Expected Error")
-			t.Error(newErrString)
+			t.Error("Test Failed - Bitfinex GetOrderStatus - Expected Error")
 		}
 	}
 }
@@ -1179,11 +1173,11 @@ func TestGetActiveOrders(t *testing.T) {
 
 	err := newConfig.LoadConfig("../../testdata/configtest.dat")
 	if err != nil {
-		t.Errorf("Test Failed - New Order init error: %s\n", err)
+		t.Errorf("Test Failed - Bitfinex GetActiveOrders init error: %s\n", err)
 	}
 	exchangeConfig, err := newConfig.GetExchangeConfig("Bitfinex")
 	if err != nil {
-		t.Errorf("Test Failed - New Order init error: %s\n", err)
+		t.Errorf("Test Failed - Bitfinex GetActiveOrders init error: %s\n", err)
 	}
 
 	BitfinexGetActiveOrders := Bitfinex{}
@@ -1192,8 +1186,7 @@ func TestGetActiveOrders(t *testing.T) {
 	if ACCOUNT_LIVE_TEST {
 		_, err := BitfinexGetActiveOrders.GetActiveOrders()
 		if err != nil {
-			newErrString := fmt.Sprintf("BitfinexReplaceOrder - Error: %s", err)
-			t.Error(newErrString)
+			t.Error("Test Failed - Bitfinex GetActiveOrders - Expected Error")
 		}
 	}
 }
@@ -1203,11 +1196,11 @@ func TestGetActivePositions(t *testing.T) {
 
 	err := newConfig.LoadConfig("../../testdata/configtest.dat")
 	if err != nil {
-		t.Errorf("Test Failed - New Order init error: %s\n", err)
+		t.Errorf("Test Failed - Bitfinex GetActivePositions init error: %s\n", err)
 	}
 	exchangeConfig, err := newConfig.GetExchangeConfig("Bitfinex")
 	if err != nil {
-		t.Errorf("Test Failed - New Order init error: %s\n", err)
+		t.Errorf("Test Failed - Bitfinex GetActivePositions init error: %s\n", err)
 	}
 
 	BitfinexGetActivePositions := Bitfinex{}
@@ -1216,8 +1209,7 @@ func TestGetActivePositions(t *testing.T) {
 	if ACCOUNT_LIVE_TEST {
 		_, err := BitfinexGetActivePositions.GetActivePositions()
 		if err != nil {
-			newErrString := fmt.Sprintf("BitfinexReplaceOrder - Error: %s", err)
-			t.Error(newErrString)
+			t.Error("Test Failed - Bitfinex GetActivePositions - Expected Error")
 		}
 	}
 }
@@ -1227,11 +1219,11 @@ func TestClaimPosition(t *testing.T) {
 
 	err := newConfig.LoadConfig("../../testdata/configtest.dat")
 	if err != nil {
-		t.Errorf("Test Failed - New Order init error: %s\n", err)
+		t.Errorf("Test Failed - Bitfinex ClaimPosition init error: %s\n", err)
 	}
 	exchangeConfig, err := newConfig.GetExchangeConfig("Bitfinex")
 	if err != nil {
-		t.Errorf("Test Failed - New Order init error: %s\n", err)
+		t.Errorf("Test Failed - Bitfinex ClaimPosition init error: %s\n", err)
 	}
 
 	BitfinexClaimPosition := Bitfinex{}
@@ -1240,8 +1232,7 @@ func TestClaimPosition(t *testing.T) {
 	if ACCOUNT_LIVE_TEST {
 		_, err := BitfinexClaimPosition.ClaimPosition(1337)
 		if err == nil {
-			newErrString := fmt.Sprintf("BitfinexReplaceOrder - Error: Expected Error")
-			t.Error(newErrString)
+			t.Error("Test Failed - Bitfinex ClaimPosition - Expected Error")
 		}
 	}
 }
@@ -1251,11 +1242,11 @@ func TestGetBalanceHistory(t *testing.T) {
 
 	err := newConfig.LoadConfig("../../testdata/configtest.dat")
 	if err != nil {
-		t.Errorf("Test Failed - New Order init error: %s\n", err)
+		t.Errorf("Test Failed - Bitfinex GetBalanceHistory init error: %s\n", err)
 	}
 	exchangeConfig, err := newConfig.GetExchangeConfig("Bitfinex")
 	if err != nil {
-		t.Errorf("Test Failed - New Order init error: %s\n", err)
+		t.Errorf("Test Failed - Bitfinex GetBalanceHistory init error: %s\n", err)
 	}
 
 	BitfinexGetBalanceHistory := Bitfinex{}
@@ -1264,8 +1255,7 @@ func TestGetBalanceHistory(t *testing.T) {
 	if ACCOUNT_LIVE_TEST {
 		_, err := BitfinexGetBalanceHistory.GetBalanceHistory("BTC", time.Now(), time.Now(), 1, "testWallet")
 		if err == nil {
-			newErrString := fmt.Sprintf("BitfinexReplaceOrder - Error: Expected Error")
-			t.Error(newErrString)
+			t.Error("Test Failed - Bitfinex GetBalanceHistory - Expected Error")
 		}
 	}
 }
@@ -1275,11 +1265,11 @@ func TestGetMovementHistory(t *testing.T) {
 
 	err := newConfig.LoadConfig("../../testdata/configtest.dat")
 	if err != nil {
-		t.Errorf("Test Failed - New Order init error: %s\n", err)
+		t.Errorf("Test Failed - Bitfinex GetMovementHistory init error: %s\n", err)
 	}
 	exchangeConfig, err := newConfig.GetExchangeConfig("Bitfinex")
 	if err != nil {
-		t.Errorf("Test Failed - New Order init error: %s\n", err)
+		t.Errorf("Test Failed - Bitfinex GetMovementHistory init error: %s\n", err)
 	}
 
 	BitfinexGetMovementHistory := Bitfinex{}
@@ -1288,8 +1278,7 @@ func TestGetMovementHistory(t *testing.T) {
 	if ACCOUNT_LIVE_TEST {
 		_, err := BitfinexGetMovementHistory.GetMovementHistory("BTC", "BITCOIN", time.Now(), time.Now(), 1)
 		if err == nil {
-			newErrString := fmt.Sprintf("BitfinexReplaceOrder - Error: Expected Error")
-			t.Error(newErrString)
+			t.Error("Test Failed - Bitfinex GetMovementHistory - Expected Error")
 		}
 	}
 }
@@ -1299,11 +1288,11 @@ func TestGetTradeHistory(t *testing.T) {
 
 	err := newConfig.LoadConfig("../../testdata/configtest.dat")
 	if err != nil {
-		t.Errorf("Test Failed - New Order init error: %s\n", err)
+		t.Errorf("Test Failed - Bitfinex GetTradeHistory init error: %s\n", err)
 	}
 	exchangeConfig, err := newConfig.GetExchangeConfig("Bitfinex")
 	if err != nil {
-		t.Errorf("Test Failed - New Order init error: %s\n", err)
+		t.Errorf("Test Failed - Bitfinex GetTradeHistory init error: %s\n", err)
 	}
 
 	BitfinexGetTradeHistory := Bitfinex{}
@@ -1312,8 +1301,7 @@ func TestGetTradeHistory(t *testing.T) {
 	if ACCOUNT_LIVE_TEST {
 		_, err := BitfinexGetTradeHistory.GetTradeHistory("BTC", time.Now(), time.Now(), 1, 0)
 		if err == nil {
-			newErrString := fmt.Sprintf("BitfinexReplaceOrder - Error: Expected Error")
-			t.Error(newErrString)
+			t.Error("Test Failed - Bitfinex GetTradeHistory - Expected Error")
 		}
 	}
 }
@@ -1323,11 +1311,11 @@ func TestNewOffer(t *testing.T) {
 
 	err := newConfig.LoadConfig("../../testdata/configtest.dat")
 	if err != nil {
-		t.Errorf("Test Failed - New Order init error: %s\n", err)
+		t.Errorf("Test Failed - Bitfinex NewOffer init error: %s\n", err)
 	}
 	exchangeConfig, err := newConfig.GetExchangeConfig("Bitfinex")
 	if err != nil {
-		t.Errorf("Test Failed - New Order init error: %s\n", err)
+		t.Errorf("Test Failed - Bitfinex NewOffer init error: %s\n", err)
 	}
 
 	BitfinexNewOffer := Bitfinex{}
@@ -1336,8 +1324,7 @@ func TestNewOffer(t *testing.T) {
 	if ACCOUNT_LIVE_TEST {
 		response := BitfinexNewOffer.NewOffer("BTC", 1, 2, 2, "buy")
 		if response != 0 {
-			newErrString := fmt.Sprintf("BitfinexReplaceOrder - Error: Expected Error")
-			t.Error(newErrString)
+			t.Error("Test Failed - Bitfinex NewOffer - Expected Error")
 		}
 	}
 }
@@ -1347,11 +1334,11 @@ func TestGetOfferStatus(t *testing.T) {
 
 	err := newConfig.LoadConfig("../../testdata/configtest.dat")
 	if err != nil {
-		t.Errorf("Test Failed - New Order init error: %s\n", err)
+		t.Errorf("Test Failed - Bitfinex GetOfferStatus init error: %s\n", err)
 	}
 	exchangeConfig, err := newConfig.GetExchangeConfig("Bitfinex")
 	if err != nil {
-		t.Errorf("Test Failed - New Order init error: %s\n", err)
+		t.Errorf("Test Failed - Bitfinex GetOfferStatus init error: %s\n", err)
 	}
 
 	BitfinexGetOfferStatus := Bitfinex{}
@@ -1360,8 +1347,7 @@ func TestGetOfferStatus(t *testing.T) {
 	if ACCOUNT_LIVE_TEST {
 		_, err := BitfinexGetOfferStatus.GetOfferStatus(1337)
 		if err == nil {
-			newErrString := fmt.Sprintf("BitfinexReplaceOrder - Error: Expected Error")
-			t.Error(newErrString)
+			t.Error("Test Failed - Bitfinex GetOfferStatus - Expected Error")
 		}
 	}
 }
@@ -1371,11 +1357,11 @@ func TestGetActiveOffers(t *testing.T) {
 
 	err := newConfig.LoadConfig("../../testdata/configtest.dat")
 	if err != nil {
-		t.Errorf("Test Failed - New Order init error: %s\n", err)
+		t.Errorf("Test Failed - Bitfinex GetActiveOffers init error: %s\n", err)
 	}
 	exchangeConfig, err := newConfig.GetExchangeConfig("Bitfinex")
 	if err != nil {
-		t.Errorf("Test Failed - New Order init error: %s\n", err)
+		t.Errorf("Test Failed - Bitfinex GetActiveOffers init error: %s\n", err)
 	}
 
 	BitfinexGetActiveOffers := Bitfinex{}
@@ -1384,21 +1370,21 @@ func TestGetActiveOffers(t *testing.T) {
 	if ACCOUNT_LIVE_TEST {
 		_, err := BitfinexGetActiveOffers.GetActiveOffers()
 		if err != nil {
-			newErrString := fmt.Sprintf("BitfinexReplaceOrder - Error: %s", err)
-			t.Error(newErrString)
+			t.Error("Test Failed - Bitfinex GetActiveOffers - Expected Error")
 		}
 	}
 }
+
 func TestGetActiveMarginFunding(t *testing.T) {
 	newConfig := config.Config{}
 
 	err := newConfig.LoadConfig("../../testdata/configtest.dat")
 	if err != nil {
-		t.Errorf("Test Failed - New Order init error: %s\n", err)
+		t.Errorf("Test Failed - Bitfinex GetActiveMarginFunding init error: %s\n", err)
 	}
 	exchangeConfig, err := newConfig.GetExchangeConfig("Bitfinex")
 	if err != nil {
-		t.Errorf("Test Failed - New Order init error: %s\n", err)
+		t.Errorf("Test Failed - Bitfinex GetActiveMarginFunding init error: %s\n", err)
 	}
 
 	BitfinexGetActiveMarginFunding := Bitfinex{}
@@ -1407,8 +1393,7 @@ func TestGetActiveMarginFunding(t *testing.T) {
 	if ACCOUNT_LIVE_TEST {
 		_, err := BitfinexGetActiveMarginFunding.GetActiveMarginFunding()
 		if err != nil {
-			newErrString := fmt.Sprintf("BitfinexReplaceOrder - Error: %s", err)
-			t.Error(newErrString)
+			t.Error("Test Failed - Bitfinex GetActiveMarginFunding - Expected Error")
 		}
 	}
 }
@@ -1418,11 +1403,11 @@ func TestGetMarginTotalTakenFunds(t *testing.T) {
 
 	err := newConfig.LoadConfig("../../testdata/configtest.dat")
 	if err != nil {
-		t.Errorf("Test Failed - New Order init error: %s\n", err)
+		t.Errorf("Test Failed - Bitfinex GetMarginTotalTakenFunds init error: %s\n", err)
 	}
 	exchangeConfig, err := newConfig.GetExchangeConfig("Bitfinex")
 	if err != nil {
-		t.Errorf("Test Failed - New Order init error: %s\n", err)
+		t.Errorf("Test Failed - Bitfinex GetMarginTotalTakenFunds init error: %s\n", err)
 	}
 
 	BitfinexGetMarginTotalTakenFunds := Bitfinex{}
@@ -1431,8 +1416,7 @@ func TestGetMarginTotalTakenFunds(t *testing.T) {
 	if ACCOUNT_LIVE_TEST {
 		_, err := BitfinexGetMarginTotalTakenFunds.GetMarginTotalTakenFunds()
 		if err != nil {
-			newErrString := fmt.Sprintf("BitfinexReplaceOrder - Error: %s", err)
-			t.Error(newErrString)
+			t.Error("Test Failed - Bitfinex GetMarginTotalTakenFunds - Expected Error")
 		}
 	}
 }
@@ -1442,11 +1426,11 @@ func TestCloseMarginFunding(t *testing.T) {
 
 	err := newConfig.LoadConfig("../../testdata/configtest.dat")
 	if err != nil {
-		t.Errorf("Test Failed - New Order init error: %s\n", err)
+		t.Errorf("Test Failed - Bitfinex CloseMarginFunding init error: %s\n", err)
 	}
 	exchangeConfig, err := newConfig.GetExchangeConfig("Bitfinex")
 	if err != nil {
-		t.Errorf("Test Failed - New Order init error: %s\n", err)
+		t.Errorf("Test Failed - Bitfinex CloseMarginFunding init error: %s\n", err)
 	}
 
 	BitfinexCloseMarginFunding := Bitfinex{}
@@ -1455,8 +1439,7 @@ func TestCloseMarginFunding(t *testing.T) {
 	if ACCOUNT_LIVE_TEST {
 		_, err := BitfinexCloseMarginFunding.CloseMarginFunding(1337)
 		if err == nil {
-			newErrString := fmt.Sprintf("BitfinexReplaceOrder - Error: Expected Error")
-			t.Error(newErrString)
+			t.Error("Test Failed - Bitfinex CloseMarginFunding - Expected Error")
 		}
 	}
 }
@@ -1466,11 +1449,11 @@ func TestGetAccountBalance(t *testing.T) {
 
 	err := newConfig.LoadConfig("../../testdata/configtest.dat")
 	if err != nil {
-		t.Errorf("Test Failed - New Order init error: %s\n", err)
+		t.Errorf("Test Failed - Bitfinex GetAccountBalance init error: %s\n", err)
 	}
 	exchangeConfig, err := newConfig.GetExchangeConfig("Bitfinex")
 	if err != nil {
-		t.Errorf("Test Failed - New Order init error: %s\n", err)
+		t.Errorf("Test Failed - Bitfinex GetAccountBalance init error: %s\n", err)
 	}
 
 	BitfinexGetAccountBalance := Bitfinex{}
@@ -1479,8 +1462,7 @@ func TestGetAccountBalance(t *testing.T) {
 	if ACCOUNT_LIVE_TEST {
 		_, err := BitfinexGetAccountBalance.GetAccountBalance()
 		if err != nil {
-			newErrString := fmt.Sprintf("BitfinexReplaceOrder - Error: %s", err)
-			t.Error(newErrString)
+			t.Error("Test Failed - Bitfinex GetAccountBalance - Expected Error")
 		}
 	}
 }
@@ -1490,11 +1472,11 @@ func TestGetMarginInfo(t *testing.T) {
 
 	err := newConfig.LoadConfig("../../testdata/configtest.dat")
 	if err != nil {
-		t.Errorf("Test Failed - New Order init error: %s\n", err)
+		t.Errorf("Test Failed - Bitfinex GetMarginInfo init error: %s\n", err)
 	}
 	exchangeConfig, err := newConfig.GetExchangeConfig("Bitfinex")
 	if err != nil {
-		t.Errorf("Test Failed - New Order init error: %s\n", err)
+		t.Errorf("Test Failed - Bitfinex GetMarginInfo init error: %s\n", err)
 	}
 
 	BitfinexGetMarginInfo := Bitfinex{}
@@ -1503,21 +1485,21 @@ func TestGetMarginInfo(t *testing.T) {
 	if ACCOUNT_LIVE_TEST {
 		_, err := BitfinexGetMarginInfo.GetMarginInfo()
 		if err == nil {
-			newErrString := fmt.Sprintf("BitfinexReplaceOrder - Error: Expected Error")
-			t.Error(newErrString)
+			t.Error("Test Failed - Bitfinex GetMarginInfo - Expected Error")
 		}
 	}
 }
+
 func TestWalletTransfer(t *testing.T) {
 	newConfig := config.Config{}
 
 	err := newConfig.LoadConfig("../../testdata/configtest.dat")
 	if err != nil {
-		t.Errorf("Test Failed - New Order init error: %s\n", err)
+		t.Errorf("Test Failed - Bitfinex WalletTransfer init error: %s\n", err)
 	}
 	exchangeConfig, err := newConfig.GetExchangeConfig("Bitfinex")
 	if err != nil {
-		t.Errorf("Test Failed - New Order init error: %s\n", err)
+		t.Errorf("Test Failed - Bitfinex WalletTransfer init error: %s\n", err)
 	}
 
 	BitfinexWalletTransfer := Bitfinex{}
@@ -1526,21 +1508,21 @@ func TestWalletTransfer(t *testing.T) {
 	if ACCOUNT_LIVE_TEST {
 		_, err := BitfinexWalletTransfer.WalletTransfer(100, "BTC", "somewallet", "someotherwallet")
 		if err == nil {
-			newErrString := fmt.Sprintf("BitfinexReplaceOrder - Error: Expected Error")
-			t.Error(newErrString)
+			t.Error("Test Failed - Bitfinex WalletTransfer - Expected Error")
 		}
 	}
 }
+
 func TestWithdrawal(t *testing.T) {
 	newConfig := config.Config{}
 
 	err := newConfig.LoadConfig("../../testdata/configtest.dat")
 	if err != nil {
-		t.Errorf("Test Failed - New Order init error: %s\n", err)
+		t.Errorf("Test Failed - Bitfinex Withdrawal init error: %s\n", err)
 	}
 	exchangeConfig, err := newConfig.GetExchangeConfig("Bitfinex")
 	if err != nil {
-		t.Errorf("Test Failed - New Order init error: %s\n", err)
+		t.Errorf("Test Failed - Bitfinex Withdrawal init error: %s\n", err)
 	}
 
 	BitfinexWithdrawal := Bitfinex{}
@@ -1549,11 +1531,35 @@ func TestWithdrawal(t *testing.T) {
 	if ACCOUNT_LIVE_TEST {
 		_, err := BitfinexWithdrawal.Withdrawal("BITCOIN", "somewallet", "123A87612376", 100)
 		if err == nil {
-			newErrString := fmt.Sprintf("BitfinexReplaceOrder - Error: Expected Error")
-			t.Error(newErrString)
+			t.Error("Test Failed - Bitfinex Withdrawal - Expected Error")
 		}
 	}
 }
-func TestSendAuthenticatedHTTPRequest(t *testing.T) {
 
+func TestSendAuthenticatedHTTPRequest(t *testing.T) {
+	if ACCOUNT_LIVE_TEST {
+		newConfig := config.Config{}
+
+		err := newConfig.LoadConfig("../../testdata/configtest.dat")
+		if err != nil {
+			t.Errorf("Test Failed - SendAuthenticatedHTTPRequest init error: %s\n", err)
+		}
+		exchangeConfig, err := newConfig.GetExchangeConfig("Bitfinex")
+		if err != nil {
+			t.Errorf("Test Failed - SendAuthenticatedHTTPRequest init error: %s\n", err)
+		}
+
+		sendAuthHTTPRequest := Bitfinex{}
+		sendAuthHTTPRequest.Setup(exchangeConfig)
+		result := []BitfinexAccountInfo{}
+
+		err = sendAuthHTTPRequest.SendAuthenticatedHTTPRequest("POST", BITFINEX_ACCOUNT_INFO, nil, &result)
+		if err != nil {
+			t.Errorf("Test Failed - Bitfinex SendAuthenticatedHTTPRequest() error: %s", err)
+		}
+
+		if len(result) < 1 {
+			t.Error("Test Failed - Bitfinex SendAuthenticatedHTTPRequest() incorrect length")
+		}
+	}
 }
