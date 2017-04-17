@@ -12,20 +12,28 @@ import (
 )
 
 const (
-	BITFINEX_WEBSOCKET                   = "wss://api2.bitfinex.com:3000/ws"
-	BITFINEX_WEBSOCKET_VERSION           = "1.1"
-	BITFINEX_WEBSOCKET_POSITION_SNAPSHOT = "ps"
-	BITFINEX_WEBSOCKET_POSITION_NEW      = "pn"
-	BITFINEX_WEBSOCKET_POSITION_UPDATE   = "pu"
-	BITFINEX_WEBSOCKET_POSITION_CLOSE    = "pc"
-	BITFINEX_WEBSOCKET_WALLET_SNAPSHOT   = "ws"
-	BITFINEX_WEBSOCKET_WALLET_UPDATE     = "wu"
-	BITFINEX_WEBSOCKET_ORDER_SNAPSHOT    = "os"
-	BITFINEX_WEBSOCKET_ORDER_NEW         = "on"
-	BITFINEX_WEBSOCKET_ORDER_UPDATE      = "ou"
-	BITFINEX_WEBSOCKET_ORDER_CANCEL      = "oc"
-	BITFINEX_WEBSOCKET_TRADE_EXECUTED    = "te"
-	BITFINEX_WEBSOCKET_HEARTBEAT         = "hb"
+	BITFINEX_WEBSOCKET                     = "wss://api.bitfinex.com/ws"
+	BITFINEX_WEBSOCKET_VERSION             = "1.1"
+	BITFINEX_WEBSOCKET_POSITION_SNAPSHOT   = "ps"
+	BITFINEX_WEBSOCKET_POSITION_NEW        = "pn"
+	BITFINEX_WEBSOCKET_POSITION_UPDATE     = "pu"
+	BITFINEX_WEBSOCKET_POSITION_CLOSE      = "pc"
+	BITFINEX_WEBSOCKET_WALLET_SNAPSHOT     = "ws"
+	BITFINEX_WEBSOCKET_WALLET_UPDATE       = "wu"
+	BITFINEX_WEBSOCKET_ORDER_SNAPSHOT      = "os"
+	BITFINEX_WEBSOCKET_ORDER_NEW           = "on"
+	BITFINEX_WEBSOCKET_ORDER_UPDATE        = "ou"
+	BITFINEX_WEBSOCKET_ORDER_CANCEL        = "oc"
+	BITFINEX_WEBSOCKET_TRADE_EXECUTED      = "te"
+	BITFINEX_WEBSOCKET_HEARTBEAT           = "hb"
+	BITFINEX_WEBSOCKET_ALERT_RESTARTING    = "20051"
+	BITFINEX_WEBSOCKET_ALERT_REFRESHING    = "20060"
+	BITFINEX_WEBSOCKET_ALERT_RESUME        = "20061"
+	BITFINEX_WEBSOCKET_UNKNOWN_EVENT       = "10000"
+	BITFINEX_WEBSOCKET_UNKNOWN_PAIR        = "10001"
+	BITFINEX_WEBSOCKET_SUBSCRIPTION_FAILED = "10300"
+	BITFINEX_WEBSOCKET_ALREADY_SUBSCRIBED  = "10301"
+	BITFINEX_WEBSOCKET_UNKNOWN_CHANNEL     = "10302"
 )
 
 func (b *Bitfinex) WebsocketPingHandler() error {
@@ -48,7 +56,7 @@ func (b *Bitfinex) WebsocketSend(data interface{}) error {
 	return nil
 }
 
-func (b *Bitfinex) WebsocketSubscribe(channel string, params map[string]string) {
+func (b *Bitfinex) WebsocketSubscribe(channel string, params map[string]string) error {
 	request := make(map[string]string)
 	request["event"] = "subscribe"
 	request["channel"] = channel
@@ -58,8 +66,7 @@ func (b *Bitfinex) WebsocketSubscribe(channel string, params map[string]string) 
 			request[k] = v
 		}
 	}
-
-	b.WebsocketSend(request)
+	return b.WebsocketSend(request)
 }
 
 func (b *Bitfinex) WebsocketSendAuth() error {
