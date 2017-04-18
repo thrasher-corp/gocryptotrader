@@ -3,6 +3,8 @@ package ticker
 import (
 	"errors"
 	"strconv"
+
+	"github.com/thrasher-/gocryptotrader/currency/pair"
 )
 
 var (
@@ -14,59 +16,58 @@ var (
 )
 
 type TickerPrice struct {
-	FirstCurrency  string  `json:"FirstCurrency"`
-	SecondCurrency string  `json:"SecondCurrency"`
-	CurrencyPair   string  `json:"CurrencyPair"`
-	Last           float64 `json:"Last"`
-	High           float64 `json:"High"`
-	Low            float64 `json:"Low"`
-	Bid            float64 `json:"Bid"`
-	Ask            float64 `json:"Ask"`
-	Volume         float64 `json:"Volume"`
-	PriceATH       float64 `json:"PriceATH"`
+	Pair         pair.CurrencyPair `json:"Pair"`
+	CurrencyPair string            `json:"CurrencyPair"`
+	Last         float64           `json:"Last"`
+	High         float64           `json:"High"`
+	Low          float64           `json:"Low"`
+	Bid          float64           `json:"Bid"`
+	Ask          float64           `json:"Ask"`
+	Volume       float64           `json:"Volume"`
+	PriceATH     float64           `json:"PriceATH"`
 }
 
 type Ticker struct {
-	Price        map[string]map[string]TickerPrice
+	Price        map[pair.CurrencyItem]map[pair.CurrencyItem]TickerPrice
 	ExchangeName string
 }
 
-func (t *Ticker) PriceToString(firstCurrency, secondCurrency, priceType string) string {
+func (t *Ticker) PriceToString(p pair.CurrencyPair, priceType string) string {
 	switch priceType {
 	case "last":
-		return strconv.FormatFloat(t.Price[firstCurrency][secondCurrency].Last, 'f', -1, 64)
+		return strconv.FormatFloat(t.Price[p.GetFirstCurrency()][p.GetSecondCurrency()].Last, 'f', -1, 64)
 	case "high":
-		return strconv.FormatFloat(t.Price[firstCurrency][secondCurrency].High, 'f', -1, 64)
+		return strconv.FormatFloat(t.Price[p.GetFirstCurrency()][p.GetSecondCurrency()].High, 'f', -1, 64)
 	case "low":
-		return strconv.FormatFloat(t.Price[firstCurrency][secondCurrency].Low, 'f', -1, 64)
+		return strconv.FormatFloat(t.Price[p.GetFirstCurrency()][p.GetSecondCurrency()].Low, 'f', -1, 64)
 	case "bid":
-		return strconv.FormatFloat(t.Price[firstCurrency][secondCurrency].Bid, 'f', -1, 64)
+		return strconv.FormatFloat(t.Price[p.GetFirstCurrency()][p.GetSecondCurrency()].Bid, 'f', -1, 64)
 	case "ask":
-		return strconv.FormatFloat(t.Price[firstCurrency][secondCurrency].Ask, 'f', -1, 64)
+		return strconv.FormatFloat(t.Price[p.GetFirstCurrency()][p.GetSecondCurrency()].Ask, 'f', -1, 64)
 	case "volume":
-		return strconv.FormatFloat(t.Price[firstCurrency][secondCurrency].Volume, 'f', -1, 64)
+		return strconv.FormatFloat(t.Price[p.GetFirstCurrency()][p.GetSecondCurrency()].Volume, 'f', -1, 64)
 	case "ath":
-		return strconv.FormatFloat(t.Price[firstCurrency][secondCurrency].PriceATH, 'f', -1, 64)
+		return strconv.FormatFloat(t.Price[p.GetFirstCurrency()][p.GetSecondCurrency()].PriceATH, 'f', -1, 64)
 	default:
 		return ""
 	}
 }
 
-func GetTicker(exchange, firstCurrency, secondCurrency string) (TickerPrice, error) {
+func GetTicker(exchange string, p pair.CurrencyPair) (TickerPrice, error) {
 	ticker, err := GetTickerByExchange(exchange)
 	if err != nil {
 		return TickerPrice{}, err
 	}
 
-	if !FirstCurrencyExists(exchange, firstCurrency) {
+	if !FirstCurrencyExists(exchange, p.GetFirstCurrency()) {
 		return TickerPrice{}, errors.New(ErrPrimaryCurrencyNotFound)
 	}
 
-	if !SecondCurrencyExists(exchange, firstCurrency, secondCurrency) {
+	if !SecondCurrencyExists(exchange, p) {
 		return TickerPrice{}, errors.New(ErrSecondaryCurrencyNotFound)
 	}
 
-	return ticker.Price[firstCurrency][secondCurrency], nil
+	return ticker.Price[p.GetFirstCurrency()][p.GetSecondCurrency()], nil
 }
 
 func GetTickerByExchange(exchange string) (*Ticker, error) {
@@ -78,7 +79,7 @@ func GetTickerByExchange(exchange string) (*Ticker, error) {
 	return nil, errors.New(ErrTickerForExchangeNotFound)
 }
 
-func FirstCurrencyExists(exchange, currency string) bool {
+func FirstCurrencyExists(exchange string, currency pair.CurrencyItem) bool {
 	for _, y := range Tickers {
 		if y.ExchangeName == exchange {
 			if _, ok := y.Price[currency]; ok {
@@ -89,11 +90,11 @@ func FirstCurrencyExists(exchange, currency string) bool {
 	return false
 }
 
-func SecondCurrencyExists(exchange, primary, secondary string) bool {
+func SecondCurrencyExists(exchange string, p pair.CurrencyPair) bool {
 	for _, y := range Tickers {
 		if y.ExchangeName == exchange {
-			if _, ok := y.Price[primary]; ok {
-				if _, ok := y.Price[primary][secondary]; ok {
+			if _, ok := y.Price[p.GetFirstCurrency()]; ok {
+				if _, ok := y.Price[p.GetFirstCurrency()][p.GetSecondCurrency()]; ok {
 					return true
 				}
 			}
@@ -102,39 +103,39 @@ func SecondCurrencyExists(exchange, primary, secondary string) bool {
 	return false
 }
 
-func CreateNewTicker(exchangeName string, firstCurrency, secondCurrency string, tickerNew TickerPrice) Ticker {
+func CreateNewTicker(exchangeName string, p pair.CurrencyPair, tickerNew TickerPrice) Ticker {
 	ticker := Ticker{}
 	ticker.ExchangeName = exchangeName
-	ticker.Price = make(map[string]map[string]TickerPrice)
-	sMap := make(map[string]TickerPrice)
-	sMap[secondCurrency] = tickerNew
-	ticker.Price[firstCurrency] = sMap
+	ticker.Price = make(map[pair.CurrencyItem]map[pair.CurrencyItem]TickerPrice)
+	sMap := make(map[pair.CurrencyItem]TickerPrice)
+	sMap[p.GetSecondCurrency()] = tickerNew
+	ticker.Price[p.GetFirstCurrency()] = sMap
+	Tickers = append(Tickers, ticker)
 	return ticker
 }
 
-func ProcessTicker(exchangeName string, firstCurrency, secondCurrency string, tickerNew TickerPrice) {
-	tickerNew.CurrencyPair = tickerNew.FirstCurrency + tickerNew.SecondCurrency
-
+func ProcessTicker(exchangeName string, p pair.CurrencyPair, tickerNew TickerPrice) {
+	tickerNew.CurrencyPair = p.Pair().String()
 	if len(Tickers) == 0 {
-		CreateNewTicker(exchangeName, firstCurrency, secondCurrency, tickerNew)
+		CreateNewTicker(exchangeName, p, tickerNew)
 		return
 	} else {
 		ticker, err := GetTickerByExchange(exchangeName)
 		if err != nil {
-			CreateNewTicker(exchangeName, firstCurrency, secondCurrency, tickerNew)
+			CreateNewTicker(exchangeName, p, tickerNew)
 			return
 		}
 
-		if FirstCurrencyExists(exchangeName, firstCurrency) {
-			if !SecondCurrencyExists(exchangeName, firstCurrency, secondCurrency) {
-				second := ticker.Price[firstCurrency]
-				second[secondCurrency] = tickerNew
-				ticker.Price[firstCurrency] = second
+		if FirstCurrencyExists(exchangeName, p.GetFirstCurrency()) {
+			if !SecondCurrencyExists(exchangeName, p) {
+				second := ticker.Price[p.GetFirstCurrency()]
+				second[p.GetSecondCurrency()] = tickerNew
+				ticker.Price[p.GetFirstCurrency()] = second
 				return
 			}
 		}
-		sMap := make(map[string]TickerPrice)
-		sMap[secondCurrency] = tickerNew
-		ticker.Price[firstCurrency] = sMap
+		sMap := make(map[pair.CurrencyItem]TickerPrice)
+		sMap[p.GetSecondCurrency()] = tickerNew
+		ticker.Price[p.GetFirstCurrency()] = sMap
 	}
 }

@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
+	"github.com/thrasher-/gocryptotrader/currency/pair"
 	"github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-/gocryptotrader/exchanges/stats"
@@ -50,45 +51,41 @@ func (l *Liqui) Run() {
 				return
 			}
 			for x, y := range ticker {
-				currencies := common.SplitStrings(x, "_")
-				x = common.StringToUpper(x)
-				log.Printf("Liqui %s: Last %f High %f Low %f Volume %f\n", x, y.Last, y.High, y.Low, y.Vol_cur)
+				currency := pair.NewCurrencyPairDelimiter(common.StringToUpper(x), "_")
+				log.Printf("Liqui %s: Last %f High %f Low %f Volume %f\n", currency.Pair().String(), y.Last, y.High, y.Low, y.Vol_cur)
 				l.Ticker[x] = y
-				stats.AddExchangeInfo(l.GetName(), common.StringToUpper(currencies[0]), common.StringToUpper(currencies[1]), y.Last, y.Vol_cur)
+				stats.AddExchangeInfo(l.GetName(), currency.GetFirstCurrency().String(), currency.GetSecondCurrency().String(), y.Last, y.Vol_cur)
 			}
 		}()
 		time.Sleep(time.Second * l.RESTPollingDelay)
 	}
 }
 
-func (l *Liqui) GetTickerPrice(currency string) (ticker.TickerPrice, error) {
+func (l *Liqui) GetTickerPrice(p pair.CurrencyPair) (ticker.TickerPrice, error) {
 	var tickerPrice ticker.TickerPrice
-	tick, ok := l.Ticker[currency]
+	tick, ok := l.Ticker[p.Pair().Lower().String()]
 	if !ok {
 		return tickerPrice, errors.New("Unable to get currency.")
 	}
+	tickerPrice.Pair = p
 	tickerPrice.Ask = tick.Buy
 	tickerPrice.Bid = tick.Sell
-	currencies := common.SplitStrings(currency, "_")
-	tickerPrice.FirstCurrency = currencies[0]
-	tickerPrice.SecondCurrency = currencies[1]
 	tickerPrice.Low = tick.Low
 	tickerPrice.Last = tick.Last
 	tickerPrice.Volume = tick.Vol_cur
 	tickerPrice.High = tick.High
-	ticker.ProcessTicker(l.GetName(), tickerPrice.FirstCurrency, tickerPrice.SecondCurrency, tickerPrice)
+	ticker.ProcessTicker(l.GetName(), p, tickerPrice)
 	return tickerPrice, nil
 }
 
-func (l *Liqui) GetOrderbookEx(currency string) (orderbook.OrderbookBase, error) {
-	currencies := common.SplitStrings(currency, "_")
-	ob, err := orderbook.GetOrderbook(l.GetName(), currencies[0], currencies[1])
+func (l *Liqui) GetOrderbookEx(p pair.CurrencyPair) (orderbook.OrderbookBase, error) {
+	ob, err := orderbook.GetOrderbook(l.GetName(), p)
 	if err == nil {
 		return ob, nil
 	}
 
 	var orderBook orderbook.OrderbookBase
-	orderbookNew, err := l.GetDepth(currency)
+	orderbookNew, err := l.GetDepth(p.Pair().Lower().String())
 	if err != nil {
 		return orderBook, err
 	}
@@ -102,9 +99,8 @@ func (l *Liqui) GetOrderbookEx(currency string) (orderbook.OrderbookBase, error)
 		data := orderbookNew.Asks[x]
 		orderBook.Asks = append(orderBook.Asks, orderbook.OrderbookItem{Amount: data[1], Price: data[0]})
 	}
-	orderBook.FirstCurrency = currencies[0]
-	orderBook.SecondCurrency = currencies[1]
-	orderbook.ProcessOrderbook(l.GetName(), orderBook.FirstCurrency, orderBook.SecondCurrency, orderBook)
+	orderBook.Pair = p
+	orderbook.ProcessOrderbook(l.GetName(), p, orderBook)
 	return orderBook, nil
 }
 

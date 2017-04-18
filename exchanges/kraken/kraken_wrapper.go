@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
+	"github.com/thrasher-/gocryptotrader/currency/pair"
 	"github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-/gocryptotrader/exchanges/stats"
@@ -51,7 +52,7 @@ func (k *Kraken) Run() {
 }
 
 //This will return the TickerPrice struct when tickers are completed here..
-func (k *Kraken) GetTickerPrice(currency string) (ticker.TickerPrice, error) {
+func (k *Kraken) GetTickerPrice(p pair.CurrencyPair) (ticker.TickerPrice, error) {
 	var tickerPrice ticker.TickerPrice
 	/*
 		ticker, err := i.GetTicker(currency)
@@ -65,7 +66,7 @@ func (k *Kraken) GetTickerPrice(currency string) (ticker.TickerPrice, error) {
 	return tickerPrice, nil
 }
 
-func (k *Kraken) GetOrderbookEx(currency string) (orderbook.OrderbookBase, error) {
+func (k *Kraken) GetOrderbookEx(p pair.CurrencyPair) (orderbook.OrderbookBase, error) {
 	return orderbook.OrderbookBase{}, nil
 }
 

@@ -1,11 +1,11 @@
 package gdax
 
 import (
-	"fmt"
 	"log"
 	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
+	"github.com/thrasher-/gocryptotrader/currency/pair"
 	"github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-/gocryptotrader/exchanges/stats"
@@ -45,7 +45,8 @@ func (g *GDAX) Run() {
 
 	for g.Enabled {
 		for _, x := range g.EnabledPairs {
-			currency := x[0:3] + "-" + x[3:]
+			currency := pair.NewCurrencyPair(x[0:3], x[3:])
+			currency.Delimiter = "-"
 			go func() {
 				ticker, err := g.GetTickerPrice(currency)
 
@@ -53,8 +54,8 @@ func (g *GDAX) Run() {
 					log.Println(err)
 					return
 				}
-				log.Printf("GDAX %s: Last %f High %f Low %f Volume %f\n", currency, ticker.Last, ticker.High, ticker.Low, ticker.Volume)
-				stats.AddExchangeInfo(g.GetName(), currency[0:3], currency[4:], ticker.Last, ticker.Volume)
+				log.Printf("GDAX %s: Last %f High %f Low %f Volume %f\n", currency.Pair().String(), ticker.Last, ticker.High, ticker.Low, ticker.Volume)
+				stats.AddExchangeInfo(g.GetName(), currency.GetFirstCurrency().String(), currency.GetSecondCurrency().String(), ticker.Last, ticker.Volume)
 			}()
 		}
 		time.Sleep(time.Second * g.RESTPollingDelay)
@@ -80,45 +81,41 @@ func (e *GDAX) GetExchangeAccountInfo() (exchange.ExchangeAccountInfo, error) {
 	return response, nil
 }
 
-func (g *GDAX) GetTickerPrice(currency string) (ticker.TickerPrice, error) {
-	if len(currency) == 6 {
-		currency = fmt.Sprintf("%s-%s", currency[0:3], currency[3:])
-	}
-	tickerNew, err := ticker.GetTicker(g.GetName(), currency[0:3], currency[4:])
+func (g *GDAX) GetTickerPrice(p pair.CurrencyPair) (ticker.TickerPrice, error) {
+	tickerNew, err := ticker.GetTicker(g.GetName(), p)
 	if err == nil {
 		return tickerNew, nil
 	}
 
 	var tickerPrice ticker.TickerPrice
-	tick, err := g.GetTicker(currency)
+	tick, err := g.GetTicker(p.Pair().String())
 	if err != nil {
 		return ticker.TickerPrice{}, err
 	}
 
-	stats, err := g.GetStats(currency)
+	stats, err := g.GetStats(p.Pair().String())
 
 	if err != nil {
 		return ticker.TickerPrice{}, err
 	}
 
-	tickerPrice.FirstCurrency = currency[0:3]
-	tickerPrice.SecondCurrency = currency[4:]
+	tickerPrice.Pair = p
 	tickerPrice.Volume = stats.Volume
 	tickerPrice.Last = tick.Price
 	tickerPrice.High = stats.High
 	tickerPrice.Low = stats.Low
-	ticker.ProcessTicker(g.GetName(), tickerPrice.FirstCurrency, tickerPrice.SecondCurrency, tickerPrice)
+	ticker.ProcessTicker(g.GetName(), p, tickerPrice)
 	return tickerPrice, nil
 }
 
-func (g *GDAX) GetOrderbookEx(currency string) (orderbook.OrderbookBase, error) {
-	ob, err := orderbook.GetOrderbook(g.GetName(), currency[0:3], currency[4:])
+func (g *GDAX) GetOrderbookEx(p pair.CurrencyPair) (orderbook.OrderbookBase, error) {
+	ob, err := orderbook.GetOrderbook(g.GetName(), p)
 	if err == nil {
 		return ob, nil
 	}
 
 	var orderBook orderbook.OrderbookBase
-	orderbookNew, err := g.GetOrderbook(currency, 2)
+	orderbookNew, err := g.GetOrderbook(p.Pair().String(), 2)
 	if err != nil {
 		return orderBook, err
 	}
@@ -132,8 +129,7 @@ func (g *GDAX) GetOrderbookEx(currency string) (orderbook.OrderbookBase, error) 
 	for x, _ := range obNew.Asks {
 		orderBook.Asks = append(orderBook.Asks, orderbook.OrderbookItem{Amount: obNew.Bids[x].Amount, Price: obNew.Bids[x].Price})
 	}
-	orderBook.FirstCurrency = currency[0:3]
-	orderBook.SecondCurrency = currency[4:]
-	orderbook.ProcessOrderbook(g.GetName(), orderBook.FirstCurrency, orderBook.SecondCurrency, orderBook)
+	orderBook.Pair = p
+	orderbook.ProcessOrderbook(g.GetName(), p, orderBook)
 	return orderBook, nil
 }

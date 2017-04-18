@@ -5,6 +5,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/thrasher-/gocryptotrader/currency/pair"
 	"github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-/gocryptotrader/exchanges/stats"
@@ -22,53 +23,52 @@ func (i *ItBit) Run() {
 
 	for i.Enabled {
 		for _, x := range i.EnabledPairs {
-			currency := x
+			currency := pair.NewCurrencyPair(x[0:3], x[3:])
 			go func() {
 				ticker, err := i.GetTickerPrice(currency)
 				if err != nil {
 					log.Println(err)
 					return
 				}
-				log.Printf("ItBit %s: Last %f High %f Low %f Volume %f\n", currency, ticker.Last, ticker.High, ticker.Low, ticker.Volume)
-				stats.AddExchangeInfo(i.GetName(), currency[0:3], currency[3:], ticker.Last, ticker.Volume)
+				log.Printf("ItBit %s: Last %f High %f Low %f Volume %f\n", currency.Pair().String(), ticker.Last, ticker.High, ticker.Low, ticker.Volume)
+				stats.AddExchangeInfo(i.GetName(), currency.GetFirstCurrency().String(), currency.GetSecondCurrency().String(), ticker.Last, ticker.Volume)
 			}()
 		}
 		time.Sleep(time.Second * i.RESTPollingDelay)
 	}
 }
 
-func (i *ItBit) GetTickerPrice(currency string) (ticker.TickerPrice, error) {
-	tickerNew, err := ticker.GetTicker(i.GetName(), currency[0:3], currency[3:])
+func (i *ItBit) GetTickerPrice(p pair.CurrencyPair) (ticker.TickerPrice, error) {
+	tickerNew, err := ticker.GetTicker(i.GetName(), p)
 	if err == nil {
 		return tickerNew, nil
 	}
 
 	var tickerPrice ticker.TickerPrice
-	tick, err := i.GetTicker(currency)
+	tick, err := i.GetTicker(p.Pair().String())
 	if err != nil {
 		return tickerPrice, err
 	}
 
+	tickerPrice.Pair = p
 	tickerPrice.Ask = tick.Ask
 	tickerPrice.Bid = tick.Bid
-	tickerPrice.FirstCurrency = currency[0:3]
-	tickerPrice.SecondCurrency = currency[3:]
 	tickerPrice.Last = tick.LastPrice
 	tickerPrice.High = tick.High24h
 	tickerPrice.Low = tick.Low24h
 	tickerPrice.Volume = tick.Volume24h
-	ticker.ProcessTicker(i.GetName(), tickerPrice.FirstCurrency, tickerPrice.SecondCurrency, tickerPrice)
+	ticker.ProcessTicker(i.GetName(), p, tickerPrice)
 	return tickerPrice, nil
 }
 
-func (i *ItBit) GetOrderbookEx(currency string) (orderbook.OrderbookBase, error) {
-	ob, err := orderbook.GetOrderbook(i.GetName(), currency[0:3], currency[3:])
+func (i *ItBit) GetOrderbookEx(p pair.CurrencyPair) (orderbook.OrderbookBase, error) {
+	ob, err := orderbook.GetOrderbook(i.GetName(), p)
 	if err == nil {
 		return ob, nil
 	}
 
 	var orderBook orderbook.OrderbookBase
-	orderbookNew, err := i.GetOrderbook(currency)
+	orderbookNew, err := i.GetOrderbook(p.Pair().String())
 	if err != nil {
 		return orderBook, err
 	}
@@ -98,9 +98,8 @@ func (i *ItBit) GetOrderbookEx(currency string) (orderbook.OrderbookBase, error)
 		}
 		orderBook.Asks = append(orderBook.Asks, orderbook.OrderbookItem{Amount: amount, Price: price})
 	}
-	orderBook.FirstCurrency = currency[0:3]
-	orderBook.SecondCurrency = currency[3:]
-	orderbook.ProcessOrderbook(i.GetName(), orderBook.FirstCurrency, orderBook.SecondCurrency, orderBook)
+	orderBook.Pair = p
+	orderbook.ProcessOrderbook(i.GetName(), p, orderBook)
 	return orderBook, nil
 }
 

@@ -3,6 +3,7 @@ package alphapoint
 import (
 	"log"
 
+	"github.com/thrasher-/gocryptotrader/currency/pair"
 	"github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
@@ -28,27 +29,27 @@ func (e *Alphapoint) GetExchangeAccountInfo() (exchange.ExchangeAccountInfo, err
 	return response, nil
 }
 
-func (a *Alphapoint) GetTickerPrice(currency string) ticker.TickerPrice {
+func (a *Alphapoint) GetTickerPrice(p pair.CurrencyPair) ticker.TickerPrice {
 	var tickerPrice ticker.TickerPrice
-	tick, err := a.GetTicker(currency)
+	tick, err := a.GetTicker(p.Pair().String())
 	if err != nil {
 		log.Println(err)
 		return ticker.TickerPrice{}
 	}
+	tickerPrice.Pair = p
 	tickerPrice.Ask = tick.Ask
 	tickerPrice.Bid = tick.Bid
-
 	return tickerPrice
 }
 
-func (a *Alphapoint) GetOrderbookEx(currency string) (orderbook.OrderbookBase, error) {
-	ob, err := orderbook.GetOrderbook(a.GetName(), currency[0:3], currency[3:])
+func (a *Alphapoint) GetOrderbookEx(p pair.CurrencyPair) (orderbook.OrderbookBase, error) {
+	ob, err := orderbook.GetOrderbook(a.GetName(), p)
 	if err == nil {
 		return ob, nil
 	}
 
 	var orderBook orderbook.OrderbookBase
-	orderbookNew, err := a.GetOrderbook(currency)
+	orderbookNew, err := a.GetOrderbook(p.Pair().String())
 	if err != nil {
 		return orderBook, err
 	}
@@ -63,8 +64,7 @@ func (a *Alphapoint) GetOrderbookEx(currency string) (orderbook.OrderbookBase, e
 		orderBook.Asks = append(orderBook.Asks, orderbook.OrderbookItem{Amount: data.Quantity, Price: data.Price})
 	}
 
-	orderBook.FirstCurrency = currency[0:3]
-	orderBook.SecondCurrency = currency[3:]
-	orderbook.ProcessOrderbook(a.GetName(), orderBook.FirstCurrency, orderBook.SecondCurrency, orderBook)
+	orderBook.Pair = p
+	orderbook.ProcessOrderbook(a.GetName(), p, orderBook)
 	return orderBook, nil
 }
