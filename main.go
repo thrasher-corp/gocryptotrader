@@ -145,7 +145,7 @@ func main() {
 
 	err = currency.SeedCurrencyData(currency.BaseCurrencies)
 	if err != nil {
-		log.Fatalf("Fatal error retrieving config currencies. Error: ", err)
+		log.Fatalf("Fatal error retrieving config currencies. Error: %s", err)
 	}
 
 	log.Println("Successfully retrieved config currencies.")
@@ -246,5 +246,4 @@ func SeedExchangeAccountInfo(data []exchange.ExchangeAccountInfo) {
 			}
 		}
 	}
-
 }
