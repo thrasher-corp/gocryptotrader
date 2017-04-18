@@ -8,6 +8,7 @@ import (
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
+	"github.com/thrasher-/gocryptotrader/currency/pair"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-/gocryptotrader/smsglobal"
 )
@@ -124,7 +125,7 @@ func (e *Event) CheckCondition() bool {
 		return false
 	}
 
-	lastPrice = ticker.Price[e.FirstCurrency][e.SecondCurrency].Last
+	lastPrice = ticker.Price[pair.CurrencyItem(e.FirstCurrency)][pair.CurrencyItem(e.SecondCurrency)].Last
 
 	if lastPrice == 0 {
 		return false
