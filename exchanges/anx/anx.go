@@ -61,9 +61,8 @@ func (a *ANX) Setup(exch config.ExchangeConfig) {
 func (a *ANX) GetFee(maker bool) float64 {
 	if maker {
 		return a.MakerFee
-	} else {
-		return a.TakerFee
 	}
+	return a.TakerFee
 }
 
 func (a *ANX) GetTicker(currency string) (ANXTicker, error) {
@@ -75,7 +74,7 @@ func (a *ANX) GetTicker(currency string) (ANXTicker, error) {
 	return ticker, nil
 }
 
-func (a *ANX) GetAPIKey(username, password, otp, deviceID string) (string, string) {
+func (a *ANX) GetAPIKey(username, password, otp, deviceID string) (string, string, error) {
 	request := make(map[string]interface{})
 	request["nonce"] = strconv.FormatInt(time.Now().UnixNano(), 10)[0:13]
 	request["username"] = username
@@ -96,21 +95,18 @@ func (a *ANX) GetAPIKey(username, password, otp, deviceID string) (string, strin
 	var response APIKeyResponse
 
 	err := a.SendAuthenticatedHTTPRequest(ANX_APIKEY, request, &response)
-
 	if err != nil {
-		log.Println(err)
-		return "", ""
+		return "", "", err
 	}
 
 	if response.ResultCode != "OK" {
-		log.Printf("Response code is not OK: %s\n", response.ResultCode)
-		return "", ""
+		return "", "", errors.New("Response code is not OK: " + response.ResultCode)
 	}
 
-	return response.APIKey, response.APISecret
+	return response.APIKey, response.APISecret, nil
 }
 
-func (a *ANX) GetDataToken() string {
+func (a *ANX) GetDataToken() (string, error) {
 	request := make(map[string]interface{})
 
 	type DataTokenResponse struct {
@@ -122,22 +118,18 @@ func (a *ANX) GetDataToken() string {
 	var response DataTokenResponse
 
 	err := a.SendAuthenticatedHTTPRequest(ANX_DATA_TOKEN, request, &response)
-
 	if err != nil {
-		log.Println(err)
-		return ""
+		return "", err
 	}
 
 	if response.ResultCode != "OK" {
-		log.Printf("Response code is not OK: %s\n", response.ResultCode)
-		return ""
+		return "", errors.New("Response code is not OK: %s" + response.ResultCode)
 	}
-
-	return response.Token
+	return response.Token, nil
 }
 
 func (a *ANX) NewOrder(orderType string, buy bool, tradedCurrency, tradedCurrencyAmount, settlementCurrency, settlementCurrencyAmount, limitPriceSettlement string,
-	replace bool, replaceUUID string, replaceIfActive bool) {
+	replace bool, replaceUUID string, replaceIfActive bool) error {
 	request := make(map[string]interface{})
 
 	var order ANXOrder
@@ -169,16 +161,14 @@ func (a *ANX) NewOrder(orderType string, buy bool, tradedCurrency, tradedCurrenc
 	var response OrderResponse
 
 	err := a.SendAuthenticatedHTTPRequest(ANX_ORDER_NEW, request, &response)
-
 	if err != nil {
-		log.Println(err)
-		return
+		return err
 	}
 
 	if response.ResultCode != "OK" {
-		log.Printf("Response code is not OK: %s\n", response.ResultCode)
-		return
+		return errors.New("Response code is not OK: %s" + response.ResultCode)
 	}
+	return nil
 }
 
 func (a *ANX) OrderInfo(orderID string) (ANXOrderResponse, error) {
@@ -295,7 +285,7 @@ func (a *ANX) GetDepositAddress(currency, name string, new bool) (string, error)
 	return response.Address, nil
 }
 
-func (a *ANX) SendAuthenticatedHTTPRequest(path string, params map[string]interface{}, result interface{}) (err error) {
+func (a *ANX) SendAuthenticatedHTTPRequest(path string, params map[string]interface{}, result interface{}) error {
 	request := make(map[string]interface{})
 	request["nonce"] = strconv.FormatInt(time.Now().UnixNano(), 10)[0:13]
 	path = fmt.Sprintf("api/%s/%s", ANX_API_VERSION, path)
