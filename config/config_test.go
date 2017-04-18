@@ -137,6 +137,6 @@ func TestSaveConfig(t *testing.T) {
 	}
 	err2 := saveConfig.SaveConfig("../testdata/configtest.dat")
 	if err2 != nil {
-		t.Error("Test failed. TestSaveConfig.SaveConfig, %s", err2.Error())
+		t.Errorf("Test failed. TestSaveConfig.SaveConfig, %s", err2.Error())
 	}
 }
