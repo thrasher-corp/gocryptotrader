@@ -6,6 +6,7 @@ import (
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency"
+	"github.com/thrasher-/gocryptotrader/currency/pair"
 	"github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-/gocryptotrader/exchanges/stats"
@@ -29,18 +30,19 @@ func (o *OKCoin) Run() {
 
 	for o.Enabled {
 		for _, x := range o.EnabledPairs {
-			curr := common.StringToLower(x[0:3] + "_" + x[3:])
+			curr := pair.NewCurrencyPair(x[0:3], x[3:])
+			curr.Delimiter = "_"
 			if o.APIUrl == OKCOIN_API_URL {
 				for _, y := range o.FuturesValues {
 					futuresValue := y
 					go func() {
-						ticker, err := o.GetFuturesTicker(curr, futuresValue)
+						ticker, err := o.GetFuturesTicker(curr.Pair().Lower().String(), futuresValue)
 						if err != nil {
 							log.Println(err)
 							return
 						}
-						log.Printf("OKCoin Intl Futures %s (%s): Last %f High %f Low %f Volume %f\n", curr, futuresValue, ticker.Last, ticker.High, ticker.Low, ticker.Vol)
-						stats.AddExchangeInfo(o.GetName(), common.StringToUpper(curr[0:3]), common.StringToUpper(curr[4:]), ticker.Last, ticker.Vol)
+						log.Printf("OKCoin Intl Futures %s (%s): Last %f High %f Low %f Volume %f\n", curr.Pair().String(), futuresValue, ticker.Last, ticker.High, ticker.Low, ticker.Vol)
+						stats.AddExchangeInfo(o.GetName(), curr.GetFirstCurrency().String(), curr.GetSecondCurrency().String(), ticker.Last, ticker.Vol)
 					}()
 				}
 				go func() {
@@ -49,8 +51,8 @@ func (o *OKCoin) Run() {
 						log.Println(err)
 						return
 					}
-					log.Printf("OKCoin Intl Spot %s: Last %f High %f Low %f Volume %f\n", curr, ticker.Last, ticker.High, ticker.Low, ticker.Volume)
-					stats.AddExchangeInfo(o.GetName(), common.StringToUpper(curr[0:3]), common.StringToUpper(curr[4:]), ticker.Last, ticker.Volume)
+					log.Printf("OKCoin Intl Spot %s: Last %f High %f Low %f Volume %f\n", curr.Pair().String(), ticker.Last, ticker.High, ticker.Low, ticker.Volume)
+					stats.AddExchangeInfo(o.GetName(), curr.GetFirstCurrency().String(), curr.GetSecondCurrency().String(), ticker.Last, ticker.Volume)
 				}()
 			} else {
 				go func() {
@@ -62,9 +64,9 @@ func (o *OKCoin) Run() {
 					tickerLastUSD, _ := currency.ConvertCurrency(ticker.Last, "CNY", "USD")
 					tickerHighUSD, _ := currency.ConvertCurrency(ticker.High, "CNY", "USD")
 					tickerLowUSD, _ := currency.ConvertCurrency(ticker.Low, "CNY", "USD")
-					log.Printf("OKCoin China %s: Last %f (%f) High %f (%f) Low %f (%f) Volume %f\n", curr, tickerLastUSD, ticker.Last, tickerHighUSD, ticker.High, tickerLowUSD, ticker.Low, ticker.Volume)
-					stats.AddExchangeInfo(o.GetName(), common.StringToUpper(curr[0:3]), common.StringToUpper(curr[4:]), ticker.Last, ticker.Volume)
-					stats.AddExchangeInfo(o.GetName(), common.StringToUpper(curr[0:3]), "USD", tickerLastUSD, ticker.Volume)
+					log.Printf("OKCoin China %s: Last %f (%f) High %f (%f) Low %f (%f) Volume %f\n", curr.Pair().String(), tickerLastUSD, ticker.Last, tickerHighUSD, ticker.High, tickerLowUSD, ticker.Low, ticker.Volume)
+					stats.AddExchangeInfo(o.GetName(), curr.GetFirstCurrency().String(), curr.GetSecondCurrency().String(), ticker.Last, ticker.Volume)
+					stats.AddExchangeInfo(o.GetName(), curr.GetFirstCurrency().String(), "USD", tickerLastUSD, ticker.Volume)
 				}()
 			}
 		}
@@ -72,37 +74,36 @@ func (o *OKCoin) Run() {
 	}
 }
 
-func (o *OKCoin) GetTickerPrice(currency string) (ticker.TickerPrice, error) {
-	tickerNew, err := ticker.GetTicker(o.GetName(), common.StringToUpper(currency[0:3]), common.StringToUpper(currency[4:]))
+func (o *OKCoin) GetTickerPrice(currency pair.CurrencyPair) (ticker.TickerPrice, error) {
+	tickerNew, err := ticker.GetTicker(o.GetName(), currency)
 	if err == nil {
 		return tickerNew, nil
 	}
 
 	var tickerPrice ticker.TickerPrice
-	tick, err := o.GetTicker(currency)
+	tick, err := o.GetTicker(currency.Pair().Lower().String())
 	if err != nil {
 		return tickerPrice, err
 	}
+	tickerPrice.Pair = currency
 	tickerPrice.Ask = tick.Sell
 	tickerPrice.Bid = tick.Buy
-	tickerPrice.FirstCurrency = common.StringToUpper(currency[0:3])
-	tickerPrice.SecondCurrency = common.StringToUpper(currency[4:])
 	tickerPrice.Low = tick.Low
 	tickerPrice.Last = tick.Last
 	tickerPrice.Volume = tick.Vol
 	tickerPrice.High = tick.High
-	ticker.ProcessTicker(o.GetName(), tickerPrice.FirstCurrency, tickerPrice.SecondCurrency, tickerPrice)
+	ticker.ProcessTicker(o.GetName(), currency, tickerPrice)
 	return tickerPrice, nil
 }
 
-func (o *OKCoin) GetOrderbookEx(currency string) (orderbook.OrderbookBase, error) {
-	ob, err := orderbook.GetOrderbook(o.GetName(), common.StringToUpper(currency[0:3]), common.StringToUpper(currency[4:]))
+func (o *OKCoin) GetOrderbookEx(currency pair.CurrencyPair) (orderbook.OrderbookBase, error) {
+	ob, err := orderbook.GetOrderbook(o.GetName(), currency)
 	if err == nil {
 		return ob, nil
 	}
 
 	var orderBook orderbook.OrderbookBase
-	orderbookNew, err := o.GetOrderBook(currency, 200, false)
+	orderbookNew, err := o.GetOrderBook(currency.Pair().Lower().String(), 200, false)
 	if err != nil {
 		return orderBook, err
 	}
@@ -116,9 +117,8 @@ func (o *OKCoin) GetOrderbookEx(currency string) (orderbook.OrderbookBase, error
 		data := orderbookNew.Asks[x]
 		orderBook.Asks = append(orderBook.Asks, orderbook.OrderbookItem{Amount: data[1], Price: data[0]})
 	}
-	orderBook.FirstCurrency = common.StringToUpper(currency[0:3])
-	orderBook.SecondCurrency = common.StringToUpper(currency[4:])
-	orderbook.ProcessOrderbook(o.GetName(), orderBook.FirstCurrency, orderBook.SecondCurrency, orderBook)
+	orderBook.Pair = currency
+	orderbook.ProcessOrderbook(o.GetName(), currency, orderBook)
 	return orderBook, nil
 }
 

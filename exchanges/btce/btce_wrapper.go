@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
+	"github.com/thrasher-/gocryptotrader/currency/pair"
 	"github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-/gocryptotrader/exchanges/stats"
@@ -48,32 +49,31 @@ func (b *BTCE) Run() {
 	}
 }
 
-func (b *BTCE) GetTickerPrice(currency string) (ticker.TickerPrice, error) {
+func (b *BTCE) GetTickerPrice(p pair.CurrencyPair) (ticker.TickerPrice, error) {
 	var tickerPrice ticker.TickerPrice
-	tick, ok := b.Ticker[currency]
+	tick, ok := b.Ticker[p.Pair().Lower().String()]
 	if !ok {
 		return tickerPrice, errors.New("Unable to get currency.")
 	}
+	tickerPrice.Pair = p
 	tickerPrice.Ask = tick.Buy
 	tickerPrice.Bid = tick.Sell
-	tickerPrice.FirstCurrency = common.StringToUpper(currency[0:3])
-	tickerPrice.SecondCurrency = common.StringToUpper(currency[4:])
 	tickerPrice.Low = tick.Low
 	tickerPrice.Last = tick.Last
 	tickerPrice.Volume = tick.Vol_cur
 	tickerPrice.High = tick.High
-	ticker.ProcessTicker(b.GetName(), tickerPrice.FirstCurrency, tickerPrice.SecondCurrency, tickerPrice)
+	ticker.ProcessTicker(b.GetName(), p, tickerPrice)
 	return tickerPrice, nil
 }
 
-func (b *BTCE) GetOrderbookEx(currency string) (orderbook.OrderbookBase, error) {
-	ob, err := orderbook.GetOrderbook(b.GetName(), common.StringToUpper(currency[0:3]), common.StringToUpper(currency[4:]))
+func (b *BTCE) GetOrderbookEx(p pair.CurrencyPair) (orderbook.OrderbookBase, error) {
+	ob, err := orderbook.GetOrderbook(b.GetName(), p)
 	if err == nil {
 		return ob, nil
 	}
 
 	var orderBook orderbook.OrderbookBase
-	orderbookNew, err := b.GetDepth(currency)
+	orderbookNew, err := b.GetDepth(p.Pair().Lower().String())
 	if err != nil {
 		return orderBook, err
 	}
@@ -88,9 +88,8 @@ func (b *BTCE) GetOrderbookEx(currency string) (orderbook.OrderbookBase, error) 
 		orderBook.Asks = append(ob.Asks, orderbook.OrderbookItem{Price: data[0], Amount: data[1]})
 	}
 
-	orderBook.FirstCurrency = common.StringToUpper(currency[0:3])
-	orderBook.SecondCurrency = common.StringToUpper(currency[4:])
-	orderbook.ProcessOrderbook(b.GetName(), orderBook.FirstCurrency, orderBook.SecondCurrency, orderBook)
+	orderBook.Pair = p
+	orderbook.ProcessOrderbook(b.GetName(), p, orderBook)
 	return orderBook, nil
 }
 

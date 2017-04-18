@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
+	"github.com/thrasher-/gocryptotrader/currency/pair"
 	"github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-/gocryptotrader/exchanges/stats"
@@ -28,25 +29,24 @@ func (p *Poloniex) Run() {
 
 	for p.Enabled {
 		for _, x := range p.EnabledPairs {
-			currency := x
+			currency := pair.NewCurrencyPairDelimiter(x, "_")
 			go func() {
 				ticker, err := p.GetTickerPrice(currency)
 				if err != nil {
 					log.Println(err)
 					return
 				}
-				log.Printf("Poloniex %s Last %f High %f Low %f Volume %f\n", currency, ticker.Last, ticker.High, ticker.Low, ticker.Volume)
-				currencyPair := common.SplitStrings(currency, "_")
-				stats.AddExchangeInfo(p.GetName(), currencyPair[0], currencyPair[1], ticker.Last, ticker.Volume)
+				log.Printf("Poloniex %s Last %f High %f Low %f Volume %f\n", currency.Pair().String(), ticker.Last, ticker.High, ticker.Low, ticker.Volume)
+				stats.AddExchangeInfo(p.GetName(), currency.GetFirstCurrency().String(), currency.GetSecondCurrency().String(), ticker.Last, ticker.Volume)
 			}()
 		}
 		time.Sleep(time.Second * p.RESTPollingDelay)
 	}
 }
 
-func (p *Poloniex) GetTickerPrice(currency string) (ticker.TickerPrice, error) {
-	currencyPair := common.SplitStrings(currency, "_")
-	tickerNew, err := ticker.GetTicker(p.GetName(), currencyPair[0], currencyPair[1])
+func (p *Poloniex) GetTickerPrice(currencyPair pair.CurrencyPair) (ticker.TickerPrice, error) {
+	currency := currencyPair.Pair().String()
+	tickerNew, err := ticker.GetTicker(p.GetName(), currencyPair)
 	if err == nil {
 		return tickerNew, nil
 	}
@@ -57,21 +57,20 @@ func (p *Poloniex) GetTickerPrice(currency string) (ticker.TickerPrice, error) {
 		return tickerPrice, err
 	}
 
-	tickerPrice.FirstCurrency = currencyPair[0]
-	tickerPrice.SecondCurrency = currencyPair[1]
+	tickerPrice.Pair = currencyPair
 	tickerPrice.Ask = tick[currency].Last
 	tickerPrice.Bid = tick[currency].HighestBid
 	tickerPrice.High = tick[currency].HighestBid
 	tickerPrice.Last = tick[currency].Last
 	tickerPrice.Low = tick[currency].LowestAsk
 	tickerPrice.Volume = tick[currency].BaseVolume
-	ticker.ProcessTicker(p.GetName(), tickerPrice.FirstCurrency, tickerPrice.SecondCurrency, tickerPrice)
+	ticker.ProcessTicker(p.GetName(), currencyPair, tickerPrice)
 	return tickerPrice, nil
 }
 
-func (p *Poloniex) GetOrderbookEx(currency string) (orderbook.OrderbookBase, error) {
-	currencyPair := common.SplitStrings(currency, "_")
-	ob, err := orderbook.GetOrderbook(p.GetName(), currencyPair[0], currencyPair[1])
+func (p *Poloniex) GetOrderbookEx(currencyPair pair.CurrencyPair) (orderbook.OrderbookBase, error) {
+	currency := currencyPair.Pair().String()
+	ob, err := orderbook.GetOrderbook(p.GetName(), currencyPair)
 	if err == nil {
 		return ob, nil
 	}
@@ -91,9 +90,8 @@ func (p *Poloniex) GetOrderbookEx(currency string) (orderbook.OrderbookBase, err
 		data := orderbookNew.Asks[x]
 		orderBook.Asks = append(orderBook.Asks, orderbook.OrderbookItem{Amount: data.Amount, Price: data.Price})
 	}
-	orderBook.FirstCurrency = currencyPair[0]
-	orderBook.SecondCurrency = currencyPair[1]
-	orderbook.ProcessOrderbook(p.GetName(), orderBook.FirstCurrency, orderBook.SecondCurrency, orderBook)
+	orderBook.Pair = currencyPair
+	orderbook.ProcessOrderbook(p.GetName(), currencyPair, orderBook)
 	return orderBook, nil
 }
 

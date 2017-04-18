@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"github.com/gorilla/mux"
+	"github.com/thrasher-/gocryptotrader/currency/pair"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 )
 
@@ -18,7 +19,7 @@ func jsonTickerResponse(w http.ResponseWriter, r *http.Request) {
 	for i := 0; i < len(bot.exchanges); i++ {
 		if bot.exchanges[i] != nil {
 			if bot.exchanges[i].IsEnabled() && bot.exchanges[i].GetName() == exchangeName {
-				response, err = bot.exchanges[i].GetTickerPrice(currency)
+				response, err = bot.exchanges[i].GetTickerPrice(pair.NewCurrencyPairFromString(currency))
 				if err != nil {
 					log.Println(err)
 					continue
@@ -56,7 +57,7 @@ func getAllActiveTickersResponse(w http.ResponseWriter, r *http.Request) {
 			currencies := individualBot.GetEnabledCurrencies()
 			log.Println(currencies)
 			for _, currency := range currencies {
-				tickerPrice, err := individualBot.GetTickerPrice(currency)
+				tickerPrice, err := individualBot.GetTickerPrice(pair.NewCurrencyPairFromString(currency))
 				if err != nil {
 					continue
 				}

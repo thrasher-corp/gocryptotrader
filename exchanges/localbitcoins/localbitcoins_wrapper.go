@@ -4,6 +4,7 @@ import (
 	"log"
 	"time"
 
+	"github.com/thrasher-/gocryptotrader/currency/pair"
 	"github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-/gocryptotrader/exchanges/stats"
@@ -22,23 +23,23 @@ func (l *LocalBitcoins) Run() {
 
 	for l.Enabled {
 		for _, x := range l.EnabledPairs {
-			currency := x[3:]
-			ticker, err := l.GetTickerPrice("BTC" + currency)
+			currency := pair.NewCurrencyPair("BTC", x[3:])
+			ticker, err := l.GetTickerPrice(currency)
 
 			if err != nil {
 				log.Println(err)
 				return
 			}
 
-			log.Printf("LocalBitcoins BTC %s: Last %f Volume %f\n", currency, ticker.Last, ticker.Volume)
-			stats.AddExchangeInfo(l.GetName(), x[0:3], x[3:], ticker.Last, ticker.Volume)
+			log.Printf("LocalBitcoins BTC %s: Last %f Volume %f\n", currency.Pair().String(), ticker.Last, ticker.Volume)
+			stats.AddExchangeInfo(l.GetName(), currency.GetFirstCurrency().String(), currency.GetSecondCurrency().String(), ticker.Last, ticker.Volume)
 		}
 		time.Sleep(time.Second * l.RESTPollingDelay)
 	}
 }
 
-func (l *LocalBitcoins) GetTickerPrice(currency string) (ticker.TickerPrice, error) {
-	tickerNew, err := ticker.GetTicker(l.GetName(), currency[0:3], currency[3:])
+func (l *LocalBitcoins) GetTickerPrice(p pair.CurrencyPair) (ticker.TickerPrice, error) {
+	tickerNew, err := ticker.GetTicker(l.GetName(), p)
 	if err == nil {
 		return tickerNew, nil
 	}
@@ -50,16 +51,16 @@ func (l *LocalBitcoins) GetTickerPrice(currency string) (ticker.TickerPrice, err
 
 	var tickerPrice ticker.TickerPrice
 	for key, value := range tick {
+		tickerPrice.Pair = p
 		tickerPrice.Last = value.Rates.Last
-		tickerPrice.FirstCurrency = currency[0:3]
-		tickerPrice.SecondCurrency = key
+		tickerPrice.Pair.SecondCurrency = pair.CurrencyItem(key)
 		tickerPrice.Volume = value.VolumeBTC
-		ticker.ProcessTicker(l.GetName(), tickerPrice.FirstCurrency, tickerPrice.SecondCurrency, tickerPrice)
+		ticker.ProcessTicker(l.GetName(), p, tickerPrice)
 	}
 	return tickerPrice, nil
 }
 
-func (l *LocalBitcoins) GetOrderbookEx(currency string) (orderbook.OrderbookBase, error) {
+func (l *LocalBitcoins) GetOrderbookEx(p pair.CurrencyPair) (orderbook.OrderbookBase, error) {
 	return orderbook.OrderbookBase{}, nil
 }
 

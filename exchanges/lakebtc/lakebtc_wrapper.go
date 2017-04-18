@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
+	"github.com/thrasher-/gocryptotrader/currency/pair"
 	"github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-/gocryptotrader/exchanges/stats"
@@ -23,20 +24,21 @@ func (l *LakeBTC) Run() {
 
 	for l.Enabled {
 		for _, x := range l.EnabledPairs {
-			ticker, err := l.GetTickerPrice(x)
+			currency := pair.NewCurrencyPair(x[0:3], x[3:])
+			ticker, err := l.GetTickerPrice(currency)
 			if err != nil {
 				log.Println(err)
 				continue
 			}
 			log.Printf("LakeBTC BTC %s: Last %f High %f Low %f Volume %f\n", x[3:], ticker.Last, ticker.High, ticker.Low, ticker.Volume)
-			stats.AddExchangeInfo(l.GetName(), x[0:3], x[3:], ticker.Last, ticker.Volume)
+			stats.AddExchangeInfo(l.GetName(), currency.GetFirstCurrency().String(), currency.GetSecondCurrency().String(), ticker.Last, ticker.Volume)
 		}
 		time.Sleep(time.Second * l.RESTPollingDelay)
 	}
 }
 
-func (l *LakeBTC) GetTickerPrice(currency string) (ticker.TickerPrice, error) {
-	tickerNew, err := ticker.GetTicker(l.GetName(), currency[0:3], currency[3:])
+func (l *LakeBTC) GetTickerPrice(p pair.CurrencyPair) (ticker.TickerPrice, error) {
+	tickerNew, err := ticker.GetTicker(l.GetName(), p)
 	if err == nil {
 		return tickerNew, nil
 	}
@@ -46,32 +48,31 @@ func (l *LakeBTC) GetTickerPrice(currency string) (ticker.TickerPrice, error) {
 		return ticker.TickerPrice{}, err
 	}
 
-	result, ok := tick[currency]
+	result, ok := tick[p.Pair().String()]
 	if !ok {
 		return ticker.TickerPrice{}, err
 	}
 
 	var tickerPrice ticker.TickerPrice
+	tickerPrice.Pair = p
 	tickerPrice.Ask = result.Ask
 	tickerPrice.Bid = result.Bid
 	tickerPrice.Volume = result.Volume
 	tickerPrice.High = result.High
 	tickerPrice.Low = result.Low
 	tickerPrice.Last = result.Last
-	tickerPrice.FirstCurrency = currency[0:3]
-	tickerPrice.SecondCurrency = currency[3:]
-	ticker.ProcessTicker(l.GetName(), tickerPrice.FirstCurrency, tickerPrice.SecondCurrency, tickerPrice)
+	ticker.ProcessTicker(l.GetName(), p, tickerPrice)
 	return tickerPrice, nil
 }
 
-func (l *LakeBTC) GetOrderbookEx(currency string) (orderbook.OrderbookBase, error) {
-	ob, err := orderbook.GetOrderbook(l.GetName(), currency[0:3], currency[3:])
+func (l *LakeBTC) GetOrderbookEx(p pair.CurrencyPair) (orderbook.OrderbookBase, error) {
+	ob, err := orderbook.GetOrderbook(l.GetName(), p)
 	if err == nil {
 		return ob, nil
 	}
 
 	var orderBook orderbook.OrderbookBase
-	orderbookNew, err := l.GetOrderBook(currency)
+	orderbookNew, err := l.GetOrderBook(p.Pair().String())
 	if err != nil {
 		return orderBook, err
 	}
@@ -84,9 +85,8 @@ func (l *LakeBTC) GetOrderbookEx(currency string) (orderbook.OrderbookBase, erro
 		orderBook.Asks = append(orderBook.Asks, orderbook.OrderbookItem{Amount: orderbookNew.Asks[x].Amount, Price: orderbookNew.Asks[x].Price})
 	}
 
-	orderBook.FirstCurrency = currency[0:3]
-	orderBook.SecondCurrency = currency[3:]
-	orderbook.ProcessOrderbook(l.GetName(), orderBook.FirstCurrency, orderBook.SecondCurrency, orderBook)
+	orderBook.Pair = p
+	orderbook.ProcessOrderbook(l.GetName(), p, orderBook)
 	return orderBook, nil
 }
 

@@ -4,6 +4,7 @@ import (
 	"log"
 	"time"
 
+	"github.com/thrasher-/gocryptotrader/currency/pair"
 	"github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-/gocryptotrader/exchanges/stats"
@@ -22,46 +23,45 @@ func (a *ANX) Run() {
 
 	for a.Enabled {
 		for _, x := range a.EnabledPairs {
-			currency := x
+			currency := pair.NewCurrencyPair(x[0:3], x[3:])
 			go func() {
 				ticker, err := a.GetTickerPrice(currency)
 				if err != nil {
 					log.Println(err)
 					return
 				}
-				log.Printf("ANX %s: Last %f High %f Low %f Volume %f\n", currency, ticker.Last, ticker.High, ticker.Low, ticker.Volume)
-				stats.AddExchangeInfo(a.GetName(), currency[0:3], currency[3:], ticker.Last, ticker.Volume)
+				log.Printf("ANX %s: Last %f High %f Low %f Volume %f\n", currency.Pair(), ticker.Last, ticker.High, ticker.Low, ticker.Volume)
+				stats.AddExchangeInfo(a.GetName(), currency.GetFirstCurrency().String(), currency.GetSecondCurrency().String(), ticker.Last, ticker.Volume)
 			}()
 		}
 		time.Sleep(time.Second * a.RESTPollingDelay)
 	}
 }
 
-func (a *ANX) GetTickerPrice(currency string) (ticker.TickerPrice, error) {
-	tickerNew, err := ticker.GetTicker(a.GetName(), currency[0:3], currency[3:])
+func (a *ANX) GetTickerPrice(p pair.CurrencyPair) (ticker.TickerPrice, error) {
+	tickerNew, err := ticker.GetTicker(a.GetName(), p)
 	if err == nil {
 		return tickerNew, nil
 	}
 
 	var tickerPrice ticker.TickerPrice
-	tick, err := a.GetTicker(currency)
+	tick, err := a.GetTicker(p.Pair().String())
 	if err != nil {
 		return tickerPrice, err
 	}
 
+	tickerPrice.Pair = p
 	tickerPrice.Ask = tick.Data.Buy.Value
 	tickerPrice.Bid = tick.Data.Sell.Value
-	tickerPrice.FirstCurrency = currency[0:3]
-	tickerPrice.SecondCurrency = currency[3:]
 	tickerPrice.Low = tick.Data.Low.Value
 	tickerPrice.Last = tick.Data.Last.Value
 	tickerPrice.Volume = tick.Data.Vol.Value
 	tickerPrice.High = tick.Data.High.Value
-	ticker.ProcessTicker(a.GetName(), tickerPrice.FirstCurrency, tickerPrice.SecondCurrency, tickerPrice)
+	ticker.ProcessTicker(a.GetName(), p, tickerPrice)
 	return tickerPrice, nil
 }
 
-func (e *ANX) GetOrderbookEx(currency string) (orderbook.OrderbookBase, error) {
+func (e *ANX) GetOrderbookEx(p pair.CurrencyPair) (orderbook.OrderbookBase, error) {
 	return orderbook.OrderbookBase{}, nil
 }
 

@@ -5,6 +5,7 @@ import (
 	"net/url"
 	"time"
 
+	"github.com/thrasher-/gocryptotrader/currency/pair"
 	"github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-/gocryptotrader/exchanges/stats"
@@ -33,15 +34,15 @@ func (g *Gemini) Run() {
 
 	for g.Enabled {
 		for _, x := range g.EnabledPairs {
-			currency := x
+			currency := pair.NewCurrencyPair(x[0:3], x[3:])
 			go func() {
 				ticker, err := g.GetTickerPrice(currency)
 				if err != nil {
 					log.Println(err)
 					return
 				}
-				log.Printf("Gemini %s Last %f Bid %f Ask %f Volume %f\n", currency, ticker.Last, ticker.Bid, ticker.Ask, ticker.Volume)
-				stats.AddExchangeInfo(g.GetName(), currency[0:3], currency[3:], ticker.Last, ticker.Volume)
+				log.Printf("Gemini %s Last %f Bid %f Ask %f Volume %f\n", currency.Pair().String(), ticker.Last, ticker.Bid, ticker.Ask, ticker.Volume)
+				stats.AddExchangeInfo(g.GetName(), currency.GetFirstCurrency().String(), currency.GetSecondCurrency().String(), ticker.Last, ticker.Volume)
 			}()
 		}
 		time.Sleep(time.Second * g.RESTPollingDelay)
@@ -67,35 +68,34 @@ func (e *Gemini) GetExchangeAccountInfo() (exchange.ExchangeAccountInfo, error) 
 	return response, nil
 }
 
-func (g *Gemini) GetTickerPrice(currency string) (ticker.TickerPrice, error) {
-	tickerNew, err := ticker.GetTicker(g.GetName(), currency[0:3], currency[3:])
+func (g *Gemini) GetTickerPrice(p pair.CurrencyPair) (ticker.TickerPrice, error) {
+	tickerNew, err := ticker.GetTicker(g.GetName(), p)
 	if err == nil {
 		return tickerNew, nil
 	}
 
 	var tickerPrice ticker.TickerPrice
-	tick, err := g.GetTicker(currency)
+	tick, err := g.GetTicker(p.Pair().String())
 	if err != nil {
 		return tickerPrice, err
 	}
+	tickerPrice.Pair = p
 	tickerPrice.Ask = tick.Ask
 	tickerPrice.Bid = tick.Bid
-	tickerPrice.FirstCurrency = currency[0:3]
-	tickerPrice.SecondCurrency = currency[3:]
 	tickerPrice.Last = tick.Last
 	tickerPrice.Volume = tick.Volume.USD
-	ticker.ProcessTicker(g.GetName(), tickerPrice.FirstCurrency, tickerPrice.SecondCurrency, tickerPrice)
+	ticker.ProcessTicker(g.GetName(), p, tickerPrice)
 	return tickerPrice, nil
 }
 
-func (g *Gemini) GetOrderbookEx(currency string) (orderbook.OrderbookBase, error) {
-	ob, err := orderbook.GetOrderbook(g.GetName(), currency[0:3], currency[3:])
+func (g *Gemini) GetOrderbookEx(p pair.CurrencyPair) (orderbook.OrderbookBase, error) {
+	ob, err := orderbook.GetOrderbook(g.GetName(), p)
 	if err == nil {
 		return ob, nil
 	}
 
 	var orderBook orderbook.OrderbookBase
-	orderbookNew, err := g.GetOrderbook(currency, url.Values{})
+	orderbookNew, err := g.GetOrderbook(p.Pair().String(), url.Values{})
 	if err != nil {
 		return orderBook, err
 	}
@@ -108,8 +108,7 @@ func (g *Gemini) GetOrderbookEx(currency string) (orderbook.OrderbookBase, error
 		orderBook.Asks = append(orderBook.Asks, orderbook.OrderbookItem{Amount: orderbookNew.Asks[x].Amount, Price: orderbookNew.Asks[x].Price})
 	}
 
-	orderBook.FirstCurrency = currency[0:3]
-	orderBook.SecondCurrency = currency[3:]
-	orderbook.ProcessOrderbook(g.GetName(), orderBook.FirstCurrency, orderBook.SecondCurrency, orderBook)
+	orderBook.Pair = p
+	orderbook.ProcessOrderbook(g.GetName(), p, orderBook)
 	return orderBook, nil
 }
