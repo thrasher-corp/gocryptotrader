@@ -395,7 +395,7 @@ func TestCreateAccount(t *testing.T) {
 	CreateAccount := Alphapoint{}
 	CreateAccount.SetDefaults()
 
-	err := CreateAccount.CreateAccount("test", "account", "oharareid.ryan@gmail.com", "0433588258", "lolcat123")
+	err := CreateAccount.CreateAccount("test", "account", "something@something.com", "0292383745", "lolcat123")
 	if err != nil {
 		t.Errorf("Test Failed - Init error: %s", err)
 	}
