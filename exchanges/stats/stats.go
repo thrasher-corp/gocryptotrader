@@ -45,21 +45,22 @@ func (this ByVolume) Swap(i, j int) {
 }
 
 func AddExchangeInfo(exchange, crypto, fiat string, price, volume float64) {
+	if currency.BaseCurrencies == "" {
+		currency.BaseCurrencies = currency.DEFAULT_CURRENCIES
+	}
+
 	if !currency.IsFiatCurrency(fiat) {
 		return
 	}
-	if len(ExchInfo) == 0 {
-		AppendExchangeInfo(exchange, crypto, fiat, price, volume)
-	} else {
-		if ExchangeInfoAlreadyExists(exchange, crypto, fiat, price, volume) {
-			return
-		} else {
-			AppendExchangeInfo(exchange, crypto, fiat, price, volume)
-		}
-	}
+	AppendExchangeInfo(exchange, crypto, fiat, price, volume)
+
 }
 
 func AppendExchangeInfo(exchange, crypto, fiat string, price, volume float64) {
+	if ExchangeInfoAlreadyExists(exchange, crypto, fiat, price, volume) {
+		return
+	}
+
 	exch := ExchangeInfo{}
 	exch.Exchange = exchange
 	exch.FirstCurrency = crypto

@@ -83,7 +83,7 @@ type BitfinexOffer struct {
 	IsCancelled     bool    `json:"is_cancelled"`
 	OriginalAmount  float64 `json:"original_amount,string"`
 	RemainingAmount float64 `json:"remaining_amount,string"`
-	ExecutedAmount  float64 `json:"remaining_amount,string"`
+	ExecutedAmount  float64 `json:"executed_amount,string"`
 }
 
 type BitfinexBookStructure struct {

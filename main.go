@@ -1,6 +1,7 @@
 package main
 
 import (
+	//	"github.com/gorilla/mux"
 	"log"
 	"net/http"
 	"os"
@@ -88,7 +89,7 @@ func main() {
 	bot.config = &config.Cfg
 	log.Printf("Loading config file %s..\n", config.CONFIG_FILE)
 
-	err := bot.config.LoadConfig()
+	err := bot.config.LoadConfig("")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -144,7 +145,7 @@ func main() {
 
 	err = currency.SeedCurrencyData(currency.BaseCurrencies)
 	if err != nil {
-		log.Fatalf("Fatal error retrieving config currencies. Error: ", err)
+		log.Fatalf("Fatal error retrieving config currencies. Error: %s", err)
 	}
 
 	log.Println("Successfully retrieved config currencies.")
@@ -207,7 +208,7 @@ func HandleInterrupt() {
 func Shutdown() {
 	log.Println("Bot shutting down..")
 	bot.config.Portfolio = portfolio.Portfolio
-	err := bot.config.SaveConfig()
+	err := bot.config.SaveConfig("")
 
 	if err != nil {
 		log.Println("Unable to save config.")
@@ -245,5 +246,4 @@ func SeedExchangeAccountInfo(data []exchange.ExchangeAccountInfo) {
 			}
 		}
 	}
-
 }
