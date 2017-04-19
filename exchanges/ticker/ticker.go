@@ -4,6 +4,8 @@ import (
 	"errors"
 	"strconv"
 
+	"github.com/thrasher-/gocryptotrader/common"
+
 	"github.com/thrasher-/gocryptotrader/currency/pair"
 )
 
@@ -33,6 +35,7 @@ type Ticker struct {
 }
 
 func (t *Ticker) PriceToString(p pair.CurrencyPair, priceType string) string {
+	priceType = common.StringToLower(priceType)
 	switch priceType {
 	case "last":
 		return strconv.FormatFloat(t.Price[p.GetFirstCurrency()][p.GetSecondCurrency()].Last, 'f', -1, 64)
@@ -118,6 +121,7 @@ func ProcessTicker(exchangeName string, p pair.CurrencyPair, tickerNew TickerPri
 	tickerNew.CurrencyPair = p.Pair().String()
 	if len(Tickers) == 0 {
 		CreateNewTicker(exchangeName, p, tickerNew)
+		//issue - not appending
 		return
 	} else {
 		ticker, err := GetTickerByExchange(exchangeName)

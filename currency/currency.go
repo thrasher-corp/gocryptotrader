@@ -63,21 +63,33 @@ func IsDefaultCryptocurrency(currency string) bool {
 }
 
 func IsFiatCurrency(currency string) bool {
+	if BaseCurrencies == "" {
+		log.Println("IsFiatCurrency: BaseCurrencies string variable not populated")
+	}
 	return common.StringContains(BaseCurrencies, common.StringToUpper(currency))
 }
 
 func IsCryptocurrency(currency string) bool {
+	if CryptoCurrencies == "" {
+		log.Println("IsCryptocurrency: CryptoCurrencies string variable not populated")
+	}
 	return common.StringContains(CryptoCurrencies, common.StringToUpper(currency))
 }
 
 func ContainsSeparator(input string) (bool, string) {
 	separators := []string{"-", "_"}
+	var separatorsContainer []string
+
 	for _, x := range separators {
 		if common.StringContains(input, x) {
-			return true, x
+			separatorsContainer = append(separatorsContainer, x)
 		}
 	}
-	return false, ""
+	if len(separatorsContainer) == 0 {
+		return false, ""
+	} else {
+		return true, strings.Join(separatorsContainer, ",")
+	}
 }
 
 func ContainsBaseCurrencyIndex(baseCurrencies []string, currency string) (bool, string) {
@@ -100,12 +112,27 @@ func ContainsBaseCurrency(baseCurrencies []string, currency string) bool {
 
 func CheckAndAddCurrency(input []string, check string) []string {
 	for _, x := range input {
-		if check == x {
+		if IsDefaultCurrency(x) {
+			if IsDefaultCurrency(check) {
+				if check == x {
+					return input
+				}
+				continue
+			} else {
+				return input
+			}
+		} else if IsDefaultCryptocurrency(x) {
+			if IsDefaultCryptocurrency(check) {
+				if check == x {
+					return input
+				}
+				continue
+			} else {
+				return input
+			}
+		} else {
 			return input
 		}
-	}
-	if IsCryptocurrency(check) && IsFiatCurrency(check) {
-		return input
 	}
 
 	input = append(input, check)
@@ -118,7 +145,6 @@ func SeedCurrencyData(fiatCurrencies string) error {
 	}
 
 	err := QueryYahooCurrencyValues(fiatCurrencies)
-
 	if err != nil {
 		return ErrQueryingYahoo
 	}
@@ -142,16 +168,15 @@ func MakecurrencyPairs(supportedCurrencies string) string {
 }
 
 func ConvertCurrency(amount float64, from, to string) (float64, error) {
-	if len(CurrencyStore) == 0 {
-		err := SeedCurrencyData(common.StringToUpper(from) + "," + common.StringToUpper(to))
+	currency := common.StringToUpper(from + to)
+
+	if CurrencyStore[currency].Name != currency {
+		err := SeedCurrencyData(currency[:len(from)] + "," + currency[len(to):])
 		if err != nil {
 			return 0, err
 		}
 	}
-	currency := common.StringToUpper(from + to)
-	if common.StringContains(currency, "RUB") {
-		currency = strings.Replace(currency, "RUB", "RUR", -1)
-	}
+
 	for x, y := range CurrencyStore {
 		if x == currency {
 			return amount * y.Rate, nil

@@ -95,8 +95,8 @@ func (b *Bitfinex) GetTicker(symbol string, values url.Values) (BitfinexTicker, 
 	return response, nil
 }
 
-func (b *Bitfinex) GetStats(symbol string) (BitfinexStats, error) {
-	response := BitfinexStats{}
+func (b *Bitfinex) GetStats(symbol string) ([]BitfinexStats, error) {
+	response := []BitfinexStats{}
 	err := common.SendHTTPGetRequest(BITFINEX_API_URL+BITFINEX_STATS+symbol, true, &response)
 	if err != nil {
 		return response, err
@@ -105,6 +105,9 @@ func (b *Bitfinex) GetStats(symbol string) (BitfinexStats, error) {
 }
 
 func (b *Bitfinex) GetLendbook(symbol string, values url.Values) (BitfinexLendbook, error) {
+	if len(symbol) == 6 {
+		symbol = symbol[:3]
+	}
 	path := common.EncodeURLValues(BITFINEX_API_URL+BITFINEX_LENDBOOK+symbol, values)
 	response := BitfinexLendbook{}
 	err := common.SendHTTPGetRequest(path, true, &response)
@@ -167,7 +170,7 @@ func (b *Bitfinex) GetAccountInfo() ([]BitfinexAccountInfo, error) {
 	err := b.SendAuthenticatedHTTPRequest("POST", BITFINEX_ACCOUNT_INFO, nil, &response)
 
 	if err != nil {
-		log.Println(err)
+		return response, err
 	}
 	return response, nil
 }
@@ -243,7 +246,7 @@ func (b *Bitfinex) CancelOrder(OrderID int64) (BitfinexOrder, error) {
 	return response, nil
 }
 
-func (b *Bitfinex) CancelMultiplateOrders(OrderIDs []int64) (string, error) {
+func (b *Bitfinex) CancelMultipleOrders(OrderIDs []int64) (string, error) {
 	request := make(map[string]interface{})
 	request["order_ids"] = OrderIDs
 	response := BitfinexGenericResponse{}
@@ -534,7 +537,6 @@ func (b *Bitfinex) CloseMarginFunding(SwapID int64) (BitfinexOffer, error) {
 func (b *Bitfinex) GetAccountBalance() ([]BitfinexBalance, error) {
 	response := []BitfinexBalance{}
 	err := b.SendAuthenticatedHTTPRequest("POST", BITFINEX_BALANCES, nil, &response)
-
 	if err != nil {
 		return nil, err
 	}
@@ -586,7 +588,11 @@ func (b *Bitfinex) Withdrawal(withdrawType, wallet, address string, amount float
 	return response, nil
 }
 
-func (b *Bitfinex) SendAuthenticatedHTTPRequest(method, path string, params map[string]interface{}, result interface{}) (err error) {
+func (b *Bitfinex) SendAuthenticatedHTTPRequest(method, path string, params map[string]interface{}, result interface{}) error {
+	if len(b.APIKey) == 0 {
+		return errors.New("SendAuthenticatedHTTPRequest: Invalid API key")
+	}
+
 	request := make(map[string]interface{})
 	request["request"] = fmt.Sprintf("/v%s/%s", BITFINEX_API_VERSION, path)
 	request["nonce"] = strconv.FormatInt(time.Now().UnixNano(), 10)
@@ -598,7 +604,6 @@ func (b *Bitfinex) SendAuthenticatedHTTPRequest(method, path string, params map[
 	}
 
 	PayloadJson, err := common.JSONEncode(request)
-
 	if err != nil {
 		return errors.New("SendAuthenticatedHTTPRequest: Unable to JSON request")
 	}
@@ -615,15 +620,21 @@ func (b *Bitfinex) SendAuthenticatedHTTPRequest(method, path string, params map[
 	headers["X-BFX-SIGNATURE"] = common.HexEncodeToString(hmac)
 
 	resp, err := common.SendHTTPRequest(method, BITFINEX_API_URL+path, headers, strings.NewReader(""))
+	if err != nil {
+		return err
+	}
+
+	if strings.Contains(resp, "message") {
+		return errors.New("SendAuthenticatedHTTPRequest: " + resp[11:])
+	}
 
 	if b.Verbose {
 		log.Printf("Recieved raw: \n%s\n", resp)
 	}
 
 	err = common.JSONDecode([]byte(resp), &result)
-
 	if err != nil {
-		return errors.New("Unable to JSON Unmarshal response.")
+		return errors.New("SendAuthenticatedHTTPRequest: Unable to JSON Unmarshal response.")
 	}
 
 	return nil
