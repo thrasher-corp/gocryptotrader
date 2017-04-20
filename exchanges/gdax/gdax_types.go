@@ -91,7 +91,7 @@ type GDAXAccountLedgerResponse struct {
 	Amount    float64     `json:"amount,string"`
 	Balance   float64     `json:"balance,string"`
 	Type      string      `json:"type"`
-	details   interface{} `json:"details"`
+	Details   interface{} `json:"details"`
 }
 
 type GDAXAccountHolds struct {
@@ -156,7 +156,7 @@ type GDAXReportResponse struct {
 	Params      struct {
 		StartDate string `json:"start_date"`
 		EndDate   string `json:"end_date"`
-	} `json:params"`
+	} `json:"params"`
 }
 
 type GDAXWebsocketSubscribe struct {

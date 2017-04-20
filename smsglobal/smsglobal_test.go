@@ -8,7 +8,7 @@ import (
 
 func TestGetEnabledSMSContacts(t *testing.T) {
 	cfg := config.GetConfig()
-	err := cfg.LoadConfig("../testdata/configtest.dat")
+	err := cfg.LoadConfig(config.CONFIG_TEST_FILE)
 	if err != nil {
 		t.Errorf("Test Failed. GetEnabledSMSContacts: \nFunction return is incorrect with, %s.", err)
 	}
@@ -21,7 +21,7 @@ func TestGetEnabledSMSContacts(t *testing.T) {
 
 func TestSMSSendToAll(t *testing.T) {
 	cfg := config.GetConfig()
-	err := cfg.LoadConfig("../testdata/configtest.dat")
+	err := cfg.LoadConfig(config.CONFIG_TEST_FILE)
 	if err != nil {
 		t.Errorf("Test Failed. SMSSendToAll: \nFunction return is incorrect with, %s.", err)
 	}
@@ -31,7 +31,7 @@ func TestSMSSendToAll(t *testing.T) {
 
 func TestSMSGetNumberByName(t *testing.T) {
 	cfg := config.GetConfig()
-	err := cfg.LoadConfig("../testdata/configtest.dat")
+	err := cfg.LoadConfig(config.CONFIG_TEST_FILE)
 	if err != nil {
 		t.Errorf("Test Failed. SMSGetNumberByName: \nFunction return is incorrect with, %s.", err)
 	}
@@ -43,7 +43,7 @@ func TestSMSGetNumberByName(t *testing.T) {
 
 func TestSMSNotify(t *testing.T) {
 	cfg := config.GetConfig()
-	err := cfg.LoadConfig("../testdata/configtest.dat")
+	err := cfg.LoadConfig(config.CONFIG_TEST_FILE)
 	if err != nil {
 		t.Errorf("Test Failed. SMSNotify: \nFunction return is incorrect with, %s.", err)
 	}
