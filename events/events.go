@@ -24,7 +24,7 @@ const (
 	ACTION_SMS_NOTIFY     = "SMS"
 	ACTION_CONSOLE_PRINT  = "CONSOLE_PRINT"
 	ACTION_TEST           = "ACTION_TEST"
-	CONFIG_PATH_TEST      = "../testdata/configtest.dat"
+	CONFIG_PATH_TEST      = config.CONFIG_TEST_FILE
 )
 
 var (

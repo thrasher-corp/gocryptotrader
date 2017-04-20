@@ -5,7 +5,6 @@ import (
 	"strconv"
 
 	"github.com/thrasher-/gocryptotrader/common"
-
 	"github.com/thrasher-/gocryptotrader/currency/pair"
 )
 

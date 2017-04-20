@@ -7,22 +7,26 @@
    {
     "Address": "1JCe8z4jJVNXSjohjM4i9Hh813dLCNx2Sy",
     "CoinType": "BTC",
-    "Balance": 124178.0002442
+    "Balance": 124178.0002442,
+    "Decscription": ""
    },
    {
     "Address": "3Nxwenay9Z8Lc9JBiywExpnEFiLp6Afp8v",
     "CoinType": "BTC",
-    "Balance": 103439.83659727
+    "Balance": 103439.83659727,
+    "Decscription": ""
    },
    {
     "Address": "LgY8ahfHRhvjVQC1zJnBhFMG5pCTMuKRqh",
     "CoinType": "LTC",
-    "Balance": 3000000.05
+    "Balance": 3.00000005e+06,
+    "Decscription": ""
    },
    {
     "Address": "0xb794f5ea0ba39494ce839613fffba74279579268",
     "CoinType": "ETH",
-    "Balance": 5774999.820458524
+    "Balance": 5.774999820458524e+06,
+    "Decscription": ""
    }
   ]
  },

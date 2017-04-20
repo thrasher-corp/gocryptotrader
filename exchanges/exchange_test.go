@@ -69,7 +69,7 @@ func TestSetAPIKeys(t *testing.T) {
 
 func TestUpdateAvailableCurrencies(t *testing.T) {
 	cfg := config.GetConfig()
-	err := cfg.LoadConfig("../testdata/configtest.dat")
+	err := cfg.LoadConfig(config.CONFIG_TEST_FILE)
 	if err != nil {
 		t.Log("SOMETHING DONE HAPPENED!")
 	}

@@ -16,9 +16,9 @@ import (
 )
 
 const (
-	CONFIG_FILE     = "config.dat"
-	OLD_CONFIG_FILE = "config.json"
-	CONFIG_TEST     = "../testdata/configtest.dat"
+	CONFIG_FILE      = "config.dat"
+	OLD_CONFIG_FILE  = "config.json"
+	CONFIG_TEST_FILE = "../testdata/configtest.dat"
 
 	CONFIG_FILE_ENCRYPTION_PROMPT   = 0
 	CONFIG_FILE_ENCRYPTION_ENABLED  = 1

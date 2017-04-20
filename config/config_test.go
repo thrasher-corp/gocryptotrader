@@ -9,7 +9,7 @@ func TestGetConfigEnabledExchanges(t *testing.T) {
 
 	defaultEnabledExchanges := 17
 	GetConfigEnabledExchanges := GetConfig()
-	err := GetConfigEnabledExchanges.LoadConfig("../testdata/configtest.dat")
+	err := GetConfigEnabledExchanges.LoadConfig(CONFIG_TEST_FILE)
 	if err != nil {
 		t.Error("Test failed. GetConfigEnabledExchanges load config error: " + err.Error())
 	}
@@ -23,7 +23,7 @@ func TestGetExchangeConfig(t *testing.T) {
 	t.Parallel()
 
 	GetExchangeConfig := GetConfig()
-	err := GetExchangeConfig.LoadConfig("../testdata/configtest.dat")
+	err := GetExchangeConfig.LoadConfig(CONFIG_TEST_FILE)
 	if err != nil {
 		t.Errorf("Test failed. GetExchangeConfig.LoadConfig Error: %s", err.Error())
 	}
@@ -37,7 +37,7 @@ func TestUpdateExchangeConfig(t *testing.T) {
 	t.Parallel()
 
 	UpdateExchangeConfig := GetConfig()
-	err := UpdateExchangeConfig.LoadConfig("../testdata/configtest.dat")
+	err := UpdateExchangeConfig.LoadConfig(CONFIG_TEST_FILE)
 	if err != nil {
 		t.Errorf("Test failed. UpdateExchangeConfig.LoadConfig Error: %s", err.Error())
 	}
@@ -56,12 +56,12 @@ func TestCheckSMSGlobalConfigValues(t *testing.T) {
 	t.Parallel()
 
 	checkSMSGlobalConfigValues := GetConfig()
-	err := checkSMSGlobalConfigValues.LoadConfig("../testdata/configtest.dat")
+	err := checkSMSGlobalConfigValues.LoadConfig(CONFIG_TEST_FILE)
 	if err != nil {
 		t.Errorf("Test failed. checkSMSGlobalConfigValues.LoadConfig: %s", err)
 	}
 	err2 := checkSMSGlobalConfigValues.CheckSMSGlobalConfigValues()
-	if err2 == nil {
+	if err2 != nil {
 		t.Error("Test failed. checkSMSGlobalConfigValues.CheckSMSGlobalConfigValues: Incorrect Return Value")
 	}
 }
@@ -70,7 +70,7 @@ func TestCheckExchangeConfigValues(t *testing.T) {
 	t.Parallel()
 
 	checkExchangeConfigValues := Config{}
-	err := checkExchangeConfigValues.LoadConfig("../testdata/configtest.dat")
+	err := checkExchangeConfigValues.LoadConfig(CONFIG_TEST_FILE)
 	if err != nil {
 		t.Errorf("Test failed. checkExchangeConfigValues.LoadConfig: %s", err.Error())
 	}
@@ -85,7 +85,7 @@ func TestCheckWebserverConfigValues(t *testing.T) {
 	t.Parallel()
 
 	checkWebserverConfigValues := GetConfig()
-	err := checkWebserverConfigValues.LoadConfig("../testdata/configtest.dat")
+	err := checkWebserverConfigValues.LoadConfig(CONFIG_TEST_FILE)
 	if err != nil {
 		t.Errorf("Test failed. checkWebserverConfigValues.LoadConfig: %s", err.Error())
 	}
@@ -99,7 +99,7 @@ func TestRetrieveConfigCurrencyPairs(t *testing.T) {
 	t.Parallel()
 
 	retrieveConfigCurrencyPairs := GetConfig()
-	err := retrieveConfigCurrencyPairs.LoadConfig("../testdata/configtest.dat")
+	err := retrieveConfigCurrencyPairs.LoadConfig(CONFIG_TEST_FILE)
 	if err != nil {
 		t.Errorf("Test failed. checkWebserverConfigValues.LoadConfig: %s", err.Error())
 	}
@@ -113,7 +113,7 @@ func TestReadConfig(t *testing.T) {
 	t.Parallel()
 
 	readConfig := GetConfig()
-	err := readConfig.ReadConfig("../testdata/configtest.dat")
+	err := readConfig.ReadConfig(CONFIG_TEST_FILE)
 	if err != nil {
 		t.Error("Test failed. TestReadConfig " + err.Error())
 	}
@@ -123,7 +123,7 @@ func TestLoadConfig(t *testing.T) {
 	t.Parallel()
 
 	loadConfig := GetConfig()
-	err := loadConfig.LoadConfig("../testdata/configtest.dat")
+	err := loadConfig.LoadConfig(CONFIG_TEST_FILE)
 	if err != nil {
 		t.Error("Test failed. TestLoadConfig " + err.Error())
 	}
@@ -131,11 +131,11 @@ func TestLoadConfig(t *testing.T) {
 
 func TestSaveConfig(t *testing.T) {
 	saveConfig := GetConfig()
-	err := saveConfig.LoadConfig("../testdata/configtest.dat")
+	err := saveConfig.LoadConfig(CONFIG_TEST_FILE)
 	if err != nil {
 		t.Errorf("Test failed. TestSaveConfig.LoadConfig: %s", err.Error())
 	}
-	err2 := saveConfig.SaveConfig("../testdata/configtest.dat")
+	err2 := saveConfig.SaveConfig(CONFIG_TEST_FILE)
 	if err2 != nil {
 		t.Errorf("Test failed. TestSaveConfig.SaveConfig, %s", err2.Error())
 	}
