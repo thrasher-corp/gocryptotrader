@@ -15,7 +15,7 @@ import (
 )
 
 const (
-	BTCC_API_URL                  = "https://api.btcc.com/"
+	BTCC_API_URL                  = "https://api.btcchina.com/"
 	BTCC_API_AUTHENTICATED_METHOD = "api_trade_v1.php"
 	BTCC_API_VER                  = "2.0.1.3"
 	BTCC_ORDER_BUY                = "buyOrder2"
