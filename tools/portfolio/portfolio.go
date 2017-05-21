@@ -70,6 +70,11 @@ func main() {
 		pf.Subtotal = 0
 
 		bf := bitfinex.Bitfinex{}
+
+		if currency.IsDefaultCurrency(x) {
+			continue
+		}
+
 		ticker, err := bf.GetTicker(x+"USD", url.Values{})
 		if err != nil {
 			log.Println(err)
@@ -81,7 +86,7 @@ func main() {
 	}
 
 	for x, y := range stuff {
-		log.Printf("%s %f subtotal: %f USD. Percentage of portfolio %f", x, y.Balance, y.Subtotal, y.Subtotal/total*100/1)
+		log.Printf("%s %f subtotal: %f USD (1 %s = %.2f USD). Percentage of portfolio %f", x, y.Balance, y.Subtotal, x, y.Subtotal/y.Balance, y.Subtotal/total*100/1)
 	}
 
 	log.Printf("Total balance in USD: %f.\n", total)
