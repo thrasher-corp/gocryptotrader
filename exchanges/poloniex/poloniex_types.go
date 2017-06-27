@@ -218,3 +218,16 @@ type PoloniexActiveLoans struct {
 	Provided []PoloniexLoanOffer `json:"provided"`
 	Used     []PoloniexLoanOffer `json:"used"`
 }
+
+type PoloniexLendingHistory struct {
+	ID       int64   `json:"id"`
+	Currency string  `json:"currency"`
+	Rate     float64 `json:"rate,string"`
+	Amount   float64 `json:"amount,string"`
+	Duration float64 `json:"duration,string"`
+	Interest float64 `json:"interest,string"`
+	Fee      float64 `json:"fee,string"`
+	Earned   float64 `json:"earned,string"`
+	Open     string  `json:"open"`
+	Close    string  `json:"close"`
+}
