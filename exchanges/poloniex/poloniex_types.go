@@ -1,9 +1,5 @@
 package poloniex
 
-import (
-	"time"
-)
-
 type PoloniexTicker struct {
 	Last          float64 `json:"last,string"`
 	LowestAsk     float64 `json:"lowestAsk,string"`
@@ -92,24 +88,24 @@ type PoloniexDepositAddresses struct {
 
 type PoloniexDepositsWithdrawals struct {
 	Deposits []struct {
-		Currency      string    `json:"currency"`
-		Address       string    `json:"address"`
-		Amount        float64   `json:"amount,string"`
-		Confirmations int       `json:"confirmations"`
-		TransactionID string    `json:"txid"`
-		Timestamp     time.Time `json:"timestamp"`
-		Status        string    `json:"string"`
+		Currency      string  `json:"currency"`
+		Address       string  `json:"address"`
+		Amount        float64 `json:"amount,string"`
+		Confirmations int     `json:"confirmations"`
+		TransactionID string  `json:"txid"`
+		Timestamp     int64   `json:"timestamp"`
+		Status        string  `json:"status"`
 	} `json:"deposits"`
 	Withdrawals []struct {
-		WithdrawalNumber int64     `json:"withdrawalNumber"`
-		Currency         string    `json:"currency"`
-		Address          string    `json:"address"`
-		Amount           float64   `json:"amount,string"`
-		Confirmations    int       `json:"confirmations"`
-		TransactionID    string    `json:"txid"`
-		Timestamp        time.Time `json:"timestamp"`
-		Status           string    `json:"string"`
-		IPAddress        string    `json:"ipAddress"`
+		WithdrawalNumber int64   `json:"withdrawalNumber"`
+		Currency         string  `json:"currency"`
+		Address          string  `json:"address"`
+		Amount           float64 `json:"amount,string"`
+		Confirmations    int     `json:"confirmations"`
+		TransactionID    string  `json:"txid"`
+		Timestamp        int64   `json:"timestamp"`
+		Status           string  `json:"status"`
+		IPAddress        string  `json:"ipAddress"`
 	} `json:"withdrawals"`
 }
 
@@ -221,4 +217,17 @@ type PoloniexLoanOffer struct {
 type PoloniexActiveLoans struct {
 	Provided []PoloniexLoanOffer `json:"provided"`
 	Used     []PoloniexLoanOffer `json:"used"`
+}
+
+type PoloniexLendingHistory struct {
+	ID       int64   `json:"id"`
+	Currency string  `json:"currency"`
+	Rate     float64 `json:"rate,string"`
+	Amount   float64 `json:"amount,string"`
+	Duration float64 `json:"duration,string"`
+	Interest float64 `json:"interest,string"`
+	Fee      float64 `json:"fee,string"`
+	Earned   float64 `json:"earned,string"`
+	Open     string  `json:"open"`
+	Close    string  `json:"close"`
 }
