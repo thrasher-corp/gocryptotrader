@@ -130,6 +130,20 @@
    "BaseCurrencies": "AUD"
   },
   {
+   "Name": "COINUT",
+   "Enabled": true,
+   "Verbose": false,
+   "Websocket": false,
+   "RESTPollingDelay": 10,
+   "AuthenticatedAPISupport": false,
+   "APIKey": "Key",
+   "APISecret": "Secret",
+   "ClientID": "ClientID",
+   "AvailablePairs": "LTCBTC,ETCBTC,ETHBTC",
+   "EnabledPairs": "LTCBTC,ETCBTC,ETHBTC",
+   "BaseCurrencies": "USD"
+  },
+  {
    "Name": "GDAX",
    "Enabled": true,
    "Verbose": false,
