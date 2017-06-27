@@ -42,6 +42,7 @@ const (
 	POLONIEX_CANCEL_LOAN_OFFER      = "cancelLoanOffer"
 	POLONIEX_OPEN_LOAN_OFFERS       = "returnOpenLoanOffers"
 	POLONIEX_ACTIVE_LOANS           = "returnActiveLoans"
+	POLONIEX_LENDING_HISTORY        = "returnLendingHistory"
 	POLONIEX_AUTO_RENEW             = "toggleAutoRenew"
 )
 
@@ -703,6 +704,26 @@ func (p *Poloniex) GetActiveLoans() (PoloniexActiveLoans, error) {
 	}
 
 	return result, nil
+}
+
+func (p *Poloniex) GetLendingHistory(start, end string) ([]PoloniexLendingHistory, error) {
+	vals := url.Values{}
+
+	if start != "" {
+		vals.Set("start", start)
+	}
+
+	if end != "" {
+		vals.Set("end", end)
+	}
+
+	resp := []PoloniexLendingHistory{}
+	err := p.SendAuthenticatedHTTPRequest("POST", POLONIEX_LENDING_HISTORY, vals, &resp)
+
+	if err != nil {
+		return nil, err
+	}
+	return resp, nil
 }
 
 func (p *Poloniex) ToggleAutoRenew(orderNumber int64) (bool, error) {
