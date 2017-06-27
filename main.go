@@ -19,6 +19,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/exchanges/btcc"
 	"github.com/thrasher-/gocryptotrader/exchanges/btce"
 	"github.com/thrasher-/gocryptotrader/exchanges/btcmarkets"
+	"github.com/thrasher-/gocryptotrader/exchanges/coinut"
 	"github.com/thrasher-/gocryptotrader/exchanges/gdax"
 	"github.com/thrasher-/gocryptotrader/exchanges/gemini"
 	"github.com/thrasher-/gocryptotrader/exchanges/huobi"
@@ -41,6 +42,7 @@ type ExchangeMain struct {
 	bitfinex      bitfinex.Bitfinex
 	btce          btce.BTCE
 	btcmarkets    btcmarkets.BTCMarkets
+	coinut        coinut.COINUT
 	gdax          gdax.GDAX
 	gemini        gemini.Gemini
 	okcoinChina   okcoin.OKCoin
@@ -119,6 +121,7 @@ func main() {
 		new(bitfinex.Bitfinex),
 		new(btce.BTCE),
 		new(btcmarkets.BTCMarkets),
+		new(coinut.COINUT),
 		new(gdax.GDAX),
 		new(gemini.Gemini),
 		new(okcoin.OKCoin),
