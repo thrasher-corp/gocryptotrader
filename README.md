@@ -8,6 +8,10 @@ A cryptocurrency trading bot supporting multiple exchanges written in Golang.
 
 **Please note that this bot is under development and is not ready for production!**
 
+##Community
+
+Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader](https://gocryptotrader.herokuapp.com/)
+
 ## Exchange Support Table
 
 | Exchange | REST API | Streaming API | FIX API |
