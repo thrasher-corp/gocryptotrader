@@ -23,6 +23,43 @@ func TestIsEnabled(t *testing.T) {
 	}
 }
 
+func TestIsValidCryptoAddress(t *testing.T) {
+	t.Parallel()
+
+	b, err := IsValidCryptoAddress("1Mz7153HMuxXTuR2R1t78mGSdzaAtNbBWX", "bTC")
+	if err != nil && !b {
+		t.Errorf("Test Failed - Common IsValidCryptoAddress error: %s", err)
+	}
+	b, err = IsValidCryptoAddress("0Mz7153HMuxXTuR2R1t78mGSdzaAtNbBWX", "btc")
+	if err == nil && b {
+		t.Error("Test Failed - Common IsValidCryptoAddress error")
+	}
+	b, err = IsValidCryptoAddress("1Mz7153HMuxXTuR2R1t78mGSdzaAtNbBWX", "lTc")
+	if err == nil && b {
+		t.Error("Test Failed - Common IsValidCryptoAddress error")
+	}
+	b, err = IsValidCryptoAddress("3CDJNfdWX8m2NwuGUV3nhXHXEeLygMXoAj", "ltc")
+	if err != nil && !b {
+		t.Errorf("Test Failed - Common IsValidCryptoAddress error: %s", err)
+	}
+	b, err = IsValidCryptoAddress("NCDJNfdWX8m2NwuGUV3nhXHXEeLygMXoAj", "lTc")
+	if err == nil && b {
+		t.Error("Test Failed - Common IsValidCryptoAddress error")
+	}
+	b, err = IsValidCryptoAddress("0xb794f5ea0ba39494ce839613fffba74279579268", "eth")
+	if err != nil && b {
+		t.Errorf("Test Failed - Common IsValidCryptoAddress error: %s", err)
+	}
+	b, err = IsValidCryptoAddress("xxb794f5ea0ba39494ce839613fffba74279579268", "eTh")
+	if err == nil && b {
+		t.Error("Test Failed - Common IsValidCryptoAddress error")
+	}
+	b, err = IsValidCryptoAddress("xxb794f5ea0ba39494ce839613fffba74279579268", "ding")
+	if err == nil && b {
+		t.Error("Test Failed - Common IsValidCryptoAddress error")
+	}
+}
+
 func TestGetMD5(t *testing.T) {
 	t.Parallel()
 	var originalString = []byte("I am testing the MD5 function in common!")
@@ -168,6 +205,17 @@ func TestSplitStrings(t *testing.T) {
 	}
 }
 
+func TestTrimString(t *testing.T) {
+	t.Parallel()
+	originalInput := "abcd"
+	cutset := "ad"
+	expectedOutput := "bc"
+	actualResult := TrimString(originalInput, cutset)
+	if expectedOutput != actualResult {
+		t.Errorf("Test failed. Expected '%s'. Actual '%s'", expectedOutput, actualResult)
+	}
+}
+
 func TestRoundFloat(t *testing.T) {
 	t.Parallel()
 	originalInput := float64(1.4545445445)
@@ -176,6 +224,19 @@ func TestRoundFloat(t *testing.T) {
 	actualResult := RoundFloat(originalInput, precisionInput)
 	if expectedOutput != actualResult {
 		t.Error(fmt.Sprintf("Test failed. Expected '%f'. Actual '%f'.", expectedOutput, actualResult))
+	}
+}
+
+func TestYesOrNo(t *testing.T) {
+	t.Parallel()
+	if !YesOrNo("y") {
+		t.Error("Test failed - Common YesOrNo Error.")
+	}
+	if !YesOrNo("yes") {
+		t.Error("Test failed - Common YesOrNo Error.")
+	}
+	if YesOrNo("ding") {
+		t.Error("Test failed - Common YesOrNo Error.")
 	}
 }
 
