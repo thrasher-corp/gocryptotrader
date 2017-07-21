@@ -276,7 +276,7 @@ func (l *LocalBitcoins) SendAuthenticatedHTTPRequest(method, path string, values
 	}
 
 	message := string(nonce) + l.APIKey + path + payload
-	hmac := common.GetHMAC(common.HASH_SHA256, []byte(message), []byte(l.APISecret))
+	hmac := common.GetHMAC(common.HashSHA256, []byte(message), []byte(l.APISecret))
 	headers := make(map[string]string)
 	headers["Apiauth-Key"] = l.APIKey
 	headers["Apiauth-Nonce"] = string(nonce)

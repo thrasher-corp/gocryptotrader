@@ -74,7 +74,7 @@ func (b *Bitfinex) WebsocketSendAuth() error {
 	payload := "AUTH" + strconv.FormatInt(time.Now().UnixNano(), 10)[:13]
 	request["event"] = "auth"
 	request["apiKey"] = b.APIKey
-	request["authSig"] = common.HexEncodeToString(common.GetHMAC(common.HASH_SHA512_384, []byte(payload), []byte(b.APISecret)))
+	request["authSig"] = common.HexEncodeToString(common.GetHMAC(common.HashSHA512_384, []byte(payload), []byte(b.APISecret)))
 	request["authPayload"] = payload
 	return b.WebsocketSend(request)
 }

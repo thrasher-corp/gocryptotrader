@@ -476,7 +476,7 @@ func (b *Bitstamp) SendAuthenticatedHTTPRequest(path string, v2 bool, values url
 
 	values.Set("key", b.APIKey)
 	values.Set("nonce", nonce)
-	hmac := common.GetHMAC(common.HASH_SHA256, []byte(nonce+b.ClientID+b.APIKey), []byte(b.APISecret))
+	hmac := common.GetHMAC(common.HashSHA256, []byte(nonce+b.ClientID+b.APIKey), []byte(b.APISecret))
 	values.Set("signature", common.StringToUpper(common.HexEncodeToString(hmac)))
 
 	if v2 {

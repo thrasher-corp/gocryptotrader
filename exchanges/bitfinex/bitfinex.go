@@ -613,7 +613,7 @@ func (b *Bitfinex) SendAuthenticatedHTTPRequest(method, path string, params map[
 	}
 
 	PayloadBase64 := common.Base64Encode(PayloadJson)
-	hmac := common.GetHMAC(common.HASH_SHA512_384, []byte(PayloadBase64), []byte(b.APISecret))
+	hmac := common.GetHMAC(common.HashSHA512_384, []byte(PayloadBase64), []byte(b.APISecret))
 	headers := make(map[string]string)
 	headers["X-BFX-APIKEY"] = b.APIKey
 	headers["X-BFX-PAYLOAD"] = PayloadBase64
