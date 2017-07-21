@@ -62,7 +62,7 @@ func main() {
 
 	for x, y := range result {
 		if x == "ETH" {
-			y = y / common.WEI_PER_ETHER
+			y = y / common.WeiPerEther
 		}
 
 		pf := PortfolioTemp{}

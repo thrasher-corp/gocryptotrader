@@ -298,7 +298,7 @@ func (b *BTCE) SendAuthenticatedHTTPRequest(method string, values url.Values, re
 	values.Set("method", method)
 
 	encoded := values.Encode()
-	hmac := common.GetHMAC(common.HASH_SHA512, []byte(encoded), []byte(b.APISecret))
+	hmac := common.GetHMAC(common.HashSHA512, []byte(encoded), []byte(b.APISecret))
 
 	if b.Verbose {
 		log.Printf("Sending POST request to %s calling method %s with params %s\n", BTCE_API_PRIVATE_URL, method, encoded)

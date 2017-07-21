@@ -105,8 +105,8 @@ func (b *BTCMarkets) Order(currency, instrument string, price, amount int64, ord
 	order := Order{}
 	order.Currency = currency
 	order.Instrument = instrument
-	order.Price = price * common.SATOSHIS_PER_BTC
-	order.Volume = amount * common.SATOSHIS_PER_BTC
+	order.Price = price * common.SatoshisPerBTC
+	order.Volume = amount * common.SatoshisPerBTC
 	order.OrderSide = orderSide
 	order.OrderType = orderType
 	order.ClientRequestId = clientReq
@@ -212,14 +212,14 @@ func (b *BTCMarkets) GetOrders(currency, instrument string, limit, since int64, 
 	}
 
 	for i := range resp.Orders {
-		resp.Orders[i].Price = resp.Orders[i].Price / common.SATOSHIS_PER_BTC
-		resp.Orders[i].OpenVolume = resp.Orders[i].OpenVolume / common.SATOSHIS_PER_BTC
-		resp.Orders[i].Volume = resp.Orders[i].Volume / common.SATOSHIS_PER_BTC
+		resp.Orders[i].Price = resp.Orders[i].Price / common.SatoshisPerBTC
+		resp.Orders[i].OpenVolume = resp.Orders[i].OpenVolume / common.SatoshisPerBTC
+		resp.Orders[i].Volume = resp.Orders[i].Volume / common.SatoshisPerBTC
 
 		for x := range resp.Orders[i].Trades {
-			resp.Orders[i].Trades[x].Fee = resp.Orders[i].Trades[x].Fee / common.SATOSHIS_PER_BTC
-			resp.Orders[i].Trades[x].Price = resp.Orders[i].Trades[x].Price / common.SATOSHIS_PER_BTC
-			resp.Orders[i].Trades[x].Volume = resp.Orders[i].Trades[x].Volume / common.SATOSHIS_PER_BTC
+			resp.Orders[i].Trades[x].Fee = resp.Orders[i].Trades[x].Fee / common.SatoshisPerBTC
+			resp.Orders[i].Trades[x].Price = resp.Orders[i].Trades[x].Price / common.SatoshisPerBTC
+			resp.Orders[i].Trades[x].Volume = resp.Orders[i].Trades[x].Volume / common.SatoshisPerBTC
 		}
 	}
 	return resp.Orders, nil
@@ -251,14 +251,14 @@ func (b *BTCMarkets) GetOrderDetail(orderID []int64) ([]BTCMarketsOrder, error) 
 	}
 
 	for i := range resp.Orders {
-		resp.Orders[i].Price = resp.Orders[i].Price / common.SATOSHIS_PER_BTC
-		resp.Orders[i].OpenVolume = resp.Orders[i].OpenVolume / common.SATOSHIS_PER_BTC
-		resp.Orders[i].Volume = resp.Orders[i].Volume / common.SATOSHIS_PER_BTC
+		resp.Orders[i].Price = resp.Orders[i].Price / common.SatoshisPerBTC
+		resp.Orders[i].OpenVolume = resp.Orders[i].OpenVolume / common.SatoshisPerBTC
+		resp.Orders[i].Volume = resp.Orders[i].Volume / common.SatoshisPerBTC
 
 		for x := range resp.Orders[i].Trades {
-			resp.Orders[i].Trades[x].Fee = resp.Orders[i].Trades[x].Fee / common.SATOSHIS_PER_BTC
-			resp.Orders[i].Trades[x].Price = resp.Orders[i].Trades[x].Price / common.SATOSHIS_PER_BTC
-			resp.Orders[i].Trades[x].Volume = resp.Orders[i].Trades[x].Volume / common.SATOSHIS_PER_BTC
+			resp.Orders[i].Trades[x].Fee = resp.Orders[i].Trades[x].Fee / common.SatoshisPerBTC
+			resp.Orders[i].Trades[x].Price = resp.Orders[i].Trades[x].Price / common.SatoshisPerBTC
+			resp.Orders[i].Trades[x].Volume = resp.Orders[i].Trades[x].Volume / common.SatoshisPerBTC
 		}
 	}
 	return resp.Orders, nil
@@ -274,8 +274,8 @@ func (b *BTCMarkets) GetAccountBalance() ([]BTCMarketsAccountBalance, error) {
 
 	for i := range balance {
 		if balance[i].Currency == "LTC" || balance[i].Currency == "BTC" {
-			balance[i].Balance = balance[i].Balance / common.SATOSHIS_PER_BTC
-			balance[i].PendingFunds = balance[i].PendingFunds / common.SATOSHIS_PER_BTC
+			balance[i].Balance = balance[i].Balance / common.SatoshisPerBTC
+			balance[i].PendingFunds = balance[i].PendingFunds / common.SatoshisPerBTC
 		}
 	}
 	return balance, nil
@@ -296,7 +296,7 @@ func (b *BTCMarkets) SendAuthenticatedRequest(reqType, path string, data interfa
 		request = path + "\n" + nonce + "\n"
 	}
 
-	hmac := common.GetHMAC(common.HASH_SHA512, []byte(request), []byte(b.APISecret))
+	hmac := common.GetHMAC(common.HashSHA512, []byte(request), []byte(b.APISecret))
 
 	if b.Verbose {
 		log.Printf("Sending %s request to URL %s with params %s\n", reqType, BTCMARKETS_API_URL+path, request)

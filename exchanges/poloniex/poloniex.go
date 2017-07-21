@@ -755,7 +755,7 @@ func (p *Poloniex) SendAuthenticatedHTTPRequest(method, endpoint string, values 
 	values.Set("nonce", nonceStr)
 	values.Set("command", endpoint)
 
-	hmac := common.GetHMAC(common.HASH_SHA512, []byte(values.Encode()), []byte(p.APISecret))
+	hmac := common.GetHMAC(common.HashSHA512, []byte(values.Encode()), []byte(p.APISecret))
 	headers["Sign"] = common.HexEncodeToString(hmac)
 
 	path := fmt.Sprintf("%s/%s", POLONIEX_API_URL, POLONIEX_API_TRADING_ENDPOINT)
