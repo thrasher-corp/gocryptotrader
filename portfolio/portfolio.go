@@ -66,13 +66,13 @@ type EtherchainBalanceResponse struct {
 	} `json:"data"`
 }
 
-//ExchangeAccountInfo : Generic type to hold each exchange's holdings in all enabled currencies
+// ExchangeAccountInfo : Generic type to hold each exchange's holdings in all enabled currencies
 type ExchangeAccountInfo struct {
 	ExchangeName string
 	Currencies   []ExchangeAccountCurrencyInfo
 }
 
-//ExchangeAccountCurrencyInfo : Sub type to store currency name and value
+// ExchangeAccountCurrencyInfo : Sub type to store currency name and value
 type ExchangeAccountCurrencyInfo struct {
 	CurrencyName string
 	TotalValue   float64
@@ -80,6 +80,13 @@ type ExchangeAccountCurrencyInfo struct {
 }
 
 func GetEthereumBalance(address []string) (EtherchainBalanceResponse, error) {
+	for _, add := range address {
+		valid, _ := common.IsValidCryptoAddress(add, "eth")
+		if !valid {
+			return EtherchainBalanceResponse{}, errors.New("Not an ethereum address")
+		}
+	}
+
 	addresses := common.JoinStrings(address, ",")
 	url := fmt.Sprintf("%s/%s/%s", ETHERCHAIN_API_URL, ETHERCHAIN_ACCOUNT_MULTIPLE, addresses)
 	result := EtherchainBalanceResponse{}
@@ -94,6 +101,11 @@ func GetEthereumBalance(address []string) (EtherchainBalanceResponse, error) {
 }
 
 func GetBlockrBalanceSingle(address string, coinType string) (BlockrAddressBalanceSingle, error) {
+	valid, _ := common.IsValidCryptoAddress(address, coinType)
+	if !valid {
+		return BlockrAddressBalanceSingle{}, errors.New(fmt.Sprintf("Not a %s address", common.StringToUpper(coinType)))
+	}
+
 	url := fmt.Sprintf("https://%s.%s/v%s/%s/%s", common.StringToLower(coinType), BLOCKR_API_URL, BLOCKR_API_VERSION, BLOCKR_ADDRESS_BALANCE, address)
 	result := BlockrAddressBalanceSingle{}
 	err := common.SendHTTPGetRequest(url, true, &result)
@@ -107,6 +119,12 @@ func GetBlockrBalanceSingle(address string, coinType string) (BlockrAddressBalan
 }
 
 func GetBlockrAddressMulti(addresses []string, coinType string) (BlockrAddressBalanceMulti, error) {
+	for _, add := range addresses {
+		valid, _ := common.IsValidCryptoAddress(add, coinType)
+		if !valid {
+			return BlockrAddressBalanceMulti{}, errors.New(fmt.Sprintf("Not a %s address", common.StringToUpper(coinType)))
+		}
+	}
 	addressesStr := common.JoinStrings(addresses, ",")
 	url := fmt.Sprintf("https://%s.%s/v%s/%s/%s", common.StringToLower(coinType), BLOCKR_API_URL, BLOCKR_API_VERSION, BLOCKR_ADDRESS_BALANCE, addressesStr)
 	result := BlockrAddressBalanceMulti{}

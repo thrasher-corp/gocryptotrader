@@ -387,7 +387,7 @@ func (g *GDAX) SendAuthenticatedHTTPRequest(method, path string, params map[stri
 	}
 
 	message := timestamp + method + "/" + path + string(payload)
-	hmac := common.GetHMAC(common.HASH_SHA256, []byte(message), []byte(g.APISecret))
+	hmac := common.GetHMAC(common.HashSHA256, []byte(message), []byte(g.APISecret))
 	headers := make(map[string]string)
 	headers["CB-ACCESS-SIGN"] = common.Base64Encode([]byte(hmac))
 	headers["CB-ACCESS-TIMESTAMP"] = timestamp

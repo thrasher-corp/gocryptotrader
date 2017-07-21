@@ -306,7 +306,7 @@ func (a *ANX) SendAuthenticatedHTTPRequest(path string, params map[string]interf
 		log.Printf("Request JSON: %s\n", PayloadJson)
 	}
 
-	hmac := common.GetHMAC(common.HASH_SHA512, []byte(path+string("\x00")+string(PayloadJson)), []byte(a.APISecret))
+	hmac := common.GetHMAC(common.HashSHA512, []byte(path+string("\x00")+string(PayloadJson)), []byte(a.APISecret))
 	headers := make(map[string]string)
 	headers["Rest-Key"] = a.APIKey
 	headers["Rest-Sign"] = common.Base64Encode([]byte(hmac))

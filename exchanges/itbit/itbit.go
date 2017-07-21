@@ -266,7 +266,7 @@ func (i *ItBit) SendAuthenticatedHTTPRequest(method string, path string, params 
 	}
 
 	hash := common.GetSHA256([]byte(nonceStr + string(message)))
-	hmac := common.GetHMAC(common.HASH_SHA512, []byte(url+string(hash)), []byte(i.APISecret))
+	hmac := common.GetHMAC(common.HashSHA512, []byte(url+string(hash)), []byte(i.APISecret))
 	signature := common.Base64Encode(hmac)
 
 	headers := make(map[string]string)

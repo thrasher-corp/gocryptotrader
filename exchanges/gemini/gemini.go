@@ -266,7 +266,7 @@ func (g *Gemini) SendAuthenticatedHTTPRequest(method, path string, params map[st
 	}
 
 	PayloadBase64 := common.Base64Encode(PayloadJson)
-	hmac := common.GetHMAC(common.HASH_SHA512_384, []byte(PayloadBase64), []byte(g.APISecret))
+	hmac := common.GetHMAC(common.HashSHA512_384, []byte(PayloadBase64), []byte(g.APISecret))
 	headers := make(map[string]string)
 	headers["X-GEMINI-APIKEY"] = g.APIKey
 	headers["X-GEMINI-PAYLOAD"] = PayloadBase64

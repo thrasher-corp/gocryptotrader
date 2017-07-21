@@ -558,7 +558,7 @@ func (b *BTCC) SendAuthenticatedHTTPRequest(method string, params []interface{})
 		log.Println(encoded)
 	}
 
-	hmac := common.GetHMAC(common.HASH_SHA1, []byte(encoded), []byte(b.APISecret))
+	hmac := common.GetHMAC(common.HashSHA1, []byte(encoded), []byte(b.APISecret))
 	postData := make(map[string]interface{})
 	postData["method"] = method
 	postData["params"] = params

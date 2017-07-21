@@ -290,7 +290,7 @@ func (c *COINUT) SendAuthenticatedHTTPRequest(apiRequest string, params map[stri
 		log.Printf("Request JSON: %s\n", payload)
 	}
 
-	hmac := common.GetHMAC(common.HASH_SHA256, []byte(payload), []byte(c.APIKey))
+	hmac := common.GetHMAC(common.HashSHA256, []byte(payload), []byte(c.APIKey))
 	headers := make(map[string]string)
 	headers["X-USER"] = c.ClientID
 	headers["X-SIGNATURE"] = common.HexEncodeToString(hmac)
