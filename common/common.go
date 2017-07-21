@@ -1,7 +1,6 @@
 package common
 
 import (
-	//"bytes"
 	"crypto/hmac"
 	"crypto/md5"
 	"crypto/sha1"
@@ -21,19 +20,20 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
 )
 
 const (
-	HASH_SHA1 = iota
-	HASH_SHA256
-	HASH_SHA512
-	HASH_SHA512_384
-	SATOSHIS_PER_BTC = 100000000
-	SATOSHIS_PER_LTC = 100000000
-	WEI_PER_ETHER    = 1000000000000000000
+	HashSHA1 = iota
+	HashSHA256
+	HashSHA512
+	HashSHA512_348
+	SatoshisPerBTC = 100000000
+	SatoshisPerLTC = 100000000
+	WeiPerEther    = 1000000000000000000
 )
 
 func GetMD5(input []byte) []byte {
@@ -58,19 +58,19 @@ func GetHMAC(hashType int, input, key []byte) []byte {
 	var hash func() hash.Hash
 
 	switch hashType {
-	case HASH_SHA1:
+	case HashSHA1:
 		{
 			hash = sha1.New
 		}
-	case HASH_SHA256:
+	case HashSHA256:
 		{
 			hash = sha256.New
 		}
-	case HASH_SHA512:
+	case HashSHA512:
 		{
 			hash = sha512.New
 		}
-	case HASH_SHA512_384:
+	case HashSHA512_348:
 		{
 			hash = sha512.New384
 		}
@@ -173,6 +173,20 @@ func IsEnabled(isEnabled bool) string {
 		return "Enabled"
 	} else {
 		return "Disabled"
+	}
+}
+
+// IsValidCryptoAddress validates your cryptocurrency address string using the regexp package
+func IsValidCryptoAddress(address, crypto string) (bool, error) {
+	switch StringToLower(crypto) {
+	case "btc":
+		return regexp.MatchString("^[13][a-km-zA-HJ-NP-Z1-9]{25,34}$", address)
+	case "ltc":
+		return regexp.MatchString("^[L3][a-km-zA-HJ-NP-Z1-9]{25,34}$", address)
+	case "eth":
+		return regexp.MatchString("^0x[a-km-z0-9]{40}$", address)
+	default:
+		return false, errors.New("Invalid crypto currency")
 	}
 }
 
@@ -346,7 +360,7 @@ func WriteFile(file string, data []byte) error {
 	return nil
 }
 
-// GetURIPath returns the path of a URL given a URL
+// GetURIPath returns the path of a URL given a URI
 func GetURIPath(uri string) string {
 	urip, err := url.Parse(uri)
 	if err != nil {
