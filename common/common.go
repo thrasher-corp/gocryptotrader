@@ -30,7 +30,7 @@ const (
 	HashSHA1 = iota
 	HashSHA256
 	HashSHA512
-	HashSHA512_348
+	HashSHA512_384
 	SatoshisPerBTC = 100000000
 	SatoshisPerLTC = 100000000
 	WeiPerEther    = 1000000000000000000
@@ -70,7 +70,7 @@ func GetHMAC(hashType int, input, key []byte) []byte {
 		{
 			hash = sha512.New
 		}
-	case HashSHA512_348:
+	case HashSHA512_384:
 		{
 			hash = sha512.New384
 		}
