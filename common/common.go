@@ -26,6 +26,7 @@ import (
 	"time"
 )
 
+// const declarations
 const (
 	HashSHA1 = iota
 	HashSHA256
@@ -171,9 +172,8 @@ func RoundFloat(x float64, prec int) float64 {
 func IsEnabled(isEnabled bool) string {
 	if isEnabled {
 		return "Enabled"
-	} else {
-		return "Disabled"
 	}
+	return "Disabled"
 }
 
 // IsValidCryptoAddress validates your cryptocurrency address string using the regexp package
@@ -251,9 +251,8 @@ func SendHTTPRequest(method, path string, headers map[string]string, body io.Rea
 	return string(contents), nil
 }
 
-func SendHTTPGetRequest(url string, jsonDecode bool, result interface{}) (err error) {
+func SendHTTPGetRequest(url string, jsonDecode bool, result interface{}) error {
 	res, err := http.Get(url)
-
 	if err != nil {
 		return err
 	}
@@ -264,7 +263,6 @@ func SendHTTPGetRequest(url string, jsonDecode bool, result interface{}) (err er
 	}
 
 	contents, err := ioutil.ReadAll(res.Body)
-
 	if err != nil {
 		return err
 	}
@@ -315,6 +313,14 @@ func ExtractPort(host string) int {
 }
 
 func OutputCSV(path string, data [][]string) error {
+	_, err := ReadFile(path)
+	if err != nil {
+		errTwo := WriteFile(path, nil)
+		if errTwo != nil {
+			return errTwo
+		}
+	}
+
 	file, err := os.Create(path)
 	if err != nil {
 		return err
