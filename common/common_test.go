@@ -3,7 +3,9 @@ package common
 import (
 	"bytes"
 	"fmt"
+	"net/url"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 )
@@ -91,6 +93,44 @@ func TestGetSHA256(t *testing.T) {
 	actualStr := HexEncodeToString(actualOutput)
 	if !bytes.Equal(expectedOutput, []byte(actualStr)) {
 		t.Error(fmt.Sprintf("Test failed. Expected '%x'. Actual '%x'", expectedOutput, []byte(actualStr)))
+	}
+}
+
+func TestGetHMAC(t *testing.T) {
+	expectedSha1 := []byte{
+		74, 253, 245, 154, 87, 168, 110, 182, 172, 101, 177, 49, 142, 2, 253, 165,
+		100, 66, 86, 246,
+	}
+	expectedsha256 := []byte{
+		54, 68, 6, 12, 32, 158, 80, 22, 142, 8, 131, 111, 248, 145, 17, 202, 224, 59, 135, 206, 11, 170,
+		154, 197, 183, 28, 150, 79, 168, 105, 62, 102,
+	}
+	expectedsha512 := []byte{
+		249, 212, 31, 38, 23, 3, 93, 220, 81, 209, 214, 112, 92, 75, 126, 40, 109, 95, 247, 182, 210, 54,
+		217, 224, 199, 252, 129, 226, 97, 201, 245, 220, 37, 201, 240, 15, 137, 236, 75, 6, 97, 12, 190,
+		31, 53, 153, 223, 17, 214, 11, 153, 203, 49, 29, 158, 217, 204, 93, 179, 109, 140, 216, 202, 71,
+	}
+	expectedsha512384 := []byte{
+		121, 203, 109, 105, 178, 68, 179, 57, 21, 217, 76, 82, 94, 100, 210, 1, 55, 201, 8, 232, 194,
+		168, 165, 58, 192, 26, 193, 167, 254, 183, 172, 4, 189, 158, 158, 150, 173, 33, 119, 125, 94,
+		13, 125, 89, 241, 184, 166, 128,
+	}
+
+	sha1 := GetHMAC(HashSHA1, []byte("Hello,World"), []byte("1234"))
+	if string(sha1) != string(expectedSha1) {
+		t.Errorf("Test failed.Common GetHMAC error: Expected '%x'. Actual '%x'", expectedSha1, sha1)
+	}
+	sha256 := GetHMAC(HashSHA256, []byte("Hello,World"), []byte("1234"))
+	if string(sha256) != string(expectedsha256) {
+		t.Errorf("Test failed.Common GetHMAC error: Expected '%x'. Actual '%x'", expectedSha1, sha1)
+	}
+	sha512 := GetHMAC(HashSHA512, []byte("Hello,World"), []byte("1234"))
+	if string(sha512) != string(expectedsha512) {
+		t.Errorf("Test failed.Common GetHMAC error: Expected '%x'. Actual '%x'", expectedSha1, sha1)
+	}
+	sha512384 := GetHMAC(HashSHA512_384, []byte("Hello,World"), []byte("1234"))
+	if string(sha512384) != string(expectedsha512384) {
+		t.Errorf("Test failed.Common GetHMAC error: Expected '%x'. Actual '%x'", expectedSha1, sha1)
 	}
 }
 
@@ -297,12 +337,117 @@ func TestCalculateNetProfit(t *testing.T) {
 	}
 }
 
+func TestSendHTTPRequest(t *testing.T) {
+	methodPost := "pOst"
+	methodGet := "GeT"
+	methodDelete := "dEleTe"
+	methodGarbage := "ding"
+
+	headers := make(map[string]string)
+	headers["Content-Type"] = "application/x-www-form-urlencoded"
+
+	_, err := SendHTTPRequest(methodGarbage, "http://query.yahooapis.com/v1/public/yql", headers, strings.NewReader(""))
+	if err == nil {
+		t.Error("Test failed. ")
+	}
+	_, err = SendHTTPRequest(methodPost, "http://query.yahooapis.com/v1/public/yql", headers, strings.NewReader(""))
+	if err != nil {
+		t.Errorf("Test failed. %s ", err)
+	}
+	_, err = SendHTTPRequest(methodGet, "http://query.yahooapis.com/v1/public/yql", headers, strings.NewReader(""))
+	if err != nil {
+		t.Errorf("Test failed. %s ", err)
+	}
+	_, err = SendHTTPRequest(methodDelete, "http://query.yahooapis.com/v1/public/yql", headers, strings.NewReader(""))
+	if err != nil {
+		t.Errorf("Test failed. %s ", err)
+	}
+}
+
+func TestSendHTTPGetRequest(t *testing.T) {
+	type test struct {
+		Status int `json:"status"`
+		Data   []struct {
+			Address   string      `json:"address"`
+			Balance   float64     `json:"balance"`
+			Nonce     interface{} `json:"nonce"`
+			Code      string      `json:"code"`
+			Name      interface{} `json:"name"`
+			Storage   interface{} `json:"storage"`
+			FirstSeen interface{} `json:"firstSeen"`
+		} `json:"data"`
+	}
+	url := "https://etherchain.org/api/account/multiple/0xde0B295669a9FD93d5F28D9Ec85E40f4cb697BAe"
+	result := test{}
+
+	err := SendHTTPGetRequest(url, true, &result)
+	if err != nil {
+		t.Errorf("Test failed - common SendHTTPGetRequest error: %s", err)
+	}
+	err = SendHTTPGetRequest("DINGDONG", true, &result)
+	if err == nil {
+		t.Error("Test failed - common SendHTTPGetRequest error")
+	}
+	err = SendHTTPGetRequest(url, false, &result)
+	if err != nil {
+		t.Error("Test failed - common SendHTTPGetRequest error")
+	}
+}
+
+func TestJSONEncode(t *testing.T) {
+	type test struct {
+		Status int `json:"status"`
+		Data   []struct {
+			Address   string      `json:"address"`
+			Balance   float64     `json:"balance"`
+			Nonce     interface{} `json:"nonce"`
+			Code      string      `json:"code"`
+			Name      interface{} `json:"name"`
+			Storage   interface{} `json:"storage"`
+			FirstSeen interface{} `json:"firstSeen"`
+		} `json:"data"`
+	}
+	expectOutputString := `{"status":0,"data":null}`
+	v := test{}
+
+	bitey, err := JSONEncode(v)
+	if err != nil {
+		t.Errorf("Test failed - common JSONEncode error: %s", err)
+	}
+	if string(bitey) != expectOutputString {
+		t.Error("Test failed - common JSONEncode error")
+	}
+	_, err = JSONEncode("WigWham")
+	if err != nil {
+		t.Errorf("Test failed - common JSONEncode error: %s", err)
+	}
+}
+
+func TestEncodeURLValues(t *testing.T) {
+	urlstring := "http://www.test.com"
+	expectedOutput := `http://www.test.com?env=TEST%2FDATABASE&format=json&q=SELECT+%2A+from+yahoo.finance.xchange+WHERE+pair+in+%28%22BTC%2CUSD%22%29`
+	values := url.Values{}
+	values.Set("q", fmt.Sprintf("SELECT * from yahoo.finance.xchange WHERE pair in (\"%s\")", "BTC,USD"))
+	values.Set("format", "json")
+	values.Set("env", "TEST/DATABASE")
+
+	output := EncodeURLValues(urlstring, values)
+	if output != expectedOutput {
+		t.Error("Test Failed - common EncodeURLValues error")
+	}
+}
+
 func TestExtractHost(t *testing.T) {
 	t.Parallel()
 	address := "localhost:1337"
+	addresstwo := ":1337"
 	expectedOutput := "localhost"
 	actualResult := ExtractHost(address)
 	if expectedOutput != actualResult {
+		t.Error(fmt.Sprintf("Test failed. Expected '%s'. Actual '%s'.", expectedOutput, actualResult))
+	}
+	actualResultTwo := ExtractHost(addresstwo)
+	if expectedOutput != actualResultTwo {
 		t.Error(fmt.Sprintf("Test failed. Expected '%s'. Actual '%s'.", expectedOutput, actualResult))
 	}
 
@@ -324,6 +469,21 @@ func TestExtractPort(t *testing.T) {
 	}
 }
 
+func TestOutputCSV(t *testing.T) {
+	t.Parallel()
+	path := "../testdata/dump"
+	data := [][]string{}
+	rowOne := []string{"Appended", "to", "two", "dimensional", "array"}
+	rowTwo := []string{"Appended", "to", "two", "dimensional", "array", "two"}
+	data = append(data, rowOne)
+	data = append(data, rowTwo)
+
+	err := OutputCSV(path, data)
+	if err != nil {
+		t.Errorf("Test failed - common OutputCSV error: %s", err)
+	}
+}
+
 func TestUnixTimestampToTime(t *testing.T) {
 	t.Parallel()
 	testTime := int64(1489439831)
@@ -338,14 +498,44 @@ func TestUnixTimestampToTime(t *testing.T) {
 func TestUnixTimestampStrToTime(t *testing.T) {
 	t.Parallel()
 	testTime := "1489439831"
+	incorrectTime := "DINGDONG"
 	expectedOutput := "2017-03-13 21:17:11 +0000 UTC"
 	actualResult, err := UnixTimestampStrToTime(testTime)
 	if err != nil {
 		t.Error(err)
 	}
-
 	if actualResult.UTC().String() != expectedOutput {
 		t.Error(fmt.Sprintf("Test failed. Expected '%s'. Actual '%s'.", expectedOutput, actualResult))
+	}
+	actualResult, err = UnixTimestampStrToTime(incorrectTime)
+	if err == nil {
+		t.Error("Test failed. Common UnixTimestampStrToTime error")
+	}
+}
+
+func TestReadFile(t *testing.T) {
+	pathCorrect := "../testdata/dump"
+	pathIncorrect := "testdata/dump"
+
+	_, err := ReadFile(pathCorrect)
+	if err != nil {
+		t.Errorf("Test failed - Common ReadFile error: %s", err)
+	}
+	_, err = ReadFile(pathIncorrect)
+	if err == nil {
+		t.Errorf("Test failed - Common ReadFile error")
+	}
+}
+
+func TestWriteFile(t *testing.T) {
+	path := "../testdata/writefiletest"
+	err := WriteFile(path, nil)
+	if err != nil {
+		t.Errorf("Test failed. Common WriteFile error: %s", err)
+	}
+	_, err = ReadFile(path)
+	if err != nil {
+		t.Errorf("Test failed. Common WriteFile error: %s", err)
 	}
 }
 
