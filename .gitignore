@@ -2,3 +2,4 @@ config.json
 config.dat
 node_modules
 lib
+.vscode
