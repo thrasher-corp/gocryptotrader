@@ -26,7 +26,7 @@ import (
 	"time"
 )
 
-// const declarations
+// Const declarations for common.go operations
 const (
 	HashSHA1 = iota
 	HashSHA256
@@ -37,24 +37,29 @@ const (
 	WeiPerEther    = 1000000000000000000
 )
 
+// GetMD5 returns a MD5 hash of a byte array
 func GetMD5(input []byte) []byte {
 	hash := md5.New()
 	hash.Write(input)
 	return hash.Sum(nil)
 }
 
+// GetSHA512 returns a SHA512 hash of a byte array
 func GetSHA512(input []byte) []byte {
 	sha := sha512.New()
 	sha.Write(input)
 	return sha.Sum(nil)
 }
 
+// GetSHA256 returns a SHA256 hash of a byte array
 func GetSHA256(input []byte) []byte {
 	sha := sha256.New()
 	sha.Write(input)
 	return sha.Sum(nil)
 }
 
+// GetHMAC returns a keyed-hash message authentication code using the desired
+// hashtype
 func GetHMAC(hashType int, input, key []byte) []byte {
 	var hash func() hash.Hash
 
@@ -82,10 +87,12 @@ func GetHMAC(hashType int, input, key []byte) []byte {
 	return hmac.Sum(nil)
 }
 
+// HexEncodeToString takes in a hexidecimal byte array and returns a string
 func HexEncodeToString(input []byte) string {
 	return hex.EncodeToString(input)
 }
 
+// Base64Decode takes in a Base64 string and returns a byte array and an error
 func Base64Decode(input string) ([]byte, error) {
 	result, err := base64.StdEncoding.DecodeString(input)
 	if err != nil {
@@ -94,10 +101,13 @@ func Base64Decode(input string) ([]byte, error) {
 	return result, nil
 }
 
+// Base64Encode takes in a byte array then returns an encoded base64 string
 func Base64Encode(input []byte) string {
 	return base64.StdEncoding.EncodeToString(input)
 }
 
+// StringSliceDifference concatenates slices together based on its index and
+// returns an individual string array
 func StringSliceDifference(slice1 []string, slice2 []string) []string {
 	var diff []string
 	for i := 0; i < 2; i++ {
@@ -120,35 +130,46 @@ func StringSliceDifference(slice1 []string, slice2 []string) []string {
 	return diff
 }
 
+// StringContains checks a substring if it contains your input then returns a
+// bool
 func StringContains(input, substring string) bool {
 	return strings.Contains(input, substring)
 }
 
+// DataContains checks the substring array with an input and returns a bool
 func DataContains(haystack []string, needle string) bool {
 	data := strings.Join(haystack, ",")
 	return strings.Contains(data, needle)
 }
 
+// JoinStrings joins an array together with the required seperator and returns
+// it as a string
 func JoinStrings(input []string, seperator string) string {
 	return strings.Join(input, seperator)
 }
 
+// SplitStrings splits blocks of strings from string into a string array using
+// a seperator ie "," or "_"
 func SplitStrings(input, seperator string) []string {
 	return strings.Split(input, seperator)
 }
 
+// TrimString trims unwanted prefixes or postfixes
 func TrimString(input, cutset string) string {
 	return strings.Trim(input, cutset)
 }
 
+// StringToUpper changes strings to uppercase
 func StringToUpper(input string) string {
 	return strings.ToUpper(input)
 }
 
+// StringToLower changes strings to lowercase
 func StringToLower(input string) string {
 	return strings.ToLower(input)
 }
 
+// RoundFloat rounds your floating point number to the desired decimal place
 func RoundFloat(x float64, prec int) float64 {
 	var rounder float64
 	pow := math.Pow(10, float64(prec))
@@ -158,7 +179,7 @@ func RoundFloat(x float64, prec int) float64 {
 	x = .5
 	if frac < 0.0 {
 		x = -.5
-		intermed -= 1
+		intermed--
 	}
 	if frac >= x {
 		rounder = math.Ceil(intermed)
@@ -169,6 +190,8 @@ func RoundFloat(x float64, prec int) float64 {
 	return rounder / pow
 }
 
+// IsEnabled takes in a boolean param  and returns a string if it is enabled
+// or disabled
 func IsEnabled(isEnabled bool) string {
 	if isEnabled {
 		return "Enabled"
@@ -176,7 +199,8 @@ func IsEnabled(isEnabled bool) string {
 	return "Disabled"
 }
 
-// IsValidCryptoAddress validates your cryptocurrency address string using the regexp package
+// IsValidCryptoAddress validates your cryptocurrency address string using the
+// regexp package
 func IsValidCryptoAddress(address, crypto string) (bool, error) {
 	switch StringToLower(crypto) {
 	case "btc":
@@ -190,6 +214,7 @@ func IsValidCryptoAddress(address, crypto string) (bool, error) {
 	}
 }
 
+// YesOrNo returns a boolean variable to check if input is "y" or "yes"
 func YesOrNo(input string) bool {
 	if StringToLower(input) == "y" || StringToLower(input) == "yes" {
 		return true
@@ -197,31 +222,40 @@ func YesOrNo(input string) bool {
 	return false
 }
 
+// CalculateAmountWithFee returns a calculated fee included amount on fee
 func CalculateAmountWithFee(amount, fee float64) float64 {
 	return amount + CalculateFee(amount, fee)
 }
 
+// CalculateFee retuns a simple fee on amount
 func CalculateFee(amount, fee float64) float64 {
 	return amount * (fee / 100)
 }
 
+// CalculatePercentageGainOrLoss returns the percentage rise over a certain
+// period
 func CalculatePercentageGainOrLoss(priceNow, priceThen float64) float64 {
 	return (priceNow - priceThen) / priceThen * 100
 }
 
+// CalculatePercentageDifference returns the percentage of difference between
+// multiple time periods
 func CalculatePercentageDifference(amount, secondAmount float64) float64 {
 	return (amount - secondAmount) / ((amount + secondAmount) / 2) * 100
 }
 
+// CalculateNetProfit returns net profit
 func CalculateNetProfit(amount, priceThen, priceNow, costs float64) float64 {
 	return (priceNow * amount) - (priceThen * amount) - costs
 }
 
+// SendHTTPRequest sends a request using the http package and returns a response
+// as a string and an error
 func SendHTTPRequest(method, path string, headers map[string]string, body io.Reader) (string, error) {
 	result := strings.ToUpper(method)
 
 	if result != "POST" && result != "GET" && result != "DELETE" {
-		return "", errors.New("Invalid HTTP method specified.")
+		return "", errors.New("invalid HTTP method specified")
 	}
 
 	req, err := http.NewRequest(method, path, body)
@@ -251,6 +285,9 @@ func SendHTTPRequest(method, path string, headers map[string]string, body io.Rea
 	return string(contents), nil
 }
 
+// SendHTTPGetRequest sends a simple get request using a url string & JSON
+// decodes the response into a struct pointer you have supplied. Returns an error
+// on failure.
 func SendHTTPGetRequest(url string, jsonDecode bool, result interface{}) error {
 	res, err := http.Get(url)
 	if err != nil {
@@ -259,7 +296,7 @@ func SendHTTPGetRequest(url string, jsonDecode bool, result interface{}) error {
 
 	if res.StatusCode != 200 {
 		log.Printf("HTTP status code: %d\n", res.StatusCode)
-		return errors.New("Status code was not 200.")
+		return errors.New("status code was not 200")
 	}
 
 	contents, err := ioutil.ReadAll(res.Body)
@@ -282,14 +319,18 @@ func SendHTTPGetRequest(url string, jsonDecode bool, result interface{}) error {
 	return nil
 }
 
+// JSONEncode encodes structure data into JSON
 func JSONEncode(v interface{}) ([]byte, error) {
 	return json.Marshal(v)
 }
 
+// JSONDecode decodes JSON data into a structure
 func JSONDecode(data []byte, to interface{}) error {
 	return json.Unmarshal(data, to)
 }
 
+// EncodeURLValues concatenates url values onto a url string and returns a
+// string
 func EncodeURLValues(url string, values url.Values) string {
 	path := url
 	if len(values) > 0 {
@@ -298,6 +339,7 @@ func EncodeURLValues(url string, values url.Values) string {
 	return path
 }
 
+// ExtractHost returns the hostname out of a string
 func ExtractHost(address string) string {
 	host := SplitStrings(address, ":")[0]
 	if host == "" {
@@ -306,12 +348,14 @@ func ExtractHost(address string) string {
 	return host
 }
 
+// ExtractPort returns the port name out of a string
 func ExtractPort(host string) int {
 	portStr := SplitStrings(host, ":")[1]
 	port, _ := strconv.Atoi(portStr)
 	return port
 }
 
+// OutputCSV dumps data into a file as comma-seperated values
 func OutputCSV(path string, data [][]string) error {
 	_, err := ReadFile(path)
 	if err != nil {
@@ -337,10 +381,12 @@ func OutputCSV(path string, data [][]string) error {
 	return nil
 }
 
+// UnixTimestampToTime returns time.time
 func UnixTimestampToTime(timeint64 int64) time.Time {
 	return time.Unix(timeint64, 0)
 }
 
+// UnixTimestampStrToTime returns a time.time and an error
 func UnixTimestampStrToTime(timeStr string) (time.Time, error) {
 	i, err := strconv.ParseInt(timeStr, 10, 64)
 	if err != nil {
@@ -350,6 +396,7 @@ func UnixTimestampStrToTime(timeStr string) (time.Time, error) {
 	return time.Unix(i, 0), nil
 }
 
+// ReadFile reads a file and returns read data as byte array.
 func ReadFile(path string) ([]byte, error) {
 	file, err := ioutil.ReadFile(path)
 	if err != nil {
@@ -358,6 +405,7 @@ func ReadFile(path string) ([]byte, error) {
 	return file, nil
 }
 
+// WriteFile writes selected data to a file and returns an error
 func WriteFile(file string, data []byte) error {
 	err := ioutil.WriteFile(file, data, 0644)
 	if err != nil {
