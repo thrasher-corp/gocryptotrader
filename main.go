@@ -88,7 +88,7 @@ func setupBotExchanges() {
 func main() {
 	HandleInterrupt()
 	bot.config = &config.Cfg
-	log.Printf("Loading config file %s..\n", config.CONFIG_FILE)
+	log.Printf("Loading config file %s..\n", config.ConfigFile)
 
 	err := bot.config.LoadConfig("")
 	if err != nil {

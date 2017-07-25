@@ -19,13 +19,13 @@
    {
     "Address": "LgY8ahfHRhvjVQC1zJnBhFMG5pCTMuKRqh",
     "CoinType": "LTC",
-    "Balance": 3.00000005e+06,
+    "Balance": 3000000.05,
     "Decscription": ""
    },
    {
     "Address": "0xb794f5ea0ba39494ce839613fffba74279579268",
     "CoinType": "ETH",
-    "Balance": 5.774999820458524e+06,
+    "Balance": 5774999.820458524,
     "Decscription": ""
    }
   ]
