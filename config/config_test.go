@@ -9,9 +9,11 @@ func TestGetConfigEnabledExchanges(t *testing.T) {
 
 	defaultEnabledExchanges := 17
 	GetConfigEnabledExchanges := GetConfig()
-	err := GetConfigEnabledExchanges.LoadConfig(CONFIG_TEST_FILE)
+	err := GetConfigEnabledExchanges.LoadConfig(ConfigTestFile)
 	if err != nil {
-		t.Error("Test failed. GetConfigEnabledExchanges load config error: " + err.Error())
+		t.Error(
+			"Test failed. GetConfigEnabledExchanges load config error: " + err.Error(),
+		)
 	}
 	enabledExch := GetConfigEnabledExchanges.GetConfigEnabledExchanges()
 	if enabledExch != defaultEnabledExchanges {
@@ -23,13 +25,21 @@ func TestGetExchangeConfig(t *testing.T) {
 	t.Parallel()
 
 	GetExchangeConfig := GetConfig()
-	err := GetExchangeConfig.LoadConfig(CONFIG_TEST_FILE)
+	err := GetExchangeConfig.LoadConfig(ConfigTestFile)
 	if err != nil {
-		t.Errorf("Test failed. GetExchangeConfig.LoadConfig Error: %s", err.Error())
+		t.Errorf(
+			"Test failed. GetExchangeConfig.LoadConfig Error: %s", err.Error(),
+		)
 	}
 	r, err := GetExchangeConfig.GetExchangeConfig("ANX")
 	if err != nil && (ExchangeConfig{}) == r {
-		t.Errorf("Test failed. GetExchangeConfig.GetExchangeConfig Error: %s", err.Error())
+		t.Errorf(
+			"Test failed. GetExchangeConfig.GetExchangeConfig Error: %s", err.Error(),
+		)
+	}
+	r, err = GetExchangeConfig.GetExchangeConfig("Testy")
+	if err == nil && (ExchangeConfig{}) == r {
+		t.Error("Test failed. GetExchangeConfig.GetExchangeConfig Error")
 	}
 }
 
@@ -37,18 +47,29 @@ func TestUpdateExchangeConfig(t *testing.T) {
 	t.Parallel()
 
 	UpdateExchangeConfig := GetConfig()
-	err := UpdateExchangeConfig.LoadConfig(CONFIG_TEST_FILE)
+	err := UpdateExchangeConfig.LoadConfig(ConfigTestFile)
 	if err != nil {
-		t.Errorf("Test failed. UpdateExchangeConfig.LoadConfig Error: %s", err.Error())
+		t.Errorf(
+			"Test failed. UpdateExchangeConfig.LoadConfig Error: %s", err.Error(),
+		)
 	}
 	e, err2 := UpdateExchangeConfig.GetExchangeConfig("ANX")
 	if err2 != nil {
-		t.Errorf("Test failed. UpdateExchangeConfig.GetExchangeConfig: %s", err.Error())
+		t.Errorf(
+			"Test failed. UpdateExchangeConfig.GetExchangeConfig: %s", err.Error(),
+		)
 	}
 	e.APIKey = "test1234"
 	err3 := UpdateExchangeConfig.UpdateExchangeConfig(e)
 	if err3 != nil {
-		t.Errorf("Test failed. UpdateExchangeConfig.UpdateExchangeConfig: %s", err.Error())
+		t.Errorf(
+			"Test failed. UpdateExchangeConfig.UpdateExchangeConfig: %s", err.Error(),
+		)
+	}
+	e.Name = "testyTest"
+	err = UpdateExchangeConfig.UpdateExchangeConfig(e)
+	if err == nil {
+		t.Error("Test failed. UpdateExchangeConfig.UpdateExchangeConfig Error")
 	}
 }
 
@@ -56,28 +77,129 @@ func TestCheckSMSGlobalConfigValues(t *testing.T) {
 	t.Parallel()
 
 	checkSMSGlobalConfigValues := GetConfig()
-	err := checkSMSGlobalConfigValues.LoadConfig(CONFIG_TEST_FILE)
+	err := checkSMSGlobalConfigValues.LoadConfig(ConfigTestFile)
 	if err != nil {
 		t.Errorf("Test failed. checkSMSGlobalConfigValues.LoadConfig: %s", err)
 	}
-	err2 := checkSMSGlobalConfigValues.CheckSMSGlobalConfigValues()
-	if err2 != nil {
-		t.Error("Test failed. checkSMSGlobalConfigValues.CheckSMSGlobalConfigValues: Incorrect Return Value")
+	err = checkSMSGlobalConfigValues.CheckSMSGlobalConfigValues()
+	if err != nil {
+		t.Error(
+			`Test failed. checkSMSGlobalConfigValues.CheckSMSGlobalConfigValues: Incorrect Return Value`,
+		)
+	}
+
+	checkSMSGlobalConfigValues.SMS.Username = "Username"
+	err = checkSMSGlobalConfigValues.CheckSMSGlobalConfigValues()
+	if err == nil {
+		t.Error(
+			"Test failed. checkSMSGlobalConfigValues.CheckSMSGlobalConfigValues: Incorrect Return Value",
+		)
+	}
+
+	checkSMSGlobalConfigValues.SMS.Username = "1234"
+	checkSMSGlobalConfigValues.SMS.Contacts[0].Name = "Bob"
+	checkSMSGlobalConfigValues.SMS.Contacts[0].Number = "12345"
+	err = checkSMSGlobalConfigValues.CheckSMSGlobalConfigValues()
+	if err == nil {
+		t.Error(
+			"Test failed. checkSMSGlobalConfigValues.CheckSMSGlobalConfigValues: Incorrect Return Value",
+		)
+	}
+	checkSMSGlobalConfigValues.SMS.Contacts = checkSMSGlobalConfigValues.SMS.Contacts[:0]
+	err = checkSMSGlobalConfigValues.CheckSMSGlobalConfigValues()
+	if err == nil {
+		t.Error(
+			"Test failed. checkSMSGlobalConfigValues.CheckSMSGlobalConfigValues: Incorrect Return Value",
+		)
 	}
 }
 
 func TestCheckExchangeConfigValues(t *testing.T) {
 	t.Parallel()
-
 	checkExchangeConfigValues := Config{}
-	err := checkExchangeConfigValues.LoadConfig(CONFIG_TEST_FILE)
+
+	err := checkExchangeConfigValues.LoadConfig(ConfigTestFile)
 	if err != nil {
-		t.Errorf("Test failed. checkExchangeConfigValues.LoadConfig: %s", err.Error())
+		t.Errorf(
+			"Test failed. checkExchangeConfigValues.LoadConfig: %s", err.Error(),
+		)
+	}
+	err = checkExchangeConfigValues.CheckExchangeConfigValues()
+	if err != nil {
+		t.Errorf(
+			"Test failed. checkExchangeConfigValues.CheckExchangeConfigValues: %s",
+			err.Error(),
+		)
 	}
 
-	err3 := checkExchangeConfigValues.CheckExchangeConfigValues()
-	if err3 != nil {
-		t.Errorf("Test failed. checkExchangeConfigValues.CheckExchangeConfigValues: %s", err.Error())
+	checkExchangeConfigValues.Exchanges[0].APIKey = "Key"
+	checkExchangeConfigValues.Exchanges[0].APISecret = "Secret"
+	checkExchangeConfigValues.Exchanges[0].AuthenticatedAPISupport = true
+	err = checkExchangeConfigValues.CheckExchangeConfigValues()
+	if err != nil {
+		t.Errorf(
+			"Test failed. checkExchangeConfigValues.CheckExchangeConfigValues Error",
+		)
+	}
+
+	checkExchangeConfigValues.Exchanges[0].AuthenticatedAPISupport = true
+	checkExchangeConfigValues.Exchanges[0].APIKey = "TESTYTEST"
+	checkExchangeConfigValues.Exchanges[0].APISecret = "TESTYTEST"
+	checkExchangeConfigValues.Exchanges[0].Name = "ITBIT"
+	err = checkExchangeConfigValues.CheckExchangeConfigValues()
+	if err != nil {
+		t.Errorf(
+			"Test failed. checkExchangeConfigValues.CheckExchangeConfigValues Error",
+		)
+	}
+
+	checkExchangeConfigValues.Exchanges[0].BaseCurrencies = ""
+	err = checkExchangeConfigValues.CheckExchangeConfigValues()
+	if err == nil {
+		t.Errorf(
+			"Test failed. checkExchangeConfigValues.CheckExchangeConfigValues Error",
+		)
+	}
+
+	checkExchangeConfigValues.Exchanges[0].EnabledPairs = ""
+	err = checkExchangeConfigValues.CheckExchangeConfigValues()
+	if err == nil {
+		t.Errorf(
+			"Test failed. checkExchangeConfigValues.CheckExchangeConfigValues Error",
+		)
+	}
+
+	checkExchangeConfigValues.Exchanges[0].AvailablePairs = ""
+	err = checkExchangeConfigValues.CheckExchangeConfigValues()
+	if err == nil {
+		t.Errorf(
+			"Test failed. checkExchangeConfigValues.CheckExchangeConfigValues Error",
+		)
+	}
+
+	checkExchangeConfigValues.Exchanges[0].Name = ""
+	err = checkExchangeConfigValues.CheckExchangeConfigValues()
+	if err == nil {
+		t.Errorf(
+			"Test failed. checkExchangeConfigValues.CheckExchangeConfigValues Error",
+		)
+	}
+
+	checkExchangeConfigValues.Cryptocurrencies = ""
+	err = checkExchangeConfigValues.CheckExchangeConfigValues()
+	if err == nil {
+		t.Errorf(
+			"Test failed. checkExchangeConfigValues.CheckExchangeConfigValues Error",
+		)
+	}
+
+	checkExchangeConfigValues.Exchanges = checkExchangeConfigValues.Exchanges[:0]
+	checkExchangeConfigValues.Cryptocurrencies = "TESTYTEST"
+	err = checkExchangeConfigValues.CheckExchangeConfigValues()
+	if err == nil {
+		t.Errorf(
+			"Test failed. checkExchangeConfigValues.CheckExchangeConfigValues Error",
+		)
 	}
 }
 
@@ -85,13 +207,50 @@ func TestCheckWebserverConfigValues(t *testing.T) {
 	t.Parallel()
 
 	checkWebserverConfigValues := GetConfig()
-	err := checkWebserverConfigValues.LoadConfig(CONFIG_TEST_FILE)
+	err := checkWebserverConfigValues.LoadConfig(ConfigTestFile)
 	if err != nil {
-		t.Errorf("Test failed. checkWebserverConfigValues.LoadConfig: %s", err.Error())
+		t.Errorf(
+			"Test failed. checkWebserverConfigValues.LoadConfig: %s", err.Error(),
+		)
 	}
-	err2 := checkWebserverConfigValues.CheckWebserverConfigValues()
-	if err2 != nil {
-		t.Errorf("Test failed. checkWebserverConfigValues.CheckWebserverConfigValues: %s", err2.Error())
+	err = checkWebserverConfigValues.CheckWebserverConfigValues()
+	if err != nil {
+		t.Errorf(
+			"Test failed. checkWebserverConfigValues.CheckWebserverConfigValues: %s",
+			err.Error(),
+		)
+	}
+
+	checkWebserverConfigValues.Webserver.ListenAddress = ":0"
+	err = checkWebserverConfigValues.CheckWebserverConfigValues()
+	if err == nil {
+		t.Error(
+			"Test failed. checkWebserverConfigValues.CheckWebserverConfigValues error",
+		)
+	}
+
+	checkWebserverConfigValues.Webserver.ListenAddress = ":LOLOLOL"
+	err = checkWebserverConfigValues.CheckWebserverConfigValues()
+	if err == nil {
+		t.Error(
+			"Test failed. checkWebserverConfigValues.CheckWebserverConfigValues error",
+		)
+	}
+
+	checkWebserverConfigValues.Webserver.ListenAddress = "LOLOLOL"
+	err = checkWebserverConfigValues.CheckWebserverConfigValues()
+	if err == nil {
+		t.Error(
+			"Test failed. checkWebserverConfigValues.CheckWebserverConfigValues error",
+		)
+	}
+
+	checkWebserverConfigValues.Webserver.AdminUsername = ""
+	err = checkWebserverConfigValues.CheckWebserverConfigValues()
+	if err == nil {
+		t.Error(
+			"Test failed. checkWebserverConfigValues.CheckWebserverConfigValues error",
+		)
 	}
 }
 
@@ -99,43 +258,59 @@ func TestRetrieveConfigCurrencyPairs(t *testing.T) {
 	t.Parallel()
 
 	retrieveConfigCurrencyPairs := GetConfig()
-	err := retrieveConfigCurrencyPairs.LoadConfig(CONFIG_TEST_FILE)
+	err := retrieveConfigCurrencyPairs.LoadConfig(ConfigTestFile)
 	if err != nil {
-		t.Errorf("Test failed. checkWebserverConfigValues.LoadConfig: %s", err.Error())
+		t.Errorf(
+			"Test failed. checkWebserverConfigValues.LoadConfig: %s", err.Error(),
+		)
 	}
-	err2 := retrieveConfigCurrencyPairs.RetrieveConfigCurrencyPairs()
-	if err2 != nil {
-		t.Errorf("Test failed. checkWebserverConfigValues.RetrieveConfigCurrencyPairs: %s", err2.Error())
+	err = retrieveConfigCurrencyPairs.RetrieveConfigCurrencyPairs()
+	if err != nil {
+		t.Errorf(
+			"Test failed. checkWebserverConfigValues.RetrieveConfigCurrencyPairs: %s",
+			err.Error(),
+		)
 	}
 }
 
 func TestReadConfig(t *testing.T) {
-	t.Parallel()
-
 	readConfig := GetConfig()
-	err := readConfig.ReadConfig(CONFIG_TEST_FILE)
+	err := readConfig.ReadConfig(ConfigTestFile)
 	if err != nil {
+		t.Errorf("Test failed. TestReadConfig %s", err.Error())
+	}
+
+	err = readConfig.ReadConfig("bla")
+	if err == nil {
 		t.Error("Test failed. TestReadConfig " + err.Error())
+	}
+
+	err = readConfig.ReadConfig("")
+	if err != nil {
+		t.Error("Test failed. TestReadConfig error")
 	}
 }
 
 func TestLoadConfig(t *testing.T) {
-	t.Parallel()
-
 	loadConfig := GetConfig()
-	err := loadConfig.LoadConfig(CONFIG_TEST_FILE)
+	err := loadConfig.LoadConfig(ConfigTestFile)
 	if err != nil {
 		t.Error("Test failed. TestLoadConfig " + err.Error())
+	}
+
+	err = loadConfig.LoadConfig("testy")
+	if err == nil {
+		t.Error("Test failed. TestLoadConfig ")
 	}
 }
 
 func TestSaveConfig(t *testing.T) {
 	saveConfig := GetConfig()
-	err := saveConfig.LoadConfig(CONFIG_TEST_FILE)
+	err := saveConfig.LoadConfig(ConfigTestFile)
 	if err != nil {
 		t.Errorf("Test failed. TestSaveConfig.LoadConfig: %s", err.Error())
 	}
-	err2 := saveConfig.SaveConfig(CONFIG_TEST_FILE)
+	err2 := saveConfig.SaveConfig(ConfigTestFile)
 	if err2 != nil {
 		t.Errorf("Test failed. TestSaveConfig.SaveConfig, %s", err2.Error())
 	}

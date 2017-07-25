@@ -15,16 +15,17 @@ import (
 	"github.com/thrasher-/gocryptotrader/portfolio"
 )
 
+// Constants declared here are filename strings and test strings
 const (
-	CONFIG_FILE      = "config.dat"
-	OLD_CONFIG_FILE  = "config.json"
-	CONFIG_TEST_FILE = "../testdata/configtest.dat"
-
-	CONFIG_FILE_ENCRYPTION_PROMPT   = 0
-	CONFIG_FILE_ENCRYPTION_ENABLED  = 1
-	CONFIG_FILE_ENCRYPTION_DISABLED = -1
+	ConfigFile                   = "config.dat"
+	OldConfigFile                = "config.json"
+	ConfigTestFile               = "../testdata/configtest.dat"
+	configFileEncryptionPrompt   = 0
+	configFileEncryptionEnabled  = 1
+	configFileEncryptionDisabled = -1
 )
 
+// Variables here are mainly alerts and a configuration object
 var (
 	ErrExchangeNameEmpty                            = "Exchange #%d in config: Exchange name is empty."
 	ErrExchangeAvailablePairsEmpty                  = "Exchange %s: Available pairs is empty."
@@ -47,6 +48,7 @@ var (
 	Cfg                                             Config
 )
 
+// WebserverConfig struct holds the prestart variables for the webserver.
 type WebserverConfig struct {
 	Enabled       bool
 	AdminUsername string
@@ -54,6 +56,8 @@ type WebserverConfig struct {
 	ListenAddress string
 }
 
+// SMSGlobalConfig structure holds all the variables you need for instant
+// messaging and broadcast used by SMSGlobal
 type SMSGlobalConfig struct {
 	Enabled  bool
 	Username string
@@ -65,10 +69,13 @@ type SMSGlobalConfig struct {
 	}
 }
 
-type ConfigPost struct {
+// Post holds the bot configuration data
+type Post struct {
 	Data Config `json:"Data"`
 }
 
+// Config is the overarching object that holds all the information for
+// prestart management of portfolio, SMSGlobal, webserver and enabled exchange
 type Config struct {
 	Name             string
 	EncryptConfig    int
@@ -79,6 +86,7 @@ type Config struct {
 	Exchanges        []ExchangeConfig        `json:"Exchanges"`
 }
 
+// ExchangeConfig holds all the information needed for each enabled Exchange.
 type ExchangeConfig struct {
 	Name                    string
 	Enabled                 bool
@@ -94,6 +102,7 @@ type ExchangeConfig struct {
 	BaseCurrencies          string
 }
 
+// GetConfigEnabledExchanges returns the number of exchanges that are enabled.
 func (c *Config) GetConfigEnabledExchanges() int {
 	counter := 0
 	for i := range c.Exchanges {
@@ -104,8 +113,9 @@ func (c *Config) GetConfigEnabledExchanges() int {
 	return counter
 }
 
+// GetExchangeConfig returns your exchange configurations by its indivdual name
 func (c *Config) GetExchangeConfig(name string) (ExchangeConfig, error) {
-	for i, _ := range c.Exchanges {
+	for i := range c.Exchanges {
 		if c.Exchanges[i].Name == name {
 			return c.Exchanges[i], nil
 		}
@@ -113,8 +123,9 @@ func (c *Config) GetExchangeConfig(name string) (ExchangeConfig, error) {
 	return ExchangeConfig{}, fmt.Errorf(ErrExchangeNotFound, name)
 }
 
+// UpdateExchangeConfig updates exchange configurations
 func (c *Config) UpdateExchangeConfig(e ExchangeConfig) error {
-	for i, _ := range c.Exchanges {
+	for i := range c.Exchanges {
 		if c.Exchanges[i].Name == e.Name {
 			c.Exchanges[i] = e
 			return nil
@@ -123,6 +134,7 @@ func (c *Config) UpdateExchangeConfig(e ExchangeConfig) error {
 	return fmt.Errorf(ErrExchangeNotFound, e.Name)
 }
 
+// CheckSMSGlobalConfigValues checks concurrent SMSGlobal configurations
 func (c *Config) CheckSMSGlobalConfigValues() error {
 	if c.SMS.Username == "" || c.SMS.Username == "Username" || c.SMS.Password == "" || c.SMS.Password == "Password" {
 		return errors.New(WarningSMSGlobalDefaultOrEmptyValues)
@@ -143,6 +155,8 @@ func (c *Config) CheckSMSGlobalConfigValues() error {
 	return nil
 }
 
+// CheckExchangeConfigValues returns configuation values for all enabled
+// exchanges
 func (c *Config) CheckExchangeConfigValues() error {
 	if c.Cryptocurrencies == "" {
 		return errors.New(ErrCryptocurrenciesEmpty)
@@ -185,6 +199,8 @@ func (c *Config) CheckExchangeConfigValues() error {
 	return nil
 }
 
+// CheckWebserverConfigValues checks information before webserver starts and
+// returns an error if values are incorrect.
 func (c *Config) CheckWebserverConfigValues() error {
 	if c.Webserver.AdminUsername == "" || c.Webserver.AdminPassword == "" {
 		return errors.New(WarningWebserverCredentialValuesEmpty)
@@ -206,6 +222,8 @@ func (c *Config) CheckWebserverConfigValues() error {
 	return nil
 }
 
+// RetrieveConfigCurrencyPairs splits, assigns and verifies enabled currency
+// pairs either cryptoCurrencies or fiatCurrencies
 func (c *Config) RetrieveConfigCurrencyPairs() error {
 	cryptoCurrencies := common.SplitStrings(c.Cryptocurrencies, ",")
 	fiatCurrencies := common.SplitStrings(currency.DEFAULT_CURRENCIES, ",")
@@ -266,22 +284,27 @@ func (c *Config) RetrieveConfigCurrencyPairs() error {
 	return nil
 }
 
+// CheckConfig checks to see if there is an old configuration filename and path
+// if found it will change it to correct filename.
 func CheckConfig() error {
-	_, err := common.ReadFile(OLD_CONFIG_FILE)
+	_, err := common.ReadFile(OldConfigFile)
 	if err == nil {
-		err = os.Rename(OLD_CONFIG_FILE, CONFIG_FILE)
+		err = os.Rename(OldConfigFile, ConfigFile)
 		if err != nil {
 			return err
 		}
-		log.Printf(RenamingConfigFile+"\n", OLD_CONFIG_FILE, CONFIG_FILE)
+		log.Printf(RenamingConfigFile+"\n", OldConfigFile, ConfigFile)
 	}
 	return nil
 }
 
+// ReadConfig verifies and checks for encryption and verifies the unencrypted
+// file contains JSON.
 func (c *Config) ReadConfig(configPath string) error {
-	defaultPath := ""
+	var defaultPath string
+
 	if configPath == "" {
-		defaultPath = CONFIG_FILE
+		defaultPath = ConfigTestFile
 	} else {
 		defaultPath = configPath
 	}
@@ -302,13 +325,13 @@ func (c *Config) ReadConfig(configPath string) error {
 			return err
 		}
 
-		if c.EncryptConfig == CONFIG_FILE_ENCRYPTION_DISABLED {
+		if c.EncryptConfig == configFileEncryptionDisabled {
 			return nil
 		}
 
-		if c.EncryptConfig == CONFIG_FILE_ENCRYPTION_PROMPT {
+		if c.EncryptConfig == configFileEncryptionPrompt {
 			if c.PromptForConfigEncryption() {
-				c.EncryptConfig = CONFIG_FILE_ENCRYPTION_ENABLED
+				c.EncryptConfig = configFileEncryptionEnabled
 				return c.SaveConfig("")
 			}
 		}
@@ -331,19 +354,21 @@ func (c *Config) ReadConfig(configPath string) error {
 	return nil
 }
 
+// SaveConfig saves your configuration to your desired path
 func (c *Config) SaveConfig(configPath string) error {
-	defaultPath := ""
+	var defaultPath string
+
 	if configPath == "" {
-		defaultPath = CONFIG_FILE
+		defaultPath = ConfigFile
 	} else {
 		defaultPath = configPath
 	}
 
 	payload, err := json.MarshalIndent(c, "", " ")
 
-	if c.EncryptConfig == CONFIG_FILE_ENCRYPTION_ENABLED {
-		key, err := PromptForConfigKey()
-		if err != nil {
+	if c.EncryptConfig == configFileEncryptionEnabled {
+		key, err2 := PromptForConfigKey()
+		if err2 != nil {
 			return err
 		}
 
@@ -360,10 +385,11 @@ func (c *Config) SaveConfig(configPath string) error {
 	return nil
 }
 
+// LoadConfig loads your configuration file into your configuration object
 func (c *Config) LoadConfig(configPath string) error {
 	err := c.ReadConfig(configPath)
 	if err != nil {
-		return fmt.Errorf(ErrFailureOpeningConfig, CONFIG_FILE, err)
+		return fmt.Errorf(ErrFailureOpeningConfig, ConfigFile, err)
 	}
 
 	err = c.CheckExchangeConfigValues()
@@ -374,6 +400,7 @@ func (c *Config) LoadConfig(configPath string) error {
 	return nil
 }
 
+// GetConfig returns a pointer to a confiuration object
 func GetConfig() *Config {
 	return &Cfg
 }
