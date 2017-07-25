@@ -46,7 +46,7 @@ func (this ByVolume) Swap(i, j int) {
 
 func AddExchangeInfo(exchange, crypto, fiat string, price, volume float64) {
 	if currency.BaseCurrencies == "" {
-		currency.BaseCurrencies = currency.DEFAULT_CURRENCIES
+		currency.BaseCurrencies = currency.DefaultCurrencies
 	}
 
 	if !currency.IsFiatCurrency(fiat) {
