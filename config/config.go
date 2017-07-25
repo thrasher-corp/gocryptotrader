@@ -226,7 +226,7 @@ func (c *Config) CheckWebserverConfigValues() error {
 // pairs either cryptoCurrencies or fiatCurrencies
 func (c *Config) RetrieveConfigCurrencyPairs() error {
 	cryptoCurrencies := common.SplitStrings(c.Cryptocurrencies, ",")
-	fiatCurrencies := common.SplitStrings(currency.DEFAULT_CURRENCIES, ",")
+	fiatCurrencies := common.SplitStrings(currency.DefaultCurrencies, ",")
 
 	for _, s := range cryptoCurrencies {
 		_, err := strconv.Atoi(s)
