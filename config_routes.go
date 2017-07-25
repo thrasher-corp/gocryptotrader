@@ -18,7 +18,7 @@ func GetAllSettings(w http.ResponseWriter, r *http.Request) {
 func SaveAllSettings(w http.ResponseWriter, r *http.Request) {
 	//Get the data from the request
 	decoder := json.NewDecoder(r.Body)
-	var responseData config.ConfigPost
+	var responseData config.Post
 	jsonerr := decoder.Decode(&responseData)
 	if jsonerr != nil {
 		panic(jsonerr)

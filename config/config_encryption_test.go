@@ -27,7 +27,8 @@ func TestPromptForConfigKey(t *testing.T) {
 
 func TestEncryptDecryptConfigFile(t *testing.T) { //Dual function Test
 	testKey := []byte("12345678901234567890123456789012")
-	testConfigData, err := common.ReadFile(CONFIG_TEST_FILE)
+
+	testConfigData, err := common.ReadFile(ConfigTestFile)
 	if err != nil {
 		t.Errorf("Test failed. EncryptConfigFile: %s", err)
 	}
@@ -53,9 +54,9 @@ func TestEncryptDecryptConfigFile(t *testing.T) { //Dual function Test
 	}
 }
 
-func TestConfirmJson(t *testing.T) {
+func TestConfirmConfigJSON(t *testing.T) {
 	var result interface{}
-	testConfirmJSON, err := common.ReadFile(CONFIG_TEST_FILE)
+	testConfirmJSON, err := common.ReadFile(ConfigTestFile)
 	if err != nil {
 		t.Errorf("Test failed. testConfirmJSON: %s", err)
 	}
@@ -67,12 +68,16 @@ func TestConfirmJson(t *testing.T) {
 	if result == nil {
 		t.Errorf("Test failed. testConfirmJSON: Error Unmarshalling JSON")
 	}
+	err3 := ConfirmConfigJSON(testConfirmJSON, result)
+	if err3 == nil {
+		t.Errorf("Test failed. testConfirmJSON: %s", err3)
+	}
 }
 
 func TestConfirmECS(t *testing.T) {
 	t.Parallel()
 
-	ECStest := []byte(CONFIG_ENCRYPTION_CONFIRMATION_STRING)
+	ECStest := []byte(EncryptConfirmString)
 	if !ConfirmECS(ECStest) {
 		t.Errorf("Test failed. TestConfirmECS: Error finding ECS.")
 	}
@@ -81,7 +86,7 @@ func TestConfirmECS(t *testing.T) {
 func TestRemoveECS(t *testing.T) {
 	t.Parallel()
 
-	ECStest := []byte(CONFIG_ENCRYPTION_CONFIRMATION_STRING)
+	ECStest := []byte(EncryptConfirmString)
 	isremoved := RemoveECS(ECStest)
 
 	if string(isremoved) != "" {
