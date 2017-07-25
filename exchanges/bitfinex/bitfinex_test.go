@@ -41,9 +41,9 @@ func TestSetup(t *testing.T) {
 		RESTPollingDelay:        time.Duration(10),
 		Verbose:                 true,
 		Websocket:               true,
-		BaseCurrencies:          currency.DEFAULT_CURRENCIES,
-		AvailablePairs:          currency.MakecurrencyPairs(currency.DEFAULT_CURRENCIES),
-		EnabledPairs:            currency.MakecurrencyPairs(currency.DEFAULT_CURRENCIES),
+		BaseCurrencies:          currency.DefaultCurrencies,
+		AvailablePairs:          currency.MakecurrencyPairs(currency.DefaultCurrencies),
+		EnabledPairs:            currency.MakecurrencyPairs(currency.DefaultCurrencies),
 	}
 	setup := Bitfinex{}
 	setup.Setup(testConfig)
