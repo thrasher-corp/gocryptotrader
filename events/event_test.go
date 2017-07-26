@@ -80,8 +80,6 @@ func TestGetEventCounter(t *testing.T) {
 }
 
 func TestExecuteAction(t *testing.T) {
-	t.Parallel()
-
 	one, err := AddEvent("ANX", "price", ">,==", "BTC", "LTC", ACTION_TEST)
 	if err != nil {
 		t.Errorf("Test Failed. ExecuteAction: Error, %s", err)
@@ -97,8 +95,6 @@ func TestExecuteAction(t *testing.T) {
 }
 
 func TestEventToString(t *testing.T) {
-	t.Parallel()
-
 	one, err := AddEvent("ANX", "price", ">,==", "BTC", "LTC", ACTION_TEST)
 	if err != nil {
 		t.Errorf("Test Failed. EventToString: Error, %s", err)
@@ -116,8 +112,6 @@ func TestEventToString(t *testing.T) {
 }
 
 func TestCheckCondition(t *testing.T) { //error handling needs to be implemented
-	t.Parallel()
-
 	one, err := AddEvent("ANX", "price", ">,==", "BTC", "LTC", ACTION_TEST)
 	if err != nil {
 		t.Errorf("Test Failed. EventToString: Error, %s", err)
@@ -157,8 +151,6 @@ func TestIsValidExchange(t *testing.T) {
 }
 
 func TestIsValidCondition(t *testing.T) {
-	t.Parallel()
-
 	boolean := IsValidCondition(">")
 	if !boolean {
 		t.Error("Test Failed. IsValidCondition: Error, incorrect Condition")
@@ -186,8 +178,6 @@ func TestIsValidCondition(t *testing.T) {
 }
 
 func TestIsValidAction(t *testing.T) {
-	t.Parallel()
-
 	boolean := IsValidAction("sms")
 	if !boolean {
 		t.Error("Test Failed. IsValidAction: Error, incorrect Action")
@@ -203,8 +193,6 @@ func TestIsValidAction(t *testing.T) {
 }
 
 func TestIsValidItem(t *testing.T) {
-	t.Parallel()
-
 	boolean := IsValidItem("price")
 	if !boolean {
 		t.Error("Test Failed. IsValidItem: Error, incorrect Item")

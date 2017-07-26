@@ -5,8 +5,6 @@ import (
 )
 
 func TestGetConfigEnabledExchanges(t *testing.T) {
-	t.Parallel()
-
 	defaultEnabledExchanges := 17
 	GetConfigEnabledExchanges := GetConfig()
 	err := GetConfigEnabledExchanges.LoadConfig(ConfigTestFile)
@@ -22,8 +20,6 @@ func TestGetConfigEnabledExchanges(t *testing.T) {
 }
 
 func TestGetExchangeConfig(t *testing.T) {
-	t.Parallel()
-
 	GetExchangeConfig := GetConfig()
 	err := GetExchangeConfig.LoadConfig(ConfigTestFile)
 	if err != nil {
@@ -44,8 +40,6 @@ func TestGetExchangeConfig(t *testing.T) {
 }
 
 func TestUpdateExchangeConfig(t *testing.T) {
-	t.Parallel()
-
 	UpdateExchangeConfig := GetConfig()
 	err := UpdateExchangeConfig.LoadConfig(ConfigTestFile)
 	if err != nil {
@@ -204,8 +198,6 @@ func TestCheckExchangeConfigValues(t *testing.T) {
 }
 
 func TestCheckWebserverConfigValues(t *testing.T) {
-	t.Parallel()
-
 	checkWebserverConfigValues := GetConfig()
 	err := checkWebserverConfigValues.LoadConfig(ConfigTestFile)
 	if err != nil {
@@ -255,8 +247,6 @@ func TestCheckWebserverConfigValues(t *testing.T) {
 }
 
 func TestRetrieveConfigCurrencyPairs(t *testing.T) {
-	t.Parallel()
-
 	retrieveConfigCurrencyPairs := GetConfig()
 	err := retrieveConfigCurrencyPairs.LoadConfig(ConfigTestFile)
 	if err != nil {
