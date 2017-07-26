@@ -80,7 +80,7 @@ type Config struct {
 	Name             string
 	EncryptConfig    int
 	Cryptocurrencies string
-	Portfolio        portfolio.PortfolioBase `json:"PortfolioAddresses"`
+	Portfolio        portfolio.Base `json:"PortfolioAddresses"`
 	SMS              SMSGlobalConfig         `json:"SMSGlobal"`
 	Webserver        WebserverConfig         `json:"Webserver"`
 	Exchanges        []ExchangeConfig        `json:"Exchanges"`

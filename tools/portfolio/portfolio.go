@@ -48,7 +48,7 @@ func main() {
 		log.Fatal("File isn't in JSON format")
 	}
 
-	port := portfolio.PortfolioBase{}
+	port := portfolio.Base{}
 	port.SeedPortfolio(cfg.Portfolio)
 	result := port.GetPortfolioSummary("")
 
