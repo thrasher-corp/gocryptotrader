@@ -8,8 +8,6 @@ import (
 )
 
 func TestPriceToString(t *testing.T) {
-	t.Parallel()
-
 	newPair := pair.NewCurrencyPair("BTC", "USD")
 	priceStruct := TickerPrice{
 		Pair:         newPair,
@@ -52,8 +50,6 @@ func TestPriceToString(t *testing.T) {
 }
 
 func TestGetTicker(t *testing.T) {
-	t.Parallel()
-
 	newPair := pair.NewCurrencyPair("BTC", "USD")
 	priceStruct := TickerPrice{
 		Pair:         newPair,
@@ -80,8 +76,6 @@ func TestGetTicker(t *testing.T) {
 }
 
 func TestGetTickerByExchange(t *testing.T) {
-	t.Parallel()
-
 	newPair := pair.NewCurrencyPair("BTC", "USD")
 	priceStruct := TickerPrice{
 		Pair:         newPair,
@@ -108,8 +102,6 @@ func TestGetTickerByExchange(t *testing.T) {
 }
 
 func TestFirstCurrencyExists(t *testing.T) {
-	t.Parallel()
-
 	newPair := pair.NewCurrencyPair("BTC", "USD")
 	priceStruct := TickerPrice{
 		Pair:         newPair,
@@ -164,8 +156,6 @@ func TestSecondCurrencyExists(t *testing.T) {
 }
 
 func TestCreateNewTicker(t *testing.T) {
-	t.Parallel()
-
 	newPair := pair.NewCurrencyPair("BTC", "USD")
 	priceStruct := TickerPrice{
 		Pair:         newPair,
@@ -221,8 +211,6 @@ func TestCreateNewTicker(t *testing.T) {
 }
 
 func TestProcessTicker(t *testing.T) { //non-appending function to tickers
-	t.Parallel()
-
 	newPair := pair.NewCurrencyPair("BTC", "USD")
 	priceStruct := TickerPrice{
 		Pair:         newPair,

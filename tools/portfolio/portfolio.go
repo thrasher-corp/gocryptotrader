@@ -31,8 +31,8 @@ func main() {
 
 	if config.ConfirmECS(data) {
 		if key == "" {
-			result, err := config.PromptForConfigKey()
-			if err != nil {
+			result, errf := config.PromptForConfigKey()
+			if errf != nil {
 				log.Fatal("Unable to obtain encryption/decryption key.")
 			}
 			key = string(result)
@@ -75,9 +75,9 @@ func main() {
 			continue
 		}
 
-		ticker, err := bf.GetTicker(x+"USD", url.Values{})
-		if err != nil {
-			log.Println(err)
+		ticker, errf := bf.GetTicker(x+"USD", url.Values{})
+		if errf != nil {
+			log.Println(errf)
 		} else {
 			pf.Subtotal = ticker.Last * y
 		}
