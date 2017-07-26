@@ -200,13 +200,14 @@ func IsEnabled(isEnabled bool) string {
 }
 
 // IsValidCryptoAddress validates your cryptocurrency address string using the
-// regexp package
+// regexp package // Validation issues occuring because "3" is contained in
+// litecoin and Bitcoin addresses - non-fatal
 func IsValidCryptoAddress(address, crypto string) (bool, error) {
 	switch StringToLower(crypto) {
 	case "btc":
 		return regexp.MatchString("^[13][a-km-zA-HJ-NP-Z1-9]{25,34}$", address)
 	case "ltc":
-		return regexp.MatchString("^[L3][a-km-zA-HJ-NP-Z1-9]{25,34}$", address)
+		return regexp.MatchString("^[L3M][a-km-zA-HJ-NP-Z1-9]{25,34}$", address)
 	case "eth":
 		return regexp.MatchString("^0x[a-km-z0-9]{40}$", address)
 	default:

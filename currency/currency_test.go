@@ -256,8 +256,6 @@ func TestCheckAndAddCurrency(t *testing.T) {
 }
 
 func TestSeedCurrencyData(t *testing.T) {
-	t.Parallel()
-
 	currencyRequestDefault := ""
 	currencyRequestUSDAUD := "USD,AUD"
 	currencyRequestObtuse := "WigWham"
@@ -299,8 +297,6 @@ func TestMakecurrencyPairs(t *testing.T) {
 }
 
 func TestConvertCurrency(t *testing.T) {
-	t.Parallel()
-
 	fiatCurrencies := DefaultCurrencies
 	for _, currencyFrom := range common.SplitStrings(fiatCurrencies, ",") {
 		for _, currencyTo := range common.SplitStrings(fiatCurrencies, ",") {
@@ -348,8 +344,6 @@ func TestFetchYahooCurrencyData(t *testing.T) {
 }
 
 func TestQueryYahooCurrencyValues(t *testing.T) {
-	t.Parallel()
-
 	err := QueryYahooCurrencyValues(DefaultCurrencies)
 	if err != nil {
 		t.Errorf("Test Failed. QueryYahooCurrencyValues: Error, %s", err)

@@ -8,6 +8,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/config"
 )
 
+// EncryptOrDecrypt returns a string from a boolean
 func EncryptOrDecrypt(encrypt bool) string {
 	if encrypt {
 		return "encrypted"
@@ -28,8 +29,8 @@ func main() {
 	log.Println("GoCryptoTrader: config-helper tool.")
 
 	if key == "" {
-		result, err := config.PromptForConfigKey()
-		if err != nil {
+		result, errf := config.PromptForConfigKey()
+		if errf != nil {
 			log.Fatal("Unable to obtain encryption/decryption key.")
 		}
 		key = string(result)
@@ -47,8 +48,8 @@ func main() {
 
 	if !config.ConfirmECS(file) && !encrypt {
 		var result interface{}
-		err := config.ConfirmConfigJSON(file, result)
-		if err != nil {
+		errf := config.ConfirmConfigJSON(file, result)
+		if errf != nil {
 			log.Fatal("File isn't in JSON format")
 		}
 		log.Println("File is already decrypted. Encrypting..")

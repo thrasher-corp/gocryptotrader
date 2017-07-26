@@ -465,7 +465,7 @@ func TestGetSymbols(t *testing.T) {
 		"bfxbtc",
 		"rrtusd",
 	}
-	if len(expectedCurrencies) >= len(symbols) {
+	if len(expectedCurrencies) <= len(symbols) {
 
 		for _, explicitSymbol := range expectedCurrencies {
 			if common.DataContains(expectedCurrencies, explicitSymbol) {
