@@ -11,11 +11,14 @@ import (
 )
 
 const (
-	SMSGLOBAL_API_URL     = "http://www.smsglobal.com/http-api.php"
+	smsGlobalAPIURL = "http://www.smsglobal.com/http-api.php"
+	// ErrSMSContactNotFound is a general error code for "SMS Contact not found."
 	ErrSMSContactNotFound = "SMS Contact not found."
-	ErrSMSNotSent         = "SMS message not sent."
+	errSMSNotSent         = "SMS message not sent."
 )
 
+// GetEnabledSMSContacts returns how many SMS contacts are enabled in the
+// contacts list.
 func GetEnabledSMSContacts(smsCfg config.SMSGlobalConfig) int {
 	counter := 0
 	for _, contact := range smsCfg.Contacts {
@@ -26,9 +29,10 @@ func GetEnabledSMSContacts(smsCfg config.SMSGlobalConfig) int {
 	return counter
 }
 
+// SMSSendToAll sends a message to all enabled contacts in cfg
 func SMSSendToAll(message string, cfg config.Config) {
 	for _, contact := range cfg.SMS.Contacts {
-		if contact.Enabled {
+		if contact.Enabled && len(contact.Number) == 10 {
 			err := SMSNotify(contact.Number, message, cfg)
 			if err != nil {
 				log.Printf("Unable to send SMS to %s.\n", contact.Name)
@@ -37,6 +41,7 @@ func SMSSendToAll(message string, cfg config.Config) {
 	}
 }
 
+// SMSGetNumberByName returns contact number by supplied name
 func SMSGetNumberByName(name string, smsCfg config.SMSGlobalConfig) string {
 	for _, contact := range smsCfg.Contacts {
 		if contact.Name == name {
@@ -46,6 +51,7 @@ func SMSGetNumberByName(name string, smsCfg config.SMSGlobalConfig) string {
 	return ErrSMSContactNotFound
 }
 
+// SMSNotify sends a message to an individual contact
 func SMSNotify(to, message string, cfg config.Config) error {
 	values := url.Values{}
 	values.Set("action", "sendsms")
@@ -58,14 +64,16 @@ func SMSNotify(to, message string, cfg config.Config) error {
 	headers := make(map[string]string)
 	headers["Content-Type"] = "application/x-www-form-urlencoded"
 
-	resp, err := common.SendHTTPRequest("POST", SMSGLOBAL_API_URL, headers, strings.NewReader(values.Encode()))
+	resp, err := common.SendHTTPRequest(
+		"POST", smsGlobalAPIURL, headers, strings.NewReader(values.Encode()),
+	)
 
 	if err != nil {
 		return err
 	}
 
 	if !common.StringContains(resp, "OK: 0; Sent queued message") {
-		return errors.New(ErrSMSNotSent)
+		return errors.New(errSMSNotSent)
 	}
 	return nil
 }
