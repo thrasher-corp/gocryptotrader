@@ -58,7 +58,7 @@ type ExchangeMain struct {
 
 type Bot struct {
 	config    *config.Config
-	portfolio *portfolio.PortfolioBase
+	portfolio *portfolio.Base
 	exchange  ExchangeMain
 	exchanges []exchange.IBotExchange
 	tickers   []ticker.Ticker
@@ -242,7 +242,7 @@ func SeedExchangeAccountInfo(data []exchange.ExchangeAccountInfo) {
 			}
 
 			if !port.ExchangeAddressExists(exchangeName, currencyName) {
-				port.Addresses = append(port.Addresses, portfolio.PortfolioAddress{Address: exchangeName, CoinType: currencyName, Balance: total, Decscription: portfolio.PORTFOLIO_ADDRESS_EXCHANGE})
+				port.Addresses = append(port.Addresses, portfolio.Address{Address: exchangeName, CoinType: currencyName, Balance: total, Decscription: portfolio.PortfolioAddressExchange})
 			} else {
 				port.UpdateExchangeAddressBalance(exchangeName, currencyName, total)
 			}
