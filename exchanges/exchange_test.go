@@ -60,25 +60,23 @@ func TestSetAPIKeys(t *testing.T) {
 	}
 
 	SetAPIKeys.SetAPIKeys("RocketMan", "Digereedoo", "007", false)
-
 	if SetAPIKeys.APIKey != "RocketMan" && SetAPIKeys.APISecret != "Digereedoo" && SetAPIKeys.ClientID != "007" {
 		t.Error("Test Failed - Exchange SetAPIKeys() did not set correct values")
 	}
-
+	SetAPIKeys.SetAPIKeys("RocketMan", "Digereedoo", "007", true)
 }
 
 func TestUpdateAvailableCurrencies(t *testing.T) {
 	cfg := config.GetConfig()
 	err := cfg.LoadConfig(config.ConfigTestFile)
-	if err != nil {
-		t.Log("SOMETHING DONE HAPPENED!")
-	}
-
-	UAC := ExchangeBase{
-		Name: "ANX",
-	}
+	UAC := ExchangeBase{Name: "ANX"}
 	exchangeProducts := []string{"ltc", "btc", "usd", "aud"}
 
+	if err != nil {
+		t.Error(
+			"Test Failed - Exchange UpdateAvailableCurrencies() did not set correct values",
+		)
+	}
 	err2 := UAC.UpdateAvailableCurrencies(exchangeProducts)
 	if err2 != nil {
 		t.Errorf("Test Failed - Exchange UpdateAvailableCurrencies() error: %s", err2)
