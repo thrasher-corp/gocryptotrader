@@ -11,14 +11,14 @@ import (
 
 // AllEnabledExchangeAccounts holds all enabled accounts info
 type AllEnabledExchangeAccounts struct {
-	Data []exchange.ExchangeAccountInfo `json:"data"`
+	Data []exchange.AccountInfo `json:"data"`
 }
 
 // GetCollatedExchangeAccountInfoByCoin collates individual exchange account
 // information and turns into into a map string of
-// exchange.ExchangeAccountCurrencyInfo
-func GetCollatedExchangeAccountInfoByCoin(accounts []exchange.ExchangeAccountInfo) map[string]exchange.ExchangeAccountCurrencyInfo {
-	result := make(map[string]exchange.ExchangeAccountCurrencyInfo)
+// exchange.AccountCurrencyInfo
+func GetCollatedExchangeAccountInfoByCoin(accounts []exchange.AccountInfo) map[string]exchange.AccountCurrencyInfo {
+	result := make(map[string]exchange.AccountCurrencyInfo)
 	for i := 0; i < len(accounts); i++ {
 		for j := 0; j < len(accounts[i].Currencies); j++ {
 			currencyName := accounts[i].Currencies[j].CurrencyName
@@ -27,7 +27,7 @@ func GetCollatedExchangeAccountInfoByCoin(accounts []exchange.ExchangeAccountInf
 
 			info, ok := result[currencyName]
 			if !ok {
-				accountInfo := exchange.ExchangeAccountCurrencyInfo{CurrencyName: currencyName, Hold: onHold, TotalValue: avail}
+				accountInfo := exchange.AccountCurrencyInfo{CurrencyName: currencyName, Hold: onHold, TotalValue: avail}
 				result[currencyName] = accountInfo
 			} else {
 				info.Hold += onHold
@@ -40,13 +40,13 @@ func GetCollatedExchangeAccountInfoByCoin(accounts []exchange.ExchangeAccountInf
 }
 
 // GetAccountCurrencyInfoByExchangeName returns info for an exchange
-func GetAccountCurrencyInfoByExchangeName(accounts []exchange.ExchangeAccountInfo, exchangeName string) (exchange.ExchangeAccountInfo, error) {
+func GetAccountCurrencyInfoByExchangeName(accounts []exchange.AccountInfo, exchangeName string) (exchange.AccountInfo, error) {
 	for i := 0; i < len(accounts); i++ {
 		if accounts[i].ExchangeName == exchangeName {
 			return accounts[i], nil
 		}
 	}
-	return exchange.ExchangeAccountInfo{}, errors.New(exchange.ErrExchangeNotFound)
+	return exchange.AccountInfo{}, errors.New(exchange.ErrExchangeNotFound)
 }
 
 // GetAllEnabledExchangeAccountInfo returns all the current enabled exchanges

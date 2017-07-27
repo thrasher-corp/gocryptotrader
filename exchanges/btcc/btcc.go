@@ -43,7 +43,7 @@ const (
 )
 
 type BTCC struct {
-	exchange.ExchangeBase
+	exchange.Base
 }
 
 func (b *BTCC) SetDefaults() {

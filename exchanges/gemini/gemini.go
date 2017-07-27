@@ -36,7 +36,7 @@ const (
 )
 
 type Gemini struct {
-	exchange.ExchangeBase
+	exchange.Base
 }
 
 func (g *Gemini) SetDefaults() {

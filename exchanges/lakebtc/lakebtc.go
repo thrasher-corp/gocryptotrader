@@ -31,7 +31,7 @@ const (
 )
 
 type LakeBTC struct {
-	exchange.ExchangeBase
+	exchange.Base
 }
 
 func (l *LakeBTC) SetDefaults() {

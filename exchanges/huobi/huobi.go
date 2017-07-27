@@ -19,7 +19,7 @@ const (
 )
 
 type HUOBI struct {
-	exchange.ExchangeBase
+	exchange.Base
 }
 
 func (h *HUOBI) SetDefaults() {

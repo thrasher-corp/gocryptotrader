@@ -105,8 +105,8 @@ func (l *Liqui) GetOrderbookEx(p pair.CurrencyPair) (orderbook.OrderbookBase, er
 }
 
 //GetExchangeAccountInfo : Retrieves balances for all enabled currencies for the Liqui exchange
-func (e *Liqui) GetExchangeAccountInfo() (exchange.ExchangeAccountInfo, error) {
-	var response exchange.ExchangeAccountInfo
+func (e *Liqui) GetExchangeAccountInfo() (exchange.AccountInfo, error) {
+	var response exchange.AccountInfo
 	response.ExchangeName = e.GetName()
 	accountBalance, err := e.GetAccountInfo()
 	if err != nil {
@@ -114,7 +114,7 @@ func (e *Liqui) GetExchangeAccountInfo() (exchange.ExchangeAccountInfo, error) {
 	}
 
 	for x, y := range accountBalance.Funds {
-		var exchangeCurrency exchange.ExchangeAccountCurrencyInfo
+		var exchangeCurrency exchange.AccountCurrencyInfo
 		exchangeCurrency.CurrencyName = common.StringToUpper(x)
 		exchangeCurrency.TotalValue = y
 		exchangeCurrency.Hold = 0

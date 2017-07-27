@@ -63,8 +63,8 @@ func (c *COINUT) Run() {
 }
 
 //GetExchangeAccountInfo : Retrieves balances for all enabled currencies for the COINUT exchange
-func (e *COINUT) GetExchangeAccountInfo() (exchange.ExchangeAccountInfo, error) {
-	var response exchange.ExchangeAccountInfo
+func (e *COINUT) GetExchangeAccountInfo() (exchange.AccountInfo, error) {
+	var response exchange.AccountInfo
 	/*
 		response.ExchangeName = e.GetName()
 		accountBalance, err := e.GetAccounts()
@@ -72,7 +72,7 @@ func (e *COINUT) GetExchangeAccountInfo() (exchange.ExchangeAccountInfo, error) 
 			return response, err
 		}
 		for i := 0; i < len(accountBalance); i++ {
-			var exchangeCurrency exchange.ExchangeAccountCurrencyInfo
+			var exchangeCurrency exchange.AccountCurrencyInfo
 			exchangeCurrency.CurrencyName = accountBalance[i].Currency
 			exchangeCurrency.TotalValue = accountBalance[i].Available
 			exchangeCurrency.Hold = accountBalance[i].Hold

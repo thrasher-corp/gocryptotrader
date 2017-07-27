@@ -70,7 +70,7 @@ var (
 )
 
 type OKCoin struct {
-	exchange.ExchangeBase
+	exchange.Base
 	RESTErrors      map[string]string
 	WebsocketErrors map[string]string
 	FuturesValues   []string

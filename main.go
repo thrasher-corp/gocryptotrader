@@ -251,7 +251,7 @@ func Shutdown() {
 }
 
 // SeedExchangeAccountInfo seeds account info
-func SeedExchangeAccountInfo(data []exchange.ExchangeAccountInfo) {
+func SeedExchangeAccountInfo(data []exchange.AccountInfo) {
 	if len(data) == 0 {
 		return
 	}

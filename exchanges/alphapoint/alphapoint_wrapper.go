@@ -10,15 +10,15 @@ import (
 )
 
 //GetExchangeAccountInfo : Retrieves balances for all enabled currencies for the Alphapoint exchange
-func (e *Alphapoint) GetExchangeAccountInfo() (exchange.ExchangeAccountInfo, error) {
-	var response exchange.ExchangeAccountInfo
+func (e *Alphapoint) GetExchangeAccountInfo() (exchange.AccountInfo, error) {
+	var response exchange.AccountInfo
 	response.ExchangeName = e.GetName()
 	account, err := e.GetAccountInfo()
 	if err != nil {
 		return response, err
 	}
 	for i := 0; i < len(account.Currencies); i++ {
-		var exchangeCurrency exchange.ExchangeAccountCurrencyInfo
+		var exchangeCurrency exchange.AccountCurrencyInfo
 		exchangeCurrency.CurrencyName = account.Currencies[i].Name
 		exchangeCurrency.TotalValue = float64(account.Currencies[i].Balance)
 		exchangeCurrency.Hold = float64(account.Currencies[i].Hold)

@@ -34,7 +34,7 @@ const (
 )
 
 type GDAX struct {
-	exchange.ExchangeBase
+	exchange.Base
 }
 
 func (g *GDAX) SetDefaults() {

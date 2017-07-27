@@ -89,15 +89,15 @@ func (b *BTCMarkets) GetOrderbookEx(p pair.CurrencyPair) (orderbook.OrderbookBas
 }
 
 //GetExchangeAccountInfo : Retrieves balances for all enabled currencies for the BTCMarkets exchange
-func (e *BTCMarkets) GetExchangeAccountInfo() (exchange.ExchangeAccountInfo, error) {
-	var response exchange.ExchangeAccountInfo
+func (e *BTCMarkets) GetExchangeAccountInfo() (exchange.AccountInfo, error) {
+	var response exchange.AccountInfo
 	response.ExchangeName = e.GetName()
 	accountBalance, err := e.GetAccountBalance()
 	if err != nil {
 		return response, err
 	}
 	for i := 0; i < len(accountBalance); i++ {
-		var exchangeCurrency exchange.ExchangeAccountCurrencyInfo
+		var exchangeCurrency exchange.AccountCurrencyInfo
 		exchangeCurrency.CurrencyName = accountBalance[i].Currency
 		exchangeCurrency.TotalValue = accountBalance[i].Balance
 		exchangeCurrency.Hold = accountBalance[i].PendingFunds
