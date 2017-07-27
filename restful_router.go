@@ -7,6 +7,8 @@ import (
 	"github.com/thrasher-/gocryptotrader/exchanges"
 )
 
+// NewRouter takes in the exchange interfaces and returns a new multiplexor
+// router
 func NewRouter(exchanges []exchange.IBotExchange) *mux.Router {
 	router := mux.NewRouter().StrictSlash(true)
 	allRoutes := append(routes, ExchangeRoutes...)

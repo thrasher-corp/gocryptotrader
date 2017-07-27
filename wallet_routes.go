@@ -9,10 +9,14 @@ import (
 	"github.com/thrasher-/gocryptotrader/exchanges"
 )
 
+// AllEnabledExchangeAccounts holds all enabled accounts info
 type AllEnabledExchangeAccounts struct {
 	Data []exchange.ExchangeAccountInfo `json:"data"`
 }
 
+// GetCollatedExchangeAccountInfoByCoin collates individual exchange account
+// information and turns into into a map string of
+// exchange.ExchangeAccountCurrencyInfo
 func GetCollatedExchangeAccountInfoByCoin(accounts []exchange.ExchangeAccountInfo) map[string]exchange.ExchangeAccountCurrencyInfo {
 	result := make(map[string]exchange.ExchangeAccountCurrencyInfo)
 	for i := 0; i < len(accounts); i++ {
@@ -35,6 +39,7 @@ func GetCollatedExchangeAccountInfoByCoin(accounts []exchange.ExchangeAccountInf
 	return result
 }
 
+// GetAccountCurrencyInfoByExchangeName returns info for an exchange
 func GetAccountCurrencyInfoByExchangeName(accounts []exchange.ExchangeAccountInfo, exchangeName string) (exchange.ExchangeAccountInfo, error) {
 	for i := 0; i < len(accounts); i++ {
 		if accounts[i].ExchangeName == exchangeName {
@@ -44,13 +49,16 @@ func GetAccountCurrencyInfoByExchangeName(accounts []exchange.ExchangeAccountInf
 	return exchange.ExchangeAccountInfo{}, errors.New(exchange.ErrExchangeNotFound)
 }
 
+// GetAllEnabledExchangeAccountInfo returns all the current enabled exchanges
 func GetAllEnabledExchangeAccountInfo() AllEnabledExchangeAccounts {
 	var response AllEnabledExchangeAccounts
 	for _, individualBot := range bot.exchanges {
 		if individualBot != nil && individualBot.IsEnabled() {
 			individualExchange, err := individualBot.GetExchangeAccountInfo()
 			if err != nil {
-				log.Println("Error encountered retrieving exchange account for '" + individualExchange.ExchangeName + "'")
+				log.Println(
+					"Error encountered retrieving exchange account for '" + individualExchange.ExchangeName + "'",
+				)
 			}
 			response.Data = append(response.Data, individualExchange)
 		}
@@ -58,6 +66,8 @@ func GetAllEnabledExchangeAccountInfo() AllEnabledExchangeAccounts {
 	return response
 }
 
+// SendAllEnabledAccountInfo via get request returns JSON response of account
+// info
 func SendAllEnabledAccountInfo(w http.ResponseWriter, r *http.Request) {
 	response := GetAllEnabledExchangeAccountInfo()
 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
@@ -67,6 +77,7 @@ func SendAllEnabledAccountInfo(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// WalletRoutes are current routes specified for queries.
 var WalletRoutes = Routes{
 	Route{
 		"AllEnabledAccountInfo",

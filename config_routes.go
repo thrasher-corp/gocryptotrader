@@ -7,6 +7,8 @@ import (
 	"github.com/thrasher-/gocryptotrader/config"
 )
 
+// GetAllSettings replies to a request with an encoded JSON response about the
+// trading bots configuration.
 func GetAllSettings(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 	w.WriteHeader(http.StatusOK)
@@ -15,6 +17,8 @@ func GetAllSettings(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// SaveAllSettings saves all current settings from request body as a JSON
+// document then reloads state and returns the settings
 func SaveAllSettings(w http.ResponseWriter, r *http.Request) {
 	//Get the data from the request
 	decoder := json.NewDecoder(r.Body)
@@ -24,7 +28,7 @@ func SaveAllSettings(w http.ResponseWriter, r *http.Request) {
 		panic(jsonerr)
 	}
 	//Save change the settings
-	for x, _ := range bot.config.Exchanges {
+	for x := range bot.config.Exchanges {
 		for i := 0; i < len(responseData.Data.Exchanges); i++ {
 			if responseData.Data.Exchanges[i].Name == bot.config.Exchanges[x].Name {
 				bot.config.Exchanges[x].Enabled = responseData.Data.Exchanges[i].Enabled
@@ -52,6 +56,7 @@ func SaveAllSettings(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// ConfigRoutes declares the current routes for config_routes.go
 var ConfigRoutes = Routes{
 	Route{
 		"GetAllSettings",

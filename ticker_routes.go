@@ -19,7 +19,9 @@ func jsonTickerResponse(w http.ResponseWriter, r *http.Request) {
 	for i := 0; i < len(bot.exchanges); i++ {
 		if bot.exchanges[i] != nil {
 			if bot.exchanges[i].IsEnabled() && bot.exchanges[i].GetName() == exchangeName {
-				response, err = bot.exchanges[i].GetTickerPrice(pair.NewCurrencyPairFromString(currency))
+				response, err = bot.exchanges[i].GetTickerPrice(
+					pair.NewCurrencyPairFromString(currency),
+				)
 				if err != nil {
 					log.Println(err)
 					continue
@@ -37,10 +39,13 @@ func jsonTickerResponse(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// AllEnabledExchangeCurrencies holds the enabled exchange currencies
 type AllEnabledExchangeCurrencies struct {
 	Data []EnabledExchangeCurrencies `json:"data"`
 }
 
+// EnabledExchangeCurrencies is a sub type for singular exchanges and respective
+// currencies
 type EnabledExchangeCurrencies struct {
 	ExchangeName   string               `json:"exchangeName"`
 	ExchangeValues []ticker.TickerPrice `json:"exchangeValues"`
@@ -53,17 +58,23 @@ func getAllActiveTickersResponse(w http.ResponseWriter, r *http.Request) {
 		if individualBot != nil && individualBot.IsEnabled() {
 			var individualExchange EnabledExchangeCurrencies
 			individualExchange.ExchangeName = individualBot.GetName()
-			log.Println("Getting enabled currencies for '" + individualBot.GetName() + "'")
+			log.Println(
+				"Getting enabled currencies for '" + individualBot.GetName() + "'",
+			)
 			currencies := individualBot.GetEnabledCurrencies()
 			log.Println(currencies)
 			for _, currency := range currencies {
-				tickerPrice, err := individualBot.GetTickerPrice(pair.NewCurrencyPairFromString(currency))
+				tickerPrice, err := individualBot.GetTickerPrice(
+					pair.NewCurrencyPairFromString(currency),
+				)
 				if err != nil {
 					continue
 				}
 				log.Println(tickerPrice)
 
-				individualExchange.ExchangeValues = append(individualExchange.ExchangeValues, tickerPrice)
+				individualExchange.ExchangeValues = append(
+					individualExchange.ExchangeValues, tickerPrice,
+				)
 			}
 			response.Data = append(response.Data, individualExchange)
 		}
@@ -75,6 +86,7 @@ func getAllActiveTickersResponse(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// ExchangeRoutes denotes the current exchange routes
 var ExchangeRoutes = Routes{
 	Route{
 		"AllActiveExchangesAndCurrencies",

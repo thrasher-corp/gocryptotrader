@@ -12,23 +12,26 @@ import (
 )
 
 const (
-	WarningBase64DecryptSecretKeyFailed = "WARNING -- Exchange %s unable to base64 decode secret key.. Disabling Authenticated API support."
-	ErrExchangeNotFound                 = "Exchange not found in dataset."
+	warningBase64DecryptSecretKeyFailed = "WARNING -- Exchange %s unable to base64 decode secret key.. Disabling Authenticated API support."
+	// ErrExchangeNotFound is a constant for an error message
+	ErrExchangeNotFound = "Exchange not found in dataset."
 )
 
-//ExchangeAccountInfo : Generic type to hold each exchange's holdings in all enabled currencies
+// ExchangeAccountInfo is a Generic type to hold each exchange's holdings in
+// all enabled currencies
 type ExchangeAccountInfo struct {
 	ExchangeName string
 	Currencies   []ExchangeAccountCurrencyInfo
 }
 
-//ExchangeAccountCurrencyInfo : Sub type to store currency name and value
+// ExchangeAccountCurrencyInfo is a sub type to store currency name and value
 type ExchangeAccountCurrencyInfo struct {
 	CurrencyName string
 	TotalValue   float64
 	Hold         float64
 }
 
+// ExchangeBase stores the individual exchange information
 type ExchangeBase struct {
 	Name                        string
 	Enabled                     bool
@@ -45,7 +48,8 @@ type ExchangeBase struct {
 	APIUrl                      string
 }
 
-//IBotExchange : Enforces standard functions for all exchanges supported in gocryptotrader
+// IBotExchange enforces standard functions for all exchanges supported in
+// GoCryptoTrader
 type IBotExchange interface {
 	Setup(exch config.ExchangeConfig)
 	Start()
@@ -58,20 +62,28 @@ type IBotExchange interface {
 	GetExchangeAccountInfo() (ExchangeAccountInfo, error)
 }
 
+// GetName is a method that returns the name of the exchange base
 func (e *ExchangeBase) GetName() string {
 	return e.Name
 }
+
+// GetEnabledCurrencies is a method that returns the enabled currency pairs of
+// the exchange base
 func (e *ExchangeBase) GetEnabledCurrencies() []string {
 	return e.EnabledPairs
 }
+
+// SetEnabled is a method that sets if the exchange is enabled
 func (e *ExchangeBase) SetEnabled(enabled bool) {
 	e.Enabled = enabled
 }
 
+// IsEnabled is a method that returns if the current exchange is enabled
 func (e *ExchangeBase) IsEnabled() bool {
 	return e.Enabled
 }
 
+// SetAPIKeys is a method that sets the current API keys for the exchange
 func (e *ExchangeBase) SetAPIKeys(APIKey, APISecret, ClientID string, b64Decode bool) {
 	e.APIKey = APIKey
 	e.ClientID = ClientID
@@ -80,7 +92,7 @@ func (e *ExchangeBase) SetAPIKeys(APIKey, APISecret, ClientID string, b64Decode 
 		result, err := common.Base64Decode(APISecret)
 		if err != nil {
 			e.AuthenticatedAPISupport = false
-			log.Printf(WarningBase64DecryptSecretKeyFailed, e.Name)
+			log.Printf(warningBase64DecryptSecretKeyFailed, e.Name)
 		}
 		e.APISecret = string(result)
 	} else {
@@ -88,6 +100,8 @@ func (e *ExchangeBase) SetAPIKeys(APIKey, APISecret, ClientID string, b64Decode 
 	}
 }
 
+// UpdateAvailableCurrencies is a method that sets new pairs to the current
+// exchange
 func (e *ExchangeBase) UpdateAvailableCurrencies(exchangeProducts []string) error {
 	exchangeProducts = common.SplitStrings(common.StringToUpper(common.JoinStrings(exchangeProducts, ",")), ",")
 	diff := common.StringSliceDifference(e.AvailablePairs, exchangeProducts)
