@@ -28,7 +28,7 @@ const (
 )
 
 type ANX struct {
-	exchange.ExchangeBase
+	exchange.Base
 }
 
 func (a *ANX) SetDefaults() {

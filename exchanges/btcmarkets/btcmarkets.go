@@ -27,7 +27,7 @@ const (
 )
 
 type BTCMarkets struct {
-	exchange.ExchangeBase
+	exchange.Base
 	Ticker map[string]BTCMarketsTicker
 }
 

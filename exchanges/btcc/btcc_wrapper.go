@@ -92,8 +92,8 @@ func (b *BTCC) GetOrderbookEx(p pair.CurrencyPair) (orderbook.OrderbookBase, err
 
 //TODO: Retrieve BTCC info
 //GetExchangeAccountInfo : Retrieves balances for all enabled currencies for the Kraken exchange
-func (e *BTCC) GetExchangeAccountInfo() (exchange.ExchangeAccountInfo, error) {
-	var response exchange.ExchangeAccountInfo
+func (e *BTCC) GetExchangeAccountInfo() (exchange.AccountInfo, error) {
+	var response exchange.AccountInfo
 	response.ExchangeName = e.GetName()
 	return response, nil
 }

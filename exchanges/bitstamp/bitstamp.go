@@ -45,7 +45,7 @@ const (
 )
 
 type Bitstamp struct {
-	exchange.ExchangeBase
+	exchange.Base
 	Balance BitstampBalances
 }
 

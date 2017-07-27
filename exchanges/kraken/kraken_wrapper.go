@@ -72,8 +72,8 @@ func (k *Kraken) GetOrderbookEx(p pair.CurrencyPair) (orderbook.OrderbookBase, e
 
 //TODO: Retrieve Kraken info
 //GetExchangeAccountInfo : Retrieves balances for all enabled currencies for the Kraken exchange
-func (e *Kraken) GetExchangeAccountInfo() (exchange.ExchangeAccountInfo, error) {
-	var response exchange.ExchangeAccountInfo
+func (e *Kraken) GetExchangeAccountInfo() (exchange.AccountInfo, error) {
+	var response exchange.AccountInfo
 	response.ExchangeName = e.GetName()
 	return response, nil
 }

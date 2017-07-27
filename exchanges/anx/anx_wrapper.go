@@ -66,8 +66,8 @@ func (e *ANX) GetOrderbookEx(p pair.CurrencyPair) (orderbook.OrderbookBase, erro
 }
 
 //GetExchangeAccountInfo : Retrieves balances for all enabled currencies for the ANX exchange
-func (e *ANX) GetExchangeAccountInfo() (exchange.ExchangeAccountInfo, error) {
-	var response exchange.ExchangeAccountInfo
+func (e *ANX) GetExchangeAccountInfo() (exchange.AccountInfo, error) {
+	var response exchange.AccountInfo
 	response.ExchangeName = e.GetName()
 	return response, nil
 }

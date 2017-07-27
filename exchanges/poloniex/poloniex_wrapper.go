@@ -96,8 +96,8 @@ func (p *Poloniex) GetOrderbookEx(currencyPair pair.CurrencyPair) (orderbook.Ord
 }
 
 //GetExchangeAccountInfo : Retrieves balances for all enabled currencies for the Poloniex exchange
-func (e *Poloniex) GetExchangeAccountInfo() (exchange.ExchangeAccountInfo, error) {
-	var response exchange.ExchangeAccountInfo
+func (e *Poloniex) GetExchangeAccountInfo() (exchange.AccountInfo, error) {
+	var response exchange.AccountInfo
 	response.ExchangeName = e.GetName()
 	accountBalance, err := e.GetBalances()
 	if err != nil {
@@ -105,7 +105,7 @@ func (e *Poloniex) GetExchangeAccountInfo() (exchange.ExchangeAccountInfo, error
 	}
 
 	for x, y := range accountBalance.Currency {
-		var exchangeCurrency exchange.ExchangeAccountCurrencyInfo
+		var exchangeCurrency exchange.AccountCurrencyInfo
 		exchangeCurrency.CurrencyName = x
 		exchangeCurrency.TotalValue = y
 		response.Currencies = append(response.Currencies, exchangeCurrency)

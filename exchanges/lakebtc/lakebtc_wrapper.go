@@ -90,8 +90,8 @@ func (l *LakeBTC) GetOrderbookEx(p pair.CurrencyPair) (orderbook.OrderbookBase, 
 	return orderBook, nil
 }
 
-func (l *LakeBTC) GetExchangeAccountInfo() (exchange.ExchangeAccountInfo, error) {
-	var response exchange.ExchangeAccountInfo
+func (l *LakeBTC) GetExchangeAccountInfo() (exchange.AccountInfo, error) {
+	var response exchange.AccountInfo
 	response.ExchangeName = l.GetName()
 	accountInfo, err := l.GetAccountInfo()
 	if err != nil {
@@ -101,7 +101,7 @@ func (l *LakeBTC) GetExchangeAccountInfo() (exchange.ExchangeAccountInfo, error)
 	for x, y := range accountInfo.Balance {
 		for z, w := range accountInfo.Locked {
 			if z == x {
-				var exchangeCurrency exchange.ExchangeAccountCurrencyInfo
+				var exchangeCurrency exchange.AccountCurrencyInfo
 				exchangeCurrency.CurrencyName = common.StringToUpper(x)
 				exchangeCurrency.TotalValue, _ = strconv.ParseFloat(y, 64)
 				exchangeCurrency.Hold, _ = strconv.ParseFloat(w, 64)

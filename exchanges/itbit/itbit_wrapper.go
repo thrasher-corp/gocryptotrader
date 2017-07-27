@@ -105,8 +105,8 @@ func (i *ItBit) GetOrderbookEx(p pair.CurrencyPair) (orderbook.OrderbookBase, er
 
 //TODO Get current holdings from ItBit
 //GetExchangeAccountInfo : Retrieves balances for all enabled currencies for the ItBit exchange
-func (e *ItBit) GetExchangeAccountInfo() (exchange.ExchangeAccountInfo, error) {
-	var response exchange.ExchangeAccountInfo
+func (e *ItBit) GetExchangeAccountInfo() (exchange.AccountInfo, error) {
+	var response exchange.AccountInfo
 	response.ExchangeName = e.GetName()
 	return response, nil
 }

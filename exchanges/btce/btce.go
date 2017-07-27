@@ -36,7 +36,7 @@ const (
 )
 
 type BTCE struct {
-	exchange.ExchangeBase
+	exchange.Base
 	Ticker map[string]BTCeTicker
 }
 

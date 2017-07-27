@@ -99,8 +99,8 @@ func (h *HUOBI) GetOrderbookEx(p pair.CurrencyPair) (orderbook.OrderbookBase, er
 
 //TODO: retrieve HUOBI balance info
 //GetExchangeAccountInfo : Retrieves balances for all enabled currencies for the HUOBI exchange
-func (e *HUOBI) GetExchangeAccountInfo() (exchange.ExchangeAccountInfo, error) {
-	var response exchange.ExchangeAccountInfo
+func (e *HUOBI) GetExchangeAccountInfo() (exchange.AccountInfo, error) {
+	var response exchange.AccountInfo
 	response.ExchangeName = e.GetName()
 	return response, nil
 }

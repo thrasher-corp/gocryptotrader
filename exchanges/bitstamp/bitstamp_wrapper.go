@@ -95,33 +95,33 @@ func (b *Bitstamp) GetOrderbookEx(p pair.CurrencyPair) (orderbook.OrderbookBase,
 }
 
 //GetExchangeAccountInfo : Retrieves balances for all enabled currencies for the Bitstamp exchange
-func (e *Bitstamp) GetExchangeAccountInfo() (exchange.ExchangeAccountInfo, error) {
-	var response exchange.ExchangeAccountInfo
+func (e *Bitstamp) GetExchangeAccountInfo() (exchange.AccountInfo, error) {
+	var response exchange.AccountInfo
 	response.ExchangeName = e.GetName()
 	accountBalance, err := e.GetBalance()
 	if err != nil {
 		return response, err
 	}
 
-	response.Currencies = append(response.Currencies, exchange.ExchangeAccountCurrencyInfo{
+	response.Currencies = append(response.Currencies, exchange.AccountCurrencyInfo{
 		CurrencyName: "BTC",
 		TotalValue:   accountBalance.BTCAvailable,
 		Hold:         accountBalance.BTCReserved,
 	})
 
-	response.Currencies = append(response.Currencies, exchange.ExchangeAccountCurrencyInfo{
+	response.Currencies = append(response.Currencies, exchange.AccountCurrencyInfo{
 		CurrencyName: "XRP",
 		TotalValue:   accountBalance.XRPAvailable,
 		Hold:         accountBalance.XRPReserved,
 	})
 
-	response.Currencies = append(response.Currencies, exchange.ExchangeAccountCurrencyInfo{
+	response.Currencies = append(response.Currencies, exchange.AccountCurrencyInfo{
 		CurrencyName: "USD",
 		TotalValue:   accountBalance.USDAvailable,
 		Hold:         accountBalance.USDReserved,
 	})
 
-	response.Currencies = append(response.Currencies, exchange.ExchangeAccountCurrencyInfo{
+	response.Currencies = append(response.Currencies, exchange.AccountCurrencyInfo{
 		CurrencyName: "EUR",
 		TotalValue:   accountBalance.EURAvailable,
 		Hold:         accountBalance.EURReserved,

@@ -122,33 +122,33 @@ func (o *OKCoin) GetOrderbookEx(currency pair.CurrencyPair) (orderbook.Orderbook
 	return orderBook, nil
 }
 
-func (e *OKCoin) GetExchangeAccountInfo() (exchange.ExchangeAccountInfo, error) {
-	var response exchange.ExchangeAccountInfo
+func (e *OKCoin) GetExchangeAccountInfo() (exchange.AccountInfo, error) {
+	var response exchange.AccountInfo
 	response.ExchangeName = e.GetName()
 	assets, err := e.GetUserInfo()
 	if err != nil {
 		return response, err
 	}
 
-	response.Currencies = append(response.Currencies, exchange.ExchangeAccountCurrencyInfo{
+	response.Currencies = append(response.Currencies, exchange.AccountCurrencyInfo{
 		CurrencyName: "BTC",
 		TotalValue:   assets.Info.Funds.Free.BTC,
 		Hold:         assets.Info.Funds.Freezed.BTC,
 	})
 
-	response.Currencies = append(response.Currencies, exchange.ExchangeAccountCurrencyInfo{
+	response.Currencies = append(response.Currencies, exchange.AccountCurrencyInfo{
 		CurrencyName: "LTC",
 		TotalValue:   assets.Info.Funds.Free.LTC,
 		Hold:         assets.Info.Funds.Freezed.LTC,
 	})
 
-	response.Currencies = append(response.Currencies, exchange.ExchangeAccountCurrencyInfo{
+	response.Currencies = append(response.Currencies, exchange.AccountCurrencyInfo{
 		CurrencyName: "USD",
 		TotalValue:   assets.Info.Funds.Free.USD,
 		Hold:         assets.Info.Funds.Freezed.USD,
 	})
 
-	response.Currencies = append(response.Currencies, exchange.ExchangeAccountCurrencyInfo{
+	response.Currencies = append(response.Currencies, exchange.AccountCurrencyInfo{
 		CurrencyName: "CNY",
 		TotalValue:   assets.Info.Funds.Free.CNY,
 		Hold:         assets.Info.Funds.Freezed.CNY,

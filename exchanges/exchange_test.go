@@ -7,7 +7,7 @@ import (
 )
 
 func TestGetName(t *testing.T) {
-	GetName := ExchangeBase{
+	GetName := Base{
 		Name: "TESTNAME",
 	}
 
@@ -19,7 +19,7 @@ func TestGetName(t *testing.T) {
 
 func TestGetEnabledCurrencies(t *testing.T) {
 	enabledPairs := []string{"BTCUSD", "BTCAUD", "LTCUSD", "LTCAUD"}
-	GetEnabledCurrencies := ExchangeBase{
+	GetEnabledCurrencies := Base{
 		Name:         "TESTNAME",
 		EnabledPairs: enabledPairs,
 	}
@@ -31,7 +31,7 @@ func TestGetEnabledCurrencies(t *testing.T) {
 }
 
 func TestSetEnabled(t *testing.T) {
-	SetEnabled := ExchangeBase{
+	SetEnabled := Base{
 		Name:    "TESTNAME",
 		Enabled: false,
 	}
@@ -43,7 +43,7 @@ func TestSetEnabled(t *testing.T) {
 }
 
 func TestIsEnabled(t *testing.T) {
-	IsEnabled := ExchangeBase{
+	IsEnabled := Base{
 		Name:    "TESTNAME",
 		Enabled: false,
 	}
@@ -54,7 +54,7 @@ func TestIsEnabled(t *testing.T) {
 }
 
 func TestSetAPIKeys(t *testing.T) {
-	SetAPIKeys := ExchangeBase{
+	SetAPIKeys := Base{
 		Name:    "TESTNAME",
 		Enabled: false,
 	}
@@ -69,7 +69,7 @@ func TestSetAPIKeys(t *testing.T) {
 func TestUpdateAvailableCurrencies(t *testing.T) {
 	cfg := config.GetConfig()
 	err := cfg.LoadConfig(config.ConfigTestFile)
-	UAC := ExchangeBase{Name: "ANX"}
+	UAC := Base{Name: "ANX"}
 	exchangeProducts := []string{"ltc", "btc", "usd", "aud"}
 
 	if err != nil {

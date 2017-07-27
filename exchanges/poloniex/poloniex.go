@@ -47,7 +47,7 @@ const (
 )
 
 type Poloniex struct {
-	exchange.ExchangeBase
+	exchange.Base
 }
 
 func (p *Poloniex) SetDefaults() {
