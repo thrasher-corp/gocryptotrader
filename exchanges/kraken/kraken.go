@@ -41,7 +41,7 @@ const (
 )
 
 type Kraken struct {
-	exchange.ExchangeBase
+	exchange.Base
 	CryptoFee, FiatFee float64
 	Ticker             map[string]KrakenTicker
 }

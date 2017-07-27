@@ -17,22 +17,22 @@ const (
 	ErrExchangeNotFound = "Exchange not found in dataset."
 )
 
-// ExchangeAccountInfo is a Generic type to hold each exchange's holdings in
+// AccountInfo is a Generic type to hold each exchange's holdings in
 // all enabled currencies
-type ExchangeAccountInfo struct {
+type AccountInfo struct {
 	ExchangeName string
-	Currencies   []ExchangeAccountCurrencyInfo
+	Currencies   []AccountCurrencyInfo
 }
 
-// ExchangeAccountCurrencyInfo is a sub type to store currency name and value
-type ExchangeAccountCurrencyInfo struct {
+// AccountCurrencyInfo is a sub type to store currency name and value
+type AccountCurrencyInfo struct {
 	CurrencyName string
 	TotalValue   float64
 	Hold         float64
 }
 
-// ExchangeBase stores the individual exchange information
-type ExchangeBase struct {
+// Base stores the individual exchange information
+type Base struct {
 	Name                        string
 	Enabled                     bool
 	Verbose                     bool
@@ -59,32 +59,32 @@ type IBotExchange interface {
 	GetTickerPrice(currency pair.CurrencyPair) (ticker.TickerPrice, error)
 	GetOrderbookEx(currency pair.CurrencyPair) (orderbook.OrderbookBase, error)
 	GetEnabledCurrencies() []string
-	GetExchangeAccountInfo() (ExchangeAccountInfo, error)
+	GetExchangeAccountInfo() (AccountInfo, error)
 }
 
 // GetName is a method that returns the name of the exchange base
-func (e *ExchangeBase) GetName() string {
+func (e *Base) GetName() string {
 	return e.Name
 }
 
 // GetEnabledCurrencies is a method that returns the enabled currency pairs of
 // the exchange base
-func (e *ExchangeBase) GetEnabledCurrencies() []string {
+func (e *Base) GetEnabledCurrencies() []string {
 	return e.EnabledPairs
 }
 
 // SetEnabled is a method that sets if the exchange is enabled
-func (e *ExchangeBase) SetEnabled(enabled bool) {
+func (e *Base) SetEnabled(enabled bool) {
 	e.Enabled = enabled
 }
 
 // IsEnabled is a method that returns if the current exchange is enabled
-func (e *ExchangeBase) IsEnabled() bool {
+func (e *Base) IsEnabled() bool {
 	return e.Enabled
 }
 
 // SetAPIKeys is a method that sets the current API keys for the exchange
-func (e *ExchangeBase) SetAPIKeys(APIKey, APISecret, ClientID string, b64Decode bool) {
+func (e *Base) SetAPIKeys(APIKey, APISecret, ClientID string, b64Decode bool) {
 	e.APIKey = APIKey
 	e.ClientID = ClientID
 
@@ -102,7 +102,7 @@ func (e *ExchangeBase) SetAPIKeys(APIKey, APISecret, ClientID string, b64Decode 
 
 // UpdateAvailableCurrencies is a method that sets new pairs to the current
 // exchange
-func (e *ExchangeBase) UpdateAvailableCurrencies(exchangeProducts []string) error {
+func (e *Base) UpdateAvailableCurrencies(exchangeProducts []string) error {
 	exchangeProducts = common.SplitStrings(common.StringToUpper(common.JoinStrings(exchangeProducts, ",")), ",")
 	diff := common.StringSliceDifference(e.AvailablePairs, exchangeProducts)
 	if len(diff) > 0 {
@@ -110,11 +110,10 @@ func (e *ExchangeBase) UpdateAvailableCurrencies(exchangeProducts []string) erro
 		exch, err := cfg.GetExchangeConfig(e.Name)
 		if err != nil {
 			return err
-		} else {
-			log.Printf("%s Updating available pairs. Difference: %s.\n", e.Name, diff)
-			exch.AvailablePairs = common.JoinStrings(exchangeProducts, ",")
-			cfg.UpdateExchangeConfig(exch)
 		}
+		log.Printf("%s Updating available pairs. Difference: %s.\n", e.Name, diff)
+		exch.AvailablePairs = common.JoinStrings(exchangeProducts, ",")
+		cfg.UpdateExchangeConfig(exch)
 	}
 	return nil
 }

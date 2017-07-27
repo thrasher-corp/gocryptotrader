@@ -106,8 +106,8 @@ func (b *Bitfinex) GetOrderbookEx(p pair.CurrencyPair) (orderbook.OrderbookBase,
 }
 
 //GetExchangeAccountInfo : Retrieves balances for all enabled currencies for the Bitfinex exchange
-func (e *Bitfinex) GetExchangeAccountInfo() (exchange.ExchangeAccountInfo, error) {
-	var response exchange.ExchangeAccountInfo
+func (e *Bitfinex) GetExchangeAccountInfo() (exchange.AccountInfo, error) {
+	var response exchange.AccountInfo
 	response.ExchangeName = e.GetName()
 	accountBalance, err := e.GetAccountBalance()
 	if err != nil {
@@ -118,7 +118,7 @@ func (e *Bitfinex) GetExchangeAccountInfo() (exchange.ExchangeAccountInfo, error
 	}
 
 	for i := 0; i < len(accountBalance); i++ {
-		var exchangeCurrency exchange.ExchangeAccountCurrencyInfo
+		var exchangeCurrency exchange.AccountCurrencyInfo
 		exchangeCurrency.CurrencyName = common.StringToUpper(accountBalance[i].Currency)
 		exchangeCurrency.TotalValue = accountBalance[i].Amount
 		exchangeCurrency.Hold = accountBalance[i].Available

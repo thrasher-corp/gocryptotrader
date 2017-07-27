@@ -37,7 +37,7 @@ const (
 )
 
 type Alphapoint struct {
-	exchange.ExchangeBase
+	exchange.Base
 	WebsocketConn *websocket.Conn
 }
 

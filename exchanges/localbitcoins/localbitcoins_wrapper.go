@@ -65,14 +65,14 @@ func (l *LocalBitcoins) GetOrderbookEx(p pair.CurrencyPair) (orderbook.Orderbook
 }
 
 //GetExchangeAccountInfo : Retrieves balances for all enabled currencies for the LocalBitcoins exchange
-func (e *LocalBitcoins) GetExchangeAccountInfo() (exchange.ExchangeAccountInfo, error) {
-	var response exchange.ExchangeAccountInfo
+func (e *LocalBitcoins) GetExchangeAccountInfo() (exchange.AccountInfo, error) {
+	var response exchange.AccountInfo
 	response.ExchangeName = e.GetName()
 	accountBalance, err := e.GetWalletBalance()
 	if err != nil {
 		return response, err
 	}
-	var exchangeCurrency exchange.ExchangeAccountCurrencyInfo
+	var exchangeCurrency exchange.AccountCurrencyInfo
 	exchangeCurrency.CurrencyName = "BTC"
 	exchangeCurrency.TotalValue = accountBalance.Total.Balance
 

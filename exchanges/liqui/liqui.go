@@ -33,7 +33,7 @@ const (
 )
 
 type Liqui struct {
-	exchange.ExchangeBase
+	exchange.Base
 	Ticker map[string]LiquiTicker
 	Info   LiquiInfo
 }

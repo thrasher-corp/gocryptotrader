@@ -33,7 +33,7 @@ const (
 )
 
 type COINUT struct {
-	exchange.ExchangeBase
+	exchange.Base
 	WebsocketConn *websocket.Conn
 	InstrumentMap map[string]int
 }

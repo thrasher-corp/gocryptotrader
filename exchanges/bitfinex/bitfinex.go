@@ -55,7 +55,7 @@ const (
 )
 
 type Bitfinex struct {
-	exchange.ExchangeBase
+	exchange.Base
 	WebsocketConn         *websocket.Conn
 	WebsocketSubdChannels map[int]BitfinexWebsocketChanInfo
 }

@@ -19,7 +19,7 @@ const (
 )
 
 type ItBit struct {
-	exchange.ExchangeBase
+	exchange.Base
 }
 
 func (i *ItBit) SetDefaults() {

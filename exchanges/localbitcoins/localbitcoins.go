@@ -28,7 +28,7 @@ const (
 )
 
 type LocalBitcoins struct {
-	exchange.ExchangeBase
+	exchange.Base
 }
 
 func (l *LocalBitcoins) SetDefaults() {

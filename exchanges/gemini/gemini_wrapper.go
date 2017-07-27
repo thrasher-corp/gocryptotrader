@@ -50,15 +50,15 @@ func (g *Gemini) Run() {
 }
 
 //GetExchangeAccountInfo : Retrieves balances for all enabled currencies for the Gemini exchange
-func (e *Gemini) GetExchangeAccountInfo() (exchange.ExchangeAccountInfo, error) {
-	var response exchange.ExchangeAccountInfo
+func (e *Gemini) GetExchangeAccountInfo() (exchange.AccountInfo, error) {
+	var response exchange.AccountInfo
 	response.ExchangeName = e.GetName()
 	accountBalance, err := e.GetBalances()
 	if err != nil {
 		return response, err
 	}
 	for i := 0; i < len(accountBalance); i++ {
-		var exchangeCurrency exchange.ExchangeAccountCurrencyInfo
+		var exchangeCurrency exchange.AccountCurrencyInfo
 		exchangeCurrency.CurrencyName = accountBalance[i].Currency
 		exchangeCurrency.TotalValue = accountBalance[i].Amount
 		exchangeCurrency.Hold = accountBalance[i].Available
