@@ -73,5 +73,8 @@ func main() {
 	if err != nil {
 		log.Fatalf("Unable to write output file %s. Error: %s", outFile, err)
 	}
-	log.Printf("Successfully %s input file %s and wrote output to %s.\n", EncryptOrDecrypt(encrypt), inFile, outFile)
+	log.Printf(
+		"Successfully %s input file %s and wrote output to %s.\n",
+		EncryptOrDecrypt(encrypt), inFile, outFile,
+	)
 }

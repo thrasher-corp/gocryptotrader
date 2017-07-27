@@ -35,6 +35,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/smsglobal"
 )
 
+// ExchangeMain contains all the necessary exchange packages
 type ExchangeMain struct {
 	anx           anx.ANX
 	btcc          btcc.BTCC
@@ -56,6 +57,8 @@ type ExchangeMain struct {
 	kraken        kraken.Kraken
 }
 
+// Bot contains configuration, portfolio, exchange & ticker data and is the
+// overarching type across this code base.
 type Bot struct {
 	config    *config.Config
 	portfolio *portfolio.Base
@@ -74,10 +77,18 @@ func setupBotExchanges() {
 				if bot.exchanges[i].GetName() == exch.Name {
 					bot.exchanges[i].Setup(exch)
 					if bot.exchanges[i].IsEnabled() {
-						log.Printf("%s: Exchange support: %s (Authenticated API support: %s - Verbose mode: %s).\n", exch.Name, common.IsEnabled(exch.Enabled), common.IsEnabled(exch.AuthenticatedAPISupport), common.IsEnabled(exch.Verbose))
+						log.Printf(
+							"%s: Exchange support: %s (Authenticated API support: %s - Verbose mode: %s).\n",
+							exch.Name, common.IsEnabled(exch.Enabled),
+							common.IsEnabled(exch.AuthenticatedAPISupport),
+							common.IsEnabled(exch.Verbose),
+						)
 						bot.exchanges[i].Start()
 					} else {
-						log.Printf("%s: Exchange support: %s\n", exch.Name, common.IsEnabled(exch.Enabled))
+						log.Printf(
+							"%s: Exchange support: %s\n", exch.Name,
+							common.IsEnabled(exch.Enabled),
+						)
 					}
 				}
 			}
@@ -104,13 +115,19 @@ func main() {
 			log.Println(err) // non fatal event
 			bot.config.SMS.Enabled = false
 		} else {
-			log.Printf("SMS support enabled. Number of SMS contacts %d.\n", smsglobal.GetEnabledSMSContacts(bot.config.SMS))
+			log.Printf(
+				"SMS support enabled. Number of SMS contacts %d.\n",
+				smsglobal.GetEnabledSMSContacts(bot.config.SMS),
+			)
 		}
 	} else {
 		log.Println("SMS support disabled.")
 	}
 
-	log.Printf("Available Exchanges: %d. Enabled Exchanges: %d.\n", len(bot.config.Exchanges), bot.config.GetConfigEnabledExchanges())
+	log.Printf(
+		"Available Exchanges: %d. Enabled Exchanges: %d.\n",
+		len(bot.config.Exchanges), bot.config.GetConfigEnabledExchanges(),
+	)
 	log.Println("Bot Exchange support:")
 
 	bot.exchanges = []exchange.IBotExchange{
@@ -137,7 +154,10 @@ func main() {
 	for i := 0; i < len(bot.exchanges); i++ {
 		if bot.exchanges[i] != nil {
 			bot.exchanges[i].SetDefaults()
-			log.Printf("Exchange %s successfully set default settings.\n", bot.exchanges[i].GetName())
+			log.Printf(
+				"Exchange %s successfully set default settings.\n",
+				bot.exchanges[i].GetName(),
+			)
 		}
 	}
 
@@ -164,7 +184,10 @@ func main() {
 			//bot.config.Webserver.Enabled = false
 		} else {
 			listenAddr := bot.config.Webserver.ListenAddress
-			log.Printf("HTTP Webserver support enabled. Listen URL: http://%s:%d/\n", common.ExtractHost(listenAddr), common.ExtractPort(listenAddr))
+			log.Printf(
+				"HTTP Webserver support enabled. Listen URL: http://%s:%d/\n",
+				common.ExtractHost(listenAddr), common.ExtractPort(listenAddr),
+			)
 			router := NewRouter(bot.exchanges)
 			log.Fatal(http.ListenAndServe(listenAddr, router))
 		}
@@ -177,6 +200,7 @@ func main() {
 	Shutdown()
 }
 
+// AdjustGoMaxProcs adjusts the maximum processes that the CPU can handle.
 func AdjustGoMaxProcs() {
 	log.Println("Adjusting bot runtime performance..")
 	maxProcsEnv := os.Getenv("GOMAXPROCS")
@@ -186,17 +210,20 @@ func AdjustGoMaxProcs() {
 	if maxProcsEnv != "" {
 		log.Println("GOMAXPROCS env =", maxProcsEnv)
 		env, err := strconv.Atoi(maxProcsEnv)
-
 		if err != nil {
 			log.Println("Unable to convert GOMAXPROCS to int, using", maxProcs)
 		} else {
 			maxProcs = env
 		}
 	}
+	if i := runtime.GOMAXPROCS(maxProcs); i != maxProcs {
+		log.Fatal("Go Max Procs were not set correctly.")
+	}
 	log.Println("Set GOMAXPROCS to:", maxProcs)
-	runtime.GOMAXPROCS(maxProcs)
 }
 
+// HandleInterrupt monitors and captures the SIGTERM in a new goroutine then
+// shuts down bot
 func HandleInterrupt() {
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
@@ -207,6 +234,7 @@ func HandleInterrupt() {
 	}()
 }
 
+// Shutdown correctly shuts down bot saving configuration files
 func Shutdown() {
 	log.Println("Bot shutting down..")
 	bot.config.Portfolio = portfolio.Portfolio
@@ -222,6 +250,7 @@ func Shutdown() {
 	os.Exit(1)
 }
 
+// SeedExchangeAccountInfo seeds account info
 func SeedExchangeAccountInfo(data []exchange.ExchangeAccountInfo) {
 	if len(data) == 0 {
 		return
@@ -242,7 +271,11 @@ func SeedExchangeAccountInfo(data []exchange.ExchangeAccountInfo) {
 			}
 
 			if !port.ExchangeAddressExists(exchangeName, currencyName) {
-				port.Addresses = append(port.Addresses, portfolio.Address{Address: exchangeName, CoinType: currencyName, Balance: total, Decscription: portfolio.PortfolioAddressExchange})
+				port.Addresses = append(
+					port.Addresses,
+					portfolio.Address{Address: exchangeName, CoinType: currencyName,
+						Balance: total, Decscription: portfolio.PortfolioAddressExchange},
+				)
 			} else {
 				port.UpdateExchangeAddressBalance(exchangeName, currencyName, total)
 			}
