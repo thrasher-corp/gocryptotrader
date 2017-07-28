@@ -558,7 +558,6 @@ func TestExtractPort(t *testing.T) {
 }
 
 func TestOutputCSV(t *testing.T) {
-	t.Parallel()
 	path := "../testdata/dump"
 	data := [][]string{}
 	rowOne := []string{"Appended", "to", "two", "dimensional", "array"}
