@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"log"
 	"net/http"
 	"os"
@@ -60,12 +61,13 @@ type ExchangeMain struct {
 // Bot contains configuration, portfolio, exchange & ticker data and is the
 // overarching type across this code base.
 type Bot struct {
-	config    *config.Config
-	portfolio *portfolio.Base
-	exchange  ExchangeMain
-	exchanges []exchange.IBotExchange
-	tickers   []ticker.Ticker
-	shutdown  chan bool
+	config     *config.Config
+	portfolio  *portfolio.Base
+	exchange   ExchangeMain
+	exchanges  []exchange.IBotExchange
+	tickers    []ticker.Ticker
+	shutdown   chan bool
+	configFile string
 }
 
 var bot Bot
@@ -98,10 +100,15 @@ func setupBotExchanges() {
 
 func main() {
 	HandleInterrupt()
-	bot.config = &config.Cfg
-	log.Printf("Loading config file %s..\n", config.ConfigFile)
 
-	err := bot.config.LoadConfig("")
+	//Handle flags
+	flag.StringVar(&bot.configFile, "config", config.GetFilePath(""), "config file to load")
+	flag.Parse()
+
+	bot.config = &config.Cfg
+	log.Printf("Loading config file %s..\n", bot.configFile)
+
+	err := bot.config.LoadConfig(bot.configFile)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -238,7 +245,7 @@ func HandleInterrupt() {
 func Shutdown() {
 	log.Println("Bot shutting down..")
 	bot.config.Portfolio = portfolio.Portfolio
-	err := bot.config.SaveConfig("")
+	err := bot.config.SaveConfig(bot.configFile)
 
 	if err != nil {
 		log.Println("Unable to save config.")
