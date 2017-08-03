@@ -16,7 +16,7 @@ import (
 )
 
 const (
-	bittrexAPIURL              = "https://bittrex.com/api"
+	bittrexAPIURL              = "https://bittrex.com/api/v1.1"
 	bittrexAPIVersion          = "v1.1"
 	bittrexMaxOpenOrders       = 500
 	bittrexMaxOrderCountPerDay = 200000
@@ -26,6 +26,7 @@ const (
 	bittrexErrorMarketNotProvided = "MARKET_NOT_PROVIDED"
 	bittrexErrorInvalidMarket     = "INVALID_MARKET"
 	bittrexErrorAPIKeyInvalid     = "APIKEY_INVALID"
+	bittrexErrorInvalidPermission = "INVALID_PERMISSION"
 
 	// Public requests
 	bittrexAPIGetMarkets         = "public/getmarkets"
@@ -53,7 +54,7 @@ const (
 	bittrexAPIGetDepositHistory    = "account/getdeposithistory"
 )
 
-// Bittrex is amazeballs
+// Bittrex is the overaching type across the bittrex methods
 type Bittrex struct {
 	exchange.Base
 }
@@ -88,165 +89,73 @@ func (b *Bittrex) Setup(exch config.ExchangeConfig) {
 // along with other meta data.
 func (b *Bittrex) GetMarkets() ([]Market, error) {
 	var markets []Market
-	path := fmt.Sprintf(
-		"%s/%s/%s/", bittrexAPIURL, bittrexAPIVersion, bittrexAPIGetMarkets,
-	)
-	resp := Response{}
-	err := common.SendHTTPGetRequest(path, true, &resp)
-	if err != nil {
-		return markets, err
-	}
-	if resp.Success {
-		if err = json.Unmarshal(resp.Result, &markets); err != nil {
-			return markets, err
-		}
-		return markets, nil
-	}
-	return markets, errors.New(resp.Message)
+	path := fmt.Sprintf("%s/%s/", bittrexAPIURL, bittrexAPIGetMarkets)
+
+	return markets, b.HTTPRequest(path, false, url.Values{}, &markets)
 }
 
 // GetCurrencies is used to get all supported currencies at Bittrex
 func (b *Bittrex) GetCurrencies() ([]Currency, error) {
 	var currencies []Currency
-	path := fmt.Sprintf(
-		"%s/%s/%s/", bittrexAPIURL, bittrexAPIVersion, bittrexAPIGetCurrencies,
-	)
-	resp := Response{}
-	err := common.SendHTTPGetRequest(path, true, &resp)
-	if err != nil {
-		return currencies, err
-	}
-	if resp.Success {
-		if err = json.Unmarshal(resp.Result, &currencies); err != nil {
-			return currencies, err
-		}
-		return currencies, nil
-	}
-	return currencies, errors.New(resp.Message)
+	path := fmt.Sprintf("%s/%s/", bittrexAPIURL, bittrexAPIGetCurrencies)
+
+	return currencies, b.HTTPRequest(path, false, url.Values{}, &currencies)
 }
 
 // GetTicker sends a public get request and returns current ticker information
 // on the supplied currency. Example currency input param "btc-ltc".
 func (b *Bittrex) GetTicker(currencyPair string) (Ticker, error) {
 	ticker := Ticker{}
-	path := fmt.Sprintf(
-		"%s/%s/%s?market=%s", bittrexAPIURL, bittrexAPIVersion, bittrexAPIGetTicker,
-		common.StringToLower(currencyPair),
+	path := fmt.Sprintf("%s/%s?market=%s", bittrexAPIURL, bittrexAPIGetTicker,
+		common.StringToUpper(currencyPair),
 	)
-	resp := Response{}
-	err := common.SendHTTPGetRequest(path, true, &resp)
-	if err != nil {
-		return ticker, err
-	}
-	if resp.Success {
-		if err = json.Unmarshal(resp.Result, &ticker); err != nil {
-			return Ticker{}, err
-		}
-		return ticker, nil
-	}
-	return ticker, errors.New(resp.Message)
+	return ticker, b.HTTPRequest(path, false, url.Values{}, &ticker)
 }
 
 // GetMarketSummaries is used to get the last 24 hour summary of all active
 // exchanges
 func (b *Bittrex) GetMarketSummaries() ([]MarketSummary, error) {
 	var summaries []MarketSummary
-	path := fmt.Sprintf(
-		"%s/%s/%s/", bittrexAPIURL, bittrexAPIVersion, bittrexAPIGetMarketSummaries,
-	)
-	resp := Response{}
-	err := common.SendHTTPGetRequest(path, true, &resp)
-	if err != nil {
-		return summaries, err
-	}
-	if resp.Success {
-		if err = json.Unmarshal(resp.Result, &summaries); err != nil {
-			return summaries, err
-		}
-		return summaries, nil
-	}
-	return summaries, errors.New(resp.Message)
+	path := fmt.Sprintf("%s/%s/", bittrexAPIURL, bittrexAPIGetMarketSummaries)
+
+	return summaries, b.HTTPRequest(path, false, url.Values{}, &summaries)
 }
 
 // GetMarketSummary is used to get the last 24 hour summary of all active
 // exchanges by currency pair (btc-ltc).
 func (b *Bittrex) GetMarketSummary(currencyPair string) ([]MarketSummary, error) {
 	var summary []MarketSummary
-	path := fmt.Sprintf(
-		"%s/%s/%s?market=%s", bittrexAPIURL, bittrexAPIVersion,
+	path := fmt.Sprintf("%s/%s?market=%s", bittrexAPIURL,
 		bittrexAPIGetMarketSummary, common.StringToLower(currencyPair),
 	)
-	resp := Response{}
-	err := common.SendHTTPGetRequest(path, true, &resp)
-	if err != nil {
-		return summary, err
-	}
-	if resp.Success {
-		if err = json.Unmarshal(resp.Result, &summary); err != nil {
-			return summary, err
-		}
-		return summary, nil
-	}
-	return summary, errors.New(resp.Message)
+	return summary, b.HTTPRequest(path, false, url.Values{}, &summary)
 }
 
 // GetOrderbook method returns current order book information by currency, type
 // & depth.
 // "Currency Pair" ie btc-ltc
-// "category" either "buy", "sell" or "both"
-// "Depth" is 1 -> 50, 50 is max.
-func (b *Bittrex) GetOrderbook(currencyPair, category string, depth int) (OrderBooks, error) {
+// "Category" either "buy", "sell" or "both"; for ease of use and reduced
+// complexity this function is set to "both"
+// "Depth" max depth is 50 but you can literally set it any integer you want and
+// it returns full depth. So depth default is 50.
+func (b *Bittrex) GetOrderbook(currencyPair string) (OrderBooks, error) {
 	var orderbooks OrderBooks
-	path := fmt.Sprintf(
-		"%s/%s/%s?market=%s&type=%s&depth=%d", bittrexAPIURL, bittrexAPIVersion,
+	path := fmt.Sprintf("%s/%s?market=%s&type=both&depth=50", bittrexAPIURL,
 		bittrexAPIGetOrderbook, common.StringToUpper(currencyPair),
-		common.StringToLower(category), depth,
 	)
-	resp := Response{}
-	err := common.SendHTTPGetRequest(path, true, &resp)
-	if err != nil {
-		return orderbooks, err
-	}
 
-	if resp.Success {
-		if category == "buy" {
-			if err = json.Unmarshal(resp.Result, &orderbooks.Buy); err != nil {
-				return orderbooks, err
-			}
-		} else if category == "sell" {
-			if err = json.Unmarshal(resp.Result, &orderbooks.Sell); err != nil {
-				return orderbooks, err
-			}
-		} else if category == "both" {
-			if err = json.Unmarshal(resp.Result, &orderbooks); err != nil {
-				return orderbooks, err
-			}
-		}
-		return orderbooks, nil
-	}
-	return orderbooks, errors.New(resp.Message)
+	return orderbooks, b.HTTPRequest(path, false, url.Values{}, &orderbooks)
 }
 
 // GetMarketHistory retrieves the latest trades that have occured for a specific
 // market
 func (b *Bittrex) GetMarketHistory(currencyPair string) ([]MarketHistory, error) {
 	var marketHistoriae []MarketHistory
-	path := fmt.Sprintf(
-		"%s/%s/%s?market=%s", bittrexAPIURL, bittrexAPIVersion,
+	path := fmt.Sprintf("%s/%s?market=%s", bittrexAPIURL,
 		bittrexAPIGetMarketHistory, common.StringToUpper(currencyPair),
 	)
-	resp := Response{}
-	err := common.SendHTTPGetRequest(path, true, &resp)
-	if err != nil {
-		return marketHistoriae, err
-	}
-	if resp.Success {
-		if err = json.Unmarshal(resp.Result, &marketHistoriae); err != nil {
-			return marketHistoriae, err
-		}
-		return marketHistoriae, nil
-	}
-	return marketHistoriae, errors.New(resp.Message)
+	return marketHistoriae, b.HTTPRequest(path, false, url.Values{},
+		&marketHistoriae)
 }
 
 // PlaceBuyLimit is used to place a buy order in a specific market. Use buylimit
@@ -261,23 +170,9 @@ func (b *Bittrex) PlaceBuyLimit(currencyPair string, quantity, rate float64) ([]
 	values.Set("market", currencyPair)
 	values.Set("quantity", strconv.FormatFloat(quantity, 'E', -1, 64))
 	values.Set("rate", strconv.FormatFloat(rate, 'E', -1, 64))
+	path := fmt.Sprintf("%s/%s", bittrexAPIURL, bittrexAPIGetBalances)
 
-	path := fmt.Sprintf(
-		"%s/%s/%s", bittrexAPIURL, bittrexAPIVersion, bittrexAPIGetBalances,
-	)
-
-	resp := Response{}
-	err := b.SendAuthenticatedHTTPRequest(path, values, &resp)
-	if err != nil {
-		return id, err
-	}
-	if resp.Success {
-		if err = json.Unmarshal(resp.Result, &id); err != nil {
-			return id, err
-		}
-		return id, nil
-	}
-	return id, errors.New(resp.Message)
+	return id, b.HTTPRequest(path, true, values, &id)
 }
 
 // PlaceSellLimit is used to place a sell order in a specific market. Use
@@ -292,23 +187,9 @@ func (b *Bittrex) PlaceSellLimit(currencyPair string, quantity, rate float64) ([
 	values.Set("market", currencyPair)
 	values.Set("quantity", strconv.FormatFloat(quantity, 'E', -1, 64))
 	values.Set("rate", strconv.FormatFloat(rate, 'E', -1, 64))
+	path := fmt.Sprintf("%s/%s", bittrexAPIURL, bittrexAPIGetBalances)
 
-	path := fmt.Sprintf(
-		"%s/%s/%s", bittrexAPIURL, bittrexAPIVersion, bittrexAPIGetBalances,
-	)
-
-	resp := Response{}
-	err := b.SendAuthenticatedHTTPRequest(path, values, &resp)
-	if err != nil {
-		return id, err
-	}
-	if resp.Success {
-		if err = json.Unmarshal(resp.Result, &id); err != nil {
-			return id, err
-		}
-		return id, nil
-	}
-	return id, errors.New(resp.Message)
+	return id, b.HTTPRequest(path, true, values, &id)
 }
 
 // GetOpenOrders returns all orders that you currently have opened.
@@ -316,69 +197,30 @@ func (b *Bittrex) PlaceSellLimit(currencyPair string, quantity, rate float64) ([
 func (b *Bittrex) GetOpenOrders(currencyPair string) ([]Order, error) {
 	var orders []Order
 	values := url.Values{}
-
-	path := fmt.Sprintf(
-		"%s/%s/%s", bittrexAPIURL, bittrexAPIVersion, bittrexAPIGetBalances,
-	)
-
-	resp := Response{}
-	err := b.SendAuthenticatedHTTPRequest(path, values, &resp)
-	if err != nil {
-		return orders, err
+	if !(currencyPair == "" || currencyPair == " ") {
+		values.Set("market", currencyPair)
 	}
-	if resp.Success {
-		if err = json.Unmarshal(resp.Result, &orders); err != nil {
-			return orders, err
-		}
-		return orders, nil
-	}
-	return orders, errors.New(resp.Message)
+	path := fmt.Sprintf("%s/%s", bittrexAPIURL, bittrexAPIGetBalances)
+
+	return orders, b.HTTPRequest(path, true, values, &orders)
 }
 
 // CancelOrder is used to cancel a buy or sell order.
 func (b *Bittrex) CancelOrder(uuid string) ([]Balance, error) {
 	var balances []Balance
 	values := url.Values{}
+	values.Set("uuid", uuid)
+	path := fmt.Sprintf("%s/%s", bittrexAPIURL, bittrexAPIGetBalances)
 
-	path := fmt.Sprintf(
-		"%s/%s/%s", bittrexAPIURL, bittrexAPIVersion, bittrexAPIGetBalances,
-	)
-
-	resp := Response{}
-	err := b.SendAuthenticatedHTTPRequest(path, values, &resp)
-	if err != nil {
-		return balances, err
-	}
-	if resp.Success {
-		if err = json.Unmarshal(resp.Result, &balances); err != nil {
-			return balances, err
-		}
-		return balances, nil
-	}
-	return balances, errors.New(resp.Message)
+	return balances, b.HTTPRequest(path, true, values, &balances)
 }
 
 // GetAccountBalances is used to retrieve all balances from your account
 func (b *Bittrex) GetAccountBalances() ([]Balance, error) {
 	var balances []Balance
-	values := url.Values{}
+	path := fmt.Sprintf("%s/%s", bittrexAPIURL, bittrexAPIGetBalances)
 
-	path := fmt.Sprintf(
-		"%s/%s/%s", bittrexAPIURL, bittrexAPIVersion, bittrexAPIGetBalances,
-	)
-
-	resp := Response{}
-	err := b.SendAuthenticatedHTTPRequest(path, values, &resp)
-	if err != nil {
-		return balances, err
-	}
-	if resp.Success {
-		if err = json.Unmarshal(resp.Result, &balances); err != nil {
-			return balances, err
-		}
-		return balances, nil
-	}
-	return balances, errors.New(resp.Message)
+	return balances, b.HTTPRequest(path, true, url.Values{}, &balances)
 }
 
 // GetAccountBalanceByCurrency is used to retrieve the balance from your account
@@ -387,23 +229,9 @@ func (b *Bittrex) GetAccountBalanceByCurrency(currency string) (Balance, error) 
 	var balance Balance
 	values := url.Values{}
 	values.Set("currency", currency)
+	path := fmt.Sprintf("%s/%s", bittrexAPIURL, bittrexAPIGetBalance)
 
-	path := fmt.Sprintf(
-		"%s/%s/%s", bittrexAPIURL, bittrexAPIVersion, bittrexAPIGetBalance,
-	)
-
-	resp := Response{}
-	err := b.SendAuthenticatedHTTPRequest(path, values, &resp)
-	if err != nil {
-		return balance, err
-	}
-	if resp.Success {
-		if err = json.Unmarshal(resp.Result, &balance); err != nil {
-			return balance, err
-		}
-		return balance, nil
-	}
-	return balance, errors.New(resp.Message)
+	return balance, b.HTTPRequest(path, true, values, &balance)
 }
 
 // GetDepositAddress is used to retrieve or generate an address for a specific
@@ -413,23 +241,9 @@ func (b *Bittrex) GetDepositAddress(currency string) (DepositAddress, error) {
 	var address DepositAddress
 	values := url.Values{}
 	values.Set("currency", currency)
+	path := fmt.Sprintf("%s/%s", bittrexAPIURL, bittrexAPIGetDepositAddress)
 
-	path := fmt.Sprintf(
-		"%s/%s/%s", bittrexAPIURL, bittrexAPIVersion, bittrexAPIGetDepositAddress,
-	)
-
-	resp := Response{}
-	err := b.SendAuthenticatedHTTPRequest(path, values, &resp)
-	if err != nil {
-		return address, err
-	}
-	if resp.Success {
-		if err = json.Unmarshal(resp.Result, &address); err != nil {
-			return address, err
-		}
-		return address, nil
-	}
-	return address, errors.New(resp.Message)
+	return address, b.HTTPRequest(path, true, values, &address)
 }
 
 // Withdraw is used to withdraw funds from your account.
@@ -440,23 +254,9 @@ func (b *Bittrex) Withdraw(currency, paymentID, address string, quantity float64
 	values.Set("currency", currency)
 	values.Set("quantity", strconv.FormatFloat(quantity, 'E', -1, 64))
 	values.Set("address", address)
+	path := fmt.Sprintf("%s/%s", bittrexAPIURL, bittrexAPIWithdraw)
 
-	path := fmt.Sprintf(
-		"%s/%s/%s", bittrexAPIURL, bittrexAPIVersion, bittrexAPIWithdraw,
-	)
-
-	resp := Response{}
-	err := b.SendAuthenticatedHTTPRequest(path, values, &resp)
-	if err != nil {
-		return id, err
-	}
-	if resp.Success {
-		if err = json.Unmarshal(resp.Result, &id); err != nil {
-			return id, err
-		}
-		return id, nil
-	}
-	return id, errors.New(resp.Message)
+	return id, b.HTTPRequest(path, true, values, &id)
 }
 
 // GetOrder is used to retrieve a single order by UUID.
@@ -464,21 +264,9 @@ func (b *Bittrex) GetOrder(uuid string) (Order, error) {
 	var order Order
 	values := url.Values{}
 	values.Set("uuid", uuid)
-	path := fmt.Sprintf(
-		"%s/%s/%s", bittrexAPIURL, bittrexAPIVersion, bittrexAPIGetOrder,
-	)
-	resp := Response{}
-	err := b.SendAuthenticatedHTTPRequest(path, values, &resp)
-	if err != nil {
-		return order, err
-	}
-	if resp.Success {
-		if err = json.Unmarshal(resp.Result, &order); err != nil {
-			return order, err
-		}
-		return order, nil
-	}
-	return order, errors.New(resp.Message)
+	path := fmt.Sprintf("%s/%s", bittrexAPIURL, bittrexAPIGetOrder)
+
+	return order, b.HTTPRequest(path, true, values, &order)
 }
 
 // GetOrderHistory is used to retrieve your order history. If currencyPair
@@ -490,22 +278,9 @@ func (b *Bittrex) GetOrderHistory(currencyPair string) ([]Order, error) {
 	if !(currencyPair == "" || currencyPair == " ") {
 		values.Set("market", currencyPair)
 	}
+	path := fmt.Sprintf("%s/%s", bittrexAPIURL, bittrexAPIGetOrderHistory)
 
-	path := fmt.Sprintf(
-		"%s/%s/%s", bittrexAPIURL, bittrexAPIVersion, bittrexAPIGetOrderHistory,
-	)
-	resp := Response{}
-	err := b.SendAuthenticatedHTTPRequest(path, values, &resp)
-	if err != nil {
-		return orders, err
-	}
-	if resp.Success {
-		if err = json.Unmarshal(resp.Result, &orders); err != nil {
-			return orders, err
-		}
-		return orders, nil
-	}
-	return orders, errors.New(resp.Message)
+	return orders, b.HTTPRequest(path, true, values, &orders)
 }
 
 // GetWithdrawelHistory is used to retrieve your withdrawal history. If currency
@@ -517,22 +292,9 @@ func (b *Bittrex) GetWithdrawelHistory(currency string) ([]WithdrawalHistory, er
 	if !(currency == "" || currency == " ") {
 		values.Set("currency", currency)
 	}
+	path := fmt.Sprintf("%s/%s", bittrexAPIURL, bittrexAPIGetOrderHistory)
 
-	path := fmt.Sprintf(
-		"%s/%s/%s", bittrexAPIURL, bittrexAPIVersion, bittrexAPIGetOrderHistory,
-	)
-	resp := Response{}
-	err := b.SendAuthenticatedHTTPRequest(path, values, &resp)
-	if err != nil {
-		return history, err
-	}
-	if resp.Success {
-		if err = json.Unmarshal(resp.Result, &history); err != nil {
-			return history, err
-		}
-		return history, nil
-	}
-	return history, errors.New(resp.Message)
+	return history, b.HTTPRequest(path, true, values, &history)
 }
 
 // GetDepositHistory is used to retrieve your deposit history. If currency is
@@ -544,22 +306,9 @@ func (b *Bittrex) GetDepositHistory(currency string) ([]WithdrawalHistory, error
 	if !(currency == "" || currency == " ") {
 		values.Set("currency", currency)
 	}
+	path := fmt.Sprintf("%s/%s", bittrexAPIURL, bittrexAPIGetOrderHistory)
 
-	path := fmt.Sprintf(
-		"%s/%s/%s", bittrexAPIURL, bittrexAPIVersion, bittrexAPIGetOrderHistory,
-	)
-	resp := Response{}
-	err := b.SendAuthenticatedHTTPRequest(path, values, &resp)
-	if err != nil {
-		return history, err
-	}
-	if resp.Success {
-		if err = json.Unmarshal(resp.Result, &history); err != nil {
-			return history, err
-		}
-		return history, nil
-	}
-	return history, errors.New(resp.Message)
+	return history, b.HTTPRequest(path, true, values, &history)
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated http request to a desired
@@ -592,4 +341,22 @@ func (b *Bittrex) SendAuthenticatedHTTPRequest(path string, values url.Values, r
 		return errors.New("Unable to JSON Unmarshal response." + err.Error())
 	}
 	return nil
+}
+
+// HTTPRequest is a generalised http request function.
+func (b *Bittrex) HTTPRequest(path string, auth bool, values url.Values, v interface{}) error {
+	response := Response{}
+	if auth {
+		if err := b.SendAuthenticatedHTTPRequest(path, values, &response); err != nil {
+			return err
+		}
+	} else {
+		if err := common.SendHTTPGetRequest(path, true, &response); err != nil {
+			return err
+		}
+	}
+	if response.Success {
+		return json.Unmarshal(response.Result, &v)
+	}
+	return errors.New(response.Message)
 }

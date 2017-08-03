@@ -8,8 +8,8 @@ import (
 
 // Please supply you own test keys here to run better tests.
 const (
-	apiKey    = "TestKey"
-	apiSecret = "TestKey"
+	apiKey    = "Testy"
+	apiSecret = "TestyTesty"
 )
 
 func TestSetDefaults(t *testing.T) {
@@ -99,35 +99,13 @@ func TestGetMarketSummary(t *testing.T) {
 
 func TestGetOrderbook(t *testing.T) {
 	obj := Bittrex{}
-	value, err := obj.GetOrderbook("btc-ltc", "buy", 1)
+	_, err := obj.GetOrderbook("btc-ltc")
 	if err != nil {
 		t.Errorf("Test Failed - Bittrex - GetOrderbook() error: %s", err)
 	}
-	if len(value.Sell) > 0 {
-		t.Error("Test Failed - Bittrex - GetOrderbook() error")
-	}
-	value, err = obj.GetOrderbook("btc-ltc", "sell", 1)
-	if err != nil {
-		t.Errorf("Test Failed - Bittrex - GetOrderbook() error: %s", err)
-	}
-	if len(value.Buy) > 0 {
-		t.Error("Test Failed - Bittrex - GetOrderbook() error")
-	}
-	_, err = obj.GetOrderbook("btc-ltc", "both", 1)
-	if err != nil {
-		t.Errorf("Test Failed - Bittrex - GetOrderbook() error: %s", err)
-	}
-	_, err = obj.GetOrderbook("btc-ltc", "Whigwham", 1)
+	_, err = obj.GetOrderbook("wigwham")
 	if err == nil {
-		t.Error("Test Failed - Bittrex - GetOrderbook() error")
-	}
-	_, err = obj.GetOrderbook("btc-ltc", "Whigwham", 51)
-	if err == nil {
-		t.Error("Test Failed - Bittrex - GetOrderbook() error")
-	}
-	_, err = obj.GetOrderbook("wiggy", "both", 1)
-	if err == nil {
-		t.Error("Test Failed - Bittrex - GetOrderbook() error")
+		t.Errorf("Test Failed - Bittrex - GetOrderbook() error")
 	}
 }
 
@@ -149,7 +127,7 @@ func TestPlaceBuyLimit(t *testing.T) {
 	obj.APISecret = apiSecret
 	_, err := obj.PlaceBuyLimit("btc-ltc", 1, 1)
 	if err == nil {
-		t.Errorf("Test Failed - Bittrex - PlaceBuyLimit() error")
+		t.Error("Test Failed - Bittrex - PlaceBuyLimit() error")
 	}
 }
 
@@ -159,7 +137,7 @@ func TestPlaceSellLimit(t *testing.T) {
 	obj.APISecret = apiSecret
 	_, err := obj.PlaceSellLimit("btc-ltc", 1, 1)
 	if err == nil {
-		t.Errorf("Test Failed - Bittrex - PlaceSellLimit() error")
+		t.Error("Test Failed - Bittrex - PlaceSellLimit() error")
 	}
 }
 
@@ -169,7 +147,11 @@ func TestGetOpenOrders(t *testing.T) {
 	obj.APISecret = apiSecret
 	_, err := obj.GetOpenOrders("")
 	if err == nil {
-		t.Errorf("Test Failed - Bittrex - GetOrder() error")
+		t.Error("Test Failed - Bittrex - GetOrder() error")
+	}
+	_, err = obj.GetOpenOrders("btc-ltc")
+	if err == nil {
+		t.Error("Test Failed - Bittrex - GetOrder() error")
 	}
 }
 
@@ -179,7 +161,7 @@ func TestCancelOrder(t *testing.T) {
 	obj.APISecret = apiSecret
 	_, err := obj.CancelOrder("blaaaaaaa")
 	if err == nil {
-		t.Errorf("Test Failed - Bittrex - CancelOrder() error")
+		t.Error("Test Failed - Bittrex - CancelOrder() error")
 	}
 }
 
@@ -189,7 +171,7 @@ func TestGetAccountBalances(t *testing.T) {
 	obj.APISecret = apiSecret
 	_, err := obj.GetAccountBalances()
 	if err == nil {
-		t.Errorf("Test Failed - Bittrex - GetAccountBalances() error")
+		t.Error("Test Failed - Bittrex - GetAccountBalances() error")
 	}
 }
 
@@ -199,7 +181,7 @@ func TestGetAccountBalanceByCurrency(t *testing.T) {
 	obj.APISecret = apiSecret
 	_, err := obj.GetAccountBalanceByCurrency("btc")
 	if err == nil {
-		t.Errorf("Test Failed - Bittrex - GetAccountBalanceByCurrency() error")
+		t.Error("Test Failed - Bittrex - GetAccountBalanceByCurrency() error")
 	}
 }
 
@@ -209,7 +191,7 @@ func TestGetDepositAddress(t *testing.T) {
 	obj.APISecret = apiSecret
 	_, err := obj.GetDepositAddress("btc")
 	if err == nil {
-		t.Errorf("Test Failed - Bittrex - GetDepositAddress() error")
+		t.Error("Test Failed - Bittrex - GetDepositAddress() error")
 	}
 }
 
@@ -229,11 +211,11 @@ func TestGetOrder(t *testing.T) {
 	obj.APISecret = apiSecret
 	_, err := obj.GetOrder("0cb4c4e4-bdc7-4e13-8c13-430e587d2cc1")
 	if err == nil {
-		t.Errorf("Test Failed - Bittrex - GetOrder() error")
+		t.Error("Test Failed - Bittrex - GetOrder() error")
 	}
 	_, err = obj.GetOrder("")
 	if err == nil {
-		t.Errorf("Test Failed - Bittrex - GetOrder() error")
+		t.Error("Test Failed - Bittrex - GetOrder() error")
 	}
 }
 
@@ -243,11 +225,11 @@ func TestGetOrderHistory(t *testing.T) {
 	obj.APISecret = apiSecret
 	_, err := obj.GetOrderHistory("")
 	if err == nil {
-		t.Errorf("Test Failed - Bittrex - GetOrderHistory() error")
+		t.Error("Test Failed - Bittrex - GetOrderHistory() error")
 	}
 	_, err = obj.GetOrderHistory("btc-ltc")
 	if err == nil {
-		t.Errorf("Test Failed - Bittrex - GetOrderHistory() error")
+		t.Error("Test Failed - Bittrex - GetOrderHistory() error")
 	}
 }
 
@@ -257,11 +239,11 @@ func TestGetWithdrawelHistory(t *testing.T) {
 	obj.APISecret = apiSecret
 	_, err := obj.GetWithdrawelHistory("")
 	if err == nil {
-		t.Errorf("Test Failed - Bittrex - GetWithdrawelHistory() error")
+		t.Error("Test Failed - Bittrex - GetWithdrawelHistory() error")
 	}
 	_, err = obj.GetWithdrawelHistory("btc-ltc")
 	if err == nil {
-		t.Errorf("Test Failed - Bittrex - GetWithdrawelHistory() error")
+		t.Error("Test Failed - Bittrex - GetWithdrawelHistory() error")
 	}
 }
 
@@ -271,10 +253,10 @@ func TestGetDepositHistory(t *testing.T) {
 	obj.APISecret = apiSecret
 	_, err := obj.GetDepositHistory("")
 	if err == nil {
-		t.Errorf("Test Failed - Bittrex - GetDepositHistory() error")
+		t.Error("Test Failed - Bittrex - GetDepositHistory() error")
 	}
 	_, err = obj.GetDepositHistory("btc-ltc")
 	if err == nil {
-		t.Errorf("Test Failed - Bittrex - GetDepositHistory() error")
+		t.Error("Test Failed - Bittrex - GetDepositHistory() error")
 	}
 }
