@@ -142,16 +142,16 @@ func DataContains(haystack []string, needle string) bool {
 	return strings.Contains(data, needle)
 }
 
-// JoinStrings joins an array together with the required seperator and returns
+// JoinStrings joins an array together with the required separator and returns
 // it as a string
-func JoinStrings(input []string, seperator string) string {
-	return strings.Join(input, seperator)
+func JoinStrings(input []string, separator string) string {
+	return strings.Join(input, separator)
 }
 
 // SplitStrings splits blocks of strings from string into a string array using
-// a seperator ie "," or "_"
-func SplitStrings(input, seperator string) []string {
-	return strings.Split(input, seperator)
+// a separator ie "," or "_"
+func SplitStrings(input, separator string) []string {
+	return strings.Split(input, separator)
 }
 
 // TrimString trims unwanted prefixes or postfixes
