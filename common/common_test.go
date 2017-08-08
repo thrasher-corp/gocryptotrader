@@ -274,9 +274,9 @@ func TestDataContains(t *testing.T) {
 func TestJoinStrings(t *testing.T) {
 	t.Parallel()
 	originalInputOne := []string{"hello", "moto"}
-	seperator := ","
+	separator := ","
 	expectedOutput := "hello,moto"
-	actualResult := JoinStrings(originalInputOne, seperator)
+	actualResult := JoinStrings(originalInputOne, separator)
 	if expectedOutput != actualResult {
 		t.Error(fmt.Sprintf(
 			"Test failed. Expected '%s'. Actual '%s'", expectedOutput, actualResult),
@@ -287,9 +287,9 @@ func TestJoinStrings(t *testing.T) {
 func TestSplitStrings(t *testing.T) {
 	t.Parallel()
 	originalInputOne := "hello,moto"
-	seperator := ","
+	separator := ","
 	expectedOutput := []string{"hello", "moto"}
-	actualResult := SplitStrings(originalInputOne, seperator)
+	actualResult := SplitStrings(originalInputOne, separator)
 	if !reflect.DeepEqual(expectedOutput, actualResult) {
 		t.Error(fmt.Sprintf(
 			"Test failed. Expected '%s'. Actual '%s'", expectedOutput, actualResult),
