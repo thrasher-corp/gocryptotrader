@@ -147,7 +147,7 @@ func (b *Bittrex) GetOrderbook(currencyPair string) (OrderBooks, error) {
 	return orderbooks, b.HTTPRequest(path, false, url.Values{}, &orderbooks)
 }
 
-// GetMarketHistory retrieves the latest trades that have occured for a specific
+// GetMarketHistory retrieves the latest trades that have occurred for a specific
 // market
 func (b *Bittrex) GetMarketHistory(currencyPair string) ([]MarketHistory, error) {
 	var marketHistoriae []MarketHistory
@@ -162,7 +162,7 @@ func (b *Bittrex) GetMarketHistory(currencyPair string) ([]MarketHistory, error)
 // to place limit orders. Make sure you have the proper permissions set on your
 // API keys for this call to work.
 // "Currency" ie "btc-ltc"
-// "Quantity" is the ammount to purchase
+// "Quantity" is the amount to purchase
 // "Rate" is the rate at which to purchase
 func (b *Bittrex) PlaceBuyLimit(currencyPair string, quantity, rate float64) ([]UUID, error) {
 	var id []UUID
@@ -179,7 +179,7 @@ func (b *Bittrex) PlaceBuyLimit(currencyPair string, quantity, rate float64) ([]
 // selllimit to place limit orders. Make sure you have the proper permissions
 // set on your API keys for this call to work.
 // "Currency" ie "btc-ltc"
-// "Quantity" is the ammount to purchase
+// "Quantity" is the amount to purchase
 // "Rate" is the rate at which to purchase
 func (b *Bittrex) PlaceSellLimit(currencyPair string, quantity, rate float64) ([]UUID, error) {
 	var id []UUID
@@ -270,7 +270,7 @@ func (b *Bittrex) GetOrder(uuid string) (Order, error) {
 }
 
 // GetOrderHistory is used to retrieve your order history. If currencyPair
-// ommited it will return the entire order History.
+// omitted it will return the entire order History.
 func (b *Bittrex) GetOrderHistory(currencyPair string) ([]Order, error) {
 	var orders []Order
 	values := url.Values{}
@@ -284,7 +284,7 @@ func (b *Bittrex) GetOrderHistory(currencyPair string) ([]Order, error) {
 }
 
 // GetWithdrawelHistory is used to retrieve your withdrawal history. If currency
-// ommited it will return the entire history
+// omitted it will return the entire history
 func (b *Bittrex) GetWithdrawelHistory(currency string) ([]WithdrawalHistory, error) {
 	var history []WithdrawalHistory
 	values := url.Values{}
@@ -298,7 +298,7 @@ func (b *Bittrex) GetWithdrawelHistory(currency string) ([]WithdrawalHistory, er
 }
 
 // GetDepositHistory is used to retrieve your deposit history. If currency is
-// is ommitted it will return the entire deposit history
+// is omitted it will return the entire deposit history
 func (b *Bittrex) GetDepositHistory(currency string) ([]WithdrawalHistory, error) {
 	var history []WithdrawalHistory
 	values := url.Values{}
@@ -333,7 +333,7 @@ func (b *Bittrex) SendAuthenticatedHTTPRequest(path string, values url.Values, r
 	}
 
 	if b.Verbose {
-		log.Printf("Recieved raw: %s\n", resp)
+		log.Printf("Received raw: %s\n", resp)
 	}
 
 	err = common.JSONDecode([]byte(resp), &result)

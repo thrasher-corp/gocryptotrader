@@ -281,7 +281,7 @@ func SeedExchangeAccountInfo(data []exchange.AccountInfo) {
 				port.Addresses = append(
 					port.Addresses,
 					portfolio.Address{Address: exchangeName, CoinType: currencyName,
-						Balance: total, Decscription: portfolio.PortfolioAddressExchange},
+						Balance: total, Description: portfolio.PortfolioAddressExchange},
 				)
 			} else {
 				port.UpdateExchangeAddressBalance(exchangeName, currencyName, total)

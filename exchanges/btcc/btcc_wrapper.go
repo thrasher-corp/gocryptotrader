@@ -52,6 +52,10 @@ func (b *BTCC) GetTickerPrice(p pair.CurrencyPair) (ticker.TickerPrice, error) {
 
 	var tickerPrice ticker.TickerPrice
 	tick, err := b.GetTicker(p.Pair().Lower().String())
+	if err != nil {
+		return tickerPrice, err
+	}
+
 	tickerPrice.Pair = p
 	tickerPrice.Ask = tick.Sell
 	tickerPrice.Bid = tick.Buy
@@ -75,12 +79,12 @@ func (b *BTCC) GetOrderbookEx(p pair.CurrencyPair) (orderbook.OrderbookBase, err
 		return orderBook, err
 	}
 
-	for x, _ := range orderbookNew.Bids {
+	for x := range orderbookNew.Bids {
 		data := orderbookNew.Bids[x]
 		orderBook.Bids = append(ob.Bids, orderbook.OrderbookItem{Price: data[0], Amount: data[1]})
 	}
 
-	for x, _ := range orderbookNew.Asks {
+	for x := range orderbookNew.Asks {
 		data := orderbookNew.Asks[x]
 		orderBook.Asks = append(ob.Asks, orderbook.OrderbookItem{Price: data[0], Amount: data[1]})
 	}
@@ -92,8 +96,8 @@ func (b *BTCC) GetOrderbookEx(p pair.CurrencyPair) (orderbook.OrderbookBase, err
 
 //TODO: Retrieve BTCC info
 //GetExchangeAccountInfo : Retrieves balances for all enabled currencies for the Kraken exchange
-func (e *BTCC) GetExchangeAccountInfo() (exchange.AccountInfo, error) {
+func (b *BTCC) GetExchangeAccountInfo() (exchange.AccountInfo, error) {
 	var response exchange.AccountInfo
-	response.ExchangeName = e.GetName()
+	response.ExchangeName = b.GetName()
 	return response, nil
 }

@@ -87,7 +87,7 @@ func GetHMAC(hashType int, input, key []byte) []byte {
 	return hmac.Sum(nil)
 }
 
-// HexEncodeToString takes in a hexidecimal byte array and returns a string
+// HexEncodeToString takes in a hexadecimal byte array and returns a string
 func HexEncodeToString(input []byte) string {
 	return hex.EncodeToString(input)
 }
@@ -200,7 +200,7 @@ func IsEnabled(isEnabled bool) string {
 }
 
 // IsValidCryptoAddress validates your cryptocurrency address string using the
-// regexp package // Validation issues occuring because "3" is contained in
+// regexp package // Validation issues occurring because "3" is contained in
 // litecoin and Bitcoin addresses - non-fatal
 func IsValidCryptoAddress(address, crypto string) (bool, error) {
 	switch StringToLower(crypto) {
@@ -228,7 +228,7 @@ func CalculateAmountWithFee(amount, fee float64) float64 {
 	return amount + CalculateFee(amount, fee)
 }
 
-// CalculateFee retuns a simple fee on amount
+// CalculateFee returns a simple fee on amount
 func CalculateFee(amount, fee float64) float64 {
 	return amount * (fee / 100)
 }
@@ -356,7 +356,7 @@ func ExtractPort(host string) int {
 	return port
 }
 
-// OutputCSV dumps data into a file as comma-seperated values
+// OutputCSV dumps data into a file as comma-separated values
 func OutputCSV(path string, data [][]string) error {
 	_, err := ReadFile(path)
 	if err != nil {

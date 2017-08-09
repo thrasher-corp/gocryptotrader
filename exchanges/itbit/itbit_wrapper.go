@@ -73,7 +73,7 @@ func (i *ItBit) GetOrderbookEx(p pair.CurrencyPair) (orderbook.OrderbookBase, er
 		return orderBook, err
 	}
 
-	for x, _ := range orderbookNew.Bids {
+	for x := range orderbookNew.Bids {
 		data := orderbookNew.Bids[x]
 		price, err := strconv.ParseFloat(data[0], 64)
 		if err != nil {
@@ -86,7 +86,7 @@ func (i *ItBit) GetOrderbookEx(p pair.CurrencyPair) (orderbook.OrderbookBase, er
 		orderBook.Bids = append(orderBook.Bids, orderbook.OrderbookItem{Amount: amount, Price: price})
 	}
 
-	for x, _ := range orderbookNew.Asks {
+	for x := range orderbookNew.Asks {
 		data := orderbookNew.Asks[x]
 		price, err := strconv.ParseFloat(data[0], 64)
 		if err != nil {
@@ -105,8 +105,8 @@ func (i *ItBit) GetOrderbookEx(p pair.CurrencyPair) (orderbook.OrderbookBase, er
 
 //TODO Get current holdings from ItBit
 //GetExchangeAccountInfo : Retrieves balances for all enabled currencies for the ItBit exchange
-func (e *ItBit) GetExchangeAccountInfo() (exchange.AccountInfo, error) {
+func (i *ItBit) GetExchangeAccountInfo() (exchange.AccountInfo, error) {
 	var response exchange.AccountInfo
-	response.ExchangeName = e.GetName()
+	response.ExchangeName = i.GetName()
 	return response, nil
 }

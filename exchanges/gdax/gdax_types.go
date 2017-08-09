@@ -31,13 +31,13 @@ type GDAXOrderL3 struct {
 
 type GDAXOrderbookL1L2 struct {
 	Sequence int64           `json:"sequence"`
-	Bids     []GDAXOrderL1L2 `json:"asks"`
+	Bids     []GDAXOrderL1L2 `json:"bids"`
 	Asks     []GDAXOrderL1L2 `json:"asks"`
 }
 
 type GDAXOrderbookL3 struct {
 	Sequence int64         `json:"sequence"`
-	Bids     []GDAXOrderL3 `json:"asks"`
+	Bids     []GDAXOrderL3 `json:"bids"`
 	Asks     []GDAXOrderL3 `json:"asks"`
 }
 

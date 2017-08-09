@@ -198,7 +198,7 @@ func (h *HUOBI) SendAuthenticatedRequest(method string, v url.Values) error {
 	}
 
 	if h.Verbose {
-		log.Printf("Recieved raw: %s\n", resp)
+		log.Printf("Received raw: %s\n", resp)
 	}
 
 	return nil
