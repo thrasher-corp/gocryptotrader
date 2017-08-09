@@ -214,6 +214,7 @@ func (b *Bitfinex) WebsocketClient() {
 							case 4:
 								orderbook = append(orderbook, BitfinexWebsocketBook{Price: chanData[1].(float64), Count: int(chanData[2].(float64)), Amount: chanData[3].(float64)})
 							}
+							log.Println(orderbook)
 						case "ticker":
 							ticker := BitfinexWebsocketTicker{Bid: chanData[1].(float64), BidSize: chanData[2].(float64), Ask: chanData[3].(float64), AskSize: chanData[4].(float64),
 								DailyChange: chanData[5].(float64), DialyChangePerc: chanData[6].(float64), LastPrice: chanData[7].(float64), Volume: chanData[8].(float64)}
@@ -284,6 +285,7 @@ func (b *Bitfinex) WebsocketClient() {
 									log.Printf("Bitfinex %s Websocket Trade ID %d Timestamp %d Price %f Amount %f\n", chanInfo.Pair, trade.ID, trade.Timestamp, trade.Price, trade.Amount)
 								}
 							}
+							log.Println(trades)
 						}
 					}
 				}

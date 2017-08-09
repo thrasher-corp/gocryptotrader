@@ -31,10 +31,10 @@ type Base struct {
 
 // Address sub type holding address information for portfolio
 type Address struct {
-	Address      string
-	CoinType     string
-	Balance      float64
-	Decscription string
+	Address     string
+	CoinType    string
+	Balance     float64
+	Description string
 }
 
 // BlockrAddress holds JSON incoming and outgoing data for BLOCKR with address
@@ -236,7 +236,7 @@ func (p *Base) AddAddress(address, coinType, description string, balance float64
 	if !p.AddressExists(address) {
 		p.Addresses = append(
 			p.Addresses, Address{Address: address, CoinType: coinType,
-				Balance: balance, Decscription: description},
+				Balance: balance, Description: description},
 		)
 	} else {
 		p.UpdateAddressBalance(address, balance)
@@ -284,7 +284,7 @@ func (p *Base) UpdatePortfolio(addresses []string, coinType string) bool {
 func (p *Base) GetExchangePortfolio() map[string]float64 {
 	result := make(map[string]float64)
 	for _, x := range p.Addresses {
-		if x.Decscription != PortfolioAddressExchange {
+		if x.Description != PortfolioAddressExchange {
 			continue
 		}
 		balance, ok := result[x.CoinType]
@@ -301,7 +301,7 @@ func (p *Base) GetExchangePortfolio() map[string]float64 {
 func (p *Base) GetPersonalPortfolio() map[string]float64 {
 	result := make(map[string]float64)
 	for _, x := range p.Addresses {
-		if x.Decscription == PortfolioAddressExchange {
+		if x.Description == PortfolioAddressExchange {
 			continue
 		}
 		balance, ok := result[x.CoinType]
@@ -335,7 +335,7 @@ func (p *Base) GetPortfolioSummary(coinFilter string) map[string]float64 {
 func (p *Base) GetPortfolioGroupedCoin() map[string][]string {
 	result := make(map[string][]string)
 	for _, x := range p.Addresses {
-		if common.StringContains(x.Decscription, PortfolioAddressExchange) || common.StringContains(x.Decscription, portfolioAddressPersonal) {
+		if common.StringContains(x.Description, PortfolioAddressExchange) || common.StringContains(x.Description, portfolioAddressPersonal) {
 			continue
 		}
 		result[x.CoinType] = append(result[x.CoinType], x.Address)

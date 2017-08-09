@@ -14,7 +14,7 @@ import (
 
 const (
 	COINUT_API_URL          = "https://api.coinut.com"
-	COINUT_API_VERISON      = "1"
+	COINUT_API_VERSION      = "1"
 	COINUT_INSTRUMENTS      = "inst_list"
 	COINUT_TICKER           = "inst_tick"
 	COINUT_ORDERBOOK        = "inst_order_book"
@@ -299,7 +299,7 @@ func (c *COINUT) SendAuthenticatedHTTPRequest(apiRequest string, params map[stri
 	resp, err := common.SendHTTPRequest("POST", COINUT_API_URL, headers, bytes.NewBuffer(payload))
 
 	if c.Verbose {
-		log.Printf("Recieved raw: \n%s", resp)
+		log.Printf("Received raw: \n%s", resp)
 	}
 
 	genResp := CoinutGenericResponse{}
@@ -307,17 +307,17 @@ func (c *COINUT) SendAuthenticatedHTTPRequest(apiRequest string, params map[stri
 	err = common.JSONDecode([]byte(resp), &genResp)
 
 	if err != nil {
-		return errors.New("Unable to JSON Unmarshal generic response.")
+		return errors.New("unable to JSON Unmarshal generic response")
 	}
 
 	if genResp.Status[0] != "OK" {
-		return errors.New("Status is not OK.")
+		return errors.New("status is not OK")
 	}
 
 	err = common.JSONDecode([]byte(resp), &result)
 
 	if err != nil {
-		return errors.New("Unable to JSON Unmarshal response.")
+		return errors.New("unable to JSON Unmarshal response")
 	}
 
 	return nil
