@@ -317,7 +317,7 @@ func (b *BTCMarkets) SendAuthenticatedRequest(reqType, path string, data interfa
 	}
 
 	if b.Verbose {
-		log.Printf("Recieved raw: %s\n", resp)
+		log.Printf("Received raw: %s\n", resp)
 	}
 
 	err = common.JSONDecode([]byte(resp), &result)
