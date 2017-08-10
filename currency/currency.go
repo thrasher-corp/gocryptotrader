@@ -268,7 +268,7 @@ func QueryYahooCurrencyValues(currencies string) error {
 				pairs = currencyPairs[index : index+maxCurrencyPairsPerRequest]
 				index += maxCurrencyPairsPerRequest
 			} else {
-				pairs = currencyPairs[index:len(currencyPairs)]
+				pairs = currencyPairs[index:]
 				index += (len(currencyPairs) - index)
 			}
 			err = FetchYahooCurrencyData(pairs)
@@ -277,7 +277,7 @@ func QueryYahooCurrencyValues(currencies string) error {
 			}
 		}
 	} else {
-		pairs = currencyPairs[index:len(currencyPairs)]
+		pairs = currencyPairs[index:]
 		err = FetchYahooCurrencyData(pairs)
 		if err != nil {
 			return err

@@ -88,13 +88,13 @@ func (b *Bitfinex) GetOrderbookEx(p pair.CurrencyPair) (orderbook.OrderbookBase,
 		return orderBook, err
 	}
 
-	for x, _ := range orderbookNew.Asks {
+	for x := range orderbookNew.Asks {
 		price, _ := strconv.ParseFloat(orderbookNew.Asks[x].Price, 64)
 		amount, _ := strconv.ParseFloat(orderbookNew.Asks[x].Amount, 64)
 		orderBook.Asks = append(orderBook.Asks, orderbook.OrderbookItem{Price: price, Amount: amount})
 	}
 
-	for x, _ := range orderbookNew.Bids {
+	for x := range orderbookNew.Bids {
 		price, _ := strconv.ParseFloat(orderbookNew.Bids[x].Price, 64)
 		amount, _ := strconv.ParseFloat(orderbookNew.Bids[x].Amount, 64)
 		orderBook.Bids = append(orderBook.Bids, orderbook.OrderbookItem{Price: price, Amount: amount})
