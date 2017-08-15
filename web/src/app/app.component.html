@@ -1,1 +1,19 @@
+
+<nav class="navbar">
+<md-toolbar color="primary">
+
+    <span>GoCryptoTrader</span>
+    <span class="example-spacer"></span>
+    <button md-button [mdMenuTriggerFor]="appMenu"><md-icon>menu</md-icon> Menu</button>
+    
+</md-toolbar>
+ <div class="flex-spacer"></div>
+
+<md-menu #appMenu="mdMenu">
+  <button md-menu-item> Settings </button>
+  <button md-menu-item> Help </button>
+</md-menu>
+</nav>
+
+
 <router-outlet></router-outlet>
