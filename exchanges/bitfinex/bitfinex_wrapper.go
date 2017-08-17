@@ -106,24 +106,47 @@ func (b *Bitfinex) GetOrderbookEx(p pair.CurrencyPair) (orderbook.OrderbookBase,
 }
 
 //GetExchangeAccountInfo : Retrieves balances for all enabled currencies for the Bitfinex exchange
-func (e *Bitfinex) GetExchangeAccountInfo() (exchange.AccountInfo, error) {
+func (b *Bitfinex) GetExchangeAccountInfo() (exchange.AccountInfo, error) {
 	var response exchange.AccountInfo
-	response.ExchangeName = e.GetName()
-	accountBalance, err := e.GetAccountBalance()
+	response.ExchangeName = b.GetName()
+	accountBalance, err := b.GetAccountBalance()
 	if err != nil {
 		return response, err
 	}
-	if !e.Enabled {
+	if !b.Enabled {
 		return response, nil
 	}
 
-	for i := 0; i < len(accountBalance); i++ {
-		var exchangeCurrency exchange.AccountCurrencyInfo
-		exchangeCurrency.CurrencyName = common.StringToUpper(accountBalance[i].Currency)
-		exchangeCurrency.TotalValue = accountBalance[i].Amount
-		exchangeCurrency.Hold = accountBalance[i].Available
+	type bfxCoins struct {
+		OnHold    float64
+		Available float64
+	}
 
+	accounts := make(map[string]bfxCoins)
+
+	for i := range accountBalance {
+		onHold := accountBalance[i].Amount - accountBalance[i].Available
+		coins := bfxCoins{
+			OnHold:    onHold,
+			Available: accountBalance[i].Available,
+		}
+		result, ok := accounts[accountBalance[i].Currency]
+		if !ok {
+			accounts[accountBalance[i].Currency] = coins
+		} else {
+			result.Available += accountBalance[i].Available
+			result.OnHold += onHold
+			accounts[accountBalance[i].Currency] = result
+		}
+	}
+
+	for x, y := range accounts {
+		var exchangeCurrency exchange.AccountCurrencyInfo
+		exchangeCurrency.CurrencyName = common.StringToUpper(x)
+		exchangeCurrency.TotalValue = y.Available + y.OnHold
+		exchangeCurrency.Hold = y.OnHold
 		response.Currencies = append(response.Currencies, exchangeCurrency)
 	}
+
 	return response, nil
 }

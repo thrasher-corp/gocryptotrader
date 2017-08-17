@@ -272,11 +272,10 @@ func (b *BTCMarkets) GetAccountBalance() ([]BTCMarketsAccountBalance, error) {
 		return nil, err
 	}
 
+	// All values are returned in Satoshis, even for fiat currencies.
 	for i := range balance {
-		if balance[i].Currency == "LTC" || balance[i].Currency == "BTC" {
-			balance[i].Balance = balance[i].Balance / common.SatoshisPerBTC
-			balance[i].PendingFunds = balance[i].PendingFunds / common.SatoshisPerBTC
-		}
+		balance[i].Balance = balance[i].Balance / common.SatoshisPerBTC
+		balance[i].PendingFunds = balance[i].PendingFunds / common.SatoshisPerBTC
 	}
 	return balance, nil
 }

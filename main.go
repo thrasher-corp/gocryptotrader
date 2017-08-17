@@ -273,18 +273,27 @@ func SeedExchangeAccountInfo(data []exchange.AccountInfo) {
 			avail := data[i].Currencies[j].TotalValue
 			total := onHold + avail
 
-			if total <= 0 {
-				continue
-			}
-
 			if !port.ExchangeAddressExists(exchangeName, currencyName) {
+				if total <= 0 {
+					continue
+				}
+				log.Printf("Portfolio: Adding new exchange address: %s, %s, %f, %s\n",
+					exchangeName, currencyName, total, portfolio.PortfolioAddressExchange)
 				port.Addresses = append(
 					port.Addresses,
 					portfolio.Address{Address: exchangeName, CoinType: currencyName,
 						Balance: total, Description: portfolio.PortfolioAddressExchange},
 				)
 			} else {
-				port.UpdateExchangeAddressBalance(exchangeName, currencyName, total)
+				if total <= 0 {
+					log.Printf("Portfolio: Removing %s %s entry.\n", exchangeName,
+						currencyName)
+					port.RemoveExchangeAddress(exchangeName, currencyName)
+				} else {
+					log.Printf("Portfolio: Updating %s %s entry with balance %f.\n",
+						exchangeName, currencyName, total)
+					port.UpdateExchangeAddressBalance(exchangeName, currencyName, total)
+				}
 			}
 		}
 	}
