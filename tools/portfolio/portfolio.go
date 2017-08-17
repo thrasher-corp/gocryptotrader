@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"log"
 	"net/url"
 
@@ -12,89 +13,152 @@ import (
 	"github.com/thrasher-/gocryptotrader/portfolio"
 )
 
+var (
+	priceMap map[string]float64
+)
+
+func printSummary(msg, from, to string, amount float64) {
+	log.Println()
+	log.Println(fmt.Sprintf("%s in USD: $%.2f", msg, amount))
+	conv, err := currency.ConvertCurrency(amount, "USD", "AUD")
+	if err != nil {
+		log.Println(err)
+	} else {
+		log.Println(fmt.Sprintf("%s in AUD: $%.2f", msg, conv))
+	}
+	log.Println()
+}
+
+func getOnlineOfflinePortfolio(coins []portfolio.Coin, online bool) {
+	var totals float64
+	for _, x := range coins {
+		value := priceMap[x.Coin] * x.Balance
+		totals += value
+		log.Printf("\t%v %v Subtotal: $%.2f Coin percentage: %.2f%%\n", x.Coin,
+			x.Balance, value, x.Percentage)
+	}
+	if !online {
+		printSummary("\tOffline balance", "USD", "AUD", totals)
+	} else {
+		printSummary("\tOnline balance", "USD", "AUD", totals)
+	}
+}
+
 func main() {
 	var inFile, key string
-	var err error
 	flag.StringVar(&inFile, "infile", "config.dat", "The config input file to process.")
 	flag.StringVar(&key, "key", "", "The key to use for AES encryption.")
 	flag.Parse()
 
 	log.Println("GoCryptoTrader: portfolio tool.")
 
-	var data []byte
 	var cfg config.Config
-
-	data, err = common.ReadFile(inFile)
+	var err = cfg.ReadConfig(inFile)
 	if err != nil {
-		log.Fatalf("Unable to read input file %s. Error: %s.", inFile, err)
+		log.Fatal(err)
 	}
-
-	if config.ConfirmECS(data) {
-		if key == "" {
-			result, errf := config.PromptForConfigKey()
-			if errf != nil {
-				log.Fatal("Unable to obtain encryption/decryption key.")
-			}
-			key = string(result)
-		}
-		data, err = config.DecryptConfigFile(data, []byte(key))
-		if err != nil {
-			log.Fatalf("Unable to decrypt config data. Error: %s.", err)
-		}
-
-	}
-	err = config.ConfirmConfigJSON(data, &cfg)
-	if err != nil {
-		log.Fatal("File isn't in JSON format")
-	}
+	log.Println("Loaded config file.")
 
 	port := portfolio.Base{}
 	port.SeedPortfolio(cfg.Portfolio)
-	result := port.GetPortfolioSummary("")
+	result := port.GetPortfolioSummary()
+
+	log.Println("Fetched portfolio data.")
 
 	type PortfolioTemp struct {
 		Balance  float64
 		Subtotal float64
 	}
 
-	stuff := make(map[string]PortfolioTemp)
+	cfg.RetrieveConfigCurrencyPairs()
+	portfolioMap := make(map[string]PortfolioTemp)
 	total := float64(0)
 
-	for x, y := range result {
-		if x == "ETH" {
-			y = y / common.WeiPerEther
+	log.Println("Fetching currency data..")
+	var fiatCurrencies []string
+	for _, y := range result.Totals {
+		if currency.IsFiatCurrency(y.Coin) {
+			fiatCurrencies = append(fiatCurrencies, y.Coin)
 		}
+	}
+	err = currency.SeedCurrencyData(common.JoinStrings(fiatCurrencies, ","))
+	if err != nil {
+		log.Fatal(err)
+	}
 
+	log.Println("Fetched currency data.")
+	log.Println("Fetching ticker data and calculating totals..")
+	priceMap = make(map[string]float64)
+	priceMap["USD"] = 1
+
+	for _, y := range result.Totals {
 		pf := PortfolioTemp{}
-		pf.Balance = y
+		pf.Balance = y.Balance
 		pf.Subtotal = 0
 
-		bf := bitfinex.Bitfinex{}
-
-		if currency.IsDefaultCurrency(x) {
-			continue
-		}
-
-		ticker, errf := bf.GetTicker(x+"USD", url.Values{})
-		if errf != nil {
-			log.Println(errf)
+		if currency.IsDefaultCurrency(y.Coin) {
+			if y.Coin != "USD" {
+				conv, err := currency.ConvertCurrency(y.Balance, y.Coin, "USD")
+				if err != nil {
+					log.Println(err)
+				} else {
+					priceMap[y.Coin] = conv / y.Balance
+					pf.Subtotal = conv
+				}
+			} else {
+				pf.Subtotal = y.Balance
+			}
 		} else {
-			pf.Subtotal = ticker.Last * y
+			bf := bitfinex.Bitfinex{}
+			ticker, errf := bf.GetTicker(y.Coin+"USD", url.Values{})
+			if errf != nil {
+				log.Println(errf)
+			} else {
+				priceMap[y.Coin] = ticker.Last
+				pf.Subtotal = ticker.Last * y.Balance
+			}
 		}
-		stuff[x] = pf
+		portfolioMap[y.Coin] = pf
 		total += pf.Subtotal
 	}
+	log.Println("Done.")
+	log.Println()
+	log.Println("PORTFOLIO TOTALS:")
+	for x, y := range portfolioMap {
+		log.Printf("\t%s Amount: %f Subtotal: $%.2f USD (1 %s = $%.2f USD). Percentage of portfolio %.3f%%", x, y.Balance, y.Subtotal, x, y.Subtotal/y.Balance, y.Subtotal/total*100/1)
+	}
+	printSummary("\tTotal balance", "USD", "AUD", total)
 
-	for x, y := range stuff {
-		log.Printf("%s %f subtotal: %f USD (1 %s = %.2f USD). Percentage of portfolio %f", x, y.Balance, y.Subtotal, x, y.Subtotal/y.Balance, y.Subtotal/total*100/1)
+	log.Println("OFFLINE COIN TOTALS:")
+	getOnlineOfflinePortfolio(result.Offline, false)
+
+	log.Println("ONLINE COIN TOTALS:")
+	getOnlineOfflinePortfolio(result.Online, true)
+
+	log.Println("OFFLINE COIN SUMMARY:")
+	var totals float64
+	for x, y := range result.OfflineSummary {
+		log.Printf("\t%s:", x)
+		totals = 0
+		for z := range y {
+			value := priceMap[x] * y[z].Balance
+			totals += value
+			log.Printf("\t %s Amount: %f Subtotal: $%.2f Coin percentage: %.2f%%\n",
+				y[z].Address, y[z].Balance, value, y[z].Percentage)
+		}
+		printSummary(fmt.Sprintf("\t %s balance", x), "USD", "AUD", totals)
 	}
 
-	log.Printf("Total balance in USD: %f.\n", total)
-
-	conv, err := currency.ConvertCurrency(total, "USD", "AUD")
-	if err != nil {
-		log.Println(err)
-	} else {
-		log.Printf("Total balance in AUD: %f.\n", conv)
+	log.Println("ONLINE COINS SUMMARY:")
+	for x, y := range result.OnlineSummary {
+		log.Printf("\t%s:", x)
+		totals = 0
+		for z, w := range y {
+			value := priceMap[z] * w.Balance
+			totals += value
+			log.Printf("\t %s Amount: %f Subtotal $%.2f Coin percentage: %.2f%%",
+				z, w.Balance, value, w.Percentage)
+		}
+		printSummary("\t Exchange balance", "USD", "AUD", totals)
 	}
 }
