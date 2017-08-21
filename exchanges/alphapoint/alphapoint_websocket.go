@@ -9,9 +9,10 @@ import (
 )
 
 const (
-	ALPHAPOINT_DEFAULT_WEBSOCKET_URL = "wss://sim3.alphapoint.com:8401/v1/GetTicker/"
+	alphapointDefaultWebsocketURL = "wss://sim3.alphapoint.com:8401/v1/GetTicker/"
 )
 
+// WebsocketClient starts a new webstocket connection
 func (a *Alphapoint) WebsocketClient() {
 	for a.Enabled && a.Websocket {
 		var Dialer websocket.Dialer
@@ -56,7 +57,7 @@ func (a *Alphapoint) WebsocketClient() {
 
 				switch msgType.MessageType {
 				case "Ticker":
-					ticker := AlphapointWebsocketTicker{}
+					ticker := WebsocketTicker{}
 					err = common.JSONDecode(resp, &ticker)
 					if err != nil {
 						log.Println(err)

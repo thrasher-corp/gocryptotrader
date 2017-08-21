@@ -13,6 +13,7 @@ func NewRouter(exchanges []exchange.IBotExchange) *mux.Router {
 	router := mux.NewRouter().StrictSlash(true)
 	allRoutes := append(routes, ExchangeRoutes...)
 	allRoutes = append(allRoutes, ConfigRoutes...)
+	allRoutes = append(allRoutes, PortfolioRoutes...)
 	allRoutes = append(allRoutes, WalletRoutes...)
 	for _, route := range allRoutes {
 		var handler http.Handler

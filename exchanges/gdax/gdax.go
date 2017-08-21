@@ -16,7 +16,7 @@ import (
 
 const (
 	GDAX_API_URL     = "https://api.gdax.com/"
-	GDAX_API_VERISON = "0"
+	GDAX_API_VERSION = "0"
 	GDAX_PRODUCTS    = "products"
 	GDAX_ORDERBOOK   = "book"
 	GDAX_TICKER      = "ticker"
@@ -398,13 +398,13 @@ func (g *GDAX) SendAuthenticatedHTTPRequest(method, path string, params map[stri
 	resp, err := common.SendHTTPRequest(method, GDAX_API_URL+path, headers, bytes.NewBuffer(payload))
 
 	if g.Verbose {
-		log.Printf("Recieved raw: \n%s\n", resp)
+		log.Printf("Received raw: \n%s\n", resp)
 	}
 
 	err = common.JSONDecode([]byte(resp), &result)
 
 	if err != nil {
-		return errors.New("Unable to JSON Unmarshal response.")
+		return errors.New("unable to JSON Unmarshal response")
 	}
 
 	return nil

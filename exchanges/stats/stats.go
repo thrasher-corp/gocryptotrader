@@ -71,7 +71,7 @@ func AppendExchangeInfo(exchange, crypto, fiat string, price, volume float64) {
 }
 
 func ExchangeInfoAlreadyExists(exchange, crypto, fiat string, price, volume float64) bool {
-	for i, _ := range ExchInfo {
+	for i := range ExchInfo {
 		if ExchInfo[i].Exchange == exchange && ExchInfo[i].FirstCurrency == crypto && ExchInfo[i].FiatCurrency == fiat {
 			ExchInfo[i].Price, ExchInfo[i].Volume = price, volume
 			return true

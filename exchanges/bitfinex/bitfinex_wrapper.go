@@ -2,7 +2,6 @@ package bitfinex
 
 import (
 	"log"
-	"strconv"
 	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
@@ -13,10 +12,12 @@ import (
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 )
 
+// Start starts a new wrapper through a go routine
 func (b *Bitfinex) Start() {
 	go b.Run()
 }
 
+// Run starts a new websocketclient connection and monitors ticker information
 func (b *Bitfinex) Run() {
 	if b.Verbose {
 		log.Printf("%s Websocket: %s.", b.GetName(), common.IsEnabled(b.Websocket))
@@ -54,6 +55,7 @@ func (b *Bitfinex) Run() {
 	}
 }
 
+// GetTickerPrice returns ticker information
 func (b *Bitfinex) GetTickerPrice(p pair.CurrencyPair) (ticker.TickerPrice, error) {
 	tick, err := ticker.GetTicker(b.GetName(), p)
 	if err == nil {
@@ -76,6 +78,7 @@ func (b *Bitfinex) GetTickerPrice(p pair.CurrencyPair) (ticker.TickerPrice, erro
 	return tickerPrice, nil
 }
 
+// GetOrderbookEx returns orderbook information based on currency pair
 func (b *Bitfinex) GetOrderbookEx(p pair.CurrencyPair) (orderbook.OrderbookBase, error) {
 	ob, err := orderbook.GetOrderbook(b.GetName(), p)
 	if err == nil {
@@ -88,16 +91,12 @@ func (b *Bitfinex) GetOrderbookEx(p pair.CurrencyPair) (orderbook.OrderbookBase,
 		return orderBook, err
 	}
 
-	for x, _ := range orderbookNew.Asks {
-		price, _ := strconv.ParseFloat(orderbookNew.Asks[x].Price, 64)
-		amount, _ := strconv.ParseFloat(orderbookNew.Asks[x].Amount, 64)
-		orderBook.Asks = append(orderBook.Asks, orderbook.OrderbookItem{Price: price, Amount: amount})
+	for x := range orderbookNew.Asks {
+		orderBook.Asks = append(orderBook.Asks, orderbook.OrderbookItem{Price: orderbookNew.Asks[x].Price, Amount: orderbookNew.Asks[x].Amount})
 	}
 
-	for x, _ := range orderbookNew.Bids {
-		price, _ := strconv.ParseFloat(orderbookNew.Bids[x].Price, 64)
-		amount, _ := strconv.ParseFloat(orderbookNew.Bids[x].Amount, 64)
-		orderBook.Bids = append(orderBook.Bids, orderbook.OrderbookItem{Price: price, Amount: amount})
+	for x := range orderbookNew.Bids {
+		orderBook.Bids = append(orderBook.Bids, orderbook.OrderbookItem{Price: orderbookNew.Bids[x].Price, Amount: orderbookNew.Bids[x].Amount})
 	}
 
 	orderBook.Pair = p
@@ -105,25 +104,49 @@ func (b *Bitfinex) GetOrderbookEx(p pair.CurrencyPair) (orderbook.OrderbookBase,
 	return orderBook, nil
 }
 
-//GetExchangeAccountInfo : Retrieves balances for all enabled currencies for the Bitfinex exchange
-func (e *Bitfinex) GetExchangeAccountInfo() (exchange.AccountInfo, error) {
+// GetExchangeAccountInfo retrieves balances for all enabled currencies on the
+// Bitfinex exchange
+func (b *Bitfinex) GetExchangeAccountInfo() (exchange.AccountInfo, error) {
 	var response exchange.AccountInfo
-	response.ExchangeName = e.GetName()
-	accountBalance, err := e.GetAccountBalance()
+	response.ExchangeName = b.GetName()
+	accountBalance, err := b.GetAccountBalance()
 	if err != nil {
 		return response, err
 	}
-	if !e.Enabled {
+	if !b.Enabled {
 		return response, nil
 	}
 
-	for i := 0; i < len(accountBalance); i++ {
-		var exchangeCurrency exchange.AccountCurrencyInfo
-		exchangeCurrency.CurrencyName = common.StringToUpper(accountBalance[i].Currency)
-		exchangeCurrency.TotalValue = accountBalance[i].Amount
-		exchangeCurrency.Hold = accountBalance[i].Available
+	type bfxCoins struct {
+		OnHold    float64
+		Available float64
+	}
 
+	accounts := make(map[string]bfxCoins)
+
+	for i := range accountBalance {
+		onHold := accountBalance[i].Amount - accountBalance[i].Available
+		coins := bfxCoins{
+			OnHold:    onHold,
+			Available: accountBalance[i].Available,
+		}
+		result, ok := accounts[accountBalance[i].Currency]
+		if !ok {
+			accounts[accountBalance[i].Currency] = coins
+		} else {
+			result.Available += accountBalance[i].Available
+			result.OnHold += onHold
+			accounts[accountBalance[i].Currency] = result
+		}
+	}
+
+	for x, y := range accounts {
+		var exchangeCurrency exchange.AccountCurrencyInfo
+		exchangeCurrency.CurrencyName = common.StringToUpper(x)
+		exchangeCurrency.TotalValue = y.Available + y.OnHold
+		exchangeCurrency.Hold = y.OnHold
 		response.Currencies = append(response.Currencies, exchangeCurrency)
 	}
+
 	return response, nil
 }

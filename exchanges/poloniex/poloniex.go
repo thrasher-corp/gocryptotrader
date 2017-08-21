@@ -122,15 +122,15 @@ func (p *Poloniex) GetOrderbook(currencyPair string, depth int) (PoloniexOrderbo
 	}
 
 	ob := PoloniexOrderbook{}
-	for x, _ := range resp.Asks {
+	for x := range resp.Asks {
 		data := resp.Asks[x]
 		price, _ := strconv.ParseFloat(data[0].(string), 64)
 		amount := data[1].(float64)
 		ob.Asks = append(ob.Asks, PoloniexOrderbookItem{Price: price, Amount: amount})
 	}
 
-	for x, _ := range resp.Bids {
-		data := resp.Asks[x]
+	for x := range resp.Bids {
+		data := resp.Bids[x]
 		price, _ := strconv.ParseFloat(data[0].(string), 64)
 		amount := data[1].(float64)
 		ob.Bids = append(ob.Bids, PoloniexOrderbookItem{Price: price, Amount: amount})
