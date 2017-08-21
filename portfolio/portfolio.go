@@ -16,9 +16,10 @@ const (
 
 	etherchainAPIURL          = "https://etherchain.org/api"
 	etherchainAccountMultiple = "account/multiple"
-	// PortfolioAddressExchange holds the current portfolio address
+	// PortfolioAddressExchange is a label for an exchange address
 	PortfolioAddressExchange = "Exchange"
-	portfolioAddressPersonal = "Personal"
+	// PortfolioAddressPersonal is a label for a personal/offline address
+	PortfolioAddressPersonal = "Personal"
 )
 
 // Portfolio is variable store holding an array of portfolioAddress
@@ -31,10 +32,10 @@ type Base struct {
 
 // Address sub type holding address information for portfolio
 type Address struct {
-	Address      string
-	CoinType     string
-	Balance      float64
-	Decscription string
+	Address     string
+	CoinType    string
+	Balance     float64
+	Description string
 }
 
 // BlockrAddress holds JSON incoming and outgoing data for BLOCKR with address
@@ -172,9 +173,9 @@ func GetBlockrAddressMulti(addresses []string, coinType string) (BlockrAddressBa
 // GetAddressBalance acceses the portfolio base and returns the balance by passed
 // in address
 func (p *Base) GetAddressBalance(address string) (float64, bool) {
-	for _, x := range p.Addresses {
-		if x.Address == address {
-			return x.Balance, true
+	for x := range p.Addresses {
+		if p.Addresses[x].Address == address {
+			return p.Addresses[x].Balance, true
 		}
 	}
 	return 0, false
@@ -182,8 +183,8 @@ func (p *Base) GetAddressBalance(address string) (float64, bool) {
 
 // ExchangeExists checks to see if an exchange exists in the portfolio base
 func (p *Base) ExchangeExists(exchangeName string) bool {
-	for _, x := range p.Addresses {
-		if x.Address == exchangeName {
+	for x := range p.Addresses {
+		if p.Addresses[x].Address == exchangeName {
 			return true
 		}
 	}
@@ -193,8 +194,8 @@ func (p *Base) ExchangeExists(exchangeName string) bool {
 // AddressExists checks to see if there is an address associated with the
 // portfolio base
 func (p *Base) AddressExists(address string) bool {
-	for _, x := range p.Addresses {
-		if x.Address == address {
+	for x := range p.Addresses {
+		if p.Addresses[x].Address == address {
 			return true
 		}
 	}
@@ -204,8 +205,8 @@ func (p *Base) AddressExists(address string) bool {
 // ExchangeAddressExists checks to see if there is an exchange address
 // associated with the portfolio base
 func (p *Base) ExchangeAddressExists(exchangeName, coinType string) bool {
-	for _, x := range p.Addresses {
-		if x.Address == exchangeName && x.CoinType == coinType {
+	for x := range p.Addresses {
+		if p.Addresses[x].Address == exchangeName && p.Addresses[x].CoinType == coinType {
 			return true
 		}
 	}
@@ -217,6 +218,16 @@ func (p *Base) UpdateAddressBalance(address string, amount float64) {
 	for x := range p.Addresses {
 		if p.Addresses[x].Address == address {
 			p.Addresses[x].Balance = amount
+		}
+	}
+}
+
+// RemoveExchangeAddress removes an exchange address from the portfolio.
+func (p *Base) RemoveExchangeAddress(exchangeName, coinType string) {
+	for x := range p.Addresses {
+		if p.Addresses[x].Address == exchangeName && p.Addresses[x].CoinType == coinType {
+			p.Addresses = append(p.Addresses[:x], p.Addresses[x+1:]...)
+			return
 		}
 	}
 }
@@ -236,16 +247,31 @@ func (p *Base) AddAddress(address, coinType, description string, balance float64
 	if !p.AddressExists(address) {
 		p.Addresses = append(
 			p.Addresses, Address{Address: address, CoinType: coinType,
-				Balance: balance, Decscription: description},
+				Balance: balance, Description: description},
 		)
 	} else {
-		p.UpdateAddressBalance(address, balance)
+		if balance <= 0 {
+			p.RemoveAddress(address, coinType, description)
+		} else {
+			p.UpdateAddressBalance(address, balance)
+		}
+	}
+}
+
+// RemoveAddress removes an address when checked against the correct address and
+// coinType
+func (p *Base) RemoveAddress(address, coinType, description string) {
+	for x := range p.Addresses {
+		if p.Addresses[x].Address == address && p.Addresses[x].CoinType == coinType && p.Addresses[x].Description == description {
+			p.Addresses = append(p.Addresses[:x], p.Addresses[x+1:]...)
+			return
+		}
 	}
 }
 
 // UpdatePortfolio adds to the portfolio addresses by coin type
 func (p *Base) UpdatePortfolio(addresses []string, coinType string) bool {
-	if common.StringContains(common.JoinStrings(addresses, ","), PortfolioAddressExchange) || common.StringContains(common.JoinStrings(addresses, ","), portfolioAddressPersonal) {
+	if common.StringContains(common.JoinStrings(addresses, ","), PortfolioAddressExchange) || common.StringContains(common.JoinStrings(addresses, ","), PortfolioAddressPersonal) {
 		return true
 	}
 
@@ -256,7 +282,7 @@ func (p *Base) UpdatePortfolio(addresses []string, coinType string) bool {
 		}
 
 		for _, x := range result.Data {
-			p.AddAddress(x.Address, coinType, portfolioAddressPersonal, x.Balance)
+			p.AddAddress(x.Address, coinType, PortfolioAddressPersonal, x.Balance)
 		}
 		return true
 	}
@@ -266,7 +292,7 @@ func (p *Base) UpdatePortfolio(addresses []string, coinType string) bool {
 			return false
 		}
 		for _, x := range result.Data {
-			p.AddAddress(x.Address, coinType, portfolioAddressPersonal, x.Balance)
+			p.AddAddress(x.Address, coinType, PortfolioAddressPersonal, x.Balance)
 		}
 	} else {
 		result, err := GetBlockrBalanceSingle(addresses[0], coinType)
@@ -274,17 +300,28 @@ func (p *Base) UpdatePortfolio(addresses []string, coinType string) bool {
 			return false
 		}
 		p.AddAddress(
-			addresses[0], coinType, portfolioAddressPersonal, result.Data.Balance,
+			addresses[0], coinType, PortfolioAddressPersonal, result.Data.Balance,
 		)
 	}
 	return true
+}
+
+// GetPortfolioByExchange returns currency portfolio amount by exchange
+func (p *Base) GetPortfolioByExchange(exchangeName string) map[string]float64 {
+	result := make(map[string]float64)
+	for x := range p.Addresses {
+		if common.StringContains(p.Addresses[x].Address, exchangeName) {
+			result[p.Addresses[x].CoinType] = p.Addresses[x].Balance
+		}
+	}
+	return result
 }
 
 // GetExchangePortfolio returns current portfolio base information
 func (p *Base) GetExchangePortfolio() map[string]float64 {
 	result := make(map[string]float64)
 	for _, x := range p.Addresses {
-		if x.Decscription != PortfolioAddressExchange {
+		if x.Description != PortfolioAddressExchange {
 			continue
 		}
 		balance, ok := result[x.CoinType]
@@ -301,7 +338,7 @@ func (p *Base) GetExchangePortfolio() map[string]float64 {
 func (p *Base) GetPersonalPortfolio() map[string]float64 {
 	result := make(map[string]float64)
 	for _, x := range p.Addresses {
-		if x.Decscription == PortfolioAddressExchange {
+		if x.Description == PortfolioAddressExchange {
 			continue
 		}
 		balance, ok := result[x.CoinType]
@@ -314,28 +351,167 @@ func (p *Base) GetPersonalPortfolio() map[string]float64 {
 	return result
 }
 
-// GetPortfolioSummary rpoves a summary for your portfolio base
-func (p *Base) GetPortfolioSummary(coinFilter string) map[string]float64 {
-	result := make(map[string]float64)
-	for _, x := range p.Addresses {
-		if coinFilter != "" && coinFilter != x.CoinType {
-			continue
+// getPercentage returns the percentage of the target coin amount against the
+// total coin amount.
+func getPercentage(input map[string]float64, target string, totals map[string]float64) float64 {
+	subtotal, _ := input[target]
+	total, _ := totals[target]
+	percentage := (subtotal / total) * 100 / 1
+	return percentage
+}
+
+// getPercentage returns the percentage a specific value of a target coin amount
+// against the total coin amount.
+func getPercentageSpecific(input float64, target string, totals map[string]float64) float64 {
+	total, _ := totals[target]
+	percentage := (input / total) * 100 / 1
+	return percentage
+}
+
+// Coin stores a coin type, balance, address and percentage relative to the total
+// amount.
+type Coin struct {
+	Coin       string  `json:"coin"`
+	Balance    float64 `json:"balance"`
+	Address    string  `json:"address,omitempty"`
+	Percentage float64 `json:"percentage,omitempty"`
+}
+
+// OfflineCoinSummary stores a coin types address, balance and percentage
+// relative to the total amount.
+type OfflineCoinSummary struct {
+	Address    string  `json:"address"`
+	Balance    float64 `json:"balance"`
+	Percentage float64 `json:"percentage,omitempty"`
+}
+
+// OnlineCoinSummary stores a coin types balance and percentage relative to the
+// total amount.
+type OnlineCoinSummary struct {
+	Balance    float64 `json:"balance"`
+	Percentage float64 `json:"percentage,omitempty"`
+}
+
+// Summary Stores the entire portfolio summary
+type Summary struct {
+	Totals         []Coin                                  `json:"coin_totals"`
+	Offline        []Coin                                  `json:"coins_offline"`
+	OfflineSummary map[string][]OfflineCoinSummary         `json:"offline_summary"`
+	Online         []Coin                                  `json:"coins_online"`
+	OnlineSummary  map[string]map[string]OnlineCoinSummary `json:"online_summary"`
+}
+
+// GetPortfolioSummary returns the complete portfolio summary, showing
+// coin totals, offline and online summaries with their relative percentages.
+func (p *Base) GetPortfolioSummary() Summary {
+	personalHoldings := p.GetPersonalPortfolio()
+	exchangeHoldings := p.GetExchangePortfolio()
+	totalCoins := make(map[string]float64)
+
+	for x, y := range personalHoldings {
+		if x == "ETH" {
+			y = y / common.WeiPerEther
+			personalHoldings[x] = y
 		}
-		balance, ok := result[x.CoinType]
+		balance, ok := totalCoins[x]
 		if !ok {
-			result[x.CoinType] = x.Balance
+			totalCoins[x] = y
 		} else {
-			result[x.CoinType] = x.Balance + balance
+			totalCoins[x] = y + balance
 		}
 	}
-	return result
+
+	for x, y := range exchangeHoldings {
+		balance, ok := totalCoins[x]
+		if !ok {
+			totalCoins[x] = y
+		} else {
+			totalCoins[x] = y + balance
+		}
+	}
+
+	var portfolioOutput Summary
+	for x, y := range totalCoins {
+		coins := Coin{Coin: x, Balance: y}
+		portfolioOutput.Totals = append(portfolioOutput.Totals, coins)
+	}
+
+	for x, y := range personalHoldings {
+		coins := Coin{
+			Coin:       x,
+			Balance:    y,
+			Percentage: getPercentage(personalHoldings, x, totalCoins),
+		}
+		portfolioOutput.Offline = append(portfolioOutput.Offline, coins)
+	}
+
+	for x, y := range exchangeHoldings {
+		coins := Coin{
+			Coin:       x,
+			Balance:    y,
+			Percentage: getPercentage(exchangeHoldings, x, totalCoins),
+		}
+		portfolioOutput.Online = append(portfolioOutput.Online, coins)
+	}
+
+	var portfolioExchanges []string
+	for _, x := range p.Addresses {
+		if x.Description == PortfolioAddressExchange {
+			if !common.DataContains(portfolioExchanges, x.Address) {
+				portfolioExchanges = append(portfolioExchanges, x.Address)
+			}
+		}
+	}
+
+	exchangeSummary := make(map[string]map[string]OnlineCoinSummary)
+	for x := range portfolioExchanges {
+		exchgName := portfolioExchanges[x]
+		result := p.GetPortfolioByExchange(exchgName)
+
+		coinSummary := make(map[string]OnlineCoinSummary)
+		for y, z := range result {
+			coinSum := OnlineCoinSummary{
+				Balance:    z,
+				Percentage: getPercentageSpecific(z, y, totalCoins),
+			}
+			coinSummary[y] = coinSum
+
+		}
+		exchangeSummary[exchgName] = coinSummary
+	}
+	portfolioOutput.OnlineSummary = exchangeSummary
+
+	offlineSummary := make(map[string][]OfflineCoinSummary)
+	for _, x := range p.Addresses {
+		if x.Description != PortfolioAddressExchange {
+			if x.CoinType == "ETH" {
+				x.Balance = x.Balance / common.WeiPerEther
+			}
+			coinSummary := OfflineCoinSummary{
+				Address: x.Address,
+				Balance: x.Balance,
+				Percentage: getPercentageSpecific(x.Balance, x.CoinType,
+					totalCoins),
+			}
+			result, ok := offlineSummary[x.CoinType]
+			if !ok {
+				offlineSummary[x.CoinType] = append(offlineSummary[x.CoinType],
+					coinSummary)
+			} else {
+				result = append(result, coinSummary)
+				offlineSummary[x.CoinType] = result
+			}
+		}
+	}
+	portfolioOutput.OfflineSummary = offlineSummary
+	return portfolioOutput
 }
 
 // GetPortfolioGroupedCoin returns portfolio base information grouped by coin
 func (p *Base) GetPortfolioGroupedCoin() map[string][]string {
 	result := make(map[string][]string)
 	for _, x := range p.Addresses {
-		if common.StringContains(x.Decscription, PortfolioAddressExchange) || common.StringContains(x.Decscription, portfolioAddressPersonal) {
+		if common.StringContains(x.Description, PortfolioAddressExchange) {
 			continue
 		}
 		result[x.CoinType] = append(result[x.CoinType], x.Address)

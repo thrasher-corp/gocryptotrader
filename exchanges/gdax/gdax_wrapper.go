@@ -63,10 +63,10 @@ func (g *GDAX) Run() {
 }
 
 //GetExchangeAccountInfo : Retrieves balances for all enabled currencies for the GDAX exchange
-func (e *GDAX) GetExchangeAccountInfo() (exchange.AccountInfo, error) {
+func (g *GDAX) GetExchangeAccountInfo() (exchange.AccountInfo, error) {
 	var response exchange.AccountInfo
-	response.ExchangeName = e.GetName()
-	accountBalance, err := e.GetAccounts()
+	response.ExchangeName = g.GetName()
+	accountBalance, err := g.GetAccounts()
 	if err != nil {
 		return response, err
 	}
@@ -122,11 +122,11 @@ func (g *GDAX) GetOrderbookEx(p pair.CurrencyPair) (orderbook.OrderbookBase, err
 
 	obNew := orderbookNew.(GDAXOrderbookL1L2)
 
-	for x, _ := range obNew.Bids {
+	for x := range obNew.Bids {
 		orderBook.Bids = append(orderBook.Bids, orderbook.OrderbookItem{Amount: obNew.Bids[x].Amount, Price: obNew.Bids[x].Price})
 	}
 
-	for x, _ := range obNew.Asks {
+	for x := range obNew.Asks {
 		orderBook.Asks = append(orderBook.Asks, orderbook.OrderbookItem{Amount: obNew.Bids[x].Amount, Price: obNew.Bids[x].Price})
 	}
 	orderBook.Pair = p

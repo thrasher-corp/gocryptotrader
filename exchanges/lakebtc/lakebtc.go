@@ -301,7 +301,7 @@ func (l *LakeBTC) SendAuthenticatedHTTPRequest(method, params string, result int
 	}
 
 	if l.Verbose {
-		log.Printf("Recieved raw: %s\n", resp)
+		log.Printf("Received raw: %s\n", resp)
 	}
 
 	type ErrorResponse struct {
@@ -311,7 +311,7 @@ func (l *LakeBTC) SendAuthenticatedHTTPRequest(method, params string, result int
 	errResponse := ErrorResponse{}
 	err = common.JSONDecode([]byte(resp), &errResponse)
 	if err != nil {
-		return errors.New("Unable to check response for error.")
+		return errors.New("unable to check response for error")
 	}
 
 	if errResponse.Error != "" {
@@ -321,7 +321,7 @@ func (l *LakeBTC) SendAuthenticatedHTTPRequest(method, params string, result int
 	err = common.JSONDecode([]byte(resp), &result)
 
 	if err != nil {
-		return errors.New("Unable to JSON Unmarshal response.")
+		return errors.New("unable to JSON Unmarshal response")
 	}
 
 	return nil

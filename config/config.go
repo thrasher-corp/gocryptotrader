@@ -3,6 +3,7 @@ package config
 import (
 	"encoding/json"
 	"errors"
+	"flag"
 	"fmt"
 	"log"
 	"os"
@@ -80,10 +81,10 @@ type Config struct {
 	Name             string
 	EncryptConfig    int
 	Cryptocurrencies string
-	Portfolio        portfolio.Base `json:"PortfolioAddresses"`
-	SMS              SMSGlobalConfig         `json:"SMSGlobal"`
-	Webserver        WebserverConfig         `json:"Webserver"`
-	Exchanges        []ExchangeConfig        `json:"Exchanges"`
+	Portfolio        portfolio.Base   `json:"PortfolioAddresses"`
+	SMS              SMSGlobalConfig  `json:"SMSGlobal"`
+	Webserver        WebserverConfig  `json:"Webserver"`
+	Exchanges        []ExchangeConfig `json:"Exchanges"`
 }
 
 // ExchangeConfig holds all the information needed for each enabled Exchange.
@@ -284,6 +285,18 @@ func (c *Config) RetrieveConfigCurrencyPairs() error {
 	return nil
 }
 
+// GetFilePath returns the desired config file or the default config file name
+// based on if the application is being run under test or normal mode.
+func GetFilePath(file string) string {
+	if file != "" {
+		return file
+	}
+	if flag.Lookup("test.v") == nil {
+		return ConfigFile
+	}
+	return ConfigTestFile
+}
+
 // CheckConfig checks to see if there is an old configuration filename and path
 // if found it will change it to correct filename.
 func CheckConfig() error {
@@ -301,14 +314,7 @@ func CheckConfig() error {
 // ReadConfig verifies and checks for encryption and verifies the unencrypted
 // file contains JSON.
 func (c *Config) ReadConfig(configPath string) error {
-	var defaultPath string
-
-	if configPath == "" {
-		defaultPath = ConfigTestFile
-	} else {
-		defaultPath = configPath
-	}
-
+	defaultPath := GetFilePath(configPath)
 	err := CheckConfig()
 	if err != nil {
 		return err
@@ -356,14 +362,7 @@ func (c *Config) ReadConfig(configPath string) error {
 
 // SaveConfig saves your configuration to your desired path
 func (c *Config) SaveConfig(configPath string) error {
-	var defaultPath string
-
-	if configPath == "" {
-		defaultPath = ConfigFile
-	} else {
-		defaultPath = configPath
-	}
-
+	defaultPath := GetFilePath(configPath)
 	payload, err := json.MarshalIndent(c, "", " ")
 
 	if c.EncryptConfig == configFileEncryptionEnabled {
@@ -389,7 +388,7 @@ func (c *Config) SaveConfig(configPath string) error {
 func (c *Config) LoadConfig(configPath string) error {
 	err := c.ReadConfig(configPath)
 	if err != nil {
-		return fmt.Errorf(ErrFailureOpeningConfig, ConfigFile, err)
+		return fmt.Errorf(ErrFailureOpeningConfig, configPath, err)
 	}
 
 	err = c.CheckExchangeConfigValues()

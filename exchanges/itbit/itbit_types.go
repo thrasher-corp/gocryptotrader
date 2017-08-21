@@ -1,6 +1,6 @@
 package itbit
 
-type ItBitTicker struct {
+type Ticker struct {
 	Pair          string
 	Bid           float64 `json:",string"`
 	BidAmt        float64 `json:",string"`
@@ -20,7 +20,7 @@ type ItBitTicker struct {
 	ServertimeUTC string
 }
 
-type ItBitOrderbookResponse struct {
+type OrderbookResponse struct {
 	Bids [][]string `json:"bids"`
 	Asks [][]string `json:"asks"`
 }

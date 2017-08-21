@@ -305,3 +305,17 @@ func TestSaveConfig(t *testing.T) {
 		t.Errorf("Test failed. TestSaveConfig.SaveConfig, %s", err2.Error())
 	}
 }
+
+func TestGetFilePath(t *testing.T) {
+	expected := "blah.json"
+	result := GetFilePath("blah.json")
+	if result != "blah.json" {
+		t.Errorf("Test failed. TestGetFilePath: expected %s got %s", expected, result)
+	}
+
+	expected = ConfigTestFile
+	result = GetFilePath("")
+	if result != expected {
+		t.Errorf("Test failed. TestGetFilePath: expected %s got %s", expected, result)
+	}
+}

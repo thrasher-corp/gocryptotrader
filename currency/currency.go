@@ -197,19 +197,20 @@ func MakecurrencyPairs(supportedCurrencies string) string {
 // or vice versa.
 func ConvertCurrency(amount float64, from, to string) (float64, error) {
 	currency := common.StringToUpper(from + to)
-	if CurrencyStore[currency].Name != currency {
+
+	_, ok := CurrencyStore[currency]
+	if !ok {
 		err := SeedCurrencyData(currency[:len(from)] + "," + currency[len(to):])
 		if err != nil {
 			return 0, err
 		}
 	}
 
-	for x, y := range CurrencyStore {
-		if x == currency {
-			return amount * y.Rate, nil
-		}
+	result, ok := CurrencyStore[currency]
+	if !ok {
+		return 0, ErrCurrencyNotFound
 	}
-	return 0, ErrCurrencyNotFound
+	return amount * result.Rate, nil
 }
 
 // FetchYahooCurrencyData seeds the variable CurrencyStore; this is a
@@ -268,7 +269,7 @@ func QueryYahooCurrencyValues(currencies string) error {
 				pairs = currencyPairs[index : index+maxCurrencyPairsPerRequest]
 				index += maxCurrencyPairsPerRequest
 			} else {
-				pairs = currencyPairs[index:len(currencyPairs)]
+				pairs = currencyPairs[index:]
 				index += (len(currencyPairs) - index)
 			}
 			err = FetchYahooCurrencyData(pairs)
@@ -277,7 +278,7 @@ func QueryYahooCurrencyValues(currencies string) error {
 			}
 		}
 	} else {
-		pairs = currencyPairs[index:len(currencyPairs)]
+		pairs = currencyPairs[index:]
 		err = FetchYahooCurrencyData(pairs)
 		if err != nil {
 			return err

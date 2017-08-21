@@ -51,27 +51,26 @@ func (i *ItBit) Setup(exch config.ExchangeConfig) {
 func (i *ItBit) GetFee(maker bool) float64 {
 	if maker {
 		return i.MakerFee
-	} else {
-		return i.TakerFee
 	}
+	return i.TakerFee
 }
 
-func (i *ItBit) GetTicker(currency string) (ItBitTicker, error) {
+func (i *ItBit) GetTicker(currency string) (Ticker, error) {
 	path := ITBIT_API_URL + "/markets/" + currency + "/ticker"
-	var itbitTicker ItBitTicker
+	var itbitTicker Ticker
 	err := common.SendHTTPGetRequest(path, true, &itbitTicker)
 	if err != nil {
-		return ItBitTicker{}, err
+		return Ticker{}, err
 	}
 	return itbitTicker, nil
 }
 
-func (i *ItBit) GetOrderbook(currency string) (ItBitOrderbookResponse, error) {
-	response := ItBitOrderbookResponse{}
+func (i *ItBit) GetOrderbook(currency string) (OrderbookResponse, error) {
+	response := OrderbookResponse{}
 	path := ITBIT_API_URL + "/markets/" + currency + "/order_book"
 	err := common.SendHTTPGetRequest(path, true, &response)
 	if err != nil {
-		return ItBitOrderbookResponse{}, err
+		return OrderbookResponse{}, err
 	}
 	return response, nil
 }
@@ -234,7 +233,7 @@ func (i *ItBit) SendAuthenticatedHTTPRequest(method string, path string, params 
 		return err
 	}
 
-	nonce -= 1
+	nonce--
 	request := make(map[string]interface{})
 	url := ITBIT_API_URL + path
 
@@ -244,22 +243,22 @@ func (i *ItBit) SendAuthenticatedHTTPRequest(method string, path string, params 
 		}
 	}
 
-	PayloadJson := []byte("")
+	PayloadJSON := []byte("")
 
 	if params != nil {
-		PayloadJson, err = common.JSONEncode(request)
+		PayloadJSON, err = common.JSONEncode(request)
 
 		if err != nil {
 			return errors.New("SendAuthenticatedHTTPRequest: Unable to JSON Marshal request")
 		}
 
 		if i.Verbose {
-			log.Printf("Request JSON: %s\n", PayloadJson)
+			log.Printf("Request JSON: %s\n", PayloadJSON)
 		}
 	}
 
 	nonceStr := strconv.Itoa(nonce)
-	message, err := common.JSONEncode([]string{method, url, string(PayloadJson), nonceStr, timestamp})
+	message, err := common.JSONEncode([]string{method, url, string(PayloadJSON), nonceStr, timestamp})
 	if err != nil {
 		log.Println(err)
 		return
@@ -275,10 +274,10 @@ func (i *ItBit) SendAuthenticatedHTTPRequest(method string, path string, params 
 	headers["X-Auth-Nonce"] = nonceStr
 	headers["Content-Type"] = "application/json"
 
-	resp, err := common.SendHTTPRequest(method, url, headers, bytes.NewBuffer([]byte(PayloadJson)))
+	resp, err := common.SendHTTPRequest(method, url, headers, bytes.NewBuffer([]byte(PayloadJSON)))
 
 	if i.Verbose {
-		log.Printf("Recieved raw: \n%s\n", resp)
+		log.Printf("Received raw: \n%s\n", resp)
 	}
 	return nil
 }

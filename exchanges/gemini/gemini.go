@@ -275,13 +275,13 @@ func (g *Gemini) SendAuthenticatedHTTPRequest(method, path string, params map[st
 	resp, err := common.SendHTTPRequest(method, GEMINI_API_URL+path, headers, strings.NewReader(""))
 
 	if g.Verbose {
-		log.Printf("Recieved raw: \n%s\n", resp)
+		log.Printf("Received raw: \n%s\n", resp)
 	}
 
 	err = common.JSONDecode([]byte(resp), &result)
 
 	if err != nil {
-		return errors.New("Unable to JSON Unmarshal response.")
+		return errors.New("unable to JSON Unmarshal response")
 	}
 
 	return nil
