@@ -159,6 +159,11 @@ func TrimString(input, cutset string) string {
 	return strings.Trim(input, cutset)
 }
 
+// ReplaceString replaces a string with another
+func ReplaceString(input, old, new string, n int) string {
+	return strings.Replace(input, old, new, n)
+}
+
 // StringToUpper changes strings to uppercase
 func StringToUpper(input string) string {
 	return strings.ToUpper(input)

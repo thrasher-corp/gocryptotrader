@@ -2,9 +2,9 @@ package bittrex
 
 import (
 	"log"
-	"strings"
 	"time"
 
+	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
 	"github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
@@ -34,7 +34,7 @@ func (b *Bittrex) Run() {
 				continue
 			}
 			currencies = append(currencies,
-				strings.Replace(exchangeProducts[x].MarketName, "-", "", -1))
+				common.ReplaceString(exchangeProducts[x].MarketName, "-", "", -1))
 		}
 		err = b.UpdateAvailableCurrencies(currencies)
 		if err != nil {
