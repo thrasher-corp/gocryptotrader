@@ -413,13 +413,17 @@ func (a *Alphapoint) SendAuthenticatedHTTPRequest(method, path string, data map[
 		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet, a.Name)
 	}
 
+	if a.Nonce.Get() == 0 {
+		a.Nonce.Set(time.Now().UnixNano())
+	} else {
+		a.Nonce.Inc()
+	}
+
 	headers := make(map[string]string)
 	headers["Content-Type"] = "application/json"
 	data["apiKey"] = a.APIKey
-	nonce := time.Now().UnixNano()
-	nonceStr := strconv.FormatInt(nonce, 10)
-	data["apiNonce"] = nonce
-	hmac := common.GetHMAC(common.HashSHA256, []byte(nonceStr+a.ClientID+a.APIKey), []byte(a.APISecret))
+	data["apiNonce"] = a.Nonce.Get()
+	hmac := common.GetHMAC(common.HashSHA256, []byte(a.Nonce.String()+a.ClientID+a.APIKey), []byte(a.APISecret))
 	data["apiSig"] = common.StringToUpper(common.HexEncodeToString(hmac))
 	path = fmt.Sprintf("%s/ajax/v%s/%s", a.APIUrl, ALPHAPOINT_API_VERSION, path)
 	PayloadJSON, err := common.JSONEncode(data)

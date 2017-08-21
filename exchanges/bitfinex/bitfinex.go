@@ -593,9 +593,15 @@ func (b *Bitfinex) SendAuthenticatedHTTPRequest(method, path string, params map[
 		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet, b.Name)
 	}
 
+	if b.Nonce.Get() == 0 {
+		b.Nonce.Set(time.Now().UnixNano())
+	} else {
+		b.Nonce.Inc()
+	}
+
 	request := make(map[string]interface{})
 	request["request"] = fmt.Sprintf("/v%s/%s", BITFINEX_API_VERSION, path)
-	request["nonce"] = strconv.FormatInt(time.Now().UnixNano(), 10)
+	request["nonce"] = b.Nonce.String()
 
 	if params != nil {
 		for key, value := range params {
@@ -603,16 +609,16 @@ func (b *Bitfinex) SendAuthenticatedHTTPRequest(method, path string, params map[
 		}
 	}
 
-	PayloadJson, err := common.JSONEncode(request)
+	PayloadJSON, err := common.JSONEncode(request)
 	if err != nil {
 		return errors.New("SendAuthenticatedHTTPRequest: Unable to JSON request")
 	}
 
 	if b.Verbose {
-		log.Printf("Request JSON: %s\n", PayloadJson)
+		log.Printf("Request JSON: %s\n", PayloadJSON)
 	}
 
-	PayloadBase64 := common.Base64Encode(PayloadJson)
+	PayloadBase64 := common.Base64Encode(PayloadJSON)
 	hmac := common.GetHMAC(common.HashSHA512_384, []byte(PayloadBase64), []byte(b.APISecret))
 	headers := make(map[string]string)
 	headers["X-BFX-APIKEY"] = b.APIKey

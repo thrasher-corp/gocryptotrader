@@ -249,9 +249,15 @@ func (g *Gemini) SendAuthenticatedHTTPRequest(method, path string, params map[st
 		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet, g.Name)
 	}
 
+	if g.Nonce.Get() == 0 {
+		g.Nonce.Set(time.Now().UnixNano())
+	} else {
+		g.Nonce.Inc()
+	}
+
 	request := make(map[string]interface{})
 	request["request"] = fmt.Sprintf("/v%s/%s", GEMINI_API_VERSION, path)
-	request["nonce"] = time.Now().UnixNano()
+	request["nonce"] = g.Nonce.Get()
 
 	if params != nil {
 		for key, value := range params {
@@ -259,17 +265,17 @@ func (g *Gemini) SendAuthenticatedHTTPRequest(method, path string, params map[st
 		}
 	}
 
-	PayloadJson, err := common.JSONEncode(request)
+	PayloadJSON, err := common.JSONEncode(request)
 
 	if err != nil {
 		return errors.New("SendAuthenticatedHTTPRequest: Unable to JSON request")
 	}
 
 	if g.Verbose {
-		log.Printf("Request JSON: %s\n", PayloadJson)
+		log.Printf("Request JSON: %s\n", PayloadJSON)
 	}
 
-	PayloadBase64 := common.Base64Encode(PayloadJson)
+	PayloadBase64 := common.Base64Encode(PayloadJSON)
 	hmac := common.GetHMAC(common.HashSHA512_384, []byte(PayloadBase64), []byte(g.APISecret))
 	headers := make(map[string]string)
 	headers["X-GEMINI-APIKEY"] = g.APIKey
