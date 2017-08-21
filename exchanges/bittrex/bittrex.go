@@ -318,10 +318,14 @@ func (b *Bittrex) SendAuthenticatedHTTPRequest(path string, values url.Values, r
 		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet, b.Name)
 	}
 
-	nonce := strconv.FormatInt(time.Now().UnixNano(), 10)
+	if b.Nonce.Get() == 0 {
+		b.Nonce.Set(time.Now().UnixNano())
+	} else {
+		b.Nonce.Inc()
+	}
 	values.Set("apikey", b.APIKey)
 	values.Set("apisecret", b.APISecret)
-	values.Set("nonce", nonce)
+	values.Set("nonce", b.Nonce.String())
 	rawQuery := path + "?" + values.Encode()
 	hmac := common.GetHMAC(
 		common.HashSHA512, []byte(rawQuery), []byte(b.APISecret),

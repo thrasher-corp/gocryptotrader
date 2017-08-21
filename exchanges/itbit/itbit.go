@@ -231,14 +231,12 @@ func (i *ItBit) SendAuthenticatedHTTPRequest(method string, path string, params 
 		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet, i.Name)
 	}
 
-	timestamp := strconv.FormatInt(time.Now().UnixNano(), 10)[0:13]
-	nonce, err := strconv.Atoi(timestamp)
-
-	if err != nil {
-		return err
+	if i.Nonce.Get() == 0 {
+		i.Nonce.Set(time.Now().UnixNano())
+	} else {
+		i.Nonce.Inc()
 	}
 
-	nonce--
 	request := make(map[string]interface{})
 	url := ITBIT_API_URL + path
 
@@ -262,21 +260,20 @@ func (i *ItBit) SendAuthenticatedHTTPRequest(method string, path string, params 
 		}
 	}
 
-	nonceStr := strconv.Itoa(nonce)
-	message, err := common.JSONEncode([]string{method, url, string(PayloadJSON), nonceStr, timestamp})
+	message, err := common.JSONEncode([]string{method, url, string(PayloadJSON), i.Nonce.String(), i.Nonce.String()[0:13]})
 	if err != nil {
 		log.Println(err)
 		return
 	}
 
-	hash := common.GetSHA256([]byte(nonceStr + string(message)))
+	hash := common.GetSHA256([]byte(i.Nonce.String() + string(message)))
 	hmac := common.GetHMAC(common.HashSHA512, []byte(url+string(hash)), []byte(i.APISecret))
 	signature := common.Base64Encode(hmac)
 
 	headers := make(map[string]string)
 	headers["Authorization"] = i.ClientID + ":" + signature
-	headers["X-Auth-Timestamp"] = timestamp
-	headers["X-Auth-Nonce"] = nonceStr
+	headers["X-Auth-Timestamp"] = i.Nonce.String()[0:13]
+	headers["X-Auth-Nonce"] = i.Nonce.String()
 	headers["Content-Type"] = "application/json"
 
 	resp, err := common.SendHTTPRequest(method, url, headers, bytes.NewBuffer([]byte(PayloadJSON)))

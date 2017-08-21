@@ -276,13 +276,17 @@ func (c *COINUT) SendAuthenticatedHTTPRequest(apiRequest string, params map[stri
 		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet, c.Name)
 	}
 
-	timestamp := time.Now().Unix()
+	if c.Nonce.Get() == 0 {
+		c.Nonce.Set(time.Now().Unix())
+	} else {
+		c.Nonce.Inc()
+	}
 	payload := []byte("")
 
 	if params == nil {
 		params = map[string]interface{}{}
 	}
-	params["nonce"] = timestamp
+	params["nonce"] = c.Nonce.Get()
 	params["request"] = apiRequest
 
 	payload, err = common.JSONEncode(params)

@@ -520,8 +520,12 @@ func (b *BTCC) SendAuthenticatedHTTPRequest(method string, params []interface{})
 		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet, b.Name)
 	}
 
-	nonce := strconv.FormatInt(time.Now().UnixNano(), 10)[0:16]
-	encoded := fmt.Sprintf("tonce=%s&accesskey=%s&requestmethod=post&id=%d&method=%s&params=", nonce, b.APIKey, 1, method)
+	if b.Nonce.Get() == 0 {
+		b.Nonce.Set(time.Now().UnixNano())
+	} else {
+		b.Nonce.Inc()
+	}
+	encoded := fmt.Sprintf("tonce=%s&accesskey=%s&requestmethod=post&id=%d&method=%s&params=", b.Nonce.String()[0:16], b.APIKey, 1, method)
 
 	if len(params) == 0 {
 		params = make([]interface{}, 0)
@@ -581,7 +585,7 @@ func (b *BTCC) SendAuthenticatedHTTPRequest(method string, params []interface{})
 	headers := make(map[string]string)
 	headers["Content-type"] = "application/json-rpc"
 	headers["Authorization"] = "Basic " + common.Base64Encode([]byte(b.APIKey+":"+common.HexEncodeToString(hmac)))
-	headers["Json-Rpc-Tonce"] = nonce
+	headers["Json-Rpc-Tonce"] = b.Nonce.String()
 
 	resp, err := common.SendHTTPRequest("POST", apiURL, headers, strings.NewReader(string(data)))
 

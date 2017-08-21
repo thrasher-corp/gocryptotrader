@@ -7,6 +7,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
+	"github.com/thrasher-/gocryptotrader/exchanges/nonce"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 )
@@ -43,6 +44,7 @@ type Base struct {
 	RESTPollingDelay            time.Duration
 	AuthenticatedAPISupport     bool
 	APISecret, APIKey, ClientID string
+	Nonce                       nonce.Nonce
 	TakerFee, MakerFee, Fee     float64
 	BaseCurrencies              []string
 	AvailablePairs              []string

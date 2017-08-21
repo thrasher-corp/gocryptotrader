@@ -752,10 +752,12 @@ func (p *Poloniex) SendAuthenticatedHTTPRequest(method, endpoint string, values 
 	headers["Content-Type"] = "application/x-www-form-urlencoded"
 	headers["Key"] = p.APIKey
 
-	nonce := time.Now().UnixNano()
-	nonceStr := strconv.FormatInt(nonce, 10)
-
-	values.Set("nonce", nonceStr)
+	if p.Nonce.Get() == 0 {
+		p.Nonce.Set(time.Now().UnixNano())
+	} else {
+		p.Nonce.Inc()
+	}
+	values.Set("nonce", p.Nonce.String())
 	values.Set("command", endpoint)
 
 	hmac := common.GetHMAC(common.HashSHA512, []byte(values.Encode()), []byte(p.APISecret))

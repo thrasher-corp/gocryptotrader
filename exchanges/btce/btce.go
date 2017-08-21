@@ -297,8 +297,12 @@ func (b *BTCE) SendAuthenticatedHTTPRequest(method string, values url.Values, re
 		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet, b.Name)
 	}
 
-	nonce := strconv.FormatInt(time.Now().Unix(), 10)
-	values.Set("nonce", nonce)
+	if b.Nonce.Get() == 0 {
+		b.Nonce.Set(time.Now().Unix())
+	} else {
+		b.Nonce.Inc()
+	}
+	values.Set("nonce", b.Nonce.String())
 	values.Set("method", method)
 
 	encoded := values.Encode()

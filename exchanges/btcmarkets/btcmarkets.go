@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"log"
 	"net/url"
-	"strconv"
 	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
@@ -285,7 +284,11 @@ func (b *BTCMarkets) SendAuthenticatedRequest(reqType, path string, data interfa
 		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet, b.Name)
 	}
 
-	nonce := strconv.FormatInt(time.Now().UnixNano(), 10)[0:13]
+	if b.Nonce.Get() == 0 {
+		b.Nonce.Set(time.Now().UnixNano())
+	} else {
+		b.Nonce.Inc()
+	}
 	request := ""
 	payload := []byte("")
 
@@ -294,9 +297,9 @@ func (b *BTCMarkets) SendAuthenticatedRequest(reqType, path string, data interfa
 		if err != nil {
 			return err
 		}
-		request = path + "\n" + nonce + "\n" + string(payload)
+		request = path + "\n" + b.Nonce.String()[0:13] + "\n" + string(payload)
 	} else {
-		request = path + "\n" + nonce + "\n"
+		request = path + "\n" + b.Nonce.String()[0:13] + "\n"
 	}
 
 	hmac := common.GetHMAC(common.HashSHA512, []byte(request), []byte(b.APISecret))
@@ -310,7 +313,7 @@ func (b *BTCMarkets) SendAuthenticatedRequest(reqType, path string, data interfa
 	headers["Accept-Charset"] = "UTF-8"
 	headers["Content-Type"] = "application/json"
 	headers["apikey"] = b.APIKey
-	headers["timestamp"] = nonce
+	headers["timestamp"] = b.Nonce.String()[0:13]
 	headers["signature"] = common.Base64Encode(hmac)
 
 	resp, err := common.SendHTTPRequest(reqType, BTCMARKETS_API_URL+path, headers, bytes.NewBuffer(payload))

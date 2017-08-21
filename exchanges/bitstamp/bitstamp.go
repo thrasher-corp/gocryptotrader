@@ -472,15 +472,19 @@ func (b *Bitstamp) SendAuthenticatedHTTPRequest(path string, v2 bool, values url
 		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet, b.Name)
 	}
 
-	nonce := strconv.FormatInt(time.Now().UnixNano(), 10)
+	if b.Nonce.Get() == 0 {
+		b.Nonce.Set(time.Now().UnixNano())
+	} else {
+		b.Nonce.Inc()
+	}
 
 	if values == nil {
 		values = url.Values{}
 	}
 
 	values.Set("key", b.APIKey)
-	values.Set("nonce", nonce)
-	hmac := common.GetHMAC(common.HashSHA256, []byte(nonce+b.ClientID+b.APIKey), []byte(b.APISecret))
+	values.Set("nonce", b.Nonce.String())
+	hmac := common.GetHMAC(common.HashSHA256, []byte(b.Nonce.String()+b.ClientID+b.APIKey), []byte(b.APISecret))
 	values.Set("signature", common.StringToUpper(common.HexEncodeToString(hmac)))
 
 	if v2 {
