@@ -516,6 +516,10 @@ func (b *BTCC) CancelStopOrder(orderID int64, market string) {
 }
 
 func (b *BTCC) SendAuthenticatedHTTPRequest(method string, params []interface{}) (err error) {
+	if !b.AuthenticatedAPISupport {
+		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet, b.Name)
+	}
+
 	nonce := strconv.FormatInt(time.Now().UnixNano(), 10)[0:16]
 	encoded := fmt.Sprintf("tonce=%s&accesskey=%s&requestmethod=post&id=%d&method=%s&params=", nonce, b.APIKey, 1, method)
 

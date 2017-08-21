@@ -245,6 +245,10 @@ func (g *Gemini) PostHeartbeat() (bool, error) {
 }
 
 func (g *Gemini) SendAuthenticatedHTTPRequest(method, path string, params map[string]interface{}, result interface{}) (err error) {
+	if !g.AuthenticatedAPISupport {
+		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet, g.Name)
+	}
+
 	request := make(map[string]interface{})
 	request["request"] = fmt.Sprintf("/v%s/%s", GEMINI_API_VERSION, path)
 	request["nonce"] = time.Now().UnixNano()

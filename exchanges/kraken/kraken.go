@@ -509,6 +509,10 @@ func (k *Kraken) CancelOrder(orderID int64) {
 }
 
 func (k *Kraken) SendAuthenticatedHTTPRequest(method string, values url.Values) (interface{}, error) {
+	if !k.AuthenticatedAPISupport {
+		return nil, fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet, k.Name)
+	}
+
 	path := fmt.Sprintf("/%s/private/%s", KRAKEN_API_VERSION, method)
 	values.Set("nonce", strconv.FormatInt(time.Now().UnixNano(), 10))
 	secret, err := common.Base64Decode(k.APISecret)

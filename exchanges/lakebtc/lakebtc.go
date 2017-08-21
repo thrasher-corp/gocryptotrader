@@ -272,6 +272,10 @@ func (l *LakeBTC) CreateWithdraw(amount float64, accountID int64) (LakeBTCWithdr
 }
 
 func (l *LakeBTC) SendAuthenticatedHTTPRequest(method, params string, result interface{}) (err error) {
+	if !l.AuthenticatedAPISupport {
+		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet, l.Name)
+	}
+
 	nonce := strconv.FormatInt(time.Now().UnixNano(), 10)
 	req := fmt.Sprintf("tonce=%s&accesskey=%s&requestmethod=post&id=1&method=%s&params=%s", nonce, l.APIKey, method, params)
 	hmac := common.GetHMAC(common.HashSHA1, []byte(req), []byte(l.APISecret))

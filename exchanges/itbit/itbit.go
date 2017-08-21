@@ -3,6 +3,7 @@ package itbit
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"log"
 	"net/url"
 	"strconv"
@@ -226,6 +227,10 @@ func (i *ItBit) WalletTransfer(walletID, sourceWallet, destWallet string, amount
 }
 
 func (i *ItBit) SendAuthenticatedHTTPRequest(method string, path string, params map[string]interface{}) (err error) {
+	if !i.AuthenticatedAPISupport {
+		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet, i.Name)
+	}
+
 	timestamp := strconv.FormatInt(time.Now().UnixNano(), 10)[0:13]
 	nonce, err := strconv.Atoi(timestamp)
 

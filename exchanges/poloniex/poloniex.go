@@ -745,6 +745,9 @@ func (p *Poloniex) ToggleAutoRenew(orderNumber int64) (bool, error) {
 }
 
 func (p *Poloniex) SendAuthenticatedHTTPRequest(method, endpoint string, values url.Values, result interface{}) error {
+	if !p.AuthenticatedAPISupport {
+		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet, p.Name)
+	}
 	headers := make(map[string]string)
 	headers["Content-Type"] = "application/x-www-form-urlencoded"
 	headers["Key"] = p.APIKey

@@ -13,6 +13,9 @@ import (
 
 const (
 	warningBase64DecryptSecretKeyFailed = "WARNING -- Exchange %s unable to base64 decode secret key.. Disabling Authenticated API support."
+
+	// WarningAuthenticatedRequestWithoutCredentialsSet error message for authenticated request without credentails set
+	WarningAuthenticatedRequestWithoutCredentialsSet = "WARNING -- Exchange %s authenticated HTTP request called but not supported due to unset/default API keys."
 	// ErrExchangeNotFound is a constant for an error message
 	ErrExchangeNotFound = "Exchange not found in dataset."
 )
@@ -60,6 +63,13 @@ type IBotExchange interface {
 	GetOrderbookEx(currency pair.CurrencyPair) (orderbook.OrderbookBase, error)
 	GetEnabledCurrencies() []string
 	GetExchangeAccountInfo() (AccountInfo, error)
+	GetAuthenticatedAPISupport() bool
+}
+
+// GetAuthenticatedAPISupport returns whether the exchange supports
+// authenticated API requests
+func (e *Base) GetAuthenticatedAPISupport() bool {
+	return e.AuthenticatedAPISupport
 }
 
 // GetName is a method that returns the name of the exchange base
