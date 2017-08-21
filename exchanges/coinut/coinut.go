@@ -3,6 +3,7 @@ package coinut
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"log"
 	"time"
 
@@ -271,6 +272,10 @@ func (c *COINUT) GetOpenPosition(instrumentID int) ([]CoinutOpenPosition, error)
 //to-do: user position update via websocket
 
 func (c *COINUT) SendAuthenticatedHTTPRequest(apiRequest string, params map[string]interface{}, result interface{}) (err error) {
+	if !c.AuthenticatedAPISupport {
+		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet, c.Name)
+	}
+
 	timestamp := time.Now().Unix()
 	payload := []byte("")
 

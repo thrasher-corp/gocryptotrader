@@ -177,6 +177,10 @@ func (h *HUOBI) GetOrderIDByTradeID(coinType, orderID int) {
 }
 
 func (h *HUOBI) SendAuthenticatedRequest(method string, v url.Values) error {
+	if !h.AuthenticatedAPISupport {
+		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet, h.Name)
+	}
+
 	v.Set("access_key", h.APIKey)
 	v.Set("created", strconv.FormatInt(time.Now().Unix(), 10))
 	v.Set("method", method)

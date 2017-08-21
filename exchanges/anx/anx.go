@@ -286,6 +286,10 @@ func (a *ANX) GetDepositAddress(currency, name string, new bool) (string, error)
 }
 
 func (a *ANX) SendAuthenticatedHTTPRequest(path string, params map[string]interface{}, result interface{}) error {
+	if !a.AuthenticatedAPISupport {
+		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet, a.Name)
+	}
+
 	request := make(map[string]interface{})
 	request["nonce"] = strconv.FormatInt(time.Now().UnixNano(), 10)[0:13]
 	path = fmt.Sprintf("api/%s/%s", ANX_API_VERSION, path)

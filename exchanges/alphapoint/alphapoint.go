@@ -409,6 +409,10 @@ func (a *Alphapoint) SendRequest(method, path string, data map[string]interface{
 }
 
 func (a *Alphapoint) SendAuthenticatedHTTPRequest(method, path string, data map[string]interface{}, result interface{}) error {
+	if !a.AuthenticatedAPISupport {
+		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet, a.Name)
+	}
+
 	headers := make(map[string]string)
 	headers["Content-Type"] = "application/json"
 	data["apiKey"] = a.APIKey

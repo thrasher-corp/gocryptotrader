@@ -267,6 +267,10 @@ func (l *LocalBitcoins) GetWalletAddress() (string, error) {
 }
 
 func (l *LocalBitcoins) SendAuthenticatedHTTPRequest(method, path string, values url.Values, result interface{}) (err error) {
+	if !l.AuthenticatedAPISupport {
+		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet, l.Name)
+	}
+
 	nonce := strconv.FormatInt(time.Now().UnixNano(), 10)
 	payload := ""
 	path = "/api/" + path

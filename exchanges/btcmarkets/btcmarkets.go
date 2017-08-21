@@ -281,6 +281,10 @@ func (b *BTCMarkets) GetAccountBalance() ([]BTCMarketsAccountBalance, error) {
 }
 
 func (b *BTCMarkets) SendAuthenticatedRequest(reqType, path string, data interface{}, result interface{}) (err error) {
+	if !b.AuthenticatedAPISupport {
+		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet, b.Name)
+	}
+
 	nonce := strconv.FormatInt(time.Now().UnixNano(), 10)[0:13]
 	request := ""
 	payload := []byte("")

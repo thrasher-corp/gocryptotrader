@@ -314,6 +314,10 @@ func (b *Bittrex) GetDepositHistory(currency string) ([]WithdrawalHistory, error
 // SendAuthenticatedHTTPRequest sends an authenticated http request to a desired
 // path
 func (b *Bittrex) SendAuthenticatedHTTPRequest(path string, values url.Values, result interface{}) (err error) {
+	if !b.AuthenticatedAPISupport {
+		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet, b.Name)
+	}
+
 	nonce := strconv.FormatInt(time.Now().UnixNano(), 10)
 	values.Set("apikey", b.APIKey)
 	values.Set("apisecret", b.APISecret)

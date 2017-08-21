@@ -2,6 +2,7 @@ package okcoin
 
 import (
 	"errors"
+	"fmt"
 	"log"
 	"net/url"
 	"strconv"
@@ -877,6 +878,10 @@ func (o *OKCoin) GetFuturesUserPosition4Fix(symbol, contractType string) {
 }
 
 func (o *OKCoin) SendAuthenticatedHTTPRequest(method string, v url.Values, result interface{}) (err error) {
+	if !o.AuthenticatedAPISupport {
+		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet, o.Name)
+	}
+
 	v.Set("api_key", o.APIKey)
 	hasher := common.GetMD5([]byte(v.Encode() + "&secret_key=" + o.APISecret))
 	v.Set("sign", strings.ToUpper(common.HexEncodeToString(hasher)))

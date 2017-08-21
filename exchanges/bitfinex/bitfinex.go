@@ -589,8 +589,8 @@ func (b *Bitfinex) Withdrawal(withdrawType, wallet, address string, amount float
 }
 
 func (b *Bitfinex) SendAuthenticatedHTTPRequest(method, path string, params map[string]interface{}, result interface{}) error {
-	if len(b.APIKey) == 0 {
-		return errors.New("SendAuthenticatedHTTPRequest: Invalid API key")
+	if !b.AuthenticatedAPISupport {
+		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet, b.Name)
 	}
 
 	request := make(map[string]interface{})

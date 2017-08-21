@@ -468,6 +468,10 @@ func (b *Bitstamp) GetXRPDepositAddress() (BitstampXRPDepositResponse, error) {
 }
 
 func (b *Bitstamp) SendAuthenticatedHTTPRequest(path string, v2 bool, values url.Values, result interface{}) (err error) {
+	if !b.AuthenticatedAPISupport {
+		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet, b.Name)
+	}
+
 	nonce := strconv.FormatInt(time.Now().UnixNano(), 10)
 
 	if values == nil {
