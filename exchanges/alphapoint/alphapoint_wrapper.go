@@ -9,11 +9,12 @@ import (
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 )
 
-//GetExchangeAccountInfo : Retrieves balances for all enabled currencies for the Alphapoint exchange
-func (e *Alphapoint) GetExchangeAccountInfo() (exchange.AccountInfo, error) {
+// GetExchangeAccountInfo retrieves balances for all enabled currencies on the
+// Alphapoint exchange
+func (a *Alphapoint) GetExchangeAccountInfo() (exchange.AccountInfo, error) {
 	var response exchange.AccountInfo
-	response.ExchangeName = e.GetName()
-	account, err := e.GetAccountInfo()
+	response.ExchangeName = a.GetName()
+	account, err := a.GetAccountInfo()
 	if err != nil {
 		return response, err
 	}
@@ -29,6 +30,7 @@ func (e *Alphapoint) GetExchangeAccountInfo() (exchange.AccountInfo, error) {
 	return response, nil
 }
 
+// GetTickerPrice returns the current ticker price by currency pair
 func (a *Alphapoint) GetTickerPrice(p pair.CurrencyPair) ticker.TickerPrice {
 	var tickerPrice ticker.TickerPrice
 	tick, err := a.GetTicker(p.Pair().String())
@@ -42,6 +44,7 @@ func (a *Alphapoint) GetTickerPrice(p pair.CurrencyPair) ticker.TickerPrice {
 	return tickerPrice
 }
 
+// GetOrderbookEx returns an orderbookbase by currency pair
 func (a *Alphapoint) GetOrderbookEx(p pair.CurrencyPair) (orderbook.OrderbookBase, error) {
 	ob, err := orderbook.GetOrderbook(a.GetName(), p)
 	if err == nil {

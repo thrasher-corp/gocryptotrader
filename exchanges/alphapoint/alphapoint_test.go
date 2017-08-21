@@ -102,6 +102,11 @@ func TestGetTicker(t *testing.T) {
 	if response.Volume < 0 {
 		t.Error("Test Failed - Alphapoint GetTicker.ask value is negative")
 	}
+
+	_, err = GetTicker.GetTicker("wigwham")
+	if err == nil {
+		t.Error("Test Failed - Alphapoint GetTicker error")
+	}
 }
 
 func TestGetTrades(t *testing.T) {
@@ -112,7 +117,7 @@ func TestGetTrades(t *testing.T) {
 	if err != nil {
 		t.Errorf("Test Failed - Init error: %s", err)
 	}
-	if reflect.ValueOf(trades).NumField() != 7 {
+	if reflect.ValueOf(trades).NumField() != 9 {
 		t.Error("Test Failed - Alphapoint AlphapointTrades struct updated/changed")
 	}
 	if len(trades.Trades) == 0 {
@@ -206,6 +211,11 @@ func TestGetTrades(t *testing.T) {
 	if trades.Trades[0].Unixtime < 0 {
 		t.Error("Test Failed - Alphapoint trades.Trades.BookServerOrderID value is negative")
 	}
+
+	_, err = GetTrades.GetTrades("wigwham", 0, 10)
+	if err == nil {
+		t.Error("Test Failed - GetTrades error")
+	}
 }
 
 func TestGetTradesByDate(t *testing.T) {
@@ -216,7 +226,7 @@ func TestGetTradesByDate(t *testing.T) {
 	if err != nil {
 		t.Errorf("Test Failed - Init error: %s", err)
 	}
-	if reflect.ValueOf(trades).NumField() != 7 {
+	if reflect.ValueOf(trades).NumField() != 9 {
 		t.Error("Test Failed - Alphapoint AlphapointTrades struct updated/changed")
 	}
 	if len(trades.Trades) != 0 {
@@ -259,6 +269,11 @@ func TestGetTradesByDate(t *testing.T) {
 	if trades.StartDate < 0 {
 		t.Error("Test Failed - Alphapoint trades.StartIndex value is negative")
 	}
+
+	_, err = GetTradesByDate.GetTradesByDate("wigwham", 1414799400, 1414800000)
+	if err == nil {
+		t.Error("Test Failed - GetTradesByDate() error")
+	}
 }
 
 func TestGetOrderbook(t *testing.T) {
@@ -278,12 +293,11 @@ func TestGetOrderbook(t *testing.T) {
 	if reflect.TypeOf(orderBook.RejectReason).String() != "string" {
 		t.Error("Test Failed - Alphapoint orderBook.RejectReason value is not a string")
 	}
-	// if len(orderBook.Asks) < 1 {
-	// 	t.Error("Test Failed - Alphapoint orderBook.Asks does not contain anything.")
-	// }
-	// if len(orderBook.Bids) < 1 {
-	// 	t.Error("Test Failed - Alphapoint orderBook.Asks does not contain anything.")
-	// }
+	_, err = GetOrderbook.GetOrderbook("wigwham")
+	if err == nil {
+		t.Error("Test Failed - GetOrderbook() error")
+	}
+
 }
 
 func TestGetProductPairs(t *testing.T) {
@@ -399,15 +413,132 @@ func TestCreateAccount(t *testing.T) {
 	if err != nil {
 		t.Errorf("Test Failed - Init error: %s", err)
 	}
+	err = CreateAccount.CreateAccount("test", "account", "something@something.com", "0292383745", "bla")
+	if err == nil {
+		t.Errorf("Test Failed - CreateAccount() error")
+	}
+	err = CreateAccount.CreateAccount("", "", "", "", "lolcat123")
+	if err == nil {
+		t.Errorf("Test Failed - CreateAccount() error")
+	}
 }
 
 func TestGetUserInfo(t *testing.T) {
 	GetUserInfo := Alphapoint{}
 	GetUserInfo.SetDefaults()
 
-	userInfo, err := GetUserInfo.GetUserInfo()
-	if err != nil {
-		t.Errorf("Test Failed - Init error: %s", err)
+	_, err := GetUserInfo.GetUserInfo()
+	if err == nil {
+		t.Error("Test Failed - GetUserInfo() error")
 	}
-	t.Log(userInfo)
+}
+
+func TestSetUserInfo(t *testing.T) {
+	a := Alphapoint{}
+	a.SetDefaults()
+
+	_, err := a.SetUserInfo("bla", "bla", "1", "meh", true, true)
+	if err == nil {
+		t.Error("Test Failed - GetUserInfo() error")
+	}
+}
+
+func TestGetAccountInfo(t *testing.T) {
+	a := Alphapoint{}
+	a.SetDefaults()
+
+	_, err := a.GetAccountInfo()
+	if err == nil {
+		t.Error("Test Failed - GetUserInfo() error")
+	}
+}
+
+func TestGetAccountTrades(t *testing.T) {
+	a := Alphapoint{}
+	a.SetDefaults()
+
+	_, err := a.GetAccountTrades("", 1, 2)
+	if err == nil {
+		t.Error("Test Failed - GetUserInfo() error")
+	}
+}
+
+func TestGetDepositAddresses(t *testing.T) {
+	a := Alphapoint{}
+	a.SetDefaults()
+
+	_, err := a.GetDepositAddresses()
+	if err == nil {
+		t.Error("Test Failed - GetUserInfo() error")
+	}
+}
+
+func TestWithdrawCoins(t *testing.T) {
+	a := Alphapoint{}
+	a.SetDefaults()
+
+	err := a.WithdrawCoins("", "", "", 0.01)
+	if err == nil {
+		t.Error("Test Failed - GetUserInfo() error")
+	}
+}
+
+func TestCreateOrder(t *testing.T) {
+	a := Alphapoint{}
+	a.SetDefaults()
+
+	_, err := a.CreateOrder("", "", 1, 0.01, 0)
+	if err == nil {
+		t.Error("Test Failed - GetUserInfo() error")
+	}
+}
+
+func TestModifyOrder(t *testing.T) {
+	a := Alphapoint{}
+	a.SetDefaults()
+
+	_, err := a.ModifyOrder("", 1, 1)
+	if err == nil {
+		t.Error("Test Failed - GetUserInfo() error")
+	}
+}
+
+func TestCancelOrder(t *testing.T) {
+	a := Alphapoint{}
+	a.SetDefaults()
+
+	_, err := a.CancelOrder("", 1)
+	if err == nil {
+		t.Error("Test Failed - GetUserInfo() error")
+	}
+}
+
+func TestCancelAllOrders(t *testing.T) {
+	a := Alphapoint{}
+	a.SetDefaults()
+
+	err := a.CancelAllOrders("")
+	if err == nil {
+		t.Error("Test Failed - GetUserInfo() error")
+	}
+}
+
+func TestGetOrders(t *testing.T) {
+	a := Alphapoint{}
+	a.SetDefaults()
+
+	_, err := a.GetOrders()
+	if err == nil {
+		t.Error("Test Failed - GetUserInfo() error")
+	}
+}
+
+func TestGetOrderFee(t *testing.T) {
+	a := Alphapoint{}
+	a.SetDefaults()
+
+	_, err := a.GetOrderFee("", "", 1, 1)
+	if err == nil {
+		t.Error("Test Failed - GetUserInfo() error")
+	}
 }

@@ -31,18 +31,3 @@ func TestGetOrderbookEx(t *testing.T) {
 		t.Errorf("Test Failed - Bitfinex GetOrderbookEx() error: %s", err)
 	}
 }
-
-func TestGetExchangeAccountInfo(t *testing.T) {
-	// getExchangeAccountInfo := Bitfinex{}
-	// newConfig := config.GetConfig()
-	// newConfig.LoadConfig("../../testdata/configtest.dat")
-	// exchConf, err := newConfig.GetExchangeConfig("Bitfinex")
-	// if err != nil {
-	// 	t.Errorf("Test Failed - Bitfinex getExchangeConfig(): %s", err)
-	// }
-	// getExchangeAccountInfo.Setup(exchConf)
-	// _, err = getExchangeAccountInfo.GetExchangeAccountInfo()
-	// if err != nil {
-	// 	t.Errorf("Test Failed - Bitfinex GetExchangeAccountInfo() error: %s", err)
-	// }
-}

@@ -2,7 +2,6 @@ package bitfinex
 
 import (
 	"log"
-	"strconv"
 	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
@@ -13,10 +12,12 @@ import (
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 )
 
+// Start starts a new wrapper through a go routine
 func (b *Bitfinex) Start() {
 	go b.Run()
 }
 
+// Run starts a new websocketclient connection and monitors ticker information
 func (b *Bitfinex) Run() {
 	if b.Verbose {
 		log.Printf("%s Websocket: %s.", b.GetName(), common.IsEnabled(b.Websocket))
@@ -54,6 +55,7 @@ func (b *Bitfinex) Run() {
 	}
 }
 
+// GetTickerPrice returns ticker information
 func (b *Bitfinex) GetTickerPrice(p pair.CurrencyPair) (ticker.TickerPrice, error) {
 	tick, err := ticker.GetTicker(b.GetName(), p)
 	if err == nil {
@@ -76,6 +78,7 @@ func (b *Bitfinex) GetTickerPrice(p pair.CurrencyPair) (ticker.TickerPrice, erro
 	return tickerPrice, nil
 }
 
+// GetOrderbookEx returns orderbook information based on currency pair
 func (b *Bitfinex) GetOrderbookEx(p pair.CurrencyPair) (orderbook.OrderbookBase, error) {
 	ob, err := orderbook.GetOrderbook(b.GetName(), p)
 	if err == nil {
@@ -89,15 +92,11 @@ func (b *Bitfinex) GetOrderbookEx(p pair.CurrencyPair) (orderbook.OrderbookBase,
 	}
 
 	for x := range orderbookNew.Asks {
-		price, _ := strconv.ParseFloat(orderbookNew.Asks[x].Price, 64)
-		amount, _ := strconv.ParseFloat(orderbookNew.Asks[x].Amount, 64)
-		orderBook.Asks = append(orderBook.Asks, orderbook.OrderbookItem{Price: price, Amount: amount})
+		orderBook.Asks = append(orderBook.Asks, orderbook.OrderbookItem{Price: orderbookNew.Asks[x].Price, Amount: orderbookNew.Asks[x].Amount})
 	}
 
 	for x := range orderbookNew.Bids {
-		price, _ := strconv.ParseFloat(orderbookNew.Bids[x].Price, 64)
-		amount, _ := strconv.ParseFloat(orderbookNew.Bids[x].Amount, 64)
-		orderBook.Bids = append(orderBook.Bids, orderbook.OrderbookItem{Price: price, Amount: amount})
+		orderBook.Bids = append(orderBook.Bids, orderbook.OrderbookItem{Price: orderbookNew.Bids[x].Price, Amount: orderbookNew.Bids[x].Amount})
 	}
 
 	orderBook.Pair = p
@@ -105,7 +104,8 @@ func (b *Bitfinex) GetOrderbookEx(p pair.CurrencyPair) (orderbook.OrderbookBase,
 	return orderBook, nil
 }
 
-//GetExchangeAccountInfo : Retrieves balances for all enabled currencies for the Bitfinex exchange
+// GetExchangeAccountInfo retrieves balances for all enabled currencies on the
+// Bitfinex exchange
 func (b *Bitfinex) GetExchangeAccountInfo() (exchange.AccountInfo, error) {
 	var response exchange.AccountInfo
 	response.ExchangeName = b.GetName()
