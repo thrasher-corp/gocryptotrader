@@ -310,6 +310,28 @@ func TestTrimString(t *testing.T) {
 	}
 }
 
+// ReplaceString replaces a string with another
+func TestReplaceString(t *testing.T) {
+	t.Parallel()
+	currency := "BTC-USD"
+	expectedOutput := "BTCUSD"
+
+	actualResult := ReplaceString(currency, "-", "", -1)
+	if expectedOutput != actualResult {
+		t.Errorf(
+			"Test failed. Expected '%s'. Actual '%s'", expectedOutput, actualResult,
+		)
+	}
+
+	currency = "BTC-USD--"
+	actualResult = ReplaceString(currency, "-", "", 3)
+	if expectedOutput != actualResult {
+		t.Errorf(
+			"Test failed. Expected '%s'. Actual '%s'", expectedOutput, actualResult,
+		)
+	}
+}
+
 func TestRoundFloat(t *testing.T) {
 	t.Parallel()
 	originalInput := float64(1.4545445445)
