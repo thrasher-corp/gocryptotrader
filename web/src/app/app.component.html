@@ -1,19 +1,20 @@
-
-<nav class="navbar">
-<md-toolbar color="primary">
-
-    <span>GoCryptoTrader</span>
-    <span class="example-spacer"></span>
-    <button md-button [mdMenuTriggerFor]="appMenu"><md-icon>menu</md-icon> Menu</button>
-    
-</md-toolbar>
- <div class="flex-spacer"></div>
-
-<md-menu #appMenu="mdMenu">
-  <button md-menu-item> Settings </button>
-  <button md-menu-item> Help </button>
-</md-menu>
+<!-- TODO: figure out if the <nav> should go inside of a <header> element. -->
+<nav class="docs-navbar">
+  <md-toolbar color="primary">
+  <a md-button class="docs-button" routerLink="/" aria-label="Angular Material">
+    <span>Logo</span>
+  </a>
+  <a md-button class="docs-button" routerLink="about">Dashboard</a>
+  <a md-button class="docs-button" routerLink="about">Wallet Summary</a>
+  <a md-button class="docs-button" routerLink="about">Settings</a>
+  <a md-button class="docs-button" routerLink="about">Help</a>
+  <div class="flex-spacer"></div>
+  <a md-button class="docs-button" href="https://github.com/angular/material2" aria-label="GitHub Repository">
+    GitHub
+  </a>
+  </md-toolbar>
 </nav>
+
 
 
 <router-outlet></router-outlet>
