@@ -170,7 +170,7 @@ func (b *Bittrex) PlaceBuyLimit(currencyPair string, quantity, rate float64) ([]
 	values.Set("market", currencyPair)
 	values.Set("quantity", strconv.FormatFloat(quantity, 'E', -1, 64))
 	values.Set("rate", strconv.FormatFloat(rate, 'E', -1, 64))
-	path := fmt.Sprintf("%s/%s", bittrexAPIURL, bittrexAPIGetBalances)
+	path := fmt.Sprintf("%s/%s", bittrexAPIURL, bittrexAPIBuyLimit)
 
 	return id, b.HTTPRequest(path, true, values, &id)
 }
@@ -187,7 +187,7 @@ func (b *Bittrex) PlaceSellLimit(currencyPair string, quantity, rate float64) ([
 	values.Set("market", currencyPair)
 	values.Set("quantity", strconv.FormatFloat(quantity, 'E', -1, 64))
 	values.Set("rate", strconv.FormatFloat(rate, 'E', -1, 64))
-	path := fmt.Sprintf("%s/%s", bittrexAPIURL, bittrexAPIGetBalances)
+	path := fmt.Sprintf("%s/%s", bittrexAPIURL, bittrexAPISellLimit)
 
 	return id, b.HTTPRequest(path, true, values, &id)
 }
@@ -200,7 +200,7 @@ func (b *Bittrex) GetOpenOrders(currencyPair string) ([]Order, error) {
 	if !(currencyPair == "" || currencyPair == " ") {
 		values.Set("market", currencyPair)
 	}
-	path := fmt.Sprintf("%s/%s", bittrexAPIURL, bittrexAPIGetBalances)
+	path := fmt.Sprintf("%s/%s", bittrexAPIURL, bittrexAPIGetOpenOrders)
 
 	return orders, b.HTTPRequest(path, true, values, &orders)
 }
@@ -210,7 +210,7 @@ func (b *Bittrex) CancelOrder(uuid string) ([]Balance, error) {
 	var balances []Balance
 	values := url.Values{}
 	values.Set("uuid", uuid)
-	path := fmt.Sprintf("%s/%s", bittrexAPIURL, bittrexAPIGetBalances)
+	path := fmt.Sprintf("%s/%s", bittrexAPIURL, bittrexAPICancel)
 
 	return balances, b.HTTPRequest(path, true, values, &balances)
 }
@@ -283,16 +283,16 @@ func (b *Bittrex) GetOrderHistory(currencyPair string) ([]Order, error) {
 	return orders, b.HTTPRequest(path, true, values, &orders)
 }
 
-// GetWithdrawelHistory is used to retrieve your withdrawal history. If currency
+// GetWithdrawalHistory is used to retrieve your withdrawal history. If currency
 // omitted it will return the entire history
-func (b *Bittrex) GetWithdrawelHistory(currency string) ([]WithdrawalHistory, error) {
+func (b *Bittrex) GetWithdrawalHistory(currency string) ([]WithdrawalHistory, error) {
 	var history []WithdrawalHistory
 	values := url.Values{}
 
 	if !(currency == "" || currency == " ") {
 		values.Set("currency", currency)
 	}
-	path := fmt.Sprintf("%s/%s", bittrexAPIURL, bittrexAPIGetOrderHistory)
+	path := fmt.Sprintf("%s/%s", bittrexAPIURL, bittrexAPIGetWithdrawalHistory)
 
 	return history, b.HTTPRequest(path, true, values, &history)
 }
@@ -306,7 +306,7 @@ func (b *Bittrex) GetDepositHistory(currency string) ([]WithdrawalHistory, error
 	if !(currency == "" || currency == " ") {
 		values.Set("currency", currency)
 	}
-	path := fmt.Sprintf("%s/%s", bittrexAPIURL, bittrexAPIGetOrderHistory)
+	path := fmt.Sprintf("%s/%s", bittrexAPIURL, bittrexAPIGetDepositHistory)
 
 	return history, b.HTTPRequest(path, true, values, &history)
 }
