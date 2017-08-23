@@ -233,17 +233,17 @@ func TestGetOrderHistory(t *testing.T) {
 	}
 }
 
-func TestGetWithdrawelHistory(t *testing.T) {
+func TestGetWithdrawalHistory(t *testing.T) {
 	obj := Bittrex{}
 	obj.APIKey = apiKey
 	obj.APISecret = apiSecret
-	_, err := obj.GetWithdrawelHistory("")
+	_, err := obj.GetWithdrawalHistory("")
 	if err == nil {
-		t.Error("Test Failed - Bittrex - GetWithdrawelHistory() error")
+		t.Error("Test Failed - Bittrex - GetWithdrawalHistory() error")
 	}
-	_, err = obj.GetWithdrawelHistory("btc-ltc")
+	_, err = obj.GetWithdrawalHistory("btc-ltc")
 	if err == nil {
-		t.Error("Test Failed - Bittrex - GetWithdrawelHistory() error")
+		t.Error("Test Failed - Bittrex - GetWithdrawalHistory() error")
 	}
 }
 
