@@ -75,16 +75,23 @@ type Post struct {
 	Data Config `json:"Data"`
 }
 
+// CurrencyPairFormatConfig stores the users preferred currency pair display
+type CurrencyPairFormatConfig struct {
+	Uppercase bool
+	Delimiter string
+}
+
 // Config is the overarching object that holds all the information for
 // prestart management of portfolio, SMSGlobal, webserver and enabled exchange
 type Config struct {
-	Name             string
-	EncryptConfig    int
-	Cryptocurrencies string
-	Portfolio        portfolio.Base   `json:"PortfolioAddresses"`
-	SMS              SMSGlobalConfig  `json:"SMSGlobal"`
-	Webserver        WebserverConfig  `json:"Webserver"`
-	Exchanges        []ExchangeConfig `json:"Exchanges"`
+	Name               string
+	EncryptConfig      int
+	Cryptocurrencies   string
+	CurrencyPairFormat *CurrencyPairFormatConfig `json:"CurrencyPairFormat"`
+	Portfolio          portfolio.Base            `json:"PortfolioAddresses"`
+	SMS                SMSGlobalConfig           `json:"SMSGlobal"`
+	Webserver          WebserverConfig           `json:"Webserver"`
+	Exchanges          []ExchangeConfig          `json:"Exchanges"`
 }
 
 // ExchangeConfig holds all the information needed for each enabled Exchange.
@@ -112,6 +119,11 @@ func (c *Config) GetConfigEnabledExchanges() int {
 		}
 	}
 	return counter
+}
+
+// GetCurrencyPairDisplayConfig retrieves the currency pair display preference
+func (c *Config) GetCurrencyPairDisplayConfig() *CurrencyPairFormatConfig {
+	return c.CurrencyPairFormat
 }
 
 // GetExchangeConfig returns your exchange configurations by its indivdual name
@@ -394,6 +406,13 @@ func (c *Config) LoadConfig(configPath string) error {
 	err = c.CheckExchangeConfigValues()
 	if err != nil {
 		return fmt.Errorf(ErrCheckingConfigValues, err)
+	}
+
+	if c.CurrencyPairFormat == nil {
+		c.CurrencyPairFormat = &CurrencyPairFormatConfig{
+			Delimiter: "-",
+			Uppercase: true,
+		}
 	}
 
 	return nil

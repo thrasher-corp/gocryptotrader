@@ -3,6 +3,8 @@ package exchange
 import (
 	"testing"
 
+	"github.com/thrasher-/gocryptotrader/currency/pair"
+
 	"github.com/thrasher-/gocryptotrader/config"
 )
 
@@ -27,6 +29,22 @@ func TestGetEnabledCurrencies(t *testing.T) {
 	enCurr := GetEnabledCurrencies.GetEnabledCurrencies()
 	if enCurr[0] != "BTCUSD" {
 		t.Error("Test Failed - Exchange GetEnabledCurrencies() incorrect string")
+	}
+}
+
+func TestFormatCurrency(t *testing.T) {
+	cfg := config.GetConfig()
+	err := cfg.LoadConfig(config.ConfigTestFile)
+	if err != nil {
+		t.Fatalf("Failed to load config file. Error: %s", err)
+	}
+
+	currency := pair.NewCurrencyPair("btc", "usd")
+	expected := "BTC-USD"
+	actual := FormatCurrency(currency).String()
+	if actual != expected {
+		t.Errorf("Test failed - Exchange TestFormatCurrency %s != %s",
+			actual, expected)
 	}
 }
 

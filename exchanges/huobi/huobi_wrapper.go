@@ -40,7 +40,7 @@ func (h *HUOBI) Run() {
 				HuobiLastUSD, _ := currency.ConvertCurrency(ticker.Last, "CNY", "USD")
 				HuobiHighUSD, _ := currency.ConvertCurrency(ticker.High, "CNY", "USD")
 				HuobiLowUSD, _ := currency.ConvertCurrency(ticker.Low, "CNY", "USD")
-				log.Printf("Huobi %s: Last %f (%f) High %f (%f) Low %f (%f) Volume %f\n", curr.Pair().String(), HuobiLastUSD, ticker.Last, HuobiHighUSD, ticker.High, HuobiLowUSD, ticker.Low, ticker.Volume)
+				log.Printf("Huobi %s: Last %f (%f) High %f (%f) Low %f (%f) Volume %f\n", exchange.FormatCurrency(curr).String(), HuobiLastUSD, ticker.Last, HuobiHighUSD, ticker.High, HuobiLowUSD, ticker.Low, ticker.Volume)
 				stats.AddExchangeInfo(h.GetName(), curr.GetFirstCurrency().String(), curr.GetSecondCurrency().String(), ticker.Last, ticker.Volume)
 				stats.AddExchangeInfo(h.GetName(), curr.GetFirstCurrency().String(), "USD", HuobiLastUSD, ticker.Volume)
 			}()

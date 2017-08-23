@@ -2,6 +2,10 @@
  "Name": "Skynet",
  "EncryptConfig": 0,
  "Cryptocurrencies": "BTC,LTC,ETH,XRP,NMC,NVC,PPC,XBT,DOGE,DASH",
+ "CurrencyPairFormat": {
+  "Uppercase": true,
+  "Delimiter": "-"
+ },
  "PortfolioAddresses": {
   "Addresses": [
    {
