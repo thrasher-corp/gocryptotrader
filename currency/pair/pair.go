@@ -43,6 +43,23 @@ func (c CurrencyPair) Pair() CurrencyItem {
 	return c.FirstCurrency + CurrencyItem(c.Delimiter) + c.SecondCurrency
 }
 
+// Display formats and returns the currency based on user preferences, 
+// overriding the default Pair() display
+func (c CurrencyPair) Display(delimiter string, uppercase bool) CurrencyItem {
+	var pair CurrencyItem
+
+	if delimiter != "" {
+		pair = c.FirstCurrency + CurrencyItem(delimiter) + c.SecondCurrency
+	} else {
+		pair = c.FirstCurrency + c.SecondCurrency
+	}
+
+	if uppercase {
+		return pair.Upper()
+	}
+	return pair.Lower()
+}
+
 // NewCurrencyPairDelimiter splits the desired currency string at delimeter,
 // the returns a CurrencyPair struct
 func NewCurrencyPairDelimiter(currency, delimiter string) CurrencyPair {

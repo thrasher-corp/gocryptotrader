@@ -85,6 +85,14 @@ func (e *Base) GetEnabledCurrencies() []string {
 	return e.EnabledPairs
 }
 
+// FormatCurrency is a method that formats and returns a currency pair
+// based on the user currency display preferences
+func FormatCurrency(p pair.CurrencyPair) pair.CurrencyItem {
+	cfg := config.GetConfig()
+	return p.Display(cfg.CurrencyPairFormat.Delimiter,
+		cfg.CurrencyPairFormat.Uppercase)
+}
+
 // SetEnabled is a method that sets if the exchange is enabled
 func (e *Base) SetEnabled(enabled bool) {
 	e.Enabled = enabled

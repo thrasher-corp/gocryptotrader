@@ -30,7 +30,7 @@ func (l *LakeBTC) Run() {
 				log.Println(err)
 				continue
 			}
-			log.Printf("LakeBTC BTC %s: Last %f High %f Low %f Volume %f\n", x[3:], ticker.Last, ticker.High, ticker.Low, ticker.Volume)
+			log.Printf("LakeBTC %s: Last %f High %f Low %f Volume %f\n", exchange.FormatCurrency(currency).String(), ticker.Last, ticker.High, ticker.Low, ticker.Volume)
 			stats.AddExchangeInfo(l.GetName(), currency.GetFirstCurrency().String(), currency.GetSecondCurrency().String(), ticker.Last, ticker.Volume)
 		}
 		time.Sleep(time.Second * l.RESTPollingDelay)

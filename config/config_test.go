@@ -19,6 +19,22 @@ func TestGetConfigEnabledExchanges(t *testing.T) {
 	}
 }
 
+func TestGetCurrencyPairDisplayConfig(t *testing.T) {
+	cfg := GetConfig()
+	err := cfg.LoadConfig(ConfigTestFile)
+	if err != nil {
+		t.Errorf(
+			"Test failed. GetCurrencyPairDisplayConfig. LoadConfig Error: %s", err.Error(),
+		)
+	}
+	settings := cfg.GetCurrencyPairDisplayConfig()
+	if settings.Delimiter != "-" || !settings.Uppercase {
+		t.Errorf(
+			"Test failed. GetCurrencyPairDisplayConfi. Invalid values",
+		)
+	}
+}
+
 func TestGetExchangeConfig(t *testing.T) {
 	GetExchangeConfig := GetConfig()
 	err := GetExchangeConfig.LoadConfig(ConfigTestFile)

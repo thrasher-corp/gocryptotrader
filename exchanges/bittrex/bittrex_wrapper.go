@@ -52,7 +52,7 @@ func (b *Bittrex) Run() {
 					log.Println(err)
 					return
 				}
-				log.Printf("Bittrex %s Last %f Bid %f Ask %f Volume %f\n", currency.Pair().String(), ticker.Last, ticker.Bid, ticker.Ask, ticker.Volume)
+				log.Printf("Bittrex %s Last %f Bid %f Ask %f Volume %f\n", exchange.FormatCurrency(currency).String(), ticker.Last, ticker.Bid, ticker.Ask, ticker.Volume)
 				stats.AddExchangeInfo(b.GetName(), currency.GetFirstCurrency().String(), currency.GetSecondCurrency().String(), ticker.Last, ticker.Volume)
 			}()
 		}

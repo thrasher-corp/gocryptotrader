@@ -41,7 +41,7 @@ func (o *OKCoin) Run() {
 							log.Println(err)
 							return
 						}
-						log.Printf("OKCoin Intl Futures %s (%s): Last %f High %f Low %f Volume %f\n", curr.Pair().String(), futuresValue, ticker.Last, ticker.High, ticker.Low, ticker.Vol)
+						log.Printf("OKCoin Intl Futures %s (%s): Last %f High %f Low %f Volume %f\n", exchange.FormatCurrency(curr).String(), futuresValue, ticker.Last, ticker.High, ticker.Low, ticker.Vol)
 						stats.AddExchangeInfo(o.GetName(), curr.GetFirstCurrency().String(), curr.GetSecondCurrency().String(), ticker.Last, ticker.Vol)
 					}()
 				}
@@ -51,7 +51,7 @@ func (o *OKCoin) Run() {
 						log.Println(err)
 						return
 					}
-					log.Printf("OKCoin Intl Spot %s: Last %f High %f Low %f Volume %f\n", curr.Pair().String(), ticker.Last, ticker.High, ticker.Low, ticker.Volume)
+					log.Printf("OKCoin Intl Spot %s: Last %f High %f Low %f Volume %f\n", exchange.FormatCurrency(curr).String(), ticker.Last, ticker.High, ticker.Low, ticker.Volume)
 					stats.AddExchangeInfo(o.GetName(), curr.GetFirstCurrency().String(), curr.GetSecondCurrency().String(), ticker.Last, ticker.Volume)
 				}()
 			} else {
@@ -64,7 +64,7 @@ func (o *OKCoin) Run() {
 					tickerLastUSD, _ := currency.ConvertCurrency(ticker.Last, "CNY", "USD")
 					tickerHighUSD, _ := currency.ConvertCurrency(ticker.High, "CNY", "USD")
 					tickerLowUSD, _ := currency.ConvertCurrency(ticker.Low, "CNY", "USD")
-					log.Printf("OKCoin China %s: Last %f (%f) High %f (%f) Low %f (%f) Volume %f\n", curr.Pair().String(), tickerLastUSD, ticker.Last, tickerHighUSD, ticker.High, tickerLowUSD, ticker.Low, ticker.Volume)
+					log.Printf("OKCoin China %s: Last %f (%f) High %f (%f) Low %f (%f) Volume %f\n", exchange.FormatCurrency(curr).String(), tickerLastUSD, ticker.Last, tickerHighUSD, ticker.High, tickerLowUSD, ticker.Low, ticker.Volume)
 					stats.AddExchangeInfo(o.GetName(), curr.GetFirstCurrency().String(), curr.GetSecondCurrency().String(), ticker.Last, ticker.Volume)
 					stats.AddExchangeInfo(o.GetName(), curr.GetFirstCurrency().String(), "USD", tickerLastUSD, ticker.Volume)
 				}()
