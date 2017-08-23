@@ -32,6 +32,19 @@ func TestGetEnabledCurrencies(t *testing.T) {
 	}
 }
 
+func TestGetAvailableCurrencies(t *testing.T) {
+	availablePairs := []string{"BTCUSD", "BTCAUD", "LTCUSD", "LTCAUD"}
+	GetEnabledCurrencies := Base{
+		Name:           "TESTNAME",
+		AvailablePairs: availablePairs,
+	}
+
+	enCurr := GetEnabledCurrencies.GetAvailableCurrencies()
+	if enCurr[0] != "BTCUSD" {
+		t.Error("Test Failed - Exchange GetAvailableCurrencies() incorrect string")
+	}
+}
+
 func TestFormatCurrency(t *testing.T) {
 	cfg := config.GetConfig()
 	err := cfg.LoadConfig(config.ConfigTestFile)
