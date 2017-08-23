@@ -652,6 +652,22 @@ func TestWriteFile(t *testing.T) {
 	}
 }
 
+func TestRemoveFile(t *testing.T) {
+	TestWriteFile(t)
+	path := "../testdata/writefiletest"
+	err := RemoveFile(path)
+	if err != nil {
+		t.Errorf("Test failed. Common RemoveFile error: %s", err)
+	}
+
+	TestOutputCSV(t)
+	path = "../testdata/dump"
+	err = RemoveFile(path)
+	if err != nil {
+		t.Errorf("Test failed. Common RemoveFile error: %s", err)
+	}
+}
+
 func TestGetURIPath(t *testing.T) {
 	t.Parallel()
 	// mapping of input vs expected result
