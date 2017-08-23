@@ -85,6 +85,12 @@ func (e *Base) GetEnabledCurrencies() []string {
 	return e.EnabledPairs
 }
 
+// GetAvailableCurrencies is a method that returns the available currency pairs
+// of the exchange base
+func (e *Base) GetAvailableCurrencies() []string {
+	return e.AvailablePairs
+}
+
 // FormatCurrency is a method that formats and returns a currency pair
 // based on the user currency display preferences
 func FormatCurrency(p pair.CurrencyPair) pair.CurrencyItem {
