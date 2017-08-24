@@ -2,7 +2,7 @@ language: go
 
 go:
  - 1.8.x
- - master
+ #- master
 
 before_install:
  - go get -t -v ./...
