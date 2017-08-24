@@ -41,7 +41,7 @@ type YahooJSONResponse struct {
 
 const (
 	maxCurrencyPairsPerRequest = 350
-	yahooYQLURL                = "http://query.yahooapis.com/v1/public/yql"
+	yahooYQLURL                = "https://query.yahooapis.com/v1/public/yql?"
 	yahooDatabase              = "store://datatables.org/alltableswithkeys"
 	// DefaultCurrencies has the default minimum of FIAT values
 	DefaultCurrencies = "USD,AUD,EUR,CNY"
