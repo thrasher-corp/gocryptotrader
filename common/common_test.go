@@ -435,28 +435,28 @@ func TestSendHTTPRequest(t *testing.T) {
 	headers["Content-Type"] = "application/x-www-form-urlencoded"
 
 	_, err := SendHTTPRequest(
-		methodGarbage, "http://query.yahooapis.com/v1/public/yql", headers,
+		methodGarbage, "https://query.yahooapis.com/v1/public/yql", headers,
 		strings.NewReader(""),
 	)
 	if err == nil {
 		t.Error("Test failed. ")
 	}
 	_, err = SendHTTPRequest(
-		methodPost, "http://query.yahooapis.com/v1/public/yql", headers,
+		methodPost, "https://query.yahooapis.com/v1/public/yql", headers,
 		strings.NewReader(""),
 	)
 	if err != nil {
 		t.Errorf("Test failed. %s ", err)
 	}
 	_, err = SendHTTPRequest(
-		methodGet, "http://query.yahooapis.com/v1/public/yql", headers,
+		methodGet, "https://query.yahooapis.com/v1/public/yql", headers,
 		strings.NewReader(""),
 	)
 	if err != nil {
 		t.Errorf("Test failed. %s ", err)
 	}
 	_, err = SendHTTPRequest(
-		methodDelete, "http://query.yahooapis.com/v1/public/yql", headers,
+		methodDelete, "https://query.yahooapis.com/v1/public/yql", headers,
 		strings.NewReader(""),
 	)
 	if err != nil {
@@ -524,8 +524,8 @@ func TestJSONEncode(t *testing.T) {
 }
 
 func TestEncodeURLValues(t *testing.T) {
-	urlstring := "http://www.test.com"
-	expectedOutput := `http://www.test.com?env=TEST%2FDATABASE&format=json&q=SELECT+%2A+from+yahoo.finance.xchange+WHERE+pair+in+%28%22BTC%2CUSD%22%29`
+	urlstring := "https://www.test.com"
+	expectedOutput := `https://www.test.com?env=TEST%2FDATABASE&format=json&q=SELECT+%2A+from+yahoo.finance.xchange+WHERE+pair+in+%28%22BTC%2CUSD%22%29`
 	values := url.Values{}
 	values.Set("q", fmt.Sprintf(
 		"SELECT * from yahoo.finance.xchange WHERE pair in (\"%s\")", "BTC,USD"),
