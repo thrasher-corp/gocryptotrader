@@ -29,8 +29,9 @@ func (h *HUOBI) Run() {
 	}
 
 	for h.Enabled {
-		for _, x := range h.EnabledPairs {
-			curr := pair.NewCurrencyPair(x[0:3], x[3:])
+		pairs := h.GetEnabledCurrencies()
+		for x := range pairs {
+			curr := pairs[x]
 			go func() {
 				ticker, err := h.GetTickerPrice(curr)
 				if err != nil {

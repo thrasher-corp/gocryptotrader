@@ -48,6 +48,11 @@ func (b *BTCE) SetDefaults() {
 	b.Websocket = false
 	b.RESTPollingDelay = 10
 	b.Ticker = make(map[string]BTCeTicker)
+	b.RequestCurrencyPairFormat.Delimiter = "_"
+	b.RequestCurrencyPairFormat.Uppercase = false
+	b.RequestCurrencyPairFormat.Separator = "-"
+	b.ConfigCurrencyPairFormat.Delimiter = ""
+	b.ConfigCurrencyPairFormat.Uppercase = true
 }
 
 func (b *BTCE) Setup(exch config.ExchangeConfig) {
@@ -63,7 +68,10 @@ func (b *BTCE) Setup(exch config.ExchangeConfig) {
 		b.BaseCurrencies = common.SplitStrings(exch.BaseCurrencies, ",")
 		b.AvailablePairs = common.SplitStrings(exch.AvailablePairs, ",")
 		b.EnabledPairs = common.SplitStrings(exch.EnabledPairs, ",")
-
+		err := b.SetCurrencyPairFormat()
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 }
 

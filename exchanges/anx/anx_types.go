@@ -30,11 +30,10 @@ type ANXOrderResponse struct {
 }
 
 type ANXTickerComponent struct {
-	Currency     string  `json:"currency"`
-	Display      string  `json:"display"`
-	DisplayShort string  `json:"display_short"`
-	Value        float64 `json:"value,string"`
-	ValueInt     int64   `json:"value_int,string"`
+	Currency     string `json:"currency"`
+	Display      string `json:"display"`
+	DisplayShort string `json:"display_short"`
+	Value        string `json:"value"`
 }
 
 type ANXTicker struct {

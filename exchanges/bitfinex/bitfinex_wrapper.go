@@ -33,15 +33,16 @@ func (b *Bitfinex) Run() {
 	if err != nil {
 		log.Printf("%s Failed to get available symbols.\n", b.GetName())
 	} else {
-		err = b.UpdateAvailableCurrencies(exchangeProducts)
+		err = b.UpdateAvailableCurrencies(exchangeProducts, false)
 		if err != nil {
 			log.Printf("%s Failed to get config.\n", b.GetName())
 		}
 	}
 
 	for b.Enabled {
-		for _, x := range b.EnabledPairs {
-			currency := pair.NewCurrencyPair(x[0:3], x[3:])
+		pairs := b.GetEnabledCurrencies()
+		for x := range pairs {
+			currency := pairs[x]
 			go func() {
 				ticker, err := b.GetTickerPrice(currency)
 				if err != nil {

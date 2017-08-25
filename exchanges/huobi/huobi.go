@@ -29,6 +29,10 @@ func (h *HUOBI) SetDefaults() {
 	h.Verbose = false
 	h.Websocket = false
 	h.RESTPollingDelay = 10
+	h.RequestCurrencyPairFormat.Delimiter = ""
+	h.RequestCurrencyPairFormat.Uppercase = false
+	h.ConfigCurrencyPairFormat.Delimiter = ""
+	h.ConfigCurrencyPairFormat.Uppercase = true
 }
 
 func (h *HUOBI) Setup(exch config.ExchangeConfig) {
@@ -44,6 +48,10 @@ func (h *HUOBI) Setup(exch config.ExchangeConfig) {
 		h.BaseCurrencies = common.SplitStrings(exch.BaseCurrencies, ",")
 		h.AvailablePairs = common.SplitStrings(exch.AvailablePairs, ",")
 		h.EnabledPairs = common.SplitStrings(exch.EnabledPairs, ",")
+		err := h.SetCurrencyPairFormat()
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 }
 

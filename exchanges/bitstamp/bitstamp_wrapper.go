@@ -28,8 +28,9 @@ func (b *Bitstamp) Run() {
 	}
 
 	for b.Enabled {
-		for _, x := range b.EnabledPairs {
-			currency := pair.NewCurrencyPair(x[0:3], x[3:])
+		pairs := b.GetEnabledCurrencies()
+		for x := range pairs {
+			currency := pairs[x]
 			go func() {
 				ticker, err := b.GetTickerPrice(currency)
 				if err != nil {

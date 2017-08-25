@@ -78,7 +78,9 @@ type Post struct {
 // CurrencyPairFormatConfig stores the users preferred currency pair display
 type CurrencyPairFormatConfig struct {
 	Uppercase bool
-	Delimiter string
+	Delimiter string `json:",omitempty"`
+	Separator string `json:",omitempty"`
+	Index     string `json:",omitempty"`
 }
 
 // Config is the overarching object that holds all the information for
@@ -96,18 +98,20 @@ type Config struct {
 
 // ExchangeConfig holds all the information needed for each enabled Exchange.
 type ExchangeConfig struct {
-	Name                    string
-	Enabled                 bool
-	Verbose                 bool
-	Websocket               bool
-	RESTPollingDelay        time.Duration
-	AuthenticatedAPISupport bool
-	APIKey                  string
-	APISecret               string
-	ClientID                string `json:",omitempty"`
-	AvailablePairs          string
-	EnabledPairs            string
-	BaseCurrencies          string
+	Name                      string
+	Enabled                   bool
+	Verbose                   bool
+	Websocket                 bool
+	RESTPollingDelay          time.Duration
+	AuthenticatedAPISupport   bool
+	APIKey                    string
+	APISecret                 string
+	ClientID                  string `json:",omitempty"`
+	AvailablePairs            string
+	EnabledPairs              string
+	BaseCurrencies            string
+	ConfigCurrencyPairFormat  *CurrencyPairFormatConfig `json:"ConfigCurrencyPairFormat"`
+	RequestCurrencyPairFormat *CurrencyPairFormatConfig `json:"RequestCurrencyPairFormat"`
 }
 
 // GetConfigEnabledExchanges returns the number of exchanges that are enabled.

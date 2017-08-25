@@ -38,6 +38,10 @@ func (b *BTCMarkets) SetDefaults() {
 	b.Websocket = false
 	b.RESTPollingDelay = 10
 	b.Ticker = make(map[string]BTCMarketsTicker)
+	b.RequestCurrencyPairFormat.Delimiter = ""
+	b.RequestCurrencyPairFormat.Uppercase = true
+	b.ConfigCurrencyPairFormat.Delimiter = ""
+	b.ConfigCurrencyPairFormat.Uppercase = true
 }
 
 func (b *BTCMarkets) Setup(exch config.ExchangeConfig) {
@@ -53,7 +57,10 @@ func (b *BTCMarkets) Setup(exch config.ExchangeConfig) {
 		b.BaseCurrencies = common.SplitStrings(exch.BaseCurrencies, ",")
 		b.AvailablePairs = common.SplitStrings(exch.AvailablePairs, ",")
 		b.EnabledPairs = common.SplitStrings(exch.EnabledPairs, ",")
-
+		err := b.SetCurrencyPairFormat()
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 }
 

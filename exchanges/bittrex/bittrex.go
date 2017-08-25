@@ -66,6 +66,10 @@ func (b *Bittrex) SetDefaults() {
 	b.Verbose = false
 	b.Websocket = false
 	b.RESTPollingDelay = 10
+	b.RequestCurrencyPairFormat.Delimiter = "-"
+	b.RequestCurrencyPairFormat.Uppercase = true
+	b.ConfigCurrencyPairFormat.Delimiter = "-"
+	b.ConfigCurrencyPairFormat.Uppercase = true
 }
 
 // Setup method sets current configuration details if enabled
@@ -82,6 +86,10 @@ func (b *Bittrex) Setup(exch config.ExchangeConfig) {
 		b.BaseCurrencies = common.SplitStrings(exch.BaseCurrencies, ",")
 		b.AvailablePairs = common.SplitStrings(exch.AvailablePairs, ",")
 		b.EnabledPairs = common.SplitStrings(exch.EnabledPairs, ",")
+		err := b.SetCurrencyPairFormat()
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 }
 

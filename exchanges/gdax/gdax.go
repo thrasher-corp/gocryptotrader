@@ -46,6 +46,10 @@ func (g *GDAX) SetDefaults() {
 	g.Verbose = false
 	g.Websocket = false
 	g.RESTPollingDelay = 10
+	g.RequestCurrencyPairFormat.Delimiter = "-"
+	g.RequestCurrencyPairFormat.Uppercase = true
+	g.ConfigCurrencyPairFormat.Delimiter = ""
+	g.ConfigCurrencyPairFormat.Uppercase = true
 }
 
 func (g *GDAX) Setup(exch config.ExchangeConfig) {
@@ -61,6 +65,10 @@ func (g *GDAX) Setup(exch config.ExchangeConfig) {
 		g.BaseCurrencies = common.SplitStrings(exch.BaseCurrencies, ",")
 		g.AvailablePairs = common.SplitStrings(exch.AvailablePairs, ",")
 		g.EnabledPairs = common.SplitStrings(exch.EnabledPairs, ",")
+		err := g.SetCurrencyPairFormat()
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 }
 

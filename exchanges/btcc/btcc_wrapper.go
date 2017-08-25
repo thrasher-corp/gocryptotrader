@@ -28,8 +28,9 @@ func (b *BTCC) Run() {
 	}
 
 	for b.Enabled {
-		for _, x := range b.EnabledPairs {
-			currency := pair.NewCurrencyPair(x[0:3], x[3:])
+		pairs := b.GetEnabledCurrencies()
+		for x := range pairs {
+			currency := pairs[x]
 			go func() {
 				ticker, err := b.GetTickerPrice(currency)
 				if err != nil {
@@ -51,7 +52,7 @@ func (b *BTCC) GetTickerPrice(p pair.CurrencyPair) (ticker.TickerPrice, error) {
 	}
 
 	var tickerPrice ticker.TickerPrice
-	tick, err := b.GetTicker(p.Pair().Lower().String())
+	tick, err := b.GetTicker(exchange.FormatExchangeCurrency(b.GetName(), p).String())
 	if err != nil {
 		return tickerPrice, err
 	}
@@ -74,7 +75,7 @@ func (b *BTCC) GetOrderbookEx(p pair.CurrencyPair) (orderbook.OrderbookBase, err
 	}
 
 	var orderBook orderbook.OrderbookBase
-	orderbookNew, err := b.GetOrderBook(p.Pair().Lower().String(), 100)
+	orderbookNew, err := b.GetOrderBook(exchange.FormatExchangeCurrency(b.GetName(), p).String(), 100)
 	if err != nil {
 		return orderBook, err
 	}

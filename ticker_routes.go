@@ -62,15 +62,13 @@ func getAllActiveTickersResponse(w http.ResponseWriter, r *http.Request) {
 				"Getting enabled currencies for '" + individualBot.GetName() + "'",
 			)
 			currencies := individualBot.GetEnabledCurrencies()
-			log.Println(currencies)
-			for _, currency := range currencies {
-				tickerPrice, err := individualBot.GetTickerPrice(
-					pair.NewCurrencyPairFromString(currency),
-				)
+			for x := range currencies {
+				currency := currencies[x]
+
+				tickerPrice, err := individualBot.GetTickerPrice(currency)
 				if err != nil {
 					continue
 				}
-				log.Println(tickerPrice)
 
 				individualExchange.ExchangeValues = append(
 					individualExchange.ExchangeValues, tickerPrice,

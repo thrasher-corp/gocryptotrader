@@ -78,6 +78,13 @@ type OKCoin struct {
 	WebsocketConn   *websocket.Conn
 }
 
+func (o *OKCoin) setCurrencyPairFormats() {
+	o.RequestCurrencyPairFormat.Delimiter = "_"
+	o.RequestCurrencyPairFormat.Uppercase = false
+	o.ConfigCurrencyPairFormat.Delimiter = ""
+	o.ConfigCurrencyPairFormat.Uppercase = true
+}
+
 func (o *OKCoin) SetDefaults() {
 	o.SetErrorDefaults()
 	o.SetWebsocketErrorDefaults()
@@ -92,10 +99,12 @@ func (o *OKCoin) SetDefaults() {
 		o.Name = "OKCOIN International"
 		o.WebsocketURL = OKCOIN_WEBSOCKET_URL
 		okcoinDefaultsSet = true
+		o.setCurrencyPairFormats()
 	} else {
 		o.APIUrl = OKCOIN_API_URL_CHINA
 		o.Name = "OKCOIN China"
 		o.WebsocketURL = OKCOIN_WEBSOCKET_URL_CHINA
+		o.setCurrencyPairFormats()
 	}
 }
 
@@ -112,6 +121,10 @@ func (o *OKCoin) Setup(exch config.ExchangeConfig) {
 		o.BaseCurrencies = common.SplitStrings(exch.BaseCurrencies, ",")
 		o.AvailablePairs = common.SplitStrings(exch.AvailablePairs, ",")
 		o.EnabledPairs = common.SplitStrings(exch.EnabledPairs, ",")
+		err := o.SetCurrencyPairFormat()
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 }
 

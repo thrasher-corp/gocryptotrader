@@ -140,6 +140,26 @@ func TestNewCurrencyPairDelimiter(t *testing.T) {
 	}
 }
 
+// NewCurrencyPairFromIndex returns a CurrencyPair via a currency string and
+// specific index
+func TestNewCurrencyPairFromIndex(t *testing.T) {
+	t.Parallel()
+	currency := "BTCUSD"
+	index := "BTC"
+
+	pair := NewCurrencyPairFromIndex(currency, index)
+	pair.Delimiter = "-"
+	actual := pair.Pair()
+
+	expected := CurrencyItem("BTC-USD")
+	if actual != expected {
+		t.Errorf(
+			"Test failed. Pair(): %s was not equal to expected value: %s",
+			actual, expected,
+		)
+	}
+}
+
 func TestNewCurrencyPairFromString(t *testing.T) {
 	t.Parallel()
 	pairStr := "BTC-USD"

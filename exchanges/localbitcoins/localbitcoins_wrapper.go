@@ -22,8 +22,9 @@ func (l *LocalBitcoins) Run() {
 	}
 
 	for l.Enabled {
-		for _, x := range l.EnabledPairs {
-			currency := pair.NewCurrencyPair("BTC", x[3:])
+		pairs := l.GetEnabledCurrencies()
+		for x := range pairs {
+			currency := pairs[x]
 			ticker, err := l.GetTickerPrice(currency)
 
 			if err != nil {

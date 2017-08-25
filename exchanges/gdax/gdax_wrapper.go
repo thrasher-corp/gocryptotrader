@@ -37,16 +37,16 @@ func (g *GDAX) Run() {
 				currencies = append(currencies, x.ID[0:3]+x.ID[4:])
 			}
 		}
-		err = g.UpdateAvailableCurrencies(currencies)
+		err = g.UpdateAvailableCurrencies(currencies, false)
 		if err != nil {
 			log.Printf("%s Failed to get config.\n", g.GetName())
 		}
 	}
 
 	for g.Enabled {
-		for _, x := range g.EnabledPairs {
-			currency := pair.NewCurrencyPair(x[0:3], x[3:])
-			currency.Delimiter = "-"
+		pairs := g.GetEnabledCurrencies()
+		for x := range pairs {
+			currency := pairs[x]
 			go func() {
 				ticker, err := g.GetTickerPrice(currency)
 
@@ -88,12 +88,12 @@ func (g *GDAX) GetTickerPrice(p pair.CurrencyPair) (ticker.TickerPrice, error) {
 	}
 
 	var tickerPrice ticker.TickerPrice
-	tick, err := g.GetTicker(p.Pair().String())
+	tick, err := g.GetTicker(exchange.FormatExchangeCurrency(g.Name, p).String())
 	if err != nil {
 		return ticker.TickerPrice{}, err
 	}
 
-	stats, err := g.GetStats(p.Pair().String())
+	stats, err := g.GetStats(exchange.FormatExchangeCurrency(g.Name, p).String())
 
 	if err != nil {
 		return ticker.TickerPrice{}, err

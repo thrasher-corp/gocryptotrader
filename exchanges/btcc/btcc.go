@@ -53,6 +53,10 @@ func (b *BTCC) SetDefaults() {
 	b.Verbose = false
 	b.Websocket = false
 	b.RESTPollingDelay = 10
+	b.RequestCurrencyPairFormat.Delimiter = ""
+	b.RequestCurrencyPairFormat.Uppercase = false
+	b.ConfigCurrencyPairFormat.Delimiter = ""
+	b.ConfigCurrencyPairFormat.Uppercase = true
 }
 
 //Setup is run on startup to setup exchange with config values
@@ -69,6 +73,10 @@ func (b *BTCC) Setup(exch config.ExchangeConfig) {
 		b.BaseCurrencies = common.SplitStrings(exch.BaseCurrencies, ",")
 		b.AvailablePairs = common.SplitStrings(exch.AvailablePairs, ",")
 		b.EnabledPairs = common.SplitStrings(exch.EnabledPairs, ",")
+		err := b.SetCurrencyPairFormat()
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 }
 
