@@ -48,6 +48,10 @@ func (c *COINUT) SetDefaults() {
 	c.Verbose = false
 	c.Websocket = false
 	c.RESTPollingDelay = 10
+	c.RequestCurrencyPairFormat.Delimiter = ""
+	c.RequestCurrencyPairFormat.Uppercase = true
+	c.ConfigCurrencyPairFormat.Delimiter = ""
+	c.ConfigCurrencyPairFormat.Uppercase = true
 }
 
 func (c *COINUT) Setup(exch config.ExchangeConfig) {
@@ -63,6 +67,10 @@ func (c *COINUT) Setup(exch config.ExchangeConfig) {
 		c.BaseCurrencies = common.SplitStrings(exch.BaseCurrencies, ",")
 		c.AvailablePairs = common.SplitStrings(exch.AvailablePairs, ",")
 		c.EnabledPairs = common.SplitStrings(exch.EnabledPairs, ",")
+		err := c.SetCurrencyPairFormat()
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 }
 

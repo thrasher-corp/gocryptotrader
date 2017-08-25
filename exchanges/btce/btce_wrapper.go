@@ -24,16 +24,17 @@ func (b *BTCE) Run() {
 		log.Printf("%s %d currencies enabled: %s.\n", b.GetName(), len(b.EnabledPairs), b.EnabledPairs)
 	}
 
-	pairs := []string{}
-	for _, x := range b.EnabledPairs {
-		x = common.StringToLower(x[0:3] + "_" + x[3:6])
-		pairs = append(pairs, x)
+	pairs := b.GetEnabledCurrencies()
+	pairsCollated, err := exchange.GetAndFormatExchangeCurrencies(b.Name, pairs)
+	if err != nil {
+		log.Println(err)
+		b.Enabled = false
+		return
 	}
-	pairsString := common.JoinStrings(pairs, "-")
 
 	for b.Enabled {
 		go func() {
-			ticker, err := b.GetTicker(pairsString)
+			ticker, err := b.GetTicker(pairsCollated.String())
 			if err != nil {
 				log.Println(err)
 				return
@@ -51,9 +52,9 @@ func (b *BTCE) Run() {
 
 func (b *BTCE) GetTickerPrice(p pair.CurrencyPair) (ticker.TickerPrice, error) {
 	var tickerPrice ticker.TickerPrice
-	tick, ok := b.Ticker[p.Pair().Lower().String()]
+	tick, ok := b.Ticker[exchange.FormatExchangeCurrency(b.Name, p).String()]
 	if !ok {
-		return tickerPrice, errors.New("Unable to get currency.")
+		return tickerPrice, errors.New("unable to get currency")
 	}
 	tickerPrice.Pair = p
 	tickerPrice.Ask = tick.Buy
@@ -73,7 +74,7 @@ func (b *BTCE) GetOrderbookEx(p pair.CurrencyPair) (orderbook.OrderbookBase, err
 	}
 
 	var orderBook orderbook.OrderbookBase
-	orderbookNew, err := b.GetDepth(p.Pair().Lower().String())
+	orderbookNew, err := b.GetDepth(exchange.FormatExchangeCurrency(b.Name, p).String())
 	if err != nil {
 		return orderBook, err
 	}

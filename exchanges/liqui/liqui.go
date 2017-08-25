@@ -46,6 +46,11 @@ func (l *Liqui) SetDefaults() {
 	l.Websocket = false
 	l.RESTPollingDelay = 10
 	l.Ticker = make(map[string]LiquiTicker)
+	l.RequestCurrencyPairFormat.Delimiter = "_"
+	l.RequestCurrencyPairFormat.Uppercase = false
+	l.RequestCurrencyPairFormat.Separator = "-"
+	l.ConfigCurrencyPairFormat.Delimiter = "_"
+	l.ConfigCurrencyPairFormat.Uppercase = true
 }
 
 func (l *Liqui) Setup(exch config.ExchangeConfig) {
@@ -61,6 +66,10 @@ func (l *Liqui) Setup(exch config.ExchangeConfig) {
 		l.BaseCurrencies = common.SplitStrings(exch.BaseCurrencies, ",")
 		l.AvailablePairs = common.SplitStrings(exch.AvailablePairs, ",")
 		l.EnabledPairs = common.SplitStrings(exch.EnabledPairs, ",")
+		err := l.SetCurrencyPairFormat()
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 }
 

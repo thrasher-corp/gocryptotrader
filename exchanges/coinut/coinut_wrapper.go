@@ -40,14 +40,15 @@ func (c *COINUT) Run() {
 		currencies = append(currencies, x)
 	}
 
-	err = c.UpdateAvailableCurrencies(currencies)
+	err = c.UpdateAvailableCurrencies(currencies, false)
 	if err != nil {
 		log.Printf("%s Failed to get config.\n", c.GetName())
 	}
 
 	for c.Enabled {
-		for _, x := range c.EnabledPairs {
-			currency := pair.NewCurrencyPair(x[0:3], x[3:])
+		pairs := c.GetEnabledCurrencies()
+		for x := range pairs {
+			currency := pairs[x]
 			go func() {
 				ticker, err := c.GetTickerPrice(currency)
 				if err != nil {
@@ -62,8 +63,8 @@ func (c *COINUT) Run() {
 	}
 }
 
-//GetExchangeAccountInfo : Retrieves balances for all enabled currencies for the COINUT exchange
-func (e *COINUT) GetExchangeAccountInfo() (exchange.AccountInfo, error) {
+// GetExchangeAccountInfo : Retrieves balances for all enabled currencies for the COINUT exchange
+func (c *COINUT) GetExchangeAccountInfo() (exchange.AccountInfo, error) {
 	var response exchange.AccountInfo
 	/*
 		response.ExchangeName = e.GetName()

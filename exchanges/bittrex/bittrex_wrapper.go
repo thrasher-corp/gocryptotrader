@@ -28,24 +28,37 @@ func (b *Bittrex) Run() {
 	if err != nil {
 		log.Printf("%s Failed to get available symbols.\n", b.GetName())
 	} else {
+		forceUpgrade := false
+		if !common.DataContains(b.EnabledPairs, "-") || !common.DataContains(b.AvailablePairs, "-") {
+			forceUpgrade = true
+		}
 		var currencies []string
 		for x := range exchangeProducts {
 			if !exchangeProducts[x].IsActive {
 				continue
 			}
-			currencies = append(currencies,
-				common.ReplaceString(exchangeProducts[x].MarketName, "-", "", -1))
+			currencies = append(currencies, exchangeProducts[x].MarketName)
 		}
-		err = b.UpdateAvailableCurrencies(currencies)
+
+		if forceUpgrade {
+			enabledPairs := []string{"USDT-BTC"}
+			log.Println("WARNING: Available pairs for Bittrex reset due to config upgrade, please enable the ones you would like again")
+
+			err = b.UpdateEnabledCurrencies(enabledPairs, true)
+			if err != nil {
+				log.Printf("%s Failed to get config.\n", b.GetName())
+			}
+		}
+		err = b.UpdateAvailableCurrencies(currencies, forceUpgrade)
 		if err != nil {
 			log.Printf("%s Failed to get config.\n", b.GetName())
 		}
 	}
 
 	for b.Enabled {
-		for _, x := range b.EnabledPairs {
-			currency := pair.NewCurrencyPair(x[0:3], x[3:])
-			currency.Delimiter = "-"
+		pairs := b.GetEnabledCurrencies()
+		for x := range pairs {
+			currency := pairs[x]
 			go func() {
 				ticker, err := b.GetTickerPrice(currency)
 				if err != nil {
@@ -87,7 +100,7 @@ func (b *Bittrex) GetTickerPrice(p pair.CurrencyPair) (ticker.TickerPrice, error
 	}
 
 	var tickerPrice ticker.TickerPrice
-	tick, err := b.GetMarketSummary(p.Pair().Lower().String())
+	tick, err := b.GetMarketSummary(exchange.FormatExchangeCurrency(b.GetName(), p).String())
 	if err != nil {
 		return tickerPrice, err
 	}
@@ -108,7 +121,7 @@ func (b *Bittrex) GetOrderbookEx(p pair.CurrencyPair) (orderbook.OrderbookBase, 
 	}
 
 	var orderBook orderbook.OrderbookBase
-	orderbookNew, err := b.GetOrderbook(p.Pair().Lower().String())
+	orderbookNew, err := b.GetOrderbook(exchange.FormatExchangeCurrency(b.GetName(), p).String())
 	if err != nil {
 		return orderBook, err
 	}

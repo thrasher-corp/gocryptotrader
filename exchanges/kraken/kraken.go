@@ -55,6 +55,11 @@ func (k *Kraken) SetDefaults() {
 	k.Websocket = false
 	k.RESTPollingDelay = 10
 	k.Ticker = make(map[string]KrakenTicker)
+	k.RequestCurrencyPairFormat.Delimiter = ""
+	k.RequestCurrencyPairFormat.Uppercase = true
+	k.RequestCurrencyPairFormat.Separator = ","
+	k.ConfigCurrencyPairFormat.Delimiter = ""
+	k.ConfigCurrencyPairFormat.Uppercase = true
 }
 
 func (k *Kraken) Setup(exch config.ExchangeConfig) {
@@ -70,6 +75,10 @@ func (k *Kraken) Setup(exch config.ExchangeConfig) {
 		k.BaseCurrencies = common.SplitStrings(exch.BaseCurrencies, ",")
 		k.AvailablePairs = common.SplitStrings(exch.AvailablePairs, ",")
 		k.EnabledPairs = common.SplitStrings(exch.EnabledPairs, ",")
+		err := k.SetCurrencyPairFormat()
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 }
 

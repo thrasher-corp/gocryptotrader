@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"log"
 	"net/url"
 	"strconv"
 	"time"
@@ -57,6 +58,10 @@ func (p *Poloniex) SetDefaults() {
 	p.Verbose = false
 	p.Websocket = false
 	p.RESTPollingDelay = 10
+	p.RequestCurrencyPairFormat.Delimiter = "_"
+	p.RequestCurrencyPairFormat.Uppercase = true
+	p.ConfigCurrencyPairFormat.Delimiter = "_"
+	p.ConfigCurrencyPairFormat.Uppercase = true
 }
 
 func (p *Poloniex) Setup(exch config.ExchangeConfig) {
@@ -72,6 +77,10 @@ func (p *Poloniex) Setup(exch config.ExchangeConfig) {
 		p.BaseCurrencies = common.SplitStrings(exch.BaseCurrencies, ",")
 		p.AvailablePairs = common.SplitStrings(exch.AvailablePairs, ",")
 		p.EnabledPairs = common.SplitStrings(exch.EnabledPairs, ",")
+		err := p.SetCurrencyPairFormat()
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 }
 

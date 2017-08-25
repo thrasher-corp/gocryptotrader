@@ -22,8 +22,9 @@ func (i *ItBit) Run() {
 	}
 
 	for i.Enabled {
-		for _, x := range i.EnabledPairs {
-			currency := pair.NewCurrencyPair(x[0:3], x[3:])
+		pairs := i.GetEnabledCurrencies()
+		for x := range pairs {
+			currency := pairs[x]
 			go func() {
 				ticker, err := i.GetTickerPrice(currency)
 				if err != nil {

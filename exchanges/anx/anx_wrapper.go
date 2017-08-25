@@ -2,6 +2,7 @@ package anx
 
 import (
 	"log"
+	"strconv"
 	"time"
 
 	"github.com/thrasher-/gocryptotrader/currency/pair"
@@ -22,8 +23,9 @@ func (a *ANX) Run() {
 	}
 
 	for a.Enabled {
-		for _, x := range a.EnabledPairs {
-			currency := pair.NewCurrencyPair(x[0:3], x[3:])
+		pairs := a.GetEnabledCurrencies()
+		for x := range pairs {
+			currency := pairs[x]
 			go func() {
 				ticker, err := a.GetTickerPrice(currency)
 				if err != nil {
@@ -51,12 +53,60 @@ func (a *ANX) GetTickerPrice(p pair.CurrencyPair) (ticker.TickerPrice, error) {
 	}
 
 	tickerPrice.Pair = p
-	tickerPrice.Ask = tick.Data.Buy.Value
-	tickerPrice.Bid = tick.Data.Sell.Value
-	tickerPrice.Low = tick.Data.Low.Value
-	tickerPrice.Last = tick.Data.Last.Value
-	tickerPrice.Volume = tick.Data.Vol.Value
-	tickerPrice.High = tick.Data.High.Value
+
+	if tick.Data.Sell.Value != "" {
+		tickerPrice.Ask, err = strconv.ParseFloat(tick.Data.Sell.Value, 64)
+		if err != nil {
+			return tickerPrice, err
+		}
+	} else {
+		tickerPrice.Ask = 0
+	}
+
+	if tick.Data.Buy.Value != "" {
+		tickerPrice.Bid, err = strconv.ParseFloat(tick.Data.Buy.Value, 64)
+		if err != nil {
+			return tickerPrice, err
+		}
+	} else {
+		tickerPrice.Bid = 0
+	}
+
+	if tick.Data.Low.Value != "" {
+		tickerPrice.Low, err = strconv.ParseFloat(tick.Data.Low.Value, 64)
+		if err != nil {
+			return tickerPrice, err
+		}
+	} else {
+		tickerPrice.Low = 0
+	}
+
+	if tick.Data.Last.Value != "" {
+		tickerPrice.Last, err = strconv.ParseFloat(tick.Data.Last.Value, 64)
+		if err != nil {
+			return tickerPrice, err
+		}
+	} else {
+		tickerPrice.Last = 0
+	}
+
+	if tick.Data.Vol.Value != "" {
+		tickerPrice.Volume, err = strconv.ParseFloat(tick.Data.Vol.Value, 64)
+		if err != nil {
+			return tickerPrice, err
+		}
+	} else {
+		tickerPrice.Volume = 0
+	}
+
+	if tick.Data.High.Value != "" {
+		tickerPrice.High, err = strconv.ParseFloat(tick.Data.High.Value, 64)
+		if err != nil {
+			return tickerPrice, err
+		}
+	} else {
+		tickerPrice.High = 0
+	}
 	ticker.ProcessTicker(a.GetName(), p, tickerPrice)
 	return tickerPrice, nil
 }

@@ -29,14 +29,14 @@ func (o *OKCoin) Run() {
 	}
 
 	for o.Enabled {
-		for _, x := range o.EnabledPairs {
-			curr := pair.NewCurrencyPair(x[0:3], x[3:])
-			curr.Delimiter = "_"
+		pairs := o.GetEnabledCurrencies()
+		for x := range pairs {
+			curr := pairs[x]
 			if o.APIUrl == OKCOIN_API_URL {
 				for _, y := range o.FuturesValues {
 					futuresValue := y
 					go func() {
-						ticker, err := o.GetFuturesTicker(curr.Pair().Lower().String(), futuresValue)
+						ticker, err := o.GetFuturesTicker(exchange.FormatExchangeCurrency(o.Name, curr).String(), futuresValue)
 						if err != nil {
 							log.Println(err)
 							return
@@ -81,7 +81,7 @@ func (o *OKCoin) GetTickerPrice(currency pair.CurrencyPair) (ticker.TickerPrice,
 	}
 
 	var tickerPrice ticker.TickerPrice
-	tick, err := o.GetTicker(currency.Pair().Lower().String())
+	tick, err := o.GetTicker(exchange.FormatExchangeCurrency(o.Name, currency).String())
 	if err != nil {
 		return tickerPrice, err
 	}
@@ -103,7 +103,7 @@ func (o *OKCoin) GetOrderbookEx(currency pair.CurrencyPair) (orderbook.Orderbook
 	}
 
 	var orderBook orderbook.OrderbookBase
-	orderbookNew, err := o.GetOrderBook(currency.Pair().Lower().String(), 200, false)
+	orderbookNew, err := o.GetOrderBook(exchange.FormatExchangeCurrency(o.Name, currency).String(), 200, false)
 	if err != nil {
 		return orderBook, err
 	}

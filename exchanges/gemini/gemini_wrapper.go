@@ -26,15 +26,16 @@ func (g *Gemini) Run() {
 	if err != nil {
 		log.Printf("%s Failed to get available symbols.\n", g.GetName())
 	} else {
-		err = g.UpdateAvailableCurrencies(exchangeProducts)
+		err = g.UpdateAvailableCurrencies(exchangeProducts, false)
 		if err != nil {
 			log.Printf("%s Failed to get config.\n", g.GetName())
 		}
 	}
 
 	for g.Enabled {
-		for _, x := range g.EnabledPairs {
-			currency := pair.NewCurrencyPair(x[0:3], x[3:])
+		pairs := g.GetEnabledCurrencies()
+		for x := range pairs {
+			currency := pairs[x]
 			go func() {
 				ticker, err := g.GetTickerPrice(currency)
 				if err != nil {

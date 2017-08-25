@@ -4,7 +4,6 @@ import (
 	"log"
 	"time"
 
-	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
 	"github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
@@ -30,21 +29,28 @@ func (k *Kraken) Run() {
 		for _, v := range assetPairs {
 			exchangeProducts = append(exchangeProducts, v.Altname)
 		}
-		err = k.UpdateAvailableCurrencies(exchangeProducts)
+		err = k.UpdateAvailableCurrencies(exchangeProducts, false)
 		if err != nil {
 			log.Printf("%s Failed to get config.\n", k.GetName())
 		}
 	}
 
 	for k.Enabled {
-		err := k.GetTicker(common.JoinStrings(k.EnabledPairs, ","))
+		pairs := k.GetEnabledCurrencies()
+		pairsCollated, err := exchange.GetAndFormatExchangeCurrencies(k.Name, pairs)
+		if err != nil {
+			log.Println(err)
+			continue
+		}
+		err = k.GetTicker(pairsCollated.String())
 		if err != nil {
 			log.Println(err)
 		} else {
-			for _, x := range k.EnabledPairs {
-				ticker := k.Ticker[x]
-				log.Printf("Kraken %s Last %f High %f Low %f Volume %f\n", x, ticker.Last, ticker.High, ticker.Low, ticker.Volume)
-				stats.AddExchangeInfo(k.GetName(), x[0:3], x[3:], ticker.Last, ticker.Volume)
+			for _, x := range pairs {
+				ticker := k.Ticker[x.Pair().String()]
+				log.Printf("Kraken %s Last %f High %f Low %f Volume %f\n", exchange.FormatCurrency(x).String(), ticker.Last, ticker.High, ticker.Low, ticker.Volume)
+				stats.AddExchangeInfo(k.GetName(), x.GetFirstCurrency().String(), x.GetSecondCurrency().String(),
+					ticker.Last, ticker.Volume)
 			}
 		}
 		time.Sleep(time.Second * k.RESTPollingDelay)

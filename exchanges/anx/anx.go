@@ -39,6 +39,12 @@ func (a *ANX) SetDefaults() {
 	a.Verbose = false
 	a.Websocket = false
 	a.RESTPollingDelay = 10
+	a.RequestCurrencyPairFormat.Delimiter = ""
+	a.RequestCurrencyPairFormat.Uppercase = true
+	a.RequestCurrencyPairFormat.Index = "BTC"
+	a.ConfigCurrencyPairFormat.Delimiter = ""
+	a.ConfigCurrencyPairFormat.Uppercase = true
+	a.ConfigCurrencyPairFormat.Index = "BTC"
 }
 
 //Setup is run on startup to setup exchange with config values
@@ -55,6 +61,10 @@ func (a *ANX) Setup(exch config.ExchangeConfig) {
 		a.BaseCurrencies = common.SplitStrings(exch.BaseCurrencies, ",")
 		a.AvailablePairs = common.SplitStrings(exch.AvailablePairs, ",")
 		a.EnabledPairs = common.SplitStrings(exch.EnabledPairs, ",")
+		err := a.SetCurrencyPairFormat()
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 }
 

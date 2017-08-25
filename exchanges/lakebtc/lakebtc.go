@@ -42,6 +42,10 @@ func (l *LakeBTC) SetDefaults() {
 	l.Verbose = false
 	l.Websocket = false
 	l.RESTPollingDelay = 10
+	l.RequestCurrencyPairFormat.Delimiter = ""
+	l.RequestCurrencyPairFormat.Uppercase = true
+	l.ConfigCurrencyPairFormat.Delimiter = ""
+	l.ConfigCurrencyPairFormat.Uppercase = true
 }
 
 func (l *LakeBTC) Setup(exch config.ExchangeConfig) {
@@ -57,6 +61,10 @@ func (l *LakeBTC) Setup(exch config.ExchangeConfig) {
 		l.BaseCurrencies = common.SplitStrings(exch.BaseCurrencies, ",")
 		l.AvailablePairs = common.SplitStrings(exch.AvailablePairs, ",")
 		l.EnabledPairs = common.SplitStrings(exch.EnabledPairs, ",")
+		err := l.SetCurrencyPairFormat()
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 }
 

@@ -4,6 +4,8 @@ import (
 	"log"
 	"time"
 
+	"github.com/thrasher-/gocryptotrader/common"
+
 	"github.com/thrasher-/gocryptotrader/currency"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
 	"github.com/thrasher-/gocryptotrader/exchanges"
@@ -22,9 +24,36 @@ func (b *BTCMarkets) Run() {
 		log.Printf("%s %d currencies enabled: %s.\n", b.GetName(), len(b.EnabledPairs), b.EnabledPairs)
 	}
 
+	if !common.DataContains(b.EnabledPairs, "AUD") || !common.DataContains(b.EnabledPairs, "AUD") {
+		enabledPairs := []string{}
+		for x := range b.EnabledPairs {
+			enabledPairs = append(enabledPairs, b.EnabledPairs[x]+"AUD")
+		}
+
+		availablePairs := []string{}
+		for x := range b.AvailablePairs {
+			availablePairs = append(availablePairs, b.AvailablePairs[x]+"AUD")
+		}
+
+		log.Println("BTCMarkets: Upgrading available and enabled pairs")
+
+		err := b.UpdateEnabledCurrencies(enabledPairs, true)
+		if err != nil {
+			log.Printf("%s Failed to get config.\n", b.GetName())
+			return
+		}
+
+		err = b.UpdateAvailableCurrencies(availablePairs, true)
+		if err != nil {
+			log.Printf("%s Failed to get config.\n", b.GetName())
+			return
+		}
+	}
+
 	for b.Enabled {
-		for _, x := range b.EnabledPairs {
-			curr := pair.NewCurrencyPair(x, "AUD")
+		pairs := b.GetEnabledCurrencies()
+		for x := range pairs {
+			curr := pairs[x]
 			go func() {
 				ticker, err := b.GetTickerPrice(curr)
 				if err != nil {

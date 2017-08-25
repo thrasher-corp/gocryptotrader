@@ -29,23 +29,23 @@ func (l *Liqui) Run() {
 		log.Printf("%s Unable to fetch info.\n", l.GetName())
 	} else {
 		exchangeProducts := l.GetAvailablePairs(true)
-		err = l.UpdateAvailableCurrencies(exchangeProducts)
+		err = l.UpdateAvailableCurrencies(exchangeProducts, false)
 		if err != nil {
 			log.Printf("%s Failed to get config.\n", l.GetName())
 		}
 	}
 
-	pairs := []string{}
-	for _, x := range l.EnabledPairs {
-		currencies := common.SplitStrings(x, "_")
-		x = common.StringToLower(currencies[0]) + "_" + common.StringToLower(currencies[1])
-		pairs = append(pairs, x)
+	pairsString, err := exchange.GetAndFormatExchangeCurrencies(l.Name,
+		l.GetEnabledCurrencies())
+	if err != nil {
+		log.Println(err)
+		l.Enabled = false
+		return
 	}
-	pairsString := common.JoinStrings(pairs, "-")
 
 	for l.Enabled {
 		go func() {
-			ticker, err := l.GetTicker(pairsString)
+			ticker, err := l.GetTicker(pairsString.String())
 			if err != nil {
 				log.Println(err)
 				return
@@ -63,9 +63,9 @@ func (l *Liqui) Run() {
 
 func (l *Liqui) GetTickerPrice(p pair.CurrencyPair) (ticker.TickerPrice, error) {
 	var tickerPrice ticker.TickerPrice
-	tick, ok := l.Ticker[p.Pair().Lower().String()]
+	tick, ok := l.Ticker[exchange.FormatExchangeCurrency(l.Name, p).String()]
 	if !ok {
-		return tickerPrice, errors.New("Unable to get currency.")
+		return tickerPrice, errors.New("unable to get currency")
 	}
 	tickerPrice.Pair = p
 	tickerPrice.Ask = tick.Buy
@@ -85,7 +85,7 @@ func (l *Liqui) GetOrderbookEx(p pair.CurrencyPair) (orderbook.OrderbookBase, er
 	}
 
 	var orderBook orderbook.OrderbookBase
-	orderbookNew, err := l.GetDepth(p.Pair().Lower().String())
+	orderbookNew, err := l.GetDepth(exchange.FormatExchangeCurrency(l.Name, p).String())
 	if err != nil {
 		return orderBook, err
 	}

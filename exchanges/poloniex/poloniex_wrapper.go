@@ -28,8 +28,9 @@ func (p *Poloniex) Run() {
 	}
 
 	for p.Enabled {
-		for _, x := range p.EnabledPairs {
-			currency := pair.NewCurrencyPairDelimiter(x, "_")
+		pairs := p.GetEnabledCurrencies()
+		for x := range pairs {
+			currency := pairs[x]
 			go func() {
 				ticker, err := p.GetTickerPrice(currency)
 				if err != nil {

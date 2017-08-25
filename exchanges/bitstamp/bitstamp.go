@@ -55,6 +55,10 @@ func (b *Bitstamp) SetDefaults() {
 	b.Verbose = false
 	b.Websocket = false
 	b.RESTPollingDelay = 10
+	b.RequestCurrencyPairFormat.Delimiter = ""
+	b.RequestCurrencyPairFormat.Uppercase = true
+	b.ConfigCurrencyPairFormat.Delimiter = ""
+	b.ConfigCurrencyPairFormat.Uppercase = true
 }
 
 func (b *Bitstamp) Setup(exch config.ExchangeConfig) {
@@ -70,6 +74,10 @@ func (b *Bitstamp) Setup(exch config.ExchangeConfig) {
 		b.BaseCurrencies = common.SplitStrings(exch.BaseCurrencies, ",")
 		b.AvailablePairs = common.SplitStrings(exch.AvailablePairs, ",")
 		b.EnabledPairs = common.SplitStrings(exch.EnabledPairs, ",")
+		err := b.SetCurrencyPairFormat()
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 }
 

@@ -81,6 +81,10 @@ func (b *Bitfinex) SetDefaults() {
 	b.Websocket = false
 	b.RESTPollingDelay = 10
 	b.WebsocketSubdChannels = make(map[int]WebsocketChanInfo)
+	b.RequestCurrencyPairFormat.Delimiter = ""
+	b.RequestCurrencyPairFormat.Uppercase = true
+	b.ConfigCurrencyPairFormat.Delimiter = ""
+	b.ConfigCurrencyPairFormat.Uppercase = true
 }
 
 // Setup takes in the supplied exchange configuration details and sets params
@@ -97,6 +101,10 @@ func (b *Bitfinex) Setup(exch config.ExchangeConfig) {
 		b.BaseCurrencies = common.SplitStrings(exch.BaseCurrencies, ",")
 		b.AvailablePairs = common.SplitStrings(exch.AvailablePairs, ",")
 		b.EnabledPairs = common.SplitStrings(exch.EnabledPairs, ",")
+		err := b.SetCurrencyPairFormat()
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 }
 

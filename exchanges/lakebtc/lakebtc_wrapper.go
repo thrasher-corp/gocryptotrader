@@ -23,8 +23,9 @@ func (l *LakeBTC) Run() {
 	}
 
 	for l.Enabled {
-		for _, x := range l.EnabledPairs {
-			currency := pair.NewCurrencyPair(x[0:3], x[3:])
+		pairs := l.GetEnabledCurrencies()
+		for x := range pairs {
+			currency := pairs[x]
 			ticker, err := l.GetTickerPrice(currency)
 			if err != nil {
 				log.Println(err)
