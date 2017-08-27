@@ -172,10 +172,17 @@ func TestIsEnabled(t *testing.T) {
 
 func TestSetAPIKeys(t *testing.T) {
 	SetAPIKeys := Base{
-		Name:    "TESTNAME",
-		Enabled: false,
+		Name:                    "TESTNAME",
+		Enabled:                 false,
+		AuthenticatedAPISupport: false,
 	}
 
+	SetAPIKeys.SetAPIKeys("RocketMan", "Digereedoo", "007", false)
+	if SetAPIKeys.APIKey != "" && SetAPIKeys.APISecret != "" && SetAPIKeys.ClientID != "" {
+		t.Error("Test Failed - SetAPIKeys() set values without authenticated API support enabled")
+	}
+
+	SetAPIKeys.AuthenticatedAPISupport = true
 	SetAPIKeys.SetAPIKeys("RocketMan", "Digereedoo", "007", false)
 	if SetAPIKeys.APIKey != "RocketMan" && SetAPIKeys.APISecret != "Digereedoo" && SetAPIKeys.ClientID != "007" {
 		t.Error("Test Failed - Exchange SetAPIKeys() did not set correct values")
