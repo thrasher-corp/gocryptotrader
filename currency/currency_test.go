@@ -274,12 +274,14 @@ func TestSeedCurrencyData(t *testing.T) {
 			err2, currencyRequestUSDAUD,
 		)
 	}
-	err3 := SeedCurrencyData(currencyRequestObtuse)
-	if err3 == nil {
-		t.Errorf(
-			"Test Failed. SeedCurrencyData: Error %s with currency as %s.",
-			err3, currencyRequestObtuse,
-		)
+	if yahooEnabled {
+		err3 := SeedCurrencyData(currencyRequestObtuse)
+		if err3 == nil {
+			t.Errorf(
+				"Test Failed. SeedCurrencyData: Error %s with currency as %s.",
+				err3, currencyRequestObtuse,
+			)
+		}
 	}
 }
 
@@ -323,7 +325,18 @@ func TestConvertCurrency(t *testing.T) {
 	}
 }
 
+func TestFetchFixerCurrencyData(t *testing.T) {
+	err := FetchFixerCurrencyData()
+	if err != nil {
+		t.Errorf("Test failed. FetchFixerCurrencyData returned %s", err)
+	}
+}
+
 func TestFetchYahooCurrencyData(t *testing.T) {
+	if !yahooEnabled {
+		return
+	}
+
 	t.Parallel()
 	var fetchData []string
 	fiatCurrencies := DefaultCurrencies
@@ -344,6 +357,10 @@ func TestFetchYahooCurrencyData(t *testing.T) {
 }
 
 func TestQueryYahooCurrencyValues(t *testing.T) {
+	if !yahooEnabled {
+		return
+	}
+
 	err := QueryYahooCurrencyValues(DefaultCurrencies)
 	if err != nil {
 		t.Errorf("Test Failed. QueryYahooCurrencyValues: Error, %s", err)
