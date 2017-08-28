@@ -2,6 +2,7 @@ package bittrex
 
 import (
 	"testing"
+	"time"
 
 	"github.com/thrasher-/gocryptotrader/config"
 )
@@ -23,20 +24,29 @@ func TestSetDefaults(t *testing.T) {
 
 func TestSetup(t *testing.T) {
 	t.Parallel()
-	exch := config.ExchangeConfig{
-		Name:   "Bittrex",
-		APIKey: apiKey,
-	}
-	exch.Enabled = true
 	b := Bittrex{}
-	b.Setup(exch)
-	if b.APIKey != apiKey {
-		t.Error("Test Failed - Bittrex - Setup() error")
+	b.Name = "Bittrex"
+	cfg := config.GetConfig()
+	cfg.LoadConfig("../../testdata/configtest.dat")
+	bConfig, err := cfg.GetExchangeConfig("Bittrex")
+	if err != nil {
+		t.Error("Test Failed - Bittrex Setup() init error")
 	}
-	exch.Enabled = false
-	b.Setup(exch)
+
+	b.SetDefaults()
+	b.Setup(bConfig)
+
+	if !b.IsEnabled() || b.AuthenticatedAPISupport || b.RESTPollingDelay != time.Duration(10) ||
+		b.Verbose || b.Websocket || len(b.BaseCurrencies) < 1 ||
+		len(b.AvailablePairs) < 1 || len(b.EnabledPairs) < 1 {
+		t.Error("Test Failed - Bittrex Setup values not set correctly")
+	}
+
+	bConfig.Enabled = false
+	b.Setup(bConfig)
+
 	if b.IsEnabled() {
-		t.Error("Test Failed - Bittrex - Setup() error")
+		t.Error("Test failed - Bittrex TestSetup incorrect value")
 	}
 }
 

@@ -35,6 +35,7 @@ func TestSetDefaults(t *testing.T) {
 
 func TestSetup(t *testing.T) {
 	setup := ANX{}
+	setup.Name = "ANX"
 	anxSetupConfig := config.GetConfig()
 	anxSetupConfig.LoadConfig("../../testdata/configtest.dat")
 	anxConfig, err := anxSetupConfig.GetExchangeConfig("ANX")
@@ -49,7 +50,7 @@ func TestSetup(t *testing.T) {
 	if setup.AuthenticatedAPISupport != false {
 		t.Error("Test Failed - ANX Setup() incorrect values set")
 	}
-	if len(setup.APIKey) <= 0 {
+	if len(setup.APIKey) != 0 {
 		t.Error("Test Failed - ANX Setup() incorrect values set")
 	}
 	if len(setup.APISecret) != 0 {
