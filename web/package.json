@@ -48,7 +48,7 @@
     "@angular/router": "4.3.0",
     "core-js": "2.4.1",
     "enhanced-resolve": "3.3.0",
-    "rxjs": "5.4.2",
+    "rxjs": "^5.4.3",
     "zone.js": "0.8.12"
   },
   "devDependencies": {

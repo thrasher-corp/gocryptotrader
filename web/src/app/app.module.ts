@@ -14,16 +14,20 @@ import { HomeComponent } from './pages/home/home.component';
 import { AboutComponent } from './pages/about/about.component';
 
 import { AppRoutingModule } from './app-routing.module';
+import { WebsocketService } from './services/websocket/websocket.service';
 
 import { ElectronService } from './providers/electron.service';
 import { NavbarComponent } from './shared/navbar/navbar.component';
+import * as Rx from 'rxjs/Rx';
+import {Injectable} from '@angular/core';
 
 @NgModule({
   declarations: [
     AppComponent,
     HomeComponent,
     AboutComponent,
-    NavbarComponent
+    NavbarComponent,
+    WebsocketService
   ],
   imports: [
     BrowserModule,
