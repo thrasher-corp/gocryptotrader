@@ -6,16 +6,18 @@ import (
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
-	"github.com/thrasher-/gocryptotrader/exchanges"
+	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-/gocryptotrader/exchanges/stats"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 )
 
+// Start starts a new go routine run
 func (b *Bitstamp) Start() {
 	go b.Run()
 }
 
+// Run starts a new websocket connection runs a new go routine pusher
 func (b *Bitstamp) Run() {
 	if b.Verbose {
 		log.Printf("%s Websocket: %s.", b.GetName(), common.IsEnabled(b.Websocket))
@@ -45,6 +47,7 @@ func (b *Bitstamp) Run() {
 	}
 }
 
+// GetTickerPrice returns ticker price information
 func (b *Bitstamp) GetTickerPrice(p pair.CurrencyPair) (ticker.TickerPrice, error) {
 	tickerNew, err := ticker.GetTicker(b.GetName(), p)
 	if err == nil {
@@ -68,6 +71,7 @@ func (b *Bitstamp) GetTickerPrice(p pair.CurrencyPair) (ticker.TickerPrice, erro
 	return tickerPrice, nil
 }
 
+// GetOrderbookEx returns base orderbook information
 func (b *Bitstamp) GetOrderbookEx(p pair.CurrencyPair) (orderbook.OrderbookBase, error) {
 	ob, err := orderbook.GetOrderbook(b.GetName(), p)
 	if err == nil {
@@ -95,11 +99,12 @@ func (b *Bitstamp) GetOrderbookEx(p pair.CurrencyPair) (orderbook.OrderbookBase,
 	return orderBook, nil
 }
 
-//GetExchangeAccountInfo : Retrieves balances for all enabled currencies for the Bitstamp exchange
-func (e *Bitstamp) GetExchangeAccountInfo() (exchange.AccountInfo, error) {
+// GetExchangeAccountInfo retrieves balances for all enabled currencies for the
+// Bitstamp exchange
+func (b *Bitstamp) GetExchangeAccountInfo() (exchange.AccountInfo, error) {
 	var response exchange.AccountInfo
-	response.ExchangeName = e.GetName()
-	accountBalance, err := e.GetBalance()
+	response.ExchangeName = b.GetName()
+	accountBalance, err := b.GetBalance()
 	if err != nil {
 		return response, err
 	}
