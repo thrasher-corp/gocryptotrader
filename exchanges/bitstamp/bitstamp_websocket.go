@@ -7,23 +7,28 @@ import (
 	"github.com/toorop/go-pusher"
 )
 
-type BitstampPusherOrderbook struct {
+// PusherOrderbook holds order book information to be pushed
+type PusherOrderbook struct {
 	Asks [][]string `json:"asks"`
 	Bids [][]string `json:"bids"`
 }
-type BitstampPusherTrade struct {
+
+// PusherTrade holds trade information to be pushed
+type PusherTrade struct {
 	Price  float64 `json:"price"`
 	Amount float64 `json:"amount"`
 	ID     int64   `json:"id"`
 }
 
 const (
-	BITSTAMP_PUSHER_KEY = "de504dc5763aeef9ff52"
+	// BitstampPusherKey holds the current pusher key
+	BitstampPusherKey = "de504dc5763aeef9ff52"
 )
 
+// PusherClient starts the push mechanism
 func (b *Bitstamp) PusherClient() {
 	for b.Enabled && b.Websocket {
-		pusherClient, err := pusher.NewClient(BITSTAMP_PUSHER_KEY)
+		pusherClient, err := pusher.NewClient(BitstampPusherKey)
 		if err != nil {
 			log.Printf("%s Unable to connect to Websocket. Error: %s\n", b.GetName(), err)
 			continue
@@ -55,13 +60,13 @@ func (b *Bitstamp) PusherClient() {
 		for b.Websocket {
 			select {
 			case data := <-dataChannelTrade:
-				result := BitstampPusherOrderbook{}
+				result := PusherOrderbook{}
 				err := common.JSONDecode([]byte(data.Data), &result)
 				if err != nil {
 					log.Println(err)
 				}
 			case trade := <-tradeChannelTrade:
-				result := BitstampPusherTrade{}
+				result := PusherTrade{}
 				err := common.JSONDecode([]byte(trade.Data), &result)
 				if err != nil {
 					log.Println(err)

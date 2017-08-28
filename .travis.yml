@@ -2,13 +2,13 @@ language: go
 
 go:
  - 1.8.x
- - master
+ #- master
 
 before_install:
  - go get -t -v ./...
 
 script:
- - ./test.sh
+ - ./testdata/test.sh
 
 install:
  - go get github.com/gorilla/websocket

@@ -159,6 +159,11 @@ func TrimString(input, cutset string) string {
 	return strings.Trim(input, cutset)
 }
 
+// ReplaceString replaces a string with another
+func ReplaceString(input, old, new string, n int) string {
+	return strings.Replace(input, old, new, n)
+}
+
 // StringToUpper changes strings to uppercase
 func StringToUpper(input string) string {
 	return strings.ToUpper(input)
@@ -378,7 +383,8 @@ func OutputCSV(path string, data [][]string) error {
 		return err
 	}
 
-	defer writer.Flush()
+	writer.Flush()
+	file.Close()
 	return nil
 }
 
@@ -413,6 +419,11 @@ func WriteFile(file string, data []byte) error {
 		return err
 	}
 	return nil
+}
+
+// RemoveFile removes a file
+func RemoveFile(file string) error {
+	return os.Remove(file)
 }
 
 // GetURIPath returns the path of a URL given a URI

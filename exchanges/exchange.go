@@ -7,12 +7,16 @@ import (
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
+	"github.com/thrasher-/gocryptotrader/exchanges/nonce"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 )
 
 const (
 	warningBase64DecryptSecretKeyFailed = "WARNING -- Exchange %s unable to base64 decode secret key.. Disabling Authenticated API support."
+
+	// WarningAuthenticatedRequestWithoutCredentialsSet error message for authenticated request without credentails set
+	WarningAuthenticatedRequestWithoutCredentialsSet = "WARNING -- Exchange %s authenticated HTTP request called but not supported due to unset/default API keys."
 	// ErrExchangeNotFound is a constant for an error message
 	ErrExchangeNotFound = "Exchange not found in dataset."
 )
@@ -40,6 +44,7 @@ type Base struct {
 	RESTPollingDelay            time.Duration
 	AuthenticatedAPISupport     bool
 	APISecret, APIKey, ClientID string
+	Nonce                       nonce.Nonce
 	TakerFee, MakerFee, Fee     float64
 	BaseCurrencies              []string
 	AvailablePairs              []string
@@ -60,6 +65,13 @@ type IBotExchange interface {
 	GetOrderbookEx(currency pair.CurrencyPair) (orderbook.OrderbookBase, error)
 	GetEnabledCurrencies() []string
 	GetExchangeAccountInfo() (AccountInfo, error)
+	GetAuthenticatedAPISupport() bool
+}
+
+// GetAuthenticatedAPISupport returns whether the exchange supports
+// authenticated API requests
+func (e *Base) GetAuthenticatedAPISupport() bool {
+	return e.AuthenticatedAPISupport
 }
 
 // GetName is a method that returns the name of the exchange base
@@ -71,6 +83,20 @@ func (e *Base) GetName() string {
 // the exchange base
 func (e *Base) GetEnabledCurrencies() []string {
 	return e.EnabledPairs
+}
+
+// GetAvailableCurrencies is a method that returns the available currency pairs
+// of the exchange base
+func (e *Base) GetAvailableCurrencies() []string {
+	return e.AvailablePairs
+}
+
+// FormatCurrency is a method that formats and returns a currency pair
+// based on the user currency display preferences
+func FormatCurrency(p pair.CurrencyPair) pair.CurrencyItem {
+	cfg := config.GetConfig()
+	return p.Display(cfg.CurrencyPairFormat.Delimiter,
+		cfg.CurrencyPairFormat.Uppercase)
 }
 
 // SetEnabled is a method that sets if the exchange is enabled

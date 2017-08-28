@@ -293,8 +293,16 @@ func (b *BTCE) RedeemCoupon(coupon string) (BTCERedeemCoupon, error) {
 }
 
 func (b *BTCE) SendAuthenticatedHTTPRequest(method string, values url.Values, result interface{}) (err error) {
-	nonce := strconv.FormatInt(time.Now().Unix(), 10)
-	values.Set("nonce", nonce)
+	if !b.AuthenticatedAPISupport {
+		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet, b.Name)
+	}
+
+	if b.Nonce.Get() == 0 {
+		b.Nonce.Set(time.Now().Unix())
+	} else {
+		b.Nonce.Inc()
+	}
+	values.Set("nonce", b.Nonce.String())
 	values.Set("method", method)
 
 	encoded := values.Encode()

@@ -1,19 +1,45 @@
 package btcc
 
-type BTCCTicker struct {
-	High       float64 `json:",string"`
-	Low        float64 `json:",string"`
-	Buy        float64 `json:",string"`
-	Sell       float64 `json:",string"`
-	Last       float64 `json:",string"`
-	Vol        float64 `json:",string"`
-	Date       int64
-	Vwap       float64 `json:",string"`
-	Prev_close float64 `json:",string"`
-	Open       float64 `json:",string"`
+// Response is the generalized response type
+type Response struct {
+	Ticker Ticker `json:"ticker"`
+	BtcCny Ticker `json:"ticker_btccny"`
+	LtcCny Ticker `json:"ticker_ltccny"`
+	LtcBtc Ticker `json:"ticker_ltcbtc"`
 }
 
-type BTCCProfile struct {
+// Ticker holds basic ticker information
+type Ticker struct {
+	High      float64 `json:"high,string"`
+	Low       float64 `json:"low,string"`
+	Buy       float64 `json:"buy,string"`
+	Sell      float64 `json:"sell,string"`
+	Last      float64 `json:"last,string"`
+	Vol       float64 `json:"vol,string"`
+	Date      int64   `json:"date"`
+	Vwap      float64 `json:"vwap,string"`
+	PrevClose float64 `json:"prev_close,string"`
+	Open      float64 `json:"open,string"`
+}
+
+// Trade holds executed trade data
+type Trade struct {
+	Date   int64   `json:"date,string"`
+	Price  float64 `json:"price"`
+	Amount float64 `json:"amount"`
+	TID    int64   `json:"tid,string"`
+	Type   string  `json:"type"`
+}
+
+// Orderbook holds orderbook data
+type Orderbook struct {
+	Bids [][]float64 `json:"bids"`
+	Asks [][]float64 `json:"asks"`
+	Date int64       `json:"date"`
+}
+
+// Profile holds profile information
+type Profile struct {
 	Username             string
 	TradePasswordEnabled bool    `json:"trade_password_enabled,bool"`
 	OTPEnabled           bool    `json:"otp_enabled,bool"`
@@ -29,13 +55,8 @@ type BTCCProfile struct {
 	APIKeyPermission     int64   `json:"api_key_permission"`
 }
 
-type BTCCOrderbook struct {
-	Bids [][]float64 `json:"bids"`
-	Asks [][]float64 `json:"asks"`
-	Date int64       `json:"date"`
-}
-
-type BTCCCurrencyGeneric struct {
+// CurrencyGeneric holds currency information
+type CurrencyGeneric struct {
 	Currency      string
 	Symbol        string
 	Amount        string
@@ -43,7 +64,8 @@ type BTCCCurrencyGeneric struct {
 	AmountDecimal float64 `json:"amount_decimal"`
 }
 
-type BTCCOrder struct {
+// Order holds order information
+type Order struct {
 	ID         int64
 	Type       string
 	Price      float64
@@ -52,16 +74,18 @@ type BTCCOrder struct {
 	AmountOrig float64 `json:"amount_original"`
 	Date       int64
 	Status     string
-	Detail     BTCCOrderDetail
+	Detail     OrderDetail
 }
 
-type BTCCOrderDetail struct {
+// OrderDetail holds order detail information
+type OrderDetail struct {
 	Dateline int64
 	Price    float64
 	Amount   float64
 }
 
-type BTCCWithdrawal struct {
+// Withdrawal holds withdrawal transaction information
+type Withdrawal struct {
 	ID          int64
 	Address     string
 	Currency    string
@@ -71,7 +95,8 @@ type BTCCWithdrawal struct {
 	Status      string
 }
 
-type BTCCDeposit struct {
+// Deposit holds deposit address information
+type Deposit struct {
 	ID       int64
 	Address  string
 	Currency string
@@ -80,17 +105,20 @@ type BTCCDeposit struct {
 	Status   string
 }
 
-type BTCCBidAsk struct {
+// BidAsk holds bid and ask information
+type BidAsk struct {
 	Price  float64
 	Amount float64
 }
 
-type BTCCDepth struct {
-	Bid []BTCCBidAsk
-	Ask []BTCCBidAsk
+// Depth holds order book depth
+type Depth struct {
+	Bid []BidAsk
+	Ask []BidAsk
 }
 
-type BTCCTransaction struct {
+// Transaction holds transaction information
+type Transaction struct {
 	ID        int64
 	Type      string
 	BTCAmount float64 `json:"btc_amount"`
@@ -99,7 +127,8 @@ type BTCCTransaction struct {
 	Date      int64
 }
 
-type BTCCIcebergOrder struct {
+// IcebergOrder holds iceberg lettuce
+type IcebergOrder struct {
 	ID              int64
 	Type            string
 	Price           float64
@@ -112,7 +141,8 @@ type BTCCIcebergOrder struct {
 	Status          string
 }
 
-type BTCCStopOrder struct {
+// StopOrder holds stop order information
+type StopOrder struct {
 	ID          int64
 	Type        string
 	StopPrice   float64 `json:"stop_price"`
@@ -126,19 +156,22 @@ type BTCCStopOrder struct {
 	OrderID     int64 `json:"order_id"`
 }
 
-type BTCCWebsocketOrder struct {
+// WebsocketOrder holds websocket order information
+type WebsocketOrder struct {
 	Price       float64 `json:"price"`
 	TotalAmount float64 `json:"totalamount"`
 	Type        string  `json:"type"`
 }
 
-type BTCCWebsocketGroupOrder struct {
-	Asks   []BTCCWebsocketOrder `json:"ask"`
-	Bids   []BTCCWebsocketOrder `json:"bid"`
-	Market string               `json:"market"`
+// WebsocketGroupOrder holds websocket group order book information
+type WebsocketGroupOrder struct {
+	Asks   []WebsocketOrder `json:"ask"`
+	Bids   []WebsocketOrder `json:"bid"`
+	Market string           `json:"market"`
 }
 
-type BTCCWebsocketTrade struct {
+// WebsocketTrade holds websocket trade information
+type WebsocketTrade struct {
 	Amount  float64 `json:"amount"`
 	Date    float64 `json:"date"`
 	Market  string  `json:"market"`
@@ -147,7 +180,8 @@ type BTCCWebsocketTrade struct {
 	Type    string  `json:"type"`
 }
 
-type BTCCWebsocketTicker struct {
+// WebsocketTicker holds websocket ticker information
+type WebsocketTicker struct {
 	Buy       float64 `json:"buy"`
 	Date      float64 `json:"date"`
 	High      float64 `json:"high"`

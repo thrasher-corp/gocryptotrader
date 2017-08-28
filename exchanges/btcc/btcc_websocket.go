@@ -56,7 +56,7 @@ func (b *BTCC) OnMessage(message []byte, output chan socketio.Message) {
 
 func (b *BTCC) OnTicker(message []byte, output chan socketio.Message) {
 	type Response struct {
-		Ticker BTCCWebsocketTicker `json:"ticker"`
+		Ticker WebsocketTicker `json:"ticker"`
 	}
 	var resp Response
 	err := common.JSONDecode(message, &resp)
@@ -69,7 +69,7 @@ func (b *BTCC) OnTicker(message []byte, output chan socketio.Message) {
 
 func (b *BTCC) OnGroupOrder(message []byte, output chan socketio.Message) {
 	type Response struct {
-		GroupOrder BTCCWebsocketGroupOrder `json:"grouporder"`
+		GroupOrder WebsocketGroupOrder `json:"grouporder"`
 	}
 	var resp Response
 	err := common.JSONDecode(message, &resp)
@@ -81,7 +81,7 @@ func (b *BTCC) OnGroupOrder(message []byte, output chan socketio.Message) {
 }
 
 func (b *BTCC) OnTrade(message []byte, output chan socketio.Message) {
-	trade := BTCCWebsocketTrade{}
+	trade := WebsocketTrade{}
 	err := common.JSONDecode(message, &trade)
 
 	if err != nil {

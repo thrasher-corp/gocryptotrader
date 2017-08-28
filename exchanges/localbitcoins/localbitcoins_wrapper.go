@@ -31,7 +31,7 @@ func (l *LocalBitcoins) Run() {
 				return
 			}
 
-			log.Printf("LocalBitcoins BTC %s: Last %f Volume %f\n", currency.Pair().String(), ticker.Last, ticker.Volume)
+			log.Printf("LocalBitcoins BTC %s: Last %f Volume %f\n", exchange.FormatCurrency(currency).String(), ticker.Last, ticker.Volume)
 			stats.AddExchangeInfo(l.GetName(), currency.GetFirstCurrency().String(), currency.GetSecondCurrency().String(), ticker.Last, ticker.Volume)
 		}
 		time.Sleep(time.Second * l.RESTPollingDelay)

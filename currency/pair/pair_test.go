@@ -74,6 +74,37 @@ func TestPair(t *testing.T) {
 	}
 }
 
+func TestDisplay(t *testing.T) {
+	t.Parallel()
+	pair := NewCurrencyPairDelimiter("BTC-USD", "-")
+	actual := pair.Pair()
+	expected := CurrencyItem("BTC-USD")
+	if actual != expected {
+		t.Errorf(
+			"Test failed. Pair(): %s was not equal to expected value: %s",
+			actual, expected,
+		)
+	}
+
+	actual = pair.Display("", false)
+	expected = CurrencyItem("btcusd")
+	if actual != expected {
+		t.Errorf(
+			"Test failed. Pair(): %s was not equal to expected value: %s",
+			actual, expected,
+		)
+	}
+
+	actual = pair.Display("~", true)
+	expected = CurrencyItem("BTC~USD")
+	if actual != expected {
+		t.Errorf(
+			"Test failed. Pair(): %s was not equal to expected value: %s",
+			actual, expected,
+		)
+	}
+}
+
 func TestNewCurrencyPair(t *testing.T) {
 	t.Parallel()
 	pair := NewCurrencyPair("BTC", "USD")

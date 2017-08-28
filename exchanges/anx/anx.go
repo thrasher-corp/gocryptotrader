@@ -286,8 +286,18 @@ func (a *ANX) GetDepositAddress(currency, name string, new bool) (string, error)
 }
 
 func (a *ANX) SendAuthenticatedHTTPRequest(path string, params map[string]interface{}, result interface{}) error {
+	if !a.AuthenticatedAPISupport {
+		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet, a.Name)
+	}
+
+	if a.Nonce.Get() == 0 {
+		a.Nonce.Set(time.Now().UnixNano())
+	} else {
+		a.Nonce.Inc()
+	}
+
 	request := make(map[string]interface{})
-	request["nonce"] = strconv.FormatInt(time.Now().UnixNano(), 10)[0:13]
+	request["nonce"] = a.Nonce.String()[0:13]
 	path = fmt.Sprintf("api/%s/%s", ANX_API_VERSION, path)
 
 	if params != nil {
@@ -296,23 +306,23 @@ func (a *ANX) SendAuthenticatedHTTPRequest(path string, params map[string]interf
 		}
 	}
 
-	PayloadJson, err := common.JSONEncode(request)
+	PayloadJSON, err := common.JSONEncode(request)
 
 	if err != nil {
 		return errors.New("SendAuthenticatedHTTPRequest: Unable to JSON request")
 	}
 
 	if a.Verbose {
-		log.Printf("Request JSON: %s\n", PayloadJson)
+		log.Printf("Request JSON: %s\n", PayloadJSON)
 	}
 
-	hmac := common.GetHMAC(common.HashSHA512, []byte(path+string("\x00")+string(PayloadJson)), []byte(a.APISecret))
+	hmac := common.GetHMAC(common.HashSHA512, []byte(path+string("\x00")+string(PayloadJSON)), []byte(a.APISecret))
 	headers := make(map[string]string)
 	headers["Rest-Key"] = a.APIKey
 	headers["Rest-Sign"] = common.Base64Encode([]byte(hmac))
 	headers["Content-Type"] = "application/json"
 
-	resp, err := common.SendHTTPRequest("POST", ANX_API_URL+path, headers, bytes.NewBuffer(PayloadJson))
+	resp, err := common.SendHTTPRequest("POST", ANX_API_URL+path, headers, bytes.NewBuffer(PayloadJSON))
 
 	if a.Verbose {
 		log.Printf("Received raw: \n%s\n", resp)

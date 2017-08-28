@@ -41,7 +41,7 @@ func (g *Gemini) Run() {
 					log.Println(err)
 					return
 				}
-				log.Printf("Gemini %s Last %f Bid %f Ask %f Volume %f\n", currency.Pair().String(), ticker.Last, ticker.Bid, ticker.Ask, ticker.Volume)
+				log.Printf("Gemini %s Last %f Bid %f Ask %f Volume %f\n", exchange.FormatCurrency(currency).String(), ticker.Last, ticker.Bid, ticker.Ask, ticker.Volume)
 				stats.AddExchangeInfo(g.GetName(), currency.GetFirstCurrency().String(), currency.GetSecondCurrency().String(), ticker.Last, ticker.Volume)
 			}()
 		}

@@ -52,7 +52,7 @@ func (l *Liqui) Run() {
 			}
 			for x, y := range ticker {
 				currency := pair.NewCurrencyPairDelimiter(common.StringToUpper(x), "_")
-				log.Printf("Liqui %s: Last %f High %f Low %f Volume %f\n", currency.Pair().String(), y.Last, y.High, y.Low, y.Vol_cur)
+				log.Printf("Liqui %s: Last %f High %f Low %f Volume %f\n", exchange.FormatCurrency(currency).String(), y.Last, y.High, y.Low, y.Vol_cur)
 				l.Ticker[x] = y
 				stats.AddExchangeInfo(l.GetName(), currency.GetFirstCurrency().String(), currency.GetSecondCurrency().String(), y.Last, y.Vol_cur)
 			}

@@ -47,7 +47,7 @@ func (b *Bitfinex) Run() {
 				if err != nil {
 					return
 				}
-				log.Printf("Bitfinex %s Last %f High %f Low %f Volume %f\n", currency.Pair().String(), ticker.Last, ticker.High, ticker.Low, ticker.Volume)
+				log.Printf("Bitfinex %s Last %f High %f Low %f Volume %f\n", exchange.FormatCurrency(currency).String(), ticker.Last, ticker.High, ticker.Low, ticker.Volume)
 				stats.AddExchangeInfo(b.GetName(), currency.GetFirstCurrency().String(), currency.GetSecondCurrency().String(), ticker.Last, ticker.Volume)
 			}()
 		}

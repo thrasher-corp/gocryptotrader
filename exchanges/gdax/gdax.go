@@ -370,7 +370,15 @@ func (g *GDAX) GetReportStatus(reportID string) (GDAXReportResponse, error) {
 }
 
 func (g *GDAX) SendAuthenticatedHTTPRequest(method, path string, params map[string]interface{}, result interface{}) (err error) {
-	timestamp := strconv.FormatInt(time.Now().Unix(), 10)
+	if !g.AuthenticatedAPISupport {
+		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet, g.Name)
+	}
+
+	if g.Nonce.Get() == 0 {
+		g.Nonce.Set(time.Now().Unix())
+	} else {
+		g.Nonce.Inc()
+	}
 
 	payload := []byte("")
 
@@ -386,11 +394,11 @@ func (g *GDAX) SendAuthenticatedHTTPRequest(method, path string, params map[stri
 		}
 	}
 
-	message := timestamp + method + "/" + path + string(payload)
+	message := g.Nonce.String() + method + "/" + path + string(payload)
 	hmac := common.GetHMAC(common.HashSHA256, []byte(message), []byte(g.APISecret))
 	headers := make(map[string]string)
 	headers["CB-ACCESS-SIGN"] = common.Base64Encode([]byte(hmac))
-	headers["CB-ACCESS-TIMESTAMP"] = timestamp
+	headers["CB-ACCESS-TIMESTAMP"] = g.Nonce.String()
 	headers["CB-ACCESS-KEY"] = g.APIKey
 	headers["CB-ACCESS-PASSPHRASE"] = g.ClientID
 	headers["Content-Type"] = "application/json"

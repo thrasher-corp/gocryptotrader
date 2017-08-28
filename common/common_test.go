@@ -310,6 +310,28 @@ func TestTrimString(t *testing.T) {
 	}
 }
 
+// ReplaceString replaces a string with another
+func TestReplaceString(t *testing.T) {
+	t.Parallel()
+	currency := "BTC-USD"
+	expectedOutput := "BTCUSD"
+
+	actualResult := ReplaceString(currency, "-", "", -1)
+	if expectedOutput != actualResult {
+		t.Errorf(
+			"Test failed. Expected '%s'. Actual '%s'", expectedOutput, actualResult,
+		)
+	}
+
+	currency = "BTC-USD--"
+	actualResult = ReplaceString(currency, "-", "", 3)
+	if expectedOutput != actualResult {
+		t.Errorf(
+			"Test failed. Expected '%s'. Actual '%s'", expectedOutput, actualResult,
+		)
+	}
+}
+
 func TestRoundFloat(t *testing.T) {
 	t.Parallel()
 	originalInput := float64(1.4545445445)
@@ -627,6 +649,22 @@ func TestWriteFile(t *testing.T) {
 	_, err = ReadFile(path)
 	if err != nil {
 		t.Errorf("Test failed. Common WriteFile error: %s", err)
+	}
+}
+
+func TestRemoveFile(t *testing.T) {
+	TestWriteFile(t)
+	path := "../testdata/writefiletest"
+	err := RemoveFile(path)
+	if err != nil {
+		t.Errorf("Test failed. Common RemoveFile error: %s", err)
+	}
+
+	TestOutputCSV(t)
+	path = "../testdata/dump"
+	err = RemoveFile(path)
+	if err != nil {
+		t.Errorf("Test failed. Common RemoveFile error: %s", err)
 	}
 }
 

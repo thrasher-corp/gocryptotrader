@@ -267,7 +267,16 @@ func (l *LocalBitcoins) GetWalletAddress() (string, error) {
 }
 
 func (l *LocalBitcoins) SendAuthenticatedHTTPRequest(method, path string, values url.Values, result interface{}) (err error) {
-	nonce := strconv.FormatInt(time.Now().UnixNano(), 10)
+	if !l.AuthenticatedAPISupport {
+		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet, l.Name)
+	}
+
+	if l.Nonce.Get() == 0 {
+		l.Nonce.Set(time.Now().UnixNano())
+	} else {
+		l.Nonce.Inc()
+	}
+
 	payload := ""
 	path = "/api/" + path
 
@@ -275,11 +284,11 @@ func (l *LocalBitcoins) SendAuthenticatedHTTPRequest(method, path string, values
 		payload = values.Encode()
 	}
 
-	message := string(nonce) + l.APIKey + path + payload
+	message := l.Nonce.String() + l.APIKey + path + payload
 	hmac := common.GetHMAC(common.HashSHA256, []byte(message), []byte(l.APISecret))
 	headers := make(map[string]string)
 	headers["Apiauth-Key"] = l.APIKey
-	headers["Apiauth-Nonce"] = string(nonce)
+	headers["Apiauth-Nonce"] = l.Nonce.String()
 	headers["Apiauth-Signature"] = common.StringToUpper(common.HexEncodeToString(hmac))
 	headers["Content-Type"] = "application/x-www-form-urlencoded"
 
