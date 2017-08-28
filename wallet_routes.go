@@ -54,11 +54,15 @@ func GetAllEnabledExchangeAccountInfo() AllEnabledExchangeAccounts {
 	var response AllEnabledExchangeAccounts
 	for _, individualBot := range bot.exchanges {
 		if individualBot != nil && individualBot.IsEnabled() {
+			if !individualBot.GetAuthenticatedAPISupport() {
+				log.Printf("GetAllEnabledExchangeAccountInfo: Skippping %s due to disabled authenticated API support.", individualBot.GetName())
+				continue
+			}
 			individualExchange, err := individualBot.GetExchangeAccountInfo()
 			if err != nil {
-				log.Println(
-					"Error encountered retrieving exchange account for '" + individualExchange.ExchangeName + "'",
-				)
+				log.Printf("Error encountered retrieving exchange account info for %s. Error %s",
+					individualBot.GetName(), err)
+				continue
 			}
 			response.Data = append(response.Data, individualExchange)
 		}

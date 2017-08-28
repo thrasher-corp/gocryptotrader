@@ -17,6 +17,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/exchanges/anx"
 	"github.com/thrasher-/gocryptotrader/exchanges/bitfinex"
 	"github.com/thrasher-/gocryptotrader/exchanges/bitstamp"
+	"github.com/thrasher-/gocryptotrader/exchanges/bittrex"
 	"github.com/thrasher-/gocryptotrader/exchanges/btcc"
 	"github.com/thrasher-/gocryptotrader/exchanges/btce"
 	"github.com/thrasher-/gocryptotrader/exchanges/btcmarkets"
@@ -42,6 +43,7 @@ type ExchangeMain struct {
 	btcc          btcc.BTCC
 	bitstamp      bitstamp.Bitstamp
 	bitfinex      bitfinex.Bitfinex
+	bittrex       bittrex.Bittrex
 	btce          btce.BTCE
 	btcmarkets    btcmarkets.BTCMarkets
 	coinut        coinut.COINUT
@@ -143,6 +145,7 @@ func main() {
 		new(btcc.BTCC),
 		new(bitstamp.Bitstamp),
 		new(bitfinex.Bitfinex),
+		new(bittrex.Bittrex),
 		new(btce.BTCE),
 		new(btcmarkets.BTCMarkets),
 		new(coinut.COINUT),

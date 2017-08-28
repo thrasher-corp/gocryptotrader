@@ -272,8 +272,17 @@ func (l *LakeBTC) CreateWithdraw(amount float64, accountID int64) (LakeBTCWithdr
 }
 
 func (l *LakeBTC) SendAuthenticatedHTTPRequest(method, params string, result interface{}) (err error) {
-	nonce := strconv.FormatInt(time.Now().UnixNano(), 10)
-	req := fmt.Sprintf("tonce=%s&accesskey=%s&requestmethod=post&id=1&method=%s&params=%s", nonce, l.APIKey, method, params)
+	if !l.AuthenticatedAPISupport {
+		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet, l.Name)
+	}
+
+	if l.Nonce.Get() == 0 {
+		l.Nonce.Set(time.Now().UnixNano())
+	} else {
+		l.Nonce.Inc()
+	}
+
+	req := fmt.Sprintf("tonce=%s&accesskey=%s&requestmethod=post&id=1&method=%s&params=%s", l.Nonce.String(), l.APIKey, method, params)
 	hmac := common.GetHMAC(common.HashSHA1, []byte(req), []byte(l.APISecret))
 
 	if l.Verbose {
@@ -291,7 +300,7 @@ func (l *LakeBTC) SendAuthenticatedHTTPRequest(method, params string, result int
 	}
 
 	headers := make(map[string]string)
-	headers["Json-Rpc-Tonce"] = nonce
+	headers["Json-Rpc-Tonce"] = l.Nonce.String()
 	headers["Authorization"] = "Basic " + common.Base64Encode([]byte(l.APIKey+":"+common.HexEncodeToString(hmac)))
 	headers["Content-Type"] = "application/json-rpc"
 

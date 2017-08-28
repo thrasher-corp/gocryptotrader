@@ -564,14 +564,20 @@ func (b *Bitfinex) CloseMarginFunding(SwapID int64) (Offer, error) {
 // SendAuthenticatedHTTPRequest sends an autheticated http request and json
 // unmarshals result to a supplied variable
 func (b *Bitfinex) SendAuthenticatedHTTPRequest(method, path string, params map[string]interface{}, result interface{}) error {
-	if len(b.APIKey) == 0 {
-		return errors.New("SendAuthenticatedHTTPRequest: Invalid API key")
+	if !b.AuthenticatedAPISupport {
+		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet, b.Name)
+	}
+
+	if b.Nonce.Get() == 0 {
+		b.Nonce.Set(time.Now().UnixNano())
+	} else {
+		b.Nonce.Inc()
 	}
 
 	respErr := ErrorCapture{}
 	request := make(map[string]interface{})
 	request["request"] = fmt.Sprintf("/v%s/%s", bitfinexAPIVersion, path)
-	request["nonce"] = strconv.FormatInt(time.Now().UnixNano(), 10)
+	request["nonce"] = b.Nonce.String()
 
 	if params != nil {
 		for key, value := range params {
@@ -589,9 +595,7 @@ func (b *Bitfinex) SendAuthenticatedHTTPRequest(method, path string, params map[
 	}
 
 	PayloadBase64 := common.Base64Encode(PayloadJSON)
-	hmac := common.GetHMAC(
-		common.HashSHA512_384, []byte(PayloadBase64), []byte(b.APISecret),
-	)
+	hmac := common.GetHMAC(common.HashSHA512_384, []byte(PayloadBase64), []byte(b.APISecret))
 	headers := make(map[string]string)
 	headers["X-BFX-APIKEY"] = b.APIKey
 	headers["X-BFX-PAYLOAD"] = PayloadBase64

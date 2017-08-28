@@ -745,14 +745,19 @@ func (p *Poloniex) ToggleAutoRenew(orderNumber int64) (bool, error) {
 }
 
 func (p *Poloniex) SendAuthenticatedHTTPRequest(method, endpoint string, values url.Values, result interface{}) error {
+	if !p.AuthenticatedAPISupport {
+		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet, p.Name)
+	}
 	headers := make(map[string]string)
 	headers["Content-Type"] = "application/x-www-form-urlencoded"
 	headers["Key"] = p.APIKey
 
-	nonce := time.Now().UnixNano()
-	nonceStr := strconv.FormatInt(nonce, 10)
-
-	values.Set("nonce", nonceStr)
+	if p.Nonce.Get() == 0 {
+		p.Nonce.Set(time.Now().UnixNano())
+	} else {
+		p.Nonce.Inc()
+	}
+	values.Set("nonce", p.Nonce.String())
 	values.Set("command", endpoint)
 
 	hmac := common.GetHMAC(common.HashSHA512, []byte(values.Encode()), []byte(p.APISecret))

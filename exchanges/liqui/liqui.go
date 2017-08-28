@@ -249,8 +249,16 @@ func (l *Liqui) WithdrawCoins(coin string, amount float64, address string) (Liqu
 }
 
 func (l *Liqui) SendAuthenticatedHTTPRequest(method string, values url.Values, result interface{}) (err error) {
-	nonce := strconv.FormatInt(time.Now().Unix(), 10)
-	values.Set("nonce", nonce)
+	if !l.AuthenticatedAPISupport {
+		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet, l.Name)
+	}
+
+	if l.Nonce.Get() == 0 {
+		l.Nonce.Set(time.Now().UnixNano())
+	} else {
+		l.Nonce.Inc()
+	}
+	values.Set("nonce", l.Nonce.String())
 	values.Set("method", method)
 
 	encoded := values.Encode()

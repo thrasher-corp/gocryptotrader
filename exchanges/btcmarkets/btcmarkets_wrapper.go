@@ -12,10 +12,12 @@ import (
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 )
 
+// Start runs ticker monitor in a new routine
 func (b *BTCMarkets) Start() {
 	go b.Run()
 }
 
+// Run starts a go routine to monitor ticker price
 func (b *BTCMarkets) Run() {
 	if b.Verbose {
 		log.Printf("%s polling delay: %ds.\n", b.GetName(), b.RESTPollingDelay)
@@ -33,7 +35,7 @@ func (b *BTCMarkets) Run() {
 				BTCMarketsLastUSD, _ := currency.ConvertCurrency(ticker.Last, "AUD", "USD")
 				BTCMarketsBestBidUSD, _ := currency.ConvertCurrency(ticker.Bid, "AUD", "USD")
 				BTCMarketsBestAskUSD, _ := currency.ConvertCurrency(ticker.Ask, "AUD", "USD")
-				log.Printf("BTC Markets %s: Last %f (%f) Bid %f (%f) Ask %f (%f)\n", curr.Pair().String(), BTCMarketsLastUSD, ticker.Last, BTCMarketsBestBidUSD, ticker.Bid, BTCMarketsBestAskUSD, ticker.Ask)
+				log.Printf("BTC Markets %s: Last %f (%f) Bid %f (%f) Ask %f (%f)\n", exchange.FormatCurrency(curr).String(), BTCMarketsLastUSD, ticker.Last, BTCMarketsBestBidUSD, ticker.Bid, BTCMarketsBestAskUSD, ticker.Ask)
 				stats.AddExchangeInfo(b.GetName(), curr.GetFirstCurrency().String(), curr.GetSecondCurrency().String(), ticker.Last, 0)
 				stats.AddExchangeInfo(b.GetName(), curr.GetFirstCurrency().String(), "USD", BTCMarketsLastUSD, 0)
 			}()
@@ -42,6 +44,7 @@ func (b *BTCMarkets) Run() {
 	}
 }
 
+// GetTickerPrice returns ticker information
 func (b *BTCMarkets) GetTickerPrice(p pair.CurrencyPair) (ticker.TickerPrice, error) {
 	tickerNew, err := ticker.GetTicker(b.GetName(), p)
 	if err == nil {
@@ -61,6 +64,7 @@ func (b *BTCMarkets) GetTickerPrice(p pair.CurrencyPair) (ticker.TickerPrice, er
 	return tickerPrice, nil
 }
 
+// GetOrderbookEx returns orderbook base on the currency pair
 func (b *BTCMarkets) GetOrderbookEx(p pair.CurrencyPair) (orderbook.OrderbookBase, error) {
 	ob, err := orderbook.GetOrderbook(b.GetName(), p)
 	if err == nil {
@@ -88,11 +92,12 @@ func (b *BTCMarkets) GetOrderbookEx(p pair.CurrencyPair) (orderbook.OrderbookBas
 	return orderBook, nil
 }
 
-//GetExchangeAccountInfo : Retrieves balances for all enabled currencies for the BTCMarkets exchange
-func (e *BTCMarkets) GetExchangeAccountInfo() (exchange.AccountInfo, error) {
+// GetExchangeAccountInfo retrieves balances for all enabled currencies for the
+// BTCMarkets exchange
+func (b *BTCMarkets) GetExchangeAccountInfo() (exchange.AccountInfo, error) {
 	var response exchange.AccountInfo
-	response.ExchangeName = e.GetName()
-	accountBalance, err := e.GetAccountBalance()
+	response.ExchangeName = b.GetName()
+	accountBalance, err := b.GetAccountBalance()
 	if err != nil {
 		return response, err
 	}
