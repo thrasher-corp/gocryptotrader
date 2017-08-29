@@ -195,7 +195,7 @@ func main() {
 		} else {
 			listenAddr := bot.config.Webserver.ListenAddress
 			log.Printf(
-				"HTTP Webserver support enabled. Listen URL: http://%s:%d/\n",
+				"HTTP RESTful Webserver support enabled. Listen URL: http://%s:%d/\n",
 				common.ExtractHost(listenAddr), common.ExtractPort(listenAddr),
 			)
 			router := NewRouter(bot.exchanges)
@@ -203,7 +203,7 @@ func main() {
 		}
 	}
 	if !bot.config.Webserver.Enabled {
-		log.Println("HTTP Webserver support disabled.")
+		log.Println("HTTP RESTful Webserver support disabled.")
 	}
 
 	<-bot.shutdown
