@@ -2,13 +2,11 @@ package poloniex
 
 import (
 	"log"
-	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
 	"github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
-	"github.com/thrasher-/gocryptotrader/exchanges/stats"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 )
 
@@ -25,23 +23,6 @@ func (p *Poloniex) Run() {
 
 	if p.Websocket {
 		go p.WebsocketClient()
-	}
-
-	for p.Enabled {
-		pairs := p.GetEnabledCurrencies()
-		for x := range pairs {
-			currency := pairs[x]
-			go func() {
-				ticker, err := p.UpdateTicker(currency)
-				if err != nil {
-					log.Println(err)
-					return
-				}
-				log.Printf("Poloniex %s Last %f High %f Low %f Volume %f\n", exchange.FormatCurrency(currency).String(), ticker.Last, ticker.High, ticker.Low, ticker.Volume)
-				stats.AddExchangeInfo(p.GetName(), currency.GetFirstCurrency().String(), currency.GetSecondCurrency().String(), ticker.Last, ticker.Volume)
-			}()
-		}
-		time.Sleep(time.Second * p.RESTPollingDelay)
 	}
 }
 

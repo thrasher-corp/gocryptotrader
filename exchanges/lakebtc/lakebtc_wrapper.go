@@ -3,13 +3,11 @@ package lakebtc
 import (
 	"log"
 	"strconv"
-	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
 	"github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
-	"github.com/thrasher-/gocryptotrader/exchanges/stats"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 )
 
@@ -20,21 +18,6 @@ func (l *LakeBTC) Run() {
 	if l.Verbose {
 		log.Printf("%s polling delay: %ds.\n", l.GetName(), l.RESTPollingDelay)
 		log.Printf("%s %d currencies enabled: %s.\n", l.GetName(), len(l.EnabledPairs), l.EnabledPairs)
-	}
-
-	for l.Enabled {
-		pairs := l.GetEnabledCurrencies()
-		for x := range pairs {
-			currency := pairs[x]
-			ticker, err := l.UpdateTicker(currency)
-			if err != nil {
-				log.Println(err)
-				continue
-			}
-			log.Printf("LakeBTC %s: Last %f High %f Low %f Volume %f\n", exchange.FormatCurrency(currency).String(), ticker.Last, ticker.High, ticker.Low, ticker.Volume)
-			stats.AddExchangeInfo(l.GetName(), currency.GetFirstCurrency().String(), currency.GetSecondCurrency().String(), ticker.Last, ticker.Volume)
-		}
-		time.Sleep(time.Second * l.RESTPollingDelay)
 	}
 }
 

@@ -2,12 +2,10 @@ package kraken
 
 import (
 	"log"
-	"time"
 
 	"github.com/thrasher-/gocryptotrader/currency/pair"
 	"github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
-	"github.com/thrasher-/gocryptotrader/exchanges/stats"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 )
 
@@ -34,46 +32,47 @@ func (k *Kraken) Run() {
 			log.Printf("%s Failed to get config.\n", k.GetName())
 		}
 	}
-
-	for k.Enabled {
-		pairs := k.GetEnabledCurrencies()
-		pairsCollated, err := exchange.GetAndFormatExchangeCurrencies(k.Name, pairs)
-		if err != nil {
-			log.Println(err)
-			continue
-		}
-		err = k.GetTicker(pairsCollated.String())
-		if err != nil {
-			log.Println(err)
-		} else {
-			for _, x := range pairs {
-				ticker := k.Ticker[x.Pair().String()]
-				log.Printf("Kraken %s Last %f High %f Low %f Volume %f\n", exchange.FormatCurrency(x).String(), ticker.Last, ticker.High, ticker.Low, ticker.Volume)
-				stats.AddExchangeInfo(k.GetName(), x.GetFirstCurrency().String(), x.GetSecondCurrency().String(),
-					ticker.Last, ticker.Volume)
-			}
-		}
-		time.Sleep(time.Second * k.RESTPollingDelay)
-	}
 }
 
 func (k *Kraken) UpdateTicker(p pair.CurrencyPair) (ticker.TickerPrice, error) {
-	return ticker.TickerPrice{}, nil
+	var tickerPrice ticker.TickerPrice
+
+	pairs := k.GetEnabledCurrencies()
+	pairsCollated, err := exchange.GetAndFormatExchangeCurrencies(k.Name, pairs)
+	if err != nil {
+		return tickerPrice, err
+	}
+	err = k.GetTicker(pairsCollated.String())
+	if err != nil {
+		return tickerPrice, err
+	}
+
+	for _, x := range pairs {
+		var tp ticker.TickerPrice
+		tick, ok := k.Ticker[x.Pair().String()]
+		if !ok {
+			continue
+		}
+
+		tp.Pair = x
+		tp.Last = tick.Last
+		tp.Ask = tick.Ask
+		tp.Bid = tick.Bid
+		tp.High = tick.High
+		tp.Low = tick.Low
+		tp.Volume = tick.Volume
+		ticker.ProcessTicker(k.GetName(), x, tp)
+	}
+	return ticker.GetTicker(k.GetName(), p)
 }
 
 //This will return the TickerPrice struct when tickers are completed here..
 func (k *Kraken) GetTickerPrice(p pair.CurrencyPair) (ticker.TickerPrice, error) {
-	var tickerPrice ticker.TickerPrice
-	/*
-		ticker, err := i.GetTicker(currency)
-		if err != nil {
-			log.Println(err)
-			return tickerPrice
-		}
-		tickerPrice.Ask = ticker.Ask
-		tickerPrice.Bid = ticker.Bid
-	*/
-	return tickerPrice, nil
+	tickerNew, err := ticker.GetTicker(k.GetName(), p)
+	if err != nil {
+		return k.UpdateTicker(p)
+	}
+	return tickerNew, nil
 }
 
 func (k *Kraken) GetOrderbookEx(p pair.CurrencyPair) (orderbook.OrderbookBase, error) {

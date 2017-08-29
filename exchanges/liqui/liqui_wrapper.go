@@ -1,15 +1,12 @@
 package liqui
 
 import (
-	"errors"
 	"log"
-	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
 	"github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
-	"github.com/thrasher-/gocryptotrader/exchanges/stats"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 )
 
@@ -34,52 +31,43 @@ func (l *Liqui) Run() {
 			log.Printf("%s Failed to get config.\n", l.GetName())
 		}
 	}
-
-	pairsString, err := exchange.GetAndFormatExchangeCurrencies(l.Name,
-		l.GetEnabledCurrencies())
-	if err != nil {
-		log.Println(err)
-		l.Enabled = false
-		return
-	}
-
-	for l.Enabled {
-		go func() {
-			ticker, err := l.GetTicker(pairsString.String())
-			if err != nil {
-				log.Println(err)
-				return
-			}
-			for x, y := range ticker {
-				currency := pair.NewCurrencyPairDelimiter(common.StringToUpper(x), "_")
-				log.Printf("Liqui %s: Last %f High %f Low %f Volume %f\n", exchange.FormatCurrency(currency).String(), y.Last, y.High, y.Low, y.Vol_cur)
-				l.Ticker[x] = y
-				stats.AddExchangeInfo(l.GetName(), currency.GetFirstCurrency().String(), currency.GetSecondCurrency().String(), y.Last, y.Vol_cur)
-			}
-		}()
-		time.Sleep(time.Second * l.RESTPollingDelay)
-	}
 }
 
 func (l *Liqui) UpdateTicker(p pair.CurrencyPair) (ticker.TickerPrice, error) {
-	return ticker.TickerPrice{}, nil
+	var tickerPrice ticker.TickerPrice
+	pairsString, err := exchange.GetAndFormatExchangeCurrencies(l.Name,
+		l.GetEnabledCurrencies())
+	if err != nil {
+		return tickerPrice, err
+	}
+
+	result, err := l.GetTicker(pairsString.String())
+	if err != nil {
+		return tickerPrice, err
+	}
+
+	for x, y := range result {
+		var tp ticker.TickerPrice
+		currency := pair.NewCurrencyPairDelimiter(common.StringToUpper(x), "_")
+		tp.Pair = currency
+		tp.Last = y.Last
+		tp.Ask = y.Sell
+		tp.Bid = y.Buy
+		tp.Last = y.Last
+		tp.Low = y.Low
+		tp.Volume = y.Vol_cur
+		ticker.ProcessTicker(l.GetName(), currency, tp)
+	}
+
+	return ticker.GetTicker(l.GetName(), p)
 }
 
 func (l *Liqui) GetTickerPrice(p pair.CurrencyPair) (ticker.TickerPrice, error) {
-	var tickerPrice ticker.TickerPrice
-	tick, ok := l.Ticker[exchange.FormatExchangeCurrency(l.Name, p).String()]
-	if !ok {
-		return tickerPrice, errors.New("unable to get currency")
+	tickerNew, err := ticker.GetTicker(l.GetName(), p)
+	if err != nil {
+		return l.UpdateTicker(p)
 	}
-	tickerPrice.Pair = p
-	tickerPrice.Ask = tick.Buy
-	tickerPrice.Bid = tick.Sell
-	tickerPrice.Low = tick.Low
-	tickerPrice.Last = tick.Last
-	tickerPrice.Volume = tick.Vol_cur
-	tickerPrice.High = tick.High
-	ticker.ProcessTicker(l.GetName(), p, tickerPrice)
-	return tickerPrice, nil
+	return tickerNew, nil
 }
 
 func (l *Liqui) GetOrderbookEx(p pair.CurrencyPair) (orderbook.OrderbookBase, error) {

@@ -2,12 +2,12 @@ package localbitcoins
 
 import (
 	"log"
-	"time"
+
+	"github.com/thrasher-/gocryptotrader/common"
 
 	"github.com/thrasher-/gocryptotrader/currency/pair"
 	"github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
-	"github.com/thrasher-/gocryptotrader/exchanges/stats"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 )
 
@@ -20,49 +20,33 @@ func (l *LocalBitcoins) Run() {
 		log.Printf("%s polling delay: %ds.\n", l.GetName(), l.RESTPollingDelay)
 		log.Printf("%s %d currencies enabled: %s.\n", l.GetName(), len(l.EnabledPairs), l.EnabledPairs)
 	}
-
-	for l.Enabled {
-		pairs := l.GetEnabledCurrencies()
-		for x := range pairs {
-			currency := pairs[x]
-			ticker, err := l.GetTickerPrice(currency)
-
-			if err != nil {
-				log.Println(err)
-				return
-			}
-
-			log.Printf("LocalBitcoins BTC %s: Last %f Volume %f\n", exchange.FormatCurrency(currency).String(), ticker.Last, ticker.Volume)
-			stats.AddExchangeInfo(l.GetName(), currency.GetFirstCurrency().String(), currency.GetSecondCurrency().String(), ticker.Last, ticker.Volume)
-		}
-		time.Sleep(time.Second * l.RESTPollingDelay)
-	}
 }
 
 func (l *LocalBitcoins) UpdateTicker(p pair.CurrencyPair) (ticker.TickerPrice, error) {
-	return ticker.TickerPrice{}, nil
+	var tickerPrice ticker.TickerPrice
+	tick, err := l.GetTicker()
+	if err != nil {
+		return tickerPrice, err
+	}
+
+	for key, value := range tick {
+		currency := pair.NewCurrencyPair("BTC", common.StringToUpper(key))
+		var tp ticker.TickerPrice
+		tp.Pair = currency
+		tp.Last = value.Rates.Last
+		tp.Volume = value.VolumeBTC
+		ticker.ProcessTicker(l.GetName(), currency, tp)
+	}
+
+	return ticker.GetTicker(l.GetName(), p)
 }
 
 func (l *LocalBitcoins) GetTickerPrice(p pair.CurrencyPair) (ticker.TickerPrice, error) {
 	tickerNew, err := ticker.GetTicker(l.GetName(), p)
 	if err == nil {
-		return tickerNew, nil
+		return l.UpdateTicker(p)
 	}
-
-	tick, err := l.GetTicker()
-	if err != nil {
-		return ticker.TickerPrice{}, err
-	}
-
-	var tickerPrice ticker.TickerPrice
-	for key, value := range tick {
-		tickerPrice.Pair = p
-		tickerPrice.Last = value.Rates.Last
-		tickerPrice.Pair.SecondCurrency = pair.CurrencyItem(key)
-		tickerPrice.Volume = value.VolumeBTC
-		ticker.ProcessTicker(l.GetName(), p, tickerPrice)
-	}
-	return tickerPrice, nil
+	return tickerNew, nil
 }
 
 func (l *LocalBitcoins) GetOrderbookEx(p pair.CurrencyPair) (orderbook.OrderbookBase, error) {

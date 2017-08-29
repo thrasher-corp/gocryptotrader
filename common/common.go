@@ -302,6 +302,7 @@ func SendHTTPGetRequest(url string, jsonDecode bool, result interface{}) error {
 
 	if res.StatusCode != 200 {
 		log.Printf("HTTP status code: %d\n", res.StatusCode)
+		log.Printf("URL: %s\n", url)
 		return errors.New("status code was not 200")
 	}
 
