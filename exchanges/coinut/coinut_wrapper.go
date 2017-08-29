@@ -2,13 +2,11 @@ package coinut
 
 import (
 	"log"
-	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
 	"github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
-	"github.com/thrasher-/gocryptotrader/exchanges/stats"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 )
 
@@ -43,23 +41,6 @@ func (c *COINUT) Run() {
 	err = c.UpdateAvailableCurrencies(currencies, false)
 	if err != nil {
 		log.Printf("%s Failed to get config.\n", c.GetName())
-	}
-
-	for c.Enabled {
-		pairs := c.GetEnabledCurrencies()
-		for x := range pairs {
-			currency := pairs[x]
-			go func() {
-				ticker, err := c.UpdateTicker(currency)
-				if err != nil {
-					log.Println(err)
-					return
-				}
-				log.Printf("COINUT %s: Last %f High %f Low %f Volume %f\n", exchange.FormatCurrency(currency).String(), ticker.Last, ticker.High, ticker.Low, ticker.Volume)
-				stats.AddExchangeInfo(c.GetName(), currency.GetFirstCurrency().String(), currency.GetSecondCurrency().String(), ticker.Last, ticker.Volume)
-			}()
-		}
-		time.Sleep(time.Second * c.RESTPollingDelay)
 	}
 }
 

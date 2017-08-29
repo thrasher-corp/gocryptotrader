@@ -2,14 +2,11 @@ package huobi
 
 import (
 	"log"
-	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
-	"github.com/thrasher-/gocryptotrader/currency"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
 	"github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
-	"github.com/thrasher-/gocryptotrader/exchanges/stats"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 )
 
@@ -26,27 +23,6 @@ func (h *HUOBI) Run() {
 
 	if h.Websocket {
 		go h.WebsocketClient()
-	}
-
-	for h.Enabled {
-		pairs := h.GetEnabledCurrencies()
-		for x := range pairs {
-			curr := pairs[x]
-			go func() {
-				ticker, err := h.UpdateTicker(curr)
-				if err != nil {
-					log.Println(err)
-					return
-				}
-				HuobiLastUSD, _ := currency.ConvertCurrency(ticker.Last, "CNY", "USD")
-				HuobiHighUSD, _ := currency.ConvertCurrency(ticker.High, "CNY", "USD")
-				HuobiLowUSD, _ := currency.ConvertCurrency(ticker.Low, "CNY", "USD")
-				log.Printf("Huobi %s: Last %f (%f) High %f (%f) Low %f (%f) Volume %f\n", exchange.FormatCurrency(curr).String(), HuobiLastUSD, ticker.Last, HuobiHighUSD, ticker.High, HuobiLowUSD, ticker.Low, ticker.Volume)
-				stats.AddExchangeInfo(h.GetName(), curr.GetFirstCurrency().String(), curr.GetSecondCurrency().String(), ticker.Last, ticker.Volume)
-				stats.AddExchangeInfo(h.GetName(), curr.GetFirstCurrency().String(), "USD", HuobiLastUSD, ticker.Volume)
-			}()
-		}
-		time.Sleep(time.Second * h.RESTPollingDelay)
 	}
 }
 

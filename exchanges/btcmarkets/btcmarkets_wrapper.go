@@ -2,15 +2,12 @@ package btcmarkets
 
 import (
 	"log"
-	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
 
-	"github.com/thrasher-/gocryptotrader/currency"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
 	"github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
-	"github.com/thrasher-/gocryptotrader/exchanges/stats"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 )
 
@@ -50,26 +47,6 @@ func (b *BTCMarkets) Run() {
 			log.Printf("%s Failed to get config.\n", b.GetName())
 			return
 		}
-	}
-
-	for b.Enabled {
-		pairs := b.GetEnabledCurrencies()
-		for x := range pairs {
-			curr := pairs[x]
-			go func() {
-				ticker, err := b.UpdateTicker(curr)
-				if err != nil {
-					return
-				}
-				BTCMarketsLastUSD, _ := currency.ConvertCurrency(ticker.Last, "AUD", "USD")
-				BTCMarketsBestBidUSD, _ := currency.ConvertCurrency(ticker.Bid, "AUD", "USD")
-				BTCMarketsBestAskUSD, _ := currency.ConvertCurrency(ticker.Ask, "AUD", "USD")
-				log.Printf("BTC Markets %s: Last %f (%f) Bid %f (%f) Ask %f (%f)\n", exchange.FormatCurrency(curr).String(), BTCMarketsLastUSD, ticker.Last, BTCMarketsBestBidUSD, ticker.Bid, BTCMarketsBestAskUSD, ticker.Ask)
-				stats.AddExchangeInfo(b.GetName(), curr.GetFirstCurrency().String(), curr.GetSecondCurrency().String(), ticker.Last, 0)
-				stats.AddExchangeInfo(b.GetName(), curr.GetFirstCurrency().String(), "USD", BTCMarketsLastUSD, 0)
-			}()
-		}
-		time.Sleep(time.Second * b.RESTPollingDelay)
 	}
 }
 

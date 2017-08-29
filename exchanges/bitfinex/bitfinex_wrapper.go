@@ -2,13 +2,11 @@ package bitfinex
 
 import (
 	"log"
-	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
 	"github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
-	"github.com/thrasher-/gocryptotrader/exchanges/stats"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 )
 
@@ -38,24 +36,9 @@ func (b *Bitfinex) Run() {
 			log.Printf("%s Failed to get config.\n", b.GetName())
 		}
 	}
-
-	for b.Enabled {
-		pairs := b.GetEnabledCurrencies()
-		for x := range pairs {
-			currency := pairs[x]
-			go func() {
-				ticker, err := b.UpdateTicker(currency)
-				if err != nil {
-					return
-				}
-				log.Printf("Bitfinex %s Last %f High %f Low %f Volume %f\n", exchange.FormatCurrency(currency).String(), ticker.Last, ticker.High, ticker.Low, ticker.Volume)
-				stats.AddExchangeInfo(b.GetName(), currency.GetFirstCurrency().String(), currency.GetSecondCurrency().String(), ticker.Last, ticker.Volume)
-			}()
-		}
-		time.Sleep(time.Second * b.RESTPollingDelay)
-	}
 }
 
+// UpdateTicker updates and returns the ticker
 func (b *Bitfinex) UpdateTicker(p pair.CurrencyPair) (ticker.TickerPrice, error) {
 	var tickerPrice ticker.TickerPrice
 	tickerNew, err := b.GetTicker(p.Pair().String(), nil)
@@ -74,6 +57,7 @@ func (b *Bitfinex) UpdateTicker(p pair.CurrencyPair) (ticker.TickerPrice, error)
 	return tickerPrice, nil
 }
 
+// GetTickerPrice returns the ticker
 func (b *Bitfinex) GetTickerPrice(p pair.CurrencyPair) (ticker.TickerPrice, error) {
 	tick, err := ticker.GetTicker(b.GetName(), p)
 	if err != nil {

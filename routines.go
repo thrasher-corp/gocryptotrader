@@ -4,7 +4,7 @@ import (
 	"log"
 	"time"
 
-	"github.com/thrasher-/gocryptotrader/currency/pair"
+	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 )
 
 func TickerUpdaterRoutine() {
@@ -15,13 +15,23 @@ func TickerUpdaterRoutine() {
 				exchangeName := bot.exchanges[x].GetName()
 				enabledCurrencies := bot.exchanges[x].GetEnabledCurrencies()
 
-				for _, y := range enabledCurrencies {
-					currency := pair.NewCurrencyPair(y[0:3], y[3:])
+				for y := range enabledCurrencies {
+					currency := enabledCurrencies[y]
 					result, err := bot.exchanges[x].UpdateTicker(currency)
 					if err != nil {
 						log.Printf("failed to get %s currency", currency.Pair().String())
 						continue
 					}
+
+					log.Printf("%s %s: Last %.8f Ask %.8f Bid %.8f High %.8f Low %.8f Volume %.8f",
+						exchangeName,
+						exchange.FormatCurrency(currency).String(),
+						result.Last,
+						result.Ask,
+						result.Bid,
+						result.High,
+						result.Low,
+						result.Volume)
 
 					evt := WebsocketEvent{
 						Data:     result,

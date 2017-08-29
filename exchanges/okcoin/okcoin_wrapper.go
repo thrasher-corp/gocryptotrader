@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
-	"github.com/thrasher-/gocryptotrader/currency"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
 	"github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
@@ -45,29 +44,6 @@ func (o *OKCoin) Run() {
 						stats.AddExchangeInfo(o.GetName(), curr.GetFirstCurrency().String(), curr.GetSecondCurrency().String(), ticker.Last, ticker.Vol)
 					}()
 				}
-				go func() {
-					ticker, err := o.UpdateTicker(curr)
-					if err != nil {
-						log.Println(err)
-						return
-					}
-					log.Printf("OKCoin Intl Spot %s: Last %f High %f Low %f Volume %f\n", exchange.FormatCurrency(curr).String(), ticker.Last, ticker.High, ticker.Low, ticker.Volume)
-					stats.AddExchangeInfo(o.GetName(), curr.GetFirstCurrency().String(), curr.GetSecondCurrency().String(), ticker.Last, ticker.Volume)
-				}()
-			} else {
-				go func() {
-					ticker, err := o.UpdateTicker(curr)
-					if err != nil {
-						log.Println(err)
-						return
-					}
-					tickerLastUSD, _ := currency.ConvertCurrency(ticker.Last, "CNY", "USD")
-					tickerHighUSD, _ := currency.ConvertCurrency(ticker.High, "CNY", "USD")
-					tickerLowUSD, _ := currency.ConvertCurrency(ticker.Low, "CNY", "USD")
-					log.Printf("OKCoin China %s: Last %f (%f) High %f (%f) Low %f (%f) Volume %f\n", exchange.FormatCurrency(curr).String(), tickerLastUSD, ticker.Last, tickerHighUSD, ticker.High, tickerLowUSD, ticker.Low, ticker.Volume)
-					stats.AddExchangeInfo(o.GetName(), curr.GetFirstCurrency().String(), curr.GetSecondCurrency().String(), ticker.Last, ticker.Volume)
-					stats.AddExchangeInfo(o.GetName(), curr.GetFirstCurrency().String(), "USD", tickerLastUSD, ticker.Volume)
-				}()
 			}
 		}
 		time.Sleep(time.Second * o.RESTPollingDelay)

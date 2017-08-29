@@ -3,12 +3,10 @@ package itbit
 import (
 	"log"
 	"strconv"
-	"time"
 
 	"github.com/thrasher-/gocryptotrader/currency/pair"
 	"github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
-	"github.com/thrasher-/gocryptotrader/exchanges/stats"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 )
 
@@ -19,23 +17,6 @@ func (i *ItBit) Run() {
 	if i.Verbose {
 		log.Printf("%s polling delay: %ds.\n", i.GetName(), i.RESTPollingDelay)
 		log.Printf("%s %d currencies enabled: %s.\n", i.GetName(), len(i.EnabledPairs), i.EnabledPairs)
-	}
-
-	for i.Enabled {
-		pairs := i.GetEnabledCurrencies()
-		for x := range pairs {
-			currency := pairs[x]
-			go func() {
-				ticker, err := i.UpdateTicker(currency)
-				if err != nil {
-					log.Println(err)
-					return
-				}
-				log.Printf("ItBit %s: Last %f High %f Low %f Volume %f\n", exchange.FormatCurrency(currency).String(), ticker.Last, ticker.High, ticker.Low, ticker.Volume)
-				stats.AddExchangeInfo(i.GetName(), currency.GetFirstCurrency().String(), currency.GetSecondCurrency().String(), ticker.Last, ticker.Volume)
-			}()
-		}
-		time.Sleep(time.Second * i.RESTPollingDelay)
 	}
 }
 

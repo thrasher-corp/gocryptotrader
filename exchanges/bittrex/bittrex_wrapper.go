@@ -2,13 +2,11 @@ package bittrex
 
 import (
 	"log"
-	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
 	"github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
-	"github.com/thrasher-/gocryptotrader/exchanges/stats"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 )
 
@@ -54,23 +52,6 @@ func (b *Bittrex) Run() {
 			log.Printf("%s Failed to get config.\n", b.GetName())
 		}
 	}
-
-	for b.Enabled {
-		pairs := b.GetEnabledCurrencies()
-		for x := range pairs {
-			currency := pairs[x]
-			go func() {
-				ticker, err := b.GetTickerPrice(currency)
-				if err != nil {
-					log.Println(err)
-					return
-				}
-				log.Printf("Bittrex %s Last %f Bid %f Ask %f Volume %f\n", exchange.FormatCurrency(currency).String(), ticker.Last, ticker.Bid, ticker.Ask, ticker.Volume)
-				stats.AddExchangeInfo(b.GetName(), currency.GetFirstCurrency().String(), currency.GetSecondCurrency().String(), ticker.Last, ticker.Volume)
-			}()
-		}
-		time.Sleep(time.Second * b.RESTPollingDelay)
-	}
 }
 
 //GetExchangeAccountInfo Retrieves balances for all enabled currencies for the Bittrexexchange
@@ -92,13 +73,7 @@ func (b *Bittrex) GetExchangeAccountInfo() (exchange.AccountInfo, error) {
 	return response, nil
 }
 
-// GetTickerPrice returns the ticker for a currencyp pair
-func (b *Bittrex) GetTickerPrice(p pair.CurrencyPair) (ticker.TickerPrice, error) {
-	tickerNew, err := ticker.GetTicker(b.GetName(), p)
-	if err == nil {
-		return tickerNew, nil
-	}
-
+func (b *Bittrex) UpdateTicker(p pair.CurrencyPair) (ticker.TickerPrice, error) {
 	var tickerPrice ticker.TickerPrice
 	tick, err := b.GetMarketSummary(exchange.FormatExchangeCurrency(b.GetName(), p).String())
 	if err != nil {
@@ -111,6 +86,14 @@ func (b *Bittrex) GetTickerPrice(p pair.CurrencyPair) (ticker.TickerPrice, error
 	tickerPrice.Volume = tick[0].Volume
 	ticker.ProcessTicker(b.GetName(), p, tickerPrice)
 	return tickerPrice, nil
+}
+
+func (b *Bittrex) GetTickerPrice(p pair.CurrencyPair) (ticker.TickerPrice, error) {
+	tick, err := ticker.GetTicker(b.GetName(), p)
+	if err != nil {
+		return b.UpdateTicker(p)
+	}
+	return tick, nil
 }
 
 // GetOrderbookEx returns the orderbook for a currencyp pair
