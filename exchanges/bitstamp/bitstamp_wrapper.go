@@ -10,12 +10,12 @@ import (
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 )
 
-// Start starts a new go routine run
+// Start starts the Bitstamp go routine
 func (b *Bitstamp) Start() {
 	go b.Run()
 }
 
-// Run starts a new websocket connection runs a new go routine pusher
+// Run implements the Bitstamp wrapper
 func (b *Bitstamp) Run() {
 	if b.Verbose {
 		log.Printf("%s Websocket: %s.", b.GetName(), common.IsEnabled(b.Websocket))
@@ -28,6 +28,7 @@ func (b *Bitstamp) Run() {
 	}
 }
 
+// UpdateTicker updates and returns the ticker for a currency pair
 func (b *Bitstamp) UpdateTicker(p pair.CurrencyPair) (ticker.TickerPrice, error) {
 	var tickerPrice ticker.TickerPrice
 	tick, err := b.GetTicker(p.Pair().String(), false)
@@ -46,6 +47,7 @@ func (b *Bitstamp) UpdateTicker(p pair.CurrencyPair) (ticker.TickerPrice, error)
 	return tickerPrice, nil
 }
 
+// GetTickerPrice returns the ticker for a currency pair
 func (b *Bitstamp) GetTickerPrice(p pair.CurrencyPair) (ticker.TickerPrice, error) {
 	tick, err := ticker.GetTicker(b.GetName(), p)
 	if err != nil {
@@ -54,12 +56,17 @@ func (b *Bitstamp) GetTickerPrice(p pair.CurrencyPair) (ticker.TickerPrice, erro
 	return tick, nil
 }
 
+// GetOrderbookEx returns the orderbook for a currency pair
 func (b *Bitstamp) GetOrderbookEx(p pair.CurrencyPair) (orderbook.OrderbookBase, error) {
 	ob, err := orderbook.GetOrderbook(b.GetName(), p)
 	if err == nil {
-		return ob, nil
+		return b.UpdateOrderbook(p)
 	}
+	return ob, nil
+}
 
+// UpdateOrderbook updates and returns the orderbook for a currency pair
+func (b *Bitstamp) UpdateOrderbook(p pair.CurrencyPair) (orderbook.OrderbookBase, error) {
 	var orderBook orderbook.OrderbookBase
 	orderbookNew, err := b.GetOrderbook(p.Pair().String())
 	if err != nil {

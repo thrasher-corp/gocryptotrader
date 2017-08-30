@@ -10,10 +10,12 @@ import (
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 )
 
+// Start starts the Poloniex go routine
 func (p *Poloniex) Start() {
 	go p.Run()
 }
 
+// Run implements the Poloniex wrapper
 func (p *Poloniex) Run() {
 	if p.Verbose {
 		log.Printf("%s Websocket: %s (url: %s).\n", p.GetName(), common.IsEnabled(p.Websocket), POLONIEX_WEBSOCKET_ADDRESS)
@@ -26,8 +28,9 @@ func (p *Poloniex) Run() {
 	}
 }
 
+// UpdateTicker updates and returns the ticker for a currency pair
 func (p *Poloniex) UpdateTicker(currencyPair pair.CurrencyPair) (ticker.TickerPrice, error) {
-	currency := currencyPair.Pair().String()
+	currency := exchange.FormatCurrency(currencyPair).String()
 	var tickerPrice ticker.TickerPrice
 	tick, err := p.GetTicker()
 	if err != nil {
@@ -45,6 +48,7 @@ func (p *Poloniex) UpdateTicker(currencyPair pair.CurrencyPair) (ticker.TickerPr
 	return tickerPrice, nil
 }
 
+// GetTickerPrice returns the ticker for a currency pair
 func (p *Poloniex) GetTickerPrice(currencyPair pair.CurrencyPair) (ticker.TickerPrice, error) {
 	tickerNew, err := ticker.GetTicker(p.GetName(), currencyPair)
 	if err != nil {
@@ -53,15 +57,19 @@ func (p *Poloniex) GetTickerPrice(currencyPair pair.CurrencyPair) (ticker.Ticker
 	return tickerNew, nil
 }
 
+// GetOrderbookEx returns orderbook base on the currency pair
 func (p *Poloniex) GetOrderbookEx(currencyPair pair.CurrencyPair) (orderbook.OrderbookBase, error) {
-	currency := currencyPair.Pair().String()
 	ob, err := orderbook.GetOrderbook(p.GetName(), currencyPair)
 	if err == nil {
-		return ob, nil
+		return p.UpdateOrderbook(currencyPair)
 	}
+	return ob, nil
+}
 
+// UpdateOrderbook updates and returns the orderbook for a currency pair
+func (p *Poloniex) UpdateOrderbook(currencyPair pair.CurrencyPair) (orderbook.OrderbookBase, error) {
 	var orderBook orderbook.OrderbookBase
-	orderbookNew, err := p.GetOrderbook(currency, 1000)
+	orderbookNew, err := p.GetOrderbook(exchange.FormatCurrency(currencyPair).String(), 1000)
 	if err != nil {
 		return orderBook, err
 	}
@@ -80,11 +88,12 @@ func (p *Poloniex) GetOrderbookEx(currencyPair pair.CurrencyPair) (orderbook.Ord
 	return orderBook, nil
 }
 
-//GetExchangeAccountInfo : Retrieves balances for all enabled currencies for the Poloniex exchange
-func (e *Poloniex) GetExchangeAccountInfo() (exchange.AccountInfo, error) {
+// GetExchangeAccountInfo retrieves balances for all enabled currencies for the
+// Poloniex exchange
+func (p *Poloniex) GetExchangeAccountInfo() (exchange.AccountInfo, error) {
 	var response exchange.AccountInfo
-	response.ExchangeName = e.GetName()
-	accountBalance, err := e.GetBalances()
+	response.ExchangeName = p.GetName()
+	accountBalance, err := p.GetBalances()
 	if err != nil {
 		return response, err
 	}

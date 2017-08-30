@@ -187,20 +187,62 @@ func (k *Kraken) GetOHLC(symbol string) error {
 	return nil
 }
 
-func (k *Kraken) GetDepth(symbol string) error {
+// GetDepth returns the orderbook for a particular currency
+func (k *Kraken) GetDepth(symbol string) (Orderbook, error) {
 	values := url.Values{}
 	values.Set("pair", symbol)
 
 	var result interface{}
+	var ob Orderbook
 	path := fmt.Sprintf("%s/%s/public/%s?%s", KRAKEN_API_URL, KRAKEN_API_VERSION, KRAKEN_DEPTH, values.Encode())
 	err := common.SendHTTPGetRequest(path, true, &result)
 
 	if err != nil {
-		return err
+		return ob, err
 	}
 
-	log.Println(result)
-	return nil
+	data := result.(map[string]interface{})
+	orderbookData := data["result"].(map[string]interface{})
+
+	var bidsData []interface{}
+	var asksData []interface{}
+	for _, y := range orderbookData {
+		yData := y.(map[string]interface{})
+		bidsData = yData["bids"].([]interface{})
+		asksData = yData["asks"].([]interface{})
+	}
+
+	processOrderbook := func(data []interface{}) ([]OrderbookBase, error) {
+		var result []OrderbookBase
+		for x := range data {
+			entry := data[x].([]interface{})
+
+			price, err := strconv.ParseFloat(entry[0].(string), 64)
+			if err != nil {
+				return nil, err
+			}
+
+			amount, err := strconv.ParseFloat(entry[1].(string), 64)
+			if err != nil {
+				return nil, err
+			}
+
+			result = append(result, OrderbookBase{Price: price, Amount: amount})
+		}
+		return result, nil
+	}
+
+	ob.Bids, err = processOrderbook(bidsData)
+	if err != nil {
+		return ob, err
+	}
+
+	ob.Asks, err = processOrderbook(asksData)
+	if err != nil {
+		return ob, err
+	}
+
+	return ob, nil
 }
 
 func (k *Kraken) GetTrades(symbol string) error {

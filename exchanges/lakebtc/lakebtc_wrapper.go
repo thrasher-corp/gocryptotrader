@@ -11,9 +11,12 @@ import (
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 )
 
+// Start starts the LakeBTC go routine
 func (l *LakeBTC) Start() {
 	go l.Run()
 }
+
+// Run implements the LakeBTC wrapper
 func (l *LakeBTC) Run() {
 	if l.Verbose {
 		log.Printf("%s polling delay: %ds.\n", l.GetName(), l.RESTPollingDelay)
@@ -21,6 +24,7 @@ func (l *LakeBTC) Run() {
 	}
 }
 
+// UpdateTicker updates and returns the ticker for a currency pair
 func (l *LakeBTC) UpdateTicker(p pair.CurrencyPair) (ticker.TickerPrice, error) {
 	tick, err := l.GetTicker()
 	if err != nil {
@@ -44,6 +48,7 @@ func (l *LakeBTC) UpdateTicker(p pair.CurrencyPair) (ticker.TickerPrice, error) 
 	return tickerPrice, nil
 }
 
+// GetTickerPrice returns the ticker for a currency pair
 func (l *LakeBTC) GetTickerPrice(p pair.CurrencyPair) (ticker.TickerPrice, error) {
 	tickerNew, err := ticker.GetTicker(l.GetName(), p)
 	if err != nil {
@@ -52,12 +57,17 @@ func (l *LakeBTC) GetTickerPrice(p pair.CurrencyPair) (ticker.TickerPrice, error
 	return tickerNew, nil
 }
 
+// GetOrderbookEx returns orderbook base on the currency pair
 func (l *LakeBTC) GetOrderbookEx(p pair.CurrencyPair) (orderbook.OrderbookBase, error) {
 	ob, err := orderbook.GetOrderbook(l.GetName(), p)
 	if err == nil {
-		return ob, nil
+		return l.UpdateOrderbook(p)
 	}
+	return ob, nil
+}
 
+// UpdateOrderbook updates and returns the orderbook for a currency pair
+func (l *LakeBTC) UpdateOrderbook(p pair.CurrencyPair) (orderbook.OrderbookBase, error) {
 	var orderBook orderbook.OrderbookBase
 	orderbookNew, err := l.GetOrderBook(p.Pair().String())
 	if err != nil {
@@ -77,6 +87,8 @@ func (l *LakeBTC) GetOrderbookEx(p pair.CurrencyPair) (orderbook.OrderbookBase, 
 	return orderBook, nil
 }
 
+// GetExchangeAccountInfo retrieves balances for all enabled currencies for the
+// LakeBTC exchange
 func (l *LakeBTC) GetExchangeAccountInfo() (exchange.AccountInfo, error) {
 	var response exchange.AccountInfo
 	response.ExchangeName = l.GetName()

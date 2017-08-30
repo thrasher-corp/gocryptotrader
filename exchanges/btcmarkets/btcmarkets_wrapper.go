@@ -11,12 +11,12 @@ import (
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 )
 
-// Start runs ticker monitor in a new routine
+// Start starts the BTC Markets go routine
 func (b *BTCMarkets) Start() {
 	go b.Run()
 }
 
-// Run starts a go routine to monitor ticker price
+// Run implements the BTC Markets wrapper
 func (b *BTCMarkets) Run() {
 	if b.Verbose {
 		log.Printf("%s polling delay: %ds.\n", b.GetName(), b.RESTPollingDelay)
@@ -50,6 +50,7 @@ func (b *BTCMarkets) Run() {
 	}
 }
 
+// UpdateTicker updates and returns the ticker for a currency pair
 func (b *BTCMarkets) UpdateTicker(p pair.CurrencyPair) (ticker.TickerPrice, error) {
 	var tickerPrice ticker.TickerPrice
 	tick, err := b.GetTicker(p.GetFirstCurrency().String())
@@ -63,6 +64,8 @@ func (b *BTCMarkets) UpdateTicker(p pair.CurrencyPair) (ticker.TickerPrice, erro
 	ticker.ProcessTicker(b.GetName(), p, tickerPrice)
 	return tickerPrice, nil
 }
+
+// GetTickerPrice returns the ticker for a currency pair
 func (b *BTCMarkets) GetTickerPrice(p pair.CurrencyPair) (ticker.TickerPrice, error) {
 	tickerNew, err := ticker.GetTicker(b.GetName(), p)
 	if err != nil {
@@ -75,9 +78,13 @@ func (b *BTCMarkets) GetTickerPrice(p pair.CurrencyPair) (ticker.TickerPrice, er
 func (b *BTCMarkets) GetOrderbookEx(p pair.CurrencyPair) (orderbook.OrderbookBase, error) {
 	ob, err := orderbook.GetOrderbook(b.GetName(), p)
 	if err == nil {
-		return ob, nil
+		return b.UpdateOrderbook(p)
 	}
+	return ob, nil
+}
 
+// UpdateOrderbook updates and returns the orderbook for a currency pair
+func (b *BTCMarkets) UpdateOrderbook(p pair.CurrencyPair) (orderbook.OrderbookBase, error) {
 	var orderBook orderbook.OrderbookBase
 	orderbookNew, err := b.GetOrderbook(p.GetFirstCurrency().String())
 	if err != nil {

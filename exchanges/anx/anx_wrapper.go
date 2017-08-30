@@ -12,10 +12,12 @@ import (
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 )
 
+// Start starts the ANX go routine
 func (a *ANX) Start() {
 	go a.Run()
 }
 
+// Run implements the ANX wrapper
 func (a *ANX) Run() {
 	if a.Verbose {
 		log.Printf("%s polling delay: %ds.\n", a.GetName(), a.RESTPollingDelay)
@@ -40,6 +42,7 @@ func (a *ANX) Run() {
 	}
 }
 
+// UpdateTicker updates and returns the ticker for a currency pair
 func (a *ANX) UpdateTicker(p pair.CurrencyPair) (ticker.TickerPrice, error) {
 	var tickerPrice ticker.TickerPrice
 	tick, err := a.GetTicker(p.Pair().String())
@@ -106,6 +109,7 @@ func (a *ANX) UpdateTicker(p pair.CurrencyPair) (ticker.TickerPrice, error) {
 	return tickerPrice, nil
 }
 
+// GetTickerPrice returns the ticker for a currency pair
 func (a *ANX) GetTickerPrice(p pair.CurrencyPair) (ticker.TickerPrice, error) {
 	tickerNew, err := ticker.GetTicker(a.GetName(), p)
 	if err != nil {
@@ -114,13 +118,24 @@ func (a *ANX) GetTickerPrice(p pair.CurrencyPair) (ticker.TickerPrice, error) {
 	return tickerNew, nil
 }
 
-func (e *ANX) GetOrderbookEx(p pair.CurrencyPair) (orderbook.OrderbookBase, error) {
-	return orderbook.OrderbookBase{}, nil
+// GetOrderbookEx returns the orderbook for a currency pair
+func (a *ANX) GetOrderbookEx(p pair.CurrencyPair) (orderbook.OrderbookBase, error) {
+	ob, err := orderbook.GetOrderbook(a.GetName(), p)
+	if err == nil {
+		return a.UpdateOrderbook(p)
+	}
+	return ob, nil
+}
+
+// UpdateOrderbook updates and returns the orderbook for a currency pair
+func (a *ANX) UpdateOrderbook(p pair.CurrencyPair) (orderbook.OrderbookBase, error) {
+	var orderBook orderbook.OrderbookBase
+	return orderBook, nil
 }
 
 //GetExchangeAccountInfo : Retrieves balances for all enabled currencies for the ANX exchange
-func (e *ANX) GetExchangeAccountInfo() (exchange.AccountInfo, error) {
+func (a *ANX) GetExchangeAccountInfo() (exchange.AccountInfo, error) {
 	var response exchange.AccountInfo
-	response.ExchangeName = e.GetName()
+	response.ExchangeName = a.GetName()
 	return response, nil
 }

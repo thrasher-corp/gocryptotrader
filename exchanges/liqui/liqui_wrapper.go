@@ -10,10 +10,12 @@ import (
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 )
 
+// Start starts the Liqui go routine
 func (l *Liqui) Start() {
 	go l.Run()
 }
 
+// Run implements the Liqui wrapper
 func (l *Liqui) Run() {
 	if l.Verbose {
 		log.Printf("%s polling delay: %ds.\n", l.GetName(), l.RESTPollingDelay)
@@ -33,6 +35,7 @@ func (l *Liqui) Run() {
 	}
 }
 
+// UpdateTicker updates and returns the ticker for a currency pair
 func (l *Liqui) UpdateTicker(p pair.CurrencyPair) (ticker.TickerPrice, error) {
 	var tickerPrice ticker.TickerPrice
 	pairsString, err := exchange.GetAndFormatExchangeCurrencies(l.Name,
@@ -62,6 +65,7 @@ func (l *Liqui) UpdateTicker(p pair.CurrencyPair) (ticker.TickerPrice, error) {
 	return ticker.GetTicker(l.GetName(), p)
 }
 
+// GetTickerPrice returns the ticker for a currency pair
 func (l *Liqui) GetTickerPrice(p pair.CurrencyPair) (ticker.TickerPrice, error) {
 	tickerNew, err := ticker.GetTicker(l.GetName(), p)
 	if err != nil {
@@ -70,12 +74,17 @@ func (l *Liqui) GetTickerPrice(p pair.CurrencyPair) (ticker.TickerPrice, error) 
 	return tickerNew, nil
 }
 
+// GetOrderbookEx returns orderbook base on the currency pair
 func (l *Liqui) GetOrderbookEx(p pair.CurrencyPair) (orderbook.OrderbookBase, error) {
 	ob, err := orderbook.GetOrderbook(l.GetName(), p)
 	if err == nil {
-		return ob, nil
+		return l.UpdateOrderbook(p)
 	}
+	return ob, nil
+}
 
+// UpdateOrderbook updates and returns the orderbook for a currency pair
+func (l *Liqui) UpdateOrderbook(p pair.CurrencyPair) (orderbook.OrderbookBase, error) {
 	var orderBook orderbook.OrderbookBase
 	orderbookNew, err := l.GetDepth(exchange.FormatExchangeCurrency(l.Name, p).String())
 	if err != nil {
@@ -91,16 +100,18 @@ func (l *Liqui) GetOrderbookEx(p pair.CurrencyPair) (orderbook.OrderbookBase, er
 		data := orderbookNew.Asks[x]
 		orderBook.Asks = append(orderBook.Asks, orderbook.OrderbookItem{Amount: data[1], Price: data[0]})
 	}
+
 	orderBook.Pair = p
 	orderbook.ProcessOrderbook(l.GetName(), p, orderBook)
 	return orderBook, nil
 }
 
-//GetExchangeAccountInfo : Retrieves balances for all enabled currencies for the Liqui exchange
-func (e *Liqui) GetExchangeAccountInfo() (exchange.AccountInfo, error) {
+// GetExchangeAccountInfo retrieves balances for all enabled currencies for the
+// Liqui exchange
+func (l *Liqui) GetExchangeAccountInfo() (exchange.AccountInfo, error) {
 	var response exchange.AccountInfo
-	response.ExchangeName = e.GetName()
-	accountBalance, err := e.GetAccountInfo()
+	response.ExchangeName = l.GetName()
+	accountBalance, err := l.GetAccountInfo()
 	if err != nil {
 		return response, err
 	}
