@@ -10,7 +10,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 )
 
-// Start stats the Bittrex go routine
+// Start starts the Bittrex go routine
 func (b *Bittrex) Start() {
 	go b.Run()
 }
@@ -54,7 +54,8 @@ func (b *Bittrex) Run() {
 	}
 }
 
-//GetExchangeAccountInfo Retrieves balances for all enabled currencies for the Bittrexexchange
+// GetExchangeAccountInfo Retrieves balances for all enabled currencies for the
+// Bittrex exchange
 func (b *Bittrex) GetExchangeAccountInfo() (exchange.AccountInfo, error) {
 	var response exchange.AccountInfo
 	response.ExchangeName = b.GetName()
@@ -73,6 +74,7 @@ func (b *Bittrex) GetExchangeAccountInfo() (exchange.AccountInfo, error) {
 	return response, nil
 }
 
+// UpdateTicker updates and returns the ticker for a currency pair
 func (b *Bittrex) UpdateTicker(p pair.CurrencyPair) (ticker.TickerPrice, error) {
 	var tickerPrice ticker.TickerPrice
 	tick, err := b.GetMarketSummary(exchange.FormatExchangeCurrency(b.GetName(), p).String())
@@ -88,6 +90,7 @@ func (b *Bittrex) UpdateTicker(p pair.CurrencyPair) (ticker.TickerPrice, error) 
 	return tickerPrice, nil
 }
 
+// GetTickerPrice returns the ticker for a currency pair
 func (b *Bittrex) GetTickerPrice(p pair.CurrencyPair) (ticker.TickerPrice, error) {
 	tick, err := ticker.GetTicker(b.GetName(), p)
 	if err != nil {
@@ -96,13 +99,17 @@ func (b *Bittrex) GetTickerPrice(p pair.CurrencyPair) (ticker.TickerPrice, error
 	return tick, nil
 }
 
-// GetOrderbookEx returns the orderbook for a currencyp pair
+// GetOrderbookEx returns the orderbook for a currency pair
 func (b *Bittrex) GetOrderbookEx(p pair.CurrencyPair) (orderbook.OrderbookBase, error) {
 	ob, err := orderbook.GetOrderbook(b.GetName(), p)
 	if err == nil {
-		return ob, nil
+		return b.UpdateOrderbook(p)
 	}
+	return ob, nil
+}
 
+// UpdateOrderbook updates and returns the orderbook for a currency pair
+func (b *Bittrex) UpdateOrderbook(p pair.CurrencyPair) (orderbook.OrderbookBase, error) {
 	var orderBook orderbook.OrderbookBase
 	orderbookNew, err := b.GetOrderbook(exchange.FormatExchangeCurrency(b.GetName(), p).String())
 	if err != nil {

@@ -10,9 +10,12 @@ import (
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 )
 
+// Start starts the ItBit go routine
 func (i *ItBit) Start() {
 	go i.Run()
 }
+
+// Run implements the ItBit wrapper
 func (i *ItBit) Run() {
 	if i.Verbose {
 		log.Printf("%s polling delay: %ds.\n", i.GetName(), i.RESTPollingDelay)
@@ -20,6 +23,7 @@ func (i *ItBit) Run() {
 	}
 }
 
+// UpdateTicker updates and returns the ticker for a currency pair
 func (i *ItBit) UpdateTicker(p pair.CurrencyPair) (ticker.TickerPrice, error) {
 	var tickerPrice ticker.TickerPrice
 	tick, err := i.GetTicker(p.Pair().String())
@@ -38,6 +42,7 @@ func (i *ItBit) UpdateTicker(p pair.CurrencyPair) (ticker.TickerPrice, error) {
 	return tickerPrice, nil
 }
 
+// GetTickerPrice returns the ticker for a currency pair
 func (i *ItBit) GetTickerPrice(p pair.CurrencyPair) (ticker.TickerPrice, error) {
 	tickerNew, err := ticker.GetTicker(i.GetName(), p)
 	if err != nil {
@@ -46,12 +51,17 @@ func (i *ItBit) GetTickerPrice(p pair.CurrencyPair) (ticker.TickerPrice, error) 
 	return tickerNew, nil
 }
 
+// GetOrderbookEx returns orderbook base on the currency pair
 func (i *ItBit) GetOrderbookEx(p pair.CurrencyPair) (orderbook.OrderbookBase, error) {
 	ob, err := orderbook.GetOrderbook(i.GetName(), p)
 	if err == nil {
-		return ob, nil
+		return i.UpdateOrderbook(p)
 	}
+	return ob, nil
+}
 
+// UpdateOrderbook updates and returns the orderbook for a currency pair
+func (i *ItBit) UpdateOrderbook(p pair.CurrencyPair) (orderbook.OrderbookBase, error) {
 	var orderBook orderbook.OrderbookBase
 	orderbookNew, err := i.GetOrderbook(p.Pair().String())
 	if err != nil {
@@ -83,13 +93,14 @@ func (i *ItBit) GetOrderbookEx(p pair.CurrencyPair) (orderbook.OrderbookBase, er
 		}
 		orderBook.Asks = append(orderBook.Asks, orderbook.OrderbookItem{Amount: amount, Price: price})
 	}
+
 	orderBook.Pair = p
 	orderbook.ProcessOrderbook(i.GetName(), p, orderBook)
 	return orderBook, nil
 }
 
-//TODO Get current holdings from ItBit
-//GetExchangeAccountInfo : Retrieves balances for all enabled currencies for the ItBit exchange
+// GetExchangeAccountInfo retrieves balances for all enabled currencies for the
+//ItBit exchange - to-do
 func (i *ItBit) GetExchangeAccountInfo() (exchange.AccountInfo, error) {
 	var response exchange.AccountInfo
 	response.ExchangeName = i.GetName()

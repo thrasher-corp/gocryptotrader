@@ -10,10 +10,12 @@ import (
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 )
 
+// Start starts the Gemini go routine
 func (g *Gemini) Start() {
 	go g.Run()
 }
 
+// Run implements the Gemini wrapper
 func (g *Gemini) Run() {
 	if g.Verbose {
 		log.Printf("%s polling delay: %ds.\n", g.GetName(), g.RESTPollingDelay)
@@ -31,11 +33,12 @@ func (g *Gemini) Run() {
 	}
 }
 
-//GetExchangeAccountInfo : Retrieves balances for all enabled currencies for the Gemini exchange
-func (e *Gemini) GetExchangeAccountInfo() (exchange.AccountInfo, error) {
+// GetExchangeAccountInfo Retrieves balances for all enabled currencies for the
+// Gemini exchange
+func (g *Gemini) GetExchangeAccountInfo() (exchange.AccountInfo, error) {
 	var response exchange.AccountInfo
-	response.ExchangeName = e.GetName()
-	accountBalance, err := e.GetBalances()
+	response.ExchangeName = g.GetName()
+	accountBalance, err := g.GetBalances()
 	if err != nil {
 		return response, err
 	}
@@ -49,6 +52,7 @@ func (e *Gemini) GetExchangeAccountInfo() (exchange.AccountInfo, error) {
 	return response, nil
 }
 
+// UpdateTicker updates and returns the ticker for a currency pair
 func (g *Gemini) UpdateTicker(p pair.CurrencyPair) (ticker.TickerPrice, error) {
 	var tickerPrice ticker.TickerPrice
 	tick, err := g.GetTicker(p.Pair().String())
@@ -64,6 +68,7 @@ func (g *Gemini) UpdateTicker(p pair.CurrencyPair) (ticker.TickerPrice, error) {
 	return tickerPrice, nil
 }
 
+// GetTickerPrice returns the ticker for a currency pair
 func (g *Gemini) GetTickerPrice(p pair.CurrencyPair) (ticker.TickerPrice, error) {
 	tickerNew, err := ticker.GetTicker(g.GetName(), p)
 	if err != nil {
@@ -72,12 +77,17 @@ func (g *Gemini) GetTickerPrice(p pair.CurrencyPair) (ticker.TickerPrice, error)
 	return tickerNew, nil
 }
 
+// GetOrderbookEx returns orderbook base on the currency pair
 func (g *Gemini) GetOrderbookEx(p pair.CurrencyPair) (orderbook.OrderbookBase, error) {
 	ob, err := orderbook.GetOrderbook(g.GetName(), p)
 	if err == nil {
-		return ob, nil
+		return g.UpdateOrderbook(p)
 	}
+	return ob, nil
+}
 
+// UpdateOrderbook updates and returns the orderbook for a currency pair
+func (g *Gemini) UpdateOrderbook(p pair.CurrencyPair) (orderbook.OrderbookBase, error) {
 	var orderBook orderbook.OrderbookBase
 	orderbookNew, err := g.GetOrderbook(p.Pair().String(), url.Values{})
 	if err != nil {

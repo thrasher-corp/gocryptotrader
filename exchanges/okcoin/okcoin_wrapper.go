@@ -12,10 +12,12 @@ import (
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 )
 
+// Start starts the OKCoin go routine
 func (o *OKCoin) Start() {
 	go o.Run()
 }
 
+// Run implements the OKCoin wrapper
 func (o *OKCoin) Run() {
 	if o.Verbose {
 		log.Printf("%s Websocket: %s. (url: %s).\n", o.GetName(), common.IsEnabled(o.Websocket), o.WebsocketURL)
@@ -50,6 +52,7 @@ func (o *OKCoin) Run() {
 	}
 }
 
+// UpdateTicker updates and returns the ticker for a currency pair
 func (o *OKCoin) UpdateTicker(currency pair.CurrencyPair) (ticker.TickerPrice, error) {
 	var tickerPrice ticker.TickerPrice
 	tick, err := o.GetTicker(exchange.FormatExchangeCurrency(o.Name, currency).String())
@@ -67,6 +70,7 @@ func (o *OKCoin) UpdateTicker(currency pair.CurrencyPair) (ticker.TickerPrice, e
 	return tickerPrice, nil
 }
 
+// GetTickerPrice returns the ticker for a currency pair
 func (o *OKCoin) GetTickerPrice(currency pair.CurrencyPair) (ticker.TickerPrice, error) {
 	tickerNew, err := ticker.GetTicker(o.GetName(), currency)
 	if err != nil {
@@ -75,12 +79,17 @@ func (o *OKCoin) GetTickerPrice(currency pair.CurrencyPair) (ticker.TickerPrice,
 	return tickerNew, nil
 }
 
+// GetOrderbookEx returns orderbook base on the currency pair
 func (o *OKCoin) GetOrderbookEx(currency pair.CurrencyPair) (orderbook.OrderbookBase, error) {
 	ob, err := orderbook.GetOrderbook(o.GetName(), currency)
 	if err == nil {
-		return ob, nil
+		return o.UpdateOrderbook(currency)
 	}
+	return ob, nil
+}
 
+// UpdateOrderbook updates and returns the orderbook for a currency pair
+func (o *OKCoin) UpdateOrderbook(currency pair.CurrencyPair) (orderbook.OrderbookBase, error) {
 	var orderBook orderbook.OrderbookBase
 	orderbookNew, err := o.GetOrderBook(exchange.FormatExchangeCurrency(o.Name, currency).String(), 200, false)
 	if err != nil {
@@ -96,15 +105,18 @@ func (o *OKCoin) GetOrderbookEx(currency pair.CurrencyPair) (orderbook.Orderbook
 		data := orderbookNew.Asks[x]
 		orderBook.Asks = append(orderBook.Asks, orderbook.OrderbookItem{Amount: data[1], Price: data[0]})
 	}
+
 	orderBook.Pair = currency
 	orderbook.ProcessOrderbook(o.GetName(), currency, orderBook)
 	return orderBook, nil
 }
 
-func (e *OKCoin) GetExchangeAccountInfo() (exchange.AccountInfo, error) {
+// GetExchangeAccountInfo retrieves balances for all enabled currencies for the
+// OKCoin exchange
+func (o *OKCoin) GetExchangeAccountInfo() (exchange.AccountInfo, error) {
 	var response exchange.AccountInfo
-	response.ExchangeName = e.GetName()
-	assets, err := e.GetUserInfo()
+	response.ExchangeName = o.GetName()
+	assets, err := o.GetUserInfo()
 	if err != nil {
 		return response, err
 	}

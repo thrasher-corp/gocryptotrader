@@ -10,10 +10,12 @@ import (
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 )
 
+// Start starts the GDAX go routine
 func (g *GDAX) Start() {
 	go g.Run()
 }
 
+// Run implements the GDAX wrapper
 func (g *GDAX) Run() {
 	if g.Verbose {
 		log.Printf("%s Websocket: %s. (url: %s).\n", g.GetName(), common.IsEnabled(g.Websocket), GDAX_WEBSOCKET_URL)
@@ -42,7 +44,8 @@ func (g *GDAX) Run() {
 	}
 }
 
-//GetExchangeAccountInfo : Retrieves balances for all enabled currencies for the GDAX exchange
+// GetExchangeAccountInfo retrieves balances for all enabled currencies for the
+// GDAX exchange
 func (g *GDAX) GetExchangeAccountInfo() (exchange.AccountInfo, error) {
 	var response exchange.AccountInfo
 	response.ExchangeName = g.GetName()
@@ -61,6 +64,7 @@ func (g *GDAX) GetExchangeAccountInfo() (exchange.AccountInfo, error) {
 	return response, nil
 }
 
+// UpdateTicker updates and returns the ticker for a currency pair
 func (g *GDAX) UpdateTicker(p pair.CurrencyPair) (ticker.TickerPrice, error) {
 	var tickerPrice ticker.TickerPrice
 	tick, err := g.GetTicker(exchange.FormatExchangeCurrency(g.Name, p).String())
@@ -83,6 +87,7 @@ func (g *GDAX) UpdateTicker(p pair.CurrencyPair) (ticker.TickerPrice, error) {
 	return tickerPrice, nil
 }
 
+// GetTickerPrice returns the ticker for a currency pair
 func (g *GDAX) GetTickerPrice(p pair.CurrencyPair) (ticker.TickerPrice, error) {
 	tickerNew, err := ticker.GetTicker(g.GetName(), p)
 	if err != nil {
@@ -91,12 +96,17 @@ func (g *GDAX) GetTickerPrice(p pair.CurrencyPair) (ticker.TickerPrice, error) {
 	return tickerNew, nil
 }
 
+// GetOrderbookEx returns orderbook base on the currency pair
 func (g *GDAX) GetOrderbookEx(p pair.CurrencyPair) (orderbook.OrderbookBase, error) {
 	ob, err := orderbook.GetOrderbook(g.GetName(), p)
 	if err == nil {
-		return ob, nil
+		return g.UpdateOrderbook(p)
 	}
+	return ob, nil
+}
 
+// UpdateOrderbook updates and returns the orderbook for a currency pair
+func (g *GDAX) UpdateOrderbook(p pair.CurrencyPair) (orderbook.OrderbookBase, error) {
 	var orderBook orderbook.OrderbookBase
 	orderbookNew, err := g.GetOrderbook(p.Pair().String(), 2)
 	if err != nil {
@@ -112,6 +122,7 @@ func (g *GDAX) GetOrderbookEx(p pair.CurrencyPair) (orderbook.OrderbookBase, err
 	for x := range obNew.Asks {
 		orderBook.Asks = append(orderBook.Asks, orderbook.OrderbookItem{Amount: obNew.Bids[x].Amount, Price: obNew.Bids[x].Price})
 	}
+
 	orderBook.Pair = p
 	orderbook.ProcessOrderbook(g.GetName(), p, orderBook)
 	return orderBook, nil

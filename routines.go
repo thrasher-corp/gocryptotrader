@@ -19,7 +19,7 @@ func TickerUpdaterRoutine() {
 					currency := enabledCurrencies[y]
 					result, err := bot.exchanges[x].UpdateTicker(currency)
 					if err != nil {
-						log.Printf("failed to get %s currency", currency.Pair().String())
+						log.Printf("failed to get %s ticker", currency.Pair().String())
 						continue
 					}
 
@@ -36,6 +36,40 @@ func TickerUpdaterRoutine() {
 					evt := WebsocketEvent{
 						Data:     result,
 						Event:    "ticker_update",
+						Exchange: exchangeName,
+					}
+					BroadcastWebsocketMessage(evt)
+				}
+			}
+		}
+		time.Sleep(time.Second * 10)
+	}
+}
+
+func OrderbookUpdaterRoutine() {
+	log.Println("Starting orderbook updater routine")
+	for {
+		for x := range bot.exchanges {
+			if bot.exchanges[x].IsEnabled() {
+				exchangeName := bot.exchanges[x].GetName()
+				enabledCurrencies := bot.exchanges[x].GetEnabledCurrencies()
+
+				for y := range enabledCurrencies {
+					currency := enabledCurrencies[y]
+					result, err := bot.exchanges[x].UpdateOrderbook(currency)
+					if err != nil {
+						log.Printf("failed to get %s orderbook", currency.Pair().String())
+						continue
+					}
+
+					log.Printf("%s %s %v",
+						exchangeName,
+						exchange.FormatCurrency(currency).String(),
+						result)
+
+					evt := WebsocketEvent{
+						Data:     result,
+						Event:    "orderbook_update",
 						Exchange: exchangeName,
 					}
 					BroadcastWebsocketMessage(evt)

@@ -10,10 +10,12 @@ import (
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 )
 
+// Start starts the HUOBI go routine
 func (h *HUOBI) Start() {
 	go h.Run()
 }
 
+// Run implements the HUOBI wrapper
 func (h *HUOBI) Run() {
 	if h.Verbose {
 		log.Printf("%s Websocket: %s (url: %s).\n", h.GetName(), common.IsEnabled(h.Websocket), HUOBI_SOCKETIO_ADDRESS)
@@ -26,6 +28,7 @@ func (h *HUOBI) Run() {
 	}
 }
 
+// UpdateTicker updates and returns the ticker for a currency pair
 func (h *HUOBI) UpdateTicker(p pair.CurrencyPair) (ticker.TickerPrice, error) {
 	var tickerPrice ticker.TickerPrice
 	tick, err := h.GetTicker(p.GetFirstCurrency().Lower().String())
@@ -43,6 +46,7 @@ func (h *HUOBI) UpdateTicker(p pair.CurrencyPair) (ticker.TickerPrice, error) {
 	return tickerPrice, nil
 }
 
+// GetTickerPrice returns the ticker for a currency pair
 func (h *HUOBI) GetTickerPrice(p pair.CurrencyPair) (ticker.TickerPrice, error) {
 	tickerNew, err := ticker.GetTicker(h.GetName(), p)
 	if err != nil {
@@ -51,12 +55,17 @@ func (h *HUOBI) GetTickerPrice(p pair.CurrencyPair) (ticker.TickerPrice, error) 
 	return tickerNew, nil
 }
 
+// GetOrderbookEx returns orderbook base on the currency pair
 func (h *HUOBI) GetOrderbookEx(p pair.CurrencyPair) (orderbook.OrderbookBase, error) {
 	ob, err := orderbook.GetOrderbook(h.GetName(), p)
 	if err == nil {
-		return ob, nil
+		return h.UpdateOrderbook(p)
 	}
+	return ob, nil
+}
 
+// UpdateOrderbook updates and returns the orderbook for a currency pair
+func (h *HUOBI) UpdateOrderbook(p pair.CurrencyPair) (orderbook.OrderbookBase, error) {
 	var orderBook orderbook.OrderbookBase
 	orderbookNew, err := h.GetOrderBook(p.GetFirstCurrency().Lower().String())
 	if err != nil {
@@ -72,15 +81,16 @@ func (h *HUOBI) GetOrderbookEx(p pair.CurrencyPair) (orderbook.OrderbookBase, er
 		data := orderbookNew.Asks[x]
 		orderBook.Asks = append(orderBook.Asks, orderbook.OrderbookItem{Amount: data[1], Price: data[0]})
 	}
+
 	orderBook.Pair = p
 	orderbook.ProcessOrderbook(h.GetName(), p, orderBook)
 	return orderBook, nil
 }
 
-//TODO: retrieve HUOBI balance info
-//GetExchangeAccountInfo : Retrieves balances for all enabled currencies for the HUOBI exchange
-func (e *HUOBI) GetExchangeAccountInfo() (exchange.AccountInfo, error) {
+//GetExchangeAccountInfo retrieves balances for all enabled currencies for the
+// HUOBI exchange - to-do
+func (h *HUOBI) GetExchangeAccountInfo() (exchange.AccountInfo, error) {
 	var response exchange.AccountInfo
-	response.ExchangeName = e.GetName()
+	response.ExchangeName = h.GetName()
 	return response, nil
 }

@@ -13,10 +13,12 @@ import (
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 )
 
+// Start starts the BTCE go routine
 func (b *BTCE) Start() {
 	go b.Run()
 }
 
+// Run implements the BTCE wrapper
 func (b *BTCE) Run() {
 	if b.Verbose {
 		log.Printf("%s Websocket: %s.", b.GetName(), common.IsEnabled(b.Websocket))
@@ -50,6 +52,7 @@ func (b *BTCE) Run() {
 	}
 }
 
+// UpdateTicker updates and returns the ticker for a currency pair
 func (b *BTCE) UpdateTicker(p pair.CurrencyPair) (ticker.TickerPrice, error) {
 	var tickerPrice ticker.TickerPrice
 	result, err := b.GetTicker(p.Pair().String())
@@ -72,6 +75,7 @@ func (b *BTCE) UpdateTicker(p pair.CurrencyPair) (ticker.TickerPrice, error) {
 	return tickerPrice, nil
 }
 
+// GetTickerPrice returns the ticker for a currency pair
 func (b *BTCE) GetTickerPrice(p pair.CurrencyPair) (ticker.TickerPrice, error) {
 	tick, err := ticker.GetTicker(b.GetName(), p)
 	if err != nil {
@@ -80,12 +84,17 @@ func (b *BTCE) GetTickerPrice(p pair.CurrencyPair) (ticker.TickerPrice, error) {
 	return tick, nil
 }
 
+// GetOrderbookEx returns the orderbook for a currency pair
 func (b *BTCE) GetOrderbookEx(p pair.CurrencyPair) (orderbook.OrderbookBase, error) {
 	ob, err := orderbook.GetOrderbook(b.GetName(), p)
 	if err == nil {
-		return ob, nil
+		return b.UpdateOrderbook(p)
 	}
+	return ob, nil
+}
 
+// UpdateOrderbook updates and returns the orderbook for a currency pair
+func (b *BTCE) UpdateOrderbook(p pair.CurrencyPair) (orderbook.OrderbookBase, error) {
 	var orderBook orderbook.OrderbookBase
 	orderbookNew, err := b.GetDepth(exchange.FormatExchangeCurrency(b.Name, p).String())
 	if err != nil {
@@ -94,12 +103,12 @@ func (b *BTCE) GetOrderbookEx(p pair.CurrencyPair) (orderbook.OrderbookBase, err
 
 	for x := range orderbookNew.Bids {
 		data := orderbookNew.Bids[x]
-		orderBook.Bids = append(ob.Bids, orderbook.OrderbookItem{Price: data[0], Amount: data[1]})
+		orderBook.Bids = append(orderBook.Bids, orderbook.OrderbookItem{Price: data[0], Amount: data[1]})
 	}
 
 	for x := range orderbookNew.Asks {
 		data := orderbookNew.Asks[x]
-		orderBook.Asks = append(ob.Asks, orderbook.OrderbookItem{Price: data[0], Amount: data[1]})
+		orderBook.Asks = append(orderBook.Asks, orderbook.OrderbookItem{Price: data[0], Amount: data[1]})
 	}
 
 	orderBook.Pair = p
@@ -107,11 +116,12 @@ func (b *BTCE) GetOrderbookEx(p pair.CurrencyPair) (orderbook.OrderbookBase, err
 	return orderBook, nil
 }
 
-//GetExchangeAccountInfo : Retrieves balances for all enabled currencies for the BTCE exchange
-func (e *BTCE) GetExchangeAccountInfo() (exchange.AccountInfo, error) {
+// GetExchangeAccountInfo retrieves balances for all enabled currencies for the
+// BTCE exchange
+func (b *BTCE) GetExchangeAccountInfo() (exchange.AccountInfo, error) {
 	var response exchange.AccountInfo
-	response.ExchangeName = e.GetName()
-	accountBalance, err := e.GetAccountInfo()
+	response.ExchangeName = b.GetName()
+	accountBalance, err := b.GetAccountInfo()
 	if err != nil {
 		return response, err
 	}

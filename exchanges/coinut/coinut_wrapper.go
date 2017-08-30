@@ -10,10 +10,12 @@ import (
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 )
 
+// Start starts the COINUT go routine
 func (c *COINUT) Start() {
 	go c.Run()
 }
 
+// Run implements the COINUT wrapper
 func (c *COINUT) Run() {
 	if c.Verbose {
 		log.Printf("%s Websocket: %s. (url: %s).\n", c.GetName(), common.IsEnabled(c.Websocket), COINUT_WEBSOCKET_URL)
@@ -44,7 +46,8 @@ func (c *COINUT) Run() {
 	}
 }
 
-// GetExchangeAccountInfo : Retrieves balances for all enabled currencies for the COINUT exchange
+// GetExchangeAccountInfo retrieves balances for all enabled currencies for the
+// COINUT exchange
 func (c *COINUT) GetExchangeAccountInfo() (exchange.AccountInfo, error) {
 	var response exchange.AccountInfo
 	/*
@@ -65,6 +68,7 @@ func (c *COINUT) GetExchangeAccountInfo() (exchange.AccountInfo, error) {
 	return response, nil
 }
 
+// UpdateTicker updates and returns the ticker for a currency pair
 func (c *COINUT) UpdateTicker(p pair.CurrencyPair) (ticker.TickerPrice, error) {
 	var tickerPrice ticker.TickerPrice
 	tick, err := c.GetInstrumentTicker(c.InstrumentMap[p.Pair().String()])
@@ -82,6 +86,7 @@ func (c *COINUT) UpdateTicker(p pair.CurrencyPair) (ticker.TickerPrice, error) {
 
 }
 
+// GetTickerPrice returns the ticker for a currency pair
 func (c *COINUT) GetTickerPrice(p pair.CurrencyPair) (ticker.TickerPrice, error) {
 	tickerNew, err := ticker.GetTicker(c.GetName(), p)
 	if err != nil {
@@ -90,12 +95,17 @@ func (c *COINUT) GetTickerPrice(p pair.CurrencyPair) (ticker.TickerPrice, error)
 	return tickerNew, nil
 }
 
+// GetOrderbookEx returns orderbook base on the currency pair
 func (c *COINUT) GetOrderbookEx(p pair.CurrencyPair) (orderbook.OrderbookBase, error) {
 	ob, err := orderbook.GetOrderbook(c.GetName(), p)
 	if err == nil {
-		return ob, nil
+		return c.UpdateOrderbook(p)
 	}
+	return ob, nil
+}
 
+// UpdateOrderbook updates and returns the orderbook for a currency pair
+func (c *COINUT) UpdateOrderbook(p pair.CurrencyPair) (orderbook.OrderbookBase, error) {
 	var orderBook orderbook.OrderbookBase
 	orderbookNew, err := c.GetInstrumentOrderbook(c.InstrumentMap[p.Pair().String()], 200)
 	if err != nil {
@@ -109,6 +119,7 @@ func (c *COINUT) GetOrderbookEx(p pair.CurrencyPair) (orderbook.OrderbookBase, e
 	for x := range orderbookNew.Sell {
 		orderBook.Asks = append(orderBook.Asks, orderbook.OrderbookItem{Amount: orderbookNew.Sell[x].Quantity, Price: orderbookNew.Sell[x].Price})
 	}
+
 	orderBook.Pair = p
 	orderbook.ProcessOrderbook(c.GetName(), p, orderBook)
 	return orderBook, nil
