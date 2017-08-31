@@ -36,8 +36,8 @@ func (l *Liqui) Run() {
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
-func (l *Liqui) UpdateTicker(p pair.CurrencyPair) (ticker.TickerPrice, error) {
-	var tickerPrice ticker.TickerPrice
+func (l *Liqui) UpdateTicker(p pair.CurrencyPair, assetType string) (ticker.Price, error) {
+	var tickerPrice ticker.Price
 	pairsString, err := exchange.GetAndFormatExchangeCurrencies(l.Name,
 		l.GetEnabledCurrencies())
 	if err != nil {
@@ -49,34 +49,34 @@ func (l *Liqui) UpdateTicker(p pair.CurrencyPair) (ticker.TickerPrice, error) {
 		return tickerPrice, err
 	}
 
-	for x, y := range result {
-		var tp ticker.TickerPrice
-		currency := pair.NewCurrencyPairDelimiter(common.StringToUpper(x), "_")
-		tp.Pair = currency
-		tp.Last = y.Last
-		tp.Ask = y.Sell
-		tp.Bid = y.Buy
-		tp.Last = y.Last
-		tp.Low = y.Low
-		tp.Volume = y.Vol_cur
-		ticker.ProcessTicker(l.GetName(), currency, tp)
+	for _, x := range l.GetEnabledCurrencies() {
+		currency := exchange.FormatExchangeCurrency(l.Name, x).String()
+		var tp ticker.Price
+		tp.Pair = x
+		tp.Last = result[currency].Last
+		tp.Ask = result[currency].Sell
+		tp.Bid = result[currency].Buy
+		tp.Last = result[currency].Last
+		tp.Low = result[currency].Low
+		tp.Volume = result[currency].Vol_cur
+		ticker.ProcessTicker(l.Name, x, tp, assetType)
 	}
 
-	return ticker.GetTicker(l.GetName(), p)
+	return ticker.GetTicker(l.Name, p, assetType)
 }
 
 // GetTickerPrice returns the ticker for a currency pair
-func (l *Liqui) GetTickerPrice(p pair.CurrencyPair) (ticker.TickerPrice, error) {
-	tickerNew, err := ticker.GetTicker(l.GetName(), p)
+func (l *Liqui) GetTickerPrice(p pair.CurrencyPair, assetType string) (ticker.Price, error) {
+	tickerNew, err := ticker.GetTicker(l.Name, p, assetType)
 	if err != nil {
-		return l.UpdateTicker(p)
+		return l.UpdateTicker(p, assetType)
 	}
 	return tickerNew, nil
 }
 
 // GetOrderbookEx returns orderbook base on the currency pair
 func (l *Liqui) GetOrderbookEx(p pair.CurrencyPair) (orderbook.OrderbookBase, error) {
-	ob, err := orderbook.GetOrderbook(l.GetName(), p)
+	ob, err := orderbook.GetOrderbook(l.Name, p)
 	if err == nil {
 		return l.UpdateOrderbook(p)
 	}
@@ -101,9 +101,8 @@ func (l *Liqui) UpdateOrderbook(p pair.CurrencyPair) (orderbook.OrderbookBase, e
 		orderBook.Asks = append(orderBook.Asks, orderbook.OrderbookItem{Amount: data[1], Price: data[0]})
 	}
 
-	orderBook.Pair = p
-	orderbook.ProcessOrderbook(l.GetName(), p, orderBook)
-	return orderBook, nil
+	orderbook.ProcessOrderbook(l.Name, p, orderBook)
+	return orderbook.GetOrderbook(l.Name, p)
 }
 
 // GetExchangeAccountInfo retrieves balances for all enabled currencies for the

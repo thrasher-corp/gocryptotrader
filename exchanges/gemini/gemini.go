@@ -12,6 +12,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/exchanges"
+	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 )
 
 const (
@@ -49,6 +50,7 @@ func (g *Gemini) SetDefaults() {
 	g.RequestCurrencyPairFormat.Uppercase = true
 	g.ConfigCurrencyPairFormat.Delimiter = ""
 	g.ConfigCurrencyPairFormat.Uppercase = true
+	g.AssetTypes = []string{ticker.Spot}
 }
 
 func (g *Gemini) Setup(exch config.ExchangeConfig) {
@@ -65,6 +67,10 @@ func (g *Gemini) Setup(exch config.ExchangeConfig) {
 		g.AvailablePairs = common.SplitStrings(exch.AvailablePairs, ",")
 		g.EnabledPairs = common.SplitStrings(exch.EnabledPairs, ",")
 		err := g.SetCurrencyPairFormat()
+		if err != nil {
+			log.Fatal(err)
+		}
+		err = g.SetAssetTypes()
 		if err != nil {
 			log.Fatal(err)
 		}

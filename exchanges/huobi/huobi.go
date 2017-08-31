@@ -11,6 +11,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/exchanges"
+	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 )
 
 const (
@@ -33,6 +34,7 @@ func (h *HUOBI) SetDefaults() {
 	h.RequestCurrencyPairFormat.Uppercase = false
 	h.ConfigCurrencyPairFormat.Delimiter = ""
 	h.ConfigCurrencyPairFormat.Uppercase = true
+	h.AssetTypes = []string{ticker.Spot}
 }
 
 func (h *HUOBI) Setup(exch config.ExchangeConfig) {
@@ -49,6 +51,10 @@ func (h *HUOBI) Setup(exch config.ExchangeConfig) {
 		h.AvailablePairs = common.SplitStrings(exch.AvailablePairs, ",")
 		h.EnabledPairs = common.SplitStrings(exch.EnabledPairs, ",")
 		err := h.SetCurrencyPairFormat()
+		if err != nil {
+			log.Fatal(err)
+		}
+		err = h.SetAssetTypes()
 		if err != nil {
 			log.Fatal(err)
 		}

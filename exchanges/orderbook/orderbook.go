@@ -122,6 +122,7 @@ func CreateNewOrderbook(exchangeName string, p pair.CurrencyPair, orderbookNew O
 
 func ProcessOrderbook(exchangeName string, p pair.CurrencyPair, orderbookNew OrderbookBase) {
 	orderbookNew.CurrencyPair = p.Pair().String()
+	orderbookNew.LastUpdated = time.Now()
 	if len(Orderbooks) == 0 {
 		CreateNewOrderbook(exchangeName, p, orderbookNew)
 		return

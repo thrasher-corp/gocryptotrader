@@ -24,9 +24,10 @@ func (i *ItBit) Run() {
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
-func (i *ItBit) UpdateTicker(p pair.CurrencyPair) (ticker.TickerPrice, error) {
-	var tickerPrice ticker.TickerPrice
-	tick, err := i.GetTicker(p.Pair().String())
+func (i *ItBit) UpdateTicker(p pair.CurrencyPair, assetType string) (ticker.Price, error) {
+	var tickerPrice ticker.Price
+	tick, err := i.GetTicker(exchange.FormatExchangeCurrency(i.Name,
+		p).String())
 	if err != nil {
 		return tickerPrice, err
 	}
@@ -38,15 +39,15 @@ func (i *ItBit) UpdateTicker(p pair.CurrencyPair) (ticker.TickerPrice, error) {
 	tickerPrice.High = tick.High24h
 	tickerPrice.Low = tick.Low24h
 	tickerPrice.Volume = tick.Volume24h
-	ticker.ProcessTicker(i.GetName(), p, tickerPrice)
-	return tickerPrice, nil
+	ticker.ProcessTicker(i.GetName(), p, tickerPrice, assetType)
+	return ticker.GetTicker(i.Name, p, assetType)
 }
 
 // GetTickerPrice returns the ticker for a currency pair
-func (i *ItBit) GetTickerPrice(p pair.CurrencyPair) (ticker.TickerPrice, error) {
-	tickerNew, err := ticker.GetTicker(i.GetName(), p)
+func (i *ItBit) GetTickerPrice(p pair.CurrencyPair, assetType string) (ticker.Price, error) {
+	tickerNew, err := ticker.GetTicker(i.GetName(), p, assetType)
 	if err != nil {
-		return i.UpdateTicker(p)
+		return i.UpdateTicker(p, assetType)
 	}
 	return tickerNew, nil
 }
@@ -63,7 +64,8 @@ func (i *ItBit) GetOrderbookEx(p pair.CurrencyPair) (orderbook.OrderbookBase, er
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (i *ItBit) UpdateOrderbook(p pair.CurrencyPair) (orderbook.OrderbookBase, error) {
 	var orderBook orderbook.OrderbookBase
-	orderbookNew, err := i.GetOrderbook(p.Pair().String())
+	orderbookNew, err := i.GetOrderbook(exchange.FormatExchangeCurrency(i.Name,
+		p).String())
 	if err != nil {
 		return orderBook, err
 	}
@@ -94,9 +96,8 @@ func (i *ItBit) UpdateOrderbook(p pair.CurrencyPair) (orderbook.OrderbookBase, e
 		orderBook.Asks = append(orderBook.Asks, orderbook.OrderbookItem{Amount: amount, Price: price})
 	}
 
-	orderBook.Pair = p
 	orderbook.ProcessOrderbook(i.GetName(), p, orderBook)
-	return orderBook, nil
+	return orderbook.GetOrderbook(i.Name, p)
 }
 
 // GetExchangeAccountInfo retrieves balances for all enabled currencies for the

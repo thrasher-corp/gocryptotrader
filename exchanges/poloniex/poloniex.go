@@ -12,6 +12,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/exchanges"
+	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 )
 
 const (
@@ -62,6 +63,7 @@ func (p *Poloniex) SetDefaults() {
 	p.RequestCurrencyPairFormat.Uppercase = true
 	p.ConfigCurrencyPairFormat.Delimiter = "_"
 	p.ConfigCurrencyPairFormat.Uppercase = true
+	p.AssetTypes = []string{ticker.Spot}
 }
 
 func (p *Poloniex) Setup(exch config.ExchangeConfig) {
@@ -78,6 +80,10 @@ func (p *Poloniex) Setup(exch config.ExchangeConfig) {
 		p.AvailablePairs = common.SplitStrings(exch.AvailablePairs, ",")
 		p.EnabledPairs = common.SplitStrings(exch.EnabledPairs, ",")
 		err := p.SetCurrencyPairFormat()
+		if err != nil {
+			log.Fatal(err)
+		}
+		err = p.SetAssetTypes()
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -133,14 +139,20 @@ func (p *Poloniex) GetOrderbook(currencyPair string, depth int) (PoloniexOrderbo
 	ob := PoloniexOrderbook{}
 	for x := range resp.Asks {
 		data := resp.Asks[x]
-		price, _ := strconv.ParseFloat(data[0].(string), 64)
+		price, err := strconv.ParseFloat(data[0].(string), 64)
+		if err != nil {
+			return ob, err
+		}
 		amount := data[1].(float64)
 		ob.Asks = append(ob.Asks, PoloniexOrderbookItem{Price: price, Amount: amount})
 	}
 
 	for x := range resp.Bids {
 		data := resp.Bids[x]
-		price, _ := strconv.ParseFloat(data[0].(string), 64)
+		price, err := strconv.ParseFloat(data[0].(string), 64)
+		if err != nil {
+			return ob, err
+		}
 		amount := data[1].(float64)
 		ob.Bids = append(ob.Bids, PoloniexOrderbookItem{Price: price, Amount: amount})
 	}

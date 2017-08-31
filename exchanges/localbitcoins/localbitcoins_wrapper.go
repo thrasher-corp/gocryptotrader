@@ -3,8 +3,6 @@ package localbitcoins
 import (
 	"log"
 
-	"github.com/thrasher-/gocryptotrader/common"
-
 	"github.com/thrasher-/gocryptotrader/currency/pair"
 	"github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
@@ -25,30 +23,30 @@ func (l *LocalBitcoins) Run() {
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
-func (l *LocalBitcoins) UpdateTicker(p pair.CurrencyPair) (ticker.TickerPrice, error) {
-	var tickerPrice ticker.TickerPrice
+func (l *LocalBitcoins) UpdateTicker(p pair.CurrencyPair, assetType string) (ticker.Price, error) {
+	var tickerPrice ticker.Price
 	tick, err := l.GetTicker()
 	if err != nil {
 		return tickerPrice, err
 	}
 
-	for key, value := range tick {
-		currency := pair.NewCurrencyPair("BTC", common.StringToUpper(key))
-		var tp ticker.TickerPrice
-		tp.Pair = currency
-		tp.Last = value.Rates.Last
-		tp.Volume = value.VolumeBTC
-		ticker.ProcessTicker(l.GetName(), currency, tp)
+	for _, x := range l.GetEnabledCurrencies() {
+		currency := x.SecondCurrency.String()
+		var tp ticker.Price
+		tp.Pair = x
+		tp.Last = tick[currency].Rates.Last
+		tp.Volume = tick[currency].VolumeBTC
+		ticker.ProcessTicker(l.GetName(), x, tp, assetType)
 	}
 
-	return ticker.GetTicker(l.GetName(), p)
+	return ticker.GetTicker(l.GetName(), p, assetType)
 }
 
 // GetTickerPrice returns the ticker for a currency pair
-func (l *LocalBitcoins) GetTickerPrice(p pair.CurrencyPair) (ticker.TickerPrice, error) {
-	tickerNew, err := ticker.GetTicker(l.GetName(), p)
+func (l *LocalBitcoins) GetTickerPrice(p pair.CurrencyPair, assetType string) (ticker.Price, error) {
+	tickerNew, err := ticker.GetTicker(l.GetName(), p, assetType)
 	if err == nil {
-		return l.UpdateTicker(p)
+		return l.UpdateTicker(p, assetType)
 	}
 	return tickerNew, nil
 }
@@ -77,12 +75,11 @@ func (l *LocalBitcoins) UpdateOrderbook(p pair.CurrencyPair) (orderbook.Orderboo
 
 	for x := range orderbookNew.Asks {
 		data := orderbookNew.Asks[x]
-		orderBook.Bids = append(orderBook.Asks, orderbook.OrderbookItem{Amount: data.Amount, Price: data.Price})
+		orderBook.Asks = append(orderBook.Asks, orderbook.OrderbookItem{Amount: data.Amount, Price: data.Price})
 	}
 
-	orderBook.Pair = p
 	orderbook.ProcessOrderbook(l.GetName(), p, orderBook)
-	return orderBook, nil
+	return orderbook.GetOrderbook(l.Name, p)
 }
 
 // GetExchangeAccountInfo retrieves balances for all enabled currencies for the

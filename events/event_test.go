@@ -5,27 +5,27 @@ import (
 )
 
 func TestAddEvent(t *testing.T) {
-	eventID, err := AddEvent("ANX", "price", ">,==", "BTC", "LTC", actionTest)
+	eventID, err := AddEvent("ANX", "price", ">,==", "BTC", "LTC", "SPOT", actionTest)
 	if err != nil && eventID != 0 {
 		t.Errorf("Test Failed. AddEvent: Error, %s", err)
 	}
-	eventID, err = AddEvent("ANXX", "price", ">,==", "BTC", "LTC", actionTest)
+	eventID, err = AddEvent("ANXX", "price", ">,==", "BTC", "LTC", "SPOT", actionTest)
 	if err == nil && eventID == 0 {
 		t.Error("Test Failed. AddEvent: Error, error not captured in Exchange")
 	}
-	eventID, err = AddEvent("ANX", "prices", ">,==", "BTC", "LTC", actionTest)
+	eventID, err = AddEvent("ANX", "prices", ">,==", "BTC", "LTC", "SPOT", actionTest)
 	if err == nil && eventID == 0 {
 		t.Error("Test Failed. AddEvent: Error, error not captured in Item")
 	}
-	eventID, err = AddEvent("ANX", "price", "3===D", "BTC", "LTC", actionTest)
+	eventID, err = AddEvent("ANX", "price", "3===D", "BTC", "LTC", "SPOT", actionTest)
 	if err == nil && eventID == 0 {
 		t.Error("Test Failed. AddEvent: Error, error not captured in Condition")
 	}
-	eventID, err = AddEvent("ANX", "price", ">,==", "BTC", "LTC", "console_prints")
+	eventID, err = AddEvent("ANX", "price", ">,==", "BTC", "LTC", "SPOT", "console_prints")
 	if err == nil && eventID == 0 {
 		t.Error("Test Failed. AddEvent: Error, error not captured in Action")
 	}
-	eventID, err = AddEvent("ANX", "price", ">,==", "BATMAN", "ROBIN", actionTest)
+	eventID, err = AddEvent("ANX", "price", ">,==", "BATMAN", "ROBIN", "SPOT", actionTest)
 	if err == nil && eventID == 0 {
 		t.Error("Test Failed. AddEvent: Error, error not captured in Action")
 	}
@@ -35,7 +35,7 @@ func TestAddEvent(t *testing.T) {
 }
 
 func TestRemoveEvent(t *testing.T) {
-	eventID, err := AddEvent("ANX", "price", ">,==", "BTC", "LTC", actionTest)
+	eventID, err := AddEvent("ANX", "price", ">,==", "BTC", "LTC", "SPOT", actionTest)
 	if err != nil && eventID != 0 {
 		t.Errorf("Test Failed. RemoveEvent: Error, %s", err)
 	}
@@ -48,15 +48,15 @@ func TestRemoveEvent(t *testing.T) {
 }
 
 func TestGetEventCounter(t *testing.T) {
-	one, err := AddEvent("ANX", "price", ">,==", "BTC", "LTC", actionTest)
+	one, err := AddEvent("ANX", "price", ">,==", "BTC", "LTC", "SPOT", actionTest)
 	if err != nil {
 		t.Errorf("Test Failed. GetEventCounter: Error, %s", err)
 	}
-	two, err := AddEvent("ANX", "price", ">,==", "BTC", "LTC", actionTest)
+	two, err := AddEvent("ANX", "price", ">,==", "BTC", "LTC", "SPOT", actionTest)
 	if err != nil {
 		t.Errorf("Test Failed. GetEventCounter: Error, %s", err)
 	}
-	three, err := AddEvent("ANX", "price", ">,==", "BTC", "LTC", actionTest)
+	three, err := AddEvent("ANX", "price", ">,==", "BTC", "LTC", "SPOT", actionTest)
 	if err != nil {
 		t.Errorf("Test Failed. GetEventCounter: Error, %s", err)
 	}
@@ -84,7 +84,7 @@ func TestGetEventCounter(t *testing.T) {
 }
 
 func TestExecuteAction(t *testing.T) {
-	one, err := AddEvent("ANX", "price", ">,==", "BTC", "LTC", actionTest)
+	one, err := AddEvent("ANX", "price", ">,==", "BTC", "LTC", "SPOT", actionTest)
 	if err != nil {
 		t.Errorf("Test Failed. ExecuteAction: Error, %s", err)
 	}
@@ -100,13 +100,13 @@ func TestExecuteAction(t *testing.T) {
 }
 
 func TestEventToString(t *testing.T) {
-	one, err := AddEvent("ANX", "price", ">,==", "BTC", "LTC", actionTest)
+	one, err := AddEvent("ANX", "price", ">,==", "BTC", "LTC", "SPOT", actionTest)
 	if err != nil {
 		t.Errorf("Test Failed. EventToString: Error, %s", err)
 	}
 
 	eventString := Events[one].EventToString()
-	if eventString != "If the BTCLTC price on ANX is > == then ACTION_TEST." {
+	if eventString != "If the BTCLTC [SPOT] price on ANX is > == then ACTION_TEST." {
 		t.Error("Test Failed. EventToString: Error, incorrect return string")
 	}
 
@@ -116,7 +116,7 @@ func TestEventToString(t *testing.T) {
 }
 
 func TestCheckCondition(t *testing.T) { //error handling needs to be implemented
-	one, err := AddEvent("ANX", "price", ">,==", "BTC", "LTC", actionTest)
+	one, err := AddEvent("ANX", "price", ">,==", "BTC", "LTC", "SPOT", actionTest)
 	if err != nil {
 		t.Errorf("Test Failed. EventToString: Error, %s", err)
 	}
