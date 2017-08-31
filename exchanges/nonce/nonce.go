@@ -3,6 +3,7 @@ package nonce
 import (
 	"strconv"
 	"sync"
+	"time"
 )
 
 // Nonce struct holds the nonce value
@@ -46,4 +47,16 @@ func (n *Nonce) String() string {
 	result := strconv.FormatInt(n.n, 10)
 	n.mtx.Unlock()
 	return result
+}
+
+// Evaluate returns a nonce while evaluating in a single locked call
+func (n *Nonce) Evaluate() string {
+	n.mtx.Lock()
+	defer n.mtx.Unlock()
+	if n.n == 0 {
+		n.n = time.Now().Unix()
+		return strconv.FormatInt(n.n, 10)
+	}
+	n.n = n.n + 1
+	return strconv.FormatInt(n.n, 10)
 }
