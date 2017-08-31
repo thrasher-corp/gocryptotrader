@@ -29,8 +29,8 @@ func (h *HUOBI) Run() {
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
-func (h *HUOBI) UpdateTicker(p pair.CurrencyPair) (ticker.TickerPrice, error) {
-	var tickerPrice ticker.TickerPrice
+func (h *HUOBI) UpdateTicker(p pair.CurrencyPair, assetType string) (ticker.Price, error) {
+	var tickerPrice ticker.Price
 	tick, err := h.GetTicker(p.GetFirstCurrency().Lower().String())
 	if err != nil {
 		return tickerPrice, err
@@ -42,15 +42,15 @@ func (h *HUOBI) UpdateTicker(p pair.CurrencyPair) (ticker.TickerPrice, error) {
 	tickerPrice.Last = tick.Last
 	tickerPrice.Volume = tick.Vol
 	tickerPrice.High = tick.High
-	ticker.ProcessTicker(h.GetName(), p, tickerPrice)
-	return tickerPrice, nil
+	ticker.ProcessTicker(h.GetName(), p, tickerPrice, assetType)
+	return ticker.GetTicker(h.Name, p, assetType)
 }
 
 // GetTickerPrice returns the ticker for a currency pair
-func (h *HUOBI) GetTickerPrice(p pair.CurrencyPair) (ticker.TickerPrice, error) {
-	tickerNew, err := ticker.GetTicker(h.GetName(), p)
+func (h *HUOBI) GetTickerPrice(p pair.CurrencyPair, assetType string) (ticker.Price, error) {
+	tickerNew, err := ticker.GetTicker(h.GetName(), p, assetType)
 	if err != nil {
-		return h.UpdateTicker(p)
+		return h.UpdateTicker(p, assetType)
 	}
 	return tickerNew, nil
 }
@@ -82,9 +82,8 @@ func (h *HUOBI) UpdateOrderbook(p pair.CurrencyPair) (orderbook.OrderbookBase, e
 		orderBook.Asks = append(orderBook.Asks, orderbook.OrderbookItem{Amount: data[1], Price: data[0]})
 	}
 
-	orderBook.Pair = p
 	orderbook.ProcessOrderbook(h.GetName(), p, orderBook)
-	return orderBook, nil
+	return orderbook.GetOrderbook(h.Name, p)
 }
 
 //GetExchangeAccountInfo retrieves balances for all enabled currencies for the

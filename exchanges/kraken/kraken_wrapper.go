@@ -37,8 +37,8 @@ func (k *Kraken) Run() {
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
-func (k *Kraken) UpdateTicker(p pair.CurrencyPair) (ticker.TickerPrice, error) {
-	var tickerPrice ticker.TickerPrice
+func (k *Kraken) UpdateTicker(p pair.CurrencyPair, assetType string) (ticker.Price, error) {
+	var tickerPrice ticker.Price
 	pairs := k.GetEnabledCurrencies()
 	pairsCollated, err := exchange.GetAndFormatExchangeCurrencies(k.Name, pairs)
 	if err != nil {
@@ -50,7 +50,7 @@ func (k *Kraken) UpdateTicker(p pair.CurrencyPair) (ticker.TickerPrice, error) {
 	}
 
 	for _, x := range pairs {
-		var tp ticker.TickerPrice
+		var tp ticker.Price
 		tick, ok := k.Ticker[x.Pair().String()]
 		if !ok {
 			continue
@@ -63,16 +63,16 @@ func (k *Kraken) UpdateTicker(p pair.CurrencyPair) (ticker.TickerPrice, error) {
 		tp.High = tick.High
 		tp.Low = tick.Low
 		tp.Volume = tick.Volume
-		ticker.ProcessTicker(k.GetName(), x, tp)
+		ticker.ProcessTicker(k.GetName(), x, tp, assetType)
 	}
-	return ticker.GetTicker(k.GetName(), p)
+	return ticker.GetTicker(k.GetName(), p, assetType)
 }
 
 // GetTickerPrice returns the ticker for a currency pair
-func (k *Kraken) GetTickerPrice(p pair.CurrencyPair) (ticker.TickerPrice, error) {
-	tickerNew, err := ticker.GetTicker(k.GetName(), p)
+func (k *Kraken) GetTickerPrice(p pair.CurrencyPair, assetType string) (ticker.Price, error) {
+	tickerNew, err := ticker.GetTicker(k.GetName(), p, assetType)
 	if err != nil {
-		return k.UpdateTicker(p)
+		return k.UpdateTicker(p, assetType)
 	}
 	return tickerNew, nil
 }
@@ -102,9 +102,8 @@ func (k *Kraken) UpdateOrderbook(p pair.CurrencyPair) (orderbook.OrderbookBase, 
 		orderBook.Asks = append(orderBook.Asks, orderbook.OrderbookItem{Amount: orderbookNew.Asks[x].Amount, Price: orderbookNew.Asks[x].Price})
 	}
 
-	orderBook.Pair = p
 	orderbook.ProcessOrderbook(k.GetName(), p, orderBook)
-	return orderBook, nil
+	return orderbook.GetOrderbook(k.Name, p)
 }
 
 // GetExchangeAccountInfo retrieves balances for all enabled currencies for the

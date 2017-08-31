@@ -51,8 +51,8 @@ func (b *BTCMarkets) Run() {
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
-func (b *BTCMarkets) UpdateTicker(p pair.CurrencyPair) (ticker.TickerPrice, error) {
-	var tickerPrice ticker.TickerPrice
+func (b *BTCMarkets) UpdateTicker(p pair.CurrencyPair, assetType string) (ticker.Price, error) {
+	var tickerPrice ticker.Price
 	tick, err := b.GetTicker(p.GetFirstCurrency().String())
 	if err != nil {
 		return tickerPrice, err
@@ -61,15 +61,15 @@ func (b *BTCMarkets) UpdateTicker(p pair.CurrencyPair) (ticker.TickerPrice, erro
 	tickerPrice.Ask = tick.BestAsk
 	tickerPrice.Bid = tick.BestBID
 	tickerPrice.Last = tick.LastPrice
-	ticker.ProcessTicker(b.GetName(), p, tickerPrice)
-	return tickerPrice, nil
+	ticker.ProcessTicker(b.GetName(), p, tickerPrice, assetType)
+	return ticker.GetTicker(b.Name, p, assetType)
 }
 
 // GetTickerPrice returns the ticker for a currency pair
-func (b *BTCMarkets) GetTickerPrice(p pair.CurrencyPair) (ticker.TickerPrice, error) {
-	tickerNew, err := ticker.GetTicker(b.GetName(), p)
+func (b *BTCMarkets) GetTickerPrice(p pair.CurrencyPair, assetType string) (ticker.Price, error) {
+	tickerNew, err := ticker.GetTicker(b.GetName(), p, assetType)
 	if err != nil {
-		return b.UpdateTicker(p)
+		return b.UpdateTicker(p, assetType)
 	}
 	return tickerNew, nil
 }
@@ -101,9 +101,8 @@ func (b *BTCMarkets) UpdateOrderbook(p pair.CurrencyPair) (orderbook.OrderbookBa
 		orderBook.Asks = append(orderBook.Asks, orderbook.OrderbookItem{Amount: data[1], Price: data[0]})
 	}
 
-	orderBook.Pair = p
 	orderbook.ProcessOrderbook(b.GetName(), p, orderBook)
-	return orderBook, nil
+	return orderbook.GetOrderbook(b.Name, p)
 }
 
 // GetExchangeAccountInfo retrieves balances for all enabled currencies for the

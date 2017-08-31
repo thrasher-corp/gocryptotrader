@@ -13,6 +13,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/exchanges"
+	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 )
 
 const (
@@ -64,6 +65,7 @@ func (b *Bitstamp) SetDefaults() {
 	b.RequestCurrencyPairFormat.Uppercase = true
 	b.ConfigCurrencyPairFormat.Delimiter = ""
 	b.ConfigCurrencyPairFormat.Uppercase = true
+	b.AssetTypes = []string{ticker.Spot}
 }
 
 // Setup sets configuration values to bitstamp
@@ -81,6 +83,10 @@ func (b *Bitstamp) Setup(exch config.ExchangeConfig) {
 		b.AvailablePairs = common.SplitStrings(exch.AvailablePairs, ",")
 		b.EnabledPairs = common.SplitStrings(exch.EnabledPairs, ",")
 		err := b.SetCurrencyPairFormat()
+		if err != nil {
+			log.Fatal(err)
+		}
+		err = b.SetAssetTypes()
 		if err != nil {
 			log.Fatal(err)
 		}

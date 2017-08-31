@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/thrasher-/gocryptotrader/currency/pair"
+	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 )
 
 func TestStart(t *testing.T) {
@@ -18,7 +19,7 @@ func TestRun(t *testing.T) {
 
 func TestGetTickerPrice(t *testing.T) {
 	getTickerPrice := Bitfinex{}
-	_, err := getTickerPrice.GetTickerPrice(pair.NewCurrencyPair("BTC", "USD"))
+	_, err := getTickerPrice.GetTickerPrice(pair.NewCurrencyPair("BTC", "USD"), ticker.Spot)
 	if err != nil {
 		t.Errorf("Test Failed - Bitfinex GetTickerPrice() error: %s", err)
 	}

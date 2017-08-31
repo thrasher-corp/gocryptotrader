@@ -3,12 +3,10 @@ package anx
 import (
 	"log"
 	"strconv"
-	"time"
 
 	"github.com/thrasher-/gocryptotrader/currency/pair"
 	"github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
-	"github.com/thrasher-/gocryptotrader/exchanges/stats"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 )
 
@@ -23,29 +21,12 @@ func (a *ANX) Run() {
 		log.Printf("%s polling delay: %ds.\n", a.GetName(), a.RESTPollingDelay)
 		log.Printf("%s %d currencies enabled: %s.\n", a.GetName(), len(a.EnabledPairs), a.EnabledPairs)
 	}
-
-	for a.Enabled {
-		pairs := a.GetEnabledCurrencies()
-		for x := range pairs {
-			currency := pairs[x]
-			go func() {
-				ticker, err := a.UpdateTicker(currency)
-				if err != nil {
-					log.Println(err)
-					return
-				}
-				log.Printf("ANX %s: Last %f High %f Low %f Volume %f\n", exchange.FormatCurrency(currency).String(), ticker.Last, ticker.High, ticker.Low, ticker.Volume)
-				stats.AddExchangeInfo(a.GetName(), currency.GetFirstCurrency().String(), currency.GetSecondCurrency().String(), ticker.Last, ticker.Volume)
-			}()
-		}
-		time.Sleep(time.Second * a.RESTPollingDelay)
-	}
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
-func (a *ANX) UpdateTicker(p pair.CurrencyPair) (ticker.TickerPrice, error) {
-	var tickerPrice ticker.TickerPrice
-	tick, err := a.GetTicker(p.Pair().String())
+func (a *ANX) UpdateTicker(p pair.CurrencyPair, assetType string) (ticker.Price, error) {
+	var tickerPrice ticker.Price
+	tick, err := a.GetTicker(exchange.FormatExchangeCurrency(a.GetName(), p).String())
 	if err != nil {
 		return tickerPrice, err
 	}
@@ -105,15 +86,15 @@ func (a *ANX) UpdateTicker(p pair.CurrencyPair) (ticker.TickerPrice, error) {
 	} else {
 		tickerPrice.High = 0
 	}
-	ticker.ProcessTicker(a.GetName(), p, tickerPrice)
-	return tickerPrice, nil
+	ticker.ProcessTicker(a.GetName(), p, tickerPrice, assetType)
+	return ticker.GetTicker(a.Name, p, assetType)
 }
 
 // GetTickerPrice returns the ticker for a currency pair
-func (a *ANX) GetTickerPrice(p pair.CurrencyPair) (ticker.TickerPrice, error) {
-	tickerNew, err := ticker.GetTicker(a.GetName(), p)
+func (a *ANX) GetTickerPrice(p pair.CurrencyPair, assetType string) (ticker.Price, error) {
+	tickerNew, err := ticker.GetTicker(a.GetName(), p, assetType)
 	if err != nil {
-		return a.UpdateTicker(p)
+		return a.UpdateTicker(p, assetType)
 	}
 	return tickerNew, nil
 }

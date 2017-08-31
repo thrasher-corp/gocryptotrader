@@ -12,6 +12,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/exchanges"
+	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 )
 
 const (
@@ -60,6 +61,7 @@ func (k *Kraken) SetDefaults() {
 	k.RequestCurrencyPairFormat.Separator = ","
 	k.ConfigCurrencyPairFormat.Delimiter = ""
 	k.ConfigCurrencyPairFormat.Uppercase = true
+	k.AssetTypes = []string{ticker.Spot}
 }
 
 func (k *Kraken) Setup(exch config.ExchangeConfig) {
@@ -76,6 +78,10 @@ func (k *Kraken) Setup(exch config.ExchangeConfig) {
 		k.AvailablePairs = common.SplitStrings(exch.AvailablePairs, ",")
 		k.EnabledPairs = common.SplitStrings(exch.EnabledPairs, ",")
 		err := k.SetCurrencyPairFormat()
+		if err != nil {
+			log.Fatal(err)
+		}
+		err = k.SetAssetTypes()
 		if err != nil {
 			log.Fatal(err)
 		}

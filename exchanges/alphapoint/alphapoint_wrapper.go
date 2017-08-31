@@ -29,8 +29,8 @@ func (a *Alphapoint) GetExchangeAccountInfo() (exchange.AccountInfo, error) {
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
-func (a *Alphapoint) UpdateTicker(p pair.CurrencyPair) (ticker.TickerPrice, error) {
-	var tickerPrice ticker.TickerPrice
+func (a *Alphapoint) UpdateTicker(p pair.CurrencyPair) (ticker.Price, error) {
+	var tickerPrice ticker.Price
 	tick, err := a.GetTicker(p.Pair().String())
 	if err != nil {
 		return tickerPrice, err
@@ -43,13 +43,13 @@ func (a *Alphapoint) UpdateTicker(p pair.CurrencyPair) (ticker.TickerPrice, erro
 	tickerPrice.High = tick.High
 	tickerPrice.Volume = tick.Volume
 	tickerPrice.Last = tick.Last
-	ticker.ProcessTicker(a.GetName(), p, tickerPrice)
-	return tickerPrice, nil
+	ticker.ProcessTicker(a.GetName(), p, tickerPrice, ticker.Spot)
+	return ticker.GetTicker(a.Name, p, ticker.Spot)
 }
 
 // GetTickerPrice returns the ticker for a currency pair
-func (a *Alphapoint) GetTickerPrice(p pair.CurrencyPair) (ticker.TickerPrice, error) {
-	tick, err := ticker.GetTicker(a.GetName(), p)
+func (a *Alphapoint) GetTickerPrice(p pair.CurrencyPair) (ticker.Price, error) {
+	tick, err := ticker.GetTicker(a.GetName(), p, ticker.Spot)
 	if err != nil {
 		return a.UpdateTicker(p)
 	}
@@ -74,9 +74,8 @@ func (a *Alphapoint) UpdateOrderbook(p pair.CurrencyPair) (orderbook.OrderbookBa
 		orderBook.Asks = append(orderBook.Asks, orderbook.OrderbookItem{Amount: data.Quantity, Price: data.Price})
 	}
 
-	orderBook.Pair = p
 	orderbook.ProcessOrderbook(a.GetName(), p, orderBook)
-	return orderBook, nil
+	return orderbook.GetOrderbook(a.Name, p)
 }
 
 // GetOrderbookEx returns the orderbook for a currency pair

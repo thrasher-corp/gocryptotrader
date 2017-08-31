@@ -49,6 +49,7 @@ type Base struct {
 	BaseCurrencies              []string
 	AvailablePairs              []string
 	EnabledPairs                []string
+	AssetTypes                  []string
 	WebsocketURL                string
 	APIUrl                      string
 	RequestCurrencyPairFormat   config.CurrencyPairFormatConfig
@@ -63,13 +64,49 @@ type IBotExchange interface {
 	SetDefaults()
 	GetName() string
 	IsEnabled() bool
-	GetTickerPrice(currency pair.CurrencyPair) (ticker.TickerPrice, error)
-	UpdateTicker(currency pair.CurrencyPair) (ticker.TickerPrice, error)
+	GetTickerPrice(currency pair.CurrencyPair, assetType string) (ticker.Price, error)
+	UpdateTicker(currency pair.CurrencyPair, assetType string) (ticker.Price, error)
 	GetOrderbookEx(currency pair.CurrencyPair) (orderbook.OrderbookBase, error)
 	UpdateOrderbook(currency pair.CurrencyPair) (orderbook.OrderbookBase, error)
 	GetEnabledCurrencies() []pair.CurrencyPair
 	GetExchangeAccountInfo() (AccountInfo, error)
 	GetAuthenticatedAPISupport() bool
+}
+
+// SetAssetTypes checks the exchange asset types (whether it supports SPOT,
+// Binary or Futures) and sets it to a default setting if it doesn't exist
+func (e *Base) SetAssetTypes() error {
+	cfg := config.GetConfig()
+	exch, err := cfg.GetExchangeConfig(e.Name)
+	if err != nil {
+		return err
+	}
+
+	update := false
+	if exch.AssetTypes == "" {
+		exch.AssetTypes = common.JoinStrings(e.AssetTypes, ",")
+		update = true
+	} else {
+		e.AssetTypes = common.SplitStrings(exch.AssetTypes, ",")
+	}
+
+	if update {
+		return cfg.UpdateExchangeConfig(exch)
+	}
+
+	return nil
+}
+
+// GetExchangeAssetTypes returns the asset types the exchange supports (SPOT,
+// binary, futures)
+func GetExchangeAssetTypes(exchName string) ([]string, error) {
+	cfg := config.GetConfig()
+	exch, err := cfg.GetExchangeConfig(exchName)
+	if err != nil {
+		return nil, err
+	}
+
+	return common.SplitStrings(exch.AssetTypes, ","), nil
 }
 
 // SetCurrencyPairFormat checks the exchange request and config currency pair

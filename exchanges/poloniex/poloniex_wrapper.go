@@ -29,30 +29,33 @@ func (p *Poloniex) Run() {
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
-func (p *Poloniex) UpdateTicker(currencyPair pair.CurrencyPair) (ticker.TickerPrice, error) {
-	currency := exchange.FormatCurrency(currencyPair).String()
-	var tickerPrice ticker.TickerPrice
+func (p *Poloniex) UpdateTicker(currencyPair pair.CurrencyPair, assetType string) (ticker.Price, error) {
+	var tickerPrice ticker.Price
 	tick, err := p.GetTicker()
 	if err != nil {
 		return tickerPrice, err
 	}
 
-	tickerPrice.Pair = currencyPair
-	tickerPrice.Ask = tick[currency].Last
-	tickerPrice.Bid = tick[currency].HighestBid
-	tickerPrice.High = tick[currency].HighestBid
-	tickerPrice.Last = tick[currency].Last
-	tickerPrice.Low = tick[currency].LowestAsk
-	tickerPrice.Volume = tick[currency].BaseVolume
-	ticker.ProcessTicker(p.GetName(), currencyPair, tickerPrice)
-	return tickerPrice, nil
+	for _, x := range p.GetEnabledCurrencies() {
+		var tp ticker.Price
+		curr := exchange.FormatExchangeCurrency(p.GetName(), x).String()
+		tp.Pair = x
+		tp.Ask = tick[curr].LowestAsk
+		tp.Bid = tick[curr].HighestBid
+		tp.High = tick[curr].High24Hr
+		tp.Last = tick[curr].Last
+		tp.Low = tick[curr].Low24Hr
+		tp.Volume = tick[curr].BaseVolume
+		ticker.ProcessTicker(p.GetName(), x, tp, assetType)
+	}
+	return ticker.GetTicker(p.Name, currencyPair, assetType)
 }
 
 // GetTickerPrice returns the ticker for a currency pair
-func (p *Poloniex) GetTickerPrice(currencyPair pair.CurrencyPair) (ticker.TickerPrice, error) {
-	tickerNew, err := ticker.GetTicker(p.GetName(), currencyPair)
+func (p *Poloniex) GetTickerPrice(currencyPair pair.CurrencyPair, assetType string) (ticker.Price, error) {
+	tickerNew, err := ticker.GetTicker(p.GetName(), currencyPair, assetType)
 	if err != nil {
-		return p.UpdateTicker(currencyPair)
+		return p.UpdateTicker(currencyPair, assetType)
 	}
 	return tickerNew, nil
 }
@@ -69,7 +72,7 @@ func (p *Poloniex) GetOrderbookEx(currencyPair pair.CurrencyPair) (orderbook.Ord
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (p *Poloniex) UpdateOrderbook(currencyPair pair.CurrencyPair) (orderbook.OrderbookBase, error) {
 	var orderBook orderbook.OrderbookBase
-	orderbookNew, err := p.GetOrderbook(exchange.FormatCurrency(currencyPair).String(), 1000)
+	orderbookNew, err := p.GetOrderbook(exchange.FormatExchangeCurrency(p.GetName(), currencyPair).String(), 1000)
 	if err != nil {
 		return orderBook, err
 	}
@@ -83,9 +86,9 @@ func (p *Poloniex) UpdateOrderbook(currencyPair pair.CurrencyPair) (orderbook.Or
 		data := orderbookNew.Asks[x]
 		orderBook.Asks = append(orderBook.Asks, orderbook.OrderbookItem{Amount: data.Amount, Price: data.Price})
 	}
-	orderBook.Pair = currencyPair
+
 	orderbook.ProcessOrderbook(p.GetName(), currencyPair, orderBook)
-	return orderBook, nil
+	return orderbook.GetOrderbook(p.Name, currencyPair)
 }
 
 // GetExchangeAccountInfo retrieves balances for all enabled currencies for the

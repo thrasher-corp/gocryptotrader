@@ -11,6 +11,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/exchanges"
+	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 )
 
 const (
@@ -45,6 +46,7 @@ func (a *ANX) SetDefaults() {
 	a.ConfigCurrencyPairFormat.Delimiter = ""
 	a.ConfigCurrencyPairFormat.Uppercase = true
 	a.ConfigCurrencyPairFormat.Index = "BTC"
+	a.AssetTypes = []string{ticker.Spot}
 }
 
 //Setup is run on startup to setup exchange with config values
@@ -62,6 +64,10 @@ func (a *ANX) Setup(exch config.ExchangeConfig) {
 		a.AvailablePairs = common.SplitStrings(exch.AvailablePairs, ",")
 		a.EnabledPairs = common.SplitStrings(exch.EnabledPairs, ",")
 		err := a.SetCurrencyPairFormat()
+		if err != nil {
+			log.Fatal(err)
+		}
+		err = a.SetAssetTypes()
 		if err != nil {
 			log.Fatal(err)
 		}

@@ -11,6 +11,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/exchanges"
+	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 )
 
 const (
@@ -49,6 +50,7 @@ type Alphapoint struct {
 func (a *Alphapoint) SetDefaults() {
 	a.APIUrl = alphapointDefaultAPIURL
 	a.WebsocketURL = alphapointDefaultWebsocketURL
+	a.AssetTypes = []string{ticker.Spot}
 }
 
 // GetTicker returns current ticker information from Alphapoint for a selected

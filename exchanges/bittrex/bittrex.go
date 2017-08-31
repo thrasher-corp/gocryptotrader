@@ -13,6 +13,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/exchanges"
+	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 )
 
 const (
@@ -70,6 +71,7 @@ func (b *Bittrex) SetDefaults() {
 	b.RequestCurrencyPairFormat.Uppercase = true
 	b.ConfigCurrencyPairFormat.Delimiter = "-"
 	b.ConfigCurrencyPairFormat.Uppercase = true
+	b.AssetTypes = []string{ticker.Spot}
 }
 
 // Setup method sets current configuration details if enabled
@@ -87,6 +89,10 @@ func (b *Bittrex) Setup(exch config.ExchangeConfig) {
 		b.AvailablePairs = common.SplitStrings(exch.AvailablePairs, ",")
 		b.EnabledPairs = common.SplitStrings(exch.EnabledPairs, ",")
 		err := b.SetCurrencyPairFormat()
+		if err != nil {
+			log.Fatal(err)
+		}
+		err = b.SetAssetTypes()
 		if err != nil {
 			log.Fatal(err)
 		}

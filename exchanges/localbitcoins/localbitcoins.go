@@ -12,6 +12,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/exchanges"
+	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 )
 
 const (
@@ -42,6 +43,7 @@ func (l *LocalBitcoins) SetDefaults() {
 	l.RequestCurrencyPairFormat.Uppercase = true
 	l.ConfigCurrencyPairFormat.Delimiter = ""
 	l.ConfigCurrencyPairFormat.Uppercase = true
+	l.AssetTypes = []string{ticker.Spot}
 }
 
 func (l *LocalBitcoins) Setup(exch config.ExchangeConfig) {
@@ -58,6 +60,10 @@ func (l *LocalBitcoins) Setup(exch config.ExchangeConfig) {
 		l.AvailablePairs = common.SplitStrings(exch.AvailablePairs, ",")
 		l.EnabledPairs = common.SplitStrings(exch.EnabledPairs, ",")
 		err := l.SetCurrencyPairFormat()
+		if err != nil {
+			log.Fatal(err)
+		}
+		err = l.SetAssetTypes()
 		if err != nil {
 			log.Fatal(err)
 		}

@@ -12,6 +12,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/exchanges"
+	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 )
 
 const (
@@ -93,8 +94,10 @@ func (o *OKCoin) SetDefaults() {
 	o.Websocket = false
 	o.RESTPollingDelay = 10
 	o.FuturesValues = []string{"this_week", "next_week", "quarter"}
+	o.AssetTypes = []string{ticker.Spot}
 
 	if !okcoinDefaultsSet {
+		o.AssetTypes = append(o.AssetTypes, o.FuturesValues...)
 		o.APIUrl = OKCOIN_API_URL
 		o.Name = "OKCOIN International"
 		o.WebsocketURL = OKCOIN_WEBSOCKET_URL
@@ -122,6 +125,10 @@ func (o *OKCoin) Setup(exch config.ExchangeConfig) {
 		o.AvailablePairs = common.SplitStrings(exch.AvailablePairs, ",")
 		o.EnabledPairs = common.SplitStrings(exch.EnabledPairs, ",")
 		err := o.SetCurrencyPairFormat()
+		if err != nil {
+			log.Fatal(err)
+		}
+		err = o.SetAssetTypes()
 		if err != nil {
 			log.Fatal(err)
 		}

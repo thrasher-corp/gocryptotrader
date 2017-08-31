@@ -25,34 +25,32 @@ func (l *LakeBTC) Run() {
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
-func (l *LakeBTC) UpdateTicker(p pair.CurrencyPair) (ticker.TickerPrice, error) {
+func (l *LakeBTC) UpdateTicker(p pair.CurrencyPair, assetType string) (ticker.Price, error) {
 	tick, err := l.GetTicker()
 	if err != nil {
-		return ticker.TickerPrice{}, err
+		return ticker.Price{}, err
 	}
 
-	result, ok := tick[p.Pair().String()]
-	if !ok {
-		return ticker.TickerPrice{}, err
+	for _, x := range l.GetEnabledCurrencies() {
+		currency := exchange.FormatExchangeCurrency(l.Name, x).String()
+		var tickerPrice ticker.Price
+		tickerPrice.Pair = x
+		tickerPrice.Ask = tick[currency].Ask
+		tickerPrice.Bid = tick[currency].Bid
+		tickerPrice.Volume = tick[currency].Volume
+		tickerPrice.High = tick[currency].High
+		tickerPrice.Low = tick[currency].Low
+		tickerPrice.Last = tick[currency].Last
+		ticker.ProcessTicker(l.GetName(), x, tickerPrice, assetType)
 	}
-
-	var tickerPrice ticker.TickerPrice
-	tickerPrice.Pair = p
-	tickerPrice.Ask = result.Ask
-	tickerPrice.Bid = result.Bid
-	tickerPrice.Volume = result.Volume
-	tickerPrice.High = result.High
-	tickerPrice.Low = result.Low
-	tickerPrice.Last = result.Last
-	ticker.ProcessTicker(l.GetName(), p, tickerPrice)
-	return tickerPrice, nil
+	return ticker.GetTicker(l.Name, p, assetType)
 }
 
 // GetTickerPrice returns the ticker for a currency pair
-func (l *LakeBTC) GetTickerPrice(p pair.CurrencyPair) (ticker.TickerPrice, error) {
-	tickerNew, err := ticker.GetTicker(l.GetName(), p)
+func (l *LakeBTC) GetTickerPrice(p pair.CurrencyPair, assetType string) (ticker.Price, error) {
+	tickerNew, err := ticker.GetTicker(l.GetName(), p, assetType)
 	if err != nil {
-		return l.UpdateTicker(p)
+		return l.UpdateTicker(p, assetType)
 	}
 	return tickerNew, nil
 }
@@ -82,9 +80,8 @@ func (l *LakeBTC) UpdateOrderbook(p pair.CurrencyPair) (orderbook.OrderbookBase,
 		orderBook.Asks = append(orderBook.Asks, orderbook.OrderbookItem{Amount: orderbookNew.Asks[x].Amount, Price: orderbookNew.Asks[x].Price})
 	}
 
-	orderBook.Pair = p
 	orderbook.ProcessOrderbook(l.GetName(), p, orderBook)
-	return orderBook, nil
+	return orderbook.GetOrderbook(l.Name, p)
 }
 
 // GetExchangeAccountInfo retrieves balances for all enabled currencies for the

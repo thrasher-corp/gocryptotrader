@@ -42,6 +42,7 @@ type Event struct {
 	Item           string
 	Condition      string
 	FirstCurrency  string
+	Asset          string
 	SecondCurrency string
 	Action         string
 	Executed       bool
@@ -53,7 +54,7 @@ var Events []*Event
 
 // AddEvent adds an event to the Events chain and returns an index/eventID
 // and an error
-func AddEvent(Exchange, Item, Condition, FirstCurrency, SecondCurrency, Action string) (int, error) {
+func AddEvent(Exchange, Item, Condition, FirstCurrency, SecondCurrency, Asset, Action string) (int, error) {
 	err := IsValidEvent(Exchange, Item, Condition, Action)
 	if err != nil {
 		return 0, err
@@ -76,6 +77,7 @@ func AddEvent(Exchange, Item, Condition, FirstCurrency, SecondCurrency, Action s
 	Event.Condition = Condition
 	Event.FirstCurrency = FirstCurrency
 	Event.SecondCurrency = SecondCurrency
+	Event.Asset = Asset
 	Event.Action = Action
 	Event.Executed = false
 	Events = append(Events, Event)
@@ -131,8 +133,8 @@ func (e *Event) ExecuteAction() bool {
 func (e *Event) EventToString() string {
 	condition := common.SplitStrings(e.Condition, ",")
 	return fmt.Sprintf(
-		"If the %s%s %s on %s is %s then %s.", e.FirstCurrency, e.SecondCurrency,
-		e.Item, e.Exchange, condition[0]+" "+condition[1], e.Action,
+		"If the %s%s [%s] %s on %s is %s then %s.", e.FirstCurrency, e.SecondCurrency,
+		e.Asset, e.Item, e.Exchange, condition[0]+" "+condition[1], e.Action,
 	)
 }
 
@@ -147,7 +149,7 @@ func (e *Event) CheckCondition() bool {
 		return false
 	}
 
-	lastPrice := ticker.Price[pair.CurrencyItem(e.FirstCurrency)][pair.CurrencyItem(e.SecondCurrency)].Last
+	lastPrice := ticker.Price[pair.CurrencyItem(e.FirstCurrency)][pair.CurrencyItem(e.SecondCurrency)][e.Asset].Last
 
 	if lastPrice == 0 {
 		return false

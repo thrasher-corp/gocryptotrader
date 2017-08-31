@@ -32,9 +32,10 @@ type WebsocketClient struct {
 }
 
 type WebsocketEvent struct {
-	Exchange string `json:"exchange,omitempty"`
-	Event    string
-	Data     interface{}
+	Exchange  string `json:"exchange,omitempty"`
+	AssetType string `json:"assetType,omitempty"`
+	Event     string
+	Data      interface{}
 }
 
 type WebsocketEventResponse struct {
@@ -44,8 +45,9 @@ type WebsocketEventResponse struct {
 }
 
 type WebsocketTickerRequest struct {
-	Exchange string `json:"exchangeName"`
-	Currency string `json:"currency"`
+	Exchange  string `json:"exchangeName"`
+	Currency  string `json:"currency"`
+	AssetType string `json:"assetType"`
 }
 
 var WebsocketClientHub []WebsocketClient
@@ -243,7 +245,7 @@ func WebsocketHandler() {
 				}
 
 				data, err := GetSpecificTicker(tickerReq.Currency,
-					tickerReq.Exchange)
+					tickerReq.Exchange, tickerReq.AssetType)
 
 				if err != nil {
 					wsResp.Error = err.Error()

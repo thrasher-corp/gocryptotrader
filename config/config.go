@@ -110,6 +110,7 @@ type ExchangeConfig struct {
 	AvailablePairs            string
 	EnabledPairs              string
 	BaseCurrencies            string
+	AssetTypes                string
 	ConfigCurrencyPairFormat  *CurrencyPairFormatConfig `json:"ConfigCurrencyPairFormat"`
 	RequestCurrencyPairFormat *CurrencyPairFormatConfig `json:"RequestCurrencyPairFormat"`
 }

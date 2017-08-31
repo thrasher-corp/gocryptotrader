@@ -34,7 +34,7 @@ type CoinutTicker struct {
 type CoinutOrderbookBase struct {
 	Count    int     `json:"count"`
 	Price    float64 `json:"price,string"`
-	Quantity float64 `json:"quantity,string"`
+	Quantity float64 `json:"qty,string"`
 }
 
 type CoinutOrderbook struct {
