@@ -15,31 +15,33 @@ import (
 )
 
 const (
-	COINUT_API_URL          = "https://api.coinut.com"
-	COINUT_API_VERSION      = "1"
-	COINUT_INSTRUMENTS      = "inst_list"
-	COINUT_TICKER           = "inst_tick"
-	COINUT_ORDERBOOK        = "inst_order_book"
-	COINUT_TRADES           = "inst_trade"
-	COINUT_BALANCE          = "user_balance"
-	COINUT_ORDER            = "new_order"
-	COINUT_ORDERS           = "new_orders"
-	COINUT_ORDERS_OPEN      = "user_open_orders"
-	COINUT_ORDER_CANCEL     = "cancel_order"
-	COINUT_ORDERS_CANCEL    = "cancel_orders"
-	COINUT_TRADE_HISTORY    = "trade_history"
-	COINUT_INDEX_TICKER     = "index_tick"
-	COINUT_OPTION_CHAIN     = "option_chain"
-	COINUT_POSITION_HISTORY = "position_history"
-	COINUT_POSITION_OPEN    = "user_open_positions"
+	coinutAPIURL          = "https://api.coinut.com"
+	coinutAPIVersion      = "1"
+	coinutInstruments     = "inst_list"
+	coinutTicker          = "inst_tick"
+	coinutOrderbook       = "inst_order_book"
+	coinutTrades          = "inst_trade"
+	coinutBalance         = "user_balance"
+	coinutOrder           = "new_order"
+	coinutOrders          = "new_orders"
+	coinutOrdersOpen      = "user_open_orders"
+	coinutOrderCancel     = "cancel_order"
+	coinutOrdersCancel    = "cancel_orders"
+	coinutTradeHistory    = "trade_history"
+	coinutIndexTicker     = "index_tick"
+	coinutOptionChain     = "option_chain"
+	coinutPositionHistory = "position_history"
+	coinutPositionOpen    = "user_open_positions"
 )
 
+// COINUT is the overarching type across the coinut package
 type COINUT struct {
 	exchange.Base
 	WebsocketConn *websocket.Conn
 	InstrumentMap map[string]int
 }
 
+// SetDefaults sets current default values
 func (c *COINUT) SetDefaults() {
 	c.Name = "COINUT"
 	c.Enabled = false
@@ -56,6 +58,7 @@ func (c *COINUT) SetDefaults() {
 	c.AssetTypes = []string{ticker.Spot}
 }
 
+// Setup sets the current exchange configuration
 func (c *COINUT) Setup(exch config.ExchangeConfig) {
 	if !exch.Enabled {
 		c.SetEnabled(false)
@@ -80,11 +83,12 @@ func (c *COINUT) Setup(exch config.ExchangeConfig) {
 	}
 }
 
+// GetInstruments returns instruments
 func (c *COINUT) GetInstruments() (CoinutInstruments, error) {
 	var result CoinutInstruments
 	params := make(map[string]interface{})
 	params["sec_type"] = "SPOT"
-	err := c.SendAuthenticatedHTTPRequest(COINUT_INSTRUMENTS, params, &result)
+	err := c.SendAuthenticatedHTTPRequest(coinutInstruments, params, &result)
 	if err != nil {
 		return result, err
 	}
@@ -95,7 +99,7 @@ func (c *COINUT) GetInstrumentTicker(instrumentID int) (CoinutTicker, error) {
 	var result CoinutTicker
 	params := make(map[string]interface{})
 	params["inst_id"] = instrumentID
-	err := c.SendAuthenticatedHTTPRequest(COINUT_TICKER, params, &result)
+	err := c.SendAuthenticatedHTTPRequest(coinutTicker, params, &result)
 	if err != nil {
 		return result, err
 	}
@@ -109,7 +113,7 @@ func (c *COINUT) GetInstrumentOrderbook(instrumentID, limit int) (CoinutOrderboo
 	if limit > 0 {
 		params["top_n"] = limit
 	}
-	err := c.SendAuthenticatedHTTPRequest(COINUT_ORDERBOOK, params, &result)
+	err := c.SendAuthenticatedHTTPRequest(coinutOrderbook, params, &result)
 	if err != nil {
 		return result, err
 	}
@@ -120,7 +124,7 @@ func (c *COINUT) GetTrades(instrumentID int) (CoinutTrades, error) {
 	var result CoinutTrades
 	params := make(map[string]interface{})
 	params["inst_id"] = instrumentID
-	err := c.SendAuthenticatedHTTPRequest(COINUT_TRADES, params, &result)
+	err := c.SendAuthenticatedHTTPRequest(coinutTrades, params, &result)
 	if err != nil {
 		return result, err
 	}
@@ -129,7 +133,7 @@ func (c *COINUT) GetTrades(instrumentID int) (CoinutTrades, error) {
 
 func (c *COINUT) GetUserBalance() (CoinutUserBalance, error) {
 	result := CoinutUserBalance{}
-	err := c.SendAuthenticatedHTTPRequest(COINUT_BALANCE, nil, &result)
+	err := c.SendAuthenticatedHTTPRequest(coinutBalance, nil, &result)
 	if err != nil {
 		return result, err
 	}
@@ -148,7 +152,7 @@ func (c *COINUT) NewOrder(instrumentID int, quantity, price float64, buy bool, o
 	}
 	params["client_ord_id"] = orderID
 
-	err := c.SendAuthenticatedHTTPRequest(COINUT_ORDER, params, &result)
+	err := c.SendAuthenticatedHTTPRequest(coinutOrder, params, &result)
 	if err != nil {
 		return result, err
 	}
@@ -159,7 +163,7 @@ func (c *COINUT) NewOrders(orders []CoinutOrder) ([]CoinutOrdersBase, error) {
 	var result CoinutOrdersResponse
 	params := make(map[string]interface{})
 	params["orders"] = orders
-	err := c.SendAuthenticatedHTTPRequest(COINUT_ORDERS, params, &result.Data)
+	err := c.SendAuthenticatedHTTPRequest(coinutOrders, params, &result.Data)
 	if err != nil {
 		return nil, err
 	}
@@ -170,7 +174,7 @@ func (c *COINUT) GetOpenOrders(instrumentID int) ([]CoinutOrdersResponse, error)
 	var result []CoinutOrdersResponse
 	params := make(map[string]interface{})
 	params["inst_id"] = instrumentID
-	err := c.SendAuthenticatedHTTPRequest(COINUT_ORDERS_OPEN, params, &result)
+	err := c.SendAuthenticatedHTTPRequest(coinutOrdersOpen, params, &result)
 	if err != nil {
 		return nil, err
 	}
@@ -182,7 +186,7 @@ func (c *COINUT) CancelOrder(instrumentID, orderID int) (bool, error) {
 	params := make(map[string]interface{})
 	params["inst_id"] = instrumentID
 	params["order_id"] = orderID
-	err := c.SendAuthenticatedHTTPRequest(COINUT_ORDERS_CANCEL, params, &result)
+	err := c.SendAuthenticatedHTTPRequest(coinutOrdersCancel, params, &result)
 	if err != nil {
 		return false, err
 	}
@@ -193,7 +197,7 @@ func (c *COINUT) CancelOrders(orders []CoinutCancelOrders) (CoinutCancelOrdersRe
 	var result CoinutCancelOrdersResponse
 	params := make(map[string]interface{})
 	params["entries"] = orders
-	err := c.SendAuthenticatedHTTPRequest(COINUT_ORDERS_CANCEL, params, &result)
+	err := c.SendAuthenticatedHTTPRequest(coinutOrdersCancel, params, &result)
 	if err != nil {
 		return result, err
 	}
@@ -210,7 +214,7 @@ func (c *COINUT) GetTradeHistory(instrumentID, start, limit int) (CoinutTradeHis
 	if limit >= 0 && start <= 100 {
 		params["limit"] = limit
 	}
-	err := c.SendAuthenticatedHTTPRequest(COINUT_TRADE_HISTORY, params, &result)
+	err := c.SendAuthenticatedHTTPRequest(coinutTradeHistory, params, &result)
 	if err != nil {
 		return result, err
 	}
@@ -221,7 +225,7 @@ func (c *COINUT) GetIndexTicker(asset string) (CoinutIndexTicker, error) {
 	var result CoinutIndexTicker
 	params := make(map[string]interface{})
 	params["asset"] = asset
-	err := c.SendAuthenticatedHTTPRequest(COINUT_INDEX_TICKER, params, &result)
+	err := c.SendAuthenticatedHTTPRequest(coinutIndexTicker, params, &result)
 	if err != nil {
 		return result, err
 	}
@@ -232,7 +236,7 @@ func (c *COINUT) GetDerivativeInstruments(secType string) (interface{}, error) {
 	var result interface{} //to-do
 	params := make(map[string]interface{})
 	params["sec_type"] = secType
-	err := c.SendAuthenticatedHTTPRequest(COINUT_INSTRUMENTS, params, &result)
+	err := c.SendAuthenticatedHTTPRequest(coinutInstruments, params, &result)
 	if err != nil {
 		return result, err
 	}
@@ -244,7 +248,7 @@ func (c *COINUT) GetOptionChain(asset, secType string, expiry int64) (CoinutOpti
 	params := make(map[string]interface{})
 	params["asset"] = asset
 	params["sec_type"] = secType
-	err := c.SendAuthenticatedHTTPRequest(COINUT_OPTION_CHAIN, params, &result)
+	err := c.SendAuthenticatedHTTPRequest(coinutOptionChain, params, &result)
 	if err != nil {
 		return result, err
 	}
@@ -261,7 +265,7 @@ func (c *COINUT) GetPositionHistory(secType string, start, limit int) (CoinutPos
 	if limit >= 0 {
 		params["limit"] = limit
 	}
-	err := c.SendAuthenticatedHTTPRequest(COINUT_POSITION_HISTORY, params, &result)
+	err := c.SendAuthenticatedHTTPRequest(coinutPositionHistory, params, &result)
 	if err != nil {
 		return result, err
 	}
@@ -276,7 +280,7 @@ func (c *COINUT) GetOpenPosition(instrumentID int) ([]CoinutOpenPosition, error)
 	params := make(map[string]interface{})
 	params["inst_id"] = instrumentID
 
-	err := c.SendAuthenticatedHTTPRequest(COINUT_POSITION_OPEN, params, &result)
+	err := c.SendAuthenticatedHTTPRequest(coinutPositionOpen, params, &result)
 	if err != nil {
 		return result.Positions, err
 	}
@@ -319,7 +323,10 @@ func (c *COINUT) SendAuthenticatedHTTPRequest(apiRequest string, params map[stri
 	headers["X-SIGNATURE"] = common.HexEncodeToString(hmac)
 	headers["Content-Type"] = "application/json"
 
-	resp, err := common.SendHTTPRequest("POST", COINUT_API_URL, headers, bytes.NewBuffer(payload))
+	resp, err := common.SendHTTPRequest("POST", coinutAPIURL, headers, bytes.NewBuffer(payload))
+	if err != nil {
+		return err
+	}
 
 	if c.Verbose {
 		log.Printf("Received raw: \n%s", resp)
