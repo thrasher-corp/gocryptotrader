@@ -8,18 +8,23 @@ import { BrowserModule } from '@angular/platform-browser';
 import { NgModule } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { HttpModule } from '@angular/http';
+import {Injectable} from '@angular/core';
+
+
 
 import { AppComponent } from './app.component';
 import { HomeComponent } from './pages/home/home.component';
 import { AboutComponent } from './pages/about/about.component';
+import { NavbarComponent } from './shared/navbar/navbar.component';
 
 import { AppRoutingModule } from './app-routing.module';
-import { WebsocketService } from './services/websocket/websocket.service';
 
+import { WebsocketService } from './services/websocket/websocket.service';
+import { ChatService } from './services/chat.service';
 import { ElectronService } from './providers/electron.service';
-import { NavbarComponent } from './shared/navbar/navbar.component';
+
 import * as Rx from 'rxjs/Rx';
-import {Injectable} from '@angular/core';
+import { ChatbuttonComponent } from './shared/chatbutton/chatbutton.component';
 
 @NgModule({
   declarations: [
@@ -27,7 +32,7 @@ import {Injectable} from '@angular/core';
     HomeComponent,
     AboutComponent,
     NavbarComponent,
-    WebsocketService
+    ChatbuttonComponent
   ],
   imports: [
     BrowserModule,
@@ -41,7 +46,9 @@ import {Injectable} from '@angular/core';
     MdToolbarModule,
     MdIconModule
   ],
-  providers: [ElectronService],
+  providers: [ElectronService,WebsocketService,ChatService ],
   bootstrap: [AppComponent]
 })
-export class AppModule { }
+export class AppModule {
+
+}
