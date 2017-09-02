@@ -96,30 +96,30 @@ func (c *COINUT) GetTickerPrice(p pair.CurrencyPair, assetType string) (ticker.P
 }
 
 // GetOrderbookEx returns orderbook base on the currency pair
-func (c *COINUT) GetOrderbookEx(p pair.CurrencyPair) (orderbook.OrderbookBase, error) {
-	ob, err := orderbook.GetOrderbook(c.GetName(), p)
+func (c *COINUT) GetOrderbookEx(p pair.CurrencyPair, assetType string) (orderbook.Base, error) {
+	ob, err := orderbook.GetOrderbook(c.GetName(), p, assetType)
 	if err == nil {
-		return c.UpdateOrderbook(p)
+		return c.UpdateOrderbook(p, assetType)
 	}
 	return ob, nil
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (c *COINUT) UpdateOrderbook(p pair.CurrencyPair) (orderbook.OrderbookBase, error) {
-	var orderBook orderbook.OrderbookBase
+func (c *COINUT) UpdateOrderbook(p pair.CurrencyPair, assetType string) (orderbook.Base, error) {
+	var orderBook orderbook.Base
 	orderbookNew, err := c.GetInstrumentOrderbook(c.InstrumentMap[p.Pair().String()], 200)
 	if err != nil {
 		return orderBook, err
 	}
 
 	for x := range orderbookNew.Buy {
-		orderBook.Bids = append(orderBook.Bids, orderbook.OrderbookItem{Amount: orderbookNew.Buy[x].Quantity, Price: orderbookNew.Buy[x].Price})
+		orderBook.Bids = append(orderBook.Bids, orderbook.Item{Amount: orderbookNew.Buy[x].Quantity, Price: orderbookNew.Buy[x].Price})
 	}
 
 	for x := range orderbookNew.Sell {
-		orderBook.Asks = append(orderBook.Asks, orderbook.OrderbookItem{Amount: orderbookNew.Sell[x].Quantity, Price: orderbookNew.Sell[x].Price})
+		orderBook.Asks = append(orderBook.Asks, orderbook.Item{Amount: orderbookNew.Sell[x].Quantity, Price: orderbookNew.Sell[x].Price})
 	}
 
-	orderbook.ProcessOrderbook(c.GetName(), p, orderBook)
-	return orderbook.GetOrderbook(c.Name, p)
+	orderbook.ProcessOrderbook(c.GetName(), p, orderBook, assetType)
+	return orderbook.GetOrderbook(c.Name, p, assetType)
 }

@@ -191,7 +191,7 @@ func main() {
 	go WebsocketHandler()
 
 	go TickerUpdaterRoutine()
-	//go OrderbookUpdaterRoutine()
+	go OrderbookUpdaterRoutine()
 
 	if bot.config.Webserver.Enabled {
 		err := bot.config.CheckWebserverConfigValues()

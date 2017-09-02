@@ -58,6 +58,10 @@ func TestIsDefaultCryptocurrency(t *testing.T) {
 func TestIsFiatCurrency(t *testing.T) {
 	t.Parallel()
 
+	if IsFiatCurrency("") {
+		t.Error("Test failed. TestIsFiatCurrency returned true on an empty string")
+	}
+
 	BaseCurrencies = "USD,AUD"
 	var str1, str2, str3 string = "BTC", "USD", "birds123"
 
@@ -80,6 +84,10 @@ func TestIsFiatCurrency(t *testing.T) {
 
 func TestIsCryptocurrency(t *testing.T) {
 	t.Parallel()
+
+	if IsCryptocurrency("") {
+		t.Error("Test failed. TestIsCryptocurrency returned true on an empty string")
+	}
 
 	CryptoCurrencies = "BTC,LTC,DASH"
 	var str1, str2, str3 string = "USD", "BTC", "pterodactyl123"
@@ -256,25 +264,25 @@ func TestCheckAndAddCurrency(t *testing.T) {
 }
 
 func TestSeedCurrencyData(t *testing.T) {
-	currencyRequestDefault := ""
-	currencyRequestUSDAUD := "USD,AUD"
-	currencyRequestObtuse := "WigWham"
-
-	err := SeedCurrencyData(currencyRequestDefault)
-	if err != nil {
-		t.Errorf(
-			"Test Failed. SeedCurrencyData: Error %s with currency as %s.",
-			err, currencyRequestDefault,
-		)
-	}
-	err2 := SeedCurrencyData(currencyRequestUSDAUD)
-	if err2 != nil {
-		t.Errorf(
-			"Test Failed. SeedCurrencyData: Error %s with currency as %s.",
-			err2, currencyRequestUSDAUD,
-		)
-	}
 	if yahooEnabled {
+		currencyRequestDefault := ""
+		currencyRequestUSDAUD := "USD,AUD"
+		currencyRequestObtuse := "WigWham"
+
+		err := SeedCurrencyData(currencyRequestDefault)
+		if err != nil {
+			t.Errorf(
+				"Test Failed. SeedCurrencyData: Error %s with currency as %s.",
+				err, currencyRequestDefault,
+			)
+		}
+		err2 := SeedCurrencyData(currencyRequestUSDAUD)
+		if err2 != nil {
+			t.Errorf(
+				"Test Failed. SeedCurrencyData: Error %s with currency as %s.",
+				err2, currencyRequestUSDAUD,
+			)
+		}
 		err3 := SeedCurrencyData(currencyRequestObtuse)
 		if err3 == nil {
 			t.Errorf(
@@ -282,6 +290,12 @@ func TestSeedCurrencyData(t *testing.T) {
 				err3, currencyRequestObtuse,
 			)
 		}
+	}
+
+	yahooEnabled = false
+	err := SeedCurrencyData("")
+	if err != nil {
+		t.Errorf("Test failed. SeedCurrencyData via Fixer. Error: %s", err)
 	}
 }
 
@@ -299,12 +313,10 @@ func TestMakecurrencyPairs(t *testing.T) {
 }
 
 func TestConvertCurrency(t *testing.T) {
-	fiatCurrencies := DefaultCurrencies
-	for _, currencyFrom := range common.SplitStrings(fiatCurrencies, ",") {
-		for _, currencyTo := range common.SplitStrings(fiatCurrencies, ",") {
-			if currencyFrom == currencyTo {
-				continue
-			} else {
+	if yahooEnabled {
+		fiatCurrencies := DefaultCurrencies
+		for _, currencyFrom := range common.SplitStrings(fiatCurrencies, ",") {
+			for _, currencyTo := range common.SplitStrings(fiatCurrencies, ",") {
 				floatyMcfloat, err := ConvertCurrency(1000, currencyFrom, currencyTo)
 				if err != nil {
 					t.Errorf(
@@ -322,6 +334,44 @@ func TestConvertCurrency(t *testing.T) {
 				}
 			}
 		}
+	}
+
+	yahooEnabled = false
+	_, err := ConvertCurrency(1000, "USD", "AUD")
+	if err != nil {
+		t.Errorf("Test failed. ConvertCurrency USD -> AUD. Error %s", err)
+	}
+
+	_, err = ConvertCurrency(1000, "AUD", "USD")
+	if err != nil {
+		t.Errorf("Test failed. ConvertCurrency AUD -> AUD. Error %s", err)
+	}
+
+	_, err = ConvertCurrency(1000, "CNY", "AUD")
+	if err != nil {
+		t.Errorf("Test failed. ConvertCurrency USD -> AUD. Error %s", err)
+	}
+
+	// Test non-existant currencies
+
+	_, err = ConvertCurrency(1000, "ASDF", "USD")
+	if err == nil {
+		t.Errorf("Test failed. ConvertCurrency non-existant currency -> USD. Error %s", err)
+	}
+
+	_, err = ConvertCurrency(1000, "USD", "ASDF")
+	if err == nil {
+		t.Errorf("Test failed. ConvertCurrency USD -> non-existant currency. Error %s", err)
+	}
+
+	_, err = ConvertCurrency(1000, "CNY", "UAHF")
+	if err == nil {
+		t.Errorf("Test failed. ConvertCurrency non-USD currency CNY -> non-existant currency. Error %s", err)
+	}
+
+	_, err = ConvertCurrency(1000, "UASF", "UAHF")
+	if err == nil {
+		t.Errorf("Test failed. ConvertCurrency non-existant currency -> non-existant currency. Error %s", err)
 	}
 }
 

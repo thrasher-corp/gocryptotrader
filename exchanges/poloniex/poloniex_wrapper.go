@@ -61,17 +61,17 @@ func (p *Poloniex) GetTickerPrice(currencyPair pair.CurrencyPair, assetType stri
 }
 
 // GetOrderbookEx returns orderbook base on the currency pair
-func (p *Poloniex) GetOrderbookEx(currencyPair pair.CurrencyPair) (orderbook.OrderbookBase, error) {
-	ob, err := orderbook.GetOrderbook(p.GetName(), currencyPair)
+func (p *Poloniex) GetOrderbookEx(currencyPair pair.CurrencyPair, assetType string) (orderbook.Base, error) {
+	ob, err := orderbook.GetOrderbook(p.GetName(), currencyPair, assetType)
 	if err == nil {
-		return p.UpdateOrderbook(currencyPair)
+		return p.UpdateOrderbook(currencyPair, assetType)
 	}
 	return ob, nil
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (p *Poloniex) UpdateOrderbook(currencyPair pair.CurrencyPair) (orderbook.OrderbookBase, error) {
-	var orderBook orderbook.OrderbookBase
+func (p *Poloniex) UpdateOrderbook(currencyPair pair.CurrencyPair, assetType string) (orderbook.Base, error) {
+	var orderBook orderbook.Base
 	orderbookNew, err := p.GetOrderbook(exchange.FormatExchangeCurrency(p.GetName(), currencyPair).String(), 1000)
 	if err != nil {
 		return orderBook, err
@@ -79,16 +79,16 @@ func (p *Poloniex) UpdateOrderbook(currencyPair pair.CurrencyPair) (orderbook.Or
 
 	for x := range orderbookNew.Bids {
 		data := orderbookNew.Bids[x]
-		orderBook.Bids = append(orderBook.Bids, orderbook.OrderbookItem{Amount: data.Amount, Price: data.Price})
+		orderBook.Bids = append(orderBook.Bids, orderbook.Item{Amount: data.Amount, Price: data.Price})
 	}
 
 	for x := range orderbookNew.Asks {
 		data := orderbookNew.Asks[x]
-		orderBook.Asks = append(orderBook.Asks, orderbook.OrderbookItem{Amount: data.Amount, Price: data.Price})
+		orderBook.Asks = append(orderBook.Asks, orderbook.Item{Amount: data.Amount, Price: data.Price})
 	}
 
-	orderbook.ProcessOrderbook(p.GetName(), currencyPair, orderBook)
-	return orderbook.GetOrderbook(p.Name, currencyPair)
+	orderbook.ProcessOrderbook(p.GetName(), currencyPair, orderBook, assetType)
+	return orderbook.GetOrderbook(p.Name, currencyPair, assetType)
 }
 
 // GetExchangeAccountInfo retrieves balances for all enabled currencies for the

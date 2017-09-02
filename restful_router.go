@@ -18,6 +18,7 @@ func NewRouter(exchanges []exchange.IBotExchange) *mux.Router {
 	allRoutes = append(allRoutes, WalletRoutes...)
 	allRoutes = append(allRoutes, IndexRoute...)
 	allRoutes = append(allRoutes, WebsocketRoutes...)
+	allRoutes = append(allRoutes, OrderbookRoutes...)
 	for _, route := range allRoutes {
 		var handler http.Handler
 		handler = route.HandlerFunc

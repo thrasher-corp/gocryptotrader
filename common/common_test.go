@@ -209,6 +209,11 @@ func TestBase64Decode(t *testing.T) {
 			expectedOutput, actualResult, err),
 		)
 	}
+
+	_, err = Base64Decode("-")
+	if err == nil {
+		t.Error("Test failed. Bad base64 string failed returned nil error")
+	}
 }
 
 func TestBase64Encode(t *testing.T) {
@@ -226,7 +231,7 @@ func TestBase64Encode(t *testing.T) {
 func TestStringSliceDifference(t *testing.T) {
 	t.Parallel()
 	originalInputOne := []string{"hello"}
-	originalInputTwo := []string{"moto"}
+	originalInputTwo := []string{"hello", "moto"}
 	expectedOutput := []string{"hello moto"}
 	actualResult := StringSliceDifference(originalInputOne, originalInputTwo)
 	if reflect.DeepEqual(expectedOutput, actualResult) {
@@ -334,14 +339,17 @@ func TestReplaceString(t *testing.T) {
 
 func TestRoundFloat(t *testing.T) {
 	t.Parallel()
-	originalInput := float64(1.4545445445)
-	precisionInput := 2
-	expectedOutput := float64(1.45)
-	actualResult := RoundFloat(originalInput, precisionInput)
-	if expectedOutput != actualResult {
-		t.Error(fmt.Sprintf(
-			"Test failed. Expected '%f'. Actual '%f'.", expectedOutput, actualResult),
-		)
+	// mapping of input vs expected result
+	testTable := map[float64]float64{
+		2.3232323:  2.32,
+		-2.3232323: -2.32,
+	}
+	for testInput, expectedOutput := range testTable {
+		actualOutput := RoundFloat(testInput, 2)
+		if actualOutput != expectedOutput {
+			t.Error(fmt.Sprintf("Test failed. RoundFloat Expected '%f'. Actual '%f'.",
+				expectedOutput, actualOutput))
+		}
 	}
 }
 
@@ -650,6 +658,11 @@ func TestWriteFile(t *testing.T) {
 	if err != nil {
 		t.Errorf("Test failed. Common WriteFile error: %s", err)
 	}
+
+	err = WriteFile("", nil)
+	if err == nil {
+		t.Error("Test failed. Common WriteFile allowed bad path")
+	}
 }
 
 func TestRemoveFile(t *testing.T) {
@@ -672,9 +685,9 @@ func TestGetURIPath(t *testing.T) {
 	t.Parallel()
 	// mapping of input vs expected result
 	testTable := map[string]string{
-		"https://api.gdax.com/accounts":         "/accounts",
-		"https://api.gdax.com/accounts?a=1&b=2": "/accounts?a=1&b=2",
-		"ht:tp:/invalidurl":                     "",
+		"https://api.gdax.com/accounts":           "/accounts",
+		"https://api.gdax.com/accounts?a=1&b=2":   "/accounts?a=1&b=2",
+		"http://www.google.com/accounts?!@#$%;^^": "",
 	}
 	for testInput, expectedOutput := range testTable {
 		actualOutput := GetURIPath(testInput)

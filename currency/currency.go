@@ -50,7 +50,6 @@ const (
 	maxCurrencyPairsPerRequest = 350
 	yahooYQLURL                = "https://query.yahooapis.com/v1/public/yql?"
 	yahooDatabase              = "store://datatables.org/alltableswithkeys"
-	yahooEnabled               = false
 	fixerAPI                   = "http://api.fixer.io/latest"
 	// DefaultCurrencies has the default minimum of FIAT values
 	DefaultCurrencies = "USD,AUD,EUR,CNY"
@@ -69,6 +68,7 @@ var (
 	ErrCurrencyNotFound       = errors.New("unable to find specified currency")
 	ErrQueryingYahoo          = errors.New("unable to query Yahoo currency values")
 	ErrQueryingYahooZeroCount = errors.New("yahoo returned zero currency data")
+	yahooEnabled              = false
 )
 
 // IsDefaultCurrency checks if the currency passed in matches the default
@@ -91,6 +91,7 @@ func IsDefaultCryptocurrency(currency string) bool {
 func IsFiatCurrency(currency string) bool {
 	if BaseCurrencies == "" {
 		log.Println("IsFiatCurrency: BaseCurrencies string variable not populated")
+		return false
 	}
 	return common.StringContains(BaseCurrencies, common.StringToUpper(currency))
 }
@@ -101,6 +102,7 @@ func IsCryptocurrency(currency string) bool {
 		log.Println(
 			"IsCryptocurrency: CryptoCurrencies string variable not populated",
 		)
+		return false
 	}
 	return common.StringContains(CryptoCurrencies, common.StringToUpper(currency))
 }
@@ -313,6 +315,8 @@ func FetchYahooCurrencyData(currencyPairs []string) error {
 		return err
 	}
 
+	log.Printf("Currency recv: %s", resp)
+
 	yahooResp := YahooJSONResponse{}
 	err = common.JSONDecode([]byte(resp), &yahooResp)
 	if err != nil {
@@ -338,30 +342,5 @@ func QueryYahooCurrencyValues(currencies string) error {
 		"%d fiat currency pairs generated. Fetching Yahoo currency data (this may take a minute)..\n",
 		len(currencyPairs),
 	)
-	var err error
-	var pairs []string
-	index := 0
-
-	if len(currencyPairs) > maxCurrencyPairsPerRequest {
-		for index < len(currencyPairs) {
-			if len(currencyPairs)-index > maxCurrencyPairsPerRequest {
-				pairs = currencyPairs[index : index+maxCurrencyPairsPerRequest]
-				index += maxCurrencyPairsPerRequest
-			} else {
-				pairs = currencyPairs[index:]
-				index += (len(currencyPairs) - index)
-			}
-			err = FetchYahooCurrencyData(pairs)
-			if err != nil {
-				return err
-			}
-		}
-	} else {
-		pairs = currencyPairs[index:]
-		err = FetchYahooCurrencyData(pairs)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
+	return FetchYahooCurrencyData(currencyPairs)
 }
