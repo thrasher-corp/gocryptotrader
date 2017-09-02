@@ -158,6 +158,20 @@ func TestNewCurrencyPairFromIndex(t *testing.T) {
 			actual, expected,
 		)
 	}
+
+	currency = "DOGEBTC"
+
+	pair = NewCurrencyPairFromIndex(currency, index)
+	pair.Delimiter = "-"
+	actual = pair.Pair()
+
+	expected = CurrencyItem("DOGE-BTC")
+	if actual != expected {
+		t.Errorf(
+			"Test failed. Pair(): %s was not equal to expected value: %s",
+			actual, expected,
+		)
+	}
 }
 
 func TestNewCurrencyPairFromString(t *testing.T) {

@@ -75,17 +75,17 @@ func (l *Liqui) GetTickerPrice(p pair.CurrencyPair, assetType string) (ticker.Pr
 }
 
 // GetOrderbookEx returns orderbook base on the currency pair
-func (l *Liqui) GetOrderbookEx(p pair.CurrencyPair) (orderbook.OrderbookBase, error) {
-	ob, err := orderbook.GetOrderbook(l.Name, p)
+func (l *Liqui) GetOrderbookEx(p pair.CurrencyPair, assetType string) (orderbook.Base, error) {
+	ob, err := orderbook.GetOrderbook(l.Name, p, assetType)
 	if err == nil {
-		return l.UpdateOrderbook(p)
+		return l.UpdateOrderbook(p, assetType)
 	}
 	return ob, nil
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (l *Liqui) UpdateOrderbook(p pair.CurrencyPair) (orderbook.OrderbookBase, error) {
-	var orderBook orderbook.OrderbookBase
+func (l *Liqui) UpdateOrderbook(p pair.CurrencyPair, assetType string) (orderbook.Base, error) {
+	var orderBook orderbook.Base
 	orderbookNew, err := l.GetDepth(exchange.FormatExchangeCurrency(l.Name, p).String())
 	if err != nil {
 		return orderBook, err
@@ -93,16 +93,16 @@ func (l *Liqui) UpdateOrderbook(p pair.CurrencyPair) (orderbook.OrderbookBase, e
 
 	for x := range orderbookNew.Bids {
 		data := orderbookNew.Bids[x]
-		orderBook.Bids = append(orderBook.Bids, orderbook.OrderbookItem{Amount: data[1], Price: data[0]})
+		orderBook.Bids = append(orderBook.Bids, orderbook.Item{Amount: data[1], Price: data[0]})
 	}
 
 	for x := range orderbookNew.Asks {
 		data := orderbookNew.Asks[x]
-		orderBook.Asks = append(orderBook.Asks, orderbook.OrderbookItem{Amount: data[1], Price: data[0]})
+		orderBook.Asks = append(orderBook.Asks, orderbook.Item{Amount: data[1], Price: data[0]})
 	}
 
-	orderbook.ProcessOrderbook(l.Name, p, orderBook)
-	return orderbook.GetOrderbook(l.Name, p)
+	orderbook.ProcessOrderbook(l.Name, p, orderBook, assetType)
+	return orderbook.GetOrderbook(l.Name, p, assetType)
 }
 
 // GetExchangeAccountInfo retrieves balances for all enabled currencies for the

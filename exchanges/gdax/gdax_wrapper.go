@@ -97,17 +97,17 @@ func (g *GDAX) GetTickerPrice(p pair.CurrencyPair, assetType string) (ticker.Pri
 }
 
 // GetOrderbookEx returns orderbook base on the currency pair
-func (g *GDAX) GetOrderbookEx(p pair.CurrencyPair) (orderbook.OrderbookBase, error) {
-	ob, err := orderbook.GetOrderbook(g.GetName(), p)
+func (g *GDAX) GetOrderbookEx(p pair.CurrencyPair, assetType string) (orderbook.Base, error) {
+	ob, err := orderbook.GetOrderbook(g.GetName(), p, assetType)
 	if err == nil {
-		return g.UpdateOrderbook(p)
+		return g.UpdateOrderbook(p, assetType)
 	}
 	return ob, nil
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (g *GDAX) UpdateOrderbook(p pair.CurrencyPair) (orderbook.OrderbookBase, error) {
-	var orderBook orderbook.OrderbookBase
+func (g *GDAX) UpdateOrderbook(p pair.CurrencyPair, assetType string) (orderbook.Base, error) {
+	var orderBook orderbook.Base
 	orderbookNew, err := g.GetOrderbook(exchange.FormatExchangeCurrency(g.Name, p).String(), 2)
 	if err != nil {
 		return orderBook, err
@@ -116,13 +116,13 @@ func (g *GDAX) UpdateOrderbook(p pair.CurrencyPair) (orderbook.OrderbookBase, er
 	obNew := orderbookNew.(GDAXOrderbookL1L2)
 
 	for x := range obNew.Bids {
-		orderBook.Bids = append(orderBook.Bids, orderbook.OrderbookItem{Amount: obNew.Bids[x].Amount, Price: obNew.Bids[x].Price})
+		orderBook.Bids = append(orderBook.Bids, orderbook.Item{Amount: obNew.Bids[x].Amount, Price: obNew.Bids[x].Price})
 	}
 
 	for x := range obNew.Asks {
-		orderBook.Asks = append(orderBook.Asks, orderbook.OrderbookItem{Amount: obNew.Bids[x].Amount, Price: obNew.Bids[x].Price})
+		orderBook.Asks = append(orderBook.Asks, orderbook.Item{Amount: obNew.Bids[x].Amount, Price: obNew.Bids[x].Price})
 	}
 
-	orderbook.ProcessOrderbook(g.GetName(), p, orderBook)
-	return orderbook.GetOrderbook(g.Name, p)
+	orderbook.ProcessOrderbook(g.GetName(), p, orderBook, assetType)
+	return orderbook.GetOrderbook(g.Name, p, assetType)
 }

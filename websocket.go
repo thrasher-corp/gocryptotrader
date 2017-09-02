@@ -94,7 +94,6 @@ func SendWebsocketMessage(id int, data interface{}) error {
 }
 
 func BroadcastWebsocketMessage(evt WebsocketEvent) error {
-	log.Println(evt)
 	for _, x := range WebsocketClientHub {
 		x.Conn.WriteJSON(evt)
 	}

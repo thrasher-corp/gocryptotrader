@@ -56,32 +56,32 @@ func (l *LakeBTC) GetTickerPrice(p pair.CurrencyPair, assetType string) (ticker.
 }
 
 // GetOrderbookEx returns orderbook base on the currency pair
-func (l *LakeBTC) GetOrderbookEx(p pair.CurrencyPair) (orderbook.OrderbookBase, error) {
-	ob, err := orderbook.GetOrderbook(l.GetName(), p)
+func (l *LakeBTC) GetOrderbookEx(p pair.CurrencyPair, assetType string) (orderbook.Base, error) {
+	ob, err := orderbook.GetOrderbook(l.GetName(), p, assetType)
 	if err == nil {
-		return l.UpdateOrderbook(p)
+		return l.UpdateOrderbook(p, assetType)
 	}
 	return ob, nil
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (l *LakeBTC) UpdateOrderbook(p pair.CurrencyPair) (orderbook.OrderbookBase, error) {
-	var orderBook orderbook.OrderbookBase
+func (l *LakeBTC) UpdateOrderbook(p pair.CurrencyPair, assetType string) (orderbook.Base, error) {
+	var orderBook orderbook.Base
 	orderbookNew, err := l.GetOrderBook(p.Pair().String())
 	if err != nil {
 		return orderBook, err
 	}
 
 	for x := range orderbookNew.Bids {
-		orderBook.Bids = append(orderBook.Bids, orderbook.OrderbookItem{Amount: orderbookNew.Bids[x].Amount, Price: orderbookNew.Bids[x].Price})
+		orderBook.Bids = append(orderBook.Bids, orderbook.Item{Amount: orderbookNew.Bids[x].Amount, Price: orderbookNew.Bids[x].Price})
 	}
 
 	for x := range orderbookNew.Asks {
-		orderBook.Asks = append(orderBook.Asks, orderbook.OrderbookItem{Amount: orderbookNew.Asks[x].Amount, Price: orderbookNew.Asks[x].Price})
+		orderBook.Asks = append(orderBook.Asks, orderbook.Item{Amount: orderbookNew.Asks[x].Amount, Price: orderbookNew.Asks[x].Price})
 	}
 
-	orderbook.ProcessOrderbook(l.GetName(), p, orderBook)
-	return orderbook.GetOrderbook(l.Name, p)
+	orderbook.ProcessOrderbook(l.GetName(), p, orderBook, assetType)
+	return orderbook.GetOrderbook(l.Name, p, assetType)
 }
 
 // GetExchangeAccountInfo retrieves balances for all enabled currencies for the

@@ -66,8 +66,8 @@ type IBotExchange interface {
 	IsEnabled() bool
 	GetTickerPrice(currency pair.CurrencyPair, assetType string) (ticker.Price, error)
 	UpdateTicker(currency pair.CurrencyPair, assetType string) (ticker.Price, error)
-	GetOrderbookEx(currency pair.CurrencyPair) (orderbook.OrderbookBase, error)
-	UpdateOrderbook(currency pair.CurrencyPair) (orderbook.OrderbookBase, error)
+	GetOrderbookEx(currency pair.CurrencyPair, assetType string) (orderbook.Base, error)
+	UpdateOrderbook(currency pair.CurrencyPair, assetType string) (orderbook.Base, error)
 	GetEnabledCurrencies() []pair.CurrencyPair
 	GetExchangeAccountInfo() (AccountInfo, error)
 	GetAuthenticatedAPISupport() bool

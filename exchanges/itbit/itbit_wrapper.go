@@ -53,17 +53,17 @@ func (i *ItBit) GetTickerPrice(p pair.CurrencyPair, assetType string) (ticker.Pr
 }
 
 // GetOrderbookEx returns orderbook base on the currency pair
-func (i *ItBit) GetOrderbookEx(p pair.CurrencyPair) (orderbook.OrderbookBase, error) {
-	ob, err := orderbook.GetOrderbook(i.GetName(), p)
+func (i *ItBit) GetOrderbookEx(p pair.CurrencyPair, assetType string) (orderbook.Base, error) {
+	ob, err := orderbook.GetOrderbook(i.GetName(), p, assetType)
 	if err == nil {
-		return i.UpdateOrderbook(p)
+		return i.UpdateOrderbook(p, assetType)
 	}
 	return ob, nil
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (i *ItBit) UpdateOrderbook(p pair.CurrencyPair) (orderbook.OrderbookBase, error) {
-	var orderBook orderbook.OrderbookBase
+func (i *ItBit) UpdateOrderbook(p pair.CurrencyPair, assetType string) (orderbook.Base, error) {
+	var orderBook orderbook.Base
 	orderbookNew, err := i.GetOrderbook(exchange.FormatExchangeCurrency(i.Name,
 		p).String())
 	if err != nil {
@@ -80,7 +80,7 @@ func (i *ItBit) UpdateOrderbook(p pair.CurrencyPair) (orderbook.OrderbookBase, e
 		if err != nil {
 			log.Println(err)
 		}
-		orderBook.Bids = append(orderBook.Bids, orderbook.OrderbookItem{Amount: amount, Price: price})
+		orderBook.Bids = append(orderBook.Bids, orderbook.Item{Amount: amount, Price: price})
 	}
 
 	for x := range orderbookNew.Asks {
@@ -93,11 +93,11 @@ func (i *ItBit) UpdateOrderbook(p pair.CurrencyPair) (orderbook.OrderbookBase, e
 		if err != nil {
 			log.Println(err)
 		}
-		orderBook.Asks = append(orderBook.Asks, orderbook.OrderbookItem{Amount: amount, Price: price})
+		orderBook.Asks = append(orderBook.Asks, orderbook.Item{Amount: amount, Price: price})
 	}
 
-	orderbook.ProcessOrderbook(i.GetName(), p, orderBook)
-	return orderbook.GetOrderbook(i.Name, p)
+	orderbook.ProcessOrderbook(i.GetName(), p, orderBook, assetType)
+	return orderbook.GetOrderbook(i.Name, p, assetType)
 }
 
 // GetExchangeAccountInfo retrieves balances for all enabled currencies for the

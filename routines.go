@@ -5,6 +5,8 @@ import (
 	"log"
 	"time"
 
+	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
+
 	"github.com/thrasher-/gocryptotrader/currency/pair"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
@@ -29,6 +31,31 @@ func printSummary(result ticker.Price, p pair.CurrencyPair, assetType, exchangeN
 		result.High,
 		result.Low,
 		result.Volume)
+}
+
+func printOrderbookSummary(result orderbook.Base, p pair.CurrencyPair, assetType, exchangeName string, err error) {
+	if err != nil {
+		log.Printf("failed to get %s %s orderbook. Error: %s",
+			p.Pair().String(),
+			exchangeName,
+			err)
+		return
+	}
+
+	bidsAmount, bidsValue := result.CalculateTotalBids()
+	asksAmount, asksValue := result.CalculateTotalAsks()
+
+	log.Printf("%s %s %s: Orderbook Bids len: %d amount: %f total value: %f Asks len: %d amount: %f total value: %f",
+		exchangeName,
+		exchange.FormatCurrency(p).String(),
+		assetType,
+		len(result.Bids),
+		bidsAmount,
+		bidsValue,
+		len(result.Asks),
+		asksAmount,
+		asksValue,
+	)
 }
 
 func relayWebsocketEvent(result interface{}, event, assetType, exchangeName string) {
@@ -57,13 +84,15 @@ func TickerUpdaterRoutine() {
 				var err error
 				var assetTypes []string
 
+				assetTypes, err = exchange.GetExchangeAssetTypes(exchangeName)
+				if err != nil {
+					log.Printf("failed to get %s exchange asset types. Error: %s",
+						exchangeName, err)
+				}
+
 				for y := range enabledCurrencies {
 					currency := enabledCurrencies[y]
-					assetTypes, err = exchange.GetExchangeAssetTypes(exchangeName)
-					if err != nil {
-						log.Printf("failed to get %s exchange asset types. Error: %s",
-							exchangeName, err)
-					}
+
 					if len(assetTypes) > 1 {
 						for z := range assetTypes {
 							result, err = bot.exchanges[x].UpdateTicker(currency,
@@ -93,33 +122,42 @@ func OrderbookUpdaterRoutine() {
 	for {
 		for x := range bot.exchanges {
 			if bot.exchanges[x].IsEnabled() {
-				exchangeName := bot.exchanges[x].GetName()
-
-				if exchangeName == "ANX" {
+				if bot.exchanges[x].GetName() == "ANX" {
 					continue
 				}
 
+				exchangeName := bot.exchanges[x].GetName()
 				enabledCurrencies := bot.exchanges[x].GetEnabledCurrencies()
+				var result orderbook.Base
+				var err error
+				var assetTypes []string
+
+				assetTypes, err = exchange.GetExchangeAssetTypes(exchangeName)
+				if err != nil {
+					log.Printf("failed to get %s exchange asset types. Error: %s",
+						exchangeName, err)
+				}
 
 				for y := range enabledCurrencies {
 					currency := enabledCurrencies[y]
-					result, err := bot.exchanges[x].UpdateOrderbook(currency)
-					if err != nil {
-						log.Printf("failed to get %s orderbook", currency.Pair().String())
-						continue
-					}
 
-					log.Printf("%s %s %v",
-						exchangeName,
-						exchange.FormatCurrency(currency).String(),
-						result)
-
-					evt := WebsocketEvent{
-						Data:     result,
-						Event:    "orderbook_update",
-						Exchange: exchangeName,
+					if len(assetTypes) > 1 {
+						for z := range assetTypes {
+							result, err = bot.exchanges[x].UpdateOrderbook(currency,
+								assetTypes[z])
+							printOrderbookSummary(result, currency, assetTypes[z], exchangeName, err)
+							if err == nil {
+								relayWebsocketEvent(result, "orderbook_update", assetTypes[z], exchangeName)
+							}
+						}
+					} else {
+						result, err = bot.exchanges[x].UpdateOrderbook(currency,
+							assetTypes[0])
+						printOrderbookSummary(result, currency, assetTypes[0], exchangeName, err)
+						if err == nil {
+							relayWebsocketEvent(result, "orderbook_update", assetTypes[0], exchangeName)
+						}
 					}
-					BroadcastWebsocketMessage(evt)
 				}
 			}
 		}
