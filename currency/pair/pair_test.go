@@ -105,6 +105,30 @@ func TestDisplay(t *testing.T) {
 	}
 }
 
+func TestEqual(t *testing.T) {
+	t.Parallel()
+	pair := NewCurrencyPair("BTC", "USD")
+	secondPair := NewCurrencyPair("btc", "uSd")
+	actual := pair.Equal(secondPair)
+	expected := true
+	if actual != expected {
+		t.Errorf(
+			"Test failed. Equal(): %v was not equal to expected value: %v",
+			actual, expected,
+		)
+	}
+
+	secondPair.SecondCurrency = "ETH"
+	actual = pair.Equal(secondPair)
+	expected = false
+	if actual != expected {
+		t.Errorf(
+			"Test failed. Equal(): %v was not equal to expected value: %v",
+			actual, expected,
+		)
+	}
+}
+
 func TestNewCurrencyPair(t *testing.T) {
 	t.Parallel()
 	pair := NewCurrencyPair("BTC", "USD")

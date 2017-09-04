@@ -5,10 +5,10 @@ import (
 	"log"
 	"time"
 
-	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
-
 	"github.com/thrasher-/gocryptotrader/currency/pair"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
+	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-/gocryptotrader/exchanges/stats"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 )
 
@@ -21,6 +21,7 @@ func printSummary(result ticker.Price, p pair.CurrencyPair, assetType, exchangeN
 		return
 	}
 
+	stats.Add(exchangeName, p, assetType, result.Last, result.Volume)
 	log.Printf("%s %s %s: Last %.8f Ask %.8f Bid %.8f High %.8f Low %.8f Volume %.8f",
 		exchangeName,
 		exchange.FormatCurrency(p).String(),
