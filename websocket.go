@@ -9,12 +9,15 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
+	"github.com/thrasher-/gocryptotrader/currency"
 )
 
+// Const vars for websocket
 const (
 	WebsocketResponseSuccess = "OK"
 )
 
+// WebsocketRoutes adds ws route to the HTTP server
 var WebsocketRoutes = Routes{
 	Route{
 		"ws",
@@ -24,6 +27,7 @@ var WebsocketRoutes = Routes{
 	},
 }
 
+// WebsocketClient stores information related to the websocket client
 type WebsocketClient struct {
 	ID            int
 	Conn          *websocket.Conn
@@ -31,6 +35,7 @@ type WebsocketClient struct {
 	Authenticated bool
 }
 
+// WebsocketEvent is the struct used for websocket events
 type WebsocketEvent struct {
 	Exchange  string `json:"exchange,omitempty"`
 	AssetType string `json:"assetType,omitempty"`
@@ -38,20 +43,26 @@ type WebsocketEvent struct {
 	Data      interface{}
 }
 
+// WebsocketEventResponse is the struct used for websocket event responses
 type WebsocketEventResponse struct {
 	Event string      `json:"event"`
 	Data  interface{} `json:"data"`
 	Error string      `json:"error"`
 }
 
-type WebsocketTickerRequest struct {
+// WebsocketOrderbookTickerRequest is a struct used for ticker and orderbook
+// requests
+type WebsocketOrderbookTickerRequest struct {
 	Exchange  string `json:"exchangeName"`
 	Currency  string `json:"currency"`
 	AssetType string `json:"assetType"`
 }
 
+// WebsocketClientHub stores an array of websocket clients
 var WebsocketClientHub []WebsocketClient
 
+// WebsocketClientHandler upgrades the HTTP connection to a websocket
+// compatible one
 func WebsocketClientHandler(w http.ResponseWriter, r *http.Request) {
 	upgrader := websocket.Upgrader{
 		WriteBufferSize: 1024,
@@ -73,6 +84,7 @@ func WebsocketClientHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println("New websocket client connected.")
 }
 
+// DisconnectWebsocketClient disconnects a websocket client
 func DisconnectWebsocketClient(id int, err error) {
 	for i := range WebsocketClientHub {
 		if WebsocketClientHub[i].ID == id {
@@ -84,6 +96,7 @@ func DisconnectWebsocketClient(id int, err error) {
 	}
 }
 
+// SendWebsocketMessage sends a websocket message to a specific client
 func SendWebsocketMessage(id int, data interface{}) error {
 	for _, x := range WebsocketClientHub {
 		if x.ID == id {
@@ -93,6 +106,8 @@ func SendWebsocketMessage(id int, data interface{}) error {
 	return nil
 }
 
+// BroadcastWebsocketMessage broadcasts a websocket event message to all
+// websocket clients
 func BroadcastWebsocketMessage(evt WebsocketEvent) error {
 	for _, x := range WebsocketClientHub {
 		x.Conn.WriteJSON(evt)
@@ -100,29 +115,163 @@ func BroadcastWebsocketMessage(evt WebsocketEvent) error {
 	return nil
 }
 
+// WebsocketAuth is a struct used for
 type WebsocketAuth struct {
 	Username string `json:"username"`
 	Password string `json:"password"`
 }
 
+type wsCommandHandler func(wsClient *websocket.Conn, data interface{}) error
+
+var wsHandlers = map[string]wsCommandHandler{
+	"getconfig":        wsGetConfig,
+	"saveconfig":       wsSaveConfig,
+	"getaccountinfo":   wsGetAccountInfo,
+	"gettickers":       wsGetTickers,
+	"getticker":        wsGetTicker,
+	"getorderbooks":    wsGetOrderbooks,
+	"getorderbook":     wsGetOrderbook,
+	"getexchangerates": wsGetExchangeRates,
+	"getportfolio":     wsGetPortfolio,
+}
+
+func wsGetConfig(wsClient *websocket.Conn, data interface{}) error {
+	wsResp := WebsocketEventResponse{
+		Event: "GetConfig",
+		Data:  bot.config,
+	}
+	return wsClient.WriteJSON(wsResp)
+}
+
+func wsSaveConfig(wsClient *websocket.Conn, data interface{}) error {
+	wsResp := WebsocketEventResponse{
+		Event: "SaveConfig",
+	}
+	var cfg config.Config
+	err := common.JSONDecode(data.([]byte), &cfg)
+	if err != nil {
+		wsResp.Error = err.Error()
+		err = wsClient.WriteJSON(wsResp)
+		if err != nil {
+			return err
+		}
+	}
+
+	err = bot.config.UpdateConfig(bot.configFile, cfg)
+	if err != nil {
+		wsResp.Error = err.Error()
+		err = wsClient.WriteJSON(wsResp)
+		if err != nil {
+			return err
+		}
+	}
+
+	setupBotExchanges()
+	wsResp.Data = WebsocketResponseSuccess
+	return wsClient.WriteJSON(wsResp)
+}
+
+func wsGetAccountInfo(wsClient *websocket.Conn, data interface{}) error {
+	accountInfo := GetAllEnabledExchangeAccountInfo()
+	wsResp := WebsocketEventResponse{
+		Event: "GetAccountInfo",
+		Data:  accountInfo,
+	}
+	return wsClient.WriteJSON(wsResp)
+}
+
+func wsGetTickers(wsClient *websocket.Conn, data interface{}) error {
+	wsResp := WebsocketEventResponse{
+		Event: "GetTickers",
+	}
+	wsResp.Data = GetAllActiveTickers()
+	return wsClient.WriteJSON(wsResp)
+}
+
+func wsGetTicker(wsClient *websocket.Conn, data interface{}) error {
+	wsResp := WebsocketEventResponse{
+		Event: "GetTicker",
+	}
+	var tickerReq WebsocketOrderbookTickerRequest
+	err := common.JSONDecode(data.([]byte), &tickerReq)
+	if err != nil {
+		wsResp.Error = err.Error()
+		wsClient.WriteJSON(wsResp)
+		return err
+	}
+
+	result, err := GetSpecificTicker(tickerReq.Currency,
+		tickerReq.Exchange, tickerReq.AssetType)
+
+	if err != nil {
+		wsResp.Error = err.Error()
+		wsClient.WriteJSON(wsResp)
+		return err
+	}
+	wsResp.Data = result
+	return wsClient.WriteJSON(wsResp)
+}
+
+func wsGetOrderbooks(wsClient *websocket.Conn, data interface{}) error {
+	wsResp := WebsocketEventResponse{
+		Event: "GetOrderbooks",
+	}
+	wsResp.Data = GetAllActiveOrderbooks()
+	return wsClient.WriteJSON(wsResp)
+}
+
+func wsGetOrderbook(wsClient *websocket.Conn, data interface{}) error {
+	wsResp := WebsocketEventResponse{
+		Event: "GetOrderbook",
+	}
+	var orderbookReq WebsocketOrderbookTickerRequest
+	err := common.JSONDecode(data.([]byte), &orderbookReq)
+	if err != nil {
+		wsResp.Error = err.Error()
+		wsClient.WriteJSON(wsResp)
+		return err
+	}
+
+	result, err := GetSpecificOrderbook(orderbookReq.Currency,
+		orderbookReq.Exchange, orderbookReq.AssetType)
+
+	if err != nil {
+		wsResp.Error = err.Error()
+		wsClient.WriteJSON(wsResp)
+		return err
+	}
+	wsResp.Data = result
+	return wsClient.WriteJSON(wsResp)
+}
+
+func wsGetExchangeRates(wsClient *websocket.Conn, data interface{}) error {
+	wsResp := WebsocketEventResponse{
+		Event: "GetExchangeRates",
+	}
+	if currency.YahooEnabled {
+		wsResp.Data = currency.CurrencyStore
+	} else {
+		wsResp.Data = currency.CurrencyStoreFixer
+	}
+	return wsClient.WriteJSON(wsResp)
+}
+
+func wsGetPortfolio(wsClient *websocket.Conn, data interface{}) error {
+	wsResp := WebsocketEventResponse{
+		Event: "GetPortfolio",
+	}
+	wsResp.Data = bot.portfolio.GetPortfolioSummary()
+	return wsClient.WriteJSON(wsResp)
+}
+
+// WebsocketHandler Handles websocket client requests
 func WebsocketHandler() {
 	for {
 		for x := range WebsocketClientHub {
-			msgType, msg, err := WebsocketClientHub[x].Conn.ReadMessage()
-			if err != nil {
-				DisconnectWebsocketClient(x, err)
-				continue
-			}
-
-			if msgType != websocket.TextMessage {
-				DisconnectWebsocketClient(x, err)
-				continue
-			}
-
 			var evt WebsocketEvent
-			err = common.JSONDecode(msg, &evt)
+			err := WebsocketClientHub[x].Conn.ReadJSON(&evt)
 			if err != nil {
-				log.Println(err)
+				DisconnectWebsocketClient(x, err)
 				continue
 			}
 
@@ -136,6 +285,9 @@ func WebsocketHandler() {
 				log.Println(err)
 				continue
 			}
+
+			req := common.StringToLower(evt.Event)
+			log.Printf("Websocket req: %s", req)
 
 			if !WebsocketClientHub[x].Authenticated && evt.Event != "auth" {
 				wsResp := WebsocketEventResponse{
@@ -152,8 +304,8 @@ func WebsocketHandler() {
 					log.Println(err)
 					continue
 				}
-				hashPW := common.HexEncodeToString(common.GetSHA256([]byte("password")))
-				if auth.Username == "username" && auth.Password == hashPW {
+				hashPW := common.HexEncodeToString(common.GetSHA256([]byte(bot.config.Webserver.AdminUsername)))
+				if auth.Username == bot.config.Webserver.AdminUsername && auth.Password == hashPW {
 					WebsocketClientHub[x].Authenticated = true
 					wsResp := WebsocketEventResponse{
 						Event: "auth",
@@ -172,97 +324,15 @@ func WebsocketHandler() {
 					continue
 				}
 			}
-			switch evt.Event {
-			case "GetConfig":
-				wsResp := WebsocketEventResponse{
-					Event: "GetConfig",
-					Data:  bot.config,
-				}
-				SendWebsocketMessage(x, wsResp)
+			result, ok := wsHandlers[req]
+			if !ok {
+				log.Printf("Websocket unsupported event")
 				continue
-			case "SaveConfig":
-				wsResp := WebsocketEventResponse{
-					Event: "SaveConfig",
-				}
-				var cfg config.Config
-				err := common.JSONDecode(dataJSON, &cfg)
-				if err != nil {
-					wsResp.Error = err.Error()
-					SendWebsocketMessage(x, wsResp)
-					log.Println(err)
-					continue
-				}
+			}
 
-				//Save change the settings
-				for x := range bot.config.Exchanges {
-					for i := 0; i < len(cfg.Exchanges); i++ {
-						if cfg.Exchanges[i].Name == bot.config.Exchanges[x].Name {
-							bot.config.Exchanges[x].Enabled = cfg.Exchanges[i].Enabled
-							bot.config.Exchanges[x].APIKey = cfg.Exchanges[i].APIKey
-							bot.config.Exchanges[x].APISecret = cfg.Exchanges[i].APISecret
-							bot.config.Exchanges[x].EnabledPairs = cfg.Exchanges[i].EnabledPairs
-						}
-					}
-				}
-
-				//Reload the configuration
-				err = bot.config.SaveConfig(bot.configFile)
-				if err != nil {
-					wsResp.Error = err.Error()
-					SendWebsocketMessage(x, wsResp)
-					continue
-				}
-				err = bot.config.LoadConfig(bot.configFile)
-				if err != nil {
-					wsResp.Error = err.Error()
-					SendWebsocketMessage(x, wsResp)
-					continue
-				}
-				setupBotExchanges()
-				wsResp.Data = WebsocketResponseSuccess
-				SendWebsocketMessage(x, wsResp)
-				continue
-			case "GetAccountInfo":
-				accountInfo := GetAllEnabledExchangeAccountInfo()
-				wsResp := WebsocketEventResponse{
-					Event: "GetAccountInfo",
-					Data:  accountInfo,
-				}
-				SendWebsocketMessage(x, wsResp)
-				continue
-			case "GetTicker":
-				wsResp := WebsocketEventResponse{
-					Event: "GetTicker",
-				}
-				var tickerReq WebsocketTickerRequest
-				err := common.JSONDecode(dataJSON, &tickerReq)
-				if err != nil {
-					wsResp.Error = err.Error()
-					SendWebsocketMessage(x, wsResp)
-					log.Println(err)
-					continue
-				}
-
-				data, err := GetSpecificTicker(tickerReq.Currency,
-					tickerReq.Exchange, tickerReq.AssetType)
-
-				if err != nil {
-					wsResp.Error = err.Error()
-					SendWebsocketMessage(x, wsResp)
-					log.Println(err)
-					continue
-				}
-				wsResp.Data = data
-				SendWebsocketMessage(x, wsResp)
-				continue
-
-			case "GetTickers":
-				wsResp := WebsocketEventResponse{
-					Event: "GetTickers",
-				}
-				tickers := GetAllActiveTickers()
-				wsResp.Data = tickers
-				SendWebsocketMessage(x, wsResp)
+			err = result(WebsocketClientHub[x].Conn, dataJSON)
+			if err != nil {
+				log.Printf("Websocket request %s failed. Error %s", evt.Event, err)
 				continue
 			}
 		}

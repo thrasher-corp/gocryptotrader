@@ -264,7 +264,7 @@ func TestCheckAndAddCurrency(t *testing.T) {
 }
 
 func TestSeedCurrencyData(t *testing.T) {
-	if yahooEnabled {
+	if YahooEnabled {
 		currencyRequestDefault := ""
 		currencyRequestUSDAUD := "USD,AUD"
 		currencyRequestObtuse := "WigWham"
@@ -292,7 +292,7 @@ func TestSeedCurrencyData(t *testing.T) {
 		}
 	}
 
-	yahooEnabled = false
+	YahooEnabled = false
 	err := SeedCurrencyData("")
 	if err != nil {
 		t.Errorf("Test failed. SeedCurrencyData via Fixer. Error: %s", err)
@@ -313,7 +313,7 @@ func TestMakecurrencyPairs(t *testing.T) {
 }
 
 func TestConvertCurrency(t *testing.T) {
-	if yahooEnabled {
+	if YahooEnabled {
 		fiatCurrencies := DefaultCurrencies
 		for _, currencyFrom := range common.SplitStrings(fiatCurrencies, ",") {
 			for _, currencyTo := range common.SplitStrings(fiatCurrencies, ",") {
@@ -336,7 +336,7 @@ func TestConvertCurrency(t *testing.T) {
 		}
 	}
 
-	yahooEnabled = false
+	YahooEnabled = false
 	_, err := ConvertCurrency(1000, "USD", "AUD")
 	if err != nil {
 		t.Errorf("Test failed. ConvertCurrency USD -> AUD. Error %s", err)
@@ -383,7 +383,7 @@ func TestFetchFixerCurrencyData(t *testing.T) {
 }
 
 func TestFetchYahooCurrencyData(t *testing.T) {
-	if !yahooEnabled {
+	if !YahooEnabled {
 		return
 	}
 
@@ -407,7 +407,7 @@ func TestFetchYahooCurrencyData(t *testing.T) {
 }
 
 func TestQueryYahooCurrencyValues(t *testing.T) {
-	if !yahooEnabled {
+	if !YahooEnabled {
 		return
 	}
 

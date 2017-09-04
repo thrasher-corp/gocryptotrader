@@ -119,16 +119,10 @@ func main() {
 	AdjustGoMaxProcs()
 
 	if bot.config.SMS.Enabled {
-		err = bot.config.CheckSMSGlobalConfigValues()
-		if err != nil {
-			log.Println(err) // non fatal event
-			bot.config.SMS.Enabled = false
-		} else {
-			log.Printf(
-				"SMS support enabled. Number of SMS contacts %d.\n",
-				smsglobal.GetEnabledSMSContacts(bot.config.SMS),
-			)
-		}
+		log.Printf(
+			"SMS support enabled. Number of SMS contacts %d.\n",
+			smsglobal.GetEnabledSMSContacts(bot.config.SMS),
+		)
 	} else {
 		log.Println("SMS support disabled.")
 	}
@@ -174,7 +168,6 @@ func main() {
 	setupBotExchanges()
 
 	bot.config.RetrieveConfigCurrencyPairs()
-
 	err = currency.SeedCurrencyData(currency.BaseCurrencies)
 	if err != nil {
 		log.Fatalf("Fatal error retrieving config currencies. Error: %s", err)
@@ -194,21 +187,14 @@ func main() {
 	go OrderbookUpdaterRoutine()
 
 	if bot.config.Webserver.Enabled {
-		err := bot.config.CheckWebserverConfigValues()
-		if err != nil {
-			log.Println(err) // non fatal event
-			//bot.config.Webserver.Enabled = false
-		} else {
-			listenAddr := bot.config.Webserver.ListenAddress
-			log.Printf(
-				"HTTP RESTful Webserver support enabled. Listen URL: http://%s:%d/\n",
-				common.ExtractHost(listenAddr), common.ExtractPort(listenAddr),
-			)
-			router := NewRouter(bot.exchanges)
-			log.Fatal(http.ListenAndServe(listenAddr, router))
-		}
-	}
-	if !bot.config.Webserver.Enabled {
+		listenAddr := bot.config.Webserver.ListenAddress
+		log.Printf(
+			"HTTP Webserver support enabled. Listen URL: http://%s:%d/\n",
+			common.ExtractHost(listenAddr), common.ExtractPort(listenAddr),
+		)
+		router := NewRouter(bot.exchanges)
+		log.Fatal(http.ListenAndServe(listenAddr, router))
+	} else {
 		log.Println("HTTP RESTful Webserver support disabled.")
 	}
 

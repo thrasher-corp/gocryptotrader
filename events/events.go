@@ -8,7 +8,6 @@ import (
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
-	"github.com/thrasher-/gocryptotrader/currency"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-/gocryptotrader/smsglobal"
@@ -32,20 +31,18 @@ var (
 	errInvalidCondition = errors.New("invalid conditional option")
 	errInvalidAction    = errors.New("invalid action")
 	errExchangeDisabled = errors.New("desired exchange is disabled")
-	errCurrencyInvalid  = errors.New("invalid currency")
 )
 
 // Event struct holds the event variables
 type Event struct {
-	ID             int
-	Exchange       string
-	Item           string
-	Condition      string
-	FirstCurrency  string
-	Asset          string
-	SecondCurrency string
-	Action         string
-	Executed       bool
+	ID        int
+	Exchange  string
+	Item      string
+	Condition string
+	Pair      pair.CurrencyPair
+	Asset     string
+	Action    string
+	Executed  bool
 }
 
 // Events variable is a pointer array to the event structures that will be
@@ -54,14 +51,10 @@ var Events []*Event
 
 // AddEvent adds an event to the Events chain and returns an index/eventID
 // and an error
-func AddEvent(Exchange, Item, Condition, FirstCurrency, SecondCurrency, Asset, Action string) (int, error) {
+func AddEvent(Exchange, Item, Condition string, CurrencyPair pair.CurrencyPair, Asset, Action string) (int, error) {
 	err := IsValidEvent(Exchange, Item, Condition, Action)
 	if err != nil {
 		return 0, err
-	}
-
-	if !IsValidCurrency(FirstCurrency, SecondCurrency) {
-		return 0, errCurrencyInvalid
 	}
 
 	Event := &Event{}
@@ -75,8 +68,7 @@ func AddEvent(Exchange, Item, Condition, FirstCurrency, SecondCurrency, Asset, A
 	Event.Exchange = Exchange
 	Event.Item = Item
 	Event.Condition = Condition
-	Event.FirstCurrency = FirstCurrency
-	Event.SecondCurrency = SecondCurrency
+	Event.Pair = CurrencyPair
 	Event.Asset = Asset
 	Event.Action = Action
 	Event.Executed = false
@@ -114,7 +106,7 @@ func (e *Event) ExecuteAction() bool {
 	if common.StringContains(e.Action, ",") {
 		action := common.SplitStrings(e.Action, ",")
 		if action[0] == actionSMSNotify {
-			message := fmt.Sprintf("Event triggered: %s", e.EventToString())
+			message := fmt.Sprintf("Event triggered: %s", e.String())
 			if action[1] == "ALL" {
 				smsglobal.SMSSendToAll(message, config.Cfg)
 			} else {
@@ -124,17 +116,17 @@ func (e *Event) ExecuteAction() bool {
 			}
 		}
 	} else {
-		log.Printf("Event triggered: %s", e.EventToString())
+		log.Printf("Event triggered: %s", e.String())
 	}
 	return true
 }
 
 // EventToString turns the structure event into a string
-func (e *Event) EventToString() string {
+func (e *Event) String() string {
 	condition := common.SplitStrings(e.Condition, ",")
 	return fmt.Sprintf(
-		"If the %s%s [%s] %s on %s is %s then %s.", e.FirstCurrency, e.SecondCurrency,
-		e.Asset, e.Item, e.Exchange, condition[0]+" "+condition[1], e.Action,
+		"If the %s%s [%s] %s on %s is %s then %s.", e.Pair.FirstCurrency.String(),
+		e.Pair.SecondCurrency.String(), e.Asset, e.Item, e.Exchange, condition[0]+" "+condition[1], e.Action,
 	)
 }
 
@@ -144,12 +136,12 @@ func (e *Event) CheckCondition() bool {
 	condition := common.SplitStrings(e.Condition, ",")
 	targetPrice, _ := strconv.ParseFloat(condition[1], 64)
 
-	ticker, err := ticker.GetTickerByExchange(e.Exchange)
+	t, err := ticker.GetTicker(e.Exchange, e.Pair, e.Asset)
 	if err != nil {
 		return false
 	}
 
-	lastPrice := ticker.Price[pair.CurrencyItem(e.FirstCurrency)][pair.CurrencyItem(e.SecondCurrency)][e.Asset].Last
+	lastPrice := t.Last
 
 	if lastPrice == 0 {
 		return false
@@ -226,8 +218,9 @@ func IsValidEvent(Exchange, Item, Condition, Action string) error {
 			return errInvalidAction
 		}
 
+		cfg := config.GetConfig()
 		if action[1] != "ALL" && smsglobal.SMSGetNumberByName(
-			action[1], config.Cfg.SMS) == smsglobal.ErrSMSContactNotFound {
+			action[1], cfg.SMS) == smsglobal.ErrSMSContactNotFound {
 			return errInvalidAction
 		}
 	} else {
@@ -258,20 +251,6 @@ func CheckEvents() {
 			}
 		}
 	}
-}
-
-// IsValidCurrency takes in CRYPTO or FIAT currency strings and returns if valid
-func IsValidCurrency(currencies ...string) bool {
-	for index, whatIsIt := range currencies {
-		whatIsIt = common.StringToUpper(whatIsIt)
-		if currency.IsDefaultCryptocurrency(whatIsIt) || currency.IsDefaultCurrency(whatIsIt) {
-			if len(currencies)-1 == index {
-				return true
-			}
-			continue
-		}
-	}
-	return false
 }
 
 // IsValidExchange validates the exchange

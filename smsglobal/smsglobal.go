@@ -2,6 +2,7 @@ package smsglobal
 
 import (
 	"errors"
+	"flag"
 	"log"
 	"net/url"
 	"strings"
@@ -44,7 +45,7 @@ func SMSSendToAll(message string, cfg config.Config) {
 // SMSGetNumberByName returns contact number by supplied name
 func SMSGetNumberByName(name string, smsCfg config.SMSGlobalConfig) string {
 	for _, contact := range smsCfg.Contacts {
-		if contact.Name == name {
+		if common.StringToUpper(contact.Name) == common.StringToUpper(name) {
 			return contact.Number
 		}
 	}
@@ -53,6 +54,10 @@ func SMSGetNumberByName(name string, smsCfg config.SMSGlobalConfig) string {
 
 // SMSNotify sends a message to an individual contact
 func SMSNotify(to, message string, cfg config.Config) error {
+	if flag.Lookup("test.v") != nil {
+		return nil
+	}
+
 	values := url.Values{}
 	values.Set("action", "sendsms")
 	values.Set("user", cfg.SMS.Username)
