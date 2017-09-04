@@ -413,11 +413,64 @@ func (c *Config) LoadConfig(configPath string) error {
 		return fmt.Errorf(ErrCheckingConfigValues, err)
 	}
 
+	if c.SMS.Enabled {
+		err = c.CheckSMSGlobalConfigValues()
+		if err != nil {
+			log.Print(fmt.Errorf(ErrCheckingConfigValues, err))
+			c.SMS.Enabled = false
+		}
+	}
+
+	if c.Webserver.Enabled {
+		err = c.CheckWebserverConfigValues()
+		if err != nil {
+			log.Print(fmt.Errorf(ErrCheckingConfigValues, err))
+			c.Webserver.Enabled = false
+		}
+	}
+
 	if c.CurrencyPairFormat == nil {
 		c.CurrencyPairFormat = &CurrencyPairFormatConfig{
 			Delimiter: "-",
 			Uppercase: true,
 		}
+	}
+
+	return nil
+}
+
+// UpdateConfig updates the config with a supplied config file
+func (c *Config) UpdateConfig(configPath string, newCfg Config) error {
+	if c.Name != newCfg.Name && newCfg.Name != "" {
+		c.Name = newCfg.Name
+	}
+
+	err := newCfg.CheckExchangeConfigValues()
+	if err != nil {
+		return err
+	}
+	c.Exchanges = newCfg.Exchanges
+
+	if c.CurrencyPairFormat != newCfg.CurrencyPairFormat {
+		c.CurrencyPairFormat = newCfg.CurrencyPairFormat
+	}
+
+	c.Portfolio = newCfg.Portfolio
+
+	err = newCfg.CheckSMSGlobalConfigValues()
+	if err != nil {
+		return err
+	}
+	c.SMS = newCfg.SMS
+
+	err = c.SaveConfig(configPath)
+	if err != nil {
+		return err
+	}
+
+	err = c.LoadConfig(configPath)
+	if err != nil {
+		return err
 	}
 
 	return nil

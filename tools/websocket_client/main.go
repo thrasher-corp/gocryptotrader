@@ -7,6 +7,7 @@ import (
 
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-/gocryptotrader/common"
+	"github.com/thrasher-/gocryptotrader/config"
 )
 
 var (
@@ -74,7 +75,7 @@ func main() {
 
 	log.Println("Connected to websocket!")
 	log.Println("Authenticating..")
-	SendWebsocketAuth("username", "password")
+	SendWebsocketAuth("blah", "blah")
 
 	var wsResp WebsocketEventResponse
 	err = WSConn.ReadJSON(&wsResp)
@@ -112,9 +113,22 @@ func main() {
 
 	log.Printf("Fetched config.")
 
+	dataJSON, err := common.JSONEncode(&wsResp.Data)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	var resultCfg config.Config
+	err = common.JSONDecode(dataJSON, &resultCfg)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	resultCfg.Name = "TEST"
+
 	req = WebsocketEvent{
 		Event: "SaveConfig",
-		Data:  wsResp.Data,
+		Data:  resultCfg,
 	}
 
 	log.Println("Saving config..")

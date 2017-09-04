@@ -68,7 +68,7 @@ var (
 	ErrCurrencyNotFound       = errors.New("unable to find specified currency")
 	ErrQueryingYahoo          = errors.New("unable to query Yahoo currency values")
 	ErrQueryingYahooZeroCount = errors.New("yahoo returned zero currency data")
-	yahooEnabled              = false
+	YahooEnabled              = false
 )
 
 // IsDefaultCurrency checks if the currency passed in matches the default
@@ -182,7 +182,7 @@ func SeedCurrencyData(fiatCurrencies string) error {
 		fiatCurrencies = DefaultCurrencies
 	}
 
-	if yahooEnabled {
+	if YahooEnabled {
 		return QueryYahooCurrencyValues(fiatCurrencies)
 	}
 
@@ -215,7 +215,7 @@ func ConvertCurrency(amount float64, from, to string) (float64, error) {
 		return amount, nil
 	}
 
-	if yahooEnabled {
+	if YahooEnabled {
 		currency := from + to
 		_, ok := CurrencyStore[currency]
 		if !ok {
