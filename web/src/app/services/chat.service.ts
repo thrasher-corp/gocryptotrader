@@ -5,8 +5,8 @@ import { WebsocketService } from './websocket/websocket.service';
 const CHAT_URL = 'ws://localhost:9050/ws';
 
 export interface Message {
-	author: string,
-	message: string
+	Event: string,
+	data:object,
 }
 
 @Injectable()
@@ -19,8 +19,8 @@ export class ChatService {
 			.map((response: MessageEvent): Message => {
 				let data = JSON.parse(response.data);
 				return {
-					author: data.author,
-					message: data.message
+					Event: data.Event,
+					data: data.data,
 				}
 			});
 	}
