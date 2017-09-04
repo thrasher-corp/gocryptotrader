@@ -62,6 +62,15 @@ func (c CurrencyPair) Display(delimiter string, uppercase bool) CurrencyItem {
 	return pair.Lower()
 }
 
+// Equal compares two currency pairs and returns whether or not they are equal
+func (c CurrencyPair) Equal(p CurrencyPair) bool {
+	if c.FirstCurrency.Upper() == p.FirstCurrency.Upper() &&
+		c.SecondCurrency.Upper() == p.SecondCurrency.Upper() {
+		return true
+	}
+	return false
+}
+
 // NewCurrencyPairDelimiter splits the desired currency string at delimeter,
 // the returns a CurrencyPair struct
 func NewCurrencyPairDelimiter(currency, delimiter string) CurrencyPair {
