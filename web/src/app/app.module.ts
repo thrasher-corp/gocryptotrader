@@ -2,7 +2,7 @@ import 'zone.js/dist/zone-mix';
 import 'reflect-metadata';
 import 'polyfills';
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
-import { MdButtonModule, MdCardModule, MdMenuModule, MdToolbarModule, MdIconModule } from '@angular/material';
+import { MdButtonModule, MdCardModule, MdMenuModule, MdToolbarModule, MdIconModule, MdFormFieldModule } from '@angular/material';
 
 import { BrowserModule } from '@angular/platform-browser';
 import { NgModule } from '@angular/core';
@@ -20,11 +20,12 @@ import { NavbarComponent } from './shared/navbar/navbar.component';
 import { AppRoutingModule } from './app-routing.module';
 
 import { WebsocketService } from './services/websocket/websocket.service';
-import { ChatService } from './services/chat.service';
+import { WebsocketHandlerService } from './services/websocket-handler/websocket-handler.service';
 import { ElectronService } from './providers/electron.service';
 
 import * as Rx from 'rxjs/Rx';
 import { ChatbuttonComponent } from './shared/chatbutton/chatbutton.component';
+import { SettingsComponent } from './pages/settings/settings.component';
 
 @NgModule({
   declarations: [
@@ -32,7 +33,8 @@ import { ChatbuttonComponent } from './shared/chatbutton/chatbutton.component';
     HomeComponent,
     AboutComponent,
     NavbarComponent,
-    ChatbuttonComponent
+    ChatbuttonComponent,
+    SettingsComponent
   ],
   imports: [
     BrowserModule,
@@ -46,7 +48,7 @@ import { ChatbuttonComponent } from './shared/chatbutton/chatbutton.component';
     MdToolbarModule,
     MdIconModule
   ],
-  providers: [ElectronService,WebsocketService,ChatService ],
+  providers: [ElectronService,WebsocketService,WebsocketHandlerService],
   bootstrap: [AppComponent]
 })
 export class AppModule {

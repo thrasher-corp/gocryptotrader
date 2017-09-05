@@ -1,5 +1,5 @@
 import { Component, OnInit } from '@angular/core';
-import { ChatService } from './../../services/chat.service';
+import { WebsocketHandlerService } from './../../services/websocket-handler/websocket-handler.service';
 
 @Component({
   selector: 'app-chatbutton',
@@ -8,9 +8,13 @@ import { ChatService } from './../../services/chat.service';
 })
 export class ChatbuttonComponent implements OnInit {
 
-    constructor(private chatService: ChatService) {
-		chatService.messages.subscribe(msg => {			
+    constructor(private chatService: WebsocketHandlerService) {
+		chatService.messages.subscribe(msg => {
+      if(msg.Event === 'orderbook_update')	 {		
       console.log("Response from websocket: " + JSON.stringify(msg));
+      } else {
+        console.log("recieved unsubscribed event of type: "  + msg.Event)
+      }
 		});
 	}
 
@@ -20,7 +24,6 @@ export class ChatbuttonComponent implements OnInit {
   private getSettingsMessage = {
     Event:'GetConfig',
     data:null,
-    
   }
   private authenticateMessage = {
     Event:'auth',
