@@ -10,9 +10,7 @@ import (
 )
 
 const (
-	blockrAPIURL         = "blockr.io/api"
-	blockrAPIVersion     = "1"
-	blockrAddressBalance = "address/balance"
+	cryptoIDAPIURL = "https://chainz.cryptoid.info"
 
 	etherchainAPIURL          = "https://etherchain.org/api"
 	etherchainAccountMultiple = "account/multiple"
@@ -36,32 +34,6 @@ type Address struct {
 	CoinType    string
 	Balance     float64
 	Description string
-}
-
-// BlockrAddress holds JSON incoming and outgoing data for BLOCKR with address
-// information
-type BlockrAddress struct {
-	Address         string  `json:"address"`
-	Balance         float64 `json:"balance"`
-	BalanceMultisig float64 `json:"balance_multisig"`
-}
-
-// BlockrAddressBalanceSingle holds JSON incoming and outgoing data for BLOCKR
-// with address balance information
-type BlockrAddressBalanceSingle struct {
-	Status  string        `json:"status"`
-	Data    BlockrAddress `json:"data"`
-	Code    int           `json:"code"`
-	Message string        `json:"message"`
-}
-
-// BlockrAddressBalanceMulti holds JSON incoming and outgoing data for BLOCKR
-// with address balance information for multiple wallets
-type BlockrAddressBalanceMulti struct {
-	Status  string          `json:"status"`
-	Data    []BlockrAddress `json:"data"`
-	Code    int             `json:"code"`
-	Message string          `json:"message"`
 }
 
 // EtherchainBalanceResponse holds JSON incoming and outgoing data for
@@ -118,56 +90,21 @@ func GetEthereumBalance(address []string) (EtherchainBalanceResponse, error) {
 	return result, nil
 }
 
-// GetBlockrBalanceSingle queries Blockr for an address balance for either a
-// LTC or a BTC single address
-func GetBlockrBalanceSingle(address string, coinType string) (BlockrAddressBalanceSingle, error) {
-	valid, _ := common.IsValidCryptoAddress(address, coinType)
-	if !valid {
-		return BlockrAddressBalanceSingle{}, fmt.Errorf(
-			"Not a %s address", common.StringToUpper(coinType),
-		)
+// GetCryptoIDAddress queries CryptoID for an address balance for a
+// specified cryptocurrency
+func GetCryptoIDAddress(address string, coinType string) (float64, error) {
+	ok, err := common.IsValidCryptoAddress(address, coinType)
+	if !ok || err != nil {
+		return 0, errors.New("invalid address")
 	}
 
-	url := fmt.Sprintf(
-		"https://%s.%s/v%s/%s/%s", common.StringToLower(coinType), blockrAPIURL,
-		blockrAPIVersion, blockrAddressBalance, address,
-	)
-	result := BlockrAddressBalanceSingle{}
-	err := common.SendHTTPGetRequest(url, true, &result)
+	var result interface{}
+	url := fmt.Sprintf("%s/%s/api.dws?q=getbalance&a=%s", cryptoIDAPIURL, common.StringToLower(coinType), address)
+	err = common.SendHTTPGetRequest(url, true, &result)
 	if err != nil {
-		return result, err
+		return 0, err
 	}
-	if result.Status != "success" {
-		return result, errors.New(result.Message)
-	}
-	return result, nil
-}
-
-// GetBlockrAddressMulti queries Blockr for an address balance for either a LTC
-// or a BTC multiple addresses
-func GetBlockrAddressMulti(addresses []string, coinType string) (BlockrAddressBalanceMulti, error) {
-	for _, add := range addresses {
-		valid, _ := common.IsValidCryptoAddress(add, coinType)
-		if !valid {
-			return BlockrAddressBalanceMulti{}, fmt.Errorf(
-				"Not a %s address", common.StringToUpper(coinType),
-			)
-		}
-	}
-	addressesStr := common.JoinStrings(addresses, ",")
-	url := fmt.Sprintf(
-		"https://%s.%s/v%s/%s/%s", common.StringToLower(coinType), blockrAPIURL,
-		blockrAPIVersion, blockrAddressBalance, addressesStr,
-	)
-	result := BlockrAddressBalanceMulti{}
-	err := common.SendHTTPGetRequest(url, true, &result)
-	if err != nil {
-		return result, err
-	}
-	if result.Status != "success" {
-		return result, errors.New(result.Message)
-	}
-	return result, nil
+	return result.(float64), nil
 }
 
 // GetAddressBalance acceses the portfolio base and returns the balance by passed
@@ -213,6 +150,18 @@ func (p *Base) ExchangeAddressExists(exchangeName, coinType string) bool {
 	return false
 }
 
+// AddExchangeAddress adds an exchange address to the portfolio base
+func (p *Base) AddExchangeAddress(exchangeName, coinType string, balance float64) {
+	if p.ExchangeAddressExists(exchangeName, coinType) {
+		p.UpdateExchangeAddressBalance(exchangeName, coinType, balance)
+	} else {
+		p.Addresses = append(
+			p.Addresses, Address{Address: exchangeName, CoinType: coinType,
+				Balance: balance, Description: PortfolioAddressExchange},
+		)
+	}
+}
+
 // UpdateAddressBalance updates the portfolio base balance
 func (p *Base) UpdateAddressBalance(address string, amount float64) {
 	for x := range p.Addresses {
@@ -244,6 +193,10 @@ func (p *Base) UpdateExchangeAddressBalance(exchangeName, coinType string, balan
 
 // AddAddress adds an address to the portfolio base
 func (p *Base) AddAddress(address, coinType, description string, balance float64) {
+	if description == PortfolioAddressExchange {
+		p.AddExchangeAddress(address, coinType, balance)
+		return
+	}
 	if !p.AddressExists(address) {
 		p.Addresses = append(
 			p.Addresses, Address{Address: address, CoinType: coinType,
@@ -286,22 +239,12 @@ func (p *Base) UpdatePortfolio(addresses []string, coinType string) bool {
 		}
 		return true
 	}
-	if len(addresses) > 1 {
-		result, err := GetBlockrAddressMulti(addresses, coinType)
+	for x := range addresses {
+		result, err := GetCryptoIDAddress(addresses[x], coinType)
 		if err != nil {
 			return false
 		}
-		for _, x := range result.Data {
-			p.AddAddress(x.Address, coinType, PortfolioAddressPersonal, x.Balance)
-		}
-	} else {
-		result, err := GetBlockrBalanceSingle(addresses[0], coinType)
-		if err != nil {
-			return false
-		}
-		p.AddAddress(
-			addresses[0], coinType, PortfolioAddressPersonal, result.Data.Balance,
-		)
+		p.AddAddress(addresses[x], coinType, PortfolioAddressPersonal, result)
 	}
 	return true
 }
@@ -413,12 +356,7 @@ func (p *Base) GetPortfolioSummary() Summary {
 			y = y / common.WeiPerEther
 			personalHoldings[x] = y
 		}
-		balance, ok := totalCoins[x]
-		if !ok {
-			totalCoins[x] = y
-		} else {
-			totalCoins[x] = y + balance
-		}
+		totalCoins[x] = y
 	}
 
 	for x, y := range exchangeHoldings {
