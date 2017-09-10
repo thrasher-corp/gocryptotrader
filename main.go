@@ -167,10 +167,24 @@ func main() {
 
 	setupBotExchanges()
 
+	if bot.config.CurrencyExchangeProvider == "yahoo" {
+		currency.SetProvider(true)
+	} else {
+		currency.SetProvider(false)
+	}
+
+	log.Printf("Using %s as currency exchange provider.", bot.config.CurrencyExchangeProvider)
+
 	bot.config.RetrieveConfigCurrencyPairs()
 	err = currency.SeedCurrencyData(currency.BaseCurrencies)
 	if err != nil {
-		log.Fatalf("Fatal error retrieving config currencies. Error: %s", err)
+		currency.SwapProvider()
+		log.Printf("'%s' currency exchange provider failed, swapping to %s and testing..",
+			bot.config.CurrencyExchangeProvider, currency.GetProvider())
+		err = currency.SeedCurrencyData(currency.BaseCurrencies)
+		if err != nil {
+			log.Fatalf("Fatal error retrieving config currencies. Error: %s", err)
+		}
 	}
 
 	log.Println("Successfully retrieved config currencies.")

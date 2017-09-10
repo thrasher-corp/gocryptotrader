@@ -45,6 +45,7 @@ var (
 	WarningWebserverListenAddressInvalid            = "WARNING -- Webserver support disabled due to invalid listen address."
 	WarningWebserverRootWebFolderNotFound           = "WARNING -- Webserver support disabled due to missing web folder."
 	WarningExchangeAuthAPIDefaultOrEmptyValues      = "WARNING -- Exchange %s: Authenticated API support disabled due to default/empty APIKey/Secret/ClientID values."
+	WarningCurrencyExchangeProvider                 = "WARNING -- Currency exchange provider invalid valid. Reset to Fixer."
 	RenamingConfigFile                              = "Renaming config file %s to %s."
 	Cfg                                             Config
 )
@@ -86,14 +87,15 @@ type CurrencyPairFormatConfig struct {
 // Config is the overarching object that holds all the information for
 // prestart management of portfolio, SMSGlobal, webserver and enabled exchange
 type Config struct {
-	Name               string
-	EncryptConfig      int
-	Cryptocurrencies   string
-	CurrencyPairFormat *CurrencyPairFormatConfig `json:"CurrencyPairFormat"`
-	Portfolio          portfolio.Base            `json:"PortfolioAddresses"`
-	SMS                SMSGlobalConfig           `json:"SMSGlobal"`
-	Webserver          WebserverConfig           `json:"Webserver"`
-	Exchanges          []ExchangeConfig          `json:"Exchanges"`
+	Name                     string
+	EncryptConfig            int
+	Cryptocurrencies         string
+	CurrencyExchangeProvider string
+	CurrencyPairFormat       *CurrencyPairFormatConfig `json:"CurrencyPairFormat"`
+	Portfolio                portfolio.Base            `json:"PortfolioAddresses"`
+	SMS                      SMSGlobalConfig           `json:"SMSGlobal"`
+	Webserver                WebserverConfig           `json:"Webserver"`
+	Exchanges                []ExchangeConfig          `json:"Exchanges"`
 }
 
 // ExchangeConfig holds all the information needed for each enabled Exchange.
@@ -426,6 +428,15 @@ func (c *Config) LoadConfig(configPath string) error {
 		if err != nil {
 			log.Print(fmt.Errorf(ErrCheckingConfigValues, err))
 			c.Webserver.Enabled = false
+		}
+	}
+
+	if c.CurrencyExchangeProvider == "" {
+		c.CurrencyExchangeProvider = "fixer"
+	} else {
+		if c.CurrencyExchangeProvider != "yahoo" && c.CurrencyExchangeProvider != "fixer" {
+			log.Println(WarningCurrencyExchangeProvider)
+			c.CurrencyExchangeProvider = "fixer"
 		}
 	}
 
