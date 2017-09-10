@@ -49,12 +49,12 @@ func TestGetAddressBalance(t *testing.T) {
 	portfolio := Base{}
 	portfolio.AddAddress(ltcAddress, ltc, description, balance)
 
-	addBalance, _ := portfolio.GetAddressBalance("LdP8Qox1VAhCzLJNqrr74YovaWYyNBUWvL")
+	addBalance, _ := portfolio.GetAddressBalance("LdP8Qox1VAhCzLJNqrr74YovaWYyNBUWvL", ltc, description)
 	if addBalance != balance {
 		t.Error("Test Failed - Portfolio GetAddressBalance() Error: Incorrect value")
 	}
 
-	addBalance, found := portfolio.GetAddressBalance("WigWham")
+	addBalance, found := portfolio.GetAddressBalance("WigWham", ltc, description)
 	if addBalance != 0 {
 		t.Error("Test Failed - Portfolio GetAddressBalance() Error: Incorrect value")
 	}

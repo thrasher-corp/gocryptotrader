@@ -114,6 +114,20 @@ func TestAdd(t *testing.T) {
 	if len(Items) != 1 {
 		t.Error("Test Failed - stats Add did not add exchange info.")
 	}
+
+	p.FirstCurrency = "XBT"
+	Add("ANX", p, "SPOT", 1201, 43)
+
+	if Items[1].Pair.Pair() != "XBTUSD" {
+		t.Fatal("Test failed. stats Add did not add exchange info.")
+	}
+
+	p = pair.NewCurrencyPair("ETH", "USDT")
+	Add("ANX", p, "SPOT", 300, 1000)
+
+	if Items[2].Pair.Pair() != "ETHUSD" {
+		t.Fatal("Test failed. stats Add did not add exchange info.")
+	}
 }
 
 func TestAppend(t *testing.T) {

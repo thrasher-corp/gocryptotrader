@@ -108,10 +108,12 @@ func GetCryptoIDAddress(address string, coinType string) (float64, error) {
 }
 
 // GetAddressBalance acceses the portfolio base and returns the balance by passed
-// in address
-func (p *Base) GetAddressBalance(address string) (float64, bool) {
+// in address, coin type and description
+func (p *Base) GetAddressBalance(address, coinType, description string) (float64, bool) {
 	for x := range p.Addresses {
-		if p.Addresses[x].Address == address {
+		if p.Addresses[x].Address == address &&
+			p.Addresses[x].Description == description &&
+			p.Addresses[x].CoinType == coinType {
 			return p.Addresses[x].Balance, true
 		}
 	}
