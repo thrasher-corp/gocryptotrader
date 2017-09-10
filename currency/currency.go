@@ -68,8 +68,37 @@ var (
 	ErrCurrencyNotFound       = errors.New("unable to find specified currency")
 	ErrQueryingYahoo          = errors.New("unable to query Yahoo currency values")
 	ErrQueryingYahooZeroCount = errors.New("yahoo returned zero currency data")
-	YahooEnabled              = false
+	YahooEnabled              = true
 )
+
+// SetProvider sets the currency exchange service used by the currency
+// converter
+func SetProvider(yahooEnabled bool) {
+	if yahooEnabled {
+		YahooEnabled = true
+		return
+	}
+	YahooEnabled = false
+}
+
+// SwapProvider swaps the currency exchange service used by the curency
+// converter
+func SwapProvider() {
+	if YahooEnabled {
+		YahooEnabled = false
+		return
+	}
+	YahooEnabled = true
+}
+
+// GetProvider returns the currency exchange service used by the currency
+// converter
+func GetProvider() string {
+	if YahooEnabled {
+		return "yahoo"
+	}
+	return "fixer"
+}
 
 // IsDefaultCurrency checks if the currency passed in matches the default
 // FIAT currency
