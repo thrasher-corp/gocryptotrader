@@ -47,6 +47,12 @@ func NewRouter(exchanges []exchange.IBotExchange) *mux.Router {
 
 	routes = Routes{
 		Route{
+			"",
+			"GET",
+			"/",
+			getIndex,
+		},
+		Route{
 			"GetAllSettings",
 			"GET",
 			"/config/all",
@@ -94,6 +100,12 @@ func NewRouter(exchanges []exchange.IBotExchange) *mux.Router {
 			"/exchanges/{exchangeName}/orderbook/latest/{currency}",
 			RESTGetOrderbook,
 		},
+		Route{
+			"ws",
+			"GET",
+			"/ws",
+			WebsocketClientHandler,
+		},
 	}
 
 	for _, route := range routes {
@@ -113,14 +125,4 @@ func NewRouter(exchanges []exchange.IBotExchange) *mux.Router {
 func getIndex(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprint(w, "<html>GoCryptoTrader RESTful interface. For the web GUI, please visit the <a href=https://github.com/thrasher-/gocryptotrader/blob/master/web/README.md>web GUI readme.</a></html>")
 	w.WriteHeader(http.StatusOK)
-}
-
-// IndexRoute maps the index route to the getIndex function
-var IndexRoute = Routes{
-	Route{
-		"",
-		"GET",
-		"/",
-		getIndex,
-	},
 }

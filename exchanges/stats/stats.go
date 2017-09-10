@@ -54,6 +54,16 @@ func Add(exchange string, p pair.CurrencyPair, assetType string, price, volume f
 		return
 	}
 
+	if p.FirstCurrency == "XBT" {
+		newPair := pair.NewCurrencyPair("BTC", p.SecondCurrency.String())
+		Append(exchange, newPair, assetType, price, volume)
+	}
+
+	if p.SecondCurrency == "USDT" {
+		newPair := pair.NewCurrencyPair(p.FirstCurrency.String(), "USD")
+		Append(exchange, newPair, assetType, price, volume)
+	}
+
 	Append(exchange, p, assetType, price, volume)
 }
 

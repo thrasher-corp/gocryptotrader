@@ -17,16 +17,6 @@ const (
 	WebsocketResponseSuccess = "OK"
 )
 
-// WebsocketRoutes adds ws route to the HTTP server
-var WebsocketRoutes = Routes{
-	Route{
-		"ws",
-		"GET",
-		"/ws",
-		WebsocketClientHandler,
-	},
-}
-
 // WebsocketClient stores information related to the websocket client
 type WebsocketClient struct {
 	ID            int
@@ -304,7 +294,7 @@ func WebsocketHandler() {
 					log.Println(err)
 					continue
 				}
-				hashPW := common.HexEncodeToString(common.GetSHA256([]byte(bot.config.Webserver.AdminUsername)))
+				hashPW := common.HexEncodeToString(common.GetSHA256([]byte(bot.config.Webserver.AdminPassword)))
 				if auth.Username == bot.config.Webserver.AdminUsername && auth.Password == hashPW {
 					WebsocketClientHub[x].Authenticated = true
 					wsResp := WebsocketEventResponse{

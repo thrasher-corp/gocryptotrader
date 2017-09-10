@@ -299,9 +299,15 @@ func SeedExchangeAccountInfo(data []exchange.AccountInfo) {
 						currencyName)
 					port.RemoveExchangeAddress(exchangeName, currencyName)
 				} else {
-					log.Printf("Portfolio: Updating %s %s entry with balance %f.\n",
-						exchangeName, currencyName, total)
-					port.UpdateExchangeAddressBalance(exchangeName, currencyName, total)
+					balance, ok := port.GetAddressBalance(exchangeName, currencyName, portfolio.PortfolioAddressExchange)
+					if !ok {
+						continue
+					}
+					if balance != total {
+						log.Printf("Portfolio: Updating %s %s entry with balance %f.\n",
+							exchangeName, currencyName, total)
+						port.UpdateExchangeAddressBalance(exchangeName, currencyName, total)
+					}
 				}
 			}
 		}
