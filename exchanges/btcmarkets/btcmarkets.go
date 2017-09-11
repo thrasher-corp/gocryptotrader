@@ -97,7 +97,7 @@ func (b *BTCMarkets) GetTicker(symbol string) (Ticker, error) {
 	path := fmt.Sprintf("/market/%s/AUD/tick", common.StringToUpper(symbol))
 
 	return ticker,
-		common.SendHTTPGetRequest(btcMarketsAPIURL+path, true, &ticker)
+		common.SendHTTPGetRequest(btcMarketsAPIURL+path, true, b.Verbose, &ticker)
 }
 
 // GetOrderbook returns current orderbook
@@ -107,7 +107,7 @@ func (b *BTCMarkets) GetOrderbook(symbol string) (Orderbook, error) {
 	path := fmt.Sprintf("/market/%s/AUD/orderbook", common.StringToUpper(symbol))
 
 	return orderbook,
-		common.SendHTTPGetRequest(btcMarketsAPIURL+path, true, &orderbook)
+		common.SendHTTPGetRequest(btcMarketsAPIURL+path, true, b.Verbose, &orderbook)
 }
 
 // GetTrades returns executed trades on the exchange
@@ -117,7 +117,7 @@ func (b *BTCMarkets) GetTrades(symbol string, values url.Values) ([]Trade, error
 	trades := []Trade{}
 	path := common.EncodeURLValues(fmt.Sprintf("%s/market/%s/AUD/trades", btcMarketsAPIURL, symbol), values)
 
-	return trades, common.SendHTTPGetRequest(path, true, &trades)
+	return trades, common.SendHTTPGetRequest(path, true, b.Verbose, &trades)
 }
 
 // NewOrder requests a new order and returns an ID

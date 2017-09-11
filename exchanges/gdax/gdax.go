@@ -110,7 +110,7 @@ func (g *GDAX) GetProducts() ([]Product, error) {
 	products := []Product{}
 
 	return products,
-		common.SendHTTPGetRequest(gdaxAPIURL+gdaxProducts, true, &products)
+		common.SendHTTPGetRequest(gdaxAPIURL+gdaxProducts, true, g.Verbose, &products)
 }
 
 // GetOrderbook returns orderbook by currency pair and level
@@ -123,7 +123,7 @@ func (g *GDAX) GetOrderbook(symbol string, level int) (interface{}, error) {
 		path = fmt.Sprintf("%s/%s/%s?level=%s", gdaxAPIURL+gdaxProducts, symbol, gdaxOrderbook, levelStr)
 	}
 
-	if err := common.SendHTTPGetRequest(path, true, &orderbook); err != nil {
+	if err := common.SendHTTPGetRequest(path, true, g.Verbose, &orderbook); err != nil {
 		return nil, err
 	}
 
@@ -193,7 +193,7 @@ func (g *GDAX) GetTicker(currencyPair string) (Ticker, error) {
 		"%s/%s/%s", gdaxAPIURL+gdaxProducts, currencyPair, gdaxTicker)
 
 	log.Println(path)
-	return ticker, common.SendHTTPGetRequest(path, true, &ticker)
+	return ticker, common.SendHTTPGetRequest(path, true, g.Verbose, &ticker)
 }
 
 // GetTrades listd the latest trades for a product
@@ -203,7 +203,7 @@ func (g *GDAX) GetTrades(currencyPair string) ([]Trade, error) {
 	path := fmt.Sprintf(
 		"%s/%s/%s", gdaxAPIURL+gdaxProducts, currencyPair, gdaxTrades)
 
-	return trades, common.SendHTTPGetRequest(path, true, &trades)
+	return trades, common.SendHTTPGetRequest(path, true, g.Verbose, &trades)
 }
 
 // GetHistoricRates returns historic rates for a product. Rates are returned in
@@ -229,7 +229,7 @@ func (g *GDAX) GetHistoricRates(currencyPair string, start, end, granularity int
 		fmt.Sprintf("%s/%s/%s", gdaxAPIURL+gdaxProducts, currencyPair, gdaxHistory),
 		values)
 
-	if err := common.SendHTTPGetRequest(path, true, &resp); err != nil {
+	if err := common.SendHTTPGetRequest(path, true, g.Verbose, &resp); err != nil {
 		return history, err
 	}
 
@@ -255,7 +255,7 @@ func (g *GDAX) GetStats(currencyPair string) (Stats, error) {
 	path := fmt.Sprintf(
 		"%s/%s/%s", gdaxAPIURL+gdaxProducts, currencyPair, gdaxStats)
 
-	return stats, common.SendHTTPGetRequest(path, true, &stats)
+	return stats, common.SendHTTPGetRequest(path, true, g.Verbose, &stats)
 }
 
 // GetCurrencies returns a list of supported currency on the exchange
@@ -264,7 +264,7 @@ func (g *GDAX) GetCurrencies() ([]Currency, error) {
 	currencies := []Currency{}
 
 	return currencies,
-		common.SendHTTPGetRequest(gdaxAPIURL+gdaxCurrencies, true, &currencies)
+		common.SendHTTPGetRequest(gdaxAPIURL+gdaxCurrencies, true, g.Verbose, &currencies)
 }
 
 // GetServerTime returns the API server time
@@ -272,7 +272,7 @@ func (g *GDAX) GetServerTime() (ServerTime, error) {
 	serverTime := ServerTime{}
 
 	return serverTime,
-		common.SendHTTPGetRequest(gdaxAPIURL+gdaxTime, true, &serverTime)
+		common.SendHTTPGetRequest(gdaxAPIURL+gdaxTime, true, g.Verbose, &serverTime)
 }
 
 // GetAccounts returns a list of trading accounts associated with the APIKEYS
@@ -772,7 +772,7 @@ func (g *GDAX) SendAuthenticatedHTTPRequest(method, path string, params map[stri
 		}
 	}
 
-	nonce := g.Nonce.Evaluate()
+	nonce := g.Nonce.GetValue(g.Name, false).String()
 	message := nonce + method + "/" + path + string(payload)
 	hmac := common.GetHMAC(common.HashSHA256, []byte(message), []byte(g.APISecret))
 	headers := make(map[string]string)

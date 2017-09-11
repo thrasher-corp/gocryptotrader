@@ -488,15 +488,15 @@ func TestSendHTTPGetRequest(t *testing.T) {
 	url := `https://etherchain.org/api/account/multiple/0xde0B295669a9FD93d5F28D9Ec85E40f4cb697BAe`
 	result := test{}
 
-	err := SendHTTPGetRequest(url, true, &result)
+	err := SendHTTPGetRequest(url, true, false, &result)
 	if err != nil {
 		t.Errorf("Test failed - common SendHTTPGetRequest error: %s", err)
 	}
-	err = SendHTTPGetRequest("DINGDONG", true, &result)
+	err = SendHTTPGetRequest("DINGDONG", true, false, &result)
 	if err == nil {
 		t.Error("Test failed - common SendHTTPGetRequest error")
 	}
-	err = SendHTTPGetRequest(url, false, &result)
+	err = SendHTTPGetRequest(url, false, false, &result)
 	if err != nil {
 		t.Error("Test failed - common SendHTTPGetRequest error")
 	}
