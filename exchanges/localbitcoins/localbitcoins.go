@@ -80,7 +80,7 @@ func (l *LocalBitcoins) GetFee(maker bool) float64 {
 
 func (l *LocalBitcoins) GetTicker() (map[string]LocalBitcoinsTicker, error) {
 	result := make(map[string]LocalBitcoinsTicker)
-	err := common.SendHTTPGetRequest(LOCALBITCOINS_API_URL+LOCALBITCOINS_API_TICKER, true, &result)
+	err := common.SendHTTPGetRequest(LOCALBITCOINS_API_URL+LOCALBITCOINS_API_TICKER, true, l.Verbose, &result)
 
 	if err != nil {
 		return result, err
@@ -92,7 +92,7 @@ func (l *LocalBitcoins) GetTicker() (map[string]LocalBitcoinsTicker, error) {
 func (l *LocalBitcoins) GetTrades(currency string, values url.Values) ([]LocalBitcoinsTrade, error) {
 	path := common.EncodeURLValues(fmt.Sprintf("%s/%s/trades.json", LOCALBITCOINS_API_URL+LOCALBITCOINS_API_BITCOINCHARTS, currency), values)
 	result := []LocalBitcoinsTrade{}
-	err := common.SendHTTPGetRequest(path, true, &result)
+	err := common.SendHTTPGetRequest(path, true, l.Verbose, &result)
 
 	if err != nil {
 		return result, err
@@ -109,7 +109,7 @@ func (l *LocalBitcoins) GetOrderbook(currency string) (LocalBitcoinsOrderbook, e
 
 	path := fmt.Sprintf("%s/%s/orderbook.json", LOCALBITCOINS_API_URL+LOCALBITCOINS_API_BITCOINCHARTS, currency)
 	resp := response{}
-	err := common.SendHTTPGetRequest(path, true, &resp)
+	err := common.SendHTTPGetRequest(path, true, l.Verbose, &resp)
 
 	if err != nil {
 		return LocalBitcoinsOrderbook{}, err
@@ -162,7 +162,7 @@ func (l *LocalBitcoins) GetAccountInfo(username string, self bool) (LocalBitcoin
 		}
 	} else {
 		path := fmt.Sprintf("%s/api/account_info/%s/", LOCALBITCOINS_API_URL, username)
-		err := common.SendHTTPGetRequest(path, true, &resp)
+		err := common.SendHTTPGetRequest(path, true, l.Verbose, &resp)
 
 		if err != nil {
 			return resp.Data, err

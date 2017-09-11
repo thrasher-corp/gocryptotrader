@@ -314,7 +314,7 @@ func FetchFixerCurrencyData() error {
 
 	CurrencyStoreFixer = make(map[string]float64)
 
-	err := common.SendHTTPGetRequest(url, true, &result)
+	err := common.SendHTTPGetRequest(url, true, false, &result)
 	if err != nil {
 		return err
 	}

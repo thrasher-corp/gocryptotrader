@@ -1,6 +1,7 @@
 package nonce
 
 import (
+	"strconv"
 	"testing"
 	"time"
 )
@@ -53,6 +54,16 @@ func TestString(t *testing.T) {
 	result := nonce.String()
 	if expected != result {
 		t.Errorf("Test failed. Expected %s got %s", expected, result)
+	}
+}
+
+func TestGetValue(t *testing.T) {
+	var nonce Nonce
+	timeNowNano := strconv.FormatInt(time.Now().UnixNano(), 10)
+	nValue := nonce.GetValue("dingdong", true).String()
+
+	if timeNowNano == nValue {
+		t.Error("Test failed - GetValue() error, incorrect values")
 	}
 }
 

@@ -99,7 +99,7 @@ func (k *Kraken) GetFee(cryptoTrade bool) float64 {
 func (k *Kraken) GetServerTime() error {
 	var result interface{}
 	path := fmt.Sprintf("%s/%s/public/%s", KRAKEN_API_URL, KRAKEN_API_VERSION, KRAKEN_SERVER_TIME)
-	err := common.SendHTTPGetRequest(path, true, &result)
+	err := common.SendHTTPGetRequest(path, true, k.Verbose, &result)
 
 	if err != nil {
 		return err
@@ -112,7 +112,7 @@ func (k *Kraken) GetServerTime() error {
 func (k *Kraken) GetAssets() error {
 	var result interface{}
 	path := fmt.Sprintf("%s/%s/public/%s", KRAKEN_API_URL, KRAKEN_API_VERSION, KRAKEN_ASSETS)
-	err := common.SendHTTPGetRequest(path, true, &result)
+	err := common.SendHTTPGetRequest(path, true, k.Verbose, &result)
 
 	if err != nil {
 		return err
@@ -130,7 +130,7 @@ func (k *Kraken) GetAssetPairs() (map[string]KrakenAssetPairs, error) {
 
 	response := Response{}
 	path := fmt.Sprintf("%s/%s/public/%s", KRAKEN_API_URL, KRAKEN_API_VERSION, KRAKEN_ASSET_PAIRS)
-	err := common.SendHTTPGetRequest(path, true, &response)
+	err := common.SendHTTPGetRequest(path, true, k.Verbose, &response)
 
 	if err != nil {
 		return nil, err
@@ -150,7 +150,7 @@ func (k *Kraken) GetTicker(symbol string) error {
 
 	resp := Response{}
 	path := fmt.Sprintf("%s/%s/public/%s?%s", KRAKEN_API_URL, KRAKEN_API_VERSION, KRAKEN_TICKER, values.Encode())
-	err := common.SendHTTPGetRequest(path, true, &resp)
+	err := common.SendHTTPGetRequest(path, true, k.Verbose, &resp)
 
 	if err != nil {
 		return err
@@ -183,7 +183,7 @@ func (k *Kraken) GetOHLC(symbol string) error {
 
 	var result interface{}
 	path := fmt.Sprintf("%s/%s/public/%s?%s", KRAKEN_API_URL, KRAKEN_API_VERSION, KRAKEN_OHLC, values.Encode())
-	err := common.SendHTTPGetRequest(path, true, &result)
+	err := common.SendHTTPGetRequest(path, true, k.Verbose, &result)
 
 	if err != nil {
 		return err
@@ -201,7 +201,7 @@ func (k *Kraken) GetDepth(symbol string) (Orderbook, error) {
 	var result interface{}
 	var ob Orderbook
 	path := fmt.Sprintf("%s/%s/public/%s?%s", KRAKEN_API_URL, KRAKEN_API_VERSION, KRAKEN_DEPTH, values.Encode())
-	err := common.SendHTTPGetRequest(path, true, &result)
+	err := common.SendHTTPGetRequest(path, true, k.Verbose, &result)
 
 	if err != nil {
 		return ob, err
@@ -257,7 +257,7 @@ func (k *Kraken) GetTrades(symbol string) error {
 
 	var result interface{}
 	path := fmt.Sprintf("%s/%s/public/%s?%s", KRAKEN_API_URL, KRAKEN_API_VERSION, KRAKEN_TRADES, values.Encode())
-	err := common.SendHTTPGetRequest(path, true, &result)
+	err := common.SendHTTPGetRequest(path, true, k.Verbose, &result)
 
 	if err != nil {
 		return err
@@ -273,7 +273,7 @@ func (k *Kraken) GetSpread(symbol string) {
 
 	var result interface{}
 	path := fmt.Sprintf("%s/%s/public/%s?%s", KRAKEN_API_URL, KRAKEN_API_VERSION, KRAKEN_SPREAD, values.Encode())
-	err := common.SendHTTPGetRequest(path, true, &result)
+	err := common.SendHTTPGetRequest(path, true, k.Verbose, &result)
 
 	if err != nil {
 		log.Println(err)
