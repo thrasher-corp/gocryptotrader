@@ -263,7 +263,7 @@ func (l *Liqui) SendAuthenticatedHTTPRequest(method string, values url.Values, r
 	}
 
 	if l.Nonce.Get() == 0 {
-		l.Nonce.Set(time.Now().UnixNano())
+		l.Nonce.Set(time.Now().Unix())
 	} else {
 		l.Nonce.Inc()
 	}
