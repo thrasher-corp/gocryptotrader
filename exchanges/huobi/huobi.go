@@ -68,7 +68,7 @@ func (h *HUOBI) GetFee() float64 {
 func (h *HUOBI) GetTicker(symbol string) (HuobiTicker, error) {
 	resp := HuobiTickerResponse{}
 	path := fmt.Sprintf("https://api.huobi.com/staticmarket/ticker_%s_json.js", symbol)
-	err := common.SendHTTPGetRequest(path, true, &resp)
+	err := common.SendHTTPGetRequest(path, true, h.Verbose, &resp)
 
 	if err != nil {
 		return HuobiTicker{}, err
@@ -79,7 +79,7 @@ func (h *HUOBI) GetTicker(symbol string) (HuobiTicker, error) {
 func (h *HUOBI) GetOrderBook(symbol string) (HuobiOrderbook, error) {
 	path := fmt.Sprintf("https://api.huobi.com/staticmarket/depth_%s_json.js", symbol)
 	resp := HuobiOrderbook{}
-	err := common.SendHTTPGetRequest(path, true, &resp)
+	err := common.SendHTTPGetRequest(path, true, h.Verbose, &resp)
 	if err != nil {
 		return resp, err
 	}

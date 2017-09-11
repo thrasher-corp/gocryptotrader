@@ -160,7 +160,7 @@ func (g *Gemini) GetSymbols() ([]string, error) {
 	symbols := []string{}
 	path := fmt.Sprintf("%s/v%s/%s", geminiAPIURL, geminiAPIVersion, geminiSymbols)
 
-	return symbols, common.SendHTTPGetRequest(path, true, &symbols)
+	return symbols, common.SendHTTPGetRequest(path, true, g.Verbose, &symbols)
 }
 
 // GetTicker returns information about recent trading activity for the symbol
@@ -177,7 +177,7 @@ func (g *Gemini) GetTicker(currencyPair string) (Ticker, error) {
 	resp := TickerResponse{}
 	path := fmt.Sprintf("%s/v%s/%s/%s", geminiAPIURL, geminiAPIVersion, geminiTicker, currencyPair)
 
-	err := common.SendHTTPGetRequest(path, true, &resp)
+	err := common.SendHTTPGetRequest(path, true, g.Verbose, &resp)
 	if err != nil {
 		return ticker, err
 	}
@@ -204,7 +204,7 @@ func (g *Gemini) GetOrderbook(currencyPair string, params url.Values) (Orderbook
 	path := common.EncodeURLValues(fmt.Sprintf("%s/v%s/%s/%s", geminiAPIURL, geminiAPIVersion, geminiOrderbook, currencyPair), params)
 	orderbook := Orderbook{}
 
-	return orderbook, common.SendHTTPGetRequest(path, true, &orderbook)
+	return orderbook, common.SendHTTPGetRequest(path, true, g.Verbose, &orderbook)
 }
 
 // GetTrades eturn the trades that have executed since the specified timestamp.
@@ -220,7 +220,7 @@ func (g *Gemini) GetTrades(currencyPair string, params url.Values) ([]Trade, err
 	path := common.EncodeURLValues(fmt.Sprintf("%s/v%s/%s/%s", geminiAPIURL, geminiAPIVersion, geminiTrades, currencyPair), params)
 	trades := []Trade{}
 
-	return trades, common.SendHTTPGetRequest(path, true, &trades)
+	return trades, common.SendHTTPGetRequest(path, true, g.Verbose, &trades)
 }
 
 // GetAuction returns auction infomation
@@ -228,7 +228,7 @@ func (g *Gemini) GetAuction(currencyPair string) (Auction, error) {
 	path := fmt.Sprintf("%s/v%s/%s/%s", geminiAPIURL, geminiAPIVersion, geminiAuction, currencyPair)
 	auction := Auction{}
 
-	return auction, common.SendHTTPGetRequest(path, true, &auction)
+	return auction, common.SendHTTPGetRequest(path, true, g.Verbose, &auction)
 }
 
 // GetAuctionHistory returns the auction events, optionally including
@@ -246,7 +246,7 @@ func (g *Gemini) GetAuctionHistory(currencyPair string, params url.Values) ([]Au
 	path := common.EncodeURLValues(fmt.Sprintf("%s/v%s/%s/%s/%s", geminiAPIURL, geminiAPIVersion, geminiAuction, currencyPair, geminiAuctionHistory), params)
 	auctionHist := []AuctionHistory{}
 
-	return auctionHist, common.SendHTTPGetRequest(path, true, &auctionHist)
+	return auctionHist, common.SendHTTPGetRequest(path, true, g.Verbose, &auctionHist)
 }
 
 func (g *Gemini) isCorrectSession(role string) error {

@@ -85,7 +85,7 @@ func (l *LakeBTC) GetFee(maker bool) float64 {
 func (l *LakeBTC) GetTicker() (map[string]LakeBTCTicker, error) {
 	response := make(map[string]LakeBTCTickerResponse)
 	path := fmt.Sprintf("%s/%s", LAKEBTC_API_URL, LAKEBTC_TICKER)
-	err := common.SendHTTPGetRequest(path, true, &response)
+	err := common.SendHTTPGetRequest(path, true, l.Verbose, &response)
 	if err != nil {
 		return nil, err
 	}
@@ -126,7 +126,7 @@ func (l *LakeBTC) GetOrderBook(currency string) (LakeBTCOrderbook, error) {
 	}
 	path := fmt.Sprintf("%s/%s?symbol=%s", LAKEBTC_API_URL, LAKEBTC_ORDERBOOK, common.StringToLower(currency))
 	resp := Response{}
-	err := common.SendHTTPGetRequest(path, true, &resp)
+	err := common.SendHTTPGetRequest(path, true, l.Verbose, &resp)
 	if err != nil {
 		return LakeBTCOrderbook{}, err
 	}
@@ -165,7 +165,7 @@ func (l *LakeBTC) GetOrderBook(currency string) (LakeBTCOrderbook, error) {
 func (l *LakeBTC) GetTradeHistory(currency string) ([]LakeBTCTradeHistory, error) {
 	path := fmt.Sprintf("%s/%s?symbol=%s", LAKEBTC_API_URL, LAKEBTC_TRADES, common.StringToLower(currency))
 	resp := []LakeBTCTradeHistory{}
-	err := common.SendHTTPGetRequest(path, true, &resp)
+	err := common.SendHTTPGetRequest(path, true, l.Verbose, &resp)
 	if err != nil {
 		return nil, err
 	}

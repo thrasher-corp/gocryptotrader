@@ -102,7 +102,7 @@ func (l *Liqui) GetAvailablePairs(nonHidden bool) []string {
 func (l *Liqui) GetInfo() (LiquiInfo, error) {
 	req := fmt.Sprintf("%s/%s/%s/", LIQUI_API_PUBLIC_URL, LIQUI_API_PUBLIC_VERSION, LIQUI_INFO)
 	resp := LiquiInfo{}
-	err := common.SendHTTPGetRequest(req, true, &resp)
+	err := common.SendHTTPGetRequest(req, true, l.Verbose, &resp)
 
 	if err != nil {
 		return resp, err
@@ -118,7 +118,7 @@ func (l *Liqui) GetTicker(symbol string) (map[string]LiquiTicker, error) {
 
 	response := Response{}
 	req := fmt.Sprintf("%s/%s/%s/%s", LIQUI_API_PUBLIC_URL, LIQUI_API_PUBLIC_VERSION, LIQUI_TICKER, symbol)
-	err := common.SendHTTPGetRequest(req, true, &response.Data)
+	err := common.SendHTTPGetRequest(req, true, l.Verbose, &response.Data)
 
 	if err != nil {
 		return nil, err
@@ -134,7 +134,7 @@ func (l *Liqui) GetDepth(symbol string) (LiquiOrderbook, error) {
 	response := Response{}
 	req := fmt.Sprintf("%s/%s/%s/%s", LIQUI_API_PUBLIC_URL, LIQUI_API_PUBLIC_VERSION, LIQUI_DEPTH, symbol)
 
-	err := common.SendHTTPGetRequest(req, true, &response.Data)
+	err := common.SendHTTPGetRequest(req, true, l.Verbose, &response.Data)
 	if err != nil {
 		return LiquiOrderbook{}, err
 	}
@@ -151,7 +151,7 @@ func (l *Liqui) GetTrades(symbol string) ([]LiquiTrades, error) {
 	response := Response{}
 	req := fmt.Sprintf("%s/%s/%s/%s", LIQUI_API_PUBLIC_URL, LIQUI_API_PUBLIC_VERSION, LIQUI_TRADES, symbol)
 
-	err := common.SendHTTPGetRequest(req, true, &response.Data)
+	err := common.SendHTTPGetRequest(req, true, l.Verbose, &response.Data)
 	if err != nil {
 		return []LiquiTrades{}, err
 	}

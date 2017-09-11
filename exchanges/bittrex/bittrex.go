@@ -373,7 +373,7 @@ func (b *Bittrex) HTTPRequest(path string, auth bool, values url.Values, v inter
 			return err
 		}
 	} else {
-		if err := common.SendHTTPGetRequest(path, true, &response); err != nil {
+		if err := common.SendHTTPGetRequest(path, true, b.Verbose, &response); err != nil {
 			return err
 		}
 	}
