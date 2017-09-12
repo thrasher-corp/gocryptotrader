@@ -54,9 +54,25 @@ var WebsocketClientHub []WebsocketClient
 // WebsocketClientHandler upgrades the HTTP connection to a websocket
 // compatible one
 func WebsocketClientHandler(w http.ResponseWriter, r *http.Request) {
+	connectionLimit := bot.config.Webserver.WebsocketConnectionLimit
+	numClients := len(WebsocketClientHub)
+
+	if numClients >= connectionLimit {
+		log.Printf("Websocket client rejected due to websocket client limit reached. Number of clients %d. Limit %d.",
+			numClients, connectionLimit)
+		w.WriteHeader(http.StatusForbidden)
+		return
+	}
+
 	upgrader := websocket.Upgrader{
 		WriteBufferSize: 1024,
 		ReadBufferSize:  1024,
+	}
+
+	// Allow insecure origin if the Origin request header is present and not
+	// equal to the Host request header. Default to false
+	if bot.config.Webserver.WebsocketAllowInsecureOrigin {
+		upgrader.CheckOrigin = func(r *http.Request) bool { return true }
 	}
 
 	newClient := WebsocketClient{
@@ -71,7 +87,9 @@ func WebsocketClientHandler(w http.ResponseWriter, r *http.Request) {
 
 	newClient.Conn = conn
 	WebsocketClientHub = append(WebsocketClientHub, newClient)
-	log.Println("New websocket client connected.")
+	numClients++
+	log.Printf("New websocket client connected. Connected clients: %d. Limit %d.",
+		numClients, connectionLimit)
 }
 
 // DisconnectWebsocketClient disconnects a websocket client
