@@ -10,25 +10,22 @@ export class ChatbuttonComponent implements OnInit {
 
     constructor(private chatService: WebsocketHandlerService) {
       	chatService.messages.subscribe(msg => {
+          if(msg.Event == "GetConfig") {
+            this.settings = msg.data;
+          }
         });
 	}
 
   ngOnInit() {
   }
 
+  private settings:any;
+
   private getSettingsMessage = {
     Event:'GetConfig',
     data:null,
-  }
-  private authenticateMessage = {
-    Event:'auth',
-    data:{"username":"Username","password":"16f78a7d6317f102bbd95fc9a4f3ff2e3249287690b8bdad6b7810f82b34ace3"},
-  }
-  
-  authenticate():void {
-		console.log('new message from client to websocket: ', this.authenticateMessage);
-		this.chatService.messages.next(this.authenticateMessage);
-	}
+  };
+ 
 
   getSettings():void {
 		console.log('new message from client to websocket: ', this.getSettingsMessage);
