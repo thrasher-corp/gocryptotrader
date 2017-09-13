@@ -116,6 +116,7 @@ func main() {
 	}
 
 	log.Printf("Bot '%s' started.\n", bot.config.Name)
+	log.Printf("Fiat display currency: %s.", bot.config.FiatDisplayCurrency)
 	AdjustGoMaxProcs()
 
 	if bot.config.SMS.Enabled {
