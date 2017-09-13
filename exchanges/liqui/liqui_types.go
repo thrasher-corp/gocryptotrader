@@ -1,6 +1,23 @@
 package liqui
 
-type LiquiTicker struct {
+// Info holds the current pair information as well as server time
+type Info struct {
+	ServerTime int64               `json:"server_time"`
+	Pairs      map[string]PairData `json:"pairs"`
+}
+
+// PairData is a sub-type for Info
+type PairData struct {
+	DecimalPlaces int     `json:"decimal_places"`
+	MinPrice      float64 `json:"min_price"`
+	MaxPrice      float64 `json:"max_price"`
+	MinAmount     float64 `json:"min_amount"`
+	Hidden        int     `json:"hidden"`
+	Fee           float64 `json:"fee"`
+}
+
+// Ticker contains ticker information
+type Ticker struct {
 	High    float64
 	Low     float64
 	Avg     float64
@@ -12,12 +29,14 @@ type LiquiTicker struct {
 	Updated int64
 }
 
-type LiquiOrderbook struct {
+// Orderbook references both ask and bid sides
+type Orderbook struct {
 	Asks [][]float64 `json:"asks"`
 	Bids [][]float64 `json:"bids"`
 }
 
-type LiquiTrades struct {
+// Trades contains trade information
+type Trades struct {
 	Type      string  `json:"type"`
 	Price     float64 `json:"bid"`
 	Amount    float64 `json:"amount"`
@@ -25,27 +44,8 @@ type LiquiTrades struct {
 	Timestamp int64   `json:"timestamp"`
 }
 
-type LiquiResponse struct {
-	Return  interface{} `json:"return"`
-	Success int         `json:"success"`
-	Error   string      `json:"error"`
-}
-
-type LiquiPair struct {
-	DecimalPlaces int     `json:"decimal_places"`
-	MinPrice      float64 `json:"min_price"`
-	MaxPrice      float64 `json:"max_price"`
-	MinAmount     float64 `json:"min_amount"`
-	Hidden        int     `json:"hidden"`
-	Fee           float64 `json:"fee"`
-}
-
-type LiquiInfo struct {
-	ServerTime int64                `json:"server_time"`
-	Pairs      map[string]LiquiPair `json:"pairs"`
-}
-
-type LiquiAccountInfo struct {
+// AccountInfo contains full account details information
+type AccountInfo struct {
 	Funds  map[string]float64 `json:"funds"`
 	Rights struct {
 		Info     bool `json:"info"`
@@ -57,14 +57,8 @@ type LiquiAccountInfo struct {
 	OpenOrders       int     `json:"open_orders"`
 }
 
-type LiquiTrade struct {
-	Received float64            `json:"received"`
-	Remains  float64            `json:"remains"`
-	OrderID  float64            `json:"order_id"`
-	Funds    map[string]float64 `json:"funds"`
-}
-
-type LiquiActiveOrders struct {
+// ActiveOrders holds active order information
+type ActiveOrders struct {
 	Pair             string  `json:"pair"`
 	Type             string  `json:"sell"`
 	Amount           float64 `json:"amount"`
@@ -73,7 +67,8 @@ type LiquiActiveOrders struct {
 	Status           int     `json:"status"`
 }
 
-type LiquiOrderInfo struct {
+// OrderInfo holds specific order information
+type OrderInfo struct {
 	Pair             string  `json:"pair"`
 	Type             string  `json:"sell"`
 	StartAmount      float64 `json:"start_amount"`
@@ -83,12 +78,22 @@ type LiquiOrderInfo struct {
 	Status           int     `json:"status"`
 }
 
-type LiquiCancelOrder struct {
+// CancelOrder holds cancelled order information
+type CancelOrder struct {
 	OrderID float64            `json:"order_id"`
 	Funds   map[string]float64 `json:"funds"`
 }
 
-type LiquiTradeHistory struct {
+// Trade holds trading information
+type Trade struct {
+	Received float64            `json:"received"`
+	Remains  float64            `json:"remains"`
+	OrderID  float64            `json:"order_id"`
+	Funds    map[string]float64 `json:"funds"`
+}
+
+// TradeHistory contains trade history data
+type TradeHistory struct {
 	Pair      string  `json:"pair"`
 	Type      string  `json:"type"`
 	Amount    float64 `json:"amount"`
@@ -98,7 +103,15 @@ type LiquiTradeHistory struct {
 	Timestamp float64 `json:"timestamp"`
 }
 
-type LiquiWithdrawCoins struct {
+// Response is a generalized return type
+type Response struct {
+	Return  interface{} `json:"return"`
+	Success int         `json:"success"`
+	Error   string      `json:"error"`
+}
+
+// WithdrawCoins shows the amount of coins withdrawn from liqui not yet available
+type WithdrawCoins struct {
 	TID        int64              `json:"tId"`
 	AmountSent float64            `json:"amountSent"`
 	Funds      map[string]float64 `json:"funds"`
