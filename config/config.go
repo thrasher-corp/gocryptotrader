@@ -94,10 +94,11 @@ type Config struct {
 	Cryptocurrencies         string
 	CurrencyExchangeProvider string
 	CurrencyPairFormat       *CurrencyPairFormatConfig `json:"CurrencyPairFormat"`
-	Portfolio                portfolio.Base            `json:"PortfolioAddresses"`
-	SMS                      SMSGlobalConfig           `json:"SMSGlobal"`
-	Webserver                WebserverConfig           `json:"Webserver"`
-	Exchanges                []ExchangeConfig          `json:"Exchanges"`
+	FiatDisplayCurrency      string
+	Portfolio                portfolio.Base   `json:"PortfolioAddresses"`
+	SMS                      SMSGlobalConfig  `json:"SMSGlobal"`
+	Webserver                WebserverConfig  `json:"Webserver"`
+	Exchanges                []ExchangeConfig `json:"Exchanges"`
 }
 
 // ExchangeConfig holds all the information needed for each enabled Exchange.
@@ -452,6 +453,10 @@ func (c *Config) LoadConfig(configPath string) error {
 			Delimiter: "-",
 			Uppercase: true,
 		}
+	}
+
+	if c.FiatDisplayCurrency == "" {
+		c.FiatDisplayCurrency = "USD"
 	}
 
 	return nil

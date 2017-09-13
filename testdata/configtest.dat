@@ -2,10 +2,12 @@
  "Name": "Skynet",
  "EncryptConfig": 0,
  "Cryptocurrencies": "BTC,LTC,ETH,XRP,NMC,NVC,PPC,XBT,DOGE,DASH",
+ "CurrencyExchangeProvider": "fixer",
  "CurrencyPairFormat": {
   "Uppercase": true,
   "Delimiter": "-"
  },
+ "FiatDisplayCurrency": "USD",
  "PortfolioAddresses": {
   "Addresses": [
    {
@@ -50,7 +52,9 @@
   "Enabled": false,
   "AdminUsername": "admin",
   "AdminPassword": "Password",
-  "ListenAddress": ":9050"
+  "ListenAddress": ":9050",
+  "WebsocketConnectionLimit": 1,
+  "WebsocketAllowInsecureOrigin": false
  },
  "Exchanges": [
   {
