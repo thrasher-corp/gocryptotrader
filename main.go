@@ -64,6 +64,7 @@ type ExchangeMain struct {
 // overarching type across this code base.
 type Bot struct {
 	config     *config.Config
+	smsglobal  *smsglobal.Base
 	portfolio  *portfolio.Base
 	exchange   ExchangeMain
 	exchanges  []exchange.IBotExchange
@@ -115,14 +116,16 @@ func main() {
 		log.Fatal(err)
 	}
 
+	AdjustGoMaxProcs()
 	log.Printf("Bot '%s' started.\n", bot.config.Name)
 	log.Printf("Fiat display currency: %s.", bot.config.FiatDisplayCurrency)
-	AdjustGoMaxProcs()
 
 	if bot.config.SMS.Enabled {
+		bot.smsglobal = smsglobal.New(bot.config.SMS.Username, bot.config.SMS.Password,
+			bot.config.Name, bot.config.SMS.Contacts)
 		log.Printf(
 			"SMS support enabled. Number of SMS contacts %d.\n",
-			smsglobal.GetEnabledSMSContacts(bot.config.SMS),
+			bot.smsglobal.GetEnabledContacts(),
 		)
 	} else {
 		log.Println("SMS support disabled.")
