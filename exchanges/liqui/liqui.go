@@ -91,7 +91,7 @@ func (l *Liqui) GetFee(currency string) (float64, error) {
 func (l *Liqui) GetAvailablePairs(nonHidden bool) []string {
 	var pairs []string
 	for x, y := range l.Info.Pairs {
-		if nonHidden && y.Hidden == 1 {
+		if nonHidden && y.Hidden == 1 || x == "" {
 			continue
 		}
 		pairs = append(pairs, common.StringToUpper(x))
