@@ -32,7 +32,7 @@ func (b *Bittrex) Run() {
 		}
 		var currencies []string
 		for x := range exchangeProducts {
-			if !exchangeProducts[x].IsActive {
+			if !exchangeProducts[x].IsActive || exchangeProducts[x].MarketName == "" {
 				continue
 			}
 			currencies = append(currencies, exchangeProducts[x].MarketName)
