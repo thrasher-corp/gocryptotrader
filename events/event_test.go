@@ -3,11 +3,31 @@ package events
 import (
 	"testing"
 
+	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
+	"github.com/thrasher-/gocryptotrader/smsglobal"
 )
 
+var (
+	loaded = false
+)
+
+func testSetup(t *testing.T) {
+	if !loaded {
+		cfg := config.GetConfig()
+		err := cfg.LoadConfig("")
+		if err != nil {
+			t.Fatalf("Test failed. Failed to load config %s", err)
+		}
+		smsglobal.New(cfg.SMS.Username, cfg.SMS.Password, cfg.Name, cfg.SMS.Contacts)
+		loaded = true
+	}
+}
+
 func TestAddEvent(t *testing.T) {
+	testSetup(t)
+
 	pair := pair.NewCurrencyPair("BTC", "USD")
 	eventID, err := AddEvent("ANX", "price", ">,==", pair, "SPOT", actionTest)
 	if err != nil && eventID != 0 {
@@ -36,6 +56,8 @@ func TestAddEvent(t *testing.T) {
 }
 
 func TestRemoveEvent(t *testing.T) {
+	testSetup(t)
+
 	pair := pair.NewCurrencyPair("BTC", "USD")
 	eventID, err := AddEvent("ANX", "price", ">,==", pair, "SPOT", actionTest)
 	if err != nil && eventID != 0 {
@@ -50,6 +72,8 @@ func TestRemoveEvent(t *testing.T) {
 }
 
 func TestGetEventCounter(t *testing.T) {
+	testSetup(t)
+
 	pair := pair.NewCurrencyPair("BTC", "USD")
 	one, err := AddEvent("ANX", "price", ">,==", pair, "SPOT", actionTest)
 	if err != nil {
@@ -87,6 +111,8 @@ func TestGetEventCounter(t *testing.T) {
 }
 
 func TestExecuteAction(t *testing.T) {
+	testSetup(t)
+
 	pair := pair.NewCurrencyPair("BTC", "USD")
 	one, err := AddEvent("ANX", "price", ">,==", pair, "SPOT", actionTest)
 	if err != nil {
@@ -127,11 +153,12 @@ func TestExecuteAction(t *testing.T) {
 	if !RemoveEvent(one) {
 		t.Error("Test Failed. ExecuteAction: Error, error removing event")
 	}
-
 	// More tests when ExecuteAction is expanded
 }
 
 func TestEventToString(t *testing.T) {
+	testSetup(t)
+
 	pair := pair.NewCurrencyPair("BTC", "USD")
 	one, err := AddEvent("ANX", "price", ">,==", pair, "SPOT", actionTest)
 	if err != nil {
@@ -149,6 +176,8 @@ func TestEventToString(t *testing.T) {
 }
 
 func TestCheckCondition(t *testing.T) {
+	testSetup(t)
+
 	// Test invalid currency pair
 	newPair := pair.NewCurrencyPair("A", "B")
 	one, err := AddEvent("ANX", "price", ">=,10", newPair, "SPOT", actionTest)
@@ -219,6 +248,8 @@ func TestCheckCondition(t *testing.T) {
 }
 
 func TestIsValidEvent(t *testing.T) {
+	testSetup(t)
+
 	err := IsValidEvent("ANX", "price", ">,==", actionTest)
 	if err != nil {
 		t.Errorf("Test Failed. IsValidEvent: %s", err)
@@ -253,6 +284,8 @@ func TestIsValidEvent(t *testing.T) {
 }
 
 func TestCheckEvents(t *testing.T) {
+	testSetup(t)
+
 	pair := pair.NewCurrencyPair("BTC", "USD")
 	_, err := AddEvent("ANX", "price", ">=,10", pair, "SPOT", actionTest)
 	if err != nil {
@@ -263,17 +296,21 @@ func TestCheckEvents(t *testing.T) {
 }
 
 func TestIsValidExchange(t *testing.T) {
-	boolean := IsValidExchange("ANX", configPathTest)
+	testSetup(t)
+
+	boolean := IsValidExchange("ANX")
 	if !boolean {
 		t.Error("Test Failed. IsValidExchange: Error, incorrect Exchange")
 	}
-	boolean = IsValidExchange("OBTUSE", configPathTest)
+	boolean = IsValidExchange("OBTUSE")
 	if boolean {
 		t.Error("Test Failed. IsValidExchange: Error, incorrect return")
 	}
 }
 
 func TestIsValidCondition(t *testing.T) {
+	testSetup(t)
+
 	boolean := IsValidCondition(">")
 	if !boolean {
 		t.Error("Test Failed. IsValidCondition: Error, incorrect Condition")
@@ -301,6 +338,8 @@ func TestIsValidCondition(t *testing.T) {
 }
 
 func TestIsValidAction(t *testing.T) {
+	testSetup(t)
+
 	boolean := IsValidAction("sms")
 	if !boolean {
 		t.Error("Test Failed. IsValidAction: Error, incorrect Action")
@@ -316,6 +355,8 @@ func TestIsValidAction(t *testing.T) {
 }
 
 func TestIsValidItem(t *testing.T) {
+	testSetup(t)
+
 	boolean := IsValidItem("price")
 	if !boolean {
 		t.Error("Test Failed. IsValidItem: Error, incorrect Item")

@@ -23,7 +23,6 @@ const (
 	actionSMSNotify    = "SMS"
 	actionConsolePrint = "CONSOLE_PRINT"
 	actionTest         = "ACTION_TEST"
-	configPathTest     = config.ConfigTestFile
 )
 
 var (
@@ -107,12 +106,12 @@ func (e *Event) ExecuteAction() bool {
 		action := common.SplitStrings(e.Action, ",")
 		if action[0] == actionSMSNotify {
 			message := fmt.Sprintf("Event triggered: %s", e.String())
+			s := smsglobal.SMSGlobal
 			if action[1] == "ALL" {
-				smsglobal.SMSSendToAll(message, config.Cfg)
+				s.SendMessageToAll(message)
 			} else {
-				smsglobal.SMSNotify(smsglobal.SMSGetNumberByName(action[1],
-					config.Cfg.SMS), message, config.Cfg,
-				)
+				contact, _ := s.GetContactByName(action[1])
+				s.SendMessage(contact.Number, message)
 			}
 		}
 	} else {
@@ -188,12 +187,7 @@ func IsValidEvent(Exchange, Item, Condition, Action string) error {
 	Item = common.StringToUpper(Item)
 	Action = common.StringToUpper(Action)
 
-	configPath := ""
-	if Action == actionTest {
-		configPath = configPathTest
-	}
-
-	if !IsValidExchange(Exchange, configPath) {
+	if !IsValidExchange(Exchange) {
 		return errExchangeDisabled
 	}
 
@@ -218,10 +212,12 @@ func IsValidEvent(Exchange, Item, Condition, Action string) error {
 			return errInvalidAction
 		}
 
-		cfg := config.GetConfig()
-		if action[1] != "ALL" && smsglobal.SMSGetNumberByName(
-			action[1], cfg.SMS) == smsglobal.ErrSMSContactNotFound {
-			return errInvalidAction
+		if action[1] != "ALL" {
+			s := smsglobal.SMSGlobal
+			_, err := s.GetContactByName(action[1])
+			if err != nil {
+				return errInvalidAction
+			}
 		}
 	} else {
 		if Action != actionConsolePrint && Action != actionTest {
@@ -254,14 +250,9 @@ func CheckEvents() {
 }
 
 // IsValidExchange validates the exchange
-func IsValidExchange(Exchange, configPath string) bool {
+func IsValidExchange(Exchange string) bool {
 	Exchange = common.StringToUpper(Exchange)
-
 	cfg := config.GetConfig()
-	if len(cfg.Exchanges) == 0 {
-		cfg.LoadConfig(configPath)
-	}
-
 	for _, x := range cfg.Exchanges {
 		if x.Name == Exchange && x.Enabled {
 			return true

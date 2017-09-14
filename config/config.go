@@ -14,6 +14,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency"
 	"github.com/thrasher-/gocryptotrader/portfolio"
+	"github.com/thrasher-/gocryptotrader/smsglobal"
 )
 
 // Constants declared here are filename strings and test strings
@@ -66,11 +67,7 @@ type SMSGlobalConfig struct {
 	Enabled  bool
 	Username string
 	Password string
-	Contacts []struct {
-		Name    string
-		Number  string
-		Enabled bool
-	}
+	Contacts []smsglobal.Contact
 }
 
 // Post holds the bot configuration data
