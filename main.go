@@ -19,7 +19,6 @@ import (
 	"github.com/thrasher-/gocryptotrader/exchanges/bitstamp"
 	"github.com/thrasher-/gocryptotrader/exchanges/bittrex"
 	"github.com/thrasher-/gocryptotrader/exchanges/btcc"
-	"github.com/thrasher-/gocryptotrader/exchanges/btce"
 	"github.com/thrasher-/gocryptotrader/exchanges/btcmarkets"
 	"github.com/thrasher-/gocryptotrader/exchanges/coinut"
 	"github.com/thrasher-/gocryptotrader/exchanges/gdax"
@@ -33,6 +32,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/exchanges/okcoin"
 	"github.com/thrasher-/gocryptotrader/exchanges/poloniex"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
+	"github.com/thrasher-/gocryptotrader/exchanges/wex"
 	"github.com/thrasher-/gocryptotrader/portfolio"
 	"github.com/thrasher-/gocryptotrader/smsglobal"
 )
@@ -44,7 +44,7 @@ type ExchangeMain struct {
 	bitstamp      bitstamp.Bitstamp
 	bitfinex      bitfinex.Bitfinex
 	bittrex       bittrex.Bittrex
-	btce          btce.BTCE
+	wex           wex.WEX
 	btcmarkets    btcmarkets.BTCMarkets
 	coinut        coinut.COINUT
 	gdax          gdax.GDAX
@@ -144,7 +144,7 @@ func main() {
 		new(bitstamp.Bitstamp),
 		new(bitfinex.Bitfinex),
 		new(bittrex.Bittrex),
-		new(btce.BTCE),
+		new(wex.WEX),
 		new(btcmarkets.BTCMarkets),
 		new(coinut.COINUT),
 		new(gdax.GDAX),
