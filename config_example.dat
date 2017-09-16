@@ -159,28 +159,6 @@
    }
   },
   {
-   "Name": "BTCE",
-   "Enabled": false,
-   "Verbose": false,
-   "Websocket": false,
-   "RESTPollingDelay": 10,
-   "AuthenticatedAPISupport": false,
-   "APIKey": "Key",
-   "APISecret": "Secret",
-   "AvailablePairs": "BTCUSD,BTCRUR,BTCEUR,LTCBTC,LTCUSD,LTCRUR,LTCEUR,NMCBTC,NMCUSD,NVCBTC,NVCUSD,USDRUR,EURUSD,EURRUR,PPCBTC,PPCUSD",
-   "EnabledPairs": "BTCUSD,BTCRUR,BTCEUR,LTCBTC,LTCUSD,LTCRUR,LTCEUR,NMCBTC,NMCUSD,NVCBTC,NVCUSD,USDRUR,EURUSD,EURRUR,PPCBTC,PPCUSD",
-   "BaseCurrencies": "USD,RUR,EUR",
-   "AssetTypes": "SPOT",
-   "ConfigCurrencyPairFormat": {
-    "Uppercase": true
-   },
-   "RequestCurrencyPairFormat": {
-    "Uppercase": false,
-    "Delimiter": "_",
-    "Separator": "-"
-   }
-  },
-  {
    "Name": "BTC Markets",
    "Enabled": true,
    "Verbose": false,
@@ -450,6 +428,28 @@
    "RequestCurrencyPairFormat": {
     "Uppercase": true,
     "Delimiter": "_"
+   }
+  },
+  {
+   "Name": "WEX",
+   "Enabled": true,
+   "Verbose": false,
+   "Websocket": false,
+   "RESTPollingDelay": 10,
+   "AuthenticatedAPISupport": false,
+   "APIKey": "Key",
+   "APISecret": "Secret",
+   "AvailablePairs": "BTCUSD,BTCRUR,BTCEUR,LTCBTC,LTCUSD,LTCRUR,LTCEUR,NMCBTC,NMCUSD,NVCBTC,NVCUSD,USDRUR,EURUSD,EURRUR,PPCBTC,PPCUSD",
+   "EnabledPairs": "BTCUSD,BTCRUR,BTCEUR,LTCBTC,LTCUSD,LTCRUR,LTCEUR,NMCBTC,NMCUSD,NVCBTC,NVCUSD,USDRUR,EURUSD,EURRUR,PPCBTC,PPCUSD",
+   "BaseCurrencies": "USD,RUR,EUR",
+   "AssetTypes": "SPOT",
+   "ConfigCurrencyPairFormat": {
+    "Uppercase": true
+   },
+   "RequestCurrencyPairFormat": {
+    "Uppercase": false,
+    "Delimiter": "_",
+    "Separator": "-"
    }
   }
  ]

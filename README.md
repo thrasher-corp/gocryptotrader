@@ -24,7 +24,6 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 | Bitstamp | Yes  | Yes       | NA  |
 | Bittrex | Yes | No | NA |
 | BTCC | Yes  | Yes     | No  |
-| BTCE     | Yes  | NA        | NA  |
 | BTCMarkets | Yes | NA       | NA  |
 | COINUT | Yes | No | NA |
 | GDAX(Coinbase) | Yes | Yes | No|
@@ -37,6 +36,7 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 | LocalBitcoins | Yes | NA | NA |
 | OKCoin (both) | Yes | Yes | No |
 | Poloniex | Yes | Yes | NA |
+| WEX     | Yes  | NA        | NA  |
 
 We are aiming to support the top 20 highest volume exchanges based off the [CoinMarketCap exchange data](https://coinmarketcap.com/exchanges/volume/24-hour/).
 
