@@ -10,12 +10,12 @@ import (
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 )
 
-// Start starts the BTCE go routine
+// Start starts the WEX go routine
 func (w *WEX) Start() {
 	go w.Run()
 }
 
-// Run implements the BTCE wrapper
+// Run implements the WEX wrapper
 func (w *WEX) Run() {
 	if w.Verbose {
 		log.Printf("%s Websocket: %s.", w.GetName(), common.IsEnabled(w.Websocket))
@@ -46,7 +46,7 @@ func (w *WEX) UpdateTicker(p pair.CurrencyPair, assetType string) (ticker.Price,
 		tp.Bid = result[currency].Buy
 		tp.Last = result[currency].Last
 		tp.Low = result[currency].Low
-		tp.Volume = result[currency].Vol_cur
+		tp.Volume = result[currency].VolumeCurrent
 		ticker.ProcessTicker(w.Name, x, tp, assetType)
 	}
 	return ticker.GetTicker(w.Name, p, assetType)
@@ -93,7 +93,7 @@ func (w *WEX) UpdateOrderbook(p pair.CurrencyPair, assetType string) (orderbook.
 }
 
 // GetExchangeAccountInfo retrieves balances for all enabled currencies for the
-// BTCE exchange
+// WEX exchange
 func (w *WEX) GetExchangeAccountInfo() (exchange.AccountInfo, error) {
 	var response exchange.AccountInfo
 	response.ExchangeName = w.GetName()
