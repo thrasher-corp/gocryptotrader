@@ -1,4 +1,5 @@
 <div *ngIf="settings !== null">
+    <button (click)="saveSettings()" md-fab color="accent" class="md-fab md-fab-bottom-right">Save</button>
     <form *ngIf="settings.SMSGlobal != null">
         <md-card class="exchange-card">
             <md-card-header>
@@ -26,7 +27,7 @@
                 </md-grid-list>
                 <md-grid-list cols="3" rowHeight="2:1" *ngFor="let contact of settings.SMSGlobal?.Contacts">
                     <md-grid-tile>
-                        <md-checkbox name="contactEnabled" [(ngModel)]="contact.Enabled">Enabled</md-checkbox>
+                        <md-checkbox name="contactEnabled" [disabled]="!settings?.SMSGlobal.Enabled" [(ngModel)]="contact.Enabled">Enabled</md-checkbox>
                     </md-grid-tile>
                     <md-grid-tile>
                         <md-form-field>
@@ -85,7 +86,7 @@
                 </md-grid-list>
             </md-card-content>
         </md-card>
-
     </form>
+
 
 </div>
