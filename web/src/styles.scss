@@ -1,8 +1,29 @@
 /* You can add global styles to this file, and also import other style files */
-html, body {
-  margin: 0;
-  padding: 0;
-  height: 100%;
+
+html,
+body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
 }
 
-@import '~@angular/material/prebuilt-themes/purple-green.css';
+.main {
+    padding: 20px 70px 0;
+    display: block;
+    text-align: center;
+}
+
+.main-content {
+    display: inline-block;
+    text-align: left;
+    max-width: 940px;
+}
+
+@import '~@angular/material/prebuilt-themes/indigo-pink.css';
+
+/*
+deeppurple-amber.css
+indigo-pink.css
+pink-bluegrey.css
+purple-green.css
+*/
