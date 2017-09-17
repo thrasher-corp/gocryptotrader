@@ -45,6 +45,15 @@ export class SettingsComponent implements OnInit {
 
   }
 
+  private saveSettings(): void {
+    //Send the message
+    var settingsSave = {
+      Event: 'SaveConfig',
+      data: this.settings
+    }
+    this.ws.messages.next(settingsSave);
+  }
+
 
   private resendMessageIfPageRefreshed(): void {
     if (this.failCount <= 5) {

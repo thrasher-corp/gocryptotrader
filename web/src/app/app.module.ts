@@ -60,7 +60,7 @@ import * as Rx from 'rxjs/Rx';
     MdFormFieldModule,
     MdInputModule,
     MdCheckboxModule,
-    MdGridListModule,
+    MdGridListModule
   ],
   providers: [ElectronService,WebsocketService,WebsocketHandlerService],
   bootstrap: [AppComponent]
