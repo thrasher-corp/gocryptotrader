@@ -20,17 +20,31 @@ func TestSetDefaults(t *testing.T) {
 }
 
 func TestSetup(t *testing.T) {
-	conf := config.ExchangeConfig{
-		Enabled: true,
+	t.Parallel()
+	b := BTCC{}
+	b.Name = "BTCC"
+	cfg := config.GetConfig()
+	cfg.LoadConfig("../../testdata/configtest.dat")
+	bConfig, err := cfg.GetExchangeConfig("BTCC")
+	if err != nil {
+		t.Error("Test Failed - BTCC Setup() init error")
 	}
-	b.Setup(conf)
 
-	conf = config.ExchangeConfig{
-		Enabled:   false,
-		APIKey:    apiKey,
-		APISecret: apiSecret,
+	b.SetDefaults()
+	b.Setup(bConfig)
+
+	if !b.IsEnabled() || b.AuthenticatedAPISupport || b.RESTPollingDelay != time.Duration(10) ||
+		b.Verbose || b.Websocket || len(b.BaseCurrencies) < 1 ||
+		len(b.AvailablePairs) < 1 || len(b.EnabledPairs) < 1 {
+		t.Error("Test Failed - BTCC Setup values not set correctly")
 	}
-	b.Setup(conf)
+
+	bConfig.Enabled = false
+	b.Setup(bConfig)
+
+	if b.IsEnabled() {
+		t.Error("Test failed - BTCC TestSetup incorrect value")
+	}
 }
 
 func TestGetFee(t *testing.T) {

@@ -2,21 +2,20 @@ package okcoin
 
 import (
 	"log"
-	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
-	"github.com/thrasher-/gocryptotrader/currency"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
 	"github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
-	"github.com/thrasher-/gocryptotrader/exchanges/stats"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 )
 
+// Start starts the OKCoin go routine
 func (o *OKCoin) Start() {
 	go o.Run()
 }
 
+// Run implements the OKCoin wrapper
 func (o *OKCoin) Run() {
 	if o.Verbose {
 		log.Printf("%s Websocket: %s. (url: %s).\n", o.GetName(), common.IsEnabled(o.Websocket), o.WebsocketURL)
@@ -27,105 +26,90 @@ func (o *OKCoin) Run() {
 	if o.Websocket {
 		go o.WebsocketClient()
 	}
+}
 
-	for o.Enabled {
-		for _, x := range o.EnabledPairs {
-			curr := pair.NewCurrencyPair(x[0:3], x[3:])
-			curr.Delimiter = "_"
-			if o.APIUrl == OKCOIN_API_URL {
-				for _, y := range o.FuturesValues {
-					futuresValue := y
-					go func() {
-						ticker, err := o.GetFuturesTicker(curr.Pair().Lower().String(), futuresValue)
-						if err != nil {
-							log.Println(err)
-							return
-						}
-						log.Printf("OKCoin Intl Futures %s (%s): Last %f High %f Low %f Volume %f\n", exchange.FormatCurrency(curr).String(), futuresValue, ticker.Last, ticker.High, ticker.Low, ticker.Vol)
-						stats.AddExchangeInfo(o.GetName(), curr.GetFirstCurrency().String(), curr.GetSecondCurrency().String(), ticker.Last, ticker.Vol)
-					}()
-				}
-				go func() {
-					ticker, err := o.GetTickerPrice(curr)
-					if err != nil {
-						log.Println(err)
-						return
-					}
-					log.Printf("OKCoin Intl Spot %s: Last %f High %f Low %f Volume %f\n", exchange.FormatCurrency(curr).String(), ticker.Last, ticker.High, ticker.Low, ticker.Volume)
-					stats.AddExchangeInfo(o.GetName(), curr.GetFirstCurrency().String(), curr.GetSecondCurrency().String(), ticker.Last, ticker.Volume)
-				}()
-			} else {
-				go func() {
-					ticker, err := o.GetTickerPrice(curr)
-					if err != nil {
-						log.Println(err)
-						return
-					}
-					tickerLastUSD, _ := currency.ConvertCurrency(ticker.Last, "CNY", "USD")
-					tickerHighUSD, _ := currency.ConvertCurrency(ticker.High, "CNY", "USD")
-					tickerLowUSD, _ := currency.ConvertCurrency(ticker.Low, "CNY", "USD")
-					log.Printf("OKCoin China %s: Last %f (%f) High %f (%f) Low %f (%f) Volume %f\n", exchange.FormatCurrency(curr).String(), tickerLastUSD, ticker.Last, tickerHighUSD, ticker.High, tickerLowUSD, ticker.Low, ticker.Volume)
-					stats.AddExchangeInfo(o.GetName(), curr.GetFirstCurrency().String(), curr.GetSecondCurrency().String(), ticker.Last, ticker.Volume)
-					stats.AddExchangeInfo(o.GetName(), curr.GetFirstCurrency().String(), "USD", tickerLastUSD, ticker.Volume)
-				}()
-			}
+// UpdateTicker updates and returns the ticker for a currency pair
+func (o *OKCoin) UpdateTicker(p pair.CurrencyPair, assetType string) (ticker.Price, error) {
+	currency := exchange.FormatExchangeCurrency(o.Name, p).String()
+	var tickerPrice ticker.Price
+
+	if assetType != ticker.Spot && o.APIUrl == OKCOIN_API_URL {
+		tick, err := o.GetFuturesTicker(currency, assetType)
+		if err != nil {
+			return tickerPrice, err
 		}
-		time.Sleep(time.Second * o.RESTPollingDelay)
+		tickerPrice.Pair = p
+		tickerPrice.Ask = tick.Sell
+		tickerPrice.Bid = tick.Buy
+		tickerPrice.Low = tick.Low
+		tickerPrice.Last = tick.Last
+		tickerPrice.Volume = tick.Vol
+		tickerPrice.High = tick.High
+		ticker.ProcessTicker(o.GetName(), p, tickerPrice, assetType)
+	} else {
+		tick, err := o.GetTicker(currency)
+		if err != nil {
+			return tickerPrice, err
+		}
+		tickerPrice.Pair = p
+		tickerPrice.Ask = tick.Sell
+		tickerPrice.Bid = tick.Buy
+		tickerPrice.Low = tick.Low
+		tickerPrice.Last = tick.Last
+		tickerPrice.Volume = tick.Vol
+		tickerPrice.High = tick.High
+		ticker.ProcessTicker(o.GetName(), p, tickerPrice, ticker.Spot)
+
 	}
+	return ticker.GetTicker(o.Name, p, assetType)
 }
 
-func (o *OKCoin) GetTickerPrice(currency pair.CurrencyPair) (ticker.TickerPrice, error) {
-	tickerNew, err := ticker.GetTicker(o.GetName(), currency)
-	if err == nil {
-		return tickerNew, nil
-	}
-
-	var tickerPrice ticker.TickerPrice
-	tick, err := o.GetTicker(currency.Pair().Lower().String())
+// GetTickerPrice returns the ticker for a currency pair
+func (o *OKCoin) GetTickerPrice(p pair.CurrencyPair, assetType string) (ticker.Price, error) {
+	tickerNew, err := ticker.GetTicker(o.GetName(), p, assetType)
 	if err != nil {
-		return tickerPrice, err
+		return o.UpdateTicker(p, assetType)
 	}
-	tickerPrice.Pair = currency
-	tickerPrice.Ask = tick.Sell
-	tickerPrice.Bid = tick.Buy
-	tickerPrice.Low = tick.Low
-	tickerPrice.Last = tick.Last
-	tickerPrice.Volume = tick.Vol
-	tickerPrice.High = tick.High
-	ticker.ProcessTicker(o.GetName(), currency, tickerPrice)
-	return tickerPrice, nil
+	return tickerNew, nil
 }
 
-func (o *OKCoin) GetOrderbookEx(currency pair.CurrencyPair) (orderbook.OrderbookBase, error) {
-	ob, err := orderbook.GetOrderbook(o.GetName(), currency)
+// GetOrderbookEx returns orderbook base on the currency pair
+func (o *OKCoin) GetOrderbookEx(currency pair.CurrencyPair, assetType string) (orderbook.Base, error) {
+	ob, err := orderbook.GetOrderbook(o.GetName(), currency, assetType)
 	if err == nil {
-		return ob, nil
+		return o.UpdateOrderbook(currency, assetType)
 	}
+	return ob, nil
+}
 
-	var orderBook orderbook.OrderbookBase
-	orderbookNew, err := o.GetOrderBook(currency.Pair().Lower().String(), 200, false)
+// UpdateOrderbook updates and returns the orderbook for a currency pair
+func (o *OKCoin) UpdateOrderbook(currency pair.CurrencyPair, assetType string) (orderbook.Base, error) {
+	var orderBook orderbook.Base
+	orderbookNew, err := o.GetOrderBook(exchange.FormatExchangeCurrency(o.Name, currency).String(), 200, false)
 	if err != nil {
 		return orderBook, err
 	}
 
 	for x := range orderbookNew.Bids {
 		data := orderbookNew.Bids[x]
-		orderBook.Bids = append(orderBook.Bids, orderbook.OrderbookItem{Amount: data[1], Price: data[0]})
+		orderBook.Bids = append(orderBook.Bids, orderbook.Item{Amount: data[1], Price: data[0]})
 	}
 
 	for x := range orderbookNew.Asks {
 		data := orderbookNew.Asks[x]
-		orderBook.Asks = append(orderBook.Asks, orderbook.OrderbookItem{Amount: data[1], Price: data[0]})
+		orderBook.Asks = append(orderBook.Asks, orderbook.Item{Amount: data[1], Price: data[0]})
 	}
-	orderBook.Pair = currency
-	orderbook.ProcessOrderbook(o.GetName(), currency, orderBook)
-	return orderBook, nil
+
+	orderbook.ProcessOrderbook(o.GetName(), currency, orderBook, assetType)
+	return orderbook.GetOrderbook(o.Name, currency, assetType)
 }
 
-func (e *OKCoin) GetExchangeAccountInfo() (exchange.AccountInfo, error) {
+// GetExchangeAccountInfo retrieves balances for all enabled currencies for the
+// OKCoin exchange
+func (o *OKCoin) GetExchangeAccountInfo() (exchange.AccountInfo, error) {
 	var response exchange.AccountInfo
-	response.ExchangeName = e.GetName()
-	assets, err := e.GetUserInfo()
+	response.ExchangeName = o.GetName()
+	assets, err := o.GetUserInfo()
 	if err != nil {
 		return response, err
 	}

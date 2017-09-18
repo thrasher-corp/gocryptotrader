@@ -2,22 +2,20 @@ package bitfinex
 
 import (
 	"log"
-	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
 	"github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
-	"github.com/thrasher-/gocryptotrader/exchanges/stats"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 )
 
-// Start starts a new wrapper through a go routine
+// Start starts the Bitfinex go routine
 func (b *Bitfinex) Start() {
 	go b.Run()
 }
 
-// Run starts a new websocketclient connection and monitors ticker information
+// Run implements the Bitfinex wrapper
 func (b *Bitfinex) Run() {
 	if b.Verbose {
 		log.Printf("%s Websocket: %s.", b.GetName(), common.IsEnabled(b.Websocket))
@@ -33,40 +31,21 @@ func (b *Bitfinex) Run() {
 	if err != nil {
 		log.Printf("%s Failed to get available symbols.\n", b.GetName())
 	} else {
-		err = b.UpdateAvailableCurrencies(exchangeProducts)
+		err = b.UpdateAvailableCurrencies(exchangeProducts, false)
 		if err != nil {
 			log.Printf("%s Failed to get config.\n", b.GetName())
 		}
 	}
-
-	for b.Enabled {
-		for _, x := range b.EnabledPairs {
-			currency := pair.NewCurrencyPair(x[0:3], x[3:])
-			go func() {
-				ticker, err := b.GetTickerPrice(currency)
-				if err != nil {
-					return
-				}
-				log.Printf("Bitfinex %s Last %f High %f Low %f Volume %f\n", exchange.FormatCurrency(currency).String(), ticker.Last, ticker.High, ticker.Low, ticker.Volume)
-				stats.AddExchangeInfo(b.GetName(), currency.GetFirstCurrency().String(), currency.GetSecondCurrency().String(), ticker.Last, ticker.Volume)
-			}()
-		}
-		time.Sleep(time.Second * b.RESTPollingDelay)
-	}
 }
 
-// GetTickerPrice returns ticker information
-func (b *Bitfinex) GetTickerPrice(p pair.CurrencyPair) (ticker.TickerPrice, error) {
-	tick, err := ticker.GetTicker(b.GetName(), p)
-	if err == nil {
-		return tick, nil
-	}
-
-	var tickerPrice ticker.TickerPrice
+// UpdateTicker updates and returns the ticker for a currency pair
+func (b *Bitfinex) UpdateTicker(p pair.CurrencyPair, assetType string) (ticker.Price, error) {
+	var tickerPrice ticker.Price
 	tickerNew, err := b.GetTicker(p.Pair().String(), nil)
 	if err != nil {
 		return tickerPrice, err
 	}
+
 	tickerPrice.Pair = p
 	tickerPrice.Ask = tickerNew.Ask
 	tickerPrice.Bid = tickerNew.Bid
@@ -74,34 +53,46 @@ func (b *Bitfinex) GetTickerPrice(p pair.CurrencyPair) (ticker.TickerPrice, erro
 	tickerPrice.Last = tickerNew.Last
 	tickerPrice.Volume = tickerNew.Volume
 	tickerPrice.High = tickerNew.High
-	ticker.ProcessTicker(b.GetName(), p, tickerPrice)
-	return tickerPrice, nil
+	ticker.ProcessTicker(b.GetName(), p, tickerPrice, assetType)
+	return ticker.GetTicker(b.Name, p, assetType)
 }
 
-// GetOrderbookEx returns orderbook information based on currency pair
-func (b *Bitfinex) GetOrderbookEx(p pair.CurrencyPair) (orderbook.OrderbookBase, error) {
-	ob, err := orderbook.GetOrderbook(b.GetName(), p)
-	if err == nil {
-		return ob, nil
+// GetTickerPrice returns the ticker for a currency pair
+func (b *Bitfinex) GetTickerPrice(p pair.CurrencyPair, assetType string) (ticker.Price, error) {
+	tick, err := ticker.GetTicker(b.GetName(), p, ticker.Spot)
+	if err != nil {
+		return b.UpdateTicker(p, assetType)
 	}
+	return tick, nil
+}
 
-	var orderBook orderbook.OrderbookBase
+// GetOrderbookEx returns the orderbook for a currency pair
+func (b *Bitfinex) GetOrderbookEx(p pair.CurrencyPair, assetType string) (orderbook.Base, error) {
+	ob, err := orderbook.GetOrderbook(b.GetName(), p, assetType)
+	if err == nil {
+		return b.UpdateOrderbook(p, assetType)
+	}
+	return ob, nil
+}
+
+// UpdateOrderbook updates and returns the orderbook for a currency pair
+func (b *Bitfinex) UpdateOrderbook(p pair.CurrencyPair, assetType string) (orderbook.Base, error) {
+	var orderBook orderbook.Base
 	orderbookNew, err := b.GetOrderbook(p.Pair().String(), nil)
 	if err != nil {
 		return orderBook, err
 	}
 
 	for x := range orderbookNew.Asks {
-		orderBook.Asks = append(orderBook.Asks, orderbook.OrderbookItem{Price: orderbookNew.Asks[x].Price, Amount: orderbookNew.Asks[x].Amount})
+		orderBook.Asks = append(orderBook.Asks, orderbook.Item{Price: orderbookNew.Asks[x].Price, Amount: orderbookNew.Asks[x].Amount})
 	}
 
 	for x := range orderbookNew.Bids {
-		orderBook.Bids = append(orderBook.Bids, orderbook.OrderbookItem{Price: orderbookNew.Bids[x].Price, Amount: orderbookNew.Bids[x].Amount})
+		orderBook.Bids = append(orderBook.Bids, orderbook.Item{Price: orderbookNew.Bids[x].Price, Amount: orderbookNew.Bids[x].Amount})
 	}
 
-	orderBook.Pair = p
-	orderbook.ProcessOrderbook(b.GetName(), p, orderBook)
-	return orderBook, nil
+	orderbook.ProcessOrderbook(b.GetName(), p, orderBook, assetType)
+	return orderbook.GetOrderbook(b.Name, p, assetType)
 }
 
 // GetExchangeAccountInfo retrieves balances for all enabled currencies on the

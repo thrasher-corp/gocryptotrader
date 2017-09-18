@@ -3,113 +3,134 @@ package stats
 import (
 	"sort"
 
-	"github.com/thrasher-/gocryptotrader/currency"
+	"github.com/thrasher-/gocryptotrader/currency/pair"
 )
 
-type ExchangeInfo struct {
-	Exchange      string
-	FirstCurrency string
-	FiatCurrency  string
-	Price         float64
-	Volume        float64
+// Item holds various fields for storing currency pair stats
+type Item struct {
+	Exchange  string
+	Pair      pair.CurrencyPair
+	AssetType string
+	Price     float64
+	Volume    float64
 }
 
-var ExchInfo []ExchangeInfo
+// Items var array
+var Items []Item
 
-type ByPrice []ExchangeInfo
+// ByPrice allows sorting by price
+type ByPrice []Item
 
-func (this ByPrice) Len() int {
-	return len(this)
+func (b ByPrice) Len() int {
+	return len(b)
 }
 
-func (this ByPrice) Less(i, j int) bool {
-	return this[i].Price < this[j].Price
+func (b ByPrice) Less(i, j int) bool {
+	return b[i].Price < b[j].Price
 }
 
-func (this ByPrice) Swap(i, j int) {
-	this[i], this[j] = this[j], this[i]
+func (b ByPrice) Swap(i, j int) {
+	b[i], b[j] = b[j], b[i]
 }
 
-type ByVolume []ExchangeInfo
+// ByVolume allows sorting by volume
+type ByVolume []Item
 
-func (this ByVolume) Len() int {
-	return len(this)
+func (b ByVolume) Len() int {
+	return len(b)
 }
 
-func (this ByVolume) Less(i, j int) bool {
-	return this[i].Volume < this[j].Volume
+func (b ByVolume) Less(i, j int) bool {
+	return b[i].Volume < b[j].Volume
 }
 
-func (this ByVolume) Swap(i, j int) {
-	this[i], this[j] = this[j], this[i]
+func (b ByVolume) Swap(i, j int) {
+	b[i], b[j] = b[j], b[i]
 }
 
-func AddExchangeInfo(exchange, crypto, fiat string, price, volume float64) {
-	if currency.BaseCurrencies == "" {
-		currency.BaseCurrencies = currency.DefaultCurrencies
-	}
-
-	if !currency.IsFiatCurrency(fiat) {
-		return
-	}
-	AppendExchangeInfo(exchange, crypto, fiat, price, volume)
-
-}
-
-func AppendExchangeInfo(exchange, crypto, fiat string, price, volume float64) {
-	if ExchangeInfoAlreadyExists(exchange, crypto, fiat, price, volume) {
+// Add adds or updates the item stats
+func Add(exchange string, p pair.CurrencyPair, assetType string, price, volume float64) {
+	if exchange == "" || assetType == "" || price == 0 || volume == 0 || p.FirstCurrency == "" || p.SecondCurrency == "" {
 		return
 	}
 
-	exch := ExchangeInfo{}
-	exch.Exchange = exchange
-	exch.FirstCurrency = crypto
-	exch.FiatCurrency = fiat
-	exch.Price = price
-	exch.Volume = volume
-	ExchInfo = append(ExchInfo, exch)
+	if p.FirstCurrency == "XBT" {
+		newPair := pair.NewCurrencyPair("BTC", p.SecondCurrency.String())
+		Append(exchange, newPair, assetType, price, volume)
+	}
+
+	if p.SecondCurrency == "USDT" {
+		newPair := pair.NewCurrencyPair(p.FirstCurrency.String(), "USD")
+		Append(exchange, newPair, assetType, price, volume)
+	}
+
+	Append(exchange, p, assetType, price, volume)
 }
 
-func ExchangeInfoAlreadyExists(exchange, crypto, fiat string, price, volume float64) bool {
-	for i := range ExchInfo {
-		if ExchInfo[i].Exchange == exchange && ExchInfo[i].FirstCurrency == crypto && ExchInfo[i].FiatCurrency == fiat {
-			ExchInfo[i].Price, ExchInfo[i].Volume = price, volume
+// Append adds or updates the item stats for a specific
+// currency pair and asset type
+func Append(exchange string, p pair.CurrencyPair, assetType string, price, volume float64) {
+	if AlreadyExists(exchange, p, assetType, price, volume) {
+		return
+	}
+
+	i := Item{
+		Exchange:  exchange,
+		Pair:      p,
+		AssetType: assetType,
+		Price:     price,
+		Volume:    volume,
+	}
+
+	Items = append(Items, i)
+}
+
+// AlreadyExists checks to see if item info already exists
+// for a specific currency pair and asset type
+func AlreadyExists(exchange string, p pair.CurrencyPair, assetType string, price, volume float64) bool {
+	for i := range Items {
+		if Items[i].Exchange == exchange && Items[i].Pair.Equal(p) && Items[i].AssetType == assetType {
+			Items[i].Price, Items[i].Volume = price, volume
 			return true
 		}
 	}
 	return false
 }
 
-func SortExchangesByVolume(crypto, fiat string, reverse bool) []ExchangeInfo {
-	info := []ExchangeInfo{}
-
-	for _, x := range ExchInfo {
-		if x.FirstCurrency == crypto && x.FiatCurrency == fiat {
-			info = append(info, x)
+// SortExchangesByVolume sorts item info by volume for a specific
+// currency pair and asset type. Reverse will reverse the order from lowest to
+// highest
+func SortExchangesByVolume(p pair.CurrencyPair, assetType string, reverse bool) []Item {
+	var result []Item
+	for x := range Items {
+		if Items[x].Pair.Equal(p) && Items[x].AssetType == assetType {
+			result = append(result, Items[x])
 		}
 	}
 
 	if reverse {
-		sort.Sort(sort.Reverse(ByVolume(info)))
+		sort.Sort(sort.Reverse(ByVolume(result)))
 	} else {
-		sort.Sort(ByVolume(info))
+		sort.Sort(ByVolume(result))
 	}
-	return info
+	return result
 }
 
-func SortExchangesByPrice(crypto, fiat string, reverse bool) []ExchangeInfo {
-	info := []ExchangeInfo{}
-
-	for _, x := range ExchInfo {
-		if x.FirstCurrency == crypto && x.FiatCurrency == fiat {
-			info = append(info, x)
+// SortExchangesByPrice sorts item info by volume for a specific
+// currency pair and asset type. Reverse will reverse the order from lowest to
+// highest
+func SortExchangesByPrice(p pair.CurrencyPair, assetType string, reverse bool) []Item {
+	var result []Item
+	for x := range Items {
+		if Items[x].Pair.Equal(p) && Items[x].AssetType == assetType {
+			result = append(result, Items[x])
 		}
 	}
 
 	if reverse {
-		sort.Sort(sort.Reverse(ByPrice(info)))
+		sort.Sort(sort.Reverse(ByPrice(result)))
 	} else {
-		sort.Sort(ByPrice(info))
+		sort.Sort(ByPrice(result))
 	}
-	return info
+	return result
 }

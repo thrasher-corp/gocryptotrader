@@ -11,6 +11,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/exchanges"
+	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 )
 
 const (
@@ -52,6 +53,11 @@ func (b *BTCMarkets) SetDefaults() {
 	b.Websocket = false
 	b.RESTPollingDelay = 10
 	b.Ticker = make(map[string]Ticker)
+	b.RequestCurrencyPairFormat.Delimiter = ""
+	b.RequestCurrencyPairFormat.Uppercase = true
+	b.ConfigCurrencyPairFormat.Delimiter = ""
+	b.ConfigCurrencyPairFormat.Uppercase = true
+	b.AssetTypes = []string{ticker.Spot}
 }
 
 // Setup takes in an exchange configuration and sets all paramaters
@@ -68,7 +74,14 @@ func (b *BTCMarkets) Setup(exch config.ExchangeConfig) {
 		b.BaseCurrencies = common.SplitStrings(exch.BaseCurrencies, ",")
 		b.AvailablePairs = common.SplitStrings(exch.AvailablePairs, ",")
 		b.EnabledPairs = common.SplitStrings(exch.EnabledPairs, ",")
-
+		err := b.SetCurrencyPairFormat()
+		if err != nil {
+			log.Fatal(err)
+		}
+		err = b.SetAssetTypes()
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 }
 
@@ -84,7 +97,7 @@ func (b *BTCMarkets) GetTicker(symbol string) (Ticker, error) {
 	path := fmt.Sprintf("/market/%s/AUD/tick", common.StringToUpper(symbol))
 
 	return ticker,
-		common.SendHTTPGetRequest(btcMarketsAPIURL+path, true, &ticker)
+		common.SendHTTPGetRequest(btcMarketsAPIURL+path, true, b.Verbose, &ticker)
 }
 
 // GetOrderbook returns current orderbook
@@ -94,7 +107,7 @@ func (b *BTCMarkets) GetOrderbook(symbol string) (Orderbook, error) {
 	path := fmt.Sprintf("/market/%s/AUD/orderbook", common.StringToUpper(symbol))
 
 	return orderbook,
-		common.SendHTTPGetRequest(btcMarketsAPIURL+path, true, &orderbook)
+		common.SendHTTPGetRequest(btcMarketsAPIURL+path, true, b.Verbose, &orderbook)
 }
 
 // GetTrades returns executed trades on the exchange
@@ -104,7 +117,7 @@ func (b *BTCMarkets) GetTrades(symbol string, values url.Values) ([]Trade, error
 	trades := []Trade{}
 	path := common.EncodeURLValues(fmt.Sprintf("%s/market/%s/AUD/trades", btcMarketsAPIURL, symbol), values)
 
-	return trades, common.SendHTTPGetRequest(path, true, &trades)
+	return trades, common.SendHTTPGetRequest(path, true, b.Verbose, &trades)
 }
 
 // NewOrder requests a new order and returns an ID

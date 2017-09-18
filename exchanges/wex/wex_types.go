@@ -1,23 +1,26 @@
-package btce
+package wex
 
-type BTCeTicker struct {
-	High    float64
-	Low     float64
-	Avg     float64
-	Vol     float64
-	Vol_cur float64
-	Last    float64
-	Buy     float64
-	Sell    float64
-	Updated int64
+// Ticker stores the ticker information
+type Ticker struct {
+	High          float64
+	Low           float64
+	Avg           float64
+	Vol           float64
+	VolumeCurrent float64 `json:"vol_cur"`
+	Last          float64
+	Buy           float64
+	Sell          float64
+	Updated       int64
 }
 
-type BTCEOrderbook struct {
+// Orderbook stores the asks and bids orderbook information
+type Orderbook struct {
 	Asks [][]float64 `json:"asks"`
 	Bids [][]float64 `json:"bids"`
 }
 
-type BTCETrades struct {
+// Trades stores trade information
+type Trades struct {
 	Type      string  `json:"type"`
 	Price     float64 `json:"bid"`
 	Amount    float64 `json:"amount"`
@@ -25,13 +28,15 @@ type BTCETrades struct {
 	Timestamp int64   `json:"timestamp"`
 }
 
-type BTCEResponse struct {
+// Response is a generic struct used for exchange API request result
+type Response struct {
 	Return  interface{} `json:"return"`
 	Success int         `json:"success"`
 	Error   string      `json:"error"`
 }
 
-type BTCEPair struct {
+// Pair holds pair information
+type Pair struct {
 	DecimalPlaces int     `json:"decimal_places"`
 	MinPrice      float64 `json:"min_price"`
 	MaxPrice      float64 `json:"max_price"`
@@ -40,12 +45,14 @@ type BTCEPair struct {
 	Fee           float64 `json:"fee"`
 }
 
-type BTCEInfo struct {
-	ServerTime int64               `json:"server_time"`
-	Pairs      map[string]BTCEPair `json:"pairs"`
+// Info holds server time and pair information
+type Info struct {
+	ServerTime int64           `json:"server_time"`
+	Pairs      map[string]Pair `json:"pairs"`
 }
 
-type BTCEAccountInfo struct {
+// AccountInfo stores the account information for a user
+type AccountInfo struct {
 	Funds      map[string]float64 `json:"funds"`
 	OpenOrders int                `json:"open_orders"`
 	Rights     struct {
@@ -57,7 +64,8 @@ type BTCEAccountInfo struct {
 	TransactionCount int     `json:"transaction_count"`
 }
 
-type BTCEActiveOrders struct {
+// ActiveOrders stores active order information
+type ActiveOrders struct {
 	Pair             string  `json:"pair"`
 	Type             string  `json:"sell"`
 	Amount           float64 `json:"amount"`
@@ -66,7 +74,8 @@ type BTCEActiveOrders struct {
 	Status           int     `json:"status"`
 }
 
-type BTCEOrderInfo struct {
+// OrderInfo stores order information
+type OrderInfo struct {
 	Pair             string  `json:"pair"`
 	Type             string  `json:"sell"`
 	StartAmount      float64 `json:"start_amount"`
@@ -76,19 +85,22 @@ type BTCEOrderInfo struct {
 	Status           int     `json:"status"`
 }
 
-type BTCECancelOrder struct {
+// CancelOrder is used for the CancelOrder API request response
+type CancelOrder struct {
 	OrderID float64            `json:"order_id"`
 	Funds   map[string]float64 `json:"funds"`
 }
 
-type BTCETrade struct {
+// Trade stores the trade information
+type Trade struct {
 	Received float64            `json:"received"`
 	Remains  float64            `json:"remains"`
 	OrderID  float64            `json:"order_id"`
 	Funds    map[string]float64 `json:"funds"`
 }
 
-type BTCETransHistory struct {
+// TransHistory stores transaction history
+type TransHistory struct {
 	Type        int     `json:"type"`
 	Amount      float64 `json:"amount"`
 	Currency    string  `json:"currency"`
@@ -97,7 +109,8 @@ type BTCETransHistory struct {
 	Timestamp   float64 `json:"timestamp"`
 }
 
-type BTCETradeHistory struct {
+// TradeHistory stores trade history
+type TradeHistory struct {
 	Pair      string  `json:"pair"`
 	Type      string  `json:"type"`
 	Amount    float64 `json:"amount"`
@@ -107,19 +120,27 @@ type BTCETradeHistory struct {
 	Timestamp float64 `json:"timestamp"`
 }
 
-type BTCEWithdrawCoins struct {
+// CoinDepositAddress stores a curency deposit address
+type CoinDepositAddress struct {
+	Address string `json:"address"`
+}
+
+// WithdrawCoins stores information for a withdrawcoins request
+type WithdrawCoins struct {
 	TID        int64              `json:"tId"`
 	AmountSent float64            `json:"amountSent"`
 	Funds      map[string]float64 `json:"funds"`
 }
 
-type BTCECreateCoupon struct {
+// CreateCoupon stores information coupon information
+type CreateCoupon struct {
 	Coupon  string             `json:"coupon"`
 	TransID int64              `json:"transID"`
 	Funds   map[string]float64 `json:"funds"`
 }
 
-type BTCERedeemCoupon struct {
+// RedeemCoupon stores redeem coupon information
+type RedeemCoupon struct {
 	CouponAmount   float64 `json:"couponAmount,string"`
 	CouponCurrency string  `json:"couponCurrency"`
 	TransID        int64   `json:"transID"`

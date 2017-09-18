@@ -13,6 +13,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/exchanges"
+	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 )
 
 const (
@@ -66,6 +67,11 @@ func (b *Bittrex) SetDefaults() {
 	b.Verbose = false
 	b.Websocket = false
 	b.RESTPollingDelay = 10
+	b.RequestCurrencyPairFormat.Delimiter = "-"
+	b.RequestCurrencyPairFormat.Uppercase = true
+	b.ConfigCurrencyPairFormat.Delimiter = "-"
+	b.ConfigCurrencyPairFormat.Uppercase = true
+	b.AssetTypes = []string{ticker.Spot}
 }
 
 // Setup method sets current configuration details if enabled
@@ -82,6 +88,14 @@ func (b *Bittrex) Setup(exch config.ExchangeConfig) {
 		b.BaseCurrencies = common.SplitStrings(exch.BaseCurrencies, ",")
 		b.AvailablePairs = common.SplitStrings(exch.AvailablePairs, ",")
 		b.EnabledPairs = common.SplitStrings(exch.EnabledPairs, ",")
+		err := b.SetCurrencyPairFormat()
+		if err != nil {
+			log.Fatal(err)
+		}
+		err = b.SetAssetTypes()
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 }
 
@@ -359,7 +373,7 @@ func (b *Bittrex) HTTPRequest(path string, auth bool, values url.Values, v inter
 			return err
 		}
 	} else {
-		if err := common.SendHTTPGetRequest(path, true, &response); err != nil {
+		if err := common.SendHTTPGetRequest(path, true, b.Verbose, &response); err != nil {
 			return err
 		}
 	}

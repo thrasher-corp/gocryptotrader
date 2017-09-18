@@ -11,6 +11,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/exchanges"
+	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 )
 
 const (
@@ -42,6 +43,11 @@ func (l *LakeBTC) SetDefaults() {
 	l.Verbose = false
 	l.Websocket = false
 	l.RESTPollingDelay = 10
+	l.RequestCurrencyPairFormat.Delimiter = ""
+	l.RequestCurrencyPairFormat.Uppercase = true
+	l.ConfigCurrencyPairFormat.Delimiter = ""
+	l.ConfigCurrencyPairFormat.Uppercase = true
+	l.AssetTypes = []string{ticker.Spot}
 }
 
 func (l *LakeBTC) Setup(exch config.ExchangeConfig) {
@@ -57,6 +63,14 @@ func (l *LakeBTC) Setup(exch config.ExchangeConfig) {
 		l.BaseCurrencies = common.SplitStrings(exch.BaseCurrencies, ",")
 		l.AvailablePairs = common.SplitStrings(exch.AvailablePairs, ",")
 		l.EnabledPairs = common.SplitStrings(exch.EnabledPairs, ",")
+		err := l.SetCurrencyPairFormat()
+		if err != nil {
+			log.Fatal(err)
+		}
+		err = l.SetAssetTypes()
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 }
 
@@ -71,7 +85,7 @@ func (l *LakeBTC) GetFee(maker bool) float64 {
 func (l *LakeBTC) GetTicker() (map[string]LakeBTCTicker, error) {
 	response := make(map[string]LakeBTCTickerResponse)
 	path := fmt.Sprintf("%s/%s", LAKEBTC_API_URL, LAKEBTC_TICKER)
-	err := common.SendHTTPGetRequest(path, true, &response)
+	err := common.SendHTTPGetRequest(path, true, l.Verbose, &response)
 	if err != nil {
 		return nil, err
 	}
@@ -112,7 +126,7 @@ func (l *LakeBTC) GetOrderBook(currency string) (LakeBTCOrderbook, error) {
 	}
 	path := fmt.Sprintf("%s/%s?symbol=%s", LAKEBTC_API_URL, LAKEBTC_ORDERBOOK, common.StringToLower(currency))
 	resp := Response{}
-	err := common.SendHTTPGetRequest(path, true, &resp)
+	err := common.SendHTTPGetRequest(path, true, l.Verbose, &resp)
 	if err != nil {
 		return LakeBTCOrderbook{}, err
 	}
@@ -151,7 +165,7 @@ func (l *LakeBTC) GetOrderBook(currency string) (LakeBTCOrderbook, error) {
 func (l *LakeBTC) GetTradeHistory(currency string) ([]LakeBTCTradeHistory, error) {
 	path := fmt.Sprintf("%s/%s?symbol=%s", LAKEBTC_API_URL, LAKEBTC_TRADES, common.StringToLower(currency))
 	resp := []LakeBTCTradeHistory{}
-	err := common.SendHTTPGetRequest(path, true, &resp)
+	err := common.SendHTTPGetRequest(path, true, l.Verbose, &resp)
 	if err != nil {
 		return nil, err
 	}

@@ -13,6 +13,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/exchanges"
+	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 )
 
 const (
@@ -81,6 +82,11 @@ func (b *Bitfinex) SetDefaults() {
 	b.Websocket = false
 	b.RESTPollingDelay = 10
 	b.WebsocketSubdChannels = make(map[int]WebsocketChanInfo)
+	b.RequestCurrencyPairFormat.Delimiter = ""
+	b.RequestCurrencyPairFormat.Uppercase = true
+	b.ConfigCurrencyPairFormat.Delimiter = ""
+	b.ConfigCurrencyPairFormat.Uppercase = true
+	b.AssetTypes = []string{ticker.Spot}
 }
 
 // Setup takes in the supplied exchange configuration details and sets params
@@ -97,6 +103,14 @@ func (b *Bitfinex) Setup(exch config.ExchangeConfig) {
 		b.BaseCurrencies = common.SplitStrings(exch.BaseCurrencies, ",")
 		b.AvailablePairs = common.SplitStrings(exch.AvailablePairs, ",")
 		b.EnabledPairs = common.SplitStrings(exch.EnabledPairs, ",")
+		err := b.SetCurrencyPairFormat()
+		if err != nil {
+			log.Fatal(err)
+		}
+		err = b.SetAssetTypes()
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 }
 
@@ -105,7 +119,7 @@ func (b *Bitfinex) GetTicker(symbol string, values url.Values) (Ticker, error) {
 	response := Ticker{}
 	path := common.EncodeURLValues(bitfinexAPIURL+bitfinexTicker+symbol, values)
 
-	return response, common.SendHTTPGetRequest(path, true, &response)
+	return response, common.SendHTTPGetRequest(path, true, b.Verbose, &response)
 }
 
 // GetStats returns various statistics about the requested pair
@@ -113,7 +127,7 @@ func (b *Bitfinex) GetStats(symbol string) ([]Stat, error) {
 	response := []Stat{}
 	path := fmt.Sprint(bitfinexAPIURL + bitfinexStats + symbol)
 
-	return response, common.SendHTTPGetRequest(path, true, &response)
+	return response, common.SendHTTPGetRequest(path, true, b.Verbose, &response)
 }
 
 // GetFundingBook the entire margin funding book for both bids and asks sides
@@ -123,7 +137,7 @@ func (b *Bitfinex) GetFundingBook(symbol string) (FundingBook, error) {
 	response := FundingBook{}
 	path := fmt.Sprint(bitfinexAPIURL + bitfinexLendbook + symbol)
 
-	return response, common.SendHTTPGetRequest(path, true, &response)
+	return response, common.SendHTTPGetRequest(path, true, b.Verbose, &response)
 }
 
 // GetOrderbook retieves the entire orderbook bid and ask price on a currency
@@ -135,7 +149,7 @@ func (b *Bitfinex) GetOrderbook(currencyPair string, values url.Values) (Orderbo
 		bitfinexAPIURL+bitfinexOrderbook+currencyPair,
 		values,
 	)
-	return response, common.SendHTTPGetRequest(path, true, &response)
+	return response, common.SendHTTPGetRequest(path, true, b.Verbose, &response)
 }
 
 // GetTrades returns a list of the most recent trades for the given curencyPair
@@ -146,7 +160,7 @@ func (b *Bitfinex) GetTrades(currencyPair string, values url.Values) ([]TradeStr
 		bitfinexAPIURL+bitfinexTrades+currencyPair,
 		values,
 	)
-	return response, common.SendHTTPGetRequest(path, true, &response)
+	return response, common.SendHTTPGetRequest(path, true, b.Verbose, &response)
 }
 
 // GetLendbook returns a list of the most recent funding data for the given
@@ -160,7 +174,7 @@ func (b *Bitfinex) GetLendbook(symbol string, values url.Values) (Lendbook, erro
 	}
 	path := common.EncodeURLValues(bitfinexAPIURL+bitfinexLendbook+symbol, values)
 
-	return response, common.SendHTTPGetRequest(path, true, &response)
+	return response, common.SendHTTPGetRequest(path, true, b.Verbose, &response)
 }
 
 // GetLends returns a list of the most recent funding data for the given
@@ -171,7 +185,7 @@ func (b *Bitfinex) GetLends(symbol string, values url.Values) ([]Lends, error) {
 	response := []Lends{}
 	path := common.EncodeURLValues(bitfinexAPIURL+bitfinexLends+symbol, values)
 
-	return response, common.SendHTTPGetRequest(path, true, &response)
+	return response, common.SendHTTPGetRequest(path, true, b.Verbose, &response)
 }
 
 // GetSymbols returns the avaliable currency pairs on the exchange
@@ -179,7 +193,7 @@ func (b *Bitfinex) GetSymbols() ([]string, error) {
 	products := []string{}
 	path := fmt.Sprint(bitfinexAPIURL + bitfinexSymbols)
 
-	return products, common.SendHTTPGetRequest(path, true, &products)
+	return products, common.SendHTTPGetRequest(path, true, b.Verbose, &products)
 }
 
 // GetSymbolsDetails a list of valid symbol IDs and the pair details
@@ -187,7 +201,7 @@ func (b *Bitfinex) GetSymbolsDetails() ([]SymbolDetails, error) {
 	response := []SymbolDetails{}
 	path := fmt.Sprint(bitfinexAPIURL + bitfinexSymbolsDetails)
 
-	return response, common.SendHTTPGetRequest(path, true, &response)
+	return response, common.SendHTTPGetRequest(path, true, b.Verbose, &response)
 }
 
 // GetAccountInfo returns information about your account incl. trading fees

@@ -3,6 +3,7 @@ package btcmarkets
 import (
 	"net/url"
 	"testing"
+	"time"
 
 	"github.com/thrasher-/gocryptotrader/config"
 )
@@ -20,16 +21,31 @@ func TestSetDefaults(t *testing.T) {
 }
 
 func TestSetup(t *testing.T) {
-	conf := config.ExchangeConfig{}
-	bm.Setup(conf)
-
-	conf = config.ExchangeConfig{
-		APIKey:                  apiKey,
-		APISecret:               apiSecret,
-		Enabled:                 true,
-		AuthenticatedAPISupport: true,
+	t.Parallel()
+	b := BTCMarkets{}
+	b.Name = "BTC Markets"
+	cfg := config.GetConfig()
+	cfg.LoadConfig("../../testdata/configtest.dat")
+	bConfig, err := cfg.GetExchangeConfig("BTC Markets")
+	if err != nil {
+		t.Error("Test Failed - BTC Markets Setup() init error")
 	}
-	bm.Setup(conf)
+
+	b.SetDefaults()
+	b.Setup(bConfig)
+
+	if !b.IsEnabled() || b.AuthenticatedAPISupport || b.RESTPollingDelay != time.Duration(10) ||
+		b.Verbose || b.Websocket || len(b.BaseCurrencies) < 1 ||
+		len(b.AvailablePairs) < 1 || len(b.EnabledPairs) < 1 {
+		t.Error("Test Failed - BTC Markets Setup values not set correctly")
+	}
+
+	bConfig.Enabled = false
+	b.Setup(bConfig)
+
+	if b.IsEnabled() {
+		t.Error("Test failed - BTC Markets TestSetup incorrect value")
+	}
 }
 
 func TestGetFee(t *testing.T) {

@@ -13,6 +13,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/exchanges"
+	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 )
 
 const (
@@ -60,6 +61,11 @@ func (b *Bitstamp) SetDefaults() {
 	b.Verbose = false
 	b.Websocket = false
 	b.RESTPollingDelay = 10
+	b.RequestCurrencyPairFormat.Delimiter = ""
+	b.RequestCurrencyPairFormat.Uppercase = true
+	b.ConfigCurrencyPairFormat.Delimiter = ""
+	b.ConfigCurrencyPairFormat.Uppercase = true
+	b.AssetTypes = []string{ticker.Spot}
 }
 
 // Setup sets configuration values to bitstamp
@@ -76,6 +82,14 @@ func (b *Bitstamp) Setup(exch config.ExchangeConfig) {
 		b.BaseCurrencies = common.SplitStrings(exch.BaseCurrencies, ",")
 		b.AvailablePairs = common.SplitStrings(exch.AvailablePairs, ",")
 		b.EnabledPairs = common.SplitStrings(exch.EnabledPairs, ",")
+		err := b.SetCurrencyPairFormat()
+		if err != nil {
+			log.Fatal(err)
+		}
+		err = b.SetAssetTypes()
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 }
 
@@ -113,7 +127,7 @@ func (b *Bitstamp) GetTicker(currency string, hourly bool) (Ticker, error) {
 		tickerEndpoint,
 		common.StringToLower(currency),
 	)
-	return response, common.SendHTTPGetRequest(path, true, &response)
+	return response, common.SendHTTPGetRequest(path, true, b.Verbose, &response)
 }
 
 // GetOrderbook Returns a JSON dictionary with "bids" and "asks". Each is a list
@@ -135,7 +149,7 @@ func (b *Bitstamp) GetOrderbook(currency string) (Orderbook, error) {
 		common.StringToLower(currency),
 	)
 
-	err := common.SendHTTPGetRequest(path, true, &resp)
+	err := common.SendHTTPGetRequest(path, true, b.Verbose, &resp)
 	if err != nil {
 		return Orderbook{}, err
 	}
@@ -190,7 +204,7 @@ func (b *Bitstamp) GetTransactions(currencyPair string, values url.Values) ([]Tr
 		values,
 	)
 
-	return transactions, common.SendHTTPGetRequest(path, true, &transactions)
+	return transactions, common.SendHTTPGetRequest(path, true, b.Verbose, &transactions)
 }
 
 // GetEURUSDConversionRate returns the conversion rate between Euro and USD
@@ -198,7 +212,7 @@ func (b *Bitstamp) GetEURUSDConversionRate() (EURUSDConversionRate, error) {
 	rate := EURUSDConversionRate{}
 	path := fmt.Sprintf("%s/%s", bitstampAPIURL, bitstampAPIEURUSD)
 
-	return rate, common.SendHTTPGetRequest(path, true, &rate)
+	return rate, common.SendHTTPGetRequest(path, true, b.Verbose, &rate)
 }
 
 // GetBalance returns full balance of currency held on the exchange

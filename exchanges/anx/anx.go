@@ -11,6 +11,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/exchanges"
+	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 )
 
 const (
@@ -39,6 +40,13 @@ func (a *ANX) SetDefaults() {
 	a.Verbose = false
 	a.Websocket = false
 	a.RESTPollingDelay = 10
+	a.RequestCurrencyPairFormat.Delimiter = ""
+	a.RequestCurrencyPairFormat.Uppercase = true
+	a.RequestCurrencyPairFormat.Index = "BTC"
+	a.ConfigCurrencyPairFormat.Delimiter = ""
+	a.ConfigCurrencyPairFormat.Uppercase = true
+	a.ConfigCurrencyPairFormat.Index = "BTC"
+	a.AssetTypes = []string{ticker.Spot}
 }
 
 //Setup is run on startup to setup exchange with config values
@@ -55,6 +63,14 @@ func (a *ANX) Setup(exch config.ExchangeConfig) {
 		a.BaseCurrencies = common.SplitStrings(exch.BaseCurrencies, ",")
 		a.AvailablePairs = common.SplitStrings(exch.AvailablePairs, ",")
 		a.EnabledPairs = common.SplitStrings(exch.EnabledPairs, ",")
+		err := a.SetCurrencyPairFormat()
+		if err != nil {
+			log.Fatal(err)
+		}
+		err = a.SetAssetTypes()
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 }
 
@@ -67,7 +83,7 @@ func (a *ANX) GetFee(maker bool) float64 {
 
 func (a *ANX) GetTicker(currency string) (ANXTicker, error) {
 	var ticker ANXTicker
-	err := common.SendHTTPGetRequest(fmt.Sprintf("%sapi/2/%s/%s", ANX_API_URL, currency, ANX_TICKER), true, &ticker)
+	err := common.SendHTTPGetRequest(fmt.Sprintf("%sapi/2/%s/%s", ANX_API_URL, currency, ANX_TICKER), true, a.Verbose, &ticker)
 	if err != nil {
 		return ANXTicker{}, err
 	}
