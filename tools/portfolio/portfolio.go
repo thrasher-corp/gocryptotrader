@@ -9,22 +9,33 @@ import (
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/currency"
+	"github.com/thrasher-/gocryptotrader/currency/symbol"
 	"github.com/thrasher-/gocryptotrader/exchanges/bitfinex"
 	"github.com/thrasher-/gocryptotrader/portfolio"
 )
 
 var (
-	priceMap map[string]float64
+	priceMap        map[string]float64
+	displayCurrency string
 )
 
-func printSummary(msg, from, to string, amount float64) {
+func printSummary(msg string, amount float64) {
 	log.Println()
 	log.Println(fmt.Sprintf("%s in USD: $%.2f", msg, amount))
-	conv, err := currency.ConvertCurrency(amount, "USD", "AUD")
-	if err != nil {
-		log.Println(err)
-	} else {
-		log.Println(fmt.Sprintf("%s in AUD: $%.2f", msg, conv))
+
+	if displayCurrency != "USD" {
+		conv, err := currency.ConvertCurrency(amount, "USD", displayCurrency)
+		if err != nil {
+			log.Println(err)
+		} else {
+			symb, err := symbol.GetSymbolByCurrencyName(displayCurrency)
+			if err != nil {
+				log.Println(fmt.Sprintf("%s in %s: %.2f", msg, displayCurrency, conv))
+			} else {
+				log.Println(fmt.Sprintf("%s in %s: %s%.2f", msg, displayCurrency, symb, conv))
+			}
+
+		}
 	}
 	log.Println()
 }
@@ -38,9 +49,9 @@ func getOnlineOfflinePortfolio(coins []portfolio.Coin, online bool) {
 			x.Balance, value, x.Percentage)
 	}
 	if !online {
-		printSummary("\tOffline balance", "USD", "AUD", totals)
+		printSummary("\tOffline balance", totals)
 	} else {
-		printSummary("\tOnline balance", "USD", "AUD", totals)
+		printSummary("\tOnline balance", totals)
 	}
 }
 
@@ -53,12 +64,13 @@ func main() {
 	log.Println("GoCryptoTrader: portfolio tool.")
 
 	var cfg config.Config
-	var err = cfg.ReadConfig(inFile)
+	var err = cfg.LoadConfig(inFile)
 	if err != nil {
 		log.Fatal(err)
 	}
 	log.Println("Loaded config file.")
 
+	displayCurrency = cfg.FiatDisplayCurrency
 	port := portfolio.Base{}
 	port.SeedPortfolio(cfg.Portfolio)
 	result := port.GetPortfolioSummary()
@@ -127,7 +139,7 @@ func main() {
 	for x, y := range portfolioMap {
 		log.Printf("\t%s Amount: %f Subtotal: $%.2f USD (1 %s = $%.2f USD). Percentage of portfolio %.3f%%", x, y.Balance, y.Subtotal, x, y.Subtotal/y.Balance, y.Subtotal/total*100/1)
 	}
-	printSummary("\tTotal balance", "USD", "AUD", total)
+	printSummary("\tTotal balance", total)
 
 	log.Println("OFFLINE COIN TOTALS:")
 	getOnlineOfflinePortfolio(result.Offline, false)
@@ -146,7 +158,7 @@ func main() {
 			log.Printf("\t %s Amount: %f Subtotal: $%.2f Coin percentage: %.2f%%\n",
 				y[z].Address, y[z].Balance, value, y[z].Percentage)
 		}
-		printSummary(fmt.Sprintf("\t %s balance", x), "USD", "AUD", totals)
+		printSummary(fmt.Sprintf("\t %s balance", x), totals)
 	}
 
 	log.Println("ONLINE COINS SUMMARY:")
@@ -159,6 +171,6 @@ func main() {
 			log.Printf("\t %s Amount: %f Subtotal $%.2f Coin percentage: %.2f%%",
 				z, w.Balance, value, w.Percentage)
 		}
-		printSummary("\t Exchange balance", "USD", "AUD", totals)
+		printSummary("\t Exchange balance", totals)
 	}
 }

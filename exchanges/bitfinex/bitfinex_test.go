@@ -8,7 +8,6 @@ import (
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
-	"github.com/thrasher-/gocryptotrader/currency"
 )
 
 // Please supply your own keys here to do better tests
@@ -30,24 +29,21 @@ func TestSetDefaults(t *testing.T) {
 }
 
 func TestSetup(t *testing.T) {
-	testConfig := config.ExchangeConfig{
-		Enabled:                 true,
-		AuthenticatedAPISupport: true,
-		APIKey:                  testAPIKey,
-		APISecret:               testAPISecret,
-		RESTPollingDelay:        time.Duration(10),
-		Verbose:                 false,
-		Websocket:               true,
-		BaseCurrencies:          currency.DefaultCurrencies,
-		AvailablePairs:          currency.MakecurrencyPairs(currency.DefaultCurrencies),
-		EnabledPairs:            currency.MakecurrencyPairs(currency.DefaultCurrencies),
+	setup := Bitfinex{}
+	setup.Name = "Bitfinex"
+	cfg := config.GetConfig()
+	cfg.LoadConfig("../../testdata/configtest.dat")
+	bfxConfig, err := cfg.GetExchangeConfig("Bitfinex")
+	if err != nil {
+		t.Error("Test Failed - Bitfinex Setup() init error")
 	}
+	setup.Setup(bfxConfig)
 
-	b.Setup(testConfig)
+	b.SetDefaults()
+	b.Setup(bfxConfig)
 
-	if !b.Enabled || !b.AuthenticatedAPISupport || b.APIKey != testAPIKey ||
-		b.APISecret != testAPISecret || b.RESTPollingDelay != time.Duration(10) ||
-		b.Verbose || !b.Websocket || len(b.BaseCurrencies) < 1 ||
+	if !b.Enabled || b.AuthenticatedAPISupport || b.RESTPollingDelay != time.Duration(10) ||
+		b.Verbose || b.Websocket || len(b.BaseCurrencies) < 1 ||
 		len(b.AvailablePairs) < 1 || len(b.EnabledPairs) < 1 {
 		t.Error("Test Failed - Bitfinex Setup values not set correctly")
 	}

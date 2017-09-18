@@ -1,8 +1,6 @@
 package alphapoint
 
 import (
-	"log"
-
 	"github.com/thrasher-/gocryptotrader/currency/pair"
 	"github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
@@ -30,28 +28,37 @@ func (a *Alphapoint) GetExchangeAccountInfo() (exchange.AccountInfo, error) {
 	return response, nil
 }
 
-// GetTickerPrice returns the current ticker price by currency pair
-func (a *Alphapoint) GetTickerPrice(p pair.CurrencyPair) ticker.TickerPrice {
-	var tickerPrice ticker.TickerPrice
+// UpdateTicker updates and returns the ticker for a currency pair
+func (a *Alphapoint) UpdateTicker(p pair.CurrencyPair, assetType string) (ticker.Price, error) {
+	var tickerPrice ticker.Price
 	tick, err := a.GetTicker(p.Pair().String())
 	if err != nil {
-		log.Println(err)
-		return ticker.TickerPrice{}
+		return tickerPrice, err
 	}
+
 	tickerPrice.Pair = p
 	tickerPrice.Ask = tick.Ask
 	tickerPrice.Bid = tick.Bid
-	return tickerPrice
+	tickerPrice.Low = tick.Low
+	tickerPrice.High = tick.High
+	tickerPrice.Volume = tick.Volume
+	tickerPrice.Last = tick.Last
+	ticker.ProcessTicker(a.GetName(), p, tickerPrice, assetType)
+	return ticker.GetTicker(a.Name, p, assetType)
 }
 
-// GetOrderbookEx returns an orderbookbase by currency pair
-func (a *Alphapoint) GetOrderbookEx(p pair.CurrencyPair) (orderbook.OrderbookBase, error) {
-	ob, err := orderbook.GetOrderbook(a.GetName(), p)
-	if err == nil {
-		return ob, nil
+// GetTickerPrice returns the ticker for a currency pair
+func (a *Alphapoint) GetTickerPrice(p pair.CurrencyPair, assetType string) (ticker.Price, error) {
+	tick, err := ticker.GetTicker(a.GetName(), p, assetType)
+	if err != nil {
+		return a.UpdateTicker(p, assetType)
 	}
+	return tick, nil
+}
 
-	var orderBook orderbook.OrderbookBase
+// UpdateOrderbook updates and returns the orderbook for a currency pair
+func (a *Alphapoint) UpdateOrderbook(p pair.CurrencyPair, assetType string) (orderbook.Base, error) {
+	var orderBook orderbook.Base
 	orderbookNew, err := a.GetOrderbook(p.Pair().String())
 	if err != nil {
 		return orderBook, err
@@ -59,15 +66,23 @@ func (a *Alphapoint) GetOrderbookEx(p pair.CurrencyPair) (orderbook.OrderbookBas
 
 	for x := range orderbookNew.Bids {
 		data := orderbookNew.Bids[x]
-		orderBook.Bids = append(orderBook.Bids, orderbook.OrderbookItem{Amount: data.Quantity, Price: data.Price})
+		orderBook.Bids = append(orderBook.Bids, orderbook.Item{Amount: data.Quantity, Price: data.Price})
 	}
 
 	for x := range orderbookNew.Asks {
 		data := orderbookNew.Asks[x]
-		orderBook.Asks = append(orderBook.Asks, orderbook.OrderbookItem{Amount: data.Quantity, Price: data.Price})
+		orderBook.Asks = append(orderBook.Asks, orderbook.Item{Amount: data.Quantity, Price: data.Price})
 	}
 
-	orderBook.Pair = p
-	orderbook.ProcessOrderbook(a.GetName(), p, orderBook)
-	return orderBook, nil
+	orderbook.ProcessOrderbook(a.GetName(), p, orderBook, assetType)
+	return orderbook.GetOrderbook(a.Name, p, assetType)
+}
+
+// GetOrderbookEx returns the orderbook for a currency pair
+func (a *Alphapoint) GetOrderbookEx(p pair.CurrencyPair, assetType string) (orderbook.Base, error) {
+	ob, err := orderbook.GetOrderbook(a.GetName(), p, assetType)
+	if err == nil {
+		return a.UpdateOrderbook(p, assetType)
+	}
+	return ob, nil
 }

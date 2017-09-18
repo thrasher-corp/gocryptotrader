@@ -12,6 +12,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/exchanges"
+	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 )
 
 const (
@@ -78,6 +79,13 @@ type OKCoin struct {
 	WebsocketConn   *websocket.Conn
 }
 
+func (o *OKCoin) setCurrencyPairFormats() {
+	o.RequestCurrencyPairFormat.Delimiter = "_"
+	o.RequestCurrencyPairFormat.Uppercase = false
+	o.ConfigCurrencyPairFormat.Delimiter = ""
+	o.ConfigCurrencyPairFormat.Uppercase = true
+}
+
 func (o *OKCoin) SetDefaults() {
 	o.SetErrorDefaults()
 	o.SetWebsocketErrorDefaults()
@@ -86,16 +94,20 @@ func (o *OKCoin) SetDefaults() {
 	o.Websocket = false
 	o.RESTPollingDelay = 10
 	o.FuturesValues = []string{"this_week", "next_week", "quarter"}
+	o.AssetTypes = []string{ticker.Spot}
 
 	if !okcoinDefaultsSet {
+		o.AssetTypes = append(o.AssetTypes, o.FuturesValues...)
 		o.APIUrl = OKCOIN_API_URL
 		o.Name = "OKCOIN International"
 		o.WebsocketURL = OKCOIN_WEBSOCKET_URL
 		okcoinDefaultsSet = true
+		o.setCurrencyPairFormats()
 	} else {
 		o.APIUrl = OKCOIN_API_URL_CHINA
 		o.Name = "OKCOIN China"
 		o.WebsocketURL = OKCOIN_WEBSOCKET_URL_CHINA
+		o.setCurrencyPairFormats()
 	}
 }
 
@@ -112,6 +124,14 @@ func (o *OKCoin) Setup(exch config.ExchangeConfig) {
 		o.BaseCurrencies = common.SplitStrings(exch.BaseCurrencies, ",")
 		o.AvailablePairs = common.SplitStrings(exch.AvailablePairs, ",")
 		o.EnabledPairs = common.SplitStrings(exch.EnabledPairs, ",")
+		err := o.SetCurrencyPairFormat()
+		if err != nil {
+			log.Fatal(err)
+		}
+		err = o.SetAssetTypes()
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 }
 
@@ -132,7 +152,7 @@ func (o *OKCoin) GetTicker(symbol string) (OKCoinTicker, error) {
 	vals := url.Values{}
 	vals.Set("symbol", symbol)
 	path := common.EncodeURLValues(o.APIUrl+OKCOIN_TICKER, vals)
-	err := common.SendHTTPGetRequest(path, true, &resp)
+	err := common.SendHTTPGetRequest(path, true, o.Verbose, &resp)
 	if err != nil {
 		return OKCoinTicker{}, err
 	}
@@ -151,7 +171,7 @@ func (o *OKCoin) GetOrderBook(symbol string, size int64, merge bool) (OKCoinOrde
 	}
 
 	path := common.EncodeURLValues(o.APIUrl+OKCOIN_DEPTH, vals)
-	err := common.SendHTTPGetRequest(path, true, &resp)
+	err := common.SendHTTPGetRequest(path, true, o.Verbose, &resp)
 	if err != nil {
 		return resp, err
 	}
@@ -167,7 +187,7 @@ func (o *OKCoin) GetTrades(symbol string, since int64) ([]OKCoinTrades, error) {
 	}
 
 	path := common.EncodeURLValues(o.APIUrl+OKCOIN_TRADES, vals)
-	err := common.SendHTTPGetRequest(path, true, &result)
+	err := common.SendHTTPGetRequest(path, true, o.Verbose, &result)
 	if err != nil {
 		return nil, err
 	}
@@ -189,7 +209,7 @@ func (o *OKCoin) GetKline(symbol, klineType string, size, since int64) ([]interf
 	}
 
 	path := common.EncodeURLValues(o.APIUrl+OKCOIN_KLINE, vals)
-	err := common.SendHTTPGetRequest(path, true, &resp)
+	err := common.SendHTTPGetRequest(path, true, o.Verbose, &resp)
 	if err != nil {
 		return nil, err
 	}
@@ -203,7 +223,7 @@ func (o *OKCoin) GetFuturesTicker(symbol, contractType string) (OKCoinFuturesTic
 	vals.Set("symbol", symbol)
 	vals.Set("contract_type", contractType)
 	path := common.EncodeURLValues(o.APIUrl+OKCOIN_FUTURES_TICKER, vals)
-	err := common.SendHTTPGetRequest(path, true, &resp)
+	err := common.SendHTTPGetRequest(path, true, o.Verbose, &resp)
 	if err != nil {
 		return OKCoinFuturesTicker{}, err
 	}
@@ -224,7 +244,7 @@ func (o *OKCoin) GetFuturesDepth(symbol, contractType string, size int64, merge 
 	}
 
 	path := common.EncodeURLValues(o.APIUrl+OKCOIN_FUTURES_DEPTH, vals)
-	err := common.SendHTTPGetRequest(path, true, &result)
+	err := common.SendHTTPGetRequest(path, true, o.Verbose, &result)
 	if err != nil {
 		return result, err
 	}
@@ -238,7 +258,7 @@ func (o *OKCoin) GetFuturesTrades(symbol, contractType string) ([]OKCoinFuturesT
 	vals.Set("contract_type", contractType)
 
 	path := common.EncodeURLValues(o.APIUrl+OKCOIN_FUTURES_TRADES, vals)
-	err := common.SendHTTPGetRequest(path, true, &result)
+	err := common.SendHTTPGetRequest(path, true, o.Verbose, &result)
 	if err != nil {
 		return nil, err
 	}
@@ -255,7 +275,7 @@ func (o *OKCoin) GetFuturesIndex(symbol string) (float64, error) {
 	vals.Set("symbol", symbol)
 
 	path := common.EncodeURLValues(o.APIUrl+OKCOIN_FUTURES_INDEX, vals)
-	err := common.SendHTTPGetRequest(path, true, &result)
+	err := common.SendHTTPGetRequest(path, true, o.Verbose, &result)
 	if err != nil {
 		return 0, err
 	}
@@ -268,7 +288,7 @@ func (o *OKCoin) GetFuturesExchangeRate() (float64, error) {
 	}
 
 	result := Response{}
-	err := common.SendHTTPGetRequest(o.APIUrl+OKCOIN_EXCHANGE_RATE, true, &result)
+	err := common.SendHTTPGetRequest(o.APIUrl+OKCOIN_EXCHANGE_RATE, true, o.Verbose, &result)
 	if err != nil {
 		return result.Rate, err
 	}
@@ -284,7 +304,7 @@ func (o *OKCoin) GetFuturesEstimatedPrice(symbol string) (float64, error) {
 	vals := url.Values{}
 	vals.Set("symbol", symbol)
 	path := common.EncodeURLValues(o.APIUrl+OKCOIN_FUTURES_ESTIMATED_PRICE, vals)
-	err := common.SendHTTPGetRequest(path, true, &result)
+	err := common.SendHTTPGetRequest(path, true, o.Verbose, &result)
 	if err != nil {
 		return result.Price, err
 	}
@@ -306,7 +326,7 @@ func (o *OKCoin) GetFuturesKline(symbol, klineType, contractType string, size, s
 	}
 
 	path := common.EncodeURLValues(o.APIUrl+OKCOIN_FUTURES_KLINE, vals)
-	err := common.SendHTTPGetRequest(path, true, &resp)
+	err := common.SendHTTPGetRequest(path, true, o.Verbose, &resp)
 
 	if err != nil {
 		return nil, err
@@ -321,7 +341,7 @@ func (o *OKCoin) GetFuturesHoldAmount(symbol, contractType string) ([]OKCoinFutu
 	vals.Set("contract_type", contractType)
 
 	path := common.EncodeURLValues(o.APIUrl+OKCOIN_FUTURES_HOLD_AMOUNT, vals)
-	err := common.SendHTTPGetRequest(path, true, &resp)
+	err := common.SendHTTPGetRequest(path, true, o.Verbose, &resp)
 
 	if err != nil {
 		return nil, err
@@ -342,7 +362,7 @@ func (o *OKCoin) GetFuturesExplosive(symbol, contractType string, status, curren
 	vals.Set("page_length", strconv.FormatInt(pageLength, 10))
 
 	path := common.EncodeURLValues(o.APIUrl+OKCOIN_FUTURES_EXPLOSIVE, vals)
-	err := common.SendHTTPGetRequest(path, true, &resp)
+	err := common.SendHTTPGetRequest(path, true, o.Verbose, &resp)
 
 	if err != nil {
 		return nil, err

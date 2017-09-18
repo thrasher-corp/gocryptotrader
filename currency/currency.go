@@ -39,10 +39,18 @@ type YahooJSONResponse struct {
 	}
 }
 
+// FixerResponse contains the data fields for the Fixer API response
+type FixerResponse struct {
+	Base  string             `json:"base"`
+	Date  string             `json:"date"`
+	Rates map[string]float64 `json:"rates"`
+}
+
 const (
 	maxCurrencyPairsPerRequest = 350
-	yahooYQLURL                = "http://query.yahooapis.com/v1/public/yql"
+	yahooYQLURL                = "https://query.yahooapis.com/v1/public/yql?"
 	yahooDatabase              = "store://datatables.org/alltableswithkeys"
+	fixerAPI                   = "http://api.fixer.io/latest"
 	// DefaultCurrencies has the default minimum of FIAT values
 	DefaultCurrencies = "USD,AUD,EUR,CNY"
 	// DefaultCryptoCurrencies has the default minimum of crytpocurrency values
@@ -53,13 +61,44 @@ const (
 // queries
 var (
 	CurrencyStore             map[string]Rate
+	CurrencyStoreFixer        map[string]float64
 	BaseCurrencies            string
 	CryptoCurrencies          string
 	ErrCurrencyDataNotFetched = errors.New("yahoo currency data has not been fetched yet")
 	ErrCurrencyNotFound       = errors.New("unable to find specified currency")
 	ErrQueryingYahoo          = errors.New("unable to query Yahoo currency values")
 	ErrQueryingYahooZeroCount = errors.New("yahoo returned zero currency data")
+	YahooEnabled              = true
 )
+
+// SetProvider sets the currency exchange service used by the currency
+// converter
+func SetProvider(yahooEnabled bool) {
+	if yahooEnabled {
+		YahooEnabled = true
+		return
+	}
+	YahooEnabled = false
+}
+
+// SwapProvider swaps the currency exchange service used by the curency
+// converter
+func SwapProvider() {
+	if YahooEnabled {
+		YahooEnabled = false
+		return
+	}
+	YahooEnabled = true
+}
+
+// GetProvider returns the currency exchange service used by the currency
+// converter
+func GetProvider() string {
+	if YahooEnabled {
+		return "yahoo"
+	}
+	return "fixer"
+}
 
 // IsDefaultCurrency checks if the currency passed in matches the default
 // FIAT currency
@@ -81,6 +120,7 @@ func IsDefaultCryptocurrency(currency string) bool {
 func IsFiatCurrency(currency string) bool {
 	if BaseCurrencies == "" {
 		log.Println("IsFiatCurrency: BaseCurrencies string variable not populated")
+		return false
 	}
 	return common.StringContains(BaseCurrencies, common.StringToUpper(currency))
 }
@@ -91,6 +131,7 @@ func IsCryptocurrency(currency string) bool {
 		log.Println(
 			"IsCryptocurrency: CryptoCurrencies string variable not populated",
 		)
+		return false
 	}
 	return common.StringContains(CryptoCurrencies, common.StringToUpper(currency))
 }
@@ -170,11 +211,11 @@ func SeedCurrencyData(fiatCurrencies string) error {
 		fiatCurrencies = DefaultCurrencies
 	}
 
-	err := QueryYahooCurrencyValues(fiatCurrencies)
-	if err != nil {
-		return ErrQueryingYahoo
+	if YahooEnabled {
+		return QueryYahooCurrencyValues(fiatCurrencies)
 	}
-	return nil
+
+	return FetchFixerCurrencyData()
 }
 
 // MakecurrencyPairs takes all supported currency and turns them into pairs.
@@ -196,21 +237,90 @@ func MakecurrencyPairs(supportedCurrencies string) string {
 // ConvertCurrency for example converts $1 USD to the equivalent Japanese Yen
 // or vice versa.
 func ConvertCurrency(amount float64, from, to string) (float64, error) {
-	currency := common.StringToUpper(from + to)
+	from = common.StringToUpper(from)
+	to = common.StringToUpper(to)
 
-	_, ok := CurrencyStore[currency]
+	if from == to {
+		return amount, nil
+	}
+
+	if YahooEnabled {
+		currency := from + to
+		_, ok := CurrencyStore[currency]
+		if !ok {
+			err := SeedCurrencyData(currency[:len(from)] + "," + currency[len(to):])
+			if err != nil {
+				return 0, err
+			}
+		}
+
+		result, ok := CurrencyStore[currency]
+		if !ok {
+			return 0, ErrCurrencyNotFound
+		}
+		return amount * result.Rate, nil
+	}
+
+	_, ok := CurrencyStoreFixer[from]
 	if !ok {
-		err := SeedCurrencyData(currency[:len(from)] + "," + currency[len(to):])
+		err := FetchFixerCurrencyData()
 		if err != nil {
 			return 0, err
 		}
 	}
 
-	result, ok := CurrencyStore[currency]
+	var resultFrom float64
+	var resultTo float64
+
+	// First check if we're converting to USD, USD doesn't exist in the rates map
+	if to == "USD" {
+		resultFrom, ok = CurrencyStoreFixer[from]
+		if !ok {
+			return 0, ErrCurrencyNotFound
+		}
+		return amount / resultFrom, nil
+	}
+
+	// Check to see if we're converting from USD
+	if from == "USD" {
+		resultTo, ok = CurrencyStoreFixer[to]
+		if !ok {
+			return 0, ErrCurrencyNotFound
+		}
+		return resultTo * amount, nil
+	}
+
+	// Otherwise convert to USD, then to the target currency
+	resultFrom, ok = CurrencyStoreFixer[from]
 	if !ok {
 		return 0, ErrCurrencyNotFound
 	}
-	return amount * result.Rate, nil
+
+	converted := amount / resultFrom
+	resultTo, ok = CurrencyStoreFixer[to]
+	if !ok {
+		return 0, ErrCurrencyNotFound
+	}
+
+	return converted * resultTo, nil
+}
+
+// FetchFixerCurrencyData seeds the variable C
+func FetchFixerCurrencyData() error {
+	var result FixerResponse
+	values := url.Values{}
+	values.Set("base", "USD")
+	url := common.EncodeURLValues(fixerAPI, values)
+
+	CurrencyStoreFixer = make(map[string]float64)
+
+	err := common.SendHTTPGetRequest(url, true, false, &result)
+	if err != nil {
+		return err
+	}
+
+	CurrencyStoreFixer = result.Rates
+	return nil
 }
 
 // FetchYahooCurrencyData seeds the variable CurrencyStore; this is a
@@ -233,6 +343,8 @@ func FetchYahooCurrencyData(currencyPairs []string) error {
 	if err != nil {
 		return err
 	}
+
+	log.Printf("Currency recv: %s", resp)
 
 	yahooResp := YahooJSONResponse{}
 	err = common.JSONDecode([]byte(resp), &yahooResp)
@@ -259,30 +371,5 @@ func QueryYahooCurrencyValues(currencies string) error {
 		"%d fiat currency pairs generated. Fetching Yahoo currency data (this may take a minute)..\n",
 		len(currencyPairs),
 	)
-	var err error
-	var pairs []string
-	index := 0
-
-	if len(currencyPairs) > maxCurrencyPairsPerRequest {
-		for index < len(currencyPairs) {
-			if len(currencyPairs)-index > maxCurrencyPairsPerRequest {
-				pairs = currencyPairs[index : index+maxCurrencyPairsPerRequest]
-				index += maxCurrencyPairsPerRequest
-			} else {
-				pairs = currencyPairs[index:]
-				index += (len(currencyPairs) - index)
-			}
-			err = FetchYahooCurrencyData(pairs)
-			if err != nil {
-				return err
-			}
-		}
-	} else {
-		pairs = currencyPairs[index:]
-		err = FetchYahooCurrencyData(pairs)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
+	return FetchYahooCurrencyData(currencyPairs)
 }

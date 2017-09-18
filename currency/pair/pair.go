@@ -1,6 +1,8 @@
 package pair
 
-import "strings"
+import (
+	"strings"
+)
 
 // CurrencyItem is an exported string with methods to manipulate the data instead
 // of using array/slice access modifiers
@@ -43,7 +45,7 @@ func (c CurrencyPair) Pair() CurrencyItem {
 	return c.FirstCurrency + CurrencyItem(c.Delimiter) + c.SecondCurrency
 }
 
-// Display formats and returns the currency based on user preferences, 
+// Display formats and returns the currency based on user preferences,
 // overriding the default Pair() display
 func (c CurrencyPair) Display(delimiter string, uppercase bool) CurrencyItem {
 	var pair CurrencyItem
@@ -58,6 +60,15 @@ func (c CurrencyPair) Display(delimiter string, uppercase bool) CurrencyItem {
 		return pair.Upper()
 	}
 	return pair.Lower()
+}
+
+// Equal compares two currency pairs and returns whether or not they are equal
+func (c CurrencyPair) Equal(p CurrencyPair) bool {
+	if c.FirstCurrency.Upper() == p.FirstCurrency.Upper() &&
+		c.SecondCurrency.Upper() == p.SecondCurrency.Upper() {
+		return true
+	}
+	return false
 }
 
 // NewCurrencyPairDelimiter splits the desired currency string at delimeter,
@@ -77,6 +88,16 @@ func NewCurrencyPair(firstCurrency, secondCurrency string) CurrencyPair {
 		FirstCurrency:  CurrencyItem(firstCurrency),
 		SecondCurrency: CurrencyItem(secondCurrency),
 	}
+}
+
+// NewCurrencyPairFromIndex returns a CurrencyPair via a currency string and
+// specific index
+func NewCurrencyPairFromIndex(currency, index string) CurrencyPair {
+	i := strings.Index(currency, index)
+	if i == 0 {
+		return NewCurrencyPair(currency[0:len(index)], currency[len(index):])
+	}
+	return NewCurrencyPair(currency[0:i], currency[i:])
 }
 
 // NewCurrencyPairFromString converts currency string into a new CurrencyPair

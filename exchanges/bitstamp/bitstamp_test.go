@@ -3,6 +3,7 @@ package bitstamp
 import (
 	"net/url"
 	"testing"
+	"time"
 
 	"github.com/thrasher-/gocryptotrader/config"
 )
@@ -39,18 +40,29 @@ func TestSetDefaults(t *testing.T) {
 func TestSetup(t *testing.T) {
 	t.Parallel()
 	b := Bitstamp{}
-	conf := config.ExchangeConfig{
-		Name:                    "bla",
-		Enabled:                 true,
-		AuthenticatedAPISupport: true,
+	b.Name = "Bitstamp"
+	cfg := config.GetConfig()
+	cfg.LoadConfig("../../testdata/configtest.dat")
+	bConfig, err := cfg.GetExchangeConfig("Bitstamp")
+	if err != nil {
+		t.Error("Test Failed - Bitstamp Setup() init error")
 	}
-	b.Setup(conf)
 
-	if b.Name != "bla" && b.Enabled != true && b.AuthenticatedAPISupport != true {
-		t.Error("Test Failed - Setup() error")
+	b.SetDefaults()
+	b.Setup(bConfig)
+
+	if !b.IsEnabled() || b.AuthenticatedAPISupport || b.RESTPollingDelay != time.Duration(10) ||
+		b.Verbose || b.Websocket || len(b.BaseCurrencies) < 1 ||
+		len(b.AvailablePairs) < 1 || len(b.EnabledPairs) < 1 {
+		t.Error("Test Failed - Bitstamp Setup values not set correctly")
 	}
-	conf.Enabled = false
-	b.Setup(conf)
+
+	bConfig.Enabled = false
+	b.Setup(bConfig)
+
+	if b.IsEnabled() {
+		t.Error("Test failed - Bitstamp TestSetup incorrect value")
+	}
 }
 
 func TestGetFee(t *testing.T) {

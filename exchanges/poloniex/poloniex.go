@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"log"
 	"net/url"
 	"strconv"
 	"time"
@@ -11,6 +12,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/exchanges"
+	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 )
 
 const (
@@ -57,6 +59,11 @@ func (p *Poloniex) SetDefaults() {
 	p.Verbose = false
 	p.Websocket = false
 	p.RESTPollingDelay = 10
+	p.RequestCurrencyPairFormat.Delimiter = "_"
+	p.RequestCurrencyPairFormat.Uppercase = true
+	p.ConfigCurrencyPairFormat.Delimiter = "_"
+	p.ConfigCurrencyPairFormat.Uppercase = true
+	p.AssetTypes = []string{ticker.Spot}
 }
 
 func (p *Poloniex) Setup(exch config.ExchangeConfig) {
@@ -72,6 +79,14 @@ func (p *Poloniex) Setup(exch config.ExchangeConfig) {
 		p.BaseCurrencies = common.SplitStrings(exch.BaseCurrencies, ",")
 		p.AvailablePairs = common.SplitStrings(exch.AvailablePairs, ",")
 		p.EnabledPairs = common.SplitStrings(exch.EnabledPairs, ",")
+		err := p.SetCurrencyPairFormat()
+		if err != nil {
+			log.Fatal(err)
+		}
+		err = p.SetAssetTypes()
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 }
 
@@ -86,7 +101,7 @@ func (p *Poloniex) GetTicker() (map[string]PoloniexTicker, error) {
 
 	resp := response{}
 	path := fmt.Sprintf("%s/public?command=returnTicker", POLONIEX_API_URL)
-	err := common.SendHTTPGetRequest(path, true, &resp.Data)
+	err := common.SendHTTPGetRequest(path, true, p.Verbose, &resp.Data)
 
 	if err != nil {
 		return resp.Data, err
@@ -97,7 +112,7 @@ func (p *Poloniex) GetTicker() (map[string]PoloniexTicker, error) {
 func (p *Poloniex) GetVolume() (interface{}, error) {
 	var resp interface{}
 	path := fmt.Sprintf("%s/public?command=return24hVolume", POLONIEX_API_URL)
-	err := common.SendHTTPGetRequest(path, true, &resp)
+	err := common.SendHTTPGetRequest(path, true, p.Verbose, &resp)
 
 	if err != nil {
 		return resp, err
@@ -115,7 +130,7 @@ func (p *Poloniex) GetOrderbook(currencyPair string, depth int) (PoloniexOrderbo
 
 	resp := PoloniexOrderbookResponse{}
 	path := fmt.Sprintf("%s/public?command=returnOrderBook&%s", POLONIEX_API_URL, vals.Encode())
-	err := common.SendHTTPGetRequest(path, true, &resp)
+	err := common.SendHTTPGetRequest(path, true, p.Verbose, &resp)
 
 	if err != nil {
 		return PoloniexOrderbook{}, err
@@ -124,14 +139,20 @@ func (p *Poloniex) GetOrderbook(currencyPair string, depth int) (PoloniexOrderbo
 	ob := PoloniexOrderbook{}
 	for x := range resp.Asks {
 		data := resp.Asks[x]
-		price, _ := strconv.ParseFloat(data[0].(string), 64)
+		price, err := strconv.ParseFloat(data[0].(string), 64)
+		if err != nil {
+			return ob, err
+		}
 		amount := data[1].(float64)
 		ob.Asks = append(ob.Asks, PoloniexOrderbookItem{Price: price, Amount: amount})
 	}
 
 	for x := range resp.Bids {
 		data := resp.Bids[x]
-		price, _ := strconv.ParseFloat(data[0].(string), 64)
+		price, err := strconv.ParseFloat(data[0].(string), 64)
+		if err != nil {
+			return ob, err
+		}
 		amount := data[1].(float64)
 		ob.Bids = append(ob.Bids, PoloniexOrderbookItem{Price: price, Amount: amount})
 	}
@@ -152,7 +173,7 @@ func (p *Poloniex) GetTradeHistory(currencyPair, start, end string) ([]PoloniexT
 
 	resp := []PoloniexTradeHistory{}
 	path := fmt.Sprintf("%s/public?command=returnTradeHistory&%s", POLONIEX_API_URL, vals.Encode())
-	err := common.SendHTTPGetRequest(path, true, &resp)
+	err := common.SendHTTPGetRequest(path, true, p.Verbose, &resp)
 
 	if err != nil {
 		return nil, err
@@ -178,7 +199,7 @@ func (p *Poloniex) GetChartData(currencyPair, start, end, period string) ([]Polo
 
 	resp := []PoloniexChartData{}
 	path := fmt.Sprintf("%s/public?command=returnChartData&%s", POLONIEX_API_URL, vals.Encode())
-	err := common.SendHTTPGetRequest(path, true, &resp)
+	err := common.SendHTTPGetRequest(path, true, p.Verbose, &resp)
 
 	if err != nil {
 		return nil, err
@@ -192,7 +213,7 @@ func (p *Poloniex) GetCurrencies() (map[string]PoloniexCurrencies, error) {
 	}
 	resp := Response{}
 	path := fmt.Sprintf("%s/public?command=returnCurrencies", POLONIEX_API_URL)
-	err := common.SendHTTPGetRequest(path, true, &resp.Data)
+	err := common.SendHTTPGetRequest(path, true, p.Verbose, &resp.Data)
 
 	if err != nil {
 		return resp.Data, err
@@ -203,7 +224,7 @@ func (p *Poloniex) GetCurrencies() (map[string]PoloniexCurrencies, error) {
 func (p *Poloniex) GetLoanOrders(currency string) (PoloniexLoanOrders, error) {
 	resp := PoloniexLoanOrders{}
 	path := fmt.Sprintf("%s/public?command=returnLoanOrders&currency=%s", POLONIEX_API_URL, currency)
-	err := common.SendHTTPGetRequest(path, true, &resp)
+	err := common.SendHTTPGetRequest(path, true, p.Verbose, &resp)
 
 	if err != nil {
 		return resp, err

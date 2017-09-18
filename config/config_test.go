@@ -5,7 +5,7 @@ import (
 )
 
 func TestGetConfigEnabledExchanges(t *testing.T) {
-	defaultEnabledExchanges := 17
+	defaultEnabledExchanges := 18
 	GetConfigEnabledExchanges := GetConfig()
 	err := GetConfigEnabledExchanges.LoadConfig(ConfigTestFile)
 	if err != nil {

@@ -14,6 +14,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency"
 	"github.com/thrasher-/gocryptotrader/portfolio"
+	"github.com/thrasher-/gocryptotrader/smsglobal"
 )
 
 // Constants declared here are filename strings and test strings
@@ -45,16 +46,19 @@ var (
 	WarningWebserverListenAddressInvalid            = "WARNING -- Webserver support disabled due to invalid listen address."
 	WarningWebserverRootWebFolderNotFound           = "WARNING -- Webserver support disabled due to missing web folder."
 	WarningExchangeAuthAPIDefaultOrEmptyValues      = "WARNING -- Exchange %s: Authenticated API support disabled due to default/empty APIKey/Secret/ClientID values."
+	WarningCurrencyExchangeProvider                 = "WARNING -- Currency exchange provider invalid valid. Reset to Fixer."
 	RenamingConfigFile                              = "Renaming config file %s to %s."
 	Cfg                                             Config
 )
 
 // WebserverConfig struct holds the prestart variables for the webserver.
 type WebserverConfig struct {
-	Enabled       bool
-	AdminUsername string
-	AdminPassword string
-	ListenAddress string
+	Enabled                      bool
+	AdminUsername                string
+	AdminPassword                string
+	ListenAddress                string
+	WebsocketConnectionLimit     int
+	WebsocketAllowInsecureOrigin bool
 }
 
 // SMSGlobalConfig structure holds all the variables you need for instant
@@ -63,11 +67,7 @@ type SMSGlobalConfig struct {
 	Enabled  bool
 	Username string
 	Password string
-	Contacts []struct {
-		Name    string
-		Number  string
-		Enabled bool
-	}
+	Contacts []smsglobal.Contact
 }
 
 // Post holds the bot configuration data
@@ -78,36 +78,43 @@ type Post struct {
 // CurrencyPairFormatConfig stores the users preferred currency pair display
 type CurrencyPairFormatConfig struct {
 	Uppercase bool
-	Delimiter string
+	Delimiter string `json:",omitempty"`
+	Separator string `json:",omitempty"`
+	Index     string `json:",omitempty"`
 }
 
 // Config is the overarching object that holds all the information for
 // prestart management of portfolio, SMSGlobal, webserver and enabled exchange
 type Config struct {
-	Name               string
-	EncryptConfig      int
-	Cryptocurrencies   string
-	CurrencyPairFormat *CurrencyPairFormatConfig `json:"CurrencyPairFormat"`
-	Portfolio          portfolio.Base            `json:"PortfolioAddresses"`
-	SMS                SMSGlobalConfig           `json:"SMSGlobal"`
-	Webserver          WebserverConfig           `json:"Webserver"`
-	Exchanges          []ExchangeConfig          `json:"Exchanges"`
+	Name                     string
+	EncryptConfig            int
+	Cryptocurrencies         string
+	CurrencyExchangeProvider string
+	CurrencyPairFormat       *CurrencyPairFormatConfig `json:"CurrencyPairFormat"`
+	FiatDisplayCurrency      string
+	Portfolio                portfolio.Base   `json:"PortfolioAddresses"`
+	SMS                      SMSGlobalConfig  `json:"SMSGlobal"`
+	Webserver                WebserverConfig  `json:"Webserver"`
+	Exchanges                []ExchangeConfig `json:"Exchanges"`
 }
 
 // ExchangeConfig holds all the information needed for each enabled Exchange.
 type ExchangeConfig struct {
-	Name                    string
-	Enabled                 bool
-	Verbose                 bool
-	Websocket               bool
-	RESTPollingDelay        time.Duration
-	AuthenticatedAPISupport bool
-	APIKey                  string
-	APISecret               string
-	ClientID                string `json:",omitempty"`
-	AvailablePairs          string
-	EnabledPairs            string
-	BaseCurrencies          string
+	Name                      string
+	Enabled                   bool
+	Verbose                   bool
+	Websocket                 bool
+	RESTPollingDelay          time.Duration
+	AuthenticatedAPISupport   bool
+	APIKey                    string
+	APISecret                 string
+	ClientID                  string `json:",omitempty"`
+	AvailablePairs            string
+	EnabledPairs              string
+	BaseCurrencies            string
+	AssetTypes                string
+	ConfigCurrencyPairFormat  *CurrencyPairFormatConfig `json:"ConfigCurrencyPairFormat"`
+	RequestCurrencyPairFormat *CurrencyPairFormatConfig `json:"RequestCurrencyPairFormat"`
 }
 
 // GetConfigEnabledExchanges returns the number of exchanges that are enabled.
@@ -232,6 +239,11 @@ func (c *Config) CheckWebserverConfigValues() error {
 	if port < 1 || port > 65355 {
 		return errors.New(WarningWebserverListenAddressInvalid)
 	}
+
+	if c.Webserver.WebsocketConnectionLimit <= 0 {
+		c.Webserver.WebsocketConnectionLimit = 1
+	}
+
 	return nil
 }
 
@@ -408,11 +420,77 @@ func (c *Config) LoadConfig(configPath string) error {
 		return fmt.Errorf(ErrCheckingConfigValues, err)
 	}
 
+	if c.SMS.Enabled {
+		err = c.CheckSMSGlobalConfigValues()
+		if err != nil {
+			log.Print(fmt.Errorf(ErrCheckingConfigValues, err))
+			c.SMS.Enabled = false
+		}
+	}
+
+	if c.Webserver.Enabled {
+		err = c.CheckWebserverConfigValues()
+		if err != nil {
+			log.Print(fmt.Errorf(ErrCheckingConfigValues, err))
+			c.Webserver.Enabled = false
+		}
+	}
+
+	if c.CurrencyExchangeProvider == "" {
+		c.CurrencyExchangeProvider = "fixer"
+	} else {
+		if c.CurrencyExchangeProvider != "yahoo" && c.CurrencyExchangeProvider != "fixer" {
+			log.Println(WarningCurrencyExchangeProvider)
+			c.CurrencyExchangeProvider = "fixer"
+		}
+	}
+
 	if c.CurrencyPairFormat == nil {
 		c.CurrencyPairFormat = &CurrencyPairFormatConfig{
 			Delimiter: "-",
 			Uppercase: true,
 		}
+	}
+
+	if c.FiatDisplayCurrency == "" {
+		c.FiatDisplayCurrency = "USD"
+	}
+
+	return nil
+}
+
+// UpdateConfig updates the config with a supplied config file
+func (c *Config) UpdateConfig(configPath string, newCfg Config) error {
+	if c.Name != newCfg.Name && newCfg.Name != "" {
+		c.Name = newCfg.Name
+	}
+
+	err := newCfg.CheckExchangeConfigValues()
+	if err != nil {
+		return err
+	}
+	c.Exchanges = newCfg.Exchanges
+
+	if c.CurrencyPairFormat != newCfg.CurrencyPairFormat {
+		c.CurrencyPairFormat = newCfg.CurrencyPairFormat
+	}
+
+	c.Portfolio = newCfg.Portfolio
+
+	err = newCfg.CheckSMSGlobalConfigValues()
+	if err != nil {
+		return err
+	}
+	c.SMS = newCfg.SMS
+
+	err = c.SaveConfig(configPath)
+	if err != nil {
+		return err
+	}
+
+	err = c.LoadConfig(configPath)
+	if err != nil {
+		return err
 	}
 
 	return nil

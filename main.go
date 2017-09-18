@@ -19,7 +19,6 @@ import (
 	"github.com/thrasher-/gocryptotrader/exchanges/bitstamp"
 	"github.com/thrasher-/gocryptotrader/exchanges/bittrex"
 	"github.com/thrasher-/gocryptotrader/exchanges/btcc"
-	"github.com/thrasher-/gocryptotrader/exchanges/btce"
 	"github.com/thrasher-/gocryptotrader/exchanges/btcmarkets"
 	"github.com/thrasher-/gocryptotrader/exchanges/coinut"
 	"github.com/thrasher-/gocryptotrader/exchanges/gdax"
@@ -33,6 +32,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/exchanges/okcoin"
 	"github.com/thrasher-/gocryptotrader/exchanges/poloniex"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
+	"github.com/thrasher-/gocryptotrader/exchanges/wex"
 	"github.com/thrasher-/gocryptotrader/portfolio"
 	"github.com/thrasher-/gocryptotrader/smsglobal"
 )
@@ -44,7 +44,7 @@ type ExchangeMain struct {
 	bitstamp      bitstamp.Bitstamp
 	bitfinex      bitfinex.Bitfinex
 	bittrex       bittrex.Bittrex
-	btce          btce.BTCE
+	wex           wex.WEX
 	btcmarkets    btcmarkets.BTCMarkets
 	coinut        coinut.COINUT
 	gdax          gdax.GDAX
@@ -64,6 +64,7 @@ type ExchangeMain struct {
 // overarching type across this code base.
 type Bot struct {
 	config     *config.Config
+	smsglobal  *smsglobal.Base
 	portfolio  *portfolio.Base
 	exchange   ExchangeMain
 	exchanges  []exchange.IBotExchange
@@ -115,20 +116,17 @@ func main() {
 		log.Fatal(err)
 	}
 
-	log.Printf("Bot '%s' started.\n", bot.config.Name)
 	AdjustGoMaxProcs()
+	log.Printf("Bot '%s' started.\n", bot.config.Name)
+	log.Printf("Fiat display currency: %s.", bot.config.FiatDisplayCurrency)
 
 	if bot.config.SMS.Enabled {
-		err = bot.config.CheckSMSGlobalConfigValues()
-		if err != nil {
-			log.Println(err) // non fatal event
-			bot.config.SMS.Enabled = false
-		} else {
-			log.Printf(
-				"SMS support enabled. Number of SMS contacts %d.\n",
-				smsglobal.GetEnabledSMSContacts(bot.config.SMS),
-			)
-		}
+		bot.smsglobal = smsglobal.New(bot.config.SMS.Username, bot.config.SMS.Password,
+			bot.config.Name, bot.config.SMS.Contacts)
+		log.Printf(
+			"SMS support enabled. Number of SMS contacts %d.\n",
+			bot.smsglobal.GetEnabledContacts(),
+		)
 	} else {
 		log.Println("SMS support disabled.")
 	}
@@ -146,7 +144,7 @@ func main() {
 		new(bitstamp.Bitstamp),
 		new(bitfinex.Bitfinex),
 		new(bittrex.Bittrex),
-		new(btce.BTCE),
+		new(wex.WEX),
 		new(btcmarkets.BTCMarkets),
 		new(coinut.COINUT),
 		new(gdax.GDAX),
@@ -173,11 +171,24 @@ func main() {
 
 	setupBotExchanges()
 
-	bot.config.RetrieveConfigCurrencyPairs()
+	if bot.config.CurrencyExchangeProvider == "yahoo" {
+		currency.SetProvider(true)
+	} else {
+		currency.SetProvider(false)
+	}
 
+	log.Printf("Using %s as currency exchange provider.", bot.config.CurrencyExchangeProvider)
+
+	bot.config.RetrieveConfigCurrencyPairs()
 	err = currency.SeedCurrencyData(currency.BaseCurrencies)
 	if err != nil {
-		log.Fatalf("Fatal error retrieving config currencies. Error: %s", err)
+		currency.SwapProvider()
+		log.Printf("'%s' currency exchange provider failed, swapping to %s and testing..",
+			bot.config.CurrencyExchangeProvider, currency.GetProvider())
+		err = currency.SeedCurrencyData(currency.BaseCurrencies)
+		if err != nil {
+			log.Fatalf("Fatal error retrieving config currencies. Error: %s", err)
+		}
 	}
 
 	log.Println("Successfully retrieved config currencies.")
@@ -187,23 +198,22 @@ func main() {
 	SeedExchangeAccountInfo(GetAllEnabledExchangeAccountInfo().Data)
 	go portfolio.StartPortfolioWatcher()
 
+	log.Println("Starting websocket handler")
+	go WebsocketHandler()
+
+	go TickerUpdaterRoutine()
+	go OrderbookUpdaterRoutine()
+
 	if bot.config.Webserver.Enabled {
-		err := bot.config.CheckWebserverConfigValues()
-		if err != nil {
-			log.Println(err) // non fatal event
-			//bot.config.Webserver.Enabled = false
-		} else {
-			listenAddr := bot.config.Webserver.ListenAddress
-			log.Printf(
-				"HTTP Webserver support enabled. Listen URL: http://%s:%d/\n",
-				common.ExtractHost(listenAddr), common.ExtractPort(listenAddr),
-			)
-			router := NewRouter(bot.exchanges)
-			log.Fatal(http.ListenAndServe(listenAddr, router))
-		}
-	}
-	if !bot.config.Webserver.Enabled {
-		log.Println("HTTP Webserver support disabled.")
+		listenAddr := bot.config.Webserver.ListenAddress
+		log.Printf(
+			"HTTP Webserver support enabled. Listen URL: http://%s:%d/\n",
+			common.ExtractHost(listenAddr), common.ExtractPort(listenAddr),
+		)
+		router := NewRouter(bot.exchanges)
+		log.Fatal(http.ListenAndServe(listenAddr, router))
+	} else {
+		log.Println("HTTP RESTful Webserver support disabled.")
 	}
 
 	<-bot.shutdown
@@ -293,9 +303,15 @@ func SeedExchangeAccountInfo(data []exchange.AccountInfo) {
 						currencyName)
 					port.RemoveExchangeAddress(exchangeName, currencyName)
 				} else {
-					log.Printf("Portfolio: Updating %s %s entry with balance %f.\n",
-						exchangeName, currencyName, total)
-					port.UpdateExchangeAddressBalance(exchangeName, currencyName, total)
+					balance, ok := port.GetAddressBalance(exchangeName, currencyName, portfolio.PortfolioAddressExchange)
+					if !ok {
+						continue
+					}
+					if balance != total {
+						log.Printf("Portfolio: Updating %s %s entry with balance %f.\n",
+							exchangeName, currencyName, total)
+						port.UpdateExchangeAddressBalance(exchangeName, currencyName, total)
+					}
 				}
 			}
 		}

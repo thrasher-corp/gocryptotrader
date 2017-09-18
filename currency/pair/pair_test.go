@@ -105,6 +105,30 @@ func TestDisplay(t *testing.T) {
 	}
 }
 
+func TestEqual(t *testing.T) {
+	t.Parallel()
+	pair := NewCurrencyPair("BTC", "USD")
+	secondPair := NewCurrencyPair("btc", "uSd")
+	actual := pair.Equal(secondPair)
+	expected := true
+	if actual != expected {
+		t.Errorf(
+			"Test failed. Equal(): %v was not equal to expected value: %v",
+			actual, expected,
+		)
+	}
+
+	secondPair.SecondCurrency = "ETH"
+	actual = pair.Equal(secondPair)
+	expected = false
+	if actual != expected {
+		t.Errorf(
+			"Test failed. Equal(): %v was not equal to expected value: %v",
+			actual, expected,
+		)
+	}
+}
+
 func TestNewCurrencyPair(t *testing.T) {
 	t.Parallel()
 	pair := NewCurrencyPair("BTC", "USD")
@@ -135,6 +159,40 @@ func TestNewCurrencyPairDelimiter(t *testing.T) {
 	if actual != expected {
 		t.Errorf(
 			"Test failed. Delmiter: %s was not equal to expected value: %s",
+			actual, expected,
+		)
+	}
+}
+
+// NewCurrencyPairFromIndex returns a CurrencyPair via a currency string and
+// specific index
+func TestNewCurrencyPairFromIndex(t *testing.T) {
+	t.Parallel()
+	currency := "BTCUSD"
+	index := "BTC"
+
+	pair := NewCurrencyPairFromIndex(currency, index)
+	pair.Delimiter = "-"
+	actual := pair.Pair()
+
+	expected := CurrencyItem("BTC-USD")
+	if actual != expected {
+		t.Errorf(
+			"Test failed. Pair(): %s was not equal to expected value: %s",
+			actual, expected,
+		)
+	}
+
+	currency = "DOGEBTC"
+
+	pair = NewCurrencyPairFromIndex(currency, index)
+	pair.Delimiter = "-"
+	actual = pair.Pair()
+
+	expected = CurrencyItem("DOGE-BTC")
+	if actual != expected {
+		t.Errorf(
+			"Test failed. Pair(): %s was not equal to expected value: %s",
 			actual, expected,
 		)
 	}

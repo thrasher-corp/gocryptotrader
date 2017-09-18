@@ -1,71 +1,138 @@
 package smsglobal
 
 import (
+	"log"
 	"testing"
-
-	"github.com/thrasher-/gocryptotrader/config"
 )
 
-func TestGetEnabledSMSContacts(t *testing.T) {
-	cfg := config.GetConfig()
-	err := cfg.LoadConfig(config.ConfigTestFile)
-	if err != nil {
-		t.Errorf(
-			"Test Failed. GetEnabledSMSContacts: Function return is incorrect with, %s.",
-			err,
-		)
+func TestNew(t *testing.T) {
+	result := New("", "", "", nil)
+	if result != nil {
+		t.Error("Test failed. New: Expected nil result")
 	}
-	numberOfContacts := GetEnabledSMSContacts(cfg.SMS)
-	if numberOfContacts != len(cfg.SMS.Contacts) {
-		t.Errorf(
-			"Test Failed. GetEnabledSMSContacts: Function return is incorrect with, %d.",
-			numberOfContacts,
-		)
+
+	contact := Contact{Name: "bob", Number: "1234", Enabled: true}
+	var contacts []Contact
+	contacts = append(contacts, contact)
+
+	result = New("bob", "pw", "Skynet", contacts)
+	if !result.ContactExists(contact) {
+		t.Error("Test failed. New: Expected contact not found")
 	}
 }
 
-func TestSMSSendToAll(t *testing.T) {
-	cfg := config.GetConfig()
-	err := cfg.LoadConfig(config.ConfigTestFile)
-	if err != nil {
-		t.Errorf(
-			"Test Failed. SMSSendToAll: \nFunction return is incorrect with, %s.",
-			err,
-		)
-	}
-	SMSSendToAll("SMSGLOBAL Test - SMSSENDTOALL", *cfg)
-}
+func TestGetEnabledContacts(t *testing.T) {
+	contact := Contact{Name: "bob", Number: "1234", Enabled: true}
+	var contacts []Contact
+	contacts = append(contacts, contact)
+	result := New("bob", "pw", "Skynet", contacts)
 
-func TestSMSGetNumberByName(t *testing.T) {
-	cfg := config.GetConfig()
-	err := cfg.LoadConfig(config.ConfigTestFile)
-	if err != nil {
-		t.Errorf(
-			"Test Failed. SMSGetNumberByName: Function return is incorrect with, %s.",
-			err,
-		)
-	}
-	number := SMSGetNumberByName("StyleGherkin", cfg.SMS)
-	if number == "" {
-		t.Error("Test Failed. SMSNotify Error: No number, name not found.")
-	}
-	number = SMSGetNumberByName("testy", cfg.SMS)
-	if number == "" {
-		t.Error("Test Failed. SMSNotify Error: No number, name not found.")
+	expected := 1
+	actual := result.GetEnabledContacts()
+	if expected != actual {
+		t.Errorf("Test failed. TestGetEnabledContacts expected %d, got %d",
+			expected, actual)
 	}
 }
 
-func TestSMSNotify(t *testing.T) {
-	cfg := config.GetConfig()
-	err := cfg.LoadConfig(config.ConfigTestFile)
+func TestGetContactByNumber(t *testing.T) {
+	contact := Contact{Name: "bob", Number: "1234", Enabled: true}
+	var contacts []Contact
+	contacts = append(contacts, contact)
+	result := New("bob", "pw", "Skynet", contacts)
+
+	actual, err := result.GetContactByNumber(contact.Number)
 	if err != nil {
-		t.Errorf(
-			"Test Failed. SMSNotify: \nFunction return is incorrect with, %s.",
-			err,
-		)
+		t.Fatalf("Test failed. TestGetContactByNumber: %s", err)
 	}
-	// err2 := SMSNotify("+61312112718", "teststring", *cfg)
-	// if err2 != nil {
-	// 	t.Error("Test Failed. SMSNotify: \nError: ", err2)
-	// }
+
+	if actual.Name != contact.Name && actual.Number != contact.Number && actual.Enabled != contact.Enabled {
+		t.Fatal("Test failed. TestGetContactByNumber: Incorrect values")
+	}
+
+	_, err = result.GetContactByNumber("ASDASDASD")
+	if err == nil {
+		t.Fatal("Test failed. TestGetContactByNumber: Returned nil err on non-existant number")
+	}
+}
+
+func TestGetContactByName(t *testing.T) {
+	contact := Contact{Name: "bob", Number: "1234", Enabled: true}
+	var contacts []Contact
+	contacts = append(contacts, contact)
+	result := New("bob", "pw", "Skynet", contacts)
+
+	actual, err := result.GetContactByName(contact.Name)
+	if err != nil {
+		t.Fatalf("Test failed. TestGetContactByName: %s", err)
+	}
+
+	if actual.Name != contact.Name && actual.Number != contact.Number && actual.Enabled != contact.Enabled {
+		t.Fatal("Test failed. TestGetContactByName: Incorrect values")
+	}
+
+	_, err = result.GetContactByName("ASDASDASD")
+	if err == nil {
+		t.Fatal("Test failed. TestGetContactByName: Returned nil err on non-existant number")
+	}
+}
+
+func TestAddContact(t *testing.T) {
+	contact := Contact{Name: "bob", Number: "1234", Enabled: true}
+	var contacts []Contact
+	contacts = append(contacts, contact)
+	result := New("bob", "pw", "Skynet", contacts)
+
+	// Test adding same contact
+	result.AddContact(contact)
+	if result.GetEnabledContacts() > 1 {
+		t.Fatal("Test failed. TestAddContact: Incorrect values")
+	}
+
+	invalidContact := Contact{Name: "", Number: "", Enabled: true}
+	result.AddContact(invalidContact)
+	if result.GetEnabledContacts() > 1 {
+		t.Fatal("Test failed. TestAddContact: Incorrect values")
+	}
+
+	newContact := Contact{Name: "newContact", Number: "12345", Enabled: true}
+	result.AddContact(newContact)
+	if result.GetEnabledContacts() != 2 {
+		t.Fatal("Test failed. TestAddContact: Incorrect values")
+	}
+}
+
+func TestRemoveContact(t *testing.T) {
+	contact := Contact{Name: "bob", Number: "1234", Enabled: true}
+	var contacts []Contact
+	contacts = append(contacts, contact)
+	result := New("bob", "pw", "Skynet", contacts)
+
+	result.RemoveContact(Contact{Name: "blah", Number: "1234"})
+	if result.GetEnabledContacts() != 1 {
+		t.Fatal("Test failed. TestRemoveContact: Incorrect values")
+	}
+
+	result.RemoveContact(contact)
+	if result.GetEnabledContacts() != 0 {
+		t.Fatal("Test failed. TestRemoveContact: Incorrect values")
+	}
+}
+
+func TestSendMessageToAll(t *testing.T) {
+	contact := Contact{Name: "bob", Number: "1234", Enabled: true}
+	var contacts []Contact
+	contacts = append(contacts, contact)
+	result := New("bob", "pw", "Skynet", contacts)
+	result.SendMessageToAll("hello world")
+}
+
+func TestSendMessage(t *testing.T) {
+	contact := Contact{Name: "bob", Number: "1234", Enabled: true}
+	var contacts []Contact
+	contacts = append(contacts, contact)
+	result := New("bob", "pw", "Skynet", contacts)
+	err := result.SendMessage(contact.Number, "hello world")
+	log.Println(err)
+	t.Log(err)
 }
