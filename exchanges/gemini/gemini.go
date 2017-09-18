@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
@@ -71,10 +72,13 @@ var (
 // needed append the sandbox function as well.
 type Gemini struct {
 	exchange.Base
+	M sync.Mutex
 }
 
 // AddSession adds a new session to the gemini base
 func (g *Gemini) AddSession(sessionID int, apiKey, apiSecret, role string, needsHeartbeat bool) error {
+	g.M.Lock()
+	defer g.M.Unlock()
 	if sessionAPIKey == nil {
 		IsSession = true
 		sessionAPIKey = make(map[int]string)
@@ -139,6 +143,8 @@ func (g *Gemini) Setup(exch config.ExchangeConfig) {
 // Session is a session manager for differing APIKeys and roles, use this for all function
 // calls in this package
 func (g *Gemini) Session(sessionID int) *Gemini {
+	g.M.Lock()
+	defer g.M.Unlock()
 	g.APIUrl = geminiAPIURL
 	_, ok := sessionAPIKey[sessionID]
 	if !ok {
