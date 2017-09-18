@@ -306,13 +306,7 @@ func SendHTTPGetRequest(url string, jsonDecode, isVerbose bool, result interface
 	}
 
 	if res.StatusCode != 200 {
-<<<<<<< dae90a2eaa109648bdb85f8298d805e00ad4e974
-		log.Printf("HTTP status code: %d\n", res.StatusCode)
-		log.Printf("URL: %s\n", url)
-		return errors.New("status code was not 200")
-=======
 		return fmt.Errorf("common.SendHTTPGetRequest() error: HTTP status code %d", res.StatusCode)
->>>>>>> In the common package added JSONDecode error check. Added verbosity in SendHTTPGetRequest. Updated Nonce package function. Fixed issues in ItBit package and expanded test coverage.
 	}
 
 	contents, err := ioutil.ReadAll(res.Body)
