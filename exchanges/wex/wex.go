@@ -94,7 +94,7 @@ func (w *WEX) GetFee() float64 {
 func (w *WEX) GetInfo() (Info, error) {
 	req := fmt.Sprintf("%s/%s/%s/", wexAPIPublicURL, wexAPIPublicVersion, wexInfo)
 	resp := Info{}
-	err := common.SendHTTPGetRequest(req, true, &resp)
+	err := common.SendHTTPGetRequest(req, true, w.Verbose, &resp)
 
 	if err != nil {
 		return resp, err
@@ -111,7 +111,7 @@ func (w *WEX) GetTicker(symbol string) (map[string]Ticker, error) {
 
 	response := Response{}
 	req := fmt.Sprintf("%s/%s/%s/%s", wexAPIPublicURL, wexAPIPublicVersion, wexTicker, symbol)
-	err := common.SendHTTPGetRequest(req, true, &response.Data)
+	err := common.SendHTTPGetRequest(req, true, w.Verbose, &response.Data)
 
 	if err != nil {
 		return nil, err
@@ -128,7 +128,7 @@ func (w *WEX) GetDepth(symbol string) (Orderbook, error) {
 	response := Response{}
 	req := fmt.Sprintf("%s/%s/%s/%s", wexAPIPublicURL, wexAPIPublicVersion, wexDepth, symbol)
 
-	err := common.SendHTTPGetRequest(req, true, &response.Data)
+	err := common.SendHTTPGetRequest(req, true, w.Verbose, &response.Data)
 	if err != nil {
 		return Orderbook{}, err
 	}
@@ -146,7 +146,7 @@ func (w *WEX) GetTrades(symbol string) ([]Trades, error) {
 	response := Response{}
 	req := fmt.Sprintf("%s/%s/%s/%s", wexAPIPublicURL, wexAPIPublicVersion, wexTrades, symbol)
 
-	err := common.SendHTTPGetRequest(req, true, &response.Data)
+	err := common.SendHTTPGetRequest(req, true, w.Verbose, &response.Data)
 	if err != nil {
 		return nil, err
 	}
