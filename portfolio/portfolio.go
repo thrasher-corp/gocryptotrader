@@ -90,62 +90,17 @@ func GetEthereumBalance(address []string) (EtherchainBalanceResponse, error) {
 	return result, nil
 }
 
-<<<<<<< dae90a2eaa109648bdb85f8298d805e00ad4e974
 // GetCryptoIDAddress queries CryptoID for an address balance for a
 // specified cryptocurrency
 func GetCryptoIDAddress(address string, coinType string) (float64, error) {
 	ok, err := common.IsValidCryptoAddress(address, coinType)
 	if !ok || err != nil {
 		return 0, errors.New("invalid address")
-=======
-// GetBlockrBalanceSingle queries Blockr for an address balance for either a
-// LTC or a BTC single address
-func GetBlockrBalanceSingle(address string, coinType string) (BlockrAddressBalanceSingle, error) {
-	valid, _ := common.IsValidCryptoAddress(address, coinType)
-	if !valid {
-		return BlockrAddressBalanceSingle{}, fmt.Errorf(
-			"Not a %s address", common.StringToUpper(coinType),
-		)
 	}
 
-	url := fmt.Sprintf(
-		"https://%s.%s/v%s/%s/%s", common.StringToLower(coinType), blockrAPIURL,
-		blockrAPIVersion, blockrAddressBalance, address,
-	)
-	result := BlockrAddressBalanceSingle{}
-	err := common.SendHTTPGetRequest(url, true, false, &result)
-	if err != nil {
-		return result, err
-	}
-	if result.Status != "success" {
-		return result, errors.New(result.Message)
->>>>>>> In the common package added JSONDecode error check. Added verbosity in SendHTTPGetRequest. Updated Nonce package function. Fixed issues in ItBit package and expanded test coverage.
-	}
-
-<<<<<<< dae90a2eaa109648bdb85f8298d805e00ad4e974
 	var result interface{}
 	url := fmt.Sprintf("%s/%s/api.dws?q=getbalance&a=%s", cryptoIDAPIURL, common.StringToLower(coinType), address)
-	err = common.SendHTTPGetRequest(url, true, &result)
-=======
-// GetBlockrAddressMulti queries Blockr for an address balance for either a LTC
-// or a BTC multiple addresses
-func GetBlockrAddressMulti(addresses []string, coinType string) (BlockrAddressBalanceMulti, error) {
-	for _, add := range addresses {
-		valid, _ := common.IsValidCryptoAddress(add, coinType)
-		if !valid {
-			return BlockrAddressBalanceMulti{}, fmt.Errorf(
-				"Not a %s address", common.StringToUpper(coinType),
-			)
-		}
-	}
-	addressesStr := common.JoinStrings(addresses, ",")
-	url := fmt.Sprintf(
-		"https://%s.%s/v%s/%s/%s", common.StringToLower(coinType), blockrAPIURL,
-		blockrAPIVersion, blockrAddressBalance, addressesStr,
-	)
-	result := BlockrAddressBalanceMulti{}
-	err := common.SendHTTPGetRequest(url, true, false, &result)
->>>>>>> In the common package added JSONDecode error check. Added verbosity in SendHTTPGetRequest. Updated Nonce package function. Fixed issues in ItBit package and expanded test coverage.
+	err = common.SendHTTPGetRequest(url, true, false, &result)
 	if err != nil {
 		return 0, err
 	}
