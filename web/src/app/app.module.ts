@@ -24,9 +24,12 @@ import {
 import { AppComponent } from './app.component';
 import { HomeComponent } from './pages/home/home.component';
 import { AboutComponent } from './pages/about/about.component';
-import { NavbarComponent } from './shared/navbar/navbar.component';
-import { ChatbuttonComponent } from './shared/chatbutton/chatbutton.component';
 import { SettingsComponent } from './pages/settings/settings.component';
+import { DashboardComponent } from './pages/dashboard/dashboard.component';
+
+import { NavbarComponent } from './shared/navbar/navbar.component';
+import { ExchangeCurrencyTickerComponent } from './shared/exchange-currency-ticker/exchange-currency-ticker.component';
+
 
 import { WebsocketService } from './services/websocket/websocket.service';
 import { WebsocketHandlerService } from './services/websocket-handler/websocket-handler.service';
@@ -43,8 +46,9 @@ import * as Rx from 'rxjs/Rx';
     HomeComponent,
     AboutComponent,
     NavbarComponent,
-    ChatbuttonComponent,
-    SettingsComponent
+    SettingsComponent,
+    DashboardComponent,
+    ExchangeCurrencyTickerComponent
   ],
   imports: [
     BrowserModule,
