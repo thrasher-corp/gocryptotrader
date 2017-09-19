@@ -1,17 +1,26 @@
 {
-    "name": "angular-electron",
-    "version": "1.6.1",
-    "description": "Angular 4 with Electron (Typescript + SASS + Hot Reload)",
-    "homepage": "https://github.com/maximegris/angular-electron",
+    "name": "gocryptotrader-web",
+    "version": "0.1.0",
+    "description": "Front-end interface for GoCryptoTrader",
+    "homepage": "https://github.com/thrasher-/gocryptotrader",
     "author": {
-        "name": "Maxime GRIS",
-        "email": "maxime.gris@gmail.com"
+        "name": "Scott",
+        "email": "scott@gloriousedge.com",
+        "github":"https://github.com/gloriousCode/",
+        "website":"https://www.gloriousedge.com"
     },
+	"contributers": [{
+		"name": "Maxime GRIS",
+        "email": "maxime.gris@gmail.com",
+        "github": "https://github.com/maximegris/"
+	}],
     "keywords": [
         "angular",
         "electron",
         "typescript",
-        "sass"
+        "sass",
+        "bitcoin",
+        "exchange"
     ],
     "main": "main.js",
     "private": true,

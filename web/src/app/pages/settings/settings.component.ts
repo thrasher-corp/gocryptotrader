@@ -9,14 +9,16 @@ import { WebsocketHandlerService } from './../../services/websocket-handler/webs
 
 
 export class SettingsComponent implements OnInit {
-  private settings: RootObject = null;
+  public settings: Config = null;
   private ws: WebsocketHandlerService;
   private failCount = 0;
   private timer: any;
 
   private getSettingsMessage = {
     Event: 'GetConfig',
-    data: null
+    data: null,
+    Exchange: null,
+    AssetType: null
   };
 
   constructor(private websocketHandler: WebsocketHandlerService) {
@@ -24,7 +26,7 @@ export class SettingsComponent implements OnInit {
     this.ws.messages.subscribe(msg => {
       if (msg.Event === 'GetConfig') {
         console.log('Data:' + JSON.stringify(msg.data));
-        this.settings = <RootObject>msg.data;
+        this.settings = <Config>msg.data;
         this.fixUpSettings();
       } else if (msg.Event === 'SaveConfig') {
         // something!
@@ -49,7 +51,10 @@ export class SettingsComponent implements OnInit {
     //Send the message
     var settingsSave = {
       Event: 'SaveConfig',
-      data: this.settings
+      data: this.settings,
+      
+    Exchange: null,
+    AssetType: null
     }
     this.ws.messages.next(settingsSave);
   }
@@ -135,7 +140,7 @@ export interface Exchange {
   ClientID: string;
 }
 
-export interface RootObject {
+export interface Config {
   Name: string;
   EncryptConfig?: number;
   Cryptocurrencies: string;

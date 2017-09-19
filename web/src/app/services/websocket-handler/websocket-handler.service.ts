@@ -6,7 +6,9 @@ const WEBSOCKET_URL = 'ws://localhost:9050/ws';
 
 export interface Message {
 	Event: string,
-	data:object,
+	data:any,
+	Exchange:string,
+	AssetType:string
 }
 
 @Injectable()
@@ -19,11 +21,15 @@ export class WebsocketHandlerService {
 			.map((response: MessageEvent): Message => {
 
 				let data = JSON.parse(response.data);
+
 				// debug only
-				// console.log('Recieved response from websocket. Event: ' + data.Event)
+				//console.log('Recieved response from websocket. Data: ' + JSON.stringify(data))
+				var dataData = data.Data === null ? data.data : data.Data;
 				return {
 					Event: data.Event,
-					data: data.data,
+					data: dataData,
+					Exchange: data.exchange,
+					AssetType: data.assetType
 				}
 			});
 		}

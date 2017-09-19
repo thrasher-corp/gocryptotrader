@@ -14,8 +14,6 @@ Install dependencies with npm :
 npm install
 ```
 
-There is an issue with `yarn` and `node_modules` that are only used in electron on the backend when the application is built by the packager. Please use `npm` as dependencies manager.
-
 If you want to generate Angular components with Angular-cli , you **MUST** install `@angular/cli` in npm global context.  
 Please follow [Angular-cli documentation](https://github.com/angular/angular-cli) if you had installed a previous version of `angular-cli`.
 
@@ -24,15 +22,10 @@ npm install -g @angular/cli
 ```
 
 ## To build for development
+npm run web:start
 
-- **in a terminal window** -> npm start  
-- **in another terminal window** -> npm run electron:serve
+Voila! You can use GoCryptoTrader web app in a local development environment with webpack watching!
 
-Voila! You can use your Angular + Electron app in a local development environment with hot reload !
-
-The application code is managed by `main.ts`. In this sample, the app runs with a simple Electron window and "Developer Tools" is open.  
-The Angular component contains an example of Electron and NodeJS native lib import. See [Use NodeJS Native libraries](#use-nodejs-native-libraries) charpter if you want to import other native libraries in your project.  
-You can desactivate "Developer Tools" by commenting `win.webContents.openDevTools();` in `main.ts`.
 
 ## To build for production
 
@@ -51,11 +44,6 @@ Your built files are in the /dist folder.
 |`npm run electron:mac`|  On a MAC OS, builds your application and generates a `.app` file of your application that can be run on Ma |
 
 
-## Browser mode
-
-Maybe you want to execute the application in the browser (WITHOUT HOT RELOAD ACTUALLY...) ? You can do it with `npm run start:web`.  
-Note that you can't use Electron or NodeJS native libraries in this case. Please check `providers/electron.service.ts` to watch how conditional import of electron/Native libraries is done.
-
 ## Execute E2E tests
 
 You can find end-to-end tests in /e2e folder.
@@ -66,8 +54,9 @@ You can run tests with the command lines below :
 
 # Contributors 
 |[GloriousCode](https://github.com/gloriouscode)|
-|[Shazbot](https://github.com/shazbert)|
 |[Maxime GRIS](https://github.com/maximegris)|
+|[Shazbot](https://github.com/shazbert)|
+
 
 
 
