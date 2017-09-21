@@ -1,5 +1,18 @@
 package wex
 
+// Response is a generic struct used for exchange API request result
+type Response struct {
+	Return  interface{} `json:"return"`
+	Success int         `json:"success"`
+	Error   string      `json:"error"`
+}
+
+// Info holds server time and pair information
+type Info struct {
+	ServerTime int64           `json:"server_time"`
+	Pairs      map[string]Pair `json:"pairs"`
+}
+
 // Ticker stores the ticker information
 type Ticker struct {
 	High          float64
@@ -28,11 +41,14 @@ type Trades struct {
 	Timestamp int64   `json:"timestamp"`
 }
 
-// Response is a generic struct used for exchange API request result
-type Response struct {
-	Return  interface{} `json:"return"`
-	Success int         `json:"success"`
-	Error   string      `json:"error"`
+// ActiveOrders stores active order information
+type ActiveOrders struct {
+	Pair             string  `json:"pair"`
+	Type             string  `json:"sell"`
+	Amount           float64 `json:"amount"`
+	Rate             float64 `json:"rate"`
+	TimestampCreated float64 `json:"time_created"`
+	Status           int     `json:"status"`
 }
 
 // Pair holds pair information
@@ -43,12 +59,6 @@ type Pair struct {
 	MinAmount     float64 `json:"min_amount"`
 	Hidden        int     `json:"hidden"`
 	Fee           float64 `json:"fee"`
-}
-
-// Info holds server time and pair information
-type Info struct {
-	ServerTime int64           `json:"server_time"`
-	Pairs      map[string]Pair `json:"pairs"`
 }
 
 // AccountInfo stores the account information for a user
@@ -62,16 +72,6 @@ type AccountInfo struct {
 	} `json:"rights"`
 	ServerTime       float64 `json:"server_time"`
 	TransactionCount int     `json:"transaction_count"`
-}
-
-// ActiveOrders stores active order information
-type ActiveOrders struct {
-	Pair             string  `json:"pair"`
-	Type             string  `json:"sell"`
-	Amount           float64 `json:"amount"`
-	Rate             float64 `json:"rate"`
-	TimestampCreated float64 `json:"time_created"`
-	Status           int     `json:"status"`
 }
 
 // OrderInfo stores order information

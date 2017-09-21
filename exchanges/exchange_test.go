@@ -303,7 +303,7 @@ func TestGetExchangeFormatCurrencySeperator(t *testing.T) {
 	}
 
 	expected := true
-	actual := GetExchangeFormatCurrencySeperator("BTCE")
+	actual := GetExchangeFormatCurrencySeperator("WEX")
 
 	if expected != actual {
 		t.Errorf("Test failed - TestGetExchangeFormatCurrencySeperator expected %v != actual %v",
