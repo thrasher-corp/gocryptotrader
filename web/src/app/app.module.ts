@@ -29,12 +29,12 @@ import { DashboardComponent } from './pages/dashboard/dashboard.component';
 
 import { NavbarComponent } from './shared/navbar/navbar.component';
 import { ExchangeCurrencyTickerComponent } from './shared/exchange-currency-ticker/exchange-currency-ticker.component';
-
-
+import { AllEnabledCurrencyTickersComponent } from './shared/all-enabled-currency-tickers/all-enabled-currency-tickers.component';
+//services
 import { WebsocketService } from './services/websocket/websocket.service';
 import { WebsocketHandlerService } from './services/websocket-handler/websocket-handler.service';
 import { ElectronService } from './providers/electron.service';
-
+//Routing
 import { AppRoutingModule } from './app-routing.module';
 
 import * as Rx from 'rxjs/Rx';
@@ -48,7 +48,8 @@ import * as Rx from 'rxjs/Rx';
     NavbarComponent,
     SettingsComponent,
     DashboardComponent,
-    ExchangeCurrencyTickerComponent
+    ExchangeCurrencyTickerComponent,
+    AllEnabledCurrencyTickersComponent
   ],
   imports: [
     BrowserModule,
