@@ -39,13 +39,23 @@ export class AllEnabledCurrencyTickersComponent implements OnInit {
           console.log(JSON.stringify(this.allCurrencies));
         } else {
           console.log('deleting');
-          for(var i = 0; i< this.tickerCards.length; i++) {
-            if(this.tickerCards[i].Exchange === msg.Exchange 
-              && this.tickerCards[i].CurrencyPair === msg.data.CurrencyPair) {
-              this.tickerCards.slice(this.tickerCards.indexOf(this.tickerCards[i]));
+          for(var j = 0; j< this.tickerCards.length; j++) {
+           console.log(j);
+           console.log("exchange" + this.tickerCards[j].Exchange === msg.Exchange );
+           console.log("curr" +  this.tickerCards[j].CurrencyPair === msg.data.CurrencyPair );
+            if(this.tickerCards[j].Exchange === msg.Exchange 
+              && this.tickerCards[j].CurrencyPair === msg.data.CurrencyPair) {
+          console.log('doner');
+          
               var ticker = <TickerUpdate>msg.data;
-              this.tickerCards.splice(i,0,ticker);
-            }
+                this.tickerCards[j] = ticker;
+                this.tickerCards[j].Exchange = msg.Exchange;
+          
+          console.log('done');
+          return;
+        } else {
+          console.log('not found?');
+        }
           }
         }
       }
