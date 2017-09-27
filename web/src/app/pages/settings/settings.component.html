@@ -1,3 +1,6 @@
+<div *ngShow="settings === null">
+    <md-progress-spinner mode="indeterminate"></md-progress-spinner>
+</div>
 <div *ngIf="settings !== null">
     <button (click)="saveSettings()" md-fab color="accent" class="md-fab md-fab-bottom-right">Save</button>
     <form *ngIf="settings.SMSGlobal != null">
@@ -13,7 +16,7 @@
                         </td>
                     </tr>
                 </table>
-                <md-grid-list cols="2" rowHeight="2:1">
+                <md-grid-list cols="2" rowHeight="3:1">
                     <md-grid-tile>
                         <md-form-field>
                             <input mdInput name="smsUsername" [(ngModel)]="settings.SMSGlobal.Username" [disabled]="!settings?.SMSGlobal.Enabled" placeholder="Username">
@@ -75,13 +78,11 @@
                     </md-grid-tile>
                 </md-grid-list>
 
-                <md-form-field>
-                    <input mdInput placeholder="Exchange Name" disabled value="Enabled Currencies">
-                </md-form-field>
+                <label>Enabled Currencies</label>
 
-                <md-grid-list cols="5" rowHeight="2:1">
+                <md-grid-list cols="6" rowHeight="2:1">
                     <md-grid-tile *ngFor="let currency of exchange.AvailablePairs.split(',')">
-                        <md-checkbox name="availableCurrency" [disabled]="!exchange.Enabled">{{currency}}</md-checkbox>
+                        <md-checkbox name="availableCurrency" [disabled]="true || !exchange.Enabled">{{currency}}</md-checkbox>
                     </md-grid-tile>
                 </md-grid-list>
             </md-card-content>

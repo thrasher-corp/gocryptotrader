@@ -17,7 +17,8 @@ import {
   MdFormFieldModule,
   MdInputModule,
   MdCheckboxModule,
-  MdGridListModule
+  MdGridListModule,
+  MdProgressSpinnerModule,
 } from '@angular/material';
 
 
@@ -65,7 +66,8 @@ import * as Rx from 'rxjs/Rx';
     MdFormFieldModule,
     MdInputModule,
     MdCheckboxModule,
-    MdGridListModule
+    MdGridListModule,
+    MdProgressSpinnerModule,
   ],
   providers: [ElectronService,WebsocketService,WebsocketHandlerService],
   bootstrap: [AppComponent]

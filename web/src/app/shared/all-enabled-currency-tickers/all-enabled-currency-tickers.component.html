@@ -1,3 +1,6 @@
+<div *ngIf="tickerCards === null">
+  <md-progress-spinner mode="indeterminate"></md-progress-spinner>
+</div>
 <md-grid-list cols="4" rowHeight="4:3" >
     <md-grid-tile *ngFor="let ticker of tickerCards">
   <app-exchange-currency-ticker  [ticker]="ticker" ></app-exchange-currency-ticker>
