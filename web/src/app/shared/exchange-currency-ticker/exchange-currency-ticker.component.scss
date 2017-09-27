@@ -1,20 +1,19 @@
-.example-form {
-    min-width: 150px;
-    width: 100%;
-}
-
-.example-full-width {
-    width: 100%;
-}
-
-.exchange-card {
-    margin-bottom: 20px;
-    width: 300px;
-}
-
-.md-fab {
-    margin: 0;
-    position: fixed;
-    bottom: 5%;
-    right: 2%;
-}
+.one-time-animation {
+    animation: one-time-animation 2s forwards 1;
+  }
+  @keyframes one-time-animation {
+    from {
+      background: green;
+    }
+    to {
+      background: transparent;
+    }
+  }
+  
+  /* do the following changes */
+  
+  .selected {
+    box-shadow: 0 0 10px green inset;
+    transition: box-shadow 2s ease;
+  }
+  
