@@ -6,9 +6,8 @@ import { Component, OnInit, Input } from '@angular/core';
 })
 export class ExchangeCurrencyTickerComponent implements OnInit {
   @Input('ticker') ticker: TickerUpdate;
-  
-  constructor() {}
 
+  constructor() {}
   ngOnInit() { }
 
 }
