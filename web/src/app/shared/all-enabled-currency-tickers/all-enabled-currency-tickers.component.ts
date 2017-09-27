@@ -11,8 +11,6 @@ export class AllEnabledCurrencyTickersComponent implements OnInit {
   allCurrencies:ExchangeCurrency[];
   tickerCards: TickerUpdate[];
 
-
-  
   constructor(private websocketHandler: WebsocketHandlerService) {
     this.ws = websocketHandler;
     this.allCurrencies = <ExchangeCurrency[]>[];
@@ -36,35 +34,22 @@ export class AllEnabledCurrencyTickersComponent implements OnInit {
           ticker.Exchange = msg.Exchange;
           this.tickerCards.push(ticker);
           this.allCurrencies.push(modal);
-          console.log(JSON.stringify(this.allCurrencies));
         } else {
-          console.log('deleting');
+          //time to replace
           for(var j = 0; j< this.tickerCards.length; j++) {
-           console.log(j);
-           console.log("exchange" + this.tickerCards[j].Exchange === msg.Exchange );
-           console.log("curr" +  this.tickerCards[j].CurrencyPair === msg.data.CurrencyPair );
             if(this.tickerCards[j].Exchange === msg.Exchange 
               && this.tickerCards[j].CurrencyPair === msg.data.CurrencyPair) {
-          console.log('doner');
-          
               var ticker = <TickerUpdate>msg.data;
                 this.tickerCards[j] = ticker;
                 this.tickerCards[j].Exchange = msg.Exchange;
-          
-          console.log('done');
-          return;
-        } else {
-          console.log('not found?');
-        }
+              return;
+              }
           }
         }
       }
     });
    }
-
-  ngOnInit() {
-  }
-
+  ngOnInit() {  }
 }
 
 export interface ExchangeCurrency {

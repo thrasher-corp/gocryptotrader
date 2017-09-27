@@ -17,17 +17,14 @@ export class SettingsComponent implements OnInit {
   private getSettingsMessage = {
     Event: 'GetConfig',
     data: null,
-    Exchange: null,
-    AssetType: null
   };
 
   constructor(private websocketHandler: WebsocketHandlerService) {
     this.ws = websocketHandler;
     this.ws.messages.subscribe(msg => {
+      
       if (msg.Event === 'GetConfig') {
-        console.log('Data:' + JSON.stringify(msg.data));
         this.settings = <Config>msg.data;
-        this.fixUpSettings();
       } else if (msg.Event === 'SaveConfig') {
         // something!
       }
@@ -38,30 +35,23 @@ export class SettingsComponent implements OnInit {
   }
 
   private getSettings(): void {
-    console.log('new message from client to websocket: ', this.getSettingsMessage);
     this.ws.messages.next(this.getSettingsMessage);
     this.resendMessageIfPageRefreshed();
   }
 
-  private fixUpSettings(): void {
-
-  }
 
   private saveSettings(): void {
     //Send the message
     var settingsSave = {
       Event: 'SaveConfig',
       data: this.settings,
-      
-    Exchange: null,
-    AssetType: null
     }
     this.ws.messages.next(settingsSave);
   }
 
-
+//there has to be a better way
   private resendMessageIfPageRefreshed(): void {
-    if (this.failCount <= 5) {
+    if (this.failCount <= 10) {
       setTimeout(() => {
       if (this.settings === null) {
         console.log(this.failCount);
