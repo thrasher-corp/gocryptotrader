@@ -54,8 +54,8 @@ export class SettingsComponent implements OnInit {
     if (this.failCount <= 10) {
       setTimeout(() => {
       if (this.settings === null) {
-        console.log(this.failCount);
-          console.log('Settings hasnt been set. Trying again');
+          //console.log(this.failCount);
+          //console.log('Settings hasnt been set. Trying again');
           this.failCount++;
           this.getSettings();
         }

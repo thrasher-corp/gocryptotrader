@@ -1,4 +1,4 @@
-<div *ngShow="settings === null">
+<div class="loading-spinner" *ngIf="settings === null">
     <md-progress-spinner mode="indeterminate"></md-progress-spinner>
 </div>
 <div *ngIf="settings !== null">
