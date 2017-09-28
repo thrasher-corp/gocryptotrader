@@ -12,6 +12,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/exchanges"
+	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 )
 
 const (
@@ -33,7 +34,7 @@ const (
 )
 
 type Liqui struct {
-	exchange.ExchangeBase
+	exchange.Base
 	Ticker map[string]LiquiTicker
 	Info   LiquiInfo
 }
@@ -46,6 +47,12 @@ func (l *Liqui) SetDefaults() {
 	l.Websocket = false
 	l.RESTPollingDelay = 10
 	l.Ticker = make(map[string]LiquiTicker)
+	l.RequestCurrencyPairFormat.Delimiter = "_"
+	l.RequestCurrencyPairFormat.Uppercase = false
+	l.RequestCurrencyPairFormat.Separator = "-"
+	l.ConfigCurrencyPairFormat.Delimiter = "_"
+	l.ConfigCurrencyPairFormat.Uppercase = true
+	l.AssetTypes = []string{ticker.Spot}
 }
 
 func (l *Liqui) Setup(exch config.ExchangeConfig) {
@@ -61,6 +68,14 @@ func (l *Liqui) Setup(exch config.ExchangeConfig) {
 		l.BaseCurrencies = common.SplitStrings(exch.BaseCurrencies, ",")
 		l.AvailablePairs = common.SplitStrings(exch.AvailablePairs, ",")
 		l.EnabledPairs = common.SplitStrings(exch.EnabledPairs, ",")
+		err := l.SetCurrencyPairFormat()
+		if err != nil {
+			log.Fatal(err)
+		}
+		err = l.SetAssetTypes()
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 }
 
@@ -76,7 +91,7 @@ func (l *Liqui) GetFee(currency string) (float64, error) {
 func (l *Liqui) GetAvailablePairs(nonHidden bool) []string {
 	var pairs []string
 	for x, y := range l.Info.Pairs {
-		if nonHidden && y.Hidden == 1 {
+		if nonHidden && y.Hidden == 1 || x == "" {
 			continue
 		}
 		pairs = append(pairs, common.StringToUpper(x))
@@ -249,12 +264,20 @@ func (l *Liqui) WithdrawCoins(coin string, amount float64, address string) (Liqu
 }
 
 func (l *Liqui) SendAuthenticatedHTTPRequest(method string, values url.Values, result interface{}) (err error) {
-	nonce := strconv.FormatInt(time.Now().Unix(), 10)
-	values.Set("nonce", nonce)
+	if !l.AuthenticatedAPISupport {
+		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet, l.Name)
+	}
+
+	if l.Nonce.Get() == 0 {
+		l.Nonce.Set(time.Now().Unix())
+	} else {
+		l.Nonce.Inc()
+	}
+	values.Set("nonce", l.Nonce.String())
 	values.Set("method", method)
 
 	encoded := values.Encode()
-	hmac := common.GetHMAC(common.HASH_SHA512, []byte(encoded), []byte(l.APISecret))
+	hmac := common.GetHMAC(common.HashSHA512, []byte(encoded), []byte(l.APISecret))
 
 	if l.Verbose {
 		log.Printf("Sending POST request to %s calling method %s with params %s\n", LIQUI_API_PRIVATE_URL, method, encoded)

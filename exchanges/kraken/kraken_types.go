@@ -31,6 +31,18 @@ type KrakenTicker struct {
 	Open   float64
 }
 
+// OrderbookBase stores the orderbook price and amount data
+type OrderbookBase struct {
+	Price  float64
+	Amount float64
+}
+
+// Orderbook stores the bids and asks orderbook data
+type Orderbook struct {
+	Bids []OrderbookBase
+	Asks []OrderbookBase
+}
+
 type KrakenTickerResponse struct {
 	Ask    []string `json:"a"`
 	Bid    []string `json:"b"`

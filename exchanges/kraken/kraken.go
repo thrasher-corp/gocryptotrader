@@ -12,6 +12,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/exchanges"
+	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 )
 
 const (
@@ -41,7 +42,7 @@ const (
 )
 
 type Kraken struct {
-	exchange.ExchangeBase
+	exchange.Base
 	CryptoFee, FiatFee float64
 	Ticker             map[string]KrakenTicker
 }
@@ -55,6 +56,12 @@ func (k *Kraken) SetDefaults() {
 	k.Websocket = false
 	k.RESTPollingDelay = 10
 	k.Ticker = make(map[string]KrakenTicker)
+	k.RequestCurrencyPairFormat.Delimiter = ""
+	k.RequestCurrencyPairFormat.Uppercase = true
+	k.RequestCurrencyPairFormat.Separator = ","
+	k.ConfigCurrencyPairFormat.Delimiter = ""
+	k.ConfigCurrencyPairFormat.Uppercase = true
+	k.AssetTypes = []string{ticker.Spot}
 }
 
 func (k *Kraken) Setup(exch config.ExchangeConfig) {
@@ -70,6 +77,14 @@ func (k *Kraken) Setup(exch config.ExchangeConfig) {
 		k.BaseCurrencies = common.SplitStrings(exch.BaseCurrencies, ",")
 		k.AvailablePairs = common.SplitStrings(exch.AvailablePairs, ",")
 		k.EnabledPairs = common.SplitStrings(exch.EnabledPairs, ",")
+		err := k.SetCurrencyPairFormat()
+		if err != nil {
+			log.Fatal(err)
+		}
+		err = k.SetAssetTypes()
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 }
 
@@ -178,20 +193,62 @@ func (k *Kraken) GetOHLC(symbol string) error {
 	return nil
 }
 
-func (k *Kraken) GetDepth(symbol string) error {
+// GetDepth returns the orderbook for a particular currency
+func (k *Kraken) GetDepth(symbol string) (Orderbook, error) {
 	values := url.Values{}
 	values.Set("pair", symbol)
 
 	var result interface{}
+	var ob Orderbook
 	path := fmt.Sprintf("%s/%s/public/%s?%s", KRAKEN_API_URL, KRAKEN_API_VERSION, KRAKEN_DEPTH, values.Encode())
 	err := common.SendHTTPGetRequest(path, true, &result)
 
 	if err != nil {
-		return err
+		return ob, err
 	}
 
-	log.Println(result)
-	return nil
+	data := result.(map[string]interface{})
+	orderbookData := data["result"].(map[string]interface{})
+
+	var bidsData []interface{}
+	var asksData []interface{}
+	for _, y := range orderbookData {
+		yData := y.(map[string]interface{})
+		bidsData = yData["bids"].([]interface{})
+		asksData = yData["asks"].([]interface{})
+	}
+
+	processOrderbook := func(data []interface{}) ([]OrderbookBase, error) {
+		var result []OrderbookBase
+		for x := range data {
+			entry := data[x].([]interface{})
+
+			price, err := strconv.ParseFloat(entry[0].(string), 64)
+			if err != nil {
+				return nil, err
+			}
+
+			amount, err := strconv.ParseFloat(entry[1].(string), 64)
+			if err != nil {
+				return nil, err
+			}
+
+			result = append(result, OrderbookBase{Price: price, Amount: amount})
+		}
+		return result, nil
+	}
+
+	ob.Bids, err = processOrderbook(bidsData)
+	if err != nil {
+		return ob, err
+	}
+
+	ob.Asks, err = processOrderbook(asksData)
+	if err != nil {
+		return ob, err
+	}
+
+	return ob, nil
 }
 
 func (k *Kraken) GetTrades(symbol string) error {
@@ -509,8 +566,18 @@ func (k *Kraken) CancelOrder(orderID int64) {
 }
 
 func (k *Kraken) SendAuthenticatedHTTPRequest(method string, values url.Values) (interface{}, error) {
+	if !k.AuthenticatedAPISupport {
+		return nil, fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet, k.Name)
+	}
+
 	path := fmt.Sprintf("/%s/private/%s", KRAKEN_API_VERSION, method)
-	values.Set("nonce", strconv.FormatInt(time.Now().UnixNano(), 10))
+	if k.Nonce.Get() == 0 {
+		k.Nonce.Set(time.Now().UnixNano())
+	} else {
+		k.Nonce.Inc()
+	}
+
+	values.Set("nonce", k.Nonce.String())
 	secret, err := common.Base64Decode(k.APISecret)
 
 	if err != nil {
@@ -518,7 +585,7 @@ func (k *Kraken) SendAuthenticatedHTTPRequest(method string, values url.Values) 
 	}
 
 	shasum := common.GetSHA256([]byte(values.Get("nonce") + values.Encode()))
-	signature := common.Base64Encode(common.GetHMAC(common.HASH_SHA512, append([]byte(path), shasum...), secret))
+	signature := common.Base64Encode(common.GetHMAC(common.HashSHA512, append([]byte(path), shasum...), secret))
 
 	if k.Verbose {
 		log.Printf("Sending POST request to %s, path: %s.", KRAKEN_API_URL, path)
@@ -535,7 +602,7 @@ func (k *Kraken) SendAuthenticatedHTTPRequest(method string, values url.Values) 
 	}
 
 	if k.Verbose {
-		log.Printf("Recieved raw: \n%s\n", resp)
+		log.Printf("Received raw: \n%s\n", resp)
 	}
 
 	return resp, nil

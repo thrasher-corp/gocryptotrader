@@ -1,12 +1,14 @@
 package main
 
 const (
-	LIMIT_ORDER = iota
-	MARKET_ORDER
+	limitOrder = iota
+	marketOrder
 )
 
+// Orders variable holds an array of pointers to order structs
 var Orders []*Order
 
+// Order struct holds order values
 type Order struct {
 	OrderID  int
 	Exchange string
@@ -15,6 +17,7 @@ type Order struct {
 	Price    float64
 }
 
+// NewOrder creates a new order and returns a an orderID
 func NewOrder(Exchange string, amount, price float64) int {
 	order := &Order{}
 	if len(Orders) == 0 {
@@ -30,6 +33,7 @@ func NewOrder(Exchange string, amount, price float64) int {
 	return order.OrderID
 }
 
+// DeleteOrder deletes orders by ID and returns state
 func DeleteOrder(orderID int) bool {
 	for i := range Orders {
 		if Orders[i].OrderID == orderID {
@@ -40,7 +44,8 @@ func DeleteOrder(orderID int) bool {
 	return false
 }
 
-func GetOrdersByExchange(exchange string) ([]*Order, bool) {
+// GetOrdersByExchange returns order pointer grouped by exchange
+func GetOrdersByExchange(exchange string) []*Order {
 	orders := []*Order{}
 	for i := range Orders {
 		if Orders[i].Exchange == exchange {
@@ -48,16 +53,17 @@ func GetOrdersByExchange(exchange string) ([]*Order, bool) {
 		}
 	}
 	if len(orders) > 0 {
-		return orders, true
+		return orders
 	}
-	return nil, false
+	return nil
 }
 
-func GetOrderByOrderID(orderID int) (*Order, bool) {
+// GetOrderByOrderID returns order pointer by ID
+func GetOrderByOrderID(orderID int) *Order {
 	for i := range Orders {
 		if Orders[i].OrderID == orderID {
-			return Orders[i], true
+			return Orders[i]
 		}
 	}
-	return nil, false
+	return nil
 }

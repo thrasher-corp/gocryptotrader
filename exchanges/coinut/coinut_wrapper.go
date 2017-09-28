@@ -2,20 +2,20 @@ package coinut
 
 import (
 	"log"
-	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
 	"github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
-	"github.com/thrasher-/gocryptotrader/exchanges/stats"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 )
 
+// Start starts the COINUT go routine
 func (c *COINUT) Start() {
 	go c.Run()
 }
 
+// Run implements the COINUT wrapper
 func (c *COINUT) Run() {
 	if c.Verbose {
 		log.Printf("%s Websocket: %s. (url: %s).\n", c.GetName(), common.IsEnabled(c.Websocket), COINUT_WEBSOCKET_URL)
@@ -40,31 +40,16 @@ func (c *COINUT) Run() {
 		currencies = append(currencies, x)
 	}
 
-	err = c.UpdateAvailableCurrencies(currencies)
+	err = c.UpdateAvailableCurrencies(currencies, false)
 	if err != nil {
 		log.Printf("%s Failed to get config.\n", c.GetName())
 	}
-
-	for c.Enabled {
-		for _, x := range c.EnabledPairs {
-			currency := pair.NewCurrencyPair(x[0:3], x[3:])
-			go func() {
-				ticker, err := c.GetTickerPrice(currency)
-				if err != nil {
-					log.Println(err)
-					return
-				}
-				log.Printf("COINUT %s: Last %f High %f Low %f Volume %f\n", currency.Pair().String(), ticker.Last, ticker.High, ticker.Low, ticker.Volume)
-				stats.AddExchangeInfo(c.GetName(), currency.GetFirstCurrency().String(), currency.GetSecondCurrency().String(), ticker.Last, ticker.Volume)
-			}()
-		}
-		time.Sleep(time.Second * c.RESTPollingDelay)
-	}
 }
 
-//GetExchangeAccountInfo : Retrieves balances for all enabled currencies for the COINUT exchange
-func (e *COINUT) GetExchangeAccountInfo() (exchange.ExchangeAccountInfo, error) {
-	var response exchange.ExchangeAccountInfo
+// GetExchangeAccountInfo retrieves balances for all enabled currencies for the
+// COINUT exchange
+func (c *COINUT) GetExchangeAccountInfo() (exchange.AccountInfo, error) {
+	var response exchange.AccountInfo
 	/*
 		response.ExchangeName = e.GetName()
 		accountBalance, err := e.GetAccounts()
@@ -72,7 +57,7 @@ func (e *COINUT) GetExchangeAccountInfo() (exchange.ExchangeAccountInfo, error) 
 			return response, err
 		}
 		for i := 0; i < len(accountBalance); i++ {
-			var exchangeCurrency exchange.ExchangeAccountCurrencyInfo
+			var exchangeCurrency exchange.AccountCurrencyInfo
 			exchangeCurrency.CurrencyName = accountBalance[i].Currency
 			exchangeCurrency.TotalValue = accountBalance[i].Available
 			exchangeCurrency.Hold = accountBalance[i].Hold
@@ -83,16 +68,12 @@ func (e *COINUT) GetExchangeAccountInfo() (exchange.ExchangeAccountInfo, error) 
 	return response, nil
 }
 
-func (c *COINUT) GetTickerPrice(p pair.CurrencyPair) (ticker.TickerPrice, error) {
-	tickerNew, err := ticker.GetTicker(c.GetName(), p)
-	if err == nil {
-		return tickerNew, nil
-	}
-
-	var tickerPrice ticker.TickerPrice
+// UpdateTicker updates and returns the ticker for a currency pair
+func (c *COINUT) UpdateTicker(p pair.CurrencyPair, assetType string) (ticker.Price, error) {
+	var tickerPrice ticker.Price
 	tick, err := c.GetInstrumentTicker(c.InstrumentMap[p.Pair().String()])
 	if err != nil {
-		return ticker.TickerPrice{}, err
+		return ticker.Price{}, err
 	}
 
 	tickerPrice.Pair = p
@@ -100,30 +81,45 @@ func (c *COINUT) GetTickerPrice(p pair.CurrencyPair) (ticker.TickerPrice, error)
 	tickerPrice.Last = tick.Last
 	tickerPrice.High = tick.HighestBuy
 	tickerPrice.Low = tick.LowestSell
-	ticker.ProcessTicker(c.GetName(), p, tickerPrice)
-	return tickerPrice, nil
+	ticker.ProcessTicker(c.GetName(), p, tickerPrice, assetType)
+	return ticker.GetTicker(c.Name, p, assetType)
+
 }
 
-func (c *COINUT) GetOrderbookEx(p pair.CurrencyPair) (orderbook.OrderbookBase, error) {
-	ob, err := orderbook.GetOrderbook(c.GetName(), p)
-	if err == nil {
-		return ob, nil
+// GetTickerPrice returns the ticker for a currency pair
+func (c *COINUT) GetTickerPrice(p pair.CurrencyPair, assetType string) (ticker.Price, error) {
+	tickerNew, err := ticker.GetTicker(c.GetName(), p, assetType)
+	if err != nil {
+		return c.UpdateTicker(p, assetType)
 	}
+	return tickerNew, nil
+}
 
-	var orderBook orderbook.OrderbookBase
+// GetOrderbookEx returns orderbook base on the currency pair
+func (c *COINUT) GetOrderbookEx(p pair.CurrencyPair, assetType string) (orderbook.Base, error) {
+	ob, err := orderbook.GetOrderbook(c.GetName(), p, assetType)
+	if err == nil {
+		return c.UpdateOrderbook(p, assetType)
+	}
+	return ob, nil
+}
+
+// UpdateOrderbook updates and returns the orderbook for a currency pair
+func (c *COINUT) UpdateOrderbook(p pair.CurrencyPair, assetType string) (orderbook.Base, error) {
+	var orderBook orderbook.Base
 	orderbookNew, err := c.GetInstrumentOrderbook(c.InstrumentMap[p.Pair().String()], 200)
 	if err != nil {
 		return orderBook, err
 	}
 
 	for x := range orderbookNew.Buy {
-		orderBook.Bids = append(orderBook.Bids, orderbook.OrderbookItem{Amount: orderbookNew.Buy[x].Quantity, Price: orderbookNew.Buy[x].Price})
+		orderBook.Bids = append(orderBook.Bids, orderbook.Item{Amount: orderbookNew.Buy[x].Quantity, Price: orderbookNew.Buy[x].Price})
 	}
 
 	for x := range orderbookNew.Sell {
-		orderBook.Asks = append(orderBook.Asks, orderbook.OrderbookItem{Amount: orderbookNew.Sell[x].Quantity, Price: orderbookNew.Sell[x].Price})
+		orderBook.Asks = append(orderBook.Asks, orderbook.Item{Amount: orderbookNew.Sell[x].Quantity, Price: orderbookNew.Sell[x].Price})
 	}
-	orderBook.Pair = p
-	orderbook.ProcessOrderbook(c.GetName(), p, orderBook)
-	return orderBook, nil
+
+	orderbook.ProcessOrderbook(c.GetName(), p, orderBook, assetType)
+	return orderbook.GetOrderbook(c.Name, p, assetType)
 }

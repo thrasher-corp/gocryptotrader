@@ -12,6 +12,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/exchanges"
+	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 )
 
 const (
@@ -36,7 +37,7 @@ const (
 )
 
 type Gemini struct {
-	exchange.ExchangeBase
+	exchange.Base
 }
 
 func (g *Gemini) SetDefaults() {
@@ -45,6 +46,11 @@ func (g *Gemini) SetDefaults() {
 	g.Verbose = false
 	g.Websocket = false
 	g.RESTPollingDelay = 10
+	g.RequestCurrencyPairFormat.Delimiter = ""
+	g.RequestCurrencyPairFormat.Uppercase = true
+	g.ConfigCurrencyPairFormat.Delimiter = ""
+	g.ConfigCurrencyPairFormat.Uppercase = true
+	g.AssetTypes = []string{ticker.Spot}
 }
 
 func (g *Gemini) Setup(exch config.ExchangeConfig) {
@@ -60,6 +66,14 @@ func (g *Gemini) Setup(exch config.ExchangeConfig) {
 		g.BaseCurrencies = common.SplitStrings(exch.BaseCurrencies, ",")
 		g.AvailablePairs = common.SplitStrings(exch.AvailablePairs, ",")
 		g.EnabledPairs = common.SplitStrings(exch.EnabledPairs, ",")
+		err := g.SetCurrencyPairFormat()
+		if err != nil {
+			log.Fatal(err)
+		}
+		err = g.SetAssetTypes()
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 }
 
@@ -245,9 +259,19 @@ func (g *Gemini) PostHeartbeat() (bool, error) {
 }
 
 func (g *Gemini) SendAuthenticatedHTTPRequest(method, path string, params map[string]interface{}, result interface{}) (err error) {
+	if !g.AuthenticatedAPISupport {
+		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet, g.Name)
+	}
+
+	if g.Nonce.Get() == 0 {
+		g.Nonce.Set(time.Now().UnixNano())
+	} else {
+		g.Nonce.Inc()
+	}
+
 	request := make(map[string]interface{})
 	request["request"] = fmt.Sprintf("/v%s/%s", GEMINI_API_VERSION, path)
-	request["nonce"] = time.Now().UnixNano()
+	request["nonce"] = g.Nonce.Get()
 
 	if params != nil {
 		for key, value := range params {
@@ -255,18 +279,18 @@ func (g *Gemini) SendAuthenticatedHTTPRequest(method, path string, params map[st
 		}
 	}
 
-	PayloadJson, err := common.JSONEncode(request)
+	PayloadJSON, err := common.JSONEncode(request)
 
 	if err != nil {
 		return errors.New("SendAuthenticatedHTTPRequest: Unable to JSON request")
 	}
 
 	if g.Verbose {
-		log.Printf("Request JSON: %s\n", PayloadJson)
+		log.Printf("Request JSON: %s\n", PayloadJSON)
 	}
 
-	PayloadBase64 := common.Base64Encode(PayloadJson)
-	hmac := common.GetHMAC(common.HASH_SHA512_384, []byte(PayloadBase64), []byte(g.APISecret))
+	PayloadBase64 := common.Base64Encode(PayloadJSON)
+	hmac := common.GetHMAC(common.HashSHA512_384, []byte(PayloadBase64), []byte(g.APISecret))
 	headers := make(map[string]string)
 	headers["X-GEMINI-APIKEY"] = g.APIKey
 	headers["X-GEMINI-PAYLOAD"] = PayloadBase64
@@ -275,13 +299,13 @@ func (g *Gemini) SendAuthenticatedHTTPRequest(method, path string, params map[st
 	resp, err := common.SendHTTPRequest(method, GEMINI_API_URL+path, headers, strings.NewReader(""))
 
 	if g.Verbose {
-		log.Printf("Recieved raw: \n%s\n", resp)
+		log.Printf("Received raw: \n%s\n", resp)
 	}
 
 	err = common.JSONDecode([]byte(resp), &result)
 
 	if err != nil {
-		return errors.New("Unable to JSON Unmarshal response.")
+		return errors.New("unable to JSON Unmarshal response")
 	}
 
 	return nil

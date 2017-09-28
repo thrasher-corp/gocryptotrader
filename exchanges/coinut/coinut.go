@@ -3,6 +3,7 @@ package coinut
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"log"
 	"time"
 
@@ -10,11 +11,12 @@ import (
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/exchanges"
+	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 )
 
 const (
 	COINUT_API_URL          = "https://api.coinut.com"
-	COINUT_API_VERISON      = "1"
+	COINUT_API_VERSION      = "1"
 	COINUT_INSTRUMENTS      = "inst_list"
 	COINUT_TICKER           = "inst_tick"
 	COINUT_ORDERBOOK        = "inst_order_book"
@@ -33,7 +35,7 @@ const (
 )
 
 type COINUT struct {
-	exchange.ExchangeBase
+	exchange.Base
 	WebsocketConn *websocket.Conn
 	InstrumentMap map[string]int
 }
@@ -47,6 +49,11 @@ func (c *COINUT) SetDefaults() {
 	c.Verbose = false
 	c.Websocket = false
 	c.RESTPollingDelay = 10
+	c.RequestCurrencyPairFormat.Delimiter = ""
+	c.RequestCurrencyPairFormat.Uppercase = true
+	c.ConfigCurrencyPairFormat.Delimiter = ""
+	c.ConfigCurrencyPairFormat.Uppercase = true
+	c.AssetTypes = []string{ticker.Spot}
 }
 
 func (c *COINUT) Setup(exch config.ExchangeConfig) {
@@ -62,6 +69,14 @@ func (c *COINUT) Setup(exch config.ExchangeConfig) {
 		c.BaseCurrencies = common.SplitStrings(exch.BaseCurrencies, ",")
 		c.AvailablePairs = common.SplitStrings(exch.AvailablePairs, ",")
 		c.EnabledPairs = common.SplitStrings(exch.EnabledPairs, ",")
+		err := c.SetCurrencyPairFormat()
+		if err != nil {
+			log.Fatal(err)
+		}
+		err = c.SetAssetTypes()
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 }
 
@@ -271,13 +286,21 @@ func (c *COINUT) GetOpenPosition(instrumentID int) ([]CoinutOpenPosition, error)
 //to-do: user position update via websocket
 
 func (c *COINUT) SendAuthenticatedHTTPRequest(apiRequest string, params map[string]interface{}, result interface{}) (err error) {
-	timestamp := time.Now().Unix()
+	if !c.AuthenticatedAPISupport {
+		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet, c.Name)
+	}
+
+	if c.Nonce.Get() == 0 {
+		c.Nonce.Set(time.Now().Unix())
+	} else {
+		c.Nonce.Inc()
+	}
 	payload := []byte("")
 
 	if params == nil {
 		params = map[string]interface{}{}
 	}
-	params["nonce"] = timestamp
+	params["nonce"] = c.Nonce.Get()
 	params["request"] = apiRequest
 
 	payload, err = common.JSONEncode(params)
@@ -290,7 +313,7 @@ func (c *COINUT) SendAuthenticatedHTTPRequest(apiRequest string, params map[stri
 		log.Printf("Request JSON: %s\n", payload)
 	}
 
-	hmac := common.GetHMAC(common.HASH_SHA256, []byte(payload), []byte(c.APIKey))
+	hmac := common.GetHMAC(common.HashSHA256, []byte(payload), []byte(c.APIKey))
 	headers := make(map[string]string)
 	headers["X-USER"] = c.ClientID
 	headers["X-SIGNATURE"] = common.HexEncodeToString(hmac)
@@ -299,7 +322,7 @@ func (c *COINUT) SendAuthenticatedHTTPRequest(apiRequest string, params map[stri
 	resp, err := common.SendHTTPRequest("POST", COINUT_API_URL, headers, bytes.NewBuffer(payload))
 
 	if c.Verbose {
-		log.Printf("Recieved raw: \n%s", resp)
+		log.Printf("Received raw: \n%s", resp)
 	}
 
 	genResp := CoinutGenericResponse{}
@@ -307,17 +330,17 @@ func (c *COINUT) SendAuthenticatedHTTPRequest(apiRequest string, params map[stri
 	err = common.JSONDecode([]byte(resp), &genResp)
 
 	if err != nil {
-		return errors.New("Unable to JSON Unmarshal generic response.")
+		return errors.New("unable to JSON Unmarshal generic response")
 	}
 
 	if genResp.Status[0] != "OK" {
-		return errors.New("Status is not OK.")
+		return errors.New("status is not OK")
 	}
 
 	err = common.JSONDecode([]byte(resp), &result)
 
 	if err != nil {
-		return errors.New("Unable to JSON Unmarshal response.")
+		return errors.New("unable to JSON Unmarshal response")
 	}
 
 	return nil

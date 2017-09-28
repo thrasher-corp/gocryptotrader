@@ -12,11 +12,12 @@ import (
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/exchanges"
+	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 )
 
 const (
 	GDAX_API_URL     = "https://api.gdax.com/"
-	GDAX_API_VERISON = "0"
+	GDAX_API_VERSION = "0"
 	GDAX_PRODUCTS    = "products"
 	GDAX_ORDERBOOK   = "book"
 	GDAX_TICKER      = "ticker"
@@ -34,7 +35,7 @@ const (
 )
 
 type GDAX struct {
-	exchange.ExchangeBase
+	exchange.Base
 }
 
 func (g *GDAX) SetDefaults() {
@@ -46,6 +47,11 @@ func (g *GDAX) SetDefaults() {
 	g.Verbose = false
 	g.Websocket = false
 	g.RESTPollingDelay = 10
+	g.RequestCurrencyPairFormat.Delimiter = "-"
+	g.RequestCurrencyPairFormat.Uppercase = true
+	g.ConfigCurrencyPairFormat.Delimiter = ""
+	g.ConfigCurrencyPairFormat.Uppercase = true
+	g.AssetTypes = []string{ticker.Spot}
 }
 
 func (g *GDAX) Setup(exch config.ExchangeConfig) {
@@ -61,6 +67,14 @@ func (g *GDAX) Setup(exch config.ExchangeConfig) {
 		g.BaseCurrencies = common.SplitStrings(exch.BaseCurrencies, ",")
 		g.AvailablePairs = common.SplitStrings(exch.AvailablePairs, ",")
 		g.EnabledPairs = common.SplitStrings(exch.EnabledPairs, ",")
+		err := g.SetCurrencyPairFormat()
+		if err != nil {
+			log.Fatal(err)
+		}
+		err = g.SetAssetTypes()
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 }
 
@@ -370,7 +384,15 @@ func (g *GDAX) GetReportStatus(reportID string) (GDAXReportResponse, error) {
 }
 
 func (g *GDAX) SendAuthenticatedHTTPRequest(method, path string, params map[string]interface{}, result interface{}) (err error) {
-	timestamp := strconv.FormatInt(time.Now().Unix(), 10)
+	if !g.AuthenticatedAPISupport {
+		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet, g.Name)
+	}
+
+	if g.Nonce.Get() == 0 {
+		g.Nonce.Set(time.Now().Unix())
+	} else {
+		g.Nonce.Inc()
+	}
 
 	payload := []byte("")
 
@@ -386,11 +408,11 @@ func (g *GDAX) SendAuthenticatedHTTPRequest(method, path string, params map[stri
 		}
 	}
 
-	message := timestamp + method + "/" + path + string(payload)
-	hmac := common.GetHMAC(common.HASH_SHA256, []byte(message), []byte(g.APISecret))
+	message := g.Nonce.String() + method + "/" + path + string(payload)
+	hmac := common.GetHMAC(common.HashSHA256, []byte(message), []byte(g.APISecret))
 	headers := make(map[string]string)
 	headers["CB-ACCESS-SIGN"] = common.Base64Encode([]byte(hmac))
-	headers["CB-ACCESS-TIMESTAMP"] = timestamp
+	headers["CB-ACCESS-TIMESTAMP"] = g.Nonce.String()
 	headers["CB-ACCESS-KEY"] = g.APIKey
 	headers["CB-ACCESS-PASSPHRASE"] = g.ClientID
 	headers["Content-Type"] = "application/json"
@@ -398,13 +420,13 @@ func (g *GDAX) SendAuthenticatedHTTPRequest(method, path string, params map[stri
 	resp, err := common.SendHTTPRequest(method, GDAX_API_URL+path, headers, bytes.NewBuffer(payload))
 
 	if g.Verbose {
-		log.Printf("Recieved raw: \n%s\n", resp)
+		log.Printf("Received raw: \n%s\n", resp)
 	}
 
 	err = common.JSONDecode([]byte(resp), &result)
 
 	if err != nil {
-		return errors.New("Unable to JSON Unmarshal response.")
+		return errors.New("unable to JSON Unmarshal response")
 	}
 
 	return nil

@@ -3,6 +3,7 @@ package itbit
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"log"
 	"net/url"
 	"strconv"
@@ -11,6 +12,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/exchanges"
+	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 )
 
 const (
@@ -19,7 +21,7 @@ const (
 )
 
 type ItBit struct {
-	exchange.ExchangeBase
+	exchange.Base
 }
 
 func (i *ItBit) SetDefaults() {
@@ -30,6 +32,11 @@ func (i *ItBit) SetDefaults() {
 	i.Verbose = false
 	i.Websocket = false
 	i.RESTPollingDelay = 10
+	i.RequestCurrencyPairFormat.Delimiter = ""
+	i.RequestCurrencyPairFormat.Uppercase = true
+	i.ConfigCurrencyPairFormat.Delimiter = ""
+	i.ConfigCurrencyPairFormat.Uppercase = true
+	i.AssetTypes = []string{ticker.Spot}
 }
 
 func (i *ItBit) Setup(exch config.ExchangeConfig) {
@@ -45,33 +52,40 @@ func (i *ItBit) Setup(exch config.ExchangeConfig) {
 		i.BaseCurrencies = common.SplitStrings(exch.BaseCurrencies, ",")
 		i.AvailablePairs = common.SplitStrings(exch.AvailablePairs, ",")
 		i.EnabledPairs = common.SplitStrings(exch.EnabledPairs, ",")
+		err := i.SetCurrencyPairFormat()
+		if err != nil {
+			log.Fatal(err)
+		}
+		err = i.SetAssetTypes()
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 }
 
 func (i *ItBit) GetFee(maker bool) float64 {
 	if maker {
 		return i.MakerFee
-	} else {
-		return i.TakerFee
 	}
+	return i.TakerFee
 }
 
-func (i *ItBit) GetTicker(currency string) (ItBitTicker, error) {
+func (i *ItBit) GetTicker(currency string) (Ticker, error) {
 	path := ITBIT_API_URL + "/markets/" + currency + "/ticker"
-	var itbitTicker ItBitTicker
+	var itbitTicker Ticker
 	err := common.SendHTTPGetRequest(path, true, &itbitTicker)
 	if err != nil {
-		return ItBitTicker{}, err
+		return Ticker{}, err
 	}
 	return itbitTicker, nil
 }
 
-func (i *ItBit) GetOrderbook(currency string) (ItBitOrderbookResponse, error) {
-	response := ItBitOrderbookResponse{}
+func (i *ItBit) GetOrderbook(currency string) (OrderbookResponse, error) {
+	response := OrderbookResponse{}
 	path := ITBIT_API_URL + "/markets/" + currency + "/order_book"
 	err := common.SendHTTPGetRequest(path, true, &response)
 	if err != nil {
-		return ItBitOrderbookResponse{}, err
+		return OrderbookResponse{}, err
 	}
 	return response, nil
 }
@@ -227,14 +241,16 @@ func (i *ItBit) WalletTransfer(walletID, sourceWallet, destWallet string, amount
 }
 
 func (i *ItBit) SendAuthenticatedHTTPRequest(method string, path string, params map[string]interface{}) (err error) {
-	timestamp := strconv.FormatInt(time.Now().UnixNano(), 10)[0:13]
-	nonce, err := strconv.Atoi(timestamp)
-
-	if err != nil {
-		return err
+	if !i.AuthenticatedAPISupport {
+		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet, i.Name)
 	}
 
-	nonce -= 1
+	if i.Nonce.Get() == 0 {
+		i.Nonce.Set(time.Now().UnixNano())
+	} else {
+		i.Nonce.Inc()
+	}
+
 	request := make(map[string]interface{})
 	url := ITBIT_API_URL + path
 
@@ -244,41 +260,40 @@ func (i *ItBit) SendAuthenticatedHTTPRequest(method string, path string, params 
 		}
 	}
 
-	PayloadJson := []byte("")
+	PayloadJSON := []byte("")
 
 	if params != nil {
-		PayloadJson, err = common.JSONEncode(request)
+		PayloadJSON, err = common.JSONEncode(request)
 
 		if err != nil {
 			return errors.New("SendAuthenticatedHTTPRequest: Unable to JSON Marshal request")
 		}
 
 		if i.Verbose {
-			log.Printf("Request JSON: %s\n", PayloadJson)
+			log.Printf("Request JSON: %s\n", PayloadJSON)
 		}
 	}
 
-	nonceStr := strconv.Itoa(nonce)
-	message, err := common.JSONEncode([]string{method, url, string(PayloadJson), nonceStr, timestamp})
+	message, err := common.JSONEncode([]string{method, url, string(PayloadJSON), i.Nonce.String(), i.Nonce.String()[0:13]})
 	if err != nil {
 		log.Println(err)
 		return
 	}
 
-	hash := common.GetSHA256([]byte(nonceStr + string(message)))
-	hmac := common.GetHMAC(common.HASH_SHA512, []byte(url+string(hash)), []byte(i.APISecret))
+	hash := common.GetSHA256([]byte(i.Nonce.String() + string(message)))
+	hmac := common.GetHMAC(common.HashSHA512, []byte(url+string(hash)), []byte(i.APISecret))
 	signature := common.Base64Encode(hmac)
 
 	headers := make(map[string]string)
 	headers["Authorization"] = i.ClientID + ":" + signature
-	headers["X-Auth-Timestamp"] = timestamp
-	headers["X-Auth-Nonce"] = nonceStr
+	headers["X-Auth-Timestamp"] = i.Nonce.String()[0:13]
+	headers["X-Auth-Nonce"] = i.Nonce.String()
 	headers["Content-Type"] = "application/json"
 
-	resp, err := common.SendHTTPRequest(method, url, headers, bytes.NewBuffer([]byte(PayloadJson)))
+	resp, err := common.SendHTTPRequest(method, url, headers, bytes.NewBuffer([]byte(PayloadJSON)))
 
 	if i.Verbose {
-		log.Printf("Recieved raw: \n%s\n", resp)
+		log.Printf("Received raw: \n%s\n", resp)
 	}
 	return nil
 }

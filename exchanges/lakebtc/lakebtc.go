@@ -11,6 +11,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/exchanges"
+	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 )
 
 const (
@@ -31,7 +32,7 @@ const (
 )
 
 type LakeBTC struct {
-	exchange.ExchangeBase
+	exchange.Base
 }
 
 func (l *LakeBTC) SetDefaults() {
@@ -42,6 +43,11 @@ func (l *LakeBTC) SetDefaults() {
 	l.Verbose = false
 	l.Websocket = false
 	l.RESTPollingDelay = 10
+	l.RequestCurrencyPairFormat.Delimiter = ""
+	l.RequestCurrencyPairFormat.Uppercase = true
+	l.ConfigCurrencyPairFormat.Delimiter = ""
+	l.ConfigCurrencyPairFormat.Uppercase = true
+	l.AssetTypes = []string{ticker.Spot}
 }
 
 func (l *LakeBTC) Setup(exch config.ExchangeConfig) {
@@ -57,6 +63,14 @@ func (l *LakeBTC) Setup(exch config.ExchangeConfig) {
 		l.BaseCurrencies = common.SplitStrings(exch.BaseCurrencies, ",")
 		l.AvailablePairs = common.SplitStrings(exch.AvailablePairs, ",")
 		l.EnabledPairs = common.SplitStrings(exch.EnabledPairs, ",")
+		err := l.SetCurrencyPairFormat()
+		if err != nil {
+			log.Fatal(err)
+		}
+		err = l.SetAssetTypes()
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 }
 
@@ -272,9 +286,18 @@ func (l *LakeBTC) CreateWithdraw(amount float64, accountID int64) (LakeBTCWithdr
 }
 
 func (l *LakeBTC) SendAuthenticatedHTTPRequest(method, params string, result interface{}) (err error) {
-	nonce := strconv.FormatInt(time.Now().UnixNano(), 10)
-	req := fmt.Sprintf("tonce=%s&accesskey=%s&requestmethod=post&id=1&method=%s&params=%s", nonce, l.APIKey, method, params)
-	hmac := common.GetHMAC(common.HASH_SHA1, []byte(req), []byte(l.APISecret))
+	if !l.AuthenticatedAPISupport {
+		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet, l.Name)
+	}
+
+	if l.Nonce.Get() == 0 {
+		l.Nonce.Set(time.Now().UnixNano())
+	} else {
+		l.Nonce.Inc()
+	}
+
+	req := fmt.Sprintf("tonce=%s&accesskey=%s&requestmethod=post&id=1&method=%s&params=%s", l.Nonce.String(), l.APIKey, method, params)
+	hmac := common.GetHMAC(common.HashSHA1, []byte(req), []byte(l.APISecret))
 
 	if l.Verbose {
 		log.Printf("Sending POST request to %s calling method %s with params %s\n", LAKEBTC_API_URL, method, req)
@@ -291,7 +314,7 @@ func (l *LakeBTC) SendAuthenticatedHTTPRequest(method, params string, result int
 	}
 
 	headers := make(map[string]string)
-	headers["Json-Rpc-Tonce"] = nonce
+	headers["Json-Rpc-Tonce"] = l.Nonce.String()
 	headers["Authorization"] = "Basic " + common.Base64Encode([]byte(l.APIKey+":"+common.HexEncodeToString(hmac)))
 	headers["Content-Type"] = "application/json-rpc"
 
@@ -301,7 +324,7 @@ func (l *LakeBTC) SendAuthenticatedHTTPRequest(method, params string, result int
 	}
 
 	if l.Verbose {
-		log.Printf("Recieved raw: %s\n", resp)
+		log.Printf("Received raw: %s\n", resp)
 	}
 
 	type ErrorResponse struct {
@@ -311,7 +334,7 @@ func (l *LakeBTC) SendAuthenticatedHTTPRequest(method, params string, result int
 	errResponse := ErrorResponse{}
 	err = common.JSONDecode([]byte(resp), &errResponse)
 	if err != nil {
-		return errors.New("Unable to check response for error.")
+		return errors.New("unable to check response for error")
 	}
 
 	if errResponse.Error != "" {
@@ -321,7 +344,7 @@ func (l *LakeBTC) SendAuthenticatedHTTPRequest(method, params string, result int
 	err = common.JSONDecode([]byte(resp), &result)
 
 	if err != nil {
-		return errors.New("Unable to JSON Unmarshal response.")
+		return errors.New("unable to JSON Unmarshal response")
 	}
 
 	return nil

@@ -11,6 +11,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/exchanges"
+	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 )
 
 const (
@@ -19,7 +20,7 @@ const (
 )
 
 type HUOBI struct {
-	exchange.ExchangeBase
+	exchange.Base
 }
 
 func (h *HUOBI) SetDefaults() {
@@ -29,6 +30,11 @@ func (h *HUOBI) SetDefaults() {
 	h.Verbose = false
 	h.Websocket = false
 	h.RESTPollingDelay = 10
+	h.RequestCurrencyPairFormat.Delimiter = ""
+	h.RequestCurrencyPairFormat.Uppercase = false
+	h.ConfigCurrencyPairFormat.Delimiter = ""
+	h.ConfigCurrencyPairFormat.Uppercase = true
+	h.AssetTypes = []string{ticker.Spot}
 }
 
 func (h *HUOBI) Setup(exch config.ExchangeConfig) {
@@ -44,6 +50,14 @@ func (h *HUOBI) Setup(exch config.ExchangeConfig) {
 		h.BaseCurrencies = common.SplitStrings(exch.BaseCurrencies, ",")
 		h.AvailablePairs = common.SplitStrings(exch.AvailablePairs, ",")
 		h.EnabledPairs = common.SplitStrings(exch.EnabledPairs, ",")
+		err := h.SetCurrencyPairFormat()
+		if err != nil {
+			log.Fatal(err)
+		}
+		err = h.SetAssetTypes()
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 }
 
@@ -53,7 +67,7 @@ func (h *HUOBI) GetFee() float64 {
 
 func (h *HUOBI) GetTicker(symbol string) (HuobiTicker, error) {
 	resp := HuobiTickerResponse{}
-	path := fmt.Sprintf("http://api.huobi.com/staticmarket/ticker_%s_json.js", symbol)
+	path := fmt.Sprintf("https://api.huobi.com/staticmarket/ticker_%s_json.js", symbol)
 	err := common.SendHTTPGetRequest(path, true, &resp)
 
 	if err != nil {
@@ -63,7 +77,7 @@ func (h *HUOBI) GetTicker(symbol string) (HuobiTicker, error) {
 }
 
 func (h *HUOBI) GetOrderBook(symbol string) (HuobiOrderbook, error) {
-	path := fmt.Sprintf("http://api.huobi.com/staticmarket/depth_%s_json.js", symbol)
+	path := fmt.Sprintf("https://api.huobi.com/staticmarket/depth_%s_json.js", symbol)
 	resp := HuobiOrderbook{}
 	err := common.SendHTTPGetRequest(path, true, &resp)
 	if err != nil {
@@ -177,6 +191,10 @@ func (h *HUOBI) GetOrderIDByTradeID(coinType, orderID int) {
 }
 
 func (h *HUOBI) SendAuthenticatedRequest(method string, v url.Values) error {
+	if !h.AuthenticatedAPISupport {
+		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet, h.Name)
+	}
+
 	v.Set("access_key", h.APIKey)
 	v.Set("created", strconv.FormatInt(time.Now().Unix(), 10))
 	v.Set("method", method)
@@ -198,7 +216,7 @@ func (h *HUOBI) SendAuthenticatedRequest(method string, v url.Values) error {
 	}
 
 	if h.Verbose {
-		log.Printf("Recieved raw: %s\n", resp)
+		log.Printf("Received raw: %s\n", resp)
 	}
 
 	return nil
