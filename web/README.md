@@ -1,11 +1,17 @@
 ## GoCryptoTrader website
-A website interface to interact with the main gocryptotrader application
+A website interface to interact with the main GoCryptoTrader application. It is developed with Angular 4 with support for Electron
+
+##This is still in active development
+ You can track ideas, planned features and what's in progresss on this Trello board: [https://trello.com/b/ZAhMhpOy/gocryptotrader](https://trello.com/b/ZAhMhpOy/gocryptotrader).
 
 ## Current Features
-+ It can run... It is so incredibly basic right now
++ It can run
++ It can be compiled with Electron to run as an executable
++ Websocket support to listen to GoCryptoTrader events
++ Material design
++ Has a semi-working Settings page
++ Has a basic ticker dashboard
 
-## Planned Features
- You can track ideas, planned features and what's in progresss on this Trello board: [https://trello.com/b/ZAhMhpOy/gocryptotrader](https://trello.com/b/ZAhMhpOy/gocryptotrader).
 
  
 Install dependencies with npm :
