@@ -6,14 +6,16 @@
     "author": {
         "name": "Scott",
         "email": "scott@gloriousedge.com",
-        "github":"https://github.com/gloriousCode/",
-        "website":"https://www.gloriousedge.com"
+        "github": "https://github.com/gloriousCode/",
+        "website": "https://www.gloriousedge.com"
     },
-	"contributers": [{
-		"name": "Maxime GRIS",
-        "email": "maxime.gris@gmail.com",
-        "github": "https://github.com/maximegris/"
-	}],
+    "contributers": [
+        {
+            "name": "Maxime GRIS",
+            "email": "maxime.gris@gmail.com",
+            "github": "https://github.com/maximegris/"
+        }
+    ],
     "keywords": [
         "angular",
         "electron",

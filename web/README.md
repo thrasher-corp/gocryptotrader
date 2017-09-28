@@ -1,7 +1,7 @@
 ## GoCryptoTrader website
 A website interface to interact with the main GoCryptoTrader application. It is developed with Angular 4 with support for Electron
 
-##This is still in active development
+## This is still in active development
  You can track ideas, planned features and what's in progresss on this Trello board: [https://trello.com/b/ZAhMhpOy/gocryptotrader](https://trello.com/b/ZAhMhpOy/gocryptotrader).
 
 ## Current Features
@@ -14,7 +14,7 @@ A website interface to interact with the main GoCryptoTrader application. It is 
 
 
  
-Install dependencies with npm :
+## Install dependencies with npm :
 
 ``` bash
 npm install
@@ -59,9 +59,11 @@ You can run tests with the command lines below :
 - **in another terminal window** -> Then, launch Protractor (E2E framework): `npm run e2e`
 
 # Contributors 
-|[GloriousCode](https://github.com/gloriouscode)|
-|[Maxime GRIS](https://github.com/maximegris)|
-|[Shazbot](https://github.com/shazbert)|
+|User|Github|Contribution|
+|--|--|--|
+|GloriousCode|https://github.com/gloriouscode |Lead front-end|
+|Maxime GRIS|https://github.com/maximegris |Angular4 + Electron Base|
+|Shazbert|https://github.com/shazbert |Initial designs|
 
 
 
