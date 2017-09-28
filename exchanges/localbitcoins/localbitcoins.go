@@ -12,6 +12,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/exchanges"
+	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 )
 
 const (
@@ -28,7 +29,7 @@ const (
 )
 
 type LocalBitcoins struct {
-	exchange.ExchangeBase
+	exchange.Base
 }
 
 func (l *LocalBitcoins) SetDefaults() {
@@ -38,6 +39,11 @@ func (l *LocalBitcoins) SetDefaults() {
 	l.Verbose = false
 	l.Websocket = false
 	l.RESTPollingDelay = 10
+	l.RequestCurrencyPairFormat.Delimiter = ""
+	l.RequestCurrencyPairFormat.Uppercase = true
+	l.ConfigCurrencyPairFormat.Delimiter = ""
+	l.ConfigCurrencyPairFormat.Uppercase = true
+	l.AssetTypes = []string{ticker.Spot}
 }
 
 func (l *LocalBitcoins) Setup(exch config.ExchangeConfig) {
@@ -53,6 +59,14 @@ func (l *LocalBitcoins) Setup(exch config.ExchangeConfig) {
 		l.BaseCurrencies = common.SplitStrings(exch.BaseCurrencies, ",")
 		l.AvailablePairs = common.SplitStrings(exch.AvailablePairs, ",")
 		l.EnabledPairs = common.SplitStrings(exch.EnabledPairs, ",")
+		err := l.SetCurrencyPairFormat()
+		if err != nil {
+			log.Fatal(err)
+		}
+		err = l.SetAssetTypes()
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 }
 
@@ -267,7 +281,16 @@ func (l *LocalBitcoins) GetWalletAddress() (string, error) {
 }
 
 func (l *LocalBitcoins) SendAuthenticatedHTTPRequest(method, path string, values url.Values, result interface{}) (err error) {
-	nonce := strconv.FormatInt(time.Now().UnixNano(), 10)
+	if !l.AuthenticatedAPISupport {
+		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet, l.Name)
+	}
+
+	if l.Nonce.Get() == 0 {
+		l.Nonce.Set(time.Now().UnixNano())
+	} else {
+		l.Nonce.Inc()
+	}
+
 	payload := ""
 	path = "/api/" + path
 
@@ -275,24 +298,24 @@ func (l *LocalBitcoins) SendAuthenticatedHTTPRequest(method, path string, values
 		payload = values.Encode()
 	}
 
-	message := string(nonce) + l.APIKey + path + payload
-	hmac := common.GetHMAC(common.HASH_SHA256, []byte(message), []byte(l.APISecret))
+	message := l.Nonce.String() + l.APIKey + path + payload
+	hmac := common.GetHMAC(common.HashSHA256, []byte(message), []byte(l.APISecret))
 	headers := make(map[string]string)
 	headers["Apiauth-Key"] = l.APIKey
-	headers["Apiauth-Nonce"] = string(nonce)
+	headers["Apiauth-Nonce"] = l.Nonce.String()
 	headers["Apiauth-Signature"] = common.StringToUpper(common.HexEncodeToString(hmac))
 	headers["Content-Type"] = "application/x-www-form-urlencoded"
 
 	resp, err := common.SendHTTPRequest(method, LOCALBITCOINS_API_URL+path, headers, bytes.NewBuffer([]byte(payload)))
 
 	if l.Verbose {
-		log.Printf("Recieved raw: \n%s\n", resp)
+		log.Printf("Received raw: \n%s\n", resp)
 	}
 
 	err = common.JSONDecode([]byte(resp), &result)
 
 	if err != nil {
-		return errors.New("Unable to JSON Unmarshal response.")
+		return errors.New("unable to JSON Unmarshal response")
 	}
 
 	return nil

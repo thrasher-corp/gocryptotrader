@@ -2,77 +2,96 @@ package localbitcoins
 
 import (
 	"log"
-	"time"
 
 	"github.com/thrasher-/gocryptotrader/currency/pair"
 	"github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
-	"github.com/thrasher-/gocryptotrader/exchanges/stats"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 )
 
+// Start starts the LocalBitcoins go routine
 func (l *LocalBitcoins) Start() {
 	go l.Run()
 }
 
+// Run implements the LocalBitcoins wrapper
 func (l *LocalBitcoins) Run() {
 	if l.Verbose {
 		log.Printf("%s polling delay: %ds.\n", l.GetName(), l.RESTPollingDelay)
 		log.Printf("%s %d currencies enabled: %s.\n", l.GetName(), len(l.EnabledPairs), l.EnabledPairs)
 	}
-
-	for l.Enabled {
-		for _, x := range l.EnabledPairs {
-			currency := pair.NewCurrencyPair("BTC", x[3:])
-			ticker, err := l.GetTickerPrice(currency)
-
-			if err != nil {
-				log.Println(err)
-				return
-			}
-
-			log.Printf("LocalBitcoins BTC %s: Last %f Volume %f\n", currency.Pair().String(), ticker.Last, ticker.Volume)
-			stats.AddExchangeInfo(l.GetName(), currency.GetFirstCurrency().String(), currency.GetSecondCurrency().String(), ticker.Last, ticker.Volume)
-		}
-		time.Sleep(time.Second * l.RESTPollingDelay)
-	}
 }
 
-func (l *LocalBitcoins) GetTickerPrice(p pair.CurrencyPair) (ticker.TickerPrice, error) {
-	tickerNew, err := ticker.GetTicker(l.GetName(), p)
-	if err == nil {
-		return tickerNew, nil
-	}
-
+// UpdateTicker updates and returns the ticker for a currency pair
+func (l *LocalBitcoins) UpdateTicker(p pair.CurrencyPair, assetType string) (ticker.Price, error) {
+	var tickerPrice ticker.Price
 	tick, err := l.GetTicker()
 	if err != nil {
-		return ticker.TickerPrice{}, err
+		return tickerPrice, err
 	}
 
-	var tickerPrice ticker.TickerPrice
-	for key, value := range tick {
-		tickerPrice.Pair = p
-		tickerPrice.Last = value.Rates.Last
-		tickerPrice.Pair.SecondCurrency = pair.CurrencyItem(key)
-		tickerPrice.Volume = value.VolumeBTC
-		ticker.ProcessTicker(l.GetName(), p, tickerPrice)
+	for _, x := range l.GetEnabledCurrencies() {
+		currency := x.SecondCurrency.String()
+		var tp ticker.Price
+		tp.Pair = x
+		tp.Last = tick[currency].Rates.Last
+		tp.Volume = tick[currency].VolumeBTC
+		ticker.ProcessTicker(l.GetName(), x, tp, assetType)
 	}
-	return tickerPrice, nil
+
+	return ticker.GetTicker(l.GetName(), p, assetType)
 }
 
-func (l *LocalBitcoins) GetOrderbookEx(p pair.CurrencyPair) (orderbook.OrderbookBase, error) {
-	return orderbook.OrderbookBase{}, nil
+// GetTickerPrice returns the ticker for a currency pair
+func (l *LocalBitcoins) GetTickerPrice(p pair.CurrencyPair, assetType string) (ticker.Price, error) {
+	tickerNew, err := ticker.GetTicker(l.GetName(), p, assetType)
+	if err == nil {
+		return l.UpdateTicker(p, assetType)
+	}
+	return tickerNew, nil
 }
 
-//GetExchangeAccountInfo : Retrieves balances for all enabled currencies for the LocalBitcoins exchange
-func (e *LocalBitcoins) GetExchangeAccountInfo() (exchange.ExchangeAccountInfo, error) {
-	var response exchange.ExchangeAccountInfo
-	response.ExchangeName = e.GetName()
-	accountBalance, err := e.GetWalletBalance()
+// GetOrderbookEx returns orderbook base on the currency pair
+func (l *LocalBitcoins) GetOrderbookEx(p pair.CurrencyPair, assetType string) (orderbook.Base, error) {
+	ob, err := orderbook.GetOrderbook(l.GetName(), p, assetType)
+	if err == nil {
+		return l.UpdateOrderbook(p, assetType)
+	}
+	return ob, nil
+}
+
+// UpdateOrderbook updates and returns the orderbook for a currency pair
+func (l *LocalBitcoins) UpdateOrderbook(p pair.CurrencyPair, assetType string) (orderbook.Base, error) {
+	var orderBook orderbook.Base
+	orderbookNew, err := l.GetOrderbook(p.GetSecondCurrency().String())
+	if err != nil {
+		return orderBook, err
+	}
+
+	for x := range orderbookNew.Bids {
+		data := orderbookNew.Bids[x]
+		orderBook.Bids = append(orderBook.Bids, orderbook.Item{Amount: data.Amount, Price: data.Price})
+	}
+
+	for x := range orderbookNew.Asks {
+		data := orderbookNew.Asks[x]
+		orderBook.Asks = append(orderBook.Asks, orderbook.Item{Amount: data.Amount, Price: data.Price})
+	}
+
+	orderbook.ProcessOrderbook(l.GetName(), p, orderBook, assetType)
+	return orderbook.GetOrderbook(l.Name, p, assetType)
+}
+
+// GetExchangeAccountInfo retrieves balances for all enabled currencies for the
+// LocalBitcoins exchange
+func (l *LocalBitcoins) GetExchangeAccountInfo() (exchange.AccountInfo, error) {
+	var response exchange.AccountInfo
+	response.ExchangeName = l.GetName()
+	accountBalance, err := l.GetWalletBalance()
 	if err != nil {
 		return response, err
 	}
-	var exchangeCurrency exchange.ExchangeAccountCurrencyInfo
+	var exchangeCurrency exchange.AccountCurrencyInfo
 	exchangeCurrency.CurrencyName = "BTC"
 	exchangeCurrency.TotalValue = accountBalance.Total.Balance
 

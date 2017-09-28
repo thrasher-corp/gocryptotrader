@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"log"
 	"net/http"
 	"os"
@@ -16,8 +17,8 @@ import (
 	"github.com/thrasher-/gocryptotrader/exchanges/anx"
 	"github.com/thrasher-/gocryptotrader/exchanges/bitfinex"
 	"github.com/thrasher-/gocryptotrader/exchanges/bitstamp"
+	"github.com/thrasher-/gocryptotrader/exchanges/bittrex"
 	"github.com/thrasher-/gocryptotrader/exchanges/btcc"
-	"github.com/thrasher-/gocryptotrader/exchanges/btce"
 	"github.com/thrasher-/gocryptotrader/exchanges/btcmarkets"
 	"github.com/thrasher-/gocryptotrader/exchanges/coinut"
 	"github.com/thrasher-/gocryptotrader/exchanges/gdax"
@@ -31,16 +32,19 @@ import (
 	"github.com/thrasher-/gocryptotrader/exchanges/okcoin"
 	"github.com/thrasher-/gocryptotrader/exchanges/poloniex"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
+	"github.com/thrasher-/gocryptotrader/exchanges/wex"
 	"github.com/thrasher-/gocryptotrader/portfolio"
 	"github.com/thrasher-/gocryptotrader/smsglobal"
 )
 
+// ExchangeMain contains all the necessary exchange packages
 type ExchangeMain struct {
 	anx           anx.ANX
 	btcc          btcc.BTCC
 	bitstamp      bitstamp.Bitstamp
 	bitfinex      bitfinex.Bitfinex
-	btce          btce.BTCE
+	bittrex       bittrex.Bittrex
+	wex           wex.WEX
 	btcmarkets    btcmarkets.BTCMarkets
 	coinut        coinut.COINUT
 	gdax          gdax.GDAX
@@ -56,13 +60,17 @@ type ExchangeMain struct {
 	kraken        kraken.Kraken
 }
 
+// Bot contains configuration, portfolio, exchange & ticker data and is the
+// overarching type across this code base.
 type Bot struct {
-	config    *config.Config
-	portfolio *portfolio.PortfolioBase
-	exchange  ExchangeMain
-	exchanges []exchange.IBotExchange
-	tickers   []ticker.Ticker
-	shutdown  chan bool
+	config     *config.Config
+	smsglobal  *smsglobal.Base
+	portfolio  *portfolio.Base
+	exchange   ExchangeMain
+	exchanges  []exchange.IBotExchange
+	tickers    []ticker.Ticker
+	shutdown   chan bool
+	configFile string
 }
 
 var bot Bot
@@ -74,10 +82,18 @@ func setupBotExchanges() {
 				if bot.exchanges[i].GetName() == exch.Name {
 					bot.exchanges[i].Setup(exch)
 					if bot.exchanges[i].IsEnabled() {
-						log.Printf("%s: Exchange support: %s (Authenticated API support: %s - Verbose mode: %s).\n", exch.Name, common.IsEnabled(exch.Enabled), common.IsEnabled(exch.AuthenticatedAPISupport), common.IsEnabled(exch.Verbose))
+						log.Printf(
+							"%s: Exchange support: %s (Authenticated API support: %s - Verbose mode: %s).\n",
+							exch.Name, common.IsEnabled(exch.Enabled),
+							common.IsEnabled(exch.AuthenticatedAPISupport),
+							common.IsEnabled(exch.Verbose),
+						)
 						bot.exchanges[i].Start()
 					} else {
-						log.Printf("%s: Exchange support: %s\n", exch.Name, common.IsEnabled(exch.Enabled))
+						log.Printf(
+							"%s: Exchange support: %s\n", exch.Name,
+							common.IsEnabled(exch.Enabled),
+						)
 					}
 				}
 			}
@@ -87,30 +103,38 @@ func setupBotExchanges() {
 
 func main() {
 	HandleInterrupt()
-	bot.config = &config.Cfg
-	log.Printf("Loading config file %s..\n", config.CONFIG_FILE)
 
-	err := bot.config.LoadConfig("")
+	//Handle flags
+	flag.StringVar(&bot.configFile, "config", config.GetFilePath(""), "config file to load")
+	flag.Parse()
+
+	bot.config = &config.Cfg
+	log.Printf("Loading config file %s..\n", bot.configFile)
+
+	err := bot.config.LoadConfig(bot.configFile)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	log.Printf("Bot '%s' started.\n", bot.config.Name)
 	AdjustGoMaxProcs()
+	log.Printf("Bot '%s' started.\n", bot.config.Name)
+	log.Printf("Fiat display currency: %s.", bot.config.FiatDisplayCurrency)
 
 	if bot.config.SMS.Enabled {
-		err = bot.config.CheckSMSGlobalConfigValues()
-		if err != nil {
-			log.Println(err) // non fatal event
-			bot.config.SMS.Enabled = false
-		} else {
-			log.Printf("SMS support enabled. Number of SMS contacts %d.\n", smsglobal.GetEnabledSMSContacts(bot.config.SMS))
-		}
+		bot.smsglobal = smsglobal.New(bot.config.SMS.Username, bot.config.SMS.Password,
+			bot.config.Name, bot.config.SMS.Contacts)
+		log.Printf(
+			"SMS support enabled. Number of SMS contacts %d.\n",
+			bot.smsglobal.GetEnabledContacts(),
+		)
 	} else {
 		log.Println("SMS support disabled.")
 	}
 
-	log.Printf("Available Exchanges: %d. Enabled Exchanges: %d.\n", len(bot.config.Exchanges), bot.config.GetConfigEnabledExchanges())
+	log.Printf(
+		"Available Exchanges: %d. Enabled Exchanges: %d.\n",
+		len(bot.config.Exchanges), bot.config.GetConfigEnabledExchanges(),
+	)
 	log.Println("Bot Exchange support:")
 
 	bot.exchanges = []exchange.IBotExchange{
@@ -119,7 +143,8 @@ func main() {
 		new(btcc.BTCC),
 		new(bitstamp.Bitstamp),
 		new(bitfinex.Bitfinex),
-		new(btce.BTCE),
+		new(bittrex.Bittrex),
+		new(wex.WEX),
 		new(btcmarkets.BTCMarkets),
 		new(coinut.COINUT),
 		new(gdax.GDAX),
@@ -137,17 +162,33 @@ func main() {
 	for i := 0; i < len(bot.exchanges); i++ {
 		if bot.exchanges[i] != nil {
 			bot.exchanges[i].SetDefaults()
-			log.Printf("Exchange %s successfully set default settings.\n", bot.exchanges[i].GetName())
+			log.Printf(
+				"Exchange %s successfully set default settings.\n",
+				bot.exchanges[i].GetName(),
+			)
 		}
 	}
 
 	setupBotExchanges()
 
-	bot.config.RetrieveConfigCurrencyPairs()
+	if bot.config.CurrencyExchangeProvider == "yahoo" {
+		currency.SetProvider(true)
+	} else {
+		currency.SetProvider(false)
+	}
 
+	log.Printf("Using %s as currency exchange provider.", bot.config.CurrencyExchangeProvider)
+
+	bot.config.RetrieveConfigCurrencyPairs()
 	err = currency.SeedCurrencyData(currency.BaseCurrencies)
 	if err != nil {
-		log.Fatalf("Fatal error retrieving config currencies. Error: %s", err)
+		currency.SwapProvider()
+		log.Printf("'%s' currency exchange provider failed, swapping to %s and testing..",
+			bot.config.CurrencyExchangeProvider, currency.GetProvider())
+		err = currency.SeedCurrencyData(currency.BaseCurrencies)
+		if err != nil {
+			log.Fatalf("Fatal error retrieving config currencies. Error: %s", err)
+		}
 	}
 
 	log.Println("Successfully retrieved config currencies.")
@@ -157,26 +198,29 @@ func main() {
 	SeedExchangeAccountInfo(GetAllEnabledExchangeAccountInfo().Data)
 	go portfolio.StartPortfolioWatcher()
 
+	log.Println("Starting websocket handler")
+	go WebsocketHandler()
+
+	go TickerUpdaterRoutine()
+	go OrderbookUpdaterRoutine()
+
 	if bot.config.Webserver.Enabled {
-		err := bot.config.CheckWebserverConfigValues()
-		if err != nil {
-			log.Println(err) // non fatal event
-			//bot.config.Webserver.Enabled = false
-		} else {
-			listenAddr := bot.config.Webserver.ListenAddress
-			log.Printf("HTTP Webserver support enabled. Listen URL: http://%s:%d/\n", common.ExtractHost(listenAddr), common.ExtractPort(listenAddr))
-			router := NewRouter(bot.exchanges)
-			log.Fatal(http.ListenAndServe(listenAddr, router))
-		}
-	}
-	if !bot.config.Webserver.Enabled {
-		log.Println("HTTP Webserver support disabled.")
+		listenAddr := bot.config.Webserver.ListenAddress
+		log.Printf(
+			"HTTP Webserver support enabled. Listen URL: http://%s:%d/\n",
+			common.ExtractHost(listenAddr), common.ExtractPort(listenAddr),
+		)
+		router := NewRouter(bot.exchanges)
+		log.Fatal(http.ListenAndServe(listenAddr, router))
+	} else {
+		log.Println("HTTP RESTful Webserver support disabled.")
 	}
 
 	<-bot.shutdown
 	Shutdown()
 }
 
+// AdjustGoMaxProcs adjusts the maximum processes that the CPU can handle.
 func AdjustGoMaxProcs() {
 	log.Println("Adjusting bot runtime performance..")
 	maxProcsEnv := os.Getenv("GOMAXPROCS")
@@ -186,17 +230,20 @@ func AdjustGoMaxProcs() {
 	if maxProcsEnv != "" {
 		log.Println("GOMAXPROCS env =", maxProcsEnv)
 		env, err := strconv.Atoi(maxProcsEnv)
-
 		if err != nil {
 			log.Println("Unable to convert GOMAXPROCS to int, using", maxProcs)
 		} else {
 			maxProcs = env
 		}
 	}
+	if i := runtime.GOMAXPROCS(maxProcs); i != maxProcs {
+		log.Fatal("Go Max Procs were not set correctly.")
+	}
 	log.Println("Set GOMAXPROCS to:", maxProcs)
-	runtime.GOMAXPROCS(maxProcs)
 }
 
+// HandleInterrupt monitors and captures the SIGTERM in a new goroutine then
+// shuts down bot
 func HandleInterrupt() {
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
@@ -207,10 +254,11 @@ func HandleInterrupt() {
 	}()
 }
 
+// Shutdown correctly shuts down bot saving configuration files
 func Shutdown() {
 	log.Println("Bot shutting down..")
 	bot.config.Portfolio = portfolio.Portfolio
-	err := bot.config.SaveConfig("")
+	err := bot.config.SaveConfig(bot.configFile)
 
 	if err != nil {
 		log.Println("Unable to save config.")
@@ -222,7 +270,8 @@ func Shutdown() {
 	os.Exit(1)
 }
 
-func SeedExchangeAccountInfo(data []exchange.ExchangeAccountInfo) {
+// SeedExchangeAccountInfo seeds account info
+func SeedExchangeAccountInfo(data []exchange.AccountInfo) {
 	if len(data) == 0 {
 		return
 	}
@@ -237,14 +286,33 @@ func SeedExchangeAccountInfo(data []exchange.ExchangeAccountInfo) {
 			avail := data[i].Currencies[j].TotalValue
 			total := onHold + avail
 
-			if total <= 0 {
-				continue
-			}
-
 			if !port.ExchangeAddressExists(exchangeName, currencyName) {
-				port.Addresses = append(port.Addresses, portfolio.PortfolioAddress{Address: exchangeName, CoinType: currencyName, Balance: total, Decscription: portfolio.PORTFOLIO_ADDRESS_EXCHANGE})
+				if total <= 0 {
+					continue
+				}
+				log.Printf("Portfolio: Adding new exchange address: %s, %s, %f, %s\n",
+					exchangeName, currencyName, total, portfolio.PortfolioAddressExchange)
+				port.Addresses = append(
+					port.Addresses,
+					portfolio.Address{Address: exchangeName, CoinType: currencyName,
+						Balance: total, Description: portfolio.PortfolioAddressExchange},
+				)
 			} else {
-				port.UpdateExchangeAddressBalance(exchangeName, currencyName, total)
+				if total <= 0 {
+					log.Printf("Portfolio: Removing %s %s entry.\n", exchangeName,
+						currencyName)
+					port.RemoveExchangeAddress(exchangeName, currencyName)
+				} else {
+					balance, ok := port.GetAddressBalance(exchangeName, currencyName, portfolio.PortfolioAddressExchange)
+					if !ok {
+						continue
+					}
+					if balance != total {
+						log.Printf("Portfolio: Updating %s %s entry with balance %f.\n",
+							exchangeName, currencyName, total)
+						port.UpdateExchangeAddressBalance(exchangeName, currencyName, total)
+					}
+				}
 			}
 		}
 	}

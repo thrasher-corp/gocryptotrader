@@ -1,14 +1,14 @@
 language: go
 
-go:	
- - 1.7
- - tip
+go:
+ - 1.8.x
+ #- master
 
 before_install:
  - go get -t -v ./...
 
 script:
- - go test -race -coverprofile=coverage.txt -covermode=atomic
+ - ./testdata/test.sh
 
 install:
  - go get github.com/gorilla/websocket

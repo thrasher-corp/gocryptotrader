@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"log"
 	"net/url"
 	"strconv"
 	"time"
@@ -11,6 +12,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/exchanges"
+	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 )
 
 const (
@@ -47,7 +49,7 @@ const (
 )
 
 type Poloniex struct {
-	exchange.ExchangeBase
+	exchange.Base
 }
 
 func (p *Poloniex) SetDefaults() {
@@ -57,6 +59,11 @@ func (p *Poloniex) SetDefaults() {
 	p.Verbose = false
 	p.Websocket = false
 	p.RESTPollingDelay = 10
+	p.RequestCurrencyPairFormat.Delimiter = "_"
+	p.RequestCurrencyPairFormat.Uppercase = true
+	p.ConfigCurrencyPairFormat.Delimiter = "_"
+	p.ConfigCurrencyPairFormat.Uppercase = true
+	p.AssetTypes = []string{ticker.Spot}
 }
 
 func (p *Poloniex) Setup(exch config.ExchangeConfig) {
@@ -72,6 +79,14 @@ func (p *Poloniex) Setup(exch config.ExchangeConfig) {
 		p.BaseCurrencies = common.SplitStrings(exch.BaseCurrencies, ",")
 		p.AvailablePairs = common.SplitStrings(exch.AvailablePairs, ",")
 		p.EnabledPairs = common.SplitStrings(exch.EnabledPairs, ",")
+		err := p.SetCurrencyPairFormat()
+		if err != nil {
+			log.Fatal(err)
+		}
+		err = p.SetAssetTypes()
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 }
 
@@ -122,16 +137,22 @@ func (p *Poloniex) GetOrderbook(currencyPair string, depth int) (PoloniexOrderbo
 	}
 
 	ob := PoloniexOrderbook{}
-	for x, _ := range resp.Asks {
+	for x := range resp.Asks {
 		data := resp.Asks[x]
-		price, _ := strconv.ParseFloat(data[0].(string), 64)
+		price, err := strconv.ParseFloat(data[0].(string), 64)
+		if err != nil {
+			return ob, err
+		}
 		amount := data[1].(float64)
 		ob.Asks = append(ob.Asks, PoloniexOrderbookItem{Price: price, Amount: amount})
 	}
 
-	for x, _ := range resp.Bids {
-		data := resp.Asks[x]
-		price, _ := strconv.ParseFloat(data[0].(string), 64)
+	for x := range resp.Bids {
+		data := resp.Bids[x]
+		price, err := strconv.ParseFloat(data[0].(string), 64)
+		if err != nil {
+			return ob, err
+		}
 		amount := data[1].(float64)
 		ob.Bids = append(ob.Bids, PoloniexOrderbookItem{Price: price, Amount: amount})
 	}
@@ -745,17 +766,22 @@ func (p *Poloniex) ToggleAutoRenew(orderNumber int64) (bool, error) {
 }
 
 func (p *Poloniex) SendAuthenticatedHTTPRequest(method, endpoint string, values url.Values, result interface{}) error {
+	if !p.AuthenticatedAPISupport {
+		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet, p.Name)
+	}
 	headers := make(map[string]string)
 	headers["Content-Type"] = "application/x-www-form-urlencoded"
 	headers["Key"] = p.APIKey
 
-	nonce := time.Now().UnixNano()
-	nonceStr := strconv.FormatInt(nonce, 10)
-
-	values.Set("nonce", nonceStr)
+	if p.Nonce.Get() == 0 {
+		p.Nonce.Set(time.Now().UnixNano())
+	} else {
+		p.Nonce.Inc()
+	}
+	values.Set("nonce", p.Nonce.String())
 	values.Set("command", endpoint)
 
-	hmac := common.GetHMAC(common.HASH_SHA512, []byte(values.Encode()), []byte(p.APISecret))
+	hmac := common.GetHMAC(common.HashSHA512, []byte(values.Encode()), []byte(p.APISecret))
 	headers["Sign"] = common.HexEncodeToString(hmac)
 
 	path := fmt.Sprintf("%s/%s", POLONIEX_API_URL, POLONIEX_API_TRADING_ENDPOINT)

@@ -2,6 +2,7 @@ package okcoin
 
 import (
 	"errors"
+	"fmt"
 	"log"
 	"net/url"
 	"strconv"
@@ -11,6 +12,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/exchanges"
+	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 )
 
 const (
@@ -70,11 +72,18 @@ var (
 )
 
 type OKCoin struct {
-	exchange.ExchangeBase
+	exchange.Base
 	RESTErrors      map[string]string
 	WebsocketErrors map[string]string
 	FuturesValues   []string
 	WebsocketConn   *websocket.Conn
+}
+
+func (o *OKCoin) setCurrencyPairFormats() {
+	o.RequestCurrencyPairFormat.Delimiter = "_"
+	o.RequestCurrencyPairFormat.Uppercase = false
+	o.ConfigCurrencyPairFormat.Delimiter = ""
+	o.ConfigCurrencyPairFormat.Uppercase = true
 }
 
 func (o *OKCoin) SetDefaults() {
@@ -85,16 +94,20 @@ func (o *OKCoin) SetDefaults() {
 	o.Websocket = false
 	o.RESTPollingDelay = 10
 	o.FuturesValues = []string{"this_week", "next_week", "quarter"}
+	o.AssetTypes = []string{ticker.Spot}
 
 	if !okcoinDefaultsSet {
+		o.AssetTypes = append(o.AssetTypes, o.FuturesValues...)
 		o.APIUrl = OKCOIN_API_URL
 		o.Name = "OKCOIN International"
 		o.WebsocketURL = OKCOIN_WEBSOCKET_URL
 		okcoinDefaultsSet = true
+		o.setCurrencyPairFormats()
 	} else {
 		o.APIUrl = OKCOIN_API_URL_CHINA
 		o.Name = "OKCOIN China"
 		o.WebsocketURL = OKCOIN_WEBSOCKET_URL_CHINA
+		o.setCurrencyPairFormats()
 	}
 }
 
@@ -111,6 +124,14 @@ func (o *OKCoin) Setup(exch config.ExchangeConfig) {
 		o.BaseCurrencies = common.SplitStrings(exch.BaseCurrencies, ",")
 		o.AvailablePairs = common.SplitStrings(exch.AvailablePairs, ",")
 		o.EnabledPairs = common.SplitStrings(exch.EnabledPairs, ",")
+		err := o.SetCurrencyPairFormat()
+		if err != nil {
+			log.Fatal(err)
+		}
+		err = o.SetAssetTypes()
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 }
 
@@ -877,6 +898,10 @@ func (o *OKCoin) GetFuturesUserPosition4Fix(symbol, contractType string) {
 }
 
 func (o *OKCoin) SendAuthenticatedHTTPRequest(method string, v url.Values, result interface{}) (err error) {
+	if !o.AuthenticatedAPISupport {
+		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet, o.Name)
+	}
+
 	v.Set("api_key", o.APIKey)
 	hasher := common.GetMD5([]byte(v.Encode() + "&secret_key=" + o.APISecret))
 	v.Set("sign", strings.ToUpper(common.HexEncodeToString(hasher)))
@@ -898,13 +923,13 @@ func (o *OKCoin) SendAuthenticatedHTTPRequest(method string, v url.Values, resul
 	}
 
 	if o.Verbose {
-		log.Printf("Recieved raw: \n%s\n", resp)
+		log.Printf("Received raw: \n%s\n", resp)
 	}
 
 	err = common.JSONDecode([]byte(resp), &result)
 
 	if err != nil {
-		return errors.New("Unable to JSON Unmarshal response.")
+		return errors.New("unable to JSON Unmarshal response")
 	}
 
 	return nil

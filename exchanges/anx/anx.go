@@ -11,6 +11,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/exchanges"
+	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 )
 
 const (
@@ -28,7 +29,7 @@ const (
 )
 
 type ANX struct {
-	exchange.ExchangeBase
+	exchange.Base
 }
 
 func (a *ANX) SetDefaults() {
@@ -39,6 +40,13 @@ func (a *ANX) SetDefaults() {
 	a.Verbose = false
 	a.Websocket = false
 	a.RESTPollingDelay = 10
+	a.RequestCurrencyPairFormat.Delimiter = ""
+	a.RequestCurrencyPairFormat.Uppercase = true
+	a.RequestCurrencyPairFormat.Index = "BTC"
+	a.ConfigCurrencyPairFormat.Delimiter = ""
+	a.ConfigCurrencyPairFormat.Uppercase = true
+	a.ConfigCurrencyPairFormat.Index = "BTC"
+	a.AssetTypes = []string{ticker.Spot}
 }
 
 //Setup is run on startup to setup exchange with config values
@@ -55,6 +63,14 @@ func (a *ANX) Setup(exch config.ExchangeConfig) {
 		a.BaseCurrencies = common.SplitStrings(exch.BaseCurrencies, ",")
 		a.AvailablePairs = common.SplitStrings(exch.AvailablePairs, ",")
 		a.EnabledPairs = common.SplitStrings(exch.EnabledPairs, ",")
+		err := a.SetCurrencyPairFormat()
+		if err != nil {
+			log.Fatal(err)
+		}
+		err = a.SetAssetTypes()
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 }
 
@@ -286,8 +302,18 @@ func (a *ANX) GetDepositAddress(currency, name string, new bool) (string, error)
 }
 
 func (a *ANX) SendAuthenticatedHTTPRequest(path string, params map[string]interface{}, result interface{}) error {
+	if !a.AuthenticatedAPISupport {
+		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet, a.Name)
+	}
+
+	if a.Nonce.Get() == 0 {
+		a.Nonce.Set(time.Now().UnixNano())
+	} else {
+		a.Nonce.Inc()
+	}
+
 	request := make(map[string]interface{})
-	request["nonce"] = strconv.FormatInt(time.Now().UnixNano(), 10)[0:13]
+	request["nonce"] = a.Nonce.String()[0:13]
 	path = fmt.Sprintf("api/%s/%s", ANX_API_VERSION, path)
 
 	if params != nil {
@@ -296,32 +322,32 @@ func (a *ANX) SendAuthenticatedHTTPRequest(path string, params map[string]interf
 		}
 	}
 
-	PayloadJson, err := common.JSONEncode(request)
+	PayloadJSON, err := common.JSONEncode(request)
 
 	if err != nil {
 		return errors.New("SendAuthenticatedHTTPRequest: Unable to JSON request")
 	}
 
 	if a.Verbose {
-		log.Printf("Request JSON: %s\n", PayloadJson)
+		log.Printf("Request JSON: %s\n", PayloadJSON)
 	}
 
-	hmac := common.GetHMAC(common.HASH_SHA512, []byte(path+string("\x00")+string(PayloadJson)), []byte(a.APISecret))
+	hmac := common.GetHMAC(common.HashSHA512, []byte(path+string("\x00")+string(PayloadJSON)), []byte(a.APISecret))
 	headers := make(map[string]string)
 	headers["Rest-Key"] = a.APIKey
 	headers["Rest-Sign"] = common.Base64Encode([]byte(hmac))
 	headers["Content-Type"] = "application/json"
 
-	resp, err := common.SendHTTPRequest("POST", ANX_API_URL+path, headers, bytes.NewBuffer(PayloadJson))
+	resp, err := common.SendHTTPRequest("POST", ANX_API_URL+path, headers, bytes.NewBuffer(PayloadJSON))
 
 	if a.Verbose {
-		log.Printf("Recieved raw: \n%s\n", resp)
+		log.Printf("Received raw: \n%s\n", resp)
 	}
 
 	err = common.JSONDecode([]byte(resp), &result)
 
 	if err != nil {
-		return errors.New("Unable to JSON Unmarshal response.")
+		return errors.New("unable to JSON Unmarshal response")
 	}
 
 	return nil
