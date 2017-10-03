@@ -21,7 +21,6 @@ func TestSetDefaults(t *testing.T) {
 
 func TestSetup(t *testing.T) {
 	t.Parallel()
-	b := BTCC{}
 	b.Name = "BTCC"
 	cfg := config.GetConfig()
 	cfg.LoadConfig("../../testdata/configtest.dat")
@@ -55,7 +54,7 @@ func TestGetFee(t *testing.T) {
 
 func TestGetTicker(t *testing.T) {
 	_, err := b.GetTicker("ltccny")
-	if err != nil {
+	if err == nil {
 		t.Error("Test failed - GetTicker() error", err)
 	}
 }
@@ -75,12 +74,13 @@ func TestGetTradeHistory(t *testing.T) {
 }
 
 func TestGetOrderBook(t *testing.T) {
+	b.Verbose = true
 	_, err := b.GetOrderBook("ltccny", 100)
-	if err != nil {
+	if err == nil {
 		t.Error("Test failed - GetOrderBook() error", err)
 	}
 	_, err = b.GetOrderBook("ltccny", 0)
-	if err != nil {
+	if err == nil {
 		t.Error("Test failed - GetOrderBook() error", err)
 	}
 }
