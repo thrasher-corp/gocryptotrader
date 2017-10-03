@@ -7,8 +7,6 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
-	"sync"
-	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
@@ -57,49 +55,47 @@ const (
 	geminiRoleFundManager = "fundmanager"
 )
 
-// SessionID map guides
 var (
-	sessionAPIKey    map[int]string    // map[sessionID]APIKEY
-	sessionAPISecret map[int]string    // map[sessionID]APIKEY
-	sessionRole      map[string]string // map[sessionID]Roles
-	sessionHeartbeat map[int]bool      // map[sessionID]RequiresHeartBeat
-	IsSession        bool
+	// Session manager
+	Session map[int]*Gemini
 )
 
 // Gemini is the overarching type across the Gemini package, create multiple
 // instances with differing APIkeys for segregation of roles for authenticated
-// requests & sessions by appending the session function, if sandbox test is
-// needed append the sandbox function as well.
+// requests & sessions by appending new sessions to the Session map using
+// AddSession, if sandbox test is needed append a new session with with the same
+// API keys and change the IsSandbox variable to true.
 type Gemini struct {
 	exchange.Base
-	M sync.Mutex
+	Role              string
+	RequiresHeartBeat bool
 }
 
 // AddSession adds a new session to the gemini base
-func (g *Gemini) AddSession(sessionID int, apiKey, apiSecret, role string, needsHeartbeat bool) error {
-	g.M.Lock()
-	defer g.M.Unlock()
-	if sessionAPIKey == nil {
-		IsSession = true
-		sessionAPIKey = make(map[int]string)
-		sessionAPISecret = make(map[int]string)
-		sessionRole = make(map[string]string)
-		sessionHeartbeat = make(map[int]bool)
+func AddSession(g *Gemini, sessionID int, apiKey, apiSecret, role string, needsHeartbeat, isSandbox bool) error {
+	if Session == nil {
+		Session = make(map[int]*Gemini)
 	}
-	_, ok := sessionAPIKey[sessionID]
+
+	_, ok := Session[sessionID]
 	if ok {
 		return errors.New("sessionID already being used")
 	}
 
-	sessionAPIKey[sessionID] = apiKey
-	sessionAPISecret[sessionID] = apiSecret
-	sessionRole[apiKey] = role
-	sessionHeartbeat[sessionID] = needsHeartbeat
+	g.APIKey = apiKey
+	g.APISecret = apiSecret
+	g.Role = role
+	g.RequiresHeartBeat = needsHeartbeat
+	g.APIUrl = geminiAPIURL
+
+	if isSandbox {
+		g.APIUrl = geminiSandboxAPIURL
+	}
+
+	Session[sessionID] = g
 
 	return nil
 }
-
-//return session function?
 
 // SetDefaults sets package defaults for gemini exchange
 func (g *Gemini) SetDefaults() {
@@ -138,27 +134,6 @@ func (g *Gemini) Setup(exch config.ExchangeConfig) {
 			log.Fatal(err)
 		}
 	}
-}
-
-// Session is a session manager for differing APIKeys and roles, use this for all function
-// calls in this package
-func (g *Gemini) Session(sessionID int) *Gemini {
-	g.M.Lock()
-	defer g.M.Unlock()
-	g.APIUrl = geminiAPIURL
-	_, ok := sessionAPIKey[sessionID]
-	if !ok {
-		return nil
-	}
-	g.APIKey = sessionAPIKey[sessionID]
-	g.APISecret = sessionAPISecret[sessionID]
-	return g
-}
-
-// Sandbox diverts the apiURL to the sandbox API for testing purposes
-func (g *Gemini) Sandbox() *Gemini {
-	g.APIUrl = geminiSandboxAPIURL
-	return g
 }
 
 // GetSymbols returns all available symbols for trading
@@ -256,10 +231,7 @@ func (g *Gemini) GetAuctionHistory(currencyPair string, params url.Values) ([]Au
 }
 
 func (g *Gemini) isCorrectSession(role string) error {
-	if !IsSession {
-		return errors.New("session not set")
-	}
-	if sessionRole[g.APIKey] != role {
+	if g.Role != role {
 		return errors.New("incorrect role for APIKEY cannot use this function")
 	}
 	return nil
@@ -405,16 +377,10 @@ func (g *Gemini) SendAuthenticatedHTTPRequest(method, path string, params map[st
 		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet, g.Name)
 	}
 
-	if g.Nonce.Get() == 0 {
-		g.Nonce.Set(time.Now().UnixNano())
-	} else {
-		g.Nonce.Inc()
-	}
-
 	headers := make(map[string]string)
 	request := make(map[string]interface{})
 	request["request"] = fmt.Sprintf("/v%s/%s", geminiAPIVersion, path)
-	request["nonce"] = g.Nonce.Get()
+	request["nonce"] = g.Nonce.GetValue(g.Name, false)
 
 	if params != nil {
 		for key, value := range params {
@@ -456,10 +422,5 @@ func (g *Gemini) SendAuthenticatedHTTPRequest(method, path string, params map[st
 		}
 	}
 
-	err = common.JSONDecode([]byte(resp), &result)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return common.JSONDecode([]byte(resp), &result)
 }
