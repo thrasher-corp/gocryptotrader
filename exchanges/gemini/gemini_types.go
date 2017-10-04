@@ -150,8 +150,8 @@ type DepositAddress struct {
 	Label    string `json:"label"`
 }
 
-// WithdrawelAddress holds withdrawel information
-type WithdrawelAddress struct {
+// WithdrawalAddress holds withdrawal information
+type WithdrawalAddress struct {
 	Address string  `json:"address"`
 	Amount  float64 `json:"amount"`
 	TXHash  string  `json:"txHash"`

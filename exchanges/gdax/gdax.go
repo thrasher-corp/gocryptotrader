@@ -71,7 +71,7 @@ func (g *GDAX) SetDefaults() {
 	g.AssetTypes = []string{ticker.Spot}
 }
 
-// Setup initialises the exchange paramaters with the current configuration
+// Setup initialises the exchange parameters with the current configuration
 func (g *GDAX) Setup(exch config.ExchangeConfig) {
 	if !exch.Enabled {
 		g.SetEnabled(false)
@@ -514,7 +514,7 @@ func (g *GDAX) GetFills(orderID, currencyPair string) ([]FillResponse, error) {
 		params.Set("product_id", currencyPair)
 	}
 	if len(params.Get("order_id")) == 0 && len(params.Get("product_id")) == 0 {
-		return resp, errors.New("no paramaters set")
+		return resp, errors.New("no parameters set")
 	}
 
 	path := common.EncodeURLValues(gdaxAPIURL+gdaxFills, params)
@@ -708,7 +708,7 @@ func (g *GDAX) GetCoinbaseAccounts() ([]CoinbaseAccounts, error) {
 // E.g. BTC-USD. *Required* if type is fills
 // accountID - ID of the account to generate an account report for. *Required*
 // if type is account
-// format - 	pdf or csv (defualt is pdf)
+// format - 	pdf or csv (default is pdf)
 // email - [optional] Email address to send the report to
 func (g *GDAX) GetReport(reportType, startDate, endDate, currencyPair, accountID, format, email string) (Report, error) {
 	resp := Report{}

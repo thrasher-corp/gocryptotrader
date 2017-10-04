@@ -409,26 +409,26 @@ func TestConvertCurrency(t *testing.T) {
 		t.Errorf("Test failed. ConvertCurrency USD -> AUD. Error %s", err)
 	}
 
-	// Test non-existant currencies
+	// Test non-existent currencies
 
 	_, err = ConvertCurrency(1000, "ASDF", "USD")
 	if err == nil {
-		t.Errorf("Test failed. ConvertCurrency non-existant currency -> USD. Error %s", err)
+		t.Errorf("Test failed. ConvertCurrency non-existent currency -> USD. Error %s", err)
 	}
 
 	_, err = ConvertCurrency(1000, "USD", "ASDF")
 	if err == nil {
-		t.Errorf("Test failed. ConvertCurrency USD -> non-existant currency. Error %s", err)
+		t.Errorf("Test failed. ConvertCurrency USD -> non-existent currency. Error %s", err)
 	}
 
 	_, err = ConvertCurrency(1000, "CNY", "UAHF")
 	if err == nil {
-		t.Errorf("Test failed. ConvertCurrency non-USD currency CNY -> non-existant currency. Error %s", err)
+		t.Errorf("Test failed. ConvertCurrency non-USD currency CNY -> non-existent currency. Error %s", err)
 	}
 
 	_, err = ConvertCurrency(1000, "UASF", "UAHF")
 	if err == nil {
-		t.Errorf("Test failed. ConvertCurrency non-existant currency -> non-existant currency. Error %s", err)
+		t.Errorf("Test failed. ConvertCurrency non-existent currency -> non-existent currency. Error %s", err)
 	}
 }
 

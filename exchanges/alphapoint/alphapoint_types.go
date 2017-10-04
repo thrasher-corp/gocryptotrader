@@ -43,7 +43,7 @@ type Trades struct {
 	Trades       []Trade `json:"trades"`
 }
 
-// Trade is a sub-type which holds the singular trade that occured in the past
+// Trade is a sub-type which holds the singular trade that occurred in the past
 type Trade struct {
 	TID                   int64   `json:"tid"`
 	Price                 float64 `json:"px"`
