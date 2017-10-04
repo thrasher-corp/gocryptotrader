@@ -60,9 +60,24 @@ func TestString(t *testing.T) {
 func TestGetValue(t *testing.T) {
 	var nonce Nonce
 	timeNowNano := strconv.FormatInt(time.Now().UnixNano(), 10)
+	time.Sleep(time.Millisecond * 100)
 	nValue := nonce.GetValue("dingdong", true).String()
 
 	if timeNowNano == nValue {
+		t.Error("Test failed - GetValue() error, incorrect values")
+	}
+
+	if len(nValue) != 19 {
+		t.Error("Test failed - GetValue() error, incorrect values")
+	}
+
+	timeNowUnix := nonce.GetValue("dongding", false)
+	if len(timeNowUnix.String()) != 10 {
+		t.Error("Test failed - GetValue() error, incorrect values")
+	}
+
+	n := nonce.GetValue("dongding", false)
+	if n != timeNowUnix+1 {
 		t.Error("Test failed - GetValue() error, incorrect values")
 	}
 }
