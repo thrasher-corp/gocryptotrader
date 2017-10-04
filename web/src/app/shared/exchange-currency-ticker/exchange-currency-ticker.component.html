@@ -1,0 +1,28 @@
+<md-card class="exchange-card one-time-animation"  >
+  <md-card-header>
+      <md-card-title>{{ticker?.Exchange}} {{ticker?.CurrencyPair}} Ticker update</md-card-title>
+  </md-card-header>
+  <md-card-content>
+      <md-grid-list cols="3" rowHeight="16:9" >
+          <md-grid-tile>
+              <p>Last: {{ticker?.Last | number:'1.0-1'}}</p>
+            </md-grid-tile>
+          <md-grid-tile>
+              <p> Low: {{ticker?.Low | number:'1.0-1'}}</p>
+          </md-grid-tile>
+          <md-grid-tile>
+              <p> High: {{ticker?.High | number:'1.0-1'}}</p>
+          </md-grid-tile>
+          
+          <md-grid-tile>
+              <p> Bid: {{ticker?.Bid | number:'1.0-1'}}</p>
+            </md-grid-tile>
+            <md-grid-tile>
+                <p> Ask: {{ticker?.Ask | number:'1.0-1'}}</p>
+              </md-grid-tile>
+              <md-grid-tile>
+                  <p>Volume: {{ticker?.Volume | number:'1.0-1'}}</p>
+                </md-grid-tile>
+      </md-grid-list>
+  </md-card-content>
+

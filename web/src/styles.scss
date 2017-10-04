@@ -1,0 +1,36 @@
+/* You can add global styles to this file, and also import other style files */
+
+html,
+body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+}
+
+.main {
+    padding: 20px 70px 0;
+    display: block;
+    text-align: center;
+}
+
+.main-content {
+    display: inline-block;
+    text-align: left;
+    max-width: 940px;
+    width:100%;
+}
+
+.loading-spinner {
+    margin-left:50%;
+    margin-right:50%;
+    width:100%;
+}
+
+@import '~@angular/material/prebuilt-themes/indigo-pink.css';
+
+/*
+deeppurple-amber.css
+indigo-pink.css
+pink-bluegrey.css
+purple-green.css
+*/
