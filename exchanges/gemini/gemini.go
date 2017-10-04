@@ -111,7 +111,7 @@ func (g *Gemini) SetDefaults() {
 	g.AssetTypes = []string{ticker.Spot}
 }
 
-// Setup sets exchange configuration paramaters
+// Setup sets exchange configuration parameters
 func (g *Gemini) Setup(exch config.ExchangeConfig) {
 	if !exch.Enabled {
 		g.SetEnabled(false)
@@ -204,7 +204,7 @@ func (g *Gemini) GetTrades(currencyPair string, params url.Values) ([]Trade, err
 	return trades, common.SendHTTPGetRequest(path, true, g.Verbose, &trades)
 }
 
-// GetAuction returns auction infomation
+// GetAuction returns auction information
 func (g *Gemini) GetAuction(currencyPair string) (Auction, error) {
 	path := fmt.Sprintf("%s/v%s/%s/%s", geminiAPIURL, geminiAPIVersion, geminiAuction, currencyPair)
 	auction := Auction{}
@@ -348,8 +348,8 @@ func (g *Gemini) GetDepositAddress(depositAddlabel, currency string) (DepositAdd
 }
 
 // WithdrawCrypto withdraws crypto currency to a whitelisted address
-func (g *Gemini) WithdrawCrypto(address, currency string, amount float64) (WithdrawelAddress, error) {
-	response := WithdrawelAddress{}
+func (g *Gemini) WithdrawCrypto(address, currency string, amount float64) (WithdrawalAddress, error) {
+	response := WithdrawalAddress{}
 	request := make(map[string]interface{})
 	request["address"] = address
 	request["amount"] = strconv.FormatFloat(amount, 'f', -1, 64)

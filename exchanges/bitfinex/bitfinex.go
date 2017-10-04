@@ -188,7 +188,7 @@ func (b *Bitfinex) GetLends(symbol string, values url.Values) ([]Lends, error) {
 	return response, common.SendHTTPGetRequest(path, true, b.Verbose, &response)
 }
 
-// GetSymbols returns the avaliable currency pairs on the exchange
+// GetSymbols returns the available currency pairs on the exchange
 func (b *Bitfinex) GetSymbols() ([]string, error) {
 	products := []string{}
 	path := fmt.Sprint(bitfinexAPIURL + bitfinexSymbols)
@@ -444,7 +444,7 @@ func (b *Bitfinex) GetBalanceHistory(symbol string, timeSince, timeUntil time.Ti
 		b.SendAuthenticatedHTTPRequest("POST", bitfinexHistory, request, &response)
 }
 
-// GetMovementHistory returns an array of past deposits and withdrawels
+// GetMovementHistory returns an array of past deposits and withdrawals
 func (b *Bitfinex) GetMovementHistory(symbol, method string, timeSince, timeUntil time.Time, limit int) ([]MovementHistory, error) {
 	response := []MovementHistory{}
 	request := make(map[string]interface{})

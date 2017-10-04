@@ -350,7 +350,7 @@ func (b *Bitstamp) PlaceOrder(currencyPair string, price float64, amount float64
 		b.SendAuthenticatedHTTPRequest(path, true, req, &response)
 }
 
-// GetWithdrawalRequests returns withdrawl requests for the account
+// GetWithdrawalRequests returns withdrawal requests for the account
 // timedelta - positive integer with max value 50000000 which returns requests
 // from number of seconds ago to now.
 func (b *Bitstamp) GetWithdrawalRequests(timedelta int64) ([]WithdrawalRequests, error) {

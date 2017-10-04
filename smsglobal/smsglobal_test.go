@@ -52,7 +52,7 @@ func TestGetContactByNumber(t *testing.T) {
 
 	_, err = result.GetContactByNumber("ASDASDASD")
 	if err == nil {
-		t.Fatal("Test failed. TestGetContactByNumber: Returned nil err on non-existant number")
+		t.Fatal("Test failed. TestGetContactByNumber: Returned nil err on non-existent number")
 	}
 }
 
@@ -73,7 +73,7 @@ func TestGetContactByName(t *testing.T) {
 
 	_, err = result.GetContactByName("ASDASDASD")
 	if err == nil {
-		t.Fatal("Test failed. TestGetContactByName: Returned nil err on non-existant number")
+		t.Fatal("Test failed. TestGetContactByName: Returned nil err on non-existent number")
 	}
 }
 
