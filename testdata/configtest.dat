@@ -163,7 +163,7 @@
    }
   },
   {
-   "Name": "BTCE",
+   "Name": "WEX",
    "Enabled": true,
    "Verbose": false,
    "Websocket": false,

@@ -26,22 +26,23 @@ const (
 )
 
 func TestAddSession(t *testing.T) {
-	err := g.AddSession(1, apiKey1, apiSecret1, apiKeyRole1, true)
+	err := AddSession(&g, 1, apiKey1, apiSecret1, apiKeyRole1, true, false)
 	if err != nil {
 		t.Error("Test failed - AddSession() error")
 	}
-	err = g.AddSession(1, apiKey1, apiSecret1, apiKeyRole1, true)
+	err = AddSession(&g, 1, apiKey1, apiSecret1, apiKeyRole1, true, false)
 	if err == nil {
 		t.Error("Test failed - AddSession() error")
 	}
-	err = g.AddSession(2, apiKey2, apiSecret2, apiKeyRole2, false)
+	err = AddSession(&g, 2, apiKey2, apiSecret2, apiKeyRole2, false, true)
 	if err != nil {
 		t.Error("Test failed - AddSession() error")
 	}
 }
 
 func TestSetDefaults(t *testing.T) {
-	g.SetDefaults()
+	Session[1].SetDefaults()
+	Session[2].SetDefaults()
 }
 
 func TestSetup(t *testing.T) {
@@ -54,30 +55,21 @@ func TestSetup(t *testing.T) {
 
 	geminiConfig.AuthenticatedAPISupport = true
 
-	g.Setup(geminiConfig)
+	Session[1].Setup(geminiConfig)
+	Session[2].Setup(geminiConfig)
 }
 
-func TestSession(t *testing.T) {
-	t.Parallel()
-	if g.Session(1) == nil {
-		t.Error("Test Failed - Session() error")
-	}
-	if g.Session(1337) != nil {
-		t.Error("Test Failed - Session() error")
-	}
-}
-
-func TestSandbox(t *testing.T) {
-	t.Parallel()
-	g.APIUrl = geminiAPIURL
-	if g.Sandbox().APIUrl != geminiSandboxAPIURL {
-		t.Error("Test Failed - Sandbox() error")
-	}
-}
+// func TestSandbox(t *testing.T) {
+// 	t.Parallel()
+// 	g.Sandbox(1)
+// 	if Management[1].URL != geminiSandboxAPIURL {
+// 		t.Error("Test Failed - Sandbox() error")
+// 	}
+// }
 
 func TestGetSymbols(t *testing.T) {
 	t.Parallel()
-	_, err := g.GetSymbols()
+	_, err := Session[1].GetSymbols()
 	if err != nil {
 		t.Error("Test Failed - GetSymbols() error", err)
 	}
@@ -85,11 +77,11 @@ func TestGetSymbols(t *testing.T) {
 
 func TestGetTicker(t *testing.T) {
 	t.Parallel()
-	_, err := g.GetTicker("BTCUSD")
+	_, err := Session[2].GetTicker("BTCUSD")
 	if err != nil {
 		t.Error("Test Failed - GetTicker() error", err)
 	}
-	_, err = g.GetTicker("bla")
+	_, err = Session[1].GetTicker("bla")
 	if err == nil {
 		t.Error("Test Failed - GetTicker() error", err)
 	}
@@ -97,7 +89,7 @@ func TestGetTicker(t *testing.T) {
 
 func TestGetOrderbook(t *testing.T) {
 	t.Parallel()
-	_, err := g.GetOrderbook("btcusd", url.Values{})
+	_, err := Session[1].GetOrderbook("btcusd", url.Values{})
 	if err != nil {
 		t.Error("Test Failed - GetOrderbook() error", err)
 	}
@@ -105,7 +97,7 @@ func TestGetOrderbook(t *testing.T) {
 
 func TestGetTrades(t *testing.T) {
 	t.Parallel()
-	_, err := g.GetTrades("btcusd", url.Values{})
+	_, err := Session[2].GetTrades("btcusd", url.Values{})
 	if err != nil {
 		t.Error("Test Failed - GetTrades() error", err)
 	}
@@ -113,7 +105,7 @@ func TestGetTrades(t *testing.T) {
 
 func TestGetAuction(t *testing.T) {
 	t.Parallel()
-	_, err := g.GetAuction("btcusd")
+	_, err := Session[1].GetAuction("btcusd")
 	if err != nil {
 		t.Error("Test Failed - GetAuction() error", err)
 	}
@@ -121,7 +113,7 @@ func TestGetAuction(t *testing.T) {
 
 func TestGetAuctionHistory(t *testing.T) {
 	t.Parallel()
-	_, err := g.GetAuctionHistory("btcusd", url.Values{})
+	_, err := Session[2].GetAuctionHistory("btcusd", url.Values{})
 	if err != nil {
 		t.Error("Test Failed - GetAuctionHistory() error", err)
 	}
@@ -129,11 +121,11 @@ func TestGetAuctionHistory(t *testing.T) {
 
 func TestNewOrder(t *testing.T) {
 	t.Parallel()
-	_, err := g.Session(1).Sandbox().NewOrder("btcusd", 1, 4500, "buy", "exchange limit")
+	_, err := Session[1].NewOrder("btcusd", 1, 4500, "buy", "exchange limit")
 	if err == nil {
 		t.Error("Test Failed - NewOrder() error", err)
 	}
-	_, err = g.Session(2).Sandbox().NewOrder("btcusd", 1, 4500, "buy", "exchange limit")
+	_, err = Session[2].NewOrder("btcusd", 1, 4500, "buy", "exchange limit")
 	if err == nil {
 		t.Error("Test Failed - NewOrder() error", err)
 	}
@@ -141,7 +133,7 @@ func TestNewOrder(t *testing.T) {
 
 func TestCancelOrder(t *testing.T) {
 	t.Parallel()
-	_, err := g.Session(1).Sandbox().CancelOrder(1337)
+	_, err := Session[1].CancelOrder(1337)
 	if err == nil {
 		t.Error("Test Failed - CancelOrder() error", err)
 	}
@@ -149,11 +141,11 @@ func TestCancelOrder(t *testing.T) {
 
 func TestCancelOrders(t *testing.T) {
 	t.Parallel()
-	_, err := g.Session(1).Sandbox().CancelOrders(false)
+	_, err := Session[1].CancelOrders(false)
 	if err == nil {
 		t.Error("Test Failed - CancelOrders() error", err)
 	}
-	_, err = g.Session(2).Sandbox().CancelOrders(true)
+	_, err = Session[2].CancelOrders(true)
 	if err == nil {
 		t.Error("Test Failed - CancelOrders() error", err)
 	}
@@ -161,7 +153,7 @@ func TestCancelOrders(t *testing.T) {
 
 func TestGetOrderStatus(t *testing.T) {
 	t.Parallel()
-	_, err := g.Session(1).Sandbox().GetOrderStatus(1337)
+	_, err := Session[2].GetOrderStatus(1337)
 	if err == nil {
 		t.Error("Test Failed - GetOrderStatus() error", err)
 	}
@@ -169,7 +161,7 @@ func TestGetOrderStatus(t *testing.T) {
 
 func TestGetOrders(t *testing.T) {
 	t.Parallel()
-	_, err := g.Session(1).Sandbox().GetOrders()
+	_, err := Session[1].GetOrders()
 	if err == nil {
 		t.Error("Test Failed - GetOrders() error", err)
 	}
@@ -177,7 +169,7 @@ func TestGetOrders(t *testing.T) {
 
 func TestGetTradeHistory(t *testing.T) {
 	t.Parallel()
-	_, err := g.Session(1).Sandbox().GetTradeHistory("btcusd", 0)
+	_, err := Session[1].GetTradeHistory("btcusd", 0)
 	if err == nil {
 		t.Error("Test Failed - GetTradeHistory() error", err)
 	}
@@ -185,7 +177,7 @@ func TestGetTradeHistory(t *testing.T) {
 
 func TestGetTradeVolume(t *testing.T) {
 	t.Parallel()
-	_, err := g.Session(1).Sandbox().GetTradeVolume()
+	_, err := Session[2].GetTradeVolume()
 	if err == nil {
 		t.Error("Test Failed - GetTradeVolume() error", err)
 	}
@@ -193,7 +185,7 @@ func TestGetTradeVolume(t *testing.T) {
 
 func TestGetBalances(t *testing.T) {
 	t.Parallel()
-	_, err := g.Session(1).Sandbox().GetBalances()
+	_, err := Session[1].GetBalances()
 	if err == nil {
 		t.Error("Test Failed - GetBalances() error", err)
 	}
@@ -201,7 +193,7 @@ func TestGetBalances(t *testing.T) {
 
 func TestGetDepositAddress(t *testing.T) {
 	t.Parallel()
-	_, err := g.Session(1).Sandbox().GetDepositAddress("LOL123", "btc")
+	_, err := Session[1].GetDepositAddress("LOL123", "btc")
 	if err == nil {
 		t.Error("Test Failed - GetDepositAddress() error", err)
 	}
@@ -209,7 +201,7 @@ func TestGetDepositAddress(t *testing.T) {
 
 func TestWithdrawCrypto(t *testing.T) {
 	t.Parallel()
-	_, err := g.Session(1).Sandbox().WithdrawCrypto("LOL123", "btc", 1)
+	_, err := Session[1].WithdrawCrypto("LOL123", "btc", 1)
 	if err == nil {
 		t.Error("Test Failed - WithdrawCrypto() error", err)
 	}
@@ -217,7 +209,7 @@ func TestWithdrawCrypto(t *testing.T) {
 
 func TestPostHeartbeat(t *testing.T) {
 	t.Parallel()
-	_, err := g.Session(1).Sandbox().PostHeartbeat()
+	_, err := Session[2].PostHeartbeat()
 	if err == nil {
 		t.Error("Test Failed - PostHeartbeat() error", err)
 	}
