@@ -1,11 +1,9 @@
-<md-sidenav-container class="example-sidenav-fab-container">
-    <app-navbar></app-navbar>
-
-    <app-sidebar></app-sidebar>
-
-    <div class="main">
-        <div class="main-content">
-            <router-outlet></router-outlet>
-        </div>
+<app-navbar></app-navbar>
+<md-sidenav-container >
+<app-sidebar ></app-sidebar>
+<div class="main">
+    <div class="main-content">    
+        <router-outlet></router-outlet>
     </div>
+</div>
 </md-sidenav-container>

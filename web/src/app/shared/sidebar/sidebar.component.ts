@@ -10,7 +10,9 @@ import { SidebarService } from './../../services/sidebar/sidebar.service';
 export class SidebarComponent implements OnInit {
   @ViewChild('sidenav') public sidenav: MdSidenav;
   sidebarService: SidebarService
-  constructor() { }
+  constructor(something: SidebarService) {
+    this.sidebarService = something;
+   }
 
   ngOnInit() {
     this.sidebarService.setSidenav(this.sidenav);
