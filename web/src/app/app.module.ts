@@ -19,6 +19,7 @@ import {
   MdCheckboxModule,
   MdGridListModule,
   MdProgressSpinnerModule,
+  MdSidenavModule,
 } from '@angular/material';
 
 
@@ -29,11 +30,13 @@ import { SettingsComponent } from './pages/settings/settings.component';
 import { DashboardComponent } from './pages/dashboard/dashboard.component';
 
 import { NavbarComponent } from './shared/navbar/navbar.component';
+import { SidebarComponent } from './shared/sidebar/sidebar.component';
 import { ExchangeCurrencyTickerComponent } from './shared/exchange-currency-ticker/exchange-currency-ticker.component';
 import { AllEnabledCurrencyTickersComponent } from './shared/all-enabled-currency-tickers/all-enabled-currency-tickers.component';
 //services
 import { WebsocketService } from './services/websocket/websocket.service';
 import { WebsocketHandlerService } from './services/websocket-handler/websocket-handler.service';
+import { SidebarService } from './services/sidebar/sidebar.service';
 import { ElectronService } from './providers/electron.service';
 //Routing
 import { AppRoutingModule } from './app-routing.module';
@@ -50,7 +53,8 @@ import * as Rx from 'rxjs/Rx';
     SettingsComponent,
     DashboardComponent,
     ExchangeCurrencyTickerComponent,
-    AllEnabledCurrencyTickersComponent
+    AllEnabledCurrencyTickersComponent,
+    SidebarComponent
   ],
   imports: [
     BrowserModule,
@@ -68,8 +72,9 @@ import * as Rx from 'rxjs/Rx';
     MdCheckboxModule,
     MdGridListModule,
     MdProgressSpinnerModule,
+    MdSidenavModule,
   ],
-  providers: [ElectronService,WebsocketService,WebsocketHandlerService],
+  providers: [ElectronService,WebsocketService,WebsocketHandlerService, SidebarService],
   bootstrap: [AppComponent]
 })
 export class AppModule {
