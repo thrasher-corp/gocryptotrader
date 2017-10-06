@@ -20,6 +20,7 @@ import {
   MdGridListModule,
   MdProgressSpinnerModule,
   MdSidenavModule,
+  MdListModule,
 } from '@angular/material';
 
 
@@ -73,6 +74,7 @@ import * as Rx from 'rxjs/Rx';
     MdGridListModule,
     MdProgressSpinnerModule,
     MdSidenavModule,
+    MdListModule,
   ],
   providers: [ElectronService,WebsocketService,WebsocketHandlerService, SidebarService],
   bootstrap: [AppComponent]
