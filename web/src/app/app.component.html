@@ -1,9 +1,21 @@
-<div >
-    <app-navbar></app-navbar>
+    <app-navbar class="navbar"></app-navbar>
     <md-sidenav-container class="container">
-        <app-sidebar class="sidebar"></app-sidebar>
-        <div class="main">
-            <router-outlet></router-outlet>
-        </div>
+        <md-sidenav #sidenav mode="side" class="sidebar" opened="true">
+            <md-nav-list>
+                    <md-list-item routerLink="dashboard" routerLinkActive="dashboard-highlight">
+                            <md-icon >trending_up</md-icon>&nbsp;<h3>Dashboard</h3>
+                    </md-list-item>
+                    <md-list-item routerLink="wallet" routerLinkActive="wallet-highlight">
+                            <md-icon >account_balance_wallet</md-icon>&nbsp;<h3>Wallet</h3>
+                    </md-list-item>
+                    <md-list-item routerLink="trading" routerLinkActive="trading-highlight">
+                            <md-icon >history</md-icon>&nbsp;<h3>Trading</h3>
+                    </md-list-item>
+                    <md-list-item routerLink="settings" routerLinkActive="settings-highlight">
+                            <md-icon >settings</md-icon>&nbsp;<h3>Settings</h3>
+                    </md-list-item>
+                  </md-nav-list>
+    </md-sidenav>
+
+        <router-outlet class="main"></router-outlet>
     </md-sidenav-container>
-</div>

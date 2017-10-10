@@ -1,14 +1,32 @@
 .container {
+    border: 1px solid rgba(0, 0, 0, 0.5);
+    height:100vh;
 }
 
+
 .main {
-    padding: 20px 70px 0;
     display: flex;
     align-items: center;
     justify-content: center;
+    min-width:80%;
 }
 
-.sidebar {
-    padding:20px;
+.sidebar{
     width:20%;
+}
+
+.dashboard-highlight {
+    color: green !important;
+}
+
+.trading-highlight {
+    color: red !important;
+}
+
+.wallet-highlight {
+    color: blueviolet !important;
+}
+
+.settings-highlight {
+    color: magenta !important;
 }
