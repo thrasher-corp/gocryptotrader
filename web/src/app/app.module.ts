@@ -29,6 +29,7 @@ import { HomeComponent } from './pages/home/home.component';
 import { AboutComponent } from './pages/about/about.component';
 import { SettingsComponent } from './pages/settings/settings.component';
 import { DashboardComponent } from './pages/dashboard/dashboard.component';
+import { WalletComponent } from './pages/wallet/wallet.component';
 
 import { NavbarComponent } from './shared/navbar/navbar.component';
 import { SidebarComponent } from './shared/sidebar/sidebar.component';
@@ -41,6 +42,9 @@ import { SidebarService } from './services/sidebar/sidebar.service';
 import { ElectronService } from './providers/electron.service';
 //Routing
 import { AppRoutingModule } from './app-routing.module';
+
+import { Wallet } from './shared/classes/wallet';
+
 
 import * as Rx from 'rxjs/Rx';
 
@@ -55,7 +59,8 @@ import * as Rx from 'rxjs/Rx';
     DashboardComponent,
     ExchangeCurrencyTickerComponent,
     AllEnabledCurrencyTickersComponent,
-    SidebarComponent
+    SidebarComponent,
+    WalletComponent
   ],
   imports: [
     BrowserModule,
