@@ -1,0 +1,28 @@
+<md-card *ngIf="wallet !== null" class="wallet-card card">
+  <md-card-header>
+      <md-card-title>Wallet Summary</md-card-title>
+  </md-card-header>
+  <md-card-content>
+      <table cellspacing="0">
+          <tr>
+              <td>
+              </td>
+          </tr>
+      </table>
+      <md-grid-list cols="2" rowHeight="3:1">
+          <md-grid-tile>
+          </md-grid-tile>
+          <md-grid-tile>
+          </md-grid-tile>
+      </md-grid-list>
+      <md-grid-list cols="3" rowHeight="2:1" *ngFor="let total of wallet?.CoinTotal">
+          <md-grid-tile>
+            {{total.coin}} - {{total.balance}}
+          </md-grid-tile>
+          <md-grid-tile>
+          </md-grid-tile>
+          <md-grid-tile>
+          </md-grid-tile>
+      </md-grid-list>
+  </md-card-content>
+</md-card>

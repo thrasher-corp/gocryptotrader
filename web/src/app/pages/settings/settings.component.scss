@@ -7,14 +7,11 @@
     width: 100%;
 }
 
-.exchange-card {
-    margin-bottom: 20px;
-    width: 1000px;
-}
-
+// FAB
 .md-fab {
-    margin: 0;
-    position: fixed;
+    top: auto;
     right: 20px;
-    bottom: 10px;
+    bottom: 20px;
+    left: auto;
+    position: fixed;
 }

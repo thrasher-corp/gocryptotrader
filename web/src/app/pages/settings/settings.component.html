@@ -4,7 +4,7 @@
 <div *ngIf="settings !== null">
     <button (click)="saveSettings()" md-fab color="accent" class="md-fab md-fab-bottom-right">Save</button>
     <form *ngIf="settings.SMSGlobal != null">
-        <md-card class="exchange-card">
+        <md-card class="exchange-card card">
             <md-card-header>
                 <md-card-title>SMS Global Settings</md-card-title>
             </md-card-header>
@@ -48,7 +48,7 @@
     </form>
 
     <form *ngFor="let exchange of settings?.Exchanges">
-        <md-card class="exchange-card">
+        <md-card class="exchange-card card">
             <md-card-header>
                 <md-card-title>{{exchange.Name}} Exchange Settings</md-card-title>
             </md-card-header>

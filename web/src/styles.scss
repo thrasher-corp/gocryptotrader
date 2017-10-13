@@ -8,12 +8,19 @@ body {
     
 }
 
-
-
 .loading-spinner {
     margin-left:50%;
     margin-right:50%;
 }
+////////////////////////////////////////////////////////////////
+// Default settings for cards
+////////////////////////////////////////////////////////////////
+.card {
+    width: 80%;
+    margin: 10px auto;
+}
+
+
 
 @import '~@angular/material/prebuilt-themes/indigo-pink.css';
 
