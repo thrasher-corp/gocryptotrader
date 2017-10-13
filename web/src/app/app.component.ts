@@ -1,6 +1,6 @@
 import { Component, OnInit,ViewChild } from '@angular/core';
 import { ElectronService } from './providers/electron.service';
-import { MdSidenav } from '@angular/material';
+import { MatSidenav } from '@angular/material';
 import { SidebarService } from './services/sidebar/sidebar.service';
 import { Router, NavigationEnd } from '@angular/router';
 
@@ -12,7 +12,7 @@ import { Router, NavigationEnd } from '@angular/router';
 export class AppComponent {
   sidebarService: SidebarService
   public currentUrl:string;
-  @ViewChild('sidenav') public sidenav: MdSidenav;
+  @ViewChild('sidenav') public sidenav: MatSidenav;
   
   constructor(public electronService: ElectronService,something: SidebarService, private router:Router) {
 
