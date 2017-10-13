@@ -1,8 +1,8 @@
 <div class="loading-spinner" *ngIf="tickerCards === null || tickerCards.length === 0">
-  <md-progress-spinner mode="indeterminate"></md-progress-spinner>
+  <mat-progress-spinner mode="indeterminate"></mat-progress-spinner>
 </div>
-<md-grid-list cols="4" rowHeight="4:3" >
-    <md-grid-tile *ngFor="let ticker of tickerCards">
+<mat-grid-list cols="4" rowHeight="4:3" >
+    <mat-grid-tile *ngFor="let ticker of tickerCards">
   <app-exchange-currency-ticker  [ticker]="ticker" ></app-exchange-currency-ticker>
-  </md-grid-tile>
-</md-grid-list>
+  </mat-grid-tile>
+</mat-grid-list>

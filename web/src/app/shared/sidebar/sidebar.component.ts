@@ -1,5 +1,5 @@
 import { Component, OnInit, ViewChild } from '@angular/core';
-import { MdSidenav } from '@angular/material';
+import { MatSidenav } from '@angular/material';
 import { SidebarService } from './../../services/sidebar/sidebar.service';
 import { Router, NavigationEnd } from '@angular/router';
 
@@ -9,7 +9,7 @@ import { Router, NavigationEnd } from '@angular/router';
   styleUrls: ['./sidebar.component.scss']
 })
 export class SidebarComponent implements OnInit {
-  @ViewChild('sidenav') public sidenav: MdSidenav;
+  @ViewChild('sidenav') public sidenav: MatSidenav;
   sidebarService: SidebarService
 public currentUrl:string;
 

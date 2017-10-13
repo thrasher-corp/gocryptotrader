@@ -1,34 +1,34 @@
 import { Injectable } from '@angular/core';
-import { MdSidenav, MdDrawerToggleResult } from '@angular/material';
+import { MatSidenav, MatDrawerToggleResult } from '@angular/material';
 
 @Injectable()
 export class SidebarService {
-  private sidenav: MdSidenav;
+  private sidenav: MatSidenav;
 
   /**
    * Setter for sidenav.
    *
-   * @param {MdSidenav} sidenav
+   * @param {MatSidnav} sidenav
    */
-  public setSidenav(sidenav: MdSidenav) {
+  public setSidenav(sidenav: MatSidenav) {
     this.sidenav = sidenav;
   }
 
   /**
    * Open this sidenav, and return a Promise that will resolve when it's fully opened (or get rejected if it didn't).
    *
-   * @returns Promise<MdSidenavToggleResult>
+   * @returns Promise<MatSidnavToggleResult>
    */
-  public open(): Promise<MdDrawerToggleResult> {
+  public open(): Promise<MatDrawerToggleResult> {
     return this.sidenav.open();
   }
 
   /**
    * Close this sidenav, and return a Promise that will resolve when it's fully closed (or get rejected if it didn't).
    *
-   * @returns Promise<MdSidenavToggleResult>
+   * @returns Promise<MatSidnavToggleResult>
    */
-  public close(): Promise<MdDrawerToggleResult> {
+  public close(): Promise<MatDrawerToggleResult> {
     return this.sidenav.close();
   }
 
@@ -37,9 +37,9 @@ export class SidebarService {
    *
    * @param {boolean} isOpen  Whether the sidenav should be open.
    *
-   * @returns {Promise<MdSidenavToggleResult>}
+   * @returns {Promise<MatSidnavToggleResult>}
    */
-  public toggle(isOpen?: boolean): Promise<MdDrawerToggleResult> {
+  public toggle(isOpen?: boolean): Promise<MatDrawerToggleResult> {
     return this.sidenav.toggle(isOpen);
   }
 }
