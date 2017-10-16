@@ -21,6 +21,7 @@ import {
   MatProgressSpinnerModule,
   MatSidenavModule,
   MatListModule,
+  MatSortModule
 } from '@angular/material';
 
 
@@ -80,6 +81,7 @@ import * as Rx from 'rxjs/Rx';
     MatProgressSpinnerModule,
     MatSidenavModule,
     MatListModule,
+    MatSortModule,
   ],
   providers: [ElectronService,WebsocketService,WebsocketHandlerService, SidebarService],
   bootstrap: [AppComponent]
