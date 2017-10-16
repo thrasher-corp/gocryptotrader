@@ -51,10 +51,12 @@ export class WalletComponent implements OnInit {
     }
   }
 
-public attachIcon(items:CoinTotal[]) :void {
-  for(var i = 0; i<items.length; i++) {
-    items[i].icon = this.coinIcon(items[i].coin);
-  }
+  public attachIcon(items: CoinTotal[]): void {
+    if (items) {
+      for (var i = 0; i < items.length; i++) {
+        items[i].icon = this.coinIcon(items[i].coin);
+      }
+    }  
 }
 
   ngOnInit() {
