@@ -2,7 +2,7 @@
     <mat-progress-spinner mode="indeterminate"></mat-progress-spinner>
 </div>
 <div *ngIf="settings !== null">
-    <button (click)="saveSettings()" mat-fab color="accent" class="mat-fab mat-fab-bottom-right">Save</button>
+    <button (click)="saveSettings()" mat-fab color="accent" class="mat-fab mat-fab-bottom-right"><mat-icon >save</mat-icon></button>
     <form *ngIf="settings.SMSGlobal != null">
         <mat-card class="exchange-card card">
             <mat-card-header>

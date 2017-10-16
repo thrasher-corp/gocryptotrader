@@ -2,48 +2,21 @@
 export interface CoinTotal {
     coin: string;
     balance: number;
-  }
-  
-  export interface CoinsOffline {
-    coin: string;
-    balance: number;
     percentage: number;
-  }
-  
-  export interface BTC {
     address: string;
-    balance: number;
-    percentage: number;
+    icon:string;
   }
   
-  export interface ETH {
-    address: string;
-    balance: number;
-    percentage: number;
-  }
-  
-  export interface LTC {
-    address: string;
-    balance: number;
-    percentage: number;
-  }
-  
-  export interface OfflineSummary {
-    BTC: BTC[];
-    ETH: ETH[];
-    LTC: LTC[];
-  }
-  
-  export interface OnlineSummary {
-    BTC: BTC[];
-    ETH: ETH[];
-    LTC: LTC[];
+  export interface Summary {
+    BTC: CoinTotal[];
+    ETH: CoinTotal[];
+    LTC: CoinTotal[];
   }
   
   export interface Wallet {
     coin_totals: CoinTotal[];
-    coins_offline: CoinsOffline[];
-    offline_summary: OfflineSummary;
-    coins_online?: any;
-    online_summary: OnlineSummary;
+    coins_offline: CoinTotal[];
+    offline_summary: Summary;
+    coins_online: CoinTotal[];
+    online_summary: Summary;
   }

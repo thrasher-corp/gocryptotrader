@@ -8,6 +8,8 @@ body {
     
 }
 
+
+
 .loading-spinner {
     margin-left:50%;
     margin-right:50%;
@@ -20,7 +22,9 @@ body {
     margin: 10px auto;
 }
 
-
+.mat-drawer {
+    background: none !important;
+}
 
 @import '~@angular/material/prebuilt-themes/indigo-pink.css';
 
