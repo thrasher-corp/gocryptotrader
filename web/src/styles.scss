@@ -5,15 +5,13 @@ body {
     margin: 0;
     padding: 0;
     overflow-y: hidden;
-    
 }
-
-
 
 .loading-spinner {
-    margin-left:50%;
-    margin-right:50%;
+    margin-left: 50%;
+    margin-right: 50%;
 }
+
 ////////////////////////////////////////////////////////////////
 // Default settings for cards
 ////////////////////////////////////////////////////////////////
@@ -22,12 +20,23 @@ body {
     margin: 10px auto;
 }
 
+////////////////////////////////////////////////////////////////
+// Default settings for expandable tile menus
+////////////////////////////////////////////////////////////////
+.mat-expansion-panel {
+    width: 80%;
+    margin: 0px auto !important;
+}
+
+.mat-expansion-panel-header-description {
+    flex-grow: 0 !important;
+}
+
 .mat-drawer {
     background: none !important;
 }
 
 @import '~@angular/material/prebuilt-themes/indigo-pink.css';
-
 
 /*
 deeppurple-amber.css

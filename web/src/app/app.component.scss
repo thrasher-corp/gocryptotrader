@@ -1,20 +1,20 @@
 .container {
     border: 1px solid rgba(0, 0, 0, 0.5);
-    height:100vh;
+    height: 96vh;
 }
-
 
 .main {
     display: flex;
     align-items: center;
     justify-content: center;
     padding: 20px 70px 0;
-    min-width:94%;
+    min-width: 86%;
     margin: 10px auto;
+    overflow-x: hidden;
 }
 
-.sidebar{
-    width:16%;
+.sidebar {
+    width: 14%;
 }
 
 .dashboard-highlight {
