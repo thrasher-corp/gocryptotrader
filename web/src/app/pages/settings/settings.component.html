@@ -5,7 +5,6 @@
 
     <button (click)="saveSettings()" mat-fab color="accent" class="mat-fab mat-fab-bottom-right"><mat-icon >save</mat-icon></button>
 
-
     <mat-accordion>
         <mat-expansion-panel *ngIf="settings.SMSGlobal != null">
             <mat-expansion-panel-header>
@@ -14,6 +13,7 @@
                 </mat-panel-title>
                 <mat-panel-description>
                     SMS configuration and contact management
+                    <mat-icon>phone_iphone</mat-icon>
                 </mat-panel-description>
             </mat-expansion-panel-header>
             <form class="form-content">
@@ -47,6 +47,7 @@
                 </mat-panel-title>
                 <mat-panel-description>
                     Exchange Settings
+                    <mat-icon>trending_up</mat-icon>
                 </mat-panel-description>
             </mat-expansion-panel-header>
             <form class="form-content">
