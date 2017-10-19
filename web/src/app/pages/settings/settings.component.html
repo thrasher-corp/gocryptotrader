@@ -7,7 +7,7 @@
 
     <mat-accordion>
         <mat-expansion-panel *ngIf="settings.SMSGlobal != null">
-            <mat-expansion-panel-header>
+            <mat-expansion-panel-header >
                 <mat-panel-title>
                     SMS Global
                 </mat-panel-title>
@@ -41,13 +41,13 @@
 
 
         <mat-expansion-panel *ngFor="let exchange of settings?.Exchanges">
-            <mat-expansion-panel-header>
+            <mat-expansion-panel-header color="secondary">
                 <mat-panel-title>
                     {{exchange.Name}}
                 </mat-panel-title>
                 <mat-panel-description>
                     Exchange Settings
-                    <mat-icon>trending_up</mat-icon>
+                    <mat-icon>attach_money</mat-icon>
                 </mat-panel-description>
             </mat-expansion-panel-header>
             <form class="form-content">
