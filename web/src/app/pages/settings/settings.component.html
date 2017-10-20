@@ -41,7 +41,7 @@
 
 
         <mat-expansion-panel *ngFor="let exchange of settings?.Exchanges">
-            <mat-expansion-panel-header color="secondary">
+            <mat-expansion-panel-header>
                 <mat-panel-title>
                     {{exchange.Name}}
                 </mat-panel-title>
@@ -53,7 +53,6 @@
             <form class="form-content">
                 <mat-checkbox name="exchangeEnabled" [(ngModel)]="exchange.Enabled">Enabled</mat-checkbox>
                 <div mat-line></div>
-                <div *ngIf="exchange.Enabled">
                     <mat-form-field>
                         <input matInput name="apiKey" [(ngModel)]="exchange.APIKey" [disabled]="!exchange.Enabled" placeholder="API Key*">
                     </mat-form-field>
@@ -64,17 +63,15 @@
                         <input matInput name="apiClientId" [(ngModel)]="exchange.ClientID" [disabled]="!exchange.Enabled" placeholder="API ClientID">
                     </mat-form-field>
                     <div mat-line></div>
-
                     <mat-panel-description>
-                        Enabled Currency pairs
+                        Enabled Currency pairs {{enabledCurrencies.selectedOptions.selected.length}}
                     </mat-panel-description>
                     <div mat-line></div>
-                    <mat-list>
-                        <mat-list-item *ngFor="let currency of exchange.AvailablePairs.split(',')">
-                            <mat-checkbox name="availableCurrency" [disabled]="true || !exchange.Enabled">{{currency}}</mat-checkbox>
-                        </mat-list-item>
-                    </mat-list>
-                </div>
+                    <mat-selection-list #enabledCurrencies>
+                            <mat-list-option [disabled]="!exchange.Enabled" *ngFor="let currency of exchange.AvailablePairs.split(',')">
+                              {{currency}}
+                            </mat-list-option>
+                          </mat-selection-list>
             </form>
         </mat-expansion-panel>
     </mat-accordion>
