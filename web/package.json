@@ -46,6 +46,7 @@
         "e2e": "protractor ./protractor.conf.js"
     },
     "dependencies": {
+        "@amcharts/amcharts3-angular": "^1.5.0",
         "@angular/animations": "^4.4.5",
         "@angular/cdk": "^2.0.0-beta.12",
         "@angular/common": "4.4.5",

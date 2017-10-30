@@ -1,7 +1,7 @@
 import {inject, TestBed} from '@angular/core/testing';
 import {HttpModule} from '@angular/http';
 import {StyleManagerComponent} from './style-manager.component';
-
+ 
 
 describe('StyleManager', () => {
   let styleManager: StyleManagerComponent;
