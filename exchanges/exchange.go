@@ -54,6 +54,7 @@ type Base struct {
 	APIUrl                      string
 	RequestCurrencyPairFormat   config.CurrencyPairFormatConfig
 	ConfigCurrencyPairFormat    config.CurrencyPairFormatConfig
+	Orderbooks                  orderbook.Orderbooks
 }
 
 // IBotExchange enforces standard functions for all exchanges supported in

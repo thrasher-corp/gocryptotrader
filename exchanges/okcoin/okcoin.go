@@ -12,6 +12,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/exchanges"
+	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 )
 
@@ -109,6 +110,8 @@ func (o *OKCoin) SetDefaults() {
 		o.WebsocketURL = OKCOIN_WEBSOCKET_URL_CHINA
 		o.setCurrencyPairFormats()
 	}
+
+	o.Orderbooks = orderbook.Init()
 }
 
 func (o *OKCoin) Setup(exch config.ExchangeConfig) {

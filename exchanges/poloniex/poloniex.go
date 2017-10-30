@@ -12,6 +12,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/exchanges"
+	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 )
 
@@ -64,6 +65,7 @@ func (p *Poloniex) SetDefaults() {
 	p.ConfigCurrencyPairFormat.Delimiter = "_"
 	p.ConfigCurrencyPairFormat.Uppercase = true
 	p.AssetTypes = []string{ticker.Spot}
+	p.Orderbooks = orderbook.Init()
 }
 
 func (p *Poloniex) Setup(exch config.ExchangeConfig) {

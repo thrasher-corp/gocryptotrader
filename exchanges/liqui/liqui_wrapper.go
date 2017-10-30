@@ -76,7 +76,7 @@ func (l *Liqui) GetTickerPrice(p pair.CurrencyPair, assetType string) (ticker.Pr
 
 // GetOrderbookEx returns orderbook base on the currency pair
 func (l *Liqui) GetOrderbookEx(p pair.CurrencyPair, assetType string) (orderbook.Base, error) {
-	ob, err := orderbook.GetOrderbook(l.Name, p, assetType)
+	ob, err := l.Orderbooks.GetOrderbook(l.Name, p, assetType)
 	if err == nil {
 		return l.UpdateOrderbook(p, assetType)
 	}
@@ -101,8 +101,8 @@ func (l *Liqui) UpdateOrderbook(p pair.CurrencyPair, assetType string) (orderboo
 		orderBook.Asks = append(orderBook.Asks, orderbook.Item{Amount: data[1], Price: data[0]})
 	}
 
-	orderbook.ProcessOrderbook(l.Name, p, orderBook, assetType)
-	return orderbook.GetOrderbook(l.Name, p, assetType)
+	l.Orderbooks.ProcessOrderbook(l.Name, p, orderBook, assetType)
+	return l.Orderbooks.GetOrderbook(l.Name, p, assetType)
 }
 
 // GetExchangeAccountInfo retrieves balances for all enabled currencies for the
