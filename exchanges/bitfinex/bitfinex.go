@@ -140,9 +140,11 @@ func (b *Bitfinex) GetFundingBook(symbol string) (FundingBook, error) {
 	return response, common.SendHTTPGetRequest(path, true, b.Verbose, &response)
 }
 
-// GetOrderbook retieves the entire orderbook bid and ask price on a currency
-// pair
+// GetOrderbook retieves the orderbook bid and ask price points for a currency
+// pair - By default the response will return 25 bid and 25 ask price points.
 // CurrencyPair - Example "BTCUSD"
+// Values can contain limit amounts for both the asks and bids - Example
+// "limit_bids" = 1000
 func (b *Bitfinex) GetOrderbook(currencyPair string, values url.Values) (Orderbook, error) {
 	response := Orderbook{}
 	path := common.EncodeURLValues(
@@ -153,7 +155,10 @@ func (b *Bitfinex) GetOrderbook(currencyPair string, values url.Values) (Orderbo
 }
 
 // GetTrades returns a list of the most recent trades for the given curencyPair
+// By default the response will return 100 trades
 // CurrencyPair - Example "BTCUSD"
+// Values can contain limit amounts for the number of trades returned - Example
+// "limit_trades" = 1000
 func (b *Bitfinex) GetTrades(currencyPair string, values url.Values) ([]TradeStructure, error) {
 	response := []TradeStructure{}
 	path := common.EncodeURLValues(
