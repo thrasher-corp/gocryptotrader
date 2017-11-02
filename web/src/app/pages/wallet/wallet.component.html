@@ -1,3 +1,6 @@
+<div class="loading-spinner" *ngIf="wallet === null">
+    <mat-progress-spinner color="accent" mode="indeterminate"></mat-progress-spinner>
+</div>
 <mat-accordion *ngIf="wallet !== null">
     <mat-expansion-panel [expanded]="true">
         <mat-expansion-panel-header>
