@@ -22,6 +22,7 @@ export class WalletComponent implements OnInit {
   };
 
   constructor(private websocketHandler: WebsocketHandlerService) {
+    this.wallet= null;
     this.ws = websocketHandler;
     this.ws.messages.subscribe(msg => {
       if (msg.Event === 'GetPortfolio') {
