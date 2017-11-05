@@ -16,6 +16,7 @@ import (
 
 const (
 	gdaxAPIURL                  = "https://api.gdax.com/"
+	gdaxSandboxAPIURL           = "https://public.sandbox.gdax.com"
 	gdaxAPIVersion              = "0"
 	gdaxProducts                = "products"
 	gdaxOrderbook               = "book"
@@ -69,6 +70,7 @@ func (g *GDAX) SetDefaults() {
 	g.ConfigCurrencyPairFormat.Delimiter = ""
 	g.ConfigCurrencyPairFormat.Uppercase = true
 	g.AssetTypes = []string{ticker.Spot}
+	g.APIUrl = gdaxAPIURL
 }
 
 // Setup initialises the exchange parameters with the current configuration
@@ -85,6 +87,9 @@ func (g *GDAX) Setup(exch config.ExchangeConfig) {
 		g.BaseCurrencies = common.SplitStrings(exch.BaseCurrencies, ",")
 		g.AvailablePairs = common.SplitStrings(exch.AvailablePairs, ",")
 		g.EnabledPairs = common.SplitStrings(exch.EnabledPairs, ",")
+		if exch.UseSandbox {
+			g.APIUrl = gdaxSandboxAPIURL
+		}
 		err := g.SetCurrencyPairFormat()
 		if err != nil {
 			log.Fatal(err)
@@ -110,17 +115,17 @@ func (g *GDAX) GetProducts() ([]Product, error) {
 	products := []Product{}
 
 	return products,
-		common.SendHTTPGetRequest(gdaxAPIURL+gdaxProducts, true, g.Verbose, &products)
+		common.SendHTTPGetRequest(g.APIUrl+gdaxProducts, true, g.Verbose, &products)
 }
 
 // GetOrderbook returns orderbook by currency pair and level
 func (g *GDAX) GetOrderbook(symbol string, level int) (interface{}, error) {
 	orderbook := OrderbookResponse{}
 
-	path := fmt.Sprintf("%s/%s/%s", gdaxAPIURL+gdaxProducts, symbol, gdaxOrderbook)
+	path := fmt.Sprintf("%s/%s/%s", g.APIUrl+gdaxProducts, symbol, gdaxOrderbook)
 	if level > 0 {
 		levelStr := strconv.Itoa(level)
-		path = fmt.Sprintf("%s/%s/%s?level=%s", gdaxAPIURL+gdaxProducts, symbol, gdaxOrderbook, levelStr)
+		path = fmt.Sprintf("%s/%s/%s?level=%s", g.APIUrl+gdaxProducts, symbol, gdaxOrderbook, levelStr)
 	}
 
 	if err := common.SendHTTPGetRequest(path, true, g.Verbose, &orderbook); err != nil {
@@ -190,7 +195,7 @@ func (g *GDAX) GetOrderbook(symbol string, level int) (interface{}, error) {
 func (g *GDAX) GetTicker(currencyPair string) (Ticker, error) {
 	ticker := Ticker{}
 	path := fmt.Sprintf(
-		"%s/%s/%s", gdaxAPIURL+gdaxProducts, currencyPair, gdaxTicker)
+		"%s/%s/%s", g.APIUrl+gdaxProducts, currencyPair, gdaxTicker)
 
 	log.Println(path)
 	return ticker, common.SendHTTPGetRequest(path, true, g.Verbose, &ticker)
@@ -201,7 +206,7 @@ func (g *GDAX) GetTicker(currencyPair string) (Ticker, error) {
 func (g *GDAX) GetTrades(currencyPair string) ([]Trade, error) {
 	trades := []Trade{}
 	path := fmt.Sprintf(
-		"%s/%s/%s", gdaxAPIURL+gdaxProducts, currencyPair, gdaxTrades)
+		"%s/%s/%s", g.APIUrl+gdaxProducts, currencyPair, gdaxTrades)
 
 	return trades, common.SendHTTPGetRequest(path, true, g.Verbose, &trades)
 }
@@ -226,7 +231,7 @@ func (g *GDAX) GetHistoricRates(currencyPair string, start, end, granularity int
 	}
 
 	path := common.EncodeURLValues(
-		fmt.Sprintf("%s/%s/%s", gdaxAPIURL+gdaxProducts, currencyPair, gdaxHistory),
+		fmt.Sprintf("%s/%s/%s", g.APIUrl+gdaxProducts, currencyPair, gdaxHistory),
 		values)
 
 	if err := common.SendHTTPGetRequest(path, true, g.Verbose, &resp); err != nil {
@@ -253,7 +258,7 @@ func (g *GDAX) GetHistoricRates(currencyPair string, start, end, granularity int
 func (g *GDAX) GetStats(currencyPair string) (Stats, error) {
 	stats := Stats{}
 	path := fmt.Sprintf(
-		"%s/%s/%s", gdaxAPIURL+gdaxProducts, currencyPair, gdaxStats)
+		"%s/%s/%s", g.APIUrl+gdaxProducts, currencyPair, gdaxStats)
 
 	return stats, common.SendHTTPGetRequest(path, true, g.Verbose, &stats)
 }
@@ -264,7 +269,7 @@ func (g *GDAX) GetCurrencies() ([]Currency, error) {
 	currencies := []Currency{}
 
 	return currencies,
-		common.SendHTTPGetRequest(gdaxAPIURL+gdaxCurrencies, true, g.Verbose, &currencies)
+		common.SendHTTPGetRequest(g.APIUrl+gdaxCurrencies, true, g.Verbose, &currencies)
 }
 
 // GetServerTime returns the API server time
@@ -272,7 +277,7 @@ func (g *GDAX) GetServerTime() (ServerTime, error) {
 	serverTime := ServerTime{}
 
 	return serverTime,
-		common.SendHTTPGetRequest(gdaxAPIURL+gdaxTime, true, g.Verbose, &serverTime)
+		common.SendHTTPGetRequest(g.APIUrl+gdaxTime, true, g.Verbose, &serverTime)
 }
 
 // GetAccounts returns a list of trading accounts associated with the APIKEYS
@@ -487,7 +492,7 @@ func (g *GDAX) GetOrders(status []string, currencyPair string) ([]GeneralizedOrd
 		params.Set("product_id", currencyPair)
 	}
 
-	path := common.EncodeURLValues(gdaxAPIURL+gdaxOrders, params)
+	path := common.EncodeURLValues(g.APIUrl+gdaxOrders, params)
 	path = common.GetURIPath(path)
 
 	return resp,
@@ -517,7 +522,7 @@ func (g *GDAX) GetFills(orderID, currencyPair string) ([]FillResponse, error) {
 		return resp, errors.New("no parameters set")
 	}
 
-	path := common.EncodeURLValues(gdaxAPIURL+gdaxFills, params)
+	path := common.EncodeURLValues(g.APIUrl+gdaxFills, params)
 	uri := common.GetURIPath(path)
 
 	return resp,
@@ -533,7 +538,7 @@ func (g *GDAX) GetFundingRecords(status string) ([]Funding, error) {
 	params := url.Values{}
 	params.Set("status", status)
 
-	path := common.EncodeURLValues(gdaxAPIURL+gdaxFunding, params)
+	path := common.EncodeURLValues(g.APIUrl+gdaxFunding, params)
 	uri := common.GetURIPath(path)
 
 	return resp,
@@ -782,7 +787,7 @@ func (g *GDAX) SendAuthenticatedHTTPRequest(method, path string, params map[stri
 	headers["CB-ACCESS-PASSPHRASE"] = g.ClientID
 	headers["Content-Type"] = "application/json"
 
-	resp, err := common.SendHTTPRequest(method, gdaxAPIURL+path, headers, bytes.NewBuffer(payload))
+	resp, err := common.SendHTTPRequest(method, g.APIUrl+path, headers, bytes.NewBuffer(payload))
 	if err != nil {
 		return err
 	}

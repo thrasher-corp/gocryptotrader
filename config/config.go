@@ -104,6 +104,7 @@ type ExchangeConfig struct {
 	Enabled                   bool
 	Verbose                   bool
 	Websocket                 bool
+	UseSandbox                bool
 	RESTPollingDelay          time.Duration
 	AuthenticatedAPISupport   bool
 	APIKey                    string

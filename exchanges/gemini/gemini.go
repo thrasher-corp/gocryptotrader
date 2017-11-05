@@ -125,6 +125,9 @@ func (g *Gemini) Setup(exch config.ExchangeConfig) {
 		g.BaseCurrencies = common.SplitStrings(exch.BaseCurrencies, ",")
 		g.AvailablePairs = common.SplitStrings(exch.AvailablePairs, ",")
 		g.EnabledPairs = common.SplitStrings(exch.EnabledPairs, ",")
+		if exch.UseSandbox {
+			g.APIUrl = geminiSandboxAPIURL
+		}
 		err := g.SetCurrencyPairFormat()
 		if err != nil {
 			log.Fatal(err)
@@ -139,7 +142,7 @@ func (g *Gemini) Setup(exch config.ExchangeConfig) {
 // GetSymbols returns all available symbols for trading
 func (g *Gemini) GetSymbols() ([]string, error) {
 	symbols := []string{}
-	path := fmt.Sprintf("%s/v%s/%s", geminiAPIURL, geminiAPIVersion, geminiSymbols)
+	path := fmt.Sprintf("%s/v%s/%s", g.APIUrl, geminiAPIVersion, geminiSymbols)
 
 	return symbols, common.SendHTTPGetRequest(path, true, g.Verbose, &symbols)
 }
@@ -156,7 +159,7 @@ func (g *Gemini) GetTicker(currencyPair string) (Ticker, error) {
 
 	ticker := Ticker{}
 	resp := TickerResponse{}
-	path := fmt.Sprintf("%s/v%s/%s/%s", geminiAPIURL, geminiAPIVersion, geminiTicker, currencyPair)
+	path := fmt.Sprintf("%s/v%s/%s/%s", g.APIUrl, geminiAPIVersion, geminiTicker, currencyPair)
 
 	err := common.SendHTTPGetRequest(path, true, g.Verbose, &resp)
 	if err != nil {
@@ -182,7 +185,7 @@ func (g *Gemini) GetTicker(currencyPair string) (Ticker, error) {
 // params - limit_bids or limit_asks [OPTIONAL] default 50, 0 returns all Values
 // Type is an integer ie "params.Set("limit_asks", 30)"
 func (g *Gemini) GetOrderbook(currencyPair string, params url.Values) (Orderbook, error) {
-	path := common.EncodeURLValues(fmt.Sprintf("%s/v%s/%s/%s", geminiAPIURL, geminiAPIVersion, geminiOrderbook, currencyPair), params)
+	path := common.EncodeURLValues(fmt.Sprintf("%s/v%s/%s/%s", g.APIUrl, geminiAPIVersion, geminiOrderbook, currencyPair), params)
 	orderbook := Orderbook{}
 
 	return orderbook, common.SendHTTPGetRequest(path, true, g.Verbose, &orderbook)
@@ -198,7 +201,7 @@ func (g *Gemini) GetOrderbook(currencyPair string, params url.Values) (Orderbook
 // include_breaks	boolean	Optional. Whether to display broken trades. False by
 // default. Can be '1' or 'true' to activate
 func (g *Gemini) GetTrades(currencyPair string, params url.Values) ([]Trade, error) {
-	path := common.EncodeURLValues(fmt.Sprintf("%s/v%s/%s/%s", geminiAPIURL, geminiAPIVersion, geminiTrades, currencyPair), params)
+	path := common.EncodeURLValues(fmt.Sprintf("%s/v%s/%s/%s", g.APIUrl, geminiAPIVersion, geminiTrades, currencyPair), params)
 	trades := []Trade{}
 
 	return trades, common.SendHTTPGetRequest(path, true, g.Verbose, &trades)
@@ -206,7 +209,7 @@ func (g *Gemini) GetTrades(currencyPair string, params url.Values) ([]Trade, err
 
 // GetAuction returns auction information
 func (g *Gemini) GetAuction(currencyPair string) (Auction, error) {
-	path := fmt.Sprintf("%s/v%s/%s/%s", geminiAPIURL, geminiAPIVersion, geminiAuction, currencyPair)
+	path := fmt.Sprintf("%s/v%s/%s/%s", g.APIUrl, geminiAPIVersion, geminiAuction, currencyPair)
 	auction := Auction{}
 
 	return auction, common.SendHTTPGetRequest(path, true, g.Verbose, &auction)
@@ -224,7 +227,7 @@ func (g *Gemini) GetAuction(currencyPair string) (Auction, error) {
 //          include_indicative - [bool] Whether to include publication of
 // indicative prices and quantities.
 func (g *Gemini) GetAuctionHistory(currencyPair string, params url.Values) ([]AuctionHistory, error) {
-	path := common.EncodeURLValues(fmt.Sprintf("%s/v%s/%s/%s/%s", geminiAPIURL, geminiAPIVersion, geminiAuction, currencyPair, geminiAuctionHistory), params)
+	path := common.EncodeURLValues(fmt.Sprintf("%s/v%s/%s/%s/%s", g.APIUrl, geminiAPIVersion, geminiAuction, currencyPair, geminiAuctionHistory), params)
 	auctionHist := []AuctionHistory{}
 
 	return auctionHist, common.SendHTTPGetRequest(path, true, g.Verbose, &auctionHist)
