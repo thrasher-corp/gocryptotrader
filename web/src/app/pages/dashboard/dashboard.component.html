@@ -1,1 +1,17 @@
+<mat-grid-list cols="3" rowHeight="300px">
+  <mat-grid-tile [colspan]="1" [rowspan]="2">
+    <app-trade-history></app-trade-history>
+  </mat-grid-tile>
+  <mat-grid-tile [colspan]="2" [rowspan]="1">
+    <app-price-history></app-price-history>
+  </mat-grid-tile>
+  <mat-grid-tile [colspan]="1" [rowspan]="1">
+    <app-my-orders></app-my-orders>
+  </mat-grid-tile>
+  <mat-grid-tile [colspan]="1" [rowspan]="1">
+    <app-orders></app-orders>
+  </mat-grid-tile>
+</mat-grid-list>
+
+
 <app-all-enabled-currency-tickers></app-all-enabled-currency-tickers>

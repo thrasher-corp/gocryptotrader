@@ -54,6 +54,13 @@ import { Wallet } from './shared/classes/wallet';
 
 
 import * as Rx from 'rxjs/Rx';
+import { TradeHistoryComponent } from './shared/trade-history/trade-history.component';
+import { PriceHistoryComponent } from './shared/price-history/price-history.component';
+import { MyOrdersComponent } from './shared/my-orders/my-orders.component';
+import { OrdersComponent } from './shared/orders/orders.component';
+import { BuySellComponent } from './shared/buy-sell/buy-sell.component';
+import { DonateComponent } from './shared/donate/donate.component';
+import { SelectedCurrencyComponent } from './shared/selected-currency/selected-currency.component';
 
 
 @NgModule({
@@ -69,6 +76,13 @@ import * as Rx from 'rxjs/Rx';
     SidebarComponent,
     WalletComponent,
     ThemePickerComponent,
+    TradeHistoryComponent,
+    PriceHistoryComponent,
+    MyOrdersComponent,
+    OrdersComponent,
+    BuySellComponent,
+    DonateComponent,
+    SelectedCurrencyComponent,
   ],
   imports: [
     BrowserModule,

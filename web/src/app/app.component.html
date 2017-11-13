@@ -4,7 +4,7 @@
     <mat-sidenav #sidenav mode="side" class="sidebar" opened="true">
         <mat-nav-list>
             <mat-list-item routerLink="dashboard" routerLinkActive="dashboard-highlight">
-                <mat-icon>trending_up</mat-icon>&nbsp;
+                <mat-icon>view_quilt</mat-icon>&nbsp;
                 <h3>Dashboard</h3>
             </mat-list-item>
             <mat-list-item routerLink="wallet" routerLinkActive="wallet-highlight">
@@ -24,6 +24,8 @@
                 <h3>Settings</h3>
             </mat-list-item>
         </mat-nav-list>
+        <div class="flex-spacer"></div>
+        <app-donate></app-donate>
     </mat-sidenav>
 
     <router-outlet class="main"></router-outlet>
