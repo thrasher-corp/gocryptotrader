@@ -23,7 +23,7 @@ func TestSetup(t *testing.T) {
 	t.Parallel()
 	b.Name = "BTCC"
 	cfg := config.GetConfig()
-	cfg.LoadConfig("../../testdata/configtest.dat")
+	cfg.LoadConfig("../../testdata/configtest.json")
 	bConfig, err := cfg.GetExchangeConfig("BTCC")
 	if err != nil {
 		t.Error("Test Failed - BTCC Setup() init error")

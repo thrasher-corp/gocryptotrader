@@ -32,7 +32,7 @@ func TestSetup(t *testing.T) {
 	setup := Bitfinex{}
 	setup.Name = "Bitfinex"
 	cfg := config.GetConfig()
-	cfg.LoadConfig("../../testdata/configtest.dat")
+	cfg.LoadConfig("../../testdata/configtest.json")
 	bfxConfig, err := cfg.GetExchangeConfig("Bitfinex")
 	if err != nil {
 		t.Error("Test Failed - Bitfinex Setup() init error")

@@ -20,7 +20,7 @@ func TestSetDefaults(t *testing.T) {
 
 func TestSetup(t *testing.T) {
 	cfg := config.GetConfig()
-	cfg.LoadConfig("../../testdata/configtest.dat")
+	cfg.LoadConfig("../../testdata/configtest.json")
 	liquiConfig, err := cfg.GetExchangeConfig("Liqui")
 	if err != nil {
 		t.Error("Test Failed - liqui Setup() init error")

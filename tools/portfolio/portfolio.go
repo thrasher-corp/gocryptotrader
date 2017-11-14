@@ -57,7 +57,7 @@ func getOnlineOfflinePortfolio(coins []portfolio.Coin, online bool) {
 
 func main() {
 	var inFile, key string
-	flag.StringVar(&inFile, "infile", "config.dat", "The config input file to process.")
+	flag.StringVar(&inFile, "infile", config.GetFilePath(""), "The config input file to process.")
 	flag.StringVar(&key, "key", "", "The key to use for AES encryption.")
 	flag.Parse()
 

@@ -19,9 +19,9 @@ import (
 
 // Constants declared here are filename strings and test strings
 const (
-	ConfigFile                   = "config.dat"
-	OldConfigFile                = "config.json"
-	ConfigTestFile               = "../testdata/configtest.dat"
+	EncryptedConfigFile          = "config.dat"
+	ConfigFile                   = "config.json"
+	ConfigTestFile               = "../testdata/configtest.json"
 	configFileEncryptionPrompt   = 0
 	configFileEncryptionEnabled  = 1
 	configFileEncryptionDisabled = -1
@@ -47,7 +47,6 @@ var (
 	WarningWebserverRootWebFolderNotFound           = "WARNING -- Webserver support disabled due to missing web folder."
 	WarningExchangeAuthAPIDefaultOrEmptyValues      = "WARNING -- Exchange %s: Authenticated API support disabled due to default/empty APIKey/Secret/ClientID values."
 	WarningCurrencyExchangeProvider                 = "WARNING -- Currency exchange provider invalid valid. Reset to Fixer."
-	RenamingConfigFile                              = "Renaming config file %s to %s."
 	Cfg                                             Config
 )
 
@@ -317,34 +316,37 @@ func GetFilePath(file string) string {
 		return file
 	}
 	if flag.Lookup("test.v") == nil {
-		return ConfigFile
+		data, err := common.ReadFile(EncryptedConfigFile)
+		if err == nil {
+			if ConfirmECS(data) {
+				return EncryptedConfigFile
+			}
+			err = os.Rename(EncryptedConfigFile, ConfigFile)
+			if err != nil {
+				log.Fatalf("Unable to rename config file: %s", err)
+			}
+			log.Printf("Renaming non-encrypted config file from %s to %s",
+				EncryptedConfigFile, ConfigFile)
+			return ConfigFile
+		}
+		if !ConfirmECS(data) {
+			return ConfigFile
+		}
+		err = os.Rename(ConfigFile, EncryptedConfigFile)
+		if err != nil {
+			log.Fatalf("Unable to rename config file: %s", err)
+		}
+		log.Printf("Renaming encrypted config file from %s to %s", ConfigFile,
+			EncryptedConfigFile)
+		return EncryptedConfigFile
 	}
 	return ConfigTestFile
-}
-
-// CheckConfig checks to see if there is an old configuration filename and path
-// if found it will change it to correct filename.
-func CheckConfig() error {
-	_, err := common.ReadFile(OldConfigFile)
-	if err == nil {
-		err = os.Rename(OldConfigFile, ConfigFile)
-		if err != nil {
-			return err
-		}
-		log.Printf(RenamingConfigFile+"\n", OldConfigFile, ConfigFile)
-	}
-	return nil
 }
 
 // ReadConfig verifies and checks for encryption and verifies the unencrypted
 // file contains JSON.
 func (c *Config) ReadConfig(configPath string) error {
 	defaultPath := GetFilePath(configPath)
-	err := CheckConfig()
-	if err != nil {
-		return err
-	}
-
 	file, err := common.ReadFile(defaultPath)
 	if err != nil {
 		return err
