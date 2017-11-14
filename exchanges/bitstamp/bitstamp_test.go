@@ -42,7 +42,7 @@ func TestSetup(t *testing.T) {
 	b := Bitstamp{}
 	b.Name = "Bitstamp"
 	cfg := config.GetConfig()
-	cfg.LoadConfig("../../testdata/configtest.dat")
+	cfg.LoadConfig("../../testdata/configtest.json")
 	bConfig, err := cfg.GetExchangeConfig("Bitstamp")
 	if err != nil {
 		t.Error("Test Failed - Bitstamp Setup() init error")

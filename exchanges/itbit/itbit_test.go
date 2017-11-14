@@ -22,7 +22,7 @@ func TestSetDefaults(t *testing.T) {
 
 func TestSetup(t *testing.T) {
 	cfg := config.GetConfig()
-	cfg.LoadConfig("../../testdata/configtest.dat")
+	cfg.LoadConfig("../../testdata/configtest.json")
 	itbitConfig, err := cfg.GetExchangeConfig("ITBIT")
 	if err != nil {
 		t.Error("Test Failed - Gemini Setup() init error")
@@ -124,6 +124,7 @@ func TestGetOrder(t *testing.T) {
 }
 
 func TestCancelOrder(t *testing.T) {
+	t.Skip()
 	err := i.CancelOrder("1337", "1337order")
 	if err == nil {
 		t.Error("Test Failed - CancelOrder() error", err)

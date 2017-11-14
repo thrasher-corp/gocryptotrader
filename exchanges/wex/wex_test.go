@@ -20,7 +20,7 @@ func TestSetDefaults(t *testing.T) {
 
 func TestSetup(t *testing.T) {
 	wexConfig := config.GetConfig()
-	wexConfig.LoadConfig("../../testdata/configtest.dat")
+	wexConfig.LoadConfig("../../testdata/configtest.json")
 	conf, err := wexConfig.GetExchangeConfig("WEX")
 	if err != nil {
 		t.Error("Test Failed - WEX init error")
