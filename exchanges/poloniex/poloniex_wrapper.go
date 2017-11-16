@@ -62,7 +62,7 @@ func (p *Poloniex) GetTickerPrice(currencyPair pair.CurrencyPair, assetType stri
 
 // GetOrderbookEx returns orderbook base on the currency pair
 func (p *Poloniex) GetOrderbookEx(currencyPair pair.CurrencyPair, assetType string) (orderbook.Base, error) {
-	ob, err := orderbook.GetOrderbook(p.GetName(), currencyPair, assetType)
+	ob, err := p.Orderbooks.GetOrderbook(p.GetName(), currencyPair, assetType)
 	if err == nil {
 		return p.UpdateOrderbook(currencyPair, assetType)
 	}
@@ -87,8 +87,8 @@ func (p *Poloniex) UpdateOrderbook(currencyPair pair.CurrencyPair, assetType str
 		orderBook.Asks = append(orderBook.Asks, orderbook.Item{Amount: data.Amount, Price: data.Price})
 	}
 
-	orderbook.ProcessOrderbook(p.GetName(), currencyPair, orderBook, assetType)
-	return orderbook.GetOrderbook(p.Name, currencyPair, assetType)
+	p.Orderbooks.ProcessOrderbook(p.GetName(), currencyPair, orderBook, assetType)
+	return p.Orderbooks.GetOrderbook(p.Name, currencyPair, assetType)
 }
 
 // GetExchangeAccountInfo retrieves balances for all enabled currencies for the

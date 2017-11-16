@@ -79,7 +79,7 @@ func (k *Kraken) GetTickerPrice(p pair.CurrencyPair, assetType string) (ticker.P
 
 // GetOrderbookEx returns orderbook base on the currency pair
 func (k *Kraken) GetOrderbookEx(p pair.CurrencyPair, assetType string) (orderbook.Base, error) {
-	ob, err := orderbook.GetOrderbook(k.GetName(), p, assetType)
+	ob, err := k.Orderbooks.GetOrderbook(k.GetName(), p, assetType)
 	if err == nil {
 		return k.UpdateOrderbook(p, assetType)
 	}
@@ -102,8 +102,8 @@ func (k *Kraken) UpdateOrderbook(p pair.CurrencyPair, assetType string) (orderbo
 		orderBook.Asks = append(orderBook.Asks, orderbook.Item{Amount: orderbookNew.Asks[x].Amount, Price: orderbookNew.Asks[x].Price})
 	}
 
-	orderbook.ProcessOrderbook(k.GetName(), p, orderBook, assetType)
-	return orderbook.GetOrderbook(k.Name, p, assetType)
+	k.Orderbooks.ProcessOrderbook(k.GetName(), p, orderBook, assetType)
+	return k.Orderbooks.GetOrderbook(k.Name, p, assetType)
 }
 
 // GetExchangeAccountInfo retrieves balances for all enabled currencies for the

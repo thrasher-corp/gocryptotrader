@@ -75,7 +75,7 @@ func (o *OKCoin) GetTickerPrice(p pair.CurrencyPair, assetType string) (ticker.P
 
 // GetOrderbookEx returns orderbook base on the currency pair
 func (o *OKCoin) GetOrderbookEx(currency pair.CurrencyPair, assetType string) (orderbook.Base, error) {
-	ob, err := orderbook.GetOrderbook(o.GetName(), currency, assetType)
+	ob, err := o.Orderbooks.GetOrderbook(o.GetName(), currency, assetType)
 	if err == nil {
 		return o.UpdateOrderbook(currency, assetType)
 	}
@@ -100,8 +100,8 @@ func (o *OKCoin) UpdateOrderbook(currency pair.CurrencyPair, assetType string) (
 		orderBook.Asks = append(orderBook.Asks, orderbook.Item{Amount: data[1], Price: data[0]})
 	}
 
-	orderbook.ProcessOrderbook(o.GetName(), currency, orderBook, assetType)
-	return orderbook.GetOrderbook(o.Name, currency, assetType)
+	o.Orderbooks.ProcessOrderbook(o.GetName(), currency, orderBook, assetType)
+	return o.Orderbooks.GetOrderbook(o.Name, currency, assetType)
 }
 
 // GetExchangeAccountInfo retrieves balances for all enabled currencies for the

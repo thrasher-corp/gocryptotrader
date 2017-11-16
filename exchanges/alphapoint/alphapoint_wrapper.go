@@ -74,13 +74,13 @@ func (a *Alphapoint) UpdateOrderbook(p pair.CurrencyPair, assetType string) (ord
 		orderBook.Asks = append(orderBook.Asks, orderbook.Item{Amount: data.Quantity, Price: data.Price})
 	}
 
-	orderbook.ProcessOrderbook(a.GetName(), p, orderBook, assetType)
-	return orderbook.GetOrderbook(a.Name, p, assetType)
+	a.Orderbooks.ProcessOrderbook(a.GetName(), p, orderBook, assetType)
+	return a.Orderbooks.GetOrderbook(a.Name, p, assetType)
 }
 
 // GetOrderbookEx returns the orderbook for a currency pair
 func (a *Alphapoint) GetOrderbookEx(p pair.CurrencyPair, assetType string) (orderbook.Base, error) {
-	ob, err := orderbook.GetOrderbook(a.GetName(), p, assetType)
+	ob, err := a.Orderbooks.GetOrderbook(a.GetName(), p, assetType)
 	if err == nil {
 		return a.UpdateOrderbook(p, assetType)
 	}

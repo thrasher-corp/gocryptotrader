@@ -54,7 +54,7 @@ func (i *ItBit) GetTickerPrice(p pair.CurrencyPair, assetType string) (ticker.Pr
 
 // GetOrderbookEx returns orderbook base on the currency pair
 func (i *ItBit) GetOrderbookEx(p pair.CurrencyPair, assetType string) (orderbook.Base, error) {
-	ob, err := orderbook.GetOrderbook(i.GetName(), p, assetType)
+	ob, err := i.Orderbooks.GetOrderbook(i.GetName(), p, assetType)
 	if err == nil {
 		return i.UpdateOrderbook(p, assetType)
 	}
@@ -96,8 +96,8 @@ func (i *ItBit) UpdateOrderbook(p pair.CurrencyPair, assetType string) (orderboo
 		orderBook.Asks = append(orderBook.Asks, orderbook.Item{Amount: amount, Price: price})
 	}
 
-	orderbook.ProcessOrderbook(i.GetName(), p, orderBook, assetType)
-	return orderbook.GetOrderbook(i.Name, p, assetType)
+	i.Orderbooks.ProcessOrderbook(i.GetName(), p, orderBook, assetType)
+	return i.Orderbooks.GetOrderbook(i.Name, p, assetType)
 }
 
 // GetExchangeAccountInfo retrieves balances for all enabled currencies for the
