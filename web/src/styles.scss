@@ -27,22 +27,20 @@ body {
     margin: 0px auto !important;
 }
 
- .mat-expansion-panel-header-title, 
- .mat-expansion-panel-header-description {
-  flex-basis: 0;
+.mat-expansion-panel-header-title,
+.mat-expansion-panel-header-description {
+    flex-basis: 0;
 }
 
 .mat-expansion-panel-header-description {
-  justify-content: space-between;
-  align-items: center;
+    justify-content: space-between;
+    align-items: center;
 }
 
 .mat-expansion-panel-spacing {
     margin: 16px auto !important;
     width: 85%;
-    
 }
-
 
 .mat-drawer {
     background: none !important;
