@@ -1,10 +1,9 @@
-app-trade-history, app-orders, app-price-history, app-my-orders {
-    height:100%;
-    width:100%;
-    margin: 15px;
+.full-card {
+    margin: 10px;
+    width: 100%;
 }
 
-.my-orders-card, .orders-card,.trade-history-card,.price-history-card {
-    height: 90%;
-    width:90%;
+ ::ng-deep mat-grid-tile.mat-grid-tile .mat-figure {
+    align-items: initial;
+    /*vertical alignment*/
 }

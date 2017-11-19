@@ -20,7 +20,9 @@ export class SidebarService {
    * @returns Promise<MatSidnavToggleResult>
    */
   public open(): Promise<MatDrawerToggleResult> {
-    return this.sidenav.open();
+    this.sidenav.open();
+    
+    return;
   }
 
   /**
@@ -29,7 +31,8 @@ export class SidebarService {
    * @returns Promise<MatSidnavToggleResult>
    */
   public close(): Promise<MatDrawerToggleResult> {
-    return this.sidenav.close();
+    this.sidenav.close();
+    return;
   }
 
   /**
@@ -40,6 +43,7 @@ export class SidebarService {
    * @returns {Promise<MatSidnavToggleResult>}
    */
   public toggle(isOpen?: boolean): Promise<MatDrawerToggleResult> {
-    return this.sidenav.toggle(isOpen);
+    this.sidenav.toggle(isOpen);
+    return;
   }
 }
