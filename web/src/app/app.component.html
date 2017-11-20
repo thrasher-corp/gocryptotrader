@@ -23,9 +23,21 @@
                 <mat-icon>settings</mat-icon>&nbsp;
                 <h3>Settings</h3>
             </mat-list-item>
+            <mat-list-item routerLink="settings" routerLinkActive="settings-highlight">
+                <mat-icon>bug_report</mat-icon>&nbsp;
+                <h3>Report a bug</h3>
+            </mat-list-item>
+            <mat-list-item routerLink="settings" routerLinkActive="settings-highlight">
+                <mat-icon>grade</mat-icon>&nbsp;
+                <h3>GitHub</h3>
+            </mat-list-item>
+            <mat-list-item routerLink="settings" routerLinkActive="settings-highlight">
+                <mat-icon>thumb_up</mat-icon>&nbsp;
+                <h3>Donate</h3>
+            </mat-list-item>
+
         </mat-nav-list>
-        <div class="flex-spacer"></div>
-        <app-donate></app-donate>
+       
     </mat-sidenav>
 
     <router-outlet class="main"></router-outlet>
