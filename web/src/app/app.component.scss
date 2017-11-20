@@ -10,16 +10,19 @@
     min-width: 86%;
     margin: 10px auto;
     overflow-x: hidden;
+    margin-top:4rem;
 }
 
 .sidebar {
     width: 14%;
     position: fixed;
-    margin-top: 64px;
+    margin-top: 4rem;
 }
 
 .navbar {
     position: fixed;
+    width: 100%;
+    z-index: 2;
 }
 
 .dashboard-highlight {
