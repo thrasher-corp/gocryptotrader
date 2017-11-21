@@ -35,7 +35,6 @@ import { DashboardComponent } from './pages/dashboard/dashboard.component';
 import { WalletComponent } from './pages/wallet/wallet.component';
 //Shared
 import { NavbarComponent } from './shared/navbar/navbar.component';
-import { SidebarComponent } from './shared/sidebar/sidebar.component';
 import { ExchangeCurrencyTickerComponent } from './shared/exchange-currency-ticker/exchange-currency-ticker.component';
 import { AllEnabledCurrencyTickersComponent } from './shared/all-enabled-currency-tickers/all-enabled-currency-tickers.component';
 import { ThemePickerComponent } from './shared/theme-picker/theme-picker';
@@ -73,7 +72,6 @@ import { SelectedCurrencyComponent } from './shared/selected-currency/selected-c
     DashboardComponent,
     ExchangeCurrencyTickerComponent,
     AllEnabledCurrencyTickersComponent,
-    SidebarComponent,
     WalletComponent,
     ThemePickerComponent,
     TradeHistoryComponent,
