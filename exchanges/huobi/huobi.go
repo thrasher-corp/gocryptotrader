@@ -15,14 +15,16 @@ import (
 )
 
 const (
-	HUOBI_API_URL     = "https://api.huobi.com/apiv2.php"
-	HUOBI_API_VERSION = "2"
+	huobiAPIURL     = "https://api.huobi.com/apiv2.php"
+	huobiAPIVersion = "2"
 )
 
+// HUOBI is the overarching type across this package
 type HUOBI struct {
 	exchange.Base
 }
 
+// SetDefaults sets default values for the exchange
 func (h *HUOBI) SetDefaults() {
 	h.Name = "Huobi"
 	h.Enabled = false
@@ -37,6 +39,7 @@ func (h *HUOBI) SetDefaults() {
 	h.AssetTypes = []string{ticker.Spot}
 }
 
+// Setup sets user configuration
 func (h *HUOBI) Setup(exch config.ExchangeConfig) {
 	if !exch.Enabled {
 		h.SetEnabled(false)
@@ -61,31 +64,28 @@ func (h *HUOBI) Setup(exch config.ExchangeConfig) {
 	}
 }
 
+// GetFee returns Huobi fee
 func (h *HUOBI) GetFee() float64 {
 	return h.Fee
 }
 
-func (h *HUOBI) GetTicker(symbol string) (HuobiTicker, error) {
-	resp := HuobiTickerResponse{}
+// GetTicker returns the Huobi ticker
+func (h *HUOBI) GetTicker(symbol string) (Ticker, error) {
+	resp := TickerResponse{}
 	path := fmt.Sprintf("https://api.huobi.com/staticmarket/ticker_%s_json.js", symbol)
-	err := common.SendHTTPGetRequest(path, true, h.Verbose, &resp)
 
-	if err != nil {
-		return HuobiTicker{}, err
-	}
-	return resp.Ticker, nil
+	return resp.Ticker, common.SendHTTPGetRequest(path, true, h.Verbose, &resp)
 }
 
-func (h *HUOBI) GetOrderBook(symbol string) (HuobiOrderbook, error) {
+// GetOrderBook returns the Huobi current orderbook for a currency pair
+func (h *HUOBI) GetOrderBook(symbol string) (Orderbook, error) {
 	path := fmt.Sprintf("https://api.huobi.com/staticmarket/depth_%s_json.js", symbol)
-	resp := HuobiOrderbook{}
-	err := common.SendHTTPGetRequest(path, true, h.Verbose, &resp)
-	if err != nil {
-		return resp, err
-	}
-	return resp, nil
+	resp := Orderbook{}
+
+	return resp, common.SendHTTPGetRequest(path, true, h.Verbose, &resp)
 }
 
+// GetAccountInfo returns account information
 func (h *HUOBI) GetAccountInfo() {
 	err := h.SendAuthenticatedRequest("get_account_info", url.Values{})
 
@@ -94,6 +94,7 @@ func (h *HUOBI) GetAccountInfo() {
 	}
 }
 
+// GetOrders returns full list of orders
 func (h *HUOBI) GetOrders(coinType int) {
 	values := url.Values{}
 	values.Set("coin_type", strconv.Itoa(coinType))
@@ -104,6 +105,7 @@ func (h *HUOBI) GetOrders(coinType int) {
 	}
 }
 
+// GetOrderInfo returns specific info on an order
 func (h *HUOBI) GetOrderInfo(orderID, coinType int) {
 	values := url.Values{}
 	values.Set("id", strconv.Itoa(orderID))
@@ -115,6 +117,7 @@ func (h *HUOBI) GetOrderInfo(orderID, coinType int) {
 	}
 }
 
+// Trade opens a trade on the Huobi exchange
 func (h *HUOBI) Trade(orderType string, coinType int, price, amount float64) {
 	values := url.Values{}
 	if orderType != "buy" {
@@ -130,6 +133,7 @@ func (h *HUOBI) Trade(orderType string, coinType int, price, amount float64) {
 	}
 }
 
+// MarketTrade initiates a market trade
 func (h *HUOBI) MarketTrade(orderType string, coinType int, price, amount float64) {
 	values := url.Values{}
 	if orderType != "buy_market" {
@@ -145,6 +149,7 @@ func (h *HUOBI) MarketTrade(orderType string, coinType int, price, amount float6
 	}
 }
 
+// CancelOrder cancels order by order ID
 func (h *HUOBI) CancelOrder(orderID, coinType int) {
 	values := url.Values{}
 	values.Set("coin_type", strconv.Itoa(coinType))
@@ -156,6 +161,7 @@ func (h *HUOBI) CancelOrder(orderID, coinType int) {
 	}
 }
 
+// ModifyOrder modifies an order
 func (h *HUOBI) ModifyOrder(orderType string, coinType, orderID int, price, amount float64) {
 	values := url.Values{}
 	values.Set("coin_type", strconv.Itoa(coinType))
@@ -169,6 +175,7 @@ func (h *HUOBI) ModifyOrder(orderType string, coinType, orderID int, price, amou
 	}
 }
 
+// GetNewDealOrders creates a new deal
 func (h *HUOBI) GetNewDealOrders(coinType int) {
 	values := url.Values{}
 	values.Set("coin_type", strconv.Itoa(coinType))
@@ -179,6 +186,7 @@ func (h *HUOBI) GetNewDealOrders(coinType int) {
 	}
 }
 
+// GetOrderIDByTradeID returns ORDERID by Trade ID
 func (h *HUOBI) GetOrderIDByTradeID(coinType, orderID int) {
 	values := url.Values{}
 	values.Set("coin_type", strconv.Itoa(coinType))
@@ -190,6 +198,7 @@ func (h *HUOBI) GetOrderIDByTradeID(coinType, orderID int) {
 	}
 }
 
+// SendAuthenticatedRequest sends an autheticated HTTP request to Huobi
 func (h *HUOBI) SendAuthenticatedRequest(method string, v url.Values) error {
 	if !h.AuthenticatedAPISupport {
 		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet, h.Name)
@@ -203,13 +212,13 @@ func (h *HUOBI) SendAuthenticatedRequest(method string, v url.Values) error {
 	encoded := v.Encode()
 
 	if h.Verbose {
-		log.Printf("Sending POST request to %s with params %s\n", HUOBI_API_URL, encoded)
+		log.Printf("Sending POST request to %s with params %s\n", huobiAPIURL, encoded)
 	}
 
 	headers := make(map[string]string)
 	headers["Content-Type"] = "application/x-www-form-urlencoded"
 
-	resp, err := common.SendHTTPRequest("POST", HUOBI_API_URL, headers, strings.NewReader(encoded))
+	resp, err := common.SendHTTPRequest("POST", huobiAPIURL, headers, strings.NewReader(encoded))
 
 	if err != nil {
 		return err
