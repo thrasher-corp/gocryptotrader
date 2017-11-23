@@ -51,7 +51,7 @@ func (i *ItBit) SetDefaults() {
 	i.AssetTypes = []string{ticker.Spot}
 }
 
-// Setup sets the exchange paramaters from exchange config
+// Setup sets the exchange parameters from exchange config
 func (i *ItBit) Setup(exch config.ExchangeConfig) {
 	if !exch.Enabled {
 		i.SetEnabled(false)

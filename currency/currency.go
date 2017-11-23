@@ -68,7 +68,7 @@ var (
 	ErrCurrencyNotFound       = errors.New("unable to find specified currency")
 	ErrQueryingYahoo          = errors.New("unable to query Yahoo currency values")
 	ErrQueryingYahooZeroCount = errors.New("yahoo returned zero currency data")
-	YahooEnabled              = true
+	YahooEnabled              = false
 )
 
 // SetProvider sets the currency exchange service used by the currency

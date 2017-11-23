@@ -15,7 +15,7 @@ import (
 const (
 	warningBase64DecryptSecretKeyFailed = "WARNING -- Exchange %s unable to base64 decode secret key.. Disabling Authenticated API support."
 
-	// WarningAuthenticatedRequestWithoutCredentialsSet error message for authenticated request without credentails set
+	// WarningAuthenticatedRequestWithoutCredentialsSet error message for authenticated request without credentials set
 	WarningAuthenticatedRequestWithoutCredentialsSet = "WARNING -- Exchange %s authenticated HTTP request called but not supported due to unset/default API keys."
 	// ErrExchangeNotFound is a constant for an error message
 	ErrExchangeNotFound = "Exchange not found in dataset."

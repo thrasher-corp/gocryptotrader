@@ -1,6 +1,7 @@
 package lakebtc
 
-type LakeBTCTicker struct {
+// Ticker holds ticker information
+type Ticker struct {
 	Last   float64
 	Bid    float64
 	Ask    float64
@@ -9,18 +10,21 @@ type LakeBTCTicker struct {
 	Volume float64
 }
 
-type LakeBTCOrderbookStructure struct {
+// OrderbookStructure stores price and amount for order books
+type OrderbookStructure struct {
 	Price  float64
 	Amount float64
 }
 
-type LakeBTCOrderbook struct {
-	Bids []LakeBTCOrderbookStructure `json:"bids"`
-	Asks []LakeBTCOrderbookStructure `json:"asks"`
+// Orderbook contains arrays of orderbook information
+type Orderbook struct {
+	Bids []OrderbookStructure `json:"bids"`
+	Asks []OrderbookStructure `json:"asks"`
 }
 
-/* Silly hack due to API returning null instead of strings */
-type LakeBTCTickerResponse struct {
+// TickerResponse stores temp response
+// Silly hack due to API returning null instead of strings
+type TickerResponse struct {
 	Last   interface{}
 	Bid    interface{}
 	Ask    interface{}
@@ -29,14 +33,16 @@ type LakeBTCTickerResponse struct {
 	Volume interface{}
 }
 
-type LakeBTCTradeHistory struct {
+// TradeHistory holds trade history data
+type TradeHistory struct {
 	Date   int64   `json:"data"`
 	Price  float64 `json:"price,string"`
 	Amount float64 `json:"amount,string"`
 	TID    int64   `json:"tid"`
 }
 
-type LakeBTCAccountInfo struct {
+// AccountInfo contains account information
+type AccountInfo struct {
 	Balance map[string]string `json:"balance"`
 	Locked  map[string]string `json:"locked"`
 	Profile struct {
@@ -46,12 +52,14 @@ type LakeBTCAccountInfo struct {
 	} `json:"profile"`
 }
 
-type LakeBTCTrade struct {
+// Trade holds trade information
+type Trade struct {
 	ID     int64  `json:"id"`
 	Result string `json:"result"`
 }
 
-type LakeBTCOpenOrders struct {
+// OpenOrders stores full information on your open orders
+type OpenOrders struct {
 	ID     int64   `json:"id"`
 	Amount float64 `json:"amount,string"`
 	Price  float64 `json:"price,string"`
@@ -60,7 +68,8 @@ type LakeBTCOpenOrders struct {
 	At     int64   `json:"at"`
 }
 
-type LakeBTCOrders struct {
+// Orders holds current order information
+type Orders struct {
 	ID             int64   `json:"id"`
 	OriginalAmount float64 `json:"original_amount,string"`
 	Amount         float64 `json:"amount,string"`
@@ -71,14 +80,17 @@ type LakeBTCOrders struct {
 	At             int64   `json:"at"`
 }
 
-type LakeBTCAuthenticaltedTradeHistory struct {
+// AuthenticatedTradeHistory is a store of personalised auth trade history
+type AuthenticatedTradeHistory struct {
 	Type   string  `json:"type"`
 	Symbol string  `json:"symbol"`
 	Amount float64 `json:"amount,string"`
 	Total  float64 `json:"total,string"`
 	At     int64   `json:"at"`
 }
-type LakeBTCExternalAccounts struct {
+
+// ExternalAccounts holds external account information
+type ExternalAccounts struct {
 	ID         int64       `json:"id,string"`
 	Type       string      `json:"type"`
 	Address    string      `json:"address"`
@@ -88,7 +100,8 @@ type LakeBTCExternalAccounts struct {
 	UpdatedAt  int64       `json:"updated_at,string"`
 }
 
-type LakeBTCWithdraw struct {
+// Withdraw holds withdrawal information
+type Withdraw struct {
 	ID                int64   `json:"id,string"`
 	Amount            float64 `json:"amount,string"`
 	Currency          string  `json:"currency"`

@@ -37,7 +37,7 @@ func TestSetup(t *testing.T) {
 	setup := ANX{}
 	setup.Name = "ANX"
 	anxSetupConfig := config.GetConfig()
-	anxSetupConfig.LoadConfig("../../testdata/configtest.dat")
+	anxSetupConfig.LoadConfig("../../testdata/configtest.json")
 	anxConfig, err := anxSetupConfig.GetExchangeConfig("ANX")
 	if err != nil {
 		t.Error("Test Failed - ANX Setup() init error")
