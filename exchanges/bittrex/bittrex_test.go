@@ -27,7 +27,7 @@ func TestSetup(t *testing.T) {
 	b := Bittrex{}
 	b.Name = "Bittrex"
 	cfg := config.GetConfig()
-	cfg.LoadConfig("../../testdata/configtest.dat")
+	cfg.LoadConfig("../../testdata/configtest.json")
 	bConfig, err := cfg.GetExchangeConfig("Bittrex")
 	if err != nil {
 		t.Error("Test Failed - Bittrex Setup() init error")

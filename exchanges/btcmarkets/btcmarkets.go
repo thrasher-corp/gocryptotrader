@@ -60,7 +60,7 @@ func (b *BTCMarkets) SetDefaults() {
 	b.AssetTypes = []string{ticker.Spot}
 }
 
-// Setup takes in an exchange configuration and sets all paramaters
+// Setup takes in an exchange configuration and sets all parameters
 func (b *BTCMarkets) Setup(exch config.ExchangeConfig) {
 	if !exch.Enabled {
 		b.SetEnabled(false)

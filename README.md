@@ -79,7 +79,7 @@ Download and install Go from [Go Downloads](https://golang.org/dl/)
 go get github.com/thrasher-/gocryptotrader
 cd $GOPATH/src/github.com/thrasher-/gocryptotrader
 go install
-cp $GOPATH/src/github.com/thrasher-/gocryptotrader/config_example.dat $GOPATH/bin/config.dat
+cp $GOPATH/src/github.com/thrasher-/gocryptotrader/config_example.json $GOPATH/bin/config.json
 ```
 
 Make any neccessary changes to the config file.

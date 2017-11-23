@@ -21,7 +21,7 @@ func TestSetDefaults(t *testing.T) {
 
 func TestSetup(t *testing.T) {
 	cfg := config.GetConfig()
-	cfg.LoadConfig("../../testdata/configtest.dat")
+	cfg.LoadConfig("../../testdata/configtest.json")
 	gdxConfig, err := cfg.GetExchangeConfig("Bitfinex")
 	if err != nil {
 		t.Error("Test Failed - GDAX Setup() init error")

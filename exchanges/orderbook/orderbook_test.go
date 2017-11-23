@@ -92,21 +92,21 @@ func TestGetOrderbook(t *testing.T) {
 		t.Fatal("Test failed. TestGetOrderbook failed. Mismatched pairs")
 	}
 
-	_, err = GetOrderbook("nonexistant", currency, Spot)
+	_, err = GetOrderbook("nonexistent", currency, Spot)
 	if err == nil {
-		t.Fatal("Test failed. TestGetOrderbook retrieved non-existant orderbook")
+		t.Fatal("Test failed. TestGetOrderbook retrieved non-existent orderbook")
 	}
 
 	currency.FirstCurrency = "blah"
 	_, err = GetOrderbook("Exchange", currency, Spot)
 	if err == nil {
-		t.Fatal("Test failed. TestGetOrderbook retrieved non-existant orderbook using invalid first currency")
+		t.Fatal("Test failed. TestGetOrderbook retrieved non-existent orderbook using invalid first currency")
 	}
 
 	newCurrency := pair.NewCurrencyPair("BTC", "AUD")
 	_, err = GetOrderbook("Exchange", newCurrency, Spot)
 	if err == nil {
-		t.Fatal("Test failed. TestGetOrderbook retrieved non-existant orderbook using invalid second currency")
+		t.Fatal("Test failed. TestGetOrderbook retrieved non-existent orderbook using invalid second currency")
 	}
 }
 

@@ -40,7 +40,7 @@ type TradeStructure struct {
 	Type      string  `json:"sell"`
 }
 
-// Lendbook holds most recent funding data for a relevent currency
+// Lendbook holds most recent funding data for a relevant currency
 type Lendbook struct {
 	Bids []Book `json:"bids"`
 	Asks []Book `json:"asks"`
@@ -86,7 +86,7 @@ type AccountInfo struct {
 	} `json:"fees"`
 }
 
-// AccountFees stores withdrawel account fee data from Bitfinex
+// AccountFees stores withdrawal account fee data from Bitfinex
 type AccountFees struct {
 	Withdraw struct {
 		BTC float64 `json:"BTC,string"`
@@ -186,7 +186,7 @@ type WalletTransfer struct {
 	Message string `json:"message"`
 }
 
-// Withdrawal holds withdrawel status information
+// Withdrawal holds withdrawal status information
 type Withdrawal struct {
 	Status       string `json:"status"`
 	Message      string `json:"message"`
@@ -300,7 +300,7 @@ type Offer struct {
 	ExecutedAmount  float64 `json:"executed_amount,string"`
 }
 
-// MarginFunds holds active funding information used in a margin positon
+// MarginFunds holds active funding information used in a margin position
 type MarginFunds struct {
 	ID         int64   `json:"id"`
 	PositionID int64   `json:"position_id"`
