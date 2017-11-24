@@ -10,49 +10,34 @@ import (
 )
 
 const (
-	BLOCKR_API_URL         = "blockr.io/api"
-	BLOCKR_API_VERSION     = "1"
-	BLOCKR_ADDRESS_BALANCE = "address/balance"
+	cryptoIDAPIURL = "https://chainz.cryptoid.info"
 
-	ETHERCHAIN_API_URL          = "https://etherchain.org/api"
-	ETHERCHAIN_ACCOUNT_MULTIPLE = "account/multiple"
-	PORTFOLIO_ADDRESS_EXCHANGE  = "Exchange"
-	PORTFOLIO_ADDRESS_PERSONAL  = "Personal"
+	etherchainAPIURL          = "https://etherchain.org/api"
+	etherchainAccountMultiple = "account/multiple"
+	// PortfolioAddressExchange is a label for an exchange address
+	PortfolioAddressExchange = "Exchange"
+	// PortfolioAddressPersonal is a label for a personal/offline address
+	PortfolioAddressPersonal = "Personal"
 )
 
-var Portfolio PortfolioBase
+// Portfolio is variable store holding an array of portfolioAddress
+var Portfolio Base
 
-type PortfolioAddress struct {
-	Address      string
-	CoinType     string
-	Balance      float64
-	Decscription string
+// Base holds the portfolio base addresses
+type Base struct {
+	Addresses []Address
 }
 
-type PortfolioBase struct {
-	Addresses []PortfolioAddress
+// Address sub type holding address information for portfolio
+type Address struct {
+	Address     string
+	CoinType    string
+	Balance     float64
+	Description string
 }
 
-type BlockrAddress struct {
-	Address         string  `json:"address"`
-	Balance         float64 `json:"balance"`
-	BalanceMultisig float64 `json:"balance_multisig"`
-}
-
-type BlockrAddressBalanceSingle struct {
-	Status  string        `json:"status"`
-	Data    BlockrAddress `json:"data"`
-	Code    int           `json:"code"`
-	Message string        `json:"message"`
-}
-
-type BlockrAddressBalanceMulti struct {
-	Status  string          `json:"status"`
-	Data    []BlockrAddress `json:"data"`
-	Code    int             `json:"code"`
-	Message string          `json:"message"`
-}
-
+// EtherchainBalanceResponse holds JSON incoming and outgoing data for
+// Etherchain
 type EtherchainBalanceResponse struct {
 	Status int `json:"status"`
 	Data   []struct {
@@ -66,24 +51,36 @@ type EtherchainBalanceResponse struct {
 	} `json:"data"`
 }
 
-//ExchangeAccountInfo : Generic type to hold each exchange's holdings in all enabled currencies
+// ExchangeAccountInfo : Generic type to hold each exchange's holdings in all
+// enabled currencies
 type ExchangeAccountInfo struct {
 	ExchangeName string
 	Currencies   []ExchangeAccountCurrencyInfo
 }
 
-//ExchangeAccountCurrencyInfo : Sub type to store currency name and value
+// ExchangeAccountCurrencyInfo : Sub type to store currency name and value
 type ExchangeAccountCurrencyInfo struct {
 	CurrencyName string
 	TotalValue   float64
 	Hold         float64
 }
 
+// GetEthereumBalance single or multiple address information as
+// EtherchainBalanceResponse
 func GetEthereumBalance(address []string) (EtherchainBalanceResponse, error) {
+	for _, add := range address {
+		valid, _ := common.IsValidCryptoAddress(add, "eth")
+		if !valid {
+			return EtherchainBalanceResponse{}, errors.New("Not an ethereum address")
+		}
+	}
+
 	addresses := common.JoinStrings(address, ",")
-	url := fmt.Sprintf("%s/%s/%s", ETHERCHAIN_API_URL, ETHERCHAIN_ACCOUNT_MULTIPLE, addresses)
+	url := fmt.Sprintf(
+		"%s/%s/%s", etherchainAPIURL, etherchainAccountMultiple, addresses,
+	)
 	result := EtherchainBalanceResponse{}
-	err := common.SendHTTPGetRequest(url, true, &result)
+	err := common.SendHTTPGetRequest(url, true, false, &result)
 	if err != nil {
 		return result, err
 	}
@@ -93,95 +90,143 @@ func GetEthereumBalance(address []string) (EtherchainBalanceResponse, error) {
 	return result, nil
 }
 
-func GetBlockrBalanceSingle(address string, coinType string) (BlockrAddressBalanceSingle, error) {
-	url := fmt.Sprintf("https://%s.%s/v%s/%s/%s", common.StringToLower(coinType), BLOCKR_API_URL, BLOCKR_API_VERSION, BLOCKR_ADDRESS_BALANCE, address)
-	result := BlockrAddressBalanceSingle{}
-	err := common.SendHTTPGetRequest(url, true, &result)
+// GetCryptoIDAddress queries CryptoID for an address balance for a
+// specified cryptocurrency
+func GetCryptoIDAddress(address string, coinType string) (float64, error) {
+	ok, err := common.IsValidCryptoAddress(address, coinType)
+	if !ok || err != nil {
+		return 0, errors.New("invalid address")
+	}
+
+	var result interface{}
+	url := fmt.Sprintf("%s/%s/api.dws?q=getbalance&a=%s", cryptoIDAPIURL, common.StringToLower(coinType), address)
+	err = common.SendHTTPGetRequest(url, true, false, &result)
 	if err != nil {
-		return result, err
+		return 0, err
 	}
-	if result.Status != "success" {
-		return result, errors.New(result.Message)
-	}
-	return result, nil
+	return result.(float64), nil
 }
 
-func GetBlockrAddressMulti(addresses []string, coinType string) (BlockrAddressBalanceMulti, error) {
-	addressesStr := common.JoinStrings(addresses, ",")
-	url := fmt.Sprintf("https://%s.%s/v%s/%s/%s", common.StringToLower(coinType), BLOCKR_API_URL, BLOCKR_API_VERSION, BLOCKR_ADDRESS_BALANCE, addressesStr)
-	result := BlockrAddressBalanceMulti{}
-	err := common.SendHTTPGetRequest(url, true, &result)
-	if err != nil {
-		return result, err
-	}
-	if result.Status != "success" {
-		return result, errors.New(result.Message)
-	}
-	return result, nil
-}
-
-func (p *PortfolioBase) GetAddressBalance(address string) (float64, bool) {
-	for _, x := range p.Addresses {
-		if x.Address == address {
-			return x.Balance, true
+// GetAddressBalance acceses the portfolio base and returns the balance by passed
+// in address, coin type and description
+func (p *Base) GetAddressBalance(address, coinType, description string) (float64, bool) {
+	for x := range p.Addresses {
+		if p.Addresses[x].Address == address &&
+			p.Addresses[x].Description == description &&
+			p.Addresses[x].CoinType == coinType {
+			return p.Addresses[x].Balance, true
 		}
 	}
 	return 0, false
 }
 
-func (p *PortfolioBase) ExchangeExists(exchangeName string) bool {
-	for _, x := range p.Addresses {
-		if x.Address == exchangeName {
+// ExchangeExists checks to see if an exchange exists in the portfolio base
+func (p *Base) ExchangeExists(exchangeName string) bool {
+	for x := range p.Addresses {
+		if p.Addresses[x].Address == exchangeName {
 			return true
 		}
 	}
 	return false
 }
 
-func (p *PortfolioBase) AddressExists(address string) bool {
-	for _, x := range p.Addresses {
-		if x.Address == address {
+// AddressExists checks to see if there is an address associated with the
+// portfolio base
+func (p *Base) AddressExists(address string) bool {
+	for x := range p.Addresses {
+		if p.Addresses[x].Address == address {
 			return true
 		}
 	}
 	return false
 }
 
-func (p *PortfolioBase) ExchangeAddressExists(exchangeName, coinType string) bool {
-	for _, x := range p.Addresses {
-		if x.Address == exchangeName && x.CoinType == coinType {
+// ExchangeAddressExists checks to see if there is an exchange address
+// associated with the portfolio base
+func (p *Base) ExchangeAddressExists(exchangeName, coinType string) bool {
+	for x := range p.Addresses {
+		if p.Addresses[x].Address == exchangeName && p.Addresses[x].CoinType == coinType {
 			return true
 		}
 	}
 	return false
 }
 
-func (p *PortfolioBase) UpdateAddressBalance(address string, amount float64) {
-	for x, _ := range p.Addresses {
+// AddExchangeAddress adds an exchange address to the portfolio base
+func (p *Base) AddExchangeAddress(exchangeName, coinType string, balance float64) {
+	if p.ExchangeAddressExists(exchangeName, coinType) {
+		p.UpdateExchangeAddressBalance(exchangeName, coinType, balance)
+	} else {
+		p.Addresses = append(
+			p.Addresses, Address{Address: exchangeName, CoinType: coinType,
+				Balance: balance, Description: PortfolioAddressExchange},
+		)
+	}
+}
+
+// UpdateAddressBalance updates the portfolio base balance
+func (p *Base) UpdateAddressBalance(address string, amount float64) {
+	for x := range p.Addresses {
 		if p.Addresses[x].Address == address {
 			p.Addresses[x].Balance = amount
 		}
 	}
 }
 
-func (p *PortfolioBase) UpdateExchangeAddressBalance(exchangeName, coinType string, balance float64) {
-	for x, _ := range p.Addresses {
+// RemoveExchangeAddress removes an exchange address from the portfolio.
+func (p *Base) RemoveExchangeAddress(exchangeName, coinType string) {
+	for x := range p.Addresses {
+		if p.Addresses[x].Address == exchangeName && p.Addresses[x].CoinType == coinType {
+			p.Addresses = append(p.Addresses[:x], p.Addresses[x+1:]...)
+			return
+		}
+	}
+}
+
+// UpdateExchangeAddressBalance updates the portfolio balance when checked
+// against correct exchangeName and coinType.
+func (p *Base) UpdateExchangeAddressBalance(exchangeName, coinType string, balance float64) {
+	for x := range p.Addresses {
 		if p.Addresses[x].Address == exchangeName && p.Addresses[x].CoinType == coinType {
 			p.Addresses[x].Balance = balance
 		}
 	}
 }
 
-func (p *PortfolioBase) AddAddress(address, coinType, description string, balance float64) {
+// AddAddress adds an address to the portfolio base
+func (p *Base) AddAddress(address, coinType, description string, balance float64) {
+	if description == PortfolioAddressExchange {
+		p.AddExchangeAddress(address, coinType, balance)
+		return
+	}
 	if !p.AddressExists(address) {
-		p.Addresses = append(p.Addresses, PortfolioAddress{Address: address, CoinType: coinType, Balance: balance, Decscription: description})
+		p.Addresses = append(
+			p.Addresses, Address{Address: address, CoinType: coinType,
+				Balance: balance, Description: description},
+		)
 	} else {
-		p.UpdateAddressBalance(address, balance)
+		if balance <= 0 {
+			p.RemoveAddress(address, coinType, description)
+		} else {
+			p.UpdateAddressBalance(address, balance)
+		}
 	}
 }
 
-func (p *PortfolioBase) UpdatePortfolio(addresses []string, coinType string) bool {
-	if common.StringContains(common.JoinStrings(addresses, ","), PORTFOLIO_ADDRESS_EXCHANGE) || common.StringContains(common.JoinStrings(addresses, ","), PORTFOLIO_ADDRESS_PERSONAL) {
+// RemoveAddress removes an address when checked against the correct address and
+// coinType
+func (p *Base) RemoveAddress(address, coinType, description string) {
+	for x := range p.Addresses {
+		if p.Addresses[x].Address == address && p.Addresses[x].CoinType == coinType && p.Addresses[x].Description == description {
+			p.Addresses = append(p.Addresses[:x], p.Addresses[x+1:]...)
+			return
+		}
+	}
+}
+
+// UpdatePortfolio adds to the portfolio addresses by coin type
+func (p *Base) UpdatePortfolio(addresses []string, coinType string) bool {
+	if common.StringContains(common.JoinStrings(addresses, ","), PortfolioAddressExchange) || common.StringContains(common.JoinStrings(addresses, ","), PortfolioAddressPersonal) {
 		return true
 	}
 
@@ -192,32 +237,36 @@ func (p *PortfolioBase) UpdatePortfolio(addresses []string, coinType string) boo
 		}
 
 		for _, x := range result.Data {
-			p.AddAddress(x.Address, coinType, PORTFOLIO_ADDRESS_PERSONAL, x.Balance)
+			p.AddAddress(x.Address, coinType, PortfolioAddressPersonal, x.Balance)
 		}
 		return true
 	}
-	if len(addresses) > 1 {
-		result, err := GetBlockrAddressMulti(addresses, coinType)
+	for x := range addresses {
+		result, err := GetCryptoIDAddress(addresses[x], coinType)
 		if err != nil {
 			return false
 		}
-		for _, x := range result.Data {
-			p.AddAddress(x.Address, coinType, PORTFOLIO_ADDRESS_PERSONAL, x.Balance)
-		}
-	} else {
-		result, err := GetBlockrBalanceSingle(addresses[0], coinType)
-		if err != nil {
-			return false
-		}
-		p.AddAddress(addresses[0], coinType, PORTFOLIO_ADDRESS_PERSONAL, result.Data.Balance)
+		p.AddAddress(addresses[x], coinType, PortfolioAddressPersonal, result)
 	}
 	return true
 }
 
-func (p *PortfolioBase) GetExchangePortfolio() map[string]float64 {
+// GetPortfolioByExchange returns currency portfolio amount by exchange
+func (p *Base) GetPortfolioByExchange(exchangeName string) map[string]float64 {
+	result := make(map[string]float64)
+	for x := range p.Addresses {
+		if common.StringContains(p.Addresses[x].Address, exchangeName) {
+			result[p.Addresses[x].CoinType] = p.Addresses[x].Balance
+		}
+	}
+	return result
+}
+
+// GetExchangePortfolio returns current portfolio base information
+func (p *Base) GetExchangePortfolio() map[string]float64 {
 	result := make(map[string]float64)
 	for _, x := range p.Addresses {
-		if x.Decscription != PORTFOLIO_ADDRESS_EXCHANGE {
+		if x.Description != PortfolioAddressExchange {
 			continue
 		}
 		balance, ok := result[x.CoinType]
@@ -230,10 +279,11 @@ func (p *PortfolioBase) GetExchangePortfolio() map[string]float64 {
 	return result
 }
 
-func (p *PortfolioBase) GetPersonalPortfolio() map[string]float64 {
+// GetPersonalPortfolio returns current portfolio base information
+func (p *Base) GetPersonalPortfolio() map[string]float64 {
 	result := make(map[string]float64)
 	for _, x := range p.Addresses {
-		if x.Decscription == PORTFOLIO_ADDRESS_EXCHANGE {
+		if x.Description == PortfolioAddressExchange {
 			continue
 		}
 		balance, ok := result[x.CoinType]
@@ -246,26 +296,162 @@ func (p *PortfolioBase) GetPersonalPortfolio() map[string]float64 {
 	return result
 }
 
-func (p *PortfolioBase) GetPortfolioSummary(coinFilter string) map[string]float64 {
-	result := make(map[string]float64)
-	for _, x := range p.Addresses {
-		if coinFilter != "" && coinFilter != x.CoinType {
-			continue
-		}
-		balance, ok := result[x.CoinType]
-		if !ok {
-			result[x.CoinType] = x.Balance
-		} else {
-			result[x.CoinType] = x.Balance + balance
-		}
-	}
-	return result
+// getPercentage returns the percentage of the target coin amount against the
+// total coin amount.
+func getPercentage(input map[string]float64, target string, totals map[string]float64) float64 {
+	subtotal, _ := input[target]
+	total, _ := totals[target]
+	percentage := (subtotal / total) * 100 / 1
+	return percentage
 }
 
-func (p *PortfolioBase) GetPortfolioGroupedCoin() map[string][]string {
+// getPercentage returns the percentage a specific value of a target coin amount
+// against the total coin amount.
+func getPercentageSpecific(input float64, target string, totals map[string]float64) float64 {
+	total, _ := totals[target]
+	percentage := (input / total) * 100 / 1
+	return percentage
+}
+
+// Coin stores a coin type, balance, address and percentage relative to the total
+// amount.
+type Coin struct {
+	Coin       string  `json:"coin"`
+	Balance    float64 `json:"balance"`
+	Address    string  `json:"address,omitempty"`
+	Percentage float64 `json:"percentage,omitempty"`
+}
+
+// OfflineCoinSummary stores a coin types address, balance and percentage
+// relative to the total amount.
+type OfflineCoinSummary struct {
+	Address    string  `json:"address"`
+	Balance    float64 `json:"balance"`
+	Percentage float64 `json:"percentage,omitempty"`
+}
+
+// OnlineCoinSummary stores a coin types balance and percentage relative to the
+// total amount.
+type OnlineCoinSummary struct {
+	Balance    float64 `json:"balance"`
+	Percentage float64 `json:"percentage,omitempty"`
+}
+
+// Summary Stores the entire portfolio summary
+type Summary struct {
+	Totals         []Coin                                  `json:"coin_totals"`
+	Offline        []Coin                                  `json:"coins_offline"`
+	OfflineSummary map[string][]OfflineCoinSummary         `json:"offline_summary"`
+	Online         []Coin                                  `json:"coins_online"`
+	OnlineSummary  map[string]map[string]OnlineCoinSummary `json:"online_summary"`
+}
+
+// GetPortfolioSummary returns the complete portfolio summary, showing
+// coin totals, offline and online summaries with their relative percentages.
+func (p *Base) GetPortfolioSummary() Summary {
+	personalHoldings := p.GetPersonalPortfolio()
+	exchangeHoldings := p.GetExchangePortfolio()
+	totalCoins := make(map[string]float64)
+
+	for x, y := range personalHoldings {
+		if x == "ETH" {
+			y = y / common.WeiPerEther
+			personalHoldings[x] = y
+		}
+		totalCoins[x] = y
+	}
+
+	for x, y := range exchangeHoldings {
+		balance, ok := totalCoins[x]
+		if !ok {
+			totalCoins[x] = y
+		} else {
+			totalCoins[x] = y + balance
+		}
+	}
+
+	var portfolioOutput Summary
+	for x, y := range totalCoins {
+		coins := Coin{Coin: x, Balance: y}
+		portfolioOutput.Totals = append(portfolioOutput.Totals, coins)
+	}
+
+	for x, y := range personalHoldings {
+		coins := Coin{
+			Coin:       x,
+			Balance:    y,
+			Percentage: getPercentage(personalHoldings, x, totalCoins),
+		}
+		portfolioOutput.Offline = append(portfolioOutput.Offline, coins)
+	}
+
+	for x, y := range exchangeHoldings {
+		coins := Coin{
+			Coin:       x,
+			Balance:    y,
+			Percentage: getPercentage(exchangeHoldings, x, totalCoins),
+		}
+		portfolioOutput.Online = append(portfolioOutput.Online, coins)
+	}
+
+	var portfolioExchanges []string
+	for _, x := range p.Addresses {
+		if x.Description == PortfolioAddressExchange {
+			if !common.DataContains(portfolioExchanges, x.Address) {
+				portfolioExchanges = append(portfolioExchanges, x.Address)
+			}
+		}
+	}
+
+	exchangeSummary := make(map[string]map[string]OnlineCoinSummary)
+	for x := range portfolioExchanges {
+		exchgName := portfolioExchanges[x]
+		result := p.GetPortfolioByExchange(exchgName)
+
+		coinSummary := make(map[string]OnlineCoinSummary)
+		for y, z := range result {
+			coinSum := OnlineCoinSummary{
+				Balance:    z,
+				Percentage: getPercentageSpecific(z, y, totalCoins),
+			}
+			coinSummary[y] = coinSum
+
+		}
+		exchangeSummary[exchgName] = coinSummary
+	}
+	portfolioOutput.OnlineSummary = exchangeSummary
+
+	offlineSummary := make(map[string][]OfflineCoinSummary)
+	for _, x := range p.Addresses {
+		if x.Description != PortfolioAddressExchange {
+			if x.CoinType == "ETH" {
+				x.Balance = x.Balance / common.WeiPerEther
+			}
+			coinSummary := OfflineCoinSummary{
+				Address: x.Address,
+				Balance: x.Balance,
+				Percentage: getPercentageSpecific(x.Balance, x.CoinType,
+					totalCoins),
+			}
+			result, ok := offlineSummary[x.CoinType]
+			if !ok {
+				offlineSummary[x.CoinType] = append(offlineSummary[x.CoinType],
+					coinSummary)
+			} else {
+				result = append(result, coinSummary)
+				offlineSummary[x.CoinType] = result
+			}
+		}
+	}
+	portfolioOutput.OfflineSummary = offlineSummary
+	return portfolioOutput
+}
+
+// GetPortfolioGroupedCoin returns portfolio base information grouped by coin
+func (p *Base) GetPortfolioGroupedCoin() map[string][]string {
 	result := make(map[string][]string)
 	for _, x := range p.Addresses {
-		if common.StringContains(x.Decscription, PORTFOLIO_ADDRESS_EXCHANGE) || common.StringContains(x.Decscription, PORTFOLIO_ADDRESS_PERSONAL) {
+		if common.StringContains(x.Description, PortfolioAddressExchange) {
 			continue
 		}
 		result[x.CoinType] = append(result[x.CoinType], x.Address)
@@ -273,25 +459,34 @@ func (p *PortfolioBase) GetPortfolioGroupedCoin() map[string][]string {
 	return result
 }
 
-func (p *PortfolioBase) SeedPortfolio(port PortfolioBase) {
+// SeedPortfolio appends a portfolio base object with another base portfolio
+// addresses
+func (p *Base) SeedPortfolio(port Base) {
 	p.Addresses = port.Addresses
 }
 
+// StartPortfolioWatcher observes the portfolio object
 func StartPortfolioWatcher() {
 	addrCount := len(Portfolio.Addresses)
-	log.Printf("PortfolioWatcher started: Have %d entries in portfolio.\n", addrCount)
+	log.Printf(
+		"PortfolioWatcher started: Have %d entries in portfolio.\n", addrCount,
+	)
 	for {
 		data := Portfolio.GetPortfolioGroupedCoin()
 		for key, value := range data {
 			success := Portfolio.UpdatePortfolio(value, key)
 			if success {
-				log.Printf("PortfolioWatcher: Successfully updated address balance for %s address(es) %s\n", key, value)
+				log.Printf(
+					"PortfolioWatcher: Successfully updated address balance for %s address(es) %s\n",
+					key, value,
+				)
 			}
 		}
 		time.Sleep(time.Minute * 10)
 	}
 }
 
-func GetPortfolio() *PortfolioBase {
+// GetPortfolio returns a pointer to the portfolio base
+func GetPortfolio() *Base {
 	return &Portfolio
 }

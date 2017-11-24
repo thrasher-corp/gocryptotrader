@@ -13,7 +13,7 @@ const (
 )
 
 func (g *GDAX) WebsocketSubscribe(product string, conn *websocket.Conn) error {
-	subscribe := GDAXWebsocketSubscribe{"subscribe", product}
+	subscribe := WebsocketSubscribe{"subscribe", product}
 	json, err := common.JSONEncode(subscribe)
 	if err != nil {
 		return err
@@ -82,35 +82,35 @@ func (g *GDAX) WebsocketClient() {
 					log.Println(string(resp))
 					break
 				case "received":
-					received := GDAXWebsocketReceived{}
+					received := WebsocketReceived{}
 					err := common.JSONDecode(resp, &received)
 					if err != nil {
 						log.Println(err)
 						continue
 					}
 				case "open":
-					open := GDAXWebsocketOpen{}
+					open := WebsocketOpen{}
 					err := common.JSONDecode(resp, &open)
 					if err != nil {
 						log.Println(err)
 						continue
 					}
 				case "done":
-					done := GDAXWebsocketDone{}
+					done := WebsocketDone{}
 					err := common.JSONDecode(resp, &done)
 					if err != nil {
 						log.Println(err)
 						continue
 					}
 				case "match":
-					match := GDAXWebsocketMatch{}
+					match := WebsocketMatch{}
 					err := common.JSONDecode(resp, &match)
 					if err != nil {
 						log.Println(err)
 						continue
 					}
 				case "change":
-					change := GDAXWebsocketChange{}
+					change := WebsocketChange{}
 					err := common.JSONDecode(resp, &change)
 					if err != nil {
 						log.Println(err)

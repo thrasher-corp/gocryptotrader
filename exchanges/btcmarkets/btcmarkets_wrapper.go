@@ -2,103 +2,120 @@ package btcmarkets
 
 import (
 	"log"
-	"time"
 
-	"github.com/thrasher-/gocryptotrader/currency"
+	"github.com/thrasher-/gocryptotrader/common"
+
+	"github.com/thrasher-/gocryptotrader/currency/pair"
 	"github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
-	"github.com/thrasher-/gocryptotrader/exchanges/stats"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 )
 
+// Start starts the BTC Markets go routine
 func (b *BTCMarkets) Start() {
 	go b.Run()
 }
 
+// Run implements the BTC Markets wrapper
 func (b *BTCMarkets) Run() {
 	if b.Verbose {
 		log.Printf("%s polling delay: %ds.\n", b.GetName(), b.RESTPollingDelay)
 		log.Printf("%s %d currencies enabled: %s.\n", b.GetName(), len(b.EnabledPairs), b.EnabledPairs)
 	}
 
-	for b.Enabled {
-		for _, x := range b.EnabledPairs {
-			curr := x
-			go func() {
-				ticker, err := b.GetTickerPrice(curr)
-				if err != nil {
-					return
-				}
-				BTCMarketsLastUSD, _ := currency.ConvertCurrency(ticker.Last, "AUD", "USD")
-				BTCMarketsBestBidUSD, _ := currency.ConvertCurrency(ticker.Bid, "AUD", "USD")
-				BTCMarketsBestAskUSD, _ := currency.ConvertCurrency(ticker.Ask, "AUD", "USD")
-				log.Printf("BTC Markets %s: Last %f (%f) Bid %f (%f) Ask %f (%f)\n", curr, BTCMarketsLastUSD, ticker.Last, BTCMarketsBestBidUSD, ticker.Bid, BTCMarketsBestAskUSD, ticker.Ask)
-				stats.AddExchangeInfo(b.GetName(), curr[0:3], curr[3:], ticker.Last, 0)
-				stats.AddExchangeInfo(b.GetName(), curr[0:3], "USD", BTCMarketsLastUSD, 0)
-			}()
+	if !common.DataContains(b.EnabledPairs, "AUD") || !common.DataContains(b.EnabledPairs, "AUD") {
+		enabledPairs := []string{}
+		for x := range b.EnabledPairs {
+			enabledPairs = append(enabledPairs, b.EnabledPairs[x]+"AUD")
 		}
-		time.Sleep(time.Second * b.RESTPollingDelay)
+
+		availablePairs := []string{}
+		for x := range b.AvailablePairs {
+			availablePairs = append(availablePairs, b.AvailablePairs[x]+"AUD")
+		}
+
+		log.Println("BTCMarkets: Upgrading available and enabled pairs")
+
+		err := b.UpdateEnabledCurrencies(enabledPairs, true)
+		if err != nil {
+			log.Printf("%s Failed to get config.\n", b.GetName())
+			return
+		}
+
+		err = b.UpdateAvailableCurrencies(availablePairs, true)
+		if err != nil {
+			log.Printf("%s Failed to get config.\n", b.GetName())
+			return
+		}
 	}
 }
 
-func (b *BTCMarkets) GetTickerPrice(currency string) (ticker.TickerPrice, error) {
-	tickerNew, err := ticker.GetTicker(b.GetName(), currency[0:3], "AUD")
-	if err == nil {
-		return tickerNew, nil
-	}
-
-	var tickerPrice ticker.TickerPrice
-	tick, err := b.GetTicker(currency)
+// UpdateTicker updates and returns the ticker for a currency pair
+func (b *BTCMarkets) UpdateTicker(p pair.CurrencyPair, assetType string) (ticker.Price, error) {
+	var tickerPrice ticker.Price
+	tick, err := b.GetTicker(p.GetFirstCurrency().String())
 	if err != nil {
 		return tickerPrice, err
 	}
+	tickerPrice.Pair = p
 	tickerPrice.Ask = tick.BestAsk
 	tickerPrice.Bid = tick.BestBID
-	tickerPrice.FirstCurrency = currency[0:3]
-	tickerPrice.SecondCurrency = "AUD"
 	tickerPrice.Last = tick.LastPrice
-	ticker.ProcessTicker(b.GetName(), tickerPrice.FirstCurrency, tickerPrice.SecondCurrency, tickerPrice)
-	return tickerPrice, nil
+	ticker.ProcessTicker(b.GetName(), p, tickerPrice, assetType)
+	return ticker.GetTicker(b.Name, p, assetType)
 }
 
-func (b *BTCMarkets) GetOrderbookEx(currency string) (orderbook.OrderbookBase, error) {
-	ob, err := orderbook.GetOrderbook(b.GetName(), currency[0:3], "AUD")
-	if err == nil {
-		return ob, nil
+// GetTickerPrice returns the ticker for a currency pair
+func (b *BTCMarkets) GetTickerPrice(p pair.CurrencyPair, assetType string) (ticker.Price, error) {
+	tickerNew, err := ticker.GetTicker(b.GetName(), p, assetType)
+	if err != nil {
+		return b.UpdateTicker(p, assetType)
 	}
+	return tickerNew, nil
+}
 
-	var orderBook orderbook.OrderbookBase
-	orderbookNew, err := b.GetOrderbook(currency)
+// GetOrderbookEx returns orderbook base on the currency pair
+func (b *BTCMarkets) GetOrderbookEx(p pair.CurrencyPair, assetType string) (orderbook.Base, error) {
+	ob, err := orderbook.GetOrderbook(b.GetName(), p, assetType)
+	if err == nil {
+		return b.UpdateOrderbook(p, assetType)
+	}
+	return ob, nil
+}
+
+// UpdateOrderbook updates and returns the orderbook for a currency pair
+func (b *BTCMarkets) UpdateOrderbook(p pair.CurrencyPair, assetType string) (orderbook.Base, error) {
+	var orderBook orderbook.Base
+	orderbookNew, err := b.GetOrderbook(p.GetFirstCurrency().String())
 	if err != nil {
 		return orderBook, err
 	}
 
-	for x, _ := range orderbookNew.Bids {
+	for x := range orderbookNew.Bids {
 		data := orderbookNew.Bids[x]
-		orderBook.Bids = append(orderBook.Bids, orderbook.OrderbookItem{Amount: data[1], Price: data[0]})
+		orderBook.Bids = append(orderBook.Bids, orderbook.Item{Amount: data[1], Price: data[0]})
 	}
 
-	for x, _ := range orderbookNew.Asks {
+	for x := range orderbookNew.Asks {
 		data := orderbookNew.Asks[x]
-		orderBook.Asks = append(orderBook.Asks, orderbook.OrderbookItem{Amount: data[1], Price: data[0]})
+		orderBook.Asks = append(orderBook.Asks, orderbook.Item{Amount: data[1], Price: data[0]})
 	}
 
-	orderBook.FirstCurrency = currency[0:3]
-	orderBook.SecondCurrency = "AUD"
-	orderbook.ProcessOrderbook(b.GetName(), orderBook.FirstCurrency, orderBook.SecondCurrency, orderBook)
-	return orderBook, nil
+	orderbook.ProcessOrderbook(b.GetName(), p, orderBook, assetType)
+	return orderbook.GetOrderbook(b.Name, p, assetType)
 }
 
-//GetExchangeAccountInfo : Retrieves balances for all enabled currencies for the BTCMarkets exchange
-func (e *BTCMarkets) GetExchangeAccountInfo() (exchange.ExchangeAccountInfo, error) {
-	var response exchange.ExchangeAccountInfo
-	response.ExchangeName = e.GetName()
-	accountBalance, err := e.GetAccountBalance()
+// GetExchangeAccountInfo retrieves balances for all enabled currencies for the
+// BTCMarkets exchange
+func (b *BTCMarkets) GetExchangeAccountInfo() (exchange.AccountInfo, error) {
+	var response exchange.AccountInfo
+	response.ExchangeName = b.GetName()
+	accountBalance, err := b.GetAccountBalance()
 	if err != nil {
 		return response, err
 	}
 	for i := 0; i < len(accountBalance); i++ {
-		var exchangeCurrency exchange.ExchangeAccountCurrencyInfo
+		var exchangeCurrency exchange.AccountCurrencyInfo
 		exchangeCurrency.CurrencyName = accountBalance[i].Currency
 		exchangeCurrency.TotalValue = accountBalance[i].Balance
 		exchangeCurrency.Hold = accountBalance[i].PendingFunds

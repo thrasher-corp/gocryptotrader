@@ -104,7 +104,7 @@ type OKCoinFuturesExplosive struct {
 
 type OKCoinTrades struct {
 	Amount  float64 `json:"amount,string"`
-	Date    int64   `json:"date`
+	Date    int64   `json:"date"`
 	DateMS  int64   `json:"date_ms"`
 	Price   float64 `json:"price,string"`
 	TradeID int64   `json:"tid"`

@@ -11,6 +11,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/exchanges"
+	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 )
 
 const (
@@ -28,7 +29,7 @@ const (
 )
 
 type ANX struct {
-	exchange.ExchangeBase
+	exchange.Base
 }
 
 func (a *ANX) SetDefaults() {
@@ -39,6 +40,13 @@ func (a *ANX) SetDefaults() {
 	a.Verbose = false
 	a.Websocket = false
 	a.RESTPollingDelay = 10
+	a.RequestCurrencyPairFormat.Delimiter = ""
+	a.RequestCurrencyPairFormat.Uppercase = true
+	a.RequestCurrencyPairFormat.Index = "BTC"
+	a.ConfigCurrencyPairFormat.Delimiter = ""
+	a.ConfigCurrencyPairFormat.Uppercase = true
+	a.ConfigCurrencyPairFormat.Index = "BTC"
+	a.AssetTypes = []string{ticker.Spot}
 }
 
 //Setup is run on startup to setup exchange with config values
@@ -55,27 +63,34 @@ func (a *ANX) Setup(exch config.ExchangeConfig) {
 		a.BaseCurrencies = common.SplitStrings(exch.BaseCurrencies, ",")
 		a.AvailablePairs = common.SplitStrings(exch.AvailablePairs, ",")
 		a.EnabledPairs = common.SplitStrings(exch.EnabledPairs, ",")
+		err := a.SetCurrencyPairFormat()
+		if err != nil {
+			log.Fatal(err)
+		}
+		err = a.SetAssetTypes()
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 }
 
 func (a *ANX) GetFee(maker bool) float64 {
 	if maker {
 		return a.MakerFee
-	} else {
-		return a.TakerFee
 	}
+	return a.TakerFee
 }
 
 func (a *ANX) GetTicker(currency string) (ANXTicker, error) {
 	var ticker ANXTicker
-	err := common.SendHTTPGetRequest(fmt.Sprintf("%sapi/2/%s/%s", ANX_API_URL, currency, ANX_TICKER), true, &ticker)
+	err := common.SendHTTPGetRequest(fmt.Sprintf("%sapi/2/%s/%s", ANX_API_URL, currency, ANX_TICKER), true, a.Verbose, &ticker)
 	if err != nil {
 		return ANXTicker{}, err
 	}
 	return ticker, nil
 }
 
-func (a *ANX) GetAPIKey(username, password, otp, deviceID string) (string, string) {
+func (a *ANX) GetAPIKey(username, password, otp, deviceID string) (string, string, error) {
 	request := make(map[string]interface{})
 	request["nonce"] = strconv.FormatInt(time.Now().UnixNano(), 10)[0:13]
 	request["username"] = username
@@ -96,21 +111,18 @@ func (a *ANX) GetAPIKey(username, password, otp, deviceID string) (string, strin
 	var response APIKeyResponse
 
 	err := a.SendAuthenticatedHTTPRequest(ANX_APIKEY, request, &response)
-
 	if err != nil {
-		log.Println(err)
-		return "", ""
+		return "", "", err
 	}
 
 	if response.ResultCode != "OK" {
-		log.Printf("Response code is not OK: %s\n", response.ResultCode)
-		return "", ""
+		return "", "", errors.New("Response code is not OK: " + response.ResultCode)
 	}
 
-	return response.APIKey, response.APISecret
+	return response.APIKey, response.APISecret, nil
 }
 
-func (a *ANX) GetDataToken() string {
+func (a *ANX) GetDataToken() (string, error) {
 	request := make(map[string]interface{})
 
 	type DataTokenResponse struct {
@@ -122,22 +134,18 @@ func (a *ANX) GetDataToken() string {
 	var response DataTokenResponse
 
 	err := a.SendAuthenticatedHTTPRequest(ANX_DATA_TOKEN, request, &response)
-
 	if err != nil {
-		log.Println(err)
-		return ""
+		return "", err
 	}
 
 	if response.ResultCode != "OK" {
-		log.Printf("Response code is not OK: %s\n", response.ResultCode)
-		return ""
+		return "", errors.New("Response code is not OK: %s" + response.ResultCode)
 	}
-
-	return response.Token
+	return response.Token, nil
 }
 
 func (a *ANX) NewOrder(orderType string, buy bool, tradedCurrency, tradedCurrencyAmount, settlementCurrency, settlementCurrencyAmount, limitPriceSettlement string,
-	replace bool, replaceUUID string, replaceIfActive bool) {
+	replace bool, replaceUUID string, replaceIfActive bool) error {
 	request := make(map[string]interface{})
 
 	var order ANXOrder
@@ -169,16 +177,14 @@ func (a *ANX) NewOrder(orderType string, buy bool, tradedCurrency, tradedCurrenc
 	var response OrderResponse
 
 	err := a.SendAuthenticatedHTTPRequest(ANX_ORDER_NEW, request, &response)
-
 	if err != nil {
-		log.Println(err)
-		return
+		return err
 	}
 
 	if response.ResultCode != "OK" {
-		log.Printf("Response code is not OK: %s\n", response.ResultCode)
-		return
+		return errors.New("Response code is not OK: %s" + response.ResultCode)
 	}
+	return nil
 }
 
 func (a *ANX) OrderInfo(orderID string) (ANXOrderResponse, error) {
@@ -295,9 +301,19 @@ func (a *ANX) GetDepositAddress(currency, name string, new bool) (string, error)
 	return response.Address, nil
 }
 
-func (a *ANX) SendAuthenticatedHTTPRequest(path string, params map[string]interface{}, result interface{}) (err error) {
+func (a *ANX) SendAuthenticatedHTTPRequest(path string, params map[string]interface{}, result interface{}) error {
+	if !a.AuthenticatedAPISupport {
+		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet, a.Name)
+	}
+
+	if a.Nonce.Get() == 0 {
+		a.Nonce.Set(time.Now().UnixNano())
+	} else {
+		a.Nonce.Inc()
+	}
+
 	request := make(map[string]interface{})
-	request["nonce"] = strconv.FormatInt(time.Now().UnixNano(), 10)[0:13]
+	request["nonce"] = a.Nonce.String()[0:13]
 	path = fmt.Sprintf("api/%s/%s", ANX_API_VERSION, path)
 
 	if params != nil {
@@ -306,32 +322,32 @@ func (a *ANX) SendAuthenticatedHTTPRequest(path string, params map[string]interf
 		}
 	}
 
-	PayloadJson, err := common.JSONEncode(request)
+	PayloadJSON, err := common.JSONEncode(request)
 
 	if err != nil {
 		return errors.New("SendAuthenticatedHTTPRequest: Unable to JSON request")
 	}
 
 	if a.Verbose {
-		log.Printf("Request JSON: %s\n", PayloadJson)
+		log.Printf("Request JSON: %s\n", PayloadJSON)
 	}
 
-	hmac := common.GetHMAC(common.HASH_SHA512, []byte(path+string("\x00")+string(PayloadJson)), []byte(a.APISecret))
+	hmac := common.GetHMAC(common.HashSHA512, []byte(path+string("\x00")+string(PayloadJSON)), []byte(a.APISecret))
 	headers := make(map[string]string)
 	headers["Rest-Key"] = a.APIKey
 	headers["Rest-Sign"] = common.Base64Encode([]byte(hmac))
 	headers["Content-Type"] = "application/json"
 
-	resp, err := common.SendHTTPRequest("POST", ANX_API_URL+path, headers, bytes.NewBuffer(PayloadJson))
+	resp, err := common.SendHTTPRequest("POST", ANX_API_URL+path, headers, bytes.NewBuffer(PayloadJSON))
 
 	if a.Verbose {
-		log.Printf("Recieved raw: \n%s\n", resp)
+		log.Printf("Received raw: \n%s\n", resp)
 	}
 
 	err = common.JSONDecode([]byte(resp), &result)
 
 	if err != nil {
-		return errors.New("Unable to JSON Unmarshal response.")
+		return errors.New("unable to JSON Unmarshal response")
 	}
 
 	return nil

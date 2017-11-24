@@ -1,21 +1,21 @@
 package gdax
 
 import (
-	"fmt"
 	"log"
-	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
+	"github.com/thrasher-/gocryptotrader/currency/pair"
 	"github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
-	"github.com/thrasher-/gocryptotrader/exchanges/stats"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 )
 
+// Start starts the GDAX go routine
 func (g *GDAX) Start() {
 	go g.Run()
 }
 
+// Run implements the GDAX wrapper
 func (g *GDAX) Run() {
 	if g.Verbose {
 		log.Printf("%s Websocket: %s. (url: %s).\n", g.GetName(), common.IsEnabled(g.Websocket), GDAX_WEBSOCKET_URL)
@@ -37,40 +37,24 @@ func (g *GDAX) Run() {
 				currencies = append(currencies, x.ID[0:3]+x.ID[4:])
 			}
 		}
-		err = g.UpdateAvailableCurrencies(currencies)
+		err = g.UpdateAvailableCurrencies(currencies, false)
 		if err != nil {
 			log.Printf("%s Failed to get config.\n", g.GetName())
 		}
 	}
-
-	for g.Enabled {
-		for _, x := range g.EnabledPairs {
-			currency := x[0:3] + "-" + x[3:]
-			go func() {
-				ticker, err := g.GetTickerPrice(currency)
-
-				if err != nil {
-					log.Println(err)
-					return
-				}
-				log.Printf("GDAX %s: Last %f High %f Low %f Volume %f\n", currency, ticker.Last, ticker.High, ticker.Low, ticker.Volume)
-				stats.AddExchangeInfo(g.GetName(), currency[0:3], currency[4:], ticker.Last, ticker.Volume)
-			}()
-		}
-		time.Sleep(time.Second * g.RESTPollingDelay)
-	}
 }
 
-//GetExchangeAccountInfo : Retrieves balances for all enabled currencies for the GDAX exchange
-func (e *GDAX) GetExchangeAccountInfo() (exchange.ExchangeAccountInfo, error) {
-	var response exchange.ExchangeAccountInfo
-	response.ExchangeName = e.GetName()
-	accountBalance, err := e.GetAccounts()
+// GetExchangeAccountInfo retrieves balances for all enabled currencies for the
+// GDAX exchange
+func (g *GDAX) GetExchangeAccountInfo() (exchange.AccountInfo, error) {
+	var response exchange.AccountInfo
+	response.ExchangeName = g.GetName()
+	accountBalance, err := g.GetAccounts()
 	if err != nil {
 		return response, err
 	}
 	for i := 0; i < len(accountBalance); i++ {
-		var exchangeCurrency exchange.ExchangeAccountCurrencyInfo
+		var exchangeCurrency exchange.AccountCurrencyInfo
 		exchangeCurrency.CurrencyName = accountBalance[i].Currency
 		exchangeCurrency.TotalValue = accountBalance[i].Available
 		exchangeCurrency.Hold = accountBalance[i].Hold
@@ -80,60 +64,65 @@ func (e *GDAX) GetExchangeAccountInfo() (exchange.ExchangeAccountInfo, error) {
 	return response, nil
 }
 
-func (g *GDAX) GetTickerPrice(currency string) (ticker.TickerPrice, error) {
-	if len(currency) == 6 {
-		currency = fmt.Sprintf("%s-%s", currency[0:3], currency[3:])
-	}
-	tickerNew, err := ticker.GetTicker(g.GetName(), currency[0:3], currency[4:])
-	if err == nil {
-		return tickerNew, nil
-	}
-
-	var tickerPrice ticker.TickerPrice
-	tick, err := g.GetTicker(currency)
+// UpdateTicker updates and returns the ticker for a currency pair
+func (g *GDAX) UpdateTicker(p pair.CurrencyPair, assetType string) (ticker.Price, error) {
+	var tickerPrice ticker.Price
+	tick, err := g.GetTicker(exchange.FormatExchangeCurrency(g.Name, p).String())
 	if err != nil {
-		return ticker.TickerPrice{}, err
+		return ticker.Price{}, err
 	}
 
-	stats, err := g.GetStats(currency)
+	stats, err := g.GetStats(exchange.FormatExchangeCurrency(g.Name, p).String())
 
 	if err != nil {
-		return ticker.TickerPrice{}, err
+		return ticker.Price{}, err
 	}
 
-	tickerPrice.FirstCurrency = currency[0:3]
-	tickerPrice.SecondCurrency = currency[4:]
+	tickerPrice.Pair = p
 	tickerPrice.Volume = stats.Volume
 	tickerPrice.Last = tick.Price
 	tickerPrice.High = stats.High
 	tickerPrice.Low = stats.Low
-	ticker.ProcessTicker(g.GetName(), tickerPrice.FirstCurrency, tickerPrice.SecondCurrency, tickerPrice)
-	return tickerPrice, nil
+	ticker.ProcessTicker(g.GetName(), p, tickerPrice, assetType)
+	return ticker.GetTicker(g.Name, p, assetType)
 }
 
-func (g *GDAX) GetOrderbookEx(currency string) (orderbook.OrderbookBase, error) {
-	ob, err := orderbook.GetOrderbook(g.GetName(), currency[0:3], currency[4:])
-	if err == nil {
-		return ob, nil
+// GetTickerPrice returns the ticker for a currency pair
+func (g *GDAX) GetTickerPrice(p pair.CurrencyPair, assetType string) (ticker.Price, error) {
+	tickerNew, err := ticker.GetTicker(g.GetName(), p, assetType)
+	if err != nil {
+		return g.UpdateTicker(p, assetType)
 	}
+	return tickerNew, nil
+}
 
-	var orderBook orderbook.OrderbookBase
-	orderbookNew, err := g.GetOrderbook(currency, 2)
+// GetOrderbookEx returns orderbook base on the currency pair
+func (g *GDAX) GetOrderbookEx(p pair.CurrencyPair, assetType string) (orderbook.Base, error) {
+	ob, err := orderbook.GetOrderbook(g.GetName(), p, assetType)
+	if err == nil {
+		return g.UpdateOrderbook(p, assetType)
+	}
+	return ob, nil
+}
+
+// UpdateOrderbook updates and returns the orderbook for a currency pair
+func (g *GDAX) UpdateOrderbook(p pair.CurrencyPair, assetType string) (orderbook.Base, error) {
+	var orderBook orderbook.Base
+	orderbookNew, err := g.GetOrderbook(exchange.FormatExchangeCurrency(g.Name, p).String(), 2)
 	if err != nil {
 		return orderBook, err
 	}
 
-	obNew := orderbookNew.(GDAXOrderbookL1L2)
+	obNew := orderbookNew.(OrderbookL1L2)
 
-	for x, _ := range obNew.Bids {
-		orderBook.Bids = append(orderBook.Bids, orderbook.OrderbookItem{Amount: obNew.Bids[x].Amount, Price: obNew.Bids[x].Price})
+	for x := range obNew.Bids {
+		orderBook.Bids = append(orderBook.Bids, orderbook.Item{Amount: obNew.Bids[x].Amount, Price: obNew.Bids[x].Price})
 	}
 
-	for x, _ := range obNew.Asks {
-		orderBook.Asks = append(orderBook.Asks, orderbook.OrderbookItem{Amount: obNew.Bids[x].Amount, Price: obNew.Bids[x].Price})
+	for x := range obNew.Asks {
+		orderBook.Asks = append(orderBook.Asks, orderbook.Item{Amount: obNew.Bids[x].Amount, Price: obNew.Bids[x].Price})
 	}
-	orderBook.FirstCurrency = currency[0:3]
-	orderBook.SecondCurrency = currency[4:]
-	orderbook.ProcessOrderbook(g.GetName(), orderBook.FirstCurrency, orderBook.SecondCurrency, orderBook)
-	return orderBook, nil
+
+	orderbook.ProcessOrderbook(g.GetName(), p, orderBook, assetType)
+	return orderbook.GetOrderbook(g.Name, p, assetType)
 }

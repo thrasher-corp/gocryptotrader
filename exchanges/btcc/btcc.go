@@ -12,40 +12,43 @@ import (
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/exchanges"
+	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 )
 
 const (
-	BTCC_API_URL                  = "https://api.btcc.com/"
-	BTCC_API_AUTHENTICATED_METHOD = "api_trade_v1.php"
-	BTCC_API_VER                  = "2.0.1.3"
-	BTCC_ORDER_BUY                = "buyOrder2"
-	BTCC_ORDER_SELL               = "sellOrder2"
-	BTCC_ORDER_CANCEL             = "cancelOrder"
-	BTCC_ICEBERG_BUY              = "buyIcebergOrder"
-	BTCC_ICEBERG_SELL             = "sellIcebergOrder"
-	BTCC_ICEBERG_ORDER            = "getIcebergOrder"
-	BTCC_ICEBERG_ORDERS           = "getIcebergOrders"
-	BTCC_ICEBERG_CANCEL           = "cancelIcebergOrder"
-	BTCC_ACCOUNT_INFO             = "getAccountInfo"
-	BTCC_DEPOSITS                 = "getDeposits"
-	BTCC_MARKETDEPTH              = "getMarketDepth2"
-	BTCC_ORDER                    = "getOrder"
-	BTCC_ORDERS                   = "getOrders"
-	BTCC_TRANSACTIONS             = "getTransactions"
-	BTCC_WITHDRAWAL               = "getWithdrawal"
-	BTCC_WITHDRAWALS              = "getWithdrawals"
-	BTCC_WITHDRAWAL_REQUEST       = "requestWithdrawal"
-	BTCC_STOPORDER_BUY            = "buyStopOrder"
-	BTCC_STOPORDER_SELL           = "sellStopOrder"
-	BTCC_STOPORDER_CANCEL         = "cancelStopOrder"
-	BTCC_STOPORDER                = "getStopOrder"
-	BTCC_STOPORDERS               = "getStopOrders"
+	btccAPIUrl                 = "https://api.btcchina.com/"
+	btccAPIAuthenticatedMethod = "api_trade_v1.php"
+	btccAPIVersion             = "2.0.1.3"
+	btccOrderBuy               = "buyOrder2"
+	btccOrderSell              = "sellOrder2"
+	btccOrderCancel            = "cancelOrder"
+	btccIcebergBuy             = "buyIcebergOrder"
+	btccIcebergSell            = "sellIcebergOrder"
+	btccIcebergOrder           = "getIcebergOrder"
+	btccIcebergOrders          = "getIcebergOrders"
+	btccIcebergCancel          = "cancelIcebergOrder"
+	btccAccountInfo            = "getAccountInfo"
+	btccDeposits               = "getDeposits"
+	btccMarketdepth            = "getMarketDepth2"
+	btccOrder                  = "getOrder"
+	btccOrders                 = "getOrders"
+	btccTransactions           = "getTransactions"
+	btccWithdrawal             = "getWithdrawal"
+	btccWithdrawals            = "getWithdrawals"
+	btccWithdrawalRequest      = "requestWithdrawal"
+	btccStoporderBuy           = "buyStopOrder"
+	btccStoporderSell          = "sellStopOrder"
+	btccStoporderCancel        = "cancelStopOrder"
+	btccStoporder              = "getStopOrder"
+	btccStoporders             = "getStopOrders"
 )
 
+// BTCC is the main overaching type across the BTCC package
 type BTCC struct {
-	exchange.ExchangeBase
+	exchange.Base
 }
 
+// SetDefaults sets default values for the exchange
 func (b *BTCC) SetDefaults() {
 	b.Name = "BTCC"
 	b.Enabled = false
@@ -53,9 +56,14 @@ func (b *BTCC) SetDefaults() {
 	b.Verbose = false
 	b.Websocket = false
 	b.RESTPollingDelay = 10
+	b.RequestCurrencyPairFormat.Delimiter = ""
+	b.RequestCurrencyPairFormat.Uppercase = false
+	b.ConfigCurrencyPairFormat.Delimiter = ""
+	b.ConfigCurrencyPairFormat.Uppercase = true
+	b.AssetTypes = []string{ticker.Spot}
 }
 
-//Setup is run on startup to setup exchange with config values
+// Setup is run on startup to setup exchange with config values
 func (b *BTCC) Setup(exch config.ExchangeConfig) {
 	if !exch.Enabled {
 		b.SetEnabled(false)
@@ -69,39 +77,51 @@ func (b *BTCC) Setup(exch config.ExchangeConfig) {
 		b.BaseCurrencies = common.SplitStrings(exch.BaseCurrencies, ",")
 		b.AvailablePairs = common.SplitStrings(exch.AvailablePairs, ",")
 		b.EnabledPairs = common.SplitStrings(exch.EnabledPairs, ",")
+		err := b.SetCurrencyPairFormat()
+		if err != nil {
+			log.Fatal(err)
+		}
+		err = b.SetAssetTypes()
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 }
 
+// GetFee returns the fees associated with transactions
 func (b *BTCC) GetFee() float64 {
 	return b.Fee
 }
 
-func (b *BTCC) GetTicker(symbol string) (BTCCTicker, error) {
-	type Response struct {
-		Ticker BTCCTicker
-	}
-
+// GetTicker returns ticker information
+// currencyPair - Example "btccny", "ltccny" or "ltcbtc"
+func (b *BTCC) GetTicker(currencyPair string) (Ticker, error) {
 	resp := Response{}
-	req := fmt.Sprintf("%sdata/ticker?market=%s", BTCC_API_URL, symbol)
-	err := common.SendHTTPGetRequest(req, true, &resp)
-	if err != nil {
-		return BTCCTicker{}, err
-	}
-	return resp.Ticker, nil
+	req := fmt.Sprintf("%sdata/ticker?market=%s", btccAPIUrl, currencyPair)
+
+	return resp.Ticker, common.SendHTTPGetRequest(req, true, b.Verbose, &resp)
 }
 
-func (b *BTCC) GetTradesLast24h(symbol string) bool {
-	req := fmt.Sprintf("%sdata/trades?market=%s", BTCC_API_URL, symbol)
-	err := common.SendHTTPGetRequest(req, true, nil)
-	if err != nil {
-		log.Println(err)
-		return false
-	}
-	return true
+// GetTradesLast24h returns the trades executed on the exchange over the past
+// 24 hours by currency pair
+// currencyPair - Example "btccny", "ltccny" or "ltcbtc"
+func (b *BTCC) GetTradesLast24h(currencyPair string) ([]Trade, error) {
+	trades := []Trade{}
+	req := fmt.Sprintf("%sdata/trades?market=%s", btccAPIUrl, currencyPair)
+
+	return trades, common.SendHTTPGetRequest(req, true, b.Verbose, &trades)
 }
 
-func (b *BTCC) GetTradeHistory(symbol string, limit, sinceTid int64, time time.Time) bool {
-	req := fmt.Sprintf("%sdata/historydata?market=%s", BTCC_API_URL, symbol)
+// GetTradeHistory returns trade history data
+// currencyPair - Example "btccny", "ltccny" or "ltcbtc"
+// limit - limits the returned trades example "10"
+// sinceTid - returns trade records starting from id supplied example "5000"
+// time - returns trade records starting from unix time 1406794449
+func (b *BTCC) GetTradeHistory(currencyPair string, limit, sinceTid int64, time time.Time) ([]Trade, error) {
+	trades := []Trade{}
+
+	req := fmt.Sprintf("%sdata/historydata?market=%s", btccAPIUrl, currencyPair)
+
 	v := url.Values{}
 
 	if limit > 0 {
@@ -115,37 +135,33 @@ func (b *BTCC) GetTradeHistory(symbol string, limit, sinceTid int64, time time.T
 	}
 
 	req = common.EncodeURLValues(req, v)
-	err := common.SendHTTPGetRequest(req, true, nil)
-	if err != nil {
-		log.Println(err)
-		return false
-	}
-	return true
+
+	return trades, common.SendHTTPGetRequest(req, true, b.Verbose, &trades)
 }
 
-func (b *BTCC) GetOrderBook(symbol string, limit int) (BTCCOrderbook, error) {
-	result := BTCCOrderbook{}
-	req := fmt.Sprintf("%sdata/orderbook?market=%s&limit=%d", BTCC_API_URL, symbol, limit)
-	err := common.SendHTTPGetRequest(req, true, &result)
-	if err != nil {
-		return BTCCOrderbook{}, err
+// GetOrderBook returns current market order book
+// currencyPair - Example "btccny", "ltccny" or "ltcbtc"
+// limit - limits the returned trades example "10" if 0 will return full
+// orderbook
+func (b *BTCC) GetOrderBook(currencyPair string, limit int) (Orderbook, error) {
+	result := Orderbook{}
+
+	req := fmt.Sprintf("%sdata/orderbook?market=%s&limit=%d", btccAPIUrl, currencyPair, limit)
+	if limit == 0 {
+		req = fmt.Sprintf("%sdata/orderbook?market=%s", btccAPIUrl, currencyPair)
 	}
 
-	return result, nil
+	return result, common.SendHTTPGetRequest(req, true, b.Verbose, &result)
 }
 
-func (b *BTCC) GetAccountInfo(infoType string) {
+func (b *BTCC) GetAccountInfo(infoType string) error {
 	params := make([]interface{}, 0)
 
 	if len(infoType) > 0 {
 		params = append(params, infoType)
 	}
 
-	err := b.SendAuthenticatedHTTPRequest(BTCC_ACCOUNT_INFO, params)
-
-	if err != nil {
-		log.Println(err)
-	}
+	return b.SendAuthenticatedHTTPRequest(btccAccountInfo, params)
 }
 
 func (b *BTCC) PlaceOrder(buyOrder bool, price, amount float64, market string) {
@@ -157,9 +173,9 @@ func (b *BTCC) PlaceOrder(buyOrder bool, price, amount float64, market string) {
 		params = append(params, market)
 	}
 
-	req := BTCC_ORDER_BUY
+	req := btccOrderBuy
 	if !buyOrder {
-		req = BTCC_ORDER_SELL
+		req = btccOrderSell
 	}
 
 	err := b.SendAuthenticatedHTTPRequest(req, params)
@@ -177,7 +193,7 @@ func (b *BTCC) CancelOrder(orderID int64, market string) {
 		params = append(params, market)
 	}
 
-	err := b.SendAuthenticatedHTTPRequest(BTCC_ORDER_CANCEL, params)
+	err := b.SendAuthenticatedHTTPRequest(btccOrderCancel, params)
 
 	if err != nil {
 		log.Println(err)
@@ -192,7 +208,7 @@ func (b *BTCC) GetDeposits(currency string, pending bool) {
 		params = append(params, pending)
 	}
 
-	err := b.SendAuthenticatedHTTPRequest(BTCC_DEPOSITS, params)
+	err := b.SendAuthenticatedHTTPRequest(btccDeposits, params)
 
 	if err != nil {
 		log.Println(err)
@@ -210,7 +226,7 @@ func (b *BTCC) GetMarketDepth(market string, limit int64) {
 		params = append(params, market)
 	}
 
-	err := b.SendAuthenticatedHTTPRequest(BTCC_MARKETDEPTH, params)
+	err := b.SendAuthenticatedHTTPRequest(btccMarketdepth, params)
 
 	if err != nil {
 		log.Println(err)
@@ -229,7 +245,7 @@ func (b *BTCC) GetOrder(orderID int64, market string, detailed bool) {
 		params = append(params, detailed)
 	}
 
-	err := b.SendAuthenticatedHTTPRequest(BTCC_ORDER, params)
+	err := b.SendAuthenticatedHTTPRequest(btccOrder, params)
 
 	if err != nil {
 		log.Println(err)
@@ -263,7 +279,7 @@ func (b *BTCC) GetOrders(openonly bool, market string, limit, offset, since int6
 		params = append(params, detailed)
 	}
 
-	err := b.SendAuthenticatedHTTPRequest(BTCC_ORDERS, params)
+	err := b.SendAuthenticatedHTTPRequest(btccOrders, params)
 
 	if err != nil {
 		log.Println(err)
@@ -293,7 +309,7 @@ func (b *BTCC) GetTransactions(transType string, limit, offset, since int64, sin
 		params = append(params, sinceType)
 	}
 
-	err := b.SendAuthenticatedHTTPRequest(BTCC_TRANSACTIONS, params)
+	err := b.SendAuthenticatedHTTPRequest(btccTransactions, params)
 
 	if err != nil {
 		log.Println(err)
@@ -308,7 +324,7 @@ func (b *BTCC) GetWithdrawal(withdrawalID int64, currency string) {
 		params = append(params, currency)
 	}
 
-	err := b.SendAuthenticatedHTTPRequest(BTCC_WITHDRAWAL, params)
+	err := b.SendAuthenticatedHTTPRequest(btccWithdrawal, params)
 
 	if err != nil {
 		log.Println(err)
@@ -323,7 +339,7 @@ func (b *BTCC) GetWithdrawals(currency string, pending bool) {
 		params = append(params, pending)
 	}
 
-	err := b.SendAuthenticatedHTTPRequest(BTCC_WITHDRAWALS, params)
+	err := b.SendAuthenticatedHTTPRequest(btccWithdrawals, params)
 
 	if err != nil {
 		log.Println(err)
@@ -335,7 +351,7 @@ func (b *BTCC) RequestWithdrawal(currency string, amount float64) {
 	params = append(params, currency)
 	params = append(params, amount)
 
-	err := b.SendAuthenticatedHTTPRequest(BTCC_WITHDRAWAL_REQUEST, params)
+	err := b.SendAuthenticatedHTTPRequest(btccWithdrawalRequest, params)
 
 	if err != nil {
 		log.Println(err)
@@ -353,9 +369,9 @@ func (b *BTCC) IcebergOrder(buyOrder bool, price, amount, discAmount, variance f
 		params = append(params, market)
 	}
 
-	req := BTCC_ICEBERG_BUY
+	req := btccIcebergBuy
 	if !buyOrder {
-		req = BTCC_ICEBERG_SELL
+		req = btccIcebergSell
 	}
 
 	err := b.SendAuthenticatedHTTPRequest(req, params)
@@ -373,7 +389,7 @@ func (b *BTCC) GetIcebergOrder(orderID int64, market string) {
 		params = append(params, market)
 	}
 
-	err := b.SendAuthenticatedHTTPRequest(BTCC_ICEBERG_ORDER, params)
+	err := b.SendAuthenticatedHTTPRequest(btccIcebergOrder, params)
 
 	if err != nil {
 		log.Println(err)
@@ -395,7 +411,7 @@ func (b *BTCC) GetIcebergOrders(limit, offset int64, market string) {
 		params = append(params, market)
 	}
 
-	err := b.SendAuthenticatedHTTPRequest(BTCC_ICEBERG_ORDERS, params)
+	err := b.SendAuthenticatedHTTPRequest(btccIcebergOrders, params)
 
 	if err != nil {
 		log.Println(err)
@@ -410,7 +426,7 @@ func (b *BTCC) CancelIcebergOrder(orderID int64, market string) {
 		params = append(params, market)
 	}
 
-	err := b.SendAuthenticatedHTTPRequest(BTCC_ICEBERG_CANCEL, params)
+	err := b.SendAuthenticatedHTTPRequest(btccIcebergCancel, params)
 
 	if err != nil {
 		log.Println(err)
@@ -439,9 +455,9 @@ func (b *BTCC) PlaceStopOrder(buyOder bool, stopPrice, price, amount, trailingAm
 		params = append(params, market)
 	}
 
-	req := BTCC_STOPORDER_BUY
+	req := btccStoporderBuy
 	if !buyOder {
-		req = BTCC_STOPORDER_SELL
+		req = btccStoporderSell
 	}
 
 	err := b.SendAuthenticatedHTTPRequest(req, params)
@@ -459,7 +475,7 @@ func (b *BTCC) GetStopOrder(orderID int64, market string) {
 		params = append(params, market)
 	}
 
-	err := b.SendAuthenticatedHTTPRequest(BTCC_STOPORDER, params)
+	err := b.SendAuthenticatedHTTPRequest(btccStoporder, params)
 
 	if err != nil {
 		log.Println(err)
@@ -493,7 +509,7 @@ func (b *BTCC) GetStopOrders(status, orderType string, stopPrice float64, limit,
 		params = append(params, market)
 	}
 
-	err := b.SendAuthenticatedHTTPRequest(BTCC_STOPORDERS, params)
+	err := b.SendAuthenticatedHTTPRequest(btccStoporders, params)
 
 	if err != nil {
 		log.Println(err)
@@ -508,7 +524,7 @@ func (b *BTCC) CancelStopOrder(orderID int64, market string) {
 		params = append(params, market)
 	}
 
-	err := b.SendAuthenticatedHTTPRequest(BTCC_STOPORDER_CANCEL, params)
+	err := b.SendAuthenticatedHTTPRequest(btccStoporderCancel, params)
 
 	if err != nil {
 		log.Println(err)
@@ -516,8 +532,16 @@ func (b *BTCC) CancelStopOrder(orderID int64, market string) {
 }
 
 func (b *BTCC) SendAuthenticatedHTTPRequest(method string, params []interface{}) (err error) {
-	nonce := strconv.FormatInt(time.Now().UnixNano(), 10)[0:16]
-	encoded := fmt.Sprintf("tonce=%s&accesskey=%s&requestmethod=post&id=%d&method=%s&params=", nonce, b.APIKey, 1, method)
+	if !b.AuthenticatedAPISupport {
+		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet, b.Name)
+	}
+
+	if b.Nonce.Get() == 0 {
+		b.Nonce.Set(time.Now().UnixNano())
+	} else {
+		b.Nonce.Inc()
+	}
+	encoded := fmt.Sprintf("tonce=%s&accesskey=%s&requestmethod=post&id=%d&method=%s&params=", b.Nonce.String()[0:16], b.APIKey, 1, method)
 
 	if len(params) == 0 {
 		params = make([]interface{}, 0)
@@ -558,12 +582,12 @@ func (b *BTCC) SendAuthenticatedHTTPRequest(method string, params []interface{})
 		log.Println(encoded)
 	}
 
-	hmac := common.GetHMAC(common.HASH_SHA1, []byte(encoded), []byte(b.APISecret))
+	hmac := common.GetHMAC(common.HashSHA1, []byte(encoded), []byte(b.APISecret))
 	postData := make(map[string]interface{})
 	postData["method"] = method
 	postData["params"] = params
 	postData["id"] = 1
-	apiURL := BTCC_API_URL + BTCC_API_AUTHENTICATED_METHOD
+	apiURL := btccAPIUrl + btccAPIAuthenticatedMethod
 	data, err := common.JSONEncode(postData)
 
 	if err != nil {
@@ -577,7 +601,7 @@ func (b *BTCC) SendAuthenticatedHTTPRequest(method string, params []interface{})
 	headers := make(map[string]string)
 	headers["Content-type"] = "application/json-rpc"
 	headers["Authorization"] = "Basic " + common.Base64Encode([]byte(b.APIKey+":"+common.HexEncodeToString(hmac)))
-	headers["Json-Rpc-Tonce"] = nonce
+	headers["Json-Rpc-Tonce"] = b.Nonce.String()
 
 	resp, err := common.SendHTTPRequest("POST", apiURL, headers, strings.NewReader(string(data)))
 

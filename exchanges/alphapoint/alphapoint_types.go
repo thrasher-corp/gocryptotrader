@@ -1,37 +1,20 @@
 package alphapoint
 
-type AlphapointTrade struct {
-	TID                   int64   `json:"tid"`
-	Price                 float64 `json:"px"`
-	Quantity              float64 `json:"qty"`
-	Unixtime              int     `json:"unixtime"`
-	UTCTicks              int64   `json:"utcticks"`
-	IncomingOrderSide     int     `json:"incomingOrderSide"`
-	IncomingServerOrderID int     `json:"incomingServerOrderId"`
-	BookServerOrderID     int     `json:"bookServerOrderId"`
+// Response contains general responses from the exchange
+type Response struct {
+	IsAccepted    bool    `json:"isAccepted"`
+	RejectReason  string  `json:"rejectReason"`
+	Fee           float64 `json:"fee"`
+	FeeProduct    string  `json:"feeProduct"`
+	CancelOrderID int64   `json:"cancelOrderId"`
+	ServerOrderID int64   `json:"serverOrderId"`
+	DateTimeUTC   float64 `json:"dateTimeUtc"`
+	ModifyOrderID int64   `json:"modifyOrderId"`
+	Addresses     []DepositAddresses
 }
 
-type AlphapointTrades struct {
-	IsAccepted   bool              `json:"isAccepted"`
-	RejectReason string            `json:"rejectReason"`
-	DateTimeUTC  int64             `json:"dateTimeUtc"`
-	Instrument   string            `json:"ins"`
-	StartIndex   int               `json:"startIndex"`
-	Count        int               `json:"count"`
-	Trades       []AlphapointTrade `json:"trades"`
-}
-
-type AlphapointTradesByDate struct {
-	IsAccepted   bool              `json:"isAccepted"`
-	RejectReason string            `json:"rejectReason"`
-	DateTimeUTC  int64             `json:"dateTimeUtc"`
-	Instrument   string            `json:"ins"`
-	StartDate    int64             `json:"startDate"`
-	EndDate      int64             `json:"endDate"`
-	Trades       []AlphapointTrade `json:"trades"`
-}
-
-type AlphapointTicker struct {
+// Ticker holds ticker information
+type Ticker struct {
 	High               float64 `json:"high"`
 	Last               float64 `json:"last"`
 	Bid                float64 `json:"bid"`
@@ -47,19 +30,55 @@ type AlphapointTicker struct {
 	RejectReason       string  `json:"rejectReason"`
 }
 
-type AlphapointOrderbookEntry struct {
+// Trades holds trade information
+type Trades struct {
+	IsAccepted   bool    `json:"isAccepted"`
+	RejectReason string  `json:"rejectReason"`
+	DateTimeUTC  int64   `json:"dateTimeUtc"`
+	Instrument   string  `json:"ins"`
+	StartIndex   int     `json:"startIndex"`
+	Count        int     `json:"count"`
+	StartDate    int64   `json:"startDate"`
+	EndDate      int64   `json:"endDate"`
+	Trades       []Trade `json:"trades"`
+}
+
+// Trade is a sub-type which holds the singular trade that occurred in the past
+type Trade struct {
+	TID                   int64   `json:"tid"`
+	Price                 float64 `json:"px"`
+	Quantity              float64 `json:"qty"`
+	Unixtime              int     `json:"unixtime"`
+	UTCTicks              int64   `json:"utcticks"`
+	IncomingOrderSide     int     `json:"incomingOrderSide"`
+	IncomingServerOrderID int     `json:"incomingServerOrderId"`
+	BookServerOrderID     int     `json:"bookServerOrderId"`
+}
+
+// Orderbook holds the total Bids and Asks on the exchange
+type Orderbook struct {
+	Bids         []OrderbookEntry `json:"bids"`
+	Asks         []OrderbookEntry `json:"asks"`
+	IsAccepted   bool             `json:"isAccepted"`
+	RejectReason string           `json:"rejectReason"`
+}
+
+// OrderbookEntry is a sub-type that takes has the individual quantity and price
+type OrderbookEntry struct {
 	Quantity float64 `json:"qty"`
 	Price    float64 `json:"px"`
 }
 
-type AlphapointOrderbook struct {
-	Bids         []AlphapointOrderbookEntry `json:"bids"`
-	Asks         []AlphapointOrderbookEntry `json:"asks"`
-	IsAccepted   bool                       `json:"isAccepted"`
-	RejectReason string                     `json:"rejectReason"`
+// ProductPairs holds the full range of product pairs that the exchange can
+// trade between
+type ProductPairs struct {
+	ProductPairs []ProductPair `json:"productPairs"`
+	IsAccepted   bool          `json:"isAccepted"`
+	RejectReason string        `json:"rejectReason"`
 }
 
-type AlphapointProductPair struct {
+// ProductPair holds the individual product pairs that are currently traded
+type ProductPair struct {
 	Name                  string `json:"name"`
 	Productpaircode       int    `json:"productPairCode"`
 	Product1Label         string `json:"product1Label"`
@@ -68,13 +87,15 @@ type AlphapointProductPair struct {
 	Product2Decimalplaces int    `json:"product2DecimalPlaces"`
 }
 
-type AlphapointProductPairs struct {
-	ProductPairs []AlphapointProductPair `json:"productPairs"`
-	IsAccepted   bool                    `json:"isAccepted"`
-	RejectReason string                  `json:"rejectReason"`
+// Products holds the full range of supported currency products
+type Products struct {
+	Products     []Product `json:"products"`
+	IsAccepted   bool      `json:"isAccepted"`
+	RejectReason string    `json:"rejectReason"`
 }
 
-type AlphapointProduct struct {
+// Product holds the a single currency product that is supported
+type Product struct {
 	Name          string `json:"name"`
 	IsDigital     bool   `json:"isDigital"`
 	ProductCode   int    `json:"productCode"`
@@ -82,22 +103,30 @@ type AlphapointProduct struct {
 	FullName      string `json:"fullName"`
 }
 
-type AlphapointProducts struct {
-	Products     []AlphapointProduct `json:"products"`
-	IsAccepted   bool                `json:"isAccepted"`
-	RejectReason string              `json:"rejectReason"`
+// UserInfo holds current user information associated with the apiKey details
+type UserInfo struct {
+	UserInforKVPs []UserInfoKVP `json:"userInfoKVP"`
+	IsAccepted    bool          `json:"isAccepted"`
+	RejectReason  string        `json:"rejectReason"`
 }
 
-type AlphapointUserInfo struct {
-	UserInfoKVP []struct {
-		Key   string `json:"key"`
-		Value string `json:"value"`
-	} `json:"userInfoKVP"`
-	IsAccepted   bool   `json:"isAccepted"`
-	RejectReason string `json:"rejectReason"`
+// UserInfoKVP is a sub-type that holds key value pairs
+type UserInfoKVP struct {
+	Key   string `json:"key"`
+	Value string `json:"value"`
 }
 
-type AlphapointAccountInfo struct {
+// UserInfoSet is the returned response from set user information request
+type UserInfoSet struct {
+	IsAccepted        string `json:"isAccepted"`
+	RejectReason      string `json:"rejectReason"`
+	RequireAuthy2FA   bool   `json:"requireAuthy2FA"`
+	Val2FaRequestCode string `json:"val2FaRequestCode"`
+}
+
+// AccountInfo holds your current account information like balances, trade count
+// and volume
+type AccountInfo struct {
 	Currencies []struct {
 		Name    string `json:"name"`
 		Balance int    `json:"balance"`
@@ -113,7 +142,8 @@ type AlphapointAccountInfo struct {
 	RejectReason string `json:"rejectReason"`
 }
 
-type AlphapointOrder struct {
+// Order is a generalised order type
+type Order struct {
 	Serverorderid int   `json:"ServerOrderId"`
 	AccountID     int   `json:"AccountId"`
 	Price         int   `json:"Price"`
@@ -123,24 +153,29 @@ type AlphapointOrder struct {
 	Side          int   `json:"Side"`
 }
 
-type AlphapointOpenOrders struct {
-	Instrument string            `json:"ins"`
-	Openorders []AlphapointOrder `json:"openOrders"`
+// OpenOrders holds the full range of orders by instrument
+type OpenOrders struct {
+	Instrument string  `json:"ins"`
+	Openorders []Order `json:"openOrders"`
 }
 
-type AlphapointOrderInfo struct {
-	OpenOrders   []AlphapointOpenOrders `json:"openOrdersInfo"`
-	IsAccepted   bool                   `json:"isAccepted"`
-	DateTimeUTC  int64                  `json:"dateTimeUtc"`
-	RejectReason string                 `json:"rejectReason"`
+// OrderInfo holds all open orders across the entire range of all instruments
+type OrderInfo struct {
+	OpenOrders   []OpenOrders `json:"openOrdersInfo"`
+	IsAccepted   bool         `json:"isAccepted"`
+	DateTimeUTC  int64        `json:"dateTimeUtc"`
+	RejectReason string       `json:"rejectReason"`
 }
 
-type AlphapointDepositAddresses struct {
+// DepositAddresses holds information about the generated deposit address for
+// a specific currency
+type DepositAddresses struct {
 	Name           string `json:"name"`
 	DepositAddress string `json:"depositAddress"`
 }
 
-type AlphapointWebsocketTicker struct {
+// WebsocketTicker holds current up to date ticker information
+type WebsocketTicker struct {
 	MessageType             string  `json:"messageType"`
 	ProductPair             string  `json:"prodPair"`
 	High                    float64 `json:"high"`

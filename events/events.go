@@ -8,45 +8,50 @@ import (
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
+	"github.com/thrasher-/gocryptotrader/currency/pair"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-/gocryptotrader/smsglobal"
 )
 
 const (
-	ITEM_PRICE            = "PRICE"
-	GREATER_THAN          = ">"
-	GREATER_THAN_OR_EQUAL = ">="
-	LESS_THAN             = "<"
-	LESS_THAN_OR_EQUAL    = "<="
-	IS_EQUAL              = "=="
-	ACTION_SMS_NOTIFY     = "SMS"
-	ACTION_CONSOLE_PRINT  = "CONSOLE_PRINT"
+	itemPrice          = "PRICE"
+	greaterThan        = ">"
+	greaterThanOrEqual = ">="
+	lessThan           = "<"
+	lessThanOrEqual    = "<="
+	isEqual            = "=="
+	actionSMSNotify    = "SMS"
+	actionConsolePrint = "CONSOLE_PRINT"
+	actionTest         = "ACTION_TEST"
 )
 
 var (
-	ErrInvalidItem         = errors.New("Invalid item.")
-	ErrInvalidCondition    = errors.New("Invalid conditional option.")
-	ErrInvalidAction       = errors.New("Invalid action.")
-	ErrExchangeDisabled    = errors.New("Desired exchange is disabled.")
-	ErrFiatCurrencyInvalid = errors.New("Invalid fiat currency.")
+	errInvalidItem      = errors.New("invalid item")
+	errInvalidCondition = errors.New("invalid conditional option")
+	errInvalidAction    = errors.New("invalid action")
+	errExchangeDisabled = errors.New("desired exchange is disabled")
 )
 
+// Event struct holds the event variables
 type Event struct {
-	ID             int
-	Exchange       string
-	Item           string
-	Condition      string
-	FirstCurrency  string
-	SecondCurrency string
-	Action         string
-	Executed       bool
+	ID        int
+	Exchange  string
+	Item      string
+	Condition string
+	Pair      pair.CurrencyPair
+	Asset     string
+	Action    string
+	Executed  bool
 }
 
+// Events variable is a pointer array to the event structures that will be
+// appended
 var Events []*Event
 
-func AddEvent(Exchange, Item, Condition, FirstCurrency, SecondCurrency, Action string) (int, error) {
+// AddEvent adds an event to the Events chain and returns an index/eventID
+// and an error
+func AddEvent(Exchange, Item, Condition string, CurrencyPair pair.CurrencyPair, Asset, Action string) (int, error) {
 	err := IsValidEvent(Exchange, Item, Condition, Action)
-
 	if err != nil {
 		return 0, err
 	}
@@ -62,14 +67,15 @@ func AddEvent(Exchange, Item, Condition, FirstCurrency, SecondCurrency, Action s
 	Event.Exchange = Exchange
 	Event.Item = Item
 	Event.Condition = Condition
-	Event.FirstCurrency = FirstCurrency
-	Event.SecondCurrency = SecondCurrency
+	Event.Pair = CurrencyPair
+	Event.Asset = Asset
 	Event.Action = Action
 	Event.Executed = false
 	Events = append(Events, Event)
 	return Event.ID, nil
 }
 
+// RemoveEvent deletes and event by its ID
 func RemoveEvent(EventID int) bool {
 	for i, x := range Events {
 		if x.ID == EventID {
@@ -80,6 +86,8 @@ func RemoveEvent(EventID int) bool {
 	return false
 }
 
+// GetEventCounter displays the emount of total events on the chain and the
+// events that have been executed.
 func GetEventCounter() (int, int) {
 	total := len(Events)
 	executed := 0
@@ -92,70 +100,78 @@ func GetEventCounter() (int, int) {
 	return total, executed
 }
 
+// ExecuteAction will execute the action pending on the chain
 func (e *Event) ExecuteAction() bool {
 	if common.StringContains(e.Action, ",") {
 		action := common.SplitStrings(e.Action, ",")
-		if action[0] == ACTION_SMS_NOTIFY {
-			message := fmt.Sprintf("Event triggered: %s", e.EventToString())
+		if action[0] == actionSMSNotify {
+			message := fmt.Sprintf("Event triggered: %s", e.String())
+			s := smsglobal.SMSGlobal
 			if action[1] == "ALL" {
-				smsglobal.SMSSendToAll(message, config.Cfg)
+				s.SendMessageToAll(message)
 			} else {
-				smsglobal.SMSNotify(smsglobal.SMSGetNumberByName(action[1], config.Cfg.SMS), message, config.Cfg)
+				contact, _ := s.GetContactByName(action[1])
+				s.SendMessage(contact.Number, message)
 			}
 		}
 	} else {
-		log.Printf("Event triggered: %s", e.EventToString())
+		log.Printf("Event triggered: %s", e.String())
 	}
 	return true
 }
 
-func (e *Event) EventToString() string {
+// EventToString turns the structure event into a string
+func (e *Event) String() string {
 	condition := common.SplitStrings(e.Condition, ",")
-	return fmt.Sprintf("If the %s%s %s on %s is %s then %s.", e.FirstCurrency, e.SecondCurrency, e.Item, e.Exchange, condition[0]+" "+condition[1], e.Action)
+	return fmt.Sprintf(
+		"If the %s%s [%s] %s on %s is %s then %s.", e.Pair.FirstCurrency.String(),
+		e.Pair.SecondCurrency.String(), e.Asset, e.Item, e.Exchange, condition[0]+" "+condition[1], e.Action,
+	)
 }
 
+// CheckCondition will check the event structure to see if there is a condition
+// met
 func (e *Event) CheckCondition() bool {
-	lastPrice := 0.00
 	condition := common.SplitStrings(e.Condition, ",")
 	targetPrice, _ := strconv.ParseFloat(condition[1], 64)
 
-	ticker, err := ticker.GetTickerByExchange(e.Exchange)
+	t, err := ticker.GetTicker(e.Exchange, e.Pair, e.Asset)
 	if err != nil {
 		return false
 	}
 
-	lastPrice = ticker.Price[e.FirstCurrency][e.SecondCurrency].Last
+	lastPrice := t.Last
 
 	if lastPrice == 0 {
 		return false
 	}
 
 	switch condition[0] {
-	case GREATER_THAN:
+	case greaterThan:
 		{
 			if lastPrice > targetPrice {
 				return e.ExecuteAction()
 			}
 		}
-	case GREATER_THAN_OR_EQUAL:
+	case greaterThanOrEqual:
 		{
 			if lastPrice >= targetPrice {
 				return e.ExecuteAction()
 			}
 		}
-	case LESS_THAN:
+	case lessThan:
 		{
 			if lastPrice < targetPrice {
 				return e.ExecuteAction()
 			}
 		}
-	case LESS_THAN_OR_EQUAL:
+	case lessThanOrEqual:
 		{
 			if lastPrice <= targetPrice {
 				return e.ExecuteAction()
 			}
 		}
-	case IS_EQUAL:
+	case isEqual:
 		{
 			if lastPrice == targetPrice {
 				return e.ExecuteAction()
@@ -165,43 +181,54 @@ func (e *Event) CheckCondition() bool {
 	return false
 }
 
+// IsValidEvent checks the actions to be taken and returns an error if incorrect
 func IsValidEvent(Exchange, Item, Condition, Action string) error {
+	Exchange = common.StringToUpper(Exchange)
+	Item = common.StringToUpper(Item)
+	Action = common.StringToUpper(Action)
+
 	if !IsValidExchange(Exchange) {
-		return ErrExchangeDisabled
+		return errExchangeDisabled
 	}
 
 	if !IsValidItem(Item) {
-		return ErrInvalidItem
+		return errInvalidItem
 	}
 
 	if !common.StringContains(Condition, ",") {
-		return ErrInvalidCondition
+		return errInvalidCondition
 	}
 
 	condition := common.SplitStrings(Condition, ",")
 
 	if !IsValidCondition(condition[0]) || len(condition[1]) == 0 {
-		return ErrInvalidCondition
+		return errInvalidCondition
 	}
 
 	if common.StringContains(Action, ",") {
 		action := common.SplitStrings(Action, ",")
 
-		if action[0] != ACTION_SMS_NOTIFY {
-			return ErrInvalidAction
+		if action[0] != actionSMSNotify {
+			return errInvalidAction
 		}
 
-		if action[1] != "ALL" && smsglobal.SMSGetNumberByName(action[1], config.Cfg.SMS) == smsglobal.ErrSMSContactNotFound {
-			return ErrInvalidAction
+		if action[1] != "ALL" {
+			s := smsglobal.SMSGlobal
+			_, err := s.GetContactByName(action[1])
+			if err != nil {
+				return errInvalidAction
+			}
 		}
 	} else {
-		if Action != ACTION_CONSOLE_PRINT {
-			return ErrInvalidAction
+		if Action != actionConsolePrint && Action != actionTest {
+			return errInvalidAction
 		}
 	}
 	return nil
 }
 
+// CheckEvents is the overarching routine that will iterate through the Events
+// chain
 func CheckEvents() {
 	for {
 		total, executed := GetEventCounter()
@@ -210,7 +237,10 @@ func CheckEvents() {
 				if !event.Executed {
 					success := event.CheckCondition()
 					if success {
-						log.Printf("Event %d triggered on %s successfully.\n", event.ID, event.Exchange)
+						log.Printf(
+							"Event %d triggered on %s successfully.\n", event.ID,
+							event.Exchange,
+						)
 						event.Executed = true
 					}
 				}
@@ -219,7 +249,9 @@ func CheckEvents() {
 	}
 }
 
+// IsValidExchange validates the exchange
 func IsValidExchange(Exchange string) bool {
+	Exchange = common.StringToUpper(Exchange)
 	cfg := config.GetConfig()
 	for _, x := range cfg.Exchanges {
 		if x.Name == Exchange && x.Enabled {
@@ -229,25 +261,30 @@ func IsValidExchange(Exchange string) bool {
 	return false
 }
 
+// IsValidCondition validates passed in condition
 func IsValidCondition(Condition string) bool {
 	switch Condition {
-	case GREATER_THAN, GREATER_THAN_OR_EQUAL, LESS_THAN, LESS_THAN_OR_EQUAL, IS_EQUAL:
+	case greaterThan, greaterThanOrEqual, lessThan, lessThanOrEqual, isEqual:
 		return true
 	}
 	return false
 }
 
+// IsValidAction validates passed in action
 func IsValidAction(Action string) bool {
+	Action = common.StringToUpper(Action)
 	switch Action {
-	case ACTION_SMS_NOTIFY, ACTION_CONSOLE_PRINT:
+	case actionSMSNotify, actionConsolePrint, actionTest:
 		return true
 	}
 	return false
 }
 
+// IsValidItem validates passed in Item
 func IsValidItem(Item string) bool {
+	Item = common.StringToUpper(Item)
 	switch Item {
-	case ITEM_PRICE:
+	case itemPrice:
 		return true
 	}
 	return false

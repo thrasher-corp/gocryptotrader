@@ -1,0 +1,6 @@
+[postgres]
+dbname = "gocryptotrader"
+host = "127.0.0.1"
+user = "gocryptotrader"
+pass = "lol123"
+port = "5432"

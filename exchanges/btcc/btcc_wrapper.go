@@ -2,19 +2,20 @@ package btcc
 
 import (
 	"log"
-	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
-	"github.com/thrasher-/gocryptotrader/exchanges"
+	"github.com/thrasher-/gocryptotrader/currency/pair"
+	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
-	"github.com/thrasher-/gocryptotrader/exchanges/stats"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 )
 
+// Start starts the BTCC go routine
 func (b *BTCC) Start() {
 	go b.Run()
 }
 
+// Run implements the BTCC wrapper
 func (b *BTCC) Run() {
 	if b.Verbose {
 		log.Printf("%s Websocket: %s.", b.GetName(), common.IsEnabled(b.Websocket))
@@ -25,76 +26,70 @@ func (b *BTCC) Run() {
 	if b.Websocket {
 		go b.WebsocketClient()
 	}
-
-	for b.Enabled {
-		for _, x := range b.EnabledPairs {
-			currency := x
-			go func() {
-				ticker, err := b.GetTickerPrice(common.StringToLower(currency))
-				if err != nil {
-					log.Println(err)
-					return
-				}
-				log.Printf("BTCC %s: Last %f High %f Low %f Volume %f\n", currency, ticker.Last, ticker.High, ticker.Low, ticker.Volume)
-				stats.AddExchangeInfo(b.GetName(), currency[0:3], currency[3:], ticker.Last, ticker.Volume)
-			}()
-		}
-		time.Sleep(time.Second * b.RESTPollingDelay)
-	}
 }
 
-func (b *BTCC) GetTickerPrice(currency string) (ticker.TickerPrice, error) {
-	tickerNew, err := ticker.GetTicker(b.GetName(), currency[0:3], currency[3:])
-	if err == nil {
-		return tickerNew, nil
+// UpdateTicker updates and returns the ticker for a currency pair
+func (b *BTCC) UpdateTicker(p pair.CurrencyPair, assetType string) (ticker.Price, error) {
+	var tickerPrice ticker.Price
+	tick, err := b.GetTicker(exchange.FormatExchangeCurrency(b.GetName(), p).String())
+	if err != nil {
+		return tickerPrice, err
 	}
-
-	var tickerPrice ticker.TickerPrice
-	tick, err := b.GetTicker(currency)
+	tickerPrice.Pair = p
 	tickerPrice.Ask = tick.Sell
 	tickerPrice.Bid = tick.Buy
-	tickerPrice.FirstCurrency = currency[0:3]
-	tickerPrice.SecondCurrency = currency[3:]
 	tickerPrice.Low = tick.Low
 	tickerPrice.Last = tick.Last
 	tickerPrice.Volume = tick.Vol
 	tickerPrice.High = tick.High
-	ticker.ProcessTicker(b.GetName(), tickerPrice.FirstCurrency, tickerPrice.SecondCurrency, tickerPrice)
-	return tickerPrice, nil
+	ticker.ProcessTicker(b.GetName(), p, tickerPrice, assetType)
+	return ticker.GetTicker(b.Name, p, assetType)
 }
 
-func (b *BTCC) GetOrderbookEx(currency string) (orderbook.OrderbookBase, error) {
-	ob, err := orderbook.GetOrderbook(b.GetName(), currency[0:3], currency[3:])
-	if err == nil {
-		return ob, nil
+// GetTickerPrice returns the ticker for a currency pair
+func (b *BTCC) GetTickerPrice(p pair.CurrencyPair, assetType string) (ticker.Price, error) {
+	tickerNew, err := ticker.GetTicker(b.GetName(), p, assetType)
+	if err != nil {
+		return b.UpdateTicker(p, assetType)
 	}
+	return tickerNew, nil
+}
 
-	var orderBook orderbook.OrderbookBase
-	orderbookNew, err := b.GetOrderBook(currency, 100)
+// GetOrderbookEx returns the orderbook for a currency pair
+func (b *BTCC) GetOrderbookEx(p pair.CurrencyPair, assetType string) (orderbook.Base, error) {
+	ob, err := orderbook.GetOrderbook(b.GetName(), p, assetType)
+	if err == nil {
+		return b.UpdateOrderbook(p, assetType)
+	}
+	return ob, nil
+}
+
+// UpdateOrderbook updates and returns the orderbook for a currency pair
+func (b *BTCC) UpdateOrderbook(p pair.CurrencyPair, assetType string) (orderbook.Base, error) {
+	var orderBook orderbook.Base
+	orderbookNew, err := b.GetOrderBook(exchange.FormatExchangeCurrency(b.GetName(), p).String(), 100)
 	if err != nil {
 		return orderBook, err
 	}
 
-	for x, _ := range orderbookNew.Bids {
+	for x := range orderbookNew.Bids {
 		data := orderbookNew.Bids[x]
-		orderBook.Bids = append(ob.Bids, orderbook.OrderbookItem{Price: data[0], Amount: data[1]})
+		orderBook.Bids = append(orderBook.Bids, orderbook.Item{Price: data[0], Amount: data[1]})
 	}
 
-	for x, _ := range orderbookNew.Asks {
+	for x := range orderbookNew.Asks {
 		data := orderbookNew.Asks[x]
-		orderBook.Asks = append(ob.Asks, orderbook.OrderbookItem{Price: data[0], Amount: data[1]})
+		orderBook.Asks = append(orderBook.Asks, orderbook.Item{Price: data[0], Amount: data[1]})
 	}
 
-	orderBook.FirstCurrency = currency[0:3]
-	orderBook.SecondCurrency = currency[3:]
-	orderbook.ProcessOrderbook(b.GetName(), orderBook.FirstCurrency, orderBook.SecondCurrency, orderBook)
-	return orderBook, nil
+	orderbook.ProcessOrderbook(b.GetName(), p, orderBook, assetType)
+	return orderbook.GetOrderbook(b.Name, p, assetType)
 }
 
-//TODO: Retrieve BTCC info
-//GetExchangeAccountInfo : Retrieves balances for all enabled currencies for the Kraken exchange
-func (e *BTCC) GetExchangeAccountInfo() (exchange.ExchangeAccountInfo, error) {
-	var response exchange.ExchangeAccountInfo
-	response.ExchangeName = e.GetName()
+// GetExchangeAccountInfo : Retrieves balances for all enabled currencies for
+// the Kraken exchange - TODO
+func (b *BTCC) GetExchangeAccountInfo() (exchange.AccountInfo, error) {
+	var response exchange.AccountInfo
+	response.ExchangeName = b.GetName()
 	return response, nil
 }

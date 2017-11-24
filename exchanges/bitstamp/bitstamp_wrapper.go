@@ -2,19 +2,20 @@ package bitstamp
 
 import (
 	"log"
-	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
-	"github.com/thrasher-/gocryptotrader/exchanges"
+	"github.com/thrasher-/gocryptotrader/currency/pair"
+	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
-	"github.com/thrasher-/gocryptotrader/exchanges/stats"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 )
 
+// Start starts the Bitstamp go routine
 func (b *Bitstamp) Start() {
 	go b.Run()
 }
 
+// Run implements the Bitstamp wrapper
 func (b *Bitstamp) Run() {
 	if b.Verbose {
 		log.Printf("%s Websocket: %s.", b.GetName(), common.IsEnabled(b.Websocket))
@@ -25,104 +26,96 @@ func (b *Bitstamp) Run() {
 	if b.Websocket {
 		go b.PusherClient()
 	}
-
-	for b.Enabled {
-		for _, x := range b.EnabledPairs {
-			currency := x
-			go func() {
-				ticker, err := b.GetTickerPrice(currency)
-				if err != nil {
-					log.Println(err)
-					return
-				}
-				log.Printf("Bitstamp %s: Last %f High %f Low %f Volume %f\n", currency, ticker.Last, ticker.High, ticker.Low, ticker.Volume)
-				stats.AddExchangeInfo(b.GetName(), currency[0:3], currency[3:], ticker.Last, ticker.Volume)
-			}()
-		}
-		time.Sleep(time.Second * b.RESTPollingDelay)
-	}
 }
 
-func (b *Bitstamp) GetTickerPrice(currency string) (ticker.TickerPrice, error) {
-	tickerNew, err := ticker.GetTicker(b.GetName(), currency[0:3], currency[3:])
-	if err == nil {
-		return tickerNew, nil
-	}
-
-	var tickerPrice ticker.TickerPrice
-	tick, err := b.GetTicker(currency, false)
+// UpdateTicker updates and returns the ticker for a currency pair
+func (b *Bitstamp) UpdateTicker(p pair.CurrencyPair, assetType string) (ticker.Price, error) {
+	var tickerPrice ticker.Price
+	tick, err := b.GetTicker(p.Pair().String(), false)
 	if err != nil {
 		return tickerPrice, err
 
 	}
+	tickerPrice.Pair = p
 	tickerPrice.Ask = tick.Ask
 	tickerPrice.Bid = tick.Bid
-	tickerPrice.FirstCurrency = currency[0:3]
-	tickerPrice.SecondCurrency = currency[3:]
 	tickerPrice.Low = tick.Low
 	tickerPrice.Last = tick.Last
 	tickerPrice.Volume = tick.Volume
 	tickerPrice.High = tick.High
-	ticker.ProcessTicker(b.GetName(), tickerPrice.FirstCurrency, tickerPrice.SecondCurrency, tickerPrice)
-	return tickerPrice, nil
+	ticker.ProcessTicker(b.GetName(), p, tickerPrice, assetType)
+	return ticker.GetTicker(b.Name, p, assetType)
 }
 
-func (b *Bitstamp) GetOrderbookEx(currency string) (orderbook.OrderbookBase, error) {
-	ob, err := orderbook.GetOrderbook(b.GetName(), currency[0:3], currency[3:])
-	if err == nil {
-		return ob, nil
+// GetTickerPrice returns the ticker for a currency pair
+func (b *Bitstamp) GetTickerPrice(p pair.CurrencyPair, assetType string) (ticker.Price, error) {
+	tick, err := ticker.GetTicker(b.GetName(), p, assetType)
+	if err != nil {
+		return b.UpdateTicker(p, assetType)
 	}
+	return tick, nil
+}
 
-	var orderBook orderbook.OrderbookBase
-	orderbookNew, err := b.GetOrderbook(currency)
+// GetOrderbookEx returns the orderbook for a currency pair
+func (b *Bitstamp) GetOrderbookEx(p pair.CurrencyPair, assetType string) (orderbook.Base, error) {
+	ob, err := orderbook.GetOrderbook(b.GetName(), p, assetType)
+	if err == nil {
+		return b.UpdateOrderbook(p, assetType)
+	}
+	return ob, nil
+}
+
+// UpdateOrderbook updates and returns the orderbook for a currency pair
+func (b *Bitstamp) UpdateOrderbook(p pair.CurrencyPair, assetType string) (orderbook.Base, error) {
+	var orderBook orderbook.Base
+	orderbookNew, err := b.GetOrderbook(p.Pair().String())
 	if err != nil {
 		return orderBook, err
 	}
 
-	for x, _ := range orderbookNew.Bids {
+	for x := range orderbookNew.Bids {
 		data := orderbookNew.Bids[x]
-		orderBook.Bids = append(orderBook.Bids, orderbook.OrderbookItem{Amount: data.Amount, Price: data.Price})
+		orderBook.Bids = append(orderBook.Bids, orderbook.Item{Amount: data.Amount, Price: data.Price})
 	}
 
-	for x, _ := range orderbookNew.Asks {
+	for x := range orderbookNew.Asks {
 		data := orderbookNew.Asks[x]
-		orderBook.Asks = append(orderBook.Asks, orderbook.OrderbookItem{Amount: data.Amount, Price: data.Price})
+		orderBook.Asks = append(orderBook.Asks, orderbook.Item{Amount: data.Amount, Price: data.Price})
 	}
 
-	orderBook.FirstCurrency = currency[0:3]
-	orderBook.SecondCurrency = currency[3:]
-	orderbook.ProcessOrderbook(b.GetName(), orderBook.FirstCurrency, orderBook.SecondCurrency, orderBook)
-	return orderBook, nil
+	orderbook.ProcessOrderbook(b.GetName(), p, orderBook, assetType)
+	return orderbook.GetOrderbook(b.Name, p, assetType)
 }
 
-//GetExchangeAccountInfo : Retrieves balances for all enabled currencies for the Bitstamp exchange
-func (e *Bitstamp) GetExchangeAccountInfo() (exchange.ExchangeAccountInfo, error) {
-	var response exchange.ExchangeAccountInfo
-	response.ExchangeName = e.GetName()
-	accountBalance, err := e.GetBalance()
+// GetExchangeAccountInfo retrieves balances for all enabled currencies for the
+// Bitstamp exchange
+func (b *Bitstamp) GetExchangeAccountInfo() (exchange.AccountInfo, error) {
+	var response exchange.AccountInfo
+	response.ExchangeName = b.GetName()
+	accountBalance, err := b.GetBalance()
 	if err != nil {
 		return response, err
 	}
 
-	response.Currencies = append(response.Currencies, exchange.ExchangeAccountCurrencyInfo{
+	response.Currencies = append(response.Currencies, exchange.AccountCurrencyInfo{
 		CurrencyName: "BTC",
 		TotalValue:   accountBalance.BTCAvailable,
 		Hold:         accountBalance.BTCReserved,
 	})
 
-	response.Currencies = append(response.Currencies, exchange.ExchangeAccountCurrencyInfo{
+	response.Currencies = append(response.Currencies, exchange.AccountCurrencyInfo{
 		CurrencyName: "XRP",
 		TotalValue:   accountBalance.XRPAvailable,
 		Hold:         accountBalance.XRPReserved,
 	})
 
-	response.Currencies = append(response.Currencies, exchange.ExchangeAccountCurrencyInfo{
+	response.Currencies = append(response.Currencies, exchange.AccountCurrencyInfo{
 		CurrencyName: "USD",
 		TotalValue:   accountBalance.USDAvailable,
 		Hold:         accountBalance.USDReserved,
 	})
 
-	response.Currencies = append(response.Currencies, exchange.ExchangeAccountCurrencyInfo{
+	response.Currencies = append(response.Currencies, exchange.AccountCurrencyInfo{
 		CurrencyName: "EUR",
 		TotalValue:   accountBalance.EURAvailable,
 		Hold:         accountBalance.EURReserved,

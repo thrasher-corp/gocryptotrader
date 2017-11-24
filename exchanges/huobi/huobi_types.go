@@ -1,6 +1,7 @@
 package huobi
 
-type HuobiTicker struct {
+// Ticker holds ticker information
+type Ticker struct {
 	High float64
 	Low  float64
 	Last float64
@@ -9,12 +10,14 @@ type HuobiTicker struct {
 	Sell float64
 }
 
-type HuobiTickerResponse struct {
+// TickerResponse holds the initial response type
+type TickerResponse struct {
 	Time   string
-	Ticker HuobiTicker
+	Ticker Ticker
 }
 
-type HuobiOrderbook struct {
+// Orderbook holds the order book information
+type Orderbook struct {
 	ID     float64
 	TS     float64
 	Bids   [][]float64 `json:"bids"`

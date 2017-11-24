@@ -8,6 +8,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/config"
 )
 
+// EncryptOrDecrypt returns a string from a boolean
 func EncryptOrDecrypt(encrypt bool) string {
 	if encrypt {
 		return "encrypted"
@@ -19,8 +20,9 @@ func main() {
 	var inFile, outFile, key string
 	var encrypt bool
 	var err error
-	flag.StringVar(&inFile, "infile", "config.dat", "The config input file to process.")
-	flag.StringVar(&outFile, "outfile", "config.dat.out", "The config output file.")
+	configFile := config.GetFilePath("")
+	flag.StringVar(&inFile, "infile", configFile, "The config input file to process.")
+	flag.StringVar(&outFile, "outfile", configFile+".out", "The config output file.")
 	flag.BoolVar(&encrypt, "encrypt", true, "Wether to encrypt or decrypt.")
 	flag.StringVar(&key, "key", "", "The key to use for AES encryption.")
 	flag.Parse()
@@ -28,8 +30,8 @@ func main() {
 	log.Println("GoCryptoTrader: config-helper tool.")
 
 	if key == "" {
-		result, err := config.PromptForConfigKey()
-		if err != nil {
+		result, errf := config.PromptForConfigKey()
+		if errf != nil {
 			log.Fatal("Unable to obtain encryption/decryption key.")
 		}
 		key = string(result)
@@ -47,8 +49,8 @@ func main() {
 
 	if !config.ConfirmECS(file) && !encrypt {
 		var result interface{}
-		err := config.ConfirmConfigJSON(file, result)
-		if err != nil {
+		errf := config.ConfirmConfigJSON(file, result)
+		if errf != nil {
 			log.Fatal("File isn't in JSON format")
 		}
 		log.Println("File is already decrypted. Encrypting..")
@@ -72,5 +74,8 @@ func main() {
 	if err != nil {
 		log.Fatalf("Unable to write output file %s. Error: %s", outFile, err)
 	}
-	log.Printf("Successfully %s input file %s and wrote output to %s.\n", EncryptOrDecrypt(encrypt), inFile, outFile)
+	log.Printf(
+		"Successfully %s input file %s and wrote output to %s.\n",
+		EncryptOrDecrypt(encrypt), inFile, outFile,
+	)
 }

@@ -1,6 +1,13 @@
 package kraken
 
-type KrakenAssetPairs struct {
+// GeneralResponse is a generalized response type
+type GeneralResponse struct {
+	Result map[string]interface{} `json:"result"`
+	Error  []interface{}          `json:"error"`
+}
+
+// AssetPairs holds asset pair information
+type AssetPairs struct {
 	Altname           string      `json:"altname"`
 	AclassBase        string      `json:"aclass_base"`
 	Base              string      `json:"base"`
@@ -19,7 +26,8 @@ type KrakenAssetPairs struct {
 	MarginStop        int         `json:"margin_stop"`
 }
 
-type KrakenTicker struct {
+// Ticker is a standard ticker type
+type Ticker struct {
 	Ask    float64
 	Bid    float64
 	Last   float64
@@ -31,7 +39,8 @@ type KrakenTicker struct {
 	Open   float64
 }
 
-type KrakenTickerResponse struct {
+// TickerResponse holds ticker information before its put into the Ticker struct
+type TickerResponse struct {
 	Ask    []string `json:"a"`
 	Bid    []string `json:"b"`
 	Last   []string `json:"c"`
@@ -41,4 +50,45 @@ type KrakenTickerResponse struct {
 	Low    []string `json:"l"`
 	High   []string `json:"h"`
 	Open   string   `json:"o"`
+}
+
+// OpenHighLowClose contains ticker event information
+type OpenHighLowClose struct {
+	Time   float64
+	Open   float64
+	High   float64
+	Low    float64
+	Close  float64
+	Vwap   float64
+	Volume float64
+	Count  float64
+}
+
+// RecentTrades holds recent trade data
+type RecentTrades struct {
+	Price         float64
+	Volume        float64
+	Time          float64
+	BuyOrSell     string
+	MarketOrLimit string
+	Miscellaneous interface{}
+}
+
+// OrderbookBase stores the orderbook price and amount data
+type OrderbookBase struct {
+	Price  float64
+	Amount float64
+}
+
+// Orderbook stores the bids and asks orderbook data
+type Orderbook struct {
+	Bids []OrderbookBase
+	Asks []OrderbookBase
+}
+
+// Spread holds the spread between trades
+type Spread struct {
+	Time float64
+	Bid  float64
+	Ask  float64
 }

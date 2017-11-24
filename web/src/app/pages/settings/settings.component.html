@@ -1,0 +1,93 @@
+<div class="loading-spinner" *ngIf="settings === null">
+    <md-progress-spinner mode="indeterminate"></md-progress-spinner>
+</div>
+<div *ngIf="settings !== null">
+    <button (click)="saveSettings()" md-fab color="accent" class="md-fab md-fab-bottom-right">Save</button>
+    <form *ngIf="settings.SMSGlobal != null">
+        <md-card class="exchange-card">
+            <md-card-header>
+                <md-card-title>SMS Global Settings</md-card-title>
+            </md-card-header>
+            <md-card-content>
+                <table cellspacing="0">
+                    <tr>
+                        <td>
+                            <md-checkbox name="smsEnabled" [(ngModel)]="settings.SMSGlobal.Enabled">Enabled</md-checkbox>
+                        </td>
+                    </tr>
+                </table>
+                <md-grid-list cols="2" rowHeight="3:1">
+                    <md-grid-tile>
+                        <md-form-field>
+                            <input mdInput name="smsUsername" [(ngModel)]="settings.SMSGlobal.Username" [disabled]="!settings?.SMSGlobal.Enabled" placeholder="Username">
+                        </md-form-field>
+                    </md-grid-tile>
+                    <md-grid-tile>
+                        <md-form-field>
+                            <input mdInput name="smsPassword" [(ngModel)]="settings.SMSGlobal.Password" [disabled]="!settings?.SMSGlobal.Enabled" placeholder="Password">
+                        </md-form-field>
+                    </md-grid-tile>
+                </md-grid-list>
+                <md-grid-list cols="3" rowHeight="2:1" *ngFor="let contact of settings.SMSGlobal?.Contacts">
+                    <md-grid-tile>
+                        <md-checkbox name="contactEnabled" [disabled]="!settings?.SMSGlobal.Enabled" [(ngModel)]="contact.Enabled">Enabled</md-checkbox>
+                    </md-grid-tile>
+                    <md-grid-tile>
+                        <md-form-field>
+                            <input mdInput name="contactUsername" [(ngModel)]="contact.Name" [disabled]="!settings.SMSGlobal.Enabled || !contact.Enabled" placeholder="Contact Name">
+                        </md-form-field>
+                    </md-grid-tile>
+                    <md-grid-tile>
+                        <md-form-field>
+                            <input mdInput name="contactPassword" [(ngModel)]="contact.Number" [disabled]="!settings.SMSGlobal.Enabled || !contact.Enabled" placeholder="Contact Number">
+                        </md-form-field>
+                    </md-grid-tile>
+                </md-grid-list>
+            </md-card-content>
+        </md-card>
+    </form>
+
+    <form *ngFor="let exchange of settings?.Exchanges">
+        <md-card class="exchange-card">
+            <md-card-header>
+                <md-card-title>{{exchange.Name}} Exchange Settings</md-card-title>
+            </md-card-header>
+            <md-card-content>
+                <table cellspacing="0">
+                    <tr>
+                        <td>
+                            <md-checkbox name="exchangeEnabled" [(ngModel)]="exchange.Enabled">Enabled</md-checkbox>
+                        </td>
+                    </tr>
+                </table>
+                <md-grid-list cols="3" rowHeight="2:1">
+                    <md-grid-tile>
+                        <md-form-field>
+                            <input mdInput name="apiKey" [(ngModel)]="exchange.APIKey" [disabled]="!exchange.Enabled" placeholder="Exchange API Key">
+                        </md-form-field>
+                    </md-grid-tile>
+                    <md-grid-tile>
+                        <md-form-field>
+                            <input mdInput name="apiSecretKey" [(ngModel)]="exchange.APISecret" [disabled]="!exchange.Enabled" placeholder="Exchange API Secret Key">
+                        </md-form-field>
+                    </md-grid-tile>
+                    <md-grid-tile>
+                        <md-form-field>
+                            <input mdInput name="apiClientId" [(ngModel)]="exchange.ClientID" [disabled]="!exchange.Enabled" placeholder="Exchange API ClientID (optional)">
+                        </md-form-field>
+                    </md-grid-tile>
+                </md-grid-list>
+
+                <label>Enabled Currencies</label>
+
+                <md-grid-list cols="6" rowHeight="2:1">
+                    <md-grid-tile *ngFor="let currency of exchange.AvailablePairs.split(',')">
+                        <md-checkbox name="availableCurrency" [disabled]="true || !exchange.Enabled">{{currency}}</md-checkbox>
+                    </md-grid-tile>
+                </md-grid-list>
+            </md-card-content>
+        </md-card>
+    </form>
+
+
+</div>

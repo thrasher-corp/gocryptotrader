@@ -1,6 +1,7 @@
 package bitstamp
 
-type BitstampTicker struct {
+// Ticker holds ticker information
+type Ticker struct {
 	Last      float64 `json:"last,string"`
 	High      float64 `json:"high,string"`
 	Low       float64 `json:"low,string"`
@@ -12,38 +13,21 @@ type BitstampTicker struct {
 	Open      float64 `json:"open,string"`
 }
 
-type BitstampBalances struct {
-	BTCReserved  float64 `json:"btc_reserved,string"`
-	BTCEURFee    float64 `json:"btceur_fee,string"`
-	BTCAvailable float64 `json:"btc_available,string"`
-	XRPAvailable float64 `json:"xrp_available,string"`
-	EURAvailable float64 `json:"eur_available,string"`
-	USDReserved  float64 `json:"usd_reserved,string"`
-	EURReserved  float64 `json:"eur_reserved,string"`
-	XRPEURFee    float64 `json:"xrpeur_fee,string"`
-	XRPReserved  float64 `json:"xrp_reserved,string"`
-	XRPBalance   float64 `json:"xrp_balance,string"`
-	XRPUSDFee    float64 `json:"xrpusd_fee,string"`
-	EURBalance   float64 `json:"eur_balance,string"`
-	BTCBalance   float64 `json:"btc_balance,string"`
-	BTCUSDFee    float64 `json:"btcusd_fee,string"`
-	USDBalance   float64 `json:"usd_balance,string"`
-	USDAvailable float64 `json:"usd_available,string"`
-	EURUSDFee    float64 `json:"eurusd_fee,string"`
-}
-
-type BitstampOrderbookBase struct {
+// OrderbookBase holds singular price information
+type OrderbookBase struct {
 	Price  float64
 	Amount float64
 }
 
-type BitstampOrderbook struct {
+// Orderbook holds orderbook information
+type Orderbook struct {
 	Timestamp int64 `json:"timestamp,string"`
-	Bids      []BitstampOrderbookBase
-	Asks      []BitstampOrderbookBase
+	Bids      []OrderbookBase
+	Asks      []OrderbookBase
 }
 
-type BitstampTransactions struct {
+// Transactions holds transaction data
+type Transactions struct {
 	Date    int64   `json:"date,string"`
 	TradeID int64   `json:"tid,string"`
 	Price   float64 `json:"price,string"`
@@ -51,12 +35,37 @@ type BitstampTransactions struct {
 	Amount  float64 `json:"amount,string"`
 }
 
-type BitstampEURUSDConversionRate struct {
+// EURUSDConversionRate holds buy sell conversion rate information
+type EURUSDConversionRate struct {
 	Buy  float64 `json:"buy,string"`
 	Sell float64 `json:"sell,string"`
 }
 
-type BitstampUserTransactions struct {
+// Balances holds full balance information with the supplied APIKEYS
+type Balances struct {
+	USDBalance   float64 `json:"usd_balance,string"`
+	BTCBalance   float64 `json:"btc_balance,string"`
+	EURBalance   float64 `json:"eur_balance,string"`
+	XRPBalance   float64 `json:"xrp_balance,string"`
+	USDReserved  float64 `json:"usd_reserved,string"`
+	BTCReserved  float64 `json:"btc_reserved,string"`
+	EURReserved  float64 `json:"eur_reserved,string"`
+	XRPReserved  float64 `json:"xrp_reserved,string"`
+	USDAvailable float64 `json:"usd_available,string"`
+	BTCAvailable float64 `json:"btc_available,string"`
+	EURAvailable float64 `json:"eur_available,string"`
+	XRPAvailable float64 `json:"xrp_available,string"`
+	BTCUSDFee    float64 `json:"btcusd_fee,string"`
+	BTCEURFee    float64 `json:"btceur_fee,string"`
+	EURUSDFee    float64 `json:"eurusd_fee,string"`
+	XRPUSDFee    float64 `json:"xrpusd_fee,string"`
+	XRPEURFee    float64 `json:"xrpeur_fee,string"`
+	XRPBTCFee    float64 `json:"xrpbtc_fee,string"`
+	Fee          float64 `json:"fee,string"`
+}
+
+// UserTransactions holds user transaction information
+type UserTransactions struct {
 	Date    string  `json:"datetime"`
 	TransID int64   `json:"id"`
 	Type    int     `json:"type,string"`
@@ -69,7 +78,8 @@ type BitstampUserTransactions struct {
 	OrderID int64   `json:"order_id"`
 }
 
-type BitstampOrder struct {
+// Order holds current open order data
+type Order struct {
 	ID     int64   `json:"id"`
 	Date   string  `json:"datetime"`
 	Type   int     `json:"type"`
@@ -77,7 +87,8 @@ type BitstampOrder struct {
 	Amount float64 `json:"amount"`
 }
 
-type BitstampOrderStatus struct {
+// OrderStatus holds order status information
+type OrderStatus struct {
 	Status       string
 	Transactions []struct {
 		TradeID int64   `json:"tid"`
@@ -88,22 +99,30 @@ type BitstampOrderStatus struct {
 	}
 }
 
-type BitstampWithdrawalRequests struct {
-	OrderID int64   `json:"id"`
-	Date    string  `json:"datetime"`
-	Type    int     `json:"type"`
-	Amount  float64 `json:"amount,string"`
-	Status  int     `json:"status"`
-	Data    interface{}
+// WithdrawalRequests holds request information on withdrawals
+type WithdrawalRequests struct {
+	OrderID       int64   `json:"id"`
+	Date          string  `json:"datetime"`
+	Type          int     `json:"type"`
+	Amount        float64 `json:"amount,string"`
+	Status        int     `json:"status"`
+	Data          interface{}
+	Address       string `json:"address"`        // Bitcoin withdrawals only
+	TransactionID string `json:"transaction_id"` // Bitcoin withdrawals only
 }
 
-type BitstampUnconfirmedBTCTransactions struct {
+// UnconfirmedBTCTransactions holds address information about unconfirmed
+// transactions
+type UnconfirmedBTCTransactions struct {
 	Amount        float64 `json:"amount,string"`
 	Address       string  `json:"address"`
 	Confirmations int     `json:"confirmations"`
 }
 
-type BitstampXRPDepositResponse struct {
-	Address        string `json:"address"`
-	DestinationTag int64  `json:"destination_tag"`
+// CaptureError is used to capture unmarshalled errors
+type CaptureError struct {
+	Status interface{} `json:"status"`
+	Reason interface{} `json:"reason"`
+	Code   interface{} `json:"code"`
+	Error  interface{} `json:"error"`
 }
