@@ -1,60 +1,17 @@
 <mat-grid-list cols="3" rowHeight="24rem">
-    <mat-grid-tile [colspan]="1" [rowspan]="2">
+    <mat-grid-tile [colspan]="tile.columns" [rowspan]="tile.rows" *ngFor="let tile of dashboard.tiles">
         <mat-card class="full-card">
             <mat-card-header>
-                <mat-card-title>Shiba Inu</mat-card-title>
-                <mat-card-subtitle>Dog Breed</mat-card-subtitle>
+                <mat-card-title>{{tile.title}}</mat-card-title>
+                <mat-card-subtitle>{{tile.subTitle}}</mat-card-subtitle>
             </mat-card-header>
             <mat-card-content>
-                HI
+                {{tile.content}}
             </mat-card-content>
             <mat-card-footer>
-                <button mat-button>EXPAND</button>
+                <button *ngIf="!expanded" (click)="expandTile(tile)" mat-button>EXPAND</button>
+                <button *ngIf="expanded" (click)="resetTiles()" mat-button>RESTORE</button>
             </mat-card-footer>
-        </mat-card>
-    </mat-grid-tile>
-    <mat-grid-tile [colspan]="2" [rowspan]="1">
-        <mat-card class="full-card">
-            <mat-card-header>
-                <mat-card-title>Shiba Inu</mat-card-title>
-                <mat-card-subtitle>Dog Breed</mat-card-subtitle>
-            </mat-card-header>
-            <mat-card-content>
-                HI
-            </mat-card-content>
-
-            <mat-card-footer>
-                <button mat-button>EXPAND</button>
-            </mat-card-footer>
-        </mat-card>
-    </mat-grid-tile>
-    <mat-grid-tile [colspan]="1" [rowspan]="1">
-        <mat-card class="full-card">
-            <mat-card-header>
-                <mat-card-title>Shiba Inu</mat-card-title>
-                <mat-card-subtitle>Dog Breed</mat-card-subtitle>
-            </mat-card-header>
-            <mat-card-content>
-                HI
-            </mat-card-content>
-
-            <mat-card-footer>
-                <button mat-button>EXPAND</button>
-            </mat-card-footer>
-        </mat-card>
-    </mat-grid-tile>
-    <mat-grid-tile [colspan]="1" [rowspan]="1">
-        <mat-card class="full-card">
-            <mat-card-header>
-                <mat-card-title>4 Inu</mat-card-title>
-                <mat-card-subtitle>Dog Breed</mat-card-subtitle>
-            </mat-card-header>
-            <mat-card-content>
-                HI
-            </mat-card-content>
-            <mat-card-footer>
-                <button mat-button>EXPAND</button>
-        </mat-card-footer>
         </mat-card>
     </mat-grid-tile>
 </mat-grid-list>
