@@ -3,6 +3,7 @@ import { SettingsComponent } from './pages/settings/settings.component';
 import { AboutComponent } from './pages/about/about.component';
 import { DashboardComponent } from './pages/dashboard/dashboard.component';
 import { WalletComponent } from './pages/wallet/wallet.component';
+import { DonateComponent } from './pages/donate/donate.component';
 
 import { NgModule } from '@angular/core';
 import { Routes, RouterModule } from '@angular/router';
@@ -27,6 +28,11 @@ const routes: Routes = [
     {
         path: 'wallet',
         component: WalletComponent
+    }
+    ,
+    {
+        path: 'donate',
+        component: DonateComponent
     }
 
 ];

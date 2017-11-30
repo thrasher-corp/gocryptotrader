@@ -1,5 +1,6 @@
 .container {
-    height: 100vmax;
+    min-height: 100vh;
+    height:100%;
 }
 
 .main {
@@ -17,6 +18,7 @@
     width: 14%;
     position: fixed;
     margin-top: 4rem;
+    
 }
 
 .navbar {
@@ -43,4 +45,8 @@
 
 .settings-highlight {
     color: magenta !important;
+}
+
+.donate-highlight {
+    color: goldenrod!important;
 }

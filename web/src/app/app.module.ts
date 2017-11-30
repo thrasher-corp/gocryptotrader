@@ -33,6 +33,8 @@ import { AboutComponent } from './pages/about/about.component';
 import { SettingsComponent } from './pages/settings/settings.component';
 import { DashboardComponent } from './pages/dashboard/dashboard.component';
 import { WalletComponent } from './pages/wallet/wallet.component';
+import { DonateComponent } from './pages/donate/donate.component';
+
 //Shared
 import { NavbarComponent } from './shared/navbar/navbar.component';
 import { ExchangeCurrencyTickerComponent } from './shared/exchange-currency-ticker/exchange-currency-ticker.component';
@@ -58,7 +60,6 @@ import { PriceHistoryComponent } from './shared/price-history/price-history.comp
 import { MyOrdersComponent } from './shared/my-orders/my-orders.component';
 import { OrdersComponent } from './shared/orders/orders.component';
 import { BuySellComponent } from './shared/buy-sell/buy-sell.component';
-import { DonateComponent } from './shared/donate/donate.component';
 import { SelectedCurrencyComponent } from './shared/selected-currency/selected-currency.component';
 
 
