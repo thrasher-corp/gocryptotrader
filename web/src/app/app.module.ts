@@ -24,6 +24,7 @@ import {
   MatSortModule,
   MatExpansionModule,
   MatLineModule,
+  MatTooltipModule
 } from '@angular/material';
 
 
@@ -104,6 +105,7 @@ import { SelectedCurrencyComponent } from './shared/selected-currency/selected-c
     MatSortModule,
     MatExpansionModule,
     MatLineModule,
+    MatTooltipModule,
   ],
   providers: [
     ElectronService,
