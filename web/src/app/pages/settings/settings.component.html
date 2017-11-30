@@ -3,7 +3,7 @@
 </div>
 <div *ngIf="settings !== null">
 
-    <button (click)="saveSettings()" mat-fab color="accent" class="mat-fab mat-fab-bottom-right"><mat-icon >save</mat-icon></button>
+    <button matTooltip="Save" (click)="saveSettings()" mat-fab color="accent" class="mat-fab mat-fab-bottom-right"><mat-icon >save</mat-icon></button>
 
     <mat-accordion>
         <mat-expansion-panel *ngIf="settings.SMSGlobal != null">
@@ -15,7 +15,7 @@
                     SMS configuration and contact management
                     <mat-icon>phone_iphone</mat-icon>
                 </mat-panel-description>
-            </mat-expansion-panel-header>
+            </mat-expansion-panel-header>   
             <form class="form-content">
                 <mat-checkbox name="smsEnabled" [(ngModel)]="settings.SMSGlobal.Enabled">Enabled</mat-checkbox>
                 <div mat-line></div>
