@@ -64,11 +64,11 @@
                     </mat-form-field>
                     <div mat-line></div>
                     <mat-panel-description>
-                        Enabled Currency pairs {{enabledCurrencies.selectedOptions.selected.length}}
+                        Enabled Currency pairs {{enabledCurrencies.selectedOptions.selected.length}} - Managed via config temporarily
                     </mat-panel-description>
                     <div mat-line></div>
                     <mat-selection-list #enabledCurrencies>
-                            <mat-list-option [disabled]="!exchange.Enabled" *ngFor="let currency of exchange.AvailablePairs.split(',')">
+                            <mat-list-option [disabled]="!exchange.Enabled || true" *ngFor="let currency of exchange.AvailablePairs.split(',')">
                               {{currency}}
                             </mat-list-option>
                           </mat-selection-list>

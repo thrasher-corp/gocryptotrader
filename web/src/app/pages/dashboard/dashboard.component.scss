@@ -12,3 +12,12 @@
     position: absolute;
     bottom: 24px;
 }
+
+.mat-fab {
+    top: auto;
+    right: 30px;
+    bottom: 20px;
+    left: auto;
+    position: fixed;
+    z-index: 3;
+}
