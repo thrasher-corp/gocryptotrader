@@ -24,7 +24,8 @@ import {
   MatSortModule,
   MatExpansionModule,
   MatLineModule,
-  MatTooltipModule
+  MatTooltipModule,
+  MatTabsModule,
 } from '@angular/material';
 
 
@@ -62,6 +63,8 @@ import { MyOrdersComponent } from './shared/my-orders/my-orders.component';
 import { OrdersComponent } from './shared/orders/orders.component';
 import { BuySellComponent } from './shared/buy-sell/buy-sell.component';
 import { SelectedCurrencyComponent } from './shared/selected-currency/selected-currency.component';
+import { TradingComponent } from './pages/trading/trading.component';
+import { HistoryComponent } from './pages/history/history.component';
 
 
 @NgModule({
@@ -83,6 +86,8 @@ import { SelectedCurrencyComponent } from './shared/selected-currency/selected-c
     BuySellComponent,
     DonateComponent,
     SelectedCurrencyComponent,
+    TradingComponent,
+    HistoryComponent,
   ],
   imports: [
     BrowserModule,
@@ -106,6 +111,7 @@ import { SelectedCurrencyComponent } from './shared/selected-currency/selected-c
     MatExpansionModule,
     MatLineModule,
     MatTooltipModule,
+    MatTabsModule,
   ],
   providers: [
     ElectronService,

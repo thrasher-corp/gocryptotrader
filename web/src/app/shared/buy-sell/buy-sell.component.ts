@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit,Directive, ViewContainerRef } from '@angular/core';
 
 @Component({
   selector: 'app-buy-sell',
@@ -7,7 +7,7 @@ import { Component, OnInit } from '@angular/core';
 })
 export class BuySellComponent implements OnInit {
 
-  constructor() { }
+  constructor(public viewContainerRef: ViewContainerRef) { }
 
   ngOnInit() {
   }
