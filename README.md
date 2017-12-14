@@ -1,5 +1,5 @@
 # Cryptocurrency trading bot written in Golang
-
+![Snazzy logo](/src/assets/page-logo.png "Now with snazzy logo")
 [![Build Status](https://travis-ci.org/thrasher-/gocryptotrader.svg?branch=master)](https://travis-ci.org/thrasher-/gocryptotrader)
 [![Software License](https://img.shields.io/badge/License-MIT-orange.svg?style=flat-square)](https://github.com/thrasher-/gocryptotrader/blob/master/LICENSE)
 [![GoDoc](https://godoc.org/github.com/thrasher-/gocryptotrader?status.svg)](https://godoc.org/github.com/thrasher-/gocryptotrader)
@@ -86,7 +86,7 @@ Make any neccessary changes to the config file.
 Run the application!
 
 ## Donations
-
+![Snazzy logo](/web/src/assets/early-dumb-donate.png "Now with snazzy logo")
 If this framework helped you in any way, or you would like to support the developers working on it, please donate Bitcoin to: 1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB
 
 ## Binaries
