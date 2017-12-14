@@ -68,7 +68,7 @@ var (
 	ErrCurrencyNotFound       = errors.New("unable to find specified currency")
 	ErrQueryingYahoo          = errors.New("unable to query Yahoo currency values")
 	ErrQueryingYahooZeroCount = errors.New("yahoo returned zero currency data")
-	YahooEnabled              = true
+	YahooEnabled              = false
 )
 
 // SetProvider sets the currency exchange service used by the currency
@@ -314,7 +314,7 @@ func FetchFixerCurrencyData() error {
 
 	CurrencyStoreFixer = make(map[string]float64)
 
-	err := common.SendHTTPGetRequest(url, true, &result)
+	err := common.SendHTTPGetRequest(url, true, false, &result)
 	if err != nil {
 		return err
 	}

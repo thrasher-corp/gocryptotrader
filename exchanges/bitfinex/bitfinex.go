@@ -119,7 +119,7 @@ func (b *Bitfinex) GetTicker(symbol string, values url.Values) (Ticker, error) {
 	response := Ticker{}
 	path := common.EncodeURLValues(bitfinexAPIURL+bitfinexTicker+symbol, values)
 
-	return response, common.SendHTTPGetRequest(path, true, &response)
+	return response, common.SendHTTPGetRequest(path, true, b.Verbose, &response)
 }
 
 // GetStats returns various statistics about the requested pair
@@ -127,7 +127,7 @@ func (b *Bitfinex) GetStats(symbol string) ([]Stat, error) {
 	response := []Stat{}
 	path := fmt.Sprint(bitfinexAPIURL + bitfinexStats + symbol)
 
-	return response, common.SendHTTPGetRequest(path, true, &response)
+	return response, common.SendHTTPGetRequest(path, true, b.Verbose, &response)
 }
 
 // GetFundingBook the entire margin funding book for both bids and asks sides
@@ -137,30 +137,35 @@ func (b *Bitfinex) GetFundingBook(symbol string) (FundingBook, error) {
 	response := FundingBook{}
 	path := fmt.Sprint(bitfinexAPIURL + bitfinexLendbook + symbol)
 
-	return response, common.SendHTTPGetRequest(path, true, &response)
+	return response, common.SendHTTPGetRequest(path, true, b.Verbose, &response)
 }
 
-// GetOrderbook retieves the entire orderbook bid and ask price on a currency
-// pair
+// GetOrderbook retieves the orderbook bid and ask price points for a currency
+// pair - By default the response will return 25 bid and 25 ask price points.
 // CurrencyPair - Example "BTCUSD"
+// Values can contain limit amounts for both the asks and bids - Example
+// "limit_bids" = 1000
 func (b *Bitfinex) GetOrderbook(currencyPair string, values url.Values) (Orderbook, error) {
 	response := Orderbook{}
 	path := common.EncodeURLValues(
 		bitfinexAPIURL+bitfinexOrderbook+currencyPair,
 		values,
 	)
-	return response, common.SendHTTPGetRequest(path, true, &response)
+	return response, common.SendHTTPGetRequest(path, true, b.Verbose, &response)
 }
 
 // GetTrades returns a list of the most recent trades for the given curencyPair
+// By default the response will return 100 trades
 // CurrencyPair - Example "BTCUSD"
+// Values can contain limit amounts for the number of trades returned - Example
+// "limit_trades" = 1000
 func (b *Bitfinex) GetTrades(currencyPair string, values url.Values) ([]TradeStructure, error) {
 	response := []TradeStructure{}
 	path := common.EncodeURLValues(
 		bitfinexAPIURL+bitfinexTrades+currencyPair,
 		values,
 	)
-	return response, common.SendHTTPGetRequest(path, true, &response)
+	return response, common.SendHTTPGetRequest(path, true, b.Verbose, &response)
 }
 
 // GetLendbook returns a list of the most recent funding data for the given
@@ -174,7 +179,7 @@ func (b *Bitfinex) GetLendbook(symbol string, values url.Values) (Lendbook, erro
 	}
 	path := common.EncodeURLValues(bitfinexAPIURL+bitfinexLendbook+symbol, values)
 
-	return response, common.SendHTTPGetRequest(path, true, &response)
+	return response, common.SendHTTPGetRequest(path, true, b.Verbose, &response)
 }
 
 // GetLends returns a list of the most recent funding data for the given
@@ -185,15 +190,15 @@ func (b *Bitfinex) GetLends(symbol string, values url.Values) ([]Lends, error) {
 	response := []Lends{}
 	path := common.EncodeURLValues(bitfinexAPIURL+bitfinexLends+symbol, values)
 
-	return response, common.SendHTTPGetRequest(path, true, &response)
+	return response, common.SendHTTPGetRequest(path, true, b.Verbose, &response)
 }
 
-// GetSymbols returns the avaliable currency pairs on the exchange
+// GetSymbols returns the available currency pairs on the exchange
 func (b *Bitfinex) GetSymbols() ([]string, error) {
 	products := []string{}
 	path := fmt.Sprint(bitfinexAPIURL + bitfinexSymbols)
 
-	return products, common.SendHTTPGetRequest(path, true, &products)
+	return products, common.SendHTTPGetRequest(path, true, b.Verbose, &products)
 }
 
 // GetSymbolsDetails a list of valid symbol IDs and the pair details
@@ -201,7 +206,7 @@ func (b *Bitfinex) GetSymbolsDetails() ([]SymbolDetails, error) {
 	response := []SymbolDetails{}
 	path := fmt.Sprint(bitfinexAPIURL + bitfinexSymbolsDetails)
 
-	return response, common.SendHTTPGetRequest(path, true, &response)
+	return response, common.SendHTTPGetRequest(path, true, b.Verbose, &response)
 }
 
 // GetAccountInfo returns information about your account incl. trading fees
@@ -444,7 +449,7 @@ func (b *Bitfinex) GetBalanceHistory(symbol string, timeSince, timeUntil time.Ti
 		b.SendAuthenticatedHTTPRequest("POST", bitfinexHistory, request, &response)
 }
 
-// GetMovementHistory returns an array of past deposits and withdrawels
+// GetMovementHistory returns an array of past deposits and withdrawals
 func (b *Bitfinex) GetMovementHistory(symbol, method string, timeSince, timeUntil time.Time, limit int) ([]MovementHistory, error) {
 	response := []MovementHistory{}
 	request := make(map[string]interface{})

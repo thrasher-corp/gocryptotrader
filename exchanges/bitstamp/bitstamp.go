@@ -127,7 +127,7 @@ func (b *Bitstamp) GetTicker(currency string, hourly bool) (Ticker, error) {
 		tickerEndpoint,
 		common.StringToLower(currency),
 	)
-	return response, common.SendHTTPGetRequest(path, true, &response)
+	return response, common.SendHTTPGetRequest(path, true, b.Verbose, &response)
 }
 
 // GetOrderbook Returns a JSON dictionary with "bids" and "asks". Each is a list
@@ -149,7 +149,7 @@ func (b *Bitstamp) GetOrderbook(currency string) (Orderbook, error) {
 		common.StringToLower(currency),
 	)
 
-	err := common.SendHTTPGetRequest(path, true, &resp)
+	err := common.SendHTTPGetRequest(path, true, b.Verbose, &resp)
 	if err != nil {
 		return Orderbook{}, err
 	}
@@ -204,7 +204,7 @@ func (b *Bitstamp) GetTransactions(currencyPair string, values url.Values) ([]Tr
 		values,
 	)
 
-	return transactions, common.SendHTTPGetRequest(path, true, &transactions)
+	return transactions, common.SendHTTPGetRequest(path, true, b.Verbose, &transactions)
 }
 
 // GetEURUSDConversionRate returns the conversion rate between Euro and USD
@@ -212,7 +212,7 @@ func (b *Bitstamp) GetEURUSDConversionRate() (EURUSDConversionRate, error) {
 	rate := EURUSDConversionRate{}
 	path := fmt.Sprintf("%s/%s", bitstampAPIURL, bitstampAPIEURUSD)
 
-	return rate, common.SendHTTPGetRequest(path, true, &rate)
+	return rate, common.SendHTTPGetRequest(path, true, b.Verbose, &rate)
 }
 
 // GetBalance returns full balance of currency held on the exchange
@@ -350,7 +350,7 @@ func (b *Bitstamp) PlaceOrder(currencyPair string, price float64, amount float64
 		b.SendAuthenticatedHTTPRequest(path, true, req, &response)
 }
 
-// GetWithdrawalRequests returns withdrawl requests for the account
+// GetWithdrawalRequests returns withdrawal requests for the account
 // timedelta - positive integer with max value 50000000 which returns requests
 // from number of seconds ago to now.
 func (b *Bitstamp) GetWithdrawalRequests(timedelta int64) ([]WithdrawalRequests, error) {

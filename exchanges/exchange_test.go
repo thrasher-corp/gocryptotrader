@@ -22,7 +22,7 @@ func TestSetAssetTypes(t *testing.T) {
 
 	err = b.SetAssetTypes()
 	if err == nil {
-		t.Fatal("Test failed. TestSetAssetTypes returned nil error for a non-existant exchange")
+		t.Fatal("Test failed. TestSetAssetTypes returned nil error for a non-existent exchange")
 	}
 
 	b.Name = "ANX"
@@ -77,9 +77,9 @@ func TestGetExchangeAssetTypes(t *testing.T) {
 		t.Fatal("Test failed. Bitfinex does not contain default asset type 'SPOT'")
 	}
 
-	_, err = GetExchangeAssetTypes("non-existant-exchange")
+	_, err = GetExchangeAssetTypes("non-existent-exchange")
 	if err == nil {
-		t.Fatal("Test failed. Got asset types for non-existant exchange")
+		t.Fatal("Test failed. Got asset types for non-existent exchange")
 	}
 }
 
@@ -96,7 +96,7 @@ func TestSetCurrencyPairFormat(t *testing.T) {
 
 	err = b.SetCurrencyPairFormat()
 	if err == nil {
-		t.Fatal("Test failed. TestSetCurrencyPairFormat returned nil error for a non-existant exchange")
+		t.Fatal("Test failed. TestSetCurrencyPairFormat returned nil error for a non-existent exchange")
 	}
 
 	b.Name = "ANX"
@@ -303,7 +303,7 @@ func TestGetExchangeFormatCurrencySeperator(t *testing.T) {
 	}
 
 	expected := true
-	actual := GetExchangeFormatCurrencySeperator("BTCE")
+	actual := GetExchangeFormatCurrencySeperator("WEX")
 
 	if expected != actual {
 		t.Errorf("Test failed - TestGetExchangeFormatCurrencySeperator expected %v != actual %v",
@@ -349,9 +349,9 @@ func TestGetAndFormatExchangeCurrencies(t *testing.T) {
 			actual, expected)
 	}
 
-	_, err = GetAndFormatExchangeCurrencies("non-existant", pairs)
+	_, err = GetAndFormatExchangeCurrencies("non-existent", pairs)
 	if err == nil {
-		t.Errorf("Test failed - Exchange TestGetAndFormatExchangeCurrencies returned nil error on non-existant exchange")
+		t.Errorf("Test failed - Exchange TestGetAndFormatExchangeCurrencies returned nil error on non-existent exchange")
 	}
 }
 

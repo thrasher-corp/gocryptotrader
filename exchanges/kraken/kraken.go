@@ -1,7 +1,6 @@
 package kraken
 
 import (
-	"errors"
 	"fmt"
 	"log"
 	"net/url"
@@ -16,37 +15,39 @@ import (
 )
 
 const (
-	KRAKEN_API_URL        = "https://api.kraken.com"
-	KRAKEN_API_VERSION    = "0"
-	KRAKEN_SERVER_TIME    = "Time"
-	KRAKEN_ASSETS         = "Assets"
-	KRAKEN_ASSET_PAIRS    = "AssetPairs"
-	KRAKEN_TICKER         = "Ticker"
-	KRAKEN_OHLC           = "OHLC"
-	KRAKEN_DEPTH          = "Depth"
-	KRAKEN_TRADES         = "Trades"
-	KRAKEN_SPREAD         = "Spread"
-	KRAKEN_BALANCE        = "Balance"
-	KRAKEN_TRADE_BALANCE  = "TradeBalance"
-	KRAKEN_OPEN_ORDERS    = "OpenOrders"
-	KRAKEN_CLOSED_ORDERS  = "ClosedOrders"
-	KRAKEN_QUERY_ORDERS   = "QueryOrders"
-	KRAKEN_TRADES_HISTORY = "TradesHistory"
-	KRAKEN_QUERY_TRADES   = "QueryTrades"
-	KRAKEN_OPEN_POSITIONS = "OpenPositions"
-	KRAKEN_LEDGERS        = "Ledgers"
-	KRAKEN_QUERY_LEDGERS  = "QueryLedgers"
-	KRAKEN_TRADE_VOLUME   = "TradeVolume"
-	KRAKEN_ORDER_CANCEL   = "CancelOrder"
-	KRAKEN_ORDER_PLACE    = "AddOrder"
+	krakenAPIURL        = "https://api.kraken.com"
+	krakenAPIVersion    = "0"
+	krakenServerTime    = "Time"
+	krakenAssets        = "Assets"
+	krakenAssetPairs    = "AssetPairs"
+	krakenTicker        = "Ticker"
+	krakenOHLC          = "OHLC"
+	krakenDepth         = "Depth"
+	krakenTrades        = "Trades"
+	krakenSpread        = "Spread"
+	krakenBalance       = "Balance"
+	krakenTradeBalance  = "TradeBalance"
+	krakenOpenOrders    = "OpenOrders"
+	krakenClosedOrders  = "ClosedOrders"
+	krakenQueryOrders   = "QueryOrders"
+	krakenTradeHistory  = "TradesHistory"
+	krakenQueryTrades   = "QueryTrades"
+	krakenOpenPositions = "OpenPositions"
+	krakenLedgers       = "Ledgers"
+	krakenQueryLedgers  = "QueryLedgers"
+	krakenTradeVolume   = "TradeVolume"
+	krakenOrderCancel   = "CancelOrder"
+	krakenOrderPlace    = "AddOrder"
 )
 
+// Kraken is the overarching type across the alphapoint package
 type Kraken struct {
 	exchange.Base
 	CryptoFee, FiatFee float64
-	Ticker             map[string]KrakenTicker
+	Ticker             map[string]Ticker
 }
 
+// SetDefaults sets current default settings
 func (k *Kraken) SetDefaults() {
 	k.Name = "Kraken"
 	k.Enabled = false
@@ -55,7 +56,7 @@ func (k *Kraken) SetDefaults() {
 	k.Verbose = false
 	k.Websocket = false
 	k.RESTPollingDelay = 10
-	k.Ticker = make(map[string]KrakenTicker)
+	k.Ticker = make(map[string]Ticker)
 	k.RequestCurrencyPairFormat.Delimiter = ""
 	k.RequestCurrencyPairFormat.Uppercase = true
 	k.RequestCurrencyPairFormat.Separator = ","
@@ -64,6 +65,7 @@ func (k *Kraken) SetDefaults() {
 	k.AssetTypes = []string{ticker.Spot}
 }
 
+// Setup sets current exchange configuration
 func (k *Kraken) Setup(exch config.ExchangeConfig) {
 	if !exch.Enabled {
 		k.SetEnabled(false)
@@ -88,81 +90,75 @@ func (k *Kraken) Setup(exch config.ExchangeConfig) {
 	}
 }
 
+// GetFee returns current fee for either crypto or fiat
 func (k *Kraken) GetFee(cryptoTrade bool) float64 {
 	if cryptoTrade {
 		return k.CryptoFee
-	} else {
-		return k.FiatFee
 	}
+	return k.FiatFee
 }
 
-func (k *Kraken) GetServerTime() error {
-	var result interface{}
-	path := fmt.Sprintf("%s/%s/public/%s", KRAKEN_API_URL, KRAKEN_API_VERSION, KRAKEN_SERVER_TIME)
-	err := common.SendHTTPGetRequest(path, true, &result)
+// GetServerTime returns current server time
+func (k *Kraken) GetServerTime(unixTime bool) (interface{}, error) {
+	var result GeneralResponse
+	path := fmt.Sprintf("%s/%s/public/%s", krakenAPIURL, krakenAPIVersion, krakenServerTime)
 
+	err := common.SendHTTPGetRequest(path, true, k.Verbose, &result)
 	if err != nil {
-		return err
+		return nil, fmt.Errorf("getServerTime() error %s", err)
 	}
 
-	log.Println(result)
-	return nil
-}
-
-func (k *Kraken) GetAssets() error {
-	var result interface{}
-	path := fmt.Sprintf("%s/%s/public/%s", KRAKEN_API_URL, KRAKEN_API_VERSION, KRAKEN_ASSETS)
-	err := common.SendHTTPGetRequest(path, true, &result)
-
-	if err != nil {
-		return err
+	if unixTime {
+		return result.Result["unixtime"], nil
 	}
-
-	log.Println(result)
-	return nil
+	return result.Result["rfc1123"], nil
 }
 
-func (k *Kraken) GetAssetPairs() (map[string]KrakenAssetPairs, error) {
+// GetAssets returns a full asset list
+func (k *Kraken) GetAssets() (interface{}, error) {
+	var result GeneralResponse
+	path := fmt.Sprintf("%s/%s/public/%s", krakenAPIURL, krakenAPIVersion, krakenAssets)
+
+	return result.Result, common.SendHTTPGetRequest(path, true, k.Verbose, &result)
+}
+
+// GetAssetPairs returns a full asset pair list
+func (k *Kraken) GetAssetPairs() (map[string]AssetPairs, error) {
 	type Response struct {
-		Result map[string]KrakenAssetPairs `json:"result"`
-		Error  []interface{}               `json:"error"`
+		Result map[string]AssetPairs `json:"result"`
+		Error  []interface{}         `json:"error"`
 	}
 
 	response := Response{}
-	path := fmt.Sprintf("%s/%s/public/%s", KRAKEN_API_URL, KRAKEN_API_VERSION, KRAKEN_ASSET_PAIRS)
-	err := common.SendHTTPGetRequest(path, true, &response)
+	path := fmt.Sprintf("%s/%s/public/%s", krakenAPIURL, krakenAPIVersion, krakenAssetPairs)
 
-	if err != nil {
-		return nil, err
-	}
-
-	return response.Result, nil
+	return response.Result, common.SendHTTPGetRequest(path, true, k.Verbose, &response)
 }
 
-func (k *Kraken) GetTicker(symbol string) error {
+// GetTicker returns ticker information from kraken
+func (k *Kraken) GetTicker(symbol string) (Ticker, error) {
+	ticker := Ticker{}
 	values := url.Values{}
 	values.Set("pair", symbol)
 
 	type Response struct {
-		Error []interface{}                   `json:"error"`
-		Data  map[string]KrakenTickerResponse `json:"result"`
+		Error []interface{}             `json:"error"`
+		Data  map[string]TickerResponse `json:"result"`
 	}
 
 	resp := Response{}
-	path := fmt.Sprintf("%s/%s/public/%s?%s", KRAKEN_API_URL, KRAKEN_API_VERSION, KRAKEN_TICKER, values.Encode())
-	err := common.SendHTTPGetRequest(path, true, &resp)
+	path := fmt.Sprintf("%s/%s/public/%s?%s", krakenAPIURL, krakenAPIVersion, krakenTicker, values.Encode())
 
+	err := common.SendHTTPGetRequest(path, true, k.Verbose, &resp)
 	if err != nil {
-		return err
+		return ticker, err
 	}
 
 	if len(resp.Error) > 0 {
-		return errors.New(fmt.Sprintf("Kraken error: %s", resp.Error))
+		return ticker, fmt.Errorf("Kraken error: %s", resp.Error)
 	}
 
-	for x, y := range resp.Data {
-		x = x[1:4] + x[5:]
-		ticker := KrakenTicker{}
+	for _, y := range resp.Data {
 		ticker.Ask, _ = strconv.ParseFloat(y.Ask[0], 64)
 		ticker.Bid, _ = strconv.ParseFloat(y.Bid[0], 64)
 		ticker.Last, _ = strconv.ParseFloat(y.Last[0], 64)
@@ -172,25 +168,59 @@ func (k *Kraken) GetTicker(symbol string) error {
 		ticker.Low, _ = strconv.ParseFloat(y.Low[1], 64)
 		ticker.High, _ = strconv.ParseFloat(y.High[1], 64)
 		ticker.Open, _ = strconv.ParseFloat(y.Open, 64)
-		k.Ticker[x] = ticker
 	}
-	return nil
+	return ticker, nil
 }
 
-func (k *Kraken) GetOHLC(symbol string) error {
+// GetOHLC returns an array of open high low close values of a currency pair
+func (k *Kraken) GetOHLC(symbol string) ([]OpenHighLowClose, error) {
 	values := url.Values{}
 	values.Set("pair", symbol)
 
-	var result interface{}
-	path := fmt.Sprintf("%s/%s/public/%s?%s", KRAKEN_API_URL, KRAKEN_API_VERSION, KRAKEN_OHLC, values.Encode())
-	err := common.SendHTTPGetRequest(path, true, &result)
-
-	if err != nil {
-		return err
+	type Response struct {
+		Error []interface{}          `json:"error"`
+		Data  map[string]interface{} `json:"result"`
 	}
 
-	log.Println(result)
-	return nil
+	var OHLC []OpenHighLowClose
+	var result Response
+
+	path := fmt.Sprintf("%s/%s/public/%s?%s", krakenAPIURL, krakenAPIVersion, krakenOHLC, values.Encode())
+
+	err := common.SendHTTPGetRequest(path, true, k.Verbose, &result)
+	if err != nil {
+		return OHLC, err
+	}
+
+	if len(result.Error) != 0 {
+		return OHLC, fmt.Errorf("GetOHLC error: %s", result.Error)
+	}
+
+	for _, y := range result.Data[symbol].([]interface{}) {
+		o := OpenHighLowClose{}
+		for i, x := range y.([]interface{}) {
+			switch i {
+			case 0:
+				o.Time = x.(float64)
+			case 1:
+				o.Open, _ = strconv.ParseFloat(x.(string), 64)
+			case 2:
+				o.High, _ = strconv.ParseFloat(x.(string), 64)
+			case 3:
+				o.Low, _ = strconv.ParseFloat(x.(string), 64)
+			case 4:
+				o.Close, _ = strconv.ParseFloat(x.(string), 64)
+			case 5:
+				o.Vwap, _ = strconv.ParseFloat(x.(string), 64)
+			case 6:
+				o.Volume, _ = strconv.ParseFloat(x.(string), 64)
+			case 7:
+				o.Count = x.(float64)
+			}
+		}
+		OHLC = append(OHLC, o)
+	}
+	return OHLC, nil
 }
 
 // GetDepth returns the orderbook for a particular currency
@@ -199,12 +229,13 @@ func (k *Kraken) GetDepth(symbol string) (Orderbook, error) {
 	values.Set("pair", symbol)
 
 	var result interface{}
-	var ob Orderbook
-	path := fmt.Sprintf("%s/%s/public/%s?%s", KRAKEN_API_URL, KRAKEN_API_VERSION, KRAKEN_DEPTH, values.Encode())
-	err := common.SendHTTPGetRequest(path, true, &result)
+	var orderBook Orderbook
 
+	path := fmt.Sprintf("%s/%s/public/%s?%s", krakenAPIURL, krakenAPIVersion, krakenDepth, values.Encode())
+
+	err := common.SendHTTPGetRequest(path, true, k.Verbose, &result)
 	if err != nil {
-		return ob, err
+		return orderBook, err
 	}
 
 	data := result.(map[string]interface{})
@@ -223,14 +254,14 @@ func (k *Kraken) GetDepth(symbol string) (Orderbook, error) {
 		for x := range data {
 			entry := data[x].([]interface{})
 
-			price, err := strconv.ParseFloat(entry[0].(string), 64)
-			if err != nil {
-				return nil, err
+			price, priceErr := strconv.ParseFloat(entry[0].(string), 64)
+			if priceErr != nil {
+				return nil, priceErr
 			}
 
-			amount, err := strconv.ParseFloat(entry[1].(string), 64)
-			if err != nil {
-				return nil, err
+			amount, amountErr := strconv.ParseFloat(entry[1].(string), 64)
+			if amountErr != nil {
+				return nil, amountErr
 			}
 
 			result = append(result, OrderbookBase{Price: price, Amount: amount})
@@ -238,82 +269,116 @@ func (k *Kraken) GetDepth(symbol string) (Orderbook, error) {
 		return result, nil
 	}
 
-	ob.Bids, err = processOrderbook(bidsData)
+	orderBook.Bids, err = processOrderbook(bidsData)
 	if err != nil {
-		return ob, err
+		return orderBook, err
 	}
 
-	ob.Asks, err = processOrderbook(asksData)
+	orderBook.Asks, err = processOrderbook(asksData)
 	if err != nil {
-		return ob, err
+		return orderBook, err
 	}
 
-	return ob, nil
+	return orderBook, nil
 }
 
-func (k *Kraken) GetTrades(symbol string) error {
+// GetTrades returns current trades on Kraken
+func (k *Kraken) GetTrades(symbol string) ([]RecentTrades, error) {
 	values := url.Values{}
 	values.Set("pair", symbol)
 
+	var recentTrades []RecentTrades
 	var result interface{}
-	path := fmt.Sprintf("%s/%s/public/%s?%s", KRAKEN_API_URL, KRAKEN_API_VERSION, KRAKEN_TRADES, values.Encode())
-	err := common.SendHTTPGetRequest(path, true, &result)
 
+	path := fmt.Sprintf("%s/%s/public/%s?%s", krakenAPIURL, krakenAPIVersion, krakenTrades, values.Encode())
+
+	err := common.SendHTTPGetRequest(path, true, k.Verbose, &result)
 	if err != nil {
-		return err
+		return recentTrades, err
 	}
 
-	log.Println(result)
-	return nil
+	data := result.(map[string]interface{})
+	tradeInfo := data["result"].(map[string]interface{})
+
+	for _, x := range tradeInfo[symbol].([]interface{}) {
+		r := RecentTrades{}
+		for i, y := range x.([]interface{}) {
+			switch i {
+			case 0:
+				r.Price, _ = strconv.ParseFloat(y.(string), 64)
+			case 1:
+				r.Volume, _ = strconv.ParseFloat(y.(string), 64)
+			case 2:
+				r.Time = y.(float64)
+			case 3:
+				r.BuyOrSell = y.(string)
+			case 4:
+				r.MarketOrLimit = y.(string)
+			case 5:
+				r.Miscellaneous = y.(string)
+			}
+		}
+		recentTrades = append(recentTrades, r)
+	}
+	return recentTrades, nil
 }
 
-func (k *Kraken) GetSpread(symbol string) {
+// GetSpread returns the full spread on Kraken
+func (k *Kraken) GetSpread(symbol string) ([]Spread, error) {
 	values := url.Values{}
 	values.Set("pair", symbol)
 
-	var result interface{}
-	path := fmt.Sprintf("%s/%s/public/%s?%s", KRAKEN_API_URL, KRAKEN_API_VERSION, KRAKEN_SPREAD, values.Encode())
-	err := common.SendHTTPGetRequest(path, true, &result)
+	var peanutButter []Spread
+	var response interface{}
 
+	path := fmt.Sprintf("%s/%s/public/%s?%s", krakenAPIURL, krakenAPIVersion, krakenSpread, values.Encode())
+
+	err := common.SendHTTPGetRequest(path, true, k.Verbose, &response)
 	if err != nil {
-		log.Println(err)
-		return
-	}
-}
-
-func (k *Kraken) GetBalance() {
-	result, err := k.SendAuthenticatedHTTPRequest(KRAKEN_BALANCE, url.Values{})
-
-	if err != nil {
-		log.Println(err)
-		return
+		return peanutButter, err
 	}
 
-	log.Println(result)
+	data := response.(map[string]interface{})
+	result := data["result"].(map[string]interface{})
+
+	for _, x := range result[symbol].([]interface{}) {
+		s := Spread{}
+		for i, y := range x.([]interface{}) {
+			switch i {
+			case 0:
+				s.Time = y.(float64)
+			case 1:
+				s.Bid, _ = strconv.ParseFloat(y.(string), 64)
+			case 2:
+				s.Ask, _ = strconv.ParseFloat(y.(string), 64)
+			}
+		}
+		peanutButter = append(peanutButter, s)
+	}
+	return peanutButter, nil
 }
 
-func (k *Kraken) GetTradeBalance(symbol, asset string) {
+// GetBalance returns your balance associated with your keys
+func (k *Kraken) GetBalance() (interface{}, error) {
+	return k.SendAuthenticatedHTTPRequest(krakenBalance, url.Values{})
+}
+
+// GetTradeBalance returns full information about your trades on Kraken
+func (k *Kraken) GetTradeBalance(symbol, asset string) (interface{}, error) {
 	values := url.Values{}
 
 	if len(symbol) > 0 {
 		values.Set("aclass", symbol)
 	}
-
 	if len(asset) > 0 {
 		values.Set("asset", asset)
 	}
 
-	result, err := k.SendAuthenticatedHTTPRequest(KRAKEN_TRADE_BALANCE, values)
-
-	if err != nil {
-		log.Println(err)
-		return
-	}
-
-	log.Println(result)
+	return k.SendAuthenticatedHTTPRequest(krakenTradeBalance, values)
 }
 
-func (k *Kraken) GetOpenOrders(showTrades bool, userref int64) {
+// GetOpenOrders returns all current open orders
+func (k *Kraken) GetOpenOrders(showTrades bool, userref int64) (interface{}, error) {
 	values := url.Values{}
 
 	if showTrades {
@@ -324,17 +389,11 @@ func (k *Kraken) GetOpenOrders(showTrades bool, userref int64) {
 		values.Set("userref", strconv.FormatInt(userref, 10))
 	}
 
-	result, err := k.SendAuthenticatedHTTPRequest(KRAKEN_OPEN_ORDERS, values)
-
-	if err != nil {
-		log.Println(err)
-		return
-	}
-
-	log.Println(result)
+	return k.SendAuthenticatedHTTPRequest(krakenOpenOrders, values)
 }
 
-func (k *Kraken) GetClosedOrders(showTrades bool, userref, start, end, offset int64, closetime string) {
+// GetClosedOrders returns a list of closed orders
+func (k *Kraken) GetClosedOrders(showTrades bool, userref, start, end, offset int64, closetime string) (interface{}, error) {
 	values := url.Values{}
 
 	if showTrades {
@@ -361,17 +420,11 @@ func (k *Kraken) GetClosedOrders(showTrades bool, userref, start, end, offset in
 		values.Set("closetime", closetime)
 	}
 
-	result, err := k.SendAuthenticatedHTTPRequest(KRAKEN_CLOSED_ORDERS, values)
-
-	if err != nil {
-		log.Println(err)
-		return
-	}
-
-	log.Println(result)
+	return k.SendAuthenticatedHTTPRequest(krakenClosedOrders, values)
 }
 
-func (k *Kraken) QueryOrdersInfo(showTrades bool, userref, txid int64) {
+// QueryOrdersInfo returns order information
+func (k *Kraken) QueryOrdersInfo(showTrades bool, userref, txid int64) (interface{}, error) {
 	values := url.Values{}
 
 	if showTrades {
@@ -386,17 +439,11 @@ func (k *Kraken) QueryOrdersInfo(showTrades bool, userref, txid int64) {
 		values.Set("txid", strconv.FormatInt(userref, 10))
 	}
 
-	result, err := k.SendAuthenticatedHTTPRequest(KRAKEN_QUERY_ORDERS, values)
-
-	if err != nil {
-		log.Println(err)
-		return
-	}
-
-	log.Println(result)
+	return k.SendAuthenticatedHTTPRequest(krakenQueryOrders, values)
 }
 
-func (k *Kraken) GetTradesHistory(tradeType string, showRelatedTrades bool, start, end, offset int64) {
+// GetTradesHistory returns trade history information
+func (k *Kraken) GetTradesHistory(tradeType string, showRelatedTrades bool, start, end, offset int64) (interface{}, error) {
 	values := url.Values{}
 
 	if len(tradeType) > 0 {
@@ -419,17 +466,11 @@ func (k *Kraken) GetTradesHistory(tradeType string, showRelatedTrades bool, star
 		values.Set("offset", strconv.FormatInt(offset, 10))
 	}
 
-	result, err := k.SendAuthenticatedHTTPRequest(KRAKEN_TRADES_HISTORY, values)
-
-	if err != nil {
-		log.Println(err)
-		return
-	}
-
-	log.Println(result)
+	return k.SendAuthenticatedHTTPRequest(krakenTradeHistory, values)
 }
 
-func (k *Kraken) QueryTrades(txid int64, showRelatedTrades bool) {
+// QueryTrades returns information on a specific trade
+func (k *Kraken) QueryTrades(txid int64, showRelatedTrades bool) (interface{}, error) {
 	values := url.Values{}
 	values.Set("txid", strconv.FormatInt(txid, 10))
 
@@ -437,17 +478,11 @@ func (k *Kraken) QueryTrades(txid int64, showRelatedTrades bool) {
 		values.Set("trades", "true")
 	}
 
-	result, err := k.SendAuthenticatedHTTPRequest(KRAKEN_QUERY_TRADES, values)
-
-	if err != nil {
-		log.Println(err)
-		return
-	}
-
-	log.Println(result)
+	return k.SendAuthenticatedHTTPRequest(krakenQueryTrades, values)
 }
 
-func (k *Kraken) OpenPositions(txid int64, showPL bool) {
+// OpenPositions returns current open positions
+func (k *Kraken) OpenPositions(txid int64, showPL bool) (interface{}, error) {
 	values := url.Values{}
 	values.Set("txid", strconv.FormatInt(txid, 10))
 
@@ -455,17 +490,11 @@ func (k *Kraken) OpenPositions(txid int64, showPL bool) {
 		values.Set("docalcs", "true")
 	}
 
-	result, err := k.SendAuthenticatedHTTPRequest(KRAKEN_OPEN_POSITIONS, values)
-
-	if err != nil {
-		log.Println(err)
-		return
-	}
-
-	log.Println(result)
+	return k.SendAuthenticatedHTTPRequest(krakenOpenPositions, values)
 }
 
-func (k *Kraken) GetLedgers(symbol, asset, ledgerType string, start, end, offset int64) {
+// GetLedgers returns current ledgers
+func (k *Kraken) GetLedgers(symbol, asset, ledgerType string, start, end, offset int64) (interface{}, error) {
 	values := url.Values{}
 
 	if len(symbol) > 0 {
@@ -492,45 +521,27 @@ func (k *Kraken) GetLedgers(symbol, asset, ledgerType string, start, end, offset
 		values.Set("offset", strconv.FormatInt(offset, 10))
 	}
 
-	result, err := k.SendAuthenticatedHTTPRequest(KRAKEN_LEDGERS, values)
-
-	if err != nil {
-		log.Println(err)
-		return
-	}
-
-	log.Println(result)
+	return k.SendAuthenticatedHTTPRequest(krakenLedgers, values)
 }
 
-func (k *Kraken) QueryLedgers(id string) {
+// QueryLedgers queries an individual ledger by ID
+func (k *Kraken) QueryLedgers(id string) (interface{}, error) {
 	values := url.Values{}
 	values.Set("id", id)
 
-	result, err := k.SendAuthenticatedHTTPRequest(KRAKEN_QUERY_LEDGERS, values)
-
-	if err != nil {
-		log.Println(err)
-		return
-	}
-
-	log.Println(result)
+	return k.SendAuthenticatedHTTPRequest(krakenQueryLedgers, values)
 }
 
-func (k *Kraken) GetTradeVolume(symbol string) {
+// GetTradeVolume returns your trade volume by currency
+func (k *Kraken) GetTradeVolume(symbol string) (interface{}, error) {
 	values := url.Values{}
 	values.Set("pair", symbol)
 
-	result, err := k.SendAuthenticatedHTTPRequest(KRAKEN_TRADE_VOLUME, values)
-
-	if err != nil {
-		log.Println(err)
-		return
-	}
-
-	log.Println(result)
+	return k.SendAuthenticatedHTTPRequest(krakenTradeVolume, values)
 }
 
-func (k *Kraken) AddOrder(symbol, side, orderType string, price, price2, volume, leverage, position float64) {
+// AddOrder adds a new order for Kraken exchange
+func (k *Kraken) AddOrder(symbol, side, orderType string, price, price2, volume, leverage, position float64) (interface{}, error) {
 	values := url.Values{}
 	values.Set("pairs", symbol)
 	values.Set("type", side)
@@ -541,36 +552,24 @@ func (k *Kraken) AddOrder(symbol, side, orderType string, price, price2, volume,
 	values.Set("leverage", strconv.FormatFloat(leverage, 'f', -1, 64))
 	values.Set("position", strconv.FormatFloat(position, 'f', -1, 64))
 
-	result, err := k.SendAuthenticatedHTTPRequest(KRAKEN_ORDER_PLACE, values)
-
-	if err != nil {
-		log.Println(err)
-		return
-	}
-
-	log.Println(result)
+	return k.SendAuthenticatedHTTPRequest(krakenOrderPlace, values)
 }
 
-func (k *Kraken) CancelOrder(orderID int64) {
+// CancelOrder cancels order by orderID
+func (k *Kraken) CancelOrder(orderID int64) (interface{}, error) {
 	values := url.Values{}
 	values.Set("txid", strconv.FormatInt(orderID, 10))
 
-	result, err := k.SendAuthenticatedHTTPRequest(KRAKEN_ORDER_CANCEL, values)
-
-	if err != nil {
-		log.Println(err)
-		return
-	}
-
-	log.Println(result)
+	return k.SendAuthenticatedHTTPRequest(krakenOrderCancel, values)
 }
 
+// SendAuthenticatedHTTPRequest sends an authenticated HTTP request
 func (k *Kraken) SendAuthenticatedHTTPRequest(method string, values url.Values) (interface{}, error) {
 	if !k.AuthenticatedAPISupport {
 		return nil, fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet, k.Name)
 	}
 
-	path := fmt.Sprintf("/%s/private/%s", KRAKEN_API_VERSION, method)
+	path := fmt.Sprintf("/%s/private/%s", krakenAPIVersion, method)
 	if k.Nonce.Get() == 0 {
 		k.Nonce.Set(time.Now().UnixNano())
 	} else {
@@ -578,8 +577,8 @@ func (k *Kraken) SendAuthenticatedHTTPRequest(method string, values url.Values) 
 	}
 
 	values.Set("nonce", k.Nonce.String())
-	secret, err := common.Base64Decode(k.APISecret)
 
+	secret, err := common.Base64Decode(k.APISecret)
 	if err != nil {
 		return nil, err
 	}
@@ -588,22 +587,33 @@ func (k *Kraken) SendAuthenticatedHTTPRequest(method string, values url.Values) 
 	signature := common.Base64Encode(common.GetHMAC(common.HashSHA512, append([]byte(path), shasum...), secret))
 
 	if k.Verbose {
-		log.Printf("Sending POST request to %s, path: %s.", KRAKEN_API_URL, path)
+		log.Printf("Sending POST request to %s, path: %s.", krakenAPIURL, path)
 	}
 
 	headers := make(map[string]string)
 	headers["API-Key"] = k.APIKey
 	headers["API-Sign"] = signature
 
-	resp, err := common.SendHTTPRequest("POST", KRAKEN_API_URL+path, headers, strings.NewReader(values.Encode()))
-
+	rawResp, err := common.SendHTTPRequest("POST", krakenAPIURL+path, headers, strings.NewReader(values.Encode()))
 	if err != nil {
 		return nil, err
 	}
 
 	if k.Verbose {
-		log.Printf("Received raw: \n%s\n", resp)
+		log.Printf("Received raw: \n%s\n", rawResp)
 	}
 
-	return resp, nil
+	var resp interface{}
+
+	err = common.JSONDecode([]byte(rawResp), &resp)
+	if err != nil {
+		return nil, err
+	}
+
+	data := resp.(map[string]interface{})
+	if len(data["error"].([]interface{})) != 0 {
+		return nil, fmt.Errorf("kraken AuthenticattedHTTPRequest error: %s", data["error"])
+	}
+
+	return data["result"].(interface{}), nil
 }

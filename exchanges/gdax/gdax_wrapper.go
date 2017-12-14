@@ -113,7 +113,7 @@ func (g *GDAX) UpdateOrderbook(p pair.CurrencyPair, assetType string) (orderbook
 		return orderBook, err
 	}
 
-	obNew := orderbookNew.(GDAXOrderbookL1L2)
+	obNew := orderbookNew.(OrderbookL1L2)
 
 	for x := range obNew.Bids {
 		orderBook.Bids = append(orderBook.Bids, orderbook.Item{Amount: obNew.Bids[x].Amount, Price: obNew.Bids[x].Price})

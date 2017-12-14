@@ -20,6 +20,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"reflect"
 	"regexp"
 	"strconv"
 	"strings"
@@ -294,16 +295,18 @@ func SendHTTPRequest(method, path string, headers map[string]string, body io.Rea
 // SendHTTPGetRequest sends a simple get request using a url string & JSON
 // decodes the response into a struct pointer you have supplied. Returns an error
 // on failure.
-func SendHTTPGetRequest(url string, jsonDecode bool, result interface{}) error {
+func SendHTTPGetRequest(url string, jsonDecode, isVerbose bool, result interface{}) error {
+	if isVerbose {
+		log.Println("Raw URL: ", url)
+	}
+
 	res, err := http.Get(url)
 	if err != nil {
 		return err
 	}
 
 	if res.StatusCode != 200 {
-		log.Printf("HTTP status code: %d\n", res.StatusCode)
-		log.Printf("URL: %s\n", url)
-		return errors.New("status code was not 200")
+		return fmt.Errorf("common.SendHTTPGetRequest() error: HTTP status code %d", res.StatusCode)
 	}
 
 	contents, err := ioutil.ReadAll(res.Body)
@@ -311,16 +314,18 @@ func SendHTTPGetRequest(url string, jsonDecode bool, result interface{}) error {
 		return err
 	}
 
+	if isVerbose {
+		log.Println("Raw Resp: ", string(contents[:]))
+	}
+
 	defer res.Body.Close()
 
 	if jsonDecode {
-		err := JSONDecode(contents, &result)
+		err := JSONDecode(contents, result)
 		if err != nil {
 			log.Println(string(contents[:]))
 			return err
 		}
-	} else {
-		result = &contents
 	}
 
 	return nil
@@ -333,6 +338,9 @@ func JSONEncode(v interface{}) ([]byte, error) {
 
 // JSONDecode decodes JSON data into a structure
 func JSONDecode(data []byte, to interface{}) error {
+	if !StringContains(reflect.ValueOf(to).Type().String(), "*") {
+		return errors.New("json decode error - memory address not supplied")
+	}
 	return json.Unmarshal(data, to)
 }
 

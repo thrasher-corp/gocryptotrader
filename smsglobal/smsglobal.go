@@ -36,7 +36,7 @@ type Base struct {
 	SendFrom string    `json:"send_from"`
 }
 
-// New initalises the SMSGlobal var
+// New initialises the SMSGlobal var
 func New(username, password, sendFrom string, contacts []Contact) *Base {
 	if username == "" || password == "" || sendFrom == "" || len(contacts) == 0 {
 		return nil

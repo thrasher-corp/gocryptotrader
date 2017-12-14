@@ -2,6 +2,7 @@ package bitfinex
 
 import (
 	"log"
+	"net/url"
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
@@ -78,7 +79,10 @@ func (b *Bitfinex) GetOrderbookEx(p pair.CurrencyPair, assetType string) (orderb
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (b *Bitfinex) UpdateOrderbook(p pair.CurrencyPair, assetType string) (orderbook.Base, error) {
 	var orderBook orderbook.Base
-	orderbookNew, err := b.GetOrderbook(p.Pair().String(), nil)
+	urlVals := url.Values{}
+	urlVals.Set("limit_bids", "100")
+	urlVals.Set("limit_asks", "100")
+	orderbookNew, err := b.GetOrderbook(p.Pair().String(), urlVals)
 	if err != nil {
 		return orderBook, err
 	}

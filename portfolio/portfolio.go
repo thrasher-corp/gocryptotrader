@@ -80,7 +80,7 @@ func GetEthereumBalance(address []string) (EtherchainBalanceResponse, error) {
 		"%s/%s/%s", etherchainAPIURL, etherchainAccountMultiple, addresses,
 	)
 	result := EtherchainBalanceResponse{}
-	err := common.SendHTTPGetRequest(url, true, &result)
+	err := common.SendHTTPGetRequest(url, true, false, &result)
 	if err != nil {
 		return result, err
 	}
@@ -100,7 +100,7 @@ func GetCryptoIDAddress(address string, coinType string) (float64, error) {
 
 	var result interface{}
 	url := fmt.Sprintf("%s/%s/api.dws?q=getbalance&a=%s", cryptoIDAPIURL, common.StringToLower(coinType), address)
-	err = common.SendHTTPGetRequest(url, true, &result)
+	err = common.SendHTTPGetRequest(url, true, false, &result)
 	if err != nil {
 		return 0, err
 	}

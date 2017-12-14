@@ -83,7 +83,7 @@ func (a *ANX) GetFee(maker bool) float64 {
 
 func (a *ANX) GetTicker(currency string) (ANXTicker, error) {
 	var ticker ANXTicker
-	err := common.SendHTTPGetRequest(fmt.Sprintf("%sapi/2/%s/%s", ANX_API_URL, currency, ANX_TICKER), true, &ticker)
+	err := common.SendHTTPGetRequest(fmt.Sprintf("%sapi/2/%s/%s", ANX_API_URL, currency, ANX_TICKER), true, a.Verbose, &ticker)
 	if err != nil {
 		return ANXTicker{}, err
 	}

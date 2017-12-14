@@ -99,7 +99,7 @@ func (b *BTCC) GetTicker(currencyPair string) (Ticker, error) {
 	resp := Response{}
 	req := fmt.Sprintf("%sdata/ticker?market=%s", btccAPIUrl, currencyPair)
 
-	return resp.Ticker, common.SendHTTPGetRequest(req, true, &resp)
+	return resp.Ticker, common.SendHTTPGetRequest(req, true, b.Verbose, &resp)
 }
 
 // GetTradesLast24h returns the trades executed on the exchange over the past
@@ -109,7 +109,7 @@ func (b *BTCC) GetTradesLast24h(currencyPair string) ([]Trade, error) {
 	trades := []Trade{}
 	req := fmt.Sprintf("%sdata/trades?market=%s", btccAPIUrl, currencyPair)
 
-	return trades, common.SendHTTPGetRequest(req, true, &trades)
+	return trades, common.SendHTTPGetRequest(req, true, b.Verbose, &trades)
 }
 
 // GetTradeHistory returns trade history data
@@ -136,7 +136,7 @@ func (b *BTCC) GetTradeHistory(currencyPair string, limit, sinceTid int64, time 
 
 	req = common.EncodeURLValues(req, v)
 
-	return trades, common.SendHTTPGetRequest(req, true, &trades)
+	return trades, common.SendHTTPGetRequest(req, true, b.Verbose, &trades)
 }
 
 // GetOrderBook returns current market order book
@@ -151,7 +151,7 @@ func (b *BTCC) GetOrderBook(currencyPair string, limit int) (Orderbook, error) {
 		req = fmt.Sprintf("%sdata/orderbook?market=%s", btccAPIUrl, currencyPair)
 	}
 
-	return result, common.SendHTTPGetRequest(req, true, &result)
+	return result, common.SendHTTPGetRequest(req, true, b.Verbose, &result)
 }
 
 func (b *BTCC) GetAccountInfo(infoType string) error {

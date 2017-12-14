@@ -16,6 +16,7 @@ type PoloniexOrderbookResponse struct {
 	Asks     [][]interface{} `json:"asks"`
 	Bids     [][]interface{} `json:"bids"`
 	IsFrozen string          `json:"isFrozen"`
+	Error    string          `json:"error"`
 }
 
 type PoloniexOrderbookItem struct {
@@ -47,6 +48,7 @@ type PoloniexChartData struct {
 	Volume          float64 `json:"volume"`
 	QuoteVolume     float64 `json:"quoteVolume"`
 	WeightedAverage float64 `json:"weightedAverage"`
+	Error           string  `json:"error"`
 }
 
 type PoloniexCurrencies struct {

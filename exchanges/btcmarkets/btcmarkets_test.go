@@ -25,7 +25,7 @@ func TestSetup(t *testing.T) {
 	b := BTCMarkets{}
 	b.Name = "BTC Markets"
 	cfg := config.GetConfig()
-	cfg.LoadConfig("../../testdata/configtest.dat")
+	cfg.LoadConfig("../../testdata/configtest.json")
 	bConfig, err := cfg.GetExchangeConfig("BTC Markets")
 	if err != nil {
 		t.Error("Test Failed - BTC Markets Setup() init error")
