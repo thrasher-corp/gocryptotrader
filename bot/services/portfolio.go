@@ -1,4 +1,4 @@
-package main
+package services
 
 import (
 	"flag"
@@ -19,7 +19,11 @@ var (
 	displayCurrency string
 )
 
-func printSummary(msg string, amount float64) {
+// Portfolio is a service that allows the summary of coins either online or
+// Offline
+type Portfolio struct{}
+
+func (p *Portfolio) printSummary(msg string, amount float64) {
 	log.Println()
 	log.Println(fmt.Sprintf("%s in USD: $%.2f", msg, amount))
 
@@ -40,7 +44,7 @@ func printSummary(msg string, amount float64) {
 	log.Println()
 }
 
-func getOnlineOfflinePortfolio(coins []portfolio.Coin, online bool) {
+func (p *Portfolio) getOnlineOfflinePortfolio(coins []portfolio.Coin, online bool) {
 	var totals float64
 	for _, x := range coins {
 		value := priceMap[x.Coin] * x.Balance
@@ -49,13 +53,14 @@ func getOnlineOfflinePortfolio(coins []portfolio.Coin, online bool) {
 			x.Balance, value, x.Percentage)
 	}
 	if !online {
-		printSummary("\tOffline balance", totals)
+		p.printSummary("\tOffline balance", totals)
 	} else {
-		printSummary("\tOnline balance", totals)
+		p.printSummary("\tOnline balance", totals)
 	}
 }
 
-func main() {
+// Run starts the portfolio service
+func (p *Portfolio) Run() {
 	var inFile, key string
 	flag.StringVar(&inFile, "infile", config.GetFilePath(""), "The config input file to process.")
 	flag.StringVar(&key, "key", "", "The key to use for AES encryption.")
@@ -139,13 +144,13 @@ func main() {
 	for x, y := range portfolioMap {
 		log.Printf("\t%s Amount: %f Subtotal: $%.2f USD (1 %s = $%.2f USD). Percentage of portfolio %.3f%%", x, y.Balance, y.Subtotal, x, y.Subtotal/y.Balance, y.Subtotal/total*100/1)
 	}
-	printSummary("\tTotal balance", total)
+	p.printSummary("\tTotal balance", total)
 
 	log.Println("OFFLINE COIN TOTALS:")
-	getOnlineOfflinePortfolio(result.Offline, false)
+	p.getOnlineOfflinePortfolio(result.Offline, false)
 
 	log.Println("ONLINE COIN TOTALS:")
-	getOnlineOfflinePortfolio(result.Online, true)
+	p.getOnlineOfflinePortfolio(result.Online, true)
 
 	log.Println("OFFLINE COIN SUMMARY:")
 	var totals float64
@@ -158,7 +163,7 @@ func main() {
 			log.Printf("\t %s Amount: %f Subtotal: $%.2f Coin percentage: %.2f%%\n",
 				y[z].Address, y[z].Balance, value, y[z].Percentage)
 		}
-		printSummary(fmt.Sprintf("\t %s balance", x), totals)
+		p.printSummary(fmt.Sprintf("\t %s balance", x), totals)
 	}
 
 	log.Println("ONLINE COINS SUMMARY:")
@@ -171,6 +176,6 @@ func main() {
 			log.Printf("\t %s Amount: %f Subtotal $%.2f Coin percentage: %.2f%%",
 				z, w.Balance, value, w.Percentage)
 		}
-		printSummary("\t Exchange balance", totals)
+		p.printSummary("\t Exchange balance", totals)
 	}
 }

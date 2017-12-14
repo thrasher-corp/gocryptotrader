@@ -1,4 +1,4 @@
-package main
+package bot
 
 import (
 	"fmt"
@@ -42,7 +42,7 @@ var routes = Routes{}
 
 // NewRouter takes in the exchange interfaces and returns a new multiplexor
 // router
-func NewRouter(exchanges []exchange.IBotExchange) *mux.Router {
+func (b *Bot) NewRouter(exchanges []exchange.IBotExchange) *mux.Router {
 	router := mux.NewRouter().StrictSlash(true)
 
 	routes = Routes{
@@ -56,55 +56,55 @@ func NewRouter(exchanges []exchange.IBotExchange) *mux.Router {
 			"GetAllSettings",
 			"GET",
 			"/config/all",
-			RESTGetAllSettings,
+			b.RESTGetAllSettings,
 		},
 		Route{
 			"SaveAllSettings",
 			"POST",
 			"/config/all/save",
-			RESTSaveAllSettings,
+			b.RESTSaveAllSettings,
 		},
 		Route{
 			"AllEnabledAccountInfo",
 			"GET",
 			"/exchanges/enabled/accounts/all",
-			RESTGetAllEnabledAccountInfo,
+			b.RESTGetAllEnabledAccountInfo,
 		},
 		Route{
 			"AllActiveExchangesAndCurrencies",
 			"GET",
 			"/exchanges/enabled/latest/all",
-			RESTGetAllActiveTickers,
+			b.RESTGetAllActiveTickers,
 		},
 		Route{
 			"IndividualExchangeAndCurrency",
 			"GET",
 			"/exchanges/{exchangeName}/latest/{currency}",
-			RESTGetTicker,
+			b.RESTGetTicker,
 		},
 		Route{
 			"GetPortfolio",
 			"GET",
 			"/portfolio/all",
-			RESTGetPortfolio,
+			b.RESTGetPortfolio,
 		},
 		Route{
 			"AllActiveExchangesAndOrderbooks",
 			"GET",
 			"/exchanges/orderbook/latest/all",
-			RESTGetAllActiveOrderbooks,
+			b.RESTGetAllActiveOrderbooks,
 		},
 		Route{
 			"IndividualExchangeOrderbook",
 			"GET",
 			"/exchanges/{exchangeName}/orderbook/latest/{currency}",
-			RESTGetOrderbook,
+			b.RESTGetOrderbook,
 		},
 		Route{
 			"ws",
 			"GET",
 			"/ws",
-			WebsocketClientHandler,
+			b.WebsocketClientHandler,
 		},
 	}
 

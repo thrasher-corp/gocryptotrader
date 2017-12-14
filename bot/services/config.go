@@ -1,4 +1,4 @@
-package main
+package services
 
 import (
 	"flag"
@@ -8,15 +8,19 @@ import (
 	"github.com/thrasher-/gocryptotrader/config"
 )
 
+// Configuration allows for the encryption/decryption of the config file
+type Configuration struct{}
+
 // EncryptOrDecrypt returns a string from a boolean
-func EncryptOrDecrypt(encrypt bool) string {
+func (c *Configuration) EncryptOrDecrypt(encrypt bool) string {
 	if encrypt {
 		return "encrypted"
 	}
 	return "decrypted"
 }
 
-func main() {
+// Run starts the configuration service
+func (c *Configuration) Run() {
 	var inFile, outFile, key string
 	var encrypt bool
 	var err error
@@ -76,6 +80,6 @@ func main() {
 	}
 	log.Printf(
 		"Successfully %s input file %s and wrote output to %s.\n",
-		EncryptOrDecrypt(encrypt), inFile, outFile,
+		c.EncryptOrDecrypt(encrypt), inFile, outFile,
 	)
 }
