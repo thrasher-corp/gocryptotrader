@@ -4,26 +4,47 @@ html,
 body {
     margin: 0;
     padding: 0;
-    height: 100%;
-}
-
-.main {
-    padding: 20px 70px 0;
-    display: block;
-    text-align: center;
-}
-
-.main-content {
-    display: inline-block;
-    text-align: left;
-    max-width: 940px;
-    width:100%;
+    font-family: Roboto,Helvetica Neue Light,Helvetica Neue,Helvetica,Arial,Lucida Grande,sans-serif;
 }
 
 .loading-spinner {
-    margin-left:50%;
-    margin-right:50%;
-    width:100%;
+    margin-left: 50%;
+    margin-right: 50%;
+}
+
+////////////////////////////////////////////////////////////////
+// Default settings for cards
+////////////////////////////////////////////////////////////////
+.card {
+    width: 80%;
+    margin: 10px auto;
+}
+
+////////////////////////////////////////////////////////////////
+// Default settings for expandable tile menus
+////////////////////////////////////////////////////////////////
+.mat-expansion-panel {
+    width: 80%;
+    margin: 0px auto !important;
+}
+
+.mat-expansion-panel-header-title,
+.mat-expansion-panel-header-description {
+    flex-basis: 0;
+}
+
+.mat-expansion-panel-header-description {
+    justify-content: space-between;
+    align-items: center;
+}
+
+.mat-expansion-panel-spacing {
+    margin: 16px auto !important;
+    width: 85%;
+}
+
+.mat-drawer {
+    background: none !important;
 }
 
 @import '~@angular/material/prebuilt-themes/indigo-pink.css';

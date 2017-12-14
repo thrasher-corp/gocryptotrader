@@ -1,1 +1,22 @@
-<app-all-enabled-currency-tickers></app-all-enabled-currency-tickers>
+
+<button matTooltip="Trade" mat-fab color="accent" class="mat-fab mat-fab-bottom-right"><mat-icon >swap_horiz</mat-icon></button>
+<ng-template app-buy-sell></ng-template>
+<div style="width:97%;">
+<mat-grid-list cols="3" rowHeight="24rem">
+    <mat-grid-tile [colspan]="tile.columns" [rowspan]="tile.rows" *ngFor="let tile of dashboard.tiles">
+        <mat-card class="full-card">
+            <mat-card-header>
+                <mat-card-title>{{tile.title}}</mat-card-title>
+                <mat-card-subtitle>{{tile.subTitle}}</mat-card-subtitle>
+            </mat-card-header>
+            <mat-card-content>
+                {{tile.content}}
+            </mat-card-content>
+            <mat-card-footer>
+                <button *ngIf="!expanded" (click)="expandTile(tile)" mat-button>EXPAND</button>
+                <button *ngIf="expanded" (click)="resetTiles()" mat-button>RESTORE</button>
+            </mat-card-footer>
+        </mat-card>
+    </mat-grid-tile>
+</mat-grid-list>
+</div> 

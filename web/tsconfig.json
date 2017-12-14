@@ -1,6 +1,7 @@
 {
   "compileOnSave": false,
   "compilerOptions": {
+  	"module":"system",
     "outDir": "./dist/out-tsc",
     "baseUrl": "src",
     "sourceMap": true,
@@ -8,7 +9,7 @@
     "moduleResolution": "node",
     "emitDecoratorMetadata": true,
     "experimentalDecorators": true,
-    "allowJs": true,
+    "allowJs": false,
     "target": "es5",
     "paths": {
       "environments": [

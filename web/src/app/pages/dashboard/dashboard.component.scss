@@ -1,0 +1,23 @@
+.full-card {
+    margin: 10px;
+    width: 100%;
+}
+
+ ::ng-deep mat-grid-tile.mat-grid-tile .mat-figure {
+    align-items: initial;
+    /*vertical alignment*/
+}
+
+.mat-card-footer {
+    position: absolute;
+    bottom: 24px;
+}
+
+.mat-fab {
+    top: auto;
+    right: 30px;
+    bottom: 20px;
+    left: auto;
+    position: fixed;
+    z-index: 3;
+}

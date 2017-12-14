@@ -1,4 +1,5 @@
 ## GoCryptoTrader website
+![Snazzy logo](/src/assets/page-logo.png "Optional title")
 A website interface to interact with the main GoCryptoTrader application. It is developed with Angular 4 with support for Electron
 
 ## This is still in active development
