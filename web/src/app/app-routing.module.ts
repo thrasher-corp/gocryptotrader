@@ -6,6 +6,8 @@ import { WalletComponent } from './pages/wallet/wallet.component';
 import { DonateComponent } from './pages/donate/donate.component';
 import { HistoryComponent } from './pages/history/history.component';
 import { TradingComponent } from './pages/trading/trading.component';
+import { ExchangeGridComponent } from './pages/exchange-grid/exchange-grid.component';
+import { CurrencyListComponent } from './pages/currency-list/currency-list.component';
 
 import { NgModule } from '@angular/core';
 import { Routes, RouterModule } from '@angular/router';
@@ -43,6 +45,14 @@ const routes: Routes = [
     {
         path: 'trading',
         component: TradingComponent
+    },
+    {
+        path: 'exchange-grid',
+        component: ExchangeGridComponent
+    },
+    {
+        path: 'currency-list',
+        component: CurrencyListComponent
     }
 
 ];
