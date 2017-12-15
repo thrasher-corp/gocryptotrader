@@ -1,0 +1,51 @@
+.container {
+    height: 100vh;
+    min-height:100%;
+}
+
+.main {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px 70px 0;
+    min-width: 86%;
+    margin: 10px auto;
+    overflow-x: hidden;
+    margin-top:4rem;
+}
+
+.sidebar {
+    width: 14%;
+    position: fixed;
+    margin-top: 4rem;
+}
+
+.navbar {
+    position: fixed;
+    width: 100%;
+    z-index: 2;
+}
+
+.dashboard-highlight {
+    color: green !important;
+}
+
+.trading-highlight {
+    color: orangered !important;
+}
+
+.history-highlight {
+    color: cornflowerblue !important;
+}
+
+.wallet-highlight {
+    color: blueviolet !important;
+}
+
+.settings-highlight {
+    color: magenta !important;
+}
+
+.donate-highlight {
+    color: goldenrod!important;
+}
