@@ -9,7 +9,7 @@ const postcssUrl = require('postcss-url');
 const { NoEmitOnErrorsPlugin, LoaderOptionsPlugin, DefinePlugin, HashedModuleIdsPlugin } = require('webpack');
 const { GlobCopyWebpackPlugin, BaseHrefWebpackPlugin } = require('@angular/cli/plugins/webpack');
 const { CommonsChunkPlugin, UglifyJsPlugin } = require('webpack').optimize;
-const { AotPlugin } = require('@ngtools/webpack');
+const { AngularCompilerPlugin } = require('@ngtools/webpack');
 
 const nodeModules = path.join(process.cwd(), 'node_modules');
 const entryPoints = ["inline", "polyfills", "sw-register", "styles", "vendor", "main"];
@@ -139,7 +139,7 @@ function getPlugins() {
       "hashDigestLength": 4
     }));
 
-    plugins.push(new AotPlugin({
+    plugins.push(new AngularCompilerPlugin({
       "mainPath": "main.ts",
       "hostReplacementPaths": {
         "environments/index.ts": "environments/index.prod.ts"
@@ -160,7 +160,7 @@ function getPlugins() {
     }));
 
   } else {
-    plugins.push(new AotPlugin({
+    plugins.push(new AngularCompilerPlugin({
       "mainPath": "main.ts",
       "hostReplacementPaths": {
         "environments/index.ts": "environments/index.ts"
@@ -364,7 +364,7 @@ module.exports = {
         })
       },
       {
-        "test": /\.ts$/,
+        "test": /(?:\.ngfactory\.js|\.ngstyle\.js|\.ts)$/,
         "loader": "@ngtools/webpack"
       }
     ]

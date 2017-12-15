@@ -1,16 +1,14 @@
 <!-- TODO: figure out if the <nav> should go inside of a <header> element. -->
 <nav class="docs-navbar">
-  <md-toolbar color="primary">
-  <a md-button class="docs-button" routerLink="/" aria-label="Angular Material">
-    <span>Logo</span>
-  </a>
-  <a md-button class="docs-button" routerLink="dashboard">Dashboard</a>
-  <a md-button class="docs-button" routerLink="about">Wallet Summary</a>
-  <a md-button class="docs-button" routerLink="settings">Settings</a>
-  <a md-button class="docs-button" routerLink="about">Help</a>
-  <div class="flex-spacer"></div>
-  <a md-button class="docs-button" href="https://github.com/thrasher-/gocryptotrader/issues" aria-label="GitHub Repository">
-    Report issue
-  </a>
-  </md-toolbar>
+    <mat-toolbar color="primary">
+        <a (click)="sidebarService.toggle()" class="material-icons">&#xE5D2;</a>
+        <a mat-button class="docs-button" routerLink="/" aria-label="Angular Material">
+            <span>GoCryptoTrader</span>
+        </a>
+        <app-selected-currency></app-selected-currency>
+        <div class="flex-spacer"></div>
+        <theme-picker></theme-picker>
+        &nbsp;
+        &nbsp;
+    </mat-toolbar>
 </nav>
