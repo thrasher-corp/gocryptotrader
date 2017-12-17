@@ -1,5 +1,5 @@
 import {Component, OnInit }from '@angular/core'; 
-
+import {BuySellComponent} from './../../shared/buy-sell/buy-sell.component';
 
 @Component( {
 selector:'app-dashboard', 
@@ -10,12 +10,24 @@ styleUrls:['./dashboard.component.scss'],
 export class DashboardComponent implements OnInit {
 public dashboard:any;
 public expanded:boolean = false;
+public trades:BuySellComponent[];
 
 constructor() {
+  this.trades = [];
 }
 
 ngOnInit() {
   this.resetTiles();
+}
+
+public addTrade() {
+  if(this.trades.length >= 0 && this.trades.length <= 2) {
+    this.trades.push(new BuySellComponent());
+  }
+}
+
+public removeTrade(trade:BuySellComponent) {
+ this.trades.splice(this.trades.indexOf(trade),1);
 }
 
 public expandTile(tile:any) {

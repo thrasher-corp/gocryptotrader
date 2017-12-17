@@ -1,5 +1,5 @@
 
-<button matTooltip="Trade" mat-fab color="accent" class="mat-fab mat-fab-bottom-right"><mat-icon >swap_horiz</mat-icon></button>
+<button matTooltip="Trade" mat-fab color="accent" [disabled]="trades.length > 2" class="mat-fab mat-fab-bottom-right" (click)="addTrade()"><mat-icon >swap_horiz</mat-icon></button>
 <ng-template app-buy-sell></ng-template>
 <div style="width:97%;">
 <mat-grid-list cols="3" rowHeight="24rem">
@@ -20,3 +20,16 @@
     </mat-grid-tile>
 </mat-grid-list>
 </div> 
+<div class="someshit"  >
+        <mat-card class="somecard mat-elevation-z12" *ngFor="let trade of trades">
+                <mat-card-content>
+                    <app-buy-sell></app-buy-sell>
+                </mat-card-content>
+                <mat-card-footer style="display:flex; margin:0;">
+                        <button mat-raised-button color="primary">TRADE</button>
+                        <div class="flex-spacer"></div>
+                        <button mat-button (click)="removeTrade(trade)">CLOSE</button>
+            </mat-card-footer>
+            </mat-card>
+</div>
+

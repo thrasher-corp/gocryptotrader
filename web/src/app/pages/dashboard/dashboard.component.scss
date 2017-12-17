@@ -8,7 +8,7 @@
     /*vertical alignment*/
 }
 
-.mat-card-footer {
+.full-card .mat-card-footer {
     position: absolute;
     bottom: 24px;
 }
@@ -21,3 +21,25 @@
     position: fixed;
     z-index: 3;
 }
+
+.someshit {
+    position: fixed;
+    top: auto;
+    right: 5rem;
+    bottom: 3rem;
+    left: auto;
+    z-index: 2;
+    display: flex;
+    height:22rem;
+}
+
+.somecard {
+    width:20rem;
+    height:22rem;
+    margin-left:auto;
+    margin-right:1rem;
+}
+
+.flex-spacer {
+    flex-grow: 1;
+  }
