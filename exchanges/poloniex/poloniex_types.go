@@ -12,6 +12,10 @@ type PoloniexTicker struct {
 	Low24Hr       float64 `json:"low24hr,string"`
 }
 
+type PoloniexOrderbookResponseAll struct {
+	Data map[string]PoloniexOrderbookResponse
+}
+
 type PoloniexOrderbookResponse struct {
 	Asks     [][]interface{} `json:"asks"`
 	Bids     [][]interface{} `json:"bids"`
@@ -22,6 +26,10 @@ type PoloniexOrderbookResponse struct {
 type PoloniexOrderbookItem struct {
 	Price  float64
 	Amount float64
+}
+
+type PoloniexOrderbookAll struct {
+	Data map[string]PoloniexOrderbook
 }
 
 type PoloniexOrderbook struct {

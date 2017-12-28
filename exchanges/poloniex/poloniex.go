@@ -119,48 +119,80 @@ func (p *Poloniex) GetVolume() (interface{}, error) {
 }
 
 // GetOrderbook returns the full orderbook from poloniex
-func (p *Poloniex) GetOrderbook(currencyPair string, depth int) (PoloniexOrderbook, error) {
+func (p *Poloniex) GetOrderbook(currencyPair string, depth int) (PoloniexOrderbookAll, error) {
 	vals := url.Values{}
-	vals.Set("currencyPair", currencyPair)
 
 	if depth != 0 {
 		vals.Set("depth", strconv.Itoa(depth))
 	}
 
-	resp := PoloniexOrderbookResponse{}
-	path := fmt.Sprintf("%s/public?command=returnOrderBook&%s", poloniexAPIURL, vals.Encode())
-
-	err := common.SendHTTPGetRequest(path, true, p.Verbose, &resp)
-	if err != nil {
-		return PoloniexOrderbook{}, err
-	}
-
-	if len(resp.Error) != 0 {
-		log.Println(resp.Error)
-		return PoloniexOrderbook{}, fmt.Errorf("Poloniex GetOrderbook() error: %s", resp.Error)
-	}
-
-	ob := PoloniexOrderbook{}
-	for x := range resp.Asks {
-		data := resp.Asks[x]
-		price, err := strconv.ParseFloat(data[0].(string), 64)
+	oba := PoloniexOrderbookAll{Data: make(map[string]PoloniexOrderbook)}
+	if currencyPair != "" {
+		vals.Set("currencyPair", currencyPair)
+		resp := PoloniexOrderbookResponse{}
+		path := fmt.Sprintf("%s/public?command=returnOrderBook&%s", poloniexAPIURL, vals.Encode())
+		err := common.SendHTTPGetRequest(path, true, p.Verbose, &resp)
 		if err != nil {
-			return ob, err
+			return oba, err
 		}
-		amount := data[1].(float64)
-		ob.Asks = append(ob.Asks, PoloniexOrderbookItem{Price: price, Amount: amount})
-	}
+		if len(resp.Error) != 0 {
+			log.Println(resp.Error)
+			return oba, fmt.Errorf("Poloniex GetOrderbook() error: %s", resp.Error)
+		}
+		ob := PoloniexOrderbook{}
+		for x := range resp.Asks {
+			data := resp.Asks[x]
+			price, err := strconv.ParseFloat(data[0].(string), 64)
+			if err != nil {
+				return oba, err
+			}
+			amount := data[1].(float64)
+			ob.Asks = append(ob.Asks, PoloniexOrderbookItem{Price: price, Amount: amount})
+		}
 
-	for x := range resp.Bids {
-		data := resp.Bids[x]
-		price, err := strconv.ParseFloat(data[0].(string), 64)
-		if err != nil {
-			return ob, err
+		for x := range resp.Bids {
+			data := resp.Bids[x]
+			price, err := strconv.ParseFloat(data[0].(string), 64)
+			if err != nil {
+				return oba, err
+			}
+			amount := data[1].(float64)
+			ob.Bids = append(ob.Bids, PoloniexOrderbookItem{Price: price, Amount: amount})
 		}
-		amount := data[1].(float64)
-		ob.Bids = append(ob.Bids, PoloniexOrderbookItem{Price: price, Amount: amount})
+		oba.Data[currencyPair] = PoloniexOrderbook{Bids: ob.Bids, Asks: ob.Asks}
+	} else {
+		vals.Set("currencyPair", "all")
+		resp := PoloniexOrderbookResponseAll{}
+		path := fmt.Sprintf("%s/public?command=returnOrderBook&%s", poloniexAPIURL, vals.Encode())
+		err := common.SendHTTPGetRequest(path, true, p.Verbose, &resp.Data)
+		if err != nil {
+			return oba, err
+		}
+		for currency, orderbook := range resp.Data {
+			ob := PoloniexOrderbook{}
+			for x := range orderbook.Asks {
+				data := orderbook.Asks[x]
+				price, err := strconv.ParseFloat(data[0].(string), 64)
+				if err != nil {
+					return oba, err
+				}
+				amount := data[1].(float64)
+				ob.Asks = append(ob.Asks, PoloniexOrderbookItem{Price: price, Amount: amount})
+			}
+
+			for x := range orderbook.Bids {
+				data := orderbook.Bids[x]
+				price, err := strconv.ParseFloat(data[0].(string), 64)
+				if err != nil {
+					return oba, err
+				}
+				amount := data[1].(float64)
+				ob.Bids = append(ob.Bids, PoloniexOrderbookItem{Price: price, Amount: amount})
+			}
+			oba.Data[currency] = PoloniexOrderbook{Bids: ob.Bids, Asks: ob.Asks}
+		}
 	}
-	return ob, nil
+	return oba, nil
 }
 
 // GetTradeHistory returns trades history from poloniex
