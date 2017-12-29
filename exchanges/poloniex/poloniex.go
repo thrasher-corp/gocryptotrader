@@ -119,7 +119,7 @@ func (p *Poloniex) GetVolume() (interface{}, error) {
 }
 
 // GetOrderbook returns the full orderbook from poloniex
-func (p *Poloniex) GetOrderbook(currencyPair string, depth int) (interface{}, error) {
+func (p *Poloniex) GetOrderbook(currencyPair string, depth int) (PoloniexOrderbookAll, error) {
 	vals := url.Values{}
 
 	if depth != 0 {
@@ -133,11 +133,11 @@ func (p *Poloniex) GetOrderbook(currencyPair string, depth int) (interface{}, er
 		path := fmt.Sprintf("%s/public?command=returnOrderBook&%s", poloniexAPIURL, vals.Encode())
 		err := common.SendHTTPGetRequest(path, true, p.Verbose, &resp)
 		if err != nil {
-			return PoloniexOrderbook{}, err
+			return oba, err
 		}
 		if len(resp.Error) != 0 {
 			log.Println(resp.Error)
-			return PoloniexOrderbook{}, fmt.Errorf("Poloniex GetOrderbook() error: %s", resp.Error)
+			return oba, fmt.Errorf("Poloniex GetOrderbook() error: %s", resp.Error)
 		}
 		ob := PoloniexOrderbook{}
 		for x := range resp.Asks {
@@ -166,7 +166,7 @@ func (p *Poloniex) GetOrderbook(currencyPair string, depth int) (interface{}, er
 		path := fmt.Sprintf("%s/public?command=returnOrderBook&%s", poloniexAPIURL, vals.Encode())
 		err := common.SendHTTPGetRequest(path, true, p.Verbose, &resp.Data)
 		if err != nil {
-			return PoloniexOrderbookAll{}, err
+			return oba, err
 		}
 		for currency, orderbook := range resp.Data {
 			ob := PoloniexOrderbook{}
