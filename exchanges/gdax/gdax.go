@@ -62,7 +62,6 @@ func (g *GDAX) SetDefaults() {
 	g.Verbose = false
 	g.TakerFee = 0.25
 	g.MakerFee = 0
-	g.Verbose = false
 	g.Websocket = false
 	g.RESTPollingDelay = 10
 	g.RequestCurrencyPairFormat.Delimiter = "-"
