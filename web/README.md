@@ -29,7 +29,7 @@ npm install -g @angular/cli
 ```
 
 ## To build for development
-npm run web:start
+npm run start:web
 
 Voila! You can use GoCryptoTrader web app in a local development environment with webpack watching!
 
