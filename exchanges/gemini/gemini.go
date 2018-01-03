@@ -127,6 +127,8 @@ func (g *Gemini) Setup(exch config.ExchangeConfig) {
 		g.EnabledPairs = common.SplitStrings(exch.EnabledPairs, ",")
 		if exch.UseSandbox {
 			g.APIUrl = geminiSandboxAPIURL
+		} else {
+			g.APIUrl = geminiAPIURL
 		}
 		err := g.SetCurrencyPairFormat()
 		if err != nil {

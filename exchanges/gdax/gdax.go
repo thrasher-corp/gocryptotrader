@@ -196,7 +196,6 @@ func (g *GDAX) GetTicker(currencyPair string) (Ticker, error) {
 	path := fmt.Sprintf(
 		"%s/%s/%s", g.APIUrl+gdaxProducts, currencyPair, gdaxTicker)
 
-	log.Println(path)
 	return ticker, common.SendHTTPGetRequest(path, true, g.Verbose, &ticker)
 }
 

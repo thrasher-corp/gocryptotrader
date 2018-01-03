@@ -54,20 +54,19 @@ func (k *Kraken) UpdateTicker(p pair.CurrencyPair, assetType string) (ticker.Pri
 	}
 
 	for _, x := range pairs {
-		var tp ticker.Price
-		tick, ok := k.Ticker[x.Pair().String()]
-		if !ok {
-			continue
+		for y, z := range k.Ticker {
+			if common.StringContains(y, x.FirstCurrency.Upper().String()) && common.StringContains(y, x.SecondCurrency.Upper().String()) {
+				var tp ticker.Price
+				tp.Pair = x
+				tp.Last = z.Last
+				tp.Ask = z.Ask
+				tp.Bid = z.Bid
+				tp.High = z.High
+				tp.Low = z.Low
+				tp.Volume = z.Volume
+				ticker.ProcessTicker(k.GetName(), x, tp, assetType)
+			}
 		}
-
-		tp.Pair = x
-		tp.Last = tick.Last
-		tp.Ask = tick.Ask
-		tp.Bid = tick.Bid
-		tp.High = tick.High
-		tp.Low = tick.Low
-		tp.Volume = tick.Volume
-		ticker.ProcessTicker(k.GetName(), x, tp, assetType)
 	}
 	return ticker.GetTicker(k.GetName(), p, assetType)
 }
