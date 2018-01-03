@@ -65,7 +65,9 @@ func (c CurrencyPair) Display(delimiter string, uppercase bool) CurrencyItem {
 // Equal compares two currency pairs and returns whether or not they are equal
 func (c CurrencyPair) Equal(p CurrencyPair) bool {
 	if c.FirstCurrency.Upper() == p.FirstCurrency.Upper() &&
-		c.SecondCurrency.Upper() == p.SecondCurrency.Upper() {
+		c.SecondCurrency.Upper() == p.SecondCurrency.Upper() ||
+		c.FirstCurrency.Upper() == p.SecondCurrency.Upper() &&
+			c.SecondCurrency.Upper() == p.FirstCurrency.Upper() {
 		return true
 	}
 	return false

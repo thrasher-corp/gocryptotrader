@@ -1,6 +1,8 @@
 package pair
 
-import "testing"
+import (
+	"testing"
+)
 
 func TestLower(t *testing.T) {
 	t.Parallel()
@@ -121,6 +123,16 @@ func TestEqual(t *testing.T) {
 	secondPair.SecondCurrency = "ETH"
 	actual = pair.Equal(secondPair)
 	expected = false
+	if actual != expected {
+		t.Errorf(
+			"Test failed. Equal(): %v was not equal to expected value: %v",
+			actual, expected,
+		)
+	}
+
+	secondPair = NewCurrencyPair("USD", "BTC")
+	actual = pair.Equal(secondPair)
+	expected = true
 	if actual != expected {
 		t.Errorf(
 			"Test failed. Equal(): %v was not equal to expected value: %v",

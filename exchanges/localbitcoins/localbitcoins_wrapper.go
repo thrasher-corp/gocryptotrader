@@ -34,7 +34,7 @@ func (l *LocalBitcoins) UpdateTicker(p pair.CurrencyPair, assetType string) (tic
 		currency := x.SecondCurrency.String()
 		var tp ticker.Price
 		tp.Pair = x
-		tp.Last = tick[currency].Rates.Last
+		tp.Last = tick[currency].Avg24h
 		tp.Volume = tick[currency].VolumeBTC
 		ticker.ProcessTicker(l.GetName(), x, tp, assetType)
 	}
