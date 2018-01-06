@@ -299,6 +299,27 @@
    }
   },
   {
+   "Name": "HitBTC",
+   "Enabled": true,
+   "Verbose": false,
+   "Websocket": false,
+   "UseSandbox": false,
+   "RESTPollingDelay": 10,
+   "AuthenticatedAPISupport": false,
+   "APIKey": "Key",
+   "APISecret": "Secret",
+   "AvailablePairs": "BTCUSD,ETHBTC,ETHUSD",
+   "EnabledPairs": "BTCUSD",
+   "BaseCurrencies": "USD",
+   "AssetTypes": "SPOT",
+   "ConfigCurrencyPairFormat": {
+    "Uppercase": true
+   },
+   "RequestCurrencyPairFormat": {
+    "Uppercase": true
+   }
+  },
+  {
    "Name": "Huobi",
    "Enabled": true,
    "Verbose": false,
