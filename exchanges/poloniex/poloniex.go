@@ -369,11 +369,15 @@ func (p *Poloniex) GetOpenOrders(currency string) (interface{}, error) {
 	}
 }
 
-func (p *Poloniex) GetAuthenticatedTradeHistory(currency, start, end string) (interface{}, error) {
+func (p *Poloniex) GetAuthenticatedTradeHistory(currency, start, end, limit string) (interface{}, error) {
 	values := url.Values{}
 
 	if start != "" {
 		values.Set("start", start)
+	}
+
+	if limit != "" {
+		values.Set("limit", limit)
 	}
 
 	if end != "" {
