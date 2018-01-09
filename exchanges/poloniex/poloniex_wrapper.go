@@ -26,6 +26,22 @@ func (p *Poloniex) Run() {
 	if p.Websocket {
 		go p.WebsocketClient()
 	}
+
+	exchangeCurrencies, err := p.GetExchangeCurrencies()
+	if err != nil {
+		log.Printf("%s Failed to get available symbols.\n", p.GetName())
+	} else {
+		forceUpdate := false
+		if common.DataContains(p.AvailablePairs, "BTC_USDT") {
+			log.Printf("%s contains invalid pair, forcing upgrade of available currencies.\n",
+				p.GetName())
+			forceUpdate = true
+		}
+		err = p.UpdateAvailableCurrencies(exchangeCurrencies, forceUpdate)
+		if err != nil {
+			log.Printf("%s Failed to update available currencies %s.\n", p.GetName(), err)
+		}
+	}
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
