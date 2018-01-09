@@ -73,7 +73,10 @@ When submitting a PR, please abide by our coding guidelines:
 
 ## Compiling instructions
 
-Download and install Go from [Go Downloads](https://golang.org/dl/)
+Download and install Go from [Go Downloads](https://golang.org/dl/) for your
+platform.
+
+### Linux/OSX
 
 ```bash
 go get github.com/thrasher-/gocryptotrader
@@ -82,8 +85,17 @@ go install
 cp $GOPATH/src/github.com/thrasher-/gocryptotrader/config_example.json $GOPATH/bin/config.json
 ```
 
-Make any neccessary changes to the config file.
-Run the application!
+### Windows
+
+```bash
+go get github.com/thrasher-/gocryptotrader
+cd %GOPATH%\src\github.com\thrasher-\gocryptotrader
+go install
+copy %GOPATH%\src\github.com\thrasher-\gocryptotrader\config_example.json %GOPATH%\bin\config.json
+```
+
++ Make any neccessary changes to the `config.json` file.
++ Run the `gocryptotrader` binary file inside your GOPATH bin folder.
 
 ## Donations
 
