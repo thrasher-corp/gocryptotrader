@@ -221,6 +221,22 @@ func (p *Poloniex) GetCurrencies() (map[string]PoloniexCurrencies, error) {
 	return resp.Data, common.SendHTTPGetRequest(path, true, p.Verbose, &resp.Data)
 }
 
+// GetExchangeCurrencies returns a list of currencies using the GetTicker API
+// as the GetExchangeCurrencies information doesn't return currency pair information
+func (p *Poloniex) GetExchangeCurrencies() ([]string, error) {
+	response, err := p.GetTicker()
+	if err != nil {
+		return nil, err
+	}
+
+	var currencies []string
+	for x := range response {
+		currencies = append(currencies, x)
+	}
+
+	return currencies, nil
+}
+
 // GetLoanOrders returns the list of loan offers and demands for a given
 // currency, specified by the "currency" GET parameter.
 func (p *Poloniex) GetLoanOrders(currency string) (PoloniexLoanOrders, error) {
