@@ -1,15 +1,17 @@
-package main
+package services
 
 import "testing"
 
+var c Configuration
+
 func TestEncryptOrDecrypt(t *testing.T) {
-	reValue := EncryptOrDecrypt(true)
+	reValue := c.EncryptOrDecrypt(true)
 	if reValue != "encrypted" {
 		t.Error(
 			"Test failed - Tools/Config/Config_test.go - EncryptOrDecrypt Error",
 		)
 	}
-	reValue = EncryptOrDecrypt(false)
+	reValue = c.EncryptOrDecrypt(false)
 	if reValue != "decrypted" {
 		t.Error(
 			"Test failed - Tools/Config/Config_test.go - EncryptOrDecrypt Error",

@@ -1,4 +1,4 @@
-package main
+package bot
 
 import (
 	"errors"
@@ -11,15 +11,16 @@ import (
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 )
 
+//
 // GetSpecificOrderbook returns a specific orderbook given the currency,
 // exchangeName and assetType
-func GetSpecificOrderbook(currency, exchangeName, assetType string) (orderbook.Base, error) {
+func (b *Bot) GetSpecificOrderbook(currency, exchangeName, assetType string) (orderbook.Base, error) {
 	var specificOrderbook orderbook.Base
 	var err error
-	for i := 0; i < len(bot.exchanges); i++ {
-		if bot.exchanges[i] != nil {
-			if bot.exchanges[i].IsEnabled() && bot.exchanges[i].GetName() == exchangeName {
-				specificOrderbook, err = bot.exchanges[i].GetOrderbookEx(
+	for i := 0; i < len(b.Exchanges); i++ {
+		if b.Exchanges[i] != nil {
+			if b.Exchanges[i].IsEnabled() && b.Exchanges[i].GetName() == exchangeName {
+				specificOrderbook, err = b.Exchanges[i].GetOrderbookEx(
 					pair.NewCurrencyPairFromString(currency),
 					assetType,
 				)
@@ -32,13 +33,13 @@ func GetSpecificOrderbook(currency, exchangeName, assetType string) (orderbook.B
 
 // GetSpecificTicker returns a specific ticker given the currency,
 // exchangeName and assetType
-func GetSpecificTicker(currency, exchangeName, assetType string) (ticker.Price, error) {
+func (b *Bot) GetSpecificTicker(currency, exchangeName, assetType string) (ticker.Price, error) {
 	var specificTicker ticker.Price
 	var err error
-	for i := 0; i < len(bot.exchanges); i++ {
-		if bot.exchanges[i] != nil {
-			if bot.exchanges[i].IsEnabled() && bot.exchanges[i].GetName() == exchangeName {
-				specificTicker, err = bot.exchanges[i].GetTickerPrice(
+	for i := 0; i < len(b.Exchanges); i++ {
+		if b.Exchanges[i] != nil {
+			if b.Exchanges[i].IsEnabled() && b.Exchanges[i].GetName() == exchangeName {
+				specificTicker, err = b.Exchanges[i].GetTickerPrice(
 					pair.NewCurrencyPairFromString(currency),
 					assetType,
 				)

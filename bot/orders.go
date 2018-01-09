@@ -1,4 +1,4 @@
-package main
+package bot
 
 const (
 	limitOrder = iota

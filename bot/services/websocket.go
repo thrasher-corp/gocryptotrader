@@ -1,4 +1,4 @@
-package main
+package services
 
 import (
 	"errors"
@@ -10,6 +10,9 @@ import (
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
 )
+
+// Websocket tests the websocket connections
+type Websocket struct{}
 
 // Vars for the websocket client
 var (
@@ -46,7 +49,7 @@ type WebsocketOrderbookTickerRequest struct {
 }
 
 // SendWebsocketEvent sends a websocket event message
-func SendWebsocketEvent(event string, reqData interface{}, result *WebsocketEventResponse) error {
+func (w *Websocket) SendWebsocketEvent(event string, reqData interface{}, result *WebsocketEventResponse) error {
 	req := WebsocketEvent{
 		Event: event,
 	}
@@ -72,7 +75,8 @@ func SendWebsocketEvent(event string, reqData interface{}, result *WebsocketEven
 	return nil
 }
 
-func main() {
+// Run starts the websocket service
+func (w *Websocket) Run() {
 	cfg := config.GetConfig()
 	err := cfg.LoadConfig(config.ConfigFile)
 	if err != nil {
@@ -98,14 +102,14 @@ func main() {
 		Username: cfg.Webserver.AdminUsername,
 		Password: common.HexEncodeToString(common.GetSHA256([]byte(cfg.Webserver.AdminPassword))),
 	}
-	err = SendWebsocketEvent("auth", reqData, &wsResp)
+	err = w.SendWebsocketEvent("auth", reqData, &wsResp)
 	if err != nil {
 		log.Fatal(err)
 	}
 	log.Println("Authenticated successfully")
 
 	log.Println("Getting config..")
-	err = SendWebsocketEvent("GetConfig", nil, &wsResp)
+	err = w.SendWebsocketEvent("GetConfig", nil, &wsResp)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -125,27 +129,27 @@ func main() {
 	log.Println("Saving config..")
 	origBotName := resultCfg.Name
 	resultCfg.Name = "TEST"
-	err = SendWebsocketEvent("SaveConfig", resultCfg, &wsResp)
+	err = w.SendWebsocketEvent("SaveConfig", resultCfg, &wsResp)
 	if err != nil {
 		log.Fatal(err)
 	}
 	log.Println("Saved config!")
 	resultCfg.Name = origBotName
-	err = SendWebsocketEvent("SaveConfig", resultCfg, &wsResp)
+	err = w.SendWebsocketEvent("SaveConfig", resultCfg, &wsResp)
 	if err != nil {
 		log.Fatal(err)
 	}
 	log.Println("Saved config (restored original bot name)!")
 
 	log.Println("Getting account info..")
-	err = SendWebsocketEvent("GetAccountInfo", nil, &wsResp)
+	err = w.SendWebsocketEvent("GetAccountInfo", nil, &wsResp)
 	if err != nil {
 		log.Fatal(err)
 	}
 	log.Println("Got account info!")
 
 	log.Println("Getting tickers..")
-	err = SendWebsocketEvent("GetTickers", nil, &wsResp)
+	err = w.SendWebsocketEvent("GetTickers", nil, &wsResp)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -158,21 +162,21 @@ func main() {
 		AssetType: "SPOT",
 	}
 
-	err = SendWebsocketEvent("GetTicker", dataReq, &wsResp)
+	err = w.SendWebsocketEvent("GetTicker", dataReq, &wsResp)
 	if err != nil {
 		log.Fatal(err)
 	}
 	log.Println("Got ticker!")
 
 	log.Println("Getting orderbooks..")
-	err = SendWebsocketEvent("GetOrderbooks", nil, &wsResp)
+	err = w.SendWebsocketEvent("GetOrderbooks", nil, &wsResp)
 	if err != nil {
 		log.Fatal(err)
 	}
 	log.Println("Got orderbooks!")
 
 	log.Println("Getting specific orderbook..")
-	err = SendWebsocketEvent("GetOrderbook", dataReq, &wsResp)
+	err = w.SendWebsocketEvent("GetOrderbook", dataReq, &wsResp)
 	if err != nil {
 		log.Fatal(err)
 	}
