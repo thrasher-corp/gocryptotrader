@@ -29,11 +29,35 @@ func (k *Kraken) Run() {
 	if err != nil {
 		log.Printf("%s Failed to get available symbols.\n", k.GetName())
 	} else {
+		forceUpgrade := false
+		if !common.DataContains(k.EnabledPairs, "-") || !common.DataContains(k.AvailablePairs, "-") {
+			forceUpgrade = true
+		}
+
 		var exchangeProducts []string
 		for _, v := range assetPairs {
-			exchangeProducts = append(exchangeProducts, v.Altname)
+			if common.StringContains(v.Altname, ".d") {
+				continue
+			}
+			if v.Base[0] == 'X' {
+				v.Base = v.Base[1:]
+			}
+			if v.Quote[0] == 'Z' || v.Quote[0] == 'X' {
+				v.Quote = v.Quote[1:]
+			}
+			exchangeProducts = append(exchangeProducts, v.Base+"-"+v.Quote)
 		}
-		err = k.UpdateAvailableCurrencies(exchangeProducts, false)
+
+		if forceUpgrade {
+			enabledPairs := []string{"XBT-USD"}
+			log.Println("WARNING: Available pairs for Kraken reset due to config upgrade, please enable the ones you would like again")
+
+			err = k.UpdateEnabledCurrencies(enabledPairs, true)
+			if err != nil {
+				log.Printf("%s Failed to get config.\n", k.GetName())
+			}
+		}
+		err = k.UpdateAvailableCurrencies(exchangeProducts, forceUpgrade)
 		if err != nil {
 			log.Printf("%s Failed to get config.\n", k.GetName())
 		}
