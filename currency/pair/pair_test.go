@@ -234,3 +234,20 @@ func TestNewCurrencyPairFromString(t *testing.T) {
 		)
 	}
 }
+
+func TestContains(t *testing.T) {
+	pairOne := NewCurrencyPair("BTC", "USD")
+	pairTwo := NewCurrencyPair("LTC", "USD")
+
+	var pairs []CurrencyPair
+	pairs = append(pairs, pairOne)
+	pairs = append(pairs, pairTwo)
+
+	if !Contains(pairs, pairOne) {
+		t.Errorf("Test failed. TestContains: Expected pair was not found")
+	}
+
+	if Contains(pairs, NewCurrencyPair("ETH", "USD")) {
+		t.Errorf("Test failed. TestContains: Non-existant pair was found")
+	}
+}

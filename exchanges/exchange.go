@@ -69,6 +69,7 @@ type IBotExchange interface {
 	GetOrderbookEx(currency pair.CurrencyPair, assetType string) (orderbook.Base, error)
 	UpdateOrderbook(currency pair.CurrencyPair, assetType string) (orderbook.Base, error)
 	GetEnabledCurrencies() []pair.CurrencyPair
+	GetAvailableCurrencies() []pair.CurrencyPair
 	GetExchangeAccountInfo() (AccountInfo, error)
 	GetAuthenticatedAPISupport() bool
 }
@@ -109,6 +110,18 @@ func GetExchangeAssetTypes(exchName string) ([]string, error) {
 	return common.SplitStrings(exch.AssetTypes, ","), nil
 }
 
+// CompareCurrencyPairFormats checks and returns whether or not the two supplied
+// config currency pairs match
+func CompareCurrencyPairFormats(pair1 config.CurrencyPairFormatConfig, pair2 *config.CurrencyPairFormatConfig) bool {
+	if pair1.Delimiter != pair2.Delimiter ||
+		pair1.Uppercase != pair2.Uppercase ||
+		pair1.Separator != pair2.Separator ||
+		pair1.Index != pair2.Index {
+		return false
+	}
+	return true
+}
+
 // SetCurrencyPairFormat checks the exchange request and config currency pair
 // formats and sets it to a default setting if it doesn't exist
 func (e *Base) SetCurrencyPairFormat() error {
@@ -128,7 +141,13 @@ func (e *Base) SetCurrencyPairFormat() error {
 		}
 		update = true
 	} else {
-		e.RequestCurrencyPairFormat = *exch.RequestCurrencyPairFormat
+		if CompareCurrencyPairFormats(e.RequestCurrencyPairFormat,
+			exch.RequestCurrencyPairFormat) {
+			e.RequestCurrencyPairFormat = *exch.RequestCurrencyPairFormat
+		} else {
+			*exch.RequestCurrencyPairFormat = e.ConfigCurrencyPairFormat
+			update = true
+		}
 	}
 
 	if exch.ConfigCurrencyPairFormat == nil {
@@ -140,7 +159,13 @@ func (e *Base) SetCurrencyPairFormat() error {
 		}
 		update = true
 	} else {
-		e.ConfigCurrencyPairFormat = *exch.ConfigCurrencyPairFormat
+		if CompareCurrencyPairFormats(e.ConfigCurrencyPairFormat,
+			exch.ConfigCurrencyPairFormat) {
+			e.ConfigCurrencyPairFormat = *exch.ConfigCurrencyPairFormat
+		} else {
+			*exch.ConfigCurrencyPairFormat = e.ConfigCurrencyPairFormat
+			update = true
+		}
 	}
 
 	if update {

@@ -83,6 +83,25 @@ func TestGetExchangeAssetTypes(t *testing.T) {
 	}
 }
 
+func TestCompareCurrencyPairFormats(t *testing.T) {
+	cfgOne := config.CurrencyPairFormatConfig{
+		Delimiter: "-",
+		Uppercase: true,
+		Index:     "",
+		Separator: ",",
+	}
+
+	cfgTwo := cfgOne
+	if !CompareCurrencyPairFormats(cfgOne, &cfgTwo) {
+		t.Fatal("Test failed. CompareCurrencyPairFormats should be true")
+	}
+
+	cfgTwo.Delimiter = "~"
+	if CompareCurrencyPairFormats(cfgOne, &cfgTwo) {
+		t.Fatal("Test failed. CompareCurrencyPairFormats should not be true")
+	}
+}
+
 func TestSetCurrencyPairFormat(t *testing.T) {
 	cfg := config.GetConfig()
 	err := cfg.LoadConfig(config.ConfigTestFile)
@@ -141,6 +160,12 @@ func TestSetCurrencyPairFormat(t *testing.T) {
 		b.RequestCurrencyPairFormat.Index != "BTC" &&
 		b.RequestCurrencyPairFormat.Uppercase {
 		t.Fatal("Test failed. TestSetCurrencyPairFormat RequestCurrencyPairFormat values are incorrect")
+	}
+
+	// if currency pairs are the same as the config, should load from config
+	err = b.SetCurrencyPairFormat()
+	if err != nil {
+		t.Fatalf("Test failed. TestSetCurrencyPairFormat. Error %s", err)
 	}
 }
 

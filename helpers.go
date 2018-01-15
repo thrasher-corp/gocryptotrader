@@ -4,12 +4,42 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
+	"github.com/thrasher-/gocryptotrader/currency/translation"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-/gocryptotrader/exchanges/stats"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 )
+
+// GetRelatableCurrencies returns a list of currency pairs if it can find
+// any relatable currencies (e.g BTCUSD -> BTC USDT -> XBT USD)
+func GetRelatableCurrencies(p pair.CurrencyPair) []pair.CurrencyPair {
+	var pairs []pair.CurrencyPair
+	first, err := translation.GetTranslation(p.FirstCurrency)
+	if err == nil {
+		pairs = append(pairs, pair.NewCurrencyPair(first.String(),
+			p.SecondCurrency.String()))
+	}
+
+	second, err := translation.GetTranslation(p.SecondCurrency)
+	if err == nil {
+		pairs = append(pairs, pair.NewCurrencyPair(p.FirstCurrency.String(),
+			second.String()))
+	}
+	return pairs
+}
+
+// GetExchangeByName returns an exchange given an exchange name
+func GetExchangeByName(exchName string) exchange.IBotExchange {
+	for x := range bot.exchanges {
+		if common.StringToLower(bot.exchanges[x].GetName()) == common.StringToLower(exchName) {
+			return bot.exchanges[x]
+		}
+	}
+	return nil
+}
 
 // GetSpecificOrderbook returns a specific orderbook given the currency,
 // exchangeName and assetType

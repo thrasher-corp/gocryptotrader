@@ -115,3 +115,14 @@ func NewCurrencyPairFromString(currency string) CurrencyPair {
 	}
 	return NewCurrencyPair(currency[0:3], currency[3:])
 }
+
+// Contains checks to see if a specified pair exists inside a currency pair
+// array
+func Contains(pairs []CurrencyPair, p CurrencyPair) bool {
+	for x := range pairs {
+		if pairs[x].Equal(p) {
+			return true
+		}
+	}
+	return false
+}
