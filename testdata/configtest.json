@@ -13,19 +13,19 @@
    {
     "Address": "1JCe8z4jJVNXSjohjM4i9Hh813dLCNx2Sy",
     "CoinType": "BTC",
-    "Balance": 124178.00647714,
+    "Balance": 124178.00354266,
     "Description": ""
    },
    {
     "Address": "3Nxwenay9Z8Lc9JBiywExpnEFiLp6Afp8v",
     "CoinType": "BTC",
-    "Balance": 107843.84030984,
+    "Balance": 123439.8370977,
     "Description": ""
    },
    {
     "Address": "LgY8ahfHRhvjVQC1zJnBhFMG5pCTMuKRqh",
     "CoinType": "LTC",
-    "Balance": 100000.052,
+    "Balance": 0.03665026,
     "Description": ""
    },
    {
@@ -212,6 +212,28 @@
    }
   },
   {
+   "Name": "COINUT",
+   "Enabled": true,
+   "Verbose": false,
+   "Websocket": false,
+   "UseSandbox": false,
+   "RESTPollingDelay": 10,
+   "AuthenticatedAPISupport": false,
+   "APIKey": "Key",
+   "APISecret": "Secret",
+   "ClientID": "ClientID",
+   "AvailablePairs": "LTCBTC,ETCBTC,ETHBTC",
+   "EnabledPairs": "LTCBTC,ETCBTC,ETHBTC",
+   "BaseCurrencies": "USD",
+   "AssetTypes": "SPOT",
+   "ConfigCurrencyPairFormat": {
+    "Uppercase": true
+   },
+   "RequestCurrencyPairFormat": {
+    "Uppercase": true
+   }
+  },
+  {
    "Name": "GDAX",
    "Enabled": true,
    "Verbose": false,
@@ -313,7 +335,8 @@
    "BaseCurrencies": "EUR,USD,CAD,GBP,JPY",
    "AssetTypes": "SPOT",
    "ConfigCurrencyPairFormat": {
-    "Uppercase": true
+    "Uppercase": true,
+    "Delimiter": "-"
    },
    "RequestCurrencyPairFormat": {
     "Uppercase": true,

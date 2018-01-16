@@ -96,7 +96,7 @@ func (o *OKCoin) SetDefaults() {
 	o.FuturesValues = []string{"this_week", "next_week", "quarter"}
 	o.AssetTypes = []string{ticker.Spot}
 
-	if !okcoinDefaultsSet {
+	if okcoinDefaultsSet {
 		o.AssetTypes = append(o.AssetTypes, o.FuturesValues...)
 		o.APIUrl = OKCOIN_API_URL
 		o.Name = "OKCOIN International"

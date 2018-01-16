@@ -174,7 +174,7 @@ func wsSaveConfig(wsClient *websocket.Conn, data interface{}) error {
 		}
 	}
 
-	setupBotExchanges()
+	SetupExchanges()
 	wsResp.Data = WebsocketResponseSuccess
 	return wsClient.WriteJSON(wsResp)
 }
