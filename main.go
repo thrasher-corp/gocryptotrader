@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -36,9 +37,16 @@ func main() {
 
 	//Handle flags
 	flag.StringVar(&bot.configFile, "config", config.GetFilePath(""), "config file to load")
+	version := flag.Bool("version", false, "retrieves current GoCryptoTrader version")
 	flag.Parse()
 
+	if *version {
+		fmt.Printf(BuildVersion(true))
+		os.Exit(0)
+	}
+
 	bot.config = &config.Cfg
+	fmt.Println(BuildVersion(false))
 	log.Printf("Loading config file %s..\n", bot.configFile)
 
 	err := bot.config.LoadConfig(bot.configFile)
