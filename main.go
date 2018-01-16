@@ -14,51 +14,9 @@ import (
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/currency"
 	"github.com/thrasher-/gocryptotrader/exchanges"
-	"github.com/thrasher-/gocryptotrader/exchanges/anx"
-	"github.com/thrasher-/gocryptotrader/exchanges/bitfinex"
-	"github.com/thrasher-/gocryptotrader/exchanges/bitstamp"
-	"github.com/thrasher-/gocryptotrader/exchanges/bittrex"
-	"github.com/thrasher-/gocryptotrader/exchanges/btcc"
-	"github.com/thrasher-/gocryptotrader/exchanges/btcmarkets"
-	"github.com/thrasher-/gocryptotrader/exchanges/coinut"
-	"github.com/thrasher-/gocryptotrader/exchanges/gdax"
-	"github.com/thrasher-/gocryptotrader/exchanges/gemini"
-	"github.com/thrasher-/gocryptotrader/exchanges/huobi"
-	"github.com/thrasher-/gocryptotrader/exchanges/itbit"
-	"github.com/thrasher-/gocryptotrader/exchanges/kraken"
-	"github.com/thrasher-/gocryptotrader/exchanges/lakebtc"
-	"github.com/thrasher-/gocryptotrader/exchanges/liqui"
-	"github.com/thrasher-/gocryptotrader/exchanges/localbitcoins"
-	"github.com/thrasher-/gocryptotrader/exchanges/okcoin"
-	"github.com/thrasher-/gocryptotrader/exchanges/poloniex"
-	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
-	"github.com/thrasher-/gocryptotrader/exchanges/wex"
 	"github.com/thrasher-/gocryptotrader/portfolio"
 	"github.com/thrasher-/gocryptotrader/smsglobal"
 )
-
-// ExchangeMain contains all the necessary exchange packages
-type ExchangeMain struct {
-	anx           anx.ANX
-	btcc          btcc.BTCC
-	bitstamp      bitstamp.Bitstamp
-	bitfinex      bitfinex.Bitfinex
-	bittrex       bittrex.Bittrex
-	wex           wex.WEX
-	btcmarkets    btcmarkets.BTCMarkets
-	coinut        coinut.COINUT
-	gdax          gdax.GDAX
-	gemini        gemini.Gemini
-	okcoinChina   okcoin.OKCoin
-	okcoinIntl    okcoin.OKCoin
-	itbit         itbit.ItBit
-	lakebtc       lakebtc.LakeBTC
-	liqui         liqui.Liqui
-	localbitcoins localbitcoins.LocalBitcoins
-	poloniex      poloniex.Poloniex
-	huobi         huobi.HUOBI
-	kraken        kraken.Kraken
-}
 
 // Bot contains configuration, portfolio, exchange & ticker data and is the
 // overarching type across this code base.
@@ -66,40 +24,12 @@ type Bot struct {
 	config     *config.Config
 	smsglobal  *smsglobal.Base
 	portfolio  *portfolio.Base
-	exchange   ExchangeMain
 	exchanges  []exchange.IBotExchange
-	tickers    []ticker.Ticker
 	shutdown   chan bool
 	configFile string
 }
 
 var bot Bot
-
-func setupBotExchanges() {
-	for _, exch := range bot.config.Exchanges {
-		for i := 0; i < len(bot.exchanges); i++ {
-			if bot.exchanges[i] != nil {
-				if bot.exchanges[i].GetName() == exch.Name {
-					bot.exchanges[i].Setup(exch)
-					if bot.exchanges[i].IsEnabled() {
-						log.Printf(
-							"%s: Exchange support: %s (Authenticated API support: %s - Verbose mode: %s).\n",
-							exch.Name, common.IsEnabled(exch.Enabled),
-							common.IsEnabled(exch.AuthenticatedAPISupport),
-							common.IsEnabled(exch.Verbose),
-						)
-						bot.exchanges[i].Start()
-					} else {
-						log.Printf(
-							"%s: Exchange support: %s\n", exch.Name,
-							common.IsEnabled(exch.Enabled),
-						)
-					}
-				}
-			}
-		}
-	}
-}
 
 func main() {
 	HandleInterrupt()
@@ -135,41 +65,11 @@ func main() {
 		"Available Exchanges: %d. Enabled Exchanges: %d.\n",
 		len(bot.config.Exchanges), bot.config.GetConfigEnabledExchanges(),
 	)
-	log.Println("Bot Exchange support:")
 
-	bot.exchanges = []exchange.IBotExchange{
-		new(anx.ANX),
-		new(kraken.Kraken),
-		new(btcc.BTCC),
-		new(bitstamp.Bitstamp),
-		new(bitfinex.Bitfinex),
-		new(bittrex.Bittrex),
-		new(wex.WEX),
-		new(btcmarkets.BTCMarkets),
-		new(coinut.COINUT),
-		new(gdax.GDAX),
-		new(gemini.Gemini),
-		new(okcoin.OKCoin),
-		new(okcoin.OKCoin),
-		new(itbit.ItBit),
-		new(lakebtc.LakeBTC),
-		new(liqui.Liqui),
-		new(localbitcoins.LocalBitcoins),
-		new(poloniex.Poloniex),
-		new(huobi.HUOBI),
+	SetupExchanges()
+	if len(bot.exchanges) == 0 {
+		log.Fatalf("No exchanges were able to be loaded. Exiting")
 	}
-
-	for i := 0; i < len(bot.exchanges); i++ {
-		if bot.exchanges[i] != nil {
-			bot.exchanges[i].SetDefaults()
-			log.Printf(
-				"Exchange %s successfully set default settings.\n",
-				bot.exchanges[i].GetName(),
-			)
-		}
-	}
-
-	setupBotExchanges()
 
 	if bot.config.CurrencyExchangeProvider == "yahoo" {
 		currency.SetProvider(true)

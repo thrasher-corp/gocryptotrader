@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
 	"github.com/thrasher-/gocryptotrader/currency/translation"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
@@ -31,25 +30,15 @@ func GetRelatableCurrencies(p pair.CurrencyPair) []pair.CurrencyPair {
 	return pairs
 }
 
-// GetExchangeByName returns an exchange given an exchange name
-func GetExchangeByName(exchName string) exchange.IBotExchange {
-	for x := range bot.exchanges {
-		if common.StringToLower(bot.exchanges[x].GetName()) == common.StringToLower(exchName) {
-			return bot.exchanges[x]
-		}
-	}
-	return nil
-}
-
 // GetSpecificOrderbook returns a specific orderbook given the currency,
 // exchangeName and assetType
 func GetSpecificOrderbook(currency, exchangeName, assetType string) (orderbook.Base, error) {
 	var specificOrderbook orderbook.Base
 	var err error
-	for i := 0; i < len(bot.exchanges); i++ {
-		if bot.exchanges[i] != nil {
-			if bot.exchanges[i].IsEnabled() && bot.exchanges[i].GetName() == exchangeName {
-				specificOrderbook, err = bot.exchanges[i].GetOrderbookEx(
+	for x := range bot.exchanges {
+		if bot.exchanges[x] != nil {
+			if bot.exchanges[x].GetName() == exchangeName {
+				specificOrderbook, err = bot.exchanges[x].GetOrderbookEx(
 					pair.NewCurrencyPairFromString(currency),
 					assetType,
 				)
@@ -65,10 +54,10 @@ func GetSpecificOrderbook(currency, exchangeName, assetType string) (orderbook.B
 func GetSpecificTicker(currency, exchangeName, assetType string) (ticker.Price, error) {
 	var specificTicker ticker.Price
 	var err error
-	for i := 0; i < len(bot.exchanges); i++ {
-		if bot.exchanges[i] != nil {
-			if bot.exchanges[i].IsEnabled() && bot.exchanges[i].GetName() == exchangeName {
-				specificTicker, err = bot.exchanges[i].GetTickerPrice(
+	for x := range bot.exchanges {
+		if bot.exchanges[x] != nil {
+			if bot.exchanges[x].GetName() == exchangeName {
+				specificTicker, err = bot.exchanges[x].GetTickerPrice(
 					pair.NewCurrencyPairFromString(currency),
 					assetType,
 				)

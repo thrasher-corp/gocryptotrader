@@ -86,6 +86,8 @@ func RESTSaveAllSettings(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		RESTfulError(r.Method, err)
 	}
+
+	SetupExchanges()
 }
 
 // RESTGetOrderbook returns orderbook info for a given currency, exchange and
