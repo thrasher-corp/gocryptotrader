@@ -62,8 +62,8 @@ const (
 var (
 	CurrencyStore             map[string]Rate
 	CurrencyStoreFixer        map[string]float64
-	BaseCurrencies            string
-	CryptoCurrencies          string
+	BaseCurrencies            []string
+	CryptoCurrencies          []string
 	ErrCurrencyDataNotFetched = errors.New("yahoo currency data has not been fetched yet")
 	ErrCurrencyNotFound       = errors.New("unable to find specified currency")
 	ErrQueryingYahoo          = errors.New("unable to query Yahoo currency values")
@@ -103,104 +103,50 @@ func GetProvider() string {
 // IsDefaultCurrency checks if the currency passed in matches the default
 // FIAT currency
 func IsDefaultCurrency(currency string) bool {
-	return common.StringContains(
-		DefaultCurrencies, common.StringToUpper(currency),
-	)
+	defaultCurrencies := common.SplitStrings(DefaultCurrencies, ",")
+	return common.DataContains(defaultCurrencies, common.StringToUpper(currency))
 }
 
 // IsDefaultCryptocurrency checks if the currency passed in matches the default
 // CRYPTO currency
 func IsDefaultCryptocurrency(currency string) bool {
-	return common.StringContains(
-		DefaultCryptoCurrencies, common.StringToUpper(currency),
-	)
+	cryptoCurrencies := common.SplitStrings(DefaultCryptoCurrencies, ",")
+	return common.DataContains(cryptoCurrencies, common.StringToUpper(currency))
 }
 
 // IsFiatCurrency checks if the currency passed is an enabled FIAT currency
 func IsFiatCurrency(currency string) bool {
-	if BaseCurrencies == "" {
+	if len(BaseCurrencies) == 0 {
 		log.Println("IsFiatCurrency: BaseCurrencies string variable not populated")
 		return false
 	}
-	return common.StringContains(BaseCurrencies, common.StringToUpper(currency))
+	return common.DataContains(BaseCurrencies, common.StringToUpper(currency))
 }
 
 // IsCryptocurrency checks if the currency passed is an enabled CRYPTO currency.
 func IsCryptocurrency(currency string) bool {
-	if CryptoCurrencies == "" {
+	if len(CryptoCurrencies) == 0 {
 		log.Println(
 			"IsCryptocurrency: CryptoCurrencies string variable not populated",
 		)
 		return false
 	}
-	return common.StringContains(CryptoCurrencies, common.StringToUpper(currency))
+	return common.DataContains(CryptoCurrencies, common.StringToUpper(currency))
 }
 
-// ContainsSeparator checks to see if the string passed contains "-" or "_"
-// separated strings and returns what the separators were.
-func ContainsSeparator(input string) (bool, string) {
-	separators := []string{"-", "_"}
-	var separatorsContainer []string
-
-	for _, x := range separators {
-		if common.StringContains(input, x) {
-			separatorsContainer = append(separatorsContainer, x)
-		}
-	}
-	if len(separatorsContainer) == 0 {
-		return false, ""
-	}
-	return true, strings.Join(separatorsContainer, ",")
-}
-
-// ContainsBaseCurrencyIndex checks the currency against the baseCurrencies and
-// returns a bool and its corresponding basecurrency.
-func ContainsBaseCurrencyIndex(baseCurrencies []string, currency string) (bool, string) {
-	for _, x := range baseCurrencies {
-		if common.StringContains(currency, x) {
-			return true, x
-		}
-	}
-	return false, ""
-}
-
-// ContainsBaseCurrency checks the currency against the baseCurrencies and
-// returns a bool
-func ContainsBaseCurrency(baseCurrencies []string, currency string) bool {
-	for _, x := range baseCurrencies {
-		if common.StringContains(currency, x) {
-			return true
-		}
-	}
-	return false
-}
-
-// CheckAndAddCurrency checks the string you passed with the input string array,
-// if not already added, checks to see if it is part of the default currency
-// list and returns the appended string.
-func CheckAndAddCurrency(input []string, check string) []string {
-	for _, x := range input {
-		if IsDefaultCurrency(x) {
-			if IsDefaultCurrency(check) {
-				if check == x {
-					return input
-				}
-				continue
+// Update updates the local crypto currency or base currency store
+func Update(input []string, cryptos bool) {
+	for x := range input {
+		if cryptos {
+			if !common.DataContains(CryptoCurrencies, input[x]) {
+				CryptoCurrencies = append(CryptoCurrencies, input[x])
 			}
-			return input
-		} else if IsDefaultCryptocurrency(x) {
-			if IsDefaultCryptocurrency(check) {
-				if check == x {
-					return input
-				}
-				continue
+		} else {
+			if !common.DataContains(BaseCurrencies, input[x]) {
+				BaseCurrencies = append(BaseCurrencies, input[x])
 			}
-			return input
 		}
-		return input
 	}
-	input = append(input, check)
-	return input
 }
 
 // SeedCurrencyData takes the desired FIAT currency string, if not defined the
@@ -221,7 +167,7 @@ func SeedCurrencyData(fiatCurrencies string) error {
 // MakecurrencyPairs takes all supported currency and turns them into pairs.
 func MakecurrencyPairs(supportedCurrencies string) string {
 	currencies := common.SplitStrings(supportedCurrencies, ",")
-	pairs := []string{}
+	var pairs []string
 	count := len(currencies)
 	for i := 0; i < count; i++ {
 		currency := currencies[i]

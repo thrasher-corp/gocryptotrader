@@ -320,6 +320,34 @@ func TestGetAvailableCurrencies(t *testing.T) {
 	}
 }
 
+func TestSupportsCurrency(t *testing.T) {
+	b := Base{
+		Name: "TESTNAME",
+	}
+
+	b.AvailablePairs = []string{"BTC-USD", "ETH-USD"}
+	b.EnabledPairs = []string{"BTC-USD"}
+
+	format := config.CurrencyPairFormatConfig{
+		Delimiter: "-",
+		Index:     "",
+	}
+
+	b.RequestCurrencyPairFormat = format
+	b.ConfigCurrencyPairFormat = format
+
+	if !b.SupportsCurrency(pair.NewCurrencyPair("BTC", "USD"), true) {
+		t.Error("Test Failed - Exchange SupportsCurrency() incorrect value")
+	}
+
+	if !b.SupportsCurrency(pair.NewCurrencyPair("ETH", "USD"), false) {
+		t.Error("Test Failed - Exchange SupportsCurrency() incorrect value")
+	}
+
+	if b.SupportsCurrency(pair.NewCurrencyPair("ASD", "ASDF"), true) {
+		t.Error("Test Failed - Exchange SupportsCurrency() incorrect value")
+	}
+}
 func TestGetExchangeFormatCurrencySeperator(t *testing.T) {
 	cfg := config.GetConfig()
 	err := cfg.LoadConfig(config.ConfigTestFile)

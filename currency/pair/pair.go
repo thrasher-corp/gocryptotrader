@@ -126,3 +126,23 @@ func Contains(pairs []CurrencyPair, p CurrencyPair) bool {
 	}
 	return false
 }
+
+// FormatPairs formats a string array to a list of currency pairs with the
+// supplied currency pair format
+func FormatPairs(pairs []string, delimiter, index string) []CurrencyPair {
+	var result []CurrencyPair
+	for x := range pairs {
+		var p CurrencyPair
+		if delimiter != "" {
+			p = NewCurrencyPairDelimiter(pairs[x], delimiter)
+		} else {
+			if index != "" {
+				p = NewCurrencyPairFromIndex(pairs[x], index)
+			} else {
+				p = NewCurrencyPair(pairs[x][0:3], pairs[x][3:])
+			}
+		}
+		result = append(result, p)
+	}
+	return result
+}

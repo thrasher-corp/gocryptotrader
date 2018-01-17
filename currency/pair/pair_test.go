@@ -251,3 +251,17 @@ func TestContains(t *testing.T) {
 		t.Errorf("Test failed. TestContains: Non-existant pair was found")
 	}
 }
+
+func TestFormatPairs(t *testing.T) {
+	if FormatPairs([]string{"BTC-USD"}, "-", "")[0].Pair().String() != "BTC-USD" {
+		t.Error("Test failed. TestFormatPairs: Expected pair was not found")
+	}
+
+	if FormatPairs([]string{"BTCUSD"}, "", "BTC")[0].Pair().String() != "BTCUSD" {
+		t.Error("Test failed. TestFormatPairs: Expected pair was not found")
+	}
+
+	if FormatPairs([]string{"ETHUSD"}, "", "")[0].Pair().String() != "ETHUSD" {
+		t.Error("Test failed. TestFormatPairs: Expected pair was not found")
+	}
+}

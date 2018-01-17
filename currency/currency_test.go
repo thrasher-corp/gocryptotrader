@@ -115,13 +115,11 @@ func TestIsDefaultCryptocurrency(t *testing.T) {
 }
 
 func TestIsFiatCurrency(t *testing.T) {
-	t.Parallel()
-
 	if IsFiatCurrency("") {
 		t.Error("Test failed. TestIsFiatCurrency returned true on an empty string")
 	}
 
-	BaseCurrencies = "USD,AUD"
+	BaseCurrencies = []string{"USD", "AUD"}
 	var str1, str2, str3 string = "BTC", "USD", "birds123"
 
 	if IsFiatCurrency(str1) {
@@ -142,13 +140,11 @@ func TestIsFiatCurrency(t *testing.T) {
 }
 
 func TestIsCryptocurrency(t *testing.T) {
-	t.Parallel()
-
 	if IsCryptocurrency("") {
 		t.Error("Test failed. TestIsCryptocurrency returned true on an empty string")
 	}
 
-	CryptoCurrencies = "BTC,LTC,DASH"
+	CryptoCurrencies = []string{"BTC", "LTC", "DASH"}
 	var str1, str2, str3 string = "USD", "BTC", "pterodactyl123"
 
 	if IsCryptocurrency(str1) {
@@ -168,156 +164,22 @@ func TestIsCryptocurrency(t *testing.T) {
 	}
 }
 
-func TestContainsSeparator(t *testing.T) {
-	t.Parallel()
+func TestUpdate(t *testing.T) {
+	CryptoCurrencies = []string{"BTC", "LTC", "DASH"}
+	BaseCurrencies = []string{"USD", "AUD"}
 
-	var str1, str2, str3, str4 string = "ding-dong", "ding_dong", "dong_ding-dang", "ding"
+	Update([]string{"ETH"}, true)
+	Update([]string{"JPY"}, false)
 
-	doesIt, whatIsIt := ContainsSeparator(str1)
-	if doesIt != true || whatIsIt != "-" {
-		t.Errorf(
-			"Test Failed. ContainsSeparator: \nCannot find separator, %s.", str1,
-		)
-	}
-	doesIt2, whatIsIt2 := ContainsSeparator(str2)
-	if doesIt2 != true || whatIsIt2 != "_" {
-		t.Errorf(
-			"Test Failed. ContainsSeparator: \nCannot find separator, %s.", str2,
-		)
-	}
-	doesIt3, whatIsIt3 := ContainsSeparator(str3)
-	if doesIt3 != true || len(whatIsIt3) != 3 {
-		t.Errorf(
-			"Test Failed. ContainsSeparator: \nCannot find or incorrect separator, %s.",
-			str3,
-		)
-	}
-	doesIt4, whatIsIt4 := ContainsSeparator(str4)
-	if doesIt4 != false || whatIsIt4 != "" {
-		t.Errorf(
-			"Test Failed. ContainsSeparator: \nReturn Issues with string, %s.", str3,
-		)
-	}
-}
-
-func TestContainsBaseCurrencyIndex(t *testing.T) {
-	t.Parallel()
-
-	baseCurrencies := []string{"USD", "AUD", "EUR", "CNY"}
-	currency1, currency2 := "USD", "DINGDONG"
-
-	isIt, whatIsIt := ContainsBaseCurrencyIndex(baseCurrencies, currency1)
-	if !isIt && whatIsIt != "USD" {
-		t.Errorf(
-			"Test Failed. ContainsBaseCurrencyIndex: \nReturned: %t & %s, with Currency as %s.",
-			isIt, whatIsIt, currency1,
-		)
-	}
-	isIt2, whatIsIt2 := ContainsBaseCurrencyIndex(baseCurrencies, currency2)
-	if isIt2 && whatIsIt2 != "DINGDONG" {
-		t.Errorf(
-			"Test Failed. ContainsBaseCurrencyIndex: \nReturned: %t & %s, with Currency as %s.",
-			isIt2, whatIsIt2, currency2,
-		)
-	}
-}
-
-func TestContainsBaseCurrency(t *testing.T) {
-	t.Parallel()
-
-	baseCurrencies := []string{"USD", "AUD", "EUR", "CNY"}
-	currency1, currency2 := "USD", "DINGDONG"
-
-	isIt := ContainsBaseCurrency(baseCurrencies, currency1)
-	if !isIt {
-		t.Errorf("Test Failed. ContainsBaseCurrency: \nReturned: %t, with Currency as %s.",
-			isIt, currency1,
-		)
-	}
-	isIt2 := ContainsBaseCurrency(baseCurrencies, currency2)
-	if isIt2 {
-		t.Errorf("Test Failed. ContainsBaseCurrency: \nReturned: %t, with Currency as %s.",
-			isIt2, currency2,
-		)
-	}
-}
-
-func TestCheckAndAddCurrency(t *testing.T) {
-	t.Parallel()
-
-	inputFiat := []string{"USD", "AUD", "EUR"}
-	inputCrypto := []string{"BTC", "LTC", "ETH", "DOGE", "DASH", "XRP"}
-	testError := []string{"Testy"}
-	fiat := "USD"
-	fiatIncrease := "CNY"
-	crypto := "LTC"
-	cryptoIncrease := "XMR"
-	obtuse := "CATSANDDOGS"
-
-	appendedString := CheckAndAddCurrency(inputFiat, fiat)
-	if len(appendedString) > len(inputFiat) {
-		t.Errorf(
-			"Test Failed. CheckAndAddCurrency: Error with inputFiat, currency as %s.",
-			fiat,
-		)
-	}
-	appendedString = CheckAndAddCurrency(inputFiat, fiatIncrease)
-	if len(appendedString) <= len(inputFiat) {
-		t.Errorf(
-			"Test Failed. CheckAndAddCurrency: Error with inputFiat, currency as %s.",
-			fiatIncrease,
-		)
-	}
-	appendedString = CheckAndAddCurrency(inputFiat, crypto)
-	if len(appendedString) > len(inputFiat) {
-		t.Log(appendedString)
-		t.Errorf(
-			"Test Failed. CheckAndAddCurrency: Error with inputFiat, currency as %s.",
-			crypto,
-		)
-	}
-	appendedString = CheckAndAddCurrency(inputFiat, obtuse)
-	if len(appendedString) > len(inputFiat) {
-		t.Errorf(
-			"Test Failed. CheckAndAddCurrency: Error with inputFiat, currency as %s.",
-			obtuse,
+	if !IsCryptocurrency("ETH") {
+		t.Error(
+			"Test Failed. TestUpdate: \nCannot match currency: ETH",
 		)
 	}
 
-	appendedString = CheckAndAddCurrency(inputCrypto, crypto)
-	if len(appendedString) > len(inputCrypto) {
+	if !IsFiatCurrency("JPY") {
 		t.Errorf(
-			"Test Failed. CheckAndAddCurrency: Error with inputCrytpo, currency as %s.",
-			crypto,
-		)
-	}
-	appendedString = CheckAndAddCurrency(inputCrypto, cryptoIncrease)
-	if len(appendedString) <= len(inputCrypto) {
-		t.Errorf(
-			"Test Failed. CheckAndAddCurrency: Error with inputCrytpo, currency as %s.",
-			cryptoIncrease,
-		)
-	}
-	appendedString = CheckAndAddCurrency(inputCrypto, fiat)
-	if len(appendedString) > len(inputCrypto) {
-		t.Errorf(
-			"Test Failed. CheckAndAddCurrency: Error with inputCrytpo, currency as %s.",
-			fiat,
-		)
-	}
-	appendedString = CheckAndAddCurrency(inputCrypto, obtuse)
-	if len(appendedString) > len(inputCrypto) {
-		t.Errorf(
-			"Test Failed. CheckAndAddCurrency: Error with inputCrytpo, currency as %s.",
-			obtuse,
-		)
-	}
-
-	appendedString = CheckAndAddCurrency(testError, "USD")
-	if appendedString[0] != testError[0] {
-		t.Errorf(
-			"Test Failed. CheckAndAddCurrency: Error with inputCrytpo, basecurrency as %s.",
-			testError,
+			"Test Failed. TestUpdate: \nCannot match currency: JPY",
 		)
 	}
 }

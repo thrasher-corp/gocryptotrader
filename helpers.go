@@ -12,10 +12,37 @@ import (
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 )
 
+// GetExchangeNamesByCurrency returns a list of exchanges supporting
+// a currency pair based on whether the exchange is enabled or not
+func GetExchangeNamesByCurrency(p pair.CurrencyPair, enabled bool) []string {
+	var exchanges []string
+	for x := range bot.config.Exchanges {
+		if enabled != bot.config.Exchanges[x].Enabled {
+			continue
+		}
+
+		exchName := bot.config.Exchanges[x].Name
+		success, err := bot.config.SupportsPair(exchName, p)
+		if err != nil {
+			continue
+		}
+
+		if success {
+			exchanges = append(exchanges, exchName)
+		}
+	}
+	return exchanges
+}
+
 // GetRelatableCurrencies returns a list of currency pairs if it can find
 // any relatable currencies (e.g BTCUSD -> BTC USDT -> XBT USD)
-func GetRelatableCurrencies(p pair.CurrencyPair) []pair.CurrencyPair {
+// incOrig includes the supplied pair if desired
+func GetRelatableCurrencies(p pair.CurrencyPair, incOrig bool) []pair.CurrencyPair {
 	var pairs []pair.CurrencyPair
+	if incOrig {
+		pairs = append(pairs, p)
+	}
+
 	first, err := translation.GetTranslation(p.FirstCurrency)
 	if err == nil {
 		pairs = append(pairs, pair.NewCurrencyPair(first.String(),

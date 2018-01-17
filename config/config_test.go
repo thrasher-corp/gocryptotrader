@@ -2,10 +2,146 @@ package config
 
 import (
 	"testing"
+
+	"github.com/thrasher-/gocryptotrader/common"
+	"github.com/thrasher-/gocryptotrader/currency/pair"
 )
 
-func TestGetConfigEnabledExchanges(t *testing.T) {
-	defaultEnabledExchanges := 18
+func TestSupportsPair(t *testing.T) {
+	cfg := GetConfig()
+	err := cfg.LoadConfig(ConfigTestFile)
+	if err != nil {
+		t.Errorf(
+			"Test failed. TestSupportsPair. LoadConfig Error: %s", err.Error(),
+		)
+	}
+
+	_, err = cfg.SupportsPair("asdf", pair.NewCurrencyPair("BTC", "USD"))
+	if err == nil {
+		t.Error(
+			"Test failed. TestSupportsPair. Non-existant exchange returned nil error",
+		)
+	}
+
+	_, err = cfg.SupportsPair("Bitfinex", pair.NewCurrencyPair("BTC", "USD"))
+	if err != nil {
+		t.Errorf(
+			"Test failed. TestSupportsPair. Incorrect values. Err: %s", err,
+		)
+	}
+}
+
+func TestGetAvailablePairs(t *testing.T) {
+	cfg := GetConfig()
+	err := cfg.LoadConfig(ConfigTestFile)
+	if err != nil {
+		t.Errorf(
+			"Test failed. TestGetAvailablePairs. LoadConfig Error: %s", err.Error(),
+		)
+	}
+
+	_, err = cfg.GetAvailablePairs("asdf")
+	if err == nil {
+		t.Error(
+			"Test failed. TestGetAvailablePairs. Non-existant exchange returned nil error",
+		)
+	}
+
+	_, err = cfg.GetAvailablePairs("Bitfinex")
+	if err != nil {
+		t.Errorf(
+			"Test failed. TestGetAvailablePairs. Incorrect values. Err: %s", err,
+		)
+	}
+}
+
+func TestGetEnabledPairs(t *testing.T) {
+	cfg := GetConfig()
+	err := cfg.LoadConfig(ConfigTestFile)
+	if err != nil {
+		t.Errorf(
+			"Test failed. TestGetEnabledPairs. LoadConfig Error: %s", err.Error(),
+		)
+	}
+
+	_, err = cfg.GetEnabledPairs("asdf")
+	if err == nil {
+		t.Error(
+			"Test failed. TestGetEnabledPairs. Non-existant exchange returned nil error",
+		)
+	}
+
+	_, err = cfg.GetEnabledPairs("Bitfinex")
+	if err != nil {
+		t.Errorf(
+			"Test failed. TestGetEnabledPairs. Incorrect values. Err: %s", err,
+		)
+	}
+}
+
+func TestGetEnabledExchanges(t *testing.T) {
+	cfg := GetConfig()
+	err := cfg.LoadConfig(ConfigTestFile)
+	if err != nil {
+		t.Errorf(
+			"Test failed. TestGetEnabledExchanges. LoadConfig Error: %s", err.Error(),
+		)
+	}
+
+	exchanges := cfg.GetEnabledExchanges()
+	if len(exchanges) != 19 {
+		t.Error(
+			"Test failed. TestGetEnabledExchanges. Enabled exchanges value mismatch",
+		)
+	}
+
+	if !common.DataContains(exchanges, "Bitfinex") {
+		t.Error(
+			"Test failed. TestGetEnabledExchanges. Expected exchange Bitfinex not found",
+		)
+	}
+}
+
+func TestGetDisabledExchanges(t *testing.T) {
+	cfg := GetConfig()
+	err := cfg.LoadConfig(ConfigTestFile)
+	if err != nil {
+		t.Errorf(
+			"Test failed. TestGetDisabledExchanges. LoadConfig Error: %s", err.Error(),
+		)
+	}
+
+	exchanges := cfg.GetDisabledExchanges()
+	if len(exchanges) != 0 {
+		t.Error(
+			"Test failed. TestGetDisabledExchanges. Enabled exchanges value mismatch",
+		)
+	}
+
+	exchCfg, err := cfg.GetExchangeConfig("Bitfinex")
+	if err != nil {
+		t.Errorf(
+			"Test failed. TestGetDisabledExchanges. GetExchangeConfig Error: %s", err.Error(),
+		)
+	}
+
+	exchCfg.Enabled = false
+	err = cfg.UpdateExchangeConfig(exchCfg)
+	if err != nil {
+		t.Errorf(
+			"Test failed. TestGetDisabledExchanges. UpdateExchangeConfig Error: %s", err.Error(),
+		)
+	}
+
+	if len(cfg.GetDisabledExchanges()) != 1 {
+		t.Error(
+			"Test failed. TestGetDisabledExchanges. Enabled exchanges value mismatch",
+		)
+	}
+}
+
+func TestCountEnabledExchanges(t *testing.T) {
+	defaultEnabledExchanges := 19
 	GetConfigEnabledExchanges := GetConfig()
 	err := GetConfigEnabledExchanges.LoadConfig(ConfigTestFile)
 	if err != nil {
@@ -13,9 +149,56 @@ func TestGetConfigEnabledExchanges(t *testing.T) {
 			"Test failed. GetConfigEnabledExchanges load config error: " + err.Error(),
 		)
 	}
-	enabledExch := GetConfigEnabledExchanges.GetConfigEnabledExchanges()
+	enabledExch := GetConfigEnabledExchanges.CountEnabledExchanges()
 	if enabledExch != defaultEnabledExchanges {
 		t.Error("Test failed. GetConfigEnabledExchanges is wrong")
+	}
+}
+
+func TestGetConfigCurrencyPairFormat(t *testing.T) {
+	cfg := GetConfig()
+	err := cfg.LoadConfig(ConfigTestFile)
+	if err != nil {
+		t.Errorf(
+			"Test failed. TestGetConfigCurrencyPairFormat. LoadConfig Error: %s", err.Error(),
+		)
+	}
+	_, err = cfg.GetConfigCurrencyPairFormat("asdasdasd")
+	if err == nil {
+		t.Errorf(
+			"Test failed. TestGetRequestCurrencyPairFormat. Non-existant exchange returned nil error",
+		)
+	}
+
+	exchFmt, err := cfg.GetConfigCurrencyPairFormat("Liqui")
+	if !exchFmt.Uppercase || exchFmt.Delimiter != "_" {
+		t.Errorf(
+			"Test failed. TestGetConfigCurrencyPairFormat. Invalid values",
+		)
+	}
+}
+
+func TestGetRequestCurrencyPairFormat(t *testing.T) {
+	cfg := GetConfig()
+	err := cfg.LoadConfig(ConfigTestFile)
+	if err != nil {
+		t.Errorf(
+			"Test failed. TestGetRequestCurrencyPairFormat. LoadConfig Error: %s", err.Error(),
+		)
+	}
+
+	_, err = cfg.GetRequestCurrencyPairFormat("asdasdasd")
+	if err == nil {
+		t.Errorf(
+			"Test failed. TestGetRequestCurrencyPairFormat. Non-existant exchange returned nil error",
+		)
+	}
+
+	exchFmt, err := cfg.GetRequestCurrencyPairFormat("Liqui")
+	if exchFmt.Uppercase || exchFmt.Delimiter != "_" || exchFmt.Separator != "-" {
+		t.Errorf(
+			"Test failed. TestGetRequestCurrencyPairFormat. Invalid values",
+		)
 	}
 }
 
@@ -221,11 +404,27 @@ func TestCheckWebserverConfigValues(t *testing.T) {
 			"Test failed. checkWebserverConfigValues.LoadConfig: %s", err.Error(),
 		)
 	}
+
 	err = checkWebserverConfigValues.CheckWebserverConfigValues()
 	if err != nil {
 		t.Errorf(
 			"Test failed. checkWebserverConfigValues.CheckWebserverConfigValues: %s",
 			err.Error(),
+		)
+	}
+
+	checkWebserverConfigValues.Webserver.WebsocketConnectionLimit = -1
+	err = checkWebserverConfigValues.CheckWebserverConfigValues()
+	if err != nil {
+		t.Errorf(
+			"Test failed. checkWebserverConfigValues.CheckWebserverConfigValues: %s",
+			err.Error(),
+		)
+	}
+
+	if checkWebserverConfigValues.Webserver.WebsocketConnectionLimit != 1 {
+		t.Error(
+			"Test failed. checkWebserverConfigValues.CheckWebserverConfigValues error",
 		)
 	}
 
@@ -263,17 +462,17 @@ func TestCheckWebserverConfigValues(t *testing.T) {
 }
 
 func TestRetrieveConfigCurrencyPairs(t *testing.T) {
-	retrieveConfigCurrencyPairs := GetConfig()
-	err := retrieveConfigCurrencyPairs.LoadConfig(ConfigTestFile)
+	cfg := GetConfig()
+	err := cfg.LoadConfig(ConfigTestFile)
 	if err != nil {
 		t.Errorf(
-			"Test failed. checkWebserverConfigValues.LoadConfig: %s", err.Error(),
+			"Test failed. TestRetrieveConfigCurrencyPairs.LoadConfig: %s", err.Error(),
 		)
 	}
-	err = retrieveConfigCurrencyPairs.RetrieveConfigCurrencyPairs()
+	err = cfg.RetrieveConfigCurrencyPairs()
 	if err != nil {
 		t.Errorf(
-			"Test failed. checkWebserverConfigValues.RetrieveConfigCurrencyPairs: %s",
+			"Test failed. TestRetrieveConfigCurrencyPairs.RetrieveConfigCurrencyPairs: %s",
 			err.Error(),
 		)
 	}

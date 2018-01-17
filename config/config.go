@@ -8,11 +8,11 @@ import (
 	"log"
 	"os"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency"
+	"github.com/thrasher-/gocryptotrader/currency/pair"
 	"github.com/thrasher-/gocryptotrader/portfolio"
 	"github.com/thrasher-/gocryptotrader/smsglobal"
 )
@@ -117,8 +117,66 @@ type ExchangeConfig struct {
 	RequestCurrencyPairFormat *CurrencyPairFormatConfig `json:"RequestCurrencyPairFormat"`
 }
 
-// GetConfigEnabledExchanges returns the number of exchanges that are enabled.
-func (c *Config) GetConfigEnabledExchanges() int {
+// SupportsPair returns true or not whether the exchange supports the supplied
+// pair
+func (c *Config) SupportsPair(exchName string, p pair.CurrencyPair) (bool, error) {
+	pairs, err := c.GetAvailablePairs(exchName)
+	if err != nil {
+		return false, err
+	}
+	return pair.Contains(pairs, p), nil
+}
+
+// GetAvailablePairs returns a list of currency pairs for a specifc exchange
+func (c *Config) GetAvailablePairs(exchName string) ([]pair.CurrencyPair, error) {
+	exchCfg, err := c.GetExchangeConfig(exchName)
+	if err != nil {
+		return nil, err
+	}
+
+	pairs := pair.FormatPairs(common.SplitStrings(exchCfg.AvailablePairs, ","),
+		exchCfg.ConfigCurrencyPairFormat.Delimiter,
+		exchCfg.ConfigCurrencyPairFormat.Index)
+	return pairs, nil
+}
+
+// GetEnabledPairs returns a list of  currency pairs for a specifc exchange
+func (c *Config) GetEnabledPairs(exchName string) ([]pair.CurrencyPair, error) {
+	exchCfg, err := c.GetExchangeConfig(exchName)
+	if err != nil {
+		return nil, err
+	}
+
+	pairs := pair.FormatPairs(common.SplitStrings(exchCfg.EnabledPairs, ","),
+		exchCfg.ConfigCurrencyPairFormat.Delimiter,
+		exchCfg.ConfigCurrencyPairFormat.Index)
+	return pairs, nil
+}
+
+// GetEnabledExchanges returns a list of enabled exchanges
+func (c *Config) GetEnabledExchanges() []string {
+	var enabledExchs []string
+	for i := range c.Exchanges {
+		if c.Exchanges[i].Enabled {
+			enabledExchs = append(enabledExchs, c.Exchanges[i].Name)
+		}
+	}
+	return enabledExchs
+}
+
+// GetDisabledExchanges returns a list of disabled exchanges
+func (c *Config) GetDisabledExchanges() []string {
+	var disabledExchs []string
+	for i := range c.Exchanges {
+		if !c.Exchanges[i].Enabled {
+			disabledExchs = append(disabledExchs, c.Exchanges[i].Name)
+		}
+	}
+	return disabledExchs
+}
+
+// CountEnabledExchanges returns the number of exchanges that are enabled.
+func (c *Config) CountEnabledExchanges() int {
 	counter := 0
 	for i := range c.Exchanges {
 		if c.Exchanges[i].Enabled {
@@ -126,6 +184,26 @@ func (c *Config) GetConfigEnabledExchanges() int {
 		}
 	}
 	return counter
+}
+
+// GetConfigCurrencyPairFormat returns the config currency pair format
+// for a specific exchange
+func (c *Config) GetConfigCurrencyPairFormat(exchName string) (*CurrencyPairFormatConfig, error) {
+	exchCfg, err := c.GetExchangeConfig(exchName)
+	if err != nil {
+		return nil, err
+	}
+	return exchCfg.ConfigCurrencyPairFormat, nil
+}
+
+// GetRequestCurrencyPairFormat returns the request currency pair format
+// for a specific exchange
+func (c *Config) GetRequestCurrencyPairFormat(exchName string) (*CurrencyPairFormatConfig, error) {
+	exchCfg, err := c.GetExchangeConfig(exchName)
+	if err != nil {
+		return nil, err
+	}
+	return exchCfg.RequestCurrencyPairFormat, nil
 }
 
 // GetCurrencyPairDisplayConfig retrieves the currency pair display preference
@@ -253,59 +331,49 @@ func (c *Config) RetrieveConfigCurrencyPairs() error {
 	cryptoCurrencies := common.SplitStrings(c.Cryptocurrencies, ",")
 	fiatCurrencies := common.SplitStrings(currency.DefaultCurrencies, ",")
 
-	for _, s := range cryptoCurrencies {
-		_, err := strconv.Atoi(s)
-		if err != nil && common.StringContains(c.Cryptocurrencies, s) {
+	for x := range c.Exchanges {
+		if !c.Exchanges[x].Enabled {
 			continue
-		} else {
-			return errors.New("RetrieveConfigCurrencyPairs: Incorrect Crypto-Currency")
 		}
-	}
-
-	for _, exchange := range c.Exchanges {
-		if exchange.Enabled {
-			baseCurrencies := common.SplitStrings(exchange.BaseCurrencies, ",")
-			enabledCurrencies := common.SplitStrings(exchange.EnabledPairs, ",")
-
-			for _, currencyPair := range enabledCurrencies {
-				ok, separator := currency.ContainsSeparator(currencyPair)
-				if ok {
-					pair := common.SplitStrings(currencyPair, separator)
-					for _, x := range pair {
-						ok, _ = currency.ContainsBaseCurrencyIndex(baseCurrencies, x)
-						if !ok {
-							cryptoCurrencies = currency.CheckAndAddCurrency(cryptoCurrencies, x)
-						}
-					}
-				} else {
-					ok, idx := currency.ContainsBaseCurrencyIndex(baseCurrencies, currencyPair)
-					if ok {
-						curr := strings.Replace(currencyPair, idx, "", -1)
-
-						if currency.ContainsBaseCurrency(baseCurrencies, curr) {
-							fiatCurrencies = currency.CheckAndAddCurrency(fiatCurrencies, curr)
-						} else {
-							cryptoCurrencies = currency.CheckAndAddCurrency(cryptoCurrencies, curr)
-						}
-
-						if currency.ContainsBaseCurrency(baseCurrencies, idx) {
-							fiatCurrencies = currency.CheckAndAddCurrency(fiatCurrencies, idx)
-						} else {
-							cryptoCurrencies = currency.CheckAndAddCurrency(cryptoCurrencies, idx)
-						}
-					}
-				}
+		baseCurrencies := common.SplitStrings(c.Exchanges[x].BaseCurrencies, ",")
+		for y := range baseCurrencies {
+			if !common.DataContains(fiatCurrencies, baseCurrencies[y]) {
+				fiatCurrencies = append(fiatCurrencies, baseCurrencies[y])
 			}
 		}
 	}
 
-	currency.BaseCurrencies = common.JoinStrings(fiatCurrencies, ",")
-	if common.StringContains(currency.BaseCurrencies, "RUR") {
-		currency.BaseCurrencies = strings.Replace(currency.BaseCurrencies, "RUR", "RUB", -1)
-	}
-	c.Cryptocurrencies = common.JoinStrings(cryptoCurrencies, ",")
-	currency.CryptoCurrencies = c.Cryptocurrencies
+	for x := range c.Exchanges {
+		if !c.Exchanges[x].Enabled {
+			continue
+		}
 
+		pairs, err := c.GetEnabledPairs(c.Exchanges[x].Name)
+		if err != nil {
+			return err
+		}
+
+		for y := range pairs {
+			if !common.DataContains(fiatCurrencies, pairs[y].FirstCurrency.String()) &&
+				!common.DataContains(cryptoCurrencies, pairs[y].FirstCurrency.String()) {
+				cryptoCurrencies = append(cryptoCurrencies, pairs[y].FirstCurrency.String())
+			}
+
+			if !common.DataContains(fiatCurrencies, pairs[y].SecondCurrency.String()) &&
+				!common.DataContains(cryptoCurrencies, pairs[y].SecondCurrency.String()) {
+				cryptoCurrencies = append(cryptoCurrencies, pairs[y].SecondCurrency.String())
+			}
+		}
+	}
+
+	currency.Update(fiatCurrencies, false)
+	currency.Update(cryptoCurrencies, true)
+
+	for x := range currency.BaseCurrencies {
+		if currency.BaseCurrencies[x] == "RUR" {
+			currency.BaseCurrencies[x] = "RUB"
+		}
+	}
 	return nil
 }
 
