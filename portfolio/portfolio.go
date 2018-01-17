@@ -14,6 +14,10 @@ const (
 
 	etherchainAPIURL          = "https://etherchain.org/api"
 	etherchainAccountMultiple = "account/multiple"
+
+	ethplorerAPIURL      = "https://api.ethplorer.io"
+	ethplorerAddressInfo = "getAddressInfo"
+
 	// PortfolioAddressExchange is a label for an exchange address
 	PortfolioAddressExchange = "Exchange"
 	// PortfolioAddressPersonal is a label for a personal/offline address
@@ -51,6 +55,47 @@ type EtherchainBalanceResponse struct {
 	} `json:"data"`
 }
 
+// EthplorerResponse holds JSON address data for Ethplorer
+type EthplorerResponse struct {
+	Address string `json:"address"`
+	ETH     struct {
+		Balance  float64 `json:"balance"`
+		TotalIn  float64 `json:"totalIn"`
+		TotalOut float64 `json:"totalOut"`
+	} `json:"ETH"`
+	CountTxs     int `json:"countTxs"`
+	ContractInfo struct {
+		CreatorAddress  string `json:"creatorAddress"`
+		TransactionHash string `json:"transactionHash"`
+		Timestamp       int    `json:"timestamp"`
+	} `json:"contractInfo"`
+	TokenInfo struct {
+		Address        string `json:"address"`
+		Name           string `json:"name"`
+		Decimals       int    `json:"decimals"`
+		Symbol         string `json:"symbol"`
+		TotalSupply    string `json:"totalSupply"`
+		Owner          string `json:"owner"`
+		LastUpdated    int    `json:"lastUpdated"`
+		TotalIn        int64  `json:"totalIn"`
+		TotalOut       int64  `json:"totalOut"`
+		IssuancesCount int    `json:"issuancesCount"`
+		HoldersCount   int    `json:"holdersCount"`
+		Image          string `json:"image"`
+		Description    string `json:"description"`
+		Price          struct {
+			Rate     int    `json:"rate"`
+			Diff     int    `json:"diff"`
+			Ts       int    `json:"ts"`
+			Currency string `json:"currency"`
+		} `json:"price"`
+	} `json:"tokenInfo"`
+	Error struct {
+		Code    int    `json:"code"`
+		Message string `json:"message"`
+	} `json:"error"`
+}
+
 // ExchangeAccountInfo : Generic type to hold each exchange's holdings in all
 // enabled currencies
 type ExchangeAccountInfo struct {
@@ -67,25 +112,19 @@ type ExchangeAccountCurrencyInfo struct {
 
 // GetEthereumBalance single or multiple address information as
 // EtherchainBalanceResponse
-func GetEthereumBalance(address []string) (EtherchainBalanceResponse, error) {
-	for _, add := range address {
-		valid, _ := common.IsValidCryptoAddress(add, "eth")
-		if !valid {
-			return EtherchainBalanceResponse{}, errors.New("Not an ethereum address")
-		}
+func GetEthereumBalance(address string) (EthplorerResponse, error) {
+	valid, _ := common.IsValidCryptoAddress(address, "eth")
+	if !valid {
+		return EthplorerResponse{}, errors.New("Not an ethereum address")
 	}
 
-	addresses := common.JoinStrings(address, ",")
 	url := fmt.Sprintf(
-		"%s/%s/%s", etherchainAPIURL, etherchainAccountMultiple, addresses,
+		"%s/%s/%s?apiKey=freekey", ethplorerAPIURL, ethplorerAddressInfo, address,
 	)
-	result := EtherchainBalanceResponse{}
+	result := EthplorerResponse{}
 	err := common.SendHTTPGetRequest(url, true, false, &result)
 	if err != nil {
 		return result, err
-	}
-	if result.Status != 1 {
-		return result, errors.New("Status was not 1")
 	}
 	return result, nil
 }
@@ -230,14 +269,23 @@ func (p *Base) UpdatePortfolio(addresses []string, coinType string) bool {
 		return true
 	}
 
+	errors := 0
 	if coinType == "ETH" {
-		result, err := GetEthereumBalance(addresses)
-		if err != nil {
-			return false
-		}
+		for x := range addresses {
+			result, err := GetEthereumBalance(addresses[x])
+			if err != nil {
+				errors++
+				continue
+			}
 
-		for _, x := range result.Data {
-			p.AddAddress(x.Address, coinType, PortfolioAddressPersonal, x.Balance)
+			if result.Error.Message != "" {
+				errors++
+				continue
+			}
+			p.AddAddress(addresses[x], coinType, PortfolioAddressPersonal, result.ETH.Balance)
+		}
+		if errors > 0 {
+			return false
 		}
 		return true
 	}
@@ -354,10 +402,6 @@ func (p *Base) GetPortfolioSummary() Summary {
 	totalCoins := make(map[string]float64)
 
 	for x, y := range personalHoldings {
-		if x == "ETH" {
-			y = y / common.WeiPerEther
-			personalHoldings[x] = y
-		}
 		totalCoins[x] = y
 	}
 
@@ -424,9 +468,6 @@ func (p *Base) GetPortfolioSummary() Summary {
 	offlineSummary := make(map[string][]OfflineCoinSummary)
 	for _, x := range p.Addresses {
 		if x.Description != PortfolioAddressExchange {
-			if x.CoinType == "ETH" {
-				x.Balance = x.Balance / common.WeiPerEther
-			}
 			coinSummary := OfflineCoinSummary{
 				Address: x.Address,
 				Balance: x.Balance,

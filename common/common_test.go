@@ -474,18 +474,14 @@ func TestSendHTTPRequest(t *testing.T) {
 
 func TestSendHTTPGetRequest(t *testing.T) {
 	type test struct {
-		Status int `json:"status"`
-		Data   []struct {
-			Address   string      `json:"address"`
-			Balance   float64     `json:"balance"`
-			Nonce     interface{} `json:"nonce"`
-			Code      string      `json:"code"`
-			Name      interface{} `json:"name"`
-			Storage   interface{} `json:"storage"`
-			FirstSeen interface{} `json:"firstSeen"`
-		} `json:"data"`
+		Address string `json:"address"`
+		ETH     struct {
+			Balance  int `json:"balance"`
+			TotalIn  int `json:"totalIn"`
+			TotalOut int `json:"totalOut"`
+		} `json:"ETH"`
 	}
-	url := `https://etherchain.org/api/account/multiple/0xde0B295669a9FD93d5F28D9Ec85E40f4cb697BAe`
+	url := `https://api.ethplorer.io/getAddressInfo/0xff71cb760666ab06aa73f34995b42dd4b85ea07b?apiKey=freekey`
 	result := test{}
 
 	err := SendHTTPGetRequest(url, true, false, &result)

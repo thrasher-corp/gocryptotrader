@@ -6,29 +6,22 @@ import (
 )
 
 func TestGetEthereumBalance(t *testing.T) {
-	addresses := []string{"0xb794f5ea0ba39494ce839613fffba74279579268",
-		"0xe853c56864a2ebe4576a807d26fdc4a0ada51919"}
-	nonsenseAddress := []string{
-		"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
-		"0xe853c56864a2ebe4576a807d26fdc4a0ada51919",
-	}
+	address := "0xb794f5ea0ba39494ce839613fffba74279579268"
+	nonsenseAddress := "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
 
-	response, err := GetEthereumBalance(addresses)
+	response, err := GetEthereumBalance(address)
 	if err != nil {
 		t.Errorf("Test Failed - Portfolio GetEthereumBalance() Error: %s", err)
 	}
-	if len(response.Data) != 2 {
-		t.Error(
-			"Test Failed - Portfolio GetEthereumBalance()  Error: Incorrect address",
-		)
+
+	if response.Address != "0xb794f5ea0ba39494ce839613fffba74279579268" {
+		t.Error("Test Failed - Portfolio GetEthereumBalance() address invalid")
 	}
 
 	response, err = GetEthereumBalance(nonsenseAddress)
-	if err == nil {
-		t.Error("Test Failed - Portfolio GetEthereumBalance()")
-	}
-	if len(response.Data) != 0 {
-		t.Error("Test Failed - Portfolio GetEthereumBalance() error")
+	if response.Error.Message != "" {
+		t.Errorf("Test Failed - Portfolio GetEthereumBalance() Error: %s",
+			response.Error.Message)
 	}
 }
 
