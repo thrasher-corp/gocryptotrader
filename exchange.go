@@ -178,6 +178,7 @@ func LoadExchange(name string) error {
 
 	exchCfg.Enabled = true
 	exch.Setup(exchCfg)
+	exch.Start()
 	return nil
 }
 

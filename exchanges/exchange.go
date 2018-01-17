@@ -189,89 +189,26 @@ func (e *Base) GetName() string {
 // GetEnabledCurrencies is a method that returns the enabled currency pairs of
 // the exchange base
 func (e *Base) GetEnabledCurrencies() []pair.CurrencyPair {
-	var pairs []pair.CurrencyPair
-	for x := range e.EnabledPairs {
-		var currencyPair pair.CurrencyPair
-		if e.RequestCurrencyPairFormat.Delimiter != "" {
-			if e.ConfigCurrencyPairFormat.Delimiter != "" {
-				if e.ConfigCurrencyPairFormat.Delimiter == e.RequestCurrencyPairFormat.Delimiter {
-					currencyPair = pair.NewCurrencyPairDelimiter(e.EnabledPairs[x],
-						e.RequestCurrencyPairFormat.Delimiter)
-				} else {
-					currencyPair = pair.NewCurrencyPairDelimiter(e.EnabledPairs[x],
-						e.ConfigCurrencyPairFormat.Delimiter)
-					currencyPair.Delimiter = "-"
-				}
-			} else {
-				if e.ConfigCurrencyPairFormat.Index != "" {
-					currencyPair = pair.NewCurrencyPairFromIndex(e.EnabledPairs[x],
-						e.ConfigCurrencyPairFormat.Index)
-				} else {
-					currencyPair = pair.NewCurrencyPair(e.EnabledPairs[x][0:3],
-						e.EnabledPairs[x][3:])
-				}
-			}
-		} else {
-			if e.ConfigCurrencyPairFormat.Delimiter != "" {
-				currencyPair = pair.NewCurrencyPairDelimiter(e.EnabledPairs[x],
-					e.ConfigCurrencyPairFormat.Delimiter)
-			} else {
-				if e.ConfigCurrencyPairFormat.Index != "" {
-					currencyPair = pair.NewCurrencyPairFromIndex(e.EnabledPairs[x],
-						e.ConfigCurrencyPairFormat.Index)
-				} else {
-					currencyPair = pair.NewCurrencyPair(e.EnabledPairs[x][0:3],
-						e.EnabledPairs[x][3:])
-				}
-			}
-		}
-		pairs = append(pairs, currencyPair)
-	}
-	return pairs
+	return pair.FormatPairs(e.EnabledPairs,
+		e.ConfigCurrencyPairFormat.Delimiter,
+		e.ConfigCurrencyPairFormat.Index)
 }
 
 // GetAvailableCurrencies is a method that returns the available currency pairs
 // of the exchange base
 func (e *Base) GetAvailableCurrencies() []pair.CurrencyPair {
-	var pairs []pair.CurrencyPair
-	for x := range e.AvailablePairs {
-		var currencyPair pair.CurrencyPair
-		if e.RequestCurrencyPairFormat.Delimiter != "" {
-			if e.ConfigCurrencyPairFormat.Delimiter != "" {
-				if e.ConfigCurrencyPairFormat.Delimiter == e.RequestCurrencyPairFormat.Delimiter {
-					currencyPair = pair.NewCurrencyPairDelimiter(e.AvailablePairs[x],
-						e.RequestCurrencyPairFormat.Delimiter)
-				} else {
-					currencyPair = pair.NewCurrencyPairDelimiter(e.AvailablePairs[x],
-						e.ConfigCurrencyPairFormat.Delimiter)
-					currencyPair.Delimiter = "-"
-				}
-			} else {
-				if e.ConfigCurrencyPairFormat.Index != "" {
-					currencyPair = pair.NewCurrencyPairFromIndex(e.AvailablePairs[x],
-						e.ConfigCurrencyPairFormat.Index)
-				} else {
-					currencyPair = pair.NewCurrencyPair(e.AvailablePairs[x][0:3],
-						e.AvailablePairs[x][3:])
-				}
-			}
-		} else {
-			if e.ConfigCurrencyPairFormat.Delimiter != "" {
-				currencyPair = pair.NewCurrencyPairDelimiter(e.AvailablePairs[x],
-					e.ConfigCurrencyPairFormat.Delimiter)
-			} else {
-				if e.ConfigCurrencyPairFormat.Index != "" {
-					currencyPair = pair.NewCurrencyPairFromIndex(e.AvailablePairs[x],
-						e.ConfigCurrencyPairFormat.Index)
-				} else {
-					currencyPair = pair.NewCurrencyPair(e.AvailablePairs[x][0:3],
-						e.AvailablePairs[x][3:])
-				}
-			}
-		}
-		pairs = append(pairs, currencyPair)
+	return pair.FormatPairs(e.AvailablePairs,
+		e.ConfigCurrencyPairFormat.Delimiter,
+		e.ConfigCurrencyPairFormat.Index)
+}
+
+// SupportsCurrency returns true or not whether a currency pair exists in the
+// exchange available currencies or not
+func (e *Base) SupportsCurrency(p pair.CurrencyPair, enabledPairs bool) bool {
+	if enabledPairs {
+		return pair.Contains(e.GetEnabledCurrencies(), p)
 	}
-	return pairs
+	return pair.Contains(e.GetAvailableCurrencies(), p)
 }
 
 // GetExchangeFormatCurrencySeperator returns whether or not a specific

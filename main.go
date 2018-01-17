@@ -10,6 +10,7 @@ import (
 	"runtime"
 	"strconv"
 	"syscall"
+	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
@@ -71,34 +72,34 @@ func main() {
 
 	log.Printf(
 		"Available Exchanges: %d. Enabled Exchanges: %d.\n",
-		len(bot.config.Exchanges), bot.config.GetConfigEnabledExchanges(),
+		len(bot.config.Exchanges), bot.config.CountEnabledExchanges(),
 	)
 
 	SetupExchanges()
 	if len(bot.exchanges) == 0 {
 		log.Fatalf("No exchanges were able to be loaded. Exiting")
 	}
+	// TODO: Fix hack, allow 2 seconds to update exchange settings
+	time.Sleep(time.Second * 2)
 
 	if bot.config.CurrencyExchangeProvider == "yahoo" {
 		currency.SetProvider(true)
 	} else {
 		currency.SetProvider(false)
 	}
-
-	log.Printf("Using %s as currency exchange provider.", bot.config.CurrencyExchangeProvider)
+	log.Printf("Currency exchange provider: %s.", bot.config.CurrencyExchangeProvider)
 
 	bot.config.RetrieveConfigCurrencyPairs()
-	err = currency.SeedCurrencyData(currency.BaseCurrencies)
+	err = currency.SeedCurrencyData(common.JoinStrings(currency.BaseCurrencies, ","))
 	if err != nil {
 		currency.SwapProvider()
 		log.Printf("'%s' currency exchange provider failed, swapping to %s and testing..",
 			bot.config.CurrencyExchangeProvider, currency.GetProvider())
-		err = currency.SeedCurrencyData(currency.BaseCurrencies)
+		err = currency.SeedCurrencyData(common.JoinStrings(currency.BaseCurrencies, ","))
 		if err != nil {
 			log.Fatalf("Fatal error retrieving config currencies. Error: %s", err)
 		}
 	}
-
 	log.Println("Successfully retrieved config currencies.")
 
 	bot.portfolio = &portfolio.Portfolio
@@ -108,7 +109,6 @@ func main() {
 
 	log.Println("Starting websocket handler")
 	go WebsocketHandler()
-
 	go TickerUpdaterRoutine()
 	go OrderbookUpdaterRoutine()
 
