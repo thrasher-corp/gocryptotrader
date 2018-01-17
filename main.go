@@ -28,6 +28,7 @@ type Bot struct {
 	portfolio  *portfolio.Base
 	exchanges  []exchange.IBotExchange
 	shutdown   chan bool
+	dryRun     bool
 	configFile string
 }
 
@@ -38,12 +39,17 @@ func main() {
 
 	//Handle flags
 	flag.StringVar(&bot.configFile, "config", config.GetFilePath(""), "config file to load")
+	dryrun := flag.Bool("dryrun", false, "dry runs bot, doesn't save config file")
 	version := flag.Bool("version", false, "retrieves current GoCryptoTrader version")
 	flag.Parse()
 
 	if *version {
 		fmt.Printf(BuildVersion(true))
 		os.Exit(0)
+	}
+
+	if *dryrun {
+		bot.dryRun = true
 	}
 
 	bot.config = &config.Cfg
@@ -58,6 +64,7 @@ func main() {
 	AdjustGoMaxProcs()
 	log.Printf("Bot '%s' started.\n", bot.config.Name)
 	log.Printf("Fiat display currency: %s.", bot.config.FiatDisplayCurrency)
+	log.Printf("Bot dry run mode: %v\n", common.IsEnabled(bot.dryRun))
 
 	if bot.config.SMS.Enabled {
 		bot.smsglobal = smsglobal.New(bot.config.SMS.Username, bot.config.SMS.Password,
@@ -166,12 +173,15 @@ func HandleInterrupt() {
 func Shutdown() {
 	log.Println("Bot shutting down..")
 	bot.config.Portfolio = portfolio.Portfolio
-	err := bot.config.SaveConfig(bot.configFile)
 
-	if err != nil {
-		log.Println("Unable to save config.")
-	} else {
-		log.Println("Config file saved successfully.")
+	if !bot.dryRun {
+		err := bot.config.SaveConfig(bot.configFile)
+
+		if err != nil {
+			log.Println("Unable to save config.")
+		} else {
+			log.Println("Config file saved successfully.")
+		}
 	}
 
 	log.Println("Exiting.")
