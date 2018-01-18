@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/thrasher-/gocryptotrader/currency"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
 	"github.com/thrasher-/gocryptotrader/currency/translation"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
@@ -11,6 +12,32 @@ import (
 	"github.com/thrasher-/gocryptotrader/exchanges/stats"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 )
+
+// MapCurrenciesByExchange returns a list of currency pairs mapped to an
+// exchange
+func MapCurrenciesByExchange(p []pair.CurrencyPair) map[string][]pair.CurrencyPair {
+	currencyExchange := make(map[string][]pair.CurrencyPair)
+	for x := range p {
+		for y := range bot.config.Exchanges {
+			exchName := bot.config.Exchanges[y].Name
+			success, err := bot.config.SupportsPair(exchName, p[x])
+			if err != nil || !success {
+				continue
+			}
+
+			result, ok := currencyExchange[exchName]
+			if !ok {
+				var pairs []pair.CurrencyPair
+				pairs = append(pairs, p[x])
+				currencyExchange[exchName] = pairs
+			} else {
+				result = append(result, p[x])
+				currencyExchange[exchName] = result
+			}
+		}
+	}
+	return currencyExchange
+}
 
 // GetExchangeNamesByCurrency returns a list of exchanges supporting
 // a currency pair based on whether the exchange is enabled or not
@@ -34,8 +61,42 @@ func GetExchangeNamesByCurrency(p pair.CurrencyPair, enabled bool) []string {
 	return exchanges
 }
 
+// GetRelatableCryptocurrencies returns a list of currency pairs if it can find
+// any relatable currencies (e.g ETHBTC -> ETHLTC -> ETHUSDT -> ETHREP)
+// incOrig includes the supplied pair if desired
+func GetRelatableCryptocurrencies(p pair.CurrencyPair) []pair.CurrencyPair {
+	var pairs []pair.CurrencyPair
+	cryptocurrencies := currency.CryptoCurrencies
+
+	for x := range cryptocurrencies {
+		newPair := pair.NewCurrencyPair(p.FirstCurrency.String(), cryptocurrencies[x])
+		if pair.Contains(pairs, newPair) {
+			continue
+		}
+		pairs = append(pairs, newPair)
+	}
+	return pairs
+}
+
+// GetRelatableFiatCurrencies returns a list of currency pairs if it can find
+// any relatable currencies (e.g ETHUSD -> ETHAUD -> ETHGBP -> ETHJPY)
+// incOrig includes the supplied pair if desired
+func GetRelatableFiatCurrencies(p pair.CurrencyPair) []pair.CurrencyPair {
+	var pairs []pair.CurrencyPair
+	fiatCurrencies := currency.BaseCurrencies
+
+	for x := range fiatCurrencies {
+		newPair := pair.NewCurrencyPair(p.FirstCurrency.String(), fiatCurrencies[x])
+		if pair.Contains(pairs, newPair) {
+			continue
+		}
+		pairs = append(pairs, newPair)
+	}
+	return pairs
+}
+
 // GetRelatableCurrencies returns a list of currency pairs if it can find
-// any relatable currencies (e.g BTCUSD -> BTC USDT -> XBT USD)
+// any relatable currencies (e.g BTCUSD -> BTC USDT -> XBT USDT -> XBT USD)
 // incOrig includes the supplied pair if desired
 func GetRelatableCurrencies(p pair.CurrencyPair, incOrig bool) []pair.CurrencyPair {
 	var pairs []pair.CurrencyPair
@@ -47,6 +108,12 @@ func GetRelatableCurrencies(p pair.CurrencyPair, incOrig bool) []pair.CurrencyPa
 	if err == nil {
 		pairs = append(pairs, pair.NewCurrencyPair(first.String(),
 			p.SecondCurrency.String()))
+
+		second, err := translation.GetTranslation(p.SecondCurrency)
+		if err == nil {
+			pairs = append(pairs, pair.NewCurrencyPair(first.String(),
+				second.String()))
+		}
 	}
 
 	second, err := translation.GetTranslation(p.SecondCurrency)

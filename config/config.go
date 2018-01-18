@@ -327,14 +327,15 @@ func (c *Config) CheckWebserverConfigValues() error {
 
 // RetrieveConfigCurrencyPairs splits, assigns and verifies enabled currency
 // pairs either cryptoCurrencies or fiatCurrencies
-func (c *Config) RetrieveConfigCurrencyPairs() error {
+func (c *Config) RetrieveConfigCurrencyPairs(enabledOnly bool) error {
 	cryptoCurrencies := common.SplitStrings(c.Cryptocurrencies, ",")
 	fiatCurrencies := common.SplitStrings(currency.DefaultCurrencies, ",")
 
 	for x := range c.Exchanges {
-		if !c.Exchanges[x].Enabled {
+		if !c.Exchanges[x].Enabled && enabledOnly {
 			continue
 		}
+
 		baseCurrencies := common.SplitStrings(c.Exchanges[x].BaseCurrencies, ",")
 		for y := range baseCurrencies {
 			if !common.DataContains(fiatCurrencies, baseCurrencies[y]) {
@@ -344,11 +345,14 @@ func (c *Config) RetrieveConfigCurrencyPairs() error {
 	}
 
 	for x := range c.Exchanges {
-		if !c.Exchanges[x].Enabled {
-			continue
+		var pairs []pair.CurrencyPair
+		var err error
+		if !c.Exchanges[x].Enabled && enabledOnly {
+			pairs, err = c.GetEnabledPairs(c.Exchanges[x].Name)
+		} else {
+			pairs, err = c.GetAvailablePairs(c.Exchanges[x].Name)
 		}
 
-		pairs, err := c.GetEnabledPairs(c.Exchanges[x].Name)
 		if err != nil {
 			return err
 		}

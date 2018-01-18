@@ -14,6 +14,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/exchanges/btcmarkets"
 	"github.com/thrasher-/gocryptotrader/exchanges/coinut"
 	"github.com/thrasher-/gocryptotrader/exchanges/gdax"
+	"github.com/thrasher-/gocryptotrader/exchanges/gemini"
 	"github.com/thrasher-/gocryptotrader/exchanges/huobi"
 	"github.com/thrasher-/gocryptotrader/exchanges/itbit"
 	"github.com/thrasher-/gocryptotrader/exchanges/kraken"
@@ -140,7 +141,7 @@ func LoadExchange(name string) error {
 	case "gdax":
 		exch = new(gdax.GDAX)
 	case "gemini":
-		exch = new(gdax.GDAX)
+		exch = new(gemini.Gemini)
 	case "huobi":
 		exch = new(huobi.HUOBI)
 	case "itbit":

@@ -8,6 +8,8 @@ type Ticker struct {
 	Volume struct {
 		Currency  float64
 		USD       float64
+		BTC       float64
+		ETH       float64
 		Timestamp int64
 	}
 }

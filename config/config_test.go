@@ -469,7 +469,15 @@ func TestRetrieveConfigCurrencyPairs(t *testing.T) {
 			"Test failed. TestRetrieveConfigCurrencyPairs.LoadConfig: %s", err.Error(),
 		)
 	}
-	err = cfg.RetrieveConfigCurrencyPairs()
+	err = cfg.RetrieveConfigCurrencyPairs(true)
+	if err != nil {
+		t.Errorf(
+			"Test failed. TestRetrieveConfigCurrencyPairs.RetrieveConfigCurrencyPairs: %s",
+			err.Error(),
+		)
+	}
+
+	err = cfg.RetrieveConfigCurrencyPairs(false)
 	if err != nil {
 		t.Errorf(
 			"Test failed. TestRetrieveConfigCurrencyPairs.RetrieveConfigCurrencyPairs: %s",

@@ -101,12 +101,12 @@ func (o *OKCoin) SetDefaults() {
 		o.APIUrl = OKCOIN_API_URL
 		o.Name = "OKCOIN International"
 		o.WebsocketURL = OKCOIN_WEBSOCKET_URL
-		okcoinDefaultsSet = true
 		o.setCurrencyPairFormats()
 	} else {
 		o.APIUrl = OKCOIN_API_URL_CHINA
 		o.Name = "OKCOIN China"
 		o.WebsocketURL = OKCOIN_WEBSOCKET_URL_CHINA
+		okcoinDefaultsSet = true
 		o.setCurrencyPairFormats()
 	}
 }
