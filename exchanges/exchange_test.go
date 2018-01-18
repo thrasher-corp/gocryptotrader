@@ -484,6 +484,35 @@ func TestSetAPIKeys(t *testing.T) {
 	SetAPIKeys.SetAPIKeys("RocketMan", "Digereedoo", "007", true)
 }
 
+func TestSetCurrencies(t *testing.T) {
+	cfg := config.GetConfig()
+	err := cfg.LoadConfig(config.ConfigTestFile)
+	if err != nil {
+		t.Fatal("Test failed. TestSetCurrencies failed to load config")
+	}
+
+	UAC := Base{Name: "ASDF"}
+	UAC.AvailablePairs = []string{"ETHLTC", "LTCBTC"}
+	UAC.EnabledPairs = []string{"ETHLTC"}
+	newPair := pair.NewCurrencyPair("ETH", "USDT")
+
+	err = UAC.SetCurrencies([]pair.CurrencyPair{newPair}, true)
+	if err == nil {
+		t.Fatal("Test failed. TestSetCurrencies returned nil error on non-existant exchange")
+	}
+
+	UAC.Name = "ANX"
+	UAC.SetCurrencies([]pair.CurrencyPair{newPair}, true)
+	if !pair.Contains(UAC.GetEnabledCurrencies(), newPair) {
+		t.Fatal("Test failed. TestSetCurrencies failed to set currencies")
+	}
+
+	UAC.SetCurrencies([]pair.CurrencyPair{newPair}, false)
+	if !pair.Contains(UAC.GetAvailableCurrencies(), newPair) {
+		t.Fatal("Test failed. TestSetCurrencies failed to set currencies")
+	}
+}
+
 func TestUpdateEnabledCurrencies(t *testing.T) {
 	cfg := config.GetConfig()
 	err := cfg.LoadConfig(config.ConfigTestFile)

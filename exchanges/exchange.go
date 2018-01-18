@@ -73,6 +73,7 @@ type IBotExchange interface {
 	GetAvailableCurrencies() []pair.CurrencyPair
 	GetExchangeAccountInfo() (AccountInfo, error)
 	GetAuthenticatedAPISupport() bool
+	SetCurrencies(pairs []pair.CurrencyPair, enabledPairs bool) error
 }
 
 // SetAssetTypes checks the exchange asset types (whether it supports SPOT,
@@ -293,6 +294,32 @@ func (e *Base) SetAPIKeys(APIKey, APISecret, ClientID string, b64Decode bool) {
 	} else {
 		e.APISecret = APISecret
 	}
+}
+
+// SetCurrencies sets the exchange currency pairs for either enabledPairs or
+// availablePairs
+func (e *Base) SetCurrencies(pairs []pair.CurrencyPair, enabledPairs bool) error {
+	cfg := config.GetConfig()
+	exchCfg, err := cfg.GetExchangeConfig(e.Name)
+	if err != nil {
+		return err
+	}
+
+	var pairsStr []string
+	for x := range pairs {
+		pairsStr = append(pairsStr, pairs[x].Display(exchCfg.ConfigCurrencyPairFormat.Delimiter,
+			exchCfg.ConfigCurrencyPairFormat.Uppercase).String())
+	}
+
+	if enabledPairs {
+		exchCfg.EnabledPairs = common.JoinStrings(pairsStr, ",")
+		e.EnabledPairs = pairsStr
+	} else {
+		exchCfg.AvailablePairs = common.JoinStrings(pairsStr, ",")
+		e.AvailablePairs = pairsStr
+	}
+
+	return cfg.UpdateExchangeConfig(exchCfg)
 }
 
 // UpdateEnabledCurrencies is a method that sets new pairs to the current

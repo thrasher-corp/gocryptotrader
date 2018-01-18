@@ -8,6 +8,7 @@ import (
 
 var translations = map[pair.CurrencyItem]pair.CurrencyItem{
 	"BTC":  "XBT",
+	"ETH":  "XETH",
 	"DOGE": "XDG",
 	"USD":  "USDT",
 }

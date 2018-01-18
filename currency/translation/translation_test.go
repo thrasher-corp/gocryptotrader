@@ -18,7 +18,7 @@ func TestGetTranslation(t *testing.T) {
 		t.Error("GetTranslation: translation result was different to expected result")
 	}
 
-	currencyPair.FirstCurrency = "ETH"
+	currencyPair.FirstCurrency = "NEO"
 	_, err = GetTranslation(currencyPair.FirstCurrency)
 	if err == nil {
 		t.Error("GetTranslation: no error on non translatable currency")
@@ -33,7 +33,7 @@ func TestHasTranslation(t *testing.T) {
 		t.Error("HasTranslation: translation result was different to expected result")
 	}
 
-	currencyPair.FirstCurrency = "ETH"
+	currencyPair.FirstCurrency = "NEO"
 	expected = false
 	actual = HasTranslation(currencyPair.FirstCurrency)
 	if expected != actual {

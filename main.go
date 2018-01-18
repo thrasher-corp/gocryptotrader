@@ -96,7 +96,7 @@ func main() {
 	}
 	log.Printf("Currency exchange provider: %s.", bot.config.CurrencyExchangeProvider)
 
-	bot.config.RetrieveConfigCurrencyPairs()
+	bot.config.RetrieveConfigCurrencyPairs(true)
 	err = currency.SeedCurrencyData(common.JoinStrings(currency.BaseCurrencies, ","))
 	if err != nil {
 		currency.SwapProvider()

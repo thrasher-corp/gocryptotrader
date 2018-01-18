@@ -82,7 +82,7 @@ func main() {
 		Subtotal float64
 	}
 
-	cfg.RetrieveConfigCurrencyPairs()
+	cfg.RetrieveConfigCurrencyPairs(true)
 	portfolioMap := make(map[string]PortfolioTemp)
 	total := float64(0)
 
