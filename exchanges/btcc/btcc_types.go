@@ -3,32 +3,32 @@ package btcc
 // Response is the generalized response type
 type Response struct {
 	Ticker Ticker `json:"ticker"`
-	BtcCny Ticker `json:"ticker_btccny"`
-	LtcCny Ticker `json:"ticker_ltccny"`
-	LtcBtc Ticker `json:"ticker_ltcbtc"`
 }
 
 // Ticker holds basic ticker information
 type Ticker struct {
-	High      float64 `json:"high,string"`
-	Low       float64 `json:"low,string"`
-	Buy       float64 `json:"buy,string"`
-	Sell      float64 `json:"sell,string"`
-	Last      float64 `json:"last,string"`
-	Vol       float64 `json:"vol,string"`
-	Date      int64   `json:"date"`
-	Vwap      float64 `json:"vwap,string"`
-	PrevClose float64 `json:"prev_close,string"`
-	Open      float64 `json:"open,string"`
+	BidPrice           float64 `json:"BidPrice"`
+	AskPrice           float64 `json:"AskPrice"`
+	Open               float64 `json:"Open"`
+	High               float64 `json:"High"`
+	Low                float64 `json:"Low"`
+	Last               float64 `json:"Last"`
+	LastQuantity       float64 `json:"LastQuantity"`
+	PrevCls            float64 `json:"PrevCls"`
+	Volume             float64 `json:"Volume"`
+	Volume24H          float64 `json:"Volume24H"`
+	Timestamp          int64   `json:"Timestamp"`
+	ExecutionLimitDown float64 `json:"ExecutionLimitDown"`
+	ExecutionLimitUp   float64 `json:"ExecutionLimitUp"`
 }
 
 // Trade holds executed trade data
 type Trade struct {
-	Date   int64   `json:"date,string"`
-	Price  float64 `json:"price"`
-	Amount float64 `json:"amount"`
-	TID    int64   `json:"tid,string"`
-	Type   string  `json:"type"`
+	ID        int64   `json:"Id"`
+	Timestamp int64   `json:"Timestamp"`
+	Price     float64 `json:"Price"`
+	Quantity  float64 `json:"Quantity"`
+	Side      string  `json:"Side"`
 }
 
 // Orderbook holds orderbook data

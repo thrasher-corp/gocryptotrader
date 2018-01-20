@@ -4,6 +4,7 @@ import (
 	"log"
 
 	"github.com/thrasher-/gocryptotrader/common"
+	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
@@ -26,6 +27,38 @@ func (b *BTCC) Run() {
 	if b.Websocket {
 		go b.WebsocketClient()
 	}
+
+	if common.DataContains(b.EnabledPairs, "CNY") || common.DataContains(b.AvailablePairs, "CNY") || common.DataContains(b.BaseCurrencies, "CNY") {
+		log.Println("WARNING: BTCC only supports BTCUSD now, upgrading available, enabled and base currencies to BTCUSD/USD")
+		pairs := []string{"BTCUSD"}
+		cfg := config.GetConfig()
+		exchCfg, err := cfg.GetExchangeConfig(b.Name)
+		if err != nil {
+			log.Printf("%s failed to get exchange config. %s\n", b.Name, err)
+			return
+		}
+
+		exchCfg.BaseCurrencies = "USD"
+		exchCfg.AvailablePairs = pairs[0]
+		exchCfg.EnabledPairs = pairs[0]
+		b.BaseCurrencies = []string{"USD"}
+
+		err = b.UpdateAvailableCurrencies(pairs, true)
+		if err != nil {
+			log.Printf("%s failed to update available currencies. %s\n", b.Name, err)
+		}
+
+		err = b.UpdateEnabledCurrencies(pairs, true)
+		if err != nil {
+			log.Printf("%s failed to update enabled currencies. %s\n", b.Name, err)
+		}
+
+		err = cfg.UpdateExchangeConfig(exchCfg)
+		if err != nil {
+			log.Printf("%s failed to update config. %s\n", b.Name, err)
+			return
+		}
+	}
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
@@ -36,11 +69,11 @@ func (b *BTCC) UpdateTicker(p pair.CurrencyPair, assetType string) (ticker.Price
 		return tickerPrice, err
 	}
 	tickerPrice.Pair = p
-	tickerPrice.Ask = tick.Sell
-	tickerPrice.Bid = tick.Buy
+	tickerPrice.Ask = tick.AskPrice
+	tickerPrice.Bid = tick.BidPrice
 	tickerPrice.Low = tick.Low
 	tickerPrice.Last = tick.Last
-	tickerPrice.Volume = tick.Vol
+	tickerPrice.Volume = tick.Volume24H
 	tickerPrice.High = tick.High
 	ticker.ProcessTicker(b.GetName(), p, tickerPrice, assetType)
 	return ticker.GetTicker(b.Name, p, assetType)
