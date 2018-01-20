@@ -16,7 +16,7 @@ import (
 )
 
 const (
-	btccAPIUrl                 = "https://api.btcchina.com/"
+	btccAPIUrl                 = "https://spotusd-data.btcc.com"
 	btccAPIAuthenticatedMethod = "api_trade_v1.php"
 	btccAPIVersion             = "2.0.1.3"
 	btccOrderBuy               = "buyOrder2"
@@ -97,19 +97,8 @@ func (b *BTCC) GetFee() float64 {
 // currencyPair - Example "btccny", "ltccny" or "ltcbtc"
 func (b *BTCC) GetTicker(currencyPair string) (Ticker, error) {
 	resp := Response{}
-	req := fmt.Sprintf("%sdata/ticker?market=%s", btccAPIUrl, currencyPair)
-
+	req := fmt.Sprintf("%s/data/pro/ticker?symbol=%s", btccAPIUrl, currencyPair)
 	return resp.Ticker, common.SendHTTPGetRequest(req, true, b.Verbose, &resp)
-}
-
-// GetTradesLast24h returns the trades executed on the exchange over the past
-// 24 hours by currency pair
-// currencyPair - Example "btccny", "ltccny" or "ltcbtc"
-func (b *BTCC) GetTradesLast24h(currencyPair string) ([]Trade, error) {
-	trades := []Trade{}
-	req := fmt.Sprintf("%sdata/trades?market=%s", btccAPIUrl, currencyPair)
-
-	return trades, common.SendHTTPGetRequest(req, true, b.Verbose, &trades)
 }
 
 // GetTradeHistory returns trade history data
@@ -119,9 +108,7 @@ func (b *BTCC) GetTradesLast24h(currencyPair string) ([]Trade, error) {
 // time - returns trade records starting from unix time 1406794449
 func (b *BTCC) GetTradeHistory(currencyPair string, limit, sinceTid int64, time time.Time) ([]Trade, error) {
 	trades := []Trade{}
-
-	req := fmt.Sprintf("%sdata/historydata?market=%s", btccAPIUrl, currencyPair)
-
+	req := fmt.Sprintf("%s/data/pro/historydata?symbol=%s", btccAPIUrl, currencyPair)
 	v := url.Values{}
 
 	if limit > 0 {
@@ -135,20 +122,18 @@ func (b *BTCC) GetTradeHistory(currencyPair string, limit, sinceTid int64, time 
 	}
 
 	req = common.EncodeURLValues(req, v)
-
 	return trades, common.SendHTTPGetRequest(req, true, b.Verbose, &trades)
 }
 
-// GetOrderBook returns current market order book
+// GetOrderBook returns current symbol order book
 // currencyPair - Example "btccny", "ltccny" or "ltcbtc"
 // limit - limits the returned trades example "10" if 0 will return full
 // orderbook
 func (b *BTCC) GetOrderBook(currencyPair string, limit int) (Orderbook, error) {
 	result := Orderbook{}
-
-	req := fmt.Sprintf("%sdata/orderbook?market=%s&limit=%d", btccAPIUrl, currencyPair, limit)
+	req := fmt.Sprintf("%s/data/pro/orderbook?symbol=%s&limit=%d", btccAPIUrl, currencyPair, limit)
 	if limit == 0 {
-		req = fmt.Sprintf("%sdata/orderbook?market=%s", btccAPIUrl, currencyPair)
+		req = fmt.Sprintf("%s/data/pro/orderbook?symbol=%s", btccAPIUrl, currencyPair)
 	}
 
 	return result, common.SendHTTPGetRequest(req, true, b.Verbose, &result)
@@ -164,13 +149,13 @@ func (b *BTCC) GetAccountInfo(infoType string) error {
 	return b.SendAuthenticatedHTTPRequest(btccAccountInfo, params)
 }
 
-func (b *BTCC) PlaceOrder(buyOrder bool, price, amount float64, market string) {
+func (b *BTCC) PlaceOrder(buyOrder bool, price, amount float64, symbol string) {
 	params := make([]interface{}, 0)
 	params = append(params, strconv.FormatFloat(price, 'f', -1, 64))
 	params = append(params, strconv.FormatFloat(amount, 'f', -1, 64))
 
-	if len(market) > 0 {
-		params = append(params, market)
+	if len(symbol) > 0 {
+		params = append(params, symbol)
 	}
 
 	req := btccOrderBuy
@@ -185,12 +170,12 @@ func (b *BTCC) PlaceOrder(buyOrder bool, price, amount float64, market string) {
 	}
 }
 
-func (b *BTCC) CancelOrder(orderID int64, market string) {
+func (b *BTCC) CancelOrder(orderID int64, symbol string) {
 	params := make([]interface{}, 0)
 	params = append(params, orderID)
 
-	if len(market) > 0 {
-		params = append(params, market)
+	if len(symbol) > 0 {
+		params = append(params, symbol)
 	}
 
 	err := b.SendAuthenticatedHTTPRequest(btccOrderCancel, params)
@@ -215,15 +200,15 @@ func (b *BTCC) GetDeposits(currency string, pending bool) {
 	}
 }
 
-func (b *BTCC) GetMarketDepth(market string, limit int64) {
+func (b *BTCC) GetMarketDepth(symbol string, limit int64) {
 	params := make([]interface{}, 0)
 
 	if limit > 0 {
 		params = append(params, limit)
 	}
 
-	if len(market) > 0 {
-		params = append(params, market)
+	if len(symbol) > 0 {
+		params = append(params, symbol)
 	}
 
 	err := b.SendAuthenticatedHTTPRequest(btccMarketdepth, params)
@@ -233,12 +218,12 @@ func (b *BTCC) GetMarketDepth(market string, limit int64) {
 	}
 }
 
-func (b *BTCC) GetOrder(orderID int64, market string, detailed bool) {
+func (b *BTCC) GetOrder(orderID int64, symbol string, detailed bool) {
 	params := make([]interface{}, 0)
 	params = append(params, orderID)
 
-	if len(market) > 0 {
-		params = append(params, market)
+	if len(symbol) > 0 {
+		params = append(params, symbol)
 	}
 
 	if detailed {
@@ -252,15 +237,15 @@ func (b *BTCC) GetOrder(orderID int64, market string, detailed bool) {
 	}
 }
 
-func (b *BTCC) GetOrders(openonly bool, market string, limit, offset, since int64, detailed bool) {
+func (b *BTCC) GetOrders(openonly bool, symbol string, limit, offset, since int64, detailed bool) {
 	params := make([]interface{}, 0)
 
 	if openonly {
 		params = append(params, openonly)
 	}
 
-	if len(market) > 0 {
-		params = append(params, market)
+	if len(symbol) > 0 {
+		params = append(params, symbol)
 	}
 
 	if limit > 0 {
@@ -358,15 +343,15 @@ func (b *BTCC) RequestWithdrawal(currency string, amount float64) {
 	}
 }
 
-func (b *BTCC) IcebergOrder(buyOrder bool, price, amount, discAmount, variance float64, market string) {
+func (b *BTCC) IcebergOrder(buyOrder bool, price, amount, discAmount, variance float64, symbol string) {
 	params := make([]interface{}, 0)
 	params = append(params, strconv.FormatFloat(price, 'f', -1, 64))
 	params = append(params, strconv.FormatFloat(amount, 'f', -1, 64))
 	params = append(params, strconv.FormatFloat(discAmount, 'f', -1, 64))
 	params = append(params, strconv.FormatFloat(variance, 'f', -1, 64))
 
-	if len(market) > 0 {
-		params = append(params, market)
+	if len(symbol) > 0 {
+		params = append(params, symbol)
 	}
 
 	req := btccIcebergBuy
@@ -381,12 +366,12 @@ func (b *BTCC) IcebergOrder(buyOrder bool, price, amount, discAmount, variance f
 	}
 }
 
-func (b *BTCC) GetIcebergOrder(orderID int64, market string) {
+func (b *BTCC) GetIcebergOrder(orderID int64, symbol string) {
 	params := make([]interface{}, 0)
 	params = append(params, orderID)
 
-	if len(market) > 0 {
-		params = append(params, market)
+	if len(symbol) > 0 {
+		params = append(params, symbol)
 	}
 
 	err := b.SendAuthenticatedHTTPRequest(btccIcebergOrder, params)
@@ -396,7 +381,7 @@ func (b *BTCC) GetIcebergOrder(orderID int64, market string) {
 	}
 }
 
-func (b *BTCC) GetIcebergOrders(limit, offset int64, market string) {
+func (b *BTCC) GetIcebergOrders(limit, offset int64, symbol string) {
 	params := make([]interface{}, 0)
 
 	if limit > 0 {
@@ -407,8 +392,8 @@ func (b *BTCC) GetIcebergOrders(limit, offset int64, market string) {
 		params = append(params, offset)
 	}
 
-	if len(market) > 0 {
-		params = append(params, market)
+	if len(symbol) > 0 {
+		params = append(params, symbol)
 	}
 
 	err := b.SendAuthenticatedHTTPRequest(btccIcebergOrders, params)
@@ -418,12 +403,12 @@ func (b *BTCC) GetIcebergOrders(limit, offset int64, market string) {
 	}
 }
 
-func (b *BTCC) CancelIcebergOrder(orderID int64, market string) {
+func (b *BTCC) CancelIcebergOrder(orderID int64, symbol string) {
 	params := make([]interface{}, 0)
 	params = append(params, orderID)
 
-	if len(market) > 0 {
-		params = append(params, market)
+	if len(symbol) > 0 {
+		params = append(params, symbol)
 	}
 
 	err := b.SendAuthenticatedHTTPRequest(btccIcebergCancel, params)
@@ -433,7 +418,7 @@ func (b *BTCC) CancelIcebergOrder(orderID int64, market string) {
 	}
 }
 
-func (b *BTCC) PlaceStopOrder(buyOder bool, stopPrice, price, amount, trailingAmt, trailingPct float64, market string) {
+func (b *BTCC) PlaceStopOrder(buyOder bool, stopPrice, price, amount, trailingAmt, trailingPct float64, symbol string) {
 	params := make([]interface{}, 0)
 
 	if stopPrice > 0 {
@@ -451,8 +436,8 @@ func (b *BTCC) PlaceStopOrder(buyOder bool, stopPrice, price, amount, trailingAm
 		params = append(params, strconv.FormatFloat(trailingPct, 'f', -1, 64))
 	}
 
-	if len(market) > 0 {
-		params = append(params, market)
+	if len(symbol) > 0 {
+		params = append(params, symbol)
 	}
 
 	req := btccStoporderBuy
@@ -467,12 +452,12 @@ func (b *BTCC) PlaceStopOrder(buyOder bool, stopPrice, price, amount, trailingAm
 	}
 }
 
-func (b *BTCC) GetStopOrder(orderID int64, market string) {
+func (b *BTCC) GetStopOrder(orderID int64, symbol string) {
 	params := make([]interface{}, 0)
 	params = append(params, orderID)
 
-	if len(market) > 0 {
-		params = append(params, market)
+	if len(symbol) > 0 {
+		params = append(params, symbol)
 	}
 
 	err := b.SendAuthenticatedHTTPRequest(btccStoporder, params)
@@ -482,7 +467,7 @@ func (b *BTCC) GetStopOrder(orderID int64, market string) {
 	}
 }
 
-func (b *BTCC) GetStopOrders(status, orderType string, stopPrice float64, limit, offset int64, market string) {
+func (b *BTCC) GetStopOrders(status, orderType string, stopPrice float64, limit, offset int64, symbol string) {
 	params := make([]interface{}, 0)
 
 	if len(status) > 0 {
@@ -505,8 +490,8 @@ func (b *BTCC) GetStopOrders(status, orderType string, stopPrice float64, limit,
 		params = append(params, limit)
 	}
 
-	if len(market) > 0 {
-		params = append(params, market)
+	if len(symbol) > 0 {
+		params = append(params, symbol)
 	}
 
 	err := b.SendAuthenticatedHTTPRequest(btccStoporders, params)
@@ -516,12 +501,12 @@ func (b *BTCC) GetStopOrders(status, orderType string, stopPrice float64, limit,
 	}
 }
 
-func (b *BTCC) CancelStopOrder(orderID int64, market string) {
+func (b *BTCC) CancelStopOrder(orderID int64, symbol string) {
 	params := make([]interface{}, 0)
 	params = append(params, orderID)
 
-	if len(market) > 0 {
-		params = append(params, market)
+	if len(symbol) > 0 {
+		params = append(params, symbol)
 	}
 
 	err := b.SendAuthenticatedHTTPRequest(btccStoporderCancel, params)
@@ -587,7 +572,8 @@ func (b *BTCC) SendAuthenticatedHTTPRequest(method string, params []interface{})
 	postData["method"] = method
 	postData["params"] = params
 	postData["id"] = 1
-	apiURL := btccAPIUrl + btccAPIAuthenticatedMethod
+
+	apiURL := fmt.Sprintf("%s/%s", btccAPIUrl, btccAPIAuthenticatedMethod)
 	data, err := common.JSONEncode(postData)
 
 	if err != nil {

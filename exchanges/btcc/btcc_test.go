@@ -53,21 +53,14 @@ func TestGetFee(t *testing.T) {
 }
 
 func TestGetTicker(t *testing.T) {
-	_, err := b.GetTicker("ltccny")
-	if err == nil {
+	_, err := b.GetTicker("BTCUSD")
+	if err != nil {
 		t.Error("Test failed - GetTicker() error", err)
 	}
 }
 
-func TestGetTradesLast24h(t *testing.T) {
-	_, err := b.GetTradesLast24h("ltccny")
-	if err != nil {
-		t.Error("Test failed - GetTradesLast24h() error", err)
-	}
-}
-
 func TestGetTradeHistory(t *testing.T) {
-	_, err := b.GetTradeHistory("ltccny", 0, 0, time.Time{})
+	_, err := b.GetTradeHistory("BTCUSD", 0, 0, time.Time{})
 	if err != nil {
 		t.Error("Test failed - GetTradeHistory() error", err)
 	}
@@ -75,12 +68,12 @@ func TestGetTradeHistory(t *testing.T) {
 
 func TestGetOrderBook(t *testing.T) {
 	b.Verbose = true
-	_, err := b.GetOrderBook("ltccny", 100)
-	if err == nil {
+	_, err := b.GetOrderBook("BTCUSD", 100)
+	if err != nil {
 		t.Error("Test failed - GetOrderBook() error", err)
 	}
-	_, err = b.GetOrderBook("ltccny", 0)
-	if err == nil {
+	_, err = b.GetOrderBook("BTCUSD", 0)
+	if err != nil {
 		t.Error("Test failed - GetOrderBook() error", err)
 	}
 }
