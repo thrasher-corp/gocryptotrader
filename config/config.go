@@ -387,32 +387,43 @@ func GetFilePath(file string) string {
 	if file != "" {
 		return file
 	}
-	if flag.Lookup("test.v") == nil {
-		data, err := common.ReadFile(EncryptedConfigFile)
-		if err == nil {
-			if ConfirmECS(data) {
-				return EncryptedConfigFile
-			}
-			err = os.Rename(EncryptedConfigFile, ConfigFile)
-			if err != nil {
-				log.Fatalf("Unable to rename config file: %s", err)
-			}
-			log.Printf("Renaming non-encrypted config file from %s to %s",
-				EncryptedConfigFile, ConfigFile)
-			return ConfigFile
+
+	if flag.Lookup("test.v") != nil {
+		return ConfigTestFile
+	}
+
+	exePath, err := common.GetExecutablePath()
+	if err != nil {
+		log.Fatalf("Unable to get executable path: %s", err)
+	}
+
+	tempPath := exePath + common.GetOSPathSlash()
+	encPath := tempPath + EncryptedConfigFile
+	cfgPath := tempPath + ConfigFile
+
+	data, err := common.ReadFile(encPath)
+	if err == nil {
+		if ConfirmECS(data) {
+			return encPath
 		}
-		if !ConfirmECS(data) {
-			return ConfigFile
-		}
-		err = os.Rename(ConfigFile, EncryptedConfigFile)
+		err = os.Rename(encPath, cfgPath)
 		if err != nil {
 			log.Fatalf("Unable to rename config file: %s", err)
 		}
-		log.Printf("Renaming encrypted config file from %s to %s", ConfigFile,
-			EncryptedConfigFile)
-		return EncryptedConfigFile
+		log.Printf("Renaming non-encrypted config file from %s to %s",
+			encPath, cfgPath)
+		return cfgPath
 	}
-	return ConfigTestFile
+	if !ConfirmECS(data) {
+		return cfgPath
+	}
+	err = os.Rename(cfgPath, encPath)
+	if err != nil {
+		log.Fatalf("Unable to rename config file: %s", err)
+	}
+	log.Printf("Renamed encrypted config file from %s to %s", cfgPath,
+		encPath)
+	return encPath
 }
 
 // ReadConfig verifies and checks for encryption and verifies the unencrypted

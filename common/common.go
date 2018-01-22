@@ -20,8 +20,10 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"path/filepath"
 	"reflect"
 	"regexp"
+	"runtime"
 	"strconv"
 	"strings"
 	"time"
@@ -445,4 +447,22 @@ func GetURIPath(uri string) string {
 		return fmt.Sprintf("%s?%s", urip.Path, urip.RawQuery)
 	}
 	return urip.Path
+}
+
+// GetExecuteablePath returns the executables launch path
+func GetExecutablePath() (string, error) {
+	ex, err := os.Executable()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Dir(ex), nil
+}
+
+// GetOSPathSlash returns the slash used by the operating systems
+// file system
+func GetOSPathSlash() string {
+	if runtime.GOOS == "windows" {
+		return "\\"
+	}
+	return "/"
 }
