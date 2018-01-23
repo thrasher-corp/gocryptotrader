@@ -15,17 +15,13 @@ func TestIsEnabled(t *testing.T) {
 	expected := "Enabled"
 	actual := IsEnabled(true)
 	if actual != expected {
-		t.Error(fmt.Sprintf(
-			"Test failed. Expected %s. Actual %s", expected, actual),
-		)
+		t.Errorf("Test failed. Expected %s. Actual %s", expected, actual)
 	}
 
 	expected = "Disabled"
 	actual = IsEnabled(false)
 	if actual != expected {
-		t.Error(fmt.Sprintf(
-			"Test failed. Expected %s. Actual %s", expected, actual),
-		)
+		t.Errorf("Test failed. Expected %s. Actual %s", expected, actual)
 	}
 }
 
@@ -82,10 +78,8 @@ func TestGetMD5(t *testing.T) {
 	actualOutput := GetMD5(originalString)
 	actualStr := HexEncodeToString(actualOutput)
 	if !bytes.Equal(expectedOutput, []byte(actualStr)) {
-		t.Error(fmt.Sprintf(
-			"Test failed. Expected '%s'. Actual '%s'",
-			expectedOutput, []byte(actualStr)),
-		)
+		t.Errorf("Test failed. Expected '%s'. Actual '%s'",
+			expectedOutput, []byte(actualStr))
 	}
 
 }
@@ -99,9 +93,8 @@ func TestGetSHA512(t *testing.T) {
 	actualOutput := GetSHA512(originalString)
 	actualStr := HexEncodeToString(actualOutput)
 	if !bytes.Equal(expectedOutput, []byte(actualStr)) {
-		t.Error(fmt.Sprintf("Test failed. Expected '%x'. Actual '%x'",
-			expectedOutput, []byte(actualStr)),
-		)
+		t.Errorf("Test failed. Expected '%x'. Actual '%x'",
+			expectedOutput, []byte(actualStr))
 	}
 }
 
@@ -114,9 +107,8 @@ func TestGetSHA256(t *testing.T) {
 	actualOutput := GetSHA256(originalString)
 	actualStr := HexEncodeToString(actualOutput)
 	if !bytes.Equal(expectedOutput, []byte(actualStr)) {
-		t.Error(fmt.Sprintf("Test failed. Expected '%x'. Actual '%x'",
-			expectedOutput, []byte(actualStr)),
-		)
+		t.Errorf("Test failed. Expected '%x'. Actual '%x'", expectedOutput,
+			[]byte(actualStr))
 	}
 }
 
@@ -173,7 +165,8 @@ func TestStringToLower(t *testing.T) {
 	expectedResult := "hey man"
 	actualResult := StringToLower(upperCaseString)
 	if actualResult != expectedResult {
-		t.Error("...")
+		t.Errorf("Test failed. Expected '%s'. Actual '%s'",
+			expectedResult, actualResult)
 	}
 }
 
@@ -183,7 +176,8 @@ func TestStringToUpper(t *testing.T) {
 	expectedResult := "HEY MAN"
 	actualResult := StringToUpper(upperCaseString)
 	if actualResult != expectedResult {
-		t.Error("...")
+		t.Errorf("Test failed. Expected '%s'. Actual '%s'",
+			expectedResult, actualResult)
 	}
 }
 
@@ -193,9 +187,8 @@ func TestHexEncodeToString(t *testing.T) {
 	expectedOutput := "737472696e67"
 	actualResult := HexEncodeToString(originalInput)
 	if actualResult != expectedOutput {
-		t.Error(fmt.Sprintf("Test failed. Expected '%s'. Actual '%s'",
-			expectedOutput, actualResult),
-		)
+		t.Errorf("Test failed. Expected '%s'. Actual '%s'",
+			expectedOutput, actualResult)
 	}
 }
 
@@ -205,9 +198,8 @@ func TestBase64Decode(t *testing.T) {
 	expectedOutput := []byte("hello")
 	actualResult, err := Base64Decode(originalInput)
 	if !bytes.Equal(actualResult, expectedOutput) {
-		t.Error(fmt.Sprintf("Test failed. Expected '%s'. Actual '%s'. Error: %s",
-			expectedOutput, actualResult, err),
-		)
+		t.Errorf("Test failed. Expected '%s'. Actual '%s'. Error: %s",
+			expectedOutput, actualResult, err)
 	}
 
 	_, err = Base64Decode("-")
@@ -222,9 +214,8 @@ func TestBase64Encode(t *testing.T) {
 	expectedOutput := "aGVsbG8="
 	actualResult := Base64Encode(originalInput)
 	if actualResult != expectedOutput {
-		t.Error(fmt.Sprintf(
-			"Test failed. Expected '%s'. Actual '%s'", expectedOutput, actualResult),
-		)
+		t.Errorf("Test failed. Expected '%s'. Actual '%s'",
+			expectedOutput, actualResult)
 	}
 }
 
@@ -235,9 +226,8 @@ func TestStringSliceDifference(t *testing.T) {
 	expectedOutput := []string{"hello moto"}
 	actualResult := StringSliceDifference(originalInputOne, originalInputTwo)
 	if reflect.DeepEqual(expectedOutput, actualResult) {
-		t.Error(fmt.Sprintf(
-			"Test failed. Expected '%s'. Actual '%s'", expectedOutput, actualResult),
-		)
+		t.Errorf("Test failed. Expected '%s'. Actual '%s'",
+			expectedOutput, actualResult)
 	}
 }
 
@@ -248,9 +238,8 @@ func TestStringContains(t *testing.T) {
 	expectedOutput := true
 	actualResult := StringContains(originalInput, originalInputSubstring)
 	if actualResult != expectedOutput {
-		t.Error(fmt.Sprintf(
-			"Test failed. Expected '%t'. Actual '%t'", expectedOutput, actualResult),
-		)
+		t.Errorf("Test failed. Expected '%v'. Actual '%v'",
+			expectedOutput, actualResult)
 	}
 }
 
@@ -263,16 +252,13 @@ func TestDataContains(t *testing.T) {
 	expectedOutputTwo := false
 	actualResult := DataContains(originalHaystack, originalNeedle)
 	if actualResult != expectedOutput {
-		t.Error(fmt.Sprintf(
-			"Test failed. Expected '%t'. Actual '%t'", expectedOutput, actualResult),
-		)
+		t.Errorf("Test failed. Expected '%v'. Actual '%v'",
+			expectedOutput, actualResult)
 	}
 	actualResult = DataContains(originalHaystack, anotherNeedle)
 	if actualResult != expectedOutputTwo {
-		t.Error(fmt.Sprintf(
-			"Test failed. Expected '%t'. Actual '%t'", expectedOutputTwo,
-			actualResult),
-		)
+		t.Errorf("Test failed. Expected '%v'. Actual '%v'",
+			expectedOutput, actualResult)
 	}
 }
 
@@ -283,9 +269,8 @@ func TestJoinStrings(t *testing.T) {
 	expectedOutput := "hello,moto"
 	actualResult := JoinStrings(originalInputOne, separator)
 	if expectedOutput != actualResult {
-		t.Error(fmt.Sprintf(
-			"Test failed. Expected '%s'. Actual '%s'", expectedOutput, actualResult),
-		)
+		t.Errorf("Test failed. Expected '%s'. Actual '%s'",
+			expectedOutput, actualResult)
 	}
 }
 
@@ -296,9 +281,8 @@ func TestSplitStrings(t *testing.T) {
 	expectedOutput := []string{"hello", "moto"}
 	actualResult := SplitStrings(originalInputOne, separator)
 	if !reflect.DeepEqual(expectedOutput, actualResult) {
-		t.Error(fmt.Sprintf(
-			"Test failed. Expected '%s'. Actual '%s'", expectedOutput, actualResult),
-		)
+		t.Errorf("Test failed. Expected '%s'. Actual '%s'",
+			expectedOutput, actualResult)
 	}
 }
 
@@ -309,9 +293,8 @@ func TestTrimString(t *testing.T) {
 	expectedOutput := "bc"
 	actualResult := TrimString(originalInput, cutset)
 	if expectedOutput != actualResult {
-		t.Errorf(
-			"Test failed. Expected '%s'. Actual '%s'", expectedOutput, actualResult,
-		)
+		t.Errorf("Test failed. Expected '%s'. Actual '%s'",
+			expectedOutput, actualResult)
 	}
 }
 
@@ -347,8 +330,8 @@ func TestRoundFloat(t *testing.T) {
 	for testInput, expectedOutput := range testTable {
 		actualOutput := RoundFloat(testInput, 2)
 		if actualOutput != expectedOutput {
-			t.Error(fmt.Sprintf("Test failed. RoundFloat Expected '%f'. Actual '%f'.",
-				expectedOutput, actualOutput))
+			t.Errorf("Test failed. RoundFloat Expected '%f'. Actual '%f'.",
+				expectedOutput, actualOutput)
 		}
 	}
 }
@@ -373,9 +356,8 @@ func TestCalculateFee(t *testing.T) {
 	expectedOutput := float64(0.01)
 	actualResult := CalculateFee(originalInput, fee)
 	if expectedOutput != actualResult {
-		t.Error(fmt.Sprintf(
-			"Test failed. Expected '%f'. Actual '%f'.", expectedOutput, actualResult),
-		)
+		t.Errorf(
+			"Test failed. Expected '%f'. Actual '%f'.", expectedOutput, actualResult)
 	}
 }
 
@@ -386,9 +368,8 @@ func TestCalculateAmountWithFee(t *testing.T) {
 	expectedOutput := float64(1.01)
 	actualResult := CalculateAmountWithFee(originalInput, fee)
 	if expectedOutput != actualResult {
-		t.Error(fmt.Sprintf(
-			"Test failed. Expected '%f'. Actual '%f'.", expectedOutput, actualResult),
-		)
+		t.Errorf(
+			"Test failed. Expected '%f'. Actual '%f'.", expectedOutput, actualResult)
 	}
 }
 
@@ -399,9 +380,8 @@ func TestCalculatePercentageGainOrLoss(t *testing.T) {
 	expectedOutput := 3.3333333333333335
 	actualResult := CalculatePercentageGainOrLoss(originalInput, secondInput)
 	if expectedOutput != actualResult {
-		t.Error(fmt.Sprintf(
-			"Test failed. Expected '%f'. Actual '%f'.", expectedOutput, actualResult),
-		)
+		t.Errorf(
+			"Test failed. Expected '%f'. Actual '%f'.", expectedOutput, actualResult)
 	}
 }
 
@@ -412,9 +392,8 @@ func TestCalculatePercentageDifference(t *testing.T) {
 	expectedOutput := 66.66666666666666
 	actualResult := CalculatePercentageDifference(originalInput, secondAmount)
 	if expectedOutput != actualResult {
-		t.Error(fmt.Sprintf(
-			"Test failed. Expected '%f'. Actual '%f'.", expectedOutput, actualResult),
-		)
+		t.Errorf(
+			"Test failed. Expected '%f'. Actual '%f'.", expectedOutput, actualResult)
 	}
 }
 
@@ -427,9 +406,8 @@ func TestCalculateNetProfit(t *testing.T) {
 	expectedOutput := float64(44)
 	actualResult := CalculateNetProfit(amount, priceThen, priceNow, costs)
 	if expectedOutput != actualResult {
-		t.Error(fmt.Sprintf(
-			"Test failed. Expected '%f'. Actual '%f'.", expectedOutput, actualResult),
-		)
+		t.Errorf(
+			"Test failed. Expected '%f'. Actual '%f'.", expectedOutput, actualResult)
 	}
 }
 
@@ -550,24 +528,21 @@ func TestExtractHost(t *testing.T) {
 	expectedOutput := "localhost"
 	actualResult := ExtractHost(address)
 	if expectedOutput != actualResult {
-		t.Error(fmt.Sprintf(
-			"Test failed. Expected '%s'. Actual '%s'.", expectedOutput, actualResult),
-		)
+		t.Errorf(
+			"Test failed. Expected '%s'. Actual '%s'.", expectedOutput, actualResult)
 	}
 	actualResultTwo := ExtractHost(addresstwo)
 	if expectedOutput != actualResultTwo {
-		t.Error(fmt.Sprintf(
-			"Test failed. Expected '%s'. Actual '%s'.", expectedOutput, actualResult),
-		)
+		t.Errorf(
+			"Test failed. Expected '%s'. Actual '%s'.", expectedOutput, actualResult)
 	}
 
 	address = "192.168.1.100:1337"
 	expectedOutput = "192.168.1.100"
 	actualResult = ExtractHost(address)
 	if expectedOutput != actualResult {
-		t.Error(fmt.Sprintf(
-			"Test failed. Expected '%s'. Actual '%s'.", expectedOutput, actualResult),
-		)
+		t.Errorf(
+			"Test failed. Expected '%s'. Actual '%s'.", expectedOutput, actualResult)
 	}
 }
 
@@ -577,9 +552,8 @@ func TestExtractPort(t *testing.T) {
 	expectedOutput := 1337
 	actualResult := ExtractPort(address)
 	if expectedOutput != actualResult {
-		t.Error(fmt.Sprintf(
-			"Test failed. Expected '%d'. Actual '%d'.", expectedOutput, actualResult),
-		)
+		t.Errorf(
+			"Test failed. Expected '%d'. Actual '%d'.", expectedOutput, actualResult)
 	}
 }
 
@@ -604,9 +578,8 @@ func TestUnixTimestampToTime(t *testing.T) {
 	expectedOutput := "2017-03-13 21:17:11 +0000 UTC"
 	actualResult := UnixTimestampToTime(testTime)
 	if tm.String() != actualResult.String() {
-		t.Error(fmt.Sprintf(
-			"Test failed. Expected '%s'. Actual '%s'.", expectedOutput, actualResult),
-		)
+		t.Errorf(
+			"Test failed. Expected '%s'. Actual '%s'.", expectedOutput, actualResult)
 	}
 }
 
@@ -620,9 +593,8 @@ func TestUnixTimestampStrToTime(t *testing.T) {
 		t.Error(err)
 	}
 	if actualResult.UTC().String() != expectedOutput {
-		t.Error(fmt.Sprintf(
-			"Test failed. Expected '%s'. Actual '%s'.", expectedOutput, actualResult),
-		)
+		t.Errorf(
+			"Test failed. Expected '%s'. Actual '%s'.", expectedOutput, actualResult)
 	}
 	actualResult, err = UnixTimestampStrToTime(incorrectTime)
 	if err == nil {
@@ -688,8 +660,8 @@ func TestGetURIPath(t *testing.T) {
 	for testInput, expectedOutput := range testTable {
 		actualOutput := GetURIPath(testInput)
 		if actualOutput != expectedOutput {
-			t.Error(fmt.Sprintf("Test failed. Expected '%s'. Actual '%s'.",
-				expectedOutput, actualOutput))
+			t.Errorf("Test failed. Expected '%s'. Actual '%s'.",
+				expectedOutput, actualOutput)
 		}
 	}
 }
