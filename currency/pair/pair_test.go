@@ -111,7 +111,7 @@ func TestEqual(t *testing.T) {
 	t.Parallel()
 	pair := NewCurrencyPair("BTC", "USD")
 	secondPair := NewCurrencyPair("btc", "uSd")
-	actual := pair.Equal(secondPair)
+	actual := pair.Equal(secondPair, false)
 	expected := true
 	if actual != expected {
 		t.Errorf(
@@ -121,7 +121,7 @@ func TestEqual(t *testing.T) {
 	}
 
 	secondPair.SecondCurrency = "ETH"
-	actual = pair.Equal(secondPair)
+	actual = pair.Equal(secondPair, false)
 	expected = false
 	if actual != expected {
 		t.Errorf(
@@ -131,11 +131,24 @@ func TestEqual(t *testing.T) {
 	}
 
 	secondPair = NewCurrencyPair("USD", "BTC")
-	actual = pair.Equal(secondPair)
+	actual = pair.Equal(secondPair, false)
 	expected = true
 	if actual != expected {
 		t.Errorf(
 			"Test failed. Equal(): %v was not equal to expected value: %v",
+			actual, expected,
+		)
+	}
+}
+
+func TestSwap(t *testing.T) {
+	t.Parallel()
+	pair := NewCurrencyPair("BTC", "USD")
+	actual := pair.Swap().Pair()
+	expected := CurrencyItem("USDBTC")
+	if actual != expected {
+		t.Errorf(
+			"Test failed. TestSwap: %s was not equal to expected value: %s",
 			actual, expected,
 		)
 	}
@@ -243,12 +256,36 @@ func TestContains(t *testing.T) {
 	pairs = append(pairs, pairOne)
 	pairs = append(pairs, pairTwo)
 
-	if !Contains(pairs, pairOne) {
+	if !Contains(pairs, pairOne, true) {
 		t.Errorf("Test failed. TestContains: Expected pair was not found")
 	}
 
-	if Contains(pairs, NewCurrencyPair("ETH", "USD")) {
+	if Contains(pairs, NewCurrencyPair("ETH", "USD"), false) {
 		t.Errorf("Test failed. TestContains: Non-existant pair was found")
+	}
+}
+
+func TestContainsCurrency(t *testing.T) {
+	p := NewCurrencyPair("BTC", "USD")
+
+	if !ContainsCurrency(p, "BTC") {
+		t.Error("Test failed. TestContainsCurrency: Expected currency was not found")
+	}
+
+	if ContainsCurrency(p, "ETH") {
+		t.Error("Test failed. TestContainsCurrency: Non-existant currency was found")
+	}
+}
+
+func TestRemovePairsByFilter(t *testing.T) {
+	var pairs []CurrencyPair
+	pairs = append(pairs, NewCurrencyPair("BTC", "USD"))
+	pairs = append(pairs, NewCurrencyPair("LTC", "USD"))
+	pairs = append(pairs, NewCurrencyPair("LTC", "USDT"))
+
+	pairs = RemovePairsByFilter(pairs, "USDT")
+	if Contains(pairs, NewCurrencyPair("LTC", "USDT"), true) {
+		t.Error("Test failed. TestRemovePairsByFilter unexpected result")
 	}
 }
 
@@ -282,12 +319,12 @@ func TestCopyPairFormat(t *testing.T) {
 	testPair := NewCurrencyPair("BTC", "USD")
 	testPair.Delimiter = "~"
 
-	result := CopyPairFormat(testPair, pairs)
+	result := CopyPairFormat(testPair, pairs, false)
 	if result.Pair().String() != "BTC-USD" {
 		t.Error("Test failed. TestCopyPairFormat: Expected pair was not found")
 	}
 
-	result = CopyPairFormat(NewCurrencyPair("ETH", "USD"), pairs)
+	result = CopyPairFormat(NewCurrencyPair("ETH", "USD"), pairs, true)
 	if result.Pair().String() != "" {
 		t.Error("Test failed. TestCopyPairFormat: Unexpected non empty pair returned")
 	}

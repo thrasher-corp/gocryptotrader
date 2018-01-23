@@ -218,9 +218,9 @@ func (e *Base) GetAvailableCurrencies() []pair.CurrencyPair {
 // exchange available currencies or not
 func (e *Base) SupportsCurrency(p pair.CurrencyPair, enabledPairs bool) bool {
 	if enabledPairs {
-		return pair.Contains(e.GetEnabledCurrencies(), p)
+		return pair.Contains(e.GetEnabledCurrencies(), p, false)
 	}
-	return pair.Contains(e.GetAvailableCurrencies(), p)
+	return pair.Contains(e.GetAvailableCurrencies(), p, false)
 }
 
 // GetExchangeFormatCurrencySeperator returns whether or not a specific
