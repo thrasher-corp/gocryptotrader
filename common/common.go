@@ -449,7 +449,7 @@ func GetURIPath(uri string) string {
 	return urip.Path
 }
 
-// GetExecuteablePath returns the executables launch path
+// GetExecutablePath returns the executables launch path
 func GetExecutablePath() (string, error) {
 	ex, err := os.Executable()
 	if err != nil {

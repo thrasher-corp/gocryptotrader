@@ -149,7 +149,7 @@
   {
    "Name": "BTCC",
    "Enabled": true,
-   "Verbose": true,
+   "Verbose": false,
    "Websocket": false,
    "UseSandbox": false,
    "RESTPollingDelay": 10,
