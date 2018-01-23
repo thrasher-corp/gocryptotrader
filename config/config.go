@@ -124,7 +124,7 @@ func (c *Config) SupportsPair(exchName string, p pair.CurrencyPair) (bool, error
 	if err != nil {
 		return false, err
 	}
-	return pair.Contains(pairs, p), nil
+	return pair.Contains(pairs, p, false), nil
 }
 
 // GetAvailablePairs returns a list of currency pairs for a specifc exchange

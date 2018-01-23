@@ -89,7 +89,7 @@ func Append(exchange string, p pair.CurrencyPair, assetType string, price, volum
 // for a specific currency pair and asset type
 func AlreadyExists(exchange string, p pair.CurrencyPair, assetType string, price, volume float64) bool {
 	for i := range Items {
-		if Items[i].Exchange == exchange && Items[i].Pair.Equal(p) && Items[i].AssetType == assetType {
+		if Items[i].Exchange == exchange && Items[i].Pair.Equal(p, false) && Items[i].AssetType == assetType {
 			Items[i].Price, Items[i].Volume = price, volume
 			return true
 		}
@@ -103,7 +103,7 @@ func AlreadyExists(exchange string, p pair.CurrencyPair, assetType string, price
 func SortExchangesByVolume(p pair.CurrencyPair, assetType string, reverse bool) []Item {
 	var result []Item
 	for x := range Items {
-		if Items[x].Pair.Equal(p) && Items[x].AssetType == assetType {
+		if Items[x].Pair.Equal(p, false) && Items[x].AssetType == assetType {
 			result = append(result, Items[x])
 		}
 	}
@@ -122,7 +122,7 @@ func SortExchangesByVolume(p pair.CurrencyPair, assetType string, reverse bool) 
 func SortExchangesByPrice(p pair.CurrencyPair, assetType string, reverse bool) []Item {
 	var result []Item
 	for x := range Items {
-		if Items[x].Pair.Equal(p) && Items[x].AssetType == assetType {
+		if Items[x].Pair.Equal(p, false) && Items[x].AssetType == assetType {
 			result = append(result, Items[x])
 		}
 	}

@@ -354,6 +354,9 @@ func (c *COINUT) SendHTTPRequest(apiRequest string, params map[string]interface{
 		return errors.New("unable to JSON Unmarshal generic response")
 	}
 
+	if len(genResp.Status) < 1 {
+		return errors.New("genResp.Status was empty")
+	}
 	if genResp.Status[0] != "OK" {
 		return errors.New("status is not OK")
 	}

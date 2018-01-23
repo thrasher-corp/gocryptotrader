@@ -13,12 +13,82 @@ import (
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 )
 
+// GetAllAvailablePairs returns a list of all available pairs on either enabled
+// or disabled exchanges
+func GetAllAvailablePairs(enabledExchangesOnly bool) []pair.CurrencyPair {
+	var pairList []pair.CurrencyPair
+	for x := range bot.config.Exchanges {
+		if enabledExchangesOnly && !bot.config.Exchanges[x].Enabled {
+			continue
+		}
+
+		exchName := bot.config.Exchanges[x].Name
+		pairs, err := bot.config.GetAvailablePairs(exchName)
+		if err != nil {
+			continue
+		}
+
+		for y := range pairs {
+			if pair.Contains(pairList, pairs[y]) {
+				continue
+			}
+			pairList = append(pairList, pairs[y])
+		}
+	}
+	return pairList
+}
+
+// GetSpecificAvailablePairs returns a list of supported pairs based on specific
+// parameters
+func GetSpecificAvailablePairs(enabledExchangesOnly, fiatPairs, includeUSDT, cryptoPairs bool) []pair.CurrencyPair {
+	var pairList []pair.CurrencyPair
+	supportedPairs := GetAllAvailablePairs(enabledExchangesOnly)
+
+	for x := range supportedPairs {
+		if fiatPairs {
+			if currency.IsCryptoFiatPair(supportedPairs[x]) || currency.IsFiatPair(supportedPairs[x]) || (includeUSDT && pair.ContainsCurrency(supportedPairs[x], "USDT")) {
+				if pair.Contains(pairList, supportedPairs[x]) {
+					continue
+				}
+				pairList = append(pairList, supportedPairs[x])
+			}
+		}
+		if cryptoPairs {
+			if currency.IsCryptoPair(supportedPairs[x]) {
+				if pair.Contains(pairList, supportedPairs[x]) {
+					continue
+				}
+				pairList = append(pairList, supportedPairs[x])
+			}
+		}
+	}
+	return pairList
+}
+
+// IsRelatablePairs checks to see if the two pairs are relatable
+func IsRelatablePairs(p1, p2 pair.CurrencyPair) bool {
+	if currency.IsCryptoPair(p1) && currency.IsCryptoPair(p2) {
+		relatablePairs := GetRelatableCurrencies(p1, false)
+		return pair.Contains(relatablePairs, p2)
+	}
+
+	if currency.IsCryptoFiatPair(p1) && currency.IsCryptoFiatPair(p2) {
+		relatablePairs := GetRelatableFiatCurrencies(p1)
+		relatablePairs = append(relatablePairs, GetRelatableCurrencies(p1, false)...)
+		return pair.Contains(relatablePairs, p2)
+	}
+	return false
+}
+
 // MapCurrenciesByExchange returns a list of currency pairs mapped to an
 // exchange
-func MapCurrenciesByExchange(p []pair.CurrencyPair) map[string][]pair.CurrencyPair {
+func MapCurrenciesByExchange(p []pair.CurrencyPair, enabledExchangesOnly bool) map[string][]pair.CurrencyPair {
 	currencyExchange := make(map[string][]pair.CurrencyPair)
 	for x := range p {
 		for y := range bot.config.Exchanges {
+			if enabledExchangesOnly && !bot.config.Exchanges[y].Enabled {
+				continue
+			}
 			exchName := bot.config.Exchanges[y].Name
 			success, err := bot.config.SupportsPair(exchName, p[x])
 			if err != nil || !success {
@@ -31,6 +101,9 @@ func MapCurrenciesByExchange(p []pair.CurrencyPair) map[string][]pair.CurrencyPa
 				pairs = append(pairs, p[x])
 				currencyExchange[exchName] = pairs
 			} else {
+				if pair.Contains(result, p[x]) {
+					continue
+				}
 				result = append(result, p[x])
 				currencyExchange[exchName] = result
 			}

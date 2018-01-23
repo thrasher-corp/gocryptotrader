@@ -503,12 +503,12 @@ func TestSetCurrencies(t *testing.T) {
 
 	UAC.Name = "ANX"
 	UAC.SetCurrencies([]pair.CurrencyPair{newPair}, true)
-	if !pair.Contains(UAC.GetEnabledCurrencies(), newPair) {
+	if !pair.Contains(UAC.GetEnabledCurrencies(), newPair, true) {
 		t.Fatal("Test failed. TestSetCurrencies failed to set currencies")
 	}
 
 	UAC.SetCurrencies([]pair.CurrencyPair{newPair}, false)
-	if !pair.Contains(UAC.GetAvailableCurrencies(), newPair) {
+	if !pair.Contains(UAC.GetAvailableCurrencies(), newPair, true) {
 		t.Fatal("Test failed. TestSetCurrencies failed to set currencies")
 	}
 }
