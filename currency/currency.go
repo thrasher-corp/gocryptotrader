@@ -207,8 +207,7 @@ func ConvertCurrency(amount float64, from, to string) (float64, error) {
 		return amount * result.Rate, nil
 	}
 
-	_, ok := CurrencyStoreFixer[from]
-	if !ok {
+	if len(CurrencyStoreFixer) == 0 {
 		err := FetchFixerCurrencyData()
 		if err != nil {
 			return 0, err
@@ -220,7 +219,7 @@ func ConvertCurrency(amount float64, from, to string) (float64, error) {
 
 	// First check if we're converting to USD, USD doesn't exist in the rates map
 	if to == "USD" {
-		resultFrom, ok = CurrencyStoreFixer[from]
+		resultFrom, ok := CurrencyStoreFixer[from]
 		if !ok {
 			return 0, ErrCurrencyNotFound
 		}
@@ -229,7 +228,7 @@ func ConvertCurrency(amount float64, from, to string) (float64, error) {
 
 	// Check to see if we're converting from USD
 	if from == "USD" {
-		resultTo, ok = CurrencyStoreFixer[to]
+		resultTo, ok := CurrencyStoreFixer[to]
 		if !ok {
 			return 0, ErrCurrencyNotFound
 		}
@@ -237,7 +236,7 @@ func ConvertCurrency(amount float64, from, to string) (float64, error) {
 	}
 
 	// Otherwise convert to USD, then to the target currency
-	resultFrom, ok = CurrencyStoreFixer[from]
+	resultFrom, ok := CurrencyStoreFixer[from]
 	if !ok {
 		return 0, ErrCurrencyNotFound
 	}
