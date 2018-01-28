@@ -111,7 +111,21 @@ func (a *ANX) GetOrderbookEx(p pair.CurrencyPair, assetType string) (orderbook.B
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (a *ANX) UpdateOrderbook(p pair.CurrencyPair, assetType string) (orderbook.Base, error) {
 	var orderBook orderbook.Base
-	return orderBook, nil
+	orderbookNew, err := a.GetDepth(exchange.FormatExchangeCurrency(a.GetName(), p).String())
+	if err != nil {
+		return orderBook, err
+	}
+
+	for x := range orderbookNew.Data.Asks {
+		orderBook.Asks = append(orderBook.Asks, orderbook.Item{Price: orderbookNew.Data.Asks[x].Price, Amount: orderbookNew.Data.Asks[x].Amount})
+	}
+
+	for x := range orderbookNew.Data.Bids {
+		orderBook.Bids = append(orderBook.Bids, orderbook.Item{Price: orderbookNew.Data.Bids[x].Price, Amount: orderbookNew.Data.Bids[x].Amount})
+	}
+
+	orderbook.ProcessOrderbook(a.GetName(), p, orderBook, assetType)
+	return orderbook.GetOrderbook(a.Name, p, assetType)
 }
 
 //GetExchangeAccountInfo : Retrieves balances for all enabled currencies for the ANX exchange

@@ -51,3 +51,20 @@ type ANXTicker struct {
 		UpdateTime string             `json:"dataUpdateTime"`
 	} `json:"data"`
 }
+
+type DepthItem struct {
+	Price     float64 `json:"price,string"`
+	PriceInt  float64 `json:"price_int,string"`
+	Amount    float64 `json:"amount,string"`
+	AmountInt int64   `json:"amount_int,string"`
+}
+
+type Depth struct {
+	Result string `json:"result"`
+	Data   struct {
+		Now            string      `json:"now"`
+		DataUpdateTime string      `json:"dataUpdateTime"`
+		Asks           []DepthItem `json:"asks`
+		Bids           []DepthItem `json:"bids"`
+	} `json:"data"`
+}

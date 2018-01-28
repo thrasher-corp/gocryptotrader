@@ -230,11 +230,6 @@ func OrderbookUpdaterRoutine() {
 			if bot.exchanges[x] == nil {
 				continue
 			}
-
-			if bot.exchanges[x].GetName() == "ANX" {
-				continue
-			}
-
 			exchangeName := bot.exchanges[x].GetName()
 			enabledCurrencies := bot.exchanges[x].GetEnabledCurrencies()
 			var result orderbook.Base
