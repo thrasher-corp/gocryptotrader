@@ -100,6 +100,17 @@ func TestGetTicker(t *testing.T) {
 	}
 }
 
+func TestGetDepth(t *testing.T) {
+	a := ANX{}
+	ticker, err := a.GetDepth("BTCUSD")
+	if err != nil {
+		t.Errorf("Test Failed - ANX GetDepth() error: %s", err)
+	}
+	if ticker.Result != "success" {
+		t.Error("Test Failed - ANX GetDepth() unsuccessful")
+	}
+}
+
 func TestGetAPIKey(t *testing.T) {
 	getAPIKey := ANX{}
 	apiKey, apiSecret, err := getAPIKey.GetAPIKey("userName", "passWord", "", "1337")

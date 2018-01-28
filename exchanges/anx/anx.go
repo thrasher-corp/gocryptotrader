@@ -26,6 +26,7 @@ const (
 	ANX_RECEIVE_ADDRESS = "receive"
 	ANX_CREATE_ADDRESS  = "receive/create"
 	ANX_TICKER          = "money/ticker"
+	ANX_DEPTH           = "money/depth"
 )
 
 type ANX struct {
@@ -88,6 +89,15 @@ func (a *ANX) GetTicker(currency string) (ANXTicker, error) {
 		return ANXTicker{}, err
 	}
 	return ticker, nil
+}
+
+func (a *ANX) GetDepth(currency string) (Depth, error) {
+	var depth Depth
+	err := common.SendHTTPGetRequest(fmt.Sprintf("%sapi/2/%s/%s", ANX_API_URL, currency, ANX_TICKER), true, a.Verbose, &depth)
+	if err != nil {
+		return depth, err
+	}
+	return depth, nil
 }
 
 func (a *ANX) GetAPIKey(username, password, otp, deviceID string) (string, string, error) {
