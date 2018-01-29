@@ -431,6 +431,29 @@
    }
   },
   {
+   "Name": "OKEX",
+   "Enabled": true,
+   "Verbose": false,
+   "Websocket": false,
+   "UseSandbox": false,
+   "RESTPollingDelay": 10,
+   "AuthenticatedAPISupport": false,
+   "APIKey": "Key",
+   "APISecret": "Secret",
+   "AvailablePairs": "ltc_btc,eth_btc,etc_btc,bch_btc,btc_usdt,eth_usdt,ltc_usdt,etc_usdt,bch_usdt,etc_eth,bt1_btc,bt2_btc,btg_btc,qtum_btc,hsr_btc,neo_btc,gas_btc,qtum_usdt,hsr_usdt,neo_usdt,gas_usdt,btc_usd,ltc_usd,eth_usd,etc_usd,bch_usd",
+   "EnabledPairs": "btc_usd,ltc_usd",
+   "BaseCurrencies": "USD",
+   "AssetTypes": "SPOT,this_week,next_week,quarter",
+   "ConfigCurrencyPairFormat": {
+    "Uppercase": false,
+    "Delimiter": "_"
+   },
+   "RequestCurrencyPairFormat": {
+    "Uppercase": false,
+    "Delimiter": "_"
+   }
+  },
+  {
    "Name": "Poloniex",
    "Enabled": true,
    "Verbose": false,
