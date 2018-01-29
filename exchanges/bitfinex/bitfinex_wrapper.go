@@ -70,7 +70,7 @@ func (b *Bitfinex) GetTickerPrice(p pair.CurrencyPair, assetType string) (ticker
 // GetOrderbookEx returns the orderbook for a currency pair
 func (b *Bitfinex) GetOrderbookEx(p pair.CurrencyPair, assetType string) (orderbook.Base, error) {
 	ob, err := orderbook.GetOrderbook(b.GetName(), p, assetType)
-	if err == nil {
+	if err != nil {
 		return b.UpdateOrderbook(p, assetType)
 	}
 	return ob, nil

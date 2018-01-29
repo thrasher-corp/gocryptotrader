@@ -98,7 +98,7 @@ func (c *COINUT) GetTickerPrice(p pair.CurrencyPair, assetType string) (ticker.P
 // GetOrderbookEx returns orderbook base on the currency pair
 func (c *COINUT) GetOrderbookEx(p pair.CurrencyPair, assetType string) (orderbook.Base, error) {
 	ob, err := orderbook.GetOrderbook(c.GetName(), p, assetType)
-	if err == nil {
+	if err != nil {
 		return c.UpdateOrderbook(p, assetType)
 	}
 	return ob, nil

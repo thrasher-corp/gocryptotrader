@@ -64,7 +64,7 @@ func (w *WEX) GetTickerPrice(p pair.CurrencyPair, assetType string) (ticker.Pric
 // GetOrderbookEx returns the orderbook for a currency pair
 func (w *WEX) GetOrderbookEx(p pair.CurrencyPair, assetType string) (orderbook.Base, error) {
 	ob, err := orderbook.GetOrderbook(w.GetName(), p, assetType)
-	if err == nil {
+	if err != nil {
 		return w.UpdateOrderbook(p, assetType)
 	}
 	return ob, nil

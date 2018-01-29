@@ -58,7 +58,7 @@ func (h *HUOBI) GetTickerPrice(p pair.CurrencyPair, assetType string) (ticker.Pr
 // GetOrderbookEx returns orderbook base on the currency pair
 func (h *HUOBI) GetOrderbookEx(p pair.CurrencyPair, assetType string) (orderbook.Base, error) {
 	ob, err := orderbook.GetOrderbook(h.GetName(), p, assetType)
-	if err == nil {
+	if err != nil {
 		return h.UpdateOrderbook(p, assetType)
 	}
 	return ob, nil
