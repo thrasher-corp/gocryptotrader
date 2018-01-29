@@ -89,7 +89,7 @@ func TestGetEnabledExchanges(t *testing.T) {
 	}
 
 	exchanges := cfg.GetEnabledExchanges()
-	if len(exchanges) != 19 {
+	if len(exchanges) != 20 {
 		t.Error(
 			"Test failed. TestGetEnabledExchanges. Enabled exchanges value mismatch",
 		)
@@ -141,7 +141,7 @@ func TestGetDisabledExchanges(t *testing.T) {
 }
 
 func TestCountEnabledExchanges(t *testing.T) {
-	defaultEnabledExchanges := 19
+	defaultEnabledExchanges := 20
 	GetConfigEnabledExchanges := GetConfig()
 	err := GetConfigEnabledExchanges.LoadConfig(ConfigTestFile)
 	if err != nil {

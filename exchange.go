@@ -22,6 +22,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/exchanges/liqui"
 	"github.com/thrasher-/gocryptotrader/exchanges/localbitcoins"
 	"github.com/thrasher-/gocryptotrader/exchanges/okcoin"
+	"github.com/thrasher-/gocryptotrader/exchanges/okex"
 	"github.com/thrasher-/gocryptotrader/exchanges/poloniex"
 	"github.com/thrasher-/gocryptotrader/exchanges/wex"
 )
@@ -158,6 +159,8 @@ func LoadExchange(name string) error {
 		exch = new(okcoin.OKCoin)
 	case "okcoin international":
 		exch = new(okcoin.OKCoin)
+	case "okex":
+		exch = new(okex.OKEX)
 	case "poloniex":
 		exch = new(poloniex.Poloniex)
 	case "wex":
