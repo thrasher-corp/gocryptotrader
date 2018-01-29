@@ -614,7 +614,7 @@ func (o *OKEX) GetSpotTicker(symbol string) (SpotPrice, error) {
 }
 
 //GetSpotMarketDepth returns Market Depth
-func (o *OKEX) GetSpotMarketDepth(symbol, size string) (interface{}, error) {
+func (o *OKEX) GetSpotMarketDepth(symbol, size string) (ActualSpotDepth, error) {
 	resp := SpotDepth{}
 	fullDepth := ActualSpotDepth{}
 

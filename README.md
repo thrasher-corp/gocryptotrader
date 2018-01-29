@@ -34,7 +34,9 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 | LakeBTC | Yes | No | NA |
 | Liqui | Yes | No | NA |
 | LocalBitcoins | Yes | NA | NA |
-| OKCoin (both) | Yes | Yes | No |
+| OKCoin China | Yes | Yes | No |
+| OKCoin International | Yes | Yes | No |
+| OKEX | Yes | No | No |
 | Poloniex | Yes | Yes | NA |
 | WEX     | Yes  | NA        | NA  |
 
