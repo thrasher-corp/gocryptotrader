@@ -91,7 +91,7 @@ func (b *BTCC) GetTickerPrice(p pair.CurrencyPair, assetType string) (ticker.Pri
 // GetOrderbookEx returns the orderbook for a currency pair
 func (b *BTCC) GetOrderbookEx(p pair.CurrencyPair, assetType string) (orderbook.Base, error) {
 	ob, err := orderbook.GetOrderbook(b.GetName(), p, assetType)
-	if err == nil {
+	if err != nil {
 		return b.UpdateOrderbook(p, assetType)
 	}
 	return ob, nil

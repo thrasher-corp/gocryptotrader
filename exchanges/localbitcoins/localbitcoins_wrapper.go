@@ -45,7 +45,7 @@ func (l *LocalBitcoins) UpdateTicker(p pair.CurrencyPair, assetType string) (tic
 // GetTickerPrice returns the ticker for a currency pair
 func (l *LocalBitcoins) GetTickerPrice(p pair.CurrencyPair, assetType string) (ticker.Price, error) {
 	tickerNew, err := ticker.GetTicker(l.GetName(), p, assetType)
-	if err == nil {
+	if err != nil {
 		return l.UpdateTicker(p, assetType)
 	}
 	return tickerNew, nil
@@ -54,7 +54,7 @@ func (l *LocalBitcoins) GetTickerPrice(p pair.CurrencyPair, assetType string) (t
 // GetOrderbookEx returns orderbook base on the currency pair
 func (l *LocalBitcoins) GetOrderbookEx(p pair.CurrencyPair, assetType string) (orderbook.Base, error) {
 	ob, err := orderbook.GetOrderbook(l.GetName(), p, assetType)
-	if err == nil {
+	if err != nil {
 		return l.UpdateOrderbook(p, assetType)
 	}
 	return ob, nil

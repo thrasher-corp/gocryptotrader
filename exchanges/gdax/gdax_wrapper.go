@@ -99,7 +99,7 @@ func (g *GDAX) GetTickerPrice(p pair.CurrencyPair, assetType string) (ticker.Pri
 // GetOrderbookEx returns orderbook base on the currency pair
 func (g *GDAX) GetOrderbookEx(p pair.CurrencyPair, assetType string) (orderbook.Base, error) {
 	ob, err := orderbook.GetOrderbook(g.GetName(), p, assetType)
-	if err == nil {
+	if err != nil {
 		return g.UpdateOrderbook(p, assetType)
 	}
 	return ob, nil
