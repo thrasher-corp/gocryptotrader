@@ -4,6 +4,7 @@ import (
 	"log"
 
 	"github.com/thrasher-/gocryptotrader/common"
+	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
 	"github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
@@ -26,22 +27,70 @@ func (h *HUOBI) Run() {
 	if h.Websocket {
 		go h.WebsocketClient()
 	}
+
+	exchangeProducts, err := h.GetSymbols()
+	if err != nil {
+		log.Printf("%s Failed to get available symbols.\n", h.GetName())
+	} else {
+		forceUpgrade := false
+		if common.DataContains(h.EnabledPairs, "CNY") || common.DataContains(h.AvailablePairs, "CNY") {
+			forceUpgrade = true
+		}
+
+		if common.DataContains(h.BaseCurrencies, "CNY") {
+			cfg := config.GetConfig()
+			exchCfg, err := cfg.GetExchangeConfig(h.Name)
+			if err != nil {
+				log.Printf("%s failed to get exchange config. %s\n", h.Name, err)
+				return
+			}
+			exchCfg.BaseCurrencies = "USD"
+			h.BaseCurrencies = []string{"USD"}
+
+			err = cfg.UpdateExchangeConfig(exchCfg)
+			if err != nil {
+				log.Printf("%s failed to update config. %s\n", h.Name, err)
+				return
+			}
+		}
+
+		var currencies []string
+		for x := range exchangeProducts {
+			newCurrency := exchangeProducts[x].BaseCurrency + "-" + exchangeProducts[x].QuoteCurrency
+			currencies = append(currencies, newCurrency)
+		}
+
+		if forceUpgrade {
+			enabledPairs := []string{"btc-usdt"}
+			log.Println("WARNING: Available and enabled pairs for Huobi reset due to config upgrade, please enable the ones you would like again")
+
+			err = h.UpdateEnabledCurrencies(enabledPairs, true)
+			if err != nil {
+				log.Printf("%s Failed to update enabled currencies.\n", h.GetName())
+			}
+		}
+		err = h.UpdateAvailableCurrencies(currencies, forceUpgrade)
+		if err != nil {
+			log.Printf("%s Failed to update available currencies.\n", h.GetName())
+		}
+	}
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
 func (h *HUOBI) UpdateTicker(p pair.CurrencyPair, assetType string) (ticker.Price, error) {
 	var tickerPrice ticker.Price
-	tick, err := h.GetTicker(p.GetFirstCurrency().Lower().String())
+	tick, err := h.GetMarketDetailMerged(exchange.FormatExchangeCurrency(h.Name, p).String())
 	if err != nil {
 		return tickerPrice, err
 	}
+
 	tickerPrice.Pair = p
-	tickerPrice.Ask = tick.Sell
-	tickerPrice.Bid = tick.Buy
 	tickerPrice.Low = tick.Low
-	tickerPrice.Last = tick.Last
-	tickerPrice.Volume = tick.Vol
+	tickerPrice.Last = tick.Close
+	tickerPrice.Volume = tick.Volume
 	tickerPrice.High = tick.High
+	tickerPrice.Ask = tick.Ask[0]
+	tickerPrice.Bid = tick.Bid[0]
 	ticker.ProcessTicker(h.GetName(), p, tickerPrice, assetType)
 	return ticker.GetTicker(h.Name, p, assetType)
 }
@@ -67,7 +116,7 @@ func (h *HUOBI) GetOrderbookEx(p pair.CurrencyPair, assetType string) (orderbook
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (h *HUOBI) UpdateOrderbook(p pair.CurrencyPair, assetType string) (orderbook.Base, error) {
 	var orderBook orderbook.Base
-	orderbookNew, err := h.GetOrderBook(p.GetFirstCurrency().Lower().String())
+	orderbookNew, err := h.GetDepth(exchange.FormatExchangeCurrency(h.Name, p).String(), "step1")
 	if err != nil {
 		return orderBook, err
 	}
