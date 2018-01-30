@@ -28,7 +28,7 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 | COINUT | Yes | No | NA |
 | GDAX(Coinbase) | Yes | Yes | No|
 | Gemini | Yes | NA | NA |
-| Huobi | Yes | Yes |No |
+| Huobi.Pro | Yes | No |No |
 | ItBit | Yes | NA | NA |
 | Kraken | Yes | NA | NA |
 | LakeBTC | Yes | No | NA |
