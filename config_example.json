@@ -102,6 +102,28 @@
    }
   },
   {
+   "Name": "Bithumb",
+   "Enabled": true,
+   "Verbose": false,
+   "Websocket": false,
+   "UseSandbox": false,
+   "RESTPollingDelay": 10,
+   "AuthenticatedAPISupport": false,
+   "APIKey": "Key",
+   "APISecret": "Secret",
+   "ClientID": "ClientID",
+   "AvailablePairs": "BTCKRW,ETHKRW,DASHKRW,LTCKRW,ETCKRW,XRPKRW,BCHKRW,XMRKRW,ZECKRW,QTUMKRW,BTGKRW,EOSKRW",
+   "EnabledPairs": "BTCKRW,ETHKRW,DASHKRW,LTCKRW,ETCKRW,XRPKRW,BCHKRW,XMRKRW,ZECKRW,QTUMKRW,BTGKRW,EOSKRW",
+   "BaseCurrencies": "KRW",
+   "AssetTypes": "SPOT",
+   "ConfigCurrencyPairFormat": {
+    "Uppercase": true
+   },
+   "RequestCurrencyPairFormat": {
+    "Uppercase": true
+   }
+  },
+  {
    "Name": "Bitstamp",
    "Enabled": true,
    "Verbose": false,

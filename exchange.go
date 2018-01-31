@@ -8,6 +8,7 @@ import (
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/anx"
 	"github.com/thrasher-/gocryptotrader/exchanges/bitfinex"
+	"github.com/thrasher-/gocryptotrader/exchanges/bithumb"
 	"github.com/thrasher-/gocryptotrader/exchanges/bitstamp"
 	"github.com/thrasher-/gocryptotrader/exchanges/bittrex"
 	"github.com/thrasher-/gocryptotrader/exchanges/btcc"
@@ -129,6 +130,8 @@ func LoadExchange(name string) error {
 		exch = new(anx.ANX)
 	case "bitfinex":
 		exch = new(bitfinex.Bitfinex)
+	case "bithumb":
+		exch = new(bithumb.Bithumb)
 	case "bitstamp":
 		exch = new(bitstamp.Bitstamp)
 	case "bittrex":
