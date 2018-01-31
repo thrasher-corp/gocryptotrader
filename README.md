@@ -21,6 +21,7 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 | Alphapoint | Yes  | Yes        | NA  |
 | ANXPRO | Yes  | No        | NA  |
 | Bitfinex | Yes  | Yes        | NA  |
+| Bithumb | Yes  | NA       | NA  |
 | Bitstamp | Yes  | Yes       | NA  |
 | Bittrex | Yes | No | NA |
 | BTCC | Yes  | Yes     | No  |
@@ -103,7 +104,7 @@ copy %GOPATH%\src\github.com\thrasher-\gocryptotrader\config_example.json %GOPAT
 
 <img src="https://github.com/thrasher-/gocryptotrader/blob/master/web/src/assets/early-dumb-donate.png?raw=true" hspace="70">
 
-If this framework helped you in any way, or you would like to support the developers working on it, please donate Bitcoin to: 
+If this framework helped you in any way, or you would like to support the developers working on it, please donate Bitcoin to:
 
 ***1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB***
 
