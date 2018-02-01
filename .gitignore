@@ -10,3 +10,4 @@ testdata/writefiletest
 # InteliJ
 .idea
 *.iml
+vendor/

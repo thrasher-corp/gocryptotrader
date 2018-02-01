@@ -85,7 +85,8 @@ platform.
 ```bash
 go get github.com/thrasher-/gocryptotrader
 cd $GOPATH/src/github.com/thrasher-/gocryptotrader
-go install
+make get
+make install
 cp $GOPATH/src/github.com/thrasher-/gocryptotrader/config_example.json $GOPATH/bin/config.json
 ```
 
