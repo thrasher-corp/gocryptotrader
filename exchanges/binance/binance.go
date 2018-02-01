@@ -437,12 +437,6 @@ func (b *Binance) SendAuthHTTPRequest(method, path string, params url.Values, re
 	hmacSignedStr := common.HexEncodeToString(hmacSigned)
 	params.Set("signature", hmacSignedStr)
 
-	if b.Nonce.Get() == 0 {
-		b.Nonce.Set(time.Now().UnixNano() / int64(time.Millisecond))
-	} else {
-		b.Nonce.Inc()
-	}
-
 	headers := make(map[string]string)
 	headers["X-MBX-APIKEY"] = b.APIKey
 	headers["Content-Type"] = "application/x-www-form-urlencoded"
