@@ -2,7 +2,7 @@ get:
 	dep ensure
 
 build:
-	go build -o bin/gocryptotrader .
+	go build .
 
 install:
 	go install
