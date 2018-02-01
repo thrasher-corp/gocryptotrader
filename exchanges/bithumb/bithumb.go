@@ -62,6 +62,7 @@ func (b *Bithumb) SetDefaults() {
 	b.RequestCurrencyPairFormat.Uppercase = true
 	b.ConfigCurrencyPairFormat.Delimiter = ""
 	b.ConfigCurrencyPairFormat.Uppercase = true
+	b.ConfigCurrencyPairFormat.Index = "KRW"
 	b.AssetTypes = []string{ticker.Spot}
 }
 
