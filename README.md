@@ -41,6 +41,7 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 | OKEX | Yes | No | No |
 | Poloniex | Yes | Yes | NA |
 | WEX     | Yes  | NA        | NA  |
+| Yobit | Yes | NA | NA |
 
 We are aiming to support the top 20 highest volume exchanges based off the [CoinMarketCap exchange data](https://coinmarketcap.com/exchanges/volume/24-hour/).
 
