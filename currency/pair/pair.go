@@ -132,6 +132,9 @@ func Contains(pairs []CurrencyPair, p CurrencyPair) bool {
 func FormatPairs(pairs []string, delimiter, index string) []CurrencyPair {
 	var result []CurrencyPair
 	for x := range pairs {
+		if pairs[x] == "" {
+			continue
+		}
 		var p CurrencyPair
 		if delimiter != "" {
 			p = NewCurrencyPairDelimiter(pairs[x], delimiter)
