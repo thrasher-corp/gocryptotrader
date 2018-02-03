@@ -27,6 +27,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/exchanges/okex"
 	"github.com/thrasher-/gocryptotrader/exchanges/poloniex"
 	"github.com/thrasher-/gocryptotrader/exchanges/wex"
+	"github.com/thrasher-/gocryptotrader/exchanges/yobit"
 )
 
 // vars related to exchange functions
@@ -171,6 +172,8 @@ func LoadExchange(name string) error {
 		exch = new(poloniex.Poloniex)
 	case "wex":
 		exch = new(wex.WEX)
+	case "yobit":
+		exch = new(yobit.Yobit)
 	default:
 		return ErrExchangeNotFound
 	}
