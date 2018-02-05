@@ -96,8 +96,8 @@ func main() {
 	if len(bot.exchanges) == 0 {
 		log.Fatalf("No exchanges were able to be loaded. Exiting")
 	}
-	// TODO: Fix hack, allow 2 seconds to update exchange settings
-	time.Sleep(time.Second * 2)
+	// TODO: Fix hack, allow 5 seconds to update exchange settings
+	time.Sleep(time.Second * 5)
 
 	if bot.config.CurrencyExchangeProvider == "yahoo" {
 		currency.SetProvider(true)

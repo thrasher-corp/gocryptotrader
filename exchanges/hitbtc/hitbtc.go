@@ -56,7 +56,7 @@ func (p *HitBTC) SetDefaults() {
 	p.RESTPollingDelay = 10
 	p.RequestCurrencyPairFormat.Delimiter = ""
 	p.RequestCurrencyPairFormat.Uppercase = true
-	p.ConfigCurrencyPairFormat.Delimiter = ""
+	p.ConfigCurrencyPairFormat.Delimiter = "-"
 	p.ConfigCurrencyPairFormat.Uppercase = true
 	p.AssetTypes = []string{ticker.Spot}
 }
@@ -73,16 +73,9 @@ func (p *HitBTC) Setup(exch config.ExchangeConfig) {
 		p.Verbose = exch.Verbose
 		p.Websocket = exch.Websocket
 		p.BaseCurrencies = common.SplitStrings(exch.BaseCurrencies, ",")
-		availiableSymbols, err := p.GetSymbols("")
-
-		if err != nil {
-			log.Println(err)
-			p.AvailablePairs = common.SplitStrings(exch.AvailablePairs, ",")
-		} else {
-			p.AvailablePairs = availiableSymbols
-		}
+		p.AvailablePairs = common.SplitStrings(exch.AvailablePairs, ",")
 		p.EnabledPairs = common.SplitStrings(exch.EnabledPairs, ",")
-		err = p.SetCurrencyPairFormat()
+		err := p.SetCurrencyPairFormat()
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -136,17 +129,30 @@ func (p *HitBTC) GetSymbols(symbol string) ([]string, error) {
 	return ret, err
 }
 
+// GetSymbolsDetailed is the same as above but returns an array of symbols with
+// all ther details.
+func (p *HitBTC) GetSymbolsDetailed() ([]Symbol, error) {
+	resp := []Symbol{}
+	path := fmt.Sprintf("%s/%s", APIURL, APIv2Symbol)
+	return resp, common.SendHTTPGetRequest(path, true, p.Verbose, &resp)
+}
+
 // GetTicker
 // Return ticker information
-func (p *HitBTC) GetTicker(symbol string) map[string]Ticker {
+func (p *HitBTC) GetTicker(symbol string) (map[string]Ticker, error) {
 
-	resp1 := []Ticker{}
-	resp2 := Ticker{}
-	ret := make(map[string]Ticker)
+	resp1 := []TickerResponse{}
+	resp2 := TickerResponse{}
+	ret := make(map[string]TickerResponse)
+	result := make(map[string]Ticker)
 	path := fmt.Sprintf("%s/%s/%s", APIURL, APIv2Ticker, symbol)
+	var err error
 
 	if symbol == "" {
-		common.SendHTTPGetRequest(path, true, p.Verbose, &resp1)
+		err = common.SendHTTPGetRequest(path, true, false, &resp1)
+		if err != nil {
+			return nil, err
+		}
 
 		for _, item := range resp1 {
 			if item.Symbol != "" {
@@ -154,11 +160,45 @@ func (p *HitBTC) GetTicker(symbol string) map[string]Ticker {
 			}
 		}
 	} else {
-		common.SendHTTPGetRequest(path, true, p.Verbose, &resp2)
+		err = common.SendHTTPGetRequest(path, true, false, &resp2)
 		ret[resp2.Symbol] = resp2
 	}
 
-	return ret
+	if err == nil {
+		for x, y := range ret {
+			tick := Ticker{}
+
+			ask, _ := strconv.ParseFloat(y.Ask, 64)
+			tick.Ask = ask
+
+			bid, _ := strconv.ParseFloat(y.Bid, 64)
+			tick.Bid = bid
+
+			high, _ := strconv.ParseFloat(y.High, 64)
+			tick.High = high
+
+			last, _ := strconv.ParseFloat(y.Last, 64)
+			tick.Last = last
+
+			low, _ := strconv.ParseFloat(y.Low, 64)
+			tick.Low = low
+
+			open, _ := strconv.ParseFloat(y.Open, 64)
+			tick.Open = open
+
+			vol, _ := strconv.ParseFloat(y.Volume, 64)
+			tick.Volume = vol
+
+			volQuote, _ := strconv.ParseFloat(y.VolumeQuote, 64)
+			tick.VolumeQuote = volQuote
+
+			tick.Symbol = y.Symbol
+			tick.Timestamp = y.Timestamp
+			result[x] = tick
+		}
+	}
+
+	return result, err
 }
 
 // GetTrades returns trades from hitbtc
