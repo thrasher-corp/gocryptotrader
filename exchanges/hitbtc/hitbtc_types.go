@@ -3,16 +3,29 @@ package hitbtc
 import "time"
 
 type Ticker struct {
-	Last        float64   `json:"last,string"`        // Last trade price
-	Ask         float64   `json:"ask,string"`         // Best ask price
-	Bid         float64   `json:"bid,string"`         // Best bid price
-	Timestamp   time.Time `json:"timestamp,string"`   // Last update or refresh ticker timestamp
-	Volume      float64   `json:"volume,string"`      // Total trading amount within 24 hours in base currency
-	VolumeQuote float64   `json:"volumeQuote,string"` // Total trading amount within 24 hours in quote currency
+	Last        float64
+	Ask         float64
+	Bid         float64
+	Timestamp   time.Time
+	Volume      float64
+	VolumeQuote float64
+	Symbol      string
+	High        float64
+	Low         float64
+	Open        float64
+}
+
+type TickerResponse struct {
+	Last        string    `json:"last"`             // Last trade price
+	Ask         string    `json:"ask"`              // Best ask price
+	Bid         string    `json:"bid"`              // Best bid price
+	Timestamp   time.Time `json:"timestamp,string"` // Last update or refresh ticker timestamp
+	Volume      string    `json:"volume"`           // Total trading amount within 24 hours in base currency
+	VolumeQuote string    `json:"volumeQuote"`      // Total trading amount within 24 hours in quote currency
 	Symbol      string    `json:"symbol"`
-	High        float64   `json:"high,string"` // Highest trade price within 24 hours
-	Low         float64   `json:"low,string"`  // Lowest trade price within 24 hours
-	Open        float64   `json:"open,string"` // Last trade price 24 hours ago
+	High        string    `json:"high"` // Highest trade price within 24 hours
+	Low         string    `json:"low"`  // Lowest trade price within 24 hours
+	Open        string    `json:"open"` // Last trade price 24 hours ago
 }
 
 type Symbol struct {

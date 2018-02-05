@@ -26,11 +26,42 @@ func (p *HitBTC) Run() {
 	if p.Websocket {
 		go p.WebsocketClient()
 	}
+
+	exchangeProducts, err := p.GetSymbolsDetailed()
+	if err != nil {
+		log.Printf("%s Failed to get available symbols.\n", p.GetName())
+	} else {
+		forceUpgrade := false
+		if !common.DataContains(p.EnabledPairs, "-") || !common.DataContains(p.AvailablePairs, "-") {
+			forceUpgrade = true
+		}
+		var currencies []string
+		for x := range exchangeProducts {
+			currencies = append(currencies, exchangeProducts[x].BaseCurrency+"-"+exchangeProducts[x].QuoteCurrency)
+		}
+
+		if forceUpgrade {
+			enabledPairs := []string{"BTC-USD"}
+			log.Println("WARNING: Available pairs for HitBTC reset due to config upgrade, please enable the ones you would like again.")
+
+			err = p.UpdateEnabledCurrencies(enabledPairs, true)
+			if err != nil {
+				log.Printf("%s Failed to update enabled currencies.\n", p.GetName())
+			}
+		}
+		err = p.UpdateAvailableCurrencies(currencies, forceUpgrade)
+		if err != nil {
+			log.Printf("%s Failed to update available currencies.\n", p.GetName())
+		}
+	}
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
 func (p *HitBTC) UpdateTicker(currencyPair pair.CurrencyPair, assetType string) (ticker.Price, error) {
-	tick := p.GetTicker("")
+	tick, err := p.GetTicker("")
+	if err != nil {
+		return ticker.Price{}, err
+	}
 
 	for _, x := range p.GetEnabledCurrencies() {
 		var tp ticker.Price
@@ -59,7 +90,7 @@ func (p *HitBTC) GetTickerPrice(currencyPair pair.CurrencyPair, assetType string
 // GetOrderbookEx returns orderbook base on the currency pair
 func (p *HitBTC) GetOrderbookEx(currencyPair pair.CurrencyPair, assetType string) (orderbook.Base, error) {
 	ob, err := orderbook.GetOrderbook(p.GetName(), currencyPair, assetType)
-	if err == nil {
+	if err != nil {
 		return p.UpdateOrderbook(currencyPair, assetType)
 	}
 	return ob, nil
