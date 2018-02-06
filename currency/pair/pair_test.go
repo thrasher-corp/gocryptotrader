@@ -253,6 +253,10 @@ func TestContains(t *testing.T) {
 }
 
 func TestFormatPairs(t *testing.T) {
+	if len(FormatPairs([]string{""}, "-", "")) > 0 {
+		t.Error("Test failed. TestFormatPairs: Empty string returned a valid pair")
+	}
+
 	if FormatPairs([]string{"BTC-USD"}, "-", "")[0].Pair().String() != "BTC-USD" {
 		t.Error("Test failed. TestFormatPairs: Expected pair was not found")
 	}
@@ -263,5 +267,28 @@ func TestFormatPairs(t *testing.T) {
 
 	if FormatPairs([]string{"ETHUSD"}, "", "")[0].Pair().String() != "ETHUSD" {
 		t.Error("Test failed. TestFormatPairs: Expected pair was not found")
+	}
+}
+
+func TestCopyPairFormat(t *testing.T) {
+	pairOne := NewCurrencyPair("BTC", "USD")
+	pairOne.Delimiter = "-"
+	pairTwo := NewCurrencyPair("LTC", "USD")
+
+	var pairs []CurrencyPair
+	pairs = append(pairs, pairOne)
+	pairs = append(pairs, pairTwo)
+
+	testPair := NewCurrencyPair("BTC", "USD")
+	testPair.Delimiter = "~"
+
+	result := CopyPairFormat(testPair, pairs)
+	if result.Pair().String() != "BTC-USD" {
+		t.Error("Test failed. TestCopyPairFormat: Expected pair was not found")
+	}
+
+	result = CopyPairFormat(NewCurrencyPair("ETH", "USD"), pairs)
+	if result.Pair().String() != "" {
+		t.Error("Test failed. TestCopyPairFormat: Unexpected non empty pair returned")
 	}
 }
