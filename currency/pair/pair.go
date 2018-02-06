@@ -149,3 +149,13 @@ func FormatPairs(pairs []string, delimiter, index string) []CurrencyPair {
 	}
 	return result
 }
+
+// CopyPairFormat copies the pair format from a list of pairs once matched
+func CopyPairFormat(p CurrencyPair, pairs []CurrencyPair) CurrencyPair {
+	for x := range pairs {
+		if p.Equal(pairs[x]) {
+			return pairs[x]
+		}
+	}
+	return CurrencyPair{}
+}
