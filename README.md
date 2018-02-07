@@ -28,6 +28,7 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 | BTCC | Yes  | Yes     | No  |
 | BTCMarkets | Yes | NA       | NA  |
 | COINUT | Yes | No | NA |
+| Exmo | Yes | NA | NA |
 | GDAX(Coinbase) | Yes | Yes | No|
 | Gemini | Yes | NA | NA |
 | HitBTC | Yes | Yes | NA |
