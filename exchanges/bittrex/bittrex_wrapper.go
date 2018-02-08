@@ -27,7 +27,7 @@ func (b *Bittrex) Run() {
 		log.Printf("%s Failed to get available symbols.\n", b.GetName())
 	} else {
 		forceUpgrade := false
-		if !common.DataContains(b.EnabledPairs, "-") || !common.DataContains(b.AvailablePairs, "-") {
+		if !common.StringDataContains(b.EnabledPairs, "-") || !common.StringDataContains(b.AvailablePairs, "-") {
 			forceUpgrade = true
 		}
 		var currencies []string

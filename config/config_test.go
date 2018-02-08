@@ -95,7 +95,7 @@ func TestGetEnabledExchanges(t *testing.T) {
 		)
 	}
 
-	if !common.DataContains(exchanges, "Bitfinex") {
+	if !common.StringDataCompare(exchanges, "Bitfinex") {
 		t.Error(
 			"Test failed. TestGetEnabledExchanges. Expected exchange Bitfinex not found",
 		)

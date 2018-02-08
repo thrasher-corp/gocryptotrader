@@ -462,7 +462,7 @@ func (b *Binance) SendAuthHTTPRequest(method, path string, params url.Values, re
 
 // CheckLimit checks value against a variable list
 func (b *Binance) CheckLimit(limit int64) error {
-	if !common.DataContains(b.validLimits, strconv.FormatInt(limit, 10)) {
+	if !common.StringDataCompare(b.validLimits, strconv.FormatInt(limit, 10)) {
 		return errors.New("Incorrect limit values - valid values are 5, 10, 20, 50, 100, 500, 1000")
 	}
 	return nil
@@ -470,7 +470,7 @@ func (b *Binance) CheckLimit(limit int64) error {
 
 // CheckSymbol checks value against a variable list
 func (b *Binance) CheckSymbol(symbol string) error {
-	if !common.DataContains(b.AvailablePairs, symbol) {
+	if !common.StringDataCompare(b.AvailablePairs, symbol) {
 		return errors.New("Incorrect symbol values - please check available pairs in configuration")
 	}
 	return nil
@@ -478,7 +478,7 @@ func (b *Binance) CheckSymbol(symbol string) error {
 
 // CheckIntervals checks value against a variable list
 func (b *Binance) CheckIntervals(interval string) error {
-	if !common.DataContains(b.validIntervals, interval) {
+	if !common.StringDataCompare(b.validIntervals, interval) {
 		return errors.New(`Incorrect interval values - valid values are "1m","3m","5m","15m","30m","1h","2h","4h","6h","8h","12h","1d","3d","1w","1M"`)
 	}
 	return nil

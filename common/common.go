@@ -139,10 +139,20 @@ func StringContains(input, substring string) bool {
 	return strings.Contains(input, substring)
 }
 
-// DataContains checks the substring array with an input and returns a bool
-func DataContains(haystack []string, needle string) bool {
+// StringDataContains checks the substring array with an input and returns a bool
+func StringDataContains(haystack []string, needle string) bool {
 	data := strings.Join(haystack, ",")
 	return strings.Contains(data, needle)
+}
+
+// StringDataCompare data checks the substring array with an input and returns a bool
+func StringDataCompare(haystack []string, needle string) bool {
+	for x := range haystack {
+		if haystack[x] == needle {
+			return true
+		}
+	}
+	return false
 }
 
 // JoinStrings joins an array together with the required separator and returns

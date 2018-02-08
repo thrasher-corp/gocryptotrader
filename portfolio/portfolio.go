@@ -441,7 +441,7 @@ func (p *Base) GetPortfolioSummary() Summary {
 	var portfolioExchanges []string
 	for _, x := range p.Addresses {
 		if x.Description == PortfolioAddressExchange {
-			if !common.DataContains(portfolioExchanges, x.Address) {
+			if !common.StringDataCompare(portfolioExchanges, x.Address) {
 				portfolioExchanges = append(portfolioExchanges, x.Address)
 			}
 		}

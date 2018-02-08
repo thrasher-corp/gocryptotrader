@@ -338,8 +338,8 @@ func (c *Config) RetrieveConfigCurrencyPairs(enabledOnly bool) error {
 
 		baseCurrencies := common.SplitStrings(c.Exchanges[x].BaseCurrencies, ",")
 		for y := range baseCurrencies {
-			if !common.DataContains(fiatCurrencies, baseCurrencies[y]) {
-				fiatCurrencies = append(fiatCurrencies, baseCurrencies[y])
+			if !common.StringDataCompare(fiatCurrencies, common.StringToUpper(baseCurrencies[y])) {
+				fiatCurrencies = append(fiatCurrencies, common.StringToUpper(baseCurrencies[y]))
 			}
 		}
 	}
@@ -358,26 +358,20 @@ func (c *Config) RetrieveConfigCurrencyPairs(enabledOnly bool) error {
 		}
 
 		for y := range pairs {
-			if !common.DataContains(fiatCurrencies, pairs[y].FirstCurrency.String()) &&
-				!common.DataContains(cryptoCurrencies, pairs[y].FirstCurrency.String()) {
-				cryptoCurrencies = append(cryptoCurrencies, pairs[y].FirstCurrency.String())
+			if !common.StringDataCompare(fiatCurrencies, pairs[y].FirstCurrency.Upper().String()) &&
+				!common.StringDataCompare(cryptoCurrencies, pairs[y].FirstCurrency.Upper().String()) {
+				cryptoCurrencies = append(cryptoCurrencies, pairs[y].FirstCurrency.Upper().String())
 			}
 
-			if !common.DataContains(fiatCurrencies, pairs[y].SecondCurrency.String()) &&
-				!common.DataContains(cryptoCurrencies, pairs[y].SecondCurrency.String()) {
-				cryptoCurrencies = append(cryptoCurrencies, pairs[y].SecondCurrency.String())
+			if !common.StringDataCompare(fiatCurrencies, pairs[y].SecondCurrency.Upper().String()) &&
+				!common.StringDataCompare(cryptoCurrencies, pairs[y].SecondCurrency.Upper().String()) {
+				cryptoCurrencies = append(cryptoCurrencies, pairs[y].SecondCurrency.Upper().String())
 			}
 		}
 	}
 
 	currency.Update(fiatCurrencies, false)
 	currency.Update(cryptoCurrencies, true)
-
-	for x := range currency.BaseCurrencies {
-		if currency.BaseCurrencies[x] == "RUR" {
-			currency.BaseCurrencies[x] = "RUB"
-		}
-	}
 	return nil
 }
 

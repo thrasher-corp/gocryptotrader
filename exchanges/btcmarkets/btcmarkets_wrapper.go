@@ -23,7 +23,7 @@ func (b *BTCMarkets) Run() {
 		log.Printf("%s %d currencies enabled: %s.\n", b.GetName(), len(b.EnabledPairs), b.EnabledPairs)
 	}
 
-	if !common.DataContains(b.EnabledPairs, "AUD") || !common.DataContains(b.EnabledPairs, "AUD") {
+	if !common.StringDataContains(b.EnabledPairs, "AUD") || !common.StringDataContains(b.EnabledPairs, "AUD") {
 		enabledPairs := []string{}
 		for x := range b.EnabledPairs {
 			enabledPairs = append(enabledPairs, b.EnabledPairs[x]+"AUD")

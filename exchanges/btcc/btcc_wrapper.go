@@ -28,7 +28,7 @@ func (b *BTCC) Run() {
 		go b.WebsocketClient()
 	}
 
-	if common.DataContains(b.EnabledPairs, "CNY") || common.DataContains(b.AvailablePairs, "CNY") || common.DataContains(b.BaseCurrencies, "CNY") {
+	if common.StringDataContains(b.EnabledPairs, "CNY") || common.StringDataContains(b.AvailablePairs, "CNY") || common.StringDataContains(b.BaseCurrencies, "CNY") {
 		log.Println("WARNING: BTCC only supports BTCUSD now, upgrading available, enabled and base currencies to BTCUSD/USD")
 		pairs := []string{"BTCUSD"}
 		cfg := config.GetConfig()
