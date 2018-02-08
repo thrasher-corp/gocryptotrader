@@ -971,7 +971,7 @@ func (o *OKEX) SetCheckVarDefaults() {
 
 // CheckContractPosition checks to see if the string is a valid position for okex
 func (o *OKEX) CheckContractPosition(position string) error {
-	if !common.DataContains(o.ContractPosition, position) {
+	if !common.StringDataCompare(o.ContractPosition, position) {
 		return errors.New("invalid position string - e.g. 1 = open long position, 2 = open short position, 3 = liquidate long position, 4 = liquidate short position")
 	}
 	return nil
@@ -979,7 +979,7 @@ func (o *OKEX) CheckContractPosition(position string) error {
 
 // CheckSymbol checks to see if the string is a valid symbol for okex
 func (o *OKEX) CheckSymbol(symbol string) error {
-	if !common.DataContains(o.CurrencyPairs, symbol) {
+	if !common.StringDataCompare(o.CurrencyPairs, symbol) {
 		return errors.New("invalid symbol string")
 	}
 	return nil
@@ -987,7 +987,7 @@ func (o *OKEX) CheckSymbol(symbol string) error {
 
 // CheckContractType checks to see if the string is a correct asset
 func (o *OKEX) CheckContractType(contractType string) error {
-	if !common.DataContains(o.ContractTypes, contractType) {
+	if !common.StringDataCompare(o.ContractTypes, contractType) {
 		return errors.New("invalid contract type string")
 	}
 	return nil
@@ -995,7 +995,7 @@ func (o *OKEX) CheckContractType(contractType string) error {
 
 // CheckType checks to see if the string is a correct type
 func (o *OKEX) CheckType(typeInput string) error {
-	if !common.DataContains(o.Types, typeInput) {
+	if !common.StringDataCompare(o.Types, typeInput) {
 		return errors.New("invalid type string")
 	}
 	return nil

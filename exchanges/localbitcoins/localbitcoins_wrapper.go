@@ -70,12 +70,12 @@ func (l *LocalBitcoins) UpdateOrderbook(p pair.CurrencyPair, assetType string) (
 
 	for x := range orderbookNew.Bids {
 		data := orderbookNew.Bids[x]
-		orderBook.Bids = append(orderBook.Bids, orderbook.Item{Amount: data.Amount, Price: data.Price})
+		orderBook.Bids = append(orderBook.Bids, orderbook.Item{Amount: data.Amount / data.Price, Price: data.Price})
 	}
 
 	for x := range orderbookNew.Asks {
 		data := orderbookNew.Asks[x]
-		orderBook.Asks = append(orderBook.Asks, orderbook.Item{Amount: data.Amount, Price: data.Price})
+		orderBook.Asks = append(orderBook.Asks, orderbook.Item{Amount: data.Amount / data.Price, Price: data.Price})
 	}
 
 	orderbook.ProcessOrderbook(l.GetName(), p, orderBook, assetType)

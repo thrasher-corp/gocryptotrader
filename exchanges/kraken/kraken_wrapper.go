@@ -30,7 +30,7 @@ func (k *Kraken) Run() {
 		log.Printf("%s Failed to get available symbols.\n", k.GetName())
 	} else {
 		forceUpgrade := false
-		if !common.DataContains(k.EnabledPairs, "-") || !common.DataContains(k.AvailablePairs, "-") {
+		if !common.StringDataContains(k.EnabledPairs, "-") || !common.StringDataContains(k.AvailablePairs, "-") {
 			forceUpgrade = true
 		}
 

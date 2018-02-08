@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
+	"github.com/thrasher-/gocryptotrader/currency/pair"
 )
 
 // Rate holds the current exchange rates for the currency pair.
@@ -104,14 +105,14 @@ func GetProvider() string {
 // FIAT currency
 func IsDefaultCurrency(currency string) bool {
 	defaultCurrencies := common.SplitStrings(DefaultCurrencies, ",")
-	return common.DataContains(defaultCurrencies, common.StringToUpper(currency))
+	return common.StringDataCompare(defaultCurrencies, common.StringToUpper(currency))
 }
 
 // IsDefaultCryptocurrency checks if the currency passed in matches the default
 // CRYPTO currency
 func IsDefaultCryptocurrency(currency string) bool {
 	cryptoCurrencies := common.SplitStrings(DefaultCryptoCurrencies, ",")
-	return common.DataContains(cryptoCurrencies, common.StringToUpper(currency))
+	return common.StringDataCompare(cryptoCurrencies, common.StringToUpper(currency))
 }
 
 // IsFiatCurrency checks if the currency passed is an enabled FIAT currency
@@ -120,7 +121,7 @@ func IsFiatCurrency(currency string) bool {
 		log.Println("IsFiatCurrency: BaseCurrencies string variable not populated")
 		return false
 	}
-	return common.DataContains(BaseCurrencies, common.StringToUpper(currency))
+	return common.StringDataCompare(BaseCurrencies, common.StringToUpper(currency))
 }
 
 // IsCryptocurrency checks if the currency passed is an enabled CRYPTO currency.
@@ -131,19 +132,30 @@ func IsCryptocurrency(currency string) bool {
 		)
 		return false
 	}
-	return common.DataContains(CryptoCurrencies, common.StringToUpper(currency))
+	return common.StringDataCompare(CryptoCurrencies, common.StringToUpper(currency))
+}
+
+// IsCryptoPair checks to see if the pair is a crypto pair. For example, BTCLTC
+func IsCryptoPair(p pair.CurrencyPair) bool {
+	return IsCryptocurrency(p.FirstCurrency.String()) && IsCryptocurrency(p.SecondCurrency.String())
+}
+
+// IsCryptoFiatPair checks to see if the pair is a crypto fiat pair. For example, BTCUSD
+func IsCryptoFiatPair(p pair.CurrencyPair) bool {
+	return IsCryptocurrency(p.FirstCurrency.String()) && !IsCryptocurrency(p.SecondCurrency.String()) ||
+		!IsCryptocurrency(p.FirstCurrency.String()) && IsCryptocurrency(p.SecondCurrency.String())
 }
 
 // Update updates the local crypto currency or base currency store
 func Update(input []string, cryptos bool) {
 	for x := range input {
 		if cryptos {
-			if !common.DataContains(CryptoCurrencies, input[x]) {
-				CryptoCurrencies = append(CryptoCurrencies, input[x])
+			if !common.StringDataCompare(CryptoCurrencies, input[x]) {
+				CryptoCurrencies = append(CryptoCurrencies, common.StringToUpper(input[x]))
 			}
 		} else {
-			if !common.DataContains(BaseCurrencies, input[x]) {
-				BaseCurrencies = append(BaseCurrencies, input[x])
+			if !common.StringDataCompare(BaseCurrencies, input[x]) {
+				BaseCurrencies = append(BaseCurrencies, common.StringToUpper(input[x]))
 			}
 		}
 	}
@@ -188,6 +200,14 @@ func ConvertCurrency(amount float64, from, to string) (float64, error) {
 
 	if from == to {
 		return amount, nil
+	}
+
+	if from == "RUR" {
+		from = "RUB"
+	}
+
+	if to == "RUR" {
+		to = "RUB"
 	}
 
 	if YahooEnabled {

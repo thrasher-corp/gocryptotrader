@@ -32,7 +32,7 @@ func (p *HitBTC) Run() {
 		log.Printf("%s Failed to get available symbols.\n", p.GetName())
 	} else {
 		forceUpgrade := false
-		if !common.DataContains(p.EnabledPairs, "-") || !common.DataContains(p.AvailablePairs, "-") {
+		if !common.StringDataContains(p.EnabledPairs, "-") || !common.StringDataContains(p.AvailablePairs, "-") {
 			forceUpgrade = true
 		}
 		var currencies []string

@@ -56,7 +56,7 @@ func TestSetAssetTypes(t *testing.T) {
 		t.Fatalf("Test failed. TestSetAssetTypes. Error %s", err)
 	}
 
-	if !common.DataContains(b.AssetTypes, ticker.Spot) {
+	if !common.StringDataCompare(b.AssetTypes, ticker.Spot) {
 		t.Fatal("Test failed. TestSetAssetTypes assetTypes is not set")
 	}
 }
@@ -73,7 +73,7 @@ func TestGetExchangeAssetTypes(t *testing.T) {
 		t.Fatal("Test failed. Unable to obtain Bitfinex asset types")
 	}
 
-	if !common.DataContains(result, ticker.Spot) {
+	if !common.StringDataCompare(result, ticker.Spot) {
 		t.Fatal("Test failed. Bitfinex does not contain default asset type 'SPOT'")
 	}
 

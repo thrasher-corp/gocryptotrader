@@ -32,7 +32,7 @@ func (p *Poloniex) Run() {
 		log.Printf("%s Failed to get available symbols.\n", p.GetName())
 	} else {
 		forceUpdate := false
-		if common.DataContains(p.AvailablePairs, "BTC_USDT") {
+		if common.StringDataCompare(p.AvailablePairs, "BTC_USDT") {
 			log.Printf("%s contains invalid pair, forcing upgrade of available currencies.\n",
 				p.GetName())
 			forceUpdate = true

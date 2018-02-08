@@ -33,11 +33,11 @@ func (h *HUOBI) Run() {
 		log.Printf("%s Failed to get available symbols.\n", h.GetName())
 	} else {
 		forceUpgrade := false
-		if common.DataContains(h.EnabledPairs, "CNY") || common.DataContains(h.AvailablePairs, "CNY") {
+		if common.StringDataContains(h.EnabledPairs, "CNY") || common.StringDataContains(h.AvailablePairs, "CNY") {
 			forceUpgrade = true
 		}
 
-		if common.DataContains(h.BaseCurrencies, "CNY") {
+		if common.StringDataContains(h.BaseCurrencies, "CNY") {
 			cfg := config.GetConfig()
 			exchCfg, err := cfg.GetExchangeConfig(h.Name)
 			if err != nil {

@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/thrasher-/gocryptotrader/common"
+	"github.com/thrasher-/gocryptotrader/currency/pair"
 )
 
 func TestSetProvider(t *testing.T) {
@@ -161,6 +162,40 @@ func TestIsCryptocurrency(t *testing.T) {
 		t.Errorf(
 			"Test Failed. TestIsFiatCurrency: \nCannot match currency, %s.", str3,
 		)
+	}
+}
+
+func TestIsCryptoPair(t *testing.T) {
+	if IsCryptocurrency("") {
+		t.Error("Test failed. TestIsCryptocurrency returned true on an empty string")
+	}
+
+	CryptoCurrencies = []string{"BTC", "LTC", "DASH"}
+	BaseCurrencies = []string{"USD"}
+
+	if !IsCryptoPair(pair.NewCurrencyPair("BTC", "LTC")) {
+		t.Error("Test Failed. TestIsCryptoPair. Expected true result")
+	}
+
+	if IsCryptoPair(pair.NewCurrencyPair("BTC", "USD")) {
+		t.Error("Test Failed. TestIsCryptoPair. Expected false result")
+	}
+}
+
+func TestIsCryptoFiatPair(t *testing.T) {
+	if IsCryptocurrency("") {
+		t.Error("Test failed. TestIsCryptocurrency returned true on an empty string")
+	}
+
+	CryptoCurrencies = []string{"BTC", "LTC", "DASH"}
+	BaseCurrencies = []string{"USD"}
+
+	if !IsCryptoFiatPair(pair.NewCurrencyPair("BTC", "USD")) {
+		t.Error("Test Failed. TestIsCryptoPair. Expected true result")
+	}
+
+	if IsCryptoFiatPair(pair.NewCurrencyPair("BTC", "LTC")) {
+		t.Error("Test Failed. TestIsCryptoPair. Expected false result")
 	}
 }
 
