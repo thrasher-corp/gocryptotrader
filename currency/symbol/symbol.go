@@ -86,6 +86,7 @@ var symbols = map[string]string{
 	"QAR": "﷼",
 	"RON": "lei",
 	"RUB": "₽",
+	"RUR": "₽",
 	"SHP": "£",
 	"SAR": "﷼",
 	"RSD": "Дин.",
