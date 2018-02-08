@@ -93,32 +93,39 @@ func (e *EXMO) UpdateOrderbook(p pair.CurrencyPair, assetType string) (orderbook
 		return orderBook, err
 	}
 
-	orderbookNew, err := e.GetOrderbook(pairsCollated.String())
+	result, err := e.GetOrderbook(pairsCollated.String())
 	if err != nil {
 		return orderBook, err
 	}
 
 	for _, x := range e.GetEnabledCurrencies() {
-		currency := exchange.FormatExchangeCurrency(e.Name, x).String()
+		currency := exchange.FormatExchangeCurrency(e.Name, x)
+		data, ok := result[currency.String()]
+		if !ok {
+			continue
+		}
+		orderBook.Pair = x
 
-		data := orderbookNew[currency]
-		for x := range data.Bid {
-			obData := data.Bid[x]
-			price, _ := strconv.ParseFloat(obData[0], 64)
-			amount, _ := strconv.ParseFloat(obData[1], 64)
-			orderBook.Bids = append(orderBook.Bids, orderbook.Item{Price: price, Amount: amount})
+		var obItems []orderbook.Item
+		for y := range data.Ask {
+			z := data.Ask[y]
+			price, _ := strconv.ParseFloat(z[0], 64)
+			amount, _ := strconv.ParseFloat(z[1], 64)
+			obItems = append(obItems, orderbook.Item{Price: price, Amount: amount})
 		}
 
-		for x := range data.Ask {
-			obData := data.Ask[x]
-			price, _ := strconv.ParseFloat(obData[0], 64)
-			amount, _ := strconv.ParseFloat(obData[1], 64)
-			orderBook.Asks = append(orderBook.Asks, orderbook.Item{Price: price, Amount: amount})
+		orderBook.Asks = obItems
+		obItems = []orderbook.Item{}
+		for y := range data.Bid {
+			z := data.Bid[y]
+			price, _ := strconv.ParseFloat(z[0], 64)
+			amount, _ := strconv.ParseFloat(z[1], 64)
+			obItems = append(obItems, orderbook.Item{Price: price, Amount: amount})
 		}
-		orderbook.ProcessOrderbook(e.GetName(), p, orderBook, assetType)
+
+		orderBook.Bids = obItems
+		orderbook.ProcessOrderbook(e.Name, x, orderBook, assetType)
 	}
-
-	orderbook.ProcessOrderbook(e.GetName(), p, orderBook, assetType)
 	return orderbook.GetOrderbook(e.Name, p, assetType)
 }
 
