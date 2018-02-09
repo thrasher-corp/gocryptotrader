@@ -22,6 +22,7 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 | ANXPRO | Yes  | No        | NA  |
 | Binance| Yes  | No        | NA  |
 | Bitfinex | Yes  | Yes        | NA  |
+| Bitflyer | Yes  | No      | NA  |
 | Bithumb | Yes  | NA       | NA  |
 | Bitstamp | Yes  | Yes       | NA  |
 | Bittrex | Yes | No | NA |
