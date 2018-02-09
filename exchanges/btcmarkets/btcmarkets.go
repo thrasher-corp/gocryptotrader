@@ -92,9 +92,10 @@ func (b *BTCMarkets) GetFee() float64 {
 
 // GetTicker returns a ticker
 // symbol - example "btc" or "ltc"
-func (b *BTCMarkets) GetTicker(symbol string) (Ticker, error) {
+func (b *BTCMarkets) GetTicker(firstPair, secondPair string) (Ticker, error) {
 	ticker := Ticker{}
-	path := fmt.Sprintf("/market/%s/AUD/tick", common.StringToUpper(symbol))
+	path := fmt.Sprintf("/market/%s/%s/tick", common.StringToUpper(firstPair),
+		common.StringToUpper(secondPair))
 
 	return ticker,
 		common.SendHTTPGetRequest(btcMarketsAPIURL+path, true, b.Verbose, &ticker)
@@ -102,9 +103,10 @@ func (b *BTCMarkets) GetTicker(symbol string) (Ticker, error) {
 
 // GetOrderbook returns current orderbook
 // symbol - example "btc" or "ltc"
-func (b *BTCMarkets) GetOrderbook(symbol string) (Orderbook, error) {
+func (b *BTCMarkets) GetOrderbook(firstPair, secondPair string) (Orderbook, error) {
 	orderbook := Orderbook{}
-	path := fmt.Sprintf("/market/%s/AUD/orderbook", common.StringToUpper(symbol))
+	path := fmt.Sprintf("/market/%s/%s/orderbook", common.StringToUpper(firstPair),
+		common.StringToUpper(secondPair))
 
 	return orderbook,
 		common.SendHTTPGetRequest(btcMarketsAPIURL+path, true, b.Verbose, &orderbook)
@@ -113,9 +115,11 @@ func (b *BTCMarkets) GetOrderbook(symbol string) (Orderbook, error) {
 // GetTrades returns executed trades on the exchange
 // symbol - example "btc" or "ltc"
 // values - optional paramater "since" example values.Set(since, "59868345231")
-func (b *BTCMarkets) GetTrades(symbol string, values url.Values) ([]Trade, error) {
+func (b *BTCMarkets) GetTrades(firstPair, secondPair string, values url.Values) ([]Trade, error) {
 	trades := []Trade{}
-	path := common.EncodeURLValues(fmt.Sprintf("%s/market/%s/AUD/trades", btcMarketsAPIURL, symbol), values)
+	path := common.EncodeURLValues(fmt.Sprintf("%s/market/%s/%s/trades",
+		btcMarketsAPIURL, common.StringToUpper(firstPair),
+		common.StringToUpper(secondPair)), values)
 
 	return trades, common.SendHTTPGetRequest(path, true, b.Verbose, &trades)
 }
