@@ -123,6 +123,29 @@
    }
   },
   {
+    "Name": "Bitflyer",
+    "Enabled": true,
+    "Verbose": false,
+    "Websocket": false,
+    "UseSandbox": false,
+    "RESTPollingDelay": 10,
+    "AuthenticatedAPISupport": false,
+    "APIKey": "Key",
+    "APISecret": "Secret",
+    "AvailablePairs": "BTC_JPY,FXBTC_JPY,ETH_BTC,BCH_BTC",
+    "EnabledPairs": "BTC_JPY,ETH_BTC,BCH_BTC",
+    "BaseCurrencies": "JPY",
+    "AssetTypes": "SPOT",
+    "ConfigCurrencyPairFormat": {
+     "Uppercase": true,
+     "Delimiter": "_"
+    },
+    "RequestCurrencyPairFormat": {
+     "Uppercase": true,
+     "Delimiter": "_"
+    }
+   },
+  {
    "Name": "Bithumb",
    "Enabled": true,
    "Verbose": false,
