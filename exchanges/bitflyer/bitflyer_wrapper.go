@@ -24,21 +24,23 @@ func (b *Bitflyer) Run() {
 		log.Printf("%s %d currencies enabled: %s.\n", b.GetName(), len(b.EnabledPairs), b.EnabledPairs)
 	}
 
-	marketInfo, err := b.GetMarkets()
-	if err != nil {
-		log.Printf("%s Failed to get available symbols.\n", b.GetName())
-	} else {
-		var exchangeProducts []string
-
-		for _, info := range marketInfo {
-			exchangeProducts = append(exchangeProducts, info.ProductCode)
-		}
-
-		err = b.UpdateAvailableCurrencies(exchangeProducts, false)
+	/*
+		marketInfo, err := b.GetMarkets()
 		if err != nil {
-			log.Printf("%s Failed to get config.\n", b.GetName())
+			log.Printf("%s Failed to get available symbols.\n", b.GetName())
+		} else {
+			var exchangeProducts []string
+
+			for _, info := range marketInfo {
+				exchangeProducts = append(exchangeProducts, info.ProductCode)
+			}
+
+			err = b.UpdateAvailableCurrencies(exchangeProducts, false)
+			if err != nil {
+				log.Printf("%s Failed to get config.\n", b.GetName())
+			}
 		}
-	}
+	*/
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
