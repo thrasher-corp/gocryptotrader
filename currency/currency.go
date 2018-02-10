@@ -146,6 +146,11 @@ func IsCryptoFiatPair(p pair.CurrencyPair) bool {
 		!IsCryptocurrency(p.FirstCurrency.String()) && IsCryptocurrency(p.SecondCurrency.String())
 }
 
+// IsFiatPair checks to see if the pair is a fiar pair. For example. EURUSD
+func IsFiatPair(p pair.CurrencyPair) bool {
+	return IsFiatCurrency(p.FirstCurrency.String()) && IsFiatCurrency(p.SecondCurrency.String())
+}
+
 // Update updates the local crypto currency or base currency store
 func Update(input []string, cryptos bool) {
 	for x := range input {
