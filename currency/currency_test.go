@@ -199,6 +199,28 @@ func TestIsCryptoFiatPair(t *testing.T) {
 	}
 }
 
+func TestIsFiatPair(t *testing.T) {
+	CryptoCurrencies = []string{"BTC", "LTC", "DASH"}
+	BaseCurrencies = []string{"USD", "AUD", "EUR"}
+
+	if !IsFiatPair(pair.NewCurrencyPair("AUD", "USD")) {
+		t.Error("Test Failed. TestIsFiatPair. Expected true result")
+	}
+
+	if IsFiatPair(pair.NewCurrencyPair("BTC", "AUD")) {
+		t.Error("Test Failed. TestIsFiatPair. Expected false result")
+	}
+}
+
+func TestIsRelatablePairs(t *testing.T) {
+	CryptoCurrencies = []string{"BTC", "XBT", "LTC", "DASH"}
+	BaseCurrencies = []string{"USD", "AUD", "EUR"}
+
+	if !IsRelatablePairs(pair.NewCurrencyPair("XBT", "USD"), pair.NewCurrencyPair("BTC", "USD")) {
+		t.Error("Test Failed. TestIsFiatPair. Expected true result")
+	}
+}
+
 func TestUpdate(t *testing.T) {
 	CryptoCurrencies = []string{"BTC", "LTC", "DASH"}
 	BaseCurrencies = []string{"USD", "AUD"}
