@@ -89,6 +89,14 @@ func TestGetPriceChangeStats(t *testing.T) {
 	}
 }
 
+func TestGetTickers(t *testing.T) {
+	t.Parallel()
+	_, err := b.GetTickers()
+	if err != nil {
+		t.Error("Test Failed - Binance TestGetTickers error", err)
+	}
+}
+
 func TestGetLatestSpotPrice(t *testing.T) {
 	t.Parallel()
 	_, err := b.GetLatestSpotPrice("BTCUSDT")

@@ -23,27 +23,56 @@ func (b *Binance) Run() {
 		log.Printf("%s polling delay: %ds.\n", b.GetName(), b.RESTPollingDelay)
 		log.Printf("%s %d currencies enabled: %s.\n", b.GetName(), len(b.EnabledPairs), b.EnabledPairs)
 	}
+
+	symbols, err := b.GetExchangeValidCurrencyPairs()
+	if err != nil {
+		log.Printf("%s Failed to get exchange info.\n", b.GetName())
+	} else {
+		forceUpgrade := false
+		if !common.StringDataContains(b.EnabledPairs, "-") || !common.StringDataContains(b.AvailablePairs, "-") {
+			forceUpgrade = true
+		}
+
+		if forceUpgrade {
+			enabledPairs := []string{"BTC-USDT"}
+			log.Println("WARNING: Available pairs for Binance reset due to config upgrade, please enable the ones you would like again")
+
+			err = b.UpdateEnabledCurrencies(enabledPairs, true)
+			if err != nil {
+				log.Printf("%s Failed to get config.\n", b.GetName())
+			}
+		}
+		err = b.UpdateAvailableCurrencies(symbols, forceUpgrade)
+		if err != nil {
+			log.Printf("%s Failed to get config.\n", b.GetName())
+		}
+	}
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
 func (b *Binance) UpdateTicker(p pair.CurrencyPair, assetType string) (ticker.Price, error) {
 	var tickerPrice ticker.Price
 
-	tick, err := b.GetPriceChangeStats(p.Pair().String())
+	tick, err := b.GetTickers()
 	if err != nil {
 		return tickerPrice, err
 	}
 
-	tickerPrice.Pair = p
-	tickerPrice.Ask = tick.AskPrice
-	tickerPrice.Bid = tick.BidPrice
-	tickerPrice.High = tick.HighPrice
-	tickerPrice.Last = tick.LastPrice
-	tickerPrice.Low = tick.LowPrice
-	tickerPrice.Volume = tick.Volume
-
-	ticker.ProcessTicker(b.GetName(), p, tickerPrice, assetType)
-
+	for _, x := range b.GetEnabledCurrencies() {
+		curr := exchange.FormatExchangeCurrency(b.Name, x)
+		for y := range tick {
+			if tick[y].Symbol == curr.String() {
+				tickerPrice.Pair = x
+				tickerPrice.Ask = tick[y].AskPrice
+				tickerPrice.Bid = tick[y].BidPrice
+				tickerPrice.High = tick[y].HighPrice
+				tickerPrice.Last = tick[y].LastPrice
+				tickerPrice.Low = tick[y].LowPrice
+				tickerPrice.Volume = tick[y].Volume
+				ticker.ProcessTicker(b.Name, x, tickerPrice, assetType)
+			}
+		}
+	}
 	return ticker.GetTicker(b.Name, p, assetType)
 }
 
@@ -68,7 +97,7 @@ func (b *Binance) GetOrderbookEx(currency pair.CurrencyPair, assetType string) (
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (b *Binance) UpdateOrderbook(p pair.CurrencyPair, assetType string) (orderbook.Base, error) {
 	var orderBook orderbook.Base
-	orderbookNew, err := b.GetOrderBook(p.Pair().String(), 1000)
+	orderbookNew, err := b.GetOrderBook(exchange.FormatExchangeCurrency(b.Name, p).String(), 1000)
 	if err != nil {
 		return orderBook, err
 	}

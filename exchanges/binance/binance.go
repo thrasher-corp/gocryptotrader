@@ -54,7 +54,7 @@ func (b *Binance) SetDefaults() {
 	b.RESTPollingDelay = 10
 	b.RequestCurrencyPairFormat.Delimiter = ""
 	b.RequestCurrencyPairFormat.Uppercase = true
-	b.ConfigCurrencyPairFormat.Delimiter = ""
+	b.ConfigCurrencyPairFormat.Delimiter = "-"
 	b.ConfigCurrencyPairFormat.Uppercase = true
 	b.AssetTypes = []string{ticker.Spot}
 	b.SetValues()
@@ -87,18 +87,20 @@ func (b *Binance) Setup(exch config.ExchangeConfig) {
 
 // GetExchangeValidCurrencyPairs returns the full pair list from the exchange
 // at the moment do not integrate with config currency pairs automatically
-func (b *Binance) GetExchangeValidCurrencyPairs() (string, error) {
+func (b *Binance) GetExchangeValidCurrencyPairs() ([]string, error) {
 	var validCurrencyPairs []string
 
 	info, err := b.GetExchangeInfo()
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	for _, symbol := range info.Symbols {
-		validCurrencyPairs = append(validCurrencyPairs, symbol.Symbol)
+		if symbol.Status == "TRADING" {
+			validCurrencyPairs = append(validCurrencyPairs, symbol.BaseAsset+"-"+symbol.QuoteAsset)
+		}
 	}
-	return common.JoinStrings(validCurrencyPairs, ","), nil
+	return validCurrencyPairs, nil
 }
 
 // GetExchangeInfo returns exchange information. Check binance_types for more
@@ -320,6 +322,13 @@ func (b *Binance) GetPriceChangeStats(symbol string) (PriceChangeStats, error) {
 	return resp, common.SendHTTPGetRequest(path, true, b.Verbose, &resp)
 }
 
+// GetTickers returns the ticker data for the last 24 hrs
+func (b *Binance) GetTickers() ([]PriceChangeStats, error) {
+	var resp []PriceChangeStats
+	path := fmt.Sprintf("%s/%s", apiURL, priceChange)
+	return resp, common.SendHTTPGetRequest(path, true, b.Verbose, &resp)
+}
+
 // GetLatestSpotPrice returns latest spot price of symbol
 //
 // symbol: string of currency pair
@@ -470,10 +479,13 @@ func (b *Binance) CheckLimit(limit int64) error {
 
 // CheckSymbol checks value against a variable list
 func (b *Binance) CheckSymbol(symbol string) error {
-	if !common.StringDataCompare(b.AvailablePairs, symbol) {
-		return errors.New("Incorrect symbol values - please check available pairs in configuration")
+	enPairs := b.GetEnabledCurrencies()
+	for x := range enPairs {
+		if exchange.FormatExchangeCurrency(b.Name, enPairs[x]).String() == symbol {
+			return nil
+		}
 	}
-	return nil
+	return errors.New("Incorrect symbol values - please check available pairs in configuration")
 }
 
 // CheckIntervals checks value against a variable list

@@ -77,16 +77,26 @@ func (b *Bittrex) GetExchangeAccountInfo() (exchange.AccountInfo, error) {
 // UpdateTicker updates and returns the ticker for a currency pair
 func (b *Bittrex) UpdateTicker(p pair.CurrencyPair, assetType string) (ticker.Price, error) {
 	var tickerPrice ticker.Price
-	tick, err := b.GetMarketSummary(exchange.FormatExchangeCurrency(b.GetName(), p).String())
+	tick, err := b.GetMarketSummaries()
 	if err != nil {
 		return tickerPrice, err
 	}
-	tickerPrice.Pair = p
-	tickerPrice.Ask = tick[0].Ask
-	tickerPrice.Bid = tick[0].Bid
-	tickerPrice.Last = tick[0].Last
-	tickerPrice.Volume = tick[0].Volume
-	ticker.ProcessTicker(b.GetName(), p, tickerPrice, assetType)
+
+	for _, x := range b.GetEnabledCurrencies() {
+		curr := exchange.FormatExchangeCurrency(b.Name, x)
+		for y := range tick {
+			if tick[y].MarketName == curr.String() {
+				tickerPrice.Pair = x
+				tickerPrice.High = tick[y].High
+				tickerPrice.Low = tick[y].Low
+				tickerPrice.Ask = tick[y].Ask
+				tickerPrice.Bid = tick[y].Bid
+				tickerPrice.Last = tick[y].Last
+				tickerPrice.Volume = tick[y].Volume
+				ticker.ProcessTicker(b.GetName(), x, tickerPrice, assetType)
+			}
+		}
+	}
 	return ticker.GetTicker(b.Name, p, assetType)
 }
 

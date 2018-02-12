@@ -12,6 +12,29 @@ type Ticker struct {
 	Timestamp string  `json:"timestamp"`
 }
 
+// Tickerv2 holds the version 2 ticker information
+type Tickerv2 struct {
+	FlashReturnRate float64
+	Bid             float64
+	BidPeriod       int64
+	BidSize         float64
+	Ask             float64
+	AskPeriod       int64
+	AskSize         float64
+	DailyChange     float64
+	DailyChangePerc float64
+	Last            float64
+	Volume          float64
+	High            float64
+	Low             float64
+}
+
+// Tickersv2 holds the version 2 tickers information
+type Tickersv2 struct {
+	Symbol string
+	Tickerv2
+}
+
 // Stat holds individual statistics from exchange
 type Stat struct {
 	Period int64   `json:"period"`
@@ -28,6 +51,21 @@ type FundingBook struct {
 type Orderbook struct {
 	Bids []Book
 	Asks []Book
+}
+
+// BookV2 holds the orderbook item
+type BookV2 struct {
+	Price  float64
+	Rate   float64
+	Period float64
+	Count  int64
+	Amount float64
+}
+
+// OrderbookV2 holds orderbook information from bid and ask sides
+type OrderbookV2 struct {
+	Bids []BookV2
+	Asks []BookV2
 }
 
 // TradeStructure holds executed trade information
