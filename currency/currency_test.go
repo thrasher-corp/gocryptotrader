@@ -212,15 +212,6 @@ func TestIsFiatPair(t *testing.T) {
 	}
 }
 
-func TestIsRelatablePairs(t *testing.T) {
-	CryptoCurrencies = []string{"BTC", "XBT", "LTC", "DASH"}
-	BaseCurrencies = []string{"USD", "AUD", "EUR"}
-
-	if !IsRelatablePairs(pair.NewCurrencyPair("XBT", "USD"), pair.NewCurrencyPair("BTC", "USD")) {
-		t.Error("Test Failed. TestIsFiatPair. Expected true result")
-	}
-}
-
 func TestUpdate(t *testing.T) {
 	CryptoCurrencies = []string{"BTC", "LTC", "DASH"}
 	BaseCurrencies = []string{"USD", "AUD"}
