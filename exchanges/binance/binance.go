@@ -325,7 +325,7 @@ func (b *Binance) GetPriceChangeStats(symbol string) (PriceChangeStats, error) {
 // GetTickers returns the ticker data for the last 24 hrs
 func (b *Binance) GetTickers() ([]PriceChangeStats, error) {
 	var resp []PriceChangeStats
-	path := fmt.Sprintf("%s/%s", apiURL, priceChange)
+	path := fmt.Sprintf("%s%s", apiURL, priceChange)
 	return resp, common.SendHTTPGetRequest(path, true, b.Verbose, &resp)
 }
 
