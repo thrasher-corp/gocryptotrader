@@ -24,17 +24,17 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 | Bitfinex | Yes  | Yes        | NA  |
 | Bitflyer | Yes  | No      | NA  |
 | Bithumb | Yes  | NA       | NA  |
-| Bitstamp | Yes  | Yes       | NA  |
+| Bitstamp | Yes  | Yes       | No  |
 | Bittrex | Yes | No | NA |
 | BTCC | Yes  | Yes     | No  |
-| BTCMarkets | Yes | NA       | NA  |
+| BTCMarkets | Yes | No       | NA  |
 | COINUT | Yes | No | NA |
 | Exmo | Yes | NA | NA |
 | GDAX(Coinbase) | Yes | Yes | No|
-| Gemini | Yes | NA | NA |
-| HitBTC | Yes | Yes | NA |
+| Gemini | Yes | No | No |
+| HitBTC | Yes | Yes | No |
 | Huobi.Pro | Yes | No |No |
-| ItBit | Yes | NA | NA |
+| ItBit | Yes | NA | No |
 | Kraken | Yes | NA | NA |
 | LakeBTC | Yes | No | NA |
 | Liqui | Yes | No | NA |
