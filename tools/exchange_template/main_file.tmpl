@@ -1,0 +1,66 @@
+{{define "main"}}
+package {{.Name}}
+
+import (
+	"log"
+
+	"github.com/thrasher-/gocryptotrader/common"
+	"github.com/thrasher-/gocryptotrader/config"
+	exchange "github.com/thrasher-/gocryptotrader/exchanges"
+	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
+)
+
+// {{.CapitalName}} is the overarching type across this package
+type {{.CapitalName}} struct {
+	exchange.Base
+}
+
+const (
+	{{.Name}}APIURL = ""
+  {{.Name}}APIVersion = ""
+
+	// Public endpoints
+
+	// Authenticated endpoints
+
+)
+
+// SetDefaults sets the basic defaults for {{.CapitalName}}
+func ({{.Variable}} *{{.CapitalName}}) SetDefaults() {
+	{{.Variable}}.Name = "{{.CapitalName}}"
+	{{.Variable}}.Enabled = false
+	{{.Variable}}.Verbose = false
+	{{.Variable}}.Websocket = false
+	{{.Variable}}.RESTPollingDelay = 10
+	{{.Variable}}.RequestCurrencyPairFormat.Delimiter = ""
+	{{.Variable}}.RequestCurrencyPairFormat.Uppercase = true
+	{{.Variable}}.ConfigCurrencyPairFormat.Delimiter = ""
+	{{.Variable}}.ConfigCurrencyPairFormat.Uppercase = true
+	{{.Variable}}.AssetTypes = []string{ticker.Spot}
+}
+
+// Setup takes in the supplied exchange configuration details and sets params
+func ({{.Variable}} *{{.CapitalName}}) Setup(exch config.ExchangeConfig) {
+	if !exch.Enabled {
+		{{.Variable}}.SetEnabled(false)
+	} else {
+		{{.Variable}}.Enabled = true
+		{{.Variable}}.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
+		{{.Variable}}.SetAPIKeys(exch.APIKey, exch.APISecret, "", false)
+		{{.Variable}}.RESTPollingDelay = exch.RESTPollingDelay
+		{{.Variable}}.Verbose = exch.Verbose
+		{{.Variable}}.Websocket = exch.Websocket
+		{{.Variable}}.BaseCurrencies = common.SplitStrings(exch.BaseCurrencies, ",")
+		{{.Variable}}.AvailablePairs = common.SplitStrings(exch.AvailablePairs, ",")
+		{{.Variable}}.EnabledPairs = common.SplitStrings(exch.EnabledPairs, ",")
+		err := {{.Variable}}.SetCurrencyPairFormat()
+		if err != nil {
+			log.Fatal(err)
+		}
+		err = {{.Variable}}.SetAssetTypes()
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
+}
+{{end}}
