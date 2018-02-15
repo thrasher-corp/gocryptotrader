@@ -21,8 +21,9 @@ const (
 	packageMain    = "%s.go"
 	packageReadme  = "README.md"
 
-	exchangePackageLocation = "../../exchanges/"
-	exchangeLocation        = "../../exchange.go"
+	exchangePackageLocation = "..%s..%sexchanges%s"
+	exchangeLocation        = "..%s..%sexchange.go"
+	exchangeConfigPath      = "..%s..%stestdata%sconfigtest.json"
 )
 
 var (
@@ -32,6 +33,7 @@ var (
 	exchangeWrapper   string
 	exchangeMain      string
 	exchangeReadme    string
+	exchangeJSON      string
 )
 
 type exchange struct {
@@ -95,8 +97,11 @@ func main() {
 		FIX:         fixSupport,
 	}
 
+	osPathSlash := common.GetOSPathSlash()
+	exchangeJSON := fmt.Sprintf(exchangeConfigPath, osPathSlash, osPathSlash, osPathSlash)
+
 	configTestFile := config.GetConfig()
-	err = configTestFile.LoadConfig("../../testdata/configtest.json")
+	err = configTestFile.LoadConfig(exchangeJSON)
 	if err != nil {
 		log.Fatal("GoCryptoTrader: Exchange templating configuration retrieval error ", err)
 	}
@@ -123,12 +128,18 @@ func main() {
 	configTestFile.Exchanges = append(configTestFile.Exchanges, newExchConfig)
 	// TODO sorting function so exchanges are in alphabetical order - low priority
 
-	err = configTestFile.SaveConfig("../../testdata/configtest.json")
+	err = configTestFile.SaveConfig(exchangeJSON)
 	if err != nil {
 		log.Fatal("GoCryptoTrader: Exchange templating configuration error - cannot save")
 	}
 
-	exchangeDirectory = exchangePackageLocation + newExchangeName + "/"
+	exchangeDirectory = fmt.Sprintf(
+		exchangePackageLocation+newExchangeName+"%s",
+		osPathSlash,
+		osPathSlash,
+		osPathSlash,
+		osPathSlash)
+
 	exchangeTest = fmt.Sprintf(exchangeDirectory+packageTests, newExchangeName)
 	exchangeTypes = fmt.Sprintf(exchangeDirectory+packageTypes, newExchangeName)
 	exchangeWrapper = fmt.Sprintf(exchangeDirectory+packageWrapper, newExchangeName)
