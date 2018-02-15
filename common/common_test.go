@@ -281,6 +281,25 @@ func TestStringDataCompare(t *testing.T) {
 	}
 }
 
+func TestStringDataContainsUpper(t *testing.T) {
+	t.Parallel()
+	originalHaystack := []string{"bLa", "BrO", "sUp"}
+	originalNeedle := "Bla"
+	anotherNeedle := "ning"
+	expectedOutput := true
+	expectedOutputTwo := false
+	actualResult := StringDataContainsUpper(originalHaystack, originalNeedle)
+	if actualResult != expectedOutput {
+		t.Errorf("Test failed. Expected '%v'. Actual '%v'",
+			expectedOutput, actualResult)
+	}
+	actualResult = StringDataContainsUpper(originalHaystack, anotherNeedle)
+	if actualResult != expectedOutputTwo {
+		t.Errorf("Test failed. Expected '%v'. Actual '%v'",
+			expectedOutput, actualResult)
+	}
+}
+
 func TestJoinStrings(t *testing.T) {
 	t.Parallel()
 	originalInputOne := []string{"hello", "moto"}
