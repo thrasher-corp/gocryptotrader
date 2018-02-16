@@ -211,11 +211,6 @@ func main() {
 		log.Fatal("GoCryptoTrader: Exchange templating tool go fmt error ", err)
 	}
 
-	err = exec.Command("go", "fmt", exchangeDirectory).Run()
-	if err != nil {
-		log.Fatal("GoCryptoTrader: Exchange templating tool go fmt error ", err)
-	}
-
 	err = exec.Command("go", "test", exchangeDirectory).Run()
 	if err != nil {
 		log.Fatal("GoCryptoTrader: Exchange templating tool testing failed ", err)
