@@ -1,0 +1,36 @@
+{{define "test"}}
+package {{.Name}}
+
+import (
+	"testing"
+
+	"github.com/thrasher-/gocryptotrader/config"
+)
+
+// Please supply your own keys here for due diligence testing
+const (
+	testAPIKey    = ""
+	testAPISecret = ""
+)
+
+var {{.Variable}} {{.CapitalName}}
+
+func TestSetDefaults(t *testing.T) {
+	{{.Variable}}.SetDefaults()
+}
+
+func TestSetup(t *testing.T) {
+	cfg := config.GetConfig()
+	cfg.LoadConfig("../../testdata/configtest.json")
+	{{.Name}}Config, err := cfg.GetExchangeConfig("{{.CapitalName}}")
+	if err != nil {
+		t.Error("Test Failed - {{.CapitalName}} Setup() init error")
+	}
+
+	{{.Name}}Config.AuthenticatedAPISupport = true
+	{{.Name}}Config.APIKey = testAPIKey
+	{{.Name}}Config.APISecret = testAPISecret
+
+	{{.Variable}}.Setup({{.Name}}Config)
+}
+{{end}}
