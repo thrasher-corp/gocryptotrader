@@ -84,9 +84,8 @@ func main() {
 	}
 
 	newExchangeName = common.StringToLower(newExchangeName)
-	split := strings.Split(newExchangeName, "")
-	v := split[0]
-	capName := common.StringToUpper(v) + strings.Join(split[1:], "")
+	v := newExchangeName[:1]
+	capName := common.StringToUpper(v) + newExchangeName[1:]
 
 	exch := exchange{
 		Name:        newExchangeName,
