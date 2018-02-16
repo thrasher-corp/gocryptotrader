@@ -155,6 +155,17 @@ func StringDataCompare(haystack []string, needle string) bool {
 	return false
 }
 
+// StringDataContainsUpper checks the substring array with an input and returns
+// a bool irrespective of lower or upper case strings
+func StringDataContainsUpper(haystack []string, needle string) bool {
+	for _, data := range haystack {
+		if strings.Contains(StringToUpper(data), StringToUpper(needle)) {
+			return true
+		}
+	}
+	return false
+}
+
 // JoinStrings joins an array together with the required separator and returns
 // it as a string
 func JoinStrings(input []string, separator string) string {
