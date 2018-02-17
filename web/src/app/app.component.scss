@@ -1,21 +1,20 @@
 .container {
     height: 100vh;
-    min-height:100%;
+    min-height: 100%;
 }
 
 .main {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 20px 70px 0;
-    min-width: 86%;
-    margin: 10px auto;
-    overflow-x: hidden;
-    margin-top:4rem;
+    margin-top: 5rem;
+    height: 100%;
+    width: 100%;
+}
+
+.main-block {
+    margin: auto 20px;
 }
 
 .sidebar {
-    width: 14%;
+    width: 15rem;
     position: fixed;
     margin-top: 4rem;
 }

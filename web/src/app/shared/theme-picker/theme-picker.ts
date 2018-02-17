@@ -42,6 +42,19 @@ export class ThemePickerComponent {
       href: 'purple-green.css',
       isDark: true,
     },
+    {
+      primary: '#53D06C',
+      accent: '#FFD800',
+      href: 'green-gold-dark.css',
+      isDark: true,
+    },
+    {
+      primary: '#358444',
+      accent: '#FFFB38',
+      href: 'green-gold.css',
+      isDark: false,
+    },
+    
   ];
 
   constructor(

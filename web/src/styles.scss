@@ -4,12 +4,38 @@ html,
 body {
     margin: 0;
     padding: 0;
-    font-family: Roboto,Helvetica Neue Light,Helvetica Neue,Helvetica,Arial,Lucida Grande,sans-serif;
+    font-family: Roboto, Helvetica Neue Light, Helvetica Neue, Helvetica, Arial, Lucida Grande, sans-serif;
 }
 
 .loading-spinner {
     margin-left: 50%;
     margin-right: 50%;
+}
+
+///////////////////////////////////////////////////////////////
+// Font stuff
+///////////////////////////////////////////////////////////////
+@font-face {
+    font-family: 'Material Icons';
+    font-style: normal;
+    font-weight: 400;
+    src: url(assets/material-icons.woff2) format('woff2');
+}
+
+.material-icons {
+    font-family: 'Material Icons';
+    font-weight: normal;
+    font-style: normal;
+    font-size: 24px;
+    line-height: 1;
+    letter-spacing: normal;
+    text-transform: none;
+    display: inline-block;
+    white-space: nowrap;
+    word-wrap: normal;
+    direction: ltr;
+    -webkit-font-feature-settings: 'liga';
+    -webkit-font-smoothing: antialiased;
 }
 
 ////////////////////////////////////////////////////////////////
@@ -21,10 +47,25 @@ body {
 }
 
 ////////////////////////////////////////////////////////////////
+// Default setting for spacers
+////////////////////////////////////////////////////////////////
+.flex-spacer {
+    flex-grow: 1;
+}
+
+.flexer {
+    display: flex;
+}
+
+.one-margin {
+    margin: 1rem;
+}
+
+////////////////////////////////////////////////////////////////
 // Default settings for expandable tile menus
 ////////////////////////////////////////////////////////////////
 .mat-expansion-panel {
-    width: 80%;
+    width: 90%;
     margin: 0px auto !important;
 }
 
@@ -40,11 +81,15 @@ body {
 
 .mat-expansion-panel-spacing {
     margin: 16px auto !important;
-    width: 85%;
+    width: 100%;
 }
 
 .mat-drawer {
     background: none !important;
+}
+
+.mat-drawer-content {
+    margin-top: 5rem;
 }
 
 @import '~@angular/material/prebuilt-themes/indigo-pink.css';
