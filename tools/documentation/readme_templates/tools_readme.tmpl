@@ -1,0 +1,21 @@
+{{define "tools" -}}
+{{template "header" .Name}}
+## Current Features
+
+This folder contains an assortment of tools
+
++ Configuration
++ Documentation creation
++ Portfolio monitoring
++ Exchange deployment
++ Websocket client
+
+
+Example Run for documentation generation - flags -v Verbose & -R Replace files
+```
+cd documentation/
+go run documentation -v
+```
+{{template "contributions"}}
+{{template "donations"}}
+{{end}}
