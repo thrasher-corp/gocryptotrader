@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bufio"
 	"flag"
 	"fmt"
 	"html/template"
@@ -70,15 +69,15 @@ func main() {
 	fmt.Println("REST Supported: ", restSupport)
 	fmt.Println("FIX Supported: ", fixSupport)
 	fmt.Println()
-	fmt.Println("Please check if everything is correct then press enter to continue...")
+	fmt.Println("Please check if everything is correct and then type y to continue or n to cancel...")
 
-	reader := bufio.NewReader(os.Stdin)
-	choice, _, err := reader.ReadRune()
+	var choice []byte
+	_, err := fmt.Scanln(&choice)
 	if err != nil {
-		log.Fatal("GoCryptoTrader: Exchange templating tool bufio.reader error ", err)
+		log.Fatal("GoCryptoTrader: Exchange templating tool fmt.Scanln ", err)
 	}
 
-	if choice != '\n' {
+	if !common.YesOrNo(string(choice)) {
 		log.Fatal("GoCryptoTrader: Exchange templating tool stopped...")
 	}
 
