@@ -1,0 +1,10 @@
+{{define "contributors"}}
+## Contributor List
+
+|User|Github|Contribution Amount|
+|--|--|--|
+{{ range $contributor := .Contributors -}}
+| {{$contributor.Login}} | {{$contributor.URL}} | {{$contributor.Contributions}} |
+{{ end }}
+
+{{end}}
