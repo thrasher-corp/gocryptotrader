@@ -135,3 +135,30 @@ If this framework helped you in any way, or you would like to support the develo
 ## Binaries
 
 Binaries will be published once the codebase reaches a stable condition.
+
+## Contributor List
+
+|User|Github|Contribution Amount|
+|--|--|--|
+| thrasher- | https://api.github.com/users/thrasher- | 411 |
+| gloriousCode | https://api.github.com/users/gloriousCode | 113 |
+| shazbert | https://api.github.com/users/shazbert | 108 |
+| 140am | https://api.github.com/users/140am | 8 |
+| faddat | https://api.github.com/users/faddat | 4 |
+| crackcomm | https://api.github.com/users/crackcomm | 3 |
+| bretep | https://api.github.com/users/bretep | 2 |
+| gam-phon | https://api.github.com/users/gam-phon | 2 |
+| cornelk | https://api.github.com/users/cornelk | 2 |
+| if1live | https://api.github.com/users/if1live | 2 |
+| daniel-cohen | https://api.github.com/users/daniel-cohen | 1 |
+| starit | https://api.github.com/users/starit | 1 |
+| mattkanwisher | https://api.github.com/users/mattkanwisher | 1 |
+| mKurrels | https://api.github.com/users/mKurrels | 1 |
+| m1kola | https://api.github.com/users/m1kola | 1 |
+| tongxiaofeng | https://api.github.com/users/tongxiaofeng | 1 |
+| idealhack | https://api.github.com/users/idealhack | 1 |
+| askew- | https://api.github.com/users/askew- | 1 |
+| snipesjr | https://api.github.com/users/snipesjr | 1 |
+
+
+

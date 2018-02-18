@@ -29,6 +29,8 @@ const (
 	toolsPath               = "..%s..%stools%s"
 	webPath                 = "..%s..%sweb%s"
 	rootPath                = "..%s..%s"
+
+	contributorsList = "https://api.github.com/repos/thrasher-/gocryptotrader/contributors"
 )
 
 var (
@@ -38,11 +40,18 @@ var (
 	codebaseReadme       map[string]readme
 	tmpl                 *template.Template
 	path                 string
+	contributors         []contributor
 )
 
 type readme struct {
 	Name         string
-	Contributors string
+	Contributors []contributor
+}
+
+type contributor struct {
+	Login         string `json:"login"`
+	URL           string `json:"url"`
+	Contributions int    `json:"contributions"`
 }
 
 func main() {
@@ -63,6 +72,11 @@ func main() {
 	codebaseTemplatePath = make(map[string]string)
 	codebaseReadme = make(map[string]readme)
 	path = common.GetOSPathSlash()
+
+	if err := getContributorList(); err != nil {
+		log.Fatal("GoCryptoTrader: Exchange documentation tool GET error ", err)
+	}
+
 	if err := addTemplates(); err != nil {
 		log.Fatal("GoCryptoTrader: Exchange documentation tool add template error ", err)
 	}
@@ -87,7 +101,9 @@ func updateReadme() error {
 				fmt.Printf("* %s Readme file FOUND.\n", packageName)
 			}
 			if replace {
-				fmt.Println("file replacement")
+				if verbose {
+					fmt.Println("file replacement")
+				}
 				if err := replaceReadme(packageName); err != nil {
 					return err
 				}
@@ -99,7 +115,9 @@ func updateReadme() error {
 			fmt.Printf("* %s Readme file NOT FOUND.\n", packageName)
 		}
 		if replace {
-			log.Println("file creation")
+			if verbose {
+				log.Println("file creation")
+			}
 			if err := createReadme(packageName); err != nil {
 				return err
 			}
@@ -134,7 +152,7 @@ func addPaths() {
 func addReadmeData(packageName string) {
 	readmeInfo := readme{
 		Name:         packageName,
-		Contributors: "", //future implementation to track contributors
+		Contributors: contributors,
 	}
 	codebaseReadme[packageName] = readmeInfo
 }
@@ -175,10 +193,16 @@ func createReadme(packageName string) error {
 	if err != nil {
 		return err
 	}
-	fmt.Println("File done")
+	if verbose {
+		fmt.Println("File done")
+	}
 	return tmpl.ExecuteTemplate(file, packageName, codebaseReadme[packageName])
 }
 
 func deleteFile(path string) error {
 	return os.Remove(path)
+}
+
+func getContributorList() error {
+	return common.SendHTTPGetRequest(contributorsList, true, false, &contributors)
 }
