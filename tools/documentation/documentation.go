@@ -6,6 +6,7 @@ import (
 	"html/template"
 	"log"
 	"os"
+	"strings"
 
 	"github.com/thrasher-/gocryptotrader/common"
 )
@@ -46,11 +47,12 @@ var (
 type readme struct {
 	Name         string
 	Contributors []contributor
+	NameURL      string
 }
 
 type contributor struct {
 	Login         string `json:"login"`
-	URL           string `json:"url"`
+	URL           string `json:"html_url"`
 	Contributions int    `json:"contributions"`
 }
 
@@ -153,8 +155,21 @@ func addReadmeData(packageName string) {
 	readmeInfo := readme{
 		Name:         packageName,
 		Contributors: contributors,
+		NameURL:      getslashFromName(packageName),
 	}
 	codebaseReadme[packageName] = readmeInfo
+}
+
+// returns a string for godoc package names
+func getslashFromName(packageName string) string {
+	if strings.Contains(packageName, " ") {
+		s := strings.Split(packageName, " ")
+		return strings.Join(s, "/")
+	}
+	if packageName == "testdata" || packageName == "tools" {
+		return ""
+	}
+	return packageName
 }
 
 // adds all the template files

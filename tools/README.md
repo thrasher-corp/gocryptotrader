@@ -5,12 +5,12 @@
 
 [![Build Status](https://travis-ci.org/thrasher-/gocryptotrader.svg?branch=master)](https://travis-ci.org/thrasher-/gocryptotrader)
 [![Software License](https://img.shields.io/badge/License-MIT-orange.svg?style=flat-square)](https://github.com/thrasher-/gocryptotrader/blob/master/LICENSE)
-[![GoDoc](https://godoc.org/github.com/thrasher-/gocryptotrader?status.svg)](https://godoc.org/github.com/thrasher-/gocryptotrader/tools)
+[![GoDoc](https://godoc.org/github.com/thrasher-/gocryptotrader?status.svg)](https://godoc.org/github.com/thrasher-/gocryptotrader/
 [![Coverage Status](http://codecov.io/github/thrasher-/gocryptotrader/coverage.svg?branch=master)](http://codecov.io/github/thrasher-/gocryptotrader?branch=master)
 [![Go Report Card](https://goreportcard.com/badge/github.com/thrasher-/gocryptotrader)](https://goreportcard.com/report/github.com/thrasher-/gocryptotrader)
 
 
-This tools package is part of the GoCryptoTrader codebase
+This tools package is part of the GoCryptoTrader codebase.
 
 ## This is still in active development
 
@@ -20,7 +20,7 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 
 ## Current Features
 
-This folder contains an assortment of tools
+This folder contains an assortment of tools.
 
 + Configuration
 + Documentation creation
@@ -29,10 +29,16 @@ This folder contains an assortment of tools
 + Websocket client
 
 
-Example Run for documentation generation - flags -v Verbose & -R Replace files
-```
+Example Run for documentation generation - flags -v Verbose & -r Replace files
+```sh
 cd documentation/
-go run documentation -v
+go run documentation.go -v
+```
+OR for full replacement.
+
+```sh
+cd documentation/
+go run documentation.go -v -r
 ```
 
 ## Contribution
