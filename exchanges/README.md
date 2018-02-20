@@ -10,7 +10,7 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/thrasher-/gocryptotrader)](https://goreportcard.com/report/github.com/thrasher-/gocryptotrader)
 
 
-This exchanges package is part of the GoCryptoTrader codebase
+This exchanges package is part of the GoCryptoTrader codebase.
 
 ## This is still in active development
 
@@ -20,7 +20,7 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 
 ## Current Features for exchanges
 
-+ This package is used to connect and query data from supported exchanges
++ This package is used to connect and query data from supported exchanges.
 
 ### Please click GoDocs chevron above to view current GoDoc information for this package
 

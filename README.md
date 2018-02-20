@@ -140,25 +140,25 @@ Binaries will be published once the codebase reaches a stable condition.
 
 |User|Github|Contribution Amount|
 |--|--|--|
-| thrasher- | https://api.github.com/users/thrasher- | 411 |
-| gloriousCode | https://api.github.com/users/gloriousCode | 113 |
-| shazbert | https://api.github.com/users/shazbert | 108 |
-| 140am | https://api.github.com/users/140am | 8 |
-| faddat | https://api.github.com/users/faddat | 4 |
-| crackcomm | https://api.github.com/users/crackcomm | 3 |
-| bretep | https://api.github.com/users/bretep | 2 |
-| gam-phon | https://api.github.com/users/gam-phon | 2 |
-| cornelk | https://api.github.com/users/cornelk | 2 |
-| if1live | https://api.github.com/users/if1live | 2 |
-| daniel-cohen | https://api.github.com/users/daniel-cohen | 1 |
-| starit | https://api.github.com/users/starit | 1 |
-| mattkanwisher | https://api.github.com/users/mattkanwisher | 1 |
-| mKurrels | https://api.github.com/users/mKurrels | 1 |
-| m1kola | https://api.github.com/users/m1kola | 1 |
-| tongxiaofeng | https://api.github.com/users/tongxiaofeng | 1 |
-| idealhack | https://api.github.com/users/idealhack | 1 |
-| askew- | https://api.github.com/users/askew- | 1 |
-| snipesjr | https://api.github.com/users/snipesjr | 1 |
+| thrasher- | https://github.com/thrasher- | 413 |
+| gloriousCode | https://github.com/gloriousCode | 113 |
+| shazbert | https://github.com/shazbert | 108 |
+| 140am | https://github.com/140am | 8 |
+| faddat | https://github.com/faddat | 4 |
+| crackcomm | https://github.com/crackcomm | 3 |
+| bretep | https://github.com/bretep | 2 |
+| gam-phon | https://github.com/gam-phon | 2 |
+| cornelk | https://github.com/cornelk | 2 |
+| if1live | https://github.com/if1live | 2 |
+| daniel-cohen | https://github.com/daniel-cohen | 1 |
+| starit | https://github.com/starit | 1 |
+| mattkanwisher | https://github.com/mattkanwisher | 1 |
+| mKurrels | https://github.com/mKurrels | 1 |
+| m1kola | https://github.com/m1kola | 1 |
+| tongxiaofeng | https://github.com/tongxiaofeng | 1 |
+| idealhack | https://github.com/idealhack | 1 |
+| askew- | https://github.com/askew- | 1 |
+| snipesjr | https://github.com/snipesjr | 1 |
 
 
 

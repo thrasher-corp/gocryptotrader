@@ -10,7 +10,7 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/thrasher-/gocryptotrader)](https://goreportcard.com/report/github.com/thrasher-/gocryptotrader)
 
 
-This web package is part of the GoCryptoTrader codebase
+This web package is part of the GoCryptoTrader codebase.
 
 ## This is still in active development
 
@@ -19,7 +19,6 @@ You can track ideas, planned features and what's in progresss on this Trello boa
 Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader Slack](https://gocryptotrader.herokuapp.com/)
 
 ## Current Features
-
 
 + It can run
 + It can be compiled with Electron to run as an executable

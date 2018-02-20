@@ -10,7 +10,7 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/thrasher-/gocryptotrader)](https://goreportcard.com/report/github.com/thrasher-/gocryptotrader)
 
 
-This common package is part of the GoCryptoTrader codebase
+This common package is part of the GoCryptoTrader codebase.
 
 ## This is still in active development
 
@@ -20,7 +20,7 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 
 ## Current Features for common
 
-+ This package collates basic broad functions that are used throughout this codebase
++ This package collates basic broad functions that are used throughout this codebase.
 
 ### Please click GoDocs chevron above to view current GoDoc information for this package
 
