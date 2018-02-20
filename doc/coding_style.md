@@ -20,7 +20,6 @@ func SendHTTPRequest(method, path string, headers map[string]string, body io.Rea
 	}
 
 	req, err := http.NewRequest(method, path, body)
-
 	if err != nil {
 		return "", err
 	}

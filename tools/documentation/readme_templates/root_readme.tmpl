@@ -1,3 +1,4 @@
+{{define "root" -}}
 <img src="https://github.com/thrasher-/gocryptotrader/blob/master/web/src/assets/page-logo.png?raw=true" width="350px" height="350px" hspace="70">
 
 [![Build Status](https://travis-ci.org/thrasher-/gocryptotrader.svg?branch=master)](https://travis-ci.org/thrasher-/gocryptotrader)
@@ -135,30 +136,5 @@ If this framework helped you in any way, or you would like to support the develo
 ## Binaries
 
 Binaries will be published once the codebase reaches a stable condition.
-
-## Contributor List
-
-|User|Github|Contribution Amount|
-|--|--|--|
-| thrasher- | https://github.com/thrasher- | 413 |
-| gloriousCode | https://github.com/gloriousCode | 113 |
-| shazbert | https://github.com/shazbert | 108 |
-| 140am | https://github.com/140am | 8 |
-| faddat | https://github.com/faddat | 4 |
-| crackcomm | https://github.com/crackcomm | 3 |
-| bretep | https://github.com/bretep | 2 |
-| gam-phon | https://github.com/gam-phon | 2 |
-| cornelk | https://github.com/cornelk | 2 |
-| if1live | https://github.com/if1live | 2 |
-| daniel-cohen | https://github.com/daniel-cohen | 1 |
-| starit | https://github.com/starit | 1 |
-| mattkanwisher | https://github.com/mattkanwisher | 1 |
-| mKurrels | https://github.com/mKurrels | 1 |
-| m1kola | https://github.com/m1kola | 1 |
-| tongxiaofeng | https://github.com/tongxiaofeng | 1 |
-| idealhack | https://github.com/idealhack | 1 |
-| askew- | https://github.com/askew- | 1 |
-| snipesjr | https://github.com/snipesjr | 1 |
-
-
-
+{{template "contributors" .}}
+{{end}}
