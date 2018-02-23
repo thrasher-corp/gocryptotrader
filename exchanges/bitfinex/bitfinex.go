@@ -29,6 +29,7 @@ const (
 	bitfinexOrderbookV2        = "book"
 	bitfinexOrderbook          = "book/"
 	bitfinexTrades             = "trades/"
+	bitfinexTradesV2           = "https://api.bitfinex.com/v2/trades/%s/hist?limit=1000&start=%s&end=%s"
 	bitfinexKeyPermissions     = "key_info"
 	bitfinexLends              = "lends/"
 	bitfinexSymbols            = "symbols/"
@@ -334,6 +335,56 @@ func (b *Bitfinex) GetTrades(currencyPair string, values url.Values) ([]TradeStr
 		values,
 	)
 	return response, common.SendHTTPGetRequest(path, true, b.Verbose, &response)
+}
+
+// GetTradesV2 uses the V2 API to get historic trades that occured on the
+// exchange
+//
+// currencyPair e.g. "tBTCUSD" v2 prefixes currency pairs with t. (?)
+// timestampStart is an int64 unix epoch time
+// timestampEnd is an int64 unix epoch time, make sure this is always there or
+// you will get the most recent trades.
+// reOrderResp reorders the returned data.
+func (b *Bitfinex) GetTradesV2(currencyPair string, timestampStart, timestampEnd int64, reOrderResp bool) ([]TradeStructureV2, error) {
+	var resp [][]interface{}
+	var actualHistory []TradeStructureV2
+
+	path := fmt.Sprintf(bitfinexTradesV2,
+		currencyPair,
+		strconv.FormatInt(timestampStart, 10),
+		strconv.FormatInt(timestampEnd, 10))
+
+	err := common.SendHTTPGetRequest(path, true, b.Verbose, &resp)
+	if err != nil {
+		return actualHistory, err
+	}
+
+	var tempHistory TradeStructureV2
+	for _, data := range resp {
+		tempHistory.TID = int64(data[0].(float64))
+		tempHistory.Timestamp = int64(data[1].(float64))
+		tempHistory.Amount = data[2].(float64)
+		tempHistory.Price = data[3].(float64)
+		tempHistory.Exchange = b.Name
+		tempHistory.Type = "BUY"
+
+		if tempHistory.Amount < 0 {
+			tempHistory.Type = "SELL"
+			tempHistory.Amount = tempHistory.Amount * -1
+		}
+
+		actualHistory = append(actualHistory, tempHistory)
+	}
+
+	//re-order index
+	if reOrderResp {
+		orderedHistory := make([]TradeStructureV2, len(actualHistory))
+		for i, quickRange := range actualHistory {
+			orderedHistory[len(actualHistory)-i-1] = quickRange
+		}
+		return orderedHistory, nil
+	}
+	return actualHistory, nil
 }
 
 // GetLendbook returns a list of the most recent funding data for the given
