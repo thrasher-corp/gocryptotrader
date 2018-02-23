@@ -162,6 +162,15 @@ func TestGetTrades(t *testing.T) {
 	}
 }
 
+func TestGetTradesv2(t *testing.T) {
+	t.Parallel()
+
+	_, err := b.GetTradesV2("tBTCUSD", 0, 0, true)
+	if err != nil {
+		t.Error("BitfinexGetTrades init error: ", err)
+	}
+}
+
 func TestGetLends(t *testing.T) {
 	t.Parallel()
 

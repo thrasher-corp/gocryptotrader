@@ -78,6 +78,16 @@ type TradeStructure struct {
 	Type      string  `json:"sell"`
 }
 
+// TradeStructureV2 holds resp information
+type TradeStructureV2 struct {
+	Timestamp int64
+	TID       int64
+	Price     float64
+	Amount    float64
+	Exchange  string
+	Type      string
+}
+
 // Lendbook holds most recent funding data for a relevant currency
 type Lendbook struct {
 	Bids []Book `json:"bids"`
