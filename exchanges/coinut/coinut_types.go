@@ -1,6 +1,7 @@
 package coinut
 
-type CoinutGenericResponse struct {
+// GenericResponse is the generic response you will get from coinut
+type GenericResponse struct {
 	Nonce     int64    `json:"nonce"`
 	Reply     string   `json:"reply"`
 	Status    []string `json:"status"`
@@ -8,18 +9,21 @@ type CoinutGenericResponse struct {
 	Timestamp int64    `json:"timestamp"`
 }
 
-type CoinutInstrumentBase struct {
+// InstrumentBase holds information on base currency
+type InstrumentBase struct {
 	Base          string `json:"base"`
 	DecimalPlaces int    `json:"decimal_places"`
 	InstID        int    `json:"inst_id"`
 	Quote         string `json:"quote"`
 }
 
-type CoinutInstruments struct {
-	Instruments map[string][]CoinutInstrumentBase `json:"SPOT"`
+// Instruments holds the full information on base currencies
+type Instruments struct {
+	Instruments map[string][]InstrumentBase `json:"SPOT"`
 }
 
-type CoinutTicker struct {
+// Ticker holds ticker information
+type Ticker struct {
 	HighestBuy   float64 `json:"highest_buy,string"`
 	InstrumentID int     `json:"inst_id"`
 	Last         float64 `json:"last,string"`
@@ -31,22 +35,25 @@ type CoinutTicker struct {
 	Volume24     float64 `json:"volume24,string"`
 }
 
-type CoinutOrderbookBase struct {
+// OrderbookBase is a sub-type holding price and quantity
+type OrderbookBase struct {
 	Count    int     `json:"count"`
 	Price    float64 `json:"price,string"`
 	Quantity float64 `json:"qty,string"`
 }
 
-type CoinutOrderbook struct {
-	Buy          []CoinutOrderbookBase `json:"buy"`
-	Sell         []CoinutOrderbookBase `json:"sell"`
-	InstrumentID int                   `json:"inst_id"`
-	TotalBuy     float64               `json:"total_buy,string"`
-	TotalSell    float64               `json:"total_sell,string"`
-	TransID      int64                 `json:"trans_id"`
+// Orderbook is the full order book
+type Orderbook struct {
+	Buy          []OrderbookBase `json:"buy"`
+	Sell         []OrderbookBase `json:"sell"`
+	InstrumentID int             `json:"inst_id"`
+	TotalBuy     float64         `json:"total_buy,string"`
+	TotalSell    float64         `json:"total_sell,string"`
+	TransID      int64           `json:"trans_id"`
 }
 
-type CoinutTradeBase struct {
+// TradeBase is a sub-type holding information on trades
+type TradeBase struct {
 	Price     float64 `json:"price,string"`
 	Quantity  float64 `json:"quantity,string"`
 	Side      string  `json:"side"`
@@ -54,11 +61,13 @@ type CoinutTradeBase struct {
 	TransID   int64   `json:"trans_id"`
 }
 
-type CoinutTrades struct {
-	Trades []CoinutTradeBase `json:"trades"`
+// Trades holds the full amount of trades associated with API keys
+type Trades struct {
+	Trades []TradeBase `json:"trades"`
 }
 
-type CoinutUserBalance struct {
+// UserBalance holds user balances on the exchange
+type UserBalance struct {
 	BTC               float64 `json:"btc,string"`
 	ETC               float64 `json:"etc,string"`
 	ETH               float64 `json:"eth,string"`
@@ -71,7 +80,8 @@ type CoinutUserBalance struct {
 	UnrealizedPL      float64 `json:"unrealized_pl,string"`
 }
 
-type CoinutOrder struct {
+// Order holds order information
+type Order struct {
 	InstrumentID  int64   `json:"inst_id"`
 	Price         float64 `json:"price,string"`
 	Quantity      float64 `json:"qty,string"`
@@ -79,7 +89,8 @@ type CoinutOrder struct {
 	Side          string  `json:"side,string"`
 }
 
-type CoinutOrderResponse struct {
+// OrderResponse is a response for orders
+type OrderResponse struct {
 	OrderID       int64   `json:"order_id"`
 	OpenQuantity  float64 `json:"open_qty,string"`
 	Price         float64 `json:"price,string"`
@@ -91,40 +102,47 @@ type CoinutOrderResponse struct {
 	Side          string  `json:"side"`
 }
 
-type CoinutCommission struct {
+// Commission holds trade commision structure
+type Commission struct {
 	Currency string  `json:"currency"`
 	Amount   float64 `json:"amount,string"`
 }
 
-type CoinutOrderFilledResponse struct {
-	CoinutGenericResponse
-	Commission   CoinutCommission    `json:"commission"`
-	FillPrice    float64             `json:"fill_price,string"`
-	FillQuantity float64             `json:"fill_qty,string"`
-	Order        CoinutOrderResponse `json:"order"`
+// OrderFilledResponse contains order filled response
+type OrderFilledResponse struct {
+	GenericResponse
+	Commission   Commission    `json:"commission"`
+	FillPrice    float64       `json:"fill_price,string"`
+	FillQuantity float64       `json:"fill_qty,string"`
+	Order        OrderResponse `json:"order"`
 }
 
-type CoinutOrderRejectResponse struct {
-	CoinutOrderResponse
+// OrderRejectResponse holds information on a rejected order
+type OrderRejectResponse struct {
+	OrderResponse
 	Reasons []string `json:"reasons"`
 }
 
-type CoinutOrdersBase struct {
-	CoinutGenericResponse
-	CoinutOrderResponse
+// OrdersBase contains generic response and order responses
+type OrdersBase struct {
+	GenericResponse
+	OrderResponse
 }
 
-type CoinutOrdersResponse struct {
-	Data []CoinutOrdersBase
+// OrdersResponse holds the full data range on orders
+type OrdersResponse struct {
+	Data []OrdersBase
 }
 
-type CoinutCancelOrders struct {
+// CancelOrders holds information about a cancelled order
+type CancelOrders struct {
 	InstrumentID int   `json:"int"`
 	OrderID      int64 `json:"order_id"`
 }
 
-type CoinutCancelOrdersResponse struct {
-	CoinutGenericResponse
+// CancelOrdersResponse is response for a cancelled order
+type CancelOrdersResponse struct {
+	GenericResponse
 	Results []struct {
 		OrderID      int64  `json:"order_id"`
 		Status       string `json:"status"`
@@ -132,17 +150,20 @@ type CoinutCancelOrdersResponse struct {
 	} `json:"results"`
 }
 
-type CoinutTradeHistory struct {
-	TotalNumber int64                       `json:"total_number"`
-	Trades      []CoinutOrderFilledResponse `json:"trades"`
+// TradeHistory holds trade history information
+type TradeHistory struct {
+	TotalNumber int64                 `json:"total_number"`
+	Trades      []OrderFilledResponse `json:"trades"`
 }
 
-type CoinutIndexTicker struct {
+// IndexTicker holds indexed ticker inforamtion
+type IndexTicker struct {
 	Asset string  `json:"asset"`
 	Price float64 `json:"price,string"`
 }
 
-type CoinutOption struct {
+// Option holds options information
+type Option struct {
 	HighestBuy   float64 `json:"highest_buy,string"`
 	InstrumentID int     `json:"inst_id"`
 	Last         float64 `json:"last,string"`
@@ -150,40 +171,43 @@ type CoinutOption struct {
 	OpenInterest float64 `json:"open_interest,string"`
 }
 
-type CoinutOptionChainResponse struct {
+// OptionChainResponse is the response type for options
+type OptionChainResponse struct {
 	ExpiryTime   int64  `json:"expiry_time"`
 	SecurityType string `json:"sec_type"`
 	Asset        string `json:"asset"`
 	Entries      []struct {
-		Call   CoinutOption `json:"call"`
-		Put    CoinutOption `json:"put"`
-		Strike float64      `json:"strike,string"`
+		Call   Option  `json:"call"`
+		Put    Option  `json:"put"`
+		Strike float64 `json:"strike,string"`
 	}
 }
 
-type CoinutOptionChainUpdate struct {
-	CoinutOption
-	CoinutGenericResponse
+// OptionChainUpdate contains information on the chain update options
+type OptionChainUpdate struct {
+	Option
+	GenericResponse
 	Asset        string  `json:"asset"`
 	ExpiryTime   int64   `json:"expiry_time"`
 	SecurityType string  `json:"sec_type"`
 	Volume       float64 `json:"volume,string"`
 }
 
-type CoinutPositionHistory struct {
+// PositionHistory holds the complete position history
+type PositionHistory struct {
 	Positions []struct {
 		PositionID int `json:"position_id"`
 		Records    []struct {
-			Commission    CoinutCommission `json:"commission"`
-			FillPrice     float64          `json:"fill_price,string,omitempty"`
-			TransactionID int              `json:"trans_id"`
-			FillQuantity  float64          `json:"fill_qty,omitempty"`
+			Commission    Commission `json:"commission"`
+			FillPrice     float64    `json:"fill_price,string,omitempty"`
+			TransactionID int        `json:"trans_id"`
+			FillQuantity  float64    `json:"fill_qty,omitempty"`
 			Position      struct {
-				Commission CoinutCommission `json:"commission"`
-				Timestamp  int64            `json:"timestamp"`
-				OpenPrice  float64          `json:"open_price,string"`
-				RealizedPL float64          `json:"realized_pl,string"`
-				Quantity   float64          `json:"qty,string"`
+				Commission Commission `json:"commission"`
+				Timestamp  int64      `json:"timestamp"`
+				OpenPrice  float64    `json:"open_price,string"`
+				RealizedPL float64    `json:"realized_pl,string"`
+				Quantity   float64    `json:"qty,string"`
 			} `json:"position"`
 			AssetAtExpiry float64 `json:"asset_at_expiry,string,omitempty"`
 		} `json:"records"`
@@ -202,12 +226,13 @@ type CoinutPositionHistory struct {
 	TotalNumber int `json:"total_number"`
 }
 
-type CoinutOpenPosition struct {
-	PositionID    int              `json:"position_id"`
-	Commission    CoinutCommission `json:"commission"`
-	OpenPrice     float64          `json:"open_price,string"`
-	RealizedPL    float64          `json:"realized_pl,string"`
-	Quantity      float64          `json:"qty,string"`
-	OpenTimestamp int64            `json:"open_timestamp"`
-	InstrumentID  int              `json:"inst_id"`
+// OpenPosition holds information on an open position
+type OpenPosition struct {
+	PositionID    int        `json:"position_id"`
+	Commission    Commission `json:"commission"`
+	OpenPrice     float64    `json:"open_price,string"`
+	RealizedPL    float64    `json:"realized_pl,string"`
+	Quantity      float64    `json:"qty,string"`
+	OpenTimestamp int64      `json:"open_timestamp"`
+	InstrumentID  int        `json:"inst_id"`
 }

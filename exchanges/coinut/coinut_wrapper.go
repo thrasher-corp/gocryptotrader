@@ -19,7 +19,7 @@ func (c *COINUT) Start() {
 // Run implements the COINUT wrapper
 func (c *COINUT) Run() {
 	if c.Verbose {
-		log.Printf("%s Websocket: %s. (url: %s).\n", c.GetName(), common.IsEnabled(c.Websocket), COINUT_WEBSOCKET_URL)
+		log.Printf("%s Websocket: %s. (url: %s).\n", c.GetName(), common.IsEnabled(c.Websocket), coinutWebsocketURL)
 		log.Printf("%s polling delay: %ds.\n", c.GetName(), c.RESTPollingDelay)
 		log.Printf("%s %d currencies enabled: %s.\n", c.GetName(), len(c.EnabledPairs), c.EnabledPairs)
 	}
