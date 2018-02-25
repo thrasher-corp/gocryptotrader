@@ -1,6 +1,7 @@
 package coinut
 
 import (
+	"errors"
 	"log"
 
 	"github.com/thrasher-/gocryptotrader/common"
@@ -122,4 +123,11 @@ func (c *COINUT) UpdateOrderbook(p pair.CurrencyPair, assetType string) (orderbo
 
 	orderbook.ProcessOrderbook(c.GetName(), p, orderBook, assetType)
 	return orderbook.GetOrderbook(c.Name, p, assetType)
+}
+
+// GetExchangeHistory returns historic trade data since exchange opening.
+func (c *COINUT) GetExchangeHistory(p pair.CurrencyPair, assetType string) ([]exchange.TradeHistory, error) {
+	var resp []exchange.TradeHistory
+
+	return resp, errors.New("trade history not yet implemented")
 }
