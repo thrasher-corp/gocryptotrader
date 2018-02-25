@@ -1,6 +1,7 @@
 package binance
 
 import (
+	"log"
 	"testing"
 
 	"github.com/thrasher-/gocryptotrader/config"
@@ -59,10 +60,12 @@ func TestGetRecentTrades(t *testing.T) {
 
 func TestGetHistoricalTrades(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetHistoricalTrades("BTCUSDT", 5, 1337)
+	b.Verbose = true
+	v, err := b.GetHistoricalTrades("BTCUSDT", 5, 1337)
 	if err == nil {
 		t.Error("Test Failed - Binance GetHistoricalTrades() error", err)
 	}
+	log.Println(v)
 }
 
 func TestGetAggregatedTrades(t *testing.T) {

@@ -1,6 +1,7 @@
 package gdax
 
 import (
+	"errors"
 	"log"
 
 	"github.com/thrasher-/gocryptotrader/common"
@@ -125,4 +126,11 @@ func (g *GDAX) UpdateOrderbook(p pair.CurrencyPair, assetType string) (orderbook
 
 	orderbook.ProcessOrderbook(g.GetName(), p, orderBook, assetType)
 	return orderbook.GetOrderbook(g.Name, p, assetType)
+}
+
+// GetExchangeHistory returns historic trade data since exchange opening.
+func (g *GDAX) GetExchangeHistory(p pair.CurrencyPair, assetType string) ([]exchange.TradeHistory, error) {
+	var resp []exchange.TradeHistory
+
+	return resp, errors.New("trade history not yet implemented")
 }

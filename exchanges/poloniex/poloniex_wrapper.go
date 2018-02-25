@@ -1,6 +1,7 @@
 package poloniex
 
 import (
+	"errors"
 	"log"
 
 	"github.com/thrasher-/gocryptotrader/common"
@@ -136,4 +137,11 @@ func (p *Poloniex) GetExchangeAccountInfo() (exchange.AccountInfo, error) {
 		response.Currencies = append(response.Currencies, exchangeCurrency)
 	}
 	return response, nil
+}
+
+// GetExchangeHistory returns historic trade data since exchange opening.
+func (po *Poloniex) GetExchangeHistory(p pair.CurrencyPair, assetType string) ([]exchange.TradeHistory, error) {
+	var resp []exchange.TradeHistory
+
+	return resp, errors.New("trade history not yet implemented")
 }

@@ -1,6 +1,7 @@
 package lakebtc
 
 import (
+	"errors"
 	"log"
 	"strconv"
 
@@ -106,4 +107,11 @@ func (l *LakeBTC) GetExchangeAccountInfo() (exchange.AccountInfo, error) {
 		}
 	}
 	return response, nil
+}
+
+// GetExchangeHistory returns historic trade data since exchange opening.
+func (l *LakeBTC) GetExchangeHistory(p pair.CurrencyPair, assetType string) ([]exchange.TradeHistory, error) {
+	var resp []exchange.TradeHistory
+
+	return resp, errors.New("trade history not yet implemented")
 }

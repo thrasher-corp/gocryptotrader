@@ -35,6 +35,16 @@ type AccountCurrencyInfo struct {
 	Hold         float64
 }
 
+// TradeHistory holds exchange history data
+type TradeHistory struct {
+	Timestamp int64
+	TID       int64
+	Price     float64
+	Amount    float64
+	Exchange  string
+	Type      string
+}
+
 // Base stores the individual exchange information
 type Base struct {
 	Name                        string
@@ -74,6 +84,7 @@ type IBotExchange interface {
 	GetExchangeAccountInfo() (AccountInfo, error)
 	GetAuthenticatedAPISupport() bool
 	SetCurrencies(pairs []pair.CurrencyPair, enabledPairs bool) error
+	GetExchangeHistory(pair.CurrencyPair, string) ([]TradeHistory, error)
 }
 
 // SetAssetTypes checks the exchange asset types (whether it supports SPOT,
