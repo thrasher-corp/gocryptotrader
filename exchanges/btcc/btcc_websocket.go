@@ -9,11 +9,13 @@ import (
 )
 
 const (
-	BTCC_SOCKETIO_ADDRESS = "https://websocket.btcc.com"
+	btccSocketioAddress = "https://websocket.btcc.com"
 )
 
+// BTCCSocket is a pointer to a IO socket
 var BTCCSocket *socketio.SocketIO
 
+// OnConnect gets information from the server when its connected
 func (b *BTCC) OnConnect(output chan socketio.Message) {
 	if b.Verbose {
 		log.Printf("%s Connected to Websocket.", b.GetName())
@@ -37,16 +39,19 @@ func (b *BTCC) OnConnect(output chan socketio.Message) {
 	}
 }
 
+// OnDisconnect alerts when disconnection occurs
 func (b *BTCC) OnDisconnect(output chan socketio.Message) {
 	log.Printf("%s Disconnected from websocket server.. Reconnecting.\n", b.GetName())
 	b.WebsocketClient()
 }
 
+// OnError alerts when error occurs
 func (b *BTCC) OnError() {
 	log.Printf("%s Error with Websocket connection.. Reconnecting.\n", b.GetName())
 	b.WebsocketClient()
 }
 
+// OnMessage if message received and verbose it is printed out
 func (b *BTCC) OnMessage(message []byte, output chan socketio.Message) {
 	if b.Verbose {
 		log.Printf("%s Websocket message received which isn't handled by default.\n", b.GetName())
@@ -54,6 +59,7 @@ func (b *BTCC) OnMessage(message []byte, output chan socketio.Message) {
 	}
 }
 
+// OnTicker handles ticker information
 func (b *BTCC) OnTicker(message []byte, output chan socketio.Message) {
 	type Response struct {
 		Ticker WebsocketTicker `json:"ticker"`
@@ -67,6 +73,7 @@ func (b *BTCC) OnTicker(message []byte, output chan socketio.Message) {
 	}
 }
 
+// OnGroupOrder handles group order information
 func (b *BTCC) OnGroupOrder(message []byte, output chan socketio.Message) {
 	type Response struct {
 		GroupOrder WebsocketGroupOrder `json:"grouporder"`
@@ -80,6 +87,7 @@ func (b *BTCC) OnGroupOrder(message []byte, output chan socketio.Message) {
 	}
 }
 
+// OnTrade handles group trade information
 func (b *BTCC) OnTrade(message []byte, output chan socketio.Message) {
 	trade := WebsocketTrade{}
 	err := common.JSONDecode(message, &trade)
@@ -90,6 +98,7 @@ func (b *BTCC) OnTrade(message []byte, output chan socketio.Message) {
 	}
 }
 
+// WebsocketClient initiates a websocket client
 func (b *BTCC) WebsocketClient() {
 	events := make(map[string]func(message []byte, output chan socketio.Message))
 	events["grouporder"] = b.OnGroupOrder
@@ -106,7 +115,7 @@ func (b *BTCC) WebsocketClient() {
 	}
 
 	for b.Enabled && b.Websocket {
-		err := socketio.ConnectToSocket(BTCC_SOCKETIO_ADDRESS, BTCCSocket)
+		err := socketio.ConnectToSocket(btccSocketioAddress, BTCCSocket)
 		if err != nil {
 			log.Printf("%s Unable to connect to Websocket. Err: %s\n", b.GetName(), err)
 			continue

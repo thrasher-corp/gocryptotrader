@@ -139,6 +139,7 @@ func (b *BTCC) GetOrderBook(currencyPair string, limit int) (Orderbook, error) {
 	return result, common.SendHTTPGetRequest(req, true, b.Verbose, &result)
 }
 
+// GetAccountInfo returns account information
 func (b *BTCC) GetAccountInfo(infoType string) error {
 	params := make([]interface{}, 0)
 
@@ -149,6 +150,7 @@ func (b *BTCC) GetAccountInfo(infoType string) error {
 	return b.SendAuthenticatedHTTPRequest(btccAccountInfo, params)
 }
 
+// PlaceOrder places a new order
 func (b *BTCC) PlaceOrder(buyOrder bool, price, amount float64, symbol string) {
 	params := make([]interface{}, 0)
 	params = append(params, strconv.FormatFloat(price, 'f', -1, 64))
@@ -170,6 +172,7 @@ func (b *BTCC) PlaceOrder(buyOrder bool, price, amount float64, symbol string) {
 	}
 }
 
+// CancelOrder cancels an order
 func (b *BTCC) CancelOrder(orderID int64, symbol string) {
 	params := make([]interface{}, 0)
 	params = append(params, orderID)
@@ -185,6 +188,7 @@ func (b *BTCC) CancelOrder(orderID int64, symbol string) {
 	}
 }
 
+// GetDeposits returns deposit information
 func (b *BTCC) GetDeposits(currency string, pending bool) {
 	params := make([]interface{}, 0)
 	params = append(params, currency)
@@ -200,6 +204,7 @@ func (b *BTCC) GetDeposits(currency string, pending bool) {
 	}
 }
 
+// GetMarketDepth returns market depth at limit
 func (b *BTCC) GetMarketDepth(symbol string, limit int64) {
 	params := make([]interface{}, 0)
 
@@ -218,6 +223,7 @@ func (b *BTCC) GetMarketDepth(symbol string, limit int64) {
 	}
 }
 
+// GetOrder returns information about a specific order
 func (b *BTCC) GetOrder(orderID int64, symbol string, detailed bool) {
 	params := make([]interface{}, 0)
 	params = append(params, orderID)
@@ -237,6 +243,7 @@ func (b *BTCC) GetOrder(orderID int64, symbol string, detailed bool) {
 	}
 }
 
+// GetOrders returns information of a range of orders
 func (b *BTCC) GetOrders(openonly bool, symbol string, limit, offset, since int64, detailed bool) {
 	params := make([]interface{}, 0)
 
@@ -271,6 +278,7 @@ func (b *BTCC) GetOrders(openonly bool, symbol string, limit, offset, since int6
 	}
 }
 
+// GetTransactions returns transaction lists
 func (b *BTCC) GetTransactions(transType string, limit, offset, since int64, sinceType string) {
 	params := make([]interface{}, 0)
 
@@ -301,6 +309,7 @@ func (b *BTCC) GetTransactions(transType string, limit, offset, since int64, sin
 	}
 }
 
+// GetWithdrawal returns information about a withdrawal process
 func (b *BTCC) GetWithdrawal(withdrawalID int64, currency string) {
 	params := make([]interface{}, 0)
 	params = append(params, withdrawalID)
@@ -316,6 +325,7 @@ func (b *BTCC) GetWithdrawal(withdrawalID int64, currency string) {
 	}
 }
 
+// GetWithdrawals gets information about all withdrawals
 func (b *BTCC) GetWithdrawals(currency string, pending bool) {
 	params := make([]interface{}, 0)
 	params = append(params, currency)
@@ -331,6 +341,7 @@ func (b *BTCC) GetWithdrawals(currency string, pending bool) {
 	}
 }
 
+// RequestWithdrawal requests a new withdrawal
 func (b *BTCC) RequestWithdrawal(currency string, amount float64) {
 	params := make([]interface{}, 0)
 	params = append(params, currency)
@@ -343,6 +354,8 @@ func (b *BTCC) RequestWithdrawal(currency string, amount float64) {
 	}
 }
 
+// IcebergOrder intiates a large order but at intervals to preserve orderbook
+// integrity
 func (b *BTCC) IcebergOrder(buyOrder bool, price, amount, discAmount, variance float64, symbol string) {
 	params := make([]interface{}, 0)
 	params = append(params, strconv.FormatFloat(price, 'f', -1, 64))
@@ -366,6 +379,7 @@ func (b *BTCC) IcebergOrder(buyOrder bool, price, amount, discAmount, variance f
 	}
 }
 
+// GetIcebergOrder returns information on your iceberg order
 func (b *BTCC) GetIcebergOrder(orderID int64, symbol string) {
 	params := make([]interface{}, 0)
 	params = append(params, orderID)
@@ -381,6 +395,7 @@ func (b *BTCC) GetIcebergOrder(orderID int64, symbol string) {
 	}
 }
 
+// GetIcebergOrders returns information on all iceberg orders
 func (b *BTCC) GetIcebergOrders(limit, offset int64, symbol string) {
 	params := make([]interface{}, 0)
 
@@ -403,6 +418,7 @@ func (b *BTCC) GetIcebergOrders(limit, offset int64, symbol string) {
 	}
 }
 
+// CancelIcebergOrder cancels iceberg order
 func (b *BTCC) CancelIcebergOrder(orderID int64, symbol string) {
 	params := make([]interface{}, 0)
 	params = append(params, orderID)
@@ -418,6 +434,7 @@ func (b *BTCC) CancelIcebergOrder(orderID int64, symbol string) {
 	}
 }
 
+// PlaceStopOrder inserts a stop loss order
 func (b *BTCC) PlaceStopOrder(buyOder bool, stopPrice, price, amount, trailingAmt, trailingPct float64, symbol string) {
 	params := make([]interface{}, 0)
 
@@ -452,6 +469,7 @@ func (b *BTCC) PlaceStopOrder(buyOder bool, stopPrice, price, amount, trailingAm
 	}
 }
 
+// GetStopOrder returns a stop order
 func (b *BTCC) GetStopOrder(orderID int64, symbol string) {
 	params := make([]interface{}, 0)
 	params = append(params, orderID)
@@ -467,6 +485,7 @@ func (b *BTCC) GetStopOrder(orderID int64, symbol string) {
 	}
 }
 
+// GetStopOrders returns all stop orders
 func (b *BTCC) GetStopOrders(status, orderType string, stopPrice float64, limit, offset int64, symbol string) {
 	params := make([]interface{}, 0)
 
@@ -501,6 +520,7 @@ func (b *BTCC) GetStopOrders(status, orderType string, stopPrice float64, limit,
 	}
 }
 
+// CancelStopOrder cancels a stop order
 func (b *BTCC) CancelStopOrder(orderID int64, symbol string) {
 	params := make([]interface{}, 0)
 	params = append(params, orderID)
@@ -516,6 +536,7 @@ func (b *BTCC) CancelStopOrder(orderID int64, symbol string) {
 	}
 }
 
+// SendAuthenticatedHTTPRequest sends a valid authenticated HTTP request
 func (b *BTCC) SendAuthenticatedHTTPRequest(method string, params []interface{}) (err error) {
 	if !b.AuthenticatedAPISupport {
 		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet, b.Name)
