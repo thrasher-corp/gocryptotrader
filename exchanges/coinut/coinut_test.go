@@ -21,7 +21,6 @@ func TestSetDefaults(t *testing.T) {
 
 func TestSetup(t *testing.T) {
 	t.Parallel()
-	c := COINUT{}
 	c.Name = "Coinut"
 	cfg := config.GetConfig()
 	cfg.LoadConfig("../../testdata/configtest.json")
