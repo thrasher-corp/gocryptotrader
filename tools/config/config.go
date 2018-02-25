@@ -23,7 +23,7 @@ func main() {
 	configFile := config.GetFilePath("")
 	flag.StringVar(&inFile, "infile", configFile, "The config input file to process.")
 	flag.StringVar(&outFile, "outfile", configFile+".out", "The config output file.")
-	flag.BoolVar(&encrypt, "encrypt", true, "Wether to encrypt or decrypt.")
+	flag.BoolVar(&encrypt, "encrypt", true, "Whether to encrypt or decrypt.")
 	flag.StringVar(&key, "key", "", "The key to use for AES encryption.")
 	flag.Parse()
 
