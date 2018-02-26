@@ -12,50 +12,50 @@ import (
 )
 
 // Start starts the Poloniex go routine
-func (p *Poloniex) Start() {
-	go p.Run()
+func (po *Poloniex) Start() {
+	go po.Run()
 }
 
 // Run implements the Poloniex wrapper
-func (p *Poloniex) Run() {
-	if p.Verbose {
-		log.Printf("%s Websocket: %s (url: %s).\n", p.GetName(), common.IsEnabled(p.Websocket), POLONIEX_WEBSOCKET_ADDRESS)
-		log.Printf("%s polling delay: %ds.\n", p.GetName(), p.RESTPollingDelay)
-		log.Printf("%s %d currencies enabled: %s.\n", p.GetName(), len(p.EnabledPairs), p.EnabledPairs)
+func (po *Poloniex) Run() {
+	if po.Verbose {
+		log.Printf("%s Websocket: %s (url: %s).\n", po.GetName(), common.IsEnabled(po.Websocket), poloniexWebsocketAddress)
+		log.Printf("%s polling delay: %ds.\n", po.GetName(), po.RESTPollingDelay)
+		log.Printf("%s %d currencies enabled: %s.\n", po.GetName(), len(po.EnabledPairs), po.EnabledPairs)
 	}
 
-	if p.Websocket {
-		go p.WebsocketClient()
+	if po.Websocket {
+		go po.WebsocketClient()
 	}
 
-	exchangeCurrencies, err := p.GetExchangeCurrencies()
+	exchangeCurrencies, err := po.GetExchangeCurrencies()
 	if err != nil {
-		log.Printf("%s Failed to get available symbols.\n", p.GetName())
+		log.Printf("%s Failed to get available symbols.\n", po.GetName())
 	} else {
 		forceUpdate := false
-		if common.StringDataCompare(p.AvailablePairs, "BTC_USDT") {
+		if common.StringDataCompare(po.AvailablePairs, "BTC_USDT") {
 			log.Printf("%s contains invalid pair, forcing upgrade of available currencies.\n",
-				p.GetName())
+				po.GetName())
 			forceUpdate = true
 		}
-		err = p.UpdateAvailableCurrencies(exchangeCurrencies, forceUpdate)
+		err = po.UpdateAvailableCurrencies(exchangeCurrencies, forceUpdate)
 		if err != nil {
-			log.Printf("%s Failed to update available currencies %s.\n", p.GetName(), err)
+			log.Printf("%s Failed to update available currencies %s.\n", po.GetName(), err)
 		}
 	}
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
-func (p *Poloniex) UpdateTicker(currencyPair pair.CurrencyPair, assetType string) (ticker.Price, error) {
+func (po *Poloniex) UpdateTicker(currencyPair pair.CurrencyPair, assetType string) (ticker.Price, error) {
 	var tickerPrice ticker.Price
-	tick, err := p.GetTicker()
+	tick, err := po.GetTicker()
 	if err != nil {
 		return tickerPrice, err
 	}
 
-	for _, x := range p.GetEnabledCurrencies() {
+	for _, x := range po.GetEnabledCurrencies() {
 		var tp ticker.Price
-		curr := exchange.FormatExchangeCurrency(p.GetName(), x).String()
+		curr := exchange.FormatExchangeCurrency(po.GetName(), x).String()
 		tp.Pair = x
 		tp.Ask = tick[curr].LowestAsk
 		tp.Bid = tick[curr].HighestBid
@@ -63,39 +63,39 @@ func (p *Poloniex) UpdateTicker(currencyPair pair.CurrencyPair, assetType string
 		tp.Last = tick[curr].Last
 		tp.Low = tick[curr].Low24Hr
 		tp.Volume = tick[curr].BaseVolume
-		ticker.ProcessTicker(p.GetName(), x, tp, assetType)
+		ticker.ProcessTicker(po.GetName(), x, tp, assetType)
 	}
-	return ticker.GetTicker(p.Name, currencyPair, assetType)
+	return ticker.GetTicker(po.Name, currencyPair, assetType)
 }
 
 // GetTickerPrice returns the ticker for a currency pair
-func (p *Poloniex) GetTickerPrice(currencyPair pair.CurrencyPair, assetType string) (ticker.Price, error) {
-	tickerNew, err := ticker.GetTicker(p.GetName(), currencyPair, assetType)
+func (po *Poloniex) GetTickerPrice(currencyPair pair.CurrencyPair, assetType string) (ticker.Price, error) {
+	tickerNew, err := ticker.GetTicker(po.GetName(), currencyPair, assetType)
 	if err != nil {
-		return p.UpdateTicker(currencyPair, assetType)
+		return po.UpdateTicker(currencyPair, assetType)
 	}
 	return tickerNew, nil
 }
 
 // GetOrderbookEx returns orderbook base on the currency pair
-func (p *Poloniex) GetOrderbookEx(currencyPair pair.CurrencyPair, assetType string) (orderbook.Base, error) {
-	ob, err := orderbook.GetOrderbook(p.GetName(), currencyPair, assetType)
+func (po *Poloniex) GetOrderbookEx(currencyPair pair.CurrencyPair, assetType string) (orderbook.Base, error) {
+	ob, err := orderbook.GetOrderbook(po.GetName(), currencyPair, assetType)
 	if err != nil {
-		return p.UpdateOrderbook(currencyPair, assetType)
+		return po.UpdateOrderbook(currencyPair, assetType)
 	}
 	return ob, nil
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (p *Poloniex) UpdateOrderbook(currencyPair pair.CurrencyPair, assetType string) (orderbook.Base, error) {
+func (po *Poloniex) UpdateOrderbook(currencyPair pair.CurrencyPair, assetType string) (orderbook.Base, error) {
 	var orderBook orderbook.Base
-	orderbookNew, err := p.GetOrderbook("", 1000)
+	orderbookNew, err := po.GetOrderbook("", 1000)
 	if err != nil {
 		return orderBook, err
 	}
 
-	for _, x := range p.GetEnabledCurrencies() {
-		currency := exchange.FormatExchangeCurrency(p.Name, x).String()
+	for _, x := range po.GetEnabledCurrencies() {
+		currency := exchange.FormatExchangeCurrency(po.Name, x).String()
 		data, ok := orderbookNew.Data[currency]
 		if !ok {
 			continue
@@ -115,17 +115,17 @@ func (p *Poloniex) UpdateOrderbook(currencyPair pair.CurrencyPair, assetType str
 			obItems = append(obItems, orderbook.Item{Amount: obData.Amount, Price: obData.Price})
 		}
 		orderBook.Asks = obItems
-		orderbook.ProcessOrderbook(p.Name, x, orderBook, assetType)
+		orderbook.ProcessOrderbook(po.Name, x, orderBook, assetType)
 	}
-	return orderbook.GetOrderbook(p.Name, currencyPair, assetType)
+	return orderbook.GetOrderbook(po.Name, currencyPair, assetType)
 }
 
 // GetExchangeAccountInfo retrieves balances for all enabled currencies for the
 // Poloniex exchange
-func (p *Poloniex) GetExchangeAccountInfo() (exchange.AccountInfo, error) {
+func (po *Poloniex) GetExchangeAccountInfo() (exchange.AccountInfo, error) {
 	var response exchange.AccountInfo
-	response.ExchangeName = p.GetName()
-	accountBalance, err := p.GetBalances()
+	response.ExchangeName = po.GetName()
+	accountBalance, err := po.GetBalances()
 	if err != nil {
 		return response, err
 	}
