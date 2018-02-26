@@ -1,6 +1,7 @@
 package itbit
 
 import (
+	"errors"
 	"log"
 	"strconv"
 
@@ -55,7 +56,7 @@ func (i *ItBit) GetTickerPrice(p pair.CurrencyPair, assetType string) (ticker.Pr
 // GetOrderbookEx returns orderbook base on the currency pair
 func (i *ItBit) GetOrderbookEx(p pair.CurrencyPair, assetType string) (orderbook.Base, error) {
 	ob, err := orderbook.GetOrderbook(i.GetName(), p, assetType)
-	if err == nil {
+	if err != nil {
 		return i.UpdateOrderbook(p, assetType)
 	}
 	return ob, nil
@@ -106,4 +107,11 @@ func (i *ItBit) GetExchangeAccountInfo() (exchange.AccountInfo, error) {
 	var response exchange.AccountInfo
 	response.ExchangeName = i.GetName()
 	return response, nil
+}
+
+// GetExchangeHistory returns historic trade data since exchange opening.
+func (i *ItBit) GetExchangeHistory(p pair.CurrencyPair, assetType string) ([]exchange.TradeHistory, error) {
+	var resp []exchange.TradeHistory
+
+	return resp, errors.New("trade history not yet implemented")
 }

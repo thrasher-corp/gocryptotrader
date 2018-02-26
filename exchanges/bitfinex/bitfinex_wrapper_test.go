@@ -19,6 +19,7 @@ func TestRun(t *testing.T) {
 
 func TestGetTickerPrice(t *testing.T) {
 	getTickerPrice := Bitfinex{}
+	getTickerPrice.EnabledPairs = []string{"BTCUSD", "LTCUSD"}
 	_, err := getTickerPrice.GetTickerPrice(pair.NewCurrencyPair("BTC", "USD"),
 		ticker.Spot)
 	if err != nil {

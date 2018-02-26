@@ -56,7 +56,7 @@ func TestSetAssetTypes(t *testing.T) {
 		t.Fatalf("Test failed. TestSetAssetTypes. Error %s", err)
 	}
 
-	if !common.DataContains(b.AssetTypes, ticker.Spot) {
+	if !common.StringDataCompare(b.AssetTypes, ticker.Spot) {
 		t.Fatal("Test failed. TestSetAssetTypes assetTypes is not set")
 	}
 }
@@ -73,13 +73,32 @@ func TestGetExchangeAssetTypes(t *testing.T) {
 		t.Fatal("Test failed. Unable to obtain Bitfinex asset types")
 	}
 
-	if !common.DataContains(result, ticker.Spot) {
+	if !common.StringDataCompare(result, ticker.Spot) {
 		t.Fatal("Test failed. Bitfinex does not contain default asset type 'SPOT'")
 	}
 
 	_, err = GetExchangeAssetTypes("non-existent-exchange")
 	if err == nil {
 		t.Fatal("Test failed. Got asset types for non-existent exchange")
+	}
+}
+
+func TestCompareCurrencyPairFormats(t *testing.T) {
+	cfgOne := config.CurrencyPairFormatConfig{
+		Delimiter: "-",
+		Uppercase: true,
+		Index:     "",
+		Separator: ",",
+	}
+
+	cfgTwo := cfgOne
+	if !CompareCurrencyPairFormats(cfgOne, &cfgTwo) {
+		t.Fatal("Test failed. CompareCurrencyPairFormats should be true")
+	}
+
+	cfgTwo.Delimiter = "~"
+	if CompareCurrencyPairFormats(cfgOne, &cfgTwo) {
+		t.Fatal("Test failed. CompareCurrencyPairFormats should not be true")
 	}
 }
 
@@ -141,6 +160,12 @@ func TestSetCurrencyPairFormat(t *testing.T) {
 		b.RequestCurrencyPairFormat.Index != "BTC" &&
 		b.RequestCurrencyPairFormat.Uppercase {
 		t.Fatal("Test failed. TestSetCurrencyPairFormat RequestCurrencyPairFormat values are incorrect")
+	}
+
+	// if currency pairs are the same as the config, should load from config
+	err = b.SetCurrencyPairFormat()
+	if err != nil {
+		t.Fatalf("Test failed. TestSetCurrencyPairFormat. Error %s", err)
 	}
 }
 
@@ -295,6 +320,34 @@ func TestGetAvailableCurrencies(t *testing.T) {
 	}
 }
 
+func TestSupportsCurrency(t *testing.T) {
+	b := Base{
+		Name: "TESTNAME",
+	}
+
+	b.AvailablePairs = []string{"BTC-USD", "ETH-USD"}
+	b.EnabledPairs = []string{"BTC-USD"}
+
+	format := config.CurrencyPairFormatConfig{
+		Delimiter: "-",
+		Index:     "",
+	}
+
+	b.RequestCurrencyPairFormat = format
+	b.ConfigCurrencyPairFormat = format
+
+	if !b.SupportsCurrency(pair.NewCurrencyPair("BTC", "USD"), true) {
+		t.Error("Test Failed - Exchange SupportsCurrency() incorrect value")
+	}
+
+	if !b.SupportsCurrency(pair.NewCurrencyPair("ETH", "USD"), false) {
+		t.Error("Test Failed - Exchange SupportsCurrency() incorrect value")
+	}
+
+	if b.SupportsCurrency(pair.NewCurrencyPair("ASD", "ASDF"), true) {
+		t.Error("Test Failed - Exchange SupportsCurrency() incorrect value")
+	}
+}
 func TestGetExchangeFormatCurrencySeperator(t *testing.T) {
 	cfg := config.GetConfig()
 	err := cfg.LoadConfig(config.ConfigTestFile)
@@ -429,6 +482,35 @@ func TestSetAPIKeys(t *testing.T) {
 		t.Error("Test Failed - Exchange SetAPIKeys() did not set correct values")
 	}
 	SetAPIKeys.SetAPIKeys("RocketMan", "Digereedoo", "007", true)
+}
+
+func TestSetCurrencies(t *testing.T) {
+	cfg := config.GetConfig()
+	err := cfg.LoadConfig(config.ConfigTestFile)
+	if err != nil {
+		t.Fatal("Test failed. TestSetCurrencies failed to load config")
+	}
+
+	UAC := Base{Name: "ASDF"}
+	UAC.AvailablePairs = []string{"ETHLTC", "LTCBTC"}
+	UAC.EnabledPairs = []string{"ETHLTC"}
+	newPair := pair.NewCurrencyPair("ETH", "USDT")
+
+	err = UAC.SetCurrencies([]pair.CurrencyPair{newPair}, true)
+	if err == nil {
+		t.Fatal("Test failed. TestSetCurrencies returned nil error on non-existant exchange")
+	}
+
+	UAC.Name = "ANX"
+	UAC.SetCurrencies([]pair.CurrencyPair{newPair}, true)
+	if !pair.Contains(UAC.GetEnabledCurrencies(), newPair) {
+		t.Fatal("Test failed. TestSetCurrencies failed to set currencies")
+	}
+
+	UAC.SetCurrencies([]pair.CurrencyPair{newPair}, false)
+	if !pair.Contains(UAC.GetAvailableCurrencies(), newPair) {
+		t.Fatal("Test failed. TestSetCurrencies failed to set currencies")
+	}
 }
 
 func TestUpdateEnabledCurrencies(t *testing.T) {

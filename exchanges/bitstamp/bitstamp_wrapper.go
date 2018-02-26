@@ -1,6 +1,7 @@
 package bitstamp
 
 import (
+	"errors"
 	"log"
 
 	"github.com/thrasher-/gocryptotrader/common"
@@ -59,7 +60,7 @@ func (b *Bitstamp) GetTickerPrice(p pair.CurrencyPair, assetType string) (ticker
 // GetOrderbookEx returns the orderbook for a currency pair
 func (b *Bitstamp) GetOrderbookEx(p pair.CurrencyPair, assetType string) (orderbook.Base, error) {
 	ob, err := orderbook.GetOrderbook(b.GetName(), p, assetType)
-	if err == nil {
+	if err != nil {
 		return b.UpdateOrderbook(p, assetType)
 	}
 	return ob, nil
@@ -121,4 +122,11 @@ func (b *Bitstamp) GetExchangeAccountInfo() (exchange.AccountInfo, error) {
 		Hold:         accountBalance.EURReserved,
 	})
 	return response, nil
+}
+
+// GetExchangeHistory returns historic trade data since exchange opening.
+func (b *Bitstamp) GetExchangeHistory(p pair.CurrencyPair, assetType string) ([]exchange.TradeHistory, error) {
+	var resp []exchange.TradeHistory
+
+	return resp, errors.New("trade history not yet implemented")
 }

@@ -45,10 +45,7 @@ type AllEnabledExchangeAccounts struct {
 func RESTfulJSONResponse(w http.ResponseWriter, r *http.Request, req interface{}) error {
 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 	w.WriteHeader(http.StatusOK)
-	if err := json.NewEncoder(w).Encode(req); err != nil {
-		return err
-	}
-	return nil
+	return json.NewEncoder(w).Encode(req)
 }
 
 // RESTfulError prints the REST method and error
@@ -86,6 +83,8 @@ func RESTSaveAllSettings(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		RESTfulError(r.Method, err)
 	}
+
+	SetupExchanges()
 }
 
 // RESTGetOrderbook returns orderbook info for a given currency, exchange and
@@ -213,9 +212,6 @@ func GetAllActiveTickers() []EnabledExchangeCurrencies {
 			var individualExchange EnabledExchangeCurrencies
 			exchangeName := individualBot.GetName()
 			individualExchange.ExchangeName = exchangeName
-			log.Println(
-				"Getting enabled currencies for '" + exchangeName + "'",
-			)
 			currencies := individualBot.GetEnabledCurrencies()
 			for _, x := range currencies {
 				currency := x

@@ -1,6 +1,7 @@
 package gemini
 
 import (
+	"errors"
 	"log"
 	"net/url"
 
@@ -80,7 +81,7 @@ func (g *Gemini) GetTickerPrice(p pair.CurrencyPair, assetType string) (ticker.P
 // GetOrderbookEx returns orderbook base on the currency pair
 func (g *Gemini) GetOrderbookEx(p pair.CurrencyPair, assetType string) (orderbook.Base, error) {
 	ob, err := orderbook.GetOrderbook(g.GetName(), p, assetType)
-	if err == nil {
+	if err != nil {
 		return g.UpdateOrderbook(p, assetType)
 	}
 	return ob, nil
@@ -104,4 +105,11 @@ func (g *Gemini) UpdateOrderbook(p pair.CurrencyPair, assetType string) (orderbo
 
 	orderbook.ProcessOrderbook(g.GetName(), p, orderBook, assetType)
 	return orderbook.GetOrderbook(g.Name, p, assetType)
+}
+
+// GetExchangeHistory returns historic trade data since exchange opening.
+func (g *Gemini) GetExchangeHistory(p pair.CurrencyPair, assetType string) ([]exchange.TradeHistory, error) {
+	var resp []exchange.TradeHistory
+
+	return resp, errors.New("trade history not yet implemented")
 }

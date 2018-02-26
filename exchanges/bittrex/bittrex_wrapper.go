@@ -1,6 +1,7 @@
 package bittrex
 
 import (
+	"errors"
 	"log"
 
 	"github.com/thrasher-/gocryptotrader/common"
@@ -27,7 +28,7 @@ func (b *Bittrex) Run() {
 		log.Printf("%s Failed to get available symbols.\n", b.GetName())
 	} else {
 		forceUpgrade := false
-		if !common.DataContains(b.EnabledPairs, "-") || !common.DataContains(b.AvailablePairs, "-") {
+		if !common.StringDataContains(b.EnabledPairs, "-") || !common.StringDataContains(b.AvailablePairs, "-") {
 			forceUpgrade = true
 		}
 		var currencies []string
@@ -77,16 +78,26 @@ func (b *Bittrex) GetExchangeAccountInfo() (exchange.AccountInfo, error) {
 // UpdateTicker updates and returns the ticker for a currency pair
 func (b *Bittrex) UpdateTicker(p pair.CurrencyPair, assetType string) (ticker.Price, error) {
 	var tickerPrice ticker.Price
-	tick, err := b.GetMarketSummary(exchange.FormatExchangeCurrency(b.GetName(), p).String())
+	tick, err := b.GetMarketSummaries()
 	if err != nil {
 		return tickerPrice, err
 	}
-	tickerPrice.Pair = p
-	tickerPrice.Ask = tick[0].Ask
-	tickerPrice.Bid = tick[0].Bid
-	tickerPrice.Last = tick[0].Last
-	tickerPrice.Volume = tick[0].Volume
-	ticker.ProcessTicker(b.GetName(), p, tickerPrice, assetType)
+
+	for _, x := range b.GetEnabledCurrencies() {
+		curr := exchange.FormatExchangeCurrency(b.Name, x)
+		for y := range tick {
+			if tick[y].MarketName == curr.String() {
+				tickerPrice.Pair = x
+				tickerPrice.High = tick[y].High
+				tickerPrice.Low = tick[y].Low
+				tickerPrice.Ask = tick[y].Ask
+				tickerPrice.Bid = tick[y].Bid
+				tickerPrice.Last = tick[y].Last
+				tickerPrice.Volume = tick[y].Volume
+				ticker.ProcessTicker(b.GetName(), x, tickerPrice, assetType)
+			}
+		}
+	}
 	return ticker.GetTicker(b.Name, p, assetType)
 }
 
@@ -102,7 +113,7 @@ func (b *Bittrex) GetTickerPrice(p pair.CurrencyPair, assetType string) (ticker.
 // GetOrderbookEx returns the orderbook for a currency pair
 func (b *Bittrex) GetOrderbookEx(p pair.CurrencyPair, assetType string) (orderbook.Base, error) {
 	ob, err := orderbook.GetOrderbook(b.GetName(), p, assetType)
-	if err == nil {
+	if err != nil {
 		return b.UpdateOrderbook(p, assetType)
 	}
 	return ob, nil
@@ -136,4 +147,11 @@ func (b *Bittrex) UpdateOrderbook(p pair.CurrencyPair, assetType string) (orderb
 
 	orderbook.ProcessOrderbook(b.GetName(), p, orderBook, assetType)
 	return orderbook.GetOrderbook(b.Name, p, assetType)
+}
+
+// GetExchangeHistory returns historic trade data since exchange opening.
+func (b *Bittrex) GetExchangeHistory(p pair.CurrencyPair, assetType string) ([]exchange.TradeHistory, error) {
+	var resp []exchange.TradeHistory
+
+	return resp, errors.New("trade history not yet implemented")
 }

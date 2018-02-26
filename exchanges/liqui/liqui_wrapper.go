@@ -1,6 +1,7 @@
 package liqui
 
 import (
+	"errors"
 	"log"
 
 	"github.com/thrasher-/gocryptotrader/common"
@@ -58,7 +59,7 @@ func (l *Liqui) UpdateTicker(p pair.CurrencyPair, assetType string) (ticker.Pric
 		tp.Bid = result[currency].Buy
 		tp.Last = result[currency].Last
 		tp.Low = result[currency].Low
-		tp.Volume = result[currency].Vol_cur
+		tp.Volume = result[currency].VolumeCurrency
 		ticker.ProcessTicker(l.Name, x, tp, assetType)
 	}
 
@@ -77,7 +78,7 @@ func (l *Liqui) GetTickerPrice(p pair.CurrencyPair, assetType string) (ticker.Pr
 // GetOrderbookEx returns orderbook base on the currency pair
 func (l *Liqui) GetOrderbookEx(p pair.CurrencyPair, assetType string) (orderbook.Base, error) {
 	ob, err := orderbook.GetOrderbook(l.Name, p, assetType)
-	if err == nil {
+	if err != nil {
 		return l.UpdateOrderbook(p, assetType)
 	}
 	return ob, nil
@@ -124,4 +125,11 @@ func (l *Liqui) GetExchangeAccountInfo() (exchange.AccountInfo, error) {
 	}
 
 	return response, nil
+}
+
+// GetExchangeHistory returns historic trade data since exchange opening.
+func (l *Liqui) GetExchangeHistory(p pair.CurrencyPair, assetType string) ([]exchange.TradeHistory, error) {
+	var resp []exchange.TradeHistory
+
+	return resp, errors.New("trade history not yet implemented")
 }

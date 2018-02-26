@@ -1,6 +1,7 @@
 package kraken
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"net/url"
@@ -29,11 +30,35 @@ func (k *Kraken) Run() {
 	if err != nil {
 		log.Printf("%s Failed to get available symbols.\n", k.GetName())
 	} else {
+		forceUpgrade := false
+		if !common.StringDataContains(k.EnabledPairs, "-") || !common.StringDataContains(k.AvailablePairs, "-") {
+			forceUpgrade = true
+		}
+
 		var exchangeProducts []string
 		for _, v := range assetPairs {
-			exchangeProducts = append(exchangeProducts, v.Altname)
+			if common.StringContains(v.Altname, ".d") {
+				continue
+			}
+			if v.Base[0] == 'X' {
+				v.Base = v.Base[1:]
+			}
+			if v.Quote[0] == 'Z' || v.Quote[0] == 'X' {
+				v.Quote = v.Quote[1:]
+			}
+			exchangeProducts = append(exchangeProducts, v.Base+"-"+v.Quote)
 		}
-		err = k.UpdateAvailableCurrencies(exchangeProducts, false)
+
+		if forceUpgrade {
+			enabledPairs := []string{"XBT-USD"}
+			log.Println("WARNING: Available pairs for Kraken reset due to config upgrade, please enable the ones you would like again")
+
+			err = k.UpdateEnabledCurrencies(enabledPairs, true)
+			if err != nil {
+				log.Printf("%s Failed to get config.\n", k.GetName())
+			}
+		}
+		err = k.UpdateAvailableCurrencies(exchangeProducts, forceUpgrade)
 		if err != nil {
 			log.Printf("%s Failed to get config.\n", k.GetName())
 		}
@@ -54,20 +79,19 @@ func (k *Kraken) UpdateTicker(p pair.CurrencyPair, assetType string) (ticker.Pri
 	}
 
 	for _, x := range pairs {
-		var tp ticker.Price
-		tick, ok := k.Ticker[x.Pair().String()]
-		if !ok {
-			continue
+		for y, z := range k.Ticker {
+			if common.StringContains(y, x.FirstCurrency.Upper().String()) && common.StringContains(y, x.SecondCurrency.Upper().String()) {
+				var tp ticker.Price
+				tp.Pair = x
+				tp.Last = z.Last
+				tp.Ask = z.Ask
+				tp.Bid = z.Bid
+				tp.High = z.High
+				tp.Low = z.Low
+				tp.Volume = z.Volume
+				ticker.ProcessTicker(k.GetName(), x, tp, assetType)
+			}
 		}
-
-		tp.Pair = x
-		tp.Last = tick.Last
-		tp.Ask = tick.Ask
-		tp.Bid = tick.Bid
-		tp.High = tick.High
-		tp.Low = tick.Low
-		tp.Volume = tick.Volume
-		ticker.ProcessTicker(k.GetName(), x, tp, assetType)
 	}
 	return ticker.GetTicker(k.GetName(), p, assetType)
 }
@@ -122,7 +146,7 @@ func (k *Kraken) GetTickerPrice(p pair.CurrencyPair, assetType string) (ticker.P
 // GetOrderbookEx returns orderbook base on the currency pair
 func (k *Kraken) GetOrderbookEx(p pair.CurrencyPair, assetType string) (orderbook.Base, error) {
 	ob, err := orderbook.GetOrderbook(k.GetName(), p, assetType)
-	if err == nil {
+	if err != nil {
 		return k.UpdateOrderbook(p, assetType)
 	}
 	return ob, nil
@@ -154,4 +178,11 @@ func (k *Kraken) GetExchangeAccountInfo() (exchange.AccountInfo, error) {
 	var response exchange.AccountInfo
 	response.ExchangeName = k.GetName()
 	return response, nil
+}
+
+// GetExchangeHistory returns historic trade data since exchange opening.
+func (k *Kraken) GetExchangeHistory(p pair.CurrencyPair, assetType string) ([]exchange.TradeHistory, error) {
+	var resp []exchange.TradeHistory
+
+	return resp, errors.New("trade history not yet implemented")
 }

@@ -1,6 +1,7 @@
 package anx
 
-type ANXOrder struct {
+// Order holds order information
+type Order struct {
 	OrderType                      string `json:"orderType"`
 	BuyTradedCurrency              bool   `json:"buyTradedCurrency"`
 	TradedCurrency                 string `json:"tradedCurrency"`
@@ -12,7 +13,8 @@ type ANXOrder struct {
 	ReplaceOnlyIfActive            bool   `json:"replaceOnlyIfActive"`
 }
 
-type ANXOrderResponse struct {
+// OrderResponse holds order response data
+type OrderResponse struct {
 	BuyTradedCurrency              bool   `json:"buyTradedCurrency"`
 	ExecutedAverageRate            string `json:"executedAverageRate"`
 	LimitPriceInSettlementCurrency string `json:"limitPriceInSettlementCurrency"`
@@ -29,25 +31,46 @@ type ANXOrderResponse struct {
 	TradedCurrencyOutstanding      string `json:"tradedCurrencyOutstanding"`
 }
 
-type ANXTickerComponent struct {
+// TickerComponent is a sub-type for ticker
+type TickerComponent struct {
 	Currency     string `json:"currency"`
 	Display      string `json:"display"`
 	DisplayShort string `json:"display_short"`
 	Value        string `json:"value"`
 }
 
-type ANXTicker struct {
+// Ticker contains ticker data
+type Ticker struct {
 	Result string `json:"result"`
 	Data   struct {
-		High       ANXTickerComponent `json:"high"`
-		Low        ANXTickerComponent `json:"low"`
-		Avg        ANXTickerComponent `json:"avg"`
-		Vwap       ANXTickerComponent `json:"vwap"`
-		Vol        ANXTickerComponent `json:"vol"`
-		Last       ANXTickerComponent `json:"last"`
-		Buy        ANXTickerComponent `json:"buy"`
-		Sell       ANXTickerComponent `json:"sell"`
-		Now        string             `json:"now"`
-		UpdateTime string             `json:"dataUpdateTime"`
+		High       TickerComponent `json:"high"`
+		Low        TickerComponent `json:"low"`
+		Avg        TickerComponent `json:"avg"`
+		Vwap       TickerComponent `json:"vwap"`
+		Vol        TickerComponent `json:"vol"`
+		Last       TickerComponent `json:"last"`
+		Buy        TickerComponent `json:"buy"`
+		Sell       TickerComponent `json:"sell"`
+		Now        string          `json:"now"`
+		UpdateTime string          `json:"dataUpdateTime"`
+	} `json:"data"`
+}
+
+// DepthItem contains depth information
+type DepthItem struct {
+	Price     float64 `json:"price,string"`
+	PriceInt  float64 `json:"price_int,string"`
+	Amount    float64 `json:"amount,string"`
+	AmountInt int64   `json:"amount_int,string"`
+}
+
+// Depth contains full depth information
+type Depth struct {
+	Result string `json:"result"`
+	Data   struct {
+		Now            string      `json:"now"`
+		DataUpdateTime string      `json:"dataUpdateTime"`
+		Asks           []DepthItem `json:"asks"`
+		Bids           []DepthItem `json:"bids"`
 	} `json:"data"`
 }

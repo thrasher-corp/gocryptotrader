@@ -35,6 +35,16 @@ type AccountCurrencyInfo struct {
 	Hold         float64
 }
 
+// TradeHistory holds exchange history data
+type TradeHistory struct {
+	Timestamp int64
+	TID       int64
+	Price     float64
+	Amount    float64
+	Exchange  string
+	Type      string
+}
+
 // Base stores the individual exchange information
 type Base struct {
 	Name                        string
@@ -64,13 +74,17 @@ type IBotExchange interface {
 	SetDefaults()
 	GetName() string
 	IsEnabled() bool
+	SetEnabled(bool)
 	GetTickerPrice(currency pair.CurrencyPair, assetType string) (ticker.Price, error)
 	UpdateTicker(currency pair.CurrencyPair, assetType string) (ticker.Price, error)
 	GetOrderbookEx(currency pair.CurrencyPair, assetType string) (orderbook.Base, error)
 	UpdateOrderbook(currency pair.CurrencyPair, assetType string) (orderbook.Base, error)
 	GetEnabledCurrencies() []pair.CurrencyPair
+	GetAvailableCurrencies() []pair.CurrencyPair
 	GetExchangeAccountInfo() (AccountInfo, error)
 	GetAuthenticatedAPISupport() bool
+	SetCurrencies(pairs []pair.CurrencyPair, enabledPairs bool) error
+	GetExchangeHistory(pair.CurrencyPair, string) ([]TradeHistory, error)
 }
 
 // SetAssetTypes checks the exchange asset types (whether it supports SPOT,
@@ -109,6 +123,18 @@ func GetExchangeAssetTypes(exchName string) ([]string, error) {
 	return common.SplitStrings(exch.AssetTypes, ","), nil
 }
 
+// CompareCurrencyPairFormats checks and returns whether or not the two supplied
+// config currency pairs match
+func CompareCurrencyPairFormats(pair1 config.CurrencyPairFormatConfig, pair2 *config.CurrencyPairFormatConfig) bool {
+	if pair1.Delimiter != pair2.Delimiter ||
+		pair1.Uppercase != pair2.Uppercase ||
+		pair1.Separator != pair2.Separator ||
+		pair1.Index != pair2.Index {
+		return false
+	}
+	return true
+}
+
 // SetCurrencyPairFormat checks the exchange request and config currency pair
 // formats and sets it to a default setting if it doesn't exist
 func (e *Base) SetCurrencyPairFormat() error {
@@ -128,7 +154,13 @@ func (e *Base) SetCurrencyPairFormat() error {
 		}
 		update = true
 	} else {
-		e.RequestCurrencyPairFormat = *exch.RequestCurrencyPairFormat
+		if CompareCurrencyPairFormats(e.RequestCurrencyPairFormat,
+			exch.RequestCurrencyPairFormat) {
+			e.RequestCurrencyPairFormat = *exch.RequestCurrencyPairFormat
+		} else {
+			*exch.RequestCurrencyPairFormat = e.ConfigCurrencyPairFormat
+			update = true
+		}
 	}
 
 	if exch.ConfigCurrencyPairFormat == nil {
@@ -140,7 +172,13 @@ func (e *Base) SetCurrencyPairFormat() error {
 		}
 		update = true
 	} else {
-		e.ConfigCurrencyPairFormat = *exch.ConfigCurrencyPairFormat
+		if CompareCurrencyPairFormats(e.ConfigCurrencyPairFormat,
+			exch.ConfigCurrencyPairFormat) {
+			e.ConfigCurrencyPairFormat = *exch.ConfigCurrencyPairFormat
+		} else {
+			*exch.ConfigCurrencyPairFormat = e.ConfigCurrencyPairFormat
+			update = true
+		}
 	}
 
 	if update {
@@ -163,89 +201,26 @@ func (e *Base) GetName() string {
 // GetEnabledCurrencies is a method that returns the enabled currency pairs of
 // the exchange base
 func (e *Base) GetEnabledCurrencies() []pair.CurrencyPair {
-	var pairs []pair.CurrencyPair
-	for x := range e.EnabledPairs {
-		var currencyPair pair.CurrencyPair
-		if e.RequestCurrencyPairFormat.Delimiter != "" {
-			if e.ConfigCurrencyPairFormat.Delimiter != "" {
-				if e.ConfigCurrencyPairFormat.Delimiter == e.RequestCurrencyPairFormat.Delimiter {
-					currencyPair = pair.NewCurrencyPairDelimiter(e.EnabledPairs[x],
-						e.RequestCurrencyPairFormat.Delimiter)
-				} else {
-					currencyPair = pair.NewCurrencyPairDelimiter(e.EnabledPairs[x],
-						e.ConfigCurrencyPairFormat.Delimiter)
-					currencyPair.Delimiter = "-"
-				}
-			} else {
-				if e.ConfigCurrencyPairFormat.Index != "" {
-					currencyPair = pair.NewCurrencyPairFromIndex(e.EnabledPairs[x],
-						e.ConfigCurrencyPairFormat.Index)
-				} else {
-					currencyPair = pair.NewCurrencyPair(e.EnabledPairs[x][0:3],
-						e.EnabledPairs[x][3:])
-				}
-			}
-		} else {
-			if e.ConfigCurrencyPairFormat.Delimiter != "" {
-				currencyPair = pair.NewCurrencyPairDelimiter(e.EnabledPairs[x],
-					e.ConfigCurrencyPairFormat.Delimiter)
-			} else {
-				if e.ConfigCurrencyPairFormat.Index != "" {
-					currencyPair = pair.NewCurrencyPairFromIndex(e.EnabledPairs[x],
-						e.ConfigCurrencyPairFormat.Index)
-				} else {
-					currencyPair = pair.NewCurrencyPair(e.EnabledPairs[x][0:3],
-						e.EnabledPairs[x][3:])
-				}
-			}
-		}
-		pairs = append(pairs, currencyPair)
-	}
-	return pairs
+	return pair.FormatPairs(e.EnabledPairs,
+		e.ConfigCurrencyPairFormat.Delimiter,
+		e.ConfigCurrencyPairFormat.Index)
 }
 
 // GetAvailableCurrencies is a method that returns the available currency pairs
 // of the exchange base
 func (e *Base) GetAvailableCurrencies() []pair.CurrencyPair {
-	var pairs []pair.CurrencyPair
-	for x := range e.AvailablePairs {
-		var currencyPair pair.CurrencyPair
-		if e.RequestCurrencyPairFormat.Delimiter != "" {
-			if e.ConfigCurrencyPairFormat.Delimiter != "" {
-				if e.ConfigCurrencyPairFormat.Delimiter == e.RequestCurrencyPairFormat.Delimiter {
-					currencyPair = pair.NewCurrencyPairDelimiter(e.AvailablePairs[x],
-						e.RequestCurrencyPairFormat.Delimiter)
-				} else {
-					currencyPair = pair.NewCurrencyPairDelimiter(e.AvailablePairs[x],
-						e.ConfigCurrencyPairFormat.Delimiter)
-					currencyPair.Delimiter = "-"
-				}
-			} else {
-				if e.ConfigCurrencyPairFormat.Index != "" {
-					currencyPair = pair.NewCurrencyPairFromIndex(e.AvailablePairs[x],
-						e.ConfigCurrencyPairFormat.Index)
-				} else {
-					currencyPair = pair.NewCurrencyPair(e.AvailablePairs[x][0:3],
-						e.AvailablePairs[x][3:])
-				}
-			}
-		} else {
-			if e.ConfigCurrencyPairFormat.Delimiter != "" {
-				currencyPair = pair.NewCurrencyPairDelimiter(e.AvailablePairs[x],
-					e.ConfigCurrencyPairFormat.Delimiter)
-			} else {
-				if e.ConfigCurrencyPairFormat.Index != "" {
-					currencyPair = pair.NewCurrencyPairFromIndex(e.AvailablePairs[x],
-						e.ConfigCurrencyPairFormat.Index)
-				} else {
-					currencyPair = pair.NewCurrencyPair(e.AvailablePairs[x][0:3],
-						e.AvailablePairs[x][3:])
-				}
-			}
-		}
-		pairs = append(pairs, currencyPair)
+	return pair.FormatPairs(e.AvailablePairs,
+		e.ConfigCurrencyPairFormat.Delimiter,
+		e.ConfigCurrencyPairFormat.Index)
+}
+
+// SupportsCurrency returns true or not whether a currency pair exists in the
+// exchange available currencies or not
+func (e *Base) SupportsCurrency(p pair.CurrencyPair, enabledPairs bool) bool {
+	if enabledPairs {
+		return pair.Contains(e.GetEnabledCurrencies(), p)
 	}
-	return pairs
+	return pair.Contains(e.GetAvailableCurrencies(), p)
 }
 
 // GetExchangeFormatCurrencySeperator returns whether or not a specific
@@ -330,6 +305,32 @@ func (e *Base) SetAPIKeys(APIKey, APISecret, ClientID string, b64Decode bool) {
 	} else {
 		e.APISecret = APISecret
 	}
+}
+
+// SetCurrencies sets the exchange currency pairs for either enabledPairs or
+// availablePairs
+func (e *Base) SetCurrencies(pairs []pair.CurrencyPair, enabledPairs bool) error {
+	cfg := config.GetConfig()
+	exchCfg, err := cfg.GetExchangeConfig(e.Name)
+	if err != nil {
+		return err
+	}
+
+	var pairsStr []string
+	for x := range pairs {
+		pairsStr = append(pairsStr, pairs[x].Display(exchCfg.ConfigCurrencyPairFormat.Delimiter,
+			exchCfg.ConfigCurrencyPairFormat.Uppercase).String())
+	}
+
+	if enabledPairs {
+		exchCfg.EnabledPairs = common.JoinStrings(pairsStr, ",")
+		e.EnabledPairs = pairsStr
+	} else {
+		exchCfg.AvailablePairs = common.JoinStrings(pairsStr, ",")
+		e.AvailablePairs = pairsStr
+	}
+
+	return cfg.UpdateExchangeConfig(exchCfg)
 }
 
 // UpdateEnabledCurrencies is a method that sets new pairs to the current

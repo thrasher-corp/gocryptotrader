@@ -1,6 +1,7 @@
 package anx
 
 import (
+	"errors"
 	"log"
 	"strconv"
 
@@ -102,7 +103,7 @@ func (a *ANX) GetTickerPrice(p pair.CurrencyPair, assetType string) (ticker.Pric
 // GetOrderbookEx returns the orderbook for a currency pair
 func (a *ANX) GetOrderbookEx(p pair.CurrencyPair, assetType string) (orderbook.Base, error) {
 	ob, err := orderbook.GetOrderbook(a.GetName(), p, assetType)
-	if err == nil {
+	if err != nil {
 		return a.UpdateOrderbook(p, assetType)
 	}
 	return ob, nil
@@ -111,7 +112,21 @@ func (a *ANX) GetOrderbookEx(p pair.CurrencyPair, assetType string) (orderbook.B
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (a *ANX) UpdateOrderbook(p pair.CurrencyPair, assetType string) (orderbook.Base, error) {
 	var orderBook orderbook.Base
-	return orderBook, nil
+	orderbookNew, err := a.GetDepth(exchange.FormatExchangeCurrency(a.GetName(), p).String())
+	if err != nil {
+		return orderBook, err
+	}
+
+	for x := range orderbookNew.Data.Asks {
+		orderBook.Asks = append(orderBook.Asks, orderbook.Item{Price: orderbookNew.Data.Asks[x].Price, Amount: orderbookNew.Data.Asks[x].Amount})
+	}
+
+	for x := range orderbookNew.Data.Bids {
+		orderBook.Bids = append(orderBook.Bids, orderbook.Item{Price: orderbookNew.Data.Bids[x].Price, Amount: orderbookNew.Data.Bids[x].Amount})
+	}
+
+	orderbook.ProcessOrderbook(a.GetName(), p, orderBook, assetType)
+	return orderbook.GetOrderbook(a.Name, p, assetType)
 }
 
 //GetExchangeAccountInfo : Retrieves balances for all enabled currencies for the ANX exchange
@@ -119,4 +134,11 @@ func (a *ANX) GetExchangeAccountInfo() (exchange.AccountInfo, error) {
 	var response exchange.AccountInfo
 	response.ExchangeName = a.GetName()
 	return response, nil
+}
+
+// GetExchangeHistory returns historic trade data since exchange opening.
+func (a *ANX) GetExchangeHistory(p pair.CurrencyPair, assetType string) ([]exchange.TradeHistory, error) {
+	var resp []exchange.TradeHistory
+
+	return resp, errors.New("trade history not yet implemented")
 }

@@ -6,3 +6,8 @@ lib
 
 testdata/dump
 testdata/writefiletest
+
+# InteliJ
+.idea
+*.iml
+vendor/

@@ -1,6 +1,7 @@
 package liqui
 
 import (
+	"log"
 	"net/url"
 	"testing"
 
@@ -34,6 +35,7 @@ func TestSetup(t *testing.T) {
 }
 
 func TestGetFee(t *testing.T) {
+	t.Parallel()
 	_, err := l.GetFee("usd")
 	if err == nil {
 		t.Error("Test Failed - liqui GetFee() error", err)
@@ -41,6 +43,7 @@ func TestGetFee(t *testing.T) {
 }
 
 func TestGetAvailablePairs(t *testing.T) {
+	t.Parallel()
 	v := l.GetAvailablePairs(false)
 	if len(v) != 0 {
 		t.Error("Test Failed - liqui GetFee() error")
@@ -48,6 +51,7 @@ func TestGetAvailablePairs(t *testing.T) {
 }
 
 func TestGetInfo(t *testing.T) {
+	t.Parallel()
 	_, err := l.GetInfo()
 	if err != nil {
 		t.Error("Test Failed - liqui GetInfo() error", err)
@@ -55,6 +59,7 @@ func TestGetInfo(t *testing.T) {
 }
 
 func TestGetTicker(t *testing.T) {
+	t.Parallel()
 	_, err := l.GetTicker("eth_btc")
 	if err != nil {
 		t.Error("Test Failed - liqui GetTicker() error", err)
@@ -62,64 +67,57 @@ func TestGetTicker(t *testing.T) {
 }
 
 func TestGetDepth(t *testing.T) {
-	_, err := l.GetDepth("eth_btc")
+	t.Parallel()
+	v, err := l.GetDepth("eth_btc")
 	if err != nil {
 		t.Error("Test Failed - liqui GetDepth() error", err)
 	}
+	log.Println(v)
 }
 
 func TestGetTrades(t *testing.T) {
+	t.Parallel()
 	_, err := l.GetTrades("eth_btc")
 	if err != nil {
 		t.Error("Test Failed - liqui GetTrades() error", err)
 	}
 }
 
-func TestGetAccountInfo(t *testing.T) {
-	_, err := l.GetAccountInfo()
-	if err == nil {
-		t.Error("Test Failed - liqui GetAccountInfo() error", err)
-	}
-}
+func TestAuthRequests(t *testing.T) {
+	if l.APIKey != "" && l.APISecret != "" {
+		_, err := l.GetAccountInfo()
+		if err == nil {
+			t.Error("Test Failed - liqui GetAccountInfo() error", err)
+		}
 
-func TestTrade(t *testing.T) {
-	_, err := l.Trade("", "", 0, 1)
-	if err == nil {
-		t.Error("Test Failed - liqui Trade() error", err)
-	}
-}
+		_, err = l.Trade("", "", 0, 1)
+		if err == nil {
+			t.Error("Test Failed - liqui Trade() error", err)
+		}
 
-func TestGetActiveOrders(t *testing.T) {
-	_, err := l.GetActiveOrders("eth_btc")
-	if err == nil {
-		t.Error("Test Failed - liqui GetActiveOrders() error", err)
-	}
-}
+		_, err = l.GetActiveOrders("eth_btc")
+		if err == nil {
+			t.Error("Test Failed - liqui GetActiveOrders() error", err)
+		}
 
-func TestGetOrderInfo(t *testing.T) {
-	_, err := l.GetOrderInfo(1337)
-	if err == nil {
-		t.Error("Test Failed - liqui GetOrderInfo() error", err)
-	}
-}
+		_, err = l.GetOrderInfo(1337)
+		if err == nil {
+			t.Error("Test Failed - liqui GetOrderInfo() error", err)
+		}
 
-func TestCancelOrder(t *testing.T) {
-	_, err := l.CancelOrder(1337)
-	if err == nil {
-		t.Error("Test Failed - liqui CancelOrder() error", err)
-	}
-}
+		_, err = l.CancelOrder(1337)
+		if err == nil {
+			t.Error("Test Failed - liqui CancelOrder() error", err)
+		}
 
-func TestGetTradeHistory(t *testing.T) {
-	_, err := l.GetTradeHistory(url.Values{}, "")
-	if err == nil {
-		t.Error("Test Failed - liqui GetTradeHistory() error", err)
-	}
-}
+		_, err = l.GetTradeHistory(url.Values{}, "")
+		if err == nil {
+			t.Error("Test Failed - liqui GetTradeHistory() error", err)
+		}
 
-func TestWithdrawCoins(t *testing.T) {
-	_, err := l.WithdrawCoins("btc", 1337, "someaddr")
-	if err == nil {
-		t.Error("Test Failed - liqui WithdrawCoins() error", err)
+		_, err = l.WithdrawCoins("btc", 1337, "someaddr")
+		if err == nil {
+			t.Error("Test Failed - liqui WithdrawCoins() error", err)
+		}
 	}
 }

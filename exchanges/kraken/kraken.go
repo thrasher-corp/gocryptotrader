@@ -60,7 +60,7 @@ func (k *Kraken) SetDefaults() {
 	k.RequestCurrencyPairFormat.Delimiter = ""
 	k.RequestCurrencyPairFormat.Uppercase = true
 	k.RequestCurrencyPairFormat.Separator = ","
-	k.ConfigCurrencyPairFormat.Delimiter = ""
+	k.ConfigCurrencyPairFormat.Delimiter = "-"
 	k.ConfigCurrencyPairFormat.Uppercase = true
 	k.AssetTypes = []string{ticker.Spot}
 }

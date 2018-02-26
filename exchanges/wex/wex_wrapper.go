@@ -1,6 +1,7 @@
 package wex
 
 import (
+	"errors"
 	"log"
 
 	"github.com/thrasher-/gocryptotrader/common"
@@ -64,7 +65,7 @@ func (w *WEX) GetTickerPrice(p pair.CurrencyPair, assetType string) (ticker.Pric
 // GetOrderbookEx returns the orderbook for a currency pair
 func (w *WEX) GetOrderbookEx(p pair.CurrencyPair, assetType string) (orderbook.Base, error) {
 	ob, err := orderbook.GetOrderbook(w.GetName(), p, assetType)
-	if err == nil {
+	if err != nil {
 		return w.UpdateOrderbook(p, assetType)
 	}
 	return ob, nil
@@ -111,4 +112,11 @@ func (w *WEX) GetExchangeAccountInfo() (exchange.AccountInfo, error) {
 	}
 
 	return response, nil
+}
+
+// GetExchangeHistory returns historic trade data since exchange opening.
+func (w *WEX) GetExchangeHistory(p pair.CurrencyPair, assetType string) ([]exchange.TradeHistory, error) {
+	var resp []exchange.TradeHistory
+
+	return resp, errors.New("trade history not yet implemented")
 }

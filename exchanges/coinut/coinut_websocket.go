@@ -8,8 +8,9 @@ import (
 	"github.com/thrasher-/gocryptotrader/common"
 )
 
-const COINUT_WEBSOCKET_URL = "wss://wsapi.coinut.com"
+const coinutWebsocketURL = "wss://wsapi.coinut.com"
 
+// WebsocketClient initiates a websocket client
 func (c *COINUT) WebsocketClient() {
 	for c.Enabled && c.Websocket {
 		var Dialer websocket.Dialer

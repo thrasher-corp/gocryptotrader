@@ -1,6 +1,7 @@
 package lakebtc
 
 import (
+	"errors"
 	"log"
 	"strconv"
 
@@ -58,7 +59,7 @@ func (l *LakeBTC) GetTickerPrice(p pair.CurrencyPair, assetType string) (ticker.
 // GetOrderbookEx returns orderbook base on the currency pair
 func (l *LakeBTC) GetOrderbookEx(p pair.CurrencyPair, assetType string) (orderbook.Base, error) {
 	ob, err := orderbook.GetOrderbook(l.GetName(), p, assetType)
-	if err == nil {
+	if err != nil {
 		return l.UpdateOrderbook(p, assetType)
 	}
 	return ob, nil
@@ -106,4 +107,11 @@ func (l *LakeBTC) GetExchangeAccountInfo() (exchange.AccountInfo, error) {
 		}
 	}
 	return response, nil
+}
+
+// GetExchangeHistory returns historic trade data since exchange opening.
+func (l *LakeBTC) GetExchangeHistory(p pair.CurrencyPair, assetType string) ([]exchange.TradeHistory, error) {
+	var resp []exchange.TradeHistory
+
+	return resp, errors.New("trade history not yet implemented")
 }

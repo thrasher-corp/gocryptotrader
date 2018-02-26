@@ -49,6 +49,19 @@ func TestSetup(t *testing.T) {
 	}
 }
 
+func TestGetPlatformStatus(t *testing.T) {
+	t.Parallel()
+
+	result, err := b.GetPlatformStatus()
+	if err != nil {
+		t.Errorf("TestGetPlatformStatus error: %s", err)
+	}
+
+	if result != bitfinexOperativeMode && result != bitfinexMaintenanceMode {
+		t.Errorf("TestGetPlatformStatus unexpected response code")
+	}
+}
+
 func TestGetTicker(t *testing.T) {
 	t.Parallel()
 	_, err := b.GetTicker("BTCUSD", url.Values{})
@@ -59,6 +72,27 @@ func TestGetTicker(t *testing.T) {
 	_, err = b.GetTicker("wigwham", url.Values{})
 	if err == nil {
 		t.Error("Test Failed - GetTicker() error")
+	}
+}
+
+func TestGetTickerV2(t *testing.T) {
+	t.Parallel()
+	_, err := b.GetTickerV2("tBTCUSD")
+	if err != nil {
+		t.Errorf("GetTickerV2 error: %s", err)
+	}
+
+	_, err = b.GetTickerV2("fUSD")
+	if err != nil {
+		t.Errorf("GetTickerV2 error: %s", err)
+	}
+}
+
+func TestGetTickersV2(t *testing.T) {
+	t.Parallel()
+	_, err := b.GetTickersV2("tBTCUSD,fUSD")
+	if err != nil {
+		t.Errorf("GetTickersV2 error: %s", err)
 	}
 }
 
@@ -105,10 +139,33 @@ func TestGetOrderbook(t *testing.T) {
 	}
 }
 
+func TestGetOrderbookV2(t *testing.T) {
+	t.Parallel()
+
+	_, err := b.GetOrderbookV2("tBTCUSD", "P0", url.Values{})
+	if err != nil {
+		t.Errorf("GetOrderbookV2 error: %s", err)
+	}
+
+	_, err = b.GetOrderbookV2("fUSD", "P0", url.Values{})
+	if err != nil {
+		t.Errorf("GetOrderbookV2 error: %s", err)
+	}
+}
+
 func TestGetTrades(t *testing.T) {
 	t.Parallel()
 
 	_, err := b.GetTrades("BTCUSD", url.Values{})
+	if err != nil {
+		t.Error("BitfinexGetTrades init error: ", err)
+	}
+}
+
+func TestGetTradesv2(t *testing.T) {
+	t.Parallel()
+
+	_, err := b.GetTradesV2("tBTCUSD", 0, 0, true)
 	if err != nil {
 		t.Error("BitfinexGetTrades init error: ", err)
 	}
@@ -160,7 +217,7 @@ func TestGetSymbols(t *testing.T) {
 	if len(expectedCurrencies) <= len(symbols) {
 
 		for _, explicitSymbol := range expectedCurrencies {
-			if common.DataContains(expectedCurrencies, explicitSymbol) {
+			if common.StringDataCompare(expectedCurrencies, explicitSymbol) {
 				break
 			} else {
 				t.Error("BitfinexGetSymbols currency mismatch with: ", explicitSymbol)

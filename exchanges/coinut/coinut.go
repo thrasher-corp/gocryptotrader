@@ -84,62 +84,67 @@ func (c *COINUT) Setup(exch config.ExchangeConfig) {
 }
 
 // GetInstruments returns instruments
-func (c *COINUT) GetInstruments() (CoinutInstruments, error) {
-	var result CoinutInstruments
+func (c *COINUT) GetInstruments() (Instruments, error) {
+	var result Instruments
 	params := make(map[string]interface{})
 	params["sec_type"] = "SPOT"
-	err := c.SendAuthenticatedHTTPRequest(coinutInstruments, params, &result)
+	err := c.SendHTTPRequest(coinutInstruments, params, false, &result)
 	if err != nil {
 		return result, err
 	}
 	return result, nil
 }
 
-func (c *COINUT) GetInstrumentTicker(instrumentID int) (CoinutTicker, error) {
-	var result CoinutTicker
+// GetInstrumentTicker returns a ticker for a specific instrument
+func (c *COINUT) GetInstrumentTicker(instrumentID int) (Ticker, error) {
+	var result Ticker
 	params := make(map[string]interface{})
 	params["inst_id"] = instrumentID
-	err := c.SendAuthenticatedHTTPRequest(coinutTicker, params, &result)
+	err := c.SendHTTPRequest(coinutTicker, params, false, &result)
 	if err != nil {
 		return result, err
 	}
 	return result, nil
 }
 
-func (c *COINUT) GetInstrumentOrderbook(instrumentID, limit int) (CoinutOrderbook, error) {
-	var result CoinutOrderbook
+// GetInstrumentOrderbook returns the orderbooks for a specific instrument
+func (c *COINUT) GetInstrumentOrderbook(instrumentID, limit int) (Orderbook, error) {
+	var result Orderbook
 	params := make(map[string]interface{})
 	params["inst_id"] = instrumentID
 	if limit > 0 {
 		params["top_n"] = limit
 	}
-	err := c.SendAuthenticatedHTTPRequest(coinutOrderbook, params, &result)
+	err := c.SendHTTPRequest(coinutOrderbook, params, false, &result)
 	if err != nil {
 		return result, err
 	}
 	return result, nil
 }
 
-func (c *COINUT) GetTrades(instrumentID int) (CoinutTrades, error) {
-	var result CoinutTrades
+// GetTrades returns trade information
+func (c *COINUT) GetTrades(instrumentID int) (Trades, error) {
+	var result Trades
 	params := make(map[string]interface{})
 	params["inst_id"] = instrumentID
-	err := c.SendAuthenticatedHTTPRequest(coinutTrades, params, &result)
+	err := c.SendHTTPRequest(coinutTrades, params, false, &result)
 	if err != nil {
 		return result, err
 	}
 	return result, nil
 }
 
-func (c *COINUT) GetUserBalance() (CoinutUserBalance, error) {
-	result := CoinutUserBalance{}
-	err := c.SendAuthenticatedHTTPRequest(coinutBalance, nil, &result)
+// GetUserBalance returns the full user balance
+func (c *COINUT) GetUserBalance() (UserBalance, error) {
+	result := UserBalance{}
+	err := c.SendHTTPRequest(coinutBalance, nil, true, &result)
 	if err != nil {
 		return result, err
 	}
 	return result, nil
 }
 
+// NewOrder places a new order on the exchange
 func (c *COINUT) NewOrder(instrumentID int, quantity, price float64, buy bool, orderID uint32) (interface{}, error) {
 	var result interface{}
 	params := make(map[string]interface{})
@@ -152,60 +157,65 @@ func (c *COINUT) NewOrder(instrumentID int, quantity, price float64, buy bool, o
 	}
 	params["client_ord_id"] = orderID
 
-	err := c.SendAuthenticatedHTTPRequest(coinutOrder, params, &result)
+	err := c.SendHTTPRequest(coinutOrder, params, true, &result)
 	if err != nil {
 		return result, err
 	}
 	return result, nil
 }
 
-func (c *COINUT) NewOrders(orders []CoinutOrder) ([]CoinutOrdersBase, error) {
-	var result CoinutOrdersResponse
+// NewOrders places multiple orders on the exchange
+func (c *COINUT) NewOrders(orders []Order) ([]OrdersBase, error) {
+	var result OrdersResponse
 	params := make(map[string]interface{})
 	params["orders"] = orders
-	err := c.SendAuthenticatedHTTPRequest(coinutOrders, params, &result.Data)
+	err := c.SendHTTPRequest(coinutOrders, params, true, &result.Data)
 	if err != nil {
 		return nil, err
 	}
 	return result.Data, nil
 }
 
-func (c *COINUT) GetOpenOrders(instrumentID int) ([]CoinutOrdersResponse, error) {
-	var result []CoinutOrdersResponse
+// GetOpenOrders returns a list of open order and relevant information
+func (c *COINUT) GetOpenOrders(instrumentID int) ([]OrdersResponse, error) {
+	var result []OrdersResponse
 	params := make(map[string]interface{})
 	params["inst_id"] = instrumentID
-	err := c.SendAuthenticatedHTTPRequest(coinutOrdersOpen, params, &result)
+	err := c.SendHTTPRequest(coinutOrdersOpen, params, true, &result)
 	if err != nil {
 		return nil, err
 	}
 	return result, nil
 }
 
+// CancelOrder cancels a specific order and returns if it was actioned
 func (c *COINUT) CancelOrder(instrumentID, orderID int) (bool, error) {
-	var result CoinutGenericResponse
+	var result GenericResponse
 	params := make(map[string]interface{})
 	params["inst_id"] = instrumentID
 	params["order_id"] = orderID
-	err := c.SendAuthenticatedHTTPRequest(coinutOrdersCancel, params, &result)
+	err := c.SendHTTPRequest(coinutOrdersCancel, params, true, &result)
 	if err != nil {
 		return false, err
 	}
 	return true, nil
 }
 
-func (c *COINUT) CancelOrders(orders []CoinutCancelOrders) (CoinutCancelOrdersResponse, error) {
-	var result CoinutCancelOrdersResponse
+// CancelOrders cancels multiple orders
+func (c *COINUT) CancelOrders(orders []CancelOrders) (CancelOrdersResponse, error) {
+	var result CancelOrdersResponse
 	params := make(map[string]interface{})
 	params["entries"] = orders
-	err := c.SendAuthenticatedHTTPRequest(coinutOrdersCancel, params, &result)
+	err := c.SendHTTPRequest(coinutOrdersCancel, params, true, &result)
 	if err != nil {
 		return result, err
 	}
 	return result, nil
 }
 
-func (c *COINUT) GetTradeHistory(instrumentID, start, limit int) (CoinutTradeHistory, error) {
-	var result CoinutTradeHistory
+// GetTradeHistory returns trade history for a specific instrument.
+func (c *COINUT) GetTradeHistory(instrumentID, start, limit int) (TradeHistory, error) {
+	var result TradeHistory
 	params := make(map[string]interface{})
 	params["inst_id"] = instrumentID
 	if start >= 0 && start <= 100 {
@@ -214,49 +224,53 @@ func (c *COINUT) GetTradeHistory(instrumentID, start, limit int) (CoinutTradeHis
 	if limit >= 0 && start <= 100 {
 		params["limit"] = limit
 	}
-	err := c.SendAuthenticatedHTTPRequest(coinutTradeHistory, params, &result)
+	err := c.SendHTTPRequest(coinutTradeHistory, params, true, &result)
 	if err != nil {
 		return result, err
 	}
 	return result, nil
 }
 
-func (c *COINUT) GetIndexTicker(asset string) (CoinutIndexTicker, error) {
-	var result CoinutIndexTicker
+// GetIndexTicker returns the index ticker for an asset
+func (c *COINUT) GetIndexTicker(asset string) (IndexTicker, error) {
+	var result IndexTicker
 	params := make(map[string]interface{})
 	params["asset"] = asset
-	err := c.SendAuthenticatedHTTPRequest(coinutIndexTicker, params, &result)
+	err := c.SendHTTPRequest(coinutIndexTicker, params, false, &result)
 	if err != nil {
 		return result, err
 	}
 	return result, nil
 }
 
+// GetDerivativeInstruments returns a list of derivative instruments
 func (c *COINUT) GetDerivativeInstruments(secType string) (interface{}, error) {
 	var result interface{} //to-do
 	params := make(map[string]interface{})
 	params["sec_type"] = secType
-	err := c.SendAuthenticatedHTTPRequest(coinutInstruments, params, &result)
+	err := c.SendHTTPRequest(coinutInstruments, params, false, &result)
 	if err != nil {
 		return result, err
 	}
 	return result, nil
 }
 
-func (c *COINUT) GetOptionChain(asset, secType string, expiry int64) (CoinutOptionChainResponse, error) {
-	var result CoinutOptionChainResponse
+// GetOptionChain returns option chain
+func (c *COINUT) GetOptionChain(asset, secType string, expiry int64) (OptionChainResponse, error) {
+	var result OptionChainResponse
 	params := make(map[string]interface{})
 	params["asset"] = asset
 	params["sec_type"] = secType
-	err := c.SendAuthenticatedHTTPRequest(coinutOptionChain, params, &result)
+	err := c.SendHTTPRequest(coinutOptionChain, params, false, &result)
 	if err != nil {
 		return result, err
 	}
 	return result, nil
 }
 
-func (c *COINUT) GetPositionHistory(secType string, start, limit int) (CoinutPositionHistory, error) {
-	var result CoinutPositionHistory
+// GetPositionHistory returns position history
+func (c *COINUT) GetPositionHistory(secType string, start, limit int) (PositionHistory, error) {
+	var result PositionHistory
 	params := make(map[string]interface{})
 	params["sec_type"] = secType
 	if start >= 0 {
@@ -265,22 +279,23 @@ func (c *COINUT) GetPositionHistory(secType string, start, limit int) (CoinutPos
 	if limit >= 0 {
 		params["limit"] = limit
 	}
-	err := c.SendAuthenticatedHTTPRequest(coinutPositionHistory, params, &result)
+	err := c.SendHTTPRequest(coinutPositionHistory, params, true, &result)
 	if err != nil {
 		return result, err
 	}
 	return result, nil
 }
 
-func (c *COINUT) GetOpenPosition(instrumentID int) ([]CoinutOpenPosition, error) {
+// GetOpenPositions returns all your current opened positions
+func (c *COINUT) GetOpenPositions(instrumentID int) ([]OpenPosition, error) {
 	type Response struct {
-		Positions []CoinutOpenPosition `json:"positions"`
+		Positions []OpenPosition `json:"positions"`
 	}
 	var result Response
 	params := make(map[string]interface{})
 	params["inst_id"] = instrumentID
 
-	err := c.SendAuthenticatedHTTPRequest(coinutPositionOpen, params, &result)
+	err := c.SendHTTPRequest(coinutPositionOpen, params, true, &result)
 	if err != nil {
 		return result.Positions, err
 	}
@@ -289,8 +304,9 @@ func (c *COINUT) GetOpenPosition(instrumentID int) ([]CoinutOpenPosition, error)
 
 //to-do: user position update via websocket
 
-func (c *COINUT) SendAuthenticatedHTTPRequest(apiRequest string, params map[string]interface{}, result interface{}) (err error) {
-	if !c.AuthenticatedAPISupport {
+// SendHTTPRequest sends an authenticated HTTP request
+func (c *COINUT) SendHTTPRequest(apiRequest string, params map[string]interface{}, authenticated bool, result interface{}) (err error) {
+	if !c.AuthenticatedAPISupport && authenticated {
 		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet, c.Name)
 	}
 
@@ -299,7 +315,6 @@ func (c *COINUT) SendAuthenticatedHTTPRequest(apiRequest string, params map[stri
 	} else {
 		c.Nonce.Inc()
 	}
-	payload := []byte("")
 
 	if params == nil {
 		params = map[string]interface{}{}
@@ -307,20 +322,21 @@ func (c *COINUT) SendAuthenticatedHTTPRequest(apiRequest string, params map[stri
 	params["nonce"] = c.Nonce.Get()
 	params["request"] = apiRequest
 
-	payload, err = common.JSONEncode(params)
-
+	payload, err := common.JSONEncode(params)
 	if err != nil {
-		return errors.New("SendAuthenticatedHTTPRequest: Unable to JSON request")
+		return errors.New("SenddHTTPRequest: Unable to JSON request")
 	}
 
 	if c.Verbose {
 		log.Printf("Request JSON: %s\n", payload)
 	}
 
-	hmac := common.GetHMAC(common.HashSHA256, []byte(payload), []byte(c.APIKey))
 	headers := make(map[string]string)
-	headers["X-USER"] = c.ClientID
-	headers["X-SIGNATURE"] = common.HexEncodeToString(hmac)
+	if authenticated {
+		headers["X-USER"] = c.ClientID
+		hmac := common.GetHMAC(common.HashSHA256, []byte(payload), []byte(c.APIKey))
+		headers["X-SIGNATURE"] = common.HexEncodeToString(hmac)
+	}
 	headers["Content-Type"] = "application/json"
 
 	resp, err := common.SendHTTPRequest("POST", coinutAPIURL, headers, bytes.NewBuffer(payload))
@@ -332,10 +348,8 @@ func (c *COINUT) SendAuthenticatedHTTPRequest(apiRequest string, params map[stri
 		log.Printf("Received raw: \n%s", resp)
 	}
 
-	genResp := CoinutGenericResponse{}
-
+	genResp := GenericResponse{}
 	err = common.JSONDecode([]byte(resp), &genResp)
-
 	if err != nil {
 		return errors.New("unable to JSON Unmarshal generic response")
 	}
@@ -345,7 +359,6 @@ func (c *COINUT) SendAuthenticatedHTTPRequest(apiRequest string, params map[stri
 	}
 
 	err = common.JSONDecode([]byte(resp), &result)
-
 	if err != nil {
 		return errors.New("unable to JSON Unmarshal response")
 	}

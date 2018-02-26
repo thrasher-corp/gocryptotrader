@@ -1,6 +1,7 @@
 package poloniex
 
-type PoloniexTicker struct {
+// Ticker holds ticker data
+type Ticker struct {
 	Last          float64 `json:"last,string"`
 	LowestAsk     float64 `json:"lowestAsk,string"`
 	HighestBid    float64 `json:"highestBid,string"`
@@ -12,24 +13,43 @@ type PoloniexTicker struct {
 	Low24Hr       float64 `json:"low24hr,string"`
 }
 
-type PoloniexOrderbookResponse struct {
+// OrderbookResponseAll holds the full response type orderbook
+type OrderbookResponseAll struct {
+	Data map[string]OrderbookResponse
+}
+
+// CompleteBalances holds the full balance data
+type CompleteBalances struct {
+	Currency map[string]CompleteBalance
+}
+
+// OrderbookResponse is a sub-type for orderbooks
+type OrderbookResponse struct {
 	Asks     [][]interface{} `json:"asks"`
 	Bids     [][]interface{} `json:"bids"`
 	IsFrozen string          `json:"isFrozen"`
 	Error    string          `json:"error"`
 }
 
-type PoloniexOrderbookItem struct {
+// OrderbookItem holds data on an individual item
+type OrderbookItem struct {
 	Price  float64
 	Amount float64
 }
 
-type PoloniexOrderbook struct {
-	Asks []PoloniexOrderbookItem `json:"asks"`
-	Bids []PoloniexOrderbookItem `json:"bids"`
+// OrderbookAll contains the full range of orderbooks
+type OrderbookAll struct {
+	Data map[string]Orderbook
 }
 
-type PoloniexTradeHistory struct {
+// Orderbook is a generic type golding orderbook information
+type Orderbook struct {
+	Asks []OrderbookItem `json:"asks"`
+	Bids []OrderbookItem `json:"bids"`
+}
+
+// TradeHistory holds trade history data
+type TradeHistory struct {
 	GlobalTradeID int64   `json:"globalTradeID"`
 	TradeID       int64   `json:"tradeID"`
 	Date          string  `json:"date"`
@@ -39,7 +59,8 @@ type PoloniexTradeHistory struct {
 	Total         float64 `json:"total,string"`
 }
 
-type PoloniexChartData struct {
+// ChartData holds kline data
+type ChartData struct {
 	Date            int     `json:"date"`
 	High            float64 `json:"high"`
 	Low             float64 `json:"low"`
@@ -51,7 +72,8 @@ type PoloniexChartData struct {
 	Error           string  `json:"error"`
 }
 
-type PoloniexCurrencies struct {
+// Currencies contains currency information
+type Currencies struct {
 	Name               string      `json:"name"`
 	MaxDailyWithdrawal string      `json:"maxDailyWithdrawal"`
 	TxFee              float64     `json:"txFee,string"`
@@ -62,33 +84,39 @@ type PoloniexCurrencies struct {
 	Frozen             int         `json:"frozen"`
 }
 
-type PoloniexLoanOrder struct {
+// LoanOrder holds loan order information
+type LoanOrder struct {
 	Rate     float64 `json:"rate,string"`
 	Amount   float64 `json:"amount,string"`
 	RangeMin int     `json:"rangeMin"`
 	RangeMax int     `json:"rangeMax"`
 }
 
-type PoloniexLoanOrders struct {
-	Offers  []PoloniexLoanOrder `json:"offers"`
-	Demands []PoloniexLoanOrder `json:"demands"`
+// LoanOrders holds loan order information range
+type LoanOrders struct {
+	Offers  []LoanOrder `json:"offers"`
+	Demands []LoanOrder `json:"demands"`
 }
 
-type PoloniexBalance struct {
+// Balance holds data for a range of currencies
+type Balance struct {
 	Currency map[string]float64
 }
 
-type PoloniexCompleteBalance struct {
+// CompleteBalance contains the complete balance with a btcvalue
+type CompleteBalance struct {
 	Available float64
 	OnOrders  float64
 	BTCValue  float64
 }
 
-type PoloniexDepositAddresses struct {
+// DepositAddresses holds the full address per crypto-currency
+type DepositAddresses struct {
 	Addresses map[string]string
 }
 
-type PoloniexDepositsWithdrawals struct {
+// DepositsWithdrawals holds withdrawal information
+type DepositsWithdrawals struct {
 	Deposits []struct {
 		Currency      string  `json:"currency"`
 		Address       string  `json:"address"`
@@ -111,7 +139,8 @@ type PoloniexDepositsWithdrawals struct {
 	} `json:"withdrawals"`
 }
 
-type PoloniexOrder struct {
+// Order hold order information
+type Order struct {
 	OrderNumber int64   `json:"orderNumber,string"`
 	Type        string  `json:"type"`
 	Rate        float64 `json:"rate,string"`
@@ -121,15 +150,18 @@ type PoloniexOrder struct {
 	Margin      float64 `json:"margin"`
 }
 
-type PoloniexOpenOrdersResponseAll struct {
-	Data map[string][]PoloniexOrder
+// OpenOrdersResponseAll holds all open order responses
+type OpenOrdersResponseAll struct {
+	Data map[string][]Order
 }
 
-type PoloniexOpenOrdersResponse struct {
-	Data []PoloniexOrder
+// OpenOrdersResponse holds open response orders
+type OpenOrdersResponse struct {
+	Data []Order
 }
 
-type PoloniexAuthentictedTradeHistory struct {
+// AuthentictedTradeHistory holds client trade history information
+type AuthentictedTradeHistory struct {
 	GlobalTradeID int64   `json:"globalTradeID"`
 	TradeID       int64   `json:"tradeID,string"`
 	Date          string  `json:"date"`
@@ -142,15 +174,18 @@ type PoloniexAuthentictedTradeHistory struct {
 	Category      string  `json:"category"`
 }
 
-type PoloniexAuthenticatedTradeHistoryAll struct {
-	Data map[string][]PoloniexAuthentictedTradeHistory
+// AuthenticatedTradeHistoryAll holds the full client trade history
+type AuthenticatedTradeHistoryAll struct {
+	Data map[string][]AuthentictedTradeHistory
 }
 
-type PoloniexAuthenticatedTradeHistoryResponse struct {
-	Data []PoloniexAuthentictedTradeHistory
+// AuthenticatedTradeHistoryResponse is a response type for trade history
+type AuthenticatedTradeHistoryResponse struct {
+	Data []AuthentictedTradeHistory
 }
 
-type PoloniexResultingTrades struct {
+// ResultingTrades holds resultant trade information
+type ResultingTrades struct {
 	Amount  float64 `json:"amount,string"`
 	Date    string  `json:"date"`
 	Rate    float64 `json:"rate,string"`
@@ -159,36 +194,42 @@ type PoloniexResultingTrades struct {
 	Type    string  `json:"type"`
 }
 
-type PoloniexOrderResponse struct {
-	OrderNumber int64                     `json:"orderNumber,string"`
-	Trades      []PoloniexResultingTrades `json:"resultingTrades"`
+// OrderResponse is a response type of trades
+type OrderResponse struct {
+	OrderNumber int64             `json:"orderNumber,string"`
+	Trades      []ResultingTrades `json:"resultingTrades"`
 }
 
-type PoloniexGenericResponse struct {
+// GenericResponse is a response type for exchange generic responses
+type GenericResponse struct {
 	Success int    `json:"success"`
 	Error   string `json:"error"`
 }
 
-type PoloniexMoveOrderResponse struct {
-	Success     int                                  `json:"success"`
-	Error       string                               `json:"error"`
-	OrderNumber int64                                `json:"orderNumber,string"`
-	Trades      map[string][]PoloniexResultingTrades `json:"resultingTrades"`
+// MoveOrderResponse is a response type for move order trades
+type MoveOrderResponse struct {
+	Success     int                          `json:"success"`
+	Error       string                       `json:"error"`
+	OrderNumber int64                        `json:"orderNumber,string"`
+	Trades      map[string][]ResultingTrades `json:"resultingTrades"`
 }
 
-type PoloniexWithdraw struct {
+// Withdraw holds withdraw information
+type Withdraw struct {
 	Response string `json:"response"`
 	Error    string `json:"error"`
 }
 
-type PoloniexFee struct {
+// Fee holds fees for specific trades
+type Fee struct {
 	MakerFee        float64 `json:"makerFee,string"`
 	TakerFee        float64 `json:"takerFee,string"`
 	ThirtyDayVolume float64 `json:"thirtyDayVolume,string"`
 	NextTier        float64 `json:"nextTier,string"`
 }
 
-type PoloniexMargin struct {
+// Margin holds margin information
+type Margin struct {
 	TotalValue    float64 `json:"totalValue,string"`
 	ProfitLoss    float64 `json:"pl,string"`
 	LendingFees   float64 `json:"lendingFees,string"`
@@ -197,7 +238,8 @@ type PoloniexMargin struct {
 	CurrentMargin float64 `json:"currentMargin,string"`
 }
 
-type PoloniexMarginPosition struct {
+// MarginPosition holds margin positional information
+type MarginPosition struct {
 	Amount            float64 `json:"amount,string"`
 	Total             float64 `json:"total,string"`
 	BasePrice         float64 `json:"basePrice,string"`
@@ -207,7 +249,8 @@ type PoloniexMarginPosition struct {
 	Type              string  `json:"type"`
 }
 
-type PoloniexLoanOffer struct {
+// LoanOffer holds loan offer information
+type LoanOffer struct {
 	ID        int64   `json:"id"`
 	Rate      float64 `json:"rate,string"`
 	Amount    float64 `json:"amount,string"`
@@ -216,12 +259,14 @@ type PoloniexLoanOffer struct {
 	Date      string  `json:"date"`
 }
 
-type PoloniexActiveLoans struct {
-	Provided []PoloniexLoanOffer `json:"provided"`
-	Used     []PoloniexLoanOffer `json:"used"`
+// ActiveLoans shows the full active loans on the exchange
+type ActiveLoans struct {
+	Provided []LoanOffer `json:"provided"`
+	Used     []LoanOffer `json:"used"`
 }
 
-type PoloniexLendingHistory struct {
+// LendingHistory holds the full lending history data
+type LendingHistory struct {
 	ID       int64   `json:"id"`
 	Currency string  `json:"currency"`
 	Rate     float64 `json:"rate,string"`
@@ -232,4 +277,27 @@ type PoloniexLendingHistory struct {
 	Earned   float64 `json:"earned,string"`
 	Open     string  `json:"open"`
 	Close    string  `json:"close"`
+}
+
+// WebsocketTicker holds ticker data for the websocket
+type WebsocketTicker struct {
+	CurrencyPair  string
+	Last          float64
+	LowestAsk     float64
+	HighestBid    float64
+	PercentChange float64
+	BaseVolume    float64
+	QuoteVolume   float64
+	IsFrozen      bool
+	High          float64
+	Low           float64
+}
+
+// WebsocketTrollboxMessage holds trollbox messages and information for
+// websocket
+type WebsocketTrollboxMessage struct {
+	MessageNumber float64
+	Username      string
+	Message       string
+	Reputation    float64
 }

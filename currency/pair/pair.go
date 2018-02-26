@@ -65,7 +65,9 @@ func (c CurrencyPair) Display(delimiter string, uppercase bool) CurrencyItem {
 // Equal compares two currency pairs and returns whether or not they are equal
 func (c CurrencyPair) Equal(p CurrencyPair) bool {
 	if c.FirstCurrency.Upper() == p.FirstCurrency.Upper() &&
-		c.SecondCurrency.Upper() == p.SecondCurrency.Upper() {
+		c.SecondCurrency.Upper() == p.SecondCurrency.Upper() ||
+		c.FirstCurrency.Upper() == p.SecondCurrency.Upper() &&
+			c.SecondCurrency.Upper() == p.FirstCurrency.Upper() {
 		return true
 	}
 	return false
@@ -112,4 +114,48 @@ func NewCurrencyPairFromString(currency string) CurrencyPair {
 		}
 	}
 	return NewCurrencyPair(currency[0:3], currency[3:])
+}
+
+// Contains checks to see if a specified pair exists inside a currency pair
+// array
+func Contains(pairs []CurrencyPair, p CurrencyPair) bool {
+	for x := range pairs {
+		if pairs[x].Equal(p) {
+			return true
+		}
+	}
+	return false
+}
+
+// FormatPairs formats a string array to a list of currency pairs with the
+// supplied currency pair format
+func FormatPairs(pairs []string, delimiter, index string) []CurrencyPair {
+	var result []CurrencyPair
+	for x := range pairs {
+		if pairs[x] == "" {
+			continue
+		}
+		var p CurrencyPair
+		if delimiter != "" {
+			p = NewCurrencyPairDelimiter(pairs[x], delimiter)
+		} else {
+			if index != "" {
+				p = NewCurrencyPairFromIndex(pairs[x], index)
+			} else {
+				p = NewCurrencyPair(pairs[x][0:3], pairs[x][3:])
+			}
+		}
+		result = append(result, p)
+	}
+	return result
+}
+
+// CopyPairFormat copies the pair format from a list of pairs once matched
+func CopyPairFormat(p CurrencyPair, pairs []CurrencyPair) CurrencyPair {
+	for x := range pairs {
+		if p.Equal(pairs[x]) {
+			return pairs[x]
+		}
+	}
+	return CurrencyPair{}
 }

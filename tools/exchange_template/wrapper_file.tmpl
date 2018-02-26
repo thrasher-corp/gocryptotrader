@@ -1,0 +1,103 @@
+{{define "wrapper"}}
+package {{.Name}}
+
+import (
+	"errors"
+	"log"
+
+	"github.com/thrasher-/gocryptotrader/common"
+	"github.com/thrasher-/gocryptotrader/currency/pair"
+	exchange "github.com/thrasher-/gocryptotrader/exchanges"
+	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
+)
+
+// Start starts the {{.CapitalName}} go routine
+func ({{.Variable}} *{{.CapitalName}}) Start() {
+	go {{.Variable}}.Run()
+}
+
+// Run implements the {{.CapitalName}} wrapper
+func ({{.Variable}} *{{.CapitalName}}) Run() {
+	if {{.Variable}}.Verbose {
+		log.Printf("%s Websocket: %s. (url: %s).\n", {{.Variable}}.GetName(), common.IsEnabled({{.Variable}}.Websocket), {{.Variable}}.WebsocketURL)
+		log.Printf("%s polling delay: %ds.\n", {{.Variable}}.GetName(), {{.Variable}}.RESTPollingDelay)
+		log.Printf("%s %d currencies enabled: %s.\n", {{.Variable}}.GetName(), len({{.Variable}}.EnabledPairs), {{.Variable}}.EnabledPairs)
+	}
+}
+
+// UpdateTicker updates and returns the ticker for a currency pair
+func ({{.Variable}} *{{.CapitalName}}) UpdateTicker(p pair.CurrencyPair, assetType string) (ticker.Price, error) {
+	var tickerPrice ticker.Price
+  // NOTE EXAMPLE FOR GETTING TICKER PRICE
+	//tick, err := {{.Variable}}.GetTickers()
+	//if err != nil {
+	//	return tickerPrice, err
+	//}
+
+	//for _, x := range {{.Variable}}.GetEnabledCurrencies() {
+		//curr := exchange.FormatExchangeCurrency({{.Variable}}.Name, x)
+		//for y := range tick {
+		//	if tick[y].Symbol == curr.String() {
+		//		tickerPrice.Pair = x
+		//		tickerPrice.Ask = tick[y].AskPrice
+		//		tickerPrice.Bid = tick[y].BidPrice
+		//		tickerPrice.High = tick[y].HighPrice
+		//		tickerPrice.Last = tick[y].LastPrice
+		//		tickerPrice.Low = tick[y].LowPrice
+		//		tickerPrice.Volume = tick[y].Volume
+		//		ticker.ProcessTicker({{.Variable}}.Name, x, tickerPrice, assetType)
+		//	}
+	//	}
+	//}
+	//return ticker.GetTicker({{.Variable}}.Name, p, assetType)
+  return tickerPrice, nil // NOTE DO NOT USE AS RETURN
+}
+
+// GetTickerPrice returns the ticker for a currency pair
+func ({{.Variable}} *{{.CapitalName}}) GetTickerPrice(p pair.CurrencyPair, assetType string) (ticker.Price, error) {
+	tickerNew, err := ticker.GetTicker({{.Variable}}.GetName(), p, assetType)
+	if err != nil {
+		return {{.Variable}}.UpdateTicker(p, assetType)
+	}
+	return tickerNew, nil
+}
+
+// GetOrderbookEx returns orderbook base on the currency pair
+func ({{.Variable}} *{{.CapitalName}}) GetOrderbookEx(currency pair.CurrencyPair, assetType string) (orderbook.Base, error) {
+	ob, err := orderbook.GetOrderbook({{.Variable}}.GetName(), currency, assetType)
+	if err != nil {
+		return {{.Variable}}.UpdateOrderbook(currency, assetType)
+	}
+	return ob, nil
+}
+
+// UpdateOrderbook updates and returns the orderbook for a currency pair
+func ({{.Variable}} *{{.CapitalName}}) UpdateOrderbook(p pair.CurrencyPair, assetType string) (orderbook.Base, error) {
+	var orderBook orderbook.Base
+  //NOTE UPDATE ORDERBOOK EXAMPLE
+	//orderbookNew, err := {{.Variable}}.GetOrderBook(exchange.FormatExchangeCurrency({{.Variable}}.Name, p).String(), 1000)
+	//if err != nil {
+	//	return orderBook, err
+	//}
+
+	//for _, bids := range orderbookNew.Bids {
+	//	orderBook.Bids = append(orderBook.Bids, orderbook.Item{Amount: bids.Quantity, Price: bids.Price})
+	//}
+
+	//for _, asks := range orderbookNew.Asks {
+	//	orderBook.Asks = append(orderBook.Asks, orderbook.Item{Amount: asks.Quantity, Price: asks.Price})
+	//}
+
+	//orderbook.ProcessOrderbook(b.GetName(), p, orderBook, assetType)
+	//return orderbook.GetOrderbook({{.Variable}}.Name, p, assetType)
+  return orderBook, nil // NOTE DO NOT USE AS RETURN
+}
+
+// GetExchangeAccountInfo retrieves balances for all enabled currencies for the
+// {{.CapitalName}} exchange
+func ({{.Variable}} *{{.CapitalName}}) GetExchangeAccountInfo() (exchange.AccountInfo, error) {
+	var response exchange.AccountInfo
+	return response, errors.New("not implemented")
+}
+{{end}}

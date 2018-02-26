@@ -1,6 +1,7 @@
 package localbitcoins
 
 import (
+	"errors"
 	"log"
 
 	"github.com/thrasher-/gocryptotrader/currency/pair"
@@ -34,7 +35,7 @@ func (l *LocalBitcoins) UpdateTicker(p pair.CurrencyPair, assetType string) (tic
 		currency := x.SecondCurrency.String()
 		var tp ticker.Price
 		tp.Pair = x
-		tp.Last = tick[currency].Rates.Last
+		tp.Last = tick[currency].Avg24h
 		tp.Volume = tick[currency].VolumeBTC
 		ticker.ProcessTicker(l.GetName(), x, tp, assetType)
 	}
@@ -45,7 +46,7 @@ func (l *LocalBitcoins) UpdateTicker(p pair.CurrencyPair, assetType string) (tic
 // GetTickerPrice returns the ticker for a currency pair
 func (l *LocalBitcoins) GetTickerPrice(p pair.CurrencyPair, assetType string) (ticker.Price, error) {
 	tickerNew, err := ticker.GetTicker(l.GetName(), p, assetType)
-	if err == nil {
+	if err != nil {
 		return l.UpdateTicker(p, assetType)
 	}
 	return tickerNew, nil
@@ -54,7 +55,7 @@ func (l *LocalBitcoins) GetTickerPrice(p pair.CurrencyPair, assetType string) (t
 // GetOrderbookEx returns orderbook base on the currency pair
 func (l *LocalBitcoins) GetOrderbookEx(p pair.CurrencyPair, assetType string) (orderbook.Base, error) {
 	ob, err := orderbook.GetOrderbook(l.GetName(), p, assetType)
-	if err == nil {
+	if err != nil {
 		return l.UpdateOrderbook(p, assetType)
 	}
 	return ob, nil
@@ -70,12 +71,12 @@ func (l *LocalBitcoins) UpdateOrderbook(p pair.CurrencyPair, assetType string) (
 
 	for x := range orderbookNew.Bids {
 		data := orderbookNew.Bids[x]
-		orderBook.Bids = append(orderBook.Bids, orderbook.Item{Amount: data.Amount, Price: data.Price})
+		orderBook.Bids = append(orderBook.Bids, orderbook.Item{Amount: data.Amount / data.Price, Price: data.Price})
 	}
 
 	for x := range orderbookNew.Asks {
 		data := orderbookNew.Asks[x]
-		orderBook.Asks = append(orderBook.Asks, orderbook.Item{Amount: data.Amount, Price: data.Price})
+		orderBook.Asks = append(orderBook.Asks, orderbook.Item{Amount: data.Amount / data.Price, Price: data.Price})
 	}
 
 	orderbook.ProcessOrderbook(l.GetName(), p, orderBook, assetType)
@@ -97,4 +98,11 @@ func (l *LocalBitcoins) GetExchangeAccountInfo() (exchange.AccountInfo, error) {
 
 	response.Currencies = append(response.Currencies, exchangeCurrency)
 	return response, nil
+}
+
+// GetExchangeHistory returns historic trade data since exchange opening.
+func (l *LocalBitcoins) GetExchangeHistory(p pair.CurrencyPair, assetType string) ([]exchange.TradeHistory, error) {
+	var resp []exchange.TradeHistory
+
+	return resp, errors.New("trade history not yet implemented")
 }

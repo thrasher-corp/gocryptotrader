@@ -20,8 +20,10 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"path/filepath"
 	"reflect"
 	"regexp"
+	"runtime"
 	"strconv"
 	"strings"
 	"time"
@@ -137,10 +139,31 @@ func StringContains(input, substring string) bool {
 	return strings.Contains(input, substring)
 }
 
-// DataContains checks the substring array with an input and returns a bool
-func DataContains(haystack []string, needle string) bool {
+// StringDataContains checks the substring array with an input and returns a bool
+func StringDataContains(haystack []string, needle string) bool {
 	data := strings.Join(haystack, ",")
 	return strings.Contains(data, needle)
+}
+
+// StringDataCompare data checks the substring array with an input and returns a bool
+func StringDataCompare(haystack []string, needle string) bool {
+	for x := range haystack {
+		if haystack[x] == needle {
+			return true
+		}
+	}
+	return false
+}
+
+// StringDataContainsUpper checks the substring array with an input and returns
+// a bool irrespective of lower or upper case strings
+func StringDataContainsUpper(haystack []string, needle string) bool {
+	for _, data := range haystack {
+		if strings.Contains(StringToUpper(data), StringToUpper(needle)) {
+			return true
+		}
+	}
+	return false
 }
 
 // JoinStrings joins an array together with the required separator and returns
@@ -445,4 +468,22 @@ func GetURIPath(uri string) string {
 		return fmt.Sprintf("%s?%s", urip.Path, urip.RawQuery)
 	}
 	return urip.Path
+}
+
+// GetExecutablePath returns the executables launch path
+func GetExecutablePath() (string, error) {
+	ex, err := os.Executable()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Dir(ex), nil
+}
+
+// GetOSPathSlash returns the slash used by the operating systems
+// file system
+func GetOSPathSlash() string {
+	if runtime.GOOS == "windows" {
+		return "\\"
+	}
+	return "/"
 }

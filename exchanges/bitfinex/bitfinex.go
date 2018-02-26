@@ -18,12 +18,18 @@ import (
 
 const (
 	bitfinexAPIURL             = "https://api.bitfinex.com/v1/"
+	bitfinexAPIURLBase         = "https://api.bitfinex.com"
 	bitfinexAPIVersion         = "1"
+	bitfinexAPIVersion2        = "2"
+	bitfinexTickerV2           = "ticker"
+	bitfinexTickersV2          = "tickers"
 	bitfinexTicker             = "pubticker/"
 	bitfinexStats              = "stats/"
 	bitfinexLendbook           = "lendbook/"
+	bitfinexOrderbookV2        = "book"
 	bitfinexOrderbook          = "book/"
 	bitfinexTrades             = "trades/"
+	bitfinexTradesV2           = "https://api.bitfinex.com/v2/trades/%s/hist?limit=1000&start=%s&end=%s"
 	bitfinexKeyPermissions     = "key_info"
 	bitfinexLends              = "lends/"
 	bitfinexSymbols            = "symbols/"
@@ -58,10 +64,17 @@ const (
 	bitfinexTransfer           = "transfer"
 	bitfinexWithdrawal         = "withdraw"
 	bitfinexActiveCredits      = "credits"
+	bitfinexPlatformStatus     = "platform/status"
 
 	// bitfinexMaxRequests if exceeded IP address blocked 10-60 sec, JSON response
 	// {"error": "ERR_RATE_LIMIT"}
 	bitfinexMaxRequests = 90
+
+	// Bitfinex platform status values
+	// When the platform is marked in maintenance mode bots should stop trading
+	// activity. Cancelling orders will be still possible.
+	bitfinexMaintenanceMode = 0
+	bitfinexOperativeMode   = 1
 )
 
 // Bitfinex is the overarching type across the bitfinex package
@@ -114,12 +127,120 @@ func (b *Bitfinex) Setup(exch config.ExchangeConfig) {
 	}
 }
 
+// GetPlatformStatus returns the Bifinex platform status
+func (b *Bitfinex) GetPlatformStatus() (int, error) {
+	var response []interface{}
+	path := fmt.Sprintf("%s/v%s/%s", bitfinexAPIURLBase, bitfinexAPIVersion2,
+		bitfinexPlatformStatus)
+
+	err := common.SendHTTPGetRequest(path, true, b.Verbose, &response)
+	if err != nil {
+		return 0, err
+	}
+
+	if (len(response)) != 1 {
+		return 0, errors.New("unexpected platform status value")
+	}
+
+	return int(response[0].(float64)), nil
+}
+
 // GetTicker returns ticker information
 func (b *Bitfinex) GetTicker(symbol string, values url.Values) (Ticker, error) {
 	response := Ticker{}
 	path := common.EncodeURLValues(bitfinexAPIURL+bitfinexTicker+symbol, values)
 
 	return response, common.SendHTTPGetRequest(path, true, b.Verbose, &response)
+}
+
+// GetTickerV2 returns ticker information
+func (b *Bitfinex) GetTickerV2(symbol string) (Tickerv2, error) {
+	var response []interface{}
+	var ticker Tickerv2
+
+	path := fmt.Sprintf("%s/v%s/%s/%s", bitfinexAPIURLBase, bitfinexAPIVersion2, bitfinexTickerV2, symbol)
+	err := common.SendHTTPGetRequest(path, true, b.Verbose, &response)
+	if err != nil {
+		return ticker, err
+	}
+
+	if len(response) > 10 {
+		ticker.FlashReturnRate = response[0].(float64)
+		ticker.Bid = response[1].(float64)
+		ticker.BidSize = response[2].(float64)
+		ticker.BidPeriod = int64(response[3].(float64))
+		ticker.Ask = response[4].(float64)
+		ticker.AskSize = response[5].(float64)
+		ticker.AskPeriod = int64(response[6].(float64))
+		ticker.DailyChange = response[7].(float64)
+		ticker.DailyChangePerc = response[8].(float64)
+		ticker.Last = response[9].(float64)
+		ticker.Volume = response[10].(float64)
+		ticker.High = response[11].(float64)
+		ticker.Low = response[12].(float64)
+	} else {
+		ticker.Bid = response[0].(float64)
+		ticker.BidSize = response[1].(float64)
+		ticker.Ask = response[2].(float64)
+		ticker.AskSize = response[3].(float64)
+		ticker.DailyChange = response[4].(float64)
+		ticker.DailyChangePerc = response[5].(float64)
+		ticker.Last = response[6].(float64)
+		ticker.Volume = response[7].(float64)
+		ticker.High = response[8].(float64)
+		ticker.Low = response[9].(float64)
+	}
+	return ticker, nil
+}
+
+// GetTickersV2 returns ticker information for multiple symbols
+func (b *Bitfinex) GetTickersV2(symbols string) ([]Tickersv2, error) {
+	var response [][]interface{}
+	var tickers []Tickersv2
+
+	v := url.Values{}
+	v.Set("symbols", symbols)
+
+	path := common.EncodeURLValues(fmt.Sprintf("%s/v%s/%s", bitfinexAPIURLBase, bitfinexAPIVersion2, bitfinexTickersV2), v)
+	err := common.SendHTTPGetRequest(path, true, b.Verbose, &response)
+	if err != nil {
+		return nil, err
+	}
+
+	for x := range response {
+		var tick Tickersv2
+		data := response[x]
+		if len(data) > 11 {
+			tick.Symbol = data[0].(string)
+			tick.FlashReturnRate = data[1].(float64)
+			tick.Bid = data[2].(float64)
+			tick.BidSize = data[3].(float64)
+			tick.BidPeriod = int64(data[4].(float64))
+			tick.Ask = data[5].(float64)
+			tick.AskSize = data[6].(float64)
+			tick.AskPeriod = int64(data[7].(float64))
+			tick.DailyChange = data[8].(float64)
+			tick.DailyChangePerc = data[9].(float64)
+			tick.Last = data[10].(float64)
+			tick.Volume = data[11].(float64)
+			tick.High = data[12].(float64)
+			tick.Low = data[13].(float64)
+		} else {
+			tick.Symbol = data[0].(string)
+			tick.Bid = data[1].(float64)
+			tick.BidSize = data[2].(float64)
+			tick.Ask = data[3].(float64)
+			tick.AskSize = data[4].(float64)
+			tick.DailyChange = data[5].(float64)
+			tick.DailyChangePerc = data[6].(float64)
+			tick.Last = data[7].(float64)
+			tick.Volume = data[8].(float64)
+			tick.High = data[9].(float64)
+			tick.Low = data[10].(float64)
+		}
+		tickers = append(tickers, tick)
+	}
+	return tickers, nil
 }
 
 // GetStats returns various statistics about the requested pair
@@ -154,6 +275,54 @@ func (b *Bitfinex) GetOrderbook(currencyPair string, values url.Values) (Orderbo
 	return response, common.SendHTTPGetRequest(path, true, b.Verbose, &response)
 }
 
+// GetOrderbookV2 retieves the orderbook bid and ask price points for a currency
+// pair - By default the response will return 25 bid and 25 ask price points.
+// symbol - Example "tBTCUSD"
+// precision - P0,P1,P2,P3,R0
+// Values can contain limit amounts for both the asks and bids - Example
+// "len" = 1000
+func (b *Bitfinex) GetOrderbookV2(symbol, precision string, values url.Values) (OrderbookV2, error) {
+	var response [][]interface{}
+	var book OrderbookV2
+	path := common.EncodeURLValues(fmt.Sprintf("%s/v%s/%s/%s/%s", bitfinexAPIURLBase,
+		bitfinexAPIVersion2, bitfinexOrderbookV2, symbol, precision), values)
+	err := common.SendHTTPGetRequest(path, true, b.Verbose, &response)
+	if err != nil {
+		return book, err
+	}
+
+	for x := range response {
+		data := response[x]
+		bookItem := BookV2{}
+
+		if len(data) > 3 {
+			bookItem.Rate = data[0].(float64)
+			bookItem.Price = data[1].(float64)
+			bookItem.Count = int64(data[2].(float64))
+			bookItem.Amount = data[3].(float64)
+		} else {
+			bookItem.Price = data[0].(float64)
+			bookItem.Count = int64(data[1].(float64))
+			bookItem.Amount = data[2].(float64)
+		}
+
+		if symbol[0] == 't' {
+			if bookItem.Amount > 0 {
+				book.Bids = append(book.Bids, bookItem)
+			} else {
+				book.Asks = append(book.Asks, bookItem)
+			}
+		} else {
+			if bookItem.Amount > 0 {
+				book.Asks = append(book.Asks, bookItem)
+			} else {
+				book.Bids = append(book.Bids, bookItem)
+			}
+		}
+	}
+	return book, nil
+}
+
 // GetTrades returns a list of the most recent trades for the given curencyPair
 // By default the response will return 100 trades
 // CurrencyPair - Example "BTCUSD"
@@ -166,6 +335,56 @@ func (b *Bitfinex) GetTrades(currencyPair string, values url.Values) ([]TradeStr
 		values,
 	)
 	return response, common.SendHTTPGetRequest(path, true, b.Verbose, &response)
+}
+
+// GetTradesV2 uses the V2 API to get historic trades that occured on the
+// exchange
+//
+// currencyPair e.g. "tBTCUSD" v2 prefixes currency pairs with t. (?)
+// timestampStart is an int64 unix epoch time
+// timestampEnd is an int64 unix epoch time, make sure this is always there or
+// you will get the most recent trades.
+// reOrderResp reorders the returned data.
+func (b *Bitfinex) GetTradesV2(currencyPair string, timestampStart, timestampEnd int64, reOrderResp bool) ([]TradeStructureV2, error) {
+	var resp [][]interface{}
+	var actualHistory []TradeStructureV2
+
+	path := fmt.Sprintf(bitfinexTradesV2,
+		currencyPair,
+		strconv.FormatInt(timestampStart, 10),
+		strconv.FormatInt(timestampEnd, 10))
+
+	err := common.SendHTTPGetRequest(path, true, b.Verbose, &resp)
+	if err != nil {
+		return actualHistory, err
+	}
+
+	var tempHistory TradeStructureV2
+	for _, data := range resp {
+		tempHistory.TID = int64(data[0].(float64))
+		tempHistory.Timestamp = int64(data[1].(float64))
+		tempHistory.Amount = data[2].(float64)
+		tempHistory.Price = data[3].(float64)
+		tempHistory.Exchange = b.Name
+		tempHistory.Type = "BUY"
+
+		if tempHistory.Amount < 0 {
+			tempHistory.Type = "SELL"
+			tempHistory.Amount = tempHistory.Amount * -1
+		}
+
+		actualHistory = append(actualHistory, tempHistory)
+	}
+
+	//re-order index
+	if reOrderResp {
+		orderedHistory := make([]TradeStructureV2, len(actualHistory))
+		for i, quickRange := range actualHistory {
+			orderedHistory[len(actualHistory)-i-1] = quickRange
+		}
+		return orderedHistory, nil
+	}
+	return actualHistory, nil
 }
 
 // GetLendbook returns a list of the most recent funding data for the given

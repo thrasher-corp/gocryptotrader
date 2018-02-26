@@ -1,6 +1,7 @@
 package btcmarkets
 
 import (
+	"errors"
 	"log"
 
 	"github.com/thrasher-/gocryptotrader/common"
@@ -23,7 +24,7 @@ func (b *BTCMarkets) Run() {
 		log.Printf("%s %d currencies enabled: %s.\n", b.GetName(), len(b.EnabledPairs), b.EnabledPairs)
 	}
 
-	if !common.DataContains(b.EnabledPairs, "AUD") || !common.DataContains(b.EnabledPairs, "AUD") {
+	if !common.StringDataContains(b.EnabledPairs, "AUD") || !common.StringDataContains(b.EnabledPairs, "AUD") {
 		enabledPairs := []string{}
 		for x := range b.EnabledPairs {
 			enabledPairs = append(enabledPairs, b.EnabledPairs[x]+"AUD")
@@ -53,7 +54,8 @@ func (b *BTCMarkets) Run() {
 // UpdateTicker updates and returns the ticker for a currency pair
 func (b *BTCMarkets) UpdateTicker(p pair.CurrencyPair, assetType string) (ticker.Price, error) {
 	var tickerPrice ticker.Price
-	tick, err := b.GetTicker(p.GetFirstCurrency().String())
+	tick, err := b.GetTicker(p.GetFirstCurrency().String(),
+		p.GetSecondCurrency().String())
 	if err != nil {
 		return tickerPrice, err
 	}
@@ -77,7 +79,7 @@ func (b *BTCMarkets) GetTickerPrice(p pair.CurrencyPair, assetType string) (tick
 // GetOrderbookEx returns orderbook base on the currency pair
 func (b *BTCMarkets) GetOrderbookEx(p pair.CurrencyPair, assetType string) (orderbook.Base, error) {
 	ob, err := orderbook.GetOrderbook(b.GetName(), p, assetType)
-	if err == nil {
+	if err != nil {
 		return b.UpdateOrderbook(p, assetType)
 	}
 	return ob, nil
@@ -86,7 +88,8 @@ func (b *BTCMarkets) GetOrderbookEx(p pair.CurrencyPair, assetType string) (orde
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (b *BTCMarkets) UpdateOrderbook(p pair.CurrencyPair, assetType string) (orderbook.Base, error) {
 	var orderBook orderbook.Base
-	orderbookNew, err := b.GetOrderbook(p.GetFirstCurrency().String())
+	orderbookNew, err := b.GetOrderbook(p.GetFirstCurrency().String(),
+		p.GetSecondCurrency().String())
 	if err != nil {
 		return orderBook, err
 	}
@@ -123,4 +126,11 @@ func (b *BTCMarkets) GetExchangeAccountInfo() (exchange.AccountInfo, error) {
 		response.Currencies = append(response.Currencies, exchangeCurrency)
 	}
 	return response, nil
+}
+
+// GetExchangeHistory returns historic trade data since exchange opening.
+func (b *BTCMarkets) GetExchangeHistory(p pair.CurrencyPair, assetType string) ([]exchange.TradeHistory, error) {
+	var resp []exchange.TradeHistory
+
+	return resp, errors.New("trade history not yet implemented")
 }

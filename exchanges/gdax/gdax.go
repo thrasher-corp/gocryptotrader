@@ -62,7 +62,6 @@ func (g *GDAX) SetDefaults() {
 	g.Verbose = false
 	g.TakerFee = 0.25
 	g.MakerFee = 0
-	g.Verbose = false
 	g.Websocket = false
 	g.RESTPollingDelay = 10
 	g.RequestCurrencyPairFormat.Delimiter = "-"
@@ -197,7 +196,6 @@ func (g *GDAX) GetTicker(currencyPair string) (Ticker, error) {
 	path := fmt.Sprintf(
 		"%s/%s/%s", g.APIUrl+gdaxProducts, currencyPair, gdaxTicker)
 
-	log.Println(path)
 	return ticker, common.SendHTTPGetRequest(path, true, g.Verbose, &ticker)
 }
 

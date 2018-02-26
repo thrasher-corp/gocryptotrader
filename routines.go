@@ -173,43 +173,46 @@ func relayWebsocketEvent(result interface{}, event, assetType, exchangeName stri
 	}
 }
 
+// TickerUpdaterRoutine fetches and updates the ticker for all enabled
+// currency pairs and exchanges
 func TickerUpdaterRoutine() {
 	log.Println("Starting ticker updater routine")
 	for {
 		for x := range bot.exchanges {
-			if bot.exchanges[x].IsEnabled() {
-				exchangeName := bot.exchanges[x].GetName()
-				enabledCurrencies := bot.exchanges[x].GetEnabledCurrencies()
+			if bot.exchanges[x] == nil {
+				continue
+			}
+			exchangeName := bot.exchanges[x].GetName()
+			enabledCurrencies := bot.exchanges[x].GetEnabledCurrencies()
 
-				var result ticker.Price
-				var err error
-				var assetTypes []string
+			var result ticker.Price
+			var err error
+			var assetTypes []string
 
-				assetTypes, err = exchange.GetExchangeAssetTypes(exchangeName)
-				if err != nil {
-					log.Printf("failed to get %s exchange asset types. Error: %s",
-						exchangeName, err)
-				}
+			assetTypes, err = exchange.GetExchangeAssetTypes(exchangeName)
+			if err != nil {
+				log.Printf("failed to get %s exchange asset types. Error: %s",
+					exchangeName, err)
+			}
 
-				for y := range enabledCurrencies {
-					currency := enabledCurrencies[y]
+			for y := range enabledCurrencies {
+				currency := enabledCurrencies[y]
 
-					if len(assetTypes) > 1 {
-						for z := range assetTypes {
-							result, err = bot.exchanges[x].UpdateTicker(currency,
-								assetTypes[z])
-							printSummary(result, currency, assetTypes[z], exchangeName, err)
-							if err == nil {
-								relayWebsocketEvent(result, "ticker_update", assetTypes[z], exchangeName)
-							}
-						}
-					} else {
+				if len(assetTypes) > 1 {
+					for z := range assetTypes {
 						result, err = bot.exchanges[x].UpdateTicker(currency,
-							assetTypes[0])
-						printSummary(result, currency, assetTypes[0], exchangeName, err)
+							assetTypes[z])
+						printSummary(result, currency, assetTypes[z], exchangeName, err)
 						if err == nil {
-							relayWebsocketEvent(result, "ticker_update", assetTypes[0], exchangeName)
+							relayWebsocketEvent(result, "ticker_update", assetTypes[z], exchangeName)
 						}
+					}
+				} else {
+					result, err = bot.exchanges[x].UpdateTicker(currency,
+						assetTypes[0])
+					printSummary(result, currency, assetTypes[0], exchangeName, err)
+					if err == nil {
+						relayWebsocketEvent(result, "ticker_update", assetTypes[0], exchangeName)
 					}
 				}
 			}
@@ -218,46 +221,45 @@ func TickerUpdaterRoutine() {
 	}
 }
 
+// OrderbookUpdaterRoutine fetches and updates the orderbooks for all enabled
+// currency pairs and exchanges
 func OrderbookUpdaterRoutine() {
 	log.Println("Starting orderbook updater routine")
 	for {
 		for x := range bot.exchanges {
-			if bot.exchanges[x].IsEnabled() {
-				if bot.exchanges[x].GetName() == "ANX" {
-					continue
-				}
+			if bot.exchanges[x] == nil {
+				continue
+			}
+			exchangeName := bot.exchanges[x].GetName()
+			enabledCurrencies := bot.exchanges[x].GetEnabledCurrencies()
+			var result orderbook.Base
+			var err error
+			var assetTypes []string
 
-				exchangeName := bot.exchanges[x].GetName()
-				enabledCurrencies := bot.exchanges[x].GetEnabledCurrencies()
-				var result orderbook.Base
-				var err error
-				var assetTypes []string
+			assetTypes, err = exchange.GetExchangeAssetTypes(exchangeName)
+			if err != nil {
+				log.Printf("failed to get %s exchange asset types. Error: %s",
+					exchangeName, err)
+			}
 
-				assetTypes, err = exchange.GetExchangeAssetTypes(exchangeName)
-				if err != nil {
-					log.Printf("failed to get %s exchange asset types. Error: %s",
-						exchangeName, err)
-				}
+			for y := range enabledCurrencies {
+				currency := enabledCurrencies[y]
 
-				for y := range enabledCurrencies {
-					currency := enabledCurrencies[y]
-
-					if len(assetTypes) > 1 {
-						for z := range assetTypes {
-							result, err = bot.exchanges[x].UpdateOrderbook(currency,
-								assetTypes[z])
-							printOrderbookSummary(result, currency, assetTypes[z], exchangeName, err)
-							if err == nil {
-								relayWebsocketEvent(result, "orderbook_update", assetTypes[z], exchangeName)
-							}
-						}
-					} else {
+				if len(assetTypes) > 1 {
+					for z := range assetTypes {
 						result, err = bot.exchanges[x].UpdateOrderbook(currency,
-							assetTypes[0])
-						printOrderbookSummary(result, currency, assetTypes[0], exchangeName, err)
+							assetTypes[z])
+						printOrderbookSummary(result, currency, assetTypes[z], exchangeName, err)
 						if err == nil {
-							relayWebsocketEvent(result, "orderbook_update", assetTypes[0], exchangeName)
+							relayWebsocketEvent(result, "orderbook_update", assetTypes[z], exchangeName)
 						}
+					}
+				} else {
+					result, err = bot.exchanges[x].UpdateOrderbook(currency,
+						assetTypes[0])
+					printOrderbookSummary(result, currency, assetTypes[0], exchangeName, err)
+					if err == nil {
+						relayWebsocketEvent(result, "orderbook_update", assetTypes[0], exchangeName)
 					}
 				}
 			}

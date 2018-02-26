@@ -1,6 +1,7 @@
 package okcoin
 
 import (
+	"errors"
 	"log"
 
 	"github.com/thrasher-/gocryptotrader/common"
@@ -33,7 +34,7 @@ func (o *OKCoin) UpdateTicker(p pair.CurrencyPair, assetType string) (ticker.Pri
 	currency := exchange.FormatExchangeCurrency(o.Name, p).String()
 	var tickerPrice ticker.Price
 
-	if assetType != ticker.Spot && o.APIUrl == OKCOIN_API_URL {
+	if assetType != ticker.Spot && o.APIUrl == okcoinAPIURL {
 		tick, err := o.GetFuturesTicker(currency, assetType)
 		if err != nil {
 			return tickerPrice, err
@@ -76,7 +77,7 @@ func (o *OKCoin) GetTickerPrice(p pair.CurrencyPair, assetType string) (ticker.P
 // GetOrderbookEx returns orderbook base on the currency pair
 func (o *OKCoin) GetOrderbookEx(currency pair.CurrencyPair, assetType string) (orderbook.Base, error) {
 	ob, err := orderbook.GetOrderbook(o.GetName(), currency, assetType)
-	if err == nil {
+	if err != nil {
 		return o.UpdateOrderbook(currency, assetType)
 	}
 	return ob, nil
@@ -139,4 +140,11 @@ func (o *OKCoin) GetExchangeAccountInfo() (exchange.AccountInfo, error) {
 	})
 
 	return response, nil
+}
+
+// GetExchangeHistory returns historic trade data since exchange opening.
+func (o *OKCoin) GetExchangeHistory(p pair.CurrencyPair, assetType string) ([]exchange.TradeHistory, error) {
+	var resp []exchange.TradeHistory
+
+	return resp, errors.New("trade history not yet implemented")
 }
