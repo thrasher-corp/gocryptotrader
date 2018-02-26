@@ -8,13 +8,14 @@ import (
 )
 
 const (
-	HITBTC_WEBSOCKET_ADDRESS  = "wss://api.hitbtc.com"
-	HITBTC_WEBSOCKET_REALM    = "realm1"
-	HITBTC_WEBSOCKET_TICKER   = "ticker"
-	HITBTC_WEBSOCKET_TROLLBOX = "trollbox"
+	hitbtcWebsocketAddress  = "wss://api.hitbtc.com"
+	hitbtcWebsocketRealm    = "realm1"
+	hitbtcWebsocketTicker   = "ticker"
+	hitbtcWebsocketTrollbox = "trollbox"
 )
 
-type HitBTCWebsocketTicker struct {
+// WebsocketTicker holds ticker data
+type WebsocketTicker struct {
 	CurrencyPair  string
 	Last          float64
 	LowestAsk     float64
@@ -27,8 +28,9 @@ type HitBTCWebsocketTicker struct {
 	Low           float64
 }
 
-func HitBTCOnTicker(args []interface{}, kwargs map[string]interface{}) {
-	ticker := HitBTCWebsocketTicker{}
+// OnTicker converts ticker to websocket ticker
+func OnTicker(args []interface{}, kwargs map[string]interface{}) {
+	ticker := WebsocketTicker{}
 	ticker.CurrencyPair = args[0].(string)
 	ticker.Last, _ = strconv.ParseFloat(args[1].(string), 64)
 	ticker.LowestAsk, _ = strconv.ParseFloat(args[2].(string), 64)
@@ -47,15 +49,17 @@ func HitBTCOnTicker(args []interface{}, kwargs map[string]interface{}) {
 	ticker.Low, _ = strconv.ParseFloat(args[9].(string), 64)
 }
 
-type HitBTCWebsocketTrollboxMessage struct {
+// WebsocketTrollboxMessage contains trollbox message information
+type WebsocketTrollboxMessage struct {
 	MessageNumber float64
 	Username      string
 	Message       string
 	Reputation    float64
 }
 
-func HitBTCOnTrollbox(args []interface{}, kwargs map[string]interface{}) {
-	message := HitBTCWebsocketTrollboxMessage{}
+// OnTrollbox converts trollbox messages
+func OnTrollbox(args []interface{}, kwargs map[string]interface{}) {
+	message := WebsocketTrollboxMessage{}
 	message.MessageNumber, _ = args[1].(float64)
 	message.Username = args[2].(string)
 	message.Message = args[3].(string)
@@ -64,7 +68,8 @@ func HitBTCOnTrollbox(args []interface{}, kwargs map[string]interface{}) {
 	}
 }
 
-func HitBTCOnDepthOrTrade(args []interface{}, kwargs map[string]interface{}) {
+// OnDepthOrTrade converts depth and trade data
+func OnDepthOrTrade(args []interface{}, kwargs map[string]interface{}) {
 	for x := range args {
 		data := args[x].(map[string]interface{})
 		msgData := data["data"].(map[string]interface{})
@@ -133,9 +138,10 @@ func HitBTCOnDepthOrTrade(args []interface{}, kwargs map[string]interface{}) {
 	}
 }
 
+// WebsocketClient initiates a websocket client
 func (p *HitBTC) WebsocketClient() {
 	for p.Enabled && p.Websocket {
-		c, err := turnpike.NewWebsocketClient(turnpike.JSON, HITBTC_WEBSOCKET_ADDRESS, nil)
+		c, err := turnpike.NewWebsocketClient(turnpike.JSON, hitbtcWebsocketAddress, nil)
 		if err != nil {
 			log.Printf("%s Unable to connect to Websocket. Error: %s\n", p.GetName(), err)
 			continue
@@ -145,7 +151,7 @@ func (p *HitBTC) WebsocketClient() {
 			log.Printf("%s Connected to Websocket.\n", p.GetName())
 		}
 
-		_, err = c.JoinRealm(HITBTC_WEBSOCKET_REALM, nil)
+		_, err = c.JoinRealm(hitbtcWebsocketRealm, nil)
 		if err != nil {
 			log.Printf("%s Unable to join realm. Error: %s\n", p.GetName(), err)
 			continue
@@ -157,17 +163,17 @@ func (p *HitBTC) WebsocketClient() {
 
 		c.ReceiveDone = make(chan bool)
 
-		if err := c.Subscribe(HITBTC_WEBSOCKET_TICKER, HitBTCOnTicker); err != nil {
+		if err := c.Subscribe(hitbtcWebsocketTicker, OnTicker); err != nil {
 			log.Printf("%s Error subscribing to ticker channel: %s\n", p.GetName(), err)
 		}
 
-		if err := c.Subscribe(HITBTC_WEBSOCKET_TROLLBOX, HitBTCOnTrollbox); err != nil {
+		if err := c.Subscribe(hitbtcWebsocketTrollbox, OnTrollbox); err != nil {
 			log.Printf("%s Error subscribing to trollbox channel: %s\n", p.GetName(), err)
 		}
 
 		for x := range p.EnabledPairs {
 			currency := p.EnabledPairs[x]
-			if err := c.Subscribe(currency, HitBTCOnDepthOrTrade); err != nil {
+			if err := c.Subscribe(currency, OnDepthOrTrade); err != nil {
 				log.Printf("%s Error subscribing to %s channel: %s\n", p.GetName(), currency, err)
 			}
 		}

@@ -12,28 +12,28 @@ import (
 )
 
 // Start starts the HitBTC go routine
-func (p *HitBTC) Start() {
-	go p.Run()
+func (h *HitBTC) Start() {
+	go h.Run()
 }
 
 // Run implements the HitBTC wrapper
-func (p *HitBTC) Run() {
-	if p.Verbose {
-		log.Printf("%s Websocket: %s (url: %s).\n", p.GetName(), common.IsEnabled(p.Websocket), HITBTC_WEBSOCKET_ADDRESS)
-		log.Printf("%s polling delay: %ds.\n", p.GetName(), p.RESTPollingDelay)
-		log.Printf("%s %d currencies enabled: %s.\n", p.GetName(), len(p.EnabledPairs), p.EnabledPairs)
+func (h *HitBTC) Run() {
+	if h.Verbose {
+		log.Printf("%s Websocket: %s (url: %s).\n", h.GetName(), common.IsEnabled(h.Websocket), hitbtcWebsocketAddress)
+		log.Printf("%s polling delay: %ds.\n", h.GetName(), h.RESTPollingDelay)
+		log.Printf("%s %d currencies enabled: %s.\n", h.GetName(), len(h.EnabledPairs), h.EnabledPairs)
 	}
 
-	if p.Websocket {
-		go p.WebsocketClient()
+	if h.Websocket {
+		go h.WebsocketClient()
 	}
 
-	exchangeProducts, err := p.GetSymbolsDetailed()
+	exchangeProducts, err := h.GetSymbolsDetailed()
 	if err != nil {
-		log.Printf("%s Failed to get available symbols.\n", p.GetName())
+		log.Printf("%s Failed to get available symbols.\n", h.GetName())
 	} else {
 		forceUpgrade := false
-		if !common.StringDataContains(p.EnabledPairs, "-") || !common.StringDataContains(p.AvailablePairs, "-") {
+		if !common.StringDataContains(h.EnabledPairs, "-") || !common.StringDataContains(h.AvailablePairs, "-") {
 			forceUpgrade = true
 		}
 		var currencies []string
@@ -45,28 +45,28 @@ func (p *HitBTC) Run() {
 			enabledPairs := []string{"BTC-USD"}
 			log.Println("WARNING: Available pairs for HitBTC reset due to config upgrade, please enable the ones you would like again.")
 
-			err = p.UpdateEnabledCurrencies(enabledPairs, true)
+			err = h.UpdateEnabledCurrencies(enabledPairs, true)
 			if err != nil {
-				log.Printf("%s Failed to update enabled currencies.\n", p.GetName())
+				log.Printf("%s Failed to update enabled currencies.\n", h.GetName())
 			}
 		}
-		err = p.UpdateAvailableCurrencies(currencies, forceUpgrade)
+		err = h.UpdateAvailableCurrencies(currencies, forceUpgrade)
 		if err != nil {
-			log.Printf("%s Failed to update available currencies.\n", p.GetName())
+			log.Printf("%s Failed to update available currencies.\n", h.GetName())
 		}
 	}
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
-func (p *HitBTC) UpdateTicker(currencyPair pair.CurrencyPair, assetType string) (ticker.Price, error) {
-	tick, err := p.GetTicker("")
+func (h *HitBTC) UpdateTicker(currencyPair pair.CurrencyPair, assetType string) (ticker.Price, error) {
+	tick, err := h.GetTicker("")
 	if err != nil {
 		return ticker.Price{}, err
 	}
 
-	for _, x := range p.GetEnabledCurrencies() {
+	for _, x := range h.GetEnabledCurrencies() {
 		var tp ticker.Price
-		curr := exchange.FormatExchangeCurrency(p.GetName(), x).String()
+		curr := exchange.FormatExchangeCurrency(h.GetName(), x).String()
 		tp.Pair = x
 		tp.Ask = tick[curr].Ask
 		tp.Bid = tick[curr].Bid
@@ -74,33 +74,33 @@ func (p *HitBTC) UpdateTicker(currencyPair pair.CurrencyPair, assetType string) 
 		tp.Last = tick[curr].Last
 		tp.Low = tick[curr].Low
 		tp.Volume = tick[curr].Volume
-		ticker.ProcessTicker(p.GetName(), x, tp, assetType)
+		ticker.ProcessTicker(h.GetName(), x, tp, assetType)
 	}
-	return ticker.GetTicker(p.Name, currencyPair, assetType)
+	return ticker.GetTicker(h.Name, currencyPair, assetType)
 }
 
 // GetTickerPrice returns the ticker for a currency pair
-func (p *HitBTC) GetTickerPrice(currencyPair pair.CurrencyPair, assetType string) (ticker.Price, error) {
-	tickerNew, err := ticker.GetTicker(p.GetName(), currencyPair, assetType)
+func (h *HitBTC) GetTickerPrice(currencyPair pair.CurrencyPair, assetType string) (ticker.Price, error) {
+	tickerNew, err := ticker.GetTicker(h.GetName(), currencyPair, assetType)
 	if err != nil {
-		return p.UpdateTicker(currencyPair, assetType)
+		return h.UpdateTicker(currencyPair, assetType)
 	}
 	return tickerNew, nil
 }
 
 // GetOrderbookEx returns orderbook base on the currency pair
-func (p *HitBTC) GetOrderbookEx(currencyPair pair.CurrencyPair, assetType string) (orderbook.Base, error) {
-	ob, err := orderbook.GetOrderbook(p.GetName(), currencyPair, assetType)
+func (h *HitBTC) GetOrderbookEx(currencyPair pair.CurrencyPair, assetType string) (orderbook.Base, error) {
+	ob, err := orderbook.GetOrderbook(h.GetName(), currencyPair, assetType)
 	if err != nil {
-		return p.UpdateOrderbook(currencyPair, assetType)
+		return h.UpdateOrderbook(currencyPair, assetType)
 	}
 	return ob, nil
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (p *HitBTC) UpdateOrderbook(currencyPair pair.CurrencyPair, assetType string) (orderbook.Base, error) {
+func (h *HitBTC) UpdateOrderbook(currencyPair pair.CurrencyPair, assetType string) (orderbook.Base, error) {
 	var orderBook orderbook.Base
-	orderbookNew, err := p.GetOrderbook(exchange.FormatExchangeCurrency(p.GetName(), currencyPair).String(), 1000)
+	orderbookNew, err := h.GetOrderbook(exchange.FormatExchangeCurrency(h.GetName(), currencyPair).String(), 1000)
 	if err != nil {
 		return orderBook, err
 	}
@@ -115,16 +115,16 @@ func (p *HitBTC) UpdateOrderbook(currencyPair pair.CurrencyPair, assetType strin
 		orderBook.Asks = append(orderBook.Asks, orderbook.Item{Amount: data.Amount, Price: data.Price})
 	}
 
-	orderbook.ProcessOrderbook(p.GetName(), currencyPair, orderBook, assetType)
-	return orderbook.GetOrderbook(p.Name, currencyPair, assetType)
+	orderbook.ProcessOrderbook(h.GetName(), currencyPair, orderBook, assetType)
+	return orderbook.GetOrderbook(h.Name, currencyPair, assetType)
 }
 
 // GetExchangeAccountInfo retrieves balances for all enabled currencies for the
 // HitBTC exchange
-func (p *HitBTC) GetExchangeAccountInfo() (exchange.AccountInfo, error) {
+func (h *HitBTC) GetExchangeAccountInfo() (exchange.AccountInfo, error) {
 	var response exchange.AccountInfo
-	response.ExchangeName = p.GetName()
-	accountBalance, err := p.GetBalances()
+	response.ExchangeName = h.GetName()
+	accountBalance, err := h.GetBalances()
 	if err != nil {
 		return response, err
 	}
