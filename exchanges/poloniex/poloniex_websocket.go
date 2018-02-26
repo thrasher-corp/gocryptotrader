@@ -8,27 +8,15 @@ import (
 )
 
 const (
-	POLONIEX_WEBSOCKET_ADDRESS  = "wss://api.poloniex.com"
-	POLONIEX_WEBSOCKET_REALM    = "realm1"
-	POLONIEX_WEBSOCKET_TICKER   = "ticker"
-	POLONIEX_WEBSOCKET_TROLLBOX = "trollbox"
+	poloniexWebsocketAddress  = "wss://api.poloniex.com"
+	poloniexWebsocketRealm    = "realm1"
+	poloniexWebsocketTicker   = "ticker"
+	poloniexWebsocketTrollbox = "trollbox"
 )
 
-type PoloniexWebsocketTicker struct {
-	CurrencyPair  string
-	Last          float64
-	LowestAsk     float64
-	HighestBid    float64
-	PercentChange float64
-	BaseVolume    float64
-	QuoteVolume   float64
-	IsFrozen      bool
-	High          float64
-	Low           float64
-}
-
-func PoloniexOnTicker(args []interface{}, kwargs map[string]interface{}) {
-	ticker := PoloniexWebsocketTicker{}
+// OnTicker converts ticker data to a websocketTicker
+func OnTicker(args []interface{}, kwargs map[string]interface{}) {
+	ticker := WebsocketTicker{}
 	ticker.CurrencyPair = args[0].(string)
 	ticker.Last, _ = strconv.ParseFloat(args[1].(string), 64)
 	ticker.LowestAsk, _ = strconv.ParseFloat(args[2].(string), 64)
@@ -47,15 +35,9 @@ func PoloniexOnTicker(args []interface{}, kwargs map[string]interface{}) {
 	ticker.Low, _ = strconv.ParseFloat(args[9].(string), 64)
 }
 
-type PoloniexWebsocketTrollboxMessage struct {
-	MessageNumber float64
-	Username      string
-	Message       string
-	Reputation    float64
-}
-
-func PoloniexOnTrollbox(args []interface{}, kwargs map[string]interface{}) {
-	message := PoloniexWebsocketTrollboxMessage{}
+// OnTrollbox handles trollbox messages
+func OnTrollbox(args []interface{}, kwargs map[string]interface{}) {
+	message := WebsocketTrollboxMessage{}
 	message.MessageNumber, _ = args[1].(float64)
 	message.Username = args[2].(string)
 	message.Message = args[3].(string)
@@ -64,7 +46,8 @@ func PoloniexOnTrollbox(args []interface{}, kwargs map[string]interface{}) {
 	}
 }
 
-func PoloniexOnDepthOrTrade(args []interface{}, kwargs map[string]interface{}) {
+// OnDepthOrTrade handles orderbook depth and trade events
+func OnDepthOrTrade(args []interface{}, kwargs map[string]interface{}) {
 	for x := range args {
 		data := args[x].(map[string]interface{})
 		msgData := data["data"].(map[string]interface{})
@@ -133,9 +116,10 @@ func PoloniexOnDepthOrTrade(args []interface{}, kwargs map[string]interface{}) {
 	}
 }
 
+// WebsocketClient creates a new websocket client
 func (p *Poloniex) WebsocketClient() {
 	for p.Enabled && p.Websocket {
-		c, err := turnpike.NewWebsocketClient(turnpike.JSON, POLONIEX_WEBSOCKET_ADDRESS, nil)
+		c, err := turnpike.NewWebsocketClient(turnpike.JSON, poloniexWebsocketAddress, nil)
 		if err != nil {
 			log.Printf("%s Unable to connect to Websocket. Error: %s\n", p.GetName(), err)
 			continue
@@ -145,7 +129,7 @@ func (p *Poloniex) WebsocketClient() {
 			log.Printf("%s Connected to Websocket.\n", p.GetName())
 		}
 
-		_, err = c.JoinRealm(POLONIEX_WEBSOCKET_REALM, nil)
+		_, err = c.JoinRealm(poloniexWebsocketRealm, nil)
 		if err != nil {
 			log.Printf("%s Unable to join realm. Error: %s\n", p.GetName(), err)
 			continue
@@ -157,17 +141,17 @@ func (p *Poloniex) WebsocketClient() {
 
 		c.ReceiveDone = make(chan bool)
 
-		if err := c.Subscribe(POLONIEX_WEBSOCKET_TICKER, PoloniexOnTicker); err != nil {
+		if err := c.Subscribe(poloniexWebsocketTicker, OnTicker); err != nil {
 			log.Printf("%s Error subscribing to ticker channel: %s\n", p.GetName(), err)
 		}
 
-		if err := c.Subscribe(POLONIEX_WEBSOCKET_TROLLBOX, PoloniexOnTrollbox); err != nil {
+		if err := c.Subscribe(poloniexWebsocketTrollbox, OnTrollbox); err != nil {
 			log.Printf("%s Error subscribing to trollbox channel: %s\n", p.GetName(), err)
 		}
 
 		for x := range p.EnabledPairs {
 			currency := p.EnabledPairs[x]
-			if err := c.Subscribe(currency, PoloniexOnDepthOrTrade); err != nil {
+			if err := c.Subscribe(currency, OnDepthOrTrade); err != nil {
 				log.Printf("%s Error subscribing to %s channel: %s\n", p.GetName(), currency, err)
 			}
 		}
