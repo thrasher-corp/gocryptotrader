@@ -31,7 +31,6 @@ func TestSetup(t *testing.T) {
 }
 
 func TestGetFee(t *testing.T) {
-	t.Parallel()
 	if g.GetFee(false) == 0 {
 		t.Error("Test failed - GetFee() error")
 	}
@@ -41,7 +40,6 @@ func TestGetFee(t *testing.T) {
 }
 
 func TestGetProducts(t *testing.T) {
-	t.Parallel()
 	_, err := g.GetProducts()
 	if err != nil {
 		t.Error("Test failed - GetProducts() error")
@@ -49,7 +47,6 @@ func TestGetProducts(t *testing.T) {
 }
 
 func TestGetTicker(t *testing.T) {
-	t.Parallel()
 	_, err := g.GetTicker("BTC-USD")
 	if err != nil {
 		t.Error("Test failed - GetTicker() error", err)
@@ -57,7 +54,6 @@ func TestGetTicker(t *testing.T) {
 }
 
 func TestGetTrades(t *testing.T) {
-	t.Parallel()
 	_, err := g.GetTrades("BTC-USD")
 	if err != nil {
 		t.Error("Test failed - GetTrades() error", err)
@@ -65,7 +61,6 @@ func TestGetTrades(t *testing.T) {
 }
 
 func TestGetHistoricRates(t *testing.T) {
-	t.Parallel()
 	_, err := g.GetHistoricRates("BTC-USD", 0, 0, 0)
 	if err != nil {
 		t.Error("Test failed - GetHistoricRates() error", err)
@@ -73,7 +68,6 @@ func TestGetHistoricRates(t *testing.T) {
 }
 
 func TestGetStats(t *testing.T) {
-	t.Parallel()
 	_, err := g.GetStats("BTC-USD")
 	if err != nil {
 		t.Error("Test failed - GetStats() error", err)
@@ -81,7 +75,6 @@ func TestGetStats(t *testing.T) {
 }
 
 func TestGetCurrencies(t *testing.T) {
-	t.Parallel()
 	_, err := g.GetCurrencies()
 	if err != nil {
 		t.Error("Test failed - GetCurrencies() error", err)
@@ -89,7 +82,6 @@ func TestGetCurrencies(t *testing.T) {
 }
 
 func TestGetServerTime(t *testing.T) {
-	t.Parallel()
 	_, err := g.GetServerTime()
 	if err != nil {
 		t.Error("Test failed - GetServerTime() error", err)
