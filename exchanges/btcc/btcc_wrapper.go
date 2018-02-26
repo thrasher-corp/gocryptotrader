@@ -1,6 +1,7 @@
 package btcc
 
 import (
+	"errors"
 	"log"
 
 	"github.com/thrasher-/gocryptotrader/common"
@@ -125,4 +126,11 @@ func (b *BTCC) GetExchangeAccountInfo() (exchange.AccountInfo, error) {
 	var response exchange.AccountInfo
 	response.ExchangeName = b.GetName()
 	return response, nil
+}
+
+// GetExchangeHistory returns historic trade data since exchange opening.
+func (b *BTCC) GetExchangeHistory(p pair.CurrencyPair, assetType string) ([]exchange.TradeHistory, error) {
+	var resp []exchange.TradeHistory
+
+	return resp, errors.New("trade history not yet implemented")
 }

@@ -176,7 +176,7 @@ func (h *HUOBI) GetTrades(symbol string) ([]Trade, error) {
 
 	type response struct {
 		Response
-		tick struct {
+		Tick struct {
 			Data []Trade `json:"data"`
 		} `json:"tick"`
 	}
@@ -188,7 +188,7 @@ func (h *HUOBI) GetTrades(symbol string) ([]Trade, error) {
 	if result.ErrorMessage != "" {
 		return nil, errors.New(result.ErrorMessage)
 	}
-	return result.tick.Data, err
+	return result.Tick.Data, err
 }
 
 // GetTradeHistory returns the trades for the specified symbol
@@ -222,7 +222,7 @@ func (h *HUOBI) GetMarketDetail(symbol string) (Detail, error) {
 
 	type response struct {
 		Response
-		tick Detail `json:"tick"`
+		Tick Detail `json:"tick"`
 	}
 
 	var result response
@@ -230,9 +230,9 @@ func (h *HUOBI) GetMarketDetail(symbol string) (Detail, error) {
 	err := common.SendHTTPGetRequest(common.EncodeURLValues(url, vals), true, h.Verbose, &result)
 
 	if result.ErrorMessage != "" {
-		return result.tick, errors.New(result.ErrorMessage)
+		return result.Tick, errors.New(result.ErrorMessage)
 	}
-	return result.tick, err
+	return result.Tick, err
 }
 
 // GetSymbols returns an array of symbols supported by Huobi

@@ -132,3 +132,10 @@ func (b *Bitflyer) GetExchangeAccountInfo() (exchange.AccountInfo, error) {
 
 	return response, nil
 }
+
+// GetExchangeHistory returns historic trade data since exchange opening.
+func (b *Bitflyer) GetExchangeHistory(p pair.CurrencyPair, assetType string) ([]exchange.TradeHistory, error) {
+	var resp []exchange.TradeHistory
+
+	return resp, errors.New("trade history not yet implemented")
+}

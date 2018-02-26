@@ -1,6 +1,7 @@
 package kraken
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"net/url"
@@ -177,4 +178,11 @@ func (k *Kraken) GetExchangeAccountInfo() (exchange.AccountInfo, error) {
 	var response exchange.AccountInfo
 	response.ExchangeName = k.GetName()
 	return response, nil
+}
+
+// GetExchangeHistory returns historic trade data since exchange opening.
+func (k *Kraken) GetExchangeHistory(p pair.CurrencyPair, assetType string) ([]exchange.TradeHistory, error) {
+	var resp []exchange.TradeHistory
+
+	return resp, errors.New("trade history not yet implemented")
 }

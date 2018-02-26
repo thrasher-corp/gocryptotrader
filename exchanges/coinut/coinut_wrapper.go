@@ -1,6 +1,7 @@
 package coinut
 
 import (
+	"errors"
 	"log"
 
 	"github.com/thrasher-/gocryptotrader/common"
@@ -18,7 +19,7 @@ func (c *COINUT) Start() {
 // Run implements the COINUT wrapper
 func (c *COINUT) Run() {
 	if c.Verbose {
-		log.Printf("%s Websocket: %s. (url: %s).\n", c.GetName(), common.IsEnabled(c.Websocket), COINUT_WEBSOCKET_URL)
+		log.Printf("%s Websocket: %s. (url: %s).\n", c.GetName(), common.IsEnabled(c.Websocket), coinutWebsocketURL)
 		log.Printf("%s polling delay: %ds.\n", c.GetName(), c.RESTPollingDelay)
 		log.Printf("%s %d currencies enabled: %s.\n", c.GetName(), len(c.EnabledPairs), c.EnabledPairs)
 	}
@@ -122,4 +123,11 @@ func (c *COINUT) UpdateOrderbook(p pair.CurrencyPair, assetType string) (orderbo
 
 	orderbook.ProcessOrderbook(c.GetName(), p, orderBook, assetType)
 	return orderbook.GetOrderbook(c.Name, p, assetType)
+}
+
+// GetExchangeHistory returns historic trade data since exchange opening.
+func (c *COINUT) GetExchangeHistory(p pair.CurrencyPair, assetType string) ([]exchange.TradeHistory, error) {
+	var resp []exchange.TradeHistory
+
+	return resp, errors.New("trade history not yet implemented")
 }

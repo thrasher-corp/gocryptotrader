@@ -1,6 +1,7 @@
 package bittrex
 
 import (
+	"errors"
 	"log"
 
 	"github.com/thrasher-/gocryptotrader/common"
@@ -146,4 +147,11 @@ func (b *Bittrex) UpdateOrderbook(p pair.CurrencyPair, assetType string) (orderb
 
 	orderbook.ProcessOrderbook(b.GetName(), p, orderBook, assetType)
 	return orderbook.GetOrderbook(b.Name, p, assetType)
+}
+
+// GetExchangeHistory returns historic trade data since exchange opening.
+func (b *Bittrex) GetExchangeHistory(p pair.CurrencyPair, assetType string) ([]exchange.TradeHistory, error) {
+	var resp []exchange.TradeHistory
+
+	return resp, errors.New("trade history not yet implemented")
 }

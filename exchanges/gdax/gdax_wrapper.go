@@ -1,6 +1,7 @@
 package gdax
 
 import (
+	"errors"
 	"log"
 
 	"github.com/thrasher-/gocryptotrader/common"
@@ -18,7 +19,7 @@ func (g *GDAX) Start() {
 // Run implements the GDAX wrapper
 func (g *GDAX) Run() {
 	if g.Verbose {
-		log.Printf("%s Websocket: %s. (url: %s).\n", g.GetName(), common.IsEnabled(g.Websocket), GDAX_WEBSOCKET_URL)
+		log.Printf("%s Websocket: %s. (url: %s).\n", g.GetName(), common.IsEnabled(g.Websocket), gdaxWebsocketURL)
 		log.Printf("%s polling delay: %ds.\n", g.GetName(), g.RESTPollingDelay)
 		log.Printf("%s %d currencies enabled: %s.\n", g.GetName(), len(g.EnabledPairs), g.EnabledPairs)
 	}
@@ -125,4 +126,11 @@ func (g *GDAX) UpdateOrderbook(p pair.CurrencyPair, assetType string) (orderbook
 
 	orderbook.ProcessOrderbook(g.GetName(), p, orderBook, assetType)
 	return orderbook.GetOrderbook(g.Name, p, assetType)
+}
+
+// GetExchangeHistory returns historic trade data since exchange opening.
+func (g *GDAX) GetExchangeHistory(p pair.CurrencyPair, assetType string) ([]exchange.TradeHistory, error) {
+	var resp []exchange.TradeHistory
+
+	return resp, errors.New("trade history not yet implemented")
 }

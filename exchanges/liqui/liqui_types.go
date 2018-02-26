@@ -4,6 +4,8 @@ package liqui
 type Info struct {
 	ServerTime int64               `json:"server_time"`
 	Pairs      map[string]PairData `json:"pairs"`
+	Success    int                 `json:"success"`
+	Error      string              `json:"error"`
 }
 
 // PairData is a sub-type for Info
@@ -18,15 +20,15 @@ type PairData struct {
 
 // Ticker contains ticker information
 type Ticker struct {
-	High    float64
-	Low     float64
-	Avg     float64
-	Vol     float64
-	Vol_cur float64
-	Last    float64
-	Buy     float64
-	Sell    float64
-	Updated int64
+	High           float64
+	Low            float64
+	Avg            float64
+	Vol            float64
+	VolumeCurrency float64
+	Last           float64
+	Buy            float64
+	Sell           float64
+	Updated        int64
 }
 
 // Orderbook references both ask and bid sides
@@ -55,6 +57,8 @@ type AccountInfo struct {
 	ServerTime       float64 `json:"server_time"`
 	TransactionCount int     `json:"transaction_count"`
 	OpenOrders       int     `json:"open_orders"`
+	Success          int     `json:"success"`
+	Error            string  `json:"error"`
 }
 
 // ActiveOrders holds active order information
@@ -65,6 +69,8 @@ type ActiveOrders struct {
 	Rate             float64 `json:"rate"`
 	TimestampCreated float64 `json:"time_created"`
 	Status           int     `json:"status"`
+	Success          int     `json:"success"`
+	Error            string  `json:"error"`
 }
 
 // OrderInfo holds specific order information
@@ -76,12 +82,16 @@ type OrderInfo struct {
 	Rate             float64 `json:"rate"`
 	TimestampCreated float64 `json:"time_created"`
 	Status           int     `json:"status"`
+	Success          int     `json:"success"`
+	Error            string  `json:"error"`
 }
 
 // CancelOrder holds cancelled order information
 type CancelOrder struct {
 	OrderID float64            `json:"order_id"`
 	Funds   map[string]float64 `json:"funds"`
+	Success int                `json:"success"`
+	Error   string             `json:"error"`
 }
 
 // Trade holds trading information
@@ -90,6 +100,8 @@ type Trade struct {
 	Remains  float64            `json:"remains"`
 	OrderID  float64            `json:"order_id"`
 	Funds    map[string]float64 `json:"funds"`
+	Success  int                `json:"success"`
+	Error    string             `json:"error"`
 }
 
 // TradeHistory contains trade history data
@@ -101,6 +113,8 @@ type TradeHistory struct {
 	OrderID   float64 `json:"order_id"`
 	MyOrder   int     `json:"is_your_order"`
 	Timestamp float64 `json:"timestamp"`
+	Success   int     `json:"success"`
+	Error     string  `json:"error"`
 }
 
 // Response is a generalized return type
@@ -115,4 +129,6 @@ type WithdrawCoins struct {
 	TID        int64              `json:"tId"`
 	AmountSent float64            `json:"amountSent"`
 	Funds      map[string]float64 `json:"funds"`
+	Success    int                `json:"success"`
+	Error      string             `json:"error"`
 }

@@ -146,3 +146,10 @@ func (o *OKEX) GetExchangeAccountInfo() (exchange.AccountInfo, error) {
 	var response exchange.AccountInfo
 	return response, errors.New("not implemented")
 }
+
+// GetExchangeHistory returns historic trade data since exchange opening.
+func (o *OKEX) GetExchangeHistory(p pair.CurrencyPair, assetType string) ([]exchange.TradeHistory, error) {
+	var resp []exchange.TradeHistory
+
+	return resp, errors.New("trade history not yet implemented")
+}
