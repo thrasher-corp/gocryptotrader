@@ -29,7 +29,7 @@ func GetAllAvailablePairs(enabledExchangesOnly bool) []pair.CurrencyPair {
 		}
 
 		for y := range pairs {
-			if pair.Contains(pairList, pairs[y]) {
+			if pair.Contains(pairList, pairs[y], false) {
 				continue
 			}
 			pairList = append(pairList, pairs[y])
@@ -46,8 +46,8 @@ func GetSpecificAvailablePairs(enabledExchangesOnly, fiatPairs, includeUSDT, cry
 
 	for x := range supportedPairs {
 		if fiatPairs {
-			if currency.IsCryptoFiatPair(supportedPairs[x]) || currency.IsFiatPair(supportedPairs[x]) || (includeUSDT && pair.ContainsCurrency(supportedPairs[x], "USDT")) {
-				if pair.Contains(pairList, supportedPairs[x]) {
+			if currency.IsCryptoFiatPair(supportedPairs[x]) && !pair.ContainsCurrency(supportedPairs[x], "USDT") || (includeUSDT && pair.ContainsCurrency(supportedPairs[x], "USDT") && currency.IsCryptoPair(supportedPairs[x])) {
+				if pair.Contains(pairList, supportedPairs[x], false) {
 					continue
 				}
 				pairList = append(pairList, supportedPairs[x])
@@ -55,7 +55,7 @@ func GetSpecificAvailablePairs(enabledExchangesOnly, fiatPairs, includeUSDT, cry
 		}
 		if cryptoPairs {
 			if currency.IsCryptoPair(supportedPairs[x]) {
-				if pair.Contains(pairList, supportedPairs[x]) {
+				if pair.Contains(pairList, supportedPairs[x], false) {
 					continue
 				}
 				pairList = append(pairList, supportedPairs[x])
@@ -66,18 +66,20 @@ func GetSpecificAvailablePairs(enabledExchangesOnly, fiatPairs, includeUSDT, cry
 }
 
 // IsRelatablePairs checks to see if the two pairs are relatable
-func IsRelatablePairs(p1, p2 pair.CurrencyPair) bool {
-	if currency.IsCryptoPair(p1) && currency.IsCryptoPair(p2) {
-		relatablePairs := GetRelatableCurrencies(p1, false)
-		return pair.Contains(relatablePairs, p2)
+func IsRelatablePairs(p1, p2 pair.CurrencyPair, includeUSDT bool) bool {
+	if p1.Equal(p2, false) {
+		return true
 	}
 
-	if currency.IsCryptoFiatPair(p1) && currency.IsCryptoFiatPair(p2) {
-		relatablePairs := GetRelatableFiatCurrencies(p1)
-		relatablePairs = append(relatablePairs, GetRelatableCurrencies(p1, false)...)
-		return pair.Contains(relatablePairs, p2)
+	var relatablePairs []pair.CurrencyPair
+	relatablePairs = GetRelatableCurrencies(p1, true, includeUSDT)
+
+	if currency.IsCryptoFiatPair(p1) {
+		for x := range relatablePairs {
+			relatablePairs = append(relatablePairs, GetRelatableFiatCurrencies(relatablePairs[x])...)
+		}
 	}
-	return false
+	return pair.Contains(relatablePairs, p2, false)
 }
 
 // MapCurrenciesByExchange returns a list of currency pairs mapped to an
@@ -101,7 +103,7 @@ func MapCurrenciesByExchange(p []pair.CurrencyPair, enabledExchangesOnly bool) m
 				pairs = append(pairs, p[x])
 				currencyExchange[exchName] = pairs
 			} else {
-				if pair.Contains(result, p[x]) {
+				if pair.Contains(result, p[x], false) {
 					continue
 				}
 				result = append(result, p[x])
@@ -143,7 +145,7 @@ func GetRelatableCryptocurrencies(p pair.CurrencyPair) []pair.CurrencyPair {
 
 	for x := range cryptocurrencies {
 		newPair := pair.NewCurrencyPair(p.FirstCurrency.String(), cryptocurrencies[x])
-		if pair.Contains(pairs, newPair) {
+		if pair.Contains(pairs, newPair, false) {
 			continue
 		}
 		pairs = append(pairs, newPair)
@@ -160,7 +162,7 @@ func GetRelatableFiatCurrencies(p pair.CurrencyPair) []pair.CurrencyPair {
 
 	for x := range fiatCurrencies {
 		newPair := pair.NewCurrencyPair(p.FirstCurrency.String(), fiatCurrencies[x])
-		if pair.Contains(pairs, newPair) {
+		if pair.Contains(pairs, newPair, false) {
 			continue
 		}
 		pairs = append(pairs, newPair)
@@ -171,29 +173,47 @@ func GetRelatableFiatCurrencies(p pair.CurrencyPair) []pair.CurrencyPair {
 // GetRelatableCurrencies returns a list of currency pairs if it can find
 // any relatable currencies (e.g BTCUSD -> BTC USDT -> XBT USDT -> XBT USD)
 // incOrig includes the supplied pair if desired
-func GetRelatableCurrencies(p pair.CurrencyPair, incOrig bool) []pair.CurrencyPair {
+func GetRelatableCurrencies(p pair.CurrencyPair, incOrig, incUSDT bool) []pair.CurrencyPair {
 	var pairs []pair.CurrencyPair
-	if incOrig {
+
+	addPair := func(p pair.CurrencyPair) {
+		if pair.Contains(pairs, p, true) {
+			return
+		}
 		pairs = append(pairs, p)
 	}
 
-	first, err := translation.GetTranslation(p.FirstCurrency)
-	if err == nil {
-		pairs = append(pairs, pair.NewCurrencyPair(first.String(),
-			p.SecondCurrency.String()))
+	buildPairs := func(p pair.CurrencyPair, incOrig bool) {
+		if incOrig {
+			addPair(p)
+		}
+
+		first, err := translation.GetTranslation(p.FirstCurrency)
+		if err == nil {
+			addPair(pair.NewCurrencyPair(first.String(),
+				p.SecondCurrency.String()))
+
+			second, err := translation.GetTranslation(p.SecondCurrency)
+			if err == nil {
+				addPair(pair.NewCurrencyPair(first.String(),
+					second.String()))
+			}
+		}
 
 		second, err := translation.GetTranslation(p.SecondCurrency)
 		if err == nil {
-			pairs = append(pairs, pair.NewCurrencyPair(first.String(),
+			addPair(pair.NewCurrencyPair(p.FirstCurrency.String(),
 				second.String()))
 		}
 	}
 
-	second, err := translation.GetTranslation(p.SecondCurrency)
-	if err == nil {
-		pairs = append(pairs, pair.NewCurrencyPair(p.FirstCurrency.String(),
-			second.String()))
+	buildPairs(p, incOrig)
+	buildPairs(p.Swap(), incOrig)
+
+	if !incUSDT {
+		pairs = pair.RemovePairsByFilter(pairs, "USDT")
 	}
+
 	return pairs
 }
 
@@ -274,7 +294,7 @@ func GetAccountCurrencyInfoByExchangeName(accounts []exchange.AccountInfo, excha
 // price for a given currency pair and asset type
 func GetExchangeHighestPriceByCurrencyPair(p pair.CurrencyPair, assetType string) (string, error) {
 	result := stats.SortExchangesByPrice(p, assetType, true)
-	if len(result) != 1 {
+	if len(result) == 0 {
 		return "", fmt.Errorf("no stats for supplied currency pair and asset type")
 	}
 
@@ -285,7 +305,7 @@ func GetExchangeHighestPriceByCurrencyPair(p pair.CurrencyPair, assetType string
 // price for a given currency pair and asset type
 func GetExchangeLowestPriceByCurrencyPair(p pair.CurrencyPair, assetType string) (string, error) {
 	result := stats.SortExchangesByPrice(p, assetType, false)
-	if len(result) != 1 {
+	if len(result) == 0 {
 		return "", fmt.Errorf("no stats for supplied currency pair and asset type")
 	}
 
