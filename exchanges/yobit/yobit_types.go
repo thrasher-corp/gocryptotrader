@@ -111,14 +111,14 @@ type TradeHistory struct {
 	Timestamp float64 `json:"timestamp"`
 }
 
-// CoinDepositAddress stores a curency deposit address
+// DepositAddress stores a curency deposit address
 type DepositAddress struct {
 	Address         string  `json:"address"`
 	ProcessedAmount float64 `json:"processed_amount"`
 	ServerTime      int64   `json:"server_time"`
 }
 
-// WithdrawCoins stores information for a withdrawcoins request
+// WithdrawCoinsToAddress stores information for a withdrawcoins request
 type WithdrawCoinsToAddress struct {
 	ServerTime int64 `json:"server_time"`
 }

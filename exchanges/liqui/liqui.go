@@ -84,7 +84,6 @@ func (l *Liqui) Setup(exch config.ExchangeConfig) {
 
 // GetFee returns a fee for a specific currency
 func (l *Liqui) GetFee(currency string) (float64, error) {
-	log.Println(l.Info.Pairs)
 	val, ok := l.Info.Pairs[common.StringToLower(currency)]
 	if !ok {
 		return 0, errors.New("currency does not exist")
@@ -124,10 +123,12 @@ func (l *Liqui) GetInfo() (Info, error) {
 // currencyPair - example "eth_btc"
 func (l *Liqui) GetTicker(currencyPair string) (map[string]Ticker, error) {
 	type Response struct {
-		Data map[string]Ticker
+		Data    map[string]Ticker
+		Success int    `json:"success"`
+		Error   string `json:"error"`
 	}
 
-	response := Response{}
+	response := Response{Data: make(map[string]Ticker)}
 	req := fmt.Sprintf("%s/%s/%s/%s", liquiAPIPublicURL, liquiAPIPublicVersion, liquiTicker, currencyPair)
 
 	return response.Data,
@@ -139,10 +140,12 @@ func (l *Liqui) GetTicker(currencyPair string) (map[string]Ticker, error) {
 // displayed (150 by default). Is set to less than 2000.
 func (l *Liqui) GetDepth(currencyPair string) (Orderbook, error) {
 	type Response struct {
-		Data map[string]Orderbook
+		Data    map[string]Orderbook
+		Success int    `json:"success"`
+		Error   string `json:"error"`
 	}
 
-	response := Response{}
+	response := Response{Data: make(map[string]Orderbook)}
 	req := fmt.Sprintf("%s/%s/%s/%s", liquiAPIPublicURL, liquiAPIPublicVersion, liquiDepth, currencyPair)
 
 	return response.Data[currencyPair],
@@ -154,10 +157,12 @@ func (l *Liqui) GetDepth(currencyPair string) (Orderbook, error) {
 // displayed (150 by default). The maximum allowable value is 2000.
 func (l *Liqui) GetTrades(currencyPair string) ([]Trades, error) {
 	type Response struct {
-		Data map[string][]Trades
+		Data    map[string][]Trades
+		Success int    `json:"success"`
+		Error   string `json:"error"`
 	}
 
-	response := Response{}
+	response := Response{Data: make(map[string][]Trades)}
 	req := fmt.Sprintf("%s/%s/%s/%s", liquiAPIPublicURL, liquiAPIPublicVersion, liquiTrades, currencyPair)
 
 	return response.Data[currencyPair],
@@ -190,19 +195,21 @@ func (l *Liqui) Trade(pair, orderType string, amount, price float64) (float64, e
 
 // GetActiveOrders returns the list of your active orders.
 func (l *Liqui) GetActiveOrders(pair string) (map[string]ActiveOrders, error) {
+	result := make(map[string]ActiveOrders)
+
 	req := url.Values{}
 	req.Add("pair", pair)
 
-	var result map[string]ActiveOrders
 	return result, l.SendAuthenticatedHTTPRequest(liquiActiveOrders, req, &result)
 }
 
 // GetOrderInfo returns the information on particular order.
 func (l *Liqui) GetOrderInfo(OrderID int64) (map[string]OrderInfo, error) {
+	result := make(map[string]OrderInfo)
+
 	req := url.Values{}
 	req.Add("order_id", strconv.FormatInt(OrderID, 10))
 
-	var result map[string]OrderInfo
 	return result, l.SendAuthenticatedHTTPRequest(liquiOrderInfo, req, &result)
 }
 
@@ -223,11 +230,12 @@ func (l *Liqui) CancelOrder(OrderID int64) (bool, error) {
 
 // GetTradeHistory returns trade history
 func (l *Liqui) GetTradeHistory(vals url.Values, pair string) (map[string]TradeHistory, error) {
+	result := make(map[string]TradeHistory)
+
 	if pair != "" {
 		vals.Add("pair", pair)
 	}
 
-	var result map[string]TradeHistory
 	return result, l.SendAuthenticatedHTTPRequest(liquiTradeHistory, vals, &result)
 }
 

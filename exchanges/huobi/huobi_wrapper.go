@@ -1,6 +1,7 @@
 package huobi
 
 import (
+	"errors"
 	"log"
 
 	"github.com/thrasher-/gocryptotrader/common"
@@ -19,7 +20,7 @@ func (h *HUOBI) Start() {
 // Run implements the HUOBI wrapper
 func (h *HUOBI) Run() {
 	if h.Verbose {
-		log.Printf("%s Websocket: %s (url: %s).\n", h.GetName(), common.IsEnabled(h.Websocket), HUOBI_SOCKETIO_ADDRESS)
+		log.Printf("%s Websocket: %s (url: %s).\n", h.GetName(), common.IsEnabled(h.Websocket), huobiSocketIOAddress)
 		log.Printf("%s polling delay: %ds.\n", h.GetName(), h.RESTPollingDelay)
 		log.Printf("%s %d currencies enabled: %s.\n", h.GetName(), len(h.EnabledPairs), h.EnabledPairs)
 	}
@@ -39,17 +40,17 @@ func (h *HUOBI) Run() {
 
 		if common.StringDataContains(h.BaseCurrencies, "CNY") {
 			cfg := config.GetConfig()
-			exchCfg, err := cfg.GetExchangeConfig(h.Name)
+			exchCfg, errCNY := cfg.GetExchangeConfig(h.Name)
 			if err != nil {
-				log.Printf("%s failed to get exchange config. %s\n", h.Name, err)
+				log.Printf("%s failed to get exchange config. %s\n", h.Name, errCNY)
 				return
 			}
 			exchCfg.BaseCurrencies = "USD"
 			h.BaseCurrencies = []string{"USD"}
 
-			err = cfg.UpdateExchangeConfig(exchCfg)
-			if err != nil {
-				log.Printf("%s failed to update config. %s\n", h.Name, err)
+			errCNY = cfg.UpdateExchangeConfig(exchCfg)
+			if errCNY != nil {
+				log.Printf("%s failed to update config. %s\n", h.Name, errCNY)
 				return
 			}
 		}
@@ -141,4 +142,11 @@ func (h *HUOBI) GetExchangeAccountInfo() (exchange.AccountInfo, error) {
 	var response exchange.AccountInfo
 	response.ExchangeName = h.GetName()
 	return response, nil
+}
+
+// GetExchangeHistory returns historic trade data since exchange opening.
+func (h *HUOBI) GetExchangeHistory(p pair.CurrencyPair, assetType string) ([]exchange.TradeHistory, error) {
+	var resp []exchange.TradeHistory
+
+	return resp, errors.New("trade history not yet implemented")
 }

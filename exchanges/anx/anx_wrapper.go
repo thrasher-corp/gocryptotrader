@@ -1,6 +1,7 @@
 package anx
 
 import (
+	"errors"
 	"log"
 	"strconv"
 
@@ -133,4 +134,11 @@ func (a *ANX) GetExchangeAccountInfo() (exchange.AccountInfo, error) {
 	var response exchange.AccountInfo
 	response.ExchangeName = a.GetName()
 	return response, nil
+}
+
+// GetExchangeHistory returns historic trade data since exchange opening.
+func (a *ANX) GetExchangeHistory(p pair.CurrencyPair, assetType string) ([]exchange.TradeHistory, error) {
+	var resp []exchange.TradeHistory
+
+	return resp, errors.New("trade history not yet implemented")
 }

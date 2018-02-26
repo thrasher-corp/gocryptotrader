@@ -1,6 +1,8 @@
 package alphapoint
 
 import (
+	"errors"
+
 	"github.com/thrasher-/gocryptotrader/currency/pair"
 	"github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
@@ -85,4 +87,11 @@ func (a *Alphapoint) GetOrderbookEx(p pair.CurrencyPair, assetType string) (orde
 		return a.UpdateOrderbook(p, assetType)
 	}
 	return ob, nil
+}
+
+// GetExchangeHistory returns historic trade data since exchange opening.
+func (a *Alphapoint) GetExchangeHistory(p pair.CurrencyPair, assetType string) ([]exchange.TradeHistory, error) {
+	var resp []exchange.TradeHistory
+
+	return resp, errors.New("trade history not yet implemented")
 }

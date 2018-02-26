@@ -1,6 +1,7 @@
 package gemini
 
 import (
+	"errors"
 	"log"
 	"net/url"
 
@@ -104,4 +105,11 @@ func (g *Gemini) UpdateOrderbook(p pair.CurrencyPair, assetType string) (orderbo
 
 	orderbook.ProcessOrderbook(g.GetName(), p, orderBook, assetType)
 	return orderbook.GetOrderbook(g.Name, p, assetType)
+}
+
+// GetExchangeHistory returns historic trade data since exchange opening.
+func (g *Gemini) GetExchangeHistory(p pair.CurrencyPair, assetType string) ([]exchange.TradeHistory, error) {
+	var resp []exchange.TradeHistory
+
+	return resp, errors.New("trade history not yet implemented")
 }

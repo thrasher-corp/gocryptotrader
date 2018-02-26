@@ -207,7 +207,7 @@ func (y *Yobit) GetTradeHistory(TIDFrom, Count, TIDEnd int64, order, since, end,
 	return result, y.SendAuthenticatedHTTPRequest(privateTradeHistory, req, &result)
 }
 
-// CoinDepositAddress returns the deposit address for a specific currency
+// GetDepositAddress returns the deposit address for a specific currency
 func (y *Yobit) GetDepositAddress(coin string) (DepositAddress, error) {
 	req := url.Values{}
 	req.Add("coinName", coin)
@@ -217,7 +217,7 @@ func (y *Yobit) GetDepositAddress(coin string) (DepositAddress, error) {
 	return result, y.SendAuthenticatedHTTPRequest(privateGetDepositAddress, req, &result)
 }
 
-// CoinDepositAddress returns the deposit address for a specific currency
+// WithdrawCoinsToAddress initiates a withdrawal to a specified address
 func (y *Yobit) WithdrawCoinsToAddress(coin string, amount float64, address string) (WithdrawCoinsToAddress, error) {
 	req := url.Values{}
 	req.Add("coinName", coin)

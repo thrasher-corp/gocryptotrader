@@ -9,9 +9,10 @@ import (
 )
 
 const (
-	GDAX_WEBSOCKET_URL = "wss://ws-feed.gdax.com"
+	gdaxWebsocketURL = "wss://ws-feed.gdax.com"
 )
 
+// WebsocketSubscribe subscribes to a websocket connection
 func (g *GDAX) WebsocketSubscribe(product string, conn *websocket.Conn) error {
 	subscribe := WebsocketSubscribe{"subscribe", product}
 	json, err := common.JSONEncode(subscribe)
@@ -27,10 +28,11 @@ func (g *GDAX) WebsocketSubscribe(product string, conn *websocket.Conn) error {
 	return nil
 }
 
+// WebsocketClient initiates a websocket client
 func (g *GDAX) WebsocketClient() {
 	for g.Enabled && g.Websocket {
 		var Dialer websocket.Dialer
-		conn, _, err := Dialer.Dial(GDAX_WEBSOCKET_URL, http.Header{})
+		conn, _, err := Dialer.Dial(gdaxWebsocketURL, http.Header{})
 
 		if err != nil {
 			log.Printf("%s Unable to connect to Websocket. Error: %s\n", g.GetName(), err)
