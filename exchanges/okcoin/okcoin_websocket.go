@@ -15,23 +15,24 @@ import (
 )
 
 const (
-	OKCOIN_WEBSOCKET_USD_REALTRADES       = "ok_usd_realtrades"
-	OKCOIN_WEBSOCKET_CNY_REALTRADES       = "ok_cny_realtrades"
-	OKCOIN_WEBSOCKET_SPOTUSD_TRADE        = "ok_spotusd_trade"
-	OKCOIN_WEBSOCKET_SPOTCNY_TRADE        = "ok_spotcny_trade"
-	OKCOIN_WEBSOCKET_SPOTUSD_CANCEL_ORDER = "ok_spotusd_cancel_order"
-	OKCOIN_WEBSOCKET_SPOTCNY_CANCEL_ORDER = "ok_spotcny_cancel_order"
-	OKCOIN_WEBSOCKET_SPOTUSD_USERINFO     = "ok_spotusd_userinfo"
-	OKCOIN_WEBSOCKET_SPOTCNY_USERINFO     = "ok_spotcny_userinfo"
-	OKCOIN_WEBSOCKET_SPOTUSD_ORDER_INFO   = "ok_spotusd_order_info"
-	OKCOIN_WEBSOCKET_SPOTCNY_ORDER_INFO   = "ok_spotcny_order_info"
-	OKCOIN_WEBSOCKET_FUTURES_TRADE        = "ok_futuresusd_trade"
-	OKCOIN_WEBSOCKET_FUTURES_CANCEL_ORDER = "ok_futuresusd_cancel_order"
-	OKCOIN_WEBSOCKET_FUTURES_REALTRADES   = "ok_usd_future_realtrades"
-	OKCOIN_WEBSOCKET_FUTURES_USERINFO     = "ok_futureusd_userinfo"
-	OKCOIN_WEBSOCKET_FUTURES_ORDER_INFO   = "ok_futureusd_order_info"
+	okcoinWebsocketUSDRealTrades      = "ok_usd_realtrades"
+	okcoinWebsocketCNYRealTrades      = "ok_cny_realtrades"
+	okcoinWebsocketSpotUSDTrade       = "ok_spotusd_trade"
+	okcoinWebsocketSpotCNYTrade       = "ok_spotcny_trade"
+	okcoinWebsocketSpotUSDCancelOrder = "ok_spotusd_cancel_order"
+	okcoinWebsocketSpotCNYCancelOrder = "ok_spotcny_cancel_order"
+	okcoinWebsocketSpotUSDUserInfo    = "ok_spotusd_userinfo"
+	okcoinWebsocketSpotCNYUserInfo    = "ok_spotcny_userinfo"
+	okcoinWebsocketSpotUSDOrderInfo   = "ok_spotusd_order_info"
+	okcoinWebsocketSpotCNYOrderInfo   = "ok_spotcny_order_info"
+	okcoinWebsocketFuturesTrade       = "ok_futuresusd_trade"
+	okcoinWebsocketFuturesCancelOrder = "ok_futuresusd_cancel_order"
+	okcoinWebsocketFuturesRealTrades  = "ok_usd_future_realtrades"
+	okcoinWebsocketFuturesUserInfo    = "ok_futureusd_userinfo"
+	okcoinWebsocketFuturesOrderInfo   = "ok_futureusd_order_info"
 )
 
+// PingHandler handles the keep alive
 func (o *OKCoin) PingHandler(message string) error {
 	err := o.WebsocketConn.WriteControl(websocket.PingMessage, []byte("{'event':'ping'}"), time.Now().Add(time.Second))
 
@@ -42,8 +43,9 @@ func (o *OKCoin) PingHandler(message string) error {
 	return nil
 }
 
+// AddChannel adds a new channel on the websocket client
 func (o *OKCoin) AddChannel(channel string) {
-	event := OKCoinWebsocketEvent{"addChannel", channel}
+	event := WebsocketEvent{"addChannel", channel}
 	json, err := common.JSONEncode(event)
 	if err != nil {
 		log.Println(err)
@@ -61,8 +63,9 @@ func (o *OKCoin) AddChannel(channel string) {
 	}
 }
 
+// RemoveChannel removes a channel on the websocket client
 func (o *OKCoin) RemoveChannel(channel string) {
-	event := OKCoinWebsocketEvent{"removeChannel", channel}
+	event := WebsocketEvent{"removeChannel", channel}
 	json, err := common.JSONEncode(event)
 	if err != nil {
 		log.Println(err)
@@ -80,23 +83,23 @@ func (o *OKCoin) RemoveChannel(channel string) {
 	}
 }
 
+// WebsocketSpotTrade handles spot trade request on the websocket client
 func (o *OKCoin) WebsocketSpotTrade(symbol, orderType string, price, amount float64) {
 	values := make(map[string]string)
 	values["symbol"] = symbol
 	values["type"] = orderType
 	values["price"] = strconv.FormatFloat(price, 'f', -1, 64)
 	values["amount"] = strconv.FormatFloat(amount, 'f', -1, 64)
-	channel := ""
 
-	if o.WebsocketURL == OKCOIN_WEBSOCKET_URL_CHINA {
-		channel = OKCOIN_WEBSOCKET_SPOTCNY_TRADE
-	} else {
-		channel = OKCOIN_WEBSOCKET_SPOTUSD_TRADE
+	channel := okcoinWebsocketSpotUSDTrade
+	if o.WebsocketURL == okcoinWebsocketURLChina {
+		channel = okcoinWebsocketSpotCNYTrade
 	}
 
 	o.AddChannelAuthenticated(channel, values)
 }
 
+// WebsocketFuturesTrade handles a futures trade on the websocket client
 func (o *OKCoin) WebsocketFuturesTrade(symbol, contractType string, price, amount float64, orderType, matchPrice, leverage int) {
 	values := make(map[string]string)
 	values["symbol"] = symbol
@@ -106,47 +109,48 @@ func (o *OKCoin) WebsocketFuturesTrade(symbol, contractType string, price, amoun
 	values["type"] = strconv.Itoa(orderType)
 	values["match_price"] = strconv.Itoa(matchPrice)
 	values["lever_rate"] = strconv.Itoa(orderType)
-	o.AddChannelAuthenticated(OKCOIN_WEBSOCKET_FUTURES_TRADE, values)
+	o.AddChannelAuthenticated(okcoinWebsocketFuturesTrade, values)
 }
 
+// WebsocketSpotCancel cancels a spot trade on the websocket client
 func (o *OKCoin) WebsocketSpotCancel(symbol string, orderID int64) {
 	values := make(map[string]string)
 	values["symbol"] = symbol
 	values["order_id"] = strconv.FormatInt(orderID, 10)
-	channel := ""
 
-	if o.WebsocketURL == OKCOIN_WEBSOCKET_URL_CHINA {
-		channel = OKCOIN_WEBSOCKET_SPOTCNY_CANCEL_ORDER
-	} else {
-		channel = OKCOIN_WEBSOCKET_SPOTUSD_CANCEL_ORDER
+	channel := okcoinWebsocketSpotUSDCancelOrder
+	if o.WebsocketURL == okcoinWebsocketURLChina {
+		channel = okcoinWebsocketSpotCNYCancelOrder
 	}
 
 	o.AddChannelAuthenticated(channel, values)
 }
 
+// WebsocketFuturesCancel cancels a futures contract on the websocket client
 func (o *OKCoin) WebsocketFuturesCancel(symbol, contractType string, orderID int64) {
 	values := make(map[string]string)
 	values["symbol"] = symbol
 	values["order_id"] = strconv.FormatInt(orderID, 10)
 	values["contract_type"] = contractType
-	o.AddChannelAuthenticated(OKCOIN_WEBSOCKET_FUTURES_CANCEL_ORDER, values)
+	o.AddChannelAuthenticated(okcoinWebsocketFuturesCancelOrder, values)
 }
 
+// WebsocketSpotOrderInfo request information on an order on the websocket
+// client
 func (o *OKCoin) WebsocketSpotOrderInfo(symbol string, orderID int64) {
 	values := make(map[string]string)
 	values["symbol"] = symbol
 	values["order_id"] = strconv.FormatInt(orderID, 10)
-	channel := ""
 
-	if o.WebsocketURL == OKCOIN_WEBSOCKET_URL_CHINA {
-		channel = OKCOIN_WEBSOCKET_SPOTCNY_ORDER_INFO
-	} else {
-		channel = OKCOIN_WEBSOCKET_SPOTUSD_ORDER_INFO
+	channel := okcoinWebsocketSpotUSDOrderInfo
+	if o.WebsocketURL == okcoinWebsocketURLChina {
+		channel = okcoinWebsocketSpotCNYOrderInfo
 	}
 
 	o.AddChannelAuthenticated(channel, values)
 }
 
+// WebsocketFuturesOrderInfo requests futures order info on the websocket client
 func (o *OKCoin) WebsocketFuturesOrderInfo(symbol, contractType string, orderID int64, orderStatus, currentPage, pageLength int) {
 	values := make(map[string]string)
 	values["symbol"] = symbol
@@ -155,9 +159,10 @@ func (o *OKCoin) WebsocketFuturesOrderInfo(symbol, contractType string, orderID 
 	values["status"] = strconv.Itoa(orderStatus)
 	values["current_page"] = strconv.Itoa(currentPage)
 	values["page_length"] = strconv.Itoa(pageLength)
-	o.AddChannelAuthenticated(OKCOIN_WEBSOCKET_FUTURES_ORDER_INFO, values)
+	o.AddChannelAuthenticated(okcoinWebsocketFuturesOrderInfo, values)
 }
 
+// ConvertToURLValues converts values to url.Values
 func (o *OKCoin) ConvertToURLValues(values map[string]string) url.Values {
 	urlVals := url.Values{}
 	for i, x := range values {
@@ -166,15 +171,17 @@ func (o *OKCoin) ConvertToURLValues(values map[string]string) url.Values {
 	return urlVals
 }
 
+// WebsocketSign signs values on the webcoket client
 func (o *OKCoin) WebsocketSign(values map[string]string) string {
 	values["api_key"] = o.APIKey
 	urlVals := o.ConvertToURLValues(values)
 	return strings.ToUpper(common.HexEncodeToString(common.GetMD5([]byte(urlVals.Encode() + "&secret_key=" + o.APISecret))))
 }
 
+// AddChannelAuthenticated adds an authenticated channel on the websocket client
 func (o *OKCoin) AddChannelAuthenticated(channel string, values map[string]string) {
 	values["sign"] = o.WebsocketSign(values)
-	event := OKCoinWebsocketEventAuth{"addChannel", channel, values}
+	event := WebsocketEventAuth{"addChannel", channel, values}
 	json, err := common.JSONEncode(event)
 	if err != nil {
 		log.Println(err)
@@ -192,9 +199,11 @@ func (o *OKCoin) AddChannelAuthenticated(channel string, values map[string]strin
 	}
 }
 
+// RemoveChannelAuthenticated removes the added authenticated channel on the
+// websocket client
 func (o *OKCoin) RemoveChannelAuthenticated(conn *websocket.Conn, channel string, values map[string]string) {
 	values["sign"] = o.WebsocketSign(values)
-	event := OKCoinWebsocketEventAuthRemove{"removeChannel", channel, values}
+	event := WebsocketEventAuthRemove{"removeChannel", channel, values}
 	json, err := common.JSONEncode(event)
 	if err != nil {
 		log.Println(err)
@@ -212,16 +221,17 @@ func (o *OKCoin) RemoveChannelAuthenticated(conn *websocket.Conn, channel string
 	}
 }
 
+// WebsocketClient starts a websocket client
 func (o *OKCoin) WebsocketClient() {
 	klineValues := []string{"1min", "3min", "5min", "15min", "30min", "1hour", "2hour", "4hour", "6hour", "12hour", "day", "3day", "week"}
-	currencyChan, userinfoChan := "", ""
+	var currencyChan, userinfoChan string
 
-	if o.WebsocketURL == OKCOIN_WEBSOCKET_URL_CHINA {
-		currencyChan = OKCOIN_WEBSOCKET_CNY_REALTRADES
-		userinfoChan = OKCOIN_WEBSOCKET_SPOTCNY_USERINFO
+	if o.WebsocketURL == okcoinWebsocketURLChina {
+		currencyChan = okcoinWebsocketCNYRealTrades
+		userinfoChan = okcoinWebsocketSpotCNYUserInfo
 	} else {
-		currencyChan = OKCOIN_WEBSOCKET_USD_REALTRADES
-		userinfoChan = OKCOIN_WEBSOCKET_SPOTUSD_USERINFO
+		currencyChan = okcoinWebsocketUSDRealTrades
+		userinfoChan = okcoinWebsocketSpotUSDUserInfo
 	}
 
 	for o.Enabled && o.Websocket {
@@ -241,9 +251,9 @@ func (o *OKCoin) WebsocketClient() {
 		o.WebsocketConn.SetPingHandler(o.PingHandler)
 
 		if o.AuthenticatedAPISupport {
-			if o.WebsocketURL == OKCOIN_WEBSOCKET_URL {
-				o.AddChannelAuthenticated(OKCOIN_WEBSOCKET_FUTURES_REALTRADES, map[string]string{})
-				o.AddChannelAuthenticated(OKCOIN_WEBSOCKET_FUTURES_USERINFO, map[string]string{})
+			if o.WebsocketURL == okcoinWebsocketURL {
+				o.AddChannelAuthenticated(okcoinWebsocketFuturesRealTrades, map[string]string{})
+				o.AddChannelAuthenticated(okcoinWebsocketFuturesUserInfo, map[string]string{})
 			}
 			o.AddChannelAuthenticated(currencyChan, map[string]string{})
 			o.AddChannelAuthenticated(userinfoChan, map[string]string{})
@@ -255,7 +265,7 @@ func (o *OKCoin) WebsocketClient() {
 			if o.AuthenticatedAPISupport {
 				o.WebsocketSpotOrderInfo(currencyUL, -1)
 			}
-			if o.WebsocketURL == OKCOIN_WEBSOCKET_URL {
+			if o.WebsocketURL == okcoinWebsocketURL {
 				o.AddChannel(fmt.Sprintf("ok_%s_future_index", currency))
 				for _, y := range o.FuturesValues {
 					if o.AuthenticatedAPISupport {
@@ -336,15 +346,15 @@ func (o *OKCoin) WebsocketClient() {
 					case common.StringContains(channelStr, "ticker") && !common.StringContains(channelStr, "future"):
 						tickerValues := []string{"buy", "high", "last", "low", "sell", "timestamp"}
 						tickerMap := data.(map[string]interface{})
-						ticker := OKCoinWebsocketTicker{}
+						ticker := WebsocketTicker{}
 						ticker.Vol = tickerMap["vol"].(string)
 
 						for _, z := range tickerValues {
 							result := reflect.TypeOf(tickerMap[z]).String()
 							if result == "string" {
-								value, err := strconv.ParseFloat(tickerMap[z].(string), 64)
-								if err != nil {
-									log.Println(err)
+								value, errTickVals := strconv.ParseFloat(tickerMap[z].(string), 64)
+								if errTickVals != nil {
+									log.Println(errTickVals)
 									continue
 								}
 
@@ -381,7 +391,7 @@ func (o *OKCoin) WebsocketClient() {
 							}
 						}
 					case common.StringContains(channelStr, "ticker") && common.StringContains(channelStr, "future"):
-						ticker := OKCoinWebsocketFuturesTicker{}
+						ticker := WebsocketFuturesTicker{}
 						err = common.JSONDecode(dataJSON, &ticker)
 
 						if err != nil {
@@ -389,7 +399,7 @@ func (o *OKCoin) WebsocketClient() {
 							continue
 						}
 					case common.StringContains(channelStr, "depth"):
-						orderbook := OKCoinWebsocketOrderbook{}
+						orderbook := WebsocketOrderbook{}
 						err = common.JSONDecode(dataJSON, &orderbook)
 
 						if err != nil {
@@ -411,8 +421,8 @@ func (o *OKCoin) WebsocketClient() {
 						// to-do: convert from string array to trade struct
 					case common.StringContains(channelStr, "kline"):
 						klines := []interface{}{}
-						err := common.JSONDecode(dataJSON, &klines)
 
+						err = common.JSONDecode(dataJSON, &klines)
 						if err != nil {
 							log.Println(err)
 							continue
@@ -421,9 +431,9 @@ func (o *OKCoin) WebsocketClient() {
 						if string(dataJSON) == "null" {
 							continue
 						}
-						realtrades := OKCoinWebsocketRealtrades{}
-						err := common.JSONDecode(dataJSON, &realtrades)
+						realtrades := WebsocketRealtrades{}
 
+						err = common.JSONDecode(dataJSON, &realtrades)
 						if err != nil {
 							log.Println(err)
 							continue
@@ -432,73 +442,73 @@ func (o *OKCoin) WebsocketClient() {
 						if string(dataJSON) == "null" {
 							continue
 						}
-						realtrades := OKCoinWebsocketFuturesRealtrades{}
-						err := common.JSONDecode(dataJSON, &realtrades)
+						realtrades := WebsocketFuturesRealtrades{}
 
+						err = common.JSONDecode(dataJSON, &realtrades)
 						if err != nil {
 							log.Println(err)
 							continue
 						}
 					case common.StringContains(channelStr, "spot") && common.StringContains(channelStr, "trade") || common.StringContains(channelStr, "futures") && common.StringContains(channelStr, "trade"):
-						tradeOrder := OKCoinWebsocketTradeOrderResponse{}
-						err := common.JSONDecode(dataJSON, &tradeOrder)
+						tradeOrder := WebsocketTradeOrderResponse{}
 
+						err = common.JSONDecode(dataJSON, &tradeOrder)
 						if err != nil {
 							log.Println(err)
 							continue
 						}
 					case common.StringContains(channelStr, "cancel_order"):
-						cancelOrder := OKCoinWebsocketTradeOrderResponse{}
-						err := common.JSONDecode(dataJSON, &cancelOrder)
+						cancelOrder := WebsocketTradeOrderResponse{}
 
+						err = common.JSONDecode(dataJSON, &cancelOrder)
 						if err != nil {
 							log.Println(err)
 							continue
 						}
 					case common.StringContains(channelStr, "spot") && common.StringContains(channelStr, "userinfo"):
-						userinfo := OKCoinWebsocketUserinfo{}
-						err = common.JSONDecode(dataJSON, &userinfo)
+						userinfo := WebsocketUserinfo{}
 
+						err = common.JSONDecode(dataJSON, &userinfo)
 						if err != nil {
 							log.Println(err)
 							continue
 						}
 					case common.StringContains(channelStr, "futureusd_userinfo"):
-						userinfo := OKCoinWebsocketFuturesUserInfo{}
-						err = common.JSONDecode(dataJSON, &userinfo)
+						userinfo := WebsocketFuturesUserInfo{}
 
+						err = common.JSONDecode(dataJSON, &userinfo)
 						if err != nil {
 							log.Println(err)
 							continue
 						}
 					case common.StringContains(channelStr, "spot") && common.StringContains(channelStr, "order_info"):
 						type OrderInfoResponse struct {
-							Result bool                   `json:"result"`
-							Orders []OKCoinWebsocketOrder `json:"orders"`
+							Result bool             `json:"result"`
+							Orders []WebsocketOrder `json:"orders"`
 						}
 						var orders OrderInfoResponse
-						err := common.JSONDecode(dataJSON, &orders)
 
+						err = common.JSONDecode(dataJSON, &orders)
 						if err != nil {
 							log.Println(err)
 							continue
 						}
 					case common.StringContains(channelStr, "futureusd_order_info"):
 						type OrderInfoResponse struct {
-							Result bool                          `json:"result"`
-							Orders []OKCoinWebsocketFuturesOrder `json:"orders"`
+							Result bool                    `json:"result"`
+							Orders []WebsocketFuturesOrder `json:"orders"`
 						}
 						var orders OrderInfoResponse
-						err := common.JSONDecode(dataJSON, &orders)
 
+						err = common.JSONDecode(dataJSON, &orders)
 						if err != nil {
 							log.Println(err)
 							continue
 						}
 					case common.StringContains(channelStr, "future_index"):
-						index := OKCoinWebsocketFutureIndex{}
-						err = common.JSONDecode(dataJSON, &index)
+						index := WebsocketFutureIndex{}
 
+						err = common.JSONDecode(dataJSON, &index)
 						if err != nil {
 							log.Println(err)
 							continue
@@ -512,6 +522,7 @@ func (o *OKCoin) WebsocketClient() {
 	}
 }
 
+// SetWebsocketErrorDefaults sets default errors for websocket
 func (o *OKCoin) SetWebsocketErrorDefaults() {
 	o.WebsocketErrors = map[string]string{
 		"10001": "Illegal parameters",

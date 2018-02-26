@@ -1,6 +1,7 @@
 package okcoin
 
-type OKCoinTicker struct {
+// Ticker holds ticker data
+type Ticker struct {
 	Buy  float64 `json:",string"`
 	High float64 `json:",string"`
 	Last float64 `json:",string"`
@@ -9,32 +10,38 @@ type OKCoinTicker struct {
 	Vol  float64 `json:",string"`
 }
 
-type OKCoinTickerResponse struct {
+// TickerResponse is the response type for ticker
+type TickerResponse struct {
 	Date   string
-	Ticker OKCoinTicker
-}
-type OKCoinFuturesTicker struct {
-	Last        float64
-	Buy         float64
-	Sell        float64
-	High        float64
-	Low         float64
-	Vol         float64
-	Contract_ID int64
-	Unit_Amount float64
+	Ticker Ticker
 }
 
-type OKCoinOrderbook struct {
+// FuturesTicker holds futures ticker data
+type FuturesTicker struct {
+	Last       float64
+	Buy        float64
+	Sell       float64
+	High       float64
+	Low        float64
+	Vol        float64
+	ContractID int64
+	UnitAmount float64
+}
+
+// Orderbook holds orderbook data
+type Orderbook struct {
 	Asks [][]float64 `json:"asks"`
 	Bids [][]float64 `json:"bids"`
 }
 
-type OKCoinFuturesTickerResponse struct {
+// FuturesTickerResponse is a response type
+type FuturesTickerResponse struct {
 	Date   string
-	Ticker OKCoinFuturesTicker
+	Ticker FuturesTicker
 }
 
-type OKCoinBorrowInfo struct {
+// BorrowInfo holds borrowing amount data
+type BorrowInfo struct {
 	BorrowBTC        float64 `json:"borrow_btc"`
 	BorrowLTC        float64 `json:"borrow_ltc"`
 	BorrowCNY        float64 `json:"borrow_cny"`
@@ -47,7 +54,8 @@ type OKCoinBorrowInfo struct {
 	DailyInterestCNY float64 `json:"today_interest_cny"`
 }
 
-type OKCoinBorrowOrder struct {
+// BorrowOrder holds order data
+type BorrowOrder struct {
 	Amount      float64 `json:"amount"`
 	BorrowDate  int64   `json:"borrow_date"`
 	BorrowID    int64   `json:"borrow_id"`
@@ -58,7 +66,8 @@ type OKCoinBorrowOrder struct {
 	Symbol      string  `json:"symbol"`
 }
 
-type OKCoinRecord struct {
+// Record hold record data
+type Record struct {
 	Address            string  `json:"addr"`
 	Account            int64   `json:"account,string"`
 	Amount             float64 `json:"amount"`
@@ -69,12 +78,14 @@ type OKCoinRecord struct {
 	Date               float64 `json:"date"`
 }
 
-type OKCoinAccountRecords struct {
-	Records []OKCoinRecord `json:"records"`
-	Symbol  string         `json:"symbol"`
+// AccountRecords holds account record data
+type AccountRecords struct {
+	Records []Record `json:"records"`
+	Symbol  string   `json:"symbol"`
 }
 
-type OKCoinFuturesOrder struct {
+// FuturesOrder holds information about a futures order
+type FuturesOrder struct {
 	Amount       float64 `json:"amount"`
 	ContractName string  `json:"contract_name"`
 	DateCreated  float64 `json:"create_date"`
@@ -90,19 +101,22 @@ type OKCoinFuturesOrder struct {
 	UnitAmount   int64   `json:"unit_amount"`
 }
 
-type OKCoinFuturesHoldAmount struct {
+// FuturesHoldAmount contains futures hold amount data
+type FuturesHoldAmount struct {
 	Amount       float64 `json:"amount"`
 	ContractName string  `json:"contract_name"`
 }
 
-type OKCoinFuturesExplosive struct {
+// FuturesExplosive holds inforamtion about explosive futures
+type FuturesExplosive struct {
 	Amount      float64 `json:"amount,string"`
 	DateCreated string  `json:"create_date"`
 	Loss        float64 `json:"loss,string"`
 	Type        int64   `json:"type"`
 }
 
-type OKCoinTrades struct {
+// Trades holds trade data
+type Trades struct {
 	Amount  float64 `json:"amount,string"`
 	Date    int64   `json:"date"`
 	DateMS  int64   `json:"date_ms"`
@@ -111,7 +125,8 @@ type OKCoinTrades struct {
 	Type    string  `json:"type"`
 }
 
-type OKCoinFuturesTrades struct {
+// FuturesTrades holds trade data for the futures market
+type FuturesTrades struct {
 	Amount  float64 `json:"amount"`
 	Date    int64   `json:"date"`
 	DateMS  int64   `json:"date_ms"`
@@ -120,7 +135,8 @@ type OKCoinFuturesTrades struct {
 	Type    string  `json:"type"`
 }
 
-type OKCoinUserInfo struct {
+// UserInfo holds user account details
+type UserInfo struct {
 	Info struct {
 		Funds struct {
 			Asset struct {
@@ -154,7 +170,8 @@ type OKCoinUserInfo struct {
 	Result bool `json:"result"`
 }
 
-type OKCoinBatchTrade struct {
+// BatchTrade holds data on a batch of trades
+type BatchTrade struct {
 	OrderInfo []struct {
 		OrderID   int64 `json:"order_id"`
 		ErrorCode int64 `json:"error_code"`
@@ -162,12 +179,14 @@ type OKCoinBatchTrade struct {
 	Result bool `json:"result"`
 }
 
-type OKCoinCancelOrderResponse struct {
+// CancelOrderResponse is a response type for a cancelled order
+type CancelOrderResponse struct {
 	Success string
 	Error   string
 }
 
-type OKCoinOrderInfo struct {
+// OrderInfo holds data on an order
+type OrderInfo struct {
 	Amount     float64 `json:"amount"`
 	AvgPrice   float64 `json:"avg_price"`
 	Created    int64   `json:"create_date"`
@@ -180,20 +199,23 @@ type OKCoinOrderInfo struct {
 	Type       string  `json:"type"`
 }
 
-type OKCoinOrderHistory struct {
-	CurrentPage int               `json:"current_page"`
-	Orders      []OKCoinOrderInfo `json:"orders"`
-	PageLength  int               `json:"page_length"`
-	Result      bool              `json:"result"`
-	Total       int               `json:"total"`
+// OrderHistory holds information on order history
+type OrderHistory struct {
+	CurrentPage int         `json:"current_page"`
+	Orders      []OrderInfo `json:"orders"`
+	PageLength  int         `json:"page_length"`
+	Result      bool        `json:"result"`
+	Total       int         `json:"total"`
 }
 
-type OKCoinWithdrawalResponse struct {
+// WithdrawalResponse is a response type for withdrawal
+type WithdrawalResponse struct {
 	WithdrawID int  `json:"withdraw_id"`
 	Result     bool `json:"result"`
 }
 
-type OKCoinWithdrawInfo struct {
+// WithdrawInfo holds data on a withdraw
+type WithdrawInfo struct {
 	Address    string  `json:"address"`
 	Amount     float64 `json:"amount"`
 	Created    int64   `json:"created_date"`
@@ -202,30 +224,35 @@ type OKCoinWithdrawInfo struct {
 	WithdrawID int64   `json:"withdraw_id"`
 }
 
-type OKCoinOrderFeeInfo struct {
+// OrderFeeInfo holds data on order fees
+type OrderFeeInfo struct {
 	Fee     float64 `json:"fee,string"`
 	OrderID int64   `json:"order_id"`
 	Type    string  `json:"type"`
 }
 
-type OKCoinLendDepth struct {
+// LendDepth hold lend depths
+type LendDepth struct {
 	Amount float64 `json:"amount"`
 	Days   string  `json:"days"`
 	Num    int64   `json:"num"`
 	Rate   float64 `json:"rate,string"`
 }
 
-type OKCoinBorrowResponse struct {
+// BorrowResponse is a response type for borrow
+type BorrowResponse struct {
 	Result   bool `json:"result"`
 	BorrowID int  `json:"borrow_id"`
 }
 
-type OKCoinWebsocketFutureIndex struct {
+// WebsocketFutureIndex holds future index data for websocket
+type WebsocketFutureIndex struct {
 	FutureIndex float64 `json:"futureIndex"`
 	Timestamp   int64   `json:"timestamp,string"`
 }
 
-type OKCoinWebsocketTicker struct {
+// WebsocketTicker holds ticker data for websocket
+type WebsocketTicker struct {
 	Timestamp float64
 	Vol       string
 	Buy       float64
@@ -235,7 +262,8 @@ type OKCoinWebsocketTicker struct {
 	Sell      float64
 }
 
-type OKCoinWebsocketFuturesTicker struct {
+// WebsocketFuturesTicker holds futures ticker data for websocket
+type WebsocketFuturesTicker struct {
 	Buy        float64 `json:"buy"`
 	ContractID string  `json:"contractId"`
 	High       float64 `json:"high"`
@@ -247,13 +275,15 @@ type OKCoinWebsocketFuturesTicker struct {
 	Volume     float64 `json:"vol,string"`
 }
 
-type OKCoinWebsocketOrderbook struct {
+// WebsocketOrderbook holds orderbook data for websocket
+type WebsocketOrderbook struct {
 	Asks      [][]float64 `json:"asks"`
 	Bids      [][]float64 `json:"bids"`
 	Timestamp int64       `json:"timestamp,string"`
 }
 
-type OKCoinWebsocketUserinfo struct {
+// WebsocketUserinfo holds user info for websocket
+type WebsocketUserinfo struct {
 	Info struct {
 		Funds struct {
 			Asset struct {
@@ -277,7 +307,8 @@ type OKCoinWebsocketUserinfo struct {
 	Result bool `json:"result"`
 }
 
-type OKCoinWebsocketFuturesContract struct {
+// WebsocketFuturesContract holds futures contract information for websocket
+type WebsocketFuturesContract struct {
 	Available    float64 `json:"available"`
 	Balance      float64 `json:"balance"`
 	Bond         float64 `json:"bond"`
@@ -288,23 +319,25 @@ type OKCoinWebsocketFuturesContract struct {
 	Loss         float64 `json:"unprofit"`
 }
 
-type OKCoinWebsocketFuturesUserInfo struct {
+// WebsocketFuturesUserInfo holds futures user information for websocket
+type WebsocketFuturesUserInfo struct {
 	Info struct {
 		BTC struct {
-			Balance   float64                          `json:"balance"`
-			Contracts []OKCoinWebsocketFuturesContract `json:"contracts"`
-			Rights    float64                          `json:"rights"`
+			Balance   float64                    `json:"balance"`
+			Contracts []WebsocketFuturesContract `json:"contracts"`
+			Rights    float64                    `json:"rights"`
 		} `json:"btc"`
 		LTC struct {
-			Balance   float64                          `json:"balance"`
-			Contracts []OKCoinWebsocketFuturesContract `json:"contracts"`
-			Rights    float64                          `json:"rights"`
+			Balance   float64                    `json:"balance"`
+			Contracts []WebsocketFuturesContract `json:"contracts"`
+			Rights    float64                    `json:"rights"`
 		} `json:"ltc"`
 	} `json:"info"`
 	Result bool `json:"result"`
 }
 
-type OKCoinWebsocketOrder struct {
+// WebsocketOrder holds order data for websocket
+type WebsocketOrder struct {
 	Amount      float64 `json:"amount"`
 	AvgPrice    float64 `json:"avg_price"`
 	DateCreated float64 `json:"create_date"`
@@ -317,7 +350,8 @@ type OKCoinWebsocketOrder struct {
 	OrderType   string  `json:"type"`
 }
 
-type OKCoinWebsocketFuturesOrder struct {
+// WebsocketFuturesOrder holds futures order data for websocket
+type WebsocketFuturesOrder struct {
 	Amount         float64 `json:"amount"`
 	ContractName   string  `json:"contract_name"`
 	DateCreated    float64 `json:"createdDate"`
@@ -333,7 +367,8 @@ type OKCoinWebsocketFuturesOrder struct {
 	UnitAmount     float64 `json:"unit_amount"`
 }
 
-type OKCoinWebsocketRealtrades struct {
+// WebsocketRealtrades holds real trade data for WebSocket
+type WebsocketRealtrades struct {
 	AveragePrice         float64 `json:"averagePrice,string"`
 	CompletedTradeAmount float64 `json:"completedTradeAmount,string"`
 	DateCreated          float64 `json:"createdDate"`
@@ -350,7 +385,8 @@ type OKCoinWebsocketRealtrades struct {
 	UnTrade              float64 `json:"unTrade,string"`
 }
 
-type OKCoinWebsocketFuturesRealtrades struct {
+// WebsocketFuturesRealtrades holds futures real trade data for websocket
+type WebsocketFuturesRealtrades struct {
 	Amount         float64 `json:"amount,string"`
 	ContractID     float64 `json:"contract_id,string"`
 	ContractName   string  `json:"contract_name"`
@@ -366,29 +402,34 @@ type OKCoinWebsocketFuturesRealtrades struct {
 	LeverageAmount int     `json:"lever_rate,string"`
 }
 
-type OKCoinWebsocketEvent struct {
+// WebsocketEvent holds websocket events
+type WebsocketEvent struct {
 	Event   string `json:"event"`
 	Channel string `json:"channel"`
 }
 
-type OKCoinWebsocketResponse struct {
+// WebsocketResponse holds websocket responses
+type WebsocketResponse struct {
 	Channel string      `json:"channel"`
 	Data    interface{} `json:"data"`
 }
 
-type OKCoinWebsocketEventAuth struct {
+// WebsocketEventAuth holds websocket authenticated events
+type WebsocketEventAuth struct {
 	Event      string            `json:"event"`
 	Channel    string            `json:"channel"`
 	Parameters map[string]string `json:"parameters"`
 }
 
-type OKCoinWebsocketEventAuthRemove struct {
+// WebsocketEventAuthRemove holds websocket remove authenticated events
+type WebsocketEventAuthRemove struct {
 	Event      string            `json:"event"`
 	Channel    string            `json:"channel"`
 	Parameters map[string]string `json:"parameters"`
 }
 
-type OKCoinWebsocketTradeOrderResponse struct {
+// WebsocketTradeOrderResponse holds trade order responses for websocket
+type WebsocketTradeOrderResponse struct {
 	OrderID int64 `json:"order_id,string"`
 	Result  bool  `json:"result,string"`
 }
