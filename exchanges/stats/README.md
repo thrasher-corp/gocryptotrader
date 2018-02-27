@@ -1,4 +1,4 @@
-# GoCryptoTrader package exchanges stats
+# GoCryptoTrader package Stats
 
 <img src="https://github.com/thrasher-/gocryptotrader/blob/master/web/src/assets/page-logo.png?raw=true" width="350px" height="350px" hspace="70">
 
@@ -10,7 +10,7 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/thrasher-/gocryptotrader)](https://goreportcard.com/report/github.com/thrasher-/gocryptotrader)
 
 
-This exchanges stats package is part of the GoCryptoTrader codebase.
+This stats package is part of the GoCryptoTrader codebase.
 
 ## This is still in active development
 
@@ -18,7 +18,7 @@ You can track ideas, planned features and what's in progresss on this Trello boa
 
 Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader Slack](https://gocryptotrader.herokuapp.com/)
 
-## Current Features for exchanges stats
+## Current Features for stats
 
 + This package services the exchanges package.
 

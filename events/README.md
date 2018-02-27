@@ -1,4 +1,4 @@
-# GoCryptoTrader package events
+# GoCryptoTrader package Events
 
 <img src="https://github.com/thrasher-/gocryptotrader/blob/master/web/src/assets/page-logo.png?raw=true" width="350px" height="350px" hspace="70">
 
