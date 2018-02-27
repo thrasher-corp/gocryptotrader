@@ -138,11 +138,13 @@ Binaries will be published once the codebase reaches a stable condition.
 
 ## Contributor List
 
+### A very special thank you to all who have contributed to this program:
+
 |User|Github|Contribution Amount|
 |--|--|--|
-| thrasher- | https://github.com/thrasher- | 413 |
+| thrasher- | https://github.com/thrasher- | 417 |
+| shazbert | https://github.com/shazbert | 125 |
 | gloriousCode | https://github.com/gloriousCode | 113 |
-| shazbert | https://github.com/shazbert | 108 |
 | 140am | https://github.com/140am | 8 |
 | faddat | https://github.com/faddat | 4 |
 | crackcomm | https://github.com/crackcomm | 3 |
@@ -152,6 +154,7 @@ Binaries will be published once the codebase reaches a stable condition.
 | if1live | https://github.com/if1live | 2 |
 | daniel-cohen | https://github.com/daniel-cohen | 1 |
 | starit | https://github.com/starit | 1 |
+| Jimexist | https://github.com/Jimexist | 1 |
 | mattkanwisher | https://github.com/mattkanwisher | 1 |
 | mKurrels | https://github.com/mKurrels | 1 |
 | m1kola | https://github.com/m1kola | 1 |
