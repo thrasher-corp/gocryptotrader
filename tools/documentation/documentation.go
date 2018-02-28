@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
 )
@@ -31,7 +32,38 @@ const (
 	webPath                 = "..%s..%sweb%s"
 	rootPath                = "..%s..%s"
 
+	// exchange packages
+	alphapoint    = "..%s..%sexchanges%salphapoint%s"
+	anx           = "..%s..%sexchanges%sanx%s"
+	binance       = "..%s..%sexchanges%sbinance%s"
+	bitfinex      = "..%s..%sexchanges%sbitfinex%s"
+	bitflyer      = "..%s..%sexchanges%sbitflyer%s"
+	bithumb       = "..%s..%sexchanges%sbithumb%s"
+	bitstamp      = "..%s..%sexchanges%sbitstamp%s"
+	bittrex       = "..%s..%sexchanges%sbittrex%s"
+	btcc          = "..%s..%sexchanges%sbtcc%s"
+	btcmarkets    = "..%s..%sexchanges%sbtcmarkets%s"
+	coinut        = "..%s..%sexchanges%scoinut%s"
+	exmo          = "..%s..%sexchanges%sexmo%s"
+	gdax          = "..%s..%sexchanges%sgdax%s"
+	gemini        = "..%s..%sexchanges%sgemini%s"
+	hitbtc        = "..%s..%sexchanges%shitbtc%s"
+	huobi         = "..%s..%sexchanges%shuobi%s"
+	itbit         = "..%s..%sexchanges%sitbit%s"
+	kraken        = "..%s..%sexchanges%skraken%s"
+	lakebtc       = "..%s..%sexchanges%slakebtc%s"
+	localbitcoins = "..%s..%sexchanges%slocalbitcoins%s"
+	okcoin        = "..%s..%sexchanges%sokcoin%s"
+	okex          = "..%s..%sexchanges%sokex%s"
+	poloniex      = "..%s..%sexchanges%spoloniex%s"
+	wex           = "..%s..%sexchanges%swex%s"
+	yobit         = "..%s..%sexchanges%syobit%s"
+	liqui         = "..%s..%sexchanges%sliqui%s"
+
 	contributorsList = "https://api.github.com/repos/thrasher-/gocryptotrader/contributors"
+
+	licenseName     = "LICENSE"
+	contributorName = "CONTRIBUTORS"
 )
 
 var (
@@ -42,12 +74,16 @@ var (
 	tmpl                 *template.Template
 	path                 string
 	contributors         []contributor
+	// exchanges []string{"alphapoint", "anx", "binance", "bitfinex", "bitflyer",
+	// "bithumb"}
 )
 
 type readme struct {
 	Name         string
 	Contributors []contributor
 	NameURL      string
+	Year         int
+	CapitalName  string
 }
 
 type contributor struct {
@@ -149,15 +185,68 @@ func addPaths() {
 	codebasePaths["tools"] = fmt.Sprintf(toolsPath, path, path, path)
 	codebasePaths["web"] = fmt.Sprintf(webPath, path, path, path)
 	codebasePaths["root"] = fmt.Sprintf(rootPath, path, path)
+
+	codebasePaths["exchanges alphapoint"] = fmt.Sprintf(alphapoint, path, path, path, path)
+	codebasePaths["exchanges anx"] = fmt.Sprintf(anx, path, path, path, path)
+	codebasePaths["exchanges binance"] = fmt.Sprintf(binance, path, path, path, path)
+	codebasePaths["exchanges bitfinex"] = fmt.Sprintf(bitfinex, path, path, path, path)
+	codebasePaths["exchanges bitflyer"] = fmt.Sprintf(bitflyer, path, path, path, path)
+	codebasePaths["exchanges bithumb"] = fmt.Sprintf(bithumb, path, path, path, path)
+	codebasePaths["exchanges bitstamp"] = fmt.Sprintf(bitstamp, path, path, path, path)
+	codebasePaths["exchanges bittrex"] = fmt.Sprintf(bittrex, path, path, path, path)
+	codebasePaths["exchanges btcc"] = fmt.Sprintf(btcc, path, path, path, path)
+	codebasePaths["exchanges btcmarkets"] = fmt.Sprintf(btcmarkets, path, path, path, path)
+	codebasePaths["exchanges coinut"] = fmt.Sprintf(coinut, path, path, path, path)
+	codebasePaths["exchanges exmo"] = fmt.Sprintf(exmo, path, path, path, path)
+	codebasePaths["exchanges gdax"] = fmt.Sprintf(gdax, path, path, path, path)
+	codebasePaths["exchanges gemini"] = fmt.Sprintf(gemini, path, path, path, path)
+	codebasePaths["exchanges hitbtc"] = fmt.Sprintf(hitbtc, path, path, path, path)
+	codebasePaths["exchanges huobi"] = fmt.Sprintf(huobi, path, path, path, path)
+	codebasePaths["exchanges itbit"] = fmt.Sprintf(itbit, path, path, path, path)
+	codebasePaths["exchanges kraken"] = fmt.Sprintf(kraken, path, path, path, path)
+	codebasePaths["exchanges lakebtc"] = fmt.Sprintf(lakebtc, path, path, path, path)
+	codebasePaths["exchanges liqui"] = fmt.Sprintf(liqui, path, path, path, path)
+	codebasePaths["exchanges localbitcoins"] = fmt.Sprintf(localbitcoins, path, path, path, path)
+	codebasePaths["exchanges okcoin"] = fmt.Sprintf(okcoin, path, path, path, path)
+	codebasePaths["exchanges okex"] = fmt.Sprintf(okex, path, path, path, path)
+	codebasePaths["exchanges poloniex"] = fmt.Sprintf(poloniex, path, path, path, path)
+	codebasePaths["exchanges wex"] = fmt.Sprintf(wex, path, path, path, path)
+	codebasePaths["exchanges yobit"] = fmt.Sprintf(yobit, path, path, path, path)
+
+	codebasePaths["CONTRIBUTORS"] = fmt.Sprintf(rootPath, path, path)
+	codebasePaths["LICENSE"] = fmt.Sprintf(rootPath, path, path)
 }
 
 func addReadmeData(packageName string) {
 	readmeInfo := readme{
-		Name:         packageName,
+		Name:         getName(packageName, false),
 		Contributors: contributors,
 		NameURL:      getslashFromName(packageName),
+		Year:         time.Now().Year(),
+		CapitalName:  getName(packageName, true),
 	}
 	codebaseReadme[packageName] = readmeInfo
+}
+
+func getName(name string, capital bool) string {
+	newStrings := strings.Split(name, " ")
+	if len(newStrings) > 1 {
+		if capital {
+			return getCapital(newStrings[1])
+		}
+		return newStrings[1]
+	}
+	if capital {
+		return getCapital(name)
+	}
+	return name
+}
+
+func getCapital(name string) string {
+	cap := strings.ToUpper(string(name[0]))
+	last := name[1:]
+
+	return cap + last
 }
 
 // returns a string for godoc package names
@@ -166,7 +255,7 @@ func getslashFromName(packageName string) string {
 		s := strings.Split(packageName, " ")
 		return strings.Join(s, "/")
 	}
-	if packageName == "testdata" || packageName == "tools" {
+	if packageName == "testdata" || packageName == "tools" || packageName == contributorName || packageName == licenseName {
 		return ""
 	}
 	return packageName
@@ -182,6 +271,14 @@ func addTemplates() error {
 	if err != nil {
 		return err
 	}
+	_, err = glob.ParseGlob(fmt.Sprintf("exchange_readme_templates%s*", path))
+	if err != nil {
+		return err
+	}
+	_, err = glob.ParseGlob(fmt.Sprintf("general_templates%s*", path))
+	if err != nil {
+		return err
+	}
 
 	tmpl = glob
 	return nil
@@ -189,12 +286,22 @@ func addTemplates() error {
 
 // checkReadme checks to see if the file exists
 func checkReadme(packageName string) bool {
+	if packageName == licenseName || packageName == contributorName {
+		_, err := os.Stat(codebasePaths[packageName] + packageName)
+		return os.IsNotExist(err)
+	}
 	_, err := os.Stat(codebasePaths[packageName] + "README.md")
 	return os.IsNotExist(err)
 }
 
 // replaces readme file
 func replaceReadme(packageName string) error {
+	if packageName == licenseName || packageName == contributorName {
+		if err := deleteFile(codebasePaths[packageName] + packageName); err != nil {
+			return err
+		}
+		return createReadme(packageName)
+	}
 	if err := deleteFile(codebasePaths[packageName] + "README.md"); err != nil {
 		return err
 	}
@@ -203,6 +310,17 @@ func replaceReadme(packageName string) error {
 
 // creates new readme file and executes template
 func createReadme(packageName string) error {
+	if packageName == licenseName || packageName == contributorName {
+		file, err := os.Create(codebasePaths[packageName] + packageName)
+		defer file.Close()
+		if err != nil {
+			return err
+		}
+		if verbose {
+			fmt.Println("File done")
+		}
+		return tmpl.ExecuteTemplate(file, packageName, codebaseReadme[packageName])
+	}
 	file, err := os.Create(codebasePaths[packageName] + "README.md")
 	defer file.Close()
 	if err != nil {
