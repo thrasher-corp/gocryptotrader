@@ -2,7 +2,7 @@
 <button matTooltip="Trade" mat-fab color="accent" [disabled]="trades.length > 2" class="mat-fab mat-fab-bottom-right" (click)="addTrade()"><mat-icon >swap_horiz</mat-icon></button>
 <ng-template app-buy-sell></ng-template>
 <div style="width:97%;">
-<mat-grid-list cols="3" rowHeight="24rem">
+<mat-grid-list cols="3" rowHeight="22rem">
     <mat-grid-tile [colspan]="tile.columns" [rowspan]="tile.rows" *ngFor="let tile of dashboard.tiles">
         <mat-card class="full-card">
             <mat-card-header>

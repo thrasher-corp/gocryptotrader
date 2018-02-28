@@ -39,8 +39,7 @@ import { DonateComponent } from './pages/donate/donate.component';
 
 //Shared
 import { NavbarComponent } from './shared/navbar/navbar.component';
-import { ExchangeCurrencyTickerComponent } from './shared/exchange-currency-ticker/exchange-currency-ticker.component';
-import { AllEnabledCurrencyTickersComponent } from './shared/all-enabled-currency-tickers/all-enabled-currency-tickers.component';
+import { AllEnabledCurrencyTickersComponent } from './shared/all-updates-ticker/all-updates-ticker.component';
 import { ThemePickerComponent } from './shared/theme-picker/theme-picker';
 //services
 import { WebsocketService } from './services/websocket/websocket.service';
@@ -78,7 +77,6 @@ import { CurrencyListComponent } from './pages/currency-list/currency-list.compo
     NavbarComponent,
     SettingsComponent,
     DashboardComponent,
-    ExchangeCurrencyTickerComponent,
     AllEnabledCurrencyTickersComponent,
     WalletComponent,
     ThemePickerComponent,
