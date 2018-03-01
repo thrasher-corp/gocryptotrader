@@ -262,7 +262,7 @@ func TestGetOrderHistory(t *testing.T) {
 	}
 }
 
-func TestGetWithdrawelHistory(t *testing.T) {
+func TestGetwithdrawalHistory(t *testing.T) {
 	t.Parallel()
 	obj := Bittrex{}
 	obj.APIKey = apiKey

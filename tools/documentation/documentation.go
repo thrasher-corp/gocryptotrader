@@ -103,8 +103,7 @@ func main() {
               GoCryptoTrader: Exchange documentation tool
 
     This will update and regenerate documentation for the different packages
-    in GoCryptoTrader.
-`)
+    in GoCryptoTrader.`)
 
 	codebasePaths = make(map[string]string)
 	codebaseTemplatePath = make(map[string]string)

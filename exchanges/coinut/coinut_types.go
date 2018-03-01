@@ -102,7 +102,7 @@ type OrderResponse struct {
 	Side          string  `json:"side"`
 }
 
-// Commission holds trade commision structure
+// Commission holds trade commission structure
 type Commission struct {
 	Currency string  `json:"currency"`
 	Amount   float64 `json:"amount,string"`

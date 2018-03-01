@@ -13,7 +13,7 @@ func TestCalculateTotalBids(t *testing.T) {
 	base := Base{
 		Pair:         currency,
 		CurrencyPair: currency.Pair().String(),
-		Bids:         []Item{Item{Price: 100, Amount: 10}},
+		Bids:         []Item{{Price: 100, Amount: 10}},
 		LastUpdated:  time.Now(),
 	}
 
@@ -29,7 +29,7 @@ func TestCalculateTotaAsks(t *testing.T) {
 	base := Base{
 		Pair:         currency,
 		CurrencyPair: currency.Pair().String(),
-		Asks:         []Item{Item{Price: 100, Amount: 10}},
+		Asks:         []Item{{Price: 100, Amount: 10}},
 		LastUpdated:  time.Now(),
 	}
 
@@ -46,13 +46,13 @@ func TestUpdate(t *testing.T) {
 	base := Base{
 		Pair:         currency,
 		CurrencyPair: currency.Pair().String(),
-		Asks:         []Item{Item{Price: 100, Amount: 10}},
-		Bids:         []Item{Item{Price: 200, Amount: 10}},
+		Asks:         []Item{{Price: 100, Amount: 10}},
+		Bids:         []Item{{Price: 200, Amount: 10}},
 		LastUpdated:  timeNow,
 	}
 
-	asks := []Item{Item{Price: 200, Amount: 101}}
-	bids := []Item{Item{Price: 201, Amount: 100}}
+	asks := []Item{{Price: 200, Amount: 101}}
+	bids := []Item{{Price: 201, Amount: 100}}
 	time.Sleep(time.Millisecond * 50)
 	base.Update(bids, asks)
 
@@ -76,8 +76,8 @@ func TestGetOrderbook(t *testing.T) {
 	base := Base{
 		Pair:         currency,
 		CurrencyPair: currency.Pair().String(),
-		Asks:         []Item{Item{Price: 100, Amount: 10}},
-		Bids:         []Item{Item{Price: 200, Amount: 10}},
+		Asks:         []Item{{Price: 100, Amount: 10}},
+		Bids:         []Item{{Price: 200, Amount: 10}},
 	}
 
 	CreateNewOrderbook("Exchange", currency, base, Spot)
@@ -115,8 +115,8 @@ func TestGetOrderbookByExchange(t *testing.T) {
 	base := Base{
 		Pair:         currency,
 		CurrencyPair: currency.Pair().String(),
-		Asks:         []Item{Item{Price: 100, Amount: 10}},
-		Bids:         []Item{Item{Price: 200, Amount: 10}},
+		Asks:         []Item{{Price: 100, Amount: 10}},
+		Bids:         []Item{{Price: 200, Amount: 10}},
 	}
 
 	CreateNewOrderbook("Exchange", currency, base, Spot)
@@ -127,9 +127,9 @@ func TestGetOrderbookByExchange(t *testing.T) {
 			err)
 	}
 
-	_, err = GetOrderbookByExchange("nonexistant")
+	_, err = GetOrderbookByExchange("nonexistent")
 	if err == nil {
-		t.Fatal("Test failed. TestGetOrderbookByExchange retrieved non-existant orderbook")
+		t.Fatal("Test failed. TestGetOrderbookByExchange retrieved non-existent orderbook")
 	}
 }
 
@@ -138,8 +138,8 @@ func TestFirstCurrencyExists(t *testing.T) {
 	base := Base{
 		Pair:         currency,
 		CurrencyPair: currency.Pair().String(),
-		Asks:         []Item{Item{Price: 100, Amount: 10}},
-		Bids:         []Item{Item{Price: 200, Amount: 10}},
+		Asks:         []Item{{Price: 100, Amount: 10}},
+		Bids:         []Item{{Price: 200, Amount: 10}},
 	}
 
 	CreateNewOrderbook("Exchange", currency, base, Spot)
@@ -159,8 +159,8 @@ func TestSecondCurrencyExists(t *testing.T) {
 	base := Base{
 		Pair:         currency,
 		CurrencyPair: currency.Pair().String(),
-		Asks:         []Item{Item{Price: 100, Amount: 10}},
-		Bids:         []Item{Item{Price: 200, Amount: 10}},
+		Asks:         []Item{{Price: 100, Amount: 10}},
+		Bids:         []Item{{Price: 200, Amount: 10}},
 	}
 
 	CreateNewOrderbook("Exchange", currency, base, Spot)
@@ -180,8 +180,8 @@ func TestCreateNewOrderbook(t *testing.T) {
 	base := Base{
 		Pair:         currency,
 		CurrencyPair: currency.Pair().String(),
-		Asks:         []Item{Item{Price: 100, Amount: 10}},
-		Bids:         []Item{Item{Price: 200, Amount: 10}},
+		Asks:         []Item{{Price: 100, Amount: 10}},
+		Bids:         []Item{{Price: 200, Amount: 10}},
 	}
 
 	CreateNewOrderbook("Exchange", currency, base, Spot)
@@ -212,8 +212,8 @@ func TestProcessOrderbook(t *testing.T) {
 	base := Base{
 		Pair:         currency,
 		CurrencyPair: currency.Pair().String(),
-		Asks:         []Item{Item{Price: 100, Amount: 10}},
-		Bids:         []Item{Item{Price: 200, Amount: 10}},
+		Asks:         []Item{{Price: 100, Amount: 10}},
+		Bids:         []Item{{Price: 200, Amount: 10}},
 	}
 
 	ProcessOrderbook("Exchange", currency, base, Spot)
@@ -240,7 +240,7 @@ func TestProcessOrderbook(t *testing.T) {
 		t.Fatal("Test failed. TestProcessOrderbook result pair is incorrect")
 	}
 
-	base.Asks = []Item{Item{Price: 200, Amount: 200}}
+	base.Asks = []Item{{Price: 200, Amount: 200}}
 	ProcessOrderbook("Exchange", currency, base, "monthly")
 
 	result, err = GetOrderbook("Exchange", currency, "monthly")
@@ -253,7 +253,7 @@ func TestProcessOrderbook(t *testing.T) {
 		t.Fatal("Test failed. TestProcessOrderbook CalculateTotalsAsks incorrect values")
 	}
 
-	base.Bids = []Item{Item{Price: 420, Amount: 200}}
+	base.Bids = []Item{{Price: 420, Amount: 200}}
 	ProcessOrderbook("Blah", currency, base, "quarterly")
 	result, err = GetOrderbook("Blah", currency, "quarterly")
 	if err != nil {

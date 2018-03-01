@@ -175,9 +175,9 @@ func (l *LocalBitcoins) GetAccountInfo(username string, self bool) (AccountInfo,
 }
 
 // Getads returns information of single advertisement based on the ad ID, if
-// adID ommited.
+// adID omitted.
 //
-// adID - [optional] string if ommited returns all ads
+// adID - [optional] string if omitted returns all ads
 func (l *LocalBitcoins) Getads(adID string) (AdData, error) {
 	type response struct {
 		Data AdData `json:"data"`

@@ -261,7 +261,7 @@ func TestContains(t *testing.T) {
 	}
 
 	if Contains(pairs, NewCurrencyPair("ETH", "USD"), false) {
-		t.Errorf("Test failed. TestContains: Non-existant pair was found")
+		t.Errorf("Test failed. TestContains: Non-existent pair was found")
 	}
 }
 
@@ -273,7 +273,7 @@ func TestContainsCurrency(t *testing.T) {
 	}
 
 	if ContainsCurrency(p, "ETH") {
-		t.Error("Test failed. TestContainsCurrency: Non-existant currency was found")
+		t.Error("Test failed. TestContainsCurrency: Non-existent currency was found")
 	}
 }
 

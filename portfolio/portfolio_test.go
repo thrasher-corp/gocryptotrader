@@ -19,7 +19,7 @@ func TestGetEthereumBalance(t *testing.T) {
 	}
 
 	response, err = GetEthereumBalance(nonsenseAddress)
-	if response.Error.Message != "" {
+	if response.Error.Message != "" || err == nil {
 		t.Errorf("Test Failed - Portfolio GetEthereumBalance() Error: %s",
 			response.Error.Message)
 	}
