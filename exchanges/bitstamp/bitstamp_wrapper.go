@@ -3,6 +3,7 @@ package bitstamp
 import (
 	"errors"
 	"log"
+	"strings"
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
@@ -26,6 +27,24 @@ func (b *Bitstamp) Run() {
 
 	if b.Websocket {
 		go b.PusherClient()
+	}
+
+	pairs, err := b.GetTradingPairs()
+	if err != nil {
+		log.Printf("%s failed to get trading pairs. Err: %s", b.Name, err)
+	} else {
+		var currencies []string
+		for x := range pairs {
+			if pairs[x].Trading != "Enabled" {
+				continue
+			}
+			pair := strings.Split(pairs[x].Name, "/")
+			currencies = append(currencies, pair[0]+pair[1])
+		}
+		err = b.UpdateAvailableCurrencies(currencies, false)
+		if err != nil {
+			log.Printf("%s Failed to update available currencies.\n", b.Name)
+		}
 	}
 }
 
