@@ -185,7 +185,7 @@ func TestGetSymbols(t *testing.T) {
 
 	symbols, err := b.GetSymbols()
 	if err != nil {
-		t.Error("BitfinexGetSymbols init error: ", err)
+		t.Fatal("BitfinexGetSymbols init error: ", err)
 	}
 	if reflect.TypeOf(symbols[0]).String() != "string" {
 		t.Error("Bitfinex GetSymbols is not a string")
