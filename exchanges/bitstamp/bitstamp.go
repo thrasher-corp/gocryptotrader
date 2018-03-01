@@ -46,6 +46,7 @@ const (
 	bitstampAPIXrpWithdrawal      = "xrp_withdrawal"
 	bitstampAPIXrpDeposit         = "xrp_address"
 	bitstampAPIReturnType         = "string"
+	bitstampAPITradingPairsInfo   = "trading-pairs-info"
 )
 
 // Bitstamp is the overarching type across the bitstamp package
@@ -186,6 +187,14 @@ func (b *Bitstamp) GetOrderbook(currency string) (Orderbook, error) {
 	}
 
 	return orderbook, nil
+}
+
+// GetTradingPairs returns a list of trading pairs which Bitstamp
+// currently supports
+func (b *Bitstamp) GetTradingPairs() ([]TradingPair, error) {
+	var result []TradingPair
+	path := fmt.Sprintf("%s/v%s/%s", bitstampAPIURL, bitstampAPIVersion, bitstampAPITradingPairsInfo)
+	return result, common.SendHTTPGetRequest(path, true, b.Verbose, &result)
 }
 
 // GetTransactions returns transaction information

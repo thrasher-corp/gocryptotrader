@@ -26,6 +26,17 @@ type Orderbook struct {
 	Asks      []OrderbookBase
 }
 
+// TradingPair holds trading pair information
+type TradingPair struct {
+	Name            string `json:"name"`
+	URLSymbol       string `json:"url_symbol"`
+	BaseDecimals    int    `json:"base_decimals"`
+	CounterDecimals int    `json:"counter_decimals"`
+	MinimumOrder    string `json:"minimum_order"`
+	Trading         string `json:"trading"`
+	Description     string `json:"description"`
+}
+
 // Transactions holds transaction data
 type Transactions struct {
 	Date    int64   `json:"date,string"`

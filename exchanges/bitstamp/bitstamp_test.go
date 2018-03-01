@@ -110,6 +110,15 @@ func TestGetOrderbook(t *testing.T) {
 	}
 }
 
+func TestGetTradingPairs(t *testing.T) {
+	t.Parallel()
+	b := Bitstamp{}
+	_, err := b.GetTradingPairs()
+	if err != nil {
+		t.Error("Test Failed - GetTradingPairs() error", err)
+	}
+}
+
 func TestGetTransactions(t *testing.T) {
 	t.Parallel()
 	b := Bitstamp{}
