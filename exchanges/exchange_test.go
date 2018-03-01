@@ -498,7 +498,7 @@ func TestSetCurrencies(t *testing.T) {
 
 	err = UAC.SetCurrencies([]pair.CurrencyPair{newPair}, true)
 	if err == nil {
-		t.Fatal("Test failed. TestSetCurrencies returned nil error on non-existant exchange")
+		t.Fatal("Test failed. TestSetCurrencies returned nil error on non-existent exchange")
 	}
 
 	UAC.Name = "ANX"

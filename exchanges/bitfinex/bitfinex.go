@@ -337,7 +337,7 @@ func (b *Bitfinex) GetTrades(currencyPair string, values url.Values) ([]TradeStr
 	return response, common.SendHTTPGetRequest(path, true, b.Verbose, &response)
 }
 
-// GetTradesV2 uses the V2 API to get historic trades that occured on the
+// GetTradesV2 uses the V2 API to get historic trades that occurred on the
 // exchange
 //
 // currencyPair e.g. "tBTCUSD" v2 prefixes currency pairs with t. (?)

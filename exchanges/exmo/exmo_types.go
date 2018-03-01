@@ -44,7 +44,7 @@ type PairSettings struct {
 	MinAmount   float64 `json:"min_amount,string"`
 }
 
-// AuthResponse stores the auth reponse
+// AuthResponse stores the auth response
 type AuthResponse struct {
 	Result bool   `json:"bool"`
 	Error  string `json:"error"`

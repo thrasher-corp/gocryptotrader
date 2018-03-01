@@ -217,27 +217,27 @@ func (a *Alphapoint) SetUserInfo(firstName, lastName, cell2FACountryCode, cell2F
 	response := UserInfoSet{}
 
 	var userInfoKVPs = []UserInfoKVP{
-		UserInfoKVP{
+		{
 			Key:   "FirstName",
 			Value: firstName,
 		},
-		UserInfoKVP{
+		{
 			Key:   "LastName",
 			Value: lastName,
 		},
-		UserInfoKVP{
+		{
 			Key:   "Cell2FACountryCode",
 			Value: cell2FACountryCode,
 		},
-		UserInfoKVP{
+		{
 			Key:   "Cell2FAValue",
 			Value: cell2FAValue,
 		},
-		UserInfoKVP{
+		{
 			Key:   "UseAuthy2FA",
 			Value: strconv.FormatBool(useAuthy2FA),
 		},
-		UserInfoKVP{
+		{
 			Key:   "Use2FAForWithdraw",
 			Value: strconv.FormatBool(use2FAForWithdraw),
 		},

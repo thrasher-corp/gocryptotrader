@@ -47,7 +47,7 @@ func TestCheckExchangeExists(t *testing.T) {
 	}
 
 	if CheckExchangeExists("Asdsad") {
-		t.Errorf("Test failed. TestGetExchangeExists: Non-existant exchange found")
+		t.Errorf("Test failed. TestGetExchangeExists: Non-existent exchange found")
 	}
 
 	CleanupTest(t)
@@ -77,7 +77,7 @@ func TestGetExchangeByName(t *testing.T) {
 
 	exch = GetExchangeByName("Asdasd")
 	if exch != nil {
-		t.Errorf("Test failed. TestGetExchangeByName: Non-existant exchange found")
+		t.Errorf("Test failed. TestGetExchangeByName: Non-existent exchange found")
 	}
 
 	CleanupTest(t)

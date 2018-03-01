@@ -129,7 +129,7 @@ func (p *HitBTC) GetSymbols(symbol string) ([]string, error) {
 }
 
 // GetSymbolsDetailed is the same as above but returns an array of symbols with
-// all ther details.
+// all their details.
 func (p *HitBTC) GetSymbolsDetailed() ([]Symbol, error) {
 	resp := []Symbol{}
 	path := fmt.Sprintf("%s/%s", apiURL, apiV2Symbol)

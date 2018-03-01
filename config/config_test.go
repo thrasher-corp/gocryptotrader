@@ -19,7 +19,7 @@ func TestSupportsPair(t *testing.T) {
 	_, err = cfg.SupportsPair("asdf", pair.NewCurrencyPair("BTC", "USD"))
 	if err == nil {
 		t.Error(
-			"Test failed. TestSupportsPair. Non-existant exchange returned nil error",
+			"Test failed. TestSupportsPair. Non-existent exchange returned nil error",
 		)
 	}
 
@@ -43,7 +43,7 @@ func TestGetAvailablePairs(t *testing.T) {
 	_, err = cfg.GetAvailablePairs("asdf")
 	if err == nil {
 		t.Error(
-			"Test failed. TestGetAvailablePairs. Non-existant exchange returned nil error",
+			"Test failed. TestGetAvailablePairs. Non-existent exchange returned nil error",
 		)
 	}
 
@@ -67,7 +67,7 @@ func TestGetEnabledPairs(t *testing.T) {
 	_, err = cfg.GetEnabledPairs("asdf")
 	if err == nil {
 		t.Error(
-			"Test failed. TestGetEnabledPairs. Non-existant exchange returned nil error",
+			"Test failed. TestGetEnabledPairs. Non-existent exchange returned nil error",
 		)
 	}
 
@@ -166,7 +166,7 @@ func TestGetConfigCurrencyPairFormat(t *testing.T) {
 	_, err = cfg.GetConfigCurrencyPairFormat("asdasdasd")
 	if err == nil {
 		t.Errorf(
-			"Test failed. TestGetRequestCurrencyPairFormat. Non-existant exchange returned nil error",
+			"Test failed. TestGetRequestCurrencyPairFormat. Non-existent exchange returned nil error",
 		)
 	}
 
@@ -190,7 +190,7 @@ func TestGetRequestCurrencyPairFormat(t *testing.T) {
 	_, err = cfg.GetRequestCurrencyPairFormat("asdasdasd")
 	if err == nil {
 		t.Errorf(
-			"Test failed. TestGetRequestCurrencyPairFormat. Non-existant exchange returned nil error",
+			"Test failed. TestGetRequestCurrencyPairFormat. Non-existent exchange returned nil error",
 		)
 	}
 

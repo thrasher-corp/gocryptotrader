@@ -64,7 +64,7 @@ type Detail struct {
 	Open      float64 `json:"open"`
 	Close     float64 `json:"close"`
 	High      float64 `json:"high"`
-	Timestamp int64   `json:"id"`
+	Timestamp int64   `json:"timestamp"`
 	ID        int     `json:"id"`
 	Count     int     `json:"count"`
 	Low       float64 `json:"low"`

@@ -212,7 +212,7 @@ type MoveOrderResponse struct {
 	Trades      map[string][]ResultingTrades `json:"resultingTrades"`
 }
 
-// Withdraw holds response for a withdrawel process
+// Withdraw holds response for a withdrawal process
 type Withdraw struct {
 	Response string `json:"response"`
 	Error    string `json:"error"`

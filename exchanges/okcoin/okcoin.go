@@ -882,7 +882,7 @@ func (o *OKCoin) CancelFuturesOrder(orderID int64, symbol, contractType string) 
 	}
 }
 
-// GetFuturesOrderInfo returns information on a specfic futures contract order
+// GetFuturesOrderInfo returns information on a specific futures contract order
 func (o *OKCoin) GetFuturesOrderInfo(orderID, status, currentPage, pageLength int64, symbol, contractType string) {
 	v := url.Values{}
 	v.Set("symbol", symbol)
