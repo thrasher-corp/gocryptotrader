@@ -93,7 +93,6 @@ body {
 }
 
 ///TABLE
-
 .mat-table {
     display: block;
     width: 100%;
@@ -130,12 +129,11 @@ body {
     overflow: hidden;
     word-wrap: break-word;
 }
+
 ////
-
 .mat-tab-label {
-    min-width:10rem !important;
+    max-width: 10rem !important;
 }
-
 
 @import '~@angular/material/prebuilt-themes/indigo-pink.css';
 

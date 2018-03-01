@@ -21,7 +21,7 @@ ngOnInit() {
 }
 
 public addTrade() {
-  if(this.trades.length >= 0 && this.trades.length <= 2) {
+  if(this.trades.length >= 0 && this.trades.length <= 1) {
     this.trades.push(new BuySellComponent());
   }
 }
