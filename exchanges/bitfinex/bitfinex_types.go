@@ -10,6 +10,7 @@ type Ticker struct {
 	High      float64 `json:"high,string"`
 	Volume    float64 `json:"volume,string"`
 	Timestamp string  `json:"timestamp"`
+	Message   string  `json:"message"`
 }
 
 // Tickerv2 holds the version 2 ticker information
@@ -43,8 +44,9 @@ type Stat struct {
 
 // FundingBook holds current the full margin funding book
 type FundingBook struct {
-	Bids []Book `json:"bids"`
-	Asks []Book `json:"asks"`
+	Bids    []Book `json:"bids"`
+	Asks    []Book `json:"asks"`
+	Message string `json:"message"`
 }
 
 // Orderbook holds orderbook information from bid and ask sides
@@ -123,6 +125,12 @@ type SymbolDetails struct {
 	Expiration       string  `json:"expiration"`
 }
 
+// AccountInfoFull adds the error message to Account info
+type AccountInfoFull struct {
+	Info    []AccountInfo
+	Message string `json:"message"`
+}
+
 // AccountInfo general account information with fees
 type AccountInfo struct {
 	MakerFees string `json:"maker_fees"`
@@ -132,6 +140,7 @@ type AccountInfo struct {
 		MakerFees string `json:"maker_fees"`
 		TakerFees string `json:"taker_fees"`
 	} `json:"fees"`
+	Message string `json:"message"`
 }
 
 // AccountFees stores withdrawal account fee data from Bitfinex
