@@ -46,6 +46,7 @@
         "e2e": "protractor ./protractor.conf.js"
     },
     "dependencies": {
+        "@amcharts/amcharts3-angular": "^2.0.3",
         "@angular/animations": "5.2.2",
         "@angular/cdk": "5.1.0",
         "@angular/common": "5.2.2",
@@ -58,6 +59,7 @@
         "@angular/platform-browser-dynamic": "5.2.2",
         "@angular/router": "5.2.2",
         "@ngtools/webpack": "1.9.6",
+        "amstock3": "^3.21.12",
         "core-js": "2.4.1",
         "enhanced-resolve": "3.3.0",
         "extract-text-webpack-plugin": "^3.0.2",
