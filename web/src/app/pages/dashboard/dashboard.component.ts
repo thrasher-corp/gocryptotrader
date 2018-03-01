@@ -46,27 +46,23 @@ public expandTile(tile:any) {
 public resetTiles() {
   this.expanded = false;
  this.dashboard = {tiles:[ {
+    id:1,
     title:'Trade History:', 
-    subTitle:'Trade History', 
-    content:'<app-trade-history></app-trade-history>',
     columns:1,
     rows:2,
     },  {
+    id:2,
     title:'Price History:', 
-    subTitle:'Price History', 
-    content:'<app-price-history></app-price-history>',
     columns:2,
     rows:1,
     },  {
+    id:3,
     title:'My Orders:', 
-    subTitle:'My Orders', 
-    content:'<app-my-orders></app-my-orders>',
     columns:1,
     rows:1,
     },  {
-    title:'Orders:', 
-    subTitle:'Orders', 
-    content:'<app-orders></app-orders>',
+      id:4,
+      title:'Orders:', 
     columns:1,
     rows:1,
     }, 

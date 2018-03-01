@@ -92,6 +92,51 @@ body {
     margin-top: 5rem;
 }
 
+///TABLE
+
+.mat-table {
+    display: block;
+    width: 100%;
+    margin: 20px;
+}
+
+.mat-row,
+.mat-header-row {
+    display: flex;
+    border-bottom-width: 1px;
+    border-bottom-style: solid;
+    align-items: center;
+    min-height: 48px;
+    padding: 0 24px;
+}
+
+.mat-row-container .mat-row:nth-child(odd) {
+    background: rgba($color: #000000, $alpha: 0.1)
+}
+
+.mat-row-gain {
+    .mat-row {
+        background: rgba($color: #000000, $alpha: 0.1)
+    }
+    .mat-header-row {
+        font-weight: bold;
+        background: rgba($color: #000000, $alpha: 0.05)
+    }
+}
+
+.mat-cell,
+.mat-header-cell {
+    flex: 1;
+    overflow: hidden;
+    word-wrap: break-word;
+}
+////
+
+.mat-tab-label {
+    min-width:10rem !important;
+}
+
+
 @import '~@angular/material/prebuilt-themes/indigo-pink.css';
 
 /*
