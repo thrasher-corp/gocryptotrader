@@ -3,21 +3,20 @@
 </button>
 <ng-template app-buy-sell></ng-template>
 <div style="width:97%;">
-    <mat-grid-list cols="3" rowHeight="22rem">
+    <mat-grid-list cols="3" gutterSize="5px"   rowHeight="fit">
         <mat-grid-tile [colspan]="tile.columns" [rowspan]="tile.rows" *ngFor="let tile of dashboard.tiles">
             <mat-card class="full-card">
                 <mat-card-header>
                     <mat-card-title>{{tile.title}}</mat-card-title>
                 </mat-card-header>
                 <mat-card-content>
-                    <div class="the-container">
+                    cols: {{tile.columns}} rows: {{tile.rows}}
                         <div [ngSwitch]="tile.id">
-                            <app-trade-history class="bigBox" *ngSwitchCase="1"></app-trade-history>
-                            <app-price-history [ngClass]="{'bigBox': tile.columns == 3, 'smallBox': tile.columns == 2}" *ngSwitchCase="2"></app-price-history>
-                            <app-my-orders [ngClass]="{'bigBox': tile.columns == 3, 'smallBox': tile.columns == 1}" *ngSwitchCase="3"></app-my-orders>
-                            <app-orders [ngClass]="{'bigBox': tile.columns == 3, 'smallBox': tile.columns == 1}" *ngSwitchCase="4"></app-orders>
+                            <app-trade-history  *ngSwitchCase="1"></app-trade-history>
+                            <app-price-history  *ngSwitchCase="2"></app-price-history>
+                            <app-my-orders  *ngSwitchCase="3"></app-my-orders>
+                            <app-orders  *ngSwitchCase="4"></app-orders>
                         </div>
-                    </div>
                 </mat-card-content>
                 <mat-card-footer>
                     <button *ngIf="!expanded" (click)="expandTile(tile)" mat-button>EXPAND</button>

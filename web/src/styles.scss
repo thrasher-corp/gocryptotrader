@@ -109,6 +109,10 @@ body {
     padding: 0 24px;
 }
 
+.mat-row-container {
+    height:100%;
+}
+
 .mat-row-container .mat-row:nth-child(odd) {
     background: rgba($color: #000000, $alpha: 0.1)
 }

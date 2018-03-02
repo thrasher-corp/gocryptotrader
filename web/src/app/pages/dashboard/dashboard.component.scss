@@ -1,5 +1,4 @@
 .full-card {
-    margin: 10px;
     width: 100%;
 }
 
@@ -8,9 +7,24 @@
     /*vertical alignment*/
 }
 
-.full-card .mat-card-footer {
+
+mat-card-content {
+overflow-y:auto;
+overflow-x:hidden;
+height:80%;
+}
+
+mat-card-header {
+    height:10%;
+}
+
+mat-card-footer {
+    height: 10%;
+}
+
+mat-card-footer button {
     position: absolute;
-    bottom: 24px;
+    bottom: 0;
 }
 
 .mat-fab {
@@ -46,22 +60,13 @@
 }
 
 .the-container {
-    max-height: 36rem;
+    max-height: 100%;
     overflow-y: auto;
-    overflow-x: hidden;
     display: block;
 }
 
-.bigBox {
-    max-height: 36rem;
-    overflow-y: auto;
-    overflow-x: hidden;
-    display: block;
-}
 
-.smallBox {
-    max-height: 15rem;
-    overflow-y: auto;
-    display: block;
-    overflow-x: hidden;
+
+mat-grid-list {
+    height: 90vmin;
 }
