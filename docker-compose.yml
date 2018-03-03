@@ -1,13 +1,15 @@
-version: '2'
+version: '3'
+
 services:
-    web:
-        build: web/
-        hostname: gocryptotraderweb
-        container_name: web
-        ports:
-            - "3333:80"
-    cli:
-        build: .
-        hostname: gocryptotrader
-        container_name: daemon
-        privileged: true
+
+  web:
+    build: ./web
+    depends_on:
+      - cli
+    ports:
+      - "9051:80"
+
+  cli:
+    build: .
+    ports:
+      - "9050:9050"
