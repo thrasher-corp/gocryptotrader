@@ -68,7 +68,7 @@ const (
 )
 
 var (
-	okcoinDefaultsSet = false
+	OkcoinDefaultsSet = false
 )
 
 // OKCoin is the overarching type across this package
