@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
@@ -12,6 +13,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/exchanges"
+	"github.com/thrasher-/gocryptotrader/exchanges/request"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 )
 
@@ -31,6 +33,9 @@ const (
 	liquiCancelOrder       = "CancelOrder"
 	liquiTradeHistory      = "TradeHistory"
 	liquiWithdrawCoin      = "WithdrawCoin"
+
+	liquiAuthRate   = 0
+	liquiUnauthRate = 0
 )
 
 // Liqui is the overarching type across the liqui package
@@ -38,6 +43,7 @@ type Liqui struct {
 	exchange.Base
 	Ticker map[string]Ticker
 	Info   Info
+	*request.Handler
 }
 
 // SetDefaults sets current default values for liqui
@@ -55,6 +61,8 @@ func (l *Liqui) SetDefaults() {
 	l.ConfigCurrencyPairFormat.Delimiter = "_"
 	l.ConfigCurrencyPairFormat.Uppercase = true
 	l.AssetTypes = []string{ticker.Spot}
+	l.Handler = new(request.Handler)
+	l.SetRequestHandler(l.Name, liquiAuthRate, liquiUnauthRate, new(http.Client))
 }
 
 // Setup sets exchange configuration parameters for liqui
@@ -112,7 +120,7 @@ func (l *Liqui) GetInfo() (Info, error) {
 	resp := Info{}
 	req := fmt.Sprintf("%s/%s/%s/", liquiAPIPublicURL, liquiAPIPublicVersion, liquiInfo)
 
-	return resp, common.SendHTTPGetRequest(req, true, l.Verbose, &resp)
+	return resp, l.SendHTTPRequest(req, &resp)
 }
 
 // GetTicker returns information about currently active pairs, such as: the
@@ -131,8 +139,7 @@ func (l *Liqui) GetTicker(currencyPair string) (map[string]Ticker, error) {
 	response := Response{Data: make(map[string]Ticker)}
 	req := fmt.Sprintf("%s/%s/%s/%s", liquiAPIPublicURL, liquiAPIPublicVersion, liquiTicker, currencyPair)
 
-	return response.Data,
-		common.SendHTTPGetRequest(req, true, l.Verbose, &response.Data)
+	return response.Data, l.SendHTTPRequest(req, &response.Data)
 }
 
 // GetDepth information about active orders on the pair. Additionally it accepts
@@ -148,8 +155,7 @@ func (l *Liqui) GetDepth(currencyPair string) (Orderbook, error) {
 	response := Response{Data: make(map[string]Orderbook)}
 	req := fmt.Sprintf("%s/%s/%s/%s", liquiAPIPublicURL, liquiAPIPublicVersion, liquiDepth, currencyPair)
 
-	return response.Data[currencyPair],
-		common.SendHTTPGetRequest(req, true, l.Verbose, &response.Data)
+	return response.Data[currencyPair], l.SendHTTPRequest(req, &response.Data)
 }
 
 // GetTrades returns information about the last trades. Additionally it accepts
@@ -165,8 +171,7 @@ func (l *Liqui) GetTrades(currencyPair string) ([]Trades, error) {
 	response := Response{Data: make(map[string][]Trades)}
 	req := fmt.Sprintf("%s/%s/%s/%s", liquiAPIPublicURL, liquiAPIPublicVersion, liquiTrades, currencyPair)
 
-	return response.Data[currencyPair],
-		common.SendHTTPGetRequest(req, true, l.Verbose, &response.Data)
+	return response.Data[currencyPair], l.SendHTTPRequest(req, &response.Data)
 }
 
 // GetAccountInfo returns information about the user’s current balance, API-key
@@ -252,6 +257,11 @@ func (l *Liqui) WithdrawCoins(coin string, amount float64, address string) (With
 	return result, l.SendAuthenticatedHTTPRequest(liquiWithdrawCoin, req, &result)
 }
 
+// SendHTTPRequest sends an unauthenticated HTTP request
+func (l *Liqui) SendHTTPRequest(path string, result interface{}) error {
+	return l.SendPayload("GET", path, nil, nil, result, false, l.Verbose)
+}
+
 // SendAuthenticatedHTTPRequest sends an authenticated http request to liqui
 func (l *Liqui) SendAuthenticatedHTTPRequest(method string, values url.Values, result interface{}) (err error) {
 	if !l.AuthenticatedAPISupport {
@@ -278,31 +288,5 @@ func (l *Liqui) SendAuthenticatedHTTPRequest(method string, values url.Values, r
 	headers["Sign"] = common.HexEncodeToString(hmac)
 	headers["Content-Type"] = "application/x-www-form-urlencoded"
 
-	resp, err := common.SendHTTPRequest("POST", liquiAPIPrivateURL, headers, strings.NewReader(encoded))
-	if err != nil {
-		return err
-	}
-
-	response := Response{}
-
-	err = common.JSONDecode([]byte(resp), &response)
-	if err != nil {
-		return err
-	}
-
-	if response.Success != 1 {
-		return errors.New(response.Error)
-	}
-
-	jsonEncoded, err := common.JSONEncode(response.Return)
-	if err != nil {
-		return err
-	}
-
-	err = common.JSONDecode(jsonEncoded, &result)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return l.SendPayload("POST", liquiAPIPrivateURL, headers, strings.NewReader(encoded), result, true, l.Verbose)
 }

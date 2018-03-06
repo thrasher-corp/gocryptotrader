@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
@@ -12,6 +13,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
+	"github.com/thrasher-/gocryptotrader/exchanges/request"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 )
 
@@ -35,12 +37,16 @@ const (
 	wexCoinDepositAddress = "CoinDepositAddress"
 	wexCreateCoupon       = "CreateCoupon"
 	wexRedeemCoupon       = "RedeemCoupon"
+
+	wexAuthRate   = 0
+	wexUnauthRate = 0
 )
 
 // WEX is the overarching type across the wex package
 type WEX struct {
 	exchange.Base
 	Ticker map[string]Ticker
+	*request.Handler
 }
 
 // SetDefaults sets current default value for WEX
@@ -58,6 +64,8 @@ func (w *WEX) SetDefaults() {
 	w.ConfigCurrencyPairFormat.Delimiter = ""
 	w.ConfigCurrencyPairFormat.Uppercase = true
 	w.AssetTypes = []string{ticker.Spot}
+	w.Handler = new(request.Handler)
+	w.SetRequestHandler(w.Name, wexAuthRate, wexUnauthRate, new(http.Client))
 }
 
 // Setup sets exchange configuration parameters for WEX
@@ -95,7 +103,7 @@ func (w *WEX) GetInfo() (Info, error) {
 	resp := Info{}
 	req := fmt.Sprintf("%s/%s/%s/", wexAPIPublicURL, wexAPIPublicVersion, wexInfo)
 
-	return resp, common.SendHTTPGetRequest(req, true, w.Verbose, &resp)
+	return resp, w.SendHTTPRequest(req, &resp)
 }
 
 // GetTicker returns a ticker for a specific currency
@@ -107,7 +115,7 @@ func (w *WEX) GetTicker(symbol string) (map[string]Ticker, error) {
 	response := Response{}
 	req := fmt.Sprintf("%s/%s/%s/%s", wexAPIPublicURL, wexAPIPublicVersion, wexTicker, symbol)
 
-	return response.Data, common.SendHTTPGetRequest(req, true, w.Verbose, &response.Data)
+	return response.Data, w.SendHTTPRequest(req, &response.Data)
 }
 
 // GetDepth returns the depth for a specific currency
@@ -119,8 +127,7 @@ func (w *WEX) GetDepth(symbol string) (Orderbook, error) {
 	response := Response{}
 	req := fmt.Sprintf("%s/%s/%s/%s", wexAPIPublicURL, wexAPIPublicVersion, wexDepth, symbol)
 
-	return response.Data[symbol],
-		common.SendHTTPGetRequest(req, true, w.Verbose, &response.Data)
+	return response.Data[symbol], w.SendHTTPRequest(req, &response.Data)
 }
 
 // GetTrades returns the trades for a specific currency
@@ -132,16 +139,22 @@ func (w *WEX) GetTrades(symbol string) ([]Trades, error) {
 	response := Response{}
 	req := fmt.Sprintf("%s/%s/%s/%s", wexAPIPublicURL, wexAPIPublicVersion, wexTrades, symbol)
 
-	return response.Data[symbol],
-		common.SendHTTPGetRequest(req, true, w.Verbose, &response.Data)
+	return response.Data[symbol], w.SendHTTPRequest(req, &response.Data)
 }
 
 // GetAccountInfo returns a users account info
 func (w *WEX) GetAccountInfo() (AccountInfo, error) {
 	var result AccountInfo
 
-	return result,
-		w.SendAuthenticatedHTTPRequest(wexAccountInfo, url.Values{}, &result)
+	err := w.SendAuthenticatedHTTPRequest(wexAccountInfo, url.Values{}, &result)
+	if err != nil {
+		return result, err
+	}
+
+	if result.Error != "" {
+		return result, errors.New(result.Error)
+	}
+	return result, nil
 }
 
 // GetActiveOrders returns the active orders for a specific currency
@@ -170,12 +183,15 @@ func (w *WEX) CancelOrder(OrderID int64) (bool, error) {
 	req.Add("order_id", strconv.FormatInt(OrderID, 10))
 
 	var result CancelOrder
-	err := w.SendAuthenticatedHTTPRequest(wexCancelOrder, req, &result)
 
+	err := w.SendAuthenticatedHTTPRequest(wexCancelOrder, req, &result)
 	if err != nil {
 		return false, err
 	}
 
+	if result.Error != "" {
+		return false, errors.New(result.Error)
+	}
 	return true, nil
 }
 
@@ -189,8 +205,15 @@ func (w *WEX) Trade(pair, orderType string, amount, price float64) (int64, error
 
 	var result Trade
 
-	return int64(result.OrderID),
-		w.SendAuthenticatedHTTPRequest(wexTrade, req, &result)
+	err := w.SendAuthenticatedHTTPRequest(wexTrade, req, &result)
+	if err != nil {
+		return 0, err
+	}
+
+	if result.Error != "" {
+		return 0, errors.New(result.Error)
+	}
+	return int64(result.OrderID), nil
 }
 
 // GetTransactionHistory returns the transaction history
@@ -236,7 +259,15 @@ func (w *WEX) WithdrawCoins(coin string, amount float64, address string) (Withdr
 
 	var result WithdrawCoins
 
-	return result, w.SendAuthenticatedHTTPRequest(wexWithdrawCoin, req, &result)
+	err := w.SendAuthenticatedHTTPRequest(wexWithdrawCoin, req, &result)
+	if err != nil {
+		return result, err
+	}
+
+	if result.Error != "" {
+		return result, errors.New(result.Error)
+	}
+	return result, nil
 }
 
 // CoinDepositAddress returns the deposit address for a specific currency
@@ -246,8 +277,14 @@ func (w *WEX) CoinDepositAddress(coin string) (string, error) {
 
 	var result CoinDepositAddress
 
-	return result.Address,
-		w.SendAuthenticatedHTTPRequest(wexCoinDepositAddress, req, &result)
+	err := w.SendAuthenticatedHTTPRequest(wexCoinDepositAddress, req, &result)
+	if err != nil {
+		return result.Address, err
+	}
+	if result.Error != "" {
+		return result.Address, errors.New(result.Error)
+	}
+	return result.Address, nil
 }
 
 // CreateCoupon creates an exchange coupon for a sepcific currency
@@ -258,7 +295,14 @@ func (w *WEX) CreateCoupon(currency string, amount float64) (CreateCoupon, error
 
 	var result CreateCoupon
 
-	return result, w.SendAuthenticatedHTTPRequest(wexCreateCoupon, req, &result)
+	err := w.SendAuthenticatedHTTPRequest(wexCreateCoupon, req, &result)
+	if err != nil {
+		return result, err
+	}
+	if result.Error != "" {
+		return result, errors.New(result.Error)
+	}
+	return result, nil
 }
 
 // RedeemCoupon redeems an exchange coupon
@@ -268,7 +312,19 @@ func (w *WEX) RedeemCoupon(coupon string) (RedeemCoupon, error) {
 
 	var result RedeemCoupon
 
-	return result, w.SendAuthenticatedHTTPRequest(wexRedeemCoupon, req, &result)
+	err := w.SendAuthenticatedHTTPRequest(wexRedeemCoupon, req, &result)
+	if err != nil {
+		return result, err
+	}
+	if result.Error != "" {
+		return result, errors.New(result.Error)
+	}
+	return result, nil
+}
+
+// SendHTTPRequest sends an unauthenticated HTTP request
+func (w *WEX) SendHTTPRequest(path string, result interface{}) error {
+	return w.SendPayload("GET", path, nil, nil, result, false, w.Verbose)
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated HTTP request to WEX
@@ -289,7 +345,10 @@ func (w *WEX) SendAuthenticatedHTTPRequest(method string, values url.Values, res
 	hmac := common.GetHMAC(common.HashSHA512, []byte(encoded), []byte(w.APISecret))
 
 	if w.Verbose {
-		log.Printf("Sending POST request to %s calling method %s with params %s\n", wexAPIPrivateURL, method, encoded)
+		log.Printf("Sending POST request to %s calling method %s with params %s\n",
+			wexAPIPrivateURL,
+			method,
+			encoded)
 	}
 
 	headers := make(map[string]string)
@@ -297,25 +356,5 @@ func (w *WEX) SendAuthenticatedHTTPRequest(method string, values url.Values, res
 	headers["Sign"] = common.HexEncodeToString(hmac)
 	headers["Content-Type"] = "application/x-www-form-urlencoded"
 
-	resp, err := common.SendHTTPRequest("POST", wexAPIPrivateURL, headers, strings.NewReader(encoded))
-	if err != nil {
-		return err
-	}
-
-	response := Response{}
-	err = common.JSONDecode([]byte(resp), &response)
-	if err != nil {
-		return err
-	}
-
-	if response.Success != 1 {
-		return errors.New(response.Error)
-	}
-
-	JSONEncoded, err := common.JSONEncode(response.Return)
-	if err != nil {
-		return err
-	}
-
-	return common.JSONDecode(JSONEncoded, &result)
+	return w.SendPayload("POST", wexAPIPrivateURL, headers, strings.NewReader(encoded), result, true, w.Verbose)
 }

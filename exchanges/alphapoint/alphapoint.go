@@ -5,12 +5,14 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"net/http"
 	"strconv"
 	"time"
 
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/exchanges"
+	"github.com/thrasher-/gocryptotrader/exchanges/request"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 )
 
@@ -36,14 +38,16 @@ const (
 	alphapointOpenOrders       = "GetAccountOpenOrders"
 	alphapointOrderFee         = "GetOrderFee"
 
-	// Anymore and you get IP banned
-	alphapointMaxRequestsPer10minutes = 500
+	// alphapoint rate times
+	alphapointAuthRate   = 1200
+	alphapointUnauthRate = 1200
 )
 
 // Alphapoint is the overarching type across the alphapoint package
 type Alphapoint struct {
 	exchange.Base
 	WebsocketConn *websocket.Conn
+	*request.Handler
 }
 
 // SetDefaults sets current default settings
@@ -51,6 +55,8 @@ func (a *Alphapoint) SetDefaults() {
 	a.APIUrl = alphapointDefaultAPIURL
 	a.WebsocketURL = alphapointDefaultWebsocketURL
 	a.AssetTypes = []string{ticker.Spot}
+	a.Handler = new(request.Handler)
+	a.SetRequestHandler(a.Name, alphapointAuthRate, alphapointUnauthRate, new(http.Client))
 }
 
 // GetTicker returns current ticker information from Alphapoint for a selected
@@ -60,7 +66,7 @@ func (a *Alphapoint) GetTicker(currencyPair string) (Ticker, error) {
 	request["productPair"] = currencyPair
 	response := Ticker{}
 
-	err := a.SendRequest("POST", alphapointTicker, request, &response)
+	err := a.SendHTTPRequest("POST", alphapointTicker, request, &response)
 	if err != nil {
 		return response, err
 	}
@@ -83,7 +89,7 @@ func (a *Alphapoint) GetTrades(currencyPair string, startIndex, count int) (Trad
 	request["Count"] = count
 	response := Trades{}
 
-	err := a.SendRequest("POST", alphapointTrades, request, &response)
+	err := a.SendHTTPRequest("POST", alphapointTrades, request, &response)
 	if err != nil {
 		return response, err
 	}
@@ -104,7 +110,7 @@ func (a *Alphapoint) GetTradesByDate(currencyPair string, startDate, endDate int
 	request["endDate"] = endDate
 	response := Trades{}
 
-	err := a.SendRequest("POST", alphapointTradesByDate, request, &response)
+	err := a.SendHTTPRequest("POST", alphapointTradesByDate, request, &response)
 	if err != nil {
 		return response, err
 	}
@@ -121,7 +127,7 @@ func (a *Alphapoint) GetOrderbook(currencyPair string) (Orderbook, error) {
 	request["productPair"] = currencyPair
 	response := Orderbook{}
 
-	err := a.SendRequest("POST", alphapointOrderbook, request, &response)
+	err := a.SendHTTPRequest("POST", alphapointOrderbook, request, &response)
 	if err != nil {
 		return response, err
 	}
@@ -135,7 +141,7 @@ func (a *Alphapoint) GetOrderbook(currencyPair string) (Orderbook, error) {
 func (a *Alphapoint) GetProductPairs() (ProductPairs, error) {
 	response := ProductPairs{}
 
-	err := a.SendRequest("POST", alphapointProductPairs, nil, &response)
+	err := a.SendHTTPRequest("POST", alphapointProductPairs, nil, &response)
 	if err != nil {
 		return response, err
 	}
@@ -149,7 +155,7 @@ func (a *Alphapoint) GetProductPairs() (ProductPairs, error) {
 func (a *Alphapoint) GetProducts() (Products, error) {
 	response := Products{}
 
-	err := a.SendRequest("POST", alphapointProducts, nil, &response)
+	err := a.SendHTTPRequest("POST", alphapointProducts, nil, &response)
 	if err != nil {
 		return response, err
 	}
@@ -503,8 +509,8 @@ func (a *Alphapoint) GetOrderFee(symbol, side string, quantity, price float64) (
 	return response.Fee, nil
 }
 
-// SendRequest sends an unauthenticated request
-func (a *Alphapoint) SendRequest(method, path string, data map[string]interface{}, result interface{}) error {
+// SendHTTPRequest sends an unauthenticated HTTP request
+func (a *Alphapoint) SendHTTPRequest(method, path string, data map[string]interface{}, result interface{}) error {
 	headers := make(map[string]string)
 	headers["Content-Type"] = "application/json"
 	path = fmt.Sprintf("%s/ajax/v%s/%s", a.APIUrl, alphapointAPIVersion, path)
@@ -514,21 +520,7 @@ func (a *Alphapoint) SendRequest(method, path string, data map[string]interface{
 		return errors.New("SendHTTPRequest: Unable to JSON request")
 	}
 
-	resp, err := common.SendHTTPRequest(
-		method,
-		path,
-		headers,
-		bytes.NewBuffer(PayloadJSON),
-	)
-	if err != nil {
-		return err
-	}
-
-	err = common.JSONDecode([]byte(resp), &result)
-	if err != nil {
-		return errors.New("unable to JSON Unmarshal response")
-	}
-	return nil
+	return a.SendPayload(method, path, headers, bytes.NewBuffer(PayloadJSON), result, false, a.Verbose)
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated request
@@ -556,16 +548,5 @@ func (a *Alphapoint) SendAuthenticatedHTTPRequest(method, path string, data map[
 		return errors.New("SendAuthenticatedHTTPRequest: Unable to JSON request")
 	}
 
-	resp, err := common.SendHTTPRequest(
-		method, path, headers, bytes.NewBuffer(PayloadJSON),
-	)
-	if err != nil {
-		return err
-	}
-
-	err = common.JSONDecode([]byte(resp), &result)
-	if err != nil {
-		return errors.New("unable to JSON Unmarshal response")
-	}
-	return nil
+	return a.SendPayload(method, path, headers, bytes.NewBuffer(PayloadJSON), result, true, a.Verbose)
 }

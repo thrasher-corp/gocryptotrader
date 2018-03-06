@@ -13,9 +13,9 @@ const (
 	apiSecret = "TestyTesty"
 )
 
+var b Bittrex
+
 func TestSetDefaults(t *testing.T) {
-	t.Parallel()
-	b := Bittrex{}
 	b.SetDefaults()
 	if b.GetName() != "Bittrex" {
 		t.Error("Test Failed - Bittrex - SetDefaults() error")
@@ -23,9 +23,6 @@ func TestSetDefaults(t *testing.T) {
 }
 
 func TestSetup(t *testing.T) {
-	t.Parallel()
-	b := Bittrex{}
-	b.Name = "Bittrex"
 	cfg := config.GetConfig()
 	cfg.LoadConfig("../../testdata/configtest.json")
 	bConfig, err := cfg.GetExchangeConfig("Bittrex")
@@ -33,7 +30,6 @@ func TestSetup(t *testing.T) {
 		t.Error("Test Failed - Bittrex Setup() init error")
 	}
 
-	b.SetDefaults()
 	b.Setup(bConfig)
 
 	if !b.IsEnabled() || b.AuthenticatedAPISupport || b.RESTPollingDelay != time.Duration(10) ||
@@ -41,19 +37,11 @@ func TestSetup(t *testing.T) {
 		len(b.AvailablePairs) < 1 || len(b.EnabledPairs) < 1 {
 		t.Error("Test Failed - Bittrex Setup values not set correctly")
 	}
-
-	bConfig.Enabled = false
-	b.Setup(bConfig)
-
-	if b.IsEnabled() {
-		t.Error("Test failed - Bittrex TestSetup incorrect value")
-	}
 }
 
 func TestGetMarkets(t *testing.T) {
 	t.Parallel()
-	obj := Bittrex{}
-	_, err := obj.GetMarkets()
+	_, err := b.GetMarkets()
 	if err != nil {
 		t.Errorf("Test Failed - Bittrex - GetMarkets() error: %s", err)
 	}
@@ -61,8 +49,7 @@ func TestGetMarkets(t *testing.T) {
 
 func TestGetCurrencies(t *testing.T) {
 	t.Parallel()
-	obj := Bittrex{}
-	_, err := obj.GetCurrencies()
+	_, err := b.GetCurrencies()
 	if err != nil {
 		t.Errorf("Test Failed - Bittrex - GetCurrencies() error: %s", err)
 	}
@@ -70,20 +57,9 @@ func TestGetCurrencies(t *testing.T) {
 
 func TestGetTicker(t *testing.T) {
 	t.Parallel()
-	invalid := ""
 	btc := "btc-ltc"
-	doge := "btc-DOGE"
 
-	obj := Bittrex{}
-	_, err := obj.GetTicker(invalid)
-	if err == nil {
-		t.Error("Test Failed - Bittrex - GetTicker() error")
-	}
-	_, err = obj.GetTicker(btc)
-	if err != nil {
-		t.Errorf("Test Failed - Bittrex - GetTicker() error: %s", err)
-	}
-	_, err = obj.GetTicker(doge)
+	_, err := b.GetTicker(btc)
 	if err != nil {
 		t.Errorf("Test Failed - Bittrex - GetTicker() error: %s", err)
 	}
@@ -91,8 +67,7 @@ func TestGetTicker(t *testing.T) {
 
 func TestGetMarketSummaries(t *testing.T) {
 	t.Parallel()
-	obj := Bittrex{}
-	_, err := obj.GetMarketSummaries()
+	_, err := b.GetMarketSummaries()
 	if err != nil {
 		t.Errorf("Test Failed - Bittrex - GetMarketSummaries() error: %s", err)
 	}
@@ -101,51 +76,35 @@ func TestGetMarketSummaries(t *testing.T) {
 func TestGetMarketSummary(t *testing.T) {
 	t.Parallel()
 	pairOne := "BTC-LTC"
-	invalid := "WigWham"
 
-	obj := Bittrex{}
-	_, err := obj.GetMarketSummary(pairOne)
+	_, err := b.GetMarketSummary(pairOne)
 	if err != nil {
 		t.Errorf("Test Failed - Bittrex - GetMarketSummary() error: %s", err)
-	}
-	_, err = obj.GetMarketSummary(invalid)
-	if err == nil {
-		t.Error("Test Failed - Bittrex - GetMarketSummary() error")
 	}
 }
 
 func TestGetOrderbook(t *testing.T) {
 	t.Parallel()
-	obj := Bittrex{}
-	_, err := obj.GetOrderbook("btc-ltc")
+
+	_, err := b.GetOrderbook("btc-ltc")
 	if err != nil {
 		t.Errorf("Test Failed - Bittrex - GetOrderbook() error: %s", err)
-	}
-	_, err = obj.GetOrderbook("wigwham")
-	if err == nil {
-		t.Errorf("Test Failed - Bittrex - GetOrderbook() error")
 	}
 }
 
 func TestGetMarketHistory(t *testing.T) {
 	t.Parallel()
-	obj := Bittrex{}
-	_, err := obj.GetMarketHistory("btc-ltc")
+
+	_, err := b.GetMarketHistory("btc-ltc")
 	if err != nil {
 		t.Errorf("Test Failed - Bittrex - GetMarketHistory() error: %s", err)
-	}
-	_, err = obj.GetMarketHistory("malum")
-	if err == nil {
-		t.Errorf("Test Failed - Bittrex - GetMarketHistory() error")
 	}
 }
 
 func TestPlaceBuyLimit(t *testing.T) {
 	t.Parallel()
-	obj := Bittrex{}
-	obj.APIKey = apiKey
-	obj.APISecret = apiSecret
-	_, err := obj.PlaceBuyLimit("btc-ltc", 1, 1)
+
+	_, err := b.PlaceBuyLimit("btc-ltc", 1, 1)
 	if err == nil {
 		t.Error("Test Failed - Bittrex - PlaceBuyLimit() error")
 	}
@@ -153,10 +112,8 @@ func TestPlaceBuyLimit(t *testing.T) {
 
 func TestPlaceSellLimit(t *testing.T) {
 	t.Parallel()
-	obj := Bittrex{}
-	obj.APIKey = apiKey
-	obj.APISecret = apiSecret
-	_, err := obj.PlaceSellLimit("btc-ltc", 1, 1)
+
+	_, err := b.PlaceSellLimit("btc-ltc", 1, 1)
 	if err == nil {
 		t.Error("Test Failed - Bittrex - PlaceSellLimit() error")
 	}
@@ -164,14 +121,12 @@ func TestPlaceSellLimit(t *testing.T) {
 
 func TestGetOpenOrders(t *testing.T) {
 	t.Parallel()
-	obj := Bittrex{}
-	obj.APIKey = apiKey
-	obj.APISecret = apiSecret
-	_, err := obj.GetOpenOrders("")
+
+	_, err := b.GetOpenOrders("")
 	if err == nil {
 		t.Error("Test Failed - Bittrex - GetOrder() error")
 	}
-	_, err = obj.GetOpenOrders("btc-ltc")
+	_, err = b.GetOpenOrders("btc-ltc")
 	if err == nil {
 		t.Error("Test Failed - Bittrex - GetOrder() error")
 	}
@@ -179,10 +134,8 @@ func TestGetOpenOrders(t *testing.T) {
 
 func TestCancelOrder(t *testing.T) {
 	t.Parallel()
-	obj := Bittrex{}
-	obj.APIKey = apiKey
-	obj.APISecret = apiSecret
-	_, err := obj.CancelOrder("blaaaaaaa")
+
+	_, err := b.CancelOrder("blaaaaaaa")
 	if err == nil {
 		t.Error("Test Failed - Bittrex - CancelOrder() error")
 	}
@@ -190,10 +143,8 @@ func TestCancelOrder(t *testing.T) {
 
 func TestGetAccountBalances(t *testing.T) {
 	t.Parallel()
-	obj := Bittrex{}
-	obj.APIKey = apiKey
-	obj.APISecret = apiSecret
-	_, err := obj.GetAccountBalances()
+
+	_, err := b.GetAccountBalances()
 	if err == nil {
 		t.Error("Test Failed - Bittrex - GetAccountBalances() error")
 	}
@@ -201,10 +152,8 @@ func TestGetAccountBalances(t *testing.T) {
 
 func TestGetAccountBalanceByCurrency(t *testing.T) {
 	t.Parallel()
-	obj := Bittrex{}
-	obj.APIKey = apiKey
-	obj.APISecret = apiSecret
-	_, err := obj.GetAccountBalanceByCurrency("btc")
+
+	_, err := b.GetAccountBalanceByCurrency("btc")
 	if err == nil {
 		t.Error("Test Failed - Bittrex - GetAccountBalanceByCurrency() error")
 	}
@@ -212,10 +161,8 @@ func TestGetAccountBalanceByCurrency(t *testing.T) {
 
 func TestGetDepositAddress(t *testing.T) {
 	t.Parallel()
-	obj := Bittrex{}
-	obj.APIKey = apiKey
-	obj.APISecret = apiSecret
-	_, err := obj.GetDepositAddress("btc")
+
+	_, err := b.GetDepositAddress("btc")
 	if err == nil {
 		t.Error("Test Failed - Bittrex - GetDepositAddress() error")
 	}
@@ -223,10 +170,8 @@ func TestGetDepositAddress(t *testing.T) {
 
 func TestWithdraw(t *testing.T) {
 	t.Parallel()
-	obj := Bittrex{}
-	obj.APIKey = apiKey
-	obj.APISecret = apiSecret
-	_, err := obj.Withdraw("btc", "something", "someplace", 1)
+
+	_, err := b.Withdraw("btc", "something", "someplace", 1)
 	if err == nil {
 		t.Error("Test Failed - Bittrex - Withdraw() error")
 	}
@@ -234,14 +179,12 @@ func TestWithdraw(t *testing.T) {
 
 func TestGetOrder(t *testing.T) {
 	t.Parallel()
-	obj := Bittrex{}
-	obj.APIKey = apiKey
-	obj.APISecret = apiSecret
-	_, err := obj.GetOrder("0cb4c4e4-bdc7-4e13-8c13-430e587d2cc1")
+
+	_, err := b.GetOrder("0cb4c4e4-bdc7-4e13-8c13-430e587d2cc1")
 	if err == nil {
 		t.Error("Test Failed - Bittrex - GetOrder() error")
 	}
-	_, err = obj.GetOrder("")
+	_, err = b.GetOrder("")
 	if err == nil {
 		t.Error("Test Failed - Bittrex - GetOrder() error")
 	}
@@ -249,14 +192,12 @@ func TestGetOrder(t *testing.T) {
 
 func TestGetOrderHistory(t *testing.T) {
 	t.Parallel()
-	obj := Bittrex{}
-	obj.APIKey = apiKey
-	obj.APISecret = apiSecret
-	_, err := obj.GetOrderHistory("")
+
+	_, err := b.GetOrderHistory("")
 	if err == nil {
 		t.Error("Test Failed - Bittrex - GetOrderHistory() error")
 	}
-	_, err = obj.GetOrderHistory("btc-ltc")
+	_, err = b.GetOrderHistory("btc-ltc")
 	if err == nil {
 		t.Error("Test Failed - Bittrex - GetOrderHistory() error")
 	}
@@ -264,14 +205,12 @@ func TestGetOrderHistory(t *testing.T) {
 
 func TestGetWithdrawelHistory(t *testing.T) {
 	t.Parallel()
-	obj := Bittrex{}
-	obj.APIKey = apiKey
-	obj.APISecret = apiSecret
-	_, err := obj.GetWithdrawalHistory("")
+
+	_, err := b.GetWithdrawalHistory("")
 	if err == nil {
 		t.Error("Test Failed - Bittrex - GetWithdrawalHistory() error")
 	}
-	_, err = obj.GetWithdrawalHistory("btc-ltc")
+	_, err = b.GetWithdrawalHistory("btc-ltc")
 	if err == nil {
 		t.Error("Test Failed - Bittrex - GetWithdrawalHistory() error")
 	}
@@ -279,14 +218,12 @@ func TestGetWithdrawelHistory(t *testing.T) {
 
 func TestGetDepositHistory(t *testing.T) {
 	t.Parallel()
-	obj := Bittrex{}
-	obj.APIKey = apiKey
-	obj.APISecret = apiSecret
-	_, err := obj.GetDepositHistory("")
+
+	_, err := b.GetDepositHistory("")
 	if err == nil {
 		t.Error("Test Failed - Bittrex - GetDepositHistory() error")
 	}
-	_, err = obj.GetDepositHistory("btc-ltc")
+	_, err = b.GetDepositHistory("btc-ltc")
 	if err == nil {
 		t.Error("Test Failed - Bittrex - GetDepositHistory() error")
 	}

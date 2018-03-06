@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"net/http"
 	"net/url"
 	"strconv"
 	"time"
@@ -12,6 +13,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/exchanges"
+	"github.com/thrasher-/gocryptotrader/exchanges/request"
 )
 
 const (
@@ -94,6 +96,9 @@ const (
 	statePaidAndConfirmed    = "PAID_AND_CONFIRMED"
 	statePaidLateConfirmed   = "PAID_IN_LATE_AND_CONFIRMED"
 	statePaidPartlyConfirmed = "PAID_PARTLY_AND_CONFIRMED"
+
+	localbitcoinsAuthRate   = 0
+	localbitcoinsUnauthRate = 0
 )
 
 var (
@@ -104,6 +109,7 @@ var (
 // LocalBitcoins is the overarching type across the localbitcoins package
 type LocalBitcoins struct {
 	exchange.Base
+	*request.Handler
 }
 
 // SetDefaults sets the package defaults for localbitcoins
@@ -118,6 +124,8 @@ func (l *LocalBitcoins) SetDefaults() {
 	l.RequestCurrencyPairFormat.Uppercase = true
 	l.ConfigCurrencyPairFormat.Delimiter = ""
 	l.ConfigCurrencyPairFormat.Uppercase = true
+	l.Handler = new(request.Handler)
+	l.SetRequestHandler(l.Name, localbitcoinsAuthRate, localbitcoinsUnauthRate, new(http.Client))
 }
 
 // Setup sets exchange configuration parameters
@@ -165,7 +173,7 @@ func (l *LocalBitcoins) GetAccountInfo(username string, self bool) (AccountInfo,
 		}
 	} else {
 		path := fmt.Sprintf("%s/%s/%s/", localbitcoinsAPIURL, localbitcoinsAPIAccountInfo, username)
-		err := common.SendHTTPGetRequest(path, true, l.Verbose, &resp)
+		err := l.SendHTTPRequest(path, &resp)
 		if err != nil {
 			return resp.Data, err
 		}
@@ -653,6 +661,11 @@ func (l *LocalBitcoins) GetOrderbook(currency string) (Orderbook, error) {
 	return orderbook, nil
 }
 
+// SendHTTPRequest sends an unauthenticated HTTP request
+func (l *LocalBitcoins) SendHTTPRequest(path string, result interface{}) error {
+	return l.SendPayload("GET", path, nil, nil, result, false, l.Verbose)
+}
+
 // SendAuthenticatedHTTPRequest sends an authenticated HTTP request to
 // localbitcoins
 func (l *LocalBitcoins) SendAuthenticatedHTTPRequest(method, path string, values url.Values, result interface{}) (err error) {
@@ -685,26 +698,5 @@ func (l *LocalBitcoins) SendAuthenticatedHTTPRequest(method, path string, values
 		log.Printf("Raw Path: \n%s\n", path)
 	}
 
-	resp, err := common.SendHTTPRequest(method, localbitcoinsAPIURL+path, headers, bytes.NewBuffer([]byte(payload)))
-	if err != nil {
-		return err
-	}
-
-	if l.Verbose {
-		log.Printf("Received raw: \n%s\n", resp)
-	}
-
-	errCapture := GeneralError{}
-	if err = common.JSONDecode([]byte(resp), &errCapture); err == nil {
-		if len(errCapture.Error.Message) != 0 {
-			return errors.New(errCapture.Error.Message)
-		}
-	}
-
-	err = common.JSONDecode([]byte(resp), &result)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return l.SendPayload(method, localbitcoinsAPIURL+path, headers, bytes.NewBuffer([]byte(payload)), result, true, l.Verbose)
 }

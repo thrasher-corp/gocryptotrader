@@ -73,6 +73,7 @@ type AccountInfo struct {
 	TransactionCount int     `json:"transaction_count"`
 	OpenOrders       int     `json:"open_orders"`
 	ServerTime       float64 `json:"server_time"`
+	Error            string  `json:"error"`
 }
 
 // OrderInfo stores order information
@@ -90,6 +91,7 @@ type OrderInfo struct {
 type CancelOrder struct {
 	OrderID float64            `json:"order_id"`
 	Funds   map[string]float64 `json:"funds"`
+	Error   string             `json:"error"`
 }
 
 // Trade stores the trade information
@@ -98,6 +100,7 @@ type Trade struct {
 	Remains  float64            `json:"remains"`
 	OrderID  float64            `json:"order_id"`
 	Funds    map[string]float64 `json:"funds"`
+	Error    string             `json:"error"`
 }
 
 // TradeHistory stores trade history
@@ -116,11 +119,13 @@ type DepositAddress struct {
 	Address         string  `json:"address"`
 	ProcessedAmount float64 `json:"processed_amount"`
 	ServerTime      int64   `json:"server_time"`
+	Error           string  `json:"error"`
 }
 
 // WithdrawCoinsToAddress stores information for a withdrawcoins request
 type WithdrawCoinsToAddress struct {
-	ServerTime int64 `json:"server_time"`
+	ServerTime int64  `json:"server_time"`
+	Error      string `json:"error"`
 }
 
 // CreateCoupon stores information coupon information
@@ -128,6 +133,7 @@ type CreateCoupon struct {
 	Coupon  string             `json:"coupon"`
 	TransID int64              `json:"transID"`
 	Funds   map[string]float64 `json:"funds"`
+	Error   string             `json:"error"`
 }
 
 // RedeemCoupon stores redeem coupon information
@@ -136,4 +142,5 @@ type RedeemCoupon struct {
 	CouponCurrency string             `json:"couponCurrency"`
 	TransID        int64              `json:"transID"`
 	Funds          map[string]float64 `json:"funds"`
+	Error          string             `json:"error"`
 }

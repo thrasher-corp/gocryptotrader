@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"net/http"
 	"net/url"
 	"reflect"
 	"strconv"
@@ -12,6 +13,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
+	"github.com/thrasher-/gocryptotrader/exchanges/request"
 )
 
 const (
@@ -66,6 +68,9 @@ const (
 
 	// just your average return type from okex
 	returnTypeOne = "map[string]interface {}"
+
+	okexAuthRate   = 0
+	okexUnauthRate = 0
 )
 
 var errMissValue = errors.New("warning - resp value is missing from exchange")
@@ -82,6 +87,8 @@ type OKEX struct {
 	CurrencyPairs    []string
 	ContractPosition []string
 	Types            []string
+
+	*request.Handler
 }
 
 // SetDefaults method assignes the default values for Bittrex
@@ -97,6 +104,8 @@ func (o *OKEX) SetDefaults() {
 	o.RequestCurrencyPairFormat.Uppercase = false
 	o.ConfigCurrencyPairFormat.Delimiter = "_"
 	o.ConfigCurrencyPairFormat.Uppercase = false
+	o.Handler = new(request.Handler)
+	o.SetRequestHandler(o.Name, okexAuthRate, okexUnauthRate, new(http.Client))
 }
 
 // Setup method sets current configuration details if enabled
@@ -144,7 +153,7 @@ func (o *OKEX) GetContractPrice(symbol, contractType string) (ContractPrice, err
 
 	path := fmt.Sprintf("%s%s%s.do?%s", apiURL, apiVersion, contractPrice, values.Encode())
 
-	err := common.SendHTTPGetRequest(path, true, o.Verbose, &resp)
+	err := o.SendHTTPRequest(path, &resp)
 	if err != nil {
 		return resp, err
 	}
@@ -178,7 +187,7 @@ func (o *OKEX) GetContractMarketDepth(symbol, contractType string) (ActualContra
 
 	path := fmt.Sprintf("%s%s%s.do?%s", apiURL, apiVersion, contractFutureDepth, values.Encode())
 
-	err := common.SendHTTPGetRequest(path, true, o.Verbose, &resp)
+	err := o.SendHTTPRequest(path, &resp)
 	if err != nil {
 		return fullDepth, err
 	}
@@ -242,7 +251,7 @@ func (o *OKEX) GetContractTradeHistory(symbol, contractType string) ([]ActualCon
 
 	path := fmt.Sprintf("%s%s%s.do?%s", apiURL, apiVersion, contractTradeHistory, values.Encode())
 
-	err := common.SendHTTPGetRequest(path, true, o.Verbose, &resp)
+	err := o.SendHTTPRequest(path, &resp)
 	if err != nil {
 		return actualTradeHistory, err
 	}
@@ -279,7 +288,7 @@ func (o *OKEX) GetContractIndexPrice(symbol string) (float64, error) {
 	path := fmt.Sprintf("%s%s%s.do?%s", apiURL, apiVersion, contractFutureIndex, values.Encode())
 	var resp interface{}
 
-	err := common.SendHTTPGetRequest(path, true, o.Verbose, &resp)
+	err := o.SendHTTPRequest(path, &resp)
 	if err != nil {
 		return 0, err
 	}
@@ -302,7 +311,7 @@ func (o *OKEX) GetContractExchangeRate() (float64, error) {
 	path := fmt.Sprintf("%s%s%s.do?", apiURL, apiVersion, contractExchangeRate)
 	var resp interface{}
 
-	if err := common.SendHTTPGetRequest(path, true, o.Verbose, &resp); err != nil {
+	if err := o.SendHTTPRequest(path, &resp); err != nil {
 		return 0, err
 	}
 
@@ -330,7 +339,7 @@ func (o *OKEX) GetContractFutureEstimatedPrice(symbol string) (float64, error) {
 	path := fmt.Sprintf("%s%s%s.do?%s", apiURL, apiVersion, contractFutureIndex, values.Encode())
 	var resp interface{}
 
-	if err := common.SendHTTPGetRequest(path, true, o.Verbose, &resp); err != nil {
+	if err := o.SendHTTPRequest(path, &resp); err != nil {
 		return 0, err
 	}
 
@@ -374,7 +383,7 @@ func (o *OKEX) GetContractCandlestickData(symbol, typeInput, contractType string
 	path := fmt.Sprintf("%s%s%s.do?%s", apiURL, apiVersion, contractCandleStick, values.Encode())
 	var resp interface{}
 
-	if err := common.SendHTTPGetRequest(path, true, o.Verbose, &resp); err != nil {
+	if err := o.SendHTTPRequest(path, &resp); err != nil {
 		return candleData, err
 	}
 
@@ -429,7 +438,7 @@ func (o *OKEX) GetContractHoldingsNumber(symbol, contractType string) (map[strin
 	path := fmt.Sprintf("%s%s%s.do?%s", apiURL, apiVersion, contractFutureHoldAmount, values.Encode())
 	var resp interface{}
 
-	if err := common.SendHTTPGetRequest(path, true, o.Verbose, &resp); err != nil {
+	if err := o.SendHTTPRequest(path, &resp); err != nil {
 		return holdingsNumber, err
 	}
 
@@ -465,7 +474,7 @@ func (o *OKEX) GetContractlimit(symbol, contractType string) (map[string]float64
 	path := fmt.Sprintf("%s%s%s.do?%s", apiURL, apiVersion, contractFutureLimits, values.Encode())
 	var resp interface{}
 
-	if err := common.SendHTTPGetRequest(path, true, o.Verbose, &resp); err != nil {
+	if err := o.SendHTTPRequest(path, &resp); err != nil {
 		return contractLimits, err
 	}
 
@@ -777,6 +786,11 @@ func (o *OKEX) GetErrorCode(code interface{}) error {
 	return errors.New("unable to find SPOT error code")
 }
 
+// SendHTTPRequest sends an unauthenticated HTTP request
+func (o *OKEX) SendHTTPRequest(path string, result interface{}) error {
+	return o.SendPayload("GET", path, nil, nil, result, false, o.Verbose)
+}
+
 // SendAuthenticatedHTTPRequest sends an authenticated http request to a desired
 // path
 func (o *OKEX) SendAuthenticatedHTTPRequest(method string, values url.Values, result interface{}) (err error) {
@@ -798,20 +812,7 @@ func (o *OKEX) SendAuthenticatedHTTPRequest(method string, values url.Values, re
 	headers := make(map[string]string)
 	headers["Content-Type"] = "application/x-www-form-urlencoded"
 
-	resp, err := common.SendHTTPRequest("POST", path, headers, strings.NewReader(encoded))
-	if err != nil {
-		return err
-	}
-
-	if o.Verbose {
-		log.Printf("Received raw: \n%s\n", resp)
-	}
-
-	err = common.JSONDecode([]byte(resp), &result)
-	if err != nil {
-		return errors.New("unable to JSON Unmarshal response")
-	}
-	return nil
+	return o.SendPayload("POST", path, headers, strings.NewReader(encoded), result, true, o.Verbose)
 }
 
 // SetErrorDefaults sets the full error default list

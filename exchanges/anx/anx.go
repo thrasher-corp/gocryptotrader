@@ -5,12 +5,14 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"net/http"
 	"strconv"
 	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/exchanges"
+	"github.com/thrasher-/gocryptotrader/exchanges/request"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 )
 
@@ -27,11 +29,16 @@ const (
 	anxCreateAddress   = "receive/create"
 	anxTicker          = "money/ticker"
 	anxDepth           = "money/depth/full"
+
+	// ANX rate limites for authenticated and unauthenticated requests
+	anxAuthRate   = 1000
+	anxUnauthRate = 1000
 )
 
 // ANX is the overarching type across the alphapoint package
 type ANX struct {
 	exchange.Base
+	*request.Handler
 }
 
 // SetDefaults sets current default settings
@@ -50,6 +57,8 @@ func (a *ANX) SetDefaults() {
 	a.ConfigCurrencyPairFormat.Uppercase = true
 	a.ConfigCurrencyPairFormat.Index = "BTC"
 	a.AssetTypes = []string{ticker.Spot}
+	a.Handler = new(request.Handler)
+	a.SetRequestHandler(a.Name, anxAuthRate, anxUnauthRate, new(http.Client))
 }
 
 //Setup is run on startup to setup exchange with config values
@@ -90,7 +99,7 @@ func (a *ANX) GetTicker(currency string) (Ticker, error) {
 	var ticker Ticker
 	path := fmt.Sprintf("%sapi/2/%s/%s", anxAPIURL, currency, anxTicker)
 
-	return ticker, common.SendHTTPGetRequest(path, true, a.Verbose, &ticker)
+	return ticker, a.SendHTTPRequest(path, &ticker)
 }
 
 // GetDepth returns current orderbook depth.
@@ -98,7 +107,7 @@ func (a *ANX) GetDepth(currency string) (Depth, error) {
 	var depth Depth
 	path := fmt.Sprintf("%sapi/2/%s/%s", anxAPIURL, currency, anxDepth)
 
-	return depth, common.SendHTTPGetRequest(path, true, a.Verbose, &depth)
+	return depth, a.SendHTTPRequest(path, &depth)
 }
 
 // GetAPIKey returns a new generated API key set.
@@ -319,6 +328,11 @@ func (a *ANX) GetDepositAddress(currency, name string, new bool) (string, error)
 	return response.Address, nil
 }
 
+// SendHTTPRequest sends an unauthenticated HTTP request
+func (a *ANX) SendHTTPRequest(path string, result interface{}) error {
+	return a.SendPayload("GET", path, nil, nil, result, false, a.Verbose)
+}
+
 // SendAuthenticatedHTTPRequest sends a authenticated HTTP request
 func (a *ANX) SendAuthenticatedHTTPRequest(path string, params map[string]interface{}, result interface{}) error {
 	if !a.AuthenticatedAPISupport {
@@ -357,20 +371,5 @@ func (a *ANX) SendAuthenticatedHTTPRequest(path string, params map[string]interf
 	headers["Rest-Sign"] = common.Base64Encode([]byte(hmac))
 	headers["Content-Type"] = "application/json"
 
-	resp, err := common.SendHTTPRequest("POST", anxAPIURL+path, headers, bytes.NewBuffer(PayloadJSON))
-	if err != nil {
-		return err
-	}
-
-	if a.Verbose {
-		log.Printf("Received raw: \n%s\n", resp)
-	}
-
-	err = common.JSONDecode([]byte(resp), &result)
-
-	if err != nil {
-		return errors.New("unable to JSON Unmarshal response")
-	}
-
-	return nil
+	return a.SendPayload("POST", anxAPIURL+path, headers, bytes.NewBuffer(PayloadJSON), result, true, a.Verbose)
 }

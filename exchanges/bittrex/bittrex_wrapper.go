@@ -6,7 +6,7 @@ import (
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
-	"github.com/thrasher-/gocryptotrader/exchanges"
+	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 )
@@ -32,11 +32,11 @@ func (b *Bittrex) Run() {
 			forceUpgrade = true
 		}
 		var currencies []string
-		for x := range exchangeProducts {
-			if !exchangeProducts[x].IsActive || exchangeProducts[x].MarketName == "" {
+		for x := range exchangeProducts.Result {
+			if !exchangeProducts.Result[x].IsActive || exchangeProducts.Result[x].MarketName == "" {
 				continue
 			}
-			currencies = append(currencies, exchangeProducts[x].MarketName)
+			currencies = append(currencies, exchangeProducts.Result[x].MarketName)
 		}
 
 		if forceUpgrade {
@@ -65,11 +65,11 @@ func (b *Bittrex) GetExchangeAccountInfo() (exchange.AccountInfo, error) {
 		return response, err
 	}
 
-	for i := 0; i < len(accountBalance); i++ {
+	for i := 0; i < len(accountBalance.Result); i++ {
 		var exchangeCurrency exchange.AccountCurrencyInfo
-		exchangeCurrency.CurrencyName = accountBalance[i].Currency
-		exchangeCurrency.TotalValue = accountBalance[i].Balance
-		exchangeCurrency.Hold = accountBalance[i].Balance - accountBalance[i].Available
+		exchangeCurrency.CurrencyName = accountBalance.Result[i].Currency
+		exchangeCurrency.TotalValue = accountBalance.Result[i].Balance
+		exchangeCurrency.Hold = accountBalance.Result[i].Balance - accountBalance.Result[i].Available
 		response.Currencies = append(response.Currencies, exchangeCurrency)
 	}
 	return response, nil
@@ -85,15 +85,15 @@ func (b *Bittrex) UpdateTicker(p pair.CurrencyPair, assetType string) (ticker.Pr
 
 	for _, x := range b.GetEnabledCurrencies() {
 		curr := exchange.FormatExchangeCurrency(b.Name, x)
-		for y := range tick {
-			if tick[y].MarketName == curr.String() {
+		for y := range tick.Result {
+			if tick.Result[y].MarketName == curr.String() {
 				tickerPrice.Pair = x
-				tickerPrice.High = tick[y].High
-				tickerPrice.Low = tick[y].Low
-				tickerPrice.Ask = tick[y].Ask
-				tickerPrice.Bid = tick[y].Bid
-				tickerPrice.Last = tick[y].Last
-				tickerPrice.Volume = tick[y].Volume
+				tickerPrice.High = tick.Result[y].High
+				tickerPrice.Low = tick.Result[y].Low
+				tickerPrice.Ask = tick.Result[y].Ask
+				tickerPrice.Bid = tick.Result[y].Bid
+				tickerPrice.Last = tick.Result[y].Last
+				tickerPrice.Volume = tick.Result[y].Volume
 				ticker.ProcessTicker(b.GetName(), x, tickerPrice, assetType)
 			}
 		}
@@ -127,20 +127,20 @@ func (b *Bittrex) UpdateOrderbook(p pair.CurrencyPair, assetType string) (orderb
 		return orderBook, err
 	}
 
-	for x := range orderbookNew.Buy {
+	for x := range orderbookNew.Result.Buy {
 		orderBook.Bids = append(orderBook.Bids,
 			orderbook.Item{
-				Amount: orderbookNew.Buy[x].Quantity,
-				Price:  orderbookNew.Buy[x].Rate,
+				Amount: orderbookNew.Result.Buy[x].Quantity,
+				Price:  orderbookNew.Result.Buy[x].Rate,
 			},
 		)
 	}
 
-	for x := range orderbookNew.Sell {
+	for x := range orderbookNew.Result.Sell {
 		orderBook.Asks = append(orderBook.Asks,
 			orderbook.Item{
-				Amount: orderbookNew.Sell[x].Quantity,
-				Price:  orderbookNew.Sell[x].Rate,
+				Amount: orderbookNew.Result.Sell[x].Quantity,
+				Price:  orderbookNew.Result.Sell[x].Rate,
 			},
 		)
 	}

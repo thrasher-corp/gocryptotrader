@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
@@ -12,6 +13,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/exchanges"
+	"github.com/thrasher-/gocryptotrader/exchanges/request"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 )
 
@@ -41,11 +43,15 @@ const (
 	btccStoporderCancel        = "cancelStopOrder"
 	btccStoporder              = "getStopOrder"
 	btccStoporders             = "getStopOrders"
+
+	btccAuthRate   = 0
+	btccUnauthRate = 0
 )
 
 // BTCC is the main overaching type across the BTCC package
 type BTCC struct {
 	exchange.Base
+	*request.Handler
 }
 
 // SetDefaults sets default values for the exchange
@@ -61,6 +67,8 @@ func (b *BTCC) SetDefaults() {
 	b.ConfigCurrencyPairFormat.Delimiter = ""
 	b.ConfigCurrencyPairFormat.Uppercase = true
 	b.AssetTypes = []string{ticker.Spot}
+	b.Handler = new(request.Handler)
+	b.SetRequestHandler(b.Name, btccAuthRate, btccUnauthRate, new(http.Client))
 }
 
 // Setup is run on startup to setup exchange with config values
@@ -97,8 +105,8 @@ func (b *BTCC) GetFee() float64 {
 // currencyPair - Example "btccny", "ltccny" or "ltcbtc"
 func (b *BTCC) GetTicker(currencyPair string) (Ticker, error) {
 	resp := Response{}
-	req := fmt.Sprintf("%s/data/pro/ticker?symbol=%s", btccAPIUrl, currencyPair)
-	return resp.Ticker, common.SendHTTPGetRequest(req, true, b.Verbose, &resp)
+	path := fmt.Sprintf("%s/data/pro/ticker?symbol=%s", btccAPIUrl, currencyPair)
+	return resp.Ticker, b.SendHTTPRequest(path, &resp)
 }
 
 // GetTradeHistory returns trade history data
@@ -108,7 +116,7 @@ func (b *BTCC) GetTicker(currencyPair string) (Ticker, error) {
 // time - returns trade records starting from unix time 1406794449
 func (b *BTCC) GetTradeHistory(currencyPair string, limit, sinceTid int64, time time.Time) ([]Trade, error) {
 	trades := []Trade{}
-	req := fmt.Sprintf("%s/data/pro/historydata?symbol=%s", btccAPIUrl, currencyPair)
+	path := fmt.Sprintf("%s/data/pro/historydata?symbol=%s", btccAPIUrl, currencyPair)
 	v := url.Values{}
 
 	if limit > 0 {
@@ -121,8 +129,8 @@ func (b *BTCC) GetTradeHistory(currencyPair string, limit, sinceTid int64, time 
 		v.Set("sincetype", strconv.FormatInt(time.Unix(), 10))
 	}
 
-	req = common.EncodeURLValues(req, v)
-	return trades, common.SendHTTPGetRequest(req, true, b.Verbose, &trades)
+	path = common.EncodeURLValues(path, v)
+	return trades, b.SendHTTPRequest(path, &trades)
 }
 
 // GetOrderBook returns current symbol order book
@@ -131,12 +139,12 @@ func (b *BTCC) GetTradeHistory(currencyPair string, limit, sinceTid int64, time 
 // orderbook
 func (b *BTCC) GetOrderBook(currencyPair string, limit int) (Orderbook, error) {
 	result := Orderbook{}
-	req := fmt.Sprintf("%s/data/pro/orderbook?symbol=%s&limit=%d", btccAPIUrl, currencyPair, limit)
+	path := fmt.Sprintf("%s/data/pro/orderbook?symbol=%s&limit=%d", btccAPIUrl, currencyPair, limit)
 	if limit == 0 {
-		req = fmt.Sprintf("%s/data/pro/orderbook?symbol=%s", btccAPIUrl, currencyPair)
+		path = fmt.Sprintf("%s/data/pro/orderbook?symbol=%s", btccAPIUrl, currencyPair)
 	}
 
-	return result, common.SendHTTPGetRequest(req, true, b.Verbose, &result)
+	return result, b.SendHTTPRequest(path, &result)
 }
 
 // GetAccountInfo returns account information
@@ -536,6 +544,11 @@ func (b *BTCC) CancelStopOrder(orderID int64, symbol string) {
 	}
 }
 
+// SendHTTPRequest sends an unauthenticated HTTP request
+func (b *BTCC) SendHTTPRequest(path string, result interface{}) error {
+	return b.SendPayload("GET", path, nil, nil, result, false, b.Verbose)
+}
+
 // SendAuthenticatedHTTPRequest sends a valid authenticated HTTP request
 func (b *BTCC) SendAuthenticatedHTTPRequest(method string, params []interface{}) (err error) {
 	if !b.AuthenticatedAPISupport {
@@ -595,8 +608,8 @@ func (b *BTCC) SendAuthenticatedHTTPRequest(method string, params []interface{})
 	postData["id"] = 1
 
 	apiURL := fmt.Sprintf("%s/%s", btccAPIUrl, btccAPIAuthenticatedMethod)
-	data, err := common.JSONEncode(postData)
 
+	data, err := common.JSONEncode(postData)
 	if err != nil {
 		return errors.New("Unable to JSON Marshal POST data")
 	}
@@ -610,15 +623,5 @@ func (b *BTCC) SendAuthenticatedHTTPRequest(method string, params []interface{})
 	headers["Authorization"] = "Basic " + common.Base64Encode([]byte(b.APIKey+":"+common.HexEncodeToString(hmac)))
 	headers["Json-Rpc-Tonce"] = b.Nonce.String()
 
-	resp, err := common.SendHTTPRequest("POST", apiURL, headers, strings.NewReader(string(data)))
-
-	if err != nil {
-		return err
-	}
-
-	if b.Verbose {
-		log.Printf("Recv'd :%s\n", resp)
-	}
-
-	return nil
+	return b.SendPayload("POST", apiURL, headers, strings.NewReader(string(data)), nil, true, b.Verbose)
 }

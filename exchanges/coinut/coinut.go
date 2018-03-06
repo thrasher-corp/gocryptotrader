@@ -5,12 +5,14 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"net/http"
 	"time"
 
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/exchanges"
+	"github.com/thrasher-/gocryptotrader/exchanges/request"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 )
 
@@ -32,6 +34,9 @@ const (
 	coinutOptionChain     = "option_chain"
 	coinutPositionHistory = "position_history"
 	coinutPositionOpen    = "user_open_positions"
+
+	coinutAuthRate   = 0
+	coinutUnauthRate = 0
 )
 
 // COINUT is the overarching type across the coinut package
@@ -39,6 +44,7 @@ type COINUT struct {
 	exchange.Base
 	WebsocketConn *websocket.Conn
 	InstrumentMap map[string]int
+	*request.Handler
 }
 
 // SetDefaults sets current default values
@@ -56,6 +62,8 @@ func (c *COINUT) SetDefaults() {
 	c.ConfigCurrencyPairFormat.Delimiter = ""
 	c.ConfigCurrencyPairFormat.Uppercase = true
 	c.AssetTypes = []string{ticker.Spot}
+	c.Handler = new(request.Handler)
+	c.SetRequestHandler(c.Name, coinutAuthRate, coinutUnauthRate, new(http.Client))
 }
 
 // Setup sets the current exchange configuration
@@ -88,11 +96,8 @@ func (c *COINUT) GetInstruments() (Instruments, error) {
 	var result Instruments
 	params := make(map[string]interface{})
 	params["sec_type"] = "SPOT"
-	err := c.SendHTTPRequest(coinutInstruments, params, false, &result)
-	if err != nil {
-		return result, err
-	}
-	return result, nil
+
+	return result, c.SendHTTPRequest(coinutInstruments, params, false, &result)
 }
 
 // GetInstrumentTicker returns a ticker for a specific instrument
@@ -100,11 +105,8 @@ func (c *COINUT) GetInstrumentTicker(instrumentID int) (Ticker, error) {
 	var result Ticker
 	params := make(map[string]interface{})
 	params["inst_id"] = instrumentID
-	err := c.SendHTTPRequest(coinutTicker, params, false, &result)
-	if err != nil {
-		return result, err
-	}
-	return result, nil
+
+	return result, c.SendHTTPRequest(coinutTicker, params, false, &result)
 }
 
 // GetInstrumentOrderbook returns the orderbooks for a specific instrument
@@ -115,11 +117,8 @@ func (c *COINUT) GetInstrumentOrderbook(instrumentID, limit int) (Orderbook, err
 	if limit > 0 {
 		params["top_n"] = limit
 	}
-	err := c.SendHTTPRequest(coinutOrderbook, params, false, &result)
-	if err != nil {
-		return result, err
-	}
-	return result, nil
+
+	return result, c.SendHTTPRequest(coinutOrderbook, params, false, &result)
 }
 
 // GetTrades returns trade information
@@ -127,21 +126,15 @@ func (c *COINUT) GetTrades(instrumentID int) (Trades, error) {
 	var result Trades
 	params := make(map[string]interface{})
 	params["inst_id"] = instrumentID
-	err := c.SendHTTPRequest(coinutTrades, params, false, &result)
-	if err != nil {
-		return result, err
-	}
-	return result, nil
+
+	return result, c.SendHTTPRequest(coinutTrades, params, false, &result)
 }
 
 // GetUserBalance returns the full user balance
 func (c *COINUT) GetUserBalance() (UserBalance, error) {
 	result := UserBalance{}
-	err := c.SendHTTPRequest(coinutBalance, nil, true, &result)
-	if err != nil {
-		return result, err
-	}
-	return result, nil
+
+	return result, c.SendHTTPRequest(coinutBalance, nil, true, &result)
 }
 
 // NewOrder places a new order on the exchange
@@ -157,11 +150,7 @@ func (c *COINUT) NewOrder(instrumentID int, quantity, price float64, buy bool, o
 	}
 	params["client_ord_id"] = orderID
 
-	err := c.SendHTTPRequest(coinutOrder, params, true, &result)
-	if err != nil {
-		return result, err
-	}
-	return result, nil
+	return result, c.SendHTTPRequest(coinutOrder, params, true, &result)
 }
 
 // NewOrders places multiple orders on the exchange
@@ -169,11 +158,8 @@ func (c *COINUT) NewOrders(orders []Order) ([]OrdersBase, error) {
 	var result OrdersResponse
 	params := make(map[string]interface{})
 	params["orders"] = orders
-	err := c.SendHTTPRequest(coinutOrders, params, true, &result.Data)
-	if err != nil {
-		return nil, err
-	}
-	return result.Data, nil
+
+	return result.Data, c.SendHTTPRequest(coinutOrders, params, true, &result.Data)
 }
 
 // GetOpenOrders returns a list of open order and relevant information
@@ -181,11 +167,8 @@ func (c *COINUT) GetOpenOrders(instrumentID int) ([]OrdersResponse, error) {
 	var result []OrdersResponse
 	params := make(map[string]interface{})
 	params["inst_id"] = instrumentID
-	err := c.SendHTTPRequest(coinutOrdersOpen, params, true, &result)
-	if err != nil {
-		return nil, err
-	}
-	return result, nil
+
+	return result, c.SendHTTPRequest(coinutOrdersOpen, params, true, &result)
 }
 
 // CancelOrder cancels a specific order and returns if it was actioned
@@ -194,6 +177,7 @@ func (c *COINUT) CancelOrder(instrumentID, orderID int) (bool, error) {
 	params := make(map[string]interface{})
 	params["inst_id"] = instrumentID
 	params["order_id"] = orderID
+
 	err := c.SendHTTPRequest(coinutOrdersCancel, params, true, &result)
 	if err != nil {
 		return false, err
@@ -206,11 +190,8 @@ func (c *COINUT) CancelOrders(orders []CancelOrders) (CancelOrdersResponse, erro
 	var result CancelOrdersResponse
 	params := make(map[string]interface{})
 	params["entries"] = orders
-	err := c.SendHTTPRequest(coinutOrdersCancel, params, true, &result)
-	if err != nil {
-		return result, err
-	}
-	return result, nil
+
+	return result, c.SendHTTPRequest(coinutOrdersCancel, params, true, &result)
 }
 
 // GetTradeHistory returns trade history for a specific instrument.
@@ -224,11 +205,8 @@ func (c *COINUT) GetTradeHistory(instrumentID, start, limit int) (TradeHistory, 
 	if limit >= 0 && start <= 100 {
 		params["limit"] = limit
 	}
-	err := c.SendHTTPRequest(coinutTradeHistory, params, true, &result)
-	if err != nil {
-		return result, err
-	}
-	return result, nil
+
+	return result, c.SendHTTPRequest(coinutTradeHistory, params, true, &result)
 }
 
 // GetIndexTicker returns the index ticker for an asset
@@ -236,11 +214,8 @@ func (c *COINUT) GetIndexTicker(asset string) (IndexTicker, error) {
 	var result IndexTicker
 	params := make(map[string]interface{})
 	params["asset"] = asset
-	err := c.SendHTTPRequest(coinutIndexTicker, params, false, &result)
-	if err != nil {
-		return result, err
-	}
-	return result, nil
+
+	return result, c.SendHTTPRequest(coinutIndexTicker, params, false, &result)
 }
 
 // GetDerivativeInstruments returns a list of derivative instruments
@@ -248,11 +223,8 @@ func (c *COINUT) GetDerivativeInstruments(secType string) (interface{}, error) {
 	var result interface{} //to-do
 	params := make(map[string]interface{})
 	params["sec_type"] = secType
-	err := c.SendHTTPRequest(coinutInstruments, params, false, &result)
-	if err != nil {
-		return result, err
-	}
-	return result, nil
+
+	return result, c.SendHTTPRequest(coinutInstruments, params, false, &result)
 }
 
 // GetOptionChain returns option chain
@@ -261,11 +233,8 @@ func (c *COINUT) GetOptionChain(asset, secType string, expiry int64) (OptionChai
 	params := make(map[string]interface{})
 	params["asset"] = asset
 	params["sec_type"] = secType
-	err := c.SendHTTPRequest(coinutOptionChain, params, false, &result)
-	if err != nil {
-		return result, err
-	}
-	return result, nil
+
+	return result, c.SendHTTPRequest(coinutOptionChain, params, false, &result)
 }
 
 // GetPositionHistory returns position history
@@ -279,11 +248,8 @@ func (c *COINUT) GetPositionHistory(secType string, start, limit int) (PositionH
 	if limit >= 0 {
 		params["limit"] = limit
 	}
-	err := c.SendHTTPRequest(coinutPositionHistory, params, true, &result)
-	if err != nil {
-		return result, err
-	}
-	return result, nil
+
+	return result, c.SendHTTPRequest(coinutPositionHistory, params, true, &result)
 }
 
 // GetOpenPositions returns all your current opened positions
@@ -295,16 +261,13 @@ func (c *COINUT) GetOpenPositions(instrumentID int) ([]OpenPosition, error) {
 	params := make(map[string]interface{})
 	params["inst_id"] = instrumentID
 
-	err := c.SendHTTPRequest(coinutPositionOpen, params, true, &result)
-	if err != nil {
-		return result.Positions, err
-	}
-	return result.Positions, nil
+	return result.Positions,
+		c.SendHTTPRequest(coinutPositionOpen, params, true, &result)
 }
 
 //to-do: user position update via websocket
 
-// SendHTTPRequest sends an authenticated HTTP request
+// SendHTTPRequest sends either an authenticated or unauthenticated HTTP request
 func (c *COINUT) SendHTTPRequest(apiRequest string, params map[string]interface{}, authenticated bool, result interface{}) (err error) {
 	if !c.AuthenticatedAPISupport && authenticated {
 		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet, c.Name)
@@ -339,29 +302,5 @@ func (c *COINUT) SendHTTPRequest(apiRequest string, params map[string]interface{
 	}
 	headers["Content-Type"] = "application/json"
 
-	resp, err := common.SendHTTPRequest("POST", coinutAPIURL, headers, bytes.NewBuffer(payload))
-	if err != nil {
-		return err
-	}
-
-	if c.Verbose {
-		log.Printf("Received raw: \n%s", resp)
-	}
-
-	genResp := GenericResponse{}
-	err = common.JSONDecode([]byte(resp), &genResp)
-	if err != nil {
-		return errors.New("unable to JSON Unmarshal generic response")
-	}
-
-	if genResp.Status[0] != "OK" {
-		return errors.New("status is not OK")
-	}
-
-	err = common.JSONDecode([]byte(resp), &result)
-	if err != nil {
-		return errors.New("unable to JSON Unmarshal response")
-	}
-
-	return nil
+	return c.SendPayload("POST", coinutAPIURL, headers, bytes.NewBuffer(payload), result, authenticated, c.Verbose)
 }

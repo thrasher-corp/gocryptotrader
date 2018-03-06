@@ -15,6 +15,7 @@ import (
 
 const (
 	maxJobQueue = 100
+	maxHandles  = 27
 )
 
 var request service
@@ -24,13 +25,13 @@ type service struct {
 }
 
 // checkHandles checks to see if there is a handle monitored by the service
-func (s *service) checkHandles(exchName string) *Handler {
+func (s *service) checkHandles(exchName string, h *Handler) bool {
 	for _, handle := range s.exchangeHandlers {
-		if exchName == handle.exchName {
-			return handle
+		if exchName == handle.exchName || handle == h {
+			return true
 		}
 	}
-	return nil
+	return false
 }
 
 // removeHandle releases handle from service
@@ -47,13 +48,33 @@ func (s *service) removeHandle(exchName string) bool {
 	return false
 }
 
+// limit contains the limit rate value which has a Mutex
+type limit struct {
+	Val time.Duration
+	sync.Mutex
+}
+
+// getLimitRate returns limit rate with a protected call
+func (l *limit) getLimitRate() time.Duration {
+	l.Lock()
+	defer l.Unlock()
+	return l.Val
+}
+
+// setLimitRates sets initial limit rates with a protected call
+func (l *limit) setLimitRate(rate int) {
+	l.Lock()
+	l.Val = time.Duration(rate) * time.Millisecond
+	l.Unlock()
+}
+
 // Handler is a generic exchange specific request handler.
 type Handler struct {
 	exchName     string
 	Client       *http.Client
 	shutdown     bool
-	LimitAuth    time.Duration
-	LimitUnauth  time.Duration
+	LimitAuth    *limit
+	LimitUnauth  *limit
 	requests     chan *exchRequest
 	responses    chan *exchResponse
 	timeLockAuth chan int
@@ -61,42 +82,51 @@ type Handler struct {
 	wg           sync.WaitGroup
 }
 
-// GetRequestHandler returns a pointer to a requestHandler service.
-func GetRequestHandler(exchName string, authRate, unauthRate int, client *http.Client) *Handler {
-	if handle := request.checkHandles(exchName); handle != nil {
-		return handle
+// SetRequestHandler sets initial variables for the request handler and returns
+// an error
+func (h *Handler) SetRequestHandler(exchName string, authRate, unauthRate int, client *http.Client) error {
+	if request.checkHandles(exchName, h) {
+		return errors.New("handler already registered for an exchange")
 	}
 
-	h := Handler{
-		exchName:     exchName,
-		Client:       client,
-		shutdown:     false,
-		LimitAuth:    time.Duration(authRate) * time.Millisecond,
-		LimitUnauth:  time.Duration(unauthRate) * time.Millisecond,
-		requests:     make(chan *exchRequest, maxJobQueue),
-		responses:    make(chan *exchResponse, 1),
-		timeLockAuth: make(chan int, 1),
-		timeLock:     make(chan int, 1),
-	}
+	h.exchName = exchName
+	h.Client = client
+	h.shutdown = false
+	h.LimitAuth = new(limit)
+	h.LimitAuth.setLimitRate(authRate)
+	h.LimitUnauth = new(limit)
+	h.LimitUnauth.setLimitRate(unauthRate)
+	h.requests = make(chan *exchRequest, maxJobQueue)
+	h.responses = make(chan *exchResponse, 1)
+	h.timeLockAuth = make(chan int, 1)
+	h.timeLock = make(chan int, 1)
 
-	request.exchangeHandlers = append(request.exchangeHandlers, &h)
+	request.exchangeHandlers = append(request.exchangeHandlers, h)
 	h.startWorkers()
 
-	return &h
+	return nil
 }
 
 // SetRateLimit sets limit rates for exchange requests
 func (h *Handler) SetRateLimit(authRate, unauthRate int) {
-	h.LimitAuth = time.Duration(authRate) * time.Millisecond
-	h.LimitUnauth = time.Duration(unauthRate) * time.Millisecond
+	h.LimitAuth.setLimitRate(authRate)
+	h.LimitUnauth.setLimitRate(unauthRate)
 }
 
-// Send packages a request, sends it to a channel, then a worker executes it
-func (h *Handler) Send(method, path string, headers map[string]string, body io.Reader, result interface{}, authRequest, verbose bool) error {
+// SendPayload packages a request, sends it to a channel, then a worker executes it
+func (h *Handler) SendPayload(method, path string, headers map[string]string, body io.Reader, result interface{}, authRequest, verbose bool) error {
+	if h.exchName == "" {
+		return errors.New("request handler not initialised")
+	}
+
 	method = strings.ToUpper(method)
 
 	if method != "POST" && method != "GET" && method != "DELETE" {
 		return errors.New("incorrect method - either POST, GET or DELETE")
+	}
+
+	if verbose {
+		log.Printf("%s exchange request path: %s", h.exchName, path)
 	}
 
 	req, err := http.NewRequest(method, path, body)
@@ -119,7 +149,7 @@ func (h *Handler) Send(method, path string, headers map[string]string, body io.R
 	}
 
 	if verbose {
-		log.Println("RAW RESP: ", string(contents[:]))
+		log.Printf("%s exchange raw response: %s", h.exchName, string(contents[:]))
 	}
 
 	return common.JSONDecode(contents, result)
@@ -134,7 +164,7 @@ func (h *Handler) startWorkers() {
 		h.timeLockAuth <- 1
 		for !h.shutdown {
 			<-h.timeLockAuth
-			time.Sleep(h.LimitAuth)
+			time.Sleep(h.LimitAuth.getLimitRate())
 			h.timeLockAuth <- 1
 		}
 		h.wg.Done()
@@ -144,7 +174,7 @@ func (h *Handler) startWorkers() {
 		h.timeLock <- 1
 		for !h.shutdown {
 			<-h.timeLock
-			time.Sleep(h.LimitUnauth)
+			time.Sleep(h.LimitUnauth.getLimitRate())
 			h.timeLock <- 1
 		}
 		h.wg.Done()

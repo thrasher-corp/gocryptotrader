@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
@@ -12,6 +13,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/exchanges"
+	"github.com/thrasher-/gocryptotrader/exchanges/request"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 )
 
@@ -65,6 +67,9 @@ const (
 	okcoinFuturesposition4Fix   = "future_position_4fix.do"
 	okcoinFuturesExplosive      = "future_explosive.do"
 	okcoinFuturesDevolve        = "future_devolve.do"
+
+	okcoinAuthRate   = 0
+	okcoinUnauthRate = 0
 )
 
 var (
@@ -78,6 +83,7 @@ type OKCoin struct {
 	WebsocketErrors map[string]string
 	FuturesValues   []string
 	WebsocketConn   *websocket.Conn
+	*request.Handler
 }
 
 // setCurrencyPairFormats sets currency pair formatting for this package
@@ -98,6 +104,8 @@ func (o *OKCoin) SetDefaults() {
 	o.RESTPollingDelay = 10
 	o.FuturesValues = []string{"this_week", "next_week", "quarter"}
 	o.AssetTypes = []string{ticker.Spot}
+	o.Handler = new(request.Handler)
+	o.SetRequestHandler(o.Name, okcoinAuthRate, okcoinUnauthRate, new(http.Client))
 
 	if okcoinDefaultsSet {
 		o.AssetTypes = append(o.AssetTypes, o.FuturesValues...)
@@ -157,11 +165,8 @@ func (o *OKCoin) GetTicker(symbol string) (Ticker, error) {
 	vals := url.Values{}
 	vals.Set("symbol", symbol)
 	path := common.EncodeURLValues(o.APIUrl+okcoinTicker, vals)
-	err := common.SendHTTPGetRequest(path, true, o.Verbose, &resp)
-	if err != nil {
-		return Ticker{}, err
-	}
-	return resp.Ticker, nil
+
+	return resp.Ticker, o.SendHTTPRequest(path, &resp)
 }
 
 // GetOrderBook returns the current order book by size
@@ -177,11 +182,7 @@ func (o *OKCoin) GetOrderBook(symbol string, size int64, merge bool) (Orderbook,
 	}
 
 	path := common.EncodeURLValues(o.APIUrl+okcoinDepth, vals)
-	err := common.SendHTTPGetRequest(path, true, o.Verbose, &resp)
-	if err != nil {
-		return resp, err
-	}
-	return resp, nil
+	return resp, o.SendHTTPRequest(path, &resp)
 }
 
 // GetTrades returns historic trades since a timestamp
@@ -194,11 +195,7 @@ func (o *OKCoin) GetTrades(symbol string, since int64) ([]Trades, error) {
 	}
 
 	path := common.EncodeURLValues(o.APIUrl+okcoinTrades, vals)
-	err := common.SendHTTPGetRequest(path, true, o.Verbose, &result)
-	if err != nil {
-		return nil, err
-	}
-	return result, nil
+	return result, o.SendHTTPRequest(path, &result)
 }
 
 // GetKline returns kline data
@@ -217,12 +214,7 @@ func (o *OKCoin) GetKline(symbol, klineType string, size, since int64) ([]interf
 	}
 
 	path := common.EncodeURLValues(o.APIUrl+okcoinKline, vals)
-	err := common.SendHTTPGetRequest(path, true, o.Verbose, &resp)
-	if err != nil {
-		return nil, err
-	}
-
-	return resp, nil
+	return resp, o.SendHTTPRequest(path, &resp)
 }
 
 // GetFuturesTicker returns a current ticker for the futures market
@@ -232,11 +224,8 @@ func (o *OKCoin) GetFuturesTicker(symbol, contractType string) (FuturesTicker, e
 	vals.Set("symbol", symbol)
 	vals.Set("contract_type", contractType)
 	path := common.EncodeURLValues(o.APIUrl+okcoinFuturesTicker, vals)
-	err := common.SendHTTPGetRequest(path, true, o.Verbose, &resp)
-	if err != nil {
-		return FuturesTicker{}, err
-	}
-	return resp.Ticker, nil
+
+	return resp.Ticker, o.SendHTTPRequest(path, &resp)
 }
 
 // GetFuturesDepth returns current depth for the futures market
@@ -254,11 +243,7 @@ func (o *OKCoin) GetFuturesDepth(symbol, contractType string, size int64, merge 
 	}
 
 	path := common.EncodeURLValues(o.APIUrl+okcoinFuturesDepth, vals)
-	err := common.SendHTTPGetRequest(path, true, o.Verbose, &result)
-	if err != nil {
-		return result, err
-	}
-	return result, nil
+	return result, o.SendHTTPRequest(path, &result)
 }
 
 // GetFuturesTrades returns historic trades for the futures market
@@ -269,11 +254,7 @@ func (o *OKCoin) GetFuturesTrades(symbol, contractType string) ([]FuturesTrades,
 	vals.Set("contract_type", contractType)
 
 	path := common.EncodeURLValues(o.APIUrl+okcoinFuturesTrades, vals)
-	err := common.SendHTTPGetRequest(path, true, o.Verbose, &result)
-	if err != nil {
-		return nil, err
-	}
-	return result, nil
+	return result, o.SendHTTPRequest(path, &result)
 }
 
 // GetFuturesIndex returns an index for the futures market
@@ -287,11 +268,7 @@ func (o *OKCoin) GetFuturesIndex(symbol string) (float64, error) {
 	vals.Set("symbol", symbol)
 
 	path := common.EncodeURLValues(o.APIUrl+okcoinFuturesIndex, vals)
-	err := common.SendHTTPGetRequest(path, true, o.Verbose, &result)
-	if err != nil {
-		return 0, err
-	}
-	return result.Index, nil
+	return result.Index, o.SendHTTPRequest(path, &result)
 }
 
 // GetFuturesExchangeRate returns the exchange rate for the futures market
@@ -301,11 +278,7 @@ func (o *OKCoin) GetFuturesExchangeRate() (float64, error) {
 	}
 
 	result := Response{}
-	err := common.SendHTTPGetRequest(o.APIUrl+okcoinExchangeRate, true, o.Verbose, &result)
-	if err != nil {
-		return result.Rate, err
-	}
-	return result.Rate, nil
+	return result.Rate, o.SendHTTPRequest(o.APIUrl+okcoinExchangeRate, &result)
 }
 
 // GetFuturesEstimatedPrice returns a current estimated futures price for a
@@ -319,11 +292,8 @@ func (o *OKCoin) GetFuturesEstimatedPrice(symbol string) (float64, error) {
 	vals := url.Values{}
 	vals.Set("symbol", symbol)
 	path := common.EncodeURLValues(o.APIUrl+okcoinFuturesEstimatedPrice, vals)
-	err := common.SendHTTPGetRequest(path, true, o.Verbose, &result)
-	if err != nil {
-		return result.Price, err
-	}
-	return result.Price, nil
+
+	return result.Price, o.SendHTTPRequest(path, &result)
 }
 
 // GetFuturesKline returns kline data for a specific currency on the futures
@@ -343,12 +313,7 @@ func (o *OKCoin) GetFuturesKline(symbol, klineType, contractType string, size, s
 	}
 
 	path := common.EncodeURLValues(o.APIUrl+okcoinFuturesKline, vals)
-	err := common.SendHTTPGetRequest(path, true, o.Verbose, &resp)
-
-	if err != nil {
-		return nil, err
-	}
-	return resp, nil
+	return resp, o.SendHTTPRequest(path, &resp)
 }
 
 // GetFuturesHoldAmount returns the hold amount for a futures trade
@@ -359,12 +324,7 @@ func (o *OKCoin) GetFuturesHoldAmount(symbol, contractType string) ([]FuturesHol
 	vals.Set("contract_type", contractType)
 
 	path := common.EncodeURLValues(o.APIUrl+okcoinFuturesHoldAmount, vals)
-	err := common.SendHTTPGetRequest(path, true, o.Verbose, &resp)
-
-	if err != nil {
-		return nil, err
-	}
-	return resp, nil
+	return resp, o.SendHTTPRequest(path, &resp)
 }
 
 // GetFuturesExplosive returns the explosive for a futures contract
@@ -381,25 +341,16 @@ func (o *OKCoin) GetFuturesExplosive(symbol, contractType string, status, curren
 	vals.Set("page_length", strconv.FormatInt(pageLength, 10))
 
 	path := common.EncodeURLValues(o.APIUrl+okcoinFuturesExplosive, vals)
-	err := common.SendHTTPGetRequest(path, true, o.Verbose, &resp)
 
-	if err != nil {
-		return nil, err
-	}
-
-	return resp.Data, nil
+	return resp.Data, o.SendHTTPRequest(path, &resp)
 }
 
 // GetUserInfo returns user information associated with the calling APIkeys
 func (o *OKCoin) GetUserInfo() (UserInfo, error) {
 	result := UserInfo{}
-	err := o.SendAuthenticatedHTTPRequest(okcoinUserInfo, url.Values{}, &result)
 
-	if err != nil {
-		return result, err
-	}
-
-	return result, nil
+	return result,
+		o.SendAuthenticatedHTTPRequest(okcoinUserInfo, url.Values{}, &result)
 }
 
 // Trade initiates a new trade
@@ -938,6 +889,11 @@ func (o *OKCoin) GetFuturesUserPosition4Fix(symbol, contractType string) {
 	}
 }
 
+// SendHTTPRequest sends an unauthenticated HTTP request
+func (o *OKCoin) SendHTTPRequest(path string, result interface{}) error {
+	return o.SendPayload("GET", path, nil, nil, result, false, o.Verbose)
+}
+
 // SendAuthenticatedHTTPRequest sends an authenticated HTTP request
 func (o *OKCoin) SendAuthenticatedHTTPRequest(method string, v url.Values, result interface{}) (err error) {
 	if !o.AuthenticatedAPISupport {
@@ -958,23 +914,7 @@ func (o *OKCoin) SendAuthenticatedHTTPRequest(method string, v url.Values, resul
 	headers := make(map[string]string)
 	headers["Content-Type"] = "application/x-www-form-urlencoded"
 
-	resp, err := common.SendHTTPRequest("POST", path, headers, strings.NewReader(encoded))
-
-	if err != nil {
-		return err
-	}
-
-	if o.Verbose {
-		log.Printf("Received raw: \n%s\n", resp)
-	}
-
-	err = common.JSONDecode([]byte(resp), &result)
-
-	if err != nil {
-		return errors.New("unable to JSON Unmarshal response")
-	}
-
-	return nil
+	return o.SendPayload("POST", path, headers, strings.NewReader(encoded), result, true, o.Verbose)
 }
 
 // SetErrorDefaults sets default error map

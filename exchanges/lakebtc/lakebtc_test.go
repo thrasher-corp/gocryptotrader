@@ -69,6 +69,9 @@ func TestGetTradeHistory(t *testing.T) {
 
 func TestTrade(t *testing.T) {
 	t.Parallel()
+	if l.APIKey == "" || l.APISecret == "" {
+		t.Skip()
+	}
 	_, err := l.Trade(0, 0, 0, "USD")
 	if err == nil {
 		t.Error("Test Failed - Trade() error", err)
@@ -77,6 +80,9 @@ func TestTrade(t *testing.T) {
 
 func TestGetOpenOrders(t *testing.T) {
 	t.Parallel()
+	if l.APIKey == "" || l.APISecret == "" {
+		t.Skip()
+	}
 	_, err := l.GetOpenOrders()
 	if err == nil {
 		t.Error("Test Failed - GetOpenOrders() error", err)
@@ -85,6 +91,9 @@ func TestGetOpenOrders(t *testing.T) {
 
 func TestGetOrders(t *testing.T) {
 	t.Parallel()
+	if l.APIKey == "" || l.APISecret == "" {
+		t.Skip()
+	}
 	_, err := l.GetOrders([]int64{1, 2})
 	if err == nil {
 		t.Error("Test Failed - GetOrders() error", err)
@@ -93,6 +102,9 @@ func TestGetOrders(t *testing.T) {
 
 func TestCancelOrder(t *testing.T) {
 	t.Parallel()
+	if l.APIKey == "" || l.APISecret == "" {
+		t.Skip()
+	}
 	err := l.CancelOrder(1337)
 	if err == nil {
 		t.Error("Test Failed - CancelOrder() error", err)
@@ -101,6 +113,9 @@ func TestCancelOrder(t *testing.T) {
 
 func TestGetTrades(t *testing.T) {
 	t.Parallel()
+	if l.APIKey == "" || l.APISecret == "" {
+		t.Skip()
+	}
 	_, err := l.GetTrades(1337)
 	if err == nil {
 		t.Error("Test Failed - GetTrades() error", err)
@@ -109,6 +124,9 @@ func TestGetTrades(t *testing.T) {
 
 func TestGetExternalAccounts(t *testing.T) {
 	t.Parallel()
+	if l.APIKey == "" || l.APISecret == "" {
+		t.Skip()
+	}
 	_, err := l.GetExternalAccounts()
 	if err == nil {
 		t.Error("Test Failed - GetExternalAccounts() error", err)
@@ -117,6 +135,9 @@ func TestGetExternalAccounts(t *testing.T) {
 
 func TestCreateWithdraw(t *testing.T) {
 	t.Parallel()
+	if l.APIKey == "" || l.APISecret == "" {
+		t.Skip()
+	}
 	_, err := l.CreateWithdraw(0, 1337)
 	if err == nil {
 		t.Error("Test Failed - CreateWithdraw() error", err)

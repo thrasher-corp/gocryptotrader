@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
@@ -12,6 +13,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/exchanges"
+	"github.com/thrasher-/gocryptotrader/exchanges/request"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 )
 
@@ -33,12 +35,16 @@ const (
 	privateWithdrawCoinsToAddress = "WithdrawCoinsToAddress"
 	privateCreateCoupon           = "CreateYobicode"
 	privateRedeemCoupon           = "RedeemYobicode"
+
+	yobitAuthRate   = 0
+	yobitUnauthRate = 0
 )
 
 // Yobit is the overarching type across the Yobit package
 type Yobit struct {
 	exchange.Base
 	Ticker map[string]Ticker
+	*request.Handler
 }
 
 // SetDefaults sets current default value for Yobit
@@ -58,6 +64,8 @@ func (y *Yobit) SetDefaults() {
 	y.ConfigCurrencyPairFormat.Delimiter = "_"
 	y.ConfigCurrencyPairFormat.Uppercase = true
 	y.AssetTypes = []string{ticker.Spot}
+	y.Handler = new(request.Handler)
+	y.SetRequestHandler(y.Name, yobitAuthRate, yobitUnauthRate, new(http.Client))
 }
 
 // Setup sets exchange configuration parameters for Yobit
@@ -95,7 +103,7 @@ func (y *Yobit) GetInfo() (Info, error) {
 	resp := Info{}
 	path := fmt.Sprintf("%s/%s/%s/", apiPublicURL, apiPublicVersion, publicInfo)
 
-	return resp, common.SendHTTPGetRequest(path, true, y.Verbose, &resp)
+	return resp, y.SendHTTPRequest(path, &resp)
 }
 
 // GetTicker returns a ticker for a specific currency
@@ -107,7 +115,7 @@ func (y *Yobit) GetTicker(symbol string) (map[string]Ticker, error) {
 	response := Response{}
 	path := fmt.Sprintf("%s/%s/%s/%s", apiPublicURL, apiPublicVersion, publicTicker, symbol)
 
-	return response.Data, common.SendHTTPGetRequest(path, true, y.Verbose, &response.Data)
+	return response.Data, y.SendHTTPRequest(path, &response.Data)
 }
 
 // GetDepth returns the depth for a specific currency
@@ -120,7 +128,7 @@ func (y *Yobit) GetDepth(symbol string) (Orderbook, error) {
 	path := fmt.Sprintf("%s/%s/%s/%s", apiPublicURL, apiPublicVersion, publicDepth, symbol)
 
 	return response.Data[symbol],
-		common.SendHTTPGetRequest(path, true, y.Verbose, &response.Data)
+		y.SendHTTPRequest(path, &response.Data)
 }
 
 // GetTrades returns the trades for a specific currency
@@ -132,14 +140,21 @@ func (y *Yobit) GetTrades(symbol string) ([]Trades, error) {
 	response := Response{}
 	path := fmt.Sprintf("%s/%s/%s/%s", apiPublicURL, apiPublicVersion, publicTrades, symbol)
 
-	return response.Data[symbol], common.SendHTTPGetRequest(path, true, y.Verbose, &response.Data)
+	return response.Data[symbol], y.SendHTTPRequest(path, &response.Data)
 }
 
 // GetAccountInfo returns a users account info
 func (y *Yobit) GetAccountInfo() (AccountInfo, error) {
 	result := AccountInfo{}
 
-	return result, y.SendAuthenticatedHTTPRequest(privateAccountInfo, url.Values{}, &result)
+	err := y.SendAuthenticatedHTTPRequest(privateAccountInfo, url.Values{}, &result)
+	if err != nil {
+		return result, err
+	}
+	if result.Error != "" {
+		return result, errors.New(result.Error)
+	}
+	return result, nil
 }
 
 // Trade places an order and returns the order ID if successful or an error
@@ -152,7 +167,14 @@ func (y *Yobit) Trade(pair, orderType string, amount, price float64) (int64, err
 
 	result := Trade{}
 
-	return int64(result.OrderID), y.SendAuthenticatedHTTPRequest(privateTrade, req, &result)
+	err := y.SendAuthenticatedHTTPRequest(privateTrade, req, &result)
+	if err != nil {
+		return int64(result.OrderID), err
+	}
+	if result.Error != "" {
+		return int64(result.OrderID), errors.New(result.Error)
+	}
+	return int64(result.OrderID), nil
 }
 
 // GetActiveOrders returns the active orders for a specific currency
@@ -181,12 +203,14 @@ func (y *Yobit) CancelOrder(OrderID int64) (bool, error) {
 	req.Add("order_id", strconv.FormatInt(OrderID, 10))
 
 	result := CancelOrder{}
-	err := y.SendAuthenticatedHTTPRequest(privateCancelOrder, req, &result)
 
+	err := y.SendAuthenticatedHTTPRequest(privateCancelOrder, req, &result)
 	if err != nil {
 		return false, err
 	}
-
+	if result.Error != "" {
+		return false, errors.New(result.Error)
+	}
 	return true, nil
 }
 
@@ -214,7 +238,14 @@ func (y *Yobit) GetDepositAddress(coin string) (DepositAddress, error) {
 
 	result := DepositAddress{}
 
-	return result, y.SendAuthenticatedHTTPRequest(privateGetDepositAddress, req, &result)
+	err := y.SendAuthenticatedHTTPRequest(privateGetDepositAddress, req, &result)
+	if err != nil {
+		return result, err
+	}
+	if result.Error != "" {
+		return result, errors.New(result.Error)
+	}
+	return result, nil
 }
 
 // WithdrawCoinsToAddress initiates a withdrawal to a specified address
@@ -226,7 +257,14 @@ func (y *Yobit) WithdrawCoinsToAddress(coin string, amount float64, address stri
 
 	result := WithdrawCoinsToAddress{}
 
-	return result, y.SendAuthenticatedHTTPRequest(privateWithdrawCoinsToAddress, req, &result)
+	err := y.SendAuthenticatedHTTPRequest(privateWithdrawCoinsToAddress, req, &result)
+	if err != nil {
+		return result, err
+	}
+	if result.Error != "" {
+		return result, errors.New(result.Error)
+	}
+	return result, nil
 }
 
 // CreateCoupon creates an exchange coupon for a sepcific currency
@@ -237,7 +275,14 @@ func (y *Yobit) CreateCoupon(currency string, amount float64) (CreateCoupon, err
 
 	var result CreateCoupon
 
-	return result, y.SendAuthenticatedHTTPRequest(privateCreateCoupon, req, &result)
+	err := y.SendAuthenticatedHTTPRequest(privateCreateCoupon, req, &result)
+	if err != nil {
+		return result, err
+	}
+	if result.Error != "" {
+		return result, errors.New(result.Error)
+	}
+	return result, nil
 }
 
 // RedeemCoupon redeems an exchange coupon
@@ -247,7 +292,19 @@ func (y *Yobit) RedeemCoupon(coupon string) (RedeemCoupon, error) {
 
 	result := RedeemCoupon{}
 
-	return result, y.SendAuthenticatedHTTPRequest(privateRedeemCoupon, req, &result)
+	err := y.SendAuthenticatedHTTPRequest(privateRedeemCoupon, req, &result)
+	if err != nil {
+		return result, err
+	}
+	if result.Error != "" {
+		return result, errors.New(result.Error)
+	}
+	return result, nil
+}
+
+// SendHTTPRequest sends an unauthenticated HTTP request
+func (y *Yobit) SendHTTPRequest(path string, result interface{}) error {
+	return y.SendPayload("GET", path, nil, nil, result, false, y.Verbose)
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated HTTP request to Yobit
@@ -280,30 +337,5 @@ func (y *Yobit) SendAuthenticatedHTTPRequest(path string, params url.Values, res
 	headers["Sign"] = common.HexEncodeToString(hmac)
 	headers["Content-Type"] = "application/x-www-form-urlencoded"
 
-	resp, err := common.SendHTTPRequest(
-		"POST", apiPrivateURL, headers, strings.NewReader(encoded),
-	)
-	if err != nil {
-		return err
-	}
-
-	if y.Verbose {
-		log.Printf("Received raw: \n%s\n", resp)
-	}
-
-	response := Response{}
-	if err = common.JSONDecode([]byte(resp), &response); err != nil {
-		return errors.New("sendAuthenticatedHTTPRequest: Unable to JSON Unmarshal response." + err.Error())
-	}
-
-	if response.Success != 1 {
-		return errors.New(response.Error)
-	}
-
-	JSONEncoded, err := common.JSONEncode(response.Return)
-	if err != nil {
-		return err
-	}
-
-	return common.JSONDecode(JSONEncoded, &result)
+	return y.SendPayload("POST", apiPrivateURL, headers, strings.NewReader(encoded), result, true, y.Verbose)
 }

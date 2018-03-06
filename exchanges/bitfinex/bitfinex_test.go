@@ -35,7 +35,7 @@ func TestSetup(t *testing.T) {
 	}
 	b.AuthenticatedAPISupport = true
 	// not worried about rate limit on test
-	b.Req.SetRateLimit(0, 0)
+	b.SetRateLimit(0, 0)
 }
 
 func TestGetPlatformStatus(t *testing.T) {

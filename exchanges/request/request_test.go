@@ -12,9 +12,22 @@ var (
 	BTCMarkets *Handler
 )
 
-func TestGetRequestHandler(t *testing.T) {
-	bitfinex = GetRequestHandler("bitfinex", 1000, 1000, new(http.Client))
-	BTCMarkets = GetRequestHandler("btcmarkets", 1000, 1000, new(http.Client))
+func TestSetRequestHandler(t *testing.T) {
+	bitfinex = new(Handler)
+	err := bitfinex.SetRequestHandler("bitfinex", 1000, 1000, new(http.Client))
+	if err != nil {
+		t.Error("Test failed - request SetRequestHandler()", err)
+	}
+	err = bitfinex.SetRequestHandler("bitfinex", 1000, 1000, new(http.Client))
+	if err == nil {
+		t.Error("Test failed - request SetRequestHandler()", err)
+	}
+	err = bitfinex.SetRequestHandler("bla", 1000, 1000, new(http.Client))
+	if err == nil {
+		t.Error("Test failed - request SetRequestHandler()", err)
+	}
+	BTCMarkets = new(Handler)
+	BTCMarkets.SetRequestHandler("btcmarkets", 1000, 1000, new(http.Client))
 
 	if len(request.exchangeHandlers) != 2 {
 		t.Error("test failed - request GetRequestHandler() error")
@@ -31,7 +44,7 @@ func TestSend(t *testing.T) {
 	for i := 0; i < 1; i++ {
 		go func() {
 			var v interface{}
-			err := bitfinex.Send("GET",
+			err := bitfinex.SendPayload("GET",
 				"https://api.bitfinex.com/v1/pubticker/BTCUSD",
 				nil,
 				nil,
@@ -46,7 +59,7 @@ func TestSend(t *testing.T) {
 		}()
 		go func() {
 			var v interface{}
-			err := BTCMarkets.Send("GET",
+			err := BTCMarkets.SendPayload("GET",
 				"https://api.btcmarkets.net/market/BTC/AUD/tick",
 				nil,
 				nil,
@@ -61,4 +74,11 @@ func TestSend(t *testing.T) {
 		}()
 	}
 	wg.Wait()
+
+	newHandler := new(Handler)
+	err := newHandler.SendPayload("GET", "https://api.bitfinex.com/v1/pubticker/BTCUSD",
+		nil, nil, nil, false, false)
+	if err == nil {
+		t.Error("test failed - request Send() error", err)
+	}
 }

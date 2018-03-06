@@ -5,12 +5,14 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"net/http"
 	"net/url"
 	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/exchanges"
+	"github.com/thrasher-/gocryptotrader/exchanges/request"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 )
 
@@ -27,7 +29,7 @@ const (
 	btcMarketsWithdrawCrypto    = "/fundtransfer/withdrawCrypto"
 	btcMarketsWithdrawAud       = "/fundtransfer/withdrawEFT"
 
-	//Status Values
+	// Status Values
 	orderStatusNew                = "New"
 	orderStatusPlaced             = "Placed"
 	orderStatusFailed             = "Failed"
@@ -36,12 +38,16 @@ const (
 	orderStatusPartiallyCancelled = "Partially Cancelled"
 	orderStatusFullyMatched       = "Fully Matched"
 	orderStatusPartiallyMatched   = "Partially Matched"
+
+	btcmarketsAuthLimit   = 0
+	btcmarketsUnauthLimit = 0
 )
 
 // BTCMarkets is the overarching type across the BTCMarkets package
 type BTCMarkets struct {
 	exchange.Base
 	Ticker map[string]Ticker
+	*request.Handler
 }
 
 // SetDefaults sets basic defaults
@@ -58,6 +64,8 @@ func (b *BTCMarkets) SetDefaults() {
 	b.ConfigCurrencyPairFormat.Delimiter = ""
 	b.ConfigCurrencyPairFormat.Uppercase = true
 	b.AssetTypes = []string{ticker.Spot}
+	b.Handler = new(request.Handler)
+	b.SetRequestHandler(b.Name, btcmarketsAuthLimit, btcmarketsUnauthLimit, new(http.Client))
 }
 
 // Setup takes in an exchange configuration and sets all parameters
@@ -94,22 +102,24 @@ func (b *BTCMarkets) GetFee() float64 {
 // symbol - example "btc" or "ltc"
 func (b *BTCMarkets) GetTicker(firstPair, secondPair string) (Ticker, error) {
 	ticker := Ticker{}
-	path := fmt.Sprintf("/market/%s/%s/tick", common.StringToUpper(firstPair),
+	path := fmt.Sprintf("%s/market/%s/%s/tick",
+		btcMarketsAPIURL,
+		common.StringToUpper(firstPair),
 		common.StringToUpper(secondPair))
 
-	return ticker,
-		common.SendHTTPGetRequest(btcMarketsAPIURL+path, true, b.Verbose, &ticker)
+	return ticker, b.SendHTTPRequest(path, &ticker)
 }
 
 // GetOrderbook returns current orderbook
 // symbol - example "btc" or "ltc"
 func (b *BTCMarkets) GetOrderbook(firstPair, secondPair string) (Orderbook, error) {
 	orderbook := Orderbook{}
-	path := fmt.Sprintf("/market/%s/%s/orderbook", common.StringToUpper(firstPair),
+	path := fmt.Sprintf("%s/market/%s/%s/orderbook",
+		btcMarketsAPIURL,
+		common.StringToUpper(firstPair),
 		common.StringToUpper(secondPair))
 
-	return orderbook,
-		common.SendHTTPGetRequest(btcMarketsAPIURL+path, true, b.Verbose, &orderbook)
+	return orderbook, b.SendHTTPRequest(path, &orderbook)
 }
 
 // GetTrades returns executed trades on the exchange
@@ -121,7 +131,7 @@ func (b *BTCMarkets) GetTrades(firstPair, secondPair string, values url.Values) 
 		btcMarketsAPIURL, common.StringToUpper(firstPair),
 		common.StringToUpper(secondPair)), values)
 
-	return trades, common.SendHTTPGetRequest(path, true, b.Verbose, &trades)
+	return trades, b.SendHTTPRequest(path, &trades)
 }
 
 // NewOrder requests a new order and returns an ID
@@ -332,6 +342,11 @@ func (b *BTCMarkets) WithdrawAUD(accountName, accountNumber, bankName, bsbNumber
 	return resp.Status, nil
 }
 
+// SendHTTPRequest sends an unauthenticated HTTP request
+func (b *BTCMarkets) SendHTTPRequest(path string, result interface{}) error {
+	return b.SendPayload("GET", path, nil, nil, result, false, b.Verbose)
+}
+
 // SendAuthenticatedRequest sends an authenticated HTTP request
 func (b *BTCMarkets) SendAuthenticatedRequest(reqType, path string, data interface{}, result interface{}) (err error) {
 	if !b.AuthenticatedAPISupport {
@@ -370,21 +385,5 @@ func (b *BTCMarkets) SendAuthenticatedRequest(reqType, path string, data interfa
 	headers["timestamp"] = b.Nonce.String()[0:13]
 	headers["signature"] = common.Base64Encode(hmac)
 
-	resp, err := common.SendHTTPRequest(reqType, btcMarketsAPIURL+path, headers, bytes.NewBuffer(payload))
-
-	if err != nil {
-		return err
-	}
-
-	if b.Verbose {
-		log.Printf("Received raw: %s\n", resp)
-	}
-
-	err = common.JSONDecode([]byte(resp), &result)
-
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return b.SendPayload(reqType, btcMarketsAPIURL+path, headers, bytes.NewBuffer(payload), result, true, b.Verbose)
 }

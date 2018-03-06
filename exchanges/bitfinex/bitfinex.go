@@ -86,7 +86,7 @@ type Bitfinex struct {
 	exchange.Base
 	WebsocketConn         *websocket.Conn
 	WebsocketSubdChannels map[int]WebsocketChanInfo
-	Req                   *request.Handler
+	*request.Handler
 }
 
 // SetDefaults sets the basic defaults for bitfinex
@@ -102,7 +102,8 @@ func (b *Bitfinex) SetDefaults() {
 	b.ConfigCurrencyPairFormat.Delimiter = ""
 	b.ConfigCurrencyPairFormat.Uppercase = true
 	b.AssetTypes = []string{ticker.Spot}
-	b.Req = request.GetRequestHandler(b.Name, bitfinexAuthRate, bitfinexUnauthRate, new(http.Client))
+	b.Handler = new(request.Handler)
+	b.SetRequestHandler(b.Name, bitfinexAuthRate, bitfinexUnauthRate, new(http.Client))
 }
 
 // Setup takes in the supplied exchange configuration details and sets params
@@ -830,7 +831,7 @@ func (b *Bitfinex) CloseMarginFunding(SwapID int64) (Offer, error) {
 
 // SendHTTPRequest sends an unauthenticated request
 func (b *Bitfinex) SendHTTPRequest(path string, result interface{}, verbose bool) error {
-	return b.Req.Send("GET", path, nil, nil, result, false, verbose)
+	return b.SendPayload("GET", path, nil, nil, result, false, verbose)
 }
 
 // SendAuthenticatedHTTPRequest sends an autheticated http request and json
@@ -872,7 +873,7 @@ func (b *Bitfinex) SendAuthenticatedHTTPRequest(method, path string, params map[
 	headers["X-BFX-PAYLOAD"] = PayloadBase64
 	headers["X-BFX-SIGNATURE"] = common.HexEncodeToString(hmac)
 
-	b.Req.Send(method, bitfinexAPIURL+path, headers, nil, result, true, b.Verbose)
+	b.SendPayload(method, bitfinexAPIURL+path, headers, nil, result, true, b.Verbose)
 	if err != nil {
 		return err
 	}
