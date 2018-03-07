@@ -46,6 +46,10 @@ body {
     margin: 10px auto;
 }
 
+.mat-card-header {
+    max-height: 5%;
+}
+
 ////////////////////////////////////////////////////////////////
 // Default setting for spacers
 ////////////////////////////////////////////////////////////////
@@ -105,7 +109,7 @@ body {
     border-bottom-width: 1px;
     border-bottom-style: solid;
     align-items: center;
-    min-height: 48px;
+    min-height: 28px;
     padding: 0 24px;
 }
 

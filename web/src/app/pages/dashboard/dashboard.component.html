@@ -3,14 +3,13 @@
 </button>
 <ng-template app-buy-sell></ng-template>
 <div style="width:97%;">
-    <mat-grid-list cols="3" gutterSize="5px"   rowHeight="fit">
-        <mat-grid-tile [colspan]="tile.columns" [rowspan]="tile.rows" *ngFor="let tile of dashboard.tiles">
+    <mat-grid-list cols="3" rows="2"  gutterSize="5px"   rowHeight="fit">
+        <mat-grid-tile [ngClass]="{'full-height' : tile.columns == 3}" [colspan]="tile.columns" [rowspan]="tile.rows" *ngFor="let tile of dashboard.tiles">
             <mat-card class="full-card">
                 <mat-card-header>
                     <mat-card-title>{{tile.title}}</mat-card-title>
                 </mat-card-header>
                 <mat-card-content>
-                    cols: {{tile.columns}} rows: {{tile.rows}}
                         <div [ngSwitch]="tile.id">
                             <app-trade-history  *ngSwitchCase="1"></app-trade-history>
                             <app-price-history  *ngSwitchCase="2"></app-price-history>

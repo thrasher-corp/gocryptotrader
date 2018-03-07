@@ -33,7 +33,7 @@ public removeTrade(trade:BuySellComponent) {
 public expandTile(tile:any) {
   for(var i = 0; i< this.dashboard.tiles.length; i++) {
     if(this.dashboard.tiles[i].title === tile.title ) {
-      this.dashboard.tiles[i].rows = 2;
+      this.dashboard.tiles[i].rows = 2
       this.dashboard.tiles[i].columns = 3;
       this.expanded = true;
       } else {

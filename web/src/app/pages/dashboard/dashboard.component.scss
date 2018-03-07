@@ -11,7 +11,7 @@
 mat-card-content {
 overflow-y:auto;
 overflow-x:hidden;
-height:80%;
+height:92%;
 }
 
 mat-card-header {
@@ -69,4 +69,8 @@ mat-card-footer button {
 
 mat-grid-list {
     height: 90vmin;
+}
+
+.full-height {
+    height:100% !important;
 }
