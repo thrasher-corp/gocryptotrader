@@ -237,6 +237,20 @@ func (g *GDAX) GetHistoricRates(currencyPair string, start, end, granularity int
 	}
 
 	for _, single := range resp {
+		var s History
+		a, _ := single[0].(float64)
+		s.Time = int64(a)
+		b, _ := single[1].(float64)
+		s.Low = b
+		c, _ := single[2].(float64)
+		s.High = c
+		d, _ := single[3].(float64)
+		s.Open = d
+		e, _ := single[4].(float64)
+		s.Close = e
+		f, _ := single[5].(float64)
+		s.Volume = f
+		/* type assertion poosible here, since sometimes gdax returns empty value
 		s := History{
 			Time:   int64(single[0].(float64)),
 			Low:    single[1].(float64),
@@ -244,7 +258,7 @@ func (g *GDAX) GetHistoricRates(currencyPair string, start, end, granularity int
 			Open:   single[3].(float64),
 			Close:  single[4].(float64),
 			Volume: single[5].(float64),
-		}
+		}*/
 		history = append(history, s)
 	}
 
