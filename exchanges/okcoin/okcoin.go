@@ -99,7 +99,7 @@ func (o *OKCoin) SetDefaults() {
 	o.FuturesValues = []string{"this_week", "next_week", "quarter"}
 	o.AssetTypes = []string{ticker.Spot}
 
-	if okcoinDefaultsSet {
+	if OkcoinDefaultsSet {
 		o.AssetTypes = append(o.AssetTypes, o.FuturesValues...)
 		o.APIUrl = okcoinAPIURL
 		o.Name = "OKCOIN International"
@@ -109,7 +109,7 @@ func (o *OKCoin) SetDefaults() {
 		o.APIUrl = okcoinAPIURLChina
 		o.Name = "OKCOIN China"
 		o.WebsocketURL = okcoinWebsocketURLChina
-		okcoinDefaultsSet = true
+		OkcoinDefaultsSet = true
 		o.setCurrencyPairFormats()
 	}
 }
