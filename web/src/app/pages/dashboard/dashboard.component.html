@@ -10,9 +10,9 @@
                     <mat-card-title>{{tile.title}}</mat-card-title>
                 </mat-card-header>
                 <mat-card-content>
-                        <div [ngSwitch]="tile.id">
+                        <div style="height:100%;width:100%;" [ngSwitch]="tile.id">
                             <app-trade-history  *ngSwitchCase="1"></app-trade-history>
-                            <app-price-history  *ngSwitchCase="2"></app-price-history>
+                            <app-price-history style="height:100%;width:100%;" *ngSwitchCase="2"></app-price-history>
                             <app-my-orders  *ngSwitchCase="3"></app-my-orders>
                             <app-orders  *ngSwitchCase="4"></app-orders>
                         </div>

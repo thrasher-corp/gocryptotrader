@@ -7,6 +7,7 @@ import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 import { HttpModule } from '@angular/http';
 import { NgModule, Injectable } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { AmChartsModule } from "@amcharts/amcharts3-angular";
 
 import {
   MatButtonModule,
@@ -116,6 +117,7 @@ import { CurrencyListComponent } from './pages/currency-list/currency-list.compo
     MatLineModule,
     MatTooltipModule,
     MatTabsModule,
+    AmChartsModule,
   ],
   providers: [
     ElectronService,
