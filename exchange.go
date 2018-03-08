@@ -173,8 +173,10 @@ func LoadExchange(name string) error {
 		exch = new(localbitcoins.LocalBitcoins)
 	case "okcoin china":
 		exch = new(okcoin.OKCoin)
+		okcoin.OkcoinDefaultsSet = false
 	case "okcoin international":
 		exch = new(okcoin.OKCoin)
+		okcoin.OkcoinDefaultsSet = true
 	case "okex":
 		exch = new(okex.OKEX)
 	case "poloniex":
@@ -190,8 +192,8 @@ func LoadExchange(name string) error {
 	if exch == nil {
 		return ErrExchangeFailedToLoad
 	}
-
 	exch.SetDefaults()
+
 	bot.exchanges = append(bot.exchanges, exch)
 	exchCfg, err := bot.config.GetExchangeConfig(name)
 	if err != nil {
