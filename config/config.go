@@ -576,7 +576,7 @@ func (c *Config) UpdateConfig(configPath string, newCfg Config) error {
 	return nil
 }
 
-// GetConfig returns a pointer to a confiuration object
+// GetConfig returns a pointer to a configuration object
 func GetConfig() *Config {
 	return &Cfg
 }

@@ -1,6 +1,7 @@
 package kraken
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"net/url"
@@ -238,8 +239,15 @@ func (k *Kraken) GetDepth(symbol string) (Orderbook, error) {
 		return orderBook, err
 	}
 
-	data := result.(map[string]interface{})
-	orderbookData := data["result"].(map[string]interface{})
+	data, ok := result.(map[string]interface{})
+	if !ok {
+		return orderBook, errors.New("kraken - GetDepth() error could not type cast into resultant data")
+	}
+
+	orderbookData, ok := data["result"].(map[string]interface{})
+	if !ok {
+		return orderBook, errors.New("kraken - GetDepth() error could not type cast into resultant orderbook data")
+	}
 
 	var bidsData []interface{}
 	var asksData []interface{}

@@ -1,4 +1,4 @@
-package main
+package platform
 
 import (
 	"fmt"
@@ -11,7 +11,7 @@ import (
 )
 
 // RESTLogger logs the requests internally
-func RESTLogger(inner http.Handler, name string) http.Handler {
+func (b *Bot) RESTLogger(inner http.Handler, name string) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
 
@@ -42,7 +42,7 @@ var routes = Routes{}
 
 // NewRouter takes in the exchange interfaces and returns a new multiplexor
 // router
-func NewRouter(exchanges []exchange.IBotExchange) *mux.Router {
+func (b *Bot) NewRouter(exchanges []exchange.IBotExchange) *mux.Router {
 	router := mux.NewRouter().StrictSlash(true)
 
 	routes = Routes{
@@ -56,62 +56,62 @@ func NewRouter(exchanges []exchange.IBotExchange) *mux.Router {
 			"GetAllSettings",
 			"GET",
 			"/config/all",
-			RESTGetAllSettings,
+			b.RESTGetAllSettings,
 		},
 		Route{
 			"SaveAllSettings",
 			"POST",
 			"/config/all/save",
-			RESTSaveAllSettings,
+			b.RESTSaveAllSettings,
 		},
 		Route{
 			"AllEnabledAccountInfo",
 			"GET",
 			"/exchanges/enabled/accounts/all",
-			RESTGetAllEnabledAccountInfo,
+			b.RESTGetAllEnabledAccountInfo,
 		},
 		Route{
 			"AllActiveExchangesAndCurrencies",
 			"GET",
 			"/exchanges/enabled/latest/all",
-			RESTGetAllActiveTickers,
+			b.RESTGetAllActiveTickers,
 		},
 		Route{
 			"IndividualExchangeAndCurrency",
 			"GET",
 			"/exchanges/{exchangeName}/latest/{currency}",
-			RESTGetTicker,
+			b.RESTGetTicker,
 		},
 		Route{
 			"GetPortfolio",
 			"GET",
 			"/portfolio/all",
-			RESTGetPortfolio,
+			b.RESTGetPortfolio,
 		},
 		Route{
 			"AllActiveExchangesAndOrderbooks",
 			"GET",
 			"/exchanges/orderbook/latest/all",
-			RESTGetAllActiveOrderbooks,
+			b.RESTGetAllActiveOrderbooks,
 		},
 		Route{
 			"IndividualExchangeOrderbook",
 			"GET",
 			"/exchanges/{exchangeName}/orderbook/latest/{currency}",
-			RESTGetOrderbook,
+			b.RESTGetOrderbook,
 		},
 		Route{
 			"ws",
 			"GET",
 			"/ws",
-			WebsocketClientHandler,
+			b.WebsocketClientHandler,
 		},
 	}
 
 	for _, route := range routes {
 		var handler http.Handler
 		handler = route.HandlerFunc
-		handler = RESTLogger(handler, route.Name)
+		handler = b.RESTLogger(handler, route.Name)
 
 		router.
 			Methods(route.Method).

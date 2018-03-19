@@ -1,8 +1,6 @@
-package main
+package platform
 
-import (
-	"testing"
-)
+import "testing"
 
 func TestNewOrder(t *testing.T) {
 	ID := NewOrder("ANX", 2000, 20.00)

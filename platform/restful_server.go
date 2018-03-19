@@ -1,4 +1,4 @@
-package main
+package platform
 
 import (
 	"encoding/json"
@@ -56,8 +56,8 @@ func RESTfulError(method string, err error) {
 
 // RESTGetAllSettings replies to a request with an encoded JSON response about the
 // trading bots configuration.
-func RESTGetAllSettings(w http.ResponseWriter, r *http.Request) {
-	err := RESTfulJSONResponse(w, r, bot.config)
+func (b *Bot) RESTGetAllSettings(w http.ResponseWriter, r *http.Request) {
+	err := RESTfulJSONResponse(w, r, b.Config)
 	if err != nil {
 		RESTfulError(r.Method, err)
 	}
@@ -65,7 +65,7 @@ func RESTGetAllSettings(w http.ResponseWriter, r *http.Request) {
 
 // RESTSaveAllSettings saves all current settings from request body as a JSON
 // document then reloads state and returns the settings
-func RESTSaveAllSettings(w http.ResponseWriter, r *http.Request) {
+func (b *Bot) RESTSaveAllSettings(w http.ResponseWriter, r *http.Request) {
 	//Get the data from the request
 	decoder := json.NewDecoder(r.Body)
 	var responseData config.Post
@@ -74,22 +74,22 @@ func RESTSaveAllSettings(w http.ResponseWriter, r *http.Request) {
 		RESTfulError(r.Method, err)
 	}
 	//Save change the settings
-	err = bot.config.UpdateConfig(bot.configFile, responseData.Data)
+	err = b.Config.UpdateConfig(b.ConfigFile, responseData.Data)
 	if err != nil {
 		RESTfulError(r.Method, err)
 	}
 
-	err = RESTfulJSONResponse(w, r, bot.config)
+	err = RESTfulJSONResponse(w, r, b.Config)
 	if err != nil {
 		RESTfulError(r.Method, err)
 	}
 
-	SetupExchanges()
+	b.SetupExchanges()
 }
 
 // RESTGetOrderbook returns orderbook info for a given currency, exchange and
 // asset type
-func RESTGetOrderbook(w http.ResponseWriter, r *http.Request) {
+func (b *Bot) RESTGetOrderbook(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	currency := vars["currency"]
 	exchange := vars["exchangeName"]
@@ -99,7 +99,7 @@ func RESTGetOrderbook(w http.ResponseWriter, r *http.Request) {
 		assetType = orderbook.Spot
 	}
 
-	response, err := GetSpecificOrderbook(currency, exchange, assetType)
+	response, err := b.GetSpecificOrderbook(currency, exchange, assetType)
 	if err != nil {
 		log.Printf("Failed to fetch orderbook for %s currency: %s\n", exchange,
 			currency)
@@ -113,10 +113,10 @@ func RESTGetOrderbook(w http.ResponseWriter, r *http.Request) {
 }
 
 // GetAllActiveOrderbooks returns all enabled exchanges orderbooks
-func GetAllActiveOrderbooks() []EnabledExchangeOrderbooks {
+func (b *Bot) GetAllActiveOrderbooks() []EnabledExchangeOrderbooks {
 	var orderbookData []EnabledExchangeOrderbooks
 
-	for _, individualBot := range bot.exchanges {
+	for _, individualBot := range b.Exchanges {
 		if individualBot != nil && individualBot.IsEnabled() {
 			var individualExchange EnabledExchangeOrderbooks
 			exchangeName := individualBot.GetName()
@@ -161,9 +161,9 @@ func GetAllActiveOrderbooks() []EnabledExchangeOrderbooks {
 }
 
 // RESTGetAllActiveOrderbooks returns all enabled exchange orderbooks
-func RESTGetAllActiveOrderbooks(w http.ResponseWriter, r *http.Request) {
+func (b *Bot) RESTGetAllActiveOrderbooks(w http.ResponseWriter, r *http.Request) {
 	var response AllEnabledExchangeOrderbooks
-	response.Data = GetAllActiveOrderbooks()
+	response.Data = b.GetAllActiveOrderbooks()
 
 	err := RESTfulJSONResponse(w, r, response)
 	if err != nil {
@@ -172,8 +172,8 @@ func RESTGetAllActiveOrderbooks(w http.ResponseWriter, r *http.Request) {
 }
 
 // RESTGetPortfolio returns the bot portfolio
-func RESTGetPortfolio(w http.ResponseWriter, r *http.Request) {
-	result := bot.portfolio.GetPortfolioSummary()
+func (b *Bot) RESTGetPortfolio(w http.ResponseWriter, r *http.Request) {
+	result := b.Portfolio.GetPortfolioSummary()
 	err := RESTfulJSONResponse(w, r, result)
 	if err != nil {
 		RESTfulError(r.Method, err)
@@ -182,7 +182,7 @@ func RESTGetPortfolio(w http.ResponseWriter, r *http.Request) {
 
 // RESTGetTicker returns ticker info for a given currency, exchange and
 // asset type
-func RESTGetTicker(w http.ResponseWriter, r *http.Request) {
+func (b *Bot) RESTGetTicker(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	currency := vars["currency"]
 	exchange := vars["exchangeName"]
@@ -191,7 +191,7 @@ func RESTGetTicker(w http.ResponseWriter, r *http.Request) {
 	if assetType == "" {
 		assetType = ticker.Spot
 	}
-	response, err := GetSpecificTicker(currency, exchange, assetType)
+	response, err := b.GetSpecificTicker(currency, exchange, assetType)
 	if err != nil {
 		log.Printf("Failed to fetch ticker for %s currency: %s\n", exchange,
 			currency)
@@ -204,10 +204,10 @@ func RESTGetTicker(w http.ResponseWriter, r *http.Request) {
 }
 
 // GetAllActiveTickers returns all enabled exchange tickers
-func GetAllActiveTickers() []EnabledExchangeCurrencies {
+func (b *Bot) GetAllActiveTickers() []EnabledExchangeCurrencies {
 	var tickerData []EnabledExchangeCurrencies
 
-	for _, individualBot := range bot.exchanges {
+	for _, individualBot := range b.Exchanges {
 		if individualBot != nil && individualBot.IsEnabled() {
 			var individualExchange EnabledExchangeCurrencies
 			exchangeName := individualBot.GetName()
@@ -251,9 +251,9 @@ func GetAllActiveTickers() []EnabledExchangeCurrencies {
 }
 
 // RESTGetAllActiveTickers returns all active tickers
-func RESTGetAllActiveTickers(w http.ResponseWriter, r *http.Request) {
+func (b *Bot) RESTGetAllActiveTickers(w http.ResponseWriter, r *http.Request) {
 	var response AllEnabledExchangeCurrencies
-	response.Data = GetAllActiveTickers()
+	response.Data = b.GetAllActiveTickers()
 
 	err := RESTfulJSONResponse(w, r, response)
 	if err != nil {
@@ -262,9 +262,9 @@ func RESTGetAllActiveTickers(w http.ResponseWriter, r *http.Request) {
 }
 
 // GetAllEnabledExchangeAccountInfo returns all the current enabled exchanges
-func GetAllEnabledExchangeAccountInfo() AllEnabledExchangeAccounts {
+func (b *Bot) GetAllEnabledExchangeAccountInfo() AllEnabledExchangeAccounts {
 	var response AllEnabledExchangeAccounts
-	for _, individualBot := range bot.exchanges {
+	for _, individualBot := range b.Exchanges {
 		if individualBot != nil && individualBot.IsEnabled() {
 			if !individualBot.GetAuthenticatedAPISupport() {
 				log.Printf("GetAllEnabledExchangeAccountInfo: Skippping %s due to disabled authenticated API support.", individualBot.GetName())
@@ -284,8 +284,8 @@ func GetAllEnabledExchangeAccountInfo() AllEnabledExchangeAccounts {
 
 // RESTGetAllEnabledAccountInfo via get request returns JSON response of account
 // info
-func RESTGetAllEnabledAccountInfo(w http.ResponseWriter, r *http.Request) {
-	response := GetAllEnabledExchangeAccountInfo()
+func (b *Bot) RESTGetAllEnabledAccountInfo(w http.ResponseWriter, r *http.Request) {
+	response := b.GetAllEnabledExchangeAccountInfo()
 	err := RESTfulJSONResponse(w, r, response)
 	if err != nil {
 		RESTfulError(r.Method, err)

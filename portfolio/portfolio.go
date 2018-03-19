@@ -3,8 +3,6 @@ package portfolio
 import (
 	"errors"
 	"fmt"
-	"log"
-	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
 )
@@ -23,9 +21,6 @@ const (
 	// PortfolioAddressPersonal is a label for a personal/offline address
 	PortfolioAddressPersonal = "Personal"
 )
-
-// Portfolio is variable store holding an array of portfolioAddress
-var Portfolio Base
 
 // Base holds the portfolio base addresses
 type Base struct {
@@ -506,28 +501,7 @@ func (p *Base) SeedPortfolio(port Base) {
 	p.Addresses = port.Addresses
 }
 
-// StartPortfolioWatcher observes the portfolio object
-func StartPortfolioWatcher() {
-	addrCount := len(Portfolio.Addresses)
-	log.Printf(
-		"PortfolioWatcher started: Have %d entries in portfolio.\n", addrCount,
-	)
-	for {
-		data := Portfolio.GetPortfolioGroupedCoin()
-		for key, value := range data {
-			success := Portfolio.UpdatePortfolio(value, key)
-			if success {
-				log.Printf(
-					"PortfolioWatcher: Successfully updated address balance for %s address(es) %s\n",
-					key, value,
-				)
-			}
-		}
-		time.Sleep(time.Minute * 10)
-	}
-}
-
 // GetPortfolio returns a pointer to the portfolio base
 func GetPortfolio() *Base {
-	return &Portfolio
+	return new(Base)
 }

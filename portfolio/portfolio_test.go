@@ -19,6 +19,9 @@ func TestGetEthereumBalance(t *testing.T) {
 	}
 
 	response, err = GetEthereumBalance(nonsenseAddress)
+	if err == nil {
+		t.Error("Test Failed - Portfolio GetEthereumBalance() Error")
+	}
 	if response.Error.Message != "" {
 		t.Errorf("Test Failed - Portfolio GetEthereumBalance() Error: %s",
 			response.Error.Message)
@@ -355,20 +358,6 @@ func TestSeedPortfolio(t *testing.T) {
 	if !portfolio.AddressExists("someaddress") {
 		t.Error("Test Failed - portfolio_test.go - SeedPortfolio error")
 	}
-}
-
-func TestStartPortfolioWatcher(t *testing.T) {
-	newBase := Base{}
-	newBase.AddAddress("LX2LMYXtuv5tiYEMztSSoEZcafFPYJFRK1", "LTC", PortfolioAddressPersonal, 0.02)
-	newBase.AddAddress("Testy", "LTC", PortfolioAddressPersonal, 0.02)
-	portfolio := GetPortfolio()
-	portfolio.SeedPortfolio(newBase)
-
-	if !portfolio.AddressExists("LX2LMYXtuv5tiYEMztSSoEZcafFPYJFRK1") {
-		t.Error("Test Failed - portfolio_test.go - TestStartPortfolioWatcher")
-	}
-
-	go StartPortfolioWatcher()
 }
 
 func TestGetPortfolio(t *testing.T) {

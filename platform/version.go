@@ -1,4 +1,4 @@
-package main
+package platform
 
 import "fmt"
 
@@ -17,7 +17,7 @@ const (
 )
 
 // BuildVersion returns the version string
-func BuildVersion(short bool) string {
+func (b *Bot) BuildVersion(short bool) string {
 	versionStr := fmt.Sprintf("GoCryptoTrader v%s.%s",
 		MajorVersion, MinorVersion)
 	if !IsRelease {

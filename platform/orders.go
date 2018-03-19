@@ -1,4 +1,4 @@
-package main
+package platform
 
 const (
 	limitOrder = iota
