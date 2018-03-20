@@ -143,6 +143,10 @@ body {
     max-width: 10rem !important;
 }
 
+.mat-drawer.mat-drawer-side {
+    z-index : 1 !important;
+}
+
 @import '~@angular/material/prebuilt-themes/indigo-pink.css';
 
 /*

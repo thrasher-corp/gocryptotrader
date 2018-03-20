@@ -65,9 +65,10 @@ import { BuySellComponent } from './shared/buy-sell/buy-sell.component';
 import { SelectedCurrencyComponent } from './shared/selected-currency/selected-currency.component';
 import { TradingComponent } from './pages/trading/trading.component';
 import { HistoryComponent } from './pages/history/history.component';
-import { BuySellFormComponent } from './shared/buy-sell-form/buy-sell-form.component';
+import { BuyFormComponent } from './shared/buy-form/buy-form.component';
 import { ExchangeGridComponent } from './pages/exchange-grid/exchange-grid.component';
 import { CurrencyListComponent } from './pages/currency-list/currency-list.component';
+import { SellFormComponent } from './shared/sell-form/sell-form.component';
 
 
 @NgModule({
@@ -90,9 +91,10 @@ import { CurrencyListComponent } from './pages/currency-list/currency-list.compo
     SelectedCurrencyComponent,
     TradingComponent,
     HistoryComponent,
-    BuySellFormComponent,
+    BuyFormComponent,
     ExchangeGridComponent,
     CurrencyListComponent,
+    SellFormComponent,
   ],
   imports: [
     BrowserModule,

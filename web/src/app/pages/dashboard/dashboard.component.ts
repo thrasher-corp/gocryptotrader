@@ -16,6 +16,7 @@ export class DashboardComponent implements OnInit {
   public dashboard: any;
   public expanded: boolean = false;
   public trades: BuySellComponent[];
+  public maxTrades:number = 3;
 
   constructor() {
     this.trades = [];
@@ -26,7 +27,7 @@ export class DashboardComponent implements OnInit {
   }
 
   public addTrade() {
-    if (this.trades.length >= 0 && this.trades.length <= 1) {
+    if (this.trades.length >= 0 && this.trades.length < this.maxTrades) {
       this.trades.push(new BuySellComponent());
     }
   }
