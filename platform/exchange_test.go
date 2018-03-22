@@ -4,8 +4,6 @@ import (
 	"testing"
 )
 
-//var testSetup = false
-
 var (
 	newbot   *Bot
 	exchName string
