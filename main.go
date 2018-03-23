@@ -26,6 +26,10 @@ func main() {
 	key := flag.String("key", "", "-key <keyphrase> adds the encryption keyphrase for the GoCryptoTrader configuration tool using AES encryption")
 	encrypt := flag.Bool("encrypt", false, "-encrypt flag encrypts your configuration file")
 	documentation := flag.Bool("document", false, "-document flag regenerates full documentation across the GoCryptoTrader codebase")
+	createExchange := flag.String("createexchange", "", "-createexchange <exchange name> creates a new template for exchange API integration on GoCryptoTrader")
+	websocketSupport := flag.Bool("ws", false, "-ws flag used in conjunction with -createexchange <exchange name> adds websocket support to template")
+	restSupport := flag.Bool("rs", false, "-rs flag used in conjunction with -createexchange <exchange name> adds REST support to template")
+	fixSupport := flag.Bool("fs", false, "-fs flag used in conjunction with -createexchange <exchange name> adds FIX support to template")
 
 	flag.Parse()
 
@@ -39,6 +43,10 @@ func main() {
 
 	if *documentation {
 		platformServices.StartDocumentation(*verbose, goPath)
+	}
+
+	if *createExchange != "" {
+		platformServices.StartExchangeTemplate(*createExchange, goPath, *websocketSupport, *restSupport, *fixSupport)
 	}
 
 	platformServices.StartDefault(*inFile, *verbose, *dryrun)
