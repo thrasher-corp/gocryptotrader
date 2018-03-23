@@ -31,6 +31,7 @@ func main() {
 	restSupport := flag.Bool("rs", false, "-rs flag used in conjunction with -createexchange <exchange name> adds REST support to template")
 	fixSupport := flag.Bool("fs", false, "-fs flag used in conjunction with -createexchange <exchange name> adds FIX support to template")
 	portfolio := flag.Bool("portfolio", false, "-portfolio flag prints out current portfolio values associated")
+	websocket := flag.Bool("websocket", false, "-websocket flag starts a websocket client")
 
 	flag.Parse()
 
@@ -52,6 +53,10 @@ func main() {
 
 	if *portfolio {
 		platformServices.StartPortfolio(*inFile, *key)
+	}
+
+	if *websocket {
+		platformServices.StartWebsocketClient()
 	}
 
 	platformServices.StartDefault(*inFile, *verbose, *dryrun)
