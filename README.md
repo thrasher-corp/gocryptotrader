@@ -142,11 +142,12 @@ Binaries will be published once the codebase reaches a stable condition.
 
 |User|Github|Contribution Amount|
 |--|--|--|
-| thrasher- | https://github.com/thrasher- | 417 |
-| shazbert | https://github.com/shazbert | 125 |
+| thrasher- | https://github.com/thrasher- | 419 |
+| shazbert | https://github.com/shazbert | 127 |
 | gloriousCode | https://github.com/gloriousCode | 113 |
 | 140am | https://github.com/140am | 8 |
 | faddat | https://github.com/faddat | 4 |
+| Betazoid | https://github.com/Betazoid | 4 |
 | crackcomm | https://github.com/crackcomm | 3 |
 | bretep | https://github.com/bretep | 2 |
 | gam-phon | https://github.com/gam-phon | 2 |
