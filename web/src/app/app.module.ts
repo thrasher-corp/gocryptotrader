@@ -7,6 +7,7 @@ import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 import { HttpModule } from '@angular/http';
 import { NgModule, Injectable } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { AmChartsModule } from "@amcharts/amcharts3-angular";
 
 import {
   MatButtonModule,
@@ -39,8 +40,7 @@ import { DonateComponent } from './pages/donate/donate.component';
 
 //Shared
 import { NavbarComponent } from './shared/navbar/navbar.component';
-import { ExchangeCurrencyTickerComponent } from './shared/exchange-currency-ticker/exchange-currency-ticker.component';
-import { AllEnabledCurrencyTickersComponent } from './shared/all-enabled-currency-tickers/all-enabled-currency-tickers.component';
+import { AllEnabledCurrencyTickersComponent } from './shared/all-updates-ticker/all-updates-ticker.component';
 import { ThemePickerComponent } from './shared/theme-picker/theme-picker';
 //services
 import { WebsocketService } from './services/websocket/websocket.service';
@@ -65,9 +65,10 @@ import { BuySellComponent } from './shared/buy-sell/buy-sell.component';
 import { SelectedCurrencyComponent } from './shared/selected-currency/selected-currency.component';
 import { TradingComponent } from './pages/trading/trading.component';
 import { HistoryComponent } from './pages/history/history.component';
-import { BuySellFormComponent } from './shared/buy-sell-form/buy-sell-form.component';
+import { BuyFormComponent } from './shared/buy-form/buy-form.component';
 import { ExchangeGridComponent } from './pages/exchange-grid/exchange-grid.component';
 import { CurrencyListComponent } from './pages/currency-list/currency-list.component';
+import { SellFormComponent } from './shared/sell-form/sell-form.component';
 
 
 @NgModule({
@@ -78,7 +79,6 @@ import { CurrencyListComponent } from './pages/currency-list/currency-list.compo
     NavbarComponent,
     SettingsComponent,
     DashboardComponent,
-    ExchangeCurrencyTickerComponent,
     AllEnabledCurrencyTickersComponent,
     WalletComponent,
     ThemePickerComponent,
@@ -91,9 +91,10 @@ import { CurrencyListComponent } from './pages/currency-list/currency-list.compo
     SelectedCurrencyComponent,
     TradingComponent,
     HistoryComponent,
-    BuySellFormComponent,
+    BuyFormComponent,
     ExchangeGridComponent,
     CurrencyListComponent,
+    SellFormComponent,
   ],
   imports: [
     BrowserModule,
@@ -118,6 +119,7 @@ import { CurrencyListComponent } from './pages/currency-list/currency-list.compo
     MatLineModule,
     MatTooltipModule,
     MatTabsModule,
+    AmChartsModule,
   ],
   providers: [
     ElectronService,
