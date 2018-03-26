@@ -7,7 +7,7 @@ import { Component, OnInit,Directive, ViewContainerRef } from '@angular/core';
 })
 export class BuySellComponent implements OnInit {
 
-  constructor(public viewContainerRef: ViewContainerRef) { }
+  constructor() { }
 
   ngOnInit() {
   }

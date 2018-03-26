@@ -51,6 +51,7 @@ function getPlugins() {
     "inject": true,
     "compile": true,
     "favicon": false,
+    "target":"web",
     "minify": false,
     "cache": true,
     "showErrors": true,
