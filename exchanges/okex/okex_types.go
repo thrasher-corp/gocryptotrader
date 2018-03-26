@@ -121,7 +121,7 @@ type SpotPrice struct {
 		Last       float64 `json:"last,string"`
 		Sell       float64 `json:"sell,string"`
 		UnitAmount float64 `json:"unit_amount,string"`
-		Vol        float64 `json:"vol.string"`
+		Vol        float64 `json:"vol,string"`
 	} `json:"ticker"`
 	Result bool        `json:"result"`
 	Error  interface{} `json:"error_code"`
