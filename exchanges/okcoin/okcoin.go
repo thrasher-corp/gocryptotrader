@@ -106,7 +106,6 @@ func (o *OKCoin) SetDefaults() {
 	o.AssetTypes = []string{ticker.Spot}
 	o.SupportsAutoPairUpdating = false
 	o.Handler = new(request.Handler)
-	o.SetRequestHandler(o.Name, okcoinAuthRate, okcoinUnauthRate, new(http.Client))
 
 	if okcoinDefaultsSet {
 		o.AssetTypes = append(o.AssetTypes, o.FuturesValues...)
@@ -114,12 +113,14 @@ func (o *OKCoin) SetDefaults() {
 		o.Name = "OKCOIN International"
 		o.WebsocketURL = okcoinWebsocketURL
 		o.setCurrencyPairFormats()
+		o.SetRequestHandler(o.Name, okcoinAuthRate, okcoinUnauthRate, new(http.Client))
 	} else {
 		o.APIUrl = okcoinAPIURLChina
 		o.Name = "OKCOIN China"
 		o.WebsocketURL = okcoinWebsocketURLChina
 		okcoinDefaultsSet = true
 		o.setCurrencyPairFormats()
+		o.SetRequestHandler(o.Name, okcoinAuthRate, okcoinUnauthRate, new(http.Client))
 	}
 }
 
