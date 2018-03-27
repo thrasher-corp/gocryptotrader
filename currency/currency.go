@@ -66,7 +66,7 @@ var (
 	BaseCurrencies            []string
 	CryptoCurrencies          []string
 	ErrCurrencyDataNotFetched = errors.New("yahoo currency data has not been fetched yet")
-	ErrCurrencyNotFound       = errors.New("unable to find specified currency")
+	ErrCurrencyNotFound       = "unable to find specified currency"
 	ErrQueryingYahoo          = errors.New("unable to query Yahoo currency values")
 	ErrQueryingYahooZeroCount = errors.New("yahoo returned zero currency data")
 	YahooEnabled              = false
@@ -227,7 +227,7 @@ func ConvertCurrency(amount float64, from, to string) (float64, error) {
 
 		result, ok := CurrencyStore[currency]
 		if !ok {
-			return 0, ErrCurrencyNotFound
+			return 0, errors.New(ErrCurrencyNotFound + " currency not found in CurrencyStore " + currency)
 		}
 		return amount * result.Rate, nil
 	}
@@ -246,7 +246,7 @@ func ConvertCurrency(amount float64, from, to string) (float64, error) {
 	if to == "USD" {
 		resultFrom, ok := CurrencyStoreFixer[from]
 		if !ok {
-			return 0, ErrCurrencyNotFound
+			return 0, errors.New(ErrCurrencyNotFound + " " + from + " in CurrencyStoreFixer with pair " + from + to)
 		}
 		return amount / resultFrom, nil
 	}
@@ -255,7 +255,7 @@ func ConvertCurrency(amount float64, from, to string) (float64, error) {
 	if from == "USD" {
 		resultTo, ok := CurrencyStoreFixer[to]
 		if !ok {
-			return 0, ErrCurrencyNotFound
+			return 0, errors.New(ErrCurrencyNotFound + " " + to + " in CurrencyStoreFixer with pair " + from + to)
 		}
 		return resultTo * amount, nil
 	}
@@ -263,13 +263,13 @@ func ConvertCurrency(amount float64, from, to string) (float64, error) {
 	// Otherwise convert to USD, then to the target currency
 	resultFrom, ok := CurrencyStoreFixer[from]
 	if !ok {
-		return 0, ErrCurrencyNotFound
+		return 0, errors.New(ErrCurrencyNotFound + " " + from + " in CurrencyStoreFixer with pair " + from + to)
 	}
 
 	converted := amount / resultFrom
 	resultTo, ok = CurrencyStoreFixer[to]
 	if !ok {
-		return 0, ErrCurrencyNotFound
+		return 0, errors.New(ErrCurrencyNotFound + " " + to + " in CurrencyStoreFixer with pair " + from + to)
 	}
 
 	return converted * resultTo, nil
