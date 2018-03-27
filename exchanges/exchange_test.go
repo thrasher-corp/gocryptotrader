@@ -2,12 +2,112 @@ package exchange
 
 import (
 	"testing"
+	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 )
+
+func TestSetAutoPairDefaults(t *testing.T) {
+	cfg := config.GetConfig()
+	err := cfg.LoadConfig(config.ConfigTestFile)
+	if err != nil {
+		t.Fatalf("Test failed. TestSetAutoPairDefaults failed to load config file. Error: %s", err)
+	}
+
+	b := Base{
+		Name: "TESTNAME",
+		SupportsAutoPairUpdating: true,
+	}
+
+	err = b.SetAutoPairDefaults()
+	if err == nil {
+		t.Fatal("Test failed. TestSetAutoPairDefaults returned nil error for a non-existent exchange")
+	}
+
+	b.Name = "Bitstamp"
+	err = b.SetAutoPairDefaults()
+	if err != nil {
+		t.Fatalf("Test failed. TestSetAutoPairDefaults. Error %s", err)
+	}
+
+	exch, err := cfg.GetExchangeConfig(b.Name)
+	if err != nil {
+		t.Fatalf("Test failed. TestSetAutoPairDefaults load config failed. Error %s", err)
+	}
+
+	if !exch.SupportsAutoPairUpdates {
+		t.Fatalf("Test failed. TestSetAutoPairDefaults Incorrect value")
+	}
+
+	if exch.PairsLastUpdated != 0 {
+		t.Fatalf("Test failed. TestSetAutoPairDefaults Incorrect value")
+	}
+
+	exch.SupportsAutoPairUpdates = false
+	err = cfg.UpdateExchangeConfig(exch)
+	if err != nil {
+		t.Fatalf("Test failed. TestSetAutoPairDefaults update config failed. Error %s", err)
+	}
+
+	exch, err = cfg.GetExchangeConfig(b.Name)
+	if err != nil {
+		t.Fatalf("Test failed. TestSetAutoPairDefaults load config failed. Error %s", err)
+	}
+
+	if exch.SupportsAutoPairUpdates != false {
+		t.Fatal("Test failed. TestSetAutoPairDefaults Incorrect value")
+	}
+
+	err = b.SetAutoPairDefaults()
+	if err != nil {
+		t.Fatalf("Test failed. TestSetAutoPairDefaults. Error %s", err)
+	}
+
+	exch, err = cfg.GetExchangeConfig(b.Name)
+	if err != nil {
+		t.Fatalf("Test failed. TestSetAutoPairDefaults load config failed. Error %s", err)
+	}
+
+	if exch.SupportsAutoPairUpdates == false {
+		t.Fatal("Test failed. TestSetAutoPairDefaults Incorrect value")
+	}
+
+	b.SupportsAutoPairUpdating = false
+	err = b.SetAutoPairDefaults()
+	if err != nil {
+		t.Fatalf("Test failed. TestSetAutoPairDefaults. Error %s", err)
+	}
+
+	if b.PairsLastUpdated == 0 {
+		t.Fatal("Test failed. TestSetAutoPairDefaults Incorrect value")
+	}
+}
+
+func TestSupportsAutoPairUpdates(t *testing.T) {
+	b := Base{
+		Name: "TESTNAME",
+		SupportsAutoPairUpdating: false,
+	}
+
+	if b.SupportsAutoPairUpdates() {
+		t.Fatal("Test failed. TestSupportsAutoPairUpdates Incorrect value")
+	}
+}
+
+func TestGetLastPairsUpdateTime(t *testing.T) {
+	testTime := time.Now().Unix()
+	b := Base{
+		Name:             "TESTNAME",
+		PairsLastUpdated: testTime,
+	}
+
+	if b.GetLastPairsUpdateTime() != testTime {
+		t.Fatal("Test failed. TestGetLastPairsUpdateTim Incorrect value")
+	}
+}
 
 func TestSetAssetTypes(t *testing.T) {
 	cfg := config.GetConfig()

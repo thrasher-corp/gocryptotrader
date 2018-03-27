@@ -58,6 +58,7 @@ func (y *Yobit) SetDefaults() {
 	y.ConfigCurrencyPairFormat.Delimiter = "_"
 	y.ConfigCurrencyPairFormat.Uppercase = true
 	y.AssetTypes = []string{ticker.Spot}
+	y.SupportsAutoPairUpdating = false
 }
 
 // Setup sets exchange configuration parameters for Yobit
@@ -79,6 +80,10 @@ func (y *Yobit) Setup(exch config.ExchangeConfig) {
 			log.Fatal(err)
 		}
 		err = y.SetAssetTypes()
+		if err != nil {
+			log.Fatal(err)
+		}
+		err = y.SetAutoPairDefaults()
 		if err != nil {
 			log.Fatal(err)
 		}

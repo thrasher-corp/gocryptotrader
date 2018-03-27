@@ -118,6 +118,7 @@ func (l *LocalBitcoins) SetDefaults() {
 	l.RequestCurrencyPairFormat.Uppercase = true
 	l.ConfigCurrencyPairFormat.Delimiter = ""
 	l.ConfigCurrencyPairFormat.Uppercase = true
+	l.SupportsAutoPairUpdating = false
 }
 
 // Setup sets exchange configuration parameters
@@ -135,6 +136,10 @@ func (l *LocalBitcoins) Setup(exch config.ExchangeConfig) {
 		l.AvailablePairs = common.SplitStrings(exch.AvailablePairs, ",")
 		l.EnabledPairs = common.SplitStrings(exch.EnabledPairs, ",")
 		err := l.SetCurrencyPairFormat()
+		if err != nil {
+			log.Fatal(err)
+		}
+		err = l.SetAutoPairDefaults()
 		if err != nil {
 			log.Fatal(err)
 		}

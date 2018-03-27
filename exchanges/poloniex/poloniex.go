@@ -66,6 +66,7 @@ func (p *Poloniex) SetDefaults() {
 	p.ConfigCurrencyPairFormat.Delimiter = "_"
 	p.ConfigCurrencyPairFormat.Uppercase = true
 	p.AssetTypes = []string{ticker.Spot}
+	p.SupportsAutoPairUpdating = true
 }
 
 // Setup sets user exchange configuration settings
@@ -87,6 +88,10 @@ func (p *Poloniex) Setup(exch config.ExchangeConfig) {
 			log.Fatal(err)
 		}
 		err = p.SetAssetTypes()
+		if err != nil {
+			log.Fatal(err)
+		}
+		err = p.SetAutoPairDefaults()
 		if err != nil {
 			log.Fatal(err)
 		}

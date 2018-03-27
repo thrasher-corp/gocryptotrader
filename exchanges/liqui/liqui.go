@@ -55,6 +55,7 @@ func (l *Liqui) SetDefaults() {
 	l.ConfigCurrencyPairFormat.Delimiter = "_"
 	l.ConfigCurrencyPairFormat.Uppercase = true
 	l.AssetTypes = []string{ticker.Spot}
+	l.SupportsAutoPairUpdating = true
 }
 
 // Setup sets exchange configuration parameters for liqui
@@ -76,6 +77,10 @@ func (l *Liqui) Setup(exch config.ExchangeConfig) {
 			log.Fatal(err)
 		}
 		err = l.SetAssetTypes()
+		if err != nil {
+			log.Fatal(err)
+		}
+		err = l.SetAutoPairDefaults()
 		if err != nil {
 			log.Fatal(err)
 		}

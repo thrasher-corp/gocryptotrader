@@ -50,6 +50,7 @@ func (l *LakeBTC) SetDefaults() {
 	l.ConfigCurrencyPairFormat.Delimiter = ""
 	l.ConfigCurrencyPairFormat.Uppercase = true
 	l.AssetTypes = []string{ticker.Spot}
+	l.SupportsAutoPairUpdating = false
 }
 
 // Setup sets exchange configuration profile
@@ -71,6 +72,10 @@ func (l *LakeBTC) Setup(exch config.ExchangeConfig) {
 			log.Fatal(err)
 		}
 		err = l.SetAssetTypes()
+		if err != nil {
+			log.Fatal(err)
+		}
+		err = l.SetAutoPairDefaults()
 		if err != nil {
 			log.Fatal(err)
 		}

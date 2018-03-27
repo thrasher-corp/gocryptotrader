@@ -63,6 +63,7 @@ func (k *Kraken) SetDefaults() {
 	k.ConfigCurrencyPairFormat.Delimiter = "-"
 	k.ConfigCurrencyPairFormat.Uppercase = true
 	k.AssetTypes = []string{ticker.Spot}
+	k.SupportsAutoPairUpdating = true
 }
 
 // Setup sets current exchange configuration
@@ -84,6 +85,10 @@ func (k *Kraken) Setup(exch config.ExchangeConfig) {
 			log.Fatal(err)
 		}
 		err = k.SetAssetTypes()
+		if err != nil {
+			log.Fatal(err)
+		}
+		err = k.SetAutoPairDefaults()
 		if err != nil {
 			log.Fatal(err)
 		}

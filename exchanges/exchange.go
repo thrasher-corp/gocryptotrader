@@ -60,6 +60,8 @@ type Base struct {
 	AvailablePairs              []string
 	EnabledPairs                []string
 	AssetTypes                  []string
+	PairsLastUpdated            int64
+	SupportsAutoPairUpdating    bool
 	WebsocketURL                string
 	APIUrl                      string
 	RequestCurrencyPairFormat   config.CurrencyPairFormatConfig
@@ -85,6 +87,49 @@ type IBotExchange interface {
 	GetAuthenticatedAPISupport() bool
 	SetCurrencies(pairs []pair.CurrencyPair, enabledPairs bool) error
 	GetExchangeHistory(pair.CurrencyPair, string) ([]TradeHistory, error)
+	SupportsAutoPairUpdates() bool
+	GetLastPairsUpdateTime() int64
+}
+
+// SetAutoPairDefaults sets the default values for whether or not the exchange
+// supports auto pair updating or not
+func (e *Base) SetAutoPairDefaults() error {
+	cfg := config.GetConfig()
+	exch, err := cfg.GetExchangeConfig(e.Name)
+	if err != nil {
+		return err
+	}
+
+	update := false
+	if e.SupportsAutoPairUpdating {
+		if !exch.SupportsAutoPairUpdates {
+			exch.SupportsAutoPairUpdates = true
+			update = true
+		}
+	} else {
+		if exch.PairsLastUpdated == 0 {
+			exch.PairsLastUpdated = time.Now().Unix()
+			e.PairsLastUpdated = exch.PairsLastUpdated
+			update = true
+		}
+	}
+
+	if update {
+		return cfg.UpdateExchangeConfig(exch)
+	}
+	return nil
+}
+
+// SupportsAutoPairUpdates returns whether or not the exchange supports
+// auto currency pair updating
+func (e *Base) SupportsAutoPairUpdates() bool {
+	return e.SupportsAutoPairUpdating
+}
+
+// GetLastPairsUpdateTime returns the unix timestamp of when the exchanges
+// currency pairs were last updated
+func (e *Base) GetLastPairsUpdateTime() int64 {
+	return e.PairsLastUpdated
 }
 
 // SetAssetTypes checks the exchange asset types (whether it supports SPOT,

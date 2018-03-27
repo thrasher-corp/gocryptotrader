@@ -51,6 +51,7 @@ func (a *Alphapoint) SetDefaults() {
 	a.APIUrl = alphapointDefaultAPIURL
 	a.WebsocketURL = alphapointDefaultWebsocketURL
 	a.AssetTypes = []string{ticker.Spot}
+	a.SupportsAutoPairUpdating = false
 }
 
 // GetTicker returns current ticker information from Alphapoint for a selected

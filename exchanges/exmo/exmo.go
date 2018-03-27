@@ -61,6 +61,7 @@ func (e *EXMO) SetDefaults() {
 	e.ConfigCurrencyPairFormat.Delimiter = "_"
 	e.ConfigCurrencyPairFormat.Uppercase = true
 	e.AssetTypes = []string{ticker.Spot}
+	e.SupportsAutoPairUpdating = true
 }
 
 // Setup takes in the supplied exchange configuration details and sets params
@@ -82,6 +83,10 @@ func (e *EXMO) Setup(exch config.ExchangeConfig) {
 			log.Fatal(err)
 		}
 		err = e.SetAssetTypes()
+		if err != nil {
+			log.Fatal(err)
+		}
+		err = e.SetAutoPairDefaults()
 		if err != nil {
 			log.Fatal(err)
 		}

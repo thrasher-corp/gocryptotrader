@@ -49,6 +49,7 @@ func (i *ItBit) SetDefaults() {
 	i.ConfigCurrencyPairFormat.Delimiter = ""
 	i.ConfigCurrencyPairFormat.Uppercase = true
 	i.AssetTypes = []string{ticker.Spot}
+	i.SupportsAutoPairUpdating = false
 }
 
 // Setup sets the exchange parameters from exchange config
@@ -70,6 +71,10 @@ func (i *ItBit) Setup(exch config.ExchangeConfig) {
 			log.Fatal(err)
 		}
 		err = i.SetAssetTypes()
+		if err != nil {
+			log.Fatal(err)
+		}
+		err = i.SetAutoPairDefaults()
 		if err != nil {
 			log.Fatal(err)
 		}
