@@ -50,6 +50,7 @@ func (a *ANX) SetDefaults() {
 	a.ConfigCurrencyPairFormat.Uppercase = true
 	a.ConfigCurrencyPairFormat.Index = "BTC"
 	a.AssetTypes = []string{ticker.Spot}
+	a.SupportsAutoPairUpdating = false
 }
 
 //Setup is run on startup to setup exchange with config values
@@ -71,6 +72,10 @@ func (a *ANX) Setup(exch config.ExchangeConfig) {
 			log.Fatal(err)
 		}
 		err = a.SetAssetTypes()
+		if err != nil {
+			log.Fatal(err)
+		}
+		err = a.SetAutoPairDefaults()
 		if err != nil {
 			log.Fatal(err)
 		}

@@ -67,6 +67,7 @@ func (b *Bitstamp) SetDefaults() {
 	b.ConfigCurrencyPairFormat.Delimiter = ""
 	b.ConfigCurrencyPairFormat.Uppercase = true
 	b.AssetTypes = []string{ticker.Spot}
+	b.SupportsAutoPairUpdating = true
 }
 
 // Setup sets configuration values to bitstamp
@@ -88,6 +89,10 @@ func (b *Bitstamp) Setup(exch config.ExchangeConfig) {
 			log.Fatal(err)
 		}
 		err = b.SetAssetTypes()
+		if err != nil {
+			log.Fatal(err)
+		}
+		err = b.SetAutoPairDefaults()
 		if err != nil {
 			log.Fatal(err)
 		}

@@ -56,6 +56,7 @@ func (c *COINUT) SetDefaults() {
 	c.ConfigCurrencyPairFormat.Delimiter = ""
 	c.ConfigCurrencyPairFormat.Uppercase = true
 	c.AssetTypes = []string{ticker.Spot}
+	c.SupportsAutoPairUpdating = true
 }
 
 // Setup sets the current exchange configuration
@@ -77,6 +78,10 @@ func (c *COINUT) Setup(exch config.ExchangeConfig) {
 			log.Fatal(err)
 		}
 		err = c.SetAssetTypes()
+		if err != nil {
+			log.Fatal(err)
+		}
+		err = c.SetAutoPairDefaults()
 		if err != nil {
 			log.Fatal(err)
 		}

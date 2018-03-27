@@ -8,6 +8,7 @@ import (
 	"log"
 	"os"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
@@ -19,12 +20,13 @@ import (
 
 // Constants declared here are filename strings and test strings
 const (
-	EncryptedConfigFile          = "config.dat"
-	ConfigFile                   = "config.json"
-	ConfigTestFile               = "../testdata/configtest.json"
-	configFileEncryptionPrompt   = 0
-	configFileEncryptionEnabled  = 1
-	configFileEncryptionDisabled = -1
+	EncryptedConfigFile                    = "config.dat"
+	ConfigFile                             = "config.json"
+	ConfigTestFile                         = "../testdata/configtest.json"
+	configFileEncryptionPrompt             = 0
+	configFileEncryptionEnabled            = 1
+	configFileEncryptionDisabled           = -1
+	configPairsLastUpdatedWarningThreshold = 30 // 30 days
 )
 
 // Variables here are mainly alerts and a configuration object
@@ -47,6 +49,7 @@ var (
 	WarningWebserverRootWebFolderNotFound           = "WARNING -- Webserver support disabled due to missing web folder."
 	WarningExchangeAuthAPIDefaultOrEmptyValues      = "WARNING -- Exchange %s: Authenticated API support disabled due to default/empty APIKey/Secret/ClientID values."
 	WarningCurrencyExchangeProvider                 = "WARNING -- Currency exchange provider invalid valid. Reset to Fixer."
+	WarningPairsLastUpdatedThresholdExceeded        = "WARNING -- Exchange %s: Last manual update of available currency pairs has exceeded %d days. Manual update required!"
 	Cfg                                             Config
 )
 
@@ -95,6 +98,7 @@ type Config struct {
 	SMS                      SMSGlobalConfig  `json:"SMSGlobal"`
 	Webserver                WebserverConfig  `json:"Webserver"`
 	Exchanges                []ExchangeConfig `json:"Exchanges"`
+	m                        sync.Mutex
 }
 
 // ExchangeConfig holds all the information needed for each enabled Exchange.
@@ -113,6 +117,8 @@ type ExchangeConfig struct {
 	EnabledPairs              string
 	BaseCurrencies            string
 	AssetTypes                string
+	SupportsAutoPairUpdates   bool
+	PairsLastUpdated          int64                     `json:",omitempty"`
 	ConfigCurrencyPairFormat  *CurrencyPairFormatConfig `json:"ConfigCurrencyPairFormat"`
 	RequestCurrencyPairFormat *CurrencyPairFormatConfig `json:"RequestCurrencyPairFormat"`
 }
@@ -213,6 +219,8 @@ func (c *Config) GetCurrencyPairDisplayConfig() *CurrencyPairFormatConfig {
 
 // GetExchangeConfig returns your exchange configurations by its indivdual name
 func (c *Config) GetExchangeConfig(name string) (ExchangeConfig, error) {
+	c.m.Lock()
+	defer c.m.Unlock()
 	for i := range c.Exchanges {
 		if c.Exchanges[i].Name == name {
 			return c.Exchanges[i], nil
@@ -223,6 +231,8 @@ func (c *Config) GetExchangeConfig(name string) (ExchangeConfig, error) {
 
 // UpdateExchangeConfig updates exchange configurations
 func (c *Config) UpdateExchangeConfig(e ExchangeConfig) error {
+	c.m.Lock()
+	defer c.m.Unlock()
 	for i := range c.Exchanges {
 		if c.Exchanges[i].Name == e.Name {
 			c.Exchanges[i] = e
@@ -279,13 +289,18 @@ func (c *Config) CheckExchangeConfigValues() error {
 				if exch.APIKey == "" || exch.APISecret == "" || exch.APIKey == "Key" || exch.APISecret == "Secret" {
 					c.Exchanges[i].AuthenticatedAPISupport = false
 					log.Printf(WarningExchangeAuthAPIDefaultOrEmptyValues, exch.Name)
-					continue
 				} else if exch.Name == "ITBIT" || exch.Name == "Bitstamp" || exch.Name == "COINUT" || exch.Name == "GDAX" {
 					if exch.ClientID == "" || exch.ClientID == "ClientID" {
 						c.Exchanges[i].AuthenticatedAPISupport = false
 						log.Printf(WarningExchangeAuthAPIDefaultOrEmptyValues, exch.Name)
-						continue
 					}
+				}
+			}
+			if !exch.SupportsAutoPairUpdates {
+				lastUpdated := common.UnixTimestampToTime(exch.PairsLastUpdated)
+				lastUpdated.AddDate(0, 0, configPairsLastUpdatedWarningThreshold)
+				if lastUpdated.Unix() >= time.Now().Unix() {
+					log.Printf(WarningPairsLastUpdatedThresholdExceeded, exch.Name, configPairsLastUpdatedWarningThreshold)
 				}
 			}
 			exchanges++

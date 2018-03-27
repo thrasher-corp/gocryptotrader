@@ -72,6 +72,7 @@ func (b *Bittrex) SetDefaults() {
 	b.ConfigCurrencyPairFormat.Delimiter = "-"
 	b.ConfigCurrencyPairFormat.Uppercase = true
 	b.AssetTypes = []string{ticker.Spot}
+	b.SupportsAutoPairUpdating = true
 }
 
 // Setup method sets current configuration details if enabled
@@ -93,6 +94,10 @@ func (b *Bittrex) Setup(exch config.ExchangeConfig) {
 			log.Fatal(err)
 		}
 		err = b.SetAssetTypes()
+		if err != nil {
+			log.Fatal(err)
+		}
+		err = b.SetAutoPairDefaults()
 		if err != nil {
 			log.Fatal(err)
 		}

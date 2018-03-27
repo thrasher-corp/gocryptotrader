@@ -109,6 +109,7 @@ func (g *Gemini) SetDefaults() {
 	g.ConfigCurrencyPairFormat.Delimiter = ""
 	g.ConfigCurrencyPairFormat.Uppercase = true
 	g.AssetTypes = []string{ticker.Spot}
+	g.SupportsAutoPairUpdating = true
 }
 
 // Setup sets exchange configuration parameters
@@ -135,6 +136,10 @@ func (g *Gemini) Setup(exch config.ExchangeConfig) {
 			log.Fatal(err)
 		}
 		err = g.SetAssetTypes()
+		if err != nil {
+			log.Fatal(err)
+		}
+		err = g.SetAutoPairDefaults()
 		if err != nil {
 			log.Fatal(err)
 		}

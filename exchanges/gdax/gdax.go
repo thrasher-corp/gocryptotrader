@@ -70,6 +70,7 @@ func (g *GDAX) SetDefaults() {
 	g.ConfigCurrencyPairFormat.Uppercase = true
 	g.AssetTypes = []string{ticker.Spot}
 	g.APIUrl = gdaxAPIURL
+	g.SupportsAutoPairUpdating = true
 }
 
 // Setup initialises the exchange parameters with the current configuration
@@ -94,6 +95,10 @@ func (g *GDAX) Setup(exch config.ExchangeConfig) {
 			log.Fatal(err)
 		}
 		err = g.SetAssetTypes()
+		if err != nil {
+			log.Fatal(err)
+		}
+		err = g.SetAutoPairDefaults()
 		if err != nil {
 			log.Fatal(err)
 		}

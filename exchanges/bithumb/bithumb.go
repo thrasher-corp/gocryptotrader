@@ -64,6 +64,7 @@ func (b *Bithumb) SetDefaults() {
 	b.ConfigCurrencyPairFormat.Uppercase = true
 	b.ConfigCurrencyPairFormat.Index = "KRW"
 	b.AssetTypes = []string{ticker.Spot}
+	b.SupportsAutoPairUpdating = false
 }
 
 // Setup takes in the supplied exchange configuration details and sets params
@@ -85,6 +86,10 @@ func (b *Bithumb) Setup(exch config.ExchangeConfig) {
 			log.Fatal(err)
 		}
 		err = b.SetAssetTypes()
+		if err != nil {
+			log.Fatal(err)
+		}
+		err = b.SetAutoPairDefaults()
 		if err != nil {
 			log.Fatal(err)
 		}

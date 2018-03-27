@@ -97,6 +97,7 @@ func (o *OKEX) SetDefaults() {
 	o.RequestCurrencyPairFormat.Uppercase = false
 	o.ConfigCurrencyPairFormat.Delimiter = "_"
 	o.ConfigCurrencyPairFormat.Uppercase = false
+	o.SupportsAutoPairUpdating = false
 }
 
 // Setup method sets current configuration details if enabled
@@ -118,6 +119,10 @@ func (o *OKEX) Setup(exch config.ExchangeConfig) {
 			log.Fatal(err)
 		}
 		err = o.SetAssetTypes()
+		if err != nil {
+			log.Fatal(err)
+		}
+		err = o.SetAutoPairDefaults()
 		if err != nil {
 			log.Fatal(err)
 		}

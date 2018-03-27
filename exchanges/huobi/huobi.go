@@ -65,6 +65,7 @@ func (h *HUOBI) SetDefaults() {
 	h.ConfigCurrencyPairFormat.Delimiter = "-"
 	h.ConfigCurrencyPairFormat.Uppercase = true
 	h.AssetTypes = []string{ticker.Spot}
+	h.SupportsAutoPairUpdating = true
 }
 
 // Setup sets user configuration
@@ -86,6 +87,10 @@ func (h *HUOBI) Setup(exch config.ExchangeConfig) {
 			log.Fatal(err)
 		}
 		err = h.SetAssetTypes()
+		if err != nil {
+			log.Fatal(err)
+		}
+		err = h.SetAutoPairDefaults()
 		if err != nil {
 			log.Fatal(err)
 		}

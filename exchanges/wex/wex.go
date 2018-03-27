@@ -58,6 +58,7 @@ func (w *WEX) SetDefaults() {
 	w.ConfigCurrencyPairFormat.Delimiter = ""
 	w.ConfigCurrencyPairFormat.Uppercase = true
 	w.AssetTypes = []string{ticker.Spot}
+	w.SupportsAutoPairUpdating = false
 }
 
 // Setup sets exchange configuration parameters for WEX
@@ -79,6 +80,10 @@ func (w *WEX) Setup(exch config.ExchangeConfig) {
 			log.Fatal(err)
 		}
 		err = w.SetAssetTypes()
+		if err != nil {
+			log.Fatal(err)
+		}
+		err = w.SetAutoPairDefaults()
 		if err != nil {
 			log.Fatal(err)
 		}

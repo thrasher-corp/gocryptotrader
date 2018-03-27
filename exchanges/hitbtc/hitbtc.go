@@ -59,6 +59,7 @@ func (p *HitBTC) SetDefaults() {
 	p.ConfigCurrencyPairFormat.Delimiter = "-"
 	p.ConfigCurrencyPairFormat.Uppercase = true
 	p.AssetTypes = []string{ticker.Spot}
+	p.SupportsAutoPairUpdating = true
 }
 
 // Setup sets user exchange configuration settings
@@ -80,6 +81,10 @@ func (p *HitBTC) Setup(exch config.ExchangeConfig) {
 			log.Fatal(err)
 		}
 		err = p.SetAssetTypes()
+		if err != nil {
+			log.Fatal(err)
+		}
+		err = p.SetAutoPairDefaults()
 		if err != nil {
 			log.Fatal(err)
 		}

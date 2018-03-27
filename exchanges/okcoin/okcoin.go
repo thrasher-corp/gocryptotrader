@@ -98,6 +98,7 @@ func (o *OKCoin) SetDefaults() {
 	o.RESTPollingDelay = 10
 	o.FuturesValues = []string{"this_week", "next_week", "quarter"}
 	o.AssetTypes = []string{ticker.Spot}
+	o.SupportsAutoPairUpdating = false
 
 	if okcoinDefaultsSet {
 		o.AssetTypes = append(o.AssetTypes, o.FuturesValues...)
@@ -133,6 +134,10 @@ func (o *OKCoin) Setup(exch config.ExchangeConfig) {
 			log.Fatal(err)
 		}
 		err = o.SetAssetTypes()
+		if err != nil {
+			log.Fatal(err)
+		}
+		err = o.SetAutoPairDefaults()
 		if err != nil {
 			log.Fatal(err)
 		}
