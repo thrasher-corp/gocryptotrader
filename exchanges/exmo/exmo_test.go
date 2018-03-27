@@ -11,6 +11,10 @@ var (
 	e EXMO
 )
 
+func TestDefault(t *testing.T) {
+	e.SetDefaults()
+}
+
 func TestSetup(t *testing.T) {
 	e.AuthenticatedAPISupport = true
 	e.APIKey = APIKey
@@ -18,6 +22,7 @@ func TestSetup(t *testing.T) {
 }
 
 func TestGetTrades(t *testing.T) {
+	t.Parallel()
 	_, err := e.GetTrades("BTC_USD")
 	if err != nil {
 		t.Errorf("Test failed. Err: %s", err)

@@ -7,10 +7,6 @@ import (
 	"github.com/thrasher-/gocryptotrader/config"
 )
 
-var (
-	g Gemini
-)
-
 // Please enter sandbox API keys & assigned roles for better testing procedures
 
 const (
@@ -26,15 +22,17 @@ const (
 )
 
 func TestAddSession(t *testing.T) {
-	err := AddSession(&g, 1, apiKey1, apiSecret1, apiKeyRole1, true, false)
+	var g1 Gemini
+	err := AddSession(&g1, 1, apiKey1, apiSecret1, apiKeyRole1, true, false)
 	if err != nil {
 		t.Error("Test failed - AddSession() error")
 	}
-	err = AddSession(&g, 1, apiKey1, apiSecret1, apiKeyRole1, true, false)
+	err = AddSession(&g1, 1, apiKey1, apiSecret1, apiKeyRole1, true, false)
 	if err == nil {
 		t.Error("Test failed - AddSession() error")
 	}
-	err = AddSession(&g, 2, apiKey2, apiSecret2, apiKeyRole2, false, true)
+	var g2 Gemini
+	err = AddSession(&g2, 2, apiKey2, apiSecret2, apiKeyRole2, false, true)
 	if err != nil {
 		t.Error("Test failed - AddSession() error")
 	}
@@ -46,6 +44,7 @@ func TestSetDefaults(t *testing.T) {
 }
 
 func TestSetup(t *testing.T) {
+
 	cfg := config.GetConfig()
 	cfg.LoadConfig("../../testdata/configtest.json")
 	geminiConfig, err := cfg.GetExchangeConfig("Gemini")

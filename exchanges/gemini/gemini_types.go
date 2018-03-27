@@ -74,6 +74,7 @@ type OrderResult struct {
 		CancelledOrders []string `json:"cancelledOrders"`
 		CancelRejects   []string `json:"cancelRejects"`
 	} `json:"details"`
+	Message string `json:"message"`
 }
 
 // Order contains order information
@@ -97,6 +98,7 @@ type Order struct {
 	ExecutedAmount    float64  `json:"executed_amount,string"`
 	RemainingAmount   float64  `json:"remaining_amount,string"`
 	OriginalAmount    float64  `json:"original_amount,string"`
+	Message           string   `json:"message"`
 }
 
 // TradeHistory holds trade history information
@@ -150,6 +152,7 @@ type DepositAddress struct {
 	Currency string `json:"currency"`
 	Address  string `json:"address"`
 	Label    string `json:"label"`
+	Message  string `json:"message"`
 }
 
 // WithdrawalAddress holds withdrawal information
@@ -157,6 +160,7 @@ type WithdrawalAddress struct {
 	Address string  `json:"address"`
 	Amount  float64 `json:"amount"`
 	TXHash  string  `json:"txHash"`
+	Message string  `json:"message"`
 }
 
 // ErrorCapture is a generlized error response from the server
