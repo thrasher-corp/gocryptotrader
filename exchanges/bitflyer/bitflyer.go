@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"net/http"
 	"net/url"
 	"strconv"
 	"time"
@@ -11,6 +12,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
+	"github.com/thrasher-/gocryptotrader/exchanges/request"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 )
 
@@ -63,11 +65,15 @@ const (
 	privOpenInterest               = "/me/getpositions"
 	privMarginChange               = "/me/getcollateralhistory"
 	privTradingCommission          = "/me/gettradingcommission"
+
+	bitflyerAuthRate   = 1000
+	bitflyerUnauthRate = 1000
 )
 
 // Bitflyer is the overarching type across this package
 type Bitflyer struct {
 	exchange.Base
+	*request.Handler
 }
 
 // SetDefaults sets the basic defaults for Bitflyer
@@ -83,6 +89,8 @@ func (b *Bitflyer) SetDefaults() {
 	b.ConfigCurrencyPairFormat.Uppercase = true
 	b.AssetTypes = []string{ticker.Spot}
 	b.SupportsAutoPairUpdating = false
+	b.Handler = new(request.Handler)
+	b.SetRequestHandler(b.Name, bitflyerAuthRate, bitflyerUnauthRate, new(http.Client))
 }
 
 // Setup takes in the supplied exchange configuration details and sets params
@@ -121,7 +129,7 @@ func (b *Bitflyer) GetLatestBlockCA() (ChainAnalysisBlock, error) {
 	var resp ChainAnalysisBlock
 	path := fmt.Sprintf("%s%s", chainAnalysis, latestBlock)
 
-	return resp, common.SendHTTPGetRequest(path, true, b.Verbose, &resp)
+	return resp, b.SendHTTPREquest(path, &resp)
 }
 
 // GetBlockCA returns block information by blockhash from bitflyer chain
@@ -130,7 +138,7 @@ func (b *Bitflyer) GetBlockCA(blockhash string) (ChainAnalysisBlock, error) {
 	var resp ChainAnalysisBlock
 	path := fmt.Sprintf("%s%s%s", chainAnalysis, blockByBlockHash, blockhash)
 
-	return resp, common.SendHTTPGetRequest(path, true, b.Verbose, &resp)
+	return resp, b.SendHTTPREquest(path, &resp)
 }
 
 // GetBlockbyHeightCA returns the block information by height from bitflyer chain
@@ -139,7 +147,7 @@ func (b *Bitflyer) GetBlockbyHeightCA(height int64) (ChainAnalysisBlock, error) 
 	var resp ChainAnalysisBlock
 	path := fmt.Sprintf("%s%s%s", chainAnalysis, blockByBlockHeight, strconv.FormatInt(height, 10))
 
-	return resp, common.SendHTTPGetRequest(path, true, b.Verbose, &resp)
+	return resp, b.SendHTTPREquest(path, &resp)
 }
 
 // GetTransactionByHashCA returns transaction information by txHash from
@@ -148,7 +156,7 @@ func (b *Bitflyer) GetTransactionByHashCA(txHash string) (ChainAnalysisTransacti
 	var resp ChainAnalysisTransaction
 	path := fmt.Sprintf("%s%s%s", chainAnalysis, transaction, txHash)
 
-	return resp, common.SendHTTPGetRequest(path, true, b.Verbose, &resp)
+	return resp, b.SendHTTPREquest(path, &resp)
 }
 
 // GetAddressInfoCA returns balance information for address by addressln string
@@ -157,7 +165,7 @@ func (b *Bitflyer) GetAddressInfoCA(addressln string) (ChainAnalysisAddress, err
 	var resp ChainAnalysisAddress
 	path := fmt.Sprintf("%s%s%s", chainAnalysis, address, addressln)
 
-	return resp, common.SendHTTPGetRequest(path, true, b.Verbose, &resp)
+	return resp, b.SendHTTPREquest(path, &resp)
 }
 
 // GetMarkets returns market information
@@ -165,7 +173,7 @@ func (b *Bitflyer) GetMarkets() ([]MarketInfo, error) {
 	var resp []MarketInfo
 	path := fmt.Sprintf("%s%s", b.APIUrl, pubGetMarkets)
 
-	return resp, common.SendHTTPGetRequest(path, true, b.Verbose, &resp)
+	return resp, b.SendHTTPREquest(path, &resp)
 }
 
 // GetOrderBook returns market orderbook depth
@@ -175,7 +183,7 @@ func (b *Bitflyer) GetOrderBook(symbol string) (Orderbook, error) {
 	v.Set("product_code", symbol)
 	path := fmt.Sprintf("%s%s?%s", japanURL, pubGetBoard, v.Encode())
 
-	return resp, common.SendHTTPGetRequest(path, true, b.Verbose, &resp)
+	return resp, b.SendHTTPREquest(path, &resp)
 }
 
 // GetTicker returns ticker information
@@ -185,7 +193,7 @@ func (b *Bitflyer) GetTicker(symbol string) (Ticker, error) {
 	v.Set("product_code", symbol)
 	path := fmt.Sprintf("%s%s?%s", japanURL, pubGetTicker, v.Encode())
 
-	return resp, common.SendHTTPGetRequest(path, true, b.Verbose, &resp)
+	return resp, b.SendHTTPREquest(path, &resp)
 }
 
 // GetExecutionHistory returns past trades that were executed on the market
@@ -195,7 +203,7 @@ func (b *Bitflyer) GetExecutionHistory(symbol string) ([]ExecutedTrade, error) {
 	v.Set("product_code", symbol)
 	path := fmt.Sprintf("%s%s?%s", japanURL, pubGetExecutionHistory, v.Encode())
 
-	return resp, common.SendHTTPGetRequest(path, true, b.Verbose, &resp)
+	return resp, b.SendHTTPREquest(path, &resp)
 }
 
 // GetExchangeStatus returns exchange status information
@@ -204,7 +212,7 @@ func (b *Bitflyer) GetExchangeStatus() (string, error) {
 
 	path := fmt.Sprintf("%s%s", b.APIUrl, pubGetHealth)
 
-	err := common.SendHTTPGetRequest(path, true, b.Verbose, &resp)
+	err := b.SendHTTPREquest(path, &resp)
 	if err != nil {
 		return "", err
 	}
@@ -231,7 +239,7 @@ func (b *Bitflyer) GetChats(FromDate string) ([]ChatLog, error) {
 	v.Set("from_date", FromDate)
 	path := fmt.Sprintf("%s%s?%s", b.APIUrl, pubGetChats, v.Encode())
 
-	return resp, common.SendHTTPGetRequest(path, true, b.Verbose, &resp)
+	return resp, b.SendHTTPREquest(path, &resp)
 }
 
 // GetPermissions returns current permissions for associated with your API
@@ -348,6 +356,11 @@ func (b *Bitflyer) GetMarginChange() {
 // GetTradingCommission returns trading commission
 func (b *Bitflyer) GetTradingCommission() {
 	// Needs to be updated
+}
+
+// SendHTTPREquest sends an unauthenticated request
+func (b *Bitflyer) SendHTTPREquest(path string, result interface{}) error {
+	return b.SendPayload("GET", path, nil, nil, result, false, b.Verbose)
 }
 
 // SendAuthHTTPRequest sends an authenticated HTTP request

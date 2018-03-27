@@ -1,7 +1,6 @@
 package liqui
 
 import (
-	"log"
 	"net/url"
 	"testing"
 
@@ -68,11 +67,10 @@ func TestGetTicker(t *testing.T) {
 
 func TestGetDepth(t *testing.T) {
 	t.Parallel()
-	v, err := l.GetDepth("eth_btc")
+	_, err := l.GetDepth("eth_btc")
 	if err != nil {
 		t.Error("Test Failed - liqui GetDepth() error", err)
 	}
-	log.Println(v)
 }
 
 func TestGetTrades(t *testing.T) {

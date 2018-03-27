@@ -127,23 +127,23 @@ func TestGetExchangeStatus(t *testing.T) {
 // 	}
 // }
 
-func TestUpdateTicker(t *testing.T) {
-	t.Parallel()
-	p := pair.NewCurrencyPairFromString("BTC_JPY")
-	_, err := b.UpdateTicker(p, "SPOT")
-	if err != nil {
-		t.Error("test failed - Bitflyer - UpdateTicker() error:", err)
-	}
-}
-
-func TestUpdateOrderbook(t *testing.T) {
-	t.Parallel()
-	p := pair.NewCurrencyPairFromString("BTC_JPY")
-	_, err := b.UpdateOrderbook(p, "SPOT")
-	if err != nil {
-		t.Error("test failed - Bitflyer - UpdateOrderbook() error:", err)
-	}
-}
+// func TestUpdateTicker(t *testing.T) {
+// 	t.Parallel()
+// 	p := pair.NewCurrencyPairFromString("BTC_JPY")
+// 	_, err := b.UpdateTicker(p, "SPOT")
+// 	if err != nil {
+// 		t.Error("test failed - Bitflyer - UpdateTicker() error:", err)
+// 	}
+// }
+//
+// func TestUpdateOrderbook(t *testing.T) {
+// 	t.Parallel()
+// 	p := pair.NewCurrencyPairFromString("BTC_JPY")
+// 	_, err := b.UpdateOrderbook(p, "SPOT")
+// 	if err != nil {
+// 		t.Error("test failed - Bitflyer - UpdateOrderbook() error:", err)
+// 	}
+// }
 
 func TestCheckFXString(t *testing.T) {
 	t.Parallel()

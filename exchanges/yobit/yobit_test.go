@@ -33,12 +33,14 @@ func TestSetup(t *testing.T) {
 }
 
 func TestGetFee(t *testing.T) {
+	t.Parallel()
 	if y.GetFee() != 0.2 {
 		t.Error("Test Failed - GetFee() error")
 	}
 }
 
 func TestGetInfo(t *testing.T) {
+	t.Parallel()
 	_, err := y.GetInfo()
 	if err != nil {
 		t.Error("Test Failed - GetInfo() error")
@@ -46,6 +48,7 @@ func TestGetInfo(t *testing.T) {
 }
 
 func TestGetTicker(t *testing.T) {
+	t.Parallel()
 	_, err := y.GetTicker("btc_usd")
 	if err != nil {
 		t.Error("Test Failed - GetTicker() error", err)
@@ -53,6 +56,7 @@ func TestGetTicker(t *testing.T) {
 }
 
 func TestGetDepth(t *testing.T) {
+	t.Parallel()
 	_, err := y.GetDepth("btc_usd")
 	if err != nil {
 		t.Error("Test Failed - GetDepth() error", err)
@@ -60,6 +64,7 @@ func TestGetDepth(t *testing.T) {
 }
 
 func TestGetTrades(t *testing.T) {
+	t.Parallel()
 	_, err := y.GetTrades("btc_usd")
 	if err != nil {
 		t.Error("Test Failed - GetTrades() error", err)
@@ -67,6 +72,7 @@ func TestGetTrades(t *testing.T) {
 }
 
 func TestGetAccountInfo(t *testing.T) {
+	t.Parallel()
 	_, err := y.GetAccountInfo()
 	if err == nil {
 		t.Error("Test Failed - GetAccountInfo() error", err)
@@ -74,6 +80,7 @@ func TestGetAccountInfo(t *testing.T) {
 }
 
 func TestGetActiveOrders(t *testing.T) {
+	t.Parallel()
 	_, err := y.GetActiveOrders("")
 	if err == nil {
 		t.Error("Test Failed - GetActiveOrders() error", err)
@@ -81,6 +88,7 @@ func TestGetActiveOrders(t *testing.T) {
 }
 
 func TestGetOrderInfo(t *testing.T) {
+	t.Parallel()
 	_, err := y.GetOrderInfo(6196974)
 	if err == nil {
 		t.Error("Test Failed - GetOrderInfo() error", err)
@@ -88,6 +96,7 @@ func TestGetOrderInfo(t *testing.T) {
 }
 
 func TestCancelOrder(t *testing.T) {
+	t.Parallel()
 	_, err := y.CancelOrder(1337)
 	if err == nil {
 		t.Error("Test Failed - CancelOrder() error", err)
@@ -95,6 +104,7 @@ func TestCancelOrder(t *testing.T) {
 }
 
 func TestTrade(t *testing.T) {
+	t.Parallel()
 	_, err := y.Trade("", "buy", 0, 0)
 	if err == nil {
 		t.Error("Test Failed - Trade() error", err)
@@ -102,6 +112,7 @@ func TestTrade(t *testing.T) {
 }
 
 func TestGetTradeHistory(t *testing.T) {
+	t.Parallel()
 	_, err := y.GetTradeHistory(0, 0, 0, "", "", "", "")
 	if err == nil {
 		t.Error("Test Failed - GetTradeHistory() error", err)
@@ -109,6 +120,7 @@ func TestGetTradeHistory(t *testing.T) {
 }
 
 func TestWithdrawCoinsToAddress(t *testing.T) {
+	t.Parallel()
 	_, err := y.WithdrawCoinsToAddress("", 0, "")
 	if err == nil {
 		t.Error("Test Failed - WithdrawCoinsToAddress() error", err)
@@ -116,6 +128,7 @@ func TestWithdrawCoinsToAddress(t *testing.T) {
 }
 
 func TestGetDepositAddress(t *testing.T) {
+	t.Parallel()
 	_, err := y.GetDepositAddress("btc")
 	if err == nil {
 		t.Error("Test Failed - GetDepositAddress() error", err)
@@ -123,6 +136,7 @@ func TestGetDepositAddress(t *testing.T) {
 }
 
 func TestCreateYobicode(t *testing.T) {
+	t.Parallel()
 	_, err := y.CreateCoupon("bla", 0)
 	if err == nil {
 		t.Error("Test Failed - CreateYobicode() error", err)
@@ -130,7 +144,8 @@ func TestCreateYobicode(t *testing.T) {
 }
 
 func TestRedeemYobicode(t *testing.T) {
-	_, err := y.RedeemCoupon("bla")
+	t.Parallel()
+	_, err := y.RedeemCoupon("bla2")
 	if err == nil {
 		t.Error("Test Failed - RedeemYobicode() error", err)
 	}

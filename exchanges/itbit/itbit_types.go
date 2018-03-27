@@ -47,10 +47,11 @@ type Trades struct {
 
 // Wallet contains specific wallet information
 type Wallet struct {
-	ID       string    `json:"id"`
-	UserID   string    `json:"userId"`
-	Name     string    `json:"name"`
-	Balances []Balance `json:"balances"`
+	ID          string    `json:"id"`
+	UserID      string    `json:"userId"`
+	Name        string    `json:"name"`
+	Balances    []Balance `json:"balances"`
+	Description string    `json:"description"`
 }
 
 // Balance is a sub type holding balance information
@@ -58,6 +59,7 @@ type Balance struct {
 	Currency         string  `json:"currency"`
 	AvailableBalance float64 `json:"availableBalance,string"`
 	TotalBalance     float64 `json:"totalBalance,string"`
+	Description      string  `json:"description"`
 }
 
 // Records embodies records of trade history information
@@ -67,6 +69,7 @@ type Records struct {
 	LatestExecutedID     int64          `json:"latestExecutionId,string"`
 	RecordsPerPage       int            `json:"recordsPerPage,string"`
 	TradingHistory       []TradeHistory `json:"tradingHistory"`
+	Description          string         `json:"description"`
 }
 
 // TradeHistory stores historic trade values
@@ -93,6 +96,7 @@ type FundingRecords struct {
 	LatestExecutedID     int64         `json:"latestExecutionId,string"`
 	RecordsPerPage       int           `json:"recordsPerPage,string"`
 	FundingHistory       []FundHistory `json:"fundingHistory"`
+	Description          string        `json:"description"`
 }
 
 // FundHistory stores historic funding transactions
@@ -126,6 +130,7 @@ type Order struct {
 	Status                     string      `json:"Status"`
 	Metadata                   interface{} `json:"metadata"`
 	ClientOrderIdentifier      string      `json:"clientOrderIdentifier"`
+	Description                string      `json:"description"`
 }
 
 // CryptoCurrencyDeposit holds information about a new wallet
@@ -134,6 +139,7 @@ type CryptoCurrencyDeposit struct {
 	WalletID       string      `json:"walletID"`
 	DepositAddress string      `json:"depositAddress"`
 	Metadata       interface{} `json:"metadata"`
+	Description    string      `json:"description"`
 }
 
 // WalletTransfer holds wallet transfer information
@@ -142,4 +148,5 @@ type WalletTransfer struct {
 	DestinationWalletID string  `json:"destinationWalletId"`
 	Amount              float64 `json:"amount,string"`
 	CurrencyCode        string  `json:"currencyCode"`
+	Description         string  `json:"description"`
 }

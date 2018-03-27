@@ -43,6 +43,9 @@ func TestGetFee(t *testing.T) {
 
 func TestGetAccountInfo(t *testing.T) {
 	t.Parallel()
+	if l.APIKey == "" || l.APISecret == "" {
+		t.Skip()
+	}
 	_, err := l.GetAccountInfo("", true)
 	if err == nil {
 		t.Error("Test Failed - GetAccountInfo() error", err)
@@ -55,6 +58,9 @@ func TestGetAccountInfo(t *testing.T) {
 
 func TestGetads(t *testing.T) {
 	t.Parallel()
+	if l.APIKey == "" || l.APISecret == "" {
+		t.Skip()
+	}
 	_, err := l.Getads("")
 	if err == nil {
 		t.Error("Test Failed - Getads() - Full list, error", err)
@@ -67,6 +73,9 @@ func TestGetads(t *testing.T) {
 
 func TestEditAd(t *testing.T) {
 	t.Parallel()
+	if l.APIKey == "" || l.APISecret == "" {
+		t.Skip()
+	}
 	edit := AdEdit{}
 	err := l.EditAd(edit, "1337")
 	if err == nil {
