@@ -193,11 +193,19 @@ func (h *Handler) requestWorker() {
 
 		if job.Auth {
 			<-h.timeLockAuth
-			httpResponse, err = h.Client.Do(job.Request)
+			if job.Request.Method != "GET" {
+				httpResponse, err = h.Client.Do(job.Request)
+			} else {
+				httpResponse, err = h.Client.Get(job.Path)
+			}
 			h.timeLockAuth <- 1
 		} else {
 			<-h.timeLock
-			httpResponse, err = h.Client.Get(job.Path)
+			if job.Request.Method != "GET" {
+				httpResponse, err = h.Client.Do(job.Request)
+			} else {
+				httpResponse, err = h.Client.Get(job.Path)
+			}
 			h.timeLock <- 1
 		}
 
