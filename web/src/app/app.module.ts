@@ -69,6 +69,7 @@ import { BuyFormComponent } from './shared/buy-form/buy-form.component';
 import { ExchangeGridComponent } from './pages/exchange-grid/exchange-grid.component';
 import { CurrencyListComponent } from './pages/currency-list/currency-list.component';
 import { SellFormComponent } from './shared/sell-form/sell-form.component';
+import { HelpComponent } from './pages/help/help.component';
 
 
 @NgModule({
@@ -95,6 +96,7 @@ import { SellFormComponent } from './shared/sell-form/sell-form.component';
     ExchangeGridComponent,
     CurrencyListComponent,
     SellFormComponent,
+    HelpComponent,
   ],
   imports: [
     BrowserModule,

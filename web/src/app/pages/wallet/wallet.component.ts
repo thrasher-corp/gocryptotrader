@@ -1,7 +1,8 @@
 import { Component, OnInit } from '@angular/core';
 import { WebsocketHandlerService } from './../../services/websocket-handler/websocket-handler.service';
 import { Wallet, CoinTotal } from './../../shared/classes/wallet';
-import {Sort} from '@angular/material';
+import { Sort } from '@angular/material';
+import { WebSocketMessageType } from './../../shared/classes/websocket';
 
 @Component({
   selector: 'app-wallet',
@@ -25,7 +26,7 @@ export class WalletComponent implements OnInit {
     this.wallet= null;
     this.ws = websocketHandler;
     this.ws.messages.subscribe(msg => {
-      if (msg.Event === 'GetPortfolio') {
+      if (msg.Event === WebSocketMessageType.GetPortfolio) {
         console.log(JSON.stringify(msg.data));
         this.wallet = <Wallet>msg.data;
         

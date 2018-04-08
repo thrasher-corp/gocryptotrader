@@ -1,5 +1,6 @@
 import { Component, OnInit } from '@angular/core';
 import { WebsocketHandlerService } from './../../services/websocket-handler/websocket-handler.service';
+import { WebSocketMessageType } from './../../shared/classes/websocket';
 
 @Component({
   selector: 'app-settings',
@@ -22,10 +23,9 @@ export class SettingsComponent implements OnInit {
   constructor(private websocketHandler: WebsocketHandlerService) {
     this.ws = websocketHandler;
     this.ws.messages.subscribe(msg => {
-      
-      if (msg.Event === 'GetConfig') {
+      if (msg.event === WebSocketMessageType.GetConfig) {
         this.settings = <Config>msg.data;
-      } else if (msg.Event === 'SaveConfig') {
+      } else if (msg.event === WebSocketMessageType.SaveConfig) {
         // something!
       }
     });

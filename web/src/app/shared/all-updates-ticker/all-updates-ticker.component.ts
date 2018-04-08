@@ -1,5 +1,6 @@
 import { Component, OnInit } from '@angular/core';
 import { WebsocketHandlerService } from './../../services/websocket-handler/websocket-handler.service';
+import { WebSocketMessageType } from './../../shared/classes/websocket';
 
 @Component({
   selector: 'app-all-updates-ticker',
@@ -17,7 +18,7 @@ export class AllEnabledCurrencyTickersComponent implements OnInit {
     this.ws = websocketHandler;
     this.allCurrencies = <ExchangeCurrency[]>[];
     this.ws.messages.subscribe(msg => {
-      if (msg.Event === 'ticker_update') {
+      if (msg.Event === WebSocketMessageType.TickerUpdate) {
         this.showTicker = false;
         var modal = <ExchangeCurrency>{};
         modal.currencyPair = msg.data.CurrencyPair;

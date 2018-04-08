@@ -9,13 +9,11 @@
         "github": "https://github.com/gloriousCode/",
         "website": "https://www.gloriousedge.com"
     },
-    "contributers": [
-        {
-            "name": "Maxime GRIS",
-            "email": "maxime.gris@gmail.com",
-            "github": "https://github.com/maximegris/"
-        }
-    ],
+    "contributers": [{
+        "name": "Maxime GRIS",
+        "email": "maxime.gris@gmail.com",
+        "github": "https://github.com/maximegris/"
+    }],
     "keywords": [
         "angular",
         "electron",
@@ -70,7 +68,7 @@
         "zone.js": "~0.8.20"
     },
     "devDependencies": {
-        "@angular/cli": "1.6.6",
+        "@angular/cli": "1.7.4",
         "@angular/compiler-cli": "6.0.0-rc.1",
         "@types/bluebird": "3.5.8",
         "@types/core-js": "0.9.36",
