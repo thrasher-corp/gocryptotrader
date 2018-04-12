@@ -95,3 +95,62 @@ func (a *Alphapoint) GetExchangeHistory(p pair.CurrencyPair, assetType string) (
 
 	return resp, errors.New("trade history not yet implemented")
 }
+
+// SubmitExchangeOrder submits a new order and returns a true value when
+// successfully submitted
+func (a *Alphapoint) SubmitExchangeOrder(p pair.CurrencyPair, side string, orderType int, amount, price float64) (int64, error) {
+	return a.CreateOrder(p.Pair().String(), side, orderType, amount, price)
+}
+
+// ModifyExchangeOrder will allow of changing orderbook placement and limit to
+// market conversion
+func (a *Alphapoint) ModifyExchangeOrder(p pair.CurrencyPair, orderID, action int64) (int64, error) {
+	return a.ModifyOrder(p.Pair().String(), orderID, action)
+}
+
+// CancelExchangeOrder cancels an order by its corresponding ID number
+func (a *Alphapoint) CancelExchangeOrder(p pair.CurrencyPair, orderID int64) (int64, error) {
+	return a.CancelOrder(p.Pair().String(), orderID)
+}
+
+// CancelAllExchangeOrders cancels all orders associated with a currency pair
+func (a *Alphapoint) CancelAllExchangeOrders(p pair.CurrencyPair) error {
+	return a.CancelAllOrders(p.Pair().String())
+}
+
+// GetExchangeOrderInfo returns information on a current open order
+func (a *Alphapoint) GetExchangeOrderInfo(orderID int64) (float64, error) {
+	orders, err := a.GetOrders()
+	if err != nil {
+		return 0, err
+	}
+
+	for x := range orders {
+		for y := range orders[x].Openorders {
+			if int64(orders[x].Openorders[y].Serverorderid) == orderID {
+				return float64(orders[x].Openorders[y].QtyRemaining), nil
+			}
+		}
+	}
+	return 0, errors.New("order not found")
+}
+
+// GetExchangeDepositAddress returns a deposit address for a specified currency
+func (a *Alphapoint) GetExchangeDepositAddress(p pair.CurrencyPair) (string, error) {
+	addreses, err := a.GetDepositAddresses()
+	if err != nil {
+		return "", err
+	}
+
+	for x := range addreses {
+		if addreses[x].Name == p.Pair().String() {
+			return addreses[x].DepositAddress, nil
+		}
+	}
+	return "", errors.New("associated currency address not found")
+}
+
+// WithdrawExchangeFunds returns a withdrawal ID when a withdrawal is submitted
+func (a *Alphapoint) WithdrawExchangeFunds(address string, p pair.CurrencyPair, amount float64) (string, error) {
+	return "", a.WithdrawCoins(p.Pair().String(), p.GetFirstCurrency().String(), address, amount)
+}
