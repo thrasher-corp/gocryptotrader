@@ -64,7 +64,7 @@ export class PriceHistoryComponent implements OnInit {
 
   public options = {
     "type": "serial",
-  "theme": "light",
+  "theme": "dark",
   "dataDateFormat": "YYYY-MM-DD",
   "zoomOutOnDataUpdate": false,
   "valueAxes": [{
