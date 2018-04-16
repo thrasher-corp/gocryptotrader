@@ -11,7 +11,7 @@
 
         <mat-list>
             <mat-list-item *ngFor="let coin of wallet?.coin_totals">
-                <mat-icon mat-list-icon [ngClass]="coin.coin">{{coin.icon}}</mat-icon>
+                <i [ngClass]="coin.icon"></i>
                 <h4 mat-line>{{coin.coin}}</h4>
                 <h4 mat-line>{{coin.balance}}</h4>
             </mat-list-item>

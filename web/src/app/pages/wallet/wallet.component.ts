@@ -47,9 +47,9 @@ export class WalletComponent implements OnInit {
 
   public coinIcon(coin:string) :string {
     switch(coin) {
-      case "BTC": return "attach_money";
-      case "LTC": return "attach_money";
-      case "ETH": return "attach_money";
+      case "BTC": return "cc BTC";
+      case "LTC": return "cc LTC";
+      case "ETH": return "cc ETH";
     }
   }
 
