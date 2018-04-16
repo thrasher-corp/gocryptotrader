@@ -65,8 +65,8 @@
         "extract-text-webpack-plugin": "^3.0.2",
         "html-webpack-plugin": "^2.30.1",
         "node-sass": "^4.7.2",
-        "rxjs": "6.0.0-tactical-rc.1",
-        "rxjs-compat": "6.0.0-tactical-rc.1",
+        "rxjs": "6.0.0-uncanny-rc.7",
+        "rxjs-compat": "6.0.0-uncanny-rc.7",
         "zone.js": "~0.8.20"
     },
     "devDependencies": {
