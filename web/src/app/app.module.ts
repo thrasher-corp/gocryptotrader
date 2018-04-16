@@ -43,7 +43,7 @@ import { AllEnabledCurrencyTickersComponent } from './shared/all-updates-ticker/
 import { ThemePickerComponent } from './shared/theme-picker/theme-picker';
 //services
 import { WebsocketService } from './services/websocket/websocket.service';
-import { WebsocketHandlerService } from './services/websocket-handler/websocket-handler.service';
+import { WebsocketResponseHandlerService } from './services/websocket-response-handler/websocket-response-handler.service';
 import { SidebarService } from './services/sidebar/sidebar.service';
 import { ElectronService } from './providers/electron.service';
 import { StyleManagerService } from './services/style-manager/style-manager.service';
@@ -125,7 +125,7 @@ import { HelpComponent } from './pages/help/help.component';
   providers: [
     ElectronService,
     WebsocketService,
-    WebsocketHandlerService, 
+    WebsocketResponseHandlerService, 
     SidebarService,
     StyleManagerService,
     ThemeStorageService,

@@ -6,7 +6,7 @@ import { WebSocketMessage } from './../../shared/classes/websocket';
 const WEBSOCKET_URL = 'ws://localhost:9050/ws';
 
 @Injectable()
-export class WebsocketHandlerService {
+export class WebsocketResponseHandlerService {
 	public messages: Subject<any>;
 
 	constructor(wsService: WebsocketService) {

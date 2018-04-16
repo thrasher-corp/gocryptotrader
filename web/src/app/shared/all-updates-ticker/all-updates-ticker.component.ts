@@ -1,5 +1,5 @@
 import { Component, OnInit } from '@angular/core';
-import { WebsocketHandlerService } from './../../services/websocket-handler/websocket-handler.service';
+import { WebsocketResponseHandlerService } from './../../services/websocket-response-handler/websocket-response-handler.service';
 import { WebSocketMessageType } from './../../shared/classes/websocket';
 
 @Component({
@@ -8,13 +8,13 @@ import { WebSocketMessageType } from './../../shared/classes/websocket';
   styleUrls: ['./all-updates-ticker.component.scss']
 })
 export class AllEnabledCurrencyTickersComponent implements OnInit {
-  private ws: WebsocketHandlerService;
+  private ws: WebsocketResponseHandlerService;
   allCurrencies:ExchangeCurrency[];
   tickerCard: TickerUpdate;
   showTicker:boolean;
   message:string;
 
-  constructor(private websocketHandler: WebsocketHandlerService) {
+  constructor(private websocketHandler: WebsocketResponseHandlerService) {
     this.ws = websocketHandler;
     this.allCurrencies = <ExchangeCurrency[]>[];
     this.ws.messages.subscribe(msg => {

@@ -1,5 +1,5 @@
 import { Component, OnInit } from '@angular/core';
-import { WebsocketHandlerService } from './../../services/websocket-handler/websocket-handler.service';
+import { WebsocketResponseHandlerService } from './../../services/websocket-response-handler/websocket-response-handler.service';
 import { WebSocketMessageType } from './../../shared/classes/websocket';
 
 @Component({
@@ -11,7 +11,7 @@ import { WebSocketMessageType } from './../../shared/classes/websocket';
 
 export class SettingsComponent implements OnInit {
   public settings: Config = null;
-  private ws: WebsocketHandlerService;
+  private ws: WebsocketResponseHandlerService;
   private failCount = 0;
   private timer: any;
 
@@ -20,7 +20,7 @@ export class SettingsComponent implements OnInit {
     data: null,
   };
 
-  constructor(private websocketHandler: WebsocketHandlerService) {
+  constructor(private websocketHandler: WebsocketResponseHandlerService) {
     this.ws = websocketHandler;
     this.ws.messages.subscribe(msg => {
       if (msg.event === WebSocketMessageType.GetConfig) {
