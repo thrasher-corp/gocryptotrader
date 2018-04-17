@@ -1,15 +1,15 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
 import { WebsocketResponseHandlerService } from './../../services/websocket-response-handler/websocket-response-handler.service';
 import { WebSocketMessageType } from './../../shared/classes/websocket';
 
 @Component({
   selector: 'app-settings',
   templateUrl: './settings.component.html',
-  styleUrls: ['./settings.component.scss']
+  styleUrls: ['./settings.component.scss'],
+  providers: [WebsocketResponseHandlerService]
 })
 
-
-export class SettingsComponent implements OnInit {
+export class SettingsComponent implements OnInit, OnDestroy {
   public settings: Config = null;
   private ws: WebsocketResponseHandlerService;
   private failCount = 0;
@@ -34,36 +34,21 @@ export class SettingsComponent implements OnInit {
     this.getSettings();
   }
 
+  ngOnDestroy() {
+    this.ws.messages.unsubscribe();
+  }
+
   private getSettings(): void {
     this.ws.messages.next(this.getSettingsMessage);
-    this.resendMessageIfPageRefreshed();
   }
 
 
   private saveSettings(): void {
-    //Send the message
     var settingsSave = {
       Event: 'SaveConfig',
       data: this.settings,
     }
     this.ws.messages.next(settingsSave);
-  }
-
-//there has to be a better way
-  private resendMessageIfPageRefreshed(): void {
-    if (this.failCount <= 10) {
-      setTimeout(() => {
-      if (this.settings === null) {
-          //console.log(this.failCount);
-          //console.log('Settings hasnt been set. Trying again');
-          this.failCount++;
-          this.getSettings();
-        }
-      }, 1000);
-    } else {
-      // something has gone wrong
-      console.log('Could not load settings. Check if GocryptoTrader server is running, otherwise open a ticket');
-    }
   }
 }
 

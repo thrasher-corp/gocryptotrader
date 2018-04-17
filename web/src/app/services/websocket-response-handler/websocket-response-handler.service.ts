@@ -1,17 +1,20 @@
-import { Injectable } from '@angular/core';
+import { NgModule, Injectable, Optional, SkipSelf } from '@angular/core';
 import { Observable, Subject } from 'rxjs/Rx';
 import { WebsocketService } from './../../services/websocket/websocket.service';
 import { WebSocketMessage } from './../../shared/classes/websocket';
 
 const WEBSOCKET_URL = 'ws://localhost:9050/ws';
 
-@Injectable()
+@NgModule({
+	providers:    [ WebsocketService ]
+  })
 export class WebsocketResponseHandlerService {
-	public messages: Subject<any>;
+	public messages: Subject<any>;	
 
-	constructor(wsService: WebsocketService) {
+	constructor(@Optional() @SkipSelf() parentModule: WebsocketResponseHandlerService, wsService: WebsocketService) {
 		this.messages = <Subject<WebSocketMessage>>wsService
 			.connect(WEBSOCKET_URL)
+
 			.map((response: MessageEvent): WebSocketMessage => {
 				let websocketResponseMessage = JSON.parse(response.data);
 				var websocketResponseData = websocketResponseMessage.Data === undefined ? websocketResponseMessage.data : websocketResponseMessage.Data;

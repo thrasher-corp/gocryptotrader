@@ -1,23 +1,23 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
 import { WebsocketResponseHandlerService } from './../../services/websocket-response-handler/websocket-response-handler.service';
 import { WebSocketMessageType } from './../../shared/classes/websocket';
 
 @Component({
   selector: 'app-all-updates-ticker',
   templateUrl: './all-updates-ticker.component.html',
-  styleUrls: ['./all-updates-ticker.component.scss']
+  styleUrls: ['./all-updates-ticker.component.scss'],
+	providers:    [ WebsocketResponseHandlerService ]
 })
 export class AllEnabledCurrencyTickersComponent implements OnInit {
+  allCurrencies: ExchangeCurrency[];
   private ws: WebsocketResponseHandlerService;
-  allCurrencies:ExchangeCurrency[];
   tickerCard: TickerUpdate;
   showTicker:boolean;
   message:string;
 
   constructor(private websocketHandler: WebsocketResponseHandlerService) {
-    this.ws = websocketHandler;
     this.allCurrencies = <ExchangeCurrency[]>[];
-    this.ws.messages.subscribe(msg => {
+    websocketHandler.messages.subscribe(msg => {
       if (msg.Event === WebSocketMessageType.TickerUpdate) {
         this.showTicker = false;
         var modal = <ExchangeCurrency>{};
@@ -27,14 +27,19 @@ export class AllEnabledCurrencyTickersComponent implements OnInit {
         this.tickerCard = ticker;
         this.tickerCard.Exchange = msg.Exchange;
         
-        if(this.tickerCard.Last > 0) {
-        this.showTicker = true;
-          this.message =  this.tickerCard.Exchange + " " + this.tickerCard.CurrencyPair + "  Last: " + this.tickerCard.Last;
+        if (this.tickerCard.Last > 0) {
+          this.showTicker = true;
+          this.message = this.tickerCard.Exchange + " " + this.tickerCard.CurrencyPair + "  Last: " + this.tickerCard.Last;
         }
       }
     });
    }
-  ngOnInit() {  }
+  ngOnInit() { 
+  }
+  
+  ngOnDestroy() {
+    this.ws.messages.unsubscribe();
+  }
 }
 
 export interface ExchangeCurrency {

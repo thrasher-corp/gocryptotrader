@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
 import { WebsocketResponseHandlerService } from './../../services/websocket-response-handler/websocket-response-handler.service';
 import { Wallet, CoinTotal } from './../../shared/classes/wallet';
 import { Sort } from '@angular/material';
@@ -7,10 +7,11 @@ import { WebSocketMessageType, WebSocketMessage } from './../../shared/classes/w
 @Component({
   selector: 'app-wallet',
   templateUrl: './wallet.component.html',
-  styleUrls: ['./wallet.component.scss']
+  styleUrls: ['./wallet.component.scss'],
+	providers: [ WebsocketResponseHandlerService ]
 })
 
-export class WalletComponent implements OnInit {
+export class WalletComponent implements OnInit, OnDestroy {
   private ws: WebsocketResponseHandlerService;
   private failCount = 0;
   private timer: any;
@@ -18,7 +19,7 @@ export class WalletComponent implements OnInit {
   displayedColumns = ['coin', 'balance'];
 
   private getWalletMessage = {
-    Event: 'GetPortfolio',
+    event: 'GetPortfolio',
     data: null,
   };
 
@@ -27,9 +28,7 @@ export class WalletComponent implements OnInit {
     this.ws = websocketHandler;
     this.ws.messages.subscribe(msg => {
       if (msg.event === WebSocketMessageType.GetPortfolio) {
-        console.log(JSON.stringify(msg));
         this.wallet = <Wallet>msg.data;
-        
         this.attachIcon(this.wallet.coin_totals);
         this.attachIcon(this.wallet.coins_offline);
         this.attachIcon(this.wallet.coins_online);
@@ -43,6 +42,17 @@ export class WalletComponent implements OnInit {
         this.attachIcon(this.wallet.online_summary.LTC);
       }
     });
+  }
+
+  ngOnInit() {
+    this.setWallet();
+  }
+  ngOnDestroy() {
+    this.ws.messages.unsubscribe();
+  }
+  
+  private setWallet():void {
+    this.ws.messages.next(this.getWalletMessage);
   }
 
   public coinIcon(coin:string) :string {
@@ -61,28 +71,5 @@ export class WalletComponent implements OnInit {
     }  
 }
 
-  ngOnInit() {
-    this.setWallet();
-  }
 
-//there has to be a better way
-  private resendMessageIfPageRefreshed(): void {
-    if (this.failCount <= 10) {
-      setTimeout(() => {
-      if (this.wallet === null || this.wallet === undefined) {
-          this.failCount++;
-          this.setWallet();
-        }
-      }, 1000);
-    } else {
-      console.log('Could not load wallet. Check if GocryptoTrader server is running, otherwise open a ticket');
-    }
-  }
-
-  private setWallet():void {
-    this.ws.messages.next(this.getWalletMessage);
-    this.resendMessageIfPageRefreshed();
-  }
 }
-
-

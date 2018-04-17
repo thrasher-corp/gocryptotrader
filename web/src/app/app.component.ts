@@ -11,10 +11,10 @@ import { Router, NavigationEnd } from '@angular/router';
 })
 export class AppComponent {
   sidebarService: SidebarService
-  public currentUrl:string;
+  public currentUrl: string;
   @ViewChild('sidenav') public sidenav: MatSidenav;
   
-  constructor(public electronService: ElectronService,sidebarService: SidebarService, private router:Router) {
+  constructor(public electronService: ElectronService, sidebarService: SidebarService, private router: Router) {
 
     if (electronService.isElectron()) {
       console.log('Mode electron');
@@ -27,13 +27,12 @@ export class AppComponent {
     }
 
     this.sidebarService = sidebarService;
-    
-        router.events.subscribe(event => {
+    router.events.subscribe(event => {
           
-                if (event instanceof NavigationEnd ) {
-                  console.log("current url",event.url); // event.url has current url
-                  this.currentUrl = event.url;
-                }
+      if (event instanceof NavigationEnd) {
+        console.log("current url", event.url); // event.url has current url
+        this.currentUrl = event.url;
+      }
     });
     
   }
@@ -43,5 +42,5 @@ export class AppComponent {
     //This will be replaced with a log in prompt which will then add the credentials to session storage
     window.sessionStorage["username"] = "admin";
     window.sessionStorage["password"] = "e7cf3ef4f17c3999a94f2c6f612e8a888e5b1026878e4e19398b23bd38ec221a";
-    }
+  }
 }
