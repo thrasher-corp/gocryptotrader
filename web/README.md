@@ -46,10 +46,6 @@ npm install -g @angular/cli
 npm run start:web
 ```
 
-# Introduction
-
-Bootstrap and package your project with Angular 5(+) and Electron (Typescript + SASS + Hot Reload) for creating Desktop applications.
-
 Currently runs with:
 
 - Angular v5.2.5
