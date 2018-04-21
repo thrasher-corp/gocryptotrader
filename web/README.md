@@ -46,32 +46,45 @@ npm install -g @angular/cli
 npm run start:web
 ```
 
-Voila! You can use GoCryptoTrader web app in a local development environment with webpack watching!
+# Introduction
 
-## To build for production
+Bootstrap and package your project with Angular 5(+) and Electron (Typescript + SASS + Hot Reload) for creating Desktop applications.
 
-+ Using development variables (environments/index.ts) :  `npm run electron:dev`
-+ Using production variables (environments/index.prod.ts) :  `npm run electron:prod`
+Currently runs with:
 
-Your built files are in the /dist folder.
+- Angular v5.2.5
+- Angular-CLI v1.6.4
+- Electron v1.8.2
+- Electron Builder v20.0.4
+
+
+## To build for development
+
+- **in a terminal window** -> npm start  
+
+Voila! You can use your Angular + Electron app in a local development environment with hot reload !
+
+## Manage your environment variables
+
+- Using local variables :  `npm start` or `cross-env ENV=local npm start`
+- Using development variables :  `cross-env ENV=dev npm start`
+- Using production variables  :  `cross-env ENV=prod npm start`
 
 ## Included Commands
 
 |Command|Description|
 |--|--|
-|`npm run start:web`| Execute the app in the brower |
+|`npm run ng:serve`| Execute the app in the browser |
+|`npm run start:web`| Execute the app in the browser |
+|`npm run build`| Build the app. Your built files are in the /dist folder. |
+|`npm run build:prod`| Build the app with Angular aot. Your built files are in the /dist folder. |
+|`npm run electron:local`| Builds your application and start electron
 |`npm run electron:linux`| Builds your application and creates an app consumable on linux system |
 |`npm run electron:windows`| On a Windows OS, builds your application and creates an app consumable in windows 32/64 bit systems |
-|`npm run electron:mac`|  On a MAC OS, builds your application and generates a `.app` file of your application that can be run on Ma |
+|`npm run electron:mac`|  On a MAC OS, builds your application and generates a `.app` file of your application that can be run on Mac |
 
-## Execute E2E tests
+**Your application is optimised. Only /dist folder and node dependencies are included in the executable.**
 
-You can find end-to-end tests in /e2e folder.
-
-You can run tests with the command lines below:
-
-+ **in a terminal window** -> First, start a web server on port 4200 : `npm run start:web`
-+ **in another terminal window** -> Then, launch Protractor (E2E framework): `npm run e2e`
 
 ## Contributors
 
@@ -99,4 +112,3 @@ When submitting a PR, please abide by our coding guidelines:
 If this framework helped you in any way, or you would like to support the developers working on it, please donate Bitcoin to:
 
 ***1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB***
-

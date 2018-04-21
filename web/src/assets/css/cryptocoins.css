@@ -1,10 +1,10 @@
 @font-face {
   font-family: 'cryptocoins';
-  src:  url('/assets/fonts/cryptocoins.eot?d2eit9');
-  src:  url('/assets/fonts/cryptocoins.eot?d2eit9#iefix') format('embedded-opentype'),
-    url('/assets/fonts/cryptocoins.ttf?d2eit9') format('truetype'),
-    url('/assets/fonts/cryptocoins.woff?d2eit9') format('woff'),
-    url('/assets/fonts/cryptocoins.svg?d2eit9#cryptocoins') format('svg');
+  src:  url('./../fonts/cryptocoins.eot?d2eit9');
+  src:  url('./../fonts/cryptocoins.eot?d2eit9#iefix') format('embedded-opentype'),
+    url('./../fonts/cryptocoins.ttf?d2eit9') format('truetype'),
+    url('./../fonts/cryptocoins.woff?d2eit9') format('woff'),
+    url('./../fonts/cryptocoins.svg?d2eit9#cryptocoins') format('svg');
   font-weight: normal;
   font-style: normal;
 }
