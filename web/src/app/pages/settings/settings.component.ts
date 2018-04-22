@@ -25,6 +25,7 @@ export class SettingsComponent implements OnInit, OnDestroy {
     this.ws.messages.subscribe(msg => {
       if (msg.event === WebSocketMessageType.GetConfig) {
         this.settings = <Config>msg.data;
+        this.fromArrayToRedux();
       } else if (msg.event === WebSocketMessageType.SaveConfig) {
         // something!
       }
@@ -50,8 +51,35 @@ export class SettingsComponent implements OnInit, OnDestroy {
     }
     this.ws.messages.next(settingsSave);
   }
+
+  private fromArrayToRedux() {
+    
+    for (var i = 0; i < this.settings.Exchanges.length; i++) {
+      this.settings.Exchanges[i].Pairs = new Array<CurrencyPairRedux>();
+      var avail = this.settings.Exchanges[i].AvailablePairs.split(',');
+      var enabled = this.settings.Exchanges[i].EnabledPairs.split(',');
+      for (var j = 0; j < avail.length; j++) {
+        var currencyPair = new CurrencyPairRedux();
+        currencyPair.Name = avail[j]
+        if (enabled.indexOf(avail[j]) > 0) {
+          currencyPair.Enabled = true;
+        } else {
+          currencyPair.Enabled = false;
+        }
+        this.settings.Exchanges[i].Pairs.push(currencyPair);
+      }
+    }
+  }
+
+  private fromReduxToArray() {
+
+  }
 }
 
+export class CurrencyPairRedux {
+  Name: string;
+  Enabled: boolean;
+}
 
 export interface CurrencyPairFormat {
   Uppercase: boolean;
@@ -113,6 +141,7 @@ export interface Exchange {
   ConfigCurrencyPairFormat: ConfigCurrencyPairFormat;
   RequestCurrencyPairFormat: RequestCurrencyPairFormat;
   ClientID: string;
+  Pairs: CurrencyPairRedux[];
 }
 
 export interface Config {

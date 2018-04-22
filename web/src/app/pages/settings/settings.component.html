@@ -7,7 +7,7 @@
 
     <mat-accordion>
         <mat-expansion-panel *ngIf="settings.SMSGlobal != null">
-            <mat-expansion-panel-header >
+            <mat-expansion-panel-header>
                 <mat-panel-title>
                     SMS Global
                 </mat-panel-title>
@@ -15,7 +15,7 @@
                     SMS configuration and contact management
                     <mat-icon>phone_iphone</mat-icon>
                 </mat-panel-description>
-            </mat-expansion-panel-header>   
+            </mat-expansion-panel-header>
             <form class="form-content">
                 <mat-checkbox name="smsEnabled" [(ngModel)]="settings.SMSGlobal.Enabled">Enabled</mat-checkbox>
                 <div mat-line></div>
@@ -53,25 +53,25 @@
             <form class="form-content">
                 <mat-checkbox name="exchangeEnabled" [(ngModel)]="exchange.Enabled">Enabled</mat-checkbox>
                 <div mat-line></div>
-                    <mat-form-field>
-                        <input matInput name="apiKey" [(ngModel)]="exchange.APIKey" [disabled]="!exchange.Enabled" placeholder="API Key*">
-                    </mat-form-field>
-                    <mat-form-field>
-                        <input matInput name="apiSecretKey" [(ngModel)]="exchange.APISecret" [disabled]="!exchange.Enabled" placeholder="API Secret Key*">
-                    </mat-form-field>
-                    <mat-form-field>
-                        <input matInput name="apiClientId" [(ngModel)]="exchange.ClientID" [disabled]="!exchange.Enabled" placeholder="API ClientID">
-                    </mat-form-field>
-                    <div mat-line></div>
-                    <mat-panel-description>
-                        Enabled Currency pairs {{enabledCurrencies.selectedOptions.selected.length}} - Managed via config temporarily
-                    </mat-panel-description>
-                    <div mat-line></div>
-                    <mat-selection-list #enabledCurrencies>
-                            <mat-list-option [disabled]="!exchange.Enabled || true" *ngFor="let currency of exchange.AvailablePairs.split(',')">
-                              {{currency}}
-                            </mat-list-option>
-                          </mat-selection-list>
+                <mat-form-field>
+                    <input matInput name="apiKey" [(ngModel)]="exchange.APIKey" [disabled]="!exchange.Enabled" placeholder="API Key*">
+                </mat-form-field>
+                <mat-form-field>
+                    <input matInput name="apiSecretKey" [(ngModel)]="exchange.APISecret" [disabled]="!exchange.Enabled" placeholder="API Secret Key*">
+                </mat-form-field>
+                <mat-form-field>
+                    <input matInput name="apiClientId" [(ngModel)]="exchange.ClientID" [disabled]="!exchange.Enabled" placeholder="API ClientID">
+                </mat-form-field>
+                <div mat-line></div>
+                <mat-panel-description>
+                    Enabled Currency pairs {{enabledCurrencies.selectedOptions.selected.length}}
+                </mat-panel-description>
+                <div mat-line></div>
+                <mat-selection-list #enabledCurrencies>
+                    <mat-list-option [selected]="currency.Enabled" *ngFor="let currency of exchange.Pairs">
+                        {{currency.Name}}
+                    </mat-list-option>
+                </mat-selection-list>
             </form>
         </mat-expansion-panel>
     </mat-accordion>
