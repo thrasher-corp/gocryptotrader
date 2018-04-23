@@ -64,7 +64,7 @@
 
     }
 
-    public fromReduxToArray()  : void {
+    public fromReduxToArray() : void {
         for (var i = 0; i < this.Exchanges.length; i++) {
           // Step 1, iterate over the Pairs
           var enabled = this.Exchanges[i].EnabledPairs.split(',');

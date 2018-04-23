@@ -34,13 +34,14 @@ export class SettingsComponent implements OnInit, OnDestroy {
 
   private getSettings(): void {
     if(this.settings.isConfigCacheValid()) {
-      this.settings = JSON.parse(window.localStorage['config'])
+      this.settings.setConfig(JSON.parse(window.localStorage['config']))
     } else {
       this.ws.messages.next(WebSocketMessage.GetSettingsMessage());
     }
   }
 
   private saveSettings(): void {
+    
     this.settings.fromReduxToArray()
     var settingsSave = {
       Event: 'SaveConfig',
