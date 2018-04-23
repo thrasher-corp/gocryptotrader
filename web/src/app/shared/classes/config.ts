@@ -11,12 +11,13 @@
     Exchanges: Exchange[];
 
     public isConfigCacheValid() : boolean {
-        var dateStored = new Date(window.localStorage['configDate']);
-        console.log(dateStored)
-        var dateDifference = Math.abs(new Date() - dateStored)
+        let dateStored = +new Date(window.localStorage['configDate']);
+        let dateNow = +new Date();
+        var dateDifference = Math.abs(dateNow - dateStored)
         var diffMins = Math.floor((dateDifference / 1000) / 60);
+        console.log(diffMins)
     
-        if(isNaN(dateStored.getTime()) || diffMins > 15) {
+        if(isNaN(new Date(dateStored).getTime()) || diffMins > 15) {
             return false;
         }
         else {
