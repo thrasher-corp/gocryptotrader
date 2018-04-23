@@ -14,6 +14,7 @@ export class SettingsComponent implements OnInit, OnDestroy {
   private ws: WebsocketResponseHandlerService;
   private failCount = 0;
   private timer: any;
+  private selectedOptions: any[]
 
   private getSettingsMessage = {
     Event: 'GetConfig',
@@ -45,6 +46,7 @@ export class SettingsComponent implements OnInit, OnDestroy {
 
 
   private saveSettings(): void {
+    this.fromReduxToArray()
     var settingsSave = {
       Event: 'SaveConfig',
       data: this.settings,
@@ -53,7 +55,6 @@ export class SettingsComponent implements OnInit, OnDestroy {
   }
 
   private fromArrayToRedux() {
-    
     for (var i = 0; i < this.settings.Exchanges.length; i++) {
       this.settings.Exchanges[i].Pairs = new Array<CurrencyPairRedux>();
       var avail = this.settings.Exchanges[i].AvailablePairs.split(',');
@@ -71,8 +72,37 @@ export class SettingsComponent implements OnInit, OnDestroy {
     }
   }
 
-  private fromReduxToArray() {
 
+  private fromReduxToArray() {
+    for (var i = 0; i < this.settings.Exchanges.length; i++) {
+      // Step 1, iterate over the Pairs
+      var enabled = this.settings.Exchanges[i].EnabledPairs.split(',');
+      console.log('BEFORE: ' + this.settings.Exchanges[i].EnabledPairs)
+      for (var j = 0; j < this.settings.Exchanges[i].Pairs.length; j++) {
+        if (this.settings.Exchanges[i].Pairs[j].Enabled) {
+          if (enabled.indexOf(this.settings.Exchanges[i].Pairs[j].Name) == -1) {
+            // Step 3 if its not in the enabled list, add it
+            console.log(this.settings.Exchanges[i].Pairs[j].Name + " from " + this.settings.Exchanges[i].Name + " is not in the enabled list and being added")
+            enabled.push(this.settings.Exchanges[i].Pairs[j].Name);
+          } else {
+            console.log(this.settings.Exchanges[i].Pairs[j].Name + " from " + this.settings.Exchanges[i].Name + " is in the enabled list and doing nothing")
+
+          }
+        } else {
+          if (enabled.indexOf(this.settings.Exchanges[i].Pairs[j].Name) > -1) {
+            console.log(this.settings.Exchanges[i].Pairs[j].Name + " from " + this.settings.Exchanges[i].Name + " is in the enabled list and being removed")
+            enabled.splice(enabled.indexOf(this.settings.Exchanges[i].Pairs[j].Name), 1);
+          } else {
+            console.log(this.settings.Exchanges[i].Pairs[j].Name + " from " + this.settings.Exchanges[i].Name + " is not in the enabled list and doing nothing")
+          }
+        }
+      }
+      
+      //Step 4 JSONifiy the enabled list and set it to the this.settings.Exchanges[i].EnabledPairs
+      this.settings.Exchanges[i].EnabledPairs = enabled.join();
+      console.log('AFTER: ' + this.settings.Exchanges[i].EnabledPairs)
+    }
+    
   }
 }
 

@@ -63,15 +63,12 @@
                     <input matInput name="apiClientId" [(ngModel)]="exchange.ClientID" [disabled]="!exchange.Enabled" placeholder="API ClientID">
                 </mat-form-field>
                 <div mat-line></div>
-                <mat-panel-description>
-                    Enabled Currency pairs {{enabledCurrencies.selectedOptions.selected.length}}
-                </mat-panel-description>
-                <div mat-line></div>
-                <mat-selection-list #enabledCurrencies>
-                    <mat-list-option [selected]="currency.Enabled" *ngFor="let currency of exchange.Pairs">
-                        {{currency.Name}}
-                    </mat-list-option>
-                </mat-selection-list>
+                <div *ngFor="let currency of exchange.Pairs">
+                    <mat-form-field>
+                        <input matInput name="{{currency.Name}}" [(ngModel)]="currency.Name" [disabled]="true" placeholder="Currency name">
+                    </mat-form-field>
+                    <mat-checkbox name="{{currency.Name}}2" [(ngModel)]="currency.Enabled">Enabled</mat-checkbox>
+                </div>
             </form>
         </mat-expansion-panel>
     </mat-accordion>
