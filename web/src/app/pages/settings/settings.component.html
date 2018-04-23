@@ -67,9 +67,7 @@
                     Enabled currencies
                 </h4>
                 <div *ngFor="let currency of exchange.Pairs">
-                    <mat-form-field>
-                        <input matInput name="{{currency.Name}}" [(ngModel)]="currency.Name" [disabled]="true" placeholder="Currency name">
-                    </mat-form-field>
+                        <p>{{currency.Name}}</p>
                     <mat-checkbox name="{{currency.Name}}2" [(ngModel)]="currency.Enabled"></mat-checkbox>
                 </div>
             </form>
