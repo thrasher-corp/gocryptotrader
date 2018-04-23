@@ -63,11 +63,14 @@
                     <input matInput name="apiClientId" [(ngModel)]="exchange.ClientID" [disabled]="!exchange.Enabled" placeholder="API ClientID">
                 </mat-form-field>
                 <div mat-line></div>
+                <h4>
+                    Enabled currencies
+                </h4>
                 <div *ngFor="let currency of exchange.Pairs">
                     <mat-form-field>
                         <input matInput name="{{currency.Name}}" [(ngModel)]="currency.Name" [disabled]="true" placeholder="Currency name">
                     </mat-form-field>
-                    <mat-checkbox name="{{currency.Name}}2" [(ngModel)]="currency.Enabled">Enabled</mat-checkbox>
+                    <mat-checkbox name="{{currency.Name}}2" [(ngModel)]="currency.Enabled"></mat-checkbox>
                 </div>
             </form>
         </mat-expansion-panel>

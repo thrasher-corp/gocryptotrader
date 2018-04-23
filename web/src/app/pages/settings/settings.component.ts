@@ -41,9 +41,17 @@ export class SettingsComponent implements OnInit, OnDestroy {
   }
 
   private getSettings(): void {
-    this.ws.messages.next(this.getSettingsMessage);
-  }
+    var dateStored = new Date(window.localStorage['configDate']);
+    console.log(dateStored)
+    var dateDifference = Math.abs(new Date() - dateStored)
+    var diffMins = Math.floor((dateDifference / 1000) / 60);
 
+    if(isNaN(dateStored.getTime()) || diffMins > 15) {
+      this.ws.messages.next(this.getSettingsMessage);
+    } else {
+      this.settings = JSON.parse(window.localStorage['config'])
+    }
+  }
 
   private saveSettings(): void {
     this.fromReduxToArray()
@@ -70,6 +78,8 @@ export class SettingsComponent implements OnInit, OnDestroy {
         this.settings.Exchanges[i].Pairs.push(currencyPair);
       }
     }
+    window.localStorage['config'] = JSON.stringify(this.settings); 
+    window.localStorage['configDate'] = new Date().toString(); 
   }
 
 
