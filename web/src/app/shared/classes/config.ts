@@ -48,6 +48,7 @@
           for (var j = 0; j < avail.length; j++) {
             var currencyPair = new CurrencyPairRedux();
             currencyPair.Name = avail[j]
+            currencyPair.ParsedName = this.stripCurrencyCharacters(avail[j]);
             if (enabled.indexOf(avail[j]) > 0) {
               currencyPair.Enabled = true;
             } else {
@@ -63,6 +64,14 @@
     public parseSettings() : void {
 
     }
+
+    private stripCurrencyCharacters(name:string) :string {
+        name = name.replace('_', '');
+        name = name.replace('-', '');
+        name = name.replace(' ', '');
+        name = name.toLocaleUpperCase();
+        return name;
+      }
 
     public fromReduxToArray() : void {
         for (var i = 0; i < this.Exchanges.length; i++) {
@@ -100,6 +109,7 @@
 
 export class CurrencyPairRedux {
     Name: string;
+    ParsedName: string;
     Enabled: boolean;
   }
   

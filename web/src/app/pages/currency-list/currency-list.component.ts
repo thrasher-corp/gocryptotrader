@@ -34,7 +34,7 @@ export class CurrencyListComponent implements OnInit {
 
   public getExchangeCurrencies(): void {
     for (var i = 0; i < this.settings.Exchanges.length; i++) {
-      if (this.settings.Exchanges[i].Enabled) {
+      if (this.settings.Exchanges[i].Enabled === true) {
         this.exchangeCurrencies.set(this.settings.Exchanges[i].Name, this.settings.Exchanges[i].Pairs)
       }
     }

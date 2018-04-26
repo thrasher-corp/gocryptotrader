@@ -1,7 +1,7 @@
 <mat-list *ngFor="let exchange of exchangeCurrencies | iterateMap">
     <h3 matSubheader>{{exchange.value}}</h3>
     <mat-list-item *ngFor="let currency of exchange.key | enabledCurrencies" >
-       <p>{{currency.Name}}</p>
+       <p>{{currency.ParsedName}}</p>
        <button mat-button>SELECT</button>
     </mat-list-item>
  </mat-list>

@@ -143,8 +143,15 @@ body {
     max-width: 10rem !important;
 }
 
-.mat-drawer.mat-drawer-side {
+.mat-drawer-side {
     z-index : 1 !important;
+}
+
+
+
+.mat-drawer-content {
+    height:92% !important;
+    margin-top: 4rem !important;
 }
 
 
