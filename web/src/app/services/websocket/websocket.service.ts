@@ -44,7 +44,7 @@ export class WebsocketService {
             clearInterval(interval);
           }
           counter++;
-        }, 100);
+        }, 400);
         
         if (ws.readyState !== WebSocket.OPEN) {
           new Error("Failed to send message to websocket after 10 attempts");

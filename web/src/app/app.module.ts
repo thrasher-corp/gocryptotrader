@@ -42,6 +42,7 @@ import { DonateComponent } from './pages/donate/donate.component';
 import { NavbarComponent } from './shared/navbar/navbar.component';
 import { AllEnabledCurrencyTickersComponent } from './shared/all-updates-ticker/all-updates-ticker.component';
 import { ThemePickerComponent } from './shared/theme-picker/theme-picker';
+import {IterateMapPipe, EnabledCurrenciesPipe} from './shared/classes/pipes';
 //services
 import { WebsocketService } from './services/websocket/websocket.service';
 import { WebsocketResponseHandlerService } from './services/websocket-response-handler/websocket-response-handler.service';
@@ -97,6 +98,8 @@ import { HelpComponent } from './pages/help/help.component';
     CurrencyListComponent,
     SellFormComponent,
     HelpComponent,
+    IterateMapPipe,
+    EnabledCurrenciesPipe
   ],
   imports: [
     BrowserModule,
