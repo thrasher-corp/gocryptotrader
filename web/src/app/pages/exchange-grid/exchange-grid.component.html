@@ -1,59 +1,22 @@
 <mat-accordion>
-    <mat-expansion-panel >
-        <mat-expansion-panel-header>
+    <mat-expansion-panel  *ngFor="let exchange of exchangeCurrencies | iterateMap">
+        <mat-expansion-panel-header [ngClass]="{'selected' : selectedExchange == exchange.value}">
             <mat-panel-title>
-                Poloniex
+                    {{exchange.value}}
             </mat-panel-title>
             <mat-panel-description>
             </mat-panel-description>
         </mat-expansion-panel-header>
         image and blurb
+        <div>
+        <i>Only displaying enabled currencies</i>
+    </div>
         <form class="form-content">
             <mat-list>
-                <mat-list-item >
-                   <mat-icon matListIcon>attach_money</mat-icon>
-                   <h4 matLine>BTC_USD</h4>
-                   <button mat-button>SELECT</button>
+                <mat-list-item [ngClass]="{'selected' : selectedCurrency == currency.ParsedName}" *ngFor="let currency of exchange.key | enabledCurrencies" >
+                   <h4 matLine>{{currency.ParsedName}}</h4>
+                   <button mat-button (click)="selectCurrency(exchange.value,currency.ParsedName)">SELECT</button>
                 </mat-list-item>
-                <mat-list-item >
-                    <mat-icon matListIcon>attach_money</mat-icon>
-                    <h4 matLine>LTC_USD</h4>
-                    <button mat-button>SELECT</button>
-                 </mat-list-item>
-                 <mat-list-item >
-                    <mat-icon matListIcon>attach_money</mat-icon>
-                    <h4 matLine>ETH_USD</h4>
-                    <button mat-button>SELECT</button>
-                 </mat-list-item>
-                </mat-list>
-        </form>
-    </mat-expansion-panel><mat-expansion-panel >
-        <mat-expansion-panel-header>
-            <mat-panel-title>
-                Kraken
-            </mat-panel-title>
-            <mat-panel-description>
-            </mat-panel-description>
-        </mat-expansion-panel-header>
-        image and blurb
-        <form class="form-content">
-          
-            <mat-list>
-                <mat-list-item >
-                   <mat-icon matListIcon>attach_money</mat-icon>
-                   <h4 matLine>BTC_USD</h4>
-                   <button mat-button>SELECT</button>
-                </mat-list-item>
-                <mat-list-item >
-                    <mat-icon matListIcon>attach_money</mat-icon>
-                    <h4 matLine>LTC_USD</h4>
-                    <button mat-button>SELECT</button>
-                 </mat-list-item>
-                 <mat-list-item >
-                    <mat-icon matListIcon>attach_money</mat-icon>
-                    <h4 matLine>ETH_USD</h4>
-                    <button mat-button>SELECT</button>
-                 </mat-list-item>
                 </mat-list>
         </form>
     </mat-expansion-panel>

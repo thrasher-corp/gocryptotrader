@@ -8,7 +8,6 @@ import {  EnabledCurrenciesPipe,  IterateMapPipe} from './../../shared/classes/p
   selector: 'app-currency-list',
   templateUrl: './currency-list.component.html',
   styleUrls: ['./currency-list.component.scss'],
-  providers: [WebsocketResponseHandlerService]
 })
 export class CurrencyListComponent implements OnInit {
   public settings: Config = new Config();
@@ -17,20 +16,18 @@ export class CurrencyListComponent implements OnInit {
 
   constructor(private websocketHandler: WebsocketResponseHandlerService) {
     this.ws = websocketHandler;
-    this.ws.messages.subscribe(msg => {
+
+  }
+  ngOnInit() {
+    this.ws.shared.subscribe(msg => {
       if (msg.event === WebSocketMessageType.GetConfig) {
         this.settings.setConfig(msg.data);
         this.getExchangeCurrencies();
       }
     });
-  }
-  ngOnInit() {
     this.getSettings();
   }
 
-  ngOnDestroy() {
-    this.ws.messages.unsubscribe();
-  }
 
   public getExchangeCurrencies(): void {
     for (var i = 0; i < this.settings.Exchanges.length; i++) {

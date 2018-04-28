@@ -7,30 +7,27 @@ import { Config, CurrencyPairRedux } from './../../shared/classes/config';
   selector: 'app-settings',
   templateUrl: './settings.component.html',
   styleUrls: ['./settings.component.scss'],
-  providers: [WebsocketResponseHandlerService]
 })
 
-export class SettingsComponent implements OnInit, OnDestroy {
+export class SettingsComponent implements OnInit {
   public settings: Config = new Config();
   private ws: WebsocketResponseHandlerService;
 
   constructor(private websocketHandler: WebsocketResponseHandlerService) {
     this.ws = websocketHandler;
-    this.ws.messages.subscribe(msg => {
+   
+  }
+  ngOnInit() {
+    this.ws.shared.subscribe(msg => {
       if (msg.event === WebSocketMessageType.GetConfig) {
         this.settings.setConfig(msg.data);
       } else if (msg.event === WebSocketMessageType.SaveConfig) {
         // check if err is returned, then display some notification
       }
     });
-  }
-  ngOnInit() {
     this.getSettings();
   }
 
-  ngOnDestroy() {
-    this.ws.messages.unsubscribe();
-  }
 
   private getSettings(): void {
     if(this.settings.isConfigCacheValid()) {

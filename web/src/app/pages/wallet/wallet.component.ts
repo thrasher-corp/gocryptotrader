@@ -8,10 +8,9 @@ import { WebSocketMessageType, WebSocketMessage } from './../../shared/classes/w
   selector: 'app-wallet',
   templateUrl: './wallet.component.html',
   styleUrls: ['./wallet.component.scss'],
-	providers: [ WebsocketResponseHandlerService ]
 })
 
-export class WalletComponent implements OnInit, OnDestroy {
+export class WalletComponent implements OnInit {
   private ws: WebsocketResponseHandlerService;
   private failCount = 0;
   private timer: any;
@@ -26,7 +25,7 @@ export class WalletComponent implements OnInit, OnDestroy {
   constructor(private websocketHandler: WebsocketResponseHandlerService) {
     this.wallet= null;
     this.ws = websocketHandler;
-    this.ws.messages.subscribe(msg => {
+    this.ws.shared.subscribe(msg => {
       if (msg.event === WebSocketMessageType.GetPortfolio) {
         this.wallet = <Wallet>msg.data;
         this.attachIcon(this.wallet.coin_totals);
@@ -46,9 +45,6 @@ export class WalletComponent implements OnInit, OnDestroy {
 
   ngOnInit() {
     this.setWallet();
-  }
-  ngOnDestroy() {
-    this.ws.messages.unsubscribe();
   }
   
   private setWallet():void {

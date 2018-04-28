@@ -6,10 +6,10 @@ import { WebSocketMessage } from './../../shared/classes/websocket';
 const WEBSOCKET_URL = 'ws://localhost:9050/ws';
 
 @NgModule({
-	providers:    [ WebsocketService ]
   })
 export class WebsocketResponseHandlerService {
 	public messages: Subject<any>;	
+	public shared: Observable<WebSocketMessage>;
 
 	constructor(@Optional() @SkipSelf() parentModule: WebsocketResponseHandlerService, wsService: WebsocketService) {
 		this.messages = <Subject<WebSocketMessage>>wsService
@@ -27,7 +27,8 @@ export class WebsocketResponseHandlerService {
 				responseMessage.assetType = websocketResponseMessage.assetType;
 
 				return responseMessage;
-			}
-		);
+			});
+
+		this.shared = this.messages.share(); //multicast
 	}
 }

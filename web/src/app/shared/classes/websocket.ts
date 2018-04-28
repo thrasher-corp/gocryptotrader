@@ -1,6 +1,6 @@
 export class WebSocketMessage {
     public event: string;
-    public data: object;
+    public data: any;
     public exchange: string;
     public assetType: string;
 
