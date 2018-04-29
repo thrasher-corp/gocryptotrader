@@ -21,24 +21,17 @@ export class AllEnabledCurrencyTickersComponent implements OnInit {
     this.ws = websocketHandler; 
     this.ws.shared.subscribe(msg =>  {
       if (msg.event === WebSocketMessageType.TickerUpdate) {
-        console.log(msg.data.CurrencyPair); 
         if (window.localStorage["selectedExchange"] !== undefined && 
         window.localStorage["selectedCurrency"] !== undefined) {
           this.tickerCard.Exchange = window.localStorage["selectedExchange"]; 
           this.tickerCard.CurrencyPair = window.localStorage["selectedCurrency"]; 
-          console.log('found selected currency');
-          
-            console.log(msg.exchange); 
             if (msg.exchange == window.localStorage["selectedExchange"]) {
-            console.log('found exchange'); 
             if (this.stripCurrencyCharacters(msg.data.CurrencyPair) == window.localStorage["selectedCurrency"]) {
-            console.log('found currency'); 
               
               this.updateTicker(msg)
             }
           }
         }else {
-          console.log('no selected currency');
           this.updateTicker(msg)
         }
       }

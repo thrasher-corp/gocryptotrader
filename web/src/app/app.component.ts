@@ -40,7 +40,6 @@ export class AppComponent {
       }
     });
     var interval = setInterval(() => {
-      console.log(this.websocketHandler.isConnected);
       this.isConnected = this.websocketHandler.isConnected;
       }, 2000);
     

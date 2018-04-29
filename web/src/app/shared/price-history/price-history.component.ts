@@ -158,7 +158,6 @@ export class PriceHistoryComponent implements OnInit {
         e.chart.firstPoint = e.item;
       }
       
-      //console.log(e.item);
       e.chart.validateData();
     }
   }],

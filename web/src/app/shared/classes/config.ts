@@ -15,7 +15,7 @@
         let dateNow = +new Date();
         var dateDifference = Math.abs(dateNow - dateStored)
         var diffMins = Math.floor((dateDifference / 1000) / 60);
-        console.log(diffMins)
+        (diffMins)
     
         if(isNaN(new Date(dateStored).getTime()) || diffMins > 15) {
             return false;
@@ -77,30 +77,24 @@
         for (var i = 0; i < this.Exchanges.length; i++) {
           // Step 1, iterate over the Pairs
           var enabled = this.Exchanges[i].EnabledPairs.split(',');
-          console.log('BEFORE: ' + this.Exchanges[i].EnabledPairs)
           for (var j = 0; j < this.Exchanges[i].Pairs.length; j++) {
             if (this.Exchanges[i].Pairs[j].Enabled) {
               if (enabled.indexOf(this.Exchanges[i].Pairs[j].Name) == -1) {
                 // Step 3 if its not in the enabled list, add it
-                console.log(this.Exchanges[i].Pairs[j].Name + " from " + this.Exchanges[i].Name + " is not in the enabled list and being added")
                 enabled.push(this.Exchanges[i].Pairs[j].Name);
               } else {
-                console.log(this.Exchanges[i].Pairs[j].Name + " from " + this.Exchanges[i].Name + " is in the enabled list and doing nothing")
     
               }
             } else {
               if (enabled.indexOf(this.Exchanges[i].Pairs[j].Name) > -1) {
-                console.log(this.Exchanges[i].Pairs[j].Name + " from " + this.Exchanges[i].Name + " is in the enabled list and being removed")
                 enabled.splice(enabled.indexOf(this.Exchanges[i].Pairs[j].Name), 1);
               } else {
-                console.log(this.Exchanges[i].Pairs[j].Name + " from " + this.Exchanges[i].Name + " is not in the enabled list and doing nothing")
               }
             }
           }
           
           //Step 4 JSONifiy the enabled list and set it to the this.settings.Exchanges[i].EnabledPairs
           this.Exchanges[i].EnabledPairs = enabled.join();
-          console.log('AFTER: ' + this.Exchanges[i].EnabledPairs)
         }
         
       }
