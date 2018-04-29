@@ -50,9 +50,9 @@ export class CurrencyListComponent implements OnInit {
             array.push(this.settings.Exchanges[i].Name);
             this.exchangeCurrencies.set(this.settings.Exchanges[i].Pairs[j].ParsedName, array);
           } else {
-            var hi = new Array<string>();
-            hi.push(this.settings.Exchanges[i].Name);
-            this.exchangeCurrencies.set(this.settings.Exchanges[i].Pairs[j].ParsedName, hi);
+            var exchangeArray = new Array<string>();
+            exchangeArray.push(this.settings.Exchanges[i].Name);
+            this.exchangeCurrencies.set(this.settings.Exchanges[i].Pairs[j].ParsedName, exchangeArray);
           }
         }
         }
