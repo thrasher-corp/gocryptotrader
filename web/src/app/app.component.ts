@@ -3,6 +3,7 @@ import { ElectronService } from './providers/electron.service';
 import { MatSidenav } from '@angular/material';
 import { SidebarService } from './services/sidebar/sidebar.service';
 import { Router, NavigationEnd } from '@angular/router';
+import {WebsocketResponseHandlerService }from './services/websocket-response-handler/websocket-response-handler.service'; 
 
 @Component({
   selector: 'app-root',
@@ -13,8 +14,10 @@ export class AppComponent {
   sidebarService: SidebarService
   public currentUrl: string;
   @ViewChild('sidenav') public sidenav: MatSidenav;
+  private ws : WebsocketResponseHandlerService;
+  public isConnected :boolean = false;
   
-  constructor(public electronService: ElectronService, sidebarService: SidebarService, private router: Router) {
+  constructor(public electronService: ElectronService, sidebarService: SidebarService, private router: Router, private websocketHandler: WebsocketResponseHandlerService) {
 
     if (electronService.isElectron()) {
       console.log('Mode electron');
@@ -26,14 +29,20 @@ export class AppComponent {
       console.log('Mode web');
     }
 
+    this.isConnected = this.websocketHandler.isConnected;
     this.sidebarService = sidebarService;
     router.events.subscribe(event => {
           
       if (event instanceof NavigationEnd) {
+        this.isConnected = this.websocketHandler.isConnected;
         console.log("current url", event.url); // event.url has current url
         this.currentUrl = event.url;
       }
     });
+    var interval = setInterval(() => {
+      console.log(this.websocketHandler.isConnected);
+      this.isConnected = this.websocketHandler.isConnected;
+      }, 2000);
     
   }
 

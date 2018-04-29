@@ -4,6 +4,7 @@ import { WebSocketMessage } from './../../shared/classes/websocket';
 
 @NgModule()
 export class WebsocketService {
+  public isConnected :boolean = false;
   constructor (@Optional() @SkipSelf() parentModule: WebsocketService) {
     if (parentModule) {
       throw new Error(
@@ -26,8 +27,11 @@ export class WebsocketService {
       (obs: Observer<MessageEvent>) => {
         ws.onmessage = obs.next.bind(obs);
         ws.onerror = obs.error.bind(obs);
-        ws.onclose = obs.complete.bind(obs);
+        ws.onclose = () => {
+          this.isConnected = false;
+          obs.complete.bind(obs) };
         ws.onopen = () => {
+          this.isConnected = true;
           ws.send(JSON.stringify(WebSocketMessage.CreateAuthenticationMessage()));
         };
         return ws.close.bind(ws);
@@ -35,19 +39,21 @@ export class WebsocketService {
     let observer = {
       next: (data: any) => {
         var counter = 0;
-        var interval = setInterval(function () {
+        var interval = setInterval(() => {
           if (counter == 10) {
             clearInterval(interval);
           }
           if (ws.readyState === WebSocket.OPEN) {
             ws.send(JSON.stringify(data));
             clearInterval(interval);
+            this.isConnected = true;
           }
           counter++;
         }, 400);
         
         if (ws.readyState !== WebSocket.OPEN) {
           new Error("Failed to send message to websocket after 10 attempts");
+          this.isConnected = false;
         }
       }
     }

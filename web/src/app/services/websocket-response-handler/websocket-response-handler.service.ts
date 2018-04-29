@@ -10,12 +10,14 @@ const WEBSOCKET_URL = 'ws://localhost:9050/ws';
 export class WebsocketResponseHandlerService {
 	public messages: Subject<any>;	
 	public shared: Observable<WebSocketMessage>;
+	public isConnected :boolean = false;
 
 	constructor(@Optional() @SkipSelf() parentModule: WebsocketResponseHandlerService, wsService: WebsocketService) {
 		this.messages = <Subject<WebSocketMessage>>wsService
 			.connect(WEBSOCKET_URL)
 
 			.map((response: MessageEvent): WebSocketMessage => {
+				this.isConnected = wsService.isConnected;
 				let websocketResponseMessage = JSON.parse(response.data);
 				var websocketResponseData = websocketResponseMessage.Data === undefined ? websocketResponseMessage.data : websocketResponseMessage.Data;
 				var websocketResponseEvent = websocketResponseMessage.Event === undefined ? websocketResponseMessage.event : websocketResponseMessage.Event;
@@ -28,7 +30,8 @@ export class WebsocketResponseHandlerService {
 
 				return responseMessage;
 			});
-
+			this.isConnected = wsService.isConnected;
+			
 		this.shared = this.messages.share(); //multicast
 	}
 }
