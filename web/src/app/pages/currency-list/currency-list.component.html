@@ -1,7 +1,23 @@
-<mat-list *ngFor="let exchange of exchangeCurrencies | iterateMap">
-    <h3 matSubheader>{{exchange.value}}</h3>
-    <mat-list-item *ngFor="let currency of exchange.key | enabledCurrencies" >
-       <p>{{currency.ParsedName}}</p>
-       <button mat-button>SELECT</button>
-    </mat-list-item>
- </mat-list>
+<mat-accordion>
+        <mat-expansion-panel  *ngFor="let exchange of exchangeCurrencies | iterateMap">
+            <mat-expansion-panel-header >
+                <mat-panel-title>
+                        {{exchange.value}}
+                </mat-panel-title>
+                <mat-panel-description>
+                </mat-panel-description>
+            </mat-expansion-panel-header>
+            image and blurb
+            <div>
+            <i>Only displaying enabled currencies</i>
+        </div>
+            <form class="form-content">
+                <mat-list>
+                    <mat-list-item *ngFor="let currency of exchange.key" >
+                       <h4 matLine>{{currency}}</h4>
+                       <button mat-button>SELECT</button>
+                    </mat-list-item>
+                    </mat-list>
+            </form>
+        </mat-expansion-panel>
+    </mat-accordion>

@@ -12,30 +12,53 @@ import {  EnabledCurrenciesPipe,  IterateMapPipe} from './../../shared/classes/p
 export class CurrencyListComponent implements OnInit {
   public settings: Config = new Config();
   private ws: WebsocketResponseHandlerService;
-  public exchangeCurrencies: Map < string, CurrencyPairRedux[] > = new Map < string, CurrencyPairRedux[] > ();
+  public selectedCurrency :string;
+  public selectedExchange :string;
+  public exchangeCurrencies: Map <string,  string[] > = new Map < string, string[] > ();
 
-  constructor(private websocketHandler: WebsocketResponseHandlerService) {
+
+  constructor(private websocketHandler: WebsocketResponseHandlerService) { 
+    this.selectedExchange = window.localStorage["selectedExchange"];
+    this.selectedCurrency = window.localStorage["selectedCurrency"];
     this.ws = websocketHandler;
-
-  }
-  ngOnInit() {
     this.ws.shared.subscribe(msg => {
       if (msg.event === WebSocketMessageType.GetConfig) {
         this.settings.setConfig(msg.data);
         this.getExchangeCurrencies();
       }
     });
+  }
+
+  ngOnInit() {
     this.getSettings();
   }
 
+  public selectCurrency(exchange:string,currency:string) {
+    window.localStorage["selectedExchange"] = exchange;
+    window.localStorage["selectedCurrency"] = currency;
+    this.selectedExchange = window.localStorage["selectedExchange"];
+    this.selectedCurrency = window.localStorage["selectedCurrency"];
+  }
 
   public getExchangeCurrencies(): void {
     for (var i = 0; i < this.settings.Exchanges.length; i++) {
       if (this.settings.Exchanges[i].Enabled === true) {
-        this.exchangeCurrencies.set(this.settings.Exchanges[i].Name, this.settings.Exchanges[i].Pairs)
+        for (var j = 0; j < this.settings.Exchanges[i].Pairs.length; j++) {
+          if(this.settings.Exchanges[i].Pairs[j].Enabled) {
+          if(this.exchangeCurrencies.has(this.settings.Exchanges[i].Pairs[j].ParsedName)) {
+            var array = this.exchangeCurrencies.get(this.settings.Exchanges[i].Pairs[j].ParsedName);
+            array.push(this.settings.Exchanges[i].Name);
+            this.exchangeCurrencies.set(this.settings.Exchanges[i].Pairs[j].ParsedName, array);
+          } else {
+            var hi = new Array<string>();
+            hi.push(this.settings.Exchanges[i].Name);
+            this.exchangeCurrencies.set(this.settings.Exchanges[i].Pairs[j].ParsedName, hi);
+          }
+        }
+        }
       }
     }
-    this.exchangeCurrencies.forEach((value: CurrencyPairRedux[], key: string) => {});
+    this.exchangeCurrencies.forEach((value: string[], key: string) => {});
   }
 
   private getSettings(): void {
