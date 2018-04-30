@@ -562,8 +562,10 @@ func (o *OKEX) PlaceContractOrders(symbol, contractType, position string, levera
 	values.Set("type", position)
 	if matchPrice {
 		values.Set("match_price", "1")
+	} else {
+		values.Set("match_price", "0")
 	}
-	values.Set("match_price", "0")
+
 	if leverageRate != 10 && leverageRate != 20 {
 		return 0, errors.New("leverage rate can only be 10 or 20")
 	}
