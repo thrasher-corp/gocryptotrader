@@ -20,6 +20,7 @@ import (
 
 // Constants declared here are filename strings and test strings
 const (
+	FXProviderFixer                        = "fixer"
 	EncryptedConfigFile                    = "config.dat"
 	ConfigFile                             = "config.json"
 	ConfigTestFile                         = "../testdata/configtest.json"
@@ -146,7 +147,7 @@ func (c *Config) GetAvailablePairs(exchName string) ([]pair.CurrencyPair, error)
 	return pairs, nil
 }
 
-// GetEnabledPairs returns a list of  currency pairs for a specifc exchange
+// GetEnabledPairs returns a list of currency pairs for a specifc exchange
 func (c *Config) GetEnabledPairs(exchName string) ([]pair.CurrencyPair, error) {
 	exchCfg, err := c.GetExchangeConfig(exchName)
 	if err != nil {
@@ -217,7 +218,7 @@ func (c *Config) GetCurrencyPairDisplayConfig() *CurrencyPairFormatConfig {
 	return c.CurrencyPairFormat
 }
 
-// GetExchangeConfig returns your exchange configurations by its indivdual name
+// GetExchangeConfig returns exchange configurations by its indivdual name
 func (c *Config) GetExchangeConfig(name string) (ExchangeConfig, error) {
 	c.m.Lock()
 	defer c.m.Unlock()
@@ -532,11 +533,11 @@ func (c *Config) LoadConfig(configPath string) error {
 	}
 
 	if c.CurrencyExchangeProvider == "" {
-		c.CurrencyExchangeProvider = "fixer"
+		c.CurrencyExchangeProvider = FXProviderFixer
 	} else {
-		if c.CurrencyExchangeProvider != "yahoo" && c.CurrencyExchangeProvider != "fixer" {
+		if c.CurrencyExchangeProvider != "yahoo" && c.CurrencyExchangeProvider != FXProviderFixer {
 			log.Println(WarningCurrencyExchangeProvider)
-			c.CurrencyExchangeProvider = "fixer"
+			c.CurrencyExchangeProvider = FXProviderFixer
 		}
 	}
 
@@ -591,7 +592,7 @@ func (c *Config) UpdateConfig(configPath string, newCfg Config) error {
 	return nil
 }
 
-// GetConfig returns a pointer to a confiuration object
+// GetConfig returns a pointer to a configuration object
 func GetConfig() *Config {
 	return &Cfg
 }
