@@ -147,12 +147,15 @@ func (b *BTCMarkets) GetTrades(firstPair, secondPair string, values url.Values) 
 // orderside - example "Bid" or "Ask"
 // orderType - example "limit"
 // clientReq - example "abc-cdf-1000"
-func (b *BTCMarkets) NewOrder(currency, instrument string, price, amount int64, orderSide, orderType, clientReq string) (int, error) {
+func (b *BTCMarkets) NewOrder(currency, instrument string, price, amount float64, orderSide, orderType, clientReq string) (int, error) {
+	newPrice := int64(price * float64(common.SatoshisPerBTC))
+	newVolume := int64(amount * float64(common.SatoshisPerBTC))
+
 	order := OrderToGo{
 		Currency:        common.StringToUpper(currency),
 		Instrument:      common.StringToUpper(instrument),
-		Price:           price * common.SatoshisPerBTC,
-		Volume:          amount * common.SatoshisPerBTC,
+		Price:           newPrice,
+		Volume:          newVolume,
 		OrderSide:       orderSide,
 		OrderType:       orderType,
 		ClientRequestID: clientReq,
@@ -302,9 +305,11 @@ func (b *BTCMarkets) GetAccountBalance() ([]AccountBalance, error) {
 }
 
 // WithdrawCrypto withdraws cryptocurrency into a designated address
-func (b *BTCMarkets) WithdrawCrypto(amount int64, currency, address string) (string, error) {
+func (b *BTCMarkets) WithdrawCrypto(amount float64, currency, address string) (string, error) {
+	newAmount := int64(amount * float64(common.SatoshisPerBTC))
+
 	req := WithdrawRequestCrypto{
-		Amount:   amount,
+		Amount:   newAmount,
 		Currency: common.StringToUpper(currency),
 		Address:  address,
 	}
@@ -324,14 +329,16 @@ func (b *BTCMarkets) WithdrawCrypto(amount int64, currency, address string) (str
 
 // WithdrawAUD withdraws AUD into a designated bank address
 // Does not return a TxID!
-func (b *BTCMarkets) WithdrawAUD(accountName, accountNumber, bankName, bsbNumber, currency string, amount int64) (string, error) {
+func (b *BTCMarkets) WithdrawAUD(accountName, accountNumber, bankName, bsbNumber string, amount float64) (string, error) {
+	newAmount := int64(amount * float64(common.SatoshisPerBTC))
+
 	req := WithdrawRequestAUD{
 		AccountName:   accountName,
 		AccountNumber: accountNumber,
 		BankName:      bankName,
 		BSBNumber:     bsbNumber,
-		Amount:        amount,
-		Currency:      common.StringToUpper(currency),
+		Amount:        newAmount,
+		Currency:      "AUD",
 	}
 
 	resp := Response{}
