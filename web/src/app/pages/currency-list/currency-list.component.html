@@ -1,3 +1,5 @@
+<h2>Currency List</h2>
+<h3>Select and monitor currencies of the same type</h3>
 <mat-accordion>
         <mat-expansion-panel  *ngFor="let currency of exchangeCurrencies | iterateMap">
             <mat-expansion-panel-header [ngClass]="{'selected' : selectedCurrency == currency.value}" >
@@ -13,7 +15,7 @@
         </div>
             <form class="form-content">
                 <mat-list>
-                    <mat-list-item [ngClass]="{'selected' : selectedExchange == exchange}" *ngFor="let exchange of currency.key" >
+                    <mat-list-item [ngClass]="{'selected' : (selectedExchange == exchange && selectedCurrency == currency.value)}" *ngFor="let exchange of currency.key" >
                        <h4 matLine>{{exchange}}</h4>
                        <button mat-button  (click)="selectCurrency(exchange, currency.value)">SELECT</button>
                     </mat-list-item>

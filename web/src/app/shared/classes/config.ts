@@ -37,6 +37,9 @@
         this.PortfolioAddresses = configData.PortfolioAddresses
         this.SMSGlobal = configData.SMSGlobal
         this.Webserver = configData.Webserver
+        if(this.Exchanges[0].Pairs.length > 0) {
+          return;
+        }
         this.fromArrayToRedux()
     }
 

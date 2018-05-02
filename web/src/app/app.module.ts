@@ -29,14 +29,21 @@ import {
   MatTabsModule,
 } from '@angular/material';
 
-
+//Pages
 import { AppComponent } from './app.component';
 import { HomeComponent } from './pages/home/home.component';
 import { AboutComponent } from './pages/about/about.component';
-import { SettingsComponent } from './pages/settings/settings.component';
 import { DashboardComponent } from './pages/dashboard/dashboard.component';
 import { WalletComponent } from './pages/wallet/wallet.component';
 import { DonateComponent } from './pages/donate/donate.component';
+import { HelpComponent } from './pages/help/help.component';
+
+import { SettingsComponent } from './pages/settings/settings.component';
+import { SettingsCredentialsComponent } from './pages/settings/settings-credentials/settings-credentials.component';
+import { SettingsWalletsComponent } from './pages/settings/settings-wallets/settings-wallets.component';
+import { SettingsExchangesComponent } from './pages/settings/settings-exchanges/settings-exchanges.component';
+import { SettingsSmsComponent } from './pages/settings/settings-sms/settings-sms.component';
+
 
 //Shared
 import { NavbarComponent } from './shared/navbar/navbar.component';
@@ -70,7 +77,6 @@ import { BuyFormComponent } from './shared/buy-form/buy-form.component';
 import { ExchangeGridComponent } from './pages/exchange-grid/exchange-grid.component';
 import { CurrencyListComponent } from './pages/currency-list/currency-list.component';
 import { SellFormComponent } from './shared/sell-form/sell-form.component';
-import { HelpComponent } from './pages/help/help.component';
 
 
 @NgModule({
@@ -99,7 +105,11 @@ import { HelpComponent } from './pages/help/help.component';
     SellFormComponent,
     HelpComponent,
     IterateMapPipe,
-    EnabledCurrenciesPipe
+    EnabledCurrenciesPipe,
+    SettingsCredentialsComponent,
+    SettingsWalletsComponent,
+    SettingsExchangesComponent,
+    SettingsSmsComponent
   ],
   imports: [
     BrowserModule,
