@@ -1,45 +1,45 @@
-<mat-grid-list cols="2" rowHeight="1:0.5" gutterSize="4rem">
-<mat-grid-tile routerLink="/settings/credentials">
-    <mat-card>
-        <mat-card-header>
-            Credentials
-        </mat-card-header>
-        <mat-card-content>
-                image
-            </mat-card-content>
+<mat-grid-list cols="4" rowHeight="1:0.5" gutterSize="4rem">
+<mat-grid-tile class="mat-elevation-z6" routerLink="/settings/credentials">
+    <mat-card >
+                <mat-nav-list>
+                        <mat-list-item>
+                            <mat-icon>person</mat-icon>&nbsp;
+                            <h3>Credentials</h3>
+                        </mat-list-item>
+                        </mat-nav-list>
     </mat-card>
 </mat-grid-tile>
 
-<mat-grid-tile routerLink="/settings/exchanges">
+<mat-grid-tile routerLink="/settings/exchanges" class="mat-elevation-z6">
         <mat-card>
-            <mat-card-header>
-                Exchanges
-            </mat-card-header>
-            <mat-card-content>
-                    image
-                </mat-card-content>
+                    <mat-nav-list>
+                            <mat-list-item>
+                                <mat-icon>show_chart</mat-icon>&nbsp;
+                                <h3>Exchanges</h3>
+                            </mat-list-item>
+                            </mat-nav-list>
         </mat-card>
     </mat-grid-tile>
 
-    <mat-grid-tile routerLink="/settings/wallets">
+    <mat-grid-tile routerLink="/settings/wallets" class=" mat-elevation-z6">
             <mat-card>
-                <mat-card-header>
-                    Wallets
-                </mat-card-header>
-                <mat-card-content>
-                        image
-                    </mat-card-content>
+                        <mat-nav-list>
+                                <mat-list-item>
+                                    <mat-icon>account_balance_wallet</mat-icon>&nbsp;
+                                    <h3>Wallets</h3>
+                                </mat-list-item>
+                                </mat-nav-list>
             </mat-card>
         </mat-grid-tile>
 
-        <mat-grid-tile routerLink="/settings/sms">
+        <mat-grid-tile routerLink="/settings/sms" class="mat-elevation-z6">
                 <mat-card>
-                    <mat-card-header>
-                        SMS
-                    </mat-card-header>
-                    <mat-card-content>
-                        image
-                    </mat-card-content>
+                            <mat-nav-list>
+                                    <mat-list-item>
+                                        <mat-icon>chat</mat-icon>&nbsp;
+                                        <h3>SMS</h3>
+                                    </mat-list-item>
+                                    </mat-nav-list>
                 </mat-card>
             </mat-grid-tile>
 

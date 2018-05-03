@@ -37,7 +37,10 @@
         this.PortfolioAddresses = configData.PortfolioAddresses
         this.SMSGlobal = configData.SMSGlobal
         this.Webserver = configData.Webserver
-        if(this.Exchanges[0].Pairs.length > 0) {
+        if(configData.Exchanges.length > 0  
+          && configData.Exchanges[0].Pairs 
+          && configData.Exchanges[0].Pairs.length > 0) {
+            console.log('SUCCESS');
           return;
         }
         this.fromArrayToRedux()
