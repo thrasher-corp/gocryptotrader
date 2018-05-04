@@ -53,8 +53,6 @@ const (
 	gdaxUnauthRate = 3
 )
 
-var sometin []string
-
 // GDAX is the overarching type across the GDAX package
 type GDAX struct {
 	exchange.Base
