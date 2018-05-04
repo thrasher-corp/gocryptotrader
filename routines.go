@@ -6,8 +6,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/thrasher-/gocryptotrader/currency"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
+	"github.com/thrasher-/gocryptotrader/currency"
 	"github.com/thrasher-/gocryptotrader/currency/symbol"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
@@ -16,7 +16,7 @@ import (
 )
 
 func printCurrencyFormat(price float64) string {
-	displaySymbol, err := symbol.GetSymbolByCurrencyName(bot.config.FiatDisplayCurrency)
+	displaySymbol, err := symbol.GetSymbolByCurrencyName(bot.config.Currency.FiatDisplayCurrency)
 	if err != nil {
 		log.Printf("Failed to get display symbol: %s", err)
 	}
@@ -25,7 +25,7 @@ func printCurrencyFormat(price float64) string {
 }
 
 func printConvertCurrencyFormat(origCurrency string, origPrice float64) string {
-	displayCurrency := bot.config.FiatDisplayCurrency
+	displayCurrency := bot.config.Currency.FiatDisplayCurrency
 	conv, err := currency.ConvertCurrency(origPrice, origCurrency, displayCurrency)
 	if err != nil {
 		log.Printf("Failed to convert currency: %s", err)
@@ -61,7 +61,7 @@ func printTickerSummary(result ticker.Price, p pair.CurrencyPair, assetType, exc
 	}
 
 	stats.Add(exchangeName, p, assetType, result.Last, result.Volume)
-	if currency.IsFiatCurrency(p.SecondCurrency.String()) && p.SecondCurrency.String() != bot.config.FiatDisplayCurrency {
+	if currency.IsFiatCurrency(p.SecondCurrency.String()) && p.SecondCurrency.String() != bot.config.Currency.FiatDisplayCurrency {
 		origCurrency := p.SecondCurrency.Upper().String()
 		log.Printf("%s %s %s: TICKER: Last %s Ask %s Bid %s High %s Low %s Volume %.8f",
 			exchangeName,
@@ -74,7 +74,7 @@ func printTickerSummary(result ticker.Price, p pair.CurrencyPair, assetType, exc
 			printConvertCurrencyFormat(origCurrency, result.Low),
 			result.Volume)
 	} else {
-		if currency.IsFiatCurrency(p.SecondCurrency.String()) && p.SecondCurrency.Upper().String() == bot.config.FiatDisplayCurrency {
+		if currency.IsFiatCurrency(p.SecondCurrency.String()) && p.SecondCurrency.Upper().String() == bot.config.Currency.FiatDisplayCurrency {
 			log.Printf("%s %s %s: TICKER: Last %s Ask %s Bid %s High %s Low %s Volume %.8f",
 				exchangeName,
 				exchange.FormatCurrency(p).String(),
@@ -111,7 +111,7 @@ func printOrderbookSummary(result orderbook.Base, p pair.CurrencyPair, assetType
 	bidsAmount, bidsValue := result.CalculateTotalBids()
 	asksAmount, asksValue := result.CalculateTotalAsks()
 
-	if currency.IsFiatCurrency(p.SecondCurrency.String()) && p.SecondCurrency.String() != bot.config.FiatDisplayCurrency {
+	if currency.IsFiatCurrency(p.SecondCurrency.String()) && p.SecondCurrency.String() != bot.config.Currency.FiatDisplayCurrency {
 		origCurrency := p.SecondCurrency.Upper().String()
 		log.Printf("%s %s %s: ORDERBOOK: Bids len: %d Amount: %f %s. Total value: %s Asks len: %d Amount: %f %s. Total value: %s",
 			exchangeName,
@@ -127,7 +127,7 @@ func printOrderbookSummary(result orderbook.Base, p pair.CurrencyPair, assetType
 			printConvertCurrencyFormat(origCurrency, asksValue),
 		)
 	} else {
-		if currency.IsFiatCurrency(p.SecondCurrency.String()) && p.SecondCurrency.Upper().String() == bot.config.FiatDisplayCurrency {
+		if currency.IsFiatCurrency(p.SecondCurrency.String()) && p.SecondCurrency.Upper().String() == bot.config.Currency.FiatDisplayCurrency {
 			log.Printf("%s %s %s: ORDERBOOK: Bids len: %d Amount: %f %s. Total value: %s Asks len: %d Amount: %f %s. Total value: %s",
 				exchangeName,
 				exchange.FormatCurrency(p).String(),

@@ -18,7 +18,9 @@ const (
 	TestConfig = "./testdata/configtest.json"
 )
 
-var helperTestLoaded = false
+var (
+	helperTestLoaded = false
+)
 
 func SetupTestHelpers(t *testing.T) {
 	if !helperTestLoaded {
@@ -30,8 +32,7 @@ func SetupTestHelpers(t *testing.T) {
 			}
 			testSetup = true
 		}
-
-		err := bot.config.RetrieveConfigCurrencyPairs(false)
+		err := bot.config.RetrieveConfigCurrencyPairs(true)
 		if err != nil {
 			t.Fatalf("Failed to retrieve config currency pairs. %s", err)
 		}
@@ -43,7 +44,6 @@ func TestGetSpecificAvailablePairs(t *testing.T) {
 	SetupTestHelpers(t)
 	result := GetSpecificAvailablePairs(true, true, true, false)
 
-	log.Println(result)
 	if !pair.Contains(result, pair.NewCurrencyPair("BTC", "USD"), true) {
 		t.Fatal("Unexpected result")
 	}
@@ -177,15 +177,15 @@ func TestGetRelatableFiatCurrencies(t *testing.T) {
 		t.Fatal("Unexpected result")
 	}
 
-	backup := currency.BaseCurrencies
-	currency.BaseCurrencies = append(currency.BaseCurrencies, "USD")
+	backup := currency.FiatCurrencies
+	currency.FiatCurrencies = append(currency.FiatCurrencies, "USD")
 
 	p = GetRelatableFiatCurrencies(pair.NewCurrencyPair("BTC", "USD"))
 	if !pair.Contains(p, pair.NewCurrencyPair("BTC", "ZAR"), true) {
 		t.Fatal("Unexpected result")
 	}
 
-	currency.BaseCurrencies = backup
+	currency.FiatCurrencies = backup
 }
 
 func TestMapCurrenciesByExchange(t *testing.T) {
