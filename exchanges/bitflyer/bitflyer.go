@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"net/http"
 	"net/url"
 	"strconv"
 	"time"
@@ -66,14 +65,13 @@ const (
 	privMarginChange               = "/me/getcollateralhistory"
 	privTradingCommission          = "/me/gettradingcommission"
 
-	bitflyerAuthRate   = 1000
-	bitflyerUnauthRate = 1000
+	bitflyerAuthRate   = 200
+	bitflyerUnauthRate = 500
 )
 
 // Bitflyer is the overarching type across this package
 type Bitflyer struct {
 	exchange.Base
-	*request.Handler
 }
 
 // SetDefaults sets the basic defaults for Bitflyer
@@ -89,8 +87,8 @@ func (b *Bitflyer) SetDefaults() {
 	b.ConfigCurrencyPairFormat.Uppercase = true
 	b.AssetTypes = []string{ticker.Spot}
 	b.SupportsAutoPairUpdating = false
-	b.Handler = new(request.Handler)
-	b.SetRequestHandler(b.Name, bitflyerAuthRate, bitflyerUnauthRate, new(http.Client))
+	b.SupportsRESTTickerBatching = false
+	b.Requester = request.New(b.Name, request.NewRateLimit(time.Minute, bitflyerAuthRate), request.NewRateLimit(time.Minute, bitflyerUnauthRate), common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 }
 
 // Setup takes in the supplied exchange configuration details and sets params
@@ -101,6 +99,7 @@ func (b *Bitflyer) Setup(exch config.ExchangeConfig) {
 		b.Enabled = true
 		b.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
 		b.SetAPIKeys(exch.APIKey, exch.APISecret, "", false)
+		b.SetHTTPClientTimeout(exch.HTTPTimeout)
 		b.RESTPollingDelay = exch.RESTPollingDelay
 		b.Verbose = exch.Verbose
 		b.Websocket = exch.Websocket

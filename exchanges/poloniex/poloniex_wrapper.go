@@ -3,6 +3,7 @@ package poloniex
 import (
 	"errors"
 	"log"
+	"sync"
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
@@ -12,8 +13,12 @@ import (
 )
 
 // Start starts the Poloniex go routine
-func (po *Poloniex) Start() {
-	go po.Run()
+func (po *Poloniex) Start(wg *sync.WaitGroup) {
+	wg.Add(1)
+	go func() {
+		po.Run()
+		wg.Done()
+	}()
 }
 
 // Run implements the Poloniex wrapper
@@ -38,7 +43,7 @@ func (po *Poloniex) Run() {
 				po.GetName())
 			forceUpdate = true
 		}
-		err = po.UpdateAvailableCurrencies(exchangeCurrencies, forceUpdate)
+		err = po.UpdateCurrencies(exchangeCurrencies, false, forceUpdate)
 		if err != nil {
 			log.Printf("%s Failed to update available currencies %s.\n", po.GetName(), err)
 		}

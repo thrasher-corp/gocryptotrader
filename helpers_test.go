@@ -229,7 +229,7 @@ func TestGetExchangeNamesByCurrency(t *testing.T) {
 func TestGetSpecificOrderbook(t *testing.T) {
 	SetupTestHelpers(t)
 
-	LoadExchange("Bitstamp")
+	LoadExchange("Bitstamp", false, nil)
 	p := pair.NewCurrencyPair("BTC", "USD")
 	bids := []orderbook.Item{}
 	bids = append(bids, orderbook.Item{Price: 1000, Amount: 1})
@@ -255,7 +255,7 @@ func TestGetSpecificOrderbook(t *testing.T) {
 func TestGetSpecificTicker(t *testing.T) {
 	SetupTestHelpers(t)
 
-	LoadExchange("Bitstamp")
+	LoadExchange("Bitstamp", false, nil)
 	p := pair.NewCurrencyPair("BTC", "USD")
 	ticker.ProcessTicker("Bitstamp", p, ticker.Price{Last: 1000}, ticker.Spot)
 

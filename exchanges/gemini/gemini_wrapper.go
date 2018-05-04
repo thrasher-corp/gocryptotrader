@@ -4,6 +4,7 @@ import (
 	"errors"
 	"log"
 	"net/url"
+	"sync"
 
 	"github.com/thrasher-/gocryptotrader/currency/pair"
 	"github.com/thrasher-/gocryptotrader/exchanges"
@@ -12,8 +13,12 @@ import (
 )
 
 // Start starts the Gemini go routine
-func (g *Gemini) Start() {
-	go g.Run()
+func (g *Gemini) Start(wg *sync.WaitGroup) {
+	wg.Add(1)
+	go func() {
+		g.Run()
+		wg.Done()
+	}()
 }
 
 // Run implements the Gemini wrapper
@@ -27,9 +32,9 @@ func (g *Gemini) Run() {
 	if err != nil {
 		log.Printf("%s Failed to get available symbols.\n", g.GetName())
 	} else {
-		err = g.UpdateAvailableCurrencies(exchangeProducts, false)
+		err = g.UpdateCurrencies(exchangeProducts, false, false)
 		if err != nil {
-			log.Printf("%s Failed to get config.\n", g.GetName())
+			log.Printf("%s Failed to update available currencies.\n", g.GetName())
 		}
 	}
 }

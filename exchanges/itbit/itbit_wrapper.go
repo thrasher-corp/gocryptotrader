@@ -4,6 +4,7 @@ import (
 	"errors"
 	"log"
 	"strconv"
+	"sync"
 
 	"github.com/thrasher-/gocryptotrader/currency/pair"
 	"github.com/thrasher-/gocryptotrader/exchanges"
@@ -12,8 +13,12 @@ import (
 )
 
 // Start starts the ItBit go routine
-func (i *ItBit) Start() {
-	go i.Run()
+func (i *ItBit) Start(wg *sync.WaitGroup) {
+	wg.Add(1)
+	go func() {
+		i.Run()
+		wg.Done()
+	}()
 }
 
 // Run implements the ItBit wrapper

@@ -4,10 +4,10 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-/gocryptotrader/common"
@@ -83,7 +83,6 @@ type OKCoin struct {
 	WebsocketErrors map[string]string
 	FuturesValues   []string
 	WebsocketConn   *websocket.Conn
-	*request.Handler
 }
 
 // setCurrencyPairFormats sets currency pair formatting for this package
@@ -105,7 +104,7 @@ func (o *OKCoin) SetDefaults() {
 	o.FuturesValues = []string{"this_week", "next_week", "quarter"}
 	o.AssetTypes = []string{ticker.Spot}
 	o.SupportsAutoPairUpdating = false
-	o.Handler = new(request.Handler)
+	o.SupportsRESTTickerBatching = false
 
 	if okcoinDefaultsSet {
 		o.AssetTypes = append(o.AssetTypes, o.FuturesValues...)
@@ -113,14 +112,14 @@ func (o *OKCoin) SetDefaults() {
 		o.Name = "OKCOIN International"
 		o.WebsocketURL = okcoinWebsocketURL
 		o.setCurrencyPairFormats()
-		o.SetRequestHandler(o.Name, okcoinAuthRate, okcoinUnauthRate, new(http.Client))
+		o.Requester = request.New(o.Name, request.NewRateLimit(time.Second, okcoinAuthRate), request.NewRateLimit(time.Second, okcoinUnauthRate), common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 	} else {
 		o.APIUrl = okcoinAPIURLChina
 		o.Name = "OKCOIN China"
 		o.WebsocketURL = okcoinWebsocketURLChina
 		okcoinDefaultsSet = true
 		o.setCurrencyPairFormats()
-		o.SetRequestHandler(o.Name, okcoinAuthRate, okcoinUnauthRate, new(http.Client))
+		o.Requester = request.New(o.Name, request.NewRateLimit(time.Second, okcoinAuthRate), request.NewRateLimit(time.Second, okcoinUnauthRate), common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 	}
 }
 
@@ -132,6 +131,7 @@ func (o *OKCoin) Setup(exch config.ExchangeConfig) {
 		o.Enabled = true
 		o.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
 		o.SetAPIKeys(exch.APIKey, exch.APISecret, "", false)
+		o.SetHTTPClientTimeout(exch.HTTPTimeout)
 		o.RESTPollingDelay = exch.RESTPollingDelay
 		o.Verbose = exch.Verbose
 		o.Websocket = exch.Websocket

@@ -5,9 +5,9 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"net/http"
 	"net/url"
 	"strconv"
+	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
@@ -49,8 +49,8 @@ const (
 	gdaxCoinbaseAccounts        = "coinbase-accounts"
 	gdaxTrailingVolume          = "users/self/trailing-volume"
 
-	gdaxAuthRate   = 0
-	gdaxUnauthRate = 0
+	gdaxAuthRate   = 5
+	gdaxUnauthRate = 3
 )
 
 var sometin []string
@@ -58,7 +58,6 @@ var sometin []string
 // GDAX is the overarching type across the GDAX package
 type GDAX struct {
 	exchange.Base
-	*request.Handler
 }
 
 // SetDefaults sets default values for the exchange
@@ -77,8 +76,8 @@ func (g *GDAX) SetDefaults() {
 	g.AssetTypes = []string{ticker.Spot}
 	g.APIUrl = gdaxAPIURL
 	g.SupportsAutoPairUpdating = true
-	g.Handler = new(request.Handler)
-	g.SetRequestHandler(g.Name, gdaxAuthRate, gdaxUnauthRate, new(http.Client))
+	g.SupportsRESTTickerBatching = false
+	g.Requester = request.New(g.Name, request.NewRateLimit(time.Second, gdaxAuthRate), request.NewRateLimit(time.Second, gdaxUnauthRate), common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 }
 
 // Setup initialises the exchange parameters with the current configuration
@@ -89,6 +88,7 @@ func (g *GDAX) Setup(exch config.ExchangeConfig) {
 		g.Enabled = true
 		g.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
 		g.SetAPIKeys(exch.APIKey, exch.APISecret, exch.ClientID, true)
+		g.SetHTTPClientTimeout(exch.HTTPTimeout)
 		g.RESTPollingDelay = exch.RESTPollingDelay
 		g.Verbose = exch.Verbose
 		g.Websocket = exch.Websocket

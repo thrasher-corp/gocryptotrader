@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"net/http"
 	"net/url"
 	"strconv"
 	"time"
@@ -38,7 +37,6 @@ const (
 // ItBit is the overarching type across the ItBit package
 type ItBit struct {
 	exchange.Base
-	*request.Handler
 }
 
 // SetDefaults sets the defaults for the exchange
@@ -56,8 +54,8 @@ func (i *ItBit) SetDefaults() {
 	i.ConfigCurrencyPairFormat.Uppercase = true
 	i.AssetTypes = []string{ticker.Spot}
 	i.SupportsAutoPairUpdating = false
-	i.Handler = new(request.Handler)
-	i.SetRequestHandler(i.Name, itbitAuthRate, itbitUnauthRate, new(http.Client))
+	i.SupportsRESTTickerBatching = false
+	i.Requester = request.New(i.Name, request.NewRateLimit(time.Second, itbitAuthRate), request.NewRateLimit(time.Second, itbitUnauthRate), common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 }
 
 // Setup sets the exchange parameters from exchange config
@@ -68,6 +66,7 @@ func (i *ItBit) Setup(exch config.ExchangeConfig) {
 		i.Enabled = true
 		i.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
 		i.SetAPIKeys(exch.APIKey, exch.APISecret, exch.ClientID, false)
+		i.SetHTTPClientTimeout(exch.HTTPTimeout)
 		i.RESTPollingDelay = exch.RESTPollingDelay
 		i.Verbose = exch.Verbose
 		i.Websocket = exch.Websocket

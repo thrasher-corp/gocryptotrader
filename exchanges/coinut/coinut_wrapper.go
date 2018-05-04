@@ -3,6 +3,7 @@ package coinut
 import (
 	"errors"
 	"log"
+	"sync"
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
@@ -12,8 +13,12 @@ import (
 )
 
 // Start starts the COINUT go routine
-func (c *COINUT) Start() {
-	go c.Run()
+func (c *COINUT) Start(wg *sync.WaitGroup) {
+	wg.Add(1)
+	go func() {
+		c.Run()
+		wg.Done()
+	}()
 }
 
 // Run implements the COINUT wrapper
@@ -41,9 +46,9 @@ func (c *COINUT) Run() {
 		currencies = append(currencies, x)
 	}
 
-	err = c.UpdateAvailableCurrencies(currencies, false)
+	err = c.UpdateCurrencies(currencies, false, false)
 	if err != nil {
-		log.Printf("%s Failed to get config.\n", c.GetName())
+		log.Printf("%s Failed to update available currencies.\n", c.GetName())
 	}
 }
 

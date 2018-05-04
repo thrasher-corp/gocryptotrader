@@ -3,6 +3,7 @@ package okcoin
 import (
 	"errors"
 	"log"
+	"sync"
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
@@ -12,8 +13,12 @@ import (
 )
 
 // Start starts the OKCoin go routine
-func (o *OKCoin) Start() {
-	go o.Run()
+func (o *OKCoin) Start(wg *sync.WaitGroup) {
+	wg.Add(1)
+	go func() {
+		o.Run()
+		wg.Done()
+	}()
 }
 
 // Run implements the OKCoin wrapper

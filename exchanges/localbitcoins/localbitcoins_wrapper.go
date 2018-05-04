@@ -3,6 +3,7 @@ package localbitcoins
 import (
 	"errors"
 	"log"
+	"sync"
 
 	"github.com/thrasher-/gocryptotrader/currency/pair"
 	"github.com/thrasher-/gocryptotrader/exchanges"
@@ -11,8 +12,12 @@ import (
 )
 
 // Start starts the LocalBitcoins go routine
-func (l *LocalBitcoins) Start() {
-	go l.Run()
+func (l *LocalBitcoins) Start(wg *sync.WaitGroup) {
+	wg.Add(1)
+	go func() {
+		l.Run()
+		wg.Done()
+	}()
 }
 
 // Run implements the LocalBitcoins wrapper

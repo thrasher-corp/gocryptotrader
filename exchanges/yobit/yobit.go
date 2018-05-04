@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
@@ -44,7 +43,6 @@ const (
 type Yobit struct {
 	exchange.Base
 	Ticker map[string]Ticker
-	*request.Handler
 }
 
 // SetDefaults sets current default value for Yobit
@@ -65,8 +63,8 @@ func (y *Yobit) SetDefaults() {
 	y.ConfigCurrencyPairFormat.Uppercase = true
 	y.AssetTypes = []string{ticker.Spot}
 	y.SupportsAutoPairUpdating = false
-	y.Handler = new(request.Handler)
-	y.SetRequestHandler(y.Name, yobitAuthRate, yobitUnauthRate, new(http.Client))
+	y.SupportsRESTTickerBatching = true
+	y.Requester = request.New(y.Name, request.NewRateLimit(time.Second, yobitAuthRate), request.NewRateLimit(time.Second, yobitUnauthRate), common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 }
 
 // Setup sets exchange configuration parameters for Yobit
@@ -83,6 +81,7 @@ func (y *Yobit) Setup(exch config.ExchangeConfig) {
 		y.BaseCurrencies = common.SplitStrings(exch.BaseCurrencies, ",")
 		y.AvailablePairs = common.SplitStrings(exch.AvailablePairs, ",")
 		y.EnabledPairs = common.SplitStrings(exch.EnabledPairs, ",")
+		y.SetHTTPClientTimeout(exch.HTTPTimeout)
 		err := y.SetCurrencyPairFormat()
 		if err != nil {
 			log.Fatal(err)

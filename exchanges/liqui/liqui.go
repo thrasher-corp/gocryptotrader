@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
@@ -43,7 +42,6 @@ type Liqui struct {
 	exchange.Base
 	Ticker map[string]Ticker
 	Info   Info
-	*request.Handler
 }
 
 // SetDefaults sets current default values for liqui
@@ -62,8 +60,8 @@ func (l *Liqui) SetDefaults() {
 	l.ConfigCurrencyPairFormat.Uppercase = true
 	l.AssetTypes = []string{ticker.Spot}
 	l.SupportsAutoPairUpdating = true
-	l.Handler = new(request.Handler)
-	l.SetRequestHandler(l.Name, liquiAuthRate, liquiUnauthRate, new(http.Client))
+	l.SupportsRESTTickerBatching = true
+	l.Requester = request.New(l.Name, request.NewRateLimit(time.Second, liquiAuthRate), request.NewRateLimit(time.Second, liquiUnauthRate), common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 }
 
 // Setup sets exchange configuration parameters for liqui
@@ -74,6 +72,7 @@ func (l *Liqui) Setup(exch config.ExchangeConfig) {
 		l.Enabled = true
 		l.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
 		l.SetAPIKeys(exch.APIKey, exch.APISecret, "", false)
+		l.SetHTTPClientTimeout(exch.HTTPTimeout)
 		l.RESTPollingDelay = exch.RESTPollingDelay
 		l.Verbose = exch.Verbose
 		l.Websocket = exch.Websocket

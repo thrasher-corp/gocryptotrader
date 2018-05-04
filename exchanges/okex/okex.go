@@ -4,11 +4,11 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"net/http"
 	"net/url"
 	"reflect"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
@@ -87,8 +87,6 @@ type OKEX struct {
 	CurrencyPairs    []string
 	ContractPosition []string
 	Types            []string
-
-	*request.Handler
 }
 
 // SetDefaults method assignes the default values for Bittrex
@@ -105,8 +103,8 @@ func (o *OKEX) SetDefaults() {
 	o.ConfigCurrencyPairFormat.Delimiter = "_"
 	o.ConfigCurrencyPairFormat.Uppercase = false
 	o.SupportsAutoPairUpdating = false
-	o.Handler = new(request.Handler)
-	o.SetRequestHandler(o.Name, okexAuthRate, okexUnauthRate, new(http.Client))
+	o.SupportsRESTTickerBatching = false
+	o.Requester = request.New(o.Name, request.NewRateLimit(time.Second, okexAuthRate), request.NewRateLimit(time.Second, okexUnauthRate), common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 }
 
 // Setup method sets current configuration details if enabled
@@ -117,6 +115,7 @@ func (o *OKEX) Setup(exch config.ExchangeConfig) {
 		o.Enabled = true
 		o.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
 		o.SetAPIKeys(exch.APIKey, exch.APISecret, exch.ClientID, false)
+		o.SetHTTPClientTimeout(exch.HTTPTimeout)
 		o.RESTPollingDelay = exch.RESTPollingDelay
 		o.Verbose = exch.Verbose
 		o.Websocket = exch.Websocket
@@ -618,7 +617,7 @@ func (o *OKEX) GetSpotTicker(symbol string) (SpotPrice, error) {
 	values.Set("symbol", symbol)
 	path := fmt.Sprintf("%s%s%s.do?%s", apiURL, apiVersion, "ticker", values.Encode())
 
-	err := common.SendHTTPGetRequest(path, true, o.Verbose, &resp)
+	err := o.SendHTTPRequest(path, &resp)
 	if err != nil {
 		return resp, err
 	}
@@ -640,7 +639,7 @@ func (o *OKEX) GetSpotMarketDepth(symbol, size string) (ActualSpotDepth, error) 
 
 	path := fmt.Sprintf("%s%s%s.do?%s", apiURL, apiVersion, "depth", values.Encode())
 
-	err := common.SendHTTPGetRequest(path, true, o.Verbose, &resp)
+	err := o.SendHTTPRequest(path, &resp)
 	if err != nil {
 		return fullDepth, err
 	}
@@ -697,7 +696,7 @@ func (o *OKEX) GetSpotRecentTrades(symbol, since string) ([]ActualSpotTradeHisto
 
 	path := fmt.Sprintf("%s%s%s.do?%s", apiURL, apiVersion, "trades", values.Encode())
 
-	err := common.SendHTTPGetRequest(path, true, o.Verbose, &resp)
+	err := o.SendHTTPRequest(path, &resp)
 	if err != nil {
 		return actualTradeHistory, err
 	}
@@ -735,7 +734,7 @@ func (o *OKEX) GetSpotCandleStick(symbol, typeInput string, size, since int) ([]
 	path := fmt.Sprintf("%s%s%s.do?%s", apiURL, apiVersion, "kline", values.Encode())
 	var resp interface{}
 
-	if err := common.SendHTTPGetRequest(path, true, o.Verbose, &resp); err != nil {
+	if err := o.SendHTTPRequest(path, &resp); err != nil {
 		return candleData, err
 	}
 

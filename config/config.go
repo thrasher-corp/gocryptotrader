@@ -28,6 +28,7 @@ const (
 	configFileEncryptionEnabled            = 1
 	configFileEncryptionDisabled           = -1
 	configPairsLastUpdatedWarningThreshold = 30 // 30 days
+	configDefaultHTTPTimeout               = time.Duration(time.Second * 15)
 )
 
 // Variables here are mainly alerts and a configuration object
@@ -95,6 +96,7 @@ type Config struct {
 	CurrencyExchangeProvider string
 	CurrencyPairFormat       *CurrencyPairFormatConfig `json:"CurrencyPairFormat"`
 	FiatDisplayCurrency      string
+	GlobalHTTPTimeout        time.Duration
 	Portfolio                portfolio.Base   `json:"PortfolioAddresses"`
 	SMS                      SMSGlobalConfig  `json:"SMSGlobal"`
 	Webserver                WebserverConfig  `json:"Webserver"`
@@ -110,6 +112,7 @@ type ExchangeConfig struct {
 	Websocket                 bool
 	UseSandbox                bool
 	RESTPollingDelay          time.Duration
+	HTTPTimeout               time.Duration
 	AuthenticatedAPISupport   bool
 	APIKey                    string
 	APISecret                 string
@@ -303,6 +306,11 @@ func (c *Config) CheckExchangeConfigValues() error {
 				if lastUpdated.Unix() >= time.Now().Unix() {
 					log.Printf(WarningPairsLastUpdatedThresholdExceeded, exch.Name, configPairsLastUpdatedWarningThreshold)
 				}
+			}
+
+			if exch.HTTPTimeout <= 0 {
+				log.Printf("Exchange %s HTTP Timeout value not set, defaulting to %v.", exch.Name, configDefaultHTTPTimeout)
+				c.Exchanges[i].HTTPTimeout = configDefaultHTTPTimeout
 			}
 			exchanges++
 		}
@@ -550,6 +558,11 @@ func (c *Config) LoadConfig(configPath string) error {
 
 	if c.FiatDisplayCurrency == "" {
 		c.FiatDisplayCurrency = "USD"
+	}
+
+	if c.GlobalHTTPTimeout <= 0 {
+		log.Printf("Global HTTP Timeout value not set, defaulting to %v.", configDefaultHTTPTimeout)
+		c.GlobalHTTPTimeout = configDefaultHTTPTimeout
 	}
 
 	return nil

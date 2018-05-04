@@ -4,6 +4,7 @@ import (
 	"errors"
 	"log"
 	"strconv"
+	"sync"
 
 	"github.com/thrasher-/gocryptotrader/currency/pair"
 	"github.com/thrasher-/gocryptotrader/exchanges"
@@ -12,8 +13,12 @@ import (
 )
 
 // Start starts the ANX go routine
-func (a *ANX) Start() {
-	go a.Run()
+func (a *ANX) Start(wg *sync.WaitGroup) {
+	wg.Add(1)
+	go func() {
+		a.Run()
+		wg.Done()
+	}()
 }
 
 // Run implements the ANX wrapper

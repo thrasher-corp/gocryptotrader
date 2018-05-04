@@ -329,3 +329,32 @@ func TestCopyPairFormat(t *testing.T) {
 		t.Error("Test failed. TestCopyPairFormat: Unexpected non empty pair returned")
 	}
 }
+
+func TestFindPairDifferences(t *testing.T) {
+	pairList := []string{"BTC-USD", "ETH-USD", "LTC-USD"}
+
+	// Test new pair update
+	newPairs, removedPairs := FindPairDifferences(pairList, []string{"DASH-USD"})
+	if len(newPairs) != 1 && len(removedPairs) != 3 {
+		t.Error("Test failed. TestFindPairDifferences: Unexpected values")
+	}
+
+	// Test that we don't allow empty strings for new pairs
+	newPairs, removedPairs = FindPairDifferences(pairList, []string{""})
+	if len(newPairs) != 0 && len(removedPairs) != 3 {
+		t.Error("Test failed. TestFindPairDifferences: Unexpected values")
+	}
+
+	// Test that we don't allow empty strings for new pairs
+	newPairs, removedPairs = FindPairDifferences([]string{""}, pairList)
+	if len(newPairs) != 3 && len(removedPairs) != 0 {
+		t.Error("Test failed. TestFindPairDifferences: Unexpected values")
+	}
+
+	// Test that the supplied pair lists are the same, so
+	// no newPairs or removedPairs
+	newPairs, removedPairs = FindPairDifferences(pairList, pairList)
+	if len(newPairs) != 0 && len(removedPairs) != 0 {
+		t.Error("Test failed. TestFindPairDifferences: Unexpected values")
+	}
+}

@@ -29,6 +29,11 @@ import (
 	"time"
 )
 
+// Vars for common.go operations
+var (
+	HTTPClient *http.Client
+)
+
 // Const declarations for common.go operations
 const (
 	HashSHA1 = iota
@@ -39,6 +44,20 @@ const (
 	SatoshisPerLTC = 100000000
 	WeiPerEther    = 1000000000000000000
 )
+
+func initialiseHTTPClient() {
+	// If the HTTPClient isn't set, start a new client with a default timeout of 5 seconds
+	if HTTPClient == nil {
+		HTTPClient = NewHTTPClientWithTimeout(time.Duration(time.Second * 5))
+	}
+}
+
+// NewHTTPClientWithTimeout initalises a new HTTP client with the specified
+// timeout duration
+func NewHTTPClientWithTimeout(t time.Duration) *http.Client {
+	h := &http.Client{Timeout: t}
+	return h
+}
 
 // GetMD5 returns a MD5 hash of a byte array
 func GetMD5(input []byte) []byte {
@@ -149,6 +168,17 @@ func StringDataContains(haystack []string, needle string) bool {
 func StringDataCompare(haystack []string, needle string) bool {
 	for x := range haystack {
 		if haystack[x] == needle {
+			return true
+		}
+	}
+	return false
+}
+
+// StringDataCompareUpper data checks the substring array with an input and returns
+// a bool irrespective of lower or upper case strings
+func StringDataCompareUpper(haystack []string, needle string) bool {
+	for x := range haystack {
+		if StringToUpper(haystack[x]) == StringToUpper(needle) {
 			return true
 		}
 	}
@@ -288,6 +318,8 @@ func SendHTTPRequest(method, path string, headers map[string]string, body io.Rea
 		return "", errors.New("invalid HTTP method specified")
 	}
 
+	initialiseHTTPClient()
+
 	req, err := http.NewRequest(method, path, body)
 
 	if err != nil {
@@ -298,8 +330,7 @@ func SendHTTPRequest(method, path string, headers map[string]string, body io.Rea
 		req.Header.Add(k, v)
 	}
 
-	httpClient := &http.Client{}
-	resp, err := httpClient.Do(req)
+	resp, err := HTTPClient.Do(req)
 
 	if err != nil {
 		return "", err
@@ -323,7 +354,9 @@ func SendHTTPGetRequest(url string, jsonDecode, isVerbose bool, result interface
 		log.Println("Raw URL: ", url)
 	}
 
-	res, err := http.Get(url)
+	initialiseHTTPClient()
+
+	res, err := HTTPClient.Get(url)
 	if err != nil {
 		return err
 	}
@@ -346,7 +379,6 @@ func SendHTTPGetRequest(url string, jsonDecode, isVerbose bool, result interface
 	if jsonDecode {
 		err := JSONDecode(contents, result)
 		if err != nil {
-			log.Println(string(contents[:]))
 			return err
 		}
 	}

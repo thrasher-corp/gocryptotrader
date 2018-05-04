@@ -3,6 +3,7 @@ package binance
 import (
 	"errors"
 	"log"
+	"sync"
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
@@ -12,8 +13,12 @@ import (
 )
 
 // Start starts the OKEX go routine
-func (b *Binance) Start() {
-	go b.Run()
+func (b *Binance) Start(wg *sync.WaitGroup) {
+	wg.Add(1)
+	go func() {
+		b.Run()
+		wg.Done()
+	}()
 }
 
 // Run implements the OKEX wrapper
@@ -37,12 +42,12 @@ func (b *Binance) Run() {
 			enabledPairs := []string{"BTC-USDT"}
 			log.Println("WARNING: Available pairs for Binance reset due to config upgrade, please enable the ones you would like again")
 
-			err = b.UpdateEnabledCurrencies(enabledPairs, true)
+			err = b.UpdateCurrencies(enabledPairs, true, true)
 			if err != nil {
 				log.Printf("%s Failed to get config.\n", b.GetName())
 			}
 		}
-		err = b.UpdateAvailableCurrencies(symbols, forceUpgrade)
+		err = b.UpdateCurrencies(symbols, false, forceUpgrade)
 		if err != nil {
 			log.Printf("%s Failed to get config.\n", b.GetName())
 		}

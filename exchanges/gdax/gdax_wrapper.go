@@ -3,6 +3,7 @@ package gdax
 import (
 	"errors"
 	"log"
+	"sync"
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
@@ -12,8 +13,12 @@ import (
 )
 
 // Start starts the GDAX go routine
-func (g *GDAX) Start() {
-	go g.Run()
+func (g *GDAX) Start(wg *sync.WaitGroup) {
+	wg.Add(1)
+	go func() {
+		g.Run()
+		wg.Done()
+	}()
 }
 
 // Run implements the GDAX wrapper
@@ -38,9 +43,9 @@ func (g *GDAX) Run() {
 				currencies = append(currencies, x.ID[0:3]+x.ID[4:])
 			}
 		}
-		err = g.UpdateAvailableCurrencies(currencies, false)
+		err = g.UpdateCurrencies(currencies, false, false)
 		if err != nil {
-			log.Printf("%s Failed to get config.\n", g.GetName())
+			log.Printf("%s Failed to update available currencies.\n", g.GetName())
 		}
 	}
 }

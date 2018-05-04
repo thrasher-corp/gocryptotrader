@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"net/http"
 	"net/url"
 	"strconv"
 	"time"
@@ -48,14 +47,13 @@ const (
 	huobiWithdrawCreate       = "dw/withdraw/api/create"
 	huobiWithdrawCancel       = "dw/withdraw-virtual/%s/cancel"
 
-	huobiAuthRate   = 0
-	huobiUnauthRate = 0
+	huobiAuthRate   = 100
+	huobiUnauthRate = 100
 )
 
 // HUOBI is the overarching type across this package
 type HUOBI struct {
 	exchange.Base
-	*request.Handler
 }
 
 // SetDefaults sets default values for the exchange
@@ -72,8 +70,8 @@ func (h *HUOBI) SetDefaults() {
 	h.ConfigCurrencyPairFormat.Uppercase = true
 	h.AssetTypes = []string{ticker.Spot}
 	h.SupportsAutoPairUpdating = true
-	h.Handler = new(request.Handler)
-	h.SetRequestHandler(h.Name, huobiAuthRate, huobiUnauthRate, new(http.Client))
+	h.SupportsRESTTickerBatching = false
+	h.Requester = request.New(h.Name, request.NewRateLimit(time.Second*10, huobiAuthRate), request.NewRateLimit(time.Second*10, huobiUnauthRate), common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 }
 
 // Setup sets user configuration
@@ -84,6 +82,7 @@ func (h *HUOBI) Setup(exch config.ExchangeConfig) {
 		h.Enabled = true
 		h.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
 		h.SetAPIKeys(exch.APIKey, exch.APISecret, "", false)
+		h.SetHTTPClientTimeout(exch.HTTPTimeout)
 		h.RESTPollingDelay = exch.RESTPollingDelay
 		h.Verbose = exch.Verbose
 		h.Websocket = exch.Websocket

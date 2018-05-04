@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"net/http"
 	"net/url"
 	"strconv"
 	"time"
@@ -24,7 +23,6 @@ type Binance struct {
 	// valid string list that a required by the exchange
 	validLimits    []string
 	validIntervals []string
-	*request.Handler
 }
 
 const (
@@ -47,8 +45,9 @@ const (
 	queryOrder   = "/api/v3/order"
 
 	// binance authenticated and unauthenticated limit rates
-	binanceAuthRate   = 1000
-	binanceUnauthRate = 1000
+	// to-do
+	binanceAuthRate   = 0
+	binanceUnauthRate = 0
 )
 
 // SetDefaults sets the basic defaults for Binance
@@ -64,9 +63,9 @@ func (b *Binance) SetDefaults() {
 	b.ConfigCurrencyPairFormat.Uppercase = true
 	b.AssetTypes = []string{ticker.Spot}
 	b.SupportsAutoPairUpdating = true
+	b.SupportsRESTTickerBatching = true
 	b.SetValues()
-	b.Handler = new(request.Handler)
-	b.SetRequestHandler(b.Name, binanceAuthRate, binanceUnauthRate, new(http.Client))
+	b.Requester = request.New(b.Name, request.NewRateLimit(time.Second, binanceAuthRate), request.NewRateLimit(time.Second, binanceUnauthRate), common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 }
 
 // Setup takes in the supplied exchange configuration details and sets params
@@ -77,6 +76,7 @@ func (b *Binance) Setup(exch config.ExchangeConfig) {
 		b.Enabled = true
 		b.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
 		b.SetAPIKeys(exch.APIKey, exch.APISecret, "", false)
+		b.SetHTTPClientTimeout(exch.HTTPTimeout)
 		b.RESTPollingDelay = exch.RESTPollingDelay
 		b.Verbose = exch.Verbose
 		b.Websocket = exch.Websocket

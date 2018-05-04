@@ -4,6 +4,7 @@ import (
 	"errors"
 	"log"
 	"net/url"
+	"sync"
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
@@ -13,8 +14,12 @@ import (
 )
 
 // Start starts the Bitfinex go routine
-func (b *Bitfinex) Start() {
-	go b.Run()
+func (b *Bitfinex) Start(wg *sync.WaitGroup) {
+	wg.Add(1)
+	go func() {
+		b.Run()
+		wg.Done()
+	}()
 }
 
 // Run implements the Bitfinex wrapper
@@ -33,9 +38,9 @@ func (b *Bitfinex) Run() {
 	if err != nil {
 		log.Printf("%s Failed to get available symbols.\n", b.GetName())
 	} else {
-		err = b.UpdateAvailableCurrencies(exchangeProducts, false)
+		err = b.UpdateCurrencies(exchangeProducts, false, false)
 		if err != nil {
-			log.Printf("%s Failed to get config.\n", b.GetName())
+			log.Printf("%s Failed to update available symbols.\n", b.GetName())
 		}
 	}
 }

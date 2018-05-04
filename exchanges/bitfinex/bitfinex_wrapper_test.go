@@ -2,7 +2,7 @@ package bitfinex
 
 // func TestStart(t *testing.T) {
 // 	start := Bitfinex{}
-// 	start.Start()
+// 	start.Start(wg *sync.WaitGroup)
 // }
 //
 // func TestRun(t *testing.T) {

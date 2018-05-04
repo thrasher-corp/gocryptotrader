@@ -2,259 +2,306 @@ package request
 
 import (
 	"errors"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"log"
 	"net/http"
-	"strings"
 	"sync"
 	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
 )
 
-const (
-	maxJobQueue = 100
-	maxHandles  = 27
-)
+var supportedMethods = []string{"GET", "POST", "HEAD", "PUT", "DELETE", "OPTIONS", "CONNECT"}
 
-var request service
-
-type service struct {
-	exchangeHandlers []*Handler
+// Requester struct for the request client
+type Requester struct {
+	HTTPClient  *http.Client
+	UnauthLimit RateLimit
+	AuthLimit   RateLimit
+	Name        string
+	Cycle       time.Time
+	m           sync.Mutex
 }
 
-// checkHandles checks to see if there is a handle monitored by the service
-func (s *service) checkHandles(exchName string, h *Handler) bool {
-	for _, handle := range s.exchangeHandlers {
-		if exchName == handle.exchName || handle == h {
+// RateLimit struct
+type RateLimit struct {
+	Duration time.Duration
+	Rate     int
+	Requests int
+	Mutex    sync.Mutex
+}
+
+// NewRateLimit creates a new RateLimit
+func NewRateLimit(d time.Duration, rate int) RateLimit {
+	return RateLimit{Duration: d, Rate: rate}
+}
+
+// ToString returns the rate limiter in string notation
+func (r *RateLimit) ToString() string {
+	return fmt.Sprintf("Rate limiter set to %d requests per %v", r.Rate, r.Duration)
+}
+
+// GetRate returns the ratelimit rate
+func (r *RateLimit) GetRate() int {
+	r.Mutex.Lock()
+	defer r.Mutex.Unlock()
+	return r.Rate
+}
+
+// SetRate sets the ratelimit rate
+func (r *RateLimit) SetRate(rate int) {
+	r.Mutex.Lock()
+	defer r.Mutex.Unlock()
+	r.Rate = rate
+}
+
+// GetRequests returns the number of requests for the ratelimit
+func (r *RateLimit) GetRequests() int {
+	r.Mutex.Lock()
+	defer r.Mutex.Unlock()
+	return r.Requests
+}
+
+// SetRequests sets requests counter for the rateliit
+func (r *RateLimit) SetRequests(l int) {
+	r.Mutex.Lock()
+	defer r.Mutex.Unlock()
+	r.Requests = l
+}
+
+// SetDuration sets the duration for the ratelimit
+func (r *RateLimit) SetDuration(d time.Duration) {
+	r.Mutex.Lock()
+	defer r.Mutex.Unlock()
+	r.Duration = d
+}
+
+// GetDuration gets the duration for the ratelimit
+func (r *RateLimit) GetDuration() time.Duration {
+	r.Mutex.Lock()
+	defer r.Mutex.Unlock()
+	return r.Duration
+}
+
+// StartCycle restarts the cycle time and requests counters
+func (r *Requester) StartCycle() {
+	r.Cycle = time.Now()
+	r.AuthLimit.SetRequests(0)
+	r.UnauthLimit.SetRequests(0)
+}
+
+// IsRateLimited returns whether or not the request Requester is rate limited
+func (r *Requester) IsRateLimited(auth bool) bool {
+	if auth {
+		if r.AuthLimit.GetRequests() >= r.AuthLimit.GetRate() && r.IsValidCycle(auth) {
+			return true
+		}
+	} else {
+		if r.UnauthLimit.GetRequests() >= r.UnauthLimit.GetRate() && r.IsValidCycle(auth) {
 			return true
 		}
 	}
 	return false
 }
 
-// removeHandle releases handle from service
-func (s *service) removeHandle(exchName string) bool {
-	for i, handle := range s.exchangeHandlers {
-		if exchName == handle.exchName {
-			handle.shutdown = true
-			handle.wg.Wait()
-			new := append(s.exchangeHandlers[:i-1], s.exchangeHandlers[i+1:]...)
-			s.exchangeHandlers = new
+// RequiresRateLimiter returns whether or not the request Requester requires a rate limiter
+func (r *Requester) RequiresRateLimiter() bool {
+	if r.AuthLimit.GetRate() != 0 || r.UnauthLimit.GetRate() != 0 {
+		return true
+	}
+	return false
+}
+
+// IncrementRequests increments the ratelimiter request counter for either auth or unauth
+// requests
+func (r *Requester) IncrementRequests(auth bool) {
+	if auth {
+		reqs := r.AuthLimit.GetRequests()
+		reqs++
+		r.AuthLimit.SetRequests(reqs)
+		return
+	}
+
+	reqs := r.AuthLimit.GetRequests()
+	reqs++
+	r.UnauthLimit.SetRequests(reqs)
+}
+
+// DecrementRequests decrements the ratelimiter request counter for either auth or unauth
+// requests
+func (r *Requester) DecrementRequests(auth bool) {
+	if auth {
+		reqs := r.AuthLimit.GetRequests()
+		reqs--
+		r.AuthLimit.SetRequests(reqs)
+		return
+	}
+
+	reqs := r.AuthLimit.GetRequests()
+	reqs--
+	r.UnauthLimit.SetRequests(reqs)
+}
+
+// SetRateLimit sets the request Requester ratelimiter
+func (r *Requester) SetRateLimit(auth bool, duration time.Duration, rate int) {
+	if auth {
+		r.AuthLimit.SetRate(rate)
+		r.AuthLimit.SetDuration(duration)
+		return
+	}
+	r.UnauthLimit.SetRate(rate)
+	r.UnauthLimit.SetDuration(duration)
+}
+
+// GetRateLimit gets the request Requester ratelimiter
+func (r *Requester) GetRateLimit(auth bool) RateLimit {
+	if auth {
+		return r.AuthLimit
+	}
+	return r.UnauthLimit
+}
+
+// New returns a new Requester
+func New(name string, authLimit, unauthLimit RateLimit, httpRequester *http.Client) *Requester {
+	r := &Requester{HTTPClient: httpRequester, UnauthLimit: unauthLimit, AuthLimit: authLimit, Name: name}
+	return r
+}
+
+// IsValidMethod returns whether the supplied method is supported
+func IsValidMethod(method string) bool {
+	return common.StringDataCompareUpper(supportedMethods, method)
+}
+
+// IsValidCycle checks to see whether the current request cycle is valid or not
+func (r *Requester) IsValidCycle(auth bool) bool {
+	if auth {
+		if time.Since(r.Cycle) < r.AuthLimit.GetDuration() {
+			return true
+		}
+	} else {
+		if time.Since(r.Cycle) < r.UnauthLimit.GetDuration() {
 			return true
 		}
 	}
 	return false
 }
 
-// limit contains the limit rate value which has a Mutex
-type limit struct {
-	Val time.Duration
-	sync.Mutex
-}
-
-// getLimitRate returns limit rate with a protected call
-func (l *limit) getLimitRate() time.Duration {
-	l.Lock()
-	defer l.Unlock()
-	return l.Val
-}
-
-// setLimitRates sets initial limit rates with a protected call
-func (l *limit) setLimitRate(rate int) {
-	l.Lock()
-	l.Val = time.Duration(rate) * time.Millisecond
-	l.Unlock()
-}
-
-// Handler is a generic exchange specific request handler.
-type Handler struct {
-	exchName     string
-	Client       *http.Client
-	shutdown     bool
-	LimitAuth    *limit
-	LimitUnauth  *limit
-	requests     chan *exchRequest
-	responses    chan *exchResponse
-	timeLockAuth chan int
-	timeLock     chan int
-	wg           sync.WaitGroup
-}
-
-// SetRequestHandler sets initial variables for the request handler and returns
-// an error
-func (h *Handler) SetRequestHandler(exchName string, authRate, unauthRate int, client *http.Client) error {
-	if request.checkHandles(exchName, h) {
-		return errors.New("handler already registered for an exchange")
-	}
-
-	h.exchName = exchName
-	h.Client = client
-	h.shutdown = false
-	h.LimitAuth = new(limit)
-	h.LimitAuth.setLimitRate(authRate)
-	h.LimitUnauth = new(limit)
-	h.LimitUnauth.setLimitRate(unauthRate)
-	h.requests = make(chan *exchRequest, maxJobQueue)
-	h.responses = make(chan *exchResponse, 1)
-	h.timeLockAuth = make(chan int, 1)
-	h.timeLock = make(chan int, 1)
-
-	request.exchangeHandlers = append(request.exchangeHandlers, h)
-	h.startWorkers()
-
-	return nil
-}
-
-// SetRateLimit sets limit rates for exchange requests
-func (h *Handler) SetRateLimit(authRate, unauthRate int) {
-	h.LimitAuth.setLimitRate(authRate)
-	h.LimitUnauth.setLimitRate(unauthRate)
-}
-
-// SendPayload packages a request, sends it to a channel, then a worker executes it
-func (h *Handler) SendPayload(method, path string, headers map[string]string, body io.Reader, result interface{}, authRequest, verbose bool) error {
-	if h.exchName == "" {
-		return errors.New("request handler not initialised")
-	}
-
-	method = strings.ToUpper(method)
-
-	if method != "POST" && method != "GET" && method != "DELETE" {
-		return errors.New("incorrect method - either POST, GET or DELETE")
-	}
-
-	if verbose {
-		log.Printf("%s exchange request path: %s", h.exchName, path)
-	}
-
+func (r *Requester) checkRequest(method, path string, body io.Reader, headers map[string]string) (*http.Request, error) {
 	req, err := http.NewRequest(method, path, body)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	for k, v := range headers {
 		req.Header.Add(k, v)
 	}
 
-	err = h.attachJob(req, path, authRequest)
-	if err != nil {
-		return err
-	}
+	return req, nil
+}
 
-	contents, err := h.getResponse()
-	if err != nil {
-		return err
-	}
-
+// DoRequest performs a HTTP/HTTPS request with the supplied params
+func (r *Requester) DoRequest(req *http.Request, method, path string, headers map[string]string, body io.Reader, result interface{}, authRequest, verbose bool) error {
 	if verbose {
-		log.Printf("%s exchange raw response: %s", h.exchName, string(contents[:]))
+		log.Printf("%s exchange request path: %s", r.Name, path)
 	}
 
-	return common.JSONDecode(contents, result)
-}
+	var resp *http.Response
+	var err error
 
-func (h *Handler) startWorkers() {
-	h.wg.Add(3)
-	go h.requestWorker()
-
-	// routine to monitor Autheticated limit rates
-	go func() {
-		h.timeLockAuth <- 1
-		for !h.shutdown {
-			<-h.timeLockAuth
-			time.Sleep(h.LimitAuth.getLimitRate())
-			h.timeLockAuth <- 1
-		}
-		h.wg.Done()
-	}()
-	// routine to monitor Unauthenticated limit rates
-	go func() {
-		h.timeLock <- 1
-		for !h.shutdown {
-			<-h.timeLock
-			time.Sleep(h.LimitUnauth.getLimitRate())
-			h.timeLock <- 1
-		}
-		h.wg.Done()
-	}()
-}
-
-// requestWorker handles the request queue
-func (h *Handler) requestWorker() {
-	for job := range h.requests {
-		if h.shutdown {
-			break
-		}
-
-		var httpResponse *http.Response
-		var err error
-
-		if job.Auth {
-			<-h.timeLockAuth
-			if job.Request.Method != "GET" {
-				httpResponse, err = h.Client.Do(job.Request)
-			} else {
-				httpResponse, err = h.Client.Get(job.Path)
-			}
-			h.timeLockAuth <- 1
-		} else {
-			<-h.timeLock
-			if job.Request.Method != "GET" {
-				httpResponse, err = h.Client.Do(job.Request)
-			} else {
-				httpResponse, err = h.Client.Get(job.Path)
-			}
-			h.timeLock <- 1
-		}
-
-		for b := false; !b; {
-			select {
-			case h.responses <- &exchResponse{Response: httpResponse, ResError: err}:
-				b = true
-			default:
-				continue
-			}
-		}
-	}
-	h.wg.Done()
-}
-
-// exchRequest is the request type
-type exchRequest struct {
-	Request *http.Request
-	Path    string
-	Auth    bool
-}
-
-// attachJob sends a request using the http package to the request channel
-func (h *Handler) attachJob(req *http.Request, path string, isAuth bool) error {
-	select {
-	case h.requests <- &exchRequest{Request: req, Path: path, Auth: isAuth}:
-		return nil
-	default:
-		return errors.New("job queue exceeded")
-	}
-}
-
-// exchResponse is the main response type for requests
-type exchResponse struct {
-	Response *http.Response
-	ResError error
-}
-
-// getResponse monitors the current resp channel and returns the contents
-func (h *Handler) getResponse() ([]byte, error) {
-	resp := <-h.responses
-	if resp.ResError != nil {
-		return []byte(""), resp.ResError
+	if method != "GET" {
+		resp, err = r.HTTPClient.Do(req)
+	} else {
+		resp, err = r.HTTPClient.Get(path)
 	}
 
-	defer resp.Response.Body.Close()
-	contents, err := ioutil.ReadAll(resp.Response.Body)
 	if err != nil {
-		return []byte(""), err
+		if r.RequiresRateLimiter() {
+			r.DecrementRequests(authRequest)
+		}
+		return err
 	}
-	return contents, nil
+
+	if resp == nil {
+		if r.RequiresRateLimiter() {
+			r.DecrementRequests(authRequest)
+		}
+		return errors.New("resp is nil")
+	}
+
+	contents, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
+
+	resp.Body.Close()
+	if verbose {
+		log.Printf("%s exchange raw response: %s", r.Name, string(contents[:]))
+	}
+
+	if result != nil {
+		return common.JSONDecode(contents, result)
+	}
+
+	return nil
+}
+
+// SendPayload handles sending HTTP/HTTPS requests
+func (r *Requester) SendPayload(method, path string, headers map[string]string, body io.Reader, result interface{}, authRequest, verbose bool) error {
+	if r == nil || r.Name == "" {
+		return errors.New("not initiliased, SetDefaults() called before making request?")
+	}
+
+	if !IsValidMethod(method) {
+		return fmt.Errorf("incorrect method supplied %s: supported %s", method, supportedMethods)
+	}
+
+	if path == "" {
+		return errors.New("invalid path")
+	}
+
+	var req *http.Request
+	var err error
+
+	if method != "GET" {
+		req, err = r.checkRequest(method, path, body, headers)
+		if err != nil {
+			return err
+		}
+	}
+
+	if !r.RequiresRateLimiter() {
+		return r.DoRequest(req, method, path, headers, body, result, authRequest, verbose)
+	}
+
+	r.m.Lock()
+	if r.Cycle.IsZero() || !r.IsValidCycle(authRequest) {
+		r.StartCycle()
+	}
+	r.m.Unlock()
+
+	if !r.IsRateLimited(authRequest) && r.IsValidCycle(authRequest) {
+		r.IncrementRequests(authRequest)
+		return r.DoRequest(req, method, path, headers, body, result, authRequest, verbose)
+	}
+
+	r.m.Lock()
+	for r.IsRateLimited(authRequest) {
+		limit := r.GetRateLimit(authRequest)
+		diff := limit.GetDuration() - time.Since(r.Cycle)
+		log.Printf("%s IS RATE LIMITED. SLEEPING FOR %v", r.Name, diff)
+		time.Sleep(diff)
+
+		if !r.IsValidCycle(authRequest) {
+			r.StartCycle()
+		}
+
+		if !r.IsRateLimited(authRequest) && r.IsValidCycle(authRequest) {
+			r.IncrementRequests(authRequest)
+			r.m.Unlock()
+			return r.DoRequest(req, method, path, headers, body, result, authRequest, verbose)
+		}
+	}
+	return nil
 }

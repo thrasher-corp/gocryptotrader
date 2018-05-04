@@ -34,8 +34,9 @@ func TestSetup(t *testing.T) {
 		t.Error("Test Failed - Bitfinex Setup values not set correctly")
 	}
 	b.AuthenticatedAPISupport = true
-	// not worried about rate limit on test
-	b.SetRateLimit(0, 0)
+	// custom rate limit for testing
+	b.Requester.SetRateLimit(true, time.Second*30, 3)
+	b.Requester.SetRateLimit(false, time.Second*30, 3)
 }
 
 func TestGetPlatformStatus(t *testing.T) {

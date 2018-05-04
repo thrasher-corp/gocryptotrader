@@ -3,6 +3,7 @@ package huobi
 import (
 	"errors"
 	"log"
+	"sync"
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
@@ -13,8 +14,12 @@ import (
 )
 
 // Start starts the HUOBI go routine
-func (h *HUOBI) Start() {
-	go h.Run()
+func (h *HUOBI) Start(wg *sync.WaitGroup) {
+	wg.Add(1)
+	go func() {
+		h.Run()
+		wg.Done()
+	}()
 }
 
 // Run implements the HUOBI wrapper
@@ -65,12 +70,12 @@ func (h *HUOBI) Run() {
 			enabledPairs := []string{"btc-usdt"}
 			log.Println("WARNING: Available and enabled pairs for Huobi reset due to config upgrade, please enable the ones you would like again")
 
-			err = h.UpdateEnabledCurrencies(enabledPairs, true)
+			err = h.UpdateCurrencies(enabledPairs, true, true)
 			if err != nil {
 				log.Printf("%s Failed to update enabled currencies.\n", h.GetName())
 			}
 		}
-		err = h.UpdateAvailableCurrencies(currencies, forceUpgrade)
+		err = h.UpdateCurrencies(currencies, false, forceUpgrade)
 		if err != nil {
 			log.Printf("%s Failed to update available currencies.\n", h.GetName())
 		}

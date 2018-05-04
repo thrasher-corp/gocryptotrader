@@ -5,9 +5,9 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"net/http"
 	"net/url"
 	"strconv"
+	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
@@ -49,7 +49,6 @@ const (
 // HitBTC is the overarching type across the hitbtc package
 type HitBTC struct {
 	exchange.Base
-	*request.Handler
 }
 
 // SetDefaults sets default settings for hitbtc
@@ -66,8 +65,8 @@ func (p *HitBTC) SetDefaults() {
 	p.ConfigCurrencyPairFormat.Uppercase = true
 	p.AssetTypes = []string{ticker.Spot}
 	p.SupportsAutoPairUpdating = true
-	p.Handler = new(request.Handler)
-	p.SetRequestHandler(p.Name, hitbtcAuthRate, hitbtcUnauthRate, new(http.Client))
+	p.SupportsRESTTickerBatching = true
+	p.Requester = request.New(p.Name, request.NewRateLimit(time.Second, hitbtcAuthRate), request.NewRateLimit(time.Second, hitbtcUnauthRate), common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 }
 
 // Setup sets user exchange configuration settings
@@ -78,6 +77,7 @@ func (p *HitBTC) Setup(exch config.ExchangeConfig) {
 		p.Enabled = true
 		p.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
 		p.SetAPIKeys(exch.APIKey, exch.APISecret, "", false)
+		p.SetHTTPClientTimeout(exch.HTTPTimeout)
 		p.RESTPollingDelay = exch.RESTPollingDelay // Max 60000ms
 		p.Verbose = exch.Verbose
 		p.Websocket = exch.Websocket

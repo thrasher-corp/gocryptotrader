@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"net/http"
 	"net/url"
 	"strconv"
 	"time"
@@ -49,14 +48,13 @@ const (
 	poloniexLendingHistory       = "returnLendingHistory"
 	poloniexAutoRenew            = "toggleAutoRenew"
 
-	poloniexAuthRate   = 0
-	poloniexUnauthRate = 0
+	poloniexAuthRate   = 6
+	poloniexUnauthRate = 6
 )
 
 // Poloniex is the overarching type across the poloniex package
 type Poloniex struct {
 	exchange.Base
-	*request.Handler
 }
 
 // SetDefaults sets default settings for poloniex
@@ -73,8 +71,8 @@ func (p *Poloniex) SetDefaults() {
 	p.ConfigCurrencyPairFormat.Uppercase = true
 	p.AssetTypes = []string{ticker.Spot}
 	p.SupportsAutoPairUpdating = true
-	p.Handler = new(request.Handler)
-	p.SetRequestHandler(p.Name, poloniexAuthRate, poloniexUnauthRate, new(http.Client))
+	p.SupportsRESTTickerBatching = true
+	p.Requester = request.New(p.Name, request.NewRateLimit(time.Second, poloniexAuthRate), request.NewRateLimit(time.Second, poloniexUnauthRate), common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 }
 
 // Setup sets user exchange configuration settings
@@ -85,6 +83,7 @@ func (p *Poloniex) Setup(exch config.ExchangeConfig) {
 		p.Enabled = true
 		p.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
 		p.SetAPIKeys(exch.APIKey, exch.APISecret, "", false)
+		p.SetHTTPClientTimeout(exch.HTTPTimeout)
 		p.RESTPollingDelay = exch.RESTPollingDelay
 		p.Verbose = exch.Verbose
 		p.Websocket = exch.Websocket

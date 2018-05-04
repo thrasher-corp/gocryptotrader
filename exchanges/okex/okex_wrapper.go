@@ -3,6 +3,7 @@ package okex
 import (
 	"errors"
 	"log"
+	"sync"
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
@@ -12,8 +13,12 @@ import (
 )
 
 // Start starts the OKEX go routine
-func (o *OKEX) Start() {
-	go o.Run()
+func (o *OKEX) Start(wg *sync.WaitGroup) {
+	wg.Add(1)
+	go func() {
+		o.Run()
+		wg.Done()
+	}()
 }
 
 // Run implements the OKEX wrapper

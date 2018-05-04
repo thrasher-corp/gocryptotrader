@@ -3,6 +3,7 @@ package btcmarkets
 import (
 	"errors"
 	"log"
+	"sync"
 
 	"github.com/thrasher-/gocryptotrader/common"
 
@@ -13,8 +14,12 @@ import (
 )
 
 // Start starts the BTC Markets go routine
-func (b *BTCMarkets) Start() {
-	go b.Run()
+func (b *BTCMarkets) Start(wg *sync.WaitGroup) {
+	wg.Add(1)
+	go func() {
+		b.Run()
+		wg.Done()
+	}()
 }
 
 // Run implements the BTC Markets wrapper
@@ -37,13 +42,13 @@ func (b *BTCMarkets) Run() {
 
 		log.Println("BTCMarkets: Upgrading available and enabled pairs")
 
-		err := b.UpdateEnabledCurrencies(enabledPairs, true)
+		err := b.UpdateCurrencies(enabledPairs, true, true)
 		if err != nil {
 			log.Printf("%s Failed to get config.\n", b.GetName())
 			return
 		}
 
-		err = b.UpdateAvailableCurrencies(availablePairs, true)
+		err = b.UpdateCurrencies(availablePairs, false, true)
 		if err != nil {
 			log.Printf("%s Failed to get config.\n", b.GetName())
 			return
