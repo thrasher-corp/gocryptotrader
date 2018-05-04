@@ -431,11 +431,7 @@ func wsGetExchangeRates(client *WebsocketClient, data interface{}) error {
 	wsResp := WebsocketEventResponse{
 		Event: "GetExchangeRates",
 	}
-	if currency.YahooEnabled {
-		wsResp.Data = currency.CurrencyStore
-	} else {
-		wsResp.Data = currency.CurrencyStoreFixer
-	}
+	wsResp.Data = currency.GetExchangeRates()
 	return client.SendWebsocketMessage(wsResp)
 }
 

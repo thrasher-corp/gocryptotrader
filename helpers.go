@@ -48,7 +48,9 @@ func GetSpecificAvailablePairs(enabledExchangesOnly, fiatPairs, includeUSDT, cry
 
 	for x := range supportedPairs {
 		if fiatPairs {
-			if currency.IsCryptoFiatPair(supportedPairs[x]) && !pair.ContainsCurrency(supportedPairs[x], "USDT") || (includeUSDT && pair.ContainsCurrency(supportedPairs[x], "USDT") && currency.IsCryptoPair(supportedPairs[x])) {
+			if currency.IsCryptoFiatPair(supportedPairs[x]) &&
+				!pair.ContainsCurrency(supportedPairs[x], "USDT") ||
+				(includeUSDT && pair.ContainsCurrency(supportedPairs[x], "USDT") && currency.IsCryptoPair(supportedPairs[x])) {
 				if pair.Contains(pairList, supportedPairs[x], false) {
 					continue
 				}
@@ -160,7 +162,7 @@ func GetRelatableCryptocurrencies(p pair.CurrencyPair) []pair.CurrencyPair {
 // incOrig includes the supplied pair if desired
 func GetRelatableFiatCurrencies(p pair.CurrencyPair) []pair.CurrencyPair {
 	var pairs []pair.CurrencyPair
-	fiatCurrencies := currency.BaseCurrencies
+	fiatCurrencies := currency.FiatCurrencies
 
 	for x := range fiatCurrencies {
 		newPair := pair.NewCurrencyPair(p.FirstCurrency.String(), fiatCurrencies[x])

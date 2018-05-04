@@ -591,9 +591,9 @@ func TestUpdateConfig(t *testing.T) {
 		t.Fatalf("Test failed. Error should of been thrown for invalid path")
 	}
 
-	newCfg.Cryptocurrencies = ""
+	newCfg.Currency.Cryptocurrencies = ""
 	err = c.UpdateConfig("", newCfg)
-	if err == nil {
-		t.Fatalf("Test failed. Error should of been thrown for empty cryptocurrencies")
+	if len(c.Currency.Cryptocurrencies) == 0 {
+		t.Fatalf("Test failed. Cryptocurrencies should have been repopulated")
 	}
 }
