@@ -64,7 +64,7 @@ export class PriceHistoryComponent implements OnInit {
 
   public options = {
     "type": "serial",
-  "theme": "light",
+  "theme": "dark",
   "dataDateFormat": "YYYY-MM-DD",
   "zoomOutOnDataUpdate": false,
   "valueAxes": [{
@@ -158,7 +158,6 @@ export class PriceHistoryComponent implements OnInit {
         e.chart.firstPoint = e.item;
       }
       
-      //console.log(e.item);
       e.chart.validateData();
     }
   }],

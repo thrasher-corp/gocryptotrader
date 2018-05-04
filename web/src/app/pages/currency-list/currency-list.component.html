@@ -1,35 +1,23 @@
-<mat-list>
-    <h3 matSubheader>Poloniex</h3>
-    <mat-list-item >
-       <mat-icon matListIcon>attach_money</mat-icon>
-       <h4 matLine>BTC_USD</h4>
-       <button mat-button>SELECT</button>
-    </mat-list-item>
-    <mat-list-item >
-        <mat-icon matListIcon>attach_money</mat-icon>
-        <h4 matLine>LTC_USD</h4>
-        <button mat-button>SELECT</button>
-     </mat-list-item>
-     <mat-list-item >
-        <mat-icon matListIcon>attach_money</mat-icon>
-        <h4 matLine>ETH_USD</h4>
-        <button mat-button>SELECT</button>
-     </mat-list-item>
-    <mat-divider></mat-divider>
-    <h3 matSubheader>Kraken</h3>
-    <mat-list-item >
-       <mat-icon matListIcon>attach_money</mat-icon>
-       <h4 matLine>BTC_USD</h4>
-       <button mat-button>SELECT</button>
-    </mat-list-item>
-    <mat-list-item >
-        <mat-icon matListIcon>attach_money</mat-icon>
-        <h4 matLine>LTC_USD</h4>
-        <button mat-button>SELECT</button>
-     </mat-list-item>
-     <mat-list-item >
-        <mat-icon matListIcon>attach_money</mat-icon>
-        <h4 matLine>ETH_USD</h4>
-        <button mat-button>SELECT</button>
-     </mat-list-item>
- </mat-list>
+<mat-accordion>
+        <mat-expansion-panel  *ngFor="let currency of exchangeCurrencies | iterateMap">
+            <mat-expansion-panel-header [ngClass]="{'selected' : selectedCurrency == currency.value}" >
+                <mat-panel-title>
+                        {{currency.value}}
+                </mat-panel-title>
+                <mat-panel-description>
+                </mat-panel-description>
+            </mat-expansion-panel-header>
+            image and blurb
+            <div>
+            <i>Only displaying enabled currencies</i>
+        </div>
+            <form class="form-content">
+                <mat-list>
+                    <mat-list-item [ngClass]="{'selected' : selectedExchange == exchange}" *ngFor="let exchange of currency.key" >
+                       <h4 matLine>{{exchange}}</h4>
+                       <button mat-button  (click)="selectCurrency(exchange, currency.value)">SELECT</button>
+                    </mat-list-item>
+                    </mat-list>
+            </form>
+        </mat-expansion-panel>
+    </mat-accordion>

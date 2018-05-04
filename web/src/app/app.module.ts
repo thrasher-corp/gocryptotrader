@@ -42,9 +42,10 @@ import { DonateComponent } from './pages/donate/donate.component';
 import { NavbarComponent } from './shared/navbar/navbar.component';
 import { AllEnabledCurrencyTickersComponent } from './shared/all-updates-ticker/all-updates-ticker.component';
 import { ThemePickerComponent } from './shared/theme-picker/theme-picker';
+import {IterateMapPipe, EnabledCurrenciesPipe} from './shared/classes/pipes';
 //services
 import { WebsocketService } from './services/websocket/websocket.service';
-import { WebsocketHandlerService } from './services/websocket-handler/websocket-handler.service';
+import { WebsocketResponseHandlerService } from './services/websocket-response-handler/websocket-response-handler.service';
 import { SidebarService } from './services/sidebar/sidebar.service';
 import { ElectronService } from './providers/electron.service';
 import { StyleManagerService } from './services/style-manager/style-manager.service';
@@ -69,6 +70,7 @@ import { BuyFormComponent } from './shared/buy-form/buy-form.component';
 import { ExchangeGridComponent } from './pages/exchange-grid/exchange-grid.component';
 import { CurrencyListComponent } from './pages/currency-list/currency-list.component';
 import { SellFormComponent } from './shared/sell-form/sell-form.component';
+import { HelpComponent } from './pages/help/help.component';
 
 
 @NgModule({
@@ -95,6 +97,9 @@ import { SellFormComponent } from './shared/sell-form/sell-form.component';
     ExchangeGridComponent,
     CurrencyListComponent,
     SellFormComponent,
+    HelpComponent,
+    IterateMapPipe,
+    EnabledCurrenciesPipe
   ],
   imports: [
     BrowserModule,
@@ -124,7 +129,7 @@ import { SellFormComponent } from './shared/sell-form/sell-form.component';
   providers: [
     ElectronService,
     WebsocketService,
-    WebsocketHandlerService, 
+    WebsocketResponseHandlerService, 
     SidebarService,
     StyleManagerService,
     ThemeStorageService,
