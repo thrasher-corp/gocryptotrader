@@ -101,6 +101,7 @@ type Config struct {
 	SMS                      SMSGlobalConfig  `json:"SMSGlobal"`
 	Webserver                WebserverConfig  `json:"Webserver"`
 	Exchanges                []ExchangeConfig `json:"Exchanges"`
+	Providers                []ProviderConfig `json:"Providers"`
 	m                        sync.Mutex
 }
 
@@ -125,6 +126,16 @@ type ExchangeConfig struct {
 	PairsLastUpdated          int64                     `json:",omitempty"`
 	ConfigCurrencyPairFormat  *CurrencyPairFormatConfig `json:"ConfigCurrencyPairFormat"`
 	RequestCurrencyPairFormat *CurrencyPairFormatConfig `json:"RequestCurrencyPairFormat"`
+}
+
+// ProviderConfig holds all the information needed for each enabled provider
+type ProviderConfig struct {
+	Name             string
+	Enabled          bool
+	Verbose          bool
+	RESTPollingDelay time.Duration
+	APIKey           string
+	APIKeyLvl        int
 }
 
 // SupportsPair returns true or not whether the exchange supports the supplied
@@ -231,6 +242,20 @@ func (c *Config) GetExchangeConfig(name string) (ExchangeConfig, error) {
 		}
 	}
 	return ExchangeConfig{}, fmt.Errorf(ErrExchangeNotFound, name)
+}
+
+// GetProviderConfig returns a provider configuration by its name
+func (c *Config) GetProviderConfig(name string) (ProviderConfig, error) {
+	c.m.Lock()
+	defer c.m.Unlock()
+	log.Println("What", len(c.Providers))
+	for i := range c.Providers {
+		log.Println(c.Providers[i].Name)
+		if c.Providers[i].Name == name {
+			return c.Providers[i], nil
+		}
+	}
+	return ProviderConfig{}, errors.New("provider not found")
 }
 
 // UpdateExchangeConfig updates exchange configurations
@@ -346,6 +371,20 @@ func (c *Config) CheckWebserverConfigValues() error {
 		c.Webserver.WebsocketConnectionLimit = 1
 	}
 
+	return nil
+}
+
+// CheckProviderConfigValues checks Provider configuration values
+func (c *Config) CheckProviderConfigValues() error {
+	var count int
+	for i := range c.Providers {
+		if c.Providers[i].Enabled == true {
+			count++
+		}
+	}
+	if count < 1 {
+		log.Println("warning config.go CheckProviderConfigValues() no providers set")
+	}
 	return nil
 }
 
@@ -538,6 +577,11 @@ func (c *Config) LoadConfig(configPath string) error {
 			log.Print(fmt.Errorf(ErrCheckingConfigValues, err))
 			c.Webserver.Enabled = false
 		}
+	}
+
+	err = c.CheckProviderConfigValues()
+	if err != nil {
+		return err
 	}
 
 	if c.CurrencyExchangeProvider == "" {
