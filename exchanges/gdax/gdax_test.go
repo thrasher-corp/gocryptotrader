@@ -2,6 +2,7 @@ package gdax
 
 import (
 	"testing"
+	"time"
 
 	"github.com/thrasher-/gocryptotrader/config"
 )
@@ -17,6 +18,7 @@ const (
 
 func TestSetDefaults(t *testing.T) {
 	g.SetDefaults()
+	g.Requester.SetRateLimit(false, time.Second, 1)
 }
 
 func TestSetup(t *testing.T) {
