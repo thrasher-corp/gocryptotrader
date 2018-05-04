@@ -73,7 +73,7 @@ export class ThemePickerComponent {
     if (theme.isDefault) {
       this.styleManager.removeStyle('theme');
     } else {
-      this.styleManager.setStyle('theme', `assets/${theme.href}`);
+      this.styleManager.setStyle('theme', `assets/themes/${theme.href}`);
     }
 
     if (this.currentTheme) {

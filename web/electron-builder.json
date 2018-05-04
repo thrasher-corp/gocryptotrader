@@ -1,0 +1,24 @@
+{
+  "productName": "gocyrptotrader-web",
+  "directories": {
+    "output": "app-builds"
+  },
+  "win": {
+    "icon": "dist",
+    "target": [
+      "portable"
+    ]
+  },
+  "mac": {
+    "icon": "dist",
+    "target": [
+      "dmg"
+    ]
+  },
+  "linux": {
+    "icon": "dist",
+    "target": [
+      "AppImage"
+    ]
+  }
+}

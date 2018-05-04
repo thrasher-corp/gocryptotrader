@@ -4,7 +4,7 @@
     font-family: 'Roboto';
     font-style: italic;
     font-weight: 400;
-    src: local('Roboto Italic'), local('Roboto-Italic'), url(assets/cyrillic-ext-italic.woff2) format('woff2');
+    src: local('Roboto Italic'), local('Roboto-Italic'), url(assets/fonts/cyrillic-ext-italic.woff2) format('woff2');
     unicode-range: U+0460-052F, U+1C80-1C88, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;
 }
 
@@ -15,7 +15,7 @@
     font-family: 'Roboto';
     font-style: italic;
     font-weight: 400;
-    src: local('Roboto Italic'), local('Roboto-Italic'), url(assets/cyrillic-italic.woff2) format('woff2');
+    src: local('Roboto Italic'), local('Roboto-Italic'), url(assets/fonts/cyrillic-italic.woff2) format('woff2');
     unicode-range: U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
 }
 
@@ -26,7 +26,7 @@
     font-family: 'Roboto';
     font-style: italic;
     font-weight: 400;
-    src: local('Roboto Italic'), local('Roboto-Italic'), url(assets/greek-ext-italic.woff2) format('woff2');
+    src: local('Roboto Italic'), local('Roboto-Italic'), url(assets/fonts/greek-ext-italic.woff2) format('woff2');
     unicode-range: U+1F00-1FFF;
 }
 
@@ -37,7 +37,7 @@
     font-family: 'Roboto';
     font-style: italic;
     font-weight: 400;
-    src: local('Roboto Italic'), local('Roboto-Italic'), url(assets/greek-italic.woff2) format('woff2');
+    src: local('Roboto Italic'), local('Roboto-Italic'), url(assets/fonts/greek-italic.woff2) format('woff2');
     unicode-range: U+0370-03FF;
 }
 
@@ -48,7 +48,7 @@
     font-family: 'Roboto';
     font-style: italic;
     font-weight: 400;
-    src: local('Roboto Italic'), local('Roboto-Italic'), url(assets/vietnamese-italic.woff2) format('woff2');
+    src: local('Roboto Italic'), local('Roboto-Italic'), url(assets/fonts/vietnamese-italic.woff2) format('woff2');
     unicode-range: U+0102-0103, U+0110-0111, U+1EA0-1EF9, U+20AB;
 }
 
@@ -59,7 +59,7 @@
     font-family: 'Roboto';
     font-style: italic;
     font-weight: 400;
-    src: local('Roboto Italic'), local('Roboto-Italic'), url(assets/latin-ext-italic.woff2) format('woff2');
+    src: local('Roboto Italic'), local('Roboto-Italic'), url(assets/fonts/latin-ext-italic.woff2) format('woff2');
     unicode-range: U+0100-024F, U+0259, U+1E00-1EFF, U+20A0-20AB, U+20AD-20CF, U+2C60-2C7F, U+A720-A7FF;
 }
 
@@ -70,7 +70,7 @@
     font-family: 'Roboto';
     font-style: italic;
     font-weight: 400;
-    src: local('Roboto Italic'), local('Roboto-Italic'), url(assets/latin-italic.woff2) format('woff2');
+    src: local('Roboto Italic'), local('Roboto-Italic'), url(assets/fonts/latin-italic.woff2) format('woff2');
     unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+2074, U+20AC, U+2122, U+2212, U+2215;
 }
 
@@ -81,7 +81,7 @@
     font-family: 'Roboto';
     font-style: normal;
     font-weight: 300;
-    src: local('Roboto Light'), local('Roboto-Light'), url(assets/cyrillic-ext-light.woff2) format('woff2');
+    src: local('Roboto Light'), local('Roboto-Light'), url(assets/fonts/cyrillic-ext-light.woff2) format('woff2');
     unicode-range: U+0460-052F, U+1C80-1C88, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;
 }
 
@@ -92,7 +92,7 @@
     font-family: 'Roboto';
     font-style: normal;
     font-weight: 300;
-    src: local('Roboto Light'), local('Roboto-Light'), url(assets/cyrillic-light.woff2) format('woff2');
+    src: local('Roboto Light'), local('Roboto-Light'), url(assets/fonts/cyrillic-light.woff2) format('woff2');
     unicode-range: U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
 }
 
@@ -103,7 +103,7 @@
     font-family: 'Roboto';
     font-style: normal;
     font-weight: 300;
-    src: local('Roboto Light'), local('Roboto-Light'), url(assets/greek-ext-light.woff2) format('woff2');
+    src: local('Roboto Light'), local('Roboto-Light'), url(assets/fonts/greek-ext-light.woff2) format('woff2');
     unicode-range: U+1F00-1FFF;
 }
 
@@ -114,7 +114,7 @@
     font-family: 'Roboto';
     font-style: normal;
     font-weight: 300;
-    src: local('Roboto Light'), local('Roboto-Light'), url(assets/greek-light.woff2) format('woff2');
+    src: local('Roboto Light'), local('Roboto-Light'), url(assets/fonts/greek-light.woff2) format('woff2');
     unicode-range: U+0370-03FF;
 }
 
@@ -125,7 +125,7 @@
     font-family: 'Roboto';
     font-style: normal;
     font-weight: 300;
-    src: local('Roboto Light'), local('Roboto-Light'), url(assets/vietnamese-light.woff2) format('woff2');
+    src: local('Roboto Light'), local('Roboto-Light'), url(assets/fonts/vietnamese-light.woff2) format('woff2');
     unicode-range: U+0102-0103, U+0110-0111, U+1EA0-1EF9, U+20AB;
 }
 
@@ -136,7 +136,7 @@
     font-family: 'Roboto';
     font-style: normal;
     font-weight: 300;
-    src: local('Roboto Light'), local('Roboto-Light'), url(assets/latin-ext-light.woff2) format('woff2');
+    src: local('Roboto Light'), local('Roboto-Light'), url(assets/fonts/latin-ext-light.woff2) format('woff2');
     unicode-range: U+0100-024F, U+0259, U+1E00-1EFF, U+20A0-20AB, U+20AD-20CF, U+2C60-2C7F, U+A720-A7FF;
 }
 
@@ -147,7 +147,7 @@
     font-family: 'Roboto';
     font-style: normal;
     font-weight: 300;
-    src: local('Roboto Light'), local('Roboto-Light'), url(assets/latin-light.woff2) format('woff2');
+    src: local('Roboto Light'), local('Roboto-Light'), url(assets/fonts/latin-light.woff2) format('woff2');
     unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+2074, U+20AC, U+2122, U+2212, U+2215;
 }
 
@@ -158,7 +158,7 @@
     font-family: 'Roboto';
     font-style: normal;
     font-weight: 400;
-    src: local('Roboto'), local('Roboto-Regular'), url(assets/cyrillic-ext-roboto.woff2) format('woff2');
+    src: local('Roboto'), local('Roboto-Regular'), url(assets/fonts/cyrillic-ext-roboto.woff2) format('woff2');
     unicode-range: U+0460-052F, U+1C80-1C88, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;
 }
 
@@ -169,7 +169,7 @@
     font-family: 'Roboto';
     font-style: normal;
     font-weight: 400;
-    src: local('Roboto'), local('Roboto-Regular'), url(assets/cyrillic-roboto.woff2) format('woff2');
+    src: local('Roboto'), local('Roboto-Regular'), url(assets/fonts/cyrillic-roboto.woff2) format('woff2');
     unicode-range: U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
 }
 
@@ -180,7 +180,7 @@
     font-family: 'Roboto';
     font-style: normal;
     font-weight: 400;
-    src: local('Roboto'), local('Roboto-Regular'), url(assets/greek-ext-roboto.woff2) format('woff2');
+    src: local('Roboto'), local('Roboto-Regular'), url(assets/fonts/greek-ext-roboto.woff2) format('woff2');
     unicode-range: U+1F00-1FFF;
 }
 
@@ -191,7 +191,7 @@
     font-family: 'Roboto';
     font-style: normal;
     font-weight: 400;
-    src: local('Roboto'), local('Roboto-Regular'), url(assets/greek-roboto.woff2) format('woff2');
+    src: local('Roboto'), local('Roboto-Regular'), url(assets/fonts/greek-roboto.woff2) format('woff2');
     unicode-range: U+0370-03FF;
 }
 
@@ -202,7 +202,7 @@
     font-family: 'Roboto';
     font-style: normal;
     font-weight: 400;
-    src: local('Roboto'), local('Roboto-Regular'), url(assets/vietnamese-roboto.woff2) format('woff2');
+    src: local('Roboto'), local('Roboto-Regular'), url(assets/fonts/vietnamese-roboto.woff2) format('woff2');
     unicode-range: U+0102-0103, U+0110-0111, U+1EA0-1EF9, U+20AB;
 }
 
@@ -213,7 +213,7 @@
     font-family: 'Roboto';
     font-style: normal;
     font-weight: 400;
-    src: local('Roboto'), local('Roboto-Regular'), url(assets/latin-ext-roboto.woff2) format('woff2');
+    src: local('Roboto'), local('Roboto-Regular'), url(assets/fonts/latin-ext-roboto.woff2) format('woff2');
     unicode-range: U+0100-024F, U+0259, U+1E00-1EFF, U+20A0-20AB, U+20AD-20CF, U+2C60-2C7F, U+A720-A7FF;
 }
 
@@ -224,7 +224,7 @@
     font-family: 'Roboto';
     font-style: normal;
     font-weight: 400;
-    src: local('Roboto'), local('Roboto-Regular'), url(assets/latin-roboto.woff2) format('woff2');
+    src: local('Roboto'), local('Roboto-Regular'), url(assets/fonts/latin-roboto.woff2) format('woff2');
     unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+2074, U+20AC, U+2122, U+2212, U+2215;
 }
 
@@ -235,7 +235,7 @@
     font-family: 'Roboto';
     font-style: normal;
     font-weight: 500;
-    src: local('Roboto Medium'), local('Roboto-Medium'), url(assets/cyrillic-ext-roboto-medium.woff2) format('woff2');
+    src: local('Roboto Medium'), local('Roboto-Medium'), url(assets/fonts/cyrillic-ext-roboto-medium.woff2) format('woff2');
     unicode-range: U+0460-052F, U+1C80-1C88, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;
 }
 
@@ -246,7 +246,7 @@
     font-family: 'Roboto';
     font-style: normal;
     font-weight: 500;
-    src: local('Roboto Medium'), local('Roboto-Medium'), url(assets/cyrillic-roboto-medium.woff2) format('woff2');
+    src: local('Roboto Medium'), local('Roboto-Medium'), url(assets/fonts/cyrillic-roboto-medium.woff2) format('woff2');
     unicode-range: U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
 }
 
@@ -257,7 +257,7 @@
     font-family: 'Roboto';
     font-style: normal;
     font-weight: 500;
-    src: local('Roboto Medium'), local('Roboto-Medium'), url(assets/greek-ext-roboto-medium.woff2) format('woff2');
+    src: local('Roboto Medium'), local('Roboto-Medium'), url(assets/fonts/greek-ext-roboto-medium.woff2) format('woff2');
     unicode-range: U+1F00-1FFF;
 }
 
@@ -268,7 +268,7 @@
     font-family: 'Roboto';
     font-style: normal;
     font-weight: 500;
-    src: local('Roboto Medium'), local('Roboto-Medium'), url(assets/greek-roboto-medium.woff2) format('woff2');
+    src: local('Roboto Medium'), local('Roboto-Medium'), url(assets/fonts/greek-roboto-medium.woff2) format('woff2');
     unicode-range: U+0370-03FF;
 }
 
@@ -279,7 +279,7 @@
     font-family: 'Roboto';
     font-style: normal;
     font-weight: 500;
-    src: local('Roboto Medium'), local('Roboto-Medium'), url(assets/vietnamese-roboto-medium.woff2) format('woff2');
+    src: local('Roboto Medium'), local('Roboto-Medium'), url(assets/fonts/vietnamese-roboto-medium.woff2) format('woff2');
     unicode-range: U+0102-0103, U+0110-0111, U+1EA0-1EF9, U+20AB;
 }
 
@@ -301,7 +301,7 @@
     font-family: 'Roboto';
     font-style: normal;
     font-weight: 500;
-    src: local('Roboto Medium'), local('Roboto-Medium'), url(assets/latin-roboto-medium.woff2) format('woff2');
+    src: local('Roboto Medium'), local('Roboto-Medium'), url(assets/fonts/latin-roboto-medium.woff2) format('woff2');
     unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+2074, U+20AC, U+2122, U+2212, U+2215;
 }
 
@@ -312,7 +312,7 @@
     font-family: 'Roboto';
     font-style: normal;
     font-weight: 700;
-    src: local('Roboto Bold'), local('Roboto-Bold'), url(assets/cyrillic-ext-roboto-bold.woff2) format('woff2');
+    src: local('Roboto Bold'), local('Roboto-Bold'), url(assets/fonts/cyrillic-ext-roboto-bold.woff2) format('woff2');
     unicode-range: U+0460-052F, U+1C80-1C88, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;
 }
 
@@ -323,7 +323,7 @@
     font-family: 'Roboto';
     font-style: normal;
     font-weight: 700;
-    src: local('Roboto Bold'), local('Roboto-Bold'), url(assets/cyrillic-roboto-bold.woff2) format('woff2');
+    src: local('Roboto Bold'), local('Roboto-Bold'), url(assets/fonts/cyrillic-roboto-bold.woff2) format('woff2');
     unicode-range: U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
 }
 
@@ -334,7 +334,7 @@
     font-family: 'Roboto';
     font-style: normal;
     font-weight: 700;
-    src: local('Roboto Bold'), local('Roboto-Bold'), url(assets/greek-ext-roboto-bold.woff2) format('woff2');
+    src: local('Roboto Bold'), local('Roboto-Bold'), url(assets/fonts/greek-ext-roboto-bold.woff2) format('woff2');
     unicode-range: U+1F00-1FFF;
 }
 
@@ -345,7 +345,7 @@
     font-family: 'Roboto';
     font-style: normal;
     font-weight: 700;
-    src: local('Roboto Bold'), local('Roboto-Bold'), url(assets/greek-roboto-bold.woff2) format('woff2');
+    src: local('Roboto Bold'), local('Roboto-Bold'), url(assets/fonts/greek-roboto-bold.woff2) format('woff2');
     unicode-range: U+0370-03FF;
 }
 
@@ -356,7 +356,7 @@
     font-family: 'Roboto';
     font-style: normal;
     font-weight: 700;
-    src: local('Roboto Bold'), local('Roboto-Bold'), url(assets/vietnamese-roboto-bold.woff2) format('woff2');
+    src: local('Roboto Bold'), local('Roboto-Bold'), url(assets/fonts/vietnamese-roboto-bold.woff2) format('woff2');
     unicode-range: U+0102-0103, U+0110-0111, U+1EA0-1EF9, U+20AB;
 }
 
@@ -367,7 +367,7 @@
     font-family: 'Roboto';
     font-style: normal;
     font-weight: 700;
-    src: local('Roboto Bold'), local('Roboto-Bold'), url(assets/latin-ext-roboto-bold.woff2) format('woff2');
+    src: local('Roboto Bold'), local('Roboto-Bold'), url(assets/fonts/latin-ext-roboto-bold.woff2) format('woff2');
     unicode-range: U+0100-024F, U+0259, U+1E00-1EFF, U+20A0-20AB, U+20AD-20CF, U+2C60-2C7F, U+A720-A7FF;
 }
 
@@ -378,6 +378,6 @@
     font-family: 'Roboto';
     font-style: normal;
     font-weight: 700;
-    src: local('Roboto Bold'), local('Roboto-Bold'), url(assets/latin-roboto-bold.woff2) format('woff2');
+    src: local('Roboto Bold'), local('Roboto-Bold'), url(assets/fonts/latin-roboto-bold.woff2) format('woff2');
     unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+2074, U+20AC, U+2122, U+2212, U+2215;
 }

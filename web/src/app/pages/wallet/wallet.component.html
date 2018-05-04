@@ -11,7 +11,7 @@
 
         <mat-list>
             <mat-list-item *ngFor="let coin of wallet?.coin_totals">
-                <mat-icon mat-list-icon [ngClass]="coin.coin">{{coin.icon}}</mat-icon>
+                <i [ngClass]="coin.icon"></i>
                 <h4 mat-line>{{coin.coin}}</h4>
                 <h4 mat-line>{{coin.balance}}</h4>
             </mat-list-item>
@@ -26,21 +26,21 @@
         </mat-expansion-panel-header>
         <mat-list>
             <mat-list-item *ngFor="let coin of wallet?.online_summary.BTC">
-                <mat-icon mat-list-icon class="BTC">{{coinIcon('BTC')}}</mat-icon>
+                <i class="cc btc"></i>
                 <h4 mat-line>Address: {{coin.address}}</h4>
                 <h4 mat-line>{{coin.balance}}{{coin.coin}} - {{coin.percentage}}%</h4>
             </mat-list-item>
             <mat-divider></mat-divider>
 
             <mat-list-item *ngFor="let coin of wallet?.online_summary.LTC">
-                <mat-icon mat-list-icon class="LTC">{{coinIcon('LTC')}}</mat-icon>
+                <i class="cc ltc"></i>
                 <h4 mat-line>Address: {{coin.address}}</h4>
                 <h4 mat-line>{{coin.balance}}{{coin.coin}} - {{coin.percentage}}%</h4>
             </mat-list-item>
             <mat-divider></mat-divider>
 
             <mat-list-item *ngFor="let coin of wallet?.online_summary.ETH">
-                <mat-icon mat-list-icon class="ETH">{{coinIcon('ETH')}}</mat-icon>
+                <i class="cc eth"></i>
                 <h4 mat-line>Address: {{coin.address}}</h4>
                 <h4 mat-line>{{coin.balance}}{{coin.coin}} - {{coin.percentage}}%</h4>
             </mat-list-item>
@@ -55,21 +55,21 @@
         </mat-expansion-panel-header>
         <mat-list>
             <mat-list-item *ngFor="let coin of wallet?.offline_summary.BTC">
-                <mat-icon mat-list-icon class="BTC">{{coinIcon('BTC')}}</mat-icon>
+                <i class="cc btc"></i>
                 <h4 mat-line>Address: {{coin.address}}</h4>
                 <h4 mat-line>{{coin.balance}}{{coin.coin}} - {{coin.percentage}}%</h4>
             </mat-list-item>
             <mat-divider></mat-divider>
 
             <mat-list-item *ngFor="let coin of wallet?.offline_summary.LTC">
-                <mat-icon mat-list-icon class="LTC">{{coinIcon('LTC')}}</mat-icon>
+                <i class="cc ltc"></i>
                 <h4 mat-line>Address: {{coin.address}}</h4>
                 <h4 mat-line>{{coin.balance}}{{coin.coin}} - {{coin.percentage}}%</h4>
             </mat-list-item>
             <mat-divider></mat-divider>
 
             <mat-list-item *ngFor="let coin of wallet?.offline_summary.ETH">
-                <mat-icon mat-list-icon class="ETH">{{coinIcon('ETH')}}</mat-icon>
+                <i class="cc eth"></i>
                 <h4 mat-line>Address: {{coin.address}}</h4>
                 <h4 mat-line>{{coin.balance}}{{coin.coin}} - {{coin.percentage}}%</h4>
             </mat-list-item>
@@ -85,7 +85,7 @@
 
         <mat-list>
             <mat-list-item *ngFor="let coin of wallet?.coins_online">
-                <mat-icon mat-list-icon [ngClass]="coin.coin">{{coin.icon}}</mat-icon>
+                <i [ngClass]="coin.icon"></i>
                 <h4 mat-line>{{coin.coin}}</h4>
                 <h4 mat-line>{{coin.balance}}</h4>
             </mat-list-item>
@@ -101,7 +101,7 @@
 
         <mat-list>
             <mat-list-item *ngFor="let coin of wallet?.coins_offline">
-                <mat-icon mat-list-icon [ngClass]="coin.coin">{{coin.icon}}</mat-icon>
+                <i [ngClass]="coin.icon"></i>
                 <h4 mat-line>{{coin.coin}}</h4>
                 <h4 mat-line>{{coin.balance}}</h4>
             </mat-list-item>

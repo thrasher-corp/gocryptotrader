@@ -3,6 +3,7 @@ import { ElectronService } from './providers/electron.service';
 import { MatSidenav } from '@angular/material';
 import { SidebarService } from './services/sidebar/sidebar.service';
 import { Router, NavigationEnd } from '@angular/router';
+import {WebsocketResponseHandlerService }from './services/websocket-response-handler/websocket-response-handler.service'; 
 
 @Component({
   selector: 'app-root',
@@ -11,10 +12,12 @@ import { Router, NavigationEnd } from '@angular/router';
 })
 export class AppComponent {
   sidebarService: SidebarService
-  public currentUrl:string;
+  public currentUrl: string;
   @ViewChild('sidenav') public sidenav: MatSidenav;
+  private ws : WebsocketResponseHandlerService;
+  public isConnected :boolean = false;
   
-  constructor(public electronService: ElectronService,something: SidebarService, private router:Router) {
+  constructor(public electronService: ElectronService, sidebarService: SidebarService, private router: Router, private websocketHandler: WebsocketResponseHandlerService) {
 
     if (electronService.isElectron()) {
       console.log('Mode electron');
@@ -26,18 +29,26 @@ export class AppComponent {
       console.log('Mode web');
     }
 
-    this.sidebarService = something;
-    
-        router.events.subscribe(event => {
+    this.isConnected = this.websocketHandler.isConnected;
+    this.sidebarService = sidebarService;
+    router.events.subscribe(event => {
           
-                if (event instanceof NavigationEnd ) {
-                  console.log("current url",event.url); // event.url has current url
-                  this.currentUrl = event.url;
-                }
-              });
+      if (event instanceof NavigationEnd) {
+        this.isConnected = this.websocketHandler.isConnected;
+        console.log("current url", event.url); // event.url has current url
+        this.currentUrl = event.url;
+      }
+    });
+    var interval = setInterval(() => {
+      this.isConnected = this.websocketHandler.isConnected;
+      }, 2000);
+    
   }
 
   ngOnInit() {
     this.sidebarService.setSidenav(this.sidenav);
-    }
+    //This will be replaced with a log in prompt which will then add the credentials to session storage
+    window.sessionStorage["username"] = "admin";
+    window.sessionStorage["password"] = "e7cf3ef4f17c3999a94f2c6f612e8a888e5b1026878e4e19398b23bd38ec221a";
+  }
 }
