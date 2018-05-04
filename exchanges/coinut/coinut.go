@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"net/http"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -44,7 +43,6 @@ type COINUT struct {
 	exchange.Base
 	WebsocketConn *websocket.Conn
 	InstrumentMap map[string]int
-	*request.Handler
 }
 
 // SetDefaults sets current default values
@@ -63,8 +61,8 @@ func (c *COINUT) SetDefaults() {
 	c.ConfigCurrencyPairFormat.Uppercase = true
 	c.AssetTypes = []string{ticker.Spot}
 	c.SupportsAutoPairUpdating = true
-	c.Handler = new(request.Handler)
-	c.SetRequestHandler(c.Name, coinutAuthRate, coinutUnauthRate, new(http.Client))
+	c.SupportsRESTTickerBatching = false
+	c.Requester = request.New(c.Name, request.NewRateLimit(time.Second, coinutAuthRate), request.NewRateLimit(time.Second, coinutUnauthRate), common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 }
 
 // Setup sets the current exchange configuration
@@ -75,6 +73,7 @@ func (c *COINUT) Setup(exch config.ExchangeConfig) {
 		c.Enabled = true
 		c.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
 		c.SetAPIKeys(exch.APIKey, exch.APISecret, exch.ClientID, true)
+		c.SetHTTPClientTimeout(exch.HTTPTimeout)
 		c.RESTPollingDelay = exch.RESTPollingDelay
 		c.Verbose = exch.Verbose
 		c.Websocket = exch.Websocket

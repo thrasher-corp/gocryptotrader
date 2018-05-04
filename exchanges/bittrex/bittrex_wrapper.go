@@ -3,6 +3,7 @@ package bittrex
 import (
 	"errors"
 	"log"
+	"sync"
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
@@ -12,8 +13,12 @@ import (
 )
 
 // Start starts the Bittrex go routine
-func (b *Bittrex) Start() {
-	go b.Run()
+func (b *Bittrex) Start(wg *sync.WaitGroup) {
+	wg.Add(1)
+	go func() {
+		b.Run()
+		wg.Done()
+	}()
 }
 
 // Run implements the Bittrex wrapper
@@ -43,12 +48,12 @@ func (b *Bittrex) Run() {
 			enabledPairs := []string{"USDT-BTC"}
 			log.Println("WARNING: Available pairs for Bittrex reset due to config upgrade, please enable the ones you would like again")
 
-			err = b.UpdateEnabledCurrencies(enabledPairs, true)
+			err = b.UpdateCurrencies(enabledPairs, true, true)
 			if err != nil {
 				log.Printf("%s Failed to get config.\n", b.GetName())
 			}
 		}
-		err = b.UpdateAvailableCurrencies(currencies, forceUpgrade)
+		err = b.UpdateCurrencies(currencies, false, forceUpgrade)
 		if err != nil {
 			log.Printf("%s Failed to get config.\n", b.GetName())
 		}

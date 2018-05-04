@@ -21,7 +21,7 @@ func SetupTest(t *testing.T) {
 	if CheckExchangeExists("Bitfinex") {
 		return
 	}
-	err := LoadExchange("Bitfinex")
+	err := LoadExchange("Bitfinex", false, nil)
 	if err != nil {
 		t.Errorf("Test failed. SetupTest: Failed to load exchange: %s", err)
 	}

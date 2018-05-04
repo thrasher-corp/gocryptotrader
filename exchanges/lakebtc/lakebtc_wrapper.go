@@ -4,6 +4,7 @@ import (
 	"errors"
 	"log"
 	"strconv"
+	"sync"
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
@@ -13,8 +14,12 @@ import (
 )
 
 // Start starts the LakeBTC go routine
-func (l *LakeBTC) Start() {
-	go l.Run()
+func (l *LakeBTC) Start(wg *sync.WaitGroup) {
+	wg.Add(1)
+	go func() {
+		l.Run()
+		wg.Done()
+	}()
 }
 
 // Run implements the LakeBTC wrapper

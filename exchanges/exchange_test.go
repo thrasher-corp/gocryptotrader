@@ -1,15 +1,66 @@
 package exchange
 
 import (
+	"net/http"
 	"testing"
 	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
+	"github.com/thrasher-/gocryptotrader/exchanges/request"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 )
 
+func TestSupportsRESTTickerBatchUpdates(t *testing.T) {
+	b := Base{
+		Name: "RAWR",
+		SupportsRESTTickerBatching: true,
+	}
+
+	if !b.SupportsRESTTickerBatchUpdates() {
+		t.Fatal("Test failed. TestSupportsRESTTickerBatchUpdates returned false")
+	}
+}
+
+func TestHTTPClient(t *testing.T) {
+	r := Base{Name: "asdf"}
+	r.SetHTTPClientTimeout(time.Duration(time.Second * 5))
+
+	if r.GetHTTPClient().Timeout != time.Second*5 {
+		t.Fatalf("Test failed. TestHTTPClient unexpected value")
+	}
+
+	r.Requester = nil
+	newClient := new(http.Client)
+	newClient.Timeout = time.Duration(time.Second * 10)
+
+	r.SetHTTPClient(newClient)
+	if r.GetHTTPClient().Timeout != time.Second*10 {
+		t.Fatalf("Test failed. TestHTTPClient unexpected value")
+	}
+
+	r.Requester = nil
+	if r.GetHTTPClient() == nil {
+		t.Fatalf("Test failed. TestHTTPClient unexpected value")
+	}
+
+	b := Base{Name: "RAWR"}
+	b.Requester = request.New(b.Name, request.NewRateLimit(time.Second, 1), request.NewRateLimit(time.Second, 1), new(http.Client))
+
+	b.SetHTTPClientTimeout(time.Second * 5)
+	if b.GetHTTPClient().Timeout != time.Second*5 {
+		t.Fatalf("Test failed. TestHTTPClient unexpected value")
+	}
+
+	newClient = new(http.Client)
+	newClient.Timeout = time.Duration(time.Second * 10)
+
+	b.SetHTTPClient(newClient)
+	if b.GetHTTPClient().Timeout != time.Second*10 {
+		t.Fatalf("Test failed. TestHTTPClient unexpected value")
+	}
+}
 func TestSetAutoPairDefaults(t *testing.T) {
 	cfg := config.GetConfig()
 	err := cfg.LoadConfig(config.ConfigTestFile)
@@ -613,7 +664,7 @@ func TestSetCurrencies(t *testing.T) {
 	}
 }
 
-func TestUpdateEnabledCurrencies(t *testing.T) {
+func TestUpdateCurrencies(t *testing.T) {
 	cfg := config.GetConfig()
 	err := cfg.LoadConfig(config.ConfigTestFile)
 	if err != nil {
@@ -621,72 +672,69 @@ func TestUpdateEnabledCurrencies(t *testing.T) {
 	}
 
 	UAC := Base{Name: "ANX"}
-	exchangeProducts := []string{"ltc", "btc", "usd", "aud"}
+	exchangeProducts := []string{"ltc", "btc", "usd", "aud", ""}
 
 	// Test updating exchange products for an exchange which doesn't exist
 	UAC.Name = "Blah"
-	err = UAC.UpdateEnabledCurrencies(exchangeProducts, false)
+	err = UAC.UpdateCurrencies(exchangeProducts, true, false)
 	if err == nil {
-		t.Errorf("Test Failed - Exchange TestUpdateEnabledCurrencies succeeded on an exchange which doesn't exist")
+		t.Errorf("Test Failed - Exchange TestUpdateCurrencies succeeded on an exchange which doesn't exist")
 	}
 
 	// Test updating exchange products
 	UAC.Name = "ANX"
-	err = UAC.UpdateEnabledCurrencies(exchangeProducts, false)
+	err = UAC.UpdateCurrencies(exchangeProducts, true, false)
 	if err != nil {
-		t.Errorf("Test Failed - Exchange TestUpdateEnabledCurrencies error: %s", err)
+		t.Errorf("Test Failed - Exchange TestUpdateCurrencies error: %s", err)
 	}
 
 	// Test updating the same new products, diff should be 0
 	UAC.Name = "ANX"
-	err = UAC.UpdateEnabledCurrencies(exchangeProducts, false)
+	err = UAC.UpdateCurrencies(exchangeProducts, true, false)
 	if err != nil {
-		t.Errorf("Test Failed - Exchange TestUpdateEnabledCurrencies error: %s", err)
+		t.Errorf("Test Failed - Exchange TestUpdateCurrencies error: %s", err)
 	}
 
 	// Test force updating to only one product
 	exchangeProducts = []string{"btc"}
-	err = UAC.UpdateEnabledCurrencies(exchangeProducts, true)
+	err = UAC.UpdateCurrencies(exchangeProducts, true, true)
 	if err != nil {
-		t.Errorf("Test Failed - Forced Exchange TestUpdateEnabledCurrencies error: %s", err)
-	}
-}
-
-func TestUpdateAvailableCurrencies(t *testing.T) {
-	cfg := config.GetConfig()
-	err := cfg.LoadConfig(config.ConfigTestFile)
-	if err != nil {
-		t.Fatal("Test failed. TestUpdateAvailableCurrencies failed to load config")
+		t.Errorf("Test Failed - Forced Exchange TestUpdateCurrencies error: %s", err)
 	}
 
-	UAC := Base{Name: "ANX"}
-	exchangeProducts := []string{"ltc", "btc", "usd", "aud"}
-
+	exchangeProducts = []string{"ltc", "btc", "usd", "aud"}
 	// Test updating exchange products for an exchange which doesn't exist
 	UAC.Name = "Blah"
-	err = UAC.UpdateAvailableCurrencies(exchangeProducts, false)
+	err = UAC.UpdateCurrencies(exchangeProducts, false, false)
 	if err == nil {
-		t.Errorf("Test Failed - Exchange UpdateAvailableCurrencies() succeeded on an exchange which doesn't exist")
+		t.Errorf("Test Failed - Exchange UpdateCurrencies() succeeded on an exchange which doesn't exist")
 	}
 
 	// Test updating exchange products
 	UAC.Name = "ANX"
-	err = UAC.UpdateAvailableCurrencies(exchangeProducts, false)
+	err = UAC.UpdateCurrencies(exchangeProducts, false, false)
 	if err != nil {
-		t.Errorf("Test Failed - Exchange UpdateAvailableCurrencies() error: %s", err)
+		t.Errorf("Test Failed - Exchange UpdateCurrencies() error: %s", err)
 	}
 
 	// Test updating the same new products, diff should be 0
 	UAC.Name = "ANX"
-	err = UAC.UpdateAvailableCurrencies(exchangeProducts, false)
+	err = UAC.UpdateCurrencies(exchangeProducts, false, false)
 	if err != nil {
-		t.Errorf("Test Failed - Exchange UpdateAvailableCurrencies() error: %s", err)
+		t.Errorf("Test Failed - Exchange UpdateCurrencies() error: %s", err)
 	}
 
 	// Test force updating to only one product
 	exchangeProducts = []string{"btc"}
-	err = UAC.UpdateAvailableCurrencies(exchangeProducts, true)
+	err = UAC.UpdateCurrencies(exchangeProducts, false, true)
 	if err != nil {
-		t.Errorf("Test Failed - Forced Exchange UpdateAvailableCurrencies() error: %s", err)
+		t.Errorf("Test Failed - Forced Exchange UpdateCurrencies() error: %s", err)
+	}
+
+	// Test update currency pairs with btc excluded
+	exchangeProducts = []string{"ltc", "eth"}
+	err = UAC.UpdateCurrencies(exchangeProducts, false, false)
+	if err != nil {
+		t.Errorf("Test Failed - Forced Exchange UpdateCurrencies() error: %s", err)
 	}
 }

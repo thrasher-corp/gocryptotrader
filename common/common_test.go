@@ -281,6 +281,26 @@ func TestStringDataCompare(t *testing.T) {
 	}
 }
 
+func TestStringDataCompareUpper(t *testing.T) {
+	t.Parallel()
+	originalHaystack := []string{"hello", "WoRld", "USDT", "Contains", "string"}
+	originalNeedle := "WoRld"
+	anotherNeedle := "WoRldD"
+	expectedOutput := true
+	expectedOutputTwo := false
+	actualResult := StringDataCompareUpper(originalHaystack, originalNeedle)
+	if actualResult != expectedOutput {
+		t.Errorf("Test failed. Expected '%v'. Actual '%v'",
+			expectedOutput, actualResult)
+	}
+
+	actualResult = StringDataCompareUpper(originalHaystack, anotherNeedle)
+	if actualResult != expectedOutputTwo {
+		t.Errorf("Test failed. Expected '%v'. Actual '%v'",
+			expectedOutput, actualResult)
+	}
+}
+
 func TestStringDataContainsUpper(t *testing.T) {
 	t.Parallel()
 	originalHaystack := []string{"bLa", "BrO", "sUp"}

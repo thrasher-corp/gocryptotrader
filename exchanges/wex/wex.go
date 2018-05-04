@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
@@ -46,7 +45,6 @@ const (
 type WEX struct {
 	exchange.Base
 	Ticker map[string]Ticker
-	*request.Handler
 }
 
 // SetDefaults sets current default value for WEX
@@ -65,8 +63,8 @@ func (w *WEX) SetDefaults() {
 	w.ConfigCurrencyPairFormat.Uppercase = true
 	w.AssetTypes = []string{ticker.Spot}
 	w.SupportsAutoPairUpdating = false
-	w.Handler = new(request.Handler)
-	w.SetRequestHandler(w.Name, wexAuthRate, wexUnauthRate, new(http.Client))
+	w.SupportsRESTTickerBatching = true
+	w.Requester = request.New(w.Name, request.NewRateLimit(time.Second, wexAuthRate), request.NewRateLimit(time.Second, wexUnauthRate), common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 }
 
 // Setup sets exchange configuration parameters for WEX
@@ -77,6 +75,7 @@ func (w *WEX) Setup(exch config.ExchangeConfig) {
 		w.Enabled = true
 		w.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
 		w.SetAPIKeys(exch.APIKey, exch.APISecret, "", false)
+		w.SetHTTPClientTimeout(exch.HTTPTimeout)
 		w.RESTPollingDelay = exch.RESTPollingDelay
 		w.Verbose = exch.Verbose
 		w.Websocket = exch.Websocket

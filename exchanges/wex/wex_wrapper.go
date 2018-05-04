@@ -3,6 +3,7 @@ package wex
 import (
 	"errors"
 	"log"
+	"sync"
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
@@ -12,8 +13,12 @@ import (
 )
 
 // Start starts the WEX go routine
-func (w *WEX) Start() {
-	go w.Run()
+func (w *WEX) Start(wg *sync.WaitGroup) {
+	wg.Add(1)
+	go func() {
+		w.Run()
+		wg.Done()
+	}()
 }
 
 // Run implements the WEX wrapper

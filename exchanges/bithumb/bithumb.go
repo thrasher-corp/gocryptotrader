@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"net/http"
 	"net/url"
 	"strconv"
 	"time"
@@ -47,14 +46,13 @@ const (
 	privateMarketBuy   = "/trade/market_buy"
 	privateMarketSell  = "/trade/market_sell"
 
-	bithumbAuthRate  = 100
-	bithumbUnathRate = 100
+	bithumbAuthRate   = 10
+	bithumbUnauthRate = 20
 )
 
 // Bithumb is the overarching type across the Bithumb package
 type Bithumb struct {
 	exchange.Base
-	*request.Handler
 }
 
 // SetDefaults sets the basic defaults for Bithumb
@@ -71,8 +69,8 @@ func (b *Bithumb) SetDefaults() {
 	b.ConfigCurrencyPairFormat.Index = "KRW"
 	b.AssetTypes = []string{ticker.Spot}
 	b.SupportsAutoPairUpdating = false
-	b.Handler = new(request.Handler)
-	b.SetRequestHandler(b.Name, bithumbAuthRate, bithumbUnathRate, new(http.Client))
+	b.SupportsRESTTickerBatching = false
+	b.Requester = request.New(b.Name, request.NewRateLimit(time.Second, bithumbAuthRate), request.NewRateLimit(time.Second, bithumbUnauthRate), common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 }
 
 // Setup takes in the supplied exchange configuration details and sets params
@@ -83,6 +81,7 @@ func (b *Bithumb) Setup(exch config.ExchangeConfig) {
 		b.Enabled = true
 		b.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
 		b.SetAPIKeys(exch.APIKey, exch.APISecret, "", false)
+		b.SetHTTPClientTimeout(exch.HTTPTimeout)
 		b.RESTPollingDelay = exch.RESTPollingDelay
 		b.Verbose = exch.Verbose
 		b.Websocket = exch.Websocket

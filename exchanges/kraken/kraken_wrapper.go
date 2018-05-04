@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/url"
 	"strconv"
+	"sync"
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
@@ -15,8 +16,12 @@ import (
 )
 
 // Start starts the Kraken go routine
-func (k *Kraken) Start() {
-	go k.Run()
+func (k *Kraken) Start(wg *sync.WaitGroup) {
+	wg.Add(1)
+	go func() {
+		k.Run()
+		wg.Done()
+	}()
 }
 
 // Run implements the Kraken wrapper
@@ -53,12 +58,12 @@ func (k *Kraken) Run() {
 			enabledPairs := []string{"XBT-USD"}
 			log.Println("WARNING: Available pairs for Kraken reset due to config upgrade, please enable the ones you would like again")
 
-			err = k.UpdateEnabledCurrencies(enabledPairs, true)
+			err = k.UpdateCurrencies(enabledPairs, true, true)
 			if err != nil {
 				log.Printf("%s Failed to get config.\n", k.GetName())
 			}
 		}
-		err = k.UpdateAvailableCurrencies(exchangeProducts, forceUpgrade)
+		err = k.UpdateCurrencies(exchangeProducts, false, forceUpgrade)
 		if err != nil {
 			log.Printf("%s Failed to get config.\n", k.GetName())
 		}
@@ -109,7 +114,7 @@ func (k *Kraken) SetTicker(symbol string) error {
 	resp := Response{}
 	path := fmt.Sprintf("%s/%s/public/%s?%s", krakenAPIURL, krakenAPIVersion, krakenTicker, values.Encode())
 
-	err := common.SendHTTPGetRequest(path, true, k.Verbose, &resp)
+	err := k.SendHTTPRequest(path, &resp)
 	if err != nil {
 		return err
 	}

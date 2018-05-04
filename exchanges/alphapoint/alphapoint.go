@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"net/http"
 	"strconv"
 	"time"
 
@@ -39,15 +38,14 @@ const (
 	alphapointOrderFee         = "GetOrderFee"
 
 	// alphapoint rate times
-	alphapointAuthRate   = 1200
-	alphapointUnauthRate = 1200
+	alphapointAuthRate   = 500
+	alphapointUnauthRate = 500
 )
 
 // Alphapoint is the overarching type across the alphapoint package
 type Alphapoint struct {
 	exchange.Base
 	WebsocketConn *websocket.Conn
-	*request.Handler
 }
 
 // SetDefaults sets current default settings
@@ -56,8 +54,8 @@ func (a *Alphapoint) SetDefaults() {
 	a.WebsocketURL = alphapointDefaultWebsocketURL
 	a.AssetTypes = []string{ticker.Spot}
 	a.SupportsAutoPairUpdating = false
-	a.Handler = new(request.Handler)
-	a.SetRequestHandler(a.Name, alphapointAuthRate, alphapointUnauthRate, new(http.Client))
+	a.SupportsRESTTickerBatching = false
+	a.Requester = request.New(a.Name, request.NewRateLimit(time.Minute*10, alphapointAuthRate), request.NewRateLimit(time.Minute*10, alphapointUnauthRate), common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 }
 
 // GetTicker returns current ticker information from Alphapoint for a selected

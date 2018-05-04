@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
@@ -51,7 +50,6 @@ const (
 // BTCC is the main overaching type across the BTCC package
 type BTCC struct {
 	exchange.Base
-	*request.Handler
 }
 
 // SetDefaults sets default values for the exchange
@@ -68,8 +66,8 @@ func (b *BTCC) SetDefaults() {
 	b.ConfigCurrencyPairFormat.Uppercase = true
 	b.AssetTypes = []string{ticker.Spot}
 	b.SupportsAutoPairUpdating = true
-	b.Handler = new(request.Handler)
-	b.SetRequestHandler(b.Name, btccAuthRate, btccUnauthRate, new(http.Client))
+	b.SupportsRESTTickerBatching = false
+	b.Requester = request.New(b.Name, request.NewRateLimit(time.Second, btccAuthRate), request.NewRateLimit(time.Second, btccUnauthRate), common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 }
 
 // Setup is run on startup to setup exchange with config values
@@ -80,6 +78,7 @@ func (b *BTCC) Setup(exch config.ExchangeConfig) {
 		b.Enabled = true
 		b.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
 		b.SetAPIKeys(exch.APIKey, exch.APISecret, "", false)
+		b.SetHTTPClientTimeout(exch.HTTPTimeout)
 		b.RESTPollingDelay = exch.RESTPollingDelay
 		b.Verbose = exch.Verbose
 		b.Websocket = exch.Websocket

@@ -4,6 +4,7 @@ import (
 	"errors"
 	"log"
 	"strings"
+	"sync"
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
@@ -13,8 +14,12 @@ import (
 )
 
 // Start starts the Bitstamp go routine
-func (b *Bitstamp) Start() {
-	go b.Run()
+func (b *Bitstamp) Start(wg *sync.WaitGroup) {
+	wg.Add(1)
+	go func() {
+		b.Run()
+		wg.Done()
+	}()
 }
 
 // Run implements the Bitstamp wrapper
@@ -41,7 +46,7 @@ func (b *Bitstamp) Run() {
 			pair := strings.Split(pairs[x].Name, "/")
 			currencies = append(currencies, pair[0]+pair[1])
 		}
-		err = b.UpdateAvailableCurrencies(currencies, false)
+		err = b.UpdateCurrencies(currencies, false, false)
 		if err != nil {
 			log.Printf("%s Failed to update available currencies.\n", b.Name)
 		}

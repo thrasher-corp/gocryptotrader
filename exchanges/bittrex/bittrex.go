@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"net/http"
 	"net/url"
 	"strconv"
 	"time"
@@ -61,7 +60,6 @@ const (
 // Bittrex is the overaching type across the bittrex methods
 type Bittrex struct {
 	exchange.Base
-	*request.Handler
 }
 
 // SetDefaults method assignes the default values for Bittrex
@@ -77,8 +75,8 @@ func (b *Bittrex) SetDefaults() {
 	b.ConfigCurrencyPairFormat.Uppercase = true
 	b.AssetTypes = []string{ticker.Spot}
 	b.SupportsAutoPairUpdating = true
-	b.Handler = new(request.Handler)
-	b.SetRequestHandler(b.Name, bittrexAuthRate, bittrexUnauthRate, new(http.Client))
+	b.SupportsRESTTickerBatching = true
+	b.Requester = request.New(b.Name, request.NewRateLimit(time.Second, bittrexAuthRate), request.NewRateLimit(time.Second, bittrexUnauthRate), common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 }
 
 // Setup method sets current configuration details if enabled
@@ -89,6 +87,7 @@ func (b *Bittrex) Setup(exch config.ExchangeConfig) {
 		b.Enabled = true
 		b.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
 		b.SetAPIKeys(exch.APIKey, exch.APISecret, exch.ClientID, false)
+		b.SetHTTPClientTimeout(exch.HTTPTimeout)
 		b.RESTPollingDelay = exch.RESTPollingDelay
 		b.Verbose = exch.Verbose
 		b.Websocket = exch.Websocket

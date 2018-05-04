@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"net/http"
 	"net/url"
 	"time"
 
@@ -39,15 +38,14 @@ const (
 	orderStatusFullyMatched       = "Fully Matched"
 	orderStatusPartiallyMatched   = "Partially Matched"
 
-	btcmarketsAuthLimit   = 0
-	btcmarketsUnauthLimit = 0
+	btcmarketsAuthLimit   = 10
+	btcmarketsUnauthLimit = 25
 )
 
 // BTCMarkets is the overarching type across the BTCMarkets package
 type BTCMarkets struct {
 	exchange.Base
 	Ticker map[string]Ticker
-	*request.Handler
 }
 
 // SetDefaults sets basic defaults
@@ -65,8 +63,8 @@ func (b *BTCMarkets) SetDefaults() {
 	b.ConfigCurrencyPairFormat.Uppercase = true
 	b.AssetTypes = []string{ticker.Spot}
 	b.SupportsAutoPairUpdating = true
-	b.Handler = new(request.Handler)
-	b.SetRequestHandler(b.Name, btcmarketsAuthLimit, btcmarketsUnauthLimit, new(http.Client))
+	b.SupportsRESTTickerBatching = false
+	b.Requester = request.New(b.Name, request.NewRateLimit(time.Second*10, btcmarketsAuthLimit), request.NewRateLimit(time.Second*10, btcmarketsUnauthLimit), common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 }
 
 // Setup takes in an exchange configuration and sets all parameters
@@ -77,6 +75,7 @@ func (b *BTCMarkets) Setup(exch config.ExchangeConfig) {
 		b.Enabled = true
 		b.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
 		b.SetAPIKeys(exch.APIKey, exch.APISecret, "", true)
+		b.SetHTTPClientTimeout(exch.HTTPTimeout)
 		b.RESTPollingDelay = exch.RESTPollingDelay
 		b.Verbose = exch.Verbose
 		b.Websocket = exch.Websocket

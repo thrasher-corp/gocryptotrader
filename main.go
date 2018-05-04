@@ -10,7 +10,6 @@ import (
 	"runtime"
 	"strconv"
 	"syscall"
-	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
@@ -74,7 +73,7 @@ func main() {
 	AdjustGoMaxProcs()
 	log.Printf("Bot '%s' started.\n", bot.config.Name)
 	log.Printf("Fiat display currency: %s.", bot.config.FiatDisplayCurrency)
-	log.Printf("Bot dry run mode: %v\n", common.IsEnabled(bot.dryRun))
+	log.Printf("Bot dry run mode: %v.\n", common.IsEnabled(bot.dryRun))
 
 	if bot.config.SMS.Enabled {
 		bot.smsglobal = smsglobal.New(bot.config.SMS.Username, bot.config.SMS.Password,
@@ -92,12 +91,13 @@ func main() {
 		len(bot.config.Exchanges), bot.config.CountEnabledExchanges(),
 	)
 
+	common.HTTPClient = common.NewHTTPClientWithTimeout(bot.config.GlobalHTTPTimeout)
+	log.Printf("Global HTTP request timeout: %v.\n", common.HTTPClient.Timeout)
+
 	SetupExchanges()
 	if len(bot.exchanges) == 0 {
 		log.Fatalf("No exchanges were able to be loaded. Exiting")
 	}
-	// TODO: Fix hack, allow 5 seconds to update exchange settings
-	time.Sleep(time.Second * 5)
 
 	if bot.config.CurrencyExchangeProvider == "yahoo" {
 		currency.SetProvider(true)
@@ -124,7 +124,7 @@ func main() {
 	SeedExchangeAccountInfo(GetAllEnabledExchangeAccountInfo().Data)
 	go portfolio.StartPortfolioWatcher()
 
-	log.Println("Starting websocket handler")
+	log.Println("Starting websocket handler.")
 	go WebsocketHandler()
 	go TickerUpdaterRoutine()
 	go OrderbookUpdaterRoutine()

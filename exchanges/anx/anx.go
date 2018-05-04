@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"net/http"
 	"strconv"
 	"time"
 
@@ -31,14 +30,13 @@ const (
 	anxDepth           = "money/depth/full"
 
 	// ANX rate limites for authenticated and unauthenticated requests
-	anxAuthRate   = 1000
-	anxUnauthRate = 1000
+	anxAuthRate   = 0
+	anxUnauthRate = 0
 )
 
 // ANX is the overarching type across the alphapoint package
 type ANX struct {
 	exchange.Base
-	*request.Handler
 }
 
 // SetDefaults sets current default settings
@@ -58,8 +56,8 @@ func (a *ANX) SetDefaults() {
 	a.ConfigCurrencyPairFormat.Index = "BTC"
 	a.AssetTypes = []string{ticker.Spot}
 	a.SupportsAutoPairUpdating = false
-	a.Handler = new(request.Handler)
-	a.SetRequestHandler(a.Name, anxAuthRate, anxUnauthRate, new(http.Client))
+	a.SupportsRESTTickerBatching = false
+	a.Requester = request.New(a.Name, request.NewRateLimit(time.Second, anxAuthRate), request.NewRateLimit(time.Second, anxUnauthRate), common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 }
 
 //Setup is run on startup to setup exchange with config values
@@ -70,6 +68,7 @@ func (a *ANX) Setup(exch config.ExchangeConfig) {
 		a.Enabled = true
 		a.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
 		a.SetAPIKeys(exch.APIKey, exch.APISecret, "", true)
+		a.SetHTTPClientTimeout(exch.HTTPTimeout)
 		a.RESTPollingDelay = exch.RESTPollingDelay
 		a.Verbose = exch.Verbose
 		a.Websocket = exch.Websocket

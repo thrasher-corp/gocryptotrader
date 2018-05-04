@@ -13,8 +13,12 @@ import (
 )
 
 // Start starts the {{.CapitalName}} go routine
-func ({{.Variable}} *{{.CapitalName}}) Start() {
-	go {{.Variable}}.Run()
+func ({{.Variable}} *{{.CapitalName}}) Start(wg *sync.WaitGroup) {
+	wg.Add(1)
+	go func() {
+		{{.Variable}}.Run()
+		wg.Done()
+	}()
 }
 
 // Run implements the {{.CapitalName}} wrapper

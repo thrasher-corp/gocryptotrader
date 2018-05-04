@@ -3,6 +3,7 @@ package liqui
 import (
 	"errors"
 	"log"
+	"sync"
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
@@ -12,8 +13,12 @@ import (
 )
 
 // Start starts the Liqui go routine
-func (l *Liqui) Start() {
-	go l.Run()
+func (l *Liqui) Start(wg *sync.WaitGroup) {
+	wg.Add(1)
+	go func() {
+		l.Run()
+		wg.Done()
+	}()
 }
 
 // Run implements the Liqui wrapper
@@ -29,7 +34,7 @@ func (l *Liqui) Run() {
 		log.Printf("%s Unable to fetch info.\n", l.GetName())
 	} else {
 		exchangeProducts := l.GetAvailablePairs(true)
-		err = l.UpdateAvailableCurrencies(exchangeProducts, false)
+		err = l.UpdateCurrencies(exchangeProducts, false, false)
 		if err != nil {
 			log.Printf("%s Failed to get config.\n", l.GetName())
 		}

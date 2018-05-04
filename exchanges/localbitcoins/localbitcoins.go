@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"net/http"
 	"net/url"
 	"strconv"
 	"time"
@@ -109,7 +108,6 @@ var (
 // LocalBitcoins is the overarching type across the localbitcoins package
 type LocalBitcoins struct {
 	exchange.Base
-	*request.Handler
 }
 
 // SetDefaults sets the package defaults for localbitcoins
@@ -125,8 +123,8 @@ func (l *LocalBitcoins) SetDefaults() {
 	l.ConfigCurrencyPairFormat.Delimiter = ""
 	l.ConfigCurrencyPairFormat.Uppercase = true
 	l.SupportsAutoPairUpdating = false
-	l.Handler = new(request.Handler)
-	l.SetRequestHandler(l.Name, localbitcoinsAuthRate, localbitcoinsUnauthRate, new(http.Client))
+	l.SupportsRESTTickerBatching = true
+	l.Requester = request.New(l.Name, request.NewRateLimit(time.Second*0, localbitcoinsAuthRate), request.NewRateLimit(time.Second*0, localbitcoinsUnauthRate), common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 }
 
 // Setup sets exchange configuration parameters
@@ -137,6 +135,7 @@ func (l *LocalBitcoins) Setup(exch config.ExchangeConfig) {
 		l.Enabled = true
 		l.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
 		l.SetAPIKeys(exch.APIKey, exch.APISecret, "", false)
+		l.SetHTTPClientTimeout(exch.HTTPTimeout)
 		l.RESTPollingDelay = exch.RESTPollingDelay
 		l.Verbose = exch.Verbose
 		l.Websocket = exch.Websocket

@@ -3,6 +3,7 @@ package btcc
 import (
 	"errors"
 	"log"
+	"sync"
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
@@ -13,8 +14,12 @@ import (
 )
 
 // Start starts the BTCC go routine
-func (b *BTCC) Start() {
-	go b.Run()
+func (b *BTCC) Start(wg *sync.WaitGroup) {
+	wg.Add(1)
+	go func() {
+		b.Run()
+		wg.Done()
+	}()
 }
 
 // Run implements the BTCC wrapper
@@ -44,12 +49,12 @@ func (b *BTCC) Run() {
 		exchCfg.EnabledPairs = pairs[0]
 		b.BaseCurrencies = []string{"USD"}
 
-		err = b.UpdateAvailableCurrencies(pairs, true)
+		err = b.UpdateCurrencies(pairs, false, true)
 		if err != nil {
 			log.Printf("%s failed to update available currencies. %s\n", b.Name, err)
 		}
 
-		err = b.UpdateEnabledCurrencies(pairs, true)
+		err = b.UpdateCurrencies(pairs, true, true)
 		if err != nil {
 			log.Printf("%s failed to update enabled currencies. %s\n", b.Name, err)
 		}

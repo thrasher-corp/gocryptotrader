@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"net/http"
 	"net/url"
 	"strconv"
 	"time"
@@ -67,9 +66,9 @@ const (
 	bitfinexActiveCredits      = "credits"
 	bitfinexPlatformStatus     = "platform/status"
 
-	// stable times in millisecond per request
-	bitfinexAuthRate   = 2750
-	bitfinexUnauthRate = 2750
+	// requests per minute
+	bitfinexAuthRate   = 10
+	bitfinexUnauthRate = 10
 
 	// Bitfinex platform status values
 	// When the platform is marked in maintenance mode bots should stop trading
@@ -86,7 +85,6 @@ type Bitfinex struct {
 	exchange.Base
 	WebsocketConn         *websocket.Conn
 	WebsocketSubdChannels map[int]WebsocketChanInfo
-	*request.Handler
 }
 
 // SetDefaults sets the basic defaults for bitfinex
@@ -103,8 +101,8 @@ func (b *Bitfinex) SetDefaults() {
 	b.ConfigCurrencyPairFormat.Uppercase = true
 	b.AssetTypes = []string{ticker.Spot}
 	b.SupportsAutoPairUpdating = true
-	b.Handler = new(request.Handler)
-	b.SetRequestHandler(b.Name, bitfinexAuthRate, bitfinexUnauthRate, new(http.Client))
+	b.SupportsRESTTickerBatching = true
+	b.Requester = request.New(b.Name, request.NewRateLimit(time.Second*60, bitfinexAuthRate), request.NewRateLimit(time.Second*60, bitfinexUnauthRate), common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 }
 
 // Setup takes in the supplied exchange configuration details and sets params
@@ -115,6 +113,7 @@ func (b *Bitfinex) Setup(exch config.ExchangeConfig) {
 		b.Enabled = true
 		b.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
 		b.SetAPIKeys(exch.APIKey, exch.APISecret, "", false)
+		b.SetHTTPClientTimeout(exch.HTTPTimeout)
 		b.RESTPollingDelay = exch.RESTPollingDelay
 		b.Verbose = exch.Verbose
 		b.Websocket = exch.Websocket

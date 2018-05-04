@@ -4,6 +4,7 @@ import (
 	"errors"
 	"log"
 	"strconv"
+	"sync"
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
@@ -13,8 +14,12 @@ import (
 )
 
 // Start starts the EXMO go routine
-func (e *EXMO) Start() {
-	go e.Run()
+func (e *EXMO) Start(wg *sync.WaitGroup) {
+	wg.Add(1)
+	go func() {
+		e.Run()
+		wg.Done()
+	}()
 }
 
 // Run implements the EXMO wrapper
@@ -32,7 +37,7 @@ func (e *EXMO) Run() {
 		for x := range exchangeProducts {
 			currencies = append(currencies, x)
 		}
-		err = e.UpdateAvailableCurrencies(currencies, false)
+		err = e.UpdateCurrencies(currencies, false, false)
 		if err != nil {
 			log.Printf("%s Failed to update available currencies.\n", e.GetName())
 		}

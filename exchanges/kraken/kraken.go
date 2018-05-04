@@ -3,7 +3,6 @@ package kraken
 import (
 	"fmt"
 	"log"
-	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
@@ -50,7 +49,6 @@ type Kraken struct {
 	exchange.Base
 	CryptoFee, FiatFee float64
 	Ticker             map[string]Ticker
-	*request.Handler
 }
 
 // SetDefaults sets current default settings
@@ -70,8 +68,8 @@ func (k *Kraken) SetDefaults() {
 	k.ConfigCurrencyPairFormat.Uppercase = true
 	k.AssetTypes = []string{ticker.Spot}
 	k.SupportsAutoPairUpdating = true
-	k.Handler = new(request.Handler)
-	k.SetRequestHandler(k.Name, krakenAuthRate, krakenUnauthRate, new(http.Client))
+	k.SupportsRESTTickerBatching = true
+	k.Requester = request.New(k.Name, request.NewRateLimit(time.Second, krakenAuthRate), request.NewRateLimit(time.Second, krakenUnauthRate), common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 }
 
 // Setup sets current exchange configuration
@@ -82,6 +80,7 @@ func (k *Kraken) Setup(exch config.ExchangeConfig) {
 		k.Enabled = true
 		k.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
 		k.SetAPIKeys(exch.APIKey, exch.APISecret, "", false)
+		k.SetHTTPClientTimeout(exch.HTTPTimeout)
 		k.RESTPollingDelay = exch.RESTPollingDelay
 		k.Verbose = exch.Verbose
 		k.Websocket = exch.Websocket

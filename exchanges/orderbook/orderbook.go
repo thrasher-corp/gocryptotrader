@@ -2,6 +2,7 @@ package orderbook
 
 import (
 	"errors"
+	"sync"
 	"time"
 
 	"github.com/thrasher-/gocryptotrader/currency/pair"
@@ -19,6 +20,7 @@ const (
 // Vars for the orderbook package
 var (
 	Orderbooks []Orderbook
+	m          sync.Mutex
 )
 
 // Item stores the amount and price values
@@ -94,6 +96,8 @@ func GetOrderbook(exchange string, p pair.CurrencyPair, orderbookType string) (B
 
 // GetOrderbookByExchange returns an exchange orderbook
 func GetOrderbookByExchange(exchange string) (*Orderbook, error) {
+	m.Lock()
+	defer m.Unlock()
 	for _, y := range Orderbooks {
 		if y.ExchangeName == exchange {
 			return &y, nil
@@ -105,6 +109,8 @@ func GetOrderbookByExchange(exchange string) (*Orderbook, error) {
 // FirstCurrencyExists checks to see if the first currency of the orderbook map
 // exists
 func FirstCurrencyExists(exchange string, currency pair.CurrencyItem) bool {
+	m.Lock()
+	defer m.Unlock()
 	for _, y := range Orderbooks {
 		if y.ExchangeName == exchange {
 			if _, ok := y.Orderbook[currency]; ok {
@@ -118,6 +124,8 @@ func FirstCurrencyExists(exchange string, currency pair.CurrencyItem) bool {
 // SecondCurrencyExists checks to see if the second currency of the orderbook
 // map exists
 func SecondCurrencyExists(exchange string, p pair.CurrencyPair) bool {
+	m.Lock()
+	defer m.Unlock()
 	for _, y := range Orderbooks {
 		if y.ExchangeName == exchange {
 			if _, ok := y.Orderbook[p.GetFirstCurrency()]; ok {
@@ -132,6 +140,8 @@ func SecondCurrencyExists(exchange string, p pair.CurrencyPair) bool {
 
 // CreateNewOrderbook creates a new orderbook
 func CreateNewOrderbook(exchangeName string, p pair.CurrencyPair, orderbookNew Base, orderbookType string) Orderbook {
+	m.Lock()
+	defer m.Unlock()
 	orderbook := Orderbook{}
 	orderbook.ExchangeName = exchangeName
 	orderbook.Orderbook = make(map[pair.CurrencyItem]map[pair.CurrencyItem]map[string]Base)
@@ -163,18 +173,22 @@ func ProcessOrderbook(exchangeName string, p pair.CurrencyPair, orderbookNew Bas
 
 	if FirstCurrencyExists(exchangeName, p.GetFirstCurrency()) {
 		if !SecondCurrencyExists(exchangeName, p) {
+			m.Lock()
 			a := orderbook.Orderbook[p.FirstCurrency]
 			b := make(map[string]Base)
 			b[orderbookType] = orderbookNew
 			a[p.SecondCurrency] = b
 			orderbook.Orderbook[p.FirstCurrency] = a
+			m.Unlock()
 			return
 		}
 	}
 
+	m.Lock()
 	a := make(map[pair.CurrencyItem]map[string]Base)
 	b := make(map[string]Base)
 	b[orderbookType] = orderbookNew
 	a[p.SecondCurrency] = b
 	orderbook.Orderbook[p.FirstCurrency] = a
+	m.Unlock()
 }

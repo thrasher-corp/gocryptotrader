@@ -3,7 +3,6 @@ package exmo
 import (
 	"fmt"
 	"log"
-	"net/http"
 	"net/url"
 	"reflect"
 	"strconv"
@@ -42,14 +41,13 @@ const (
 	exmoWalletHistory   = "wallet_history"
 
 	// Rate limit: 180 per/minute
-	exmoAuthRate   = 333
-	exmoUnauthRate = 333
+	exmoAuthRate   = 180
+	exmoUnauthRate = 180
 )
 
 // EXMO exchange struct
 type EXMO struct {
 	exchange.Base
-	*request.Handler
 }
 
 // SetDefaults sets the basic defaults for exmo
@@ -66,8 +64,8 @@ func (e *EXMO) SetDefaults() {
 	e.ConfigCurrencyPairFormat.Uppercase = true
 	e.AssetTypes = []string{ticker.Spot}
 	e.SupportsAutoPairUpdating = true
-	e.Handler = new(request.Handler)
-	e.SetRequestHandler(e.Name, exmoAuthRate, exmoUnauthRate, new(http.Client))
+	e.SupportsRESTTickerBatching = true
+	e.Requester = request.New(e.Name, request.NewRateLimit(time.Minute, exmoAuthRate), request.NewRateLimit(time.Minute, exmoUnauthRate), common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 }
 
 // Setup takes in the supplied exchange configuration details and sets params
@@ -78,6 +76,7 @@ func (e *EXMO) Setup(exch config.ExchangeConfig) {
 		e.Enabled = true
 		e.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
 		e.SetAPIKeys(exch.APIKey, exch.APISecret, "", false)
+		e.SetHTTPClientTimeout(exch.HTTPTimeout)
 		e.RESTPollingDelay = exch.RESTPollingDelay
 		e.Verbose = exch.Verbose
 		e.Websocket = exch.Websocket

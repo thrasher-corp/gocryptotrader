@@ -2,6 +2,8 @@ package exchange
 
 import (
 	"log"
+	"net/http"
+	"sync"
 	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
@@ -9,6 +11,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/currency/pair"
 	"github.com/thrasher-/gocryptotrader/exchanges/nonce"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-/gocryptotrader/exchanges/request"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 )
 
@@ -19,6 +22,8 @@ const (
 	WarningAuthenticatedRequestWithoutCredentialsSet = "WARNING -- Exchange %s authenticated HTTP request called but not supported due to unset/default API keys."
 	// ErrExchangeNotFound is a constant for an error message
 	ErrExchangeNotFound = "Exchange not found in dataset."
+	// DefaultHTTPTimeout is the default HTTP/HTTPS Timeout for exchange requests
+	DefaultHTTPTimeout = time.Second * 15
 )
 
 // AccountInfo is a Generic type to hold each exchange's holdings in
@@ -62,17 +67,20 @@ type Base struct {
 	AssetTypes                  []string
 	PairsLastUpdated            int64
 	SupportsAutoPairUpdating    bool
+	SupportsRESTTickerBatching  bool
+	HTTPTimeout                 time.Duration
 	WebsocketURL                string
 	APIUrl                      string
 	RequestCurrencyPairFormat   config.CurrencyPairFormatConfig
 	ConfigCurrencyPairFormat    config.CurrencyPairFormatConfig
+	*request.Requester
 }
 
 // IBotExchange enforces standard functions for all exchanges supported in
 // GoCryptoTrader
 type IBotExchange interface {
 	Setup(exch config.ExchangeConfig)
-	Start()
+	Start(wg *sync.WaitGroup)
 	SetDefaults()
 	GetName() string
 	IsEnabled() bool
@@ -89,6 +97,38 @@ type IBotExchange interface {
 	GetExchangeHistory(pair.CurrencyPair, string) ([]TradeHistory, error)
 	SupportsAutoPairUpdates() bool
 	GetLastPairsUpdateTime() int64
+	SupportsRESTTickerBatchUpdates() bool
+}
+
+// SupportsRESTTickerBatchUpdates returns whether or not the
+// exhange supports REST batch ticker fetching
+func (e *Base) SupportsRESTTickerBatchUpdates() bool {
+	return e.SupportsRESTTickerBatching
+}
+
+// SetHTTPClientTimeout sets the timeout value for the exchanges
+// HTTP Client
+func (e *Base) SetHTTPClientTimeout(t time.Duration) {
+	if e.Requester == nil {
+		e.Requester = request.New(e.Name, request.NewRateLimit(time.Second, 0), request.NewRateLimit(time.Second, 0), new(http.Client))
+	}
+	e.Requester.HTTPClient.Timeout = t
+}
+
+// SetHTTPClient sets exchanges HTTP client
+func (e *Base) SetHTTPClient(h *http.Client) {
+	if e.Requester == nil {
+		e.Requester = request.New(e.Name, request.NewRateLimit(time.Second, 0), request.NewRateLimit(time.Second, 0), new(http.Client))
+	}
+	e.Requester.HTTPClient = h
+}
+
+// GetHTTPClient gets the exchanges HTTP client
+func (e *Base) GetHTTPClient() *http.Client {
+	if e.Requester == nil {
+		e.Requester = request.New(e.Name, request.NewRateLimit(time.Second, 0), request.NewRateLimit(time.Second, 0), new(http.Client))
+	}
+	return e.Requester.HTTPClient
 }
 
 // SetAutoPairDefaults sets the default values for whether or not the exchange
@@ -378,12 +418,28 @@ func (e *Base) SetCurrencies(pairs []pair.CurrencyPair, enabledPairs bool) error
 	return cfg.UpdateExchangeConfig(exchCfg)
 }
 
-// UpdateEnabledCurrencies is a method that sets new pairs to the current
-// exchange. Setting force to true upgrades the enabled currencies
-func (e *Base) UpdateEnabledCurrencies(exchangeProducts []string, force bool) error {
+// UpdateCurrencies updates the exchange currency pairs for either enabledPairs or
+// availablePairs
+func (e *Base) UpdateCurrencies(exchangeProducts []string, enabled, force bool) error {
 	exchangeProducts = common.SplitStrings(common.StringToUpper(common.JoinStrings(exchangeProducts, ",")), ",")
-	diff := common.StringSliceDifference(e.EnabledPairs, exchangeProducts)
-	if force || len(diff) > 0 {
+	var products []string
+
+	for x := range exchangeProducts {
+		if exchangeProducts[x] == "" {
+			continue
+		}
+		products = append(products, exchangeProducts[x])
+	}
+
+	var newPairs, removedPairs []string
+
+	if enabled {
+		newPairs, removedPairs = pair.FindPairDifferences(e.EnabledPairs, products)
+	} else {
+		newPairs, removedPairs = pair.FindPairDifferences(e.AvailablePairs, products)
+	}
+
+	if force || len(newPairs) > 0 || len(removedPairs) > 0 {
 		cfg := config.GetConfig()
 		exch, err := cfg.GetExchangeConfig(e.Name)
 		if err != nil {
@@ -393,34 +449,21 @@ func (e *Base) UpdateEnabledCurrencies(exchangeProducts []string, force bool) er
 		if force {
 			log.Printf("%s forced update of enabled pairs.", e.Name)
 		} else {
-			log.Printf("%s Updating available pairs. Difference: %s.\n", e.Name, diff)
-		}
-		exch.EnabledPairs = common.JoinStrings(exchangeProducts, ",")
-		e.EnabledPairs = exchangeProducts
-		return cfg.UpdateExchangeConfig(exch)
-	}
-	return nil
-}
-
-// UpdateAvailableCurrencies is a method that sets new pairs to the current
-// exchange. Setting force to true upgrades the available currencies
-func (e *Base) UpdateAvailableCurrencies(exchangeProducts []string, force bool) error {
-	exchangeProducts = common.SplitStrings(common.StringToUpper(common.JoinStrings(exchangeProducts, ",")), ",")
-	diff := common.StringSliceDifference(e.AvailablePairs, exchangeProducts)
-	if force || len(diff) > 0 {
-		cfg := config.GetConfig()
-		exch, err := cfg.GetExchangeConfig(e.Name)
-		if err != nil {
-			return err
+			if len(newPairs) > 0 {
+				log.Printf("%s Updating pairs - New: %s.\n", e.Name, newPairs)
+			}
+			if len(removedPairs) > 0 {
+				log.Printf("%s Updating pairs - Removed: %s.\n", e.Name, removedPairs)
+			}
 		}
 
-		if force {
-			log.Printf("%s forced update of available pairs.", e.Name)
+		if enabled {
+			exch.EnabledPairs = common.JoinStrings(products, ",")
+			e.EnabledPairs = products
 		} else {
-			log.Printf("%s Updating available pairs. Difference: %s.\n", e.Name, diff)
+			exch.AvailablePairs = common.JoinStrings(products, ",")
+			e.AvailablePairs = products
 		}
-		exch.AvailablePairs = common.JoinStrings(exchangeProducts, ",")
-		e.AvailablePairs = exchangeProducts
 		return cfg.UpdateExchangeConfig(exch)
 	}
 	return nil

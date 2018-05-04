@@ -3,6 +3,7 @@ package bitflyer
 import (
 	"errors"
 	"log"
+	"sync"
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
@@ -12,8 +13,12 @@ import (
 )
 
 // Start starts the Bitfinex go routine
-func (b *Bitflyer) Start() {
-	go b.Run()
+func (b *Bitflyer) Start(wg *sync.WaitGroup) {
+	wg.Add(1)
+	go func() {
+		b.Run()
+		wg.Done()
+	}()
 }
 
 // Run implements the Bitfinex wrapper

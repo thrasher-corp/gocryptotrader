@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"net/http"
 	"strconv"
 	"strings"
 	"time"
@@ -39,7 +38,6 @@ const (
 // LakeBTC is the overarching type across the LakeBTC package
 type LakeBTC struct {
 	exchange.Base
-	*request.Handler
 }
 
 // SetDefaults sets LakeBTC defaults
@@ -57,8 +55,8 @@ func (l *LakeBTC) SetDefaults() {
 	l.ConfigCurrencyPairFormat.Uppercase = true
 	l.AssetTypes = []string{ticker.Spot}
 	l.SupportsAutoPairUpdating = false
-	l.Handler = new(request.Handler)
-	l.SetRequestHandler(l.Name, lakeBTCAuthRate, lakeBTCUnauth, new(http.Client))
+	l.SupportsRESTTickerBatching = true
+	l.Requester = request.New(l.Name, request.NewRateLimit(time.Second, lakeBTCAuthRate), request.NewRateLimit(time.Second, lakeBTCUnauth), common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 }
 
 // Setup sets exchange configuration profile
@@ -69,6 +67,7 @@ func (l *LakeBTC) Setup(exch config.ExchangeConfig) {
 		l.Enabled = true
 		l.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
 		l.SetAPIKeys(exch.APIKey, exch.APISecret, "", false)
+		l.SetHTTPClientTimeout(exch.HTTPTimeout)
 		l.RESTPollingDelay = exch.RESTPollingDelay
 		l.Verbose = exch.Verbose
 		l.Websocket = exch.Websocket

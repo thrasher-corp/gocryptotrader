@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"net/http"
 	"net/url"
 	"reflect"
 	"strconv"
@@ -50,15 +49,14 @@ const (
 	bitstampAPIReturnType         = "string"
 	bitstampAPITradingPairsInfo   = "trading-pairs-info"
 
-	bitstampAuthRate   = 0
-	bitstampUnauthRate = 0
+	bitstampAuthRate   = 600
+	bitstampUnauthRate = 600
 )
 
 // Bitstamp is the overarching type across the bitstamp package
 type Bitstamp struct {
 	exchange.Base
 	Balance Balances
-	*request.Handler
 }
 
 // SetDefaults sets default for Bitstamp
@@ -74,8 +72,8 @@ func (b *Bitstamp) SetDefaults() {
 	b.ConfigCurrencyPairFormat.Uppercase = true
 	b.AssetTypes = []string{ticker.Spot}
 	b.SupportsAutoPairUpdating = true
-	b.Handler = new(request.Handler)
-	b.SetRequestHandler(b.Name, bitstampAuthRate, bitstampUnauthRate, new(http.Client))
+	b.SupportsRESTTickerBatching = false
+	b.Requester = request.New(b.Name, request.NewRateLimit(time.Minute*10, bitstampAuthRate), request.NewRateLimit(time.Minute*10, bitstampUnauthRate), common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 }
 
 // Setup sets configuration values to bitstamp
@@ -86,6 +84,7 @@ func (b *Bitstamp) Setup(exch config.ExchangeConfig) {
 		b.Enabled = true
 		b.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
 		b.SetAPIKeys(exch.APIKey, exch.APISecret, exch.ClientID, false)
+		b.SetHTTPClientTimeout(exch.HTTPTimeout)
 		b.RESTPollingDelay = exch.RESTPollingDelay
 		b.Verbose = exch.Verbose
 		b.Websocket = exch.Websocket
@@ -207,7 +206,7 @@ func (b *Bitstamp) GetOrderbook(currency string) (Orderbook, error) {
 func (b *Bitstamp) GetTradingPairs() ([]TradingPair, error) {
 	var result []TradingPair
 	path := fmt.Sprintf("%s/v%s/%s", bitstampAPIURL, bitstampAPIVersion, bitstampAPITradingPairsInfo)
-	return result, common.SendHTTPGetRequest(path, true, b.Verbose, &result)
+	return result, b.SendHTTPRequest(path, &result)
 }
 
 // GetTransactions returns transaction information

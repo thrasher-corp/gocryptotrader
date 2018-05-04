@@ -3,6 +3,7 @@ package yobit
 import (
 	"errors"
 	"log"
+	"sync"
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
@@ -12,8 +13,12 @@ import (
 )
 
 // Start starts the WEX go routine
-func (y *Yobit) Start() {
-	go y.Run()
+func (y *Yobit) Start(wg *sync.WaitGroup) {
+	wg.Add(1)
+	go func() {
+		y.Run()
+		wg.Done()
+	}()
 }
 
 // Run implements the Yobit wrapper

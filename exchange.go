@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	"log"
+	"sync"
 
 	"github.com/thrasher-/gocryptotrader/common"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
@@ -120,7 +121,7 @@ func UnloadExchange(name string) error {
 }
 
 // LoadExchange loads an exchange by name
-func LoadExchange(name string) error {
+func LoadExchange(name string, useWG bool, wg *sync.WaitGroup) error {
 	nameLower := common.StringToLower(name)
 	var exch exchange.IBotExchange
 
@@ -200,12 +201,20 @@ func LoadExchange(name string) error {
 
 	exchCfg.Enabled = true
 	exch.Setup(exchCfg)
-	exch.Start()
+
+	if useWG {
+		exch.Start(wg)
+	} else {
+		wg := sync.WaitGroup{}
+		exch.Start(&wg)
+		wg.Wait()
+	}
 	return nil
 }
 
 // SetupExchanges sets up the exchanges used by the bot
 func SetupExchanges() {
+	var wg sync.WaitGroup
 	for _, exch := range bot.config.Exchanges {
 		if CheckExchangeExists(exch.Name) {
 			e := GetExchangeByName(exch.Name)
@@ -231,7 +240,7 @@ func SetupExchanges() {
 			log.Printf("%s: Exchange support: Disabled", exch.Name)
 			continue
 		} else {
-			err := LoadExchange(exch.Name)
+			err := LoadExchange(exch.Name, true, &wg)
 			if err != nil {
 				log.Printf("LoadExchange %s failed: %s", exch.Name, err)
 				continue
@@ -244,4 +253,5 @@ func SetupExchanges() {
 			common.IsEnabled(exch.Verbose),
 		)
 	}
+	wg.Wait()
 }

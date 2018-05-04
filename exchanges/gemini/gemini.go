@@ -4,10 +4,10 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
@@ -42,8 +42,8 @@ const (
 	geminiHeartbeat          = "heartbeat"
 
 	// gemini limit rates
-	geminiAuthRate   = 100
-	geminiUnauthRate = 500
+	geminiAuthRate   = 600
+	geminiUnauthRate = 120
 
 	// Too many requests returns this
 	geminiRateError = "429"
@@ -55,8 +55,7 @@ const (
 
 var (
 	// Session manager
-	Session  map[int]*Gemini
-	gHandler *request.Handler
+	Session map[int]*Gemini
 )
 
 // Gemini is the overarching type across the Gemini package, create multiple
@@ -68,16 +67,12 @@ type Gemini struct {
 	exchange.Base
 	Role              string
 	RequiresHeartBeat bool
-	*request.Handler
 }
 
 // AddSession adds a new session to the gemini base
 func AddSession(g *Gemini, sessionID int, apiKey, apiSecret, role string, needsHeartbeat, isSandbox bool) error {
 	if Session == nil {
 		Session = make(map[int]*Gemini)
-	}
-	if gHandler == nil {
-		gHandler = new(request.Handler)
 	}
 
 	_, ok := Session[sessionID]
@@ -113,14 +108,8 @@ func (g *Gemini) SetDefaults() {
 	g.ConfigCurrencyPairFormat.Uppercase = true
 	g.AssetTypes = []string{ticker.Spot}
 	g.SupportsAutoPairUpdating = true
-	if gHandler != nil {
-		g.Handler = gHandler
-	} else {
-		g.Handler = new(request.Handler)
-	}
-	if g.Handler.Client == nil {
-		g.SetRequestHandler(g.Name, geminiAuthRate, geminiUnauthRate, new(http.Client))
-	}
+	g.SupportsRESTTickerBatching = false
+	g.Requester = request.New(g.Name, request.NewRateLimit(time.Minute, geminiAuthRate), request.NewRateLimit(time.Minute, geminiUnauthRate), common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 }
 
 // Setup sets exchange configuration parameters
@@ -131,6 +120,7 @@ func (g *Gemini) Setup(exch config.ExchangeConfig) {
 		g.Enabled = true
 		g.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
 		g.SetAPIKeys(exch.APIKey, exch.APISecret, "", false)
+		g.SetHTTPClientTimeout(exch.HTTPTimeout)
 		g.RESTPollingDelay = exch.RESTPollingDelay
 		g.Verbose = exch.Verbose
 		g.Websocket = exch.Websocket
