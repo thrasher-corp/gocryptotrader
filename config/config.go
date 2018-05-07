@@ -379,6 +379,9 @@ func (c *Config) CheckProviderConfigValues() error {
 	var count int
 	for i := range c.Providers {
 		if c.Providers[i].Enabled == true {
+			if c.Providers[i].APIKey == "Key" {
+				log.Fatal("provider api key not set - please set via your config.json file")
+			}
 			count++
 		}
 	}

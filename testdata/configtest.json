@@ -709,7 +709,7 @@
    "Enabled": true,
    "Verbose": false,
    "RESTPollingDelay": 600,
-   "APIKey": "Key",
+   "APIKey": "teststring",
    "APIKeyLvl": 0
   },
   {
@@ -717,7 +717,7 @@
    "Enabled": true,
    "Verbose": false,
    "RESTPollingDelay": 600,
-   "APIKey": "Key",
+   "APIKey": "teststring",
    "APIKeyLvl": 0
   },
   {
@@ -725,7 +725,7 @@
    "Enabled": true,
    "Verbose": false,
    "RESTPollingDelay": 600,
-   "APIKey": "Key",
+   "APIKey": "teststring",
    "APIKeyLvl": 0
   }
  ]
