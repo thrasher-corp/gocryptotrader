@@ -703,7 +703,7 @@
    }
   }
  ],
- "Providers": [
+ "ForexProviders": [
   {
    "Name": "CurrencyLayer",
    "Enabled": true,

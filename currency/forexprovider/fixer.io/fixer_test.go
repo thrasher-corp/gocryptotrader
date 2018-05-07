@@ -22,7 +22,7 @@ func TestSetup(t *testing.T) {
 	if err != nil {
 		t.Error("test failed - loadconfig() error", err)
 	}
-	fConfig, err := cfg.GetProviderConfig("Fixer")
+	fConfig, err := cfg.GetForexProviderConfig("Fixer")
 	if err != nil {
 		t.Error("Test Failed - Fixer init error", err)
 	}

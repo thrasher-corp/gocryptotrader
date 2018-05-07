@@ -21,7 +21,7 @@ func TestSetup(t *testing.T) {
 	if err != nil {
 		t.Error("test failed - loadconfig() error", err)
 	}
-	clConfig, err := cfg.GetProviderConfig("CurrencyLayer")
+	clConfig, err := cfg.GetForexProviderConfig("CurrencyLayer")
 	if err != nil {
 		t.Error("Test Failed - CurrencyLayer init error", err)
 	}

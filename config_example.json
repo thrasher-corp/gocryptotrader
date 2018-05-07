@@ -703,14 +703,14 @@
    }
   }
 ],
- "Providers": [
+ "ForexProviders": [
    {
      "Name": "CurrencyLayer",
      "Enabled": true,
      "Verbose": false,
      "RESTPollingDelay": 600,
      "APIKey": "Key",
-     "APIKeyLvl": "Level"
+     "APIKeyLvl": -1
    },
    {
      "Name": "Fixer",
@@ -718,7 +718,7 @@
      "Verbose": false,
      "RESTPollingDelay": 600,
      "APIKey": "Key",
-     "APIKeyLvl": "Level"
+     "APIKeyLvl": -1
    },
    {
      "Name": "OpenExchangeRates",
@@ -726,7 +726,7 @@
      "Verbose": false,
      "RESTPollingDelay": 600,
      "APIKey": "Key",
-     "APIKeyLvl": "Level"
+     "APIKeyLvl": -1
    }
  ]
 }

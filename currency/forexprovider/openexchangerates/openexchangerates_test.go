@@ -21,7 +21,7 @@ func TestSetup(t *testing.T) {
 	if err != nil {
 		t.Error("test failed - loadconfig() error", err)
 	}
-	oConfig, err := cfg.GetProviderConfig("OpenExchangeRates")
+	oConfig, err := cfg.GetForexProviderConfig("OpenExchangeRates")
 	if err != nil {
 		t.Error("Test Failed - Fixer init error", err)
 	}

@@ -101,7 +101,7 @@ type Config struct {
 	SMS                      SMSGlobalConfig       `json:"SMSGlobal"`
 	Webserver                WebserverConfig       `json:"Webserver"`
 	Exchanges                []ExchangeConfig      `json:"Exchanges"`
-	ForexProviders           []ForexProviderConfig `json:"Providers"`
+	ForexProviders           []ForexProviderConfig `json:"ForexProviders"`
 	m                        sync.Mutex
 }
 
@@ -245,13 +245,11 @@ func (c *Config) GetExchangeConfig(name string) (ExchangeConfig, error) {
 	return ExchangeConfig{}, fmt.Errorf(ErrExchangeNotFound, name)
 }
 
-// GetProviderConfig returns a forex provider configuration by its name
-func (c *Config) GetProviderConfig(name string) (ForexProviderConfig, error) {
+// GetForexProviderConfig returns a forex provider configuration by its name
+func (c *Config) GetForexProviderConfig(name string) (ForexProviderConfig, error) {
 	c.m.Lock()
 	defer c.m.Unlock()
-
 	for i := range c.ForexProviders {
-		log.Println(c.ForexProviders[i].Name)
 		if c.ForexProviders[i].Name == name {
 			return c.ForexProviders[i], nil
 		}
@@ -382,6 +380,9 @@ func (c *Config) CheckForexProviderConfigValues() error {
 		if c.ForexProviders[i].Enabled == true {
 			if c.ForexProviders[i].APIKey == "Key" {
 				log.Fatal("provider api key not set - please set via your config.json file")
+			}
+			if c.ForexProviders[i].APIKeyLvl == -1 {
+				log.Println("warning APIKey Level not set, functions limited - please set via your config.json file")
 			}
 			count++
 		}
