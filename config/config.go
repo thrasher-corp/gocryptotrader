@@ -97,11 +97,11 @@ type Config struct {
 	CurrencyPairFormat       *CurrencyPairFormatConfig `json:"CurrencyPairFormat"`
 	FiatDisplayCurrency      string
 	GlobalHTTPTimeout        time.Duration
-	Portfolio                portfolio.Base   `json:"PortfolioAddresses"`
-	SMS                      SMSGlobalConfig  `json:"SMSGlobal"`
-	Webserver                WebserverConfig  `json:"Webserver"`
-	Exchanges                []ExchangeConfig `json:"Exchanges"`
-	Providers                []ProviderConfig `json:"Providers"`
+	Portfolio                portfolio.Base        `json:"PortfolioAddresses"`
+	SMS                      SMSGlobalConfig       `json:"SMSGlobal"`
+	Webserver                WebserverConfig       `json:"Webserver"`
+	Exchanges                []ExchangeConfig      `json:"Exchanges"`
+	ForexProviders           []ForexProviderConfig `json:"Providers"`
 	m                        sync.Mutex
 }
 
@@ -128,8 +128,9 @@ type ExchangeConfig struct {
 	RequestCurrencyPairFormat *CurrencyPairFormatConfig `json:"RequestCurrencyPairFormat"`
 }
 
-// ProviderConfig holds all the information needed for each enabled provider
-type ProviderConfig struct {
+// ForexProviderConfig holds all the information needed for each enabled
+// foreign exchange provider
+type ForexProviderConfig struct {
 	Name             string
 	Enabled          bool
 	Verbose          bool
@@ -244,18 +245,18 @@ func (c *Config) GetExchangeConfig(name string) (ExchangeConfig, error) {
 	return ExchangeConfig{}, fmt.Errorf(ErrExchangeNotFound, name)
 }
 
-// GetProviderConfig returns a provider configuration by its name
-func (c *Config) GetProviderConfig(name string) (ProviderConfig, error) {
+// GetProviderConfig returns a forex provider configuration by its name
+func (c *Config) GetProviderConfig(name string) (ForexProviderConfig, error) {
 	c.m.Lock()
 	defer c.m.Unlock()
 
-	for i := range c.Providers {
-		log.Println(c.Providers[i].Name)
-		if c.Providers[i].Name == name {
-			return c.Providers[i], nil
+	for i := range c.ForexProviders {
+		log.Println(c.ForexProviders[i].Name)
+		if c.ForexProviders[i].Name == name {
+			return c.ForexProviders[i], nil
 		}
 	}
-	return ProviderConfig{}, errors.New("provider not found")
+	return ForexProviderConfig{}, errors.New("provider not found")
 }
 
 // UpdateExchangeConfig updates exchange configurations
@@ -374,12 +375,12 @@ func (c *Config) CheckWebserverConfigValues() error {
 	return nil
 }
 
-// CheckProviderConfigValues checks Provider configuration values
-func (c *Config) CheckProviderConfigValues() error {
+// CheckForexProviderConfigValues checks forex Provider configuration values
+func (c *Config) CheckForexProviderConfigValues() error {
 	var count int
-	for i := range c.Providers {
-		if c.Providers[i].Enabled == true {
-			if c.Providers[i].APIKey == "Key" {
+	for i := range c.ForexProviders {
+		if c.ForexProviders[i].Enabled == true {
+			if c.ForexProviders[i].APIKey == "Key" {
 				log.Fatal("provider api key not set - please set via your config.json file")
 			}
 			count++
@@ -582,7 +583,7 @@ func (c *Config) LoadConfig(configPath string) error {
 		}
 	}
 
-	err = c.CheckProviderConfigValues()
+	err = c.CheckForexProviderConfigValues()
 	if err != nil {
 		return err
 	}

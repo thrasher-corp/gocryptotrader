@@ -15,7 +15,7 @@ import (
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
-	"github.com/thrasher-/gocryptotrader/currency/provider"
+	"github.com/thrasher-/gocryptotrader/currency/forexprovider"
 )
 
 const (
@@ -36,17 +36,17 @@ const (
 // Fixer is a foreign exchange rate provider at https://fixer.io/
 // NOTE DEFAULT BASE CURRENCY IS EUR upgrade to basic to change
 type Fixer struct {
-	provider.Base
+	forexprovider.Base
 }
 
 // Setup sets appropriate values for fixer object
-func (f *Fixer) Setup(provCfg config.ProviderConfig) {
-	f.APIKey = provCfg.APIKey
-	f.APIKeyLvl = provCfg.APIKeyLvl
-	f.Enabled = provCfg.Enabled
-	f.Name = provCfg.Name
-	f.RESTPollingDelay = provCfg.RESTPollingDelay
-	f.Verbose = provCfg.Verbose
+func (f *Fixer) Setup(config config.ForexProviderConfig) {
+	f.APIKey = config.APIKey
+	f.APIKeyLvl = config.APIKeyLvl
+	f.Enabled = config.Enabled
+	f.Name = config.Name
+	f.RESTPollingDelay = config.RESTPollingDelay
+	f.Verbose = config.Verbose
 }
 
 // GetRates is a wrapper function to return rates

@@ -1,6 +1,6 @@
-// Package provider utilises foreign exchange API services to manage relational
-// FIAT currencies
-package provider
+// Package forexprovider utilises foreign exchange API services to manage
+// relational FIAT currencies
+package forexprovider
 
 import (
 	"time"
@@ -18,9 +18,9 @@ type Base struct {
 	APIKeyLvl        int
 }
 
-// Iprovider enforces standard functions for all foreign exchange providers
+// IFXProvider enforces standard functions for all foreign exchange providers
 // supported in GoCryptoTrader
-type Iprovider interface {
-	Setup(provCfg config.ProviderConfig)
+type IFXProvider interface {
+	Setup(config config.ForexProviderConfig)
 	GetRates(baseCurrency, symbols string) (map[string]float64, error)
 }

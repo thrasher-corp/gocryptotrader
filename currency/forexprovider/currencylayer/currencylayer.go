@@ -19,7 +19,7 @@ import (
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
-	"github.com/thrasher-/gocryptotrader/currency/provider"
+	forexprovider "github.com/thrasher-/gocryptotrader/currency/forexprovider"
 )
 
 // const declarations consist of endpoints and APIKey privileges
@@ -43,17 +43,17 @@ const (
 // https://currencylayer.com NOTE default base currency is USD when using a free
 // account. Has automatic upgrade to a SSL connection.
 type CurrencyLayer struct {
-	provider.Base
+	forexprovider.Base
 }
 
 // Setup sets appropriate values for CurrencyLayer
-func (c *CurrencyLayer) Setup(provCfg config.ProviderConfig) {
-	c.Name = provCfg.Name
-	c.APIKey = provCfg.APIKey
-	c.APIKeyLvl = provCfg.APIKeyLvl
-	c.Enabled = provCfg.Enabled
-	c.RESTPollingDelay = provCfg.RESTPollingDelay
-	c.Verbose = provCfg.Verbose
+func (c *CurrencyLayer) Setup(config config.ForexProviderConfig) {
+	c.Name = config.Name
+	c.APIKey = config.APIKey
+	c.APIKeyLvl = config.APIKeyLvl
+	c.Enabled = config.Enabled
+	c.RESTPollingDelay = config.RESTPollingDelay
+	c.Verbose = config.Verbose
 }
 
 // GetRates is a wrapper function to return rates for GoCryptoTrader
