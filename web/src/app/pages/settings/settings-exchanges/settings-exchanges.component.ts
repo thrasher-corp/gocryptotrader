@@ -11,6 +11,7 @@ import { Config, CurrencyPairRedux } from './../../../shared/classes/config';
 export class SettingsExchangesComponent implements OnInit {
   public settings: Config = new Config();
   private ws: WebsocketResponseHandlerService;
+  public ready: boolean = false;
 
   constructor(private websocketHandler: WebsocketResponseHandlerService) {
     this.ws = websocketHandler;
@@ -20,6 +21,7 @@ export class SettingsExchangesComponent implements OnInit {
     this.ws.shared.subscribe(msg => {
       if (msg.event === WebSocketMessageType.GetConfig) {
         this.settings.setConfig(msg.data);
+        this.ready = true;
       } else if (msg.event === WebSocketMessageType.SaveConfig) {
         // check if err is returned, then display some notification
       }
@@ -31,6 +33,7 @@ export class SettingsExchangesComponent implements OnInit {
   private getSettings(): void {
     if(this.settings.isConfigCacheValid()) {
       this.settings.setConfig(JSON.parse(window.localStorage['config']))
+      this.ready = true;      
     } else {
       this.ws.messages.next(WebSocketMessage.GetSettingsMessage());
     }
@@ -44,5 +47,6 @@ export class SettingsExchangesComponent implements OnInit {
       data: this.settings,
     }
     this.ws.messages.next(settingsSave);
+    this.settings.clearCache();
   }
 }
