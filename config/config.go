@@ -248,7 +248,7 @@ func (c *Config) GetExchangeConfig(name string) (ExchangeConfig, error) {
 func (c *Config) GetProviderConfig(name string) (ProviderConfig, error) {
 	c.m.Lock()
 	defer c.m.Unlock()
-	log.Println("What", len(c.Providers))
+
 	for i := range c.Providers {
 		log.Println(c.Providers[i].Name)
 		if c.Providers[i].Name == name {
