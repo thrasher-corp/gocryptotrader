@@ -27,6 +27,7 @@ export class WebsocketResponseHandlerService {
 				responseMessage.data = websocketResponseData;
 				responseMessage.exchange = websocketResponseMessage.exchange;
 				responseMessage.assetType = websocketResponseMessage.assetType;
+				responseMessage.error = websocketResponseMessage.error;
 
 				return responseMessage;
 			});

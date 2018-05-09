@@ -27,6 +27,7 @@ import {
   MatLineModule,
   MatTooltipModule,
   MatTabsModule,
+  MatSnackBarModule,
 } from '@angular/material';
 
 //Pages
@@ -134,6 +135,7 @@ import { SellFormComponent } from './shared/sell-form/sell-form.component';
     MatLineModule,
     MatTooltipModule,
     MatTabsModule,
+    MatSnackBarModule,
     AmChartsModule,
   ],
   providers: [
