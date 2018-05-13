@@ -54,9 +54,9 @@ Currently runs with:
 - Electron Builder v20.0.4
 
 
-## To build for development
+## To build for production
 
-- **in a terminal window** -> npm start  
+- **in a terminal window** -> npm start
 
 Voila! You can use your Angular + Electron app in a local development environment with hot reload !
 
@@ -81,7 +81,6 @@ Voila! You can use your Angular + Electron app in a local development environmen
 
 **Your application is optimised. Only /dist folder and node dependencies are included in the executable.**
 
-
 ## Contributors
 
 |User|Github|Contribution|
@@ -103,8 +102,9 @@ When submitting a PR, please abide by our coding guidelines:
 
 ## Donations
 
-<img src="https://github.com/thrasher-/gocryptotrader/blob/master/web/src/assets/images/donate.png?raw=true" hspace="70">
+<img src="https://github.com/thrasher-/gocryptotrader/blob/master/web/src/assets/donate.png?raw=true" hspace="70">
 
 If this framework helped you in any way, or you would like to support the developers working on it, please donate Bitcoin to:
 
 ***1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB***
+
