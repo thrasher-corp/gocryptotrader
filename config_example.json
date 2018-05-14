@@ -702,5 +702,31 @@
     "Separator": "-"
    }
   }
+],
+ "ForexProviders": [
+   {
+     "Name": "CurrencyLayer",
+     "Enabled": true,
+     "Verbose": false,
+     "RESTPollingDelay": 600,
+     "APIKey": "Key",
+     "APIKeyLvl": -1
+   },
+   {
+     "Name": "Fixer",
+     "Enabled": true,
+     "Verbose": false,
+     "RESTPollingDelay": 600,
+     "APIKey": "Key",
+     "APIKeyLvl": -1
+   },
+   {
+     "Name": "OpenExchangeRates",
+     "Enabled": true,
+     "Verbose": false,
+     "RESTPollingDelay": 600,
+     "APIKey": "Key",
+     "APIKeyLvl": -1
+   }
  ]
 }
