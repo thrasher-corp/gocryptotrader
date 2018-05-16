@@ -16,11 +16,16 @@
             </mat-expansion-panel-header>
             <form class="form-content">
                 <mat-form-field>
-                    <input matInput name="username" placeholder="Username">
+                    <input matInput name="username" [(ngModel)]="settings.Webserver.AdminUsername" placeholder="Username">
                 </mat-form-field>
                 <mat-form-field>
-                    <input matInput name="password"  placeholder="Password">
+                    <input matInput name="password" [(ngModel)]="settings.Webserver.AdminPassword"  placeholder="Password">
                 </mat-form-field>
+                <mat-form-field>
+                    <input type="number" matInput name="connection-limit" [(ngModel)]="settings.Webserver.WebsocketConnectionLimit"  placeholder="Websocket connection limit">
+                </mat-form-field>
+                <mat-checkbox name="allow-insecure-origin" [(ngModel)]="settings.Webserver.WebsocketAllowInsecureOrigin">Allow Insecure Websocket Origin</mat-checkbox>
+                
             </form>
         </mat-expansion-panel>
         
@@ -55,6 +60,9 @@
                     </mat-form-field>
                 </div>
             </form>
+            <mat-action-row>
+                <button mat-button>ADD</button>
+            </mat-action-row>
         </mat-expansion-panel>
 
 
@@ -68,8 +76,20 @@
             <mat-icon>account_balance_wallet</mat-icon>
         </mat-panel-description>
     </mat-expansion-panel-header>
+              <div  *ngFor="let wallet of settings.PortfolioAddresses?.Addresses">
+                    <mat-form-field class="long">
+                            <input  matInput name="wallet-address" [(ngModel)]="wallet.Address"  placeholder="Address" />
+                        </mat-form-field>
+                        <mat-form-field>
+                            <input matInput name="wallet-cointype" [(ngModel)]="wallet.CoinType" placeholder="Coin Type" />
+                        </mat-form-field>
+                        <mat-form-field>
+                                <input matInput name="wallet-description" [(ngModel)]="wallet.Description" placeholder="Description" />
+                            </mat-form-field>
+        <button mat-button (click)="removeWallet(wallet)">REMOVE</button>
+                        </div>
     <mat-action-row>
-        <button mat-button>ADD</button>
+        <button mat-button (click)="addWallet()">ADD</button>
     </mat-action-row>
 </mat-expansion-panel>
         

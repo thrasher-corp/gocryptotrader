@@ -1,8 +1,9 @@
 import { Component, OnInit, OnDestroy, Inject } from '@angular/core';
 import { WebsocketResponseHandlerService } from './../../services/websocket-response-handler/websocket-response-handler.service';
 import { WebSocketMessageType, WebSocketMessage } from './../../shared/classes/websocket';
-import { Config, CurrencyPairRedux } from './../../shared/classes/config';
+import { Config, CurrencyPairRedux, Wallet } from './../../shared/classes/config';
 import { MatSnackBar, MatDialog, MatDialogRef, MAT_DIALOG_DATA} from '@angular/material';
+import { WalletComponent } from '../wallet/wallet.component';
 
 @Component({
   selector: 'app-settings',
@@ -40,6 +41,14 @@ export class SettingsComponent  {
       }
     });
     this.getSettings();
+  }
+
+  public addWallet() :void {
+    this.settings.PortfolioAddresses.Addresses.push(<Wallet>{});
+  }
+
+  public removeWallet(wallet:any) {
+    this.settings.PortfolioAddresses.Addresses.splice(this.settings.PortfolioAddresses.Addresses.indexOf(wallet), 1);
   }
 
 

@@ -128,7 +128,15 @@ export class CurrencyPairRedux {
   }
   
   export interface PortfolioAddresses {
-    Addresses?: any;
+    Addresses?: Wallet[];
+  }
+
+  export interface Wallet {
+    Address:string;
+    CoinType:string;
+    Balance:number;
+    Description:string
+
   }
   
   export interface Contact {
