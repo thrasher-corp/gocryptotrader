@@ -28,6 +28,7 @@ import {
   MatTooltipModule,
   MatTabsModule,
   MatSnackBarModule,
+  MatDialogModule,
 } from '@angular/material';
 
 //Pages
@@ -42,7 +43,7 @@ import { HelpComponent } from './pages/help/help.component';
 import { SettingsComponent } from './pages/settings/settings.component';
 import { SettingsCredentialsComponent } from './pages/settings/settings-credentials/settings-credentials.component';
 import { SettingsWalletsComponent } from './pages/settings/settings-wallets/settings-wallets.component';
-import { SettingsExchangesComponent } from './pages/settings/settings-exchanges/settings-exchanges.component';
+import { SettingsExchangesComponent, EnabledCurrenciesDialogueComponent } from './pages/settings/settings-exchanges/settings-exchanges.component';
 import { SettingsSmsComponent } from './pages/settings/settings-sms/settings-sms.component';
 
 
@@ -110,7 +111,11 @@ import { SellFormComponent } from './shared/sell-form/sell-form.component';
     SettingsCredentialsComponent,
     SettingsWalletsComponent,
     SettingsExchangesComponent,
-    SettingsSmsComponent
+    SettingsSmsComponent,
+    EnabledCurrenciesDialogueComponent
+  ],
+  entryComponents: [
+    EnabledCurrenciesDialogueComponent
   ],
   imports: [
     BrowserModule,
@@ -136,6 +141,7 @@ import { SellFormComponent } from './shared/sell-form/sell-form.component';
     MatTooltipModule,
     MatTabsModule,
     MatSnackBarModule,
+    MatDialogModule,
     AmChartsModule,
   ],
   providers: [

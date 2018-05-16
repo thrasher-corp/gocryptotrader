@@ -1,8 +1,12 @@
-<div class="loading-spinner" *ngIf="settings === null">
-    <mat-progress-spinner color="accent" mode="indeterminate"></mat-progress-spinner>
-</div>
-<div *ngIf="settings !== null">
-<h2>Wallet Settings</h2>
-    <button matTooltip="Save" (click)="saveSettings()" mat-fab color="accent" class="mat-fab mat-fab-bottom-right"><mat-icon >save</mat-icon></button>
+<mat-expansion-panel>
+    <mat-expansion-panel-header>
+        <mat-panel-title>
+            Wallets
+        </mat-panel-title>
+        <mat-panel-description>
+            Wallet Settings
+            <mat-icon>attach_money</mat-icon>
+        </mat-panel-description>
+    </mat-expansion-panel-header>
 
-</div>
+</mat-expansion-panel>

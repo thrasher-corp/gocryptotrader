@@ -1,11 +1,3 @@
-<div class="loading-spinner" *ngIf="settings === null || ready == false">
-    <mat-progress-spinner color="accent" mode="indeterminate"></mat-progress-spinner>
-</div>
-<div *ngIf="settings !== null && ready == true">
-<h2>Exchange Settings</h2>
-    <button matTooltip="Save" (click)="saveSettings()" mat-fab color="accent" class="mat-fab mat-fab-bottom-right"><mat-icon >save</mat-icon></button>
-
-    <mat-accordion>
 <mat-expansion-panel *ngFor="let exchange of settings?.Exchanges">
     <mat-expansion-panel-header>
         <mat-panel-title>
@@ -32,12 +24,6 @@
         <h4>
             Enabled currencies
         </h4>
-        <div *ngFor="let currency of exchange.Pairs">
-                <p>{{currency.Name}}</p>
-            <mat-checkbox name="{{currency.Name}}2"  [disabled]="!exchange.Enabled" [(ngModel)]="currency.Enabled"></mat-checkbox>
-        </div>
+        <button mat-button [disabled]="!exchange.Enabled" (click)="openModal(exchange.Pairs)">CHANGE</button>
     </form>
 </mat-expansion-panel>
-</mat-accordion>
-
-</div>  

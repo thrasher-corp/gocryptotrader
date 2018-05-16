@@ -1,46 +1,12 @@
-<mat-grid-list cols="4" rowHeight="1:0.5" gutterSize="4rem">
-<mat-grid-tile class="mat-elevation-z6" routerLink="/settings/credentials">
-    <mat-card >
-                <mat-nav-list>
-                        <mat-list-item>
-                            <mat-icon>person</mat-icon>&nbsp;
-                            <h3>Credentials</h3>
-                        </mat-list-item>
-                        </mat-nav-list>
-    </mat-card>
-</mat-grid-tile>
-
-<mat-grid-tile routerLink="/settings/exchanges" class="mat-elevation-z6">
-        <mat-card>
-                    <mat-nav-list>
-                            <mat-list-item>
-                                <mat-icon>show_chart</mat-icon>&nbsp;
-                                <h3>Exchanges</h3>
-                            </mat-list-item>
-                            </mat-nav-list>
-        </mat-card>
-    </mat-grid-tile>
-
-    <mat-grid-tile routerLink="/settings/wallets" class=" mat-elevation-z6">
-            <mat-card>
-                        <mat-nav-list>
-                                <mat-list-item>
-                                    <mat-icon>account_balance_wallet</mat-icon>&nbsp;
-                                    <h3>Wallets</h3>
-                                </mat-list-item>
-                                </mat-nav-list>
-            </mat-card>
-        </mat-grid-tile>
-
-        <mat-grid-tile routerLink="/settings/sms" class="mat-elevation-z6">
-                <mat-card>
-                            <mat-nav-list>
-                                    <mat-list-item>
-                                        <mat-icon>chat</mat-icon>&nbsp;
-                                        <h3>SMS</h3>
-                                    </mat-list-item>
-                                    </mat-nav-list>
-                </mat-card>
-            </mat-grid-tile>
-
-</mat-grid-list>
+<div class="loading-spinner" *ngIf="settings === null">
+    <mat-progress-spinner color="accent" mode="indeterminate"></mat-progress-spinner>
+</div>
+<div *ngIf="settings !== null">
+    <button matTooltip="Save" (click)="saveSettings()" mat-fab color="accent" class="mat-fab mat-fab-bottom-right"><mat-icon >save</mat-icon></button>
+    <mat-accordion>
+        <app-settings-credentials ([settings])="settings"></app-settings-credentials>
+        <app-settings-sms ([settings])="settings"></app-settings-sms>
+        <app-settings-wallets ([settings])="settings"></app-settings-wallets>
+        <app-settings-exchanges ([settings])="settings"></app-settings-exchanges>
+    </mat-accordion>
+</div>
