@@ -10,11 +10,6 @@ import { CurrencyListComponent } from './pages/currency-list/currency-list.compo
 
 //Settings
 import { SettingsComponent } from './pages/settings/settings.component';
-import { SettingsCredentialsComponent } from './pages/settings/settings-credentials/settings-credentials.component';
-import { SettingsSmsComponent } from './pages/settings/settings-sms/settings-sms.component';
-import { SettingsWalletsComponent } from './pages/settings/settings-wallets/settings-wallets.component';
-import { SettingsExchangesComponent } from './pages/settings/settings-exchanges/settings-exchanges.component';
-
 
 import { NgModule } from '@angular/core';
 import { Routes, RouterModule } from '@angular/router';
@@ -66,23 +61,6 @@ const routes: Routes = [
         path: 'settings',
         component: SettingsComponent
     },
-    {
-        path: 'settings/credentials',
-        component: SettingsCredentialsComponent
-    },
-    {
-        path: 'settings/wallets',
-        component: SettingsWalletsComponent
-    },
-    {
-        path: 'settings/sms',
-        component: SettingsSmsComponent
-    },
-    {
-        path: 'settings/exchanges',
-        component: SettingsExchangesComponent
-    },
-
 ];
 
 @NgModule({

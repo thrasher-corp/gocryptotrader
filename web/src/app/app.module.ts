@@ -40,12 +40,7 @@ import { WalletComponent } from './pages/wallet/wallet.component';
 import { DonateComponent } from './pages/donate/donate.component';
 import { HelpComponent } from './pages/help/help.component';
 
-import { SettingsComponent } from './pages/settings/settings.component';
-import { SettingsCredentialsComponent } from './pages/settings/settings-credentials/settings-credentials.component';
-import { SettingsWalletsComponent } from './pages/settings/settings-wallets/settings-wallets.component';
-import { SettingsExchangesComponent, EnabledCurrenciesDialogueComponent } from './pages/settings/settings-exchanges/settings-exchanges.component';
-import { SettingsSmsComponent } from './pages/settings/settings-sms/settings-sms.component';
-
+import { SettingsComponent, EnabledCurrenciesDialogueComponent } from './pages/settings/settings.component';
 
 //Shared
 import { NavbarComponent } from './shared/navbar/navbar.component';
@@ -108,10 +103,6 @@ import { SellFormComponent } from './shared/sell-form/sell-form.component';
     HelpComponent,
     IterateMapPipe,
     EnabledCurrenciesPipe,
-    SettingsCredentialsComponent,
-    SettingsWalletsComponent,
-    SettingsExchangesComponent,
-    SettingsSmsComponent,
     EnabledCurrenciesDialogueComponent
   ],
   entryComponents: [
