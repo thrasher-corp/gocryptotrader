@@ -28,6 +28,7 @@ export class WalletComponent implements OnInit {
     this.ws.shared.subscribe(msg => {
       if (msg.event === WebSocketMessageType.GetPortfolio) {
         this.wallet = <Wallet>msg.data;
+        console.log(msg.data);
         this.attachIcon(this.wallet.coin_totals);
         this.attachIcon(this.wallet.coins_offline);
         this.attachIcon(this.wallet.coins_online);
