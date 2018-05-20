@@ -119,6 +119,7 @@
                 <h4>
                     Enabled currencies
                 </h4>
+                <p ><span *ngFor="let pair of exchange.Pairs | enabledCurrencies; let isLast=last">{{pair.Name}}{{isLast ? '' : ', '}}</span> </p>
                 <button mat-button [disabled]="!exchange.Enabled" (click)="openModal(exchange.Pairs)">CHANGE</button>
             </form>
         </mat-expansion-panel>
