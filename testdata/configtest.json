@@ -1,6 +1,7 @@
 {
  "Name": "Skynet",
  "EncryptConfig": 0,
+ "GlobalHTTPTimeout": 15000000000,
  "CurrencyConfig": {
   "ForexProviders": [
    {
@@ -47,7 +48,45 @@
   },
   "FiatDisplayCurrency": "USD"
  },
- "GlobalHTTPTimeout": 15000000000,
+ "Communications": {
+  "Slack": {
+   "Name": "Slack",
+   "Enabled": false,
+   "Verbose": false,
+   "TargetChannel": "general",
+   "VerificationToken": "testtest"
+  },
+  "SMSGlobal": {
+   "Name": "SMSGlobal",
+   "Enabled": true,
+   "Verbose": false,
+   "Username": "1234",
+   "Password": "12334",
+   "Contacts": [
+    {
+     "Name": "StyleGherkin",
+     "Number": "1231424",
+     "Enabled": true
+    }
+   ]
+  },
+  "SMTP": {
+   "Name": "SMTP",
+   "Enabled": false,
+   "Verbose": false,
+   "Host": "smtp.google.com",
+   "Port": "537",
+   "AccountName": "some",
+   "AccountPassword": "password",
+   "RecipientList": "lol123@gmail.com"
+  },
+  "Telegram": {
+   "Name": "Telegram",
+   "Enabled": false,
+   "Verbose": false,
+   "VerificationToken": "testest"
+  }
+ },
  "PortfolioAddresses": {
   "Addresses": [
    {
@@ -73,18 +112,6 @@
     "CoinType": "ETH",
     "Balance": 0.25927504051326,
     "Description": ""
-   }
-  ]
- },
- "SMSGlobal": {
-  "Enabled": true,
-  "Username": "1234",
-  "Password": "12334",
-  "Contacts": [
-   {
-    "name": "StyleGherkin",
-    "number": "1231424",
-    "enabled": true
    }
   ]
  },
