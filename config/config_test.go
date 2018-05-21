@@ -266,47 +266,6 @@ func TestUpdateExchangeConfig(t *testing.T) {
 	}
 }
 
-func TestCheckSMSGlobalConfigValues(t *testing.T) {
-	t.Parallel()
-
-	checkSMSGlobalConfigValues := GetConfig()
-	err := checkSMSGlobalConfigValues.LoadConfig(ConfigTestFile)
-	if err != nil {
-		t.Errorf("Test failed. checkSMSGlobalConfigValues.LoadConfig: %s", err)
-	}
-	err = checkSMSGlobalConfigValues.CheckSMSGlobalConfigValues()
-	if err != nil {
-		t.Error(
-			`Test failed. checkSMSGlobalConfigValues.CheckSMSGlobalConfigValues: Incorrect Return Value`,
-		)
-	}
-
-	checkSMSGlobalConfigValues.SMS.Username = "Username"
-	err = checkSMSGlobalConfigValues.CheckSMSGlobalConfigValues()
-	if err == nil {
-		t.Error(
-			"Test failed. checkSMSGlobalConfigValues.CheckSMSGlobalConfigValues: Incorrect Return Value",
-		)
-	}
-
-	checkSMSGlobalConfigValues.SMS.Username = "1234"
-	checkSMSGlobalConfigValues.SMS.Contacts[0].Name = "Bob"
-	checkSMSGlobalConfigValues.SMS.Contacts[0].Number = "12345"
-	err = checkSMSGlobalConfigValues.CheckSMSGlobalConfigValues()
-	if err == nil {
-		t.Error(
-			"Test failed. checkSMSGlobalConfigValues.CheckSMSGlobalConfigValues: Incorrect Return Value",
-		)
-	}
-	checkSMSGlobalConfigValues.SMS.Contacts = checkSMSGlobalConfigValues.SMS.Contacts[:0]
-	err = checkSMSGlobalConfigValues.CheckSMSGlobalConfigValues()
-	if err == nil {
-		t.Error(
-			"Test failed. checkSMSGlobalConfigValues.CheckSMSGlobalConfigValues: Incorrect Return Value",
-		)
-	}
-}
-
 func TestCheckExchangeConfigValues(t *testing.T) {
 	t.Parallel()
 	checkExchangeConfigValues := Config{}

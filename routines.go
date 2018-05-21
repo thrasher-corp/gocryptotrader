@@ -206,8 +206,11 @@ func TickerUpdaterRoutine() {
 						result, err = exch.GetTickerPrice(c, assetType)
 					}
 					printTickerSummary(result, c, assetType, exchangeName, err)
-					if bot.config.Webserver.Enabled && err == nil {
-						relayWebsocketEvent(result, "ticker_update", assetType, exchangeName)
+					if err == nil {
+						bot.comms.StageTickerData(exchangeName, assetType, result)
+						if bot.config.Webserver.Enabled {
+							relayWebsocketEvent(result, "ticker_update", assetType, exchangeName)
+						}
 					}
 				}
 
@@ -254,8 +257,11 @@ func OrderbookUpdaterRoutine() {
 				processOrderbook := func(exch exchange.IBotExchange, c pair.CurrencyPair, assetType string) {
 					result, err := exch.UpdateOrderbook(c, assetType)
 					printOrderbookSummary(result, c, assetType, exchangeName, err)
-					if bot.config.Webserver.Enabled && err == nil {
-						relayWebsocketEvent(result, "orderbook_update", assetType, exchangeName)
+					if err == nil {
+						bot.comms.StageOrderbookData(exchangeName, assetType, result)
+						if bot.config.Webserver.Enabled {
+							relayWebsocketEvent(result, "orderbook_update", assetType, exchangeName)
+						}
 					}
 				}
 

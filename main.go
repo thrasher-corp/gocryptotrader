@@ -12,32 +12,32 @@ import (
 	"syscall"
 
 	"github.com/thrasher-/gocryptotrader/common"
+	"github.com/thrasher-/gocryptotrader/communications"
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/currency"
 	"github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/portfolio"
-	"github.com/thrasher-/gocryptotrader/smsglobal"
 )
 
 // Bot contains configuration, portfolio, exchange & ticker data and is the
 // overarching type across this code base.
 type Bot struct {
 	config     *config.Config
-	smsglobal  *smsglobal.Base
 	portfolio  *portfolio.Base
 	exchanges  []exchange.IBotExchange
+	comms      *communications.Communications
 	shutdown   chan bool
 	dryRun     bool
 	configFile string
 }
 
 const banner = `
-   ______        ______                     __        ______                  __           
+   ______        ______                     __        ______                  __
   / ____/____   / ____/_____ __  __ ____   / /_ ____ /_  __/_____ ______ ____/ /___   _____
  / / __ / __ \ / /    / ___// / / // __ \ / __// __ \ / /  / ___// __  // __  // _ \ / ___/
-/ /_/ // /_/ // /___ / /   / /_/ // /_/ // /_ / /_/ // /  / /   / /_/ // /_/ //  __// /    
-\____/ \____/ \____//_/    \__, // .___/ \__/ \____//_/  /_/    \__,_/ \__,_/ \___//_/     
-                          /____//_/                                                        
+/ /_/ // /_/ // /___ / /   / /_/ // /_/ // /_ / /_/ // /  / /   / /_/ // /_/ //  __// /
+\____/ \____/ \____//_/    \__, // .___/ \__/ \____//_/  /_/    \__,_/ \__,_/ \___//_/
+                          /____//_/
 `
 
 var bot Bot
@@ -75,21 +75,9 @@ func main() {
 	log.Printf("Fiat display currency: %s.", bot.config.FiatDisplayCurrency)
 	log.Printf("Bot dry run mode: %v.\n", common.IsEnabled(bot.dryRun))
 
-	if bot.config.SMS.Enabled {
-		bot.smsglobal = smsglobal.New(bot.config.SMS.Username, bot.config.SMS.Password,
-			bot.config.Name, bot.config.SMS.Contacts)
-		log.Printf(
-			"SMS support enabled. Number of SMS contacts %d.\n",
-			bot.smsglobal.GetEnabledContacts(),
-		)
-	} else {
-		log.Println("SMS support disabled.")
-	}
-
-	log.Printf(
-		"Available Exchanges: %d. Enabled Exchanges: %d.\n",
-		len(bot.config.Exchanges), bot.config.CountEnabledExchanges(),
-	)
+	log.Printf("Available Exchanges: %d. Enabled Exchanges: %d.\n",
+		len(bot.config.Exchanges),
+		bot.config.CountEnabledExchanges())
 
 	common.HTTPClient = common.NewHTTPClientWithTimeout(bot.config.GlobalHTTPTimeout)
 	log.Printf("Global HTTP request timeout: %v.\n", common.HTTPClient.Timeout)
@@ -98,6 +86,10 @@ func main() {
 	if len(bot.exchanges) == 0 {
 		log.Fatalf("No exchanges were able to be loaded. Exiting")
 	}
+
+	log.Println("Starting communications packages...")
+	bot.comms = communications.NewComm(bot.config.GetCommunicationsConfig())
+	bot.comms.GetEnabledCommunicationMediums()
 
 	if bot.config.CurrencyExchangeProvider == "yahoo" {
 		currency.SetProvider(true)
@@ -122,6 +114,7 @@ func main() {
 	bot.portfolio = &portfolio.Portfolio
 	bot.portfolio.SeedPortfolio(bot.config.Portfolio)
 	SeedExchangeAccountInfo(GetAllEnabledExchangeAccountInfo().Data)
+
 	go portfolio.StartPortfolioWatcher()
 	go TickerUpdaterRoutine()
 	go OrderbookUpdaterRoutine()
