@@ -32,12 +32,12 @@ type Bot struct {
 }
 
 const banner = `
-   ______        ______                     __        ______                  __           
+   ______        ______                     __        ______                  __
   / ____/____   / ____/_____ __  __ ____   / /_ ____ /_  __/_____ ______ ____/ /___   _____
  / / __ / __ \ / /    / ___// / / // __ \ / __// __ \ / /  / ___// __  // __  // _ \ / ___/
-/ /_/ // /_/ // /___ / /   / /_/ // /_/ // /_ / /_/ // /  / /   / /_/ // /_/ //  __// /    
-\____/ \____/ \____//_/    \__, // .___/ \__/ \____//_/  /_/    \__,_/ \__,_/ \___//_/     
-                          /____//_/                                                        
+/ /_/ // /_/ // /___ / /   / /_/ // /_/ // /_ / /_/ // /  / /   / /_/ // /_/ //  __// /
+\____/ \____/ \____//_/    \__, // .___/ \__/ \____//_/  /_/    \__,_/ \__,_/ \___//_/
+                          /____//_/
 `
 
 var bot Bot
@@ -136,7 +136,9 @@ func main() {
 			common.ExtractHost(listenAddr), common.ExtractPort(listenAddr),
 		)
 		router := NewRouter(bot.exchanges)
-		log.Fatal(http.ListenAndServe(listenAddr, router))
+		go func() {
+			log.Fatal(http.ListenAndServe(listenAddr, router))
+		}()
 	} else {
 		log.Println("HTTP RESTful Webserver support disabled.")
 	}
