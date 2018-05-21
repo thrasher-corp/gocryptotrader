@@ -7,10 +7,11 @@ import (
 	"strconv"
 
 	"github.com/thrasher-/gocryptotrader/common"
+	"github.com/thrasher-/gocryptotrader/communications"
+	"github.com/thrasher-/gocryptotrader/communications/base"
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
-	"github.com/thrasher-/gocryptotrader/smsglobal"
 )
 
 const (
@@ -30,6 +31,9 @@ var (
 	errInvalidCondition = errors.New("invalid conditional option")
 	errInvalidAction    = errors.New("invalid action")
 	errExchangeDisabled = errors.New("desired exchange is disabled")
+
+	// NOTE comms is an interim implementation
+	comms *communications.Communications
 )
 
 // Event struct holds the event variables
@@ -47,6 +51,12 @@ type Event struct {
 // Events variable is a pointer array to the event structures that will be
 // appended
 var Events []*Event
+
+// SetComms is an interim function that will support a median integration. This
+// sets the current comms package.
+func SetComms(commsP *communications.Communications) {
+	comms = commsP
+}
 
 // AddEvent adds an event to the Events chain and returns an index/eventID
 // and an error
@@ -106,12 +116,8 @@ func (e *Event) ExecuteAction() bool {
 		action := common.SplitStrings(e.Action, ",")
 		if action[0] == actionSMSNotify {
 			message := fmt.Sprintf("Event triggered: %s", e.String())
-			s := smsglobal.SMSGlobal
 			if action[1] == "ALL" {
-				s.SendMessageToAll(message)
-			} else {
-				contact, _ := s.GetContactByName(action[1])
-				s.SendMessage(contact.Number, message)
+				comms.PushEvent(base.Event{TradeDetails: message})
 			}
 		}
 	} else {
@@ -213,11 +219,7 @@ func IsValidEvent(Exchange, Item, Condition, Action string) error {
 		}
 
 		if action[1] != "ALL" {
-			s := smsglobal.SMSGlobal
-			_, err := s.GetContactByName(action[1])
-			if err != nil {
-				return errInvalidAction
-			}
+			comms.PushEvent(base.Event{Type: action[1]})
 		}
 	} else {
 		if Action != actionConsolePrint && Action != actionTest {
