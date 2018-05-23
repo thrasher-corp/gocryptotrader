@@ -9,7 +9,6 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
-	"github.com/thrasher-/gocryptotrader/currency"
 )
 
 // Const vars for websocket
@@ -256,11 +255,7 @@ func wsGetExchangeRates(wsClient *websocket.Conn, data interface{}) error {
 	wsResp := WebsocketEventResponse{
 		Event: "GetExchangeRates",
 	}
-	if currency.YahooEnabled {
-		wsResp.Data = currency.CurrencyStore
-	} else {
-		wsResp.Data = currency.CurrencyStoreFixer
-	}
+	wsResp.Data = bot.currencyM.GetExchangeRates()
 	return wsClient.WriteJSON(wsResp)
 }
 

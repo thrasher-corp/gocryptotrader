@@ -1,13 +1,43 @@
 {
  "Name": "Skynet",
  "EncryptConfig": 0,
- "Cryptocurrencies": "BTC,LTC,ETH,XRP,NMC,NVC,PPC,XBT,DOGE,DASH",
- "CurrencyExchangeProvider": "fixer",
- "CurrencyPairFormat": {
-  "Uppercase": true,
-  "Delimiter": "-"
+ "CurrencyConfig": {
+   "ForexProviders": [
+    {
+     "Name": "CurrencyLayer",
+     "Enabled": true,
+     "Verbose": false,
+     "RESTPollingDelay": 600,
+     "APIKey": "2f58624ef832c670b88daf4fd6ef4528",
+     "APIKeyLvl": 0,
+     "PrimaryProvider": true
+    },
+    {
+     "Name": "Fixer",
+     "Enabled": true,
+     "Verbose": false,
+     "RESTPollingDelay": 600,
+     "APIKey": "850d4afbb1596db2a1ae23f4c99b4983",
+     "APIKeyLvl": 0,
+     "PrimaryProvider": false
+    },
+    {
+     "Name": "OpenExchangeRates",
+     "Enabled": true,
+     "Verbose": false,
+     "RESTPollingDelay": 600,
+     "APIKey": "8be6bb46452b4bd2bb6780dcf06162df",
+     "APIKeyLvl": 0,
+     "PrimaryProvider": false
+    }
+  ],
+  "Cryptocurrencies": "BTC,LTC,ETH,XRP,NMC,NVC,PPC,XBT,DOGE,DASH",
+  "CurrencyPairFormat": {
+   "Uppercase": true,
+   "Delimiter": "-"
+  },
+  "FiatDisplayCurrency": "USD"
  },
- "FiatDisplayCurrency": "USD",
  "GlobalHTTPTimeout": 15000000000,
  "PortfolioAddresses": {
   "Addresses": [
@@ -701,32 +731,6 @@
     "Delimiter": "_",
     "Separator": "-"
    }
-  }
- ],
- "ForexProviders": [
-  {
-   "Name": "CurrencyLayer",
-   "Enabled": true,
-   "Verbose": false,
-   "RESTPollingDelay": 600,
-   "APIKey": "teststring",
-   "APIKeyLvl": 0
-  },
-  {
-   "Name": "Fixer",
-   "Enabled": true,
-   "Verbose": false,
-   "RESTPollingDelay": 600,
-   "APIKey": "teststring",
-   "APIKeyLvl": 0
-  },
-  {
-   "Name": "OpenExchangeRates",
-   "Enabled": true,
-   "Verbose": false,
-   "RESTPollingDelay": 600,
-   "APIKey": "teststring",
-   "APIKeyLvl": 0
   }
  ]
 }

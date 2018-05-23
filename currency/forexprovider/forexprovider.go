@@ -3,24 +3,42 @@
 package forexprovider
 
 import (
-	"time"
+	"log"
 
 	"github.com/thrasher-/gocryptotrader/config"
+	"github.com/thrasher-/gocryptotrader/currency/forexprovider/base"
+	"github.com/thrasher-/gocryptotrader/currency/forexprovider/currencylayer"
+	fixer "github.com/thrasher-/gocryptotrader/currency/forexprovider/fixer.io"
+	"github.com/thrasher-/gocryptotrader/currency/forexprovider/openexchangerates"
 )
 
-// Base stores the individual provider information
-type Base struct {
-	Name             string
-	Enabled          bool
-	Verbose          bool
-	RESTPollingDelay time.Duration
-	APIKey           string
-	APIKeyLvl        int
+// ForexProviders is an array of foreign exchange interfaces
+type ForexProviders struct {
+	base.IFXProviders
 }
 
-// IFXProvider enforces standard functions for all foreign exchange providers
-// supported in GoCryptoTrader
-type IFXProvider interface {
-	Setup(config config.ForexProviderConfig)
-	GetRates(baseCurrency, symbols string) (map[string]float64, error)
+// StartFXService starts the forex provider service and returns a pointer to it
+func StartFXService(config []config.ForexProviderConfig) *ForexProviders {
+	fxp := new(ForexProviders)
+	for i := range config {
+		if config[i].Name == "CurrencyLayer" && config[i].Enabled {
+			currencyLayerP := new(currencylayer.CurrencyLayer)
+			currencyLayerP.Setup(config[i])
+			fxp.IFXProviders = append(fxp.IFXProviders, currencyLayerP)
+		}
+		if config[i].Name == "Fixer" && config[i].Enabled {
+			fixerP := new(fixer.Fixer)
+			fixerP.Setup(config[i])
+			fxp.IFXProviders = append(fxp.IFXProviders, fixerP)
+		}
+		if config[i].Name == "OpenExchangeRates" && config[i].Enabled {
+			OpenExchangeRatesP := new(openexchangerates.OXR)
+			OpenExchangeRatesP.Setup(config[i])
+			fxp.IFXProviders = append(fxp.IFXProviders, OpenExchangeRatesP)
+		}
+	}
+	if len(fxp.IFXProviders) == 0 {
+		log.Fatal("No foreign exchange providers enabled")
+	}
+	return fxp
 }

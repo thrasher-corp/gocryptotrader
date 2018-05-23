@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/thrasher-/gocryptotrader/currency"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
 	"github.com/thrasher-/gocryptotrader/currency/translation"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
@@ -46,7 +45,9 @@ func GetSpecificAvailablePairs(enabledExchangesOnly, fiatPairs, includeUSDT, cry
 
 	for x := range supportedPairs {
 		if fiatPairs {
-			if currency.IsCryptoFiatPair(supportedPairs[x]) && !pair.ContainsCurrency(supportedPairs[x], "USDT") || (includeUSDT && pair.ContainsCurrency(supportedPairs[x], "USDT") && currency.IsCryptoPair(supportedPairs[x])) {
+			if bot.currencyM.IsCryptoFiatPair(supportedPairs[x]) &&
+				!pair.ContainsCurrency(supportedPairs[x], "USDT") ||
+				(includeUSDT && pair.ContainsCurrency(supportedPairs[x], "USDT") && bot.currencyM.IsCryptoPair(supportedPairs[x])) {
 				if pair.Contains(pairList, supportedPairs[x], false) {
 					continue
 				}
@@ -54,7 +55,7 @@ func GetSpecificAvailablePairs(enabledExchangesOnly, fiatPairs, includeUSDT, cry
 			}
 		}
 		if cryptoPairs {
-			if currency.IsCryptoPair(supportedPairs[x]) {
+			if bot.currencyM.IsCryptoPair(supportedPairs[x]) {
 				if pair.Contains(pairList, supportedPairs[x], false) {
 					continue
 				}
@@ -74,7 +75,7 @@ func IsRelatablePairs(p1, p2 pair.CurrencyPair, includeUSDT bool) bool {
 	var relatablePairs []pair.CurrencyPair
 	relatablePairs = GetRelatableCurrencies(p1, true, includeUSDT)
 
-	if currency.IsCryptoFiatPair(p1) {
+	if bot.currencyM.IsCryptoFiatPair(p1) {
 		for x := range relatablePairs {
 			relatablePairs = append(relatablePairs, GetRelatableFiatCurrencies(relatablePairs[x])...)
 		}
@@ -141,7 +142,7 @@ func GetExchangeNamesByCurrency(p pair.CurrencyPair, enabled bool) []string {
 // incOrig includes the supplied pair if desired
 func GetRelatableCryptocurrencies(p pair.CurrencyPair) []pair.CurrencyPair {
 	var pairs []pair.CurrencyPair
-	cryptocurrencies := currency.CryptoCurrencies
+	cryptocurrencies := bot.currencyM.GetEnabledCryptocurrencies()
 
 	for x := range cryptocurrencies {
 		newPair := pair.NewCurrencyPair(p.FirstCurrency.String(), cryptocurrencies[x])
@@ -158,7 +159,7 @@ func GetRelatableCryptocurrencies(p pair.CurrencyPair) []pair.CurrencyPair {
 // incOrig includes the supplied pair if desired
 func GetRelatableFiatCurrencies(p pair.CurrencyPair) []pair.CurrencyPair {
 	var pairs []pair.CurrencyPair
-	fiatCurrencies := currency.BaseCurrencies
+	fiatCurrencies := bot.currencyM.GetEnabledFiatCurrencies()
 
 	for x := range fiatCurrencies {
 		newPair := pair.NewCurrencyPair(p.FirstCurrency.String(), fiatCurrencies[x])

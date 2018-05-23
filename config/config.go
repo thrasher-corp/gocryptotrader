@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
-	"github.com/thrasher-/gocryptotrader/currency"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
 	"github.com/thrasher-/gocryptotrader/portfolio"
 	"github.com/thrasher-/gocryptotrader/smsglobal"
@@ -90,19 +89,15 @@ type CurrencyPairFormatConfig struct {
 // Config is the overarching object that holds all the information for
 // prestart management of portfolio, SMSGlobal, webserver and enabled exchange
 type Config struct {
-	Name                     string
-	EncryptConfig            int
-	Cryptocurrencies         string
-	CurrencyExchangeProvider string
-	CurrencyPairFormat       *CurrencyPairFormatConfig `json:"CurrencyPairFormat"`
-	FiatDisplayCurrency      string
-	GlobalHTTPTimeout        time.Duration
-	Portfolio                portfolio.Base        `json:"PortfolioAddresses"`
-	SMS                      SMSGlobalConfig       `json:"SMSGlobal"`
-	Webserver                WebserverConfig       `json:"Webserver"`
-	Exchanges                []ExchangeConfig      `json:"Exchanges"`
-	ForexProviders           []ForexProviderConfig `json:"ForexProviders"`
-	m                        sync.Mutex
+	Name              string
+	EncryptConfig     int
+	Currency          CurrencyConfig `json:"CurrencyConfig"`
+	GlobalHTTPTimeout time.Duration
+	Portfolio         portfolio.Base   `json:"PortfolioAddresses"`
+	SMS               SMSGlobalConfig  `json:"SMSGlobal"`
+	Webserver         WebserverConfig  `json:"Webserver"`
+	Exchanges         []ExchangeConfig `json:"Exchanges"`
+	m                 sync.Mutex
 }
 
 // ExchangeConfig holds all the information needed for each enabled Exchange.
@@ -128,6 +123,14 @@ type ExchangeConfig struct {
 	RequestCurrencyPairFormat *CurrencyPairFormatConfig `json:"RequestCurrencyPairFormat"`
 }
 
+// Currency holds all the information needed for currency related manipulation
+type CurrencyConfig struct {
+	ForexProviders      []ForexProviderConfig     `json:"ForexProviders"`
+	Cryptocurrencies    string                    `json:"Cryptocurrencies"`
+	CurrencyPairFormat  *CurrencyPairFormatConfig `json:"CurrencyPairFormat"`
+	FiatDisplayCurrency string
+}
+
 // ForexProviderConfig holds all the information needed for each enabled
 // foreign exchange provider
 type ForexProviderConfig struct {
@@ -137,6 +140,12 @@ type ForexProviderConfig struct {
 	RESTPollingDelay time.Duration
 	APIKey           string
 	APIKeyLvl        int
+	PrimaryProvider  bool
+}
+
+// GetCurrencyConfig returns currency configurations
+func (c *Config) GetCurrencyConfig() CurrencyConfig {
+	return c.Currency
 }
 
 // SupportsPair returns true or not whether the exchange supports the supplied
@@ -230,7 +239,14 @@ func (c *Config) GetRequestCurrencyPairFormat(exchName string) (*CurrencyPairFor
 
 // GetCurrencyPairDisplayConfig retrieves the currency pair display preference
 func (c *Config) GetCurrencyPairDisplayConfig() *CurrencyPairFormatConfig {
-	return c.CurrencyPairFormat
+	return c.Currency.CurrencyPairFormat
+}
+
+// GetAllExchangeConfigs returns all exchange configurations
+func (c *Config) GetAllExchangeConfigs() []ExchangeConfig {
+	c.m.Lock()
+	defer c.m.Unlock()
+	return c.Exchanges
 }
 
 // GetExchangeConfig returns exchange configurations by its indivdual name
@@ -245,17 +261,20 @@ func (c *Config) GetExchangeConfig(name string) (ExchangeConfig, error) {
 	return ExchangeConfig{}, fmt.Errorf(ErrExchangeNotFound, name)
 }
 
+/////////////////////////////////////////////////////////////////
 // GetForexProviderConfig returns a forex provider configuration by its name
 func (c *Config) GetForexProviderConfig(name string) (ForexProviderConfig, error) {
 	c.m.Lock()
 	defer c.m.Unlock()
-	for i := range c.ForexProviders {
-		if c.ForexProviders[i].Name == name {
-			return c.ForexProviders[i], nil
+	for i := range c.Currency.ForexProviders {
+		if c.Currency.ForexProviders[i].Name == name {
+			return c.Currency.ForexProviders[i], nil
 		}
 	}
 	return ForexProviderConfig{}, errors.New("provider not found")
 }
+
+/////////////////////////////////////////////////////////////////
 
 // UpdateExchangeConfig updates exchange configurations
 func (c *Config) UpdateExchangeConfig(e ExchangeConfig) error {
@@ -294,7 +313,7 @@ func (c *Config) CheckSMSGlobalConfigValues() error {
 // CheckExchangeConfigValues returns configuation values for all enabled
 // exchanges
 func (c *Config) CheckExchangeConfigValues() error {
-	if c.Cryptocurrencies == "" {
+	if c.Currency.Cryptocurrencies == "" {
 		return errors.New(ErrCryptocurrenciesEmpty)
 	}
 
@@ -376,12 +395,12 @@ func (c *Config) CheckWebserverConfigValues() error {
 // CheckForexProviderConfigValues checks forex Provider configuration values
 func (c *Config) CheckForexProviderConfigValues() error {
 	var count int
-	for i := range c.ForexProviders {
-		if c.ForexProviders[i].Enabled == true {
-			if c.ForexProviders[i].APIKey == "Key" {
+	for i := range c.Currency.ForexProviders {
+		if c.Currency.ForexProviders[i].Enabled == true {
+			if c.Currency.ForexProviders[i].APIKey == "Key" {
 				log.Fatal("provider api key not set - please set via your config.json file")
 			}
-			if c.ForexProviders[i].APIKeyLvl == -1 {
+			if c.Currency.ForexProviders[i].APIKeyLvl == -1 {
 				log.Println("warning APIKey Level not set, functions limited - please set via your config.json file")
 			}
 			count++
@@ -393,55 +412,55 @@ func (c *Config) CheckForexProviderConfigValues() error {
 	return nil
 }
 
-// RetrieveConfigCurrencyPairs splits, assigns and verifies enabled currency
-// pairs either cryptoCurrencies or fiatCurrencies
-func (c *Config) RetrieveConfigCurrencyPairs(enabledOnly bool) error {
-	cryptoCurrencies := common.SplitStrings(c.Cryptocurrencies, ",")
-	fiatCurrencies := common.SplitStrings(currency.DefaultCurrencies, ",")
-
-	for x := range c.Exchanges {
-		if !c.Exchanges[x].Enabled && enabledOnly {
-			continue
-		}
-
-		baseCurrencies := common.SplitStrings(c.Exchanges[x].BaseCurrencies, ",")
-		for y := range baseCurrencies {
-			if !common.StringDataCompare(fiatCurrencies, common.StringToUpper(baseCurrencies[y])) {
-				fiatCurrencies = append(fiatCurrencies, common.StringToUpper(baseCurrencies[y]))
-			}
-		}
-	}
-
-	for x := range c.Exchanges {
-		var pairs []pair.CurrencyPair
-		var err error
-		if !c.Exchanges[x].Enabled && enabledOnly {
-			pairs, err = c.GetEnabledPairs(c.Exchanges[x].Name)
-		} else {
-			pairs, err = c.GetAvailablePairs(c.Exchanges[x].Name)
-		}
-
-		if err != nil {
-			return err
-		}
-
-		for y := range pairs {
-			if !common.StringDataCompare(fiatCurrencies, pairs[y].FirstCurrency.Upper().String()) &&
-				!common.StringDataCompare(cryptoCurrencies, pairs[y].FirstCurrency.Upper().String()) {
-				cryptoCurrencies = append(cryptoCurrencies, pairs[y].FirstCurrency.Upper().String())
-			}
-
-			if !common.StringDataCompare(fiatCurrencies, pairs[y].SecondCurrency.Upper().String()) &&
-				!common.StringDataCompare(cryptoCurrencies, pairs[y].SecondCurrency.Upper().String()) {
-				cryptoCurrencies = append(cryptoCurrencies, pairs[y].SecondCurrency.Upper().String())
-			}
-		}
-	}
-
-	currency.Update(fiatCurrencies, false)
-	currency.Update(cryptoCurrencies, true)
-	return nil
-}
+// // RetrieveConfigCurrencyPairs splits, assigns and verifies enabled currency
+// // pairs either cryptoCurrencies or fiatCurrencies
+// func (c *Config) RetrieveConfigCurrencyPairs(enabledOnly bool) error {
+// 	cryptoCurrencies := common.SplitStrings(c.Cryptocurrencies, ",")
+// 	fiatCurrencies := common.SplitStrings(currency.DefaultCurrencies, ",")
+//
+// 	for x := range c.Exchanges {
+// 		if !c.Exchanges[x].Enabled && enabledOnly {
+// 			continue
+// 		}
+//
+// 		baseCurrencies := common.SplitStrings(c.Exchanges[x].BaseCurrencies, ",")
+// 		for y := range baseCurrencies {
+// 			if !common.StringDataCompare(fiatCurrencies, common.StringToUpper(baseCurrencies[y])) {
+// 				fiatCurrencies = append(fiatCurrencies, common.StringToUpper(baseCurrencies[y]))
+// 			}
+// 		}
+// 	}
+//
+// 	for x := range c.Exchanges {
+// 		var pairs []pair.CurrencyPair
+// 		var err error
+// 		if !c.Exchanges[x].Enabled && enabledOnly {
+// 			pairs, err = c.GetEnabledPairs(c.Exchanges[x].Name)
+// 		} else {
+// 			pairs, err = c.GetAvailablePairs(c.Exchanges[x].Name)
+// 		}
+//
+// 		if err != nil {
+// 			return err
+// 		}
+//
+// 		for y := range pairs {
+// 			if !common.StringDataCompare(fiatCurrencies, pairs[y].FirstCurrency.Upper().String()) &&
+// 				!common.StringDataCompare(cryptoCurrencies, pairs[y].FirstCurrency.Upper().String()) {
+// 				cryptoCurrencies = append(cryptoCurrencies, pairs[y].FirstCurrency.Upper().String())
+// 			}
+//
+// 			if !common.StringDataCompare(fiatCurrencies, pairs[y].SecondCurrency.Upper().String()) &&
+// 				!common.StringDataCompare(cryptoCurrencies, pairs[y].SecondCurrency.Upper().String()) {
+// 				cryptoCurrencies = append(cryptoCurrencies, pairs[y].SecondCurrency.Upper().String())
+// 			}
+// 		}
+// 	}
+//
+// 	currency.Update(fiatCurrencies, false)
+// 	currency.Update(cryptoCurrencies, true)
+// 	return nil
+// }
 
 // GetFilePath returns the desired config file or the default config file name
 // based on if the application is being run under test or normal mode.
@@ -588,27 +607,27 @@ func (c *Config) LoadConfig(configPath string) error {
 	if err != nil {
 		return err
 	}
+	//////////////////////////////////////NOTE CHANGE ////////////////////////////////////////////////
+	// if c.Currency.CurrencyExchangeProvider == "" {
+	// 	c.Currency.CurrencyExchangeProvider = FXProviderFixer
+	// } else {
+	// 	if c.Currency.CurrencyExchangeProvider != "yahoo" && c.Currency.CurrencyExchangeProvider != FXProviderFixer {
+	// 		log.Println(WarningCurrencyExchangeProvider)
+	// 		c.Currency.CurrencyExchangeProvider = FXProviderFixer
+	// 	}
+	// }
 
-	if c.CurrencyExchangeProvider == "" {
-		c.CurrencyExchangeProvider = FXProviderFixer
-	} else {
-		if c.CurrencyExchangeProvider != "yahoo" && c.CurrencyExchangeProvider != FXProviderFixer {
-			log.Println(WarningCurrencyExchangeProvider)
-			c.CurrencyExchangeProvider = FXProviderFixer
-		}
-	}
-
-	if c.CurrencyPairFormat == nil {
-		c.CurrencyPairFormat = &CurrencyPairFormatConfig{
+	if c.Currency.CurrencyPairFormat == nil {
+		c.Currency.CurrencyPairFormat = &CurrencyPairFormatConfig{
 			Delimiter: "-",
 			Uppercase: true,
 		}
 	}
 
-	if c.FiatDisplayCurrency == "" {
-		c.FiatDisplayCurrency = "USD"
+	if c.Currency.FiatDisplayCurrency == "" {
+		c.Currency.FiatDisplayCurrency = "USD"
 	}
-
+	////////////////////////////////////NOTE CHANGE///////////////////////////////////////////////////
 	if c.GlobalHTTPTimeout <= 0 {
 		log.Printf("Global HTTP Timeout value not set, defaulting to %v.", configDefaultHTTPTimeout)
 		c.GlobalHTTPTimeout = configDefaultHTTPTimeout
@@ -629,8 +648,8 @@ func (c *Config) UpdateConfig(configPath string, newCfg Config) error {
 	}
 	c.Exchanges = newCfg.Exchanges
 
-	if c.CurrencyPairFormat != newCfg.CurrencyPairFormat {
-		c.CurrencyPairFormat = newCfg.CurrencyPairFormat
+	if c.Currency.CurrencyPairFormat != newCfg.Currency.CurrencyPairFormat {
+		c.Currency.CurrencyPairFormat = newCfg.Currency.CurrencyPairFormat
 	}
 
 	c.Portfolio = newCfg.Portfolio

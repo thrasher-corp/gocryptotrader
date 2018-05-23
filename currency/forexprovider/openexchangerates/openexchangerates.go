@@ -16,7 +16,7 @@ import (
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
-	"github.com/thrasher-/gocryptotrader/currency/forexprovider"
+	"github.com/thrasher-/gocryptotrader/currency/forexprovider/base"
 )
 
 // These consts contain endpoint information
@@ -39,7 +39,7 @@ const (
 // this is the overarching type across this package
 // DOCs : https://docs.openexchangerates.org/docs
 type OXR struct {
-	forexprovider.Base
+	base.Base
 }
 
 // Setup sets values for the OXR object
@@ -50,6 +50,7 @@ func (o *OXR) Setup(config config.ForexProviderConfig) {
 	o.Name = config.Name
 	o.RESTPollingDelay = config.RESTPollingDelay
 	o.Verbose = config.Verbose
+	o.PrimaryProvider = config.PrimaryProvider
 }
 
 // GetRates is a wrapper function to return rates

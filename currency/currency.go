@@ -2,204 +2,193 @@ package currency
 
 import (
 	"errors"
-	"fmt"
 	"log"
-	"net/url"
-	"strings"
-	"time"
+	"sync"
 
 	"github.com/thrasher-/gocryptotrader/common"
+	"github.com/thrasher-/gocryptotrader/config"
+	"github.com/thrasher-/gocryptotrader/currency/forexprovider"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
 )
 
-// Rate holds the current exchange rates for the currency pair.
-type Rate struct {
-	ID   string  `json:"id"`
-	Name string  `json:"Name"`
-	Rate float64 `json:",string"`
-	Date string  `json:"Date"`
-	Time string  `json:"Time"`
-	Ask  float64 `json:",string"`
-	Bid  float64 `json:",string"`
-}
-
-// YahooJSONResponseInfo is a sub type that holds JSON response info
-type YahooJSONResponseInfo struct {
-	Count   int       `json:"count"`
-	Created time.Time `json:"created"`
-	Lang    string    `json:"lang"`
-}
-
-// YahooJSONResponse holds Yahoo API responses
-type YahooJSONResponse struct {
-	Query struct {
-		YahooJSONResponseInfo
-		Results struct {
-			Rate []Rate `json:"rate"`
-		}
-	}
-}
-
-// FixerResponse contains the data fields for the Fixer API response
-type FixerResponse struct {
-	Base  string             `json:"base"`
-	Date  string             `json:"date"`
-	Rates map[string]float64 `json:"rates"`
-}
-
 const (
 	maxCurrencyPairsPerRequest = 350
-	yahooYQLURL                = "https://query.yahooapis.com/v1/public/yql?"
-	yahooDatabase              = "store://datatables.org/alltableswithkeys"
-	fixerAPI                   = "http://api.fixer.io/latest"
 	// DefaultCurrencies has the default minimum of FIAT values
 	DefaultCurrencies = "USD,AUD,EUR,CNY"
 	// DefaultCryptoCurrencies has the default minimum of crytpocurrency values
 	DefaultCryptoCurrencies = "BTC,LTC,ETH,DOGE,DASH,XRP,XMR"
 )
 
-// Variables for package which includes base error strings & exportable
-// queries
-var (
-	CurrencyStore             map[string]Rate
-	CurrencyStoreFixer        map[string]float64
-	BaseCurrencies            []string
-	CryptoCurrencies          []string
-	ErrCurrencyDataNotFetched = errors.New("yahoo currency data has not been fetched yet")
-	ErrCurrencyNotFound       = "unable to find specified currency"
-	ErrQueryingYahoo          = errors.New("unable to query Yahoo currency values")
-	ErrQueryingYahooZeroCount = errors.New("yahoo returned zero currency data")
-	YahooEnabled              = false
-)
+// Manager is the overarching type across this package
+type Manager struct {
+	FXRates map[string]float64
 
-// SetProvider sets the currency exchange service used by the currency
-// converter
-func SetProvider(yahooEnabled bool) {
-	if yahooEnabled {
-		YahooEnabled = true
-		return
-	}
-	YahooEnabled = false
+	FiatCurrencies   []string
+	Cryptocurrencies []string
+
+	MainFxProvider      string
+	BackUpFxProviders   []string
+	Verbose             bool
+	FXProviders         *forexprovider.ForexProviders
+	PairFormat          *config.CurrencyPairFormatConfig
+	FiatDisplayCurrency string
+	sync.Mutex
 }
 
-// SwapProvider swaps the currency exchange service used by the curency
-// converter
-func SwapProvider() {
-	if YahooEnabled {
-		YahooEnabled = false
-		return
+// NewManager takes in a CurrencyConfig and sets up relational currency provider
+// packages then returns a pointer to a currency manager
+func NewManager(currencyConfig config.CurrencyConfig) *Manager {
+	var cryptocurrencies []string
+
+	m := new(Manager)
+
+	if currencyConfig.Cryptocurrencies == "" {
+		cryptocurrencies = common.SplitStrings(DefaultCryptoCurrencies, ",")
+	} else {
+		cryptocurrencies = common.SplitStrings(currencyConfig.Cryptocurrencies, ",")
 	}
-	YahooEnabled = true
+
+	m.Cryptocurrencies = cryptocurrencies
+	m.FiatCurrencies = common.SplitStrings(DefaultCurrencies, ",")
+	m.PairFormat = currencyConfig.CurrencyPairFormat
+	m.FXProviders = forexprovider.StartFXService(currencyConfig.ForexProviders)
+	m.FXRates = make(map[string]float64)
+
+	return m
 }
 
-// GetProvider returns the currency exchange service used by the currency
-// converter
-func GetProvider() string {
-	if YahooEnabled {
-		return "yahoo"
+func (m *Manager) StartDefault(exchangeConfigurations []config.ExchangeConfig) error {
+	log.Println("Retrieving enabled configuration currencies...")
+	err := m.RetrieveConfigCurrencyPairs(exchangeConfigurations, true)
+	if err != nil {
+		return err
 	}
-	return "fixer"
+	log.Println("Supported fiat: ", m.GetEnabledFiatCurrencies())
+	log.Println("Supported crypto: ", m.GetEnabledCryptocurrencies())
+
+	return m.SeedCurrencyData()
 }
 
-// IsDefaultCurrency checks if the currency passed in matches the default
-// FIAT currency
-func IsDefaultCurrency(currency string) bool {
+func (m *Manager) GetEnabledFiatCurrencies() []string {
+	return m.FiatCurrencies
+}
+
+func (m *Manager) GetEnabledCryptocurrencies() []string {
+	return m.Cryptocurrencies
+}
+
+// SeedCurrencyData returns rates correlated with suported currencies
+func (m *Manager) SeedCurrencyData() error {
+	m.Lock()
+	defer m.Unlock()
+
+	newRates, err := m.FXProviders.GetCurrencyData("", "")
+	if err != nil {
+		return err
+	}
+
+	for key, value := range newRates {
+		// if len(key) < 5 {
+		// 	rates[base+key] = value
+		// 	continue
+		// }
+		m.FXRates[key] = value
+	}
+	return nil
+}
+
+func (m *Manager) GetExchangeRates() map[string]float64 {
+	m.Lock()
+	defer m.Unlock()
+	return m.FXRates
+}
+
+// IsDefaultCurrency checks if the currency passed in matches the default fiat
+// currency
+func (m *Manager) IsDefaultCurrency(currency string) bool {
+	m.Lock()
+	defer m.Unlock()
 	defaultCurrencies := common.SplitStrings(DefaultCurrencies, ",")
 	return common.StringDataCompare(defaultCurrencies, common.StringToUpper(currency))
 }
 
 // IsDefaultCryptocurrency checks if the currency passed in matches the default
-// CRYPTO currency
-func IsDefaultCryptocurrency(currency string) bool {
+// cryptocurrency
+func (m *Manager) IsDefaultCryptocurrency(currency string) bool {
+	m.Lock()
+	defer m.Unlock()
 	cryptoCurrencies := common.SplitStrings(DefaultCryptoCurrencies, ",")
 	return common.StringDataCompare(cryptoCurrencies, common.StringToUpper(currency))
 }
 
-// IsFiatCurrency checks if the currency passed is an enabled FIAT currency
-func IsFiatCurrency(currency string) bool {
-	if len(BaseCurrencies) == 0 {
-		log.Println("IsFiatCurrency: BaseCurrencies string variable not populated")
-		return false
+// IsFiatCurrency checks if the currency passed is an enabled fiat currency
+func (m *Manager) IsFiatCurrency(currency string) bool {
+	m.Lock()
+	defer m.Unlock()
+	if len(m.FiatCurrencies) == 0 {
+		log.Fatal("Currency IsFiatCurrency() error BaseCurrencies string variable not populated")
 	}
-	return common.StringDataCompare(BaseCurrencies, common.StringToUpper(currency))
+	return common.StringDataCompare(m.FiatCurrencies, common.StringToUpper(currency))
 }
 
 // IsCryptocurrency checks if the currency passed is an enabled CRYPTO currency.
-func IsCryptocurrency(currency string) bool {
-	if len(CryptoCurrencies) == 0 {
-		log.Println(
-			"IsCryptocurrency: CryptoCurrencies string variable not populated",
-		)
-		return false
+func (m *Manager) IsCryptocurrency(currency string) bool {
+	m.Lock()
+	defer m.Unlock()
+	if len(m.Cryptocurrencies) == 0 {
+		log.Fatal("Currency IsCryptocurrency() CryptoCurrencies string variable not populated")
 	}
-	return common.StringDataCompare(CryptoCurrencies, common.StringToUpper(currency))
+	return common.StringDataCompare(m.Cryptocurrencies, common.StringToUpper(currency))
 }
 
-// IsCryptoPair checks to see if the pair is a crypto pair. For example, BTCLTC
-func IsCryptoPair(p pair.CurrencyPair) bool {
-	return IsCryptocurrency(p.FirstCurrency.String()) && IsCryptocurrency(p.SecondCurrency.String())
+// IsCryptoPair checks to see if the pair is a crypto pair e.g. BTCLTC
+func (m *Manager) IsCryptoPair(p pair.CurrencyPair) bool {
+	m.Lock()
+	defer m.Unlock()
+	return m.IsCryptocurrency(p.FirstCurrency.String()) &&
+		m.IsCryptocurrency(p.SecondCurrency.String())
 }
 
-// IsCryptoFiatPair checks to see if the pair is a crypto fiat pair. For example, BTCUSD
-func IsCryptoFiatPair(p pair.CurrencyPair) bool {
-	return IsCryptocurrency(p.FirstCurrency.String()) && !IsCryptocurrency(p.SecondCurrency.String()) ||
-		!IsCryptocurrency(p.FirstCurrency.String()) && IsCryptocurrency(p.SecondCurrency.String())
+// IsCryptoFiatPair checks to see if the pair is a crypto fiat pair e.g. BTCUSD
+func (m *Manager) IsCryptoFiatPair(p pair.CurrencyPair) bool {
+	m.Lock()
+	defer m.Unlock()
+	return m.IsCryptocurrency(p.FirstCurrency.String()) &&
+		!m.IsCryptocurrency(p.SecondCurrency.String()) ||
+		!m.IsCryptocurrency(p.FirstCurrency.String()) &&
+			m.IsCryptocurrency(p.SecondCurrency.String())
 }
 
-// IsFiatPair checks to see if the pair is a fiar pair. For example. EURUSD
-func IsFiatPair(p pair.CurrencyPair) bool {
-	return IsFiatCurrency(p.FirstCurrency.String()) && IsFiatCurrency(p.SecondCurrency.String())
+// IsFiatPair checks to see if the pair is a fiat pair e.g. EURUSD
+func (m *Manager) IsFiatPair(p pair.CurrencyPair) bool {
+	m.Lock()
+	defer m.Unlock()
+	return m.IsFiatCurrency(p.FirstCurrency.String()) &&
+		m.IsFiatCurrency(p.SecondCurrency.String())
 }
 
 // Update updates the local crypto currency or base currency store
-func Update(input []string, cryptos bool) {
+func (m *Manager) Update(input []string, cryptos bool) {
+	m.Lock()
+	defer m.Unlock()
 	for x := range input {
 		if cryptos {
-			if !common.StringDataCompare(CryptoCurrencies, input[x]) {
-				CryptoCurrencies = append(CryptoCurrencies, common.StringToUpper(input[x]))
+			if !common.StringDataCompare(m.Cryptocurrencies, input[x]) {
+				m.Cryptocurrencies = append(m.Cryptocurrencies, common.StringToUpper(input[x]))
 			}
 		} else {
-			if !common.StringDataCompare(BaseCurrencies, input[x]) {
-				BaseCurrencies = append(BaseCurrencies, common.StringToUpper(input[x]))
+			if !common.StringDataCompare(m.FiatCurrencies, input[x]) {
+				m.FiatCurrencies = append(m.FiatCurrencies, common.StringToUpper(input[x]))
 			}
 		}
 	}
-}
-
-// SeedCurrencyData takes the desired FIAT currency string, if not defined the
-// function will assign it the default values. The function will query
-// yahoo for the currency values and will seed currency data.
-func SeedCurrencyData(fiatCurrencies string) error {
-	if fiatCurrencies == "" {
-		fiatCurrencies = DefaultCurrencies
-	}
-
-	if YahooEnabled {
-		return QueryYahooCurrencyValues(fiatCurrencies)
-	}
-
-	return FetchFixerCurrencyData()
-}
-
-// MakecurrencyPairs takes all supported currency and turns them into pairs.
-func MakecurrencyPairs(supportedCurrencies string) string {
-	currencies := common.SplitStrings(supportedCurrencies, ",")
-	var pairs []string
-	count := len(currencies)
-	for i := 0; i < count; i++ {
-		currency := currencies[i]
-		for j := 0; j < count; j++ {
-			if currency != currencies[j] {
-				pairs = append(pairs, currency+currencies[j])
-			}
-		}
-	}
-	return common.JoinStrings(pairs, ",")
 }
 
 // ConvertCurrency for example converts $1 USD to the equivalent Japanese Yen
 // or vice versa.
-func ConvertCurrency(amount float64, from, to string) (float64, error) {
+func (m *Manager) ConvertCurrency(amount float64, from, to string) (float64, error) {
+	m.Lock()
+	defer m.Unlock()
 	from = common.StringToUpper(from)
 	to = common.StringToUpper(to)
 
@@ -215,131 +204,68 @@ func ConvertCurrency(amount float64, from, to string) (float64, error) {
 		to = "RUB"
 	}
 
-	if YahooEnabled {
-		currency := from + to
-		_, ok := CurrencyStore[currency]
+	conversionRate, ok := m.FXRates[from+to]
+	if !ok {
+		conversionRate, ok = m.FXRates[to+from]
 		if !ok {
-			err := SeedCurrencyData(currency[:len(from)] + "," + currency[len(to):])
-			if err != nil {
-				return 0, err
+			return 0, errors.New("cannot find currencypair")
+		}
+		newConversionRate := 1 / conversionRate
+		return amount * newConversionRate, nil
+	}
+	return amount * conversionRate, nil
+}
+
+// RetrieveConfigCurrencyPairs splits, assigns and verifies enabled currency
+// pairs either cryptoCurrencies or fiatCurrencies
+func (m *Manager) RetrieveConfigCurrencyPairs(exchanges []config.ExchangeConfig, enabledOnly bool) error {
+	cryptoCurrencies := m.Cryptocurrencies
+	fiatCurrencies := common.SplitStrings(DefaultCurrencies, ",")
+
+	for x := range exchanges {
+		if !exchanges[x].Enabled && enabledOnly {
+			continue
+		}
+
+		baseCurrencies := common.SplitStrings(exchanges[x].BaseCurrencies, ",")
+		for y := range baseCurrencies {
+			if !common.StringDataCompare(fiatCurrencies, common.StringToUpper(baseCurrencies[y])) {
+				fiatCurrencies = append(fiatCurrencies, common.StringToUpper(baseCurrencies[y]))
 			}
 		}
+	}
 
-		result, ok := CurrencyStore[currency]
-		if !ok {
-			return 0, errors.New(ErrCurrencyNotFound + " currency not found in CurrencyStore " + currency)
+	for x := range exchanges {
+		var pairs []pair.CurrencyPair
+
+		if !exchanges[x].Enabled && enabledOnly {
+			pairs = func(c config.ExchangeConfig) []pair.CurrencyPair {
+				return pair.FormatPairs(common.SplitStrings(c.EnabledPairs, ","),
+					c.ConfigCurrencyPairFormat.Delimiter,
+					c.ConfigCurrencyPairFormat.Index)
+			}(exchanges[x])
+		} else {
+			pairs = func(c config.ExchangeConfig) []pair.CurrencyPair {
+				return pair.FormatPairs(common.SplitStrings(c.AvailablePairs, ","),
+					c.ConfigCurrencyPairFormat.Delimiter,
+					c.ConfigCurrencyPairFormat.Index)
+			}(exchanges[x])
 		}
-		return amount * result.Rate, nil
-	}
 
-	if len(CurrencyStoreFixer) == 0 {
-		err := FetchFixerCurrencyData()
-		if err != nil {
-			return 0, err
+		for y := range pairs {
+			if !common.StringDataCompare(fiatCurrencies, pairs[y].FirstCurrency.Upper().String()) &&
+				!common.StringDataCompare(cryptoCurrencies, pairs[y].FirstCurrency.Upper().String()) {
+				cryptoCurrencies = append(cryptoCurrencies, pairs[y].FirstCurrency.Upper().String())
+			}
+
+			if !common.StringDataCompare(fiatCurrencies, pairs[y].SecondCurrency.Upper().String()) &&
+				!common.StringDataCompare(cryptoCurrencies, pairs[y].SecondCurrency.Upper().String()) {
+				cryptoCurrencies = append(cryptoCurrencies, pairs[y].SecondCurrency.Upper().String())
+			}
 		}
 	}
 
-	var resultFrom float64
-	var resultTo float64
-
-	// First check if we're converting to USD, USD doesn't exist in the rates map
-	if to == "USD" {
-		resultFrom, ok := CurrencyStoreFixer[from]
-		if !ok {
-			return 0, errors.New(ErrCurrencyNotFound + " " + from + " in CurrencyStoreFixer with pair " + from + to)
-		}
-		return amount / resultFrom, nil
-	}
-
-	// Check to see if we're converting from USD
-	if from == "USD" {
-		resultTo, ok := CurrencyStoreFixer[to]
-		if !ok {
-			return 0, errors.New(ErrCurrencyNotFound + " " + to + " in CurrencyStoreFixer with pair " + from + to)
-		}
-		return resultTo * amount, nil
-	}
-
-	// Otherwise convert to USD, then to the target currency
-	resultFrom, ok := CurrencyStoreFixer[from]
-	if !ok {
-		return 0, errors.New(ErrCurrencyNotFound + " " + from + " in CurrencyStoreFixer with pair " + from + to)
-	}
-
-	converted := amount / resultFrom
-	resultTo, ok = CurrencyStoreFixer[to]
-	if !ok {
-		return 0, errors.New(ErrCurrencyNotFound + " " + to + " in CurrencyStoreFixer with pair " + from + to)
-	}
-
-	return converted * resultTo, nil
-}
-
-// FetchFixerCurrencyData seeds the variable C
-func FetchFixerCurrencyData() error {
-	var result FixerResponse
-	values := url.Values{}
-	values.Set("base", "USD")
-	url := common.EncodeURLValues(fixerAPI, values)
-
-	CurrencyStoreFixer = make(map[string]float64)
-
-	err := common.SendHTTPGetRequest(url, true, false, &result)
-	if err != nil {
-		return err
-	}
-
-	CurrencyStoreFixer = result.Rates
+	m.Update(fiatCurrencies, false)
+	m.Update(cryptoCurrencies, true)
 	return nil
-}
-
-// FetchYahooCurrencyData seeds the variable CurrencyStore; this is a
-// map[string]Rate
-func FetchYahooCurrencyData(currencyPairs []string) error {
-	values := url.Values{}
-	values.Set(
-		"q", fmt.Sprintf("SELECT * from yahoo.finance.xchange WHERE pair in (\"%s\")",
-			common.JoinStrings(currencyPairs, ",")),
-	)
-	values.Set("format", "json")
-	values.Set("env", yahooDatabase)
-
-	headers := make(map[string]string)
-	headers["Content-Type"] = "application/x-www-form-urlencoded"
-
-	resp, err := common.SendHTTPRequest(
-		"POST", yahooYQLURL, headers, strings.NewReader(values.Encode()),
-	)
-	if err != nil {
-		return err
-	}
-
-	log.Printf("Currency recv: %s", resp)
-
-	yahooResp := YahooJSONResponse{}
-	err = common.JSONDecode([]byte(resp), &yahooResp)
-	if err != nil {
-		return err
-	}
-
-	if yahooResp.Query.Count == 0 {
-		return ErrQueryingYahooZeroCount
-	}
-
-	for i := 0; i < yahooResp.Query.YahooJSONResponseInfo.Count; i++ {
-		CurrencyStore[yahooResp.Query.Results.Rate[i].ID] = yahooResp.Query.Results.Rate[i]
-	}
-	return nil
-}
-
-// QueryYahooCurrencyValues takes in desired currencies, creates pairs then
-// uses FetchYahooCurrencyData to seed CurrencyStore
-func QueryYahooCurrencyValues(currencies string) error {
-	CurrencyStore = make(map[string]Rate)
-	currencyPairs := common.SplitStrings(MakecurrencyPairs(currencies), ",")
-	log.Printf(
-		"%d fiat currency pairs generated. Fetching Yahoo currency data (this may take a minute)..\n",
-		len(currencyPairs),
-	)
-	return FetchYahooCurrencyData(currencyPairs)
 }

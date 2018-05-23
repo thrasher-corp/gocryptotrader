@@ -26,18 +26,19 @@ type Bot struct {
 	smsglobal  *smsglobal.Base
 	portfolio  *portfolio.Base
 	exchanges  []exchange.IBotExchange
+	currencyM  *currency.Manager
 	shutdown   chan bool
 	dryRun     bool
 	configFile string
 }
 
 const banner = `
-   ______        ______                     __        ______                  __           
+   ______        ______                     __        ______                  __
   / ____/____   / ____/_____ __  __ ____   / /_ ____ /_  __/_____ ______ ____/ /___   _____
  / / __ / __ \ / /    / ___// / / // __ \ / __// __ \ / /  / ___// __  // __  // _ \ / ___/
-/ /_/ // /_/ // /___ / /   / /_/ // /_/ // /_ / /_/ // /  / /   / /_/ // /_/ //  __// /    
-\____/ \____/ \____//_/    \__, // .___/ \__/ \____//_/  /_/    \__,_/ \__,_/ \___//_/     
-                          /____//_/                                                        
+/ /_/ // /_/ // /___ / /   / /_/ // /_/ // /_ / /_/ // /  / /   / /_/ // /_/ //  __// /
+\____/ \____/ \____//_/    \__, // .___/ \__/ \____//_/  /_/    \__,_/ \__,_/ \___//_/
+                          /____//_/
 `
 
 var bot Bot
@@ -72,7 +73,7 @@ func main() {
 
 	AdjustGoMaxProcs()
 	log.Printf("Bot '%s' started.\n", bot.config.Name)
-	log.Printf("Fiat display currency: %s.", bot.config.FiatDisplayCurrency)
+	log.Printf("Fiat display currency: %s.", bot.config.Currency.FiatDisplayCurrency)
 	log.Printf("Bot dry run mode: %v.\n", common.IsEnabled(bot.dryRun))
 
 	if bot.config.SMS.Enabled {
@@ -99,25 +100,11 @@ func main() {
 		log.Fatalf("No exchanges were able to be loaded. Exiting")
 	}
 
-	if bot.config.CurrencyExchangeProvider == "yahoo" {
-		currency.SetProvider(true)
-	} else {
-		currency.SetProvider(false)
-	}
-	log.Printf("Currency exchange provider: %s.", bot.config.CurrencyExchangeProvider)
-
-	bot.config.RetrieveConfigCurrencyPairs(true)
-	err = currency.SeedCurrencyData(common.JoinStrings(currency.BaseCurrencies, ","))
-	if err != nil {
-		currency.SwapProvider()
-		log.Printf("'%s' currency exchange provider failed, swapping to %s and testing..",
-			bot.config.CurrencyExchangeProvider, currency.GetProvider())
-		err = currency.SeedCurrencyData(common.JoinStrings(currency.BaseCurrencies, ","))
-		if err != nil {
-			log.Fatalf("Fatal error retrieving config currencies. Error: %s", err)
-		}
-	}
+	//////////////////////
+	bot.currencyM = currency.NewManager(bot.config.GetCurrencyConfig())
+	bot.currencyM.StartDefault(bot.config.GetAllExchangeConfigs())
 	log.Println("Successfully retrieved config currencies.")
+	//////////////////////
 
 	bot.portfolio = &portfolio.Portfolio
 	bot.portfolio.SeedPortfolio(bot.config.Portfolio)

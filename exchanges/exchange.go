@@ -357,8 +357,8 @@ func FormatExchangeCurrency(exchName string, p pair.CurrencyPair) pair.CurrencyI
 // based on the user currency display preferences
 func FormatCurrency(p pair.CurrencyPair) pair.CurrencyItem {
 	cfg := config.GetConfig()
-	return p.Display(cfg.CurrencyPairFormat.Delimiter,
-		cfg.CurrencyPairFormat.Uppercase)
+	return p.Display(cfg.Currency.CurrencyPairFormat.Delimiter,
+		cfg.Currency.CurrencyPairFormat.Uppercase)
 }
 
 // SetEnabled is a method that sets if the exchange is enabled
