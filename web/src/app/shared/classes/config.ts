@@ -11,10 +11,6 @@
     Exchanges: Exchange[];
 
     public isConfigCacheValid() : boolean {
-        if(window.localStorage['configDate'] != null || 
-            window.localStorage['config']) {
-          return false;
-        }
         let dateStored = +new Date(window.localStorage['configDate']);
         let dateNow = +new Date();
         var dateDifference = Math.abs(dateNow - dateStored)

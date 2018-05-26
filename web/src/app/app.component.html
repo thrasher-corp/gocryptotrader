@@ -58,11 +58,11 @@
             </mat-list-item>
             <mat-divider></mat-divider>
             <mat-list-item *ngIf="isConnected" matTooltip="Online!">
-                    <mat-icon>network_wifi</mat-icon>&nbsp;
-                </mat-list-item>
-                <mat-list-item *ngIf="!isConnected" matTooltip="Offline">
-                        <mat-icon>signal_wifi_off</mat-icon>&nbsp;
-                    </mat-list-item>
+                <mat-icon>network_wifi</mat-icon>&nbsp;
+            </mat-list-item>
+            <mat-list-item *ngIf="!isConnected" matTooltip="Offline">
+                <mat-icon>signal_wifi_off</mat-icon>&nbsp;
+            </mat-list-item>
         </mat-nav-list>
 
     </mat-sidenav>

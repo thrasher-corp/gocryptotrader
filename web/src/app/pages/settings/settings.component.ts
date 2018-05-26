@@ -33,7 +33,9 @@ export class SettingsComponent  {
             duration: 4000,
           });
         } 
-        if(msg.error === null || msg.error === '') {
+        if (msg.error === null || msg.error === '') {
+          this.settings.clearCache();
+          this.getSettings();
           this.snackBar.open('Success', msg.data, {
             duration: 1000,
           });
@@ -77,7 +79,6 @@ export class SettingsComponent  {
       data: this.settings,
     }
     this.ws.messages.next(settingsSave);
-    this.settings.saveToCache();
   }
 }
 
