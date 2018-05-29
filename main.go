@@ -123,9 +123,6 @@ func main() {
 	bot.portfolio.SeedPortfolio(bot.config.Portfolio)
 	SeedExchangeAccountInfo(GetAllEnabledExchangeAccountInfo().Data)
 	go portfolio.StartPortfolioWatcher()
-
-	log.Println("Starting websocket handler.")
-	go WebsocketHandler()
 	go TickerUpdaterRoutine()
 	go OrderbookUpdaterRoutine()
 
@@ -135,8 +132,18 @@ func main() {
 			"HTTP Webserver support enabled. Listen URL: http://%s:%d/\n",
 			common.ExtractHost(listenAddr), common.ExtractPort(listenAddr),
 		)
+
 		router := NewRouter(bot.exchanges)
-		log.Fatal(http.ListenAndServe(listenAddr, router))
+		go func() {
+			err = http.ListenAndServe(listenAddr, router)
+			if err != nil {
+				log.Fatal(err)
+			}
+		}()
+
+		log.Println("HTTP Webserver started successfully.")
+		log.Println("Starting websocket handler.")
+		StartWebsocketHandler()
 	} else {
 		log.Println("HTTP RESTful Webserver support disabled.")
 	}
