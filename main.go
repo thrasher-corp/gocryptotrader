@@ -16,6 +16,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/currency"
 	"github.com/thrasher-/gocryptotrader/currency/forexprovider"
+	"github.com/thrasher-/gocryptotrader/database"
 	"github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/portfolio"
 )
@@ -27,6 +28,7 @@ type Bot struct {
 	portfolio  *portfolio.Base
 	exchanges  []exchange.IBotExchange
 	comms      *communications.Communications
+	db         *database.ORM
 	shutdown   chan bool
 	dryRun     bool
 	configFile string
@@ -34,7 +36,12 @@ type Bot struct {
 	logFile    string
 }
 
-const banner = `
+const (
+	dbname     = "gocryptotrader"
+	dbhost     = "localhost"
+	dbuser     = "gocryptotrader"
+	dbpassword = "gocryptotrader"
+	banner     = `
    ______        ______                     __        ______                  __
   / ____/____   / ____/_____ __  __ ____   / /_ ____ /_  __/_____ ______ ____/ /___   _____
  / / __ / __ \ / /    / ___// / / // __ \ / __// __ \ / /  / ___// __  // __  // _ \ / ___/
@@ -42,6 +49,7 @@ const banner = `
 \____/ \____/ \____//_/    \__, // .___/ \__/ \____//_/  /_/    \__,_/ \__,_/ \___//_/
                           /____//_/
 `
+)
 
 var bot Bot
 
@@ -54,12 +62,19 @@ func main() {
 		log.Fatal(err)
 	}
 
-	//Handle flags
-	flag.StringVar(&bot.configFile, "config", defaultPath, "config file to load")
+	// Handle flags
+	flag.StringVar(&bot.configFile, "config", defaultPath, "-config sets filepath to load configuration")
 	flag.StringVar(&bot.dataDir, "datadir", common.GetDefaultDataDir(runtime.GOOS), "default data directory for GoCryptoTrader files")
-	dryrun := flag.Bool("dryrun", false, "dry runs bot, doesn't save config file")
-	version := flag.Bool("version", false, "retrieves current GoCryptoTrader version")
-	verbosity := flag.Bool("verbose", false, "increases logging verbosity for GoCryptoTrader")
+	dryrun := flag.Bool("dryrun", false, "-dryrun does not save config.json file")
+	version := flag.Bool("version", false, "-version retrieves current GoCryptoTrader version")
+	verbosity := flag.Bool("verbose", false, "-verbose increases logging verbosity for GoCryptoTrader")
+
+	dbStart := flag.Bool("db", false, "-db connects to a postgres database")
+	dbSeedHistory := flag.Bool("seeddb", false, "-seeddb aggregates historic exchange trade data into the database")
+	dbName := flag.String("dbname", dbname, "-dbname changes database name")
+	dbHost := flag.String("dbhost", dbhost, "-dbhost changes database host details")
+	dbUser := flag.String("dbuser", dbuser, "-dbuser changes database username")
+	dbPassword := flag.String("dbpassword", dbpassword, "-dbpassword changes database password")
 
 	flag.Parse()
 
@@ -162,6 +177,25 @@ func main() {
 	go TickerUpdaterRoutine()
 	go OrderbookUpdaterRoutine()
 	go WebsocketRoutine(*verbosity)
+
+	if *dbStart {
+		log.Println("Opening connection to database....")
+		bot.db, err = database.NewORMConnection(*dbName, *dbHost, *dbUser, *dbPassword, *verbosity)
+		if err != nil {
+			log.Fatal(err)
+		}
+		err = bot.db.LoadConfiguration(bot.config.Name)
+		if err != nil {
+			err = bot.db.InsertNewConfiguration(bot.config, "newPassword")
+			if err != nil {
+				log.Fatal(err)
+			}
+		}
+		log.Println("Database connection established")
+		if *dbSeedHistory {
+			go HistoricExchangeDataUpdaterRoutine()
+		}
+	}
 
 	<-bot.shutdown
 	Shutdown()

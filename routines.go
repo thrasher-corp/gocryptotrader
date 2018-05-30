@@ -460,3 +460,66 @@ func WebsocketReconnect(ws *exchange.Websocket, verbose bool) {
 		}
 	}
 }
+
+// HistoricExchangeDataUpdaterRoutine updates historic transactions
+func HistoricExchangeDataUpdaterRoutine() {
+	log.Println("Starting historic exchange data updater routine.")
+	var wg sync.WaitGroup
+	for {
+		wg.Add(len(bot.exchanges))
+		for x := range bot.exchanges {
+			go func(x int, wg *sync.WaitGroup) {
+				defer wg.Done()
+
+				if bot.exchanges[x] == nil {
+					return
+				}
+				exchangeName := bot.exchanges[x].GetName()
+				enabledCurrencies := bot.exchanges[x].GetEnabledCurrencies()
+				assetTypes, err := exchange.GetExchangeAssetTypes(exchangeName)
+				if err != nil {
+					log.Printf("failed to get %s exchange asset types. Error: %s",
+						exchangeName, err)
+					return
+				}
+
+				for y := range assetTypes {
+					for z := range enabledCurrencies {
+						processHistory(bot.exchanges[x], enabledCurrencies[z], assetTypes[y])
+					}
+				}
+			}(x, &wg)
+		}
+		wg.Wait()
+		log.Println("All exchange histories fetched and inserted sleeping...")
+		time.Sleep(5 * time.Minute)
+	}
+}
+
+func processHistory(exch exchange.IBotExchange, c pair.CurrencyPair, assetType string) {
+	lastTime, err := bot.db.GetExchangeTradeHistoryLast(exch.GetName(), c.Pair().String())
+	if time.Now().Truncate(5*time.Minute).Unix() < lastTime.Unix() {
+		log.Printf("%s history up to date!", exch.GetName())
+		return
+	}
+
+	result, err := exch.GetExchangeHistory(c, assetType, lastTime)
+	if err != nil {
+		log.Println(err)
+		return
+	}
+
+	for i := range result {
+		err := bot.db.InsertExchangeTradeHistoryData(result[i].TID,
+			result[i].Exchange,
+			c.Pair().String(),
+			assetType,
+			result[i].Type,
+			result[i].Amount,
+			result[i].Price,
+			time.Unix(result[i].Timestamp, 0))
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
+}
