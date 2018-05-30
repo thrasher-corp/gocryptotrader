@@ -251,7 +251,7 @@ type IBotExchange interface {
 	GetAccountInfo() (AccountInfo, error)
 	GetAuthenticatedAPISupport() bool
 	SetCurrencies(pairs []pair.CurrencyPair, enabledPairs bool) error
-	GetExchangeHistory(pair.CurrencyPair, string) ([]TradeHistory, error)
+	GetExchangeHistory(pair pair.CurrencyPair, assetType string, timestampStart time.Time) ([]TradeHistory, error)
 	SupportsAutoPairUpdates() bool
 	GetLastPairsUpdateTime() int64
 	SupportsRESTTickerBatchUpdates() bool

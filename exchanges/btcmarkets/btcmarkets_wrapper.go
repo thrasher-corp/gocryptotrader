@@ -4,8 +4,10 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"net/url"
 	"strconv"
 	"sync"
+	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
 
@@ -148,10 +150,38 @@ func (b *BTCMarkets) GetFundingHistory() ([]exchange.FundHistory, error) {
 }
 
 // GetExchangeHistory returns historic trade data since exchange opening.
-func (b *BTCMarkets) GetExchangeHistory(p pair.CurrencyPair, assetType string) ([]exchange.TradeHistory, error) {
+func (b *BTCMarkets) GetExchangeHistory(pair pair.CurrencyPair, assetType string, timestampStart time.Time) ([]exchange.TradeHistory, error) {
 	var resp []exchange.TradeHistory
 
-	return resp, common.ErrNotYetImplemented
+	v := url.Values{}
+	if timestampStart.IsZero() {
+		v.Set("since", "0")
+	} else {
+		if common.CountInt(timestampStart.Unix()) != 10 {
+			return resp, errors.New("BTCMarkets GetExchangeHistory() error - malformed unix timestamp")
+		}
+		v.Set("since", strconv.FormatInt(timestampStart.Unix(), 10))
+	}
+
+	trades, err := b.GetTrades(pair.GetFirstCurrency().String(), pair.GetSecondCurrency().String(), v)
+	if err != nil {
+		return resp, err
+	}
+
+	if len(trades) == 0 {
+		return resp, errors.New("BTCMarkets GetExchangeHistory() error no history returned")
+	}
+
+	for i := range trades {
+		resp = append(resp, exchange.TradeHistory{
+			Amount:    trades[i].Amount,
+			Exchange:  b.Name,
+			Price:     trades[i].Price,
+			TID:       trades[i].TradeID,
+			Timestamp: trades[i].Date,
+			Type:      "Not Supplied"})
+	}
+	return resp, nil
 }
 
 // SubmitOrder submits a new order
