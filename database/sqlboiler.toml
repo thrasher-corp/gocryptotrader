@@ -2,5 +2,5 @@
 dbname = "gocryptotrader"
 host = "127.0.0.1"
 user = "gocryptotrader"
-pass = "lol123"
+pass = "gocryptotrader"
 port = "5432"

@@ -1,66 +1,80 @@
 package database
 
 import (
-	"log"
 	"testing"
+
+	"github.com/thrasher-/gocryptotrader/config"
 )
 
-var o ORM
-var connected bool
-
-func TestConnectdb(t *testing.T) {
-	err := o.InstantiateConn()
-	if err != nil {
-		log.Println("WARNING NO CONNECTION TO DATABASE!")
-	}
-	connected = true
-}
+var (
+	o         *ORM
+	connected bool
+	cfg       *config.Config
+)
 
 func TestStartDB(t *testing.T) {
+	var err error
+	o, err = NewORMConnection("gocryptotrader", "localhost", "gocryptotrader", "gocryptotrader", false)
+	if err != nil {
+		t.Fatal("test failed - Database NewORMConnection() error", err)
+	}
+	connected = true
+	cfg = config.GetConfig()
+	cfg.LoadConfig("../testdata/configtest.json")
+}
+
+func TestLoadConfiguration(t *testing.T) {
 	if connected {
-		_, err := StartDB()
-		if err != nil {
-			t.Error("test failed - Database StartDB() error", err)
+		if err := o.LoadConfiguration("default"); err == nil {
+			t.Error("test failed - Database LoadConfiguration() error", err)
 		}
 	}
 }
 
-func TestInsertGCTUser(t *testing.T) {
+func TestInsertNewConfiguration(t *testing.T) {
 	if connected {
-		_, err := o.InsertGCTUser("test", "test123")
+		err := o.InsertNewConfiguration(cfg, "newPassword")
 		if err != nil {
-			t.Error("test failed - Database InsertGCTUser() error", err)
+			t.Error("test failed - Database InsertNewConfiguration() error", err)
 		}
 	}
 }
 
-func TestCheckGCTUserPassword(t *testing.T) {
+func TestUpdateConfiguration(t *testing.T) {
 	if connected {
-		b, _ := o.CheckGCTUserPassword("test", "test123")
+		err := o.UpdateConfiguration(cfg)
+		if err != nil {
+			t.Error("test failed - Database UpdateConfiguration() error", err)
+		}
+	}
+}
+
+func TestCheckLoadedConfiguration(t *testing.T) {
+	if connected {
+		b := o.checkLoadedConfiguration(cfg.Name)
 		if !b {
-			t.Error("test failed - Database CheckGCTUserPassword() error")
-		}
-		b, _ = o.CheckGCTUserPassword("bra", "boy")
-		if b {
-			t.Error("test failed - Database CheckGCTUserPassword() error")
+			t.Error("test failed - Database checkLoadedConfiguration() error")
 		}
 	}
 }
 
-func TestChangeGCTUserPassword(t *testing.T) {
+func TestGetLoadedConfigurationID(t *testing.T) {
 	if connected {
-		err := o.ChangeGCTUserPassword("test", "ching chong")
+		i, err := o.getLoadedConfigurationID(cfg.Name)
 		if err != nil {
-			t.Error("test failed - Database ChangeGCTUserPassword() error", err)
+			t.Error("test failed - Database getLoadedConfigurationID() error", err)
+		}
+		if i != 0 {
+			t.Error("test failed - Database getLoadedConfigurationID() error")
 		}
 	}
 }
 
-func TestDeleteGCTUser(t *testing.T) {
+func TestDatabaseFlush(t *testing.T) {
 	if connected {
-		err := o.DeleteGCTUser("0")
+		err := o.DatabaseFlush()
 		if err != nil {
-			t.Error("test failed - Database DeleteGCTUser() error", err)
+			t.Error("test failed - Database DatabaseFlush() error", err)
 		}
 	}
 }
