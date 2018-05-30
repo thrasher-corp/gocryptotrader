@@ -446,6 +446,24 @@ func TestCalculateFee(t *testing.T) {
 	}
 }
 
+func TestCountInt(t *testing.T) {
+	t.Parallel()
+	firstI := int64(123451213)
+	firstICount := 9
+	SecondI := int64(123451213123451213)
+	SecondIcount := 18
+
+	count1 := CountInt(firstI)
+	if count1 != firstICount {
+		t.Error("Test failed. Common CountInt() error - mismatched results")
+	}
+
+	count2 := CountInt(SecondI)
+	if count2 != SecondIcount {
+		t.Error("Test failed. Common CountInt() error - mismatched results")
+	}
+}
+
 func TestCalculateAmountWithFee(t *testing.T) {
 	t.Parallel()
 	originalInput := float64(1)
