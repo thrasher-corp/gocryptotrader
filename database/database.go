@@ -1,83 +1,490 @@
 package database
 
-//go:generate sqlboiler postgres
-
 import (
 	"database/sql"
+	"errors"
 	"fmt"
+	"log"
+	"sync"
+	"time"
 
+	// lib/pq used for sqlboiler
 	_ "github.com/lib/pq"
+	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/database/models"
+	"github.com/thrasher-/gocryptotrader/portfolio"
 	"github.com/volatiletech/sqlboiler/queries/qm"
+	"gopkg.in/volatiletech/null.v6"
 )
 
 // ORM is the overarching type across the database package that handles database
 // connections and relational mapping
 type ORM struct {
-	Exec *sql.DB
+	Exec          *sql.DB
+	Verbose       bool
+	Connected     bool
+	ConfigID      int64
+	ExchangeID    map[string]int64
+	InsertCounter map[string]int64
+	sync.Mutex
 }
 
-// StartDB makes a connection to the database and returns a pointer
-func StartDB() (*ORM, error) {
-	db := ORM{}
-	return &db, db.InstantiateConn()
+// NewORMConnection makes a connection to the database and returns a pointer
+// ORM object
+func NewORMConnection(databaseName, host, user, password string, verbose bool) (*ORM, error) {
+	dbORM := new(ORM)
+	dbORM.Verbose = verbose
+	return dbORM, dbORM.SetupConnection(databaseName, host, user, password)
 }
 
-// InstantiateConn starts the connection to the GoCryptoTrader database
-func (o *ORM) InstantiateConn() error {
-	db, err := sql.Open(
-		"postgres",
-		`dbname=gocryptotrader host=localhost user=gocryptotrader password=lol123`)
+// SetupConnection starts the connection to the GoCryptoTrader database
+func (o *ORM) SetupConnection(databaseName, host, user, password string) error {
+	db, err := sql.Open("postgres",
+		fmt.Sprintf("dbname=%s host=%s user=%s password=%s",
+			databaseName, host, user, password))
 	if err != nil {
 		return err
 	}
 	o.Exec = db
 
+	err = o.Exec.Ping()
+	if err != nil {
+		return err
+	}
+	o.SetInsertCounter()
+	o.Connected = true
 	return nil
 }
 
-// InsertGCTUser inserts a new user with password and returns its ID
-func (o *ORM) InsertGCTUser(name, password string) (int, error) {
-	u := &models.GCTUser{
-		Name:     name,
-		Password: password,
-	}
-
-	return u.ID, u.Insert(o.Exec)
+// SetInsertCounter allows for the minimization of db calls for potential insert
+// intensive functions
+func (o *ORM) SetInsertCounter() {
+	o.InsertCounter = make(map[string]int64)
+	o.InsertCounter["exchangeTradeHistories"] = models.ExchangeTradeHistories(o.Exec).CountP()
+	o.InsertCounter["orderHistories"] = models.OrderHistories(o.Exec).CountP()
+	o.InsertCounter["taxableEvents"] = models.TaxableEvents(o.Exec).CountP()
 }
 
-// CheckGCTUserPassword is used to match username and password
-func (o *ORM) CheckGCTUserPassword(username, password string) (bool, error) {
-	model, err := models.GCTUsers(o.Exec, qm.Where("name = ?", username)).One()
+// LoadConfiguration loads a configuration that has already been loaded
+func (o *ORM) LoadConfiguration(configName string) error {
+	if !o.Connected {
+		if o.Verbose {
+			log.Println("cannot load configuration, no database connnection")
+		}
+		return nil
+	}
+
+	if o.checkLoadedConfiguration(configName) {
+		var err error
+		o.ConfigID, err = o.getLoadedConfigurationID(configName)
+		if err != nil {
+			return err
+		}
+		return nil
+	}
+	return fmt.Errorf("database error could not find loaded configuration %s", configName)
+}
+
+// InsertNewConfiguration inserts a new configuration
+func (o *ORM) InsertNewConfiguration(cfg *config.Config, password string) error {
+	if !o.Connected {
+		if o.Verbose {
+			log.Println("cannot insert new configuration, no database connnection")
+		}
+		return nil
+	}
+
+	if o.checkLoadedConfiguration(cfg.Name) {
+		return errors.New("configuration already loaded")
+	}
+	err := o.insertMainConfiguration(cfg, password)
 	if err != nil {
-		return false, err
+		return err
 	}
-
-	if password != model.Password {
-		return false, fmt.Errorf("incorrect user password")
+	err = o.insertExchangeConfigurations(cfg.Exchanges)
+	if err != nil {
+		return err
 	}
-
-	return true, nil
+	err = o.insertPortfolioConfiguration(cfg.Portfolio)
+	if err != nil {
+		return err
+	}
+	err = o.insertSMSGlobalConfiguration(cfg.SMS.Username, cfg.SMS.Password, cfg.SMS.Enabled)
+	if err != nil {
+		return err
+	}
+	err = o.insertCurrencyPairConfiguration("config",
+		cfg.CurrencyPairFormat.Delimiter,
+		cfg.CurrencyPairFormat.Separator,
+		cfg.CurrencyPairFormat.Index,
+		0,
+		cfg.CurrencyPairFormat.Uppercase)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
-// ChangeGCTUserPassword inserts a new password
-func (o *ORM) ChangeGCTUserPassword(username, newPassword string) error {
-	model, err := models.GCTUsers(o.Exec, qm.Where("name = ?", username)).One()
+// UpdateConfiguration updates an old configuration to new settings
+func (o *ORM) UpdateConfiguration(cfg *config.Config) error {
+	if !o.Connected {
+		if o.Verbose {
+			log.Println("cannot insert new configuration, no database connnection")
+		}
+		return nil
+	}
+
+	if o.checkLoadedConfiguration(cfg.Name) {
+		//NOTE do stuff
+		return nil
+	}
+	return errors.New("not yet implemented")
+}
+
+// CheckLoadedConfiguration checks if a configuration has been loaded in the
+// database
+func (o *ORM) checkLoadedConfiguration(configName string) bool {
+	o.Lock()
+	defer o.Unlock()
+	return models.Configs(o.Exec, qm.Where("name = ?", configName)).ExistsP()
+}
+
+// getLoadedConfigurationID returns ID of loaded configuration
+func (o *ORM) getLoadedConfigurationID(configName string) (int64, error) {
+	o.Lock()
+	defer o.Unlock()
+	cfg, err := models.Configs(o.Exec, qm.Where("name = ?", configName)).One()
+	if err != nil {
+		return 0, err
+	}
+	return cfg.ConfigID, nil
+}
+
+// insertMainConfiguration inserts a new configuration into the database
+func (o *ORM) insertMainConfiguration(cfg *config.Config, password string) error {
+	o.Lock()
+	defer o.Unlock()
+
+	if models.Configs(o.Exec, qm.Where("name = ?", cfg.Name)).ExistsP() {
+		return fmt.Errorf("database error configuration already exists with the name %s", cfg.Name)
+	}
+
+	count := models.Configs(o.Exec).CountP()
+
+	u := &models.Config{
+		ConfigID:            count,
+		Name:                cfg.Name,
+		Password:            password,
+		EncryptConfig:       cfg.EncryptConfig,
+		Cryptocurrencies:    cfg.Cryptocurrencies,
+		FiatDisplayCurrency: cfg.FiatDisplayCurrency,
+		GlobalHTTPTimeout:   int64(cfg.GlobalHTTPTimeout),
+	}
+	return u.Insert(o.Exec)
+}
+
+// insertCurrencyPairConfiguration inserts currency pair information
+func (o *ORM) insertCurrencyPairConfiguration(use, delimiter, separator, index string, exchangeID int64, uppercase bool) error {
+	o.Lock()
+	defer o.Unlock()
+
+	count, err := models.CurrencyPairFormats(o.Exec).Count()
 	if err != nil {
 		return err
 	}
 
-	model.Password = newPassword
+	cpf := &models.CurrencyPairFormat{
+		CurrencyPairFormatID: count,
+		Name:                 use,
+		ExchangeID:           exchangeID,
+		Uppercase:            uppercase,
+		Delimiter:            delimiter,
+		Separator:            separator,
+		Index:                index,
+	}
 
-	return model.Update(o.Exec)
+	return cpf.Insert(o.Exec)
 }
 
-// DeleteGCTUser deletes a user by ID and returns an error
-func (o *ORM) DeleteGCTUser(ID string) error {
-	model, err := models.GCTUsers(o.Exec, qm.Where("id = ?", ID)).One()
+// insertPortfolioConfiguration inserts new portfolio configurations
+func (o *ORM) insertPortfolioConfiguration(cfg portfolio.Base) error {
+	o.Lock()
+	defer o.Unlock()
+
+	count, err := models.Portfolios(o.Exec).Count()
 	if err != nil {
 		return err
 	}
 
-	return model.Delete(o.Exec)
+	for i := range cfg.Addresses {
+		count++
+		p := &models.Portfolio{
+			PortfolioID: count,
+			ConfigID:    o.ConfigID,
+			CoinAddress: cfg.Addresses[i].Address,
+			CoinType:    cfg.Addresses[i].CoinType,
+			Balance:     cfg.Addresses[i].Balance,
+			Description: cfg.Addresses[i].Description,
+		}
+		err := p.Insert(o.Exec)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// insertSMSGlobalConfiguration inserts new SMSGlobal configurations
+func (o *ORM) insertSMSGlobalConfiguration(username, password string, enabled bool) error {
+	o.Lock()
+	defer o.Unlock()
+
+	count, err := models.Smsglobals(o.Exec).Count()
+	if err != nil {
+		return err
+	}
+
+	smsglobal := &models.Smsglobal{
+		SmsglobalID: count,
+		ConfigID:    o.ConfigID,
+		Enabled:     enabled,
+		Username:    username,
+		Password:    password,
+	}
+
+	return smsglobal.Insert(o.Exec)
+}
+
+// InsertExchangeConfigurations loads the exchange configurations
+func (o *ORM) insertExchangeConfigurations(cfg []config.ExchangeConfig) error {
+	o.Lock()
+	defer o.Unlock()
+
+	o.ExchangeID = make(map[string]int64)
+
+	for i := range cfg {
+		if models.Exchanges(o.Exec, qm.Where("exchange_name = ?", cfg[i].Name)).ExistsP() {
+			continue
+		}
+		e := &models.Exchange{
+			ExchangeID:               int64(i),
+			ConfigID:                 o.ConfigID,
+			ExchangeName:             cfg[i].Name,
+			Enabled:                  cfg[i].Enabled,
+			IsVerbose:                cfg[i].Verbose,
+			Websocket:                cfg[i].Websocket,
+			UseSandbox:               cfg[i].UseSandbox,
+			RestPollingDelay:         int64(cfg[i].RESTPollingDelay),
+			HTTPTimeout:              int64(cfg[i].HTTPTimeout),
+			AuthenticatedAPISupport:  cfg[i].AuthenticatedAPISupport,
+			APIKey:                   null.NewString(cfg[i].APIKey, true),
+			APISecret:                null.NewString(cfg[i].APISecret, true),
+			ClientID:                 null.NewString(cfg[i].ClientID, true),
+			AvailablePairs:           cfg[i].AvailablePairs,
+			EnabledPairs:             cfg[i].EnabledPairs,
+			BaseCurrencies:           cfg[i].BaseCurrencies,
+			AssetTypes:               null.NewString(cfg[i].AssetTypes, true),
+			SupportedAutoPairUpdates: cfg[i].SupportsAutoPairUpdates,
+			PairsLastUpdated:         time.Unix(cfg[i].PairsLastUpdated, 0),
+		}
+		err := e.Insert(o.Exec)
+		if err != nil {
+			return err
+		}
+		o.ExchangeID[cfg[i].Name] = int64(i)
+	}
+	return nil
+}
+
+// InsertExchangeTradeHistoryData inserts historic trade data
+func (o *ORM) InsertExchangeTradeHistoryData(transactionID int64, exchangeName, currencyPair, assetType, orderType string, amount, rate float64, fulfilledOn time.Time) error {
+	o.Lock()
+	defer o.Unlock()
+
+	if !o.Connected {
+		if o.Verbose {
+			log.Println("cannot exchange history data, no database connnection")
+		}
+		return nil
+	}
+
+	dataExists, err := models.ExchangeTradeHistories(o.Exec,
+		qm.Where("exchange_id = ?", o.ExchangeID[exchangeName]),
+		qm.And("fulfilled_on = ?", fulfilledOn),
+		qm.And("currency_pair = ?", currencyPair),
+		qm.And("asset_type = ?", assetType),
+		qm.And("amount = ?", amount),
+		qm.And("rate = ?", rate)).Exists()
+	if err != nil {
+		return err
+	}
+
+	if dataExists {
+		log.Println("row already found")
+		return nil
+	}
+
+	th := &models.ExchangeTradeHistory{
+		ExchangeTradeHistoryID: o.InsertCounter["exchangeTradeHistories"],
+		ConfigID:               o.ConfigID,
+		ExchangeID:             o.ExchangeID[exchangeName],
+		FulfilledOn:            fulfilledOn,
+		CurrencyPair:           currencyPair,
+		AssetType:              assetType,
+		OrderType:              orderType,
+		Amount:                 amount,
+		Rate:                   rate,
+	}
+
+	if err := th.Insert(o.Exec); err != nil {
+		return err
+	}
+
+	o.InsertCounter["exchangeTradeHistories"]++
+	return nil
+}
+
+// GetExchangeTradeHistoryLast returns the last updated time.Time value on a
+// trade history item
+func (o *ORM) GetExchangeTradeHistoryLast(exchangeName, currencyPair string) (time.Time, error) {
+	o.Lock()
+	defer o.Unlock()
+
+	if !o.Connected {
+		if o.Verbose {
+			log.Println("cannot get order history data, no database connnection")
+		}
+		return time.Time{}, errors.New("no database connection")
+	}
+
+	result, err := models.ExchangeTradeHistories(o.Exec,
+		qm.Where("exchange_id = ?", o.ExchangeID[exchangeName]),
+		qm.And("currency_pair = ?", currencyPair),
+		qm.OrderBy("fulfilled_on DESC"),
+		qm.Limit(1)).One()
+	if err != nil {
+		if err.Error() == "sql: no rows in result set" {
+			return time.Time{}, nil
+		}
+		return time.Time{}, err
+	}
+
+	return result.FulfilledOn, nil
+}
+
+// InsertOrderHistoryData inserts order history
+func (o *ORM) InsertOrderHistoryData(exchangeName, currencyPair, assetType, orderType string, amount, rate float64, fulfilledOn time.Time) error {
+	o.Lock()
+	defer o.Unlock()
+
+	if !o.Connected {
+		if o.Verbose {
+			log.Println("cannot insert order history data, no database connnection")
+		}
+		return nil
+	}
+
+	th := &models.ExchangeTradeHistory{
+		ExchangeTradeHistoryID: o.InsertCounter["orderHistories"],
+		ConfigID:               o.ConfigID,
+		ExchangeID:             o.ExchangeID[exchangeName],
+		FulfilledOn:            time.Now(),
+		CurrencyPair:           currencyPair,
+		OrderType:              orderType,
+		AssetType:              assetType,
+		Amount:                 amount,
+		Rate:                   rate,
+	}
+
+	if err := th.Insert(o.Exec); err != nil {
+		return err
+	}
+
+	o.InsertCounter["orderHistories"]++
+	return nil
+}
+
+// InsertTaxableEvents inserts a new taxable event
+func (o *ORM) InsertTaxableEvents(from, to string, fromAmount, fromEquivVal, toAmount, toEquivVal, gainloss float64, eventTime time.Time) error {
+	o.Lock()
+	defer o.Unlock()
+
+	if !o.Connected {
+		if o.Verbose {
+			log.Println("cannot insert taxable events, no database connnection")
+		}
+		return nil
+	}
+
+	te := &models.TaxableEvent{
+		TaxableEventsID:                     o.InsertCounter["taxableEvents"],
+		ConfigID:                            o.ConfigID,
+		ConversionFrom:                      from,
+		ConversionFromAmount:                fromAmount,
+		ConversionFromAmountEquivalantValue: fromEquivVal,
+		ConversionTo:                        to,
+		ConversionToAmount:                  toAmount,
+		ConversionToamountEquivalantValue:   toEquivVal,
+		ConversionGainLoss:                  gainloss,
+		DateAndTime:                         eventTime,
+	}
+
+	if err := te.Insert(o.Exec); err != nil {
+		return err
+	}
+
+	o.InsertCounter["taxableEvents"]++
+	return nil
+}
+
+// DatabaseFlush removes unused inserted data except loaded configurations
+// might be used at a successful sigterm
+func (o *ORM) DatabaseFlush() error {
+	o.Lock()
+	defer o.Unlock()
+
+	if !o.Connected {
+		if o.Verbose {
+			log.Println("cannot flush database, no database connnection")
+		}
+		return nil
+	}
+
+	err := models.CurrencyPairFormats(o.Exec).DeleteAll()
+	if err != nil {
+		return err
+	}
+	err = models.Exchanges(o.Exec).DeleteAll()
+	if err != nil {
+		return err
+	}
+	err = models.Portfolios(o.Exec).DeleteAll()
+	if err != nil {
+		return err
+	}
+	err = models.Smsglobals(o.Exec).DeleteAll()
+	if err != nil {
+		return err
+	}
+	err = models.SmsglobalContacts(o.Exec).DeleteAll()
+	if err != nil {
+		return err
+	}
+	err = models.TaxableEvents(o.Exec).DeleteAll()
+	if err != nil {
+		return err
+	}
+	err = models.OrderHistories(o.Exec).DeleteAll()
+	if err != nil {
+		return err
+	}
+	err = models.ExchangeTradeHistories(o.Exec).DeleteAll()
+	if err != nil {
+		return err
+	}
+	err = models.Webservers(o.Exec).DeleteAll()
+	if err != nil {
+		return err
+	}
+	return models.Configs(o.Exec).DeleteAll()
 }
