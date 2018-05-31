@@ -37,18 +37,6 @@
    }
   ]
  },
- "SMSGlobal": {
-  "Enabled": true,
-  "Username": "1234",
-  "Password": "12334",
-  "Contacts": [
-   {
-    "name": "StyleGherkin",
-    "number": "1231424",
-    "enabled": true
-   }
-  ]
- },
  "Webserver": {
   "Enabled": false,
   "AdminUsername": "admin",
@@ -702,5 +690,54 @@
     "Separator": "-"
    }
   }
- ]
+ ],
+ "Communications": {
+  "Slack": {
+   "Name": "Slack",
+   "Enabled": true,
+   "Verbose": false,
+   "TargetChannel": "general",
+   "VerificationToken": "testtest"
+  },
+  "SMSGlobal": {
+   "Name": "SMSGlobal",
+   "Enabled": true,
+   "Verbose": false,
+   "Username": "main",
+   "Password": "test",
+   "Contacts": [
+    {
+     "Name": "bob",
+     "Number": "1234",
+     "Enabled": true
+    },
+    {
+     "Name": "test",
+     "Number": "4321",
+     "Enabled": true
+    },
+    {
+     "Name": "test2",
+     "Number": "1337",
+     "Enabled": false
+    }
+   ]
+  },
+  "SMTP": {
+   "Name": "SMTP",
+   "Enabled": true,
+   "Verbose": false,
+   "Host": "smtp.google.com",
+   "Port": "537",
+   "AccountName": "some",
+   "AccountPassword": "account",
+   "RecipientList": "lol123@gmail.com"
+  },
+  "Telegram": {
+   "Name": "Telegram",
+   "Enabled": true,
+   "Verbose": false,
+   "VerificationToken": "testest"
+  }
+ }
 }

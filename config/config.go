@@ -15,7 +15,6 @@ import (
 	"github.com/thrasher-/gocryptotrader/currency"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
 	"github.com/thrasher-/gocryptotrader/portfolio"
-	"github.com/thrasher-/gocryptotrader/smsglobal"
 )
 
 // Constants declared here are filename strings and test strings
@@ -66,15 +65,6 @@ type WebserverConfig struct {
 	WebsocketAllowInsecureOrigin bool
 }
 
-// SMSGlobalConfig structure holds all the variables you need for instant
-// messaging and broadcast used by SMSGlobal
-type SMSGlobalConfig struct {
-	Enabled  bool
-	Username string
-	Password string
-	Contacts []smsglobal.Contact
-}
-
 // Post holds the bot configuration data
 type Post struct {
 	Data Config `json:"Data"`
@@ -89,7 +79,8 @@ type CurrencyPairFormatConfig struct {
 }
 
 // Config is the overarching object that holds all the information for
-// prestart management of portfolio, SMSGlobal, webserver and enabled exchange
+// prestart management of Portfolio, Communications, Webserver and Enabled
+// Exchanges
 type Config struct {
 	Name                     string
 	EncryptConfig            int
@@ -98,10 +89,10 @@ type Config struct {
 	CurrencyPairFormat       *CurrencyPairFormatConfig `json:"CurrencyPairFormat"`
 	FiatDisplayCurrency      string
 	GlobalHTTPTimeout        time.Duration
-	Portfolio                portfolio.Base   `json:"PortfolioAddresses"`
-	SMS                      SMSGlobalConfig  `json:"SMSGlobal"`
-	Webserver                WebserverConfig  `json:"Webserver"`
-	Exchanges                []ExchangeConfig `json:"Exchanges"`
+	Portfolio                portfolio.Base       `json:"PortfolioAddresses"`
+	Webserver                WebserverConfig      `json:"Webserver"`
+	Exchanges                []ExchangeConfig     `json:"Exchanges"`
+	Communications           CommunicationsConfig `json:"Communications"`
 	m                        sync.Mutex
 }
 
@@ -126,6 +117,115 @@ type ExchangeConfig struct {
 	PairsLastUpdated          int64                     `json:",omitempty"`
 	ConfigCurrencyPairFormat  *CurrencyPairFormatConfig `json:"ConfigCurrencyPairFormat"`
 	RequestCurrencyPairFormat *CurrencyPairFormatConfig `json:"RequestCurrencyPairFormat"`
+}
+
+// CommunicationsConfig holds all the information needed for each
+// enabled communication package
+type CommunicationsConfig struct {
+	SlackConfig     SlackConfig     `json:"Slack"`
+	SMSGlobalConfig SMSGlobalConfig `json:"SMSGlobal"`
+	SMTPConfig      SMTPConfig      `json:"SMTP"`
+	TelegramConfig  TelegramConfig  `json:"Telegram"`
+}
+
+// SlackConfig holds all variables to start and run the Slack package
+type SlackConfig struct {
+	Name              string `json:"Name"`
+	Enabled           bool   `json:"Enabled"`
+	Verbose           bool   `json:"Verbose"`
+	TargetChannel     string `json:"TargetChannel"`
+	VerificationToken string `json:"VerificationToken"`
+}
+
+// SMSGlobalConfig structure holds all the variables you need for instant
+// messaging and broadcast used by SMSGlobal
+type SMSGlobalConfig struct {
+	Name     string `json:"Name"`
+	Enabled  bool   `json:"Enabled"`
+	Verbose  bool   `json:"Verbose"`
+	Username string `json:"Username"`
+	Password string `json:"Password"`
+	Contacts []struct {
+		Name    string `json:"Name"`
+		Number  string `json:"Number"`
+		Enabled bool   `json:"Enabled"`
+	} `json:"Contacts"`
+}
+
+// SMTPConfig holds all variables to start and run the SMTP package
+type SMTPConfig struct {
+	Name            string `json:"Name"`
+	Enabled         bool   `json:"Enabled"`
+	Verbose         bool   `json:"Verbose"`
+	Host            string `json:"Host"`
+	Port            string `json:"Port"`
+	AccountName     string `json:"AccountName"`
+	AccountPassword string `json:"AccountPassword"`
+	RecipientList   string `json:"RecipientList"`
+}
+
+// TelegramConfig holds all variables to start and run the Telegram package
+type TelegramConfig struct {
+	Name              string `json:"Name"`
+	Enabled           bool   `json:"Enabled"`
+	Verbose           bool   `json:"Verbose"`
+	VerificationToken string `json:"VerificationToken"`
+}
+
+// GetCommunicationsConfig returns the communications configuration
+func (c *Config) GetCommunicationsConfig() CommunicationsConfig {
+	c.m.Lock()
+	defer c.m.Unlock()
+	return c.Communications
+}
+
+// UpdateCommunicationsConfig sets a new updated version of a Communications
+// configuration
+func (c *Config) UpdateCommunicationsConfig(config CommunicationsConfig) {
+	c.m.Lock()
+	c.Communications = config
+	c.m.Unlock()
+}
+
+// CheckCommunicationsConfig checks to see if the variables are set correctly
+// from config.json
+func (c *Config) CheckCommunicationsConfig() error {
+	c.m.Lock()
+	defer c.m.Unlock()
+
+	if c.Communications.SlackConfig.Name != "Slack" ||
+		c.Communications.SMSGlobalConfig.Name != "SMSGlobal" ||
+		c.Communications.SMTPConfig.Name != "SMTP" ||
+		c.Communications.TelegramConfig.Name != "Telegram" {
+		return errors.New("Communications config name/s not set correctly")
+	}
+	if c.Communications.SlackConfig.Enabled {
+		if c.Communications.SlackConfig.TargetChannel == "" ||
+			c.Communications.SlackConfig.VerificationToken == "" {
+			return errors.New("Slack enabled in config but variable data not set")
+		}
+	}
+	if c.Communications.SMSGlobalConfig.Enabled {
+		if c.Communications.SMSGlobalConfig.Username == "" ||
+			c.Communications.SMSGlobalConfig.Password == "" ||
+			len(c.Communications.SMSGlobalConfig.Contacts) == 0 {
+			return errors.New("SMSGlobal enabled in config but variable data not set")
+		}
+	}
+	if c.Communications.SMTPConfig.Enabled {
+		if c.Communications.SMTPConfig.Host == "" ||
+			c.Communications.SMTPConfig.Port == "" ||
+			c.Communications.SMTPConfig.AccountName == "" ||
+			len(c.Communications.SMTPConfig.AccountName) == 0 {
+			return errors.New("SMTP enabled in config but variable data not set")
+		}
+	}
+	if c.Communications.TelegramConfig.Enabled {
+		if c.Communications.TelegramConfig.VerificationToken == "" {
+			return errors.New("Telegram enabled in config but variable data not set")
+		}
+	}
+	return nil
 }
 
 // SupportsPair returns true or not whether the exchange supports the supplied
@@ -245,27 +345,6 @@ func (c *Config) UpdateExchangeConfig(e ExchangeConfig) error {
 		}
 	}
 	return fmt.Errorf(ErrExchangeNotFound, e.Name)
-}
-
-// CheckSMSGlobalConfigValues checks concurrent SMSGlobal configurations
-func (c *Config) CheckSMSGlobalConfigValues() error {
-	if c.SMS.Username == "" || c.SMS.Username == "Username" || c.SMS.Password == "" || c.SMS.Password == "Password" {
-		return errors.New(WarningSMSGlobalDefaultOrEmptyValues)
-	}
-	contacts := 0
-	for i := range c.SMS.Contacts {
-		if c.SMS.Contacts[i].Enabled {
-			if c.SMS.Contacts[i].Name == "" || c.SMS.Contacts[i].Number == "" || (c.SMS.Contacts[i].Name == "Bob" && c.SMS.Contacts[i].Number == "12345") {
-				log.Printf(WarningSSMSGlobalSMSContactDefaultOrEmptyValues, i)
-				continue
-			}
-			contacts++
-		}
-	}
-	if contacts == 0 {
-		return errors.New(WarningSSMSGlobalSMSNoContacts)
-	}
-	return nil
 }
 
 // CheckExchangeConfigValues returns configuation values for all enabled
@@ -524,12 +603,8 @@ func (c *Config) CheckConfig() error {
 		return fmt.Errorf(ErrCheckingConfigValues, err)
 	}
 
-	if c.SMS.Enabled {
-		err = c.CheckSMSGlobalConfigValues()
-		if err != nil {
-			log.Print(fmt.Errorf(ErrCheckingConfigValues, err))
-			c.SMS.Enabled = false
-		}
+	if err = c.CheckCommunicationsConfig(); err != nil {
+		log.Fatal(err)
 	}
 
 	if c.Webserver.Enabled {
@@ -593,7 +668,7 @@ func (c *Config) UpdateConfig(configPath string, newCfg Config) error {
 	c.FiatDisplayCurrency = newCfg.FiatDisplayCurrency
 	c.GlobalHTTPTimeout = newCfg.GlobalHTTPTimeout
 	c.Portfolio = newCfg.Portfolio
-	c.SMS = newCfg.SMS
+	c.Communications = newCfg.Communications
 	c.Webserver = newCfg.Webserver
 	c.Exchanges = newCfg.Exchanges
 

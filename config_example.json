@@ -37,18 +37,6 @@
    }
   ]
  },
- "SMSGlobal": {
-  "Enabled": false,
-  "Username": "Username",
-  "Password": "Password",
-  "Contacts": [
-   {
-    "name": "Bob",
-    "number": "12345",
-    "enabled": false
-   }
-  ]
- },
  "Webserver": {
   "Enabled": false,
   "AdminUsername": "admin",
@@ -703,5 +691,43 @@
     "Separator": "-"
    }
   }
- ]
+],
+ "Communications": {
+  "Slack": {
+   "Name": "Slack",
+   "Enabled": false,
+   "Verbose": false,
+   "TargetChannel": "",
+   "VerificationToken": ""
+  },
+  "SMSGlobal": {
+   "Name": "SMSGlobal",
+   "Enabled": false,
+   "Verbose": false,
+   "Username": "",
+   "Password": "",
+   "Contacts": null
+  },
+  "SMTP": {
+   "Name": "SMTP",
+   "Enabled": false,
+   "Verbose": false,
+   "Host": "",
+   "Port": "",
+   "AccountName": "",
+   "RecipientList": [
+     {
+       "Name": "test",
+       "Number": "1337",
+       "Enabled": false
+     }
+   ]
+  },
+  "Telegram": {
+   "Name": "Telegram",
+   "Enabled": false,
+   "Verbose": false,
+   "VerificationToken": ""
+  }
+ }
 }
