@@ -43,6 +43,7 @@ const banner = `
 var bot Bot
 
 func main() {
+	bot.shutdown = make(chan bool)
 	HandleInterrupt()
 
 	//Handle flags
@@ -181,15 +182,18 @@ func HandleInterrupt() {
 	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
 	go func() {
 		sig := <-c
-		log.Printf("Captured %v.", sig)
-		Shutdown()
+		log.Printf("Captured %v, shutdown requested.", sig)
+		bot.shutdown <- true
 	}()
 }
 
 // Shutdown correctly shuts down bot saving configuration files
 func Shutdown() {
 	log.Println("Bot shutting down..")
-	bot.config.Portfolio = portfolio.Portfolio
+
+	if len(portfolio.Portfolio.Addresses) != 0 {
+		bot.config.Portfolio = portfolio.Portfolio
+	}
 
 	if !bot.dryRun {
 		err := bot.config.SaveConfig(bot.configFile)
@@ -202,53 +206,5 @@ func Shutdown() {
 	}
 
 	log.Println("Exiting.")
-	os.Exit(1)
-}
-
-// SeedExchangeAccountInfo seeds account info
-func SeedExchangeAccountInfo(data []exchange.AccountInfo) {
-	if len(data) == 0 {
-		return
-	}
-
-	port := portfolio.GetPortfolio()
-
-	for i := 0; i < len(data); i++ {
-		exchangeName := data[i].ExchangeName
-		for j := 0; j < len(data[i].Currencies); j++ {
-			currencyName := data[i].Currencies[j].CurrencyName
-			onHold := data[i].Currencies[j].Hold
-			avail := data[i].Currencies[j].TotalValue
-			total := onHold + avail
-
-			if !port.ExchangeAddressExists(exchangeName, currencyName) {
-				if total <= 0 {
-					continue
-				}
-				log.Printf("Portfolio: Adding new exchange address: %s, %s, %f, %s\n",
-					exchangeName, currencyName, total, portfolio.PortfolioAddressExchange)
-				port.Addresses = append(
-					port.Addresses,
-					portfolio.Address{Address: exchangeName, CoinType: currencyName,
-						Balance: total, Description: portfolio.PortfolioAddressExchange},
-				)
-			} else {
-				if total <= 0 {
-					log.Printf("Portfolio: Removing %s %s entry.\n", exchangeName,
-						currencyName)
-					port.RemoveExchangeAddress(exchangeName, currencyName)
-				} else {
-					balance, ok := port.GetAddressBalance(exchangeName, currencyName, portfolio.PortfolioAddressExchange)
-					if !ok {
-						continue
-					}
-					if balance != total {
-						log.Printf("Portfolio: Updating %s %s entry with balance %f.\n",
-							exchangeName, currencyName, total)
-						port.UpdateExchangeAddressBalance(exchangeName, currencyName, total)
-					}
-				}
-			}
-		}
-	}
+	os.Exit(0)
 }

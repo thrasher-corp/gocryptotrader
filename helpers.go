@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	"fmt"
+	"log"
 
 	"github.com/thrasher-/gocryptotrader/currency"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
@@ -11,6 +12,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-/gocryptotrader/exchanges/stats"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
+	"github.com/thrasher-/gocryptotrader/portfolio"
 )
 
 // GetAllAvailablePairs returns a list of all available pairs on either enabled
@@ -310,4 +312,52 @@ func GetExchangeLowestPriceByCurrencyPair(p pair.CurrencyPair, assetType string)
 	}
 
 	return result[0].Exchange, nil
+}
+
+// SeedExchangeAccountInfo seeds account info
+func SeedExchangeAccountInfo(data []exchange.AccountInfo) {
+	if len(data) == 0 {
+		return
+	}
+
+	port := portfolio.GetPortfolio()
+
+	for i := 0; i < len(data); i++ {
+		exchangeName := data[i].ExchangeName
+		for j := 0; j < len(data[i].Currencies); j++ {
+			currencyName := data[i].Currencies[j].CurrencyName
+			onHold := data[i].Currencies[j].Hold
+			avail := data[i].Currencies[j].TotalValue
+			total := onHold + avail
+
+			if !port.ExchangeAddressExists(exchangeName, currencyName) {
+				if total <= 0 {
+					continue
+				}
+				log.Printf("Portfolio: Adding new exchange address: %s, %s, %f, %s\n",
+					exchangeName, currencyName, total, portfolio.PortfolioAddressExchange)
+				port.Addresses = append(
+					port.Addresses,
+					portfolio.Address{Address: exchangeName, CoinType: currencyName,
+						Balance: total, Description: portfolio.PortfolioAddressExchange},
+				)
+			} else {
+				if total <= 0 {
+					log.Printf("Portfolio: Removing %s %s entry.\n", exchangeName,
+						currencyName)
+					port.RemoveExchangeAddress(exchangeName, currencyName)
+				} else {
+					balance, ok := port.GetAddressBalance(exchangeName, currencyName, portfolio.PortfolioAddressExchange)
+					if !ok {
+						continue
+					}
+					if balance != total {
+						log.Printf("Portfolio: Updating %s %s entry with balance %f.\n",
+							exchangeName, currencyName, total)
+						port.UpdateExchangeAddressBalance(exchangeName, currencyName, total)
+					}
+				}
+			}
+		}
+	}
 }
