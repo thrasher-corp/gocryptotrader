@@ -62,6 +62,7 @@ type WebserverConfig struct {
 	AdminPassword                string
 	ListenAddress                string
 	WebsocketConnectionLimit     int
+	WebsocketMaxAuthFailures     int
 	WebsocketAllowInsecureOrigin bool
 }
 
@@ -344,6 +345,10 @@ func (c *Config) CheckWebserverConfigValues() error {
 
 	if c.Webserver.WebsocketConnectionLimit <= 0 {
 		c.Webserver.WebsocketConnectionLimit = 1
+	}
+
+	if c.Webserver.WebsocketMaxAuthFailures <= 0 {
+		c.Webserver.WebsocketMaxAuthFailures = 3
 	}
 
 	return nil

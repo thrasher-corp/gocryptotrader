@@ -55,6 +55,7 @@
   "AdminPassword": "Password",
   "ListenAddress": ":9050",
   "WebsocketConnectionLimit": 0,
+  "WebsocketMaxAuthFailures": 0,
   "WebsocketAllowInsecureOrigin": false
  },
  "Exchanges": [
