@@ -20,18 +20,22 @@ var (
 	wsHubStarted bool
 )
 
-type wsCommandHandler func(client *WebsocketClient, data interface{}) error
+type wsCommandHandler struct {
+	authRequired bool
+	handler      func(client *WebsocketClient, data interface{}) error
+}
 
 var wsHandlers = map[string]wsCommandHandler{
-	"getconfig":        wsGetConfig,
-	"saveconfig":       wsSaveConfig,
-	"getaccountinfo":   wsGetAccountInfo,
-	"gettickers":       wsGetTickers,
-	"getticker":        wsGetTicker,
-	"getorderbooks":    wsGetOrderbooks,
-	"getorderbook":     wsGetOrderbook,
-	"getexchangerates": wsGetExchangeRates,
-	"getportfolio":     wsGetPortfolio,
+	"auth":             wsCommandHandler{authRequired: false, handler: wsAuth},
+	"getconfig":        wsCommandHandler{authRequired: true, handler: wsGetConfig},
+	"saveconfig":       wsCommandHandler{authRequired: true, handler: wsSaveConfig},
+	"getaccountinfo":   wsCommandHandler{authRequired: true, handler: wsGetAccountInfo},
+	"gettickers":       wsCommandHandler{authRequired: false, handler: wsGetTickers},
+	"getticker":        wsCommandHandler{authRequired: false, handler: wsGetTicker},
+	"getorderbooks":    wsCommandHandler{authRequired: false, handler: wsGetOrderbooks},
+	"getorderbook":     wsCommandHandler{authRequired: false, handler: wsGetOrderbook},
+	"getexchangerates": wsCommandHandler{authRequired: false, handler: wsGetExchangeRates},
+	"getportfolio":     wsCommandHandler{authRequired: true, handler: wsGetPortfolio},
 }
 
 // WebsocketClient stores information related to the websocket client
@@ -39,6 +43,7 @@ type WebsocketClient struct {
 	Hub           *WebsocketHub
 	Conn          *websocket.Conn
 	Authenticated bool
+	authFailures  int
 	Send          chan []byte
 }
 
@@ -163,50 +168,18 @@ func (c *WebsocketClient) read() {
 			req := common.StringToLower(evt.Event)
 			log.Printf("websocket: request received: %s", req)
 
-			if !c.Authenticated && evt.Event != "auth" {
-				wsResp := WebsocketEventResponse{
-					Event: "auth",
-					Error: "you must authenticate first",
-				}
-
-				c.SendWebsocketMessage(wsResp)
-				log.Printf("websocket: client didn't auth, disconnecting!")
-				break
-			} else if !c.Authenticated && evt.Event == "auth" {
-				var auth WebsocketAuth
-				err = common.JSONDecode(dataJSON, &auth)
-				if err != nil {
-					log.Println(err)
-					continue
-				}
-				hashPW := common.HexEncodeToString(common.GetSHA256([]byte(bot.config.Webserver.AdminPassword)))
-				if auth.Username == bot.config.Webserver.AdminUsername && auth.Password == hashPW {
-					c.Authenticated = true
-					wsResp := WebsocketEventResponse{
-						Event: "auth",
-						Data:  WebsocketResponseSuccess,
-					}
-					c.SendWebsocketMessage(wsResp)
-					log.Println("websocket: client authenticated successfully")
-					continue
-				} else {
-					wsResp := WebsocketEventResponse{
-						Event: "auth",
-						Error: "invalid username/password",
-					}
-					c.SendWebsocketMessage(wsResp)
-					log.Printf("websocket: client sent wrong username/password")
-					break
-				}
-			}
-
 			result, ok := wsHandlers[req]
 			if !ok {
 				log.Printf("websocket: unsupported event")
 				continue
 			}
 
-			err = result(c, dataJSON)
+			if result.authRequired && !c.Authenticated {
+				log.Printf("Websocket: request %s failed due to unauthenticated request on an authenticated API", evt.Event)
+				continue
+			}
+
+			err = result.handler(c, dataJSON)
 			if err != nil {
 				log.Printf("websocket: request %s failed. Error %s", evt.Event, err)
 				continue
@@ -313,6 +286,42 @@ func WebsocketClientHandler(w http.ResponseWriter, r *http.Request) {
 	go client.write()
 }
 
+func wsAuth(client *WebsocketClient, data interface{}) error {
+	wsResp := WebsocketEventResponse{
+		Event: "auth",
+	}
+
+	var auth WebsocketAuth
+	err := common.JSONDecode(data.([]byte), &auth)
+	if err != nil {
+		wsResp.Error = err.Error()
+		client.SendWebsocketMessage(wsResp)
+		return err
+	}
+
+	hashPW := common.HexEncodeToString(common.GetSHA256([]byte(bot.config.Webserver.AdminPassword)))
+	if auth.Username == bot.config.Webserver.AdminUsername && auth.Password == hashPW {
+		client.Authenticated = true
+		wsResp.Data = WebsocketResponseSuccess
+		log.Println("websocket: client authenticated successfully")
+		return client.SendWebsocketMessage(wsResp)
+	} else {
+		wsResp.Error = "invalid username/password"
+		client.authFailures++
+		client.SendWebsocketMessage(wsResp)
+		if client.authFailures >= bot.config.Webserver.WebsocketMaxAuthFailures {
+			log.Printf("websocket: disconnecting client, maximum auth failures threshold reached (failures: %d limit: %d)",
+				client.authFailures, bot.config.Webserver.WebsocketMaxAuthFailures)
+			wsHub.Unregister <- client
+			return nil
+		}
+
+		log.Printf("websocket: client sent wrong username/password (failures: %d limit: %d)",
+			client.authFailures, bot.config.Webserver.WebsocketMaxAuthFailures)
+		return nil
+	}
+}
+
 func wsGetConfig(client *WebsocketClient, data interface{}) error {
 	wsResp := WebsocketEventResponse{
 		Event: "GetConfig",
@@ -329,20 +338,14 @@ func wsSaveConfig(client *WebsocketClient, data interface{}) error {
 	err := common.JSONDecode(data.([]byte), &cfg)
 	if err != nil {
 		wsResp.Error = err.Error()
-		err = client.SendWebsocketMessage(wsResp)
-		if err != nil {
-			return err
-		}
+		client.SendWebsocketMessage(wsResp)
 		return err
 	}
 
 	err = bot.config.UpdateConfig(bot.configFile, cfg)
 	if err != nil {
 		wsResp.Error = err.Error()
-		err = client.SendWebsocketMessage(wsResp)
-		if err != nil {
-			return err
-		}
+		client.SendWebsocketMessage(wsResp)
 		return err
 	}
 
