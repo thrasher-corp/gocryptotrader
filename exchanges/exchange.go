@@ -98,6 +98,14 @@ type IBotExchange interface {
 	SupportsAutoPairUpdates() bool
 	GetLastPairsUpdateTime() int64
 	SupportsRESTTickerBatchUpdates() bool
+
+	SubmitExchangeOrder(p pair.CurrencyPair, side string, orderType int, amount, price float64) (int64, error)
+	ModifyExchangeOrder(p pair.CurrencyPair, orderID, action int64) (int64, error)
+	CancelExchangeOrder(p pair.CurrencyPair, orderID int64) (int64, error)
+	CancelAllExchangeOrders(p pair.CurrencyPair) error
+	GetExchangeOrderInfo(orderID int64) (float64, error)
+	GetExchangeDepositAddress(p pair.CurrencyPair) (string, error)
+	WithdrawExchangeFunds(address string, p pair.CurrencyPair, amount float64) (string, error)
 }
 
 // SupportsRESTTickerBatchUpdates returns whether or not the
