@@ -19,7 +19,7 @@
                     <input matInput name="username" [(ngModel)]="settings.Webserver.AdminUsername" placeholder="Username">
                 </mat-form-field>
                 <mat-form-field>
-                    <input matInput name="password" [(ngModel)]="settings.Webserver.AdminPassword"  placeholder="Password">
+                    <input matInput name="password" type="password" [(ngModel)]="settings.Webserver.AdminPassword"  placeholder="Password">
                 </mat-form-field>
                 <mat-form-field>
                     <input type="number" matInput name="connection-limit" [(ngModel)]="settings.Webserver.WebsocketConnectionLimit"  placeholder="Websocket connection limit">
@@ -46,7 +46,7 @@
                     <input matInput name="smsUsername" [(ngModel)]="settings.SMSGlobal.Username" [disabled]="!settings?.SMSGlobal.Enabled" placeholder="Username">
                 </mat-form-field>
                 <mat-form-field>
-                    <input matInput name="smsPassword" [(ngModel)]="settings.SMSGlobal.Password" [disabled]="!settings?.SMSGlobal.Enabled" placeholder="Password">
+                    <input matInput name="smsPassword" type="password" [(ngModel)]="settings.SMSGlobal.Password" [disabled]="!settings?.SMSGlobal.Enabled" placeholder="Password">
                 </mat-form-field>
         
                 <div *ngFor="let contact of settings.SMSGlobal?.Contacts">
@@ -110,7 +110,7 @@
                     <input matInput name="apiKey" [(ngModel)]="exchange.APIKey" [disabled]="!exchange.Enabled" placeholder="API Key*">
                 </mat-form-field>
                 <mat-form-field>
-                    <input matInput name="apiSecretKey" [(ngModel)]="exchange.APISecret" [disabled]="!exchange.Enabled" placeholder="API Secret Key*">
+                    <input matInput name="apiSecretKey" type="password" [(ngModel)]="exchange.APISecret" [disabled]="!exchange.Enabled" placeholder="API Secret Key*">
                 </mat-form-field>
                 <mat-form-field>
                     <input matInput name="apiClientId" [(ngModel)]="exchange.ClientID" [disabled]="!exchange.Enabled" placeholder="API ClientID">
