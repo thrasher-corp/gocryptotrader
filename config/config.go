@@ -56,6 +56,7 @@ var (
 	Cfg                                             Config
 	IsInitialSetup                                  bool
 	testBypass                                      bool
+	m                                               sync.Mutex
 )
 
 // WebserverConfig struct holds the prestart variables for the webserver.
@@ -105,7 +106,6 @@ type Config struct {
 	SMS                      SMSGlobalConfig  `json:"SMSGlobal"`
 	Webserver                WebserverConfig  `json:"Webserver"`
 	Exchanges                []ExchangeConfig `json:"Exchanges"`
-	m                        sync.Mutex
 }
 
 // ExchangeConfig holds all the information needed for each enabled Exchange.
@@ -227,8 +227,8 @@ func (c *Config) GetCurrencyPairDisplayConfig() *CurrencyPairFormatConfig {
 
 // GetExchangeConfig returns exchange configurations by its indivdual name
 func (c *Config) GetExchangeConfig(name string) (ExchangeConfig, error) {
-	c.m.Lock()
-	defer c.m.Unlock()
+	m.Lock()
+	defer m.Unlock()
 	for i := range c.Exchanges {
 		if c.Exchanges[i].Name == name {
 			return c.Exchanges[i], nil
@@ -239,8 +239,8 @@ func (c *Config) GetExchangeConfig(name string) (ExchangeConfig, error) {
 
 // UpdateExchangeConfig updates exchange configurations
 func (c *Config) UpdateExchangeConfig(e ExchangeConfig) error {
-	c.m.Lock()
-	defer c.m.Unlock()
+	m.Lock()
+	defer m.Unlock()
 	for i := range c.Exchanges {
 		if c.Exchanges[i].Name == e.Name {
 			c.Exchanges[i] = e
@@ -479,7 +479,9 @@ func (c *Config) ReadConfig(configPath string) error {
 		}
 
 		if c.EncryptConfig == configFileEncryptionPrompt {
+			m.Lock()
 			IsInitialSetup = true
+			m.Unlock()
 			if c.PromptForConfigEncryption() {
 				c.EncryptConfig = configFileEncryptionEnabled
 				return c.SaveConfig(defaultPath)
