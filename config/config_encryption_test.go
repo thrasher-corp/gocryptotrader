@@ -1,7 +1,6 @@
 package config
 
 import (
-	"reflect"
 	"testing"
 
 	"github.com/thrasher-/gocryptotrader/common"
@@ -18,39 +17,72 @@ func TestPromptForConfigEncryption(t *testing.T) {
 func TestPromptForConfigKey(t *testing.T) {
 	t.Parallel()
 
-	byteyBite, err := PromptForConfigKey()
+	byteyBite, err := PromptForConfigKey(true)
 	if err == nil && len(byteyBite) > 1 {
 		t.Errorf("Test failed. PromptForConfigKey: %s", err)
 	}
+
+	_, err = PromptForConfigKey(false)
+	if err == nil {
+		t.Fatal(err)
+	}
 }
 
-func TestEncryptDecryptConfigFile(t *testing.T) { //Dual function Test
-	testKey := []byte("12345678901234567890123456789012")
+func TestEncryptConfigFile(t *testing.T) {
+	_, err := EncryptConfigFile([]byte("test"), nil)
+	if err == nil {
+		t.Fatal("Test failed. Expected different result")
+	}
 
-	testConfigData, err := common.ReadFile(ConfigTestFile)
+	sessionDK = []byte("a")
+	_, err = EncryptConfigFile([]byte("test"), nil)
+	if err == nil {
+		t.Fatal("Test failed. Expected different result")
+	}
+
+	sessionDK, err = makeNewSessionDK([]byte("asdf"))
 	if err != nil {
-		t.Errorf("Test failed. EncryptConfigFile: %s", err)
-	}
-	encryptedFile, err2 := EncryptConfigFile(testConfigData, testKey)
-	if err2 != nil {
-		t.Errorf("Test failed. EncryptConfigFile: %s", err2)
-	}
-	if reflect.TypeOf(encryptedFile).String() != "[]uint8" {
-		t.Errorf("Test failed. EncryptConfigFile: Incorrect Type")
+		t.Fatal(err)
 	}
 
-	decryptedFile, err3 := DecryptConfigFile(encryptedFile, testKey)
-	if err3 != nil {
-		t.Errorf("Test failed. DecryptConfigFile: %s", err3)
+	_, err = EncryptConfigFile([]byte("test"), []byte("key"))
+	if err != nil {
+		t.Fatal(err)
 	}
-	if reflect.TypeOf(decryptedFile).String() != "[]uint8" {
-		t.Errorf("Test failed. DecryptConfigFile: Incorrect Type")
+}
+
+func TestDecryptConfigFile(t *testing.T) {
+	sessionDK = nil
+
+	result, err := EncryptConfigFile([]byte("test"), []byte("key"))
+	if err != nil {
+		t.Fatal(err)
 	}
-	// unmarshalled := Config{} // racecondition
-	// err4 := json.Unmarshal(decryptedFile, &unmarshalled)
-	// if err4 != nil {
-	// 	t.Errorf("Test failed. DecryptConfigFile: %s", err3)
-	// }
+
+	result, err = DecryptConfigFile(result, nil)
+	if err == nil {
+		t.Fatal("Test failed. Expected different result")
+	}
+
+	result, err = DecryptConfigFile([]byte("test"), nil)
+	if err == nil {
+		t.Fatal("Test failed. Expected different result")
+	}
+
+	result, err = DecryptConfigFile([]byte("test"), []byte("AAAAAAAAAAAAAAAA"))
+	if err == nil {
+		t.Fatalf("Test failed. Expected %s", errAESBlockSize)
+	}
+
+	result, err = EncryptConfigFile([]byte("test"), []byte("key"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	result, err = DecryptConfigFile(result, []byte("key"))
+	if err != nil {
+		t.Fatal(err)
+	}
 }
 
 func TestConfirmConfigJSON(t *testing.T) {
@@ -60,16 +92,9 @@ func TestConfirmConfigJSON(t *testing.T) {
 		t.Errorf("Test failed. testConfirmJSON: %s", err)
 	}
 
-	err2 := ConfirmConfigJSON(testConfirmJSON, &result)
-	if err2 != nil {
-		t.Errorf("Test failed. testConfirmJSON: %s", err2)
-	}
-	if result == nil {
-		t.Errorf("Test failed. testConfirmJSON: Error Unmarshalling JSON")
-	}
-	err3 := ConfirmConfigJSON(testConfirmJSON, result)
-	if err3 == nil {
-		t.Errorf("Test failed. testConfirmJSON: %s", err3)
+	err = ConfirmConfigJSON(testConfirmJSON, &result)
+	if err != nil || result == nil {
+		t.Errorf("Test failed. testConfirmJSON: %s", err)
 	}
 }
 
@@ -90,5 +115,14 @@ func TestRemoveECS(t *testing.T) {
 
 	if string(isremoved) != "" {
 		t.Errorf("Test failed. TestConfirmECS: Error ECS not deleted.")
+	}
+}
+
+func TestMakeNewSessionDK(t *testing.T) {
+	t.Parallel()
+
+	_, err := makeNewSessionDK(nil)
+	if err == nil {
+		t.Fatal("Test failed. makeNewSessionDK passed with nil key")
 	}
 }

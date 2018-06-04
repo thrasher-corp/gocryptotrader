@@ -3,6 +3,7 @@ package common
 import (
 	"crypto/hmac"
 	"crypto/md5"
+	"crypto/rand"
 	"crypto/sha1"
 	"crypto/sha256"
 	"crypto/sha512"
@@ -57,6 +58,24 @@ func initialiseHTTPClient() {
 func NewHTTPClientWithTimeout(t time.Duration) *http.Client {
 	h := &http.Client{Timeout: t}
 	return h
+}
+
+// GetRandomSalt returns a random salt
+func GetRandomSalt(input []byte, saltLen int) ([]byte, error) {
+	if saltLen <= 0 {
+		return nil, errors.New("salt length is too small")
+	}
+	salt := make([]byte, saltLen)
+	if _, err := io.ReadFull(rand.Reader, salt); err != nil {
+		return nil, err
+	}
+
+	var result []byte
+	if input != nil {
+		result = input
+	}
+	result = append(result, salt...)
+	return result, nil
 }
 
 // GetMD5 returns a MD5 hash of a byte array

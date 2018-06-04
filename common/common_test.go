@@ -71,6 +71,33 @@ func TestIsValidCryptoAddress(t *testing.T) {
 	}
 }
 
+func TestGetRandomSalt(t *testing.T) {
+	t.Parallel()
+
+	_, err := GetRandomSalt(nil, -1)
+	if err == nil {
+		t.Fatal("Test failed. Expected err on negative salt length")
+	}
+
+	salt, err := GetRandomSalt(nil, 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(salt) != 10 {
+		t.Fatal("Test failed. Expected salt of len=10")
+	}
+
+	salt, err = GetRandomSalt([]byte("RAWR"), 12)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(salt) != 16 {
+		t.Fatal("Test failed. Expected salt of len=16")
+	}
+}
+
 func TestGetMD5(t *testing.T) {
 	t.Parallel()
 	var originalString = []byte("I am testing the MD5 function in common!")

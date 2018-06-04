@@ -325,6 +325,12 @@ func TestCheckExchangeConfigValues(t *testing.T) {
 		)
 	}
 
+	checkExchangeConfigValues.Exchanges[0].HTTPTimeout = 0
+	checkExchangeConfigValues.CheckExchangeConfigValues()
+	if checkExchangeConfigValues.Exchanges[0].HTTPTimeout == 0 {
+		t.Fatalf("Test failed. Expected exchange %s to have updated HTTPTimeout value", checkExchangeConfigValues.Exchanges[0].Name)
+	}
+
 	checkExchangeConfigValues.Exchanges[0].APIKey = "Key"
 	checkExchangeConfigValues.Exchanges[0].APISecret = "Secret"
 	checkExchangeConfigValues.Exchanges[0].AuthenticatedAPISupport = true
@@ -423,6 +429,14 @@ func TestCheckWebserverConfigValues(t *testing.T) {
 	}
 
 	if checkWebserverConfigValues.Webserver.WebsocketConnectionLimit != 1 {
+		t.Error(
+			"Test failed. checkWebserverConfigValues.CheckWebserverConfigValues error",
+		)
+	}
+
+	checkWebserverConfigValues.Webserver.WebsocketMaxAuthFailures = -1
+	checkWebserverConfigValues.CheckWebserverConfigValues()
+	if checkWebserverConfigValues.Webserver.WebsocketMaxAuthFailures != 3 {
 		t.Error(
 			"Test failed. checkWebserverConfigValues.CheckWebserverConfigValues error",
 		)
@@ -531,14 +545,55 @@ func TestSaveConfig(t *testing.T) {
 
 func TestGetFilePath(t *testing.T) {
 	expected := "blah.json"
-	result := GetFilePath("blah.json")
+	result, _ := GetFilePath("blah.json")
 	if result != "blah.json" {
 		t.Errorf("Test failed. TestGetFilePath: expected %s got %s", expected, result)
 	}
 
 	expected = ConfigTestFile
-	result = GetFilePath("")
+	result, _ = GetFilePath("")
 	if result != expected {
 		t.Errorf("Test failed. TestGetFilePath: expected %s got %s", expected, result)
+	}
+
+	testBypass = true
+	result, _ = GetFilePath("")
+}
+
+func TestCheckConfig(t *testing.T) {
+	var c Config
+	err := c.LoadConfig(ConfigTestFile)
+	if err != nil {
+		t.Errorf("Test failed. %s", err)
+	}
+
+	err = c.CheckConfig()
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestUpdateConfig(t *testing.T) {
+	var c Config
+	err := c.LoadConfig(ConfigTestFile)
+	if err != nil {
+		t.Errorf("Test failed. %s", err)
+	}
+
+	newCfg := c
+	err = c.UpdateConfig("", newCfg)
+	if err != nil {
+		t.Fatalf("Test failed. %s", err)
+	}
+
+	err = c.UpdateConfig("//non-existantpath\\", newCfg)
+	if err == nil {
+		t.Fatalf("Test failed. Error should of been thrown for invalid path")
+	}
+
+	newCfg.Cryptocurrencies = ""
+	err = c.UpdateConfig("", newCfg)
+	if err == nil {
+		t.Fatalf("Test failed. Error should of been thrown for empty cryptocurrencies")
 	}
 }
