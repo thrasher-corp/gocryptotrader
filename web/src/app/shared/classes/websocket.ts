@@ -3,6 +3,7 @@ export class WebSocketMessage {
     public data: any;
     public exchange: string;
     public assetType: string;
+    public error: string;
 
     public static CreateAuthenticationMessage(): WebSocketMessage {
         var response = new WebSocketMessage();

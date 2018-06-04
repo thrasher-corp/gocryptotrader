@@ -58,7 +58,6 @@ export class CurrencyListComponent implements OnInit {
         }
       }
     }
-    this.exchangeCurrencies.forEach((value: string[], key: string) => {});
   }
 
   private getSettings(): void {
@@ -69,5 +68,4 @@ export class CurrencyListComponent implements OnInit {
       this.ws.messages.next(WebSocketMessage.GetSettingsMessage());
     }
   }
-
 }
