@@ -1,19 +1,42 @@
 <div class="loading-spinner" *ngIf="settings === null">
     <mat-progress-spinner color="accent" mode="indeterminate"></mat-progress-spinner>
 </div>
-<div *ngIf="settings !== null">
-
+<div *ngIf="settings !== null && ready">
     <button matTooltip="Save" (click)="saveSettings()" mat-fab color="accent" class="mat-fab mat-fab-bottom-right"><mat-icon >save</mat-icon></button>
-
     <mat-accordion>
-        <mat-expansion-panel *ngIf="settings.SMSGlobal != null">
+        <mat-expansion-panel>
             <mat-expansion-panel-header>
                 <mat-panel-title>
-                    SMS Global
+                    Credentials
                 </mat-panel-title>
                 <mat-panel-description>
-                    SMS configuration and contact management
-                    <mat-icon>phone_iphone</mat-icon>
+                    User Settings
+                    <mat-icon>person</mat-icon>
+                </mat-panel-description>
+            </mat-expansion-panel-header>
+            <form class="form-content">
+                <mat-form-field>
+                    <input matInput name="username" [(ngModel)]="settings.Webserver.AdminUsername" placeholder="Username">
+                </mat-form-field>
+                <mat-form-field>
+                    <input matInput name="password" type="password" [(ngModel)]="settings.Webserver.AdminPassword"  placeholder="Password">
+                </mat-form-field>
+                <mat-form-field>
+                    <input type="number" matInput name="connection-limit" [(ngModel)]="settings.Webserver.WebsocketConnectionLimit"  placeholder="Websocket connection limit">
+                </mat-form-field>
+                <mat-checkbox name="allow-insecure-origin" [(ngModel)]="settings.Webserver.WebsocketAllowInsecureOrigin">Allow Insecure Websocket Origin</mat-checkbox>
+                
+            </form>
+        </mat-expansion-panel>
+        
+        <mat-expansion-panel>
+            <mat-expansion-panel-header>
+                <mat-panel-title>
+                    SMS Notifications
+                </mat-panel-title>
+                <mat-panel-description>
+                    Notification Settings
+                    <mat-icon>sms</mat-icon>
                 </mat-panel-description>
             </mat-expansion-panel-header>
             <form class="form-content">
@@ -23,9 +46,9 @@
                     <input matInput name="smsUsername" [(ngModel)]="settings.SMSGlobal.Username" [disabled]="!settings?.SMSGlobal.Enabled" placeholder="Username">
                 </mat-form-field>
                 <mat-form-field>
-                    <input matInput name="smsPassword" [(ngModel)]="settings.SMSGlobal.Password" [disabled]="!settings?.SMSGlobal.Enabled" placeholder="Password">
+                    <input matInput name="smsPassword" type="password" [(ngModel)]="settings.SMSGlobal.Password" [disabled]="!settings?.SMSGlobal.Enabled" placeholder="Password">
                 </mat-form-field>
-
+        
                 <div *ngFor="let contact of settings.SMSGlobal?.Contacts">
                     <mat-checkbox name="contactEnabled" [disabled]="!settings?.SMSGlobal.Enabled" [(ngModel)]="contact.Enabled">Enabled</mat-checkbox>
                     <div mat-line></div>
@@ -37,9 +60,39 @@
                     </mat-form-field>
                 </div>
             </form>
+            <mat-action-row>
+                <button mat-button>ADD</button>
+            </mat-action-row>
         </mat-expansion-panel>
 
 
+        <mat-expansion-panel>
+    <mat-expansion-panel-header>
+        <mat-panel-title>
+            Wallets
+        </mat-panel-title>
+        <mat-panel-description>
+            Wallet Address Settings
+            <mat-icon>account_balance_wallet</mat-icon>
+        </mat-panel-description>
+    </mat-expansion-panel-header>
+              <div  *ngFor="let wallet of settings.PortfolioAddresses?.Addresses">
+                    <mat-form-field class="long">
+                            <input  matInput name="wallet-address" [(ngModel)]="wallet.Address"  placeholder="Address" />
+                        </mat-form-field>
+                        <mat-form-field>
+                            <input matInput name="wallet-cointype" [(ngModel)]="wallet.CoinType" placeholder="Coin Type" />
+                        </mat-form-field>
+                        <mat-form-field>
+                                <input matInput name="wallet-description" [(ngModel)]="wallet.Description" placeholder="Description" />
+                            </mat-form-field>
+        <button mat-button (click)="removeWallet(wallet)">REMOVE</button>
+                        </div>
+    <mat-action-row>
+        <button mat-button (click)="addWallet()">ADD</button>
+    </mat-action-row>
+</mat-expansion-panel>
+        
         <mat-expansion-panel *ngFor="let exchange of settings?.Exchanges">
             <mat-expansion-panel-header>
                 <mat-panel-title>
@@ -47,7 +100,7 @@
                 </mat-panel-title>
                 <mat-panel-description>
                     Exchange Settings
-                    <mat-icon>attach_money</mat-icon>
+                    <mat-icon>poll</mat-icon>
                 </mat-panel-description>
             </mat-expansion-panel-header>
             <form class="form-content">
@@ -57,7 +110,7 @@
                     <input matInput name="apiKey" [(ngModel)]="exchange.APIKey" [disabled]="!exchange.Enabled" placeholder="API Key*">
                 </mat-form-field>
                 <mat-form-field>
-                    <input matInput name="apiSecretKey" [(ngModel)]="exchange.APISecret" [disabled]="!exchange.Enabled" placeholder="API Secret Key*">
+                    <input matInput name="apiSecretKey" type="password" [(ngModel)]="exchange.APISecret" [disabled]="!exchange.Enabled" placeholder="API Secret Key*">
                 </mat-form-field>
                 <mat-form-field>
                     <input matInput name="apiClientId" [(ngModel)]="exchange.ClientID" [disabled]="!exchange.Enabled" placeholder="API ClientID">
@@ -66,12 +119,10 @@
                 <h4>
                     Enabled currencies
                 </h4>
-                <div *ngFor="let currency of exchange.Pairs">
-                        <p>{{currency.Name}}</p>
-                    <mat-checkbox name="{{currency.Name}}2" [(ngModel)]="currency.Enabled"></mat-checkbox>
-                </div>
+                <p ><span *ngFor="let pair of exchange.Pairs | enabledCurrencies; let isLast=last">{{pair.Name}}{{isLast ? '' : ', '}}</span> </p>
+                <button mat-button [disabled]="!exchange.Enabled" (click)="openModal(exchange.Pairs)">CHANGE</button>
             </form>
         </mat-expansion-panel>
-    </mat-accordion>
 
+    </mat-accordion>
 </div>

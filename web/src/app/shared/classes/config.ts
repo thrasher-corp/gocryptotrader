@@ -37,7 +37,25 @@
         this.PortfolioAddresses = configData.PortfolioAddresses
         this.SMSGlobal = configData.SMSGlobal
         this.Webserver = configData.Webserver
-        this.fromArrayToRedux()
+        if(configData.Exchanges.length > 0  
+          && configData.Exchanges[0].Pairs 
+          && configData.Exchanges[0].Pairs.length > 0) {
+            console.log('Successfully retrieved well-formed pairs');
+          return;
+        }
+        this.fromArrayToRedux();
+        //Rewrite to cache on parsing to redux array
+        this.saveToCache();
+    }
+
+    public saveToCache() : void {
+      window.localStorage['config'] = JSON.stringify(this); 
+      window.localStorage['configDate'] = new Date().toString();
+    }
+
+    public clearCache() : void {
+      window.localStorage['config'] = null;
+      window.localStorage['configDate'] = null;
     }
 
     public fromArrayToRedux() : void {
@@ -57,8 +75,7 @@
             this.Exchanges[i].Pairs.push(currencyPair);
           }
         }
-        window.localStorage['config'] = JSON.stringify(this); 
-        window.localStorage['configDate'] = new Date().toString(); 
+
       }
 
     public parseSettings() : void {
@@ -82,23 +99,17 @@
               if (enabled.indexOf(this.Exchanges[i].Pairs[j].Name) == -1) {
                 // Step 3 if its not in the enabled list, add it
                 enabled.push(this.Exchanges[i].Pairs[j].Name);
-              } else {
-    
-              }
+              } 
             } else {
               if (enabled.indexOf(this.Exchanges[i].Pairs[j].Name) > -1) {
                 enabled.splice(enabled.indexOf(this.Exchanges[i].Pairs[j].Name), 1);
-              } else {
               }
             }
           }
-          
           //Step 4 JSONifiy the enabled list and set it to the this.settings.Exchanges[i].EnabledPairs
           this.Exchanges[i].EnabledPairs = enabled.join();
         }
-        
       }
-
   }
 
 export class CurrencyPairRedux {
@@ -113,7 +124,15 @@ export class CurrencyPairRedux {
   }
   
   export interface PortfolioAddresses {
-    Addresses?: any;
+    Addresses?: Wallet[];
+  }
+
+  export interface Wallet {
+    Address:string;
+    CoinType:string;
+    Balance:number;
+    Description:string
+
   }
   
   export interface Contact {

@@ -9,7 +9,7 @@
             </mat-list-item>
             <mat-list-item routerLink="wallet" routerLinkActive="wallet-highlight">
                 <mat-icon>account_balance_wallet</mat-icon>&nbsp;
-                <h3>Wallet</h3>
+                <h3>Wallets</h3>
             </mat-list-item>
             <mat-list-item routerLink="trading" routerLinkActive="trading-highlight">
                 <mat-icon>swap_horiz</mat-icon>&nbsp;
@@ -58,11 +58,11 @@
             </mat-list-item>
             <mat-divider></mat-divider>
             <mat-list-item *ngIf="isConnected" matTooltip="Online!">
-                    <mat-icon>network_wifi</mat-icon>&nbsp;
-                </mat-list-item>
-                <mat-list-item *ngIf="!isConnected" matTooltip="Offline">
-                        <mat-icon>signal_wifi_off</mat-icon>&nbsp;
-                    </mat-list-item>
+                <mat-icon>network_wifi</mat-icon>&nbsp;
+            </mat-list-item>
+            <mat-list-item *ngIf="!isConnected" matTooltip="Offline">
+                <mat-icon>signal_wifi_off</mat-icon>&nbsp;
+            </mat-list-item>
         </mat-nav-list>
 
     </mat-sidenav>
