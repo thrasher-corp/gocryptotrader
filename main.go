@@ -46,8 +46,13 @@ func main() {
 	bot.shutdown = make(chan bool)
 	HandleInterrupt()
 
+	defaultPath, err := config.GetFilePath("")
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	//Handle flags
-	flag.StringVar(&bot.configFile, "config", config.GetFilePath(""), "config file to load")
+	flag.StringVar(&bot.configFile, "config", defaultPath, "config file to load")
 	dryrun := flag.Bool("dryrun", false, "dry runs bot, doesn't save config file")
 	version := flag.Bool("version", false, "retrieves current GoCryptoTrader version")
 	flag.Parse()
@@ -66,7 +71,7 @@ func main() {
 	fmt.Println(BuildVersion(false))
 	log.Printf("Loading config file %s..\n", bot.configFile)
 
-	err := bot.config.LoadConfig(bot.configFile)
+	err = bot.config.LoadConfig(bot.configFile)
 	if err != nil {
 		log.Fatal(err)
 	}

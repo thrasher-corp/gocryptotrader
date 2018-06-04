@@ -29,6 +29,7 @@ const (
 	configFileEncryptionDisabled           = -1
 	configPairsLastUpdatedWarningThreshold = 30 // 30 days
 	configDefaultHTTPTimeout               = time.Duration(time.Second * 15)
+	configMaxAuthFailres                   = 3
 )
 
 // Variables here are mainly alerts and a configuration object
@@ -53,6 +54,8 @@ var (
 	WarningCurrencyExchangeProvider                 = "WARNING -- Currency exchange provider invalid valid. Reset to Fixer."
 	WarningPairsLastUpdatedThresholdExceeded        = "WARNING -- Exchange %s: Last manual update of available currency pairs has exceeded %d days. Manual update required!"
 	Cfg                                             Config
+	IsInitialSetup                                  bool
+	testBypass                                      bool
 )
 
 // WebserverConfig struct holds the prestart variables for the webserver.
@@ -304,7 +307,7 @@ func (c *Config) CheckExchangeConfigValues() error {
 			if !exch.SupportsAutoPairUpdates {
 				lastUpdated := common.UnixTimestampToTime(exch.PairsLastUpdated)
 				lastUpdated.AddDate(0, 0, configPairsLastUpdatedWarningThreshold)
-				if lastUpdated.Unix() >= time.Now().Unix() {
+				if lastUpdated.Unix() <= time.Now().Unix() {
 					log.Printf(WarningPairsLastUpdatedThresholdExceeded, exch.Name, configPairsLastUpdatedWarningThreshold)
 				}
 			}
@@ -406,18 +409,19 @@ func (c *Config) RetrieveConfigCurrencyPairs(enabledOnly bool) error {
 
 // GetFilePath returns the desired config file or the default config file name
 // based on if the application is being run under test or normal mode.
-func GetFilePath(file string) string {
+func GetFilePath(file string) (string, error) {
 	if file != "" {
-		return file
+		return file, nil
 	}
 
-	if flag.Lookup("test.v") != nil {
-		return ConfigTestFile
+	if flag.Lookup("test.v") != nil && !testBypass {
+		return ConfigTestFile, nil
 	}
 
 	exePath, err := common.GetExecutablePath()
 	if err != nil {
 		log.Fatalf("Unable to get executable path: %s", err)
+		return "", err
 	}
 
 	tempPath := exePath + common.GetOSPathSlash()
@@ -427,32 +431,38 @@ func GetFilePath(file string) string {
 	data, err := common.ReadFile(encPath)
 	if err == nil {
 		if ConfirmECS(data) {
-			return encPath
+			return encPath, nil
 		}
 		err = os.Rename(encPath, cfgPath)
 		if err != nil {
 			log.Fatalf("Unable to rename config file: %s", err)
+			return "", err
 		}
 		log.Printf("Renaming non-encrypted config file from %s to %s",
 			encPath, cfgPath)
-		return cfgPath
+		return cfgPath, nil
 	}
 	if !ConfirmECS(data) {
-		return cfgPath
+		return cfgPath, nil
 	}
 	err = os.Rename(cfgPath, encPath)
 	if err != nil {
 		log.Fatalf("Unable to rename config file: %s", err)
+		return "", err
 	}
 	log.Printf("Renamed encrypted config file from %s to %s", cfgPath,
 		encPath)
-	return encPath
+	return encPath, nil
 }
 
 // ReadConfig verifies and checks for encryption and verifies the unencrypted
 // file contains JSON.
 func (c *Config) ReadConfig(configPath string) error {
-	defaultPath := GetFilePath(configPath)
+	defaultPath, err := GetFilePath(configPath)
+	if err != nil {
+		return err
+	}
+
 	file, err := common.ReadFile(defaultPath)
 	if err != nil {
 		return err
@@ -469,25 +479,43 @@ func (c *Config) ReadConfig(configPath string) error {
 		}
 
 		if c.EncryptConfig == configFileEncryptionPrompt {
+			IsInitialSetup = true
 			if c.PromptForConfigEncryption() {
 				c.EncryptConfig = configFileEncryptionEnabled
-				return c.SaveConfig("")
+				return c.SaveConfig(defaultPath)
 			}
 		}
 	} else {
-		key, err := PromptForConfigKey()
-		if err != nil {
-			return err
-		}
+		errCounter := 0
+		for {
+			if errCounter >= configMaxAuthFailres {
+				return errors.New("failed to decrypt config after 3 attempts")
+			}
+			key, err := PromptForConfigKey(IsInitialSetup)
+			if err != nil {
+				log.Printf("PromptForConfigKey err: %s", err)
+				errCounter++
+				continue
+			}
 
-		data, err := DecryptConfigFile(file, key)
-		if err != nil {
-			return err
-		}
+			var f []byte
+			f = append(f, file...)
+			data, err := DecryptConfigFile(f, key)
+			if err != nil {
+				log.Printf("DecryptConfigFile err: %s", err)
+				errCounter++
+				continue
+			}
 
-		err = ConfirmConfigJSON(data, &c)
-		if err != nil {
-			return err
+			err = ConfirmConfigJSON(data, &c)
+			if err != nil {
+				if errCounter < configMaxAuthFailres {
+					log.Printf("Invalid password.")
+				}
+				errCounter++
+				continue
+			}
+			break
 		}
 	}
 	return nil
@@ -495,13 +523,26 @@ func (c *Config) ReadConfig(configPath string) error {
 
 // SaveConfig saves your configuration to your desired path
 func (c *Config) SaveConfig(configPath string) error {
-	defaultPath := GetFilePath(configPath)
+	defaultPath, err := GetFilePath(configPath)
+	if err != nil {
+		return err
+	}
+
 	payload, err := json.MarshalIndent(c, "", " ")
+	if err != nil {
+		return err
+	}
 
 	if c.EncryptConfig == configFileEncryptionEnabled {
-		key, err2 := PromptForConfigKey()
-		if err2 != nil {
-			return err
+		var key []byte
+		var err error
+
+		if IsInitialSetup {
+			key, err = PromptForConfigKey(true)
+			if err != nil {
+				return err
+			}
+			IsInitialSetup = false
 		}
 
 		payload, err = EncryptConfigFile(payload, key)

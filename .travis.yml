@@ -16,6 +16,7 @@ install:
  - go get github.com/thrasher-/socketio
  - go get github.com/beatgammit/turnpike
  - go get github.com/gorilla/mux
+ - go get golang.org/x/crypto/scrypt
 
 after_success:
  - bash <(curl -s https://codecov.io/bash)
