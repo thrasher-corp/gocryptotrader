@@ -1,5 +1,10 @@
 package binance
 
+type Response struct {
+	Code int    `json:"code"`
+	Msg  string `json:"msg"`
+}
+
 // ExchangeInfo holds the full exchange information type
 type ExchangeInfo struct {
 	Code       int    `json:"code"`
@@ -201,4 +206,24 @@ type QueryOrderData struct {
 	IcebergQty    float64 `json:"icebergQty,string"`
 	Time          int64   `json:"time"`
 	IsWorking     bool    `json:"isWorking"`
+}
+
+// QueryOrderData holds query order data
+type Blance struct {
+	Asset  string `json:"asset"`
+	Free   string `json:"free"`
+	Locked string `json:"locked"`
+}
+
+// AccountInfo holds the account data
+type Account struct {
+	MakerCommission  int      `json:"makerCommission"`
+	TakerCommission  int      `json:"takerCommission"`
+	BuyerCommission  int      `json:"buyerCommission"`
+	SellerCommission int      `json:"sellerCommission"`
+	CanTrade         bool     `json:"canTrade"`
+	CanWithdraw      bool     `json:"canWithdraw"`
+	CanDeposit       bool     `json:"canDeposit"`
+	UpdateTime       int64    `json:"updateTime"`
+	Blances          []Blance `json:"balances"`
 }

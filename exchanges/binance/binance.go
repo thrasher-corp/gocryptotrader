@@ -38,6 +38,7 @@ const (
 	priceChange      = "/api/v1/ticker/24hr"
 	symbolPrice      = "/api/v3/ticker/price"
 	bestPrice        = "/api/v3/ticker/bookTicker"
+	accountInfo      = "/api/v3/account"
 
 	// Authenticated endpoints
 	newOrderTest = "/api/v3/order/test"
@@ -442,6 +443,29 @@ func (b *Binance) QueryOrder(symbol, origClientOrderID string, orderID int64) (Q
 	return resp, nil
 }
 
+// GetAccount returns binance user accounts
+func (b *Binance) GetAccount() (*Account, error) {
+	type respone struct {
+		Response
+		Account
+	}
+
+	var resp respone
+
+	path := fmt.Sprintf("%s%s", apiURL, accountInfo)
+	params := url.Values{}
+
+	if err := b.SendAuthHTTPRequest("GET", path, params, &resp); err != nil {
+		return &resp.Account, err
+	}
+
+	if resp.Code != 0 {
+		return &resp.Account, errors.New(resp.Msg)
+	}
+
+	return &resp.Account, nil
+}
+
 // SendHTTPRequest sends an unauthenticated request
 func (b *Binance) SendHTTPRequest(path string, result interface{}) error {
 	return b.SendPayload("GET", path, nil, nil, result, false, b.Verbose)
@@ -471,8 +495,9 @@ func (b *Binance) SendAuthHTTPRequest(method, path string, params url.Values, re
 	if b.Verbose {
 		log.Printf("sent path: \n%s\n", path)
 	}
+	path = common.EncodeURLValues(path, params)
 
-	return b.SendPayload(method, path, headers, bytes.NewBufferString(params.Encode()), result, true, b.Verbose)
+	return b.SendPayload(method, path, headers, bytes.NewBufferString(""), result, true, b.Verbose)
 }
 
 // CheckLimit checks value against a variable list

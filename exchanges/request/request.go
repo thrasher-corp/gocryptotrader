@@ -207,14 +207,7 @@ func (r *Requester) DoRequest(req *http.Request, method, path string, headers ma
 		log.Printf("%s exchange request path: %s", r.Name, path)
 	}
 
-	var resp *http.Response
-	var err error
-
-	if method != "GET" {
-		resp, err = r.HTTPClient.Do(req)
-	} else {
-		resp, err = r.HTTPClient.Get(path)
-	}
+	resp, err := r.HTTPClient.Do(req)
 
 	if err != nil {
 		if r.RequiresRateLimiter() {
@@ -261,14 +254,9 @@ func (r *Requester) SendPayload(method, path string, headers map[string]string, 
 		return errors.New("invalid path")
 	}
 
-	var req *http.Request
-	var err error
-
-	if method != "GET" {
-		req, err = r.checkRequest(method, path, body, headers)
-		if err != nil {
-			return err
-		}
+	req, err := r.checkRequest(method, path, body, headers)
+	if err != nil {
+		return err
 	}
 
 	if !r.RequiresRateLimiter() {

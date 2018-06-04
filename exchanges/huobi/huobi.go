@@ -110,7 +110,7 @@ func (h *HUOBI) GetFee() float64 {
 }
 
 // GetKline returns kline data
-func (h *HUOBI) GetKline(symbol, period, size string) ([]Klines, error) {
+func (h *HUOBI) GetKline(symbol, period, size string) ([]KlineItem, error) {
 	vals := url.Values{}
 	vals.Set("symbol", symbol)
 
@@ -124,7 +124,7 @@ func (h *HUOBI) GetKline(symbol, period, size string) ([]Klines, error) {
 
 	type response struct {
 		Response
-		Data []Klines `json:"data"`
+		Data []KlineItem `json:"data"`
 	}
 
 	var result response
@@ -315,10 +315,10 @@ func (h *HUOBI) GetAccounts() ([]Account, error) {
 }
 
 // GetAccountBalance returns the users Huobi account balance
-func (h *HUOBI) GetAccountBalance(accountID string) ([]AccountBalance, error) {
+func (h *HUOBI) GetAccountBalance(accountID string) ([]AccountBalanceDetail, error) {
 	type response struct {
 		Response
-		AccountData []AccountBalance `json:"list"`
+		AccountBalanceData AccountBalance `json:"data"`
 	}
 
 	var result response
@@ -328,7 +328,7 @@ func (h *HUOBI) GetAccountBalance(accountID string) ([]AccountBalance, error) {
 	if result.ErrorMessage != "" {
 		return nil, errors.New(result.ErrorMessage)
 	}
-	return result.AccountData, err
+	return result.AccountBalanceData.AccountBalanceDetails, err
 }
 
 // PlaceOrder submits an order to Huobi
