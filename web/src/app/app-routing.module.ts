@@ -52,10 +52,6 @@ const routes: Routes = [
         path: 'currency-list',
         component: CurrencyListComponent
     },
-    {
-        path: 'help',
-        component: CurrencyListComponent
-    },
     //Settings
     {
         path: 'settings',

@@ -38,7 +38,6 @@ import { AboutComponent } from './pages/about/about.component';
 import { DashboardComponent } from './pages/dashboard/dashboard.component';
 import { WalletComponent } from './pages/wallet/wallet.component';
 import { DonateComponent } from './pages/donate/donate.component';
-import { HelpComponent } from './pages/help/help.component';
 
 import { SettingsComponent, EnabledCurrenciesDialogueComponent } from './pages/settings/settings.component';
 
@@ -100,7 +99,6 @@ import { SellFormComponent } from './shared/sell-form/sell-form.component';
     ExchangeGridComponent,
     CurrencyListComponent,
     SellFormComponent,
-    HelpComponent,
     IterateMapPipe,
     EnabledCurrenciesPipe,
     EnabledCurrenciesDialogueComponent
