@@ -176,6 +176,7 @@ func (c *WebsocketClient) read() {
 
 			if result.authRequired && !c.Authenticated {
 				log.Printf("Websocket: request %s failed due to unauthenticated request on an authenticated API", evt.Event)
+				c.SendWebsocketMessage(WebsocketEventResponse{Event: evt.Event, Error: "unauthorised request on authenticated API"})
 				continue
 			}
 
