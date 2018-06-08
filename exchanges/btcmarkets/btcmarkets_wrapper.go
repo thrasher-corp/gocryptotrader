@@ -174,7 +174,7 @@ func (b *BTCMarkets) GetExchangeHistory(pair pair.CurrencyPair, assetType string
 			Exchange:  b.Name,
 			Price:     trades[i].Price,
 			TID:       trades[i].TradeID,
-			Timestamp: trades[i].Date,
+			Timestamp: time.Unix(trades[i].Date, 0),
 			Type:      "Not Supplied"})
 	}
 	return resp, nil

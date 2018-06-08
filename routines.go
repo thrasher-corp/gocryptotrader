@@ -338,7 +338,7 @@ func processHistory(exch exchange.IBotExchange, c pair.CurrencyPair, assetType s
 			result[i].Type,
 			result[i].Amount,
 			result[i].Price,
-			time.Unix(result[i].Timestamp, 0))
+			result[i].Timestamp)
 		if err != nil {
 			log.Fatal(err)
 		}
