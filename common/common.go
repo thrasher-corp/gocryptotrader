@@ -290,7 +290,7 @@ func RoundFloat(x float64, prec int) float64 {
 	return rounder / pow
 }
 
-// CountInt counts how many decimals in an integer and returns the count
+// CountInt counts how many digits in an integer and returns the count
 func CountInt(i int64) (count int) {
 	for i != 0 {
 		i /= 10
