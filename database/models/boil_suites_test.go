@@ -168,7 +168,6 @@ func TestInsert(t *testing.T) {
 // or deadlocks can occur.
 func TestToOne(t *testing.T) {
 	t.Run("CurrencyPairFormatToExchangeUsingExchange", testCurrencyPairFormatToOneExchangeUsingExchange)
-	t.Run("ExchangeTradeHistoryToExchangeUsingExchange", testExchangeTradeHistoryToOneExchangeUsingExchange)
 	t.Run("OrderHistoryToConfigUsingConfig", testOrderHistoryToOneConfigUsingConfig)
 }
 
@@ -181,14 +180,12 @@ func TestOneToOne(t *testing.T) {}
 func TestToMany(t *testing.T) {
 	t.Run("ConfigToOrderHistories", testConfigToManyOrderHistories)
 	t.Run("ExchangeToCurrencyPairFormats", testExchangeToManyCurrencyPairFormats)
-	t.Run("ExchangeToExchangeTradeHistories", testExchangeToManyExchangeTradeHistories)
 }
 
 // TestToOneSet tests cannot be run in parallel
 // or deadlocks can occur.
 func TestToOneSet(t *testing.T) {
 	t.Run("CurrencyPairFormatToExchangeUsingExchange", testCurrencyPairFormatToOneSetOpExchangeUsingExchange)
-	t.Run("ExchangeTradeHistoryToExchangeUsingExchange", testExchangeTradeHistoryToOneSetOpExchangeUsingExchange)
 	t.Run("OrderHistoryToConfigUsingConfig", testOrderHistoryToOneSetOpConfigUsingConfig)
 }
 
@@ -209,7 +206,6 @@ func TestOneToOneRemove(t *testing.T) {}
 func TestToManyAdd(t *testing.T) {
 	t.Run("ConfigToOrderHistories", testConfigToManyAddOpOrderHistories)
 	t.Run("ExchangeToCurrencyPairFormats", testExchangeToManyAddOpCurrencyPairFormats)
-	t.Run("ExchangeToExchangeTradeHistories", testExchangeToManyAddOpExchangeTradeHistories)
 }
 
 // TestToManySet tests cannot be run in parallel

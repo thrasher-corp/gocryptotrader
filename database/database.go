@@ -12,6 +12,7 @@ import (
 	_ "github.com/lib/pq"
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/database/models"
+	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/portfolio"
 	"github.com/volatiletech/sqlboiler/queries/qm"
 	"gopkg.in/volatiletech/null.v6"
@@ -56,6 +57,55 @@ func (o *ORM) SetupConnection(databaseName, host, user, password string) error {
 	return nil
 }
 
+// Connect connects to a db and loads a specific configuration
+func Connect(databaseName, host, user, password, configName string, verbose bool) (*ORM, error) {
+	dbORM := new(ORM)
+	dbORM.Verbose = verbose
+
+	var err error
+	dbORM.Exec, err = sql.Open("postgres",
+		fmt.Sprintf("dbname=%s host=%s user=%s password=%s",
+			databaseName, host, user, password))
+	if err != nil {
+		return nil, err
+	}
+
+	err = dbORM.Exec.Ping()
+	if err != nil {
+		return nil, err
+	}
+	dbORM.SetInsertCounter()
+	dbORM.Connected = true
+	err = dbORM.LoadConfiguration(configName)
+	if err != nil {
+		return nil, err
+	}
+
+	return dbORM, nil
+}
+
+// SetExchangeMap sets exchange map
+func (o *ORM) SetExchangeMap() error {
+	o.Lock()
+	defer o.Unlock()
+
+	exchanges, err := models.Exchanges(o.Exec).All()
+	if err != nil {
+		return err
+	}
+
+	if len(exchanges) < 1 {
+		return errors.New("No exchanges loaded into database")
+	}
+
+	o.ExchangeID = make(map[string]int64)
+
+	for i := range exchanges {
+		o.ExchangeID[exchanges[i].ExchangeName] = exchanges[i].ExchangeID
+	}
+	return nil
+}
+
 // SetInsertCounter allows for the minimization of db calls for potential insert
 // intensive functions
 func (o *ORM) SetInsertCounter() {
@@ -80,7 +130,7 @@ func (o *ORM) LoadConfiguration(configName string) error {
 		if err != nil {
 			return err
 		}
-		return nil
+		return o.SetExchangeMap()
 	}
 	return fmt.Errorf("database error could not find loaded configuration %s", configName)
 }
@@ -112,6 +162,9 @@ func (o *ORM) InsertNewConfiguration(cfg *config.Config, password string) error 
 	err = o.insertSMSGlobalConfiguration(cfg.SMS.Username, cfg.SMS.Password, cfg.SMS.Enabled)
 	if err != nil {
 		return err
+	}
+	if cfg.CurrencyPairFormat == nil {
+		return errors.New("config currencypair is nil")
 	}
 	err = o.insertCurrencyPairConfiguration("config",
 		cfg.CurrencyPairFormat.Delimiter,
@@ -344,6 +397,29 @@ func (o *ORM) InsertExchangeTradeHistoryData(transactionID int64, exchangeName, 
 	return nil
 }
 
+// GetEnabledExchanges returns enabled exchanges
+func (o *ORM) GetEnabledExchanges() ([]string, error) {
+	o.Lock()
+	defer o.Unlock()
+
+	if !o.Connected {
+		if o.Verbose {
+			log.Println("cannot get exchange data, no database connnection")
+		}
+		return nil, errors.New("no database connection")
+	}
+
+	exchanges, err := models.Exchanges(o.Exec, qm.Where("enabled = ?", true)).All()
+	if err != nil {
+		return nil, err
+	}
+	var enabledExchanges []string
+	for i := range exchanges {
+		enabledExchanges = append(enabledExchanges, exchanges[i].ExchangeName)
+	}
+	return enabledExchanges, nil
+}
+
 // GetExchangeTradeHistoryLast returns the last updated time.Time value on a
 // trade history item
 func (o *ORM) GetExchangeTradeHistoryLast(exchangeName, currencyPair string) (time.Time, error) {
@@ -370,6 +446,41 @@ func (o *ORM) GetExchangeTradeHistoryLast(exchangeName, currencyPair string) (ti
 	}
 
 	return result.FulfilledOn, nil
+}
+
+// GetExchangeTradeHistory returns the full trade history by exchange name,
+// currency pair and asset class
+func (o *ORM) GetExchangeTradeHistory(exchangeName, currencyPair, assetType string) ([]exchange.TradeHistory, error) {
+	o.Lock()
+	defer o.Unlock()
+
+	exchangeID, ok := o.ExchangeID[exchangeName]
+	if !ok {
+		return nil, errors.New("exchange name not found or not enabled")
+	}
+
+	exchangeHistory, err := models.ExchangeTradeHistories(o.Exec,
+		qm.Where("exchange_id = ?", exchangeID),
+		qm.And("currency_pair = ?", currencyPair),
+		qm.And("asset_type = ?", assetType)).All()
+	if err != nil {
+		return nil, err
+	}
+
+	if len(exchangeHistory) == 0 {
+		return nil, errors.New("no exchange trade data could be found")
+	}
+
+	var allExchangeHistory []exchange.TradeHistory
+	for i := range exchangeHistory {
+		allExchangeHistory = append(allExchangeHistory,
+			exchange.TradeHistory{
+				Timestamp: exchangeHistory[i].FulfilledOn,
+				TID:       exchangeHistory[i].ExchangeTradeHistoryID,
+				Price:     exchangeHistory[i].Rate,
+				Amount:    exchangeHistory[i].Amount})
+	}
+	return allExchangeHistory, nil
 }
 
 // InsertOrderHistoryData inserts order history
