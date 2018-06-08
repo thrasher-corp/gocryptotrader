@@ -34,7 +34,7 @@ func TestLoadConfiguration(t *testing.T) {
 func TestInsertNewConfiguration(t *testing.T) {
 	if connected {
 		err := o.InsertNewConfiguration(cfg, "newPassword")
-		if err != nil {
+		if err == nil {
 			t.Error("test failed - Database InsertNewConfiguration() error", err)
 		}
 	}

@@ -90,8 +90,7 @@ var ExchangeColumns = struct {
 
 // exchangeR is where relationships are stored.
 type exchangeR struct {
-	CurrencyPairFormats    CurrencyPairFormatSlice
-	ExchangeTradeHistories ExchangeTradeHistorySlice
+	CurrencyPairFormats CurrencyPairFormatSlice
 }
 
 // exchangeL is where Load methods for each relationship are stored.
@@ -259,32 +258,6 @@ func (o *Exchange) CurrencyPairFormats(exec boil.Executor, mods ...qm.QueryMod) 
 	return query
 }
 
-// ExchangeTradeHistoriesG retrieves all the exchange_trade_history's exchange trade history.
-func (o *Exchange) ExchangeTradeHistoriesG(mods ...qm.QueryMod) exchangeTradeHistoryQuery {
-	return o.ExchangeTradeHistories(boil.GetDB(), mods...)
-}
-
-// ExchangeTradeHistories retrieves all the exchange_trade_history's exchange trade history with an executor.
-func (o *Exchange) ExchangeTradeHistories(exec boil.Executor, mods ...qm.QueryMod) exchangeTradeHistoryQuery {
-	var queryMods []qm.QueryMod
-	if len(mods) != 0 {
-		queryMods = append(queryMods, mods...)
-	}
-
-	queryMods = append(queryMods,
-		qm.Where("\"exchange_trade_history\".\"exchange_id\"=?", o.ExchangeID),
-	)
-
-	query := ExchangeTradeHistories(exec, queryMods...)
-	queries.SetFrom(query.Query, "\"exchange_trade_history\"")
-
-	if len(queries.GetSelect(query.Query)) == 0 {
-		queries.SetSelect(query.Query, []string{"\"exchange_trade_history\".*"})
-	}
-
-	return query
-}
-
 // LoadCurrencyPairFormats allows an eager lookup of values, cached into the
 // loaded structs of the objects.
 func (exchangeL) LoadCurrencyPairFormats(e boil.Executor, singular bool, maybeExchange interface{}) error {
@@ -342,71 +315,6 @@ func (exchangeL) LoadCurrencyPairFormats(e boil.Executor, singular bool, maybeEx
 		for _, local := range slice {
 			if local.ExchangeID == foreign.ExchangeID {
 				local.R.CurrencyPairFormats = append(local.R.CurrencyPairFormats, foreign)
-				break
-			}
-		}
-	}
-
-	return nil
-}
-
-// LoadExchangeTradeHistories allows an eager lookup of values, cached into the
-// loaded structs of the objects.
-func (exchangeL) LoadExchangeTradeHistories(e boil.Executor, singular bool, maybeExchange interface{}) error {
-	var slice []*Exchange
-	var object *Exchange
-
-	count := 1
-	if singular {
-		object = maybeExchange.(*Exchange)
-	} else {
-		slice = *maybeExchange.(*[]*Exchange)
-		count = len(slice)
-	}
-
-	args := make([]interface{}, count)
-	if singular {
-		if object.R == nil {
-			object.R = &exchangeR{}
-		}
-		args[0] = object.ExchangeID
-	} else {
-		for i, obj := range slice {
-			if obj.R == nil {
-				obj.R = &exchangeR{}
-			}
-			args[i] = obj.ExchangeID
-		}
-	}
-
-	query := fmt.Sprintf(
-		"select * from \"exchange_trade_history\" where \"exchange_id\" in (%s)",
-		strmangle.Placeholders(dialect.IndexPlaceholders, count, 1, 1),
-	)
-	if boil.DebugMode {
-		fmt.Fprintf(boil.DebugWriter, "%s\n%v\n", query, args)
-	}
-
-	results, err := e.Query(query, args...)
-	if err != nil {
-		return errors.Wrap(err, "failed to eager load exchange_trade_history")
-	}
-	defer results.Close()
-
-	var resultSlice []*ExchangeTradeHistory
-	if err = queries.Bind(results, &resultSlice); err != nil {
-		return errors.Wrap(err, "failed to bind eager loaded slice exchange_trade_history")
-	}
-
-	if singular {
-		object.R.ExchangeTradeHistories = resultSlice
-		return nil
-	}
-
-	for _, foreign := range resultSlice {
-		for _, local := range slice {
-			if local.ExchangeID == foreign.ExchangeID {
-				local.R.ExchangeTradeHistories = append(local.R.ExchangeTradeHistories, foreign)
 				break
 			}
 		}
@@ -490,90 +398,6 @@ func (o *Exchange) AddCurrencyPairFormats(exec boil.Executor, insert bool, relat
 	for _, rel := range related {
 		if rel.R == nil {
 			rel.R = &currencyPairFormatR{
-				Exchange: o,
-			}
-		} else {
-			rel.R.Exchange = o
-		}
-	}
-	return nil
-}
-
-// AddExchangeTradeHistoriesG adds the given related objects to the existing relationships
-// of the exchange, optionally inserting them as new records.
-// Appends related to o.R.ExchangeTradeHistories.
-// Sets related.R.Exchange appropriately.
-// Uses the global database handle.
-func (o *Exchange) AddExchangeTradeHistoriesG(insert bool, related ...*ExchangeTradeHistory) error {
-	return o.AddExchangeTradeHistories(boil.GetDB(), insert, related...)
-}
-
-// AddExchangeTradeHistoriesP adds the given related objects to the existing relationships
-// of the exchange, optionally inserting them as new records.
-// Appends related to o.R.ExchangeTradeHistories.
-// Sets related.R.Exchange appropriately.
-// Panics on error.
-func (o *Exchange) AddExchangeTradeHistoriesP(exec boil.Executor, insert bool, related ...*ExchangeTradeHistory) {
-	if err := o.AddExchangeTradeHistories(exec, insert, related...); err != nil {
-		panic(boil.WrapErr(err))
-	}
-}
-
-// AddExchangeTradeHistoriesGP adds the given related objects to the existing relationships
-// of the exchange, optionally inserting them as new records.
-// Appends related to o.R.ExchangeTradeHistories.
-// Sets related.R.Exchange appropriately.
-// Uses the global database handle and panics on error.
-func (o *Exchange) AddExchangeTradeHistoriesGP(insert bool, related ...*ExchangeTradeHistory) {
-	if err := o.AddExchangeTradeHistories(boil.GetDB(), insert, related...); err != nil {
-		panic(boil.WrapErr(err))
-	}
-}
-
-// AddExchangeTradeHistories adds the given related objects to the existing relationships
-// of the exchange, optionally inserting them as new records.
-// Appends related to o.R.ExchangeTradeHistories.
-// Sets related.R.Exchange appropriately.
-func (o *Exchange) AddExchangeTradeHistories(exec boil.Executor, insert bool, related ...*ExchangeTradeHistory) error {
-	var err error
-	for _, rel := range related {
-		if insert {
-			rel.ExchangeID = o.ExchangeID
-			if err = rel.Insert(exec); err != nil {
-				return errors.Wrap(err, "failed to insert into foreign table")
-			}
-		} else {
-			updateQuery := fmt.Sprintf(
-				"UPDATE \"exchange_trade_history\" SET %s WHERE %s",
-				strmangle.SetParamNames("\"", "\"", 1, []string{"exchange_id"}),
-				strmangle.WhereClause("\"", "\"", 2, exchangeTradeHistoryPrimaryKeyColumns),
-			)
-			values := []interface{}{o.ExchangeID, rel.ExchangeTradeHistoryID}
-
-			if boil.DebugMode {
-				fmt.Fprintln(boil.DebugWriter, updateQuery)
-				fmt.Fprintln(boil.DebugWriter, values)
-			}
-
-			if _, err = exec.Exec(updateQuery, values...); err != nil {
-				return errors.Wrap(err, "failed to update foreign table")
-			}
-
-			rel.ExchangeID = o.ExchangeID
-		}
-	}
-
-	if o.R == nil {
-		o.R = &exchangeR{
-			ExchangeTradeHistories: related,
-		}
-	} else {
-		o.R.ExchangeTradeHistories = append(o.R.ExchangeTradeHistories, related...)
-	}
-
-	for _, rel := range related {
-		if rel.R == nil {
-			rel.R = &exchangeTradeHistoryR{
 				Exchange: o,
 			}
 		} else {
