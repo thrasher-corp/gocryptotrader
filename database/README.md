@@ -12,7 +12,7 @@ None (Hopefully soon!)
 ## How to use
 In postgreSQL
 
-  CREATE user "gocryptotrader" with password as "lol123"
+  CREATE user "gocryptotrader" with password as "gocryptotrader"
   CREATE database "gocryptotrader"
   INSERT tables using the trading.sql file
 
