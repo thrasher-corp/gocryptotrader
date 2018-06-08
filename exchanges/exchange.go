@@ -159,7 +159,7 @@ type AccountCurrencyInfo struct {
 
 // TradeHistory holds exchange history data
 type TradeHistory struct {
-	Timestamp int64
+	Timestamp time.Time
 	TID       int64
 	Price     float64
 	Amount    float64
