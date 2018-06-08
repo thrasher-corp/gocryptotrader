@@ -44,3 +44,7 @@
 [[constraint]]
   branch = "master"
   name = "golang.org/x/crypto"
+
+[[constraint]]
+  name = "github.com/volatiletech/sqlboiler"
+  version = "2.7.1"
