@@ -281,7 +281,6 @@ func (b *Bitfinex) WebsocketClient() {
 								data := chanData[1].([]interface{})
 								for _, x := range data {
 									y := x.([]interface{})
-									y := x.([]interface{})
 									if _, ok := y[0].(string); ok {
 										continue
 									}
