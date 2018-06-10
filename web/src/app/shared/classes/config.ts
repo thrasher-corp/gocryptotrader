@@ -1,14 +1,16 @@
+import { inherits } from "util";
 
-  export class Config {
+export class Config {
     Name: string;
     EncryptConfig?: number;
     Cryptocurrencies: string;
     CurrencyExchangeProvider: string;
     CurrencyPairFormat: CurrencyPairFormat;
     PortfolioAddresses: PortfolioAddresses;
-    SMSGlobal: SMSGlobal;
     Webserver: Webserver;
     Exchanges: Exchange[];
+    Communications: Communcations;
+    CurrencyConfig: CurrencyConfig;
 
     public isConfigCacheValid() : boolean {
         let dateStored = +new Date(window.localStorage['configDate']);
@@ -25,28 +27,29 @@
         }
     }
 
-    public setConfig(data: any) : void {
-        var configData = <Config>data;
-        this.Cryptocurrencies = configData.Cryptocurrencies
-        this.CurrencyExchangeProvider = configData.CurrencyExchangeProvider
-        this.Exchanges = configData.Exchanges
-        this.CurrencyPairFormat = configData.CurrencyPairFormat
-        this.EncryptConfig = configData.EncryptConfig
-        this.Exchanges = configData.Exchanges
-        this.Name = configData.Name
-        this.PortfolioAddresses = configData.PortfolioAddresses
-        this.SMSGlobal = configData.SMSGlobal
-        this.Webserver = configData.Webserver
-        if(configData.Exchanges.length > 0  
-          && configData.Exchanges[0].Pairs 
-          && configData.Exchanges[0].Pairs.length > 0) {
-            console.log('Successfully retrieved well-formed pairs');
-          return;
-        }
-        this.fromArrayToRedux();
-        //Rewrite to cache on parsing to redux array
-        this.saveToCache();
+  public setConfig(data: any): void {
+    var configData = <Config>data;
+    this.Cryptocurrencies = configData.Cryptocurrencies;
+    this.CurrencyExchangeProvider = configData.CurrencyExchangeProvider;
+    this.Exchanges = configData.Exchanges;
+    this.CurrencyPairFormat = configData.CurrencyPairFormat;
+    this.EncryptConfig = configData.EncryptConfig;
+    this.Exchanges = configData.Exchanges;
+    this.Name = configData.Name;
+    this.PortfolioAddresses = configData.PortfolioAddresses;
+    this.Communications = configData.Communications;
+    this.CurrencyConfig = configData.CurrencyConfig;
+    this.Webserver = configData.Webserver;
+    if (configData.Exchanges.length > 0
+      && configData.Exchanges[0].Pairs
+      && configData.Exchanges[0].Pairs.length > 0) {
+      console.log('Successfully retrieved well-formed pairs');
+      return;
     }
+    this.fromArrayToRedux();
+    //Rewrite to cache on parsing to redux array
+    this.saveToCache();
+  }
 
     public saveToCache() : void {
       window.localStorage['config'] = JSON.stringify(this); 
@@ -135,18 +138,12 @@ export class CurrencyPairRedux {
 
   }
   
-  export interface Contact {
+  export class SMSGlobalContact {
     Name: string;
     Number: string;
     Enabled: boolean;
   }
   
-  export interface SMSGlobal {
-    Enabled: boolean;
-    Username: string;
-    Password: string;
-    Contacts: Contact[];
-  }
   
   export interface Webserver {
     Enabled: boolean;
@@ -187,7 +184,72 @@ export class CurrencyPairRedux {
     RequestCurrencyPairFormat: RequestCurrencyPairFormat;
     ClientID: string;
     Pairs: CurrencyPairRedux[];
-  }
+}
+  
+
+export class Communcations {
+  Slack: SlackCommunication;
+  SMSGlobal: SMSGlobalCommunication;
+  SMTP: SMTPCommunication;
+  Telegram: TelegramCommunication;
+} 
+
+
+export class SlackCommunication {
+  Name: string;
+  Enabled: boolean;
+  Verbose: boolean;
+  TargetChannel: string;
+  VerificationToken: string;
+}
+
+export class SMSGlobalCommunication {
+  Name: string;
+  Enabled: boolean;
+  Verbose: boolean;
+  Username: string;
+  Password: string;
+  Contacts: SMSGlobalContact[];
+}
+
+export class SMTPCommunication {
+  Name: string;
+  Enabled: boolean;
+  Verbose: boolean;
+  Host: string;
+  Port: number;
+  AccountName: string;
+  AccountPassword: string;
+  RecipentList: string;
+}
+
+export class TelegramCommunication {
+  Name: string;
+  Enabled: boolean;
+  Verbose: boolean;
+  VerificationToken: string;
+}
+
+export class CurrencyConfig {
+  ForexProviders: ForexProviders[];
+  Cyptocurrencies: string;
+  CurrencyPairFormat: CurrencyPairFormat;
+  FiatDisplayCurrency: string;
+}
+
+export class ForexProviders {
+  Name: string;
+  Enabled: boolean;
+  Verbose: boolean;
+  RESTPollingDelay: number;
+  APIKey: string;
+  PrimaryProvier: boolean;
+}
+
+export class CurrencyPairFormat {
+  Uppercase: boolean;
+  Delimiter: string;
+}
   
   
   
