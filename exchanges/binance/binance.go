@@ -161,8 +161,9 @@ func (b *Binance) GetOrderBook(symbol string, limit int64) (OrderBook, error) {
 				ASK.Price, _ = strconv.ParseFloat(ask.(string), 64)
 			case 1:
 				ASK.Quantity, _ = strconv.ParseFloat(ask.(string), 64)
+				orderbook.Asks = append(orderbook.Asks, ASK)
+				break
 			}
-			orderbook.Asks = append(orderbook.Asks, ASK)
 		}
 	}
 
@@ -177,8 +178,9 @@ func (b *Binance) GetOrderBook(symbol string, limit int64) (OrderBook, error) {
 				BID.Price, _ = strconv.ParseFloat(bid.(string), 64)
 			case 1:
 				BID.Quantity, _ = strconv.ParseFloat(bid.(string), 64)
+				orderbook.Bids = append(orderbook.Bids, BID)
+				break
 			}
-			orderbook.Bids = append(orderbook.Bids, BID)
 		}
 	}
 	return orderbook, nil
