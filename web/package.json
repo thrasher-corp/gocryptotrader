@@ -1,6 +1,6 @@
 {
     "name": "gocryptotrader-web",
-    "version": "0.3.0",
+    "version": "0.4.0",
     "description": "Front-end interface for GoCryptoTrader",
     "homepage": "https://github.com/thrasher-/gocryptotrader",
     "author": {
@@ -9,13 +9,11 @@
         "github": "https://github.com/gloriousCode/",
         "website": "https://www.gloriousedge.com"
     },
-    "contributers": [
-        {
-            "name": "Maxime GRIS",
-            "email": "maxime.gris@gmail.com",
-            "github": "https://github.com/maximegris/"
-        }
-    ],
+    "contributers": [{
+        "name": "Maxime GRIS",
+        "email": "maxime.gris@gmail.com",
+        "github": "https://github.com/maximegris/"
+    }],
     "keywords": [
         "angular",
         "electron",
