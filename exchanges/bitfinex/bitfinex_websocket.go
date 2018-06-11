@@ -281,10 +281,13 @@ func (b *Bitfinex) WebsocketClient() {
 								data := chanData[1].([]interface{})
 								for _, x := range data {
 									y := x.([]interface{})
+									if _, ok := y[0].(string); ok {
+										continue
+									}
 									trades = append(trades, WebsocketTrade{ID: int64(y[0].(float64)), Timestamp: int64(y[1].(float64)), Price: y[2].(float64), Amount: y[3].(float64)})
 								}
-							case 5:
-								trade := WebsocketTrade{ID: int64(chanData[1].(float64)), Timestamp: int64(chanData[2].(float64)), Price: chanData[3].(float64), Amount: chanData[4].(float64)}
+							case 7:
+								trade := WebsocketTrade{ID: int64(chanData[3].(float64)), Timestamp: int64(chanData[4].(float64)), Price: chanData[5].(float64), Amount: chanData[6].(float64)}
 								trades = append(trades, trade)
 
 								if b.Verbose {
