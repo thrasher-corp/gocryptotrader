@@ -1,3 +1,5 @@
+
+import {share, map} from 'rxjs/operators';
 import { NgModule, Injectable, Optional, SkipSelf } from '@angular/core';
 import { Observable, Subject } from 'rxjs/Rx';
 import { WebsocketService } from './../../services/websocket/websocket.service';
@@ -16,9 +18,9 @@ export class WebsocketResponseHandlerService {
 	constructor(@Optional() @SkipSelf() parentModule: WebsocketResponseHandlerService, wsService: WebsocketService) {
 		this.ws = wsService;
 		this.messages = <Subject<WebSocketMessage>>this.ws
-			.connect(WEBSOCKET_URL)
+			.connect(WEBSOCKET_URL).pipe(
 
-			.map((response: MessageEvent): WebSocketMessage => {
+			map((response: MessageEvent): WebSocketMessage => {
 				var interval = setInterval(() => {
 					this.isConnected = this.ws.isConnected;
 				}, 2000);
@@ -34,9 +36,9 @@ export class WebsocketResponseHandlerService {
 				responseMessage.error = websocketResponseMessage.error;
 
 				return responseMessage;
-			});
+			}));
 			this.isConnected = this.ws.isConnected;
 			
-		this.shared = this.messages.share(); //multicast
+		this.shared = this.messages.pipe(share()); //multicast
 	}
 }
