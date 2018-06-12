@@ -139,10 +139,35 @@ func (b *Binance) GetExchangeFundTransferHistory() ([]exchange.FundHistory, erro
 }
 
 // GetExchangeHistory returns historic trade data since exchange opening.
-func (b *Binance) GetExchangeHistory(pair pair.CurrencyPair, assetType string, timestampStart time.Time) ([]exchange.TradeHistory, error) {
+func (b *Binance) GetExchangeHistory(p pair.CurrencyPair, assetType string, timestampStart time.Time) ([]exchange.TradeHistory, error) {
 	var resp []exchange.TradeHistory
 
-	return resp, errors.New("trade history not yet implemented")
+	if timestampStart.IsZero() {
+		timestampStart = time.Now().AddDate(0, -3, 0) // set to three months prior
+	}
+	timestampEnd := timestampStart.Add(1 * time.Hour) // add 1 hr
+
+	stripPair := p.GetFirstCurrency().String() + p.GetSecondCurrency().String()
+
+	aggTrades, err := b.GetAggregatedTrades(stripPair,
+		500,
+		common.UnixMillis(timestampStart),
+		common.UnixMillis(timestampEnd))
+	if err != nil {
+		return resp, err
+	}
+
+	for i := range aggTrades {
+		resp = append(resp, exchange.TradeHistory{
+			Timestamp: time.Unix(0, common.UnixMillisToNano(aggTrades[i].TimeStamp)),
+			TID:       aggTrades[i].LastTradeID,
+			Price:     aggTrades[i].Price,
+			Amount:    aggTrades[i].Quantity,
+			Exchange:  b.GetName(),
+			Type:      "Not Specified",
+		})
+	}
+	return resp, nil
 }
 
 // SubmitExchangeOrder submits a new order
