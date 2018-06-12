@@ -2,11 +2,13 @@ package binance
 
 import (
 	"testing"
+	"time"
 
 	"github.com/thrasher-/gocryptotrader/currency/pair"
 	"github.com/thrasher-/gocryptotrader/currency/symbol"
 
 	"github.com/thrasher-/gocryptotrader/config"
+	"github.com/thrasher-/gocryptotrader/currency/pair"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 )
 
@@ -80,7 +82,7 @@ func TestGetHistoricalTrades(t *testing.T) {
 
 func TestGetAggregatedTrades(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetAggregatedTrades("BTCUSDT", 5)
+	_, err := b.GetAggregatedTrades("BTCUSDT", 5, 0, 0)
 	if err != nil {
 		t.Error("Test Failed - Binance GetAggregatedTrades() error", err)
 	}
@@ -386,8 +388,17 @@ func TestCancelExchangeOrder(t *testing.T) {
 	// Act
 	err := b.CancelOrder(orderCancellation)
 
-	// Assert 
+	// Assert
 	if err != nil {
 		t.Errorf("Could not cancel order: %s", err)
+	}
+}
+
+func TestGetExchangeHistory(t *testing.T) {
+	t.Parallel()
+	p := pair.NewCurrencyPair("BTC", "USDT")
+	_, err := b.GetExchangeHistory(p, "SPOT", time.Time{})
+	if err != nil {
+		t.Error("test failed - Binance GetExchangeHistory() error", err)
 	}
 }
