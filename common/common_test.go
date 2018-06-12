@@ -768,3 +768,11 @@ func TestGetURIPath(t *testing.T) {
 		}
 	}
 }
+
+func TestUnixMilliToNano(t *testing.T) {
+	timeOne := UnixMillis(time.Now())
+	UnixNano := UnixMillisToNano(timeOne)
+	if CountInt(UnixNano) != 19 {
+		t.Error("test failed - ConvertUnixMilliToNano() error count mistmatch")
+	}
+}
