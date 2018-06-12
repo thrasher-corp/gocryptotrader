@@ -973,3 +973,11 @@ func TestTimeFromUnixTimestampFloat(t *testing.T) {
 		t.Error("Test failed. Common TimeFromUnixTimestampFloat. Converted invalid syntax.")
 	}
 }
+
+func TestUnixMilliToNano(t *testing.T) {
+	timeOne := UnixMillis(time.Now())
+	UnixNano := UnixMillisToNano(timeOne)
+	if CountInt(UnixNano) != 19 {
+		t.Error("test failed - ConvertUnixMilliToNano() error count mistmatch")
+	}
+}
