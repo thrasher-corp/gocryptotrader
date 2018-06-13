@@ -3,8 +3,10 @@ package itbit
 import (
 	"net/url"
 	"testing"
+	"time"
 
 	"github.com/thrasher-/gocryptotrader/config"
+	"github.com/thrasher-/gocryptotrader/currency/pair"
 )
 
 var i ItBit
@@ -142,5 +144,13 @@ func TestWalletTransfer(t *testing.T) {
 	_, err := i.WalletTransfer("1337", "mywallet", "anotherwallet", 200, "USD")
 	if err == nil {
 		t.Error("Test Failed - WalletTransfer() error", err)
+	}
+}
+
+func TestGetExchangeHistory(t *testing.T) {
+	p := pair.NewCurrencyPair("XBT", "USD")
+	_, err := i.GetExchangeHistory(p, "SPOT", time.Time{})
+	if err != nil {
+		t.Error("Test Failed - GetExchangeHistory() error", err)
 	}
 }
