@@ -127,7 +127,7 @@ func (b *BTCC) UpdateOrderbook(p pair.CurrencyPair, assetType string) (orderbook
 }
 
 // GetExchangeAccountInfo : Retrieves balances for all enabled currencies for
-// the Kraken exchange - TODO
+// the BTCC exchange - TODO
 func (b *BTCC) GetExchangeAccountInfo() (exchange.AccountInfo, error) {
 	var response exchange.AccountInfo
 	response.ExchangeName = b.GetName()
@@ -142,10 +142,31 @@ func (b *BTCC) GetExchangeFundTransferHistory() ([]exchange.FundHistory, error) 
 }
 
 // GetExchangeHistory returns historic trade data since exchange opening.
-func (b *BTCC) GetExchangeHistory(pair pair.CurrencyPair, assetType string, timestampStart time.Time) ([]exchange.TradeHistory, error) {
+func (b *BTCC) GetExchangeHistory(p pair.CurrencyPair, assetType string, timestampStart time.Time) ([]exchange.TradeHistory, error) {
 	var resp []exchange.TradeHistory
 
-	return resp, errors.New("trade history not yet implemented")
+	if timestampStart.IsZero() {
+		timestampStart = time.Now().AddDate(0, -3, 0) // 3 months prior to today
+	}
+	b.Verbose = true
+	th, err := b.GetTradeHistory(p.Pair().String(), 100, 0, timestampStart)
+	if err != nil {
+		return resp, err
+	}
+
+	for _, data := range th {
+		t := common.ConvertUnixMilliToNano(data.Timestamp)
+		resp = append(resp, exchange.TradeHistory{
+			Timestamp: time.Unix(0, t),
+			TID:       data.ID,
+			Price:     data.Price,
+			Amount:    data.Quantity,
+			Exchange:  b.GetName(),
+			Type:      data.Side,
+		})
+	}
+
+	return resp, nil
 }
 
 // SubmitExchangeOrder submits a new order
