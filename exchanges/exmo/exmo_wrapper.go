@@ -170,10 +170,26 @@ func (e *EXMO) GetExchangeFundTransferHistory() ([]exchange.FundHistory, error) 
 }
 
 // GetExchangeHistory returns historic trade data since exchange opening.
-func (e *EXMO) GetExchangeHistory(pair pair.CurrencyPair, assetType string, timestampStart time.Time) ([]exchange.TradeHistory, error) {
+func (e *EXMO) GetExchangeHistory(p pair.CurrencyPair, assetType string, timestampStart time.Time) ([]exchange.TradeHistory, error) {
 	var resp []exchange.TradeHistory
 
-	return resp, errors.New("trade history not yet implemented")
+	trades, err := e.GetTrades(p.Pair().String())
+	if err != nil {
+		return resp, err
+	}
+
+	for _, data := range trades[p.Pair().String()] {
+		resp = append(resp, exchange.TradeHistory{
+			Timestamp: time.Unix(data.Date, 0),
+			TID:       data.TradeID,
+			Price:     data.Price,
+			Amount:    data.Quantity,
+			Exchange:  e.GetName(),
+			Type:      data.Type,
+		})
+	}
+
+	return resp, nil
 }
 
 // SubmitExchangeOrder submits a new order
