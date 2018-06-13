@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/thrasher-/gocryptotrader/config"
+	"github.com/thrasher-/gocryptotrader/currency/pair"
 )
 
 // Please supply you own test keys here to run better tests.
@@ -226,5 +227,13 @@ func TestGetDepositHistory(t *testing.T) {
 	_, err = b.GetDepositHistory("btc-ltc")
 	if err == nil {
 		t.Error("Test Failed - Bittrex - GetDepositHistory() error")
+	}
+}
+
+func TestGetExchangeHistory(t *testing.T) {
+	p := pair.NewCurrencyPairDelimiter("BTC-DOGE", "-")
+	_, err := b.GetExchangeHistory(p, "SPOT", time.Time{})
+	if err != nil {
+		t.Error("Test Failed - Bittrex - GetExchangeHistory() error", err)
 	}
 }
