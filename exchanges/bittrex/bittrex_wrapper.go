@@ -163,10 +163,30 @@ func (b *Bittrex) GetFundingHistory() ([]exchange.FundHistory, error) {
 }
 
 // GetExchangeHistory returns historic trade data since exchange opening.
-func (b *Bittrex) GetExchangeHistory(pair pair.CurrencyPair, assetType string, timestampStart time.Time) ([]exchange.TradeHistory, error) {
+func (b *Bittrex) GetExchangeHistory(p pair.CurrencyPair, assetType string, timestampStart time.Time) ([]exchange.TradeHistory, error) {
 	var resp []exchange.TradeHistory
 
-	return resp, common.ErrNotYetImplemented
+	trades, err := b.GetMarketHistory(p.Pair().String())
+	if err != nil {
+		return resp, err
+	}
+
+	for _, data := range trades.Result {
+		t, err := time.Parse(time.RFC3339, data.Timestamp+"Z")
+		if err != nil {
+			return resp, err
+		}
+		resp = append(resp, exchange.TradeHistory{
+			Timestamp: t,
+			TID:       int64(data.ID),
+			Price:     data.Price,
+			Amount:    data.Quantity,
+			Exchange:  b.GetName(),
+			Type:      data.OrderType,
+		})
+	}
+
+	return resp, nil
 }
 
 // SubmitOrder submits a new order

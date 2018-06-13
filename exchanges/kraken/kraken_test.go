@@ -2,6 +2,7 @@ package kraken
 
 import (
 	"testing"
+	"time"
 
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
@@ -386,5 +387,13 @@ func TestCancelExchangeOrder(t *testing.T) {
 	// Assert
 	if err != nil {
 		t.Errorf("Could not cancel order: %s", err)
+	}
+}
+
+func TestGetExchangeHistory(t *testing.T) {
+	p := pair.NewCurrencyPair("XBT", "USD")
+	_, err := k.GetExchangeHistory(p, "SPOT", time.Time{})
+	if err != nil {
+		t.Error("Test Failed - GetExchangeHistory() error", err)
 	}
 }

@@ -141,7 +141,28 @@ func (c *CoinbasePro) GetFundingHistory() ([]exchange.FundHistory, error) {
 func (c *CoinbasePro) GetExchangeHistory(p pair.CurrencyPair, assetType string, timestampStart time.Time) ([]exchange.TradeHistory, error) {
 	var resp []exchange.TradeHistory
 
-	return resp, common.ErrNotYetImplemented
+	if timestampStart.IsZero() {
+		timestampStart = time.Now().AddDate(0, -3, 0) // 3 months prior to now
+	}
+	timestampEnd := timestampStart.Add(5 * time.Hour)
+
+	trades, err := c.GetHistoricRates(p.Pair().String(), timestampStart.Format(time.RFC3339), timestampEnd.Format(time.RFC3339), 60)
+	if err != nil {
+		return resp, err
+	}
+
+	for _, data := range trades {
+		resp = append(resp, exchange.TradeHistory{
+			Timestamp: time.Unix(data.Time, 0),
+			TID:       0,
+			Price:     data.Close,
+			Amount:    data.Volume,
+			Exchange:  c.GetName(),
+			Type:      "Not Specified",
+		})
+	}
+
+	return resp, nil
 }
 
 // SubmitOrder submits a new order

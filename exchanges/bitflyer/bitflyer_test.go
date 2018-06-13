@@ -3,6 +3,7 @@ package bitflyer
 import (
 	"log"
 	"testing"
+	"time"
 
 	"github.com/thrasher-/gocryptotrader/currency/symbol"
 	"github.com/thrasher-/gocryptotrader/exchanges"
@@ -302,5 +303,13 @@ func TestCancelExchangeOrder(t *testing.T) {
 	// Assert
 	if err != nil {
 		t.Errorf("Could not cancel order: %s", err)
+	}
+}
+
+func TestGetExchangeHistory(t *testing.T) {
+	p := pair.NewCurrencyPairDelimiter("BTC_JPY", "_")
+	_, err := b.GetExchangeHistory(p, "SPOT", time.Time{})
+	if err != nil {
+		t.Error("test failed - Bitflyer - GetExchangeHistory() error", err)
 	}
 }

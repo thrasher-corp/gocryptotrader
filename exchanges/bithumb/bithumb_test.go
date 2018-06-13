@@ -2,6 +2,7 @@ package bithumb
 
 import (
 	"testing"
+	"time"
 
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
@@ -339,5 +340,13 @@ func TestCancelExchangeOrder(t *testing.T) {
 	// Assert
 	if err != nil {
 		t.Errorf("Could not cancel order: %s", err)
+	}
+}
+
+func TestGetExchangeHistory(t *testing.T) {
+	p := pair.NewCurrencyPair("BTC", "USD")
+	_, err := b.GetExchangeHistory(p, "SPOT", time.Time{})
+	if err != nil {
+		t.Error("test failed - Bithumb GetExchangeHistory() error", err)
 	}
 }

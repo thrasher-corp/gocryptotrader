@@ -2,6 +2,7 @@ package poloniex
 
 import (
 	"testing"
+	"time"
 
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
@@ -249,5 +250,13 @@ func TestCancelExchangeOrder(t *testing.T) {
 	// Assert
 	if err != nil {
 		t.Errorf("Could not cancel order: %s", err)
+	}
+}
+
+func TestGetExchangeHistory(t *testing.T) {
+	pOne := pair.NewCurrencyPairDelimiter("BTC_NXT", "_")
+	_, err := p.GetExchangeHistory(pOne, "SPOT", time.Time{})
+	if err != nil {
+		t.Error("Test faild - Poloniex GetExchangeHistory() error", err)
 	}
 }

@@ -2,6 +2,7 @@ package wex
 
 import (
 	"testing"
+	"time"
 
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
@@ -86,7 +87,7 @@ func TestGetTrades(t *testing.T) {
 		t.Skip()
 	}
 	t.Parallel()
-	_, err := w.GetTrades("btc_usd")
+	_, err := w.GetTrades("btc_usd", 0)
 	if err != nil {
 		t.Error("Test Failed - GetTrades() error", err)
 	}
@@ -385,5 +386,13 @@ func TestCancelExchangeOrder(t *testing.T) {
 	// Assert
 	if err != nil {
 		t.Errorf("Could not cancel order: %s", err)
+	}
+}
+
+func TestGetExchangeHistory(t *testing.T) {
+	p := pair.NewCurrencyPairDelimiter("btc_usd", "_")
+	_, err := w.GetExchangeHistory(p, "SPOT", time.Time{})
+	if err != nil {
+		t.Error("Test Failed - GetExchangeHistory() error", err)
 	}
 }

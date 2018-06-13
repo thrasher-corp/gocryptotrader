@@ -3,6 +3,7 @@ package liqui
 import (
 	"net/url"
 	"testing"
+	"time"
 
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
@@ -289,5 +290,13 @@ func TestCancelExchangeOrder(t *testing.T) {
 	// Assert
 	if err != nil {
 		t.Errorf("Could not cancel order: %s", err)
+	}
+}
+
+func TestGetExchangeHistory(t *testing.T) {
+	p := pair.NewCurrencyPairDelimiter("eth_btc", "_")
+	_, err := l.GetExchangeHistory(p, "SPOT", time.Time{})
+	if err != nil {
+		t.Error("Test Failed - liqui GetExchangeHistory() error", err)
 	}
 }

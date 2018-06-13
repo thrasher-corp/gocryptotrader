@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
@@ -454,5 +455,13 @@ func TestCancelExchangeOrder(t *testing.T) {
 	// Assert
 	if err != nil {
 		t.Errorf("Could not cancel order: %s", err)
+	}
+}
+
+func TestGetExchangeHistory(t *testing.T) {
+	p := pair.NewCurrencyPair("BTC", "USDT")
+	_, err := h.GetExchangeHistory(p, "SPOT", time.Time{})
+	if err != nil {
+		t.Error("test failed - Huobi GetExchangeHistory() error", err)
 	}
 }

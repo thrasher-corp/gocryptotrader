@@ -390,3 +390,11 @@ func TestCancelExchangeOrder(t *testing.T) {
 		t.Errorf("Could not cancel order: %s", err)
 	}
 }
+
+func TestGetExchangeHistory(t *testing.T) {
+	p := pair.NewCurrencyPairDelimiter("BTC-DOGE", "-")
+	_, err := b.GetExchangeHistory(p, "SPOT", time.Time{})
+	if err != nil {
+		t.Error("Test Failed - Bittrex - GetExchangeHistory() error", err)
+	}
+}

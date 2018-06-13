@@ -166,10 +166,29 @@ func (h *HUOBI) GetFundingHistory() ([]exchange.FundHistory, error) {
 }
 
 // GetExchangeHistory returns historic trade data since exchange opening.
-func (h *HUOBI) GetExchangeHistory(pair pair.CurrencyPair, assetType string, timestampStart time.Time) ([]exchange.TradeHistory, error) {
+func (h *HUOBI) GetExchangeHistory(p pair.CurrencyPair, assetType string, timestampStart time.Time) ([]exchange.TradeHistory, error) {
 	var resp []exchange.TradeHistory
 
-	return resp, common.ErrNotYetImplemented
+	trades, err := h.GetTradeHistory(p.Pair().String(), "2000")
+	if err != nil {
+		return resp, err
+	}
+
+	for i := range trades {
+		for _, data := range trades[i].Trades {
+			t := common.ConvertUnixMilliToNano(data.Timestamp)
+			resp = append(resp, exchange.TradeHistory{
+				Timestamp: time.Unix(0, t),
+				TID:       int64(data.ID),
+				Price:     data.Price,
+				Amount:    data.Amount,
+				Exchange:  h.GetName(),
+				Type:      data.Direction,
+			})
+		}
+	}
+
+	return resp, nil
 }
 
 // SubmitOrder submits a new order

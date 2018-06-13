@@ -187,10 +187,27 @@ func (o *OKCoin) GetFundingHistory() ([]exchange.FundHistory, error) {
 }
 
 // GetExchangeHistory returns historic trade data since exchange opening.
-func (o *OKCoin) GetExchangeHistory(pair pair.CurrencyPair, assetType string, timestampStart time.Time) ([]exchange.TradeHistory, error) {
+func (o *OKCoin) GetExchangeHistory(p pair.CurrencyPair, assetType string, timestampStart time.Time) ([]exchange.TradeHistory, error) {
 	var resp []exchange.TradeHistory
 
-	return resp, common.ErrNotYetImplemented
+	trades, err := o.GetTrades(p.Pair().String(), 0)
+	if err != nil {
+		return resp, err
+	}
+
+	for _, data := range trades {
+		nano := common.ConvertUnixMilliToNano(data.DateMS)
+		resp = append(resp, exchange.TradeHistory{
+			Timestamp: time.Unix(0, nano),
+			TID:       data.TradeID,
+			Price:     data.Price,
+			Amount:    data.Amount,
+			Exchange:  o.GetName(),
+			Type:      data.Type,
+		})
+	}
+
+	return resp, nil
 }
 
 // SubmitOrder submits a new order

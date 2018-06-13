@@ -2,6 +2,7 @@ package exmo
 
 import (
 	"testing"
+	"time"
 
 	"github.com/thrasher-/gocryptotrader/currency/pair"
 	"github.com/thrasher-/gocryptotrader/currency/symbol"
@@ -304,5 +305,13 @@ func TestCancelExchangeOrder(t *testing.T) {
 	// Assert
 	if err != nil {
 		t.Errorf("Could not cancel order: %s", err)
+	}
+}
+
+func TestGetExchangeHistory(t *testing.T) {
+	p := pair.NewCurrencyPairDelimiter("BTC_USD", "_")
+	_, err := e.GetExchangeHistory(p, "SPOT", time.Time{})
+	if err != nil {
+		t.Error("Test failed - Exmo GetExchangeHistory() error", err)
 	}
 }

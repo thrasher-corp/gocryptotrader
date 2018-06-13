@@ -60,7 +60,7 @@ func TestGetTrades(t *testing.T) {
 }
 
 func TestGetHistoricRates(t *testing.T) {
-	_, err := c.GetHistoricRates("BTC-USD", 0, 0, 0)
+	_, err := c.GetHistoricRates("BTC-USD", "", "", 0)
 	if err != nil {
 		t.Error("Test failed - GetHistoricRates() error", err)
 	}
@@ -462,5 +462,13 @@ func TestCancelExchangeOrder(t *testing.T) {
 	// Assert
 	if err != nil {
 		t.Errorf("Could not cancel order: %s", err)
+	}
+}
+
+func TestGetExchangeHistory(t *testing.T) {
+	p := pair.NewCurrencyPairDelimiter("BTC-USD", "-")
+	_, err := c.GetExchangeHistory(p, "SPOT", time.Time{})
+	if err != nil {
+		t.Error("Test failed - GetExchangeHistory() error", err)
 	}
 }

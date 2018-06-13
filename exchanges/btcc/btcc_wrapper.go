@@ -126,8 +126,8 @@ func (b *BTCC) UpdateOrderbook(p pair.CurrencyPair, assetType string) (orderbook
 	return orderbook.Base{}, errors.New("REST NOT SUPPORTED")
 }
 
-// GetAccountInfo : Retrieves balances for all enabled currencies for
-// the Kraken exchange - TODO
+// GetAccountInfo retrieves balances for all enabled currencies for
+// the BTCC exchange - TODO
 func (b *BTCC) GetAccountInfo() (exchange.AccountInfo, error) {
 	// var response exchange.AccountInfo
 	// response.ExchangeName = b.GetName()

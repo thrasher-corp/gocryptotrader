@@ -143,10 +143,26 @@ func (l *Liqui) GetFundingHistory() ([]exchange.FundHistory, error) {
 }
 
 // GetExchangeHistory returns historic trade data since exchange opening.
-func (l *Liqui) GetExchangeHistory(pair pair.CurrencyPair, assetType string, timestampStart time.Time) ([]exchange.TradeHistory, error) {
+func (l *Liqui) GetExchangeHistory(p pair.CurrencyPair, assetType string, timestampStart time.Time) ([]exchange.TradeHistory, error) {
 	var resp []exchange.TradeHistory
 
-	return resp, common.ErrNotYetImplemented
+	trades, err := l.GetTrades(p.Pair().String())
+	if err != nil {
+		return resp, err
+	}
+
+	for _, data := range trades {
+		resp = append(resp, exchange.TradeHistory{
+			Timestamp: time.Unix(data.Timestamp, 0),
+			TID:       data.TID,
+			Price:     data.Price,
+			Amount:    data.Amount,
+			Exchange:  l.GetName(),
+			Type:      data.Type,
+		})
+	}
+
+	return resp, nil
 }
 
 // SubmitOrder submits a new order

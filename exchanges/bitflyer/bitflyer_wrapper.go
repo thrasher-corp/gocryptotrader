@@ -147,10 +147,29 @@ func (b *Bitflyer) GetFundingHistory() ([]exchange.FundHistory, error) {
 }
 
 // GetExchangeHistory returns historic trade data since exchange opening.
-func (b *Bitflyer) GetExchangeHistory(pair pair.CurrencyPair, assetType string, timestampStart time.Time) ([]exchange.TradeHistory, error) {
+func (b *Bitflyer) GetExchangeHistory(p pair.CurrencyPair, assetType string, timestampStart time.Time) ([]exchange.TradeHistory, error) {
 	var resp []exchange.TradeHistory
+	trades, err := b.GetExecutionHistory(p.Pair().String())
+	if err != nil {
+		return resp, err
+	}
 
-	return resp, common.ErrNotYetImplemented
+	for _, data := range trades {
+		t, err := time.Parse(time.RFC3339, data.ExecDate+"Z")
+		if err != nil {
+			return resp, err
+		}
+		resp = append(resp, exchange.TradeHistory{
+			Timestamp: t,
+			TID:       data.ID,
+			Price:     data.Price,
+			Amount:    data.Size,
+			Exchange:  b.GetName(),
+			Type:      data.Side,
+		})
+	}
+
+	return resp, nil
 }
 
 // SubmitOrder submits a new order

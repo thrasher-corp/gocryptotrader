@@ -14,7 +14,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 )
 
-// Start starts the OKEX go routine
+// Start starts the bithumb go routine
 func (b *Bithumb) Start(wg *sync.WaitGroup) {
 	wg.Add(1)
 	go func() {
@@ -23,7 +23,7 @@ func (b *Bithumb) Start(wg *sync.WaitGroup) {
 	}()
 }
 
-// Run implements the OKEX wrapper
+// Run implements the bithumb wrapper
 func (b *Bithumb) Run() {
 	if b.Verbose {
 		log.Printf("%s Websocket: %s. (url: %s).\n", b.GetName(), common.IsEnabled(b.Websocket.IsEnabled()), b.WebsocketURL)
@@ -135,10 +135,34 @@ func (b *Bithumb) GetFundingHistory() ([]exchange.FundHistory, error) {
 }
 
 // GetExchangeHistory returns historic trade data since exchange opening.
-func (b *Bithumb) GetExchangeHistory(pair pair.CurrencyPair, assetType string, timestampStart time.Time) ([]exchange.TradeHistory, error) {
+func (b *Bithumb) GetExchangeHistory(p pair.CurrencyPair, assetType string, timestampStart time.Time) ([]exchange.TradeHistory, error) {
 	var resp []exchange.TradeHistory
+	trans, err := b.GetTransactionHistory(p.GetFirstCurrency().String())
+	if err != nil {
+		return resp, err
+	}
 
-	return resp, common.ErrNotYetImplemented
+	for _, data := range trans.Data {
+		resp = append(resp, exchange.TradeHistory{
+			Timestamp: ConvertToRFC3339(data.TransactionDate),
+			TID:       data.ContNumber,
+			Price:     data.Price,
+			Amount:    data.UnitsTraded,
+			Exchange:  b.GetName(),
+			Type:      data.Type,
+		})
+	}
+
+	return resp, nil
+}
+
+// ConvertToRFC3339 converts string from bithumb to a RFC3339 format
+func ConvertToRFC3339(t string) time.Time {
+	split := common.SplitStrings(t, " ")
+	join := common.JoinStrings(split, "T")
+	join += "Z"
+	newTime, _ := time.Parse(time.RFC3339, join)
+	return newTime
 }
 
 // SubmitOrder submits a new order

@@ -150,10 +150,43 @@ func (p *Poloniex) GetFundingHistory() ([]exchange.FundHistory, error) {
 }
 
 // GetExchangeHistory returns historic trade data since exchange opening.
-func (p *Poloniex) GetExchangeHistory(pair pair.CurrencyPair, assetType string, timestampStart time.Time) ([]exchange.TradeHistory, error) {
+func (p *Poloniex) GetExchangeHistory(cp pair.CurrencyPair, assetType string, timestampStart time.Time) ([]exchange.TradeHistory, error) {
 	var resp []exchange.TradeHistory
 
-	return resp, common.ErrNotYetImplemented
+	if timestampStart.IsZero() {
+		timestampStart = time.Now().AddDate(0, -3, 0) // 3 months prior to now
+	}
+
+	timestampEnd := timestampStart.AddDate(0, 0, 1) // add 24 hours
+
+	trades, err := p.GetTradeHistory(cp.Pair().String(), strconv.FormatInt(timestampStart.Unix(), 10), strconv.FormatInt(timestampEnd.Unix(), 10))
+	if err != nil {
+		return resp, err
+	}
+
+	for _, data := range trades {
+		cTime, err := ConvertTimeStringToRFC3339(data.Date)
+		if err != nil {
+			return resp, err
+		}
+		resp = append(resp, exchange.TradeHistory{
+			Timestamp: cTime,
+			TID:       data.TradeID,
+			Price:     data.Rate,
+			Amount:    data.Amount,
+			Exchange:  p.GetName(),
+			Type:      data.Type,
+		})
+	}
+
+	return resp, nil
+}
+
+// ConvertTimeStringToRFC3339 converts returned time string to time.Time
+func ConvertTimeStringToRFC3339(timestamp string) (time.Time, error) {
+	split := common.SplitStrings(timestamp, " ")
+	join := common.JoinStrings(split, "T")
+	return time.Parse(time.RFC3339, join+"Z")
 }
 
 // SubmitOrder submits a new order

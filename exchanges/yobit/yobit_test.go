@@ -2,6 +2,7 @@ package yobit
 
 import (
 	"testing"
+	"time"
 
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
@@ -62,7 +63,7 @@ func TestGetDepth(t *testing.T) {
 
 func TestGetTrades(t *testing.T) {
 	t.Parallel()
-	_, err := y.GetTrades("btc_usd")
+	_, err := y.GetTrades("btc_usd", 0)
 	if err != nil {
 		t.Error("Test Failed - GetTrades() error", err)
 	}
@@ -132,11 +133,11 @@ func TestGetDepositAddress(t *testing.T) {
 	}
 }
 
-func TestCreateYobicode(t *testing.T) {
+func TestCreateYobitcode(t *testing.T) {
 	t.Parallel()
 	_, err := y.CreateCoupon("bla", 0)
 	if err == nil {
-		t.Error("Test Failed - CreateYobicode() error", err)
+		t.Error("Test Failed - CreateYobitcode() error", err)
 	}
 }
 
@@ -144,7 +145,15 @@ func TestRedeemYobicode(t *testing.T) {
 	t.Parallel()
 	_, err := y.RedeemCoupon("bla2")
 	if err == nil {
-		t.Error("Test Failed - RedeemYobicode() error", err)
+		t.Error("Test Failed - RedeemCoupon() error", err)
+	}
+}
+
+func TestGetExchangeHistory(t *testing.T) {
+	p := pair.NewCurrencyPairDelimiter("ltc_btc", "_")
+	_, err := y.GetExchangeHistory(p, "SPOT", time.Time{})
+	if err != nil {
+		t.Error("Test Failed - GetExchangeHistory() error", err)
 	}
 }
 

@@ -3,6 +3,7 @@ package bitstamp
 import (
 	"fmt"
 	"log"
+	"net/url"
 	"strconv"
 	"strings"
 	"sync"
@@ -160,10 +161,28 @@ func (b *Bitstamp) GetFundingHistory() ([]exchange.FundHistory, error) {
 }
 
 // GetExchangeHistory returns historic trade data since exchange opening.
-func (b *Bitstamp) GetExchangeHistory(pair pair.CurrencyPair, assetType string, timestampStart time.Time) ([]exchange.TradeHistory, error) {
+func (b *Bitstamp) GetExchangeHistory(p pair.CurrencyPair, assetType string, timestampStart time.Time) ([]exchange.TradeHistory, error) {
 	var resp []exchange.TradeHistory
+	values := url.Values{}
+	values.Set("time", "minute")
+	trans, err := b.GetTransactions(p.GetFirstCurrency().String()+p.GetSecondCurrency().String(),
+		values)
+	if err != nil {
+		return resp, err
+	}
 
-	return resp, common.ErrNotYetImplemented
+	for i := range trans {
+		resp = append(resp, exchange.TradeHistory{
+			Timestamp: time.Unix(trans[i].Date, 0),
+			TID:       trans[i].TradeID,
+			Price:     trans[i].Price,
+			Amount:    trans[i].Amount,
+			Exchange:  b.GetName(),
+			Type:      strconv.FormatInt(int64(trans[i].Type), 10),
+		})
+	}
+
+	return resp, nil
 }
 
 // SubmitOrder submits a new order
