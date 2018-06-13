@@ -194,10 +194,26 @@ func (k *Kraken) GetExchangeFundTransferHistory() ([]exchange.FundHistory, error
 }
 
 // GetExchangeHistory returns historic trade data since exchange opening.
-func (k *Kraken) GetExchangeHistory(pair pair.CurrencyPair, assetType string, timestampStart time.Time) ([]exchange.TradeHistory, error) {
+func (k *Kraken) GetExchangeHistory(p pair.CurrencyPair, assetType string, timestampStart time.Time) ([]exchange.TradeHistory, error) {
 	var resp []exchange.TradeHistory
 
-	return resp, errors.New("trade history not yet implemented")
+	trades, err := k.GetTrades(p.Pair().String())
+	if err != nil {
+		return resp, err
+	}
+
+	for _, data := range trades {
+		resp = append(resp, exchange.TradeHistory{
+			Timestamp: time.Unix(int64(data.Time), 0),
+			TID:       0,
+			Price:     data.Price,
+			Amount:    data.Volume,
+			Exchange:  k.GetName(),
+			Type:      data.BuyOrSell,
+		})
+	}
+
+	return resp, nil
 }
 
 // SubmitExchangeOrder submits a new order

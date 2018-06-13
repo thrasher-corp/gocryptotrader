@@ -1,6 +1,7 @@
 package kraken
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"net/url"
@@ -321,29 +322,45 @@ func (k *Kraken) GetTrades(symbol string) ([]RecentTrades, error) {
 		return recentTrades, err
 	}
 
-	data := result.(map[string]interface{})
-	tradeInfo := data["result"].(map[string]interface{})
-
-	for _, x := range tradeInfo[symbol].([]interface{}) {
-		r := RecentTrades{}
-		for i, y := range x.([]interface{}) {
-			switch i {
-			case 0:
-				r.Price, _ = strconv.ParseFloat(y.(string), 64)
-			case 1:
-				r.Volume, _ = strconv.ParseFloat(y.(string), 64)
-			case 2:
-				r.Time = y.(float64)
-			case 3:
-				r.BuyOrSell = y.(string)
-			case 4:
-				r.MarketOrLimit = y.(string)
-			case 5:
-				r.Miscellaneous = y.(string)
+	for x, data := range result.(map[string]interface{}) {
+		if x == "error" {
+			if len(data.([]interface{})) > 0 {
+				for _, item := range data.([]interface{}) {
+					return recentTrades, errors.New(item.(string))
+				}
+			}
+			continue
+		}
+		if x == "result" {
+			for y, trades := range data.(map[string]interface{}) {
+				if y == "last" {
+					continue
+				}
+				for _, trade := range trades.([]interface{}) {
+					var r RecentTrades
+					for i, item := range trade.([]interface{}) {
+						switch i {
+						case 0:
+							r.Price, _ = strconv.ParseFloat(item.(string), 64)
+						case 1:
+							r.Volume, _ = strconv.ParseFloat(item.(string), 64)
+						case 2:
+							r.Time = item.(float64)
+						case 3:
+							r.BuyOrSell = item.(string)
+						case 4:
+							r.MarketOrLimit = item.(string)
+						case 5:
+							r.Miscellaneous = item.(string)
+							recentTrades = append(recentTrades, r)
+							break
+						}
+					}
+				}
 			}
 		}
-		recentTrades = append(recentTrades, r)
 	}
+
 	return recentTrades, nil
 }
 
