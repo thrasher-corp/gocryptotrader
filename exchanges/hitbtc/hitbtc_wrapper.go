@@ -3,6 +3,7 @@ package hitbtc
 import (
 	"errors"
 	"log"
+	"strconv"
 	"sync"
 	"time"
 
@@ -153,10 +154,38 @@ func (h *HitBTC) GetExchangeFundTransferHistory() ([]exchange.FundHistory, error
 }
 
 // GetExchangeHistory returns historic trade data since exchange opening.
-func (h *HitBTC) GetExchangeHistory(pair pair.CurrencyPair, assetType string, timestampStart time.Time) ([]exchange.TradeHistory, error) {
+func (h *HitBTC) GetExchangeHistory(p pair.CurrencyPair, assetType string, timestampStart time.Time) ([]exchange.TradeHistory, error) {
 	var resp []exchange.TradeHistory
 
-	return resp, errors.New("trade history not yet implemented")
+	if timestampStart.IsZero() {
+		timestampStart = time.Now().AddDate(0, -3, 0) // 3 months prior to now
+	}
+	timestampEnd := timestampStart.AddDate(0, 0, 1) // add 24 hrs
+
+	trades, err := h.GetTrades(p.Pair().String(),
+		strconv.FormatInt(timestampStart.Unix(), 10),
+		strconv.FormatInt(timestampEnd.Unix(), 10),
+		"1000", "", "timestamp", "")
+	if err != nil {
+		return resp, err
+	}
+
+	for _, data := range trades {
+		t, err := time.Parse(time.RFC3339, data.Timestamp)
+		if err != nil {
+			return resp, err
+		}
+		resp = append(resp, exchange.TradeHistory{
+			Timestamp: t,
+			TID:       data.ID,
+			Price:     data.Price,
+			Amount:    data.Quantity,
+			Exchange:  h.GetName(),
+			Type:      data.Side,
+		})
+	}
+
+	return resp, nil
 }
 
 // SubmitExchangeOrder submits a new order

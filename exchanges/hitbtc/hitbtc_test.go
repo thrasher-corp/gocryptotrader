@@ -2,11 +2,13 @@ package hitbtc
 
 import (
 	"testing"
+	"time"
 
 	"github.com/thrasher-/gocryptotrader/config"
+	"github.com/thrasher-/gocryptotrader/currency/pair"
 )
 
-var p HitBTC
+var h HitBTC
 
 // Please supply your own APIKEYS here for due diligence testing
 
@@ -16,7 +18,7 @@ const (
 )
 
 func TestSetDefaults(t *testing.T) {
-	p.SetDefaults()
+	h.SetDefaults()
 }
 
 func TestSetup(t *testing.T) {
@@ -31,39 +33,47 @@ func TestSetup(t *testing.T) {
 	hitbtcConfig.APIKey = apiKey
 	hitbtcConfig.APISecret = apiSecret
 
-	p.Setup(hitbtcConfig)
+	h.Setup(hitbtcConfig)
 }
 
 func TestGetFee(t *testing.T) {
-	if p.GetFee() != 0 {
+	if h.GetFee() != 0 {
 		t.Error("Test faild - HitBTC GetFee() error")
 	}
 }
 
 func TestGetOrderbook(t *testing.T) {
-	_, err := p.GetOrderbook("BTCUSD", 50)
+	_, err := h.GetOrderbook("BTCUSD", 50)
 	if err != nil {
 		t.Error("Test faild - HitBTC GetOrderbook() error", err)
 	}
 }
 
 func TestGetTrades(t *testing.T) {
-	_, err := p.GetTrades("BTCUSD", "", "", "", "", "", "")
+	_, err := h.GetTrades("BTCUSD", "", "", "", "", "", "")
 	if err != nil {
 		t.Error("Test faild - HitBTC GetTradeHistory() error", err)
 	}
 }
 
 func TestGetChartCandles(t *testing.T) {
-	_, err := p.GetCandles("BTCUSD", "", "")
+	_, err := h.GetCandles("BTCUSD", "", "")
 	if err != nil {
 		t.Error("Test faild - HitBTC GetChartData() error", err)
 	}
 }
 
 func TestGetCurrencies(t *testing.T) {
-	_, err := p.GetCurrencies("")
+	_, err := h.GetCurrencies("")
 	if err != nil {
 		t.Error("Test faild - HitBTC GetCurrencies() error", err)
+	}
+}
+
+func TestGetExchangeHistory(t *testing.T) {
+	p := pair.NewCurrencyPair("BTC", "USD")
+	_, err := h.GetExchangeHistory(p, "SPOT", time.Time{})
+	if err != nil {
+		t.Error("Test faild - HitBTC GetExchangeHistory() error", err)
 	}
 }
