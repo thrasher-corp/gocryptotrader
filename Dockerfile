@@ -7,6 +7,7 @@ RUN mv -vn config_example.json config.json \
  && mv /go/bin/linux_386 /go/bin/gocryptotrader
 
 FROM alpine:latest
+RUN apk update && apk add ca-certificates && rm -rf /var/cache/apk/*
 COPY --from=build /go/bin/gocryptotrader /app/
 COPY --from=build /go/src/github.com/thrasher-/gocryptotrader/config.json /app/
 EXPOSE 9050
