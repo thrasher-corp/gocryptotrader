@@ -3,8 +3,10 @@ package gemini
 import (
 	"net/url"
 	"testing"
+	"time"
 
 	"github.com/thrasher-/gocryptotrader/config"
+	"github.com/thrasher-/gocryptotrader/currency/pair"
 )
 
 // Please enter sandbox API keys & assigned roles for better testing procedures
@@ -211,5 +213,13 @@ func TestPostHeartbeat(t *testing.T) {
 	_, err := Session[2].PostHeartbeat()
 	if err == nil {
 		t.Error("Test Failed - PostHeartbeat() error", err)
+	}
+}
+
+func TestGetExchangeHistory(t *testing.T) {
+	p := pair.NewCurrencyPair("BTC", "USD")
+	_, err := Session[2].GetExchangeHistory(p, "SPOT", time.Time{})
+	if err != nil {
+		t.Error("Test Failed - GetExchangeHistory() error", err)
 	}
 }
