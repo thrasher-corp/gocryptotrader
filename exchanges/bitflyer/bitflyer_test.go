@@ -3,6 +3,7 @@ package bitflyer
 import (
 	"log"
 	"testing"
+	"time"
 
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
@@ -169,5 +170,13 @@ func TestGetTickerPrice(t *testing.T) {
 	_, err := b.GetTickerPrice(p, b.AssetTypes[0])
 	if err != nil {
 		t.Error("test failed - Bitflyer - GetTickerPrice() error", err)
+	}
+}
+
+func TestGetExchangeHistory(t *testing.T) {
+	p := pair.NewCurrencyPairDelimiter("BTC_JPY", "_")
+	_, err := b.GetExchangeHistory(p, "SPOT", time.Time{})
+	if err != nil {
+		t.Error("test failed - Bitflyer - GetExchangeHistory() error", err)
 	}
 }
