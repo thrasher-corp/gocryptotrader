@@ -2,8 +2,10 @@ package lakebtc
 
 import (
 	"testing"
+	"time"
 
 	"github.com/thrasher-/gocryptotrader/config"
+	"github.com/thrasher-/gocryptotrader/currency/pair"
 )
 
 var l LakeBTC
@@ -149,5 +151,13 @@ func TestCreateWithdraw(t *testing.T) {
 	_, err := l.CreateWithdraw(0, 1337)
 	if err == nil {
 		t.Error("Test Failed - CreateWithdraw() error", err)
+	}
+}
+
+func TestGetExchangeHistory(t *testing.T) {
+	p := pair.NewCurrencyPair("BTC", "USD")
+	_, err := l.GetExchangeHistory(p, "SPOT", time.Time{})
+	if err != nil {
+		t.Error("Test Failed - GetExchangeHistory() error", err)
 	}
 }
