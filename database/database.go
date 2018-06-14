@@ -30,35 +30,9 @@ type ORM struct {
 	sync.Mutex
 }
 
-// NewORMConnection makes a connection to the database and returns a pointer
-// ORM object
-func NewORMConnection(databaseName, host, user, password string, verbose bool) (*ORM, error) {
-	dbORM := new(ORM)
-	dbORM.Verbose = verbose
-	return dbORM, dbORM.SetupConnection(databaseName, host, user, password)
-}
-
-// SetupConnection starts the connection to the GoCryptoTrader database
-func (o *ORM) SetupConnection(databaseName, host, user, password string) error {
-	db, err := sql.Open("postgres",
-		fmt.Sprintf("dbname=%s host=%s user=%s password=%s",
-			databaseName, host, user, password))
-	if err != nil {
-		return err
-	}
-	o.Exec = db
-
-	err = o.Exec.Ping()
-	if err != nil {
-		return err
-	}
-	o.SetInsertCounter()
-	o.Connected = true
-	return nil
-}
-
 // Connect connects to a db and loads a specific configuration
-func Connect(databaseName, host, user, password, configName string, verbose bool) (*ORM, error) {
+func Connect(databaseName, host, user, password string, verbose bool, cfg *config.Config) (*ORM, error) {
+	log.Println("Opening connection to database....")
 	dbORM := new(ORM)
 	dbORM.Verbose = verbose
 
@@ -76,9 +50,13 @@ func Connect(databaseName, host, user, password, configName string, verbose bool
 	}
 	dbORM.SetInsertCounter()
 	dbORM.Connected = true
-	err = dbORM.LoadConfiguration(configName)
+	err = dbORM.loadConfiguration(cfg.Name)
 	if err != nil {
-		return nil, err
+		err = dbORM.insertNewConfiguration(cfg, password)
+		if err != nil {
+			return nil, err
+		}
+		return dbORM, dbORM.loadConfiguration(cfg.Name)
 	}
 
 	return dbORM, nil
@@ -115,15 +93,8 @@ func (o *ORM) SetInsertCounter() {
 	o.InsertCounter["taxableEvents"] = models.TaxableEvents(o.Exec).CountP()
 }
 
-// LoadConfiguration loads a configuration that has already been loaded
-func (o *ORM) LoadConfiguration(configName string) error {
-	if !o.Connected {
-		if o.Verbose {
-			log.Println("cannot load configuration, no database connnection")
-		}
-		return nil
-	}
-
+// loadConfiguration loads a configuration that has already been loaded
+func (o *ORM) loadConfiguration(configName string) error {
 	if o.checkLoadedConfiguration(configName) {
 		var err error
 		o.ConfigID, err = o.getLoadedConfigurationID(configName)
@@ -136,14 +107,7 @@ func (o *ORM) LoadConfiguration(configName string) error {
 }
 
 // InsertNewConfiguration inserts a new configuration
-func (o *ORM) InsertNewConfiguration(cfg *config.Config, password string) error {
-	if !o.Connected {
-		if o.Verbose {
-			log.Println("cannot insert new configuration, no database connnection")
-		}
-		return nil
-	}
-
+func (o *ORM) insertNewConfiguration(cfg *config.Config, password string) error {
 	if o.checkLoadedConfiguration(cfg.Name) {
 		return errors.New("configuration already loaded")
 	}
@@ -159,12 +123,15 @@ func (o *ORM) InsertNewConfiguration(cfg *config.Config, password string) error 
 	if err != nil {
 		return err
 	}
-	err = o.insertSMSGlobalConfiguration(cfg.SMS.Username, cfg.SMS.Password, cfg.SMS.Enabled)
+	err = o.insertSMSGlobalConfiguration(cfg.Communications.SMSGlobalConfig.Username,
+		cfg.Communications.SMSGlobalConfig.Password,
+		cfg.Communications.SMSGlobalConfig.Enabled)
 	if err != nil {
 		return err
 	}
+
 	if cfg.CurrencyPairFormat == nil {
-		return errors.New("config currencypair is nil")
+		return nil
 	}
 	err = o.insertCurrencyPairConfiguration("config",
 		cfg.CurrencyPairFormat.Delimiter,
@@ -176,22 +143,6 @@ func (o *ORM) InsertNewConfiguration(cfg *config.Config, password string) error 
 		return err
 	}
 	return nil
-}
-
-// UpdateConfiguration updates an old configuration to new settings
-func (o *ORM) UpdateConfiguration(cfg *config.Config) error {
-	if !o.Connected {
-		if o.Verbose {
-			log.Println("cannot insert new configuration, no database connnection")
-		}
-		return nil
-	}
-
-	if o.checkLoadedConfiguration(cfg.Name) {
-		//NOTE do stuff
-		return nil
-	}
-	return errors.New("not yet implemented")
 }
 
 // CheckLoadedConfiguration checks if a configuration has been loaded in the
@@ -351,15 +302,15 @@ func (o *ORM) insertExchangeConfigurations(cfg []config.ExchangeConfig) error {
 
 // InsertExchangeTradeHistoryData inserts historic trade data
 func (o *ORM) InsertExchangeTradeHistoryData(transactionID int64, exchangeName, currencyPair, assetType, orderType string, amount, rate float64, fulfilledOn time.Time) error {
-	o.Lock()
-	defer o.Unlock()
-
 	if !o.Connected {
 		if o.Verbose {
 			log.Println("cannot exchange history data, no database connnection")
 		}
 		return nil
 	}
+
+	o.Lock()
+	defer o.Unlock()
 
 	dataExists, err := models.ExchangeTradeHistories(o.Exec,
 		qm.Where("exchange_id = ?", o.ExchangeID[exchangeName]),
@@ -399,15 +350,15 @@ func (o *ORM) InsertExchangeTradeHistoryData(transactionID int64, exchangeName, 
 
 // GetEnabledExchanges returns enabled exchanges
 func (o *ORM) GetEnabledExchanges() ([]string, error) {
-	o.Lock()
-	defer o.Unlock()
-
 	if !o.Connected {
 		if o.Verbose {
 			log.Println("cannot get exchange data, no database connnection")
 		}
 		return nil, errors.New("no database connection")
 	}
+
+	o.Lock()
+	defer o.Unlock()
 
 	exchanges, err := models.Exchanges(o.Exec, qm.Where("enabled = ?", true)).All()
 	if err != nil {
@@ -423,15 +374,15 @@ func (o *ORM) GetEnabledExchanges() ([]string, error) {
 // GetExchangeTradeHistoryLast returns the last updated time.Time value on a
 // trade history item
 func (o *ORM) GetExchangeTradeHistoryLast(exchangeName, currencyPair string) (time.Time, error) {
-	o.Lock()
-	defer o.Unlock()
-
 	if !o.Connected {
 		if o.Verbose {
 			log.Println("cannot get order history data, no database connnection")
 		}
 		return time.Time{}, errors.New("no database connection")
 	}
+
+	o.Lock()
+	defer o.Unlock()
 
 	result, err := models.ExchangeTradeHistories(o.Exec,
 		qm.Where("exchange_id = ?", o.ExchangeID[exchangeName]),

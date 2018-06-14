@@ -179,17 +179,9 @@ func main() {
 	go WebsocketRoutine(*verbosity)
 
 	if *dbStart {
-		log.Println("Opening connection to database....")
-		bot.db, err = database.NewORMConnection(*dbName, *dbHost, *dbUser, *dbPassword, *verbosity)
+		bot.db, err = database.Connect(*dbName, *dbHost, *dbUser, *dbPassword, *verbosity, bot.config)
 		if err != nil {
-			log.Fatal(err)
-		}
-		err = bot.db.LoadConfiguration(bot.config.Name)
-		if err != nil {
-			err = bot.db.InsertNewConfiguration(bot.config, "newPassword")
-			if err != nil {
-				log.Fatal(err)
-			}
+			log.Fatalf("Database connection error with config %s - %s", bot.config.Name, err)
 		}
 		log.Println("Database connection established")
 		if *dbSeedHistory {
