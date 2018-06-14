@@ -2,8 +2,10 @@ package poloniex
 
 import (
 	"testing"
+	"time"
 
 	"github.com/thrasher-/gocryptotrader/config"
+	"github.com/thrasher-/gocryptotrader/currency/pair"
 )
 
 var p Poloniex
@@ -86,5 +88,13 @@ func TestGetLoanOrders(t *testing.T) {
 	_, err := p.GetLoanOrders("BTC")
 	if err != nil {
 		t.Error("Test faild - Poloniex GetLoanOrders() error", err)
+	}
+}
+
+func TestGetExchangeHistory(t *testing.T) {
+	pOne := pair.NewCurrencyPairDelimiter("BTC_NXT", "_")
+	_, err := p.GetExchangeHistory(pOne, "SPOT", time.Time{})
+	if err != nil {
+		t.Error("Test faild - Poloniex GetExchangeHistory() error", err)
 	}
 }
