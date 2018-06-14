@@ -160,7 +160,6 @@ func (po *Poloniex) GetExchangeHistory(p pair.CurrencyPair, assetType string, ti
 	if timestampStart.IsZero() {
 		timestampStart = time.Now().AddDate(0, -3, 0) // 3 months prior to now
 	}
-
 	timestampEnd := timestampStart.AddDate(0, 0, 1) // add 24 hours
 
 	trades, err := po.GetTradeHistory(p.Pair().String(), strconv.FormatInt(timestampStart.Unix(), 10), strconv.FormatInt(timestampEnd.Unix(), 10))

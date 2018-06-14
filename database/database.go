@@ -58,7 +58,6 @@ func Connect(databaseName, host, user, password string, verbose bool, cfg *confi
 		}
 		return dbORM, dbORM.loadConfiguration(cfg.Name)
 	}
-
 	return dbORM, nil
 }
 
@@ -324,8 +323,7 @@ func (o *ORM) InsertExchangeTradeHistoryData(transactionID int64, exchangeName, 
 	}
 
 	if dataExists {
-		log.Println("row already found")
-		return nil
+		return errors.New("row already found")
 	}
 
 	th := &models.ExchangeTradeHistory{
@@ -371,14 +369,14 @@ func (o *ORM) GetEnabledExchanges() ([]string, error) {
 	return enabledExchanges, nil
 }
 
-// GetExchangeTradeHistoryLast returns the last updated time.Time value on a
-// trade history item
-func (o *ORM) GetExchangeTradeHistoryLast(exchangeName, currencyPair string) (time.Time, error) {
+// GetExchangeTradeHistoryLast returns the last updated time.Time and tradeID
+// values for the most recent trade history data in the set.
+func (o *ORM) GetExchangeTradeHistoryLast(exchangeName, currencyPair string) (time.Time, int64, error) {
 	if !o.Connected {
 		if o.Verbose {
 			log.Println("cannot get order history data, no database connnection")
 		}
-		return time.Time{}, errors.New("no database connection")
+		return time.Time{}, 0, errors.New("no database connection")
 	}
 
 	o.Lock()
@@ -391,12 +389,12 @@ func (o *ORM) GetExchangeTradeHistoryLast(exchangeName, currencyPair string) (ti
 		qm.Limit(1)).One()
 	if err != nil {
 		if err.Error() == "sql: no rows in result set" {
-			return time.Time{}, nil
+			return time.Time{}, 0, nil
 		}
-		return time.Time{}, err
+		return time.Time{}, 0, err
 	}
 
-	return result.FulfilledOn, nil
+	return result.FulfilledOn, result.ExchangeTradeHistoryID, nil
 }
 
 // GetExchangeTradeHistory returns the full trade history by exchange name,

@@ -197,7 +197,7 @@ func (k *Kraken) GetExchangeFundTransferHistory() ([]exchange.FundHistory, error
 func (k *Kraken) GetExchangeHistory(p pair.CurrencyPair, assetType string, timestampStart time.Time, tradeID int64) ([]exchange.TradeHistory, error) {
 	var resp []exchange.TradeHistory
 
-	trades, err := k.GetTrades(p.Pair().String())
+	trades, err := k.GetTrades(p.Pair().String(), tradeID)
 	if err != nil {
 		return resp, err
 	}

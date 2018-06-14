@@ -150,14 +150,7 @@ func (b *BTCMarkets) GetExchangeHistory(p pair.CurrencyPair, assetType string, t
 	var resp []exchange.TradeHistory
 
 	v := url.Values{}
-	if timestampStart.IsZero() {
-		v.Set("since", "0")
-	} else {
-		if common.CountInt(timestampStart.Unix()) != 10 {
-			return resp, errors.New("BTCMarkets GetExchangeHistory() error - malformed unix timestamp")
-		}
-		v.Set("since", strconv.FormatInt(timestampStart.Unix(), 10))
-	}
+	v.Set("since", strconv.FormatInt(tradeID, 10))
 
 	trades, err := b.GetTrades(p.GetFirstCurrency().String(), p.GetSecondCurrency().String(), v)
 	if err != nil {

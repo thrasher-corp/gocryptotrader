@@ -149,7 +149,7 @@ func (b *Bitflyer) GetExchangeFundTransferHistory() ([]exchange.FundHistory, err
 // GetExchangeHistory returns historic trade data since exchange opening.
 func (b *Bitflyer) GetExchangeHistory(p pair.CurrencyPair, assetType string, timestampStart time.Time, tradeID int64) ([]exchange.TradeHistory, error) {
 	var resp []exchange.TradeHistory
-	trades, err := b.GetExecutionHistory(p.Pair().String())
+	trades, err := b.GetExecutionHistory(p.Pair().String(), tradeID)
 	if err != nil {
 		return resp, err
 	}

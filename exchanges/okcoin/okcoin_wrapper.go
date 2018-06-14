@@ -159,7 +159,7 @@ func (o *OKCoin) GetExchangeFundTransferHistory() ([]exchange.FundHistory, error
 func (o *OKCoin) GetExchangeHistory(p pair.CurrencyPair, assetType string, timestampStart time.Time, tradeID int64) ([]exchange.TradeHistory, error) {
 	var resp []exchange.TradeHistory
 
-	trades, err := o.GetTrades(p.Pair().String(), 0)
+	trades, err := o.GetTrades(p.Pair().String(), tradeID)
 	if err != nil {
 		return resp, err
 	}

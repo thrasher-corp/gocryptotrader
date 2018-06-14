@@ -127,7 +127,7 @@ func (g *Gemini) GetExchangeHistory(p pair.CurrencyPair, assetType string, times
 	var resp []exchange.TradeHistory
 
 	if timestampStart.IsZero() {
-		timestampStart = time.Now().AddDate(0, 0, -6) // 6 days earlier any longer
+		timestampStart = time.Now().AddDate(0, 0, -6) // 6 days earlier, any longer
 		// and it errors
 	}
 

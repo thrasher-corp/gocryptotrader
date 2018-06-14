@@ -308,9 +308,13 @@ func (k *Kraken) GetDepth(symbol string) (Orderbook, error) {
 }
 
 // GetTrades returns current trades on Kraken
-func (k *Kraken) GetTrades(symbol string) ([]RecentTrades, error) {
+func (k *Kraken) GetTrades(symbol string, tradeID int64) ([]RecentTrades, error) {
 	values := url.Values{}
 	values.Set("pair", symbol)
+
+	if tradeID != 0 {
+		values.Set("since", strconv.FormatInt(tradeID, 10))
+	}
 
 	var recentTrades []RecentTrades
 	var result interface{}

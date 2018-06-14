@@ -188,7 +188,8 @@ func (o *OKEX) GetExchangeHistory(p pair.CurrencyPair, assetType string, timesta
 	}
 
 	trades, err := o.GetSpotRecentTrades(ActualSpotTradeHistoryRequestParams{
-		Symbol: p.Pair().String()})
+		Symbol: p.Pair().String(),
+		Since:  int(tradeID)})
 	if err != nil {
 		return resp, err
 	}
