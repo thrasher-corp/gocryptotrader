@@ -3,6 +3,7 @@ package localbitcoins
 import (
 	"errors"
 	"log"
+	"net/url"
 	"sync"
 	"time"
 
@@ -114,10 +115,26 @@ func (l *LocalBitcoins) GetExchangeFundTransferHistory() ([]exchange.FundHistory
 }
 
 // GetExchangeHistory returns historic trade data since exchange opening.
-func (l *LocalBitcoins) GetExchangeHistory(pair pair.CurrencyPair, assetType string, timestampStart time.Time) ([]exchange.TradeHistory, error) {
+func (l *LocalBitcoins) GetExchangeHistory(p pair.CurrencyPair, assetType string, timestampStart time.Time) ([]exchange.TradeHistory, error) {
 	var resp []exchange.TradeHistory
 
-	return resp, errors.New("trade history not yet implemented")
+	trades, err := l.GetTrades(p.GetSecondCurrency().Lower().String(), url.Values{})
+	if err != nil {
+		return resp, err
+	}
+
+	for _, data := range trades {
+		resp = append(resp, exchange.TradeHistory{
+			Timestamp: time.Unix(data.Date, 0),
+			TID:       data.TID,
+			Price:     data.Price,
+			Amount:    data.Amount,
+			Exchange:  l.GetName(),
+			Type:      "Not Specified",
+		})
+	}
+
+	return resp, nil
 }
 
 // SubmitExchangeOrder submits a new order
