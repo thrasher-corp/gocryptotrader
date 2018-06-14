@@ -151,13 +151,19 @@ func (w *WEX) GetDepth(symbol string) (Orderbook, error) {
 }
 
 // GetTrades returns the trades for a specific currency
-func (w *WEX) GetTrades(symbol string) ([]Trades, error) {
+func (w *WEX) GetTrades(symbol string, limit int) ([]Trades, error) {
 	type Response struct {
 		Data map[string][]Trades
 	}
 
 	response := Response{}
 	req := fmt.Sprintf("%s/%s/%s/%s", wexAPIPublicURL, wexAPIPublicVersion, wexTrades, symbol)
+
+	if limit != 0 {
+		v := url.Values{}
+		v.Set("limit", strconv.FormatInt(int64(limit), 10))
+		req += fmt.Sprintf("?%s", v.Encode())
+	}
 
 	return response.Data[symbol], w.SendHTTPRequest(req, &response.Data)
 }

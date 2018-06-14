@@ -2,8 +2,10 @@ package wex
 
 import (
 	"testing"
+	"time"
 
 	"github.com/thrasher-/gocryptotrader/config"
+	"github.com/thrasher-/gocryptotrader/currency/pair"
 )
 
 var w WEX
@@ -73,7 +75,7 @@ func TestGetDepth(t *testing.T) {
 
 func TestGetTrades(t *testing.T) {
 	t.Parallel()
-	_, err := w.GetTrades("btc_usd")
+	_, err := w.GetTrades("btc_usd", 0)
 	if err != nil {
 		t.Error("Test Failed - GetTrades() error", err)
 	}
@@ -164,5 +166,13 @@ func TestRedeemCoupon(t *testing.T) {
 	_, err := w.RedeemCoupon("bla")
 	if err == nil {
 		t.Error("Test Failed - RedeemCoupon() error", err)
+	}
+}
+
+func TestGetExchangeHistory(t *testing.T) {
+	p := pair.NewCurrencyPairDelimiter("btc_usd", "_")
+	_, err := w.GetExchangeHistory(p, "SPOT", time.Time{})
+	if err != nil {
+		t.Error("Test Failed - GetExchangeHistory() error", err)
 	}
 }
