@@ -123,7 +123,7 @@ func (i *ItBit) GetExchangeFundTransferHistory() ([]exchange.FundHistory, error)
 }
 
 // GetExchangeHistory returns historic trade data since exchange opening.
-func (i *ItBit) GetExchangeHistory(p pair.CurrencyPair, assetType string, timestampStart time.Time) ([]exchange.TradeHistory, error) {
+func (i *ItBit) GetExchangeHistory(p pair.CurrencyPair, assetType string, timestampStart time.Time, tradeID int64) ([]exchange.TradeHistory, error) {
 	var resp []exchange.TradeHistory
 
 	trades, err := i.GetTradeHistory(p.Pair().String(), "0")

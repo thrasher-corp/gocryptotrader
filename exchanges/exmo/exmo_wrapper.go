@@ -170,7 +170,7 @@ func (e *EXMO) GetExchangeFundTransferHistory() ([]exchange.FundHistory, error) 
 }
 
 // GetExchangeHistory returns historic trade data since exchange opening.
-func (e *EXMO) GetExchangeHistory(p pair.CurrencyPair, assetType string, timestampStart time.Time) ([]exchange.TradeHistory, error) {
+func (e *EXMO) GetExchangeHistory(p pair.CurrencyPair, assetType string, timestampStart time.Time, tradeID int64) ([]exchange.TradeHistory, error) {
 	var resp []exchange.TradeHistory
 
 	trades, err := e.GetTrades(p.Pair().String())

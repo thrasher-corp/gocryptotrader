@@ -154,7 +154,7 @@ func (po *Poloniex) GetExchangeFundTransferHistory() ([]exchange.FundHistory, er
 }
 
 // GetExchangeHistory returns historic trade data since exchange opening.
-func (po *Poloniex) GetExchangeHistory(p pair.CurrencyPair, assetType string, timestampStart time.Time) ([]exchange.TradeHistory, error) {
+func (po *Poloniex) GetExchangeHistory(p pair.CurrencyPair, assetType string, timestampStart time.Time, tradeID int64) ([]exchange.TradeHistory, error) {
 	var resp []exchange.TradeHistory
 
 	if timestampStart.IsZero() {

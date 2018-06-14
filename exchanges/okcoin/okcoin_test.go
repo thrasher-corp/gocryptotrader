@@ -38,7 +38,7 @@ func TestSetup(t *testing.T) {
 
 func TestGetExchangeHistory(t *testing.T) {
 	p := pair.NewCurrencyPairDelimiter("btc_cny", "_")
-	_, err := o.GetExchangeHistory(p, "SPOT", time.Time{})
+	_, err := o.GetExchangeHistory(p, "SPOT", time.Time{}, 0)
 	if err != nil {
 		t.Error("test failed - OKCoin GetExchangeHistory() error", err)
 	}

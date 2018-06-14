@@ -142,7 +142,7 @@ func (c *CoinbasePro) GetExchangeFundTransferHistory() ([]exchange.FundHistory, 
 }
 
 // GetExchangeHistory returns historic trade data since exchange opening.
-func (c *CoinbasePro) GetExchangeHistory(p pair.CurrencyPair, assetType string, timestampStart time.Time) ([]exchange.TradeHistory, error) {
+func (c *CoinbasePro) GetExchangeHistory(p pair.CurrencyPair, assetType string, timestampStart time.Time, tradeID int64) ([]exchange.TradeHistory, error) {
 	var resp []exchange.TradeHistory
 
 	if timestampStart.IsZero() {

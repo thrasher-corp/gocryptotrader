@@ -218,7 +218,7 @@ func TestPostHeartbeat(t *testing.T) {
 
 func TestGetExchangeHistory(t *testing.T) {
 	p := pair.NewCurrencyPair("BTC", "USD")
-	_, err := Session[2].GetExchangeHistory(p, "SPOT", time.Time{})
+	_, err := Session[2].GetExchangeHistory(p, "SPOT", time.Time{}, 0)
 	if err != nil {
 		t.Error("Test Failed - GetExchangeHistory() error", err)
 	}

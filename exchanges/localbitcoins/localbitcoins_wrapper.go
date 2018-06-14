@@ -115,7 +115,7 @@ func (l *LocalBitcoins) GetExchangeFundTransferHistory() ([]exchange.FundHistory
 }
 
 // GetExchangeHistory returns historic trade data since exchange opening.
-func (l *LocalBitcoins) GetExchangeHistory(p pair.CurrencyPair, assetType string, timestampStart time.Time) ([]exchange.TradeHistory, error) {
+func (l *LocalBitcoins) GetExchangeHistory(p pair.CurrencyPair, assetType string, timestampStart time.Time, tradeID int64) ([]exchange.TradeHistory, error) {
 	var resp []exchange.TradeHistory
 
 	trades, err := l.GetTrades(p.GetSecondCurrency().Lower().String(), url.Values{})

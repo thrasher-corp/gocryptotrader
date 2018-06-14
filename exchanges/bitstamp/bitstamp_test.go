@@ -240,7 +240,7 @@ func TestTransferAccountBalance(t *testing.T) {
 
 func TestGetExchangeHistory(t *testing.T) {
 	p := pair.NewCurrencyPair("BTC", "USD")
-	_, err := b.GetExchangeHistory(p, "SPOT", time.Time{})
+	_, err := b.GetExchangeHistory(p, "SPOT", time.Time{}, 0)
 	if err != nil {
 		t.Error("test failed - GetExchangeHistory() error", err)
 	}
