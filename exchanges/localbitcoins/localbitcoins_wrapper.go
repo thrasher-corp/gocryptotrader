@@ -6,6 +6,7 @@ import (
 	"log"
 	"math"
 	"net/url"
+	"strconv"
 	"sync"
 	"time"
 
@@ -137,8 +138,13 @@ func (l *LocalBitcoins) GetFundingHistory() ([]exchange.FundHistory, error) {
 // GetExchangeHistory returns historic trade data since exchange opening.
 func (l *LocalBitcoins) GetExchangeHistory(p pair.CurrencyPair, assetType string, timestampStart time.Time, tradeID int64) ([]exchange.TradeHistory, error) {
 	var resp []exchange.TradeHistory
+	v := url.Values{}
 
-	trades, err := l.GetTrades(p.GetSecondCurrency().Lower().String(), url.Values{})
+	if tradeID != 0 {
+		v.Set("since", strconv.FormatInt(tradeID, 10))
+	}
+
+	trades, err := l.GetTrades(p.GetSecondCurrency().Lower().String(), v)
 	if err != nil {
 		return resp, err
 	}

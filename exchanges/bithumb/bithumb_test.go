@@ -72,7 +72,7 @@ func TestGetOrderBook(t *testing.T) {
 
 func TestGetTransactionHistory(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetTransactionHistory("btc")
+	_, err := b.GetTransactionHistory("btc", 0)
 	if err != nil {
 		t.Error("test failed - Bithumb GetTransactionHistory() error", err)
 	}

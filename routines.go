@@ -497,19 +497,24 @@ func HistoricExchangeDataUpdaterRoutine() {
 }
 
 func processHistory(exch exchange.IBotExchange, c pair.CurrencyPair, assetType string) {
-	lastTime, err := bot.db.GetExchangeTradeHistoryLast(exch.GetName(), c.Pair().String())
+	lastTime, tradeID, err := bot.db.GetExchangeTradeHistoryLast(exch.GetName(), c.Pair().String())
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	if time.Now().Truncate(5*time.Minute).Unix() < lastTime.Unix() {
 		log.Printf("%s history up to date!", exch.GetName())
 		return
 	}
 
-	result, err := exch.GetExchangeHistory(c, assetType, lastTime, 0) // POC will change soon
+	result, err := exch.GetExchangeHistory(c, assetType, lastTime, tradeID)
 	if err != nil {
-		log.Printf("HISTORIC EXCHANGE DATA ERROR: %s, Pair: %s, AssetType: %s TimeFromDB: %s",
+		log.Printf("HISTORIC EXCHANGE DATA ERROR:%s, Pair:%s, AssetType:%s TimeFromDB:%s TradeID:%d",
 			err.Error(),
 			c.Pair().String(),
 			assetType,
-			lastTime.String())
+			lastTime.String(),
+			tradeID)
 		return
 	}
 
@@ -523,6 +528,9 @@ func processHistory(exch exchange.IBotExchange, c pair.CurrencyPair, assetType s
 			result[i].Price,
 			result[i].Timestamp)
 		if err != nil {
+			if err.Error() == "row already found" {
+				return
+			}
 			log.Fatal(err)
 		}
 	}

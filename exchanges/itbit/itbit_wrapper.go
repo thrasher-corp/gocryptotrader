@@ -127,7 +127,7 @@ func (i *ItBit) GetFundingHistory() ([]exchange.FundHistory, error) {
 func (i *ItBit) GetExchangeHistory(p pair.CurrencyPair, assetType string, timestampStart time.Time, tradeID int64) ([]exchange.TradeHistory, error) {
 	var resp []exchange.TradeHistory
 
-	trades, err := i.GetTradeHistory(p.Pair().String(), "0")
+	trades, err := i.GetTradeHistory(p.Pair().String(), strconv.FormatInt(tradeID, 10))
 	if err != nil {
 		return resp, err
 	}

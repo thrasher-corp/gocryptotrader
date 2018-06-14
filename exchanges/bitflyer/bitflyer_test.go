@@ -109,7 +109,7 @@ func TestGetTicker(t *testing.T) {
 
 func TestGetExecutionHistory(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetExecutionHistory("BTC_JPY")
+	_, err := b.GetExecutionHistory("BTC_JPY", 0)
 	if err != nil {
 		t.Error("test failed - Bitflyer - GetExecutionHistory() error:", err)
 	}

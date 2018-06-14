@@ -98,7 +98,7 @@ func TestGetDepth(t *testing.T) {
 
 func TestGetTrades(t *testing.T) {
 	t.Parallel()
-	_, err := k.GetTrades("BCHEUR")
+	_, err := k.GetTrades("BCHEUR", 0)
 	if err != nil {
 		t.Error("Test Failed - GetTrades() error", err)
 	}

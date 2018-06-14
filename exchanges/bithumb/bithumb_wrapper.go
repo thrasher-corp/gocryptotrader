@@ -137,7 +137,7 @@ func (b *Bithumb) GetFundingHistory() ([]exchange.FundHistory, error) {
 // GetExchangeHistory returns historic trade data since exchange opening.
 func (b *Bithumb) GetExchangeHistory(p pair.CurrencyPair, assetType string, timestampStart time.Time, tradeID int64) ([]exchange.TradeHistory, error) {
 	var resp []exchange.TradeHistory
-	trans, err := b.GetTransactionHistory(p.GetFirstCurrency().String())
+	trans, err := b.GetTransactionHistory(p.GetFirstCurrency().String(), tradeID)
 	if err != nil {
 		return resp, err
 	}
