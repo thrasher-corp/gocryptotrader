@@ -310,7 +310,7 @@ func TestCancelExchangeOrder(t *testing.T) {
 
 func TestGetExchangeHistory(t *testing.T) {
 	p := pair.NewCurrencyPairDelimiter("BTC_USD", "_")
-	_, err := e.GetExchangeHistory(p, "SPOT", time.Time{})
+	_, err := e.GetExchangeHistory(p, "SPOT", time.Time{}, 0)
 	if err != nil {
 		t.Error("Test failed - Exmo GetExchangeHistory() error", err)
 	}

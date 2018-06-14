@@ -66,63 +66,21 @@ func (b *BTCC) Run() {
 
 // UpdateTicker updates and returns the ticker for a currency pair
 func (b *BTCC) UpdateTicker(p pair.CurrencyPair, assetType string) (ticker.Price, error) {
-	// var tickerPrice ticker.Price
-	// tick, err := b.GetTicker(exchange.FormatExchangeCurrency(b.GetName(), p).String())
-	// if err != nil {
-	// 	return tickerPrice, err
-	// }
-	// tickerPrice.Pair = p
-	// tickerPrice.Ask = tick.AskPrice
-	// tickerPrice.Bid = tick.BidPrice
-	// tickerPrice.Low = tick.Low
-	// tickerPrice.Last = tick.Last
-	// tickerPrice.Volume = tick.Volume24H
-	// tickerPrice.High = tick.High
-	// ticker.ProcessTicker(b.GetName(), p, tickerPrice, assetType)
-	// return ticker.GetTicker(b.Name, p, assetType)
 	return ticker.Price{}, errors.New("REST NOT SUPPORTED")
 }
 
 // GetTickerPrice returns the ticker for a currency pair
 func (b *BTCC) GetTickerPrice(p pair.CurrencyPair, assetType string) (ticker.Price, error) {
-	// tickerNew, err := ticker.GetTicker(b.GetName(), p, assetType)
-	// if err != nil {
-	// 	return b.UpdateTicker(p, assetType)
-	// }
-	// return tickerNew, nil
 	return ticker.Price{}, errors.New("REST NOT SUPPORTED")
 }
 
 // GetOrderbookEx returns the orderbook for a currency pair
 func (b *BTCC) GetOrderbookEx(p pair.CurrencyPair, assetType string) (orderbook.Base, error) {
-	// ob, err := orderbook.GetOrderbook(b.GetName(), p, assetType)
-	// if err != nil {
-	// 	return b.UpdateOrderbook(p, assetType)
-	// }
-	// return ob, nil
 	return orderbook.Base{}, errors.New("REST NOT SUPPORTED")
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (b *BTCC) UpdateOrderbook(p pair.CurrencyPair, assetType string) (orderbook.Base, error) {
-	// var orderBook orderbook.Base
-	// orderbookNew, err := b.GetOrderBook(exchange.FormatExchangeCurrency(b.GetName(), p).String(), 100)
-	// if err != nil {
-	// 	return orderBook, err
-	// }
-
-	// for x := range orderbookNew.Bids {
-	// 	data := orderbookNew.Bids[x]
-	// 	orderBook.Bids = append(orderBook.Bids, orderbook.Item{Price: data[0], Amount: data[1]})
-	// }
-
-	// for x := range orderbookNew.Asks {
-	// 	data := orderbookNew.Asks[x]
-	// 	orderBook.Asks = append(orderBook.Asks, orderbook.Item{Price: data[0], Amount: data[1]})
-	// }
-
-	// orderbook.ProcessOrderbook(b.GetName(), p, orderBook, assetType)
-	// return orderbook.GetOrderbook(b.Name, p, assetType)
 	return orderbook.Base{}, errors.New("REST NOT SUPPORTED")
 }
 
@@ -144,10 +102,7 @@ func (b *BTCC) GetFundingHistory() ([]exchange.FundHistory, error) {
 }
 
 // GetExchangeHistory returns historic trade data since exchange opening.
-func (b *BTCC) GetExchangeHistory(pair pair.CurrencyPair, assetType string, timestampStart time.Time) ([]exchange.TradeHistory, error) {
-	// var resp []exchange.TradeHistory
-
-	// return resp, common.ErrNotYetImplemented
+func (b *BTCC) GetExchangeHistory(p pair.CurrencyPair, assetType string, timestampStart time.Time, tradeID int64) ([]exchange.TradeHistory, error) {
 	return nil, errors.New("REST NOT SUPPORTED")
 }
 

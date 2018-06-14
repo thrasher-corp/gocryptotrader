@@ -151,7 +151,7 @@ func TestRedeemYobicode(t *testing.T) {
 
 func TestGetExchangeHistory(t *testing.T) {
 	p := pair.NewCurrencyPairDelimiter("ltc_btc", "_")
-	_, err := y.GetExchangeHistory(p, "SPOT", time.Time{})
+	_, err := y.GetExchangeHistory(p, "SPOT", time.Time{}, 0)
 	if err != nil {
 		t.Error("Test Failed - GetExchangeHistory() error", err)
 	}

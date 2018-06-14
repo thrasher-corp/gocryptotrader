@@ -503,7 +503,7 @@ func processHistory(exch exchange.IBotExchange, c pair.CurrencyPair, assetType s
 		return
 	}
 
-	result, err := exch.GetExchangeHistory(c, assetType, lastTime)
+	result, err := exch.GetExchangeHistory(c, assetType, lastTime, 0) // POC will change soon
 	if err != nil {
 		log.Printf("HISTORIC EXCHANGE DATA ERROR: %s, Pair: %s, AssetType: %s TimeFromDB: %s",
 			err.Error(),
