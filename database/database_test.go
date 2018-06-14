@@ -13,40 +13,17 @@ var (
 )
 
 func TestStartDB(t *testing.T) {
-	var err error
-	o, err = NewORMConnection("gocryptotrader", "localhost", "gocryptotrader", "gocryptotrader", false)
+	cfg = config.GetConfig()
+	err := cfg.LoadConfig("../testdata/configtest.json")
 	if err != nil {
-		t.Fatal("test failed - Database NewORMConnection() error", err)
+		t.Fatal(err)
+	}
+
+	o, err = Connect("gocryptotrader", "localhost", "gocryptotrader", "gocryptotrader", false, cfg)
+	if err != nil {
+		t.Fatal("test failed - Database Connect() error", err)
 	}
 	connected = true
-	cfg = config.GetConfig()
-	cfg.LoadConfig("../testdata/configtest.json")
-}
-
-func TestLoadConfiguration(t *testing.T) {
-	if connected {
-		if err := o.LoadConfiguration("default"); err == nil {
-			t.Error("test failed - Database LoadConfiguration() error", err)
-		}
-	}
-}
-
-func TestInsertNewConfiguration(t *testing.T) {
-	if connected {
-		err := o.InsertNewConfiguration(cfg, "newPassword")
-		if err == nil {
-			t.Error("test failed - Database InsertNewConfiguration() error", err)
-		}
-	}
-}
-
-func TestUpdateConfiguration(t *testing.T) {
-	if connected {
-		err := o.UpdateConfiguration(cfg)
-		if err != nil {
-			t.Error("test failed - Database UpdateConfiguration() error", err)
-		}
-	}
 }
 
 func TestCheckLoadedConfiguration(t *testing.T) {
