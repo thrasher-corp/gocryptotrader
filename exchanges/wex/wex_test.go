@@ -32,6 +32,14 @@ func TestSetup(t *testing.T) {
 	w.Setup(conf)
 }
 
+func TestGetTradablePairs(t *testing.T) {
+	t.Parallel()
+	_, err := w.GetTradablePairs()
+	if err != nil {
+		t.Errorf("Test failed. GetTradablePairs err: %s", err)
+	}
+}
+
 func TestGetFee(t *testing.T) {
 	t.Parallel()
 	if w.GetFee() != 0.2 {

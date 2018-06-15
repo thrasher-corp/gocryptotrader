@@ -1,5 +1,77 @@
 package anx
 
+// Currency holds the currency information
+type Currency struct {
+	Decimals               int     `json:"decimals"`
+	MinOrderSize           float64 `json:"minOrderSize"`
+	MaxOrderSize           float64 `json:"maxOrderSize"`
+	DisplayDenominator     float64 `json:"displayDenominator"`
+	SummaryDecimals        int     `json:"summaryDecimals"`
+	DisplayUnit            string  `json:"displayUnit"`
+	Symbol                 string  `json:"symbol"`
+	Type                   string  `json:"type"`
+	ConfirmationThresholds []struct {
+		ConfosRequired int `json:"confosRequired"`
+	} `json:"confirmationThresholds"`
+	NetworkFee     float64 `json:"networkFee"`
+	EngineSettings struct {
+		DepositsEnabled     bool `json:"depositsEnabled"`
+		WithdrawalsEnabled  bool `json:"withdrawalsEnabled"`
+		DisplayEnabled      bool `json:"displayEnabled"`
+		MobileAccessEnabled bool `json:"mobileAccessEnabled"`
+	} `json:"engineSettings"`
+	MinOrderValue       float64 `json:"minOrderValue"`
+	MaxOrderValue       float64 `json:"maxOrderValue"`
+	MaxMarketOrderValue float64 `json:"maxMarketOrderValue"`
+	MaxMarketOrderSize  float64 `json:"maxMarketOrderSize"`
+	DigitalCurrencyType string  `json:"digitalCurrencyType"`
+	AssetName           string  `json:"assetName"`
+	AssetDivisibility   int     `json:"assetDivisibility"`
+	AssetIcon           string  `json:"assetIcon"`
+	AssetIssueQuantity  string  `json:"assetIssueQuantity"`
+}
+
+// Currencies stores a list of currencies
+type Currencies map[string]Currency
+
+// CurrencyPair holds the currency information
+type CurrencyPair struct {
+	PriceDecimals  int `json:"priceDecimals"`
+	EngineSettings struct {
+		TradingEnabled bool `json:"tradingEnabled"`
+		DisplayEnabled bool `json:"displayEnabled"`
+		CancelOnly     bool `json:"cancelOnly"`
+		VerifyRequired bool `json:"verifyRequired"`
+		RestrictedBuy  bool `json:"restrictedBuy"`
+		RestrictedSell bool `json:"restrictedSell"`
+	} `json:"engineSettings"`
+	MinOrderRate         float64 `json:"minOrderRate"`
+	MaxOrderRate         float64 `json:"maxOrderRate"`
+	DisplayPriceDecimals int     `json:"displayPriceDecimals"`
+	TradedCcy            string  `json:"tradedCcy"`
+	SettlementCcy        string  `json:"settlementCcy"`
+	PreferredMarket      string  `json:"preferredMarket"`
+	ChartEnabled         bool    `json:"chartEnabled"`
+	SimpleTradeEnabled   bool    `json:"simpleTradeEnabled"`
+}
+
+// CurrencyPairs stores currency pair info
+type CurrencyPairs map[string]CurrencyPair
+
+// CurrenciesStore stores the available cryptocurrencies
+// and fiat currencies
+type CurrenciesStore struct {
+	Currencies    Currencies    `json:"currencies"`
+	CurrencyPairs CurrencyPairs `json:"currencyPairs"`
+	Timestamp     string        `json:"timestamp"`
+	ResultCode    string        `json:"resultCode"`
+}
+
+// CurrenciesStaticResponse stores the currencyStatic response
+type CurrenciesStaticResponse struct {
+	CurrenciesResponse CurrenciesStore `json:"CurrencyStatic"`
+}
+
 // Order holds order information
 type Order struct {
 	OrderType                      string `json:"orderType"`

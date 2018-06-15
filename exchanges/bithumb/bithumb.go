@@ -68,8 +68,8 @@ func (b *Bithumb) SetDefaults() {
 	b.ConfigCurrencyPairFormat.Uppercase = true
 	b.ConfigCurrencyPairFormat.Index = "KRW"
 	b.AssetTypes = []string{ticker.Spot}
-	b.SupportsAutoPairUpdating = false
-	b.SupportsRESTTickerBatching = false
+	b.SupportsAutoPairUpdating = true
+	b.SupportsRESTTickerBatching = true
 	b.Requester = request.New(b.Name, request.NewRateLimit(time.Second, bithumbAuthRate), request.NewRateLimit(time.Second, bithumbUnauthRate), common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 }
 
@@ -103,6 +103,20 @@ func (b *Bithumb) Setup(exch config.ExchangeConfig) {
 	}
 }
 
+// GetTradablePairs returns a list of tradable currencies
+func (b *Bithumb) GetTradablePairs() ([]string, error) {
+	result, err := b.GetAllTickers()
+	if err != nil {
+		return nil, err
+	}
+
+	var currencies []string
+	for x := range result {
+		currencies = append(currencies, x)
+	}
+	return currencies, nil
+}
+
 // GetTicker returns ticker information
 //
 // symbol e.g. "btc"
@@ -111,6 +125,44 @@ func (b *Bithumb) GetTicker(symbol string) (Ticker, error) {
 	path := fmt.Sprintf("%s%s%s", apiURL, publicTicker, common.StringToUpper(symbol))
 
 	return response, b.SendHTTPRequest(path, &response)
+}
+
+// GetAllTickers returns all ticker information
+func (b *Bithumb) GetAllTickers() (map[string]Ticker, error) {
+	type Response struct {
+		Data map[string]interface{}
+	}
+
+	response := Response{}
+	path := fmt.Sprintf("%s%s%s", apiURL, publicTicker, "all")
+
+	err := b.SendHTTPRequest(path, &response)
+	if err != nil {
+		return nil, err
+	}
+
+	result := make(map[string]Ticker)
+	for k, v := range response.Data {
+		if k == "date" {
+			continue
+		}
+
+		data := v.(map[string]interface{})
+		var t Ticker
+		t.AveragePrice, _ = strconv.ParseFloat(data["average_price"].(string), 64)
+		t.BuyPrice, _ = strconv.ParseFloat(data["buy_price"].(string), 64)
+		t.ClosingPrice, _ = strconv.ParseFloat(data["closing_price"].(string), 64)
+		t.MaxPrice, _ = strconv.ParseFloat(data["max_price"].(string), 64)
+		t.MinPrice, _ = strconv.ParseFloat(data["min_price"].(string), 64)
+		t.OpeningPrice, _ = strconv.ParseFloat(data["opening_price"].(string), 64)
+		t.SellPrice, _ = strconv.ParseFloat(data["sell_price"].(string), 64)
+		t.UnitsTraded, _ = strconv.ParseFloat(data["units_traded"].(string), 64)
+		t.Volume1Day, _ = strconv.ParseFloat(data["volume_1day"].(string), 64)
+		t.Volume7Day, _ = strconv.ParseFloat(data["volume_7day"].(string), 64)
+		result[k] = t
+
+	}
+	return result, nil
 }
 
 // GetOrderBook returns current orderbook

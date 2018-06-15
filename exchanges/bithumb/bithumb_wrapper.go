@@ -28,26 +28,53 @@ func (b *Bithumb) Run() {
 		log.Printf("%s polling delay: %ds.\n", b.GetName(), b.RESTPollingDelay)
 		log.Printf("%s %d currencies enabled: %s.\n", b.GetName(), len(b.EnabledPairs), b.EnabledPairs)
 	}
+
+	exchangeProducts, err := b.GetTradingPairs()
+	if err != nil {
+		log.Printf("%s Failed to get available symbols.\n", b.GetName())
+	} else {
+		err = b.UpdateCurrencies(exchangeProducts, false, false)
+		if err != nil {
+			log.Printf("%s Failed to update available symbols.\n", b.GetName())
+		}
+	}
+}
+
+// GetTradingPairs gets the available trading currencies
+func (b *Bithumb) GetTradingPairs() ([]string, error) {
+	currencies, err := b.GetTradablePairs()
+	if err != nil {
+		return nil, err
+	}
+
+	for x := range currencies {
+		currencies[x] = currencies[x] + "KRW"
+	}
+
+	return currencies, nil
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
 func (b *Bithumb) UpdateTicker(p pair.CurrencyPair, assetType string) (ticker.Price, error) {
 	var tickerPrice ticker.Price
-	item := p.GetFirstCurrency().String()
-	tick, err := b.GetTicker(item)
+
+	tickers, err := b.GetAllTickers()
 	if err != nil {
 		return tickerPrice, err
 	}
 
-	tickerPrice.Pair = p
-	tickerPrice.Ask = tick.Data.SellPrice
-	tickerPrice.Bid = tick.Data.BuyPrice
-	tickerPrice.Low = tick.Data.MinPrice
-	tickerPrice.Last = tick.Data.ClosingPrice
-	tickerPrice.Volume = tick.Data.Volume1Day
-	tickerPrice.High = tick.Data.MaxPrice
-	ticker.ProcessTicker(b.GetName(), p, tickerPrice, assetType)
-
+	for _, x := range b.GetEnabledCurrencies() {
+		currency := x.GetFirstCurrency().String()
+		var tp ticker.Price
+		tp.Pair = x
+		tp.Ask = tickers[currency].SellPrice
+		tp.Bid = tickers[currency].BuyPrice
+		tp.Low = tickers[currency].MinPrice
+		tp.Last = tickers[currency].ClosingPrice
+		tp.Volume = tickers[currency].Volume1Day
+		tp.High = tickers[currency].MaxPrice
+		ticker.ProcessTicker(b.Name, x, tp, assetType)
+	}
 	return ticker.GetTicker(b.Name, p, assetType)
 }
 

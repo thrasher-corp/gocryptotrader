@@ -1,22 +1,32 @@
 package bithumb
 
-// Ticker holds the standard ticker information
+// Ticker holds ticker data
 type Ticker struct {
-	Status string `json:"status"`
-	Data   struct {
-		OpeningPrice float64 `json:"opening_price,string"`
-		ClosingPrice float64 `json:"closing_price,string"`
-		MinPrice     float64 `json:"min_price,string"`
-		MaxPrice     float64 `json:"max_price,string"`
-		AveragePrice float64 `json:"average_price,string"`
-		UnitsTraded  float64 `json:"units_traded,string"`
-		Volume1Day   float64 `json:"volume_1day,string"`
-		Volume7Day   float64 `json:"volume_7day,string"`
-		BuyPrice     float64 `json:"buy_price,string"`
-		SellPrice    float64 `json:"sell_price,string"`
-		Date         int64   `json:"date,string"`
-	} `json:"data"`
+	OpeningPrice float64 `json:"opening_price,string"`
+	ClosingPrice float64 `json:"closing_price,string"`
+	MinPrice     float64 `json:"min_price,string"`
+	MaxPrice     float64 `json:"max_price,string"`
+	AveragePrice float64 `json:"average_price,string"`
+	UnitsTraded  float64 `json:"units_traded,string"`
+	Volume1Day   float64 `json:"volume_1day,string"`
+	Volume7Day   float64 `json:"volume_7day,string"`
+	BuyPrice     float64 `json:"buy_price,string"`
+	SellPrice    float64 `json:"sell_price,string"`
+	//	Date         int64   `json:"date,string"`
+}
+
+// TickerResponse holds the standard ticker response
+type TickerResponse struct {
+	Status  string `json:"status"`
+	Data    Ticker `json:"data"`
 	Message string `json:"message"`
+}
+
+// TickersResponse holds the standard ticker response
+type TickersResponse struct {
+	Status  string            `json:"status"`
+	Data    map[string]Ticker `json:"data"`
+	Message string            `json:"message"`
 }
 
 // Orderbook holds full range of order book information

@@ -33,6 +33,14 @@ func TestSetup(t *testing.T) {
 	l.Setup(lakebtcConfig)
 }
 
+func TestGetTradablePairs(t *testing.T) {
+	t.Parallel()
+	_, err := l.GetTradablePairs()
+	if err != nil {
+		t.Fatalf("Test failed. GetTradablePairs err: %s", err)
+	}
+}
+
 func TestGetFee(t *testing.T) {
 	t.Parallel()
 	if l.GetFee(false) != 0.2 {

@@ -33,11 +33,27 @@ func TestSetup(t *testing.T) {
 	b.Setup(bitConfig)
 }
 
+func TestGetTradablePairs(t *testing.T) {
+	t.Parallel()
+	_, err := b.GetTradablePairs()
+	if err != nil {
+		t.Error("test failed - Bithumb GetTradablePairs() error", err)
+	}
+}
+
 func TestGetTicker(t *testing.T) {
 	t.Parallel()
 	_, err := b.GetTicker("btc")
 	if err != nil {
 		t.Error("test failed - Bithumb GetTicker() error", err)
+	}
+}
+
+func TestGetAllTickers(t *testing.T) {
+	t.Parallel()
+	_, err := b.GetAllTickers()
+	if err != nil {
+		t.Error("test failed - Bithumb GetAllTickers() error", err)
 	}
 }
 

@@ -75,6 +75,20 @@ func TestSetup(t *testing.T) {
 	}
 }
 
+func TestGetCurrencies(t *testing.T) {
+	_, err := anx.GetCurrencies()
+	if err != nil {
+		t.Fatalf("Test failed. TestGetCurrencies failed. Err: %s", err)
+	}
+}
+
+func TestGetTradablePairs(t *testing.T) {
+	_, err := anx.GetTradablePairs()
+	if err != nil {
+		t.Fatalf("Test failed. TestGetTradablePairs failed. Err: %s", err)
+	}
+}
+
 func TestGetFee(t *testing.T) {
 	makerFeeExpected, takerFeeExpected := 0.3, 0.6
 
