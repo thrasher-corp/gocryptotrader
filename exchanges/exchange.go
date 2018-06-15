@@ -152,6 +152,7 @@ func (e *Base) SetAutoPairDefaults() error {
 	if e.SupportsAutoPairUpdating {
 		if !exch.SupportsAutoPairUpdates {
 			exch.SupportsAutoPairUpdates = true
+			exch.PairsLastUpdated = 0
 			update = true
 		}
 	} else {
@@ -251,7 +252,7 @@ func (e *Base) SetCurrencyPairFormat() error {
 			exch.RequestCurrencyPairFormat) {
 			e.RequestCurrencyPairFormat = *exch.RequestCurrencyPairFormat
 		} else {
-			*exch.RequestCurrencyPairFormat = e.ConfigCurrencyPairFormat
+			*exch.RequestCurrencyPairFormat = e.RequestCurrencyPairFormat
 			update = true
 		}
 	}
@@ -440,11 +441,14 @@ func (e *Base) UpdateCurrencies(exchangeProducts []string, enabled, force bool) 
 	}
 
 	var newPairs, removedPairs []string
+	var updateType string
 
 	if enabled {
 		newPairs, removedPairs = pair.FindPairDifferences(e.EnabledPairs, products)
+		updateType = "enabled"
 	} else {
 		newPairs, removedPairs = pair.FindPairDifferences(e.AvailablePairs, products)
+		updateType = "available"
 	}
 
 	if force || len(newPairs) > 0 || len(removedPairs) > 0 {
@@ -455,7 +459,7 @@ func (e *Base) UpdateCurrencies(exchangeProducts []string, enabled, force bool) 
 		}
 
 		if force {
-			log.Printf("%s forced update of enabled pairs.", e.Name)
+			log.Printf("%s forced update of %s pairs.", e.Name, updateType)
 		} else {
 			if len(newPairs) > 0 {
 				log.Printf("%s Updating pairs - New: %s.\n", e.Name, newPairs)

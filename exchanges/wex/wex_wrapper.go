@@ -28,6 +28,30 @@ func (w *WEX) Run() {
 		log.Printf("%s polling delay: %ds.\n", w.GetName(), w.RESTPollingDelay)
 		log.Printf("%s %d currencies enabled: %s.\n", w.GetName(), len(w.EnabledPairs), w.EnabledPairs)
 	}
+
+	exchangeProducts, err := w.GetTradablePairs()
+	if err != nil {
+		log.Printf("%s Failed to get available symbols.\n", w.GetName())
+	} else {
+		forceUpgrade := false
+		if !common.StringDataContains(w.EnabledPairs, "_") || !common.StringDataContains(w.AvailablePairs, "_") {
+			forceUpgrade = true
+		}
+
+		if forceUpgrade {
+			enabledPairs := []string{"BTC_USD", "LTC_USD", "LTC_BTC", "ETH_USD"}
+			log.Println("WARNING: Enabled pairs for WEX reset due to config upgrade, please enable the ones you would like again.")
+
+			err = w.UpdateCurrencies(enabledPairs, true, true)
+			if err != nil {
+				log.Printf("%s Failed to get config.\n", w.GetName())
+			}
+		}
+		err = w.UpdateCurrencies(exchangeProducts, false, forceUpgrade)
+		if err != nil {
+			log.Printf("%s Failed to get config.\n", w.GetName())
+		}
+	}
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair

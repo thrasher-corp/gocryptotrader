@@ -28,6 +28,16 @@ func (l *LakeBTC) Run() {
 		log.Printf("%s polling delay: %ds.\n", l.GetName(), l.RESTPollingDelay)
 		log.Printf("%s %d currencies enabled: %s.\n", l.GetName(), len(l.EnabledPairs), l.EnabledPairs)
 	}
+
+	exchangeProducts, err := l.GetTradablePairs()
+	if err != nil {
+		log.Printf("%s Failed to get available products.\n", l.GetName())
+	} else {
+		err = l.UpdateCurrencies(exchangeProducts, false, false)
+		if err != nil {
+			log.Printf("%s Failed to update available currencies.\n", l.GetName())
+		}
+	}
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair

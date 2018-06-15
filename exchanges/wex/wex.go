@@ -59,10 +59,10 @@ func (w *WEX) SetDefaults() {
 	w.RequestCurrencyPairFormat.Delimiter = "_"
 	w.RequestCurrencyPairFormat.Uppercase = false
 	w.RequestCurrencyPairFormat.Separator = "-"
-	w.ConfigCurrencyPairFormat.Delimiter = ""
+	w.ConfigCurrencyPairFormat.Delimiter = "_"
 	w.ConfigCurrencyPairFormat.Uppercase = true
 	w.AssetTypes = []string{ticker.Spot}
-	w.SupportsAutoPairUpdating = false
+	w.SupportsAutoPairUpdating = true
 	w.SupportsRESTTickerBatching = true
 	w.Requester = request.New(w.Name, request.NewRateLimit(time.Second, wexAuthRate), request.NewRateLimit(time.Second, wexUnauthRate), common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 }
@@ -95,6 +95,21 @@ func (w *WEX) Setup(exch config.ExchangeConfig) {
 			log.Fatal(err)
 		}
 	}
+}
+
+// GetTradablePairs returns a list of available pairs from the exchange
+func (w *WEX) GetTradablePairs() ([]string, error) {
+	result, err := w.GetInfo()
+	if err != nil {
+		return nil, err
+	}
+
+	var currencies []string
+	for x := range result.Pairs {
+		currencies = append(currencies, common.StringToUpper(x))
+	}
+
+	return currencies, nil
 }
 
 // GetFee returns the exchange fee

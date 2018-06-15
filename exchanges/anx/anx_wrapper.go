@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"sync"
 
+	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
 	"github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
@@ -27,6 +28,45 @@ func (a *ANX) Run() {
 		log.Printf("%s polling delay: %ds.\n", a.GetName(), a.RESTPollingDelay)
 		log.Printf("%s %d currencies enabled: %s.\n", a.GetName(), len(a.EnabledPairs), a.EnabledPairs)
 	}
+
+	exchangeProducts, err := a.GetTradablePairs()
+	if err != nil {
+		log.Printf("%s Failed to get available symbols.\n", a.GetName())
+	} else {
+		forceUpgrade := false
+		if !common.StringDataContains(a.EnabledPairs, "_") || !common.StringDataContains(a.AvailablePairs, "_") {
+			forceUpgrade = true
+		}
+
+		if forceUpgrade {
+			enabledPairs := []string{"BTC_USD,BTC_HKD,BTC_EUR,BTC_CAD,BTC_AUD,BTC_SGD,BTC_JPY,BTC_GBP,BTC_NZD,LTC_BTC,DOG_EBTC,STR_BTC,XRP_BTC"}
+			log.Println("WARNING: Enabled pairs for ANX reset due to config upgrade, please enable the ones you would like again.")
+
+			err = a.UpdateCurrencies(enabledPairs, true, true)
+			if err != nil {
+				log.Printf("%s Failed to get config.\n", a.GetName())
+			}
+		}
+		err = a.UpdateCurrencies(exchangeProducts, false, forceUpgrade)
+		if err != nil {
+			log.Printf("%s Failed to get config.\n", a.GetName())
+		}
+	}
+}
+
+// GetTradablePairs returns a list of available
+func (a *ANX) GetTradablePairs() ([]string, error) {
+	result, err := a.GetCurrencies()
+	if err != nil {
+		return nil, err
+	}
+
+	var currencies []string
+	for x := range result.CurrencyPairs {
+		currencies = append(currencies, result.CurrencyPairs[x].TradedCcy+"_"+result.CurrencyPairs[x].SettlementCcy)
+	}
+
+	return currencies, nil
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair

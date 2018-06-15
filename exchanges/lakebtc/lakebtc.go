@@ -54,7 +54,7 @@ func (l *LakeBTC) SetDefaults() {
 	l.ConfigCurrencyPairFormat.Delimiter = ""
 	l.ConfigCurrencyPairFormat.Uppercase = true
 	l.AssetTypes = []string{ticker.Spot}
-	l.SupportsAutoPairUpdating = false
+	l.SupportsAutoPairUpdating = true
 	l.SupportsRESTTickerBatching = true
 	l.Requester = request.New(l.Name, request.NewRateLimit(time.Second, lakeBTCAuthRate), request.NewRateLimit(time.Second, lakeBTCUnauth), common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 }
@@ -87,6 +87,21 @@ func (l *LakeBTC) Setup(exch config.ExchangeConfig) {
 			log.Fatal(err)
 		}
 	}
+}
+
+// GetTradablePairs returns a list of available pairs from the exchange
+func (l *LakeBTC) GetTradablePairs() ([]string, error) {
+	result, err := l.GetTicker()
+	if err != nil {
+		return nil, err
+	}
+
+	var currencies []string
+	for x := range result {
+		currencies = append(currencies, common.StringToUpper(x))
+	}
+
+	return currencies, nil
 }
 
 // GetFee returns maker or taker fee

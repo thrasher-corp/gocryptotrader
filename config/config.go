@@ -496,7 +496,7 @@ func (c *Config) CheckExchangeConfigValues() error {
 			}
 			if !exch.SupportsAutoPairUpdates {
 				lastUpdated := common.UnixTimestampToTime(exch.PairsLastUpdated)
-				lastUpdated.AddDate(0, 0, configPairsLastUpdatedWarningThreshold)
+				lastUpdated = lastUpdated.AddDate(0, 0, configPairsLastUpdatedWarningThreshold)
 				if lastUpdated.Unix() <= time.Now().Unix() {
 					log.Printf(WarningPairsLastUpdatedThresholdExceeded, exch.Name, configPairsLastUpdatedWarningThreshold)
 				}

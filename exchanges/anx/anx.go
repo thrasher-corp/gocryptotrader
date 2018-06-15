@@ -19,6 +19,7 @@ const (
 	anxAPIURL          = "https://anxpro.com/"
 	anxAPIVersion      = "3"
 	anxAPIKey          = "apiKey"
+	anxCurrencies      = "currencyStatic"
 	anxDataToken       = "dataToken"
 	anxOrderNew        = "order/new"
 	anxOrderInfo       = "order/info"
@@ -50,12 +51,12 @@ func (a *ANX) SetDefaults() {
 	a.RESTPollingDelay = 10
 	a.RequestCurrencyPairFormat.Delimiter = ""
 	a.RequestCurrencyPairFormat.Uppercase = true
-	a.RequestCurrencyPairFormat.Index = "BTC"
-	a.ConfigCurrencyPairFormat.Delimiter = ""
+	a.RequestCurrencyPairFormat.Index = ""
+	a.ConfigCurrencyPairFormat.Delimiter = "_"
 	a.ConfigCurrencyPairFormat.Uppercase = true
-	a.ConfigCurrencyPairFormat.Index = "BTC"
+	a.ConfigCurrencyPairFormat.Index = ""
 	a.AssetTypes = []string{ticker.Spot}
-	a.SupportsAutoPairUpdating = false
+	a.SupportsAutoPairUpdating = true
 	a.SupportsRESTTickerBatching = false
 	a.Requester = request.New(a.Name, request.NewRateLimit(time.Second, anxAuthRate), request.NewRateLimit(time.Second, anxUnauthRate), common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 }
@@ -88,6 +89,20 @@ func (a *ANX) Setup(exch config.ExchangeConfig) {
 			log.Fatal(err)
 		}
 	}
+}
+
+// GetCurrencies returns a list of supported currencies (both fiat
+// and cryptocurrencies)
+func (a *ANX) GetCurrencies() (CurrenciesStore, error) {
+	var result CurrenciesStaticResponse
+	path := fmt.Sprintf("%sapi/3/%s", anxAPIURL, anxCurrencies)
+
+	err := a.SendHTTPRequest(path, &result)
+	if err != nil {
+		return CurrenciesStore{}, err
+	}
+
+	return result.CurrenciesResponse, nil
 }
 
 // GetFee returns maker or taker fees

@@ -645,14 +645,20 @@ func TestSetCurrencies(t *testing.T) {
 	UAC := Base{Name: "ASDF"}
 	UAC.AvailablePairs = []string{"ETHLTC", "LTCBTC"}
 	UAC.EnabledPairs = []string{"ETHLTC"}
-	newPair := pair.NewCurrencyPair("ETH", "USDT")
+	newPair := pair.NewCurrencyPairDelimiter("ETH_USDT", "_")
 
 	err = UAC.SetCurrencies([]pair.CurrencyPair{newPair}, true)
 	if err == nil {
 		t.Fatal("Test failed. TestSetCurrencies returned nil error on non-existent exchange")
 	}
 
+	anxCfg, err := cfg.GetExchangeConfig("ANX")
+	if err != nil {
+		t.Fatal("Test failed. TestSetCurrencies failed to load config")
+	}
+
 	UAC.Name = "ANX"
+	UAC.ConfigCurrencyPairFormat.Delimiter = anxCfg.ConfigCurrencyPairFormat.Delimiter
 	UAC.SetCurrencies([]pair.CurrencyPair{newPair}, true)
 	if !pair.Contains(UAC.GetEnabledCurrencies(), newPair, true) {
 		t.Fatal("Test failed. TestSetCurrencies failed to set currencies")
