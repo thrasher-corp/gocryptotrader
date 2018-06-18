@@ -138,7 +138,9 @@ func (y *Yobit) GetFundingHistory() ([]exchange.FundHistory, error) {
 func (y *Yobit) GetExchangeHistory(p pair.CurrencyPair, assetType string, timestampStart time.Time, tradeID int64) ([]exchange.TradeHistory, error) {
 	var resp []exchange.TradeHistory
 
-	trades, err := y.GetTrades(p.Pair().String(), 2000)
+	formattedPair := exchange.FormatExchangeCurrency(y.GetName(), p)
+
+	trades, err := y.GetTrades(formattedPair.String(), 2000)
 	if err != nil {
 		return resp, err
 	}

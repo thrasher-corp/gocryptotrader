@@ -158,7 +158,9 @@ func (h *HitBTC) GetExchangeHistory(p pair.CurrencyPair, assetType string, times
 	}
 	timestampEnd := timestampStart.AddDate(0, 0, 1) // add 24 hrs
 
-	trades, err := h.GetTrades(p.Pair().String(),
+	formattedPair := exchange.FormatExchangeCurrency(h.GetName(), p)
+
+	trades, err := h.GetTrades(formattedPair.String(),
 		strconv.FormatInt(timestampStart.Unix(), 10),
 		strconv.FormatInt(timestampEnd.Unix(), 10),
 		"1000", "", "timestamp", "")

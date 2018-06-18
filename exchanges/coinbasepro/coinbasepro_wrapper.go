@@ -146,7 +146,9 @@ func (c *CoinbasePro) GetExchangeHistory(p pair.CurrencyPair, assetType string, 
 	}
 	timestampEnd := timestampStart.Add(5 * time.Hour)
 
-	trades, err := c.GetHistoricRates(p.Pair().String(), timestampStart.Format(time.RFC3339), timestampEnd.Format(time.RFC3339), 60)
+	formattedPair := exchange.FormatExchangeCurrency(c.GetName(), p)
+
+	trades, err := c.GetHistoricRates(formattedPair.String(), timestampStart.Format(time.RFC3339), timestampEnd.Format(time.RFC3339), 60)
 	if err != nil {
 		return resp, err
 	}
