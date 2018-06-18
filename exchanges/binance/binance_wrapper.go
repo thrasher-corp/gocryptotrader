@@ -13,7 +13,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 )
 
-// Start starts the OKEX go routine
+// Start starts the Binance go routine
 func (b *Binance) Start(wg *sync.WaitGroup) {
 	wg.Add(1)
 	go func() {
@@ -22,7 +22,7 @@ func (b *Binance) Start(wg *sync.WaitGroup) {
 	}()
 }
 
-// Run implements the OKEX wrapper
+// Run implements the Binance wrapper
 func (b *Binance) Run() {
 	if b.Verbose {
 		log.Printf("%s Websocket: %s. (url: %s).\n", b.GetName(), common.IsEnabled(b.Websocket), b.WebsocketURL)
@@ -147,9 +147,9 @@ func (b *Binance) GetExchangeHistory(p pair.CurrencyPair, assetType string, time
 	}
 	timestampEnd := timestampStart.Add(1 * time.Hour) // add 1 hr
 
-	stripPair := p.GetFirstCurrency().String() + p.GetSecondCurrency().String()
+	formattedPair := exchange.FormatExchangeCurrency(b.GetName(), p)
 
-	aggTrades, err := b.GetAggregatedTrades(stripPair,
+	aggTrades, err := b.GetAggregatedTrades(formattedPair.String(),
 		500,
 		common.UnixMillis(timestampStart),
 		common.UnixMillis(timestampEnd))

@@ -164,7 +164,9 @@ func (h *HUOBI) GetExchangeFundTransferHistory() ([]exchange.FundHistory, error)
 func (h *HUOBI) GetExchangeHistory(p pair.CurrencyPair, assetType string, timestampStart time.Time, tradeID int64) ([]exchange.TradeHistory, error) {
 	var resp []exchange.TradeHistory
 
-	trades, err := h.GetTradeHistory(p.Pair().String(), "2000")
+	formattedPair := exchange.FormatExchangeCurrency(h.GetName(), p)
+
+	trades, err := h.GetTradeHistory(formattedPair.String(), "2000")
 	if err != nil {
 		return resp, err
 	}

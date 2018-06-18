@@ -1,11 +1,13 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"sync"
 	"time"
 
+	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
 	"github.com/thrasher-/gocryptotrader/currency/symbol"
@@ -278,61 +280,89 @@ func OrderbookUpdaterRoutine() {
 	}
 }
 
-// HistoricExchangeDataUpdaterRoutine updates historic transactions
+// HistoricExchangeDataUpdaterRoutine creates routines for getting historic
+// price action from an enabled exchange
 func HistoricExchangeDataUpdaterRoutine() {
-	log.Println("Starting historic exchange data updater routine.")
-	var wg sync.WaitGroup
-	for {
-		wg.Add(len(bot.exchanges))
-		for x := range bot.exchanges {
-			go func(x int, wg *sync.WaitGroup) {
-				defer wg.Done()
-
-				if bot.exchanges[x] == nil {
-					return
-				}
-				exchangeName := bot.exchanges[x].GetName()
-				enabledCurrencies := bot.exchanges[x].GetEnabledCurrencies()
-				assetTypes, err := exchange.GetExchangeAssetTypes(exchangeName)
-				if err != nil {
-					log.Printf("failed to get %s exchange asset types. Error: %s",
-						exchangeName, err)
-					return
-				}
-
-				for y := range assetTypes {
-					for z := range enabledCurrencies {
-						processHistory(bot.exchanges[x], enabledCurrencies[z], assetTypes[y])
-					}
-				}
-			}(x, &wg)
+	log.Println("Exchange history updater routine started")
+	for _, exch := range bot.exchanges {
+		enabledAssetTypes, err := exchange.GetExchangeAssetTypes(exch.GetName())
+		if err != nil {
+			log.Fatal(err)
 		}
-		wg.Wait()
-		log.Println("All exchange histories fetched and inserted sleeping...")
-		time.Sleep(5 * time.Minute)
+		for _, enabledAssetType := range enabledAssetTypes {
+			for _, enabledCurrencyPair := range exch.GetEnabledCurrencies() {
+				go Processor(exch, enabledCurrencyPair, enabledAssetType)
+			}
+		}
 	}
 }
 
-func processHistory(exch exchange.IBotExchange, c pair.CurrencyPair, assetType string) {
+// Processor is a routine handler for each individual currency pair associated
+// asset class which will keep it updated either as new updates get pushed or
+// via a polling approach.
+func Processor(exch exchange.IBotExchange, currencyPair pair.CurrencyPair, assetType string) {
+	// This is the initial fallback REST service
+	tick := NewUpdaterTicker(assetType, currencyPair)
+	for {
+		err := processHistory(exch, currencyPair, assetType)
+		if err != nil {
+			switch err.Error() {
+			case "history up to date":
+				log.Printf("%s history is up to date for %s as %s asset type, sleeping for 5 mins",
+					exch.GetName(),
+					currencyPair.Pair().String(),
+					assetType)
+				time.Sleep(5 * time.Minute)
+			case "no history returned":
+				log.Printf("warning %s no history has been returned for for %s as %s asset type, disabling fetcher routine",
+					exch.GetName(),
+					currencyPair.Pair().String(),
+					assetType)
+				return
+			case "trade history not yet implemented":
+				log.Printf("%s exchange GetExchangeHistory function not enabled, disabling fetcher routine for %s as %s asset type",
+					exch.GetName(),
+					currencyPair.Pair().String(),
+					assetType)
+				return
+			default:
+				if common.StringContains(err.Error(), "net/http: request canceled") {
+					log.Printf("%s exchange error for %s as %s asset type - net/http: request canceled, retrying",
+						exch.GetName(),
+						currencyPair.Pair().String(),
+						assetType)
+				} else {
+					log.Printf("%s exchange error for %s as %s asset type - %s, disabling fetcher routine",
+						exch.GetName(),
+						currencyPair.Pair().String(),
+						assetType,
+						err.Error())
+					return
+				}
+			}
+		}
+		<-tick.C
+	}
+}
+
+// processHistory fetches historic values and inserts them into the database
+func processHistory(exch exchange.IBotExchange, c pair.CurrencyPair, assetType string) error {
 	lastTime, tradeID, err := bot.db.GetExchangeTradeHistoryLast(exch.GetName(), c.Pair().String())
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	if time.Now().Truncate(5*time.Minute).Unix() < lastTime.Unix() {
-		log.Printf("%s history up to date!", exch.GetName())
-		return
+		return errors.New("history up to date")
 	}
 
 	result, err := exch.GetExchangeHistory(c, assetType, lastTime, tradeID)
 	if err != nil {
-		log.Printf("HISTORIC EXCHANGE DATA ERROR:%s, Pair:%s, AssetType:%s TimeFromDB:%s TradeID:%d",
-			err.Error(),
-			c.Pair().String(),
-			assetType,
-			lastTime.String(),
-			tradeID)
-		return
+		return err
+	}
+
+	if len(result) < 1 {
+		return errors.New("no history returned")
 	}
 
 	for i := range result {
@@ -346,9 +376,16 @@ func processHistory(exch exchange.IBotExchange, c pair.CurrencyPair, assetType s
 			result[i].Timestamp)
 		if err != nil {
 			if err.Error() == "row already found" {
-				return
+				continue
 			}
 			log.Fatal(err)
 		}
 	}
+	return nil
+}
+
+// NewUpdaterTicker returns a time.Ticker to keep individual currency pairs
+// updated NOTE will be updated with tailored time for each exchange.
+func NewUpdaterTicker(assetType string, currencyPair pair.CurrencyPair) *time.Ticker {
+	return time.NewTicker(10 * time.Second)
 }

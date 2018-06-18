@@ -145,7 +145,9 @@ func (l *Liqui) GetExchangeFundTransferHistory() ([]exchange.FundHistory, error)
 func (l *Liqui) GetExchangeHistory(p pair.CurrencyPair, assetType string, timestampStart time.Time, tradeID int64) ([]exchange.TradeHistory, error) {
 	var resp []exchange.TradeHistory
 
-	trades, err := l.GetTrades(p.Pair().String())
+	formattedPair := exchange.FormatExchangeCurrency(l.GetName(), p)
+
+	trades, err := l.GetTrades(formattedPair.String())
 	if err != nil {
 		return resp, err
 	}

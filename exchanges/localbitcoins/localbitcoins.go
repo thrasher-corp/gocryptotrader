@@ -97,7 +97,7 @@ const (
 	statePaidPartlyConfirmed = "PAID_PARTLY_AND_CONFIRMED"
 
 	localbitcoinsAuthRate   = 0
-	localbitcoinsUnauthRate = 0
+	localbitcoinsUnauthRate = 1
 )
 
 var (
@@ -124,7 +124,7 @@ func (l *LocalBitcoins) SetDefaults() {
 	l.ConfigCurrencyPairFormat.Uppercase = true
 	l.SupportsAutoPairUpdating = false
 	l.SupportsRESTTickerBatching = true
-	l.Requester = request.New(l.Name, request.NewRateLimit(time.Second*0, localbitcoinsAuthRate), request.NewRateLimit(time.Second*0, localbitcoinsUnauthRate), common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
+	l.Requester = request.New(l.Name, request.NewRateLimit(time.Second*0, localbitcoinsAuthRate), request.NewRateLimit(time.Second*3, localbitcoinsUnauthRate), common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 }
 
 // Setup sets exchange configuration parameters

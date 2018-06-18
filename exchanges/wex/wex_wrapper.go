@@ -155,7 +155,9 @@ func (w *WEX) GetExchangeFundTransferHistory() ([]exchange.FundHistory, error) {
 func (w *WEX) GetExchangeHistory(p pair.CurrencyPair, assetType string, timestampStart time.Time, tradeID int64) ([]exchange.TradeHistory, error) {
 	var resp []exchange.TradeHistory
 
-	trades, err := w.GetTrades(p.Pair().String(), 5000)
+	formattedPair := exchange.FormatExchangeCurrency(w.GetName(), p)
+
+	trades, err := w.GetTrades(formattedPair.String(), 5000)
 	if err != nil {
 		return resp, err
 	}

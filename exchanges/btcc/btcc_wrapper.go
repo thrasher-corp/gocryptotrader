@@ -148,7 +148,7 @@ func (b *BTCC) GetExchangeHistory(p pair.CurrencyPair, assetType string, timesta
 	if timestampStart.IsZero() {
 		timestampStart = time.Now().AddDate(0, -3, 0) // 3 months prior to today
 	}
-	b.Verbose = true
+
 	th, err := b.GetTradeHistory(p.Pair().String(), 100, 0, timestampStart)
 	if err != nil {
 		return resp, err
