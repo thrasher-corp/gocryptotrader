@@ -548,3 +548,38 @@ func UnixMillis(t time.Time) int64 {
 func RecvWindow(d time.Duration) int64 {
 	return int64(d) / int64(time.Millisecond)
 }
+
+// FloatFromString format
+func FloatFromString(raw interface{}) (float64, error) {
+	str, ok := raw.(string)
+	if !ok {
+		return 0, errors.New(fmt.Sprintf("unable to parse, value not string: %T", raw))
+	}
+	flt, err := strconv.ParseFloat(str, 64)
+	if err != nil {
+		return 0, errors.New(fmt.Sprintf("unable to parse, value not string: %T", raw))
+	}
+	return flt, nil
+}
+
+// IntFromString format
+func IntFromString(raw interface{}) (int, error) {
+	str, ok := raw.(string)
+	if !ok {
+		return 0, errors.New(fmt.Sprintf("unable to parse, value not string: %T", raw))
+	}
+	n, err := strconv.Atoi(str)
+	if err != nil {
+		return 0, errors.New(fmt.Sprintf("unable to parse as int: %T", raw))
+	}
+	return n, nil
+}
+
+// TimeFromUnixTimestampFloat format
+func TimeFromUnixTimestampFloat(raw interface{}) (time.Time, error) {
+	ts, ok := raw.(float64)
+	if !ok {
+		return time.Time{}, errors.New(fmt.Sprintf("unable to parse, value not int64: %T", raw))
+	}
+	return time.Unix(0, int64(ts)*int64(time.Millisecond)), nil
+}

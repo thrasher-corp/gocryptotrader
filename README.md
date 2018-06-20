@@ -5,6 +5,7 @@
 + 简单一些操作
 + 修复火币在 Post 时的bug，同时增加 HuobiHadax 的支持
 + 修复 Binance 获取用户信息的bug,增加 Binance 取消订单的方法
++ 增加 Gateio 交易所的支持，支持获取K线、支持的交易对、交易市场参数
 
 <img src="https://github.com/thrasher-/gocryptotrader/blob/master/web/src/assets/page-logo.png?raw=true" width="350px" height="350px" hspace="70">
 
