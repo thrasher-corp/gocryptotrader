@@ -1,4 +1,4 @@
-package huobi
+package huobihadax
 
 import (
 	"bytes"
@@ -18,7 +18,7 @@ import (
 )
 
 const (
-	huobiAPIURL     = "https://api.huobi.pro"
+	huobiAPIURL     = "https://api.hadax.com"
 	huobiAPIVersion = "1"
 
 	huobiMarketHistoryKline   = "market/history/kline"
@@ -53,12 +53,12 @@ const (
 )
 
 // HUOBI is the overarching type across this package
-type HUOBI struct {
+type HUOBIHADAX struct {
 	exchange.Base
 }
 
 // SetDefaults sets default values for the exchange
-func (h *HUOBI) SetDefaults() {
+func (h *HUOBIHADAX) SetDefaults() {
 	h.Name = "Huobi"
 	h.Enabled = false
 	h.Fee = 0
@@ -76,7 +76,7 @@ func (h *HUOBI) SetDefaults() {
 }
 
 // Setup sets user configuration
-func (h *HUOBI) Setup(exch config.ExchangeConfig) {
+func (h *HUOBIHADAX) Setup(exch config.ExchangeConfig) {
 	if !exch.Enabled {
 		h.SetEnabled(false)
 	} else {
@@ -124,12 +124,12 @@ func (h *HUOBI) Setup(exch config.ExchangeConfig) {
 }
 
 // GetFee returns Huobi fee
-func (h *HUOBI) GetFee() float64 {
+func (h *HUOBIHADAX) GetFee() float64 {
 	return h.Fee
 }
 
 // GetKline returns kline data
-func (h *HUOBI) GetKline(symbol, period, size string) ([]KlineItem, error) {
+func (h *HUOBIHADAX) GetKline(symbol, period, size string) ([]KlineItem, error) {
 	vals := url.Values{}
 	vals.Set("symbol", symbol)
 
@@ -157,7 +157,7 @@ func (h *HUOBI) GetKline(symbol, period, size string) ([]KlineItem, error) {
 }
 
 // GetMarketDetailMerged returns the ticker for the specified symbol
-func (h *HUOBI) GetMarketDetailMerged(symbol string) (DetailMerged, error) {
+func (h *HUOBIHADAX) GetMarketDetailMerged(symbol string) (DetailMerged, error) {
 	vals := url.Values{}
 	vals.Set("symbol", symbol)
 
@@ -177,7 +177,7 @@ func (h *HUOBI) GetMarketDetailMerged(symbol string) (DetailMerged, error) {
 }
 
 // GetDepth returns the depth for the specified symbol
-func (h *HUOBI) GetDepth(symbol, depthType string) (Orderbook, error) {
+func (h *HUOBIHADAX) GetDepth(symbol, depthType string) (Orderbook, error) {
 	vals := url.Values{}
 	vals.Set("symbol", symbol)
 
@@ -201,7 +201,7 @@ func (h *HUOBI) GetDepth(symbol, depthType string) (Orderbook, error) {
 }
 
 // GetTrades returns the trades for the specified symbol
-func (h *HUOBI) GetTrades(symbol string) ([]Trade, error) {
+func (h *HUOBIHADAX) GetTrades(symbol string) ([]Trade, error) {
 	vals := url.Values{}
 	vals.Set("symbol", symbol)
 
@@ -223,7 +223,7 @@ func (h *HUOBI) GetTrades(symbol string) ([]Trade, error) {
 }
 
 // GetTradeHistory returns the trades for the specified symbol
-func (h *HUOBI) GetTradeHistory(symbol, size string) ([]TradeHistory, error) {
+func (h *HUOBIHADAX) GetTradeHistory(symbol, size string) ([]TradeHistory, error) {
 	vals := url.Values{}
 	vals.Set("symbol", symbol)
 
@@ -247,7 +247,7 @@ func (h *HUOBI) GetTradeHistory(symbol, size string) ([]TradeHistory, error) {
 }
 
 // GetMarketDetail returns the ticker for the specified symbol
-func (h *HUOBI) GetMarketDetail(symbol string) (Detail, error) {
+func (h *HUOBIHADAX) GetMarketDetail(symbol string) (Detail, error) {
 	vals := url.Values{}
 	vals.Set("symbol", symbol)
 
@@ -267,7 +267,7 @@ func (h *HUOBI) GetMarketDetail(symbol string) (Detail, error) {
 }
 
 // GetSymbols returns an array of symbols supported by Huobi
-func (h *HUOBI) GetSymbols() ([]Symbol, error) {
+func (h *HUOBIHADAX) GetSymbols() ([]Symbol, error) {
 	type response struct {
 		Response
 		Symbols []Symbol `json:"data"`
@@ -284,7 +284,7 @@ func (h *HUOBI) GetSymbols() ([]Symbol, error) {
 }
 
 // GetCurrencies returns a list of currencies supported by Huobi
-func (h *HUOBI) GetCurrencies() ([]string, error) {
+func (h *HUOBIHADAX) GetCurrencies() ([]string, error) {
 	type response struct {
 		Response
 		Currencies []string `json:"data"`
@@ -301,7 +301,7 @@ func (h *HUOBI) GetCurrencies() ([]string, error) {
 }
 
 // GetTimestamp returns the Huobi server time
-func (h *HUOBI) GetTimestamp() (int64, error) {
+func (h *HUOBIHADAX) GetTimestamp() (int64, error) {
 	type response struct {
 		Response
 		Timestamp int64 `json:"data"`
@@ -318,7 +318,7 @@ func (h *HUOBI) GetTimestamp() (int64, error) {
 }
 
 // GetAccounts returns the Huobi user accounts
-func (h *HUOBI) GetAccounts() ([]Account, error) {
+func (h *HUOBIHADAX) GetAccounts() ([]Account, error) {
 	type response struct {
 		Response
 		AccountData []Account `json:"data"`
@@ -334,7 +334,7 @@ func (h *HUOBI) GetAccounts() ([]Account, error) {
 }
 
 // GetAccountBalance returns the users Huobi account balance
-func (h *HUOBI) GetAccountBalance(accountID string) ([]AccountBalanceDetail, error) {
+func (h *HUOBIHADAX) GetAccountBalance(accountID string) ([]AccountBalanceDetail, error) {
 	type response struct {
 		Response
 		AccountBalanceData AccountBalance `json:"data"`
@@ -351,7 +351,7 @@ func (h *HUOBI) GetAccountBalance(accountID string) ([]AccountBalanceDetail, err
 }
 
 // PlaceOrder submits an order to Huobi
-func (h *HUOBI) PlaceOrder(symbol, source, accountID, orderType string, amount, price float64) (int64, error) {
+func (h *HUOBIHADAX) PlaceOrder(symbol, source, accountID, orderType string, amount, price float64) (int64, error) {
 	vals := make(map[string]string)
 	vals["account-id"] = accountID
 	vals["amount"] = strconv.FormatFloat(amount, 'f', -1, 64)
@@ -391,7 +391,7 @@ func (h *HUOBI) PlaceOrder(symbol, source, accountID, orderType string, amount, 
 }
 
 // CancelOrder cancels an order on Huobi
-func (h *HUOBI) CancelOrder(orderID int64) (int64, error) {
+func (h *HUOBIHADAX) CancelOrder(orderID int64) (int64, error) {
 	type response struct {
 		Response
 		OrderID int64 `json:"data,string"`
@@ -399,7 +399,7 @@ func (h *HUOBI) CancelOrder(orderID int64) (int64, error) {
 
 	var result response
 	endpoint := fmt.Sprintf(huobiOrderCancel, strconv.FormatInt(orderID, 10))
-	err := h.SendAuthenticatedHTTPPostRequest("POST", endpoint, "", &result)
+	err := h.SendAuthenticatedHTTPRequest("POST", endpoint, url.Values{}, &result)
 
 	if result.ErrorMessage != "" {
 		return 0, errors.New(result.ErrorMessage)
@@ -408,7 +408,7 @@ func (h *HUOBI) CancelOrder(orderID int64) (int64, error) {
 }
 
 // CancelOrderBatch cancels a batch of orders -- to-do
-func (h *HUOBI) CancelOrderBatch(orderIDs []int64) (CancelOrderBatch, error) {
+func (h *HUOBIHADAX) CancelOrderBatch(orderIDs []int64) (CancelOrderBatch, error) {
 	type response struct {
 		Status string           `json:"status"`
 		Data   CancelOrderBatch `json:"data"`
@@ -428,14 +428,14 @@ func (h *HUOBI) CancelOrderBatch(orderIDs []int64) (CancelOrderBatch, error) {
 	err := h.SendAuthenticatedHTTPPostRequest("POST", huobiOrderCancelBatch, postBodyParams, &result)
 
 	if len(result.Data.Failed) != 0 {
-		errJSON, _ := json.Marshal(result.Data.Failed)
-		return CancelOrderBatch{}, errors.New(string(errJSON))
+		errJson, _ := json.Marshal(result.Data.Failed)
+		return CancelOrderBatch{}, errors.New(string(errJson))
 	}
 	return result.Data, err
 }
 
 // GetOrder returns order information for the specified order
-func (h *HUOBI) GetOrder(orderID int64) (OrderInfo, error) {
+func (h *HUOBIHADAX) GetOrder(orderID int64) (OrderInfo, error) {
 	type response struct {
 		Response
 		Order OrderInfo `json:"data"`
@@ -443,7 +443,7 @@ func (h *HUOBI) GetOrder(orderID int64) (OrderInfo, error) {
 
 	var result response
 	endpoint := fmt.Sprintf(huobiGetOrder, strconv.FormatInt(orderID, 10))
-	err := h.SendAuthenticatedHTTPPostRequest("GET", endpoint, "", &result)
+	err := h.SendAuthenticatedHTTPRequest("GET", endpoint, url.Values{}, &result)
 
 	if result.ErrorMessage != "" {
 		return result.Order, errors.New(result.ErrorMessage)
@@ -452,7 +452,7 @@ func (h *HUOBI) GetOrder(orderID int64) (OrderInfo, error) {
 }
 
 // GetOrderMatchResults returns matched order info for the specified order查询某个订单的成交明细
-func (h *HUOBI) GetOrderMatchResults(orderID int64) ([]OrderMatchInfo, error) {
+func (h *HUOBIHADAX) GetOrderMatchResults(orderID int64) ([]OrderMatchInfo, error) {
 	type response struct {
 		Response
 		Orders []OrderMatchInfo `json:"data"`
@@ -469,7 +469,7 @@ func (h *HUOBI) GetOrderMatchResults(orderID int64) ([]OrderMatchInfo, error) {
 }
 
 // GetOrders returns a list of orders查询当前委托、历史委托
-func (h *HUOBI) GetOrders(symbol, types, start, end, states, from, direct, size string) ([]OrderInfo, error) {
+func (h *HUOBIHADAX) GetOrders(symbol, types, start, end, states, from, direct, size string) ([]OrderInfo, error) {
 	type response struct {
 		Response
 		Orders []OrderInfo `json:"data"`
@@ -513,7 +513,7 @@ func (h *HUOBI) GetOrders(symbol, types, start, end, states, from, direct, size 
 }
 
 // GetOrdersMatch returns a list of matched orders
-func (h *HUOBI) GetOrdersMatch(symbol, types, start, end, from, direct, size string) ([]OrderMatchInfo, error) {
+func (h *HUOBIHADAX) GetOrdersMatch(symbol, types, start, end, from, direct, size string) ([]OrderMatchInfo, error) {
 	type response struct {
 		Response
 		Orders []OrderMatchInfo `json:"data"`
@@ -557,7 +557,7 @@ func (h *HUOBI) GetOrdersMatch(symbol, types, start, end, from, direct, size str
 
 // MarginTransfer transfers assets into or out of the margin account
 //	现货账户划入至借贷账户/借贷账户划出至现货账户
-func (h *HUOBI) MarginTransfer(symbol, currency string, amount float64, in bool) (int64, error) {
+func (h *HUOBIHADAX) MarginTransfer(symbol, currency string, amount float64, in bool) (int64, error) {
 	vals := url.Values{}
 	vals.Set("symbol", symbol)
 	vals.Set("currency", currency)
@@ -583,7 +583,7 @@ func (h *HUOBI) MarginTransfer(symbol, currency string, amount float64, in bool)
 }
 
 // MarginOrder submits a margin order application申请借贷
-func (h *HUOBI) MarginOrder(symbol, currency string, amount float64) (int64, error) {
+func (h *HUOBIHADAX) MarginOrder(symbol, currency string, amount float64) (int64, error) {
 	vals := url.Values{}
 	vals.Set("symbol", symbol)
 	vals.Set("currency", currency)
@@ -604,7 +604,7 @@ func (h *HUOBI) MarginOrder(symbol, currency string, amount float64) (int64, err
 }
 
 // MarginRepayment repays a margin amount for a margin ID
-func (h *HUOBI) MarginRepayment(orderID int64, amount float64) (int64, error) {
+func (h *HUOBIHADAX) MarginRepayment(orderID int64, amount float64) (int64, error) {
 	vals := url.Values{}
 	vals.Set("order-id", strconv.FormatInt(orderID, 10))
 	vals.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
@@ -625,7 +625,7 @@ func (h *HUOBI) MarginRepayment(orderID int64, amount float64) (int64, error) {
 }
 
 // GetMarginLoanOrders returns the margin loan orders 查询借贷订单
-func (h *HUOBI) GetMarginLoanOrders(symbol, currency, start, end, states, from, direct, size string) ([]MarginOrder, error) {
+func (h *HUOBIHADAX) GetMarginLoanOrders(symbol, currency, start, end, states, from, direct, size string) ([]MarginOrder, error) {
 	vals := url.Values{}
 	vals.Set("symbol", symbol)
 	vals.Set("currency", currency)
@@ -669,7 +669,7 @@ func (h *HUOBI) GetMarginLoanOrders(symbol, currency, start, end, states, from, 
 }
 
 // GetMarginAccountBalance returns the margin account balances借贷账户详情
-func (h *HUOBI) GetMarginAccountBalance(symbol string) ([]MarginAccountBalance, error) {
+func (h *HUOBIHADAX) GetMarginAccountBalance(symbol string) ([]MarginAccountBalance, error) {
 	type response struct {
 		Response
 		Balances []MarginAccountBalance `json:"data"`
@@ -690,7 +690,7 @@ func (h *HUOBI) GetMarginAccountBalance(symbol string) ([]MarginAccountBalance, 
 }
 
 // Withdraw withdraws the desired amount and currency申请提现虚拟币
-func (h *HUOBI) Withdraw(address, currency, addrTag string, amount, fee float64) (int64, error) {
+func (h *HUOBIHADAX) Withdraw(address, currency, addrTag string, amount, fee float64) (int64, error) {
 	type response struct {
 		Response
 		WithdrawID int64 `json:"data"`
@@ -719,7 +719,7 @@ func (h *HUOBI) Withdraw(address, currency, addrTag string, amount, fee float64)
 }
 
 // CancelWithdraw cancels a withdraw request申请取消提现虚拟币
-func (h *HUOBI) CancelWithdraw(withdrawID int64) (int64, error) {
+func (h *HUOBIHADAX) CancelWithdraw(withdrawID int64) (int64, error) {
 	type response struct {
 		Response
 		WithdrawID int64 `json:"data"`
@@ -739,13 +739,12 @@ func (h *HUOBI) CancelWithdraw(withdrawID int64) (int64, error) {
 }
 
 // SendHTTPRequest sends an unauthenticated HTTP request
-func (h *HUOBI) SendHTTPRequest(path string, result interface{}) error {
+func (h *HUOBIHADAX) SendHTTPRequest(path string, result interface{}) error {
 	return h.SendPayload("GET", path, nil, nil, result, false, h.Verbose)
 }
 
 // SendAuthenticatedHTTPPostRequest sends authenticated requests to the HUOBI API
-// 原有的Post方法和Get传参不一样，进行重写
-func (h *HUOBI) SendAuthenticatedHTTPPostRequest(method, endpoint, postBodyValues string, result interface{}) error {
+func (h *HUOBIHADAX) SendAuthenticatedHTTPPostRequest(method, endpoint, postBodyValues string, result interface{}) error {
 	if !h.AuthenticatedAPISupport {
 		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet, h.Name)
 	}
@@ -776,7 +775,7 @@ func (h *HUOBI) SendAuthenticatedHTTPPostRequest(method, endpoint, postBodyValue
 }
 
 // SendAuthenticatedHTTPRequest sends authenticated requests to the HUOBI API
-func (h *HUOBI) SendAuthenticatedHTTPRequest(method, endpoint string, values url.Values, result interface{}) error {
+func (h *HUOBIHADAX) SendAuthenticatedHTTPRequest(method, endpoint string, values url.Values, result interface{}) error {
 	if !h.AuthenticatedAPISupport {
 		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet, h.Name)
 	}
