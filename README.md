@@ -1,3 +1,10 @@
+基于项目 [thrasher-/gocryptotrader](https://github.com/thrasher-/gocryptotrader) 做的个性化修改
+
+## 修改的内容
+
++ 简单一些操作
++ 修复火币在 Post 时的bug，同时增加 HuobiHadax 的支持
+
 <img src="https://github.com/thrasher-/gocryptotrader/blob/master/web/src/assets/page-logo.png?raw=true" width="350px" height="350px" hspace="70">
 
 [![Build Status](https://travis-ci.org/thrasher-/gocryptotrader.svg?branch=master)](https://travis-ci.org/thrasher-/gocryptotrader)
