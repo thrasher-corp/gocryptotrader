@@ -514,7 +514,7 @@ func (b *Binance) SendAuthHTTPRequest(method, path string, params url.Values, re
 	if params == nil {
 		params = url.Values{}
 	}
-	// params.Set("recvWindow", strconv.FormatInt(5000, 10))
+	params.Set("recvWindow", strconv.FormatInt(common.RecvWindow(5*time.Second), 10))
 	params.Set("timestamp", strconv.FormatInt(time.Now().Unix()*1000, 10))
 
 	signature := params.Encode()
