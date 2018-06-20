@@ -125,6 +125,9 @@ type ExchangeConfig struct {
 	PairsLastUpdated          int64                     `json:",omitempty"`
 	ConfigCurrencyPairFormat  *CurrencyPairFormatConfig `json:"ConfigCurrencyPairFormat"`
 	RequestCurrencyPairFormat *CurrencyPairFormatConfig `json:"RequestCurrencyPairFormat"`
+
+	BaseAsset  string `json:"baseasset"`  // 基础交易目标
+	QuoteAsset string `json:"quoteasset"` // 交易目标
 }
 
 // CurrencyConfig holds all the information needed for currency related manipulation

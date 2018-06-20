@@ -1,8 +1,10 @@
 package exchange
 
 import (
+	"fmt"
 	"log"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 
@@ -74,6 +76,8 @@ type Base struct {
 	RequestCurrencyPairFormat   config.CurrencyPairFormatConfig
 	ConfigCurrencyPairFormat    config.CurrencyPairFormatConfig
 	*request.Requester
+	BaseAsset  string `json:"baseasset"`  // 基础交易目标
+	QuoteAsset string `json:"quoteasset"` // 交易目标
 }
 
 // IBotExchange enforces standard functions for all exchanges supported in
@@ -227,6 +231,17 @@ func CompareCurrencyPairFormats(pair1 config.CurrencyPairFormatConfig, pair2 *co
 		return false
 	}
 	return true
+}
+
+// GetSymbol 获取格式化的交易对
+func (e *Base) GetSymbol() string {
+	var symbol string
+	if e.ConfigCurrencyPairFormat.Uppercase {
+		symbol = fmt.Sprintf("%s%s%s", strings.ToUpper(e.BaseAsset), e.RequestCurrencyPairFormat.Delimiter, strings.ToUpper(e.QuoteAsset))
+	} else {
+		symbol = fmt.Sprintf("%s%s%s", strings.ToLower(e.BaseAsset), e.RequestCurrencyPairFormat.Delimiter, strings.ToLower(e.QuoteAsset))
+	}
+	return symbol
 }
 
 // SetCurrencyPairFormat checks the exchange request and config currency pair
