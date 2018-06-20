@@ -146,7 +146,7 @@ func (b *BTCMarkets) GetTrades(firstPair, secondPair string, values url.Values) 
 // orderside - example "Bid" or "Ask"
 // orderType - example "limit"
 // clientReq - example "abc-cdf-1000"
-func (b *BTCMarkets) NewOrder(currency, instrument string, price, amount float64, orderSide, orderType, clientReq string) (int, error) {
+func (b *BTCMarkets) NewOrder(currency, instrument string, price, amount float64, orderSide, orderType, clientReq string) (int64, error) {
 	newPrice := int64(price * float64(common.SatoshisPerBTC))
 	newVolume := int64(amount * float64(common.SatoshisPerBTC))
 
@@ -170,7 +170,7 @@ func (b *BTCMarkets) NewOrder(currency, instrument string, price, amount float64
 	if !resp.Success {
 		return 0, fmt.Errorf("%s Unable to place order. Error message: %s", b.GetName(), resp.ErrorMessage)
 	}
-	return resp.ID, nil
+	return int64(resp.ID), nil
 }
 
 // CancelOrder cancels an order by its ID
@@ -217,10 +217,19 @@ func (b *BTCMarkets) CancelOrder(orderID []int64) (bool, error) {
 // historic - if false just normal Orders open
 func (b *BTCMarkets) GetOrders(currency, instrument string, limit, since int64, historic bool) ([]Order, error) {
 	request := make(map[string]interface{})
-	request["currency"] = common.StringToUpper(currency)
-	request["instrument"] = common.StringToUpper(instrument)
-	request["limit"] = limit
-	request["since"] = since
+
+	if currency != "" {
+		request["currency"] = common.StringToUpper(currency)
+	}
+	if instrument != "" {
+		request["instrument"] = common.StringToUpper(instrument)
+	}
+	if limit != 0 {
+		request["limit"] = limit
+	}
+	if since != 0 {
+		request["since"] = since
+	}
 
 	path := btcMarketsOrderOpen
 	if historic {

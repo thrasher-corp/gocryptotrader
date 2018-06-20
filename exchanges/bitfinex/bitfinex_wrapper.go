@@ -163,6 +163,13 @@ func (b *Bitfinex) GetExchangeAccountInfo() (exchange.AccountInfo, error) {
 	return response, nil
 }
 
+// GetExchangeFundTransferHistory returns funding history, deposits and
+// withdrawals
+func (b *Bitfinex) GetExchangeFundTransferHistory() ([]exchange.FundHistory, error) {
+	var fundHistory []exchange.FundHistory
+	return fundHistory, errors.New("not supported on exchange")
+}
+
 // GetExchangeHistory returns historic trade data since exchange opening.
 func (b *Bitfinex) GetExchangeHistory(p pair.CurrencyPair, assetType string) ([]exchange.TradeHistory, error) {
 	var resp []exchange.TradeHistory
@@ -171,37 +178,43 @@ func (b *Bitfinex) GetExchangeHistory(p pair.CurrencyPair, assetType string) ([]
 }
 
 // SubmitExchangeOrder submits a new order
-func (b *Bitfinex) SubmitExchangeOrder(p pair.CurrencyPair, side string, orderType int, amount, price float64) (int64, error) {
+func (b *Bitfinex) SubmitExchangeOrder(base, quote pair.CurrencyItem, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (int64, error) {
 	return 0, errors.New("not yet implemented")
 }
 
 // ModifyExchangeOrder will allow of changing orderbook placement and limit to
 // market conversion
-func (b *Bitfinex) ModifyExchangeOrder(p pair.CurrencyPair, orderID, action int64) (int64, error) {
+func (b *Bitfinex) ModifyExchangeOrder(orderID int64, action exchange.ModifyOrder) (int64, error) {
 	return 0, errors.New("not yet implemented")
 }
 
 // CancelExchangeOrder cancels an order by its corresponding ID number
-func (b *Bitfinex) CancelExchangeOrder(p pair.CurrencyPair, orderID int64) (int64, error) {
-	return 0, errors.New("not yet implemented")
+func (b *Bitfinex) CancelExchangeOrder(orderID int64) error {
+	return errors.New("not yet implemented")
 }
 
 // CancelAllExchangeOrders cancels all orders associated with a currency pair
-func (b *Bitfinex) CancelAllExchangeOrders(p pair.CurrencyPair) error {
+func (b *Bitfinex) CancelAllExchangeOrders() error {
 	return errors.New("not yet implemented")
 }
 
 // GetExchangeOrderInfo returns information on a current open order
-func (b *Bitfinex) GetExchangeOrderInfo(orderID int64) (float64, error) {
-	return 0, errors.New("not yet implemented")
+func (b *Bitfinex) GetExchangeOrderInfo(orderID int64) (exchange.OrderDetail, error) {
+	var orderDetail exchange.OrderDetail
+	return orderDetail, errors.New("not yet implemented")
 }
 
 // GetExchangeDepositAddress returns a deposit address for a specified currency
-func (b *Bitfinex) GetExchangeDepositAddress(p pair.CurrencyPair) (string, error) {
+func (b *Bitfinex) GetExchangeDepositAddress(cryptocurrency pair.CurrencyItem) (string, error) {
 	return "", errors.New("not yet implemented")
 }
 
 // WithdrawExchangeFunds returns a withdrawal ID when a withdrawal is submitted
-func (b *Bitfinex) WithdrawExchangeFunds(address string, p pair.CurrencyPair, amount float64) (string, error) {
+func (b *Bitfinex) WithdrawExchangeCryptoFunds(address string, cryptocurrency pair.CurrencyItem, amount float64) (string, error) {
+	return "", errors.New("not yet implemented")
+}
+
+// WithdrawExchangeFiatFunds returns a withdrawal ID when a withdrawal is submitted
+func (b *Bitfinex) WithdrawExchangeFiatFunds(accountName, accountNumber, bankName, bsbNumber string, currency pair.CurrencyItem, amount float64) (string, error) {
 	return "", errors.New("not yet implemented")
 }
