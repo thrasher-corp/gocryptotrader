@@ -8,8 +8,8 @@ import (
 	"os"
 	"os/exec"
 
-	"github.com/thrasher-/gocryptotrader/common"
-	"github.com/thrasher-/gocryptotrader/config"
+	"github.com/idoall/gocryptotrader/common"
+	"github.com/idoall/gocryptotrader/config"
 )
 
 const (
