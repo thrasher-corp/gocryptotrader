@@ -147,7 +147,18 @@
    },
    "RequestCurrencyPairFormat": {
     "Uppercase": true
-   }
+   },
+   "BankAccounts": [
+    {
+     "BankName": "",
+     "BankAddress": "",
+     "AccountName": "",
+     "AccountNumber": "",
+     "SWIFTCode": "",
+     "IBAN": "",
+     "SupportedCurrencies": ""
+    }
+   ]
   },
   {
    "Name": "Binance",
@@ -171,7 +182,18 @@
    },
    "RequestCurrencyPairFormat": {
     "Uppercase": true
-   }
+   },
+   "BankAccounts": [
+    {
+     "BankName": "",
+     "BankAddress": "",
+     "AccountName": "",
+     "AccountNumber": "",
+     "SWIFTCode": "",
+     "IBAN": "",
+     "SupportedCurrencies": ""
+    }
+   ]
   },
   {
    "Name": "Bitfinex",
@@ -194,7 +216,27 @@
    },
    "RequestCurrencyPairFormat": {
     "Uppercase": true
-   }
+   },
+   "BankAccounts": [
+    {
+     "BankName": "Deutsche Bank Privat Und Geschaeftskunden AG",
+     "BankAddress": "Karlsruhe, 76125, GERMANY",
+     "AccountName": "GLOBAL TRADE SOLUTIONS GmbH",
+     "AccountNumber": "DE51660700240057016802",
+     "SWIFTCode": "DEUTDEDB660",
+     "IBAN": "DE51660700240057016802",
+     "SupportedCurrencies": "EUR,USD"
+    },
+    {
+     "BankName": "Deutsche Bank Privat Und Geschaeftskunden AG",
+     "BankAddress": "Karlsruhe, 76125, GERMANY",
+     "AccountName": "GLOBAL TRADE SOLUTIONS GmbH",
+     "AccountNumber": "DE78660700240057016801",
+     "SWIFTCode": "DEUTDEDB660",
+     "IBAN": "DE78660700240057016801",
+     "SupportedCurrencies": "JPY,GBP"
+    }
+   ]
   },
   {
    "Name": "Bitflyer",
@@ -220,7 +262,18 @@
    "RequestCurrencyPairFormat": {
     "Uppercase": true,
     "Delimiter": "_"
-   }
+   },
+   "BankAccounts": [
+    {
+     "BankName": "",
+     "BankAddress": "",
+     "AccountName": "",
+     "AccountNumber": "",
+     "SWIFTCode": "",
+     "IBAN": "",
+     "SupportedCurrencies": ""
+    }
+   ]
   },
   {
    "Name": "Bithumb",
@@ -245,7 +298,18 @@
    },
    "RequestCurrencyPairFormat": {
     "Uppercase": true
-   }
+   },
+   "BankAccounts": [
+    {
+     "BankName": "",
+     "BankAddress": "",
+     "AccountName": "",
+     "AccountNumber": "",
+     "SWIFTCode": "",
+     "IBAN": "",
+     "SupportedCurrencies": ""
+    }
+   ]
   },
   {
    "Name": "Bitstamp",
@@ -269,7 +333,18 @@
    },
    "RequestCurrencyPairFormat": {
     "Uppercase": true
-   }
+   },
+   "BankAccounts": [
+    {
+     "BankName": "",
+     "BankAddress": "",
+     "AccountName": "",
+     "AccountNumber": "",
+     "SWIFTCode": "",
+     "IBAN": "",
+     "SupportedCurrencies": ""
+    }
+   ]
   },
   {
    "Name": "Bittrex",
@@ -294,7 +369,18 @@
    "RequestCurrencyPairFormat": {
     "Uppercase": true,
     "Delimiter": "-"
-   }
+   },
+   "BankAccounts": [
+    {
+     "BankName": "",
+     "BankAddress": "",
+     "AccountName": "",
+     "AccountNumber": "",
+     "SWIFTCode": "",
+     "IBAN": "",
+     "SupportedCurrencies": ""
+    }
+   ]
   },
   {
    "Name": "BTCC",
@@ -317,7 +403,18 @@
    },
    "RequestCurrencyPairFormat": {
     "Uppercase": false
-   }
+   },
+   "BankAccounts": [
+    {
+     "BankName": "",
+     "BankAddress": "",
+     "AccountName": "",
+     "AccountNumber": "",
+     "SWIFTCode": "",
+     "IBAN": "",
+     "SupportedCurrencies": ""
+    }
+   ]
   },
   {
    "Name": "WEX",
@@ -343,7 +440,18 @@
     "Uppercase": false,
     "Delimiter": "_",
     "Separator": "-"
-   }
+   },
+   "BankAccounts": [
+    {
+     "BankName": "",
+     "BankAddress": "",
+     "AccountName": "",
+     "AccountNumber": "",
+     "SWIFTCode": "",
+     "IBAN": "",
+     "SupportedCurrencies": ""
+    }
+   ]
   },
   {
    "Name": "BTC Markets",
@@ -366,7 +474,18 @@
    },
    "RequestCurrencyPairFormat": {
     "Uppercase": true
-   }
+   },
+   "BankAccounts": [
+    {
+     "BankName": "",
+     "BankAddress": "",
+     "AccountName": "",
+     "AccountNumber": "",
+     "SWIFTCode": "",
+     "IBAN": "",
+     "SupportedCurrencies": ""
+    }
+   ]
   },
   {
    "Name": "COINUT",
@@ -390,7 +509,18 @@
    },
    "RequestCurrencyPairFormat": {
     "Uppercase": true
-   }
+   },
+   "BankAccounts": [
+    {
+     "BankName": "",
+     "BankAddress": "",
+     "AccountName": "",
+     "AccountNumber": "",
+     "SWIFTCode": "",
+     "IBAN": "",
+     "SupportedCurrencies": ""
+    }
+   ]
   },
   {
    "Name": "EXMO",
@@ -416,7 +546,18 @@
     "Uppercase": true,
     "Delimiter": "_",
     "Separator": ","
-   }
+   },
+   "BankAccounts": [
+    {
+     "BankName": "",
+     "BankAddress": "",
+     "AccountName": "",
+     "AccountNumber": "",
+     "SWIFTCode": "",
+     "IBAN": "",
+     "SupportedCurrencies": ""
+    }
+   ]
   },
   {
    "Name": "CoinbasePro",
@@ -441,7 +582,18 @@
    "RequestCurrencyPairFormat": {
     "Uppercase": true,
     "Delimiter": "-"
-   }
+   },
+   "BankAccounts": [
+    {
+     "BankName": "",
+     "BankAddress": "",
+     "AccountName": "",
+     "AccountNumber": "",
+     "SWIFTCode": "",
+     "IBAN": "",
+     "SupportedCurrencies": ""
+    }
+   ]
   },
   {
    "Name": "Gemini",
@@ -464,7 +616,18 @@
    },
    "RequestCurrencyPairFormat": {
     "Uppercase": true
-   }
+   },
+   "BankAccounts": [
+    {
+     "BankName": "",
+     "BankAddress": "",
+     "AccountName": "",
+     "AccountNumber": "",
+     "SWIFTCode": "",
+     "IBAN": "",
+     "SupportedCurrencies": ""
+    }
+   ]
   },
   {
    "Name": "HitBTC",
@@ -488,7 +651,18 @@
    },
    "RequestCurrencyPairFormat": {
     "Uppercase": true
-   }
+   },
+   "BankAccounts": [
+    {
+     "BankName": "",
+     "BankAddress": "",
+     "AccountName": "",
+     "AccountNumber": "",
+     "SWIFTCode": "",
+     "IBAN": "",
+     "SupportedCurrencies": ""
+    }
+   ]
   },
   {
    "Name": "Huobi",
@@ -512,7 +686,18 @@
    },
    "RequestCurrencyPairFormat": {
     "Uppercase": false
-   }
+   },
+   "BankAccounts": [
+    {
+     "BankName": "",
+     "BankAddress": "",
+     "AccountName": "",
+     "AccountNumber": "",
+     "SWIFTCode": "",
+     "IBAN": "",
+     "SupportedCurrencies": ""
+    }
+   ]
   },
   {
    "Name": "ITBIT",
@@ -537,7 +722,18 @@
    },
    "RequestCurrencyPairFormat": {
     "Uppercase": true
-   }
+   },
+   "BankAccounts": [
+    {
+     "BankName": "",
+     "BankAddress": "",
+     "AccountName": "",
+     "AccountNumber": "",
+     "SWIFTCode": "",
+     "IBAN": "",
+     "SupportedCurrencies": ""
+    }
+   ]
   },
   {
    "Name": "Kraken",
@@ -562,7 +758,18 @@
    "RequestCurrencyPairFormat": {
     "Uppercase": true,
     "Separator": ","
-   }
+   },
+   "BankAccounts": [
+    {
+     "BankName": "",
+     "BankAddress": "",
+     "AccountName": "",
+     "AccountNumber": "",
+     "SWIFTCode": "",
+     "IBAN": "",
+     "SupportedCurrencies": ""
+    }
+   ]
   },
   {
    "Name": "LakeBTC",
@@ -585,7 +792,18 @@
    },
    "RequestCurrencyPairFormat": {
     "Uppercase": true
-   }
+   },
+   "BankAccounts": [
+    {
+     "BankName": "",
+     "BankAddress": "",
+     "AccountName": "",
+     "AccountNumber": "",
+     "SWIFTCode": "",
+     "IBAN": "",
+     "SupportedCurrencies": ""
+    }
+   ]
   },
   {
    "Name": "Liqui",
@@ -611,7 +829,18 @@
     "Uppercase": false,
     "Delimiter": "_",
     "Separator": "-"
-   }
+   },
+   "BankAccounts": [
+    {
+     "BankName": "",
+     "BankAddress": "",
+     "AccountName": "",
+     "AccountNumber": "",
+     "SWIFTCode": "",
+     "IBAN": "",
+     "SupportedCurrencies": ""
+    }
+   ]
   },
   {
    "Name": "LocalBitcoins",
@@ -635,7 +864,18 @@
    },
    "RequestCurrencyPairFormat": {
     "Uppercase": true
-   }
+   },
+   "BankAccounts": [
+    {
+     "BankName": "",
+     "BankAddress": "",
+     "AccountName": "",
+     "AccountNumber": "",
+     "SWIFTCode": "",
+     "IBAN": "",
+     "SupportedCurrencies": ""
+    }
+   ]
   },
   {
    "Name": "OKCOIN China",
@@ -660,7 +900,18 @@
    "RequestCurrencyPairFormat": {
     "Uppercase": false,
     "Delimiter": "_"
-   }
+   },
+   "BankAccounts": [
+    {
+     "BankName": "",
+     "BankAddress": "",
+     "AccountName": "",
+     "AccountNumber": "",
+     "SWIFTCode": "",
+     "IBAN": "",
+     "SupportedCurrencies": ""
+    }
+   ]
   },
   {
    "Name": "OKCOIN International",
@@ -685,7 +936,18 @@
    "RequestCurrencyPairFormat": {
     "Uppercase": false,
     "Delimiter": "_"
-   }
+   },
+   "BankAccounts": [
+    {
+     "BankName": "",
+     "BankAddress": "",
+     "AccountName": "",
+     "AccountNumber": "",
+     "SWIFTCode": "",
+     "IBAN": "",
+     "SupportedCurrencies": ""
+    }
+   ]
   },
   {
    "Name": "OKEX",
@@ -711,7 +973,18 @@
    "RequestCurrencyPairFormat": {
     "Uppercase": false,
     "Delimiter": "_"
-   }
+   },
+   "BankAccounts": [
+    {
+     "BankName": "",
+     "BankAddress": "",
+     "AccountName": "",
+     "AccountNumber": "",
+     "SWIFTCode": "",
+     "IBAN": "",
+     "SupportedCurrencies": ""
+    }
+   ]
   },
   {
    "Name": "Poloniex",
@@ -736,7 +1009,18 @@
    "RequestCurrencyPairFormat": {
     "Uppercase": true,
     "Delimiter": "_"
-   }
+   },
+   "BankAccounts": [
+    {
+     "BankName": "",
+     "BankAddress": "",
+     "AccountName": "",
+     "AccountNumber": "",
+     "SWIFTCode": "",
+     "IBAN": "",
+     "SupportedCurrencies": ""
+    }
+   ]
   },
   {
    "Name": "Yobit",
@@ -763,7 +1047,30 @@
     "Uppercase": false,
     "Delimiter": "_",
     "Separator": "-"
-   }
+   },
+   "BankAccounts": [
+    {
+     "BankName": "",
+     "BankAddress": "",
+     "AccountName": "",
+     "AccountNumber": "",
+     "SWIFTCode": "",
+     "IBAN": "",
+     "SupportedCurrencies": ""
+    }
+   ]
+  }
+ ],
+ "BankAccounts": [
+  {
+   "BankName": "test",
+   "BankAddress": "test",
+   "AccountName": "TestAccount",
+   "AccountNumber": "0234",
+   "SWIFTCode": "91272837",
+   "IBAN": "98218738671897",
+   "SupportedCurrencies": "USD",
+   "SupportedExchanges": "ANX,Kraken"
   }
  ]
 }
