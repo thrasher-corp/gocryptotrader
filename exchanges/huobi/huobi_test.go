@@ -16,13 +16,6 @@ import (
 
 var h HUOBI
 
-// Please supply your own APIKEYS here for due diligence testing
-
-const (
-	apiKey    = ""
-	apiSecret = ""
-)
-
 // getDefaultConfig 获取默认配置
 func getDefaultConfig() config.ExchangeConfig {
 	return config.ExchangeConfig{
@@ -57,13 +50,7 @@ func TestSetDefaults(t *testing.T) {
 }
 
 func TestSetup(t *testing.T) {
-	huobiConfig := getDefaultConfig()
-
-	huobiConfig.AuthenticatedAPISupport = true
-	huobiConfig.APIKey = apiKey
-	huobiConfig.APISecret = apiSecret
-
-	h.Setup(huobiConfig)
+	h.Setup(getDefaultConfig())
 }
 
 func TestGetFee(t *testing.T) {
@@ -147,13 +134,6 @@ func TestGetTimestamp(t *testing.T) {
 
 func TestGetAccounts(t *testing.T) {
 	t.Parallel()
-	if apiKey == "" && apiSecret == "" {
-		t.Skip()
-	}
-
-	h.APIKey = apiKey
-	h.APISecret = apiSecret
-	h.AuthenticatedAPISupport = true
 
 	_, err := h.GetAccounts()
 	if err != nil {
@@ -163,13 +143,6 @@ func TestGetAccounts(t *testing.T) {
 
 func TestGetAccountBalance(t *testing.T) {
 	t.Parallel()
-	if apiKey == "" && apiSecret == "" {
-		t.Skip()
-	}
-
-	h.APIKey = apiKey
-	h.APISecret = apiSecret
-	h.AuthenticatedAPISupport = true
 
 	result, err := h.GetAccounts()
 	if err != nil {
@@ -185,13 +158,6 @@ func TestGetAccountBalance(t *testing.T) {
 
 func TestPlaceOrder(t *testing.T) {
 	t.Parallel()
-	if apiKey == "" && apiSecret == "" {
-		t.Skip()
-	}
-
-	h.APIKey = apiKey
-	h.APISecret = apiSecret
-	h.AuthenticatedAPISupport = true
 
 	_, err := h.GetAccounts()
 	if err != nil {
@@ -209,13 +175,6 @@ func TestPlaceOrder(t *testing.T) {
 
 func TestCancelOrder(t *testing.T) {
 	t.Parallel()
-	if apiKey == "" && apiSecret == "" {
-		t.Skip()
-	}
-
-	h.APIKey = apiKey
-	h.APISecret = apiSecret
-	h.AuthenticatedAPISupport = true
 
 	_, err := h.CancelOrder(1337)
 	if err == nil {
@@ -225,13 +184,7 @@ func TestCancelOrder(t *testing.T) {
 
 func TestGetOrder(t *testing.T) {
 	t.Parallel()
-	if apiKey == "" && apiSecret == "" {
-		t.Skip()
-	}
 
-	h.APIKey = apiKey
-	h.APISecret = apiSecret
-	h.AuthenticatedAPISupport = true
 	_, err := h.GetOrder(1337)
 	if err == nil {
 		t.Error("Test failed - Huobi TestCancelOrder: Invalid orderID returned true")
@@ -240,13 +193,7 @@ func TestGetOrder(t *testing.T) {
 
 func TestGetMarginLoanOrders(t *testing.T) {
 	t.Parallel()
-	if apiKey == "" && apiSecret == "" {
-		t.Skip()
-	}
 
-	h.APIKey = apiKey
-	h.APISecret = apiSecret
-	h.AuthenticatedAPISupport = true
 	_, err := h.GetMarginLoanOrders("btcusdt", "", "", "", "", "", "", "")
 	if err != nil {
 		t.Errorf("Test failed - Huobi TestGetMarginLoanOrders: %s", err)
@@ -255,13 +202,7 @@ func TestGetMarginLoanOrders(t *testing.T) {
 
 func TestGetMarginAccountBalance(t *testing.T) {
 	t.Parallel()
-	if apiKey == "" && apiSecret == "" {
-		t.Skip()
-	}
 
-	h.APIKey = apiKey
-	h.APISecret = apiSecret
-	h.AuthenticatedAPISupport = true
 	_, err := h.GetMarginAccountBalance("btcusdt")
 	if err != nil {
 		t.Errorf("Test failed - Huobi TestGetMarginAccountBalance: %s", err)
@@ -270,13 +211,7 @@ func TestGetMarginAccountBalance(t *testing.T) {
 
 func TestCancelWithdraw(t *testing.T) {
 	t.Parallel()
-	if apiKey == "" && apiSecret == "" {
-		t.Skip()
-	}
 
-	h.APIKey = apiKey
-	h.APISecret = apiSecret
-	h.AuthenticatedAPISupport = true
 	_, err := h.CancelWithdraw(1337)
 	if err == nil {
 		t.Error("Test failed - Huobi TestCancelWithdraw: Invalid withdraw-ID was valid")

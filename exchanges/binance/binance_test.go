@@ -6,11 +6,36 @@ import (
 	"github.com/idoall/gocryptotrader/config"
 )
 
-// Please supply your own keys here for due diligence testing
-const (
-	testAPIKey    = ""
-	testAPISecret = ""
-)
+// getDefaultConfig 获取默认配置
+func getDefaultConfig() config.ExchangeConfig {
+	return config.ExchangeConfig{
+		Name:                    "binance",
+		Enabled:                 true,
+		Verbose:                 true,
+		Websocket:               false,
+		BaseAsset:               "eth",
+		QuoteAsset:              "usdt",
+		UseSandbox:              false,
+		RESTPollingDelay:        10,
+		HTTPTimeout:             15000000000,
+		AuthenticatedAPISupport: true,
+		APIKey:                  "",
+		APISecret:               "",
+		ClientID:                "",
+		AvailablePairs:          "BTC-USDT,BCH-USDT",
+		EnabledPairs:            "BTC-USDT",
+		BaseCurrencies:          "USD",
+		AssetTypes:              "SPOT",
+		SupportsAutoPairUpdates: false,
+		ConfigCurrencyPairFormat: &config.CurrencyPairFormatConfig{
+			Uppercase: true,
+			Delimiter: "-",
+		},
+		RequestCurrencyPairFormat: &config.CurrencyPairFormatConfig{
+			Uppercase: true,
+		},
+	}
+}
 
 var b Binance
 
@@ -19,18 +44,7 @@ func TestSetDefaults(t *testing.T) {
 }
 
 func TestSetup(t *testing.T) {
-	cfg := config.GetConfig()
-	cfg.LoadConfig("../../testdata/configtest.json")
-	binanceConfig, err := cfg.GetExchangeConfig("Binance")
-	if err != nil {
-		t.Error("Test Failed - Binance Setup() init error")
-	}
-
-	binanceConfig.AuthenticatedAPISupport = true
-	binanceConfig.APIKey = testAPIKey
-	binanceConfig.APISecret = testAPISecret
-
-	b.Setup(binanceConfig)
+	b.Setup(getDefaultConfig())
 }
 
 func TestGetExchangeValidCurrencyPairs(t *testing.T) {
@@ -123,9 +137,24 @@ func TestNewOrderTest(t *testing.T) {
 
 func TestNewOrder(t *testing.T) {
 	t.Parallel()
-	_, err := b.NewOrder(NewOrderRequest{})
+	_, err := b.NewOrder(NewOrderRequest{
+		Symbol:      b.GetSymbol(),
+		Side:        BinanceRequestParamsSideSell,
+		TradeType:   BinanceRequestParamsOrderLimit,
+		TimeInForce: BinanceRequestParamsTimeGTC,
+		Quantity:    0.01,
+		Price:       1536.1,
+	})
 	if err == nil {
 		t.Error("Test Failed - Binance NewOrder() error", err)
+	}
+}
+
+func TestCancelOrder(t *testing.T) {
+	t.Parallel()
+	_, err := b.CancelOrder(b.GetSymbol(), 82584683, "")
+	if err == nil {
+		t.Error("Test Failed - Binance CancelOrder() error", err)
 	}
 }
 

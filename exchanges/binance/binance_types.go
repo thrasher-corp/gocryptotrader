@@ -1,6 +1,5 @@
 package binance
 
-
 import (
 	"encoding/json"
 )
@@ -228,15 +227,20 @@ type BestPrice struct {
 
 // NewOrderRequest request type
 type NewOrderRequest struct {
-	Symbol           string
-	Side             string
-	TradeType        string
-	TimeInForce      string
+	// Symbol 交易对，必填项
+	Symbol string
+	// Side 交易方式，买或卖，必填写项
+	Side BinanceRequestParamsSideType
+	// TradeType 交易类型，市价或限价等
+	TradeType BinanceRequestParamsOrderType
+	// TimeInForce 不知道有毛用
+	TimeInForce BinanceRequestParamsTimeForceType
+	// Quantity 数量
 	Quantity         float64
 	Price            float64
 	NewClientOrderID string
-	StopPrice        float64
-	IcebergQty       float64
+	StopPrice        float64 //Used with STOP_LOSS, STOP_LOSS_LIMIT, TAKE_PROFIT, and TAKE_PROFIT_LIMIT orders.
+	IcebergQty       float64 //Used with LIMIT, STOP_LOSS_LIMIT, and TAKE_PROFIT_LIMIT to create an iceberg order.
 	NewOrderRespType string
 }
 
@@ -261,6 +265,14 @@ type NewOrderResponse struct {
 		Commission      float64 `json:"commission,string"`
 		CommissionAsset float64 `json:"commissionAsset,string"`
 	} `json:"fills"`
+}
+
+// CancelOrderResponse is the return structured response from the exchange
+type CancelOrderResponse struct {
+	Symbol            string `json:"symbol"`
+	OrigClientOrderID string `json:"origClientOrderId"`
+	OrderID           int64  `json:"orderId"`
+	ClientOrderID     string `json:"clientOrderId"`
 }
 
 // QueryOrderData holds query order data
@@ -302,3 +314,76 @@ type Account struct {
 	UpdateTime       int64     `json:"updateTime"`
 	Balances         []Balance `json:"balances"`
 }
+
+// BinanceInterval 要检索的时间段
+type BinanceInterval string
+
+var (
+	// BinanceIntervalMinute 1m
+	BinanceIntervalMinute         = BinanceInterval("1m")
+	BinanceIntervalThreeMinutes   = BinanceInterval("3m")
+	BinanceIntervalFiveMinutes    = BinanceInterval("5m")
+	BinanceIntervalFifteenMinutes = BinanceInterval("15m")
+	BinanceIntervalThirtyMinutes  = BinanceInterval("30m")
+	BinanceIntervalHour           = BinanceInterval("1h")
+	BinanceIntervalTwoHours       = BinanceInterval("2h")
+	BinanceIntervalFourHours      = BinanceInterval("4h")
+	BinanceIntervalSixHours       = BinanceInterval("6h")
+	BinanceIntervalEightHours     = BinanceInterval("8h")
+	BinanceIntervalTwelveHours    = BinanceInterval("12h")
+	BinanceIntervalDay            = BinanceInterval("1d")
+	BinanceIntervalThreeDays      = BinanceInterval("3d")
+	BinanceIntervalWeek           = BinanceInterval("1w")
+	BinanceIntervalMonth          = BinanceInterval("1M")
+)
+
+// BinanceRequestParamsSideType 交易类型
+type BinanceRequestParamsSideType string
+
+var (
+	// BinanceRequestParamsSideBuy 买
+	BinanceRequestParamsSideBuy = BinanceRequestParamsSideType("BUY")
+
+	// BinanceRequestParamsSideSell 卖
+	BinanceRequestParamsSideSell = BinanceRequestParamsSideType("SELL")
+)
+
+// BinanceRequestParamsTimeForceType Time in force
+type BinanceRequestParamsTimeForceType string
+
+var (
+	// BinanceRequestParamsTimeGTC GTC
+	BinanceRequestParamsTimeGTC = BinanceRequestParamsTimeForceType("GTC")
+
+	// BinanceRequestParamsTimeIOC IOC
+	BinanceRequestParamsTimeIOC = BinanceRequestParamsTimeForceType("IOC")
+
+	// BinanceRequestParamsTimeFOK FOK
+	BinanceRequestParamsTimeFOK = BinanceRequestParamsTimeForceType("FOK")
+)
+
+// BinanceRequestParamsOrderType 交易类型
+type BinanceRequestParamsOrderType string
+
+var (
+	// BinanceRequestParamsOrderLimit 限价
+	BinanceRequestParamsOrderLimit = BinanceRequestParamsOrderType("LIMIT")
+
+	// BinanceRequestParamsOrderMarket 市场价
+	BinanceRequestParamsOrderMarket = BinanceRequestParamsOrderType("MARKET")
+
+	// BinanceRequestParamsOrderStopLoss STOP_LOSS
+	BinanceRequestParamsOrderStopLoss = BinanceRequestParamsOrderType("STOP_LOSS")
+
+	// BinanceRequestParamsOrderStopLossLimit STOP_LOSS_LIMIT
+	BinanceRequestParamsOrderStopLossLimit = BinanceRequestParamsOrderType("STOP_LOSS_LIMIT")
+
+	// BinanceRequestParamsOrderTakeProfit STOP_LOSS_LIMIT
+	BinanceRequestParamsOrderTakeProfit = BinanceRequestParamsOrderType("TAKE_PROFIT")
+
+	// BinanceRequestParamsOrderTakeProfitLimit STOP_LOSS_LIMIT
+	BinanceRequestParamsOrderTakeProfitLimit = BinanceRequestParamsOrderType("TAKE_PROFIT_LIMIT")
+
+	// BinanceRequestParamsOrderLimitMarker STOP_LOSS_LIMIT
+	BinanceRequestParamsOrderLimitMarker = BinanceRequestParamsOrderType("LIMIT_MAKER")
+)

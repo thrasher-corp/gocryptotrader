@@ -538,3 +538,13 @@ func GetOSPathSlash() string {
 	}
 	return "/"
 }
+
+// UnixMillis 格式化时间
+func UnixMillis(t time.Time) int64 {
+	return t.UnixNano() / int64(time.Millisecond)
+}
+
+// RecvWindow 格式化时间
+func RecvWindow(d time.Duration) int64 {
+	return int64(d) / int64(time.Millisecond)
+}
