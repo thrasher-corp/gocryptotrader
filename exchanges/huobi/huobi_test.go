@@ -16,17 +16,41 @@ const (
 	apiSecret = ""
 )
 
+// getDefaultConfigHuobiHadax 获取默认配置
+func getDefaultConfigHuobiHadax() config.ExchangeConfig {
+	return config.ExchangeConfig{
+		Name:                    "huobi",
+		Enabled:                 true,
+		Verbose:                 true,
+		Websocket:               false,
+		UseSandbox:              false,
+		RESTPollingDelay:        10,
+		HTTPTimeout:             15000000000,
+		AuthenticatedAPISupport: true,
+		APIKey:                  "",
+		APISecret:               "",
+		ClientID:                "",
+		AvailablePairs:          "BTC-USDT,BCH-USDT",
+		EnabledPairs:            "BTC-USDT",
+		BaseCurrencies:          "USD",
+		AssetTypes:              "SPOT",
+		SupportsAutoPairUpdates: false,
+		ConfigCurrencyPairFormat: &config.CurrencyPairFormatConfig{
+			Uppercase: true,
+			Delimiter: "-",
+		},
+		RequestCurrencyPairFormat: &config.CurrencyPairFormatConfig{
+			Uppercase: false,
+		},
+	}
+}
+
 func TestSetDefaults(t *testing.T) {
 	h.SetDefaults()
 }
 
 func TestSetup(t *testing.T) {
-	cfg := config.GetConfig()
-	cfg.LoadConfig("../../testdata/configtest.json")
-	huobiConfig, err := cfg.GetExchangeConfig("Huobi")
-	if err != nil {
-		t.Error("Test Failed - Huobi Setup() init error")
-	}
+	huobiConfig := getDefaultConfigHuobiHadax()
 
 	huobiConfig.AuthenticatedAPISupport = true
 	huobiConfig.APIKey = apiKey
