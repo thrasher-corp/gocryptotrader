@@ -52,7 +52,7 @@ const (
 	huobiUnauthRate = 100
 )
 
-// HUOBI is the overarching type across this package
+// HUOBIHADAX is the overarching type across this package
 type HUOBIHADAX struct {
 	exchange.Base
 }
@@ -428,8 +428,8 @@ func (h *HUOBIHADAX) CancelOrderBatch(orderIDs []int64) (CancelOrderBatch, error
 	err := h.SendAuthenticatedHTTPPostRequest("POST", huobiOrderCancelBatch, postBodyParams, &result)
 
 	if len(result.Data.Failed) != 0 {
-		errJson, _ := json.Marshal(result.Data.Failed)
-		return CancelOrderBatch{}, errors.New(string(errJson))
+		errJSON, _ := json.Marshal(result.Data.Failed)
+		return CancelOrderBatch{}, errors.New(string(errJSON))
 	}
 	return result.Data, err
 }

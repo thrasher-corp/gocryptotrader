@@ -3,8 +3,8 @@ package telegram
 import (
 	"testing"
 
-	"github.com/thrasher-/gocryptotrader/communications/base"
-	"github.com/thrasher-/gocryptotrader/config"
+	"github.com/idoall/gocryptotrader/communications/base"
+	"github.com/idoall/gocryptotrader/config"
 )
 
 var T Telegram

@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/thrasher-/gocryptotrader/common"
+	"github.com/idoall/gocryptotrader/common"
 )
 
 const (

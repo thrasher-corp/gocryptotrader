@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/thrasher-/gocryptotrader/config"
+	"github.com/idoall/gocryptotrader/config"
 )
 
 var bm BTCMarkets

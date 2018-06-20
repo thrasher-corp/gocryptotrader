@@ -3,7 +3,7 @@ package binance
 import (
 	"testing"
 
-	"github.com/thrasher-/gocryptotrader/config"
+	"github.com/idoall/gocryptotrader/config"
 )
 
 // Please supply your own keys here for due diligence testing

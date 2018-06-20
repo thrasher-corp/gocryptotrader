@@ -3,7 +3,7 @@ package poloniex
 import (
 	"testing"
 
-	"github.com/thrasher-/gocryptotrader/config"
+	"github.com/idoall/gocryptotrader/config"
 )
 
 var p Poloniex

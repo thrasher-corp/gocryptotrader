@@ -4,7 +4,7 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/thrasher-/gocryptotrader/config"
+	"github.com/idoall/gocryptotrader/config"
 )
 
 var h HUOBI
@@ -16,8 +16,8 @@ const (
 	apiSecret = ""
 )
 
-// getDefaultConfigHuobiHadax 获取默认配置
-func getDefaultConfigHuobiHadax() config.ExchangeConfig {
+// getDefaultConfig 获取默认配置
+func getDefaultConfig() config.ExchangeConfig {
 	return config.ExchangeConfig{
 		Name:                    "huobi",
 		Enabled:                 true,
@@ -50,7 +50,7 @@ func TestSetDefaults(t *testing.T) {
 }
 
 func TestSetup(t *testing.T) {
-	huobiConfig := getDefaultConfigHuobiHadax()
+	huobiConfig := getDefaultConfig()
 
 	huobiConfig.AuthenticatedAPISupport = true
 	huobiConfig.APIKey = apiKey
