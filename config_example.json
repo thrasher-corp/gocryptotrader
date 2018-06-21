@@ -136,7 +136,7 @@
    "AuthenticatedAPISupport": false,
    "APIKey": "Key",
    "APISecret": "Secret",
-   "AvailablePairs": "ATENC_GBP,ATENC_NZD,BTC_AUD,BTC_SGD,LTC_BTC,START_GBP,STR_BTC,XRP_BTC,ATENC_SGD,BTC_GBP,DOGE_BTC,OAX_ETH,START_AUD,START_JPY,ATENC_USD,BTC_EUR,GNT_ETH,START_EUR,ATENC_EUR,BTC_CAD,START_BTC,START_CAD,ATENC_HKD,ATENC_JPY,ETH_BTC,ETH_HKD,START_HKD,START_USD,ATENC_AUD,ETH_USD,START_SGD,ATENC_CAD,BTC_HKD,BTC_JPY,BTC_NZD,BTC_USD,START_NZD",
+   "AvailablePairs": "ETH_HKD,START_GBP,BTC_CAD,OAX_ETH,START_SGD,LTC_BTC,STR_BTC,ATENC_NZD,BTC_AUD,BTC_SGD,ETH_BTC,XRP_BTC,START_JPY,ATENC_CAD,BTC_GBP,ETH_USD,GNT_ETH,START_AUD,START_HKD,ATENC_GBP,BTC_USD,START_BTC,START_CAD,START_EUR,BTC_JPY,BTC_NZD,DOGE_BTC,ATENC_EUR,ATENC_JPY,ATENC_USD,BTC_EUR,BTC_HKD,START_NZD,START_USD,ATENC_AUD,ATENC_HKD,ATENC_SGD",
    "EnabledPairs": "BTC_USD,BTC_HKD,BTC_EUR,BTC_CAD,BTC_AUD,BTC_SGD,BTC_JPY,BTC_GBP,BTC_NZD,LTC_BTC,DOG_EBTC,STR_BTC,XRP_BTC",
    "BaseCurrencies": "USD,HKD,EUR,CAD,AUD,SGD,JPY,GBP,NZD",
    "AssetTypes": "SPOT",
@@ -147,6 +147,33 @@
    },
    "RequestCurrencyPairFormat": {
     "Uppercase": true
+   },
+   "InternationalBank": {
+    "Enabled": false,
+    "BankName": "",
+    "AccountName": "",
+    "AccountNumber": "",
+    "BSBNumber": "",
+    "SwiftCode": "",
+    "IBAN": ""
+   },
+   "LocalBank": {
+    "Enabled": false,
+    "BankName": "",
+    "AccountName": "",
+    "AccountNumber": "",
+    "BSBNumber": "",
+    "SwiftCode": "",
+    "IBAN": ""
+   },
+   "DepositBank": {
+    "Enabled": false,
+    "BankName": "",
+    "AccountName": "",
+    "AccountNumber": "",
+    "BSBNumber": "",
+    "SwiftCode": "",
+    "IBAN": ""
    }
   },
   {
@@ -171,6 +198,33 @@
    },
    "RequestCurrencyPairFormat": {
     "Uppercase": true
+   },
+   "InternationalBank": {
+    "Enabled": false,
+    "BankName": "",
+    "AccountName": "",
+    "AccountNumber": "",
+    "BSBNumber": "",
+    "SwiftCode": "",
+    "IBAN": ""
+   },
+   "LocalBank": {
+    "Enabled": false,
+    "BankName": "",
+    "AccountName": "",
+    "AccountNumber": "",
+    "BSBNumber": "",
+    "SwiftCode": "",
+    "IBAN": ""
+   },
+   "DepositBank": {
+    "Enabled": false,
+    "BankName": "",
+    "AccountName": "",
+    "AccountNumber": "",
+    "BSBNumber": "",
+    "SwiftCode": "",
+    "IBAN": ""
    }
   },
   {
@@ -194,6 +248,33 @@
    },
    "RequestCurrencyPairFormat": {
     "Uppercase": true
+   },
+   "InternationalBank": {
+    "Enabled": false,
+    "BankName": "",
+    "AccountName": "",
+    "AccountNumber": "",
+    "BSBNumber": "",
+    "SwiftCode": "",
+    "IBAN": ""
+   },
+   "LocalBank": {
+    "Enabled": false,
+    "BankName": "",
+    "AccountName": "",
+    "AccountNumber": "",
+    "BSBNumber": "",
+    "SwiftCode": "",
+    "IBAN": ""
+   },
+   "DepositBank": {
+    "Enabled": false,
+    "BankName": "",
+    "AccountName": "",
+    "AccountNumber": "",
+    "BSBNumber": "",
+    "SwiftCode": "",
+    "IBAN": ""
    }
   },
   {
@@ -220,6 +301,33 @@
    "RequestCurrencyPairFormat": {
     "Uppercase": true,
     "Delimiter": "_"
+   },
+   "InternationalBank": {
+    "Enabled": false,
+    "BankName": "",
+    "AccountName": "",
+    "AccountNumber": "",
+    "BSBNumber": "",
+    "SwiftCode": "",
+    "IBAN": ""
+   },
+   "LocalBank": {
+    "Enabled": false,
+    "BankName": "",
+    "AccountName": "",
+    "AccountNumber": "",
+    "BSBNumber": "",
+    "SwiftCode": "",
+    "IBAN": ""
+   },
+   "DepositBank": {
+    "Enabled": false,
+    "BankName": "",
+    "AccountName": "",
+    "AccountNumber": "",
+    "BSBNumber": "",
+    "SwiftCode": "",
+    "IBAN": ""
    }
   },
   {
@@ -234,7 +342,7 @@
    "APIKey": "Key",
    "APISecret": "Secret",
    "ClientID": "ClientID",
-   "AvailablePairs": "PAYKRW,WAXKRW,POWRKRW,AEKRW,KNCKRW,BTGKRW,GTOKRW,BCHKRW,MCOKRW,XRPKRW,ETCKRW,ETHKRW,ZECKRW,SNTKRW,HSRKRW,ELFKRW,XMRKRW,MITHKRW,DASHKRW,STRATKRW,VENKRW,ZILKRW,LRCKRW,QTUMKRW,ZRXKRW,OMGKRW,ADAKRW,ICXKRW,TRXKRW,ETHOSKRW,REPKRW,STEEMKRW,GNTKRW,LTCKRW,BTCKRW,EOSKRW,XEMKRW",
+   "AvailablePairs": "MITHKRW,ZILKRW,ZECKRW,WAXKRW,EOSKRW,GTOKRW,ADAKRW,AEKRW,HSRKRW,STEEMKRW,DASHKRW,ETHOSKRW,QTUMKRW,REPKRW,POWRKRW,TRXKRW,ZRXKRW,XMRKRW,ELFKRW,BCHKRW,PAYKRW,BTCKRW,XEMKRW,LTCKRW,ETHKRW,STRATKRW,XRPKRW,MCOKRW,SNTKRW,ICXKRW,KNCKRW,OMGKRW,ETCKRW,VENKRW,BTGKRW,GNTKRW,LRCKRW",
    "EnabledPairs": "BTCKRW,ETHKRW,DASHKRW,LTCKRW,ETCKRW,XRPKRW,BCHKRW,XMRKRW,ZECKRW,QTUMKRW,BTGKRW,EOSKRW",
    "BaseCurrencies": "KRW",
    "AssetTypes": "SPOT",
@@ -245,6 +353,33 @@
    },
    "RequestCurrencyPairFormat": {
     "Uppercase": true
+   },
+   "InternationalBank": {
+    "Enabled": false,
+    "BankName": "",
+    "AccountName": "",
+    "AccountNumber": "",
+    "BSBNumber": "",
+    "SwiftCode": "",
+    "IBAN": ""
+   },
+   "LocalBank": {
+    "Enabled": false,
+    "BankName": "",
+    "AccountName": "",
+    "AccountNumber": "",
+    "BSBNumber": "",
+    "SwiftCode": "",
+    "IBAN": ""
+   },
+   "DepositBank": {
+    "Enabled": false,
+    "BankName": "",
+    "AccountName": "",
+    "AccountNumber": "",
+    "BSBNumber": "",
+    "SwiftCode": "",
+    "IBAN": ""
    }
   },
   {
@@ -269,6 +404,33 @@
    },
    "RequestCurrencyPairFormat": {
     "Uppercase": true
+   },
+   "InternationalBank": {
+    "Enabled": false,
+    "BankName": "",
+    "AccountName": "",
+    "AccountNumber": "",
+    "BSBNumber": "",
+    "SwiftCode": "",
+    "IBAN": ""
+   },
+   "LocalBank": {
+    "Enabled": false,
+    "BankName": "",
+    "AccountName": "",
+    "AccountNumber": "",
+    "BSBNumber": "",
+    "SwiftCode": "",
+    "IBAN": ""
+   },
+   "DepositBank": {
+    "Enabled": false,
+    "BankName": "",
+    "AccountName": "",
+    "AccountNumber": "",
+    "BSBNumber": "",
+    "SwiftCode": "",
+    "IBAN": ""
    }
   },
   {
@@ -294,6 +456,33 @@
    "RequestCurrencyPairFormat": {
     "Uppercase": true,
     "Delimiter": "-"
+   },
+   "InternationalBank": {
+    "Enabled": false,
+    "BankName": "",
+    "AccountName": "",
+    "AccountNumber": "",
+    "BSBNumber": "",
+    "SwiftCode": "",
+    "IBAN": ""
+   },
+   "LocalBank": {
+    "Enabled": false,
+    "BankName": "",
+    "AccountName": "",
+    "AccountNumber": "",
+    "BSBNumber": "",
+    "SwiftCode": "",
+    "IBAN": ""
+   },
+   "DepositBank": {
+    "Enabled": false,
+    "BankName": "",
+    "AccountName": "",
+    "AccountNumber": "",
+    "BSBNumber": "",
+    "SwiftCode": "",
+    "IBAN": ""
    }
   },
   {
@@ -317,6 +506,86 @@
    },
    "RequestCurrencyPairFormat": {
     "Uppercase": false
+   },
+   "InternationalBank": {
+    "Enabled": false,
+    "BankName": "",
+    "AccountName": "",
+    "AccountNumber": "",
+    "BSBNumber": "",
+    "SwiftCode": "",
+    "IBAN": ""
+   },
+   "LocalBank": {
+    "Enabled": false,
+    "BankName": "",
+    "AccountName": "",
+    "AccountNumber": "",
+    "BSBNumber": "",
+    "SwiftCode": "",
+    "IBAN": ""
+   },
+   "DepositBank": {
+    "Enabled": false,
+    "BankName": "",
+    "AccountName": "",
+    "AccountNumber": "",
+    "BSBNumber": "",
+    "SwiftCode": "",
+    "IBAN": ""
+   }
+  },
+  {
+   "Name": "WEX",
+   "Enabled": true,
+   "Verbose": false,
+   "Websocket": false,
+   "UseSandbox": false,
+   "RESTPollingDelay": 10,
+   "HTTPTimeout": 15000000000,
+   "AuthenticatedAPISupport": false,
+   "APIKey": "Key",
+   "APISecret": "Secret",
+   "AvailablePairs": "LTC_USD,USD_RUR,BCH_LTC,ETH_LTC,BCH_RUR,BTC_USD,LTC_RUR,EUR_RUR,DSH_LTC,ETH_BTC,ETH_EUR,BCH_DSH,ZEC_USD,NMCET_NMC,NMC_BTC,DSH_BTC,BCH_ETH,USDET_USD,USDT_USD,BTC_EUR,NMC_USD,EUR_USD,DSH_EUR,BCH_ZEC,ZEC_LTC,DSH_RUR,ETH_USD,BCH_USD,LTCET_LTC,ETHET_ETH,PPCET_PPC,BTC_RUR,LTC_EUR,PPC_BTC,BCH_EUR,EURET_EUR,BTCET_BTC,RURET_RUR,NVC_BTC,PPC_USD,DSH_USD,DSH_ETH,ETH_ZEC,BCH_BTC,DSHET_DSH,BCHET_BCH,LTC_BTC,NVC_USD,DSH_ZEC,ETH_RUR,ZEC_BTC,NVCET_NVC",
+   "EnabledPairs": "BTC_USD,LTC_USD,LTC_BTC,ETH_USD",
+   "BaseCurrencies": "USD,RUR,EUR",
+   "AssetTypes": "SPOT",
+   "SupportsAutoPairUpdates": true,
+   "ConfigCurrencyPairFormat": {
+    "Uppercase": true,
+    "Delimiter": "_"
+   },
+   "RequestCurrencyPairFormat": {
+    "Uppercase": false,
+    "Delimiter": "_",
+    "Separator": "-"
+   },
+   "InternationalBank": {
+    "Enabled": false,
+    "BankName": "",
+    "AccountName": "",
+    "AccountNumber": "",
+    "BSBNumber": "",
+    "SwiftCode": "",
+    "IBAN": ""
+   },
+   "LocalBank": {
+    "Enabled": false,
+    "BankName": "",
+    "AccountName": "",
+    "AccountNumber": "",
+    "BSBNumber": "",
+    "SwiftCode": "",
+    "IBAN": ""
+   },
+   "DepositBank": {
+    "Enabled": false,
+    "BankName": "",
+    "AccountName": "",
+    "AccountNumber": "",
+    "BSBNumber": "",
+    "SwiftCode": "",
+    "IBAN": ""
    }
   },
   {
@@ -340,6 +609,33 @@
    },
    "RequestCurrencyPairFormat": {
     "Uppercase": true
+   },
+   "InternationalBank": {
+    "Enabled": false,
+    "BankName": "",
+    "AccountName": "",
+    "AccountNumber": "",
+    "BSBNumber": "",
+    "SwiftCode": "",
+    "IBAN": ""
+   },
+   "LocalBank": {
+    "Enabled": false,
+    "BankName": "",
+    "AccountName": "",
+    "AccountNumber": "",
+    "BSBNumber": "",
+    "SwiftCode": "",
+    "IBAN": ""
+   },
+   "DepositBank": {
+    "Enabled": false,
+    "BankName": "",
+    "AccountName": "",
+    "AccountNumber": "",
+    "BSBNumber": "",
+    "SwiftCode": "",
+    "IBAN": ""
    }
   },
   {
@@ -354,7 +650,7 @@
    "APIKey": "Key",
    "APISecret": "Secret",
    "ClientID": "ClientID",
-   "AvailablePairs": "LTCUSDT,BTCSGD,ETHUSDT,LTCSGD,ETHBTC,ETHSGD,LTCBTC,XMRBTC,ZECBTC,BTCUSD,ETCBTC,ETCUSDT,XMRUSDT,ETHLTC,LTCUSD,USDTUSD,XMRLTC,ZECLTC,ZECUSDT,BTCUSDT,ETCLTC,USDTSGD",
+   "AvailablePairs": "ETHSGD,LTCSGD,XMRLTC,ZECBTC,ZECUSDT,BTCUSDT,ETCBTC,ETHUSDT,USDTSGD,BTCUSD,ETHLTC,LTCUSD,XMRBTC,XMRUSDT,ZECLTC,BTCSGD,ETCLTC,ETCUSDT,ETHBTC,LTCBTC,LTCUSDT,USDTUSD",
    "EnabledPairs": "LTCBTC,ETCBTC,ETHBTC",
    "BaseCurrencies": "USD",
    "AssetTypes": "SPOT",
@@ -364,6 +660,33 @@
    },
    "RequestCurrencyPairFormat": {
     "Uppercase": true
+   },
+   "InternationalBank": {
+    "Enabled": false,
+    "BankName": "",
+    "AccountName": "",
+    "AccountNumber": "",
+    "BSBNumber": "",
+    "SwiftCode": "",
+    "IBAN": ""
+   },
+   "LocalBank": {
+    "Enabled": false,
+    "BankName": "",
+    "AccountName": "",
+    "AccountNumber": "",
+    "BSBNumber": "",
+    "SwiftCode": "",
+    "IBAN": ""
+   },
+   "DepositBank": {
+    "Enabled": false,
+    "BankName": "",
+    "AccountName": "",
+    "AccountNumber": "",
+    "BSBNumber": "",
+    "SwiftCode": "",
+    "IBAN": ""
    }
   },
   {
@@ -390,6 +713,33 @@
     "Uppercase": true,
     "Delimiter": "_",
     "Separator": ","
+   },
+   "InternationalBank": {
+    "Enabled": false,
+    "BankName": "",
+    "AccountName": "",
+    "AccountNumber": "",
+    "BSBNumber": "",
+    "SwiftCode": "",
+    "IBAN": ""
+   },
+   "LocalBank": {
+    "Enabled": false,
+    "BankName": "",
+    "AccountName": "",
+    "AccountNumber": "",
+    "BSBNumber": "",
+    "SwiftCode": "",
+    "IBAN": ""
+   },
+   "DepositBank": {
+    "Enabled": false,
+    "BankName": "",
+    "AccountName": "",
+    "AccountNumber": "",
+    "BSBNumber": "",
+    "SwiftCode": "",
+    "IBAN": ""
    }
   },
   {
@@ -415,6 +765,33 @@
    "RequestCurrencyPairFormat": {
     "Uppercase": true,
     "Delimiter": "-"
+   },
+   "InternationalBank": {
+    "Enabled": false,
+    "BankName": "",
+    "AccountName": "",
+    "AccountNumber": "",
+    "BSBNumber": "",
+    "SwiftCode": "",
+    "IBAN": ""
+   },
+   "LocalBank": {
+    "Enabled": false,
+    "BankName": "",
+    "AccountName": "",
+    "AccountNumber": "",
+    "BSBNumber": "",
+    "SwiftCode": "",
+    "IBAN": ""
+   },
+   "DepositBank": {
+    "Enabled": false,
+    "BankName": "",
+    "AccountName": "",
+    "AccountNumber": "",
+    "BSBNumber": "",
+    "SwiftCode": "",
+    "IBAN": ""
    }
   },
   {
@@ -438,6 +815,33 @@
    },
    "RequestCurrencyPairFormat": {
     "Uppercase": true
+   },
+   "InternationalBank": {
+    "Enabled": false,
+    "BankName": "",
+    "AccountName": "",
+    "AccountNumber": "",
+    "BSBNumber": "",
+    "SwiftCode": "",
+    "IBAN": ""
+   },
+   "LocalBank": {
+    "Enabled": false,
+    "BankName": "",
+    "AccountName": "",
+    "AccountNumber": "",
+    "BSBNumber": "",
+    "SwiftCode": "",
+    "IBAN": ""
+   },
+   "DepositBank": {
+    "Enabled": false,
+    "BankName": "",
+    "AccountName": "",
+    "AccountNumber": "",
+    "BSBNumber": "",
+    "SwiftCode": "",
+    "IBAN": ""
    }
   },
   {
@@ -462,6 +866,33 @@
    },
    "RequestCurrencyPairFormat": {
     "Uppercase": true
+   },
+   "InternationalBank": {
+    "Enabled": false,
+    "BankName": "",
+    "AccountName": "",
+    "AccountNumber": "",
+    "BSBNumber": "",
+    "SwiftCode": "",
+    "IBAN": ""
+   },
+   "LocalBank": {
+    "Enabled": false,
+    "BankName": "",
+    "AccountName": "",
+    "AccountNumber": "",
+    "BSBNumber": "",
+    "SwiftCode": "",
+    "IBAN": ""
+   },
+   "DepositBank": {
+    "Enabled": false,
+    "BankName": "",
+    "AccountName": "",
+    "AccountNumber": "",
+    "BSBNumber": "",
+    "SwiftCode": "",
+    "IBAN": ""
    }
   },
   {
@@ -486,6 +917,33 @@
    },
    "RequestCurrencyPairFormat": {
     "Uppercase": false
+   },
+   "InternationalBank": {
+    "Enabled": false,
+    "BankName": "",
+    "AccountName": "",
+    "AccountNumber": "",
+    "BSBNumber": "",
+    "SwiftCode": "",
+    "IBAN": ""
+   },
+   "LocalBank": {
+    "Enabled": false,
+    "BankName": "",
+    "AccountName": "",
+    "AccountNumber": "",
+    "BSBNumber": "",
+    "SwiftCode": "",
+    "IBAN": ""
+   },
+   "DepositBank": {
+    "Enabled": false,
+    "BankName": "",
+    "AccountName": "",
+    "AccountNumber": "",
+    "BSBNumber": "",
+    "SwiftCode": "",
+    "IBAN": ""
    }
   },
   {
@@ -511,6 +969,33 @@
    },
    "RequestCurrencyPairFormat": {
     "Uppercase": true
+   },
+   "InternationalBank": {
+    "Enabled": false,
+    "BankName": "",
+    "AccountName": "",
+    "AccountNumber": "",
+    "BSBNumber": "",
+    "SwiftCode": "",
+    "IBAN": ""
+   },
+   "LocalBank": {
+    "Enabled": false,
+    "BankName": "",
+    "AccountName": "",
+    "AccountNumber": "",
+    "BSBNumber": "",
+    "SwiftCode": "",
+    "IBAN": ""
+   },
+   "DepositBank": {
+    "Enabled": false,
+    "BankName": "",
+    "AccountName": "",
+    "AccountNumber": "",
+    "BSBNumber": "",
+    "SwiftCode": "",
+    "IBAN": ""
    }
   },
   {
@@ -524,7 +1009,7 @@
    "AuthenticatedAPISupport": false,
    "APIKey": "Key",
    "APISecret": "Secret",
-   "AvailablePairs": "DASH-USD,XMR-XBT,XRP-EUR,BCH-EUR,GNO-EUR,USDT-USD,XBT-USD,XDG-XBT,XLM-USD,ETC-XBT,ETC-EUR,ETH-XBT,XLM-EUR,BCH-USD,ETH-GBP,ZEC-JPY,GNO-XBT,ETH-CAD,MLN-XBT,XLM-XBT,BCH-XBT,DASH-EUR,XMR-USD,XRP-JPY,ZEC-XBT,EOS-ETH,EOS-EUR,ETH-EUR,LTC-XBT,REP-EUR,REP-XBT,XBT-CAD,XMR-EUR,DASH-XBT,ICN-ETH,ZEC-EUR,LTC-USD,GNO-ETH,ETC-ETH,ICN-XBT,REP-USD,XBT-EUR,GNO-USD,MLN-ETH,REP-ETH,EOS-USD,ETC-USD,ETH-JPY,XBT-JPY,EOS-XBT,XRP-CAD,ETH-USD,LTC-EUR,XBT-GBP,XRP-XBT,XRP-USD,ZEC-USD",
+   "AvailablePairs": "XMR-EUR,DASH-USD,ETC-ETH,XLM-XBT,XLM-USD,DASH-EUR,REP-XBT,XBT-CAD,ZEC-XBT,GNO-USD,ETC-EUR,ICN-ETH,LTC-USD,XLM-EUR,BCH-XBT,DASH-XBT,GNO-ETH,ETC-XBT,XRP-CAD,ETH-EUR,XBT-USD,XDG-XBT,REP-EUR,ETH-XBT,LTC-XBT,MLN-ETH,REP-ETH,XRP-XBT,ZEC-EUR,ZEC-USD,EOS-ETH,ETH-GBP,XBT-EUR,XMR-USD,XRP-JPY,ZEC-JPY,ETH-JPY,ICN-XBT,MLN-XBT,GNO-EUR,EOS-EUR,ETH-USD,USDT-USD,ETH-CAD,XBT-GBP,BCH-USD,EOS-USD,EOS-XBT,XRP-EUR,BCH-EUR,ETC-USD,LTC-EUR,GNO-XBT,REP-USD,XBT-JPY,XMR-XBT,XRP-USD",
    "EnabledPairs": "XBT-USD",
    "BaseCurrencies": "EUR,USD,CAD,GBP,JPY",
    "AssetTypes": "SPOT",
@@ -536,6 +1021,33 @@
    "RequestCurrencyPairFormat": {
     "Uppercase": true,
     "Separator": ","
+   },
+   "InternationalBank": {
+    "Enabled": false,
+    "BankName": "",
+    "AccountName": "",
+    "AccountNumber": "",
+    "BSBNumber": "",
+    "SwiftCode": "",
+    "IBAN": ""
+   },
+   "LocalBank": {
+    "Enabled": false,
+    "BankName": "",
+    "AccountName": "",
+    "AccountNumber": "",
+    "BSBNumber": "",
+    "SwiftCode": "",
+    "IBAN": ""
+   },
+   "DepositBank": {
+    "Enabled": false,
+    "BankName": "",
+    "AccountName": "",
+    "AccountNumber": "",
+    "BSBNumber": "",
+    "SwiftCode": "",
+    "IBAN": ""
    }
   },
   {
@@ -549,7 +1061,7 @@
    "AuthenticatedAPISupport": false,
    "APIKey": "Key",
    "APISecret": "Secret",
-   "AvailablePairs": "NZDUSD,USDCAD,ETHBTC,BACETH,BTCAUD,BCHBTC,BTCSGD,USDHKD,AUDUSD,BTCCAD,USDCHF,USDSGD,BTCEUR,BTCNGN,BTCCHF,GBPUSD,USDNGN,BTCHKD,EURUSD,XRPBTC,BTCUSD,USDJPY,LTCBTC,BTCGBP,BTCJPY,BTCNZD",
+   "AvailablePairs": "BTCCAD,GBPUSD,USDSGD,BTCNZD,BTCEUR,ETHBTC,USDHKD,USDCAD,USDCHF,EURUSD,BCHBTC,BTCGBP,BTCSGD,AUDUSD,BACETH,BTCCHF,USDNGN,LTCBTC,BTCUSD,BTCNGN,BTCJPY,BTCAUD,XRPBTC,USDJPY,NZDUSD",
    "EnabledPairs": "BTCUSD,BTCAUD",
    "BaseCurrencies": "USD,EUR,HKD,AUD,GBP,NZD,JPY,SGD,NGN,CHF,CAD",
    "AssetTypes": "SPOT",
@@ -559,6 +1071,33 @@
    },
    "RequestCurrencyPairFormat": {
     "Uppercase": true
+   },
+   "InternationalBank": {
+    "Enabled": false,
+    "BankName": "",
+    "AccountName": "",
+    "AccountNumber": "",
+    "BSBNumber": "",
+    "SwiftCode": "",
+    "IBAN": ""
+   },
+   "LocalBank": {
+    "Enabled": false,
+    "BankName": "",
+    "AccountName": "",
+    "AccountNumber": "",
+    "BSBNumber": "",
+    "SwiftCode": "",
+    "IBAN": ""
+   },
+   "DepositBank": {
+    "Enabled": false,
+    "BankName": "",
+    "AccountName": "",
+    "AccountNumber": "",
+    "BSBNumber": "",
+    "SwiftCode": "",
+    "IBAN": ""
    }
   },
   {
@@ -572,7 +1111,7 @@
    "AuthenticatedAPISupport": false,
    "APIKey": "Key",
    "APISecret": "Secret",
-   "AvailablePairs": "WAVES_ETH,MYST_USDT,SNM_USDT,LDC_USDT,TAAS_ETH,DGD_ETH,ZRX_ETH,AE_ETH,TRX_ETH,BNT_USDT,STORJ_USDT,OMG_BTC,TNT_ETH,XID_ETH,LDC_ETH,STORJ_BTC,IND_USDT,TRX_BTC,ICN_ETH,REP_USDT,REN_ETH,MANA_BTC,BMC_USDT,SNT_USDT,BCC_USDT,WPR_BTC,ENJ_USDT,GNO_BTC,STORJ_ETH,PAY_BTC,WPR_ETH,DNT_BTC,EOS_ETH,LDC_BTC,EOS_USDT,CVC_BTC,NET_USDT,MANA_ETH,IND_ETH,SRN_USDT,GNO_ETH,VEN_ETH,KNC_ETH,NET_BTC,DGD_BTC,MLN_USDT,REP_ETH,GNT_ETH,LTC_ETH,GUP_USDT,TAAS_BTC,ADX_ETH,ICN_USDT,NET_ETH,VEN_BTC,IND_BTC,AION_BTC,TIME_ETH,DASH_USDT,RLC_ETH,SAN_ETH,MGO_USDT,PTOY_USDT,SAN_BTC,BCC_BTC,DASH_ETH,LTC_USDT,MYST_BTC,MLN_ETH,TKN_ETH,MGO_BTC,SNGLS_USDT,MCO_ETH,OMG_ETH,GNT_BTC,GNT_USDT,WINGS_USDT,PRO_USDT,REQ_BTC,WINGS_BTC,BCC_ETH,MGO_ETH,STX_ETH,ENG_BTC,INS_ETH,LTC_BTC,QRL_BTC,OAX_USDT,STX_USDT,WAVES_BTC,BNT_ETH,AE_BTC,AST_ETH,INS_USDT,RLC_BTC,TKN_BTC,SNGLS_ETH,PAY_USDT,TNT_BTC,DASH_BTC,SNGLS_BTC,SNT_BTC,AE_USDT,REQ_ETH,AGI_BTC,BNT_BTC,PTOY_BTC,NEU_ETH,ADX_USDT,TRX_USDT,AION_ETH,CLN_ETH,KNC_BTC,NEU_BTC,REN_BTC,BAT_BTC,MYST_ETH,CVC_ETH,SALT_USDT,INS_BTC,AION_USDT,TKN_USDT,BAT_ETH,CFI_USDT,ZRX_BTC,TNT_USDT,SALT_BTC,DNT_ETH,ICN_BTC,SNM_ETH,PRO_ETH,TRST_ETH,PAY_ETH,PRO_BTC,CLN_USDT,EDG_USDT,GUP_BTC,ADX_BTC,RLC_USDT,WINGS_ETH,CFI_ETH,QRL_ETH,ANT_ETH,AGI_ETH,ENG_USDT,ETH_BTC,EDG_ETH,GNO_USDT,MCO_USDT,EOS_BTC,MLN_BTC,TIME_BTC,SNM_BTC,VEN_USDT,REQ_USDT,TAAS_USDT,TIME_USDT,OMG_USDT,CVC_USDT,SRN_BTC,ETH_USDT,REN_USDT,GUP_ETH,PTOY_ETH,CFI_BTC,ENJ_BTC,XID_USDT,AGI_USDT,MCO_BTC,ANT_BTC,DGD_USDT,OAX_BTC,BAT_USDT,QRL_USDT,STX_BTC,ENG_ETH,ENJ_ETH,WAVES_USDT,BMC_ETH,AST_USDT,EDG_BTC,SAN_USDT,NEU_USDT,TRST_BTC,MANA_USDT,ANT_USDT,WPR_USDT,SNT_ETH,OAX_ETH,KNC_USDT,BTC_USDT,XID_BTC,DNT_USDT,ZRX_USDT,BMC_BTC,SRN_ETH,CLN_BTC,REP_BTC,TRST_USDT,SALT_ETH,AST_BTC",
+   "AvailablePairs": "ADX_USDT,OMG_ETH,TRX_ETH,AION_USDT,REP_ETH,GUP_ETH,SNT_USDT,TNT_BTC,AGI_ETH,AST_ETH,SRN_ETH,WAVES_ETH,WINGS_ETH,PTOY_ETH,BCC_ETH,ZRX_BTC,KNC_BTC,MLN_ETH,LTC_USDT,ADX_BTC,REN_ETH,DASH_ETH,ANT_USDT,PTOY_USDT,MCO_ETH,DASH_USDT,GNT_USDT,MGO_USDT,OMG_USDT,AION_ETH,EDG_USDT,GNO_BTC,MANA_USDT,AGI_BTC,WINGS_BTC,SNGLS_ETH,BMC_ETH,WPR_ETH,MLN_USDT,TNT_ETH,MCO_USDT,PAY_ETH,NET_USDT,AST_BTC,QRL_USDT,SNM_USDT,STX_BTC,ZRX_USDT,INS_ETH,WAVES_BTC,GUP_USDT,MYST_BTC,PAY_USDT,ICN_USDT,CFI_USDT,TRX_USDT,QRL_BTC,AE_USDT,SNGLS_BTC,SNM_BTC,REQ_USDT,RLC_USDT,TKN_BTC,DGD_BTC,NEU_ETH,LDC_USDT,REP_BTC,EDG_ETH,CVC_USDT,ANT_ETH,ZRX_ETH,INS_USDT,EOS_BTC,OAX_BTC,TNT_USDT,DASH_BTC,GNO_ETH,CLN_USDT,GNO_USDT,BNT_USDT,IND_USDT,ENG_ETH,ENJ_BTC,CVC_ETH,NEU_BTC,AION_BTC,SNT_BTC,PRO_BTC,ENJ_ETH,BTC_USDT,SNGLS_USDT,SNM_ETH,WINGS_USDT,XID_USDT,IND_ETH,EDG_BTC,RLC_ETH,TAAS_ETH,TRST_BTC,GUP_BTC,VEN_BTC,SRN_BTC,VEN_USDT,REP_USDT,BAT_USDT,AE_ETH,NET_ETH,WPR_BTC,BNT_ETH,BNT_BTC,DGD_ETH,BCC_BTC,EOS_ETH,OAX_ETH,GNT_BTC,BMC_BTC,KNC_ETH,SRN_USDT,REN_USDT,DNT_USDT,BAT_ETH,ICN_BTC,ETH_USDT,TAAS_BTC,ANT_BTC,LDC_BTC,SAN_ETH,OAX_USDT,PRO_USDT,AST_USDT,INS_BTC,SNT_ETH,STORJ_ETH,DNT_BTC,ENG_USDT,LDC_ETH,PTOY_BTC,STX_ETH,STORJ_USDT,ADX_ETH,TIME_BTC,GNT_ETH,TRX_BTC,REQ_ETH,ICN_ETH,TKN_ETH,DGD_USDT,WPR_USDT,VEN_ETH,XID_ETH,NEU_USDT,OMG_BTC,SAN_USDT,CLN_ETH,REN_BTC,ENJ_USDT,MGO_ETH,MYST_ETH,CFI_BTC,STORJ_BTC,AE_BTC,SALT_BTC,SALT_ETH,ENG_BTC,AGI_USDT,TRST_USDT,TAAS_USDT,QRL_ETH,MCO_BTC,KNC_USDT,SALT_USDT,BMC_USDT,MANA_ETH,TIME_ETH,TKN_USDT,PAY_BTC,SAN_BTC,NET_BTC,IND_BTC,LTC_ETH,EOS_USDT,ETH_BTC,RLC_BTC,TRST_ETH,CLN_BTC,CFI_ETH,MANA_BTC,REQ_BTC,LTC_BTC,XID_BTC,CVC_BTC,STX_USDT,PRO_ETH,MLN_BTC,MYST_USDT,BCC_USDT,WAVES_USDT,TIME_USDT,BAT_BTC,MGO_BTC,DNT_ETH",
    "EnabledPairs": "ETH_BTC,LTC_BTC,DASH_BTC",
    "BaseCurrencies": "USD",
    "AssetTypes": "SPOT",
@@ -585,6 +1124,33 @@
     "Uppercase": false,
     "Delimiter": "_",
     "Separator": "-"
+   },
+   "InternationalBank": {
+    "Enabled": false,
+    "BankName": "",
+    "AccountName": "",
+    "AccountNumber": "",
+    "BSBNumber": "",
+    "SwiftCode": "",
+    "IBAN": ""
+   },
+   "LocalBank": {
+    "Enabled": false,
+    "BankName": "",
+    "AccountName": "",
+    "AccountNumber": "",
+    "BSBNumber": "",
+    "SwiftCode": "",
+    "IBAN": ""
+   },
+   "DepositBank": {
+    "Enabled": false,
+    "BankName": "",
+    "AccountName": "",
+    "AccountNumber": "",
+    "BSBNumber": "",
+    "SwiftCode": "",
+    "IBAN": ""
    }
   },
   {
@@ -599,7 +1165,7 @@
    "APIKey": "Key",
    "APISecret": "Secret",
    "AvailablePairs": "BTCARS,BTCAUD,BTCBRL,BTCCAD,BTCCHF,BTCCZK,BTCDKK,BTCEUR,BTCGBP,BTCHKD,BTCILS,BTCINR,BTCMXN,BTCNOK,BTCNZD,BTCPLN,BTCRUB,BTCSEK,BTCSGD,BTCTHB,BTCUSD,BTCZAR",
-   "EnabledPairs": "BTCAUD,BTCUSD",
+   "EnabledPairs": "BTCARS,BTCAUD,BTCBRL,BTCCAD,BTCCHF,BTCCZK,BTCDKK,BTCEUR,BTCGBP,BTCHKD,BTCILS,BTCINR,BTCMXN,BTCNOK,BTCNZD,BTCPLN,BTCRUB,BTCSEK,BTCSGD,BTCTHB,BTCUSD,BTCZAR",
    "BaseCurrencies": "ARS,AUD,BRL,CAD,CHF,CZK,DKK,EUR,GBP,HKD,ILS,INR,MXN,NOK,NZD,PLN,RUB,SEK,SGD,THB,USD,ZAR",
    "AssetTypes": "SPOT",
    "SupportsAutoPairUpdates": false,
@@ -609,6 +1175,33 @@
    },
    "RequestCurrencyPairFormat": {
     "Uppercase": true
+   },
+   "InternationalBank": {
+    "Enabled": false,
+    "BankName": "",
+    "AccountName": "",
+    "AccountNumber": "",
+    "BSBNumber": "",
+    "SwiftCode": "",
+    "IBAN": ""
+   },
+   "LocalBank": {
+    "Enabled": false,
+    "BankName": "",
+    "AccountName": "",
+    "AccountNumber": "",
+    "BSBNumber": "",
+    "SwiftCode": "",
+    "IBAN": ""
+   },
+   "DepositBank": {
+    "Enabled": false,
+    "BankName": "",
+    "AccountName": "",
+    "AccountNumber": "",
+    "BSBNumber": "",
+    "SwiftCode": "",
+    "IBAN": ""
    }
   },
   {
@@ -634,6 +1227,33 @@
    "RequestCurrencyPairFormat": {
     "Uppercase": false,
     "Delimiter": "_"
+   },
+   "InternationalBank": {
+    "Enabled": false,
+    "BankName": "",
+    "AccountName": "",
+    "AccountNumber": "",
+    "BSBNumber": "",
+    "SwiftCode": "",
+    "IBAN": ""
+   },
+   "LocalBank": {
+    "Enabled": false,
+    "BankName": "",
+    "AccountName": "",
+    "AccountNumber": "",
+    "BSBNumber": "",
+    "SwiftCode": "",
+    "IBAN": ""
+   },
+   "DepositBank": {
+    "Enabled": false,
+    "BankName": "",
+    "AccountName": "",
+    "AccountNumber": "",
+    "BSBNumber": "",
+    "SwiftCode": "",
+    "IBAN": ""
    }
   },
   {
@@ -647,7 +1267,7 @@
    "AuthenticatedAPISupport": false,
    "APIKey": "Key",
    "APISecret": "Secret",
-   "AvailablePairs": "BTCUSD,LTCUSD,ETHUSD,ETCUSD,BCHUSD",
+   "AvailablePairs": "BTCUSD,LTCUSD",
    "EnabledPairs": "BTCUSD,LTCUSD",
    "BaseCurrencies": "USD",
    "AssetTypes": "SPOT,this_week,next_week,quarter",
@@ -659,6 +1279,33 @@
    "RequestCurrencyPairFormat": {
     "Uppercase": false,
     "Delimiter": "_"
+   },
+   "InternationalBank": {
+    "Enabled": false,
+    "BankName": "",
+    "AccountName": "",
+    "AccountNumber": "",
+    "BSBNumber": "",
+    "SwiftCode": "",
+    "IBAN": ""
+   },
+   "LocalBank": {
+    "Enabled": false,
+    "BankName": "",
+    "AccountName": "",
+    "AccountNumber": "",
+    "BSBNumber": "",
+    "SwiftCode": "",
+    "IBAN": ""
+   },
+   "DepositBank": {
+    "Enabled": false,
+    "BankName": "",
+    "AccountName": "",
+    "AccountNumber": "",
+    "BSBNumber": "",
+    "SwiftCode": "",
+    "IBAN": ""
    }
   },
   {
@@ -677,7 +1324,7 @@
    "BaseCurrencies": "USD",
    "AssetTypes": "SPOT,this_week,next_week,quarter",
    "SupportsAutoPairUpdates": false,
-   "PairsLastUpdated": 1522111402,
+   "PairsLastUpdated": 1522112372,
    "ConfigCurrencyPairFormat": {
     "Uppercase": false,
     "Delimiter": "_"
@@ -685,6 +1332,33 @@
    "RequestCurrencyPairFormat": {
     "Uppercase": false,
     "Delimiter": "_"
+   },
+   "InternationalBank": {
+    "Enabled": false,
+    "BankName": "",
+    "AccountName": "",
+    "AccountNumber": "",
+    "BSBNumber": "",
+    "SwiftCode": "",
+    "IBAN": ""
+   },
+   "LocalBank": {
+    "Enabled": false,
+    "BankName": "",
+    "AccountName": "",
+    "AccountNumber": "",
+    "BSBNumber": "",
+    "SwiftCode": "",
+    "IBAN": ""
+   },
+   "DepositBank": {
+    "Enabled": false,
+    "BankName": "",
+    "AccountName": "",
+    "AccountNumber": "",
+    "BSBNumber": "",
+    "SwiftCode": "",
+    "IBAN": ""
    }
   },
   {
@@ -698,7 +1372,7 @@
    "AuthenticatedAPISupport": false,
    "APIKey": "Key",
    "APISecret": "Secret",
-   "AvailablePairs": "BTC_SYS,BTC_XVC,USDT_BTC,USDT_NXT,XMR_BTCD,BTC_SBD,BTC_DGB,BTC_NMC,ETH_ETC,ETH_OMG,ETH_BCH,BTC_XEM,BTC_XRP,BTC_GRC,USDT_ETC,BTC_REP,BTC_PASC,BTC_STORJ,BTC_BTM,BTC_FLO,BTC_XBC,XMR_BLK,USDT_ETH,ETH_LSK,ETH_GAS,BTC_BURST,BTC_VTC,BTC_OMNI,BTC_NXT,BTC_XMR,USDT_XRP,XMR_MAID,ETH_STEEM,BTC_BCN,BTC_FLDC,ETH_ZRX,BTC_ARDR,BTC_ZEC,USDT_LTC,ETH_GNT,BTC_XCP,XMR_DASH,BTC_BCY,BTC_STRAT,BTC_ZRX,BTC_CVC,BTC_BTCD,BTC_HUC,ETH_CVC,BTC_SC,BTC_GAME,XMR_LTC,BTC_LTC,BTC_XPM,BTC_OMG,BTC_CLAM,BTC_EMC2,USDT_XMR,BTC_FCT,BTC_LBC,ETH_ZEC,BTC_NEOS,USDT_DASH,BTC_NAV,XMR_NXT,BTC_BLK,BTC_DASH,USDT_ZEC,BTC_GNO,ETH_GNO,USDT_BCH,BTC_MAID,BTC_STR,BTC_ETH,BTC_LSK,BTC_STEEM,BTC_GNT,BTC_PPC,BTC_RIC,XMR_BCN,BTC_RADS,BTC_NXC,BTC_BTS,BTC_PINK,BTC_VIA,XMR_ZEC,BTC_VRC,USDT_STR,BTC_EXP,BTC_AMP,BTC_DCR,BTC_ETC,BTC_DOGE,BTC_POT,BTC_BCH,BTC_GAS,USDT_REP,ETH_REP",
+   "AvailablePairs": "XMR_MAID,BTC_SBD,USDT_BCH,BTC_PPC,BTC_SYS,USDT_STR,XMR_BLK,BTC_ZEC,ETH_ZEC,BTC_STRAT,BTC_OMG,BTC_POT,BTC_LTC,BTC_NEOS,BTC_STR,BTC_XEM,BTC_XPM,USDT_DASH,XMR_LTC,BTC_FLO,BTC_FLDC,BTC_MAID,BTC_FCT,BTC_LBC,USDT_ETC,BTC_ARDR,USDT_ZEC,BTC_DGB,ETH_BCH,BTC_GNO,BTC_ETH,ETH_LSK,BTC_VRC,USDT_BTC,BTC_LSK,BTC_STEEM,ETH_ETC,ETH_REP,BTC_PASC,ETH_GNO,BTC_XVC,BTC_EMC2,BTC_XMR,USDT_NXT,USDT_ETH,BTC_CLAM,BTC_ETC,ETH_GNT,ETH_CVC,BTC_BTM,BTC_BURST,BTC_OMNI,BTC_REP,XMR_ZEC,BTC_BCH,BTC_GAS,BTC_BCN,BTC_XRP,USDT_XMR,XMR_NXT,BTC_BCY,BTC_ZRX,BTC_CVC,BTC_DASH,BTC_NXC,USDT_XRP,BTC_GAME,BTC_NAV,BTC_NXT,XMR_BTCD,XMR_DASH,BTC_EXP,ETH_OMG,BTC_BTS,BTC_PINK,BTC_VTC,ETH_STEEM,BTC_NMC,BTC_BTCD,BTC_RIC,USDT_LTC,BTC_DCR,USDT_REP,BTC_BLK,BTC_HUC,BTC_VIA,BTC_XCP,XMR_BCN,BTC_SC,BTC_RADS,BTC_STORJ,BTC_GRC,BTC_XBC,BTC_AMP,BTC_GNT,ETH_ZRX,ETH_GAS,BTC_DOGE",
    "EnabledPairs": "BTC_LTC,BTC_ETH,BTC_DOGE,BTC_DASH,BTC_XRP",
    "BaseCurrencies": "USD",
    "AssetTypes": "SPOT",
@@ -710,32 +1384,33 @@
    "RequestCurrencyPairFormat": {
     "Uppercase": true,
     "Delimiter": "_"
-   }
-  },
-  {
-   "Name": "WEX",
-   "Enabled": true,
-   "Verbose": false,
-   "Websocket": false,
-   "UseSandbox": false,
-   "RESTPollingDelay": 10,
-   "HTTPTimeout": 15000000000,
-   "AuthenticatedAPISupport": false,
-   "APIKey": "Key",
-   "APISecret": "Secret",
-   "AvailablePairs": "BCH_USD,BCH_BTC,USDET_USD,LTC_USD,LTC_EUR,DSH_LTC,ETH_USD,NMCET_NMC,USDT_USD,LTC_RUR,EUR_USD,EUR_RUR,PPC_BTC,DSH_ZEC,ETH_EUR,ETH_ZEC,BCH_EUR,BTC_EUR,NMC_BTC,NVC_BTC,DSH_EUR,EURET_EUR,RURET_RUR,BTC_RUR,LTC_BTC,PPC_USD,DSH_RUR,BTC_USD,ETH_RUR,BCH_ETH,PPCET_PPC,BCH_RUR,BCH_LTC,BTCET_BTC,LTCET_LTC,NVC_USD,DSH_ETH,ETH_BTC,ETH_LTC,ETHET_ETH,NVCET_NVC,BCHET_BCH,USD_RUR,DSH_USD,BCH_ZEC,ZEC_BTC,ZEC_LTC,DSHET_DSH,NMC_USD,DSH_BTC,BCH_DSH,ZEC_USD",
-   "EnabledPairs": "BTC_USD,LTC_USD,LTC_BTC,ETH_USD",
-   "BaseCurrencies": "USD,RUR,EUR",
-   "AssetTypes": "SPOT",
-   "SupportsAutoPairUpdates": true,
-   "ConfigCurrencyPairFormat": {
-    "Uppercase": true,
-    "Delimiter": "_"
    },
-   "RequestCurrencyPairFormat": {
-    "Uppercase": false,
-    "Delimiter": "_",
-    "Separator": "-"
+   "InternationalBank": {
+    "Enabled": false,
+    "BankName": "",
+    "AccountName": "",
+    "AccountNumber": "",
+    "BSBNumber": "",
+    "SwiftCode": "",
+    "IBAN": ""
+   },
+   "LocalBank": {
+    "Enabled": false,
+    "BankName": "",
+    "AccountName": "",
+    "AccountNumber": "",
+    "BSBNumber": "",
+    "SwiftCode": "",
+    "IBAN": ""
+   },
+   "DepositBank": {
+    "Enabled": false,
+    "BankName": "",
+    "AccountName": "",
+    "AccountNumber": "",
+    "BSBNumber": "",
+    "SwiftCode": "",
+    "IBAN": ""
    }
   },
   {
@@ -751,7 +1426,7 @@
    "APISecret": "Secret",
    "AvailablePairs": "DASH_BTC,WAVES_BTC,LSK_BTC,LIZA_BTC,BCC_BTC,ETH_BTC,LTC_BTC,TRX_BTC,DOGE_BTC,VNTX_BTC,SW_BTC,ZEC_BTC,DASH_ETH,WAVES_ETH,LSK_ETH,LIZA_ETH,BCC_ETH,LTC_ETH,TRX_ETH,DOGE_ETH,VNTX_ETH,SW_ETH,ZEC_ETH,DASH_DOGE,WAVES_DOGE,LSK_DOGE,LIZA_DOGE,BCC_DOGE,LTC_DOGE,TRX_DOGE,VNTX_DOGE,SW_DOGE,ZEC_DOGE,DASH_USD,WAVES_USD,LSK_USD,LIZA_USD,BCC_USD,LTC_USD,TRX_USD,VNTX_USD,SW_USD,ZEC_USD,ETH_USD,BTC_USD,DASH_RUR,WAVES_BTC,WAVES_RUR,LSK_RUR,LIZA_RUR,BCC_RUR,LTC_RUR,TRX_RUR,VNTX_RUR,SW_RUR,ETH_RUR,ZEC_RUR",
    "EnabledPairs": "LTC_BTC,ETH_BTC,BTC_USD,DASH_BTC",
-   "BaseCurrencies": "USD,RUR",
+   "BaseCurrencies": "USD",
    "AssetTypes": "SPOT",
    "SupportsAutoPairUpdates": false,
    "PairsLastUpdated": 1529037622,
@@ -763,6 +1438,33 @@
     "Uppercase": false,
     "Delimiter": "_",
     "Separator": "-"
+   },
+   "InternationalBank": {
+    "Enabled": false,
+    "BankName": "",
+    "AccountName": "",
+    "AccountNumber": "",
+    "BSBNumber": "",
+    "SwiftCode": "",
+    "IBAN": ""
+   },
+   "LocalBank": {
+    "Enabled": false,
+    "BankName": "",
+    "AccountName": "",
+    "AccountNumber": "",
+    "BSBNumber": "",
+    "SwiftCode": "",
+    "IBAN": ""
+   },
+   "DepositBank": {
+    "Enabled": false,
+    "BankName": "",
+    "AccountName": "",
+    "AccountNumber": "",
+    "BSBNumber": "",
+    "SwiftCode": "",
+    "IBAN": ""
    }
   }
  ]
