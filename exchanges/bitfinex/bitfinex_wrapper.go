@@ -178,7 +178,7 @@ func (b *Bitfinex) GetExchangeHistory(p pair.CurrencyPair, assetType string) ([]
 }
 
 // SubmitExchangeOrder submits a new order
-func (b *Bitfinex) SubmitExchangeOrder(base, quote pair.CurrencyItem, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (int64, error) {
+func (b *Bitfinex) SubmitExchangeOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (int64, error) {
 	return 0, errors.New("not yet implemented")
 }
 

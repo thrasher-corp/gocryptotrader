@@ -151,8 +151,8 @@ func (b *BTCMarkets) GetExchangeHistory(p pair.CurrencyPair, assetType string) (
 }
 
 // SubmitExchangeOrder submits a new order
-func (b *BTCMarkets) SubmitExchangeOrder(base, quote pair.CurrencyItem, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (int64, error) {
-	return b.NewOrder(base.String(), quote.String(), price, amount, side.Format(b.GetName()), orderType.Format(b.GetName()), clientID)
+func (b *BTCMarkets) SubmitExchangeOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (int64, error) {
+	return b.NewOrder(p.GetFirstCurrency().Upper().String(), p.GetSecondCurrency().Upper().String(), price, amount, side.Format(b.GetName()), orderType.Format(b.GetName()), clientID)
 }
 
 // ModifyExchangeOrder will allow of changing orderbook placement and limit to

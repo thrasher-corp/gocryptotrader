@@ -133,7 +133,7 @@ type IBotExchange interface {
 	SupportsRESTTickerBatchUpdates() bool
 
 	GetExchangeFundTransferHistory() ([]FundHistory, error)
-	SubmitExchangeOrder(base, quote pair.CurrencyItem, side OrderSide, orderType OrderType, amount, price float64, clientID string) (int64, error)
+	SubmitExchangeOrder(p pair.CurrencyPair, side OrderSide, orderType OrderType, amount, price float64, clientID string) (int64, error)
 	ModifyExchangeOrder(orderID int64, modify ModifyOrder) (int64, error)
 	CancelExchangeOrder(orderID int64) error
 	CancelAllExchangeOrders() error

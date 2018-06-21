@@ -159,7 +159,7 @@ func (po *Poloniex) GetExchangeHistory(p pair.CurrencyPair, assetType string) ([
 }
 
 // SubmitExchangeOrder submits a new order
-func (po *Poloniex) SubmitExchangeOrder(base, quote pair.CurrencyItem, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (int64, error) {
+func (po *Poloniex) SubmitExchangeOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (int64, error) {
 	return 0, errors.New("not yet implemented")
 }
 
