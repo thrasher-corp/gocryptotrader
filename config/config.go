@@ -138,6 +138,7 @@ type BankConfig struct {
 	AccountNumber string
 	BSBNumber     string
 	SwiftCode     string
+	IBAN          string
 }
 
 // CurrencyConfig holds all the information needed for currency related manipulation
@@ -252,7 +253,7 @@ func (c *Config) GetInternationalBankDetails(exchName string) (BankConfig, error
 		if exch.Name == exchName {
 			if exch.InternationalBank.AccountName != "" && exch.InternationalBank.AccountNumber != "" &&
 				exch.InternationalBank.BSBNumber != "" && exch.InternationalBank.BankName != "" &&
-				exch.InternationalBank.SwiftCode != "" {
+				exch.InternationalBank.SwiftCode != "" && exch.InternationalBank.IBAN != "" {
 				return exch.InternationalBank, nil
 			}
 			return BankConfig{}, errors.New("international banking configuration not populated correctly")
@@ -323,7 +324,8 @@ func (c *Config) CheckBankConfig() error {
 		}
 		if exch.InternationalBank.Enabled == true {
 			if exch.InternationalBank.AccountName == "" || exch.InternationalBank.AccountNumber == "" ||
-				exch.InternationalBank.BankName == "" || exch.InternationalBank.SwiftCode == "" {
+				exch.InternationalBank.BankName == "" || exch.InternationalBank.SwiftCode == "" ||
+				exch.InternationalBank.IBAN == "" {
 				return fmt.Errorf("international banking details for %s is enabled but variables not set", exch.Name)
 			}
 		}
