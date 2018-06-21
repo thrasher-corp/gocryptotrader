@@ -20,15 +20,15 @@ const (
 	gateioMarketURL  = "https://data.gateio.io"
 	gateioAPIVersion = "api2/1"
 
-	gateioSymbol     = "pairs"
-	gateioMarketInfo = "marketinfo"
-	gateioKline      = "candlestick2"
-	gateioNewOrder   = "private"
-	gateioBalances   = "private/balances"
+	gateioSymbol      = "pairs"
+	gateioMarketInfo  = "marketinfo"
+	gateioKline       = "candlestick2"
+	gateioOrder       = "private"
+	gateioBalances    = "private/balances"
+	gateioCancelOrder = "private/cancelOrder"
 
 	gateioAuthRate   = 100
 	gateioUnauthRate = 100
-)
 )
 
 // Gateio is the overarching type across this package
@@ -51,7 +51,10 @@ func (h *Gateio) SetDefaults() {
 	h.AssetTypes = []string{ticker.Spot}
 	h.SupportsAutoPairUpdating = true
 	h.SupportsRESTTickerBatching = false
-	h.Requester = request.New(h.Name, request.NewRateLimit(time.Second*10, gateioAuthRate), request.NewRateLimit(time.Second*10, gateioUnauthRate), common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
+	authRateLimit := request.NewRateLimit(time.Second*10, gateioUnauthRate)
+	authRateLimit.SetRequests(3)
+	h.Requester = request.New(h.Name, request.NewRateLimit(time.Second*10, gateioAuthRate), authRateLimit, common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
+	// h.Requester = request.New(h.Name, request.NewRateLimit(time.Second*10, gateioAuthRate), request.NewRateLimit(time.Second*10, gateioUnauthRate), common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 }
 
 // Setup sets user configuration
@@ -198,18 +201,64 @@ func (h *Gateio) GetKline(arg GateioKlinesRequestParams) ([]*GateioKLineResponse
 // 通过以下API，用户可以使用程序控制自动进行账号资金查询，下单交易，取消挂单。
 // 请注意：请在您的程序中设置的HTTP请求头参数 Content-Type 为 application/x-www-form-urlencoded
 // 用户首先要通过这个链接获取API接口身份认证用到的Key和Secret。 然后在程序中用Secret作为密码，通过SHA512加密方式签名需要POST给服务器的数据得到Sign，并在HTTPS请求的Header部分传回Key和Sign。请参考以下接口说明和例子程序进行设置。
-func (h *Gateio) GetBalances() (GateioPlaceReturn, error) {
-	url := fmt.Sprintf("%s/%s/%s", gateioMarketURL, gateioAPIVersion, gateioBalances)
-	var result string
-	err := h.SendAuthenticatedHTTPRequest("POST", url, "", &result)
+func (h *Gateio) GetBalances() (GateioBalancesResponse, error) {
+
+	var result GateioBalancesResponse
+
+	err := h.SendAuthenticatedHTTPRequest("POST", gateioBalances, "", &result)
+	if err != nil {
+		return result, err
+	}
+
+	return result, nil
 }
 
 // NewOrder 下订单
-//
-func (h *Gateio) NewOrder(arg GateioPlaceRequestParams) (GateioPlaceReturn, error) {
-	var result GateioPlaceReturn
+func (h *Gateio) NewOrder(arg GateioPlaceRequestParams) (GateioPlaceResponse, error) {
+	var result GateioPlaceResponse
+
+	//获取交易对的价格精度格式
+	params := fmt.Sprintf("currencyPair=%s&rate=%s&amount=%s",
+		h.GetSymbol(),
+		strconv.FormatFloat(arg.Price, 'f', -1, 64),
+		strconv.FormatFloat(arg.Amount, 'f', -1, 64),
+	)
+
+	strRequestURL := fmt.Sprintf("%s/%s", gateioOrder, arg.Type)
+
+	err := h.SendAuthenticatedHTTPRequest("POST", strRequestURL, params, &result)
+	if err != nil {
+		return result, err
+	}
 
 	return result, nil
+}
+
+// CancelOrder 取消订单
+// @orderID 下单单号
+// @symbol 交易币种对(如 ltc_btc)
+func (h *Gateio) CancelOrder(orderID int64, symbol string) (bool, error) {
+	type response struct {
+		Result  bool   `json:"result"`
+		Code    int    `json:"code"`
+		Message string `json:"message"`
+	}
+
+	var result response
+	//获取交易对的价格精度格式
+	params := fmt.Sprintf("orderNumber=%d&currencyPair=%s",
+		orderID,
+		symbol,
+	)
+	err := h.SendAuthenticatedHTTPRequest("POST", gateioCancelOrder, params, &result)
+	if err != nil {
+		return false, err
+	}
+	if !result.Result {
+		return false, fmt.Errorf("code:%d message:%s", result.Code, result.Message)
+	}
+
+	return true, nil
 }
 
 // SendHTTPRequest sends an unauthenticated HTTP request
@@ -223,20 +272,14 @@ func (h *Gateio) SendAuthenticatedHTTPRequest(method, endpoint, param string, re
 		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet, h.Name)
 	}
 
-	values.Set("AccessKeyId", h.APIKey)
-	values.Set("SignatureMethod", "HmacSHA256")
-	values.Set("SignatureVersion", "2")
-	values.Set("Timestamp", time.Now().UTC().Format("2006-01-02T15:04:05"))
-
 	headers := make(map[string]string)
 	headers["Content-Type"] = "application/x-www-form-urlencoded"
 	headers["key"] = h.APIKey
 
-	hmac := common.GetHMAC(common.HashSHA512, []byte(payload), []byte(h.APISecret))
+	hmac := common.GetHMAC(common.HashSHA512, []byte(param), []byte(h.APISecret))
 	headers["sign"] = common.ByteArrayToString(hmac)
 
-	url := fmt.Sprintf("%s%s", huobiAPIURL, endpoint)
-	url = common.EncodeURLValues(url, values)
+	url := fmt.Sprintf("%s/%s/%s", gateioTradeURL, gateioAPIVersion, endpoint)
 
 	return h.SendPayload(method, url, headers, strings.NewReader(param), result, true, h.Verbose)
 }
