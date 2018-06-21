@@ -74,11 +74,18 @@ func main() {
 	fmt.Println("----------setup-------")
 	exchange.Setup(defaultConfig)
 
-	fmt.Println(exchange.GetKline(gateio.GateioKlinesRequestParams{
-		Symbol:   exchange.GetSymbol(),
-		GroupSec: gateio.GateioIntervalFiveMinutes,
-		HourSize: 1, //1小时内数据
-	}))
+	// res, err := exchange.NewOrder(gateio.GateioPlaceRequestParams{
+	// 	Symbol: exchange.GetSymbol(),
+	// 	Amount: 1.1,
+	// 	Price:  10.1,
+	// 	Type:   gateio.GateioRequestParamsTypeBuy,
+	// })
+	// if err != nil {
+	// 	fmt.Println(err)
+	// } else {
+	// 	fmt.Println(res)
+	// }
+	// fmt.Println(exchange.CancelOrder(917591554, exchange.GetSymbol()))
 
 	//获取交易所的规则和交易对信息
 	// getExchangeInfo(exchange)

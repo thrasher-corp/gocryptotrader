@@ -50,9 +50,11 @@ type MarketInfoPairsResponse struct {
 
 //------------Balances
 
+// GateioBalancesResponse 用户资产
 type GateioBalancesResponse struct {
-	Result string `json:"result"`
-	// Available
+	Result    string            `json:"result"`
+	Available map[string]string `json:"available"`
+	Locked    map[string]string `json:"locked"`
 }
 
 //------------Kline
@@ -99,8 +101,8 @@ type GateioPlaceRequestParams struct {
 	Type   GateioRequestParamsType `json:"type"`   // 订单类型,
 }
 
-// GateioPlaceReturn 下单买入/卖出返回的类型
-type GateioPlaceReturn struct {
+// GateioPlaceResponse 下单买入/卖出返回的类型
+type GateioPlaceResponse struct {
 	OrderNumber  int64  `json:"orderNumber"`  //订单单号
 	Price        string `json:"rate"`         //下单价格
 	LeftAmount   string `json:"leftAmount"`   //剩余数量

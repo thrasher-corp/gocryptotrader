@@ -1,6 +1,7 @@
 package gateio
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/idoall/gocryptotrader/config"
@@ -61,6 +62,41 @@ func TestGetMarketInfo(t *testing.T) {
 	_, err := g.GetMarketInfo()
 	if err != nil {
 		t.Errorf("Test failed - Gateio GetMarketInfo: %s", err)
+	}
+}
+
+func TestNewOrder(t *testing.T) {
+	t.Parallel()
+	_, err := g.NewOrder(GateioPlaceRequestParams{
+		Symbol: g.GetSymbol(),
+		Amount: 1.1,
+		Price:  10.1,
+		Type:   GateioRequestParamsTypeBuy,
+	})
+	if err != nil {
+		t.Errorf("Test failed - Gateio NewOrder: %s", err)
+	}
+}
+
+func TestCancelOrder(t *testing.T) {
+	t.Parallel()
+	_, err := g.CancelOrder(917591554, g.GetSymbol())
+	if err != nil {
+		t.Errorf("Test failed - Gateio CancelOrder: %s", err)
+	}
+}
+
+func TestGetBalances(t *testing.T) {
+	TestSetDefaults(t)
+	TestSetup(t)
+	t.Parallel()
+	res, err := g.GetBalances()
+	if err != nil {
+		t.Errorf("Test failed - Gateio GetBalances: %s", err)
+	}
+
+	for k, v := range res.Available {
+		fmt.Println(k, v)
 	}
 }
 
