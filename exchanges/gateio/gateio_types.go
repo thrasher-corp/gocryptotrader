@@ -48,6 +48,13 @@ type MarketInfoPairsResponse struct {
 	Fee float64
 }
 
+//------------Balances
+
+type GateioBalancesResponse struct {
+	Result string `json:"result"`
+	// Available
+}
+
 //------------Kline
 
 // GateioKlinesRequestParams represents Klines request data.
@@ -57,8 +64,8 @@ type GateioKlinesRequestParams struct {
 	GroupSec GateioInterval
 }
 
-// GateioKLineReturn K线返回类型
-type GateioKLineReturn struct {
+// GateioKLineResponse K线返回类型
+type GateioKLineResponse struct {
 	ID        float64
 	KlineTime time.Time
 	Open      float64

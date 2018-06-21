@@ -133,6 +133,11 @@ func HexEncodeToString(input []byte) string {
 	return hex.EncodeToString(input)
 }
 
+// ByteArrayToString returns a string
+func ByteArrayToString(input []byte) string {
+	return fmt.Sprintf("%x", input)
+}
+
 // Base64Decode takes in a Base64 string and returns a byte array and an error
 func Base64Decode(input string) ([]byte, error) {
 	result, err := base64.StdEncoding.DecodeString(input)
