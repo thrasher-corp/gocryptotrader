@@ -147,6 +147,30 @@
    },
    "RequestCurrencyPairFormat": {
     "Uppercase": true
+   },
+   "InternationalBank": {
+    "Enabled": false,
+    "BankName": "",
+    "AccountName": "",
+    "AccountNumber": "",
+    "BSBNumber": "",
+    "SwiftCode": ""
+   },
+   "LocalBank": {
+    "Enabled": false,
+    "BankName": "",
+    "AccountName": "",
+    "AccountNumber": "",
+    "BSBNumber": "",
+    "SwiftCode": ""
+   },
+   "DepositBank": {
+    "Enabled": false,
+    "BankName": "",
+    "AccountName": "",
+    "AccountNumber": "",
+    "BSBNumber": "",
+    "SwiftCode": ""
    }
   },
   {
@@ -171,6 +195,30 @@
    },
    "RequestCurrencyPairFormat": {
     "Uppercase": true
+   },
+   "InternationalBank": {
+    "Enabled": false,
+    "BankName": "",
+    "AccountName": "",
+    "AccountNumber": "",
+    "BSBNumber": "",
+    "SwiftCode": ""
+   },
+   "LocalBank": {
+    "Enabled": false,
+    "BankName": "",
+    "AccountName": "",
+    "AccountNumber": "",
+    "BSBNumber": "",
+    "SwiftCode": ""
+   },
+   "DepositBank": {
+    "Enabled": false,
+    "BankName": "",
+    "AccountName": "",
+    "AccountNumber": "",
+    "BSBNumber": "",
+    "SwiftCode": ""
    }
   },
   {
@@ -194,6 +242,30 @@
    },
    "RequestCurrencyPairFormat": {
     "Uppercase": true
+   },
+   "InternationalBank": {
+    "Enabled": false,
+    "BankName": "",
+    "AccountName": "",
+    "AccountNumber": "",
+    "BSBNumber": "",
+    "SwiftCode": ""
+   },
+   "LocalBank": {
+    "Enabled": false,
+    "BankName": "",
+    "AccountName": "",
+    "AccountNumber": "",
+    "BSBNumber": "",
+    "SwiftCode": ""
+   },
+   "DepositBank": {
+    "Enabled": false,
+    "BankName": "",
+    "AccountName": "",
+    "AccountNumber": "",
+    "BSBNumber": "",
+    "SwiftCode": ""
    }
   },
   {
@@ -220,6 +292,30 @@
    "RequestCurrencyPairFormat": {
     "Uppercase": true,
     "Delimiter": "_"
+   },
+   "InternationalBank": {
+    "Enabled": false,
+    "BankName": "",
+    "AccountName": "",
+    "AccountNumber": "",
+    "BSBNumber": "",
+    "SwiftCode": ""
+   },
+   "LocalBank": {
+    "Enabled": false,
+    "BankName": "",
+    "AccountName": "",
+    "AccountNumber": "",
+    "BSBNumber": "",
+    "SwiftCode": ""
+   },
+   "DepositBank": {
+    "Enabled": false,
+    "BankName": "",
+    "AccountName": "",
+    "AccountNumber": "",
+    "BSBNumber": "",
+    "SwiftCode": ""
    }
   },
   {
@@ -245,6 +341,30 @@
    },
    "RequestCurrencyPairFormat": {
     "Uppercase": true
+   },
+   "InternationalBank": {
+    "Enabled": false,
+    "BankName": "",
+    "AccountName": "",
+    "AccountNumber": "",
+    "BSBNumber": "",
+    "SwiftCode": ""
+   },
+   "LocalBank": {
+    "Enabled": false,
+    "BankName": "",
+    "AccountName": "",
+    "AccountNumber": "",
+    "BSBNumber": "",
+    "SwiftCode": ""
+   },
+   "DepositBank": {
+    "Enabled": false,
+    "BankName": "",
+    "AccountName": "",
+    "AccountNumber": "",
+    "BSBNumber": "",
+    "SwiftCode": ""
    }
   },
   {
@@ -269,6 +389,30 @@
    },
    "RequestCurrencyPairFormat": {
     "Uppercase": true
+   },
+   "InternationalBank": {
+    "Enabled": false,
+    "BankName": "",
+    "AccountName": "",
+    "AccountNumber": "",
+    "BSBNumber": "",
+    "SwiftCode": ""
+   },
+   "LocalBank": {
+    "Enabled": false,
+    "BankName": "",
+    "AccountName": "",
+    "AccountNumber": "",
+    "BSBNumber": "",
+    "SwiftCode": ""
+   },
+   "DepositBank": {
+    "Enabled": false,
+    "BankName": "",
+    "AccountName": "",
+    "AccountNumber": "",
+    "BSBNumber": "",
+    "SwiftCode": ""
    }
   },
   {
@@ -294,6 +438,30 @@
    "RequestCurrencyPairFormat": {
     "Uppercase": true,
     "Delimiter": "-"
+   },
+   "InternationalBank": {
+    "Enabled": false,
+    "BankName": "",
+    "AccountName": "",
+    "AccountNumber": "",
+    "BSBNumber": "",
+    "SwiftCode": ""
+   },
+   "LocalBank": {
+    "Enabled": false,
+    "BankName": "",
+    "AccountName": "",
+    "AccountNumber": "",
+    "BSBNumber": "",
+    "SwiftCode": ""
+   },
+   "DepositBank": {
+    "Enabled": false,
+    "BankName": "",
+    "AccountName": "",
+    "AccountNumber": "",
+    "BSBNumber": "",
+    "SwiftCode": ""
    }
   },
   {
@@ -317,6 +485,30 @@
    },
    "RequestCurrencyPairFormat": {
     "Uppercase": false
+   },
+   "InternationalBank": {
+    "Enabled": false,
+    "BankName": "",
+    "AccountName": "",
+    "AccountNumber": "",
+    "BSBNumber": "",
+    "SwiftCode": ""
+   },
+   "LocalBank": {
+    "Enabled": false,
+    "BankName": "",
+    "AccountName": "",
+    "AccountNumber": "",
+    "BSBNumber": "",
+    "SwiftCode": ""
+   },
+   "DepositBank": {
+    "Enabled": false,
+    "BankName": "",
+    "AccountName": "",
+    "AccountNumber": "",
+    "BSBNumber": "",
+    "SwiftCode": ""
    }
   },
   {
@@ -343,6 +535,30 @@
     "Uppercase": false,
     "Delimiter": "_",
     "Separator": "-"
+   },
+   "InternationalBank": {
+    "Enabled": false,
+    "BankName": "",
+    "AccountName": "",
+    "AccountNumber": "",
+    "BSBNumber": "",
+    "SwiftCode": ""
+   },
+   "LocalBank": {
+    "Enabled": false,
+    "BankName": "",
+    "AccountName": "",
+    "AccountNumber": "",
+    "BSBNumber": "",
+    "SwiftCode": ""
+   },
+   "DepositBank": {
+    "Enabled": false,
+    "BankName": "",
+    "AccountName": "",
+    "AccountNumber": "",
+    "BSBNumber": "",
+    "SwiftCode": ""
    }
   },
   {
@@ -366,6 +582,30 @@
    },
    "RequestCurrencyPairFormat": {
     "Uppercase": true
+   },
+   "InternationalBank": {
+    "Enabled": false,
+    "BankName": "",
+    "AccountName": "",
+    "AccountNumber": "",
+    "BSBNumber": "",
+    "SwiftCode": ""
+   },
+   "LocalBank": {
+    "Enabled": false,
+    "BankName": "",
+    "AccountName": "",
+    "AccountNumber": "",
+    "BSBNumber": "",
+    "SwiftCode": ""
+   },
+   "DepositBank": {
+    "Enabled": false,
+    "BankName": "",
+    "AccountName": "",
+    "AccountNumber": "",
+    "BSBNumber": "",
+    "SwiftCode": ""
    }
   },
   {
@@ -390,6 +630,30 @@
    },
    "RequestCurrencyPairFormat": {
     "Uppercase": true
+   },
+   "InternationalBank": {
+    "Enabled": false,
+    "BankName": "",
+    "AccountName": "",
+    "AccountNumber": "",
+    "BSBNumber": "",
+    "SwiftCode": ""
+   },
+   "LocalBank": {
+    "Enabled": false,
+    "BankName": "",
+    "AccountName": "",
+    "AccountNumber": "",
+    "BSBNumber": "",
+    "SwiftCode": ""
+   },
+   "DepositBank": {
+    "Enabled": false,
+    "BankName": "",
+    "AccountName": "",
+    "AccountNumber": "",
+    "BSBNumber": "",
+    "SwiftCode": ""
    }
   },
   {
@@ -416,6 +680,30 @@
     "Uppercase": true,
     "Delimiter": "_",
     "Separator": ","
+   },
+   "InternationalBank": {
+    "Enabled": false,
+    "BankName": "",
+    "AccountName": "",
+    "AccountNumber": "",
+    "BSBNumber": "",
+    "SwiftCode": ""
+   },
+   "LocalBank": {
+    "Enabled": false,
+    "BankName": "",
+    "AccountName": "",
+    "AccountNumber": "",
+    "BSBNumber": "",
+    "SwiftCode": ""
+   },
+   "DepositBank": {
+    "Enabled": false,
+    "BankName": "",
+    "AccountName": "",
+    "AccountNumber": "",
+    "BSBNumber": "",
+    "SwiftCode": ""
    }
   },
   {
@@ -441,6 +729,30 @@
    "RequestCurrencyPairFormat": {
     "Uppercase": true,
     "Delimiter": "-"
+   },
+   "InternationalBank": {
+    "Enabled": false,
+    "BankName": "",
+    "AccountName": "",
+    "AccountNumber": "",
+    "BSBNumber": "",
+    "SwiftCode": ""
+   },
+   "LocalBank": {
+    "Enabled": false,
+    "BankName": "",
+    "AccountName": "",
+    "AccountNumber": "",
+    "BSBNumber": "",
+    "SwiftCode": ""
+   },
+   "DepositBank": {
+    "Enabled": false,
+    "BankName": "",
+    "AccountName": "",
+    "AccountNumber": "",
+    "BSBNumber": "",
+    "SwiftCode": ""
    }
   },
   {
@@ -464,6 +776,30 @@
    },
    "RequestCurrencyPairFormat": {
     "Uppercase": true
+   },
+   "InternationalBank": {
+    "Enabled": false,
+    "BankName": "",
+    "AccountName": "",
+    "AccountNumber": "",
+    "BSBNumber": "",
+    "SwiftCode": ""
+   },
+   "LocalBank": {
+    "Enabled": false,
+    "BankName": "",
+    "AccountName": "",
+    "AccountNumber": "",
+    "BSBNumber": "",
+    "SwiftCode": ""
+   },
+   "DepositBank": {
+    "Enabled": false,
+    "BankName": "",
+    "AccountName": "",
+    "AccountNumber": "",
+    "BSBNumber": "",
+    "SwiftCode": ""
    }
   },
   {
@@ -488,6 +824,30 @@
    },
    "RequestCurrencyPairFormat": {
     "Uppercase": true
+   },
+   "InternationalBank": {
+    "Enabled": false,
+    "BankName": "",
+    "AccountName": "",
+    "AccountNumber": "",
+    "BSBNumber": "",
+    "SwiftCode": ""
+   },
+   "LocalBank": {
+    "Enabled": false,
+    "BankName": "",
+    "AccountName": "",
+    "AccountNumber": "",
+    "BSBNumber": "",
+    "SwiftCode": ""
+   },
+   "DepositBank": {
+    "Enabled": false,
+    "BankName": "",
+    "AccountName": "",
+    "AccountNumber": "",
+    "BSBNumber": "",
+    "SwiftCode": ""
    }
   },
   {
@@ -512,6 +872,30 @@
    },
    "RequestCurrencyPairFormat": {
     "Uppercase": false
+   },
+   "InternationalBank": {
+    "Enabled": false,
+    "BankName": "",
+    "AccountName": "",
+    "AccountNumber": "",
+    "BSBNumber": "",
+    "SwiftCode": ""
+   },
+   "LocalBank": {
+    "Enabled": false,
+    "BankName": "",
+    "AccountName": "",
+    "AccountNumber": "",
+    "BSBNumber": "",
+    "SwiftCode": ""
+   },
+   "DepositBank": {
+    "Enabled": false,
+    "BankName": "",
+    "AccountName": "",
+    "AccountNumber": "",
+    "BSBNumber": "",
+    "SwiftCode": ""
    }
   },
   {
@@ -537,6 +921,30 @@
    },
    "RequestCurrencyPairFormat": {
     "Uppercase": true
+   },
+   "InternationalBank": {
+    "Enabled": false,
+    "BankName": "",
+    "AccountName": "",
+    "AccountNumber": "",
+    "BSBNumber": "",
+    "SwiftCode": ""
+   },
+   "LocalBank": {
+    "Enabled": false,
+    "BankName": "",
+    "AccountName": "",
+    "AccountNumber": "",
+    "BSBNumber": "",
+    "SwiftCode": ""
+   },
+   "DepositBank": {
+    "Enabled": false,
+    "BankName": "",
+    "AccountName": "",
+    "AccountNumber": "",
+    "BSBNumber": "",
+    "SwiftCode": ""
    }
   },
   {
@@ -562,6 +970,30 @@
    "RequestCurrencyPairFormat": {
     "Uppercase": true,
     "Separator": ","
+   },
+   "InternationalBank": {
+    "Enabled": false,
+    "BankName": "",
+    "AccountName": "",
+    "AccountNumber": "",
+    "BSBNumber": "",
+    "SwiftCode": ""
+   },
+   "LocalBank": {
+    "Enabled": false,
+    "BankName": "",
+    "AccountName": "",
+    "AccountNumber": "",
+    "BSBNumber": "",
+    "SwiftCode": ""
+   },
+   "DepositBank": {
+    "Enabled": false,
+    "BankName": "",
+    "AccountName": "",
+    "AccountNumber": "",
+    "BSBNumber": "",
+    "SwiftCode": ""
    }
   },
   {
@@ -585,6 +1017,30 @@
    },
    "RequestCurrencyPairFormat": {
     "Uppercase": true
+   },
+   "InternationalBank": {
+    "Enabled": false,
+    "BankName": "",
+    "AccountName": "",
+    "AccountNumber": "",
+    "BSBNumber": "",
+    "SwiftCode": ""
+   },
+   "LocalBank": {
+    "Enabled": false,
+    "BankName": "",
+    "AccountName": "",
+    "AccountNumber": "",
+    "BSBNumber": "",
+    "SwiftCode": ""
+   },
+   "DepositBank": {
+    "Enabled": false,
+    "BankName": "",
+    "AccountName": "",
+    "AccountNumber": "",
+    "BSBNumber": "",
+    "SwiftCode": ""
    }
   },
   {
@@ -611,6 +1067,30 @@
     "Uppercase": false,
     "Delimiter": "_",
     "Separator": "-"
+   },
+   "InternationalBank": {
+    "Enabled": false,
+    "BankName": "",
+    "AccountName": "",
+    "AccountNumber": "",
+    "BSBNumber": "",
+    "SwiftCode": ""
+   },
+   "LocalBank": {
+    "Enabled": false,
+    "BankName": "",
+    "AccountName": "",
+    "AccountNumber": "",
+    "BSBNumber": "",
+    "SwiftCode": ""
+   },
+   "DepositBank": {
+    "Enabled": false,
+    "BankName": "",
+    "AccountName": "",
+    "AccountNumber": "",
+    "BSBNumber": "",
+    "SwiftCode": ""
    }
   },
   {
@@ -635,6 +1115,30 @@
    },
    "RequestCurrencyPairFormat": {
     "Uppercase": true
+   },
+   "InternationalBank": {
+    "Enabled": false,
+    "BankName": "",
+    "AccountName": "",
+    "AccountNumber": "",
+    "BSBNumber": "",
+    "SwiftCode": ""
+   },
+   "LocalBank": {
+    "Enabled": false,
+    "BankName": "",
+    "AccountName": "",
+    "AccountNumber": "",
+    "BSBNumber": "",
+    "SwiftCode": ""
+   },
+   "DepositBank": {
+    "Enabled": false,
+    "BankName": "",
+    "AccountName": "",
+    "AccountNumber": "",
+    "BSBNumber": "",
+    "SwiftCode": ""
    }
   },
   {
@@ -660,6 +1164,30 @@
    "RequestCurrencyPairFormat": {
     "Uppercase": false,
     "Delimiter": "_"
+   },
+   "InternationalBank": {
+    "Enabled": false,
+    "BankName": "",
+    "AccountName": "",
+    "AccountNumber": "",
+    "BSBNumber": "",
+    "SwiftCode": ""
+   },
+   "LocalBank": {
+    "Enabled": false,
+    "BankName": "",
+    "AccountName": "",
+    "AccountNumber": "",
+    "BSBNumber": "",
+    "SwiftCode": ""
+   },
+   "DepositBank": {
+    "Enabled": false,
+    "BankName": "",
+    "AccountName": "",
+    "AccountNumber": "",
+    "BSBNumber": "",
+    "SwiftCode": ""
    }
   },
   {
@@ -685,6 +1213,30 @@
    "RequestCurrencyPairFormat": {
     "Uppercase": false,
     "Delimiter": "_"
+   },
+   "InternationalBank": {
+    "Enabled": false,
+    "BankName": "",
+    "AccountName": "",
+    "AccountNumber": "",
+    "BSBNumber": "",
+    "SwiftCode": ""
+   },
+   "LocalBank": {
+    "Enabled": false,
+    "BankName": "",
+    "AccountName": "",
+    "AccountNumber": "",
+    "BSBNumber": "",
+    "SwiftCode": ""
+   },
+   "DepositBank": {
+    "Enabled": false,
+    "BankName": "",
+    "AccountName": "",
+    "AccountNumber": "",
+    "BSBNumber": "",
+    "SwiftCode": ""
    }
   },
   {
@@ -711,6 +1263,30 @@
    "RequestCurrencyPairFormat": {
     "Uppercase": false,
     "Delimiter": "_"
+   },
+   "InternationalBank": {
+    "Enabled": false,
+    "BankName": "",
+    "AccountName": "",
+    "AccountNumber": "",
+    "BSBNumber": "",
+    "SwiftCode": ""
+   },
+   "LocalBank": {
+    "Enabled": false,
+    "BankName": "",
+    "AccountName": "",
+    "AccountNumber": "",
+    "BSBNumber": "",
+    "SwiftCode": ""
+   },
+   "DepositBank": {
+    "Enabled": false,
+    "BankName": "",
+    "AccountName": "",
+    "AccountNumber": "",
+    "BSBNumber": "",
+    "SwiftCode": ""
    }
   },
   {
@@ -736,6 +1312,30 @@
    "RequestCurrencyPairFormat": {
     "Uppercase": true,
     "Delimiter": "_"
+   },
+   "InternationalBank": {
+    "Enabled": false,
+    "BankName": "",
+    "AccountName": "",
+    "AccountNumber": "",
+    "BSBNumber": "",
+    "SwiftCode": ""
+   },
+   "LocalBank": {
+    "Enabled": false,
+    "BankName": "",
+    "AccountName": "",
+    "AccountNumber": "",
+    "BSBNumber": "",
+    "SwiftCode": ""
+   },
+   "DepositBank": {
+    "Enabled": false,
+    "BankName": "",
+    "AccountName": "",
+    "AccountNumber": "",
+    "BSBNumber": "",
+    "SwiftCode": ""
    }
   },
   {
@@ -763,6 +1363,30 @@
     "Uppercase": false,
     "Delimiter": "_",
     "Separator": "-"
+   },
+   "InternationalBank": {
+    "Enabled": false,
+    "BankName": "",
+    "AccountName": "",
+    "AccountNumber": "",
+    "BSBNumber": "",
+    "SwiftCode": ""
+   },
+   "LocalBank": {
+    "Enabled": false,
+    "BankName": "",
+    "AccountName": "",
+    "AccountNumber": "",
+    "BSBNumber": "",
+    "SwiftCode": ""
+   },
+   "DepositBank": {
+    "Enabled": false,
+    "BankName": "",
+    "AccountName": "",
+    "AccountNumber": "",
+    "BSBNumber": "",
+    "SwiftCode": ""
    }
   }
  ]

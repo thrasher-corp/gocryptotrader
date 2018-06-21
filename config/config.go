@@ -125,6 +125,19 @@ type ExchangeConfig struct {
 	PairsLastUpdated          int64                     `json:",omitempty"`
 	ConfigCurrencyPairFormat  *CurrencyPairFormatConfig `json:"ConfigCurrencyPairFormat"`
 	RequestCurrencyPairFormat *CurrencyPairFormatConfig `json:"RequestCurrencyPairFormat"`
+	InternationalBank         BankConfig
+	LocalBank                 BankConfig
+	DepositBank               BankConfig
+}
+
+// BankConfig is a single bank configuration
+type BankConfig struct {
+	Enabled       bool
+	BankName      string
+	AccountName   string
+	AccountNumber string
+	BSBNumber     string
+	SwiftCode     string
 }
 
 // CurrencyConfig holds all the information needed for currency related manipulation
@@ -194,6 +207,134 @@ type TelegramConfig struct {
 // GetCurrencyConfig returns currency configurations
 func (c *Config) GetCurrencyConfig() CurrencyConfig {
 	return c.Currency
+}
+
+// GetLocalBankDetails returns local banking details associated with an exchange
+// for withdrawal purposes
+func (c *Config) GetLocalBankDetails(exchName string) (BankConfig, error) {
+	m.Lock()
+	defer m.Unlock()
+
+	for _, exch := range c.Exchanges {
+		if exch.Name == exchName {
+			if exch.LocalBank.AccountName != "" && exch.LocalBank.AccountNumber != "" &&
+				exch.LocalBank.BSBNumber != "" && exch.LocalBank.BankName != "" {
+				return exch.LocalBank, nil
+			}
+			return BankConfig{}, errors.New("local banking configuration not populated correctly")
+		}
+	}
+	return BankConfig{}, fmt.Errorf("exchange %s not found for GetLocalBankDetails", exchName)
+}
+
+// UpdateLocalBankDetails updates the configuration for the associated local
+// bank
+func (c *Config) UpdateLocalBankDetails(exchName string, config BankConfig) error {
+	m.Lock()
+	defer m.Unlock()
+
+	for i := range c.Exchanges {
+		if c.Exchanges[i].Name == exchName {
+			c.Exchanges[i].LocalBank = config
+			return nil
+		}
+	}
+	return errors.New("exchange %s not found in function UpdateLocalBankDetails")
+}
+
+// GetInternationalBankDetails returns local banking details associated with an
+// exchange for withdrawal purposes
+func (c *Config) GetInternationalBankDetails(exchName string) (BankConfig, error) {
+	m.Lock()
+	defer m.Unlock()
+
+	for _, exch := range c.Exchanges {
+		if exch.Name == exchName {
+			if exch.InternationalBank.AccountName != "" && exch.InternationalBank.AccountNumber != "" &&
+				exch.InternationalBank.BSBNumber != "" && exch.InternationalBank.BankName != "" &&
+				exch.InternationalBank.SwiftCode != "" {
+				return exch.InternationalBank, nil
+			}
+			return BankConfig{}, errors.New("international banking configuration not populated correctly")
+		}
+	}
+	return BankConfig{}, fmt.Errorf("exchange %s not found for GetInternationalBankDetails", exchName)
+}
+
+// UpdateInternationalBankDetails updates the configuration for the associated
+// international bank
+func (c *Config) UpdateInternationalBankDetails(exchName string, config BankConfig) error {
+	m.Lock()
+	defer m.Unlock()
+
+	for i := range c.Exchanges {
+		if c.Exchanges[i].Name == exchName {
+			c.Exchanges[i].InternationalBank = config
+			return nil
+		}
+	}
+	return errors.New("exchange %s not found in function UpdateInternationalBankDetails")
+}
+
+// GetDepositBankDetails returns banking details associated with an exchange
+// for depositing funds
+func (c *Config) GetDepositBankDetails(exchName string) (BankConfig, error) {
+	m.Lock()
+	defer m.Unlock()
+
+	for _, exch := range c.Exchanges {
+		if exch.Name == exchName {
+			if exch.DepositBank.AccountName != "" && exch.DepositBank.AccountNumber != "" &&
+				exch.DepositBank.BSBNumber != "" && exch.DepositBank.BankName != "" {
+				return exch.DepositBank, nil
+			}
+			return BankConfig{}, errors.New("deposit banking configuration not populated correctly")
+		}
+	}
+	return BankConfig{}, fmt.Errorf("exchange %s not found for GetDepositBankDetails", exchName)
+}
+
+// UpdateDepositBankDetails updates the configuration for the associated deposit
+// bank
+func (c *Config) UpdateDepositBankDetails(exchName string, config BankConfig) error {
+	m.Lock()
+	defer m.Unlock()
+
+	for i := range c.Exchanges {
+		if c.Exchanges[i].Name == exchName {
+			c.Exchanges[i].DepositBank = config
+			return nil
+		}
+	}
+	return errors.New("exchange %s not found in function UpdateDepositBankDetails")
+}
+
+// CheckBankConfig checks exchange bank configurations
+func (c *Config) CheckBankConfig() error {
+	m.Lock()
+	defer m.Unlock()
+
+	for _, exch := range c.Exchanges {
+		if exch.LocalBank.Enabled == true {
+			if exch.LocalBank.AccountName == "" || exch.LocalBank.AccountNumber == "" ||
+				exch.LocalBank.BSBNumber == "" || exch.LocalBank.BankName == "" {
+				return fmt.Errorf("local banking details for %s is enabled but variables not set", exch.Name)
+			}
+		}
+		if exch.InternationalBank.Enabled == true {
+			if exch.InternationalBank.AccountName == "" || exch.InternationalBank.AccountNumber == "" ||
+				exch.InternationalBank.BankName == "" || exch.InternationalBank.SwiftCode == "" {
+				return fmt.Errorf("international banking details for %s is enabled but variables not set", exch.Name)
+			}
+		}
+		if exch.DepositBank.Enabled == true {
+			if exch.DepositBank.AccountName == "" || exch.DepositBank.AccountNumber == "" ||
+				exch.DepositBank.BankName == "" || exch.DepositBank.SwiftCode == "" {
+				return fmt.Errorf("deposit banking details for %s is enabled but variables not set", exch.Name)
+			}
+		}
+	}
+	return nil
 }
 
 // GetCommunicationsConfig returns the communications configuration
@@ -815,7 +956,6 @@ func (c *Config) SaveConfig(configPath string) error {
 
 	if c.EncryptConfig == configFileEncryptionEnabled {
 		var key []byte
-		var err error
 
 		if IsInitialSetup {
 			key, err = PromptForConfigKey(true)
