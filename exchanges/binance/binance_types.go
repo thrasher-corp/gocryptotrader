@@ -1,5 +1,9 @@
 package binance
 
+import (
+	"encoding/json"
+)
+
 type Response struct {
 	Code int    `json:"code"`
 	Msg  string `json:"msg"`
@@ -72,6 +76,75 @@ type RecentTrade struct {
 	Time         int64   `json:"time"`
 	IsBuyerMaker bool    `json:"isBuyerMaker"`
 	IsBestMatch  bool    `json:"isBestMatch"`
+}
+
+type MultiStreamData struct {
+	Stream string          `json:"stream"`
+	Data   json.RawMessage `json:"data"`
+}
+
+type TradeStream struct {
+	EventType      string `json:"e"`
+	EventTime      int64  `json:"E"`
+	Symbol         string `json:"s"`
+	TradeID        int64  `json:"t"`
+	Price          string `json:"p"`
+	Quantity       string `json:"q"`
+	BuyerOrderID   int64  `json:"b"`
+	SellerOrderID  int64  `json:"a"`
+	TimeStamp      int64  `json:"T"`
+	Maker          bool   `json:"m"`
+	BestMatchPrice bool   `json:"M"`
+}
+
+type KlineStream struct {
+	EventType string `json:"e"`
+	EventTime int64  `json:"E"`
+	Symbol    string `json:"s"`
+	Kline     struct {
+		StartTime                int64  `json:"t"`
+		CloseTime                int64  `json:"T"`
+		Symbol                   string `json:"s"`
+		Interval                 string `json:"i"`
+		FirstTradeID             int64  `json:"f"`
+		LastTradeID              int64  `json:"L"`
+		OpenPrice                string `json:"o"`
+		ClosePrice               string `json:"c"`
+		HighPrice                string `json:"h"`
+		LowPrice                 string `json:"l"`
+		Volume                   string `json:"v"`
+		NumberOfTrades           int64  `json:"n"`
+		KlineClosed              bool   `json:"x"`
+		Quote                    string `json:"q"`
+		TakerBuyBaseAssetVolume  string `json:"V"`
+		TakerBuyQuoteAssetVolume string `json:"Q"`
+	} `json:"k"`
+}
+
+type TickerStream struct {
+	EventType              string `json:"e"`
+	EventTime              int64  `json:"E"`
+	Symbol                 string `json:"s"`
+	PriceChange            string `json:"p"`
+	PriceChangePercent     string `json:"P"`
+	WeightedAvgPrice       string `json:"w"`
+	PrevDayClose           string `json:"x"`
+	CurrDayClose           string `json:"c"`
+	CloseTradeQuantity     string `json:"Q"`
+	BestBidPrice           string `json:"b"`
+	BestBidQuantity        string `json:"B"`
+	BestAskPrice           string `json:"a"`
+	BestAskQuantity        string `json:"A"`
+	OpenPrice              string `json:"o"`
+	HighPrice              string `json:"h"`
+	LowPrice               string `json:"l"`
+	TotalTradedVolume      string `json:"v"`
+	TotalTradedQuoteVolume string `json:"q"`
+	OpenTime               int64  `json:"O"`
+	CloseTime              int64  `json:"C"`
+	FirstTradeID           int64  `json:"F"`
+	LastTradeID            int64  `json:"L"`
+	NumberOfTrades         int64  `json:"n"`
 }
 
 // HistoricalTrade holds recent trade data
