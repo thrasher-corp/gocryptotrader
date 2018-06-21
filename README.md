@@ -40,6 +40,7 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 | COINUT | Yes | No | NA |
 | Exmo | Yes | NA | NA |
 | CoinbasePro | Yes | Yes | No|
+| Gateio | Yes | Yes | No|
 | Gemini | Yes | No | No |
 | HitBTC | Yes | Yes | No |
 | Huobi.Pro | Yes | No |No |

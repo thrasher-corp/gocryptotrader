@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"net/url"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/idoall/gocryptotrader/common"
@@ -18,38 +17,38 @@ import (
 )
 
 const (
-	huobiAPIURL     = "https://api.hadax.com"
-	huobiAPIVersion = "1"
+	huobihadaxAPIURL     = "https://api.hadax.com"
+	huobihadaxAPIVersion = "1"
 
-	huobiMarketHistoryKline   = "market/history/kline"
-	huobiMarketDetail         = "market/detail"
-	huobiMarketDetailMerged   = "market/detail/merged"
-	huobiMarketDepth          = "market/depth"
-	huobiMarketTrade          = "market/trade"
-	huobiMarketTradeHistory   = "market/history/trade"
-	huobiSymbols              = "common/symbols"
-	huobiCurrencies           = "common/currencys"
-	huobiTimestamp            = "common/timestamp"
-	huobiAccounts             = "account/accounts"
-	huobiAccountBalance       = "account/accounts/%s/balance"
-	huobiOrderPlace           = "order/orders/place"
-	huobiOrderCancel          = "order/orders/%s/submitcancel"
-	huobiOrderCancelBatch     = "order/orders/batchcancel"
-	huobiGetOrder             = "order/orders/%s"
-	huobiGetOrderMatch        = "order/orders/%s/matchresults"
-	huobiGetOrders            = "order/orders"
-	huobiGetOrdersMatch       = "orders/matchresults"
-	huobiMarginTransferIn     = "dw/transfer-in/margin"
-	huobiMarginTransferOut    = "dw/transfer-out/margin"
-	huobiMarginOrders         = "margin/orders"
-	huobiMarginRepay          = "margin/orders/%s/repay"
-	huobiMarginLoanOrders     = "margin/loan-orders"
-	huobiMarginAccountBalance = "margin/accounts/balance"
-	huobiWithdrawCreate       = "dw/withdraw/api/create"
-	huobiWithdrawCancel       = "dw/withdraw-virtual/%s/cancel"
+	huobihadaxMarketHistoryKline   = "market/history/kline"
+	huobihadaxMarketDetail         = "market/detail"
+	huobihadaxMarketDetailMerged   = "market/detail/merged"
+	huobihadaxMarketDepth          = "market/depth"
+	huobihadaxMarketTrade          = "market/trade"
+	huobihadaxMarketTradeHistory   = "market/history/trade"
+	huobihadaxSymbols              = "common/symbols"
+	huobihadaxCurrencies           = "common/currencys"
+	huobihadaxTimestamp            = "common/timestamp"
+	huobihadaxAccounts             = "account/accounts"
+	huobihadaxAccountBalance       = "account/accounts/%s/balance"
+	huobihadaxOrderPlace           = "order/orders/place"
+	huobihadaxOrderCancel          = "order/orders/%s/submitcancel"
+	huobihadaxOrderCancelBatch     = "order/orders/batchcancel"
+	huobihadaxGetOrder             = "order/orders/%s"
+	huobihadaxGetOrderMatch        = "order/orders/%s/matchresults"
+	huobihadaxGetOrders            = "order/orders"
+	huobihadaxGetOrdersMatch       = "orders/matchresults"
+	huobihadaxMarginTransferIn     = "dw/transfer-in/margin"
+	huobihadaxMarginTransferOut    = "dw/transfer-out/margin"
+	huobihadaxMarginOrders         = "margin/orders"
+	huobihadaxMarginRepay          = "margin/orders/%s/repay"
+	huobihadaxMarginLoanOrders     = "margin/loan-orders"
+	huobihadaxMarginAccountBalance = "margin/accounts/balance"
+	huobihadaxWithdrawCreate       = "dw/withdraw/api/create"
+	huobihadaxWithdrawCancel       = "dw/withdraw-virtual/%s/cancel"
 
-	huobiAuthRate   = 100
-	huobiUnauthRate = 100
+	huobihadaxAuthRate   = 100
+	huobihadaxUnauthRate = 100
 )
 
 // HUOBIHADAX is the overarching type across this package
@@ -72,7 +71,7 @@ func (h *HUOBIHADAX) SetDefaults() {
 	h.AssetTypes = []string{ticker.Spot}
 	h.SupportsAutoPairUpdating = true
 	h.SupportsRESTTickerBatching = false
-	h.Requester = request.New(h.Name, request.NewRateLimit(time.Second*10, huobiAuthRate), request.NewRateLimit(time.Second*10, huobiUnauthRate), common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
+	h.Requester = request.New(h.Name, request.NewRateLimit(time.Second*10, huobihadaxAuthRate), request.NewRateLimit(time.Second*10, huobihadaxUnauthRate), common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 }
 
 // Setup sets user configuration
@@ -98,24 +97,24 @@ func (h *HUOBIHADAX) Setup(exch config.ExchangeConfig) {
 			Index:     exch.RequestCurrencyPairFormat.Index,
 		}
 
-		h.ConfigCurrencyPairFormat = config.CurrencyPairFormatConfig{
-			Delimiter: exch.ConfigCurrencyPairFormat.Delimiter,
-			Uppercase: exch.ConfigCurrencyPairFormat.Uppercase,
-			Separator: exch.ConfigCurrencyPairFormat.Separator,
-			Index:     exch.ConfigCurrencyPairFormat.Index,
-		}
+		// h.ConfigCurrencyPairFormat = config.CurrencyPairFormatConfig{
+		// 	Delimiter: exch.ConfigCurrencyPairFormat.Delimiter,
+		// 	Uppercase: exch.ConfigCurrencyPairFormat.Uppercase,
+		// 	Separator: exch.ConfigCurrencyPairFormat.Separator,
+		// 	Index:     exch.ConfigCurrencyPairFormat.Index,
+		// }
 		// err := h.SetCurrencyPairFormat()
 		// if err != nil {
 		// 	log.Fatal(err)
 		// }
 
-		h.AssetTypes = strings.Split(exch.AssetTypes, ",")
-		// err = h.SetAssetTypes()
-		// if err != nil {
-		// 	log.Fatal(err)
-		// }
+		// h.AssetTypes = strings.Split(exch.AssetTypes, ",")
+		// // err = h.SetAssetTypes()
+		// // if err != nil {
+		// // 	log.Fatal(err)
+		// // }
 
-		h.SupportsAutoPairUpdating = false
+		// h.SupportsAutoPairUpdating = false
 		// err = h.SetAutoPairDefaults()
 		// if err != nil {
 		// 	log.Fatal(err)
@@ -147,7 +146,7 @@ func (h *HUOBIHADAX) GetKline(symbol, period, size string) ([]KlineItem, error) 
 	}
 
 	var result response
-	url := fmt.Sprintf("%s/%s", huobiAPIURL, huobiMarketHistoryKline)
+	url := fmt.Sprintf("%s/%s", huobihadaxAPIURL, huobihadaxMarketHistoryKline)
 
 	err := h.SendHTTPRequest(common.EncodeURLValues(url, vals), &result)
 	if result.ErrorMessage != "" {
@@ -167,7 +166,7 @@ func (h *HUOBIHADAX) GetMarketDetailMerged(symbol string) (DetailMerged, error) 
 	}
 
 	var result response
-	url := fmt.Sprintf("%s/%s", huobiAPIURL, huobiMarketDetailMerged)
+	url := fmt.Sprintf("%s/%s", huobihadaxAPIURL, huobihadaxMarketDetailMerged)
 
 	err := h.SendHTTPRequest(common.EncodeURLValues(url, vals), &result)
 	if result.ErrorMessage != "" {
@@ -191,7 +190,7 @@ func (h *HUOBIHADAX) GetDepth(symbol, depthType string) (Orderbook, error) {
 	}
 
 	var result response
-	url := fmt.Sprintf("%s/%s", huobiAPIURL, huobiMarketDepth)
+	url := fmt.Sprintf("%s/%s", huobihadaxAPIURL, huobihadaxMarketDepth)
 
 	err := h.SendHTTPRequest(common.EncodeURLValues(url, vals), &result)
 	if result.ErrorMessage != "" {
@@ -213,7 +212,7 @@ func (h *HUOBIHADAX) GetTrades(symbol string) ([]Trade, error) {
 	}
 
 	var result response
-	url := fmt.Sprintf("%s/%s", huobiAPIURL, huobiMarketTrade)
+	url := fmt.Sprintf("%s/%s", huobihadaxAPIURL, huobihadaxMarketTrade)
 
 	err := h.SendHTTPRequest(common.EncodeURLValues(url, vals), &result)
 	if result.ErrorMessage != "" {
@@ -237,7 +236,7 @@ func (h *HUOBIHADAX) GetTradeHistory(symbol, size string) ([]TradeHistory, error
 	}
 
 	var result response
-	url := fmt.Sprintf("%s/%s", huobiAPIURL, huobiMarketTradeHistory)
+	url := fmt.Sprintf("%s/%s", huobihadaxAPIURL, huobihadaxMarketTradeHistory)
 
 	err := h.SendHTTPRequest(common.EncodeURLValues(url, vals), &result)
 	if result.ErrorMessage != "" {
@@ -257,7 +256,7 @@ func (h *HUOBIHADAX) GetMarketDetail(symbol string) (Detail, error) {
 	}
 
 	var result response
-	url := fmt.Sprintf("%s/%s", huobiAPIURL, huobiMarketDetail)
+	url := fmt.Sprintf("%s/%s", huobihadaxAPIURL, huobihadaxMarketDetail)
 
 	err := h.SendHTTPRequest(common.EncodeURLValues(url, vals), &result)
 	if result.ErrorMessage != "" {
@@ -274,7 +273,7 @@ func (h *HUOBIHADAX) GetSymbols() ([]Symbol, error) {
 	}
 
 	var result response
-	url := fmt.Sprintf("%s/v%s/%s", huobiAPIURL, huobiAPIVersion, huobiSymbols)
+	url := fmt.Sprintf("%s/v%s/%s", huobihadaxAPIURL, huobihadaxAPIVersion, huobihadaxSymbols)
 
 	err := h.SendHTTPRequest(url, &result)
 	if result.ErrorMessage != "" {
@@ -291,7 +290,7 @@ func (h *HUOBIHADAX) GetCurrencies() ([]string, error) {
 	}
 
 	var result response
-	url := fmt.Sprintf("%s/v%s/%s", huobiAPIURL, huobiAPIVersion, huobiCurrencies)
+	url := fmt.Sprintf("%s/v%s/%s", huobihadaxAPIURL, huobihadaxAPIVersion, huobihadaxCurrencies)
 
 	err := h.SendHTTPRequest(url, &result)
 	if result.ErrorMessage != "" {
@@ -308,7 +307,7 @@ func (h *HUOBIHADAX) GetTimestamp() (int64, error) {
 	}
 
 	var result response
-	url := fmt.Sprintf("%s/v%s/%s", huobiAPIURL, huobiAPIVersion, huobiTimestamp)
+	url := fmt.Sprintf("%s/v%s/%s", huobihadaxAPIURL, huobihadaxAPIVersion, huobihadaxTimestamp)
 
 	err := h.SendHTTPRequest(url, &result)
 	if result.ErrorMessage != "" {
@@ -325,7 +324,7 @@ func (h *HUOBIHADAX) GetAccounts() ([]Account, error) {
 	}
 
 	var result response
-	err := h.SendAuthenticatedHTTPRequest("GET", huobiAccounts, url.Values{}, &result)
+	err := h.SendAuthenticatedHTTPRequest("GET", huobihadaxAccounts, url.Values{}, &result)
 
 	if result.ErrorMessage != "" {
 		return nil, errors.New(result.ErrorMessage)
@@ -341,7 +340,7 @@ func (h *HUOBIHADAX) GetAccountBalance(accountID string) ([]AccountBalanceDetail
 	}
 
 	var result response
-	endpoint := fmt.Sprintf(huobiAccountBalance, accountID)
+	endpoint := fmt.Sprintf(huobihadaxAccountBalance, accountID)
 	err := h.SendAuthenticatedHTTPRequest("GET", endpoint, url.Values{}, &result)
 
 	if result.ErrorMessage != "" {
@@ -382,7 +381,7 @@ func (h *HUOBIHADAX) PlaceOrder(symbol, source, accountID, orderType string, amo
 	}
 
 	var result response
-	err := h.SendAuthenticatedHTTPPostRequest("POST", huobiOrderPlace, postBodyParams, &result)
+	err := h.SendAuthenticatedHTTPPostRequest("POST", huobihadaxOrderPlace, postBodyParams, &result)
 
 	if result.ErrorMessage != "" {
 		return 0, errors.New(result.ErrorMessage)
@@ -398,7 +397,7 @@ func (h *HUOBIHADAX) CancelOrder(orderID int64) (int64, error) {
 	}
 
 	var result response
-	endpoint := fmt.Sprintf(huobiOrderCancel, strconv.FormatInt(orderID, 10))
+	endpoint := fmt.Sprintf(huobihadaxOrderCancel, strconv.FormatInt(orderID, 10))
 	err := h.SendAuthenticatedHTTPRequest("POST", endpoint, url.Values{}, &result)
 
 	if result.ErrorMessage != "" {
@@ -425,7 +424,7 @@ func (h *HUOBIHADAX) CancelOrderBatch(orderIDs []int64) (CancelOrderBatch, error
 
 	// fmt.Println(postBodyParams)
 	var result response
-	err := h.SendAuthenticatedHTTPPostRequest("POST", huobiOrderCancelBatch, postBodyParams, &result)
+	err := h.SendAuthenticatedHTTPPostRequest("POST", huobihadaxOrderCancelBatch, postBodyParams, &result)
 
 	if len(result.Data.Failed) != 0 {
 		errJSON, _ := json.Marshal(result.Data.Failed)
@@ -442,7 +441,7 @@ func (h *HUOBIHADAX) GetOrder(orderID int64) (OrderInfo, error) {
 	}
 
 	var result response
-	endpoint := fmt.Sprintf(huobiGetOrder, strconv.FormatInt(orderID, 10))
+	endpoint := fmt.Sprintf(huobihadaxGetOrder, strconv.FormatInt(orderID, 10))
 	err := h.SendAuthenticatedHTTPRequest("GET", endpoint, url.Values{}, &result)
 
 	if result.ErrorMessage != "" {
@@ -459,7 +458,7 @@ func (h *HUOBIHADAX) GetOrderMatchResults(orderID int64) ([]OrderMatchInfo, erro
 	}
 
 	var result response
-	endpoint := fmt.Sprintf(huobiGetOrderMatch, strconv.FormatInt(orderID, 10))
+	endpoint := fmt.Sprintf(huobihadaxGetOrderMatch, strconv.FormatInt(orderID, 10))
 	err := h.SendAuthenticatedHTTPRequest("GET", endpoint, url.Values{}, &result)
 
 	if result.ErrorMessage != "" {
@@ -504,7 +503,7 @@ func (h *HUOBIHADAX) GetOrders(symbol, types, start, end, states, from, direct, 
 	}
 
 	var result response
-	err := h.SendAuthenticatedHTTPRequest("GET", huobiGetOrders, vals, &result)
+	err := h.SendAuthenticatedHTTPRequest("GET", huobihadaxGetOrders, vals, &result)
 
 	if result.ErrorMessage != "" {
 		return nil, errors.New(result.ErrorMessage)
@@ -547,7 +546,7 @@ func (h *HUOBIHADAX) GetOrdersMatch(symbol, types, start, end, from, direct, siz
 	}
 
 	var result response
-	err := h.SendAuthenticatedHTTPRequest("GET", huobiGetOrdersMatch, vals, &result)
+	err := h.SendAuthenticatedHTTPRequest("GET", huobihadaxGetOrdersMatch, vals, &result)
 
 	if result.ErrorMessage != "" {
 		return nil, errors.New(result.ErrorMessage)
@@ -563,9 +562,9 @@ func (h *HUOBIHADAX) MarginTransfer(symbol, currency string, amount float64, in 
 	vals.Set("currency", currency)
 	vals.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
 
-	path := huobiMarginTransferIn
+	path := huobihadaxMarginTransferIn
 	if !in {
-		path = huobiMarginTransferOut
+		path = huobihadaxMarginTransferOut
 	}
 
 	type response struct {
@@ -595,7 +594,7 @@ func (h *HUOBIHADAX) MarginOrder(symbol, currency string, amount float64) (int64
 	}
 
 	var result response
-	err := h.SendAuthenticatedHTTPRequest("POST", huobiMarginOrders, vals, &result)
+	err := h.SendAuthenticatedHTTPRequest("POST", huobihadaxMarginOrders, vals, &result)
 
 	if result.ErrorMessage != "" {
 		return 0, errors.New(result.ErrorMessage)
@@ -615,7 +614,7 @@ func (h *HUOBIHADAX) MarginRepayment(orderID int64, amount float64) (int64, erro
 	}
 
 	var result response
-	endpoint := fmt.Sprintf(huobiMarginRepay, strconv.FormatInt(orderID, 10))
+	endpoint := fmt.Sprintf(huobihadaxMarginRepay, strconv.FormatInt(orderID, 10))
 	err := h.SendAuthenticatedHTTPRequest("POST", endpoint, vals, &result)
 
 	if result.ErrorMessage != "" {
@@ -660,7 +659,7 @@ func (h *HUOBIHADAX) GetMarginLoanOrders(symbol, currency, start, end, states, f
 	}
 
 	var result response
-	err := h.SendAuthenticatedHTTPRequest("GET", huobiMarginLoanOrders, vals, &result)
+	err := h.SendAuthenticatedHTTPRequest("GET", huobihadaxMarginLoanOrders, vals, &result)
 
 	if result.ErrorMessage != "" {
 		return nil, errors.New(result.ErrorMessage)
@@ -681,7 +680,7 @@ func (h *HUOBIHADAX) GetMarginAccountBalance(symbol string) ([]MarginAccountBala
 	}
 
 	var result response
-	err := h.SendAuthenticatedHTTPRequest("GET", huobiMarginAccountBalance, vals, &result)
+	err := h.SendAuthenticatedHTTPRequest("GET", huobihadaxMarginAccountBalance, vals, &result)
 
 	if result.ErrorMessage != "" {
 		return nil, errors.New(result.ErrorMessage)
@@ -710,7 +709,7 @@ func (h *HUOBIHADAX) Withdraw(address, currency, addrTag string, amount, fee flo
 	}
 
 	var result response
-	err := h.SendAuthenticatedHTTPRequest("POST", huobiWithdrawCreate, vals, &result)
+	err := h.SendAuthenticatedHTTPRequest("POST", huobihadaxWithdrawCreate, vals, &result)
 
 	if result.ErrorMessage != "" {
 		return 0, errors.New(result.ErrorMessage)
@@ -729,7 +728,7 @@ func (h *HUOBIHADAX) CancelWithdraw(withdrawID int64) (int64, error) {
 	vals.Set("withdraw-id", strconv.FormatInt(withdrawID, 10))
 
 	var result response
-	endpoint := fmt.Sprintf(huobiWithdrawCancel, strconv.FormatInt(withdrawID, 10))
+	endpoint := fmt.Sprintf(huobihadaxWithdrawCancel, strconv.FormatInt(withdrawID, 10))
 	err := h.SendAuthenticatedHTTPRequest("POST", endpoint, vals, &result)
 
 	if result.ErrorMessage != "" {
@@ -755,7 +754,7 @@ func (h *HUOBIHADAX) SendAuthenticatedHTTPPostRequest(method, endpoint, postBody
 	signatureParams.Set("SignatureVersion", "2")
 	signatureParams.Set("Timestamp", time.Now().UTC().Format("2006-01-02T15:04:05"))
 
-	endpoint = fmt.Sprintf("/v%s/%s", huobiAPIVersion, endpoint)
+	endpoint = fmt.Sprintf("/v%s/%s", huobihadaxAPIVersion, endpoint)
 	payload := fmt.Sprintf("%s\napi.huobi.pro\n%s\n%s",
 		method, endpoint, signatureParams.Encode())
 
@@ -768,7 +767,7 @@ func (h *HUOBIHADAX) SendAuthenticatedHTTPPostRequest(method, endpoint, postBody
 	signatureParams.Set("Signature", common.Base64Encode(hmac))
 
 	// fmt.Println("signatureParams", signatureParams)
-	url := fmt.Sprintf("%s%s", huobiAPIURL, endpoint)
+	url := fmt.Sprintf("%s%s", huobihadaxAPIURL, endpoint)
 	url = common.EncodeURLValues(url, signatureParams)
 
 	return h.SendPayload(method, url, headers, bytes.NewBufferString(postBodyValues), result, true, h.Verbose)
@@ -785,7 +784,7 @@ func (h *HUOBIHADAX) SendAuthenticatedHTTPRequest(method, endpoint string, value
 	values.Set("SignatureVersion", "2")
 	values.Set("Timestamp", time.Now().UTC().Format("2006-01-02T15:04:05"))
 
-	endpoint = fmt.Sprintf("/v%s/%s", huobiAPIVersion, endpoint)
+	endpoint = fmt.Sprintf("/v%s/%s", huobihadaxAPIVersion, endpoint)
 	payload := fmt.Sprintf("%s\napi.huobi.pro\n%s\n%s",
 		method, endpoint, values.Encode())
 
@@ -795,7 +794,7 @@ func (h *HUOBIHADAX) SendAuthenticatedHTTPRequest(method, endpoint string, value
 	hmac := common.GetHMAC(common.HashSHA256, []byte(payload), []byte(h.APISecret))
 	values.Set("Signature", common.Base64Encode(hmac))
 
-	url := fmt.Sprintf("%s%s", huobiAPIURL, endpoint)
+	url := fmt.Sprintf("%s%s", huobihadaxAPIURL, endpoint)
 	url = common.EncodeURLValues(url, values)
 
 	return h.SendPayload(method, url, headers, bytes.NewBufferString(""), result, true, h.Verbose)
