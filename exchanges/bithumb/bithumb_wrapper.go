@@ -177,8 +177,14 @@ func (b *Bithumb) WithdrawExchangeCryptoFunds(address string, cryptocurrency pai
 	return "", errors.New("not yet implemented")
 }
 
-// WithdrawExchangeFiatFunds returns a withdrawal ID when a withdrawal is
-// submitted
-func (b *Bithumb) WithdrawExchangeFiatFunds(accountName, accountNumber, bankName, bsbNumber string, currency pair.CurrencyItem, amount float64) (string, error) {
+// WithdrawExchangeFiatFundsToLocalBank returns a withdrawal ID when a
+// withdrawal is submitted
+func (b *Bithumb) WithdrawExchangeFiatFundsToLocalBank(currency pair.CurrencyItem, amount float64) (string, error) {
+	return "", errors.New("not yet implemented")
+}
+
+// WithdrawExchangeFiatFundsToInternationalBank returns a withdrawal ID when a
+// withdrawal is submitted
+func (b *Bithumb) WithdrawExchangeFiatFundsToInternationalBank(currency pair.CurrencyItem, amount float64) (string, error) {
 	return "", errors.New("not yet implemented")
 }

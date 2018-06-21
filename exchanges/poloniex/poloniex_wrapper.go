@@ -196,8 +196,14 @@ func (po *Poloniex) WithdrawExchangeCryptoFunds(address string, cryptocurrency p
 	return "", errors.New("not yet implemented")
 }
 
-// WithdrawExchangeFiatFunds returns a withdrawal ID when a withdrawal is
-// submitted
-func (po *Poloniex) WithdrawExchangeFiatFunds(accountName, accountNumber, bankName, bsbNumber string, currency pair.CurrencyItem, amount float64) (string, error) {
+// WithdrawExchangeFiatFundsToLocalBank returns a withdrawal ID when a
+// withdrawal is submitted
+func (po *Poloniex) WithdrawExchangeFiatFundsToLocalBank(currency pair.CurrencyItem, amount float64) (string, error) {
+	return "", errors.New("not yet implemented")
+}
+
+// WithdrawExchangeFiatFundsToInternationalBank returns a withdrawal ID when a
+// withdrawal is submitted
+func (po *Poloniex) WithdrawExchangeFiatFundsToInternationalBank(currency pair.CurrencyItem, amount float64) (string, error) {
 	return "", errors.New("not yet implemented")
 }

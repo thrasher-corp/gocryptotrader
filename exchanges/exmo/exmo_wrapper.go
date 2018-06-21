@@ -213,8 +213,14 @@ func (e *EXMO) WithdrawExchangeCryptoFunds(address string, cryptocurrency pair.C
 	return "", errors.New("not yet implemented")
 }
 
-// WithdrawExchangeFiatFunds returns a withdrawal ID when a withdrawal is
-// submitted
-func (e *EXMO) WithdrawExchangeFiatFunds(accountName, accountNumber, bankName, bsbNumber string, currency pair.CurrencyItem, amount float64) (string, error) {
+// WithdrawExchangeFiatFundsToLocalBank returns a withdrawal ID when a
+// withdrawal is submitted
+func (e *EXMO) WithdrawExchangeFiatFundsToLocalBank(currency pair.CurrencyItem, amount float64) (string, error) {
+	return "", errors.New("not yet implemented")
+}
+
+// WithdrawExchangeFiatFundsToInternationalBank returns a withdrawal ID when a
+// withdrawal is submitted
+func (e *EXMO) WithdrawExchangeFiatFundsToInternationalBank(currency pair.CurrencyItem, amount float64) (string, error) {
 	return "", errors.New("not yet implemented")
 }

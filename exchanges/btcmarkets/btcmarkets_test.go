@@ -193,8 +193,8 @@ func TestWithdrawExchangeCryptoFunds(t *testing.T) {
 	}
 }
 
-func TestWithdrawExchangeFiatFunds(t *testing.T) {
-	_, err := bm.WithdrawExchangeFiatFunds("someaccount", "123123", "somebank", "somebsb", "AUD", 0)
+func TestWithdrawExchangeFiatFundsToLocalBank(t *testing.T) {
+	_, err := bm.WithdrawExchangeFiatFundsToLocalBank("AUD", 0)
 	if err == nil {
 		t.Error("Test failed - WithdrawExchangeFiatFunds() error", err)
 	}

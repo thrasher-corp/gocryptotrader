@@ -168,6 +168,6 @@ func (a *Alphapoint) WithdrawExchangeCryptoFunds(address string, cryptocurrency 
 }
 
 // WithdrawExchangeFiatFunds returns a withdrawal ID when a withdrawal is submitted
-func (a *Alphapoint) WithdrawExchangeFiatFunds(accountName, accountNumber, bankName, bsbNumber string, currency pair.CurrencyItem, amount float64) (string, error) {
+func (a *Alphapoint) WithdrawExchangeFiatFundsToLocalBank(currency pair.CurrencyItem, amount float64) (string, error) {
 	return "", errors.New("not yet implemented")
 }

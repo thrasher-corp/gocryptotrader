@@ -233,10 +233,23 @@ func (b *BTCMarkets) WithdrawExchangeCryptoFunds(address string, cryptocurrency 
 	return b.WithdrawCrypto(amount, cryptocurrency.String(), address)
 }
 
-// WithdrawExchangeFiatFunds returns a withdrawal ID when a withdrawal is submitted
-func (b *BTCMarkets) WithdrawExchangeFiatFunds(accountName, accountNumber, bankName, bsbNumber string, currency pair.CurrencyItem, amount float64) (string, error) {
+// WithdrawExchangeFiatFundsToLocalBank returns a withdrawal ID when a
+// withdrawal is submitted
+func (b *BTCMarkets) WithdrawExchangeFiatFundsToLocalBank(currency pair.CurrencyItem, amount float64) (string, error) {
 	if currency.String() != "AUD" {
 		return "", fmt.Errorf("cannot withdraw currency - %s not supported", currency.String())
 	}
-	return b.WithdrawAUD(accountName, accountNumber, bankName, bsbNumber, amount)
+
+	bd, err := b.GetBankLocalWithdrawDetails()
+	if err != nil {
+		return "", err
+	}
+
+	return b.WithdrawAUD(bd.AccountName, bd.AccountNumber, bd.BankName, bd.BSBNumber, amount)
+}
+
+// WithdrawExchangeFiatFundsToInternationalBank returns a withdrawal ID when a
+// withdrawal is submitted
+func (b *BTCMarkets) WithdrawExchangeFiatFundsToInternationalBank(currency pair.CurrencyItem, amount float64) (string, error) {
+	return "", errors.New("not yet implemented")
 }

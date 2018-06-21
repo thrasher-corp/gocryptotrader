@@ -166,8 +166,14 @@ func (i *ItBit) WithdrawExchangeCryptoFunds(address string, cryptocurrency pair.
 	return "", errors.New("not yet implemented")
 }
 
-// WithdrawExchangeFiatFunds returns a withdrawal ID when a withdrawal is
-// submitted
-func (i *ItBit) WithdrawExchangeFiatFunds(accountName, accountNumber, bankName, bsbNumber string, currency pair.CurrencyItem, amount float64) (string, error) {
+// WithdrawExchangeFiatFundsToLocalBank returns a withdrawal ID when a
+// withdrawal is submitted
+func (i *ItBit) WithdrawExchangeFiatFundsToLocalBank(currency pair.CurrencyItem, amount float64) (string, error) {
+	return "", errors.New("not yet implemented")
+}
+
+// WithdrawExchangeFiatFundsToInternationalBank returns a withdrawal ID when a
+// withdrawal is submitted
+func (i *ItBit) WithdrawExchangeFiatFundsToInternationalBank(currency pair.CurrencyItem, amount float64) (string, error) {
 	return "", errors.New("not yet implemented")
 }

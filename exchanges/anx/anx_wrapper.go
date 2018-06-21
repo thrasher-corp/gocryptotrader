@@ -233,8 +233,14 @@ func (a *ANX) WithdrawExchangeCryptoFunds(address string, cryptocurrency pair.Cu
 	return "", errors.New("not yet implemented")
 }
 
-// WithdrawExchangeFiatFunds returns a withdrawal ID when a withdrawal is
+// WithdrawExchangeFiatFundsToLocalBank returns a withdrawal ID when a withdrawal is
 // submitted
-func (a *ANX) WithdrawExchangeFiatFunds(accountName, accountNumber, bankName, bsbNumber string, currency pair.CurrencyItem, amount float64) (string, error) {
+func (a *ANX) WithdrawExchangeFiatFundsToLocalBank(currency pair.CurrencyItem, amount float64) (string, error) {
+	return "", errors.New("not yet implemented")
+}
+
+// WithdrawExchangeFiatFundsToInternationalBank returns a withdrawal ID when a withdrawal is
+// submitted
+func (a *ANX) WithdrawExchangeFiatFundsToInternationalBank(currency pair.CurrencyItem, amount float64) (string, error) {
 	return "", errors.New("not yet implemented")
 }

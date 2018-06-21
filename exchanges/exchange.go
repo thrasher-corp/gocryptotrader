@@ -140,7 +140,8 @@ type IBotExchange interface {
 	GetExchangeOrderInfo(orderID int64) (OrderDetail, error)
 	GetExchangeDepositAddress(cryptocurrency pair.CurrencyItem) (string, error)
 	WithdrawExchangeCryptoFunds(address string, cryptocurrency pair.CurrencyItem, amount float64) (string, error)
-	WithdrawExchangeFiatFunds(accountName, accountNumber, bankName, bsbNumber string, currency pair.CurrencyItem, amount float64) (string, error)
+	WithdrawExchangeFiatFundsToLocalBank(currency pair.CurrencyItem, amount float64) (string, error)
+	WithdrawExchangeFiatFundsToInternationalBank(currency pair.CurrencyItem, amount float64) (string, error)
 }
 
 // SupportsRESTTickerBatchUpdates returns whether or not the
@@ -250,6 +251,20 @@ func GetExchangeAssetTypes(exchName string) ([]string, error) {
 	}
 
 	return common.SplitStrings(exch.AssetTypes, ","), nil
+}
+
+// GetBankInternationalWithdrawDetails returns banking details associated with
+// an exchange for withdrawal purposes
+func (e *Base) GetBankInternationalWithdrawDetails() (config.BankConfig, error) {
+	cfg := config.GetConfig()
+	return cfg.GetInternationalBankDetails(e.Name)
+}
+
+// GetBankLocalWithdrawDetails returns banking details associated with an
+// exchange for withdrawal purposes
+func (e *Base) GetBankLocalWithdrawDetails() (config.BankConfig, error) {
+	cfg := config.GetConfig()
+	return cfg.GetLocalBankDetails(e.Name)
 }
 
 // CompareCurrencyPairFormats checks and returns whether or not the two supplied
