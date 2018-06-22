@@ -10,7 +10,7 @@ var (
 	GateioRequestParamsTypeBuy = GateioRequestParamsType("buy")
 
 	//GGateioRequestParamsTypeSell 卖
-	GGateioRequestParamsTypeSell = GateioRequestParamsType("sell")
+	GateioRequestParamsTypeSell = GateioRequestParamsType("sell")
 )
 
 // GateioInterval Interval represents interval enum.

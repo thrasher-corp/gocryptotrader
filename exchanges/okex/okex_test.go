@@ -8,11 +8,28 @@ import (
 
 var o OKEX
 
-// Please supply you own test keys here for due diligence testing.
-const (
-	apiKey    = ""
-	apiSecret = ""
-)
+// getDefaultConfig 获取默认配置
+func getDefaultConfig() config.ExchangeConfig {
+	return config.ExchangeConfig{
+		Name:                    "okex",
+		Enabled:                 true,
+		Verbose:                 true,
+		Websocket:               false,
+		BaseAsset:               "eth",
+		QuoteAsset:              "usdt",
+		UseSandbox:              false,
+		RESTPollingDelay:        10,
+		HTTPTimeout:             15000000000,
+		AuthenticatedAPISupport: true,
+		APIKey:                  "",
+		APISecret:               "",
+		SupportsAutoPairUpdates: false,
+		RequestCurrencyPairFormat: &config.CurrencyPairFormatConfig{
+			Uppercase: true,
+			Delimiter: "_",
+		},
+	}
+}
 
 func TestSetDefaults(t *testing.T) {
 	o.SetDefaults()
@@ -22,18 +39,7 @@ func TestSetDefaults(t *testing.T) {
 }
 
 func TestSetup(t *testing.T) {
-	cfg := config.GetConfig()
-	cfg.LoadConfig("../../testdata/configtest.json")
-	okexConfig, err := cfg.GetExchangeConfig("OKEX")
-	if err != nil {
-		t.Error("Test Failed - Okex Setup() init error")
-	}
-
-	okexConfig.AuthenticatedAPISupport = true
-	okexConfig.APIKey = apiKey
-	okexConfig.APISecret = apiSecret
-
-	o.Setup(okexConfig)
+	o.Setup(getDefaultConfig())
 }
 
 func TestGetContractPrice(t *testing.T) {
@@ -217,5 +223,45 @@ func TestGetSpotCandleStick(t *testing.T) {
 	_, err := o.GetSpotCandleStick("ltc_btc", "1min", 2, 0)
 	if err != nil {
 		t.Error("Test failed - okex GetSpotCandleStick() error", err)
+	}
+}
+
+func TestSpotNewOrder(t *testing.T) {
+	t.Parallel()
+	_, err := o.SpotNewOrder(SpotNewOrderRequestParams{
+		Symbol: o.GetSymbol(),
+		Amount: 1.1,
+		Price:  10.1,
+		Type:   SpotNewOrderRequestTypeBuy,
+	})
+	if err != nil {
+		t.Error("Test failed - okex SpotNewOrder() error", err)
+	}
+}
+
+func TestSpotCancelOrder(t *testing.T) {
+	t.Parallel()
+	_, err := o.SpotCancelOrder(o.GetSymbol(), 519158961)
+	if err != nil {
+		t.Error("Test failed - okex SpotCancelOrder() error", err)
+	}
+}
+
+func TestGetUserInfo(t *testing.T) {
+	t.Parallel()
+	userInfo, err := o.GetUserInfo()
+	if err != nil {
+		t.Error("Test failed - okex GetUserInfo() error", err)
+	} else {
+
+		t.Log("====账户余额")
+		for k, v := range userInfo.Info["funds"]["free"] {
+			t.Log(k, v)
+		}
+
+		t.Log("====账户冻结余额")
+		for k, v := range userInfo.Info["funds"]["freezed"] {
+			t.Log(k, v)
+		}
 	}
 }

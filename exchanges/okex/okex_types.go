@@ -156,3 +156,38 @@ type ActualSpotTradeHistory struct {
 	TID      float64 `json:"tid"`
 	Type     string  `json:"buy"`
 }
+
+//---------- UserInfo ----------
+
+// SpotUserInfo 获取用户信息
+type SpotUserInfo struct {
+	Result bool                                    `json:"result"`
+	Info   map[string]map[string]map[string]string `json:"info"`
+}
+
+//---------- 下订单 ----------
+
+// SpotNewOrderRequestParams 下单买入/卖出请求参数
+type SpotNewOrderRequestParams struct {
+	Amount float64                 `json:"amount"` // 下单数量
+	Price  float64                 `json:"price"`  // 下单价格
+	Symbol string                  `json:"symbol"` // 交易对, btc_usdt, eth_btc......
+	Type   SpotNewOrderRequestType `json:"type"`   // 订单类型,
+}
+
+// SpotNewOrderRequestType 交易类型
+type SpotNewOrderRequestType string
+
+var (
+	// SpotNewOrderRequestTypeBuy 限价买
+	SpotNewOrderRequestTypeBuy = SpotNewOrderRequestType("buy")
+
+	// SpotNewOrderRequestTypeSell 限价卖
+	SpotNewOrderRequestTypeSell = SpotNewOrderRequestType("sell")
+
+	// SpotNewOrderRequestTypeBuyMarket 市价买
+	SpotNewOrderRequestTypeBuyMarket = SpotNewOrderRequestType("buy_market")
+
+	// SpotNewOrderRequestTypeSellMarket 市价卖
+	SpotNewOrderRequestTypeSellMarket = SpotNewOrderRequestType("sell_market")
+)
