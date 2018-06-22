@@ -7,7 +7,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/communications"
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/exchanges"
-	"github.com/thrasher-/gocryptotrader/exchanges/bitfinex"
+	"github.com/thrasher-/gocryptotrader/exchanges/huobi"
 	"github.com/thrasher-/gocryptotrader/portfolio"
 )
 
@@ -53,7 +53,8 @@ func getDefaultConfig() config.ExchangeConfig {
 
 func main() {
 	fmt.Println(time.Now())
-	exchange := bitfinex.Bitfinex{}
+	// exchange := bitfinex.Bitfinex{}
+	exchange := huobi.HUOBI{}
 	defaultConfig := getDefaultConfig()
 	exchange.SetDefaults()
 	fmt.Println("----------setup-------")
@@ -71,15 +72,21 @@ func main() {
 	// 	fmt.Println(res)
 	// }
 
-	list, err := exchange.GetAccountInfo()
-	if err != nil {
-		fmt.Println(err)
-	} else {
-		for k, v := range list {
-			// b, _ := json.Marshal(v)
-			fmt.Printf("%s:%v \n", k, v)
-		}
-	}
+	// fmt.Println(exchange.GetKline("btcusdt", "1min", ""))
+	// fmt.Println(exchange.GetKline("btcusdt", "1min", ""))
+	// fmt.Println(exchange.GetKline("btcusdt", "15min", ""))
+	// fmt.Println(exchange.GetKline("btcusdt", "1hour", ""))
+	// fmt.Println(exchange.GetKline("btcusdt", "1day", ""))
+
+	// list, err := exchange.GetAccountInfo()
+	// if err != nil {
+	// 	fmt.Println(err)
+	// } else {
+	// 	for k, v := range list {
+	// 		// b, _ := json.Marshal(v)
+	// 		fmt.Printf("%s:%v \n", k, v)
+	// 	}
+	// }
 
 	// fmt.Println(exchange.CancelOrder(917591554, exchange.GetSymbol()))
 
