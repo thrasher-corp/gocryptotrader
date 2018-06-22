@@ -1,14 +1,13 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	"time"
 
 	"github.com/thrasher-/gocryptotrader/communications"
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/exchanges"
-	"github.com/thrasher-/gocryptotrader/exchanges/okex"
+	"github.com/thrasher-/gocryptotrader/exchanges/bitfinex"
 	"github.com/thrasher-/gocryptotrader/portfolio"
 )
 
@@ -38,29 +37,23 @@ var bot Bot
 // getDefaultConfig 获取默认配置
 func getDefaultConfig() config.ExchangeConfig {
 	return config.ExchangeConfig{
-		Name:                    "okex",
+		Name:                    "Bitfinex",
 		Enabled:                 true,
 		Verbose:                 true,
 		Websocket:               false,
 		BaseAsset:               "eth",
 		QuoteAsset:              "usdt",
-		UseSandbox:              false,
 		RESTPollingDelay:        10,
 		HTTPTimeout:             15000000000,
 		AuthenticatedAPISupport: true,
-		APIKey:                  "",
-		APISecret:               "",
-		SupportsAutoPairUpdates: false,
-		RequestCurrencyPairFormat: &config.CurrencyPairFormatConfig{
-			Uppercase: true,
-			Delimiter: "_",
-		},
+		APIKey:                  "bzNFgI8xyHmImynG58WGk7S76467vKvQ6lRyoGyaar9",
+		APISecret:               "cHBsneEmw9WPypXU7Qw1nB5RFaMJg7NISDgw860eKSg",
 	}
 }
 
 func main() {
 	fmt.Println(time.Now())
-	exchange := okex.OKEX{}
+	exchange := bitfinex.Bitfinex{}
 	defaultConfig := getDefaultConfig()
 	exchange.SetDefaults()
 	fmt.Println("----------setup-------")
@@ -78,13 +71,13 @@ func main() {
 	// 	fmt.Println(res)
 	// }
 
-	list, err := exchange.GetSpotCandleStick(exchange.GetSymbol(), "5min", 10, 0)
+	list, err := exchange.GetAccountInfo()
 	if err != nil {
 		fmt.Println(err)
 	} else {
-		for _, v := range list {
-			b, _ := json.Marshal(v)
-			fmt.Printf("%v \n", string(b))
+		for k, v := range list {
+			// b, _ := json.Marshal(v)
+			fmt.Printf("%s:%v \n", k, v)
 		}
 	}
 
