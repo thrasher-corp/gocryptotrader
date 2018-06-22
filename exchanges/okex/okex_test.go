@@ -1,6 +1,8 @@
 package okex
 
 import (
+	"encoding/json"
+	"fmt"
 	"testing"
 
 	"github.com/idoall/gocryptotrader/config"
@@ -220,9 +222,13 @@ func TestGetSpotRecentTrades(t *testing.T) {
 
 func TestGetSpotCandleStick(t *testing.T) {
 	t.Parallel()
-	_, err := o.GetSpotCandleStick("ltc_btc", "1min", 2, 0)
+	list, err := o.GetSpotCandleStick("ltc_btc", "1min", 2, 0)
 	if err != nil {
 		t.Error("Test failed - okex GetSpotCandleStick() error", err)
+	}
+	for _, v := range list {
+		b, _ := json.Marshal(v)
+		fmt.Printf("%v \n", string(b))
 	}
 }
 

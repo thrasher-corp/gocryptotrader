@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -77,11 +78,14 @@ func main() {
 	// 	fmt.Println(res)
 	// }
 
-	res, err := exchange.SpotCancelOrder(exchange.GetSymbol(), 519158961)
+	list, err := exchange.GetSpotCandleStick(exchange.GetSymbol(), "5min", 10, 0)
 	if err != nil {
 		fmt.Println(err)
 	} else {
-		fmt.Println(res)
+		for _, v := range list {
+			b, _ := json.Marshal(v)
+			fmt.Printf("%v \n", string(b))
+		}
 	}
 
 	// fmt.Println(exchange.CancelOrder(917591554, exchange.GetSymbol()))

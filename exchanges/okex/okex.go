@@ -800,7 +800,9 @@ func (o *OKEX) GetSpotCandleStick(symbol, typeInput string, size, since int) ([]
 	values.Set("symbol", symbol)
 	values.Set("type", typeInput)
 	values.Set("size", strconv.FormatInt(int64(size), 10))
-	values.Set("since", strconv.FormatInt(int64(since), 10))
+	if since != 0 {
+		values.Set("since", strconv.FormatInt(int64(since), 10))
+	}
 
 	path := fmt.Sprintf("%s%s%s.do?%s", apiURL, apiVersion, spotCandstickData, values.Encode())
 	var resp interface{}
