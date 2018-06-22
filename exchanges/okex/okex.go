@@ -100,10 +100,10 @@ func (o *OKEX) SetDefaults() {
 	o.RESTPollingDelay = 10
 	o.RequestCurrencyPairFormat.Delimiter = "_"
 	o.RequestCurrencyPairFormat.Uppercase = false
-	o.ConfigCurrencyPairFormat.Delimiter = "_"
-	o.ConfigCurrencyPairFormat.Uppercase = false
-	o.SupportsAutoPairUpdating = false
-	o.SupportsRESTTickerBatching = false
+	// o.ConfigCurrencyPairFormat.Delimiter = "_"
+	// o.ConfigCurrencyPairFormat.Uppercase = false
+	// o.SupportsAutoPairUpdating = false
+	// o.SupportsRESTTickerBatching = false
 	o.Requester = request.New(o.Name, request.NewRateLimit(time.Second, okexAuthRate), request.NewRateLimit(time.Second, okexUnauthRate), common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 }
 
@@ -113,6 +113,8 @@ func (o *OKEX) Setup(exch config.ExchangeConfig) {
 		o.SetEnabled(false)
 	} else {
 		o.Enabled = true
+		o.BaseAsset = exch.BaseAsset
+		o.QuoteAsset = exch.QuoteAsset
 		o.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
 		o.SetAPIKeys(exch.APIKey, exch.APISecret, exch.ClientID, false)
 		o.SetHTTPClientTimeout(exch.HTTPTimeout)
@@ -120,20 +122,20 @@ func (o *OKEX) Setup(exch config.ExchangeConfig) {
 		o.Verbose = exch.Verbose
 		o.Websocket = exch.Websocket
 		o.BaseCurrencies = common.SplitStrings(exch.BaseCurrencies, ",")
-		o.AvailablePairs = common.SplitStrings(exch.AvailablePairs, ",")
-		o.EnabledPairs = common.SplitStrings(exch.EnabledPairs, ",")
-		err := o.SetCurrencyPairFormat()
-		if err != nil {
-			log.Fatal(err)
-		}
-		err = o.SetAssetTypes()
-		if err != nil {
-			log.Fatal(err)
-		}
-		err = o.SetAutoPairDefaults()
-		if err != nil {
-			log.Fatal(err)
-		}
+		// o.AvailablePairs = common.SplitStrings(exch.AvailablePairs, ",")
+		// o.EnabledPairs = common.SplitStrings(exch.EnabledPairs, ",")
+		// err := o.SetCurrencyPairFormat()
+		// if err != nil {
+		// 	log.Fatal(err)
+		// }
+		// err = o.SetAssetTypes()
+		// if err != nil {
+		// 	log.Fatal(err)
+		// }
+		// err = o.SetAutoPairDefaults()
+		// if err != nil {
+		// 	log.Fatal(err)
+		// }
 	}
 }
 
@@ -609,6 +611,75 @@ func (o *OKEX) GetContractFuturesTradeHistory(symbol, date string, since int) er
 	return nil
 }
 
+// GetUserInfo 获取用户信息
+func (o *OKEX) GetUserInfo() (SpotUserInfo, error) {
+
+	strRequestURL := fmt.Sprintf("%s%s%s.do", apiURL, apiVersion, spotUserInfo)
+
+	var res SpotUserInfo
+	err := o.SendAuthenticatedHTTPRequest(strRequestURL, url.Values{}, &res)
+	if err != nil {
+		return res, err
+	}
+	// fmt.Println(res)
+	return res, nil
+}
+
+// SpotNewOrder 下单交易
+func (o *OKEX) SpotNewOrder(arg SpotNewOrderRequestParams) (int64, error) {
+	type response struct {
+		Result  bool  `json:"result"`
+		OrderID int64 `json:"order_id"`
+	}
+
+	var res response
+	strRequestURL := fmt.Sprintf("%s%s%s.do", apiURL, apiVersion, spotTrade)
+
+	params := url.Values{}
+	params.Set("symbol", arg.Symbol)
+	params.Set("type", string(arg.Type))
+	params.Set("price", strconv.FormatFloat(arg.Price, 'f', -1, 64))
+	params.Set("amount", strconv.FormatFloat(arg.Amount, 'f', -1, 64))
+
+	err := o.SendAuthenticatedHTTPRequest(strRequestURL, params, &res)
+	if err != nil {
+		return res.OrderID, err
+	}
+
+	return res.OrderID, nil
+}
+
+// SpotCancelOrder 取消交易
+// @symbol 币对如ltc_btc
+// @orderID 订单ID
+// @return 订单ID(用于单笔订单)
+func (o *OKEX) SpotCancelOrder(symbol string, argOrderID int64) (int64, error) {
+	type response struct {
+		Result    bool   `json:"result"`
+		OrderID   string `json:"order_id"`
+		ErrorCode int    `json:"error_code"`
+	}
+
+	var res response
+	strRequestURL := fmt.Sprintf("%s%s%s.do", apiURL, apiVersion, spotCancelTrade)
+
+	params := url.Values{}
+	params.Set("symbol", symbol)
+	params.Set("order_id", strconv.FormatInt(argOrderID, 10))
+
+	err := o.SendAuthenticatedHTTPRequest(strRequestURL, params, &res)
+	var returnOrderID int64
+	if err != nil && res.ErrorCode != 0 {
+		return returnOrderID, err
+	}
+	if res.ErrorCode != 0 {
+		return returnOrderID, fmt.Errorf("ErrCode:%d ErrMsg:%s", res.ErrorCode, o.ErrorCodes[strconv.Itoa(res.ErrorCode)])
+	}
+
+	returnOrderID, _ = common.Int64FromString(res.OrderID)
+	return returnOrderID, nil
+}
+
 // GetSpotTicker returns Price Ticker
 func (o *OKEX) GetSpotTicker(symbol string) (SpotPrice, error) {
 	var resp SpotPrice
@@ -731,7 +802,7 @@ func (o *OKEX) GetSpotCandleStick(symbol, typeInput string, size, since int) ([]
 	values.Set("size", strconv.FormatInt(int64(size), 10))
 	values.Set("since", strconv.FormatInt(int64(since), 10))
 
-	path := fmt.Sprintf("%s%s%s.do?%s", apiURL, apiVersion, "kline", values.Encode())
+	path := fmt.Sprintf("%s%s%s.do?%s", apiURL, apiVersion, spotCandstickData, values.Encode())
 	var resp interface{}
 
 	if err := o.SendHTTPRequest(path, &resp); err != nil {

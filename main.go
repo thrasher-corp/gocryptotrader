@@ -7,7 +7,7 @@ import (
 	"github.com/idoall/gocryptotrader/communications"
 	"github.com/idoall/gocryptotrader/config"
 	"github.com/idoall/gocryptotrader/exchanges"
-	"github.com/idoall/gocryptotrader/exchanges/gateio"
+	"github.com/idoall/gocryptotrader/exchanges/okex"
 	"github.com/idoall/gocryptotrader/portfolio"
 )
 
@@ -37,7 +37,7 @@ var bot Bot
 // getDefaultConfig 获取默认配置
 func getDefaultConfig() config.ExchangeConfig {
 	return config.ExchangeConfig{
-		Name:                    "gateio",
+		Name:                    "okex",
 		Enabled:                 true,
 		Verbose:                 true,
 		Websocket:               false,
@@ -49,16 +49,7 @@ func getDefaultConfig() config.ExchangeConfig {
 		AuthenticatedAPISupport: true,
 		APIKey:                  "",
 		APISecret:               "",
-		ClientID:                "",
-		AvailablePairs:          "BTC-USDT,BCH-USDT",
-		EnabledPairs:            "BTC-USDT",
-		BaseCurrencies:          "USD",
-		AssetTypes:              "SPOT",
 		SupportsAutoPairUpdates: false,
-		ConfigCurrencyPairFormat: &config.CurrencyPairFormatConfig{
-			Uppercase: true,
-			Delimiter: "-",
-		},
 		RequestCurrencyPairFormat: &config.CurrencyPairFormatConfig{
 			Uppercase: true,
 			Delimiter: "_",
@@ -68,23 +59,31 @@ func getDefaultConfig() config.ExchangeConfig {
 
 func main() {
 	fmt.Println(time.Now())
-	exchange := gateio.Gateio{}
+	exchange := okex.OKEX{}
 	defaultConfig := getDefaultConfig()
 	exchange.SetDefaults()
 	fmt.Println("----------setup-------")
 	exchange.Setup(defaultConfig)
 
-	// res, err := exchange.NewOrder(gateio.GateioPlaceRequestParams{
+	// res, err := exchange.SpotNewOrder(okex.SpotNewOrderRequestParams{
 	// 	Symbol: exchange.GetSymbol(),
 	// 	Amount: 1.1,
 	// 	Price:  10.1,
-	// 	Type:   gateio.GateioRequestParamsTypeBuy,
+	// 	Type:   okex.SpotNewOrderRequestTypeBuy,
 	// })
 	// if err != nil {
 	// 	fmt.Println(err)
 	// } else {
 	// 	fmt.Println(res)
 	// }
+
+	res, err := exchange.SpotCancelOrder(exchange.GetSymbol(), 519158961)
+	if err != nil {
+		fmt.Println(err)
+	} else {
+		fmt.Println(res)
+	}
+
 	// fmt.Println(exchange.CancelOrder(917591554, exchange.GetSymbol()))
 
 	//获取交易所的规则和交易对信息
