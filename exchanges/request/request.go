@@ -115,7 +115,7 @@ func (r *Requester) RequiresRateLimiter() bool {
 }
 
 // IncrementRequests increments the ratelimiter request counter for either auth or unauth
-// requests
+// requests 增量计数器
 func (r *Requester) IncrementRequests(auth bool) {
 	if auth {
 		reqs := r.AuthLimit.GetRequests()
@@ -130,7 +130,7 @@ func (r *Requester) IncrementRequests(auth bool) {
 }
 
 // DecrementRequests decrements the ratelimiter request counter for either auth or unauth
-// requests
+// requests 减量计数器
 func (r *Requester) DecrementRequests(auth bool) {
 	if auth {
 		reqs := r.AuthLimit.GetRequests()

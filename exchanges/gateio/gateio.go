@@ -11,7 +11,6 @@ import (
 	"github.com/idoall/gocryptotrader/config"
 	exchange "github.com/idoall/gocryptotrader/exchanges"
 	"github.com/idoall/gocryptotrader/exchanges/request"
-	"github.com/idoall/gocryptotrader/exchanges/ticker"
 	"github.com/pkg/errors"
 )
 
@@ -45,12 +44,7 @@ func (h *Gateio) SetDefaults() {
 	h.Websocket = false
 	h.RESTPollingDelay = 10
 	h.RequestCurrencyPairFormat.Delimiter = "_"
-	h.RequestCurrencyPairFormat.Uppercase = false
-	h.ConfigCurrencyPairFormat.Delimiter = "-"
-	h.ConfigCurrencyPairFormat.Uppercase = true
-	h.AssetTypes = []string{ticker.Spot}
-	h.SupportsAutoPairUpdating = true
-	h.SupportsRESTTickerBatching = false
+	h.RequestCurrencyPairFormat.Uppercase = true
 	authRateLimit := request.NewRateLimit(time.Second*10, gateioUnauthRate)
 	authRateLimit.SetRequests(3)
 	h.Requester = request.New(h.Name, request.NewRateLimit(time.Second*10, gateioAuthRate), authRateLimit, common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
@@ -71,16 +65,16 @@ func (h *Gateio) Setup(exch config.ExchangeConfig) {
 		h.RESTPollingDelay = exch.RESTPollingDelay
 		h.Verbose = exch.Verbose
 		h.Websocket = exch.Websocket
-		h.BaseCurrencies = common.SplitStrings(exch.BaseCurrencies, ",")
-		h.AvailablePairs = common.SplitStrings(exch.AvailablePairs, ",")
-		h.EnabledPairs = common.SplitStrings(exch.EnabledPairs, ",")
+		// h.BaseCurrencies = common.SplitStrings(exch.BaseCurrencies, ",")
+		// h.AvailablePairs = common.SplitStrings(exch.AvailablePairs, ",")
+		// h.EnabledPairs = common.SplitStrings(exch.EnabledPairs, ",")
 
-		h.RequestCurrencyPairFormat = config.CurrencyPairFormatConfig{
-			Delimiter: exch.RequestCurrencyPairFormat.Delimiter,
-			Uppercase: exch.RequestCurrencyPairFormat.Uppercase,
-			Separator: exch.RequestCurrencyPairFormat.Separator,
-			Index:     exch.RequestCurrencyPairFormat.Index,
-		}
+		// h.RequestCurrencyPairFormat = config.CurrencyPairFormatConfig{
+		// 	Delimiter: exch.RequestCurrencyPairFormat.Delimiter,
+		// 	Uppercase: exch.RequestCurrencyPairFormat.Uppercase,
+		// 	Separator: exch.RequestCurrencyPairFormat.Separator,
+		// 	Index:     exch.RequestCurrencyPairFormat.Index,
+		// }
 
 	}
 }

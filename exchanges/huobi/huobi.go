@@ -14,7 +14,6 @@ import (
 	"github.com/idoall/gocryptotrader/config"
 	"github.com/idoall/gocryptotrader/exchanges"
 	"github.com/idoall/gocryptotrader/exchanges/request"
-	"github.com/idoall/gocryptotrader/exchanges/ticker"
 )
 
 const (
@@ -65,14 +64,10 @@ func (h *HUOBI) SetDefaults() {
 	h.Verbose = false
 	h.Websocket = false
 	h.RESTPollingDelay = 10
-	h.RequestCurrencyPairFormat.Delimiter = ""
-	h.RequestCurrencyPairFormat.Uppercase = false
-	h.ConfigCurrencyPairFormat.Delimiter = "-"
-	h.ConfigCurrencyPairFormat.Uppercase = true
-	h.AssetTypes = []string{ticker.Spot}
-	h.SupportsAutoPairUpdating = true
+	h.RequestCurrencyPairFormat.Uppercase = true
 	h.SupportsRESTTickerBatching = false
 	h.Requester = request.New(h.Name, request.NewRateLimit(time.Second*10, huobiAuthRate), request.NewRateLimit(time.Second*10, huobiUnauthRate), common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
+	h.Requester.SetRateLimit(true, time.Second*10, 3)
 }
 
 // Setup sets user configuration
@@ -81,6 +76,8 @@ func (h *HUOBI) Setup(exch config.ExchangeConfig) {
 		h.SetEnabled(false)
 	} else {
 		h.Enabled = true
+		h.BaseAsset = exch.BaseAsset
+		h.QuoteAsset = exch.QuoteAsset
 		h.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
 		h.SetAPIKeys(exch.APIKey, exch.APISecret, "", false)
 		h.SetHTTPClientTimeout(exch.HTTPTimeout)
@@ -90,20 +87,7 @@ func (h *HUOBI) Setup(exch config.ExchangeConfig) {
 		h.BaseCurrencies = common.SplitStrings(exch.BaseCurrencies, ",")
 		h.AvailablePairs = common.SplitStrings(exch.AvailablePairs, ",")
 		h.EnabledPairs = common.SplitStrings(exch.EnabledPairs, ",")
-
-		h.RequestCurrencyPairFormat = config.CurrencyPairFormatConfig{
-			Delimiter: exch.RequestCurrencyPairFormat.Delimiter,
-			Uppercase: exch.RequestCurrencyPairFormat.Uppercase,
-			Separator: exch.RequestCurrencyPairFormat.Separator,
-			Index:     exch.RequestCurrencyPairFormat.Index,
-		}
-
-		h.ConfigCurrencyPairFormat = config.CurrencyPairFormatConfig{
-			Delimiter: exch.ConfigCurrencyPairFormat.Delimiter,
-			Uppercase: exch.ConfigCurrencyPairFormat.Uppercase,
-			Separator: exch.ConfigCurrencyPairFormat.Separator,
-			Index:     exch.ConfigCurrencyPairFormat.Index,
-		}
+		h.RequestCurrencyPairFormat.Uppercase = false
 		// err := h.SetCurrencyPairFormat()
 		// if err != nil {
 		// 	log.Fatal(err)
