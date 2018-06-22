@@ -111,27 +111,29 @@ func (b *Bitfinex) Setup(exch config.ExchangeConfig) {
 		b.SetEnabled(false)
 	} else {
 		b.Enabled = true
+		b.BaseAsset = exch.BaseAsset
+		b.QuoteAsset = exch.QuoteAsset
 		b.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
 		b.SetAPIKeys(exch.APIKey, exch.APISecret, "", false)
 		b.SetHTTPClientTimeout(exch.HTTPTimeout)
 		b.RESTPollingDelay = exch.RESTPollingDelay
 		b.Verbose = exch.Verbose
 		b.Websocket = exch.Websocket
-		b.BaseCurrencies = common.SplitStrings(exch.BaseCurrencies, ",")
-		b.AvailablePairs = common.SplitStrings(exch.AvailablePairs, ",")
-		b.EnabledPairs = common.SplitStrings(exch.EnabledPairs, ",")
-		err := b.SetCurrencyPairFormat()
-		if err != nil {
-			log.Fatal(err)
-		}
-		err = b.SetAssetTypes()
-		if err != nil {
-			log.Fatal(err)
-		}
-		err = b.SetAutoPairDefaults()
-		if err != nil {
-			log.Fatal(err)
-		}
+		// b.BaseCurrencies = common.SplitStrings(exch.BaseCurrencies, ",")
+		// b.AvailablePairs = common.SplitStrings(exch.AvailablePairs, ",")
+		// b.EnabledPairs = common.SplitStrings(exch.EnabledPairs, ",")
+		// err := b.SetCurrencyPairFormat()
+		// if err != nil {
+		// 	log.Fatal(err)
+		// }
+		// err = b.SetAssetTypes()
+		// if err != nil {
+		// 	log.Fatal(err)
+		// }
+		// err = b.SetAutoPairDefaults()
+		// if err != nil {
+		// 	log.Fatal(err)
+		// }
 	}
 }
 
@@ -453,18 +455,31 @@ func (b *Bitfinex) GetSymbolsDetails() ([]SymbolDetails, error) {
 }
 
 // GetAccountInfo returns information about your account incl. trading fees
-func (b *Bitfinex) GetAccountInfo() ([]AccountInfo, error) {
-	response := AccountInfoFull{}
+// 查看提现手续费
+func (b *Bitfinex) GetAccountInfo() (map[string]float64, error) {
+	// response := AccountInfoFull{}
+	type resoonse struct {
+		Withdraw map[string]interface{} `json:"withdraw"`
+	}
 
-	err := b.SendAuthenticatedHTTPRequest("POST", bitfinexAccountFees, nil, &response)
+	var res resoonse
+
+	err := b.SendAuthenticatedHTTPRequest("POST", bitfinexAccountFees, nil, &res)
 	if err != nil {
-		return response.Info, err
+		return nil, err
 	}
 
-	if response.Message == "" {
-		return response.Info, errors.New(response.Message)
+	result := make(map[string]float64, len(res.Withdraw))
+	for k, v := range res.Withdraw {
+		val, err := common.FloatFromString(v)
+		if err != nil {
+			result[k] = v.(float64)
+		} else {
+			result[k] = val
+		}
 	}
-	return response.Info, nil
+
+	return result, nil
 }
 
 // GetAccountFees - NOT YET IMPLEMENTED

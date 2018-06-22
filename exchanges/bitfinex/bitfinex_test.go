@@ -1,6 +1,7 @@
 package bitfinex
 
 import (
+	"fmt"
 	"net/url"
 	"reflect"
 	"testing"
@@ -233,9 +234,14 @@ func TestGetAccountInfo(t *testing.T) {
 	}
 	t.Parallel()
 
-	_, err := b.GetAccountInfo()
+	list, err := b.GetAccountInfo()
 	if err == nil {
 		t.Error("Test Failed - GetAccountInfo error")
+	}
+
+	for k, v := range list {
+		// b, _ := json.Marshal(v)
+		fmt.Printf("%s:%v \n", k, v)
 	}
 }
 
