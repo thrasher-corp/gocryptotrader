@@ -7,7 +7,7 @@ import (
 	"github.com/idoall/gocryptotrader/communications"
 	"github.com/idoall/gocryptotrader/config"
 	"github.com/idoall/gocryptotrader/exchanges"
-	"github.com/idoall/gocryptotrader/exchanges/huobi"
+	"github.com/idoall/gocryptotrader/exchanges/bitfinex"
 	"github.com/idoall/gocryptotrader/portfolio"
 )
 
@@ -53,8 +53,8 @@ func getDefaultConfig() config.ExchangeConfig {
 
 func main() {
 	fmt.Println(time.Now())
-	// exchange := bitfinex.Bitfinex{}
-	exchange := huobi.HUOBI{}
+	exchange := bitfinex.Bitfinex{}
+	// exchange := huobi.HUOBI{}
 	defaultConfig := getDefaultConfig()
 	exchange.SetDefaults()
 	fmt.Println("----------setup-------")
@@ -78,15 +78,15 @@ func main() {
 	// fmt.Println(exchange.GetKline("btcusdt", "1hour", ""))
 	// fmt.Println(exchange.GetKline("btcusdt", "1day", ""))
 
-	// list, err := exchange.GetAccountInfo()
-	// if err != nil {
-	// 	fmt.Println(err)
-	// } else {
-	// 	for k, v := range list {
-	// 		// b, _ := json.Marshal(v)
-	// 		fmt.Printf("%s:%v \n", k, v)
-	// 	}
-	// }
+	list, err := exchange.GetAccountInfo()
+	if err != nil {
+		fmt.Println(err)
+	} else {
+		for k, v := range list {
+			// b, _ := json.Marshal(v)
+			fmt.Printf("%s:%v \n", k, v)
+		}
+	}
 
 	// fmt.Println(exchange.CancelOrder(917591554, exchange.GetSymbol()))
 
