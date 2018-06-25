@@ -102,7 +102,10 @@ func (b *Bitfinex) SetDefaults() {
 	b.AssetTypes = []string{ticker.Spot}
 	b.SupportsAutoPairUpdating = true
 	b.SupportsRESTTickerBatching = true
-	b.Requester = request.New(b.Name, request.NewRateLimit(time.Second*60, bitfinexAuthRate), request.NewRateLimit(time.Second*60, bitfinexUnauthRate), common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
+	// authLimit := request.NewRateLimit(time.Second*60, bitfinexAuthRate)
+
+	authLimit := request.NewRateLimit(time.Second*1, 6)
+	b.Requester = request.New(b.Name, authLimit, request.NewRateLimit(time.Second*60, bitfinexUnauthRate), common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 }
 
 // Setup takes in the supplied exchange configuration details and sets params
@@ -110,6 +113,7 @@ func (b *Bitfinex) Setup(exch config.ExchangeConfig) {
 	if !exch.Enabled {
 		b.SetEnabled(false)
 	} else {
+
 		b.Enabled = true
 		b.BaseAsset = exch.BaseAsset
 		b.QuoteAsset = exch.QuoteAsset
@@ -457,6 +461,7 @@ func (b *Bitfinex) GetSymbolsDetails() ([]SymbolDetails, error) {
 // GetAccountInfo returns information about your account incl. trading fees
 // 查看提现手续费
 func (b *Bitfinex) GetAccountInfo() (map[string]float64, error) {
+
 	// response := AccountInfoFull{}
 	type resoonse struct {
 		Withdraw map[string]interface{} `json:"withdraw"`
@@ -465,6 +470,7 @@ func (b *Bitfinex) GetAccountInfo() (map[string]float64, error) {
 	var res resoonse
 
 	err := b.SendAuthenticatedHTTPRequest("POST", bitfinexAccountFees, nil, &res)
+
 	if err != nil {
 		return nil, err
 	}
@@ -892,7 +898,7 @@ func (b *Bitfinex) SendAuthenticatedHTTPRequest(method, path string, params map[
 	headers["X-BFX-PAYLOAD"] = PayloadBase64
 	headers["X-BFX-SIGNATURE"] = common.HexEncodeToString(hmac)
 
-	b.SendPayload(method, bitfinexAPIURL+path, headers, nil, result, true, b.Verbose)
+	err = b.SendPayload(method, bitfinexAPIURL+path, headers, nil, result, true, b.Verbose)
 	if err != nil {
 		return err
 	}

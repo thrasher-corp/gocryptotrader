@@ -120,6 +120,7 @@ func (r *Requester) StartCycle() {
 // IsRateLimited returns whether or not the request Requester is rate limited
 func (r *Requester) IsRateLimited(auth bool) bool {
 	if auth {
+		// fmt.Println(r.AuthLimit.GetRequests())
 		if r.AuthLimit.GetRequests() >= r.AuthLimit.GetRate() && r.IsValidCycle(auth) {
 			return true
 		}
@@ -158,6 +159,7 @@ func (r *Requester) IncrementRequests(auth bool) {
 // requests 减量计数器
 func (r *Requester) DecrementRequests(auth bool) {
 	if auth {
+
 		reqs := r.AuthLimit.GetRequests()
 		reqs--
 		r.AuthLimit.SetRequests(reqs)
@@ -240,11 +242,12 @@ func (r *Requester) DoRequest(req *http.Request, method, path string, headers ma
 	}
 
 	resp, err := r.HTTPClient.Do(req)
-
 	if err != nil {
+
 		if r.RequiresRateLimiter() {
 			r.DecrementRequests(authRequest)
 		}
+
 		return err
 	}
 
