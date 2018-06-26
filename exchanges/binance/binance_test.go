@@ -87,11 +87,15 @@ func TestGetAggregatedTrades(t *testing.T) {
 	}
 }
 
-func TestGetCandleStickData(t *testing.T) {
+func TestGetKline(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetCandleStickData("BTCUSDT", "1d", 5)
+	_, err := b.GetKline(KlinesRequestParams{
+		Symbol:   b.GetSymbol(),
+		Interval: TimeIntervalFiveMinutes,
+		Limit:    24,
+	})
 	if err != nil {
-		t.Error("Test Failed - Binance GetCandleStickData() error", err)
+		t.Error("Test Failed - Binance GetKline() error", err)
 	}
 }
 

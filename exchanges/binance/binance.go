@@ -13,7 +13,6 @@ import (
 	"github.com/idoall/gocryptotrader/config"
 	exchange "github.com/idoall/gocryptotrader/exchanges"
 	"github.com/idoall/gocryptotrader/exchanges/request"
-	"github.com/idoall/gocryptotrader/exchanges/ticker"
 )
 
 // Binance is the overarching type across the Bithumb package
@@ -61,12 +60,12 @@ func (b *Binance) SetDefaults() {
 	b.RESTPollingDelay = 10
 	b.RequestCurrencyPairFormat.Delimiter = ""
 	b.RequestCurrencyPairFormat.Uppercase = true
-	b.ConfigCurrencyPairFormat.Delimiter = "-"
-	b.ConfigCurrencyPairFormat.Uppercase = true
-	b.AssetTypes = []string{ticker.Spot}
-	b.SupportsAutoPairUpdating = true
-	b.SupportsRESTTickerBatching = true
-	b.SetValues()
+	// b.ConfigCurrencyPairFormat.Delimiter = "-"
+	// b.ConfigCurrencyPairFormat.Uppercase = true
+	// b.AssetTypes = []string{ticker.Spot}
+	// b.SupportsAutoPairUpdating = true
+	// b.SupportsRESTTickerBatching = true
+	// b.SetValues()
 	b.Requester = request.New(b.Name, request.NewRateLimit(time.Second, binanceAuthRate), request.NewRateLimit(time.Second, binanceUnauthRate), common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 }
 
@@ -256,23 +255,27 @@ func (b *Binance) GetAggregatedTrades(symbol string, limit int64) ([]AggregatedT
 	return resp, b.SendHTTPRequest(path, &resp)
 }
 
-// GetCandleStickData returns candle stick data
+// GetKline returns candle stick data
 // 获取 K 线数据
 // symbol:
 // limit:
 // interval
-func (b *Binance) GetCandleStickData(symbol string, interval BinanceInterval, limit int64) ([]CandleStick, error) {
+func (b *Binance) GetKline(arg KlinesRequestParams) ([]CandleStick, error) {
 	var resp interface{}
 	var kline []CandleStick
 
-	if err := b.CheckLimit(limit); err != nil {
-		return kline, err
-	}
-
 	params := url.Values{}
-	params.Set("symbol", common.StringToUpper(symbol))
-	params.Set("limit", strconv.FormatInt(limit, 10))
-	params.Set("interval", string(interval))
+	params.Set("symbol", arg.Symbol)
+	params.Set("interval", string(arg.Interval))
+	if arg.Limit != 0 {
+		params.Set("limit", strconv.Itoa(arg.Limit))
+	}
+	if arg.StartTime != 0 {
+		params.Set("startTime", strconv.FormatInt(arg.StartTime, 10))
+	}
+	if arg.EndTime != 0 {
+		params.Set("endTime", strconv.FormatInt(arg.EndTime, 10))
+	}
 
 	path := fmt.Sprintf("%s%s?%s", apiURL, candleStick, params.Encode())
 

@@ -172,3 +172,27 @@ type MarginAccountBalance struct {
 	RiskRate string           `json:"risk-rate"`
 	List     []AccountBalance `json:"list"`
 }
+
+//-----------
+
+// KlinesRequestParams represents Klines request data.
+type KlinesRequestParams struct {
+	Symbol string       //交易对, btcusdt, bccbtc......
+	Period TimeInterval //K线类型, 1min, 5min, 15min......
+	Size   int          //获取数量, [1-2000]
+}
+
+// TimeInterval 火币获取 K线的时间段枚举
+type TimeInterval string
+
+var (
+	TimeIntervalMinute         = TimeInterval("1min")
+	TimeIntervalFiveMinutes    = TimeInterval("5min")
+	TimeIntervalFifteenMinutes = TimeInterval("15min")
+	TimeIntervalThirtyMinutes  = TimeInterval("30min")
+	TimeIntervalHour           = TimeInterval("60min")
+	TimeIntervalDay            = TimeInterval("1day")
+	TimeIntervalWeek           = TimeInterval("1week")
+	TimeIntervalMohth          = TimeInterval("1mon")
+	TimeIntervalYear           = TimeInterval("1year")
+)
