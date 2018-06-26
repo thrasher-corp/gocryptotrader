@@ -25,6 +25,7 @@ const (
 	gateioOrder       = "private"
 	gateioBalances    = "private/balances"
 	gateioCancelOrder = "private/cancelOrder"
+	gateioTicker      = "ticker"
 
 	gateioAuthRate   = 100
 	gateioUnauthRate = 100
@@ -124,8 +125,36 @@ func (h *Gateio) GetMarketInfo() (MarketInfoResponse, error) {
 	return result, nil
 }
 
+// GetLatestSpotPrice returns latest spot price of symbol
+//
+// symbol: string of currency pair
+// 获取最新价格，官方每10秒钟更新一次
+func (h *Gateio) GetLatestSpotPrice(symbol string) (float64, error) {
+	res, err := h.GetTicker(symbol)
+	if err != nil {
+		return 0, err
+	}
+	price, err := strconv.ParseFloat(res.Last, 64)
+	if err != nil {
+		return 0, err
+	}
+	return price, nil
+}
+
+// GetTicker returns 单项交易行情，官方每10秒钟更新一次
+func (h *Gateio) GetTicker(symbol string) (TickerResponse, error) {
+	url := fmt.Sprintf("%s/%s/%s/%s", gateioMarketURL, gateioAPIVersion, gateioTicker, symbol)
+
+	var res TickerResponse
+	err := h.SendHTTPRequest(url, &res)
+	if err != nil {
+		return res, err
+	}
+	return res, nil
+}
+
 // GetKline 返回市场最近时间段内的K先数据
-func (h *Gateio) GetKline(arg GateioKlinesRequestParams) ([]*GateioKLineResponse, error) {
+func (h *Gateio) GetKline(arg KlinesRequestParams) ([]*KLineResponse, error) {
 
 	url := fmt.Sprintf("%s/%s/%s/%s?group_sec=%d&range_hour=%d", gateioMarketURL, gateioAPIVersion, gateioKline, arg.Symbol, arg.GroupSec, arg.HourSize)
 
@@ -135,7 +164,7 @@ func (h *Gateio) GetKline(arg GateioKlinesRequestParams) ([]*GateioKLineResponse
 		return nil, err
 	}
 
-	var result []*GateioKLineResponse
+	var result []*KLineResponse
 
 	if rawKlines == nil || rawKlines["data"] == nil {
 		return nil, errors.Wrap(err, "rawKlines is nil")
@@ -177,7 +206,7 @@ func (h *Gateio) GetKline(arg GateioKlinesRequestParams) ([]*GateioKLineResponse
 		if err != nil {
 			return nil, errors.Wrap(err, "cannot parse Kline.Open")
 		}
-		result = append(result, &GateioKLineResponse{
+		result = append(result, &KLineResponse{
 			ID:        _id,
 			KlineTime: ot,
 			Volume:    _vol,   //成交量
@@ -195,9 +224,9 @@ func (h *Gateio) GetKline(arg GateioKlinesRequestParams) ([]*GateioKLineResponse
 // 通过以下API，用户可以使用程序控制自动进行账号资金查询，下单交易，取消挂单。
 // 请注意：请在您的程序中设置的HTTP请求头参数 Content-Type 为 application/x-www-form-urlencoded
 // 用户首先要通过这个链接获取API接口身份认证用到的Key和Secret。 然后在程序中用Secret作为密码，通过SHA512加密方式签名需要POST给服务器的数据得到Sign，并在HTTPS请求的Header部分传回Key和Sign。请参考以下接口说明和例子程序进行设置。
-func (h *Gateio) GetBalances() (GateioBalancesResponse, error) {
+func (h *Gateio) GetBalances() (BalancesResponse, error) {
 
-	var result GateioBalancesResponse
+	var result BalancesResponse
 
 	err := h.SendAuthenticatedHTTPRequest("POST", gateioBalances, "", &result)
 	if err != nil {
@@ -208,8 +237,8 @@ func (h *Gateio) GetBalances() (GateioBalancesResponse, error) {
 }
 
 // NewOrder 下订单
-func (h *Gateio) NewOrder(arg GateioPlaceRequestParams) (GateioPlaceResponse, error) {
-	var result GateioPlaceResponse
+func (h *Gateio) NewOrder(arg PlaceRequestParams) (PlaceResponse, error) {
+	var result PlaceResponse
 
 	//获取交易对的价格精度格式
 	params := fmt.Sprintf("currencyPair=%s&rate=%s&amount=%s",

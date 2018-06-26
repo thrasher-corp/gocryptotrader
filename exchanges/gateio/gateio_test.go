@@ -67,11 +67,11 @@ func TestGetMarketInfo(t *testing.T) {
 
 func TestNewOrder(t *testing.T) {
 	t.Parallel()
-	_, err := g.NewOrder(GateioPlaceRequestParams{
+	_, err := g.NewOrder(PlaceRequestParams{
 		Symbol: g.GetSymbol(),
 		Amount: 1.1,
 		Price:  10.1,
-		Type:   GateioRequestParamsTypeBuy,
+		Type:   PlaceRequestParamsTypeSell,
 	})
 	if err != nil {
 		t.Errorf("Test failed - Gateio NewOrder: %s", err)
@@ -100,12 +100,28 @@ func TestGetBalances(t *testing.T) {
 	}
 }
 
+func TestGetLatestSpotPrice(t *testing.T) {
+	t.Parallel()
+	_, err := g.GetLatestSpotPrice(g.GetSymbol())
+	if err != nil {
+		t.Errorf("Test failed - Gateio GetLatestSpotPrice: %s", err)
+	}
+}
+
+func TestGetTicker(t *testing.T) {
+	t.Parallel()
+	_, err := g.GetTicker(g.GetSymbol())
+	if err != nil {
+		t.Errorf("Test failed - Gateio GetTicker: %s", err)
+	}
+}
+
 func TestGetKline(t *testing.T) {
 	t.Parallel()
-	_, err := g.GetKline(GateioKlinesRequestParams{
+	_, err := g.GetKline(KlinesRequestParams{
 		Symbol:   g.GetSymbol(),
-		GroupSec: GateioIntervalFiveMinutes, //5分钟以内数据
-		HourSize: 1,                         //1小时内数据
+		GroupSec: TimeIntervalFiveMinutes, //5分钟以内数据
+		HourSize: 1,                       //1小时内数据
 	})
 	if err != nil {
 		t.Errorf("Test failed - Gateio GetKline: %s", err)
