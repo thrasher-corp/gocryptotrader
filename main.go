@@ -41,8 +41,8 @@ func getDefaultConfig() config.ExchangeConfig {
 		Enabled:                 true,
 		Verbose:                 true,
 		Websocket:               false,
-		BaseAsset:               "eth",
-		QuoteAsset:              "usdt",
+		BaseAsset:               "btc",
+		QuoteAsset:              "usd",
 		RESTPollingDelay:        10,
 		HTTPTimeout:             15000000000,
 		AuthenticatedAPISupport: true,
@@ -53,12 +53,15 @@ func getDefaultConfig() config.ExchangeConfig {
 
 func main() {
 	fmt.Println(time.Now())
+	// exchange := gateio.Gateio{}
 	exchange := bitfinex.Bitfinex{}
 	// exchange := huobi.HUOBI{}
 	defaultConfig := getDefaultConfig()
 	exchange.SetDefaults()
 	fmt.Println("----------setup-------")
 	exchange.Setup(defaultConfig)
+
+	fmt.Println(exchange.GetTicker(exchange.GetSymbol()))
 
 	// res, err := exchange.SpotNewOrder(okex.SpotNewOrderRequestParams{
 	// 	Symbol: exchange.GetSymbol(),
@@ -78,15 +81,15 @@ func main() {
 	// fmt.Println(exchange.GetKline("btcusdt", "1hour", ""))
 	// fmt.Println(exchange.GetKline("btcusdt", "1day", ""))
 
-	list, err := exchange.GetAccountInfo()
-	if err != nil {
-		fmt.Println(err)
-	} else {
-		for k, v := range list {
-			// b, _ := json.Marshal(v)
-			fmt.Printf("%s:%v \n", k, v)
-		}
-	}
+	// list, err := exchange.GetAccountInfo()
+	// if err != nil {
+	// 	fmt.Println(err)
+	// } else {
+	// 	for k, v := range list {
+	// 		// b, _ := json.Marshal(v)
+	// 		fmt.Printf("%s:%v \n", k, v)
+	// 	}
+	// }
 
 	// fmt.Println(exchange.CancelOrder(917591554, exchange.GetSymbol()))
 

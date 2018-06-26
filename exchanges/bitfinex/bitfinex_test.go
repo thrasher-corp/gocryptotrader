@@ -53,14 +53,22 @@ func TestGetPlatformStatus(t *testing.T) {
 	}
 }
 
+func TestGetLatestSpotPrice(t *testing.T) {
+	t.Parallel()
+	_, err := b.GetLatestSpotPrice("BTCUSD")
+	if err != nil {
+		t.Error("Bitfinex GetLatestSpotPrice error: ", err)
+	}
+}
+
 func TestGetTicker(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetTicker("BTCUSD", url.Values{})
+	_, err := b.GetTicker("BTCUSD")
 	if err != nil {
 		t.Error("BitfinexGetTicker init error: ", err)
 	}
 
-	_, err = b.GetTicker("wigwham", url.Values{})
+	_, err = b.GetTicker("wigwham")
 	if err == nil {
 		t.Error("Test Failed - GetTicker() error")
 	}

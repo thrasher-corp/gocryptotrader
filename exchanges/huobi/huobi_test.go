@@ -89,6 +89,14 @@ func TestGetTrades(t *testing.T) {
 	}
 }
 
+func TestGetLatestSpotPrice(t *testing.T) {
+	t.Parallel()
+	_, err := h.GetLatestSpotPrice("btcusdt")
+	if err != nil {
+		t.Errorf("Test failed - Huobi GetLatestSpotPrice: %s", err)
+	}
+}
+
 func TestGetTradeHistory(t *testing.T) {
 	t.Parallel()
 	_, err := h.GetTradeHistory("btcusdt", "50")

@@ -205,6 +205,23 @@ func (h *HUOBI) GetTrades(symbol string) ([]Trade, error) {
 	return result.Tick.Data, err
 }
 
+// GetLatestSpotPrice returns latest spot price of symbol
+//
+// symbol: string of currency pair
+// 获取最新价格
+func (h *HUOBI) GetLatestSpotPrice(symbol string) (float64, error) {
+	list, err := h.GetTradeHistory(symbol, "1")
+
+	if err != nil {
+		return 0, err
+	}
+	if len(list) == 0 {
+		return 0, errors.New("The length of the list is 0")
+	}
+
+	return list[0].Trades[0].Price, nil
+}
+
 // GetTradeHistory returns the trades for the specified symbol
 func (h *HUOBI) GetTradeHistory(symbol, size string) ([]TradeHistory, error) {
 	vals := url.Values{}

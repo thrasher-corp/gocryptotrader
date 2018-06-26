@@ -123,16 +123,15 @@ func (h *HUOBIHADAX) GetFee() float64 {
 }
 
 // GetKline returns kline data
-func (h *HUOBIHADAX) GetKline(symbol, period, size string) ([]KlineItem, error) {
+// @Description returns kline data
+// @Param	arg		KlinesRequestParams
+func (h *HUOBIHADAX) GetKline(arg KlinesRequestParams) ([]KlineItem, error) {
 	vals := url.Values{}
-	vals.Set("symbol", symbol)
+	vals.Set("symbol", arg.Symbol)
+	vals.Set("period", string(arg.Period))
 
-	if period != "" {
-		vals.Set("period", period)
-	}
-
-	if size != "" {
-		vals.Set("size", size)
+	if arg.Size != 0 {
+		vals.Set("size", strconv.Itoa(arg.Size))
 	}
 
 	type response struct {
@@ -214,6 +213,23 @@ func (h *HUOBIHADAX) GetTrades(symbol string) ([]Trade, error) {
 		return nil, errors.New(result.ErrorMessage)
 	}
 	return result.Tick.Data, err
+}
+
+// GetLatestSpotPrice returns latest spot price of symbol
+//
+// symbol: string of currency pair
+// 获取最新价格
+func (h *HUOBIHADAX) GetLatestSpotPrice(symbol string) (float64, error) {
+	list, err := h.GetTradeHistory(symbol, "1")
+
+	if err != nil {
+		return 0, err
+	}
+	if len(list) == 0 {
+		return 0, errors.New("The length of the list is 0")
+	}
+
+	return list[0].Trades[0].Price, nil
 }
 
 // GetTradeHistory returns the trades for the specified symbol

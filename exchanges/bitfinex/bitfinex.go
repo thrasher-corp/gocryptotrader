@@ -13,7 +13,6 @@ import (
 	"github.com/idoall/gocryptotrader/config"
 	"github.com/idoall/gocryptotrader/exchanges"
 	"github.com/idoall/gocryptotrader/exchanges/request"
-	"github.com/idoall/gocryptotrader/exchanges/ticker"
 )
 
 const (
@@ -97,14 +96,14 @@ func (b *Bitfinex) SetDefaults() {
 	b.WebsocketSubdChannels = make(map[int]WebsocketChanInfo)
 	b.RequestCurrencyPairFormat.Delimiter = ""
 	b.RequestCurrencyPairFormat.Uppercase = true
-	b.ConfigCurrencyPairFormat.Delimiter = ""
-	b.ConfigCurrencyPairFormat.Uppercase = true
-	b.AssetTypes = []string{ticker.Spot}
-	b.SupportsAutoPairUpdating = true
-	b.SupportsRESTTickerBatching = true
-	// authLimit := request.NewRateLimit(time.Second*60, bitfinexAuthRate)
+	// b.ConfigCurrencyPairFormat.Delimiter = ""
+	// b.ConfigCurrencyPairFormat.Uppercase = true
+	// b.AssetTypes = []string{ticker.Spot}
+	// b.SupportsAutoPairUpdating = true
+	// b.SupportsRESTTickerBatching = true
+	authLimit := request.NewRateLimit(time.Second*60, bitfinexAuthRate)
 
-	authLimit := request.NewRateLimit(time.Second*1, 6)
+	// authLimit := request.NewRateLimit(time.Second*1, 6)
 	b.Requester = request.New(b.Name, authLimit, request.NewRateLimit(time.Second*60, bitfinexUnauthRate), common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 }
 
@@ -159,10 +158,22 @@ func (b *Bitfinex) GetPlatformStatus() (int, error) {
 	return int(response[0].(float64)), nil
 }
 
+// GetLatestSpotPrice returns latest spot price of symbol
+//
+// symbol: string of currency pair
+// 获取最新价格
+func (b *Bitfinex) GetLatestSpotPrice(symbol string) (float64, error) {
+	res, err := b.GetTicker(symbol)
+	if err != nil {
+		return 0, err
+	}
+	return res.Mid, nil
+}
+
 // GetTicker returns ticker information
-func (b *Bitfinex) GetTicker(symbol string, values url.Values) (Ticker, error) {
+func (b *Bitfinex) GetTicker(symbol string) (Ticker, error) {
 	response := Ticker{}
-	path := common.EncodeURLValues(bitfinexAPIURL+bitfinexTicker+symbol, values)
+	path := common.EncodeURLValues(bitfinexAPIURL+bitfinexTicker+symbol, url.Values{})
 
 	if err := b.SendHTTPRequest(path, &response, b.Verbose); err != nil {
 		return response, err
