@@ -283,6 +283,12 @@ func CompareCurrencyPairFormats(pair1 config.CurrencyPairFormatConfig, pair2 *co
 	return true
 }
 
+// SetSymbol 设置交易对
+func (e *Base) SetSymbol(baseAsset, quoteAsset string) {
+	e.BaseAsset = baseAsset
+	e.QuoteAsset = quoteAsset
+}
+
 // GetSymbol 获取格式化的交易对
 func (e *Base) GetSymbol() string {
 	var symbol string
