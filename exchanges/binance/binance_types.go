@@ -315,28 +315,6 @@ type Account struct {
 	Balances         []Balance `json:"balances"`
 }
 
-// BinanceInterval 要检索的时间段
-type BinanceInterval string
-
-var (
-	// BinanceIntervalMinute 1m
-	BinanceIntervalMinute         = BinanceInterval("1m")
-	BinanceIntervalThreeMinutes   = BinanceInterval("3m")
-	BinanceIntervalFiveMinutes    = BinanceInterval("5m")
-	BinanceIntervalFifteenMinutes = BinanceInterval("15m")
-	BinanceIntervalThirtyMinutes  = BinanceInterval("30m")
-	BinanceIntervalHour           = BinanceInterval("1h")
-	BinanceIntervalTwoHours       = BinanceInterval("2h")
-	BinanceIntervalFourHours      = BinanceInterval("4h")
-	BinanceIntervalSixHours       = BinanceInterval("6h")
-	BinanceIntervalEightHours     = BinanceInterval("8h")
-	BinanceIntervalTwelveHours    = BinanceInterval("12h")
-	BinanceIntervalDay            = BinanceInterval("1d")
-	BinanceIntervalThreeDays      = BinanceInterval("3d")
-	BinanceIntervalWeek           = BinanceInterval("1w")
-	BinanceIntervalMonth          = BinanceInterval("1M")
-)
-
 // BinanceRequestParamsSideType 交易类型
 type BinanceRequestParamsSideType string
 
@@ -386,4 +364,36 @@ var (
 
 	// BinanceRequestParamsOrderLimitMarker STOP_LOSS_LIMIT
 	BinanceRequestParamsOrderLimitMarker = BinanceRequestParamsOrderType("LIMIT_MAKER")
+)
+
+//------------------
+
+// KlinesRequestParams represents Klines request data.
+type KlinesRequestParams struct {
+	Symbol    string       //必填项，交易对:LTCBTC,BTCUSDT
+	Interval  TimeInterval //查询时间段
+	Limit     int          // Default 500; max 500.
+	StartTime int64
+	EndTime   int64
+}
+
+// TimeInterval represents interval enum.
+type TimeInterval string
+
+var (
+	TimeIntervalMinute         = TimeInterval("1m")
+	TimeIntervalThreeMinutes   = TimeInterval("3m")
+	TimeIntervalFiveMinutes    = TimeInterval("5m")
+	TimeIntervalFifteenMinutes = TimeInterval("15m")
+	TimeIntervalThirtyMinutes  = TimeInterval("30m")
+	TimeIntervalHour           = TimeInterval("1h")
+	TimeIntervalTwoHours       = TimeInterval("2h")
+	TimeIntervalFourHours      = TimeInterval("4h")
+	TimeIntervalSixHours       = TimeInterval("6h")
+	TimeIntervalEightHours     = TimeInterval("8h")
+	TimeIntervalTwelveHours    = TimeInterval("12h")
+	TimeIntervalDay            = TimeInterval("1d")
+	TimeIntervalThreeDays      = TimeInterval("3d")
+	TimeIntervalWeek           = TimeInterval("1w")
+	TimeIntervalMonth          = TimeInterval("1M")
 )

@@ -62,7 +62,11 @@ func TestGetFee(t *testing.T) {
 
 func TestGetKline(t *testing.T) {
 	t.Parallel()
-	_, err := h.GetKline("btcusdt", "1week", "")
+	_, err := h.GetKline(KlinesRequestParams{
+		Symbol: "btcusdt",
+		Period: TimeIntervalHour,
+		Size:   0,
+	})
 	if err != nil {
 		t.Errorf("Test failed - Huobi TestGetKline: %s", err)
 	}

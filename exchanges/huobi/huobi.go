@@ -119,16 +119,15 @@ func (h *HUOBI) GetFee() float64 {
 }
 
 // GetKline returns kline data
-func (h *HUOBI) GetKline(symbol, period, size string) ([]KlineItem, error) {
+// @Description returns kline data
+// @Param	arg		KlinesRequestParams
+func (h *HUOBI) GetKline(arg KlinesRequestParams) ([]KlineItem, error) {
 	vals := url.Values{}
-	vals.Set("symbol", symbol)
+	vals.Set("symbol", arg.Symbol)
+	vals.Set("period", string(arg.Period))
 
-	if period != "" {
-		vals.Set("period", period)
-	}
-
-	if size != "" {
-		vals.Set("size", size)
+	if arg.Size != 0 {
+		vals.Set("size", strconv.Itoa(arg.Size))
 	}
 
 	type response struct {

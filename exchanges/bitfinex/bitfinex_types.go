@@ -462,3 +462,22 @@ type WebsocketTradeExecuted struct {
 type ErrorCapture struct {
 	Message string `json:"message"`
 }
+
+//-----------------
+// TimeInterval represents interval enum.
+type TimeInterval string
+
+var (
+	TimeIntervalMinute         = TimeInterval("1m")
+	TimeIntervalFiveMinutes    = TimeInterval("5m")
+	TimeIntervalFifteenMinutes = TimeInterval("15m")
+	TimeIntervalThirtyMinutes  = TimeInterval("30m")
+	TimeIntervalHour           = TimeInterval("1h")
+	TimeIntervalThreeHours     = TimeInterval("3h")
+	TimeIntervalSixHours       = TimeInterval("6h")
+	TimeIntervalTwelveHours    = TimeInterval("12h")
+	TimeIntervalDay            = TimeInterval("1d")
+	TimeIntervalSevenDays      = TimeInterval("7d")
+	TimeIntervalFourteenDays   = TimeInterval("14d")
+	TimeIntervalMonth          = TimeInterval("1M")
+)
