@@ -122,10 +122,10 @@ func (h *HUOBIHADAX) GetFee() float64 {
 	return h.Fee
 }
 
-// GetKline returns kline data
+// GetSpotKline returns kline data
 // @Description returns kline data
 // @Param	arg		KlinesRequestParams
-func (h *HUOBIHADAX) GetKline(arg KlinesRequestParams) ([]KlineItem, error) {
+func (h *HUOBIHADAX) GetSpotKline(arg KlinesRequestParams) ([]KlineItem, error) {
 	vals := url.Values{}
 	vals.Set("symbol", arg.Symbol)
 	vals.Set("period", string(arg.Period))

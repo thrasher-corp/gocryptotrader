@@ -49,10 +49,10 @@ const (
 
 	// Spot requests
 	// Unauthenticated
-	spotPrice         = "ticker"
-	spotDepth         = "depth"
-	spotTrades        = "trades"
-	spotCandstickData = "kline"
+	spotPrice  = "ticker"
+	spotDepth  = "depth"
+	spotTrades = "trades"
+	spotKline  = "kline"
 
 	// Authenticated
 	spotUserInfo       = "userinfo"
@@ -680,6 +680,20 @@ func (o *OKEX) SpotCancelOrder(symbol string, argOrderID int64) (int64, error) {
 	return returnOrderID, nil
 }
 
+// GetLatestSpotPrice returns latest spot price of symbol
+//
+// symbol: string of currency pair
+// 获取最新价格
+func (o *OKEX) GetLatestSpotPrice(symbol string) (float64, error) {
+	spotPrice, err := o.GetSpotTicker(symbol)
+
+	if err != nil {
+		return 0, err
+	}
+
+	return spotPrice.Ticker.Last, nil
+}
+
 // GetSpotTicker returns Price Ticker
 func (o *OKEX) GetSpotTicker(symbol string) (SpotPrice, error) {
 	var resp SpotPrice
@@ -791,20 +805,20 @@ func (o *OKEX) GetSpotRecentTrades(symbol, since string) ([]ActualSpotTradeHisto
 	return actualTradeHistory, nil
 }
 
-// GetSpotCandleStick returns candlestick data
+// GetSpotKline returns candlestick data
 //
-func (o *OKEX) GetSpotCandleStick(symbol, typeInput string, size, since int) ([]CandleStickData, error) {
+func (o *OKEX) GetSpotKline(arg KlinesRequestParams) ([]CandleStickData, error) {
 	var candleData []CandleStickData
 
 	values := url.Values{}
-	values.Set("symbol", symbol)
-	values.Set("type", typeInput)
-	values.Set("size", strconv.FormatInt(int64(size), 10))
-	if since != 0 {
-		values.Set("since", strconv.FormatInt(int64(since), 10))
+	values.Set("symbol", arg.Symbol)
+	values.Set("type", string(arg.Type))
+	values.Set("size", strconv.FormatInt(int64(arg.Size), 10))
+	if arg.Since != 0 {
+		values.Set("since", strconv.FormatInt(int64(arg.Since), 10))
 	}
 
-	path := fmt.Sprintf("%s%s%s.do?%s", apiURL, apiVersion, spotCandstickData, values.Encode())
+	path := fmt.Sprintf("%s%s%s.do?%s", apiURL, apiVersion, spotKline, values.Encode())
 	var resp interface{}
 
 	if err := o.SendHTTPRequest(path, &resp); err != nil {

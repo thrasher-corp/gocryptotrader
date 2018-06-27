@@ -116,14 +116,14 @@ func TestGetTicker(t *testing.T) {
 	}
 }
 
-func TestGetKline(t *testing.T) {
+func TestGetSpotKline(t *testing.T) {
 	t.Parallel()
-	_, err := g.GetKline(KlinesRequestParams{
+	_, err := g.GetSpotKline(KlinesRequestParams{
 		Symbol:   g.GetSymbol(),
 		GroupSec: TimeIntervalFiveMinutes, //5分钟以内数据
 		HourSize: 1,                       //1小时内数据
 	})
 	if err != nil {
-		t.Errorf("Test failed - Gateio GetKline: %s", err)
+		t.Errorf("Test failed - Gateio GetSpotKline: %s", err)
 	}
 }

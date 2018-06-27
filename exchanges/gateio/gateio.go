@@ -153,8 +153,8 @@ func (h *Gateio) GetTicker(symbol string) (TickerResponse, error) {
 	return res, nil
 }
 
-// GetKline 返回市场最近时间段内的K先数据
-func (h *Gateio) GetKline(arg KlinesRequestParams) ([]*KLineResponse, error) {
+// GetSpotKline 返回市场最近时间段内的K先数据
+func (h *Gateio) GetSpotKline(arg KlinesRequestParams) ([]*KLineResponse, error) {
 
 	url := fmt.Sprintf("%s/%s/%s/%s?group_sec=%d&range_hour=%d", gateioMarketURL, gateioAPIVersion, gateioKline, arg.Symbol, arg.GroupSec, arg.HourSize)
 
