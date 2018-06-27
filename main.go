@@ -7,7 +7,7 @@ import (
 	"github.com/idoall/gocryptotrader/communications"
 	"github.com/idoall/gocryptotrader/config"
 	"github.com/idoall/gocryptotrader/exchanges"
-	"github.com/idoall/gocryptotrader/exchanges/bitfinex"
+	"github.com/idoall/gocryptotrader/exchanges/okex"
 	"github.com/idoall/gocryptotrader/portfolio"
 )
 
@@ -37,12 +37,12 @@ var bot Bot
 // getDefaultConfig 获取默认配置
 func getDefaultConfig() config.ExchangeConfig {
 	return config.ExchangeConfig{
-		Name:                    "Bitfinex",
+		Name:                    "okex",
 		Enabled:                 true,
 		Verbose:                 true,
 		Websocket:               false,
 		BaseAsset:               "btc",
-		QuoteAsset:              "usd",
+		QuoteAsset:              "usdt",
 		RESTPollingDelay:        10,
 		HTTPTimeout:             15000000000,
 		AuthenticatedAPISupport: true,
@@ -54,14 +54,15 @@ func getDefaultConfig() config.ExchangeConfig {
 func main() {
 	fmt.Println(time.Now())
 	// exchange := gateio.Gateio{}
-	exchange := bitfinex.Bitfinex{}
+	// exchange := bitfinex.Bitfinex{}
+	exchange := okex.OKEX{}
 	// exchange := huobi.HUOBI{}
 	defaultConfig := getDefaultConfig()
 	exchange.SetDefaults()
 	fmt.Println("----------setup-------")
 	exchange.Setup(defaultConfig)
 
-	fmt.Println(exchange.GetTicker(exchange.GetSymbol()))
+	fmt.Println(exchange.GetLatestSpotPrice(exchange.GetSymbol()))
 
 	// res, err := exchange.SpotNewOrder(okex.SpotNewOrderRequestParams{
 	// 	Symbol: exchange.GetSymbol(),

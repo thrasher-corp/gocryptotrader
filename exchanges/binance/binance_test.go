@@ -87,15 +87,15 @@ func TestGetAggregatedTrades(t *testing.T) {
 	}
 }
 
-func TestGetKline(t *testing.T) {
+func TestGetSpotKline(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetKline(KlinesRequestParams{
+	_, err := b.GetSpotKline(KlinesRequestParams{
 		Symbol:   b.GetSymbol(),
 		Interval: TimeIntervalFiveMinutes,
 		Limit:    24,
 	})
 	if err != nil {
-		t.Error("Test Failed - Binance GetKline() error", err)
+		t.Error("Test Failed - Binance GetSpotKline() error", err)
 	}
 }
 

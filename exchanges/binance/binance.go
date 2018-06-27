@@ -255,12 +255,12 @@ func (b *Binance) GetAggregatedTrades(symbol string, limit int64) ([]AggregatedT
 	return resp, b.SendHTTPRequest(path, &resp)
 }
 
-// GetKline returns candle stick data
+// GetSpotKline returns candle stick data
 // 获取 K 线数据
 // symbol:
 // limit:
 // interval
-func (b *Binance) GetKline(arg KlinesRequestParams) ([]CandleStick, error) {
+func (b *Binance) GetSpotKline(arg KlinesRequestParams) ([]CandleStick, error) {
 	var resp interface{}
 	var kline []CandleStick
 

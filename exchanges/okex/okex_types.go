@@ -191,3 +191,31 @@ var (
 	// SpotNewOrderRequestTypeSellMarket 市价卖
 	SpotNewOrderRequestTypeSellMarket = SpotNewOrderRequestType("sell_market")
 )
+
+//---------Kline
+
+// KlinesRequestParams represents Klines request data.
+type KlinesRequestParams struct {
+	Symbol string       //交易对, btcusdt, bccbtc......
+	Type   TimeInterval //K线类型, 1min, 5min, 15min......
+	Size   int          //获取数量, [1-2000]
+	Since  int64        //时间戳，返回该时间戳以后的数据(例如1417536000000)
+}
+
+// TimeInterval represents interval enum.
+type TimeInterval string
+
+var (
+	TimeIntervalMinute         = TimeInterval("1min")
+	TimeIntervalThreeMinutes   = TimeInterval("3min")
+	TimeIntervalFiveMinutes    = TimeInterval("5min")
+	TimeIntervalFifteenMinutes = TimeInterval("15min")
+	TimeIntervalThirtyMinutes  = TimeInterval("30min")
+	TimeIntervalHour           = TimeInterval("1hour")
+	TimeIntervalFourHours      = TimeInterval("4hour")
+	TimeIntervalSixHours       = TimeInterval("6hour")
+	TimeIntervalTwelveHours    = TimeInterval("12hour")
+	TimeIntervalDay            = TimeInterval("1day")
+	TimeIntervalThreeDays      = TimeInterval("3day")
+	TimeIntervalWeek           = TimeInterval("1week")
+)

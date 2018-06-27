@@ -196,6 +196,14 @@ func TestGetContractFuturesTradeHistory(t *testing.T) {
 	}
 }
 
+func TestGetLatestSpotPrice(t *testing.T) {
+	t.Parallel()
+	_, err := o.GetLatestSpotPrice("ltc_btc")
+	if err != nil {
+		t.Error("Test failed - okex GetLatestSpotPrice() error", err)
+	}
+}
+
 func TestGetSpotTicker(t *testing.T) {
 	t.Parallel()
 	_, err := o.GetSpotTicker("ltc_btc")
@@ -220,15 +228,22 @@ func TestGetSpotRecentTrades(t *testing.T) {
 	}
 }
 
-func TestGetSpotCandleStick(t *testing.T) {
+func TestGetSpotKline(t *testing.T) {
 	t.Parallel()
-	list, err := o.GetSpotCandleStick("ltc_btc", "1min", 2, 0)
+	arg := KlinesRequestParams{
+		Symbol: o.GetSymbol(),
+		Type:   TimeIntervalFiveMinutes,
+		Size:   100,
+	}
+	resultlist, err := o.GetSpotKline(arg)
 	if err != nil {
 		t.Error("Test failed - okex GetSpotCandleStick() error", err)
-	}
-	for _, v := range list {
-		b, _ := json.Marshal(v)
-		fmt.Printf("%v \n", string(b))
+	} else {
+		fmt.Println("--------------" + o.Name)
+		for _, v := range resultlist {
+			b, _ := json.Marshal(v)
+			fmt.Printf("%s \n", b)
+		}
 	}
 }
 
