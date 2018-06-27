@@ -292,7 +292,7 @@ func (e *Base) SetSymbol(baseAsset, quoteAsset string) {
 // GetSymbol 获取格式化的交易对
 func (e *Base) GetSymbol() string {
 	var symbol string
-	if e.ConfigCurrencyPairFormat.Uppercase {
+	if e.RequestCurrencyPairFormat.Uppercase {
 		symbol = fmt.Sprintf("%s%s%s", strings.ToUpper(e.BaseAsset), e.RequestCurrencyPairFormat.Delimiter, strings.ToUpper(e.QuoteAsset))
 	} else {
 		symbol = fmt.Sprintf("%s%s%s", strings.ToLower(e.BaseAsset), e.RequestCurrencyPairFormat.Delimiter, strings.ToLower(e.QuoteAsset))
@@ -449,6 +449,12 @@ func (e *Base) SetEnabled(enabled bool) {
 // IsEnabled is a method that returns if the current exchange is enabled
 func (e *Base) IsEnabled() bool {
 	return e.Enabled
+}
+
+// SetAPISecretKeys is a method that sets the current API keys for the exchange
+func (e *Base) SetAPISecretKeys(APIKey, APISecret string) {
+	e.APIKey = APIKey
+	e.APISecret = APISecret
 }
 
 // SetAPIKeys is a method that sets the current API keys for the exchange
