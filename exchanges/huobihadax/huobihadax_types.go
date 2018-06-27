@@ -11,7 +11,7 @@ type Response struct {
 
 // KlineItem stores a kline item
 type KlineItem struct {
-	ID     int     `json:"id"`
+	ID     int64   `json:"id"`
 	Open   float64 `json:"open"`
 	Close  float64 `json:"close"`
 	Low    float64 `json:"low"`
