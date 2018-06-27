@@ -2,15 +2,15 @@ package gateio
 
 import "time"
 
-// PlaceRequestParamsType 交易类型
-type PlaceRequestParamsType string
+// SpotNewOrderRequestParamsType 交易类型
+type SpotNewOrderRequestParamsType string
 
 var (
-	// PlaceRequestParamsTypeBuy 买
-	PlaceRequestParamsTypeBuy = PlaceRequestParamsType("buy")
+	// SpotNewOrderRequestParamsTypeBuy 买
+	SpotNewOrderRequestParamsTypeBuy = SpotNewOrderRequestParamsType("buy")
 
-	// PlaceRequestParamsTypeSell 卖
-	PlaceRequestParamsTypeSell = PlaceRequestParamsType("sell")
+	// SpotNewOrderRequestParamsTypeSell 卖
+	SpotNewOrderRequestParamsTypeSell = SpotNewOrderRequestParamsType("sell")
 )
 
 // TimeInterval Interval represents interval enum.
@@ -93,16 +93,16 @@ type TickerResponse struct {
 
 }
 
-// PlaceRequestParams 下单买入/卖出请求参数
-type PlaceRequestParams struct {
-	Amount float64                `json:"amount"` // 下单数量
-	Price  float64                `json:"price"`  // 下单价格
-	Symbol string                 `json:"symbol"` // 交易对, btc_usdt, eth_btc......
-	Type   PlaceRequestParamsType `json:"type"`   // 订单类型,
+// SpotNewOrderRequestParams 下单买入/卖出请求参数
+type SpotNewOrderRequestParams struct {
+	Amount float64                       `json:"amount"` // 下单数量
+	Price  float64                       `json:"price"`  // 下单价格
+	Symbol string                        `json:"symbol"` // 交易对, btc_usdt, eth_btc......
+	Type   SpotNewOrderRequestParamsType `json:"type"`   // 订单类型,
 }
 
-// PlaceResponse 下单买入/卖出返回的类型
-type PlaceResponse struct {
+// SpotNewOrderResponse 下单买入/卖出返回的类型
+type SpotNewOrderResponse struct {
 	OrderNumber  int64  `json:"orderNumber"`  //订单单号
 	Price        string `json:"rate"`         //下单价格
 	LeftAmount   string `json:"leftAmount"`   //剩余数量
