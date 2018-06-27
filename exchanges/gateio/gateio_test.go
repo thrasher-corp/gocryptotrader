@@ -65,16 +65,16 @@ func TestGetMarketInfo(t *testing.T) {
 	}
 }
 
-func TestNewOrder(t *testing.T) {
+func TestSpotNewOrder(t *testing.T) {
 	t.Parallel()
-	_, err := g.NewOrder(PlaceRequestParams{
+	_, err := g.SpotNewOrder(SpotNewOrderRequestParams{
 		Symbol: g.GetSymbol(),
 		Amount: 1.1,
 		Price:  10.1,
-		Type:   PlaceRequestParamsTypeSell,
+		Type:   SpotNewOrderRequestParamsTypeSell,
 	})
 	if err != nil {
-		t.Errorf("Test failed - Gateio NewOrder: %s", err)
+		t.Errorf("Test failed - Gateio SpotNewOrder: %s", err)
 	}
 }
 

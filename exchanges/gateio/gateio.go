@@ -236,9 +236,9 @@ func (h *Gateio) GetBalances() (BalancesResponse, error) {
 	return result, nil
 }
 
-// NewOrder 下订单
-func (h *Gateio) NewOrder(arg PlaceRequestParams) (PlaceResponse, error) {
-	var result PlaceResponse
+// SpotNewOrder 下订单
+func (h *Gateio) SpotNewOrder(arg SpotNewOrderRequestParams) (SpotNewOrderResponse, error) {
+	var result SpotNewOrderResponse
 
 	//获取交易对的价格精度格式
 	params := fmt.Sprintf("currencyPair=%s&rate=%s&amount=%s",
