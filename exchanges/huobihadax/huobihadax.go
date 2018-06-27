@@ -57,7 +57,7 @@ type HUOBIHADAX struct {
 
 // SetDefaults sets default values for the exchange
 func (h *HUOBIHADAX) SetDefaults() {
-	h.Name = "Huobi"
+	h.Name = "HuobiHadax"
 	h.Enabled = false
 	h.Fee = 0
 	h.Verbose = false
