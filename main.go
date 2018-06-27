@@ -7,7 +7,7 @@ import (
 	"github.com/idoall/gocryptotrader/communications"
 	"github.com/idoall/gocryptotrader/config"
 	"github.com/idoall/gocryptotrader/exchanges"
-	"github.com/idoall/gocryptotrader/exchanges/okex"
+	"github.com/idoall/gocryptotrader/exchanges/huobi"
 	"github.com/idoall/gocryptotrader/portfolio"
 )
 
@@ -37,7 +37,7 @@ var bot Bot
 // getDefaultConfig 获取默认配置
 func getDefaultConfig() config.ExchangeConfig {
 	return config.ExchangeConfig{
-		Name:                    "okex",
+		Name:                    "huobi",
 		Enabled:                 true,
 		Verbose:                 true,
 		Websocket:               false,
@@ -55,14 +55,21 @@ func main() {
 	fmt.Println(time.Now())
 	// exchange := gateio.Gateio{}
 	// exchange := bitfinex.Bitfinex{}
-	exchange := okex.OKEX{}
-	// exchange := huobi.HUOBI{}
+	// exchange := okex.OKEX{}
+	exchange := huobi.HUOBI{}
 	defaultConfig := getDefaultConfig()
 	exchange.SetDefaults()
 	fmt.Println("----------setup-------")
 	exchange.Setup(defaultConfig)
 
-	fmt.Println(exchange.GetLatestSpotPrice(exchange.GetSymbol()))
+	arg := huobi.SpotNewOrderRequestParams{
+		Symbol:    exchange.GetSymbol(),
+		AccountID: 3838465,
+		Amount:    0.01,
+		Price:     10.1,
+		Type:      huobi.SpotNewOrderRequestTypeBuyLimit,
+	}
+	fmt.Println(exchange.SpotNewOrder(arg))
 
 	// res, err := exchange.SpotNewOrder(okex.SpotNewOrderRequestParams{
 	// 	Symbol: exchange.GetSymbol(),

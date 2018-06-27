@@ -350,23 +350,23 @@ func (h *HUOBI) GetAccountBalance(accountID string) ([]AccountBalanceDetail, err
 	return result.AccountBalanceData.AccountBalanceDetails, err
 }
 
-// PlaceOrder submits an order to Huobi
-func (h *HUOBI) PlaceOrder(symbol, source, accountID, orderType string, amount, price float64) (int64, error) {
+// SpotNewOrder submits an order to Huobi
+func (h *HUOBI) SpotNewOrder(arg SpotNewOrderRequestParams) (int64, error) {
 	vals := make(map[string]string)
-	vals["account-id"] = accountID
-	vals["amount"] = strconv.FormatFloat(amount, 'f', -1, 64)
+	vals["account-id"] = fmt.Sprintf("%d", arg.AccountID)
+	vals["amount"] = strconv.FormatFloat(arg.Amount, 'f', -1, 64)
 
 	// Only set price if order type is not equal to buy-market or sell-market
-	if orderType != "buy-market" && orderType != "sell-market" {
-		vals["price"] = strconv.FormatFloat(price, 'f', -1, 64)
+	if arg.Type != SpotNewOrderRequestTypeBuyMarkdt && arg.Type != SpotNewOrderRequestTypeSellMarkdt {
+		vals["price"] = strconv.FormatFloat(arg.Price, 'f', -1, 64)
 	}
 
-	if source != "" {
-		vals["source"] = source
+	if arg.Source != "" {
+		vals["source"] = arg.Source
 	}
 
-	vals["symbol"] = symbol
-	vals["type"] = orderType
+	vals["symbol"] = arg.Symbol
+	vals["type"] = string(arg.Type)
 
 	type response struct {
 		Response

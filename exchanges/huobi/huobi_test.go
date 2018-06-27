@@ -1,6 +1,7 @@
 package huobi
 
 import (
+	"fmt"
 	"strconv"
 	"testing"
 
@@ -161,12 +162,22 @@ func TestGetAccountBalance(t *testing.T) {
 	}
 }
 
-func TestPlaceOrder(t *testing.T) {
+func TestSpotNewOrder(t *testing.T) {
 	t.Parallel()
 
-	_, err := h.GetAccounts()
+	arg := SpotNewOrderRequestParams{
+		Symbol:    h.GetSymbol(),
+		AccountID: 000000,
+		Amount:    0.01,
+		Price:     10.1,
+		Type:      SpotNewOrderRequestTypeBuyLimit,
+	}
+
+	newOrderID, err := h.SpotNewOrder(arg)
 	if err != nil {
-		t.Errorf("Test failed - Huobi GetAccounts: %s", err)
+		t.Errorf("Test failed - Huobi SpotNewOrder: %s", err)
+	} else {
+		fmt.Println(newOrderID)
 	}
 
 	/*
