@@ -175,6 +175,35 @@ type MarginAccountBalance struct {
 
 //-----------
 
+// SpotNewOrderRequestParams 下订单的请求参数
+type SpotNewOrderRequestParams struct {
+	AccountID int                           `json:"account-id"` // 账户 ID，使用accounts方法获得。币币交易使用‘spot’账户的accountid；借贷资产交易，请使用‘margin’账户的accountid
+	Amount    float64                       `json:"amount"`     // 限价表示下单数量, 市价买单时表示买多少钱, 市价卖单时表示卖多少币
+	Price     float64                       `json:"price"`      // 下单价格, 市价单不传该参数
+	Source    string                        `json:"source"`     // 订单来源, api: API调用, margin-api: 借贷资产交易
+	Symbol    string                        `json:"symbol"`     // 交易对, btcusdt, bccbtc......
+	Type      SpotNewOrderRequestParamsType `json:"type"`       // 订单类型, buy-market: 市价买, sell-market: 市价卖, buy-limit: 限价买, sell-limit: 限价卖
+}
+
+// SpotNewOrderRequestParamsType 火币交易类型
+type SpotNewOrderRequestParamsType string
+
+var (
+	// SpotNewOrderRequestTypeBuyMarkdt 市价买
+	SpotNewOrderRequestTypeBuyMarkdt = SpotNewOrderRequestParamsType("buy-market")
+
+	// SpotNewOrderRequestTypeSellMarkdt 市价卖
+	SpotNewOrderRequestTypeSellMarkdt = SpotNewOrderRequestParamsType("sell-market")
+
+	// SpotNewOrderRequestTypeBuyLimit 限价买
+	SpotNewOrderRequestTypeBuyLimit = SpotNewOrderRequestParamsType("buy-limit")
+
+	// SpotNewOrderRequestTypeSellLimit 限价卖
+	SpotNewOrderRequestTypeSellLimit = SpotNewOrderRequestParamsType("sell-limit")
+)
+
+//-----------
+
 // KlinesRequestParams represents Klines request data.
 type KlinesRequestParams struct {
 	Symbol string       //交易对, btcusdt, bccbtc......
