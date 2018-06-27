@@ -813,7 +813,9 @@ func (o *OKEX) GetSpotKline(arg KlinesRequestParams) ([]CandleStickData, error) 
 	values := url.Values{}
 	values.Set("symbol", arg.Symbol)
 	values.Set("type", string(arg.Type))
-	values.Set("size", strconv.FormatInt(int64(arg.Size), 10))
+	if arg.Size != 0 {
+		values.Set("size", strconv.FormatInt(int64(arg.Size), 10))
+	}
 	if arg.Since != 0 {
 		values.Set("since", strconv.FormatInt(int64(arg.Since), 10))
 	}
