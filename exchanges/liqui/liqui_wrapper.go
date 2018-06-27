@@ -59,12 +59,13 @@ func (l *Liqui) UpdateTicker(p pair.CurrencyPair, assetType string) (ticker.Pric
 		currency := exchange.FormatExchangeCurrency(l.Name, x).String()
 		var tp ticker.Price
 		tp.Pair = x
+		tp.High = result[currency].High
 		tp.Last = result[currency].Last
 		tp.Ask = result[currency].Sell
 		tp.Bid = result[currency].Buy
 		tp.Last = result[currency].Last
 		tp.Low = result[currency].Low
-		tp.Volume = result[currency].VolumeCurrency
+		tp.Volume = result[currency].Vol
 		ticker.ProcessTicker(l.Name, x, tp, assetType)
 	}
 
