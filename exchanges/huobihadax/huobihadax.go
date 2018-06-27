@@ -63,7 +63,7 @@ func (h *HUOBIHADAX) SetDefaults() {
 	h.Verbose = false
 	h.Websocket = false
 	h.RESTPollingDelay = 10
-	h.RequestCurrencyPairFormat.Uppercase = true
+	h.RequestCurrencyPairFormat.Uppercase = false
 	h.Requester = request.New(h.Name, request.NewRateLimit(time.Second*10, huobihadaxAuthRate), request.NewRateLimit(time.Second*10, huobihadaxUnauthRate), common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 }
 
