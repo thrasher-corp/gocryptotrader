@@ -470,30 +470,31 @@ func (b *Bitfinex) GetSymbolsDetails() ([]SymbolDetails, error) {
 }
 
 // GetAccountInfo returns information about your account incl. trading fees
-// 查看提现手续费
-func (b *Bitfinex) GetAccountInfo() (map[string]float64, error) {
+// 返回帐号信息，包括提现费用
+func (b *Bitfinex) GetAccountInfo() (AccountInfo, error) {
 
-	// response := AccountInfoFull{}
-	type resoonse struct {
-		Withdraw map[string]interface{} `json:"withdraw"`
-	}
+	var result AccountInfo
 
-	var res resoonse
-
-	err := b.SendAuthenticatedHTTPRequest("POST", bitfinexAccountFees, nil, &res)
+	var response []interface{}
+	err := b.SendAuthenticatedHTTPRequest("POST", bitfinexAccountInfo, nil, &response)
 
 	if err != nil {
-		return nil, err
+		return result, err
 	}
 
-	result := make(map[string]float64, len(res.Withdraw))
-	for k, v := range res.Withdraw {
-		val, err := common.FloatFromString(v)
-		if err != nil {
-			result[k] = v.(float64)
-		} else {
-			result[k] = val
-		}
+	result = AccountInfo{}
+	result.MakerFees = response[0].(map[string]interface{})["maker_fees"].(string)
+	result.TakerFees = response[0].(map[string]interface{})["taker_fees"].(string)
+
+	feeslist := response[0].(map[string]interface{})["fees"].([]interface{})
+	for _, v := range feeslist {
+		item := v.(map[string]interface{})
+
+		result.Fees = append(result.Fees, AccountInfoFees{
+			Pairs:     item["pairs"].(string),
+			MakerFees: item["maker_fees"].(string),
+			TakerFees: item["taker_fees"].(string),
+		})
 	}
 
 	return result, nil

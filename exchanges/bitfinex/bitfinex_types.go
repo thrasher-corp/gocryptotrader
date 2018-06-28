@@ -133,14 +133,17 @@ type AccountInfoFull struct {
 
 // AccountInfo general account information with fees
 type AccountInfo struct {
+	MakerFees string            `json:"maker_fees"`
+	TakerFees string            `json:"taker_fees"`
+	Fees      []AccountInfoFees `json:"fees"`
+	Message   string            `json:"message"`
+}
+
+// AccountInfoFees general account information with fees
+type AccountInfoFees struct {
+	Pairs     string `json:"pairs"`
 	MakerFees string `json:"maker_fees"`
 	TakerFees string `json:"taker_fees"`
-	Fees      []struct {
-		Pairs     string `json:"pairs"`
-		MakerFees string `json:"maker_fees"`
-		TakerFees string `json:"taker_fees"`
-	} `json:"fees"`
-	Message string `json:"message"`
 }
 
 // AccountFees stores withdrawal account fee data from Bitfinex
@@ -462,6 +465,8 @@ type WebsocketTradeExecuted struct {
 type ErrorCapture struct {
 	Message string `json:"message"`
 }
+
+//----------------account_infos
 
 //-----------------
 // TimeInterval represents interval enum.
