@@ -208,7 +208,19 @@ func (h *ZB) GetTicker(symbol string) (TicketResponse, error) {
 // GetSpotKline K 线
 func (h *ZB) GetSpotKline(arg KlinesRequestParams) (KLineResponse, error) {
 
-	url := fmt.Sprintf("%s/%s/%s?market=%s", zbTradeURL, zbAPIVersion, zbKline, arg.Symbol)
+	// var res interface{}
+	vals := url.Values{}
+	vals.Set("type", string(arg.Type))
+	vals.Set("market", arg.Symbol)
+	if arg.Since != "" {
+		vals.Set("since", arg.Since)
+	}
+	if arg.Size != 0 {
+		vals.Set("size", fmt.Sprintf("%d", arg.Size))
+	}
+
+	// url := fmt.Sprintf("%s/%s/%s?market=%s", zbTradeURL, zbAPIVersion, zbKline, arg.Symbol)
+	url := fmt.Sprintf("%s/%s/%s?%s", zbTradeURL, zbAPIVersion, zbKline, vals.Encode())
 
 	var res KLineResponse
 	var rawKlines map[string]interface{}
