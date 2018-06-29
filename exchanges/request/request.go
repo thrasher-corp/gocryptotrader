@@ -268,7 +268,7 @@ func (r *Requester) DoRequest(req *http.Request, method, path string, headers ma
 		log.Printf("%s exchange raw response: %s", r.Name, string(contents[:]))
 	}
 
-	fmt.Println(common.JSONDecode(contents, result))
+	// fmt.Println(common.JSONDecode(contents, result))
 
 	if result != nil {
 		return common.JSONDecode(contents, result)
