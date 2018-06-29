@@ -41,6 +41,7 @@ const (
 	HashSHA256
 	HashSHA512
 	HashSHA512_384
+	MD5New
 	SatoshisPerBTC = 100000000
 	SatoshisPerLTC = 100000000
 	WeiPerEther    = 1000000000000000000
@@ -121,11 +122,22 @@ func GetHMAC(hashType int, input, key []byte) []byte {
 		{
 			hash = sha512.New384
 		}
+	case MD5New:
+		{
+			hash = md5.New
+		}
 	}
 
 	hmac := hmac.New(hash, []byte(key))
 	hmac.Write(input)
 	return hmac.Sum(nil)
+}
+
+// Sign signs provided payload and returns encoded string sum.
+func Sha1ToHex(data string) string {
+	h := sha1.New()
+	h.Write([]byte(data))
+	return hex.EncodeToString(h.Sum(nil))
 }
 
 // HexEncodeToString takes in a hexadecimal byte array and returns a string

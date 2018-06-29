@@ -242,15 +242,14 @@ func (r *Requester) DoRequest(req *http.Request, method, path string, headers ma
 	}
 
 	resp, err := r.HTTPClient.Do(req)
-	if err != nil {
 
+	if err != nil {
 		if r.RequiresRateLimiter() {
 			r.DecrementRequests(authRequest)
 		}
 
 		return err
 	}
-
 	if resp == nil {
 		if r.RequiresRateLimiter() {
 			r.DecrementRequests(authRequest)
