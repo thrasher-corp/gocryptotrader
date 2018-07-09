@@ -48,7 +48,7 @@
     "dependencies": {
         "node-sass": "^4.9.2",
         "rxjs-compat": "^6.2.1",
-        "rxjs-tslint": "^0.1.4"
+        "rxjs-tslint": "^0.1.5"
     },
     "devDependencies": {
         "@amcharts/amcharts3-angular": "^2.1.1",
