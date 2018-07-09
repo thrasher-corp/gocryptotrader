@@ -79,7 +79,7 @@
         "dotenv": "^6.0.0",
         "electron": "^1.8.4",
         "electron-builder": "^20.15.3",
-        "electron-reload": "^1.2.2",
+        "electron-reload": "^1.2.5",
         "fs-extra": "^5.0.0",
         "jasmine-core": "^2.99.1",
         "jasmine-spec-reporter": "^4.2.1",
