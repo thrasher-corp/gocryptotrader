@@ -209,22 +209,22 @@ type QueryOrderData struct {
 	IsWorking     bool    `json:"isWorking"`
 }
 
-// QueryOrderData holds query order data
-type Blance struct {
+// Balance holds query order data
+type Balance struct {
 	Asset  string `json:"asset"`
 	Free   string `json:"free"`
 	Locked string `json:"locked"`
 }
 
-// AccountInfo holds the account data
+// Account holds the account data
 type Account struct {
-	MakerCommission  int      `json:"makerCommission"`
-	TakerCommission  int      `json:"takerCommission"`
-	BuyerCommission  int      `json:"buyerCommission"`
-	SellerCommission int      `json:"sellerCommission"`
-	CanTrade         bool     `json:"canTrade"`
-	CanWithdraw      bool     `json:"canWithdraw"`
-	CanDeposit       bool     `json:"canDeposit"`
-	UpdateTime       int64    `json:"updateTime"`
-	Blances          []Blance `json:"balances"`
+	MakerCommission  int       `json:"makerCommission"`
+	TakerCommission  int       `json:"takerCommission"`
+	BuyerCommission  int       `json:"buyerCommission"`
+	SellerCommission int       `json:"sellerCommission"`
+	CanTrade         bool      `json:"canTrade"`
+	CanWithdraw      bool      `json:"canWithdraw"`
+	CanDeposit       bool      `json:"canDeposit"`
+	UpdateTime       int64     `json:"updateTime"`
+	Balances         []Balance `json:"balances"`
 }
