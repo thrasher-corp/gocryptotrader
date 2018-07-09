@@ -9,11 +9,13 @@
         "github": "https://github.com/gloriousCode/",
         "website": "https://www.gloriousedge.com"
     },
-    "contributors": [{
-        "name": "Maxime GRIS",
-        "email": "maxime.gris@gmail.com",
-        "github": "https://github.com/maximegris/"
-    }],
+    "contributors": [
+        {
+            "name": "Maxime GRIS",
+            "email": "maxime.gris@gmail.com",
+            "github": "https://github.com/maximegris/"
+        }
+    ],
     "keywords": [
         "angular",
         "electron",
