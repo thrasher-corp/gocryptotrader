@@ -46,7 +46,7 @@
         "start:web": "ng serve --o"
     },
     "dependencies": {
-        "node-sass": "^4.9.0",
+        "node-sass": "^4.9.2",
         "rxjs-compat": "^6.2.0",
         "rxjs-tslint": "^0.1.4"
     },
