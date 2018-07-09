@@ -86,6 +86,8 @@
         "karma": "^2.0.2",
         "karma-chrome-launcher": "2.2.0",
         "karma-coverage-istanbul-reporter": "1.4.2",
+        "karma-jasmine": "^1.1.2",
+        "karma-jasmine-html-reporter": "^1.2.0",
         "npm-run-all": "4.1.2",
         "npx": "^10.2.0",
         "protractor": "^5.3.2",
