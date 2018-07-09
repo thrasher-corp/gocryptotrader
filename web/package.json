@@ -76,7 +76,7 @@
         "codelyzer": "4.2.1",
         "core-js": "2.5.5",
         "cross-env": "5.1.4",
-        "dotenv": "5.0.1",
+        "dotenv": "6.0.0",
         "electron": "1.8.4",
         "electron-builder": "^20.15.3",
         "electron-reload": "1.2.2",
