@@ -16,9 +16,9 @@ import (
 	"github.com/thrasher-/gocryptotrader/exchanges/bittrex"
 	"github.com/thrasher-/gocryptotrader/exchanges/btcc"
 	"github.com/thrasher-/gocryptotrader/exchanges/btcmarkets"
+	"github.com/thrasher-/gocryptotrader/exchanges/coinbasepro"
 	"github.com/thrasher-/gocryptotrader/exchanges/coinut"
 	"github.com/thrasher-/gocryptotrader/exchanges/exmo"
-	"github.com/thrasher-/gocryptotrader/exchanges/gdax"
 	"github.com/thrasher-/gocryptotrader/exchanges/gemini"
 	"github.com/thrasher-/gocryptotrader/exchanges/hitbtc"
 	"github.com/thrasher-/gocryptotrader/exchanges/huobi"
@@ -154,8 +154,8 @@ func LoadExchange(name string, useWG bool, wg *sync.WaitGroup) error {
 		exch = new(coinut.COINUT)
 	case "exmo":
 		exch = new(exmo.EXMO)
-	case "gdax":
-		exch = new(gdax.GDAX)
+	case "coinbasepro":
+		exch = new(coinbasepro.CoinbasePro)
 	case "gemini":
 		exch = new(gemini.Gemini)
 	case "hitbtc":

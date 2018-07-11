@@ -470,6 +470,10 @@ func (c *Config) UpdateExchangeConfig(e ExchangeConfig) error {
 func (c *Config) CheckExchangeConfigValues() error {
 	exchanges := 0
 	for i, exch := range c.Exchanges {
+		if exch.Name == "GDAX" {
+			c.Exchanges[i].Name = "CoinbasePro"
+		}
+
 		if exch.Enabled {
 			if exch.Name == "" {
 				return fmt.Errorf(ErrExchangeNameEmpty, i)
@@ -487,7 +491,7 @@ func (c *Config) CheckExchangeConfigValues() error {
 				if exch.APIKey == "" || exch.APISecret == "" || exch.APIKey == "Key" || exch.APISecret == "Secret" {
 					c.Exchanges[i].AuthenticatedAPISupport = false
 					log.Printf(WarningExchangeAuthAPIDefaultOrEmptyValues, exch.Name)
-				} else if exch.Name == "ITBIT" || exch.Name == "Bitstamp" || exch.Name == "COINUT" || exch.Name == "GDAX" {
+				} else if exch.Name == "ITBIT" || exch.Name == "Bitstamp" || exch.Name == "COINUT" || exch.Name == "CoinbasePro" {
 					if exch.ClientID == "" || exch.ClientID == "ClientID" {
 						c.Exchanges[i].AuthenticatedAPISupport = false
 						log.Printf(WarningExchangeAuthAPIDefaultOrEmptyValues, exch.Name)

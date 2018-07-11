@@ -419,7 +419,7 @@
    }
   },
   {
-   "Name": "GDAX",
+   "Name": "CoinbasePro",
    "Enabled": true,
    "Verbose": false,
    "Websocket": false,
