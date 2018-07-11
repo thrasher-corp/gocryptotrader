@@ -187,14 +187,14 @@ func TestGetExchangeOrderInfo(t *testing.T) {
 }
 
 func TestWithdrawExchangeCryptoFunds(t *testing.T) {
-	_, err := bm.WithdrawExchangeCryptoFunds("someaddress", "ltc", 0)
+	_, err := bm.WithdrawCryptoExchangeFunds("someaddress", "ltc", 0)
 	if err == nil {
 		t.Error("Test failed - WithdrawExchangeFunds() error", err)
 	}
 }
 
 func TestWithdrawExchangeFiatFundsToLocalBank(t *testing.T) {
-	_, err := bm.WithdrawExchangeFiatFundsToLocalBank("AUD", 0)
+	_, err := bm.WithdrawFiatExchangeFunds("AUD", 0)
 	if err == nil {
 		t.Error("Test failed - WithdrawExchangeFiatFunds() error", err)
 	}

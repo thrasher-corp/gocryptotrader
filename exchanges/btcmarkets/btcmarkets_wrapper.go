@@ -2,7 +2,6 @@ package btcmarkets
 
 import (
 	"errors"
-	"fmt"
 	"log"
 	"sync"
 
@@ -228,23 +227,18 @@ func (b *BTCMarkets) GetExchangeDepositAddress(cryptocurrency pair.CurrencyItem)
 	return "", errors.New("not supported on exchange")
 }
 
-// WithdrawExchangeCryptoFunds returns a withdrawal ID when a withdrawal is submitted
-func (b *BTCMarkets) WithdrawExchangeCryptoFunds(address string, cryptocurrency pair.CurrencyItem, amount float64) (string, error) {
+// WithdrawCryptoExchangeFunds returns a withdrawal ID when a withdrawal is submitted
+func (b *BTCMarkets) WithdrawCryptoExchangeFunds(address string, cryptocurrency pair.CurrencyItem, amount float64) (string, error) {
 	return b.WithdrawCrypto(amount, cryptocurrency.String(), address)
 }
 
-// WithdrawExchangeFiatFundsToLocalBank returns a withdrawal ID when a
+// WithdrawFiatExchangeFunds returns a withdrawal ID when a
 // withdrawal is submitted
-func (b *BTCMarkets) WithdrawExchangeFiatFundsToLocalBank(currency pair.CurrencyItem, amount float64) (string, error) {
-	if currency.String() != "AUD" {
-		return "", fmt.Errorf("cannot withdraw currency - %s not supported", currency.String())
-	}
-
-	bd, err := b.GetBankLocalWithdrawDetails()
+func (b *BTCMarkets) WithdrawFiatExchangeFunds(currency pair.CurrencyItem, amount float64) (string, error) {
+	bd, err := b.GetClientBankDetails(b.Name, currency.Upper().String())
 	if err != nil {
 		return "", err
 	}
-
 	return b.WithdrawAUD(bd.AccountName, bd.AccountNumber, bd.BankName, bd.BSBNumber, amount)
 }
 

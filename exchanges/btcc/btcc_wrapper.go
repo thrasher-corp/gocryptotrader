@@ -181,13 +181,13 @@ func (b *BTCC) GetExchangeDepositAddress(cryptocurrency pair.CurrencyItem) (stri
 
 // WithdrawExchangeCryptoFunds returns a withdrawal ID when a withdrawal is
 // submitted
-func (b *BTCC) WithdrawExchangeCryptoFunds(address string, cryptocurrency pair.CurrencyItem, amount float64) (string, error) {
+func (b *BTCC) WithdrawCryptoExchangeFunds(address string, cryptocurrency pair.CurrencyItem, amount float64) (string, error) {
 	return "", errors.New("not yet implemented")
 }
 
 // WithdrawExchangeFiatFundsToLocalBank returns a withdrawal ID when a
 // withdrawal is submitted
-func (b *BTCC) WithdrawExchangeFiatFundsToLocalBank(currency pair.CurrencyItem, amount float64) (string, error) {
+func (b *BTCC) WithdrawFiatExchangeFunds(currency pair.CurrencyItem, amount float64) (string, error) {
 	return "", errors.New("not yet implemented")
 }
 

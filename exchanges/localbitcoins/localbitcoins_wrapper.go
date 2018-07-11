@@ -153,13 +153,13 @@ func (l *LocalBitcoins) GetExchangeDepositAddress(cryptocurrency pair.CurrencyIt
 
 // WithdrawExchangeCryptoFunds returns a withdrawal ID when a withdrawal is
 // submitted
-func (l *LocalBitcoins) WithdrawExchangeCryptoFunds(address string, cryptocurrency pair.CurrencyItem, amount float64) (string, error) {
+func (l *LocalBitcoins) WithdrawCryptoExchangeFunds(address string, cryptocurrency pair.CurrencyItem, amount float64) (string, error) {
 	return "", errors.New("not yet implemented")
 }
 
 // WithdrawExchangeFiatFundsToLocalBank returns a withdrawal ID when a
 // withdrawal is submitted
-func (l *LocalBitcoins) WithdrawExchangeFiatFundsToLocalBank(currency pair.CurrencyItem, amount float64) (string, error) {
+func (l *LocalBitcoins) WithdrawFiatExchangeFunds(currency pair.CurrencyItem, amount float64) (string, error) {
 	return "", errors.New("not yet implemented")
 }
 

@@ -160,13 +160,13 @@ func (g *Gemini) GetExchangeDepositAddress(cryptocurrency pair.CurrencyItem) (st
 
 // WithdrawExchangeCryptoFunds returns a withdrawal ID when a withdrawal is
 // submitted
-func (g *Gemini) WithdrawExchangeCryptoFunds(address string, cryptocurrency pair.CurrencyItem, amount float64) (string, error) {
+func (g *Gemini) WithdrawCryptoExchangeFunds(address string, cryptocurrency pair.CurrencyItem, amount float64) (string, error) {
 	return "", errors.New("not yet implemented")
 }
 
 // WithdrawExchangeFiatFundsToLocalBank returns a withdrawal ID when a
 // withdrawal is submitted
-func (g *Gemini) WithdrawExchangeFiatFundsToLocalBank(currency pair.CurrencyItem, amount float64) (string, error) {
+func (g *Gemini) WithdrawFiatExchangeFunds(currency pair.CurrencyItem, amount float64) (string, error) {
 	return "", errors.New("not yet implemented")
 }
 

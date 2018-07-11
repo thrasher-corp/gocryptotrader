@@ -173,13 +173,13 @@ func (y *Yobit) GetExchangeDepositAddress(cryptocurrency pair.CurrencyItem) (str
 
 // WithdrawExchangeCryptoFunds returns a withdrawal ID when a withdrawal is
 // submitted
-func (y *Yobit) WithdrawExchangeCryptoFunds(address string, cryptocurrency pair.CurrencyItem, amount float64) (string, error) {
+func (y *Yobit) WithdrawCryptoExchangeFunds(address string, cryptocurrency pair.CurrencyItem, amount float64) (string, error) {
 	return "", errors.New("not yet implemented")
 }
 
 // WithdrawExchangeFiatFundsToLocalBank returns a withdrawal ID when a
 // withdrawal is submitted
-func (y *Yobit) WithdrawExchangeFiatFundsToLocalBank(currency pair.CurrencyItem, amount float64) (string, error) {
+func (y *Yobit) WithdrawFiatExchangeFunds(currency pair.CurrencyItem, amount float64) (string, error) {
 	return "", errors.New("not yet implemented")
 }
 

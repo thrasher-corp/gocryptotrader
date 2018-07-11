@@ -178,13 +178,13 @@ func (c *COINUT) GetExchangeDepositAddress(cryptocurrency pair.CurrencyItem) (st
 
 // WithdrawExchangeCryptoFunds returns a withdrawal ID when a withdrawal is
 // submitted
-func (c *COINUT) WithdrawExchangeCryptoFunds(address string, cryptocurrency pair.CurrencyItem, amount float64) (string, error) {
+func (c *COINUT) WithdrawCryptoExchangeFunds(address string, cryptocurrency pair.CurrencyItem, amount float64) (string, error) {
 	return "", errors.New("not yet implemented")
 }
 
 // WithdrawExchangeFiatFundsToLocalBank returns a withdrawal ID when a
 // withdrawal is submitted
-func (c *COINUT) WithdrawExchangeFiatFundsToLocalBank(currency pair.CurrencyItem, amount float64) (string, error) {
+func (c *COINUT) WithdrawFiatExchangeFunds(currency pair.CurrencyItem, amount float64) (string, error) {
 	return "", errors.New("not yet implemented")
 }
 

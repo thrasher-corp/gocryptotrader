@@ -16,108 +16,86 @@ func TestGetCurrencyConfig(t *testing.T) {
 	_ = cfg.GetCurrencyConfig()
 }
 
-func TestGetLocalBankDetails(t *testing.T) {
-	cfg := GetConfig()
-	err := cfg.LoadConfig(ConfigTestFile)
-	if err != nil {
-		t.Error("Test failed. GetLocalBankDetails LoadConfig error", err)
-	}
-	_, err = cfg.GetLocalBankDetails("ANX")
-	if err == nil {
-		t.Error("Test failed. GetLocalBankDetails error")
-	}
-}
-
-func TestUpdateLocalBankDetails(t *testing.T) {
-	cfg := GetConfig()
-	err := cfg.LoadConfig(ConfigTestFile)
-	if err != nil {
-		t.Error("Test failed. UpdateLocalBankDetails LoadConfig error", err)
-	}
-	b := BankConfig{}
-	b.AccountName = "Something"
-	err = cfg.UpdateLocalBankDetails("ANX", b)
-	if err != nil {
-		t.Error("Test failed. UpdateLocalBankDetails error", err)
-	}
-	var count int
-	for _, exch := range cfg.Exchanges {
-		if exch.Name == "ANX" {
-			if exch.LocalBank.AccountName == "Something" {
-				count++
-			}
-		}
-	}
-	if count != 1 {
-		t.Error("Test failed. UpdateLocalBankDetails error")
-	}
-}
-
-func TestGetInternationalBankDetails(t *testing.T) {
-	cfg := GetConfig()
-	err := cfg.LoadConfig(ConfigTestFile)
-	if err != nil {
-		t.Error("Test failed. GetInternationalBankDetails LoadConfig error", err)
-	}
-	_, err = cfg.GetInternationalBankDetails("ANX")
-	if err == nil {
-		t.Error("Test failed. GetInternationalBankDetails error")
-	}
-}
-
-func TestUpdateInternationalBankDetails(t *testing.T) {
-	cfg := GetConfig()
-	err := cfg.LoadConfig(ConfigTestFile)
-	if err != nil {
-		t.Error("Test failed. UpdateInternationalBankDetails LoadConfig error", err)
-	}
-	b := BankConfig{}
-	b.AccountName = "Something"
-	err = cfg.UpdateInternationalBankDetails("ANX", b)
-	if err != nil {
-		t.Error("Test failed. UpdateInternationalBankDetails error", err)
-	}
-	var count int
-	for _, exch := range cfg.Exchanges {
-		if exch.Name == "ANX" {
-			if exch.InternationalBank.AccountName == "Something" {
-				count++
-			}
-		}
-	}
-	if count != 1 {
-		t.Error("Test failed. UpdateLocalBankDetails error")
-	}
-}
-
-func TestGetDepositBankDetails(t *testing.T) {
+func TestGetExchangeBankDetails(t *testing.T) {
 	cfg := GetConfig()
 	err := cfg.LoadConfig(ConfigTestFile)
 	if err != nil {
 		t.Error("Test failed. GetDepositBankDetails LoadConfig error", err)
 	}
-	_, err = cfg.GetDepositBankDetails("ANX")
-	if err == nil {
-		t.Error("Test failed. GetDepositBankDetails error")
+	_, err = cfg.GetExchangeBankDetails("Bitfinex", "USD")
+	if err != nil {
+		t.Error("Test failed. GetDepositBankDetails error", err)
 	}
 }
 
-func TestUpdateUpdateDepositBankDetails(t *testing.T) {
+func TestUpdateExchangeBankDetails(t *testing.T) {
 	cfg := GetConfig()
 	err := cfg.LoadConfig(ConfigTestFile)
 	if err != nil {
 		t.Error("Test failed. UpdateDepositBankDetails LoadConfig error", err)
 	}
 	b := BankConfig{}
-	b.AccountName = "Something"
-	err = cfg.UpdateDepositBankDetails("ANX", b)
+	b.Enabled = false
+	err = cfg.UpdateExchangeBankDetails("Bitfinex", b)
 	if err != nil {
 		t.Error("Test failed. UpdateDepositBankDetails error", err)
 	}
 	var count int
 	for _, exch := range cfg.Exchanges {
-		if exch.Name == "ANX" {
-			if exch.DepositBank.AccountName == "Something" {
+		if exch.Name == "Bitfinex" {
+			if exch.BankDetails.Enabled == false {
+				count++
+			}
+		}
+	}
+	if count != 1 {
+		t.Error("Test failed. UpdateDepositBankDetails error")
+	}
+}
+
+func TestGetClientBankDetails(t *testing.T) {
+	cfg := GetConfig()
+	err := cfg.LoadConfig(ConfigTestFile)
+	if err != nil {
+		t.Error("Test failed. GetClientBankDetails LoadConfig error", err)
+	}
+	_, err = cfg.GetClientBankDetails("Kraken", "USD")
+	if err != nil {
+		t.Error("Test failed. GetClientBankDetails error", err)
+	}
+	_, err = cfg.GetClientBankDetails("Bla", "USD")
+	if err == nil {
+		t.Error("Test failed. GetClientBankDetails error")
+	}
+	_, err = cfg.GetClientBankDetails("Kraken", "JPY")
+	if err != nil {
+		t.Error("Test failed. GetClientBankDetails error", err)
+	}
+}
+
+func TestUpdateClientBankDetails(t *testing.T) {
+	cfg := GetConfig()
+	err := cfg.LoadConfig(ConfigTestFile)
+	if err != nil {
+		t.Error("Test failed. UpdateClientBankDetails LoadConfig error", err)
+	}
+	b := BankConfig{}
+	b.Enabled = false
+	b.BankName = "Bnp Paribas Paris"
+	err = cfg.UpdateClientBankDetails(b)
+	if err != nil {
+		t.Error("Test failed. UpdateClientBankDetails error", err)
+	}
+
+	err = cfg.UpdateClientBankDetails(BankConfig{})
+	if err == nil {
+		t.Error("Test failed. UpdateClientBankDetails error")
+	}
+
+	var count int
+	for _, bank := range cfg.ClientBankDetails {
+		if bank.BankName == b.BankName {
+			if bank.Enabled == false {
 				count++
 			}
 		}
@@ -390,14 +368,13 @@ func TestGetExchangeConfig(t *testing.T) {
 			"Test failed. GetExchangeConfig.LoadConfig Error: %s", err.Error(),
 		)
 	}
-	r, err := GetExchangeConfig.GetExchangeConfig("ANX")
-	if err != nil && (ExchangeConfig{}) == r {
-		t.Errorf(
-			"Test failed. GetExchangeConfig.GetExchangeConfig Error: %s", err.Error(),
-		)
+	_, err = GetExchangeConfig.GetExchangeConfig("ANX")
+	if err != nil {
+		t.Errorf("Test failed. GetExchangeConfig.GetExchangeConfig Error: %s",
+			err.Error())
 	}
-	r, err = GetExchangeConfig.GetExchangeConfig("Testy")
-	if err == nil && (ExchangeConfig{}) == r {
+	_, err = GetExchangeConfig.GetExchangeConfig("Testy")
+	if err == nil {
 		t.Error("Test failed. GetExchangeConfig.GetExchangeConfig Error")
 	}
 }

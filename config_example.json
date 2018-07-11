@@ -1,6 +1,6 @@
 {
  "Name": "Skynet",
- "EncryptConfig": 0,
+ "EncryptConfig": -1,
  "GlobalHTTPTimeout": 15000000000,
  "CurrencyConfig": {
   "ForexProviders": [
@@ -10,7 +10,7 @@
     "Verbose": false,
     "RESTPollingDelay": 600,
     "APIKey": "",
-    "APIKeyLvl": -1,
+    "APIKeyLvl": 0,
     "PrimaryProvider": true
    },
    {
@@ -41,7 +41,7 @@
     "PrimaryProvider": false
    }
   ],
-  "Cryptocurrencies": "BTC,LTC,ETH,XRP,NMC,NVC,PPC,XBT,DOGE,DASH",
+  "Cryptocurrencies": "BTC,LTC,ETH,DOGE,DASH,XRP,XMR",
   "CurrencyPairFormat": {
    "Uppercase": true,
    "Delimiter": "-"
@@ -58,15 +58,15 @@
   },
   "SMSGlobal": {
    "Name": "SMSGlobal",
-   "Enabled": false,
+   "Enabled": true,
    "Verbose": false,
-   "Username": "Username",
-   "Password": "Password",
+   "Username": "1234",
+   "Password": "12334",
    "Contacts": [
     {
-     "Name": "Bob",
-     "Number": "12345",
-     "Enabled": false
+     "Name": "StyleGherkin",
+     "Number": "1231424",
+     "Enabled": true
     }
    ]
   },
@@ -98,7 +98,7 @@
    {
     "Address": "3Nxwenay9Z8Lc9JBiywExpnEFiLp6Afp8v",
     "CoinType": "BTC",
-    "Balance": 97848.28320523,
+    "Balance": 103848.27285787,
     "Description": ""
    },
    {
@@ -120,8 +120,8 @@
   "AdminUsername": "admin",
   "AdminPassword": "Password",
   "ListenAddress": ":9050",
-  "WebsocketConnectionLimit": 0,
-  "WebsocketMaxAuthFailures": 0,
+  "WebsocketConnectionLimit": 1,
+  "WebsocketMaxAuthFailures": 3,
   "WebsocketAllowInsecureOrigin": false
  },
  "Exchanges": [
@@ -148,32 +148,12 @@
    "RequestCurrencyPairFormat": {
     "Uppercase": true
    },
-   "InternationalBank": {
+   "BankDetails": {
     "Enabled": false,
     "BankName": "",
-    "AccountName": "",
-    "AccountNumber": "",
-    "BSBNumber": "",
-    "SwiftCode": "",
-    "IBAN": ""
-   },
-   "LocalBank": {
-    "Enabled": false,
-    "BankName": "",
-    "AccountName": "",
-    "AccountNumber": "",
-    "BSBNumber": "",
-    "SwiftCode": "",
-    "IBAN": ""
-   },
-   "DepositBank": {
-    "Enabled": false,
-    "BankName": "",
-    "AccountName": "",
-    "AccountNumber": "",
-    "BSBNumber": "",
-    "SwiftCode": "",
-    "IBAN": ""
+    "BankAddress": "",
+    "Accounts": null,
+    "SupportedExchanges": ""
    }
   },
   {
@@ -199,32 +179,12 @@
    "RequestCurrencyPairFormat": {
     "Uppercase": true
    },
-   "InternationalBank": {
+   "BankDetails": {
     "Enabled": false,
     "BankName": "",
-    "AccountName": "",
-    "AccountNumber": "",
-    "BSBNumber": "",
-    "SwiftCode": "",
-    "IBAN": ""
-   },
-   "LocalBank": {
-    "Enabled": false,
-    "BankName": "",
-    "AccountName": "",
-    "AccountNumber": "",
-    "BSBNumber": "",
-    "SwiftCode": "",
-    "IBAN": ""
-   },
-   "DepositBank": {
-    "Enabled": false,
-    "BankName": "",
-    "AccountName": "",
-    "AccountNumber": "",
-    "BSBNumber": "",
-    "SwiftCode": "",
-    "IBAN": ""
+    "BankAddress": "",
+    "Accounts": null,
+    "SupportedExchanges": ""
    }
   },
   {
@@ -249,32 +209,31 @@
    "RequestCurrencyPairFormat": {
     "Uppercase": true
    },
-   "InternationalBank": {
+   "BankDetails": {
     "Enabled": false,
-    "BankName": "",
-    "AccountName": "",
-    "AccountNumber": "",
-    "BSBNumber": "",
-    "SwiftCode": "",
-    "IBAN": ""
-   },
-   "LocalBank": {
-    "Enabled": false,
-    "BankName": "",
-    "AccountName": "",
-    "AccountNumber": "",
-    "BSBNumber": "",
-    "SwiftCode": "",
-    "IBAN": ""
-   },
-   "DepositBank": {
-    "Enabled": false,
-    "BankName": "",
-    "AccountName": "",
-    "AccountNumber": "",
-    "BSBNumber": "",
-    "SwiftCode": "",
-    "IBAN": ""
+    "BankName": "Deutsche Bank Privat Und Geschaeftskunden AG",
+    "BankAddress": "Karlsruhe, 76125, GERMANY",
+    "Accounts": [
+     {
+      "AccountName": "GLOBAL TRADE SOLUTIONS GmbH",
+      "AccountNumber": "DE51660700240057016802",
+      "AccountAddress": "MarienstraBe 13, 47661 Issum, Germany",
+      "SwiftCode": "DEUTDEDB660",
+      "IBAN": "DE51660700240057016802",
+      "BSBNumber": "",
+      "SupportedFundingCurrencies": "EUR,USD"
+     },
+     {
+      "AccountName": "GLOBAL TRADE SOLUTIONS GmbH",
+      "AccountNumber": "DE78660700240057016801",
+      "AccountAddress": "MarienstraBe 13, 47661 Issum, Germany",
+      "SwiftCode": "DEUTDEDB660",
+      "IBAN": "DE78660700240057016801",
+      "BSBNumber": "",
+      "SupportedFundingCurrencies": "JPY,GBP"
+     }
+    ],
+    "SupportedExchanges": "N/A"
    }
   },
   {
@@ -302,32 +261,12 @@
     "Uppercase": true,
     "Delimiter": "_"
    },
-   "InternationalBank": {
+   "BankDetails": {
     "Enabled": false,
     "BankName": "",
-    "AccountName": "",
-    "AccountNumber": "",
-    "BSBNumber": "",
-    "SwiftCode": "",
-    "IBAN": ""
-   },
-   "LocalBank": {
-    "Enabled": false,
-    "BankName": "",
-    "AccountName": "",
-    "AccountNumber": "",
-    "BSBNumber": "",
-    "SwiftCode": "",
-    "IBAN": ""
-   },
-   "DepositBank": {
-    "Enabled": false,
-    "BankName": "",
-    "AccountName": "",
-    "AccountNumber": "",
-    "BSBNumber": "",
-    "SwiftCode": "",
-    "IBAN": ""
+    "BankAddress": "",
+    "Accounts": null,
+    "SupportedExchanges": ""
    }
   },
   {
@@ -354,32 +293,12 @@
    "RequestCurrencyPairFormat": {
     "Uppercase": true
    },
-   "InternationalBank": {
+   "BankDetails": {
     "Enabled": false,
     "BankName": "",
-    "AccountName": "",
-    "AccountNumber": "",
-    "BSBNumber": "",
-    "SwiftCode": "",
-    "IBAN": ""
-   },
-   "LocalBank": {
-    "Enabled": false,
-    "BankName": "",
-    "AccountName": "",
-    "AccountNumber": "",
-    "BSBNumber": "",
-    "SwiftCode": "",
-    "IBAN": ""
-   },
-   "DepositBank": {
-    "Enabled": false,
-    "BankName": "",
-    "AccountName": "",
-    "AccountNumber": "",
-    "BSBNumber": "",
-    "SwiftCode": "",
-    "IBAN": ""
+    "BankAddress": "",
+    "Accounts": null,
+    "SupportedExchanges": ""
    }
   },
   {
@@ -405,32 +324,12 @@
    "RequestCurrencyPairFormat": {
     "Uppercase": true
    },
-   "InternationalBank": {
+   "BankDetails": {
     "Enabled": false,
     "BankName": "",
-    "AccountName": "",
-    "AccountNumber": "",
-    "BSBNumber": "",
-    "SwiftCode": "",
-    "IBAN": ""
-   },
-   "LocalBank": {
-    "Enabled": false,
-    "BankName": "",
-    "AccountName": "",
-    "AccountNumber": "",
-    "BSBNumber": "",
-    "SwiftCode": "",
-    "IBAN": ""
-   },
-   "DepositBank": {
-    "Enabled": false,
-    "BankName": "",
-    "AccountName": "",
-    "AccountNumber": "",
-    "BSBNumber": "",
-    "SwiftCode": "",
-    "IBAN": ""
+    "BankAddress": "",
+    "Accounts": null,
+    "SupportedExchanges": ""
    }
   },
   {
@@ -457,32 +356,12 @@
     "Uppercase": true,
     "Delimiter": "-"
    },
-   "InternationalBank": {
+   "BankDetails": {
     "Enabled": false,
     "BankName": "",
-    "AccountName": "",
-    "AccountNumber": "",
-    "BSBNumber": "",
-    "SwiftCode": "",
-    "IBAN": ""
-   },
-   "LocalBank": {
-    "Enabled": false,
-    "BankName": "",
-    "AccountName": "",
-    "AccountNumber": "",
-    "BSBNumber": "",
-    "SwiftCode": "",
-    "IBAN": ""
-   },
-   "DepositBank": {
-    "Enabled": false,
-    "BankName": "",
-    "AccountName": "",
-    "AccountNumber": "",
-    "BSBNumber": "",
-    "SwiftCode": "",
-    "IBAN": ""
+    "BankAddress": "",
+    "Accounts": null,
+    "SupportedExchanges": ""
    }
   },
   {
@@ -507,32 +386,12 @@
    "RequestCurrencyPairFormat": {
     "Uppercase": false
    },
-   "InternationalBank": {
+   "BankDetails": {
     "Enabled": false,
     "BankName": "",
-    "AccountName": "",
-    "AccountNumber": "",
-    "BSBNumber": "",
-    "SwiftCode": "",
-    "IBAN": ""
-   },
-   "LocalBank": {
-    "Enabled": false,
-    "BankName": "",
-    "AccountName": "",
-    "AccountNumber": "",
-    "BSBNumber": "",
-    "SwiftCode": "",
-    "IBAN": ""
-   },
-   "DepositBank": {
-    "Enabled": false,
-    "BankName": "",
-    "AccountName": "",
-    "AccountNumber": "",
-    "BSBNumber": "",
-    "SwiftCode": "",
-    "IBAN": ""
+    "BankAddress": "",
+    "Accounts": null,
+    "SupportedExchanges": ""
    }
   },
   {
@@ -560,32 +419,12 @@
     "Delimiter": "_",
     "Separator": "-"
    },
-   "InternationalBank": {
+   "BankDetails": {
     "Enabled": false,
     "BankName": "",
-    "AccountName": "",
-    "AccountNumber": "",
-    "BSBNumber": "",
-    "SwiftCode": "",
-    "IBAN": ""
-   },
-   "LocalBank": {
-    "Enabled": false,
-    "BankName": "",
-    "AccountName": "",
-    "AccountNumber": "",
-    "BSBNumber": "",
-    "SwiftCode": "",
-    "IBAN": ""
-   },
-   "DepositBank": {
-    "Enabled": false,
-    "BankName": "",
-    "AccountName": "",
-    "AccountNumber": "",
-    "BSBNumber": "",
-    "SwiftCode": "",
-    "IBAN": ""
+    "BankAddress": "",
+    "Accounts": null,
+    "SupportedExchanges": ""
    }
   },
   {
@@ -599,7 +438,7 @@
    "AuthenticatedAPISupport": false,
    "APIKey": "Key",
    "APISecret": "Secret",
-   "AvailablePairs": "LTCAUD,BTCAUD,ETHAUD,ETCAUD,XRPAUD,BCHAUD,LTCBTC,ETHBTC,ETCBTC,XRPBTC,BCHBTC",
+   "AvailablePairs": "LTCAUD,BTCAUD",
    "EnabledPairs": "LTCAUD,BTCAUD",
    "BaseCurrencies": "AUD",
    "AssetTypes": "SPOT",
@@ -610,32 +449,12 @@
    "RequestCurrencyPairFormat": {
     "Uppercase": true
    },
-   "InternationalBank": {
+   "BankDetails": {
     "Enabled": false,
     "BankName": "",
-    "AccountName": "",
-    "AccountNumber": "",
-    "BSBNumber": "",
-    "SwiftCode": "",
-    "IBAN": ""
-   },
-   "LocalBank": {
-    "Enabled": false,
-    "BankName": "",
-    "AccountName": "",
-    "AccountNumber": "",
-    "BSBNumber": "",
-    "SwiftCode": "",
-    "IBAN": ""
-   },
-   "DepositBank": {
-    "Enabled": false,
-    "BankName": "",
-    "AccountName": "",
-    "AccountNumber": "",
-    "BSBNumber": "",
-    "SwiftCode": "",
-    "IBAN": ""
+    "BankAddress": "",
+    "Accounts": null,
+    "SupportedExchanges": ""
    }
   },
   {
@@ -661,32 +480,12 @@
    "RequestCurrencyPairFormat": {
     "Uppercase": true
    },
-   "InternationalBank": {
+   "BankDetails": {
     "Enabled": false,
     "BankName": "",
-    "AccountName": "",
-    "AccountNumber": "",
-    "BSBNumber": "",
-    "SwiftCode": "",
-    "IBAN": ""
-   },
-   "LocalBank": {
-    "Enabled": false,
-    "BankName": "",
-    "AccountName": "",
-    "AccountNumber": "",
-    "BSBNumber": "",
-    "SwiftCode": "",
-    "IBAN": ""
-   },
-   "DepositBank": {
-    "Enabled": false,
-    "BankName": "",
-    "AccountName": "",
-    "AccountNumber": "",
-    "BSBNumber": "",
-    "SwiftCode": "",
-    "IBAN": ""
+    "BankAddress": "",
+    "Accounts": null,
+    "SupportedExchanges": ""
    }
   },
   {
@@ -714,32 +513,12 @@
     "Delimiter": "_",
     "Separator": ","
    },
-   "InternationalBank": {
+   "BankDetails": {
     "Enabled": false,
     "BankName": "",
-    "AccountName": "",
-    "AccountNumber": "",
-    "BSBNumber": "",
-    "SwiftCode": "",
-    "IBAN": ""
-   },
-   "LocalBank": {
-    "Enabled": false,
-    "BankName": "",
-    "AccountName": "",
-    "AccountNumber": "",
-    "BSBNumber": "",
-    "SwiftCode": "",
-    "IBAN": ""
-   },
-   "DepositBank": {
-    "Enabled": false,
-    "BankName": "",
-    "AccountName": "",
-    "AccountNumber": "",
-    "BSBNumber": "",
-    "SwiftCode": "",
-    "IBAN": ""
+    "BankAddress": "",
+    "Accounts": null,
+    "SupportedExchanges": ""
    }
   },
   {
@@ -766,32 +545,12 @@
     "Uppercase": true,
     "Delimiter": "-"
    },
-   "InternationalBank": {
+   "BankDetails": {
     "Enabled": false,
     "BankName": "",
-    "AccountName": "",
-    "AccountNumber": "",
-    "BSBNumber": "",
-    "SwiftCode": "",
-    "IBAN": ""
-   },
-   "LocalBank": {
-    "Enabled": false,
-    "BankName": "",
-    "AccountName": "",
-    "AccountNumber": "",
-    "BSBNumber": "",
-    "SwiftCode": "",
-    "IBAN": ""
-   },
-   "DepositBank": {
-    "Enabled": false,
-    "BankName": "",
-    "AccountName": "",
-    "AccountNumber": "",
-    "BSBNumber": "",
-    "SwiftCode": "",
-    "IBAN": ""
+    "BankAddress": "",
+    "Accounts": null,
+    "SupportedExchanges": ""
    }
   },
   {
@@ -816,32 +575,12 @@
    "RequestCurrencyPairFormat": {
     "Uppercase": true
    },
-   "InternationalBank": {
+   "BankDetails": {
     "Enabled": false,
     "BankName": "",
-    "AccountName": "",
-    "AccountNumber": "",
-    "BSBNumber": "",
-    "SwiftCode": "",
-    "IBAN": ""
-   },
-   "LocalBank": {
-    "Enabled": false,
-    "BankName": "",
-    "AccountName": "",
-    "AccountNumber": "",
-    "BSBNumber": "",
-    "SwiftCode": "",
-    "IBAN": ""
-   },
-   "DepositBank": {
-    "Enabled": false,
-    "BankName": "",
-    "AccountName": "",
-    "AccountNumber": "",
-    "BSBNumber": "",
-    "SwiftCode": "",
-    "IBAN": ""
+    "BankAddress": "",
+    "Accounts": null,
+    "SupportedExchanges": ""
    }
   },
   {
@@ -867,32 +606,12 @@
    "RequestCurrencyPairFormat": {
     "Uppercase": true
    },
-   "InternationalBank": {
+   "BankDetails": {
     "Enabled": false,
     "BankName": "",
-    "AccountName": "",
-    "AccountNumber": "",
-    "BSBNumber": "",
-    "SwiftCode": "",
-    "IBAN": ""
-   },
-   "LocalBank": {
-    "Enabled": false,
-    "BankName": "",
-    "AccountName": "",
-    "AccountNumber": "",
-    "BSBNumber": "",
-    "SwiftCode": "",
-    "IBAN": ""
-   },
-   "DepositBank": {
-    "Enabled": false,
-    "BankName": "",
-    "AccountName": "",
-    "AccountNumber": "",
-    "BSBNumber": "",
-    "SwiftCode": "",
-    "IBAN": ""
+    "BankAddress": "",
+    "Accounts": null,
+    "SupportedExchanges": ""
    }
   },
   {
@@ -918,32 +637,12 @@
    "RequestCurrencyPairFormat": {
     "Uppercase": false
    },
-   "InternationalBank": {
+   "BankDetails": {
     "Enabled": false,
     "BankName": "",
-    "AccountName": "",
-    "AccountNumber": "",
-    "BSBNumber": "",
-    "SwiftCode": "",
-    "IBAN": ""
-   },
-   "LocalBank": {
-    "Enabled": false,
-    "BankName": "",
-    "AccountName": "",
-    "AccountNumber": "",
-    "BSBNumber": "",
-    "SwiftCode": "",
-    "IBAN": ""
-   },
-   "DepositBank": {
-    "Enabled": false,
-    "BankName": "",
-    "AccountName": "",
-    "AccountNumber": "",
-    "BSBNumber": "",
-    "SwiftCode": "",
-    "IBAN": ""
+    "BankAddress": "",
+    "Accounts": null,
+    "SupportedExchanges": ""
    }
   },
   {
@@ -970,32 +669,12 @@
    "RequestCurrencyPairFormat": {
     "Uppercase": true
    },
-   "InternationalBank": {
+   "BankDetails": {
     "Enabled": false,
     "BankName": "",
-    "AccountName": "",
-    "AccountNumber": "",
-    "BSBNumber": "",
-    "SwiftCode": "",
-    "IBAN": ""
-   },
-   "LocalBank": {
-    "Enabled": false,
-    "BankName": "",
-    "AccountName": "",
-    "AccountNumber": "",
-    "BSBNumber": "",
-    "SwiftCode": "",
-    "IBAN": ""
-   },
-   "DepositBank": {
-    "Enabled": false,
-    "BankName": "",
-    "AccountName": "",
-    "AccountNumber": "",
-    "BSBNumber": "",
-    "SwiftCode": "",
-    "IBAN": ""
+    "BankAddress": "",
+    "Accounts": null,
+    "SupportedExchanges": ""
    }
   },
   {
@@ -1022,32 +701,12 @@
     "Uppercase": true,
     "Separator": ","
    },
-   "InternationalBank": {
+   "BankDetails": {
     "Enabled": false,
     "BankName": "",
-    "AccountName": "",
-    "AccountNumber": "",
-    "BSBNumber": "",
-    "SwiftCode": "",
-    "IBAN": ""
-   },
-   "LocalBank": {
-    "Enabled": false,
-    "BankName": "",
-    "AccountName": "",
-    "AccountNumber": "",
-    "BSBNumber": "",
-    "SwiftCode": "",
-    "IBAN": ""
-   },
-   "DepositBank": {
-    "Enabled": false,
-    "BankName": "",
-    "AccountName": "",
-    "AccountNumber": "",
-    "BSBNumber": "",
-    "SwiftCode": "",
-    "IBAN": ""
+    "BankAddress": "",
+    "Accounts": null,
+    "SupportedExchanges": ""
    }
   },
   {
@@ -1072,32 +731,12 @@
    "RequestCurrencyPairFormat": {
     "Uppercase": true
    },
-   "InternationalBank": {
+   "BankDetails": {
     "Enabled": false,
     "BankName": "",
-    "AccountName": "",
-    "AccountNumber": "",
-    "BSBNumber": "",
-    "SwiftCode": "",
-    "IBAN": ""
-   },
-   "LocalBank": {
-    "Enabled": false,
-    "BankName": "",
-    "AccountName": "",
-    "AccountNumber": "",
-    "BSBNumber": "",
-    "SwiftCode": "",
-    "IBAN": ""
-   },
-   "DepositBank": {
-    "Enabled": false,
-    "BankName": "",
-    "AccountName": "",
-    "AccountNumber": "",
-    "BSBNumber": "",
-    "SwiftCode": "",
-    "IBAN": ""
+    "BankAddress": "",
+    "Accounts": null,
+    "SupportedExchanges": ""
    }
   },
   {
@@ -1125,32 +764,12 @@
     "Delimiter": "_",
     "Separator": "-"
    },
-   "InternationalBank": {
+   "BankDetails": {
     "Enabled": false,
     "BankName": "",
-    "AccountName": "",
-    "AccountNumber": "",
-    "BSBNumber": "",
-    "SwiftCode": "",
-    "IBAN": ""
-   },
-   "LocalBank": {
-    "Enabled": false,
-    "BankName": "",
-    "AccountName": "",
-    "AccountNumber": "",
-    "BSBNumber": "",
-    "SwiftCode": "",
-    "IBAN": ""
-   },
-   "DepositBank": {
-    "Enabled": false,
-    "BankName": "",
-    "AccountName": "",
-    "AccountNumber": "",
-    "BSBNumber": "",
-    "SwiftCode": "",
-    "IBAN": ""
+    "BankAddress": "",
+    "Accounts": null,
+    "SupportedExchanges": ""
    }
   },
   {
@@ -1176,32 +795,12 @@
    "RequestCurrencyPairFormat": {
     "Uppercase": true
    },
-   "InternationalBank": {
+   "BankDetails": {
     "Enabled": false,
     "BankName": "",
-    "AccountName": "",
-    "AccountNumber": "",
-    "BSBNumber": "",
-    "SwiftCode": "",
-    "IBAN": ""
-   },
-   "LocalBank": {
-    "Enabled": false,
-    "BankName": "",
-    "AccountName": "",
-    "AccountNumber": "",
-    "BSBNumber": "",
-    "SwiftCode": "",
-    "IBAN": ""
-   },
-   "DepositBank": {
-    "Enabled": false,
-    "BankName": "",
-    "AccountName": "",
-    "AccountNumber": "",
-    "BSBNumber": "",
-    "SwiftCode": "",
-    "IBAN": ""
+    "BankAddress": "",
+    "Accounts": null,
+    "SupportedExchanges": ""
    }
   },
   {
@@ -1228,32 +827,12 @@
     "Uppercase": false,
     "Delimiter": "_"
    },
-   "InternationalBank": {
+   "BankDetails": {
     "Enabled": false,
     "BankName": "",
-    "AccountName": "",
-    "AccountNumber": "",
-    "BSBNumber": "",
-    "SwiftCode": "",
-    "IBAN": ""
-   },
-   "LocalBank": {
-    "Enabled": false,
-    "BankName": "",
-    "AccountName": "",
-    "AccountNumber": "",
-    "BSBNumber": "",
-    "SwiftCode": "",
-    "IBAN": ""
-   },
-   "DepositBank": {
-    "Enabled": false,
-    "BankName": "",
-    "AccountName": "",
-    "AccountNumber": "",
-    "BSBNumber": "",
-    "SwiftCode": "",
-    "IBAN": ""
+    "BankAddress": "",
+    "Accounts": null,
+    "SupportedExchanges": ""
    }
   },
   {
@@ -1280,32 +859,12 @@
     "Uppercase": false,
     "Delimiter": "_"
    },
-   "InternationalBank": {
+   "BankDetails": {
     "Enabled": false,
     "BankName": "",
-    "AccountName": "",
-    "AccountNumber": "",
-    "BSBNumber": "",
-    "SwiftCode": "",
-    "IBAN": ""
-   },
-   "LocalBank": {
-    "Enabled": false,
-    "BankName": "",
-    "AccountName": "",
-    "AccountNumber": "",
-    "BSBNumber": "",
-    "SwiftCode": "",
-    "IBAN": ""
-   },
-   "DepositBank": {
-    "Enabled": false,
-    "BankName": "",
-    "AccountName": "",
-    "AccountNumber": "",
-    "BSBNumber": "",
-    "SwiftCode": "",
-    "IBAN": ""
+    "BankAddress": "",
+    "Accounts": null,
+    "SupportedExchanges": ""
    }
   },
   {
@@ -1333,32 +892,12 @@
     "Uppercase": false,
     "Delimiter": "_"
    },
-   "InternationalBank": {
+   "BankDetails": {
     "Enabled": false,
     "BankName": "",
-    "AccountName": "",
-    "AccountNumber": "",
-    "BSBNumber": "",
-    "SwiftCode": "",
-    "IBAN": ""
-   },
-   "LocalBank": {
-    "Enabled": false,
-    "BankName": "",
-    "AccountName": "",
-    "AccountNumber": "",
-    "BSBNumber": "",
-    "SwiftCode": "",
-    "IBAN": ""
-   },
-   "DepositBank": {
-    "Enabled": false,
-    "BankName": "",
-    "AccountName": "",
-    "AccountNumber": "",
-    "BSBNumber": "",
-    "SwiftCode": "",
-    "IBAN": ""
+    "BankAddress": "",
+    "Accounts": null,
+    "SupportedExchanges": ""
    }
   },
   {
@@ -1385,32 +924,12 @@
     "Uppercase": true,
     "Delimiter": "_"
    },
-   "InternationalBank": {
+   "BankDetails": {
     "Enabled": false,
     "BankName": "",
-    "AccountName": "",
-    "AccountNumber": "",
-    "BSBNumber": "",
-    "SwiftCode": "",
-    "IBAN": ""
-   },
-   "LocalBank": {
-    "Enabled": false,
-    "BankName": "",
-    "AccountName": "",
-    "AccountNumber": "",
-    "BSBNumber": "",
-    "SwiftCode": "",
-    "IBAN": ""
-   },
-   "DepositBank": {
-    "Enabled": false,
-    "BankName": "",
-    "AccountName": "",
-    "AccountNumber": "",
-    "BSBNumber": "",
-    "SwiftCode": "",
-    "IBAN": ""
+    "BankAddress": "",
+    "Accounts": null,
+    "SupportedExchanges": ""
    }
   },
   {
@@ -1439,33 +958,32 @@
     "Delimiter": "_",
     "Separator": "-"
    },
-   "InternationalBank": {
+   "BankDetails": {
     "Enabled": false,
     "BankName": "",
-    "AccountName": "",
-    "AccountNumber": "",
-    "BSBNumber": "",
-    "SwiftCode": "",
-    "IBAN": ""
-   },
-   "LocalBank": {
-    "Enabled": false,
-    "BankName": "",
-    "AccountName": "",
-    "AccountNumber": "",
-    "BSBNumber": "",
-    "SwiftCode": "",
-    "IBAN": ""
-   },
-   "DepositBank": {
-    "Enabled": false,
-    "BankName": "",
-    "AccountName": "",
-    "AccountNumber": "",
-    "BSBNumber": "",
-    "SwiftCode": "",
-    "IBAN": ""
+    "BankAddress": "",
+    "Accounts": null,
+    "SupportedExchanges": ""
    }
+  }
+ ],
+ "ClientBankDetails": [
+  {
+   "Enabled": false,
+   "BankName": "test",
+   "BankAddress": "test",
+   "Accounts": [
+    {
+     "AccountName": "TestAccount",
+     "AccountNumber": "0234",
+     "AccountAddress": "Paris",
+     "SwiftCode": "91272837",
+     "IBAN": "98218738671897",
+     "BSBNumber": "",
+     "SupportedFundingCurrencies": "USD"
+    }
+   ],
+   "SupportedExchanges": "ANX,Kraken"
   }
  ]
 }

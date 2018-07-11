@@ -139,9 +139,9 @@ type IBotExchange interface {
 	CancelAllExchangeOrders() error
 	GetExchangeOrderInfo(orderID int64) (OrderDetail, error)
 	GetExchangeDepositAddress(cryptocurrency pair.CurrencyItem) (string, error)
-	WithdrawExchangeCryptoFunds(address string, cryptocurrency pair.CurrencyItem, amount float64) (string, error)
-	WithdrawExchangeFiatFundsToLocalBank(currency pair.CurrencyItem, amount float64) (string, error)
-	WithdrawExchangeFiatFundsToInternationalBank(currency pair.CurrencyItem, amount float64) (string, error)
+
+	WithdrawCryptoExchangeFunds(address string, cryptocurrency pair.CurrencyItem, amount float64) (string, error)
+	WithdrawFiatExchangeFunds(currency pair.CurrencyItem, amount float64) (string, error)
 }
 
 // SupportsRESTTickerBatchUpdates returns whether or not the
@@ -253,18 +253,18 @@ func GetExchangeAssetTypes(exchName string) ([]string, error) {
 	return common.SplitStrings(exch.AssetTypes, ","), nil
 }
 
-// GetBankInternationalWithdrawDetails returns banking details associated with
-// an exchange for withdrawal purposes
-func (e *Base) GetBankInternationalWithdrawDetails() (config.BankConfig, error) {
+// GetClientBankDetails returns banking details associated with
+// a client for withdrawal purposes
+func (e *Base) GetClientBankDetails(exchangeName, withdrawalCurrency string) (config.BankDetails, error) {
 	cfg := config.GetConfig()
-	return cfg.GetInternationalBankDetails(e.Name)
+	return cfg.GetClientBankDetails(exchangeName, withdrawalCurrency)
 }
 
-// GetBankLocalWithdrawDetails returns banking details associated with an
-// exchange for withdrawal purposes
-func (e *Base) GetBankLocalWithdrawDetails() (config.BankConfig, error) {
+// GetExchangeBankDetails returns banking details associated with an
+// exchange for funding purposes
+func (e *Base) GetExchangeBankDetails(exchangeName, depositCurrency string) (config.BankDetails, error) {
 	cfg := config.GetConfig()
-	return cfg.GetLocalBankDetails(e.Name)
+	return cfg.GetExchangeBankDetails(exchangeName, depositCurrency)
 }
 
 // CompareCurrencyPairFormats checks and returns whether or not the two supplied

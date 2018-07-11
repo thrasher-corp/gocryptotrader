@@ -210,13 +210,13 @@ func (b *Bitfinex) GetExchangeDepositAddress(cryptocurrency pair.CurrencyItem) (
 }
 
 // WithdrawExchangeFunds returns a withdrawal ID when a withdrawal is submitted
-func (b *Bitfinex) WithdrawExchangeCryptoFunds(address string, cryptocurrency pair.CurrencyItem, amount float64) (string, error) {
+func (b *Bitfinex) WithdrawCryptoExchangeFunds(address string, cryptocurrency pair.CurrencyItem, amount float64) (string, error) {
 	return "", errors.New("not yet implemented")
 }
 
 // WithdrawExchangeFiatFundsToLocalBank returns a withdrawal ID when a
 // withdrawal is submitted
-func (b *Bitfinex) WithdrawExchangeFiatFundsToLocalBank(currency pair.CurrencyItem, amount float64) (string, error) {
+func (b *Bitfinex) WithdrawFiatExchangeFunds(currency pair.CurrencyItem, amount float64) (string, error) {
 	return "", errors.New("not yet implemented")
 }
 
