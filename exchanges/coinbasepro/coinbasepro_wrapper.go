@@ -179,20 +179,14 @@ func (c *CoinbasePro) GetExchangeDepositAddress(cryptocurrency pair.CurrencyItem
 	return "", errors.New("not yet implemented")
 }
 
-// WithdrawExchangeCryptoFunds returns a withdrawal ID when a withdrawal is
+// WithdrawCryptoExchangeFunds returns a withdrawal ID when a withdrawal is
 // submitted
-func (c *CoinbasePro) WithdrawExchangeCryptoFunds(address string, cryptocurrency pair.CurrencyItem, amount float64) (string, error) {
+func (c *CoinbasePro) WithdrawCryptoExchangeFunds(address string, cryptocurrency pair.CurrencyItem, amount float64) (string, error) {
 	return "", errors.New("not yet implemented")
 }
 
-// WithdrawExchangeFiatFundsToLocalBank returns a withdrawal ID when a
-// withdrawal is submitted
-func (c *CoinbasePro) WithdrawExchangeFiatFundsToLocalBank(currency pair.CurrencyItem, amount float64) (string, error) {
-	return "", errors.New("not yet implemented")
-}
-
-// WithdrawExchangeFiatFundsToInternationalBank returns a withdrawal ID when a
-// withdrawal is submitted
-func (c *CoinbasePro) WithdrawExchangeFiatFundsToInternationalBank(currency pair.CurrencyItem, amount float64) (string, error) {
+// WithdrawFiatExchangeFunds returns a withdrawal ID when a withdrawal is
+// submitted
+func (c *CoinbasePro) WithdrawFiatExchangeFunds(cryptocurrency pair.CurrencyItem, amount float64) (string, error) {
 	return "", errors.New("not yet implemented")
 }
