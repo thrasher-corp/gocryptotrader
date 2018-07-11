@@ -147,6 +147,13 @@
    },
    "RequestCurrencyPairFormat": {
     "Uppercase": true
+   },
+   "BankDetails": {
+    "Enabled": false,
+    "BankName": "",
+    "BankAddress": "",
+    "Accounts": null,
+    "SupportedExchanges": ""
    }
   },
   {
@@ -171,6 +178,13 @@
    },
    "RequestCurrencyPairFormat": {
     "Uppercase": true
+   },
+   "BankDetails": {
+    "Enabled": false,
+    "BankName": "",
+    "BankAddress": "",
+    "Accounts": null,
+    "SupportedExchanges": ""
    }
   },
   {
@@ -194,6 +208,32 @@
    },
    "RequestCurrencyPairFormat": {
     "Uppercase": true
+   },
+   "BankDetails": {
+    "Enabled": true,
+    "BankName": "Deutsche Bank Privat Und Geschaeftskunden AG",
+    "BankAddress": "Karlsruhe, 76125, GERMANY",
+    "Accounts": [
+     {
+      "AccountName": "GLOBAL TRADE SOLUTIONS GmbH",
+      "AccountNumber": "DE51660700240057016802",
+      "AccountAddress": "MarienstraBe 13, 47661 Issum, Germany",
+      "SwiftCode": "DEUTDEDB660",
+      "IBAN": "DE51660700240057016802",
+      "BSBNumber": "",
+      "SupportedFundingCurrencies": "EUR,USD"
+     },
+     {
+      "AccountName": "GLOBAL TRADE SOLUTIONS GmbH",
+      "AccountNumber": "DE78660700240057016801",
+      "AccountAddress": "MarienstraBe 13, 47661 Issum, Germany",
+      "SwiftCode": "DEUTDEDB660",
+      "IBAN": "DE78660700240057016801",
+      "BSBNumber": "",
+      "SupportedFundingCurrencies": "JPY,GBP"
+     }
+    ],
+    "SupportedExchanges": "N/A"
    }
   },
   {
@@ -220,6 +260,13 @@
    "RequestCurrencyPairFormat": {
     "Uppercase": true,
     "Delimiter": "_"
+   },
+   "BankDetails": {
+    "Enabled": false,
+    "BankName": "",
+    "BankAddress": "",
+    "Accounts": null,
+    "SupportedExchanges": ""
    }
   },
   {
@@ -245,6 +292,13 @@
    },
    "RequestCurrencyPairFormat": {
     "Uppercase": true
+   },
+   "BankDetails": {
+    "Enabled": false,
+    "BankName": "",
+    "BankAddress": "",
+    "Accounts": null,
+    "SupportedExchanges": ""
    }
   },
   {
@@ -269,6 +323,13 @@
    },
    "RequestCurrencyPairFormat": {
     "Uppercase": true
+   },
+   "BankDetails": {
+    "Enabled": false,
+    "BankName": "",
+    "BankAddress": "",
+    "Accounts": null,
+    "SupportedExchanges": ""
    }
   },
   {
@@ -294,6 +355,13 @@
    "RequestCurrencyPairFormat": {
     "Uppercase": true,
     "Delimiter": "-"
+   },
+   "BankDetails": {
+    "Enabled": false,
+    "BankName": "",
+    "BankAddress": "",
+    "Accounts": null,
+    "SupportedExchanges": ""
    }
   },
   {
@@ -317,6 +385,13 @@
    },
    "RequestCurrencyPairFormat": {
     "Uppercase": false
+   },
+   "BankDetails": {
+    "Enabled": false,
+    "BankName": "",
+    "BankAddress": "",
+    "Accounts": null,
+    "SupportedExchanges": ""
    }
   },
   {
@@ -343,6 +418,13 @@
     "Uppercase": false,
     "Delimiter": "_",
     "Separator": "-"
+   },
+   "BankDetails": {
+    "Enabled": false,
+    "BankName": "",
+    "BankAddress": "",
+    "Accounts": null,
+    "SupportedExchanges": ""
    }
   },
   {
@@ -366,6 +448,13 @@
    },
    "RequestCurrencyPairFormat": {
     "Uppercase": true
+   },
+   "BankDetails": {
+    "Enabled": false,
+    "BankName": "",
+    "BankAddress": "",
+    "Accounts": null,
+    "SupportedExchanges": ""
    }
   },
   {
@@ -390,6 +479,13 @@
    },
    "RequestCurrencyPairFormat": {
     "Uppercase": true
+   },
+   "BankDetails": {
+    "Enabled": false,
+    "BankName": "",
+    "BankAddress": "",
+    "Accounts": null,
+    "SupportedExchanges": ""
    }
   },
   {
@@ -416,6 +512,13 @@
     "Uppercase": true,
     "Delimiter": "_",
     "Separator": ","
+   },
+   "BankDetails": {
+    "Enabled": false,
+    "BankName": "",
+    "BankAddress": "",
+    "Accounts": null,
+    "SupportedExchanges": ""
    }
   },
   {
@@ -441,6 +544,13 @@
    "RequestCurrencyPairFormat": {
     "Uppercase": true,
     "Delimiter": "-"
+   },
+   "BankDetails": {
+    "Enabled": false,
+    "BankName": "",
+    "BankAddress": "",
+    "Accounts": null,
+    "SupportedExchanges": ""
    }
   },
   {
@@ -464,6 +574,13 @@
    },
    "RequestCurrencyPairFormat": {
     "Uppercase": true
+   },
+   "BankDetails": {
+    "Enabled": false,
+    "BankName": "",
+    "BankAddress": "",
+    "Accounts": null,
+    "SupportedExchanges": ""
    }
   },
   {
@@ -488,6 +605,13 @@
    },
    "RequestCurrencyPairFormat": {
     "Uppercase": true
+   },
+   "BankDetails": {
+    "Enabled": false,
+    "BankName": "",
+    "BankAddress": "",
+    "Accounts": null,
+    "SupportedExchanges": ""
    }
   },
   {
@@ -512,6 +636,13 @@
    },
    "RequestCurrencyPairFormat": {
     "Uppercase": false
+   },
+   "BankDetails": {
+    "Enabled": false,
+    "BankName": "",
+    "BankAddress": "",
+    "Accounts": null,
+    "SupportedExchanges": ""
    }
   },
   {
@@ -537,6 +668,13 @@
    },
    "RequestCurrencyPairFormat": {
     "Uppercase": true
+   },
+   "BankDetails": {
+    "Enabled": false,
+    "BankName": "",
+    "BankAddress": "",
+    "Accounts": null,
+    "SupportedExchanges": ""
    }
   },
   {
@@ -562,6 +700,13 @@
    "RequestCurrencyPairFormat": {
     "Uppercase": true,
     "Separator": ","
+   },
+   "BankDetails": {
+    "Enabled": false,
+    "BankName": "",
+    "BankAddress": "",
+    "Accounts": null,
+    "SupportedExchanges": ""
    }
   },
   {
@@ -585,6 +730,13 @@
    },
    "RequestCurrencyPairFormat": {
     "Uppercase": true
+   },
+   "BankDetails": {
+    "Enabled": false,
+    "BankName": "",
+    "BankAddress": "",
+    "Accounts": null,
+    "SupportedExchanges": ""
    }
   },
   {
@@ -611,6 +763,13 @@
     "Uppercase": false,
     "Delimiter": "_",
     "Separator": "-"
+   },
+   "BankDetails": {
+    "Enabled": false,
+    "BankName": "",
+    "BankAddress": "",
+    "Accounts": null,
+    "SupportedExchanges": ""
    }
   },
   {
@@ -635,6 +794,13 @@
    },
    "RequestCurrencyPairFormat": {
     "Uppercase": true
+   },
+   "BankDetails": {
+    "Enabled": false,
+    "BankName": "",
+    "BankAddress": "",
+    "Accounts": null,
+    "SupportedExchanges": ""
    }
   },
   {
@@ -660,6 +826,13 @@
    "RequestCurrencyPairFormat": {
     "Uppercase": false,
     "Delimiter": "_"
+   },
+   "BankDetails": {
+    "Enabled": false,
+    "BankName": "",
+    "BankAddress": "",
+    "Accounts": null,
+    "SupportedExchanges": ""
    }
   },
   {
@@ -685,6 +858,13 @@
    "RequestCurrencyPairFormat": {
     "Uppercase": false,
     "Delimiter": "_"
+   },
+   "BankDetails": {
+    "Enabled": false,
+    "BankName": "",
+    "BankAddress": "",
+    "Accounts": null,
+    "SupportedExchanges": ""
    }
   },
   {
@@ -711,6 +891,13 @@
    "RequestCurrencyPairFormat": {
     "Uppercase": false,
     "Delimiter": "_"
+   },
+   "BankDetails": {
+    "Enabled": false,
+    "BankName": "",
+    "BankAddress": "",
+    "Accounts": null,
+    "SupportedExchanges": ""
    }
   },
   {
@@ -736,6 +923,13 @@
    "RequestCurrencyPairFormat": {
     "Uppercase": true,
     "Delimiter": "_"
+   },
+   "BankDetails": {
+    "Enabled": false,
+    "BankName": "",
+    "BankAddress": "",
+    "Accounts": null,
+    "SupportedExchanges": ""
    }
   },
   {
@@ -763,7 +957,33 @@
     "Uppercase": false,
     "Delimiter": "_",
     "Separator": "-"
+   },
+   "BankDetails": {
+    "Enabled": false,
+    "BankName": "",
+    "BankAddress": "",
+    "Accounts": null,
+    "SupportedExchanges": ""
    }
+  }
+ ],
+ "ClientBankDetails": [
+  {
+   "Enabled": true,
+   "BankName": "Bnp Paribas Paris",
+   "BankAddress": "Paris",
+   "Accounts": [
+    {
+     "AccountName": "TestAccount",
+     "AccountNumber": "0234",
+     "AccountAddress": "Paris",
+     "SwiftCode": "91272837",
+     "IBAN": "98218738671897",
+     "BSBNumber": "",
+     "SupportedFundingCurrencies": "USD"
+    }
+   ],
+   "SupportedExchanges": "ANX,Kraken"
   }
  ]
 }

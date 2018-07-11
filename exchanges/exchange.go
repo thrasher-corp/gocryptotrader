@@ -50,6 +50,39 @@ type TradeHistory struct {
 	Type      string
 }
 
+// OrderDetail holds order detail data
+type OrderDetail struct {
+	Exchange      string
+	ID            int64
+	BaseCurrency  string
+	QuoteCurrency string
+	OrderSide     string
+	OrderType     string
+	CreationTime  int64
+	Status        string
+	Price         float64
+	Amount        float64
+	OpenVolume    float64
+}
+
+// FundHistory holds exchange funding history data
+type FundHistory struct {
+	ExchangeName      string
+	Status            string
+	TransferID        int64
+	Description       string
+	Timestamp         int64
+	Currency          string
+	Amount            float64
+	Fee               float64
+	TransferType      string
+	CryptoToAddress   string
+	CryptoFromAddress string
+	CryptoTxID        string
+	BankTo            string
+	BankFrom          string
+}
+
 // Base stores the individual exchange information
 type Base struct {
 	Name                        string
@@ -99,13 +132,16 @@ type IBotExchange interface {
 	GetLastPairsUpdateTime() int64
 	SupportsRESTTickerBatchUpdates() bool
 
-	SubmitExchangeOrder(p pair.CurrencyPair, side string, orderType int, amount, price float64) (int64, error)
-	ModifyExchangeOrder(p pair.CurrencyPair, orderID, action int64) (int64, error)
-	CancelExchangeOrder(p pair.CurrencyPair, orderID int64) (int64, error)
-	CancelAllExchangeOrders(p pair.CurrencyPair) error
-	GetExchangeOrderInfo(orderID int64) (float64, error)
-	GetExchangeDepositAddress(p pair.CurrencyPair) (string, error)
-	WithdrawExchangeFunds(address string, p pair.CurrencyPair, amount float64) (string, error)
+	GetExchangeFundTransferHistory() ([]FundHistory, error)
+	SubmitExchangeOrder(p pair.CurrencyPair, side OrderSide, orderType OrderType, amount, price float64, clientID string) (int64, error)
+	ModifyExchangeOrder(orderID int64, modify ModifyOrder) (int64, error)
+	CancelExchangeOrder(orderID int64) error
+	CancelAllExchangeOrders() error
+	GetExchangeOrderInfo(orderID int64) (OrderDetail, error)
+	GetExchangeDepositAddress(cryptocurrency pair.CurrencyItem) (string, error)
+
+	WithdrawCryptoExchangeFunds(address string, cryptocurrency pair.CurrencyItem, amount float64) (string, error)
+	WithdrawFiatExchangeFunds(currency pair.CurrencyItem, amount float64) (string, error)
 }
 
 // SupportsRESTTickerBatchUpdates returns whether or not the
@@ -215,6 +251,20 @@ func GetExchangeAssetTypes(exchName string) ([]string, error) {
 	}
 
 	return common.SplitStrings(exch.AssetTypes, ","), nil
+}
+
+// GetClientBankDetails returns banking details associated with
+// a client for withdrawal purposes
+func (e *Base) GetClientBankDetails(exchangeName, withdrawalCurrency string) (config.BankDetails, error) {
+	cfg := config.GetConfig()
+	return cfg.GetClientBankDetails(exchangeName, withdrawalCurrency)
+}
+
+// GetExchangeBankDetails returns banking details associated with an
+// exchange for funding purposes
+func (e *Base) GetExchangeBankDetails(exchangeName, depositCurrency string) (config.BankDetails, error) {
+	cfg := config.GetConfig()
+	return cfg.GetExchangeBankDetails(exchangeName, depositCurrency)
 }
 
 // CompareCurrencyPairFormats checks and returns whether or not the two supplied
@@ -479,4 +529,83 @@ func (e *Base) UpdateCurrencies(exchangeProducts []string, enabled, force bool) 
 		return cfg.UpdateExchangeConfig(exch)
 	}
 	return nil
+}
+
+// ModifyOrder is a an order modifyer
+type ModifyOrder struct {
+	OrderType
+	OrderSide
+	Price  float64
+	Amount float64
+}
+
+// Format holds exchange formatting
+type Format struct {
+	ExchangeName string
+	OrderType    map[string]string
+	OrderSide    map[string]string
+}
+
+// Formatting contain a range of exchanges formatting
+type Formatting []Format
+
+// formats is a quick formatting list for generic paramaters
+var formats = Formatting{
+	Format{
+		ExchangeName: "BTC Markets",
+		OrderType: map[string]string{
+			"Limit":  "Limit",
+			"Market": "Market",
+		},
+		OrderSide: map[string]string{
+			"Buy":  "Bid",
+			"Sell": "Ask",
+		},
+	},
+}
+
+// OrderType enforces a standard for Ordertypes across the code base
+type OrderType string
+
+// Format changes the ordertype to the exchange standard and returns a string
+func (o OrderType) Format(exchangeName string) string {
+	for _, format := range formats {
+		if format.ExchangeName == exchangeName {
+			return format.OrderType[string(o)]
+		}
+	}
+	return ""
+}
+
+// OrderTypeLimit returns an OrderType limit order
+func OrderTypeLimit() OrderType {
+	return "Limit"
+}
+
+// OrderTypeMarket returns an OrderType Market order
+func OrderTypeMarket() OrderType {
+	return "Market"
+}
+
+// OrderSide enforces a standard for OrderSides across the code base
+type OrderSide string
+
+// Format changes the ordertype to the exchange standard and returns a string
+func (o OrderSide) Format(exchangeName string) string {
+	for _, format := range formats {
+		if format.ExchangeName == exchangeName {
+			return format.OrderSide[string(o)]
+		}
+	}
+	return ""
+}
+
+// OrderSideBuy returns an OrderSide buy order
+func OrderSideBuy() OrderSide {
+	return "Buy"
+}
+
+// OrderSideSell returns an OrderSide Sell order
+func OrderSideSell() OrderSide {
+	return "Sell"
 }
