@@ -568,7 +568,7 @@ func TestFormatExchangeCurrency(t *testing.T) {
 
 	pair := pair.NewCurrencyPair("BTC", "USD")
 	expected := "BTC-USD"
-	actual := FormatExchangeCurrency("GDAX", pair)
+	actual := FormatExchangeCurrency("CoinbasePro", pair)
 
 	if actual.String() != expected {
 		t.Errorf("Test failed - Exchange TestFormatExchangeCurrency %s != %s",

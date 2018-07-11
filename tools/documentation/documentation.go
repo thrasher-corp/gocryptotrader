@@ -45,7 +45,7 @@ const (
 	btcmarkets    = "..%s..%sexchanges%sbtcmarkets%s"
 	coinut        = "..%s..%sexchanges%scoinut%s"
 	exmo          = "..%s..%sexchanges%sexmo%s"
-	gdax          = "..%s..%sexchanges%sgdax%s"
+	coinbasepro   = "..%s..%sexchanges%scoinbasepro%s"
 	gemini        = "..%s..%sexchanges%sgemini%s"
 	hitbtc        = "..%s..%sexchanges%shitbtc%s"
 	huobi         = "..%s..%sexchanges%shuobi%s"
@@ -197,7 +197,7 @@ func addPaths() {
 	codebasePaths["exchanges btcmarkets"] = fmt.Sprintf(btcmarkets, path, path, path, path)
 	codebasePaths["exchanges coinut"] = fmt.Sprintf(coinut, path, path, path, path)
 	codebasePaths["exchanges exmo"] = fmt.Sprintf(exmo, path, path, path, path)
-	codebasePaths["exchanges gdax"] = fmt.Sprintf(gdax, path, path, path, path)
+	codebasePaths["exchanges coinbasepro"] = fmt.Sprintf(coinbasepro, path, path, path, path)
 	codebasePaths["exchanges gemini"] = fmt.Sprintf(gemini, path, path, path, path)
 	codebasePaths["exchanges hitbtc"] = fmt.Sprintf(hitbtc, path, path, path, path)
 	codebasePaths["exchanges huobi"] = fmt.Sprintf(huobi, path, path, path, path)

@@ -1,4 +1,4 @@
-package gdax
+package coinbasepro
 
 // Product holds product information
 type Product struct {
@@ -38,7 +38,7 @@ type History struct {
 	Volume float64 `json:"volume"`
 }
 
-// Stats holds last 24 hr data for gdax
+// Stats holds last 24 hr data for coinbasepro
 type Stats struct {
 	Open   float64 `json:"open,string"`
 	High   float64 `json:"high,string"`
