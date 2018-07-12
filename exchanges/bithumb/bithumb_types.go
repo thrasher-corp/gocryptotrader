@@ -12,6 +12,7 @@ type Ticker struct {
 	Volume7Day   float64 `json:"volume_7day,string"`
 	BuyPrice     float64 `json:"buy_price,string"`
 	SellPrice    float64 `json:"sell_price,string"`
+	ActionStatus
 	//	Date         int64   `json:"date,string"`
 }
 
