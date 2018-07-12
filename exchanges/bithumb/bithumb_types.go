@@ -49,10 +49,11 @@ type Orderbook struct {
 	Message string `json:"message"`
 }
 
-// RecentTransactions holds history of completed transaction data
-type RecentTransactions struct {
+// TransactionHistory holds history of completed transaction data
+type TransactionHistory struct {
 	Status string `json:"status"`
 	Data   []struct {
+		ContNumber      int64   `json:"cont_no,string"`
 		TransactionDate string  `json:"transaction_date"`
 		Type            string  `json:"type"`
 		UnitsTraded     float64 `json:"units_traded,string"`

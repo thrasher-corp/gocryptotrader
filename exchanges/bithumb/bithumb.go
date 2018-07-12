@@ -24,9 +24,9 @@ const (
 	// Public API
 	requestsPerSecondPublicAPI = 20
 
-	publicTicker            = "/public/ticker/"
-	publicOrderBook         = "/public/orderbook/"
-	publicRecentTransaction = "/public/recent_transactions/"
+	publicTicker             = "/public/ticker/"
+	publicOrderBook          = "/public/orderbook/"
+	publicTransactionHistory = "/public/transaction_history/"
 
 	// Private API
 	requestsPerSecondPrivateAPI = 10
@@ -198,12 +198,12 @@ func (b *Bithumb) GetOrderBook(symbol string) (Orderbook, error) {
 	return response, nil
 }
 
-// GetRecentTransactions returns recent transactions
+// GetTransactionHistory returns recent transactions
 //
 // symbol e.g. "btc"
-func (b *Bithumb) GetRecentTransactions(symbol string) (RecentTransactions, error) {
-	response := RecentTransactions{}
-	path := fmt.Sprintf("%s%s%s", apiURL, publicRecentTransaction, common.StringToUpper(symbol))
+func (b *Bithumb) GetTransactionHistory(symbol string) (TransactionHistory, error) {
+	response := TransactionHistory{}
+	path := fmt.Sprintf("%s%s%s", apiURL, publicTransactionHistory, common.StringToUpper(symbol))
 
 	err := b.SendHTTPRequest(path, &response)
 	if err != nil {
