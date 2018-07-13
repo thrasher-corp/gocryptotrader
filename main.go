@@ -1,13 +1,14 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"time"
 
 	"github.com/idoall/gocryptotrader/communications"
 	"github.com/idoall/gocryptotrader/config"
 	"github.com/idoall/gocryptotrader/exchanges"
-	"github.com/idoall/gocryptotrader/exchanges/zb"
+	"github.com/idoall/gocryptotrader/exchanges/binance"
 	"github.com/idoall/gocryptotrader/portfolio"
 )
 
@@ -41,7 +42,7 @@ func getDefaultConfig() config.ExchangeConfig {
 		Enabled:                 true,
 		Verbose:                 true,
 		Websocket:               false,
-		BaseAsset:               "eth",
+		BaseAsset:               "btc",
 		QuoteAsset:              "usdt",
 		RESTPollingDelay:        10,
 		HTTPTimeout:             3 * time.Second,
@@ -57,17 +58,23 @@ func main() {
 	// exchange := bitfinex.Bitfinex{}
 	// exchange := okex.OKEX{}
 	// exchange := huobi.HUOBI{}
-	exchange := zb.ZB{}
+	// exchange := zb.ZB{}
+	exchange := binance.Binance{}
 	defaultConfig := getDefaultConfig()
 	exchange.SetDefaults()
 	fmt.Println("----------setup-------")
 	exchange.Setup(defaultConfig)
 
-	res, err := exchange.GetLatestSpotPrice(exchange.GetSymbol())
+	list, err := exchange.CancelOrder(exchange.GetSymbol(), 131047268, "")
 	if err != nil {
 		fmt.Println(err)
 	} else {
-		fmt.Println(res)
+		fmt.Println("----------AllOrders-------")
+		// for _, v := range list {
+		b, _ := json.Marshal(list)
+		fmt.Println(string(b))
+		// }
+
 	}
 	// sh1 := common.GetHMAC(common.MD5New, []byte("accesskey=6d8f62fd-3086-46e3-a0ba-c66a929c24e2&method=getAccountInfo"), []byte(common.Sha1ToHex("48939bbc-8d49-402b-b731-adadf2ea9628")))
 	// fmt.Println(common.HexEncodeToString((sh1)))

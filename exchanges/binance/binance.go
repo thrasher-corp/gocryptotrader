@@ -44,6 +44,8 @@ const (
 	newOrder     = "/api/v3/order"
 	cancelOrder  = "/api/v3/order"
 	queryOrder   = "/api/v3/order"
+	openOrders   = "/api/v3/openOrders"
+	allOrders    = "/api/v3/allOrders"
 
 	// binance authenticated and unauthenticated limit rates
 	// to-do
@@ -459,6 +461,47 @@ func (b *Binance) CancelOrder(symbol string, orderID int64, origClientOrderID st
 	return resp, nil
 }
 
+// OpenOrders Current open orders
+// Get all open orders on a symbol. Careful when accessing this with no symbol.
+func (b *Binance) OpenOrders(symbol string) ([]QueryOrderData, error) {
+	var resp []QueryOrderData
+
+	path := fmt.Sprintf("%s%s", apiURL, openOrders)
+
+	params := url.Values{}
+	if symbol != "" {
+		params.Set("symbol", common.StringToUpper(symbol))
+	}
+	if err := b.SendAuthHTTPRequest("GET", path, params, &resp); err != nil {
+		return resp, err
+	}
+
+	return resp, nil
+}
+
+// AllOrders Get all account orders; active, canceled, or filled.
+// @orderId 非必填项
+// @limit 非必填项,Default 500; max 500
+func (b *Binance) AllOrders(symbol, orderId, limit string) ([]QueryOrderData, error) {
+	var resp []QueryOrderData
+
+	path := fmt.Sprintf("%s%s", apiURL, allOrders)
+
+	params := url.Values{}
+	params.Set("symbol", common.StringToUpper(symbol))
+	if orderId != "" {
+		params.Set("orderId", orderId)
+	}
+	if limit != "" {
+		params.Set("limit", limit)
+	}
+	if err := b.SendAuthHTTPRequest("GET", path, params, &resp); err != nil {
+		return resp, err
+	}
+
+	return resp, nil
+}
+
 // QueryOrder returns information on a past order
 func (b *Binance) QueryOrder(symbol, origClientOrderID string, orderID int64) (QueryOrderData, error) {
 	var resp QueryOrderData
@@ -467,8 +510,12 @@ func (b *Binance) QueryOrder(symbol, origClientOrderID string, orderID int64) (Q
 
 	params := url.Values{}
 	params.Set("symbol", common.StringToUpper(symbol))
-	params.Set("origClientOrderId", origClientOrderID)
-	params.Set("orderId", strconv.FormatInt(orderID, 10))
+	if origClientOrderID != "" {
+		params.Set("origClientOrderId", origClientOrderID)
+	}
+	if orderID != 0 {
+		params.Set("orderId", strconv.FormatInt(orderID, 10))
+	}
 
 	if err := b.SendAuthHTTPRequest("GET", path, params, &resp); err != nil {
 		return resp, err
@@ -528,7 +575,10 @@ func (b *Binance) SendAuthHTTPRequest(method, path string, params url.Values, re
 	headers := make(map[string]string)
 	headers["X-MBX-APIKEY"] = b.APIKey
 	// headers["Content-Type"] = "application/x-www-form-urlencoded"
-
+	// c, _ := json.Marshal(headers)
+	// fmt.Println("headers", string(c))
+	// c, _ = json.Marshal(params)
+	// fmt.Println("params", string(c))
 	if b.Verbose {
 		log.Printf("sent path: \n%s\n", path)
 	}
