@@ -179,7 +179,7 @@ func main() {
 	log.Println("Got orderbook!")
 
 	for {
-		var wsEvent WebsocketEventResponse
+		var wsEvent WebsocketEvent
 		err = WSConn.ReadJSON(&wsEvent)
 		if err != nil {
 			break
