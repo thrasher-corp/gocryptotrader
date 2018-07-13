@@ -2,11 +2,17 @@ package huobi
 
 import (
 	"bytes"
+	"crypto/ecdsa"
+	"crypto/rand"
+	"crypto/x509"
+	"encoding/pem"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"net/url"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
@@ -82,6 +88,7 @@ func (h *HUOBI) Setup(exch config.ExchangeConfig) {
 		h.Enabled = true
 		h.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
 		h.SetAPIKeys(exch.APIKey, exch.APISecret, "", false)
+		h.APIAuthPEMKey = exch.APIAuthPEMKey
 		h.SetHTTPClientTimeout(exch.HTTPTimeout)
 		h.RESTPollingDelay = exch.RESTPollingDelay
 		h.Verbose = exch.Verbose
@@ -723,7 +730,34 @@ func (h *HUOBI) SendAuthenticatedHTTPRequest(method, endpoint string, values url
 	headers["Content-Type"] = "application/x-www-form-urlencoded"
 
 	hmac := common.GetHMAC(common.HashSHA256, []byte(payload), []byte(h.APISecret))
-	values.Set("Signature", common.Base64Encode(hmac))
+	signature := common.Base64Encode(hmac)
+	values.Set("Signature", signature)
+
+	pemKey := strings.NewReader(h.APIAuthPEMKey)
+	pemBytes, err := ioutil.ReadAll(pemKey)
+	if err != nil {
+		return fmt.Errorf("Huobi unable to ioutil.ReadAll PEM key: %s", err)
+	}
+
+	block, _ := pem.Decode(pemBytes)
+	if block == nil {
+		return fmt.Errorf("Huobi block is nil")
+	}
+
+	x509Encoded := block.Bytes
+	privKey, err := x509.ParseECPrivateKey(x509Encoded)
+	if err != nil {
+		return fmt.Errorf("Huobi unable to ParseECPrivKey: %s", err)
+	}
+
+	r, s, err := ecdsa.Sign(rand.Reader, privKey, common.GetSHA256([]byte(signature)))
+	if err != nil {
+		return fmt.Errorf("Huobi unable to sign: %s", err)
+	}
+
+	privSig := r.Bytes()
+	privSig = append(privSig, s.Bytes()...)
+	values.Set("PrivateSignature", common.Base64Encode(privSig))
 
 	url := fmt.Sprintf("%s%s", huobiAPIURL, endpoint)
 	url = common.EncodeURLValues(url, values)

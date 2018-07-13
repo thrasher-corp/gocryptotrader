@@ -1,4 +1,4 @@
-package gdax
+package coinbasepro
 
 import (
 	"log"
@@ -9,11 +9,11 @@ import (
 )
 
 const (
-	gdaxWebsocketURL = "wss://ws-feed.gdax.com"
+	coinbaseproWebsocketURL = "wss://ws-feed.pro.coinbase.com"
 )
 
 // WebsocketSubscribe subscribes to a websocket connection
-func (g *GDAX) WebsocketSubscribe(product string, conn *websocket.Conn) error {
+func (c *CoinbasePro) WebsocketSubscribe(product string, conn *websocket.Conn) error {
 	subscribe := WebsocketSubscribe{"subscribe", product}
 	json, err := common.JSONEncode(subscribe)
 	if err != nil {
@@ -29,37 +29,37 @@ func (g *GDAX) WebsocketSubscribe(product string, conn *websocket.Conn) error {
 }
 
 // WebsocketClient initiates a websocket client
-func (g *GDAX) WebsocketClient() {
-	for g.Enabled && g.Websocket {
+func (c *CoinbasePro) WebsocketClient() {
+	for c.Enabled && c.Websocket {
 		var Dialer websocket.Dialer
-		conn, _, err := Dialer.Dial(gdaxWebsocketURL, http.Header{})
+		conn, _, err := Dialer.Dial(coinbaseproWebsocketURL, http.Header{})
 
 		if err != nil {
-			log.Printf("%s Unable to connect to Websocket. Error: %s\n", g.GetName(), err)
+			log.Printf("%s Unable to connect to Websocket. Error: %s\n", c.GetName(), err)
 			continue
 		}
 
-		log.Printf("%s Connected to Websocket.\n", g.GetName())
+		log.Printf("%s Connected to Websocket.\n", c.GetName())
 
 		currencies := []string{}
-		for _, x := range g.EnabledPairs {
+		for _, x := range c.EnabledPairs {
 			currency := x[0:3] + "-" + x[3:]
 			currencies = append(currencies, currency)
 		}
 
 		for _, x := range currencies {
-			err = g.WebsocketSubscribe(x, conn)
+			err = c.WebsocketSubscribe(x, conn)
 			if err != nil {
-				log.Printf("%s Websocket subscription error: %s\n", g.GetName(), err)
+				log.Printf("%s Websocket subscription error: %s\n", c.GetName(), err)
 				continue
 			}
 		}
 
-		if g.Verbose {
-			log.Printf("%s Subscribed to product messages.", g.GetName())
+		if c.Verbose {
+			log.Printf("%s Subscribed to product messages.", c.GetName())
 		}
 
-		for g.Enabled && g.Websocket {
+		for c.Enabled && c.Websocket {
 			msgType, resp, err := conn.ReadMessage()
 			if err != nil {
 				log.Println(err)
@@ -122,6 +122,6 @@ func (g *GDAX) WebsocketClient() {
 			}
 		}
 		conn.Close()
-		log.Printf("%s Websocket client disconnected.", g.GetName())
+		log.Printf("%s Websocket client disconnected.", c.GetName())
 	}
 }

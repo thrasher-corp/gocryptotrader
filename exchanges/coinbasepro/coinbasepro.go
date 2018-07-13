@@ -1,4 +1,4 @@
-package gdax
+package coinbasepro
 
 import (
 	"bytes"
@@ -17,94 +17,94 @@ import (
 )
 
 const (
-	gdaxAPIURL                  = "https://api.gdax.com/"
-	gdaxSandboxAPIURL           = "https://public.sandbox.gdax.com"
-	gdaxAPIVersion              = "0"
-	gdaxProducts                = "products"
-	gdaxOrderbook               = "book"
-	gdaxTicker                  = "ticker"
-	gdaxTrades                  = "trades"
-	gdaxHistory                 = "candles"
-	gdaxStats                   = "stats"
-	gdaxCurrencies              = "currencies"
-	gdaxAccounts                = "accounts"
-	gdaxLedger                  = "ledger"
-	gdaxHolds                   = "holds"
-	gdaxOrders                  = "orders"
-	gdaxFills                   = "fills"
-	gdaxTransfers               = "transfers"
-	gdaxReports                 = "reports"
-	gdaxTime                    = "time"
-	gdaxMarginTransfer          = "profiles/margin-transfer"
-	gdaxFunding                 = "funding"
-	gdaxFundingRepay            = "funding/repay"
-	gdaxPosition                = "position"
-	gdaxPositionClose           = "position/close"
-	gdaxPaymentMethod           = "payment-methods"
-	gdaxPaymentMethodDeposit    = "deposits/payment-method"
-	gdaxDepositCoinbase         = "deposits/coinbase-account"
-	gdaxWithdrawalPaymentMethod = "withdrawals/payment-method"
-	gdaxWithdrawalCoinbase      = "withdrawals/coinbase"
-	gdaxWithdrawalCrypto        = "withdrawals/crypto"
-	gdaxCoinbaseAccounts        = "coinbase-accounts"
-	gdaxTrailingVolume          = "users/self/trailing-volume"
+	coinbaseproAPIURL                  = "https://api.pro.coinbase.com/"
+	coinbaseproSandboxAPIURL           = "https://public.sandbox.pro.coinbase.com"
+	coinbaseproAPIVersion              = "0"
+	coinbaseproProducts                = "products"
+	coinbaseproOrderbook               = "book"
+	coinbaseproTicker                  = "ticker"
+	coinbaseproTrades                  = "trades"
+	coinbaseproHistory                 = "candles"
+	coinbaseproStats                   = "stats"
+	coinbaseproCurrencies              = "currencies"
+	coinbaseproAccounts                = "accounts"
+	coinbaseproLedger                  = "ledger"
+	coinbaseproHolds                   = "holds"
+	coinbaseproOrders                  = "orders"
+	coinbaseproFills                   = "fills"
+	coinbaseproTransfers               = "transfers"
+	coinbaseproReports                 = "reports"
+	coinbaseproTime                    = "time"
+	coinbaseproMarginTransfer          = "profiles/margin-transfer"
+	coinbaseproFunding                 = "funding"
+	coinbaseproFundingRepay            = "funding/repay"
+	coinbaseproPosition                = "position"
+	coinbaseproPositionClose           = "position/close"
+	coinbaseproPaymentMethod           = "payment-methods"
+	coinbaseproPaymentMethodDeposit    = "deposits/payment-method"
+	coinbaseproDepositCoinbase         = "deposits/coinbase-account"
+	coinbaseproWithdrawalPaymentMethod = "withdrawals/payment-method"
+	coinbaseproWithdrawalCoinbase      = "withdrawals/coinbase"
+	coinbaseproWithdrawalCrypto        = "withdrawals/crypto"
+	coinbaseproCoinbaseAccounts        = "coinbase-accounts"
+	coinbaseproTrailingVolume          = "users/self/trailing-volume"
 
-	gdaxAuthRate   = 5
-	gdaxUnauthRate = 3
+	coinbaseproAuthRate   = 5
+	coinbaseproUnauthRate = 3
 )
 
-// GDAX is the overarching type across the GDAX package
-type GDAX struct {
+// CoinbasePro is the overarching type across the coinbasepro package
+type CoinbasePro struct {
 	exchange.Base
 }
 
 // SetDefaults sets default values for the exchange
-func (g *GDAX) SetDefaults() {
-	g.Name = "GDAX"
-	g.Enabled = false
-	g.Verbose = false
-	g.TakerFee = 0.25
-	g.MakerFee = 0
-	g.Websocket = false
-	g.RESTPollingDelay = 10
-	g.RequestCurrencyPairFormat.Delimiter = "-"
-	g.RequestCurrencyPairFormat.Uppercase = true
-	g.ConfigCurrencyPairFormat.Delimiter = ""
-	g.ConfigCurrencyPairFormat.Uppercase = true
-	g.AssetTypes = []string{ticker.Spot}
-	g.APIUrl = gdaxAPIURL
-	g.SupportsAutoPairUpdating = true
-	g.SupportsRESTTickerBatching = false
-	g.Requester = request.New(g.Name, request.NewRateLimit(time.Second, gdaxAuthRate), request.NewRateLimit(time.Second, gdaxUnauthRate), common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
+func (c *CoinbasePro) SetDefaults() {
+	c.Name = "CoinbasePro"
+	c.Enabled = false
+	c.Verbose = false
+	c.TakerFee = 0.25
+	c.MakerFee = 0
+	c.Websocket = false
+	c.RESTPollingDelay = 10
+	c.RequestCurrencyPairFormat.Delimiter = "-"
+	c.RequestCurrencyPairFormat.Uppercase = true
+	c.ConfigCurrencyPairFormat.Delimiter = ""
+	c.ConfigCurrencyPairFormat.Uppercase = true
+	c.AssetTypes = []string{ticker.Spot}
+	c.APIUrl = coinbaseproAPIURL
+	c.SupportsAutoPairUpdating = true
+	c.SupportsRESTTickerBatching = false
+	c.Requester = request.New(c.Name, request.NewRateLimit(time.Second, coinbaseproAuthRate), request.NewRateLimit(time.Second, coinbaseproUnauthRate), common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 }
 
 // Setup initialises the exchange parameters with the current configuration
-func (g *GDAX) Setup(exch config.ExchangeConfig) {
+func (c *CoinbasePro) Setup(exch config.ExchangeConfig) {
 	if !exch.Enabled {
-		g.SetEnabled(false)
+		c.SetEnabled(false)
 	} else {
-		g.Enabled = true
-		g.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
-		g.SetAPIKeys(exch.APIKey, exch.APISecret, exch.ClientID, true)
-		g.SetHTTPClientTimeout(exch.HTTPTimeout)
-		g.RESTPollingDelay = exch.RESTPollingDelay
-		g.Verbose = exch.Verbose
-		g.Websocket = exch.Websocket
-		g.BaseCurrencies = common.SplitStrings(exch.BaseCurrencies, ",")
-		g.AvailablePairs = common.SplitStrings(exch.AvailablePairs, ",")
-		g.EnabledPairs = common.SplitStrings(exch.EnabledPairs, ",")
+		c.Enabled = true
+		c.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
+		c.SetAPIKeys(exch.APIKey, exch.APISecret, exch.ClientID, true)
+		c.SetHTTPClientTimeout(exch.HTTPTimeout)
+		c.RESTPollingDelay = exch.RESTPollingDelay
+		c.Verbose = exch.Verbose
+		c.Websocket = exch.Websocket
+		c.BaseCurrencies = common.SplitStrings(exch.BaseCurrencies, ",")
+		c.AvailablePairs = common.SplitStrings(exch.AvailablePairs, ",")
+		c.EnabledPairs = common.SplitStrings(exch.EnabledPairs, ",")
 		if exch.UseSandbox {
-			g.APIUrl = gdaxSandboxAPIURL
+			c.APIUrl = coinbaseproSandboxAPIURL
 		}
-		err := g.SetCurrencyPairFormat()
+		err := c.SetCurrencyPairFormat()
 		if err != nil {
 			log.Fatal(err)
 		}
-		err = g.SetAssetTypes()
+		err = c.SetAssetTypes()
 		if err != nil {
 			log.Fatal(err)
 		}
-		err = g.SetAutoPairDefaults()
+		err = c.SetAutoPairDefaults()
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -112,32 +112,32 @@ func (g *GDAX) Setup(exch config.ExchangeConfig) {
 }
 
 // GetFee returns the current fee for the exchange
-func (g *GDAX) GetFee(maker bool) float64 {
+func (c *CoinbasePro) GetFee(maker bool) float64 {
 	if maker {
-		return g.MakerFee
+		return c.MakerFee
 	}
-	return g.TakerFee
+	return c.TakerFee
 }
 
 // GetProducts returns supported currency pairs on the exchange with specific
 // information about the pair
-func (g *GDAX) GetProducts() ([]Product, error) {
+func (c *CoinbasePro) GetProducts() ([]Product, error) {
 	products := []Product{}
 
-	return products, g.SendHTTPRequest(g.APIUrl+gdaxProducts, &products)
+	return products, c.SendHTTPRequest(c.APIUrl+coinbaseproProducts, &products)
 }
 
 // GetOrderbook returns orderbook by currency pair and level
-func (g *GDAX) GetOrderbook(symbol string, level int) (interface{}, error) {
+func (c *CoinbasePro) GetOrderbook(symbol string, level int) (interface{}, error) {
 	orderbook := OrderbookResponse{}
 
-	path := fmt.Sprintf("%s/%s/%s", g.APIUrl+gdaxProducts, symbol, gdaxOrderbook)
+	path := fmt.Sprintf("%s/%s/%s", c.APIUrl+coinbaseproProducts, symbol, coinbaseproOrderbook)
 	if level > 0 {
 		levelStr := strconv.Itoa(level)
-		path = fmt.Sprintf("%s/%s/%s?level=%s", g.APIUrl+gdaxProducts, symbol, gdaxOrderbook, levelStr)
+		path = fmt.Sprintf("%s/%s/%s?level=%s", c.APIUrl+coinbaseproProducts, symbol, coinbaseproOrderbook, levelStr)
 	}
 
-	if err := g.SendHTTPRequest(path, &orderbook); err != nil {
+	if err := c.SendHTTPRequest(path, &orderbook); err != nil {
 		return nil, err
 	}
 
@@ -201,27 +201,27 @@ func (g *GDAX) GetOrderbook(symbol string, level int) (interface{}, error) {
 
 // GetTicker returns ticker by currency pair
 // currencyPair - example "BTC-USD"
-func (g *GDAX) GetTicker(currencyPair string) (Ticker, error) {
+func (c *CoinbasePro) GetTicker(currencyPair string) (Ticker, error) {
 	ticker := Ticker{}
 	path := fmt.Sprintf(
-		"%s/%s/%s", g.APIUrl+gdaxProducts, currencyPair, gdaxTicker)
+		"%s/%s/%s", c.APIUrl+coinbaseproProducts, currencyPair, coinbaseproTicker)
 
-	return ticker, g.SendHTTPRequest(path, &ticker)
+	return ticker, c.SendHTTPRequest(path, &ticker)
 }
 
 // GetTrades listd the latest trades for a product
 // currencyPair - example "BTC-USD"
-func (g *GDAX) GetTrades(currencyPair string) ([]Trade, error) {
+func (c *CoinbasePro) GetTrades(currencyPair string) ([]Trade, error) {
 	trades := []Trade{}
 	path := fmt.Sprintf(
-		"%s/%s/%s", g.APIUrl+gdaxProducts, currencyPair, gdaxTrades)
+		"%s/%s/%s", c.APIUrl+coinbaseproProducts, currencyPair, coinbaseproTrades)
 
-	return trades, g.SendHTTPRequest(path, &trades)
+	return trades, c.SendHTTPRequest(path, &trades)
 }
 
 // GetHistoricRates returns historic rates for a product. Rates are returned in
 // grouped buckets based on requested granularity.
-func (g *GDAX) GetHistoricRates(currencyPair string, start, end, granularity int64) ([]History, error) {
+func (c *CoinbasePro) GetHistoricRates(currencyPair string, start, end, granularity int64) ([]History, error) {
 	var resp [][]interface{}
 	history := []History{}
 	values := url.Values{}
@@ -239,10 +239,10 @@ func (g *GDAX) GetHistoricRates(currencyPair string, start, end, granularity int
 	}
 
 	path := common.EncodeURLValues(
-		fmt.Sprintf("%s/%s/%s", g.APIUrl+gdaxProducts, currencyPair, gdaxHistory),
+		fmt.Sprintf("%s/%s/%s", c.APIUrl+coinbaseproProducts, currencyPair, coinbaseproHistory),
 		values)
 
-	if err := g.SendHTTPRequest(path, &resp); err != nil {
+	if err := c.SendHTTPRequest(path, &resp); err != nil {
 		return history, err
 	}
 
@@ -268,65 +268,65 @@ func (g *GDAX) GetHistoricRates(currencyPair string, start, end, granularity int
 
 // GetStats returns a 24 hr stat for the product. Volume is in base currency
 // units. open, high, low are in quote currency units.
-func (g *GDAX) GetStats(currencyPair string) (Stats, error) {
+func (c *CoinbasePro) GetStats(currencyPair string) (Stats, error) {
 	stats := Stats{}
 	path := fmt.Sprintf(
-		"%s/%s/%s", g.APIUrl+gdaxProducts, currencyPair, gdaxStats)
+		"%s/%s/%s", c.APIUrl+coinbaseproProducts, currencyPair, coinbaseproStats)
 
-	return stats, g.SendHTTPRequest(path, &stats)
+	return stats, c.SendHTTPRequest(path, &stats)
 }
 
 // GetCurrencies returns a list of supported currency on the exchange
-// Warning: Not all currencies may be currently in use for trading.
-func (g *GDAX) GetCurrencies() ([]Currency, error) {
+// Warning: Not all currencies may be currently in use for tradinc.
+func (c *CoinbasePro) GetCurrencies() ([]Currency, error) {
 	currencies := []Currency{}
 
-	return currencies, g.SendHTTPRequest(g.APIUrl+gdaxCurrencies, &currencies)
+	return currencies, c.SendHTTPRequest(c.APIUrl+coinbaseproCurrencies, &currencies)
 }
 
 // GetServerTime returns the API server time
-func (g *GDAX) GetServerTime() (ServerTime, error) {
+func (c *CoinbasePro) GetServerTime() (ServerTime, error) {
 	serverTime := ServerTime{}
 
-	return serverTime, g.SendHTTPRequest(g.APIUrl+gdaxTime, &serverTime)
+	return serverTime, c.SendHTTPRequest(c.APIUrl+coinbaseproTime, &serverTime)
 }
 
 // GetAccounts returns a list of trading accounts associated with the APIKEYS
-func (g *GDAX) GetAccounts() ([]AccountResponse, error) {
+func (c *CoinbasePro) GetAccounts() ([]AccountResponse, error) {
 	resp := []AccountResponse{}
 
 	return resp,
-		g.SendAuthenticatedHTTPRequest("GET", gdaxAccounts, nil, &resp)
+		c.SendAuthenticatedHTTPRequest("GET", coinbaseproAccounts, nil, &resp)
 }
 
 // GetAccount returns information for a single account. Use this endpoint when
 // account_id is known
-func (g *GDAX) GetAccount(accountID string) (AccountResponse, error) {
+func (c *CoinbasePro) GetAccount(accountID string) (AccountResponse, error) {
 	resp := AccountResponse{}
-	path := fmt.Sprintf("%s/%s", gdaxAccounts, accountID)
+	path := fmt.Sprintf("%s/%s", coinbaseproAccounts, accountID)
 
-	return resp, g.SendAuthenticatedHTTPRequest("GET", path, nil, &resp)
+	return resp, c.SendAuthenticatedHTTPRequest("GET", path, nil, &resp)
 }
 
 // GetAccountHistory returns a list of account activity. Account activity either
 // increases or decreases your account balance. Items are paginated and sorted
 // latest first.
-func (g *GDAX) GetAccountHistory(accountID string) ([]AccountLedgerResponse, error) {
+func (c *CoinbasePro) GetAccountHistory(accountID string) ([]AccountLedgerResponse, error) {
 	resp := []AccountLedgerResponse{}
-	path := fmt.Sprintf("%s/%s/%s", gdaxAccounts, accountID, gdaxLedger)
+	path := fmt.Sprintf("%s/%s/%s", coinbaseproAccounts, accountID, coinbaseproLedger)
 
-	return resp, g.SendAuthenticatedHTTPRequest("GET", path, nil, &resp)
+	return resp, c.SendAuthenticatedHTTPRequest("GET", path, nil, &resp)
 }
 
 // GetHolds returns the holds that are placed on an account for any active
 // orders or pending withdraw requests. As an order is filled, the hold amount
 // is updated. If an order is canceled, any remaining hold is removed. For a
 // withdraw, once it is completed, the hold is removed.
-func (g *GDAX) GetHolds(accountID string) ([]AccountHolds, error) {
+func (c *CoinbasePro) GetHolds(accountID string) ([]AccountHolds, error) {
 	resp := []AccountHolds{}
-	path := fmt.Sprintf("%s/%s/%s", gdaxAccounts, accountID, gdaxHolds)
+	path := fmt.Sprintf("%s/%s/%s", coinbaseproAccounts, accountID, coinbaseproHolds)
 
-	return resp, g.SendAuthenticatedHTTPRequest("GET", path, nil, &resp)
+	return resp, c.SendAuthenticatedHTTPRequest("GET", path, nil, &resp)
 }
 
 // PlaceLimitOrder places a new limit order. Orders can only be placed if the
@@ -346,7 +346,7 @@ func (g *GDAX) GetHolds(accountID string) ([]AccountHolds, error) {
 // timeInforce - [optional] GTC, GTT, IOC, or FOK (default is GTC)
 // cancelAfter - [optional] min, hour, day * Requires time_in_force to be GTT
 // postOnly - [optional] Post only flag Invalid when time_in_force is IOC or FOK
-func (g *GDAX) PlaceLimitOrder(clientRef string, price, amount float64, side, timeInforce, cancelAfter, productID, stp string, postOnly bool) (string, error) {
+func (c *CoinbasePro) PlaceLimitOrder(clientRef string, price, amount float64, side, timeInforce, cancelAfter, productID, stp string, postOnly bool) (string, error) {
 	resp := GeneralizedOrderResponse{}
 	request := make(map[string]interface{})
 	request["type"] = "limit"
@@ -371,7 +371,7 @@ func (g *GDAX) PlaceLimitOrder(clientRef string, price, amount float64, side, ti
 		request["post_only"] = postOnly
 	}
 
-	err := g.SendAuthenticatedHTTPRequest("POST", gdaxOrders, request, &resp)
+	err := c.SendAuthenticatedHTTPRequest("POST", coinbaseproOrders, request, &resp)
 	if err != nil {
 		return "", err
 	}
@@ -395,7 +395,7 @@ func (g *GDAX) PlaceLimitOrder(clientRef string, price, amount float64, side, ti
 // size - [optional]* Desired amount in BTC
 // funds	[optional]* Desired amount of quote currency to use
 // * One of size or funds is required.
-func (g *GDAX) PlaceMarketOrder(clientRef string, size, funds float64, side string, productID, stp string) (string, error) {
+func (c *CoinbasePro) PlaceMarketOrder(clientRef string, size, funds float64, side string, productID, stp string) (string, error) {
 	resp := GeneralizedOrderResponse{}
 	request := make(map[string]interface{})
 	request["side"] = side
@@ -415,7 +415,7 @@ func (g *GDAX) PlaceMarketOrder(clientRef string, size, funds float64, side stri
 		request["stp"] = stp
 	}
 
-	err := g.SendAuthenticatedHTTPRequest("POST", gdaxOrders, request, &resp)
+	err := c.SendAuthenticatedHTTPRequest("POST", coinbaseproOrders, request, &resp)
 	if err != nil {
 		return "", err
 	}
@@ -438,7 +438,7 @@ func (g *GDAX) PlaceMarketOrder(clientRef string, size, funds float64, side stri
 // MARGIN ORDER PARAMS
 // size - [optional]* Desired amount in BTC
 // funds - [optional]* Desired amount of quote currency to use
-func (g *GDAX) PlaceMarginOrder(clientRef string, size, funds float64, side string, productID, stp string) (string, error) {
+func (c *CoinbasePro) PlaceMarginOrder(clientRef string, size, funds float64, side string, productID, stp string) (string, error) {
 	resp := GeneralizedOrderResponse{}
 	request := make(map[string]interface{})
 	request["side"] = side
@@ -458,7 +458,7 @@ func (g *GDAX) PlaceMarginOrder(clientRef string, size, funds float64, side stri
 		request["stp"] = stp
 	}
 
-	err := g.SendAuthenticatedHTTPRequest("POST", gdaxOrders, request, &resp)
+	err := c.SendAuthenticatedHTTPRequest("POST", coinbaseproOrders, request, &resp)
 	if err != nil {
 		return "", err
 	}
@@ -467,24 +467,24 @@ func (g *GDAX) PlaceMarginOrder(clientRef string, size, funds float64, side stri
 }
 
 // CancelOrder cancels order by orderID
-func (g *GDAX) CancelOrder(orderID string) error {
-	path := fmt.Sprintf("%s/%s", gdaxOrders, orderID)
+func (c *CoinbasePro) CancelOrder(orderID string) error {
+	path := fmt.Sprintf("%s/%s", coinbaseproOrders, orderID)
 
-	return g.SendAuthenticatedHTTPRequest("DELETE", path, nil, nil)
+	return c.SendAuthenticatedHTTPRequest("DELETE", path, nil, nil)
 }
 
 // CancelAllOrders cancels all open orders on the exchange and returns and array
 // of order IDs
 // currencyPair - [optional] all orders for a currencyPair string will be
 // canceled
-func (g *GDAX) CancelAllOrders(currencyPair string) ([]string, error) {
+func (c *CoinbasePro) CancelAllOrders(currencyPair string) ([]string, error) {
 	var resp []string
 	request := make(map[string]interface{})
 
 	if len(currencyPair) != 0 {
 		request["product_id"] = currencyPair
 	}
-	return resp, g.SendAuthenticatedHTTPRequest("DELETE", gdaxOrders, request, &resp)
+	return resp, c.SendAuthenticatedHTTPRequest("DELETE", coinbaseproOrders, request, &resp)
 }
 
 // GetOrders lists current open orders. Only open or un-settled orders are
@@ -492,7 +492,7 @@ func (g *GDAX) CancelAllOrders(currencyPair string) ([]string, error) {
 // longer appear in the default request.
 // status - can be a range of "open", "pending", "done" or "active"
 // currencyPair - [optional] for example "BTC-USD"
-func (g *GDAX) GetOrders(status []string, currencyPair string) ([]GeneralizedOrderResponse, error) {
+func (c *CoinbasePro) GetOrders(status []string, currencyPair string) ([]GeneralizedOrderResponse, error) {
 	resp := []GeneralizedOrderResponse{}
 	params := url.Values{}
 
@@ -503,23 +503,23 @@ func (g *GDAX) GetOrders(status []string, currencyPair string) ([]GeneralizedOrd
 		params.Set("product_id", currencyPair)
 	}
 
-	path := common.EncodeURLValues(g.APIUrl+gdaxOrders, params)
+	path := common.EncodeURLValues(c.APIUrl+coinbaseproOrders, params)
 	path = common.GetURIPath(path)
 
 	return resp,
-		g.SendAuthenticatedHTTPRequest("GET", path[1:], nil, &resp)
+		c.SendAuthenticatedHTTPRequest("GET", path[1:], nil, &resp)
 }
 
 // GetOrder returns a single order by order id.
-func (g *GDAX) GetOrder(orderID string) (GeneralizedOrderResponse, error) {
+func (c *CoinbasePro) GetOrder(orderID string) (GeneralizedOrderResponse, error) {
 	resp := GeneralizedOrderResponse{}
-	path := fmt.Sprintf("%s/%s", gdaxOrders, orderID)
+	path := fmt.Sprintf("%s/%s", coinbaseproOrders, orderID)
 
-	return resp, g.SendAuthenticatedHTTPRequest("GET", path, nil, &resp)
+	return resp, c.SendAuthenticatedHTTPRequest("GET", path, nil, &resp)
 }
 
 // GetFills returns a list of recent fills
-func (g *GDAX) GetFills(orderID, currencyPair string) ([]FillResponse, error) {
+func (c *CoinbasePro) GetFills(orderID, currencyPair string) ([]FillResponse, error) {
 	resp := []FillResponse{}
 	params := url.Values{}
 
@@ -533,27 +533,27 @@ func (g *GDAX) GetFills(orderID, currencyPair string) ([]FillResponse, error) {
 		return resp, errors.New("no parameters set")
 	}
 
-	path := common.EncodeURLValues(g.APIUrl+gdaxFills, params)
+	path := common.EncodeURLValues(c.APIUrl+coinbaseproFills, params)
 	uri := common.GetURIPath(path)
 
 	return resp,
-		g.SendAuthenticatedHTTPRequest("GET", uri[1:], nil, &resp)
+		c.SendAuthenticatedHTTPRequest("GET", uri[1:], nil, &resp)
 }
 
 // GetFundingRecords every order placed with a margin profile that draws funding
 // will create a funding record.
 //
 // status - "outstanding", "settled", or "rejected"
-func (g *GDAX) GetFundingRecords(status string) ([]Funding, error) {
+func (c *CoinbasePro) GetFundingRecords(status string) ([]Funding, error) {
 	resp := []Funding{}
 	params := url.Values{}
 	params.Set("status", status)
 
-	path := common.EncodeURLValues(g.APIUrl+gdaxFunding, params)
+	path := common.EncodeURLValues(c.APIUrl+coinbaseproFunding, params)
 	uri := common.GetURIPath(path)
 
 	return resp,
-		g.SendAuthenticatedHTTPRequest("GET", uri[1:], nil, &resp)
+		c.SendAuthenticatedHTTPRequest("GET", uri[1:], nil, &resp)
 }
 
 ////////////////////////// Not receiving reply from server /////////////////
@@ -561,14 +561,14 @@ func (g *GDAX) GetFundingRecords(status string) ([]Funding, error) {
 //
 // amount - amount of currency to repay
 // currency - currency, example USD
-// func (g *GDAX) RepayFunding(amount, currency string) (Funding, error) {
+// func (c *CoinbasePro) RepayFunding(amount, currency string) (Funding, error) {
 // 	resp := Funding{}
 // 	params := make(map[string]interface{})
 // 	params["amount"] = amount
 // 	params["currency"] = currency
 //
 // 	return resp,
-// 		g.SendAuthenticatedHTTPRequest("POST", gdaxFundingRepay, params, &resp)
+// 		c.SendAuthenticatedHTTPRequest("POST", coinbaseproFundingRepay, params, &resp)
 // }
 
 // MarginTransfer sends funds between a standard/default profile and a margin
@@ -582,7 +582,7 @@ func (g *GDAX) GetFundingRecords(status string) ([]Funding, error) {
 // transferType - either "deposit" or "withdraw"
 // profileID - The id of the margin profile to deposit or withdraw from
 // currency - currency to transfer, currently on "BTC" or "USD"
-func (g *GDAX) MarginTransfer(amount float64, transferType, profileID, currency string) (MarginTransfer, error) {
+func (c *CoinbasePro) MarginTransfer(amount float64, transferType, profileID, currency string) (MarginTransfer, error) {
 	resp := MarginTransfer{}
 	request := make(map[string]interface{})
 	request["type"] = transferType
@@ -591,34 +591,34 @@ func (g *GDAX) MarginTransfer(amount float64, transferType, profileID, currency 
 	request["margin_profile_id"] = profileID
 
 	return resp,
-		g.SendAuthenticatedHTTPRequest("POST", gdaxMarginTransfer, request, &resp)
+		c.SendAuthenticatedHTTPRequest("POST", coinbaseproMarginTransfer, request, &resp)
 }
 
 // GetPosition returns an overview of account profile.
-func (g *GDAX) GetPosition() (AccountOverview, error) {
+func (c *CoinbasePro) GetPosition() (AccountOverview, error) {
 	resp := AccountOverview{}
 
 	return resp,
-		g.SendAuthenticatedHTTPRequest("GET", gdaxPosition, nil, &resp)
+		c.SendAuthenticatedHTTPRequest("GET", coinbaseproPosition, nil, &resp)
 }
 
 // ClosePosition closes a position and allowing you to repay position as well
 // repayOnly -  allows the position to be repaid
-func (g *GDAX) ClosePosition(repayOnly bool) (AccountOverview, error) {
+func (c *CoinbasePro) ClosePosition(repayOnly bool) (AccountOverview, error) {
 	resp := AccountOverview{}
 	request := make(map[string]interface{})
 	request["repay_only"] = repayOnly
 
 	return resp,
-		g.SendAuthenticatedHTTPRequest("POST", gdaxPositionClose, request, &resp)
+		c.SendAuthenticatedHTTPRequest("POST", coinbaseproPositionClose, request, &resp)
 }
 
 // GetPayMethods returns a full list of payment methods
-func (g *GDAX) GetPayMethods() ([]PaymentMethod, error) {
+func (c *CoinbasePro) GetPayMethods() ([]PaymentMethod, error) {
 	resp := []PaymentMethod{}
 
 	return resp,
-		g.SendAuthenticatedHTTPRequest("GET", gdaxPaymentMethod, nil, &resp)
+		c.SendAuthenticatedHTTPRequest("GET", coinbaseproPaymentMethod, nil, &resp)
 }
 
 // DepositViaPaymentMethod deposits funds from a payment method. See the Payment
@@ -627,7 +627,7 @@ func (g *GDAX) GetPayMethods() ([]PaymentMethod, error) {
 // amount - The amount to deposit
 // currency - The type of currency
 // paymentID - ID of the payment method
-func (g *GDAX) DepositViaPaymentMethod(amount float64, currency, paymentID string) (DepositWithdrawalInfo, error) {
+func (c *CoinbasePro) DepositViaPaymentMethod(amount float64, currency, paymentID string) (DepositWithdrawalInfo, error) {
 	resp := DepositWithdrawalInfo{}
 	req := make(map[string]interface{})
 	req["amount"] = amount
@@ -635,18 +635,18 @@ func (g *GDAX) DepositViaPaymentMethod(amount float64, currency, paymentID strin
 	req["payment_method_id"] = paymentID
 
 	return resp,
-		g.SendAuthenticatedHTTPRequest("POST", gdaxPaymentMethodDeposit, req, &resp)
+		c.SendAuthenticatedHTTPRequest("POST", coinbaseproPaymentMethodDeposit, req, &resp)
 }
 
 // DepositViaCoinbase deposits funds from a coinbase account. Move funds between
-// a Coinbase account and GDAX trading account within daily limits. Moving
-// funds between Coinbase and GDAX is instant and free. See the Coinbase
+// a Coinbase account and coinbasepro trading account within daily limits. Moving
+// funds between Coinbase and coinbasepro is instant and free. See the Coinbase
 // Accounts section for retrieving your Coinbase accounts.
 //
 // amount - The amount to deposit
 // currency - The type of currency
 // accountID - ID of the coinbase account
-func (g *GDAX) DepositViaCoinbase(amount float64, currency, accountID string) (DepositWithdrawalInfo, error) {
+func (c *CoinbasePro) DepositViaCoinbase(amount float64, currency, accountID string) (DepositWithdrawalInfo, error) {
 	resp := DepositWithdrawalInfo{}
 	req := make(map[string]interface{})
 	req["amount"] = amount
@@ -654,7 +654,7 @@ func (g *GDAX) DepositViaCoinbase(amount float64, currency, accountID string) (D
 	req["coinbase_account_id"] = accountID
 
 	return resp,
-		g.SendAuthenticatedHTTPRequest("POST", gdaxDepositCoinbase, req, &resp)
+		c.SendAuthenticatedHTTPRequest("POST", coinbaseproDepositCoinbase, req, &resp)
 }
 
 // WithdrawViaPaymentMethod withdraws funds to a payment method
@@ -662,7 +662,7 @@ func (g *GDAX) DepositViaCoinbase(amount float64, currency, accountID string) (D
 // amount - The amount to withdraw
 // currency - The type of currency
 // paymentID - ID of the payment method
-func (g *GDAX) WithdrawViaPaymentMethod(amount float64, currency, paymentID string) (DepositWithdrawalInfo, error) {
+func (c *CoinbasePro) WithdrawViaPaymentMethod(amount float64, currency, paymentID string) (DepositWithdrawalInfo, error) {
 	resp := DepositWithdrawalInfo{}
 	req := make(map[string]interface{})
 	req["amount"] = amount
@@ -670,7 +670,7 @@ func (g *GDAX) WithdrawViaPaymentMethod(amount float64, currency, paymentID stri
 	req["payment_method_id"] = paymentID
 
 	return resp,
-		g.SendAuthenticatedHTTPRequest("POST", gdaxWithdrawalPaymentMethod, req, &resp)
+		c.SendAuthenticatedHTTPRequest("POST", coinbaseproWithdrawalPaymentMethod, req, &resp)
 }
 
 ///////////////////////// NO ROUTE FOUND ERROR ////////////////////////////////
@@ -679,7 +679,7 @@ func (g *GDAX) WithdrawViaPaymentMethod(amount float64, currency, paymentID stri
 // amount - The amount to withdraw
 // currency - The type of currency
 // accountID - 	ID of the coinbase account
-// func (g *GDAX) WithdrawViaCoinbase(amount float64, currency, accountID string) (DepositWithdrawalInfo, error) {
+// func (c *CoinbasePro) WithdrawViaCoinbase(amount float64, currency, accountID string) (DepositWithdrawalInfo, error) {
 // 	resp := DepositWithdrawalInfo{}
 // 	req := make(map[string]interface{})
 // 	req["amount"] = amount
@@ -687,7 +687,7 @@ func (g *GDAX) WithdrawViaPaymentMethod(amount float64, currency, paymentID stri
 // 	req["coinbase_account_id"] = accountID
 //
 // 	return resp,
-// 		g.SendAuthenticatedHTTPRequest("POST", gdaxWithdrawalCoinbase, req, &resp)
+// 		c.SendAuthenticatedHTTPRequest("POST", coinbaseproWithdrawalCoinbase, req, &resp)
 // }
 
 // WithdrawCrypto withdraws funds to a crypto address
@@ -695,7 +695,7 @@ func (g *GDAX) WithdrawViaPaymentMethod(amount float64, currency, paymentID stri
 // amount - The amount to withdraw
 // currency - The type of currency
 // cryptoAddress - 	A crypto address of the recipient
-func (g *GDAX) WithdrawCrypto(amount float64, currency, cryptoAddress string) (DepositWithdrawalInfo, error) {
+func (c *CoinbasePro) WithdrawCrypto(amount float64, currency, cryptoAddress string) (DepositWithdrawalInfo, error) {
 	resp := DepositWithdrawalInfo{}
 	req := make(map[string]interface{})
 	req["amount"] = amount
@@ -703,15 +703,15 @@ func (g *GDAX) WithdrawCrypto(amount float64, currency, cryptoAddress string) (D
 	req["crypto_address"] = cryptoAddress
 
 	return resp,
-		g.SendAuthenticatedHTTPRequest("POST", gdaxWithdrawalCrypto, req, &resp)
+		c.SendAuthenticatedHTTPRequest("POST", coinbaseproWithdrawalCrypto, req, &resp)
 }
 
 // GetCoinbaseAccounts returns a list of coinbase accounts
-func (g *GDAX) GetCoinbaseAccounts() ([]CoinbaseAccounts, error) {
+func (c *CoinbasePro) GetCoinbaseAccounts() ([]CoinbaseAccounts, error) {
 	resp := []CoinbaseAccounts{}
 
 	return resp,
-		g.SendAuthenticatedHTTPRequest("GET", gdaxCoinbaseAccounts, nil, &resp)
+		c.SendAuthenticatedHTTPRequest("GET", coinbaseproCoinbaseAccounts, nil, &resp)
 }
 
 // GetReport returns batches of historic information about your account in
@@ -721,12 +721,12 @@ func (g *GDAX) GetCoinbaseAccounts() ([]CoinbaseAccounts, error) {
 // startDate - Starting date for the report (inclusive)
 // endDate - Ending date for the report (inclusive)
 // currencyPair - ID of the product to generate a fills report for.
-// E.g. BTC-USD. *Required* if type is fills
+// E.c. BTC-USD. *Required* if type is fills
 // accountID - ID of the account to generate an account report for. *Required*
 // if type is account
 // format - 	pdf or csv (default is pdf)
 // email - [optional] Email address to send the report to
-func (g *GDAX) GetReport(reportType, startDate, endDate, currencyPair, accountID, format, email string) (Report, error) {
+func (c *CoinbasePro) GetReport(reportType, startDate, endDate, currencyPair, accountID, format, email string) (Report, error) {
 	resp := Report{}
 	request := make(map[string]interface{})
 	request["type"] = reportType
@@ -748,36 +748,36 @@ func (g *GDAX) GetReport(reportType, startDate, endDate, currencyPair, accountID
 	}
 
 	return resp,
-		g.SendAuthenticatedHTTPRequest("POST", gdaxReports, request, &resp)
+		c.SendAuthenticatedHTTPRequest("POST", coinbaseproReports, request, &resp)
 }
 
 // GetReportStatus once a report request has been accepted for processing, the
 // status is available by polling the report resource endpoint.
-func (g *GDAX) GetReportStatus(reportID string) (Report, error) {
+func (c *CoinbasePro) GetReportStatus(reportID string) (Report, error) {
 	resp := Report{}
-	path := fmt.Sprintf("%s/%s", gdaxReports, reportID)
+	path := fmt.Sprintf("%s/%s", coinbaseproReports, reportID)
 
-	return resp, g.SendAuthenticatedHTTPRequest("GET", path, nil, &resp)
+	return resp, c.SendAuthenticatedHTTPRequest("GET", path, nil, &resp)
 }
 
 // GetTrailingVolume this request will return your 30-day trailing volume for
 // all products.
-func (g *GDAX) GetTrailingVolume() ([]Volume, error) {
+func (c *CoinbasePro) GetTrailingVolume() ([]Volume, error) {
 	resp := []Volume{}
 
 	return resp,
-		g.SendAuthenticatedHTTPRequest("GET", gdaxTrailingVolume, nil, &resp)
+		c.SendAuthenticatedHTTPRequest("GET", coinbaseproTrailingVolume, nil, &resp)
 }
 
 // SendHTTPRequest sends an unauthenticated HTTP request
-func (g *GDAX) SendHTTPRequest(path string, result interface{}) error {
-	return g.SendPayload("GET", path, nil, nil, result, false, g.Verbose)
+func (c *CoinbasePro) SendHTTPRequest(path string, result interface{}) error {
+	return c.SendPayload("GET", path, nil, nil, result, false, c.Verbose)
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated HTTP reque
-func (g *GDAX) SendAuthenticatedHTTPRequest(method, path string, params map[string]interface{}, result interface{}) (err error) {
-	if !g.AuthenticatedAPISupport {
-		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet, g.Name)
+func (c *CoinbasePro) SendAuthenticatedHTTPRequest(method, path string, params map[string]interface{}, result interface{}) (err error) {
+	if !c.AuthenticatedAPISupport {
+		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet, c.Name)
 	}
 
 	payload := []byte("")
@@ -788,20 +788,20 @@ func (g *GDAX) SendAuthenticatedHTTPRequest(method, path string, params map[stri
 			return errors.New("SendAuthenticatedHTTPRequest: Unable to JSON request")
 		}
 
-		if g.Verbose {
+		if c.Verbose {
 			log.Printf("Request JSON: %s\n", payload)
 		}
 	}
 
-	nonce := g.Nonce.GetValue(g.Name, false).String()
+	nonce := c.Nonce.GetValue(c.Name, false).String()
 	message := nonce + method + "/" + path + string(payload)
-	hmac := common.GetHMAC(common.HashSHA256, []byte(message), []byte(g.APISecret))
+	hmac := common.GetHMAC(common.HashSHA256, []byte(message), []byte(c.APISecret))
 	headers := make(map[string]string)
 	headers["CB-ACCESS-SIGN"] = common.Base64Encode([]byte(hmac))
 	headers["CB-ACCESS-TIMESTAMP"] = nonce
-	headers["CB-ACCESS-KEY"] = g.APIKey
-	headers["CB-ACCESS-PASSPHRASE"] = g.ClientID
+	headers["CB-ACCESS-KEY"] = c.APIKey
+	headers["CB-ACCESS-PASSPHRASE"] = c.ClientID
 	headers["Content-Type"] = "application/json"
 
-	return g.SendPayload(method, g.APIUrl+path, headers, bytes.NewBuffer(payload), result, true, g.Verbose)
+	return c.SendPayload(method, c.APIUrl+path, headers, bytes.NewBuffer(payload), result, true, c.Verbose)
 }

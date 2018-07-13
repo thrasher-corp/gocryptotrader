@@ -4,6 +4,7 @@ import (
 	"errors"
 	"strconv"
 	"sync"
+	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
@@ -27,6 +28,7 @@ var (
 // Price struct stores the currency pair and pricing information
 type Price struct {
 	Pair         pair.CurrencyPair `json:"Pair"`
+	LastUpdated  time.Time         `json:"LastUpdated"`
 	CurrencyPair string            `json:"CurrencyPair"`
 	Last         float64           `json:"Last"`
 	High         float64           `json:"High"`
@@ -148,7 +150,13 @@ func CreateNewTicker(exchangeName string, p pair.CurrencyPair, tickerNew Price, 
 // ProcessTicker processes incoming tickers, creating or updating the Tickers
 // list
 func ProcessTicker(exchangeName string, p pair.CurrencyPair, tickerNew Price, tickerType string) {
+	if tickerNew.Pair.Pair() == "" {
+		// set Pair if not set
+		tickerNew.Pair = p
+	}
+
 	tickerNew.CurrencyPair = p.Pair().String()
+	tickerNew.LastUpdated = time.Now()
 	if len(Tickers) == 0 {
 		CreateNewTicker(exchangeName, p, tickerNew, tickerType)
 		return
