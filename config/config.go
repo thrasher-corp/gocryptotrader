@@ -117,6 +117,7 @@ type ExchangeConfig struct {
 	AuthenticatedAPISupport   bool
 	APIKey                    string
 	APISecret                 string
+	APIAuthPEMKey             string `json:",omitempty"`
 	ClientID                  string `json:",omitempty"`
 	AvailablePairs            string
 	EnabledPairs              string

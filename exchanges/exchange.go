@@ -85,27 +85,27 @@ type FundHistory struct {
 
 // Base stores the individual exchange information
 type Base struct {
-	Name                        string
-	Enabled                     bool
-	Verbose                     bool
-	Websocket                   bool
-	RESTPollingDelay            time.Duration
-	AuthenticatedAPISupport     bool
-	APISecret, APIKey, ClientID string
-	Nonce                       nonce.Nonce
-	TakerFee, MakerFee, Fee     float64
-	BaseCurrencies              []string
-	AvailablePairs              []string
-	EnabledPairs                []string
-	AssetTypes                  []string
-	PairsLastUpdated            int64
-	SupportsAutoPairUpdating    bool
-	SupportsRESTTickerBatching  bool
-	HTTPTimeout                 time.Duration
-	WebsocketURL                string
-	APIUrl                      string
-	RequestCurrencyPairFormat   config.CurrencyPairFormatConfig
-	ConfigCurrencyPairFormat    config.CurrencyPairFormatConfig
+	Name                                       string
+	Enabled                                    bool
+	Verbose                                    bool
+	Websocket                                  bool
+	RESTPollingDelay                           time.Duration
+	AuthenticatedAPISupport                    bool
+	APISecret, APIKey, APIAuthPEMKey, ClientID string
+	Nonce                                      nonce.Nonce
+	TakerFee, MakerFee, Fee                    float64
+	BaseCurrencies                             []string
+	AvailablePairs                             []string
+	EnabledPairs                               []string
+	AssetTypes                                 []string
+	PairsLastUpdated                           int64
+	SupportsAutoPairUpdating                   bool
+	SupportsRESTTickerBatching                 bool
+	HTTPTimeout                                time.Duration
+	WebsocketURL                               string
+	APIUrl                                     string
+	RequestCurrencyPairFormat                  config.CurrencyPairFormatConfig
+	ConfigCurrencyPairFormat                   config.CurrencyPairFormatConfig
 	*request.Requester
 }
 
