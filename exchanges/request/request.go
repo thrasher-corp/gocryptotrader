@@ -18,8 +18,8 @@ var supportedMethods = []string{"GET", "POST", "HEAD", "PUT", "DELETE", "OPTIONS
 // Requester struct for the request client
 type Requester struct {
 	HTTPClient  *http.Client
-	UnauthLimit RateLimit
-	AuthLimit   RateLimit
+	UnauthLimit *RateLimit
+	AuthLimit   *RateLimit
 	Name        string
 	Cycle       time.Time
 	m           sync.Mutex
@@ -34,8 +34,8 @@ type RateLimit struct {
 }
 
 // NewRateLimit creates a new RateLimit
-func NewRateLimit(d time.Duration, rate int) RateLimit {
-	return RateLimit{Duration: d, Rate: rate}
+func NewRateLimit(d time.Duration, rate int) *RateLimit {
+	return &RateLimit{Duration: d, Rate: rate}
 }
 
 // ToString returns the rate limiter in string notation
@@ -156,7 +156,7 @@ func (r *Requester) SetRateLimit(auth bool, duration time.Duration, rate int) {
 }
 
 // GetRateLimit gets the request Requester ratelimiter
-func (r *Requester) GetRateLimit(auth bool) RateLimit {
+func (r *Requester) GetRateLimit(auth bool) *RateLimit {
 	if auth {
 		return r.AuthLimit
 	}
@@ -164,9 +164,13 @@ func (r *Requester) GetRateLimit(auth bool) RateLimit {
 }
 
 // New returns a new Requester
-func New(name string, authLimit, unauthLimit RateLimit, httpRequester *http.Client) *Requester {
-	r := &Requester{HTTPClient: httpRequester, UnauthLimit: unauthLimit, AuthLimit: authLimit, Name: name}
-	return r
+func New(name string, authLimit, unauthLimit *RateLimit, httpRequester *http.Client) *Requester {
+	return &Requester{
+		HTTPClient:  httpRequester,
+		UnauthLimit: unauthLimit,
+		AuthLimit:   authLimit,
+		Name:        name,
+	}
 }
 
 // IsValidMethod returns whether the supplied method is supported
