@@ -284,14 +284,14 @@ type QueryOrderData struct {
 	ClientOrderID string  `json:"clientOrderId"`
 	Price         float64 `json:"price,string"`
 	OrigQty       float64 `json:"origQty,string"`
-	ExecutedQty   float64 `json:"executedQty,string"`
+	ExecutedQty   float64 `json:"executedQty,string"` //成交的数量
 	Status        string  `json:"status"`
 	TimeInForce   string  `json:"timeInForce"`
 	Type          string  `json:"type"`
 	Side          string  `json:"side"`
 	StopPrice     float64 `json:"stopPrice,string"`
 	IcebergQty    float64 `json:"icebergQty,string"`
-	Time          int64   `json:"time"`
+	Time          float64 `json:"time"`
 	IsWorking     bool    `json:"isWorking"`
 }
 

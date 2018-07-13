@@ -1,6 +1,8 @@
 package binance
 
 import (
+	"encoding/json"
+	"fmt"
 	"testing"
 
 	"github.com/idoall/gocryptotrader/config"
@@ -164,8 +166,42 @@ func TestCancelOrder(t *testing.T) {
 
 func TestQueryOrder(t *testing.T) {
 	t.Parallel()
-	_, err := b.QueryOrder("", "", 1337)
-	if err == nil {
+	res, err := b.QueryOrder(b.GetSymbol(), "", 1337)
+	if err != nil {
 		t.Error("Test Failed - Binance QueryOrder() error", err)
+	} else {
+		//{"code":0,"msg":"","symbol":"BTCUSDT","orderId":131046063,"clientOrderId":"2t38MQXdRe9HvctyRdUbIT","price":"100000","origQty":"0.01","executedQty":"0","status":"NEW","timeInForce":"GTC","type":"LIMIT","side":"SELL","stopPrice":"0","icebergQty":"0","time":1531384312008,"isWorking":true}
+		b, _ := json.Marshal(res)
+		fmt.Println(string(b))
+	}
+}
+
+func TestOpenOrders(t *testing.T) {
+	t.Parallel()
+	list, err := b.OpenOrders(b.GetSymbol())
+	if err != nil {
+		t.Error("Test Failed - Binance OpenOrders() error", err)
+	} else {
+		fmt.Println("----------OpenOrders-------")
+		for _, v := range list {
+			b, _ := json.Marshal(v)
+			fmt.Println(string(b))
+		}
+
+	}
+}
+
+func TestAllOrders(t *testing.T) {
+	t.Parallel()
+	list, err := b.AllOrders(b.GetSymbol(), "", "")
+	if err != nil {
+		t.Error("Test Failed - Binance AllOrders() error", err)
+	} else {
+		fmt.Println("----------AllOrders-------")
+		for _, v := range list {
+			b, _ := json.Marshal(v)
+			fmt.Println(string(b))
+		}
+
 	}
 }

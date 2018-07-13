@@ -4,7 +4,7 @@
 
 + 简单一些操作
 + 修复火币在 Post 时的bug，同时增加 HuobiHadax 的支持
-+ 修复 Binance 获取用户信息的bug,增加 Binance 取消订单的方法
++ 修复 Binance 获取用户信息的bug,增加 Binance 取消订单的方法，获取订单状态，获取所有打开的状态以及所有订单
 + 增加 Gateio 交易所的支持，支持获取K线、支持的交易对、交易市场参数、买/卖订单、取消订单
 + OKEX 币币交易:增加获取用户信息，下订单，取消订单
 + 修复 Bitfinex 的 GetAccountInfo 方法
