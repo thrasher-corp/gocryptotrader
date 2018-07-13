@@ -19,6 +19,7 @@ import (
 // Binance is the overarching type across the Bithumb package
 type Binance struct {
 	exchange.Base
+	WebsocketConn *websocket.Conn
 
 	// valid string list that a required by the exchange
 	validLimits    []string
