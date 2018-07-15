@@ -138,9 +138,9 @@ func (b *Binance) GetExchangeInfo() (ExchangeInfo, error) {
 func (b *Binance) GetOrderBook(symbol string, limit int64) (OrderBook, error) {
 	orderbook, resp := OrderBook{}, OrderBookData{}
 
-	if err := b.CheckLimit(limit); err != nil {
-		return orderbook, err
-	}
+	// if err := b.CheckLimit(limit); err != nil {
+	// 	return orderbook, err
+	// }
 	// if err := b.CheckSymbol(symbol); err != nil {
 	// 	return orderbook, err
 	// }
@@ -198,10 +198,6 @@ func (b *Binance) GetOrderBook(symbol string, limit int64) (OrderBook, error) {
 // 获取最近的交易，最大500
 func (b *Binance) GetRecentTrades(symbol string, limit int64) ([]RecentTrade, error) {
 	resp := []RecentTrade{}
-
-	if err := b.CheckLimit(limit); err != nil {
-		return resp, err
-	}
 
 	params := url.Values{}
 	params.Set("symbol", common.StringToUpper(symbol))

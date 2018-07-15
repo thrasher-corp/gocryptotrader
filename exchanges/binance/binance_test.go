@@ -59,17 +59,38 @@ func TestGetExchangeValidCurrencyPairs(t *testing.T) {
 
 func TestGetOrderBook(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetOrderBook("BTCUSDT", 5)
+	res, err := b.GetOrderBook(b.GetSymbol(), 10)
+
 	if err != nil {
 		t.Error("Test Failed - Binance GetOrderBook() error", err)
+	} else {
+		fmt.Println("----------Bids-------")
+		for _, v := range res.Bids {
+			b, _ := json.Marshal(v)
+			fmt.Println(string(b))
+		}
+		fmt.Println("----------Asks-------")
+		for _, v := range res.Asks {
+			b, _ := json.Marshal(v)
+			fmt.Println(string(b))
+		}
+
 	}
 }
 
 func TestGetRecentTrades(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetRecentTrades("BTCUSDT", 5)
+
+	list, err := b.GetRecentTrades(b.GetSymbol(), 15)
+
 	if err != nil {
 		t.Error("Test Failed - Binance GetRecentTrades() error", err)
+	} else {
+		for k, v := range list {
+			b, _ := json.Marshal(v)
+			fmt.Println(k, string(b))
+		}
+
 	}
 }
 
