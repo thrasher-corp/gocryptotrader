@@ -65,15 +65,15 @@ func main() {
 	fmt.Println("----------setup-------")
 	exchange.Setup(defaultConfig)
 
-	list, err := exchange.CancelOrder(exchange.GetSymbol(), 131047268, "")
+	list, err := exchange.GetRecentTrades(exchange.GetSymbol(), 15)
+
 	if err != nil {
 		fmt.Println(err)
 	} else {
-		fmt.Println("----------AllOrders-------")
-		// for _, v := range list {
-		b, _ := json.Marshal(list)
-		fmt.Println(string(b))
-		// }
+		for k, v := range list {
+			b, _ := json.Marshal(v)
+			fmt.Println(k, string(b))
+		}
 
 	}
 	// sh1 := common.GetHMAC(common.MD5New, []byte("accesskey=6d8f62fd-3086-46e3-a0ba-c66a929c24e2&method=getAccountInfo"), []byte(common.Sha1ToHex("48939bbc-8d49-402b-b731-adadf2ea9628")))

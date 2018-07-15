@@ -57,11 +57,11 @@ type OrderBookData struct {
 type OrderBook struct {
 	Code int
 	Msg  string
-	Bids []struct {
-		Price    float64
-		Quantity float64
+	Bids []struct { //买方
+		Price    float64 //价格
+		Quantity float64 // 数量
 	}
-	Asks []struct {
+	Asks []struct { //卖方
 		Price    float64
 		Quantity float64
 	}
