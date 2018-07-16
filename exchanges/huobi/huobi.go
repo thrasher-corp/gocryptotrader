@@ -166,12 +166,12 @@ func (h *HUOBI) GetMarketDetailMerged(symbol string) (DetailMerged, error) {
 }
 
 // GetDepth returns the depth for the specified symbol
-func (h *HUOBI) GetDepth(symbol, depthType string) (Orderbook, error) {
+func (h *HUOBI) GetDepth(obd OrderBookDataRequestParams) (Orderbook, error) {
 	vals := url.Values{}
-	vals.Set("symbol", symbol)
+	vals.Set("symbol", obd.Symbol)
 
-	if depthType != "" {
-		vals.Set("type", depthType)
+	if obd.Type != OrderBookDataRequestParamsTypeNone {
+		vals.Set("type", string(obd.Type))
 	}
 
 	type response struct {

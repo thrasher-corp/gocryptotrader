@@ -122,7 +122,10 @@ func (h *HUOBI) GetOrderbookEx(p pair.CurrencyPair, assetType string) (orderbook
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (h *HUOBI) UpdateOrderbook(p pair.CurrencyPair, assetType string) (orderbook.Base, error) {
 	var orderBook orderbook.Base
-	orderbookNew, err := h.GetDepth(exchange.FormatExchangeCurrency(h.Name, p).String(), "step1")
+	orderbookNew, err := h.GetDepth(OrderBookDataRequestParams{
+		Symbol: exchange.FormatExchangeCurrency(h.Name, p).String(),
+		Type:   OrderBookDataRequestParamsTypeStep1,
+	})
 	if err != nil {
 		return orderBook, err
 	}

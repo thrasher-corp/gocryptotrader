@@ -29,6 +29,24 @@ type DetailMerged struct {
 	Bid     []float64 `json:"bid"`
 }
 
+type OrderBookDataRequestParamsType string
+
+var (
+	OrderBookDataRequestParamsTypeNone  = OrderBookDataRequestParamsType("")
+	OrderBookDataRequestParamsTypeStep0 = OrderBookDataRequestParamsType("step0")
+	OrderBookDataRequestParamsTypeStep1 = OrderBookDataRequestParamsType("step1")
+	OrderBookDataRequestParamsTypeStep2 = OrderBookDataRequestParamsType("step2")
+	OrderBookDataRequestParamsTypeStep3 = OrderBookDataRequestParamsType("step3")
+	OrderBookDataRequestParamsTypeStep4 = OrderBookDataRequestParamsType("step4")
+	OrderBookDataRequestParamsTypeStep5 = OrderBookDataRequestParamsType("step5")
+)
+
+// OrderBookDataRequestParams represents Klines request data.
+type OrderBookDataRequestParams struct {
+	Symbol string                         `json:"symbol"` //必填项，交易对:LTCBTC,BTCUSDT
+	Type   OrderBookDataRequestParamsType `json:"type"`   //step0, step1, step2, step3, step4, step5（合并深度0-5）；step0时，不合并深度
+}
+
 // Orderbook stores the orderbook data
 type Orderbook struct {
 	ID         int64       `json:"id"`
