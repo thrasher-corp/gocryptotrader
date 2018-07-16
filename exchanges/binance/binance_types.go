@@ -71,6 +71,12 @@ type OrderBook struct {
 	}
 }
 
+// RecentTradeRequestParams represents Klines request data.
+type RecentTradeRequestParams struct {
+	Symbol string `json:"symbol"` //必填项，交易对:LTCBTC,BTCUSDT
+	Limit  int    `json:"limit"`  // Default 500; max 500.
+}
+
 // RecentTrade holds recent trade data
 type RecentTrade struct {
 	Code         int     `json:"code"`

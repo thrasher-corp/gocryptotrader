@@ -153,6 +153,12 @@ type ActualSpotDepth struct {
 	}
 }
 
+// ActualSpotTradeHistoryRequestParams represents Klines request data.
+type ActualSpotTradeHistoryRequestParams struct {
+	Symbol string `json:"symbol"` //必填项，币对如ltc_btc
+	Since  int    `json:"since"`  // tid:交易记录ID(返回数据不包括当前tid值,最多返回600条数据)
+}
+
 // ActualSpotTradeHistory holds contract trade history
 type ActualSpotTradeHistory struct {
 	Amount   float64 `json:"amount"`
