@@ -714,13 +714,13 @@ func (o *OKEX) GetSpotTicker(symbol string) (SpotPrice, error) {
 }
 
 //GetSpotMarketDepth returns Market Depth
-func (o *OKEX) GetSpotMarketDepth(symbol, size string) (ActualSpotDepth, error) {
+func (o *OKEX) GetSpotMarketDepth(asd ActualSpotDepthRequestParams) (ActualSpotDepth, error) {
 	resp := SpotDepth{}
 	fullDepth := ActualSpotDepth{}
 
 	values := url.Values{}
-	values.Set("symbol", symbol)
-	values.Set("size", size)
+	values.Set("symbol", asd.Symbol)
+	values.Set("size", fmt.Sprintf("%s", asd.Size))
 
 	path := fmt.Sprintf("%s%s%s.do?%s", apiURL, apiVersion, "depth", values.Encode())
 

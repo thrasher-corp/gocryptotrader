@@ -135,6 +135,12 @@ type SpotDepth struct {
 	Error  interface{}   `json:"error_code"`
 }
 
+// OrderBookDataRequestParams represents Klines request data.
+type ActualSpotDepthRequestParams struct {
+	Symbol string `json:"symbol"` //必填项，币对如ltc_btc
+	Size   int    `json:"size"`   // value: 1-200
+}
+
 // ActualSpotDepth better manipulated structure to return
 type ActualSpotDepth struct {
 	Asks []struct {
