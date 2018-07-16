@@ -135,7 +135,7 @@ func (b *Binance) GetExchangeInfo() (ExchangeInfo, error) {
 // symbol: string of currency pair
 // limit: returned limit amount
 // 获取交易深度
-func (b *Binance) GetOrderBook(symbol string, limit int64) (OrderBook, error) {
+func (b *Binance) GetOrderBook(obd OrderBookDataRequestParams) (OrderBook, error) {
 	orderbook, resp := OrderBook{}, OrderBookData{}
 
 	// if err := b.CheckLimit(limit); err != nil {
@@ -146,8 +146,8 @@ func (b *Binance) GetOrderBook(symbol string, limit int64) (OrderBook, error) {
 	// }
 
 	params := url.Values{}
-	params.Set("symbol", common.StringToUpper(symbol))
-	params.Set("limit", strconv.FormatInt(limit, 10))
+	params.Set("symbol", common.StringToUpper(obd.Symbol))
+	params.Set("limit", fmt.Sprintf("%d", obd.Limit))
 
 	path := fmt.Sprintf("%s%s?%s", apiURL, orderBookDepth, params.Encode())
 
