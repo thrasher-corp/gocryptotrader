@@ -200,7 +200,7 @@ func (b *Binance) GetRecentTrades(rtr RecentTradeRequestParams) ([]RecentTrade, 
 
 	params := url.Values{}
 	params.Set("symbol", common.StringToUpper(rtr.Symbol))
-	params.Set("limit", fmt.Sprintf("%s", rtr.Limit))
+	params.Set("limit", fmt.Sprintf("%d", rtr.Limit))
 
 	path := fmt.Sprintf("%s%s?%s", apiURL, recentTrades, params.Encode())
 

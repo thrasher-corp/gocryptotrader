@@ -65,7 +65,10 @@ func main() {
 	fmt.Println("----------setup-------")
 	exchange.Setup(defaultConfig)
 
-	list, err := exchange.GetRecentTrades(exchange.GetSymbol(), 15)
+	list, err := exchange.GetRecentTrades(binance.RecentTradeRequestParams{
+		Symbol: exchange.GetSymbol(),
+		Limit:  15,
+	})
 
 	if err != nil {
 		fmt.Println(err)

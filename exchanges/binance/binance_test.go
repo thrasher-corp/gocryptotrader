@@ -59,7 +59,10 @@ func TestGetExchangeValidCurrencyPairs(t *testing.T) {
 
 func TestGetOrderBook(t *testing.T) {
 	t.Parallel()
-	res, err := b.GetOrderBook(b.GetSymbol(), 10)
+	res, err := b.GetOrderBook(OrderBookDataRequestParams{
+		Symbol: b.GetSymbol(),
+		Limit:  10,
+	})
 
 	if err != nil {
 		t.Error("Test Failed - Binance GetOrderBook() error", err)
@@ -81,7 +84,10 @@ func TestGetOrderBook(t *testing.T) {
 func TestGetRecentTrades(t *testing.T) {
 	t.Parallel()
 
-	list, err := b.GetRecentTrades(b.GetSymbol(), 15)
+	list, err := b.GetRecentTrades(RecentTradeRequestParams{
+		Symbol: b.GetSymbol(),
+		Limit:  15,
+	})
 
 	if err != nil {
 		t.Error("Test Failed - Binance GetRecentTrades() error", err)
