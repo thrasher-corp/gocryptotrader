@@ -194,16 +194,13 @@ func (b *Binance) GetOrderBook(obd OrderBookDataRequestParams) (OrderBook, error
 }
 
 // GetRecentTrades returns recent trade activity
-//
-// symbol: string of currency pair
-// limit: returned limit amount WARNING: MAX 500!
 // 获取最近的交易，最大500
-func (b *Binance) GetRecentTrades(symbol string, limit int64) ([]RecentTrade, error) {
+func (b *Binance) GetRecentTrades(rtr RecentTradeRequestParams) ([]RecentTrade, error) {
 	resp := []RecentTrade{}
 
 	params := url.Values{}
-	params.Set("symbol", common.StringToUpper(symbol))
-	params.Set("limit", strconv.FormatInt(limit, 10))
+	params.Set("symbol", common.StringToUpper(rtr.Symbol))
+	params.Set("limit", fmt.Sprintf("%s", rtr.Limit))
 
 	path := fmt.Sprintf("%s%s?%s", apiURL, recentTrades, params.Encode())
 

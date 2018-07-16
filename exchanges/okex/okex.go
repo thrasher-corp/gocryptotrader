@@ -771,13 +771,13 @@ func (o *OKEX) GetSpotMarketDepth(asd ActualSpotDepthRequestParams) (ActualSpotD
 }
 
 // GetSpotRecentTrades returns recent trades
-func (o *OKEX) GetSpotRecentTrades(symbol, since string) ([]ActualSpotTradeHistory, error) {
+func (o *OKEX) GetSpotRecentTrades(ast ActualSpotTradeHistoryRequestParams) ([]ActualSpotTradeHistory, error) {
 	actualTradeHistory := []ActualSpotTradeHistory{}
 	var resp interface{}
 
 	values := url.Values{}
-	values.Set("symbol", symbol)
-	values.Set("since", since)
+	values.Set("symbol", ast.Symbol)
+	values.Set("since", fmt.Sprintf("%s", ast.Since))
 
 	path := fmt.Sprintf("%s%s%s.do?%s", apiURL, apiVersion, "trades", values.Encode())
 
