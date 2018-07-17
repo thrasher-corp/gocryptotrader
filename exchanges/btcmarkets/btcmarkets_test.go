@@ -4,13 +4,9 @@ import (
 	"net/url"
 	"testing"
 
-<<<<<<< HEAD
-	"github.com/idoall/gocryptotrader/config"
-=======
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
->>>>>>> upstrem/master
 )
 
 var bm BTCMarkets

@@ -4,7 +4,7 @@ import (
 	"net/url"
 	"testing"
 
-	"github.com/idoall/gocryptotrader/config"
+	"github.com/thrasher-/gocryptotrader/config"
 )
 
 var i ItBit

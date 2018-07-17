@@ -4,12 +4,8 @@ import (
 	"net/url"
 	"testing"
 
-<<<<<<< HEAD
-	"github.com/idoall/gocryptotrader/config"
-=======
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
->>>>>>> upstrem/master
 )
 
 var l Liqui

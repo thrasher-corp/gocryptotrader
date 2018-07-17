@@ -11,16 +11,6 @@ import (
 	"strconv"
 	"syscall"
 
-<<<<<<< HEAD
-	"github.com/idoall/gocryptotrader/currency"
-	"github.com/idoall/gocryptotrader/currency/forexprovider"
-
-	"github.com/idoall/gocryptotrader/common"
-	"github.com/idoall/gocryptotrader/communications"
-	"github.com/idoall/gocryptotrader/config"
-	"github.com/idoall/gocryptotrader/exchanges"
-	"github.com/idoall/gocryptotrader/portfolio"
-=======
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/communications"
 	"github.com/thrasher-/gocryptotrader/config"
@@ -28,7 +18,6 @@ import (
 	"github.com/thrasher-/gocryptotrader/currency/forexprovider"
 	"github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/portfolio"
->>>>>>> upstrem/master
 )
 
 // Bot contains configuration, portfolio, exchange & ticker data and is the

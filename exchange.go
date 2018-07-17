@@ -5,35 +5,6 @@ import (
 	"log"
 	"sync"
 
-<<<<<<< HEAD
-	"github.com/idoall/gocryptotrader/common"
-	exchange "github.com/idoall/gocryptotrader/exchanges"
-	"github.com/idoall/gocryptotrader/exchanges/anx"
-	"github.com/idoall/gocryptotrader/exchanges/binance"
-	"github.com/idoall/gocryptotrader/exchanges/bitfinex"
-	"github.com/idoall/gocryptotrader/exchanges/bitflyer"
-	"github.com/idoall/gocryptotrader/exchanges/bithumb"
-	"github.com/idoall/gocryptotrader/exchanges/bitstamp"
-	"github.com/idoall/gocryptotrader/exchanges/bittrex"
-	"github.com/idoall/gocryptotrader/exchanges/btcc"
-	"github.com/idoall/gocryptotrader/exchanges/btcmarkets"
-	"github.com/idoall/gocryptotrader/exchanges/coinut"
-	"github.com/idoall/gocryptotrader/exchanges/exmo"
-	"github.com/idoall/gocryptotrader/exchanges/gdax"
-	"github.com/idoall/gocryptotrader/exchanges/gemini"
-	"github.com/idoall/gocryptotrader/exchanges/hitbtc"
-	"github.com/idoall/gocryptotrader/exchanges/huobi"
-	"github.com/idoall/gocryptotrader/exchanges/itbit"
-	"github.com/idoall/gocryptotrader/exchanges/kraken"
-	"github.com/idoall/gocryptotrader/exchanges/lakebtc"
-	"github.com/idoall/gocryptotrader/exchanges/liqui"
-	"github.com/idoall/gocryptotrader/exchanges/localbitcoins"
-	"github.com/idoall/gocryptotrader/exchanges/okcoin"
-	"github.com/idoall/gocryptotrader/exchanges/okex"
-	"github.com/idoall/gocryptotrader/exchanges/poloniex"
-	"github.com/idoall/gocryptotrader/exchanges/wex"
-	"github.com/idoall/gocryptotrader/exchanges/yobit"
-=======
 	"github.com/thrasher-/gocryptotrader/common"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/anx"
@@ -61,7 +32,6 @@ import (
 	"github.com/thrasher-/gocryptotrader/exchanges/poloniex"
 	"github.com/thrasher-/gocryptotrader/exchanges/wex"
 	"github.com/thrasher-/gocryptotrader/exchanges/yobit"
->>>>>>> upstrem/master
 )
 
 // vars related to exchange functions

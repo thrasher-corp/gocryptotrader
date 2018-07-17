@@ -34,7 +34,6 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 | Gemini | Yes | No | No |
 | HitBTC | Yes | Yes | No |
 | Huobi.Pro | Yes | No |No |
-| HuobiHadax | Yes | No |No |
 | ItBit | Yes | NA | No |
 | Kraken | Yes | NA | NA |
 | LakeBTC | Yes | No | NA |

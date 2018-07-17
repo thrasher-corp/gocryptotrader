@@ -2,11 +2,6 @@ package huobi
 
 import (
 	"bytes"
-<<<<<<< HEAD
-	"encoding/json"
-	"errors"
-	"fmt"
-=======
 	"crypto/ecdsa"
 	"crypto/rand"
 	"crypto/x509"
@@ -15,17 +10,16 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
->>>>>>> upstrem/master
 	"net/url"
 	"strconv"
 	"strings"
 	"time"
 
-	"github.com/idoall/gocryptotrader/common"
-	"github.com/idoall/gocryptotrader/config"
-	"github.com/idoall/gocryptotrader/exchanges"
-	"github.com/idoall/gocryptotrader/exchanges/request"
-	"github.com/idoall/gocryptotrader/exchanges/ticker"
+	"github.com/thrasher-/gocryptotrader/common"
+	"github.com/thrasher-/gocryptotrader/config"
+	"github.com/thrasher-/gocryptotrader/exchanges"
+	"github.com/thrasher-/gocryptotrader/exchanges/request"
+	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 )
 
 const (
@@ -102,36 +96,18 @@ func (h *HUOBI) Setup(exch config.ExchangeConfig) {
 		h.BaseCurrencies = common.SplitStrings(exch.BaseCurrencies, ",")
 		h.AvailablePairs = common.SplitStrings(exch.AvailablePairs, ",")
 		h.EnabledPairs = common.SplitStrings(exch.EnabledPairs, ",")
-
-		h.RequestCurrencyPairFormat = config.CurrencyPairFormatConfig{
-			Delimiter: exch.RequestCurrencyPairFormat.Delimiter,
-			Uppercase: exch.RequestCurrencyPairFormat.Uppercase,
-			Separator: exch.RequestCurrencyPairFormat.Separator,
-			Index:     exch.RequestCurrencyPairFormat.Index,
+		err := h.SetCurrencyPairFormat()
+		if err != nil {
+			log.Fatal(err)
 		}
-
-		h.ConfigCurrencyPairFormat = config.CurrencyPairFormatConfig{
-			Delimiter: exch.ConfigCurrencyPairFormat.Delimiter,
-			Uppercase: exch.ConfigCurrencyPairFormat.Uppercase,
-			Separator: exch.ConfigCurrencyPairFormat.Separator,
-			Index:     exch.ConfigCurrencyPairFormat.Index,
+		err = h.SetAssetTypes()
+		if err != nil {
+			log.Fatal(err)
 		}
-		// err := h.SetCurrencyPairFormat()
-		// if err != nil {
-		// 	log.Fatal(err)
-		// }
-
-		h.AssetTypes = strings.Split(exch.AssetTypes, ",")
-		// err = h.SetAssetTypes()
-		// if err != nil {
-		// 	log.Fatal(err)
-		// }
-
-		h.SupportsAutoPairUpdating = false
-		// err = h.SetAutoPairDefaults()
-		// if err != nil {
-		// 	log.Fatal(err)
-		// }
+		err = h.SetAutoPairDefaults()
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 }
 
@@ -364,37 +340,29 @@ func (h *HUOBI) GetAccountBalance(accountID string) ([]AccountBalanceDetail, err
 
 // PlaceOrder submits an order to Huobi
 func (h *HUOBI) PlaceOrder(symbol, source, accountID, orderType string, amount, price float64) (int64, error) {
-	vals := make(map[string]string)
-	vals["account-id"] = accountID
-	vals["amount"] = strconv.FormatFloat(amount, 'f', -1, 64)
+	vals := url.Values{}
+	vals.Set("account-id", accountID)
+	vals.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
 
 	// Only set price if order type is not equal to buy-market or sell-market
 	if orderType != "buy-market" && orderType != "sell-market" {
-		vals["price"] = strconv.FormatFloat(price, 'f', -1, 64)
+		vals.Set("price", strconv.FormatFloat(price, 'f', -1, 64))
 	}
 
 	if source != "" {
-		vals["source"] = source
+		vals.Set("source", source)
 	}
 
-	vals["symbol"] = symbol
-	vals["type"] = orderType
+	vals.Set("symbol", symbol)
+	vals.Set("type", orderType)
 
 	type response struct {
 		Response
 		OrderID int64 `json:"data,string"`
 	}
 
-	//API 中指出对于POST请求，每个方法自带的参数不进行签名认证，即POST请求中需要进行签名运算的只有AccessKeyId、SignatureMethod、SignatureVersion、Timestamp四个参数，其它参数放在body中。
-	//所以对 Post 参数重新进行编码
-	bytesParams, _ := json.Marshal(vals)
-	postBodyParams := string(bytesParams)
-	if h.Verbose {
-		fmt.Println("Post params:", postBodyParams)
-	}
-
 	var result response
-	err := h.SendAuthenticatedHTTPPostRequest("POST", huobiOrderPlace, postBodyParams, &result)
+	err := h.SendAuthenticatedHTTPRequest("POST", huobiOrderPlace, vals, &result)
 
 	if result.ErrorMessage != "" {
 		return 0, errors.New(result.ErrorMessage)
@@ -411,7 +379,7 @@ func (h *HUOBI) CancelOrder(orderID int64) (int64, error) {
 
 	var result response
 	endpoint := fmt.Sprintf(huobiOrderCancel, strconv.FormatInt(orderID, 10))
-	err := h.SendAuthenticatedHTTPPostRequest("POST", endpoint, "", &result)
+	err := h.SendAuthenticatedHTTPRequest("POST", endpoint, url.Values{}, &result)
 
 	if result.ErrorMessage != "" {
 		return 0, errors.New(result.ErrorMessage)
@@ -420,28 +388,17 @@ func (h *HUOBI) CancelOrder(orderID int64) (int64, error) {
 }
 
 // CancelOrderBatch cancels a batch of orders -- to-do
-func (h *HUOBI) CancelOrderBatch(orderIDs []int64) (CancelOrderBatch, error) {
+func (h *HUOBI) CancelOrderBatch(orderIDs []int64) ([]CancelOrderBatch, error) {
 	type response struct {
-		Status string           `json:"status"`
-		Data   CancelOrderBatch `json:"data"`
+		Response
+		Data []CancelOrderBatch `json:"data"`
 	}
 
-	//用于发送参数格式化的
-	type postBody struct {
-		List []int64 `json:"order-ids"`
-	}
-
-	//格式化成 json 格式
-	bytesParams, _ := json.Marshal(&postBody{List: orderIDs})
-	postBodyParams := string(bytesParams)
-
-	// fmt.Println(postBodyParams)
 	var result response
-	err := h.SendAuthenticatedHTTPPostRequest("POST", huobiOrderCancelBatch, postBodyParams, &result)
+	err := h.SendAuthenticatedHTTPRequest("POST", huobiOrderCancelBatch, url.Values{}, &result)
 
-	if len(result.Data.Failed) != 0 {
-		errJSON, _ := json.Marshal(result.Data.Failed)
-		return CancelOrderBatch{}, errors.New(string(errJSON))
+	if result.ErrorMessage != "" {
+		return nil, errors.New(result.ErrorMessage)
 	}
 	return result.Data, err
 }
@@ -455,7 +412,7 @@ func (h *HUOBI) GetOrder(orderID int64) (OrderInfo, error) {
 
 	var result response
 	endpoint := fmt.Sprintf(huobiGetOrder, strconv.FormatInt(orderID, 10))
-	err := h.SendAuthenticatedHTTPPostRequest("GET", endpoint, "", &result)
+	err := h.SendAuthenticatedHTTPRequest("GET", endpoint, url.Values{}, &result)
 
 	if result.ErrorMessage != "" {
 		return result.Order, errors.New(result.ErrorMessage)
@@ -463,7 +420,7 @@ func (h *HUOBI) GetOrder(orderID int64) (OrderInfo, error) {
 	return result.Order, err
 }
 
-// GetOrderMatchResults returns matched order info for the specified order查询某个订单的成交明细
+// GetOrderMatchResults returns matched order info for the specified order
 func (h *HUOBI) GetOrderMatchResults(orderID int64) ([]OrderMatchInfo, error) {
 	type response struct {
 		Response
@@ -480,7 +437,7 @@ func (h *HUOBI) GetOrderMatchResults(orderID int64) ([]OrderMatchInfo, error) {
 	return result.Orders, err
 }
 
-// GetOrders returns a list of orders查询当前委托、历史委托
+// GetOrders returns a list of orders
 func (h *HUOBI) GetOrders(symbol, types, start, end, states, from, direct, size string) ([]OrderInfo, error) {
 	type response struct {
 		Response
@@ -568,7 +525,6 @@ func (h *HUOBI) GetOrdersMatch(symbol, types, start, end, from, direct, size str
 }
 
 // MarginTransfer transfers assets into or out of the margin account
-//	现货账户划入至借贷账户/借贷账户划出至现货账户
 func (h *HUOBI) MarginTransfer(symbol, currency string, amount float64, in bool) (int64, error) {
 	vals := url.Values{}
 	vals.Set("symbol", symbol)
@@ -594,7 +550,7 @@ func (h *HUOBI) MarginTransfer(symbol, currency string, amount float64, in bool)
 	return result.TransferID, err
 }
 
-// MarginOrder submits a margin order application申请借贷
+// MarginOrder submits a margin order application
 func (h *HUOBI) MarginOrder(symbol, currency string, amount float64) (int64, error) {
 	vals := url.Values{}
 	vals.Set("symbol", symbol)
@@ -636,7 +592,7 @@ func (h *HUOBI) MarginRepayment(orderID int64, amount float64) (int64, error) {
 	return result.MarginOrderID, err
 }
 
-// GetMarginLoanOrders returns the margin loan orders 查询借贷订单
+// GetMarginLoanOrders returns the margin loan orders
 func (h *HUOBI) GetMarginLoanOrders(symbol, currency, start, end, states, from, direct, size string) ([]MarginOrder, error) {
 	vals := url.Values{}
 	vals.Set("symbol", symbol)
@@ -680,7 +636,7 @@ func (h *HUOBI) GetMarginLoanOrders(symbol, currency, start, end, states, from, 
 	return result.MarginLoanOrders, err
 }
 
-// GetMarginAccountBalance returns the margin account balances借贷账户详情
+// GetMarginAccountBalance returns the margin account balances
 func (h *HUOBI) GetMarginAccountBalance(symbol string) ([]MarginAccountBalance, error) {
 	type response struct {
 		Response
@@ -701,7 +657,7 @@ func (h *HUOBI) GetMarginAccountBalance(symbol string) ([]MarginAccountBalance, 
 	return result.Balances, err
 }
 
-// Withdraw withdraws the desired amount and currency申请提现虚拟币
+// Withdraw withdraws the desired amount and currency
 func (h *HUOBI) Withdraw(address, currency, addrTag string, amount, fee float64) (int64, error) {
 	type response struct {
 		Response
@@ -730,7 +686,7 @@ func (h *HUOBI) Withdraw(address, currency, addrTag string, amount, fee float64)
 	return result.WithdrawID, err
 }
 
-// CancelWithdraw cancels a withdraw request申请取消提现虚拟币
+// CancelWithdraw cancels a withdraw request
 func (h *HUOBI) CancelWithdraw(withdrawID int64) (int64, error) {
 	type response struct {
 		Response
@@ -753,38 +709,6 @@ func (h *HUOBI) CancelWithdraw(withdrawID int64) (int64, error) {
 // SendHTTPRequest sends an unauthenticated HTTP request
 func (h *HUOBI) SendHTTPRequest(path string, result interface{}) error {
 	return h.SendPayload("GET", path, nil, nil, result, false, h.Verbose)
-}
-
-// SendAuthenticatedHTTPPostRequest sends authenticated requests to the HUOBI API
-// 原有的Post方法和Get传参不一样，进行重写
-func (h *HUOBI) SendAuthenticatedHTTPPostRequest(method, endpoint, postBodyValues string, result interface{}) error {
-	if !h.AuthenticatedAPISupport {
-		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet, h.Name)
-	}
-
-	signatureParams := url.Values{}
-	signatureParams.Set("AccessKeyId", h.APIKey)
-	signatureParams.Set("SignatureMethod", "HmacSHA256")
-	signatureParams.Set("SignatureVersion", "2")
-	signatureParams.Set("Timestamp", time.Now().UTC().Format("2006-01-02T15:04:05"))
-
-	endpoint = fmt.Sprintf("/v%s/%s", huobiAPIVersion, endpoint)
-	payload := fmt.Sprintf("%s\napi.huobi.pro\n%s\n%s",
-		method, endpoint, signatureParams.Encode())
-
-	headers := make(map[string]string)
-	headers["User-Agent"] = "Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/39.0.2171.71 Safari/537.36"
-	headers["Content-Type"] = "application/json"
-	headers["Accept-Language"] = "zh-cn"
-
-	hmac := common.GetHMAC(common.HashSHA256, []byte(payload), []byte(h.APISecret))
-	signatureParams.Set("Signature", common.Base64Encode(hmac))
-
-	// fmt.Println("signatureParams", signatureParams)
-	url := fmt.Sprintf("%s%s", huobiAPIURL, endpoint)
-	url = common.EncodeURLValues(url, signatureParams)
-
-	return h.SendPayload(method, url, headers, bytes.NewBufferString(postBodyValues), result, true, h.Verbose)
 }
 
 // SendAuthenticatedHTTPRequest sends authenticated requests to the HUOBI API
