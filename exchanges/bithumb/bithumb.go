@@ -9,11 +9,11 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/idoall/gocryptotrader/common"
-	"github.com/idoall/gocryptotrader/config"
-	exchange "github.com/idoall/gocryptotrader/exchanges"
-	"github.com/idoall/gocryptotrader/exchanges/request"
-	"github.com/idoall/gocryptotrader/exchanges/ticker"
+	"github.com/thrasher-/gocryptotrader/common"
+	"github.com/thrasher-/gocryptotrader/config"
+	exchange "github.com/thrasher-/gocryptotrader/exchanges"
+	"github.com/thrasher-/gocryptotrader/exchanges/request"
+	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 )
 
 const (
@@ -24,9 +24,9 @@ const (
 	// Public API
 	requestsPerSecondPublicAPI = 20
 
-	publicTicker            = "/public/ticker/"
-	publicOrderBook         = "/public/orderbook/"
-	publicRecentTransaction = "/public/recent_transactions/"
+	publicTicker             = "/public/ticker/"
+	publicOrderBook          = "/public/orderbook/"
+	publicTransactionHistory = "/public/transaction_history/"
 
 	// Private API
 	requestsPerSecondPrivateAPI = 10
@@ -124,12 +124,22 @@ func (b *Bithumb) GetTicker(symbol string) (Ticker, error) {
 	response := Ticker{}
 	path := fmt.Sprintf("%s%s%s", apiURL, publicTicker, common.StringToUpper(symbol))
 
-	return response, b.SendHTTPRequest(path, &response)
+	err := b.SendHTTPRequest(path, &response)
+	if err != nil {
+		return response, err
+	}
+
+	if response.Status != noError {
+		return response, errors.New(response.Message)
+	}
+
+	return response, nil
 }
 
 // GetAllTickers returns all ticker information
 func (b *Bithumb) GetAllTickers() (map[string]Ticker, error) {
 	type Response struct {
+		ActionStatus
 		Data map[string]interface{}
 	}
 
@@ -139,6 +149,10 @@ func (b *Bithumb) GetAllTickers() (map[string]Ticker, error) {
 	err := b.SendHTTPRequest(path, &response)
 	if err != nil {
 		return nil, err
+	}
+
+	if response.Status != noError {
+		return nil, errors.New(response.Message)
 	}
 
 	result := make(map[string]Ticker)
@@ -172,17 +186,35 @@ func (b *Bithumb) GetOrderBook(symbol string) (Orderbook, error) {
 	response := Orderbook{}
 	path := fmt.Sprintf("%s%s%s", apiURL, publicOrderBook, common.StringToUpper(symbol))
 
-	return response, b.SendHTTPRequest(path, &response)
+	err := b.SendHTTPRequest(path, &response)
+	if err != nil {
+		return response, err
+	}
+
+	if response.Status != noError {
+		return response, errors.New(response.Message)
+	}
+
+	return response, nil
 }
 
-// GetRecentTransactions returns recent transactions
+// GetTransactionHistory returns recent transactions
 //
 // symbol e.g. "btc"
-func (b *Bithumb) GetRecentTransactions(symbol string) (RecentTransactions, error) {
-	response := RecentTransactions{}
-	path := fmt.Sprintf("%s%s%s", apiURL, publicRecentTransaction, common.StringToUpper(symbol))
+func (b *Bithumb) GetTransactionHistory(symbol string) (TransactionHistory, error) {
+	response := TransactionHistory{}
+	path := fmt.Sprintf("%s%s%s", apiURL, publicTransactionHistory, common.StringToUpper(symbol))
 
-	return response, b.SendHTTPRequest(path, &response)
+	err := b.SendHTTPRequest(path, &response)
+	if err != nil {
+		return response, err
+	}
+
+	if response.Status != noError {
+		return response, errors.New(response.Message)
+	}
+
+	return response, nil
 }
 
 // GetAccountInfo returns account information

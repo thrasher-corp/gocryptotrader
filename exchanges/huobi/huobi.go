@@ -2,9 +2,14 @@ package huobi
 
 import (
 	"bytes"
+	"crypto/ecdsa"
+	"crypto/rand"
+	"crypto/x509"
 	"encoding/json"
+	"encoding/pem"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"net/url"
 	"strconv"
 	"strings"
@@ -80,6 +85,7 @@ func (h *HUOBI) Setup(exch config.ExchangeConfig) {
 		h.QuoteAsset = exch.QuoteAsset
 		h.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
 		h.SetAPIKeys(exch.APIKey, exch.APISecret, "", false)
+		h.APIAuthPEMKey = exch.APIAuthPEMKey
 		h.SetHTTPClientTimeout(exch.HTTPTimeout)
 		h.RESTPollingDelay = exch.RESTPollingDelay
 		h.Verbose = exch.Verbose
@@ -399,7 +405,7 @@ func (h *HUOBI) CancelOrder(orderID int64) (int64, error) {
 
 	var result response
 	endpoint := fmt.Sprintf(huobiOrderCancel, strconv.FormatInt(orderID, 10))
-	err := h.SendAuthenticatedHTTPPostRequest("POST", endpoint, "", &result)
+	err := h.SendAuthenticatedHTTPRequest("POST", endpoint, url.Values{}, &result)
 
 	if result.ErrorMessage != "" {
 		return 0, errors.New(result.ErrorMessage)
@@ -408,28 +414,17 @@ func (h *HUOBI) CancelOrder(orderID int64) (int64, error) {
 }
 
 // CancelOrderBatch cancels a batch of orders -- to-do
-func (h *HUOBI) CancelOrderBatch(orderIDs []int64) (CancelOrderBatch, error) {
+func (h *HUOBI) CancelOrderBatch(orderIDs []int64) ([]CancelOrderBatch, error) {
 	type response struct {
-		Status string           `json:"status"`
-		Data   CancelOrderBatch `json:"data"`
+		Response
+		Data []CancelOrderBatch `json:"data"`
 	}
 
-	//用于发送参数格式化的
-	type postBody struct {
-		List []int64 `json:"order-ids"`
-	}
-
-	//格式化成 json 格式
-	bytesParams, _ := json.Marshal(&postBody{List: orderIDs})
-	postBodyParams := string(bytesParams)
-
-	// fmt.Println(postBodyParams)
 	var result response
-	err := h.SendAuthenticatedHTTPPostRequest("POST", huobiOrderCancelBatch, postBodyParams, &result)
+	err := h.SendAuthenticatedHTTPRequest("POST", huobiOrderCancelBatch, url.Values{}, &result)
 
-	if len(result.Data.Failed) != 0 {
-		errJSON, _ := json.Marshal(result.Data.Failed)
-		return CancelOrderBatch{}, errors.New(string(errJSON))
+	if result.ErrorMessage != "" {
+		return nil, errors.New(result.ErrorMessage)
 	}
 	return result.Data, err
 }
@@ -443,7 +438,7 @@ func (h *HUOBI) GetOrder(orderID int64) (OrderInfo, error) {
 
 	var result response
 	endpoint := fmt.Sprintf(huobiGetOrder, strconv.FormatInt(orderID, 10))
-	err := h.SendAuthenticatedHTTPPostRequest("GET", endpoint, "", &result)
+	err := h.SendAuthenticatedHTTPRequest("GET", endpoint, url.Values{}, &result)
 
 	if result.ErrorMessage != "" {
 		return result.Order, errors.New(result.ErrorMessage)
@@ -451,7 +446,7 @@ func (h *HUOBI) GetOrder(orderID int64) (OrderInfo, error) {
 	return result.Order, err
 }
 
-// GetOrderMatchResults returns matched order info for the specified order查询某个订单的成交明细
+// GetOrderMatchResults returns matched order info for the specified order
 func (h *HUOBI) GetOrderMatchResults(orderID int64) ([]OrderMatchInfo, error) {
 	type response struct {
 		Response
@@ -468,7 +463,7 @@ func (h *HUOBI) GetOrderMatchResults(orderID int64) ([]OrderMatchInfo, error) {
 	return result.Orders, err
 }
 
-// GetOrders returns a list of orders查询当前委托、历史委托
+// GetOrders returns a list of orders
 func (h *HUOBI) GetOrders(symbol, types, start, end, states, from, direct, size string) ([]OrderInfo, error) {
 	type response struct {
 		Response
@@ -556,7 +551,6 @@ func (h *HUOBI) GetOrdersMatch(symbol, types, start, end, from, direct, size str
 }
 
 // MarginTransfer transfers assets into or out of the margin account
-//	现货账户划入至借贷账户/借贷账户划出至现货账户
 func (h *HUOBI) MarginTransfer(symbol, currency string, amount float64, in bool) (int64, error) {
 	vals := url.Values{}
 	vals.Set("symbol", symbol)
@@ -582,7 +576,7 @@ func (h *HUOBI) MarginTransfer(symbol, currency string, amount float64, in bool)
 	return result.TransferID, err
 }
 
-// MarginOrder submits a margin order application申请借贷
+// MarginOrder submits a margin order application
 func (h *HUOBI) MarginOrder(symbol, currency string, amount float64) (int64, error) {
 	vals := url.Values{}
 	vals.Set("symbol", symbol)
@@ -624,7 +618,7 @@ func (h *HUOBI) MarginRepayment(orderID int64, amount float64) (int64, error) {
 	return result.MarginOrderID, err
 }
 
-// GetMarginLoanOrders returns the margin loan orders 查询借贷订单
+// GetMarginLoanOrders returns the margin loan orders
 func (h *HUOBI) GetMarginLoanOrders(symbol, currency, start, end, states, from, direct, size string) ([]MarginOrder, error) {
 	vals := url.Values{}
 	vals.Set("symbol", symbol)
@@ -668,7 +662,7 @@ func (h *HUOBI) GetMarginLoanOrders(symbol, currency, start, end, states, from, 
 	return result.MarginLoanOrders, err
 }
 
-// GetMarginAccountBalance returns the margin account balances借贷账户详情
+// GetMarginAccountBalance returns the margin account balances
 func (h *HUOBI) GetMarginAccountBalance(symbol string) ([]MarginAccountBalance, error) {
 	type response struct {
 		Response
@@ -689,7 +683,7 @@ func (h *HUOBI) GetMarginAccountBalance(symbol string) ([]MarginAccountBalance, 
 	return result.Balances, err
 }
 
-// Withdraw withdraws the desired amount and currency申请提现虚拟币
+// Withdraw withdraws the desired amount and currency
 func (h *HUOBI) Withdraw(address, currency, addrTag string, amount, fee float64) (int64, error) {
 	type response struct {
 		Response
@@ -718,7 +712,7 @@ func (h *HUOBI) Withdraw(address, currency, addrTag string, amount, fee float64)
 	return result.WithdrawID, err
 }
 
-// CancelWithdraw cancels a withdraw request申请取消提现虚拟币
+// CancelWithdraw cancels a withdraw request
 func (h *HUOBI) CancelWithdraw(withdrawID int64) (int64, error) {
 	type response struct {
 		Response
@@ -794,7 +788,34 @@ func (h *HUOBI) SendAuthenticatedHTTPRequest(method, endpoint string, values url
 	headers["Content-Type"] = "application/x-www-form-urlencoded"
 
 	hmac := common.GetHMAC(common.HashSHA256, []byte(payload), []byte(h.APISecret))
-	values.Set("Signature", common.Base64Encode(hmac))
+	signature := common.Base64Encode(hmac)
+	values.Set("Signature", signature)
+
+	pemKey := strings.NewReader(h.APIAuthPEMKey)
+	pemBytes, err := ioutil.ReadAll(pemKey)
+	if err != nil {
+		return fmt.Errorf("Huobi unable to ioutil.ReadAll PEM key: %s", err)
+	}
+
+	block, _ := pem.Decode(pemBytes)
+	if block == nil {
+		return fmt.Errorf("Huobi block is nil")
+	}
+
+	x509Encoded := block.Bytes
+	privKey, err := x509.ParseECPrivateKey(x509Encoded)
+	if err != nil {
+		return fmt.Errorf("Huobi unable to ParseECPrivKey: %s", err)
+	}
+
+	r, s, err := ecdsa.Sign(rand.Reader, privKey, common.GetSHA256([]byte(signature)))
+	if err != nil {
+		return fmt.Errorf("Huobi unable to sign: %s", err)
+	}
+
+	privSig := r.Bytes()
+	privSig = append(privSig, s.Bytes()...)
+	values.Set("PrivateSignature", common.Base64Encode(privSig))
 
 	url := fmt.Sprintf("%s%s", huobiAPIURL, endpoint)
 	url = common.EncodeURLValues(url, values)

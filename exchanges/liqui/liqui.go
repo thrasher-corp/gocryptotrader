@@ -9,11 +9,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/idoall/gocryptotrader/common"
-	"github.com/idoall/gocryptotrader/config"
-	"github.com/idoall/gocryptotrader/exchanges"
-	"github.com/idoall/gocryptotrader/exchanges/request"
-	"github.com/idoall/gocryptotrader/exchanges/ticker"
+	"github.com/thrasher-/gocryptotrader/common"
+	"github.com/thrasher-/gocryptotrader/config"
+	"github.com/thrasher-/gocryptotrader/exchanges"
+	"github.com/thrasher-/gocryptotrader/exchanges/request"
+	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 )
 
 const (
@@ -34,7 +34,7 @@ const (
 	liquiWithdrawCoin      = "WithdrawCoin"
 
 	liquiAuthRate   = 0
-	liquiUnauthRate = 0
+	liquiUnauthRate = 1
 )
 
 // Liqui is the overarching type across the liqui package

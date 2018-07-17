@@ -2,14 +2,22 @@ package huobi
 
 import (
 	"fmt"
+	"crypto/ecdsa"
+	"crypto/rand"
+	"crypto/x509"
+	"encoding/pem"
+	"io/ioutil"
 	"strconv"
+	"strings"
 	"testing"
 
+	"github.com/idoall/gocryptotrader/common"
 	"github.com/idoall/gocryptotrader/config"
 )
 
 var h HUOBI
 
+<<<<<<< HEAD
 // getDefaultConfig 获取默认配置
 func getDefaultConfig() config.ExchangeConfig {
 	return config.ExchangeConfig{
@@ -38,13 +46,36 @@ func getDefaultConfig() config.ExchangeConfig {
 		},
 	}
 }
+=======
+// Please supply your own APIKEYS here for due diligence testing
+
+const (
+	apiKey    = ""
+	apiSecret = ""
+)
+>>>>>>> master
 
 func TestSetDefaults(t *testing.T) {
 	h.SetDefaults()
 }
 
 func TestSetup(t *testing.T) {
+<<<<<<< HEAD
 	h.Setup(getDefaultConfig())
+=======
+	cfg := config.GetConfig()
+	cfg.LoadConfig("../../testdata/configtest.json")
+	huobiConfig, err := cfg.GetExchangeConfig("Huobi")
+	if err != nil {
+		t.Error("Test Failed - Huobi Setup() init error")
+	}
+
+	huobiConfig.AuthenticatedAPISupport = true
+	huobiConfig.APIKey = apiKey
+	huobiConfig.APISecret = apiSecret
+
+	h.Setup(huobiConfig)
+>>>>>>> master
 }
 
 func TestGetFee(t *testing.T) {
@@ -231,5 +262,31 @@ func TestCancelWithdraw(t *testing.T) {
 	_, err := h.CancelWithdraw(1337)
 	if err == nil {
 		t.Error("Test failed - Huobi TestCancelWithdraw: Invalid withdraw-ID was valid")
+	}
+}
+
+func TestPEMLoadAndSign(t *testing.T) {
+	t.Parallel()
+
+	pemKey := strings.NewReader(h.APIAuthPEMKey)
+	pemBytes, err := ioutil.ReadAll(pemKey)
+	if err != nil {
+		t.Fatalf("Test Failed. TestPEMLoadAndSign Unable to ioutil.ReadAll PEM key: %s", err)
+	}
+
+	block, _ := pem.Decode(pemBytes)
+	if block == nil {
+		t.Fatalf("Test Failed. TestPEMLoadAndSign Block is nil")
+	}
+
+	x509Encoded := block.Bytes
+	privKey, err := x509.ParseECPrivateKey(x509Encoded)
+	if err != nil {
+		t.Fatalf("Test Failed. TestPEMLoadAndSign Unable to ParseECPrivKey: %s", err)
+	}
+
+	_, _, err = ecdsa.Sign(rand.Reader, privKey, common.GetSHA256([]byte("test")))
+	if err != nil {
+		t.Fatalf("Test Failed. TestPEMLoadAndSign Unable to sign: %s", err)
 	}
 }

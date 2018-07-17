@@ -3,7 +3,7 @@ package anx
 import (
 	"testing"
 
-	"github.com/idoall/gocryptotrader/config"
+	"github.com/thrasher-/gocryptotrader/config"
 )
 
 var anx ANX

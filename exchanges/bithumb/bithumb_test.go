@@ -3,7 +3,7 @@ package bithumb
 import (
 	"testing"
 
-	"github.com/idoall/gocryptotrader/config"
+	"github.com/thrasher-/gocryptotrader/config"
 )
 
 // Please supply your own keys here for due diligence testing
@@ -65,11 +65,11 @@ func TestGetOrderBook(t *testing.T) {
 	}
 }
 
-func TestGetRecentTransactions(t *testing.T) {
+func TestGetTransactionHistory(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetRecentTransactions("btc")
+	_, err := b.GetTransactionHistory("btc")
 	if err != nil {
-		t.Error("test failed - Bithumb GetRecentTransactions() error", err)
+		t.Error("test failed - Bithumb GetTransactionHistory() error", err)
 	}
 }
 

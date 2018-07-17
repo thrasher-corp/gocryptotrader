@@ -3,9 +3,10 @@ package btcmarkets
 import (
 	"net/url"
 	"testing"
-	"time"
 
-	"github.com/idoall/gocryptotrader/config"
+	"github.com/thrasher-/gocryptotrader/config"
+	"github.com/thrasher-/gocryptotrader/currency/pair"
+	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 )
 
 var bm BTCMarkets
@@ -21,9 +22,6 @@ func TestSetDefaults(t *testing.T) {
 }
 
 func TestSetup(t *testing.T) {
-	t.Parallel()
-	b := BTCMarkets{}
-	b.Name = "BTC Markets"
 	cfg := config.GetConfig()
 	cfg.LoadConfig("../../testdata/configtest.json")
 	bConfig, err := cfg.GetExchangeConfig("BTC Markets")
@@ -31,21 +29,13 @@ func TestSetup(t *testing.T) {
 		t.Error("Test Failed - BTC Markets Setup() init error")
 	}
 
-	b.SetDefaults()
-	b.Setup(bConfig)
-
-	if !b.IsEnabled() || b.AuthenticatedAPISupport || b.RESTPollingDelay != time.Duration(10) ||
-		b.Verbose || b.Websocket || len(b.BaseCurrencies) < 1 ||
-		len(b.AvailablePairs) < 1 || len(b.EnabledPairs) < 1 {
-		t.Error("Test Failed - BTC Markets Setup values not set correctly")
+	if apiKey != "" && apiSecret != "" {
+		bConfig.APIKey = apiKey
+		bConfig.APISecret = apiSecret
+		bConfig.AuthenticatedAPISupport = true
 	}
 
-	bConfig.Enabled = false
-	b.Setup(bConfig)
-
-	if b.IsEnabled() {
-		t.Error("Test failed - BTC Markets TestSetup incorrect value")
-	}
+	bm.Setup(bConfig)
 }
 
 func TestGetFee(t *testing.T) {
@@ -143,5 +133,69 @@ func TestWithdrawAUD(t *testing.T) {
 	_, err := bm.WithdrawAUD("BLA", "1337", "blawest", "1336", 10000000)
 	if err == nil {
 		t.Error("Test failed - WithdrawAUD() error", err)
+	}
+}
+
+func TestGetExchangeAccountInfo(t *testing.T) {
+	_, err := bm.GetExchangeAccountInfo()
+	if err == nil {
+		t.Error("Test failed - GetExchangeAccountInfo() error", err)
+	}
+}
+
+func TestGetExchangeFundTransferHistory(t *testing.T) {
+	_, err := bm.GetExchangeFundTransferHistory()
+	if err == nil {
+		t.Error("Test failed - GetExchangeAccountInfo() error", err)
+	}
+}
+
+func TestSubmitExchangeOrder(t *testing.T) {
+	p := pair.NewCurrencyPair("LTC", "AUD")
+	_, err := bm.SubmitExchangeOrder(p, exchange.OrderSideSell(), exchange.OrderTypeMarket(), 0, 0.0, "testID001")
+	if err == nil {
+		t.Error("Test failed - SubmitExchangeOrder() error", err)
+	}
+}
+
+func TestModifyExchangeOrder(t *testing.T) {
+	_, err := bm.ModifyExchangeOrder(1337, exchange.ModifyOrder{})
+	if err == nil {
+		t.Error("Test failed - ModifyExchangeOrder() error", err)
+	}
+}
+
+func TestCancelExchangeOrder(t *testing.T) {
+	err := bm.CancelExchangeOrder(1337)
+	if err == nil {
+		t.Error("Test failed - CancelExchangeOrder() error", err)
+	}
+}
+
+func TestCancelAllExchangeOrders(t *testing.T) {
+	err := bm.CancelAllExchangeOrders()
+	if err == nil {
+		t.Error("Test failed - CancelAllExchangeOrders() error", err)
+	}
+}
+
+func TestGetExchangeOrderInfo(t *testing.T) {
+	_, err := bm.GetExchangeOrderInfo(1337)
+	if err == nil {
+		t.Error("Test failed - GetExchangeOrderInfo() error", err)
+	}
+}
+
+func TestWithdrawExchangeCryptoFunds(t *testing.T) {
+	_, err := bm.WithdrawCryptoExchangeFunds("someaddress", "ltc", 0)
+	if err == nil {
+		t.Error("Test failed - WithdrawExchangeFunds() error", err)
+	}
+}
+
+func TestWithdrawExchangeFiatFundsToLocalBank(t *testing.T) {
+	_, err := bm.WithdrawFiatExchangeFunds("AUD", 0)
+	if err == nil {
+		t.Error("Test failed - WithdrawExchangeFiatFunds() error", err)
 	}
 }

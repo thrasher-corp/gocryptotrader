@@ -5,11 +5,11 @@ import (
 	"log"
 	"sync"
 
-	"github.com/idoall/gocryptotrader/common"
-	"github.com/idoall/gocryptotrader/currency/pair"
-	"github.com/idoall/gocryptotrader/exchanges"
-	"github.com/idoall/gocryptotrader/exchanges/orderbook"
-	"github.com/idoall/gocryptotrader/exchanges/ticker"
+	"github.com/thrasher-/gocryptotrader/common"
+	"github.com/thrasher-/gocryptotrader/currency/pair"
+	"github.com/thrasher-/gocryptotrader/exchanges"
+	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 )
 
 // Start starts the COINUT go routine
@@ -130,6 +130,13 @@ func (c *COINUT) UpdateOrderbook(p pair.CurrencyPair, assetType string) (orderbo
 	return orderbook.GetOrderbook(c.Name, p, assetType)
 }
 
+// GetExchangeFundTransferHistory returns funding history, deposits and
+// withdrawals
+func (c *COINUT) GetExchangeFundTransferHistory() ([]exchange.FundHistory, error) {
+	var fundHistory []exchange.FundHistory
+	return fundHistory, errors.New("not supported on exchange")
+}
+
 // GetExchangeHistory returns historic trade data since exchange opening.
 func (c *COINUT) GetExchangeHistory(p pair.CurrencyPair, assetType string) ([]exchange.TradeHistory, error) {
 	var resp []exchange.TradeHistory
@@ -138,37 +145,51 @@ func (c *COINUT) GetExchangeHistory(p pair.CurrencyPair, assetType string) ([]ex
 }
 
 // SubmitExchangeOrder submits a new order
-func (c *COINUT) SubmitExchangeOrder(p pair.CurrencyPair, side string, orderType int, amount, price float64) (int64, error) {
+func (c *COINUT) SubmitExchangeOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (int64, error) {
 	return 0, errors.New("not yet implemented")
 }
 
 // ModifyExchangeOrder will allow of changing orderbook placement and limit to
 // market conversion
-func (c *COINUT) ModifyExchangeOrder(p pair.CurrencyPair, orderID, action int64) (int64, error) {
+func (c *COINUT) ModifyExchangeOrder(orderID int64, action exchange.ModifyOrder) (int64, error) {
 	return 0, errors.New("not yet implemented")
 }
 
 // CancelExchangeOrder cancels an order by its corresponding ID number
-func (c *COINUT) CancelExchangeOrder(p pair.CurrencyPair, orderID int64) (int64, error) {
-	return 0, errors.New("not yet implemented")
+func (c *COINUT) CancelExchangeOrder(orderID int64) error {
+	return errors.New("not yet implemented")
 }
 
 // CancelAllExchangeOrders cancels all orders associated with a currency pair
-func (c *COINUT) CancelAllExchangeOrders(p pair.CurrencyPair) error {
+func (c *COINUT) CancelAllExchangeOrders() error {
 	return errors.New("not yet implemented")
 }
 
 // GetExchangeOrderInfo returns information on a current open order
-func (c *COINUT) GetExchangeOrderInfo(orderID int64) (float64, error) {
-	return 0, errors.New("not yet implemented")
+func (c *COINUT) GetExchangeOrderInfo(orderID int64) (exchange.OrderDetail, error) {
+	var orderDetail exchange.OrderDetail
+	return orderDetail, errors.New("not yet implemented")
 }
 
 // GetExchangeDepositAddress returns a deposit address for a specified currency
-func (c *COINUT) GetExchangeDepositAddress(p pair.CurrencyPair) (string, error) {
+func (c *COINUT) GetExchangeDepositAddress(cryptocurrency pair.CurrencyItem) (string, error) {
 	return "", errors.New("not yet implemented")
 }
 
-// WithdrawExchangeFunds returns a withdrawal ID when a withdrawal is submitted
-func (c *COINUT) WithdrawExchangeFunds(address string, p pair.CurrencyPair, amount float64) (string, error) {
+// WithdrawExchangeCryptoFunds returns a withdrawal ID when a withdrawal is
+// submitted
+func (c *COINUT) WithdrawCryptoExchangeFunds(address string, cryptocurrency pair.CurrencyItem, amount float64) (string, error) {
+	return "", errors.New("not yet implemented")
+}
+
+// WithdrawExchangeFiatFundsToLocalBank returns a withdrawal ID when a
+// withdrawal is submitted
+func (c *COINUT) WithdrawFiatExchangeFunds(currency pair.CurrencyItem, amount float64) (string, error) {
+	return "", errors.New("not yet implemented")
+}
+
+// WithdrawExchangeFiatFundsToInternationalBank returns a withdrawal ID when a
+// withdrawal is submitted
+func (c *COINUT) WithdrawExchangeFiatFundsToInternationalBank(currency pair.CurrencyItem, amount float64) (string, error) {
 	return "", errors.New("not yet implemented")
 }

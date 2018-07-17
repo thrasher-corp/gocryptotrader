@@ -96,6 +96,7 @@ type Config struct {
 	Portfolio         portfolio.Base       `json:"PortfolioAddresses"`
 	Webserver         WebserverConfig      `json:"Webserver"`
 	Exchanges         []ExchangeConfig     `json:"Exchanges"`
+	BankAccounts      []BankAccount        `json:"BankAccounts"`
 
 	// Deprecated config settings, will be removed at a future date
 	CurrencyPairFormat  *CurrencyPairFormatConfig `json:"CurrencyPairFormat,omitempty"`
@@ -116,6 +117,7 @@ type ExchangeConfig struct {
 	AuthenticatedAPISupport   bool
 	APIKey                    string
 	APISecret                 string
+	APIAuthPEMKey             string `json:",omitempty"`
 	ClientID                  string `json:",omitempty"`
 	AvailablePairs            string
 	EnabledPairs              string
@@ -126,8 +128,31 @@ type ExchangeConfig struct {
 	ConfigCurrencyPairFormat  *CurrencyPairFormatConfig `json:"ConfigCurrencyPairFormat"`
 	RequestCurrencyPairFormat *CurrencyPairFormatConfig `json:"RequestCurrencyPairFormat"`
 
-	BaseAsset  string `json:"baseasset"`  // 基础交易目标
-	QuoteAsset string `json:"quoteasset"` // 交易目标
+	BaseAsset    string `json:"baseasset"`  // 基础交易目标
+	QuoteAsset   string `json:"quoteasset"` // 交易目标
+	BankAccounts []BankAccount
+}
+
+// BankAccount holds differing bank account details by supported funding
+// currency
+type BankAccount struct {
+	Enabled             bool `json:",omitempty"`
+	BankName            string
+	BankAddress         string
+	AccountName         string
+	AccountNumber       string
+	SWIFTCode           string
+	IBAN                string
+	BSBNumber           string `json:",omitempty"`
+	SupportedCurrencies string
+	SupportedExchanges  string `json:",omitempty"`
+}
+
+// BankTransaction defines a related banking transaction
+type BankTransaction struct {
+	ReferenceNumber     string
+	TransactionNumber   string
+	PaymentInstructions string
 }
 
 // CurrencyConfig holds all the information needed for currency related manipulation
@@ -197,6 +222,120 @@ type TelegramConfig struct {
 // GetCurrencyConfig returns currency configurations
 func (c *Config) GetCurrencyConfig() CurrencyConfig {
 	return c.Currency
+}
+
+// GetExchangeBankAccounts returns banking details associated with an exchange
+// for depositing funds
+func (c *Config) GetExchangeBankAccounts(exchangeName, depositingCurrency string) (BankAccount, error) {
+	m.Lock()
+	defer m.Unlock()
+
+	for _, exch := range c.Exchanges {
+		if exch.Name == exchangeName {
+			for _, account := range exch.BankAccounts {
+				if common.StringContains(account.SupportedCurrencies, depositingCurrency) {
+					return account, nil
+				}
+			}
+		}
+	}
+	return BankAccount{}, fmt.Errorf("Exchange %s bank details not found for %s",
+		exchangeName,
+		depositingCurrency)
+}
+
+// UpdateExchangeBankAccounts updates the configuration for the associated
+// exchange bank
+func (c *Config) UpdateExchangeBankAccounts(exchangeName string, bankCfg []BankAccount) error {
+	m.Lock()
+	defer m.Unlock()
+
+	for i := range c.Exchanges {
+		if c.Exchanges[i].Name == exchangeName {
+			c.Exchanges[i].BankAccounts = bankCfg
+			return nil
+		}
+	}
+	return fmt.Errorf("UpdateExchangeBankAccounts() error exchange %s not found",
+		exchangeName)
+}
+
+// GetClientBankAccounts returns banking details used for a given exchange
+// and currency
+func (c *Config) GetClientBankAccounts(exchangeName, targetCurrency string) (BankAccount, error) {
+	m.Lock()
+	defer m.Unlock()
+
+	for _, bank := range c.BankAccounts {
+		if (common.StringContains(bank.SupportedExchanges, exchangeName) || bank.SupportedExchanges == "ALL") && common.StringContains(bank.SupportedCurrencies, targetCurrency) {
+			return bank, nil
+
+		}
+	}
+	return BankAccount{}, fmt.Errorf("client banking details not found for %s and currency %s",
+		exchangeName,
+		targetCurrency)
+}
+
+// UpdateClientBankAccounts updates the configuration for a bank
+func (c *Config) UpdateClientBankAccounts(bankCfg BankAccount) error {
+	m.Lock()
+	defer m.Unlock()
+
+	for i := range c.BankAccounts {
+		if c.BankAccounts[i].BankName == bankCfg.BankName && c.BankAccounts[i].AccountNumber == bankCfg.AccountNumber {
+			c.BankAccounts[i] = bankCfg
+			return nil
+		}
+	}
+	return fmt.Errorf("client banking details for %s not found, update not applied",
+		bankCfg.BankName)
+}
+
+// CheckClientBankAccounts checks client bank details
+func (c *Config) CheckClientBankAccounts() error {
+	m.Lock()
+	defer m.Unlock()
+
+	if len(c.BankAccounts) == 0 {
+		c.BankAccounts = append(c.BankAccounts,
+			BankAccount{
+				BankName:            "test",
+				BankAddress:         "test",
+				AccountName:         "TestAccount",
+				AccountNumber:       "0234",
+				SWIFTCode:           "91272837",
+				IBAN:                "98218738671897",
+				SupportedCurrencies: "USD",
+				SupportedExchanges:  "ANX,Kraken",
+			},
+		)
+		return nil
+	}
+
+	for _, bank := range c.BankAccounts {
+		if bank.Enabled == true {
+			if bank.BankName == "" || bank.BankAddress == "" {
+				return fmt.Errorf("banking details for %s is enabled but variables not set correctly",
+					bank.BankName)
+			}
+
+			if bank.AccountName == "" || bank.AccountNumber == "" {
+				return fmt.Errorf("banking account details for %s variables not set correctly",
+					bank.BankName)
+			}
+			if bank.IBAN == "" && bank.SWIFTCode == "" && bank.BSBNumber == "" {
+				return fmt.Errorf("critical banking numbers not set for %s in %s account",
+					bank.BankName,
+					bank.AccountName)
+			}
+
+			if bank.SupportedExchanges == "" {
+				bank.SupportedExchanges = "ALL"
+			}
+		}
+	}
+	return nil
 }
 
 // GetCommunicationsConfig returns the communications configuration
@@ -473,6 +612,10 @@ func (c *Config) UpdateExchangeConfig(e ExchangeConfig) error {
 func (c *Config) CheckExchangeConfigValues() error {
 	exchanges := 0
 	for i, exch := range c.Exchanges {
+		if exch.Name == "GDAX" {
+			c.Exchanges[i].Name = "CoinbasePro"
+		}
+
 		if exch.Enabled {
 			if exch.Name == "" {
 				return fmt.Errorf(ErrExchangeNameEmpty, i)
@@ -490,7 +633,7 @@ func (c *Config) CheckExchangeConfigValues() error {
 				if exch.APIKey == "" || exch.APISecret == "" || exch.APIKey == "Key" || exch.APISecret == "Secret" {
 					c.Exchanges[i].AuthenticatedAPISupport = false
 					log.Printf(WarningExchangeAuthAPIDefaultOrEmptyValues, exch.Name)
-				} else if exch.Name == "ITBIT" || exch.Name == "Bitstamp" || exch.Name == "COINUT" || exch.Name == "GDAX" {
+				} else if exch.Name == "ITBIT" || exch.Name == "Bitstamp" || exch.Name == "COINUT" || exch.Name == "CoinbasePro" {
 					if exch.ClientID == "" || exch.ClientID == "ClientID" {
 						c.Exchanges[i].AuthenticatedAPISupport = false
 						log.Printf(WarningExchangeAuthAPIDefaultOrEmptyValues, exch.Name)
@@ -508,6 +651,35 @@ func (c *Config) CheckExchangeConfigValues() error {
 			if exch.HTTPTimeout <= 0 {
 				log.Printf("Exchange %s HTTP Timeout value not set, defaulting to %v.", exch.Name, configDefaultHTTPTimeout)
 				c.Exchanges[i].HTTPTimeout = configDefaultHTTPTimeout
+			}
+
+			if len(exch.BankAccounts) == 0 {
+				c.Exchanges[i].BankAccounts = append(c.Exchanges[i].BankAccounts, BankAccount{})
+			} else {
+				for _, bankAccount := range exch.BankAccounts {
+					if bankAccount.Enabled == true {
+						if bankAccount.BankName == "" || bankAccount.BankAddress == "" {
+							return fmt.Errorf("banking details for %s is enabled but variables not set",
+								exch.Name)
+						}
+
+						if bankAccount.AccountName == "" || bankAccount.AccountNumber == "" {
+							return fmt.Errorf("banking account details for %s variables not set",
+								exch.Name)
+						}
+
+						if bankAccount.SupportedCurrencies == "" {
+							return fmt.Errorf("banking account details for %s acceptable funding currencies not set",
+								exch.Name)
+						}
+
+						if bankAccount.BSBNumber == "" && bankAccount.IBAN == "" &&
+							bankAccount.SWIFTCode == "" {
+							return fmt.Errorf("banking account details for %s critical banking numbers not set",
+								exch.Name)
+						}
+					}
+				}
 			}
 			exchanges++
 		}
@@ -814,7 +986,6 @@ func (c *Config) SaveConfig(configPath string) error {
 
 	if c.EncryptConfig == configFileEncryptionEnabled {
 		var key []byte
-		var err error
 
 		if IsInitialSetup {
 			key, err = PromptForConfigKey(true)
@@ -864,6 +1035,11 @@ func (c *Config) CheckConfig() error {
 	if c.GlobalHTTPTimeout <= 0 {
 		log.Printf("Global HTTP Timeout value not set, defaulting to %v.", configDefaultHTTPTimeout)
 		c.GlobalHTTPTimeout = configDefaultHTTPTimeout
+	}
+
+	err = c.CheckClientBankAccounts()
+	if err != nil {
+		return err
 	}
 
 	return nil

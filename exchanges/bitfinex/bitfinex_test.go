@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/idoall/gocryptotrader/common"
-	"github.com/idoall/gocryptotrader/config"
+	"github.com/thrasher-/gocryptotrader/common"
+	"github.com/thrasher-/gocryptotrader/config"
 )
 
 // Please supply your own keys here to do better tests
@@ -36,8 +36,8 @@ func TestSetup(t *testing.T) {
 	}
 	b.AuthenticatedAPISupport = true
 	// custom rate limit for testing
-	b.Requester.SetRateLimit(true, time.Second*20, 1)
-	b.Requester.SetRateLimit(false, time.Second*20, 1)
+	b.Requester.SetRateLimit(true, time.Millisecond*300, 1)
+	b.Requester.SetRateLimit(false, time.Millisecond*300, 1)
 }
 
 func TestGetPlatformStatus(t *testing.T) {

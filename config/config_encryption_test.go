@@ -3,7 +3,7 @@ package config
 import (
 	"testing"
 
-	"github.com/idoall/gocryptotrader/common"
+	"github.com/thrasher-/gocryptotrader/common"
 )
 
 func TestPromptForConfigEncryption(t *testing.T) {
@@ -59,17 +59,17 @@ func TestDecryptConfigFile(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	result, err = DecryptConfigFile(result, nil)
+	_, err = DecryptConfigFile(result, nil)
 	if err == nil {
 		t.Fatal("Test failed. Expected different result")
 	}
 
-	result, err = DecryptConfigFile([]byte("test"), nil)
+	_, err = DecryptConfigFile([]byte("test"), nil)
 	if err == nil {
 		t.Fatal("Test failed. Expected different result")
 	}
 
-	result, err = DecryptConfigFile([]byte("test"), []byte("AAAAAAAAAAAAAAAA"))
+	_, err = DecryptConfigFile([]byte("test"), []byte("AAAAAAAAAAAAAAAA"))
 	if err == nil {
 		t.Fatalf("Test failed. Expected %s", errAESBlockSize)
 	}
@@ -79,7 +79,7 @@ func TestDecryptConfigFile(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	result, err = DecryptConfigFile(result, []byte("key"))
+	_, err = DecryptConfigFile(result, []byte("key"))
 	if err != nil {
 		t.Fatal(err)
 	}

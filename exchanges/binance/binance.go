@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/gorilla/websocket"
 	"github.com/idoall/gocryptotrader/common"
 	"github.com/idoall/gocryptotrader/config"
 	exchange "github.com/idoall/gocryptotrader/exchanges"
@@ -18,6 +19,7 @@ import (
 // Binance is the overarching type across the Bithumb package
 type Binance struct {
 	exchange.Base
+	WebsocketConn *websocket.Conn
 
 	// valid string list that a required by the exchange
 	validLimits    []string

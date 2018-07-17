@@ -7,8 +7,8 @@ import (
 	"net/http"
 
 	"github.com/gorilla/websocket"
-	"github.com/idoall/gocryptotrader/common"
-	"github.com/idoall/gocryptotrader/config"
+	"github.com/thrasher-/gocryptotrader/common"
+	"github.com/thrasher-/gocryptotrader/config"
 )
 
 // Vars for the websocket client
@@ -179,7 +179,7 @@ func main() {
 	log.Println("Got orderbook!")
 
 	for {
-		var wsEvent WebsocketEventResponse
+		var wsEvent WebsocketEvent
 		err = WSConn.ReadJSON(&wsEvent)
 		if err != nil {
 			break

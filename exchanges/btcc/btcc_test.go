@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/idoall/gocryptotrader/config"
+	"github.com/thrasher-/gocryptotrader/config"
 )
 
 // Please supply your own APIkeys here to do better tests
@@ -42,6 +42,7 @@ func TestGetFee(t *testing.T) {
 }
 
 func TestGetTicker(t *testing.T) {
+	t.Skip()
 	_, err := b.GetTicker("BTCUSD")
 	if err != nil {
 		t.Error("Test failed - GetTicker() error", err)
@@ -49,6 +50,7 @@ func TestGetTicker(t *testing.T) {
 }
 
 func TestGetTradeHistory(t *testing.T) {
+	t.Skip()
 	_, err := b.GetTradeHistory("BTCUSD", 0, 0, time.Time{})
 	if err != nil {
 		t.Error("Test failed - GetTradeHistory() error", err)
@@ -56,6 +58,7 @@ func TestGetTradeHistory(t *testing.T) {
 }
 
 func TestGetOrderBook(t *testing.T) {
+	t.Skip()
 	_, err := b.GetOrderBook("BTCUSD", 100)
 	if err != nil {
 		t.Error("Test failed - GetOrderBook() error", err)
@@ -67,6 +70,7 @@ func TestGetOrderBook(t *testing.T) {
 }
 
 func TestGetAccountInfo(t *testing.T) {
+	t.Skip()
 	err := b.GetAccountInfo("")
 	if err == nil {
 		t.Error("Test failed - GetAccountInfo() error", err)

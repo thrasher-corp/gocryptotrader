@@ -7,7 +7,7 @@ import (
 
 	"github.com/idoall/gocryptotrader/communications"
 	"github.com/idoall/gocryptotrader/config"
-	"github.com/idoall/gocryptotrader/exchanges"
+	exchange "github.com/idoall/gocryptotrader/exchanges"
 	"github.com/idoall/gocryptotrader/exchanges/binance"
 	"github.com/idoall/gocryptotrader/portfolio"
 )
