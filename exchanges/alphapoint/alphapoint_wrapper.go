@@ -161,13 +161,13 @@ func (a *Alphapoint) GetExchangeDepositAddress(cryptocurrency pair.CurrencyItem)
 	return "", errors.New("associated currency address not found")
 }
 
-// WithdrawExchangeCryptoFunds returns a withdrawal ID when a withdrawal is
+// WithdrawCryptoExchangeFunds returns a withdrawal ID when a withdrawal is
 // submitted
 func (a *Alphapoint) WithdrawCryptoExchangeFunds(address string, cryptocurrency pair.CurrencyItem, amount float64) (string, error) {
 	return "", errors.New("not yet implemented")
 }
 
-// WithdrawExchangeFiatFunds returns a withdrawal ID when a withdrawal is submitted
+// WithdrawFiatExchangeFunds returns a withdrawal ID when a withdrawal is submitted
 func (a *Alphapoint) WithdrawFiatExchangeFunds(currency pair.CurrencyItem, amount float64) (string, error) {
 	return "", errors.New("not yet implemented")
 }

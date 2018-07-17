@@ -179,20 +179,20 @@ func (l *Liqui) GetExchangeDepositAddress(cryptocurrency pair.CurrencyItem) (str
 	return "", errors.New("not yet implemented")
 }
 
-// WithdrawExchangeCryptoFunds returns a withdrawal ID when a withdrawal is
+// WithdrawCryptoExchangeFunds returns a withdrawal ID when a withdrawal is
 // submitted
 func (l *Liqui) WithdrawCryptoExchangeFunds(address string, cryptocurrency pair.CurrencyItem, amount float64) (string, error) {
 	return "", errors.New("not yet implemented")
 }
 
-// WithdrawExchangeFiatFundsToLocalBank returns a withdrawal ID when a
+// WithdrawFiatExchangeFunds returns a withdrawal ID when a
 // withdrawal is submitted
 func (l *Liqui) WithdrawFiatExchangeFunds(currency pair.CurrencyItem, amount float64) (string, error) {
 	return "", errors.New("not yet implemented")
 }
 
-// WithdrawExchangeFiatFundsToInternationalBank returns a withdrawal ID when a
+// WithdrawFiatExchangeFundsToInternationalBank returns a withdrawal ID when a
 // withdrawal is submitted
-func (l *Liqui) WithdrawExchangeFiatFundsToInternationalBank(currency pair.CurrencyItem, amount float64) (string, error) {
+func (l *Liqui) WithdrawFiatExchangeFundsToInternationalBank(currency pair.CurrencyItem, amount float64) (string, error) {
 	return "", errors.New("not yet implemented")
 }
