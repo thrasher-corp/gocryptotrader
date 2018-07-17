@@ -7,7 +7,7 @@ import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 import { HttpModule } from '@angular/http';
 import { NgModule, Injectable } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { AmChartsModule } from "@amcharts/amcharts3-angular";
+import { AmChartsModule } from '@amcharts/amcharts3-angular';
 
 import {
   MatButtonModule,
@@ -136,7 +136,7 @@ import { SellFormComponent } from './shared/sell-form/sell-form.component';
   providers: [
     ElectronService,
     WebsocketService,
-    WebsocketResponseHandlerService, 
+    WebsocketResponseHandlerService,
     SidebarService,
     StyleManagerService,
     ThemeStorageService,
