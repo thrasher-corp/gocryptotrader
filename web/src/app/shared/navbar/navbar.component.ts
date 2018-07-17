@@ -7,7 +7,7 @@ import { SidebarService } from './../../services/sidebar/sidebar.service';
   styleUrls: ['./navbar.component.scss']
 })
 export class NavbarComponent implements OnInit {
-  sidebarService: SidebarService
+  sidebarService: SidebarService;
   constructor(something: SidebarService) {
     this.sidebarService = something;
    }

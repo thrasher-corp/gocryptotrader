@@ -11,10 +11,10 @@ import { WalletComponent } from '../wallet/wallet.component';
   styleUrls: ['./settings.component.scss'],
 })
 
-export class SettingsComponent  {
+export class SettingsComponent implements OnInit {
   public settings: Config = new Config();
   private ws: WebsocketResponseHandlerService;
-  public ready: boolean = false;
+  public ready = false;
   private snackBar: MatSnackBar;
   private dialogue;
 
@@ -28,34 +28,34 @@ export class SettingsComponent  {
         this.settings.setConfig(msg.data);
         this.ready = true;
       } else if (msg.event === WebSocketMessageType.SaveConfig) {
-        if(msg.error !== null || msg.error.length > 0) {
+        if (msg.error !== null || msg.error.length > 0) {
           this.snackBar.open(msg.error, '', {
             duration: 4000,
           });
-        } 
+        }
         if (msg.error === null || msg.error === '') {
           this.settings.clearCache();
           this.getSettings();
           this.snackBar.open('Success', msg.data, {
             duration: 1000,
           });
-        } 
+        }
       }
     });
     this.getSettings();
   }
 
-  public addWallet() :void {
+  public addWallet(): void {
     this.settings.PortfolioAddresses.Addresses.push(<Wallet>{});
   }
 
-  public removeWallet(wallet:any) {
+  public removeWallet(wallet: any) {
     this.settings.PortfolioAddresses.Addresses.splice(this.settings.PortfolioAddresses.Addresses.indexOf(wallet), 1);
   }
 
 
   public openModal(pairs: any): void {
-    let dialogRef = this.dialog.open(EnabledCurrenciesDialogueComponent, {
+    const dialogRef = this.dialog.open(EnabledCurrenciesDialogueComponent, {
       width: '20%',
       height: '40%',
       data: { pairs: pairs }
@@ -63,9 +63,9 @@ export class SettingsComponent  {
   }
 
   private getSettings(): void {
-    if(this.settings.isConfigCacheValid()) {
-      this.settings.setConfig(JSON.parse(window.localStorage['config']))
-      this.ready = true;      
+    if (this.settings.isConfigCacheValid()) {
+      this.settings.setConfig(JSON.parse(window.localStorage['config']));
+      this.ready = true;
     } else {
       this.settings.clearCache();
       this.ws.messages.next(WebSocketMessage.GetSettingsMessage());
@@ -73,17 +73,17 @@ export class SettingsComponent  {
   }
 
   private saveSettings(): void {
-    this.settings.fromReduxToArray()
-    var settingsSave = {
+    this.settings.fromReduxToArray();
+    const settingsSave = {
       Event: 'SaveConfig',
       data: this.settings,
-    }
+    };
     this.ws.messages.next(settingsSave);
   }
 }
 
 @Component({
-  selector: 'dialog-overview-example-dialog',
+  selector: 'app-dialog-overview-example-dialog',
   template: '<h4>Enabled Currencies</h4><div *ngFor="let currency of data.pairs"><mat-checkbox name="{{currency.Name}}2" [(ngModel)]="currency.Enabled">{{currency.Name}}</mat-checkbox></div><button mat-raised-button color="primary" (click)="close()">DONE</button>',
 })
 export class EnabledCurrenciesDialogueComponent {
@@ -98,7 +98,7 @@ export class EnabledCurrenciesDialogueComponent {
 
   public close(): void {
     this.dialogRef.close();
-    
+
   }
 
 }

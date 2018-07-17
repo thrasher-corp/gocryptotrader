@@ -2,13 +2,13 @@ export interface ExchangeCurrency {
     currencyPair: string;
     exchangeName: string;
   }
-  
+
   export interface CurrencyPair {
     delimiter: string;
     first_currency: string;
     second_currency: string;
   }
-  
+
   export class TickerUpdate {
     Pair: CurrencyPair;
     CurrencyPair: string;
@@ -21,4 +21,4 @@ export interface ExchangeCurrency {
     PriceATH: number;
     Exchange: string;
   }
-  
+

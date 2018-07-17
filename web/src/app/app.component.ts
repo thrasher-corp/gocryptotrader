@@ -10,7 +10,7 @@ import {WebsocketResponseHandlerService } from './services/websocket-response-ha
   templateUrl: './app.component.html',
   styleUrls: ['./app.component.scss'],
 })
-export class AppComponent {
+export class AppComponent implements OnInit {
   sidebarService: SidebarService;
   public currentUrl: string;
   @ViewChild('sidenav') public sidenav: MatSidenav;
