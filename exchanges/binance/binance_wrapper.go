@@ -29,6 +29,10 @@ func (b *Binance) Run() {
 		log.Printf("%s %d currencies enabled: %s.\n", b.GetName(), len(b.EnabledPairs), b.EnabledPairs)
 	}
 
+	if b.Websocket {
+		go b.WebsocketClient()
+	}
+
 	symbols, err := b.GetExchangeValidCurrencyPairs()
 	if err != nil {
 		log.Printf("%s Failed to get exchange info.\n", b.GetName())
