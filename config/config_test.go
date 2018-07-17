@@ -35,7 +35,7 @@ func TestUpdateExchangeBankAccounts(t *testing.T) {
 		t.Error("Test failed. UpdateDepositBankAccounts LoadConfig error", err)
 	}
 
-	b := []BankAccount{BankAccount{Enabled: false}}
+	b := []BankAccount{{Enabled: false}}
 	err = cfg.UpdateExchangeBankAccounts("Bitfinex", b)
 	if err != nil {
 		t.Error("Test failed. UpdateDepositBankAccounts error", err)

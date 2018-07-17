@@ -386,7 +386,7 @@ func (c *Config) CheckCommunicationsConfig() error {
 				Password: "test",
 
 				Contacts: []SMSContact{
-					SMSContact{
+					{
 						Name:    "bob",
 						Number:  "1234",
 						Enabled: false,
