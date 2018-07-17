@@ -3,7 +3,7 @@ import { ElectronService } from './providers/electron.service';
 import { MatSidenav } from '@angular/material';
 import { SidebarService } from './services/sidebar/sidebar.service';
 import { Router, NavigationEnd } from '@angular/router';
-import {WebsocketResponseHandlerService }from './services/websocket-response-handler/websocket-response-handler.service';
+import {WebsocketResponseHandlerService } from './services/websocket-response-handler/websocket-response-handler.service';
 
 @Component({
   selector: 'app-root',
@@ -47,7 +47,7 @@ export class AppComponent {
 
   ngOnInit() {
     this.sidebarService.setSidenav(this.sidenav);
-    //This will be replaced with a log in prompt which will then add the credentials to session storage
+    // This will be replaced with a log in prompt which will then add the credentials to session storage
     window.sessionStorage['username'] = 'admin';
     window.sessionStorage['password'] = 'e7cf3ef4f17c3999a94f2c6f612e8a888e5b1026878e4e19398b23bd38ec221a';
   }

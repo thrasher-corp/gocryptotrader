@@ -8,7 +8,7 @@ import { TradingComponent } from './pages/trading/trading.component';
 import { ExchangeGridComponent } from './pages/exchange-grid/exchange-grid.component';
 import { CurrencyListComponent } from './pages/currency-list/currency-list.component';
 
-//Settings
+// Settings
 import { SettingsComponent } from './pages/settings/settings.component';
 
 import { NgModule } from '@angular/core';
@@ -52,7 +52,7 @@ const routes: Routes = [
         path: 'currency-list',
         component: CurrencyListComponent
     },
-    //Settings
+    // Settings
     {
         path: 'settings',
         component: SettingsComponent
