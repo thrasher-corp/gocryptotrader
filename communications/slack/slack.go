@@ -350,7 +350,7 @@ func (s *Slack) WebsocketSend(eventType, text string) error {
 }
 
 // HandleMessage handles incoming messages and/or commands from slack
-func (s Slack) HandleMessage(msg Message) {
+func (s *Slack) HandleMessage(msg Message) {
 	switch {
 	case common.StringContains(msg.Text, cmdStatus):
 		s.WebsocketSend("message", s.GetStatus())
