@@ -1,21 +1,31 @@
-language: go
+matrix:
+  include:
+    - language: node_js
+      node_js:
+        - '10'
+        - '8'
+        - '6'
+      before_install:
+        - cd web/
+      install:
+        - npm install
+      script:
+        - npm run lint
+        - npm run build
 
-go:
- - 1.10.x
-
-before_install:
- - go get -t -v ./...
-
-script:
- - ./testdata/test.sh
-
-install:
- - go get github.com/gorilla/websocket
- - go get github.com/toorop/go-pusher
- - go get github.com/thrasher-/socketio
- - go get github.com/beatgammit/turnpike
- - go get github.com/gorilla/mux
- - go get golang.org/x/crypto/scrypt
-
-after_success:
- - bash <(curl -s https://codecov.io/bash)
+    - language: go
+      go:
+        - 1.10.x
+      before_install:
+        - go get -t -v ./...
+      script:
+        - ./testdata/test.sh
+      install:
+        - go get github.com/gorilla/websocket
+        - go get github.com/toorop/go-pusher
+        - go get github.com/thrasher-/socketio
+        - go get github.com/beatgammit/turnpike
+        - go get github.com/gorilla/mux
+        - go get golang.org/x/crypto/scrypt
+      after_success:
+        - bash <(curl -s https://codecov.io/bash)

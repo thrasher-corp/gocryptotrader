@@ -1,6 +1,5 @@
 package binance
 
-
 import (
 	"encoding/json"
 )

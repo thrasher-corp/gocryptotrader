@@ -21,7 +21,7 @@ export class SidebarService {
    */
   public open(): Promise<MatDrawerToggleResult> {
     this.sidenav.open();
-    
+
     return;
   }
 
