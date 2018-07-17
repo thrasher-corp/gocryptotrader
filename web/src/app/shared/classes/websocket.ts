@@ -6,16 +6,16 @@ export class WebSocketMessage {
     public error: string;
 
     public static CreateAuthenticationMessage(): WebSocketMessage {
-        var response = new WebSocketMessage();
-        
+        const response = new WebSocketMessage();
+
         response.event = WebSocketMessageType.Auth;
-        response.data = { "username": window.sessionStorage["username"], "password": window.sessionStorage["password"] };
+        response.data = { 'username': window.sessionStorage['username'], 'password': window.sessionStorage['password'] };
 
         return response;
-    };
+    }
 
-    public static GetSettingsMessage() : WebSocketMessage {
-        var response = new WebSocketMessage();
+    public static GetSettingsMessage(): WebSocketMessage {
+        const response = new WebSocketMessage();
 
         response.event = WebSocketMessageType.GetConfig;
         response.data = null;
@@ -25,9 +25,9 @@ export class WebSocketMessage {
 }
 
 export class WebSocketMessageType {
-    public static Auth: string = "auth";
-    public static GetConfig: string = "GetConfig";
-    public static SaveConfig: string = "SaveConfig";
-    public static GetPortfolio: string = "GetPortfolio";
-    public static TickerUpdate: string = "ticker_update";
+    public static Auth = 'auth';
+    public static GetConfig = 'GetConfig';
+    public static SaveConfig = 'SaveConfig';
+    public static GetPortfolio = 'GetPortfolio';
+    public static TickerUpdate = 'ticker_update';
 }

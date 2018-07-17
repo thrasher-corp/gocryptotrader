@@ -1,4 +1,4 @@
-import { inherits } from "util";
+import { inherits } from 'util';
 
 export class Config {
     Name: string;
@@ -12,23 +12,21 @@ export class Config {
     Communications: Communcations;
     CurrencyConfig: CurrencyConfig;
 
-    public isConfigCacheValid() : boolean {
-        let dateStored = +new Date(window.localStorage['configDate']);
-        let dateNow = +new Date();
-        var dateDifference = Math.abs(dateNow - dateStored)
-        var diffMins = Math.floor((dateDifference / 1000) / 60);
-        (diffMins)
-    
-        if(isNaN(new Date(dateStored).getTime()) || diffMins > 15) {
+    public isConfigCacheValid(): boolean {
+        const dateStored = +new Date(window.localStorage['configDate']);
+        const dateNow = +new Date();
+        const dateDifference = Math.abs(dateNow - dateStored);
+        const diffMins = Math.floor((dateDifference / 1000) / 60);
+
+        if (isNaN(new Date(dateStored).getTime()) || diffMins > 15) {
             return false;
-        }
-        else {
-            return true
+        } else {
+            return true;
         }
     }
 
   public setConfig(data: any): void {
-    var configData = <Config>data;
+    const configData = <Config>data;
     this.Cryptocurrencies = configData.Cryptocurrencies;
     this.CurrencyExchangeProvider = configData.CurrencyExchangeProvider;
     this.Exchanges = configData.Exchanges;
@@ -47,28 +45,28 @@ export class Config {
       return;
     }
     this.fromArrayToRedux();
-    //Rewrite to cache on parsing to redux array
+    // Rewrite to cache on parsing to redux array
     this.saveToCache();
   }
 
-    public saveToCache() : void {
-      window.localStorage['config'] = JSON.stringify(this); 
+    public saveToCache(): void {
+      window.localStorage['config'] = JSON.stringify(this);
       window.localStorage['configDate'] = new Date().toString();
     }
 
-    public clearCache() : void {
+    public clearCache(): void {
       window.localStorage['config'] = null;
       window.localStorage['configDate'] = null;
     }
 
-    public fromArrayToRedux() : void {
-        for (var i = 0; i < this.Exchanges.length; i++) {
+    public fromArrayToRedux(): void {
+        for (let i = 0; i < this.Exchanges.length; i++) {
           this.Exchanges[i].Pairs = new Array<CurrencyPairRedux>();
-          var avail = this.Exchanges[i].AvailablePairs.split(',');
-          var enabled = this.Exchanges[i].EnabledPairs.split(',');
-          for (var j = 0; j < avail.length; j++) {
-            var currencyPair = new CurrencyPairRedux();
-            currencyPair.Name = avail[j]
+          const avail = this.Exchanges[i].AvailablePairs.split(',');
+          const enabled = this.Exchanges[i].EnabledPairs.split(',');
+          for (let j = 0; j < avail.length; j++) {
+            const currencyPair = new CurrencyPairRedux();
+            currencyPair.Name = avail[j];
             currencyPair.ParsedName = this.stripCurrencyCharacters(avail[j]);
             if (enabled.indexOf(avail[j]) > 0) {
               currencyPair.Enabled = true;
@@ -81,11 +79,11 @@ export class Config {
 
       }
 
-    public parseSettings() : void {
+    public parseSettings(): void {
 
     }
 
-    private stripCurrencyCharacters(name:string) :string {
+    private stripCurrencyCharacters(name: string): string {
         name = name.replace('_', '');
         name = name.replace('-', '');
         name = name.replace(' ', '');
@@ -93,23 +91,23 @@ export class Config {
         return name;
       }
 
-    public fromReduxToArray() : void {
-        for (var i = 0; i < this.Exchanges.length; i++) {
+    public fromReduxToArray(): void {
+        for (let i = 0; i < this.Exchanges.length; i++) {
           // Step 1, iterate over the Pairs
-          var enabled = this.Exchanges[i].EnabledPairs.split(',');
-          for (var j = 0; j < this.Exchanges[i].Pairs.length; j++) {
+          const enabled = this.Exchanges[i].EnabledPairs.split(',');
+          for (let j = 0; j < this.Exchanges[i].Pairs.length; j++) {
             if (this.Exchanges[i].Pairs[j].Enabled) {
-              if (enabled.indexOf(this.Exchanges[i].Pairs[j].Name) == -1) {
+              if (enabled.indexOf(this.Exchanges[i].Pairs[j].Name) === -1) {
                 // Step 3 if its not in the enabled list, add it
                 enabled.push(this.Exchanges[i].Pairs[j].Name);
-              } 
+              }
             } else {
               if (enabled.indexOf(this.Exchanges[i].Pairs[j].Name) > -1) {
                 enabled.splice(enabled.indexOf(this.Exchanges[i].Pairs[j].Name), 1);
               }
             }
           }
-          //Step 4 JSONifiy the enabled list and set it to the this.settings.Exchanges[i].EnabledPairs
+          // Step 4 JSONifiy the enabled list and set it to the this.settings.Exchanges[i].EnabledPairs
           this.Exchanges[i].EnabledPairs = enabled.join();
         }
       }
@@ -120,31 +118,31 @@ export class CurrencyPairRedux {
     ParsedName: string;
     Enabled: boolean;
   }
-  
+
   export interface CurrencyPairFormat {
     Uppercase: boolean;
     Delimiter: string;
   }
-  
+
   export interface PortfolioAddresses {
     Addresses?: Wallet[];
   }
 
   export interface Wallet {
-    Address:string;
-    CoinType:string;
-    Balance:number;
-    Description:string
+    Address: string;
+    CoinType: string;
+    Balance: number;
+    Description: string;
 
   }
-  
+
   export class SMSGlobalContact {
     Name: string;
     Number: string;
     Enabled: boolean;
   }
-  
-  
+
+
   export interface Webserver {
     Enabled: boolean;
     AdminUsername: string;
@@ -153,20 +151,20 @@ export class CurrencyPairRedux {
     WebsocketConnectionLimit: number;
     WebsocketAllowInsecureOrigin: boolean;
   }
-  
+
   export interface ConfigCurrencyPairFormat {
     Uppercase: boolean;
     Index: string;
     Delimiter: string;
   }
-  
+
   export interface RequestCurrencyPairFormat {
     Uppercase: boolean;
     Index: string;
     Delimiter: string;
     Separator: string;
   }
-  
+
   export interface Exchange {
     Name: string;
     Enabled: boolean;
@@ -185,14 +183,14 @@ export class CurrencyPairRedux {
     ClientID: string;
     Pairs: CurrencyPairRedux[];
 }
-  
+
 
 export class Communcations {
   Slack: SlackCommunication;
   SMSGlobal: SMSGlobalCommunication;
   SMTP: SMTPCommunication;
   Telegram: TelegramCommunication;
-} 
+}
 
 
 export class SlackCommunication {
@@ -250,7 +248,7 @@ export class CurrencyPairFormat {
   Uppercase: boolean;
   Delimiter: string;
 }
-  
-  
-  
-  
+
+
+
+

@@ -1,14 +1,14 @@
 import { Component, OnInit, OnDestroy, Pipe, PipeTransform } from '@angular/core';
 import { CurrencyPairRedux } from './../../shared/classes/config';
 
-  
+
 @Pipe({
     name: 'iterateMap'
   })
   export class IterateMapPipe implements PipeTransform {
     transform(iterable: any, args: any[]): any {
-      let result = [];
-  
+      const result = [];
+
       if (iterable.entries) {
         iterable.forEach((key, value) => {
           result.push({
@@ -17,7 +17,7 @@ import { CurrencyPairRedux } from './../../shared/classes/config';
           });
         });
       } else {
-        for (let key in iterable) {
+        for (const key in iterable) {
           if (iterable.hasOwnProperty(key)) {
             result.push({
               key,
@@ -26,11 +26,11 @@ import { CurrencyPairRedux } from './../../shared/classes/config';
           }
         }
       }
-  
+
       return result;
     }
   }
-  
+
   @Pipe({
     name: 'enabledCurrencies'
   })
@@ -42,4 +42,4 @@ import { CurrencyPairRedux } from './../../shared/classes/config';
       return items.filter(item => item.Enabled === true);
     }
   }
-  
+
