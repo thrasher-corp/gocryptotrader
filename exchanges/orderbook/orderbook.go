@@ -157,6 +157,10 @@ func CreateNewOrderbook(exchangeName string, p pair.CurrencyPair, orderbookNew B
 // ProcessOrderbook processes incoming orderbooks, creating or updating the
 // Orderbook list
 func ProcessOrderbook(exchangeName string, p pair.CurrencyPair, orderbookNew Base, orderbookType string) {
+	if orderbookNew.Pair.Pair() == "" {
+		// set Pair if not set
+		orderbookNew.Pair = p
+	}
 	orderbookNew.CurrencyPair = p.Pair().String()
 	orderbookNew.LastUpdated = time.Now()
 

@@ -9,16 +9,26 @@ import (
 	"strconv"
 	"time"
 
+<<<<<<< HEAD
 	"github.com/idoall/gocryptotrader/common"
 	"github.com/idoall/gocryptotrader/config"
 	exchange "github.com/idoall/gocryptotrader/exchanges"
 	"github.com/idoall/gocryptotrader/exchanges/request"
 	"github.com/idoall/gocryptotrader/exchanges/ticker"
+=======
+	"github.com/gorilla/websocket"
+	"github.com/thrasher-/gocryptotrader/common"
+	"github.com/thrasher-/gocryptotrader/config"
+	exchange "github.com/thrasher-/gocryptotrader/exchanges"
+	"github.com/thrasher-/gocryptotrader/exchanges/request"
+	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
+>>>>>>> upstrem/master
 )
 
 // Binance is the overarching type across the Bithumb package
 type Binance struct {
 	exchange.Base
+	WebsocketConn *websocket.Conn
 
 	// valid string list that a required by the exchange
 	validLimits    []string

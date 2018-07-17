@@ -34,7 +34,7 @@ const (
 	liquiWithdrawCoin      = "WithdrawCoin"
 
 	liquiAuthRate   = 0
-	liquiUnauthRate = 0
+	liquiUnauthRate = 1
 )
 
 // Liqui is the overarching type across the liqui package

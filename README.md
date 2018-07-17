@@ -20,7 +20,7 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 |----------|------|-----------|-----|
 | Alphapoint | Yes  | Yes        | NA  |
 | ANXPRO | Yes  | No        | NA  |
-| Binance| Yes  | No        | NA  |
+| Binance| Yes  | Yes        | NA  |
 | Bitfinex | Yes  | Yes        | NA  |
 | Bitflyer | Yes  | No      | NA  |
 | Bithumb | Yes  | NA       | NA  |
@@ -30,7 +30,7 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 | BTCMarkets | Yes | No       | NA  |
 | COINUT | Yes | No | NA |
 | Exmo | Yes | NA | NA |
-| GDAX(Coinbase) | Yes | Yes | No|
+| CoinbasePro | Yes | Yes | No|
 | Gemini | Yes | No | No |
 | HitBTC | Yes | Yes | No |
 | Huobi.Pro | Yes | No |No |
@@ -54,13 +54,15 @@ We are aiming to support the top 20 highest volume exchanges based off the [Coin
 ## Current Features
 
 + Support for all Exchange fiat and digital currencies, with the ability to individually toggle them on/off.
-+ AES encrypted config file.
++ AES256 encrypted config file.
 + REST API support for all exchanges.
 + Websocket support for applicable exchanges.
 + Ability to turn off/on certain exchanges.
 + Ability to adjust manual polling timer for exchanges.
-+ SMS notification support via SMS Gateway.
-+ Packages for handling currency pairs, ticker/orderbook fetching and currency conversion.
++ Communication packages (Slack, SMS via SMSGlobal, Telegram and SMTP)
++ HTTP rate limiter package.
++ Forex currency converter packages (CurrencyConverterAPI, CurrencyLayer, Fixer.io, OpenExchangeRates)
++ Packages for handling currency pairs, tickers and orderbooks.
 + Portfolio management tool; fetches balances from supported exchanges and allows for custom address tracking.
 + Basic event trigger system.
 + WebGUI.
@@ -143,19 +145,23 @@ Binaries will be published once the codebase reaches a stable condition.
 
 |User|Github|Contribution Amount|
 |--|--|--|
-| thrasher- | https://github.com/thrasher- | 434 |
-| shazbert | https://github.com/shazbert | 132 |
-| gloriousCode | https://github.com/gloriousCode | 116 |
+| thrasher- | https://github.com/thrasher- | 442 |
+| shazbert | https://github.com/shazbert | 139 |
+| gloriousCode | https://github.com/gloriousCode | 121 |
 | 140am | https://github.com/140am | 8 |
 | Betazoid | https://github.com/Betazoid | 4 |
+| marcofranssen | https://github.com/marcofranssen | 3 |
 | crackcomm | https://github.com/crackcomm | 3 |
 | bretep | https://github.com/bretep | 2 |
+| ermalguni | https://github.com/ermalguni | 2 |
 | gam-phon | https://github.com/gam-phon | 2 |
 | cornelk | https://github.com/cornelk | 2 |
 | if1live | https://github.com/if1live | 2 |
 | daniel-cohen | https://github.com/daniel-cohen | 1 |
+| frankzougc | https://github.com/frankzougc | 1 |
 | starit | https://github.com/starit | 1 |
 | Jimexist | https://github.com/Jimexist | 1 |
+| lookfirst | https://github.com/lookfirst | 1 |
 | zeldrinn | https://github.com/zeldrinn | 1 |
 | mattkanwisher | https://github.com/mattkanwisher | 1 |
 | mKurrels | https://github.com/mKurrels | 1 |
@@ -164,6 +170,7 @@ Binaries will be published once the codebase reaches a stable condition.
 | tongxiaofeng | https://github.com/tongxiaofeng | 1 |
 | idealhack | https://github.com/idealhack | 1 |
 | askew- | https://github.com/askew- | 1 |
+| whilei | https://github.com/whilei | 1 |
 | snipesjr | https://github.com/snipesjr | 1 |
 
 

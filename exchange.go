@@ -5,6 +5,7 @@ import (
 	"log"
 	"sync"
 
+<<<<<<< HEAD
 	"github.com/idoall/gocryptotrader/common"
 	exchange "github.com/idoall/gocryptotrader/exchanges"
 	"github.com/idoall/gocryptotrader/exchanges/anx"
@@ -32,6 +33,35 @@ import (
 	"github.com/idoall/gocryptotrader/exchanges/poloniex"
 	"github.com/idoall/gocryptotrader/exchanges/wex"
 	"github.com/idoall/gocryptotrader/exchanges/yobit"
+=======
+	"github.com/thrasher-/gocryptotrader/common"
+	exchange "github.com/thrasher-/gocryptotrader/exchanges"
+	"github.com/thrasher-/gocryptotrader/exchanges/anx"
+	"github.com/thrasher-/gocryptotrader/exchanges/binance"
+	"github.com/thrasher-/gocryptotrader/exchanges/bitfinex"
+	"github.com/thrasher-/gocryptotrader/exchanges/bitflyer"
+	"github.com/thrasher-/gocryptotrader/exchanges/bithumb"
+	"github.com/thrasher-/gocryptotrader/exchanges/bitstamp"
+	"github.com/thrasher-/gocryptotrader/exchanges/bittrex"
+	"github.com/thrasher-/gocryptotrader/exchanges/btcc"
+	"github.com/thrasher-/gocryptotrader/exchanges/btcmarkets"
+	"github.com/thrasher-/gocryptotrader/exchanges/coinbasepro"
+	"github.com/thrasher-/gocryptotrader/exchanges/coinut"
+	"github.com/thrasher-/gocryptotrader/exchanges/exmo"
+	"github.com/thrasher-/gocryptotrader/exchanges/gemini"
+	"github.com/thrasher-/gocryptotrader/exchanges/hitbtc"
+	"github.com/thrasher-/gocryptotrader/exchanges/huobi"
+	"github.com/thrasher-/gocryptotrader/exchanges/itbit"
+	"github.com/thrasher-/gocryptotrader/exchanges/kraken"
+	"github.com/thrasher-/gocryptotrader/exchanges/lakebtc"
+	"github.com/thrasher-/gocryptotrader/exchanges/liqui"
+	"github.com/thrasher-/gocryptotrader/exchanges/localbitcoins"
+	"github.com/thrasher-/gocryptotrader/exchanges/okcoin"
+	"github.com/thrasher-/gocryptotrader/exchanges/okex"
+	"github.com/thrasher-/gocryptotrader/exchanges/poloniex"
+	"github.com/thrasher-/gocryptotrader/exchanges/wex"
+	"github.com/thrasher-/gocryptotrader/exchanges/yobit"
+>>>>>>> upstrem/master
 )
 
 // vars related to exchange functions
@@ -154,8 +184,8 @@ func LoadExchange(name string, useWG bool, wg *sync.WaitGroup) error {
 		exch = new(coinut.COINUT)
 	case "exmo":
 		exch = new(exmo.EXMO)
-	case "gdax":
-		exch = new(gdax.GDAX)
+	case "coinbasepro":
+		exch = new(coinbasepro.CoinbasePro)
 	case "gemini":
 		exch = new(gemini.Gemini)
 	case "hitbtc":

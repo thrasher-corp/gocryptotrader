@@ -4,7 +4,12 @@ import (
 	"net/url"
 	"testing"
 
+<<<<<<< HEAD
 	"github.com/idoall/gocryptotrader/config"
+=======
+	"github.com/thrasher-/gocryptotrader/config"
+	"github.com/thrasher-/gocryptotrader/currency/pair"
+>>>>>>> upstrem/master
 )
 
 var l Liqui
@@ -117,5 +122,21 @@ func TestAuthRequests(t *testing.T) {
 		if err == nil {
 			t.Error("Test Failed - liqui WithdrawCoins() error", err)
 		}
+	}
+}
+
+func TestUpdateTicker(t *testing.T) {
+	p := pair.NewCurrencyPairDelimiter("ETH_BTC", "_")
+	_, err := l.UpdateTicker(p, "SPOT")
+	if err != nil {
+		t.Error("Test Failed - liqui UpdateTicker() error", err)
+	}
+}
+
+func TestUpdateOrderbook(t *testing.T) {
+	p := pair.NewCurrencyPairDelimiter("ETH_BTC", "_")
+	_, err := l.UpdateOrderbook(p, "SPOT")
+	if err != nil {
+		t.Error("Test Failed - liqui UpdateOrderbook() error", err)
 	}
 }
