@@ -549,7 +549,7 @@ type Format struct {
 // Formatting contain a range of exchanges formatting
 type Formatting []Format
 
-// formats is a quick formatting list for generic paramaters
+// formats is a quick formatting list for generic parameters
 var formats = Formatting{
 	Format{
 		ExchangeName: "BTC Markets",

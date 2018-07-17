@@ -449,12 +449,12 @@ func (b *Binance) QueryOrder(symbol, origClientOrderID string, orderID int64) (Q
 
 // GetAccount returns binance user accounts
 func (b *Binance) GetAccount() (*Account, error) {
-	type respone struct {
+	type response struct {
 		Response
 		Account
 	}
 
-	var resp respone
+	var resp response
 
 	path := fmt.Sprintf("%s%s", apiURL, accountInfo)
 	params := url.Values{}

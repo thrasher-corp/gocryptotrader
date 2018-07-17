@@ -53,7 +53,7 @@ func initialiseHTTPClient() {
 	}
 }
 
-// NewHTTPClientWithTimeout initalises a new HTTP client with the specified
+// NewHTTPClientWithTimeout initialises a new HTTP client with the specified
 // timeout duration
 func NewHTTPClientWithTimeout(t time.Duration) *http.Client {
 	h := &http.Client{Timeout: t}

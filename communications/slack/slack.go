@@ -59,7 +59,7 @@ type Slack struct {
 }
 
 // Setup takes in a slack configuration, sets bots target channel and
-// sets verfication token to access workspace
+// sets verification token to access workspace
 func (s *Slack) Setup(config config.CommunicationsConfig) {
 	s.Name = config.SlackConfig.Name
 	s.Enabled = config.SlackConfig.Enabled
@@ -281,7 +281,7 @@ func (s *Slack) WebsocketReader() {
 
 		case "pong":
 			if s.Verbose {
-				log.Println("Pong recieved from server")
+				log.Println("Pong received from server")
 			}
 		default:
 			log.Println(string(resp))
