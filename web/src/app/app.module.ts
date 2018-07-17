@@ -31,7 +31,7 @@ import {
   MatDialogModule,
 } from '@angular/material';
 
-//Pages
+// Pages
 import { AppComponent } from './app.component';
 import { HomeComponent } from './pages/home/home.component';
 import { AboutComponent } from './pages/about/about.component';
@@ -41,12 +41,12 @@ import { DonateComponent } from './pages/donate/donate.component';
 
 import { SettingsComponent, EnabledCurrenciesDialogueComponent } from './pages/settings/settings.component';
 
-//Shared
+// Shared
 import { NavbarComponent } from './shared/navbar/navbar.component';
 import { AllEnabledCurrencyTickersComponent } from './shared/all-updates-ticker/all-updates-ticker.component';
 import { ThemePickerComponent } from './shared/theme-picker/theme-picker';
 import {IterateMapPipe, EnabledCurrenciesPipe} from './shared/classes/pipes';
-//services
+// services
 import { WebsocketService } from './services/websocket/websocket.service';
 import { WebsocketResponseHandlerService } from './services/websocket-response-handler/websocket-response-handler.service';
 import { SidebarService } from './services/sidebar/sidebar.service';
@@ -54,7 +54,7 @@ import { ElectronService } from './providers/electron.service';
 import { StyleManagerService } from './services/style-manager/style-manager.service';
 import { ThemeStorageService } from './services/theme-storage/theme-storage.service';
 
-//Routing
+// Routing
 import { AppRoutingModule } from './app-routing.module';
 
 import { Wallet } from './shared/classes/wallet';
