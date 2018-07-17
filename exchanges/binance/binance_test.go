@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/idoall/gocryptotrader/config"
+	"github.com/thrasher-/gocryptotrader/config"
 )
 
 // getDefaultConfig 获取默认配置

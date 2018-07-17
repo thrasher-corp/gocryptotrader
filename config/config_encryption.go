@@ -10,7 +10,7 @@ import (
 	"io"
 	"log"
 
-	"github.com/idoall/gocryptotrader/common"
+	"github.com/thrasher-/gocryptotrader/common"
 	"golang.org/x/crypto/scrypt"
 )
 

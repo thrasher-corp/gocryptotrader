@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/idoall/gocryptotrader/config"
+	"github.com/thrasher-/gocryptotrader/config"
 )
 
 var c CoinbasePro

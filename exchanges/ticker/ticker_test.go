@@ -4,7 +4,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/idoall/gocryptotrader/currency/pair"
+	"github.com/thrasher-/gocryptotrader/currency/pair"
 )
 
 func TestPriceToString(t *testing.T) {

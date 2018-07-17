@@ -5,11 +5,11 @@ package forexprovider
 import (
 	"log"
 
-	"github.com/idoall/gocryptotrader/currency/forexprovider/base"
-	currencyconverter "github.com/idoall/gocryptotrader/currency/forexprovider/currencyconverterapi"
-	"github.com/idoall/gocryptotrader/currency/forexprovider/currencylayer"
-	fixer "github.com/idoall/gocryptotrader/currency/forexprovider/fixer.io"
-	"github.com/idoall/gocryptotrader/currency/forexprovider/openexchangerates"
+	"github.com/thrasher-/gocryptotrader/currency/forexprovider/base"
+	currencyconverter "github.com/thrasher-/gocryptotrader/currency/forexprovider/currencyconverterapi"
+	"github.com/thrasher-/gocryptotrader/currency/forexprovider/currencylayer"
+	fixer "github.com/thrasher-/gocryptotrader/currency/forexprovider/fixer.io"
+	"github.com/thrasher-/gocryptotrader/currency/forexprovider/openexchangerates"
 )
 
 // ForexProviders is an array of foreign exchange interfaces

@@ -11,8 +11,8 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/idoall/gocryptotrader/common"
 	"github.com/idoall/gocryptotrader/config"
-	"github.com/idoall/gocryptotrader/exchanges"
 	"github.com/idoall/gocryptotrader/exchanges/request"
+	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 )
 
 const (

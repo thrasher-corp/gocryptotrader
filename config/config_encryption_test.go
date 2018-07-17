@@ -3,7 +3,7 @@ package config
 import (
 	"testing"
 
-	"github.com/idoall/gocryptotrader/common"
+	"github.com/thrasher-/gocryptotrader/common"
 )
 
 func TestPromptForConfigEncryption(t *testing.T) {

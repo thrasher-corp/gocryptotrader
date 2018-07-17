@@ -7,9 +7,9 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/idoall/gocryptotrader/common"
-	"github.com/idoall/gocryptotrader/communications/base"
-	"github.com/idoall/gocryptotrader/config"
+	"github.com/thrasher-/gocryptotrader/common"
+	"github.com/thrasher-/gocryptotrader/communications/base"
+	"github.com/thrasher-/gocryptotrader/config"
 )
 
 const (

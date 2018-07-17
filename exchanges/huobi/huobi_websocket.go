@@ -3,7 +3,7 @@ package huobi
 import (
 	"log"
 
-	"github.com/idoall/gocryptotrader/common"
+	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/socketio"
 )
 
