@@ -213,70 +213,27 @@ func (s *Slack) WebsocketReader() {
 		switch data.Type {
 
 		case "error":
-			if data.Error.Msg == "Socket URL has expired" {
-				if s.Verbose {
-					log.Println("Slack websocket URL has expired.. Reconnecting")
-				}
-				if err = s.WebsocketConn.Close(); err != nil {
-					log.Println(err)
-				}
-				s.ReconnectURL = ""
-				s.Connected = false
-				if err := s.NewConnection(); err != nil {
-					log.Fatal(err)
-				}
-				return
-			}
+			s.handleErrorResponse(data)
 
 		case "hello":
-			if s.Verbose {
-				log.Println("Websocket connected successfully.")
-			}
-			s.Connected = true
-			go s.WebsocketKeepAlive()
+			s.handleHelloResponse(data)
 
 		case "reconnect_url":
-			type reconnectResponse struct {
-				URL string `json:"url"`
-			}
-			var recURL reconnectResponse
-			err = common.JSONDecode(resp, &recURL)
+			err = s.handleReconnectResponse(resp)
 			if err != nil {
 				continue
-			}
-			s.ReconnectURL = recURL.URL
-			if s.Verbose {
-				log.Printf("Reconnect URL set to %s\n", s.ReconnectURL)
 			}
 
 		case "presence_change":
-			var pres PresenceChange
-			err = common.JSONDecode(resp, &pres)
+			err = s.handlePresenceChange(resp)
 			if err != nil {
 				continue
-			}
-			if s.Verbose {
-				log.Printf("Presence change. User %s [%s] changed status to %s\n",
-					s.GetUsernameByID(pres.User),
-					pres.User, pres.Presence)
 			}
 
 		case "message":
-			if data.ReplyTo != 0 {
-				continue
-			}
-			var msg Message
-			err = common.JSONDecode(resp, &msg)
+			err = s.handleMessageResponse(resp, data)
 			if err != nil {
 				continue
-			}
-			if s.Verbose {
-				log.Printf("Msg received by %s [%s] with text: %s\n",
-					s.GetUsernameByID(msg.User),
-					msg.User, msg.Text)
-			}
-			if string(msg.Text[0]) == "!" {
-				s.HandleMessage(msg)
 			}
 
 		case "pong":
@@ -287,6 +244,80 @@ func (s *Slack) WebsocketReader() {
 			log.Println(string(resp))
 		}
 	}
+}
+
+func (s *Slack) handlePresenceChange(resp []byte) error {
+	var pres PresenceChange
+	err := common.JSONDecode(resp, &pres)
+	if err != nil {
+		return err
+	}
+	if s.Verbose {
+		log.Printf("Presence change. User %s [%s] changed status to %s\n",
+			s.GetUsernameByID(pres.User),
+			pres.User, pres.Presence)
+	}
+	return nil
+}
+
+func (s *Slack) handleMessageResponse(resp []byte, data WebsocketResponse) error {
+	if data.ReplyTo != 0 {
+		return fmt.Errorf("ReplyTo != 0")
+	}
+	var msg Message
+	err := common.JSONDecode(resp, &msg)
+	if err != nil {
+		return err
+	}
+	if s.Verbose {
+		log.Printf("Msg received by %s [%s] with text: %s\n",
+			s.GetUsernameByID(msg.User),
+			msg.User, msg.Text)
+	}
+	if string(msg.Text[0]) == "!" {
+		s.HandleMessage(msg)
+	}
+	return nil
+}
+func (s *Slack) handleErrorResponse(data WebsocketResponse) {
+	if data.Error.Msg == "Socket URL has expired" {
+		if s.Verbose {
+			log.Println("Slack websocket URL has expired.. Reconnecting")
+		}
+		if err := s.WebsocketConn.Close(); err != nil {
+			log.Println(err)
+		}
+		s.ReconnectURL = ""
+		s.Connected = false
+		if err := s.NewConnection(); err != nil {
+			log.Fatal(err)
+		}
+		return
+	}
+}
+
+func (s *Slack) handleHelloResponse(data WebsocketResponse) {
+	if s.Verbose {
+		log.Println("Websocket connected successfully.")
+	}
+	s.Connected = true
+	go s.WebsocketKeepAlive()
+}
+
+func (s *Slack) handleReconnectResponse(resp []byte) error {
+	type reconnectResponse struct {
+		URL string `json:"url"`
+	}
+	var recURL reconnectResponse
+	err := common.JSONDecode(resp, &recURL)
+	if err != nil {
+		return err
+	}
+	s.ReconnectURL = recURL.URL
+	if s.Verbose {
+		log.Printf("Reconnect URL set to %s\n", s.ReconnectURL)
+	}
+	return nil
 }
 
 // WebsocketKeepAlive sends a ping every 5 minutes to keep connection alive
