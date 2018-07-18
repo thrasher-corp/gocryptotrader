@@ -146,7 +146,7 @@ Binaries will be published once the codebase reaches a stable condition.
 |--|--|--|
 | thrasher- | https://github.com/thrasher- | 453 |
 | shazbert | https://github.com/shazbert | 140 |
-| gloriousCode | https://github.com/gloriousCode | 121 |
+| gloriousCode | https://github.com/gloriousCode | 122 |
 | 140am | https://github.com/140am | 8 |
 | marcofranssen | https://github.com/marcofranssen | 4 |
 | Betazoid | https://github.com/Betazoid | 4 |
