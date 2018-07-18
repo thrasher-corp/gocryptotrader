@@ -488,7 +488,6 @@ func (b *Bittrex) SendAuthenticatedHTTPRequest(path string, values url.Values, r
 		b.Nonce.Inc()
 	}
 	values.Set("apikey", b.APIKey)
-	values.Set("apisecret", b.APISecret)
 	values.Set("nonce", b.Nonce.String())
 	rawQuery := path + "?" + values.Encode()
 	hmac := common.GetHMAC(
