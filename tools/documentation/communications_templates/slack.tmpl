@@ -1,0 +1,60 @@
+{{define "communications slack" -}}
+{{template "header" .}}
+## Slack Communications package
+
+### What is Slack?
+
++ Slack is a code-centric collaboration hub that allows users to connect via an
+app and share different types of data
++ Please visit: [Slack](https://slack.com/) for more information and account setup
+
+### Current Features
+
++ Basic communication to your slack channel information includes:
+  - Working status of bot
+  - Recent ANX ticker
+  - Current ANX orderbook
+
+### How to enable
+
++ [Enable via configuration](https://github.com/thrasher-/gocryptotrader/tree/master/config#enable-communications-via-config-example)
+
++ Individual package example below:
+```go
+import (
+"github.com/thrasher-/gocryptotrader/communications/slack"
+"github.com/thrasher-/gocryptotrader/config"
+)
+
+s := new(slack.Slack)
+
+// Define slack configuration
+commsConfig := config.CommunicationsConfig{SlackConfig: config.SlackConfig{
+  Name: "Slack",
+	Enabled: true,
+	Verbose: false,
+	TargetChannel: "targetChan",
+	VerificationToken: "slackGeneratedToken",
+}}
+
+s.Setup(commsConfig)
+err := s.Connect
+// Handle error
+```
+
+Once the bot has started you can interact with the bot using these commands
+via Slack:
+
+```
+!status 		- Displays current working status of bot
+!help 			- Displays help text
+!settings		- Displays current settings
+!ticker			- Displays recent ANX ticker
+!portfolio	- Displays portfolio data
+!orderbook	- Displays current ANX orderbook
+```
+
+### Please click GoDocs chevron above to view current GoDoc information for this package
+{{template "contributions"}}
+{{template "donations"}}
+{{end}}

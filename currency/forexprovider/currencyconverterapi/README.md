@@ -1,16 +1,16 @@
-# GoCryptoTrader package Pair
+# GoCryptoTrader package Forexprovider
 
 <img src="https://github.com/thrasher-/gocryptotrader/blob/master/web/src/assets/page-logo.png?raw=true" width="350px" height="350px" hspace="70">
 
 
 [![Build Status](https://travis-ci.org/thrasher-/gocryptotrader.svg?branch=master)](https://travis-ci.org/thrasher-/gocryptotrader)
 [![Software License](https://img.shields.io/badge/License-MIT-orange.svg?style=flat-square)](https://github.com/thrasher-/gocryptotrader/blob/master/LICENSE)
-[![GoDoc](https://godoc.org/github.com/thrasher-/gocryptotrader?status.svg)](https://godoc.org/github.com/thrasher-/gocryptotrader/currency/pair)
+[![GoDoc](https://godoc.org/github.com/thrasher-/gocryptotrader?status.svg)](https://godoc.org/github.com/thrasher-/gocryptotrader/currency/forexprovider/currencyconverter)
 [![Coverage Status](http://codecov.io/github/thrasher-/gocryptotrader/coverage.svg?branch=master)](http://codecov.io/github/thrasher-/gocryptotrader?branch=master)
 [![Go Report Card](https://goreportcard.com/badge/github.com/thrasher-/gocryptotrader)](https://goreportcard.com/report/github.com/thrasher-/gocryptotrader)
 
 
-This pair package is part of the GoCryptoTrader codebase.
+This forexprovider package is part of the GoCryptoTrader codebase.
 
 ## This is still in active development
 
@@ -18,20 +18,38 @@ You can track ideas, planned features and what's in progresss on this Trello boa
 
 Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader Slack](https://gocryptotrader.herokuapp.com/)
 
-## Current Features for pair
+## Current Features for forexprovider
 
-+ Provides a new data structure for a currency pair
-+ Methods to manipulate, create and retrieve different parts of the currency pair
++ Fetches up to date curency data from [Currency Coverter API](https://free.currencyconverterapi.com/)
 
-+ Example below:
+### How to enable
+
++ [Enable via configuration](https://github.com/thrasher-/gocryptotrader/tree/master/config#enable-currency-via-config-example)
+
++ Individual package example below:
 ```go
-import "github.com/thrasher-/gocryptotrader/currency/pair"
+import (
+"github.com/thrasher-/gocryptotrader/currency/forexprovider/base"
+"github.com/thrasher-/gocryptotrader/currency/forexprovider/currencyconverter"
+)
 
-// Create new pair
-newPair := pair.NewCurrencyPair("BTC", "USD")
+c := currencyconverter.CurrencyConverter{}
 
-// Retrieve different parts of the pair
-bitcoinString := newPair.GetFirstCurrency
+// Define configuration
+newSettings := base.Settings{
+  Name: "CurrencyConverter",
+	Enabled: true,
+	Verbose: false,
+	RESTPollingDelay: time.Duration,
+	APIKey: "key",
+	APIKeyLvl: "keylvl",
+	PrimaryProvider: true,
+}
+
+c.Setup(newSettings)
+
+mapstringfloat, err := c.GetRates("USD", "EUR,CHY")
+// Handle error
 ```
 
 ### Please click GoDocs chevron above to view current GoDoc information for this package

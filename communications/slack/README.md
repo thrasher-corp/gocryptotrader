@@ -1,16 +1,16 @@
-# GoCryptoTrader package Pair
+# GoCryptoTrader package Slack
 
 <img src="https://github.com/thrasher-/gocryptotrader/blob/master/web/src/assets/page-logo.png?raw=true" width="350px" height="350px" hspace="70">
 
 
 [![Build Status](https://travis-ci.org/thrasher-/gocryptotrader.svg?branch=master)](https://travis-ci.org/thrasher-/gocryptotrader)
 [![Software License](https://img.shields.io/badge/License-MIT-orange.svg?style=flat-square)](https://github.com/thrasher-/gocryptotrader/blob/master/LICENSE)
-[![GoDoc](https://godoc.org/github.com/thrasher-/gocryptotrader?status.svg)](https://godoc.org/github.com/thrasher-/gocryptotrader/currency/pair)
+[![GoDoc](https://godoc.org/github.com/thrasher-/gocryptotrader?status.svg)](https://godoc.org/github.com/thrasher-/gocryptotrader/communications/slack)
 [![Coverage Status](http://codecov.io/github/thrasher-/gocryptotrader/coverage.svg?branch=master)](http://codecov.io/github/thrasher-/gocryptotrader?branch=master)
 [![Go Report Card](https://goreportcard.com/badge/github.com/thrasher-/gocryptotrader)](https://goreportcard.com/report/github.com/thrasher-/gocryptotrader)
 
 
-This pair package is part of the GoCryptoTrader codebase.
+This slack package is part of the GoCryptoTrader codebase.
 
 ## This is still in active development
 
@@ -18,20 +18,58 @@ You can track ideas, planned features and what's in progresss on this Trello boa
 
 Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader Slack](https://gocryptotrader.herokuapp.com/)
 
-## Current Features for pair
+## Slack Communications package
 
-+ Provides a new data structure for a currency pair
-+ Methods to manipulate, create and retrieve different parts of the currency pair
+### What is Slack?
 
-+ Example below:
++ Slack is a code-centric collaboration hub that allows users to connect via an
+app and share different types of data
++ Please visit: [Slack](https://slack.com/) for more information and account setup
+
+### Current Features
+
++ Basic communication to your slack channel information includes:
+  - Working status of bot
+  - Recent ANX ticker
+  - Current ANX orderbook
+
+### How to enable
+
++ [Enable via configuration](https://github.com/thrasher-/gocryptotrader/tree/master/config#enable-communications-via-config-example)
+
++ Individual package example below:
 ```go
-import "github.com/thrasher-/gocryptotrader/currency/pair"
+import (
+"github.com/thrasher-/gocryptotrader/communications/slack"
+"github.com/thrasher-/gocryptotrader/config"
+)
 
-// Create new pair
-newPair := pair.NewCurrencyPair("BTC", "USD")
+s := new(slack.Slack)
 
-// Retrieve different parts of the pair
-bitcoinString := newPair.GetFirstCurrency
+// Define slack configuration
+commsConfig := config.CommunicationsConfig{SlackConfig: config.SlackConfig{
+  Name: "Slack",
+	Enabled: true,
+	Verbose: false,
+	TargetChannel: "targetChan",
+	VerificationToken: "slackGeneratedToken",
+}}
+
+s.Setup(commsConfig)
+err := s.Connect
+// Handle error
+```
+
+Once the bot has started you can interact with the bot using these commands
+via Slack:
+
+```
+!status 		- Displays current working status of bot
+!help 			- Displays help text
+!settings		- Displays current settings
+!ticker			- Displays recent ANX ticker
+!portfolio	- Displays portfolio data
+!orderbook	- Displays current ANX orderbook
 ```
 
 ### Please click GoDocs chevron above to view current GoDoc information for this package

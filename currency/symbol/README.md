@@ -20,7 +20,18 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 
 ## Current Features for symbol
 
-+ This package services the currency package.
++ This package services the currency package by providing symbol mapping.
+
++ Example below:
+```go
+import "github.com/thrasher-/gocryptotrader/currency/symbol"
+
+// Get the string of the symbol by the currency
+chineseYen := "CNY"
+symbol := symbol.GetSymbolByCurrencyName(chineseYen)
+
+// symbol == "¥"
+```
 
 ### Please click GoDocs chevron above to view current GoDoc information for this package
 

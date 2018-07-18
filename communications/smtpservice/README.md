@@ -1,16 +1,16 @@
-# GoCryptoTrader package Pair
+# GoCryptoTrader package Smtp
 
 <img src="https://github.com/thrasher-/gocryptotrader/blob/master/web/src/assets/page-logo.png?raw=true" width="350px" height="350px" hspace="70">
 
 
 [![Build Status](https://travis-ci.org/thrasher-/gocryptotrader.svg?branch=master)](https://travis-ci.org/thrasher-/gocryptotrader)
 [![Software License](https://img.shields.io/badge/License-MIT-orange.svg?style=flat-square)](https://github.com/thrasher-/gocryptotrader/blob/master/LICENSE)
-[![GoDoc](https://godoc.org/github.com/thrasher-/gocryptotrader?status.svg)](https://godoc.org/github.com/thrasher-/gocryptotrader/currency/pair)
+[![GoDoc](https://godoc.org/github.com/thrasher-/gocryptotrader?status.svg)](https://godoc.org/github.com/thrasher-/gocryptotrader/communications/smtp)
 [![Coverage Status](http://codecov.io/github/thrasher-/gocryptotrader/coverage.svg?branch=master)](http://codecov.io/github/thrasher-/gocryptotrader?branch=master)
 [![Go Report Card](https://goreportcard.com/badge/github.com/thrasher-/gocryptotrader)](https://goreportcard.com/report/github.com/thrasher-/gocryptotrader)
 
 
-This pair package is part of the GoCryptoTrader codebase.
+This smtp package is part of the GoCryptoTrader codebase.
 
 ## This is still in active development
 
@@ -18,20 +18,45 @@ You can track ideas, planned features and what's in progresss on this Trello boa
 
 Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader Slack](https://gocryptotrader.herokuapp.com/)
 
-## Current Features for pair
+## SMSGlobal Communications package
 
-+ Provides a new data structure for a currency pair
-+ Methods to manipulate, create and retrieve different parts of the currency pair
+### What is SMTP?
 
-+ Example below:
++ Simple Mail Transfer Protocol (SMTP) is an Internet standard for electronic mail (email) transmission
++ Please visit: [Wikipedia](https://en.wikipedia.org/wiki/Simple_Mail_Transfer_Protocol) for more information
+
+### Current Features
+
++ Sending of events to a list of recipients via email
+
+### How to enable
+
++ [Enable via configuration](https://github.com/thrasher-/gocryptotrader/tree/master/config#enable-communications-via-config-example)
+
++ Individual package example below:
 ```go
-import "github.com/thrasher-/gocryptotrader/currency/pair"
+import (
+"github.com/thrasher-/gocryptotrader/communications/smtpservice"
+"github.com/thrasher-/gocryptotrader/config"
+)
 
-// Create new pair
-newPair := pair.NewCurrencyPair("BTC", "USD")
+s := new(smtpservice.SMTPservice)
 
-// Retrieve different parts of the pair
-bitcoinString := newPair.GetFirstCurrency
+// Define SMTPservice configuration
+commsConfig := config.CommunicationsConfig{SMTPservice: config.SMTPConfig{
+  Name: "SMTPservice",
+	Enabled: true,
+	Verbose: false,
+  Host: "host",
+	Port: "port",
+	AccountName: "name",
+	AccountPassword: "password",
+	RecipientList: "something@something.com,somethingelse@something.com"
+}}
+
+s.Setup(commsConfig)
+err := s.Connect
+// Handle error
 ```
 
 ### Please click GoDocs chevron above to view current GoDoc information for this package
