@@ -143,6 +143,13 @@ func (w *WEX) GetExchangeAccountInfo() (exchange.AccountInfo, error) {
 	return response, nil
 }
 
+// GetExchangeFundTransferHistory returns funding history, deposits and
+// withdrawals
+func (w *WEX) GetExchangeFundTransferHistory() ([]exchange.FundHistory, error) {
+	var fundHistory []exchange.FundHistory
+	return fundHistory, errors.New("not supported on exchange")
+}
+
 // GetExchangeHistory returns historic trade data since exchange opening.
 func (w *WEX) GetExchangeHistory(p pair.CurrencyPair, assetType string) ([]exchange.TradeHistory, error) {
 	var resp []exchange.TradeHistory
@@ -151,37 +158,51 @@ func (w *WEX) GetExchangeHistory(p pair.CurrencyPair, assetType string) ([]excha
 }
 
 // SubmitExchangeOrder submits a new order
-func (w *WEX) SubmitExchangeOrder(p pair.CurrencyPair, side string, orderType int, amount, price float64) (int64, error) {
+func (w *WEX) SubmitExchangeOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (int64, error) {
 	return 0, errors.New("not yet implemented")
 }
 
 // ModifyExchangeOrder will allow of changing orderbook placement and limit to
 // market conversion
-func (w *WEX) ModifyExchangeOrder(p pair.CurrencyPair, orderID, action int64) (int64, error) {
+func (w *WEX) ModifyExchangeOrder(orderID int64, action exchange.ModifyOrder) (int64, error) {
 	return 0, errors.New("not yet implemented")
 }
 
 // CancelExchangeOrder cancels an order by its corresponding ID number
-func (w *WEX) CancelExchangeOrder(p pair.CurrencyPair, orderID int64) (int64, error) {
-	return 0, errors.New("not yet implemented")
+func (w *WEX) CancelExchangeOrder(orderID int64) error {
+	return errors.New("not yet implemented")
 }
 
 // CancelAllExchangeOrders cancels all orders associated with a currency pair
-func (w *WEX) CancelAllExchangeOrders(p pair.CurrencyPair) error {
+func (w *WEX) CancelAllExchangeOrders() error {
 	return errors.New("not yet implemented")
 }
 
 // GetExchangeOrderInfo returns information on a current open order
-func (w *WEX) GetExchangeOrderInfo(orderID int64) (float64, error) {
-	return 0, errors.New("not yet implemented")
+func (w *WEX) GetExchangeOrderInfo(orderID int64) (exchange.OrderDetail, error) {
+	var orderDetail exchange.OrderDetail
+	return orderDetail, errors.New("not yet implemented")
 }
 
 // GetExchangeDepositAddress returns a deposit address for a specified currency
-func (w *WEX) GetExchangeDepositAddress(p pair.CurrencyPair) (string, error) {
+func (w *WEX) GetExchangeDepositAddress(cryptocurrency pair.CurrencyItem) (string, error) {
 	return "", errors.New("not yet implemented")
 }
 
-// WithdrawExchangeFunds returns a withdrawal ID when a withdrawal is submitted
-func (w *WEX) WithdrawExchangeFunds(address string, p pair.CurrencyPair, amount float64) (string, error) {
+// WithdrawCryptoExchangeFunds returns a withdrawal ID when a withdrawal is
+// submitted
+func (w *WEX) WithdrawCryptoExchangeFunds(address string, cryptocurrency pair.CurrencyItem, amount float64) (string, error) {
+	return "", errors.New("not yet implemented")
+}
+
+// WithdrawFiatExchangeFunds returns a withdrawal ID when a
+// withdrawal is submitted
+func (w *WEX) WithdrawFiatExchangeFunds(currency pair.CurrencyItem, amount float64) (string, error) {
+	return "", errors.New("not yet implemented")
+}
+
+// WithdrawFiatExchangeFundsToInternationalBank returns a withdrawal ID when a
+// withdrawal is submitted
+func (w *WEX) WithdrawFiatExchangeFundsToInternationalBank(currency pair.CurrencyItem, amount float64) (string, error) {
 	return "", errors.New("not yet implemented")
 }

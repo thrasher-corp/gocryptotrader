@@ -6,18 +6,18 @@ import { Component, OnInit } from '@angular/core';
   styleUrls: ['./sell-form.component.scss']
 })
 export class SellFormComponent implements OnInit {
-  public exchangeName :string;
-  public currencyName :string;
-  public chooseCurrencyMessage :string = "Please select a currency";
-  public showErrorMessage :boolean;
-  
+  public exchangeName: string;
+  public currencyName: string;
+  public chooseCurrencyMessage = 'Please select a currency';
+  public showErrorMessage: boolean;
+
     constructor() { }
-  
+
     ngOnInit() {
-      if (window.localStorage["selectedExchange"] !== undefined && 
-      window.localStorage["selectedCurrency"] !== undefined) {
-        this.exchangeName = window.localStorage["selectedExchange"]; 
-        this.currencyName = window.localStorage["selectedCurrency"]; 
+      if (window.localStorage['selectedExchange'] !== undefined &&
+      window.localStorage['selectedCurrency'] !== undefined) {
+        this.exchangeName = window.localStorage['selectedExchange'];
+        this.currencyName = window.localStorage['selectedCurrency'];
       } else {
         this.showErrorMessage = true;
       }

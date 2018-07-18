@@ -738,9 +738,9 @@ func TestGetURIPath(t *testing.T) {
 	t.Parallel()
 	// mapping of input vs expected result
 	testTable := map[string]string{
-		"https://api.gdax.com/accounts":           "/accounts",
-		"https://api.gdax.com/accounts?a=1&b=2":   "/accounts?a=1&b=2",
-		"http://www.google.com/accounts?!@#$%;^^": "",
+		"https://api.pro.coinbase.com/accounts":         "/accounts",
+		"https://api.pro.coinbase.com/accounts?a=1&b=2": "/accounts?a=1&b=2",
+		"http://www.google.com/accounts?!@#$%;^^":       "",
 	}
 	for testInput, expectedOutput := range testTable {
 		actualOutput := GetURIPath(testInput)

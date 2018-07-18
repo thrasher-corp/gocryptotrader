@@ -144,6 +144,13 @@ func (po *Poloniex) GetExchangeAccountInfo() (exchange.AccountInfo, error) {
 	return response, nil
 }
 
+// GetExchangeFundTransferHistory returns funding history, deposits and
+// withdrawals
+func (po *Poloniex) GetExchangeFundTransferHistory() ([]exchange.FundHistory, error) {
+	var fundHistory []exchange.FundHistory
+	return fundHistory, errors.New("not supported on exchange")
+}
+
 // GetExchangeHistory returns historic trade data since exchange opening.
 func (po *Poloniex) GetExchangeHistory(p pair.CurrencyPair, assetType string) ([]exchange.TradeHistory, error) {
 	var resp []exchange.TradeHistory
@@ -152,37 +159,51 @@ func (po *Poloniex) GetExchangeHistory(p pair.CurrencyPair, assetType string) ([
 }
 
 // SubmitExchangeOrder submits a new order
-func (po *Poloniex) SubmitExchangeOrder(p pair.CurrencyPair, side string, orderType int, amount, price float64) (int64, error) {
+func (po *Poloniex) SubmitExchangeOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (int64, error) {
 	return 0, errors.New("not yet implemented")
 }
 
 // ModifyExchangeOrder will allow of changing orderbook placement and limit to
 // market conversion
-func (po *Poloniex) ModifyExchangeOrder(p pair.CurrencyPair, orderID, action int64) (int64, error) {
+func (po *Poloniex) ModifyExchangeOrder(orderID int64, action exchange.ModifyOrder) (int64, error) {
 	return 0, errors.New("not yet implemented")
 }
 
 // CancelExchangeOrder cancels an order by its corresponding ID number
-func (po *Poloniex) CancelExchangeOrder(p pair.CurrencyPair, orderID int64) (int64, error) {
-	return 0, errors.New("not yet implemented")
+func (po *Poloniex) CancelExchangeOrder(orderID int64) error {
+	return errors.New("not yet implemented")
 }
 
 // CancelAllExchangeOrders cancels all orders associated with a currency pair
-func (po *Poloniex) CancelAllExchangeOrders(p pair.CurrencyPair) error {
+func (po *Poloniex) CancelAllExchangeOrders() error {
 	return errors.New("not yet implemented")
 }
 
 // GetExchangeOrderInfo returns information on a current open order
-func (po *Poloniex) GetExchangeOrderInfo(orderID int64) (float64, error) {
-	return 0, errors.New("not yet implemented")
+func (po *Poloniex) GetExchangeOrderInfo(orderID int64) (exchange.OrderDetail, error) {
+	var orderDetail exchange.OrderDetail
+	return orderDetail, errors.New("not yet implemented")
 }
 
 // GetExchangeDepositAddress returns a deposit address for a specified currency
-func (po *Poloniex) GetExchangeDepositAddress(p pair.CurrencyPair) (string, error) {
+func (po *Poloniex) GetExchangeDepositAddress(cryptocurrency pair.CurrencyItem) (string, error) {
 	return "", errors.New("not yet implemented")
 }
 
-// WithdrawExchangeFunds returns a withdrawal ID when a withdrawal is submitted
-func (po *Poloniex) WithdrawExchangeFunds(address string, p pair.CurrencyPair, amount float64) (string, error) {
+// WithdrawCryptoExchangeFunds returns a withdrawal ID when a withdrawal is
+// submitted
+func (po *Poloniex) WithdrawCryptoExchangeFunds(address string, cryptocurrency pair.CurrencyItem, amount float64) (string, error) {
+	return "", errors.New("not yet implemented")
+}
+
+// WithdrawFiatExchangeFunds returns a withdrawal ID when a
+// withdrawal is submitted
+func (po *Poloniex) WithdrawFiatExchangeFunds(currency pair.CurrencyItem, amount float64) (string, error) {
+	return "", errors.New("not yet implemented")
+}
+
+// WithdrawFiatExchangeFundsToInternationalBank returns a withdrawal ID when a
+// withdrawal is submitted
+func (po *Poloniex) WithdrawFiatExchangeFundsToInternationalBank(currency pair.CurrencyItem, amount float64) (string, error) {
 	return "", errors.New("not yet implemented")
 }

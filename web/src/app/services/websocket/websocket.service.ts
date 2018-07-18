@@ -4,7 +4,7 @@ import { WebSocketMessage } from './../../shared/classes/websocket';
 
 @NgModule()
 export class WebsocketService {
-  public isConnected :boolean = false;
+  public isConnected = false;
   constructor (@Optional() @SkipSelf() parentModule: WebsocketService) {
     if (parentModule) {
       throw new Error(
@@ -22,25 +22,25 @@ export class WebsocketService {
   }
 
   private create(url): Subject<MessageEvent> {
-    let ws = new WebSocket(url);
-    let observable = Observable.create(
+    const ws = new WebSocket(url);
+    const observable = Observable.create(
       (obs: Observer<MessageEvent>) => {
         ws.onmessage = obs.next.bind(obs);
         ws.onerror = obs.error.bind(obs);
         ws.onclose = () => {
           this.isConnected = false;
-          obs.complete.bind(obs) };
+          obs.complete.bind(obs); };
         ws.onopen = () => {
           this.isConnected = true;
           ws.send(JSON.stringify(WebSocketMessage.CreateAuthenticationMessage()));
         };
         return ws.close.bind(ws);
-      })
-    let observer = {
+      });
+    const observer = {
       next: (data: any) => {
-        var counter = 0;
-        var interval = setInterval(() => {
-          if (counter == 10) {
+        let counter = 0;
+        const interval = setInterval(() => {
+          if (counter === 10) {
             clearInterval(interval);
           }
           if (ws.readyState === WebSocket.OPEN) {
@@ -50,13 +50,13 @@ export class WebsocketService {
           }
           counter++;
         }, 400);
-        
+
         if (ws.readyState !== WebSocket.OPEN) {
-          new Error("Failed to send message to websocket after 10 attempts");
+          new Error('Failed to send message to websocket after 10 attempts');
           this.isConnected = false;
         }
       }
-    }
+    };
     return Subject.create(observer, observable);
   }
 }

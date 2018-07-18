@@ -14,9 +14,9 @@ import {
 
 export class DashboardComponent implements OnInit {
   public dashboard: any;
-  public expanded: boolean = false;
+  public expanded = false;
   public trades: BuySellComponent[];
-  public maxTrades:number = 3;
+  public maxTrades = 3;
 
   constructor() {
     this.trades = [];
@@ -37,9 +37,9 @@ export class DashboardComponent implements OnInit {
   }
 
   public expandTile(tile: any) {
-    for (var i = 0; i < this.dashboard.tiles.length; i++) {
+    for (let i = 0; i < this.dashboard.tiles.length; i++) {
       if (this.dashboard.tiles[i].title === tile.title) {
-        this.dashboard.tiles[i].rows = 2
+        this.dashboard.tiles[i].rows = 2;
         this.dashboard.tiles[i].columns = 3;
         this.expanded = true;
       } else {

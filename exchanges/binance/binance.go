@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/gorilla/websocket"
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
@@ -19,6 +20,7 @@ import (
 // Binance is the overarching type across the Bithumb package
 type Binance struct {
 	exchange.Base
+	WebsocketConn *websocket.Conn
 
 	// valid string list that a required by the exchange
 	validLimits    []string
@@ -447,12 +449,12 @@ func (b *Binance) QueryOrder(symbol, origClientOrderID string, orderID int64) (Q
 
 // GetAccount returns binance user accounts
 func (b *Binance) GetAccount() (*Account, error) {
-	type respone struct {
+	type response struct {
 		Response
 		Account
 	}
 
-	var resp respone
+	var resp response
 
 	path := fmt.Sprintf("%s%s", apiURL, accountInfo)
 	params := url.Values{}
