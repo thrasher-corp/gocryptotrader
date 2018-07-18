@@ -4,15 +4,15 @@ export interface CoinTotal {
     balance: number;
     percentage: number;
     address: string;
-    icon:string;
+    icon: string;
   }
-  
+
   export interface Summary {
     BTC: CoinTotal[];
     ETH: CoinTotal[];
     LTC: CoinTotal[];
   }
-  
+
   export interface Wallet {
     coin_totals: CoinTotal[];
     coins_offline: CoinTotal[];

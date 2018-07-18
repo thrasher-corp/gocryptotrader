@@ -35,7 +35,7 @@ func (fxp IFXProviders) GetCurrencyData(baseCurrency, symbols string) (map[strin
 						return rates, nil
 					}
 				}
-				return nil, errors.New("ForexProvider error GetCurrencyData() failed to aquire data")
+				return nil, errors.New("ForexProvider error GetCurrencyData() failed to acquire data")
 			}
 			return rates, nil
 		}
