@@ -37,6 +37,8 @@ const (
 	exchangesOrderbookPath          = "..%s..%sexchanges%sorderbook%s"
 	exchangesStatsPath              = "..%s..%sexchanges%sstats%s"
 	exchangesTickerPath             = "..%s..%sexchanges%sticker%s"
+	exchangesOrdersPath             = "..%s..%sexchanges%sorders%s"
+	exchangesRequestPath            = "..%s..%sexchanges%srequest%s"
 	portfolioPath                   = "..%s..%sportfolio%s"
 	testdataPath                    = "..%s..%stestdata%s"
 	toolsPath                       = "..%s..%stools%s"
@@ -212,6 +214,8 @@ func addPaths() {
 	codebasePaths["exchanges orderbook"] = fmt.Sprintf(exchangesOrderbookPath, path, path, path, path)
 	codebasePaths["exchanges stats"] = fmt.Sprintf(exchangesStatsPath, path, path, path, path)
 	codebasePaths["exchanges ticker"] = fmt.Sprintf(exchangesTickerPath, path, path, path, path)
+	codebasePaths["exchanges orders"] = fmt.Sprintf(exchangesOrdersPath, path, path, path, path)
+	codebasePaths["exchanges request"] = fmt.Sprintf(exchangesRequestPath, path, path, path, path)
 
 	codebasePaths["exchanges alphapoint"] = fmt.Sprintf(alphapoint, path, path, path, path)
 	codebasePaths["exchanges anx"] = fmt.Sprintf(anx, path, path, path, path)

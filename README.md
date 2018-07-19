@@ -168,6 +168,7 @@ Binaries will be published once the codebase reaches a stable condition.
 | cavapoo2 | https://github.com/cavapoo2 | 1 |
 | tongxiaofeng | https://github.com/tongxiaofeng | 1 |
 | idealhack | https://github.com/idealhack | 1 |
+| vyloy | https://github.com/vyloy | 1 |
 | askew- | https://github.com/askew- | 1 |
 | whilei | https://github.com/whilei | 1 |
 | snipesjr | https://github.com/snipesjr | 1 |

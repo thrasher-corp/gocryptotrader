@@ -28,7 +28,7 @@ This folder contains an assortment of tools.
 + Exchange deployment
 + Websocket client
 
-Please see individual tool README.md
+Please see individual tool's README file
 
 ## Contribution
 
