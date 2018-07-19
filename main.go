@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -64,21 +65,18 @@ func main() {
 	fmt.Println("----------setup-------")
 	exchange.Setup(defaultConfig)
 
-	exchange.WebsocketClient()
-	// list, err := exchange.GetRecentTrades(binance.RecentTradeRequestParams{
-	// 	Symbol: exchange.GetSymbol(),
-	// 	Limit:  15,
-	// })
+	// exchange.WebsocketClient()
+	list, err := exchange.OpenOrders(exchange.GetSymbol())
 
-	// if err != nil {
-	// 	fmt.Println(err)
-	// } else {
-	// 	for k, v := range list {
-	// 		b, _ := json.Marshal(v)
-	// 		fmt.Println(k, string(b))
-	// 	}
+	if err != nil {
+		fmt.Println(err)
+	} else {
+		for k, v := range list {
+			b, _ := json.Marshal(v)
+			fmt.Println(k, string(b))
+		}
 
-	// }
+	}
 	// sh1 := common.GetHMAC(common.MD5New, []byte("accesskey=6d8f62fd-3086-46e3-a0ba-c66a929c24e2&method=getAccountInfo"), []byte(common.Sha1ToHex("48939bbc-8d49-402b-b731-adadf2ea9628")))
 	// fmt.Println(common.HexEncodeToString((sh1)))
 	// arg := huobi.SpotNewOrderRequestParams{
