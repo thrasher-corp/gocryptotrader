@@ -20,7 +20,19 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 
 ## Current Features for pair
 
-+ This package services the currency package.
++ Provides a new data structure for a currency pair
++ Methods to manipulate, create and retrieve different parts of the currency pair
+
++ Example below:
+```go
+import "github.com/thrasher-/gocryptotrader/currency/pair"
+
+// Create new pair
+newPair := pair.NewCurrencyPair("BTC", "USD")
+
+// Retrieve different parts of the pair
+bitcoinString := newPair.GetFirstCurrency
+```
 
 ### Please click GoDocs chevron above to view current GoDoc information for this package
 

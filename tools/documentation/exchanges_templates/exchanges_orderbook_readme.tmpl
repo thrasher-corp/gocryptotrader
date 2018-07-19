@@ -1,0 +1,41 @@
+{{define "exchanges orderbook" -}}
+{{template "header" .}}
+## Current Features for {{.Name}}
+
++ This package facilitates orderbook generation.
++ Attaches methods to an orderbook
+  - To Return total Bids
+  - To Return total Asks
+  - Update orderbooks
++ Gets a loaded orderbook by exchange, asset type and currency pair.
+
++ This package is primarily used in conjunction with but not limited to the
+exchange interface system set by exchange wrapper orderbook functions in
+"exchange"_wrapper.go.
+
+Examples below:
+
+```go
+ob, err := yobitExchange.GetOrderbookEx()
+if err != nil {
+  // Handle error
+}
+
+// Find total asks which also returns total orderbook value
+totalAsks, totalOrderbookVal := ob.CalculateTotalAsks()
+```
+
++ or if you have a routine setting an exchange orderbook you can access it via
+the package itself.
+
+```go
+ob, err := orderbook.GetOrderbook(...)
+if err != nil {
+  // Handle error
+}
+```
+
+### Please click GoDocs chevron above to view current GoDoc information for this package
+{{template "contributions"}}
+{{template "donations"}}
+{{end}}

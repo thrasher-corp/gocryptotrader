@@ -144,15 +144,15 @@ Binaries will be published once the codebase reaches a stable condition.
 
 |User|Github|Contribution Amount|
 |--|--|--|
-| thrasher- | https://github.com/thrasher- | 442 |
-| shazbert | https://github.com/shazbert | 139 |
-| gloriousCode | https://github.com/gloriousCode | 121 |
+| thrasher- | https://github.com/thrasher- | 453 |
+| shazbert | https://github.com/shazbert | 140 |
+| gloriousCode | https://github.com/gloriousCode | 122 |
 | 140am | https://github.com/140am | 8 |
+| marcofranssen | https://github.com/marcofranssen | 4 |
 | Betazoid | https://github.com/Betazoid | 4 |
-| marcofranssen | https://github.com/marcofranssen | 3 |
+| ermalguni | https://github.com/ermalguni | 3 |
 | crackcomm | https://github.com/crackcomm | 3 |
 | bretep | https://github.com/bretep | 2 |
-| ermalguni | https://github.com/ermalguni | 2 |
 | gam-phon | https://github.com/gam-phon | 2 |
 | cornelk | https://github.com/cornelk | 2 |
 | if1live | https://github.com/if1live | 2 |
@@ -168,6 +168,7 @@ Binaries will be published once the codebase reaches a stable condition.
 | cavapoo2 | https://github.com/cavapoo2 | 1 |
 | tongxiaofeng | https://github.com/tongxiaofeng | 1 |
 | idealhack | https://github.com/idealhack | 1 |
+| vyloy | https://github.com/vyloy | 1 |
 | askew- | https://github.com/askew- | 1 |
 | whilei | https://github.com/whilei | 1 |
 | snipesjr | https://github.com/snipesjr | 1 |

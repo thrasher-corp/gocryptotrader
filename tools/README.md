@@ -28,18 +28,7 @@ This folder contains an assortment of tools.
 + Exchange deployment
 + Websocket client
 
-
-Example Run for documentation generation - flags -v Verbose & -r Replace files
-```sh
-cd documentation/
-go run documentation.go -v
-```
-OR for full replacement.
-
-```sh
-cd documentation/
-go run documentation.go -v -r
-```
+Please see individual tool's README file
 
 ## Contribution
 

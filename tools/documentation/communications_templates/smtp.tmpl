@@ -1,0 +1,47 @@
+{{define "communications smtp" -}}
+{{template "header" .}}
+## SMSGlobal Communications package
+
+### What is SMTP?
+
++ Simple Mail Transfer Protocol (SMTP) is an Internet standard for electronic mail (email) transmission
++ Please visit: [Wikipedia](https://en.wikipedia.org/wiki/Simple_Mail_Transfer_Protocol) for more information
+
+### Current Features
+
++ Sending of events to a list of recipients via email
+
+### How to enable
+
++ [Enable via configuration](https://github.com/thrasher-/gocryptotrader/tree/master/config#enable-communications-via-config-example)
+
++ Individual package example below:
+```go
+import (
+"github.com/thrasher-/gocryptotrader/communications/smtpservice"
+"github.com/thrasher-/gocryptotrader/config"
+)
+
+s := new(smtpservice.SMTPservice)
+
+// Define SMTPservice configuration
+commsConfig := config.CommunicationsConfig{SMTPservice: config.SMTPConfig{
+  Name: "SMTPservice",
+	Enabled: true,
+	Verbose: false,
+  Host: "host",
+	Port: "port",
+	AccountName: "name",
+	AccountPassword: "password",
+	RecipientList: "something@something.com,somethingelse@something.com"
+}}
+
+s.Setup(commsConfig)
+err := s.Connect
+// Handle error
+```
+
+### Please click GoDocs chevron above to view current GoDoc information for this package
+{{template "contributions"}}
+{{template "donations"}}
+{{end}}

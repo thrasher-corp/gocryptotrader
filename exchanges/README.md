@@ -22,6 +22,9 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 
 + This package is used to connect and query data from supported exchanges.
 
++ Please checkout individual exchange README for more information on
+implementation
+
 ### Please click GoDocs chevron above to view current GoDoc information for this package
 
 ## Contribution

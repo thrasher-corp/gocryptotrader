@@ -1,0 +1,60 @@
+{{define "communications telegram" -}}
+{{template "header" .}}
+## Telegram Communications package
+
+### What is telegram?
+
++ Telegram is a cloud-based instant messaging and voice over IP service
+developed by Telegram Messenger LLP
++ Please visit: [Telegram](https://telegram.org/) for more information
+
+### Current Features
+
++ Creation of bot that can retrieve
+  - Bot status
+  - ANX orderbook
+  - ANX ticker
+
+  ### How to enable
+
+  + [Enable via configuration](https://github.com/thrasher-/gocryptotrader/tree/master/config#enable-communications-via-config-example)
+
+  + Individual package example below:
+  ```go
+  import (
+  "github.com/thrasher-/gocryptotrader/communications/telegram"
+  "github.com/thrasher-/gocryptotrader/config"
+  )
+
+  t := new(telegram.Telegram)
+
+  // Define Telegram configuration
+  commsConfig := config.CommunicationsConfig{TelegramConfig: config.TelegramConfig{
+    Name: "Telegram",
+  	Enabled: true,
+  	Verbose: false,
+    VerificationToken: "token",
+  }}
+
+  t.Setup(commsConfig)
+  err := t.Connect
+  // Handle error
+  ```
+
++ Once the bot has started you can interact with the bot using these commands
+via Telegram:
+
+```
+/start  		- Will authenticate your ID
+/status 		- Displays the status of the bot
+/help 			- Displays current command list
+/settings 	- Displays current bot settings
+/ticker 		- Displays current ANX ticker data
+/portfolio	- Displays your current portfolio
+/orderbooks - Displays current orderbooks for ANX`
+```
+
+### Please click GoDocs chevron above to view current GoDoc information for this package
+{{template "contributions"}}
+{{template "donations"}}
+{{end}}

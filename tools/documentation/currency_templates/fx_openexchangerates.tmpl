@@ -1,0 +1,40 @@
+{{define "currency forexprovider openexchangerates" -}}
+{{template "header" .}}
+## Current Features for {{.Name}}
+
++ Fetches up to date curency data from [Open Exchange Rates](https://openexchangerates.org/)
+
+### How to enable
+
++ [Enable via configuration](https://github.com/thrasher-/gocryptotrader/tree/master/config#enable-currency-via-config-example)
+
++ Individual package example below:
+```go
+import (
+"github.com/thrasher-/gocryptotrader/currency/forexprovider/base"
+"github.com/thrasher-/gocryptotrader/currency/forexprovider/openexchangerates"
+)
+
+c := openexchangerates.OXR{}
+
+// Define configuration
+newSettings := base.Settings{
+  Name: "openexchangerates",
+	Enabled: true,
+	Verbose: false,
+	RESTPollingDelay: time.Duration,
+	APIKey: "key",
+	APIKeyLvl: "keylvl",
+	PrimaryProvider: true,
+}
+
+c.Setup(newSettings)
+
+mapstringfloat, err := c.GetRates("USD", "EUR,CHY")
+// Handle error
+```
+
+### Please click GoDocs chevron above to view current GoDoc information for this package
+{{template "contributions"}}
+{{template "donations"}}
+{{end}}

@@ -1,0 +1,45 @@
+{{define "communications smsglobal" -}}
+{{template "header" .}}
+## SMSGlobal Communications package
+
+### What is SMSGlobal?
+
++ SMSGlobal allows bulk sending of messages via their API
++ Please visit: [SMSGlobal](https://www.smsglobal.com/) for more information and account setup
+
+### Current Features
+
++ Sending of events to a list of recipients
+
+### How to enable
+
++ [Enable via configuration](https://github.com/thrasher-/gocryptotrader/tree/master/config#enable-communications-via-config-example)
+
++ Individual package example below:
+```go
+import (
+"github.com/thrasher-/gocryptotrader/communications/smsglobal"
+"github.com/thrasher-/gocryptotrader/config"
+)
+
+s := new(smsglobal.SMSGlobal)
+
+// Define SMSGlobal configuration
+commsConfig := config.CommunicationsConfig{SMSGlobalConfig: config.SMSGlobalConfig{
+  Name: "SMSGlobal",
+	Enabled: true,
+	Verbose: false,
+	Username: "username",
+	Password: "password",
+  Contacts: []config.SMSContact{}
+}}
+
+s.Setup(commsConfig)
+err := s.Connect
+// Handle error
+```
+
+### Please click GoDocs chevron above to view current GoDoc information for this package
+{{template "contributions"}}
+{{template "donations"}}
+{{end}}

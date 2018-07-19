@@ -1,0 +1,42 @@
+{{define "exchanges ticker" -}}
+{{template "header" .}}
+## Current Features for {{.Name}}
+
++ This services the exchanges package by ticker functions.
+
++ This package facilitates ticker generation.
++ Attaches methods to an ticker
+  - Returns a string of a value
+
++ Gets a loaded ticker by exchange, asset type and currency pair.
+
++ This package is primarily used in conjunction with but not limited to the
+exchange interface system set by exchange wrapper orderbook functions in
+"exchange"_wrapper.go.
+
+Examples below:
+
+```go
+tick, err := yobitExchange.GetTickerPrice()
+if err != nil {
+  // Handle error
+}
+
+// Converts ticker value to string
+tickerValString := tick.PriceToString(...)
+```
+
++ or if you have a routine setting an exchange orderbook you can access it via
+the package itself.
+
+```go
+tick, err := ticker.GetTicker(...)
+if err != nil {
+  // Handle error
+}
+```
+
+### Please click GoDocs chevron above to view current GoDoc information for this package
+{{template "contributions"}}
+{{template "donations"}}
+{{end}}
