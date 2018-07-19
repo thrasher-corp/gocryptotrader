@@ -372,13 +372,13 @@ var (
 	// BinanceRequestParamsOrderStopLossLimit STOP_LOSS_LIMIT
 	BinanceRequestParamsOrderStopLossLimit = BinanceRequestParamsOrderType("STOP_LOSS_LIMIT")
 
-	// BinanceRequestParamsOrderTakeProfit STOP_LOSS_LIMIT
+	// BinanceRequestParamsOrderTakeProfit TAKE_PROFIT
 	BinanceRequestParamsOrderTakeProfit = BinanceRequestParamsOrderType("TAKE_PROFIT")
 
-	// BinanceRequestParamsOrderTakeProfitLimit STOP_LOSS_LIMIT
+	// BinanceRequestParamsOrderTakeProfitLimit TAKE_PROFIT_LIMIT
 	BinanceRequestParamsOrderTakeProfitLimit = BinanceRequestParamsOrderType("TAKE_PROFIT_LIMIT")
 
-	// BinanceRequestParamsOrderLimitMarker STOP_LOSS_LIMIT
+	// BinanceRequestParamsOrderLimitMarker LIMIT_MAKER
 	BinanceRequestParamsOrderLimitMarker = BinanceRequestParamsOrderType("LIMIT_MAKER")
 )
 
