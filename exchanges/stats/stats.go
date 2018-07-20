@@ -3,7 +3,7 @@ package stats
 import (
 	"sort"
 
-	"github.com/thrasher-/gocryptotrader/currency/pair"
+	"github.com/idoall/gocryptotrader/currency/pair"
 )
 
 // Item holds various fields for storing currency pair stats

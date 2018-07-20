@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/thrasher-/gocryptotrader/common"
-	"github.com/thrasher-/gocryptotrader/config"
+	"github.com/idoall/gocryptotrader/common"
+	"github.com/idoall/gocryptotrader/config"
 )
 
 // Please supply your own keys here to do better tests
