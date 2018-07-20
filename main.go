@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"time"
 
@@ -52,6 +53,14 @@ func getDefaultConfig() config.ExchangeConfig {
 	}
 }
 
+func TimeFromUnixTimestampFloat(raw interface{}) (time.Time, error) {
+	ts, ok := raw.(float64)
+	if !ok {
+		return time.Time{}, errors.New(fmt.Sprintf("unable to parse, value not int64: %T", raw))
+	}
+	return time.Unix(0, int64(ts)*int64(time.Millisecond)), nil
+}
+
 func main() {
 	fmt.Println(time.Now())
 	// exchange := gateio.Gateio{}
@@ -65,18 +74,34 @@ func main() {
 	fmt.Println("----------setup-------")
 	exchange.Setup(defaultConfig)
 
+	toBeCharge := "2017-08-17 01:00:00"  //待转化为时间戳的字符串 注意 这里的小时和分钟还要秒必须写 因为是跟着模板走的 修改模板的话也可以不写
+	timeLayout := "2006-01-02 15:04:05"  //转化所需模板
+	loc, _ := time.LoadLocation("Local") //重要：获取时区
+	startTime, _ := time.ParseInLocation(timeLayout, toBeCharge, loc)
+
+	toBeCharge = "2017-09-17 03:00:00"
+	endTime, _ := time.ParseInLocation(timeLayout, toBeCharge, loc)
 	// exchange.WebsocketClient()
-	list, err := exchange.OpenOrders(exchange.GetSymbol())
+	arg := binance.KlinesRequestParams{
+		Symbol:    exchange.GetSymbol(),
+		Interval:  binance.TimeIntervalHour,
+		Limit:     10,
+		StartTime: utils.UnixMillis(startTime),
+		EndTime:   utils.UnixMillis(endTime),
+	}
+	list, err := exchange.GetSpotKline(arg)
 
 	if err != nil {
 		fmt.Println(err)
 	} else {
 		for k, v := range list {
+			ot, _ := utils.TimeFromUnixTimestampFloat(v.OpenTime)
 			b, _ := json.Marshal(v)
-			fmt.Println(k, string(b))
+			fmt.Println(k, ot.Format("2006-01-02 15:04:05"), utils.UnixMillis(ot), string(b))
 		}
 
 	}
+
 	// sh1 := common.GetHMAC(common.MD5New, []byte("accesskey=6d8f62fd-3086-46e3-a0ba-c66a929c24e2&method=getAccountInfo"), []byte(common.Sha1ToHex("48939bbc-8d49-402b-b731-adadf2ea9628")))
 	// fmt.Println(common.HexEncodeToString((sh1)))
 	// arg := huobi.SpotNewOrderRequestParams{
