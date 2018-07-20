@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/thrasher-/gocryptotrader/config"
+	"github.com/idoall/gocryptotrader/config"
 )
 
 var o OKEX
@@ -214,7 +214,10 @@ func TestGetSpotTicker(t *testing.T) {
 
 func TestGetSpotMarketDepth(t *testing.T) {
 	t.Parallel()
-	_, err := o.GetSpotMarketDepth("eth_btc", "2")
+	_, err := o.GetSpotMarketDepth(ActualSpotDepthRequestParams{
+		Symbol: "eth_btc",
+		Size:   2,
+	})
 	if err != nil {
 		t.Error("Test failed - okex GetSpotMarketDepth() error", err)
 	}
@@ -222,7 +225,10 @@ func TestGetSpotMarketDepth(t *testing.T) {
 
 func TestGetSpotRecentTrades(t *testing.T) {
 	t.Parallel()
-	_, err := o.GetSpotRecentTrades("ltc_btc", "0")
+	_, err := o.GetSpotRecentTrades(ActualSpotTradeHistoryRequestParams{
+		Symbol: "ltc_btc",
+		Since:  0,
+	})
 	if err != nil {
 		t.Error("Test failed - okex GetSpotRecentTrades() error", err)
 	}
