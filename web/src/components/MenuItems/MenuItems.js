@@ -1,13 +1,7 @@
 import React from 'react';
 import PropTypes from 'prop-types';
 import { withStyles } from '@material-ui/core/styles';
-import {
-  List,
-  ListItem,
-  ListItemIcon,
-  ListItemText,
-  ListSubheader
-} from '@material-ui/core';
+import { List, ListSubheader } from '@material-ui/core';
 import Divider from '@material-ui/core/Divider';
 import { ListItemLink } from './..';
 import {
@@ -59,24 +53,24 @@ const MenuItems = props => {
           </ListSubheader>
         }
       >
-        <ListItem button>
-          <ListItemIcon>
-            <CodeIcon />
-          </ListItemIcon>
-          <ListItemText primary="Github" />
-        </ListItem>
-        <ListItem button>
-          <ListItemIcon>
-            <AppsIcon />
-          </ListItemIcon>
-          <ListItemText primary="Slack" />
-        </ListItem>
-        <ListItem button>
-          <ListItemIcon>
-            <AssignmentIcon />
-          </ListItemIcon>
-          <ListItemText primary="Trello" />
-        </ListItem>
+        <ListItemLink
+          to="https://github.com/thrasher-/gocryptotrader"
+          icon={<CodeIcon />}
+          primary="Github"
+          external
+        />
+        <ListItemLink
+          to="https://gocryptotrader.slack.com"
+          icon={<AppsIcon />}
+          primary="Slack"
+          external
+        />
+        <ListItemLink
+          to="https://trello.com/b/ZAhMhpOy/gocryptotrader"
+          icon={<AssignmentIcon />}
+          primary="Trello"
+          external
+        />
       </List>
     </React.Fragment>
   );
