@@ -9,7 +9,10 @@ matrix:
         - npm install
       script:
         - npm run lint
+        - npm run test:coverage
         - npm run build
+      after_success:
+        - bash <(curl -s https://codecov.io/bash)
 
     - language: go
       go:
