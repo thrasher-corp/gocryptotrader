@@ -10,13 +10,13 @@ const styles = theme => ({
     alignItems: 'center',
     justifyContent: 'flex-end',
     padding: '0 8px',
-    ...theme.mixins.toolbar,
-  },
+    ...theme.mixins.toolbar
+  }
 });
 
 class AccountMenu extends Component {
   state = {
-    anchorEl: null,
+    anchorEl: null
   };
 
   handleMenu = event => {
@@ -46,11 +46,11 @@ class AccountMenu extends Component {
           anchorEl={anchorEl}
           anchorOrigin={{
             vertical: 'top',
-            horizontal: 'right',
+            horizontal: 'right'
           }}
           transformOrigin={{
             vertical: 'top',
-            horizontal: 'right',
+            horizontal: 'right'
           }}
           open={accountOpen}
           onClose={this.handleClose}
@@ -60,12 +60,12 @@ class AccountMenu extends Component {
           <MenuItem onClick={this.handleClose}>Logout</MenuItem>
         </Menu>
       </div>
-    )
+    );
   }
 }
 
 AccountMenu.propTypes = {
   classes: PropTypes.object.isRequired,
-  theme: PropTypes.object.isRequired,
+  theme: PropTypes.object.isRequired
 };
 export default withStyles(styles, { withTheme: true })(AccountMenu);
