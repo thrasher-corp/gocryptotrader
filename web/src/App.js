@@ -4,7 +4,7 @@ import CssBaseline from '@material-ui/core/CssBaseline';
 import { BrowserRouter as Router, Route, Switch } from 'react-router-dom';
 import { withStyles } from '@material-ui/core/styles';
 import { AppBar, AppDrawer, MenuItems } from './components';
-import { Home, About, Settings } from './pages';
+import { Home, About, Settings, Donate } from './pages';
 import './App.css';
 
 const styles = theme => ({
@@ -38,8 +38,13 @@ const routes = [
   },
   {
     path: '/about',
-    exact: false,
+    exact: true,
     content: About
+  },
+  {
+    path: '/donate',
+    exact: true,
+    content: Donate
   },
   {
     path: '/settings',

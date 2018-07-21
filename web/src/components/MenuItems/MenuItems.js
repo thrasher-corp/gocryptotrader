@@ -39,11 +39,7 @@ const MenuItems = props => {
           primary="Settings"
         />
         <ListItemLink to="/about" icon={<HelpIcon />} primary="About" />
-        <ListItemLink
-          to="/donations"
-          icon={<FavoriteIcon />}
-          primary="Donations"
-        />
+        <ListItemLink to="/donate" icon={<FavoriteIcon />} primary="Donate" />
       </List>
       <Divider />
       <List
