@@ -4,7 +4,7 @@ import CssBaseline from '@material-ui/core/CssBaseline';
 import { BrowserRouter as Router, Route, Switch } from 'react-router-dom';
 import { withStyles } from '@material-ui/core/styles';
 import { AppBar, AppDrawer, MenuItems } from './components';
-import { Home, About } from './pages';
+import { Home, About, Settings } from './pages';
 import './App.css';
 
 const styles = theme => ({
@@ -40,6 +40,11 @@ const routes = [
     path: '/about',
     exact: false,
     content: About
+  },
+  {
+    path: '/settings',
+    exact: true,
+    content: Settings
   }
 ];
 const NoMatch = () => <p>Render an awesome 404 page.</p>;
