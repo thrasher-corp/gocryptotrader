@@ -26,6 +26,11 @@ const styles = theme => ({
   secondaryHeading: {
     fontSize: theme.typography.pxToRem(15),
     color: theme.palette.text.secondary
+  },
+  json: {
+    width: '100%',
+    height: '500px',
+    padding: '1.45em'
   }
 });
 
@@ -35,42 +40,78 @@ const configGroups = [
       primary: 'Webserver',
       secondary: 'webserver settings'
     },
-    details: 'TODO'
-  },
-  {
-    heading: {
-      primary: 'Communication',
-      secondary: '...'
-    },
-    details: 'TODO'
-  },
-  {
-    heading: {
-      primary: 'Portfolio',
-      secondary: '...'
-    },
-    details: 'TODO'
-  },
-  {
-    heading: {
-      primary: 'Currency',
-      secondary: '...'
-    },
-    details: 'TODO'
+    details: props => (
+      <textarea
+        readOnly
+        className={props.classes.json}
+        value={JSON.stringify(props.data.webserver, null, 2)}
+      />
+    )
   },
   {
     heading: {
       primary: 'Exchanges',
       secondary: '...'
     },
-    details: 'TODO'
+    details: props => (
+      <textarea
+        readOnly
+        className={props.classes.json}
+        value={JSON.stringify(props.data.exchanges, null, 2)}
+      />
+    )
+  },
+  {
+    heading: {
+      primary: 'Currency',
+      secondary: '...'
+    },
+    details: props => (
+      <textarea
+        readOnly
+        className={props.classes.json}
+        value={JSON.stringify(props.data.currencyConfig, null, 2)}
+      />
+    )
+  },
+  {
+    heading: {
+      primary: 'Portfolio',
+      secondary: '...'
+    },
+    details: props => (
+      <textarea
+        readOnly
+        className={props.classes.json}
+        value={JSON.stringify(props.data.portfolioAddresses, null, 2)}
+      />
+    )
   },
   {
     heading: {
       primary: 'BankAccounts',
       secondary: '...'
     },
-    details: 'TODO'
+    details: props => (
+      <textarea
+        readOnly
+        className={props.classes.json}
+        value={JSON.stringify(props.data.bankAccounts, null, 2)}
+      />
+    )
+  },
+  {
+    heading: {
+      primary: 'Communication',
+      secondary: '...'
+    },
+    details: props => (
+      <textarea
+        readOnly
+        className={props.classes.json}
+        value={JSON.stringify(props.data.communications, null, 2)}
+      />
+    )
   }
 ];
 
@@ -136,7 +177,9 @@ class Settings extends Component {
                 {group.heading.secondary}
               </Typography>
             </ExpansionPanelSummary>
-            <ExpansionPanelDetails>{group.details}</ExpansionPanelDetails>
+            <ExpansionPanelDetails>
+              {<group.details data={config} {...this.props} />}
+            </ExpansionPanelDetails>
           </ExpansionPanel>
         ))}
       </div>
