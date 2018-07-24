@@ -1,5 +1,7 @@
 package wex
 
+import "github.com/kempeng/gocryptotrader/decimal"
+
 // Response is a generic struct used for exchange API request result
 type Response struct {
 	Return  interface{} `json:"return"`
@@ -15,21 +17,21 @@ type Info struct {
 
 // Ticker stores the ticker information
 type Ticker struct {
-	High          float64
-	Low           float64
-	Avg           float64
+	High          decimal.Decimal
+	Low           decimal.Decimal
+	Avg           decimal.Decimal
 	Vol           float64
 	VolumeCurrent float64 `json:"vol_cur"`
-	Last          float64
-	Buy           float64
-	Sell          float64
+	Last          decimal.Decimal
+	Buy           decimal.Decimal
+	Sell          decimal.Decimal
 	Updated       int64
 }
 
 // Orderbook stores the asks and bids orderbook information
 type Orderbook struct {
-	Asks [][]float64 `json:"asks"`
-	Bids [][]float64 `json:"bids"`
+	Asks [][]decimal.Decimal `json:"asks"`
+	Bids [][]decimal.Decimal `json:"bids"`
 }
 
 // Trades stores trade information
@@ -53,18 +55,18 @@ type ActiveOrders struct {
 
 // Pair holds pair information
 type Pair struct {
-	DecimalPlaces int     `json:"decimal_places"`
-	MinPrice      float64 `json:"min_price"`
-	MaxPrice      float64 `json:"max_price"`
-	MinAmount     float64 `json:"min_amount"`
-	Hidden        int     `json:"hidden"`
-	Fee           float64 `json:"fee"`
+	DecimalPlaces int             `json:"decimal_places"`
+	MinPrice      decimal.Decimal `json:"min_price"`
+	MaxPrice      decimal.Decimal `json:"max_price"`
+	MinAmount     decimal.Decimal `json:"min_amount"`
+	Hidden        int             `json:"hidden"`
+	Fee           decimal.Decimal `json:"fee"`
 }
 
 // AccountInfo stores the account information for a user
 type AccountInfo struct {
-	Funds      map[string]float64 `json:"funds"`
-	OpenOrders int                `json:"open_orders"`
+	Funds      map[string]decimal.Decimal `json:"funds"`
+	OpenOrders int                        `json:"open_orders"`
 	Rights     struct {
 		Info     int `json:"info"`
 		Trade    int `json:"trade"`
@@ -77,20 +79,20 @@ type AccountInfo struct {
 
 // OrderInfo stores order information
 type OrderInfo struct {
-	Pair             string  `json:"pair"`
-	Type             string  `json:"sell"`
-	StartAmount      float64 `json:"start_amount"`
-	Amount           float64 `json:"amount"`
-	Rate             float64 `json:"rate"`
-	TimestampCreated float64 `json:"time_created"`
-	Status           int     `json:"status"`
+	Pair             string          `json:"pair"`
+	Type             string          `json:"sell"`
+	StartAmount      decimal.Decimal `json:"start_amount"`
+	Amount           decimal.Decimal `json:"amount"`
+	Rate             float64         `json:"rate"`
+	TimestampCreated float64         `json:"time_created"`
+	Status           int             `json:"status"`
 }
 
 // CancelOrder is used for the CancelOrder API request response
 type CancelOrder struct {
-	OrderID float64            `json:"order_id"`
-	Funds   map[string]float64 `json:"funds"`
-	Error   string             `json:"error"`
+	OrderID float64                    `json:"order_id"`
+	Funds   map[string]decimal.Decimal `json:"funds"`
+	Error   string                     `json:"error"`
 }
 
 // Trade stores the trade information

@@ -8,6 +8,7 @@ import (
 
 	"github.com/kempeng/gocryptotrader/common"
 	"github.com/kempeng/gocryptotrader/currency/pair"
+	"github.com/kempeng/gocryptotrader/decimal"
 	"github.com/kempeng/gocryptotrader/exchanges"
 	"github.com/kempeng/gocryptotrader/exchanges/orderbook"
 	"github.com/kempeng/gocryptotrader/exchanges/ticker"
@@ -80,39 +81,42 @@ func (a *ANX) UpdateTicker(p pair.CurrencyPair, assetType string) (ticker.Price,
 	tickerPrice.Pair = p
 
 	if tick.Data.Sell.Value != "" {
-		tickerPrice.Ask, err = strconv.ParseFloat(tick.Data.Sell.Value, 64)
+		//tickerPrice.Ask, err = strconv.ParseFloat(tick.Data.Sell.Value, 64)
+		tickerPrice.Ask, err = decimal.NewFromString(tick.Data.Sell.Value)
 		if err != nil {
 			return tickerPrice, err
 		}
 	} else {
-		tickerPrice.Ask = 0
+		tickerPrice.Ask = decimal.Zero
 	}
 
 	if tick.Data.Buy.Value != "" {
-		tickerPrice.Bid, err = strconv.ParseFloat(tick.Data.Buy.Value, 64)
+		//tickerPrice.Bid, err = strconv.ParseFloat(tick.Data.Buy.Value, 64)
+		tickerPrice.Bid, err = decimal.NewFromString(tick.Data.Buy.Value)
 		if err != nil {
 			return tickerPrice, err
 		}
 	} else {
-		tickerPrice.Bid = 0
+		tickerPrice.Bid = decimal.Zero
 	}
 
 	if tick.Data.Low.Value != "" {
-		tickerPrice.Low, err = strconv.ParseFloat(tick.Data.Low.Value, 64)
+		//tickerPrice.Low, err = strconv.ParseFloat(tick.Data.Low.Value, 64)
+		tickerPrice.Low, err = decimal.NewFromString(tick.Data.Low.Value)
 		if err != nil {
 			return tickerPrice, err
 		}
 	} else {
-		tickerPrice.Low = 0
+		tickerPrice.Low = decimal.Zero
 	}
 
 	if tick.Data.Last.Value != "" {
-		tickerPrice.Last, err = strconv.ParseFloat(tick.Data.Last.Value, 64)
+		tickerPrice.Last, err = decimal.NewFromString(tick.Data.Last.Value)
 		if err != nil {
 			return tickerPrice, err
 		}
 	} else {
-		tickerPrice.Last = 0
+		tickerPrice.Last = decimal.Zero
 	}
 
 	if tick.Data.Vol.Value != "" {
@@ -125,12 +129,12 @@ func (a *ANX) UpdateTicker(p pair.CurrencyPair, assetType string) (ticker.Price,
 	}
 
 	if tick.Data.High.Value != "" {
-		tickerPrice.High, err = strconv.ParseFloat(tick.Data.High.Value, 64)
+		tickerPrice.High, err = decimal.NewFromString(tick.Data.High.Value)
 		if err != nil {
 			return tickerPrice, err
 		}
 	} else {
-		tickerPrice.High = 0
+		tickerPrice.High = decimal.Zero
 	}
 	ticker.ProcessTicker(a.GetName(), p, tickerPrice, assetType)
 	return ticker.GetTicker(a.Name, p, assetType)
