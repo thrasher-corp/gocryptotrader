@@ -3,8 +3,8 @@ package huobi
 import (
 	"log"
 
-	"github.com/thrasher-/gocryptotrader/common"
-	"github.com/thrasher-/socketio"
+	"github.com/kempeng/gocryptotrader/common"
+	"github.com/kempeng/socketio"
 )
 
 const (

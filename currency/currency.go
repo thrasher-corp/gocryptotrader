@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/thrasher-/gocryptotrader/common"
-	"github.com/thrasher-/gocryptotrader/currency/forexprovider"
-	"github.com/thrasher-/gocryptotrader/currency/pair"
+	"github.com/kempeng/gocryptotrader/common"
+	"github.com/kempeng/gocryptotrader/currency/forexprovider"
+	"github.com/kempeng/gocryptotrader/currency/pair"
 )
 
 const (

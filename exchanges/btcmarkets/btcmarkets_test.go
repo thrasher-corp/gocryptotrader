@@ -4,9 +4,9 @@ import (
 	"net/url"
 	"testing"
 
-	"github.com/thrasher-/gocryptotrader/config"
-	"github.com/thrasher-/gocryptotrader/currency/pair"
-	exchange "github.com/thrasher-/gocryptotrader/exchanges"
+	"github.com/kempeng/gocryptotrader/config"
+	"github.com/kempeng/gocryptotrader/currency/pair"
+	exchange "github.com/kempeng/gocryptotrader/exchanges"
 )
 
 var bm BTCMarkets

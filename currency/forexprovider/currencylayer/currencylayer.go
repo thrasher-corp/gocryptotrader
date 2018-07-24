@@ -17,8 +17,8 @@ import (
 	"net/url"
 	"strconv"
 
-	"github.com/thrasher-/gocryptotrader/common"
-	"github.com/thrasher-/gocryptotrader/currency/forexprovider/base"
+	"github.com/kempeng/gocryptotrader/common"
+	"github.com/kempeng/gocryptotrader/currency/forexprovider/base"
 )
 
 // const declarations consist of endpoints and APIKey privileges

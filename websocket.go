@@ -5,9 +5,9 @@ import (
 	"net/http"
 
 	"github.com/gorilla/websocket"
-	"github.com/thrasher-/gocryptotrader/common"
-	"github.com/thrasher-/gocryptotrader/config"
-	"github.com/thrasher-/gocryptotrader/currency"
+	"github.com/kempeng/gocryptotrader/common"
+	"github.com/kempeng/gocryptotrader/config"
+	"github.com/kempeng/gocryptotrader/currency"
 )
 
 // Const vars for websocket

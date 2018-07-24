@@ -5,14 +5,14 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/thrasher-/gocryptotrader/currency"
-	"github.com/thrasher-/gocryptotrader/currency/pair"
-	"github.com/thrasher-/gocryptotrader/currency/translation"
-	exchange "github.com/thrasher-/gocryptotrader/exchanges"
-	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
-	"github.com/thrasher-/gocryptotrader/exchanges/stats"
-	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
-	"github.com/thrasher-/gocryptotrader/portfolio"
+	"github.com/kempeng/gocryptotrader/currency"
+	"github.com/kempeng/gocryptotrader/currency/pair"
+	"github.com/kempeng/gocryptotrader/currency/translation"
+	exchange "github.com/kempeng/gocryptotrader/exchanges"
+	"github.com/kempeng/gocryptotrader/exchanges/orderbook"
+	"github.com/kempeng/gocryptotrader/exchanges/stats"
+	"github.com/kempeng/gocryptotrader/exchanges/ticker"
+	"github.com/kempeng/gocryptotrader/portfolio"
 )
 
 // GetAllAvailablePairs returns a list of all available pairs on either enabled

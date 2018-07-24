@@ -4,14 +4,14 @@ import (
 	"log"
 	"testing"
 
-	"github.com/thrasher-/gocryptotrader/common"
-	"github.com/thrasher-/gocryptotrader/config"
-	"github.com/thrasher-/gocryptotrader/currency"
-	"github.com/thrasher-/gocryptotrader/currency/pair"
-	exchange "github.com/thrasher-/gocryptotrader/exchanges"
-	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
-	"github.com/thrasher-/gocryptotrader/exchanges/stats"
-	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
+	"github.com/kempeng/gocryptotrader/common"
+	"github.com/kempeng/gocryptotrader/config"
+	"github.com/kempeng/gocryptotrader/currency"
+	"github.com/kempeng/gocryptotrader/currency/pair"
+	exchange "github.com/kempeng/gocryptotrader/exchanges"
+	"github.com/kempeng/gocryptotrader/exchanges/orderbook"
+	"github.com/kempeng/gocryptotrader/exchanges/stats"
+	"github.com/kempeng/gocryptotrader/exchanges/ticker"
 )
 
 const (

@@ -3,7 +3,7 @@ package main
 import (
 	"testing"
 
-	"github.com/thrasher-/gocryptotrader/config"
+	"github.com/kempeng/gocryptotrader/config"
 )
 
 var testSetup = false

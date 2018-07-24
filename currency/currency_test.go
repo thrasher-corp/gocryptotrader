@@ -3,7 +3,7 @@ package currency
 import (
 	"testing"
 
-	"github.com/thrasher-/gocryptotrader/currency/pair"
+	"github.com/kempeng/gocryptotrader/currency/pair"
 )
 
 func TestSetDefaults(t *testing.T) {

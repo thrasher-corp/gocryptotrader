@@ -6,13 +6,13 @@ import (
 	"sync"
 	"time"
 
-	"github.com/thrasher-/gocryptotrader/currency"
-	"github.com/thrasher-/gocryptotrader/currency/pair"
-	"github.com/thrasher-/gocryptotrader/currency/symbol"
-	exchange "github.com/thrasher-/gocryptotrader/exchanges"
-	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
-	"github.com/thrasher-/gocryptotrader/exchanges/stats"
-	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
+	"github.com/kempeng/gocryptotrader/currency"
+	"github.com/kempeng/gocryptotrader/currency/pair"
+	"github.com/kempeng/gocryptotrader/currency/symbol"
+	exchange "github.com/kempeng/gocryptotrader/exchanges"
+	"github.com/kempeng/gocryptotrader/exchanges/orderbook"
+	"github.com/kempeng/gocryptotrader/exchanges/stats"
+	"github.com/kempeng/gocryptotrader/exchanges/ticker"
 )
 
 func printCurrencyFormat(price float64) string {

@@ -10,11 +10,11 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
-	"github.com/thrasher-/gocryptotrader/common"
-	"github.com/thrasher-/gocryptotrader/config"
-	exchange "github.com/thrasher-/gocryptotrader/exchanges"
-	"github.com/thrasher-/gocryptotrader/exchanges/request"
-	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
+	"github.com/kempeng/gocryptotrader/common"
+	"github.com/kempeng/gocryptotrader/config"
+	exchange "github.com/kempeng/gocryptotrader/exchanges"
+	"github.com/kempeng/gocryptotrader/exchanges/request"
+	"github.com/kempeng/gocryptotrader/exchanges/ticker"
 )
 
 // Binance is the overarching type across the Bithumb package

@@ -10,8 +10,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/thrasher-/gocryptotrader/common"
-	"github.com/thrasher-/gocryptotrader/config"
+	"github.com/kempeng/gocryptotrader/common"
+	"github.com/kempeng/gocryptotrader/config"
 )
 
 var h HUOBI

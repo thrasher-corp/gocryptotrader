@@ -3,8 +3,8 @@ package config
 import (
 	"testing"
 
-	"github.com/thrasher-/gocryptotrader/common"
-	"github.com/thrasher-/gocryptotrader/currency/pair"
+	"github.com/kempeng/gocryptotrader/common"
+	"github.com/kempeng/gocryptotrader/currency/pair"
 )
 
 func TestGetCurrencyConfig(t *testing.T) {

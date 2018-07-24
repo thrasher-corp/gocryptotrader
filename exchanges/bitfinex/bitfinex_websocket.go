@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
-	"github.com/thrasher-/gocryptotrader/common"
+	"github.com/kempeng/gocryptotrader/common"
 )
 
 const (

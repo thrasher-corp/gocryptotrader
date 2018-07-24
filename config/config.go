@@ -11,12 +11,12 @@ import (
 	"sync"
 	"time"
 
-	"github.com/thrasher-/gocryptotrader/common"
-	"github.com/thrasher-/gocryptotrader/currency"
-	"github.com/thrasher-/gocryptotrader/currency/forexprovider"
-	"github.com/thrasher-/gocryptotrader/currency/forexprovider/base"
-	"github.com/thrasher-/gocryptotrader/currency/pair"
-	"github.com/thrasher-/gocryptotrader/portfolio"
+	"github.com/kempeng/gocryptotrader/common"
+	"github.com/kempeng/gocryptotrader/currency"
+	"github.com/kempeng/gocryptotrader/currency/forexprovider"
+	"github.com/kempeng/gocryptotrader/currency/forexprovider/base"
+	"github.com/kempeng/gocryptotrader/currency/pair"
+	"github.com/kempeng/gocryptotrader/portfolio"
 )
 
 // Constants declared here are filename strings and test strings
