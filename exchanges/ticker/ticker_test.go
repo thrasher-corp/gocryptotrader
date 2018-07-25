@@ -18,7 +18,7 @@ func TestPriceToString(t *testing.T) {
 		Low:          decimal.New(1148, 0),
 		Bid:          decimal.New(1195, 0),
 		Ask:          decimal.New(1220, 0),
-		Volume:       5,
+		Volume:       decimal.New(5, 0),
 		PriceATH:     decimal.New(1337, 0),
 	}
 
@@ -60,7 +60,7 @@ func TestGetTicker(t *testing.T) {
 		Low:          decimal.New(1148, 0),
 		Bid:          decimal.New(1195, 0),
 		Ask:          decimal.New(1220, 0),
-		Volume:       5,
+		Volume:       decimal.New(5, 0),
 		PriceATH:     decimal.New(1337, 0),
 	}
 
@@ -112,7 +112,7 @@ func TestGetTickerByExchange(t *testing.T) {
 		Low:          decimal.New(1148, 0),
 		Bid:          decimal.New(1195, 0),
 		Ask:          decimal.New(1220, 0),
-		Volume:       5,
+		Volume:       decimal.New(5, 0),
 		PriceATH:     decimal.New(1337, 0),
 	}
 
@@ -138,7 +138,7 @@ func TestFirstCurrencyExists(t *testing.T) {
 		Low:          decimal.New(1148, 0),
 		Bid:          decimal.New(1195, 0),
 		Ask:          decimal.New(1220, 0),
-		Volume:       5,
+		Volume:       decimal.New(5, 0),
 		PriceATH:     decimal.New(1337, 0),
 	}
 
@@ -165,7 +165,7 @@ func TestSecondCurrencyExists(t *testing.T) {
 		Low:          decimal.New(1148, 0),
 		Bid:          decimal.New(1195, 0),
 		Ask:          decimal.New(1220, 0),
-		Volume:       5,
+		Volume:       decimal.New(5, 0),
 		PriceATH:     decimal.New(1337, 0),
 	}
 
@@ -192,7 +192,7 @@ func TestCreateNewTicker(t *testing.T) {
 		Low:          decimal.New(1148, 0),
 		Bid:          decimal.New(1195, 0),
 		Ask:          decimal.New(1220, 0),
-		Volume:       5,
+		Volume:       decimal.New(5, 0),
 		PriceATH:     decimal.New(1337, 0),
 	}
 
@@ -248,7 +248,7 @@ func TestProcessTicker(t *testing.T) { //non-appending function to tickers
 		Low:          decimal.New(1148, 0),
 		Bid:          decimal.New(1195, 0),
 		Ask:          decimal.New(1220, 0),
-		Volume:       5,
+		Volume:       decimal.New(5, 0),
 		PriceATH:     decimal.New(1337, 0),
 	}
 

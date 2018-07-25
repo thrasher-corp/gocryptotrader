@@ -2,7 +2,6 @@ package ticker
 
 import (
 	"errors"
-	"strconv"
 	"sync"
 	"time"
 
@@ -36,7 +35,7 @@ type Price struct {
 	Low          decimal.Decimal   `json:"Low"`
 	Bid          decimal.Decimal   `json:"Bid"`
 	Ask          decimal.Decimal   `json:"Ask"`
-	Volume       float64           `json:"Volume"`
+	Volume       decimal.Decimal   `json:"Volume"`
 	PriceATH     decimal.Decimal   `json:"PriceATH"`
 }
 
@@ -67,7 +66,7 @@ func (t *Ticker) PriceToString(p pair.CurrencyPair, priceType, tickerType string
 		//return strconv.FormatFloat(t.Price[p.FirstCurrency][p.SecondCurrency][tickerType].Ask, 'f', -1, 64)
 		return t.Price[p.FirstCurrency][p.SecondCurrency][tickerType].Ask.String()
 	case "volume":
-		return strconv.FormatFloat(t.Price[p.FirstCurrency][p.SecondCurrency][tickerType].Volume, 'f', -1, 64)
+		return t.Price[p.FirstCurrency][p.SecondCurrency][tickerType].Volume.String()
 	case "ath":
 		//return strconv.FormatFloat(t.Price[p.FirstCurrency][p.SecondCurrency][tickerType].PriceATH, 'f', -1, 64)
 		return t.Price[p.FirstCurrency][p.SecondCurrency][tickerType].PriceATH.String()

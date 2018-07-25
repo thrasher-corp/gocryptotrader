@@ -10,6 +10,7 @@ import (
 
 	"github.com/kempeng/gocryptotrader/common"
 	"github.com/kempeng/gocryptotrader/config"
+	"github.com/kempeng/gocryptotrader/decimal"
 	"github.com/kempeng/gocryptotrader/exchanges"
 	"github.com/kempeng/gocryptotrader/exchanges/request"
 	"github.com/kempeng/gocryptotrader/exchanges/ticker"
@@ -44,8 +45,8 @@ type LakeBTC struct {
 func (l *LakeBTC) SetDefaults() {
 	l.Name = "LakeBTC"
 	l.Enabled = false
-	l.TakerFee = 0.2
-	l.MakerFee = 0.15
+	l.TakerFee = decimal.NewFromFloat(0.2)
+	l.MakerFee = decimal.NewFromFloat(0.15)
 	l.Verbose = false
 	l.Websocket = false
 	l.RESTPollingDelay = 10
@@ -105,7 +106,7 @@ func (l *LakeBTC) GetTradablePairs() ([]string, error) {
 }
 
 // GetFee returns maker or taker fee
-func (l *LakeBTC) GetFee(maker bool) float64 {
+func (l *LakeBTC) GetFee(maker bool) decimal.Decimal {
 	if maker {
 		return l.MakerFee
 	}
@@ -128,22 +129,22 @@ func (l *LakeBTC) GetTicker() (map[string]Ticker, error) {
 		var ticker Ticker
 		key := common.StringToUpper(k)
 		if v.Ask != nil {
-			ticker.Ask, _ = strconv.ParseFloat(v.Ask.(string), 64)
+			ticker.Ask, _ = decimal.NewFromString(v.Ask.(string))
 		}
 		if v.Bid != nil {
-			ticker.Bid, _ = strconv.ParseFloat(v.Bid.(string), 64)
+			ticker.Bid, _ = decimal.NewFromString(v.Bid.(string))
 		}
 		if v.High != nil {
-			ticker.High, _ = strconv.ParseFloat(v.High.(string), 64)
+			ticker.High, _ = decimal.NewFromString(v.High.(string))
 		}
 		if v.Last != nil {
-			ticker.Last, _ = strconv.ParseFloat(v.Last.(string), 64)
+			ticker.Last, _ = decimal.NewFromString(v.Last.(string))
 		}
 		if v.Low != nil {
-			ticker.Low, _ = strconv.ParseFloat(v.Low.(string), 64)
+			ticker.Low, _ = decimal.NewFromString(v.Low.(string))
 		}
 		if v.Volume != nil {
-			ticker.Volume, _ = strconv.ParseFloat(v.Volume.(string), 64)
+			ticker.Volume, _ = decimal.NewFromString(v.Volume.(string))
 		}
 		result[key] = ticker
 		addresses = append(addresses, key)
@@ -166,12 +167,12 @@ func (l *LakeBTC) GetOrderBook(currency string) (Orderbook, error) {
 	orderbook := Orderbook{}
 
 	for _, x := range resp.Bids {
-		price, err := strconv.ParseFloat(x[0], 64)
+		price, err := decimal.NewFromString(x[0])
 		if err != nil {
 			log.Println(err)
 			continue
 		}
-		amount, err := strconv.ParseFloat(x[1], 64)
+		amount, err := decimal.NewFromString(x[1])
 		if err != nil {
 			log.Println(err)
 			continue
@@ -180,12 +181,12 @@ func (l *LakeBTC) GetOrderBook(currency string) (Orderbook, error) {
 	}
 
 	for _, x := range resp.Asks {
-		price, err := strconv.ParseFloat(x[0], 64)
+		price, err := decimal.NewFromString(x[0])
 		if err != nil {
 			log.Println(err)
 			continue
 		}
-		amount, err := strconv.ParseFloat(x[1], 64)
+		amount, err := decimal.NewFromString(x[1])
 		if err != nil {
 			log.Println(err)
 			continue
@@ -212,9 +213,9 @@ func (l *LakeBTC) GetAccountInfo() (AccountInfo, error) {
 
 // Trade executes an order on the exchange and returns trade inforamtion or an
 // error
-func (l *LakeBTC) Trade(orderType int, amount, price float64, currency string) (Trade, error) {
+func (l *LakeBTC) Trade(orderType int, amount, price decimal.Decimal, currency string) (Trade, error) {
 	resp := Trade{}
-	params := strconv.FormatFloat(price, 'f', -1, 64) + "," + strconv.FormatFloat(amount, 'f', -1, 64) + "," + currency
+	params := price.String() + "," + amount.String() + "," + currency
 
 	if orderType == 1 {
 		if err := l.SendAuthenticatedHTTPRequest(lakeBTCBuyOrder, params, &resp); err != nil {
@@ -291,9 +292,9 @@ func (l *LakeBTC) GetExternalAccounts() ([]ExternalAccounts, error) {
 
 // CreateWithdraw allows your to withdraw to external account WARNING: Only for
 // BTC!
-func (l *LakeBTC) CreateWithdraw(amount float64, accountID int64) (Withdraw, error) {
+func (l *LakeBTC) CreateWithdraw(amount decimal.Decimal, accountID int64) (Withdraw, error) {
 	resp := Withdraw{}
-	params := strconv.FormatFloat(amount, 'f', -1, 64) + ",btc," + strconv.FormatInt(accountID, 10)
+	params := amount.String() + ",btc," + strconv.FormatInt(accountID, 10)
 
 	return resp, l.SendAuthenticatedHTTPRequest(lakeBTCCreateWithdraw, params, &resp)
 }

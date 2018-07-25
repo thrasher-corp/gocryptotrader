@@ -1,13 +1,15 @@
 package okcoin
 
+import "github.com/kempeng/gocryptotrader/decimal"
+
 // Ticker holds ticker data
 type Ticker struct {
-	Buy  float64 `json:",string"`
-	High float64 `json:",string"`
-	Last float64 `json:",string"`
-	Low  float64 `json:",string"`
-	Sell float64 `json:",string"`
-	Vol  float64 `json:",string"`
+	Buy  decimal.Decimal `json:",string"`
+	High decimal.Decimal `json:",string"`
+	Last decimal.Decimal `json:",string"`
+	Low  decimal.Decimal `json:",string"`
+	Sell decimal.Decimal `json:",string"`
+	Vol  decimal.Decimal `json:",string"`
 }
 
 // TickerResponse is the response type for ticker
@@ -18,20 +20,20 @@ type TickerResponse struct {
 
 // FuturesTicker holds futures ticker data
 type FuturesTicker struct {
-	Last       float64
-	Buy        float64
-	Sell       float64
-	High       float64
-	Low        float64
-	Vol        float64
+	Last       decimal.Decimal
+	Buy        decimal.Decimal
+	Sell       decimal.Decimal
+	High       decimal.Decimal
+	Low        decimal.Decimal
+	Vol        decimal.Decimal
 	ContractID int64
-	UnitAmount float64
+	UnitAmount decimal.Decimal
 }
 
 // Orderbook holds orderbook data
 type Orderbook struct {
-	Asks [][]float64 `json:"asks"`
-	Bids [][]float64 `json:"bids"`
+	Asks [][]decimal.Decimal `json:"asks"`
+	Bids [][]decimal.Decimal `json:"bids"`
 }
 
 // FuturesTickerResponse is a response type
@@ -42,40 +44,40 @@ type FuturesTickerResponse struct {
 
 // BorrowInfo holds borrowing amount data
 type BorrowInfo struct {
-	BorrowBTC        float64 `json:"borrow_btc"`
-	BorrowLTC        float64 `json:"borrow_ltc"`
-	BorrowCNY        float64 `json:"borrow_cny"`
-	CanBorrow        float64 `json:"can_borrow"`
-	InterestBTC      float64 `json:"interest_btc"`
-	InterestLTC      float64 `json:"interest_ltc"`
-	Result           bool    `json:"result"`
-	DailyInterestBTC float64 `json:"today_interest_btc"`
-	DailyInterestLTC float64 `json:"today_interest_ltc"`
-	DailyInterestCNY float64 `json:"today_interest_cny"`
+	BorrowBTC        decimal.Decimal `json:"borrow_btc"`
+	BorrowLTC        decimal.Decimal `json:"borrow_ltc"`
+	BorrowCNY        decimal.Decimal `json:"borrow_cny"`
+	CanBorrow        decimal.Decimal `json:"can_borrow"`
+	InterestBTC      decimal.Decimal `json:"interest_btc"`
+	InterestLTC      decimal.Decimal `json:"interest_ltc"`
+	Result           bool            `json:"result"`
+	DailyInterestBTC decimal.Decimal `json:"today_interest_btc"`
+	DailyInterestLTC decimal.Decimal `json:"today_interest_ltc"`
+	DailyInterestCNY decimal.Decimal `json:"today_interest_cny"`
 }
 
 // BorrowOrder holds order data
 type BorrowOrder struct {
-	Amount      float64 `json:"amount"`
-	BorrowDate  int64   `json:"borrow_date"`
-	BorrowID    int64   `json:"borrow_id"`
-	Days        int64   `json:"days"`
-	TradeAmount float64 `json:"deal_amount"`
-	Rate        float64 `json:"rate"`
-	Status      int64   `json:"status"`
-	Symbol      string  `json:"symbol"`
+	Amount      decimal.Decimal `json:"amount"`
+	BorrowDate  int64           `json:"borrow_date"`
+	BorrowID    int64           `json:"borrow_id"`
+	Days        int64           `json:"days"`
+	TradeAmount decimal.Decimal `json:"deal_amount"`
+	Rate        decimal.Decimal `json:"rate"`
+	Status      int64           `json:"status"`
+	Symbol      string          `json:"symbol"`
 }
 
 // Record hold record data
 type Record struct {
-	Address            string  `json:"addr"`
-	Account            int64   `json:"account,string"`
-	Amount             float64 `json:"amount"`
-	Bank               string  `json:"bank"`
-	BenificiaryAddress string  `json:"benificiary_addr"`
-	TransactionValue   float64 `json:"transaction_value"`
-	Fee                float64 `json:"fee"`
-	Date               float64 `json:"date"`
+	Address            string          `json:"addr"`
+	Account            int64           `json:"account,string"`
+	Amount             decimal.Decimal `json:"amount"`
+	Bank               string          `json:"bank"`
+	BenificiaryAddress string          `json:"benificiary_addr"`
+	TransactionValue   decimal.Decimal `json:"transaction_value"`
+	Fee                decimal.Decimal `json:"fee"`
+	Date               decimal.Decimal `json:"date"`
 }
 
 // AccountRecords holds account record data
@@ -86,53 +88,53 @@ type AccountRecords struct {
 
 // FuturesOrder holds information about a futures order
 type FuturesOrder struct {
-	Amount       float64 `json:"amount"`
-	ContractName string  `json:"contract_name"`
-	DateCreated  float64 `json:"create_date"`
-	TradeAmount  float64 `json:"deal_amount"`
-	Fee          float64 `json:"fee"`
-	LeverageRate float64 `json:"lever_rate"`
-	OrderID      int64   `json:"order_id"`
-	Price        float64 `json:"price"`
-	AvgPrice     float64 `json:"avg_price"`
-	Status       float64 `json:"status"`
-	Symbol       string  `json:"symbol"`
-	Type         int64   `json:"type"`
-	UnitAmount   int64   `json:"unit_amount"`
+	Amount       decimal.Decimal `json:"amount"`
+	ContractName string          `json:"contract_name"`
+	DateCreated  decimal.Decimal `json:"create_date"`
+	TradeAmount  decimal.Decimal `json:"deal_amount"`
+	Fee          decimal.Decimal `json:"fee"`
+	LeverageRate decimal.Decimal `json:"lever_rate"`
+	OrderID      int64           `json:"order_id"`
+	Price        decimal.Decimal `json:"price"`
+	AvgPrice     decimal.Decimal `json:"avg_price"`
+	Status       decimal.Decimal `json:"status"`
+	Symbol       string          `json:"symbol"`
+	Type         int64           `json:"type"`
+	UnitAmount   int64           `json:"unit_amount"`
 }
 
 // FuturesHoldAmount contains futures hold amount data
 type FuturesHoldAmount struct {
-	Amount       float64 `json:"amount"`
-	ContractName string  `json:"contract_name"`
+	Amount       decimal.Decimal `json:"amount"`
+	ContractName string          `json:"contract_name"`
 }
 
 // FuturesExplosive holds inforamtion about explosive futures
 type FuturesExplosive struct {
-	Amount      float64 `json:"amount,string"`
-	DateCreated string  `json:"create_date"`
-	Loss        float64 `json:"loss,string"`
-	Type        int64   `json:"type"`
+	Amount      decimal.Decimal `json:"amount,string"`
+	DateCreated string          `json:"create_date"`
+	Loss        decimal.Decimal `json:"loss,string"`
+	Type        int64           `json:"type"`
 }
 
 // Trades holds trade data
 type Trades struct {
-	Amount  float64 `json:"amount,string"`
-	Date    int64   `json:"date"`
-	DateMS  int64   `json:"date_ms"`
-	Price   float64 `json:"price,string"`
-	TradeID int64   `json:"tid"`
-	Type    string  `json:"type"`
+	Amount  decimal.Decimal `json:"amount,string"`
+	Date    int64           `json:"date"`
+	DateMS  int64           `json:"date_ms"`
+	Price   decimal.Decimal `json:"price,string"`
+	TradeID int64           `json:"tid"`
+	Type    string          `json:"type"`
 }
 
 // FuturesTrades holds trade data for the futures market
 type FuturesTrades struct {
-	Amount  float64 `json:"amount"`
-	Date    int64   `json:"date"`
-	DateMS  int64   `json:"date_ms"`
-	Price   float64 `json:"price"`
-	TradeID int64   `json:"tid"`
-	Type    string  `json:"type"`
+	Amount  decimal.Decimal `json:"amount"`
+	Date    int64           `json:"date"`
+	DateMS  int64           `json:"date_ms"`
+	Price   decimal.Decimal `json:"price"`
+	TradeID int64           `json:"tid"`
+	Type    string          `json:"type"`
 }
 
 // UserInfo holds user account details
@@ -140,30 +142,30 @@ type UserInfo struct {
 	Info struct {
 		Funds struct {
 			Asset struct {
-				Net   float64 `json:"net,string"`
-				Total float64 `json:"total,string"`
+				Net   decimal.Decimal `json:"net,string"`
+				Total decimal.Decimal `json:"total,string"`
 			} `json:"asset"`
 			Borrow struct {
-				BTC float64 `json:"btc,string"`
-				LTC float64 `json:"ltc,string"`
-				USD float64 `json:"usd,string"`
-				CNY float64 `json:"cny,string"`
+				BTC decimal.Decimal `json:"btc,string"`
+				LTC decimal.Decimal `json:"ltc,string"`
+				USD decimal.Decimal `json:"usd,string"`
+				CNY decimal.Decimal `json:"cny,string"`
 			} `json:"borrow"`
 			Free struct {
-				BTC float64 `json:"btc,string"`
-				LTC float64 `json:"ltc,string"`
-				USD float64 `json:"usd,string"`
-				CNY float64 `json:"cny,string"`
+				BTC decimal.Decimal `json:"btc,string"`
+				LTC decimal.Decimal `json:"ltc,string"`
+				USD decimal.Decimal `json:"usd,string"`
+				CNY decimal.Decimal `json:"cny,string"`
 			} `json:"free"`
 			Freezed struct {
-				BTC float64 `json:"btc,string"`
-				LTC float64 `json:"ltc,string"`
-				USD float64 `json:"usd,string"`
-				CNY float64 `json:"cny,string"`
+				BTC decimal.Decimal `json:"btc,string"`
+				LTC decimal.Decimal `json:"ltc,string"`
+				USD decimal.Decimal `json:"usd,string"`
+				CNY decimal.Decimal `json:"cny,string"`
 			} `json:"freezed"`
 			UnionFund struct {
-				BTC float64 `json:"btc,string"`
-				LTC float64 `json:"ltc,string"`
+				BTC decimal.Decimal `json:"btc,string"`
+				LTC decimal.Decimal `json:"ltc,string"`
 			} `json:"union_fund"`
 		} `json:"funds"`
 	} `json:"info"`
@@ -187,16 +189,16 @@ type CancelOrderResponse struct {
 
 // OrderInfo holds data on an order
 type OrderInfo struct {
-	Amount     float64 `json:"amount"`
-	AvgPrice   float64 `json:"avg_price"`
-	Created    int64   `json:"create_date"`
-	DealAmount float64 `json:"deal_amount"`
-	OrderID    int64   `json:"order_id"`
-	OrdersID   int64   `json:"orders_id"`
-	Price      float64 `json:"price"`
-	Status     int     `json:"status"`
-	Symbol     string  `json:"symbol"`
-	Type       string  `json:"type"`
+	Amount     decimal.Decimal `json:"amount"`
+	AvgPrice   decimal.Decimal `json:"avg_price"`
+	Created    int64           `json:"create_date"`
+	DealAmount decimal.Decimal `json:"deal_amount"`
+	OrderID    int64           `json:"order_id"`
+	OrdersID   int64           `json:"orders_id"`
+	Price      decimal.Decimal `json:"price"`
+	Status     int             `json:"status"`
+	Symbol     string          `json:"symbol"`
+	Type       string          `json:"type"`
 }
 
 // OrderHistory holds information on order history
@@ -216,27 +218,27 @@ type WithdrawalResponse struct {
 
 // WithdrawInfo holds data on a withdraw
 type WithdrawInfo struct {
-	Address    string  `json:"address"`
-	Amount     float64 `json:"amount"`
-	Created    int64   `json:"created_date"`
-	ChargeFee  float64 `json:"chargefee"`
-	Status     int     `json:"status"`
-	WithdrawID int64   `json:"withdraw_id"`
+	Address    string          `json:"address"`
+	Amount     decimal.Decimal `json:"amount"`
+	Created    int64           `json:"created_date"`
+	ChargeFee  decimal.Decimal `json:"chargefee"`
+	Status     int             `json:"status"`
+	WithdrawID int64           `json:"withdraw_id"`
 }
 
 // OrderFeeInfo holds data on order fees
 type OrderFeeInfo struct {
-	Fee     float64 `json:"fee,string"`
-	OrderID int64   `json:"order_id"`
-	Type    string  `json:"type"`
+	Fee     decimal.Decimal `json:"fee,string"`
+	OrderID int64           `json:"order_id"`
+	Type    string          `json:"type"`
 }
 
 // LendDepth hold lend depths
 type LendDepth struct {
-	Amount float64 `json:"amount"`
-	Days   string  `json:"days"`
-	Num    int64   `json:"num"`
-	Rate   float64 `json:"rate,string"`
+	Amount decimal.Decimal `json:"amount"`
+	Days   string          `json:"days"`
+	Num    int64           `json:"num"`
+	Rate   decimal.Decimal `json:"rate,string"`
 }
 
 // BorrowResponse is a response type for borrow
@@ -247,39 +249,39 @@ type BorrowResponse struct {
 
 // WebsocketFutureIndex holds future index data for websocket
 type WebsocketFutureIndex struct {
-	FutureIndex float64 `json:"futureIndex"`
-	Timestamp   int64   `json:"timestamp,string"`
+	FutureIndex decimal.Decimal `json:"futureIndex"`
+	Timestamp   int64           `json:"timestamp,string"`
 }
 
 // WebsocketTicker holds ticker data for websocket
 type WebsocketTicker struct {
-	Timestamp float64
+	Timestamp decimal.Decimal
 	Vol       string
-	Buy       float64
-	High      float64
-	Last      float64
-	Low       float64
-	Sell      float64
+	Buy       decimal.Decimal
+	High      decimal.Decimal
+	Last      decimal.Decimal
+	Low       decimal.Decimal
+	Sell      decimal.Decimal
 }
 
 // WebsocketFuturesTicker holds futures ticker data for websocket
 type WebsocketFuturesTicker struct {
-	Buy        float64 `json:"buy"`
-	ContractID string  `json:"contractId"`
-	High       float64 `json:"high"`
-	HoldAmount float64 `json:"hold_amount"`
-	Last       float64 `json:"last,string"`
-	Low        float64 `json:"low"`
-	Sell       float64 `json:"sell"`
-	UnitAmount float64 `json:"unitAmount"`
-	Volume     float64 `json:"vol,string"`
+	Buy        decimal.Decimal `json:"buy"`
+	ContractID string          `json:"contractId"`
+	High       decimal.Decimal `json:"high"`
+	HoldAmount decimal.Decimal `json:"hold_amount"`
+	Last       decimal.Decimal `json:"last,string"`
+	Low        decimal.Decimal `json:"low"`
+	Sell       decimal.Decimal `json:"sell"`
+	UnitAmount decimal.Decimal `json:"unitAmount"`
+	Volume     decimal.Decimal `json:"vol,string"`
 }
 
 // WebsocketOrderbook holds orderbook data for websocket
 type WebsocketOrderbook struct {
-	Asks      [][]float64 `json:"asks"`
-	Bids      [][]float64 `json:"bids"`
-	Timestamp int64       `json:"timestamp,string"`
+	Asks      [][]decimal.Decimal `json:"asks"`
+	Bids      [][]decimal.Decimal `json:"bids"`
+	Timestamp int64               `json:"timestamp,string"`
 }
 
 // WebsocketUserinfo holds user info for websocket
@@ -287,20 +289,20 @@ type WebsocketUserinfo struct {
 	Info struct {
 		Funds struct {
 			Asset struct {
-				Net   float64 `json:"net,string"`
-				Total float64 `json:"total,string"`
+				Net   decimal.Decimal `json:"net,string"`
+				Total decimal.Decimal `json:"total,string"`
 			} `json:"asset"`
 			Free struct {
-				BTC float64 `json:"btc,string"`
-				LTC float64 `json:"ltc,string"`
-				USD float64 `json:"usd,string"`
-				CNY float64 `json:"cny,string"`
+				BTC decimal.Decimal `json:"btc,string"`
+				LTC decimal.Decimal `json:"ltc,string"`
+				USD decimal.Decimal `json:"usd,string"`
+				CNY decimal.Decimal `json:"cny,string"`
 			} `json:"free"`
 			Frozen struct {
-				BTC float64 `json:"btc,string"`
-				LTC float64 `json:"ltc,string"`
-				USD float64 `json:"usd,string"`
-				CNY float64 `json:"cny,string"`
+				BTC decimal.Decimal `json:"btc,string"`
+				LTC decimal.Decimal `json:"ltc,string"`
+				USD decimal.Decimal `json:"usd,string"`
+				CNY decimal.Decimal `json:"cny,string"`
 			} `json:"freezed"`
 		} `json:"funds"`
 	} `json:"info"`
@@ -309,28 +311,28 @@ type WebsocketUserinfo struct {
 
 // WebsocketFuturesContract holds futures contract information for websocket
 type WebsocketFuturesContract struct {
-	Available    float64 `json:"available"`
-	Balance      float64 `json:"balance"`
-	Bond         float64 `json:"bond"`
-	ContractID   float64 `json:"contract_id"`
-	ContractType string  `json:"contract_type"`
-	Frozen       float64 `json:"freeze"`
-	Profit       float64 `json:"profit"`
-	Loss         float64 `json:"unprofit"`
+	Available    decimal.Decimal `json:"available"`
+	Balance      decimal.Decimal `json:"balance"`
+	Bond         decimal.Decimal `json:"bond"`
+	ContractID   decimal.Decimal `json:"contract_id"`
+	ContractType string          `json:"contract_type"`
+	Frozen       decimal.Decimal `json:"freeze"`
+	Profit       decimal.Decimal `json:"profit"`
+	Loss         decimal.Decimal `json:"unprofit"`
 }
 
 // WebsocketFuturesUserInfo holds futures user information for websocket
 type WebsocketFuturesUserInfo struct {
 	Info struct {
 		BTC struct {
-			Balance   float64                    `json:"balance"`
+			Balance   decimal.Decimal            `json:"balance"`
 			Contracts []WebsocketFuturesContract `json:"contracts"`
-			Rights    float64                    `json:"rights"`
+			Rights    decimal.Decimal            `json:"rights"`
 		} `json:"btc"`
 		LTC struct {
-			Balance   float64                    `json:"balance"`
+			Balance   decimal.Decimal            `json:"balance"`
 			Contracts []WebsocketFuturesContract `json:"contracts"`
-			Rights    float64                    `json:"rights"`
+			Rights    decimal.Decimal            `json:"rights"`
 		} `json:"ltc"`
 	} `json:"info"`
 	Result bool `json:"result"`
@@ -338,68 +340,68 @@ type WebsocketFuturesUserInfo struct {
 
 // WebsocketOrder holds order data for websocket
 type WebsocketOrder struct {
-	Amount      float64 `json:"amount"`
-	AvgPrice    float64 `json:"avg_price"`
-	DateCreated float64 `json:"create_date"`
-	TradeAmount float64 `json:"deal_amount"`
-	OrderID     float64 `json:"order_id"`
-	OrdersID    float64 `json:"orders_id"`
-	Price       float64 `json:"price"`
-	Status      int64   `json:"status"`
-	Symbol      string  `json:"symbol"`
-	OrderType   string  `json:"type"`
+	Amount      decimal.Decimal `json:"amount"`
+	AvgPrice    decimal.Decimal `json:"avg_price"`
+	DateCreated decimal.Decimal `json:"create_date"`
+	TradeAmount decimal.Decimal `json:"deal_amount"`
+	OrderID     decimal.Decimal `json:"order_id"`
+	OrdersID    decimal.Decimal `json:"orders_id"`
+	Price       decimal.Decimal `json:"price"`
+	Status      int64           `json:"status"`
+	Symbol      string          `json:"symbol"`
+	OrderType   string          `json:"type"`
 }
 
 // WebsocketFuturesOrder holds futures order data for websocket
 type WebsocketFuturesOrder struct {
-	Amount         float64 `json:"amount"`
-	ContractName   string  `json:"contract_name"`
-	DateCreated    float64 `json:"createdDate"`
-	TradeAmount    float64 `json:"deal_amount"`
-	Fee            float64 `json:"fee"`
-	LeverageAmount int     `json:"lever_rate"`
-	OrderID        float64 `json:"order_id"`
-	Price          float64 `json:"price"`
-	AvgPrice       float64 `json:"avg_price"`
-	Status         int     `json:"status"`
-	Symbol         string  `json:"symbol"`
-	TradeType      int     `json:"type"`
-	UnitAmount     float64 `json:"unit_amount"`
+	Amount         decimal.Decimal `json:"amount"`
+	ContractName   string          `json:"contract_name"`
+	DateCreated    decimal.Decimal `json:"createdDate"`
+	TradeAmount    decimal.Decimal `json:"deal_amount"`
+	Fee            decimal.Decimal `json:"fee"`
+	LeverageAmount int             `json:"lever_rate"`
+	OrderID        decimal.Decimal `json:"order_id"`
+	Price          decimal.Decimal `json:"price"`
+	AvgPrice       decimal.Decimal `json:"avg_price"`
+	Status         int             `json:"status"`
+	Symbol         string          `json:"symbol"`
+	TradeType      int             `json:"type"`
+	UnitAmount     decimal.Decimal `json:"unit_amount"`
 }
 
 // WebsocketRealtrades holds real trade data for WebSocket
 type WebsocketRealtrades struct {
-	AveragePrice         float64 `json:"averagePrice,string"`
-	CompletedTradeAmount float64 `json:"completedTradeAmount,string"`
-	DateCreated          float64 `json:"createdDate"`
-	ID                   float64 `json:"id"`
-	OrderID              float64 `json:"orderId"`
-	SigTradeAmount       float64 `json:"sigTradeAmount,string"`
-	SigTradePrice        float64 `json:"sigTradePrice,string"`
-	Status               int64   `json:"status"`
-	Symbol               string  `json:"symbol"`
-	TradeAmount          float64 `json:"tradeAmount,string"`
-	TradePrice           float64 `json:"buy,string"`
-	TradeType            string  `json:"tradeType"`
-	TradeUnitPrice       float64 `json:"tradeUnitPrice,string"`
-	UnTrade              float64 `json:"unTrade,string"`
+	AveragePrice         decimal.Decimal `json:"averagePrice,string"`
+	CompletedTradeAmount decimal.Decimal `json:"completedTradeAmount,string"`
+	DateCreated          decimal.Decimal `json:"createdDate"`
+	ID                   decimal.Decimal `json:"id"`
+	OrderID              decimal.Decimal `json:"orderId"`
+	SigTradeAmount       decimal.Decimal `json:"sigTradeAmount,string"`
+	SigTradePrice        decimal.Decimal `json:"sigTradePrice,string"`
+	Status               int64           `json:"status"`
+	Symbol               string          `json:"symbol"`
+	TradeAmount          decimal.Decimal `json:"tradeAmount,string"`
+	TradePrice           decimal.Decimal `json:"buy,string"`
+	TradeType            string          `json:"tradeType"`
+	TradeUnitPrice       decimal.Decimal `json:"tradeUnitPrice,string"`
+	UnTrade              decimal.Decimal `json:"unTrade,string"`
 }
 
 // WebsocketFuturesRealtrades holds futures real trade data for websocket
 type WebsocketFuturesRealtrades struct {
-	Amount         float64 `json:"amount,string"`
-	ContractID     float64 `json:"contract_id,string"`
-	ContractName   string  `json:"contract_name"`
-	ContractType   string  `json:"contract_type"`
-	TradeAmount    float64 `json:"deal_amount,string"`
-	Fee            float64 `json:"fee,string"`
-	OrderID        float64 `json:"orderid"`
-	Price          float64 `json:"price,string"`
-	AvgPrice       float64 `json:"price_avg,string"`
-	Status         int     `json:"status,string"`
-	TradeType      int     `json:"type,string"`
-	UnitAmount     float64 `json:"unit_amount,string"`
-	LeverageAmount int     `json:"lever_rate,string"`
+	Amount         decimal.Decimal `json:"amount,string"`
+	ContractID     decimal.Decimal `json:"contract_id,string"`
+	ContractName   string          `json:"contract_name"`
+	ContractType   string          `json:"contract_type"`
+	TradeAmount    decimal.Decimal `json:"deal_amount,string"`
+	Fee            decimal.Decimal `json:"fee,string"`
+	OrderID        decimal.Decimal `json:"orderid"`
+	Price          decimal.Decimal `json:"price,string"`
+	AvgPrice       decimal.Decimal `json:"price_avg,string"`
+	Status         int             `json:"status,string"`
+	TradeType      int             `json:"type,string"`
+	UnitAmount     decimal.Decimal `json:"unit_amount,string"`
+	LeverageAmount int             `json:"lever_rate,string"`
 }
 
 // WebsocketEvent holds websocket events

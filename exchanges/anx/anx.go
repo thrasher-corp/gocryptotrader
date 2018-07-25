@@ -10,6 +10,7 @@ import (
 
 	"github.com/kempeng/gocryptotrader/common"
 	"github.com/kempeng/gocryptotrader/config"
+	"github.com/kempeng/gocryptotrader/decimal"
 	"github.com/kempeng/gocryptotrader/exchanges"
 	"github.com/kempeng/gocryptotrader/exchanges/request"
 	"github.com/kempeng/gocryptotrader/exchanges/ticker"
@@ -44,8 +45,8 @@ type ANX struct {
 func (a *ANX) SetDefaults() {
 	a.Name = "ANX"
 	a.Enabled = false
-	a.TakerFee = 0.6
-	a.MakerFee = 0.3
+	a.TakerFee = decimal.NewFromFloat(0.6)
+	a.MakerFee = decimal.NewFromFloat(0.3)
 	a.Verbose = false
 	a.Websocket = false
 	a.RESTPollingDelay = 10
@@ -106,7 +107,7 @@ func (a *ANX) GetCurrencies() (CurrenciesStore, error) {
 }
 
 // GetFee returns maker or taker fees
-func (a *ANX) GetFee(maker bool) float64 {
+func (a *ANX) GetFee(maker bool) decimal.Decimal {
 	if maker {
 		return a.MakerFee
 	}

@@ -3,11 +3,11 @@ package exmo
 import (
 	"errors"
 	"log"
-	"strconv"
 	"sync"
 
 	"github.com/kempeng/gocryptotrader/common"
 	"github.com/kempeng/gocryptotrader/currency/pair"
+	"github.com/kempeng/gocryptotrader/decimal"
 	exchange "github.com/kempeng/gocryptotrader/exchanges"
 	"github.com/kempeng/gocryptotrader/exchanges/orderbook"
 	"github.com/kempeng/gocryptotrader/exchanges/ticker"
@@ -115,8 +115,8 @@ func (e *EXMO) UpdateOrderbook(p pair.CurrencyPair, assetType string) (orderbook
 		var obItems []orderbook.Item
 		for y := range data.Ask {
 			z := data.Ask[y]
-			price, _ := strconv.ParseFloat(z[0], 64)
-			amount, _ := strconv.ParseFloat(z[1], 64)
+			price, _ := decimal.NewFromString(z[0])
+			amount, _ := decimal.NewFromString(z[1])
 			obItems = append(obItems, orderbook.Item{Price: price, Amount: amount})
 		}
 
@@ -124,8 +124,8 @@ func (e *EXMO) UpdateOrderbook(p pair.CurrencyPair, assetType string) (orderbook
 		obItems = []orderbook.Item{}
 		for y := range data.Bid {
 			z := data.Bid[y]
-			price, _ := strconv.ParseFloat(z[0], 64)
-			amount, _ := strconv.ParseFloat(z[1], 64)
+			price, _ := decimal.NewFromString(z[0])
+			amount, _ := decimal.NewFromString(z[1])
 			obItems = append(obItems, orderbook.Item{Price: price, Amount: amount})
 		}
 
@@ -150,9 +150,9 @@ func (e *EXMO) GetExchangeAccountInfo() (exchange.AccountInfo, error) {
 		exchangeCurrency.CurrencyName = common.StringToUpper(x)
 		for z, w := range result.Reserved {
 			if z == x {
-				avail, _ := strconv.ParseFloat(y, 64)
-				reserved, _ := strconv.ParseFloat(w, 64)
-				exchangeCurrency.TotalValue = avail + reserved
+				avail, _ := decimal.NewFromString(y)
+				reserved, _ := decimal.NewFromString(w)
+				exchangeCurrency.TotalValue = avail.Add(reserved)
 				exchangeCurrency.Hold = reserved
 			}
 		}

@@ -74,7 +74,7 @@ func (b *Bittrex) GetExchangeAccountInfo() (exchange.AccountInfo, error) {
 		var exchangeCurrency exchange.AccountCurrencyInfo
 		exchangeCurrency.CurrencyName = accountBalance.Result[i].Currency
 		exchangeCurrency.TotalValue = accountBalance.Result[i].Balance
-		exchangeCurrency.Hold = accountBalance.Result[i].Balance - accountBalance.Result[i].Available
+		exchangeCurrency.Hold = accountBalance.Result[i].Balance.Sub(accountBalance.Result[i].Available)
 		response.Currencies = append(response.Currencies, exchangeCurrency)
 	}
 	return response, nil

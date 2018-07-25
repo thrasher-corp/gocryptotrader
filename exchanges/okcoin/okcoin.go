@@ -12,6 +12,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/kempeng/gocryptotrader/common"
 	"github.com/kempeng/gocryptotrader/config"
+	"github.com/kempeng/gocryptotrader/decimal"
 	"github.com/kempeng/gocryptotrader/exchanges"
 	"github.com/kempeng/gocryptotrader/exchanges/request"
 	"github.com/kempeng/gocryptotrader/exchanges/ticker"
@@ -154,7 +155,7 @@ func (o *OKCoin) Setup(exch config.ExchangeConfig) {
 }
 
 // GetFee returns current fees for the exchange
-func (o *OKCoin) GetFee(maker bool) float64 {
+func (o *OKCoin) GetFee(maker bool) decimal.Decimal {
 	if o.APIUrl == okcoinAPIURL {
 		if maker {
 			return o.MakerFee
@@ -162,7 +163,7 @@ func (o *OKCoin) GetFee(maker bool) float64 {
 		return o.TakerFee
 	}
 	// Chinese exchange does not have any trading fees
-	return 0
+	return decimal.Zero
 }
 
 // GetTicker returns the current ticker

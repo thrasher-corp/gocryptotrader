@@ -1,5 +1,7 @@
 package coinut
 
+import "github.com/kempeng/gocryptotrader/decimal"
+
 // GenericResponse is the generic response you will get from coinut
 type GenericResponse struct {
 	Nonce     int64    `json:"nonce"`
@@ -24,22 +26,22 @@ type Instruments struct {
 
 // Ticker holds ticker information
 type Ticker struct {
-	HighestBuy   float64 `json:"highest_buy,string"`
-	InstrumentID int     `json:"inst_id"`
-	Last         float64 `json:"last,string"`
-	LowestSell   float64 `json:"lowest_sell,string"`
-	OpenInterest float64 `json:"open_interest,string"`
-	Timestamp    float64 `json:"timestamp"`
-	TransID      int64   `json:"trans_id"`
-	Volume       float64 `json:"volume,string"`
-	Volume24     float64 `json:"volume24,string"`
+	HighestBuy   decimal.Decimal `json:"highest_buy,string"`
+	InstrumentID int             `json:"inst_id"`
+	Last         decimal.Decimal `json:"last,string"`
+	LowestSell   decimal.Decimal `json:"lowest_sell,string"`
+	OpenInterest decimal.Decimal `json:"open_interest,string"`
+	Timestamp    decimal.Decimal `json:"timestamp"`
+	TransID      int64           `json:"trans_id"`
+	Volume       decimal.Decimal `json:"volume,string"`
+	Volume24     decimal.Decimal `json:"volume24,string"`
 }
 
 // OrderbookBase is a sub-type holding price and quantity
 type OrderbookBase struct {
-	Count    int     `json:"count"`
-	Price    float64 `json:"price,string"`
-	Quantity float64 `json:"qty,string"`
+	Count    int             `json:"count"`
+	Price    decimal.Decimal `json:"price,string"`
+	Quantity decimal.Decimal `json:"qty,string"`
 }
 
 // Orderbook is the full order book
@@ -47,18 +49,18 @@ type Orderbook struct {
 	Buy          []OrderbookBase `json:"buy"`
 	Sell         []OrderbookBase `json:"sell"`
 	InstrumentID int             `json:"inst_id"`
-	TotalBuy     float64         `json:"total_buy,string"`
-	TotalSell    float64         `json:"total_sell,string"`
+	TotalBuy     decimal.Decimal `json:"total_buy,string"`
+	TotalSell    decimal.Decimal `json:"total_sell,string"`
 	TransID      int64           `json:"trans_id"`
 }
 
 // TradeBase is a sub-type holding information on trades
 type TradeBase struct {
-	Price     float64 `json:"price,string"`
-	Quantity  float64 `json:"quantity,string"`
-	Side      string  `json:"side"`
-	Timestamp float64 `json:"timestamp"`
-	TransID   int64   `json:"trans_id"`
+	Price     decimal.Decimal `json:"price,string"`
+	Quantity  decimal.Decimal `json:"quantity,string"`
+	Side      string          `json:"side"`
+	Timestamp decimal.Decimal `json:"timestamp"`
+	TransID   int64           `json:"trans_id"`
 }
 
 // Trades holds the full amount of trades associated with API keys
@@ -68,53 +70,53 @@ type Trades struct {
 
 // UserBalance holds user balances on the exchange
 type UserBalance struct {
-	BTC               float64 `json:"btc,string"`
-	ETC               float64 `json:"etc,string"`
-	ETH               float64 `json:"eth,string"`
-	LTC               float64 `json:"ltc,string"`
-	Equity            float64 `json:"equity,string,string"`
-	InitialMargin     float64 `json:"initial_margin,string"`
-	MaintenanceMargin float64 `json:"maintenance_margin,string"`
-	RealizedPL        float64 `json:"realized_pl,string"`
-	TransID           int64   `json:"trans_id"`
-	UnrealizedPL      float64 `json:"unrealized_pl,string"`
+	BTC               decimal.Decimal `json:"btc,string"`
+	ETC               decimal.Decimal `json:"etc,string"`
+	ETH               decimal.Decimal `json:"eth,string"`
+	LTC               decimal.Decimal `json:"ltc,string"`
+	Equity            decimal.Decimal `json:"equity,string,string"`
+	InitialMargin     decimal.Decimal `json:"initial_margin,string"`
+	MaintenanceMargin decimal.Decimal `json:"maintenance_margin,string"`
+	RealizedPL        decimal.Decimal `json:"realized_pl,string"`
+	TransID           int64           `json:"trans_id"`
+	UnrealizedPL      decimal.Decimal `json:"unrealized_pl,string"`
 }
 
 // Order holds order information
 type Order struct {
-	InstrumentID  int64   `json:"inst_id"`
-	Price         float64 `json:"price,string"`
-	Quantity      float64 `json:"qty,string"`
-	ClientOrderID int     `json:"client_ord_id"`
-	Side          string  `json:"side,string"`
+	InstrumentID  int64           `json:"inst_id"`
+	Price         decimal.Decimal `json:"price,string"`
+	Quantity      decimal.Decimal `json:"qty,string"`
+	ClientOrderID int             `json:"client_ord_id"`
+	Side          string          `json:"side,string"`
 }
 
 // OrderResponse is a response for orders
 type OrderResponse struct {
-	OrderID       int64   `json:"order_id"`
-	OpenQuantity  float64 `json:"open_qty,string"`
-	Price         float64 `json:"price,string"`
-	Quantity      float64 `json:"qty,string"`
-	InstrumentID  int64   `json:"inst_id"`
-	ClientOrderID int64   `json:"client_ord_id"`
-	Timestamp     int64   `json:"timestamp"`
-	OrderPrice    float64 `json:"order_price,string"`
-	Side          string  `json:"side"`
+	OrderID       int64           `json:"order_id"`
+	OpenQuantity  decimal.Decimal `json:"open_qty,string"`
+	Price         decimal.Decimal `json:"price,string"`
+	Quantity      decimal.Decimal `json:"qty,string"`
+	InstrumentID  int64           `json:"inst_id"`
+	ClientOrderID int64           `json:"client_ord_id"`
+	Timestamp     int64           `json:"timestamp"`
+	OrderPrice    decimal.Decimal `json:"order_price,string"`
+	Side          string          `json:"side"`
 }
 
 // Commission holds trade commission structure
 type Commission struct {
-	Currency string  `json:"currency"`
-	Amount   float64 `json:"amount,string"`
+	Currency string          `json:"currency"`
+	Amount   decimal.Decimal `json:"amount,string"`
 }
 
 // OrderFilledResponse contains order filled response
 type OrderFilledResponse struct {
 	GenericResponse
-	Commission   Commission    `json:"commission"`
-	FillPrice    float64       `json:"fill_price,string"`
-	FillQuantity float64       `json:"fill_qty,string"`
-	Order        OrderResponse `json:"order"`
+	Commission   Commission      `json:"commission"`
+	FillPrice    decimal.Decimal `json:"fill_price,string"`
+	FillQuantity decimal.Decimal `json:"fill_qty,string"`
+	Order        OrderResponse   `json:"order"`
 }
 
 // OrderRejectResponse holds information on a rejected order
@@ -158,17 +160,17 @@ type TradeHistory struct {
 
 // IndexTicker holds indexed ticker inforamtion
 type IndexTicker struct {
-	Asset string  `json:"asset"`
-	Price float64 `json:"price,string"`
+	Asset string          `json:"asset"`
+	Price decimal.Decimal `json:"price,string"`
 }
 
 // Option holds options information
 type Option struct {
-	HighestBuy   float64 `json:"highest_buy,string"`
-	InstrumentID int     `json:"inst_id"`
-	Last         float64 `json:"last,string"`
-	LowestSell   float64 `json:"lowest_sell,string"`
-	OpenInterest float64 `json:"open_interest,string"`
+	HighestBuy   decimal.Decimal `json:"highest_buy,string"`
+	InstrumentID int             `json:"inst_id"`
+	Last         decimal.Decimal `json:"last,string"`
+	LowestSell   decimal.Decimal `json:"lowest_sell,string"`
+	OpenInterest decimal.Decimal `json:"open_interest,string"`
 }
 
 // OptionChainResponse is the response type for options
@@ -177,9 +179,9 @@ type OptionChainResponse struct {
 	SecurityType string `json:"sec_type"`
 	Asset        string `json:"asset"`
 	Entries      []struct {
-		Call   Option  `json:"call"`
-		Put    Option  `json:"put"`
-		Strike float64 `json:"strike,string"`
+		Call   Option          `json:"call"`
+		Put    Option          `json:"put"`
+		Strike decimal.Decimal `json:"strike,string"`
 	}
 }
 
@@ -187,10 +189,10 @@ type OptionChainResponse struct {
 type OptionChainUpdate struct {
 	Option
 	GenericResponse
-	Asset        string  `json:"asset"`
-	ExpiryTime   int64   `json:"expiry_time"`
-	SecurityType string  `json:"sec_type"`
-	Volume       float64 `json:"volume,string"`
+	Asset        string          `json:"asset"`
+	ExpiryTime   int64           `json:"expiry_time"`
+	SecurityType string          `json:"sec_type"`
+	Volume       decimal.Decimal `json:"volume,string"`
 }
 
 // PositionHistory holds the complete position history
@@ -198,28 +200,28 @@ type PositionHistory struct {
 	Positions []struct {
 		PositionID int `json:"position_id"`
 		Records    []struct {
-			Commission    Commission `json:"commission"`
-			FillPrice     float64    `json:"fill_price,string,omitempty"`
-			TransactionID int        `json:"trans_id"`
-			FillQuantity  float64    `json:"fill_qty,omitempty"`
+			Commission    Commission      `json:"commission"`
+			FillPrice     decimal.Decimal `json:"fill_price,string,omitempty"`
+			TransactionID int             `json:"trans_id"`
+			FillQuantity  decimal.Decimal `json:"fill_qty,omitempty"`
 			Position      struct {
-				Commission Commission `json:"commission"`
-				Timestamp  int64      `json:"timestamp"`
-				OpenPrice  float64    `json:"open_price,string"`
-				RealizedPL float64    `json:"realized_pl,string"`
-				Quantity   float64    `json:"qty,string"`
+				Commission Commission      `json:"commission"`
+				Timestamp  int64           `json:"timestamp"`
+				OpenPrice  decimal.Decimal `json:"open_price,string"`
+				RealizedPL decimal.Decimal `json:"realized_pl,string"`
+				Quantity   decimal.Decimal `json:"qty,string"`
 			} `json:"position"`
-			AssetAtExpiry float64 `json:"asset_at_expiry,string,omitempty"`
+			AssetAtExpiry decimal.Decimal `json:"asset_at_expiry,string,omitempty"`
 		} `json:"records"`
 		Instrument struct {
-			ExpiryTime     int64   `json:"expiry_time"`
-			ContractSize   float64 `json:"contract_size,string"`
-			ConversionRate float64 `json:"conversion_rate,string"`
-			OptionType     string  `json:"option_type"`
-			InstrumentID   int     `json:"inst_id"`
-			SecType        string  `json:"sec_type"`
-			Asset          string  `json:"asset"`
-			Strike         float64 `json:"strike,string"`
+			ExpiryTime     int64           `json:"expiry_time"`
+			ContractSize   decimal.Decimal `json:"contract_size,string"`
+			ConversionRate decimal.Decimal `json:"conversion_rate,string"`
+			OptionType     string          `json:"option_type"`
+			InstrumentID   int             `json:"inst_id"`
+			SecType        string          `json:"sec_type"`
+			Asset          string          `json:"asset"`
+			Strike         decimal.Decimal `json:"strike,string"`
 		} `json:"inst"`
 		OpenTimestamp int64 `json:"open_timestamp"`
 	} `json:"positions"`
@@ -228,11 +230,11 @@ type PositionHistory struct {
 
 // OpenPosition holds information on an open position
 type OpenPosition struct {
-	PositionID    int        `json:"position_id"`
-	Commission    Commission `json:"commission"`
-	OpenPrice     float64    `json:"open_price,string"`
-	RealizedPL    float64    `json:"realized_pl,string"`
-	Quantity      float64    `json:"qty,string"`
-	OpenTimestamp int64      `json:"open_timestamp"`
-	InstrumentID  int        `json:"inst_id"`
+	PositionID    int             `json:"position_id"`
+	Commission    Commission      `json:"commission"`
+	OpenPrice     decimal.Decimal `json:"open_price,string"`
+	RealizedPL    decimal.Decimal `json:"realized_pl,string"`
+	Quantity      decimal.Decimal `json:"qty,string"`
+	OpenTimestamp int64           `json:"open_timestamp"`
+	InstrumentID  int             `json:"inst_id"`
 }

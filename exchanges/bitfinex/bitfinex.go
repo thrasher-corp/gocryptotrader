@@ -11,6 +11,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/kempeng/gocryptotrader/common"
 	"github.com/kempeng/gocryptotrader/config"
+	"github.com/kempeng/gocryptotrader/decimal"
 	"github.com/kempeng/gocryptotrader/exchanges"
 	"github.com/kempeng/gocryptotrader/exchanges/request"
 	"github.com/kempeng/gocryptotrader/exchanges/ticker"
@@ -181,30 +182,30 @@ func (b *Bitfinex) GetTickerV2(symbol string) (Tickerv2, error) {
 	}
 
 	if len(response) > 10 {
-		ticker.FlashReturnRate = response[0].(float64)
-		ticker.Bid = response[1].(float64)
-		ticker.BidSize = response[2].(float64)
+		ticker.FlashReturnRate = decimal.NewFromFloat(response[0].(float64))
+		ticker.Bid = decimal.NewFromFloat(response[1].(float64))
+		ticker.BidSize = decimal.NewFromFloat(response[2].(float64))
 		ticker.BidPeriod = int64(response[3].(float64))
-		ticker.Ask = response[4].(float64)
-		ticker.AskSize = response[5].(float64)
+		ticker.Ask = decimal.NewFromFloat(response[4].(float64))
+		ticker.AskSize = decimal.NewFromFloat(response[5].(float64))
 		ticker.AskPeriod = int64(response[6].(float64))
-		ticker.DailyChange = response[7].(float64)
-		ticker.DailyChangePerc = response[8].(float64)
-		ticker.Last = response[9].(float64)
-		ticker.Volume = response[10].(float64)
-		ticker.High = response[11].(float64)
-		ticker.Low = response[12].(float64)
+		ticker.DailyChange = decimal.NewFromFloat(response[7].(float64))
+		ticker.DailyChangePerc = decimal.NewFromFloat(response[8].(float64))
+		ticker.Last = decimal.NewFromFloat(response[9].(float64))
+		ticker.Volume = decimal.NewFromFloat(response[10].(float64))
+		ticker.High = decimal.NewFromFloat(response[11].(float64))
+		ticker.Low = decimal.NewFromFloat(response[12].(float64))
 	} else {
-		ticker.Bid = response[0].(float64)
-		ticker.BidSize = response[1].(float64)
-		ticker.Ask = response[2].(float64)
-		ticker.AskSize = response[3].(float64)
-		ticker.DailyChange = response[4].(float64)
-		ticker.DailyChangePerc = response[5].(float64)
-		ticker.Last = response[6].(float64)
-		ticker.Volume = response[7].(float64)
-		ticker.High = response[8].(float64)
-		ticker.Low = response[9].(float64)
+		ticker.Bid = decimal.NewFromFloat(response[0].(float64))
+		ticker.BidSize = decimal.NewFromFloat(response[1].(float64))
+		ticker.Ask = decimal.NewFromFloat(response[2].(float64))
+		ticker.AskSize = decimal.NewFromFloat(response[3].(float64))
+		ticker.DailyChange = decimal.NewFromFloat(response[4].(float64))
+		ticker.DailyChangePerc = decimal.NewFromFloat(response[5].(float64))
+		ticker.Last = decimal.NewFromFloat(response[6].(float64))
+		ticker.Volume = decimal.NewFromFloat(response[7].(float64))
+		ticker.High = decimal.NewFromFloat(response[8].(float64))
+		ticker.Low = decimal.NewFromFloat(response[9].(float64))
 	}
 	return ticker, nil
 }
@@ -228,31 +229,31 @@ func (b *Bitfinex) GetTickersV2(symbols string) ([]Tickersv2, error) {
 		data := response[x]
 		if len(data) > 11 {
 			tick.Symbol = data[0].(string)
-			tick.FlashReturnRate = data[1].(float64)
-			tick.Bid = data[2].(float64)
-			tick.BidSize = data[3].(float64)
+			tick.FlashReturnRate = decimal.NewFromFloat(data[1].(float64))
+			tick.Bid = decimal.NewFromFloat(data[2].(float64))
+			tick.BidSize = decimal.NewFromFloat(data[3].(float64))
 			tick.BidPeriod = int64(data[4].(float64))
-			tick.Ask = data[5].(float64)
-			tick.AskSize = data[6].(float64)
+			tick.Ask = decimal.NewFromFloat(data[5].(float64))
+			tick.AskSize = decimal.NewFromFloat(data[6].(float64))
 			tick.AskPeriod = int64(data[7].(float64))
-			tick.DailyChange = data[8].(float64)
-			tick.DailyChangePerc = data[9].(float64)
-			tick.Last = data[10].(float64)
-			tick.Volume = data[11].(float64)
-			tick.High = data[12].(float64)
-			tick.Low = data[13].(float64)
+			tick.DailyChange = decimal.NewFromFloat(data[8].(float64))
+			tick.DailyChangePerc = decimal.NewFromFloat(data[9].(float64))
+			tick.Last = decimal.NewFromFloat(data[10].(float64))
+			tick.Volume = decimal.NewFromFloat(data[11].(float64))
+			tick.High = decimal.NewFromFloat(data[12].(float64))
+			tick.Low = decimal.NewFromFloat(data[13].(float64))
 		} else {
 			tick.Symbol = data[0].(string)
-			tick.Bid = data[1].(float64)
-			tick.BidSize = data[2].(float64)
-			tick.Ask = data[3].(float64)
-			tick.AskSize = data[4].(float64)
-			tick.DailyChange = data[5].(float64)
-			tick.DailyChangePerc = data[6].(float64)
-			tick.Last = data[7].(float64)
-			tick.Volume = data[8].(float64)
-			tick.High = data[9].(float64)
-			tick.Low = data[10].(float64)
+			tick.Bid = decimal.NewFromFloat(data[1].(float64))
+			tick.BidSize = decimal.NewFromFloat(data[2].(float64))
+			tick.Ask = decimal.NewFromFloat(data[3].(float64))
+			tick.AskSize = decimal.NewFromFloat(data[4].(float64))
+			tick.DailyChange = decimal.NewFromFloat(data[5].(float64))
+			tick.DailyChangePerc = decimal.NewFromFloat(data[6].(float64))
+			tick.Last = decimal.NewFromFloat(data[7].(float64))
+			tick.Volume = decimal.NewFromFloat(data[8].(float64))
+			tick.High = decimal.NewFromFloat(data[9].(float64))
+			tick.Low = decimal.NewFromFloat(data[10].(float64))
 		}
 		tickers = append(tickers, tick)
 	}
@@ -320,24 +321,24 @@ func (b *Bitfinex) GetOrderbookV2(symbol, precision string, values url.Values) (
 		bookItem := BookV2{}
 
 		if len(data) > 3 {
-			bookItem.Rate = data[0].(float64)
-			bookItem.Price = data[1].(float64)
+			bookItem.Rate = decimal.NewFromFloat(data[0].(float64))
+			bookItem.Price = decimal.NewFromFloat(data[1].(float64))
 			bookItem.Count = int64(data[2].(float64))
-			bookItem.Amount = data[3].(float64)
+			bookItem.Amount = decimal.NewFromFloat(data[3].(float64))
 		} else {
-			bookItem.Price = data[0].(float64)
+			bookItem.Price = decimal.NewFromFloat(data[0].(float64))
 			bookItem.Count = int64(data[1].(float64))
-			bookItem.Amount = data[2].(float64)
+			bookItem.Amount = decimal.NewFromFloat(data[2].(float64))
 		}
 
 		if symbol[0] == 't' {
-			if bookItem.Amount > 0 {
+			if bookItem.Amount.GreaterThan(decimal.Zero) {
 				book.Bids = append(book.Bids, bookItem)
 			} else {
 				book.Asks = append(book.Asks, bookItem)
 			}
 		} else {
-			if bookItem.Amount > 0 {
+			if bookItem.Amount.GreaterThan(decimal.Zero) {
 				book.Asks = append(book.Asks, bookItem)
 			} else {
 				book.Bids = append(book.Bids, bookItem)
@@ -387,14 +388,15 @@ func (b *Bitfinex) GetTradesV2(currencyPair string, timestampStart, timestampEnd
 	for _, data := range resp {
 		tempHistory.TID = int64(data[0].(float64))
 		tempHistory.Timestamp = int64(data[1].(float64))
-		tempHistory.Amount = data[2].(float64)
-		tempHistory.Price = data[3].(float64)
+		tempHistory.Amount = decimal.NewFromFloat(data[2].(float64))
+
+		tempHistory.Price = decimal.NewFromFloat(data[3].(float64))
 		tempHistory.Exchange = b.Name
 		tempHistory.Type = "BUY"
 
-		if tempHistory.Amount < 0 {
+		if tempHistory.Amount.LessThan(decimal.Zero) {
 			tempHistory.Type = "SELL"
-			tempHistory.Amount = tempHistory.Amount * -1
+			tempHistory.Amount = tempHistory.Amount.Mul(decimal.MinusOne)
 		}
 
 		actualHistory = append(actualHistory, tempHistory)

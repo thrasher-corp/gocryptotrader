@@ -6,6 +6,7 @@ import (
 	"sync"
 
 	"github.com/kempeng/gocryptotrader/common"
+	"github.com/kempeng/gocryptotrader/decimal"
 
 	"github.com/kempeng/gocryptotrader/currency/pair"
 	"github.com/kempeng/gocryptotrader/exchanges"
@@ -150,7 +151,7 @@ func (b *BTCMarkets) GetExchangeHistory(p pair.CurrencyPair, assetType string) (
 }
 
 // SubmitExchangeOrder submits a new order
-func (b *BTCMarkets) SubmitExchangeOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (int64, error) {
+func (b *BTCMarkets) SubmitExchangeOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price decimal.Decimal, clientID string) (int64, error) {
 	return b.NewOrder(p.GetFirstCurrency().Upper().String(), p.GetSecondCurrency().Upper().String(), price, amount, side.Format(b.GetName()), orderType.Format(b.GetName()), clientID)
 }
 
@@ -228,13 +229,13 @@ func (b *BTCMarkets) GetExchangeDepositAddress(cryptocurrency pair.CurrencyItem)
 }
 
 // WithdrawCryptoExchangeFunds returns a withdrawal ID when a withdrawal is submitted
-func (b *BTCMarkets) WithdrawCryptoExchangeFunds(address string, cryptocurrency pair.CurrencyItem, amount float64) (string, error) {
+func (b *BTCMarkets) WithdrawCryptoExchangeFunds(address string, cryptocurrency pair.CurrencyItem, amount decimal.Decimal) (string, error) {
 	return b.WithdrawCrypto(amount, cryptocurrency.String(), address)
 }
 
 // WithdrawFiatExchangeFunds returns a withdrawal ID when a
 // withdrawal is submitted
-func (b *BTCMarkets) WithdrawFiatExchangeFunds(currency pair.CurrencyItem, amount float64) (string, error) {
+func (b *BTCMarkets) WithdrawFiatExchangeFunds(currency pair.CurrencyItem, amount decimal.Decimal) (string, error) {
 	bd, err := b.GetClientBankAccounts(b.Name, currency.Upper().String())
 	if err != nil {
 		return "", err
@@ -244,6 +245,6 @@ func (b *BTCMarkets) WithdrawFiatExchangeFunds(currency pair.CurrencyItem, amoun
 
 // WithdrawFiatExchangeFundsToInternationalBank returns a withdrawal ID when a
 // withdrawal is submitted
-func (b *BTCMarkets) WithdrawFiatExchangeFundsToInternationalBank(currency pair.CurrencyItem, amount float64) (string, error) {
+func (b *BTCMarkets) WithdrawFiatExchangeFundsToInternationalBank(currency pair.CurrencyItem, amount decimal.Decimal) (string, error) {
 	return "", errors.New("not yet implemented")
 }

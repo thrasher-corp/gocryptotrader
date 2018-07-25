@@ -10,6 +10,7 @@ import (
 
 	"github.com/kempeng/gocryptotrader/common"
 	"github.com/kempeng/gocryptotrader/config"
+	"github.com/kempeng/gocryptotrader/decimal"
 	"github.com/kempeng/gocryptotrader/exchanges"
 	"github.com/kempeng/gocryptotrader/exchanges/request"
 	"github.com/kempeng/gocryptotrader/exchanges/ticker"
@@ -171,15 +172,15 @@ func (k *Kraken) GetTicker(symbol string) (Ticker, error) {
 	}
 
 	for _, y := range resp.Data {
-		ticker.Ask, _ = strconv.ParseFloat(y.Ask[0], 64)
-		ticker.Bid, _ = strconv.ParseFloat(y.Bid[0], 64)
-		ticker.Last, _ = strconv.ParseFloat(y.Last[0], 64)
-		ticker.Volume, _ = strconv.ParseFloat(y.Volume[1], 64)
-		ticker.VWAP, _ = strconv.ParseFloat(y.VWAP[1], 64)
+		ticker.Ask, _ = decimal.NewFromString(y.Ask[0])
+		ticker.Bid, _ = decimal.NewFromString(y.Bid[0])
+		ticker.Last, _ = decimal.NewFromString(y.Last[0])
+		ticker.Volume, _ = decimal.NewFromString(y.Volume[1])
+		ticker.VWAP, _ = decimal.NewFromString(y.VWAP[1])
 		ticker.Trades = y.Trades[1]
-		ticker.Low, _ = strconv.ParseFloat(y.Low[1], 64)
-		ticker.High, _ = strconv.ParseFloat(y.High[1], 64)
-		ticker.Open, _ = strconv.ParseFloat(y.Open, 64)
+		ticker.Low, _ = decimal.NewFromString(y.Low[1])
+		ticker.High, _ = decimal.NewFromString(y.High[1])
+		ticker.Open, _ = decimal.NewFromString(y.Open)
 	}
 	return ticker, nil
 }
@@ -213,21 +214,21 @@ func (k *Kraken) GetOHLC(symbol string) ([]OpenHighLowClose, error) {
 		for i, x := range y.([]interface{}) {
 			switch i {
 			case 0:
-				o.Time = x.(float64)
+				o.Time = decimal.NewFromFloat(x.(float64))
 			case 1:
-				o.Open, _ = strconv.ParseFloat(x.(string), 64)
+				o.Open, _ = decimal.NewFromString(x.(string))
 			case 2:
-				o.High, _ = strconv.ParseFloat(x.(string), 64)
+				o.High, _ = decimal.NewFromString(x.(string))
 			case 3:
-				o.Low, _ = strconv.ParseFloat(x.(string), 64)
+				o.Low, _ = decimal.NewFromString(x.(string))
 			case 4:
-				o.Close, _ = strconv.ParseFloat(x.(string), 64)
+				o.Close, _ = decimal.NewFromString(x.(string))
 			case 5:
-				o.Vwap, _ = strconv.ParseFloat(x.(string), 64)
+				o.Vwap, _ = decimal.NewFromString(x.(string))
 			case 6:
-				o.Volume, _ = strconv.ParseFloat(x.(string), 64)
+				o.Volume, _ = decimal.NewFromString(x.(string))
 			case 7:
-				o.Count = x.(float64)
+				o.Count = decimal.NewFromFloat(x.(float64))
 			}
 		}
 		OHLC = append(OHLC, o)
@@ -266,12 +267,12 @@ func (k *Kraken) GetDepth(symbol string) (Orderbook, error) {
 		for x := range data {
 			entry := data[x].([]interface{})
 
-			price, priceErr := strconv.ParseFloat(entry[0].(string), 64)
+			price, priceErr := decimal.NewFromString(entry[0].(string))
 			if priceErr != nil {
 				return nil, priceErr
 			}
 
-			amount, amountErr := strconv.ParseFloat(entry[1].(string), 64)
+			amount, amountErr := decimal.NewFromString(entry[1].(string))
 			if amountErr != nil {
 				return nil, amountErr
 			}
@@ -317,11 +318,11 @@ func (k *Kraken) GetTrades(symbol string) ([]RecentTrades, error) {
 		for i, y := range x.([]interface{}) {
 			switch i {
 			case 0:
-				r.Price, _ = strconv.ParseFloat(y.(string), 64)
+				r.Price, _ = decimal.NewFromString(y.(string))
 			case 1:
-				r.Volume, _ = strconv.ParseFloat(y.(string), 64)
+				r.Volume, _ = decimal.NewFromString(y.(string))
 			case 2:
-				r.Time = y.(float64)
+				r.Time = decimal.NewFromFloat(y.(float64))
 			case 3:
 				r.BuyOrSell = y.(string)
 			case 4:
@@ -358,11 +359,11 @@ func (k *Kraken) GetSpread(symbol string) ([]Spread, error) {
 		for i, y := range x.([]interface{}) {
 			switch i {
 			case 0:
-				s.Time = y.(float64)
+				s.Time = decimal.NewFromFloat(y.(float64))
 			case 1:
-				s.Bid, _ = strconv.ParseFloat(y.(string), 64)
+				s.Bid, _ = decimal.NewFromString(y.(string))
 			case 2:
-				s.Ask, _ = strconv.ParseFloat(y.(string), 64)
+				s.Ask, _ = decimal.NewFromString(y.(string))
 			}
 		}
 		peanutButter = append(peanutButter, s)
@@ -553,16 +554,16 @@ func (k *Kraken) GetTradeVolume(symbol string) (interface{}, error) {
 }
 
 // AddOrder adds a new order for Kraken exchange
-func (k *Kraken) AddOrder(symbol, side, orderType string, price, price2, volume, leverage, position float64) (interface{}, error) {
+func (k *Kraken) AddOrder(symbol, side, orderType string, price, price2, volume, leverage, position decimal.Decimal) (interface{}, error) {
 	values := url.Values{}
 	values.Set("pairs", symbol)
 	values.Set("type", side)
 	values.Set("ordertype", orderType)
-	values.Set("price", strconv.FormatFloat(price, 'f', -1, 64))
-	values.Set("price2", strconv.FormatFloat(price, 'f', -1, 64))
-	values.Set("volume", strconv.FormatFloat(volume, 'f', -1, 64))
-	values.Set("leverage", strconv.FormatFloat(leverage, 'f', -1, 64))
-	values.Set("position", strconv.FormatFloat(position, 'f', -1, 64))
+	values.Set("price", price.String())
+	values.Set("price2", price.String())
+	values.Set("volume", volume.String())
+	values.Set("leverage", leverage.String())
+	values.Set("position", position.String())
 
 	return k.SendAuthenticatedHTTPRequest(krakenOrderPlace, values)
 }

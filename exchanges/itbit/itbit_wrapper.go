@@ -3,10 +3,10 @@ package itbit
 import (
 	"errors"
 	"log"
-	"strconv"
 	"sync"
 
 	"github.com/kempeng/gocryptotrader/currency/pair"
+	"github.com/kempeng/gocryptotrader/decimal"
 	"github.com/kempeng/gocryptotrader/exchanges"
 	"github.com/kempeng/gocryptotrader/exchanges/orderbook"
 	"github.com/kempeng/gocryptotrader/exchanges/ticker"
@@ -78,11 +78,11 @@ func (i *ItBit) UpdateOrderbook(p pair.CurrencyPair, assetType string) (orderboo
 
 	for x := range orderbookNew.Bids {
 		data := orderbookNew.Bids[x]
-		price, err := strconv.ParseFloat(data[0], 64)
+		price, err := decimal.NewFromString(data[0])
 		if err != nil {
 			log.Println(err)
 		}
-		amount, err := strconv.ParseFloat(data[1], 64)
+		amount, err := decimal.NewFromString(data[1])
 		if err != nil {
 			log.Println(err)
 		}
@@ -91,11 +91,11 @@ func (i *ItBit) UpdateOrderbook(p pair.CurrencyPair, assetType string) (orderboo
 
 	for x := range orderbookNew.Asks {
 		data := orderbookNew.Asks[x]
-		price, err := strconv.ParseFloat(data[0], 64)
+		price, err := decimal.NewFromString(data[0])
 		if err != nil {
 			log.Println(err)
 		}
-		amount, err := strconv.ParseFloat(data[1], 64)
+		amount, err := decimal.NewFromString(data[1])
 		if err != nil {
 			log.Println(err)
 		}

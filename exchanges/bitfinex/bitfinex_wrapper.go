@@ -8,6 +8,7 @@ import (
 
 	"github.com/kempeng/gocryptotrader/common"
 	"github.com/kempeng/gocryptotrader/currency/pair"
+	"github.com/kempeng/gocryptotrader/decimal"
 	"github.com/kempeng/gocryptotrader/exchanges"
 	"github.com/kempeng/gocryptotrader/exchanges/orderbook"
 	"github.com/kempeng/gocryptotrader/exchanges/ticker"
@@ -130,14 +131,14 @@ func (b *Bitfinex) GetExchangeAccountInfo() (exchange.AccountInfo, error) {
 	}
 
 	type bfxCoins struct {
-		OnHold    float64
-		Available float64
+		OnHold    decimal.Decimal
+		Available decimal.Decimal
 	}
 
 	accounts := make(map[string]bfxCoins)
 
 	for i := range accountBalance {
-		onHold := accountBalance[i].Amount - accountBalance[i].Available
+		onHold := accountBalance[i].Amount.Sub(accountBalance[i].Available)
 		coins := bfxCoins{
 			OnHold:    onHold,
 			Available: accountBalance[i].Available,
@@ -146,8 +147,8 @@ func (b *Bitfinex) GetExchangeAccountInfo() (exchange.AccountInfo, error) {
 		if !ok {
 			accounts[accountBalance[i].Currency] = coins
 		} else {
-			result.Available += accountBalance[i].Available
-			result.OnHold += onHold
+			result.Available = result.Available.Add(accountBalance[i].Available)
+			result.OnHold = result.OnHold.Add(onHold)
 			accounts[accountBalance[i].Currency] = result
 		}
 	}
@@ -155,7 +156,7 @@ func (b *Bitfinex) GetExchangeAccountInfo() (exchange.AccountInfo, error) {
 	for x, y := range accounts {
 		var exchangeCurrency exchange.AccountCurrencyInfo
 		exchangeCurrency.CurrencyName = common.StringToUpper(x)
-		exchangeCurrency.TotalValue = y.Available + y.OnHold
+		exchangeCurrency.TotalValue = y.Available.Add(y.OnHold)
 		exchangeCurrency.Hold = y.OnHold
 		response.Currencies = append(response.Currencies, exchangeCurrency)
 	}

@@ -6,6 +6,7 @@ import (
 
 	"github.com/kempeng/gocryptotrader/config"
 	"github.com/kempeng/gocryptotrader/currency/pair"
+	"github.com/kempeng/gocryptotrader/decimal"
 	exchange "github.com/kempeng/gocryptotrader/exchanges"
 )
 
@@ -40,7 +41,7 @@ func TestSetup(t *testing.T) {
 
 func TestGetFee(t *testing.T) {
 	t.Parallel()
-	if fee := bm.GetFee(); fee == 0 {
+	if fee := bm.GetFee(); fee.Equal(decimal.Zero) {
 		t.Error("Test failed - GetFee() error")
 	}
 }
@@ -78,7 +79,7 @@ func TestGetTrades(t *testing.T) {
 
 func TestNewOrder(t *testing.T) {
 	t.Parallel()
-	_, err := bm.NewOrder("AUD", "BTC", 0, 0, "Bid", "limit", "testTest")
+	_, err := bm.NewOrder("AUD", "BTC", decimal.Zero, decimal.Zero, "Bid", "limit", "testTest")
 	if err == nil {
 		t.Error("Test failed - NewOrder() error", err)
 	}
@@ -122,7 +123,7 @@ func TestGetAccountBalance(t *testing.T) {
 
 func TestWithdrawCrypto(t *testing.T) {
 	t.Parallel()
-	_, err := bm.WithdrawCrypto(0, "BTC", "LOLOLOL")
+	_, err := bm.WithdrawCrypto(decimal.Zero, "BTC", "LOLOLOL")
 	if err == nil {
 		t.Error("Test failed - WithdrawCrypto() error", err)
 	}
@@ -130,7 +131,7 @@ func TestWithdrawCrypto(t *testing.T) {
 
 func TestWithdrawAUD(t *testing.T) {
 	t.Parallel()
-	_, err := bm.WithdrawAUD("BLA", "1337", "blawest", "1336", 10000000)
+	_, err := bm.WithdrawAUD("BLA", "1337", "blawest", "1336", decimal.NewFromInt(10000000))
 	if err == nil {
 		t.Error("Test failed - WithdrawAUD() error", err)
 	}
@@ -152,7 +153,7 @@ func TestGetExchangeFundTransferHistory(t *testing.T) {
 
 func TestSubmitExchangeOrder(t *testing.T) {
 	p := pair.NewCurrencyPair("LTC", "AUD")
-	_, err := bm.SubmitExchangeOrder(p, exchange.OrderSideSell(), exchange.OrderTypeMarket(), 0, 0.0, "testID001")
+	_, err := bm.SubmitExchangeOrder(p, exchange.OrderSideSell(), exchange.OrderTypeMarket(), decimal.Zero, decimal.Zero, "testID001")
 	if err == nil {
 		t.Error("Test failed - SubmitExchangeOrder() error", err)
 	}
@@ -187,14 +188,14 @@ func TestGetExchangeOrderInfo(t *testing.T) {
 }
 
 func TestWithdrawCryptoExchangeFunds(t *testing.T) {
-	_, err := bm.WithdrawCryptoExchangeFunds("someaddress", "ltc", 0)
+	_, err := bm.WithdrawCryptoExchangeFunds("someaddress", "ltc", decimal.Zero)
 	if err == nil {
 		t.Error("Test failed - WithdrawExchangeFunds() error", err)
 	}
 }
 
 func TestWithdrawFiatExchangeFunds(t *testing.T) {
-	_, err := bm.WithdrawFiatExchangeFunds("AUD", 0)
+	_, err := bm.WithdrawFiatExchangeFunds("AUD", decimal.Zero)
 	if err == nil {
 		t.Error("Test failed - WithdrawFiatExchangeFunds() error", err)
 	}

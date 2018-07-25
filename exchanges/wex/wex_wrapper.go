@@ -7,6 +7,7 @@ import (
 
 	"github.com/kempeng/gocryptotrader/common"
 	"github.com/kempeng/gocryptotrader/currency/pair"
+	"github.com/kempeng/gocryptotrader/decimal"
 	exchange "github.com/kempeng/gocryptotrader/exchanges"
 	"github.com/kempeng/gocryptotrader/exchanges/orderbook"
 	"github.com/kempeng/gocryptotrader/exchanges/ticker"
@@ -136,7 +137,7 @@ func (w *WEX) GetExchangeAccountInfo() (exchange.AccountInfo, error) {
 		var exchangeCurrency exchange.AccountCurrencyInfo
 		exchangeCurrency.CurrencyName = common.StringToUpper(x)
 		exchangeCurrency.TotalValue = y
-		exchangeCurrency.Hold = 0
+		exchangeCurrency.Hold = decimal.Zero
 		response.Currencies = append(response.Currencies, exchangeCurrency)
 	}
 

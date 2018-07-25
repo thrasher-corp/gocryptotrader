@@ -17,6 +17,7 @@ import (
 
 	"github.com/kempeng/gocryptotrader/common"
 	"github.com/kempeng/gocryptotrader/config"
+	"github.com/kempeng/gocryptotrader/decimal"
 	"github.com/kempeng/gocryptotrader/exchanges"
 	"github.com/kempeng/gocryptotrader/exchanges/request"
 	"github.com/kempeng/gocryptotrader/exchanges/ticker"
@@ -66,7 +67,7 @@ type HUOBI struct {
 func (h *HUOBI) SetDefaults() {
 	h.Name = "Huobi"
 	h.Enabled = false
-	h.Fee = 0
+	h.Fee = decimal.Zero
 	h.Verbose = false
 	h.Websocket = false
 	h.RESTPollingDelay = 10
@@ -112,7 +113,7 @@ func (h *HUOBI) Setup(exch config.ExchangeConfig) {
 }
 
 // GetFee returns Huobi fee
-func (h *HUOBI) GetFee() float64 {
+func (h *HUOBI) GetFee() decimal.Decimal {
 	return h.Fee
 }
 
@@ -339,14 +340,14 @@ func (h *HUOBI) GetAccountBalance(accountID string) ([]AccountBalanceDetail, err
 }
 
 // PlaceOrder submits an order to Huobi
-func (h *HUOBI) PlaceOrder(symbol, source, accountID, orderType string, amount, price float64) (int64, error) {
+func (h *HUOBI) PlaceOrder(symbol, source, accountID, orderType string, amount, price decimal.Decimal) (int64, error) {
 	vals := url.Values{}
 	vals.Set("account-id", accountID)
-	vals.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
+	vals.Set("amount", amount.String())
 
 	// Only set price if order type is not equal to buy-market or sell-market
 	if orderType != "buy-market" && orderType != "sell-market" {
-		vals.Set("price", strconv.FormatFloat(price, 'f', -1, 64))
+		vals.Set("price", price.String())
 	}
 
 	if source != "" {
@@ -525,11 +526,11 @@ func (h *HUOBI) GetOrdersMatch(symbol, types, start, end, from, direct, size str
 }
 
 // MarginTransfer transfers assets into or out of the margin account
-func (h *HUOBI) MarginTransfer(symbol, currency string, amount float64, in bool) (int64, error) {
+func (h *HUOBI) MarginTransfer(symbol, currency string, amount decimal.Decimal, in bool) (int64, error) {
 	vals := url.Values{}
 	vals.Set("symbol", symbol)
 	vals.Set("currency", currency)
-	vals.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
+	vals.Set("amount", amount.String())
 
 	path := huobiMarginTransferIn
 	if !in {
@@ -551,11 +552,11 @@ func (h *HUOBI) MarginTransfer(symbol, currency string, amount float64, in bool)
 }
 
 // MarginOrder submits a margin order application
-func (h *HUOBI) MarginOrder(symbol, currency string, amount float64) (int64, error) {
+func (h *HUOBI) MarginOrder(symbol, currency string, amount decimal.Decimal) (int64, error) {
 	vals := url.Values{}
 	vals.Set("symbol", symbol)
 	vals.Set("currency", currency)
-	vals.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
+	vals.Set("amount", amount.String())
 
 	type response struct {
 		Response
@@ -572,10 +573,10 @@ func (h *HUOBI) MarginOrder(symbol, currency string, amount float64) (int64, err
 }
 
 // MarginRepayment repays a margin amount for a margin ID
-func (h *HUOBI) MarginRepayment(orderID int64, amount float64) (int64, error) {
+func (h *HUOBI) MarginRepayment(orderID int64, amount decimal.Decimal) (int64, error) {
 	vals := url.Values{}
 	vals.Set("order-id", strconv.FormatInt(orderID, 10))
-	vals.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
+	vals.Set("amount", amount.String())
 
 	type response struct {
 		Response
@@ -658,7 +659,7 @@ func (h *HUOBI) GetMarginAccountBalance(symbol string) ([]MarginAccountBalance, 
 }
 
 // Withdraw withdraws the desired amount and currency
-func (h *HUOBI) Withdraw(address, currency, addrTag string, amount, fee float64) (int64, error) {
+func (h *HUOBI) Withdraw(address, currency, addrTag string, amount, fee decimal.Decimal) (int64, error) {
 	type response struct {
 		Response
 		WithdrawID int64 `json:"data"`
@@ -667,10 +668,10 @@ func (h *HUOBI) Withdraw(address, currency, addrTag string, amount, fee float64)
 	vals := url.Values{}
 	vals.Set("address", address)
 	vals.Set("currency", currency)
-	vals.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
+	vals.Set("amount", amount.String())
 
-	if fee != 0 {
-		vals.Set("fee", strconv.FormatFloat(fee, 'f', -1, 64))
+	if fee.NotZero() {
+		vals.Set("fee", fee.String())
 	}
 
 	if currency == "XRP" {

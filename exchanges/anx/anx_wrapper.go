@@ -3,7 +3,6 @@ package anx
 import (
 	"errors"
 	"log"
-	"strconv"
 	"sync"
 
 	"github.com/kempeng/gocryptotrader/common"
@@ -120,12 +119,12 @@ func (a *ANX) UpdateTicker(p pair.CurrencyPair, assetType string) (ticker.Price,
 	}
 
 	if tick.Data.Vol.Value != "" {
-		tickerPrice.Volume, err = strconv.ParseFloat(tick.Data.Vol.Value, 64)
+		tickerPrice.Volume, err = decimal.NewFromString(tick.Data.Vol.Value)
 		if err != nil {
 			return tickerPrice, err
 		}
 	} else {
-		tickerPrice.Volume = 0
+		tickerPrice.Volume = decimal.Zero
 	}
 
 	if tick.Data.High.Value != "" {

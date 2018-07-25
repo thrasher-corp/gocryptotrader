@@ -11,6 +11,7 @@ import (
 
 	"github.com/kempeng/gocryptotrader/common"
 	"github.com/kempeng/gocryptotrader/config"
+	"github.com/kempeng/gocryptotrader/decimal"
 	exchange "github.com/kempeng/gocryptotrader/exchanges"
 	"github.com/kempeng/gocryptotrader/exchanges/request"
 	"github.com/kempeng/gocryptotrader/exchanges/ticker"
@@ -163,16 +164,16 @@ func (b *Bithumb) GetAllTickers() (map[string]Ticker, error) {
 
 		data := v.(map[string]interface{})
 		var t Ticker
-		t.AveragePrice, _ = strconv.ParseFloat(data["average_price"].(string), 64)
-		t.BuyPrice, _ = strconv.ParseFloat(data["buy_price"].(string), 64)
-		t.ClosingPrice, _ = strconv.ParseFloat(data["closing_price"].(string), 64)
-		t.MaxPrice, _ = strconv.ParseFloat(data["max_price"].(string), 64)
-		t.MinPrice, _ = strconv.ParseFloat(data["min_price"].(string), 64)
-		t.OpeningPrice, _ = strconv.ParseFloat(data["opening_price"].(string), 64)
-		t.SellPrice, _ = strconv.ParseFloat(data["sell_price"].(string), 64)
-		t.UnitsTraded, _ = strconv.ParseFloat(data["units_traded"].(string), 64)
-		t.Volume1Day, _ = strconv.ParseFloat(data["volume_1day"].(string), 64)
-		t.Volume7Day, _ = strconv.ParseFloat(data["volume_7day"].(string), 64)
+		t.AveragePrice, _ = decimal.NewFromString(data["average_price"].(string))
+		t.BuyPrice, _ = decimal.NewFromString(data["buy_price"].(string))
+		t.ClosingPrice, _ = decimal.NewFromString(data["closing_price"].(string))
+		t.MaxPrice, _ = decimal.NewFromString(data["max_price"].(string))
+		t.MinPrice, _ = decimal.NewFromString(data["min_price"].(string))
+		t.OpeningPrice, _ = decimal.NewFromString(data["opening_price"].(string))
+		t.SellPrice, _ = decimal.NewFromString(data["sell_price"].(string))
+		t.UnitsTraded, _ = decimal.NewFromString(data["units_traded"].(string))
+		t.Volume1Day, _ = decimal.NewFromString(data["volume_1day"].(string))
+		t.Volume7Day, _ = decimal.NewFromString(data["volume_7day"].(string))
 		result[k] = t
 
 	}

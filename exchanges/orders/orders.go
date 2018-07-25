@@ -1,5 +1,7 @@
 package orders
 
+import "github.com/kempeng/gocryptotrader/decimal"
+
 const (
 	limitOrder = iota
 	marketOrder
@@ -13,12 +15,12 @@ type Order struct {
 	OrderID  int
 	Exchange string
 	Type     int
-	Amount   float64
-	Price    float64
+	Amount   decimal.Decimal
+	Price    decimal.Decimal
 }
 
 // NewOrder creates a new order and returns a an orderID
-func NewOrder(Exchange string, amount, price float64) int {
+func NewOrder(Exchange string, amount, price decimal.Decimal) int {
 	order := &Order{}
 	if len(Orders) == 0 {
 		order.OrderID = 0

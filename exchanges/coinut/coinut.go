@@ -10,6 +10,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/kempeng/gocryptotrader/common"
 	"github.com/kempeng/gocryptotrader/config"
+	"github.com/kempeng/gocryptotrader/decimal"
 	"github.com/kempeng/gocryptotrader/exchanges"
 	"github.com/kempeng/gocryptotrader/exchanges/request"
 	"github.com/kempeng/gocryptotrader/exchanges/ticker"
@@ -50,8 +51,8 @@ func (c *COINUT) SetDefaults() {
 	c.Name = "COINUT"
 	c.Enabled = false
 	c.Verbose = false
-	c.TakerFee = 0.1 //spot
-	c.MakerFee = 0
+	c.TakerFee = decimal.OneTenth //spot
+	c.MakerFee = decimal.Zero
 	c.Verbose = false
 	c.Websocket = false
 	c.RESTPollingDelay = 10

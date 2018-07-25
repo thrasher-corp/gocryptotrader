@@ -1,19 +1,21 @@
 package lakebtc
 
+import "github.com/kempeng/gocryptotrader/decimal"
+
 // Ticker holds ticker information
 type Ticker struct {
-	Last   float64
-	Bid    float64
-	Ask    float64
-	High   float64
-	Low    float64
-	Volume float64
+	Last   decimal.Decimal
+	Bid    decimal.Decimal
+	Ask    decimal.Decimal
+	High   decimal.Decimal
+	Low    decimal.Decimal
+	Volume decimal.Decimal
 }
 
 // OrderbookStructure stores price and amount for order books
 type OrderbookStructure struct {
-	Price  float64
-	Amount float64
+	Price  decimal.Decimal
+	Amount decimal.Decimal
 }
 
 // Orderbook contains arrays of orderbook information
@@ -35,10 +37,10 @@ type TickerResponse struct {
 
 // TradeHistory holds trade history data
 type TradeHistory struct {
-	Date   int64   `json:"data"`
-	Price  float64 `json:"price,string"`
-	Amount float64 `json:"amount,string"`
-	TID    int64   `json:"tid"`
+	Date   int64           `json:"data"`
+	Price  decimal.Decimal `json:"price,string"`
+	Amount decimal.Decimal `json:"amount,string"`
+	TID    int64           `json:"tid"`
 }
 
 // AccountInfo contains account information
@@ -60,33 +62,33 @@ type Trade struct {
 
 // OpenOrders stores full information on your open orders
 type OpenOrders struct {
-	ID     int64   `json:"id"`
-	Amount float64 `json:"amount,string"`
-	Price  float64 `json:"price,string"`
-	Symbol string  `json:"symbol"`
-	Type   string  `json:"type"`
-	At     int64   `json:"at"`
+	ID     int64           `json:"id"`
+	Amount decimal.Decimal `json:"amount,string"`
+	Price  decimal.Decimal `json:"price,string"`
+	Symbol string          `json:"symbol"`
+	Type   string          `json:"type"`
+	At     int64           `json:"at"`
 }
 
 // Orders holds current order information
 type Orders struct {
-	ID             int64   `json:"id"`
-	OriginalAmount float64 `json:"original_amount,string"`
-	Amount         float64 `json:"amount,string"`
-	Price          float64 `json:"price,string"`
-	Symbol         string  `json:"symbol"`
-	Type           string  `json:"type"`
-	State          string  `json:"state"`
-	At             int64   `json:"at"`
+	ID             int64           `json:"id"`
+	OriginalAmount decimal.Decimal `json:"original_amount,string"`
+	Amount         decimal.Decimal `json:"amount,string"`
+	Price          decimal.Decimal `json:"price,string"`
+	Symbol         string          `json:"symbol"`
+	Type           string          `json:"type"`
+	State          string          `json:"state"`
+	At             int64           `json:"at"`
 }
 
 // AuthenticatedTradeHistory is a store of personalised auth trade history
 type AuthenticatedTradeHistory struct {
-	Type   string  `json:"type"`
-	Symbol string  `json:"symbol"`
-	Amount float64 `json:"amount,string"`
-	Total  float64 `json:"total,string"`
-	At     int64   `json:"at"`
+	Type   string          `json:"type"`
+	Symbol string          `json:"symbol"`
+	Amount decimal.Decimal `json:"amount,string"`
+	Total  decimal.Decimal `json:"total,string"`
+	At     int64           `json:"at"`
 }
 
 // ExternalAccounts holds external account information
@@ -102,12 +104,12 @@ type ExternalAccounts struct {
 
 // Withdraw holds withdrawal information
 type Withdraw struct {
-	ID                int64   `json:"id,string"`
-	Amount            float64 `json:"amount,string"`
-	Currency          string  `json:"currency"`
-	Fee               float64 `json:"fee,string"`
-	State             string  `json:"state"`
-	Source            string  `json:"source"`
-	ExternalAccountID int64   `json:"external_account_id,string"`
-	At                int64   `json:"at"`
+	ID                int64           `json:"id,string"`
+	Amount            decimal.Decimal `json:"amount,string"`
+	Currency          string          `json:"currency"`
+	Fee               decimal.Decimal `json:"fee,string"`
+	State             string          `json:"state"`
+	Source            string          `json:"source"`
+	ExternalAccountID int64           `json:"external_account_id,string"`
+	At                int64           `json:"at"`
 }

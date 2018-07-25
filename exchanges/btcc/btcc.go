@@ -11,6 +11,7 @@ import (
 
 	"github.com/kempeng/gocryptotrader/common"
 	"github.com/kempeng/gocryptotrader/config"
+	"github.com/kempeng/gocryptotrader/decimal"
 	"github.com/kempeng/gocryptotrader/exchanges"
 	"github.com/kempeng/gocryptotrader/exchanges/request"
 	"github.com/kempeng/gocryptotrader/exchanges/ticker"
@@ -56,7 +57,7 @@ type BTCC struct {
 func (b *BTCC) SetDefaults() {
 	b.Name = "BTCC"
 	b.Enabled = false
-	b.Fee = 0
+	b.Fee = decimal.Zero
 	b.Verbose = false
 	b.Websocket = false
 	b.RESTPollingDelay = 10
@@ -101,7 +102,7 @@ func (b *BTCC) Setup(exch config.ExchangeConfig) {
 }
 
 // GetFee returns the fees associated with transactions
-func (b *BTCC) GetFee() float64 {
+func (b *BTCC) GetFee() decimal.Decimal {
 	return b.Fee
 }
 

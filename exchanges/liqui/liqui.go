@@ -11,6 +11,7 @@ import (
 
 	"github.com/kempeng/gocryptotrader/common"
 	"github.com/kempeng/gocryptotrader/config"
+	"github.com/kempeng/gocryptotrader/decimal"
 	"github.com/kempeng/gocryptotrader/exchanges"
 	"github.com/kempeng/gocryptotrader/exchanges/request"
 	"github.com/kempeng/gocryptotrader/exchanges/ticker"
@@ -48,7 +49,7 @@ type Liqui struct {
 func (l *Liqui) SetDefaults() {
 	l.Name = "Liqui"
 	l.Enabled = false
-	l.Fee = 0.25
+	l.Fee = decimal.NewFromFloat(0.25)
 	l.Verbose = false
 	l.Websocket = false
 	l.RESTPollingDelay = 10
@@ -95,10 +96,10 @@ func (l *Liqui) Setup(exch config.ExchangeConfig) {
 }
 
 // GetFee returns a fee for a specific currency
-func (l *Liqui) GetFee(currency string) (float64, error) {
+func (l *Liqui) GetFee(currency string) (decimal.Decimal, error) {
 	val, ok := l.Info.Pairs[common.StringToLower(currency)]
 	if !ok {
-		return 0, errors.New("currency does not exist")
+		return decimal.Zero, errors.New("currency does not exist")
 	}
 
 	return val.Fee, nil
@@ -190,12 +191,12 @@ func (l *Liqui) GetAccountInfo() (AccountInfo, error) {
 
 // Trade creates orders on the exchange.
 // to-do: convert orderid to int64
-func (l *Liqui) Trade(pair, orderType string, amount, price float64) (float64, error) {
+func (l *Liqui) Trade(pair, orderType string, amount, price decimal.Decimal) (decimal.Decimal, error) {
 	req := url.Values{}
 	req.Add("pair", pair)
 	req.Add("type", orderType)
-	req.Add("amount", strconv.FormatFloat(amount, 'f', -1, 64))
-	req.Add("rate", strconv.FormatFloat(price, 'f', -1, 64))
+	req.Add("amount", amount.String())
+	req.Add("rate", price.String())
 
 	var result Trade
 

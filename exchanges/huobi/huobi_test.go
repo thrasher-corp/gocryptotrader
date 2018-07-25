@@ -44,7 +44,7 @@ func TestSetup(t *testing.T) {
 
 func TestGetFee(t *testing.T) {
 	t.Parallel()
-	if h.GetFee() != 0 {
+	if h.GetFee().NotZero() {
 		t.Errorf("test failed - Huobi GetFee() error")
 	}
 }

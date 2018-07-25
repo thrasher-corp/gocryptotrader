@@ -11,6 +11,7 @@ import (
 
 	"github.com/kempeng/gocryptotrader/common"
 	"github.com/kempeng/gocryptotrader/config"
+	"github.com/kempeng/gocryptotrader/decimal"
 	"github.com/kempeng/gocryptotrader/exchanges"
 	"github.com/kempeng/gocryptotrader/exchanges/request"
 	"github.com/kempeng/gocryptotrader/exchanges/ticker"
@@ -63,8 +64,8 @@ func (c *CoinbasePro) SetDefaults() {
 	c.Name = "CoinbasePro"
 	c.Enabled = false
 	c.Verbose = false
-	c.TakerFee = 0.25
-	c.MakerFee = 0
+	c.TakerFee = decimal.NewFromFloat(0.25)
+	c.MakerFee = decimal.Zero
 	c.Websocket = false
 	c.RESTPollingDelay = 10
 	c.RequestCurrencyPairFormat.Delimiter = "-"
@@ -112,7 +113,7 @@ func (c *CoinbasePro) Setup(exch config.ExchangeConfig) {
 }
 
 // GetFee returns the current fee for the exchange
-func (c *CoinbasePro) GetFee(maker bool) float64 {
+func (c *CoinbasePro) GetFee(maker bool) decimal.Decimal {
 	if maker {
 		return c.MakerFee
 	}
@@ -145,11 +146,11 @@ func (c *CoinbasePro) GetOrderbook(symbol string, level int) (interface{}, error
 		ob := OrderbookL3{}
 		ob.Sequence = orderbook.Sequence
 		for _, x := range orderbook.Asks {
-			price, err := strconv.ParseFloat((x[0].(string)), 64)
+			price, err := decimal.NewFromString((x[0].(string)))
 			if err != nil {
 				continue
 			}
-			amount, err := strconv.ParseFloat((x[1].(string)), 64)
+			amount, err := decimal.NewFromString((x[1].(string)))
 			if err != nil {
 				continue
 			}
@@ -157,11 +158,11 @@ func (c *CoinbasePro) GetOrderbook(symbol string, level int) (interface{}, error
 			ob.Asks = append(ob.Asks, OrderL3{Price: price, Amount: amount, OrderID: x[2].(string)})
 		}
 		for _, x := range orderbook.Bids {
-			price, err := strconv.ParseFloat((x[0].(string)), 64)
+			price, err := decimal.NewFromString((x[0].(string)))
 			if err != nil {
 				continue
 			}
-			amount, err := strconv.ParseFloat((x[1].(string)), 64)
+			amount, err := decimal.NewFromString((x[1].(string)))
 			if err != nil {
 				continue
 			}
@@ -173,11 +174,11 @@ func (c *CoinbasePro) GetOrderbook(symbol string, level int) (interface{}, error
 	ob := OrderbookL1L2{}
 	ob.Sequence = orderbook.Sequence
 	for _, x := range orderbook.Asks {
-		price, err := strconv.ParseFloat((x[0].(string)), 64)
+		price, err := decimal.NewFromString((x[0].(string)))
 		if err != nil {
 			continue
 		}
-		amount, err := strconv.ParseFloat((x[1].(string)), 64)
+		amount, err := decimal.NewFromString((x[1].(string)))
 		if err != nil {
 			continue
 		}
@@ -185,11 +186,11 @@ func (c *CoinbasePro) GetOrderbook(symbol string, level int) (interface{}, error
 		ob.Asks = append(ob.Asks, OrderL1L2{Price: price, Amount: amount, NumOrders: x[2].(float64)})
 	}
 	for _, x := range orderbook.Bids {
-		price, err := strconv.ParseFloat((x[0].(string)), 64)
+		price, err := decimal.NewFromString((x[0].(string)))
 		if err != nil {
 			continue
 		}
-		amount, err := strconv.ParseFloat((x[1].(string)), 64)
+		amount, err := decimal.NewFromString((x[1].(string)))
 		if err != nil {
 			continue
 		}
@@ -250,15 +251,15 @@ func (c *CoinbasePro) GetHistoricRates(currencyPair string, start, end, granular
 		var s History
 		a, _ := single[0].(float64)
 		s.Time = int64(a)
-		b, _ := single[1].(float64)
+		b := decimal.NewFromFloat(single[1].(float64))
 		s.Low = b
-		c, _ := single[2].(float64)
+		c := decimal.NewFromFloat(single[2].(float64))
 		s.High = c
-		d, _ := single[3].(float64)
+		d := decimal.NewFromFloat(single[3].(float64))
 		s.Open = d
-		e, _ := single[4].(float64)
+		e := decimal.NewFromFloat(single[4].(float64))
 		s.Close = e
-		f, _ := single[5].(float64)
+		f := decimal.NewFromFloat(single[5].(float64))
 		s.Volume = f
 		history = append(history, s)
 	}
@@ -346,12 +347,12 @@ func (c *CoinbasePro) GetHolds(accountID string) ([]AccountHolds, error) {
 // timeInforce - [optional] GTC, GTT, IOC, or FOK (default is GTC)
 // cancelAfter - [optional] min, hour, day * Requires time_in_force to be GTT
 // postOnly - [optional] Post only flag Invalid when time_in_force is IOC or FOK
-func (c *CoinbasePro) PlaceLimitOrder(clientRef string, price, amount float64, side, timeInforce, cancelAfter, productID, stp string, postOnly bool) (string, error) {
+func (c *CoinbasePro) PlaceLimitOrder(clientRef string, price, amount decimal.Decimal, side, timeInforce, cancelAfter, productID, stp string, postOnly bool) (string, error) {
 	resp := GeneralizedOrderResponse{}
 	request := make(map[string]interface{})
 	request["type"] = "limit"
-	request["price"] = strconv.FormatFloat(price, 'f', -1, 64)
-	request["size"] = strconv.FormatFloat(amount, 'f', -1, 64)
+	request["price"] = price.String()
+	request["size"] = amount.String()
 	request["side"] = side
 	request["product_id"] = productID
 
@@ -395,18 +396,18 @@ func (c *CoinbasePro) PlaceLimitOrder(clientRef string, price, amount float64, s
 // size - [optional]* Desired amount in BTC
 // funds	[optional]* Desired amount of quote currency to use
 // * One of size or funds is required.
-func (c *CoinbasePro) PlaceMarketOrder(clientRef string, size, funds float64, side string, productID, stp string) (string, error) {
+func (c *CoinbasePro) PlaceMarketOrder(clientRef string, size, funds decimal.Decimal, side string, productID, stp string) (string, error) {
 	resp := GeneralizedOrderResponse{}
 	request := make(map[string]interface{})
 	request["side"] = side
 	request["product_id"] = productID
 	request["type"] = "market"
 
-	if size != 0 {
-		request["size"] = strconv.FormatFloat(size, 'f', -1, 64)
+	if size.NotZero() {
+		request["size"] = size.String()
 	}
-	if funds != 0 {
-		request["funds"] = strconv.FormatFloat(funds, 'f', -1, 64)
+	if funds.NotZero() {
+		request["funds"] = funds.String()
 	}
 	if clientRef != "" {
 		request["client_oid"] = clientRef
@@ -438,18 +439,18 @@ func (c *CoinbasePro) PlaceMarketOrder(clientRef string, size, funds float64, si
 // MARGIN ORDER PARAMS
 // size - [optional]* Desired amount in BTC
 // funds - [optional]* Desired amount of quote currency to use
-func (c *CoinbasePro) PlaceMarginOrder(clientRef string, size, funds float64, side string, productID, stp string) (string, error) {
+func (c *CoinbasePro) PlaceMarginOrder(clientRef string, size, funds decimal.Decimal, side string, productID, stp string) (string, error) {
 	resp := GeneralizedOrderResponse{}
 	request := make(map[string]interface{})
 	request["side"] = side
 	request["product_id"] = productID
 	request["type"] = "margin"
 
-	if size != 0 {
-		request["size"] = strconv.FormatFloat(size, 'f', -1, 64)
+	if size.NotZero() {
+		request["size"] = size.String()
 	}
-	if funds != 0 {
-		request["funds"] = strconv.FormatFloat(funds, 'f', -1, 64)
+	if funds.NotZero() {
+		request["funds"] = funds.String()
 	}
 	if clientRef != "" {
 		request["client_oid"] = clientRef
@@ -582,11 +583,11 @@ func (c *CoinbasePro) GetFundingRecords(status string) ([]Funding, error) {
 // transferType - either "deposit" or "withdraw"
 // profileID - The id of the margin profile to deposit or withdraw from
 // currency - currency to transfer, currently on "BTC" or "USD"
-func (c *CoinbasePro) MarginTransfer(amount float64, transferType, profileID, currency string) (MarginTransfer, error) {
+func (c *CoinbasePro) MarginTransfer(amount decimal.Decimal, transferType, profileID, currency string) (MarginTransfer, error) {
 	resp := MarginTransfer{}
 	request := make(map[string]interface{})
 	request["type"] = transferType
-	request["amount"] = strconv.FormatFloat(amount, 'f', -1, 64)
+	request["amount"] = amount.String()
 	request["currency"] = currency
 	request["margin_profile_id"] = profileID
 
@@ -627,7 +628,7 @@ func (c *CoinbasePro) GetPayMethods() ([]PaymentMethod, error) {
 // amount - The amount to deposit
 // currency - The type of currency
 // paymentID - ID of the payment method
-func (c *CoinbasePro) DepositViaPaymentMethod(amount float64, currency, paymentID string) (DepositWithdrawalInfo, error) {
+func (c *CoinbasePro) DepositViaPaymentMethod(amount decimal.Decimal, currency, paymentID string) (DepositWithdrawalInfo, error) {
 	resp := DepositWithdrawalInfo{}
 	req := make(map[string]interface{})
 	req["amount"] = amount
@@ -646,7 +647,7 @@ func (c *CoinbasePro) DepositViaPaymentMethod(amount float64, currency, paymentI
 // amount - The amount to deposit
 // currency - The type of currency
 // accountID - ID of the coinbase account
-func (c *CoinbasePro) DepositViaCoinbase(amount float64, currency, accountID string) (DepositWithdrawalInfo, error) {
+func (c *CoinbasePro) DepositViaCoinbase(amount decimal.Decimal, currency, accountID string) (DepositWithdrawalInfo, error) {
 	resp := DepositWithdrawalInfo{}
 	req := make(map[string]interface{})
 	req["amount"] = amount
@@ -662,7 +663,7 @@ func (c *CoinbasePro) DepositViaCoinbase(amount float64, currency, accountID str
 // amount - The amount to withdraw
 // currency - The type of currency
 // paymentID - ID of the payment method
-func (c *CoinbasePro) WithdrawViaPaymentMethod(amount float64, currency, paymentID string) (DepositWithdrawalInfo, error) {
+func (c *CoinbasePro) WithdrawViaPaymentMethod(amount decimal.Decimal, currency, paymentID string) (DepositWithdrawalInfo, error) {
 	resp := DepositWithdrawalInfo{}
 	req := make(map[string]interface{})
 	req["amount"] = amount
@@ -679,7 +680,7 @@ func (c *CoinbasePro) WithdrawViaPaymentMethod(amount float64, currency, payment
 // amount - The amount to withdraw
 // currency - The type of currency
 // accountID - 	ID of the coinbase account
-// func (c *CoinbasePro) WithdrawViaCoinbase(amount float64, currency, accountID string) (DepositWithdrawalInfo, error) {
+// func (c *CoinbasePro) WithdrawViaCoinbase(amount decimal.Decimal, currency, accountID string) (DepositWithdrawalInfo, error) {
 // 	resp := DepositWithdrawalInfo{}
 // 	req := make(map[string]interface{})
 // 	req["amount"] = amount
@@ -695,7 +696,7 @@ func (c *CoinbasePro) WithdrawViaPaymentMethod(amount float64, currency, payment
 // amount - The amount to withdraw
 // currency - The type of currency
 // cryptoAddress - 	A crypto address of the recipient
-func (c *CoinbasePro) WithdrawCrypto(amount float64, currency, cryptoAddress string) (DepositWithdrawalInfo, error) {
+func (c *CoinbasePro) WithdrawCrypto(amount decimal.Decimal, currency, cryptoAddress string) (DepositWithdrawalInfo, error) {
 	resp := DepositWithdrawalInfo{}
 	req := make(map[string]interface{})
 	req["amount"] = amount

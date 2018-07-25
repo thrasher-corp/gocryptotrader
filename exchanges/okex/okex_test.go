@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/kempeng/gocryptotrader/config"
+	"github.com/kempeng/gocryptotrader/decimal"
 )
 
 var o OKEX
@@ -174,7 +175,7 @@ func TestGetContractPosition(t *testing.T) {
 
 func TestPlaceContractOrders(t *testing.T) {
 	t.Parallel()
-	_, err := o.PlaceContractOrders("btc_usd", "this_week", "1", 10, 1, 1, true)
+	_, err := o.PlaceContractOrders("btc_usd", "this_week", "1", 10, decimal.One, decimal.One, true)
 	if err == nil {
 		t.Error("Test failed - okex PlaceContractOrders() error", err)
 	}

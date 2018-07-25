@@ -5,11 +5,11 @@ import (
 	"fmt"
 	"log"
 	"net/url"
-	"strconv"
 	"sync"
 
 	"github.com/kempeng/gocryptotrader/common"
 	"github.com/kempeng/gocryptotrader/currency/pair"
+	"github.com/kempeng/gocryptotrader/decimal"
 	"github.com/kempeng/gocryptotrader/exchanges"
 	"github.com/kempeng/gocryptotrader/exchanges/orderbook"
 	"github.com/kempeng/gocryptotrader/exchanges/ticker"
@@ -125,15 +125,15 @@ func (k *Kraken) SetTicker(symbol string) error {
 
 	for x, y := range resp.Data {
 		ticker := Ticker{}
-		ticker.Ask, _ = strconv.ParseFloat(y.Ask[0], 64)
-		ticker.Bid, _ = strconv.ParseFloat(y.Bid[0], 64)
-		ticker.Last, _ = strconv.ParseFloat(y.Last[0], 64)
-		ticker.Volume, _ = strconv.ParseFloat(y.Volume[1], 64)
-		ticker.VWAP, _ = strconv.ParseFloat(y.VWAP[1], 64)
+		ticker.Ask, _ = decimal.NewFromString(y.Ask[0])
+		ticker.Bid, _ = decimal.NewFromString(y.Bid[0])
+		ticker.Last, _ = decimal.NewFromString(y.Last[0])
+		ticker.Volume, _ = decimal.NewFromString(y.Volume[1])
+		ticker.VWAP, _ = decimal.NewFromString(y.VWAP[1])
 		ticker.Trades = y.Trades[1]
-		ticker.Low, _ = strconv.ParseFloat(y.Low[1], 64)
-		ticker.High, _ = strconv.ParseFloat(y.High[1], 64)
-		ticker.Open, _ = strconv.ParseFloat(y.Open, 64)
+		ticker.Low, _ = decimal.NewFromString(y.Low[1])
+		ticker.High, _ = decimal.NewFromString(y.High[1])
+		ticker.Open, _ = decimal.NewFromString(y.Open)
 		k.Ticker[x] = ticker
 	}
 	return nil

@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/kempeng/gocryptotrader/config"
+	"github.com/kempeng/gocryptotrader/decimal"
 )
 
 // Please supply your own APIkeys here to do better tests
@@ -36,7 +37,7 @@ func TestSetup(t *testing.T) {
 }
 
 func TestGetFee(t *testing.T) {
-	if b.GetFee() != 0 {
+	if !b.GetFee().Equal(decimal.Zero) {
 		t.Error("Test failed - GetFee() error")
 	}
 }
