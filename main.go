@@ -1,8 +1,6 @@
 package main
 
 import (
-	"encoding/json"
-	"errors"
 	"fmt"
 	"time"
 
@@ -48,17 +46,9 @@ func getDefaultConfig() config.ExchangeConfig {
 		RESTPollingDelay:        10,
 		HTTPTimeout:             3 * time.Second,
 		AuthenticatedAPISupport: true,
-		APIKey:                  "",
-		APISecret:               "",
+		APIKey:                  "robcDQaF6FkH4PgWHaf6xqwALjKW4o1RN3uwkUoKg3hGEPPcTfmPrtIndywlCpNs",
+		APISecret:               "VlB6dQrMNAEGegbG7woYoWXvlWPkHqLoXrA7l10wQlnrIYFXWzuPxoUMrP5Hs9FW",
 	}
-}
-
-func TimeFromUnixTimestampFloat(raw interface{}) (time.Time, error) {
-	ts, ok := raw.(float64)
-	if !ok {
-		return time.Time{}, errors.New(fmt.Sprintf("unable to parse, value not int64: %T", raw))
-	}
-	return time.Unix(0, int64(ts)*int64(time.Millisecond)), nil
 }
 
 func main() {
@@ -74,31 +64,21 @@ func main() {
 	fmt.Println("----------setup-------")
 	exchange.Setup(defaultConfig)
 
-	toBeCharge := "2017-08-17 01:00:00"  //待转化为时间戳的字符串 注意 这里的小时和分钟还要秒必须写 因为是跟着模板走的 修改模板的话也可以不写
-	timeLayout := "2006-01-02 15:04:05"  //转化所需模板
-	loc, _ := time.LoadLocation("Local") //重要：获取时区
-	startTime, _ := time.ParseInLocation(timeLayout, toBeCharge, loc)
-
-	toBeCharge = "2017-09-17 03:00:00"
-	endTime, _ := time.ParseInLocation(timeLayout, toBeCharge, loc)
-	// exchange.WebsocketClient()
-	arg := binance.KlinesRequestParams{
-		Symbol:    exchange.GetSymbol(),
-		Interval:  binance.TimeIntervalHour,
-		Limit:     10,
-		StartTime: utils.UnixMillis(startTime),
-		EndTime:   utils.UnixMillis(endTime),
-	}
-	list, err := exchange.GetSpotKline(arg)
+	res, err := exchange.GetAccount()
 
 	if err != nil {
 		fmt.Println(err)
 	} else {
-		for k, v := range list {
-			ot, _ := utils.TimeFromUnixTimestampFloat(v.OpenTime)
-			b, _ := json.Marshal(v)
-			fmt.Println(k, ot.Format("2006-01-02 15:04:05"), utils.UnixMillis(ot), string(b))
+		fmt.Printf("%v\n", res)
+
+		for _, v := range res.Balances {
+			fmt.Printf("%+v\n", v)
 		}
+		// for k, v := range list {
+		// 	ot, _ := utils.TimeFromUnixTimestampFloat(v.OpenTime)
+		// 	b, _ := json.Marshal(v)
+		// 	fmt.Println(k, ot.Format("2006-01-02 15:04:05"), utils.UnixMillis(ot), string(b))
+		// }
 
 	}
 
