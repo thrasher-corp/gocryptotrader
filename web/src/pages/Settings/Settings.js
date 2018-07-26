@@ -9,6 +9,7 @@ import {
 } from '@material-ui/core';
 import { ExpandMore as ExpandMoreIcon } from '@material-ui/icons';
 import { withStyles } from '@material-ui/core/styles';
+import { WebserverSettings } from '../../components';
 
 const styles = theme => ({
   root: {
@@ -40,13 +41,7 @@ const configGroups = [
       primary: 'Webserver',
       secondary: 'webserver settings'
     },
-    details: props => (
-      <textarea
-        readOnly
-        className={props.classes.json}
-        value={JSON.stringify(props.data.webserver, null, 2)}
-      />
-    )
+    details: props => <WebserverSettings data={props.data.webserver} />
   },
   {
     heading: {
@@ -117,9 +112,7 @@ const configGroups = [
 
 class Settings extends Component {
   state = {
-    error: null,
-    expanded: null,
-    config: {}
+    expanded: 'panel0'
   };
 
   handleChange = panel => (event, expanded) => {
