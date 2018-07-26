@@ -113,8 +113,7 @@ const configGroups = [
 
 class Settings extends Component {
   state = {
-    expanded: 'panel0',
-    config: {}
+    expanded: 'panel0'
   };
 
   handleChange = panel => (event, expanded) => {
@@ -127,19 +126,17 @@ class Settings extends Component {
     const { classes, data, error, isLoading } = this.props;
     const { expanded } = this.state;
 
-    if (!data) {
-      return <p>No data...</p>;
-    }
-    if (error) {
+    if (!data || error || isLoading) {
       return (
-        <p>
-          <b>Something went wrong: </b>
-          {error.message}...
-        </p>
+        <div className={classes.root}>
+          <Paper className={classes.paper}>
+            <Typography variant="title" gutterBottom>
+              Settings
+            </Typography>
+            <EmptyState data={data} error={error} isLoading={isLoading} />
+          </Paper>
+        </div>
       );
-    }
-    if (isLoading) {
-      return <p>Loading....</p>;
     }
 
     return (
