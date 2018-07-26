@@ -9,7 +9,8 @@ import {
 } from '@material-ui/core';
 import { ExpandMore as ExpandMoreIcon } from '@material-ui/icons';
 import { withStyles } from '@material-ui/core/styles';
-import { WebserverSettings } from '../../components';
+import { EmptyState, WebserverSettings, withFetching } from '../../components';
+import { pageStyles } from '../styles';
 
 const styles = theme => ({
   root: {
@@ -112,7 +113,8 @@ const configGroups = [
 
 class Settings extends Component {
   state = {
-    expanded: 'panel0'
+    expanded: 'panel0',
+    config: {}
   };
 
   handleChange = panel => (event, expanded) => {
@@ -121,29 +123,24 @@ class Settings extends Component {
     });
   };
 
-  async componentDidMount() {
-    this.mounted = true;
-    try {
-      const response = await fetch('/config/all');
-      const config = await response.json();
-
-      if (this.mounted) {
-        this.setState({ config: config });
-      }
-    } catch (error) {
-      if (this.mounted) {
-        this.setState({ error: error });
-      }
-    }
-  }
-
-  componentWillUnmount() {
-    this.mounted = false;
-  }
-
   render() {
-    const { classes } = this.props;
-    const { expanded, config } = this.state;
+    const { classes, data, error, isLoading } = this.props;
+    const { expanded } = this.state;
+
+    if (!data) {
+      return <p>No data...</p>;
+    }
+    if (error) {
+      return (
+        <p>
+          <b>Something went wrong: </b>
+          {error.message}...
+        </p>
+      );
+    }
+    if (isLoading) {
+      return <p>Loading....</p>;
+    }
 
     return (
       <div className={classes.root}>
@@ -152,7 +149,7 @@ class Settings extends Component {
             Settings
           </Typography>
           <Typography variant="body1" gutterBottom>
-            Finetune your settings for your bot named: <b>{config.name}</b>!
+            Finetune your settings for your bot named: <b>{data.name}</b>!
           </Typography>
         </Paper>
 
@@ -171,7 +168,7 @@ class Settings extends Component {
               </Typography>
             </ExpansionPanelSummary>
             <ExpansionPanelDetails>
-              {<group.details data={config} {...this.props} />}
+              {<group.details {...this.props} />}
             </ExpansionPanelDetails>
           </ExpansionPanel>
         ))}
@@ -182,7 +179,12 @@ class Settings extends Component {
 
 Settings.propTypes = {
   classes: PropTypes.object.isRequired,
-  theme: PropTypes.object.isRequired
+  theme: PropTypes.object.isRequired,
+  isLoading: PropTypes.bool.isRequired,
+  data: PropTypes.object,
+  error: PropTypes.object
 };
 
-export default withStyles(styles, { withTheme: true })(Settings);
+export default withFetching('/config/all')(
+  withStyles(styles, { withTheme: true })(Settings)
+);
