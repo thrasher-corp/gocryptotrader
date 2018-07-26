@@ -3,6 +3,9 @@ matrix:
     - language: node_js
       node_js:
         - '10'
+      cache:
+        directories:
+          - web/node_modules
       before_install:
         - cd web/
       install:
@@ -20,7 +23,6 @@ matrix:
       env:
         - GO111MODULE=on
       install: true
-      
       script:
         - go test -race -coverprofile=coverage.txt -covermode=atomic  ./...
       after_success:
