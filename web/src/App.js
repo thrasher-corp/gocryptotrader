@@ -7,6 +7,22 @@ import { AppBar, AppDrawer, MenuItems } from './components';
 import { Home, About, Settings, Donate } from './pages';
 import './App.css';
 
+const theme = createMuiTheme({
+  palette: {
+    type: 'dark',
+    primary: {
+      light: purple[300],
+      main: purple[500],
+      dark: purple[700]
+    },
+    secondary: {
+      main: green[300]
+    },
+    contrastThreshold: 3,
+    tonalOffset: 0.2
+  }
+});
+
 const styles = theme => ({
   root: {
     flexGrow: 1,
@@ -71,7 +87,7 @@ class App extends Component {
     const { classes } = this.props;
 
     return (
-      <React.Fragment>
+      <MuiThemeProvider theme={theme}>
         <CssBaseline />
         <Router>
           <div className={classes.root}>
@@ -101,7 +117,7 @@ class App extends Component {
             </main>
           </div>
         </Router>
-      </React.Fragment>
+      </MuiThemeProvider>
     );
   }
 }
