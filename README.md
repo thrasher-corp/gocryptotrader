@@ -24,6 +24,7 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 | Bitfinex | Yes  | Yes        | NA  |
 | Bitflyer | Yes  | No      | NA  |
 | Bithumb | Yes  | NA       | NA  |
+| BitMEX | Yes | No | NA |
 | Bitstamp | Yes  | Yes       | No  |
 | Bittrex | Yes | No | NA |
 | BTCC | Yes  | Yes     | No  |
@@ -175,6 +176,3 @@ Binaries will be published once the codebase reaches a stable condition.
 | askew- | https://github.com/askew- | 1 |
 | whilei | https://github.com/whilei | 1 |
 | snipesjr | https://github.com/snipesjr | 1 |
-
-
-
