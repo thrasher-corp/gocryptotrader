@@ -1197,6 +1197,41 @@
      "supportedCurrencies": ""
     }
    ]
+  },
+  {
+   "name": "Bitmex",
+   "enabled": true,
+   "verbose": false,
+   "websocket": false,
+   "useSandbox": false,
+   "restPollingDelay": 10,
+   "httpTimeout": 10,
+   "httpUserAgent": "",
+   "authenticatedApiSupport": false,
+   "apiKey": "Key",
+   "apiSecret": "Secret",
+   "availablePairs": "XRPXBT",
+   "enabledPairs": "XRPXBT",
+   "baseCurrencies": "USD",
+   "assetTypes": "SPOT",
+   "supportsAutoPairUpdates": false,
+   "configCurrencyPairFormat": {
+    "uppercase": false
+   },
+   "requestCurrencyPairFormat": {
+    "uppercase": true
+   },
+   "bankAccounts": [
+    {
+     "bankName": "",
+     "bankAddress": "",
+     "accountName": "",
+     "accountNumber": "",
+     "swiftCode": "",
+     "iban": "",
+     "supportedCurrencies": ""
+    }
+   ]
   }
  ],
  "bankAccounts": [

@@ -12,6 +12,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/exchanges/bitfinex"
 	"github.com/thrasher-/gocryptotrader/exchanges/bitflyer"
 	"github.com/thrasher-/gocryptotrader/exchanges/bithumb"
+	"github.com/thrasher-/gocryptotrader/exchanges/bitmex"
 	"github.com/thrasher-/gocryptotrader/exchanges/bitstamp"
 	"github.com/thrasher-/gocryptotrader/exchanges/bittrex"
 	"github.com/thrasher-/gocryptotrader/exchanges/btcc"
@@ -145,6 +146,8 @@ func LoadExchange(name string, useWG bool, wg *sync.WaitGroup) error {
 		exch = new(bitflyer.Bitflyer)
 	case "bithumb":
 		exch = new(bithumb.Bithumb)
+	case "bitmex":
+		exch = new(bitmex.Bitmex)
 	case "bitstamp":
 		exch = new(bitstamp.Bitstamp)
 	case "bittrex":
