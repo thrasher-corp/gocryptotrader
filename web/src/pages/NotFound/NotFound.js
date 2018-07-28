@@ -8,27 +8,20 @@ const styles = theme => ({
   ...pageStyles(theme)
 });
 
-const About = props => {
+const NotFound = props => {
   const { classes } = props;
   return (
     <div className={classes.root}>
       <Paper className={classes.paper}>
-        <p>
-          A cryptocurrency trading bot supporting multiple exchanges written in
-          Golang. Join our slack to discuss all things related to
-          GoCryptoTrader!{' '}
-          <a href="https://gocryptotrader.herokuapp.com/">
-            GoCryptoTrader Slack
-          </a>
-        </p>
+        <p>We can not find that page.</p>
       </Paper>
     </div>
   );
 };
 
-About.propTypes = {
+NotFound.propTypes = {
   classes: PropTypes.object.isRequired,
   theme: PropTypes.object.isRequired
 };
 
-export default withStyles(styles, { withTheme: true })(About);
+export default withStyles(styles, { withTheme: true })(NotFound);

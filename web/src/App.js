@@ -2,9 +2,11 @@ import React, { Component } from 'react';
 import PropTypes from 'prop-types';
 import CssBaseline from '@material-ui/core/CssBaseline';
 import { BrowserRouter as Router, Route, Switch } from 'react-router-dom';
+import { MuiThemeProvider, createMuiTheme } from '@material-ui/core/styles';
+import { purple, green } from '@material-ui/core/colors';
 import { withStyles } from '@material-ui/core/styles';
 import { AppBar, AppDrawer, MenuItems } from './components';
-import { Home, About, Settings, Donate } from './pages';
+import { Home, About, Donate, Settings, NotFound } from './pages';
 import './App.css';
 
 const theme = createMuiTheme({
@@ -34,7 +36,6 @@ const styles = theme => ({
   },
   content: {
     flexGrow: 1,
-    backgroundColor: theme.palette.background.default,
     padding: theme.spacing.unit * 3
   },
   toolbar: {
@@ -68,7 +69,6 @@ const routes = [
     content: Settings
   }
 ];
-const NoMatch = () => <p>Render an awesome 404 page.</p>;
 
 class App extends Component {
   state = {
@@ -85,7 +85,6 @@ class App extends Component {
 
   render() {
     const { classes } = this.props;
-    const { drawerIsOpen } = this.state;
 
     return (
       <MuiThemeProvider theme={theme}>
@@ -113,7 +112,7 @@ class App extends Component {
                     component={route.content}
                   />
                 ))}
-                <Route component={NoMatch} />
+                <Route component={NotFound} />
               </Switch>
             </main>
           </div>

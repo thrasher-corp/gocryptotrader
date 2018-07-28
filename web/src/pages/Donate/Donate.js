@@ -1,10 +1,13 @@
-import React from "react";
-import PropTypes from "prop-types";
-import { Paper, Typography, List, ListItem } from "@material-ui/core";
-import { withStyles } from "@material-ui/core/styles";
-import { DonationAddress, EmptyState, withFetching } from "../../components";
+import React from 'react';
+import PropTypes from 'prop-types';
+import { Paper, Typography, List, ListItem } from '@material-ui/core';
+import { withStyles } from '@material-ui/core/styles';
+import { DonationAddress, EmptyState, withFetching } from '../../components';
+import { pageStyles } from '../styles';
 
-const styles = theme => ({});
+const styles = theme => ({
+  ...pageStyles(theme)
+});
 
 const Donate = props => {
   const { classes, data, error, isLoading } = props;
@@ -25,10 +28,10 @@ const Donate = props => {
   return (
     <div className={classes.root}>
       <Paper className={classes.paper}>
-        <Typography variant="h6" gutterBottom>
+        <Typography variant="title" gutterBottom>
           Donate
         </Typography>
-        <Typography variant="h5" gutterBottom>
+        <Typography variant="headline" gutterBottom>
           To support the developers please consider making a donation:
         </Typography>
         <List>
@@ -48,6 +51,6 @@ Donate.propTypes = {
   theme: PropTypes.object.isRequired
 };
 
-export default withFetching("data/donation-addresses.json")(
+export default withFetching('data/donation-addresses.json')(
   withStyles(styles, { withTheme: true })(Donate)
 );

@@ -13,13 +13,7 @@ import { EmptyState, WebserverSettings, withFetching } from '../../components';
 import { pageStyles } from '../styles';
 
 const styles = theme => ({
-  root: {
-    flexGrow: 1
-  },
-  paper: {
-    padding: theme.spacing.unit * 2,
-    color: theme.palette.text.secondary
-  },
+  ...pageStyles(theme),
   heading: {
     fontSize: theme.typography.pxToRem(15),
     flexBasis: '15%',
