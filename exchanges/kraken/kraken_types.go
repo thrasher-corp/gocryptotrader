@@ -92,3 +92,57 @@ type Spread struct {
 	Bid  float64
 	Ask  float64
 }
+
+// Position holds the opened position
+// ordertxid = order responsible for execution of trade
+// pair = asset pair
+// time = unix timestamp of trade
+// type = type of order used to open position (buy/sell)
+// ordertype = order type used to open position
+// cost = opening cost of position (quote currency unless viqc set in oflags)
+// fee = opening fee of position (quote currency)
+// vol = position volume (base currency unless viqc set in oflags)
+// vol_closed = position volume closed (base currency unless viqc set in oflags)
+// margin = initial margin (quote currency)
+// value = current value of remaining position (if docalcs requested.  quote currency)
+// net = unrealized profit/loss of remaining position (if docalcs requested.  quote currency, quote currency scale)
+// misc = comma delimited list of miscellaneous info
+// oflags = comma delimited list of order flags
+// viqc = volume in quote currency
+type Position struct {
+	Ordertxid  string  `json:"ordertxid"`
+	Pair       string  `json:"pair"`
+	Time       float64 `json:"time"`
+	SellOrBy   string  `json:"type"`
+	OrderType  string  `json:"ordertype"`
+	Cost       float64 `json:"cost,string"`
+	Fee        float64 `json:"fee,string"`
+	Vol        float64 `json:"vol,string"`
+	VolClosed  float64 `json:"vol_closed,string"`
+	Margin     float64 `json:"margin,string"`
+	Rollovertm int64   `json:"rollovertm,string"`
+	Misc       string  `json:"misc"`
+	Oflags     string  `json:"oflags"`
+	PosStatus  string  `json:"posstatus"`
+	Net        string  `json:"net"`
+	Terms      string  `json:"terms"`
+}
+
+/*
+{
+	"cost":"20.49608",
+	"fee":"0.05534",
+	"margin":"1.29886",
+	"misc":"",
+	"oflags":"",
+	"ordertxid":"ONEGYK-7WA5R-MHHFWX",
+	"ordertype":"market",
+	"pair":"XXBTZUSD",
+	"posstatus":"open",
+	"rollovertm":"1532798919",
+	"terms":"0.0100% per 4 hours",
+	"time":1532525002.1797,
+	"type":"sell",
+	"vol":"0.00249736",
+	"vol_closed":"0.00170606"
+}*/

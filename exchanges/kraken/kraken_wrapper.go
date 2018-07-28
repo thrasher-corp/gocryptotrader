@@ -31,7 +31,8 @@ func (k *Kraken) Run() {
 		log.Printf("%s %d currencies enabled: %s.\n", k.GetName(), len(k.EnabledPairs), k.EnabledPairs)
 	}
 
-	assetPairs, err := k.GetAssetPairs()
+	assetPairs := make(map[string]AssetPairs)
+	err := k.GetAssetPairs(assetPairs)
 	if err != nil {
 		log.Printf("%s Failed to get available symbols.\n", k.GetName())
 	} else {
