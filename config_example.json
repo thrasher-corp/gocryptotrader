@@ -13,7 +13,7 @@
   "ForexProviders": [
 =======
  "Name": "Skynet",
- "EncryptConfig": -1,
+ "EncryptConfig": 0,
  "GlobalHTTPTimeout": 15000000000,
  "CurrencyConfig": {
   "ForexProviders": [
