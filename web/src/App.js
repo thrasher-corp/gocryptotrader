@@ -85,6 +85,7 @@ class App extends Component {
 
   render() {
     const { classes } = this.props;
+    const { drawerIsOpen } = this.state;
 
     return (
       <MuiThemeProvider theme={theme}>
