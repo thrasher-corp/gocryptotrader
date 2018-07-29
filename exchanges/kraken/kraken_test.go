@@ -47,11 +47,11 @@ func TestGetFee(t *testing.T) {
 
 func TestGetServerTime(t *testing.T) {
 	t.Parallel()
-	_, err := k.GetServerTime(false)
+	err := k.GetServerTime(false)
 	if err != nil {
 		t.Error("Test Failed - GetServerTime() error", err)
 	}
-	_, err = k.GetServerTime(true)
+	err = k.GetServerTime(true)
 	if err != nil {
 		t.Error("Test Failed - GetServerTime() error", err)
 	}
@@ -59,7 +59,7 @@ func TestGetServerTime(t *testing.T) {
 
 func TestGetAssets(t *testing.T) {
 	t.Parallel()
-	_, err := k.GetAssets()
+	err := k.GetAssets()
 	if err != nil {
 		t.Error("Test Failed - GetAssets() error", err)
 	}
@@ -67,7 +67,7 @@ func TestGetAssets(t *testing.T) {
 
 func TestGetAssetPairs(t *testing.T) {
 	t.Parallel()
-	_, err := k.GetAssetPairs()
+	err := k.GetAssetPairs(nil)
 	if err != nil {
 		t.Error("Test Failed - GetAssetPairs() error", err)
 	}
@@ -115,7 +115,7 @@ func TestGetSpread(t *testing.T) {
 
 func TestGetBalance(t *testing.T) {
 	t.Parallel()
-	_, err := k.GetBalance()
+	err := k.GetBalance()
 	if err == nil {
 		t.Error("Test Failed - GetBalance() error", err)
 	}
@@ -123,7 +123,7 @@ func TestGetBalance(t *testing.T) {
 
 func TestGetTradeBalance(t *testing.T) {
 	t.Parallel()
-	_, err := k.GetTradeBalance("", "")
+	err := k.GetTradeBalance("", "")
 	if err == nil {
 		t.Error("Test Failed - GetTradeBalance() error", err)
 	}
@@ -131,7 +131,7 @@ func TestGetTradeBalance(t *testing.T) {
 
 func TestGetOpenOrders(t *testing.T) {
 	t.Parallel()
-	_, err := k.GetOpenOrders(true, 0)
+	err := k.GetOpenOrders(true, 0)
 	if err == nil {
 		t.Error("Test Failed - GetOpenOrders() error", err)
 	}
@@ -139,7 +139,7 @@ func TestGetOpenOrders(t *testing.T) {
 
 func TestGetClosedOrders(t *testing.T) {
 	t.Parallel()
-	_, err := k.GetClosedOrders(true, 0, 0, 0, 0, "")
+	err := k.GetClosedOrders(true, 0, 0, 0, 0, "")
 	if err == nil {
 		t.Error("Test Failed - GetClosedOrders() error", err)
 	}
@@ -147,7 +147,7 @@ func TestGetClosedOrders(t *testing.T) {
 
 func TestQueryOrdersInfo(t *testing.T) {
 	t.Parallel()
-	_, err := k.QueryOrdersInfo(false, 0, 0)
+	err := k.QueryOrdersInfo(false, 0, 0)
 	if err == nil {
 		t.Error("Test Failed - QueryOrdersInfo() error", err)
 	}
@@ -155,7 +155,7 @@ func TestQueryOrdersInfo(t *testing.T) {
 
 func TestGetTradesHistory(t *testing.T) {
 	t.Parallel()
-	_, err := k.GetTradesHistory("", false, 0, 0, 0)
+	err := k.GetTradesHistory("", false, 0, 0, 0)
 	if err == nil {
 		t.Error("Test Failed - GetTradesHistory() error", err)
 	}
@@ -163,7 +163,7 @@ func TestGetTradesHistory(t *testing.T) {
 
 func TestQueryTrades(t *testing.T) {
 	t.Parallel()
-	_, err := k.QueryTrades(0, false)
+	err := k.QueryTrades(0, false)
 	if err == nil {
 		t.Error("Test Failed - QueryTrades() error", err)
 	}
@@ -171,7 +171,7 @@ func TestQueryTrades(t *testing.T) {
 
 func TestOpenPositions(t *testing.T) {
 	t.Parallel()
-	_, err := k.OpenPositions(0, false)
+	_, err := k.OpenPositions(false)
 	if err == nil {
 		t.Error("Test Failed - OpenPositions() error", err)
 	}
@@ -179,7 +179,7 @@ func TestOpenPositions(t *testing.T) {
 
 func TestGetLedgers(t *testing.T) {
 	t.Parallel()
-	_, err := k.GetLedgers("bla", "bla", "bla", 0, 0, 0)
+	err := k.GetLedgers("bla", "bla", "bla", 0, 0, 0)
 	if err == nil {
 		t.Error("Test Failed - GetLedgers() error", err)
 	}
@@ -187,7 +187,7 @@ func TestGetLedgers(t *testing.T) {
 
 func TestQueryLedgers(t *testing.T) {
 	t.Parallel()
-	_, err := k.QueryLedgers("1337")
+	err := k.QueryLedgers("1337")
 	if err == nil {
 		t.Error("Test Failed - QueryLedgers() error", err)
 	}
@@ -195,7 +195,7 @@ func TestQueryLedgers(t *testing.T) {
 
 func TestGetTradeVolume(t *testing.T) {
 	t.Parallel()
-	_, err := k.GetTradeVolume("BCHEUR")
+	err := k.GetTradeVolume("BCHEUR")
 	if err == nil {
 		t.Error("Test Failed - GetTradeVolume() error", err)
 	}
@@ -203,7 +203,7 @@ func TestGetTradeVolume(t *testing.T) {
 
 func TestAddOrder(t *testing.T) {
 	t.Parallel()
-	_, err := k.AddOrder("bla", "bla", "bla", 0, 0, 0, 0, 0)
+	_, err := k.AddOrder("bla", "bla", "bla", 0, 0, 0, 0)
 	if err == nil {
 		t.Error("Test Failed - AddOrder() error", err)
 	}
@@ -211,7 +211,7 @@ func TestAddOrder(t *testing.T) {
 
 func TestCancelOrder(t *testing.T) {
 	t.Parallel()
-	_, err := k.CancelOrder(1337)
+	err := k.CancelOrder(1337)
 	if err == nil {
 		t.Error("Test Failed - CancelOrder() error", err)
 	}

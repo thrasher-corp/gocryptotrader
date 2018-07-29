@@ -146,3 +146,15 @@ type Position struct {
 	"vol":"0.00249736",
 	"vol_closed":"0.00170606"
 }*/
+
+// AddOrderResponse type
+type AddOrderResponse struct {
+	Description    OrderDescription `json:"descr"`
+	TransactionIds []string         `json:"txid"`
+}
+
+// OrderDescription represents an orders description
+type OrderDescription struct {
+	Close string `json:"close"`
+	Order string `json:"order"`
+}
