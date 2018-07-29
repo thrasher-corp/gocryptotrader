@@ -1,7 +1,6 @@
 package kraken
 
 import (
-	"encoding/json"
 	"fmt"
 	"log"
 	"net/url"
@@ -488,11 +487,7 @@ func (k *Kraken) QueryTrades(txid int64, showRelatedTrades bool) error {
 }
 
 // OpenPositions returns current open positions
-//    txid = comma delimited list of transaction ids to restrict output to
-//    docalcs = whether or not to include profit/loss calculations (optional.  default = false)
 func (k *Kraken) OpenPositions(showPL bool) (map[string]Position, error) {
-	var responce GeneralResponse
-	var positions map[string]Position
 
 	values := url.Values{}
 
@@ -500,22 +495,14 @@ func (k *Kraken) OpenPositions(showPL bool) (map[string]Position, error) {
 		values.Set("docalcs", "true")
 	}
 
-	err := k.SendAuthenticatedHTTPRequest(krakenOpenPositions, values, &responce)
-	if err != nil {
-		return nil, err
+	type Response struct {
+		Error  []interface{}       `json:"error"`
+		Result map[string]Position `json:"result"`
 	}
 
-	blob, err := json.Marshal(responce.Result)
-	if err != nil {
-		return nil, err
-	}
+	responce := Response{}
 
-	err = json.Unmarshal(blob, &positions)
-	if err != nil {
-		return nil, err
-	}
-
-	return positions, nil
+	return responce.Result, k.SendAuthenticatedHTTPRequest(krakenOpenPositions, values, &responce)
 }
 
 // GetLedgers returns current ledgers
@@ -569,36 +556,51 @@ func (k *Kraken) GetTradeVolume(symbol string) error {
 }
 
 // AddOrder adds a new order for Kraken exchange
-func (k *Kraken) AddOrder(symbol, side, orderType string, price, price2, volume, leverage float64) (AddOrderResponse, error) {
-	var responce GeneralResponse
-	var addOrderResponse AddOrderResponse
-	values := url.Values{}
-	values.Set("pair", symbol)
-	values.Set("type", side)
-	values.Set("ordertype", orderType)
-	values.Set("price", strconv.FormatFloat(price, 'f', -1, 64))
-	values.Set("price2", strconv.FormatFloat(price, 'f', -1, 64))
-	values.Set("volume", strconv.FormatFloat(volume, 'f', -1, 64))
-	values.Set("leverage", strconv.FormatFloat(leverage, 'f', -1, 64))
-	// values.Set("validate", "true")
-
-	fmt.Printf("%v\n", values)
-	err := k.SendAuthenticatedHTTPRequest(krakenOrderPlace, values, &responce)
-	if err != nil {
-		return addOrderResponse, err
+func (k *Kraken) AddOrder(symbol, side, orderType string, volume, price, price2, leverage float64, args map[string]string) (AddOrderResponse, error) {
+	params := url.Values{
+		"pair":      {symbol},
+		"type":      {side},
+		"ordertype": {orderType},
 	}
 
-	blob, err := json.Marshal(responce.Result)
-	if err != nil {
-		return addOrderResponse, err
+	params.Set("volume", strconv.FormatFloat(volume, 'f', -1, 64))
+	params.Set("price", strconv.FormatFloat(price, 'f', -1, 64))
+	params.Set("price2", strconv.FormatFloat(price2, 'f', -1, 64))
+	params.Set("leverage", strconv.FormatFloat(leverage, 'f', -1, 64))
+
+	if value, ok := args["oflags"]; ok {
+		params.Set("oflags", value)
+	}
+	if value, ok := args["starttm"]; ok {
+		params.Set("starttm", value)
+	}
+	if value, ok := args["expiretm"]; ok {
+		params.Set("expiretm", value)
+	}
+	if value, ok := args["validate"]; ok {
+		params.Set("validate", value)
+	}
+	if value, ok := args["close_order_type"]; ok {
+		params.Set("close[ordertype]", value)
+	}
+	if value, ok := args["close_price"]; ok {
+		params.Set("close[price]", value)
+	}
+	if value, ok := args["close_price2"]; ok {
+		params.Set("close[price2]", value)
+	}
+	if value, ok := args["trading_agreement"]; ok {
+		params.Set("trading_agreement", value)
 	}
 
-	err = json.Unmarshal(blob, &addOrderResponse)
-	if err != nil {
-		return addOrderResponse, err
+	type Response struct {
+		Error  []interface{}    `json:"error"`
+		Result AddOrderResponse `json:"result"`
 	}
 
-	return addOrderResponse, nil
+	responce := Response{}
+
+	return responce.Result, k.SendAuthenticatedHTTPRequest(krakenOrderPlace, params, &responce)
 }
 
 // CancelOrder cancels order by orderID
