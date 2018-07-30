@@ -54,7 +54,6 @@ type ConnectedUsers struct {
 }
 
 // Execution Raw Order and Balance Data
-// swagger:model Execution
 type Execution struct {
 	Account               int64   `json:"account"`
 	AvgPx                 float64 `json:"avgPx"`
@@ -483,4 +482,187 @@ type Trade struct {
 	TickDirection   string  `json:"tickDirection"`
 	Timestamp       string  `json:"timestamp"`
 	TrdMatchID      string  `json:"trdMatchID"`
+}
+
+// User Account Operations
+type User struct {
+	TFAEnabled   string          `json:"TFAEnabled"`
+	AffiliateID  string          `json:"affiliateID"`
+	Country      string          `json:"country"`
+	Created      string          `json:"created"`
+	Email        string          `json:"email"`
+	Firstname    string          `json:"firstname"`
+	GeoipCountry string          `json:"geoipCountry"`
+	GeoipRegion  string          `json:"geoipRegion"`
+	ID           int32           `json:"id"`
+	LastUpdated  string          `json:"lastUpdated"`
+	Lastname     string          `json:"lastname"`
+	OwnerID      int32           `json:"ownerId"`
+	PgpPubKey    string          `json:"pgpPubKey"`
+	Phone        string          `json:"phone"`
+	Preferences  UserPreferences `json:"preferences"`
+	Typ          string          `json:"typ"`
+	Username     string          `json:"username"`
+}
+
+// UserPreferences user preferences
+type UserPreferences struct {
+	AlertOnLiquidations     bool        `json:"alertOnLiquidations"`
+	AnimationsEnabled       bool        `json:"animationsEnabled"`
+	AnnouncementsLastSeen   string      `json:"announcementsLastSeen"`
+	ChatChannelID           float64     `json:"chatChannelID"`
+	ColorTheme              string      `json:"colorTheme"`
+	Currency                string      `json:"currency"`
+	Debug                   bool        `json:"debug"`
+	DisableEmails           []string    `json:"disableEmails"`
+	HideConfirmDialogs      []string    `json:"hideConfirmDialogs"`
+	HideConnectionModal     bool        `json:"hideConnectionModal"`
+	HideFromLeaderboard     bool        `json:"hideFromLeaderboard"`
+	HideNameFromLeaderboard bool        `json:"hideNameFromLeaderboard"`
+	HideNotifications       []string    `json:"hideNotifications"`
+	Locale                  string      `json:"locale"`
+	MsgsSeen                []string    `json:"msgsSeen"`
+	OrderBookBinning        interface{} `json:"orderBookBinning"`
+	OrderBookType           string      `json:"orderBookType"`
+	OrderClearImmediate     bool        `json:"orderClearImmediate"`
+	OrderControlsPlusMinus  bool        `json:"orderControlsPlusMinus"`
+	ShowLocaleNumbers       bool        `json:"showLocaleNumbers"`
+	Sounds                  []string    `json:"sounds"`
+	StrictIPCheck           bool        `json:"strictIPCheck"`
+	StrictTimeout           bool        `json:"strictTimeout"`
+	TickerGroup             string      `json:"tickerGroup"`
+	TickerPinned            bool        `json:"tickerPinned"`
+	TradeLayout             string      `json:"tradeLayout"`
+}
+
+// AffiliateStatus affiliate Status details
+type AffiliateStatus struct {
+	Account         int64   `json:"account"`
+	Currency        string  `json:"currency"`
+	ExecComm        int64   `json:"execComm"`
+	ExecTurnover    int64   `json:"execTurnover"`
+	PayoutPcnt      float64 `json:"payoutPcnt"`
+	PendingPayout   int64   `json:"pendingPayout"`
+	PrevComm        int64   `json:"prevComm"`
+	PrevPayout      int64   `json:"prevPayout"`
+	PrevTimestamp   string  `json:"prevTimestamp"`
+	PrevTurnover    int64   `json:"prevTurnover"`
+	ReferrerAccount float64 `json:"referrerAccount"`
+	Timestamp       string  `json:"timestamp"`
+	TotalComm       int64   `json:"totalComm"`
+	TotalReferrals  int64   `json:"totalReferrals"`
+	TotalTurnover   int64   `json:"totalTurnover"`
+}
+
+// TransactionInfo Information
+type TransactionInfo struct {
+	Account        int64  `json:"account"`
+	Address        string `json:"address"`
+	Amount         int64  `json:"amount"`
+	Currency       string `json:"currency"`
+	Fee            int64  `json:"fee"`
+	Text           string `json:"text"`
+	Timestamp      string `json:"timestamp"`
+	TransactID     string `json:"transactID"`
+	TransactStatus string `json:"transactStatus"`
+	TransactTime   string `json:"transactTime"`
+	TransactType   string `json:"transactType"`
+	Tx             string `json:"tx"`
+}
+
+// UserCommission user commission
+type UserCommission struct {
+	MakerFee      float64 `json:"makerFee"`
+	MaxFee        float64 `json:"maxFee"`
+	SettlementFee float64 `json:"settlementFee"`
+	TakerFee      float64 `json:"takerFee"`
+}
+
+// ConfirmEmail confirmatin email endpoint data
+type ConfirmEmail struct {
+	ID      string `json:"id"`
+	TTL     int64  `json:"ttl"`
+	Created string `json:"created"`
+	UserID  int64  `json:"userId"`
+}
+
+// UserMargin margin information
+type UserMargin struct {
+	Account            int64   `json:"account"`
+	Action             string  `json:"action"`
+	Amount             int64   `json:"amount"`
+	AvailableMargin    int64   `json:"availableMargin"`
+	Commission         float64 `json:"commission"`
+	ConfirmedDebit     int64   `json:"confirmedDebit"`
+	Currency           string  `json:"currency"`
+	ExcessMargin       int64   `json:"excessMargin"`
+	ExcessMarginPcnt   float64 `json:"excessMarginPcnt"`
+	GrossComm          int64   `json:"grossComm"`
+	GrossExecCost      int64   `json:"grossExecCost"`
+	GrossLastValue     int64   `json:"grossLastValue"`
+	GrossMarkValue     int64   `json:"grossMarkValue"`
+	GrossOpenCost      int64   `json:"grossOpenCost"`
+	GrossOpenPremium   int64   `json:"grossOpenPremium"`
+	IndicativeTax      int64   `json:"indicativeTax"`
+	InitMargin         int64   `json:"initMargin"`
+	MaintMargin        int64   `json:"maintMargin"`
+	MarginBalance      int64   `json:"marginBalance"`
+	MarginBalancePcnt  float64 `json:"marginBalancePcnt"`
+	MarginLeverage     float64 `json:"marginLeverage"`
+	MarginUsedPcnt     float64 `json:"marginUsedPcnt"`
+	PendingCredit      int64   `json:"pendingCredit"`
+	PendingDebit       int64   `json:"pendingDebit"`
+	PrevRealisedPnl    int64   `json:"prevRealisedPnl"`
+	PrevState          string  `json:"prevState"`
+	PrevUnrealisedPnl  int64   `json:"prevUnrealisedPnl"`
+	RealisedPnl        int64   `json:"realisedPnl"`
+	RiskLimit          int64   `json:"riskLimit"`
+	RiskValue          int64   `json:"riskValue"`
+	SessionMargin      int64   `json:"sessionMargin"`
+	State              string  `json:"state"`
+	SyntheticMargin    int64   `json:"syntheticMargin"`
+	TargetExcessMargin int64   `json:"targetExcessMargin"`
+	TaxableMargin      int64   `json:"taxableMargin"`
+	Timestamp          string  `json:"timestamp"`
+	UnrealisedPnl      int64   `json:"unrealisedPnl"`
+	UnrealisedProfit   int64   `json:"unrealisedProfit"`
+	VarMargin          int64   `json:"varMargin"`
+	WalletBalance      int64   `json:"walletBalance"`
+	WithdrawableMargin int64   `json:"withdrawableMargin"`
+}
+
+// MinWithdrawalFee minimum withdrawal fee information
+type MinWithdrawalFee struct {
+	Currency string `json:"currency"`
+	Fee      int64  `json:"fee"`
+	MinFee   int64  `json:"minFee"`
+}
+
+// WalletInfo wallet information
+type WalletInfo struct {
+	Account          int64    `json:"account"`
+	Addr             string   `json:"addr"`
+	Amount           int64    `json:"amount"`
+	ConfirmedDebit   int64    `json:"confirmedDebit"`
+	Currency         string   `json:"currency"`
+	DeltaAmount      int64    `json:"deltaAmount"`
+	DeltaDeposited   int64    `json:"deltaDeposited"`
+	DeltaTransferIn  int64    `json:"deltaTransferIn"`
+	DeltaTransferOut int64    `json:"deltaTransferOut"`
+	DeltaWithdrawn   int64    `json:"deltaWithdrawn"`
+	Deposited        int64    `json:"deposited"`
+	PendingCredit    int64    `json:"pendingCredit"`
+	PendingDebit     int64    `json:"pendingDebit"`
+	PrevAmount       int64    `json:"prevAmount"`
+	PrevDeposited    int64    `json:"prevDeposited"`
+	PrevTimestamp    string   `json:"prevTimestamp"`
+	PrevTransferIn   int64    `json:"prevTransferIn"`
+	PrevTransferOut  int64    `json:"prevTransferOut"`
+	PrevWithdrawn    int64    `json:"prevWithdrawn"`
+	Script           string   `json:"script"`
+	Timestamp        string   `json:"timestamp"`
+	TransferIn       int64    `json:"transferIn"`
+	TransferOut      int64    `json:"transferOut"`
+	WithdrawalLock   []string `json:"withdrawalLock"`
+	Withdrawn        int64    `json:"withdrawn"`
 }

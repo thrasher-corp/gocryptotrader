@@ -697,7 +697,7 @@ func (p PositionIsolateMarginParams) IsNil() bool {
 // endpoint
 type PositionUpdateLeverageParams struct {
 	// Leverage - Leverage value. Send a number between 0.01 and 100 to enable
-	//isolated margin with a fixed leverage. Send 0 to enable cross margin.
+	// isolated margin with a fixed leverage. Send 0 to enable cross margin.
 	Leverage float64 `json:"leverage,omitempty"`
 
 	// Symbol - Symbol of position to adjust.
@@ -903,6 +903,216 @@ func (p TradeGetBucketedParams) ToURLVals(path string) (string, error) {
 // IsNil checks to see if any values has been set for the paramater
 func (p TradeGetBucketedParams) IsNil() bool {
 	if p == (TradeGetBucketedParams{}) {
+		return true
+	}
+	return false
+}
+
+// UserUpdateParams contains all the parameters to send to the API endpoint
+type UserUpdateParams struct {
+	// Country - Country of residence.
+	Country string `json:"country,omitempty"`
+
+	// New Password string
+	NewPassword string `json:"newPassword,omitempty"`
+
+	// Confirmation string - must match
+	NewPasswordConfirm string `json:"newPasswordConfirm,omitempty"`
+
+	// old password string
+	OldPassword string `json:"oldPassword,omitempty"`
+
+	// PGP Public Key. If specified, automated emails will be sent with this key.
+	PgpPubKey string `json:"pgpPubKey,omitempty"`
+
+	// Username can only be set once. To reset, email support.
+	Username string `json:"username,omitempty"`
+}
+
+// VerifyData verifies outgoing data sets
+func (p UserUpdateParams) VerifyData() error {
+	return nil
+}
+
+// ToURLVals converts struct values to url.values and encodes it on the supplied
+// path
+func (p UserUpdateParams) ToURLVals(path string) (string, error) {
+	return "", nil
+}
+
+// IsNil checks to see if any values has been set for the paramater
+func (p UserUpdateParams) IsNil() bool {
+	if p == (UserUpdateParams{}) {
+		return true
+	}
+	return false
+}
+
+// UserTokenParams contains all the parameters to send to the API endpoint
+type UserTokenParams struct {
+	Token string `json:"token,omitempty"`
+}
+
+// VerifyData verifies outgoing data sets
+func (p UserTokenParams) VerifyData() error {
+	return nil
+}
+
+// ToURLVals converts struct values to url.values and encodes it on the supplied
+// path
+func (p UserTokenParams) ToURLVals(path string) (string, error) {
+	return "", nil
+}
+
+// IsNil checks to see if any values has been set for the paramater
+func (p UserTokenParams) IsNil() bool {
+	if p == (UserTokenParams{}) {
+		return true
+	}
+	return false
+}
+
+// UserCheckReferralCodeParams contains all the parameters to send to the API
+// endpoint
+type UserCheckReferralCodeParams struct {
+	ReferralCode string `json:"referralCode,omitempty"`
+}
+
+// VerifyData verifies outgoing data sets
+func (p UserCheckReferralCodeParams) VerifyData() error {
+	return nil
+}
+
+// ToURLVals converts struct values to url.values and encodes it on the supplied
+// path
+func (p UserCheckReferralCodeParams) ToURLVals(path string) (string, error) {
+	return "", nil
+}
+
+// IsNil checks to see if any values has been set for the paramater
+func (p UserCheckReferralCodeParams) IsNil() bool {
+	if p == (UserCheckReferralCodeParams{}) {
+		return true
+	}
+	return false
+}
+
+// UserConfirmTFAParams contains all the parameters to send to the API endpoint
+type UserConfirmTFAParams struct {
+	// Token - Token from your selected TFA type.
+	Token string `json:"token,omitempty"`
+
+	// Type - Two-factor auth type. Supported types: 'GA' (Google Authenticator),
+	// 'Yubikey'
+	Type string `json:"type,omitempty"`
+}
+
+// VerifyData verifies outgoing data sets
+func (p UserConfirmTFAParams) VerifyData() error {
+	return nil
+}
+
+// ToURLVals converts struct values to url.values and encodes it on the supplied
+// path
+func (p UserConfirmTFAParams) ToURLVals(path string) (string, error) {
+	return "", nil
+}
+
+// IsNil checks to see if any values has been set for the paramater
+func (p UserConfirmTFAParams) IsNil() bool {
+	if p == (UserConfirmTFAParams{}) {
+		return true
+	}
+	return false
+}
+
+// UserCurrencyParams contains all the parameters to send to the API endpoint
+type UserCurrencyParams struct {
+	Currency string `json:"currency,omitempty"`
+}
+
+// VerifyData verifies outgoing data sets
+func (p UserCurrencyParams) VerifyData() error {
+	return nil
+}
+
+// ToURLVals converts struct values to url.values and encodes it on the supplied
+// path
+func (p UserCurrencyParams) ToURLVals(path string) (string, error) {
+	return "", nil
+}
+
+// IsNil checks to see if any values has been set for the paramater
+func (p UserCurrencyParams) IsNil() bool {
+	if p == (UserCurrencyParams{}) {
+		return true
+	}
+	return false
+}
+
+// UserPreferencesParams contains all the parameters to send to the API
+// endpoint
+type UserPreferencesParams struct {
+	// Overwrite - If true, will overwrite all existing preferences.
+	Overwrite bool `json:"overwrite,omitempty"`
+	// Prefs - preferences
+	Prefs string `json:"prefs,omitempty"`
+}
+
+// VerifyData verifies outgoing data sets
+func (p UserPreferencesParams) VerifyData() error {
+	return nil
+}
+
+// ToURLVals converts struct values to url.values and encodes it on the supplied
+// path
+func (p UserPreferencesParams) ToURLVals(path string) (string, error) {
+	return "", nil
+}
+
+// IsNil checks to see if any values has been set for the paramater
+func (p UserPreferencesParams) IsNil() bool {
+	if p == (UserPreferencesParams{}) {
+		return true
+	}
+	return false
+}
+
+// UserRequestWithdrawalParams contains all the parameters to send to the API
+// endpoint
+type UserRequestWithdrawalParams struct {
+	// Address - Destination Address.
+	Address string `json:"address,omitempty"`
+
+	// Amount - Amount of withdrawal currency.
+	Amount int64 `json:"amount,omitempty"`
+
+	// Currency - Currency you're withdrawing. Options: `XBt`
+	Currency string `json:"currency,omitempty"`
+
+	// Fee - Network fee for Bitcoin withdrawals. If not specified, a default
+	// value will be calculated based on Bitcoin network conditions. You will have
+	// a chance to confirm this via email.
+	Fee float64 `json:"fee,omitempty"`
+
+	// OtpToken - 2FA token. Required if 2FA is enabled on your account.
+	OtpToken string `json:"otpToken,omitempty"`
+}
+
+// VerifyData verifies outgoing data sets
+func (p UserRequestWithdrawalParams) VerifyData() error {
+	return nil
+}
+
+// ToURLVals converts struct values to url.values and encodes it on the supplied
+// path
+func (p UserRequestWithdrawalParams) ToURLVals(path string) (string, error) {
+	return "", nil
+}
+
+// IsNil checks to see if any values has been set for the paramater
+func (p UserRequestWithdrawalParams) IsNil() bool {
+	if p == (UserRequestWithdrawalParams{}) {
 		return true
 	}
 	return false

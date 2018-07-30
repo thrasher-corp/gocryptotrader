@@ -51,6 +51,8 @@ const (
 	bitmexEndpointStatsSummary              = "/stats/historyUSD"
 	bitmexEndpointTrade                     = "/trade"
 	bitmexEndpointTradeBucketed             = "/trade/bucketed"
+	bitmexEndpointUserCheckReferralCode     = "/user/checkReferralCode"
+	bitmexEndpointUserMinWithdrawalFee      = "/user/minWithdrawalFee"
 
 	// Authenticated endpoints
 	bitmexEndpointAPIkeys               = "/apiKey"
@@ -70,16 +72,37 @@ const (
 	bitmexEndpointLeveragePosition      = "/position/leverage"
 	bitmexEndpointAdjustRiskLimit       = "/position/riskLimit"
 	bitmexEndpointTransferMargin        = "/position/transferMargin"
+	bitmexEndpointUser                  = "/user"
+	bitmexEndpointUserAffiliate         = "/user/affiliateStatus"
+	bitmexEndpointUserCancelWithdraw    = "/user/cancelWithdrawal"
+	bitmexEndpointUserCommision         = "/user/commission"
+	bitmexEndpointUserConfirmEmail      = "/user/confirmEmail"
+	bitmexEndpointUserConfirmTFA        = "/user/confirmEnableTFA"
+	bitmexEndpointUserConfirmWithdrawal = "/user/confirmWithdrawal"
+	bitmexEndpointUserDepositAddress    = "/user/depositAddress"
+	bitmexEndpointUserDisableTFA        = "/user/disableTFA"
+	bitmexEndpointUserLogout            = "/user/logout"
+	bitmexEndpointUserLogoutAll         = "/user/logoutAll"
+	bitmexEndpointUserMargin            = "/user/margin"
+	bitmexEndpointUserPreferences       = "/user/preferences"
+	bitmexEndpointUserRequestTFA        = "/user/requestEnableTFA"
+	bitmexEndpointUserWallet            = "/user/wallet"
+	bitmexEndpointUserWalletHistory     = "/user/walletHistory"
+	bitmexEndpointUserWalletSummary     = "/user/walletSummary"
+	bitmexEndpointUserRequestWithdraw   = "/user/requestWithdrawal"
 
 	// Rate limits - 150 requests per 5 minutes
 	bitmexUnauthRate = 30
 	// 300 requests per 5 minutes
 	bitmexAuthRate = 40
 
-	// Contract Types
+	// ContractPerpetual perpetual contract type
 	ContractPerpetual = iota
+	// ContractFutures futures contract type
 	ContractFutures
+	// ContractDownsideProfit downside profit contract type
 	ContractDownsideProfit
+	// ContractUpsideProfit upside profit contract type
 	ContractUpsideProfit
 )
 
@@ -555,6 +578,216 @@ func (b *Bitmex) GetPreviousTrades(params TradeGetBucketedParams) ([]Trade, erro
 	return trade, b.SendHTTPRequest(bitmexEndpointTradeBucketed,
 		params,
 		&trade)
+}
+
+// GetUserInfo returns your user information
+func (b *Bitmex) GetUserInfo() (User, error) {
+	var userInfo User
+
+	return userInfo, b.SendAuthenticatedHTTPRequest("GET",
+		bitmexEndpointUser,
+		nil,
+		&userInfo)
+}
+
+// UpdateUserInfo updates user information
+func (b *Bitmex) UpdateUserInfo(params UserUpdateParams) (User, error) {
+	var userInfo User
+
+	return userInfo, b.SendAuthenticatedHTTPRequest("PUT",
+		bitmexEndpointUser,
+		params,
+		&userInfo)
+}
+
+// GetAffiliateStatus returns your affiliate status
+func (b *Bitmex) GetAffiliateStatus() (AffiliateStatus, error) {
+	var status AffiliateStatus
+
+	return status, b.SendAuthenticatedHTTPRequest("GET",
+		bitmexEndpointUserAffiliate,
+		nil,
+		&status)
+}
+
+// CancelWithdraw cancels a current withdrawal
+func (b *Bitmex) CancelWithdraw(token string) (TransactionInfo, error) {
+	var info TransactionInfo
+
+	return info, b.SendAuthenticatedHTTPRequest("POST",
+		bitmexEndpointUserCancelWithdraw,
+		UserTokenParams{Token: token},
+		&info)
+}
+
+// CheckReferalCode checks a code, will return a percentage eg 0.1 for 10% or
+// if err a 404
+func (b *Bitmex) CheckReferalCode(referralCode string) (float64, error) {
+	var percentage float64
+
+	return percentage, b.SendHTTPRequest(bitmexEndpointUserCheckReferralCode,
+		UserCheckReferralCodeParams{ReferralCode: referralCode},
+		&percentage)
+}
+
+// GetUserCommision returns your account's commission status.
+func (b *Bitmex) GetUserCommision(token string) (UserCommission, error) {
+	var commissionInfo UserCommission
+
+	return commissionInfo, b.SendAuthenticatedHTTPRequest("GET",
+		bitmexEndpointUserCommision,
+		nil,
+		&commissionInfo)
+}
+
+// ConfirmEmail confirms email address with a token
+func (b *Bitmex) ConfirmEmail(token string) (ConfirmEmail, error) {
+	var confirmation ConfirmEmail
+
+	return confirmation, b.SendAuthenticatedHTTPRequest("GET",
+		bitmexEndpointUserConfirmEmail,
+		UserTokenParams{Token: token},
+		&confirmation)
+}
+
+// ConfirmTwoFactorAuth confirmas 2FA for this account.
+func (b *Bitmex) ConfirmTwoFactorAuth(token, typ string) (bool, error) {
+	var working bool
+
+	return working, b.SendAuthenticatedHTTPRequest("POST",
+		bitmexEndpointUserConfirmTFA,
+		UserConfirmTFAParams{Token: token, Type: typ},
+		&working)
+}
+
+// ConfirmWithdrawal confirmas a withdrawal
+func (b *Bitmex) ConfirmWithdrawal(token string) (TransactionInfo, error) {
+	var info TransactionInfo
+
+	return info, b.SendAuthenticatedHTTPRequest("POST",
+		bitmexEndpointUserCancelWithdraw,
+		UserTokenParams{Token: token},
+		&info)
+}
+
+// GetDepositAddress returns a deposit address for a cryptocurency
+func (b *Bitmex) GetDepositAddress(currency string) (string, error) {
+	var address string
+
+	return address, b.SendAuthenticatedHTTPRequest("GET",
+		bitmexEndpointUserDepositAddress,
+		UserCurrencyParams{Currency: currency},
+		&address)
+}
+
+// DisableTFA dsiables 2 factor authentication for your account
+func (b *Bitmex) DisableTFA(token, typ string) (bool, error) {
+	var disabled bool
+
+	return disabled, b.SendAuthenticatedHTTPRequest("POST",
+		bitmexEndpointUserDisableTFA,
+		UserConfirmTFAParams{Token: token, Type: typ},
+		&disabled)
+}
+
+// UserLogOut logs you out of BitMEX
+func (b *Bitmex) UserLogOut() error {
+	return b.SendAuthenticatedHTTPRequest("POST",
+		bitmexEndpointUserLogout,
+		nil,
+		nil)
+}
+
+// UserLogOutAll logs you out of all systems for BitMEX
+func (b *Bitmex) UserLogOutAll() (int64, error) {
+	var status int64
+
+	return status, b.SendAuthenticatedHTTPRequest("POST",
+		bitmexEndpointUserLogoutAll,
+		nil,
+		&status)
+}
+
+// GetUserMargin returns user margin information
+func (b *Bitmex) GetUserMargin(currency string) (UserMargin, error) {
+	var info UserMargin
+
+	return info, b.SendAuthenticatedHTTPRequest("GET",
+		bitmexEndpointUserMargin,
+		UserCurrencyParams{Currency: currency},
+		&info)
+}
+
+// GetMinimumWithdrawalFee returns minimum withdrawal fee information
+func (b *Bitmex) GetMinimumWithdrawalFee(currency string) (MinWithdrawalFee, error) {
+	var fee MinWithdrawalFee
+
+	return fee, b.SendAuthenticatedHTTPRequest("GET",
+		bitmexEndpointUserMinWithdrawalFee,
+		UserCurrencyParams{Currency: currency},
+		&fee)
+}
+
+// GetUserPreferences returns user preferences
+func (b *Bitmex) GetUserPreferences(params UserPreferencesParams) (User, error) {
+	var userInfo User
+
+	return userInfo, b.SendAuthenticatedHTTPRequest("POST",
+		bitmexEndpointUserPreferences,
+		params,
+		&userInfo)
+}
+
+// EnableTFA enables 2 factor authentication
+func (b *Bitmex) EnableTFA(typ string) (bool, error) {
+	var enabled bool
+
+	return enabled, b.SendAuthenticatedHTTPRequest("POST",
+		bitmexEndpointUserRequestTFA,
+		UserConfirmTFAParams{Type: typ},
+		&enabled)
+}
+
+// UserRequestWithdrawal This will send a confirmation email to the email
+// address on record, unless requested via an API Key with the withdraw
+// permission.
+func (b *Bitmex) UserRequestWithdrawal(params UserRequestWithdrawalParams) (TransactionInfo, error) {
+	var info TransactionInfo
+
+	return info, b.SendAuthenticatedHTTPRequest("POST",
+		bitmexEndpointUserRequestWithdraw,
+		params,
+		&info)
+}
+
+// GetWalletInfo returns user wallet information
+func (b *Bitmex) GetWalletInfo(currency string) (WalletInfo, error) {
+	var info WalletInfo
+
+	return info, b.SendAuthenticatedHTTPRequest("GET",
+		bitmexEndpointUserWallet,
+		UserCurrencyParams{Currency: currency},
+		&info)
+}
+
+// GetWalletHistory returns user wallet history transaction data
+func (b *Bitmex) GetWalletHistory(currency string) ([]TransactionInfo, error) {
+	var info []TransactionInfo
+
+	return info, b.SendAuthenticatedHTTPRequest("GET",
+		bitmexEndpointUserWalletHistory,
+		UserCurrencyParams{Currency: currency},
+		&info)
+}
+
+// GetWalletSummary returns user wallet summary
+func (b *Bitmex) GetWalletSummary(currency string) ([]TransactionInfo, error) {
+	var info []TransactionInfo
+
+	return info, b.SendAuthenticatedHTTPRequest("GET",
+		bitmexEndpointUserWalletSummary,
+		UserCurrencyParams{Currency: currency},
+		&info)
 }
 
 // SendHTTPRequest sends an unauthenticated HTTP request
