@@ -203,7 +203,7 @@ func TestGetTradeVolume(t *testing.T) {
 
 func TestAddOrder(t *testing.T) {
 	t.Parallel()
-	_, err := k.AddOrder("bla", "bla", "bla", 0, 0, 0, 0)
+	_, err := k.AddOrder("bla", "bla", "bla", 0, 0, 0, 0, map[string]string{"bla": "bla"})
 	if err == nil {
 		t.Error("Test Failed - AddOrder() error", err)
 	}

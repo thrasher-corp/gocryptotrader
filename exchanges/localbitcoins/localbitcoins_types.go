@@ -189,7 +189,7 @@ type DashBoardInfo struct {
 		Buyer     struct {
 			Username                 string `json:"username"`
 			TradeCount               string `json:"trade_count"`
-			FeedbackScore            string `json:"feedback_score"`
+			FeedbackScore            int    `json:"feedback_score"`
 			Name                     string `json:"name"`
 			LastOnline               string `json:"last_online"`
 			RealName                 string `json:"real_name"`
@@ -200,7 +200,7 @@ type DashBoardInfo struct {
 		Seller struct {
 			Username      string `json:"username"`
 			TradeCount    string `json:"trade_count"`
-			FeedbackScore string `json:"feedback_score"`
+			FeedbackScore int    `json:"feedback_score"`
 			Name          string `json:"name"`
 			LastOnline    string `json:"last_online"`
 		} `json:"seller"`
@@ -216,7 +216,7 @@ type DashBoardInfo struct {
 			Advertiser struct {
 				Username      string `json:"username"`
 				TradeCount    string `json:"trade_count"`
-				FeedbackScore string `json:"feedback_score"`
+				FeedbackScore int    `json:"feedback_score"`
 				Name          string `json:"name"`
 				LastOnline    string `json:"last_online"`
 			} `json:"advertiser"`
