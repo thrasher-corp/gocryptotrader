@@ -6,19 +6,11 @@ import {
   Grid,
   Typography,
   FormGroup,
-  FormControl,
   FormControlLabel,
   Switch,
-  TextField,
-  Input,
-  InputLabel,
-  InputAdornment,
-  IconButton
+  TextField
 } from '@material-ui/core';
-import {
-  Visibility as VisibilityIcon,
-  VisibilityOff as VisibilityOffIcon
-} from '@material-ui/icons';
+import { SecretInput } from '../';
 
 const styles = theme => ({
   root: {
@@ -38,7 +30,6 @@ const styles = theme => ({
 });
 class WebserverSettings extends Component {
   state = {
-    showPassword: false,
     data: {}
   };
 
@@ -52,17 +43,8 @@ class WebserverSettings extends Component {
     }));
   };
 
-  handleMouseDownPassword = event => {
-    event.preventDefault();
-  };
-
-  handleClickShowPassword = () => {
-    this.setState(state => ({ showPassword: !state.showPassword }));
-  };
-
   render() {
     const { classes, data } = this.props;
-    // const { data } = this.state;
 
     return (
       <form className={classes.root} autoComplete="off">
@@ -88,32 +70,11 @@ class WebserverSettings extends Component {
                 onChange={this.handleChange('adminUsername')}
                 margin="normal"
               />
-              <FormControl
-                className={classNames(classes.formControl, classes.textField)}
-              >
-                <InputLabel htmlFor="adornment-password">Password</InputLabel>
-                <Input
-                  id="adornment-password"
-                  type={this.state.showPassword ? 'text' : 'password'}
-                  value={data.adminPassword}
-                  onChange={this.handleChange('adminPassword')}
-                  endAdornment={
-                    <InputAdornment position="end">
-                      <IconButton
-                        aria-label="Toggle password visibility"
-                        onClick={this.handleClickShowPassword}
-                        onMouseDown={this.handleMouseDownPassword}
-                      >
-                        {this.state.showPassword ? (
-                          <VisibilityOffIcon />
-                        ) : (
-                          <VisibilityIcon />
-                        )}
-                      </IconButton>
-                    </InputAdornment>
-                  }
-                />
-              </FormControl>
+              <SecretInput
+                id="adornment-password"
+                label="Password"
+                value={data.adminPassword}
+              />
             </FormGroup>
           </Grid>
           <Grid item xs={12} sm={6}>
