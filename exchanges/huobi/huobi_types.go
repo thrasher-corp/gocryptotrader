@@ -29,8 +29,10 @@ type DetailMerged struct {
 	Bid     []float64 `json:"bid"`
 }
 
+// OrderBookDataRequestParamsType var for request param types
 type OrderBookDataRequestParamsType string
 
+// vars for OrderBookDataRequestParamsTypes
 var (
 	OrderBookDataRequestParamsTypeNone  = OrderBookDataRequestParamsType("")
 	OrderBookDataRequestParamsTypeStep0 = OrderBookDataRequestParamsType("step0")
@@ -232,6 +234,7 @@ type KlinesRequestParams struct {
 // TimeInterval 火币获取 K线的时间段枚举
 type TimeInterval string
 
+// TimeInterval vars
 var (
 	TimeIntervalMinute         = TimeInterval("1min")
 	TimeIntervalFiveMinutes    = TimeInterval("5min")

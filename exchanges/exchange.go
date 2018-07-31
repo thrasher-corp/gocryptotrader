@@ -1,10 +1,8 @@
 package exchange
 
 import (
-	"fmt"
 	"log"
 	"net/http"
-	"strings"
 	"sync"
 	"time"
 
@@ -109,8 +107,6 @@ type Base struct {
 	RequestCurrencyPairFormat                  config.CurrencyPairFormatConfig
 	ConfigCurrencyPairFormat                   config.CurrencyPairFormatConfig
 	*request.Requester
-	BaseAsset  string `json:"baseasset"`  // 基础交易目标
-	QuoteAsset string `json:"quoteasset"` // 交易目标
 }
 
 // IBotExchange enforces standard functions for all exchanges supported in
@@ -283,23 +279,6 @@ func CompareCurrencyPairFormats(pair1 config.CurrencyPairFormatConfig, pair2 *co
 	return true
 }
 
-// SetSymbol 设置交易对
-func (e *Base) SetSymbol(baseAsset, quoteAsset string) {
-	e.BaseAsset = baseAsset
-	e.QuoteAsset = quoteAsset
-}
-
-// GetSymbol 获取格式化的交易对
-func (e *Base) GetSymbol() string {
-	var symbol string
-	if e.RequestCurrencyPairFormat.Uppercase {
-		symbol = fmt.Sprintf("%s%s%s", strings.ToUpper(e.BaseAsset), e.RequestCurrencyPairFormat.Delimiter, strings.ToUpper(e.QuoteAsset))
-	} else {
-		symbol = fmt.Sprintf("%s%s%s", strings.ToLower(e.BaseAsset), e.RequestCurrencyPairFormat.Delimiter, strings.ToLower(e.QuoteAsset))
-	}
-	return symbol
-}
-
 // SetCurrencyPairFormat checks the exchange request and config currency pair
 // formats and sets it to a default setting if it doesn't exist
 func (e *Base) SetCurrencyPairFormat() error {
@@ -449,12 +428,6 @@ func (e *Base) SetEnabled(enabled bool) {
 // IsEnabled is a method that returns if the current exchange is enabled
 func (e *Base) IsEnabled() bool {
 	return e.Enabled
-}
-
-// SetAPISecretKeys is a method that sets the current API keys for the exchange
-func (e *Base) SetAPISecretKeys(APIKey, APISecret string) {
-	e.APIKey = APIKey
-	e.APISecret = APISecret
 }
 
 // SetAPIKeys is a method that sets the current API keys for the exchange

@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/idoall/gocryptotrader/currency/pair"
+	"github.com/thrasher-/gocryptotrader/currency/pair"
 )
 
 func TestCalculateTotalBids(t *testing.T) {

@@ -4,7 +4,6 @@ import (
 	"flag"
 	"fmt"
 	"log"
-	"net/url"
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
@@ -128,7 +127,7 @@ func main() {
 			}
 		} else {
 			bf := bitfinex.Bitfinex{}
-			ticker, errf := bf.GetTicker(y.Coin+"USD", url.Values{})
+			ticker, errf := bf.GetTicker(y.Coin + "USD")
 			if errf != nil {
 				log.Println(errf)
 			} else {

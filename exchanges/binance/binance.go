@@ -14,6 +14,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/config"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/request"
+	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 )
 
 // Binance is the overarching type across the Bithumb package
@@ -64,12 +65,12 @@ func (b *Binance) SetDefaults() {
 	b.RESTPollingDelay = 10
 	b.RequestCurrencyPairFormat.Delimiter = ""
 	b.RequestCurrencyPairFormat.Uppercase = true
-	// b.ConfigCurrencyPairFormat.Delimiter = "-"
-	// b.ConfigCurrencyPairFormat.Uppercase = true
-	// b.AssetTypes = []string{ticker.Spot}
-	// b.SupportsAutoPairUpdating = true
-	// b.SupportsRESTTickerBatching = true
-	// b.SetValues()
+	b.ConfigCurrencyPairFormat.Delimiter = "-"
+	b.ConfigCurrencyPairFormat.Uppercase = true
+	b.AssetTypes = []string{ticker.Spot}
+	b.SupportsAutoPairUpdating = true
+	b.SupportsRESTTickerBatching = true
+	b.SetValues()
 	b.Requester = request.New(b.Name, request.NewRateLimit(time.Second, binanceAuthRate), request.NewRateLimit(time.Second, binanceUnauthRate), common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 }
 
@@ -79,29 +80,27 @@ func (b *Binance) Setup(exch config.ExchangeConfig) {
 		b.SetEnabled(false)
 	} else {
 		b.Enabled = true
-		b.BaseAsset = exch.BaseAsset
-		b.QuoteAsset = exch.QuoteAsset
 		b.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
 		b.SetAPIKeys(exch.APIKey, exch.APISecret, "", false)
 		b.SetHTTPClientTimeout(exch.HTTPTimeout)
 		b.RESTPollingDelay = exch.RESTPollingDelay
 		b.Verbose = exch.Verbose
 		b.Websocket = exch.Websocket
-		// b.BaseCurrencies = common.SplitStrings(exch.BaseCurrencies, ",")
-		// b.AvailablePairs = common.SplitStrings(exch.AvailablePairs, ",")
-		// b.EnabledPairs = common.SplitStrings(exch.EnabledPairs, ",")
-		// err := b.SetCurrencyPairFormat()
-		// if err != nil {
-		// 	log.Fatal(err)
-		// }
-		// err = b.SetAssetTypes()
-		// if err != nil {
-		// 	log.Fatal(err)
-		// }
-		// err = b.SetAutoPairDefaults()
-		// if err != nil {
-		// 	log.Fatal(err)
-		// }
+		b.BaseCurrencies = common.SplitStrings(exch.BaseCurrencies, ",")
+		b.AvailablePairs = common.SplitStrings(exch.AvailablePairs, ",")
+		b.EnabledPairs = common.SplitStrings(exch.EnabledPairs, ",")
+		err := b.SetCurrencyPairFormat()
+		if err != nil {
+			log.Fatal(err)
+		}
+		err = b.SetAssetTypes()
+		if err != nil {
+			log.Fatal(err)
+		}
+		err = b.SetAutoPairDefaults()
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 }
 
@@ -477,15 +476,15 @@ func (b *Binance) OpenOrders(symbol string) ([]QueryOrderData, error) {
 // AllOrders Get all account orders; active, canceled, or filled.
 // @orderId 非必填项
 // @limit 非必填项,Default 500; max 500
-func (b *Binance) AllOrders(symbol, orderId, limit string) ([]QueryOrderData, error) {
+func (b *Binance) AllOrders(symbol, orderID, limit string) ([]QueryOrderData, error) {
 	var resp []QueryOrderData
 
 	path := fmt.Sprintf("%s%s", apiURL, allOrders)
 
 	params := url.Values{}
 	params.Set("symbol", common.StringToUpper(symbol))
-	if orderId != "" {
-		params.Set("orderId", orderId)
+	if orderID != "" {
+		params.Set("orderId", orderID)
 	}
 	if limit != "" {
 		params.Set("limit", limit)
@@ -569,11 +568,7 @@ func (b *Binance) SendAuthHTTPRequest(method, path string, params url.Values, re
 
 	headers := make(map[string]string)
 	headers["X-MBX-APIKEY"] = b.APIKey
-	// headers["Content-Type"] = "application/x-www-form-urlencoded"
-	// c, _ := json.Marshal(headers)
-	// fmt.Println("headers", string(c))
-	// c, _ = json.Marshal(params)
-	// fmt.Println("params", string(c))
+
 	if b.Verbose {
 		log.Printf("sent path: \n%s\n", path)
 	}

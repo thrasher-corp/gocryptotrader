@@ -1,43 +1,17 @@
 package gateio
 
 import (
-	"fmt"
 	"testing"
 
-	"github.com/idoall/gocryptotrader/config"
+	"github.com/thrasher-/gocryptotrader/config"
 )
 
-// getDefaultConfig 获取默认配置
-func getDefaultConfig() config.ExchangeConfig {
-	return config.ExchangeConfig{
-		Name:                    "gateio",
-		Enabled:                 true,
-		Verbose:                 true,
-		Websocket:               false,
-		BaseAsset:               "eth",
-		QuoteAsset:              "usdt",
-		UseSandbox:              false,
-		RESTPollingDelay:        10,
-		HTTPTimeout:             15000000000,
-		AuthenticatedAPISupport: true,
-		APIKey:                  "",
-		APISecret:               "",
-		ClientID:                "",
-		AvailablePairs:          "BTC-USDT,BCH-USDT",
-		EnabledPairs:            "BTC-USDT",
-		BaseCurrencies:          "USD",
-		AssetTypes:              "SPOT",
-		SupportsAutoPairUpdates: false,
-		ConfigCurrencyPairFormat: &config.CurrencyPairFormatConfig{
-			Uppercase: true,
-			Delimiter: "-",
-		},
-		RequestCurrencyPairFormat: &config.CurrencyPairFormatConfig{
-			Uppercase: true,
-			Delimiter: "_",
-		},
-	}
-}
+// Please supply your own APIKEYS here for due diligence testing
+
+const (
+	apiKey    = ""
+	apiSecret = ""
+)
 
 var g Gateio
 
@@ -46,7 +20,18 @@ func TestSetDefaults(t *testing.T) {
 }
 
 func TestSetup(t *testing.T) {
-	g.Setup(getDefaultConfig())
+	cfg := config.GetConfig()
+	cfg.LoadConfig("../../testdata/configtest.json")
+	gateioConfig, err := cfg.GetExchangeConfig("GateIO")
+	if err != nil {
+		t.Error("Test Failed - GateIO Setup() init error")
+	}
+
+	gateioConfig.AuthenticatedAPISupport = true
+	gateioConfig.APIKey = apiKey
+	gateioConfig.APISecret = apiSecret
+
+	g.Setup(gateioConfig)
 }
 
 func TestGetSymbols(t *testing.T) {
@@ -67,8 +52,13 @@ func TestGetMarketInfo(t *testing.T) {
 
 func TestSpotNewOrder(t *testing.T) {
 	t.Parallel()
+
+	if apiKey == "" || apiSecret == "" {
+		t.Skip()
+	}
+
 	_, err := g.SpotNewOrder(SpotNewOrderRequestParams{
-		Symbol: g.GetSymbol(),
+		Symbol: "btc_usdt",
 		Amount: 1.1,
 		Price:  10.1,
 		Type:   SpotNewOrderRequestParamsTypeSell,
@@ -80,29 +70,33 @@ func TestSpotNewOrder(t *testing.T) {
 
 func TestCancelOrder(t *testing.T) {
 	t.Parallel()
-	_, err := g.CancelOrder(917591554, g.GetSymbol())
+
+	if apiKey == "" || apiSecret == "" {
+		t.Skip()
+	}
+
+	_, err := g.CancelOrder(917591554, "btc_usdt")
 	if err != nil {
 		t.Errorf("Test failed - Gateio CancelOrder: %s", err)
 	}
 }
 
 func TestGetBalances(t *testing.T) {
-	TestSetDefaults(t)
-	TestSetup(t)
 	t.Parallel()
-	res, err := g.GetBalances()
-	if err != nil {
-		t.Errorf("Test failed - Gateio GetBalances: %s", err)
+
+	if apiKey == "" || apiSecret == "" {
+		t.Skip()
 	}
 
-	for k, v := range res.Available {
-		fmt.Println(k, v)
+	_, err := g.GetBalances()
+	if err != nil {
+		t.Errorf("Test failed - Gateio GetBalances: %s", err)
 	}
 }
 
 func TestGetLatestSpotPrice(t *testing.T) {
 	t.Parallel()
-	_, err := g.GetLatestSpotPrice(g.GetSymbol())
+	_, err := g.GetLatestSpotPrice("btc_usdt")
 	if err != nil {
 		t.Errorf("Test failed - Gateio GetLatestSpotPrice: %s", err)
 	}
@@ -110,7 +104,23 @@ func TestGetLatestSpotPrice(t *testing.T) {
 
 func TestGetTicker(t *testing.T) {
 	t.Parallel()
-	_, err := g.GetTicker(g.GetSymbol())
+	_, err := g.GetTicker("btc_usdt")
+	if err != nil {
+		t.Errorf("Test failed - Gateio GetTicker: %s", err)
+	}
+}
+
+func TestGetTickers(t *testing.T) {
+	t.Parallel()
+	_, err := g.GetTickers()
+	if err != nil {
+		t.Errorf("Test failed - Gateio GetTicker: %s", err)
+	}
+}
+
+func TestGetOrderbook(t *testing.T) {
+	t.Parallel()
+	_, err := g.GetOrderbook("btc_usdt")
 	if err != nil {
 		t.Errorf("Test failed - Gateio GetTicker: %s", err)
 	}
@@ -118,11 +128,13 @@ func TestGetTicker(t *testing.T) {
 
 func TestGetSpotKline(t *testing.T) {
 	t.Parallel()
+
 	_, err := g.GetSpotKline(KlinesRequestParams{
-		Symbol:   g.GetSymbol(),
+		Symbol:   "btc_usdt",
 		GroupSec: TimeIntervalFiveMinutes, //5分钟以内数据
 		HourSize: 1,                       //1小时内数据
 	})
+
 	if err != nil {
 		t.Errorf("Test failed - Gateio GetSpotKline: %s", err)
 	}

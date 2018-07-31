@@ -1,13 +1,22 @@
 package main
 
 import (
+	"flag"
 	"fmt"
-	"time"
+	"log"
+	"net/http"
+	"os"
+	"os/signal"
+	"runtime"
+	"strconv"
+	"syscall"
 
+	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/communications"
 	"github.com/thrasher-/gocryptotrader/config"
+	"github.com/thrasher-/gocryptotrader/currency"
+	"github.com/thrasher-/gocryptotrader/currency/forexprovider"
 	"github.com/thrasher-/gocryptotrader/exchanges"
-	"github.com/thrasher-/gocryptotrader/exchanges/binance"
 	"github.com/thrasher-/gocryptotrader/portfolio"
 )
 
@@ -34,118 +43,161 @@ const banner = `
 
 var bot Bot
 
-// getDefaultConfig 获取默认配置
-func getDefaultConfig() config.ExchangeConfig {
-	return config.ExchangeConfig{
-		Name:                    "ZB",
-		Enabled:                 true,
-		Verbose:                 true,
-		Websocket:               true,
-		BaseAsset:               "btc",
-		QuoteAsset:              "usdt",
-		RESTPollingDelay:        10,
-		HTTPTimeout:             3 * time.Second,
-		AuthenticatedAPISupport: true,
-		APIKey:                  "robcDQaF6FkH4PgWHaf6xqwALjKW4o1RN3uwkUoKg3hGEPPcTfmPrtIndywlCpNs",
-		APISecret:               "VlB6dQrMNAEGegbG7woYoWXvlWPkHqLoXrA7l10wQlnrIYFXWzuPxoUMrP5Hs9FW",
+func main() {
+	bot.shutdown = make(chan bool)
+	HandleInterrupt()
+
+	defaultPath, err := config.GetFilePath("")
+	if err != nil {
+		log.Fatal(err)
 	}
+
+	//Handle flags
+	flag.StringVar(&bot.configFile, "config", defaultPath, "config file to load")
+	dryrun := flag.Bool("dryrun", false, "dry runs bot, doesn't save config file")
+	version := flag.Bool("version", false, "retrieves current GoCryptoTrader version")
+	flag.Parse()
+
+	if *version {
+		fmt.Printf(BuildVersion(true))
+		os.Exit(0)
+	}
+
+	if *dryrun {
+		bot.dryRun = true
+	}
+
+	bot.config = &config.Cfg
+	fmt.Println(banner)
+	fmt.Println(BuildVersion(false))
+	log.Printf("Loading config file %s..\n", bot.configFile)
+
+	err = bot.config.LoadConfig(bot.configFile)
+	if err != nil {
+		log.Fatalf("Failed to load config. Err: %s", err)
+	}
+
+	AdjustGoMaxProcs()
+	log.Printf("Bot '%s' started.\n", bot.config.Name)
+	log.Printf("Bot dry run mode: %v.\n", common.IsEnabled(bot.dryRun))
+
+	log.Printf("Available Exchanges: %d. Enabled Exchanges: %d.\n",
+		len(bot.config.Exchanges),
+		bot.config.CountEnabledExchanges())
+
+	common.HTTPClient = common.NewHTTPClientWithTimeout(bot.config.GlobalHTTPTimeout)
+	log.Printf("Global HTTP request timeout: %v.\n", common.HTTPClient.Timeout)
+
+	SetupExchanges()
+	if len(bot.exchanges) == 0 {
+		log.Fatalf("No exchanges were able to be loaded. Exiting")
+	}
+
+	log.Println("Starting communication mediums..")
+	bot.comms = communications.NewComm(bot.config.GetCommunicationsConfig())
+	bot.comms.GetEnabledCommunicationMediums()
+
+	log.Printf("Fiat display currency: %s.", bot.config.Currency.FiatDisplayCurrency)
+	currency.BaseCurrency = bot.config.Currency.FiatDisplayCurrency
+	currency.FXProviders = forexprovider.StartFXService(bot.config.GetCurrencyConfig().ForexProviders)
+	log.Printf("Primary forex conversion provider: %s.\n", bot.config.GetPrimaryForexProvider())
+	err = bot.config.RetrieveConfigCurrencyPairs(true)
+	if err != nil {
+		log.Fatalf("Failed to retrieve config currency pairs. Error: %s", err)
+	}
+	log.Println("Successfully retrieved config currencies.")
+	log.Println("Fetching currency data from forex provider..")
+	err = currency.SeedCurrencyData(common.JoinStrings(currency.FiatCurrencies, ","))
+	if err != nil {
+		log.Fatalf("Unable to fetch forex data. Error: %s", err)
+	}
+
+	bot.portfolio = &portfolio.Portfolio
+	bot.portfolio.SeedPortfolio(bot.config.Portfolio)
+	SeedExchangeAccountInfo(GetAllEnabledExchangeAccountInfo().Data)
+
+	go portfolio.StartPortfolioWatcher()
+	go TickerUpdaterRoutine()
+	go OrderbookUpdaterRoutine()
+
+	if bot.config.Webserver.Enabled {
+		listenAddr := bot.config.Webserver.ListenAddress
+		log.Printf(
+			"HTTP Webserver support enabled. Listen URL: http://%s:%d/\n",
+			common.ExtractHost(listenAddr), common.ExtractPort(listenAddr),
+		)
+
+		router := NewRouter(bot.exchanges)
+		go func() {
+			err = http.ListenAndServe(listenAddr, router)
+			if err != nil {
+				log.Fatal(err)
+			}
+		}()
+
+		log.Println("HTTP Webserver started successfully.")
+		log.Println("Starting websocket handler.")
+		StartWebsocketHandler()
+	} else {
+		log.Println("HTTP RESTful Webserver support disabled.")
+	}
+
+	<-bot.shutdown
+	Shutdown()
 }
 
-func main() {
-	fmt.Println(time.Now())
-	// exchange := gateio.Gateio{}
-	// exchange := bitfinex.Bitfinex{}
-	// exchange := okex.OKEX{}
-	// exchange := huobi.HUOBI{}
-	// exchange := zb.ZB{}
-	exchange := binance.Binance{}
-	defaultConfig := getDefaultConfig()
-	exchange.SetDefaults()
-	fmt.Println("----------setup-------")
-	exchange.Setup(defaultConfig)
+// AdjustGoMaxProcs adjusts the maximum processes that the CPU can handle.
+func AdjustGoMaxProcs() {
+	log.Println("Adjusting bot runtime performance..")
+	maxProcsEnv := os.Getenv("GOMAXPROCS")
+	maxProcs := runtime.NumCPU()
+	log.Println("Number of CPU's detected:", maxProcs)
 
-	res, err := exchange.GetAccount()
-
-	if err != nil {
-		fmt.Println(err)
-	} else {
-		fmt.Printf("%v\n", res)
-
-		for _, v := range res.Balances {
-			fmt.Printf("%+v\n", v)
+	if maxProcsEnv != "" {
+		log.Println("GOMAXPROCS env =", maxProcsEnv)
+		env, err := strconv.Atoi(maxProcsEnv)
+		if err != nil {
+			log.Println("Unable to convert GOMAXPROCS to int, using", maxProcs)
+		} else {
+			maxProcs = env
 		}
-		// for k, v := range list {
-		// 	ot, _ := utils.TimeFromUnixTimestampFloat(v.OpenTime)
-		// 	b, _ := json.Marshal(v)
-		// 	fmt.Println(k, ot.Format("2006-01-02 15:04:05"), utils.UnixMillis(ot), string(b))
-		// }
+	}
+	if i := runtime.GOMAXPROCS(maxProcs); i != maxProcs {
+		log.Fatal("Go Max Procs were not set correctly.")
+	}
+	log.Println("Set GOMAXPROCS to:", maxProcs)
+}
 
+// HandleInterrupt monitors and captures the SIGTERM in a new goroutine then
+// shuts down bot
+func HandleInterrupt() {
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
+	go func() {
+		sig := <-c
+		log.Printf("Captured %v, shutdown requested.", sig)
+		bot.shutdown <- true
+	}()
+}
+
+// Shutdown correctly shuts down bot saving configuration files
+func Shutdown() {
+	log.Println("Bot shutting down..")
+
+	if len(portfolio.Portfolio.Addresses) != 0 {
+		bot.config.Portfolio = portfolio.Portfolio
 	}
 
-	// sh1 := common.GetHMAC(common.MD5New, []byte("accesskey=6d8f62fd-3086-46e3-a0ba-c66a929c24e2&method=getAccountInfo"), []byte(common.Sha1ToHex("48939bbc-8d49-402b-b731-adadf2ea9628")))
-	// fmt.Println(common.HexEncodeToString((sh1)))
-	// arg := huobi.SpotNewOrderRequestParams{
-	// 	Symbol:    exchange.GetSymbol(),
-	// 	AccountID: 3838465,
-	// 	Amount:    0.01,
-	// 	Price:     10.1,
-	// 	Type:      huobi.SpotNewOrderRequestTypeBuyLimit,
-	// }
-	// fmt.Println(exchange.SpotNewOrder(arg))
+	if !bot.dryRun {
+		err := bot.config.SaveConfig(bot.configFile)
 
-	// res, err := exchange.SpotNewOrder(okex.SpotNewOrderRequestParams{
-	// 	Symbol: exchange.GetSymbol(),
-	// 	Amount: 1.1,
-	// 	Price:  10.1,
-	// 	Type:   okex.SpotNewOrderRequestTypeBuy,
-	// })
-	// if err != nil {
-	// 	fmt.Println(err)
-	// } else {
-	// 	fmt.Println(res)
-	// }
+		if err != nil {
+			log.Println("Unable to save config.")
+		} else {
+			log.Println("Config file saved successfully.")
+		}
+	}
 
-	// fmt.Println(exchange.GetKline("btcusdt", "1min", ""))
-	// fmt.Println(exchange.GetKline("btcusdt", "1min", ""))
-	// fmt.Println(exchange.GetKline("btcusdt", "15min", ""))
-	// fmt.Println(exchange.GetKline("btcusdt", "1hour", ""))
-	// fmt.Println(exchange.GetKline("btcusdt", "1day", ""))
-
-	// list, err := exchange.GetAccountInfo()
-	// if err != nil {
-	// 	fmt.Println(err)
-	// } else {
-	// 	for k, v := range list {
-	// 		// b, _ := json.Marshal(v)
-	// 		fmt.Printf("%s:%v \n", k, v)
-	// 	}
-	// }
-
-	// fmt.Println(exchange.CancelOrder(917591554, exchange.GetSymbol()))
-
-	//获取交易所的规则和交易对信息
-	// getExchangeInfo(exchange)
-
-	//获取交易深度
-	// getOrderBook(exchange)
-
-	//获取最近的交易记录
-	// getRecentTrades(exchange)
-
-	//获取 k 线数据
-	// getCandleStickData(exchange)
-
-	//获取最新价格
-	// getLatestSpotPrice(exchange)
-
-	//新订单
-	// newOrder(exchange)
-
-	//取消订单
-	// cancelOrder(exchange, 82584683)
-
-	// fmt.Println(exchange.GetAccount())
-
-	// fmt.Println(exchange.GetSymbol())
-
+	log.Println("Exiting.")
+	os.Exit(0)
 }

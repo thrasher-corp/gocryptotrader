@@ -9,15 +9,17 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"net/url"
 	"strconv"
 	"strings"
 	"time"
 
-	"github.com/idoall/gocryptotrader/common"
-	"github.com/idoall/gocryptotrader/config"
-	"github.com/idoall/gocryptotrader/exchanges/request"
+	"github.com/thrasher-/gocryptotrader/common"
+	"github.com/thrasher-/gocryptotrader/config"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
+	"github.com/thrasher-/gocryptotrader/exchanges/request"
+	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 )
 
 const (
@@ -68,10 +70,14 @@ func (h *HUOBI) SetDefaults() {
 	h.Verbose = false
 	h.Websocket = false
 	h.RESTPollingDelay = 10
-	h.RequestCurrencyPairFormat.Uppercase = true
+	h.RequestCurrencyPairFormat.Delimiter = ""
+	h.RequestCurrencyPairFormat.Uppercase = false
+	h.ConfigCurrencyPairFormat.Delimiter = "-"
+	h.ConfigCurrencyPairFormat.Uppercase = true
+	h.AssetTypes = []string{ticker.Spot}
+	h.SupportsAutoPairUpdating = true
 	h.SupportsRESTTickerBatching = false
 	h.Requester = request.New(h.Name, request.NewRateLimit(time.Second*10, huobiAuthRate), request.NewRateLimit(time.Second*10, huobiUnauthRate), common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
-	h.Requester.SetRateLimit(true, time.Second*10, 3)
 }
 
 // Setup sets user configuration
@@ -80,8 +86,6 @@ func (h *HUOBI) Setup(exch config.ExchangeConfig) {
 		h.SetEnabled(false)
 	} else {
 		h.Enabled = true
-		h.BaseAsset = exch.BaseAsset
-		h.QuoteAsset = exch.QuoteAsset
 		h.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
 		h.SetAPIKeys(exch.APIKey, exch.APISecret, "", false)
 		h.APIAuthPEMKey = exch.APIAuthPEMKey
@@ -92,23 +96,18 @@ func (h *HUOBI) Setup(exch config.ExchangeConfig) {
 		h.BaseCurrencies = common.SplitStrings(exch.BaseCurrencies, ",")
 		h.AvailablePairs = common.SplitStrings(exch.AvailablePairs, ",")
 		h.EnabledPairs = common.SplitStrings(exch.EnabledPairs, ",")
-		h.RequestCurrencyPairFormat.Uppercase = false
-		// err := h.SetCurrencyPairFormat()
-		// if err != nil {
-		// 	log.Fatal(err)
-		// }
-
-		h.AssetTypes = strings.Split(exch.AssetTypes, ",")
-		// err = h.SetAssetTypes()
-		// if err != nil {
-		// 	log.Fatal(err)
-		// }
-
-		h.SupportsAutoPairUpdating = false
-		// err = h.SetAutoPairDefaults()
-		// if err != nil {
-		// 	log.Fatal(err)
-		// }
+		err := h.SetCurrencyPairFormat()
+		if err != nil {
+			log.Fatal(err)
+		}
+		err = h.SetAssetTypes()
+		if err != nil {
+			log.Fatal(err)
+		}
+		err = h.SetAutoPairDefaults()
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 }
 
@@ -357,21 +356,21 @@ func (h *HUOBI) GetAccountBalance(accountID string) ([]AccountBalanceDetail, err
 
 // SpotNewOrder submits an order to Huobi
 func (h *HUOBI) SpotNewOrder(arg SpotNewOrderRequestParams) (int64, error) {
-	vals := make(map[string]string)
-	vals["account-id"] = fmt.Sprintf("%d", arg.AccountID)
-	vals["amount"] = strconv.FormatFloat(arg.Amount, 'f', -1, 64)
+	vals := url.Values{}
+	vals.Set("account-id", fmt.Sprintf("%d", arg.AccountID))
+	vals.Set("amount", strconv.FormatFloat(arg.Amount, 'f', -1, 64))
 
 	// Only set price if order type is not equal to buy-market or sell-market
 	if arg.Type != SpotNewOrderRequestTypeBuyMarkdt && arg.Type != SpotNewOrderRequestTypeSellMarkdt {
-		vals["price"] = strconv.FormatFloat(arg.Price, 'f', -1, 64)
+		vals.Set("price", strconv.FormatFloat(arg.Price, 'f', -1, 64))
 	}
 
 	if arg.Source != "" {
-		vals["source"] = arg.Source
+		vals.Set("source", arg.Source)
 	}
 
-	vals["symbol"] = arg.Symbol
-	vals["type"] = string(arg.Type)
+	vals.Set("symbol", arg.Symbol)
+	vals.Set("type", string(arg.Type))
 
 	type response struct {
 		Response

@@ -93,11 +93,13 @@ type RecentTrade struct {
 	IsBestMatch  bool    `json:"isBestMatch"`
 }
 
+// MultiStreamData holds stream data
 type MultiStreamData struct {
 	Stream string          `json:"stream"`
 	Data   json.RawMessage `json:"data"`
 }
 
+// TradeStream holds the trade stream data
 type TradeStream struct {
 	EventType      string `json:"e"`
 	EventTime      int64  `json:"E"`
@@ -112,6 +114,7 @@ type TradeStream struct {
 	BestMatchPrice bool   `json:"M"`
 }
 
+// KlineStream holds the kline stream data
 type KlineStream struct {
 	EventType string `json:"e"`
 	EventTime int64  `json:"E"`
@@ -136,6 +139,7 @@ type KlineStream struct {
 	} `json:"k"`
 }
 
+// TickerStream holds the ticker stream data
 type TickerStream struct {
 	EventType              string `json:"e"`
 	EventTime              int64  `json:"E"`
@@ -244,11 +248,11 @@ type NewOrderRequest struct {
 	// Symbol 交易对，必填项
 	Symbol string
 	// Side 交易方式，买或卖，必填写项
-	Side BinanceRequestParamsSideType
+	Side RequestParamsSideType
 	// TradeType 交易类型，市价或限价等
-	TradeType BinanceRequestParamsOrderType
+	TradeType RequestParamsOrderType
 	// TimeInForce 不知道有毛用
-	TimeInForce BinanceRequestParamsTimeForceType
+	TimeInForce RequestParamsTimeForceType
 	// Quantity 数量
 	Quantity         float64
 	Price            float64
@@ -329,55 +333,55 @@ type Account struct {
 	Balances         []Balance `json:"balances"`
 }
 
-// BinanceRequestParamsSideType 交易类型
-type BinanceRequestParamsSideType string
+// RequestParamsSideType 交易类型
+type RequestParamsSideType string
 
 var (
 	// BinanceRequestParamsSideBuy 买
-	BinanceRequestParamsSideBuy = BinanceRequestParamsSideType("BUY")
+	BinanceRequestParamsSideBuy = RequestParamsSideType("BUY")
 
 	// BinanceRequestParamsSideSell 卖
-	BinanceRequestParamsSideSell = BinanceRequestParamsSideType("SELL")
+	BinanceRequestParamsSideSell = RequestParamsSideType("SELL")
 )
 
-// BinanceRequestParamsTimeForceType Time in force
-type BinanceRequestParamsTimeForceType string
+// RequestParamsTimeForceType Time in force
+type RequestParamsTimeForceType string
 
 var (
 	// BinanceRequestParamsTimeGTC GTC
-	BinanceRequestParamsTimeGTC = BinanceRequestParamsTimeForceType("GTC")
+	BinanceRequestParamsTimeGTC = RequestParamsTimeForceType("GTC")
 
 	// BinanceRequestParamsTimeIOC IOC
-	BinanceRequestParamsTimeIOC = BinanceRequestParamsTimeForceType("IOC")
+	BinanceRequestParamsTimeIOC = RequestParamsTimeForceType("IOC")
 
 	// BinanceRequestParamsTimeFOK FOK
-	BinanceRequestParamsTimeFOK = BinanceRequestParamsTimeForceType("FOK")
+	BinanceRequestParamsTimeFOK = RequestParamsTimeForceType("FOK")
 )
 
-// BinanceRequestParamsOrderType 交易类型
-type BinanceRequestParamsOrderType string
+// RequestParamsOrderType 交易类型
+type RequestParamsOrderType string
 
 var (
 	// BinanceRequestParamsOrderLimit 限价
-	BinanceRequestParamsOrderLimit = BinanceRequestParamsOrderType("LIMIT")
+	BinanceRequestParamsOrderLimit = RequestParamsOrderType("LIMIT")
 
 	// BinanceRequestParamsOrderMarket 市场价
-	BinanceRequestParamsOrderMarket = BinanceRequestParamsOrderType("MARKET")
+	BinanceRequestParamsOrderMarket = RequestParamsOrderType("MARKET")
 
 	// BinanceRequestParamsOrderStopLoss STOP_LOSS
-	BinanceRequestParamsOrderStopLoss = BinanceRequestParamsOrderType("STOP_LOSS")
+	BinanceRequestParamsOrderStopLoss = RequestParamsOrderType("STOP_LOSS")
 
 	// BinanceRequestParamsOrderStopLossLimit STOP_LOSS_LIMIT
-	BinanceRequestParamsOrderStopLossLimit = BinanceRequestParamsOrderType("STOP_LOSS_LIMIT")
+	BinanceRequestParamsOrderStopLossLimit = RequestParamsOrderType("STOP_LOSS_LIMIT")
 
 	// BinanceRequestParamsOrderTakeProfit TAKE_PROFIT
-	BinanceRequestParamsOrderTakeProfit = BinanceRequestParamsOrderType("TAKE_PROFIT")
+	BinanceRequestParamsOrderTakeProfit = RequestParamsOrderType("TAKE_PROFIT")
 
 	// BinanceRequestParamsOrderTakeProfitLimit TAKE_PROFIT_LIMIT
-	BinanceRequestParamsOrderTakeProfitLimit = BinanceRequestParamsOrderType("TAKE_PROFIT_LIMIT")
+	BinanceRequestParamsOrderTakeProfitLimit = RequestParamsOrderType("TAKE_PROFIT_LIMIT")
 
 	// BinanceRequestParamsOrderLimitMarker LIMIT_MAKER
-	BinanceRequestParamsOrderLimitMarker = BinanceRequestParamsOrderType("LIMIT_MAKER")
+	BinanceRequestParamsOrderLimitMarker = RequestParamsOrderType("LIMIT_MAKER")
 )
 
 //------------------
@@ -394,6 +398,7 @@ type KlinesRequestParams struct {
 // TimeInterval represents interval enum.
 type TimeInterval string
 
+// Vars related to time intervals
 var (
 	TimeIntervalMinute         = TimeInterval("1m")
 	TimeIntervalThreeMinutes   = TimeInterval("3m")

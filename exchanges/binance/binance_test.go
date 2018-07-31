@@ -1,43 +1,16 @@
 package binance
 
 import (
-	"encoding/json"
-	"fmt"
 	"testing"
 
-	"github.com/idoall/gocryptotrader/config"
+	"github.com/thrasher-/gocryptotrader/config"
 )
 
-// getDefaultConfig 获取默认配置
-func getDefaultConfig() config.ExchangeConfig {
-	return config.ExchangeConfig{
-		Name:                    "binance",
-		Enabled:                 true,
-		Verbose:                 true,
-		Websocket:               false,
-		BaseAsset:               "eth",
-		QuoteAsset:              "usdt",
-		UseSandbox:              false,
-		RESTPollingDelay:        10,
-		HTTPTimeout:             15000000000,
-		AuthenticatedAPISupport: true,
-		APIKey:                  "",
-		APISecret:               "",
-		ClientID:                "",
-		AvailablePairs:          "BTC-USDT,BCH-USDT",
-		EnabledPairs:            "BTC-USDT",
-		BaseCurrencies:          "USD",
-		AssetTypes:              "SPOT",
-		SupportsAutoPairUpdates: false,
-		ConfigCurrencyPairFormat: &config.CurrencyPairFormatConfig{
-			Uppercase: true,
-			Delimiter: "-",
-		},
-		RequestCurrencyPairFormat: &config.CurrencyPairFormatConfig{
-			Uppercase: true,
-		},
-	}
-}
+// Please supply your own keys here for due diligence testing
+const (
+	testAPIKey    = ""
+	testAPISecret = ""
+)
 
 var b Binance
 
@@ -46,7 +19,18 @@ func TestSetDefaults(t *testing.T) {
 }
 
 func TestSetup(t *testing.T) {
-	b.Setup(getDefaultConfig())
+	cfg := config.GetConfig()
+	cfg.LoadConfig("../../testdata/configtest.json")
+	binanceConfig, err := cfg.GetExchangeConfig("Binance")
+	if err != nil {
+		t.Error("Test Failed - Binance Setup() init error")
+	}
+
+	binanceConfig.AuthenticatedAPISupport = true
+	binanceConfig.APIKey = testAPIKey
+	binanceConfig.APISecret = testAPISecret
+
+	b.Setup(binanceConfig)
 }
 
 func TestGetExchangeValidCurrencyPairs(t *testing.T) {
@@ -59,44 +43,26 @@ func TestGetExchangeValidCurrencyPairs(t *testing.T) {
 
 func TestGetOrderBook(t *testing.T) {
 	t.Parallel()
-	res, err := b.GetOrderBook(OrderBookDataRequestParams{
-		Symbol: b.GetSymbol(),
+	_, err := b.GetOrderBook(OrderBookDataRequestParams{
+		Symbol: "BTCUSDT",
 		Limit:  10,
 	})
 
 	if err != nil {
 		t.Error("Test Failed - Binance GetOrderBook() error", err)
-	} else {
-		fmt.Println("----------Bids-------")
-		for _, v := range res.Bids {
-			b, _ := json.Marshal(v)
-			fmt.Println(string(b))
-		}
-		fmt.Println("----------Asks-------")
-		for _, v := range res.Asks {
-			b, _ := json.Marshal(v)
-			fmt.Println(string(b))
-		}
-
 	}
 }
 
 func TestGetRecentTrades(t *testing.T) {
 	t.Parallel()
 
-	list, err := b.GetRecentTrades(RecentTradeRequestParams{
-		Symbol: b.GetSymbol(),
+	_, err := b.GetRecentTrades(RecentTradeRequestParams{
+		Symbol: "BTCUSDT",
 		Limit:  15,
 	})
 
 	if err != nil {
 		t.Error("Test Failed - Binance GetRecentTrades() error", err)
-	} else {
-		for k, v := range list {
-			b, _ := json.Marshal(v)
-			fmt.Println(k, string(b))
-		}
-
 	}
 }
 
@@ -119,7 +85,7 @@ func TestGetAggregatedTrades(t *testing.T) {
 func TestGetSpotKline(t *testing.T) {
 	t.Parallel()
 	_, err := b.GetSpotKline(KlinesRequestParams{
-		Symbol:   b.GetSymbol(),
+		Symbol:   "BTCUSDT",
 		Interval: TimeIntervalFiveMinutes,
 		Limit:    24,
 	})
@@ -170,14 +136,19 @@ func TestNewOrderTest(t *testing.T) {
 
 func TestNewOrder(t *testing.T) {
 	t.Parallel()
+
+	if testAPIKey == "" || testAPISecret == "" {
+		t.Skip()
+	}
 	_, err := b.NewOrder(NewOrderRequest{
-		Symbol:      b.GetSymbol(),
+		Symbol:      "BTCUSDT",
 		Side:        BinanceRequestParamsSideSell,
 		TradeType:   BinanceRequestParamsOrderLimit,
 		TimeInForce: BinanceRequestParamsTimeGTC,
 		Quantity:    0.01,
 		Price:       1536.1,
 	})
+
 	if err == nil {
 		t.Error("Test Failed - Binance NewOrder() error", err)
 	}
@@ -185,7 +156,12 @@ func TestNewOrder(t *testing.T) {
 
 func TestCancelOrder(t *testing.T) {
 	t.Parallel()
-	_, err := b.CancelOrder(b.GetSymbol(), 82584683, "")
+
+	if testAPIKey == "" || testAPISecret == "" {
+		t.Skip()
+	}
+
+	_, err := b.CancelOrder("BTCUSDT", 82584683, "")
 	if err == nil {
 		t.Error("Test Failed - Binance CancelOrder() error", err)
 	}
@@ -193,42 +169,39 @@ func TestCancelOrder(t *testing.T) {
 
 func TestQueryOrder(t *testing.T) {
 	t.Parallel()
-	res, err := b.QueryOrder(b.GetSymbol(), "", 1337)
+
+	if testAPIKey == "" || testAPISecret == "" {
+		t.Skip()
+	}
+
+	_, err := b.QueryOrder("BTCUSDT", "", 1337)
 	if err != nil {
 		t.Error("Test Failed - Binance QueryOrder() error", err)
-	} else {
-		//{"code":0,"msg":"","symbol":"BTCUSDT","orderId":131046063,"clientOrderId":"2t38MQXdRe9HvctyRdUbIT","price":"100000","origQty":"0.01","executedQty":"0","status":"NEW","timeInForce":"GTC","type":"LIMIT","side":"SELL","stopPrice":"0","icebergQty":"0","time":1531384312008,"isWorking":true}
-		b, _ := json.Marshal(res)
-		fmt.Println(string(b))
 	}
 }
 
 func TestOpenOrders(t *testing.T) {
 	t.Parallel()
-	list, err := b.OpenOrders(b.GetSymbol())
+
+	if testAPIKey == "" || testAPISecret == "" {
+		t.Skip()
+	}
+
+	_, err := b.OpenOrders("BTCUSDT")
 	if err != nil {
 		t.Error("Test Failed - Binance OpenOrders() error", err)
-	} else {
-		fmt.Println("----------OpenOrders-------")
-		for _, v := range list {
-			b, _ := json.Marshal(v)
-			fmt.Println(string(b))
-		}
-
 	}
 }
 
 func TestAllOrders(t *testing.T) {
 	t.Parallel()
-	list, err := b.AllOrders(b.GetSymbol(), "", "")
+
+	if testAPIKey == "" || testAPISecret == "" {
+		t.Skip()
+	}
+
+	_, err := b.AllOrders("BTCUSDT", "", "")
 	if err != nil {
 		t.Error("Test Failed - Binance AllOrders() error", err)
-	} else {
-		fmt.Println("----------AllOrders-------")
-		for _, v := range list {
-			b, _ := json.Marshal(v)
-			fmt.Println(string(b))
-		}
-
 	}
 }

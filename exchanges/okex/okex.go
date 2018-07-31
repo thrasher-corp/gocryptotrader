@@ -100,10 +100,10 @@ func (o *OKEX) SetDefaults() {
 	o.RESTPollingDelay = 10
 	o.RequestCurrencyPairFormat.Delimiter = "_"
 	o.RequestCurrencyPairFormat.Uppercase = false
-	// o.ConfigCurrencyPairFormat.Delimiter = "_"
-	// o.ConfigCurrencyPairFormat.Uppercase = false
-	// o.SupportsAutoPairUpdating = false
-	// o.SupportsRESTTickerBatching = false
+	o.ConfigCurrencyPairFormat.Delimiter = "_"
+	o.ConfigCurrencyPairFormat.Uppercase = false
+	o.SupportsAutoPairUpdating = false
+	o.SupportsRESTTickerBatching = false
 	o.Requester = request.New(o.Name, request.NewRateLimit(time.Second, okexAuthRate), request.NewRateLimit(time.Second, okexUnauthRate), common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 }
 
@@ -113,8 +113,6 @@ func (o *OKEX) Setup(exch config.ExchangeConfig) {
 		o.SetEnabled(false)
 	} else {
 		o.Enabled = true
-		o.BaseAsset = exch.BaseAsset
-		o.QuoteAsset = exch.QuoteAsset
 		o.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
 		o.SetAPIKeys(exch.APIKey, exch.APISecret, exch.ClientID, false)
 		o.SetHTTPClientTimeout(exch.HTTPTimeout)
@@ -122,20 +120,20 @@ func (o *OKEX) Setup(exch config.ExchangeConfig) {
 		o.Verbose = exch.Verbose
 		o.Websocket = exch.Websocket
 		o.BaseCurrencies = common.SplitStrings(exch.BaseCurrencies, ",")
-		// o.AvailablePairs = common.SplitStrings(exch.AvailablePairs, ",")
-		// o.EnabledPairs = common.SplitStrings(exch.EnabledPairs, ",")
-		// err := o.SetCurrencyPairFormat()
-		// if err != nil {
-		// 	log.Fatal(err)
-		// }
-		// err = o.SetAssetTypes()
-		// if err != nil {
-		// 	log.Fatal(err)
-		// }
-		// err = o.SetAutoPairDefaults()
-		// if err != nil {
-		// 	log.Fatal(err)
-		// }
+		o.AvailablePairs = common.SplitStrings(exch.AvailablePairs, ",")
+		o.EnabledPairs = common.SplitStrings(exch.EnabledPairs, ",")
+		err := o.SetCurrencyPairFormat()
+		if err != nil {
+			log.Fatal(err)
+		}
+		err = o.SetAssetTypes()
+		if err != nil {
+			log.Fatal(err)
+		}
+		err = o.SetAutoPairDefaults()
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 }
 
@@ -720,7 +718,7 @@ func (o *OKEX) GetSpotMarketDepth(asd ActualSpotDepthRequestParams) (ActualSpotD
 
 	values := url.Values{}
 	values.Set("symbol", asd.Symbol)
-	values.Set("size", fmt.Sprintf("%s", asd.Size))
+	values.Set("size", fmt.Sprintf("%d", asd.Size))
 
 	path := fmt.Sprintf("%s%s%s.do?%s", apiURL, apiVersion, "depth", values.Encode())
 
@@ -777,7 +775,7 @@ func (o *OKEX) GetSpotRecentTrades(ast ActualSpotTradeHistoryRequestParams) ([]A
 
 	values := url.Values{}
 	values.Set("symbol", ast.Symbol)
-	values.Set("since", fmt.Sprintf("%s", ast.Since))
+	values.Set("since", fmt.Sprintf("%d", ast.Since))
 
 	path := fmt.Sprintf("%s%s%s.do?%s", apiURL, apiVersion, "trades", values.Encode())
 

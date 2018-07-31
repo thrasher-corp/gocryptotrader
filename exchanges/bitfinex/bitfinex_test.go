@@ -1,14 +1,13 @@
 package bitfinex
 
 import (
-	"fmt"
 	"net/url"
 	"reflect"
 	"testing"
 	"time"
 
-	"github.com/idoall/gocryptotrader/common"
-	"github.com/idoall/gocryptotrader/config"
+	"github.com/thrasher-/gocryptotrader/common"
+	"github.com/thrasher-/gocryptotrader/config"
 )
 
 // Please supply your own keys here to do better tests
@@ -242,14 +241,9 @@ func TestGetAccountInfo(t *testing.T) {
 	}
 	t.Parallel()
 
-	list, err := b.GetAccountInfo()
+	_, err := b.GetAccountInfo()
 	if err == nil {
 		t.Error("Test Failed - GetAccountInfo error")
-	}
-
-	for k, v := range list {
-		// b, _ := json.Marshal(v)
-		fmt.Printf("%s:%v \n", k, v)
 	}
 }
 

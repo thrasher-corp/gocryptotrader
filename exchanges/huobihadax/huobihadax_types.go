@@ -214,6 +214,7 @@ type KlinesRequestParams struct {
 // TimeInterval 火币获取 K线的时间段枚举
 type TimeInterval string
 
+// TimeInterval vars
 var (
 	TimeIntervalMinute         = TimeInterval("1min")
 	TimeIntervalFiveMinutes    = TimeInterval("5min")

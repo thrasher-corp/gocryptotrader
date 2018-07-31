@@ -5,14 +5,16 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"net/url"
 	"strconv"
 	"time"
 
-	"github.com/idoall/gocryptotrader/common"
-	"github.com/idoall/gocryptotrader/config"
-	"github.com/idoall/gocryptotrader/exchanges"
-	"github.com/idoall/gocryptotrader/exchanges/request"
+	"github.com/thrasher-/gocryptotrader/common"
+	"github.com/thrasher-/gocryptotrader/config"
+	"github.com/thrasher-/gocryptotrader/exchanges"
+	"github.com/thrasher-/gocryptotrader/exchanges/request"
+	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 )
 
 const (
@@ -63,7 +65,13 @@ func (h *HUOBIHADAX) SetDefaults() {
 	h.Verbose = false
 	h.Websocket = false
 	h.RESTPollingDelay = 10
+	h.RequestCurrencyPairFormat.Delimiter = ""
 	h.RequestCurrencyPairFormat.Uppercase = false
+	h.ConfigCurrencyPairFormat.Delimiter = "-"
+	h.ConfigCurrencyPairFormat.Uppercase = true
+	h.AssetTypes = []string{ticker.Spot}
+	h.SupportsAutoPairUpdating = true
+	h.SupportsRESTTickerBatching = false
 	h.Requester = request.New(h.Name, request.NewRateLimit(time.Second*10, huobihadaxAuthRate), request.NewRateLimit(time.Second*10, huobihadaxUnauthRate), common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 }
 
@@ -73,47 +81,28 @@ func (h *HUOBIHADAX) Setup(exch config.ExchangeConfig) {
 		h.SetEnabled(false)
 	} else {
 		h.Enabled = true
-		h.BaseAsset = exch.BaseAsset
-		h.QuoteAsset = exch.QuoteAsset
 		h.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
 		h.SetAPIKeys(exch.APIKey, exch.APISecret, "", false)
+		h.APIAuthPEMKey = exch.APIAuthPEMKey
 		h.SetHTTPClientTimeout(exch.HTTPTimeout)
 		h.RESTPollingDelay = exch.RESTPollingDelay
 		h.Verbose = exch.Verbose
 		h.Websocket = exch.Websocket
-		// h.BaseCurrencies = common.SplitStrings(exch.BaseCurrencies, ",")
-		// h.AvailablePairs = common.SplitStrings(exch.AvailablePairs, ",")
-		// h.EnabledPairs = common.SplitStrings(exch.EnabledPairs, ",")
-
-		// h.RequestCurrencyPairFormat = config.CurrencyPairFormatConfig{
-		// 	Delimiter: exch.RequestCurrencyPairFormat.Delimiter,
-		// 	Uppercase: exch.RequestCurrencyPairFormat.Uppercase,
-		// 	Separator: exch.RequestCurrencyPairFormat.Separator,
-		// 	Index:     exch.RequestCurrencyPairFormat.Index,
-		// }
-
-		// h.ConfigCurrencyPairFormat = config.CurrencyPairFormatConfig{
-		// 	Delimiter: exch.ConfigCurrencyPairFormat.Delimiter,
-		// 	Uppercase: exch.ConfigCurrencyPairFormat.Uppercase,
-		// 	Separator: exch.ConfigCurrencyPairFormat.Separator,
-		// 	Index:     exch.ConfigCurrencyPairFormat.Index,
-		// }
-		// err := h.SetCurrencyPairFormat()
-		// if err != nil {
-		// 	log.Fatal(err)
-		// }
-
-		// h.AssetTypes = strings.Split(exch.AssetTypes, ",")
-		// // err = h.SetAssetTypes()
-		// // if err != nil {
-		// // 	log.Fatal(err)
-		// // }
-
-		// h.SupportsAutoPairUpdating = false
-		// err = h.SetAutoPairDefaults()
-		// if err != nil {
-		// 	log.Fatal(err)
-		// }
+		h.BaseCurrencies = common.SplitStrings(exch.BaseCurrencies, ",")
+		h.AvailablePairs = common.SplitStrings(exch.AvailablePairs, ",")
+		h.EnabledPairs = common.SplitStrings(exch.EnabledPairs, ",")
+		err := h.SetCurrencyPairFormat()
+		if err != nil {
+			log.Fatal(err)
+		}
+		err = h.SetAssetTypes()
+		if err != nil {
+			log.Fatal(err)
+		}
+		err = h.SetAutoPairDefaults()
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 }
 

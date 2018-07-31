@@ -135,7 +135,7 @@ type SpotDepth struct {
 	Error  interface{}   `json:"error_code"`
 }
 
-// OrderBookDataRequestParams represents Klines request data.
+// ActualSpotDepthRequestParams represents Klines request data.
 type ActualSpotDepthRequestParams struct {
 	Symbol string `json:"symbol"` //必填项，币对如ltc_btc
 	Size   int    `json:"size"`   // value: 1-200
@@ -217,6 +217,7 @@ type KlinesRequestParams struct {
 // TimeInterval represents interval enum.
 type TimeInterval string
 
+// vars for time intervals
 var (
 	TimeIntervalMinute         = TimeInterval("1min")
 	TimeIntervalThreeMinutes   = TimeInterval("3min")

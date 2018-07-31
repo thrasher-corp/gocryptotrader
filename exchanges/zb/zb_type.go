@@ -2,8 +2,14 @@ package zb
 
 import "time"
 
-//-------------Accounts
+// OrderbookResponse holds the orderbook data for a symbol
+type OrderbookResponse struct {
+	Timestamp int64       `json:"timestamp"`
+	Asks      [][]float64 `json:"asks"`
+	Bids      [][]float64 `json:"bids"`
+}
 
+// AccountsResponseCoin holds the accounts coin details
 type AccountsResponseCoin struct {
 	Freez       string `json:"freez"`       //冻结资产
 	EnName      string `json:"enName"`      //币种英文名
@@ -14,6 +20,7 @@ type AccountsResponseCoin struct {
 	Key         string `json:"key"`         //币种
 }
 
+// AccountsBaseResponse holds basic account details
 type AccountsBaseResponse struct {
 	UserName             string `json:"username"`               //用户名
 	TradePasswordEnabled bool   `json:"trade_password_enabled"` //是否开通交易密码
@@ -33,30 +40,27 @@ type AccountsResponse struct {
 	MoneyPerm   bool `json:"moneyPerm"`   // 资产列表
 }
 
-//---------------Markets
-
+// MarketResponseItem stores market data
 type MarketResponseItem struct {
 	AmountScale float64 `json:"amountScale"`
 	PriceScale  float64 `json:"priceScale"`
 }
 
-//-------------Ticket
-
-type TicketResponse struct {
+// TickerResponse holds the ticker response data
+type TickerResponse struct {
 	Date   string              `json:"date"`
-	Ticket TicketChildResponse `json:"ticker"`
+	Ticker TickerChildResponse `json:"ticker"`
 }
 
-type TicketChildResponse struct {
-	Vol  string //成交量(最近的24小时)
-	Last string //最新成交价
-	Sell string //卖一价
-	Buy  string //买一价
-	High string //最高价
-	Low  string //最低价
+// TickerChildResponse holds the ticker child response data
+type TickerChildResponse struct {
+	Vol  float64 `json:"vol,string"`  //成交量(最近的24小时)
+	Last float64 `json:"last,string"` //最新成交价
+	Sell float64 `json:"sell,string"` //卖一价
+	Buy  float64 `json:"buy,string"`  //买一价
+	High float64 `json:"high,string"` //最高价
+	Low  float64 `json:"low,string"`  //最低价
 }
-
-//-------------Trade Place Order
 
 // SpotNewOrderRequestParamsType ZB 交易类型
 type SpotNewOrderRequestParamsType string
@@ -68,6 +72,7 @@ var (
 	SpotNewOrderRequestParamsTypeSell = SpotNewOrderRequestParamsType("0")
 )
 
+// SpotNewOrderRequestParams is the params used for placing an order
 type SpotNewOrderRequestParams struct {
 	Amount float64                       `json:"amount"`    // 交易数量
 	Price  float64                       `json:"price"`     // 下单价格,
@@ -75,6 +80,7 @@ type SpotNewOrderRequestParams struct {
 	Type   SpotNewOrderRequestParamsType `json:"tradeType"` // 订单类型, buy-market: 市价买, sell-market: 市价卖, buy-limit: 限价买, sell-limit: 限价卖
 }
 
+// SpotNewOrderResponse stores the new order response data
 type SpotNewOrderResponse struct {
 	Code    int    `json:"code"`    //返回代码
 	Message string `json:"message"` //提示信息
@@ -113,6 +119,7 @@ type KLineResponse struct {
 // TimeInterval represents interval enum.
 type TimeInterval string
 
+// TimeInterval vars
 var (
 	TimeIntervalMinute         = TimeInterval("1min")
 	TimeIntervalThreeMinutes   = TimeInterval("3min")

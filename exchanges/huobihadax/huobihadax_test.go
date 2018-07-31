@@ -5,7 +5,14 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/idoall/gocryptotrader/config"
+	"github.com/thrasher-/gocryptotrader/config"
+)
+
+// Please supply your own APIKEYS here for due diligence testing
+
+const (
+	apiKey    = ""
+	apiSecret = ""
 )
 
 var h HUOBIHADAX
@@ -44,7 +51,18 @@ func TestSetDefaults(t *testing.T) {
 }
 
 func TestSetup(t *testing.T) {
-	h.Setup(getDefaultConfig())
+	cfg := config.GetConfig()
+	cfg.LoadConfig("../../testdata/configtest.json")
+	hadaxConfig, err := cfg.GetExchangeConfig("HuobiHadax")
+	if err != nil {
+		t.Error("Test Failed - HuobiHadax Setup() init error")
+	}
+
+	hadaxConfig.AuthenticatedAPISupport = true
+	hadaxConfig.APIKey = apiKey
+	hadaxConfig.APISecret = apiSecret
+
+	h.Setup(hadaxConfig)
 }
 
 func TestGetFee(t *testing.T) {
@@ -57,7 +75,7 @@ func TestGetFee(t *testing.T) {
 func TestGetSpotKline(t *testing.T) {
 	t.Parallel()
 	_, err := h.GetSpotKline(KlinesRequestParams{
-		Symbol: h.GetSymbol(),
+		Symbol: "btcusdt",
 		Period: TimeIntervalHour,
 		Size:   0,
 	})
@@ -140,6 +158,11 @@ func TestGetTimestamp(t *testing.T) {
 
 func TestGetAccounts(t *testing.T) {
 	t.Parallel()
+
+	if h.APIKey == "" || h.APISecret == "" || h.APIAuthPEMKey == "" {
+		t.Skip()
+	}
+
 	_, err := h.GetAccounts()
 	if err != nil {
 		t.Errorf("Test failed - Huobi GetAccounts: %s", err)
@@ -148,6 +171,11 @@ func TestGetAccounts(t *testing.T) {
 
 func TestGetAccountBalance(t *testing.T) {
 	t.Parallel()
+
+	if h.APIKey == "" || h.APISecret == "" || h.APIAuthPEMKey == "" {
+		t.Skip()
+	}
+
 	result, err := h.GetAccounts()
 	if err != nil {
 		t.Errorf("Test failed - Huobi GetAccounts: %s", err)
@@ -163,8 +191,12 @@ func TestGetAccountBalance(t *testing.T) {
 func TestSpotNewOrder(t *testing.T) {
 	t.Parallel()
 
+	if h.APIKey == "" || h.APISecret == "" || h.APIAuthPEMKey == "" {
+		t.Skip()
+	}
+
 	arg := SpotNewOrderRequestParams{
-		Symbol:    h.GetSymbol(),
+		Symbol:    "btcusdt",
 		AccountID: 000000,
 		Amount:    0.01,
 		Price:     10.1,
@@ -177,18 +209,14 @@ func TestSpotNewOrder(t *testing.T) {
 	} else {
 		fmt.Println(newOrderID)
 	}
-
-	/*
-		userID := strconv.FormatInt(result[0].ID, 10)
-		_, err = h.PlaceOrder("ethusdt", "api", userID, "buy-limit", 10.1, 100.1)
-		if err != nil {
-			t.Errorf("Test failed - Huobi TestPlaceOrder: %s", err)
-		}
-	*/
 }
 
 func TestCancelOrder(t *testing.T) {
 	t.Parallel()
+
+	if h.APIKey == "" || h.APISecret == "" || h.APIAuthPEMKey == "" {
+		t.Skip()
+	}
 
 	_, err := h.CancelOrder(1337)
 	if err == nil {
@@ -199,6 +227,10 @@ func TestCancelOrder(t *testing.T) {
 func TestGetOrder(t *testing.T) {
 	t.Parallel()
 
+	if h.APIKey == "" || h.APISecret == "" || h.APIAuthPEMKey == "" {
+		t.Skip()
+	}
+
 	_, err := h.GetOrder(1337)
 	if err == nil {
 		t.Error("Test failed - Huobi TestCancelOrder: Invalid orderID returned true")
@@ -207,6 +239,10 @@ func TestGetOrder(t *testing.T) {
 
 func TestGetMarginLoanOrders(t *testing.T) {
 	t.Parallel()
+
+	if h.APIKey == "" || h.APISecret == "" || h.APIAuthPEMKey == "" {
+		t.Skip()
+	}
 
 	_, err := h.GetMarginLoanOrders("btcusdt", "", "", "", "", "", "", "")
 	if err != nil {
@@ -217,6 +253,10 @@ func TestGetMarginLoanOrders(t *testing.T) {
 func TestGetMarginAccountBalance(t *testing.T) {
 	t.Parallel()
 
+	if h.APIKey == "" || h.APISecret == "" || h.APIAuthPEMKey == "" {
+		t.Skip()
+	}
+
 	_, err := h.GetMarginAccountBalance("btcusdt")
 	if err != nil {
 		t.Errorf("Test failed - Huobi TestGetMarginAccountBalance: %s", err)
@@ -225,6 +265,10 @@ func TestGetMarginAccountBalance(t *testing.T) {
 
 func TestCancelWithdraw(t *testing.T) {
 	t.Parallel()
+
+	if h.APIKey == "" || h.APISecret == "" || h.APIAuthPEMKey == "" {
+		t.Skip()
+	}
 
 	_, err := h.CancelWithdraw(1337)
 	if err == nil {

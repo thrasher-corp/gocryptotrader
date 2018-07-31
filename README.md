@@ -1,15 +1,3 @@
-基于项目 [thrasher-/gocryptotrader](https://github.com/thrasher-/gocryptotrader) 做的个性化修改
-
-## 修改的内容
-
-+ 简单一些操作
-+ 修复火币在 Post 时的bug，同时增加 HuobiHadax 的支持
-+ 修复 Binance 获取用户信息的bug,增加 Binance 取消订单的方法，获取订单状态，获取所有打开的状态以及所有订单
-+ 增加 Gateio 交易所的支持，支持获取K线、支持的交易对、交易市场参数、买/卖订单、取消订单
-+ OKEX 币币交易:增加获取用户信息，下订单，取消订单
-+ 修复 Bitfinex 的 GetAccountInfo 方法
-+ 增加 ZB 交易所的部分功能支持
-
 <img src="https://github.com/thrasher-/gocryptotrader/blob/master/web/src/assets/page-logo.png?raw=true" width="350px" height="350px" hspace="70">
 
 [![Build Status](https://travis-ci.org/thrasher-/gocryptotrader.svg?branch=master)](https://travis-ci.org/thrasher-/gocryptotrader)
@@ -43,10 +31,11 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 | COINUT | Yes | No | NA |
 | Exmo | Yes | NA | NA |
 | CoinbasePro | Yes | Yes | No|
-| Gateio | Yes | Yes | No|
+| GateIO | Yes | No | NA |
 | Gemini | Yes | No | No |
 | HitBTC | Yes | Yes | No |
-| Huobi.Pro | Yes | No |No |
+| Huobi.Pro | Yes | No | NA |
+| Huobi.Hadax | Yes | No | NA |
 | ItBit | Yes | NA | No |
 | Kraken | Yes | NA | NA |
 | LakeBTC | Yes | No | NA |
@@ -58,6 +47,7 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 | Poloniex | Yes | Yes | NA |
 | WEX     | Yes  | NA        | NA  |
 | Yobit | Yes | NA | NA |
+| ZB.COM | Yes | No | NA |
 
 We are aiming to support the top 20 highest volume exchanges based off the [CoinMarketCap exchange data](https://coinmarketcap.com/exchanges/volume/24-hour/).
 
@@ -158,7 +148,7 @@ Binaries will be published once the codebase reaches a stable condition.
 |User|Github|Contribution Amount|
 |--|--|--|
 | thrasher- | https://github.com/thrasher- | 453 |
-| shazbert | https://github.com/shazbert | 140 |
+| shazbert | https://github.com/shazbert | 141 |
 | gloriousCode | https://github.com/gloriousCode | 122 |
 | 140am | https://github.com/140am | 8 |
 | marcofranssen | https://github.com/marcofranssen | 4 |

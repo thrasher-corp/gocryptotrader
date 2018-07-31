@@ -1,36 +1,17 @@
 package zb
 
 import (
-	"encoding/json"
 	"fmt"
 	"testing"
-	"time"
 
-	"github.com/idoall/gocryptotrader/config"
+	"github.com/thrasher-/gocryptotrader/config"
 )
 
-// getDefaultConfig 获取默认配置
-func getDefaultConfig() config.ExchangeConfig {
-	return config.ExchangeConfig{
-		Name:                    "zb",
-		Enabled:                 true,
-		Verbose:                 true,
-		Websocket:               false,
-		BaseAsset:               "eth",
-		QuoteAsset:              "usdt",
-		UseSandbox:              false,
-		RESTPollingDelay:        10,
-		HTTPTimeout:             5 * time.Second,
-		AuthenticatedAPISupport: true,
-		APIKey:                  "",
-		APISecret:               "",
-		ClientID:                "",
-		ConfigCurrencyPairFormat: &config.CurrencyPairFormatConfig{
-			Uppercase: false,
-			Delimiter: "-",
-		},
-	}
-}
+// Please supply you own test keys here for due diligence testing.
+const (
+	apiKey    = ""
+	apiSecret = ""
+)
 
 var z ZB
 
@@ -39,13 +20,29 @@ func TestSetDefaults(t *testing.T) {
 }
 
 func TestSetup(t *testing.T) {
-	z.Setup(getDefaultConfig())
+	cfg := config.GetConfig()
+	cfg.LoadConfig("../../testdata/configtest.json")
+	zbConfig, err := cfg.GetExchangeConfig("ZB")
+	if err != nil {
+		t.Error("Test Failed - ZB Setup() init error")
+	}
+
+	zbConfig.AuthenticatedAPISupport = true
+	zbConfig.APIKey = apiKey
+	zbConfig.APISecret = apiSecret
+
+	z.Setup(zbConfig)
 }
 
 func TestSpotNewOrder(t *testing.T) {
 	t.Parallel()
+
+	if z.APIKey == "" || z.APISecret == "" {
+		t.Skip()
+	}
+
 	arg := SpotNewOrderRequestParams{
-		Symbol: z.GetSymbol(),
+		Symbol: "btc_usdt",
 		Type:   SpotNewOrderRequestParamsTypeSell,
 		Amount: 0.01,
 		Price:  10246.1,
@@ -60,7 +57,12 @@ func TestSpotNewOrder(t *testing.T) {
 
 func TestCancelOrder(t *testing.T) {
 	t.Parallel()
-	err := z.CancelOrder(20180629145864850)
+
+	if z.APIKey == "" || z.APISecret == "" {
+		t.Skip()
+	}
+
+	err := z.CancelOrder(20180629145864850, "btc_usdt")
 	if err != nil {
 		t.Errorf("Test failed - ZB CancelOrder: %s", err)
 	}
@@ -68,7 +70,7 @@ func TestCancelOrder(t *testing.T) {
 
 func TestGetLatestSpotPrice(t *testing.T) {
 	t.Parallel()
-	_, err := z.GetLatestSpotPrice(z.GetSymbol())
+	_, err := z.GetLatestSpotPrice("btc_usdt")
 	if err != nil {
 		t.Errorf("Test failed - ZB GetLatestSpotPrice: %s", err)
 	}
@@ -76,7 +78,23 @@ func TestGetLatestSpotPrice(t *testing.T) {
 
 func TestGetTicker(t *testing.T) {
 	t.Parallel()
-	_, err := z.GetTicker(z.GetSymbol())
+	_, err := z.GetTicker("btc_usdt")
+	if err != nil {
+		t.Errorf("Test failed - ZB GetTicker: %s", err)
+	}
+}
+
+func TestGetTickers(t *testing.T) {
+	t.Parallel()
+	_, err := z.GetTickers()
+	if err != nil {
+		t.Errorf("Test failed - ZB GetTicker: %s", err)
+	}
+}
+
+func TestGetOrderbook(t *testing.T) {
+	t.Parallel()
+	_, err := z.GetOrderbook("btc_usdt")
 	if err != nil {
 		t.Errorf("Test failed - ZB GetTicker: %s", err)
 	}
@@ -92,25 +110,23 @@ func TestGetMarkets(t *testing.T) {
 
 func TestGetAccountInfo(t *testing.T) {
 	t.Parallel()
-	res, err := z.GetAccountInfo()
+
+	if z.APIKey == "" || z.APISecret == "" {
+		t.Skip()
+	}
+
+	_, err := z.GetAccountInfo()
 	if err != nil {
 		t.Errorf("Test failed - ZB GetAccountInfo: %s", err)
-	} else {
-		for _, v := range res.Result.Coins {
-			b, _ := json.Marshal(v)
-			fmt.Printf("%s \n", b)
-		}
 	}
 }
 
 func TestGetSpotKline(t *testing.T) {
 	t.Parallel()
-	TestSetDefaults(t)
-	TestSetup(t)
 
 	arg := KlinesRequestParams{
-		Symbol: z.GetSymbol(),
-		Type:   TimeInterval_FiveMinutes,
+		Symbol: "btc_usdt",
+		Type:   TimeIntervalFiveMinutes,
 		Size:   10,
 	}
 	_, err := z.GetSpotKline(arg)

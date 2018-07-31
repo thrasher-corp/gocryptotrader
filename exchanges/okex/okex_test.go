@@ -1,37 +1,18 @@
 package okex
 
 import (
-	"encoding/json"
-	"fmt"
 	"testing"
 
-	"github.com/idoall/gocryptotrader/config"
+	"github.com/thrasher-/gocryptotrader/config"
 )
 
 var o OKEX
 
-// getDefaultConfig 获取默认配置
-func getDefaultConfig() config.ExchangeConfig {
-	return config.ExchangeConfig{
-		Name:                    "okex",
-		Enabled:                 true,
-		Verbose:                 true,
-		Websocket:               false,
-		BaseAsset:               "eth",
-		QuoteAsset:              "usdt",
-		UseSandbox:              false,
-		RESTPollingDelay:        10,
-		HTTPTimeout:             15000000000,
-		AuthenticatedAPISupport: true,
-		APIKey:                  "",
-		APISecret:               "",
-		SupportsAutoPairUpdates: false,
-		RequestCurrencyPairFormat: &config.CurrencyPairFormatConfig{
-			Uppercase: true,
-			Delimiter: "_",
-		},
-	}
-}
+// Please supply you own test keys here for due diligence testing.
+const (
+	apiKey    = ""
+	apiSecret = ""
+)
 
 func TestSetDefaults(t *testing.T) {
 	o.SetDefaults()
@@ -41,7 +22,18 @@ func TestSetDefaults(t *testing.T) {
 }
 
 func TestSetup(t *testing.T) {
-	o.Setup(getDefaultConfig())
+	cfg := config.GetConfig()
+	cfg.LoadConfig("../../testdata/configtest.json")
+	okexConfig, err := cfg.GetExchangeConfig("OKEX")
+	if err != nil {
+		t.Error("Test Failed - Okex Setup() init error")
+	}
+
+	okexConfig.AuthenticatedAPISupport = true
+	okexConfig.APIKey = apiKey
+	okexConfig.APISecret = apiSecret
+
+	o.Setup(okexConfig)
 }
 
 func TestGetContractPrice(t *testing.T) {
@@ -237,26 +229,25 @@ func TestGetSpotRecentTrades(t *testing.T) {
 func TestGetSpotKline(t *testing.T) {
 	t.Parallel()
 	arg := KlinesRequestParams{
-		Symbol: o.GetSymbol(),
+		Symbol: "ltc_btc",
 		Type:   TimeIntervalFiveMinutes,
 		Size:   100,
 	}
-	resultlist, err := o.GetSpotKline(arg)
+	_, err := o.GetSpotKline(arg)
 	if err != nil {
 		t.Error("Test failed - okex GetSpotCandleStick() error", err)
-	} else {
-		fmt.Println("--------------" + o.Name)
-		for _, v := range resultlist {
-			b, _ := json.Marshal(v)
-			fmt.Printf("%s \n", b)
-		}
 	}
 }
 
 func TestSpotNewOrder(t *testing.T) {
 	t.Parallel()
+
+	if o.APIKey == "" || o.APISecret == "" {
+		t.Skip()
+	}
+
 	_, err := o.SpotNewOrder(SpotNewOrderRequestParams{
-		Symbol: o.GetSymbol(),
+		Symbol: "ltc_btc",
 		Amount: 1.1,
 		Price:  10.1,
 		Type:   SpotNewOrderRequestTypeBuy,
@@ -268,7 +259,12 @@ func TestSpotNewOrder(t *testing.T) {
 
 func TestSpotCancelOrder(t *testing.T) {
 	t.Parallel()
-	_, err := o.SpotCancelOrder(o.GetSymbol(), 519158961)
+
+	if o.APIKey == "" || o.APISecret == "" {
+		t.Skip()
+	}
+
+	_, err := o.SpotCancelOrder("ltc_btc", 519158961)
 	if err != nil {
 		t.Error("Test failed - okex SpotCancelOrder() error", err)
 	}
@@ -276,19 +272,13 @@ func TestSpotCancelOrder(t *testing.T) {
 
 func TestGetUserInfo(t *testing.T) {
 	t.Parallel()
-	userInfo, err := o.GetUserInfo()
+
+	if o.APIKey == "" || o.APISecret == "" {
+		t.Skip()
+	}
+
+	_, err := o.GetUserInfo()
 	if err != nil {
 		t.Error("Test failed - okex GetUserInfo() error", err)
-	} else {
-
-		t.Log("====账户余额")
-		for k, v := range userInfo.Info["funds"]["free"] {
-			t.Log(k, v)
-		}
-
-		t.Log("====账户冻结余额")
-		for k, v := range userInfo.Info["funds"]["freezed"] {
-			t.Log(k, v)
-		}
 	}
 }

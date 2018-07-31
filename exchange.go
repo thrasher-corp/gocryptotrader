@@ -19,9 +19,11 @@ import (
 	"github.com/thrasher-/gocryptotrader/exchanges/coinbasepro"
 	"github.com/thrasher-/gocryptotrader/exchanges/coinut"
 	"github.com/thrasher-/gocryptotrader/exchanges/exmo"
+	"github.com/thrasher-/gocryptotrader/exchanges/gateio"
 	"github.com/thrasher-/gocryptotrader/exchanges/gemini"
 	"github.com/thrasher-/gocryptotrader/exchanges/hitbtc"
 	"github.com/thrasher-/gocryptotrader/exchanges/huobi"
+	"github.com/thrasher-/gocryptotrader/exchanges/huobihadax"
 	"github.com/thrasher-/gocryptotrader/exchanges/itbit"
 	"github.com/thrasher-/gocryptotrader/exchanges/kraken"
 	"github.com/thrasher-/gocryptotrader/exchanges/lakebtc"
@@ -32,6 +34,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/exchanges/poloniex"
 	"github.com/thrasher-/gocryptotrader/exchanges/wex"
 	"github.com/thrasher-/gocryptotrader/exchanges/yobit"
+	"github.com/thrasher-/gocryptotrader/exchanges/zb"
 )
 
 // vars related to exchange functions
@@ -156,12 +159,16 @@ func LoadExchange(name string, useWG bool, wg *sync.WaitGroup) error {
 		exch = new(exmo.EXMO)
 	case "coinbasepro":
 		exch = new(coinbasepro.CoinbasePro)
+	case "gateio":
+		exch = new(gateio.Gateio)
 	case "gemini":
 		exch = new(gemini.Gemini)
 	case "hitbtc":
 		exch = new(hitbtc.HitBTC)
 	case "huobi":
 		exch = new(huobi.HUOBI)
+	case "huobihadax":
+		exch = new(huobihadax.HUOBIHADAX)
 	case "itbit":
 		exch = new(itbit.ItBit)
 	case "kraken":
@@ -184,6 +191,8 @@ func LoadExchange(name string, useWG bool, wg *sync.WaitGroup) error {
 		exch = new(wex.WEX)
 	case "yobit":
 		exch = new(yobit.Yobit)
+	case "zb":
+		exch = new(zb.ZB)
 	default:
 		return ErrExchangeNotFound
 	}

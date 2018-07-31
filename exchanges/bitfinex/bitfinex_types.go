@@ -466,12 +466,10 @@ type ErrorCapture struct {
 	Message string `json:"message"`
 }
 
-//----------------account_infos
-
-//-----------------
 // TimeInterval represents interval enum.
 type TimeInterval string
 
+// TimeInvterval vars
 var (
 	TimeIntervalMinute         = TimeInterval("1m")
 	TimeIntervalFiveMinutes    = TimeInterval("5m")
