@@ -2,13 +2,13 @@ package gateio
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"strconv"
 	"strings"
 	"time"
 
-	"github.com/pkg/errors"
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
@@ -238,14 +238,14 @@ func (g *Gateio) GetSpotKline(arg KlinesRequestParams) ([]*KLineResponse, error)
 	var result []*KLineResponse
 
 	if rawKlines == nil || rawKlines["data"] == nil {
-		return nil, errors.Wrap(err, "rawKlines is nil")
+		return nil, fmt.Errorf("rawKlines is nil. Err: %s", err)
 	}
 
 	//对于 Data数据，再次解析
 	rawKlineDatasString, _ := json.Marshal(rawKlines["data"].([]interface{}))
 	rawKlineDatas := [][]interface{}{}
 	if err := json.Unmarshal(rawKlineDatasString, &rawKlineDatas); err != nil {
-		return nil, errors.Wrap(err, "rawKlineDatas unmarshal failed")
+		return nil, fmt.Errorf("rawKlines unmarshal failed. Err: %s", err)
 	}
 	for _, k := range rawKlineDatas {
 		otString, _ := strconv.ParseFloat(k[0].(string), 64)
