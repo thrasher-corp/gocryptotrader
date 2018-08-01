@@ -487,19 +487,21 @@ func (k *Kraken) QueryTrades(txid int64, showRelatedTrades bool) error {
 }
 
 // OpenPositions returns current open positions
-func (k *Kraken) OpenPositions(showPL bool) (map[string]Position, error) {
+func (k *Kraken) OpenPositions(showPL bool, txids ...string) (map[string]Position, error) {
+	params := url.Values{}
+	if txids != nil {
+		params.Set("txid", strings.Join(txids, ","))
+	}
+	if showPL {
+		params.Set("docalcs", "true")
+	}
+
 	var response struct {
 		Error  []interface{}       `json:"error"`
 		Result map[string]Position `json:"result"`
 	}
 
-	values := url.Values{}
-
-	if showPL {
-		values.Set("docalcs", "true")
-	}
-
-	return response.Result, k.SendAuthenticatedHTTPRequest(krakenOpenPositions, values, &response)
+	return response.Result, k.SendAuthenticatedHTTPRequest(krakenOpenPositions, params, &response)
 }
 
 // GetLedgers returns current ledgers
