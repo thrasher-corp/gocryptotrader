@@ -1,6 +1,7 @@
 package kraken
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"net/url"
@@ -497,11 +498,16 @@ func (k *Kraken) OpenPositions(showPL bool, txids ...string) (map[string]Positio
 	}
 
 	var response struct {
-		Error  []interface{}       `json:"error"`
+		Error  []string            `json:"error"`
 		Result map[string]Position `json:"result"`
 	}
 
-	return response.Result, k.SendAuthenticatedHTTPRequest(krakenOpenPositions, params, &response)
+	err := k.SendAuthenticatedHTTPRequest(krakenOpenPositions, params, &response)
+	if len(response.Error) != 0 {
+		return response.Result, errors.New(response.Error[0])
+	}
+
+	return response.Result, err
 }
 
 // GetLedgers returns current ledgers
@@ -557,7 +563,7 @@ func (k *Kraken) GetTradeVolume(symbol string) error {
 // AddOrder adds a new order for Kraken exchange
 func (k *Kraken) AddOrder(symbol, side, orderType string, volume, price, price2, leverage float64, args map[string]string) (AddOrderResponse, error) {
 	var response struct {
-		Error  []interface{}    `json:"error"`
+		Error  []string         `json:"error"`
 		Result AddOrderResponse `json:"result"`
 	}
 
@@ -597,7 +603,12 @@ func (k *Kraken) AddOrder(symbol, side, orderType string, volume, price, price2,
 		params.Set("trading_agreement", value)
 	}
 
-	return response.Result, k.SendAuthenticatedHTTPRequest(krakenOrderPlace, params, &response)
+	err := k.SendAuthenticatedHTTPRequest(krakenOrderPlace, params, &response)
+	if len(response.Error) != 0 {
+		return response.Result, errors.New(response.Error[0])
+	}
+
+	return response.Result, err
 }
 
 // CancelOrder cancels order by orderID
