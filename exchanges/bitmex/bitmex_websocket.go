@@ -79,10 +79,10 @@ func (b *Bitmex) WebsocketConnect() error {
 		return err
 	}
 
-	go b.Timer()
+	go b.connectionHandler()
 
 	if b.Verbose {
-		log.Printf("Connected to Bitmex %s at time: %s Limit: %d",
+		log.Printf("Successfully connected to Bitmex %s at time: %s Limit: %d",
 			welcomeResp.Info,
 			welcomeResp.Timestamp,
 			welcomeResp.Limit.Remaining)
@@ -90,69 +90,91 @@ func (b *Bitmex) WebsocketConnect() error {
 
 	go b.handleIncomingData()
 
-	err = b.WebsocketSubscribe()
+	err = b.websocketSubscribe()
 	if err != nil {
-		log.Println("Error")
 		b.WebsocketConn.Close()
 		return err
 	}
 
 	if b.AuthenticatedAPISupport {
-		err := b.WebsocketSendAuth()
+		err := b.websocketSendAuth()
 		if err != nil {
-			panic(err)
+			log.Fatal(err)
 		}
 	}
-
-	time.Sleep(time.Second * 10)
 	return nil
 }
 
 // Timer handles connection loss or failure
-func (b *Bitmex) Timer() {
+func (b *Bitmex) connectionHandler() {
+	defer func() {
+		if b.Verbose {
+			log.Println("Bitmex websocket: Connection handler routine shutdown")
+		}
+	}()
+
 	timer = time.NewTimer(5 * time.Second)
 	for {
 		<-timer.C
 		timeout := time.After(5 * time.Second)
 		err := b.WebsocketConn.WriteJSON("ping")
 		if err != nil {
-			log.Fatalf("bitmex timer error %s", err.Error())
+			b.reconnect()
+			return
 		}
 		for {
 			select {
 			case <-pongChan:
 				if b.Verbose {
-					log.Println("bitmex websocket - PONG received")
+					log.Println("Bitmex websocket: PONG received")
 				}
 				break
 			case <-timeout:
-				log.Println("bitmex connection timed out: closing connection....")
+				log.Println("Bitmex websocket: Connection timed out - Closing connection....")
 				b.WebsocketConn.Close()
-				log.Println("bitmex connection timed out: reconnecting...")
-				err := b.WebsocketConnect()
-				if err != nil {
-					log.Fatal(err)
-				}
-				log.Println("bitmex connection timed out: connection restarted")
+
+				log.Println("Bitmex websocket: Connection timed out - Reconnecting...")
+				b.reconnect()
 				return
 			}
 		}
 	}
 }
 
+// Reconnect handles reconnections to websocket API
+func (b *Bitmex) reconnect() {
+	for {
+		err := b.WebsocketConnect()
+		if err != nil {
+			log.Println("Bitmex websocket: Connection timed out - Failed to connect, sleeping...")
+			time.Sleep(time.Second * 2)
+			continue
+		}
+		return
+	}
+}
+
 // handleIncomingData services incoming data from the websocket connection
 func (b *Bitmex) handleIncomingData() {
+	defer func() {
+		if b.Verbose {
+			log.Println("Bitmex websocket: Response data handler routine shutdown")
+		}
+	}()
+
 	for {
 		_, resp, err := b.WebsocketConn.ReadMessage()
 		if err != nil {
-			log.Println("websocket connection error", err)
+			if b.Verbose {
+				log.Println("Bitmex websocket: Connection error", err)
+			}
 			return
 		}
 
 		message := string(resp)
 		if common.StringContains(message, "pong") {
 			if b.Verbose {
-				log.Println("bitmex pong receieved")
+				log.Println("Bitmex websocket: PONG receieved")
 			}
 			pongChan <- 1
 			continue
@@ -161,12 +183,15 @@ func (b *Bitmex) handleIncomingData() {
 		if common.StringContains(message, "ping") {
 			err = b.WebsocketConn.WriteJSON("pong")
 			if err != nil {
-				log.Fatal(err)
+				if b.Verbose {
+					log.Println("Bitmex websocket error: ", err)
+				}
+				return
 			}
 		}
 
 		if !timer.Reset(5 * time.Second) {
-			log.Fatal("timer failed to set")
+			log.Fatal("Bitmex websocket: Timer failed to set")
 		}
 
 		quickCapture := make(map[string]interface{})
@@ -181,7 +206,8 @@ func (b *Bitmex) handleIncomingData() {
 			if err != nil {
 				log.Fatal(err)
 			}
-			log.Fatalf("bitmex error %s", respError.Error)
+			log.Printf("Bitmex websocket error: %s", respError.Error)
+			continue
 		}
 
 		if _, ok := quickCapture["success"]; ok {
@@ -194,16 +220,17 @@ func (b *Bitmex) handleIncomingData() {
 			if decodedResp.Success {
 				if b.Verbose {
 					if len(quickCapture) == 3 {
-						log.Printf("successfully subscribed to %s",
+						log.Printf("Bitmex Websocket: Successfully subscribed to %s",
 							decodedResp.Subscribe)
 					} else {
-						log.Println("successfully authenticated websocket connection")
+						log.Println("Bitmex Websocket: Successfully authenticated websocket connection")
 					}
 				}
 				continue
 			}
-			log.Fatalf("bitmex websocket error unable to subscribe %s",
+			log.Printf("Bitmex websocket error: Unable to subscribe %s",
 				decodedResp.Subscribe)
+
 		} else if _, ok := quickCapture["table"]; ok {
 			var decodedResp WebsocketMainResponse
 			err := common.JSONDecode(resp, &decodedResp)
@@ -218,7 +245,7 @@ func (b *Bitmex) handleIncomingData() {
 				if err != nil {
 					log.Fatal(err)
 				}
-				err = b.ProcessOrderbook(orderbooks.Data, orderbooks.Action)
+				err = b.processOrderbook(orderbooks.Data, orderbooks.Action)
 				if err != nil {
 					log.Fatal(err)
 				}
@@ -228,7 +255,7 @@ func (b *Bitmex) handleIncomingData() {
 				if err != nil {
 					log.Fatal(err)
 				}
-				err = b.ProcessTrades(trades.Data, trades.Action)
+				err = b.processTrades(trades.Data, trades.Action)
 				if err != nil {
 					log.Fatal(err)
 				}
@@ -238,12 +265,12 @@ func (b *Bitmex) handleIncomingData() {
 				if err != nil {
 					log.Fatal(err)
 				}
-				err = b.ProcessAnnouncement(announcement.Data, announcement.Action)
+				err = b.processAnnouncement(announcement.Data, announcement.Action)
 				if err != nil {
 					log.Fatal(err)
 				}
 			default:
-				log.Fatal("bitmex error table unknown: ", decodedResp.Table)
+				log.Fatal("Bitmex websocket error: Table unknown -", decodedResp.Table)
 			}
 		}
 	}
@@ -254,7 +281,7 @@ var localAnnouncements []Announcement
 var partialLoadedAnnouncement bool
 
 // ProcessAnnouncement process announcements
-func (b *Bitmex) ProcessAnnouncement(data []Announcement, action string) error {
+func (b *Bitmex) processAnnouncement(data []Announcement, action string) error {
 	switch action {
 	case bitmexActionInitialData:
 		if !partialLoadedAnnouncement {
@@ -262,7 +289,7 @@ func (b *Bitmex) ProcessAnnouncement(data []Announcement, action string) error {
 		}
 		partialLoadedAnnouncement = true
 	default:
-		return fmt.Errorf("bitmex error ProcessAnnouncement() unallocated action %s",
+		return fmt.Errorf("Bitmex websocket error: ProcessAnnouncement() unallocated action - %s",
 			action)
 	}
 	return nil
@@ -273,7 +300,7 @@ var localOb []OrderBookL2
 var partialLoaded bool
 
 // ProcessOrderbook processes orderbook updates
-func (b *Bitmex) ProcessOrderbook(data []OrderBookL2, action string) error {
+func (b *Bitmex) processOrderbook(data []OrderBookL2, action string) error {
 	switch action {
 	case bitmexActionInitialData:
 		if !partialLoaded {
@@ -294,7 +321,7 @@ func (b *Bitmex) ProcessOrderbook(data []OrderBookL2, action string) error {
 				}
 			}
 			if updated != 0 {
-				return errors.New("elements not updated correctly")
+				return errors.New("Bitmex websocket error: Elements not updated correctly")
 			}
 		}
 	case bitmexActionInsertData:
@@ -311,7 +338,7 @@ func (b *Bitmex) ProcessOrderbook(data []OrderBookL2, action string) error {
 				updated--
 			}
 			if updated != 0 {
-				return errors.New("elements not updated correctly")
+				return errors.New("Bitmex websocket error: Elements not updated correctly")
 			}
 		}
 	case bitmexActionDeleteData:
@@ -328,7 +355,7 @@ func (b *Bitmex) ProcessOrderbook(data []OrderBookL2, action string) error {
 				}
 			}
 			if updated != 0 {
-				return errors.New("elements not updated correctly")
+				return errors.New("Bitmex websocket error: Elements not updated correctly")
 			}
 		}
 	}
@@ -340,7 +367,7 @@ var localTrades []Trade
 var partialLoadedTrades bool
 
 // ProcessTrades processes new trades that have occured
-func (b *Bitmex) ProcessTrades(data []Trade, action string) error {
+func (b *Bitmex) processTrades(data []Trade, action string) error {
 	switch action {
 	case bitmexActionInitialData:
 		if !partialLoadedTrades {
@@ -352,13 +379,14 @@ func (b *Bitmex) ProcessTrades(data []Trade, action string) error {
 			localTrades = append(localTrades, data...)
 		}
 	default:
-		return fmt.Errorf("bitmex error ProcessTrades() unallocated action %s", action)
+		return fmt.Errorf("Bitmex websocket error: ProcessTrades() unallocated action - %s",
+			action)
 	}
 	return nil
 }
 
 // WebsocketSubscribe subscribes to a websocket channel
-func (b *Bitmex) WebsocketSubscribe() error {
+func (b *Bitmex) websocketSubscribe() error {
 	contracts := b.GetEnabledCurrencies()
 
 	// Subscriber
@@ -389,7 +417,7 @@ func (b *Bitmex) WebsocketSubscribe() error {
 }
 
 // WebsocketSendAuth sends an authenticated subscription
-func (b *Bitmex) WebsocketSendAuth() error {
+func (b *Bitmex) websocketSendAuth() error {
 	timestamp := time.Now().Add(time.Hour * 1).Unix()
 	newTimestamp := strconv.FormatInt(timestamp, 10)
 	hmac := common.GetHMAC(common.HashSHA256,
