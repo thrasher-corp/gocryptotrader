@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/gorilla/websocket"
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
@@ -18,6 +19,7 @@ import (
 // Bitmex is the overarching type across this package
 type Bitmex struct {
 	exchange.Base
+	WebsocketConn *websocket.Conn
 }
 
 const (
