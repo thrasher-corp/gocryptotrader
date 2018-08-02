@@ -1,7 +1,6 @@
 package kraken
 
 import (
-	"errors"
 	"fmt"
 	"log"
 	"net/url"
@@ -504,7 +503,7 @@ func (k *Kraken) OpenPositions(showPL bool, txids ...string) (map[string]Positio
 
 	err := k.SendAuthenticatedHTTPRequest(krakenOpenPositions, params, &response)
 	if len(response.Error) != 0 {
-		return response.Result, errors.New(response.Error[0])
+		return response.Result, fmt.Errorf("OpenPositions error: %v", response.Error[0])
 	}
 
 	return response.Result, err
@@ -605,7 +604,7 @@ func (k *Kraken) AddOrder(symbol, side, orderType string, volume, price, price2,
 
 	err := k.SendAuthenticatedHTTPRequest(krakenOrderPlace, params, &response)
 	if len(response.Error) != 0 {
-		return response.Result, errors.New(response.Error[0])
+		return response.Result, fmt.Errorf("AddOrder error: %v", response.Error[0])
 	}
 
 	return response.Result, err
