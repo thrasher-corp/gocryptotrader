@@ -17,7 +17,7 @@ const (
 
 var h HUOBIHADAX
 
-// getDefaultConfig 获取默认配置
+// getDefaultConfig returns a default huobi config
 func getDefaultConfig() config.ExchangeConfig {
 	return config.ExchangeConfig{
 		Name:                    "huobihadax",

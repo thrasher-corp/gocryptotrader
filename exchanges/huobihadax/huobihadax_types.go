@@ -181,7 +181,7 @@ type SpotNewOrderRequestParams struct {
 	Price     float64                       `json:"price"`      // Order price, market price does not use  this parameter
 	Source    string                        `json:"source"`     // Order source, api: API call, margin-api: loan asset transaction
 	Symbol    string                        `json:"symbol"`     // The symbol to use; example btcusdt, bccbtc......
-	Type      SpotNewOrderRequestParamsType `json:"type"`       // 订单类型, buy-market: 市价买, sell-market: 市价卖, buy-limit: 限价买, sell-limit: 限价卖
+	Type      SpotNewOrderRequestParamsType `json:"type"`       // Order type as listed below (buy-market, sell-market etc)
 }
 
 // SpotNewOrderRequestParamsType order types

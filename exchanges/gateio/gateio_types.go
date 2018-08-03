@@ -119,9 +119,9 @@ type SpotNewOrderRequestParams struct {
 
 // SpotNewOrderResponse Order response
 type SpotNewOrderResponse struct {
-	OrderNumber  int64  `json:"orderNumber"`  // OrderID number
-	Price        string `json:"rate"`         // Order price
-	LeftAmount   string `json:"leftAmount"`   // The remaining amount to fill
-	FilledAmount string `json:"filledAmount"` // The filled amount
-	// FilledPrice  string `json:"filledRate"`   // FilledPrice
+	OrderNumber  int64   `json:"orderNumber"`         // OrderID number
+	Price        float64 `json:"rate,string"`         // Order price
+	LeftAmount   float64 `json:"leftAmount,string"`   // The remaining amount to fill
+	FilledAmount float64 `json:"filledAmount,string"` // The filled amount
+	Filledrate   float64 `json:"filledRate,string"`   // FilledPrice
 }

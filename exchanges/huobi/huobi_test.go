@@ -22,7 +22,7 @@ const (
 
 var h HUOBI
 
-// getDefaultConfig 获取默认配置
+// getDefaultConfig returns a default huobi config
 func getDefaultConfig() config.ExchangeConfig {
 	return config.ExchangeConfig{
 		Name:                    "Huobi",

@@ -26,7 +26,6 @@ const (
 	zbMarkets     = "markets"
 	zbKline       = "kline"
 	zbOrder       = "order"
-	// zbBalances    = "private/balances"
 	zbCancelOrder = "cancelOrder"
 	zbTicker      = "ticker"
 	zbTickers     = "allTicker"
@@ -148,7 +147,6 @@ func (z *ZB) CancelOrder(orderID int64, symbol string) error {
 func (z *ZB) GetAccountInfo() (AccountsResponse, error) {
 	var result AccountsResponse
 
-	// var res interface{}
 	vals := url.Values{}
 	vals.Set("accesskey", z.APIKey)
 	vals.Set("method", "getAccountInfo")
