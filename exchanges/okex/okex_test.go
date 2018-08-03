@@ -126,15 +126,15 @@ func TestGetContractCandlestickData(t *testing.T) {
 
 func TestGetContractHoldingsNumber(t *testing.T) {
 	t.Parallel()
-	_, err := o.GetContractHoldingsNumber("btc_usd", "this_week")
+	_, _, err := o.GetContractHoldingsNumber("btc_usd", "this_week")
 	if err != nil {
 		t.Error("Test failed - okex GetContractHoldingsNumber() error", err)
 	}
-	_, err = o.GetContractHoldingsNumber("btc_bla", "this_week")
+	_, _, err = o.GetContractHoldingsNumber("btc_bla", "this_week")
 	if err == nil {
 		t.Error("Test failed - okex GetContractHoldingsNumber() error", err)
 	}
-	_, err = o.GetContractHoldingsNumber("btc_usd", "this_bla")
+	_, _, err = o.GetContractHoldingsNumber("btc_usd", "this_bla")
 	if err == nil {
 		t.Error("Test failed - okex GetContractHoldingsNumber() error", err)
 	}
