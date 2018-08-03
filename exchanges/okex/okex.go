@@ -609,7 +609,7 @@ func (o *OKEX) GetContractFuturesTradeHistory(symbol, date string, since int) er
 	return nil
 }
 
-// GetUserInfo 获取用户信息
+// GetUserInfo returns the user info
 func (o *OKEX) GetUserInfo() (SpotUserInfo, error) {
 
 	strRequestURL := fmt.Sprintf("%s%s%s.do", apiURL, apiVersion, spotUserInfo)
@@ -619,11 +619,10 @@ func (o *OKEX) GetUserInfo() (SpotUserInfo, error) {
 	if err != nil {
 		return res, err
 	}
-	// fmt.Println(res)
 	return res, nil
 }
 
-// SpotNewOrder 下单交易
+// SpotNewOrder creates a new spot order
 func (o *OKEX) SpotNewOrder(arg SpotNewOrderRequestParams) (int64, error) {
 	type response struct {
 		Result  bool  `json:"result"`
@@ -647,10 +646,10 @@ func (o *OKEX) SpotNewOrder(arg SpotNewOrderRequestParams) (int64, error) {
 	return res.OrderID, nil
 }
 
-// SpotCancelOrder 取消交易
-// @symbol 币对如ltc_btc
-// @orderID 订单ID
-// @return 订单ID(用于单笔订单)
+// SpotCancelOrder cancels a spot order
+// symbol such as ltc_btc
+// orderID orderID
+// returns orderID or an error
 func (o *OKEX) SpotCancelOrder(symbol string, argOrderID int64) (int64, error) {
 	type response struct {
 		Result    bool   `json:"result"`
@@ -681,7 +680,6 @@ func (o *OKEX) SpotCancelOrder(symbol string, argOrderID int64) (int64, error) {
 // GetLatestSpotPrice returns latest spot price of symbol
 //
 // symbol: string of currency pair
-// 获取最新价格
 func (o *OKEX) GetLatestSpotPrice(symbol string) (float64, error) {
 	spotPrice, err := o.GetSpotTicker(symbol)
 
@@ -804,7 +802,6 @@ func (o *OKEX) GetSpotRecentTrades(ast ActualSpotTradeHistoryRequestParams) ([]A
 }
 
 // GetSpotKline returns candlestick data
-//
 func (o *OKEX) GetSpotKline(arg KlinesRequestParams) ([]CandleStickData, error) {
 	var candleData []CandleStickData
 

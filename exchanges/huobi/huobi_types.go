@@ -45,8 +45,8 @@ var (
 
 // OrderBookDataRequestParams represents Klines request data.
 type OrderBookDataRequestParams struct {
-	Symbol string                         `json:"symbol"` //必填项，交易对:LTCBTC,BTCUSDT
-	Type   OrderBookDataRequestParamsType `json:"type"`   //step0, step1, step2, step3, step4, step5（合并深度0-5）；step0时，不合并深度
+	Symbol string                         `json:"symbol"` // Required; example LTCBTC,BTCUSDT
+	Type   OrderBookDataRequestParamsType `json:"type"`   // step0, step1, step2, step3, step4, step5 (combined depth 0-5); when step0, no depth is merged
 }
 
 // Orderbook stores the orderbook data
@@ -193,32 +193,31 @@ type MarginAccountBalance struct {
 	List     []AccountBalance `json:"list"`
 }
 
-//-----------
-
-// SpotNewOrderRequestParams 下订单的请求参数
+// SpotNewOrderRequestParams holds the params required to place
+// an order
 type SpotNewOrderRequestParams struct {
-	AccountID int                           `json:"account-id"` // 账户 ID，使用accounts方法获得。币币交易使用‘spot’账户的accountid；借贷资产交易，请使用‘margin’账户的accountid
-	Amount    float64                       `json:"amount"`     // 限价表示下单数量, 市价买单时表示买多少钱, 市价卖单时表示卖多少币
-	Price     float64                       `json:"price"`      // 下单价格, 市价单不传该参数
-	Source    string                        `json:"source"`     // 订单来源, api: API调用, margin-api: 借贷资产交易
-	Symbol    string                        `json:"symbol"`     // 交易对, btcusdt, bccbtc......
+	AccountID int                           `json:"account-id"` // Account ID, obtained using the accounts method. Curency trades use the accountid of the ‘spot’ account; for loan asset transactions, please use the accountid of the ‘margin’ account.
+	Amount    float64                       `json:"amount"`     // The limit price indicates the quantity of the order, the market price indicates how much to buy when the order is paid, and the market price indicates how much the coin is sold when the order is sold.
+	Price     float64                       `json:"price"`      // Order price, market price does not use  this parameter
+	Source    string                        `json:"source"`     // Order source, api: API call, margin-api: loan asset transaction
+	Symbol    string                        `json:"symbol"`     // The symbol to use; example btcusdt, bccbtc......
 	Type      SpotNewOrderRequestParamsType `json:"type"`       // 订单类型, buy-market: 市价买, sell-market: 市价卖, buy-limit: 限价买, sell-limit: 限价卖
 }
 
-// SpotNewOrderRequestParamsType 火币交易类型
+// SpotNewOrderRequestParamsType order type
 type SpotNewOrderRequestParamsType string
 
 var (
-	// SpotNewOrderRequestTypeBuyMarkdt 市价买
-	SpotNewOrderRequestTypeBuyMarkdt = SpotNewOrderRequestParamsType("buy-market")
+	// SpotNewOrderRequestTypeBuyMarket buy market order
+	SpotNewOrderRequestTypeBuyMarket = SpotNewOrderRequestParamsType("buy-market")
 
-	// SpotNewOrderRequestTypeSellMarkdt 市价卖
-	SpotNewOrderRequestTypeSellMarkdt = SpotNewOrderRequestParamsType("sell-market")
+	// SpotNewOrderRequestTypeSellMarket sell market order
+	SpotNewOrderRequestTypeSellMarket = SpotNewOrderRequestParamsType("sell-market")
 
-	// SpotNewOrderRequestTypeBuyLimit 限价买
+	// SpotNewOrderRequestTypeBuyLimit buy limit order
 	SpotNewOrderRequestTypeBuyLimit = SpotNewOrderRequestParamsType("buy-limit")
 
-	// SpotNewOrderRequestTypeSellLimit 限价卖
+	// SpotNewOrderRequestTypeSellLimit sell lmit order
 	SpotNewOrderRequestTypeSellLimit = SpotNewOrderRequestParamsType("sell-limit")
 )
 
@@ -226,12 +225,12 @@ var (
 
 // KlinesRequestParams represents Klines request data.
 type KlinesRequestParams struct {
-	Symbol string       //交易对, btcusdt, bccbtc......
-	Period TimeInterval //K线类型, 1min, 5min, 15min......
-	Size   int          //获取数量, [1-2000]
+	Symbol string       // Symbol to be used; example btcusdt, bccbtc......
+	Period TimeInterval // Kline time interval; 1min, 5min, 15min......
+	Size   int          // Size; [1-2000]
 }
 
-// TimeInterval 火币获取 K线的时间段枚举
+// TimeInterval base type
 type TimeInterval string
 
 // TimeInterval vars

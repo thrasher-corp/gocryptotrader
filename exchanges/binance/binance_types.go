@@ -46,7 +46,7 @@ type ExchangeInfo struct {
 
 // OrderBookDataRequestParams represents Klines request data.
 type OrderBookDataRequestParams struct {
-	Symbol string `json:"symbol"` //必填项，交易对:LTCBTC,BTCUSDT
+	Symbol string `json:"symbol"` // Required field; example LTCBTC,BTCUSDT
 	Limit  int    `json:"limit"`  // Default 100; max 1000. Valid limits:[5, 10, 20, 50, 100, 500, 1000]
 }
 

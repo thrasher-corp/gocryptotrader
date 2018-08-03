@@ -131,8 +131,8 @@ func TestGetSpotKline(t *testing.T) {
 
 	_, err := g.GetSpotKline(KlinesRequestParams{
 		Symbol:   "btc_usdt",
-		GroupSec: TimeIntervalFiveMinutes, //5分钟以内数据
-		HourSize: 1,                       //1小时内数据
+		GroupSec: TimeIntervalFiveMinutes, // 5 minutes or less
+		HourSize: 1,                       // 1 hour data
 	})
 
 	if err != nil {

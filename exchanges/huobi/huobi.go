@@ -117,8 +117,7 @@ func (h *HUOBI) GetFee() float64 {
 }
 
 // GetSpotKline returns kline data
-// @Description returns kline data
-// @Param	arg		KlinesRequestParams
+// KlinesRequestParams contains symbol, period and size
 func (h *HUOBI) GetSpotKline(arg KlinesRequestParams) ([]KlineItem, error) {
 	vals := url.Values{}
 	vals.Set("symbol", arg.Symbol)
@@ -212,7 +211,6 @@ func (h *HUOBI) GetTrades(symbol string) ([]Trade, error) {
 // GetLatestSpotPrice returns latest spot price of symbol
 //
 // symbol: string of currency pair
-// 获取最新价格
 func (h *HUOBI) GetLatestSpotPrice(symbol string) (float64, error) {
 	list, err := h.GetTradeHistory(symbol, "1")
 
@@ -361,7 +359,7 @@ func (h *HUOBI) SpotNewOrder(arg SpotNewOrderRequestParams) (int64, error) {
 	vals.Set("amount", strconv.FormatFloat(arg.Amount, 'f', -1, 64))
 
 	// Only set price if order type is not equal to buy-market or sell-market
-	if arg.Type != SpotNewOrderRequestTypeBuyMarkdt && arg.Type != SpotNewOrderRequestTypeSellMarkdt {
+	if arg.Type != SpotNewOrderRequestTypeBuyMarket && arg.Type != SpotNewOrderRequestTypeSellMarket {
 		vals.Set("price", strconv.FormatFloat(arg.Price, 'f', -1, 64))
 	}
 

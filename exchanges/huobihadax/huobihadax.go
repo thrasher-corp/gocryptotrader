@@ -112,8 +112,7 @@ func (h *HUOBIHADAX) GetFee() float64 {
 }
 
 // GetSpotKline returns kline data
-// @Description returns kline data
-// @Param	arg		KlinesRequestParams
+// KlinesRequestParams holds the Kline request params
 func (h *HUOBIHADAX) GetSpotKline(arg KlinesRequestParams) ([]KlineItem, error) {
 	vals := url.Values{}
 	vals.Set("symbol", arg.Symbol)
@@ -207,7 +206,6 @@ func (h *HUOBIHADAX) GetTrades(symbol string) ([]Trade, error) {
 // GetLatestSpotPrice returns latest spot price of symbol
 //
 // symbol: string of currency pair
-// 获取最新价格
 func (h *HUOBIHADAX) GetLatestSpotPrice(symbol string) (float64, error) {
 	list, err := h.GetTradeHistory(symbol, "1")
 
@@ -356,7 +354,7 @@ func (h *HUOBIHADAX) SpotNewOrder(arg SpotNewOrderRequestParams) (int64, error) 
 	vals["amount"] = strconv.FormatFloat(arg.Amount, 'f', -1, 64)
 
 	// Only set price if order type is not equal to buy-market or sell-market
-	if arg.Type != SpotNewOrderRequestTypeBuyMarkdt && arg.Type != SpotNewOrderRequestTypeSellMarkdt {
+	if arg.Type != SpotNewOrderRequestTypeBuyMarket && arg.Type != SpotNewOrderRequestTypeSellMarket {
 		vals["price"] = strconv.FormatFloat(arg.Price, 'f', -1, 64)
 	}
 
@@ -372,8 +370,8 @@ func (h *HUOBIHADAX) SpotNewOrder(arg SpotNewOrderRequestParams) (int64, error) 
 		OrderID int64 `json:"data,string"`
 	}
 
-	//API 中指出对于POST请求，每个方法自带的参数不进行签名认证，即POST请求中需要进行签名运算的只有AccessKeyId、SignatureMethod、SignatureVersion、Timestamp四个参数，其它参数放在body中。
-	//所以对 Post 参数重新进行编码
+	// The API indicates that for the POST request, the parameters of each method are not signed and authenticated. That is, only the AccessKeyId, SignatureMethod, SignatureVersion, and Timestamp parameters are required for the POST request. The other parameters are placed in the body.
+	// So re-encode the Post parameter
 	bytesParams, _ := json.Marshal(vals)
 	postBodyParams := string(bytesParams)
 	if h.Verbose {
@@ -413,21 +411,20 @@ func (h *HUOBIHADAX) CancelOrderBatch(orderIDs []int64) (CancelOrderBatch, error
 		Data   CancelOrderBatch `json:"data"`
 	}
 
-	//用于发送参数格式化的
+	// Used to send param formatting
 	type postBody struct {
 		List []int64 `json:"order-ids"`
 	}
 
-	//格式化成 json 格式
-	bytesParams, _ := json.Marshal(&postBody{List: orderIDs})
+	// Format to JSON
+	bytesParams, _ := common.JSONEncode(&postBody{List: orderIDs})
 	postBodyParams := string(bytesParams)
 
-	// fmt.Println(postBodyParams)
 	var result response
 	err := h.SendAuthenticatedHTTPPostRequest("POST", huobihadaxOrderCancelBatch, postBodyParams, &result)
 
 	if len(result.Data.Failed) != 0 {
-		errJSON, _ := json.Marshal(result.Data.Failed)
+		errJSON, _ := common.JSONEncode(result.Data.Failed)
 		return CancelOrderBatch{}, errors.New(string(errJSON))
 	}
 	return result.Data, err
@@ -450,7 +447,7 @@ func (h *HUOBIHADAX) GetOrder(orderID int64) (OrderInfo, error) {
 	return result.Order, err
 }
 
-// GetOrderMatchResults returns matched order info for the specified order查询某个订单的成交明细
+// GetOrderMatchResults returns matched order info for the specified order
 func (h *HUOBIHADAX) GetOrderMatchResults(orderID int64) ([]OrderMatchInfo, error) {
 	type response struct {
 		Response
@@ -467,7 +464,7 @@ func (h *HUOBIHADAX) GetOrderMatchResults(orderID int64) ([]OrderMatchInfo, erro
 	return result.Orders, err
 }
 
-// GetOrders returns a list of orders查询当前委托、历史委托
+// GetOrders returns a list of orders
 func (h *HUOBIHADAX) GetOrders(symbol, types, start, end, states, from, direct, size string) ([]OrderInfo, error) {
 	type response struct {
 		Response
@@ -555,7 +552,6 @@ func (h *HUOBIHADAX) GetOrdersMatch(symbol, types, start, end, from, direct, siz
 }
 
 // MarginTransfer transfers assets into or out of the margin account
-//	现货账户划入至借贷账户/借贷账户划出至现货账户
 func (h *HUOBIHADAX) MarginTransfer(symbol, currency string, amount float64, in bool) (int64, error) {
 	vals := url.Values{}
 	vals.Set("symbol", symbol)
@@ -581,7 +577,7 @@ func (h *HUOBIHADAX) MarginTransfer(symbol, currency string, amount float64, in 
 	return result.TransferID, err
 }
 
-// MarginOrder submits a margin order application申请借贷
+// MarginOrder submits a margin order application
 func (h *HUOBIHADAX) MarginOrder(symbol, currency string, amount float64) (int64, error) {
 	vals := url.Values{}
 	vals.Set("symbol", symbol)
@@ -623,7 +619,7 @@ func (h *HUOBIHADAX) MarginRepayment(orderID int64, amount float64) (int64, erro
 	return result.MarginOrderID, err
 }
 
-// GetMarginLoanOrders returns the margin loan orders 查询借贷订单
+// GetMarginLoanOrders returns the margin loan orders
 func (h *HUOBIHADAX) GetMarginLoanOrders(symbol, currency, start, end, states, from, direct, size string) ([]MarginOrder, error) {
 	vals := url.Values{}
 	vals.Set("symbol", symbol)
@@ -667,7 +663,7 @@ func (h *HUOBIHADAX) GetMarginLoanOrders(symbol, currency, start, end, states, f
 	return result.MarginLoanOrders, err
 }
 
-// GetMarginAccountBalance returns the margin account balances借贷账户详情
+// GetMarginAccountBalance returns the margin account balances
 func (h *HUOBIHADAX) GetMarginAccountBalance(symbol string) ([]MarginAccountBalance, error) {
 	type response struct {
 		Response
@@ -688,7 +684,7 @@ func (h *HUOBIHADAX) GetMarginAccountBalance(symbol string) ([]MarginAccountBala
 	return result.Balances, err
 }
 
-// Withdraw withdraws the desired amount and currency申请提现虚拟币
+// Withdraw withdraws the desired amount and currency
 func (h *HUOBIHADAX) Withdraw(address, currency, addrTag string, amount, fee float64) (int64, error) {
 	type response struct {
 		Response
@@ -717,7 +713,7 @@ func (h *HUOBIHADAX) Withdraw(address, currency, addrTag string, amount, fee flo
 	return result.WithdrawID, err
 }
 
-// CancelWithdraw cancels a withdraw request申请取消提现虚拟币
+// CancelWithdraw cancels a withdraw request
 func (h *HUOBIHADAX) CancelWithdraw(withdrawID int64) (int64, error) {
 	type response struct {
 		Response
@@ -766,7 +762,6 @@ func (h *HUOBIHADAX) SendAuthenticatedHTTPPostRequest(method, endpoint, postBody
 	hmac := common.GetHMAC(common.HashSHA256, []byte(payload), []byte(h.APISecret))
 	signatureParams.Set("Signature", common.Base64Encode(hmac))
 
-	// fmt.Println("signatureParams", signatureParams)
 	url := fmt.Sprintf("%s%s", huobihadaxAPIURL, endpoint)
 	url = common.EncodeURLValues(url, signatureParams)
 

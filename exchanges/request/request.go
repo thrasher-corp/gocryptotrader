@@ -120,7 +120,6 @@ func (r *Requester) StartCycle() {
 // IsRateLimited returns whether or not the request Requester is rate limited
 func (r *Requester) IsRateLimited(auth bool) bool {
 	if auth {
-		// fmt.Println(r.AuthLimit.GetRequests())
 		if r.AuthLimit.GetRequests() >= r.AuthLimit.GetRate() && r.IsValidCycle(auth) {
 			return true
 		}
@@ -141,7 +140,7 @@ func (r *Requester) RequiresRateLimiter() bool {
 }
 
 // IncrementRequests increments the ratelimiter request counter for either auth or unauth
-// requests 增量计数器
+// requests
 func (r *Requester) IncrementRequests(auth bool) {
 	if auth {
 		reqs := r.AuthLimit.GetRequests()
@@ -156,10 +155,9 @@ func (r *Requester) IncrementRequests(auth bool) {
 }
 
 // DecrementRequests decrements the ratelimiter request counter for either auth or unauth
-// requests 减量计数器
+// requests
 func (r *Requester) DecrementRequests(auth bool) {
 	if auth {
-
 		reqs := r.AuthLimit.GetRequests()
 		reqs--
 		r.AuthLimit.SetRequests(reqs)
@@ -266,8 +264,6 @@ func (r *Requester) DoRequest(req *http.Request, method, path string, headers ma
 	if verbose {
 		log.Printf("%s exchange raw response: %s", r.Name, string(contents[:]))
 	}
-
-	// fmt.Println(common.JSONDecode(contents, result))
 
 	if result != nil {
 		return common.JSONDecode(contents, result)

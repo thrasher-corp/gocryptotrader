@@ -137,7 +137,7 @@ type SpotDepth struct {
 
 // ActualSpotDepthRequestParams represents Klines request data.
 type ActualSpotDepthRequestParams struct {
-	Symbol string `json:"symbol"` //必填项，币对如ltc_btc
+	Symbol string `json:"symbol"` // Symbol; example ltc_btc
 	Size   int    `json:"size"`   // value: 1-200
 }
 
@@ -155,8 +155,8 @@ type ActualSpotDepth struct {
 
 // ActualSpotTradeHistoryRequestParams represents Klines request data.
 type ActualSpotTradeHistoryRequestParams struct {
-	Symbol string `json:"symbol"` //必填项，币对如ltc_btc
-	Since  int    `json:"since"`  // tid:交易记录ID(返回数据不包括当前tid值,最多返回600条数据)
+	Symbol string `json:"symbol"` // Symbol; example ltc_btc
+	Since  int    `json:"since"`  // TID; transaction record ID (return data does not include the current TID value, returning up to 600 items)
 }
 
 // ActualSpotTradeHistory holds contract trade history
@@ -169,49 +169,43 @@ type ActualSpotTradeHistory struct {
 	Type     string  `json:"buy"`
 }
 
-//---------- UserInfo ----------
-
-// SpotUserInfo 获取用户信息
+// SpotUserInfo holds the spot user info
 type SpotUserInfo struct {
 	Result bool                                    `json:"result"`
 	Info   map[string]map[string]map[string]string `json:"info"`
 }
 
-//---------- 下订单 ----------
-
-// SpotNewOrderRequestParams 下单买入/卖出请求参数
+// SpotNewOrderRequestParams holds the params for making a new spot order
 type SpotNewOrderRequestParams struct {
-	Amount float64                 `json:"amount"` // 下单数量
-	Price  float64                 `json:"price"`  // 下单价格
-	Symbol string                  `json:"symbol"` // 交易对, btc_usdt, eth_btc......
-	Type   SpotNewOrderRequestType `json:"type"`   // 订单类型,
+	Amount float64                 `json:"amount"` // Order quantity
+	Price  float64                 `json:"price"`  // Order price
+	Symbol string                  `json:"symbol"` // Symbol; example btc_usdt, eth_btc......
+	Type   SpotNewOrderRequestType `json:"type"`   // Order type (see below)
 }
 
-// SpotNewOrderRequestType 交易类型
+// SpotNewOrderRequestType order type
 type SpotNewOrderRequestType string
 
 var (
-	// SpotNewOrderRequestTypeBuy 限价买
+	// SpotNewOrderRequestTypeBuy buy order
 	SpotNewOrderRequestTypeBuy = SpotNewOrderRequestType("buy")
 
-	// SpotNewOrderRequestTypeSell 限价卖
+	// SpotNewOrderRequestTypeSell sell order
 	SpotNewOrderRequestTypeSell = SpotNewOrderRequestType("sell")
 
-	// SpotNewOrderRequestTypeBuyMarket 市价买
+	// SpotNewOrderRequestTypeBuyMarket buy market order
 	SpotNewOrderRequestTypeBuyMarket = SpotNewOrderRequestType("buy_market")
 
-	// SpotNewOrderRequestTypeSellMarket 市价卖
+	// SpotNewOrderRequestTypeSellMarket sell market order
 	SpotNewOrderRequestTypeSellMarket = SpotNewOrderRequestType("sell_market")
 )
 
-//---------Kline
-
 // KlinesRequestParams represents Klines request data.
 type KlinesRequestParams struct {
-	Symbol string       //交易对, btcusdt, bccbtc......
-	Type   TimeInterval //K线类型, 1min, 5min, 15min......
-	Size   int          //获取数量, [1-2000]
-	Since  int64        //时间戳，返回该时间戳以后的数据(例如1417536000000)
+	Symbol string       // Symbol; example btcusdt, bccbtc......
+	Type   TimeInterval // Kline data time interval; 1min, 5min, 15min......
+	Size   int          // Size; [1-2000]
+	Since  int64        // Since timestamp, return data after the specified timestamp (for example, 1417536000000)
 }
 
 // TimeInterval represents interval enum.
