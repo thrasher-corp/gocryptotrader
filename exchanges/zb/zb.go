@@ -96,7 +96,6 @@ func (z *ZB) Setup(exch config.ExchangeConfig) {
 func (z *ZB) SpotNewOrder(arg SpotNewOrderRequestParams) (int64, error) {
 	var result SpotNewOrderResponse
 
-	//
 	vals := url.Values{}
 	vals.Set("accesskey", z.APIKey)
 	vals.Set("method", "order")
@@ -122,11 +121,10 @@ func (z *ZB) SpotNewOrder(arg SpotNewOrderRequestParams) (int64, error) {
 // CancelOrder cancels an order on Huobi
 func (z *ZB) CancelOrder(orderID int64, symbol string) error {
 	type response struct {
-		Code    int    `json:"code"`    //返回代码
-		Message string `json:"message"` //提示信息
+		Code    int    `json:"code"`    // Result code
+		Message string `json:"message"` // Result Message
 	}
 
-	//
 	vals := url.Values{}
 	vals.Set("accesskey", z.APIKey)
 	vals.Set("method", "cancelOrder")
@@ -134,7 +132,6 @@ func (z *ZB) CancelOrder(orderID int64, symbol string) error {
 	vals.Set("currency", symbol)
 
 	var result response
-
 	err := z.SendAuthenticatedHTTPRequest("GET", zbCancelOrder, vals, &result)
 	if err != nil {
 		return err
@@ -146,7 +143,8 @@ func (z *ZB) CancelOrder(orderID int64, symbol string) error {
 	return nil
 }
 
-// GetAccountInfo 获取已开启的市场信息，包括价格、数量小数点位数
+// GetAccountInfo returns account information including coin information
+// and pricing
 func (z *ZB) GetAccountInfo() (AccountsResponse, error) {
 	var result AccountsResponse
 
@@ -162,7 +160,8 @@ func (z *ZB) GetAccountInfo() (AccountsResponse, error) {
 	return result, nil
 }
 
-// GetMarkets 获取已开启的市场信息，包括价格、数量小数点位数
+// GetMarkets returns market information including pricing, symbols and
+// each symbols decimal precision
 func (z *ZB) GetMarkets() (map[string]MarketResponseItem, error) {
 	url := fmt.Sprintf("%s/%s/%s", zbTradeURL, zbAPIVersion, zbMarkets)
 
@@ -244,10 +243,8 @@ func (z *ZB) GetOrderbook(symbol string) (OrderbookResponse, error) {
 	return res, nil
 }
 
-// GetSpotKline K 线
+// GetSpotKline returns Kline data
 func (z *ZB) GetSpotKline(arg KlinesRequestParams) (KLineResponse, error) {
-
-	// var res interface{}
 	vals := url.Values{}
 	vals.Set("type", string(arg.Type))
 	vals.Set("market", arg.Symbol)
@@ -258,7 +255,6 @@ func (z *ZB) GetSpotKline(arg KlinesRequestParams) (KLineResponse, error) {
 		vals.Set("size", fmt.Sprintf("%d", arg.Size))
 	}
 
-	// url := fmt.Sprintf("%s/%s/%s?market=%s", zbTradeURL, zbAPIVersion, zbKline, arg.Symbol)
 	url := fmt.Sprintf("%s/%s/%s?%s", zbTradeURL, zbAPIVersion, zbKline, vals.Encode())
 
 	var res KLineResponse
@@ -274,15 +270,12 @@ func (z *ZB) GetSpotKline(arg KlinesRequestParams) (KLineResponse, error) {
 	res.Symbol = rawKlines["symbol"].(string)
 	res.MoneyType = rawKlines["moneyType"].(string)
 
-	//对于 Data数据，再次解析
 	rawKlineDatasString, _ := json.Marshal(rawKlines["data"].([]interface{}))
 	rawKlineDatas := [][]interface{}{}
 	if err := json.Unmarshal(rawKlineDatasString, &rawKlineDatas); err != nil {
 		return res, errors.New("zb rawKlines unmarshal failed")
 	}
 	for _, k := range rawKlineDatas {
-		// s := strconv.FormatFloat(k[0].(float64), 'E', -1, 64)
-		//time.Unix(_item.Timestamp, 0).Format("2006-01-02 15:04:05")
 		ot, err := common.TimeFromUnixTimestampFloat(k[0])
 		if err != nil {
 			return res, errors.New("zb cannot parse Kline.OpenTime")

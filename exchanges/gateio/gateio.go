@@ -88,7 +88,7 @@ func (g *Gateio) Setup(exch config.ExchangeConfig) {
 	}
 }
 
-// GetSymbols 返回所有系统支持的交易对
+// GetSymbols returns all supported symbols
 func (g *Gateio) GetSymbols() ([]string, error) {
 	var result []string
 
@@ -101,7 +101,8 @@ func (g *Gateio) GetSymbols() ([]string, error) {
 	return result, err
 }
 
-// GetMarketInfo 返回所有系统支持的交易市场的参数信息，包括交易费，最小下单量，价格精度等。
+// GetMarketInfo returns information about all trading pairs, including
+// transaction fee, minimum order quantity, price accuracy and so on
 func (g *Gateio) GetMarketInfo() (MarketInfoResponse, error) {
 	type response struct {
 		Result string        `json:"result"`
@@ -134,9 +135,9 @@ func (g *Gateio) GetMarketInfo() (MarketInfoResponse, error) {
 }
 
 // GetLatestSpotPrice returns latest spot price of symbol
+// updated every 10 seconds
 //
 // symbol: string of currency pair
-// 获取最新价格，官方每10秒钟更新一次
 func (g *Gateio) GetLatestSpotPrice(symbol string) (float64, error) {
 	res, err := g.GetTicker(symbol)
 	if err != nil {
@@ -146,7 +147,8 @@ func (g *Gateio) GetLatestSpotPrice(symbol string) (float64, error) {
 	return res.Last, nil
 }
 
-// GetTicker returns 单项交易行情，官方每10秒钟更新一次
+// GetTicker returns a ticker for the supplied symbol
+// updated every 10 seconds
 func (g *Gateio) GetTicker(symbol string) (TickerResponse, error) {
 	url := fmt.Sprintf("%s/%s/%s/%s", gateioMarketURL, gateioAPIVersion, gateioTicker, symbol)
 
@@ -224,11 +226,9 @@ func (g *Gateio) GetOrderbook(symbol string) (Orderbook, error) {
 	return ob, nil
 }
 
-// GetSpotKline 返回市场最近时间段内的K先数据
+// GetSpotKline returns kline data for the most recent time period
 func (g *Gateio) GetSpotKline(arg KlinesRequestParams) ([]*KLineResponse, error) {
-
 	url := fmt.Sprintf("%s/%s/%s/%s?group_sec=%d&range_hour=%d", gateioMarketURL, gateioAPIVersion, gateioKline, arg.Symbol, arg.GroupSec, arg.HourSize)
-
 	var rawKlines map[string]interface{}
 	err := g.SendHTTPRequest(url, &rawKlines)
 	if err != nil {
@@ -236,17 +236,16 @@ func (g *Gateio) GetSpotKline(arg KlinesRequestParams) ([]*KLineResponse, error)
 	}
 
 	var result []*KLineResponse
-
 	if rawKlines == nil || rawKlines["data"] == nil {
 		return nil, fmt.Errorf("rawKlines is nil. Err: %s", err)
 	}
 
-	//对于 Data数据，再次解析
 	rawKlineDatasString, _ := json.Marshal(rawKlines["data"].([]interface{}))
 	rawKlineDatas := [][]interface{}{}
 	if err := json.Unmarshal(rawKlineDatasString, &rawKlineDatas); err != nil {
 		return nil, fmt.Errorf("rawKlines unmarshal failed. Err: %s", err)
 	}
+
 	for _, k := range rawKlineDatas {
 		otString, _ := strconv.ParseFloat(k[0].(string), 64)
 		ot, err := common.TimeFromUnixTimestampFloat(otString)
@@ -280,21 +279,17 @@ func (g *Gateio) GetSpotKline(arg KlinesRequestParams) ([]*KLineResponse, error)
 		result = append(result, &KLineResponse{
 			ID:        _id,
 			KlineTime: ot,
-			Volume:    _vol,   //成交量
-			Close:     _close, //收盘价
-			High:      _high,  //最高
-			Low:       _low,   //最低
-			Open:      _open,  //开盘价
+			Volume:    _vol,
+			Close:     _close,
+			High:      _high,
+			Low:       _low,
+			Open:      _open,
 		})
 	}
-
 	return result, nil
 }
 
-// GetBalances 获取帐号资金余额
-// 通过以下API，用户可以使用程序控制自动进行账号资金查询，下单交易，取消挂单。
-// 请注意：请在您的程序中设置的HTTP请求头参数 Content-Type 为 application/x-www-form-urlencoded
-// 用户首先要通过这个链接获取API接口身份认证用到的Key和Secret。 然后在程序中用Secret作为密码，通过SHA512加密方式签名需要POST给服务器的数据得到Sign，并在HTTPS请求的Header部分传回Key和Sign。请参考以下接口说明和例子程序进行设置。
+// GetBalances obtains the users account balance
 func (g *Gateio) GetBalances() (BalancesResponse, error) {
 
 	var result BalancesResponse
@@ -307,11 +302,11 @@ func (g *Gateio) GetBalances() (BalancesResponse, error) {
 	return result, nil
 }
 
-// SpotNewOrder 下订单
+// SpotNewOrder places a new order
 func (g *Gateio) SpotNewOrder(arg SpotNewOrderRequestParams) (SpotNewOrderResponse, error) {
 	var result SpotNewOrderResponse
 
-	//获取交易对的价格精度格式
+	// Be sure to use the correct price precision before calling this
 	params := fmt.Sprintf("currencyPair=%s&rate=%s&amount=%s",
 		arg.Symbol,
 		strconv.FormatFloat(arg.Price, 'f', -1, 64),
@@ -328,9 +323,9 @@ func (g *Gateio) SpotNewOrder(arg SpotNewOrderRequestParams) (SpotNewOrderRespon
 	return result, nil
 }
 
-// CancelOrder 取消订单
-// @orderID 下单单号
-// @symbol 交易币种对(如 ltc_btc)
+// CancelOrder cancels an order given the supplied orderID and symbol
+// orderID order ID number
+// symbol trade pair (ltc_btc)
 func (g *Gateio) CancelOrder(orderID int64, symbol string) (bool, error) {
 	type response struct {
 		Result  bool   `json:"result"`
@@ -339,7 +334,7 @@ func (g *Gateio) CancelOrder(orderID int64, symbol string) (bool, error) {
 	}
 
 	var result response
-	//获取交易对的价格精度格式
+	// Be sure to use the correct price precision before calling this
 	params := fmt.Sprintf("orderNumber=%d&currencyPair=%s",
 		orderID,
 		symbol,
@@ -361,6 +356,7 @@ func (g *Gateio) SendHTTPRequest(path string, result interface{}) error {
 }
 
 // SendAuthenticatedHTTPRequest sends authenticated requests to the Gateio API
+// To use this you must setup an APIKey and APISecret from the exchange
 func (g *Gateio) SendAuthenticatedHTTPRequest(method, endpoint, param string, result interface{}) error {
 	if !g.AuthenticatedAPISupport {
 		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet, g.Name)

@@ -23,8 +23,8 @@ type Binance struct {
 	WebsocketConn *websocket.Conn
 
 	// valid string list that a required by the exchange
-	validLimits    []string
-	validIntervals []string
+	validLimits    []int
+	validIntervals []TimeInterval
 }
 
 const (
@@ -133,18 +133,18 @@ func (b *Binance) GetExchangeInfo() (ExchangeInfo, error) {
 
 // GetOrderBook returns full orderbook information
 //
+// OrderBookDataRequestParams contains the following members
 // symbol: string of currency pair
 // limit: returned limit amount
-// 获取交易深度
 func (b *Binance) GetOrderBook(obd OrderBookDataRequestParams) (OrderBook, error) {
 	orderbook, resp := OrderBook{}, OrderBookData{}
 
-	// if err := b.CheckLimit(limit); err != nil {
-	// 	return orderbook, err
-	// }
-	// if err := b.CheckSymbol(symbol); err != nil {
-	// 	return orderbook, err
-	// }
+	if err := b.CheckLimit(obd.Limit); err != nil {
+		return orderbook, err
+	}
+	if err := b.CheckSymbol(obd.Symbol); err != nil {
+		return orderbook, err
+	}
 
 	params := url.Values{}
 	params.Set("symbol", common.StringToUpper(obd.Symbol))
@@ -193,7 +193,7 @@ func (b *Binance) GetOrderBook(obd OrderBookDataRequestParams) (OrderBook, error
 }
 
 // GetRecentTrades returns recent trade activity
-// 获取最近的交易，最大500
+// limit: Up to 500 results returned
 func (b *Binance) GetRecentTrades(rtr RecentTradeRequestParams) ([]RecentTrade, error) {
 	resp := []RecentTrade{}
 
@@ -209,9 +209,9 @@ func (b *Binance) GetRecentTrades(rtr RecentTradeRequestParams) ([]RecentTrade, 
 // GetHistoricalTrades returns historical trade activity
 //
 // symbol: string of currency pair
-// limit: returned limit amount WARNING: MAX 500! (NOT REQUIRED)
+// limit: Optional. Default 500; max 1000.
 // fromID:
-func (b *Binance) GetHistoricalTrades(symbol string, limit, fromID int64) ([]HistoricalTrade, error) {
+func (b *Binance) GetHistoricalTrades(symbol string, limit int, fromID int64) ([]HistoricalTrade, error) {
 	resp := []HistoricalTrade{}
 
 	if err := b.CheckLimit(limit); err != nil {
@@ -220,7 +220,7 @@ func (b *Binance) GetHistoricalTrades(symbol string, limit, fromID int64) ([]His
 
 	params := url.Values{}
 	params.Set("symbol", common.StringToUpper(symbol))
-	params.Set("limit", strconv.FormatInt(limit, 10))
+	params.Set("limit", strconv.Itoa(limit))
 	params.Set("fromid", strconv.FormatInt(fromID, 10))
 
 	path := fmt.Sprintf("%s%s?%s", apiURL, historicalTrades, params.Encode())
@@ -231,8 +231,8 @@ func (b *Binance) GetHistoricalTrades(symbol string, limit, fromID int64) ([]His
 // GetAggregatedTrades returns aggregated trade activity
 //
 // symbol: string of currency pair
-// limit: returned limit amount WARNING: MAX 500!
-func (b *Binance) GetAggregatedTrades(symbol string, limit int64) ([]AggregatedTrade, error) {
+// limit: Optional. Default 500; max 1000.
+func (b *Binance) GetAggregatedTrades(symbol string, limit int) ([]AggregatedTrade, error) {
 	resp := []AggregatedTrade{}
 
 	if err := b.CheckLimit(limit); err != nil {
@@ -244,18 +244,21 @@ func (b *Binance) GetAggregatedTrades(symbol string, limit int64) ([]AggregatedT
 
 	params := url.Values{}
 	params.Set("symbol", common.StringToUpper(symbol))
-	params.Set("limit", strconv.FormatInt(limit, 10))
+	params.Set("limit", strconv.Itoa(limit))
 
 	path := fmt.Sprintf("%s%s?%s", apiURL, aggregatedTrades, params.Encode())
 
 	return resp, b.SendHTTPRequest(path, &resp)
 }
 
-// GetSpotKline returns candle stick data
-// 获取 K 线数据
-// symbol:
-// limit:
-// interval
+// GetSpotKline returns kline data
+//
+// KlinesRequestParams supports 5 parameters
+// symbol: the symbol to get the kline data for
+// limit: optinal
+// interval: the interval time for the data
+// startTime: startTime filter for kline data
+// endTime: endTime filter for the kline data
 func (b *Binance) GetSpotKline(arg KlinesRequestParams) ([]CandleStick, error) {
 	var resp interface{}
 	var kline []CandleStick
@@ -340,13 +343,12 @@ func (b *Binance) GetTickers() ([]PriceChangeStats, error) {
 // GetLatestSpotPrice returns latest spot price of symbol
 //
 // symbol: string of currency pair
-// 获取最新价格
 func (b *Binance) GetLatestSpotPrice(symbol string) (SymbolPrice, error) {
 	resp := SymbolPrice{}
 
-	// if err := b.CheckSymbol(symbol); err != nil {
-	// 	return resp, err
-	// }
+	if err := b.CheckSymbol(symbol); err != nil {
+		return resp, err
+	}
 
 	params := url.Values{}
 	params.Set("symbol", common.StringToUpper(symbol))
@@ -402,7 +404,6 @@ func (b *Binance) NewOrder(o NewOrderRequest) (NewOrderResponse, error) {
 	params.Set("quantity", strconv.FormatFloat(o.Quantity, 'f', -1, 64))
 	params.Set("price", strconv.FormatFloat(o.Price, 'f', -1, 64))
 	params.Set("timeInForce", string(o.TimeInForce))
-	// params.Set("timestamp", strconv.FormatInt(common.UnixMillis(time.Now()), 10))
 
 	if o.NewClientOrderID != "" {
 		params.Set("newClientOrderID", o.NewClientOrderID)
@@ -431,7 +432,6 @@ func (b *Binance) NewOrder(o NewOrderRequest) (NewOrderResponse, error) {
 }
 
 // CancelOrder sends a cancel order to Binance
-// 取消订单
 func (b *Binance) CancelOrder(symbol string, orderID int64, origClientOrderID string) (CancelOrderResponse, error) {
 
 	var resp CancelOrderResponse
@@ -474,8 +474,8 @@ func (b *Binance) OpenOrders(symbol string) ([]QueryOrderData, error) {
 }
 
 // AllOrders Get all account orders; active, canceled, or filled.
-// @orderId 非必填项
-// @limit 非必填项,Default 500; max 500
+// orderId optional param
+// limit optional param, default 500; max 500
 func (b *Binance) AllOrders(symbol, orderID, limit string) ([]QueryOrderData, error) {
 	var resp []QueryOrderData
 
@@ -578,16 +578,18 @@ func (b *Binance) SendAuthHTTPRequest(method, path string, params url.Values, re
 }
 
 // CheckLimit checks value against a variable list
-func (b *Binance) CheckLimit(limit int64) error {
-	if !common.StringDataCompare(b.validLimits, strconv.FormatInt(limit, 10)) {
-		return errors.New("Incorrect limit values - valid values are 5, 10, 20, 50, 100, 500, 1000")
+func (b *Binance) CheckLimit(limit int) error {
+	for x := range b.validLimits {
+		if b.validLimits[x] == limit {
+			return nil
+		}
 	}
-	return nil
+	return errors.New("Incorrect limit values - valid values are 5, 10, 20, 50, 100, 500, 1000")
 }
 
 // CheckSymbol checks value against a variable list
 func (b *Binance) CheckSymbol(symbol string) error {
-	enPairs := b.GetEnabledCurrencies()
+	enPairs := b.GetAvailableCurrencies()
 	for x := range enPairs {
 		if exchange.FormatExchangeCurrency(b.Name, enPairs[x]).String() == symbol {
 			return nil
@@ -597,15 +599,33 @@ func (b *Binance) CheckSymbol(symbol string) error {
 }
 
 // CheckIntervals checks value against a variable list
-// func (b *Binance) CheckIntervals(interval string) error {
-// 	if !common.StringDataCompare(b.validIntervals, interval) {
-// 		return errors.New(`Incorrect interval values - valid values are "1m","3m","5m","15m","30m","1h","2h","4h","6h","8h","12h","1d","3d","1w","1M"`)
-// 	}
-// 	return nil
-// }
+func (b *Binance) CheckIntervals(interval string) error {
+	for x := range b.validIntervals {
+		if TimeInterval(interval) == b.validIntervals[x] {
+			return nil
+		}
+	}
+	return errors.New(`Incorrect interval values - valid values are "1m","3m","5m","15m","30m","1h","2h","4h","6h","8h","12h","1d","3d","1w","1M"`)
+}
 
 // SetValues sets the default valid values
 func (b *Binance) SetValues() {
-	b.validLimits = []string{"5", "10", "20", "50", "100", "500", "1000"}
-	b.validIntervals = []string{"1m", "3m", "5m", "15m", "30m", "1h", "2h", "4h", "6h", "8h", "12h", "1d", "3d", "1w", "1M"}
+	b.validLimits = []int{5, 10, 20, 50, 100, 500, 1000}
+	b.validIntervals = []TimeInterval{
+		TimeIntervalMinute,
+		TimeIntervalThreeMinutes,
+		TimeIntervalFiveMinutes,
+		TimeIntervalFifteenMinutes,
+		TimeIntervalThirtyMinutes,
+		TimeIntervalHour,
+		TimeIntervalTwoHours,
+		TimeIntervalFourHours,
+		TimeIntervalSixHours,
+		TimeIntervalEightHours,
+		TimeIntervalTwelveHours,
+		TimeIntervalDay,
+		TimeIntervalThreeDays,
+		TimeIntervalWeek,
+		TimeIntervalMonth,
+	}
 }

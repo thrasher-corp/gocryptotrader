@@ -44,8 +44,6 @@ type ExchangeInfo struct {
 	} `json:"symbols"`
 }
 
-//------------------
-
 // OrderBookDataRequestParams represents Klines request data.
 type OrderBookDataRequestParams struct {
 	Symbol string `json:"symbol"` //必填项，交易对:LTCBTC,BTCUSDT
@@ -65,11 +63,11 @@ type OrderBookData struct {
 type OrderBook struct {
 	Code int
 	Msg  string
-	Bids []struct { //买方
-		Price    float64 //价格
-		Quantity float64 // 数量
+	Bids []struct {
+		Price    float64
+		Quantity float64
 	}
-	Asks []struct { //卖方
+	Asks []struct {
 		Price    float64
 		Quantity float64
 	}
@@ -77,7 +75,7 @@ type OrderBook struct {
 
 // RecentTradeRequestParams represents Klines request data.
 type RecentTradeRequestParams struct {
-	Symbol string `json:"symbol"` //必填项，交易对:LTCBTC,BTCUSDT
+	Symbol string `json:"symbol"` // Required field. example LTCBTC, BTCUSDT
 	Limit  int    `json:"limit"`  // Default 500; max 500.
 }
 
@@ -245,15 +243,16 @@ type BestPrice struct {
 
 // NewOrderRequest request type
 type NewOrderRequest struct {
-	// Symbol 交易对，必填项
+	// Symbol (currency pair to trade)
 	Symbol string
-	// Side 交易方式，买或卖，必填写项
+	// Side Buy or Sell
 	Side RequestParamsSideType
-	// TradeType 交易类型，市价或限价等
+	// TradeType (market or limit order)
 	TradeType RequestParamsOrderType
-	// TimeInForce 不知道有毛用
+	// TimeInForce specifies how long the order remains in effect.
+	// Examples are (Good Till Cancel (GTC), Immediate or Cancel (IOC) and Fill Or Kill (FOK))
 	TimeInForce RequestParamsTimeForceType
-	// Quantity 数量
+	// Quantity
 	Quantity         float64
 	Price            float64
 	NewClientOrderID string
@@ -302,7 +301,7 @@ type QueryOrderData struct {
 	ClientOrderID string  `json:"clientOrderId"`
 	Price         float64 `json:"price,string"`
 	OrigQty       float64 `json:"origQty,string"`
-	ExecutedQty   float64 `json:"executedQty,string"` //成交的数量
+	ExecutedQty   float64 `json:"executedQty,string"`
 	Status        string  `json:"status"`
 	TimeInForce   string  `json:"timeInForce"`
 	Type          string  `json:"type"`
@@ -333,14 +332,14 @@ type Account struct {
 	Balances         []Balance `json:"balances"`
 }
 
-// RequestParamsSideType 交易类型
+// RequestParamsSideType trade order side (buy or sell)
 type RequestParamsSideType string
 
 var (
-	// BinanceRequestParamsSideBuy 买
+	// BinanceRequestParamsSideBuy buy order type
 	BinanceRequestParamsSideBuy = RequestParamsSideType("BUY")
 
-	// BinanceRequestParamsSideSell 卖
+	// BinanceRequestParamsSideSell sell order type
 	BinanceRequestParamsSideSell = RequestParamsSideType("SELL")
 )
 
@@ -358,14 +357,14 @@ var (
 	BinanceRequestParamsTimeFOK = RequestParamsTimeForceType("FOK")
 )
 
-// RequestParamsOrderType 交易类型
+// RequestParamsOrderType trade order type
 type RequestParamsOrderType string
 
 var (
-	// BinanceRequestParamsOrderLimit 限价
+	// BinanceRequestParamsOrderLimit Limit order
 	BinanceRequestParamsOrderLimit = RequestParamsOrderType("LIMIT")
 
-	// BinanceRequestParamsOrderMarket 市场价
+	// BinanceRequestParamsOrderMarket Market order
 	BinanceRequestParamsOrderMarket = RequestParamsOrderType("MARKET")
 
 	// BinanceRequestParamsOrderStopLoss STOP_LOSS
@@ -384,12 +383,10 @@ var (
 	BinanceRequestParamsOrderLimitMarker = RequestParamsOrderType("LIMIT_MAKER")
 )
 
-//------------------
-
 // KlinesRequestParams represents Klines request data.
 type KlinesRequestParams struct {
-	Symbol    string       //必填项，交易对:LTCBTC,BTCUSDT
-	Interval  TimeInterval //查询时间段
+	Symbol    string       // Required field; example LTCBTC, BTCUSDT
+	Interval  TimeInterval // Time interval period
 	Limit     int          // Default 500; max 500.
 	StartTime int64
 	EndTime   int64

@@ -156,7 +156,6 @@ func (b *Bitfinex) GetPlatformStatus() (int, error) {
 // GetLatestSpotPrice returns latest spot price of symbol
 //
 // symbol: string of currency pair
-// 获取最新价格
 func (b *Bitfinex) GetLatestSpotPrice(symbol string) (float64, error) {
 	res, err := b.GetTicker(symbol)
 	if err != nil {
@@ -465,7 +464,6 @@ func (b *Bitfinex) GetSymbolsDetails() ([]SymbolDetails, error) {
 }
 
 // GetAccountInfo returns information about your account incl. trading fees
-// 返回帐号信息，包括提现费用
 func (b *Bitfinex) GetAccountInfo() (AccountInfo, error) {
 
 	var result AccountInfo

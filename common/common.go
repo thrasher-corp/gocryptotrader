@@ -557,12 +557,12 @@ func GetOSPathSlash() string {
 	return "/"
 }
 
-// UnixMillis 格式化时间
+// UnixMillis converts a UnixNano timestamp to milliseconds
 func UnixMillis(t time.Time) int64 {
 	return t.UnixNano() / int64(time.Millisecond)
 }
 
-// RecvWindow 格式化时间
+// RecvWindow converts a supplied time.Duration to milliseconds
 func RecvWindow(d time.Duration) int64 {
 	return int64(d) / int64(time.Millisecond)
 }

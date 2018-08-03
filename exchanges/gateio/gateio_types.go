@@ -2,14 +2,14 @@ package gateio
 
 import "time"
 
-// SpotNewOrderRequestParamsType 交易类型
+// SpotNewOrderRequestParamsType order type (buy or sell)
 type SpotNewOrderRequestParamsType string
 
 var (
-	// SpotNewOrderRequestParamsTypeBuy 买
+	// SpotNewOrderRequestParamsTypeBuy buy order
 	SpotNewOrderRequestParamsTypeBuy = SpotNewOrderRequestParamsType("buy")
 
-	// SpotNewOrderRequestParamsTypeSell 卖
+	// SpotNewOrderRequestParamsTypeSell sell order
 	SpotNewOrderRequestParamsTypeSell = SpotNewOrderRequestParamsType("sell")
 )
 
@@ -30,44 +30,38 @@ var (
 	TimeIntervalDay            = TimeInterval(60 * 60 * 24)
 )
 
-//------------Market Info
-
-// MarketInfoResponse 交易市场的参数信息
+// MarketInfoResponse holds the market info data
 type MarketInfoResponse struct {
 	Result string                    `json:"result"`
 	Pairs  []MarketInfoPairsResponse `json:"pairs"`
 }
 
-// MarketInfoPairsResponse 交易市场的参数信息-交易对
+// MarketInfoPairsResponse holds the market info response data
 type MarketInfoPairsResponse struct {
 	Symbol string
-	// DecimalPlaces 价格精度
+	// DecimalPlaces symbol price accuracy
 	DecimalPlaces float64
-	// MinAmount 最小下单量
+	// MinAmount minimum order amount
 	MinAmount float64
-	// Fee 交易费
+	// Fee transaction fee
 	Fee float64
 }
 
-//------------Balances
-
-// BalancesResponse 用户资产
+// BalancesResponse holds the user balances
 type BalancesResponse struct {
 	Result    string            `json:"result"`
 	Available map[string]string `json:"available"`
 	Locked    map[string]string `json:"locked"`
 }
 
-//------------Kline
-
 // KlinesRequestParams represents Klines request data.
 type KlinesRequestParams struct {
-	Symbol   string //必填项，交易对:LTCBTC,BTCUSDT
-	HourSize int    //多少个小时内的数据
+	Symbol   string // Required field; example LTCBTC,BTCUSDT
+	HourSize int    // How many hours of data
 	GroupSec TimeInterval
 }
 
-// KLineResponse K线返回类型
+// KLineResponse holds the kline response data
 type KLineResponse struct {
 	ID        float64
 	KlineTime time.Time
@@ -80,17 +74,17 @@ type KLineResponse struct {
 	Amount    float64 `db:"amount"`
 }
 
-// TickerResponse  获取单项交易行情有请求返回值
+// TickerResponse  holds the ticker response data
 type TickerResponse struct {
 	Result        string  `json:"result"`
-	Volume        float64 `json:"baseVolume,string"`    //交易量
-	High          float64 `json:"high24hr,string"`      // 24小时最高价
-	Open          float64 `json:"highestBid,string"`    // 买方最高价
-	Last          float64 `json:"last,string"`          // 最新成交价
-	Low           float64 `json:"low24hr,string"`       // 24小时最低价
-	Close         float64 `json:"lowestAsk,string"`     // 卖方最低价
-	PercentChange float64 `json:"percentChange,string"` // 涨跌百分比
-	QuoteVolume   float64 `json:"quoteVolume,string"`   // 兑换货币交易量
+	Volume        float64 `json:"baseVolume,string"`    // Trading volume
+	High          float64 `json:"high24hr,string"`      // 24 hour high price
+	Open          float64 `json:"highestBid,string"`    // Openening price
+	Last          float64 `json:"last,string"`          // Last price
+	Low           float64 `json:"low24hr,string"`       // 24 hour low price
+	Close         float64 `json:"lowestAsk,string"`     // Closing price
+	PercentChange float64 `json:"percentChange,string"` // Percentage change
+	QuoteVolume   float64 `json:"quoteVolume,string"`   // Quote currency volume
 }
 
 // OrderbookResponse stores the orderbook data
@@ -115,19 +109,19 @@ type Orderbook struct {
 	Asks    []OrderbookItem
 }
 
-// SpotNewOrderRequestParams 下单买入/卖出请求参数
+// SpotNewOrderRequestParams Order params
 type SpotNewOrderRequestParams struct {
-	Amount float64                       `json:"amount"` // 下单数量
-	Price  float64                       `json:"price"`  // 下单价格
-	Symbol string                        `json:"symbol"` // 交易对, btc_usdt, eth_btc......
-	Type   SpotNewOrderRequestParamsType `json:"type"`   // 订单类型,
+	Amount float64                       `json:"amount"` // Order quantity
+	Price  float64                       `json:"price"`  // Order price
+	Symbol string                        `json:"symbol"` // Trading pair; btc_usdt, eth_btc......
+	Type   SpotNewOrderRequestParamsType `json:"type"`   // Order type (buy or sell),
 }
 
-// SpotNewOrderResponse 下单买入/卖出返回的类型
+// SpotNewOrderResponse Order response
 type SpotNewOrderResponse struct {
-	OrderNumber  int64  `json:"orderNumber"`  //订单单号
-	Price        string `json:"rate"`         //下单价格
-	LeftAmount   string `json:"leftAmount"`   //剩余数量
-	FilledAmount string `json:"filledAmount"` //成交数量
-	// FilledPrice  string `json:"filledRate"`   //成交价格
+	OrderNumber  int64  `json:"orderNumber"`  // OrderID number
+	Price        string `json:"rate"`         // Order price
+	LeftAmount   string `json:"leftAmount"`   // The remaining amount to fill
+	FilledAmount string `json:"filledAmount"` // The filled amount
+	// FilledPrice  string `json:"filledRate"`   // FilledPrice
 }
