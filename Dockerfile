@@ -1,9 +1,8 @@
-FROM golang:1.9.4 as build
+FROM golang:1.10 as build
 RUN curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
 WORKDIR /go/src/gocryptotrader
-COPY Gopkg.* ./
-RUN dep ensure -vendor-only
 COPY . .
+RUN dep ensure
 RUN mv -vn config_example.json config.json \
  && GOARCH=386 GOOS=linux CGO_ENABLED=0 go install -v \
  && mv /go/bin/linux_386 /go/bin/gocryptotrader
