@@ -4,6 +4,7 @@ import (
 	"errors"
 	"log"
 	"sync"
+	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
@@ -28,34 +29,52 @@ func (b *Bitmex) Run() {
 		log.Printf("%s polling delay: %ds.\n", b.GetName(), b.RESTPollingDelay)
 		log.Printf("%s %d currencies enabled: %s.\n", b.GetName(), len(b.EnabledPairs), b.EnabledPairs)
 	}
+
+	marketInfo, err := b.GetActiveInstruments(GenericRequestParams{})
+	if err != nil {
+		log.Printf("%s Failed to get available symbols.\n", b.GetName())
+	} else {
+
+		var exchangeProducts []string
+
+		for _, info := range marketInfo {
+			exchangeProducts = append(exchangeProducts, info.Symbol)
+		}
+
+		err = b.UpdateCurrencies(exchangeProducts, false, false)
+		if err != nil {
+			log.Printf("%s Failed to update available currencies.\n", b.GetName())
+		}
+	}
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
 func (b *Bitmex) UpdateTicker(p pair.CurrencyPair, assetType string) (ticker.Price, error) {
 	var tickerPrice ticker.Price
+	currency := exchange.FormatExchangeCurrency(b.Name, p)
 
-	// tick, err := b.GetTrade()
-	// if err != nil {
-	// 	return tickerPrice, err
-	// }
-	//
-	// for _, x := range b.GetEnabledCurrencies() {
-	// 	curr := exchange.FormatExchangeCurrency(b.Name, x)
-	// 	for y := range tick {
-	// 		if tick[y].Symbol == curr.String() {
-	// 			tickerPrice.Pair = x
-	// 			tickerPrice.Ask = tick[y].AskPrice
-	// 			tickerPrice.Bid = tick[y].BidPrice
-	// 			tickerPrice.High = tick[y].HighPrice
-	// 			tickerPrice.Last = tick[y].LastPrice
-	// 			tickerPrice.Low = tick[y].LowPrice
-	// 			tickerPrice.Volume = tick[y].Volume
-	// 			ticker.ProcessTicker(b.Name, x, tickerPrice, assetType)
-	// 		}
-	// 	}
-	// }
-	// return ticker.GetTicker(b.Name, p, assetType)
-	return tickerPrice, errors.New("Not yet implemented")
+	tick, err := b.GetTrade(GenericRequestParams{
+		Symbol:    currency.String(),
+		StartTime: time.Now().Format(time.RFC3339),
+		Reverse:   true,
+		Count:     1})
+	if err != nil {
+		return tickerPrice, err
+	}
+
+	if len(tick) == 0 {
+		return tickerPrice, errors.New("Bitmex REST error: no ticker return")
+	}
+
+	tickerPrice.Pair = p
+	tickerPrice.LastUpdated = time.Now()
+	tickerPrice.CurrencyPair = tick[0].Symbol
+	tickerPrice.Last = tick[0].Price
+	tickerPrice.Volume = float64(tick[0].Size)
+
+	ticker.ProcessTicker(b.Name, p, tickerPrice, assetType)
+
+	return tickerPrice, nil
 }
 
 // GetTickerPrice returns the ticker for a currency pair
@@ -82,7 +101,7 @@ func (b *Bitmex) UpdateOrderbook(p pair.CurrencyPair, assetType string) (orderbo
 
 	orderbookNew, err := b.GetOrderbook(OrderBookGetL2Params{
 		Symbol: exchange.FormatExchangeCurrency(b.Name, p).String(),
-		Depth:  0})
+		Depth:  500})
 	if err != nil {
 		return orderBook, err
 	}

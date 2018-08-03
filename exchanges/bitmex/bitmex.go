@@ -20,6 +20,7 @@ import (
 type Bitmex struct {
 	exchange.Base
 	WebsocketConn *websocket.Conn
+	shutdown      *Shutdown
 }
 
 const (
@@ -124,6 +125,7 @@ func (b *Bitmex) SetDefaults() {
 		request.NewRateLimit(time.Second, bitmexAuthRate),
 		request.NewRateLimit(time.Second, bitmexUnauthRate),
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
+	b.shutdown = b.NewRoutineManagement()
 }
 
 // Setup takes in the supplied exchange configuration details and sets params

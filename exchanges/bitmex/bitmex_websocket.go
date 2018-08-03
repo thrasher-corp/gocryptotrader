@@ -113,30 +113,40 @@ func (b *Bitmex) connectionHandler() {
 		}
 	}()
 
+	shutdown := b.shutdown.addRoutine()
+
 	timer = time.NewTimer(5 * time.Second)
 	for {
-		<-timer.C
-		timeout := time.After(5 * time.Second)
-		err := b.WebsocketConn.WriteJSON("ping")
-		if err != nil {
-			b.reconnect()
-			return
-		}
-		for {
-			select {
-			case <-pongChan:
-				if b.Verbose {
-					log.Println("Bitmex websocket: PONG received")
-				}
-				break
-			case <-timeout:
-				log.Println("Bitmex websocket: Connection timed out - Closing connection....")
-				b.WebsocketConn.Close()
-
-				log.Println("Bitmex websocket: Connection timed out - Reconnecting...")
+		select {
+		case <-timer.C:
+			timeout := time.After(5 * time.Second)
+			err := b.WebsocketConn.WriteJSON("ping")
+			if err != nil {
 				b.reconnect()
 				return
 			}
+			for {
+				select {
+				case <-pongChan:
+					if b.Verbose {
+						log.Println("Bitmex websocket: PONG received")
+					}
+					break
+				case <-timeout:
+					log.Println("Bitmex websocket: Connection timed out - Closing connection....")
+					b.WebsocketConn.Close()
+
+					log.Println("Bitmex websocket: Connection timed out - Reconnecting...")
+					b.reconnect()
+					return
+				}
+			}
+		case <-shutdown:
+			log.Println("Bitmex websocket: shutdown requested - Closing connection....")
+			b.WebsocketConn.Close()
+			log.Println("Bitmex websocket: Sending shutdown message")
+			b.shutdown.routineShutdown()
+			return
 		}
 	}
 }
@@ -433,4 +443,52 @@ func (b *Bitmex) websocketSendAuth() error {
 	sendAuth.Arguments = append(sendAuth.Arguments, signature)
 
 	return b.WebsocketConn.WriteJSON(sendAuth)
+}
+
+// Shutdown to monitor and shut down routines package specific
+type Shutdown struct {
+	c            chan int
+	routineCount int
+	finishC      chan int
+}
+
+// NewRoutineManagement returns an new initial routine management system
+func (b *Bitmex) NewRoutineManagement() *Shutdown {
+	return &Shutdown{
+		c:       make(chan int, 1),
+		finishC: make(chan int, 1),
+	}
+}
+
+// AddRoutine adds a routine to the monitor and returns a channel
+func (r *Shutdown) addRoutine() chan int {
+	log.Println("Bitmex Websocket: Routine added to monitor")
+	r.routineCount++
+	return r.c
+}
+
+// RoutineShutdown sends a message to the finisher channel
+func (r *Shutdown) routineShutdown() {
+	log.Println("Bitmex Websocket: Routine is shutting down")
+	r.finishC <- 1
+}
+
+// SignalShutdown signals a shutdown across routines
+func (r *Shutdown) SignalShutdown() {
+	log.Println("Bitmex Websocket: Shutdown signal sending..")
+	for i := 0; i < r.routineCount; i++ {
+		log.Printf("Bitmex Websocket: Shutdown signal sent to routine %d", i+1)
+		r.c <- 1
+	}
+
+	for {
+		<-r.finishC
+		r.routineCount--
+		if r.routineCount <= 0 {
+			close(r.c)
+			close(r.finishC)
+			log.Println("Bitmex Websocket: All routines stopped")
+			return
+		}
+	}
 }

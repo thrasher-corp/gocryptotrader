@@ -3,6 +3,7 @@ package bitmex
 import (
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/thrasher-/gocryptotrader/config"
 )
@@ -36,10 +37,8 @@ func TestSetup(t *testing.T) {
 
 func TestStart(t *testing.T) {
 	var testWg sync.WaitGroup
-	b.Verbose = true
 	b.Start(&testWg)
 	testWg.Wait()
-	b.Verbose = false
 }
 
 // func TestGetAnnouncement(t *testing.T) {
@@ -364,7 +363,10 @@ func TestGetStatSummary(t *testing.T) {
 }
 
 func TestGetTrade(t *testing.T) {
-	_, err := b.GetTrade(GenericRequestParams{})
+	_, err := b.GetTrade(GenericRequestParams{
+		Symbol:    "XBTUSD",
+		StartTime: time.Now().Format(time.RFC3339),
+		Reverse:   true})
 	if err != nil {
 		t.Error("test failed - GetTrade() error", err)
 	}

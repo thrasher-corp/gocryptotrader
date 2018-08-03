@@ -191,35 +191,35 @@ type GenericRequestParams struct {
 	// return all columns.
 	// NOTE that this method will always return item keys, even when not
 	// specified, so you may receive more columns that you expect.
-	Columns string
+	Columns string `json:"columns,omitempty"`
 
 	// Count - Number of results to fetch.
-	Count int32
+	Count int32 `json:"count,omitempty"`
 
 	// EndTime - Ending date filter for results.
-	EndTime string
+	EndTime string `json:"endTime,omitempty"`
 
 	// Filter - Generic table filter. Send JSON key/value pairs, such as
 	// `{"key": "value"}`. You can key on individual fields, and do more advanced
 	// querying on timestamps. See the
 	// [Timestamp Docs](https://testnet.bitmex.com/app/restAPI#Timestamp-Filters)
 	// for more details.
-	Filter string
+	Filter string `json:"filter,omitempty"`
 
 	// Reverse - If true, will sort results newest first.
-	Reverse bool
+	Reverse bool `json:"reverse,omitempty"`
 
 	// Start - Starting point for results.
-	Start int32
+	Start int32 `json:"start,omitempty"`
 
 	// StartTime - Starting date filter for results.
-	StartTime string
+	StartTime string `json:"startTime,omitempty"`
 
 	// Symbol - Instrument symbol. Send a bare series (e.g. XBU) to get data for
 	// the nearest expiring contract in that series.
 	// You can also send a timeframe, e.g. `XBU:monthly`. Timeframes are `daily`,
 	// `weekly`, `monthly`, `quarterly`, and `biquarterly`.
-	Symbol string
+	Symbol string `json:"symbol,omitempty"`
 }
 
 // VerifyData verifies outgoing data sets
@@ -230,7 +230,11 @@ func (p GenericRequestParams) VerifyData() error {
 // ToURLVals converts struct values to url.values and encodes it on the supplied
 // path
 func (p GenericRequestParams) ToURLVals(path string) (string, error) {
-	return "", nil
+	values, err := StructValsToURLVals(&p)
+	if err != nil {
+		return "", err
+	}
+	return common.EncodeURLValues(path, values), nil
 }
 
 // IsNil checks to see if any values has been set for the paramater
