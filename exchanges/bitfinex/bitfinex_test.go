@@ -1,13 +1,14 @@
 package bitfinex
 
 import (
+	"fmt"
 	"net/url"
 	"reflect"
 	"testing"
 	"time"
 
-	"github.com/thrasher-/gocryptotrader/common"
-	"github.com/thrasher-/gocryptotrader/config"
+	"github.com/idoall/gocryptotrader/common"
+	"github.com/idoall/gocryptotrader/config"
 )
 
 // Please supply your own keys here to do better tests
@@ -52,14 +53,22 @@ func TestGetPlatformStatus(t *testing.T) {
 	}
 }
 
+func TestGetLatestSpotPrice(t *testing.T) {
+	t.Parallel()
+	_, err := b.GetLatestSpotPrice("BTCUSD")
+	if err != nil {
+		t.Error("Bitfinex GetLatestSpotPrice error: ", err)
+	}
+}
+
 func TestGetTicker(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetTicker("BTCUSD", url.Values{})
+	_, err := b.GetTicker("BTCUSD")
 	if err != nil {
 		t.Error("BitfinexGetTicker init error: ", err)
 	}
 
-	_, err = b.GetTicker("wigwham", url.Values{})
+	_, err = b.GetTicker("wigwham")
 	if err == nil {
 		t.Error("Test Failed - GetTicker() error")
 	}
@@ -233,9 +242,14 @@ func TestGetAccountInfo(t *testing.T) {
 	}
 	t.Parallel()
 
-	_, err := b.GetAccountInfo()
+	list, err := b.GetAccountInfo()
 	if err == nil {
 		t.Error("Test Failed - GetAccountInfo error")
+	}
+
+	for k, v := range list {
+		// b, _ := json.Marshal(v)
+		fmt.Printf("%s:%v \n", k, v)
 	}
 }
 

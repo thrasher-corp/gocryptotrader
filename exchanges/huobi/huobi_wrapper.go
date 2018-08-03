@@ -5,12 +5,12 @@ import (
 	"log"
 	"sync"
 
-	"github.com/thrasher-/gocryptotrader/common"
-	"github.com/thrasher-/gocryptotrader/config"
-	"github.com/thrasher-/gocryptotrader/currency/pair"
-	"github.com/thrasher-/gocryptotrader/exchanges"
-	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
-	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
+	"github.com/idoall/gocryptotrader/common"
+	"github.com/idoall/gocryptotrader/config"
+	"github.com/idoall/gocryptotrader/currency/pair"
+	"github.com/idoall/gocryptotrader/exchanges"
+	"github.com/idoall/gocryptotrader/exchanges/orderbook"
+	"github.com/idoall/gocryptotrader/exchanges/ticker"
 )
 
 // Start starts the HUOBI go routine
@@ -122,7 +122,10 @@ func (h *HUOBI) GetOrderbookEx(p pair.CurrencyPair, assetType string) (orderbook
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (h *HUOBI) UpdateOrderbook(p pair.CurrencyPair, assetType string) (orderbook.Base, error) {
 	var orderBook orderbook.Base
-	orderbookNew, err := h.GetDepth(exchange.FormatExchangeCurrency(h.Name, p).String(), "step1")
+	orderbookNew, err := h.GetDepth(OrderBookDataRequestParams{
+		Symbol: exchange.FormatExchangeCurrency(h.Name, p).String(),
+		Type:   OrderBookDataRequestParamsTypeStep1,
+	})
 	if err != nil {
 		return orderBook, err
 	}

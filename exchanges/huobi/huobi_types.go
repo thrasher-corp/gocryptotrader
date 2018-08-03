@@ -11,7 +11,7 @@ type Response struct {
 
 // KlineItem stores a kline item
 type KlineItem struct {
-	ID     int     `json:"id"`
+	ID     int64   `json:"id"`
 	Open   float64 `json:"open"`
 	Close  float64 `json:"close"`
 	Low    float64 `json:"low"`
@@ -27,6 +27,24 @@ type DetailMerged struct {
 	Version int       `json:"version"`
 	Ask     []float64 `json:"ask"`
 	Bid     []float64 `json:"bid"`
+}
+
+type OrderBookDataRequestParamsType string
+
+var (
+	OrderBookDataRequestParamsTypeNone  = OrderBookDataRequestParamsType("")
+	OrderBookDataRequestParamsTypeStep0 = OrderBookDataRequestParamsType("step0")
+	OrderBookDataRequestParamsTypeStep1 = OrderBookDataRequestParamsType("step1")
+	OrderBookDataRequestParamsTypeStep2 = OrderBookDataRequestParamsType("step2")
+	OrderBookDataRequestParamsTypeStep3 = OrderBookDataRequestParamsType("step3")
+	OrderBookDataRequestParamsTypeStep4 = OrderBookDataRequestParamsType("step4")
+	OrderBookDataRequestParamsTypeStep5 = OrderBookDataRequestParamsType("step5")
+)
+
+// OrderBookDataRequestParams represents Klines request data.
+type OrderBookDataRequestParams struct {
+	Symbol string                         `json:"symbol"` //必填项，交易对:LTCBTC,BTCUSDT
+	Type   OrderBookDataRequestParamsType `json:"type"`   //step0, step1, step2, step3, step4, step5（合并深度0-5）；step0时，不合并深度
 }
 
 // Orderbook stores the orderbook data
@@ -172,3 +190,56 @@ type MarginAccountBalance struct {
 	RiskRate string           `json:"risk-rate"`
 	List     []AccountBalance `json:"list"`
 }
+
+//-----------
+
+// SpotNewOrderRequestParams 下订单的请求参数
+type SpotNewOrderRequestParams struct {
+	AccountID int                           `json:"account-id"` // 账户 ID，使用accounts方法获得。币币交易使用‘spot’账户的accountid；借贷资产交易，请使用‘margin’账户的accountid
+	Amount    float64                       `json:"amount"`     // 限价表示下单数量, 市价买单时表示买多少钱, 市价卖单时表示卖多少币
+	Price     float64                       `json:"price"`      // 下单价格, 市价单不传该参数
+	Source    string                        `json:"source"`     // 订单来源, api: API调用, margin-api: 借贷资产交易
+	Symbol    string                        `json:"symbol"`     // 交易对, btcusdt, bccbtc......
+	Type      SpotNewOrderRequestParamsType `json:"type"`       // 订单类型, buy-market: 市价买, sell-market: 市价卖, buy-limit: 限价买, sell-limit: 限价卖
+}
+
+// SpotNewOrderRequestParamsType 火币交易类型
+type SpotNewOrderRequestParamsType string
+
+var (
+	// SpotNewOrderRequestTypeBuyMarkdt 市价买
+	SpotNewOrderRequestTypeBuyMarkdt = SpotNewOrderRequestParamsType("buy-market")
+
+	// SpotNewOrderRequestTypeSellMarkdt 市价卖
+	SpotNewOrderRequestTypeSellMarkdt = SpotNewOrderRequestParamsType("sell-market")
+
+	// SpotNewOrderRequestTypeBuyLimit 限价买
+	SpotNewOrderRequestTypeBuyLimit = SpotNewOrderRequestParamsType("buy-limit")
+
+	// SpotNewOrderRequestTypeSellLimit 限价卖
+	SpotNewOrderRequestTypeSellLimit = SpotNewOrderRequestParamsType("sell-limit")
+)
+
+//-----------
+
+// KlinesRequestParams represents Klines request data.
+type KlinesRequestParams struct {
+	Symbol string       //交易对, btcusdt, bccbtc......
+	Period TimeInterval //K线类型, 1min, 5min, 15min......
+	Size   int          //获取数量, [1-2000]
+}
+
+// TimeInterval 火币获取 K线的时间段枚举
+type TimeInterval string
+
+var (
+	TimeIntervalMinute         = TimeInterval("1min")
+	TimeIntervalFiveMinutes    = TimeInterval("5min")
+	TimeIntervalFifteenMinutes = TimeInterval("15min")
+	TimeIntervalThirtyMinutes  = TimeInterval("30min")
+	TimeIntervalHour           = TimeInterval("60min")
+	TimeIntervalDay            = TimeInterval("1day")
+	TimeIntervalWeek           = TimeInterval("1week")
+	TimeIntervalMohth          = TimeInterval("1mon")
+	TimeIntervalYear           = TimeInterval("1year")
+)

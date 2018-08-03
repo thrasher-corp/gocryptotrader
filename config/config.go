@@ -11,12 +11,12 @@ import (
 	"sync"
 	"time"
 
-	"github.com/thrasher-/gocryptotrader/common"
-	"github.com/thrasher-/gocryptotrader/currency"
-	"github.com/thrasher-/gocryptotrader/currency/forexprovider"
-	"github.com/thrasher-/gocryptotrader/currency/forexprovider/base"
-	"github.com/thrasher-/gocryptotrader/currency/pair"
-	"github.com/thrasher-/gocryptotrader/portfolio"
+	"github.com/idoall/gocryptotrader/common"
+	"github.com/idoall/gocryptotrader/currency"
+	"github.com/idoall/gocryptotrader/currency/forexprovider"
+	"github.com/idoall/gocryptotrader/currency/forexprovider/base"
+	"github.com/idoall/gocryptotrader/currency/pair"
+	"github.com/idoall/gocryptotrader/portfolio"
 )
 
 // Constants declared here are filename strings and test strings
@@ -127,7 +127,10 @@ type ExchangeConfig struct {
 	PairsLastUpdated          int64                     `json:",omitempty"`
 	ConfigCurrencyPairFormat  *CurrencyPairFormatConfig `json:"ConfigCurrencyPairFormat"`
 	RequestCurrencyPairFormat *CurrencyPairFormatConfig `json:"RequestCurrencyPairFormat"`
-	BankAccounts              []BankAccount
+
+	BaseAsset    string `json:"baseasset"`  // 基础交易目标
+	QuoteAsset   string `json:"quoteasset"` // 交易目标
+	BankAccounts []BankAccount
 }
 
 // BankAccount holds differing bank account details by supported funding

@@ -10,11 +10,10 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
-	"github.com/thrasher-/gocryptotrader/common"
-	"github.com/thrasher-/gocryptotrader/config"
-	exchange "github.com/thrasher-/gocryptotrader/exchanges"
-	"github.com/thrasher-/gocryptotrader/exchanges/request"
-	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
+	"github.com/idoall/gocryptotrader/common"
+	"github.com/idoall/gocryptotrader/config"
+	exchange "github.com/idoall/gocryptotrader/exchanges"
+	"github.com/idoall/gocryptotrader/exchanges/request"
 )
 
 // Binance is the overarching type across the Bithumb package
@@ -45,7 +44,10 @@ const (
 	// Authenticated endpoints
 	newOrderTest = "/api/v3/order/test"
 	newOrder     = "/api/v3/order"
+	cancelOrder  = "/api/v3/order"
 	queryOrder   = "/api/v3/order"
+	openOrders   = "/api/v3/openOrders"
+	allOrders    = "/api/v3/allOrders"
 
 	// binance authenticated and unauthenticated limit rates
 	// to-do
@@ -62,12 +64,12 @@ func (b *Binance) SetDefaults() {
 	b.RESTPollingDelay = 10
 	b.RequestCurrencyPairFormat.Delimiter = ""
 	b.RequestCurrencyPairFormat.Uppercase = true
-	b.ConfigCurrencyPairFormat.Delimiter = "-"
-	b.ConfigCurrencyPairFormat.Uppercase = true
-	b.AssetTypes = []string{ticker.Spot}
-	b.SupportsAutoPairUpdating = true
-	b.SupportsRESTTickerBatching = true
-	b.SetValues()
+	// b.ConfigCurrencyPairFormat.Delimiter = "-"
+	// b.ConfigCurrencyPairFormat.Uppercase = true
+	// b.AssetTypes = []string{ticker.Spot}
+	// b.SupportsAutoPairUpdating = true
+	// b.SupportsRESTTickerBatching = true
+	// b.SetValues()
 	b.Requester = request.New(b.Name, request.NewRateLimit(time.Second, binanceAuthRate), request.NewRateLimit(time.Second, binanceUnauthRate), common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 }
 
@@ -77,27 +79,29 @@ func (b *Binance) Setup(exch config.ExchangeConfig) {
 		b.SetEnabled(false)
 	} else {
 		b.Enabled = true
+		b.BaseAsset = exch.BaseAsset
+		b.QuoteAsset = exch.QuoteAsset
 		b.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
 		b.SetAPIKeys(exch.APIKey, exch.APISecret, "", false)
 		b.SetHTTPClientTimeout(exch.HTTPTimeout)
 		b.RESTPollingDelay = exch.RESTPollingDelay
 		b.Verbose = exch.Verbose
 		b.Websocket = exch.Websocket
-		b.BaseCurrencies = common.SplitStrings(exch.BaseCurrencies, ",")
-		b.AvailablePairs = common.SplitStrings(exch.AvailablePairs, ",")
-		b.EnabledPairs = common.SplitStrings(exch.EnabledPairs, ",")
-		err := b.SetCurrencyPairFormat()
-		if err != nil {
-			log.Fatal(err)
-		}
-		err = b.SetAssetTypes()
-		if err != nil {
-			log.Fatal(err)
-		}
-		err = b.SetAutoPairDefaults()
-		if err != nil {
-			log.Fatal(err)
-		}
+		// b.BaseCurrencies = common.SplitStrings(exch.BaseCurrencies, ",")
+		// b.AvailablePairs = common.SplitStrings(exch.AvailablePairs, ",")
+		// b.EnabledPairs = common.SplitStrings(exch.EnabledPairs, ",")
+		// err := b.SetCurrencyPairFormat()
+		// if err != nil {
+		// 	log.Fatal(err)
+		// }
+		// err = b.SetAssetTypes()
+		// if err != nil {
+		// 	log.Fatal(err)
+		// }
+		// err = b.SetAutoPairDefaults()
+		// if err != nil {
+		// 	log.Fatal(err)
+		// }
 	}
 }
 
@@ -132,19 +136,20 @@ func (b *Binance) GetExchangeInfo() (ExchangeInfo, error) {
 //
 // symbol: string of currency pair
 // limit: returned limit amount
-func (b *Binance) GetOrderBook(symbol string, limit int64) (OrderBook, error) {
+// 获取交易深度
+func (b *Binance) GetOrderBook(obd OrderBookDataRequestParams) (OrderBook, error) {
 	orderbook, resp := OrderBook{}, OrderBookData{}
 
-	if err := b.CheckLimit(limit); err != nil {
-		return orderbook, err
-	}
-	if err := b.CheckSymbol(symbol); err != nil {
-		return orderbook, err
-	}
+	// if err := b.CheckLimit(limit); err != nil {
+	// 	return orderbook, err
+	// }
+	// if err := b.CheckSymbol(symbol); err != nil {
+	// 	return orderbook, err
+	// }
 
 	params := url.Values{}
-	params.Set("symbol", common.StringToUpper(symbol))
-	params.Set("limit", strconv.FormatInt(limit, 10))
+	params.Set("symbol", common.StringToUpper(obd.Symbol))
+	params.Set("limit", fmt.Sprintf("%d", obd.Limit))
 
 	path := fmt.Sprintf("%s%s?%s", apiURL, orderBookDepth, params.Encode())
 
@@ -189,22 +194,13 @@ func (b *Binance) GetOrderBook(symbol string, limit int64) (OrderBook, error) {
 }
 
 // GetRecentTrades returns recent trade activity
-//
-// symbol: string of currency pair
-// limit: returned limit amount WARNING: MAX 500!
-func (b *Binance) GetRecentTrades(symbol string, limit int64) ([]RecentTrade, error) {
+// 获取最近的交易，最大500
+func (b *Binance) GetRecentTrades(rtr RecentTradeRequestParams) ([]RecentTrade, error) {
 	resp := []RecentTrade{}
 
-	if err := b.CheckLimit(limit); err != nil {
-		return resp, err
-	}
-	if err := b.CheckSymbol(symbol); err != nil {
-		return resp, err
-	}
-
 	params := url.Values{}
-	params.Set("symbol", common.StringToUpper(symbol))
-	params.Set("limit", strconv.FormatInt(limit, 10))
+	params.Set("symbol", common.StringToUpper(rtr.Symbol))
+	params.Set("limit", fmt.Sprintf("%d", rtr.Limit))
 
 	path := fmt.Sprintf("%s%s?%s", apiURL, recentTrades, params.Encode())
 
@@ -220,9 +216,6 @@ func (b *Binance) GetHistoricalTrades(symbol string, limit, fromID int64) ([]His
 	resp := []HistoricalTrade{}
 
 	if err := b.CheckLimit(limit); err != nil {
-		return resp, err
-	}
-	if err := b.CheckSymbol(symbol); err != nil {
 		return resp, err
 	}
 
@@ -259,29 +252,27 @@ func (b *Binance) GetAggregatedTrades(symbol string, limit int64) ([]AggregatedT
 	return resp, b.SendHTTPRequest(path, &resp)
 }
 
-// GetCandleStickData returns candle stick data
-//
+// GetSpotKline returns candle stick data
+// 获取 K 线数据
 // symbol:
 // limit:
 // interval
-func (b *Binance) GetCandleStickData(symbol, interval string, limit int64) ([]CandleStick, error) {
+func (b *Binance) GetSpotKline(arg KlinesRequestParams) ([]CandleStick, error) {
 	var resp interface{}
 	var kline []CandleStick
 
-	if err := b.CheckLimit(limit); err != nil {
-		return kline, err
-	}
-	if err := b.CheckSymbol(symbol); err != nil {
-		return kline, err
-	}
-	if err := b.CheckIntervals(interval); err != nil {
-		return kline, err
-	}
-
 	params := url.Values{}
-	params.Set("symbol", common.StringToUpper(symbol))
-	params.Set("limit", strconv.FormatInt(limit, 10))
-	params.Set("interval", interval)
+	params.Set("symbol", arg.Symbol)
+	params.Set("interval", string(arg.Interval))
+	if arg.Limit != 0 {
+		params.Set("limit", strconv.Itoa(arg.Limit))
+	}
+	if arg.StartTime != 0 {
+		params.Set("startTime", strconv.FormatInt(arg.StartTime, 10))
+	}
+	if arg.EndTime != 0 {
+		params.Set("endTime", strconv.FormatInt(arg.EndTime, 10))
+	}
 
 	path := fmt.Sprintf("%s%s?%s", apiURL, candleStick, params.Encode())
 
@@ -350,12 +341,13 @@ func (b *Binance) GetTickers() ([]PriceChangeStats, error) {
 // GetLatestSpotPrice returns latest spot price of symbol
 //
 // symbol: string of currency pair
+// 获取最新价格
 func (b *Binance) GetLatestSpotPrice(symbol string) (SymbolPrice, error) {
 	resp := SymbolPrice{}
 
-	if err := b.CheckSymbol(symbol); err != nil {
-		return resp, err
-	}
+	// if err := b.CheckSymbol(symbol); err != nil {
+	// 	return resp, err
+	// }
 
 	params := url.Values{}
 	params.Set("symbol", common.StringToUpper(symbol))
@@ -402,19 +394,32 @@ func (b *Binance) NewOrderTest() (interface{}, error) {
 func (b *Binance) NewOrder(o NewOrderRequest) (NewOrderResponse, error) {
 	var resp NewOrderResponse
 
-	path := fmt.Sprintf("%s%s", apiURL, newOrderTest)
+	path := fmt.Sprintf("%s%s", apiURL, newOrder)
 
 	params := url.Values{}
 	params.Set("symbol", o.Symbol)
-	params.Set("side", o.Side)
-	params.Set("type", o.TradeType)
-	params.Set("timeInForce", o.TimeInForce)
+	params.Set("side", string(o.Side))
+	params.Set("type", string(o.TradeType))
 	params.Set("quantity", strconv.FormatFloat(o.Quantity, 'f', -1, 64))
 	params.Set("price", strconv.FormatFloat(o.Price, 'f', -1, 64))
-	params.Set("newClientOrderID", o.NewClientOrderID)
-	params.Set("stopPrice", strconv.FormatFloat(o.StopPrice, 'f', -1, 64))
-	params.Set("icebergQty", strconv.FormatFloat(o.IcebergQty, 'f', -1, 64))
-	params.Set("newOrderRespType", o.NewOrderRespType)
+	params.Set("timeInForce", string(o.TimeInForce))
+	// params.Set("timestamp", strconv.FormatInt(common.UnixMillis(time.Now()), 10))
+
+	if o.NewClientOrderID != "" {
+		params.Set("newClientOrderID", o.NewClientOrderID)
+	}
+
+	if o.StopPrice != 0 {
+		params.Set("stopPrice", strconv.FormatFloat(o.StopPrice, 'f', -1, 64))
+	}
+
+	if o.IcebergQty != 0 {
+		params.Set("icebergQty", strconv.FormatFloat(o.IcebergQty, 'f', -1, 64))
+	}
+
+	if o.NewOrderRespType != "" {
+		params.Set("newOrderRespType", o.NewOrderRespType)
+	}
 
 	if err := b.SendAuthHTTPRequest("POST", path, params, &resp); err != nil {
 		return resp, err
@@ -426,6 +431,72 @@ func (b *Binance) NewOrder(o NewOrderRequest) (NewOrderResponse, error) {
 	return resp, nil
 }
 
+// CancelOrder sends a cancel order to Binance
+// 取消订单
+func (b *Binance) CancelOrder(symbol string, orderID int64, origClientOrderID string) (CancelOrderResponse, error) {
+
+	var resp CancelOrderResponse
+
+	path := fmt.Sprintf("%s%s", apiURL, cancelOrder)
+
+	params := url.Values{}
+	params.Set("symbol", symbol)
+
+	if orderID != 0 {
+		params.Set("orderId", strconv.FormatInt(orderID, 10))
+	}
+
+	if origClientOrderID != "" {
+		params.Set("origClientOrderId", origClientOrderID)
+	}
+
+	if err := b.SendAuthHTTPRequest("DELETE", path, params, &resp); err != nil {
+		return resp, err
+	}
+	return resp, nil
+}
+
+// OpenOrders Current open orders
+// Get all open orders on a symbol. Careful when accessing this with no symbol.
+func (b *Binance) OpenOrders(symbol string) ([]QueryOrderData, error) {
+	var resp []QueryOrderData
+
+	path := fmt.Sprintf("%s%s", apiURL, openOrders)
+
+	params := url.Values{}
+	if symbol != "" {
+		params.Set("symbol", common.StringToUpper(symbol))
+	}
+	if err := b.SendAuthHTTPRequest("GET", path, params, &resp); err != nil {
+		return resp, err
+	}
+
+	return resp, nil
+}
+
+// AllOrders Get all account orders; active, canceled, or filled.
+// @orderId 非必填项
+// @limit 非必填项,Default 500; max 500
+func (b *Binance) AllOrders(symbol, orderId, limit string) ([]QueryOrderData, error) {
+	var resp []QueryOrderData
+
+	path := fmt.Sprintf("%s%s", apiURL, allOrders)
+
+	params := url.Values{}
+	params.Set("symbol", common.StringToUpper(symbol))
+	if orderId != "" {
+		params.Set("orderId", orderId)
+	}
+	if limit != "" {
+		params.Set("limit", limit)
+	}
+	if err := b.SendAuthHTTPRequest("GET", path, params, &resp); err != nil {
+		return resp, err
+	}
+
+	return resp, nil
+}
+
 // QueryOrder returns information on a past order
 func (b *Binance) QueryOrder(symbol, origClientOrderID string, orderID int64) (QueryOrderData, error) {
 	var resp QueryOrderData
@@ -434,8 +505,12 @@ func (b *Binance) QueryOrder(symbol, origClientOrderID string, orderID int64) (Q
 
 	params := url.Values{}
 	params.Set("symbol", common.StringToUpper(symbol))
-	params.Set("origClientOrderId", origClientOrderID)
-	params.Set("orderId", strconv.FormatInt(orderID, 10))
+	if origClientOrderID != "" {
+		params.Set("origClientOrderId", origClientOrderID)
+	}
+	if orderID != 0 {
+		params.Set("orderId", strconv.FormatInt(orderID, 10))
+	}
 
 	if err := b.SendAuthHTTPRequest("GET", path, params, &resp); err != nil {
 		return resp, err
@@ -484,7 +559,7 @@ func (b *Binance) SendAuthHTTPRequest(method, path string, params url.Values, re
 	if params == nil {
 		params = url.Values{}
 	}
-	params.Set("recvWindow", strconv.FormatInt(5000, 10))
+	params.Set("recvWindow", strconv.FormatInt(common.RecvWindow(5*time.Second), 10))
 	params.Set("timestamp", strconv.FormatInt(time.Now().Unix()*1000, 10))
 
 	signature := params.Encode()
@@ -494,8 +569,11 @@ func (b *Binance) SendAuthHTTPRequest(method, path string, params url.Values, re
 
 	headers := make(map[string]string)
 	headers["X-MBX-APIKEY"] = b.APIKey
-	headers["Content-Type"] = "application/x-www-form-urlencoded"
-
+	// headers["Content-Type"] = "application/x-www-form-urlencoded"
+	// c, _ := json.Marshal(headers)
+	// fmt.Println("headers", string(c))
+	// c, _ = json.Marshal(params)
+	// fmt.Println("params", string(c))
 	if b.Verbose {
 		log.Printf("sent path: \n%s\n", path)
 	}
@@ -524,12 +602,12 @@ func (b *Binance) CheckSymbol(symbol string) error {
 }
 
 // CheckIntervals checks value against a variable list
-func (b *Binance) CheckIntervals(interval string) error {
-	if !common.StringDataCompare(b.validIntervals, interval) {
-		return errors.New(`Incorrect interval values - valid values are "1m","3m","5m","15m","30m","1h","2h","4h","6h","8h","12h","1d","3d","1w","1M"`)
-	}
-	return nil
-}
+// func (b *Binance) CheckIntervals(interval string) error {
+// 	if !common.StringDataCompare(b.validIntervals, interval) {
+// 		return errors.New(`Incorrect interval values - valid values are "1m","3m","5m","15m","30m","1h","2h","4h","6h","8h","12h","1d","3d","1w","1M"`)
+// 	}
+// 	return nil
+// }
 
 // SetValues sets the default valid values
 func (b *Binance) SetValues() {

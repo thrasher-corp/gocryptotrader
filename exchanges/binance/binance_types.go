@@ -1,5 +1,6 @@
 package binance
 
+// Response struct
 
 import (
 	"encoding/json"
@@ -45,6 +46,14 @@ type ExchangeInfo struct {
 	} `json:"symbols"`
 }
 
+//------------------
+
+// OrderBookDataRequestParams represents Klines request data.
+type OrderBookDataRequestParams struct {
+	Symbol string `json:"symbol"` //必填项，交易对:LTCBTC,BTCUSDT
+	Limit  int    `json:"limit"`  // Default 100; max 1000. Valid limits:[5, 10, 20, 50, 100, 500, 1000]
+}
+
 // OrderBookData is resp data from orderbook endpoint
 type OrderBookData struct {
 	Code         int           `json:"code"`
@@ -58,14 +67,20 @@ type OrderBookData struct {
 type OrderBook struct {
 	Code int
 	Msg  string
-	Bids []struct {
+	Bids []struct { //买方
+		Price    float64 //价格
+		Quantity float64 // 数量
+	}
+	Asks []struct { //卖方
 		Price    float64
 		Quantity float64
 	}
-	Asks []struct {
-		Price    float64
-		Quantity float64
-	}
+}
+
+// RecentTradeRequestParams represents Klines request data.
+type RecentTradeRequestParams struct {
+	Symbol string `json:"symbol"` //必填项，交易对:LTCBTC,BTCUSDT
+	Limit  int    `json:"limit"`  // Default 500; max 500.
 }
 
 // RecentTrade holds recent trade data
@@ -75,7 +90,7 @@ type RecentTrade struct {
 	ID           int64   `json:"id"`
 	Price        float64 `json:"price,string"`
 	Quantity     float64 `json:"qty,string"`
-	Time         int64   `json:"time"`
+	Time         float64 `json:"time"`
 	IsBuyerMaker bool    `json:"isBuyerMaker"`
 	IsBestMatch  bool    `json:"isBestMatch"`
 }
@@ -228,15 +243,20 @@ type BestPrice struct {
 
 // NewOrderRequest request type
 type NewOrderRequest struct {
-	Symbol           string
-	Side             string
-	TradeType        string
-	TimeInForce      string
+	// Symbol 交易对，必填项
+	Symbol string
+	// Side 交易方式，买或卖，必填写项
+	Side BinanceRequestParamsSideType
+	// TradeType 交易类型，市价或限价等
+	TradeType BinanceRequestParamsOrderType
+	// TimeInForce 不知道有毛用
+	TimeInForce BinanceRequestParamsTimeForceType
+	// Quantity 数量
 	Quantity         float64
 	Price            float64
 	NewClientOrderID string
-	StopPrice        float64
-	IcebergQty       float64
+	StopPrice        float64 //Used with STOP_LOSS, STOP_LOSS_LIMIT, TAKE_PROFIT, and TAKE_PROFIT_LIMIT orders.
+	IcebergQty       float64 //Used with LIMIT, STOP_LOSS_LIMIT, and TAKE_PROFIT_LIMIT to create an iceberg order.
 	NewOrderRespType string
 }
 
@@ -263,6 +283,14 @@ type NewOrderResponse struct {
 	} `json:"fills"`
 }
 
+// CancelOrderResponse is the return structured response from the exchange
+type CancelOrderResponse struct {
+	Symbol            string `json:"symbol"`
+	OrigClientOrderID string `json:"origClientOrderId"`
+	OrderID           int64  `json:"orderId"`
+	ClientOrderID     string `json:"clientOrderId"`
+}
+
 // QueryOrderData holds query order data
 type QueryOrderData struct {
 	Code          int     `json:"code"`
@@ -272,14 +300,14 @@ type QueryOrderData struct {
 	ClientOrderID string  `json:"clientOrderId"`
 	Price         float64 `json:"price,string"`
 	OrigQty       float64 `json:"origQty,string"`
-	ExecutedQty   float64 `json:"executedQty,string"`
+	ExecutedQty   float64 `json:"executedQty,string"` //成交的数量
 	Status        string  `json:"status"`
 	TimeInForce   string  `json:"timeInForce"`
 	Type          string  `json:"type"`
 	Side          string  `json:"side"`
 	StopPrice     float64 `json:"stopPrice,string"`
 	IcebergQty    float64 `json:"icebergQty,string"`
-	Time          int64   `json:"time"`
+	Time          float64 `json:"time"`
 	IsWorking     bool    `json:"isWorking"`
 }
 
@@ -302,3 +330,86 @@ type Account struct {
 	UpdateTime       int64     `json:"updateTime"`
 	Balances         []Balance `json:"balances"`
 }
+
+// BinanceRequestParamsSideType 交易类型
+type BinanceRequestParamsSideType string
+
+var (
+	// BinanceRequestParamsSideBuy 买
+	BinanceRequestParamsSideBuy = BinanceRequestParamsSideType("BUY")
+
+	// BinanceRequestParamsSideSell 卖
+	BinanceRequestParamsSideSell = BinanceRequestParamsSideType("SELL")
+)
+
+// BinanceRequestParamsTimeForceType Time in force
+type BinanceRequestParamsTimeForceType string
+
+var (
+	// BinanceRequestParamsTimeGTC GTC
+	BinanceRequestParamsTimeGTC = BinanceRequestParamsTimeForceType("GTC")
+
+	// BinanceRequestParamsTimeIOC IOC
+	BinanceRequestParamsTimeIOC = BinanceRequestParamsTimeForceType("IOC")
+
+	// BinanceRequestParamsTimeFOK FOK
+	BinanceRequestParamsTimeFOK = BinanceRequestParamsTimeForceType("FOK")
+)
+
+// BinanceRequestParamsOrderType 交易类型
+type BinanceRequestParamsOrderType string
+
+var (
+	// BinanceRequestParamsOrderLimit 限价
+	BinanceRequestParamsOrderLimit = BinanceRequestParamsOrderType("LIMIT")
+
+	// BinanceRequestParamsOrderMarket 市场价
+	BinanceRequestParamsOrderMarket = BinanceRequestParamsOrderType("MARKET")
+
+	// BinanceRequestParamsOrderStopLoss STOP_LOSS
+	BinanceRequestParamsOrderStopLoss = BinanceRequestParamsOrderType("STOP_LOSS")
+
+	// BinanceRequestParamsOrderStopLossLimit STOP_LOSS_LIMIT
+	BinanceRequestParamsOrderStopLossLimit = BinanceRequestParamsOrderType("STOP_LOSS_LIMIT")
+
+	// BinanceRequestParamsOrderTakeProfit TAKE_PROFIT
+	BinanceRequestParamsOrderTakeProfit = BinanceRequestParamsOrderType("TAKE_PROFIT")
+
+	// BinanceRequestParamsOrderTakeProfitLimit TAKE_PROFIT_LIMIT
+	BinanceRequestParamsOrderTakeProfitLimit = BinanceRequestParamsOrderType("TAKE_PROFIT_LIMIT")
+
+	// BinanceRequestParamsOrderLimitMarker LIMIT_MAKER
+	BinanceRequestParamsOrderLimitMarker = BinanceRequestParamsOrderType("LIMIT_MAKER")
+)
+
+//------------------
+
+// KlinesRequestParams represents Klines request data.
+type KlinesRequestParams struct {
+	Symbol    string       //必填项，交易对:LTCBTC,BTCUSDT
+	Interval  TimeInterval //查询时间段
+	Limit     int          // Default 500; max 500.
+	StartTime int64
+	EndTime   int64
+}
+
+// TimeInterval represents interval enum.
+type TimeInterval string
+
+var (
+	TimeIntervalMinute         = TimeInterval("1m")
+	TimeIntervalThreeMinutes   = TimeInterval("3m")
+	TimeIntervalFiveMinutes    = TimeInterval("5m")
+	TimeIntervalFifteenMinutes = TimeInterval("15m")
+	TimeIntervalThirtyMinutes  = TimeInterval("30m")
+	TimeIntervalHour           = TimeInterval("1h")
+	TimeIntervalTwoHours       = TimeInterval("2h")
+	TimeIntervalFourHours      = TimeInterval("4h")
+	TimeIntervalSixHours       = TimeInterval("6h")
+	TimeIntervalEightHours     = TimeInterval("8h")
+	TimeIntervalTwelveHours    = TimeInterval("12h")
+	TimeIntervalDay            = TimeInterval("1d")
+	TimeIntervalThreeDays      = TimeInterval("3d")
+	TimeIntervalWeek           = TimeInterval("1w")
+	TimeIntervalMonth          = TimeInterval("1M")
+)

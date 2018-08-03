@@ -1,3 +1,15 @@
+基于项目 [thrasher-/gocryptotrader](https://github.com/thrasher-/gocryptotrader) 做的个性化修改
+
+## 修改的内容
+
++ 简单一些操作
++ 修复火币在 Post 时的bug，同时增加 HuobiHadax 的支持
++ 修复 Binance 获取用户信息的bug,增加 Binance 取消订单的方法，获取订单状态，获取所有打开的状态以及所有订单
++ 增加 Gateio 交易所的支持，支持获取K线、支持的交易对、交易市场参数、买/卖订单、取消订单
++ OKEX 币币交易:增加获取用户信息，下订单，取消订单
++ 修复 Bitfinex 的 GetAccountInfo 方法
++ 增加 ZB 交易所的部分功能支持
+
 <img src="https://github.com/thrasher-/gocryptotrader/blob/master/web/src/assets/page-logo.png?raw=true" width="350px" height="350px" hspace="70">
 
 [![Build Status](https://travis-ci.org/thrasher-/gocryptotrader.svg?branch=master)](https://travis-ci.org/thrasher-/gocryptotrader)
@@ -30,7 +42,12 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 | BTCMarkets | Yes | No       | NA  |
 | COINUT | Yes | No | NA |
 | Exmo | Yes | NA | NA |
+<<<<<<< HEAD
+| Gateio | Yes | Yes | No|
+| GDAX(Coinbase) | Yes | Yes | No|
+=======
 | CoinbasePro | Yes | Yes | No|
+>>>>>>> master
 | Gemini | Yes | No | No |
 | HitBTC | Yes | Yes | No |
 | Huobi.Pro | Yes | No |No |

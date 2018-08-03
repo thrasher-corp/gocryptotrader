@@ -9,11 +9,10 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
-	"github.com/thrasher-/gocryptotrader/common"
-	"github.com/thrasher-/gocryptotrader/config"
-	"github.com/thrasher-/gocryptotrader/exchanges"
-	"github.com/thrasher-/gocryptotrader/exchanges/request"
-	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
+	"github.com/idoall/gocryptotrader/common"
+	"github.com/idoall/gocryptotrader/config"
+	exchange "github.com/idoall/gocryptotrader/exchanges"
+	"github.com/idoall/gocryptotrader/exchanges/request"
 )
 
 const (
@@ -97,12 +96,15 @@ func (b *Bitfinex) SetDefaults() {
 	b.WebsocketSubdChannels = make(map[int]WebsocketChanInfo)
 	b.RequestCurrencyPairFormat.Delimiter = ""
 	b.RequestCurrencyPairFormat.Uppercase = true
-	b.ConfigCurrencyPairFormat.Delimiter = ""
-	b.ConfigCurrencyPairFormat.Uppercase = true
-	b.AssetTypes = []string{ticker.Spot}
-	b.SupportsAutoPairUpdating = true
-	b.SupportsRESTTickerBatching = true
-	b.Requester = request.New(b.Name, request.NewRateLimit(time.Second*60, bitfinexAuthRate), request.NewRateLimit(time.Second*60, bitfinexUnauthRate), common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
+	// b.ConfigCurrencyPairFormat.Delimiter = ""
+	// b.ConfigCurrencyPairFormat.Uppercase = true
+	// b.AssetTypes = []string{ticker.Spot}
+	// b.SupportsAutoPairUpdating = true
+	// b.SupportsRESTTickerBatching = true
+	authLimit := request.NewRateLimit(time.Second*60, bitfinexAuthRate)
+
+	// authLimit := request.NewRateLimit(time.Second*1, 6)
+	b.Requester = request.New(b.Name, authLimit, request.NewRateLimit(time.Second*60, bitfinexUnauthRate), common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 }
 
 // Setup takes in the supplied exchange configuration details and sets params
@@ -110,28 +112,31 @@ func (b *Bitfinex) Setup(exch config.ExchangeConfig) {
 	if !exch.Enabled {
 		b.SetEnabled(false)
 	} else {
+
 		b.Enabled = true
+		b.BaseAsset = exch.BaseAsset
+		b.QuoteAsset = exch.QuoteAsset
 		b.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
 		b.SetAPIKeys(exch.APIKey, exch.APISecret, "", false)
 		b.SetHTTPClientTimeout(exch.HTTPTimeout)
 		b.RESTPollingDelay = exch.RESTPollingDelay
 		b.Verbose = exch.Verbose
 		b.Websocket = exch.Websocket
-		b.BaseCurrencies = common.SplitStrings(exch.BaseCurrencies, ",")
-		b.AvailablePairs = common.SplitStrings(exch.AvailablePairs, ",")
-		b.EnabledPairs = common.SplitStrings(exch.EnabledPairs, ",")
-		err := b.SetCurrencyPairFormat()
-		if err != nil {
-			log.Fatal(err)
-		}
-		err = b.SetAssetTypes()
-		if err != nil {
-			log.Fatal(err)
-		}
-		err = b.SetAutoPairDefaults()
-		if err != nil {
-			log.Fatal(err)
-		}
+		// b.BaseCurrencies = common.SplitStrings(exch.BaseCurrencies, ",")
+		// b.AvailablePairs = common.SplitStrings(exch.AvailablePairs, ",")
+		// b.EnabledPairs = common.SplitStrings(exch.EnabledPairs, ",")
+		// err := b.SetCurrencyPairFormat()
+		// if err != nil {
+		// 	log.Fatal(err)
+		// }
+		// err = b.SetAssetTypes()
+		// if err != nil {
+		// 	log.Fatal(err)
+		// }
+		// err = b.SetAutoPairDefaults()
+		// if err != nil {
+		// 	log.Fatal(err)
+		// }
 	}
 }
 
@@ -153,10 +158,22 @@ func (b *Bitfinex) GetPlatformStatus() (int, error) {
 	return int(response[0].(float64)), nil
 }
 
+// GetLatestSpotPrice returns latest spot price of symbol
+//
+// symbol: string of currency pair
+// 获取最新价格
+func (b *Bitfinex) GetLatestSpotPrice(symbol string) (float64, error) {
+	res, err := b.GetTicker(symbol)
+	if err != nil {
+		return 0, err
+	}
+	return res.Mid, nil
+}
+
 // GetTicker returns ticker information
-func (b *Bitfinex) GetTicker(symbol string, values url.Values) (Ticker, error) {
+func (b *Bitfinex) GetTicker(symbol string) (Ticker, error) {
 	response := Ticker{}
-	path := common.EncodeURLValues(bitfinexAPIURL+bitfinexTicker+symbol, values)
+	path := common.EncodeURLValues(bitfinexAPIURL+bitfinexTicker+symbol, url.Values{})
 
 	if err := b.SendHTTPRequest(path, &response, b.Verbose); err != nil {
 		return response, err
@@ -453,18 +470,34 @@ func (b *Bitfinex) GetSymbolsDetails() ([]SymbolDetails, error) {
 }
 
 // GetAccountInfo returns information about your account incl. trading fees
-func (b *Bitfinex) GetAccountInfo() ([]AccountInfo, error) {
-	response := AccountInfoFull{}
+// 返回帐号信息，包括提现费用
+func (b *Bitfinex) GetAccountInfo() (AccountInfo, error) {
 
-	err := b.SendAuthenticatedHTTPRequest("POST", bitfinexAccountFees, nil, &response)
+	var result AccountInfo
+
+	var response []interface{}
+	err := b.SendAuthenticatedHTTPRequest("POST", bitfinexAccountInfo, nil, &response)
+
 	if err != nil {
-		return response.Info, err
+		return result, err
 	}
 
-	if response.Message == "" {
-		return response.Info, errors.New(response.Message)
+	result = AccountInfo{}
+	result.MakerFees = response[0].(map[string]interface{})["maker_fees"].(string)
+	result.TakerFees = response[0].(map[string]interface{})["taker_fees"].(string)
+
+	feeslist := response[0].(map[string]interface{})["fees"].([]interface{})
+	for _, v := range feeslist {
+		item := v.(map[string]interface{})
+
+		result.Fees = append(result.Fees, AccountInfoFees{
+			Pairs:     item["pairs"].(string),
+			MakerFees: item["maker_fees"].(string),
+			TakerFees: item["taker_fees"].(string),
+		})
 	}
-	return response.Info, nil
+
+	return result, nil
 }
 
 // GetAccountFees - NOT YET IMPLEMENTED
@@ -877,7 +910,7 @@ func (b *Bitfinex) SendAuthenticatedHTTPRequest(method, path string, params map[
 	headers["X-BFX-PAYLOAD"] = PayloadBase64
 	headers["X-BFX-SIGNATURE"] = common.HexEncodeToString(hmac)
 
-	b.SendPayload(method, bitfinexAPIURL+path, headers, nil, result, true, b.Verbose)
+	err = b.SendPayload(method, bitfinexAPIURL+path, headers, nil, result, true, b.Verbose)
 	if err != nil {
 		return err
 	}
