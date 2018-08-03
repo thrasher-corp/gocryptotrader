@@ -501,12 +501,11 @@ func (k *Kraken) OpenPositions(showPL bool, txids ...string) (map[string]Positio
 		Result map[string]Position `json:"result"`
 	}
 
-	err := k.SendAuthenticatedHTTPRequest(krakenOpenPositions, params, &response)
-	if len(response.Error) != 0 {
-		return response.Result, fmt.Errorf("OpenPositions error: %v", response.Error[0])
+	if err := k.SendAuthenticatedHTTPRequest(krakenOpenPositions, params, &response); err != nil {
+		return response.Result, err
 	}
 
-	return response.Result, err
+	return response.Result, GetError(response.Error)
 }
 
 // GetLedgers returns current ledgers
@@ -602,12 +601,11 @@ func (k *Kraken) AddOrder(symbol, side, orderType string, volume, price, price2,
 		params.Set("trading_agreement", value)
 	}
 
-	err := k.SendAuthenticatedHTTPRequest(krakenOrderPlace, params, &response)
-	if len(response.Error) != 0 {
-		return response.Result, fmt.Errorf("AddOrder error: %v", response.Error[0])
+	if err := k.SendAuthenticatedHTTPRequest(krakenOrderPlace, params, &response); err != nil {
+		return response.Result, err
 	}
 
-	return response.Result, err
+	return response.Result, GetError(response.Error)
 }
 
 // CancelOrder cancels order by orderID
@@ -617,6 +615,25 @@ func (k *Kraken) CancelOrder(orderID int64) error {
 	response := GeneralResponse{}
 
 	return k.SendAuthenticatedHTTPRequest(krakenOrderCancel, values, &response)
+}
+
+// GetError parse Exchange errors in response and return the first
+// Error format from API doc:
+//   error = array of error messages in the format of:
+//       <char-severity code><string-error category>:<string-error type>[:<string-extra info>]
+//       severity code can be E for error or W for warning
+func GetError(errors []string) error {
+
+	for _, e := range errors {
+		switch e[0] {
+		case 'W':
+			log.Printf("Kraken API warning: %v\n", e[1:])
+		default:
+			return fmt.Errorf("Kraken API error: %v", e[1:])
+		}
+	}
+
+	return nil
 }
 
 // SendHTTPRequest sends an unauthenticated HTTP requests
