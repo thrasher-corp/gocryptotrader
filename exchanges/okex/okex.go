@@ -426,13 +426,12 @@ func (o *OKEX) GetContractCandlestickData(symbol, typeInput, contractType string
 }
 
 // GetContractHoldingsNumber returns current number of holdings
-func (o *OKEX) GetContractHoldingsNumber(symbol, contractType string) (map[string]float64, error) {
-	holdingsNumber := make(map[string]float64)
-	if err := o.CheckSymbol(symbol); err != nil {
-		return holdingsNumber, err
+func (o *OKEX) GetContractHoldingsNumber(symbol, contractType string) (number float64, contract string, err error) {
+	if err = o.CheckSymbol(symbol); err != nil {
+		return number, contract, err
 	}
-	if err := o.CheckContractType(contractType); err != nil {
-		return holdingsNumber, err
+	if err = o.CheckContractType(contractType); err != nil {
+		return number, contract, err
 	}
 
 	values := url.Values{}
@@ -442,23 +441,23 @@ func (o *OKEX) GetContractHoldingsNumber(symbol, contractType string) (map[strin
 	path := fmt.Sprintf("%s%s%s.do?%s", apiURL, apiVersion, contractFutureHoldAmount, values.Encode())
 	var resp interface{}
 
-	if err := o.SendHTTPRequest(path, &resp); err != nil {
-		return holdingsNumber, err
+	if err = o.SendHTTPRequest(path, &resp); err != nil {
+		return number, contract, err
 	}
 
 	if reflect.TypeOf(resp).String() == returnTypeOne {
 		errorMap := resp.(map[string]interface{})
-		return holdingsNumber, o.GetErrorCode(errorMap["error_code"].(float64))
+		return number, contract, o.GetErrorCode(errorMap["error_code"].(float64))
 	}
 
 	for _, holdings := range resp.([]interface{}) {
 		if reflect.TypeOf(holdings).String() == returnTypeOne {
 			holdingMap := holdings.(map[string]interface{})
-			holdingsNumber["amount"] = holdingMap["amount"].(float64)
-			holdingsNumber["contract_name"] = holdingMap["amount"].(float64)
+			number = holdingMap["amount"].(float64)
+			contract = holdingMap["contract_name"].(string)
 		}
 	}
-	return holdingsNumber, nil
+	return
 }
 
 // GetContractlimit returns upper and lower price limit
