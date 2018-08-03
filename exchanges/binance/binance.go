@@ -23,8 +23,8 @@ type Binance struct {
 	WebsocketConn *websocket.Conn
 
 	// valid string list that a required by the exchange
-	validLimits    []string
-	validIntervals []string
+	validLimits    []int
+	validIntervals []TimeInterval
 }
 
 const (
@@ -45,7 +45,10 @@ const (
 	// Authenticated endpoints
 	newOrderTest = "/api/v3/order/test"
 	newOrder     = "/api/v3/order"
+	cancelOrder  = "/api/v3/order"
 	queryOrder   = "/api/v3/order"
+	openOrders   = "/api/v3/openOrders"
+	allOrders    = "/api/v3/allOrders"
 
 	// binance authenticated and unauthenticated limit rates
 	// to-do
@@ -130,21 +133,22 @@ func (b *Binance) GetExchangeInfo() (ExchangeInfo, error) {
 
 // GetOrderBook returns full orderbook information
 //
+// OrderBookDataRequestParams contains the following members
 // symbol: string of currency pair
 // limit: returned limit amount
-func (b *Binance) GetOrderBook(symbol string, limit int64) (OrderBook, error) {
+func (b *Binance) GetOrderBook(obd OrderBookDataRequestParams) (OrderBook, error) {
 	orderbook, resp := OrderBook{}, OrderBookData{}
 
-	if err := b.CheckLimit(limit); err != nil {
+	if err := b.CheckLimit(obd.Limit); err != nil {
 		return orderbook, err
 	}
-	if err := b.CheckSymbol(symbol); err != nil {
+	if err := b.CheckSymbol(obd.Symbol); err != nil {
 		return orderbook, err
 	}
 
 	params := url.Values{}
-	params.Set("symbol", common.StringToUpper(symbol))
-	params.Set("limit", strconv.FormatInt(limit, 10))
+	params.Set("symbol", common.StringToUpper(obd.Symbol))
+	params.Set("limit", fmt.Sprintf("%d", obd.Limit))
 
 	path := fmt.Sprintf("%s%s?%s", apiURL, orderBookDepth, params.Encode())
 
@@ -189,22 +193,13 @@ func (b *Binance) GetOrderBook(symbol string, limit int64) (OrderBook, error) {
 }
 
 // GetRecentTrades returns recent trade activity
-//
-// symbol: string of currency pair
-// limit: returned limit amount WARNING: MAX 500!
-func (b *Binance) GetRecentTrades(symbol string, limit int64) ([]RecentTrade, error) {
+// limit: Up to 500 results returned
+func (b *Binance) GetRecentTrades(rtr RecentTradeRequestParams) ([]RecentTrade, error) {
 	resp := []RecentTrade{}
 
-	if err := b.CheckLimit(limit); err != nil {
-		return resp, err
-	}
-	if err := b.CheckSymbol(symbol); err != nil {
-		return resp, err
-	}
-
 	params := url.Values{}
-	params.Set("symbol", common.StringToUpper(symbol))
-	params.Set("limit", strconv.FormatInt(limit, 10))
+	params.Set("symbol", common.StringToUpper(rtr.Symbol))
+	params.Set("limit", fmt.Sprintf("%d", rtr.Limit))
 
 	path := fmt.Sprintf("%s%s?%s", apiURL, recentTrades, params.Encode())
 
@@ -214,21 +209,18 @@ func (b *Binance) GetRecentTrades(symbol string, limit int64) ([]RecentTrade, er
 // GetHistoricalTrades returns historical trade activity
 //
 // symbol: string of currency pair
-// limit: returned limit amount WARNING: MAX 500! (NOT REQUIRED)
+// limit: Optional. Default 500; max 1000.
 // fromID:
-func (b *Binance) GetHistoricalTrades(symbol string, limit, fromID int64) ([]HistoricalTrade, error) {
+func (b *Binance) GetHistoricalTrades(symbol string, limit int, fromID int64) ([]HistoricalTrade, error) {
 	resp := []HistoricalTrade{}
 
 	if err := b.CheckLimit(limit); err != nil {
 		return resp, err
 	}
-	if err := b.CheckSymbol(symbol); err != nil {
-		return resp, err
-	}
 
 	params := url.Values{}
 	params.Set("symbol", common.StringToUpper(symbol))
-	params.Set("limit", strconv.FormatInt(limit, 10))
+	params.Set("limit", strconv.Itoa(limit))
 	params.Set("fromid", strconv.FormatInt(fromID, 10))
 
 	path := fmt.Sprintf("%s%s?%s", apiURL, historicalTrades, params.Encode())
@@ -239,8 +231,8 @@ func (b *Binance) GetHistoricalTrades(symbol string, limit, fromID int64) ([]His
 // GetAggregatedTrades returns aggregated trade activity
 //
 // symbol: string of currency pair
-// limit: returned limit amount WARNING: MAX 500!
-func (b *Binance) GetAggregatedTrades(symbol string, limit int64) ([]AggregatedTrade, error) {
+// limit: Optional. Default 500; max 1000.
+func (b *Binance) GetAggregatedTrades(symbol string, limit int) ([]AggregatedTrade, error) {
 	resp := []AggregatedTrade{}
 
 	if err := b.CheckLimit(limit); err != nil {
@@ -252,36 +244,37 @@ func (b *Binance) GetAggregatedTrades(symbol string, limit int64) ([]AggregatedT
 
 	params := url.Values{}
 	params.Set("symbol", common.StringToUpper(symbol))
-	params.Set("limit", strconv.FormatInt(limit, 10))
+	params.Set("limit", strconv.Itoa(limit))
 
 	path := fmt.Sprintf("%s%s?%s", apiURL, aggregatedTrades, params.Encode())
 
 	return resp, b.SendHTTPRequest(path, &resp)
 }
 
-// GetCandleStickData returns candle stick data
+// GetSpotKline returns kline data
 //
-// symbol:
-// limit:
-// interval
-func (b *Binance) GetCandleStickData(symbol, interval string, limit int64) ([]CandleStick, error) {
+// KlinesRequestParams supports 5 parameters
+// symbol: the symbol to get the kline data for
+// limit: optinal
+// interval: the interval time for the data
+// startTime: startTime filter for kline data
+// endTime: endTime filter for the kline data
+func (b *Binance) GetSpotKline(arg KlinesRequestParams) ([]CandleStick, error) {
 	var resp interface{}
 	var kline []CandleStick
 
-	if err := b.CheckLimit(limit); err != nil {
-		return kline, err
-	}
-	if err := b.CheckSymbol(symbol); err != nil {
-		return kline, err
-	}
-	if err := b.CheckIntervals(interval); err != nil {
-		return kline, err
-	}
-
 	params := url.Values{}
-	params.Set("symbol", common.StringToUpper(symbol))
-	params.Set("limit", strconv.FormatInt(limit, 10))
-	params.Set("interval", interval)
+	params.Set("symbol", arg.Symbol)
+	params.Set("interval", string(arg.Interval))
+	if arg.Limit != 0 {
+		params.Set("limit", strconv.Itoa(arg.Limit))
+	}
+	if arg.StartTime != 0 {
+		params.Set("startTime", strconv.FormatInt(arg.StartTime, 10))
+	}
+	if arg.EndTime != 0 {
+		params.Set("endTime", strconv.FormatInt(arg.EndTime, 10))
+	}
 
 	path := fmt.Sprintf("%s%s?%s", apiURL, candleStick, params.Encode())
 
@@ -402,19 +395,31 @@ func (b *Binance) NewOrderTest() (interface{}, error) {
 func (b *Binance) NewOrder(o NewOrderRequest) (NewOrderResponse, error) {
 	var resp NewOrderResponse
 
-	path := fmt.Sprintf("%s%s", apiURL, newOrderTest)
+	path := fmt.Sprintf("%s%s", apiURL, newOrder)
 
 	params := url.Values{}
 	params.Set("symbol", o.Symbol)
-	params.Set("side", o.Side)
-	params.Set("type", o.TradeType)
-	params.Set("timeInForce", o.TimeInForce)
+	params.Set("side", string(o.Side))
+	params.Set("type", string(o.TradeType))
 	params.Set("quantity", strconv.FormatFloat(o.Quantity, 'f', -1, 64))
 	params.Set("price", strconv.FormatFloat(o.Price, 'f', -1, 64))
-	params.Set("newClientOrderID", o.NewClientOrderID)
-	params.Set("stopPrice", strconv.FormatFloat(o.StopPrice, 'f', -1, 64))
-	params.Set("icebergQty", strconv.FormatFloat(o.IcebergQty, 'f', -1, 64))
-	params.Set("newOrderRespType", o.NewOrderRespType)
+	params.Set("timeInForce", string(o.TimeInForce))
+
+	if o.NewClientOrderID != "" {
+		params.Set("newClientOrderID", o.NewClientOrderID)
+	}
+
+	if o.StopPrice != 0 {
+		params.Set("stopPrice", strconv.FormatFloat(o.StopPrice, 'f', -1, 64))
+	}
+
+	if o.IcebergQty != 0 {
+		params.Set("icebergQty", strconv.FormatFloat(o.IcebergQty, 'f', -1, 64))
+	}
+
+	if o.NewOrderRespType != "" {
+		params.Set("newOrderRespType", o.NewOrderRespType)
+	}
 
 	if err := b.SendAuthHTTPRequest("POST", path, params, &resp); err != nil {
 		return resp, err
@@ -426,6 +431,71 @@ func (b *Binance) NewOrder(o NewOrderRequest) (NewOrderResponse, error) {
 	return resp, nil
 }
 
+// CancelOrder sends a cancel order to Binance
+func (b *Binance) CancelOrder(symbol string, orderID int64, origClientOrderID string) (CancelOrderResponse, error) {
+
+	var resp CancelOrderResponse
+
+	path := fmt.Sprintf("%s%s", apiURL, cancelOrder)
+
+	params := url.Values{}
+	params.Set("symbol", symbol)
+
+	if orderID != 0 {
+		params.Set("orderId", strconv.FormatInt(orderID, 10))
+	}
+
+	if origClientOrderID != "" {
+		params.Set("origClientOrderId", origClientOrderID)
+	}
+
+	if err := b.SendAuthHTTPRequest("DELETE", path, params, &resp); err != nil {
+		return resp, err
+	}
+	return resp, nil
+}
+
+// OpenOrders Current open orders
+// Get all open orders on a symbol. Careful when accessing this with no symbol.
+func (b *Binance) OpenOrders(symbol string) ([]QueryOrderData, error) {
+	var resp []QueryOrderData
+
+	path := fmt.Sprintf("%s%s", apiURL, openOrders)
+
+	params := url.Values{}
+	if symbol != "" {
+		params.Set("symbol", common.StringToUpper(symbol))
+	}
+	if err := b.SendAuthHTTPRequest("GET", path, params, &resp); err != nil {
+		return resp, err
+	}
+
+	return resp, nil
+}
+
+// AllOrders Get all account orders; active, canceled, or filled.
+// orderId optional param
+// limit optional param, default 500; max 500
+func (b *Binance) AllOrders(symbol, orderID, limit string) ([]QueryOrderData, error) {
+	var resp []QueryOrderData
+
+	path := fmt.Sprintf("%s%s", apiURL, allOrders)
+
+	params := url.Values{}
+	params.Set("symbol", common.StringToUpper(symbol))
+	if orderID != "" {
+		params.Set("orderId", orderID)
+	}
+	if limit != "" {
+		params.Set("limit", limit)
+	}
+	if err := b.SendAuthHTTPRequest("GET", path, params, &resp); err != nil {
+		return resp, err
+	}
+
+	return resp, nil
+}
+
 // QueryOrder returns information on a past order
 func (b *Binance) QueryOrder(symbol, origClientOrderID string, orderID int64) (QueryOrderData, error) {
 	var resp QueryOrderData
@@ -434,8 +504,12 @@ func (b *Binance) QueryOrder(symbol, origClientOrderID string, orderID int64) (Q
 
 	params := url.Values{}
 	params.Set("symbol", common.StringToUpper(symbol))
-	params.Set("origClientOrderId", origClientOrderID)
-	params.Set("orderId", strconv.FormatInt(orderID, 10))
+	if origClientOrderID != "" {
+		params.Set("origClientOrderId", origClientOrderID)
+	}
+	if orderID != 0 {
+		params.Set("orderId", strconv.FormatInt(orderID, 10))
+	}
 
 	if err := b.SendAuthHTTPRequest("GET", path, params, &resp); err != nil {
 		return resp, err
@@ -484,7 +558,7 @@ func (b *Binance) SendAuthHTTPRequest(method, path string, params url.Values, re
 	if params == nil {
 		params = url.Values{}
 	}
-	params.Set("recvWindow", strconv.FormatInt(5000, 10))
+	params.Set("recvWindow", strconv.FormatInt(common.RecvWindow(5*time.Second), 10))
 	params.Set("timestamp", strconv.FormatInt(time.Now().Unix()*1000, 10))
 
 	signature := params.Encode()
@@ -494,7 +568,6 @@ func (b *Binance) SendAuthHTTPRequest(method, path string, params url.Values, re
 
 	headers := make(map[string]string)
 	headers["X-MBX-APIKEY"] = b.APIKey
-	headers["Content-Type"] = "application/x-www-form-urlencoded"
 
 	if b.Verbose {
 		log.Printf("sent path: \n%s\n", path)
@@ -505,16 +578,18 @@ func (b *Binance) SendAuthHTTPRequest(method, path string, params url.Values, re
 }
 
 // CheckLimit checks value against a variable list
-func (b *Binance) CheckLimit(limit int64) error {
-	if !common.StringDataCompare(b.validLimits, strconv.FormatInt(limit, 10)) {
-		return errors.New("Incorrect limit values - valid values are 5, 10, 20, 50, 100, 500, 1000")
+func (b *Binance) CheckLimit(limit int) error {
+	for x := range b.validLimits {
+		if b.validLimits[x] == limit {
+			return nil
+		}
 	}
-	return nil
+	return errors.New("Incorrect limit values - valid values are 5, 10, 20, 50, 100, 500, 1000")
 }
 
 // CheckSymbol checks value against a variable list
 func (b *Binance) CheckSymbol(symbol string) error {
-	enPairs := b.GetEnabledCurrencies()
+	enPairs := b.GetAvailableCurrencies()
 	for x := range enPairs {
 		if exchange.FormatExchangeCurrency(b.Name, enPairs[x]).String() == symbol {
 			return nil
@@ -525,14 +600,32 @@ func (b *Binance) CheckSymbol(symbol string) error {
 
 // CheckIntervals checks value against a variable list
 func (b *Binance) CheckIntervals(interval string) error {
-	if !common.StringDataCompare(b.validIntervals, interval) {
-		return errors.New(`Incorrect interval values - valid values are "1m","3m","5m","15m","30m","1h","2h","4h","6h","8h","12h","1d","3d","1w","1M"`)
+	for x := range b.validIntervals {
+		if TimeInterval(interval) == b.validIntervals[x] {
+			return nil
+		}
 	}
-	return nil
+	return errors.New(`Incorrect interval values - valid values are "1m","3m","5m","15m","30m","1h","2h","4h","6h","8h","12h","1d","3d","1w","1M"`)
 }
 
 // SetValues sets the default valid values
 func (b *Binance) SetValues() {
-	b.validLimits = []string{"5", "10", "20", "50", "100", "500", "1000"}
-	b.validIntervals = []string{"1m", "3m", "5m", "15m", "30m", "1h", "2h", "4h", "6h", "8h", "12h", "1d", "3d", "1w", "1M"}
+	b.validLimits = []int{5, 10, 20, 50, 100, 500, 1000}
+	b.validIntervals = []TimeInterval{
+		TimeIntervalMinute,
+		TimeIntervalThreeMinutes,
+		TimeIntervalFiveMinutes,
+		TimeIntervalFifteenMinutes,
+		TimeIntervalThirtyMinutes,
+		TimeIntervalHour,
+		TimeIntervalTwoHours,
+		TimeIntervalFourHours,
+		TimeIntervalSixHours,
+		TimeIntervalEightHours,
+		TimeIntervalTwelveHours,
+		TimeIntervalDay,
+		TimeIntervalThreeDays,
+		TimeIntervalWeek,
+		TimeIntervalMonth,
+	}
 }

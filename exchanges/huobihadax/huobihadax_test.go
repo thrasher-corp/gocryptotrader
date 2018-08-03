@@ -1,31 +1,26 @@
-package huobi
+package huobihadax
 
 import (
-	"crypto/ecdsa"
-	"crypto/rand"
-	"crypto/x509"
-	"encoding/pem"
-	"io/ioutil"
+	"fmt"
 	"strconv"
-	"strings"
 	"testing"
 
-	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
 )
 
-// Please supply you own test keys here for due diligence testing.
+// Please supply your own APIKEYS here for due diligence testing
+
 const (
 	apiKey    = ""
 	apiSecret = ""
 )
 
-var h HUOBI
+var h HUOBIHADAX
 
 // getDefaultConfig returns a default huobi config
 func getDefaultConfig() config.ExchangeConfig {
 	return config.ExchangeConfig{
-		Name:                    "Huobi",
+		Name:                    "huobihadax",
 		Enabled:                 true,
 		Verbose:                 true,
 		Websocket:               false,
@@ -58,16 +53,16 @@ func TestSetDefaults(t *testing.T) {
 func TestSetup(t *testing.T) {
 	cfg := config.GetConfig()
 	cfg.LoadConfig("../../testdata/configtest.json")
-	hConfig, err := cfg.GetExchangeConfig("Huobi")
+	hadaxConfig, err := cfg.GetExchangeConfig("HuobiHadax")
 	if err != nil {
-		t.Error("Test Failed - Huobi Setup() init error")
+		t.Error("Test Failed - HuobiHadax Setup() init error")
 	}
 
-	hConfig.AuthenticatedAPISupport = true
-	hConfig.APIKey = apiKey
-	hConfig.APISecret = apiSecret
+	hadaxConfig.AuthenticatedAPISupport = true
+	hadaxConfig.APIKey = apiKey
+	hadaxConfig.APISecret = apiSecret
 
-	h.Setup(hConfig)
+	h.Setup(hadaxConfig)
 }
 
 func TestGetFee(t *testing.T) {
@@ -99,11 +94,7 @@ func TestGetMarketDetailMerged(t *testing.T) {
 
 func TestGetDepth(t *testing.T) {
 	t.Parallel()
-	_, err := h.GetDepth(OrderBookDataRequestParams{
-		Symbol: "btcusdt",
-		Type:   OrderBookDataRequestParamsTypeStep1,
-	})
-
+	_, err := h.GetDepth("btcusdt", "step1")
 	if err != nil {
 		t.Errorf("Test failed - Huobi TestGetDepth: %s", err)
 	}
@@ -212,14 +203,20 @@ func TestSpotNewOrder(t *testing.T) {
 		Type:      SpotNewOrderRequestTypeBuyLimit,
 	}
 
-	_, err := h.SpotNewOrder(arg)
+	newOrderID, err := h.SpotNewOrder(arg)
 	if err != nil {
 		t.Errorf("Test failed - Huobi SpotNewOrder: %s", err)
+	} else {
+		fmt.Println(newOrderID)
 	}
 }
 
 func TestCancelOrder(t *testing.T) {
 	t.Parallel()
+
+	if h.APIKey == "" || h.APISecret == "" || h.APIAuthPEMKey == "" {
+		t.Skip()
+	}
 
 	_, err := h.CancelOrder(1337)
 	if err == nil {
@@ -229,6 +226,10 @@ func TestCancelOrder(t *testing.T) {
 
 func TestGetOrder(t *testing.T) {
 	t.Parallel()
+
+	if h.APIKey == "" || h.APISecret == "" || h.APIAuthPEMKey == "" {
+		t.Skip()
+	}
 
 	_, err := h.GetOrder(1337)
 	if err == nil {
@@ -265,34 +266,12 @@ func TestGetMarginAccountBalance(t *testing.T) {
 func TestCancelWithdraw(t *testing.T) {
 	t.Parallel()
 
+	if h.APIKey == "" || h.APISecret == "" || h.APIAuthPEMKey == "" {
+		t.Skip()
+	}
+
 	_, err := h.CancelWithdraw(1337)
 	if err == nil {
 		t.Error("Test failed - Huobi TestCancelWithdraw: Invalid withdraw-ID was valid")
-	}
-}
-
-func TestPEMLoadAndSign(t *testing.T) {
-	t.Parallel()
-
-	pemKey := strings.NewReader(h.APIAuthPEMKey)
-	pemBytes, err := ioutil.ReadAll(pemKey)
-	if err != nil {
-		t.Fatalf("Test Failed. TestPEMLoadAndSign Unable to ioutil.ReadAll PEM key: %s", err)
-	}
-
-	block, _ := pem.Decode(pemBytes)
-	if block == nil {
-		t.Fatalf("Test Failed. TestPEMLoadAndSign Block is nil")
-	}
-
-	x509Encoded := block.Bytes
-	privKey, err := x509.ParseECPrivateKey(x509Encoded)
-	if err != nil {
-		t.Fatalf("Test Failed. TestPEMLoadAndSign Unable to ParseECPrivKey: %s", err)
-	}
-
-	_, _, err = ecdsa.Sign(rand.Reader, privKey, common.GetSHA256([]byte("test")))
-	if err != nil {
-		t.Fatalf("Test Failed. TestPEMLoadAndSign Unable to sign: %s", err)
 	}
 }

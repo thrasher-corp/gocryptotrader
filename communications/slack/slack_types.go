@@ -87,13 +87,13 @@ type Response struct {
 		LastRead       string   `json:"last_read"`
 		Members        []string `json:"members"`
 		Topic          struct {
-			Value   string `json:"string"`
-			Creator string `json:"string"`
+			Value   string `json:"value"`
+			Creator string `json:"creator"`
 			LastSet int64  `json:"last_set"`
 		} `json:"topic"`
 		Purpose struct {
-			Value   string `json:"string"`
-			Creator string `json:"string"`
+			Value   string `json:"value"`
+			Creator string `json:"creator"`
 			LastSet int64  `json:"last_set"`
 		} `json:"purpose"`
 	} `json:"groups"`

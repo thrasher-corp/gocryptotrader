@@ -125,7 +125,10 @@ func (o *OKEX) UpdateOrderbook(p pair.CurrencyPair, assetType string) (orderbook
 			currency = exchange.FormatExchangeCurrency(o.Name, p).String()
 		}
 
-		orderbookNew, err := o.GetSpotMarketDepth(currency, "200")
+		orderbookNew, err := o.GetSpotMarketDepth(ActualSpotDepthRequestParams{
+			Symbol: currency,
+			Size:   200,
+		})
 		if err != nil {
 			return orderBook, err
 		}

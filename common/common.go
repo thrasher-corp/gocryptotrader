@@ -41,6 +41,7 @@ const (
 	HashSHA256
 	HashSHA512
 	HashSHA512_384
+	HashMD5
 	SatoshisPerBTC = 100000000
 	SatoshisPerLTC = 100000000
 	WeiPerEther    = 1000000000000000000
@@ -121,6 +122,10 @@ func GetHMAC(hashType int, input, key []byte) []byte {
 		{
 			hash = sha512.New384
 		}
+	case HashMD5:
+		{
+			hash = md5.New
+		}
 	}
 
 	hmac := hmac.New(hash, []byte(key))
@@ -128,9 +133,22 @@ func GetHMAC(hashType int, input, key []byte) []byte {
 	return hmac.Sum(nil)
 }
 
+// Sha1ToHex takes a string, sha1 hashes it and return a hex string of the
+// result
+func Sha1ToHex(data string) string {
+	h := sha1.New()
+	h.Write([]byte(data))
+	return hex.EncodeToString(h.Sum(nil))
+}
+
 // HexEncodeToString takes in a hexadecimal byte array and returns a string
 func HexEncodeToString(input []byte) string {
 	return hex.EncodeToString(input)
+}
+
+// ByteArrayToString returns a string
+func ByteArrayToString(input []byte) string {
+	return fmt.Sprintf("%x", input)
 }
 
 // Base64Decode takes in a Base64 string and returns a byte array and an error
@@ -537,4 +555,62 @@ func GetOSPathSlash() string {
 		return "\\"
 	}
 	return "/"
+}
+
+// UnixMillis converts a UnixNano timestamp to milliseconds
+func UnixMillis(t time.Time) int64 {
+	return t.UnixNano() / int64(time.Millisecond)
+}
+
+// RecvWindow converts a supplied time.Duration to milliseconds
+func RecvWindow(d time.Duration) int64 {
+	return int64(d) / int64(time.Millisecond)
+}
+
+// FloatFromString format
+func FloatFromString(raw interface{}) (float64, error) {
+	str, ok := raw.(string)
+	if !ok {
+		return 0, fmt.Errorf("unable to parse, value not string: %T", raw)
+	}
+	flt, err := strconv.ParseFloat(str, 64)
+	if err != nil {
+		return 0, fmt.Errorf("unable to parse, value not string: %T", raw)
+	}
+	return flt, nil
+}
+
+// IntFromString format
+func IntFromString(raw interface{}) (int, error) {
+	str, ok := raw.(string)
+	if !ok {
+		return 0, fmt.Errorf("unable to parse, value not string: %T", raw)
+	}
+	n, err := strconv.Atoi(str)
+	if err != nil {
+		return 0, fmt.Errorf("unable to parse as int: %T", raw)
+	}
+	return n, nil
+}
+
+// Int64FromString format
+func Int64FromString(raw interface{}) (int64, error) {
+	str, ok := raw.(string)
+	if !ok {
+		return 0, fmt.Errorf("unable to parse, value not string: %T", raw)
+	}
+	n, err := strconv.ParseInt(str, 10, 64)
+	if err != nil {
+		return 0, fmt.Errorf("unable to parse as int: %T", raw)
+	}
+	return n, nil
+}
+
+// TimeFromUnixTimestampFloat format
+func TimeFromUnixTimestampFloat(raw interface{}) (time.Time, error) {
+	ts, ok := raw.(float64)
+	if !ok {
+		return time.Time{}, fmt.Errorf("unable to parse, value not int64: %T", raw)
+	}
+	return time.Unix(0, int64(ts)*int64(time.Millisecond)), nil
 }

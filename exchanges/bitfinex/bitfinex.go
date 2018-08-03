@@ -11,7 +11,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
-	"github.com/thrasher-/gocryptotrader/exchanges"
+	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/request"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 )
@@ -153,10 +153,21 @@ func (b *Bitfinex) GetPlatformStatus() (int, error) {
 	return int(response[0].(float64)), nil
 }
 
+// GetLatestSpotPrice returns latest spot price of symbol
+//
+// symbol: string of currency pair
+func (b *Bitfinex) GetLatestSpotPrice(symbol string) (float64, error) {
+	res, err := b.GetTicker(symbol)
+	if err != nil {
+		return 0, err
+	}
+	return res.Mid, nil
+}
+
 // GetTicker returns ticker information
-func (b *Bitfinex) GetTicker(symbol string, values url.Values) (Ticker, error) {
+func (b *Bitfinex) GetTicker(symbol string) (Ticker, error) {
 	response := Ticker{}
-	path := common.EncodeURLValues(bitfinexAPIURL+bitfinexTicker+symbol, values)
+	path := common.EncodeURLValues(bitfinexAPIURL+bitfinexTicker+symbol, url.Values{})
 
 	if err := b.SendHTTPRequest(path, &response, b.Verbose); err != nil {
 		return response, err
@@ -453,18 +464,33 @@ func (b *Bitfinex) GetSymbolsDetails() ([]SymbolDetails, error) {
 }
 
 // GetAccountInfo returns information about your account incl. trading fees
-func (b *Bitfinex) GetAccountInfo() ([]AccountInfo, error) {
-	response := AccountInfoFull{}
+func (b *Bitfinex) GetAccountInfo() (AccountInfo, error) {
 
-	err := b.SendAuthenticatedHTTPRequest("POST", bitfinexAccountFees, nil, &response)
+	var result AccountInfo
+
+	var response []interface{}
+	err := b.SendAuthenticatedHTTPRequest("POST", bitfinexAccountInfo, nil, &response)
+
 	if err != nil {
-		return response.Info, err
+		return result, err
 	}
 
-	if response.Message == "" {
-		return response.Info, errors.New(response.Message)
+	result = AccountInfo{}
+	result.MakerFees = response[0].(map[string]interface{})["maker_fees"].(string)
+	result.TakerFees = response[0].(map[string]interface{})["taker_fees"].(string)
+
+	feeslist := response[0].(map[string]interface{})["fees"].([]interface{})
+	for _, v := range feeslist {
+		item := v.(map[string]interface{})
+
+		result.Fees = append(result.Fees, AccountInfoFees{
+			Pairs:     item["pairs"].(string),
+			MakerFees: item["maker_fees"].(string),
+			TakerFees: item["taker_fees"].(string),
+		})
 	}
-	return response.Info, nil
+
+	return result, nil
 }
 
 // GetAccountFees - NOT YET IMPLEMENTED
@@ -877,7 +903,7 @@ func (b *Bitfinex) SendAuthenticatedHTTPRequest(method, path string, params map[
 	headers["X-BFX-PAYLOAD"] = PayloadBase64
 	headers["X-BFX-SIGNATURE"] = common.HexEncodeToString(hmac)
 
-	b.SendPayload(method, bitfinexAPIURL+path, headers, nil, result, true, b.Verbose)
+	err = b.SendPayload(method, bitfinexAPIURL+path, headers, nil, result, true, b.Verbose)
 	if err != nil {
 		return err
 	}

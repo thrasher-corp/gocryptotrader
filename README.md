@@ -31,9 +31,11 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 | COINUT | Yes | No | NA |
 | Exmo | Yes | NA | NA |
 | CoinbasePro | Yes | Yes | No|
+| GateIO | Yes | No | NA |
 | Gemini | Yes | No | No |
 | HitBTC | Yes | Yes | No |
-| Huobi.Pro | Yes | No |No |
+| Huobi.Pro | Yes | No | NA |
+| Huobi.Hadax | Yes | No | NA |
 | ItBit | Yes | NA | No |
 | Kraken | Yes | NA | NA |
 | LakeBTC | Yes | No | NA |
@@ -45,6 +47,7 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 | Poloniex | Yes | Yes | NA |
 | WEX     | Yes  | NA        | NA  |
 | Yobit | Yes | NA | NA |
+| ZB.COM | Yes | No | NA |
 
 We are aiming to support the top 20 highest volume exchanges based off the [CoinMarketCap exchange data](https://coinmarketcap.com/exchanges/volume/24-hour/).
 
@@ -145,7 +148,7 @@ Binaries will be published once the codebase reaches a stable condition.
 |User|Github|Contribution Amount|
 |--|--|--|
 | thrasher- | https://github.com/thrasher- | 453 |
-| shazbert | https://github.com/shazbert | 140 |
+| shazbert | https://github.com/shazbert | 141 |
 | gloriousCode | https://github.com/gloriousCode | 122 |
 | 140am | https://github.com/140am | 8 |
 | marcofranssen | https://github.com/marcofranssen | 4 |

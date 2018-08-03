@@ -188,6 +188,14 @@ func TestGetContractFuturesTradeHistory(t *testing.T) {
 	}
 }
 
+func TestGetLatestSpotPrice(t *testing.T) {
+	t.Parallel()
+	_, err := o.GetLatestSpotPrice("ltc_btc")
+	if err != nil {
+		t.Error("Test failed - okex GetLatestSpotPrice() error", err)
+	}
+}
+
 func TestGetSpotTicker(t *testing.T) {
 	t.Parallel()
 	_, err := o.GetSpotTicker("ltc_btc")
@@ -198,7 +206,10 @@ func TestGetSpotTicker(t *testing.T) {
 
 func TestGetSpotMarketDepth(t *testing.T) {
 	t.Parallel()
-	_, err := o.GetSpotMarketDepth("eth_btc", "2")
+	_, err := o.GetSpotMarketDepth(ActualSpotDepthRequestParams{
+		Symbol: "eth_btc",
+		Size:   2,
+	})
 	if err != nil {
 		t.Error("Test failed - okex GetSpotMarketDepth() error", err)
 	}
@@ -206,16 +217,68 @@ func TestGetSpotMarketDepth(t *testing.T) {
 
 func TestGetSpotRecentTrades(t *testing.T) {
 	t.Parallel()
-	_, err := o.GetSpotRecentTrades("ltc_btc", "0")
+	_, err := o.GetSpotRecentTrades(ActualSpotTradeHistoryRequestParams{
+		Symbol: "ltc_btc",
+		Since:  0,
+	})
 	if err != nil {
 		t.Error("Test failed - okex GetSpotRecentTrades() error", err)
 	}
 }
 
-func TestGetSpotCandleStick(t *testing.T) {
+func TestGetSpotKline(t *testing.T) {
 	t.Parallel()
-	_, err := o.GetSpotCandleStick("ltc_btc", "1min", 2, 0)
+	arg := KlinesRequestParams{
+		Symbol: "ltc_btc",
+		Type:   TimeIntervalFiveMinutes,
+		Size:   100,
+	}
+	_, err := o.GetSpotKline(arg)
 	if err != nil {
 		t.Error("Test failed - okex GetSpotCandleStick() error", err)
+	}
+}
+
+func TestSpotNewOrder(t *testing.T) {
+	t.Parallel()
+
+	if o.APIKey == "" || o.APISecret == "" {
+		t.Skip()
+	}
+
+	_, err := o.SpotNewOrder(SpotNewOrderRequestParams{
+		Symbol: "ltc_btc",
+		Amount: 1.1,
+		Price:  10.1,
+		Type:   SpotNewOrderRequestTypeBuy,
+	})
+	if err != nil {
+		t.Error("Test failed - okex SpotNewOrder() error", err)
+	}
+}
+
+func TestSpotCancelOrder(t *testing.T) {
+	t.Parallel()
+
+	if o.APIKey == "" || o.APISecret == "" {
+		t.Skip()
+	}
+
+	_, err := o.SpotCancelOrder("ltc_btc", 519158961)
+	if err != nil {
+		t.Error("Test failed - okex SpotCancelOrder() error", err)
+	}
+}
+
+func TestGetUserInfo(t *testing.T) {
+	t.Parallel()
+
+	if o.APIKey == "" || o.APISecret == "" {
+		t.Skip()
+	}
+
+	_, err := o.GetUserInfo()
+	if err != nil {
+		t.Error("Test failed - okex GetUserInfo() error", err)
 	}
 }

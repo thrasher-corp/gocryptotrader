@@ -43,7 +43,11 @@ func TestGetExchangeValidCurrencyPairs(t *testing.T) {
 
 func TestGetOrderBook(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetOrderBook("BTCUSDT", 5)
+	_, err := b.GetOrderBook(OrderBookDataRequestParams{
+		Symbol: "BTCUSDT",
+		Limit:  10,
+	})
+
 	if err != nil {
 		t.Error("Test Failed - Binance GetOrderBook() error", err)
 	}
@@ -51,7 +55,12 @@ func TestGetOrderBook(t *testing.T) {
 
 func TestGetRecentTrades(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetRecentTrades("BTCUSDT", 5)
+
+	_, err := b.GetRecentTrades(RecentTradeRequestParams{
+		Symbol: "BTCUSDT",
+		Limit:  15,
+	})
+
 	if err != nil {
 		t.Error("Test Failed - Binance GetRecentTrades() error", err)
 	}
@@ -73,11 +82,15 @@ func TestGetAggregatedTrades(t *testing.T) {
 	}
 }
 
-func TestGetCandleStickData(t *testing.T) {
+func TestGetSpotKline(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetCandleStickData("BTCUSDT", "1d", 5)
+	_, err := b.GetSpotKline(KlinesRequestParams{
+		Symbol:   "BTCUSDT",
+		Interval: TimeIntervalFiveMinutes,
+		Limit:    24,
+	})
 	if err != nil {
-		t.Error("Test Failed - Binance GetCandleStickData() error", err)
+		t.Error("Test Failed - Binance GetSpotKline() error", err)
 	}
 }
 
@@ -123,16 +136,72 @@ func TestNewOrderTest(t *testing.T) {
 
 func TestNewOrder(t *testing.T) {
 	t.Parallel()
-	_, err := b.NewOrder(NewOrderRequest{})
+
+	if testAPIKey == "" || testAPISecret == "" {
+		t.Skip()
+	}
+	_, err := b.NewOrder(NewOrderRequest{
+		Symbol:      "BTCUSDT",
+		Side:        BinanceRequestParamsSideSell,
+		TradeType:   BinanceRequestParamsOrderLimit,
+		TimeInForce: BinanceRequestParamsTimeGTC,
+		Quantity:    0.01,
+		Price:       1536.1,
+	})
+
 	if err == nil {
 		t.Error("Test Failed - Binance NewOrder() error", err)
 	}
 }
 
+func TestCancelOrder(t *testing.T) {
+	t.Parallel()
+
+	if testAPIKey == "" || testAPISecret == "" {
+		t.Skip()
+	}
+
+	_, err := b.CancelOrder("BTCUSDT", 82584683, "")
+	if err == nil {
+		t.Error("Test Failed - Binance CancelOrder() error", err)
+	}
+}
+
 func TestQueryOrder(t *testing.T) {
 	t.Parallel()
-	_, err := b.QueryOrder("", "", 1337)
-	if err == nil {
+
+	if testAPIKey == "" || testAPISecret == "" {
+		t.Skip()
+	}
+
+	_, err := b.QueryOrder("BTCUSDT", "", 1337)
+	if err != nil {
 		t.Error("Test Failed - Binance QueryOrder() error", err)
+	}
+}
+
+func TestOpenOrders(t *testing.T) {
+	t.Parallel()
+
+	if testAPIKey == "" || testAPISecret == "" {
+		t.Skip()
+	}
+
+	_, err := b.OpenOrders("BTCUSDT")
+	if err != nil {
+		t.Error("Test Failed - Binance OpenOrders() error", err)
+	}
+}
+
+func TestAllOrders(t *testing.T) {
+	t.Parallel()
+
+	if testAPIKey == "" || testAPISecret == "" {
+		t.Skip()
+	}
+
+	_, err := b.AllOrders("BTCUSDT", "", "")
+	if err != nil {
+		t.Error("Test Failed - Binance AllOrders() error", err)
 	}
 }

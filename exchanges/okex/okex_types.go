@@ -135,6 +135,12 @@ type SpotDepth struct {
 	Error  interface{}   `json:"error_code"`
 }
 
+// ActualSpotDepthRequestParams represents Klines request data.
+type ActualSpotDepthRequestParams struct {
+	Symbol string `json:"symbol"` // Symbol; example ltc_btc
+	Size   int    `json:"size"`   // value: 1-200
+}
+
 // ActualSpotDepth better manipulated structure to return
 type ActualSpotDepth struct {
 	Asks []struct {
@@ -147,6 +153,12 @@ type ActualSpotDepth struct {
 	}
 }
 
+// ActualSpotTradeHistoryRequestParams represents Klines request data.
+type ActualSpotTradeHistoryRequestParams struct {
+	Symbol string `json:"symbol"` // Symbol; example ltc_btc
+	Since  int    `json:"since"`  // TID; transaction record ID (return data does not include the current TID value, returning up to 600 items)
+}
+
 // ActualSpotTradeHistory holds contract trade history
 type ActualSpotTradeHistory struct {
 	Amount   float64 `json:"amount"`
@@ -156,3 +168,61 @@ type ActualSpotTradeHistory struct {
 	TID      float64 `json:"tid"`
 	Type     string  `json:"buy"`
 }
+
+// SpotUserInfo holds the spot user info
+type SpotUserInfo struct {
+	Result bool                                    `json:"result"`
+	Info   map[string]map[string]map[string]string `json:"info"`
+}
+
+// SpotNewOrderRequestParams holds the params for making a new spot order
+type SpotNewOrderRequestParams struct {
+	Amount float64                 `json:"amount"` // Order quantity
+	Price  float64                 `json:"price"`  // Order price
+	Symbol string                  `json:"symbol"` // Symbol; example btc_usdt, eth_btc......
+	Type   SpotNewOrderRequestType `json:"type"`   // Order type (see below)
+}
+
+// SpotNewOrderRequestType order type
+type SpotNewOrderRequestType string
+
+var (
+	// SpotNewOrderRequestTypeBuy buy order
+	SpotNewOrderRequestTypeBuy = SpotNewOrderRequestType("buy")
+
+	// SpotNewOrderRequestTypeSell sell order
+	SpotNewOrderRequestTypeSell = SpotNewOrderRequestType("sell")
+
+	// SpotNewOrderRequestTypeBuyMarket buy market order
+	SpotNewOrderRequestTypeBuyMarket = SpotNewOrderRequestType("buy_market")
+
+	// SpotNewOrderRequestTypeSellMarket sell market order
+	SpotNewOrderRequestTypeSellMarket = SpotNewOrderRequestType("sell_market")
+)
+
+// KlinesRequestParams represents Klines request data.
+type KlinesRequestParams struct {
+	Symbol string       // Symbol; example btcusdt, bccbtc......
+	Type   TimeInterval // Kline data time interval; 1min, 5min, 15min......
+	Size   int          // Size; [1-2000]
+	Since  int64        // Since timestamp, return data after the specified timestamp (for example, 1417536000000)
+}
+
+// TimeInterval represents interval enum.
+type TimeInterval string
+
+// vars for time intervals
+var (
+	TimeIntervalMinute         = TimeInterval("1min")
+	TimeIntervalThreeMinutes   = TimeInterval("3min")
+	TimeIntervalFiveMinutes    = TimeInterval("5min")
+	TimeIntervalFifteenMinutes = TimeInterval("15min")
+	TimeIntervalThirtyMinutes  = TimeInterval("30min")
+	TimeIntervalHour           = TimeInterval("1hour")
+	TimeIntervalFourHours      = TimeInterval("4hour")
+	TimeIntervalSixHours       = TimeInterval("6hour")
+	TimeIntervalTwelveHours    = TimeInterval("12hour")
+	TimeIntervalDay            = TimeInterval("1day")
+	TimeIntervalThreeDays      = TimeInterval("3day")
+	TimeIntervalWeek           = TimeInterval("1week")
+)

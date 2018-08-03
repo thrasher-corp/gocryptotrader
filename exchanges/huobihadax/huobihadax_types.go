@@ -1,4 +1,4 @@
-package huobi
+package huobihadax
 
 // Response stores the Huobi response information
 type Response struct {
@@ -27,26 +27,6 @@ type DetailMerged struct {
 	Version int       `json:"version"`
 	Ask     []float64 `json:"ask"`
 	Bid     []float64 `json:"bid"`
-}
-
-// OrderBookDataRequestParamsType var for request param types
-type OrderBookDataRequestParamsType string
-
-// vars for OrderBookDataRequestParamsTypes
-var (
-	OrderBookDataRequestParamsTypeNone  = OrderBookDataRequestParamsType("")
-	OrderBookDataRequestParamsTypeStep0 = OrderBookDataRequestParamsType("step0")
-	OrderBookDataRequestParamsTypeStep1 = OrderBookDataRequestParamsType("step1")
-	OrderBookDataRequestParamsTypeStep2 = OrderBookDataRequestParamsType("step2")
-	OrderBookDataRequestParamsTypeStep3 = OrderBookDataRequestParamsType("step3")
-	OrderBookDataRequestParamsTypeStep4 = OrderBookDataRequestParamsType("step4")
-	OrderBookDataRequestParamsTypeStep5 = OrderBookDataRequestParamsType("step5")
-)
-
-// OrderBookDataRequestParams represents Klines request data.
-type OrderBookDataRequestParams struct {
-	Symbol string                         `json:"symbol"` // Required; example LTCBTC,BTCUSDT
-	Type   OrderBookDataRequestParamsType `json:"type"`   // step0, step1, step2, step3, step4, step5 (combined depth 0-5); when step0, no depth is merged
 }
 
 // Orderbook stores the orderbook data
@@ -201,10 +181,10 @@ type SpotNewOrderRequestParams struct {
 	Price     float64                       `json:"price"`      // Order price, market price does not use  this parameter
 	Source    string                        `json:"source"`     // Order source, api: API call, margin-api: loan asset transaction
 	Symbol    string                        `json:"symbol"`     // The symbol to use; example btcusdt, bccbtc......
-	Type      SpotNewOrderRequestParamsType `json:"type"`       // 订单类型, buy-market: 市价买, sell-market: 市价卖, buy-limit: 限价买, sell-limit: 限价卖
+	Type      SpotNewOrderRequestParamsType `json:"type"`       // Order type as listed below (buy-market, sell-market etc)
 }
 
-// SpotNewOrderRequestParamsType order type
+// SpotNewOrderRequestParamsType order types
 type SpotNewOrderRequestParamsType string
 
 var (
@@ -217,20 +197,18 @@ var (
 	// SpotNewOrderRequestTypeBuyLimit buy limit order
 	SpotNewOrderRequestTypeBuyLimit = SpotNewOrderRequestParamsType("buy-limit")
 
-	// SpotNewOrderRequestTypeSellLimit sell lmit order
+	// SpotNewOrderRequestTypeSellLimit sell limit order
 	SpotNewOrderRequestTypeSellLimit = SpotNewOrderRequestParamsType("sell-limit")
 )
 
-//-----------
-
 // KlinesRequestParams represents Klines request data.
 type KlinesRequestParams struct {
-	Symbol string       // Symbol to be used; example btcusdt, bccbtc......
-	Period TimeInterval // Kline time interval; 1min, 5min, 15min......
-	Size   int          // Size; [1-2000]
+	Symbol string       // Symbol; btcusdt, bccbtc......
+	Period TimeInterval // Kline data time interval; 1min, 5min, 15min......
+	Size   int          // Size [1-2000]
 }
 
-// TimeInterval base type
+// TimeInterval base value
 type TimeInterval string
 
 // TimeInterval vars
