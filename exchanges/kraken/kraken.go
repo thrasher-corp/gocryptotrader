@@ -484,16 +484,29 @@ func (k *Kraken) GetTradesHistory(args ...GetTradesHistoryOptions) (TradesHistor
 }
 
 // QueryTrades returns information on a specific trade
-func (k *Kraken) QueryTrades(txid int64, showRelatedTrades bool) error {
-	values := url.Values{}
-	values.Set("txid", strconv.FormatInt(txid, 10))
-	response := GeneralResponse{}
-
-	if showRelatedTrades {
-		values.Set("trades", "true")
+func (k *Kraken) QueryTrades(trades bool, txid string, txids ...string) (map[string]TradeInfo, error) {
+	params := url.Values{
+		"txid": {txid},
 	}
 
-	return k.SendAuthenticatedHTTPRequest(krakenQueryTrades, values, &response)
+	if trades {
+		params.Set("trades", "true")
+	}
+
+	if txids != nil {
+		params.Set("txid", txid+","+strings.Join(txids, ","))
+	}
+
+	var response struct {
+		Error  []string             `json:"error"`
+		Result map[string]TradeInfo `json:"result"`
+	}
+
+	if err := k.SendAuthenticatedHTTPRequest(krakenQueryTrades, params, &response); err != nil {
+		return response.Result, err
+	}
+
+	return response.Result, GetError(response.Error)
 }
 
 // OpenPositions returns current open positions

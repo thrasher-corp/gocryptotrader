@@ -164,7 +164,7 @@ func TestGetTradesHistory(t *testing.T) {
 
 func TestQueryTrades(t *testing.T) {
 	t.Parallel()
-	err := k.QueryTrades(0, false)
+	_, err := k.QueryTrades(true, "TMZEDR-VBJN2-NGY6DX", "TFLWIB-KTT7L-4TWR3L", "TDVRAH-2H6OS-SLSXRX")
 	if err == nil {
 		t.Error("Test Failed - QueryTrades() error", err)
 	}
