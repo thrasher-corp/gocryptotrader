@@ -93,6 +93,42 @@ type Spread struct {
 	Ask  float64
 }
 
+// ClosedOrders type
+type ClosedOrders struct {
+	Closed map[string]OrderInfo `json:"closed"`
+	Count  int64                `json:"count"`
+}
+
+// OrderInfo type
+type OrderInfo struct {
+	RefID    string  `json:"refid"`
+	UserRef  int64   `json:"userref"`
+	Status   string  `json:"status"`
+	OpenTm   float64 `json:"opentm"`
+	StartTm  float64 `json:"starttm"`
+	ExpireTm float64 `json:"expiretm"`
+	Descr    struct {
+		Pair      string  `json:"pair"`
+		Type      string  `json:"type"`
+		OrderType string  `json:"ordertype"`
+		Price     float64 `json:"price,string"`
+		Price2    float64 `json:"price2,string"`
+		Leverage  string  `json:"leverage"`
+		Order     string  `json:"order"`
+		Close     string  `json:"close"`
+	} `json:"descr"`
+	Vol        float64  `json:"vol,string"`
+	VolExec    float64  `json:"vol_exec,string"`
+	Cost       float64  `json:"cost,string"`
+	Fee        float64  `json:"fee,string"`
+	Price      float64  `json:"price,string"`
+	StopPrice  float64  `json:"stopprice,string"`
+	LimitPrice float64  `json:"limitprice,string"`
+	Misc       string   `json:"misc"`
+	Oflags     string   `json:"oflags"`
+	Trades     []string `json:"trades"`
+}
+
 // GetTradesHistoryOptions type
 type GetTradesHistoryOptions struct {
 	Type   string

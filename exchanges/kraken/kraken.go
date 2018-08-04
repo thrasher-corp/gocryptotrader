@@ -394,35 +394,27 @@ func (k *Kraken) GetOpenOrders(showTrades bool, userref int64) error {
 }
 
 // GetClosedOrders returns a list of closed orders
-func (k *Kraken) GetClosedOrders(showTrades bool, userref, start, end, offset int64, closetime string) error {
-	values := url.Values{}
-	response := GeneralResponse{}
+func (k *Kraken) GetClosedOrders(trades bool, userref ...int64) (ClosedOrders, error) {
+	params := url.Values{}
 
-	if showTrades {
-		values.Set("trades", "true")
+	if trades {
+		params.Set("trades", "true")
 	}
 
-	if userref != 0 {
-		values.Set("userref", strconv.FormatInt(userref, 10))
+	if userref != nil {
+		params.Set("userref", strconv.FormatInt(userref[0], 10))
 	}
 
-	if start != 0 {
-		values.Set("start", strconv.FormatInt(start, 10))
+	var response struct {
+		Error  []string     `json:"error"`
+		Result ClosedOrders `json:"result"`
 	}
 
-	if end != 0 {
-		values.Set("end", strconv.FormatInt(end, 10))
+	if err := k.SendAuthenticatedHTTPRequest(krakenClosedOrders, params, &response); err != nil {
+		return response.Result, err
 	}
 
-	if offset != 0 {
-		values.Set("ofs", strconv.FormatInt(offset, 10))
-	}
-
-	if len(closetime) > 0 {
-		values.Set("closetime", closetime)
-	}
-
-	return k.SendAuthenticatedHTTPRequest(krakenClosedOrders, values, &response)
+	return response.Result, GetError(response.Error)
 }
 
 // QueryOrdersInfo returns order information
@@ -623,11 +615,6 @@ func (k *Kraken) GetTradeVolume(showFees bool, symbol ...string) (TradeVolumeRes
 
 // AddOrder adds a new order for Kraken exchange
 func (k *Kraken) AddOrder(symbol, side, orderType string, volume, price, price2, leverage float64, args AddOrderOptions) (AddOrderResponse, error) {
-	var response struct {
-		Error  []string         `json:"error"`
-		Result AddOrderResponse `json:"result"`
-	}
-
 	params := url.Values{
 		"pair":      {symbol},
 		"type":      {side},
@@ -675,6 +662,11 @@ func (k *Kraken) AddOrder(symbol, side, orderType string, volume, price, price2,
 		params.Set("validate", "true")
 	}
 
+	var response struct {
+		Error  []string         `json:"error"`
+		Result AddOrderResponse `json:"result"`
+	}
+
 	if err := k.SendAuthenticatedHTTPRequest(krakenOrderPlace, params, &response); err != nil {
 		return response.Result, err
 	}
@@ -687,6 +679,7 @@ func (k *Kraken) CancelOrder(orderID string) error {
 	values := url.Values{
 		"txid": {orderID},
 	}
+
 	response := GeneralResponse{}
 
 	if err := k.SendAuthenticatedHTTPRequest(krakenOrderCancel, values, &response); err != nil {
