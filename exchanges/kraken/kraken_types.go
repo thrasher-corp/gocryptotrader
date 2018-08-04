@@ -3,7 +3,7 @@ package kraken
 // GeneralResponse is a generalized response type
 type GeneralResponse struct {
 	Result map[string]interface{} `json:"result"`
-	Error  []interface{}          `json:"error"`
+	Error  []string               `json:"error"`
 }
 
 // AssetPairs holds asset pair information
@@ -111,6 +111,24 @@ type Position struct {
 	PosStatus  string  `json:"posstatus"`
 	Net        string  `json:"net"`
 	Terms      string  `json:"terms"`
+}
+
+// TradeVolumeResponse type
+type TradeVolumeResponse struct {
+	Currency  string                    `json:"currency"`
+	Volume    float64                   `json:"volume,string"`
+	Fees      map[string]TradeVolumeFee `json:"fees"`
+	FeesMaker map[string]TradeVolumeFee `json:"fees_maker"`
+}
+
+// TradeVolumeFee type
+type TradeVolumeFee struct {
+	Fee        float64 `json:"fee,string"`
+	MinFee     float64 `json:"minfee,string"`
+	MaxFee     float64 `json:"maxfee,string"`
+	NextFee    float64 `json:"nextfee,string"`
+	NextVolume float64 `json:"nextvolume,string"`
+	TierVolume float64 `json:"tiervolume,string"`
 }
 
 // AddOrderResponse type

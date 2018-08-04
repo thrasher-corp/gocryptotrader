@@ -195,7 +195,7 @@ func TestQueryLedgers(t *testing.T) {
 
 func TestGetTradeVolume(t *testing.T) {
 	t.Parallel()
-	err := k.GetTradeVolume("BCHEUR")
+	_, err := k.GetTradeVolume(true, "OAVY7T-MV5VK-KHDF5X")
 	if err == nil {
 		t.Error("Test Failed - GetTradeVolume() error", err)
 	}
@@ -203,7 +203,7 @@ func TestGetTradeVolume(t *testing.T) {
 
 func TestAddOrder(t *testing.T) {
 	t.Parallel()
-	_, err := k.AddOrder("bla", "bla", "bla", 0, 0, 0, 0, AddOrderOptions{Oflags: "bla"})
+	_, err := k.AddOrder("XXBTZUSD", "sell", "market", 0.00000001, 0, 0, 0, AddOrderOptions{Oflags: "fcib"})
 	if err == nil {
 		t.Error("Test Failed - AddOrder() error", err)
 	}
@@ -211,7 +211,7 @@ func TestAddOrder(t *testing.T) {
 
 func TestCancelOrder(t *testing.T) {
 	t.Parallel()
-	err := k.CancelOrder(1337)
+	err := k.CancelOrder("OAVY7T-MV5VK-KHDF5X")
 	if err == nil {
 		t.Error("Test Failed - CancelOrder() error", err)
 	}
