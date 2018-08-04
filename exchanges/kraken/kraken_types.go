@@ -129,6 +129,16 @@ type OrderInfo struct {
 	Trades     []string `json:"trades"`
 }
 
+// GetClosedOrdersOptions type
+type GetClosedOrdersOptions struct {
+	Trades    bool
+	UserRef   int64
+	Start     string
+	End       string
+	Ofs       int64
+	CloseTime string
+}
+
 // GetTradesHistoryOptions type
 type GetTradesHistoryOptions struct {
 	Type   string

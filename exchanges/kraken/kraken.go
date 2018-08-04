@@ -394,15 +394,33 @@ func (k *Kraken) GetOpenOrders(showTrades bool, userref int64) error {
 }
 
 // GetClosedOrders returns a list of closed orders
-func (k *Kraken) GetClosedOrders(trades bool, userref ...int64) (ClosedOrders, error) {
+func (k *Kraken) GetClosedOrders(args ...GetClosedOrdersOptions) (ClosedOrders, error) {
 	params := url.Values{}
 
-	if trades {
-		params.Set("trades", "true")
-	}
+	if args != nil {
+		if args[0].Trades {
+			params.Set("trades", "true")
+		}
 
-	if userref != nil {
-		params.Set("userref", strconv.FormatInt(userref[0], 10))
+		if args[0].UserRef != 0 {
+			params.Set("userref", strconv.FormatInt(args[0].UserRef, 10))
+		}
+
+		if len(args[0].Start) != 0 {
+			params.Set("start", args[0].Start)
+		}
+
+		if len(args[0].End) != 0 {
+			params.Set("end", args[0].End)
+		}
+
+		if args[0].Ofs != 0 {
+			params.Set("ofs", strconv.FormatInt(args[0].Ofs, 10))
+		}
+
+		if len(args[0].CloseTime) != 0 {
+			params.Set("closetime", args[0].CloseTime)
+		}
 	}
 
 	var response struct {
