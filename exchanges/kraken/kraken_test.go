@@ -179,7 +179,7 @@ func TestOpenPositions(t *testing.T) {
 
 func TestGetLedgers(t *testing.T) {
 	t.Parallel()
-	err := k.GetLedgers("bla", "bla", "bla", 0, 0, 0)
+	_, err := k.GetLedgers(GetLedgersOptions{})
 	if err == nil {
 		t.Error("Test Failed - GetLedgers() error", err)
 	}

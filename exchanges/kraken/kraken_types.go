@@ -113,6 +113,22 @@ type Position struct {
 	Terms      string  `json:"terms"`
 }
 
+// GetLedgersOptions type
+type GetLedgersOptions struct {
+	Aclass string
+	Asset  string
+	Type   string
+	Start  string
+	End    string
+	Ofs    int64
+}
+
+// GetLedgersResponse type
+type GetLedgersResponse struct {
+	Ledger map[string]LedgerInfo `json:"ledger"`
+	Count  int64                 `json:"count"`
+}
+
 // LedgerInfo type
 type LedgerInfo struct {
 	Refid   string  `json:"refid"`

@@ -511,39 +511,45 @@ func (k *Kraken) OpenPositions(showPL bool, txids ...string) (map[string]Positio
 }
 
 // GetLedgers returns current ledgers
-func (k *Kraken) GetLedgers(symbol, asset, ledgerType string, start, end, offset int64) error {
-	values := url.Values{}
-	response := GeneralResponse{}
+func (k *Kraken) GetLedgers(args ...GetLedgersOptions) (GetLedgersResponse, error) {
+	params := url.Values{}
 
-	if len(symbol) > 0 {
-		values.Set("aclass", symbol)
+	if args != nil {
+		if len(args[0].Aclass) != 0 {
+			params.Set("aclass", args[0].Aclass)
+		}
+
+		if len(args[0].Asset) != 0 {
+			params.Set("asset", args[0].Asset)
+		}
+
+		if len(args[0].Type) != 0 {
+			params.Set("type", args[0].Type)
+		}
+
+		if len(args[0].Start) != 0 {
+			params.Set("start", args[0].Start)
+		}
+
+		if len(args[0].End) != 0 {
+			params.Set("end", args[0].End)
+		}
+
+		if args[0].Ofs != 0 {
+			params.Set("ofs", strconv.FormatInt(args[0].Ofs, 10))
+		}
 	}
 
-	if len(asset) > 0 {
-		values.Set("asset", asset)
+	var response struct {
+		Error  []string           `json:"error"`
+		Result GetLedgersResponse `json:"result"`
 	}
 
-	if len(ledgerType) > 0 {
-		values.Set("type", ledgerType)
+	if err := k.SendAuthenticatedHTTPRequest(krakenLedgers, params, &response); err != nil {
+		return response.Result, err
 	}
 
-	if start != 0 {
-		values.Set("start", strconv.FormatInt(start, 10))
-	}
-
-	if end != 0 {
-		values.Set("end", strconv.FormatInt(end, 10))
-	}
-
-	if offset != 0 {
-		values.Set("offset", strconv.FormatInt(offset, 10))
-	}
-
-	if err := k.SendAuthenticatedHTTPRequest(krakenLedgers, values, &response); err != nil {
-		return err
-	}
-
-	return GetError(response.Error)
+	return response.Result, GetError(response.Error)
 }
 
 // QueryLedgers queries an individual ledger by ID
