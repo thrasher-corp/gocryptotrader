@@ -113,6 +113,18 @@ type Position struct {
 	Terms      string  `json:"terms"`
 }
 
+// LedgerInfo type
+type LedgerInfo struct {
+	Refid   string  `json:"refid"`
+	Time    float64 `json:"time"`
+	Type    string  `json:"type"`
+	Aclass  string  `json:"aclass"`
+	Asset   string  `json:"asset"`
+	Amount  float64 `json:"amount,string"`
+	Fee     float64 `json:"fee,string"`
+	Balance float64 `json:"balance,string"`
+}
+
 // TradeVolumeResponse type
 type TradeVolumeResponse struct {
 	Currency  string                    `json:"currency"`

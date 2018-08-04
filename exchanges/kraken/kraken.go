@@ -493,6 +493,7 @@ func (k *Kraken) OpenPositions(showPL bool, txids ...string) (map[string]Positio
 	if txids != nil {
 		params.Set("txid", strings.Join(txids, ","))
 	}
+
 	if showPL {
 		params.Set("docalcs", "true")
 	}
@@ -538,16 +539,33 @@ func (k *Kraken) GetLedgers(symbol, asset, ledgerType string, start, end, offset
 		values.Set("offset", strconv.FormatInt(offset, 10))
 	}
 
-	return k.SendAuthenticatedHTTPRequest(krakenLedgers, values, &response)
+	if err := k.SendAuthenticatedHTTPRequest(krakenLedgers, values, &response); err != nil {
+		return err
+	}
+
+	return GetError(response.Error)
 }
 
 // QueryLedgers queries an individual ledger by ID
-func (k *Kraken) QueryLedgers(id string) error {
-	values := url.Values{}
-	values.Set("id", id)
-	response := GeneralResponse{}
+func (k *Kraken) QueryLedgers(id string, ids ...string) (map[string]LedgerInfo, error) {
+	params := url.Values{
+		"id": {id},
+	}
 
-	return k.SendAuthenticatedHTTPRequest(krakenQueryLedgers, values, &response)
+	if ids != nil {
+		params.Set("id", id+","+strings.Join(ids, ","))
+	}
+
+	var response struct {
+		Error  []string              `json:"error"`
+		Result map[string]LedgerInfo `json:"result"`
+	}
+
+	if err := k.SendAuthenticatedHTTPRequest(krakenQueryLedgers, params, &response); err != nil {
+		return response.Result, err
+	}
+
+	return response.Result, GetError(response.Error)
 }
 
 // GetTradeVolume returns your trade volume by currency

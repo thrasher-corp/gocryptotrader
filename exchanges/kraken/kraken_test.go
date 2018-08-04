@@ -187,7 +187,7 @@ func TestGetLedgers(t *testing.T) {
 
 func TestQueryLedgers(t *testing.T) {
 	t.Parallel()
-	err := k.QueryLedgers("1337")
+	_, err := k.QueryLedgers("LVTSFS-NHZVM-EXNZ5M")
 	if err == nil {
 		t.Error("Test Failed - QueryLedgers() error", err)
 	}
