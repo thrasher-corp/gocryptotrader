@@ -559,7 +559,7 @@ func (k *Kraken) GetTradeVolume(symbol string) error {
 }
 
 // AddOrder adds a new order for Kraken exchange
-func (k *Kraken) AddOrder(symbol, side, orderType string, volume, price, price2, leverage float64, args map[string]string) (AddOrderResponse, error) {
+func (k *Kraken) AddOrder(symbol, side, orderType string, volume, price, price2, leverage float64, args AddOrderOptions) (AddOrderResponse, error) {
 	var response struct {
 		Error  []string         `json:"error"`
 		Result AddOrderResponse `json:"result"`
@@ -569,36 +569,47 @@ func (k *Kraken) AddOrder(symbol, side, orderType string, volume, price, price2,
 		"pair":      {symbol},
 		"type":      {side},
 		"ordertype": {orderType},
+		"volume":    {strconv.FormatFloat(volume, 'f', -1, 64)},
 	}
 
-	params.Set("volume", strconv.FormatFloat(volume, 'f', -1, 64))
-	params.Set("price", strconv.FormatFloat(price, 'f', -1, 64))
-	params.Set("price2", strconv.FormatFloat(price2, 'f', -1, 64))
-	params.Set("leverage", strconv.FormatFloat(leverage, 'f', -1, 64))
+	if price != 0 {
+		params.Set("price", strconv.FormatFloat(price, 'f', -1, 64))
+	}
 
-	if value, ok := args["oflags"]; ok {
-		params.Set("oflags", value)
+	if price2 != 0 {
+		params.Set("price2", strconv.FormatFloat(price2, 'f', -1, 64))
 	}
-	if value, ok := args["starttm"]; ok {
-		params.Set("starttm", value)
+
+	if leverage != 0 {
+		params.Set("leverage", strconv.FormatFloat(leverage, 'f', -1, 64))
 	}
-	if value, ok := args["expiretm"]; ok {
-		params.Set("expiretm", value)
+
+	if len(args.Oflags) != 0 {
+		params.Set("oflags", args.Oflags)
 	}
-	if value, ok := args["validate"]; ok {
-		params.Set("validate", value)
+
+	if len(args.StartTm) != 0 {
+		params.Set("starttm", args.StartTm)
 	}
-	if value, ok := args["close_order_type"]; ok {
-		params.Set("close[ordertype]", value)
+
+	if len(args.ExpireTm) != 0 {
+		params.Set("expiretm", args.ExpireTm)
 	}
-	if value, ok := args["close_price"]; ok {
-		params.Set("close[price]", value)
+
+	if len(args.CloseOrderType) != 0 {
+		params.Set("close[ordertype]", args.ExpireTm)
 	}
-	if value, ok := args["close_price2"]; ok {
-		params.Set("close[price2]", value)
+
+	if args.ClosePrice != 0 {
+		params.Set("close[price]", strconv.FormatFloat(args.ClosePrice, 'f', -1, 64))
 	}
-	if value, ok := args["trading_agreement"]; ok {
-		params.Set("trading_agreement", value)
+
+	if args.ClosePrice2 != 0 {
+		params.Set("close[price2]", strconv.FormatFloat(args.ClosePrice2, 'f', -1, 64))
+	}
+
+	if args.Validate {
+		params.Set("validate", "true")
 	}
 
 	if err := k.SendAuthenticatedHTTPRequest(krakenOrderPlace, params, &response); err != nil {
@@ -642,7 +653,7 @@ func (k *Kraken) SendHTTPRequest(path string, result interface{}) error {
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated HTTP request
-func (k *Kraken) SendAuthenticatedHTTPRequest(method string, values url.Values, result interface{}) (err error) {
+func (k *Kraken) SendAuthenticatedHTTPRequest(method string, params url.Values, result interface{}) (err error) {
 	if !k.AuthenticatedAPISupport {
 		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet, k.Name)
 	}
@@ -654,23 +665,24 @@ func (k *Kraken) SendAuthenticatedHTTPRequest(method string, values url.Values, 
 		k.Nonce.Inc()
 	}
 
-	values.Set("nonce", k.Nonce.String())
+	params.Set("nonce", k.Nonce.String())
 
 	secret, err := common.Base64Decode(k.APISecret)
 	if err != nil {
 		return err
 	}
 
-	shasum := common.GetSHA256([]byte(values.Get("nonce") + values.Encode()))
+	encoded := params.Encode()
+	shasum := common.GetSHA256([]byte(params.Get("nonce") + encoded))
 	signature := common.Base64Encode(common.GetHMAC(common.HashSHA512, append([]byte(path), shasum...), secret))
 
 	if k.Verbose {
-		log.Printf("Sending POST request to %s, path: %s.", krakenAPIURL, path)
+		log.Printf("Sending POST request to %s, path: %s, params: %s", krakenAPIURL, path, encoded)
 	}
 
 	headers := make(map[string]string)
 	headers["API-Key"] = k.APIKey
 	headers["API-Sign"] = signature
 
-	return k.SendPayload("POST", krakenAPIURL+path, headers, strings.NewReader(values.Encode()), result, true, k.Verbose)
+	return k.SendPayload("POST", krakenAPIURL+path, headers, strings.NewReader(encoded), result, true, k.Verbose)
 }

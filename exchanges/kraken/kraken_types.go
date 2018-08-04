@@ -124,3 +124,15 @@ type OrderDescription struct {
 	Close string `json:"close"`
 	Order string `json:"order"`
 }
+
+// AddOrderOptions represents the AddOrder options
+type AddOrderOptions struct {
+	UserRef        string
+	Oflags         string
+	StartTm        string
+	ExpireTm       string
+	CloseOrderType string
+	ClosePrice     float64
+	ClosePrice2    float64
+	Validate       bool
+}
