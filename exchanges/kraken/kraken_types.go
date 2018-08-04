@@ -93,12 +93,49 @@ type Spread struct {
 	Ask  float64
 }
 
+// GetTradesHistoryOptions type
+type GetTradesHistoryOptions struct {
+	Type   string
+	Trades bool
+	Start  string
+	End    string
+	Ofs    int64
+}
+
+// TradesHistory type
+type TradesHistory struct {
+	Trades map[string]TradeInfo `json:"trades"`
+	Count  int64                `json:"count"`
+}
+
+// TradeInfo type
+type TradeInfo struct {
+	OrderTxID string   `json:"ordertxid"`
+	Pair      string   `json:"pair"`
+	Time      float64  `json:"time"`
+	Type      string   `json:"type"`
+	OrderType string   `json:"ordertype"`
+	Price     float64  `json:"price,string"`
+	Cost      float64  `json:"cost,string"`
+	Fee       float64  `json:"fee,string"`
+	Vol       float64  `json:"vol,string"`
+	Margin    float64  `json:"margin,string"`
+	Misc      string   `json:"misc"`
+	PosTxID   string   `json:"postxid"`
+	Cprice    float64  `json:"cprice,string"`
+	Cfee      float64  `json:"cfee,string"`
+	Cvol      float64  `json:"cvol,string"`
+	Cmargin   float64  `json:"cmargin,string"`
+	Trades    []string `json:"trades"`
+	PosStatus string   `json:"posstatus"`
+}
+
 // Position holds the opened position
 type Position struct {
 	Ordertxid  string  `json:"ordertxid"`
 	Pair       string  `json:"pair"`
 	Time       float64 `json:"time"`
-	SellOrBy   string  `json:"type"`
+	Type       string  `json:"type"`
 	OrderType  string  `json:"ordertype"`
 	Cost       float64 `json:"cost,string"`
 	Fee        float64 `json:"fee,string"`
@@ -123,8 +160,8 @@ type GetLedgersOptions struct {
 	Ofs    int64
 }
 
-// GetLedgersResponse type
-type GetLedgersResponse struct {
+// Ledgers type
+type Ledgers struct {
 	Ledger map[string]LedgerInfo `json:"ledger"`
 	Count  int64                 `json:"count"`
 }

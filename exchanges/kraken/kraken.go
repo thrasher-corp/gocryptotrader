@@ -446,31 +446,41 @@ func (k *Kraken) QueryOrdersInfo(showTrades bool, userref, txid int64) error {
 }
 
 // GetTradesHistory returns trade history information
-func (k *Kraken) GetTradesHistory(tradeType string, showRelatedTrades bool, start, end, offset int64) error {
-	values := url.Values{}
-	response := GeneralResponse{}
+func (k *Kraken) GetTradesHistory(args ...GetTradesHistoryOptions) (TradesHistory, error) {
+	params := url.Values{}
 
-	if len(tradeType) > 0 {
-		values.Set("aclass", tradeType)
+	if args != nil {
+		if len(args[0].Type) != 0 {
+			params.Set("type", args[0].Type)
+		}
+
+		if args[0].Trades {
+			params.Set("trades", "true")
+		}
+
+		if len(args[0].Start) != 0 {
+			params.Set("start", args[0].Start)
+		}
+
+		if len(args[0].End) != 0 {
+			params.Set("end", args[0].End)
+		}
+
+		if args[0].Ofs != 0 {
+			params.Set("ofs", strconv.FormatInt(args[0].Ofs, 10))
+		}
 	}
 
-	if showRelatedTrades {
-		values.Set("trades", "true")
+	var response struct {
+		Error  []string      `json:"error"`
+		Result TradesHistory `json:"result"`
 	}
 
-	if start != 0 {
-		values.Set("start", strconv.FormatInt(start, 10))
+	if err := k.SendAuthenticatedHTTPRequest(krakenTradeHistory, params, &response); err != nil {
+		return response.Result, err
 	}
 
-	if end != 0 {
-		values.Set("end", strconv.FormatInt(end, 10))
-	}
-
-	if offset != 0 {
-		values.Set("offset", strconv.FormatInt(offset, 10))
-	}
-
-	return k.SendAuthenticatedHTTPRequest(krakenTradeHistory, values, &response)
+	return response.Result, GetError(response.Error)
 }
 
 // QueryTrades returns information on a specific trade
@@ -511,7 +521,7 @@ func (k *Kraken) OpenPositions(showPL bool, txids ...string) (map[string]Positio
 }
 
 // GetLedgers returns current ledgers
-func (k *Kraken) GetLedgers(args ...GetLedgersOptions) (GetLedgersResponse, error) {
+func (k *Kraken) GetLedgers(args ...GetLedgersOptions) (Ledgers, error) {
 	params := url.Values{}
 
 	if args != nil {
@@ -541,8 +551,8 @@ func (k *Kraken) GetLedgers(args ...GetLedgersOptions) (GetLedgersResponse, erro
 	}
 
 	var response struct {
-		Error  []string           `json:"error"`
-		Result GetLedgersResponse `json:"result"`
+		Error  []string `json:"error"`
+		Result Ledgers  `json:"result"`
 	}
 
 	if err := k.SendAuthenticatedHTTPRequest(krakenLedgers, params, &response); err != nil {
@@ -673,7 +683,7 @@ func (k *Kraken) CancelOrder(orderID string) error {
 	return GetError(response.Error)
 }
 
-// GetError parse Exchange errors in response and return the first
+// GetError parse Exchange errors in response and return the first one
 // Error format from API doc:
 //   error = array of error messages in the format of:
 //       <char-severity code><string-error category>:<string-error type>[:<string-extra info>]

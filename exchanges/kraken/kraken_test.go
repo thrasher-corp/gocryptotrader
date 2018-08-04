@@ -155,7 +155,8 @@ func TestQueryOrdersInfo(t *testing.T) {
 
 func TestGetTradesHistory(t *testing.T) {
 	t.Parallel()
-	err := k.GetTradesHistory("", false, 0, 0, 0)
+	args := GetTradesHistoryOptions{Trades: true, Start: "TMZEDR-VBJN2-NGY6DX", End: "TVRXG2-R62VE-RWP3UW"}
+	_, err := k.GetTradesHistory(args)
 	if err == nil {
 		t.Error("Test Failed - GetTradesHistory() error", err)
 	}
@@ -179,7 +180,8 @@ func TestOpenPositions(t *testing.T) {
 
 func TestGetLedgers(t *testing.T) {
 	t.Parallel()
-	_, err := k.GetLedgers(GetLedgersOptions{})
+	args := GetLedgersOptions{Start: "LRUHXI-IWECY-K4JYGO", End: "L5NIY7-JZQJD-3J4M2V", Ofs: 15}
+	_, err := k.GetLedgers(args)
 	if err == nil {
 		t.Error("Test Failed - GetLedgers() error", err)
 	}
