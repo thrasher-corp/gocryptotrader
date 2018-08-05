@@ -102,7 +102,7 @@ type ClosedOrders struct {
 // OrderInfo type
 type OrderInfo struct {
 	RefID    string  `json:"refid"`
-	UserRef  int64   `json:"userref"`
+	UserRef  int32   `json:"userref"`
 	Status   string  `json:"status"`
 	OpenTm   float64 `json:"opentm"`
 	StartTm  float64 `json:"starttm"`
@@ -132,7 +132,7 @@ type OrderInfo struct {
 // GetClosedOrdersOptions type
 type GetClosedOrdersOptions struct {
 	Trades    bool
-	UserRef   int64
+	UserRef   int32
 	Start     string
 	End       string
 	Ofs       int64
@@ -142,7 +142,7 @@ type GetClosedOrdersOptions struct {
 // QueryOrdersInfoOptions type
 type QueryOrdersInfoOptions struct {
 	Trades  bool
-	UserRef int64
+	UserRef int32
 }
 
 // GetTradesHistoryOptions type
@@ -262,7 +262,7 @@ type OrderDescription struct {
 
 // AddOrderOptions represents the AddOrder options
 type AddOrderOptions struct {
-	UserRef        int64
+	UserRef        int32
 	Oflags         string
 	StartTm        string
 	ExpireTm       string
