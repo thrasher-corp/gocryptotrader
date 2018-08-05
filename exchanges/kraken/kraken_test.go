@@ -139,7 +139,8 @@ func TestGetOpenOrders(t *testing.T) {
 
 func TestGetClosedOrders(t *testing.T) {
 	t.Parallel()
-	err := k.GetClosedOrders(true, 0, 0, 0, 0, "")
+	args := GetClosedOrdersOptions{Trades: true, Start: "OE4KV4-4FVQ5-V7XGPU"}
+	_, err := k.GetClosedOrders(args)
 	if err == nil {
 		t.Error("Test Failed - GetClosedOrders() error", err)
 	}
@@ -147,7 +148,8 @@ func TestGetClosedOrders(t *testing.T) {
 
 func TestQueryOrdersInfo(t *testing.T) {
 	t.Parallel()
-	err := k.QueryOrdersInfo(false, 0, 0)
+	args := QueryOrdersInfoOptions{Trades: true}
+	_, err := k.QueryOrdersInfo(args, "OR6ZFV-AA6TT-CKFFIW", "OAMUAJ-HLVKG-D3QJ5F")
 	if err == nil {
 		t.Error("Test Failed - QueryOrdersInfo() error", err)
 	}
@@ -205,7 +207,8 @@ func TestGetTradeVolume(t *testing.T) {
 
 func TestAddOrder(t *testing.T) {
 	t.Parallel()
-	_, err := k.AddOrder("XXBTZUSD", "sell", "market", 0.00000001, 0, 0, 0, AddOrderOptions{Oflags: "fcib"})
+	args := AddOrderOptions{Oflags: "fcib"}
+	_, err := k.AddOrder("XXBTZUSD", "sell", "market", 0.00000001, 0, 0, 0, args)
 	if err == nil {
 		t.Error("Test Failed - AddOrder() error", err)
 	}

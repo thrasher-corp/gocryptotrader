@@ -139,6 +139,12 @@ type GetClosedOrdersOptions struct {
 	CloseTime string
 }
 
+// QueryOrdersInfoOptions type
+type QueryOrdersInfoOptions struct {
+	Trades  bool
+	UserRef int64
+}
+
 // GetTradesHistoryOptions type
 type GetTradesHistoryOptions struct {
 	Type   string
@@ -256,7 +262,7 @@ type OrderDescription struct {
 
 // AddOrderOptions represents the AddOrder options
 type AddOrderOptions struct {
-	UserRef        string
+	UserRef        int64
 	Oflags         string
 	StartTm        string
 	ExpireTm       string

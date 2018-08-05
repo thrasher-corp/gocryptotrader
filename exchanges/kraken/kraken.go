@@ -436,23 +436,33 @@ func (k *Kraken) GetClosedOrders(args ...GetClosedOrdersOptions) (ClosedOrders, 
 }
 
 // QueryOrdersInfo returns order information
-func (k *Kraken) QueryOrdersInfo(showTrades bool, userref, txid int64) error {
-	values := url.Values{}
-	response := GeneralResponse{}
-
-	if showTrades {
-		values.Set("trades", "true")
+func (k *Kraken) QueryOrdersInfo(args QueryOrdersInfoOptions, txid string, txids ...string) (map[string]OrderInfo, error) {
+	params := url.Values{
+		"txid": {txid},
 	}
 
-	if userref != 0 {
-		values.Set("userref", strconv.FormatInt(userref, 10))
+	if txids != nil {
+		params.Set("txid", txid+","+strings.Join(txids, ","))
 	}
 
-	if txid != 0 {
-		values.Set("txid", strconv.FormatInt(userref, 10))
+	if args.Trades {
+		params.Set("trades", "true")
 	}
 
-	return k.SendAuthenticatedHTTPRequest(krakenQueryOrders, values, &response)
+	if args.UserRef != 0 {
+		params.Set("userref", strconv.FormatInt(args.UserRef, 10))
+	}
+
+	var response struct {
+		Error  []string             `json:"error"`
+		Result map[string]OrderInfo `json:"result"`
+	}
+
+	if err := k.SendAuthenticatedHTTPRequest(krakenQueryOrders, params, &response); err != nil {
+		return response.Result, err
+	}
+
+	return response.Result, GetError(response.Error)
 }
 
 // GetTradesHistory returns trade history information
