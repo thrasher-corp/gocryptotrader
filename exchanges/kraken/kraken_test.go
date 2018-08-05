@@ -59,7 +59,7 @@ func TestGetServerTime(t *testing.T) {
 
 func TestGetAssets(t *testing.T) {
 	t.Parallel()
-	err := k.GetAssets()
+	_, err := k.GetAssets()
 	if err != nil {
 		t.Error("Test Failed - GetAssets() error", err)
 	}

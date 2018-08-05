@@ -119,11 +119,19 @@ func (k *Kraken) GetServerTime(unixTime bool) error {
 }
 
 // GetAssets returns a full asset list
-func (k *Kraken) GetAssets() error {
-	var result GeneralResponse
+func (k *Kraken) GetAssets() (map[string]Asset, error) {
 	path := fmt.Sprintf("%s/%s/public/%s", krakenAPIURL, krakenAPIVersion, krakenAssets)
 
-	return k.SendHTTPRequest(path, &result)
+	var response struct {
+		Error  []string         `json:"error"`
+		Result map[string]Asset `json:"result"`
+	}
+
+	if err := k.SendHTTPRequest(path, &response); err != nil {
+		return response.Result, err
+	}
+
+	return response.Result, GetError(response.Error)
 }
 
 // GetAssetPairs returns a full asset pair list
@@ -379,8 +387,7 @@ func (k *Kraken) GetBalance() (map[string]float64, error) {
 	result := make(map[string]float64)
 	for curency, balance := range response.Result {
 		var err error
-		result[curency], err = strconv.ParseFloat(balance, 64)
-		if err != nil {
+		if result[curency], err = strconv.ParseFloat(balance, 64); err != nil {
 			return nil, err
 		}
 	}

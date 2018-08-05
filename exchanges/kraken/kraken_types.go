@@ -6,6 +6,14 @@ type GeneralResponse struct {
 	Error  []string               `json:"error"`
 }
 
+// Asset holds asset information
+type Asset struct {
+	Altname         string `json:"altname"`
+	AclassBase      string `json:"aclass_base"`
+	Decimals        int    `json:"decimals"`
+	DisplayDecimals int    `json:"display_decimals"`
+}
+
 // AssetPairs holds asset pair information
 type AssetPairs struct {
 	Altname           string      `json:"altname"`
