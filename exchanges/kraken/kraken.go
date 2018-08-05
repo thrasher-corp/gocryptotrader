@@ -111,11 +111,19 @@ func (k *Kraken) GetFee(cryptoTrade bool) float64 {
 }
 
 // GetServerTime returns current server time
-func (k *Kraken) GetServerTime(unixTime bool) error {
-	var result GeneralResponse
+func (k *Kraken) GetServerTime() (TimeResponse, error) {
 	path := fmt.Sprintf("%s/%s/public/%s", krakenAPIURL, krakenAPIVersion, krakenServerTime)
 
-	return k.SendHTTPRequest(path, &result)
+	var response struct {
+		Error  []string     `json:"error"`
+		Result TimeResponse `json:"result"`
+	}
+
+	if err := k.SendHTTPRequest(path, &response); err != nil {
+		return response.Result, err
+	}
+
+	return response.Result, GetError(response.Error)
 }
 
 // GetAssets returns a full asset list

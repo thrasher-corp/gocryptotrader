@@ -6,6 +6,12 @@ type GeneralResponse struct {
 	Error  []string               `json:"error"`
 }
 
+// TimeResponse type
+type TimeResponse struct {
+	Unixtime int64  `json:"unixtime"`
+	Rfc1123  string `json:"rfc1123"`
+}
+
 // Asset holds asset information
 type Asset struct {
 	Altname         string `json:"altname"`
