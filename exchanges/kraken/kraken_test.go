@@ -47,11 +47,7 @@ func TestGetFee(t *testing.T) {
 
 func TestGetServerTime(t *testing.T) {
 	t.Parallel()
-	err := k.GetServerTime(false)
-	if err != nil {
-		t.Error("Test Failed - GetServerTime() error", err)
-	}
-	err = k.GetServerTime(true)
+	_, err := k.GetServerTime()
 	if err != nil {
 		t.Error("Test Failed - GetServerTime() error", err)
 	}
