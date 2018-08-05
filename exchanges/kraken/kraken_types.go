@@ -93,12 +93,6 @@ type Spread struct {
 	Ask  float64
 }
 
-// ClosedOrders type
-type ClosedOrders struct {
-	Closed map[string]OrderInfo `json:"closed"`
-	Count  int64                `json:"count"`
-}
-
 // OrderInfo type
 type OrderInfo struct {
 	RefID    string  `json:"refid"`
@@ -129,6 +123,18 @@ type OrderInfo struct {
 	Trades     []string `json:"trades"`
 }
 
+// OpenOrders type
+type OpenOrders struct {
+	Open  map[string]OrderInfo `json:"open"`
+	Count int64                `json:"count"`
+}
+
+// ClosedOrders type
+type ClosedOrders struct {
+	Closed map[string]OrderInfo `json:"closed"`
+	Count  int64                `json:"count"`
+}
+
 // GetClosedOrdersOptions type
 type GetClosedOrdersOptions struct {
 	Trades    bool
@@ -139,8 +145,8 @@ type GetClosedOrdersOptions struct {
 	CloseTime string
 }
 
-// QueryOrdersInfoOptions type
-type QueryOrdersInfoOptions struct {
+// OrderInfoOptions type
+type OrderInfoOptions struct {
 	Trades  bool
 	UserRef int32
 }

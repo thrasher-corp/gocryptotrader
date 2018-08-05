@@ -131,7 +131,8 @@ func TestGetTradeBalance(t *testing.T) {
 
 func TestGetOpenOrders(t *testing.T) {
 	t.Parallel()
-	err := k.GetOpenOrders(true, 0)
+	args := OrderInfoOptions{Trades: true}
+	_, err := k.GetOpenOrders(args)
 	if err == nil {
 		t.Error("Test Failed - GetOpenOrders() error", err)
 	}
@@ -148,7 +149,7 @@ func TestGetClosedOrders(t *testing.T) {
 
 func TestQueryOrdersInfo(t *testing.T) {
 	t.Parallel()
-	args := QueryOrdersInfoOptions{Trades: true}
+	args := OrderInfoOptions{Trades: true}
 	_, err := k.QueryOrdersInfo(args, "OR6ZFV-AA6TT-CKFFIW", "OAMUAJ-HLVKG-D3QJ5F")
 	if err == nil {
 		t.Error("Test Failed - QueryOrdersInfo() error", err)

@@ -378,19 +378,27 @@ func (k *Kraken) GetTradeBalance(symbol, asset string) error {
 }
 
 // GetOpenOrders returns all current open orders
-func (k *Kraken) GetOpenOrders(showTrades bool, userref int32) error {
-	values := url.Values{}
-	response := GeneralResponse{}
+func (k *Kraken) GetOpenOrders(args ...OrderInfoOptions) (OpenOrders, error) {
+	params := url.Values{}
 
-	if showTrades {
-		values.Set("trades", "true")
+	if args[0].Trades {
+		params.Set("trades", "true")
 	}
 
-	if userref != 0 {
-		values.Set("userref", strconv.FormatInt(int64(userref), 10))
+	if args[0].UserRef != 0 {
+		params.Set("userref", strconv.FormatInt(int64(args[0].UserRef), 10))
 	}
 
-	return k.SendAuthenticatedHTTPRequest(krakenOpenOrders, values, &response)
+	var response struct {
+		Error  []string   `json:"error"`
+		Result OpenOrders `json:"result"`
+	}
+
+	if err := k.SendAuthenticatedHTTPRequest(krakenOpenOrders, params, &response); err != nil {
+		return response.Result, err
+	}
+
+	return response.Result, GetError(response.Error)
 }
 
 // GetClosedOrders returns a list of closed orders
@@ -436,7 +444,7 @@ func (k *Kraken) GetClosedOrders(args ...GetClosedOrdersOptions) (ClosedOrders, 
 }
 
 // QueryOrdersInfo returns order information
-func (k *Kraken) QueryOrdersInfo(args QueryOrdersInfoOptions, txid string, txids ...string) (map[string]OrderInfo, error) {
+func (k *Kraken) QueryOrdersInfo(args OrderInfoOptions, txid string, txids ...string) (map[string]OrderInfo, error) {
 	params := url.Values{
 		"txid": {txid},
 	}
