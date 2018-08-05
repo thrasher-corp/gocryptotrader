@@ -93,6 +93,23 @@ type Spread struct {
 	Ask  float64
 }
 
+// TradeBalanceOptions type
+type TradeBalanceOptions struct {
+	Aclass string
+	Asset  string
+}
+
+// TradeBalanceInfo type
+type TradeBalanceInfo struct {
+	EquivalentBalance float64 `json:"eb,string"` // combined balance of all currencies
+	TradeBalance      float64 `json:"tb,string"` // combined balance of all equity currencies
+	MarginAmount      float64 `json:"m,string"`  // margin amount of open positions
+	Net               float64 `json:"n,string"`  // unrealized net profit/loss of open positions
+	Equity            float64 `json:"e,string"`  // trade balance + unrealized net profit/loss
+	FreeMargin        float64 `json:"mf,string"` // equity - initial margin (maximum margin available to open new positions)
+	MarginLevel       float64 `json:"ml,string"` // (equity / initial margin) * 100
+}
+
 // OrderInfo type
 type OrderInfo struct {
 	RefID    string  `json:"refid"`

@@ -363,18 +363,30 @@ func (k *Kraken) GetBalance() error {
 }
 
 // GetTradeBalance returns full information about your trades on Kraken
-func (k *Kraken) GetTradeBalance(symbol, asset string) error {
-	values := url.Values{}
-	response := GeneralResponse{}
+func (k *Kraken) GetTradeBalance(args ...TradeBalanceOptions) (TradeBalanceInfo, error) {
+	params := url.Values{}
 
-	if len(symbol) > 0 {
-		values.Set("aclass", symbol)
-	}
-	if len(asset) > 0 {
-		values.Set("asset", asset)
+	if args != nil {
+		if len(args[0].Aclass) != 0 {
+			params.Set("aclass", args[0].Aclass)
+		}
+
+		if len(args[0].Asset) != 0 {
+			params.Set("asset", args[0].Asset)
+		}
+
 	}
 
-	return k.SendAuthenticatedHTTPRequest(krakenTradeBalance, values, &response)
+	var response struct {
+		Error  []string         `json:"error"`
+		Result TradeBalanceInfo `json:"result"`
+	}
+
+	if err := k.SendAuthenticatedHTTPRequest(krakenTradeBalance, params, &response); err != nil {
+		return response.Result, err
+	}
+
+	return response.Result, GetError(response.Error)
 }
 
 // GetOpenOrders returns all current open orders

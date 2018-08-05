@@ -123,7 +123,8 @@ func TestGetBalance(t *testing.T) {
 
 func TestGetTradeBalance(t *testing.T) {
 	t.Parallel()
-	err := k.GetTradeBalance("", "")
+	args := TradeBalanceOptions{Asset: "ZEUR"}
+	_, err := k.GetTradeBalance(args)
 	if err == nil {
 		t.Error("Test Failed - GetTradeBalance() error", err)
 	}
