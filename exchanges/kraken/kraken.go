@@ -127,10 +127,19 @@ func (k *Kraken) GetAssets() error {
 }
 
 // GetAssetPairs returns a full asset pair list
-func (k *Kraken) GetAssetPairs(result map[string]AssetPairs) error {
+func (k *Kraken) GetAssetPairs() (map[string]AssetPairs, error) {
 	path := fmt.Sprintf("%s/%s/public/%s", krakenAPIURL, krakenAPIVersion, krakenAssetPairs)
 
-	return k.SendHTTPRequest(path, &result)
+	var response struct {
+		Error  []string              `json:"error"`
+		Result map[string]AssetPairs `json:"result"`
+	}
+
+	if err := k.SendHTTPRequest(path, &response); err != nil {
+		return response.Result, err
+	}
+
+	return response.Result, GetError(response.Error)
 }
 
 // GetTicker returns ticker information from kraken

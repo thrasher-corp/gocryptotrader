@@ -67,7 +67,7 @@ func TestGetAssets(t *testing.T) {
 
 func TestGetAssetPairs(t *testing.T) {
 	t.Parallel()
-	err := k.GetAssetPairs(nil)
+	_, err := k.GetAssetPairs()
 	if err != nil {
 		t.Error("Test Failed - GetAssetPairs() error", err)
 	}
