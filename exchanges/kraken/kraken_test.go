@@ -115,7 +115,7 @@ func TestGetSpread(t *testing.T) {
 
 func TestGetBalance(t *testing.T) {
 	t.Parallel()
-	err := k.GetBalance()
+	_, err := k.GetBalance()
 	if err == nil {
 		t.Error("Test Failed - GetBalance() error", err)
 	}
@@ -218,7 +218,7 @@ func TestAddOrder(t *testing.T) {
 
 func TestCancelOrder(t *testing.T) {
 	t.Parallel()
-	err := k.CancelOrder("OAVY7T-MV5VK-KHDF5X")
+	_, err := k.CancelOrder("OAVY7T-MV5VK-KHDF5X")
 	if err == nil {
 		t.Error("Test Failed - CancelOrder() error", err)
 	}

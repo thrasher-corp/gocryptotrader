@@ -357,9 +357,26 @@ func (k *Kraken) GetSpread(symbol string) ([]Spread, error) {
 }
 
 // GetBalance returns your balance associated with your keys
-func (k *Kraken) GetBalance() error {
-	response := GeneralResponse{}
-	return k.SendAuthenticatedHTTPRequest(krakenBalance, url.Values{}, &response)
+func (k *Kraken) GetBalance() (map[string]float64, error) {
+	var response struct {
+		Error  []string          `json:"error"`
+		Result map[string]string `json:"result"`
+	}
+
+	if err := k.SendAuthenticatedHTTPRequest(krakenBalance, url.Values{}, &response); err != nil {
+		return nil, err
+	}
+
+	result := make(map[string]float64)
+	for curency, balance := range response.Result {
+		var err error
+		result[curency], err = strconv.ParseFloat(balance, 64)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return result, GetError(response.Error)
 }
 
 // GetTradeBalance returns full information about your trades on Kraken
