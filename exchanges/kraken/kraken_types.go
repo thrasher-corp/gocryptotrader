@@ -1,11 +1,5 @@
 package kraken
 
-// GeneralResponse is a generalized response type
-type GeneralResponse struct {
-	Result map[string]interface{} `json:"result"`
-	Error  []string               `json:"error"`
-}
-
 // TimeResponse type
 type TimeResponse struct {
 	Unixtime int64  `json:"unixtime"`
