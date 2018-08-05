@@ -271,3 +271,9 @@ type AddOrderOptions struct {
 	ClosePrice2    float64
 	Validate       bool
 }
+
+// CancelOrderResponse type
+type CancelOrderResponse struct {
+	Count   int64       `json:"count"`
+	Pending interface{} `json:"pending"`
+}

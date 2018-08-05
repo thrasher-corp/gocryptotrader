@@ -530,14 +530,14 @@ func (k *Kraken) QueryTrades(trades bool, txid string, txids ...string) (map[str
 }
 
 // OpenPositions returns current open positions
-func (k *Kraken) OpenPositions(showPL bool, txids ...string) (map[string]Position, error) {
+func (k *Kraken) OpenPositions(docalcs bool, txids ...string) (map[string]Position, error) {
 	params := url.Values{}
 
 	if txids != nil {
 		params.Set("txid", strings.Join(txids, ","))
 	}
 
-	if showPL {
+	if docalcs {
 		params.Set("docalcs", "true")
 	}
 
@@ -618,14 +618,14 @@ func (k *Kraken) QueryLedgers(id string, ids ...string) (map[string]LedgerInfo, 
 }
 
 // GetTradeVolume returns your trade volume by currency
-func (k *Kraken) GetTradeVolume(showFees bool, symbol ...string) (TradeVolumeResponse, error) {
+func (k *Kraken) GetTradeVolume(feeinfo bool, symbol ...string) (TradeVolumeResponse, error) {
 	params := url.Values{}
 
 	if symbol != nil {
 		params.Set("pair", strings.Join(symbol, ","))
 	}
 
-	if showFees {
+	if feeinfo {
 		params.Set("fee-info", "true")
 	}
 
@@ -703,18 +703,21 @@ func (k *Kraken) AddOrder(symbol, side, orderType string, volume, price, price2,
 }
 
 // CancelOrder cancels order by orderID
-func (k *Kraken) CancelOrder(orderID string) error {
+func (k *Kraken) CancelOrder(txid string) (CancelOrderResponse, error) {
 	values := url.Values{
-		"txid": {orderID},
+		"txid": {txid},
 	}
 
-	response := GeneralResponse{}
+	var response struct {
+		Error  []string            `json:"error"`
+		Result CancelOrderResponse `json:"result"`
+	}
 
 	if err := k.SendAuthenticatedHTTPRequest(krakenOrderCancel, values, &response); err != nil {
-		return err
+		return response.Result, err
 	}
 
-	return GetError(response.Error)
+	return response.Result, GetError(response.Error)
 }
 
 // GetError parse Exchange errors in response and return the first one
