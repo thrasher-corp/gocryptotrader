@@ -7,7 +7,7 @@ type ContractPrice struct {
 	Date   string `json:"date"`
 	Ticker struct {
 		Buy        float64 `json:"buy"`
-		ContractID int     `json:"contract_id"`
+		ContractID float64 `json:"contract_id"`
 		High       float64 `json:"high"`
 		Low        float64 `json:"low"`
 		Last       float64 `json:"last"`
@@ -112,7 +112,7 @@ type HoldData struct {
 	BuyPriceAvg    float64 `json:"buy_price_avg"`
 	BuyPriceCost   float64 `json:"buy_price_cost"`
 	BuyProfitReal  float64 `json:"buy_profit_real"`
-	ContractID     int     `json:"contract_id"`
+	ContractID     float64 `json:"contract_id"`
 	ContractType   string  `json:"contract_type"`
 	CreateDate     int     `json:"create_date"`
 	LeverRate      float64 `json:"lever_rate"`
@@ -144,7 +144,7 @@ type SpotPrice struct {
 	Date   string `json:"date"`
 	Ticker struct {
 		Buy        float64 `json:"buy,string"`
-		ContractID int     `json:"contract_id"`
+		ContractID float64 `json:"contract_id"`
 		High       float64 `json:"high,string"`
 		Low        float64 `json:"low,string"`
 		Last       float64 `json:"last,string"`
