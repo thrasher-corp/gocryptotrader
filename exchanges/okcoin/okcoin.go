@@ -132,6 +132,7 @@ func (o *OKCoin) Setup(exch config.ExchangeConfig) {
 		o.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
 		o.SetAPIKeys(exch.APIKey, exch.APISecret, "", false)
 		o.SetHTTPClientTimeout(exch.HTTPTimeout)
+		o.SetHTTPClientUserAgent(exch.HTTPUserAgent)
 		o.RESTPollingDelay = exch.RESTPollingDelay
 		o.Verbose = exch.Verbose
 		o.Websocket = exch.Websocket

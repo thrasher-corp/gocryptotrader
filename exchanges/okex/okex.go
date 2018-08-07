@@ -116,6 +116,7 @@ func (o *OKEX) Setup(exch config.ExchangeConfig) {
 		o.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
 		o.SetAPIKeys(exch.APIKey, exch.APISecret, exch.ClientID, false)
 		o.SetHTTPClientTimeout(exch.HTTPTimeout)
+		o.SetHTTPClientUserAgent(exch.HTTPUserAgent)
 		o.RESTPollingDelay = exch.RESTPollingDelay
 		o.Verbose = exch.Verbose
 		o.Websocket = exch.Websocket

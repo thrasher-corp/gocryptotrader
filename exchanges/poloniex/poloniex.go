@@ -84,6 +84,7 @@ func (p *Poloniex) Setup(exch config.ExchangeConfig) {
 		p.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
 		p.SetAPIKeys(exch.APIKey, exch.APISecret, "", false)
 		p.SetHTTPClientTimeout(exch.HTTPTimeout)
+		p.SetHTTPClientUserAgent(exch.HTTPUserAgent)
 		p.RESTPollingDelay = exch.RESTPollingDelay
 		p.Verbose = exch.Verbose
 		p.Websocket = exch.Websocket

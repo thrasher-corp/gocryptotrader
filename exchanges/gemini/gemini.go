@@ -121,6 +121,7 @@ func (g *Gemini) Setup(exch config.ExchangeConfig) {
 		g.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
 		g.SetAPIKeys(exch.APIKey, exch.APISecret, "", false)
 		g.SetHTTPClientTimeout(exch.HTTPTimeout)
+		g.SetHTTPClientUserAgent(exch.HTTPUserAgent)
 		g.RESTPollingDelay = exch.RESTPollingDelay
 		g.Verbose = exch.Verbose
 		g.Websocket = exch.Websocket

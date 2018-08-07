@@ -76,6 +76,7 @@ func (w *WEX) Setup(exch config.ExchangeConfig) {
 		w.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
 		w.SetAPIKeys(exch.APIKey, exch.APISecret, "", false)
 		w.SetHTTPClientTimeout(exch.HTTPTimeout)
+		w.SetHTTPClientUserAgent(exch.HTTPUserAgent)
 		w.RESTPollingDelay = exch.RESTPollingDelay
 		w.Verbose = exch.Verbose
 		w.Websocket = exch.Websocket

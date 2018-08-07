@@ -77,6 +77,7 @@ func (e *EXMO) Setup(exch config.ExchangeConfig) {
 		e.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
 		e.SetAPIKeys(exch.APIKey, exch.APISecret, "", false)
 		e.SetHTTPClientTimeout(exch.HTTPTimeout)
+		e.SetHTTPClientUserAgent(exch.HTTPUserAgent)
 		e.RESTPollingDelay = exch.RESTPollingDelay
 		e.Verbose = exch.Verbose
 		e.Websocket = exch.Websocket

@@ -90,6 +90,7 @@ func (h *HUOBI) Setup(exch config.ExchangeConfig) {
 		h.SetAPIKeys(exch.APIKey, exch.APISecret, "", false)
 		h.APIAuthPEMKey = exch.APIAuthPEMKey
 		h.SetHTTPClientTimeout(exch.HTTPTimeout)
+		h.SetHTTPClientUserAgent(exch.HTTPUserAgent)
 		h.RESTPollingDelay = exch.RESTPollingDelay
 		h.Verbose = exch.Verbose
 		h.Websocket = exch.Websocket

@@ -81,6 +81,7 @@ func (k *Kraken) Setup(exch config.ExchangeConfig) {
 		k.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
 		k.SetAPIKeys(exch.APIKey, exch.APISecret, "", false)
 		k.SetHTTPClientTimeout(exch.HTTPTimeout)
+		k.SetHTTPClientUserAgent(exch.HTTPUserAgent)
 		k.RESTPollingDelay = exch.RESTPollingDelay
 		k.Verbose = exch.Verbose
 		k.Websocket = exch.Websocket

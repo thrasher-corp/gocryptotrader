@@ -70,6 +70,7 @@ func (a *ANX) Setup(exch config.ExchangeConfig) {
 		a.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
 		a.SetAPIKeys(exch.APIKey, exch.APISecret, "", true)
 		a.SetHTTPClientTimeout(exch.HTTPTimeout)
+		a.SetHTTPClientUserAgent(exch.HTTPUserAgent)
 		a.RESTPollingDelay = exch.RESTPollingDelay
 		a.Verbose = exch.Verbose
 		a.Websocket = exch.Websocket

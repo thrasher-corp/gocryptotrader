@@ -85,6 +85,7 @@ func (h *HUOBIHADAX) Setup(exch config.ExchangeConfig) {
 		h.SetAPIKeys(exch.APIKey, exch.APISecret, "", false)
 		h.APIAuthPEMKey = exch.APIAuthPEMKey
 		h.SetHTTPClientTimeout(exch.HTTPTimeout)
+		h.SetHTTPClientUserAgent(exch.HTTPUserAgent)
 		h.RESTPollingDelay = exch.RESTPollingDelay
 		h.Verbose = exch.Verbose
 		h.Websocket = exch.Websocket
@@ -755,7 +756,6 @@ func (h *HUOBIHADAX) SendAuthenticatedHTTPPostRequest(method, endpoint, postBody
 		method, endpoint, signatureParams.Encode())
 
 	headers := make(map[string]string)
-	headers["User-Agent"] = "Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/39.0.2171.71 Safari/537.36"
 	headers["Content-Type"] = "application/json"
 	headers["Accept-Language"] = "zh-cn"
 
