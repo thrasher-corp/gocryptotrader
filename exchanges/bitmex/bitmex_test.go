@@ -41,14 +41,6 @@ func TestStart(t *testing.T) {
 	testWg.Wait()
 }
 
-// func TestGetAnnouncement(t *testing.T) {
-// 	b.Verbose = true
-// 	_, err := b.GetAnnouncement()
-// 	if err != nil {
-// 		t.Error("test failed - GetAnnouncement() error", err)
-// 	}
-// }
-
 func TestGetUrgentAnnouncement(t *testing.T) {
 	_, err := b.GetUrgentAnnouncement()
 	if err == nil {
@@ -319,13 +311,6 @@ func TestTransferMargin(t *testing.T) {
 		t.Error("test failed - TransferMargin() error", err)
 	}
 }
-
-// func TestGetQuotes(t *testing.T) {
-// 	_, err := b.GetQuotes(GenericRequestParams{})
-// 	if err != nil {
-// 		t.Error("test failed - GetQuotes() error", err)
-// 	}
-// }
 
 func TestGetQuotesByBuckets(t *testing.T) {
 	_, err := b.GetQuotesByBuckets(QuoteGetBucketedParams{})
