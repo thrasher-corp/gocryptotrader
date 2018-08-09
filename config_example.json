@@ -308,6 +308,40 @@
    ]
   },
   {
+  "Name": "Bitmex",
+  "Enabled": true,
+  "Verbose": false,
+  "Websocket": false,
+  "UseSandbox": false,
+  "RESTPollingDelay": 10,
+  "HTTPTimeout": 15000000000,
+  "AuthenticatedAPISupport": false,
+  "APIKey": "Key",
+  "APISecret": "Secret",
+  "AvailablePairs": "XRPXBT",
+  "EnabledPairs": "XRPXBT",
+  "BaseCurrencies": "USD",
+  "AssetTypes": "SPOT",
+  "SupportsAutoPairUpdates": false,
+  "ConfigCurrencyPairFormat": {
+    "Uppercase": true
+  },
+  "RequestCurrencyPairFormat": {
+    "Uppercase": true
+  },
+  "BankAccounts": [
+    {
+      "BankName": "",
+      "BankAddress": "",
+      "AccountName": "",
+      "AccountNumber": "",
+      "SWIFTCode": "",
+      "IBAN": "",
+      "SupportedCurrencies": ""
+    }
+  ]
+},
+  {
    "name": "Bitstamp",
    "enabled": true,
    "verbose": false,
