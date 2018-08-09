@@ -138,7 +138,7 @@ type ExchangeConfig struct {
 // BankAccount holds differing bank account details by supported funding
 // currency
 type BankAccount struct {
-	Enabled             bool   `json:",omitempty"`
+	Enabled             bool   `json:"enabled,omitempty"`
 	BankName            string `json:"bankName"`
 	BankAddress         string `json:"bankAddress"`
 	AccountName         string `json:"accountName"`

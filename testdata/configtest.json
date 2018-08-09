@@ -5,40 +5,40 @@
  "currencyConfig": {
   "forexProviders": [
    {
-    "Name": "CurrencyConverter",
-    "Enabled": true,
-    "Verbose": false,
-    "RESTPollingDelay": 600,
-    "APIKey": "",
-    "APIKeyLvl": 0,
-    "PrimaryProvider": true
+    "name": "CurrencyConverter",
+    "enabled": true,
+    "verbose": false,
+    "restPollingDelay": 600,
+    "apiKey": "",
+    "apiKeyLvl": 0,
+    "primaryProvider": true
    },
    {
-    "Name": "CurrencyLayer",
-    "Enabled": false,
-    "Verbose": false,
-    "RESTPollingDelay": 600,
-    "APIKey": "Key",
-    "APIKeyLvl": -1,
-    "PrimaryProvider": false
+    "name": "CurrencyLayer",
+    "enabled": false,
+    "verbose": false,
+    "restPollingDelay": 600,
+    "apiKey": "Key",
+    "apiKeyLvl": -1,
+    "primaryProvider": false
    },
    {
-    "Name": "Fixer",
-    "Enabled": false,
-    "Verbose": false,
-    "RESTPollingDelay": 600,
-    "APIKey": "Key",
-    "APIKeyLvl": -1,
-    "PrimaryProvider": false
+    "name": "Fixer",
+    "enabled": false,
+    "verbose": false,
+    "restPollingDelay": 600,
+    "apiKey": "Key",
+    "apiKeyLvl": -1,
+    "primaryProvider": false
    },
    {
-    "Name": "OpenExchangeRates",
-    "Enabled": false,
-    "Verbose": false,
-    "RESTPollingDelay": 600,
-    "APIKey": "Key",
-    "APIKeyLvl": -1,
-    "PrimaryProvider": false
+    "name": "OpenExchangeRates",
+    "enabled": false,
+    "verbose": false,
+    "restPollingDelay": 600,
+    "apiKey": "Key",
+    "apiKeyLvl": -1,
+    "primaryProvider": false
    }
   ],
   "cryptocurrencies": "BTC,LTC,ETH,DOGE,DASH,XRP,XMR",
