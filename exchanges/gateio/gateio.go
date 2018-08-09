@@ -67,6 +67,7 @@ func (g *Gateio) Setup(exch config.ExchangeConfig) {
 		g.SetAPIKeys(exch.APIKey, exch.APISecret, "", false)
 		g.APIAuthPEMKey = exch.APIAuthPEMKey
 		g.SetHTTPClientTimeout(exch.HTTPTimeout)
+		g.SetHTTPClientUserAgent(exch.HTTPUserAgent)
 		g.RESTPollingDelay = exch.RESTPollingDelay
 		g.Verbose = exch.Verbose
 		g.Websocket = exch.Websocket

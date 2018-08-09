@@ -1,16 +1,16 @@
-# GoCryptoTrader package Zb
+# GoCryptoTrader package Huobihadax
 
 <img src="https://github.com/thrasher-/gocryptotrader/blob/master/web/src/assets/page-logo.png?raw=true" width="350px" height="350px" hspace="70">
 
 
 [![Build Status](https://travis-ci.org/thrasher-/gocryptotrader.svg?branch=master)](https://travis-ci.org/thrasher-/gocryptotrader)
 [![Software License](https://img.shields.io/badge/License-MIT-orange.svg?style=flat-square)](https://github.com/thrasher-/gocryptotrader/blob/master/LICENSE)
-[![GoDoc](https://godoc.org/github.com/thrasher-/gocryptotrader?status.svg)](https://godoc.org/github.com/thrasher-/gocryptotrader/exchanges/zb)
+[![GoDoc](https://godoc.org/github.com/thrasher-/gocryptotrader?status.svg)](https://godoc.org/github.com/thrasher-/gocryptotrader/exchanges/huobihadax)
 [![Coverage Status](http://codecov.io/github/thrasher-/gocryptotrader/coverage.svg?branch=master)](http://codecov.io/github/thrasher-/gocryptotrader?branch=master)
 [![Go Report Card](https://goreportcard.com/badge/github.com/thrasher-/gocryptotrader)](https://goreportcard.com/report/github.com/thrasher-/gocryptotrader)
 
 
-This zb package is part of the GoCryptoTrader codebase.
+This huobihadax package is part of the GoCryptoTrader codebase.
 
 ## This is still in active development
 
@@ -18,7 +18,7 @@ You can track ideas, planned features and what's in progresss on this Trello boa
 
 Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader Slack](https://gocryptotrader.herokuapp.com/)
 
-## ZB Exchange
+## HuobiHadax Exchange
 
 ### Current Features
 
@@ -45,24 +45,24 @@ below:
 
 main.go
 ```go
-var z exchange.IBotExchange
+var h exchange.IBotExchange
 
 for i := range bot.exchanges {
-  if bot.exchanges[i].GetName() == "ZB" {
-    z = bot.exchanges[i]
+  if bot.exchanges[i].GetName() == "HuobiHadax" {
+    h = bot.exchanges[i]
   }
 }
 
 // Public calls - wrapper functions
 
 // Fetches current ticker information
-tick, err := z.GetTickerPrice()
+tick, err := h.GetTickerPrice()
 if err != nil {
   // Handle error
 }
 
 // Fetches current orderbook information
-ob, err := z.GetOrderbookEx()
+ob, err := h.GetOrderbookEx()
 if err != nil {
   // Handle error
 }
@@ -71,7 +71,7 @@ if err != nil {
 // set and AuthenticatedAPISupport is set to true
 
 // Fetches current account information
-accountInfo, err := z.GetExchangeAccountInfo()
+accountInfo, err := h.GetExchangeAccountInfo()
 if err != nil {
   // Handle error
 }
@@ -83,13 +83,13 @@ if err != nil {
 // Public calls
 
 // Fetches current ticker information
-ticker, err := z.GetTicker()
+ticker, err := h.GetTicker()
 if err != nil {
   // Handle error
 }
 
 // Fetches current orderbook information
-ob, err := z.GetOrderBook()
+ob, err := h.GetOrderBook()
 if err != nil {
   // Handle error
 }
@@ -98,13 +98,13 @@ if err != nil {
 // AuthenticatedAPISupport is set to true
 
 // GetUserInfo returns account info
-accountInfo, err := z.GetUserInfo(...)
+accountInfo, err := h.GetUserInfo(...)
 if err != nil {
   // Handle error
 }
 
 // Submits an order and the exchange and returns its tradeID
-tradeID, err := z.Trade(...)
+tradeID, err := h.Trade(...)
 if err != nil {
   // Handle error
 }

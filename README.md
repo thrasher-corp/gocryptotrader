@@ -24,6 +24,7 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 | Bitfinex | Yes  | Yes        | NA  |
 | Bitflyer | Yes  | No      | NA  |
 | Bithumb | Yes  | NA       | NA  |
+| BitMEX | Yes | No | NA |
 | Bitstamp | Yes  | Yes       | No  |
 | Bittrex | Yes | No | NA |
 | BTCC | Yes  | Yes     | No  |
@@ -147,13 +148,13 @@ Binaries will be published once the codebase reaches a stable condition.
 
 |User|Github|Contribution Amount|
 |--|--|--|
-| thrasher- | https://github.com/thrasher- | 453 |
-| shazbert | https://github.com/shazbert | 141 |
+| thrasher- | https://github.com/thrasher- | 456 |
+| shazbert | https://github.com/shazbert | 142 |
 | gloriousCode | https://github.com/gloriousCode | 122 |
 | 140am | https://github.com/140am | 8 |
+| ermalguni | https://github.com/ermalguni | 4 |
 | marcofranssen | https://github.com/marcofranssen | 4 |
 | Betazoid | https://github.com/Betazoid | 4 |
-| ermalguni | https://github.com/ermalguni | 3 |
 | crackcomm | https://github.com/crackcomm | 3 |
 | bretep | https://github.com/bretep | 2 |
 | gam-phon | https://github.com/gam-phon | 2 |
@@ -175,6 +176,3 @@ Binaries will be published once the codebase reaches a stable condition.
 | askew- | https://github.com/askew- | 1 |
 | whilei | https://github.com/whilei | 1 |
 | snipesjr | https://github.com/snipesjr | 1 |
-
-
-

@@ -70,6 +70,7 @@ func (z *ZB) Setup(exch config.ExchangeConfig) {
 		z.SetAPIKeys(exch.APIKey, exch.APISecret, "", false)
 		z.APIAuthPEMKey = exch.APIAuthPEMKey
 		z.SetHTTPClientTimeout(exch.HTTPTimeout)
+		z.SetHTTPClientUserAgent(exch.HTTPUserAgent)
 		z.RESTPollingDelay = exch.RESTPollingDelay
 		z.Verbose = exch.Verbose
 		z.Websocket = exch.Websocket
@@ -303,9 +304,6 @@ func (z *ZB) SendAuthenticatedHTTPRequest(method, endpoint string, values url.Va
 		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet, z.Name)
 	}
 
-	headers := make(map[string]string)
-	headers["User-Agent"] = "Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/39.0.2171.71 Safari/537.36"
-
 	mapParams2Sign := url.Values{}
 	mapParams2Sign.Set("accesskey", z.APIKey)
 	mapParams2Sign.Set("method", values.Get("method"))
@@ -314,5 +312,5 @@ func (z *ZB) SendAuthenticatedHTTPRequest(method, endpoint string, values url.Va
 
 	url := fmt.Sprintf("%s/%s?%s", zbMarketURL, endpoint, values.Encode())
 
-	return z.SendPayload(method, url, headers, strings.NewReader(""), result, true, z.Verbose)
+	return z.SendPayload(method, url, nil, strings.NewReader(""), result, true, z.Verbose)
 }

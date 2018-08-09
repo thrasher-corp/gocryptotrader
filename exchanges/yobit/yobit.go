@@ -82,6 +82,7 @@ func (y *Yobit) Setup(exch config.ExchangeConfig) {
 		y.AvailablePairs = common.SplitStrings(exch.AvailablePairs, ",")
 		y.EnabledPairs = common.SplitStrings(exch.EnabledPairs, ",")
 		y.SetHTTPClientTimeout(exch.HTTPTimeout)
+		y.SetHTTPClientUserAgent(exch.HTTPUserAgent)
 		err := y.SetCurrencyPairFormat()
 		if err != nil {
 			log.Fatal(err)

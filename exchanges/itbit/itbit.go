@@ -67,6 +67,7 @@ func (i *ItBit) Setup(exch config.ExchangeConfig) {
 		i.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
 		i.SetAPIKeys(exch.APIKey, exch.APISecret, exch.ClientID, false)
 		i.SetHTTPClientTimeout(exch.HTTPTimeout)
+		i.SetHTTPClientUserAgent(exch.HTTPUserAgent)
 		i.RESTPollingDelay = exch.RESTPollingDelay
 		i.Verbose = exch.Verbose
 		i.Websocket = exch.Websocket

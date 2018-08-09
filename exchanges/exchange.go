@@ -102,6 +102,7 @@ type Base struct {
 	SupportsAutoPairUpdating                   bool
 	SupportsRESTTickerBatching                 bool
 	HTTPTimeout                                time.Duration
+	HTTPUserAgent                              string
 	WebsocketURL                               string
 	APIUrl                                     string
 	RequestCurrencyPairFormat                  config.CurrencyPairFormatConfig
@@ -173,6 +174,20 @@ func (e *Base) GetHTTPClient() *http.Client {
 		e.Requester = request.New(e.Name, request.NewRateLimit(time.Second, 0), request.NewRateLimit(time.Second, 0), new(http.Client))
 	}
 	return e.Requester.HTTPClient
+}
+
+// SetHTTPClientUserAgent sets the exchanges HTTP user agent
+func (e *Base) SetHTTPClientUserAgent(ua string) {
+	if e.Requester == nil {
+		e.Requester = request.New(e.Name, request.NewRateLimit(time.Second, 0), request.NewRateLimit(time.Second, 0), new(http.Client))
+	}
+	e.Requester.UserAgent = ua
+	e.HTTPUserAgent = ua
+}
+
+// GetHTTPClientUserAgent gets the exchanges HTTP user agent
+func (e *Base) GetHTTPClientUserAgent() string {
+	return e.HTTPUserAgent
 }
 
 // SetAutoPairDefaults sets the default values for whether or not the exchange

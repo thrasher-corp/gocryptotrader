@@ -136,6 +136,7 @@ func (l *LocalBitcoins) Setup(exch config.ExchangeConfig) {
 		l.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
 		l.SetAPIKeys(exch.APIKey, exch.APISecret, "", false)
 		l.SetHTTPClientTimeout(exch.HTTPTimeout)
+		l.SetHTTPClientUserAgent(exch.HTTPUserAgent)
 		l.RESTPollingDelay = exch.RESTPollingDelay
 		l.Verbose = exch.Verbose
 		l.Websocket = exch.Websocket
@@ -341,37 +342,57 @@ func (l *LocalBitcoins) GetCurrencies() error {
 // view contacts where the token owner is either buying or selling, respectively.
 // E.g. /api/dashboard/buyer/. All contacts where the token owner is
 // participating are returned.
-func (l *LocalBitcoins) GetDashboardInfo() (DashBoardInfo, error) {
-	resp := DashBoardInfo{}
+func (l *LocalBitcoins) GetDashboardInfo() ([]DashBoardInfo, error) {
+	var resp struct {
+		Data struct {
+			ContactList  []DashBoardInfo `json:"contact_list"`
+			ContactCount int             `json:"contact_count"`
+		}
+	}
 
-	return resp,
+	return resp.Data.ContactList,
 		l.SendAuthenticatedHTTPRequest("GET", localbitcoinsAPIDashboard, nil, &resp)
 }
 
 // GetDashboardReleasedTrades returns a list of all released trades where the
 // token owner is either a buyer or seller.
-func (l *LocalBitcoins) GetDashboardReleasedTrades() (DashBoardInfo, error) {
-	resp := DashBoardInfo{}
+func (l *LocalBitcoins) GetDashboardReleasedTrades() ([]DashBoardInfo, error) {
+	var resp struct {
+		Data struct {
+			ContactList  []DashBoardInfo `json:"contact_list"`
+			ContactCount int             `json:"contact_count"`
+		}
+	}
 
-	return resp,
+	return resp.Data.ContactList,
 		l.SendAuthenticatedHTTPRequest("GET", localbitcoinsAPIDashboardReleased, nil, &resp)
 }
 
 // GetDashboardCancelledTrades returns a list of all canceled trades where the
 // token owner is either a buyer or seller.
-func (l *LocalBitcoins) GetDashboardCancelledTrades() (DashBoardInfo, error) {
-	resp := DashBoardInfo{}
+func (l *LocalBitcoins) GetDashboardCancelledTrades() ([]DashBoardInfo, error) {
+	var resp struct {
+		Data struct {
+			ContactList  []DashBoardInfo `json:"contact_list"`
+			ContactCount int             `json:"contact_count"`
+		}
+	}
 
-	return resp,
+	return resp.Data.ContactList,
 		l.SendAuthenticatedHTTPRequest("GET", localbitcoinsAPIDashboardCancelled, nil, &resp)
 }
 
 // GetDashboardClosedTrades returns a list of all closed trades where the token
 // owner is either a buyer or seller.
-func (l *LocalBitcoins) GetDashboardClosedTrades() (DashBoardInfo, error) {
-	resp := DashBoardInfo{}
+func (l *LocalBitcoins) GetDashboardClosedTrades() ([]DashBoardInfo, error) {
+	var resp struct {
+		Data struct {
+			ContactList  []DashBoardInfo `json:"contact_list"`
+			ContactCount int             `json:"contact_count"`
+		}
+	}
 
-	return resp,
+	return resp.Data.ContactList,
 		l.SendAuthenticatedHTTPRequest("GET", localbitcoinsAPIDashboardClosed, nil, &resp)
 }
 

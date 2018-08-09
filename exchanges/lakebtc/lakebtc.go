@@ -68,6 +68,7 @@ func (l *LakeBTC) Setup(exch config.ExchangeConfig) {
 		l.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
 		l.SetAPIKeys(exch.APIKey, exch.APISecret, "", false)
 		l.SetHTTPClientTimeout(exch.HTTPTimeout)
+		l.SetHTTPClientUserAgent(exch.HTTPUserAgent)
 		l.RESTPollingDelay = exch.RESTPollingDelay
 		l.Verbose = exch.Verbose
 		l.Websocket = exch.Websocket

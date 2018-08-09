@@ -79,6 +79,7 @@ func (b *BTCC) Setup(exch config.ExchangeConfig) {
 		b.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
 		b.SetAPIKeys(exch.APIKey, exch.APISecret, "", false)
 		b.SetHTTPClientTimeout(exch.HTTPTimeout)
+		b.SetHTTPClientUserAgent(exch.HTTPUserAgent)
 		b.RESTPollingDelay = exch.RESTPollingDelay
 		b.Verbose = exch.Verbose
 		b.Websocket = exch.Websocket

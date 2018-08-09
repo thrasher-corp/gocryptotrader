@@ -78,6 +78,7 @@ func (p *HitBTC) Setup(exch config.ExchangeConfig) {
 		p.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
 		p.SetAPIKeys(exch.APIKey, exch.APISecret, "", false)
 		p.SetHTTPClientTimeout(exch.HTTPTimeout)
+		p.SetHTTPClientUserAgent(exch.HTTPUserAgent)
 		p.RESTPollingDelay = exch.RESTPollingDelay // Max 60000ms
 		p.Verbose = exch.Verbose
 		p.Websocket = exch.Websocket
