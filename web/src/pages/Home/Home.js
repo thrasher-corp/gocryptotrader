@@ -3,13 +3,14 @@ import PropTypes from 'prop-types';
 import { Paper, Typography } from '@material-ui/core';
 import { withStyles } from '@material-ui/core/styles';
 import { pageStyles } from '../styles';
-import logo from './logo.svg';
+// import logo from './logo.svg';
 import './Home.css';
+import logo from '../../assets/images/gctlogo-diff.svg';
 
 const styles = theme => ({
   ...pageStyles(theme),
   logo: {
-    animation: 'App-logo-spin infinite 20s linear',
+    animation: 'App-logo-wiggle infinite 5s linear',
     height: '200px'
   }
 });
