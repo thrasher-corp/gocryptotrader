@@ -228,7 +228,7 @@ func (c *Config) GetCurrencyConfig() CurrencyConfig {
 
 // GetExchangeBankAccounts returns banking details associated with an exchange
 // for depositing funds
-func (c *Config) GetExchangeBankAccounts(exchangeName, depositingCurrency string) (BankAccount, error) {
+func (c *Config) GetExchangeBankAccounts(exchangeName string, depositingCurrency string) (BankAccount, error) {
 	m.Lock()
 	defer m.Unlock()
 
@@ -264,7 +264,7 @@ func (c *Config) UpdateExchangeBankAccounts(exchangeName string, bankCfg []BankA
 
 // GetClientBankAccounts returns banking details used for a given exchange
 // and currency
-func (c *Config) GetClientBankAccounts(exchangeName, targetCurrency string) (BankAccount, error) {
+func (c *Config) GetClientBankAccounts(exchangeName string, targetCurrency string) (BankAccount, error) {
 	m.Lock()
 	defer m.Unlock()
 
