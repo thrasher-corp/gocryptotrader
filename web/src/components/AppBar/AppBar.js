@@ -11,56 +11,70 @@ const drawerWidth = 240;
 
 const styles = theme => ({
   flex: {
-    flexGrow: 1,
+    flexGrow: 1
   },
   appBar: {
     zIndex: theme.zIndex.drawer + 1,
     transition: theme.transitions.create(['width', 'margin'], {
       easing: theme.transitions.easing.sharp,
-      duration: theme.transitions.duration.leavingScreen,
-    }),
+      duration: theme.transitions.duration.leavingScreen
+    })
   },
   appBarShift: {
     marginLeft: drawerWidth,
     width: `calc(100% - ${drawerWidth}px)`,
     transition: theme.transitions.create(['width', 'margin'], {
       easing: theme.transitions.easing.sharp,
-      duration: theme.transitions.duration.enteringScreen,
-    }),
+      duration: theme.transitions.duration.enteringScreen
+    })
   },
   menuButton: {
     marginLeft: 12,
-    marginRight: 36,
+    marginRight: 36
   },
   hide: {
-    display: 'none',
+    display: 'none'
   },
   toolbar: {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'flex-end',
     padding: '0 8px',
-    ...theme.mixins.toolbar,
-  },
+    ...theme.mixins.toolbar
+  }
 });
 
-const MenuAppBar = (props) => {
+const MenuAppBar = props => {
   const { classes, drawerIsOpen, handleDrawerOpen } = props;
 
   return (
     <React.Fragment>
-      <AppBar position="absolute" className={classNames(classes.appBar, drawerIsOpen && classes.appBarShift)}>
+      <AppBar
+        position="absolute"
+        className={classNames(
+          classes.appBar,
+          drawerIsOpen && classes.appBarShift
+        )}
+      >
         <Toolbar disableGutters={!drawerIsOpen}>
           <IconButton
             onClick={handleDrawerOpen}
-            className={classNames(classes.menuButton, drawerIsOpen && classes.hide)}
+            className={classNames(
+              classes.menuButton,
+              drawerIsOpen && classes.hide
+            )}
             color="inherit"
             aria-label="Menu"
           >
             <MenuIcon />
           </IconButton>
-          <Typography variant="title" color="inherit" noWrap className={classes.flex}>
-            Crypto Trader
+          <Typography
+            variant="h6"
+            color="inherit"
+            noWrap
+            className={classes.flex}
+          >
+            GoCryptoTrader
           </Typography>
           <AccountMenu />
         </Toolbar>
@@ -71,7 +85,7 @@ const MenuAppBar = (props) => {
 
 MenuAppBar.propTypes = {
   classes: PropTypes.object.isRequired,
-  theme: PropTypes.object.isRequired,
+  theme: PropTypes.object.isRequired
 };
 
 export default withStyles(styles, { withTheme: true })(MenuAppBar);

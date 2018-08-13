@@ -78,7 +78,7 @@ class WebserverSettings extends Component {
             </FormGroup>
           </Grid>
           <Grid item xs={12} sm={6}>
-            <Typography variant="subheading" gutterBottom>
+            <Typography variant="subtitle1" gutterBottom>
               Websocket
             </Typography>
             <FormGroup row>

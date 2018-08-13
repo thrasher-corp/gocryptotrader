@@ -124,7 +124,7 @@ class Settings extends Component {
       return (
         <div className={classes.root}>
           <Paper className={classes.paper}>
-            <Typography variant="title" gutterBottom>
+            <Typography variant="h6" gutterBottom>
               Settings
             </Typography>
             <EmptyState data={data} error={error} isLoading={isLoading} />
@@ -136,7 +136,7 @@ class Settings extends Component {
     return (
       <div className={classes.root}>
         <Paper className={classes.paper}>
-          <Typography variant="title" gutterBottom>
+          <Typography variant="h6" gutterBottom>
             Settings
           </Typography>
           <Typography variant="body1" gutterBottom>

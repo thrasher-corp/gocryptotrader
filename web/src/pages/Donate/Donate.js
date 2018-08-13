@@ -28,10 +28,10 @@ const Donate = props => {
   return (
     <div className={classes.root}>
       <Paper className={classes.paper}>
-        <Typography variant="title" gutterBottom>
+        <Typography variant="h6" gutterBottom>
           Donate
         </Typography>
-        <Typography variant="headline" gutterBottom>
+        <Typography variant="h5" gutterBottom>
           To support the developers please consider making a donation:
         </Typography>
         <List>

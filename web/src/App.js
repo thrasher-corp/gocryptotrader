@@ -10,6 +10,9 @@ import { Home, About, Donate, Settings, NotFound } from './pages';
 import './App.css';
 
 const theme = createMuiTheme({
+  typography: {
+    useNextVariants: true
+  },
   palette: {
     type: 'dark',
     primary: {
