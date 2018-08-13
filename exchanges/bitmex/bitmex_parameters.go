@@ -884,7 +884,7 @@ type TradeGetBucketedParams struct {
 	Start int32 `json:"start,omitempty"`
 
 	// StartTime - Starting date filter for results.
-	StartTime string `json:"symbol,omitempty"`
+	StartTime string `json:"startTime,omitempty"`
 
 	// Symbol - Instrument symbol. Send a bare series (e.g. XBU) to get data for
 	// the nearest expiring contract in that series.You can also send a timeframe,
