@@ -75,6 +75,7 @@
     "@types/jasminewd2": "^2.0.3",
     "@types/node": "^7.0.67",
     "codelyzer": "^4.4.2",
+    "core-js": "^2.5.7",
     "cross-env": "^5.2.0",
     "dotenv": "^6.0.0",
     "electron": "^2.0.7",
