@@ -1,6 +1,6 @@
 import { async, ComponentFixture, TestBed } from '@angular/core/testing';
 
-import { AllEnabledCurrencyTickersComponent } from './all-enabled-currency-tickers.component';
+import { AllEnabledCurrencyTickersComponent } from './all-updates-ticker.component';
 
 describe('AllEnabledCurrencyTickersComponent', () => {
   let component: AllEnabledCurrencyTickersComponent;
