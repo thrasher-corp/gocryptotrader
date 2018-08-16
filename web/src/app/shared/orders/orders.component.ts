@@ -1,5 +1,12 @@
 import { Component, OnInit } from '@angular/core';
 
+export class Order {
+  public count: number;
+  public total: number;
+  public price: number;
+  public amount: number;
+}
+
 @Component({
   selector: 'app-orders',
   templateUrl: './orders.component.html',
@@ -48,12 +55,4 @@ export class OrdersComponent implements OnInit {
 
   }
 
-}
-
-
-export class Order {
-  public count: number;
-  public total: number;
-  public price: number;
-  public amount: number;
 }

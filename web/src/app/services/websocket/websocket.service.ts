@@ -52,7 +52,7 @@ export class WebsocketService {
         }, 400);
 
         if (ws.readyState !== WebSocket.OPEN) {
-          new Error('Failed to send message to websocket after 10 attempts');
+          throw new Error('Failed to send message to websocket after 10 attempts');
           this.isConnected = false;
         }
       }

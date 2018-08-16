@@ -28,18 +28,23 @@ export class WalletComponent implements OnInit {
     this.ws.shared.subscribe(msg => {
       if (msg.event === WebSocketMessageType.GetPortfolio) {
         this.wallet = <Wallet>msg.data;
-        console.log(msg.data);
-        this.attachIcon(this.wallet.coin_totals);
-        this.attachIcon(this.wallet.coins_offline);
-        this.attachIcon(this.wallet.coins_online);
+        console.log('wallet: ' + msg.data);
+        console.log('message: ' + JSON.stringify(msg));
+        console.log('data: ' +  this.wallet);
 
-        this.attachIcon(this.wallet.offline_summary.BTC);
-        this.attachIcon(this.wallet.offline_summary.ETH);
-        this.attachIcon(this.wallet.offline_summary.LTC);
+        if (this.wallet != null && this.wallet.coin_totals != null) {
+          this.attachIcon(this.wallet.coin_totals);
+          this.attachIcon(this.wallet.coins_offline);
+          this.attachIcon(this.wallet.coins_online);
 
-        this.attachIcon(this.wallet.online_summary.BTC);
-        this.attachIcon(this.wallet.online_summary.ETH);
-        this.attachIcon(this.wallet.online_summary.LTC);
+          this.attachIcon(this.wallet.offline_summary.BTC);
+          this.attachIcon(this.wallet.offline_summary.ETH);
+          this.attachIcon(this.wallet.offline_summary.LTC);
+
+          this.attachIcon(this.wallet.online_summary.BTC);
+          this.attachIcon(this.wallet.online_summary.ETH);
+          this.attachIcon(this.wallet.online_summary.LTC);
+        }
       }
     });
   }

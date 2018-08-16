@@ -17,7 +17,10 @@ export class AppComponent implements OnInit {
   private ws: WebsocketResponseHandlerService;
   public isConnected = false;
 
-  constructor(public electronService: ElectronService, sidebarService: SidebarService, private router: Router, private websocketHandler: WebsocketResponseHandlerService) {
+  constructor(public electronService: ElectronService,
+    sidebarService: SidebarService,
+    private router: Router,
+    private websocketHandler: WebsocketResponseHandlerService) {
 
     if (electronService.isElectron()) {
       console.log('Mode electron');

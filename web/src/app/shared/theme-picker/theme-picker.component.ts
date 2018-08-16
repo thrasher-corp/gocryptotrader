@@ -11,7 +11,6 @@ import {CommonModule} from '@angular/common';
   styleUrls: ['theme-picker.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush,
   encapsulation: ViewEncapsulation.None,
-  host: {'aria-hidden': 'true'},
 })
 export class ThemePickerComponent {
   currentTheme;

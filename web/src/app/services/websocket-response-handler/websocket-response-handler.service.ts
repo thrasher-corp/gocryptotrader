@@ -25,8 +25,12 @@ export class WebsocketResponseHandlerService {
                     this.isConnected = this.ws.isConnected;
                 }, 2000);
                 const websocketResponseMessage = JSON.parse(response.data);
-                const websocketResponseData = websocketResponseMessage.Data === undefined ? websocketResponseMessage.data : websocketResponseMessage.Data;
-                const websocketResponseEvent = websocketResponseMessage.Event === undefined ? websocketResponseMessage.event : websocketResponseMessage.Event;
+                const websocketResponseData = websocketResponseMessage.Data === undefined
+                    ? websocketResponseMessage.data
+                    : websocketResponseMessage.Data;
+                const websocketResponseEvent = websocketResponseMessage.Event === undefined
+                    ? websocketResponseMessage.event
+                    : websocketResponseMessage.Event;
                 const responseMessage = new WebSocketMessage();
 
                 responseMessage.event = websocketResponseEvent;
