@@ -44,7 +44,7 @@ import { SettingsComponent, EnabledCurrenciesDialogueComponent } from './pages/s
 // Shared
 import { NavbarComponent } from './shared/navbar/navbar.component';
 import { AllEnabledCurrencyTickersComponent } from './shared/all-updates-ticker/all-updates-ticker.component';
-import { ThemePickerComponent } from './shared/theme-picker/theme-picker';
+import { ThemePickerComponent } from './shared/theme-picker/theme-picker.component';
 import {IterateMapPipe, EnabledCurrenciesPipe} from './shared/classes/pipes';
 // services
 import { WebsocketService } from './services/websocket/websocket.service';

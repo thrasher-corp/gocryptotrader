@@ -1,3 +1,11 @@
+export class WebSocketMessageType {
+    public static Auth = 'auth';
+    public static GetConfig = 'GetConfig';
+    public static SaveConfig = 'SaveConfig';
+    public static GetPortfolio = 'GetPortfolio';
+    public static TickerUpdate = 'ticker_update';
+}
+
 export class WebSocketMessage {
     public event: string;
     public data: any;
@@ -22,12 +30,4 @@ export class WebSocketMessage {
 
         return response;
     }
-}
-
-export class WebSocketMessageType {
-    public static Auth = 'auth';
-    public static GetConfig = 'GetConfig';
-    public static SaveConfig = 'SaveConfig';
-    public static GetPortfolio = 'GetPortfolio';
-    public static TickerUpdate = 'ticker_update';
 }

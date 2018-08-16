@@ -1,5 +1,11 @@
 import { inherits } from 'util';
 
+export class CurrencyPairRedux {
+  Name: string;
+  ParsedName: string;
+  Enabled: boolean;
+}
+
 export class Config {
     Name: string;
     EncryptConfig?: number;
@@ -113,11 +119,6 @@ export class Config {
       }
   }
 
-export class CurrencyPairRedux {
-    Name: string;
-    ParsedName: string;
-    Enabled: boolean;
-  }
 
   export interface CurrencyPairFormat {
     Uppercase: boolean;

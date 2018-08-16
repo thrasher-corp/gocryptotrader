@@ -1,5 +1,12 @@
 import { Component, OnInit } from '@angular/core';
 
+export class MyOrders {
+  public count: number;
+  public total: number;
+  public price: number;
+  public amount: number;
+}
+
 @Component({
   selector: 'app-my-orders',
   templateUrl: './my-orders.component.html',
@@ -24,12 +31,4 @@ export class MyOrdersComponent implements OnInit {
     this.orders.push(item);
     this.orders.push(item);
   }
-}
-
-
-export class MyOrders {
-  public count: number;
-  public total: number;
-  public price: number;
-  public amount: number;
 }

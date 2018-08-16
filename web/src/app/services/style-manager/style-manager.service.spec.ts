@@ -1,17 +1,17 @@
 import {inject, TestBed} from '@angular/core/testing';
 import {HttpModule} from '@angular/http';
-import {StyleManagerComponent} from './style-manager.component';
+import {StyleManagerService} from './style-manager.service';
 
 
 describe('StyleManager', () => {
-  let styleManager: StyleManagerComponent;
+  let styleManager: StyleManagerService;
 
   beforeEach(() => TestBed.configureTestingModule({
     imports: [HttpModule],
-    providers: [StyleManagerComponent]
+    providers: [StyleManagerService]
   }));
 
-  beforeEach(inject([StyleManagerComponent], (sm: StyleManagerComponent) => {
+  beforeEach(inject([StyleManagerService], (sm: StyleManagerService) => {
     styleManager = sm;
   }));
 

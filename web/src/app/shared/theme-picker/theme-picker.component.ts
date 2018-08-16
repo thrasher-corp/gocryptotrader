@@ -7,11 +7,10 @@ import {CommonModule} from '@angular/common';
 
 @Component({
   selector: 'app-theme-picker',
-  templateUrl: 'theme-picker.html',
-  styleUrls: ['theme-picker.scss'],
+  templateUrl: 'theme-picker.component.html',
+  styleUrls: ['theme-picker.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush,
   encapsulation: ViewEncapsulation.None,
-  host: {'aria-hidden': 'true'},
 })
 export class ThemePickerComponent {
   currentTheme;

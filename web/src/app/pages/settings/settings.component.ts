@@ -6,6 +6,28 @@ import { MatSnackBar, MatDialog, MatDialogRef, MAT_DIALOG_DATA} from '@angular/m
 import { WalletComponent } from '../wallet/wallet.component';
 
 @Component({
+  selector: 'app-dialog-overview-example-dialog',
+  template: '<h4>Enabled Currencies</h4><div *ngFor="let currency of data.pairs">'
+  + '<mat-checkbox name="{{currency.Name}}2" [(ngModel)]="currency.Enabled">{{currency.Name}}</mat-checkbox>'
+  + '</div><button mat-raised-button color="primary" (click)="close()">DONE</button>',
+})
+export class EnabledCurrenciesDialogueComponent {
+
+  constructor(
+    public dialogRef: MatDialogRef<EnabledCurrenciesDialogueComponent>,
+    @Inject(MAT_DIALOG_DATA) public data: any) { }
+
+  onNoClick(): void {
+    this.dialogRef.close();
+  }
+
+  public close(): void {
+    this.dialogRef.close();
+
+  }
+}
+
+@Component({
   selector: 'app-settings',
   templateUrl: './settings.component.html',
   styleUrls: ['./settings.component.scss'],
@@ -18,10 +40,13 @@ export class SettingsComponent implements OnInit {
   private snackBar: MatSnackBar;
   private dialogue;
 
-    constructor(private websocketHandler: WebsocketResponseHandlerService, snackBar: MatSnackBar, public dialog: MatDialog) {
+  constructor(private websocketHandler: WebsocketResponseHandlerService,
+      snackBar: MatSnackBar,
+      public dialog: MatDialog) {
     this.ws = websocketHandler;
     this.snackBar = snackBar;
   }
+
   ngOnInit() {
     this.ws.shared.subscribe(msg => {
       if (msg.event === WebSocketMessageType.GetConfig) {
@@ -82,25 +107,6 @@ export class SettingsComponent implements OnInit {
   }
 }
 
-@Component({
-  selector: 'app-dialog-overview-example-dialog',
-  template: '<h4>Enabled Currencies</h4><div *ngFor="let currency of data.pairs"><mat-checkbox name="{{currency.Name}}2" [(ngModel)]="currency.Enabled">{{currency.Name}}</mat-checkbox></div><button mat-raised-button color="primary" (click)="close()">DONE</button>',
-})
-export class EnabledCurrenciesDialogueComponent {
 
-  constructor(
-    public dialogRef: MatDialogRef<EnabledCurrenciesDialogueComponent>,
-    @Inject(MAT_DIALOG_DATA) public data: any) { }
-
-  onNoClick(): void {
-    this.dialogRef.close();
-  }
-
-  public close(): void {
-    this.dialogRef.close();
-
-  }
-
-}
 
 

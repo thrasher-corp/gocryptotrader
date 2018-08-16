@@ -1,5 +1,11 @@
 import { Component, OnInit } from '@angular/core';
 
+export class TradeHistoryOrder {
+  public price: number;
+  public time: Date;
+  public amount: number;
+}
+
 @Component({
   selector: 'app-trade-history',
   templateUrl: './trade-history.component.html',
@@ -45,12 +51,4 @@ export class TradeHistoryComponent implements OnInit {
     this.orders.push(item);
     this.orders.push(item);
   }
-
-
-
-}
-export class TradeHistoryOrder {
-  public price: number;
-  public time: Date;
-  public amount: number;
 }
