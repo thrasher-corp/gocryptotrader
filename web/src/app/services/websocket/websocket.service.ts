@@ -52,8 +52,8 @@ export class WebsocketService {
         }, 400);
 
         if (ws.readyState !== WebSocket.OPEN) {
-          throw new Error('Failed to send message to websocket after 10 attempts');
           this.isConnected = false;
+          throw new Error('Failed to send message to websocket after 10 attempts');
         }
       }
     };
