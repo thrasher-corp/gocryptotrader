@@ -1,5 +1,7 @@
 package fixer
 
+import "github.com/thrasher-/gocryptotrader/decimal"
+
 // Rates contains the data fields for the currencies you have requested.
 type Rates struct {
 	Success bool `json:"success"`
@@ -8,11 +10,11 @@ type Rates struct {
 		Type string `json:"type"`
 		Info string `json:"info"`
 	} `json:"error"`
-	Historical bool               `json:"historical"`
-	Timestamp  int64              `json:"timestamp"`
-	Base       string             `json:"base"`
-	Date       string             `json:"date"`
-	Rates      map[string]float64 `json:"rates"`
+	Historical bool                       `json:"historical"`
+	Timestamp  int64                      `json:"timestamp"`
+	Base       string                     `json:"base"`
+	Date       string                     `json:"date"`
+	Rates      map[string]decimal.Decimal `json:"rates"`
 }
 
 // Conversion contains data for currency conversion
@@ -24,17 +26,17 @@ type Conversion struct {
 		Info string `json:"info"`
 	} `json:"error"`
 	Query struct {
-		From   string  `json:"from"`
-		To     string  `json:"to"`
-		Amount float64 `json:"amount"`
+		From   string          `json:"from"`
+		To     string          `json:"to"`
+		Amount decimal.Decimal `json:"amount"`
 	} `json:"query"`
 	Info struct {
-		Timestamp int64   `json:"timestamp"`
-		Rate      float64 `json:"rate"`
+		Timestamp int64           `json:"timestamp"`
+		Rate      decimal.Decimal `json:"rate"`
 	} `json:"info"`
-	Historical bool    `json:"historical"`
-	Date       string  `json:"date"`
-	Result     float64 `json:"result"`
+	Historical bool            `json:"historical"`
+	Date       string          `json:"date"`
+	Result     decimal.Decimal `json:"result"`
 }
 
 // TimeSeries holds timeseries data
@@ -69,8 +71,8 @@ type Fluctuation struct {
 
 // Flux is a sub type holding fluctation data
 type Flux struct {
-	StartRate float64 `json:"start_rate"`
-	EndRate   float64 `json:"end_rate"`
-	Change    float64 `json:"change"`
-	ChangePCT float64 `json:"change_pct"`
+	StartRate decimal.Decimal `json:"start_rate"`
+	EndRate   decimal.Decimal `json:"end_rate"`
+	Change    decimal.Decimal `json:"change"`
+	ChangePCT decimal.Decimal `json:"change_pct"`
 }

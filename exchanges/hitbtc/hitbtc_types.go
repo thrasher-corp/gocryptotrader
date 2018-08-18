@@ -1,19 +1,23 @@
 package hitbtc
 
-import "time"
+import (
+	"time"
+
+	"github.com/thrasher-/gocryptotrader/decimal"
+)
 
 // Ticker holds ticker information
 type Ticker struct {
-	Last        float64
-	Ask         float64
-	Bid         float64
+	Last        decimal.Decimal
+	Ask         decimal.Decimal
+	Bid         decimal.Decimal
 	Timestamp   time.Time
-	Volume      float64
-	VolumeQuote float64
+	Volume      decimal.Decimal
+	VolumeQuote decimal.Decimal
 	Symbol      string
-	High        float64
-	Low         float64
-	Open        float64
+	High        decimal.Decimal
+	Low         decimal.Decimal
+	Open        decimal.Decimal
 }
 
 // TickerResponse is the response type
@@ -32,14 +36,14 @@ type TickerResponse struct {
 
 // Symbol holds symbol data
 type Symbol struct {
-	ID                   string  `json:"id"` // Symbol identifier. In the future, the description will simply use the symbol
-	BaseCurrency         string  `json:"baseCurrency"`
-	QuoteCurrency        string  `json:"quoteCurrency"`
-	QuantityIncrement    float64 `json:"quantityIncrement,string"`
-	TickSize             float64 `json:"tickSize,string"`
-	TakeLiquidityRate    float64 `json:"takeLiquidityRate,string"`    // Default fee rate
-	ProvideLiquidityRate float64 `json:"provideLiquidityRate,string"` // Default fee rate for market making trades
-	FeeCurrency          string  `json:"feeCurrency"`                 // Default fee rate for market making trades
+	ID                   string          `json:"id"` // Symbol identifier. In the future, the description will simply use the symbol
+	BaseCurrency         string          `json:"baseCurrency"`
+	QuoteCurrency        string          `json:"quoteCurrency"`
+	QuantityIncrement    decimal.Decimal `json:"quantityIncrement,string"`
+	TickSize             decimal.Decimal `json:"tickSize,string"`
+	TakeLiquidityRate    decimal.Decimal `json:"takeLiquidityRate,string"`    // Default fee rate
+	ProvideLiquidityRate decimal.Decimal `json:"provideLiquidityRate,string"` // Default fee rate for market making trades
+	FeeCurrency          string          `json:"feeCurrency"`                 // Default fee rate for market making trades
 }
 
 // OrderbookResponse is the full orderbook response
@@ -50,8 +54,8 @@ type OrderbookResponse struct {
 
 // OrderbookItem is a sub type for orderbook response
 type OrderbookItem struct {
-	Price  float64 `json:"price,string"` // Price level
-	Amount float64 `json:"size,string"`  // Total volume of orders with the specified price
+	Price  decimal.Decimal `json:"price,string"` // Price level
+	Amount decimal.Decimal `json:"size,string"`  // Total volume of orders with the specified price
 }
 
 // Orderbook contains orderbook data
@@ -62,22 +66,22 @@ type Orderbook struct {
 
 // TradeHistory contains trade history data
 type TradeHistory struct {
-	ID        int64   `json:"id"`              // Trade id
-	Timestamp string  `json:"timestamp"`       // Trade timestamp
-	Side      string  `json:"side"`            // Trade side sell or buy
-	Price     float64 `json:"price,string"`    // Trade price
-	Quantity  float64 `json:"quantity,string"` // Trade quantity
+	ID        int64           `json:"id"`              // Trade id
+	Timestamp string          `json:"timestamp"`       // Trade timestamp
+	Side      string          `json:"side"`            // Trade side sell or buy
+	Price     decimal.Decimal `json:"price,string"`    // Trade price
+	Quantity  decimal.Decimal `json:"quantity,string"` // Trade quantity
 }
 
 // ChartData contains chart data
 type ChartData struct {
-	Timestamp   time.Time `json:"timestamp,string"`
-	Max         float64   `json:"max,string"`         // Max price
-	Min         float64   `json:"min,string"`         // Min price
-	Open        float64   `json:"open,string"`        // Open price
-	Close       float64   `json:"close,string"`       // Close price
-	Volume      float64   `json:"volume,string"`      // Volume in base currency
-	VolumeQuote float64   `json:"volumeQuote,string"` // Volume in quote currency
+	Timestamp   time.Time       `json:"timestamp,string"`
+	Max         decimal.Decimal `json:"max,string"`         // Max price
+	Min         decimal.Decimal `json:"min,string"`         // Min price
+	Open        decimal.Decimal `json:"open,string"`        // Open price
+	Close       decimal.Decimal `json:"close,string"`       // Close price
+	Volume      decimal.Decimal `json:"volume,string"`      // Volume in base currency
+	VolumeQuote decimal.Decimal `json:"volumeQuote,string"` // Volume in quote currency
 }
 
 // Currencies hold the full range of data for a specified currency
@@ -95,10 +99,10 @@ type Currencies struct {
 
 // LoanOrder contains information about your loans
 type LoanOrder struct {
-	Rate     float64 `json:"rate,string"`
-	Amount   float64 `json:"amount,string"`
-	RangeMin int     `json:"rangeMin"`
-	RangeMax int     `json:"rangeMax"`
+	Rate     decimal.Decimal `json:"rate,string"`
+	Amount   decimal.Decimal `json:"amount,string"`
+	RangeMin int             `json:"rangeMin"`
+	RangeMax int             `json:"rangeMax"`
 }
 
 // LoanOrders holds information on the full range of loan orders
@@ -109,9 +113,9 @@ type LoanOrders struct {
 
 // Balance is a simple balance type
 type Balance struct {
-	Currency  string  `json:"currency"`
-	Available float64 `json:"available,string"` // Amount available for trading or transfer to main account
-	Reserved  float64 `json:"reserved,string"`  // Amount reserved for active orders or incomplete transfers to main account
+	Currency  string          `json:"currency"`
+	Available decimal.Decimal `json:"available,string"` // Amount available for trading or transfer to main account
+	Reserved  decimal.Decimal `json:"reserved,string"`  // Amount reserved for active orders or incomplete transfers to main account
 
 }
 
@@ -139,13 +143,13 @@ type Order struct {
 	//   to execute a transaction immediately and completely or not at all.
 	// Day - keeps the order active until the end of the trading day in UTC.
 	// GTD - Good till date specified in expireTime.
-	Quantity    float64   `json:"quantity,string"`    // Order quantity
-	Price       float64   `json:"price,string"`       // Order price
-	CumQuantity float64   `json:"cumQuantity,string"` // Cumulative executed quantity
-	CreatedAt   time.Time `json:"createdAt,string"`
-	UpdatedAt   time.Time `json:"updatedAt,string"`
-	StopPrice   float64   `json:"stopPrice,string"`
-	ExpireTime  time.Time `json:"expireTime,string"`
+	Quantity    decimal.Decimal `json:"quantity,string"`    // Order quantity
+	Price       decimal.Decimal `json:"price,string"`       // Order price
+	CumQuantity decimal.Decimal `json:"cumQuantity,string"` // Cumulative executed quantity
+	CreatedAt   time.Time       `json:"createdAt,string"`
+	UpdatedAt   time.Time       `json:"updatedAt,string"`
+	StopPrice   decimal.Decimal `json:"stopPrice,string"`
+	ExpireTime  time.Time       `json:"expireTime,string"`
 }
 
 // OpenOrdersResponseAll holds the full open order response
@@ -160,16 +164,16 @@ type OpenOrdersResponse struct {
 
 // AuthentictedTradeHistory contains trade history data
 type AuthentictedTradeHistory struct {
-	GlobalTradeID int64   `json:"globalTradeID"`
-	TradeID       int64   `json:"tradeID,string"`
-	Date          string  `json:"date"`
-	Rate          float64 `json:"rate,string"`
-	Amount        float64 `json:"amount,string"`
-	Total         float64 `json:"total,string"`
-	Fee           float64 `json:"fee,string"`
-	OrderNumber   int64   `json:"orderNumber,string"`
-	Type          string  `json:"type"`
-	Category      string  `json:"category"`
+	GlobalTradeID int64           `json:"globalTradeID"`
+	TradeID       int64           `json:"tradeID,string"`
+	Date          string          `json:"date"`
+	Rate          decimal.Decimal `json:"rate,string"`
+	Amount        decimal.Decimal `json:"amount,string"`
+	Total         decimal.Decimal `json:"total,string"`
+	Fee           decimal.Decimal `json:"fee,string"`
+	OrderNumber   int64           `json:"orderNumber,string"`
+	Type          string          `json:"type"`
+	Category      string          `json:"category"`
 }
 
 // AuthenticatedTradeHistoryAll contains the full trade history
@@ -184,12 +188,12 @@ type AuthenticatedTradeHistoryResponse struct {
 
 // ResultingTrades holds resulting trade information
 type ResultingTrades struct {
-	Amount  float64 `json:"amount,string"`
-	Date    string  `json:"date"`
-	Rate    float64 `json:"rate,string"`
-	Total   float64 `json:"total,string"`
-	TradeID int64   `json:"tradeID,string"`
-	Type    string  `json:"type"`
+	Amount  decimal.Decimal `json:"amount,string"`
+	Date    string          `json:"date"`
+	Rate    decimal.Decimal `json:"rate,string"`
+	Total   decimal.Decimal `json:"total,string"`
+	TradeID int64           `json:"tradeID,string"`
+	Type    string          `json:"type"`
 }
 
 // OrderResponse holds the order response information
@@ -220,39 +224,39 @@ type Withdraw struct {
 
 // Fee holds fee structure
 type Fee struct {
-	TakeLiquidityRate    float64 `json:"takeLiquidityRate,string"`    // Taker
-	ProvideLiquidityRate float64 `json:"provideLiquidityRate,string"` // Maker
+	TakeLiquidityRate    decimal.Decimal `json:"takeLiquidityRate,string"`    // Taker
+	ProvideLiquidityRate decimal.Decimal `json:"provideLiquidityRate,string"` // Maker
 }
 
 // Margin holds full margin information
 type Margin struct {
-	TotalValue    float64 `json:"totalValue,string"`
-	ProfitLoss    float64 `json:"pl,string"`
-	LendingFees   float64 `json:"lendingFees,string"`
-	NetValue      float64 `json:"netValue,string"`
-	BorrowedValue float64 `json:"totalBorrowedValue,string"`
-	CurrentMargin float64 `json:"currentMargin,string"`
+	TotalValue    decimal.Decimal `json:"totalValue,string"`
+	ProfitLoss    decimal.Decimal `json:"pl,string"`
+	LendingFees   decimal.Decimal `json:"lendingFees,string"`
+	NetValue      decimal.Decimal `json:"netValue,string"`
+	BorrowedValue decimal.Decimal `json:"totalBorrowedValue,string"`
+	CurrentMargin decimal.Decimal `json:"currentMargin,string"`
 }
 
 // MarginPosition holds information about your current margin position
 type MarginPosition struct {
-	Amount            float64 `json:"amount,string"`
-	Total             float64 `json:"total,string"`
-	BasePrice         float64 `json:"basePrice,string"`
-	LiquidiationPrice float64 `json:"liquidiationPrice"`
-	ProfitLoss        float64 `json:"pl,string"`
-	LendingFees       float64 `json:"lendingFees,string"`
-	Type              string  `json:"type"`
+	Amount            decimal.Decimal `json:"amount,string"`
+	Total             decimal.Decimal `json:"total,string"`
+	BasePrice         decimal.Decimal `json:"basePrice,string"`
+	LiquidiationPrice decimal.Decimal `json:"liquidiationPrice"`
+	ProfitLoss        decimal.Decimal `json:"pl,string"`
+	LendingFees       decimal.Decimal `json:"lendingFees,string"`
+	Type              string          `json:"type"`
 }
 
 // LoanOffer holds information about your loan offers
 type LoanOffer struct {
-	ID        int64   `json:"id"`
-	Rate      float64 `json:"rate,string"`
-	Amount    float64 `json:"amount,string"`
-	Duration  int     `json:"duration"`
-	AutoRenew bool    `json:"autoRenew,int"`
-	Date      string  `json:"date"`
+	ID        int64           `json:"id"`
+	Rate      decimal.Decimal `json:"rate,string"`
+	Amount    decimal.Decimal `json:"amount,string"`
+	Duration  int             `json:"duration"`
+	AutoRenew bool            `json:"autoRenew,int"`
+	Date      string          `json:"date"`
 }
 
 // ActiveLoans holds information about your active loans
@@ -263,14 +267,14 @@ type ActiveLoans struct {
 
 // LendingHistory contains lending history data
 type LendingHistory struct {
-	ID       int64   `json:"id"`
-	Currency string  `json:"currency"`
-	Rate     float64 `json:"rate,string"`
-	Amount   float64 `json:"amount,string"`
-	Duration float64 `json:"duration,string"`
-	Interest float64 `json:"interest,string"`
-	Fee      float64 `json:"fee,string"`
-	Earned   float64 `json:"earned,string"`
-	Open     string  `json:"open"`
-	Close    string  `json:"close"`
+	ID       int64           `json:"id"`
+	Currency string          `json:"currency"`
+	Rate     decimal.Decimal `json:"rate,string"`
+	Amount   decimal.Decimal `json:"amount,string"`
+	Duration decimal.Decimal `json:"duration,string"`
+	Interest decimal.Decimal `json:"interest,string"`
+	Fee      decimal.Decimal `json:"fee,string"`
+	Earned   decimal.Decimal `json:"earned,string"`
+	Open     string          `json:"open"`
+	Close    string          `json:"close"`
 }

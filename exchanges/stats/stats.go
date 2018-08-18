@@ -4,6 +4,7 @@ import (
 	"sort"
 
 	"github.com/thrasher-/gocryptotrader/currency/pair"
+	"github.com/thrasher-/gocryptotrader/decimal"
 )
 
 // Item holds various fields for storing currency pair stats
@@ -11,8 +12,8 @@ type Item struct {
 	Exchange  string
 	Pair      pair.CurrencyPair
 	AssetType string
-	Price     float64
-	Volume    float64
+	Price     decimal.Decimal
+	Volume    decimal.Decimal
 }
 
 // Items var array
@@ -26,7 +27,7 @@ func (b ByPrice) Len() int {
 }
 
 func (b ByPrice) Less(i, j int) bool {
-	return b[i].Price < b[j].Price
+	return b[i].Price.LessThan(b[j].Price)
 }
 
 func (b ByPrice) Swap(i, j int) {
@@ -41,7 +42,7 @@ func (b ByVolume) Len() int {
 }
 
 func (b ByVolume) Less(i, j int) bool {
-	return b[i].Volume < b[j].Volume
+	return b[i].Volume.LessThan(b[j].Volume)
 }
 
 func (b ByVolume) Swap(i, j int) {
@@ -49,8 +50,8 @@ func (b ByVolume) Swap(i, j int) {
 }
 
 // Add adds or updates the item stats
-func Add(exchange string, p pair.CurrencyPair, assetType string, price, volume float64) {
-	if exchange == "" || assetType == "" || price == 0 || volume == 0 || p.FirstCurrency == "" || p.SecondCurrency == "" {
+func Add(exchange string, p pair.CurrencyPair, assetType string, price, volume decimal.Decimal) {
+	if exchange == "" || assetType == "" || price.IsZero() || volume.IsZero() || p.FirstCurrency == "" || p.SecondCurrency == "" {
 		return
 	}
 
@@ -69,7 +70,7 @@ func Add(exchange string, p pair.CurrencyPair, assetType string, price, volume f
 
 // Append adds or updates the item stats for a specific
 // currency pair and asset type
-func Append(exchange string, p pair.CurrencyPair, assetType string, price, volume float64) {
+func Append(exchange string, p pair.CurrencyPair, assetType string, price, volume decimal.Decimal) {
 	if AlreadyExists(exchange, p, assetType, price, volume) {
 		return
 	}
@@ -87,7 +88,7 @@ func Append(exchange string, p pair.CurrencyPair, assetType string, price, volum
 
 // AlreadyExists checks to see if item info already exists
 // for a specific currency pair and asset type
-func AlreadyExists(exchange string, p pair.CurrencyPair, assetType string, price, volume float64) bool {
+func AlreadyExists(exchange string, p pair.CurrencyPair, assetType string, price, volume decimal.Decimal) bool {
 	for i := range Items {
 		if Items[i].Exchange == exchange && Items[i].Pair.Equal(p, false) && Items[i].AssetType == assetType {
 			Items[i].Price, Items[i].Volume = price, volume

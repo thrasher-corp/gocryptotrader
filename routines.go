@@ -9,22 +9,25 @@ import (
 	"github.com/thrasher-/gocryptotrader/currency"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
 	"github.com/thrasher-/gocryptotrader/currency/symbol"
+	"github.com/thrasher-/gocryptotrader/decimal"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-/gocryptotrader/exchanges/stats"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 )
 
-func printCurrencyFormat(price float64) string {
+const defaultPrintDecimalPrecision = 8
+
+func printCurrencyFormat(price decimal.Decimal) string {
 	displaySymbol, err := symbol.GetSymbolByCurrencyName(bot.config.Currency.FiatDisplayCurrency)
 	if err != nil {
 		log.Printf("Failed to get display symbol: %s", err)
 	}
 
-	return fmt.Sprintf("%s%.8f", displaySymbol, price)
+	return fmt.Sprintf("%s%s", displaySymbol, price.StringFixed(defaultPrintDecimalPrecision))
 }
 
-func printConvertCurrencyFormat(origCurrency string, origPrice float64) string {
+func printConvertCurrencyFormat(origCurrency string, origPrice decimal.Decimal) string {
 	displayCurrency := bot.config.Currency.FiatDisplayCurrency
 	conv, err := currency.ConvertCurrency(origPrice, origCurrency, displayCurrency)
 	if err != nil {
@@ -41,12 +44,12 @@ func printConvertCurrencyFormat(origCurrency string, origPrice float64) string {
 		log.Printf("Failed to get original currency symbol: %s", err)
 	}
 
-	return fmt.Sprintf("%s%.2f %s (%s%.2f %s)",
+	return fmt.Sprintf("%s%s %s (%s%s %s)",
 		displaySymbol,
-		conv,
+		conv.StringFixed(defaultPrintDecimalPrecision),
 		displayCurrency,
 		origSymbol,
-		origPrice,
+		origPrice.StringFixed(defaultPrintDecimalPrecision),
 		origCurrency,
 	)
 }
@@ -63,7 +66,7 @@ func printTickerSummary(result ticker.Price, p pair.CurrencyPair, assetType, exc
 	stats.Add(exchangeName, p, assetType, result.Last, result.Volume)
 	if currency.IsFiatCurrency(p.SecondCurrency.String()) && p.SecondCurrency.String() != bot.config.Currency.FiatDisplayCurrency {
 		origCurrency := p.SecondCurrency.Upper().String()
-		log.Printf("%s %s %s: TICKER: Last %s Ask %s Bid %s High %s Low %s Volume %.8f",
+		log.Printf("%s %s %s: TICKER: Last %s Ask %s Bid %s High %s Low %s Volume %s",
 			exchangeName,
 			exchange.FormatCurrency(p).String(),
 			assetType,
@@ -72,10 +75,10 @@ func printTickerSummary(result ticker.Price, p pair.CurrencyPair, assetType, exc
 			printConvertCurrencyFormat(origCurrency, result.Bid),
 			printConvertCurrencyFormat(origCurrency, result.High),
 			printConvertCurrencyFormat(origCurrency, result.Low),
-			result.Volume)
+			result.Volume.StringFixed(defaultPrintDecimalPrecision))
 	} else {
 		if currency.IsFiatCurrency(p.SecondCurrency.String()) && p.SecondCurrency.Upper().String() == bot.config.Currency.FiatDisplayCurrency {
-			log.Printf("%s %s %s: TICKER: Last %s Ask %s Bid %s High %s Low %s Volume %.8f",
+			log.Printf("%s %s %s: TICKER: Last %s Ask %s Bid %s High %s Low %s Volume %s",
 				exchangeName,
 				exchange.FormatCurrency(p).String(),
 				assetType,
@@ -84,18 +87,18 @@ func printTickerSummary(result ticker.Price, p pair.CurrencyPair, assetType, exc
 				printCurrencyFormat(result.Bid),
 				printCurrencyFormat(result.High),
 				printCurrencyFormat(result.Low),
-				result.Volume)
+				result.Volume.StringFixed(defaultPrintDecimalPrecision))
 		} else {
-			log.Printf("%s %s %s: TICKER: Last %.8f Ask %.8f Bid %.8f High %.8f Low %.8f Volume %.8f",
+			log.Printf("%s %s %s: TICKER: Last %s Ask %s Bid %s High %s Low %s Volume %s",
 				exchangeName,
 				exchange.FormatCurrency(p).String(),
 				assetType,
-				result.Last,
-				result.Ask,
-				result.Bid,
-				result.High,
-				result.Low,
-				result.Volume)
+				result.Last.StringFixed(defaultPrintDecimalPrecision),
+				result.Ask.StringFixed(defaultPrintDecimalPrecision),
+				result.Bid.StringFixed(defaultPrintDecimalPrecision),
+				result.High.StringFixed(defaultPrintDecimalPrecision),
+				result.Low.StringFixed(defaultPrintDecimalPrecision),
+				result.Volume.StringFixed(defaultPrintDecimalPrecision))
 		}
 	}
 }
@@ -113,47 +116,47 @@ func printOrderbookSummary(result orderbook.Base, p pair.CurrencyPair, assetType
 
 	if currency.IsFiatCurrency(p.SecondCurrency.String()) && p.SecondCurrency.String() != bot.config.Currency.FiatDisplayCurrency {
 		origCurrency := p.SecondCurrency.Upper().String()
-		log.Printf("%s %s %s: ORDERBOOK: Bids len: %d Amount: %f %s. Total value: %s Asks len: %d Amount: %f %s. Total value: %s",
+		log.Printf("%s %s %s: ORDERBOOK: Bids len: %d Amount: %s %s. Total value: %s Asks len: %d Amount: %s %s. Total value: %s",
 			exchangeName,
 			exchange.FormatCurrency(p).String(),
 			assetType,
 			len(result.Bids),
-			bidsAmount,
+			bidsAmount.StringFixed(defaultPrintDecimalPrecision),
 			p.FirstCurrency.String(),
 			printConvertCurrencyFormat(origCurrency, bidsValue),
 			len(result.Asks),
-			asksAmount,
+			asksAmount.StringFixed(defaultPrintDecimalPrecision),
 			p.FirstCurrency.String(),
 			printConvertCurrencyFormat(origCurrency, asksValue),
 		)
 	} else {
 		if currency.IsFiatCurrency(p.SecondCurrency.String()) && p.SecondCurrency.Upper().String() == bot.config.Currency.FiatDisplayCurrency {
-			log.Printf("%s %s %s: ORDERBOOK: Bids len: %d Amount: %f %s. Total value: %s Asks len: %d Amount: %f %s. Total value: %s",
+			log.Printf("%s %s %s: ORDERBOOK: Bids len: %d Amount: %s %s. Total value: %s Asks len: %d Amount: %s %s. Total value: %s",
 				exchangeName,
 				exchange.FormatCurrency(p).String(),
 				assetType,
 				len(result.Bids),
-				bidsAmount,
+				bidsAmount.StringFixed(defaultPrintDecimalPrecision),
 				p.FirstCurrency.String(),
 				printCurrencyFormat(bidsValue),
 				len(result.Asks),
-				asksAmount,
+				asksAmount.StringFixed(defaultPrintDecimalPrecision),
 				p.FirstCurrency.String(),
 				printCurrencyFormat(asksValue),
 			)
 		} else {
-			log.Printf("%s %s %s: ORDERBOOK: Bids len: %d Amount: %f %s. Total value: %f Asks len: %d Amount: %f %s. Total value: %f",
+			log.Printf("%s %s %s: ORDERBOOK: Bids len: %d Amount: %s %s. Total value: %s Asks len: %d Amount: %s %s. Total value: %s",
 				exchangeName,
 				exchange.FormatCurrency(p).String(),
 				assetType,
 				len(result.Bids),
-				bidsAmount,
+				bidsAmount.StringFixed(defaultPrintDecimalPrecision),
 				p.FirstCurrency.String(),
-				bidsValue,
+				bidsValue.StringFixed(defaultPrintDecimalPrecision),
 				len(result.Asks),
-				asksAmount,
+				asksAmount.StringFixed(defaultPrintDecimalPrecision),
 				p.FirstCurrency.String(),
-				asksValue,
+				asksValue.StringFixed(defaultPrintDecimalPrecision),
 			)
 		}
 	}

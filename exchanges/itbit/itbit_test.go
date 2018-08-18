@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/thrasher-/gocryptotrader/config"
+	"github.com/thrasher-/gocryptotrader/decimal"
 )
 
 var i ItBit
@@ -38,7 +39,7 @@ func TestSetup(t *testing.T) {
 
 func TestGetFee(t *testing.T) {
 	t.Parallel()
-	if i.GetFee(true) != -0.1 || i.GetFee(false) != 0.5 {
+	if i.GetFee(true).NotEqual(decimal.NewFromFloat(-0.1)) || i.GetFee(false).NotEqual(decimal.Half) {
 		t.Error("Test Failed - GetFee() error")
 	}
 }

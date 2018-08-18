@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
+	"github.com/thrasher-/gocryptotrader/decimal"
 )
 
 const (
@@ -45,24 +46,24 @@ func GetEthereumBalance(address string) (EthplorerResponse, error) {
 
 // GetCryptoIDAddress queries CryptoID for an address balance for a
 // specified cryptocurrency
-func GetCryptoIDAddress(address string, coinType string) (float64, error) {
+func GetCryptoIDAddress(address string, coinType string) (decimal.Decimal, error) {
 	ok, err := common.IsValidCryptoAddress(address, coinType)
 	if !ok || err != nil {
-		return 0, errors.New("invalid address")
+		return decimal.Zero, errors.New("invalid address")
 	}
 
 	var result interface{}
 	url := fmt.Sprintf("%s/%s/api.dws?q=getbalance&a=%s", cryptoIDAPIURL, common.StringToLower(coinType), address)
 	err = common.SendHTTPGetRequest(url, true, false, &result)
 	if err != nil {
-		return 0, err
+		return decimal.Zero, err
 	}
-	return result.(float64), nil
+	return decimal.NewFromFloat(result.(float64)), nil
 }
 
 // GetAddressBalance acceses the portfolio base and returns the balance by passed
 // in address, coin type and description
-func (p *Base) GetAddressBalance(address, coinType, description string) (float64, bool) {
+func (p *Base) GetAddressBalance(address, coinType, description string) (decimal.Decimal, bool) {
 	for x := range p.Addresses {
 		if p.Addresses[x].Address == address &&
 			p.Addresses[x].Description == description &&
@@ -70,7 +71,7 @@ func (p *Base) GetAddressBalance(address, coinType, description string) (float64
 			return p.Addresses[x].Balance, true
 		}
 	}
-	return 0, false
+	return decimal.Zero, false
 }
 
 // ExchangeExists checks to see if an exchange exists in the portfolio base
@@ -106,7 +107,7 @@ func (p *Base) ExchangeAddressExists(exchangeName, coinType string) bool {
 }
 
 // AddExchangeAddress adds an exchange address to the portfolio base
-func (p *Base) AddExchangeAddress(exchangeName, coinType string, balance float64) {
+func (p *Base) AddExchangeAddress(exchangeName, coinType string, balance decimal.Decimal) {
 	if p.ExchangeAddressExists(exchangeName, coinType) {
 		p.UpdateExchangeAddressBalance(exchangeName, coinType, balance)
 	} else {
@@ -118,7 +119,7 @@ func (p *Base) AddExchangeAddress(exchangeName, coinType string, balance float64
 }
 
 // UpdateAddressBalance updates the portfolio base balance
-func (p *Base) UpdateAddressBalance(address string, amount float64) {
+func (p *Base) UpdateAddressBalance(address string, amount decimal.Decimal) {
 	for x := range p.Addresses {
 		if p.Addresses[x].Address == address {
 			p.Addresses[x].Balance = amount
@@ -138,7 +139,7 @@ func (p *Base) RemoveExchangeAddress(exchangeName, coinType string) {
 
 // UpdateExchangeAddressBalance updates the portfolio balance when checked
 // against correct exchangeName and coinType.
-func (p *Base) UpdateExchangeAddressBalance(exchangeName, coinType string, balance float64) {
+func (p *Base) UpdateExchangeAddressBalance(exchangeName, coinType string, balance decimal.Decimal) {
 	for x := range p.Addresses {
 		if p.Addresses[x].Address == exchangeName && p.Addresses[x].CoinType == coinType {
 			p.Addresses[x].Balance = balance
@@ -147,7 +148,7 @@ func (p *Base) UpdateExchangeAddressBalance(exchangeName, coinType string, balan
 }
 
 // AddAddress adds an address to the portfolio base
-func (p *Base) AddAddress(address, coinType, description string, balance float64) {
+func (p *Base) AddAddress(address, coinType, description string, balance decimal.Decimal) {
 	if description == PortfolioAddressExchange {
 		p.AddExchangeAddress(address, coinType, balance)
 		return
@@ -158,7 +159,7 @@ func (p *Base) AddAddress(address, coinType, description string, balance float64
 				Balance: balance, Description: description},
 		)
 	} else {
-		if balance <= 0 {
+		if balance.LessThanOrEqualZero() {
 			p.RemoveAddress(address, coinType, description)
 		} else {
 			p.UpdateAddressBalance(address, balance)
@@ -214,8 +215,8 @@ func (p *Base) UpdatePortfolio(addresses []string, coinType string) bool {
 }
 
 // GetPortfolioByExchange returns currency portfolio amount by exchange
-func (p *Base) GetPortfolioByExchange(exchangeName string) map[string]float64 {
-	result := make(map[string]float64)
+func (p *Base) GetPortfolioByExchange(exchangeName string) map[string]decimal.Decimal {
+	result := make(map[string]decimal.Decimal)
 	for x := range p.Addresses {
 		if common.StringContains(p.Addresses[x].Address, exchangeName) {
 			result[p.Addresses[x].CoinType] = p.Addresses[x].Balance
@@ -225,8 +226,8 @@ func (p *Base) GetPortfolioByExchange(exchangeName string) map[string]float64 {
 }
 
 // GetExchangePortfolio returns current portfolio base information
-func (p *Base) GetExchangePortfolio() map[string]float64 {
-	result := make(map[string]float64)
+func (p *Base) GetExchangePortfolio() map[string]decimal.Decimal {
+	result := make(map[string]decimal.Decimal)
 	for _, x := range p.Addresses {
 		if x.Description != PortfolioAddressExchange {
 			continue
@@ -235,15 +236,15 @@ func (p *Base) GetExchangePortfolio() map[string]float64 {
 		if !ok {
 			result[x.CoinType] = x.Balance
 		} else {
-			result[x.CoinType] = x.Balance + balance
+			result[x.CoinType] = x.Balance.Add(balance)
 		}
 	}
 	return result
 }
 
 // GetPersonalPortfolio returns current portfolio base information
-func (p *Base) GetPersonalPortfolio() map[string]float64 {
-	result := make(map[string]float64)
+func (p *Base) GetPersonalPortfolio() map[string]decimal.Decimal {
+	result := make(map[string]decimal.Decimal)
 	for _, x := range p.Addresses {
 		if x.Description == PortfolioAddressExchange {
 			continue
@@ -252,7 +253,7 @@ func (p *Base) GetPersonalPortfolio() map[string]float64 {
 		if !ok {
 			result[x.CoinType] = x.Balance
 		} else {
-			result[x.CoinType] = x.Balance + balance
+			result[x.CoinType] = x.Balance.Add(balance)
 		}
 	}
 	return result
@@ -260,18 +261,18 @@ func (p *Base) GetPersonalPortfolio() map[string]float64 {
 
 // getPercentage returns the percentage of the target coin amount against the
 // total coin amount.
-func getPercentage(input map[string]float64, target string, totals map[string]float64) float64 {
+func getPercentage(input map[string]decimal.Decimal, target string, totals map[string]decimal.Decimal) decimal.Decimal {
 	subtotal, _ := input[target]
 	total, _ := totals[target]
-	percentage := (subtotal / total) * 100 / 1
+	percentage := subtotal.Percentage(total)
 	return percentage
 }
 
 // getPercentage returns the percentage a specific value of a target coin amount
 // against the total coin amount.
-func getPercentageSpecific(input float64, target string, totals map[string]float64) float64 {
+func getPercentageSpecific(input decimal.Decimal, target string, totals map[string]decimal.Decimal) decimal.Decimal {
 	total, _ := totals[target]
-	percentage := (input / total) * 100 / 1
+	percentage := input.Percentage(total)
 	return percentage
 }
 
@@ -280,7 +281,7 @@ func getPercentageSpecific(input float64, target string, totals map[string]float
 func (p *Base) GetPortfolioSummary() Summary {
 	personalHoldings := p.GetPersonalPortfolio()
 	exchangeHoldings := p.GetExchangePortfolio()
-	totalCoins := make(map[string]float64)
+	totalCoins := make(map[string]decimal.Decimal)
 
 	for x, y := range personalHoldings {
 		totalCoins[x] = y
@@ -291,7 +292,7 @@ func (p *Base) GetPortfolioSummary() Summary {
 		if !ok {
 			totalCoins[x] = y
 		} else {
-			totalCoins[x] = y + balance
+			totalCoins[x] = y.Add(balance)
 		}
 	}
 

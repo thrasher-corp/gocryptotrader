@@ -1,29 +1,31 @@
 package openexchangerates
 
+import "github.com/thrasher-/gocryptotrader/decimal"
+
 // Latest holds latest rate data
 type Latest struct {
-	Disclaimer  string             `json:"disclaimer"`
-	License     string             `json:"license"`
-	Timestamp   int64              `json:"timestamp"`
-	Base        string             `json:"base"`
-	Rates       map[string]float64 `json:"rates"`
-	Error       bool               `json:"error"`
-	Status      int                `json:"status"`
-	Message     string             `json:"message"`
-	Description string             `json:"description"`
+	Disclaimer  string                     `json:"disclaimer"`
+	License     string                     `json:"license"`
+	Timestamp   int64                      `json:"timestamp"`
+	Base        string                     `json:"base"`
+	Rates       map[string]decimal.Decimal `json:"rates"`
+	Error       bool                       `json:"error"`
+	Status      int                        `json:"status"`
+	Message     string                     `json:"message"`
+	Description string                     `json:"description"`
 }
 
 // Historical holds historic rate data
 type Historical struct {
-	Disclaimer  string             `json:"disclaimer"`
-	License     string             `json:"license"`
-	Timestamp   int64              `json:"timestamp"`
-	Base        string             `json:"base"`
-	Rates       map[string]float64 `json:"rates"`
-	Error       bool               `json:"error"`
-	Status      int                `json:"status"`
-	Message     string             `json:"message"`
-	Description string             `json:"description"`
+	Disclaimer  string                     `json:"disclaimer"`
+	License     string                     `json:"license"`
+	Timestamp   int64                      `json:"timestamp"`
+	Base        string                     `json:"base"`
+	Rates       map[string]decimal.Decimal `json:"rates"`
+	Error       bool                       `json:"error"`
+	Status      int                        `json:"status"`
+	Message     string                     `json:"message"`
+	Description string                     `json:"description"`
 }
 
 // TimeSeries holds historic rate data
@@ -45,20 +47,20 @@ type Convert struct {
 	Disclaimer string `json:"disclaimer"`
 	License    string `json:"license"`
 	Request    struct {
-		Query  string  `json:"query"`
-		Amount float64 `json:"amount"`
-		From   string  `json:"from"`
-		To     string  `json:"to"`
+		Query  string          `json:"query"`
+		Amount decimal.Decimal `json:"amount"`
+		From   string          `json:"from"`
+		To     string          `json:"to"`
 	} `json:"request"`
 	Meta struct {
-		Timestamp int64   `json:"timestamp"`
-		Rate      float64 `json:"rate"`
+		Timestamp int64           `json:"timestamp"`
+		Rate      decimal.Decimal `json:"rate"`
 	}
-	Response    float64 `json:"response"`
-	Error       bool    `json:"error"`
-	Status      int     `json:"status"`
-	Message     string  `json:"message"`
-	Description string  `json:"description"`
+	Response    decimal.Decimal `json:"response"`
+	Error       bool            `json:"error"`
+	Status      int             `json:"status"`
+	Message     string          `json:"message"`
+	Description string          `json:"description"`
 }
 
 // OHLC holds open high low close values

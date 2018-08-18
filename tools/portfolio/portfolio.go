@@ -9,18 +9,19 @@ import (
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/currency"
 	"github.com/thrasher-/gocryptotrader/currency/symbol"
+	"github.com/thrasher-/gocryptotrader/decimal"
 	"github.com/thrasher-/gocryptotrader/exchanges/bitfinex"
 	"github.com/thrasher-/gocryptotrader/portfolio"
 )
 
 var (
-	priceMap        map[string]float64
+	priceMap        map[string]decimal.Decimal
 	displayCurrency string
 )
 
-func printSummary(msg string, amount float64) {
+func printSummary(msg string, amount decimal.Decimal) {
 	log.Println()
-	log.Println(fmt.Sprintf("%s in USD: $%.2f", msg, amount))
+	log.Println(fmt.Sprintf("%s in USD: $%v", msg, amount.StringFixed(2)))
 
 	if displayCurrency != "USD" {
 		conv, err := currency.ConvertCurrency(amount, "USD", displayCurrency)
@@ -29,9 +30,9 @@ func printSummary(msg string, amount float64) {
 		} else {
 			symb, err := symbol.GetSymbolByCurrencyName(displayCurrency)
 			if err != nil {
-				log.Println(fmt.Sprintf("%s in %s: %.2f", msg, displayCurrency, conv))
+				log.Println(fmt.Sprintf("%s in %s: %v", msg, displayCurrency, conv.StringFixed(2)))
 			} else {
-				log.Println(fmt.Sprintf("%s in %s: %s%.2f", msg, displayCurrency, symb, conv))
+				log.Println(fmt.Sprintf("%s in %s: %s%v", msg, displayCurrency, symb, conv.StringFixed(2)))
 			}
 
 		}
@@ -40,12 +41,12 @@ func printSummary(msg string, amount float64) {
 }
 
 func getOnlineOfflinePortfolio(coins []portfolio.Coin, online bool) {
-	var totals float64
+	var totals decimal.Decimal
 	for _, x := range coins {
-		value := priceMap[x.Coin] * x.Balance
-		totals += value
-		log.Printf("\t%v %v Subtotal: $%.2f Coin percentage: %.2f%%\n", x.Coin,
-			x.Balance, value, x.Percentage)
+		value := priceMap[x.Coin].Mul(x.Balance)
+		totals = totals.Add(value)
+		log.Printf("\t%v %v Subtotal: $%v Coin percentage: %v%%\n", x.Coin,
+			x.Balance.StringFixed(2), value.StringFixed(2), x.Percentage.StringFixed(2))
 	}
 	if !online {
 		printSummary("\tOffline balance", totals)
@@ -83,13 +84,13 @@ func main() {
 	log.Println("Fetched portfolio data.")
 
 	type PortfolioTemp struct {
-		Balance  float64
-		Subtotal float64
+		Balance  decimal.Decimal
+		Subtotal decimal.Decimal
 	}
 
 	cfg.RetrieveConfigCurrencyPairs(true)
 	portfolioMap := make(map[string]PortfolioTemp)
-	total := float64(0)
+	total := decimal.Zero
 
 	log.Println("Fetching currency data..")
 	var fiatCurrencies []string
@@ -105,13 +106,13 @@ func main() {
 
 	log.Println("Fetched currency data.")
 	log.Println("Fetching ticker data and calculating totals..")
-	priceMap = make(map[string]float64)
-	priceMap["USD"] = 1
+	priceMap = make(map[string]decimal.Decimal)
+	priceMap["USD"] = decimal.One
 
 	for _, y := range result.Totals {
 		pf := PortfolioTemp{}
 		pf.Balance = y.Balance
-		pf.Subtotal = 0
+		pf.Subtotal = decimal.Zero
 
 		if currency.IsDefaultCurrency(y.Coin) {
 			if y.Coin != "USD" {
@@ -119,7 +120,7 @@ func main() {
 				if err != nil {
 					log.Println(err)
 				} else {
-					priceMap[y.Coin] = conv / y.Balance
+					priceMap[y.Coin] = conv.Div(y.Balance)
 					pf.Subtotal = conv
 				}
 			} else {
@@ -132,17 +133,17 @@ func main() {
 				log.Println(errf)
 			} else {
 				priceMap[y.Coin] = ticker.Last
-				pf.Subtotal = ticker.Last * y.Balance
+				pf.Subtotal = ticker.Last.Mul(y.Balance)
 			}
 		}
 		portfolioMap[y.Coin] = pf
-		total += pf.Subtotal
+		total = total.Add(pf.Subtotal)
 	}
 	log.Println("Done.")
 	log.Println()
 	log.Println("PORTFOLIO TOTALS:")
 	for x, y := range portfolioMap {
-		log.Printf("\t%s Amount: %f Subtotal: $%.2f USD (1 %s = $%.2f USD). Percentage of portfolio %.3f%%", x, y.Balance, y.Subtotal, x, y.Subtotal/y.Balance, y.Subtotal/total*100/1)
+		log.Printf("\t%s Amount: %v Subtotal: $%v USD (1 %s = $%v USD). Percentage of portfolio %v%%", x, y.Balance.String(), y.Subtotal.StringFixed(2), x, y.Subtotal.Div(y.Balance).StringFixed(2), y.Subtotal.Percentage(total).StringFixed(3))
 	}
 	printSummary("\tTotal balance", total)
 
@@ -153,15 +154,15 @@ func main() {
 	getOnlineOfflinePortfolio(result.Online, true)
 
 	log.Println("OFFLINE COIN SUMMARY:")
-	var totals float64
+	var totals decimal.Decimal
 	for x, y := range result.OfflineSummary {
 		log.Printf("\t%s:", x)
-		totals = 0
+		totals = decimal.Zero
 		for z := range y {
-			value := priceMap[x] * y[z].Balance
-			totals += value
-			log.Printf("\t %s Amount: %f Subtotal: $%.2f Coin percentage: %.2f%%\n",
-				y[z].Address, y[z].Balance, value, y[z].Percentage)
+			value := priceMap[x].Mul(y[z].Balance)
+			totals = totals.Add(value)
+			log.Printf("\t %s Amount: %v Subtotal: $%v Coin percentage: %v%%\n",
+				y[z].Address, y[z].Balance.String(), value.StringFixed(2), y[z].Percentage.StringFixed(3))
 		}
 		printSummary(fmt.Sprintf("\t %s balance", x), totals)
 	}
@@ -169,12 +170,12 @@ func main() {
 	log.Println("ONLINE COINS SUMMARY:")
 	for x, y := range result.OnlineSummary {
 		log.Printf("\t%s:", x)
-		totals = 0
+		totals = decimal.Zero
 		for z, w := range y {
-			value := priceMap[z] * w.Balance
-			totals += value
-			log.Printf("\t %s Amount: %f Subtotal $%.2f Coin percentage: %.2f%%",
-				z, w.Balance, value, w.Percentage)
+			value := priceMap[z].Mul(w.Balance)
+			totals = totals.Add(value)
+			log.Printf("\t %s Amount: %v Subtotal $%v Coin percentage: %v%%",
+				z, w.Balance.String(), value.StringFixed(2), w.Percentage.StringFixed(2))
 		}
 		printSummary("\t Exchange balance", totals)
 	}

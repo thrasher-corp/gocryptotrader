@@ -12,6 +12,7 @@ import (
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
+	"github.com/thrasher-/gocryptotrader/decimal"
 	"github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/request"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
@@ -61,7 +62,7 @@ type HUOBIHADAX struct {
 func (h *HUOBIHADAX) SetDefaults() {
 	h.Name = "HuobiHadax"
 	h.Enabled = false
-	h.Fee = 0
+	h.Fee = decimal.Zero
 	h.Verbose = false
 	h.Websocket = false
 	h.RESTPollingDelay = 10
@@ -108,7 +109,7 @@ func (h *HUOBIHADAX) Setup(exch config.ExchangeConfig) {
 }
 
 // GetFee returns Huobi fee
-func (h *HUOBIHADAX) GetFee() float64 {
+func (h *HUOBIHADAX) GetFee() decimal.Decimal {
 	return h.Fee
 }
 
@@ -207,14 +208,14 @@ func (h *HUOBIHADAX) GetTrades(symbol string) ([]Trade, error) {
 // GetLatestSpotPrice returns latest spot price of symbol
 //
 // symbol: string of currency pair
-func (h *HUOBIHADAX) GetLatestSpotPrice(symbol string) (float64, error) {
+func (h *HUOBIHADAX) GetLatestSpotPrice(symbol string) (decimal.Decimal, error) {
 	list, err := h.GetTradeHistory(symbol, "1")
 
 	if err != nil {
-		return 0, err
+		return decimal.Zero, err
 	}
 	if len(list) == 0 {
-		return 0, errors.New("The length of the list is 0")
+		return decimal.Zero, errors.New("The length of the list is 0")
 	}
 
 	return list[0].Trades[0].Price, nil
@@ -352,11 +353,11 @@ func (h *HUOBIHADAX) GetAccountBalance(accountID string) ([]AccountBalanceDetail
 func (h *HUOBIHADAX) SpotNewOrder(arg SpotNewOrderRequestParams) (int64, error) {
 	vals := make(map[string]string)
 	vals["account-id"] = fmt.Sprintf("%d", arg.AccountID)
-	vals["amount"] = strconv.FormatFloat(arg.Amount, 'f', -1, 64)
+	vals["amount"] = arg.Amount.StringFixed(exchange.DefaultDecimalPrecision)
 
 	// Only set price if order type is not equal to buy-market or sell-market
 	if arg.Type != SpotNewOrderRequestTypeBuyMarket && arg.Type != SpotNewOrderRequestTypeSellMarket {
-		vals["price"] = strconv.FormatFloat(arg.Price, 'f', -1, 64)
+		vals["price"] = arg.Price.StringFixed(exchange.DefaultDecimalPrecision)
 	}
 
 	if arg.Source != "" {
@@ -553,11 +554,11 @@ func (h *HUOBIHADAX) GetOrdersMatch(symbol, types, start, end, from, direct, siz
 }
 
 // MarginTransfer transfers assets into or out of the margin account
-func (h *HUOBIHADAX) MarginTransfer(symbol, currency string, amount float64, in bool) (int64, error) {
+func (h *HUOBIHADAX) MarginTransfer(symbol, currency string, amount decimal.Decimal, in bool) (int64, error) {
 	vals := url.Values{}
 	vals.Set("symbol", symbol)
 	vals.Set("currency", currency)
-	vals.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
+	vals.Set("amount", amount.StringFixed(exchange.DefaultDecimalPrecision))
 
 	path := huobihadaxMarginTransferIn
 	if !in {
@@ -579,11 +580,11 @@ func (h *HUOBIHADAX) MarginTransfer(symbol, currency string, amount float64, in 
 }
 
 // MarginOrder submits a margin order application
-func (h *HUOBIHADAX) MarginOrder(symbol, currency string, amount float64) (int64, error) {
+func (h *HUOBIHADAX) MarginOrder(symbol, currency string, amount decimal.Decimal) (int64, error) {
 	vals := url.Values{}
 	vals.Set("symbol", symbol)
 	vals.Set("currency", currency)
-	vals.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
+	vals.Set("amount", amount.StringFixed(exchange.DefaultDecimalPrecision))
 
 	type response struct {
 		Response
@@ -600,10 +601,10 @@ func (h *HUOBIHADAX) MarginOrder(symbol, currency string, amount float64) (int64
 }
 
 // MarginRepayment repays a margin amount for a margin ID
-func (h *HUOBIHADAX) MarginRepayment(orderID int64, amount float64) (int64, error) {
+func (h *HUOBIHADAX) MarginRepayment(orderID int64, amount decimal.Decimal) (int64, error) {
 	vals := url.Values{}
 	vals.Set("order-id", strconv.FormatInt(orderID, 10))
-	vals.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
+	vals.Set("amount", amount.StringFixed(exchange.DefaultDecimalPrecision))
 
 	type response struct {
 		Response
@@ -686,7 +687,7 @@ func (h *HUOBIHADAX) GetMarginAccountBalance(symbol string) ([]MarginAccountBala
 }
 
 // Withdraw withdraws the desired amount and currency
-func (h *HUOBIHADAX) Withdraw(address, currency, addrTag string, amount, fee float64) (int64, error) {
+func (h *HUOBIHADAX) Withdraw(address, currency, addrTag string, amount, fee decimal.Decimal) (int64, error) {
 	type response struct {
 		Response
 		WithdrawID int64 `json:"data"`
@@ -695,10 +696,10 @@ func (h *HUOBIHADAX) Withdraw(address, currency, addrTag string, amount, fee flo
 	vals := url.Values{}
 	vals.Set("address", address)
 	vals.Set("currency", currency)
-	vals.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
+	vals.Set("amount", amount.StringFixed(exchange.DefaultDecimalPrecision))
 
-	if fee != 0 {
-		vals.Set("fee", strconv.FormatFloat(fee, 'f', -1, 64))
+	if fee.NotZero() {
+		vals.Set("fee", fee.StringFixed(exchange.DefaultDecimalPrecision))
 	}
 
 	if currency == "XRP" {

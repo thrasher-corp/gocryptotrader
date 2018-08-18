@@ -12,6 +12,7 @@ import (
 
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-/gocryptotrader/common"
+	"github.com/thrasher-/gocryptotrader/decimal"
 )
 
 const (
@@ -84,12 +85,12 @@ func (o *OKCoin) RemoveChannel(channel string) {
 }
 
 // WebsocketSpotTrade handles spot trade request on the websocket client
-func (o *OKCoin) WebsocketSpotTrade(symbol, orderType string, price, amount float64) {
+func (o *OKCoin) WebsocketSpotTrade(symbol, orderType string, price, amount decimal.Decimal) {
 	values := make(map[string]string)
 	values["symbol"] = symbol
 	values["type"] = orderType
-	values["price"] = strconv.FormatFloat(price, 'f', -1, 64)
-	values["amount"] = strconv.FormatFloat(amount, 'f', -1, 64)
+	values["price"] = price.String()
+	values["amount"] = amount.String()
 
 	channel := okcoinWebsocketSpotUSDTrade
 	if o.WebsocketURL == okcoinWebsocketURLChina {
@@ -100,12 +101,12 @@ func (o *OKCoin) WebsocketSpotTrade(symbol, orderType string, price, amount floa
 }
 
 // WebsocketFuturesTrade handles a futures trade on the websocket client
-func (o *OKCoin) WebsocketFuturesTrade(symbol, contractType string, price, amount float64, orderType, matchPrice, leverage int) {
+func (o *OKCoin) WebsocketFuturesTrade(symbol, contractType string, price, amount decimal.Decimal, orderType, matchPrice, leverage int) {
 	values := make(map[string]string)
 	values["symbol"] = symbol
 	values["contract_type"] = contractType
-	values["price"] = strconv.FormatFloat(price, 'f', -1, 64)
-	values["amount"] = strconv.FormatFloat(amount, 'f', -1, 64)
+	values["price"] = price.String()
+	values["amount"] = amount.String()
 	values["type"] = strconv.Itoa(orderType)
 	values["match_price"] = strconv.Itoa(matchPrice)
 	values["lever_rate"] = strconv.Itoa(orderType)
@@ -352,7 +353,7 @@ func (o *OKCoin) WebsocketClient() {
 						for _, z := range tickerValues {
 							result := reflect.TypeOf(tickerMap[z]).String()
 							if result == "string" {
-								value, errTickVals := strconv.ParseFloat(tickerMap[z].(string), 64)
+								value, errTickVals := decimal.NewFromString(tickerMap[z].(string))
 								if errTickVals != nil {
 									log.Println(errTickVals)
 									continue
@@ -374,19 +375,20 @@ func (o *OKCoin) WebsocketClient() {
 								}
 
 							} else if result == "float64" {
+								value := decimal.NewFromFloat(tickerMap[z].(float64))
 								switch z {
 								case "buy":
-									ticker.Buy = tickerMap[z].(float64)
+									ticker.Buy = value
 								case "high":
-									ticker.High = tickerMap[z].(float64)
+									ticker.High = value
 								case "last":
-									ticker.Last = tickerMap[z].(float64)
+									ticker.Last = value
 								case "low":
-									ticker.Low = tickerMap[z].(float64)
+									ticker.Low = value
 								case "sell":
-									ticker.Sell = tickerMap[z].(float64)
+									ticker.Sell = value
 								case "timestamp":
-									ticker.Timestamp = tickerMap[z].(float64)
+									ticker.Timestamp = value
 								}
 							}
 						}

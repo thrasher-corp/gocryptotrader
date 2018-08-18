@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/thrasher-/gocryptotrader/config"
+	"github.com/thrasher-/gocryptotrader/decimal"
 )
 
 // Please supply your own APIKEYS here for due diligence testing
@@ -67,7 +68,7 @@ func TestSetup(t *testing.T) {
 
 func TestGetFee(t *testing.T) {
 	t.Parallel()
-	if h.GetFee() != 0 {
+	if h.GetFee().NotZero() {
 		t.Errorf("test failed - Huobi GetFee() error")
 	}
 }
@@ -198,8 +199,8 @@ func TestSpotNewOrder(t *testing.T) {
 	arg := SpotNewOrderRequestParams{
 		Symbol:    "btcusdt",
 		AccountID: 000000,
-		Amount:    0.01,
-		Price:     10.1,
+		Amount:    decimal.NewFromFloat(0.01),
+		Price:     decimal.NewFromFloat(10.1),
 		Type:      SpotNewOrderRequestTypeBuyLimit,
 	}
 

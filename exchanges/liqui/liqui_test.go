@@ -6,6 +6,7 @@ import (
 
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
+	"github.com/thrasher-/gocryptotrader/decimal"
 )
 
 var l Liqui
@@ -89,7 +90,7 @@ func TestAuthRequests(t *testing.T) {
 			t.Error("Test Failed - liqui GetAccountInfo() error", err)
 		}
 
-		_, err = l.Trade("", "", 0, 1)
+		_, err = l.Trade("", "", decimal.Zero, decimal.One)
 		if err == nil {
 			t.Error("Test Failed - liqui Trade() error", err)
 		}

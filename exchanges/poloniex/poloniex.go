@@ -11,6 +11,7 @@ import (
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
+	"github.com/thrasher-/gocryptotrader/decimal"
 	"github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/request"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
@@ -61,7 +62,7 @@ type Poloniex struct {
 func (p *Poloniex) SetDefaults() {
 	p.Name = "Poloniex"
 	p.Enabled = false
-	p.Fee = 0
+	p.Fee = decimal.Zero
 	p.Verbose = false
 	p.Websocket = false
 	p.RESTPollingDelay = 10
@@ -107,7 +108,7 @@ func (p *Poloniex) Setup(exch config.ExchangeConfig) {
 }
 
 // GetFee returns the fee for poloniex
-func (p *Poloniex) GetFee() float64 {
+func (p *Poloniex) GetFee() decimal.Decimal {
 	return p.Fee
 }
 
@@ -155,21 +156,21 @@ func (p *Poloniex) GetOrderbook(currencyPair string, depth int) (OrderbookAll, e
 		ob := Orderbook{}
 		for x := range resp.Asks {
 			data := resp.Asks[x]
-			price, err := strconv.ParseFloat(data[0].(string), 64)
+			price, err := decimal.NewFromString(data[0].(string))
 			if err != nil {
 				return oba, err
 			}
-			amount := data[1].(float64)
+			amount := decimal.NewFromFloat(data[1].(float64))
 			ob.Asks = append(ob.Asks, OrderbookItem{Price: price, Amount: amount})
 		}
 
 		for x := range resp.Bids {
 			data := resp.Bids[x]
-			price, err := strconv.ParseFloat(data[0].(string), 64)
+			price, err := decimal.NewFromString(data[0].(string))
 			if err != nil {
 				return oba, err
 			}
-			amount := data[1].(float64)
+			amount := decimal.NewFromFloat(data[1].(float64))
 			ob.Bids = append(ob.Bids, OrderbookItem{Price: price, Amount: amount})
 		}
 		oba.Data[currencyPair] = Orderbook{Bids: ob.Bids, Asks: ob.Asks}
@@ -185,21 +186,21 @@ func (p *Poloniex) GetOrderbook(currencyPair string, depth int) (OrderbookAll, e
 			ob := Orderbook{}
 			for x := range orderbook.Asks {
 				data := orderbook.Asks[x]
-				price, err := strconv.ParseFloat(data[0].(string), 64)
+				price, err := decimal.NewFromString(data[0].(string))
 				if err != nil {
 					return oba, err
 				}
-				amount := data[1].(float64)
+				amount := decimal.NewFromFloat(data[1].(float64))
 				ob.Asks = append(ob.Asks, OrderbookItem{Price: price, Amount: amount})
 			}
 
 			for x := range orderbook.Bids {
 				data := orderbook.Bids[x]
-				price, err := strconv.ParseFloat(data[0].(string), 64)
+				price, err := decimal.NewFromString(data[0].(string))
 				if err != nil {
 					return oba, err
 				}
-				amount := data[1].(float64)
+				amount := decimal.NewFromFloat(data[1].(float64))
 				ob.Bids = append(ob.Bids, OrderbookItem{Price: price, Amount: amount})
 			}
 			oba.Data[currency] = Orderbook{Bids: ob.Bids, Asks: ob.Asks}
@@ -302,10 +303,10 @@ func (p *Poloniex) GetBalances() (Balance, error) {
 
 	data := result.(map[string]interface{})
 	balance := Balance{}
-	balance.Currency = make(map[string]float64)
+	balance.Currency = make(map[string]decimal.Decimal)
 
 	for x, y := range data {
-		balance.Currency[x], _ = strconv.ParseFloat(y.(string), 64)
+		balance.Currency[x], _ = decimal.NewFromString(y.(string))
 	}
 
 	return balance, nil
@@ -327,9 +328,9 @@ func (p *Poloniex) GetCompleteBalances() (CompleteBalances, error) {
 	for x, y := range data {
 		dataVals := y.(map[string]interface{})
 		balancesData := CompleteBalance{}
-		balancesData.Available, _ = strconv.ParseFloat(dataVals["available"].(string), 64)
-		balancesData.OnOrders, _ = strconv.ParseFloat(dataVals["onOrders"].(string), 64)
-		balancesData.BTCValue, _ = strconv.ParseFloat(dataVals["btcValue"].(string), 64)
+		balancesData.Available, _ = decimal.NewFromString(dataVals["available"].(string))
+		balancesData.OnOrders, _ = decimal.NewFromString(dataVals["onOrders"].(string))
+		balancesData.BTCValue, _ = decimal.NewFromString(dataVals["btcValue"].(string))
 		balance.Currency[x] = balancesData
 	}
 
@@ -470,7 +471,7 @@ func (p *Poloniex) GetAuthenticatedTradeHistory(currency, start, end, limit stri
 }
 
 // PlaceOrder places a new order on the exchange
-func (p *Poloniex) PlaceOrder(currency string, rate, amount float64, immediate, fillOrKill, buy bool) (OrderResponse, error) {
+func (p *Poloniex) PlaceOrder(currency string, rate, amount decimal.Decimal, immediate, fillOrKill, buy bool) (OrderResponse, error) {
 	result := OrderResponse{}
 	values := url.Values{}
 
@@ -482,8 +483,8 @@ func (p *Poloniex) PlaceOrder(currency string, rate, amount float64, immediate, 
 	}
 
 	values.Set("currencyPair", currency)
-	values.Set("rate", strconv.FormatFloat(rate, 'f', -1, 64))
-	values.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
+	values.Set("rate", rate.StringFixed(exchange.DefaultDecimalPrecision))
+	values.Set("amount", amount.StringFixed(exchange.DefaultDecimalPrecision))
 
 	if immediate {
 		values.Set("immediateOrCancel", "1")
@@ -522,14 +523,14 @@ func (p *Poloniex) CancelOrder(orderID int64) (bool, error) {
 }
 
 // MoveOrder moves an order
-func (p *Poloniex) MoveOrder(orderID int64, rate, amount float64) (MoveOrderResponse, error) {
+func (p *Poloniex) MoveOrder(orderID int64, rate, amount decimal.Decimal) (MoveOrderResponse, error) {
 	result := MoveOrderResponse{}
 	values := url.Values{}
 	values.Set("orderNumber", strconv.FormatInt(orderID, 10))
-	values.Set("rate", strconv.FormatFloat(rate, 'f', -1, 64))
+	values.Set("rate", rate.StringFixed(exchange.DefaultDecimalPrecision))
 
-	if amount != 0 {
-		values.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
+	if amount.NotZero() {
+		values.Set("amount", amount.StringFixed(exchange.DefaultDecimalPrecision))
 	}
 
 	err := p.SendAuthenticatedHTTPRequest("POST", poloniexOrderMove, values, &result)
@@ -546,12 +547,12 @@ func (p *Poloniex) MoveOrder(orderID int64, rate, amount float64) (MoveOrderResp
 }
 
 // Withdraw withdraws a currency to a specific delegated address
-func (p *Poloniex) Withdraw(currency, address string, amount float64) (bool, error) {
+func (p *Poloniex) Withdraw(currency, address string, amount decimal.Decimal) (bool, error) {
 	result := Withdraw{}
 	values := url.Values{}
 
 	values.Set("currency", currency)
-	values.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
+	values.Set("amount", amount.StringFixed(exchange.DefaultDecimalPrecision))
 	values.Set("address", address)
 
 	err := p.SendAuthenticatedHTTPRequest("POST", poloniexWithdraw, values, &result)
@@ -575,7 +576,7 @@ func (p *Poloniex) GetFeeInfo() (Fee, error) {
 }
 
 // GetTradableBalances returns tradable balances
-func (p *Poloniex) GetTradableBalances() (map[string]map[string]float64, error) {
+func (p *Poloniex) GetTradableBalances() (map[string]map[string]decimal.Decimal, error) {
 	type Response struct {
 		Data map[string]map[string]interface{}
 	}
@@ -587,12 +588,12 @@ func (p *Poloniex) GetTradableBalances() (map[string]map[string]float64, error) 
 		return nil, err
 	}
 
-	balances := make(map[string]map[string]float64)
+	balances := make(map[string]map[string]decimal.Decimal)
 
 	for x, y := range result.Data {
-		balances[x] = make(map[string]float64)
+		balances[x] = make(map[string]decimal.Decimal)
 		for z, w := range y {
-			balances[x][z], _ = strconv.ParseFloat(w.(string), 64)
+			balances[x][z], _ = decimal.NewFromString(w.(string))
 		}
 	}
 
@@ -600,12 +601,12 @@ func (p *Poloniex) GetTradableBalances() (map[string]map[string]float64, error) 
 }
 
 // TransferBalance transfers balances between your accounts
-func (p *Poloniex) TransferBalance(currency, from, to string, amount float64) (bool, error) {
+func (p *Poloniex) TransferBalance(currency, from, to string, amount decimal.Decimal) (bool, error) {
 	values := url.Values{}
 	result := GenericResponse{}
 
 	values.Set("currency", currency)
-	values.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
+	values.Set("amount", amount.StringFixed(exchange.DefaultDecimalPrecision))
 	values.Set("fromAccount", from)
 	values.Set("toAccount", to)
 
@@ -635,7 +636,7 @@ func (p *Poloniex) GetMarginAccountSummary() (Margin, error) {
 }
 
 // PlaceMarginOrder places a margin order
-func (p *Poloniex) PlaceMarginOrder(currency string, rate, amount, lendingRate float64, buy bool) (OrderResponse, error) {
+func (p *Poloniex) PlaceMarginOrder(currency string, rate, amount, lendingRate decimal.Decimal, buy bool) (OrderResponse, error) {
 	result := OrderResponse{}
 	values := url.Values{}
 
@@ -647,11 +648,11 @@ func (p *Poloniex) PlaceMarginOrder(currency string, rate, amount, lendingRate f
 	}
 
 	values.Set("currencyPair", currency)
-	values.Set("rate", strconv.FormatFloat(rate, 'f', -1, 64))
-	values.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
+	values.Set("rate", rate.StringFixed(exchange.DefaultDecimalPrecision))
+	values.Set("amount", amount.StringFixed(exchange.DefaultDecimalPrecision))
 
-	if lendingRate != 0 {
-		values.Set("lendingRate", strconv.FormatFloat(lendingRate, 'f', -1, 64))
+	if lendingRate.NotZero() {
+		values.Set("lendingRate", lendingRate.StringFixed(exchange.DefaultDecimalPrecision))
 	}
 
 	err := p.SendAuthenticatedHTTPRequest("POST", orderType, values, &result)
@@ -713,10 +714,10 @@ func (p *Poloniex) CloseMarginPosition(currency string) (bool, error) {
 }
 
 // CreateLoanOffer places a loan offer on the exchange
-func (p *Poloniex) CreateLoanOffer(currency string, amount, rate float64, duration int, autoRenew bool) (int64, error) {
+func (p *Poloniex) CreateLoanOffer(currency string, amount, rate decimal.Decimal, duration int, autoRenew bool) (int64, error) {
 	values := url.Values{}
 	values.Set("currency", currency)
-	values.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
+	values.Set("amount", amount.StringFixed(exchange.DefaultDecimalPrecision))
 	values.Set("duration", strconv.Itoa(duration))
 
 	if autoRenew {
@@ -725,7 +726,7 @@ func (p *Poloniex) CreateLoanOffer(currency string, amount, rate float64, durati
 		values.Set("autoRenew", "0")
 	}
 
-	values.Set("lendingRate", strconv.FormatFloat(rate, 'f', -1, 64))
+	values.Set("lendingRate", rate.StringFixed(exchange.DefaultDecimalPrecision))
 
 	type Response struct {
 		Success int    `json:"success"`

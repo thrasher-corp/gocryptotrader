@@ -15,10 +15,10 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
-	"strconv"
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency/forexprovider/base"
+	"github.com/thrasher-/gocryptotrader/decimal"
 )
 
 // const declarations consist of endpoints and APIKey privileges
@@ -57,7 +57,7 @@ func (c *CurrencyLayer) Setup(config base.Settings) {
 }
 
 // GetRates is a wrapper function to return rates for GoCryptoTrader
-func (c *CurrencyLayer) GetRates(baseCurrency, symbols string) (map[string]float64, error) {
+func (c *CurrencyLayer) GetRates(baseCurrency, symbols string) (map[string]decimal.Decimal, error) {
 	return c.GetliveData(symbols, baseCurrency)
 }
 
@@ -76,7 +76,7 @@ func (c *CurrencyLayer) GetSupportedCurrencies() (map[string]string, error) {
 }
 
 // GetliveData returns live quotes for foreign exchange currencies
-func (c *CurrencyLayer) GetliveData(currencies, source string) (map[string]float64, error) {
+func (c *CurrencyLayer) GetliveData(currencies, source string) (map[string]decimal.Decimal, error) {
 	var resp LiveRates
 	v := url.Values{}
 	v.Set("currencies", currencies)
@@ -96,7 +96,7 @@ func (c *CurrencyLayer) GetliveData(currencies, source string) (map[string]float
 
 // GetHistoricalData returns historical exchange rate data for every past day of
 // the last 16 years.
-func (c *CurrencyLayer) GetHistoricalData(date string, currencies []string, source string) (map[string]float64, error) {
+func (c *CurrencyLayer) GetHistoricalData(date string, currencies []string, source string) (map[string]decimal.Decimal, error) {
 	var resp HistoricalRates
 	v := url.Values{}
 	v.Set("currencies", common.JoinStrings(currencies, ","))
@@ -116,9 +116,9 @@ func (c *CurrencyLayer) GetHistoricalData(date string, currencies []string, sour
 }
 
 // Convert converts one currency amount to another currency amount.
-func (c *CurrencyLayer) Convert(from, to, date string, amount float64) (float64, error) {
+func (c *CurrencyLayer) Convert(from, to, date string, amount decimal.Decimal) (decimal.Decimal, error) {
 	if c.APIKeyLvl >= AccountBasic {
-		return 0, errors.New("insufficient API privileges, upgrade to basic to use this function")
+		return decimal.Zero, errors.New("insufficient API privileges, upgrade to basic to use this function")
 	}
 
 	var resp ConversionRate
@@ -126,7 +126,7 @@ func (c *CurrencyLayer) Convert(from, to, date string, amount float64) (float64,
 	v := url.Values{}
 	v.Set("from", from)
 	v.Set("to", to)
-	v.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
+	v.Set("amount", amount.String())
 	v.Set("date", date)
 
 	err := c.SendHTTPRequest(APIEndpointConversion, v, &resp)

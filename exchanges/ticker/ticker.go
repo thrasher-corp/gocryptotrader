@@ -2,12 +2,12 @@ package ticker
 
 import (
 	"errors"
-	"strconv"
 	"sync"
 	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
+	"github.com/thrasher-/gocryptotrader/decimal"
 )
 
 // Const values for the ticker package
@@ -30,13 +30,13 @@ type Price struct {
 	Pair         pair.CurrencyPair `json:"Pair"`
 	LastUpdated  time.Time         `json:"LastUpdated"`
 	CurrencyPair string            `json:"CurrencyPair"`
-	Last         float64           `json:"Last"`
-	High         float64           `json:"High"`
-	Low          float64           `json:"Low"`
-	Bid          float64           `json:"Bid"`
-	Ask          float64           `json:"Ask"`
-	Volume       float64           `json:"Volume"`
-	PriceATH     float64           `json:"PriceATH"`
+	Last         decimal.Decimal   `json:"Last"`
+	High         decimal.Decimal   `json:"High"`
+	Low          decimal.Decimal   `json:"Low"`
+	Bid          decimal.Decimal   `json:"Bid"`
+	Ask          decimal.Decimal   `json:"Ask"`
+	Volume       decimal.Decimal   `json:"Volume"`
+	PriceATH     decimal.Decimal   `json:"PriceATH"`
 }
 
 // Ticker struct holds the ticker information for a currency pair and type
@@ -51,19 +51,25 @@ func (t *Ticker) PriceToString(p pair.CurrencyPair, priceType, tickerType string
 
 	switch priceType {
 	case "last":
-		return strconv.FormatFloat(t.Price[p.FirstCurrency][p.SecondCurrency][tickerType].Last, 'f', -1, 64)
+		//return strconv.FormatFloat(t.Price[p.FirstCurrency][p.SecondCurrency][tickerType].Last, 'f', -1, 64)
+		return t.Price[p.FirstCurrency][p.SecondCurrency][tickerType].Last.String()
 	case "high":
-		return strconv.FormatFloat(t.Price[p.FirstCurrency][p.SecondCurrency][tickerType].High, 'f', -1, 64)
+		//return strconv.FormatFloat(t.Price[p.FirstCurrency][p.SecondCurrency][tickerType].High, 'f', -1, 64)
+		return t.Price[p.FirstCurrency][p.SecondCurrency][tickerType].High.String()
 	case "low":
-		return strconv.FormatFloat(t.Price[p.FirstCurrency][p.SecondCurrency][tickerType].Low, 'f', -1, 64)
+		//return strconv.FormatFloat(t.Price[p.FirstCurrency][p.SecondCurrency][tickerType].Low, 'f', -1, 64)
+		return t.Price[p.FirstCurrency][p.SecondCurrency][tickerType].Low.String()
 	case "bid":
-		return strconv.FormatFloat(t.Price[p.FirstCurrency][p.SecondCurrency][tickerType].Bid, 'f', -1, 64)
+		//return strconv.FormatFloat(t.Price[p.FirstCurrency][p.SecondCurrency][tickerType].Bid, 'f', -1, 64)
+		return t.Price[p.FirstCurrency][p.SecondCurrency][tickerType].Bid.String()
 	case "ask":
-		return strconv.FormatFloat(t.Price[p.FirstCurrency][p.SecondCurrency][tickerType].Ask, 'f', -1, 64)
+		//return strconv.FormatFloat(t.Price[p.FirstCurrency][p.SecondCurrency][tickerType].Ask, 'f', -1, 64)
+		return t.Price[p.FirstCurrency][p.SecondCurrency][tickerType].Ask.String()
 	case "volume":
-		return strconv.FormatFloat(t.Price[p.FirstCurrency][p.SecondCurrency][tickerType].Volume, 'f', -1, 64)
+		return t.Price[p.FirstCurrency][p.SecondCurrency][tickerType].Volume.String()
 	case "ath":
-		return strconv.FormatFloat(t.Price[p.FirstCurrency][p.SecondCurrency][tickerType].PriceATH, 'f', -1, 64)
+		//return strconv.FormatFloat(t.Price[p.FirstCurrency][p.SecondCurrency][tickerType].PriceATH, 'f', -1, 64)
+		return t.Price[p.FirstCurrency][p.SecondCurrency][tickerType].PriceATH.String()
 	default:
 		return ""
 	}

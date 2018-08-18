@@ -1,5 +1,7 @@
 package portfolio
 
+import "github.com/thrasher-/gocryptotrader/decimal"
+
 // Base holds the portfolio base addresses
 type Base struct {
 	Addresses []Address
@@ -9,7 +11,7 @@ type Base struct {
 type Address struct {
 	Address     string
 	CoinType    string
-	Balance     float64
+	Balance     decimal.Decimal
 	Description string
 }
 
@@ -18,13 +20,13 @@ type Address struct {
 type EtherchainBalanceResponse struct {
 	Status int `json:"status"`
 	Data   []struct {
-		Address   string      `json:"address"`
-		Balance   float64     `json:"balance"`
-		Nonce     interface{} `json:"nonce"`
-		Code      string      `json:"code"`
-		Name      interface{} `json:"name"`
-		Storage   interface{} `json:"storage"`
-		FirstSeen interface{} `json:"firstSeen"`
+		Address   string          `json:"address"`
+		Balance   decimal.Decimal `json:"balance"`
+		Nonce     interface{}     `json:"nonce"`
+		Code      string          `json:"code"`
+		Name      interface{}     `json:"name"`
+		Storage   interface{}     `json:"storage"`
+		FirstSeen interface{}     `json:"firstSeen"`
 	} `json:"data"`
 }
 
@@ -32,9 +34,9 @@ type EtherchainBalanceResponse struct {
 type EthplorerResponse struct {
 	Address string `json:"address"`
 	ETH     struct {
-		Balance  float64 `json:"balance"`
-		TotalIn  float64 `json:"totalIn"`
-		TotalOut float64 `json:"totalOut"`
+		Balance  decimal.Decimal `json:"balance"`
+		TotalIn  decimal.Decimal `json:"totalIn"`
+		TotalOut decimal.Decimal `json:"totalOut"`
 	} `json:"ETH"`
 	CountTxs     int `json:"countTxs"`
 	ContractInfo struct {
@@ -79,32 +81,32 @@ type ExchangeAccountInfo struct {
 // ExchangeAccountCurrencyInfo : Sub type to store currency name and value
 type ExchangeAccountCurrencyInfo struct {
 	CurrencyName string
-	TotalValue   float64
-	Hold         float64
+	TotalValue   decimal.Decimal
+	Hold         decimal.Decimal
 }
 
 // Coin stores a coin type, balance, address and percentage relative to the total
 // amount.
 type Coin struct {
-	Coin       string  `json:"coin"`
-	Balance    float64 `json:"balance"`
-	Address    string  `json:"address,omitempty"`
-	Percentage float64 `json:"percentage,omitempty"`
+	Coin       string          `json:"coin"`
+	Balance    decimal.Decimal `json:"balance"`
+	Address    string          `json:"address,omitempty"`
+	Percentage decimal.Decimal `json:"percentage,omitempty"`
 }
 
 // OfflineCoinSummary stores a coin types address, balance and percentage
 // relative to the total amount.
 type OfflineCoinSummary struct {
-	Address    string  `json:"address"`
-	Balance    float64 `json:"balance"`
-	Percentage float64 `json:"percentage,omitempty"`
+	Address    string          `json:"address"`
+	Balance    decimal.Decimal `json:"balance"`
+	Percentage decimal.Decimal `json:"percentage,omitempty"`
 }
 
 // OnlineCoinSummary stores a coin types balance and percentage relative to the
 // total amount.
 type OnlineCoinSummary struct {
-	Balance    float64 `json:"balance"`
-	Percentage float64 `json:"percentage,omitempty"`
+	Balance    decimal.Decimal `json:"balance"`
+	Percentage decimal.Decimal `json:"percentage,omitempty"`
 }
 
 // Summary Stores the entire portfolio summary

@@ -8,6 +8,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/currency"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
+	"github.com/thrasher-/gocryptotrader/decimal"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-/gocryptotrader/exchanges/stats"
@@ -232,7 +233,7 @@ func TestGetSpecificOrderbook(t *testing.T) {
 	LoadExchange("Bitstamp", false, nil)
 	p := pair.NewCurrencyPair("BTC", "USD")
 	bids := []orderbook.Item{}
-	bids = append(bids, orderbook.Item{Price: 1000, Amount: 1})
+	bids = append(bids, orderbook.Item{Price: decimal.Thousand, Amount: decimal.One})
 
 	orderbook.ProcessOrderbook("Bitstamp", p, orderbook.Base{Pair: p, Bids: bids}, ticker.Spot)
 	ob, err := GetSpecificOrderbook("BTCUSD", "Bitstamp", ticker.Spot)
@@ -240,7 +241,7 @@ func TestGetSpecificOrderbook(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if ob.Bids[0].Price != 1000 {
+	if ob.Bids[0].Price.NotEqual(decimal.Thousand) {
 		t.Fatal("Unexpected result")
 	}
 
@@ -257,14 +258,14 @@ func TestGetSpecificTicker(t *testing.T) {
 
 	LoadExchange("Bitstamp", false, nil)
 	p := pair.NewCurrencyPair("BTC", "USD")
-	ticker.ProcessTicker("Bitstamp", p, ticker.Price{Last: 1000}, ticker.Spot)
+	ticker.ProcessTicker("Bitstamp", p, ticker.Price{Last: decimal.Thousand}, ticker.Spot)
 
 	tick, err := GetSpecificTicker("BTCUSD", "Bitstamp", ticker.Spot)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if tick.Last != 1000 {
+	if tick.Last.NotEqual(decimal.Thousand) {
 		t.Fatal("Unexpected result")
 	}
 
@@ -284,11 +285,11 @@ func TestGetCollatedExchangeAccountInfoByCoin(t *testing.T) {
 
 	info.ExchangeName = "Bitfinex"
 	info.Currencies = append(info.Currencies,
-		exchange.AccountCurrencyInfo{CurrencyName: "BTC", TotalValue: 100, Hold: 0})
+		exchange.AccountCurrencyInfo{CurrencyName: "BTC", TotalValue: decimal.Hundred, Hold: decimal.Zero})
 	exchangeInfo = append(exchangeInfo, info)
 
 	info.ExchangeName = "Bitstamp"
-	info.Currencies = append(info.Currencies, exchange.AccountCurrencyInfo{CurrencyName: "LTC", TotalValue: 100, Hold: 0})
+	info.Currencies = append(info.Currencies, exchange.AccountCurrencyInfo{CurrencyName: "LTC", TotalValue: decimal.Hundred, Hold: decimal.Zero})
 	exchangeInfo = append(exchangeInfo, info)
 
 	result := GetCollatedExchangeAccountInfoByCoin(exchangeInfo)
@@ -301,7 +302,7 @@ func TestGetCollatedExchangeAccountInfoByCoin(t *testing.T) {
 		t.Fatal("Expected currency was not found in result map")
 	}
 
-	if amount.TotalValue != 200 {
+	if amount.TotalValue.NotEqual(decimal.TwoHundred) {
 		t.Fatal("Unexpected result")
 	}
 
@@ -318,7 +319,7 @@ func TestGetAccountCurrencyInfoByExchangeName(t *testing.T) {
 	var info exchange.AccountInfo
 	info.ExchangeName = "Bitfinex"
 	info.Currencies = append(info.Currencies,
-		exchange.AccountCurrencyInfo{CurrencyName: "BTC", TotalValue: 100, Hold: 0})
+		exchange.AccountCurrencyInfo{CurrencyName: "BTC", TotalValue: decimal.Hundred, Hold: decimal.Zero})
 	exchangeInfo = append(exchangeInfo, info)
 
 	result, err := GetAccountCurrencyInfoByExchangeName(exchangeInfo, "Bitfinex")
@@ -340,8 +341,8 @@ func TestGetExchangeHighestPriceByCurrencyPair(t *testing.T) {
 	SetupTestHelpers(t)
 
 	p := pair.NewCurrencyPair("BTC", "USD")
-	stats.Add("Bitfinex", p, ticker.Spot, 1000, 10000)
-	stats.Add("Bitstamp", p, ticker.Spot, 1337, 10000)
+	stats.Add("Bitfinex", p, ticker.Spot, decimal.NewFromFloat(1000), decimal.NewFromFloat(10000))
+	stats.Add("Bitstamp", p, ticker.Spot, decimal.NewFromFloat(1337), decimal.NewFromFloat(10000))
 	exchange, err := GetExchangeHighestPriceByCurrencyPair(p, ticker.Spot)
 	if err != nil {
 		log.Fatal(err)
@@ -361,8 +362,8 @@ func TestGetExchangeLowestPriceByCurrencyPair(t *testing.T) {
 	SetupTestHelpers(t)
 
 	p := pair.NewCurrencyPair("BTC", "USD")
-	stats.Add("Bitfinex", p, ticker.Spot, 1000, 10000)
-	stats.Add("Bitstamp", p, ticker.Spot, 1337, 10000)
+	stats.Add("Bitfinex", p, ticker.Spot, decimal.NewFromFloat(1000), decimal.NewFromFloat(10000))
+	stats.Add("Bitstamp", p, ticker.Spot, decimal.NewFromFloat(1337), decimal.NewFromFloat(10000))
 	exchange, err := GetExchangeLowestPriceByCurrencyPair(p, ticker.Spot)
 	if err != nil {
 		log.Fatal(err)

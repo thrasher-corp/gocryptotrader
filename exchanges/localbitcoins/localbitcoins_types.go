@@ -2,6 +2,8 @@ package localbitcoins
 
 import (
 	"time"
+
+	"github.com/thrasher-/gocryptotrader/decimal"
 )
 
 // GeneralError is an error capture type
@@ -38,40 +40,40 @@ type AccountInfo struct {
 type AdData struct {
 	AdList []struct {
 		Data struct {
-			Visible                    bool        `json:"visible"`
-			HiddenByOpeningHours       bool        `json:"hidden_by_opening_hours"`
-			Location                   string      `json:"location_string"`
-			CountryCode                string      `json:"countrycode"`
-			City                       string      `json:"city"`
-			TradeType                  string      `json:"trade_type"`
-			OnlineProvider             string      `json:"online_provider"`
-			FirstTimeLimitBTC          string      `json:"first_time_limit_btc"`
-			VolumeCoefficientBTC       string      `json:"volume_coefficient_btc"`
-			SMSVerficationRequired     bool        `json:"sms_verification_required"`
-			ReferenceType              string      `json:"reference_type"`
-			DisplayReference           bool        `json:"display_reference"`
-			Currency                   string      `json:"currency"`
-			Lat                        float64     `json:"lat"`
-			Lon                        float64     `json:"lon"`
-			MinAmount                  string      `json:"min_amount"`
-			MaxAmount                  string      `json:"max_amount"`
-			MaXAmountAvailable         string      `json:"max_amount_available"`
-			LimitToFiatAmounts         string      `json:"limit_to_fiat_amounts"`
-			AdID                       int64       `json:"ad_id"`
-			TempPriceUSD               string      `json:"temp_price_usd"`
-			Floating                   bool        `json:"floating"`
-			Profile                    interface{} `json:"profile"`
-			RequireFeedBackScore       int         `json:"require_feedback_score"`
-			RequireTradeVolume         float64     `json:"require_trade_volume"`
-			RequireTrustedByAdvertiser bool        `json:"require_trusted_by_advertiser"`
-			PaymentWindowMinutes       int         `json:"payment_window_minutes"`
-			BankName                   string      `json:"bank_name"`
-			TrackMaxAmount             bool        `json:"track_max_amount"`
-			ATMModel                   string      `json:"atm_model"`
-			PriceEquation              string      `json:"price_equation"`
-			OpeningHours               interface{} `json:"opening_hours"`
-			AccountInfo                string      `json:"account_info"`
-			AccountDetails             interface{} `json:"account_details"`
+			Visible                    bool            `json:"visible"`
+			HiddenByOpeningHours       bool            `json:"hidden_by_opening_hours"`
+			Location                   string          `json:"location_string"`
+			CountryCode                string          `json:"countrycode"`
+			City                       string          `json:"city"`
+			TradeType                  string          `json:"trade_type"`
+			OnlineProvider             string          `json:"online_provider"`
+			FirstTimeLimitBTC          string          `json:"first_time_limit_btc"`
+			VolumeCoefficientBTC       string          `json:"volume_coefficient_btc"`
+			SMSVerficationRequired     bool            `json:"sms_verification_required"`
+			ReferenceType              string          `json:"reference_type"`
+			DisplayReference           bool            `json:"display_reference"`
+			Currency                   string          `json:"currency"`
+			Lat                        decimal.Decimal `json:"lat"`
+			Lon                        decimal.Decimal `json:"lon"`
+			MinAmount                  string          `json:"min_amount"`
+			MaxAmount                  string          `json:"max_amount"`
+			MaXAmountAvailable         string          `json:"max_amount_available"`
+			LimitToFiatAmounts         string          `json:"limit_to_fiat_amounts"`
+			AdID                       int64           `json:"ad_id"`
+			TempPriceUSD               string          `json:"temp_price_usd"`
+			Floating                   bool            `json:"floating"`
+			Profile                    interface{}     `json:"profile"`
+			RequireFeedBackScore       int             `json:"require_feedback_score"`
+			RequireTradeVolume         decimal.Decimal `json:"require_trade_volume"`
+			RequireTrustedByAdvertiser bool            `json:"require_trusted_by_advertiser"`
+			PaymentWindowMinutes       int             `json:"payment_window_minutes"`
+			BankName                   string          `json:"bank_name"`
+			TrackMaxAmount             bool            `json:"track_max_amount"`
+			ATMModel                   string          `json:"atm_model"`
+			PriceEquation              string          `json:"price_equation"`
+			OpeningHours               interface{}     `json:"opening_hours"`
+			AccountInfo                string          `json:"account_info"`
+			AccountDetails             interface{}     `json:"account_details"`
 		} `json:"data"`
 		Actions struct {
 			PublicView  string `json:"public_view"`
@@ -204,12 +206,12 @@ type DashBoardInfo struct {
 			Name          string `json:"name"`
 			LastOnline    string `json:"last_online"`
 		} `json:"seller"`
-		ReferenceCode         string  `json:"reference_code"`
-		Currency              string  `json:"currency"`
-		Amount                float64 `json:"amount,string"`
-		AmountBTC             float64 `json:"amount_btc,string"`
-		FeeBTC                float64 `json:"fee_btc,string"`
-		ExchangeRateUpdatedAt string  `json:"exchange_rate_updated_at"`
+		ReferenceCode         string          `json:"reference_code"`
+		Currency              string          `json:"currency"`
+		Amount                decimal.Decimal `json:"amount,string"`
+		AmountBTC             decimal.Decimal `json:"amount_btc,string"`
+		FeeBTC                decimal.Decimal `json:"fee_btc,string"`
+		ExchangeRateUpdatedAt string          `json:"exchange_rate_updated_at"`
 		Advertisement         struct {
 			ID         int    `json:"id"`
 			TradeType  string `json:"trade_type"`
@@ -251,17 +253,17 @@ type DashBoardInfo struct {
 // Invoice contains invoice data
 type Invoice struct {
 	Invoice struct {
-		Description     string  `json:"description"`
-		Created         string  `json:"created"`
-		URL             string  `json:"url"`
-		Amount          float64 `json:"amount,string"`
-		Internal        bool    `json:"internal"`
-		Currency        string  `json:"currency"`
-		State           string  `json:"state"`
-		ID              string  `json:"id"`
-		BTCAmount       string  `json:"btc_amount"`
-		BTCAddress      string  `json:"btc_address"`
-		DeletingAllowed bool    `json:"deleting_allowed"`
+		Description     string          `json:"description"`
+		Created         string          `json:"created"`
+		URL             string          `json:"url"`
+		Amount          decimal.Decimal `json:"amount,string"`
+		Internal        bool            `json:"internal"`
+		Currency        string          `json:"currency"`
+		State           string          `json:"state"`
+		ID              string          `json:"id"`
+		BTCAmount       string          `json:"btc_amount"`
+		BTCAddress      string          `json:"btc_address"`
+		DeletingAllowed bool            `json:"deleting_allowed"`
 	} `json:"invoice"`
 }
 
@@ -287,23 +289,23 @@ type WalletInfo struct {
 
 // Balance is a sub-type for WalletInfo & WalletBalanceInfo
 type Balance struct {
-	Balance  float64 `json:"balance,string"`
-	Sendable float64 `json:"Sendable,string"`
+	Balance  decimal.Decimal `json:"balance,string"`
+	Sendable decimal.Decimal `json:"Sendable,string"`
 }
 
 // WalletTransaction is a sub-type for WalletInfo
 type WalletTransaction struct {
-	TXID        string    `json:"txid"`
-	Amount      float64   `json:"amount,string"`
-	Description string    `json:"description"`
-	TXType      int       `json:"tx_type"`
-	CreatedAt   time.Time `json:"created_at"`
+	TXID        string          `json:"txid"`
+	Amount      decimal.Decimal `json:"amount,string"`
+	Description string          `json:"description"`
+	TXType      int             `json:"tx_type"`
+	CreatedAt   time.Time       `json:"created_at"`
 }
 
 // WalletAddressList is a sub-type for WalletInfo & WalletBalanceInfo
 type WalletAddressList struct {
-	Address  string  `json:"address"`
-	Received float64 `json:"received,string"`
+	Address  string          `json:"address"`
+	Received decimal.Decimal `json:"received,string"`
 }
 
 // WalletBalanceInfo standard wallet balance information
@@ -316,21 +318,21 @@ type WalletBalanceInfo struct {
 
 // Ticker contains ticker information
 type Ticker struct {
-	Avg12h float64 `json:"avg_12h,string"`
-	Avg1h  float64 `json:"avg_1h,string"`
-	Avg24h float64 `json:"avg_24h,string"`
+	Avg12h decimal.Decimal `json:"avg_12h,string"`
+	Avg1h  decimal.Decimal `json:"avg_1h,string"`
+	Avg24h decimal.Decimal `json:"avg_24h,string"`
 	Rates  struct {
-		Last float64 `json:"last,string"`
+		Last decimal.Decimal `json:"last,string"`
 	} `json:"rates"`
-	VolumeBTC float64 `json:"volume_btc,string"`
+	VolumeBTC decimal.Decimal `json:"volume_btc,string"`
 }
 
 // Trade holds closed trade information
 type Trade struct {
-	TID    int64   `json:"tid"`
-	Date   int64   `json:"date"`
-	Amount float64 `json:"amount,string"`
-	Price  float64 `json:"price,string"`
+	TID    int64           `json:"tid"`
+	Date   int64           `json:"date"`
+	Amount decimal.Decimal `json:"amount,string"`
+	Price  decimal.Decimal `json:"price,string"`
 }
 
 // Orderbook is a full range of bid and asks for localbitcoins
@@ -341,6 +343,6 @@ type Orderbook struct {
 
 // Price is a sub-type for orderbook
 type Price struct {
-	Price  float64
-	Amount float64
+	Price  decimal.Decimal
+	Amount decimal.Decimal
 }

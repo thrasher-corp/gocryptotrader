@@ -6,8 +6,12 @@ import (
 	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
+	"github.com/thrasher-/gocryptotrader/decimal"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 )
+
+// DecimalPrecision defines the number of digits to be used when a decimal is converted to a string
+const DecimalPrecision = 3
 
 //global vars contain staged update data that will be sent to the communication
 // mediums
@@ -25,8 +29,8 @@ var (
 type Orderbook struct {
 	CurrencyPair string
 	AssetType    string
-	TotalAsks    float64
-	TotalBids    float64
+	TotalAsks    decimal.Decimal
+	TotalBids    decimal.Decimal
 	LastUpdated  string
 }
 
@@ -101,15 +105,15 @@ func (b *Base) GetTicker(exchangeName string) string {
 	var packagedTickers []string
 	for i := range tickerPrices {
 		packagedTickers = append(packagedTickers, fmt.Sprintf(
-			"Currency Pair: %s Ask: %f, Bid: %f High: %f Last: %f Low: %f ATH: %f Volume: %f",
+			"Currency Pair: %s Ask: %v, Bid: %v High: %v Last: %v Low: %v ATH: %v Volume: %v",
 			tickerPrices[i].CurrencyPair,
-			tickerPrices[i].Ask,
-			tickerPrices[i].Bid,
-			tickerPrices[i].High,
-			tickerPrices[i].Last,
-			tickerPrices[i].Low,
-			tickerPrices[i].PriceATH,
-			tickerPrices[i].Volume))
+			tickerPrices[i].Ask.StringFixed(DecimalPrecision),
+			tickerPrices[i].Bid.StringFixed(DecimalPrecision),
+			tickerPrices[i].High.StringFixed(DecimalPrecision),
+			tickerPrices[i].Last.StringFixed(DecimalPrecision),
+			tickerPrices[i].Low.StringFixed(DecimalPrecision),
+			tickerPrices[i].PriceATH.StringFixed(DecimalPrecision),
+			tickerPrices[i].Volume.StringFixed(DecimalPrecision)))
 	}
 	return common.JoinStrings(packagedTickers, "\n")
 }
@@ -134,12 +138,12 @@ func (b *Base) GetOrderbook(exchangeName string) string {
 	var packagedOrderbooks []string
 	for i := range orderbooks {
 		packagedOrderbooks = append(packagedOrderbooks, fmt.Sprintf(
-			"Currency Pair: %s AssetType: %s, LastUpdated: %s TotalAsks: %f TotalBids: %f",
+			"Currency Pair: %s AssetType: %s, LastUpdated: %s TotalAsks: %v TotalBids: %v",
 			orderbooks[i].CurrencyPair,
 			orderbooks[i].AssetType,
 			orderbooks[i].LastUpdated,
-			orderbooks[i].TotalAsks,
-			orderbooks[i].TotalBids))
+			orderbooks[i].TotalAsks.StringFixed(DecimalPrecision),
+			orderbooks[i].TotalBids.StringFixed(DecimalPrecision)))
 	}
 	return common.JoinStrings(packagedOrderbooks, "\n")
 }

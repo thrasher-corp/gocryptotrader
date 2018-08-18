@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/thrasher-/gocryptotrader/config"
+	"github.com/thrasher-/gocryptotrader/decimal"
 )
 
 // Please supply your own APIKEYS here for due diligence testing
@@ -59,8 +60,8 @@ func TestSpotNewOrder(t *testing.T) {
 
 	_, err := g.SpotNewOrder(SpotNewOrderRequestParams{
 		Symbol: "btc_usdt",
-		Amount: 1.1,
-		Price:  10.1,
+		Amount: decimal.NewFromFloat(1.1),
+		Price:  decimal.NewFromFloat(10.1),
 		Type:   SpotNewOrderRequestParamsTypeSell,
 	})
 	if err != nil {

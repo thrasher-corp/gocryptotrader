@@ -11,6 +11,7 @@ import (
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
+	"github.com/thrasher-/gocryptotrader/decimal"
 	"github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/request"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
@@ -43,8 +44,8 @@ type ItBit struct {
 func (i *ItBit) SetDefaults() {
 	i.Name = "ITBIT"
 	i.Enabled = false
-	i.MakerFee = -0.10
-	i.TakerFee = 0.50
+	i.MakerFee = decimal.NewFromFloat(-0.10)
+	i.TakerFee = decimal.Half
 	i.Verbose = false
 	i.Websocket = false
 	i.RESTPollingDelay = 10
@@ -90,7 +91,7 @@ func (i *ItBit) Setup(exch config.ExchangeConfig) {
 }
 
 // GetFee returns the maker or taker fee
-func (i *ItBit) GetFee(maker bool) float64 {
+func (i *ItBit) GetFee(maker bool) decimal.Decimal {
 	if maker {
 		return i.MakerFee
 	}

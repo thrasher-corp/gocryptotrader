@@ -3,6 +3,8 @@ package base
 import (
 	"errors"
 	"log"
+
+	"github.com/thrasher-/gocryptotrader/decimal"
 )
 
 // IFXProviders contains an array of foreign exchange interfaces
@@ -12,14 +14,14 @@ type IFXProviders []IFXProvider
 // supported in GoCryptoTrader
 type IFXProvider interface {
 	Setup(config Settings)
-	GetRates(baseCurrency, symbols string) (map[string]float64, error)
+	GetRates(baseCurrency, symbols string) (map[string]decimal.Decimal, error)
 	GetName() string
 	IsEnabled() bool
 	IsPrimaryProvider() bool
 }
 
 // GetCurrencyData returns currency data from enabled FX providers
-func (fxp IFXProviders) GetCurrencyData(baseCurrency, symbols string) (map[string]float64, error) {
+func (fxp IFXProviders) GetCurrencyData(baseCurrency, symbols string) (map[string]decimal.Decimal, error) {
 	for x := range fxp {
 		if fxp[x].IsPrimaryProvider() && fxp[x].IsEnabled() {
 			rates, err := fxp[x].GetRates(baseCurrency, symbols)

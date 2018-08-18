@@ -35,7 +35,7 @@ func TestSetup(t *testing.T) {
 }
 
 func TestGetFee(t *testing.T) {
-	if p.GetFee() != 0 {
+	if p.GetFee().NotZero() {
 		t.Error("Test faild - HitBTC GetFee() error")
 	}
 }

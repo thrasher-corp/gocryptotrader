@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/thrasher-/gocryptotrader/config"
+	"github.com/thrasher-/gocryptotrader/decimal"
 )
 
 var y Yobit
@@ -34,7 +35,7 @@ func TestSetup(t *testing.T) {
 
 func TestGetFee(t *testing.T) {
 	t.Parallel()
-	if y.GetFee() != 0.2 {
+	if y.GetFee().NotEqual(decimal.TwoTenth) {
 		t.Error("Test Failed - GetFee() error")
 	}
 }
@@ -105,7 +106,7 @@ func TestCancelOrder(t *testing.T) {
 
 func TestTrade(t *testing.T) {
 	t.Parallel()
-	_, err := y.Trade("", "buy", 0, 0)
+	_, err := y.Trade("", "buy", decimal.Zero, decimal.Zero)
 	if err == nil {
 		t.Error("Test Failed - Trade() error", err)
 	}
@@ -121,7 +122,7 @@ func TestGetTradeHistory(t *testing.T) {
 
 func TestWithdrawCoinsToAddress(t *testing.T) {
 	t.Parallel()
-	_, err := y.WithdrawCoinsToAddress("", 0, "")
+	_, err := y.WithdrawCoinsToAddress("", decimal.Zero, "")
 	if err == nil {
 		t.Error("Test Failed - WithdrawCoinsToAddress() error", err)
 	}
@@ -137,7 +138,7 @@ func TestGetDepositAddress(t *testing.T) {
 
 func TestCreateYobicode(t *testing.T) {
 	t.Parallel()
-	_, err := y.CreateCoupon("bla", 0)
+	_, err := y.CreateCoupon("bla", decimal.Zero)
 	if err == nil {
 		t.Error("Test Failed - CreateYobicode() error", err)
 	}

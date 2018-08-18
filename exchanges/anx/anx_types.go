@@ -1,34 +1,36 @@
 package anx
 
+import "github.com/thrasher-/gocryptotrader/decimal"
+
 // Currency holds the currency information
 type Currency struct {
-	Decimals               int     `json:"decimals"`
-	MinOrderSize           float64 `json:"minOrderSize"`
-	MaxOrderSize           float64 `json:"maxOrderSize"`
-	DisplayDenominator     float64 `json:"displayDenominator"`
-	SummaryDecimals        int     `json:"summaryDecimals"`
-	DisplayUnit            string  `json:"displayUnit"`
-	Symbol                 string  `json:"symbol"`
-	Type                   string  `json:"type"`
+	Decimals               int             `json:"decimals"`
+	MinOrderSize           decimal.Decimal `json:"minOrderSize"`
+	MaxOrderSize           decimal.Decimal `json:"maxOrderSize"`
+	DisplayDenominator     decimal.Decimal `json:"displayDenominator"`
+	SummaryDecimals        int             `json:"summaryDecimals"`
+	DisplayUnit            string          `json:"displayUnit"`
+	Symbol                 string          `json:"symbol"`
+	Type                   string          `json:"type"`
 	ConfirmationThresholds []struct {
 		ConfosRequired int `json:"confosRequired"`
 	} `json:"confirmationThresholds"`
-	NetworkFee     float64 `json:"networkFee"`
+	NetworkFee     decimal.Decimal `json:"networkFee"`
 	EngineSettings struct {
 		DepositsEnabled     bool `json:"depositsEnabled"`
 		WithdrawalsEnabled  bool `json:"withdrawalsEnabled"`
 		DisplayEnabled      bool `json:"displayEnabled"`
 		MobileAccessEnabled bool `json:"mobileAccessEnabled"`
 	} `json:"engineSettings"`
-	MinOrderValue       float64 `json:"minOrderValue"`
-	MaxOrderValue       float64 `json:"maxOrderValue"`
-	MaxMarketOrderValue float64 `json:"maxMarketOrderValue"`
-	MaxMarketOrderSize  float64 `json:"maxMarketOrderSize"`
-	DigitalCurrencyType string  `json:"digitalCurrencyType"`
-	AssetName           string  `json:"assetName"`
-	AssetDivisibility   int     `json:"assetDivisibility"`
-	AssetIcon           string  `json:"assetIcon"`
-	AssetIssueQuantity  string  `json:"assetIssueQuantity"`
+	MinOrderValue       decimal.Decimal `json:"minOrderValue"`
+	MaxOrderValue       decimal.Decimal `json:"maxOrderValue"`
+	MaxMarketOrderValue decimal.Decimal `json:"maxMarketOrderValue"`
+	MaxMarketOrderSize  decimal.Decimal `json:"maxMarketOrderSize"`
+	DigitalCurrencyType string          `json:"digitalCurrencyType"`
+	AssetName           string          `json:"assetName"`
+	AssetDivisibility   int             `json:"assetDivisibility"`
+	AssetIcon           string          `json:"assetIcon"`
+	AssetIssueQuantity  string          `json:"assetIssueQuantity"`
 }
 
 // Currencies stores a list of currencies
@@ -45,14 +47,14 @@ type CurrencyPair struct {
 		RestrictedBuy  bool `json:"restrictedBuy"`
 		RestrictedSell bool `json:"restrictedSell"`
 	} `json:"engineSettings"`
-	MinOrderRate         float64 `json:"minOrderRate"`
-	MaxOrderRate         float64 `json:"maxOrderRate"`
-	DisplayPriceDecimals int     `json:"displayPriceDecimals"`
-	TradedCcy            string  `json:"tradedCcy"`
-	SettlementCcy        string  `json:"settlementCcy"`
-	PreferredMarket      string  `json:"preferredMarket"`
-	ChartEnabled         bool    `json:"chartEnabled"`
-	SimpleTradeEnabled   bool    `json:"simpleTradeEnabled"`
+	MinOrderRate         decimal.Decimal `json:"minOrderRate"`
+	MaxOrderRate         decimal.Decimal `json:"maxOrderRate"`
+	DisplayPriceDecimals int             `json:"displayPriceDecimals"`
+	TradedCcy            string          `json:"tradedCcy"`
+	SettlementCcy        string          `json:"settlementCcy"`
+	PreferredMarket      string          `json:"preferredMarket"`
+	ChartEnabled         bool            `json:"chartEnabled"`
+	SimpleTradeEnabled   bool            `json:"simpleTradeEnabled"`
 }
 
 // CurrencyPairs stores currency pair info
@@ -130,10 +132,10 @@ type Ticker struct {
 
 // DepthItem contains depth information
 type DepthItem struct {
-	Price     float64 `json:"price,string"`
-	PriceInt  float64 `json:"price_int,string"`
-	Amount    float64 `json:"amount,string"`
-	AmountInt int64   `json:"amount_int,string"`
+	Price     decimal.Decimal `json:"price,string"`
+	PriceInt  decimal.Decimal `json:"price_int,string"`
+	Amount    decimal.Decimal `json:"amount,string"`
+	AmountInt int64           `json:"amount_int,string"`
 }
 
 // Depth contains full depth information

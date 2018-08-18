@@ -17,6 +17,7 @@ import (
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
+	"github.com/thrasher-/gocryptotrader/decimal"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/request"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
@@ -66,7 +67,7 @@ type HUOBI struct {
 func (h *HUOBI) SetDefaults() {
 	h.Name = "Huobi"
 	h.Enabled = false
-	h.Fee = 0
+	h.Fee = decimal.Zero
 	h.Verbose = false
 	h.Websocket = false
 	h.RESTPollingDelay = 10
@@ -113,7 +114,7 @@ func (h *HUOBI) Setup(exch config.ExchangeConfig) {
 }
 
 // GetFee returns Huobi fee
-func (h *HUOBI) GetFee() float64 {
+func (h *HUOBI) GetFee() decimal.Decimal {
 	return h.Fee
 }
 
@@ -212,14 +213,14 @@ func (h *HUOBI) GetTrades(symbol string) ([]Trade, error) {
 // GetLatestSpotPrice returns latest spot price of symbol
 //
 // symbol: string of currency pair
-func (h *HUOBI) GetLatestSpotPrice(symbol string) (float64, error) {
+func (h *HUOBI) GetLatestSpotPrice(symbol string) (decimal.Decimal, error) {
 	list, err := h.GetTradeHistory(symbol, "1")
 
 	if err != nil {
-		return 0, err
+		return decimal.Zero, err
 	}
 	if len(list) == 0 {
-		return 0, errors.New("The length of the list is 0")
+		return decimal.Zero, errors.New("The length of the list is 0")
 	}
 
 	return list[0].Trades[0].Price, nil
@@ -540,11 +541,11 @@ func (h *HUOBI) GetOrdersMatch(symbol, types, start, end, from, direct, size str
 }
 
 // MarginTransfer transfers assets into or out of the margin account
-func (h *HUOBI) MarginTransfer(symbol, currency string, amount float64, in bool) (int64, error) {
+func (h *HUOBI) MarginTransfer(symbol, currency string, amount decimal.Decimal, in bool) (int64, error) {
 	vals := url.Values{}
 	vals.Set("symbol", symbol)
 	vals.Set("currency", currency)
-	vals.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
+	vals.Set("amount", amount.StringFixed(exchange.DefaultDecimalPrecision))
 
 	path := huobiMarginTransferIn
 	if !in {
@@ -566,11 +567,11 @@ func (h *HUOBI) MarginTransfer(symbol, currency string, amount float64, in bool)
 }
 
 // MarginOrder submits a margin order application
-func (h *HUOBI) MarginOrder(symbol, currency string, amount float64) (int64, error) {
+func (h *HUOBI) MarginOrder(symbol, currency string, amount decimal.Decimal) (int64, error) {
 	vals := url.Values{}
 	vals.Set("symbol", symbol)
 	vals.Set("currency", currency)
-	vals.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
+	vals.Set("amount", amount.StringFixed(exchange.DefaultDecimalPrecision))
 
 	type response struct {
 		Response
@@ -587,10 +588,10 @@ func (h *HUOBI) MarginOrder(symbol, currency string, amount float64) (int64, err
 }
 
 // MarginRepayment repays a margin amount for a margin ID
-func (h *HUOBI) MarginRepayment(orderID int64, amount float64) (int64, error) {
+func (h *HUOBI) MarginRepayment(orderID int64, amount decimal.Decimal) (int64, error) {
 	vals := url.Values{}
 	vals.Set("order-id", strconv.FormatInt(orderID, 10))
-	vals.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
+	vals.Set("amount", amount.StringFixed(exchange.DefaultDecimalPrecision))
 
 	type response struct {
 		Response
@@ -673,7 +674,7 @@ func (h *HUOBI) GetMarginAccountBalance(symbol string) ([]MarginAccountBalance, 
 }
 
 // Withdraw withdraws the desired amount and currency
-func (h *HUOBI) Withdraw(address, currency, addrTag string, amount, fee float64) (int64, error) {
+func (h *HUOBI) Withdraw(address, currency, addrTag string, amount, fee decimal.Decimal) (int64, error) {
 	type response struct {
 		Response
 		WithdrawID int64 `json:"data"`
@@ -682,10 +683,10 @@ func (h *HUOBI) Withdraw(address, currency, addrTag string, amount, fee float64)
 	vals := url.Values{}
 	vals.Set("address", address)
 	vals.Set("currency", currency)
-	vals.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
+	vals.Set("amount", amount.StringFixed(exchange.DefaultDecimalPrecision))
 
-	if fee != 0 {
-		vals.Set("fee", strconv.FormatFloat(fee, 'f', -1, 64))
+	if fee.NotZero() {
+		vals.Set("fee", fee.StringFixed(exchange.DefaultDecimalPrecision))
 	}
 
 	if currency == "XRP" {

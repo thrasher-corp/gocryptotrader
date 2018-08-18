@@ -28,6 +28,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/thrasher-/gocryptotrader/decimal"
 )
 
 // Vars for common.go operations
@@ -578,6 +580,19 @@ func FloatFromString(raw interface{}) (float64, error) {
 		return 0, fmt.Errorf("unable to parse, value not string: %T", raw)
 	}
 	return flt, nil
+}
+
+// DecimalFromString format
+func DecimalFromString(raw interface{}) (decimal.Decimal, error) {
+	str, ok := raw.(string)
+	if !ok {
+		return decimal.Zero, fmt.Errorf("unable to parse, value not string: %T", raw)
+	}
+	dec, err := decimal.NewFromString(str)
+	if err != nil {
+		return decimal.Zero, fmt.Errorf("unable to parse, value not string: %T", raw)
+	}
+	return dec, nil
 }
 
 // IntFromString format

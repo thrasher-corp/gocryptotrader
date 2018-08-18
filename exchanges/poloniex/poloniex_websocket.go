@@ -5,6 +5,7 @@ import (
 	"strconv"
 
 	"github.com/beatgammit/turnpike"
+	"github.com/thrasher-/gocryptotrader/decimal"
 )
 
 const (
@@ -18,12 +19,13 @@ const (
 func OnTicker(args []interface{}, kwargs map[string]interface{}) {
 	ticker := WebsocketTicker{}
 	ticker.CurrencyPair = args[0].(string)
-	ticker.Last, _ = strconv.ParseFloat(args[1].(string), 64)
-	ticker.LowestAsk, _ = strconv.ParseFloat(args[2].(string), 64)
-	ticker.HighestBid, _ = strconv.ParseFloat(args[3].(string), 64)
-	ticker.PercentChange, _ = strconv.ParseFloat(args[4].(string), 64)
-	ticker.BaseVolume, _ = strconv.ParseFloat(args[5].(string), 64)
-	ticker.QuoteVolume, _ = strconv.ParseFloat(args[6].(string), 64)
+	// !! Errors are ingnored !!
+	ticker.Last, _ = decimal.NewFromString(args[1].(string))
+	ticker.LowestAsk, _ = decimal.NewFromString(args[2].(string))
+	ticker.HighestBid, _ = decimal.NewFromString(args[3].(string))
+	ticker.PercentChange, _ = decimal.NewFromString(args[4].(string))
+	ticker.BaseVolume, _ = decimal.NewFromString(args[5].(string))
+	ticker.QuoteVolume, _ = decimal.NewFromString(args[6].(string))
 
 	if args[7].(float64) != 0 {
 		ticker.IsFrozen = true
@@ -31,18 +33,18 @@ func OnTicker(args []interface{}, kwargs map[string]interface{}) {
 		ticker.IsFrozen = false
 	}
 
-	ticker.High, _ = strconv.ParseFloat(args[8].(string), 64)
-	ticker.Low, _ = strconv.ParseFloat(args[9].(string), 64)
+	ticker.High, _ = decimal.NewFromString(args[8].(string))
+	ticker.Low, _ = decimal.NewFromString(args[9].(string))
 }
 
 // OnTrollbox handles trollbox messages
 func OnTrollbox(args []interface{}, kwargs map[string]interface{}) {
 	message := WebsocketTrollboxMessage{}
-	message.MessageNumber, _ = args[1].(float64)
+	message.MessageNumber = decimal.NewFromFloat(args[1].(float64))
 	message.Username = args[2].(string)
 	message.Message = args[3].(string)
 	if len(args) == 5 {
-		message.Reputation = args[4].(float64)
+		message.Reputation = decimal.NewFromFloat(args[4].(float64))
 	}
 }
 

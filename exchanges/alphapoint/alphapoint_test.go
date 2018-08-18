@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/thrasher-/gocryptotrader/common"
+	"github.com/thrasher-/gocryptotrader/decimal"
 )
 
 const (
@@ -65,12 +66,12 @@ func TestGetTicker(t *testing.T) {
 			t.Fatal("Test Failed - Alphapoint GetTicker unmarshalling error: ", err)
 		}
 
-		if ticker.Last != 249.76 {
+		if ticker.Last.NotEqual(decimal.NewFromFloat(249.76)) {
 			t.Error("Test failed - Alphapoint GetTicker expected last = 249.76")
 		}
 	}
 
-	if ticker.Last < 0 {
+	if ticker.Last.LessThanZero() {
 		t.Error("Test failed - Alphapoint GetTicker last < 0")
 	}
 }
@@ -190,7 +191,7 @@ func TestGetOrderbook(t *testing.T) {
 			t.Fatal("Test Failed - TestGetOrderbook unmarshalling error: ", err)
 		}
 
-		if orderBook.Bids[0].Quantity != 725 {
+		if orderBook.Bids[0].Quantity.NotEqual(decimal.NewFromInt(725)) {
 			t.Error("Test Failed - TestGetOrderbook Bids[0].Quantity != 725")
 		}
 	}
@@ -395,7 +396,7 @@ func TestWithdrawCoins(t *testing.T) {
 		return
 	}
 
-	err := a.WithdrawCoins("", "", "", 0.01)
+	err := a.WithdrawCoins("", "", "", decimal.NewFromFloat(0.01))
 	if err == nil {
 		t.Error("Test Failed - GetUserInfo() error")
 	}
@@ -410,7 +411,7 @@ func TestCreateOrder(t *testing.T) {
 		return
 	}
 
-	_, err := a.CreateOrder("", "", 1, 0.01, 0)
+	_, err := a.CreateOrder("", "", 1, decimal.NewFromFloat(0.01), decimal.Zero)
 	if err == nil {
 		t.Error("Test Failed - GetUserInfo() error")
 	}
@@ -485,7 +486,7 @@ func TestGetOrderFee(t *testing.T) {
 		return
 	}
 
-	_, err := a.GetOrderFee("", "", 1, 1)
+	_, err := a.GetOrderFee("", "", decimal.One, decimal.One)
 	if err == nil {
 		t.Error("Test Failed - GetUserInfo() error")
 	}

@@ -8,6 +8,7 @@ import (
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency/forexprovider/base"
+	"github.com/thrasher-/gocryptotrader/decimal"
 )
 
 // const declarations consist of endpoints
@@ -39,7 +40,7 @@ func (c *CurrencyConverter) Setup(config base.Settings) {
 }
 
 // GetRates is a wrapper function to return rates
-func (c *CurrencyConverter) GetRates(baseCurrency, symbols string) (map[string]float64, error) {
+func (c *CurrencyConverter) GetRates(baseCurrency, symbols string) (map[string]decimal.Decimal, error) {
 	splitSymbols := common.SplitStrings(symbols, ",")
 
 	if len(splitSymbols) == 1 {
@@ -55,7 +56,7 @@ func (c *CurrencyConverter) GetRates(baseCurrency, symbols string) (map[string]f
 		return c.ConvertMany(completedStrings)
 	}
 
-	rates := make(map[string]float64)
+	rates := make(map[string]decimal.Decimal)
 	processBatch := func(length int) {
 		for i := 0; i < length; i += 2 {
 			batch := completedStrings[i : i+2]
@@ -92,12 +93,12 @@ func (c *CurrencyConverter) GetRates(baseCurrency, symbols string) (map[string]f
 
 // ConvertMany takes 2 or more currencies depending on if using the free
 // or paid API
-func (c *CurrencyConverter) ConvertMany(currencies []string) (map[string]float64, error) {
+func (c *CurrencyConverter) ConvertMany(currencies []string) (map[string]decimal.Decimal, error) {
 	if len(currencies) > 2 && (c.APIKey == "" || c.APIKey == "Key") {
 		return nil, errors.New("currency fetching is limited to two currencies per request")
 	}
 
-	result := make(map[string]float64)
+	result := make(map[string]decimal.Decimal)
 	v := url.Values{}
 	joined := common.JoinStrings(currencies, ",")
 	v.Set("q", joined)
@@ -112,8 +113,8 @@ func (c *CurrencyConverter) ConvertMany(currencies []string) (map[string]float64
 }
 
 // Convert gets the conversion rate for the supplied currencies
-func (c *CurrencyConverter) Convert(from, to string) (map[string]float64, error) {
-	result := make(map[string]float64)
+func (c *CurrencyConverter) Convert(from, to string) (map[string]decimal.Decimal, error) {
+	result := make(map[string]decimal.Decimal)
 	v := url.Values{}
 	v.Set("q", from+"_"+to)
 	v.Set("compact", "ultra")

@@ -36,7 +36,7 @@ func TestSetup(t *testing.T) {
 
 func TestGetFee(t *testing.T) {
 	t.Parallel()
-	if l.GetFee(false) != 0 || l.GetFee(true) != 0 {
+	if l.GetFee(false).NotZero() || l.GetFee(true).NotZero() {
 		t.Error("Test Failed - GetFee() error")
 	}
 }

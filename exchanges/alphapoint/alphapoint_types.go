@@ -1,33 +1,35 @@
 package alphapoint
 
+import "github.com/thrasher-/gocryptotrader/decimal"
+
 // Response contains general responses from the exchange
 type Response struct {
-	IsAccepted    bool    `json:"isAccepted"`
-	RejectReason  string  `json:"rejectReason"`
-	Fee           float64 `json:"fee"`
-	FeeProduct    string  `json:"feeProduct"`
-	CancelOrderID int64   `json:"cancelOrderId"`
-	ServerOrderID int64   `json:"serverOrderId"`
-	DateTimeUTC   float64 `json:"dateTimeUtc"`
-	ModifyOrderID int64   `json:"modifyOrderId"`
+	IsAccepted    bool            `json:"isAccepted"`
+	RejectReason  string          `json:"rejectReason"`
+	Fee           decimal.Decimal `json:"fee"`
+	FeeProduct    string          `json:"feeProduct"`
+	CancelOrderID int64           `json:"cancelOrderId"`
+	ServerOrderID int64           `json:"serverOrderId"`
+	DateTimeUTC   decimal.Decimal `json:"dateTimeUtc"`
+	ModifyOrderID int64           `json:"modifyOrderId"`
 	Addresses     []DepositAddresses
 }
 
 // Ticker holds ticker information
 type Ticker struct {
-	High               float64 `json:"high"`
-	Last               float64 `json:"last"`
-	Bid                float64 `json:"bid"`
-	Volume             float64 `json:"volume"`
-	Low                float64 `json:"low"`
-	Ask                float64 `json:"ask"`
-	Total24HrQtyTraded float64 `json:"Total24HrQtyTraded"`
-	Total24HrNumTrades float64 `json:"Total24HrNumTrades"`
-	SellOrderCount     float64 `json:"sellOrderCount"`
-	BuyOrderCount      float64 `json:"buyOrderCount"`
-	NumOfCreateOrders  float64 `json:"numOfCreateOrders"`
-	IsAccepted         bool    `json:"isAccepted"`
-	RejectReason       string  `json:"rejectReason"`
+	High               decimal.Decimal `json:"high"`
+	Last               decimal.Decimal `json:"last"`
+	Bid                decimal.Decimal `json:"bid"`
+	Volume             decimal.Decimal `json:"volume"`
+	Low                decimal.Decimal `json:"low"`
+	Ask                decimal.Decimal `json:"ask"`
+	Total24HrQtyTraded decimal.Decimal `json:"Total24HrQtyTraded"`
+	Total24HrNumTrades decimal.Decimal `json:"Total24HrNumTrades"`
+	SellOrderCount     decimal.Decimal `json:"sellOrderCount"`
+	BuyOrderCount      decimal.Decimal `json:"buyOrderCount"`
+	NumOfCreateOrders  decimal.Decimal `json:"numOfCreateOrders"`
+	IsAccepted         bool            `json:"isAccepted"`
+	RejectReason       string          `json:"rejectReason"`
 }
 
 // Trades holds trade information
@@ -45,14 +47,14 @@ type Trades struct {
 
 // Trade is a sub-type which holds the singular trade that occurred in the past
 type Trade struct {
-	TID                   int64   `json:"tid"`
-	Price                 float64 `json:"px"`
-	Quantity              float64 `json:"qty"`
-	Unixtime              int     `json:"unixtime"`
-	UTCTicks              int64   `json:"utcticks"`
-	IncomingOrderSide     int     `json:"incomingOrderSide"`
-	IncomingServerOrderID int     `json:"incomingServerOrderId"`
-	BookServerOrderID     int     `json:"bookServerOrderId"`
+	TID                   int64           `json:"tid"`
+	Price                 decimal.Decimal `json:"px"`
+	Quantity              decimal.Decimal `json:"qty"`
+	Unixtime              int             `json:"unixtime"`
+	UTCTicks              int64           `json:"utcticks"`
+	IncomingOrderSide     int             `json:"incomingOrderSide"`
+	IncomingServerOrderID int             `json:"incomingServerOrderId"`
+	BookServerOrderID     int             `json:"bookServerOrderId"`
 }
 
 // Orderbook holds the total Bids and Asks on the exchange
@@ -65,8 +67,8 @@ type Orderbook struct {
 
 // OrderbookEntry is a sub-type that takes has the individual quantity and price
 type OrderbookEntry struct {
-	Quantity float64 `json:"qty"`
-	Price    float64 `json:"px"`
+	Quantity decimal.Decimal `json:"qty"`
+	Price    decimal.Decimal `json:"px"`
 }
 
 // ProductPairs holds the full range of product pairs that the exchange can
@@ -176,19 +178,19 @@ type DepositAddresses struct {
 
 // WebsocketTicker holds current up to date ticker information
 type WebsocketTicker struct {
-	MessageType             string  `json:"messageType"`
-	ProductPair             string  `json:"prodPair"`
-	High                    float64 `json:"high"`
-	Low                     float64 `json:"low"`
-	Last                    float64 `json:"last"`
-	Volume                  float64 `json:"volume"`
-	Volume24Hrs             float64 `json:"volume24hrs"`
-	Volume24HrsProduct2     float64 `json:"volume24hrsProduct2"`
-	Total24HrQtyTraded      float64 `json:"Total24HrQtyTraded"`
-	Total24HrProduct2Traded float64 `json:"Total24HrProduct2Traded"`
-	Total24HrNumTrades      float64 `json:"Total24HrNumTrades"`
-	Bid                     float64 `json:"bid"`
-	Ask                     float64 `json:"ask"`
-	BuyOrderCount           int     `json:"buyOrderCount"`
-	SellOrderCount          int     `json:"sellOrderCount"`
+	MessageType             string          `json:"messageType"`
+	ProductPair             string          `json:"prodPair"`
+	High                    decimal.Decimal `json:"high"`
+	Low                     decimal.Decimal `json:"low"`
+	Last                    decimal.Decimal `json:"last"`
+	Volume                  decimal.Decimal `json:"volume"`
+	Volume24Hrs             decimal.Decimal `json:"volume24hrs"`
+	Volume24HrsProduct2     decimal.Decimal `json:"volume24hrsProduct2"`
+	Total24HrQtyTraded      decimal.Decimal `json:"Total24HrQtyTraded"`
+	Total24HrProduct2Traded decimal.Decimal `json:"Total24HrProduct2Traded"`
+	Total24HrNumTrades      decimal.Decimal `json:"Total24HrNumTrades"`
+	Bid                     decimal.Decimal `json:"bid"`
+	Ask                     decimal.Decimal `json:"ask"`
+	BuyOrderCount           int             `json:"buyOrderCount"`
+	SellOrderCount          int             `json:"sellOrderCount"`
 }

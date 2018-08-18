@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/thrasher-/gocryptotrader/config"
+	"github.com/thrasher-/gocryptotrader/decimal"
 )
 
 var w WEX
@@ -42,7 +43,7 @@ func TestGetTradablePairs(t *testing.T) {
 
 func TestGetFee(t *testing.T) {
 	t.Parallel()
-	if w.GetFee() != 0.2 {
+	if w.GetFee().NotEqual(decimal.NewFromFloat(0.2)) {
 		t.Error("Test Failed - GetFee() error")
 	}
 }
@@ -113,7 +114,7 @@ func TestCancelOrder(t *testing.T) {
 
 func TestTrade(t *testing.T) {
 	t.Parallel()
-	_, err := w.Trade("", "buy", 0, 0)
+	_, err := w.Trade("", "buy", decimal.Zero, decimal.Zero)
 	if err == nil {
 		t.Error("Test Failed - Trade() error", err)
 	}
@@ -137,7 +138,7 @@ func TestGetTradeHistory(t *testing.T) {
 
 func TestWithdrawCoins(t *testing.T) {
 	t.Parallel()
-	_, err := w.WithdrawCoins("", 0, "")
+	_, err := w.WithdrawCoins("", decimal.Zero, "")
 	if err == nil {
 		t.Error("Test Failed - WithdrawCoins() error", err)
 	}
@@ -153,7 +154,7 @@ func TestCoinDepositAddress(t *testing.T) {
 
 func TestCreateCoupon(t *testing.T) {
 	t.Parallel()
-	_, err := w.CreateCoupon("bla", 0)
+	_, err := w.CreateCoupon("bla", decimal.Zero)
 	if err == nil {
 		t.Error("Test Failed - CreateCoupon() error", err)
 	}

@@ -1,17 +1,19 @@
 package okex
 
+import "github.com/thrasher-/gocryptotrader/decimal"
+
 // ContractPrice holds date and ticker price price for contracts.
 type ContractPrice struct {
 	Date   string `json:"date"`
 	Ticker struct {
-		Buy        float64 `json:"buy"`
-		ContractID int     `json:"contract_id"`
-		High       float64 `json:"high"`
-		Low        float64 `json:"low"`
-		Last       float64 `json:"last"`
-		Sell       float64 `json:"sell"`
-		UnitAmount float64 `json:"unit_amount"`
-		Vol        float64 `json:"vol"`
+		Buy        decimal.Decimal `json:"buy"`
+		ContractID int             `json:"contract_id"`
+		High       decimal.Decimal `json:"high"`
+		Low        decimal.Decimal `json:"low"`
+		Last       decimal.Decimal `json:"last"`
+		Sell       decimal.Decimal `json:"sell"`
+		UnitAmount decimal.Decimal `json:"unit_amount"`
+		Vol        decimal.Decimal `json:"vol"`
 	} `json:"ticker"`
 	Result bool        `json:"result"`
 	Error  interface{} `json:"error_code"`
@@ -28,43 +30,43 @@ type ContractDepth struct {
 // ActualContractDepth better manipulated structure to return
 type ActualContractDepth struct {
 	Asks []struct {
-		Price  float64
-		Volume float64
+		Price  decimal.Decimal
+		Volume decimal.Decimal
 	}
 	Bids []struct {
-		Price  float64
-		Volume float64
+		Price  decimal.Decimal
+		Volume decimal.Decimal
 	}
 }
 
 // ActualContractTradeHistory holds contract trade history
 type ActualContractTradeHistory struct {
-	Amount   float64 `json:"amount"`
-	DateInMS float64 `json:"date_ms"`
-	Date     float64 `json:"date"`
-	Price    float64 `json:"price"`
-	TID      float64 `json:"tid"`
-	Type     string  `json:"buy"`
+	Amount   decimal.Decimal `json:"amount"`
+	DateInMS decimal.Decimal `json:"date_ms"`
+	Date     decimal.Decimal `json:"date"`
+	Price    decimal.Decimal `json:"price"`
+	TID      decimal.Decimal `json:"tid"`
+	Type     string          `json:"buy"`
 }
 
 // CandleStickData holds candlestick data
 type CandleStickData struct {
-	Timestamp float64 `json:"timestamp"`
-	Open      float64 `json:"open"`
-	High      float64 `json:"high"`
-	Low       float64 `json:"low"`
-	Close     float64 `json:"close"`
-	Volume    float64 `json:"volume"`
-	Amount    float64 `json:"amount"`
+	Timestamp decimal.Decimal `json:"timestamp"`
+	Open      decimal.Decimal `json:"open"`
+	High      decimal.Decimal `json:"high"`
+	Low       decimal.Decimal `json:"low"`
+	Close     decimal.Decimal `json:"close"`
+	Volume    decimal.Decimal `json:"volume"`
+	Amount    decimal.Decimal `json:"amount"`
 }
 
 // Info holds individual information
 type Info struct {
-	AccountRights float64 `json:"account_rights"`
-	KeepDeposit   float64 `json:"keep_deposit"`
-	ProfitReal    float64 `json:"profit_real"`
-	ProfitUnreal  float64 `json:"profit_unreal"`
-	RiskRate      float64 `json:"risk_rate"`
+	AccountRights decimal.Decimal `json:"account_rights"`
+	KeepDeposit   decimal.Decimal `json:"keep_deposit"`
+	ProfitReal    decimal.Decimal `json:"profit_real"`
+	ProfitUnreal  decimal.Decimal `json:"profit_unreal"`
+	RiskRate      decimal.Decimal `json:"risk_rate"`
 }
 
 // UserInfo holds a collection of user data
@@ -78,50 +80,50 @@ type UserInfo struct {
 
 // HoldData is a sub type for FuturePosition
 type HoldData struct {
-	BuyAmount      float64 `json:"buy_amount"`
-	BuyAvailable   float64 `json:"buy_available"`
-	BuyPriceAvg    float64 `json:"buy_price_avg"`
-	BuyPriceCost   float64 `json:"buy_price_cost"`
-	BuyProfitReal  float64 `json:"buy_profit_real"`
-	ContractID     int     `json:"contract_id"`
-	ContractType   string  `json:"contract_type"`
-	CreateDate     int     `json:"create_date"`
-	LeverRate      float64 `json:"lever_rate"`
-	SellAmount     float64 `json:"sell_amount"`
-	SellAvailable  float64 `json:"sell_available"`
-	SellPriceAvg   float64 `json:"sell_price_avg"`
-	SellPriceCost  float64 `json:"sell_price_cost"`
-	SellProfitReal float64 `json:"sell_profit_real"`
-	Symbol         string  `json:"symbol"`
+	BuyAmount      decimal.Decimal `json:"buy_amount"`
+	BuyAvailable   decimal.Decimal `json:"buy_available"`
+	BuyPriceAvg    decimal.Decimal `json:"buy_price_avg"`
+	BuyPriceCost   decimal.Decimal `json:"buy_price_cost"`
+	BuyProfitReal  decimal.Decimal `json:"buy_profit_real"`
+	ContractID     int             `json:"contract_id"`
+	ContractType   string          `json:"contract_type"`
+	CreateDate     int             `json:"create_date"`
+	LeverRate      decimal.Decimal `json:"lever_rate"`
+	SellAmount     decimal.Decimal `json:"sell_amount"`
+	SellAvailable  decimal.Decimal `json:"sell_available"`
+	SellPriceAvg   decimal.Decimal `json:"sell_price_avg"`
+	SellPriceCost  decimal.Decimal `json:"sell_price_cost"`
+	SellProfitReal decimal.Decimal `json:"sell_profit_real"`
+	Symbol         string          `json:"symbol"`
 }
 
 // FuturePosition contains an array of holding types
 type FuturePosition struct {
-	ForceLiquidationPrice float64    `json:"force_liqu_price"`
-	Holding               []HoldData `json:"holding"`
+	ForceLiquidationPrice decimal.Decimal `json:"force_liqu_price"`
+	Holding               []HoldData      `json:"holding"`
 }
 
 // FutureTradeHistory will contain futures trade data
 type FutureTradeHistory struct {
-	Amount float64 `json:"amount"`
-	Date   int     `json:"date"`
-	Price  float64 `json:"price"`
-	TID    float64 `json:"tid"`
-	Type   string  `json:"type"`
+	Amount decimal.Decimal `json:"amount"`
+	Date   int             `json:"date"`
+	Price  decimal.Decimal `json:"price"`
+	TID    decimal.Decimal `json:"tid"`
+	Type   string          `json:"type"`
 }
 
 // SpotPrice holds date and ticker price price for contracts.
 type SpotPrice struct {
 	Date   string `json:"date"`
 	Ticker struct {
-		Buy        float64 `json:"buy,string"`
-		ContractID int     `json:"contract_id"`
-		High       float64 `json:"high,string"`
-		Low        float64 `json:"low,string"`
-		Last       float64 `json:"last,string"`
-		Sell       float64 `json:"sell,string"`
-		UnitAmount float64 `json:"unit_amount,string"`
-		Vol        float64 `json:"vol,string"`
+		Buy        decimal.Decimal `json:"buy,string"`
+		ContractID int             `json:"contract_id"`
+		High       decimal.Decimal `json:"high,string"`
+		Low        decimal.Decimal `json:"low,string"`
+		Last       decimal.Decimal `json:"last,string"`
+		Sell       decimal.Decimal `json:"sell,string"`
+		UnitAmount decimal.Decimal `json:"unit_amount,string"`
+		Vol        decimal.Decimal `json:"vol,string"`
 	} `json:"ticker"`
 	Result bool        `json:"result"`
 	Error  interface{} `json:"error_code"`
@@ -144,12 +146,12 @@ type ActualSpotDepthRequestParams struct {
 // ActualSpotDepth better manipulated structure to return
 type ActualSpotDepth struct {
 	Asks []struct {
-		Price  float64
-		Volume float64
+		Price  decimal.Decimal
+		Volume decimal.Decimal
 	}
 	Bids []struct {
-		Price  float64
-		Volume float64
+		Price  decimal.Decimal
+		Volume decimal.Decimal
 	}
 }
 
@@ -161,12 +163,12 @@ type ActualSpotTradeHistoryRequestParams struct {
 
 // ActualSpotTradeHistory holds contract trade history
 type ActualSpotTradeHistory struct {
-	Amount   float64 `json:"amount"`
-	DateInMS float64 `json:"date_ms"`
-	Date     float64 `json:"date"`
-	Price    float64 `json:"price"`
-	TID      float64 `json:"tid"`
-	Type     string  `json:"buy"`
+	Amount   decimal.Decimal `json:"amount"`
+	DateInMS decimal.Decimal `json:"date_ms"`
+	Date     decimal.Decimal `json:"date"`
+	Price    decimal.Decimal `json:"price"`
+	TID      decimal.Decimal `json:"tid"`
+	Type     string          `json:"buy"`
 }
 
 // SpotUserInfo holds the spot user info

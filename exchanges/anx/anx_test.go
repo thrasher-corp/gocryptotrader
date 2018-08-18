@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/thrasher-/gocryptotrader/config"
+	"github.com/thrasher-/gocryptotrader/decimal"
 )
 
 var anx ANX
@@ -17,10 +18,10 @@ func TestSetDefaults(t *testing.T) {
 	if anx.Enabled != false {
 		t.Error("Test Failed - ANX SetDefaults() incorrect values set")
 	}
-	if anx.TakerFee != 0.6 {
+	if !anx.TakerFee.Equal(decimal.NewFromFloat(0.6)) {
 		t.Error("Test Failed - ANX SetDefaults() incorrect values set")
 	}
-	if anx.MakerFee != 0.3 {
+	if !anx.MakerFee.Equal(decimal.NewFromFloat(0.3)) {
 		t.Error("Test Failed - ANX SetDefaults() incorrect values set")
 	}
 	if anx.Verbose != false {
@@ -90,12 +91,12 @@ func TestGetTradablePairs(t *testing.T) {
 }
 
 func TestGetFee(t *testing.T) {
-	makerFeeExpected, takerFeeExpected := 0.3, 0.6
+	makerFeeExpected, takerFeeExpected := decimal.NewFromFloat(0.3), decimal.NewFromFloat(0.6)
 
-	if anx.GetFee(true) != makerFeeExpected {
+	if anx.GetFee(true).NotEqual(makerFeeExpected) {
 		t.Error("Test Failed - ANX GetFee() incorrect return value")
 	}
-	if anx.GetFee(false) != takerFeeExpected {
+	if anx.GetFee(false).NotEqual(takerFeeExpected) {
 		t.Error("Test Failed - ANX GetFee() incorrect return value")
 	}
 }

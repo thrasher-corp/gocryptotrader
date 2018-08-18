@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/thrasher-/gocryptotrader/config"
+	"github.com/thrasher-/gocryptotrader/decimal"
 )
 
 // Please supply your own keys here for due diligence testing
@@ -123,7 +124,7 @@ func TestGetUserTransactions(t *testing.T) {
 
 func TestPlaceTrade(t *testing.T) {
 	t.Parallel()
-	_, err := b.PlaceTrade("btc", "bid", 0, 0)
+	_, err := b.PlaceTrade("btc", "bid", decimal.Zero, 0)
 	if err == nil {
 		t.Error("test failed - Bithumb PlaceTrade() error", err)
 	}
@@ -147,7 +148,7 @@ func TestCancelTrade(t *testing.T) {
 
 func TestWithdrawCrypto(t *testing.T) {
 	t.Parallel()
-	_, err := b.WithdrawCrypto("LQxiDhKU7idKiWQhx4ALKYkBx8xKEQVxJR", "", "ltc", 0)
+	_, err := b.WithdrawCrypto("LQxiDhKU7idKiWQhx4ALKYkBx8xKEQVxJR", "", "ltc", decimal.Zero)
 	if err == nil {
 		t.Error("test failed - Bithumb WithdrawCrypto() error", err)
 	}
@@ -171,7 +172,7 @@ func TestRequestKRWWithdraw(t *testing.T) {
 
 func TestMarketBuyOrder(t *testing.T) {
 	t.Parallel()
-	_, err := b.MarketBuyOrder("btc", 0)
+	_, err := b.MarketBuyOrder("btc", decimal.Zero)
 	if err == nil {
 		t.Error("test failed - Bithumb MarketBuyOrder() error", err)
 	}
@@ -179,7 +180,7 @@ func TestMarketBuyOrder(t *testing.T) {
 
 func TestMarketSellOrder(t *testing.T) {
 	t.Parallel()
-	_, err := b.MarketSellOrder("btc", 0)
+	_, err := b.MarketSellOrder("btc", decimal.Zero)
 	if err == nil {
 		t.Error("test failed - Bithumb MarketSellOrder() error", err)
 	}

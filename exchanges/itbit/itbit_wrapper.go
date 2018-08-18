@@ -3,10 +3,10 @@ package itbit
 import (
 	"errors"
 	"log"
-	"strconv"
 	"sync"
 
 	"github.com/thrasher-/gocryptotrader/currency/pair"
+	"github.com/thrasher-/gocryptotrader/decimal"
 	"github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
@@ -78,11 +78,11 @@ func (i *ItBit) UpdateOrderbook(p pair.CurrencyPair, assetType string) (orderboo
 
 	for x := range orderbookNew.Bids {
 		data := orderbookNew.Bids[x]
-		price, err := strconv.ParseFloat(data[0], 64)
+		price, err := decimal.NewFromString(data[0])
 		if err != nil {
 			log.Println(err)
 		}
-		amount, err := strconv.ParseFloat(data[1], 64)
+		amount, err := decimal.NewFromString(data[1])
 		if err != nil {
 			log.Println(err)
 		}
@@ -91,11 +91,11 @@ func (i *ItBit) UpdateOrderbook(p pair.CurrencyPair, assetType string) (orderboo
 
 	for x := range orderbookNew.Asks {
 		data := orderbookNew.Asks[x]
-		price, err := strconv.ParseFloat(data[0], 64)
+		price, err := decimal.NewFromString(data[0])
 		if err != nil {
 			log.Println(err)
 		}
-		amount, err := strconv.ParseFloat(data[1], 64)
+		amount, err := decimal.NewFromString(data[1])
 		if err != nil {
 			log.Println(err)
 		}
@@ -129,7 +129,7 @@ func (i *ItBit) GetExchangeHistory(p pair.CurrencyPair, assetType string) ([]exc
 }
 
 // SubmitExchangeOrder submits a new order
-func (i *ItBit) SubmitExchangeOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (int64, error) {
+func (i *ItBit) SubmitExchangeOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price decimal.Decimal, clientID string) (int64, error) {
 	return 0, errors.New("not yet implemented")
 }
 
@@ -162,18 +162,18 @@ func (i *ItBit) GetExchangeDepositAddress(cryptocurrency pair.CurrencyItem) (str
 
 // WithdrawCryptoExchangeFunds returns a withdrawal ID when a withdrawal is
 // submitted
-func (i *ItBit) WithdrawCryptoExchangeFunds(address string, cryptocurrency pair.CurrencyItem, amount float64) (string, error) {
+func (i *ItBit) WithdrawCryptoExchangeFunds(address string, cryptocurrency pair.CurrencyItem, amount decimal.Decimal) (string, error) {
 	return "", errors.New("not yet implemented")
 }
 
 // WithdrawFiatExchangeFunds returns a withdrawal ID when a
 // withdrawal is submitted
-func (i *ItBit) WithdrawFiatExchangeFunds(currency pair.CurrencyItem, amount float64) (string, error) {
+func (i *ItBit) WithdrawFiatExchangeFunds(currency pair.CurrencyItem, amount decimal.Decimal) (string, error) {
 	return "", errors.New("not yet implemented")
 }
 
 // WithdrawFiatExchangeFundsToInternationalBank returns a withdrawal ID when a
 // withdrawal is submitted
-func (i *ItBit) WithdrawFiatExchangeFundsToInternationalBank(currency pair.CurrencyItem, amount float64) (string, error) {
+func (i *ItBit) WithdrawFiatExchangeFundsToInternationalBank(currency pair.CurrencyItem, amount decimal.Decimal) (string, error) {
 	return "", errors.New("not yet implemented")
 }

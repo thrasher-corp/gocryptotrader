@@ -12,6 +12,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
+	"github.com/thrasher-/gocryptotrader/decimal"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/request"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
@@ -159,15 +160,15 @@ func (b *Binance) GetOrderBook(obd OrderBookDataRequestParams) (OrderBook, error
 
 	for _, asks := range resp.Asks {
 		var ASK struct {
-			Price    float64
-			Quantity float64
+			Price    decimal.Decimal
+			Quantity decimal.Decimal
 		}
 		for i, ask := range asks.([]interface{}) {
 			switch i {
 			case 0:
-				ASK.Price, _ = strconv.ParseFloat(ask.(string), 64)
+				ASK.Price, _ = decimal.NewFromString(ask.(string))
 			case 1:
-				ASK.Quantity, _ = strconv.ParseFloat(ask.(string), 64)
+				ASK.Quantity, _ = decimal.NewFromString(ask.(string))
 				orderbook.Asks = append(orderbook.Asks, ASK)
 				break
 			}
@@ -176,15 +177,15 @@ func (b *Binance) GetOrderBook(obd OrderBookDataRequestParams) (OrderBook, error
 
 	for _, bids := range resp.Bids {
 		var BID struct {
-			Price    float64
-			Quantity float64
+			Price    decimal.Decimal
+			Quantity decimal.Decimal
 		}
 		for i, bid := range bids.([]interface{}) {
 			switch i {
 			case 0:
-				BID.Price, _ = strconv.ParseFloat(bid.(string), 64)
+				BID.Price, _ = decimal.NewFromString(bid.(string))
 			case 1:
-				BID.Quantity, _ = strconv.ParseFloat(bid.(string), 64)
+				BID.Quantity, _ = decimal.NewFromString(bid.(string))
 				orderbook.Bids = append(orderbook.Bids, BID)
 				break
 			}
@@ -288,27 +289,27 @@ func (b *Binance) GetSpotKline(arg KlinesRequestParams) ([]CandleStick, error) {
 		for i, individualData := range responseData.([]interface{}) {
 			switch i {
 			case 0:
-				candle.OpenTime = individualData.(float64)
+				candle.OpenTime = decimal.NewFromFloat(individualData.(float64))
 			case 1:
-				candle.Open, _ = strconv.ParseFloat(individualData.(string), 64)
+				candle.Open, _ = decimal.NewFromString(individualData.(string))
 			case 2:
-				candle.High, _ = strconv.ParseFloat(individualData.(string), 64)
+				candle.High, _ = decimal.NewFromString(individualData.(string))
 			case 3:
-				candle.Low, _ = strconv.ParseFloat(individualData.(string), 64)
+				candle.Low, _ = decimal.NewFromString(individualData.(string))
 			case 4:
-				candle.Close, _ = strconv.ParseFloat(individualData.(string), 64)
+				candle.Close, _ = decimal.NewFromString(individualData.(string))
 			case 5:
-				candle.Volume, _ = strconv.ParseFloat(individualData.(string), 64)
+				candle.Volume, _ = decimal.NewFromString(individualData.(string))
 			case 6:
-				candle.CloseTime = individualData.(float64)
+				candle.CloseTime = decimal.NewFromFloat(individualData.(float64))
 			case 7:
-				candle.QuoteAssetVolume, _ = strconv.ParseFloat(individualData.(string), 64)
+				candle.QuoteAssetVolume, _ = decimal.NewFromString(individualData.(string))
 			case 8:
-				candle.TradeCount = individualData.(float64)
+				candle.TradeCount = decimal.NewFromFloat(individualData.(float64))
 			case 9:
-				candle.TakerBuyAssetVolume, _ = strconv.ParseFloat(individualData.(string), 64)
+				candle.TakerBuyAssetVolume, _ = decimal.NewFromString(individualData.(string))
 			case 10:
-				candle.TakerBuyQuoteAssetVolume, _ = strconv.ParseFloat(individualData.(string), 64)
+				candle.TakerBuyQuoteAssetVolume, _ = decimal.NewFromString(individualData.(string))
 			}
 		}
 		kline = append(kline, candle)
@@ -402,20 +403,20 @@ func (b *Binance) NewOrder(o NewOrderRequest) (NewOrderResponse, error) {
 	params.Set("symbol", o.Symbol)
 	params.Set("side", string(o.Side))
 	params.Set("type", string(o.TradeType))
-	params.Set("quantity", strconv.FormatFloat(o.Quantity, 'f', -1, 64))
-	params.Set("price", strconv.FormatFloat(o.Price, 'f', -1, 64))
+	params.Set("quantity", o.Quantity.StringFixed(exchange.DefaultDecimalPrecision))
+	params.Set("price", o.Price.StringFixed(exchange.DefaultDecimalPrecision))
 	params.Set("timeInForce", string(o.TimeInForce))
 
 	if o.NewClientOrderID != "" {
 		params.Set("newClientOrderID", o.NewClientOrderID)
 	}
 
-	if o.StopPrice != 0 {
-		params.Set("stopPrice", strconv.FormatFloat(o.StopPrice, 'f', -1, 64))
+	if o.StopPrice.NotZero() {
+		params.Set("stopPrice", o.StopPrice.StringFixed(exchange.DefaultDecimalPrecision))
 	}
 
-	if o.IcebergQty != 0 {
-		params.Set("icebergQty", strconv.FormatFloat(o.IcebergQty, 'f', -1, 64))
+	if o.IcebergQty.NotZero() {
+		params.Set("icebergQty", o.IcebergQty.StringFixed(exchange.DefaultDecimalPrecision))
 	}
 
 	if o.NewOrderRespType != "" {

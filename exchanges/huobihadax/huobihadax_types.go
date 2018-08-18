@@ -1,5 +1,7 @@
 package huobihadax
 
+import "github.com/thrasher-/gocryptotrader/decimal"
+
 // Response stores the Huobi response information
 type Response struct {
 	Status       string `json:"status"`
@@ -11,39 +13,39 @@ type Response struct {
 
 // KlineItem stores a kline item
 type KlineItem struct {
-	ID     int64   `json:"id"`
-	Open   float64 `json:"open"`
-	Close  float64 `json:"close"`
-	Low    float64 `json:"low"`
-	High   float64 `json:"high"`
-	Amount float64 `json:"amount"`
-	Vol    float64 `json:"vol"`
-	Count  int     `json:"count"`
+	ID     int64           `json:"id"`
+	Open   decimal.Decimal `json:"open"`
+	Close  decimal.Decimal `json:"close"`
+	Low    decimal.Decimal `json:"low"`
+	High   decimal.Decimal `json:"high"`
+	Amount decimal.Decimal `json:"amount"`
+	Vol    decimal.Decimal `json:"vol"`
+	Count  int             `json:"count"`
 }
 
 // DetailMerged stores the ticker detail merged data
 type DetailMerged struct {
 	Detail
-	Version int       `json:"version"`
-	Ask     []float64 `json:"ask"`
-	Bid     []float64 `json:"bid"`
+	Version int               `json:"version"`
+	Ask     []decimal.Decimal `json:"ask"`
+	Bid     []decimal.Decimal `json:"bid"`
 }
 
 // Orderbook stores the orderbook data
 type Orderbook struct {
-	ID         int64       `json:"id"`
-	Timetstamp int64       `json:"ts"`
-	Bids       [][]float64 `json:"bids"`
-	Asks       [][]float64 `json:"asks"`
+	ID         int64               `json:"id"`
+	Timetstamp int64               `json:"ts"`
+	Bids       [][]decimal.Decimal `json:"bids"`
+	Asks       [][]decimal.Decimal `json:"asks"`
 }
 
 // Trade stores the trade data
 type Trade struct {
-	ID        float64 `json:"id"`
-	Price     float64 `json:"price"`
-	Amount    float64 `json:"amount"`
-	Direction string  `json:"direction"`
-	Timestamp int64   `json:"ts"`
+	ID        decimal.Decimal `json:"id"`
+	Price     decimal.Decimal `json:"price"`
+	Amount    decimal.Decimal `json:"amount"`
+	Direction string          `json:"direction"`
+	Timestamp int64           `json:"ts"`
 }
 
 // TradeHistory stores the the trade history data
@@ -55,15 +57,15 @@ type TradeHistory struct {
 
 // Detail stores the ticker detail data
 type Detail struct {
-	Amount    float64 `json:"amount"`
-	Open      float64 `json:"open"`
-	Close     float64 `json:"close"`
-	High      float64 `json:"high"`
-	Timestamp int64   `json:"timestamp"`
-	ID        int     `json:"id"`
-	Count     int     `json:"count"`
-	Low       float64 `json:"low"`
-	Volume    float64 `json:"vol"`
+	Amount    decimal.Decimal `json:"amount"`
+	Open      decimal.Decimal `json:"open"`
+	Close     decimal.Decimal `json:"close"`
+	High      decimal.Decimal `json:"high"`
+	Timestamp int64           `json:"timestamp"`
+	ID        int             `json:"id"`
+	Count     int             `json:"count"`
+	Low       decimal.Decimal `json:"low"`
+	Volume    decimal.Decimal `json:"vol"`
 }
 
 // Symbol stores the symbol data
@@ -93,9 +95,9 @@ type AccountBalance struct {
 
 // AccountBalanceDetail stores the user account balance
 type AccountBalanceDetail struct {
-	Currency string  `json:"currency"`
-	Type     string  `json:"type"`
-	Balance  float64 `json:"balance,string"`
+	Currency string          `json:"currency"`
+	Type     string          `json:"type"`
+	Balance  decimal.Decimal `json:"balance,string"`
 }
 
 // CancelOrderBatch stores the cancel order batch data
@@ -177,8 +179,8 @@ type MarginAccountBalance struct {
 // an order
 type SpotNewOrderRequestParams struct {
 	AccountID int                           `json:"account-id"` // Account ID, obtained using the accounts method. Curency trades use the accountid of the ‘spot’ account; for loan asset transactions, please use the accountid of the ‘margin’ account.
-	Amount    float64                       `json:"amount"`     // The limit price indicates the quantity of the order, the market price indicates how much to buy when the order is paid, and the market price indicates how much the coin is sold when the order is sold.
-	Price     float64                       `json:"price"`      // Order price, market price does not use  this parameter
+	Amount    decimal.Decimal               `json:"amount"`     // The limit price indicates the quantity of the order, the market price indicates how much to buy when the order is paid, and the market price indicates how much the coin is sold when the order is sold.
+	Price     decimal.Decimal               `json:"price"`      // Order price, market price does not use  this parameter
 	Source    string                        `json:"source"`     // Order source, api: API call, margin-api: loan asset transaction
 	Symbol    string                        `json:"symbol"`     // The symbol to use; example btcusdt, bccbtc......
 	Type      SpotNewOrderRequestParamsType `json:"type"`       // Order type as listed below (buy-market, sell-market etc)

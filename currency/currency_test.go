@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/thrasher-/gocryptotrader/currency/pair"
+	"github.com/thrasher-/gocryptotrader/decimal"
 )
 
 func TestSetDefaults(t *testing.T) {
@@ -214,13 +215,13 @@ func TestUpdate(t *testing.T) {
 func TestExtractBaseCurrency(t *testing.T) {
 	backup := FXRates
 	FXRates = nil
-	FXRates = make(map[string]float64)
+	FXRates = make(map[string]decimal.Decimal)
 
 	if extractBaseCurrency() != "" {
 		t.Fatalf("Test failed. Expected '' as base currency")
 	}
 
-	FXRates["USDAUD"] = 120
+	FXRates["USDAUD"] = decimal.NewFromInt(120)
 
 	if extractBaseCurrency() != "USD" {
 		t.Fatalf("Test failed. Expected 'USD' as base currency")
@@ -228,27 +229,27 @@ func TestExtractBaseCurrency(t *testing.T) {
 	FXRates = backup
 }
 func TestConvertCurrency(t *testing.T) {
-	_, err := ConvertCurrency(100, "AUD", "USD")
+	_, err := ConvertCurrency(decimal.Hundred, "AUD", "USD")
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	_, err = ConvertCurrency(100, "USD", "AUD")
+	_, err = ConvertCurrency(decimal.Hundred, "USD", "AUD")
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	_, err = ConvertCurrency(100, "CNY", "AUD")
+	_, err = ConvertCurrency(decimal.Hundred, "CNY", "AUD")
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	_, err = ConvertCurrency(100, "meow", "USD")
+	_, err = ConvertCurrency(decimal.Hundred, "meow", "USD")
 	if err == nil {
 		t.Fatal("Expected err on non-existent currency")
 	}
 
-	_, err = ConvertCurrency(100, "USD", "meow")
+	_, err = ConvertCurrency(decimal.Hundred, "USD", "meow")
 	if err == nil {
 		t.Fatal("Expected err on non-existent currency")
 	}

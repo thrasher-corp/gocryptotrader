@@ -12,6 +12,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
+	"github.com/thrasher-/gocryptotrader/decimal"
 	"github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/request"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
@@ -155,7 +156,7 @@ func (o *OKCoin) Setup(exch config.ExchangeConfig) {
 }
 
 // GetFee returns current fees for the exchange
-func (o *OKCoin) GetFee(maker bool) float64 {
+func (o *OKCoin) GetFee(maker bool) decimal.Decimal {
 	if o.APIUrl == okcoinAPIURL {
 		if maker {
 			return o.MakerFee
@@ -163,7 +164,7 @@ func (o *OKCoin) GetFee(maker bool) float64 {
 		return o.TakerFee
 	}
 	// Chinese exchange does not have any trading fees
-	return 0
+	return decimal.Zero
 }
 
 // GetTicker returns the current ticker

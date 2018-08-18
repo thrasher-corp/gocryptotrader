@@ -1,5 +1,7 @@
 package kraken
 
+import "github.com/thrasher-/gocryptotrader/decimal"
+
 // TimeResponse type
 type TimeResponse struct {
 	Unixtime int64  `json:"unixtime"`
@@ -16,35 +18,35 @@ type Asset struct {
 
 // AssetPairs holds asset pair information
 type AssetPairs struct {
-	Altname           string      `json:"altname"`
-	AclassBase        string      `json:"aclass_base"`
-	Base              string      `json:"base"`
-	AclassQuote       string      `json:"aclass_quote"`
-	Quote             string      `json:"quote"`
-	Lot               string      `json:"lot"`
-	PairDecimals      int         `json:"pair_decimals"`
-	LotDecimals       int         `json:"lot_decimals"`
-	LotMultiplier     int         `json:"lot_multiplier"`
-	LeverageBuy       []int       `json:"leverage_buy"`
-	LeverageSell      []int       `json:"leverage_sell"`
-	Fees              [][]float64 `json:"fees"`
-	FeesMaker         [][]float64 `json:"fees_maker"`
-	FeeVolumeCurrency string      `json:"fee_volume_currency"`
-	MarginCall        int         `json:"margin_call"`
-	MarginStop        int         `json:"margin_stop"`
+	Altname           string              `json:"altname"`
+	AclassBase        string              `json:"aclass_base"`
+	Base              string              `json:"base"`
+	AclassQuote       string              `json:"aclass_quote"`
+	Quote             string              `json:"quote"`
+	Lot               string              `json:"lot"`
+	PairDecimals      int                 `json:"pair_decimals"`
+	LotDecimals       int                 `json:"lot_decimals"`
+	LotMultiplier     int                 `json:"lot_multiplier"`
+	LeverageBuy       []int               `json:"leverage_buy"`
+	LeverageSell      []int               `json:"leverage_sell"`
+	Fees              [][]decimal.Decimal `json:"fees"`
+	FeesMaker         [][]decimal.Decimal `json:"fees_maker"`
+	FeeVolumeCurrency string              `json:"fee_volume_currency"`
+	MarginCall        int                 `json:"margin_call"`
+	MarginStop        int                 `json:"margin_stop"`
 }
 
 // Ticker is a standard ticker type
 type Ticker struct {
-	Ask    float64
-	Bid    float64
-	Last   float64
-	Volume float64
-	VWAP   float64
+	Ask    decimal.Decimal
+	Bid    decimal.Decimal
+	Last   decimal.Decimal
+	Volume decimal.Decimal
+	VWAP   decimal.Decimal
 	Trades int64
-	Low    float64
-	High   float64
-	Open   float64
+	Low    decimal.Decimal
+	High   decimal.Decimal
+	Open   decimal.Decimal
 }
 
 // TickerResponse holds ticker information before its put into the Ticker struct
@@ -62,21 +64,21 @@ type TickerResponse struct {
 
 // OpenHighLowClose contains ticker event information
 type OpenHighLowClose struct {
-	Time   float64
-	Open   float64
-	High   float64
-	Low    float64
-	Close  float64
-	Vwap   float64
-	Volume float64
-	Count  float64
+	Time   decimal.Decimal
+	Open   decimal.Decimal
+	High   decimal.Decimal
+	Low    decimal.Decimal
+	Close  decimal.Decimal
+	Vwap   decimal.Decimal
+	Volume decimal.Decimal
+	Count  decimal.Decimal
 }
 
 // RecentTrades holds recent trade data
 type RecentTrades struct {
-	Price         float64
-	Volume        float64
-	Time          float64
+	Price         decimal.Decimal
+	Volume        decimal.Decimal
+	Time          decimal.Decimal
 	BuyOrSell     string
 	MarketOrLimit string
 	Miscellaneous interface{}
@@ -84,8 +86,8 @@ type RecentTrades struct {
 
 // OrderbookBase stores the orderbook price and amount data
 type OrderbookBase struct {
-	Price  float64
-	Amount float64
+	Price  decimal.Decimal
+	Amount decimal.Decimal
 }
 
 // Orderbook stores the bids and asks orderbook data
@@ -96,9 +98,9 @@ type Orderbook struct {
 
 // Spread holds the spread between trades
 type Spread struct {
-	Time float64
-	Bid  float64
-	Ask  float64
+	Time decimal.Decimal
+	Bid  decimal.Decimal
+	Ask  decimal.Decimal
 }
 
 // TradeBalanceOptions type

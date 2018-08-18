@@ -4,13 +4,13 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"strconv"
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/communications"
 	"github.com/thrasher-/gocryptotrader/communications/base"
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
+	"github.com/thrasher-/gocryptotrader/decimal"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 )
 
@@ -139,7 +139,7 @@ func (e *Event) String() string {
 // met
 func (e *Event) CheckCondition() bool {
 	condition := common.SplitStrings(e.Condition, ",")
-	targetPrice, _ := strconv.ParseFloat(condition[1], 64)
+	targetPrice, _ := decimal.NewFromString(condition[1])
 
 	t, err := ticker.GetTicker(e.Exchange, e.Pair, e.Asset)
 	if err != nil {
@@ -148,38 +148,38 @@ func (e *Event) CheckCondition() bool {
 
 	lastPrice := t.Last
 
-	if lastPrice == 0 {
+	if lastPrice.IsZero() {
 		return false
 	}
 
 	switch condition[0] {
 	case greaterThan:
 		{
-			if lastPrice > targetPrice {
+			if lastPrice.GreaterThan(targetPrice) {
 				return e.ExecuteAction()
 			}
 		}
 	case greaterThanOrEqual:
 		{
-			if lastPrice >= targetPrice {
+			if lastPrice.GreaterThanOrEqual(targetPrice) {
 				return e.ExecuteAction()
 			}
 		}
 	case lessThan:
 		{
-			if lastPrice < targetPrice {
+			if lastPrice.LessThan(targetPrice) {
 				return e.ExecuteAction()
 			}
 		}
 	case lessThanOrEqual:
 		{
-			if lastPrice <= targetPrice {
+			if lastPrice.LessThanOrEqual(targetPrice) {
 				return e.ExecuteAction()
 			}
 		}
 	case isEqual:
 		{
-			if lastPrice == targetPrice {
+			if lastPrice.Equal(targetPrice) {
 				return e.ExecuteAction()
 			}
 		}

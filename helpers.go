@@ -275,8 +275,8 @@ func GetCollatedExchangeAccountInfoByCoin(accounts []exchange.AccountInfo) map[s
 				accountInfo := exchange.AccountCurrencyInfo{CurrencyName: currencyName, Hold: onHold, TotalValue: avail}
 				result[currencyName] = accountInfo
 			} else {
-				info.Hold += onHold
-				info.TotalValue += avail
+				info.Hold = info.Hold.Add(onHold)
+				info.TotalValue = info.TotalValue.Add(avail)
 				result[currencyName] = info
 			}
 		}
@@ -330,21 +330,21 @@ func SeedExchangeAccountInfo(data []exchange.AccountInfo) {
 			currencyName := data[i].Currencies[j].CurrencyName
 			onHold := data[i].Currencies[j].Hold
 			avail := data[i].Currencies[j].TotalValue
-			total := onHold + avail
+			total := onHold.Add(avail)
 
 			if !port.ExchangeAddressExists(exchangeName, currencyName) {
-				if total <= 0 {
+				if total.LessThanOrEqualZero() {
 					continue
 				}
-				log.Printf("Portfolio: Adding new exchange address: %s, %s, %f, %s\n",
-					exchangeName, currencyName, total, portfolio.PortfolioAddressExchange)
+				log.Printf("Portfolio: Adding new exchange address: %s, %s, %s, %s\n",
+					exchangeName, currencyName, total.StringFixed(exchange.DefaultDecimalPrecision), portfolio.PortfolioAddressExchange)
 				port.Addresses = append(
 					port.Addresses,
 					portfolio.Address{Address: exchangeName, CoinType: currencyName,
 						Balance: total, Description: portfolio.PortfolioAddressExchange},
 				)
 			} else {
-				if total <= 0 {
+				if total.LessThanOrEqualZero() {
 					log.Printf("Portfolio: Removing %s %s entry.\n", exchangeName,
 						currencyName)
 					port.RemoveExchangeAddress(exchangeName, currencyName)
@@ -354,8 +354,8 @@ func SeedExchangeAccountInfo(data []exchange.AccountInfo) {
 						continue
 					}
 					if balance != total {
-						log.Printf("Portfolio: Updating %s %s entry with balance %f.\n",
-							exchangeName, currencyName, total)
+						log.Printf("Portfolio: Updating %s %s entry with balance %s.\n",
+							exchangeName, currencyName, total.StringFixed(exchange.DefaultDecimalPrecision))
 						port.UpdateExchangeAddressBalance(exchangeName, currencyName, total)
 					}
 				}

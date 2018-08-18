@@ -9,6 +9,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
+	"github.com/thrasher-/gocryptotrader/decimal"
 	"github.com/thrasher-/gocryptotrader/exchanges/nonce"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-/gocryptotrader/exchanges/request"
@@ -24,6 +25,8 @@ const (
 	ErrExchangeNotFound = "Exchange not found in dataset."
 	// DefaultHTTPTimeout is the default HTTP/HTTPS Timeout for exchange requests
 	DefaultHTTPTimeout = time.Second * 15
+	// defaultDecimalPrecision is the default number of digits used when converting a decimal to string
+	DefaultDecimalPrecision = 8
 )
 
 // AccountInfo is a Generic type to hold each exchange's holdings in
@@ -36,16 +39,16 @@ type AccountInfo struct {
 // AccountCurrencyInfo is a sub type to store currency name and value
 type AccountCurrencyInfo struct {
 	CurrencyName string
-	TotalValue   float64
-	Hold         float64
+	TotalValue   decimal.Decimal
+	Hold         decimal.Decimal
 }
 
 // TradeHistory holds exchange history data
 type TradeHistory struct {
 	Timestamp int64
 	TID       int64
-	Price     float64
-	Amount    float64
+	Price     decimal.Decimal
+	Amount    decimal.Decimal
 	Exchange  string
 	Type      string
 }
@@ -60,9 +63,9 @@ type OrderDetail struct {
 	OrderType     string
 	CreationTime  int64
 	Status        string
-	Price         float64
-	Amount        float64
-	OpenVolume    float64
+	Price         decimal.Decimal
+	Amount        decimal.Decimal
+	OpenVolume    decimal.Decimal
 }
 
 // FundHistory holds exchange funding history data
@@ -73,8 +76,8 @@ type FundHistory struct {
 	Description       string
 	Timestamp         int64
 	Currency          string
-	Amount            float64
-	Fee               float64
+	Amount            decimal.Decimal
+	Fee               decimal.Decimal
 	TransferType      string
 	CryptoToAddress   string
 	CryptoFromAddress string
@@ -93,7 +96,7 @@ type Base struct {
 	AuthenticatedAPISupport                    bool
 	APISecret, APIKey, APIAuthPEMKey, ClientID string
 	Nonce                                      nonce.Nonce
-	TakerFee, MakerFee, Fee                    float64
+	TakerFee, MakerFee, Fee                    decimal.Decimal
 	BaseCurrencies                             []string
 	AvailablePairs                             []string
 	EnabledPairs                               []string
@@ -134,15 +137,15 @@ type IBotExchange interface {
 	SupportsRESTTickerBatchUpdates() bool
 
 	GetExchangeFundTransferHistory() ([]FundHistory, error)
-	SubmitExchangeOrder(p pair.CurrencyPair, side OrderSide, orderType OrderType, amount, price float64, clientID string) (int64, error)
+	SubmitExchangeOrder(p pair.CurrencyPair, side OrderSide, orderType OrderType, amount, price decimal.Decimal, clientID string) (int64, error)
 	ModifyExchangeOrder(orderID int64, modify ModifyOrder) (int64, error)
 	CancelExchangeOrder(orderID int64) error
 	CancelAllExchangeOrders() error
 	GetExchangeOrderInfo(orderID int64) (OrderDetail, error)
 	GetExchangeDepositAddress(cryptocurrency pair.CurrencyItem) (string, error)
 
-	WithdrawCryptoExchangeFunds(address string, cryptocurrency pair.CurrencyItem, amount float64) (string, error)
-	WithdrawFiatExchangeFunds(currency pair.CurrencyItem, amount float64) (string, error)
+	WithdrawCryptoExchangeFunds(address string, cryptocurrency pair.CurrencyItem, amount decimal.Decimal) (string, error)
+	WithdrawFiatExchangeFunds(currency pair.CurrencyItem, amount decimal.Decimal) (string, error)
 }
 
 // SupportsRESTTickerBatchUpdates returns whether or not the
@@ -550,8 +553,8 @@ func (e *Base) UpdateCurrencies(exchangeProducts []string, enabled, force bool) 
 type ModifyOrder struct {
 	OrderType
 	OrderSide
-	Price  float64
-	Amount float64
+	Price  decimal.Decimal
+	Amount decimal.Decimal
 }
 
 // Format holds exchange formatting

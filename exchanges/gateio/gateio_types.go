@@ -1,6 +1,10 @@
 package gateio
 
-import "time"
+import (
+	"time"
+
+	"github.com/thrasher-/gocryptotrader/decimal"
+)
 
 // SpotNewOrderRequestParamsType order type (buy or sell)
 type SpotNewOrderRequestParamsType string
@@ -40,11 +44,11 @@ type MarketInfoResponse struct {
 type MarketInfoPairsResponse struct {
 	Symbol string
 	// DecimalPlaces symbol price accuracy
-	DecimalPlaces float64
+	DecimalPlaces decimal.Decimal
 	// MinAmount minimum order amount
-	MinAmount float64
+	MinAmount decimal.Decimal
 	// Fee transaction fee
-	Fee float64
+	Fee decimal.Decimal
 }
 
 // BalancesResponse holds the user balances
@@ -63,28 +67,28 @@ type KlinesRequestParams struct {
 
 // KLineResponse holds the kline response data
 type KLineResponse struct {
-	ID        float64
+	ID        decimal.Decimal
 	KlineTime time.Time
 	Open      float64
-	Time      float64
-	High      float64
-	Low       float64
-	Close     float64
-	Volume    float64
-	Amount    float64 `db:"amount"`
+	Time      decimal.Decimal
+	High      decimal.Decimal
+	Low       decimal.Decimal
+	Close     decimal.Decimal
+	Volume    decimal.Decimal
+	Amount    decimal.Decimal `db:"amount"`
 }
 
 // TickerResponse  holds the ticker response data
 type TickerResponse struct {
-	Result        string  `json:"result"`
-	Volume        float64 `json:"baseVolume,string"`    // Trading volume
-	High          float64 `json:"high24hr,string"`      // 24 hour high price
-	Open          float64 `json:"highestBid,string"`    // Openening price
-	Last          float64 `json:"last,string"`          // Last price
-	Low           float64 `json:"low24hr,string"`       // 24 hour low price
-	Close         float64 `json:"lowestAsk,string"`     // Closing price
-	PercentChange float64 `json:"percentChange,string"` // Percentage change
-	QuoteVolume   float64 `json:"quoteVolume,string"`   // Quote currency volume
+	Result        string          `json:"result"`
+	Volume        decimal.Decimal `json:"baseVolume,string"`    // Trading volume
+	High          decimal.Decimal `json:"high24hr,string"`      // 24 hour high price
+	Open          decimal.Decimal `json:"highestBid,string"`    // Openening price
+	Last          decimal.Decimal `json:"last,string"`          // Last price
+	Low           decimal.Decimal `json:"low24hr,string"`       // 24 hour low price
+	Close         decimal.Decimal `json:"lowestAsk,string"`     // Closing price
+	PercentChange decimal.Decimal `json:"percentChange,string"` // Percentage change
+	QuoteVolume   decimal.Decimal `json:"quoteVolume,string"`   // Quote currency volume
 }
 
 // OrderbookResponse stores the orderbook data
@@ -97,8 +101,8 @@ type OrderbookResponse struct {
 
 // OrderbookItem stores an orderbook item
 type OrderbookItem struct {
-	Price  float64
-	Amount float64
+	Price  decimal.Decimal
+	Amount decimal.Decimal
 }
 
 // Orderbook stores the orderbook data
@@ -111,17 +115,17 @@ type Orderbook struct {
 
 // SpotNewOrderRequestParams Order params
 type SpotNewOrderRequestParams struct {
-	Amount float64                       `json:"amount"` // Order quantity
-	Price  float64                       `json:"price"`  // Order price
+	Amount decimal.Decimal               `json:"amount"` // Order quantity
+	Price  decimal.Decimal               `json:"price"`  // Order price
 	Symbol string                        `json:"symbol"` // Trading pair; btc_usdt, eth_btc......
 	Type   SpotNewOrderRequestParamsType `json:"type"`   // Order type (buy or sell),
 }
 
 // SpotNewOrderResponse Order response
 type SpotNewOrderResponse struct {
-	OrderNumber  int64   `json:"orderNumber"`         // OrderID number
-	Price        float64 `json:"rate,string"`         // Order price
-	LeftAmount   float64 `json:"leftAmount,string"`   // The remaining amount to fill
-	FilledAmount float64 `json:"filledAmount,string"` // The filled amount
-	Filledrate   float64 `json:"filledRate,string"`   // FilledPrice
+	OrderNumber  int64           `json:"orderNumber"`         // OrderID number
+	Price        decimal.Decimal `json:"rate,string"`         // Order price
+	LeftAmount   decimal.Decimal `json:"leftAmount,string"`   // The remaining amount to fill
+	FilledAmount decimal.Decimal `json:"filledAmount,string"` // The filled amount
+	Filledrate   decimal.Decimal `json:"filledRate,string"`   // FilledPrice
 }

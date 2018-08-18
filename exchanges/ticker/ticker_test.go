@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/thrasher-/gocryptotrader/currency/pair"
+	"github.com/thrasher-/gocryptotrader/decimal"
 )
 
 func TestPriceToString(t *testing.T) {
@@ -12,13 +13,13 @@ func TestPriceToString(t *testing.T) {
 	priceStruct := Price{
 		Pair:         newPair,
 		CurrencyPair: newPair.Pair().String(),
-		Last:         1200,
-		High:         1298,
-		Low:          1148,
-		Bid:          1195,
-		Ask:          1220,
-		Volume:       5,
-		PriceATH:     1337,
+		Last:         decimal.New(1200, 0),
+		High:         decimal.New(1298, 0),
+		Low:          decimal.New(1148, 0),
+		Bid:          decimal.New(1195, 0),
+		Ask:          decimal.New(1220, 0),
+		Volume:       decimal.New(5, 0),
+		PriceATH:     decimal.New(1337, 0),
 	}
 
 	newTicker := CreateNewTicker("ANX", newPair, priceStruct, Spot)
@@ -54,13 +55,13 @@ func TestGetTicker(t *testing.T) {
 	priceStruct := Price{
 		Pair:         newPair,
 		CurrencyPair: newPair.Pair().String(),
-		Last:         1200,
-		High:         1298,
-		Low:          1148,
-		Bid:          1195,
-		Ask:          1220,
-		Volume:       5,
-		PriceATH:     1337,
+		Last:         decimal.New(1200, 0),
+		High:         decimal.New(1298, 0),
+		Low:          decimal.New(1148, 0),
+		Bid:          decimal.New(1195, 0),
+		Ask:          decimal.New(1220, 0),
+		Volume:       decimal.New(5, 0),
+		PriceATH:     decimal.New(1337, 0),
 	}
 
 	ProcessTicker("bitfinex", newPair, priceStruct, Spot)
@@ -89,14 +90,14 @@ func TestGetTicker(t *testing.T) {
 		t.Fatal("Test Failed. TestGetTicker returned ticker for invalid second currency")
 	}
 
-	priceStruct.PriceATH = 9001
+	priceStruct.PriceATH = decimal.New(9001, 0)
 	ProcessTicker("bitfinex", newPair, priceStruct, "futures_3m")
 	tickerPrice, err = GetTicker("bitfinex", newPair, "futures_3m")
 	if err != nil {
 		t.Errorf("Test Failed - Ticker GetTicker init error: %s", err)
 	}
 
-	if tickerPrice.PriceATH != 9001 {
+	if !tickerPrice.PriceATH.Equal(decimal.New(9001, 0)) {
 		t.Error("Test Failed - ticker tickerPrice.PriceATH value is incorrect")
 	}
 }
@@ -106,13 +107,13 @@ func TestGetTickerByExchange(t *testing.T) {
 	priceStruct := Price{
 		Pair:         newPair,
 		CurrencyPair: newPair.Pair().String(),
-		Last:         1200,
-		High:         1298,
-		Low:          1148,
-		Bid:          1195,
-		Ask:          1220,
-		Volume:       5,
-		PriceATH:     1337,
+		Last:         decimal.New(1200, 0),
+		High:         decimal.New(1298, 0),
+		Low:          decimal.New(1148, 0),
+		Bid:          decimal.New(1195, 0),
+		Ask:          decimal.New(1220, 0),
+		Volume:       decimal.New(5, 0),
+		PriceATH:     decimal.New(1337, 0),
 	}
 
 	anxTicker := CreateNewTicker("ANX", newPair, priceStruct, Spot)
@@ -132,13 +133,13 @@ func TestFirstCurrencyExists(t *testing.T) {
 	priceStruct := Price{
 		Pair:         newPair,
 		CurrencyPair: newPair.Pair().String(),
-		Last:         1200,
-		High:         1298,
-		Low:          1148,
-		Bid:          1195,
-		Ask:          1220,
-		Volume:       5,
-		PriceATH:     1337,
+		Last:         decimal.New(1200, 0),
+		High:         decimal.New(1298, 0),
+		Low:          decimal.New(1148, 0),
+		Bid:          decimal.New(1195, 0),
+		Ask:          decimal.New(1220, 0),
+		Volume:       decimal.New(5, 0),
+		PriceATH:     decimal.New(1337, 0),
 	}
 
 	alphaTicker := CreateNewTicker("alphapoint", newPair, priceStruct, Spot)
@@ -159,13 +160,13 @@ func TestSecondCurrencyExists(t *testing.T) {
 	priceStruct := Price{
 		Pair:         newPair,
 		CurrencyPair: newPair.Pair().String(),
-		Last:         1200,
-		High:         1298,
-		Low:          1148,
-		Bid:          1195,
-		Ask:          1220,
-		Volume:       5,
-		PriceATH:     1337,
+		Last:         decimal.New(1200, 0),
+		High:         decimal.New(1298, 0),
+		Low:          decimal.New(1148, 0),
+		Bid:          decimal.New(1195, 0),
+		Ask:          decimal.New(1220, 0),
+		Volume:       decimal.New(5, 0),
+		PriceATH:     decimal.New(1337, 0),
 	}
 
 	bitstampTicker := CreateNewTicker("bitstamp", newPair, priceStruct, "SPOT")
@@ -186,13 +187,13 @@ func TestCreateNewTicker(t *testing.T) {
 	priceStruct := Price{
 		Pair:         newPair,
 		CurrencyPair: newPair.Pair().String(),
-		Last:         1200,
-		High:         1298,
-		Low:          1148,
-		Bid:          1195,
-		Ask:          1220,
-		Volume:       5,
-		PriceATH:     1337,
+		Last:         decimal.New(1200, 0),
+		High:         decimal.New(1298, 0),
+		Low:          decimal.New(1148, 0),
+		Bid:          decimal.New(1195, 0),
+		Ask:          decimal.New(1220, 0),
+		Volume:       decimal.New(5, 0),
+		PriceATH:     decimal.New(1337, 0),
 	}
 
 	newTicker := CreateNewTicker("ANX", newPair, priceStruct, Spot)
@@ -210,29 +211,29 @@ func TestCreateNewTicker(t *testing.T) {
 	if newTicker.Price["BTC"]["USD"][Spot].Pair.Pair().String() != "BTCUSD" {
 		t.Error("Test Failed - ticker newTicker.Price[BTC][USD].Pair.Pair().String() value is not expected 'BTCUSD'")
 	}
-	if reflect.TypeOf(newTicker.Price["BTC"]["USD"][Spot].Ask).String() != "float64" {
-		t.Error("Test Failed - ticker newTicker.Price[BTC][USD].Ask value is not a float64")
+	if reflect.TypeOf(newTicker.Price["BTC"]["USD"][Spot].Ask).String() != "decimal.Decimal" {
+		t.Error("Test Failed - ticker newTicker.Price[BTC][USD].Ask value is not a decimal.Decimal")
 	}
-	if reflect.TypeOf(newTicker.Price["BTC"]["USD"][Spot].Bid).String() != "float64" {
-		t.Error("Test Failed - ticker newTicker.Price[BTC][USD].Bid value is not a float64")
+	if reflect.TypeOf(newTicker.Price["BTC"]["USD"][Spot].Bid).String() != "decimal.Decimal" {
+		t.Error("Test Failed - ticker newTicker.Price[BTC][USD].Bid value is not a decimal.Decimal")
 	}
 	if reflect.TypeOf(newTicker.Price["BTC"]["USD"][Spot].CurrencyPair).String() != "string" {
 		t.Error("Test Failed - ticker newTicker.Price[BTC][USD].CurrencyPair value is not a string")
 	}
-	if reflect.TypeOf(newTicker.Price["BTC"]["USD"][Spot].High).String() != "float64" {
-		t.Error("Test Failed - ticker newTicker.Price[BTC][USD].High value is not a float64")
+	if reflect.TypeOf(newTicker.Price["BTC"]["USD"][Spot].High).String() != "decimal.Decimal" {
+		t.Error("Test Failed - ticker newTicker.Price[BTC][USD].High value is not a decimal.Decimal")
 	}
-	if reflect.TypeOf(newTicker.Price["BTC"]["USD"][Spot].Last).String() != "float64" {
-		t.Error("Test Failed - ticker newTicker.Price[BTC][USD].Last value is not a float64")
+	if reflect.TypeOf(newTicker.Price["BTC"]["USD"][Spot].Last).String() != "decimal.Decimal" {
+		t.Error("Test Failed - ticker newTicker.Price[BTC][USD].Last value is not a decimal.Decimal")
 	}
-	if reflect.TypeOf(newTicker.Price["BTC"]["USD"][Spot].Low).String() != "float64" {
-		t.Error("Test Failed - ticker newTicker.Price[BTC][USD].Low value is not a float64")
+	if reflect.TypeOf(newTicker.Price["BTC"]["USD"][Spot].Low).String() != "decimal.Decimal" {
+		t.Error("Test Failed - ticker newTicker.Price[BTC][USD].Low value is not a decimal.Decimal")
 	}
-	if reflect.TypeOf(newTicker.Price["BTC"]["USD"][Spot].PriceATH).String() != "float64" {
-		t.Error("Test Failed - ticker newTicker.Price[BTC][USD].PriceATH value is not a float64")
+	if reflect.TypeOf(newTicker.Price["BTC"]["USD"][Spot].PriceATH).String() != "decimal.Decimal" {
+		t.Error("Test Failed - ticker newTicker.Price[BTC][USD].PriceATH value is not a decimal.Decimal")
 	}
-	if reflect.TypeOf(newTicker.Price["BTC"]["USD"][Spot].Volume).String() != "float64" {
-		t.Error("Test Failed - ticker newTicker.Price[BTC][USD].Volume value is not a float64")
+	if reflect.TypeOf(newTicker.Price["BTC"]["USD"][Spot].Volume).String() != "decimal.Decimal" {
+		t.Error("Test Failed - ticker newTicker.Price[BTC][USD].Volume value is not a decimal.Decimal")
 	}
 }
 
@@ -242,13 +243,13 @@ func TestProcessTicker(t *testing.T) { //non-appending function to tickers
 	priceStruct := Price{
 		Pair:         newPair,
 		CurrencyPair: newPair.Pair().String(),
-		Last:         1200,
-		High:         1298,
-		Low:          1148,
-		Bid:          1195,
-		Ask:          1220,
-		Volume:       5,
-		PriceATH:     1337,
+		Last:         decimal.New(1200, 0),
+		High:         decimal.New(1298, 0),
+		Low:          decimal.New(1148, 0),
+		Bid:          decimal.New(1195, 0),
+		Ask:          decimal.New(1220, 0),
+		Volume:       decimal.New(5, 0),
+		PriceATH:     decimal.New(1337, 0),
 	}
 
 	ProcessTicker("btcc", newPair, priceStruct, Spot)

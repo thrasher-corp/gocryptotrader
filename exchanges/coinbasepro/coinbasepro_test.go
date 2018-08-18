@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/thrasher-/gocryptotrader/config"
+	"github.com/thrasher-/gocryptotrader/decimal"
 )
 
 var c CoinbasePro
@@ -33,10 +34,10 @@ func TestSetup(t *testing.T) {
 }
 
 func TestGetFee(t *testing.T) {
-	if c.GetFee(false) == 0 {
+	if c.GetFee(true).Equal(decimal.NewFromFloat(0.25)) {
 		t.Error("Test failed - GetFee() error")
 	}
-	if c.GetFee(true) != 0 {
+	if c.GetFee(false).EqualZero() {
 		t.Error("Test failed - GetFee() error")
 	}
 }
@@ -114,12 +115,12 @@ func TestAuthRequests(t *testing.T) {
 			t.Error("Test failed - GetHolds() error", err)
 		}
 
-		_, err = c.PlaceLimitOrder("", 0, 0, "buy", "", "", "BTC-USD", "", false)
+		_, err = c.PlaceLimitOrder("", decimal.Zero, decimal.Zero, "buy", "", "", "BTC-USD", "", false)
 		if err == nil {
 			t.Error("Test failed - PlaceLimitOrder() error", err)
 		}
 
-		_, err = c.PlaceMarketOrder("", 1, 0, "buy", "BTC-USD", "")
+		_, err = c.PlaceMarketOrder("", decimal.One, decimal.Zero, "buy", "BTC-USD", "")
 		if err == nil {
 			t.Error("Test failed - PlaceMarketOrder() error", err)
 		}
@@ -163,7 +164,7 @@ func TestAuthRequests(t *testing.T) {
 		// 		t.Error("Test failed - RepayFunding() error", err)
 		// 	}
 
-		_, err = c.MarginTransfer(1, "withdraw", "45fa9e3b-00ba-4631-b907-8a98cbdf21be", "BTC")
+		_, err = c.MarginTransfer(decimal.One, "withdraw", "45fa9e3b-00ba-4631-b907-8a98cbdf21be", "BTC")
 		if err == nil {
 			t.Error("Test failed - MarginTransfer() error", err)
 		}
@@ -183,17 +184,17 @@ func TestAuthRequests(t *testing.T) {
 			t.Error("Test failed - GetPayMethods() error", err)
 		}
 
-		_, err = c.DepositViaPaymentMethod(1, "BTC", "1337")
+		_, err = c.DepositViaPaymentMethod(decimal.One, "BTC", "1337")
 		if err == nil {
 			t.Error("Test failed - DepositViaPaymentMethod() error", err)
 		}
 
-		_, err = c.DepositViaCoinbase(1, "BTC", "1337")
+		_, err = c.DepositViaCoinbase(decimal.One, "BTC", "1337")
 		if err == nil {
 			t.Error("Test failed - DepositViaCoinbase() error", err)
 		}
 
-		_, err = c.WithdrawViaPaymentMethod(1, "BTC", "1337")
+		_, err = c.WithdrawViaPaymentMethod(decimal.One, "BTC", "1337")
 		if err == nil {
 			t.Error("Test failed - WithdrawViaPaymentMethod() error", err)
 		}
@@ -203,7 +204,7 @@ func TestAuthRequests(t *testing.T) {
 		// 		t.Error("Test failed - WithdrawViaCoinbase() error", err)
 		// 	}
 
-		_, err = c.WithdrawCrypto(1, "BTC", "1337")
+		_, err = c.WithdrawCrypto(decimal.One, "BTC", "1337")
 		if err == nil {
 			t.Error("Test failed - WithdrawViaCoinbase() error", err)
 		}

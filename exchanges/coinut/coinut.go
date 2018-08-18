@@ -10,6 +10,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
+	"github.com/thrasher-/gocryptotrader/decimal"
 	"github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/request"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
@@ -50,8 +51,8 @@ func (c *COINUT) SetDefaults() {
 	c.Name = "COINUT"
 	c.Enabled = false
 	c.Verbose = false
-	c.TakerFee = 0.1 //spot
-	c.MakerFee = 0
+	c.TakerFee = decimal.OneTenth //spot
+	c.MakerFee = decimal.Zero
 	c.Verbose = false
 	c.Websocket = false
 	c.RESTPollingDelay = 10
@@ -143,7 +144,7 @@ func (c *COINUT) GetUserBalance() (UserBalance, error) {
 }
 
 // NewOrder places a new order on the exchange
-func (c *COINUT) NewOrder(instrumentID int, quantity, price float64, buy bool, orderID uint32) (interface{}, error) {
+func (c *COINUT) NewOrder(instrumentID int, quantity, price decimal.Decimal, buy bool, orderID uint32) (interface{}, error) {
 	var result interface{}
 	params := make(map[string]interface{})
 	params["inst_id"] = instrumentID

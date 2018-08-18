@@ -2,6 +2,8 @@ package binance
 
 import (
 	"encoding/json"
+
+	"github.com/thrasher-/gocryptotrader/decimal"
 )
 
 // Response holds basic binance api response data
@@ -32,14 +34,14 @@ type ExchangeInfo struct {
 		OrderTypes         []string `json:"orderTypes"`
 		IcebergAllowed     bool     `json:"icebergAllowed"`
 		Filters            []struct {
-			FilterType  string  `json:"filterType"`
-			MinPrice    float64 `json:"minPrice,string"`
-			MaxPrice    float64 `json:"maxPrice,string"`
-			TickSize    float64 `json:"tickSize,string"`
-			MinQty      float64 `json:"minQty,string"`
-			MaxQty      float64 `json:"maxQty,string"`
-			StepSize    float64 `json:"stepSize,string"`
-			MinNotional float64 `json:"minNotional,string"`
+			FilterType  string          `json:"filterType"`
+			MinPrice    decimal.Decimal `json:"minPrice,string"`
+			MaxPrice    decimal.Decimal `json:"maxPrice,string"`
+			TickSize    decimal.Decimal `json:"tickSize,string"`
+			MinQty      decimal.Decimal `json:"minQty,string"`
+			MaxQty      decimal.Decimal `json:"maxQty,string"`
+			StepSize    decimal.Decimal `json:"stepSize,string"`
+			MinNotional decimal.Decimal `json:"minNotional,string"`
 		} `json:"filters"`
 	} `json:"symbols"`
 }
@@ -64,12 +66,12 @@ type OrderBook struct {
 	Code int
 	Msg  string
 	Bids []struct {
-		Price    float64
-		Quantity float64
+		Price    decimal.Decimal
+		Quantity decimal.Decimal
 	}
 	Asks []struct {
-		Price    float64
-		Quantity float64
+		Price    decimal.Decimal
+		Quantity decimal.Decimal
 	}
 }
 
@@ -81,14 +83,14 @@ type RecentTradeRequestParams struct {
 
 // RecentTrade holds recent trade data
 type RecentTrade struct {
-	Code         int     `json:"code"`
-	Msg          string  `json:"msg"`
-	ID           int64   `json:"id"`
-	Price        float64 `json:"price,string"`
-	Quantity     float64 `json:"qty,string"`
-	Time         float64 `json:"time"`
-	IsBuyerMaker bool    `json:"isBuyerMaker"`
-	IsBestMatch  bool    `json:"isBestMatch"`
+	Code         int             `json:"code"`
+	Msg          string          `json:"msg"`
+	ID           int64           `json:"id"`
+	Price        decimal.Decimal `json:"price,string"`
+	Quantity     decimal.Decimal `json:"qty,string"`
+	Time         int64           `json:"time"`
+	IsBuyerMaker bool            `json:"isBuyerMaker"`
+	IsBestMatch  bool            `json:"isBestMatch"`
 }
 
 // MultiStreamData holds stream data
@@ -166,79 +168,79 @@ type TickerStream struct {
 
 // HistoricalTrade holds recent trade data
 type HistoricalTrade struct {
-	Code         int     `json:"code"`
-	Msg          string  `json:"msg"`
-	ID           int64   `json:"id"`
-	Price        float64 `json:"price,string"`
-	Quantity     float64 `json:"qty,string"`
-	Time         int64   `json:"time"`
-	IsBuyerMaker bool    `json:"isBuyerMaker"`
-	IsBestMatch  bool    `json:"isBestMatch"`
+	Code         int             `json:"code"`
+	Msg          string          `json:"msg"`
+	ID           int64           `json:"id"`
+	Price        decimal.Decimal `json:"price,string"`
+	Quantity     decimal.Decimal `json:"qty,string"`
+	Time         int64           `json:"time"`
+	IsBuyerMaker bool            `json:"isBuyerMaker"`
+	IsBestMatch  bool            `json:"isBestMatch"`
 }
 
 // AggregatedTrade holds aggregated trade information
 type AggregatedTrade struct {
-	ATradeID       int64   `json:"a"`
-	Price          float64 `json:"p,string"`
-	Quantity       float64 `json:"q,string"`
-	FirstTradeID   int64   `json:"f"`
-	LastTradeID    int64   `json:"l"`
-	TimeStamp      int64   `json:"T"`
-	Maker          bool    `json:"m"`
-	BestMatchPrice bool    `json:"M"`
+	ATradeID       int64           `json:"a"`
+	Price          decimal.Decimal `json:"p,string"`
+	Quantity       decimal.Decimal `json:"q,string"`
+	FirstTradeID   int64           `json:"f"`
+	LastTradeID    int64           `json:"l"`
+	TimeStamp      int64           `json:"T"`
+	Maker          bool            `json:"m"`
+	BestMatchPrice bool            `json:"M"`
 }
 
 // CandleStick holds kline data
 type CandleStick struct {
-	OpenTime                 float64
-	Open                     float64
-	High                     float64
-	Low                      float64
-	Close                    float64
-	Volume                   float64
-	CloseTime                float64
-	QuoteAssetVolume         float64
-	TradeCount               float64
-	TakerBuyAssetVolume      float64
-	TakerBuyQuoteAssetVolume float64
+	OpenTime                 decimal.Decimal
+	Open                     decimal.Decimal
+	High                     decimal.Decimal
+	Low                      decimal.Decimal
+	Close                    decimal.Decimal
+	Volume                   decimal.Decimal
+	CloseTime                decimal.Decimal
+	QuoteAssetVolume         decimal.Decimal
+	TradeCount               decimal.Decimal
+	TakerBuyAssetVolume      decimal.Decimal
+	TakerBuyQuoteAssetVolume decimal.Decimal
 }
 
 // PriceChangeStats contains statistics for the last 24 hours trade
 type PriceChangeStats struct {
-	Symbol             string  `json:"symbol"`
-	PriceChange        float64 `json:"priceChange,string"`
-	PriceChangePercent float64 `json:"priceChangePercent,string"`
-	WeightedAvgPrice   float64 `json:"weightedAvgPrice,string"`
-	PrevClosePrice     float64 `json:"prevClosePrice,string"`
-	LastPrice          float64 `json:"lastPrice,string"`
-	LastQty            float64 `json:"lastQty,string"`
-	BidPrice           float64 `json:"bidPrice,string"`
-	AskPrice           float64 `json:"askPrice,string"`
-	OpenPrice          float64 `json:"openPrice,string"`
-	HighPrice          float64 `json:"highPrice,string"`
-	LowPrice           float64 `json:"lowPrice,string"`
-	Volume             float64 `json:"volume,string"`
-	QuoteVolume        float64 `json:"quoteVolume,string"`
-	OpenTime           int64   `json:"openTime"`
-	CloseTime          int64   `json:"closeTime"`
-	FirstID            int64   `json:"fristId"`
-	LastID             int64   `json:"lastId"`
-	Count              int64   `json:"count"`
+	Symbol             string          `json:"symbol"`
+	PriceChange        decimal.Decimal `json:"priceChange,string"`
+	PriceChangePercent decimal.Decimal `json:"priceChangePercent,string"`
+	WeightedAvgPrice   decimal.Decimal `json:"weightedAvgPrice,string"`
+	PrevClosePrice     decimal.Decimal `json:"prevClosePrice,string"`
+	LastPrice          decimal.Decimal `json:"lastPrice,string"`
+	LastQty            decimal.Decimal `json:"lastQty,string"`
+	BidPrice           decimal.Decimal `json:"bidPrice,string"`
+	AskPrice           decimal.Decimal `json:"askPrice,string"`
+	OpenPrice          decimal.Decimal `json:"openPrice,string"`
+	HighPrice          decimal.Decimal `json:"highPrice,string"`
+	LowPrice           decimal.Decimal `json:"lowPrice,string"`
+	Volume             decimal.Decimal `json:"volume,string"`
+	QuoteVolume        decimal.Decimal `json:"quoteVolume,string"`
+	OpenTime           int64           `json:"openTime"`
+	CloseTime          int64           `json:"closeTime"`
+	FirstID            int64           `json:"fristId"`
+	LastID             int64           `json:"lastId"`
+	Count              int64           `json:"count"`
 }
 
 // SymbolPrice holds basic symbol price
 type SymbolPrice struct {
-	Symbol string  `json:"symbol"`
-	Price  float64 `json:"price,string"`
+	Symbol string          `json:"symbol"`
+	Price  decimal.Decimal `json:"price,string"`
 }
 
 // BestPrice holds best price data
 type BestPrice struct {
-	Symbol   string  `json:"symbol"`
-	BidPrice float64 `json:"bidPrice,string"`
-	BidQty   float64 `json:"bidQty,string"`
-	AskPrice float64 `json:"askPrice,string"`
-	AskQty   float64 `json:"askQty,string"`
+	Symbol   string          `json:"symbol"`
+	BidPrice decimal.Decimal `json:"bidPrice,string"`
+	BidQty   decimal.Decimal `json:"bidQty,string"`
+	AskPrice decimal.Decimal `json:"askPrice,string"`
+	AskQty   decimal.Decimal `json:"askQty,string"`
 }
 
 // NewOrderRequest request type
@@ -253,34 +255,34 @@ type NewOrderRequest struct {
 	// Examples are (Good Till Cancel (GTC), Immediate or Cancel (IOC) and Fill Or Kill (FOK))
 	TimeInForce RequestParamsTimeForceType
 	// Quantity
-	Quantity         float64
-	Price            float64
+	Quantity         decimal.Decimal
+	Price            decimal.Decimal
 	NewClientOrderID string
-	StopPrice        float64 //Used with STOP_LOSS, STOP_LOSS_LIMIT, TAKE_PROFIT, and TAKE_PROFIT_LIMIT orders.
-	IcebergQty       float64 //Used with LIMIT, STOP_LOSS_LIMIT, and TAKE_PROFIT_LIMIT to create an iceberg order.
+	StopPrice        decimal.Decimal //Used with STOP_LOSS, STOP_LOSS_LIMIT, TAKE_PROFIT, and TAKE_PROFIT_LIMIT orders.
+	IcebergQty       decimal.Decimal //Used with LIMIT, STOP_LOSS_LIMIT, and TAKE_PROFIT_LIMIT to create an iceberg order.
 	NewOrderRespType string
 }
 
 // NewOrderResponse is the return structured response from the exchange
 type NewOrderResponse struct {
-	Code            int     `json:"code"`
-	Msg             string  `json:"msg"`
-	Symbol          string  `json:"symbol"`
-	OrderID         int64   `json:"orderId"`
-	ClientOrderID   string  `json:"clientOrderId"`
-	TransactionTime int64   `json:"transactTime"`
-	Price           float64 `json:"price,string"`
-	OrigQty         float64 `json:"origQty,string"`
-	ExecutedQty     float64 `json:"executedQty,string"`
-	Status          string  `json:"status"`
-	TimeInForce     string  `json:"timeInForce"`
-	Type            string  `json:"type"`
-	Side            string  `json:"side"`
+	Code            int             `json:"code"`
+	Msg             string          `json:"msg"`
+	Symbol          string          `json:"symbol"`
+	OrderID         int64           `json:"orderId"`
+	ClientOrderID   string          `json:"clientOrderId"`
+	TransactionTime int64           `json:"transactTime"`
+	Price           decimal.Decimal `json:"price,string"`
+	OrigQty         decimal.Decimal `json:"origQty,string"`
+	ExecutedQty     decimal.Decimal `json:"executedQty,string"`
+	Status          string          `json:"status"`
+	TimeInForce     string          `json:"timeInForce"`
+	Type            string          `json:"type"`
+	Side            string          `json:"side"`
 	Fills           []struct {
-		Price           float64 `json:"price,string"`
-		Qty             float64 `json:"qty,string"`
-		Commission      float64 `json:"commission,string"`
-		CommissionAsset float64 `json:"commissionAsset,string"`
+		Price           decimal.Decimal `json:"price,string"`
+		Qty             decimal.Decimal `json:"qty,string"`
+		Commission      decimal.Decimal `json:"commission,string"`
+		CommissionAsset decimal.Decimal `json:"commissionAsset,string"`
 	} `json:"fills"`
 }
 
@@ -294,22 +296,22 @@ type CancelOrderResponse struct {
 
 // QueryOrderData holds query order data
 type QueryOrderData struct {
-	Code          int     `json:"code"`
-	Msg           string  `json:"msg"`
-	Symbol        string  `json:"symbol"`
-	OrderID       int64   `json:"orderId"`
-	ClientOrderID string  `json:"clientOrderId"`
-	Price         float64 `json:"price,string"`
-	OrigQty       float64 `json:"origQty,string"`
-	ExecutedQty   float64 `json:"executedQty,string"`
-	Status        string  `json:"status"`
-	TimeInForce   string  `json:"timeInForce"`
-	Type          string  `json:"type"`
-	Side          string  `json:"side"`
-	StopPrice     float64 `json:"stopPrice,string"`
-	IcebergQty    float64 `json:"icebergQty,string"`
-	Time          float64 `json:"time"`
-	IsWorking     bool    `json:"isWorking"`
+	Code          int             `json:"code"`
+	Msg           string          `json:"msg"`
+	Symbol        string          `json:"symbol"`
+	OrderID       int64           `json:"orderId"`
+	ClientOrderID string          `json:"clientOrderId"`
+	Price         decimal.Decimal `json:"price,string"`
+	OrigQty       decimal.Decimal `json:"origQty,string"`
+	ExecutedQty   decimal.Decimal `json:"executedQty,string"`
+	Status        string          `json:"status"`
+	TimeInForce   string          `json:"timeInForce"`
+	Type          string          `json:"type"`
+	Side          string          `json:"side"`
+	StopPrice     decimal.Decimal `json:"stopPrice,string"`
+	IcebergQty    decimal.Decimal `json:"icebergQty,string"`
+	Time          int64           `json:"time"`
+	IsWorking     bool            `json:"isWorking"`
 }
 
 // Balance holds query order data

@@ -1,17 +1,19 @@
 package bithumb
 
+import "github.com/thrasher-/gocryptotrader/decimal"
+
 // Ticker holds ticker data
 type Ticker struct {
-	OpeningPrice float64 `json:"opening_price,string"`
-	ClosingPrice float64 `json:"closing_price,string"`
-	MinPrice     float64 `json:"min_price,string"`
-	MaxPrice     float64 `json:"max_price,string"`
-	AveragePrice float64 `json:"average_price,string"`
-	UnitsTraded  float64 `json:"units_traded,string"`
-	Volume1Day   float64 `json:"volume_1day,string"`
-	Volume7Day   float64 `json:"volume_7day,string"`
-	BuyPrice     float64 `json:"buy_price,string"`
-	SellPrice    float64 `json:"sell_price,string"`
+	OpeningPrice decimal.Decimal `json:"opening_price,string"`
+	ClosingPrice decimal.Decimal `json:"closing_price,string"`
+	MinPrice     decimal.Decimal `json:"min_price,string"`
+	MaxPrice     decimal.Decimal `json:"max_price,string"`
+	AveragePrice decimal.Decimal `json:"average_price,string"`
+	UnitsTraded  decimal.Decimal `json:"units_traded,string"`
+	Volume1Day   decimal.Decimal `json:"volume_1day,string"`
+	Volume7Day   decimal.Decimal `json:"volume_7day,string"`
+	BuyPrice     decimal.Decimal `json:"buy_price,string"`
+	SellPrice    decimal.Decimal `json:"sell_price,string"`
 	ActionStatus
 	//	Date         int64   `json:"date,string"`
 }
@@ -38,12 +40,12 @@ type Orderbook struct {
 		OrderCurrency   string `json:"order_currency"`
 		PaymentCurrency string `json:"payment_currency"`
 		Bids            []struct {
-			Quantity float64 `json:"quantity,string"`
-			Price    float64 `json:"price,string"`
+			Quantity decimal.Decimal `json:"quantity,string"`
+			Price    decimal.Decimal `json:"price,string"`
 		} `json:"bids"`
 		Asks []struct {
-			Quantity float64 `json:"quantity,string"`
-			Price    float64 `json:"price,string"`
+			Quantity decimal.Decimal `json:"quantity,string"`
+			Price    decimal.Decimal `json:"price,string"`
 		} `json:"asks"`
 	} `json:"data"`
 	Message string `json:"message"`
@@ -53,12 +55,12 @@ type Orderbook struct {
 type TransactionHistory struct {
 	Status string `json:"status"`
 	Data   []struct {
-		ContNumber      int64   `json:"cont_no,string"`
-		TransactionDate string  `json:"transaction_date"`
-		Type            string  `json:"type"`
-		UnitsTraded     float64 `json:"units_traded,string"`
-		Price           float64 `json:"price,string"`
-		Total           float64 `json:"total,string"`
+		ContNumber      int64           `json:"cont_no,string"`
+		TransactionDate string          `json:"transaction_date"`
+		Type            string          `json:"type"`
+		UnitsTraded     decimal.Decimal `json:"units_traded,string"`
+		Price           decimal.Decimal `json:"price,string"`
+		Total           decimal.Decimal `json:"total,string"`
 	} `json:"data"`
 	Message string `json:"message"`
 }
@@ -67,10 +69,10 @@ type TransactionHistory struct {
 type Account struct {
 	Status string `json:"status"`
 	Data   struct {
-		Created   int64   `json:"created,string"`
-		AccountID string  `json:"account_id"`
-		TradeFee  float64 `json:"trade_fee,string"`
-		Balance   float64 `json:"balance,string"`
+		Created   int64           `json:"created,string"`
+		AccountID string          `json:"account_id"`
+		TradeFee  decimal.Decimal `json:"trade_fee,string"`
+		Balance   decimal.Decimal `json:"balance,string"`
 	} `json:"data"`
 	Message string `json:"message"`
 }
@@ -79,15 +81,15 @@ type Account struct {
 type Balance struct {
 	Status string `json:"status"`
 	Data   struct {
-		TotalBTC     float64 `json:"total_btc,string"`
-		TotalKRW     float64 `json:"total_krw"`
-		InUseBTC     float64 `json:"in_use_btc,string"`
-		InUseKRW     float64 `json:"in_use_krw"`
-		AvailableBTC float64 `json:"available_btc,string"`
-		AvailableKRW float64 `json:"available_krw"`
-		MisuKRW      float64 `json:"misu_krw"`
-		MisuBTC      float64 `json:"misu_btc,string"`
-		XcoinLast    float64 `json:"xcoin_last,string"`
+		TotalBTC     decimal.Decimal `json:"total_btc,string"`
+		TotalKRW     decimal.Decimal `json:"total_krw"`
+		InUseBTC     decimal.Decimal `json:"in_use_btc,string"`
+		InUseKRW     decimal.Decimal `json:"in_use_krw"`
+		AvailableBTC decimal.Decimal `json:"available_btc,string"`
+		AvailableKRW decimal.Decimal `json:"available_krw"`
+		MisuKRW      decimal.Decimal `json:"misu_krw"`
+		MisuBTC      decimal.Decimal `json:"misu_btc,string"`
+		XcoinLast    decimal.Decimal `json:"xcoin_last,string"`
 	} `json:"data"`
 	Message string `json:"message"`
 }
@@ -106,17 +108,17 @@ type WalletAddressRes struct {
 type LastTransactionTicker struct {
 	Status string `json:"status"`
 	Data   struct {
-		OpeningPrice float64 `json:"opening_price,string"`
-		ClosingPrice float64 `json:"closing_price,string"`
-		MinPrice     float64 `json:"min_price,string"`
-		MaxPrice     float64 `json:"max_price,string"`
-		AveragePrice float64 `json:"average_price,string"`
-		UnitsTraded  float64 `json:"units_traded,string"`
-		Volume1Day   float64 `json:"volume_1day,string"`
-		Volume7Day   float64 `json:"volume_7day,string"`
-		BuyPrice     int64   `json:"buy_price,string"`
-		SellPrice    int64   `json:"sell_price,string"`
-		Date         int64   `json:"date,string"`
+		OpeningPrice decimal.Decimal `json:"opening_price,string"`
+		ClosingPrice decimal.Decimal `json:"closing_price,string"`
+		MinPrice     decimal.Decimal `json:"min_price,string"`
+		MaxPrice     decimal.Decimal `json:"max_price,string"`
+		AveragePrice decimal.Decimal `json:"average_price,string"`
+		UnitsTraded  decimal.Decimal `json:"units_traded,string"`
+		Volume1Day   decimal.Decimal `json:"volume_1day,string"`
+		Volume7Day   decimal.Decimal `json:"volume_7day,string"`
+		BuyPrice     int64           `json:"buy_price,string"`
+		SellPrice    int64           `json:"sell_price,string"`
+		Date         int64           `json:"date,string"`
 	} `json:"data"`
 	Message string `json:"message"`
 }
@@ -125,18 +127,18 @@ type LastTransactionTicker struct {
 type Orders struct {
 	Status string `json:"status"`
 	Data   []struct {
-		OrderID         string  `json:"order_id"`
-		OrderCurrency   string  `json:"order_currency"`
-		OrderDate       int64   `json:"order_date"`
-		PaymentCurrency string  `json:"payment_currency"`
-		Type            string  `json:"type"`
-		Status          string  `json:"status"`
-		Units           float64 `json:"units,string"`
-		UnitsRemaining  float64 `json:"units_remaining,string"`
-		Price           float64 `json:"price,string"`
-		Fee             float64 `json:"fee,string"`
-		Total           float64 `json:"total,string"`
-		DateCompleted   int64   `json:"date_completed"`
+		OrderID         string          `json:"order_id"`
+		OrderCurrency   string          `json:"order_currency"`
+		OrderDate       int64           `json:"order_date"`
+		PaymentCurrency string          `json:"payment_currency"`
+		Type            string          `json:"type"`
+		Status          string          `json:"status"`
+		Units           decimal.Decimal `json:"units,string"`
+		UnitsRemaining  decimal.Decimal `json:"units_remaining,string"`
+		Price           decimal.Decimal `json:"price,string"`
+		Fee             decimal.Decimal `json:"fee,string"`
+		Total           decimal.Decimal `json:"total,string"`
+		DateCompleted   int64           `json:"date_completed"`
 	} `json:"data"`
 	Message string `json:"message"`
 }
@@ -145,14 +147,14 @@ type Orders struct {
 type UserTransactions struct {
 	Status string `json:"status"`
 	Data   []struct {
-		Search       string  `json:"search"`
-		TransferDate int64   `json:"transfer_date"`
-		Units        string  `json:"units"`
-		Price        float64 `json:"price,string"`
-		BTC1KRW      float64 `json:"btc1krw,string"`
-		Fee          string  `json:"fee"`
-		BTCRemain    float64 `json:"btc_remain,string"`
-		KRWRemain    float64 `json:"krw_remain,string"`
+		Search       string          `json:"search"`
+		TransferDate int64           `json:"transfer_date"`
+		Units        string          `json:"units"`
+		Price        decimal.Decimal `json:"price,string"`
+		BTC1KRW      decimal.Decimal `json:"btc1krw,string"`
+		Fee          string          `json:"fee"`
+		BTCRemain    decimal.Decimal `json:"btc_remain,string"`
+		KRWRemain    decimal.Decimal `json:"krw_remain,string"`
 	} `json:"data"`
 	Message string `json:"message"`
 }
@@ -161,11 +163,11 @@ type UserTransactions struct {
 type OrderPlace struct {
 	Status string `json:"status"`
 	Data   []struct {
-		ContID string  `json:"cont_id"`
-		Units  float64 `json:"units,string"`
-		Price  float64 `json:"price,string"`
-		Total  float64 `json:"total,string"`
-		Fee    float64 `json:"fee,string"`
+		ContID string          `json:"cont_id"`
+		Units  decimal.Decimal `json:"units,string"`
+		Price  decimal.Decimal `json:"price,string"`
+		Total  decimal.Decimal `json:"total,string"`
+		Fee    decimal.Decimal `json:"fee,string"`
 	} `json:"data"`
 	Message string `json:"message"`
 }
@@ -174,13 +176,13 @@ type OrderPlace struct {
 type OrderDetails struct {
 	Status string `json:"status"`
 	Data   []struct {
-		TransactionDate int64   `json:"transaction_date,string"`
-		Type            string  `json:"type"`
-		OrderCurrency   string  `json:"order_currency"`
-		PaymentCurrency string  `json:"payment_currency"`
-		UnitsTraded     float64 `json:"units_traded,string"`
-		Price           float64 `json:"price,string"`
-		Total           float64 `json:"total,string"`
+		TransactionDate int64           `json:"transaction_date,string"`
+		Type            string          `json:"type"`
+		OrderCurrency   string          `json:"order_currency"`
+		PaymentCurrency string          `json:"payment_currency"`
+		UnitsTraded     decimal.Decimal `json:"units_traded,string"`
+		Price           decimal.Decimal `json:"price,string"`
+		Total           decimal.Decimal `json:"total,string"`
 	} `json:"data"`
 	Message string `json:"message"`
 }
@@ -205,11 +207,11 @@ type MarketBuy struct {
 	Status  string `json:"status"`
 	OrderID string `json:"order_id"`
 	Data    []struct {
-		ContID string  `json:"cont_id"`
-		Units  float64 `json:"units,string"`
-		Price  float64 `json:"price,string"`
-		Total  float64 `json:"total,string"`
-		Fee    float64 `json:"fee,string"`
+		ContID string          `json:"cont_id"`
+		Units  decimal.Decimal `json:"units,string"`
+		Price  decimal.Decimal `json:"price,string"`
+		Total  decimal.Decimal `json:"total,string"`
+		Fee    decimal.Decimal `json:"fee,string"`
 	} `json:"data"`
 	Message string `json:"message"`
 }
@@ -219,11 +221,11 @@ type MarketSell struct {
 	Status  string `json:"status"`
 	OrderID string `json:"order_id"`
 	Data    []struct {
-		ContID string  `json:"cont_id"`
-		Units  float64 `json:"units,string"`
-		Price  float64 `json:"price,string"`
-		Total  float64 `json:"total,string"`
-		Fee    float64 `json:"fee,string"`
+		ContID string          `json:"cont_id"`
+		Units  decimal.Decimal `json:"units,string"`
+		Price  decimal.Decimal `json:"price,string"`
+		Total  decimal.Decimal `json:"total,string"`
+		Fee    decimal.Decimal `json:"fee,string"`
 	} `json:"data"`
 	Message string `json:"message"`
 }
