@@ -1,6 +1,6 @@
 package wex
 
-import "github.com/thrasher-/gocryptotrader/decimal"
+import "github.com/shopspring/decimal"
 
 // Response is a generic struct used for exchange API request result
 type Response struct {

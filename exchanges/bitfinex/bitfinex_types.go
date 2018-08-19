@@ -1,6 +1,6 @@
 package bitfinex
 
-import "github.com/thrasher-/gocryptotrader/decimal"
+import "github.com/shopspring/decimal"
 
 // Ticker holds basic ticker information from the exchange
 type Ticker struct {

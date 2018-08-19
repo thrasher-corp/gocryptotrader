@@ -9,9 +9,9 @@ import (
 	"sync"
 	"time"
 
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
-	"github.com/thrasher-/gocryptotrader/decimal"
 	"github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/request"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
@@ -717,15 +717,15 @@ func (k *Kraken) AddOrder(symbol, side, orderType string, volume, price, price2,
 		"volume":    {volume.StringFixed(exchange.DefaultDecimalPrecision)},
 	}
 
-	if price.NotZero() {
+	if common.NotZero(price) {
 		params.Set("price", price.StringFixed(exchange.DefaultDecimalPrecision))
 	}
 
-	if price2.NotZero() {
+	if common.NotZero(price2) {
 		params.Set("price2", price2.StringFixed(exchange.DefaultDecimalPrecision))
 	}
 
-	if leverage.NotZero() {
+	if common.NotZero(leverage) {
 		params.Set("leverage", leverage.StringFixed(exchange.DefaultDecimalPrecision))
 	}
 

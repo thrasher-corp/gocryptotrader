@@ -4,7 +4,7 @@ import (
 	"errors"
 	"log"
 
-	"github.com/thrasher-/gocryptotrader/decimal"
+	"github.com/shopspring/decimal"
 )
 
 // IFXProviders contains an array of foreign exchange interfaces

@@ -3,8 +3,9 @@ package kraken
 import (
 	"testing"
 
+	"github.com/shopspring/decimal"
+	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
-	"github.com/thrasher-/gocryptotrader/decimal"
 )
 
 var k Kraken
@@ -38,10 +39,10 @@ func TestSetup(t *testing.T) {
 
 func TestGetFee(t *testing.T) {
 	t.Parallel()
-	if k.GetFee(true).NotEqual(decimal.OneTenth) {
+	if common.NotEqual(k.GetFee(true), common.OneTenth) {
 		t.Error("Test Failed - kraken GetFee() error")
 	}
-	if k.GetFee(false).NotEqual(decimal.NewFromFloat(0.35)) {
+	if common.NotEqual(k.GetFee(false), decimal.NewFromFloat(0.35)) {
 		t.Error("Test Failed - kraken GetFee() error")
 	}
 }

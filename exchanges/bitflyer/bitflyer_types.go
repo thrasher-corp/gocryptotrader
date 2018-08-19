@@ -1,6 +1,6 @@
 package bitflyer
 
-import "github.com/thrasher-/gocryptotrader/decimal"
+import "github.com/shopspring/decimal"
 
 // ChainAnalysisBlock holds block information from the bitcoin network
 type ChainAnalysisBlock struct {

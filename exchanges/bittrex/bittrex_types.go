@@ -3,7 +3,7 @@ package bittrex
 import (
 	"encoding/json"
 
-	"github.com/thrasher-/gocryptotrader/decimal"
+	"github.com/shopspring/decimal"
 )
 
 // Response is the generalised response type for Bittrex

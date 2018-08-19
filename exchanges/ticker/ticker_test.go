@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/thrasher-/gocryptotrader/currency/pair"
-	"github.com/thrasher-/gocryptotrader/decimal"
+	"github.com/shopspring/decimal"
 )
 
 func TestPriceToString(t *testing.T) {

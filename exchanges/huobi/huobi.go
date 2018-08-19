@@ -15,9 +15,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
-	"github.com/thrasher-/gocryptotrader/decimal"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/request"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
@@ -685,7 +685,7 @@ func (h *HUOBI) Withdraw(address, currency, addrTag string, amount, fee decimal.
 	vals.Set("currency", currency)
 	vals.Set("amount", amount.StringFixed(exchange.DefaultDecimalPrecision))
 
-	if fee.NotZero() {
+	if common.NotZero(fee) {
 		vals.Set("fee", fee.StringFixed(exchange.DefaultDecimalPrecision))
 	}
 

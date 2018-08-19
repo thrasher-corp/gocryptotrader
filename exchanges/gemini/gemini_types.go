@@ -1,6 +1,6 @@
 package gemini
 
-import "github.com/thrasher-/gocryptotrader/decimal"
+import "github.com/shopspring/decimal"
 
 // Ticker holds returned ticker data from the exchange
 type Ticker struct {

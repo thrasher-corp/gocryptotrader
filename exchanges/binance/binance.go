@@ -10,9 +10,9 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
-	"github.com/thrasher-/gocryptotrader/decimal"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/request"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
@@ -411,11 +411,11 @@ func (b *Binance) NewOrder(o NewOrderRequest) (NewOrderResponse, error) {
 		params.Set("newClientOrderID", o.NewClientOrderID)
 	}
 
-	if o.StopPrice.NotZero() {
+	if common.NotZero(o.StopPrice) {
 		params.Set("stopPrice", o.StopPrice.StringFixed(exchange.DefaultDecimalPrecision))
 	}
 
-	if o.IcebergQty.NotZero() {
+	if common.NotZero(o.IcebergQty) {
 		params.Set("icebergQty", o.IcebergQty.StringFixed(exchange.DefaultDecimalPrecision))
 	}
 

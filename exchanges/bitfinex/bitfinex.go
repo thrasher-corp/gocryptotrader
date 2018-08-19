@@ -9,9 +9,9 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
-	"github.com/thrasher-/gocryptotrader/decimal"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/request"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
@@ -408,7 +408,7 @@ func (b *Bitfinex) GetTradesV2(currencyPair string, timestampStart, timestampEnd
 
 		if tempHistory.Amount.LessThan(decimal.Zero) {
 			tempHistory.Type = "SELL"
-			tempHistory.Amount = tempHistory.Amount.Mul(decimal.MinusOne)
+			tempHistory.Amount = tempHistory.Amount.Mul(common.MinusOne)
 		}
 
 		actualHistory = append(actualHistory, tempHistory)

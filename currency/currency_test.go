@@ -3,8 +3,9 @@ package currency
 import (
 	"testing"
 
+	"github.com/shopspring/decimal"
+	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
-	"github.com/thrasher-/gocryptotrader/decimal"
 )
 
 func TestSetDefaults(t *testing.T) {
@@ -221,7 +222,7 @@ func TestExtractBaseCurrency(t *testing.T) {
 		t.Fatalf("Test failed. Expected '' as base currency")
 	}
 
-	FXRates["USDAUD"] = decimal.NewFromInt(120)
+	FXRates["USDAUD"] = common.NewFromInt(120)
 
 	if extractBaseCurrency() != "USD" {
 		t.Fatalf("Test failed. Expected 'USD' as base currency")
@@ -229,27 +230,27 @@ func TestExtractBaseCurrency(t *testing.T) {
 	FXRates = backup
 }
 func TestConvertCurrency(t *testing.T) {
-	_, err := ConvertCurrency(decimal.Hundred, "AUD", "USD")
+	_, err := ConvertCurrency(common.Hundred, "AUD", "USD")
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	_, err = ConvertCurrency(decimal.Hundred, "USD", "AUD")
+	_, err = ConvertCurrency(common.Hundred, "USD", "AUD")
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	_, err = ConvertCurrency(decimal.Hundred, "CNY", "AUD")
+	_, err = ConvertCurrency(common.Hundred, "CNY", "AUD")
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	_, err = ConvertCurrency(decimal.Hundred, "meow", "USD")
+	_, err = ConvertCurrency(common.Hundred, "meow", "USD")
 	if err == nil {
 		t.Fatal("Expected err on non-existent currency")
 	}
 
-	_, err = ConvertCurrency(decimal.Hundred, "USD", "meow")
+	_, err = ConvertCurrency(common.Hundred, "USD", "meow")
 	if err == nil {
 		t.Fatal("Expected err on non-existent currency")
 	}

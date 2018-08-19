@@ -9,9 +9,9 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
-	"github.com/thrasher-/gocryptotrader/decimal"
 	"github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/request"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
@@ -404,10 +404,10 @@ func (c *CoinbasePro) PlaceMarketOrder(clientRef string, size, funds decimal.Dec
 	request["product_id"] = productID
 	request["type"] = "market"
 
-	if size.NotZero() {
+	if common.NotZero(size) {
 		request["size"] = size.StringFixed(exchange.DefaultDecimalPrecision)
 	}
-	if funds.NotZero() {
+	if common.NotZero(funds) {
 		request["funds"] = funds.StringFixed(exchange.DefaultDecimalPrecision)
 	}
 	if clientRef != "" {
@@ -447,10 +447,10 @@ func (c *CoinbasePro) PlaceMarginOrder(clientRef string, size, funds decimal.Dec
 	request["product_id"] = productID
 	request["type"] = "margin"
 
-	if size.NotZero() {
+	if common.NotZero(size) {
 		request["size"] = size.StringFixed(exchange.DefaultDecimalPrecision)
 	}
-	if funds.NotZero() {
+	if common.NotZero(funds) {
 		request["funds"] = funds.StringFixed(exchange.DefaultDecimalPrecision)
 	}
 	if clientRef != "" {

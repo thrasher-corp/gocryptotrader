@@ -3,8 +3,8 @@ package alphapoint
 import (
 	"testing"
 
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-/gocryptotrader/common"
-	"github.com/thrasher-/gocryptotrader/decimal"
 )
 
 const (
@@ -66,12 +66,12 @@ func TestGetTicker(t *testing.T) {
 			t.Fatal("Test Failed - Alphapoint GetTicker unmarshalling error: ", err)
 		}
 
-		if ticker.Last.NotEqual(decimal.NewFromFloat(249.76)) {
+		if common.NotEqual(ticker.Last, decimal.NewFromFloat(249.76)) {
 			t.Error("Test failed - Alphapoint GetTicker expected last = 249.76")
 		}
 	}
 
-	if ticker.Last.LessThanZero() {
+	if common.LessThanZero(ticker.Last) {
 		t.Error("Test failed - Alphapoint GetTicker last < 0")
 	}
 }
@@ -191,7 +191,7 @@ func TestGetOrderbook(t *testing.T) {
 			t.Fatal("Test Failed - TestGetOrderbook unmarshalling error: ", err)
 		}
 
-		if orderBook.Bids[0].Quantity.NotEqual(decimal.NewFromInt(725)) {
+		if common.NotEqual(orderBook.Bids[0].Quantity, common.NewFromInt(725)) {
 			t.Error("Test Failed - TestGetOrderbook Bids[0].Quantity != 725")
 		}
 	}
@@ -486,7 +486,7 @@ func TestGetOrderFee(t *testing.T) {
 		return
 	}
 
-	_, err := a.GetOrderFee("", "", decimal.One, decimal.One)
+	_, err := a.GetOrderFee("", "", common.One, common.One)
 	if err == nil {
 		t.Error("Test Failed - GetUserInfo() error")
 	}

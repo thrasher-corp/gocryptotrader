@@ -1,6 +1,6 @@
 package okex
 
-import "github.com/thrasher-/gocryptotrader/decimal"
+import "github.com/shopspring/decimal"
 
 // ContractPrice holds date and ticker price price for contracts.
 type ContractPrice struct {

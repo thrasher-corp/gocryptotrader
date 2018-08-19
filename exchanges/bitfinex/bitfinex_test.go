@@ -8,7 +8,6 @@ import (
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
-	"github.com/thrasher-/gocryptotrader/decimal"
 )
 
 // Please supply your own keys here to do better tests
@@ -365,8 +364,8 @@ func TestNewOrderMulti(t *testing.T) {
 	newOrder := []PlaceOrder{
 		{
 			Symbol:   "BTCUSD",
-			Amount:   decimal.One,
-			Price:    decimal.One,
+			Amount:   common.One,
+			Price:    common.One,
 			Exchange: "bitfinex",
 			Side:     "buy",
 			Type:     "market",

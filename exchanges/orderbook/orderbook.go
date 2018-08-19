@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/thrasher-/gocryptotrader/decimal"
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
 )
 

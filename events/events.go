@@ -10,7 +10,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/communications/base"
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
-	"github.com/thrasher-/gocryptotrader/decimal"
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 )
 

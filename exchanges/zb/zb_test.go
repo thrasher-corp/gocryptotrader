@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/thrasher-/gocryptotrader/config"
-	"github.com/thrasher-/gocryptotrader/decimal"
+	"github.com/shopspring/decimal"
 )
 
 // Please supply you own test keys here for due diligence testing.

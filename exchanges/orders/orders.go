@@ -1,6 +1,6 @@
 package orders
 
-import "github.com/thrasher-/gocryptotrader/decimal"
+import "github.com/shopspring/decimal"
 
 const (
 	limitOrder = iota

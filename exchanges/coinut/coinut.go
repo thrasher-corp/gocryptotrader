@@ -10,7 +10,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
-	"github.com/thrasher-/gocryptotrader/decimal"
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/request"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
@@ -51,7 +51,7 @@ func (c *COINUT) SetDefaults() {
 	c.Name = "COINUT"
 	c.Enabled = false
 	c.Verbose = false
-	c.TakerFee = decimal.OneTenth //spot
+	c.TakerFee = common.OneTenth //spot
 	c.MakerFee = decimal.Zero
 	c.Verbose = false
 	c.Websocket = false

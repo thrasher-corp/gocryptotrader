@@ -9,9 +9,9 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
-	"github.com/thrasher-/gocryptotrader/decimal"
 	"github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/request"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
@@ -440,7 +440,7 @@ func (p *HitBTC) MoveOrder(orderID int64, rate, amount decimal.Decimal) (MoveOrd
 	values.Set("orderNumber", strconv.FormatInt(orderID, 10))
 	values.Set("rate", rate.StringFixed(exchange.DefaultDecimalPrecision))
 
-	if amount.NotZero() {
+	if common.NotZero(amount) {
 		values.Set("amount", amount.StringFixed(exchange.DefaultDecimalPrecision))
 	}
 

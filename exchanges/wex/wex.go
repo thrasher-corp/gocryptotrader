@@ -9,9 +9,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
-	"github.com/thrasher-/gocryptotrader/decimal"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/request"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
@@ -234,7 +234,7 @@ func (w *WEX) Trade(pair, orderType string, amount, price decimal.Decimal) (int6
 	if result.Error != "" {
 		return 0, errors.New(result.Error)
 	}
-	return int64(result.OrderID.Float()), nil
+	return int64(common.Float(result.OrderID)), nil
 }
 
 // GetTransactionHistory returns the transaction history

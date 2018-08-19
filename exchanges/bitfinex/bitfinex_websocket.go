@@ -8,8 +8,8 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-/gocryptotrader/common"
-	"github.com/thrasher-/gocryptotrader/decimal"
 )
 
 const (
@@ -242,7 +242,7 @@ func (b *Bitfinex) WebsocketClient() {
 								Volume:          decimal.NewFromFloat(chanData[8].(float64)),
 							}
 
-							log.Printf("Bitfinex %s Websocket Last %f Volume %f\n", chanInfo.Pair, ticker.LastPrice.Float(), ticker.Volume.Float())
+							log.Printf("Bitfinex %s Websocket Last %f Volume %f\n", chanInfo.Pair, common.Float(ticker.LastPrice), common.Float(ticker.Volume))
 						case "account":
 							switch chanData[1].(string) {
 							case bitfinexWebsocketPositionSnapshot:
@@ -365,7 +365,8 @@ func (b *Bitfinex) WebsocketClient() {
 								trades = append(trades, trade)
 
 								if b.Verbose {
-									log.Printf("Bitfinex %s Websocket Trade ID %d Timestamp %d Price %f Amount %f\n", chanInfo.Pair, trade.ID, trade.Timestamp, trade.Price.Float(), trade.Amount.Float())
+									log.Printf("Bitfinex %s Websocket Trade ID %d Timestamp %d Price %f Amount %f\n", chanInfo.Pair, trade.ID, trade.Timestamp,
+										common.Float(trade.Price), common.Float(trade.Amount))
 								}
 							}
 							log.Println(trades)

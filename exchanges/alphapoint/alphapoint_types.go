@@ -1,6 +1,6 @@
 package alphapoint
 
-import "github.com/thrasher-/gocryptotrader/decimal"
+import "github.com/shopspring/decimal"
 
 // Response contains general responses from the exchange
 type Response struct {

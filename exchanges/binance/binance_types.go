@@ -3,7 +3,7 @@ package binance
 import (
 	"encoding/json"
 
-	"github.com/thrasher-/gocryptotrader/decimal"
+	"github.com/shopspring/decimal"
 )
 
 // Response holds basic binance api response data

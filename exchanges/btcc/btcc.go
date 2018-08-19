@@ -9,9 +9,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
-	"github.com/thrasher-/gocryptotrader/decimal"
 	"github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/request"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
@@ -452,18 +452,18 @@ func (b *BTCC) CancelIcebergOrder(orderID int64, symbol string) {
 func (b *BTCC) PlaceStopOrder(buyOder bool, stopPrice, price, amount, trailingAmt, trailingPct decimal.Decimal, symbol string) {
 	params := make([]interface{}, 0)
 
-	if stopPrice.GreaterThanZero() {
+	if common.GreaterThanZero(stopPrice) {
 		params = append(params, stopPrice)
 	}
 
 	params = append(params, price.StringFixed(exchange.DefaultDecimalPrecision))
 	params = append(params, amount.StringFixed(exchange.DefaultDecimalPrecision))
 
-	if trailingAmt.GreaterThanZero() {
+	if common.GreaterThanZero(trailingAmt) {
 		params = append(params, trailingAmt.StringFixed(exchange.DefaultDecimalPrecision))
 	}
 
-	if trailingPct.GreaterThanZero() {
+	if common.GreaterThanZero(trailingPct) {
 		params = append(params, trailingPct.StringFixed(exchange.DefaultDecimalPrecision))
 	}
 
@@ -511,7 +511,7 @@ func (b *BTCC) GetStopOrders(status, orderType string, stopPrice decimal.Decimal
 		params = append(params, orderType)
 	}
 
-	if stopPrice.GreaterThanZero() {
+	if common.GreaterThanZero(stopPrice) {
 		params = append(params, stopPrice)
 	}
 

@@ -1,6 +1,6 @@
 package liqui
 
-import "github.com/thrasher-/gocryptotrader/decimal"
+import "github.com/shopspring/decimal"
 
 // Info holds the current pair information as well as server time
 type Info struct {

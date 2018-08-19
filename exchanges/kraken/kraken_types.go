@@ -1,6 +1,6 @@
 package kraken
 
-import "github.com/thrasher-/gocryptotrader/decimal"
+import "github.com/shopspring/decimal"
 
 // TimeResponse type
 type TimeResponse struct {

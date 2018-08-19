@@ -4,7 +4,7 @@ import (
 	"sort"
 
 	"github.com/thrasher-/gocryptotrader/currency/pair"
-	"github.com/thrasher-/gocryptotrader/decimal"
+	"github.com/shopspring/decimal"
 )
 
 // Item holds various fields for storing currency pair stats

@@ -3,7 +3,7 @@ package currencylayer
 import (
 	"testing"
 
-	"github.com/thrasher-/gocryptotrader/decimal"
+	"github.com/thrasher-/gocryptotrader/common"
 )
 
 var c CurrencyLayer
@@ -44,7 +44,7 @@ func TestGetHistoricalData(t *testing.T) {
 }
 
 func TestConvert(t *testing.T) {
-	_, err := c.Convert("USD", "AUD", "", decimal.One)
+	_, err := c.Convert("USD", "AUD", "", common.One)
 	if err == nil {
 		t.Error("test error - currencylayer Convert() error")
 	}

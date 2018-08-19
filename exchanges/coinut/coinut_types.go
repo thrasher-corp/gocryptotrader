@@ -1,6 +1,6 @@
 package coinut
 
-import "github.com/thrasher-/gocryptotrader/decimal"
+import "github.com/shopspring/decimal"
 
 // GenericResponse is the generic response you will get from coinut
 type GenericResponse struct {

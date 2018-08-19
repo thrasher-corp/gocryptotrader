@@ -9,9 +9,9 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
-	"github.com/thrasher-/gocryptotrader/decimal"
 	"github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/request"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
@@ -529,7 +529,7 @@ func (p *Poloniex) MoveOrder(orderID int64, rate, amount decimal.Decimal) (MoveO
 	values.Set("orderNumber", strconv.FormatInt(orderID, 10))
 	values.Set("rate", rate.StringFixed(exchange.DefaultDecimalPrecision))
 
-	if amount.NotZero() {
+	if common.NotZero(amount) {
 		values.Set("amount", amount.StringFixed(exchange.DefaultDecimalPrecision))
 	}
 
@@ -651,7 +651,7 @@ func (p *Poloniex) PlaceMarginOrder(currency string, rate, amount, lendingRate d
 	values.Set("rate", rate.StringFixed(exchange.DefaultDecimalPrecision))
 	values.Set("amount", amount.StringFixed(exchange.DefaultDecimalPrecision))
 
-	if lendingRate.NotZero() {
+	if common.NotZero(lendingRate) {
 		values.Set("lendingRate", lendingRate.StringFixed(exchange.DefaultDecimalPrecision))
 	}
 

@@ -1,6 +1,6 @@
 package openexchangerates
 
-import "github.com/thrasher-/gocryptotrader/decimal"
+import "github.com/shopspring/decimal"
 
 // Latest holds latest rate data
 type Latest struct {

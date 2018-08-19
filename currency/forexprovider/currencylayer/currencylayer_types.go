@@ -1,6 +1,6 @@
 package currencylayer
 
-import "github.com/thrasher-/gocryptotrader/decimal"
+import "github.com/shopspring/decimal"
 
 // LiveRates is a response type holding rates priced now.
 type LiveRates struct {

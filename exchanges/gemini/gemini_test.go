@@ -4,8 +4,9 @@ import (
 	"net/url"
 	"testing"
 
+	"github.com/shopspring/decimal"
+	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
-	"github.com/thrasher-/gocryptotrader/decimal"
 )
 
 // Please enter sandbox API keys & assigned roles for better testing procedures
@@ -121,11 +122,11 @@ func TestGetAuctionHistory(t *testing.T) {
 
 func TestNewOrder(t *testing.T) {
 	t.Parallel()
-	_, err := Session[1].NewOrder("btcusd", decimal.One, decimal.New(4500, 0), "buy", "exchange limit")
+	_, err := Session[1].NewOrder("btcusd", common.One, decimal.New(4500, 0), "buy", "exchange limit")
 	if err == nil {
 		t.Error("Test Failed - NewOrder() error", err)
 	}
-	_, err = Session[2].NewOrder("btcusd", decimal.One, decimal.New(4500, 0), "buy", "exchange limit")
+	_, err = Session[2].NewOrder("btcusd", common.One, decimal.New(4500, 0), "buy", "exchange limit")
 	if err == nil {
 		t.Error("Test Failed - NewOrder() error", err)
 	}
@@ -201,7 +202,7 @@ func TestGetDepositAddress(t *testing.T) {
 
 func TestWithdrawCrypto(t *testing.T) {
 	t.Parallel()
-	_, err := Session[1].WithdrawCrypto("LOL123", "btc", decimal.One)
+	_, err := Session[1].WithdrawCrypto("LOL123", "btc", common.One)
 	if err == nil {
 		t.Error("Test Failed - WithdrawCrypto() error", err)
 	}

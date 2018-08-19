@@ -1,6 +1,6 @@
 package bitmex
 
-import "github.com/thrasher-/gocryptotrader/decimal"
+import "github.com/shopspring/decimal"
 
 // RequestError allows for a general error capture from requests
 type RequestError struct {

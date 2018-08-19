@@ -3,7 +3,7 @@ package localbitcoins
 import (
 	"time"
 
-	"github.com/thrasher-/gocryptotrader/decimal"
+	"github.com/shopspring/decimal"
 )
 
 // GeneralError is an error capture type

@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
-	"github.com/thrasher-/gocryptotrader/decimal"
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 )
 

@@ -1,6 +1,6 @@
 package okcoin
 
-import "github.com/thrasher-/gocryptotrader/decimal"
+import "github.com/shopspring/decimal"
 
 // Ticker holds ticker data
 type Ticker struct {

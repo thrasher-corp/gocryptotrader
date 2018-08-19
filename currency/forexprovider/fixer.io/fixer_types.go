@@ -1,6 +1,6 @@
 package fixer
 
-import "github.com/thrasher-/gocryptotrader/decimal"
+import "github.com/shopspring/decimal"
 
 // Rates contains the data fields for the currencies you have requested.
 type Rates struct {

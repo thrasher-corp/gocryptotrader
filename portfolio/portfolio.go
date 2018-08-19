@@ -6,8 +6,8 @@ import (
 	"log"
 	"time"
 
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-/gocryptotrader/common"
-	"github.com/thrasher-/gocryptotrader/decimal"
 )
 
 const (
@@ -159,7 +159,7 @@ func (p *Base) AddAddress(address, coinType, description string, balance decimal
 				Balance: balance, Description: description},
 		)
 	} else {
-		if balance.LessThanOrEqualZero() {
+		if common.LessThanOrEqualZero(balance) {
 			p.RemoveAddress(address, coinType, description)
 		} else {
 			p.UpdateAddressBalance(address, balance)
@@ -264,7 +264,7 @@ func (p *Base) GetPersonalPortfolio() map[string]decimal.Decimal {
 func getPercentage(input map[string]decimal.Decimal, target string, totals map[string]decimal.Decimal) decimal.Decimal {
 	subtotal, _ := input[target]
 	total, _ := totals[target]
-	percentage := subtotal.Percentage(total)
+	percentage := common.Percentage(subtotal, total)
 	return percentage
 }
 
@@ -272,7 +272,7 @@ func getPercentage(input map[string]decimal.Decimal, target string, totals map[s
 // against the total coin amount.
 func getPercentageSpecific(input decimal.Decimal, target string, totals map[string]decimal.Decimal) decimal.Decimal {
 	total, _ := totals[target]
-	percentage := input.Percentage(total)
+	percentage := common.Percentage(input, total)
 	return percentage
 }
 

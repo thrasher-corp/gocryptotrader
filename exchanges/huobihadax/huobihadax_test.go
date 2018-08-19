@@ -5,8 +5,9 @@ import (
 	"strconv"
 	"testing"
 
+	"github.com/shopspring/decimal"
+	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
-	"github.com/thrasher-/gocryptotrader/decimal"
 )
 
 // Please supply your own APIKEYS here for due diligence testing
@@ -68,7 +69,7 @@ func TestSetup(t *testing.T) {
 
 func TestGetFee(t *testing.T) {
 	t.Parallel()
-	if h.GetFee().NotZero() {
+	if common.NotZero(h.GetFee()) {
 		t.Errorf("test failed - Huobi GetFee() error")
 	}
 }

@@ -3,7 +3,7 @@ package openexchangerates
 import (
 	"testing"
 
-	"github.com/thrasher-/gocryptotrader/decimal"
+	"github.com/thrasher-/gocryptotrader/common"
 )
 
 // please set apikey for due diligence testing NOTE testing uses your allocated
@@ -51,7 +51,7 @@ func TestGetTimeSeries(t *testing.T) {
 }
 
 func TestConvertCurrency(t *testing.T) {
-	_, err := o.ConvertCurrency(decimal.NewFromInt(1337), "USD", "AUD")
+	_, err := o.ConvertCurrency(common.NewFromInt(1337), "USD", "AUD")
 	if err == nil {
 		t.Error("test failed - ConvertCurrency() error", err)
 	}

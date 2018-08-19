@@ -1,6 +1,6 @@
 package itbit
 
-import "github.com/thrasher-/gocryptotrader/decimal"
+import "github.com/shopspring/decimal"
 
 // GeneralReturn is a generalized return type to capture any errors
 type GeneralReturn struct {

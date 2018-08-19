@@ -3,8 +3,9 @@ package yobit
 import (
 	"testing"
 
+	"github.com/shopspring/decimal"
+	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
-	"github.com/thrasher-/gocryptotrader/decimal"
 )
 
 var y Yobit
@@ -35,7 +36,7 @@ func TestSetup(t *testing.T) {
 
 func TestGetFee(t *testing.T) {
 	t.Parallel()
-	if y.GetFee().NotEqual(decimal.TwoTenth) {
+	if common.NotEqual(y.GetFee(), common.TwoTenth) {
 		t.Error("Test Failed - GetFee() error")
 	}
 }

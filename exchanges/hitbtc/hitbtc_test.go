@@ -3,6 +3,7 @@ package hitbtc
 import (
 	"testing"
 
+	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
 )
 
@@ -35,7 +36,7 @@ func TestSetup(t *testing.T) {
 }
 
 func TestGetFee(t *testing.T) {
-	if p.GetFee().NotZero() {
+	if common.NotZero(p.GetFee()) {
 		t.Error("Test faild - HitBTC GetFee() error")
 	}
 }

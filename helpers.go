@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 
+	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
 	"github.com/thrasher-/gocryptotrader/currency/translation"
@@ -333,7 +334,7 @@ func SeedExchangeAccountInfo(data []exchange.AccountInfo) {
 			total := onHold.Add(avail)
 
 			if !port.ExchangeAddressExists(exchangeName, currencyName) {
-				if total.LessThanOrEqualZero() {
+				if common.LessThanOrEqualZero(total) {
 					continue
 				}
 				log.Printf("Portfolio: Adding new exchange address: %s, %s, %s, %s\n",
@@ -344,7 +345,7 @@ func SeedExchangeAccountInfo(data []exchange.AccountInfo) {
 						Balance: total, Description: portfolio.PortfolioAddressExchange},
 				)
 			} else {
-				if total.LessThanOrEqualZero() {
+				if common.LessThanOrEqualZero(total) {
 					log.Printf("Portfolio: Removing %s %s entry.\n", exchangeName,
 						currencyName)
 					port.RemoveExchangeAddress(exchangeName, currencyName)

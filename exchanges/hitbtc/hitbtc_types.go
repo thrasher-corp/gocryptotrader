@@ -3,7 +3,7 @@ package hitbtc
 import (
 	"time"
 
-	"github.com/thrasher-/gocryptotrader/decimal"
+	"github.com/shopspring/decimal"
 )
 
 // Ticker holds ticker information

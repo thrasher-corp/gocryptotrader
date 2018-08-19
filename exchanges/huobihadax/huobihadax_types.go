@@ -1,6 +1,6 @@
 package huobihadax
 
-import "github.com/thrasher-/gocryptotrader/decimal"
+import "github.com/shopspring/decimal"
 
 // Response stores the Huobi response information
 type Response struct {

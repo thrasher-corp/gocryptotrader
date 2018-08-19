@@ -3,8 +3,9 @@ package wex
 import (
 	"testing"
 
+	"github.com/shopspring/decimal"
+	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
-	"github.com/thrasher-/gocryptotrader/decimal"
 )
 
 var w WEX
@@ -43,7 +44,7 @@ func TestGetTradablePairs(t *testing.T) {
 
 func TestGetFee(t *testing.T) {
 	t.Parallel()
-	if w.GetFee().NotEqual(decimal.NewFromFloat(0.2)) {
+	if common.NotEqual(w.GetFee(), decimal.NewFromFloat(0.2)) {
 		t.Error("Test Failed - GetFee() error")
 	}
 }

@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/thrasher-/gocryptotrader/config"
-	"github.com/thrasher-/gocryptotrader/decimal"
+	"github.com/shopspring/decimal"
 )
 
 // Please supply your own APIkeys here to do better tests

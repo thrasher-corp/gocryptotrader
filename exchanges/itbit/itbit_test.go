@@ -4,8 +4,9 @@ import (
 	"net/url"
 	"testing"
 
+	"github.com/shopspring/decimal"
+	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
-	"github.com/thrasher-/gocryptotrader/decimal"
 )
 
 var i ItBit
@@ -39,7 +40,7 @@ func TestSetup(t *testing.T) {
 
 func TestGetFee(t *testing.T) {
 	t.Parallel()
-	if i.GetFee(true).NotEqual(decimal.NewFromFloat(-0.1)) || i.GetFee(false).NotEqual(decimal.Half) {
+	if common.NotEqual(i.GetFee(true), decimal.NewFromFloat(-0.1)) || common.NotEqual(i.GetFee(false), common.Half) {
 		t.Error("Test Failed - GetFee() error")
 	}
 }
@@ -111,7 +112,7 @@ func TestGetFundingHistory(t *testing.T) {
 }
 
 func TestPlaceOrder(t *testing.T) {
-	_, err := i.PlaceOrder("1337", "buy", "limit", "USD", decimal.One, decimal.TwoTenth, "banjo", "sauce")
+	_, err := i.PlaceOrder("1337", "buy", "limit", "USD", common.One, common.TwoTenth, "banjo", "sauce")
 	if err == nil {
 		t.Error("Test Failed - PlaceOrder() error", err)
 	}
@@ -140,7 +141,7 @@ func TestGetDepositAddress(t *testing.T) {
 }
 
 func TestWalletTransfer(t *testing.T) {
-	_, err := i.WalletTransfer("1337", "mywallet", "anotherwallet", decimal.TwoHundred, "USD")
+	_, err := i.WalletTransfer("1337", "mywallet", "anotherwallet", common.TwoHundred, "USD")
 	if err == nil {
 		t.Error("Test Failed - WalletTransfer() error", err)
 	}

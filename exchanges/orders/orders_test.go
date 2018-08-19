@@ -3,15 +3,16 @@ package orders
 import (
 	"testing"
 
-	"github.com/thrasher-/gocryptotrader/decimal"
+	"github.com/shopspring/decimal"
+	"github.com/thrasher-/gocryptotrader/common"
 )
 
 func TestNewOrder(t *testing.T) {
-	ID := NewOrder("ANX", decimal.NewFromInt(2000), decimal.NewFromFloat(20.00))
+	ID := NewOrder("ANX", common.NewFromInt(2000), decimal.NewFromFloat(20.00))
 	if ID != 0 {
 		t.Error("Test Failed - Orders_test.go NewOrder() - Error")
 	}
-	ID = NewOrder("BATMAN", decimal.NewFromInt(400), decimal.NewFromFloat(25.00))
+	ID = NewOrder("BATMAN", common.NewFromInt(400), decimal.NewFromFloat(25.00))
 	if ID != 1 {
 		t.Error("Test Failed - Orders_test.go NewOrder() - Error")
 	}

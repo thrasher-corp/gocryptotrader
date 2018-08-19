@@ -1,6 +1,6 @@
 package btcc
 
-import "github.com/thrasher-/gocryptotrader/decimal"
+import "github.com/shopspring/decimal"
 
 // Response is the generalized response type
 type Response struct {

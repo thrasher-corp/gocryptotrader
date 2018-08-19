@@ -5,11 +5,11 @@ import (
 	"fmt"
 	"log"
 
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/currency"
 	"github.com/thrasher-/gocryptotrader/currency/symbol"
-	"github.com/thrasher-/gocryptotrader/decimal"
 	"github.com/thrasher-/gocryptotrader/exchanges/bitfinex"
 	"github.com/thrasher-/gocryptotrader/portfolio"
 )
@@ -107,7 +107,7 @@ func main() {
 	log.Println("Fetched currency data.")
 	log.Println("Fetching ticker data and calculating totals..")
 	priceMap = make(map[string]decimal.Decimal)
-	priceMap["USD"] = decimal.One
+	priceMap["USD"] = common.One
 
 	for _, y := range result.Totals {
 		pf := PortfolioTemp{}
@@ -143,7 +143,13 @@ func main() {
 	log.Println()
 	log.Println("PORTFOLIO TOTALS:")
 	for x, y := range portfolioMap {
-		log.Printf("\t%s Amount: %v Subtotal: $%v USD (1 %s = $%v USD). Percentage of portfolio %v%%", x, y.Balance.String(), y.Subtotal.StringFixed(2), x, y.Subtotal.Div(y.Balance).StringFixed(2), y.Subtotal.Percentage(total).StringFixed(3))
+		log.Printf("\t%s Amount: %v Subtotal: $%v USD (1 %s = $%v USD). Percentage of portfolio %v%%",
+			x,
+			y.Balance.String(),
+			y.Subtotal.StringFixed(2),
+			x,
+			y.Subtotal.Div(y.Balance).StringFixed(2),
+			common.Percentage(y.Subtotal, total).StringFixed(3))
 	}
 	printSummary("\tTotal balance", total)
 

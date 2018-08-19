@@ -5,8 +5,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/shopspring/decimal"
+	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
-	"github.com/thrasher-/gocryptotrader/decimal"
 )
 
 // Please add your private keys and customerID for better tests
@@ -56,10 +57,10 @@ func TestSetup(t *testing.T) {
 
 func TestGetFee(t *testing.T) {
 	t.Parallel()
-	if resp := b.GetFee("BTCUSD"); !resp.EqualZero() {
+	if resp := b.GetFee("BTCUSD"); common.NotZero(resp) {
 		t.Error("Test Failed - GetFee() error")
 	}
-	if resp := b.GetFee("bla"); !resp.EqualZero() {
+	if resp := b.GetFee("bla"); common.NotZero(resp) {
 		t.Error("Test Failed - GetFee() error")
 	}
 }
@@ -179,7 +180,7 @@ func TestCancelAllOrders(t *testing.T) {
 func TestPlaceOrder(t *testing.T) {
 	t.Parallel()
 
-	_, err := b.PlaceOrder("btcusd", decimal.NewFromFloat(0.01), decimal.One, true, true)
+	_, err := b.PlaceOrder("btcusd", decimal.NewFromFloat(0.01), common.One, true, true)
 	if err == nil {
 		t.Error("Test Failed - PlaceOrder() error")
 	}
@@ -228,11 +229,11 @@ func TestGetUnconfirmedBitcoinDeposits(t *testing.T) {
 func TestTransferAccountBalance(t *testing.T) {
 	t.Parallel()
 
-	_, err := b.TransferAccountBalance(decimal.One, "", "", true)
+	_, err := b.TransferAccountBalance(common.One, "", "", true)
 	if err == nil {
 		t.Error("Test Failed - TransferAccountBalance() error", err)
 	}
-	_, err = b.TransferAccountBalance(decimal.One, "btc", "", false)
+	_, err = b.TransferAccountBalance(common.One, "btc", "", false)
 	if err == nil {
 		t.Error("Test Failed - TransferAccountBalance() error", err)
 	}

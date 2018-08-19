@@ -3,7 +3,7 @@ package zb
 import (
 	"time"
 
-	"github.com/thrasher-/gocryptotrader/decimal"
+	"github.com/shopspring/decimal"
 )
 
 // OrderbookResponse holds the orderbook data for a symbol

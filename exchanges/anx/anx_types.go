@@ -1,6 +1,6 @@
 package anx
 
-import "github.com/thrasher-/gocryptotrader/decimal"
+import "github.com/shopspring/decimal"
 
 // Currency holds the currency information
 type Currency struct {

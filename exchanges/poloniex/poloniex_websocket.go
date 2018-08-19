@@ -5,7 +5,7 @@ import (
 	"strconv"
 
 	"github.com/beatgammit/turnpike"
-	"github.com/thrasher-/gocryptotrader/decimal"
+	"github.com/shopspring/decimal"
 )
 
 const (

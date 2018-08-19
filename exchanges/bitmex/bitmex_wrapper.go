@@ -8,7 +8,7 @@ import (
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
-	"github.com/thrasher-/gocryptotrader/decimal"
+	"github.com/shopspring/decimal"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
@@ -71,7 +71,7 @@ func (b *Bitmex) UpdateTicker(p pair.CurrencyPair, assetType string) (ticker.Pri
 	tickerPrice.LastUpdated = time.Now()
 	tickerPrice.CurrencyPair = tick[0].Symbol
 	tickerPrice.Last = tick[0].Price
-	tickerPrice.Volume = decimal.NewFromInt64(tick[0].Size)
+	tickerPrice.Volume = common.NewFromInt64(tick[0].Size)
 
 	ticker.ProcessTicker(b.Name, p, tickerPrice, assetType)
 
@@ -110,12 +110,12 @@ func (b *Bitmex) UpdateOrderbook(p pair.CurrencyPair, assetType string) (orderbo
 	for _, ob := range orderbookNew {
 		if ob.Side == "Sell" {
 			orderBook.Asks = append(orderBook.Asks,
-				orderbook.Item{Amount: decimal.NewFromInt64(ob.Size), Price: ob.Price})
+				orderbook.Item{Amount: common.NewFromInt64(ob.Size), Price: ob.Price})
 			continue
 		}
 		if ob.Side == "Buy" {
 			orderBook.Bids = append(orderBook.Bids,
-				orderbook.Item{Amount: decimal.NewFromInt64(ob.Size), Price: ob.Price})
+				orderbook.Item{Amount: common.NewFromInt64(ob.Size), Price: ob.Price})
 			continue
 		}
 	}

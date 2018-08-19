@@ -12,9 +12,9 @@ import (
 	"errors"
 	"net/url"
 
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency/forexprovider/base"
-	"github.com/thrasher-/gocryptotrader/decimal"
 )
 
 const (

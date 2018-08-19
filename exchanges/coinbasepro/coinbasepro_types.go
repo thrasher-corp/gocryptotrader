@@ -1,6 +1,6 @@
 package coinbasepro
 
-import "github.com/thrasher-/gocryptotrader/decimal"
+import "github.com/shopspring/decimal"
 
 // Product holds product information
 type Product struct {

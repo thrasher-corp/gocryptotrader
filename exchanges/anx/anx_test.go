@@ -3,8 +3,9 @@ package anx
 import (
 	"testing"
 
+	"github.com/shopspring/decimal"
+	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
-	"github.com/thrasher-/gocryptotrader/decimal"
 )
 
 var anx ANX
@@ -93,10 +94,10 @@ func TestGetTradablePairs(t *testing.T) {
 func TestGetFee(t *testing.T) {
 	makerFeeExpected, takerFeeExpected := decimal.NewFromFloat(0.3), decimal.NewFromFloat(0.6)
 
-	if anx.GetFee(true).NotEqual(makerFeeExpected) {
+	if common.NotEqual(anx.GetFee(true), makerFeeExpected) {
 		t.Error("Test Failed - ANX GetFee() incorrect return value")
 	}
-	if anx.GetFee(false).NotEqual(takerFeeExpected) {
+	if common.NotEqual(anx.GetFee(false), takerFeeExpected) {
 		t.Error("Test Failed - ANX GetFee() incorrect return value")
 	}
 }

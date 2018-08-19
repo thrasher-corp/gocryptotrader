@@ -3,7 +3,7 @@ package gateio
 import (
 	"time"
 
-	"github.com/thrasher-/gocryptotrader/decimal"
+	"github.com/shopspring/decimal"
 )
 
 // SpotNewOrderRequestParamsType order type (buy or sell)

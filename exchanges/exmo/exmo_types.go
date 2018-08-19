@@ -1,6 +1,6 @@
 package exmo
 
-import "github.com/thrasher-/gocryptotrader/decimal"
+import "github.com/shopspring/decimal"
 
 // Trades holds trade data
 type Trades struct {

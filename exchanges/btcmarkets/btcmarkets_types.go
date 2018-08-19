@@ -1,6 +1,6 @@
 package btcmarkets
 
-import "github.com/thrasher-/gocryptotrader/decimal"
+import "github.com/shopspring/decimal"
 
 // Response is the genralized response type
 type Response struct {
