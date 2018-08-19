@@ -1,12 +1,12 @@
 package localbitcoins
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
 	"log"
 	"net/url"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
@@ -192,19 +192,19 @@ func (l *LocalBitcoins) GetAccountInfo(username string, self bool) (AccountInfo,
 // adID omitted.
 //
 // adID - [optional] string if omitted returns all ads
-func (l *LocalBitcoins) Getads(adID string) (AdData, error) {
-	type response struct {
+func (l *LocalBitcoins) Getads(args ...string) (AdData, error) {
+	var resp struct {
 		Data AdData `json:"data"`
 	}
-	resp := response{}
 
-	if len(adID) > 0 {
-		return resp.Data,
-			l.SendAuthenticatedHTTPRequest("GET", localbitcoinsAPIAdGet+adID+"/", nil, &resp)
+	if len(args) == 0 {
+		return resp.Data, l.SendAuthenticatedHTTPRequest("GET", localbitcoinsAPIAds, nil, &resp)
 	}
 
-	return resp.Data,
-		l.SendAuthenticatedHTTPRequest("GET", localbitcoinsAPIAds, nil, &resp)
+	params := url.Values{}
+	params.Set("ads", strings.Join(args, ","))
+
+	return resp.Data, l.SendAuthenticatedHTTPRequest("GET", localbitcoinsAPIAdGet, params, &resp)
 }
 
 // EditAd updates set advertisements
@@ -694,7 +694,7 @@ func (l *LocalBitcoins) SendHTTPRequest(path string, result interface{}) error {
 
 // SendAuthenticatedHTTPRequest sends an authenticated HTTP request to
 // localbitcoins
-func (l *LocalBitcoins) SendAuthenticatedHTTPRequest(method, path string, values url.Values, result interface{}) (err error) {
+func (l *LocalBitcoins) SendAuthenticatedHTTPRequest(method, path string, params url.Values, result interface{}) (err error) {
 	if !l.AuthenticatedAPISupport {
 		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet, l.Name)
 	}
@@ -705,14 +705,9 @@ func (l *LocalBitcoins) SendAuthenticatedHTTPRequest(method, path string, values
 		l.Nonce.Inc()
 	}
 
-	payload := ""
 	path = "/api/" + path
-
-	if len(values) > 0 {
-		payload = values.Encode()
-	}
-
-	message := l.Nonce.String() + l.APIKey + path + payload
+	encoded := params.Encode()
+	message := l.Nonce.String() + l.APIKey + path + encoded
 	hmac := common.GetHMAC(common.HashSHA256, []byte(message), []byte(l.APISecret))
 	headers := make(map[string]string)
 	headers["Apiauth-Key"] = l.APIKey
@@ -721,8 +716,12 @@ func (l *LocalBitcoins) SendAuthenticatedHTTPRequest(method, path string, values
 	headers["Content-Type"] = "application/x-www-form-urlencoded"
 
 	if l.Verbose {
-		log.Printf("Raw Path: \n%s\n", path)
+		log.Printf("Sending POST request to %s, path: %s, params: %s", l.APIUrl, path, encoded)
 	}
 
-	return l.SendPayload(method, l.APIUrl+path, headers, bytes.NewBuffer([]byte(payload)), result, true, l.Verbose)
+	if method == "GET" {
+		path += "?" + encoded
+	}
+
+	return l.SendPayload(method, l.APIUrl+path, headers, strings.NewReader(encoded), result, true, l.Verbose)
 }
