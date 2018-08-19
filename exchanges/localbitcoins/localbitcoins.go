@@ -320,8 +320,9 @@ func (l *LocalBitcoins) InitiateTrade(amount int, message, adID string) error {
 
 // GetTradeInfo returns information about a single trade that the token owner is
 // part in.
-func (l *LocalBitcoins) GetTradeInfo(contactID string) error {
-	return l.SendAuthenticatedHTTPRequest("GET", localbitcoinsAPITradeInfo+contactID, nil, nil)
+func (l *LocalBitcoins) GetTradeInfo(contactID string) (dbi DashBoardInfo, err error) {
+	err = l.SendAuthenticatedHTTPRequest("GET", localbitcoinsAPITradeInfo+contactID+"/", nil, &dbi)
+	return
 }
 
 // GetCountryCodes returns a list of valid and recognized countrycodes
