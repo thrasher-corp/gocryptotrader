@@ -11,6 +11,7 @@ import (
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
+	"github.com/shopspring/decimal"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/request"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
@@ -164,16 +165,16 @@ func (b *Bithumb) GetAllTickers() (map[string]Ticker, error) {
 
 		data := v.(map[string]interface{})
 		var t Ticker
-		t.AveragePrice, _ = strconv.ParseFloat(data["average_price"].(string), 64)
-		t.BuyPrice, _ = strconv.ParseFloat(data["buy_price"].(string), 64)
-		t.ClosingPrice, _ = strconv.ParseFloat(data["closing_price"].(string), 64)
-		t.MaxPrice, _ = strconv.ParseFloat(data["max_price"].(string), 64)
-		t.MinPrice, _ = strconv.ParseFloat(data["min_price"].(string), 64)
-		t.OpeningPrice, _ = strconv.ParseFloat(data["opening_price"].(string), 64)
-		t.SellPrice, _ = strconv.ParseFloat(data["sell_price"].(string), 64)
-		t.UnitsTraded, _ = strconv.ParseFloat(data["units_traded"].(string), 64)
-		t.Volume1Day, _ = strconv.ParseFloat(data["volume_1day"].(string), 64)
-		t.Volume7Day, _ = strconv.ParseFloat(data["volume_7day"].(string), 64)
+		t.AveragePrice, _ = decimal.NewFromString(data["average_price"].(string))
+		t.BuyPrice, _ = decimal.NewFromString(data["buy_price"].(string))
+		t.ClosingPrice, _ = decimal.NewFromString(data["closing_price"].(string))
+		t.MaxPrice, _ = decimal.NewFromString(data["max_price"].(string))
+		t.MinPrice, _ = decimal.NewFromString(data["min_price"].(string))
+		t.OpeningPrice, _ = decimal.NewFromString(data["opening_price"].(string))
+		t.SellPrice, _ = decimal.NewFromString(data["sell_price"].(string))
+		t.UnitsTraded, _ = decimal.NewFromString(data["units_traded"].(string))
+		t.Volume1Day, _ = decimal.NewFromString(data["volume_1day"].(string))
+		t.Volume7Day, _ = decimal.NewFromString(data["volume_7day"].(string))
 		result[k] = t
 
 	}
@@ -332,14 +333,14 @@ func (b *Bithumb) GetUserTransactions() (UserTransactions, error) {
 // transactionType: Transaction type(bid : purchase, ask : sales)
 // units: Order quantity
 // price: Transaction amount per currency
-func (b *Bithumb) PlaceTrade(orderCurrency, transactionType string, units float64, price int64) (OrderPlace, error) {
+func (b *Bithumb) PlaceTrade(orderCurrency, transactionType string, units decimal.Decimal, price int64) (OrderPlace, error) {
 	response := OrderPlace{}
 
 	params := url.Values{}
 	params.Set("order_currency", common.StringToUpper(orderCurrency))
 	params.Set("Payment_currency", "KRW")
 	params.Set("type", common.StringToUpper(transactionType))
-	params.Set("units", strconv.FormatFloat(units, 'f', -1, 64))
+	params.Set("units", units.StringFixed(exchange.DefaultDecimalPrecision))
 	params.Set("price", strconv.FormatInt(price, 10))
 
 	err := b.SendAuthenticatedHTTPRequest(privatePlaceTrade, params, &response)
@@ -410,14 +411,14 @@ func (b *Bithumb) CancelTrade(transactionType, orderID, currency string) (Action
 // currency: BTC, ETH, DASH, LTC, ETC, XRP, BCH, XMR, ZEC, QTUM
 // (default value: BTC)
 // units: Quantity to withdraw currency
-func (b *Bithumb) WithdrawCrypto(address, destination, currency string, units float64) (ActionStatus, error) {
+func (b *Bithumb) WithdrawCrypto(address, destination, currency string, units decimal.Decimal) (ActionStatus, error) {
 	response := ActionStatus{}
 
 	params := url.Values{}
 	params.Set("address", address)
 	params.Set("destination", destination)
 	params.Set("currency", common.StringToUpper(currency))
-	params.Set("units", strconv.FormatFloat(units, 'f', -1, 64))
+	params.Set("units", units.StringFixed(exchange.DefaultDecimalPrecision))
 
 	err := b.SendAuthenticatedHTTPRequest(privateBTCWithdraw, params, &response)
 	if err != nil {
@@ -475,12 +476,12 @@ func (b *Bithumb) RequestKRWWithdraw(bank, account string, price int64) (ActionS
 // currency: BTC, ETH, DASH, LTC, ETC, XRP, BCH, XMR, ZEC, QTUM, BTG, EOS
 // (default value: BTC)
 // units: Order quantity
-func (b *Bithumb) MarketBuyOrder(currency string, units float64) (MarketBuy, error) {
+func (b *Bithumb) MarketBuyOrder(currency string, units decimal.Decimal) (MarketBuy, error) {
 	response := MarketBuy{}
 
 	params := url.Values{}
 	params.Set("currency", common.StringToUpper(currency))
-	params.Set("units", strconv.FormatFloat(units, 'f', -1, 64))
+	params.Set("units", units.StringFixed(exchange.DefaultDecimalPrecision))
 
 	err := b.SendAuthenticatedHTTPRequest(privateMarketBuy, params, &response)
 	if err != nil {
@@ -498,12 +499,12 @@ func (b *Bithumb) MarketBuyOrder(currency string, units float64) (MarketBuy, err
 // currency: BTC, ETH, DASH, LTC, ETC, XRP, BCH, XMR, ZEC, QTUM, BTG, EOS
 // (default value: BTC)
 // units: Order quantity
-func (b *Bithumb) MarketSellOrder(currency string, units float64) (MarketSell, error) {
+func (b *Bithumb) MarketSellOrder(currency string, units decimal.Decimal) (MarketSell, error) {
 	response := MarketSell{}
 
 	params := url.Values{}
 	params.Set("currency", common.StringToUpper(currency))
-	params.Set("units", strconv.FormatFloat(units, 'f', -1, 64))
+	params.Set("units", units.StringFixed(exchange.DefaultDecimalPrecision))
 
 	err := b.SendAuthenticatedHTTPRequest(privateMarketSell, params, &response)
 	if err != nil {

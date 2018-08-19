@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
@@ -51,7 +52,7 @@ type WEX struct {
 func (w *WEX) SetDefaults() {
 	w.Name = "WEX"
 	w.Enabled = false
-	w.Fee = 0.2
+	w.Fee = decimal.NewFromFloat(0.2)
 	w.Verbose = false
 	w.Websocket = false
 	w.RESTPollingDelay = 10
@@ -114,7 +115,7 @@ func (w *WEX) GetTradablePairs() ([]string, error) {
 }
 
 // GetFee returns the exchange fee
-func (w *WEX) GetFee() float64 {
+func (w *WEX) GetFee() decimal.Decimal {
 	return w.Fee
 }
 
@@ -216,12 +217,12 @@ func (w *WEX) CancelOrder(OrderID int64) (bool, error) {
 }
 
 // Trade places an order and returns the order ID if successful or an error
-func (w *WEX) Trade(pair, orderType string, amount, price float64) (int64, error) {
+func (w *WEX) Trade(pair, orderType string, amount, price decimal.Decimal) (int64, error) {
 	req := url.Values{}
 	req.Add("pair", pair)
 	req.Add("type", orderType)
-	req.Add("amount", strconv.FormatFloat(amount, 'f', -1, 64))
-	req.Add("rate", strconv.FormatFloat(price, 'f', -1, 64))
+	req.Add("amount", amount.StringFixed(exchange.DefaultDecimalPrecision))
+	req.Add("rate", price.StringFixed(exchange.DefaultDecimalPrecision))
 
 	var result Trade
 
@@ -233,7 +234,7 @@ func (w *WEX) Trade(pair, orderType string, amount, price float64) (int64, error
 	if result.Error != "" {
 		return 0, errors.New(result.Error)
 	}
-	return int64(result.OrderID), nil
+	return int64(common.Float(result.OrderID)), nil
 }
 
 // GetTransactionHistory returns the transaction history
@@ -271,10 +272,10 @@ func (w *WEX) GetTradeHistory(TIDFrom, Count, TIDEnd int64, order, since, end, p
 }
 
 // WithdrawCoins withdraws coins for a specific coin
-func (w *WEX) WithdrawCoins(coin string, amount float64, address string) (WithdrawCoins, error) {
+func (w *WEX) WithdrawCoins(coin string, amount decimal.Decimal, address string) (WithdrawCoins, error) {
 	req := url.Values{}
 	req.Add("coinName", coin)
-	req.Add("amount", strconv.FormatFloat(amount, 'f', -1, 64))
+	req.Add("amount", amount.StringFixed(exchange.DefaultDecimalPrecision))
 	req.Add("address", address)
 
 	var result WithdrawCoins
@@ -308,10 +309,10 @@ func (w *WEX) CoinDepositAddress(coin string) (string, error) {
 }
 
 // CreateCoupon creates an exchange coupon for a sepcific currency
-func (w *WEX) CreateCoupon(currency string, amount float64) (CreateCoupon, error) {
+func (w *WEX) CreateCoupon(currency string, amount decimal.Decimal) (CreateCoupon, error) {
 	req := url.Values{}
 	req.Add("currency", currency)
-	req.Add("amount", strconv.FormatFloat(amount, 'f', -1, 64))
+	req.Add("amount", amount.StringFixed(exchange.DefaultDecimalPrecision))
 
 	var result CreateCoupon
 

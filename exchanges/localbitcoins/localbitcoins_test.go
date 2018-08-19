@@ -3,6 +3,7 @@ package localbitcoins
 import (
 	"testing"
 
+	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
 )
 
@@ -36,7 +37,7 @@ func TestSetup(t *testing.T) {
 
 func TestGetFee(t *testing.T) {
 	t.Parallel()
-	if l.GetFee(false) != 0 || l.GetFee(true) != 0 {
+	if common.NotZero(l.GetFee(false)) || common.NotZero(l.GetFee(true)) {
 		t.Error("Test Failed - GetFee() error")
 	}
 }

@@ -1,6 +1,10 @@
 package exmo
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/thrasher-/gocryptotrader/common"
+)
 
 const (
 	APIKey    = ""
@@ -79,7 +83,7 @@ func TestGetRequiredAmount(t *testing.T) {
 		t.Skip()
 	}
 	TestSetup(t)
-	_, err := e.GetRequiredAmount("BTC_USD", 100)
+	_, err := e.GetRequiredAmount("BTC_USD", common.Hundred)
 	if err != nil {
 		t.Errorf("Test failed. Err: %s", err)
 	}

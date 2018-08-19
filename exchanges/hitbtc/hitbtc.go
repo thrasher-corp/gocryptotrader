@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/exchanges"
@@ -55,7 +56,7 @@ type HitBTC struct {
 func (p *HitBTC) SetDefaults() {
 	p.Name = "HitBTC"
 	p.Enabled = false
-	p.Fee = 0
+	p.Fee = decimal.Zero
 	p.Verbose = false
 	p.Websocket = false
 	p.RESTPollingDelay = 10
@@ -101,7 +102,7 @@ func (p *HitBTC) Setup(exch config.ExchangeConfig) {
 }
 
 // GetFee returns the fee for hitbtc
-func (p *HitBTC) GetFee() float64 {
+func (p *HitBTC) GetFee() decimal.Decimal {
 	return p.Fee
 }
 
@@ -188,28 +189,28 @@ func (p *HitBTC) GetTicker(symbol string) (map[string]Ticker, error) {
 		for x, y := range ret {
 			tick := Ticker{}
 
-			ask, _ := strconv.ParseFloat(y.Ask, 64)
+			ask, _ := decimal.NewFromString(y.Ask)
 			tick.Ask = ask
 
-			bid, _ := strconv.ParseFloat(y.Bid, 64)
+			bid, _ := decimal.NewFromString(y.Bid)
 			tick.Bid = bid
 
-			high, _ := strconv.ParseFloat(y.High, 64)
+			high, _ := decimal.NewFromString(y.High)
 			tick.High = high
 
-			last, _ := strconv.ParseFloat(y.Last, 64)
+			last, _ := decimal.NewFromString(y.Last)
 			tick.Last = last
 
-			low, _ := strconv.ParseFloat(y.Low, 64)
+			low, _ := decimal.NewFromString(y.Low)
 			tick.Low = low
 
-			open, _ := strconv.ParseFloat(y.Open, 64)
+			open, _ := decimal.NewFromString(y.Open)
 			tick.Open = open
 
-			vol, _ := strconv.ParseFloat(y.Volume, 64)
+			vol, _ := decimal.NewFromString(y.Volume)
 			tick.Volume = vol
 
-			volQuote, _ := strconv.ParseFloat(y.VolumeQuote, 64)
+			volQuote, _ := decimal.NewFromString(y.VolumeQuote)
 			tick.VolumeQuote = volQuote
 
 			tick.Symbol = y.Symbol
@@ -381,7 +382,7 @@ func (p *HitBTC) GetAuthenticatedTradeHistory(currency, start, end string) (inte
 }
 
 // PlaceOrder places an order on the exchange
-func (p *HitBTC) PlaceOrder(currency string, rate, amount float64, immediate, fillOrKill, buy bool) (OrderResponse, error) {
+func (p *HitBTC) PlaceOrder(currency string, rate, amount decimal.Decimal, immediate, fillOrKill, buy bool) (OrderResponse, error) {
 	result := OrderResponse{}
 	values := url.Values{}
 
@@ -393,8 +394,8 @@ func (p *HitBTC) PlaceOrder(currency string, rate, amount float64, immediate, fi
 	}
 
 	values.Set("currencyPair", currency)
-	values.Set("rate", strconv.FormatFloat(rate, 'f', -1, 64))
-	values.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
+	values.Set("rate", rate.StringFixed(exchange.DefaultDecimalPrecision))
+	values.Set("amount", amount.StringFixed(exchange.DefaultDecimalPrecision))
 
 	if immediate {
 		values.Set("immediateOrCancel", "1")
@@ -433,14 +434,14 @@ func (p *HitBTC) CancelOrder(orderID int64) (bool, error) {
 }
 
 // MoveOrder generates a new move order
-func (p *HitBTC) MoveOrder(orderID int64, rate, amount float64) (MoveOrderResponse, error) {
+func (p *HitBTC) MoveOrder(orderID int64, rate, amount decimal.Decimal) (MoveOrderResponse, error) {
 	result := MoveOrderResponse{}
 	values := url.Values{}
 	values.Set("orderNumber", strconv.FormatInt(orderID, 10))
-	values.Set("rate", strconv.FormatFloat(rate, 'f', -1, 64))
+	values.Set("rate", rate.StringFixed(exchange.DefaultDecimalPrecision))
 
-	if amount != 0 {
-		values.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
+	if common.NotZero(amount) {
+		values.Set("amount", amount.StringFixed(exchange.DefaultDecimalPrecision))
 	}
 
 	err := p.SendAuthenticatedHTTPRequest("POST", orderMove, values, &result)
@@ -457,12 +458,12 @@ func (p *HitBTC) MoveOrder(orderID int64, rate, amount float64) (MoveOrderRespon
 }
 
 // Withdraw allows for the withdrawal to a specific address
-func (p *HitBTC) Withdraw(currency, address string, amount float64) (bool, error) {
+func (p *HitBTC) Withdraw(currency, address string, amount decimal.Decimal) (bool, error) {
 	result := Withdraw{}
 	values := url.Values{}
 
 	values.Set("currency", currency)
-	values.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
+	values.Set("amount", amount.StringFixed(exchange.DefaultDecimalPrecision))
 	values.Set("address", address)
 
 	err := p.SendAuthenticatedHTTPRequest("POST", apiV2CryptoWithdraw, values, &result)
@@ -487,7 +488,7 @@ func (p *HitBTC) GetFeeInfo(currencyPair string) (Fee, error) {
 }
 
 // GetTradableBalances returns current tradable balances
-func (p *HitBTC) GetTradableBalances() (map[string]map[string]float64, error) {
+func (p *HitBTC) GetTradableBalances() (map[string]map[string]decimal.Decimal, error) {
 	type Response struct {
 		Data map[string]map[string]interface{}
 	}
@@ -499,12 +500,12 @@ func (p *HitBTC) GetTradableBalances() (map[string]map[string]float64, error) {
 		return nil, err
 	}
 
-	balances := make(map[string]map[string]float64)
+	balances := make(map[string]map[string]decimal.Decimal)
 
 	for x, y := range result.Data {
-		balances[x] = make(map[string]float64)
+		balances[x] = make(map[string]decimal.Decimal)
 		for z, w := range y {
-			balances[x][z], _ = strconv.ParseFloat(w.(string), 64)
+			balances[x][z], _ = decimal.NewFromString(w.(string))
 		}
 	}
 
@@ -512,12 +513,12 @@ func (p *HitBTC) GetTradableBalances() (map[string]map[string]float64, error) {
 }
 
 // TransferBalance transfers a balance
-func (p *HitBTC) TransferBalance(currency, from, to string, amount float64) (bool, error) {
+func (p *HitBTC) TransferBalance(currency, from, to string, amount decimal.Decimal) (bool, error) {
 	values := url.Values{}
 	result := GenericResponse{}
 
 	values.Set("currency", currency)
-	values.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
+	values.Set("amount", amount.StringFixed(exchange.DefaultDecimalPrecision))
 	values.Set("fromAccount", from)
 	values.Set("toAccount", to)
 

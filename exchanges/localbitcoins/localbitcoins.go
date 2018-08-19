@@ -11,6 +11,7 @@ import (
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/request"
 )
@@ -155,7 +156,7 @@ func (l *LocalBitcoins) Setup(exch config.ExchangeConfig) {
 }
 
 // GetFee returns the fee for maker or taker
-func (l *LocalBitcoins) GetFee(maker bool) float64 {
+func (l *LocalBitcoins) GetFee(maker bool) decimal.Decimal {
 	if maker {
 		return l.MakerFee
 	}
@@ -420,7 +421,7 @@ func (l *LocalBitcoins) Logout() error {
 }
 
 // CreateNewInvoice creates a new invoice.
-func (l *LocalBitcoins) CreateNewInvoice(currency, description, returnURL string, amount float64, internal bool) error {
+func (l *LocalBitcoins) CreateNewInvoice(currency, description, returnURL string, amount decimal.Decimal, internal bool) error {
 	return l.SendAuthenticatedHTTPRequest("POST", localbitcoinsAPICreateInvoice, nil, nil)
 }
 
@@ -555,10 +556,10 @@ func (l *LocalBitcoins) GetWalletBalance() (WalletBalanceInfo, error) {
 // On success, the response returns a message indicating success. It is highly
 // recommended to minimize the lifetime of access tokens with the money
 // permission. Use Logout() to make the current token expire instantly.
-func (l *LocalBitcoins) WalletSend(address string, amount float64, pin int) (bool, error) {
+func (l *LocalBitcoins) WalletSend(address string, amount decimal.Decimal, pin int) (bool, error) {
 	values := url.Values{}
 	values.Set("address", address)
-	values.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
+	values.Set("amount", amount.StringFixed(exchange.DefaultDecimalPrecision))
 	path := localbitcoinsAPIWalletSend
 
 	if pin > 0 {
@@ -655,12 +656,12 @@ func (l *LocalBitcoins) GetOrderbook(currency string) (Orderbook, error) {
 	orderbook := Orderbook{}
 
 	for _, x := range resp.Bids {
-		price, err := strconv.ParseFloat(x[0], 64)
+		price, err := decimal.NewFromString(x[0])
 		if err != nil {
 			log.Println(err)
 			continue
 		}
-		amount, err := strconv.ParseFloat(x[1], 64)
+		amount, err := decimal.NewFromString(x[1])
 		if err != nil {
 			log.Println(err)
 			continue
@@ -669,12 +670,12 @@ func (l *LocalBitcoins) GetOrderbook(currency string) (Orderbook, error) {
 	}
 
 	for _, x := range resp.Asks {
-		price, err := strconv.ParseFloat(x[0], 64)
+		price, err := decimal.NewFromString(x[0])
 		if err != nil {
 			log.Println(err)
 			continue
 		}
-		amount, err := strconv.ParseFloat(x[1], 64)
+		amount, err := decimal.NewFromString(x[1])
 		if err != nil {
 			log.Println(err)
 			continue

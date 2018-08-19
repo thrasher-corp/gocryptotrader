@@ -3,6 +3,8 @@ package anx
 import (
 	"testing"
 
+	"github.com/shopspring/decimal"
+	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
 )
 
@@ -17,10 +19,10 @@ func TestSetDefaults(t *testing.T) {
 	if anx.Enabled != false {
 		t.Error("Test Failed - ANX SetDefaults() incorrect values set")
 	}
-	if anx.TakerFee != 0.6 {
+	if !anx.TakerFee.Equal(decimal.NewFromFloat(0.6)) {
 		t.Error("Test Failed - ANX SetDefaults() incorrect values set")
 	}
-	if anx.MakerFee != 0.3 {
+	if !anx.MakerFee.Equal(decimal.NewFromFloat(0.3)) {
 		t.Error("Test Failed - ANX SetDefaults() incorrect values set")
 	}
 	if anx.Verbose != false {
@@ -90,12 +92,12 @@ func TestGetTradablePairs(t *testing.T) {
 }
 
 func TestGetFee(t *testing.T) {
-	makerFeeExpected, takerFeeExpected := 0.3, 0.6
+	makerFeeExpected, takerFeeExpected := decimal.NewFromFloat(0.3), decimal.NewFromFloat(0.6)
 
-	if anx.GetFee(true) != makerFeeExpected {
+	if common.NotEqual(anx.GetFee(true), makerFeeExpected) {
 		t.Error("Test Failed - ANX GetFee() incorrect return value")
 	}
-	if anx.GetFee(false) != takerFeeExpected {
+	if common.NotEqual(anx.GetFee(false), takerFeeExpected) {
 		t.Error("Test Failed - ANX GetFee() incorrect return value")
 	}
 }

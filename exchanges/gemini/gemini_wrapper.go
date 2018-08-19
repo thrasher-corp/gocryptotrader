@@ -7,6 +7,7 @@ import (
 	"sync"
 
 	"github.com/thrasher-/gocryptotrader/currency/pair"
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
@@ -127,7 +128,7 @@ func (g *Gemini) GetExchangeHistory(p pair.CurrencyPair, assetType string) ([]ex
 }
 
 // SubmitExchangeOrder submits a new order
-func (g *Gemini) SubmitExchangeOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (int64, error) {
+func (g *Gemini) SubmitExchangeOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price decimal.Decimal, clientID string) (int64, error) {
 	return 0, errors.New("not yet implemented")
 }
 
@@ -160,18 +161,18 @@ func (g *Gemini) GetExchangeDepositAddress(cryptocurrency pair.CurrencyItem) (st
 
 // WithdrawCryptoExchangeFunds returns a withdrawal ID when a withdrawal is
 // submitted
-func (g *Gemini) WithdrawCryptoExchangeFunds(address string, cryptocurrency pair.CurrencyItem, amount float64) (string, error) {
+func (g *Gemini) WithdrawCryptoExchangeFunds(address string, cryptocurrency pair.CurrencyItem, amount decimal.Decimal) (string, error) {
 	return "", errors.New("not yet implemented")
 }
 
 // WithdrawFiatExchangeFunds returns a withdrawal ID when a
 // withdrawal is submitted
-func (g *Gemini) WithdrawFiatExchangeFunds(currency pair.CurrencyItem, amount float64) (string, error) {
+func (g *Gemini) WithdrawFiatExchangeFunds(currency pair.CurrencyItem, amount decimal.Decimal) (string, error) {
 	return "", errors.New("not yet implemented")
 }
 
 // WithdrawFiatExchangeFundsToInternationalBank returns a withdrawal ID when a
 // withdrawal is submitted
-func (g *Gemini) WithdrawFiatExchangeFundsToInternationalBank(currency pair.CurrencyItem, amount float64) (string, error) {
+func (g *Gemini) WithdrawFiatExchangeFundsToInternationalBank(currency pair.CurrencyItem, amount decimal.Decimal) (string, error) {
 	return "", errors.New("not yet implemented")
 }

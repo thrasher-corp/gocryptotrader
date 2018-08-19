@@ -3,6 +3,7 @@ package alphapoint
 import (
 	"errors"
 
+	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
 	"github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
@@ -21,8 +22,8 @@ func (a *Alphapoint) GetExchangeAccountInfo() (exchange.AccountInfo, error) {
 	for i := 0; i < len(account.Currencies); i++ {
 		var exchangeCurrency exchange.AccountCurrencyInfo
 		exchangeCurrency.CurrencyName = account.Currencies[i].Name
-		exchangeCurrency.TotalValue = float64(account.Currencies[i].Balance)
-		exchangeCurrency.Hold = float64(account.Currencies[i].Hold)
+		exchangeCurrency.TotalValue = common.NewFromInt(account.Currencies[i].Balance)
+		exchangeCurrency.Hold = common.NewFromInt(account.Currencies[i].Hold)
 
 		response.Currencies = append(response.Currencies, exchangeCurrency)
 	}

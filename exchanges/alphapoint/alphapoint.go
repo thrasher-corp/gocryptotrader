@@ -10,7 +10,8 @@ import (
 
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-/gocryptotrader/common"
-	"github.com/thrasher-/gocryptotrader/exchanges"
+	"github.com/shopspring/decimal"
+	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/request"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 )
@@ -332,11 +333,11 @@ func (a *Alphapoint) GetDepositAddresses() ([]DepositAddresses, error) {
 // product - Currency name (ex: “BTC”)
 // amount - Amount (ex: “.011”)
 // address - Withdraw address
-func (a *Alphapoint) WithdrawCoins(symbol, product, address string, amount float64) error {
+func (a *Alphapoint) WithdrawCoins(symbol, product, address string, amount decimal.Decimal) error {
 	request := make(map[string]interface{})
 	request["ins"] = symbol
 	request["product"] = product
-	request["amount"] = strconv.FormatFloat(amount, 'f', -1, 64)
+	request["amount"] = amount.StringFixed(exchange.DefaultDecimalPrecision)
 	request["sendToAddress"] = address
 
 	response := Response{}
@@ -361,13 +362,13 @@ func (a *Alphapoint) WithdrawCoins(symbol, product, address string, amount float
 // orderType - “1” for market orders, “0” for limit orders
 // quantity - Quantity
 // price - Price in USD
-func (a *Alphapoint) CreateOrder(symbol, side string, orderType int, quantity, price float64) (int64, error) {
+func (a *Alphapoint) CreateOrder(symbol, side string, orderType int, quantity, price decimal.Decimal) (int64, error) {
 	request := make(map[string]interface{})
 	request["ins"] = symbol
 	request["side"] = side
 	request["orderType"] = orderType
-	request["qty"] = strconv.FormatFloat(quantity, 'f', -1, 64)
-	request["px"] = strconv.FormatFloat(price, 'f', -1, 64)
+	request["qty"] = quantity.StringFixed(exchange.DefaultDecimalPrecision)
+	request["px"] = price.StringFixed(exchange.DefaultDecimalPrecision)
 	response := Response{}
 
 	err := a.SendAuthenticatedHTTPRequest(
@@ -485,12 +486,12 @@ func (a *Alphapoint) GetOrders() ([]OpenOrders, error) {
 // side - “buy” or “sell”
 // quantity - Quantity
 // price - Price in USD
-func (a *Alphapoint) GetOrderFee(symbol, side string, quantity, price float64) (float64, error) {
+func (a *Alphapoint) GetOrderFee(symbol, side string, quantity, price decimal.Decimal) (decimal.Decimal, error) {
 	request := make(map[string]interface{})
 	request["ins"] = symbol
 	request["side"] = side
-	request["qty"] = strconv.FormatFloat(quantity, 'f', -1, 64)
-	request["px"] = strconv.FormatFloat(price, 'f', -1, 64)
+	request["qty"] = quantity.StringFixed(exchange.DefaultDecimalPrecision)
+	request["px"] = price.StringFixed(exchange.DefaultDecimalPrecision)
 	response := Response{}
 
 	err := a.SendAuthenticatedHTTPRequest(
@@ -500,10 +501,10 @@ func (a *Alphapoint) GetOrderFee(symbol, side string, quantity, price float64) (
 		&response,
 	)
 	if err != nil {
-		return 0, err
+		return decimal.Zero, err
 	}
 	if !response.IsAccepted {
-		return 0, errors.New(response.RejectReason)
+		return decimal.Zero, errors.New(response.RejectReason)
 	}
 	return response.Fee, nil
 }

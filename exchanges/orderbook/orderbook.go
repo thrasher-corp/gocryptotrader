@@ -5,6 +5,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
 )
 
@@ -25,8 +26,8 @@ var (
 
 // Item stores the amount and price values
 type Item struct {
-	Amount float64
-	Price  float64
+	Amount decimal.Decimal
+	Price  decimal.Decimal
 }
 
 // Base holds the fields for the orderbook base
@@ -46,24 +47,28 @@ type Orderbook struct {
 
 // CalculateTotalBids returns the total amount of bids and the total orderbook
 // bids value
-func (o *Base) CalculateTotalBids() (float64, float64) {
-	amountCollated := float64(0)
-	total := float64(0)
+func (o *Base) CalculateTotalBids() (decimal.Decimal, decimal.Decimal) {
+	amountCollated := decimal.Zero
+	total := decimal.Zero
 	for _, x := range o.Bids {
-		amountCollated += x.Amount
-		total += x.Amount * x.Price
+		//amountCollated += x.Amount
+		amountCollated = amountCollated.Add(x.Amount)
+		//total += x.Amount * x.Price
+		total = total.Add(x.Amount.Mul(x.Price))
 	}
 	return amountCollated, total
 }
 
 // CalculateTotalAsks returns the total amount of asks and the total orderbook
 // asks value
-func (o *Base) CalculateTotalAsks() (float64, float64) {
-	amountCollated := float64(0)
-	total := float64(0)
+func (o *Base) CalculateTotalAsks() (decimal.Decimal, decimal.Decimal) {
+	amountCollated := decimal.Zero
+	total := decimal.Zero
 	for _, x := range o.Asks {
-		amountCollated += x.Amount
-		total += x.Amount * x.Price
+		//amountCollated += x.Amount
+		amountCollated = amountCollated.Add(x.Amount)
+		//total += x.Amount * x.Price
+		total = total.Add(x.Amount.Mul(x.Price))
 	}
 	return amountCollated, total
 }

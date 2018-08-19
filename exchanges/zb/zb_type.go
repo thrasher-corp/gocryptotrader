@@ -1,12 +1,16 @@
 package zb
 
-import "time"
+import (
+	"time"
+
+	"github.com/shopspring/decimal"
+)
 
 // OrderbookResponse holds the orderbook data for a symbol
 type OrderbookResponse struct {
-	Timestamp int64       `json:"timestamp"`
-	Asks      [][]float64 `json:"asks"`
-	Bids      [][]float64 `json:"bids"`
+	Timestamp int64               `json:"timestamp"`
+	Asks      [][]decimal.Decimal `json:"asks"`
+	Bids      [][]decimal.Decimal `json:"bids"`
 }
 
 // AccountsResponseCoin holds the accounts coin details
@@ -42,8 +46,8 @@ type AccountsResponse struct {
 
 // MarketResponseItem stores market data
 type MarketResponseItem struct {
-	AmountScale float64 `json:"amountScale"`
-	PriceScale  float64 `json:"priceScale"`
+	AmountScale decimal.Decimal `json:"amountScale"`
+	PriceScale  decimal.Decimal `json:"priceScale"`
 }
 
 // TickerResponse holds the ticker response data
@@ -54,12 +58,12 @@ type TickerResponse struct {
 
 // TickerChildResponse holds the ticker child response data
 type TickerChildResponse struct {
-	Vol  float64 `json:"vol,string"`  //成交量(最近的24小时)
-	Last float64 `json:"last,string"` //最新成交价
-	Sell float64 `json:"sell,string"` //卖一价
-	Buy  float64 `json:"buy,string"`  //买一价
-	High float64 `json:"high,string"` //最高价
-	Low  float64 `json:"low,string"`  //最低价
+	Vol  decimal.Decimal `json:"vol,string"`  //成交量(最近的24小时)
+	Last decimal.Decimal `json:"last,string"` //最新成交价
+	Sell decimal.Decimal `json:"sell,string"` //卖一价
+	Buy  decimal.Decimal `json:"buy,string"`  //买一价
+	High decimal.Decimal `json:"high,string"` //最高价
+	Low  decimal.Decimal `json:"low,string"`  //最低价
 }
 
 // SpotNewOrderRequestParamsType ZB 交易类型
@@ -74,8 +78,8 @@ var (
 
 // SpotNewOrderRequestParams is the params used for placing an order
 type SpotNewOrderRequestParams struct {
-	Amount float64                       `json:"amount"`    // 交易数量
-	Price  float64                       `json:"price"`     // 下单价格,
+	Amount decimal.Decimal               `json:"amount"`    // 交易数量
+	Price  decimal.Decimal               `json:"price"`     // 下单价格,
 	Symbol string                        `json:"currency"`  // 交易对, btcusdt, bccbtc......
 	Type   SpotNewOrderRequestParamsType `json:"tradeType"` // 订单类型, buy-market: 市价买, sell-market: 市价卖, buy-limit: 限价买, sell-limit: 限价卖
 }
@@ -99,13 +103,13 @@ type KlinesRequestParams struct {
 
 // KLineResponseData Kline Data
 type KLineResponseData struct {
-	ID        float64   `json:"id"` // K线ID
-	KlineTime time.Time `json:"klineTime"`
-	Open      float64   `json:"open"`  // 开盘价
-	Close     float64   `json:"close"` // 收盘价, 当K线为最晚的一根时, 时最新成交价
-	Low       float64   `json:"low"`   // 最低价
-	High      float64   `json:"high"`  // 最高价
-	Volume    float64   `json:"vol"`   // 成交量
+	ID        float64         `json:"id"` // K线ID
+	KlineTime time.Time       `json:"klineTime"`
+	Open      decimal.Decimal `json:"open"`  // 开盘价
+	Close     decimal.Decimal `json:"close"` // 收盘价, 当K线为最晚的一根时, 时最新成交价
+	Low       decimal.Decimal `json:"low"`   // 最低价
+	High      decimal.Decimal `json:"high"`  // 最高价
+	Volume    decimal.Decimal `json:"vol"`   // 成交量
 }
 
 // KLineResponse K线返回类型

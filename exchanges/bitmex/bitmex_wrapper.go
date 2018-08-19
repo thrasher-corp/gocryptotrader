@@ -8,6 +8,7 @@ import (
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
+	"github.com/shopspring/decimal"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
@@ -70,7 +71,7 @@ func (b *Bitmex) UpdateTicker(p pair.CurrencyPair, assetType string) (ticker.Pri
 	tickerPrice.LastUpdated = time.Now()
 	tickerPrice.CurrencyPair = tick[0].Symbol
 	tickerPrice.Last = tick[0].Price
-	tickerPrice.Volume = float64(tick[0].Size)
+	tickerPrice.Volume = common.NewFromInt64(tick[0].Size)
 
 	ticker.ProcessTicker(b.Name, p, tickerPrice, assetType)
 
@@ -109,12 +110,12 @@ func (b *Bitmex) UpdateOrderbook(p pair.CurrencyPair, assetType string) (orderbo
 	for _, ob := range orderbookNew {
 		if ob.Side == "Sell" {
 			orderBook.Asks = append(orderBook.Asks,
-				orderbook.Item{Amount: float64(ob.Size), Price: ob.Price})
+				orderbook.Item{Amount: common.NewFromInt64(ob.Size), Price: ob.Price})
 			continue
 		}
 		if ob.Side == "Buy" {
 			orderBook.Bids = append(orderBook.Bids,
-				orderbook.Item{Amount: float64(ob.Size), Price: ob.Price})
+				orderbook.Item{Amount: common.NewFromInt64(ob.Size), Price: ob.Price})
 			continue
 		}
 	}
@@ -145,7 +146,7 @@ func (b *Bitmex) GetExchangeHistory(p pair.CurrencyPair, assetType string) ([]ex
 }
 
 // SubmitExchangeOrder submits a new order
-func (b *Bitmex) SubmitExchangeOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (int64, error) {
+func (b *Bitmex) SubmitExchangeOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price decimal.Decimal, clientID string) (int64, error) {
 	return 0, errors.New("not yet implemented")
 }
 
@@ -178,18 +179,18 @@ func (b *Bitmex) GetExchangeDepositAddress(cryptocurrency pair.CurrencyItem) (st
 
 // WithdrawCryptoExchangeFunds returns a withdrawal ID when a withdrawal is
 // submitted
-func (b *Bitmex) WithdrawCryptoExchangeFunds(address string, cryptocurrency pair.CurrencyItem, amount float64) (string, error) {
+func (b *Bitmex) WithdrawCryptoExchangeFunds(address string, cryptocurrency pair.CurrencyItem, amount decimal.Decimal) (string, error) {
 	return "", errors.New("not yet implemented")
 }
 
 // WithdrawFiatExchangeFunds returns a withdrawal ID when a withdrawal is
 // submitted
-func (b *Bitmex) WithdrawFiatExchangeFunds(currency pair.CurrencyItem, amount float64) (string, error) {
+func (b *Bitmex) WithdrawFiatExchangeFunds(currency pair.CurrencyItem, amount decimal.Decimal) (string, error) {
 	return "", errors.New("not yet implemented")
 }
 
 // WithdrawExchangeFiatFundsToInternationalBank returns a withdrawal ID when a withdrawal is
 // submitted
-func (b *Bitmex) WithdrawExchangeFiatFundsToInternationalBank(currency pair.CurrencyItem, amount float64) (string, error) {
+func (b *Bitmex) WithdrawExchangeFiatFundsToInternationalBank(currency pair.CurrencyItem, amount decimal.Decimal) (string, error) {
 	return "", errors.New("not yet implemented")
 }

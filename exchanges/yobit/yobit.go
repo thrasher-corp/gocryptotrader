@@ -11,6 +11,7 @@ import (
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/request"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
@@ -49,7 +50,7 @@ type Yobit struct {
 func (y *Yobit) SetDefaults() {
 	y.Name = "Yobit"
 	y.Enabled = true
-	y.Fee = 0.2
+	y.Fee = decimal.NewFromFloat(0.2)
 	y.Verbose = false
 	y.Websocket = false
 	y.RESTPollingDelay = 10
@@ -99,7 +100,7 @@ func (y *Yobit) Setup(exch config.ExchangeConfig) {
 }
 
 // GetFee returns the exchange fee
-func (y *Yobit) GetFee() float64 {
+func (y *Yobit) GetFee() decimal.Decimal {
 	return y.Fee
 }
 
@@ -163,12 +164,12 @@ func (y *Yobit) GetAccountInfo() (AccountInfo, error) {
 }
 
 // Trade places an order and returns the order ID if successful or an error
-func (y *Yobit) Trade(pair, orderType string, amount, price float64) (int64, error) {
+func (y *Yobit) Trade(pair, orderType string, amount, price decimal.Decimal) (int64, error) {
 	req := url.Values{}
 	req.Add("pair", pair)
 	req.Add("type", orderType)
-	req.Add("amount", strconv.FormatFloat(amount, 'f', -1, 64))
-	req.Add("rate", strconv.FormatFloat(price, 'f', -1, 64))
+	req.Add("amount", amount.StringFixed(exchange.DefaultDecimalPrecision))
+	req.Add("rate", price.StringFixed(exchange.DefaultDecimalPrecision))
 
 	result := Trade{}
 
@@ -254,10 +255,10 @@ func (y *Yobit) GetDepositAddress(coin string) (DepositAddress, error) {
 }
 
 // WithdrawCoinsToAddress initiates a withdrawal to a specified address
-func (y *Yobit) WithdrawCoinsToAddress(coin string, amount float64, address string) (WithdrawCoinsToAddress, error) {
+func (y *Yobit) WithdrawCoinsToAddress(coin string, amount decimal.Decimal, address string) (WithdrawCoinsToAddress, error) {
 	req := url.Values{}
 	req.Add("coinName", coin)
-	req.Add("amount", strconv.FormatFloat(amount, 'f', -1, 64))
+	req.Add("amount", amount.StringFixed(exchange.DefaultDecimalPrecision))
 	req.Add("address", address)
 
 	result := WithdrawCoinsToAddress{}
@@ -273,10 +274,10 @@ func (y *Yobit) WithdrawCoinsToAddress(coin string, amount float64, address stri
 }
 
 // CreateCoupon creates an exchange coupon for a sepcific currency
-func (y *Yobit) CreateCoupon(currency string, amount float64) (CreateCoupon, error) {
+func (y *Yobit) CreateCoupon(currency string, amount decimal.Decimal) (CreateCoupon, error) {
 	req := url.Values{}
 	req.Add("currency", currency)
-	req.Add("amount", strconv.FormatFloat(amount, 'f', -1, 64))
+	req.Add("amount", amount.StringFixed(exchange.DefaultDecimalPrecision))
 
 	var result CreateCoupon
 

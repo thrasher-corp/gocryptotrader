@@ -4,6 +4,9 @@ import (
 	"reflect"
 	"testing"
 	"time"
+
+	"github.com/shopspring/decimal"
+	"github.com/thrasher-/gocryptotrader/common"
 )
 
 func TestGetEthereumBalance(t *testing.T) {
@@ -38,7 +41,7 @@ func TestGetAddressBalance(t *testing.T) {
 	ltcAddress := "LdP8Qox1VAhCzLJNqrr74YovaWYyNBUWvL"
 	ltc := "ltc"
 	description := "Description of Wallet"
-	balance := float64(1000)
+	balance := common.Thousand
 
 	portfolio := Base{}
 	portfolio.AddAddress(ltcAddress, ltc, description, balance)
@@ -49,7 +52,7 @@ func TestGetAddressBalance(t *testing.T) {
 	}
 
 	addBalance, found := portfolio.GetAddressBalance("WigWham", ltc, description)
-	if addBalance != 0 {
+	if common.NotZero(addBalance) {
 		t.Error("Test Failed - Portfolio GetAddressBalance() Error: Incorrect value")
 	}
 	if found != false {
@@ -59,7 +62,7 @@ func TestGetAddressBalance(t *testing.T) {
 
 func TestExchangeExists(t *testing.T) {
 	newBase := Base{}
-	newBase.AddAddress("someaddress", "LTC", "LTCWALLETTEST", 0.02)
+	newBase.AddAddress("someaddress", "LTC", "LTCWALLETTEST", decimal.NewFromFloat(0.02))
 	if !newBase.ExchangeExists("someaddress") {
 		t.Error("Test Failed - portfolio_test.go - AddressExists error")
 	}
@@ -70,7 +73,7 @@ func TestExchangeExists(t *testing.T) {
 
 func TestAddressExists(t *testing.T) {
 	newbase := Base{}
-	newbase.AddAddress("someaddress", "LTC", "LTCWALLETTEST", 0.02)
+	newbase.AddAddress("someaddress", "LTC", "LTCWALLETTEST", decimal.NewFromFloat(0.02))
 	if !newbase.AddressExists("someaddress") {
 		t.Error("Test Failed - portfolio_test.go - AddressExists error")
 	}
@@ -81,7 +84,7 @@ func TestAddressExists(t *testing.T) {
 
 func TestExchangeAddressExists(t *testing.T) {
 	newbase := Base{}
-	newbase.AddAddress("someaddress", "LTC", "LTCWALLETTEST", 0.02)
+	newbase.AddAddress("someaddress", "LTC", "LTCWALLETTEST", decimal.NewFromFloat(0.02))
 	if !newbase.ExchangeAddressExists("someaddress", "LTC") {
 		t.Error("Test Failed - portfolio_test.go - ExchangeAddressExists error")
 	}
@@ -93,8 +96,8 @@ func TestExchangeAddressExists(t *testing.T) {
 
 func TestAddExchangeAddress(t *testing.T) {
 	newbase := Base{}
-	newbase.AddExchangeAddress("ANX", "BTC", 100)
-	newbase.AddExchangeAddress("ANX", "BTC", 200)
+	newbase.AddExchangeAddress("ANX", "BTC", common.Hundred)
+	newbase.AddExchangeAddress("ANX", "BTC", common.TwoHundred)
 
 	if !newbase.ExchangeAddressExists("ANX", "BTC") {
 		t.Error("Test Failed - TestExchangeAddressExists address doesn't exist")
@@ -103,18 +106,18 @@ func TestAddExchangeAddress(t *testing.T) {
 
 func TestUpdateAddressBalance(t *testing.T) {
 	newbase := Base{}
-	newbase.AddAddress("someaddress", "LTC", "LTCWALLETTEST", 0.02)
-	newbase.UpdateAddressBalance("someaddress", 0.03)
+	newbase.AddAddress("someaddress", "LTC", "LTCWALLETTEST", decimal.NewFromFloat(0.02))
+	newbase.UpdateAddressBalance("someaddress", decimal.NewFromFloat(0.03))
 
 	value := newbase.GetPortfolioSummary()
-	if value.Totals[0].Coin != "LTC" && value.Totals[0].Balance != 0.03 {
+	if value.Totals[0].Coin != "LTC" && common.NotEqual(value.Totals[0].Balance, decimal.NewFromFloat(0.03)) {
 		t.Error("Test Failed - portfolio_test.go - UpdateUpdateAddressBalance error")
 	}
 }
 
 func TestRemoveAddress(t *testing.T) {
 	newbase := Base{}
-	newbase.AddAddress("someaddr", "LTC", "LTCWALLETTEST", 420)
+	newbase.AddAddress("someaddr", "LTC", "LTCWALLETTEST", common.NewFromInt(420))
 
 	if !newbase.AddressExists("someaddr") {
 		t.Error("Test failed - portfolio_test.go - TestRemoveAddress")
@@ -131,7 +134,7 @@ func TestRemoveExchangeAddress(t *testing.T) {
 	exchangeName := "BallerExchange"
 	coinType := "LTC"
 
-	newbase.AddExchangeAddress(exchangeName, coinType, 420)
+	newbase.AddExchangeAddress(exchangeName, coinType, common.NewFromInt(420))
 
 	if !newbase.ExchangeAddressExists(exchangeName, coinType) {
 		t.Error("Test failed - portfolio_test.go - TestRemoveAddress")
@@ -145,20 +148,20 @@ func TestRemoveExchangeAddress(t *testing.T) {
 
 func TestUpdateExchangeAddressBalance(t *testing.T) {
 	newbase := Base{}
-	newbase.AddExchangeAddress("someaddress", "LTC", 0.02)
+	newbase.AddExchangeAddress("someaddress", "LTC", decimal.NewFromFloat(0.02))
 	portfolio := GetPortfolio()
 	portfolio.SeedPortfolio(newbase)
-	portfolio.UpdateExchangeAddressBalance("someaddress", "LTC", 0.04)
+	portfolio.UpdateExchangeAddressBalance("someaddress", "LTC", decimal.NewFromFloat(0.04))
 
 	value := portfolio.GetPortfolioSummary()
-	if value.Totals[0].Coin != "LTC" && value.Totals[0].Balance != 0.04 {
+	if value.Totals[0].Coin != "LTC" && common.NotEqual(value.Totals[0].Balance, decimal.NewFromFloat(0.04)) {
 		t.Error("Test Failed - portfolio_test.go - UpdateExchangeAddressBalance error")
 	}
 }
 
 func TestAddAddress(t *testing.T) {
 	newbase := Base{}
-	newbase.AddAddress("Gibson", "LTC", "LTCWALLETTEST", 0.02)
+	newbase.AddAddress("Gibson", "LTC", "LTCWALLETTEST", decimal.NewFromFloat(0.02))
 	portfolio := GetPortfolio()
 	portfolio.SeedPortfolio(newbase)
 	if !portfolio.AddressExists("Gibson") {
@@ -167,7 +170,7 @@ func TestAddAddress(t *testing.T) {
 
 	// Test updating balance to <= 0, expected result is to remove the address.
 	// Fail if address still exists.
-	newbase.AddAddress("Gibson", "LTC", "LTCWALLETTEST", -1)
+	newbase.AddAddress("Gibson", "LTC", "LTCWALLETTEST", common.MinusOne)
 	if newbase.AddressExists("Gibson") {
 		t.Error("Test Failed - portfolio_test.go - AddAddress error")
 	}
@@ -175,7 +178,7 @@ func TestAddAddress(t *testing.T) {
 
 func TestUpdatePortfolio(t *testing.T) {
 	newbase := Base{}
-	newbase.AddAddress("someaddress", "LTC", "LTCWALLETTEST", 0.02)
+	newbase.AddAddress("someaddress", "LTC", "LTCWALLETTEST", decimal.NewFromFloat(0.02))
 	portfolio := GetPortfolio()
 	portfolio.SeedPortfolio(newbase)
 
@@ -228,9 +231,9 @@ func TestUpdatePortfolio(t *testing.T) {
 
 func TestGetPortfolioByExchange(t *testing.T) {
 	newbase := Base{}
-	newbase.AddExchangeAddress("ANX", "LTC", 0.07)
-	newbase.AddExchangeAddress("Bitfinex", "LTC", 0.05)
-	newbase.AddAddress("someaddress", "LTC", PortfolioAddressPersonal, 0.03)
+	newbase.AddExchangeAddress("ANX", "LTC", decimal.NewFromFloat(0.07))
+	newbase.AddExchangeAddress("Bitfinex", "LTC", decimal.NewFromFloat(0.05))
+	newbase.AddAddress("someaddress", "LTC", PortfolioAddressPersonal, decimal.NewFromFloat(0.03))
 	portfolio := GetPortfolio()
 	portfolio.SeedPortfolio(newbase)
 	value := portfolio.GetPortfolioByExchange("ANX")
@@ -239,7 +242,7 @@ func TestGetPortfolioByExchange(t *testing.T) {
 		t.Error("Test Failed - portfolio_test.go - GetPortfolioByExchange error")
 	}
 
-	if result != 0.07 {
+	if common.NotEqual(result, decimal.NewFromFloat(0.07)) {
 		t.Error("Test Failed - portfolio_test.go - GetPortfolioByExchange result != 0.10")
 	}
 
@@ -249,16 +252,16 @@ func TestGetPortfolioByExchange(t *testing.T) {
 		t.Error("Test Failed - portfolio_test.go - GetPortfolioByExchange error")
 	}
 
-	if result != 0.05 {
+	if common.NotEqual(result, decimal.NewFromFloat(0.05)) {
 		t.Error("Test Failed - portfolio_test.go - GetPortfolioByExchange result != 0.05")
 	}
 }
 
 func TestGetExchangePortfolio(t *testing.T) {
 	newbase := Base{}
-	newbase.AddAddress("ANX", "LTC", PortfolioAddressExchange, 0.03)
-	newbase.AddAddress("Bitfinex", "LTC", PortfolioAddressExchange, 0.05)
-	newbase.AddAddress("someaddress", "LTC", PortfolioAddressPersonal, 0.03)
+	newbase.AddAddress("ANX", "LTC", PortfolioAddressExchange, decimal.NewFromFloat(0.03))
+	newbase.AddAddress("Bitfinex", "LTC", PortfolioAddressExchange, decimal.NewFromFloat(0.05))
+	newbase.AddAddress("someaddress", "LTC", PortfolioAddressPersonal, decimal.NewFromFloat(0.03))
 	portfolio := GetPortfolio()
 	portfolio.SeedPortfolio(newbase)
 	value := portfolio.GetExchangePortfolio()
@@ -268,16 +271,16 @@ func TestGetExchangePortfolio(t *testing.T) {
 		t.Error("Test Failed - portfolio_test.go - GetExchangePortfolio error")
 	}
 
-	if result != 0.08 {
+	if common.NotEqual(result, decimal.NewFromFloat(0.08)) {
 		t.Error("Test Failed - portfolio_test.go - GetExchangePortfolio result != 0.08")
 	}
 }
 
 func TestGetPersonalPortfolio(t *testing.T) {
 	newbase := Base{}
-	newbase.AddAddress("someaddress", "LTC", "LTCWALLETTEST", 0.02)
-	newbase.AddAddress("anotheraddress", "LTC", "LTCWALLETTEST", 0.03)
-	newbase.AddAddress("Exchange", "LTC", PortfolioAddressExchange, 0.01)
+	newbase.AddAddress("someaddress", "LTC", "LTCWALLETTEST", decimal.NewFromFloat(0.02))
+	newbase.AddAddress("anotheraddress", "LTC", "LTCWALLETTEST", decimal.NewFromFloat(0.03))
+	newbase.AddAddress("Exchange", "LTC", PortfolioAddressExchange, decimal.NewFromFloat(0.01))
 	portfolio := GetPortfolio()
 	portfolio.SeedPortfolio(newbase)
 	value := portfolio.GetPersonalPortfolio()
@@ -286,7 +289,7 @@ func TestGetPersonalPortfolio(t *testing.T) {
 		t.Error("Test Failed - portfolio_test.go - GetPersonalPortfolio error")
 	}
 
-	if result != 0.05 {
+	if common.NotEqual(result, decimal.NewFromFloat(0.05)) {
 		t.Error("Test Failed - portfolio_test.go - GetPersonalPortfolio result != 0.05")
 	}
 }
@@ -294,18 +297,18 @@ func TestGetPersonalPortfolio(t *testing.T) {
 func TestGetPortfolioSummary(t *testing.T) {
 	newbase := Base{}
 	// Personal holdings
-	newbase.AddAddress("someaddress", "LTC", PortfolioAddressPersonal, 1)
-	newbase.AddAddress("someaddress2", "LTC", PortfolioAddressPersonal, 2)
-	newbase.AddAddress("someaddress3", "BTC", PortfolioAddressPersonal, 100)
+	newbase.AddAddress("someaddress", "LTC", PortfolioAddressPersonal, common.One)
+	newbase.AddAddress("someaddress2", "LTC", PortfolioAddressPersonal, common.Two)
+	newbase.AddAddress("someaddress3", "BTC", PortfolioAddressPersonal, common.Hundred)
 	newbase.AddAddress("0xde0b295669a9fd93d5f28d9ec85e40f4cb697bae", "ETH",
-		PortfolioAddressPersonal, 865346880000000000)
+		PortfolioAddressPersonal, common.NewFromInt(865346880000000000))
 	newbase.AddAddress("0x9edc81c813b26165f607a8d1b8db87a02f34307f", "ETH",
-		PortfolioAddressPersonal, 165346880000000000)
+		PortfolioAddressPersonal, common.NewFromInt(165346880000000000))
 
 	// Exchange holdings
-	newbase.AddExchangeAddress("Bitfinex", "LTC", 20)
-	newbase.AddExchangeAddress("Bitfinex", "BTC", 100)
-	newbase.AddExchangeAddress("ANX", "ETH", 42)
+	newbase.AddExchangeAddress("Bitfinex", "LTC", common.Twenty)
+	newbase.AddExchangeAddress("Bitfinex", "BTC", common.Forty)
+	newbase.AddExchangeAddress("ANX", "ETH", common.NewFromInt(42))
 
 	portfolio := GetPortfolio()
 	portfolio.SeedPortfolio(newbase)
@@ -328,19 +331,19 @@ func TestGetPortfolioSummary(t *testing.T) {
 		t.Error("Test Failed - portfolio_test.go - TestGetPortfolioSummary error")
 	}
 
-	if getTotalsVal("LTC").Balance != 23 {
+	if common.NotEqual(getTotalsVal("LTC").Balance, common.NewFromInt(23)) {
 		t.Error("Test Failed - portfolio_test.go - TestGetPortfolioSummary error")
 	}
 
-	if getTotalsVal("BTC").Balance != 200 {
+	if common.NotEqual(getTotalsVal("BTC").Balance, common.NewFromInt(140)) {
 		t.Error("Test Failed - portfolio_test.go - TestGetPortfolioSummary error")
 	}
 }
 
 func TestGetPortfolioGroupedCoin(t *testing.T) {
 	newbase := Base{}
-	newbase.AddAddress("someaddress", "LTC", "LTCWALLETTEST", 0.02)
-	newbase.AddAddress("Exchange", "LTC", PortfolioAddressExchange, 0.05)
+	newbase.AddAddress("someaddress", "LTC", "LTCWALLETTEST", decimal.NewFromFloat(0.02))
+	newbase.AddAddress("Exchange", "LTC", PortfolioAddressExchange, decimal.NewFromFloat(0.05))
 	portfolio := GetPortfolio()
 	portfolio.SeedPortfolio(newbase)
 	value := portfolio.GetPortfolioGroupedCoin()
@@ -351,7 +354,7 @@ func TestGetPortfolioGroupedCoin(t *testing.T) {
 
 func TestSeedPortfolio(t *testing.T) {
 	newbase := Base{}
-	newbase.AddAddress("someaddress", "LTC", "LTCWALLETTEST", 0.02)
+	newbase.AddAddress("someaddress", "LTC", "LTCWALLETTEST", decimal.NewFromFloat(0.02))
 	portfolio := GetPortfolio()
 	portfolio.SeedPortfolio(newbase)
 
@@ -362,8 +365,8 @@ func TestSeedPortfolio(t *testing.T) {
 
 func TestStartPortfolioWatcher(t *testing.T) {
 	newBase := Base{}
-	newBase.AddAddress("LX2LMYXtuv5tiYEMztSSoEZcafFPYJFRK1", "LTC", PortfolioAddressPersonal, 0.02)
-	newBase.AddAddress("Testy", "LTC", PortfolioAddressPersonal, 0.02)
+	newBase.AddAddress("LX2LMYXtuv5tiYEMztSSoEZcafFPYJFRK1", "LTC", PortfolioAddressPersonal, decimal.NewFromFloat(0.02))
+	newBase.AddAddress("Testy", "LTC", PortfolioAddressPersonal, decimal.NewFromFloat(0.02))
 	portfolio := GetPortfolio()
 	portfolio.SeedPortfolio(newBase)
 

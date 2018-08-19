@@ -11,6 +11,7 @@ import (
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
+	"github.com/shopspring/decimal"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/request"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
@@ -126,9 +127,9 @@ func (g *Gateio) GetMarketInfo() (MarketInfoResponse, error) {
 			pairv := itemv.(map[string]interface{})
 			result.Pairs = append(result.Pairs, MarketInfoPairsResponse{
 				Symbol:        itemk,
-				DecimalPlaces: pairv["decimal_places"].(float64),
-				MinAmount:     pairv["min_amount"].(float64),
-				Fee:           pairv["fee"].(float64),
+				DecimalPlaces: decimal.NewFromFloat(pairv["decimal_places"].(float64)),
+				MinAmount:     decimal.NewFromFloat(pairv["min_amount"].(float64)),
+				Fee:           decimal.NewFromFloat(pairv["fee"].(float64)),
 			})
 		}
 	}
@@ -139,10 +140,10 @@ func (g *Gateio) GetMarketInfo() (MarketInfoResponse, error) {
 // updated every 10 seconds
 //
 // symbol: string of currency pair
-func (g *Gateio) GetLatestSpotPrice(symbol string) (float64, error) {
+func (g *Gateio) GetLatestSpotPrice(symbol string) (decimal.Decimal, error) {
 	res, err := g.GetTicker(symbol)
 	if err != nil {
-		return 0, err
+		return decimal.Zero, err
 	}
 
 	return res.Last, nil
@@ -193,12 +194,12 @@ func (g *Gateio) GetOrderbook(symbol string) (Orderbook, error) {
 	for x := len(resp.Asks) - 1; x != 0; x-- {
 		data := resp.Asks[x]
 
-		price, err := strconv.ParseFloat(data[0], 64)
+		price, err := decimal.NewFromString(data[0])
 		if err != nil {
 			continue
 		}
 
-		amount, err := strconv.ParseFloat(data[1], 64)
+		amount, err := decimal.NewFromString(data[1])
 		if err != nil {
 			continue
 		}
@@ -209,12 +210,12 @@ func (g *Gateio) GetOrderbook(symbol string) (Orderbook, error) {
 	for x := range resp.Bids {
 		data := resp.Bids[x]
 
-		price, err := strconv.ParseFloat(data[0], 64)
+		price, err := decimal.NewFromString(data[0])
 		if err != nil {
 			continue
 		}
 
-		amount, err := strconv.ParseFloat(data[1], 64)
+		amount, err := decimal.NewFromString(data[1])
 		if err != nil {
 			continue
 		}
@@ -253,23 +254,23 @@ func (g *Gateio) GetSpotKline(arg KlinesRequestParams) ([]*KLineResponse, error)
 		if err != nil {
 			return nil, fmt.Errorf("cannot parse Kline.OpenTime. Err: %s", err)
 		}
-		_vol, err := common.FloatFromString(k[1])
+		_vol, err := common.DecimalFromString(k[1])
 		if err != nil {
 			return nil, fmt.Errorf("cannot parse Kline.Volume. Err: %s", err)
 		}
-		_id, err := common.FloatFromString(k[0])
+		_id, err := common.DecimalFromString(k[0])
 		if err != nil {
 			return nil, fmt.Errorf("cannot parse Kline.Id. Err: %s", err)
 		}
-		_close, err := common.FloatFromString(k[2])
+		_close, err := common.DecimalFromString(k[2])
 		if err != nil {
 			return nil, fmt.Errorf("cannot parse Kline.Close. Err: %s", err)
 		}
-		_high, err := common.FloatFromString(k[3])
+		_high, err := common.DecimalFromString(k[3])
 		if err != nil {
 			return nil, fmt.Errorf("cannot parse Kline.High. Err: %s", err)
 		}
-		_low, err := common.FloatFromString(k[4])
+		_low, err := common.DecimalFromString(k[4])
 		if err != nil {
 			return nil, fmt.Errorf("cannot parse Kline.Low. Err: %s", err)
 		}
@@ -310,8 +311,8 @@ func (g *Gateio) SpotNewOrder(arg SpotNewOrderRequestParams) (SpotNewOrderRespon
 	// Be sure to use the correct price precision before calling this
 	params := fmt.Sprintf("currencyPair=%s&rate=%s&amount=%s",
 		arg.Symbol,
-		strconv.FormatFloat(arg.Price, 'f', -1, 64),
-		strconv.FormatFloat(arg.Amount, 'f', -1, 64),
+		arg.Price.StringFixed(exchange.DefaultDecimalPrecision),
+		arg.Amount.StringFixed(exchange.DefaultDecimalPrecision),
 	)
 
 	strRequestURL := fmt.Sprintf("%s/%s", gateioOrder, arg.Type)

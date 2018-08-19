@@ -3,11 +3,11 @@ package exmo
 import (
 	"errors"
 	"log"
-	"strconv"
 	"sync"
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
+	"github.com/shopspring/decimal"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
@@ -115,8 +115,8 @@ func (e *EXMO) UpdateOrderbook(p pair.CurrencyPair, assetType string) (orderbook
 		var obItems []orderbook.Item
 		for y := range data.Ask {
 			z := data.Ask[y]
-			price, _ := strconv.ParseFloat(z[0], 64)
-			amount, _ := strconv.ParseFloat(z[1], 64)
+			price, _ := decimal.NewFromString(z[0])
+			amount, _ := decimal.NewFromString(z[1])
 			obItems = append(obItems, orderbook.Item{Price: price, Amount: amount})
 		}
 
@@ -124,8 +124,8 @@ func (e *EXMO) UpdateOrderbook(p pair.CurrencyPair, assetType string) (orderbook
 		obItems = []orderbook.Item{}
 		for y := range data.Bid {
 			z := data.Bid[y]
-			price, _ := strconv.ParseFloat(z[0], 64)
-			amount, _ := strconv.ParseFloat(z[1], 64)
+			price, _ := decimal.NewFromString(z[0])
+			amount, _ := decimal.NewFromString(z[1])
 			obItems = append(obItems, orderbook.Item{Price: price, Amount: amount})
 		}
 
@@ -150,9 +150,9 @@ func (e *EXMO) GetExchangeAccountInfo() (exchange.AccountInfo, error) {
 		exchangeCurrency.CurrencyName = common.StringToUpper(x)
 		for z, w := range result.Reserved {
 			if z == x {
-				avail, _ := strconv.ParseFloat(y, 64)
-				reserved, _ := strconv.ParseFloat(w, 64)
-				exchangeCurrency.TotalValue = avail + reserved
+				avail, _ := decimal.NewFromString(y)
+				reserved, _ := decimal.NewFromString(w)
+				exchangeCurrency.TotalValue = avail.Add(reserved)
 				exchangeCurrency.Hold = reserved
 			}
 		}
@@ -176,7 +176,7 @@ func (e *EXMO) GetExchangeHistory(p pair.CurrencyPair, assetType string) ([]exch
 }
 
 // SubmitExchangeOrder submits a new order
-func (e *EXMO) SubmitExchangeOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (int64, error) {
+func (e *EXMO) SubmitExchangeOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price decimal.Decimal, clientID string) (int64, error) {
 	return 0, errors.New("not yet implemented")
 }
 
@@ -209,18 +209,18 @@ func (e *EXMO) GetExchangeDepositAddress(cryptocurrency pair.CurrencyItem) (stri
 
 // WithdrawCryptoExchangeFunds returns a withdrawal ID when a withdrawal is
 // submitted
-func (e *EXMO) WithdrawCryptoExchangeFunds(address string, cryptocurrency pair.CurrencyItem, amount float64) (string, error) {
+func (e *EXMO) WithdrawCryptoExchangeFunds(address string, cryptocurrency pair.CurrencyItem, amount decimal.Decimal) (string, error) {
 	return "", errors.New("not yet implemented")
 }
 
 // WithdrawFiatExchangeFunds returns a withdrawal ID when a
 // withdrawal is submitted
-func (e *EXMO) WithdrawFiatExchangeFunds(currency pair.CurrencyItem, amount float64) (string, error) {
+func (e *EXMO) WithdrawFiatExchangeFunds(currency pair.CurrencyItem, amount decimal.Decimal) (string, error) {
 	return "", errors.New("not yet implemented")
 }
 
 // WithdrawFiatExchangeFundsToInternationalBank returns a withdrawal ID when a
 // withdrawal is submitted
-func (e *EXMO) WithdrawFiatExchangeFundsToInternationalBank(currency pair.CurrencyItem, amount float64) (string, error) {
+func (e *EXMO) WithdrawFiatExchangeFundsToInternationalBank(currency pair.CurrencyItem, amount decimal.Decimal) (string, error) {
 	return "", errors.New("not yet implemented")
 }

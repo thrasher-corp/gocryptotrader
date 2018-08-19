@@ -12,6 +12,7 @@ import (
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
+	"github.com/shopspring/decimal"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/request"
 )
@@ -205,15 +206,15 @@ func (o *OKEX) GetContractMarketDepth(symbol, contractType string) (ActualContra
 
 	for _, ask := range resp.Asks {
 		var askdepth struct {
-			Price  float64
-			Volume float64
+			Price  decimal.Decimal
+			Volume decimal.Decimal
 		}
 		for i, depth := range ask.([]interface{}) {
 			if i == 0 {
-				askdepth.Price = depth.(float64)
+				askdepth.Price = decimal.NewFromFloat(depth.(float64))
 			}
 			if i == 1 {
-				askdepth.Volume = depth.(float64)
+				askdepth.Volume = decimal.NewFromFloat(depth.(float64))
 			}
 		}
 		fullDepth.Asks = append(fullDepth.Asks, askdepth)
@@ -221,15 +222,15 @@ func (o *OKEX) GetContractMarketDepth(symbol, contractType string) (ActualContra
 
 	for _, bid := range resp.Bids {
 		var bidDepth struct {
-			Price  float64
-			Volume float64
+			Price  decimal.Decimal
+			Volume decimal.Decimal
 		}
 		for i, depth := range bid.([]interface{}) {
 			if i == 0 {
-				bidDepth.Price = depth.(float64)
+				bidDepth.Price = decimal.NewFromFloat(depth.(float64))
 			}
 			if i == 1 {
-				bidDepth.Volume = depth.(float64)
+				bidDepth.Volume = decimal.NewFromFloat(depth.(float64))
 			}
 		}
 		fullDepth.Bids = append(fullDepth.Bids, bidDepth)
@@ -269,12 +270,12 @@ func (o *OKEX) GetContractTradeHistory(symbol, contractType string) ([]ActualCon
 	for _, tradeHistory := range resp.([]interface{}) {
 		quickHistory := ActualContractTradeHistory{}
 		tradeHistoryM := tradeHistory.(map[string]interface{})
-		quickHistory.Date = tradeHistoryM["date"].(float64)
-		quickHistory.DateInMS = tradeHistoryM["date_ms"].(float64)
-		quickHistory.Amount = tradeHistoryM["amount"].(float64)
-		quickHistory.Price = tradeHistoryM["price"].(float64)
+		quickHistory.Date = decimal.NewFromFloat(tradeHistoryM["date"].(float64))
+		quickHistory.DateInMS = decimal.NewFromFloat(tradeHistoryM["date_ms"].(float64))
+		quickHistory.Amount = decimal.NewFromFloat(tradeHistoryM["amount"].(float64))
+		quickHistory.Price = decimal.NewFromFloat(tradeHistoryM["price"].(float64))
 		quickHistory.Type = tradeHistoryM["type"].(string)
-		quickHistory.TID = tradeHistoryM["tid"].(float64)
+		quickHistory.TID = decimal.NewFromFloat(tradeHistoryM["tid"].(float64))
 		actualTradeHistory = append(actualTradeHistory, quickHistory)
 	}
 	return actualTradeHistory, nil
@@ -283,9 +284,9 @@ func (o *OKEX) GetContractTradeHistory(symbol, contractType string) ([]ActualCon
 // GetContractIndexPrice returns the current index price
 //
 // symbol e.g. btc_usd
-func (o *OKEX) GetContractIndexPrice(symbol string) (float64, error) {
+func (o *OKEX) GetContractIndexPrice(symbol string) (decimal.Decimal, error) {
 	if err := o.CheckSymbol(symbol); err != nil {
-		return 0, err
+		return decimal.Zero, err
 	}
 
 	values := url.Values{}
@@ -295,48 +296,48 @@ func (o *OKEX) GetContractIndexPrice(symbol string) (float64, error) {
 
 	err := o.SendHTTPRequest(path, &resp)
 	if err != nil {
-		return 0, err
+		return decimal.Zero, err
 	}
 
 	futureIndex := resp.(map[string]interface{})
 	if i, ok := futureIndex["error_code"].(float64); ok {
-		return 0, o.GetErrorCode(i)
+		return decimal.Zero, o.GetErrorCode(i)
 	}
 
 	if _, ok := futureIndex["future_index"].(float64); ok {
-		return futureIndex["future_index"].(float64), nil
+		return decimal.NewFromFloat(futureIndex["future_index"].(float64)), nil
 	}
-	return 0, errMissValue
+	return decimal.Zero, errMissValue
 }
 
 // GetContractExchangeRate returns the current exchange rate for the currency
 // pair
 // USD-CNY exchange rate used by OKEX, updated weekly
-func (o *OKEX) GetContractExchangeRate() (float64, error) {
+func (o *OKEX) GetContractExchangeRate() (decimal.Decimal, error) {
 	path := fmt.Sprintf("%s%s%s.do?", apiURL, apiVersion, contractExchangeRate)
 	var resp interface{}
 
 	if err := o.SendHTTPRequest(path, &resp); err != nil {
-		return 0, err
+		return decimal.Zero, err
 	}
 
 	exchangeRate := resp.(map[string]interface{})
 	if i, ok := exchangeRate["error_code"].(float64); ok {
-		return 0, o.GetErrorCode(i)
+		return decimal.Zero, o.GetErrorCode(i)
 	}
 
 	if _, ok := exchangeRate["rate"].(float64); ok {
-		return exchangeRate["rate"].(float64), nil
+		return decimal.NewFromFloat(exchangeRate["rate"].(float64)), nil
 	}
-	return 0, errMissValue
+	return decimal.Zero, errMissValue
 }
 
 // GetContractFutureEstimatedPrice returns futures estimated price
 //
 // symbol e.g btc_usd
-func (o *OKEX) GetContractFutureEstimatedPrice(symbol string) (float64, error) {
+func (o *OKEX) GetContractFutureEstimatedPrice(symbol string) (decimal.Decimal, error) {
 	if err := o.CheckSymbol(symbol); err != nil {
-		return 0, err
+		return decimal.Zero, err
 	}
 
 	values := url.Values{}
@@ -345,18 +346,18 @@ func (o *OKEX) GetContractFutureEstimatedPrice(symbol string) (float64, error) {
 	var resp interface{}
 
 	if err := o.SendHTTPRequest(path, &resp); err != nil {
-		return 0, err
+		return decimal.Zero, err
 	}
 
 	futuresEstPrice := resp.(map[string]interface{})
 	if i, ok := futuresEstPrice["error_code"].(float64); ok {
-		return 0, o.GetErrorCode(i)
+		return decimal.Zero, o.GetErrorCode(i)
 	}
 
 	if _, ok := futuresEstPrice["future_index"].(float64); ok {
-		return futuresEstPrice["future_index"].(float64), nil
+		return decimal.NewFromFloat(futuresEstPrice["future_index"].(float64)), nil
 	}
-	return 0, errMissValue
+	return decimal.Zero, errMissValue
 }
 
 // GetContractCandlestickData returns CandleStickData
@@ -401,21 +402,22 @@ func (o *OKEX) GetContractCandlestickData(symbol, typeInput, contractType string
 		var quickCandle CandleStickData
 
 		for i, datum := range candleStickData.([]interface{}) {
+			val := decimal.NewFromFloat(datum.(float64))
 			switch i {
 			case 0:
-				quickCandle.Timestamp = datum.(float64)
+				quickCandle.Timestamp = val
 			case 1:
-				quickCandle.Open = datum.(float64)
+				quickCandle.Open = val
 			case 2:
-				quickCandle.High = datum.(float64)
+				quickCandle.High = val
 			case 3:
-				quickCandle.Low = datum.(float64)
+				quickCandle.Low = val
 			case 4:
-				quickCandle.Close = datum.(float64)
+				quickCandle.Close = val
 			case 5:
-				quickCandle.Volume = datum.(float64)
+				quickCandle.Volume = val
 			case 6:
-				quickCandle.Amount = datum.(float64)
+				quickCandle.Amount = val
 			default:
 				return candleData, errors.New("incoming data out of range")
 			}
@@ -427,7 +429,7 @@ func (o *OKEX) GetContractCandlestickData(symbol, typeInput, contractType string
 }
 
 // GetContractHoldingsNumber returns current number of holdings
-func (o *OKEX) GetContractHoldingsNumber(symbol, contractType string) (number float64, contract string, err error) {
+func (o *OKEX) GetContractHoldingsNumber(symbol, contractType string) (number decimal.Decimal, contract string, err error) {
 	if err = o.CheckSymbol(symbol); err != nil {
 		return number, contract, err
 	}
@@ -454,7 +456,7 @@ func (o *OKEX) GetContractHoldingsNumber(symbol, contractType string) (number fl
 	for _, holdings := range resp.([]interface{}) {
 		if reflect.TypeOf(holdings).String() == returnTypeOne {
 			holdingMap := holdings.(map[string]interface{})
-			number = holdingMap["amount"].(float64)
+			number = decimal.NewFromFloat(holdingMap["amount"].(float64))
 			contract = holdingMap["contract_name"].(string)
 		}
 	}
@@ -462,8 +464,8 @@ func (o *OKEX) GetContractHoldingsNumber(symbol, contractType string) (number fl
 }
 
 // GetContractlimit returns upper and lower price limit
-func (o *OKEX) GetContractlimit(symbol, contractType string) (map[string]float64, error) {
-	contractLimits := make(map[string]float64)
+func (o *OKEX) GetContractlimit(symbol, contractType string) (map[string]decimal.Decimal, error) {
+	contractLimits := make(map[string]decimal.Decimal)
 	if err := o.CheckSymbol(symbol); err != nil {
 		return contractLimits, err
 	}
@@ -487,9 +489,9 @@ func (o *OKEX) GetContractlimit(symbol, contractType string) (map[string]float64
 		return contractLimits, o.GetErrorCode(i)
 	}
 
-	contractLimits["high"] = contractLimitMap["high"].(float64)
-	contractLimits["usdCnyRate"] = contractLimitMap["usdCnyRate"].(float64)
-	contractLimits["low"] = contractLimitMap["low"].(float64)
+	contractLimits["high"] = decimal.NewFromFloat(contractLimitMap["high"].(float64))
+	contractLimits["usdCnyRate"] = decimal.NewFromFloat(contractLimitMap["usdCnyRate"].(float64))
+	contractLimits["low"] = decimal.NewFromFloat(contractLimitMap["low"].(float64))
 	return contractLimits, nil
 }
 
@@ -540,24 +542,24 @@ func (o *OKEX) GetContractPosition(symbol, contractType string) error {
 }
 
 // PlaceContractOrders places orders
-func (o *OKEX) PlaceContractOrders(symbol, contractType, position string, leverageRate int, price, amount float64, matchPrice bool) (float64, error) {
+func (o *OKEX) PlaceContractOrders(symbol, contractType, position string, leverageRate int, price, amount decimal.Decimal, matchPrice bool) (decimal.Decimal, error) {
 	var resp interface{}
 
 	if err := o.CheckSymbol(symbol); err != nil {
-		return 0, err
+		return decimal.Zero, err
 	}
 	if err := o.CheckContractType(contractType); err != nil {
-		return 0, err
+		return decimal.Zero, err
 	}
 	if err := o.CheckContractPosition(position); err != nil {
-		return 0, err
+		return decimal.Zero, err
 	}
 
 	values := url.Values{}
 	values.Set("symbol", symbol)
 	values.Set("contract_type", contractType)
-	values.Set("price", strconv.FormatFloat(price, 'f', -1, 64))
-	values.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
+	values.Set("price", price.StringFixed(exchange.DefaultDecimalPrecision))
+	values.Set("amount", amount.StringFixed(exchange.DefaultDecimalPrecision))
 	values.Set("type", position)
 	if matchPrice {
 		values.Set("match_price", "1")
@@ -566,21 +568,21 @@ func (o *OKEX) PlaceContractOrders(symbol, contractType, position string, levera
 	}
 
 	if leverageRate != 10 && leverageRate != 20 {
-		return 0, errors.New("leverage rate can only be 10 or 20")
+		return decimal.Zero, errors.New("leverage rate can only be 10 or 20")
 	}
 	values.Set("lever_rate", strconv.FormatInt(int64(leverageRate), 10))
 
 	path := fmt.Sprintf("%s%s%s.do", apiURL, apiVersion, "future_trade")
 
 	if err := o.SendAuthenticatedHTTPRequest(path, values, &resp); err != nil {
-		return 0, err
+		return decimal.Zero, err
 	}
 
 	contractMap := resp.(map[string]interface{})
 	if code, ok := contractMap["error_code"]; ok {
-		return 0, o.GetErrorCode(code)
+		return decimal.Zero, o.GetErrorCode(code)
 	}
-	return contractMap["order_id"].(float64), nil
+	return decimal.NewFromFloat(contractMap["order_id"].(float64)), nil
 }
 
 // GetContractFuturesTradeHistory returns OKEX Contract Trade History (Not for Personal)
@@ -635,8 +637,8 @@ func (o *OKEX) SpotNewOrder(arg SpotNewOrderRequestParams) (int64, error) {
 	params := url.Values{}
 	params.Set("symbol", arg.Symbol)
 	params.Set("type", string(arg.Type))
-	params.Set("price", strconv.FormatFloat(arg.Price, 'f', -1, 64))
-	params.Set("amount", strconv.FormatFloat(arg.Amount, 'f', -1, 64))
+	params.Set("price", arg.Price.StringFixed(exchange.DefaultDecimalPrecision))
+	params.Set("amount", arg.Amount.StringFixed(exchange.DefaultDecimalPrecision))
 
 	err := o.SendAuthenticatedHTTPRequest(strRequestURL, params, &res)
 	if err != nil {
@@ -680,11 +682,11 @@ func (o *OKEX) SpotCancelOrder(symbol string, argOrderID int64) (int64, error) {
 // GetLatestSpotPrice returns latest spot price of symbol
 //
 // symbol: string of currency pair
-func (o *OKEX) GetLatestSpotPrice(symbol string) (float64, error) {
+func (o *OKEX) GetLatestSpotPrice(symbol string) (decimal.Decimal, error) {
 	spotPrice, err := o.GetSpotTicker(symbol)
 
 	if err != nil {
-		return 0, err
+		return decimal.Zero, err
 	}
 
 	return spotPrice.Ticker.Last, nil
@@ -733,15 +735,15 @@ func (o *OKEX) GetSpotMarketDepth(asd ActualSpotDepthRequestParams) (ActualSpotD
 
 	for _, ask := range resp.Asks {
 		var askdepth struct {
-			Price  float64
-			Volume float64
+			Price  decimal.Decimal
+			Volume decimal.Decimal
 		}
 		for i, depth := range ask.([]interface{}) {
 			if i == 0 {
-				askdepth.Price = depth.(float64)
+				askdepth.Price = decimal.NewFromFloat(depth.(float64))
 			}
 			if i == 1 {
-				askdepth.Volume = depth.(float64)
+				askdepth.Volume = decimal.NewFromFloat(depth.(float64))
 			}
 		}
 		fullDepth.Asks = append(fullDepth.Asks, askdepth)
@@ -749,15 +751,15 @@ func (o *OKEX) GetSpotMarketDepth(asd ActualSpotDepthRequestParams) (ActualSpotD
 
 	for _, bid := range resp.Bids {
 		var bidDepth struct {
-			Price  float64
-			Volume float64
+			Price  decimal.Decimal
+			Volume decimal.Decimal
 		}
 		for i, depth := range bid.([]interface{}) {
 			if i == 0 {
-				bidDepth.Price = depth.(float64)
+				bidDepth.Price = decimal.NewFromFloat(depth.(float64))
 			}
 			if i == 1 {
-				bidDepth.Volume = depth.(float64)
+				bidDepth.Volume = decimal.NewFromFloat(depth.(float64))
 			}
 		}
 		fullDepth.Bids = append(fullDepth.Bids, bidDepth)
@@ -790,12 +792,12 @@ func (o *OKEX) GetSpotRecentTrades(ast ActualSpotTradeHistoryRequestParams) ([]A
 	for _, tradeHistory := range resp.([]interface{}) {
 		quickHistory := ActualSpotTradeHistory{}
 		tradeHistoryM := tradeHistory.(map[string]interface{})
-		quickHistory.Date = tradeHistoryM["date"].(float64)
-		quickHistory.DateInMS = tradeHistoryM["date_ms"].(float64)
-		quickHistory.Amount = tradeHistoryM["amount"].(float64)
-		quickHistory.Price = tradeHistoryM["price"].(float64)
+		quickHistory.Date = decimal.NewFromFloat(tradeHistoryM["date"].(float64))
+		quickHistory.DateInMS = decimal.NewFromFloat(tradeHistoryM["date_ms"].(float64))
+		quickHistory.Amount = decimal.NewFromFloat(tradeHistoryM["amount"].(float64))
+		quickHistory.Price = decimal.NewFromFloat(tradeHistoryM["price"].(float64))
 		quickHistory.Type = tradeHistoryM["type"].(string)
-		quickHistory.TID = tradeHistoryM["tid"].(float64)
+		quickHistory.TID = decimal.NewFromFloat(tradeHistoryM["tid"].(float64))
 		actualTradeHistory = append(actualTradeHistory, quickHistory)
 	}
 	return actualTradeHistory, nil
@@ -833,19 +835,19 @@ func (o *OKEX) GetSpotKline(arg KlinesRequestParams) ([]CandleStickData, error) 
 		for i, datum := range candleStickData.([]interface{}) {
 			switch i {
 			case 0:
-				quickCandle.Timestamp = datum.(float64)
+				quickCandle.Timestamp = decimal.NewFromFloat(datum.(float64))
 			case 1:
-				quickCandle.Open, _ = strconv.ParseFloat(datum.(string), 64)
+				quickCandle.Open, _ = decimal.NewFromString(datum.(string))
 			case 2:
-				quickCandle.High, _ = strconv.ParseFloat(datum.(string), 64)
+				quickCandle.High, _ = decimal.NewFromString(datum.(string))
 			case 3:
-				quickCandle.Low, _ = strconv.ParseFloat(datum.(string), 64)
+				quickCandle.Low, _ = decimal.NewFromString(datum.(string))
 			case 4:
-				quickCandle.Close, _ = strconv.ParseFloat(datum.(string), 64)
+				quickCandle.Close, _ = decimal.NewFromString(datum.(string))
 			case 5:
-				quickCandle.Volume, _ = strconv.ParseFloat(datum.(string), 64)
+				quickCandle.Volume, _ = decimal.NewFromString(datum.(string))
 			case 6:
-				quickCandle.Amount, _ = strconv.ParseFloat(datum.(string), 64)
+				quickCandle.Amount, _ = decimal.NewFromString(datum.(string))
 			default:
 				return candleData, errors.New("incoming data out of range")
 			}

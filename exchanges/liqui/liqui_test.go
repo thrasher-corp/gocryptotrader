@@ -4,6 +4,8 @@ import (
 	"net/url"
 	"testing"
 
+	"github.com/shopspring/decimal"
+	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
 )
@@ -89,7 +91,7 @@ func TestAuthRequests(t *testing.T) {
 			t.Error("Test Failed - liqui GetAccountInfo() error", err)
 		}
 
-		_, err = l.Trade("", "", 0, 1)
+		_, err = l.Trade("", "", decimal.Zero, common.One)
 		if err == nil {
 			t.Error("Test Failed - liqui Trade() error", err)
 		}
@@ -114,7 +116,7 @@ func TestAuthRequests(t *testing.T) {
 			t.Error("Test Failed - liqui GetTradeHistory() error", err)
 		}
 
-		_, err = l.WithdrawCoins("btc", 1337, "someaddr")
+		_, err = l.WithdrawCoins("btc", common.NewFromInt(1337), "someaddr")
 		if err == nil {
 			t.Error("Test Failed - liqui WithdrawCoins() error", err)
 		}

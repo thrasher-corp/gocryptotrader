@@ -73,7 +73,7 @@ func TestGetAddressInfoCA(t *testing.T) {
 	if err != nil {
 		t.Error("test failed - Bitflyer - GetAddressInfoCA() error:", err)
 	}
-	if v.UnconfirmedBalance == 0 || v.ConfirmedBalance == 0 {
+	if v.UnconfirmedBalance.IsZero() || v.ConfirmedBalance.IsZero() {
 		log.Println("WARNING!: Donation wallet is empty :( - please consider donating")
 	}
 }

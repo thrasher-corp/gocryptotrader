@@ -16,6 +16,7 @@ import (
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency/forexprovider/base"
+	"github.com/shopspring/decimal"
 )
 
 // These consts contain endpoint information
@@ -53,13 +54,13 @@ func (o *OXR) Setup(config base.Settings) {
 }
 
 // GetRates is a wrapper function to return rates
-func (o *OXR) GetRates(baseCurrency, symbols string) (map[string]float64, error) {
+func (o *OXR) GetRates(baseCurrency, symbols string) (map[string]decimal.Decimal, error) {
 	rates, err := o.GetLatest(baseCurrency, symbols, false, false)
 	if err != nil {
 		return nil, err
 	}
 
-	standardisedRates := make(map[string]float64)
+	standardisedRates := make(map[string]decimal.Decimal)
 	for k, v := range rates {
 		curr := baseCurrency + k
 		standardisedRates[curr] = v
@@ -70,7 +71,7 @@ func (o *OXR) GetRates(baseCurrency, symbols string) (map[string]float64, error)
 
 // GetLatest returns the latest exchange rates available from the Open Exchange
 // Rates
-func (o *OXR) GetLatest(base, symbols string, prettyPrint, showAlternative bool) (map[string]float64, error) {
+func (o *OXR) GetLatest(base, symbols string, prettyPrint, showAlternative bool) (map[string]decimal.Decimal, error) {
 	var resp Latest
 
 	v := url.Values{}
@@ -91,7 +92,7 @@ func (o *OXR) GetLatest(base, symbols string, prettyPrint, showAlternative bool)
 
 // GetHistoricalRates returns historical exchange rates for any date available
 // from the Open Exchange Rates API.
-func (o *OXR) GetHistoricalRates(date, base string, symbols []string, prettyPrint, showAlternative bool) (map[string]float64, error) {
+func (o *OXR) GetHistoricalRates(date, base string, symbols []string, prettyPrint, showAlternative bool) (map[string]decimal.Decimal, error) {
 	var resp Latest
 
 	v := url.Values{}
@@ -153,20 +154,20 @@ func (o *OXR) GetTimeSeries(base, startDate, endDate string, symbols []string, p
 
 // ConvertCurrency converts any money value from one currency to another at the
 // latest API rates
-func (o *OXR) ConvertCurrency(amount float64, from, to string) (float64, error) {
+func (o *OXR) ConvertCurrency(amount decimal.Decimal, from, to string) (decimal.Decimal, error) {
 	if o.APIKeyLvl < APIUnlimitedAccess {
-		return 0, errors.New("upgrade account, insufficient access")
+		return decimal.Zero, errors.New("upgrade account, insufficient access")
 	}
 
 	var resp Convert
 
-	endPoint := fmt.Sprintf(APIEndpointConvert, strconv.FormatFloat(amount, 'f', -1, 64), from, to)
+	endPoint := fmt.Sprintf(APIEndpointConvert, amount.String(), from, to)
 	if err := o.SendHTTPRequest(endPoint, url.Values{}, &resp); err != nil {
-		return 0, err
+		return decimal.Zero, err
 	}
 
 	if resp.Error {
-		return 0, errors.New(resp.Message)
+		return decimal.Zero, errors.New(resp.Message)
 	}
 	return resp.Response, nil
 }

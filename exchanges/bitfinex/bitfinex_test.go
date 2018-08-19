@@ -364,8 +364,8 @@ func TestNewOrderMulti(t *testing.T) {
 	newOrder := []PlaceOrder{
 		{
 			Symbol:   "BTCUSD",
-			Amount:   1,
-			Price:    1,
+			Amount:   common.One,
+			Price:    common.One,
 			Exchange: "bitfinex",
 			Side:     "buy",
 			Type:     "market",

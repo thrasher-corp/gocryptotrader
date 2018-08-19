@@ -11,6 +11,7 @@ import (
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
+	"github.com/shopspring/decimal"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/request"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
@@ -155,7 +156,7 @@ func (e *EXMO) GetUserInfo() (UserInfo, error) {
 // CreateOrder creates an order
 // Params: pair, quantity, price and type
 // Type can be buy, sell, market_buy, market_sell, market_buy_total and market_sell_total
-func (e *EXMO) CreateOrder(pair, orderType string, price, amount float64) (int64, error) {
+func (e *EXMO) CreateOrder(pair, orderType string, price, amount decimal.Decimal) (int64, error) {
 	type response struct {
 		OrderID int64 `json:"order_id"`
 	}
@@ -163,8 +164,8 @@ func (e *EXMO) CreateOrder(pair, orderType string, price, amount float64) (int64
 	v := url.Values{}
 	v.Set("pair", pair)
 	v.Set("type", orderType)
-	v.Set("price", strconv.FormatFloat(price, 'f', -1, 64))
-	v.Set("quantity", strconv.FormatFloat(amount, 'f', -1, 64))
+	v.Set("price", price.StringFixed(exchange.DefaultDecimalPrecision))
+	v.Set("quantity", amount.StringFixed(exchange.DefaultDecimalPrecision))
 
 	var result response
 	err := e.SendAuthenticatedHTTPRequest("POST", exmoOrderCreate, v, &result)
@@ -233,10 +234,10 @@ func (e *EXMO) GetOrderTrades(orderID int64) (OrderTrades, error) {
 
 // GetRequiredAmount calculates the sum of buying a certain amount of currency
 // for the particular currency pair
-func (e *EXMO) GetRequiredAmount(pair string, amount float64) (RequiredAmount, error) {
+func (e *EXMO) GetRequiredAmount(pair string, amount decimal.Decimal) (RequiredAmount, error) {
 	v := url.Values{}
 	v.Set("pair", pair)
-	v.Set("quantity", strconv.FormatFloat(amount, 'f', -1, 64))
+	v.Set("quantity", amount.StringFixed(exchange.DefaultDecimalPrecision))
 	var result RequiredAmount
 	err := e.SendAuthenticatedHTTPRequest("POST", exmoRequiredAmount, v, &result)
 	return result, err
@@ -252,7 +253,7 @@ func (e *EXMO) GetDepositAddress() (map[string]string, error) {
 
 // WithdrawCryptocurrency withdraws a cryptocurrency from the exchange to the desired address
 // NOTE: This API function is available only after request to their tech support team
-func (e *EXMO) WithdrawCryptocurrency(currency, address, invoice string, amount float64) (int64, error) {
+func (e *EXMO) WithdrawCryptocurrency(currency, address, invoice string, amount decimal.Decimal) (int64, error) {
 	type response struct {
 		TaskID int64 `json:"task_id,string"`
 	}
@@ -265,7 +266,7 @@ func (e *EXMO) WithdrawCryptocurrency(currency, address, invoice string, amount 
 		v.Set(invoice, invoice)
 	}
 
-	v.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
+	v.Set("amount", amount.StringFixed(exchange.DefaultDecimalPrecision))
 	var result response
 	err := e.SendAuthenticatedHTTPRequest("POST", exmoWithdrawCrypt, v, &result)
 	return result.TaskID, err
@@ -287,10 +288,10 @@ func (e *EXMO) GetWithdrawTXID(taskID int64) (string, error) {
 }
 
 // ExcodeCreate creates an EXMO coupon
-func (e *EXMO) ExcodeCreate(currency string, amount float64) (ExcodeCreate, error) {
+func (e *EXMO) ExcodeCreate(currency string, amount decimal.Decimal) (ExcodeCreate, error) {
 	v := url.Values{}
 	v.Set("currency", currency)
-	v.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
+	v.Set("amount", amount.StringFixed(exchange.DefaultDecimalPrecision))
 
 	var result ExcodeCreate
 	err := e.SendAuthenticatedHTTPRequest("POST", exmoExcodeCreate, v, &result)

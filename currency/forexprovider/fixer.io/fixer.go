@@ -11,8 +11,8 @@ package fixer
 import (
 	"errors"
 	"net/url"
-	"strconv"
 
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency/forexprovider/base"
 )
@@ -50,7 +50,7 @@ func (f *Fixer) Setup(config base.Settings) {
 }
 
 // GetRates is a wrapper function to return rates
-func (f *Fixer) GetRates(baseCurrency, symbols string) (map[string]float64, error) {
+func (f *Fixer) GetRates(baseCurrency, symbols string) (map[string]decimal.Decimal, error) {
 	rates, err := f.GetLatestRates(baseCurrency, symbols)
 	if err != nil {
 		return nil, err
@@ -60,7 +60,7 @@ func (f *Fixer) GetRates(baseCurrency, symbols string) (map[string]float64, erro
 		baseCurrency = "EUR"
 	}
 
-	standardisedRates := make(map[string]float64)
+	standardisedRates := make(map[string]decimal.Decimal)
 	for k, v := range rates {
 		curr := baseCurrency + k
 		standardisedRates[curr] = v
@@ -71,7 +71,7 @@ func (f *Fixer) GetRates(baseCurrency, symbols string) (map[string]float64, erro
 
 // GetLatestRates returns real-time exchange rate data for all available or a
 // specific set of currencies. NOTE DEFAULT BASE CURRENCY IS EUR
-func (f *Fixer) GetLatestRates(base, symbols string) (map[string]float64, error) {
+func (f *Fixer) GetLatestRates(base, symbols string) (map[string]decimal.Decimal, error) {
 	var resp Rates
 
 	v := url.Values{}
@@ -96,7 +96,7 @@ func (f *Fixer) GetLatestRates(base, symbols string) (map[string]float64, error)
 // GetHistoricalRates returns historical exchange rate data for all available or
 // a specific set of currencies.
 // date - YYYY-MM-DD	[required] A date in the past
-func (f *Fixer) GetHistoricalRates(date, base string, symbols []string) (map[string]float64, error) {
+func (f *Fixer) GetHistoricalRates(date, base string, symbols []string) (map[string]decimal.Decimal, error) {
 	var resp Rates
 
 	v := url.Values{}
@@ -122,9 +122,9 @@ func (f *Fixer) GetHistoricalRates(date, base string, symbols []string) (map[str
 // amount - The amount to be converted.
 // date - [optional] Specify a date (format YYYY-MM-DD) to use historical rates
 // for this conversion.
-func (f *Fixer) ConvertCurrency(from, to, date string, amount float64) (float64, error) {
+func (f *Fixer) ConvertCurrency(from, to, date string, amount decimal.Decimal) (decimal.Decimal, error) {
 	if f.APIKeyLvl < fixerAPIBasic {
-		return 0, errors.New("insufficient API privileges, upgrade to basic to use this function")
+		return decimal.Zero, errors.New("insufficient API privileges, upgrade to basic to use this function")
 	}
 
 	var resp Conversion
@@ -132,7 +132,7 @@ func (f *Fixer) ConvertCurrency(from, to, date string, amount float64) (float64,
 	v := url.Values{}
 	v.Set("from", from)
 	v.Set("to", to)
-	v.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
+	v.Set("amount", amount.String())
 	v.Set("date", date)
 
 	err := f.SendOpenHTTPRequest(fixerAPIConvert, v, &resp)

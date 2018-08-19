@@ -7,6 +7,8 @@ import (
 	"strings"
 
 	"github.com/thrasher-/gocryptotrader/common"
+	"github.com/shopspring/decimal"
+	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/toorop/go-pusher"
 )
 
@@ -18,9 +20,9 @@ type PusherOrderbook struct {
 
 // PusherTrade holds trade information to be pushed
 type PusherTrade struct {
-	Price  float64 `json:"price"`
-	Amount float64 `json:"amount"`
-	ID     int64   `json:"id"`
+	Price  decimal.Decimal `json:"price"`
+	Amount decimal.Decimal `json:"amount"`
+	ID     int64           `json:"id"`
 }
 
 const (
@@ -123,7 +125,12 @@ func (b *Bitstamp) PusherClient() {
 				}
 
 				log.Println(trade.Channel)
-				log.Printf("%s Pusher trade: Pair: %s Price: %f Amount: %f\n", b.GetName(), channelTradingPair, result.Price, result.Amount)
+				log.Printf("%s Pusher trade: Pair: %s Price: %v Amount: %v\n",
+					b.GetName(),
+					channelTradingPair,
+					result.Price.StringFixed(exchange.DefaultDecimalPrecision),
+					result.Amount.StringFixed(exchange.DefaultDecimalPrecision),
+				)
 			}
 		}
 	}

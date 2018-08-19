@@ -3,6 +3,8 @@ package okex
 import (
 	"testing"
 
+	"github.com/shopspring/decimal"
+	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
 )
 
@@ -174,7 +176,7 @@ func TestGetContractPosition(t *testing.T) {
 
 func TestPlaceContractOrders(t *testing.T) {
 	t.Parallel()
-	_, err := o.PlaceContractOrders("btc_usd", "this_week", "1", 10, 1, 1, true)
+	_, err := o.PlaceContractOrders("btc_usd", "this_week", "1", 10, common.One, common.One, true)
 	if err == nil {
 		t.Error("Test failed - okex PlaceContractOrders() error", err)
 	}
@@ -248,8 +250,8 @@ func TestSpotNewOrder(t *testing.T) {
 
 	_, err := o.SpotNewOrder(SpotNewOrderRequestParams{
 		Symbol: "ltc_btc",
-		Amount: 1.1,
-		Price:  10.1,
+		Amount: decimal.NewFromFloat(1.1),
+		Price:  decimal.NewFromFloat(10.1),
 		Type:   SpotNewOrderRequestTypeBuy,
 	})
 	if err != nil {

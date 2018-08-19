@@ -12,6 +12,7 @@ import (
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/request"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
@@ -108,7 +109,7 @@ func (b *Bitstamp) Setup(exch config.ExchangeConfig) {
 }
 
 // GetFee returns fee on a currency pair
-func (b *Bitstamp) GetFee(currencyPair string) float64 {
+func (b *Bitstamp) GetFee(currencyPair string) decimal.Decimal {
 	switch currencyPair {
 	case "BTCUSD":
 		return b.Balance.BTCUSDFee
@@ -121,7 +122,7 @@ func (b *Bitstamp) GetFee(currencyPair string) float64 {
 	case "EURUSD":
 		return b.Balance.EURUSDFee
 	default:
-		return 0
+		return decimal.Zero
 	}
 }
 
@@ -172,12 +173,12 @@ func (b *Bitstamp) GetOrderbook(currency string) (Orderbook, error) {
 	orderbook.Timestamp = resp.Timestamp
 
 	for _, x := range resp.Bids {
-		price, err := strconv.ParseFloat(x[0], 64)
+		price, err := decimal.NewFromString(x[0])
 		if err != nil {
 			log.Println(err)
 			continue
 		}
-		amount, err := strconv.ParseFloat(x[1], 64)
+		amount, err := decimal.NewFromString(x[1])
 		if err != nil {
 			log.Println(err)
 			continue
@@ -186,12 +187,12 @@ func (b *Bitstamp) GetOrderbook(currency string) (Orderbook, error) {
 	}
 
 	for _, x := range resp.Asks {
-		price, err := strconv.ParseFloat(x[0], 64)
+		price, err := decimal.NewFromString(x[0])
 		if err != nil {
 			log.Println(err)
 			continue
 		}
-		amount, err := strconv.ParseFloat(x[1], 64)
+		amount, err := decimal.NewFromString(x[1])
 		if err != nil {
 			log.Println(err)
 			continue
@@ -248,16 +249,16 @@ func (b *Bitstamp) GetBalance() (Balances, error) {
 // GetUserTransactions returns an array of transactions
 func (b *Bitstamp) GetUserTransactions(currencyPair string) ([]UserTransactions, error) {
 	type Response struct {
-		Date    string      `json:"datetime"`
-		TransID int64       `json:"id"`
-		Type    int         `json:"type,string"`
-		USD     interface{} `json:"usd"`
-		EUR     float64     `json:"eur"`
-		XRP     float64     `json:"xrp"`
-		BTC     interface{} `json:"btc"`
-		BTCUSD  interface{} `json:"btc_usd"`
-		Fee     float64     `json:"fee,string"`
-		OrderID int64       `json:"order_id"`
+		Date    string          `json:"datetime"`
+		TransID int64           `json:"id"`
+		Type    int             `json:"type,string"`
+		USD     interface{}     `json:"usd"`
+		EUR     decimal.Decimal `json:"eur"`
+		XRP     decimal.Decimal `json:"xrp"`
+		BTC     interface{}     `json:"btc"`
+		BTCUSD  interface{}     `json:"btc_usd"`
+		Fee     decimal.Decimal `json:"fee,string"`
+		OrderID int64           `json:"order_id"`
 	}
 	response := []Response{}
 
@@ -282,9 +283,9 @@ func (b *Bitstamp) GetUserTransactions(currencyPair string) ([]UserTransactions,
 		/* Hack due to inconsistent JSON values... */
 		varType := reflect.TypeOf(y.USD).String()
 		if varType == bitstampAPIReturnType {
-			tx.USD, _ = strconv.ParseFloat(y.USD.(string), 64)
+			tx.USD, _ = decimal.NewFromString(y.USD.(string))
 		} else {
-			tx.USD = y.USD.(float64)
+			tx.USD = decimal.NewFromFloat(y.USD.(float64))
 		}
 
 		tx.EUR = y.EUR
@@ -292,16 +293,16 @@ func (b *Bitstamp) GetUserTransactions(currencyPair string) ([]UserTransactions,
 
 		varType = reflect.TypeOf(y.BTC).String()
 		if varType == bitstampAPIReturnType {
-			tx.BTC, _ = strconv.ParseFloat(y.BTC.(string), 64)
+			tx.BTC, _ = decimal.NewFromString(y.BTC.(string))
 		} else {
-			tx.BTC = y.BTC.(float64)
+			tx.BTC = decimal.NewFromFloat(y.BTC.(float64))
 		}
 
 		varType = reflect.TypeOf(y.BTCUSD).String()
 		if varType == bitstampAPIReturnType {
-			tx.BTCUSD, _ = strconv.ParseFloat(y.BTCUSD.(string), 64)
+			tx.BTCUSD, _ = decimal.NewFromString(y.BTCUSD.(string))
 		} else {
-			tx.BTCUSD = y.BTCUSD.(float64)
+			tx.BTCUSD = decimal.NewFromFloat(y.BTCUSD.(float64))
 		}
 
 		tx.Fee = y.Fee
@@ -351,10 +352,10 @@ func (b *Bitstamp) CancelAllOrders() (bool, error) {
 }
 
 // PlaceOrder places an order on the exchange.
-func (b *Bitstamp) PlaceOrder(currencyPair string, price float64, amount float64, buy, market bool) (Order, error) {
+func (b *Bitstamp) PlaceOrder(currencyPair string, price decimal.Decimal, amount decimal.Decimal, buy, market bool) (Order, error) {
 	var req = url.Values{}
-	req.Add("amount", strconv.FormatFloat(amount, 'f', -1, 64))
-	req.Add("price", strconv.FormatFloat(price, 'f', -1, 64))
+	req.Add("amount", amount.StringFixed(exchange.DefaultDecimalPrecision))
+	req.Add("price", price.StringFixed(exchange.DefaultDecimalPrecision))
 	response := Order{}
 	orderType := bitstampAPIBuy
 
@@ -398,9 +399,9 @@ func (b *Bitstamp) GetWithdrawalRequests(timedelta int64) ([]WithdrawalRequests,
 // symbol - the type of crypto ie "ltc", "btc", "eth"
 // destTag - only for XRP  default to ""
 // instant - only for bitcoins
-func (b *Bitstamp) CryptoWithdrawal(amount float64, address, symbol, destTag string, instant bool) (string, error) {
+func (b *Bitstamp) CryptoWithdrawal(amount decimal.Decimal, address, symbol, destTag string, instant bool) (string, error) {
 	var req = url.Values{}
-	req.Add("amount", strconv.FormatFloat(amount, 'f', -1, 64))
+	req.Add("amount", amount.StringFixed(exchange.DefaultDecimalPrecision))
 	req.Add("address", address)
 
 	type response struct {
@@ -473,9 +474,9 @@ func (b *Bitstamp) GetUnconfirmedBitcoinDeposits() ([]UnconfirmedBTCTransactions
 // currency - which currency to transfer
 // subaccount - name of account
 // toMain - bool either to or from account
-func (b *Bitstamp) TransferAccountBalance(amount float64, currency, subAccount string, toMain bool) (bool, error) {
+func (b *Bitstamp) TransferAccountBalance(amount decimal.Decimal, currency, subAccount string, toMain bool) (bool, error) {
 	var req = url.Values{}
-	req.Add("amount", strconv.FormatFloat(amount, 'f', -1, 64))
+	req.Add("amount", amount.StringFixed(exchange.DefaultDecimalPrecision))
 	req.Add("currency", currency)
 	req.Add("subAccount", subAccount)
 

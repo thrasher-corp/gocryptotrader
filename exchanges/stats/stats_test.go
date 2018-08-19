@@ -3,6 +3,8 @@ package stats
 import (
 	"testing"
 
+	"github.com/shopspring/decimal"
+	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
 )
 
@@ -12,8 +14,8 @@ func TestLenByPrice(t *testing.T) {
 		Exchange:  "ANX",
 		Pair:      p,
 		AssetType: "SPOT",
-		Price:     1200,
-		Volume:    5,
+		Price:     common.NewFromInt(1200),
+		Volume:    common.Five,
 	}
 
 	Items = append(Items, i)
@@ -28,16 +30,16 @@ func TestLessByPrice(t *testing.T) {
 		Exchange:  "alphapoint",
 		Pair:      p,
 		AssetType: "SPOT",
-		Price:     1200,
-		Volume:    5,
+		Price:     common.NewFromInt(1200),
+		Volume:    common.Five,
 	}
 
 	i2 := Item{
 		Exchange:  "bitfinex",
 		Pair:      p,
 		AssetType: "SPOT",
-		Price:     1198,
-		Volume:    20,
+		Price:     common.NewFromInt(1198),
+		Volume:    common.Twenty,
 	}
 
 	Items = append(Items, i)
@@ -57,16 +59,16 @@ func TestSwapByPrice(t *testing.T) {
 		Exchange:  "bitstamp",
 		Pair:      p,
 		AssetType: "SPOT",
-		Price:     1324,
-		Volume:    5,
+		Price:     common.NewFromInt(1324),
+		Volume:    common.Five,
 	}
 
 	i2 := Item{
 		Exchange:  "btcc",
 		Pair:      p,
 		AssetType: "SPOT",
-		Price:     7863,
-		Volume:    20,
+		Price:     common.NewFromInt(7863),
+		Volume:    common.Twenty,
 	}
 
 	Items = append(Items, i)
@@ -103,27 +105,27 @@ func TestSwapByVolume(t *testing.T) {
 func TestAdd(t *testing.T) {
 	Items = Items[:0]
 	p := pair.NewCurrencyPair("BTC", "USD")
-	Add("ANX", p, "SPOT", 1200, 42)
+	Add("ANX", p, "SPOT", common.NewFromInt(1200), common.NewFromInt(42))
 
 	if len(Items) < 1 {
 		t.Error("Test Failed - stats Add did not add exchange info.")
 	}
 
-	Add("", p, "", 0, 0)
+	Add("", p, "", decimal.Zero, decimal.Zero)
 
 	if len(Items) != 1 {
 		t.Error("Test Failed - stats Add did not add exchange info.")
 	}
 
 	p.FirstCurrency = "XBT"
-	Add("ANX", p, "SPOT", 1201, 43)
+	Add("ANX", p, "SPOT", common.NewFromInt(1201), common.NewFromInt(43))
 
 	if Items[1].Pair.Pair() != "XBTUSD" {
 		t.Fatal("Test failed. stats Add did not add exchange info.")
 	}
 
 	p = pair.NewCurrencyPair("ETH", "USDT")
-	Add("ANX", p, "SPOT", 300, 1000)
+	Add("ANX", p, "SPOT", common.ThreeHundred, common.Thousand)
 
 	if Items[2].Pair.Pair() != "ETHUSD" {
 		t.Fatal("Test failed. stats Add did not add exchange info.")
@@ -132,12 +134,12 @@ func TestAdd(t *testing.T) {
 
 func TestAppend(t *testing.T) {
 	p := pair.NewCurrencyPair("BTC", "USD")
-	Append("sillyexchange", p, "SPOT", 1234, 45)
+	Append("sillyexchange", p, "SPOT", common.NewFromInt(1234), common.NewFromInt(45))
 	if len(Items) < 2 {
 		t.Error("Test Failed - stats Append did not add exchange values.")
 	}
 
-	Append("sillyexchange", p, "SPOT", 1234, 45)
+	Append("sillyexchange", p, "SPOT", common.NewFromInt(1234), common.NewFromInt(45))
 	if len(Items) == 3 {
 		t.Error("Test Failed - stats Append added exchange values")
 	}
@@ -145,11 +147,11 @@ func TestAppend(t *testing.T) {
 
 func TestAlreadyExists(t *testing.T) {
 	p := pair.NewCurrencyPair("BTC", "USD")
-	if !AlreadyExists("ANX", p, "SPOT", 1200, 42) {
+	if !AlreadyExists("ANX", p, "SPOT", common.NewFromInt(1200), common.NewFromInt(42)) {
 		t.Error("Test Failed - stats AlreadyExists exchange does not exist.")
 	}
 	p.FirstCurrency = "dii"
-	if AlreadyExists("bla", p, "SPOT", 1234, 123) {
+	if AlreadyExists("bla", p, "SPOT", common.NewFromInt(1234), common.NewFromInt(123)) {
 		t.Error("Test Failed - stats AlreadyExists found incorrect exchange.")
 	}
 }

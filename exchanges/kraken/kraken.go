@@ -6,8 +6,10 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/exchanges"
@@ -46,17 +48,20 @@ const (
 
 // Kraken is the overarching type across the alphapoint package
 type Kraken struct {
+	sync.Mutex
 	exchange.Base
-	CryptoFee, FiatFee float64
+	CryptoFee, FiatFee decimal.Decimal
 	Ticker             map[string]Ticker
 }
 
 // SetDefaults sets current default settings
 func (k *Kraken) SetDefaults() {
+	k.Lock()
+	defer k.Unlock()
 	k.Name = "Kraken"
 	k.Enabled = false
-	k.FiatFee = 0.35
-	k.CryptoFee = 0.10
+	k.FiatFee = decimal.NewFromFloat(0.35)
+	k.CryptoFee = decimal.NewFromFloat(0.10)
 	k.Verbose = false
 	k.Websocket = false
 	k.RESTPollingDelay = 10
@@ -104,7 +109,7 @@ func (k *Kraken) Setup(exch config.ExchangeConfig) {
 }
 
 // GetFee returns current fee for either crypto or fiat
-func (k *Kraken) GetFee(cryptoTrade bool) float64 {
+func (k *Kraken) GetFee(cryptoTrade bool) decimal.Decimal {
 	if cryptoTrade {
 		return k.CryptoFee
 	}
@@ -183,15 +188,15 @@ func (k *Kraken) GetTicker(symbol string) (Ticker, error) {
 	}
 
 	for _, y := range resp.Data {
-		ticker.Ask, _ = strconv.ParseFloat(y.Ask[0], 64)
-		ticker.Bid, _ = strconv.ParseFloat(y.Bid[0], 64)
-		ticker.Last, _ = strconv.ParseFloat(y.Last[0], 64)
-		ticker.Volume, _ = strconv.ParseFloat(y.Volume[1], 64)
-		ticker.VWAP, _ = strconv.ParseFloat(y.VWAP[1], 64)
+		ticker.Ask, _ = decimal.NewFromString(y.Ask[0])
+		ticker.Bid, _ = decimal.NewFromString(y.Bid[0])
+		ticker.Last, _ = decimal.NewFromString(y.Last[0])
+		ticker.Volume, _ = decimal.NewFromString(y.Volume[1])
+		ticker.VWAP, _ = decimal.NewFromString(y.VWAP[1])
 		ticker.Trades = y.Trades[1]
-		ticker.Low, _ = strconv.ParseFloat(y.Low[1], 64)
-		ticker.High, _ = strconv.ParseFloat(y.High[1], 64)
-		ticker.Open, _ = strconv.ParseFloat(y.Open, 64)
+		ticker.Low, _ = decimal.NewFromString(y.Low[1])
+		ticker.High, _ = decimal.NewFromString(y.High[1])
+		ticker.Open, _ = decimal.NewFromString(y.Open)
 	}
 	return ticker, nil
 }
@@ -225,21 +230,21 @@ func (k *Kraken) GetOHLC(symbol string) ([]OpenHighLowClose, error) {
 		for i, x := range y.([]interface{}) {
 			switch i {
 			case 0:
-				o.Time = x.(float64)
+				o.Time = decimal.NewFromFloat(x.(float64))
 			case 1:
-				o.Open, _ = strconv.ParseFloat(x.(string), 64)
+				o.Open, _ = decimal.NewFromString(x.(string))
 			case 2:
-				o.High, _ = strconv.ParseFloat(x.(string), 64)
+				o.High, _ = decimal.NewFromString(x.(string))
 			case 3:
-				o.Low, _ = strconv.ParseFloat(x.(string), 64)
+				o.Low, _ = decimal.NewFromString(x.(string))
 			case 4:
-				o.Close, _ = strconv.ParseFloat(x.(string), 64)
+				o.Close, _ = decimal.NewFromString(x.(string))
 			case 5:
-				o.Vwap, _ = strconv.ParseFloat(x.(string), 64)
+				o.Vwap, _ = decimal.NewFromString(x.(string))
 			case 6:
-				o.Volume, _ = strconv.ParseFloat(x.(string), 64)
+				o.Volume, _ = decimal.NewFromString(x.(string))
 			case 7:
-				o.Count = x.(float64)
+				o.Count = decimal.NewFromFloat(x.(float64))
 			}
 		}
 		OHLC = append(OHLC, o)
@@ -278,12 +283,12 @@ func (k *Kraken) GetDepth(symbol string) (Orderbook, error) {
 		for x := range data {
 			entry := data[x].([]interface{})
 
-			price, priceErr := strconv.ParseFloat(entry[0].(string), 64)
+			price, priceErr := decimal.NewFromString(entry[0].(string))
 			if priceErr != nil {
 				return nil, priceErr
 			}
 
-			amount, amountErr := strconv.ParseFloat(entry[1].(string), 64)
+			amount, amountErr := decimal.NewFromString(entry[1].(string))
 			if amountErr != nil {
 				return nil, amountErr
 			}
@@ -329,11 +334,11 @@ func (k *Kraken) GetTrades(symbol string) ([]RecentTrades, error) {
 		for i, y := range x.([]interface{}) {
 			switch i {
 			case 0:
-				r.Price, _ = strconv.ParseFloat(y.(string), 64)
+				r.Price, _ = decimal.NewFromString(y.(string))
 			case 1:
-				r.Volume, _ = strconv.ParseFloat(y.(string), 64)
+				r.Volume, _ = decimal.NewFromString(y.(string))
 			case 2:
-				r.Time = y.(float64)
+				r.Time = decimal.NewFromFloat(y.(float64))
 			case 3:
 				r.BuyOrSell = y.(string)
 			case 4:
@@ -370,11 +375,11 @@ func (k *Kraken) GetSpread(symbol string) ([]Spread, error) {
 		for i, y := range x.([]interface{}) {
 			switch i {
 			case 0:
-				s.Time = y.(float64)
+				s.Time = decimal.NewFromFloat(y.(float64))
 			case 1:
-				s.Bid, _ = strconv.ParseFloat(y.(string), 64)
+				s.Bid, _ = decimal.NewFromString(y.(string))
 			case 2:
-				s.Ask, _ = strconv.ParseFloat(y.(string), 64)
+				s.Ask, _ = decimal.NewFromString(y.(string))
 			}
 		}
 		peanutButter = append(peanutButter, s)
@@ -383,7 +388,7 @@ func (k *Kraken) GetSpread(symbol string) ([]Spread, error) {
 }
 
 // GetBalance returns your balance associated with your keys
-func (k *Kraken) GetBalance() (map[string]float64, error) {
+func (k *Kraken) GetBalance() (map[string]decimal.Decimal, error) {
 	var response struct {
 		Error  []string          `json:"error"`
 		Result map[string]string `json:"result"`
@@ -393,10 +398,10 @@ func (k *Kraken) GetBalance() (map[string]float64, error) {
 		return nil, err
 	}
 
-	result := make(map[string]float64)
+	result := make(map[string]decimal.Decimal)
 	for curency, balance := range response.Result {
 		var err error
-		if result[curency], err = strconv.ParseFloat(balance, 64); err != nil {
+		if result[curency], err = decimal.NewFromString(balance); err != nil {
 			return nil, err
 		}
 	}
@@ -704,24 +709,24 @@ func (k *Kraken) GetTradeVolume(feeinfo bool, symbol ...string) (TradeVolumeResp
 }
 
 // AddOrder adds a new order for Kraken exchange
-func (k *Kraken) AddOrder(symbol, side, orderType string, volume, price, price2, leverage float64, args AddOrderOptions) (AddOrderResponse, error) {
+func (k *Kraken) AddOrder(symbol, side, orderType string, volume, price, price2, leverage decimal.Decimal, args AddOrderOptions) (AddOrderResponse, error) {
 	params := url.Values{
 		"pair":      {symbol},
 		"type":      {side},
 		"ordertype": {orderType},
-		"volume":    {strconv.FormatFloat(volume, 'f', -1, 64)},
+		"volume":    {volume.StringFixed(exchange.DefaultDecimalPrecision)},
 	}
 
-	if price != 0 {
-		params.Set("price", strconv.FormatFloat(price, 'f', -1, 64))
+	if common.NotZero(price) {
+		params.Set("price", price.StringFixed(exchange.DefaultDecimalPrecision))
 	}
 
-	if price2 != 0 {
-		params.Set("price2", strconv.FormatFloat(price2, 'f', -1, 64))
+	if common.NotZero(price2) {
+		params.Set("price2", price2.StringFixed(exchange.DefaultDecimalPrecision))
 	}
 
-	if leverage != 0 {
-		params.Set("leverage", strconv.FormatFloat(leverage, 'f', -1, 64))
+	if common.NotZero(leverage) {
+		params.Set("leverage", leverage.StringFixed(exchange.DefaultDecimalPrecision))
 	}
 
 	if len(args.Oflags) != 0 {

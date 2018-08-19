@@ -1,22 +1,24 @@
 package bitstamp
 
+import "github.com/shopspring/decimal"
+
 // Ticker holds ticker information
 type Ticker struct {
-	Last      float64 `json:"last,string"`
-	High      float64 `json:"high,string"`
-	Low       float64 `json:"low,string"`
-	Vwap      float64 `json:"vwap,string"`
-	Volume    float64 `json:"volume,string"`
-	Bid       float64 `json:"bid,string"`
-	Ask       float64 `json:"ask,string"`
-	Timestamp int64   `json:"timestamp,string"`
-	Open      float64 `json:"open,string"`
+	Last      decimal.Decimal `json:"last,string"`
+	High      decimal.Decimal `json:"high,string"`
+	Low       decimal.Decimal `json:"low,string"`
+	Vwap      decimal.Decimal `json:"vwap,string"`
+	Volume    decimal.Decimal `json:"volume,string"`
+	Bid       decimal.Decimal `json:"bid,string"`
+	Ask       decimal.Decimal `json:"ask,string"`
+	Timestamp int64           `json:"timestamp,string"`
+	Open      decimal.Decimal `json:"open,string"`
 }
 
 // OrderbookBase holds singular price information
 type OrderbookBase struct {
-	Price  float64
-	Amount float64
+	Price  decimal.Decimal
+	Amount decimal.Decimal
 }
 
 // Orderbook holds orderbook information
@@ -39,84 +41,84 @@ type TradingPair struct {
 
 // Transactions holds transaction data
 type Transactions struct {
-	Date    int64   `json:"date,string"`
-	TradeID int64   `json:"tid,string"`
-	Price   float64 `json:"price,string"`
-	Type    int     `json:"type,string"`
-	Amount  float64 `json:"amount,string"`
+	Date    int64           `json:"date,string"`
+	TradeID int64           `json:"tid,string"`
+	Price   decimal.Decimal `json:"price,string"`
+	Type    int             `json:"type,string"`
+	Amount  decimal.Decimal `json:"amount,string"`
 }
 
 // EURUSDConversionRate holds buy sell conversion rate information
 type EURUSDConversionRate struct {
-	Buy  float64 `json:"buy,string"`
-	Sell float64 `json:"sell,string"`
+	Buy  decimal.Decimal `json:"buy,string"`
+	Sell decimal.Decimal `json:"sell,string"`
 }
 
 // Balances holds full balance information with the supplied APIKEYS
 type Balances struct {
-	USDBalance   float64 `json:"usd_balance,string"`
-	BTCBalance   float64 `json:"btc_balance,string"`
-	EURBalance   float64 `json:"eur_balance,string"`
-	XRPBalance   float64 `json:"xrp_balance,string"`
-	USDReserved  float64 `json:"usd_reserved,string"`
-	BTCReserved  float64 `json:"btc_reserved,string"`
-	EURReserved  float64 `json:"eur_reserved,string"`
-	XRPReserved  float64 `json:"xrp_reserved,string"`
-	USDAvailable float64 `json:"usd_available,string"`
-	BTCAvailable float64 `json:"btc_available,string"`
-	EURAvailable float64 `json:"eur_available,string"`
-	XRPAvailable float64 `json:"xrp_available,string"`
-	BTCUSDFee    float64 `json:"btcusd_fee,string"`
-	BTCEURFee    float64 `json:"btceur_fee,string"`
-	EURUSDFee    float64 `json:"eurusd_fee,string"`
-	XRPUSDFee    float64 `json:"xrpusd_fee,string"`
-	XRPEURFee    float64 `json:"xrpeur_fee,string"`
-	XRPBTCFee    float64 `json:"xrpbtc_fee,string"`
-	Fee          float64 `json:"fee,string"`
+	USDBalance   decimal.Decimal `json:"usd_balance,string"`
+	BTCBalance   decimal.Decimal `json:"btc_balance,string"`
+	EURBalance   decimal.Decimal `json:"eur_balance,string"`
+	XRPBalance   decimal.Decimal `json:"xrp_balance,string"`
+	USDReserved  decimal.Decimal `json:"usd_reserved,string"`
+	BTCReserved  decimal.Decimal `json:"btc_reserved,string"`
+	EURReserved  decimal.Decimal `json:"eur_reserved,string"`
+	XRPReserved  decimal.Decimal `json:"xrp_reserved,string"`
+	USDAvailable decimal.Decimal `json:"usd_available,string"`
+	BTCAvailable decimal.Decimal `json:"btc_available,string"`
+	EURAvailable decimal.Decimal `json:"eur_available,string"`
+	XRPAvailable decimal.Decimal `json:"xrp_available,string"`
+	BTCUSDFee    decimal.Decimal `json:"btcusd_fee,string"`
+	BTCEURFee    decimal.Decimal `json:"btceur_fee,string"`
+	EURUSDFee    decimal.Decimal `json:"eurusd_fee,string"`
+	XRPUSDFee    decimal.Decimal `json:"xrpusd_fee,string"`
+	XRPEURFee    decimal.Decimal `json:"xrpeur_fee,string"`
+	XRPBTCFee    decimal.Decimal `json:"xrpbtc_fee,string"`
+	Fee          decimal.Decimal `json:"fee,string"`
 }
 
 // UserTransactions holds user transaction information
 type UserTransactions struct {
-	Date    string  `json:"datetime"`
-	TransID int64   `json:"id"`
-	Type    int     `json:"type,string"`
-	USD     float64 `json:"usd"`
-	EUR     float64 `json:"eur"`
-	BTC     float64 `json:"btc"`
-	XRP     float64 `json:"xrp"`
-	BTCUSD  float64 `json:"btc_usd"`
-	Fee     float64 `json:"fee,string"`
-	OrderID int64   `json:"order_id"`
+	Date    string          `json:"datetime"`
+	TransID int64           `json:"id"`
+	Type    int             `json:"type,string"`
+	USD     decimal.Decimal `json:"usd"`
+	EUR     decimal.Decimal `json:"eur"`
+	BTC     decimal.Decimal `json:"btc"`
+	XRP     decimal.Decimal `json:"xrp"`
+	BTCUSD  decimal.Decimal `json:"btc_usd"`
+	Fee     decimal.Decimal `json:"fee,string"`
+	OrderID int64           `json:"order_id"`
 }
 
 // Order holds current open order data
 type Order struct {
-	ID     int64   `json:"id"`
-	Date   string  `json:"datetime"`
-	Type   int     `json:"type"`
-	Price  float64 `json:"price"`
-	Amount float64 `json:"amount"`
+	ID     int64           `json:"id"`
+	Date   string          `json:"datetime"`
+	Type   int             `json:"type"`
+	Price  decimal.Decimal `json:"price"`
+	Amount decimal.Decimal `json:"amount"`
 }
 
 // OrderStatus holds order status information
 type OrderStatus struct {
 	Status       string
 	Transactions []struct {
-		TradeID int64   `json:"tid"`
-		USD     float64 `json:"usd,string"`
-		Price   float64 `json:"price,string"`
-		Fee     float64 `json:"fee,string"`
-		BTC     float64 `json:"btc,string"`
+		TradeID int64           `json:"tid"`
+		USD     decimal.Decimal `json:"usd,string"`
+		Price   decimal.Decimal `json:"price,string"`
+		Fee     decimal.Decimal `json:"fee,string"`
+		BTC     decimal.Decimal `json:"btc,string"`
 	}
 }
 
 // WithdrawalRequests holds request information on withdrawals
 type WithdrawalRequests struct {
-	OrderID       int64   `json:"id"`
-	Date          string  `json:"datetime"`
-	Type          int     `json:"type"`
-	Amount        float64 `json:"amount,string"`
-	Status        int     `json:"status"`
+	OrderID       int64           `json:"id"`
+	Date          string          `json:"datetime"`
+	Type          int             `json:"type"`
+	Amount        decimal.Decimal `json:"amount,string"`
+	Status        int             `json:"status"`
 	Data          interface{}
 	Address       string `json:"address"`        // Bitcoin withdrawals only
 	TransactionID string `json:"transaction_id"` // Bitcoin withdrawals only
@@ -125,9 +127,9 @@ type WithdrawalRequests struct {
 // UnconfirmedBTCTransactions holds address information about unconfirmed
 // transactions
 type UnconfirmedBTCTransactions struct {
-	Amount        float64 `json:"amount,string"`
-	Address       string  `json:"address"`
-	Confirmations int     `json:"confirmations"`
+	Amount        decimal.Decimal `json:"amount,string"`
+	Address       string          `json:"address"`
+	Confirmations int             `json:"confirmations"`
 }
 
 // CaptureError is used to capture unmarshalled errors

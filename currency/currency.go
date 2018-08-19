@@ -7,6 +7,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency/forexprovider"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
+	"github.com/shopspring/decimal"
 )
 
 const (
@@ -20,7 +21,7 @@ const (
 
 // Manager is the overarching type across this package
 var (
-	FXRates map[string]float64
+	FXRates map[string]decimal.Decimal
 
 	FiatCurrencies   []string
 	CryptoCurrencies []string
@@ -32,7 +33,7 @@ var (
 // SetDefaults sets the default currency provider and settings for
 // currency conversion used outside of the bot setting
 func SetDefaults() {
-	FXRates = make(map[string]float64)
+	FXRates = make(map[string]decimal.Decimal)
 	BaseCurrency = DefaultBaseCurrency
 
 	FXProviders = forexprovider.NewDefaultFXProvider()
@@ -46,7 +47,7 @@ func SetDefaults() {
 // SeedCurrencyData returns rates correlated with suported currencies
 func SeedCurrencyData(currencies string) error {
 	if FXRates == nil {
-		FXRates = make(map[string]float64)
+		FXRates = make(map[string]decimal.Decimal)
 	}
 
 	if FXProviders == nil {
@@ -66,7 +67,7 @@ func SeedCurrencyData(currencies string) error {
 }
 
 // GetExchangeRates returns the currency exchange rates
-func GetExchangeRates() map[string]float64 {
+func GetExchangeRates() map[string]decimal.Decimal {
 	return FXRates
 }
 
@@ -136,7 +137,7 @@ func extractBaseCurrency() string {
 
 // ConvertCurrency for example converts $1 USD to the equivalent Japanese Yen
 // or vice versa.
-func ConvertCurrency(amount float64, from, to string) (float64, error) {
+func ConvertCurrency(amount decimal.Decimal, from, to string) (decimal.Decimal, error) {
 	if FXProviders == nil {
 		SetDefaults()
 	}
@@ -164,38 +165,38 @@ func ConvertCurrency(amount float64, from, to string) (float64, error) {
 	// Fixer free API sets the base currency to EUR
 	baseCurr := extractBaseCurrency()
 
-	var resultFrom float64
-	var resultTo float64
+	var resultFrom decimal.Decimal
+	var resultTo decimal.Decimal
 
 	// check to see if we're converting from the base currency
 	if to == baseCurr {
 		resultFrom, ok := FXRates[baseCurr+from]
 		if !ok {
-			return 0, fmt.Errorf("Currency conversion failed. Unable to find %s in currency map [%s -> %s]", from, from, to)
+			return decimal.Zero, fmt.Errorf("Currency conversion failed. Unable to find %s in currency map [%s -> %s]", from, from, to)
 		}
-		return amount / resultFrom, nil
+		return amount.Div(resultFrom), nil
 	}
 
 	// Check to see if we're converting from the base currency
 	if from == baseCurr {
 		resultTo, ok := FXRates[baseCurr+to]
 		if !ok {
-			return 0, fmt.Errorf("Currency conversion failed. Unable to find %s in currency map [%s -> %s]", to, from, to)
+			return decimal.Zero, fmt.Errorf("Currency conversion failed. Unable to find %s in currency map [%s -> %s]", to, from, to)
 		}
-		return resultTo * amount, nil
+		return resultTo.Mul(amount), nil
 	}
 
 	// Otherwise convert to base currency, then to the target currency
 	resultFrom, ok := FXRates[baseCurr+from]
 	if !ok {
-		return 0, fmt.Errorf("Currency conversion failed. Unable to find %s in currency map [%s -> %s]", from, from, to)
+		return decimal.Zero, fmt.Errorf("Currency conversion failed. Unable to find %s in currency map [%s -> %s]", from, from, to)
 	}
 
-	converted := amount / resultFrom
+	converted := amount.Div(resultFrom)
 	resultTo, ok = FXRates[baseCurr+to]
 	if !ok {
-		return 0, fmt.Errorf("Currency conversion failed. Unable to find %s in currency map [%s -> %s]", to, from, to)
+		return decimal.Zero, fmt.Errorf("Currency conversion failed. Unable to find %s in currency map [%s -> %s]", to, from, to)
 	}
 
-	return converted * resultTo, nil
+	return converted.Mul(resultTo), nil
 }

@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/exchanges"
@@ -56,7 +57,7 @@ type BTCC struct {
 func (b *BTCC) SetDefaults() {
 	b.Name = "BTCC"
 	b.Enabled = false
-	b.Fee = 0
+	b.Fee = decimal.Zero
 	b.Verbose = false
 	b.Websocket = false
 	b.RESTPollingDelay = 10
@@ -102,7 +103,7 @@ func (b *BTCC) Setup(exch config.ExchangeConfig) {
 }
 
 // GetFee returns the fees associated with transactions
-func (b *BTCC) GetFee() float64 {
+func (b *BTCC) GetFee() decimal.Decimal {
 	return b.Fee
 }
 
@@ -164,10 +165,10 @@ func (b *BTCC) GetAccountInfo(infoType string) error {
 }
 
 // PlaceOrder places a new order
-func (b *BTCC) PlaceOrder(buyOrder bool, price, amount float64, symbol string) {
+func (b *BTCC) PlaceOrder(buyOrder bool, price, amount decimal.Decimal, symbol string) {
 	params := make([]interface{}, 0)
-	params = append(params, strconv.FormatFloat(price, 'f', -1, 64))
-	params = append(params, strconv.FormatFloat(amount, 'f', -1, 64))
+	params = append(params, price.StringFixed(exchange.DefaultDecimalPrecision))
+	params = append(params, amount.StringFixed(exchange.DefaultDecimalPrecision))
 
 	if len(symbol) > 0 {
 		params = append(params, symbol)
@@ -355,7 +356,7 @@ func (b *BTCC) GetWithdrawals(currency string, pending bool) {
 }
 
 // RequestWithdrawal requests a new withdrawal
-func (b *BTCC) RequestWithdrawal(currency string, amount float64) {
+func (b *BTCC) RequestWithdrawal(currency string, amount decimal.Decimal) {
 	params := make([]interface{}, 0)
 	params = append(params, currency)
 	params = append(params, amount)
@@ -369,12 +370,12 @@ func (b *BTCC) RequestWithdrawal(currency string, amount float64) {
 
 // IcebergOrder intiates a large order but at intervals to preserve orderbook
 // integrity
-func (b *BTCC) IcebergOrder(buyOrder bool, price, amount, discAmount, variance float64, symbol string) {
+func (b *BTCC) IcebergOrder(buyOrder bool, price, amount, discAmount, variance decimal.Decimal, symbol string) {
 	params := make([]interface{}, 0)
-	params = append(params, strconv.FormatFloat(price, 'f', -1, 64))
-	params = append(params, strconv.FormatFloat(amount, 'f', -1, 64))
-	params = append(params, strconv.FormatFloat(discAmount, 'f', -1, 64))
-	params = append(params, strconv.FormatFloat(variance, 'f', -1, 64))
+	params = append(params, price.StringFixed(exchange.DefaultDecimalPrecision))
+	params = append(params, amount.StringFixed(exchange.DefaultDecimalPrecision))
+	params = append(params, discAmount.StringFixed(exchange.DefaultDecimalPrecision))
+	params = append(params, variance.StringFixed(exchange.DefaultDecimalPrecision))
 
 	if len(symbol) > 0 {
 		params = append(params, symbol)
@@ -448,22 +449,22 @@ func (b *BTCC) CancelIcebergOrder(orderID int64, symbol string) {
 }
 
 // PlaceStopOrder inserts a stop loss order
-func (b *BTCC) PlaceStopOrder(buyOder bool, stopPrice, price, amount, trailingAmt, trailingPct float64, symbol string) {
+func (b *BTCC) PlaceStopOrder(buyOder bool, stopPrice, price, amount, trailingAmt, trailingPct decimal.Decimal, symbol string) {
 	params := make([]interface{}, 0)
 
-	if stopPrice > 0 {
+	if common.GreaterThanZero(stopPrice) {
 		params = append(params, stopPrice)
 	}
 
-	params = append(params, strconv.FormatFloat(price, 'f', -1, 64))
-	params = append(params, strconv.FormatFloat(amount, 'f', -1, 64))
+	params = append(params, price.StringFixed(exchange.DefaultDecimalPrecision))
+	params = append(params, amount.StringFixed(exchange.DefaultDecimalPrecision))
 
-	if trailingAmt > 0 {
-		params = append(params, strconv.FormatFloat(trailingAmt, 'f', -1, 64))
+	if common.GreaterThanZero(trailingAmt) {
+		params = append(params, trailingAmt.StringFixed(exchange.DefaultDecimalPrecision))
 	}
 
-	if trailingPct > 0 {
-		params = append(params, strconv.FormatFloat(trailingPct, 'f', -1, 64))
+	if common.GreaterThanZero(trailingPct) {
+		params = append(params, trailingPct.StringFixed(exchange.DefaultDecimalPrecision))
 	}
 
 	if len(symbol) > 0 {
@@ -499,7 +500,7 @@ func (b *BTCC) GetStopOrder(orderID int64, symbol string) {
 }
 
 // GetStopOrders returns all stop orders
-func (b *BTCC) GetStopOrders(status, orderType string, stopPrice float64, limit, offset int64, symbol string) {
+func (b *BTCC) GetStopOrders(status, orderType string, stopPrice decimal.Decimal, limit, offset int64, symbol string) {
 	params := make([]interface{}, 0)
 
 	if len(status) > 0 {
@@ -510,7 +511,7 @@ func (b *BTCC) GetStopOrders(status, orderType string, stopPrice float64, limit,
 		params = append(params, orderType)
 	}
 
-	if stopPrice > 0 {
+	if common.GreaterThanZero(stopPrice) {
 		params = append(params, stopPrice)
 	}
 

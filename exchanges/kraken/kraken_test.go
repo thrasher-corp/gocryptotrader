@@ -3,6 +3,8 @@ package kraken
 import (
 	"testing"
 
+	"github.com/shopspring/decimal"
+	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
 )
 
@@ -37,10 +39,10 @@ func TestSetup(t *testing.T) {
 
 func TestGetFee(t *testing.T) {
 	t.Parallel()
-	if k.GetFee(true) != 0.1 {
+	if common.NotEqual(k.GetFee(true), common.OneTenth) {
 		t.Error("Test Failed - kraken GetFee() error")
 	}
-	if k.GetFee(false) != 0.35 {
+	if common.NotEqual(k.GetFee(false), decimal.NewFromFloat(0.35)) {
 		t.Error("Test Failed - kraken GetFee() error")
 	}
 }
@@ -206,7 +208,7 @@ func TestGetTradeVolume(t *testing.T) {
 func TestAddOrder(t *testing.T) {
 	t.Parallel()
 	args := AddOrderOptions{Oflags: "fcib"}
-	_, err := k.AddOrder("XXBTZUSD", "sell", "market", 0.00000001, 0, 0, 0, args)
+	_, err := k.AddOrder("XXBTZUSD", "sell", "market", decimal.NewFromFloat(0.00000001), decimal.Zero, decimal.Zero, decimal.Zero, args)
 	if err == nil {
 		t.Error("Test Failed - AddOrder() error", err)
 	}

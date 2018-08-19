@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/thrasher-/gocryptotrader/config"
+	"github.com/shopspring/decimal"
 )
 
 // Please supply your own keys here for due diligence testing
@@ -145,8 +146,8 @@ func TestNewOrder(t *testing.T) {
 		Side:        BinanceRequestParamsSideSell,
 		TradeType:   BinanceRequestParamsOrderLimit,
 		TimeInForce: BinanceRequestParamsTimeGTC,
-		Quantity:    0.01,
-		Price:       1536.1,
+		Quantity:    decimal.NewFromFloat(0.01),
+		Price:       decimal.NewFromFloat(1536.1),
 	})
 
 	if err == nil {

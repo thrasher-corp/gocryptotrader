@@ -4,6 +4,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
 )
 
@@ -104,7 +105,7 @@ func TestGetMarketHistory(t *testing.T) {
 func TestPlaceBuyLimit(t *testing.T) {
 	t.Parallel()
 
-	_, err := b.PlaceBuyLimit("btc-ltc", 1, 1)
+	_, err := b.PlaceBuyLimit("btc-ltc", common.One, common.One)
 	if err == nil {
 		t.Error("Test Failed - Bittrex - PlaceBuyLimit() error")
 	}
@@ -113,7 +114,7 @@ func TestPlaceBuyLimit(t *testing.T) {
 func TestPlaceSellLimit(t *testing.T) {
 	t.Parallel()
 
-	_, err := b.PlaceSellLimit("btc-ltc", 1, 1)
+	_, err := b.PlaceSellLimit("btc-ltc", common.One, common.One)
 	if err == nil {
 		t.Error("Test Failed - Bittrex - PlaceSellLimit() error")
 	}
@@ -171,7 +172,7 @@ func TestGetDepositAddress(t *testing.T) {
 func TestWithdraw(t *testing.T) {
 	t.Parallel()
 
-	_, err := b.Withdraw("btc", "something", "someplace", 1)
+	_, err := b.Withdraw("btc", "something", "someplace", common.One)
 	if err == nil {
 		t.Error("Test Failed - Bittrex - Withdraw() error")
 	}

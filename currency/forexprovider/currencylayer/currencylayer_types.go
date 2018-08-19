@@ -1,5 +1,7 @@
 package currencylayer
 
+import "github.com/shopspring/decimal"
+
 // LiveRates is a response type holding rates priced now.
 type LiveRates struct {
 	Success bool `json:"success"`
@@ -7,11 +9,11 @@ type LiveRates struct {
 		Code int    `json:"code"`
 		Info string `json:"info"`
 	} `json:"error"`
-	Terms     string             `json:"terms"`
-	Privacy   string             `json:"privacy"`
-	Timestamp int64              `json:"timestamp"`
-	Source    string             `json:"source"`
-	Quotes    map[string]float64 `json:"quotes"`
+	Terms     string                     `json:"terms"`
+	Privacy   string                     `json:"privacy"`
+	Timestamp int64                      `json:"timestamp"`
+	Source    string                     `json:"source"`
+	Quotes    map[string]decimal.Decimal `json:"quotes"`
 }
 
 // SupportedCurrencies holds supported currency information
@@ -33,13 +35,13 @@ type HistoricalRates struct {
 		Code int    `json:"code"`
 		Info string `json:"info"`
 	} `json:"error"`
-	Terms      string             `json:"terms"`
-	Privacy    string             `json:"privacy"`
-	Historical bool               `json:"historical"`
-	Date       string             `json:"date"`
-	Timestamp  int64              `json:"timestamp"`
-	Source     string             `json:"source"`
-	Quotes     map[string]float64 `json:"quotes"`
+	Terms      string                     `json:"terms"`
+	Privacy    string                     `json:"privacy"`
+	Historical bool                       `json:"historical"`
+	Date       string                     `json:"date"`
+	Timestamp  int64                      `json:"timestamp"`
+	Source     string                     `json:"source"`
+	Quotes     map[string]decimal.Decimal `json:"quotes"`
 }
 
 // ConversionRate is a response type holding a converted rate.
@@ -52,17 +54,17 @@ type ConversionRate struct {
 	Privacy string `json:"privacy"`
 	Terms   string `json:"terms"`
 	Query   struct {
-		From   string  `json:"from"`
-		To     string  `json:"to"`
-		Amount float64 `json:"amount"`
+		From   string          `json:"from"`
+		To     string          `json:"to"`
+		Amount decimal.Decimal `json:"amount"`
 	} `json:"query"`
 	Info struct {
-		Timestamp int64   `json:"timestamp"`
-		Quote     float64 `json:"quote"`
+		Timestamp int64           `json:"timestamp"`
+		Quote     decimal.Decimal `json:"quote"`
 	} `json:"info"`
-	Historical bool    `json:"historical"`
-	Date       string  `json:"date"`
-	Result     float64 `json:"result"`
+	Historical bool            `json:"historical"`
+	Date       string          `json:"date"`
+	Result     decimal.Decimal `json:"result"`
 }
 
 // TimeFrame is a response type holding exchange rates for a time period
@@ -99,8 +101,8 @@ type ChangeRate struct {
 
 // Changes is a sub-type of ChangeRate that holds the actual changes of rates.
 type Changes struct {
-	StartRate float64 `json:"start_rate"`
-	EndRate   float64 `json:"end_rate"`
-	Change    float64 `json:"change"`
-	ChangePCT float64 `json:"change_pct"`
+	StartRate decimal.Decimal `json:"start_rate"`
+	EndRate   decimal.Decimal `json:"end_rate"`
+	Change    decimal.Decimal `json:"change"`
+	ChangePCT decimal.Decimal `json:"change_pct"`
 }

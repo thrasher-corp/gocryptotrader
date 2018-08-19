@@ -12,6 +12,7 @@ import (
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
+	"github.com/shopspring/decimal"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/request"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
@@ -46,7 +47,7 @@ type ZB struct {
 func (z *ZB) SetDefaults() {
 	z.Name = "ZB"
 	z.Enabled = false
-	z.Fee = 0
+	z.Fee = decimal.Zero
 	z.Verbose = false
 	z.Websocket = false
 	z.RESTPollingDelay = 10
@@ -99,9 +100,9 @@ func (z *ZB) SpotNewOrder(arg SpotNewOrderRequestParams) (int64, error) {
 	vals := url.Values{}
 	vals.Set("accesskey", z.APIKey)
 	vals.Set("method", "order")
-	vals.Set("amount", strconv.FormatFloat(arg.Amount, 'f', -1, 64))
+	vals.Set("amount", arg.Amount.StringFixed(exchange.DefaultDecimalPrecision))
 	vals.Set("currency", arg.Symbol)
-	vals.Set("price", strconv.FormatFloat(arg.Price, 'f', -1, 64))
+	vals.Set("price", arg.Price.StringFixed(exchange.DefaultDecimalPrecision))
 	vals.Set("tradeType", string(arg.Type))
 
 	err := z.SendAuthenticatedHTTPRequest("GET", zbOrder, vals, &result)
@@ -175,8 +176,8 @@ func (z *ZB) GetMarkets() (map[string]MarketResponseItem, error) {
 	for k, v := range list {
 		item := v.(map[string]interface{})
 		result[k] = MarketResponseItem{
-			AmountScale: item["amountScale"].(float64),
-			PriceScale:  item["priceScale"].(float64),
+			AmountScale: decimal.NewFromFloat(item["amountScale"].(float64)),
+			PriceScale:  decimal.NewFromFloat(item["priceScale"].(float64)),
 		}
 	}
 	return result, nil
@@ -186,11 +187,11 @@ func (z *ZB) GetMarkets() (map[string]MarketResponseItem, error) {
 //
 // symbol: string of currency pair
 // 获取最新价格
-func (z *ZB) GetLatestSpotPrice(symbol string) (float64, error) {
+func (z *ZB) GetLatestSpotPrice(symbol string) (decimal.Decimal, error) {
 	res, err := z.GetTicker(symbol)
 
 	if err != nil {
-		return 0, err
+		return decimal.Zero, err
 	}
 
 	return res.Ticker.Last, nil
@@ -233,7 +234,7 @@ func (z *ZB) GetOrderbook(symbol string) (OrderbookResponse, error) {
 	}
 
 	// reverse asks data
-	var data [][]float64
+	var data [][]decimal.Decimal
 	for x := len(res.Asks) - 1; x != 0; x-- {
 		data = append(data, res.Asks[x])
 	}
@@ -282,11 +283,11 @@ func (z *ZB) GetSpotKline(arg KlinesRequestParams) (KLineResponse, error) {
 		res.Data = append(res.Data, &KLineResponseData{
 			ID:        k[0].(float64),
 			KlineTime: ot,
-			Open:      k[1].(float64),
-			High:      k[2].(float64),
-			Low:       k[3].(float64),
-			Close:     k[4].(float64),
-			Volume:    k[5].(float64),
+			Open:      decimal.NewFromFloat(k[1].(float64)),
+			High:      decimal.NewFromFloat(k[2].(float64)),
+			Low:       decimal.NewFromFloat(k[3].(float64)),
+			Close:     decimal.NewFromFloat(k[4].(float64)),
+			Volume:    decimal.NewFromFloat(k[5].(float64)),
 		})
 	}
 

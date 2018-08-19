@@ -1,5 +1,7 @@
 package btcmarkets
 
+import "github.com/shopspring/decimal"
+
 // Response is the genralized response type
 type Response struct {
 	Success      bool   `json:"success"`
@@ -19,30 +21,30 @@ type Response struct {
 
 // Ticker holds ticker information
 type Ticker struct {
-	BestBID    float64 `json:"bestBid"`
-	BestAsk    float64 `json:"bestAsk"`
-	LastPrice  float64 `json:"lastPrice"`
-	Currency   string  `json:"currency"`
-	Instrument string  `json:"instrument"`
-	Timestamp  int64   `json:"timestamp"`
-	Volume     float64 `json:"volume24h"`
+	BestBID    decimal.Decimal `json:"bestBid"`
+	BestAsk    decimal.Decimal `json:"bestAsk"`
+	LastPrice  decimal.Decimal `json:"lastPrice"`
+	Currency   string          `json:"currency"`
+	Instrument string          `json:"instrument"`
+	Timestamp  int64           `json:"timestamp"`
+	Volume     float64         `json:"volume24h"`
 }
 
 // Orderbook holds current orderbook information returned from the exchange
 type Orderbook struct {
-	Currency   string      `json:"currency"`
-	Instrument string      `json:"instrument"`
-	Timestamp  int64       `json:"timestamp"`
-	Asks       [][]float64 `json:"asks"`
-	Bids       [][]float64 `json:"bids"`
+	Currency   string              `json:"currency"`
+	Instrument string              `json:"instrument"`
+	Timestamp  int64               `json:"timestamp"`
+	Asks       [][]decimal.Decimal `json:"asks"`
+	Bids       [][]decimal.Decimal `json:"bids"`
 }
 
 // Trade holds trade information
 type Trade struct {
-	TradeID int64   `json:"tid"`
-	Amount  float64 `json:"amount"`
-	Price   float64 `json:"price"`
-	Date    int64   `json:"date"`
+	TradeID int64           `json:"tid"`
+	Amount  decimal.Decimal `json:"amount"`
+	Price   decimal.Decimal `json:"price"`
+	Date    int64           `json:"date"`
 }
 
 // OrderToGo holds order information to be sent to the exchange
@@ -66,28 +68,28 @@ type Order struct {
 	CreationTime    float64         `json:"creationTime"`
 	Status          string          `json:"status"`
 	ErrorMessage    string          `json:"errorMessage"`
-	Price           float64         `json:"price"`
-	Volume          float64         `json:"volume"`
-	OpenVolume      float64         `json:"openVolume"`
+	Price           decimal.Decimal `json:"price"`
+	Volume          decimal.Decimal `json:"volume"`
+	OpenVolume      decimal.Decimal `json:"openVolume"`
 	ClientRequestID string          `json:"clientRequestId"`
 	Trades          []TradeResponse `json:"trades"`
 }
 
 // TradeResponse holds trade information
 type TradeResponse struct {
-	ID           int64   `json:"id"`
-	CreationTime float64 `json:"creationTime"`
-	Description  string  `json:"description"`
-	Price        float64 `json:"price"`
-	Volume       float64 `json:"volume"`
-	Fee          float64 `json:"fee"`
+	ID           int64           `json:"id"`
+	CreationTime float64         `json:"creationTime"`
+	Description  string          `json:"description"`
+	Price        decimal.Decimal `json:"price"`
+	Volume       float64         `json:"volume"`
+	Fee          decimal.Decimal `json:"fee"`
 }
 
 // AccountBalance holds account balance details
 type AccountBalance struct {
-	Balance      float64 `json:"balance"`
-	PendingFunds float64 `json:"pendingFunds"`
-	Currency     string  `json:"currency"`
+	Balance      decimal.Decimal `json:"balance"`
+	PendingFunds decimal.Decimal `json:"pendingFunds"`
+	Currency     string          `json:"currency"`
 }
 
 // WithdrawRequestCrypto is a generalized withdraw request type

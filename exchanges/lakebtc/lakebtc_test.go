@@ -3,6 +3,8 @@ package lakebtc
 import (
 	"testing"
 
+	"github.com/shopspring/decimal"
+	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
 )
 
@@ -43,10 +45,10 @@ func TestGetTradablePairs(t *testing.T) {
 
 func TestGetFee(t *testing.T) {
 	t.Parallel()
-	if l.GetFee(false) != 0.2 {
+	if common.NotEqual(l.GetFee(false), decimal.NewFromFloat(0.2)) {
 		t.Error("Test Failed - GetFee() error")
 	}
-	if l.GetFee(true) != 0.15 {
+	if common.NotEqual(l.GetFee(true), decimal.NewFromFloat(0.15)) {
 		t.Error("Test Failed - GetFee() error")
 	}
 }
@@ -80,7 +82,7 @@ func TestTrade(t *testing.T) {
 	if l.APIKey == "" || l.APISecret == "" {
 		t.Skip()
 	}
-	_, err := l.Trade(0, 0, 0, "USD")
+	_, err := l.Trade(0, decimal.Zero, decimal.Zero, "USD")
 	if err == nil {
 		t.Error("Test Failed - Trade() error", err)
 	}
@@ -146,7 +148,7 @@ func TestCreateWithdraw(t *testing.T) {
 	if l.APIKey == "" || l.APISecret == "" {
 		t.Skip()
 	}
-	_, err := l.CreateWithdraw(0, 1337)
+	_, err := l.CreateWithdraw(decimal.Zero, 1337)
 	if err == nil {
 		t.Error("Test Failed - CreateWithdraw() error", err)
 	}

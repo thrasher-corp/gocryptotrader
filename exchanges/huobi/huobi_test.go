@@ -10,6 +10,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
 )
@@ -72,7 +73,7 @@ func TestSetup(t *testing.T) {
 
 func TestGetFee(t *testing.T) {
 	t.Parallel()
-	if h.GetFee() != 0 {
+	if common.NotZero(h.GetFee()) {
 		t.Errorf("test failed - Huobi GetFee() error")
 	}
 }
@@ -207,8 +208,8 @@ func TestSpotNewOrder(t *testing.T) {
 	arg := SpotNewOrderRequestParams{
 		Symbol:    "btcusdt",
 		AccountID: 000000,
-		Amount:    0.01,
-		Price:     10.1,
+		Amount:    decimal.NewFromFloat(0.01),
+		Price:     decimal.NewFromFloat(10.1),
 		Type:      SpotNewOrderRequestTypeBuyLimit,
 	}
 

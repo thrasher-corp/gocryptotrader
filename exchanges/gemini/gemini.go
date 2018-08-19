@@ -5,12 +5,12 @@ import (
 	"fmt"
 	"log"
 	"net/url"
-	"strconv"
 	"strings"
 	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/request"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
@@ -160,9 +160,9 @@ func (g *Gemini) GetSymbols() ([]string, error) {
 func (g *Gemini) GetTicker(currencyPair string) (Ticker, error) {
 
 	type TickerResponse struct {
-		Ask     float64 `json:"ask,string"`
-		Bid     float64 `json:"bid,string"`
-		Last    float64 `json:"last,string"`
+		Ask     decimal.Decimal `json:"ask,string"`
+		Bid     decimal.Decimal `json:"bid,string"`
+		Last    decimal.Decimal `json:"last,string"`
 		Volume  map[string]interface{}
 		Message string `json:"message"`
 	}
@@ -184,13 +184,13 @@ func (g *Gemini) GetTicker(currencyPair string) (Ticker, error) {
 	ticker.Bid = resp.Bid
 	ticker.Last = resp.Last
 
-	ticker.Volume.Currency, _ = strconv.ParseFloat(resp.Volume[currencyPair[0:3]].(string), 64)
+	ticker.Volume.Currency, _ = decimal.NewFromString(resp.Volume[currencyPair[0:3]].(string))
 
 	if common.StringContains(currencyPair, "USD") {
-		ticker.Volume.USD, _ = strconv.ParseFloat(resp.Volume["USD"].(string), 64)
+		ticker.Volume.USD, _ = decimal.NewFromString(resp.Volume["USD"].(string))
 	} else {
-		ticker.Volume.ETH, _ = strconv.ParseFloat(resp.Volume["ETH"].(string), 64)
-		ticker.Volume.BTC, _ = strconv.ParseFloat(resp.Volume["BTC"].(string), 64)
+		ticker.Volume.ETH, _ = decimal.NewFromString(resp.Volume["ETH"].(string))
+		ticker.Volume.BTC, _ = decimal.NewFromString(resp.Volume["BTC"].(string))
 	}
 
 	time, _ := resp.Volume["timestamp"].(float64)
@@ -262,15 +262,15 @@ func (g *Gemini) isCorrectSession(role string) error {
 
 // NewOrder Only limit orders are supported through the API at present.
 // returns order ID if successful
-func (g *Gemini) NewOrder(symbol string, amount, price float64, side, orderType string) (int64, error) {
+func (g *Gemini) NewOrder(symbol string, amount, price decimal.Decimal, side, orderType string) (int64, error) {
 	if err := g.isCorrectSession(geminiRoleTrader); err != nil {
 		return 0, err
 	}
 
 	request := make(map[string]interface{})
 	request["symbol"] = symbol
-	request["amount"] = strconv.FormatFloat(amount, 'f', -1, 64)
-	request["price"] = strconv.FormatFloat(price, 'f', -1, 64)
+	request["amount"] = amount.StringFixed(exchange.DefaultDecimalPrecision)
+	request["price"] = price.StringFixed(exchange.DefaultDecimalPrecision)
 	request["side"] = side
 	request["type"] = orderType
 
@@ -404,11 +404,11 @@ func (g *Gemini) GetDepositAddress(depositAddlabel, currency string) (DepositAdd
 }
 
 // WithdrawCrypto withdraws crypto currency to a whitelisted address
-func (g *Gemini) WithdrawCrypto(address, currency string, amount float64) (WithdrawalAddress, error) {
+func (g *Gemini) WithdrawCrypto(address, currency string, amount decimal.Decimal) (WithdrawalAddress, error) {
 	response := WithdrawalAddress{}
 	request := make(map[string]interface{})
 	request["address"] = address
-	request["amount"] = strconv.FormatFloat(amount, 'f', -1, 64)
+	request["amount"] = amount.StringFixed(exchange.DefaultDecimalPrecision)
 
 	err := g.SendAuthenticatedHTTPRequest("POST", geminiWithdraw+currency, nil, &response)
 	if err != nil {

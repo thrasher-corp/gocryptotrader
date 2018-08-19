@@ -5,11 +5,11 @@ import (
 	"fmt"
 	"log"
 	"net/url"
-	"strconv"
 	"sync"
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
@@ -83,6 +83,8 @@ func (k *Kraken) UpdateTicker(p pair.CurrencyPair, assetType string) (ticker.Pri
 		return tickerPrice, err
 	}
 
+	k.Lock()
+	defer k.Unlock()
 	for _, x := range pairs {
 		for y, z := range k.Ticker {
 			if common.StringContains(y, x.FirstCurrency.Upper().String()) && common.StringContains(y, x.SecondCurrency.Upper().String()) {
@@ -122,18 +124,19 @@ func (k *Kraken) SetTicker(symbol string) error {
 	if len(resp.Error) > 0 {
 		return fmt.Errorf("Kraken error: %s", resp.Error)
 	}
-
+	k.Lock()
+	defer k.Unlock()
 	for x, y := range resp.Data {
 		ticker := Ticker{}
-		ticker.Ask, _ = strconv.ParseFloat(y.Ask[0], 64)
-		ticker.Bid, _ = strconv.ParseFloat(y.Bid[0], 64)
-		ticker.Last, _ = strconv.ParseFloat(y.Last[0], 64)
-		ticker.Volume, _ = strconv.ParseFloat(y.Volume[1], 64)
-		ticker.VWAP, _ = strconv.ParseFloat(y.VWAP[1], 64)
+		ticker.Ask, _ = decimal.NewFromString(y.Ask[0])
+		ticker.Bid, _ = decimal.NewFromString(y.Bid[0])
+		ticker.Last, _ = decimal.NewFromString(y.Last[0])
+		ticker.Volume, _ = decimal.NewFromString(y.Volume[1])
+		ticker.VWAP, _ = decimal.NewFromString(y.VWAP[1])
 		ticker.Trades = y.Trades[1]
-		ticker.Low, _ = strconv.ParseFloat(y.Low[1], 64)
-		ticker.High, _ = strconv.ParseFloat(y.High[1], 64)
-		ticker.Open, _ = strconv.ParseFloat(y.Open, 64)
+		ticker.Low, _ = decimal.NewFromString(y.Low[1])
+		ticker.High, _ = decimal.NewFromString(y.High[1])
+		ticker.Open, _ = decimal.NewFromString(y.Open)
 		k.Ticker[x] = ticker
 	}
 	return nil
@@ -200,7 +203,7 @@ func (k *Kraken) GetExchangeHistory(p pair.CurrencyPair, assetType string) ([]ex
 }
 
 // SubmitExchangeOrder submits a new order
-func (k *Kraken) SubmitExchangeOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (int64, error) {
+func (k *Kraken) SubmitExchangeOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price decimal.Decimal, clientID string) (int64, error) {
 	return 0, errors.New("not yet implemented")
 }
 
@@ -233,18 +236,18 @@ func (k *Kraken) GetExchangeDepositAddress(cryptocurrency pair.CurrencyItem) (st
 
 // WithdrawCryptoExchangeFunds returns a withdrawal ID when a withdrawal is
 // submitted
-func (k *Kraken) WithdrawCryptoExchangeFunds(address string, cryptocurrency pair.CurrencyItem, amount float64) (string, error) {
+func (k *Kraken) WithdrawCryptoExchangeFunds(address string, cryptocurrency pair.CurrencyItem, amount decimal.Decimal) (string, error) {
 	return "", errors.New("not yet implemented")
 }
 
 // WithdrawFiatExchangeFunds returns a withdrawal ID when a
 // withdrawal is submitted
-func (k *Kraken) WithdrawFiatExchangeFunds(currency pair.CurrencyItem, amount float64) (string, error) {
+func (k *Kraken) WithdrawFiatExchangeFunds(currency pair.CurrencyItem, amount decimal.Decimal) (string, error) {
 	return "", errors.New("not yet implemented")
 }
 
 // WithdrawFiatExchangeFundsToInternationalBank returns a withdrawal ID when a
 // withdrawal is submitted
-func (k *Kraken) WithdrawFiatExchangeFundsToInternationalBank(currency pair.CurrencyItem, amount float64) (string, error) {
+func (k *Kraken) WithdrawFiatExchangeFundsToInternationalBank(currency pair.CurrencyItem, amount decimal.Decimal) (string, error) {
 	return "", errors.New("not yet implemented")
 }

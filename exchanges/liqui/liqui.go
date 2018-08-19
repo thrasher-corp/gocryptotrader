@@ -11,6 +11,7 @@ import (
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/request"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
@@ -48,7 +49,7 @@ type Liqui struct {
 func (l *Liqui) SetDefaults() {
 	l.Name = "Liqui"
 	l.Enabled = false
-	l.Fee = 0.25
+	l.Fee = decimal.NewFromFloat(0.25)
 	l.Verbose = false
 	l.Websocket = false
 	l.RESTPollingDelay = 10
@@ -96,10 +97,10 @@ func (l *Liqui) Setup(exch config.ExchangeConfig) {
 }
 
 // GetFee returns a fee for a specific currency
-func (l *Liqui) GetFee(currency string) (float64, error) {
+func (l *Liqui) GetFee(currency string) (decimal.Decimal, error) {
 	val, ok := l.Info.Pairs[common.StringToLower(currency)]
 	if !ok {
-		return 0, errors.New("currency does not exist")
+		return decimal.Zero, errors.New("currency does not exist")
 	}
 
 	return val.Fee, nil
@@ -191,12 +192,12 @@ func (l *Liqui) GetAccountInfo() (AccountInfo, error) {
 
 // Trade creates orders on the exchange.
 // to-do: convert orderid to int64
-func (l *Liqui) Trade(pair, orderType string, amount, price float64) (float64, error) {
+func (l *Liqui) Trade(pair, orderType string, amount, price decimal.Decimal) (decimal.Decimal, error) {
 	req := url.Values{}
 	req.Add("pair", pair)
 	req.Add("type", orderType)
-	req.Add("amount", strconv.FormatFloat(amount, 'f', -1, 64))
-	req.Add("rate", strconv.FormatFloat(price, 'f', -1, 64))
+	req.Add("amount", amount.StringFixed(exchange.DefaultDecimalPrecision))
+	req.Add("rate", price.StringFixed(exchange.DefaultDecimalPrecision))
 
 	var result Trade
 
@@ -252,10 +253,10 @@ func (l *Liqui) GetTradeHistory(vals url.Values, pair string) (map[string]TradeH
 // WithdrawCoins is designed for cryptocurrency withdrawals.
 // API mentions that this isn't active now, but will be soon - you must provide the first 8 characters of the key
 // in your ticket to support.
-func (l *Liqui) WithdrawCoins(coin string, amount float64, address string) (WithdrawCoins, error) {
+func (l *Liqui) WithdrawCoins(coin string, amount decimal.Decimal, address string) (WithdrawCoins, error) {
 	req := url.Values{}
 	req.Add("coinName", coin)
-	req.Add("amount", strconv.FormatFloat(amount, 'f', -1, 64))
+	req.Add("amount", amount.StringFixed(exchange.DefaultDecimalPrecision))
 	req.Add("address", address)
 
 	var result WithdrawCoins

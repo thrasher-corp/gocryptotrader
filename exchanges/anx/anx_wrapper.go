@@ -3,11 +3,11 @@ package anx
 import (
 	"errors"
 	"log"
-	"strconv"
 	"sync"
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
@@ -80,57 +80,60 @@ func (a *ANX) UpdateTicker(p pair.CurrencyPair, assetType string) (ticker.Price,
 	tickerPrice.Pair = p
 
 	if tick.Data.Sell.Value != "" {
-		tickerPrice.Ask, err = strconv.ParseFloat(tick.Data.Sell.Value, 64)
+		//tickerPrice.Ask, err = strconv.ParseFloat(tick.Data.Sell.Value, 64)
+		tickerPrice.Ask, err = decimal.NewFromString(tick.Data.Sell.Value)
 		if err != nil {
 			return tickerPrice, err
 		}
 	} else {
-		tickerPrice.Ask = 0
+		tickerPrice.Ask = decimal.Zero
 	}
 
 	if tick.Data.Buy.Value != "" {
-		tickerPrice.Bid, err = strconv.ParseFloat(tick.Data.Buy.Value, 64)
+		//tickerPrice.Bid, err = strconv.ParseFloat(tick.Data.Buy.Value, 64)
+		tickerPrice.Bid, err = decimal.NewFromString(tick.Data.Buy.Value)
 		if err != nil {
 			return tickerPrice, err
 		}
 	} else {
-		tickerPrice.Bid = 0
+		tickerPrice.Bid = decimal.Zero
 	}
 
 	if tick.Data.Low.Value != "" {
-		tickerPrice.Low, err = strconv.ParseFloat(tick.Data.Low.Value, 64)
+		//tickerPrice.Low, err = strconv.ParseFloat(tick.Data.Low.Value, 64)
+		tickerPrice.Low, err = decimal.NewFromString(tick.Data.Low.Value)
 		if err != nil {
 			return tickerPrice, err
 		}
 	} else {
-		tickerPrice.Low = 0
+		tickerPrice.Low = decimal.Zero
 	}
 
 	if tick.Data.Last.Value != "" {
-		tickerPrice.Last, err = strconv.ParseFloat(tick.Data.Last.Value, 64)
+		tickerPrice.Last, err = decimal.NewFromString(tick.Data.Last.Value)
 		if err != nil {
 			return tickerPrice, err
 		}
 	} else {
-		tickerPrice.Last = 0
+		tickerPrice.Last = decimal.Zero
 	}
 
 	if tick.Data.Vol.Value != "" {
-		tickerPrice.Volume, err = strconv.ParseFloat(tick.Data.Vol.Value, 64)
+		tickerPrice.Volume, err = decimal.NewFromString(tick.Data.Vol.Value)
 		if err != nil {
 			return tickerPrice, err
 		}
 	} else {
-		tickerPrice.Volume = 0
+		tickerPrice.Volume = decimal.Zero
 	}
 
 	if tick.Data.High.Value != "" {
-		tickerPrice.High, err = strconv.ParseFloat(tick.Data.High.Value, 64)
+		tickerPrice.High, err = decimal.NewFromString(tick.Data.High.Value)
 		if err != nil {
 			return tickerPrice, err
 		}
 	} else {
-		tickerPrice.High = 0
+		tickerPrice.High = decimal.Zero
 	}
 	ticker.ProcessTicker(a.GetName(), p, tickerPrice, assetType)
 	return ticker.GetTicker(a.Name, p, assetType)
@@ -196,7 +199,7 @@ func (a *ANX) GetExchangeHistory(p pair.CurrencyPair, assetType string) ([]excha
 }
 
 // SubmitExchangeOrder submits a new order
-func (a *ANX) SubmitExchangeOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (int64, error) {
+func (a *ANX) SubmitExchangeOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price decimal.Decimal, clientID string) (int64, error) {
 	return 0, errors.New("not yet implemented")
 }
 
@@ -229,18 +232,18 @@ func (a *ANX) GetExchangeDepositAddress(cryptocurrency pair.CurrencyItem) (strin
 
 // WithdrawCryptoExchangeFunds returns a withdrawal ID when a withdrawal is
 // submitted
-func (a *ANX) WithdrawCryptoExchangeFunds(address string, cryptocurrency pair.CurrencyItem, amount float64) (string, error) {
+func (a *ANX) WithdrawCryptoExchangeFunds(address string, cryptocurrency pair.CurrencyItem, amount decimal.Decimal) (string, error) {
 	return "", errors.New("not yet implemented")
 }
 
 // WithdrawFiatExchangeFunds returns a withdrawal ID when a withdrawal is
 // submitted
-func (a *ANX) WithdrawFiatExchangeFunds(currency pair.CurrencyItem, amount float64) (string, error) {
+func (a *ANX) WithdrawFiatExchangeFunds(currency pair.CurrencyItem, amount decimal.Decimal) (string, error) {
 	return "", errors.New("not yet implemented")
 }
 
 // WithdrawFiatExchangeFundsToInternationalBank returns a withdrawal ID when a withdrawal is
 // submitted
-func (a *ANX) WithdrawFiatExchangeFundsToInternationalBank(currency pair.CurrencyItem, amount float64) (string, error) {
+func (a *ANX) WithdrawFiatExchangeFundsToInternationalBank(currency pair.CurrencyItem, amount decimal.Decimal) (string, error) {
 	return "", errors.New("not yet implemented")
 }
