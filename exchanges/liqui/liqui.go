@@ -253,10 +253,10 @@ func (l *Liqui) GetTradeHistory(vals url.Values, pair string) (map[string]TradeH
 // WithdrawCoins is designed for cryptocurrency withdrawals.
 // API mentions that this isn't active now, but will be soon - you must provide the first 8 characters of the key
 // in your ticket to support.
-func (l *Liqui) WithdrawCoins(coin string, amount float64, address string) (WithdrawCoins, error) {
+func (l *Liqui) WithdrawCoins(coin string, amount decimal.Decimal, address string) (WithdrawCoins, error) {
 	req := url.Values{}
 	req.Add("coinName", coin)
-	req.Add("amount", strconv.FormatFloat(amount, 'f', -1, 64))
+	req.Add("amount", amount.StringFixed(exchange.DefaultDecimalPrecision))
 	req.Add("address", address)
 
 	var result WithdrawCoins

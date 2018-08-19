@@ -358,11 +358,11 @@ func (h *HUOBI) GetAccountBalance(accountID string) ([]AccountBalanceDetail, err
 func (h *HUOBI) SpotNewOrder(arg SpotNewOrderRequestParams) (int64, error) {
 	vals := url.Values{}
 	vals.Set("account-id", fmt.Sprintf("%d", arg.AccountID))
-	vals.Set("amount", strconv.FormatFloat(arg.Amount, 'f', -1, 64))
+	vals.Set("amount", arg.Amount.StringFixed(exchange.DefaultDecimalPrecision))
 
 	// Only set price if order type is not equal to buy-market or sell-market
 	if arg.Type != SpotNewOrderRequestTypeBuyMarket && arg.Type != SpotNewOrderRequestTypeSellMarket {
-		vals.Set("price", strconv.FormatFloat(arg.Price, 'f', -1, 64))
+		vals.Set("price", arg.Price.StringFixed(exchange.DefaultDecimalPrecision))
 	}
 
 	if arg.Source != "" {

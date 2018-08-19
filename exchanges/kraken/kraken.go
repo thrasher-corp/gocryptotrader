@@ -6,6 +6,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
@@ -47,17 +48,20 @@ const (
 
 // Kraken is the overarching type across the alphapoint package
 type Kraken struct {
+	sync.Mutex
 	exchange.Base
-	CryptoFee, FiatFee float64
+	CryptoFee, FiatFee decimal.Decimal
 	Ticker             map[string]Ticker
 }
 
 // SetDefaults sets current default settings
 func (k *Kraken) SetDefaults() {
+	k.Lock()
+	defer k.Unlock()
 	k.Name = "Kraken"
 	k.Enabled = false
-	k.FiatFee = 0.35
-	k.CryptoFee = 0.10
+	k.FiatFee = decimal.NewFromFloat(0.35)
+	k.CryptoFee = decimal.NewFromFloat(0.10)
 	k.Verbose = false
 	k.Websocket = false
 	k.RESTPollingDelay = 10
@@ -105,7 +109,7 @@ func (k *Kraken) Setup(exch config.ExchangeConfig) {
 }
 
 // GetFee returns current fee for either crypto or fiat
-func (k *Kraken) GetFee(cryptoTrade bool) float64 {
+func (k *Kraken) GetFee(cryptoTrade bool) decimal.Decimal {
 	if cryptoTrade {
 		return k.CryptoFee
 	}
@@ -384,7 +388,7 @@ func (k *Kraken) GetSpread(symbol string) ([]Spread, error) {
 }
 
 // GetBalance returns your balance associated with your keys
-func (k *Kraken) GetBalance() (map[string]float64, error) {
+func (k *Kraken) GetBalance() (map[string]decimal.Decimal, error) {
 	var response struct {
 		Error  []string          `json:"error"`
 		Result map[string]string `json:"result"`
@@ -394,10 +398,10 @@ func (k *Kraken) GetBalance() (map[string]float64, error) {
 		return nil, err
 	}
 
-	result := make(map[string]float64)
+	result := make(map[string]decimal.Decimal)
 	for curency, balance := range response.Result {
 		var err error
-		if result[curency], err = strconv.ParseFloat(balance, 64); err != nil {
+		if result[curency], err = decimal.NewFromString(balance); err != nil {
 			return nil, err
 		}
 	}
@@ -705,24 +709,24 @@ func (k *Kraken) GetTradeVolume(feeinfo bool, symbol ...string) (TradeVolumeResp
 }
 
 // AddOrder adds a new order for Kraken exchange
-func (k *Kraken) AddOrder(symbol, side, orderType string, volume, price, price2, leverage float64, args AddOrderOptions) (AddOrderResponse, error) {
+func (k *Kraken) AddOrder(symbol, side, orderType string, volume, price, price2, leverage decimal.Decimal, args AddOrderOptions) (AddOrderResponse, error) {
 	params := url.Values{
 		"pair":      {symbol},
 		"type":      {side},
 		"ordertype": {orderType},
-		"volume":    {strconv.FormatFloat(volume, 'f', -1, 64)},
+		"volume":    {volume.StringFixed(exchange.DefaultDecimalPrecision)},
 	}
 
-	if price != 0 {
-		params.Set("price", strconv.FormatFloat(price, 'f', -1, 64))
+	if price.NotZero() {
+		params.Set("price", price.StringFixed(exchange.DefaultDecimalPrecision))
 	}
 
-	if price2 != 0 {
-		params.Set("price2", strconv.FormatFloat(price2, 'f', -1, 64))
+	if price2.NotZero() {
+		params.Set("price2", price2.StringFixed(exchange.DefaultDecimalPrecision))
 	}
 
-	if leverage != 0 {
-		params.Set("leverage", strconv.FormatFloat(leverage, 'f', -1, 64))
+	if leverage.NotZero() {
+		params.Set("leverage", leverage.StringFixed(exchange.DefaultDecimalPrecision))
 	}
 
 	if len(args.Oflags) != 0 {

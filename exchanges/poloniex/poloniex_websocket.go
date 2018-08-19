@@ -60,41 +60,41 @@ func OnDepthOrTrade(args []interface{}, kwargs map[string]interface{}) {
 			{
 				type PoloniexWebsocketOrderbookModify struct {
 					Type   string
-					Rate   float64
-					Amount float64
+					Rate   decimal.Decimal
+					Amount decimal.Decimal
 				}
 
 				orderModify := PoloniexWebsocketOrderbookModify{}
 				orderModify.Type = msgData["type"].(string)
 
 				rateStr := msgData["rate"].(string)
-				orderModify.Rate, _ = strconv.ParseFloat(rateStr, 64)
+				orderModify.Rate, _ = decimal.NewFromString(rateStr)
 
 				amountStr := msgData["amount"].(string)
-				orderModify.Amount, _ = strconv.ParseFloat(amountStr, 64)
+				orderModify.Amount, _ = decimal.NewFromString(amountStr)
 			}
 		case "orderBookRemove":
 			{
 				type PoloniexWebsocketOrderbookRemove struct {
 					Type string
-					Rate float64
+					Rate decimal.Decimal
 				}
 
 				orderRemoval := PoloniexWebsocketOrderbookRemove{}
 				orderRemoval.Type = msgData["type"].(string)
 
 				rateStr := msgData["rate"].(string)
-				orderRemoval.Rate, _ = strconv.ParseFloat(rateStr, 64)
+				orderRemoval.Rate, _ = decimal.NewFromString(rateStr)
 			}
 		case "newTrade":
 			{
 				type PoloniexWebsocketNewTrade struct {
 					Type    string
 					TradeID int64
-					Rate    float64
-					Amount  float64
+					Rate    decimal.Decimal
+					Amount  decimal.Decimal
 					Date    string
-					Total   float64
+					Total   decimal.Decimal
 				}
 
 				trade := PoloniexWebsocketNewTrade{}
@@ -104,13 +104,13 @@ func OnDepthOrTrade(args []interface{}, kwargs map[string]interface{}) {
 				trade.TradeID, _ = strconv.ParseInt(tradeIDstr, 10, 64)
 
 				rateStr := msgData["rate"].(string)
-				trade.Rate, _ = strconv.ParseFloat(rateStr, 64)
+				trade.Rate, _ = decimal.NewFromString(rateStr)
 
 				amountStr := msgData["amount"].(string)
-				trade.Amount, _ = strconv.ParseFloat(amountStr, 64)
+				trade.Amount, _ = decimal.NewFromString(amountStr)
 
 				totalStr := msgData["total"].(string)
-				trade.Rate, _ = strconv.ParseFloat(totalStr, 64)
+				trade.Rate, _ = decimal.NewFromString(totalStr)
 
 				trade.Date = msgData["date"].(string)
 			}

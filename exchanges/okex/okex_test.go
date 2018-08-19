@@ -249,8 +249,8 @@ func TestSpotNewOrder(t *testing.T) {
 
 	_, err := o.SpotNewOrder(SpotNewOrderRequestParams{
 		Symbol: "ltc_btc",
-		Amount: 1.1,
-		Price:  10.1,
+		Amount: decimal.NewFromFloat(1.1),
+		Price:  decimal.NewFromFloat(10.1),
 		Type:   SpotNewOrderRequestTypeBuy,
 	})
 	if err != nil {

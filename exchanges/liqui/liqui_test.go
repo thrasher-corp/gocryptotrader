@@ -115,7 +115,7 @@ func TestAuthRequests(t *testing.T) {
 			t.Error("Test Failed - liqui GetTradeHistory() error", err)
 		}
 
-		_, err = l.WithdrawCoins("btc", 1337, "someaddr")
+		_, err = l.WithdrawCoins("btc", decimal.NewFromInt(1337), "someaddr")
 		if err == nil {
 			t.Error("Test Failed - liqui WithdrawCoins() error", err)
 		}

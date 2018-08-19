@@ -10,6 +10,7 @@ import (
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
+	"github.com/thrasher-/gocryptotrader/decimal"
 	"github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/request"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
@@ -240,12 +241,12 @@ func (b *Bittrex) GetMarketHistory(currencyPair string) (MarketHistory, error) {
 // "Currency" ie "btc-ltc"
 // "Quantity" is the amount to purchase
 // "Rate" is the rate at which to purchase
-func (b *Bittrex) PlaceBuyLimit(currencyPair string, quantity, rate float64) (UUID, error) {
+func (b *Bittrex) PlaceBuyLimit(currencyPair string, quantity, rate decimal.Decimal) (UUID, error) {
 	var id UUID
 	values := url.Values{}
 	values.Set("market", currencyPair)
-	values.Set("quantity", strconv.FormatFloat(quantity, 'E', -1, 64))
-	values.Set("rate", strconv.FormatFloat(rate, 'E', -1, 64))
+	values.Set("quantity", strconv.FormatFloat(quantity.Float(), 'E', -1, 64))
+	values.Set("rate", strconv.FormatFloat(rate.Float(), 'E', -1, 64))
 	path := fmt.Sprintf("%s/%s", bittrexAPIURL, bittrexAPIBuyLimit)
 
 	if err := b.SendAuthenticatedHTTPRequest(path, values, &id); err != nil {
@@ -264,12 +265,12 @@ func (b *Bittrex) PlaceBuyLimit(currencyPair string, quantity, rate float64) (UU
 // "Currency" ie "btc-ltc"
 // "Quantity" is the amount to purchase
 // "Rate" is the rate at which to purchase
-func (b *Bittrex) PlaceSellLimit(currencyPair string, quantity, rate float64) (UUID, error) {
+func (b *Bittrex) PlaceSellLimit(currencyPair string, quantity, rate decimal.Decimal) (UUID, error) {
 	var id UUID
 	values := url.Values{}
 	values.Set("market", currencyPair)
-	values.Set("quantity", strconv.FormatFloat(quantity, 'E', -1, 64))
-	values.Set("rate", strconv.FormatFloat(rate, 'E', -1, 64))
+	values.Set("quantity", strconv.FormatFloat(quantity.Float(), 'E', -1, 64))
+	values.Set("rate", strconv.FormatFloat(rate.Float(), 'E', -1, 64))
 	path := fmt.Sprintf("%s/%s", bittrexAPIURL, bittrexAPISellLimit)
 
 	if err := b.SendAuthenticatedHTTPRequest(path, values, &id); err != nil {
@@ -373,11 +374,11 @@ func (b *Bittrex) GetDepositAddress(currency string) (DepositAddress, error) {
 
 // Withdraw is used to withdraw funds from your account.
 // note: Please account for transaction fee.
-func (b *Bittrex) Withdraw(currency, paymentID, address string, quantity float64) (UUID, error) {
+func (b *Bittrex) Withdraw(currency, paymentID, address string, quantity decimal.Decimal) (UUID, error) {
 	var id UUID
 	values := url.Values{}
 	values.Set("currency", currency)
-	values.Set("quantity", strconv.FormatFloat(quantity, 'E', -1, 64))
+	values.Set("quantity", strconv.FormatFloat(quantity.Float(), 'E', -1, 64))
 	values.Set("address", address)
 	path := fmt.Sprintf("%s/%s", bittrexAPIURL, bittrexAPIWithdraw)
 

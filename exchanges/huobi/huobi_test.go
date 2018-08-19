@@ -12,6 +12,7 @@ import (
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
+	"github.com/thrasher-/gocryptotrader/decimal"
 )
 
 // Please supply you own test keys here for due diligence testing.
@@ -207,8 +208,8 @@ func TestSpotNewOrder(t *testing.T) {
 	arg := SpotNewOrderRequestParams{
 		Symbol:    "btcusdt",
 		AccountID: 000000,
-		Amount:    0.01,
-		Price:     10.1,
+		Amount:    decimal.NewFromFloat(0.01),
+		Price:     decimal.NewFromFloat(10.1),
 		Type:      SpotNewOrderRequestTypeBuyLimit,
 	}
 

@@ -637,8 +637,8 @@ func (o *OKEX) SpotNewOrder(arg SpotNewOrderRequestParams) (int64, error) {
 	params := url.Values{}
 	params.Set("symbol", arg.Symbol)
 	params.Set("type", string(arg.Type))
-	params.Set("price", strconv.FormatFloat(arg.Price, 'f', -1, 64))
-	params.Set("amount", strconv.FormatFloat(arg.Amount, 'f', -1, 64))
+	params.Set("price", arg.Price.StringFixed(exchange.DefaultDecimalPrecision))
+	params.Set("amount", arg.Amount.StringFixed(exchange.DefaultDecimalPrecision))
 
 	err := o.SendAuthenticatedHTTPRequest(strRequestURL, params, &res)
 	if err != nil {

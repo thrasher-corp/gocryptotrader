@@ -11,6 +11,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
+	"github.com/thrasher-/gocryptotrader/decimal"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/request"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
@@ -626,8 +627,8 @@ func (b *Bitmex) CancelWithdraw(token string) (TransactionInfo, error) {
 
 // CheckReferalCode checks a code, will return a percentage eg 0.1 for 10% or
 // if err a 404
-func (b *Bitmex) CheckReferalCode(referralCode string) (float64, error) {
-	var percentage float64
+func (b *Bitmex) CheckReferalCode(referralCode string) (decimal.Decimal, error) {
+	var percentage decimal.Decimal
 
 	return percentage, b.SendHTTPRequest(bitmexEndpointUserCheckReferralCode,
 		UserCheckReferralCodeParams{ReferralCode: referralCode},

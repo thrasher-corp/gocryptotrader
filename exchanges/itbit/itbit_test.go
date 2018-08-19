@@ -111,7 +111,7 @@ func TestGetFundingHistory(t *testing.T) {
 }
 
 func TestPlaceOrder(t *testing.T) {
-	_, err := i.PlaceOrder("1337", "buy", "limit", "USD", 1, 0.2, "banjo", "sauce")
+	_, err := i.PlaceOrder("1337", "buy", "limit", "USD", decimal.One, decimal.TwoTenth, "banjo", "sauce")
 	if err == nil {
 		t.Error("Test Failed - PlaceOrder() error", err)
 	}
@@ -140,7 +140,7 @@ func TestGetDepositAddress(t *testing.T) {
 }
 
 func TestWalletTransfer(t *testing.T) {
-	_, err := i.WalletTransfer("1337", "mywallet", "anotherwallet", 200, "USD")
+	_, err := i.WalletTransfer("1337", "mywallet", "anotherwallet", decimal.TwoHundred, "USD")
 	if err == nil {
 		t.Error("Test Failed - WalletTransfer() error", err)
 	}

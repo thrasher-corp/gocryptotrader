@@ -83,6 +83,8 @@ func (k *Kraken) UpdateTicker(p pair.CurrencyPair, assetType string) (ticker.Pri
 		return tickerPrice, err
 	}
 
+	k.Lock()
+	defer k.Unlock()
 	for _, x := range pairs {
 		for y, z := range k.Ticker {
 			if common.StringContains(y, x.FirstCurrency.Upper().String()) && common.StringContains(y, x.SecondCurrency.Upper().String()) {
@@ -122,7 +124,8 @@ func (k *Kraken) SetTicker(symbol string) error {
 	if len(resp.Error) > 0 {
 		return fmt.Errorf("Kraken error: %s", resp.Error)
 	}
-
+	k.Lock()
+	defer k.Unlock()
 	for x, y := range resp.Data {
 		ticker := Ticker{}
 		ticker.Ask, _ = decimal.NewFromString(y.Ask[0])

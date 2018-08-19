@@ -179,8 +179,8 @@ type SpotUserInfo struct {
 
 // SpotNewOrderRequestParams holds the params for making a new spot order
 type SpotNewOrderRequestParams struct {
-	Amount float64                 `json:"amount"` // Order quantity
-	Price  float64                 `json:"price"`  // Order price
+	Amount decimal.Decimal         `json:"amount"` // Order quantity
+	Price  decimal.Decimal         `json:"price"`  // Order price
 	Symbol string                  `json:"symbol"` // Symbol; example btc_usdt, eth_btc......
 	Type   SpotNewOrderRequestType `json:"type"`   // Order type (see below)
 }

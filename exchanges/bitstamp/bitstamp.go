@@ -352,10 +352,10 @@ func (b *Bitstamp) CancelAllOrders() (bool, error) {
 }
 
 // PlaceOrder places an order on the exchange.
-func (b *Bitstamp) PlaceOrder(currencyPair string, price float64, amount float64, buy, market bool) (Order, error) {
+func (b *Bitstamp) PlaceOrder(currencyPair string, price decimal.Decimal, amount decimal.Decimal, buy, market bool) (Order, error) {
 	var req = url.Values{}
-	req.Add("amount", strconv.FormatFloat(amount, 'f', -1, 64))
-	req.Add("price", strconv.FormatFloat(price, 'f', -1, 64))
+	req.Add("amount", amount.StringFixed(exchange.DefaultDecimalPrecision))
+	req.Add("price", price.StringFixed(exchange.DefaultDecimalPrecision))
 	response := Order{}
 	orderType := bitstampAPIBuy
 
@@ -399,9 +399,9 @@ func (b *Bitstamp) GetWithdrawalRequests(timedelta int64) ([]WithdrawalRequests,
 // symbol - the type of crypto ie "ltc", "btc", "eth"
 // destTag - only for XRP  default to ""
 // instant - only for bitcoins
-func (b *Bitstamp) CryptoWithdrawal(amount float64, address, symbol, destTag string, instant bool) (string, error) {
+func (b *Bitstamp) CryptoWithdrawal(amount decimal.Decimal, address, symbol, destTag string, instant bool) (string, error) {
 	var req = url.Values{}
-	req.Add("amount", strconv.FormatFloat(amount, 'f', -1, 64))
+	req.Add("amount", amount.StringFixed(exchange.DefaultDecimalPrecision))
 	req.Add("address", address)
 
 	type response struct {
@@ -474,9 +474,9 @@ func (b *Bitstamp) GetUnconfirmedBitcoinDeposits() ([]UnconfirmedBTCTransactions
 // currency - which currency to transfer
 // subaccount - name of account
 // toMain - bool either to or from account
-func (b *Bitstamp) TransferAccountBalance(amount float64, currency, subAccount string, toMain bool) (bool, error) {
+func (b *Bitstamp) TransferAccountBalance(amount decimal.Decimal, currency, subAccount string, toMain bool) (bool, error) {
 	var req = url.Values{}
-	req.Add("amount", strconv.FormatFloat(amount, 'f', -1, 64))
+	req.Add("amount", amount.StringFixed(exchange.DefaultDecimalPrecision))
 	req.Add("currency", currency)
 	req.Add("subAccount", subAccount)
 

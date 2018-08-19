@@ -222,7 +222,7 @@ func (i *ItBit) GetFundingHistory(walletID string, params url.Values) (FundingRe
 }
 
 // PlaceOrder places a new order
-func (i *ItBit) PlaceOrder(walletID, side, orderType, currency string, amount, price float64, instrument, clientRef string) (Order, error) {
+func (i *ItBit) PlaceOrder(walletID, side, orderType, currency string, amount, price decimal.Decimal, instrument, clientRef string) (Order, error) {
 	resp := Order{}
 	path := fmt.Sprintf("/%s/%s/%s", itbitWallets, walletID, itbitOrders)
 
@@ -230,8 +230,8 @@ func (i *ItBit) PlaceOrder(walletID, side, orderType, currency string, amount, p
 	params["side"] = side
 	params["type"] = orderType
 	params["currency"] = currency
-	params["amount"] = strconv.FormatFloat(amount, 'f', -1, 64)
-	params["price"] = strconv.FormatFloat(price, 'f', -1, 64)
+	params["amount"] = amount.StringFixed(exchange.DefaultDecimalPrecision)
+	params["price"] = price.StringFixed(exchange.DefaultDecimalPrecision)
 	params["instrument"] = instrument
 
 	if clientRef != "" {
@@ -290,14 +290,14 @@ func (i *ItBit) GetDepositAddress(walletID, currency string) (CryptoCurrencyDepo
 }
 
 // WalletTransfer transfers funds between wallets.
-func (i *ItBit) WalletTransfer(walletID, sourceWallet, destWallet string, amount float64, currency string) (WalletTransfer, error) {
+func (i *ItBit) WalletTransfer(walletID, sourceWallet, destWallet string, amount decimal.Decimal, currency string) (WalletTransfer, error) {
 	resp := WalletTransfer{}
 	path := fmt.Sprintf("/%s/%s/%s", itbitWallets, walletID, itbitWalletTransfer)
 
 	params := make(map[string]interface{})
 	params["sourceWalletId"] = sourceWallet
 	params["destinationWalletId"] = destWallet
-	params["amount"] = strconv.FormatFloat(amount, 'f', -1, 64)
+	params["amount"] = amount.StringFixed(exchange.DefaultDecimalPrecision)
 	params["currencyCode"] = currency
 
 	err := i.SendAuthenticatedHTTPRequest("POST", path, params, &resp)
