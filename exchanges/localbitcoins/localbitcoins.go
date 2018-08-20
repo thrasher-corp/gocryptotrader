@@ -719,7 +719,7 @@ func (l *LocalBitcoins) SendAuthenticatedHTTPRequest(method, path string, params
 		log.Printf("Sending POST request to %s, path: %s, params: %s", l.APIUrl, path, encoded)
 	}
 
-	if method == "GET" {
+	if method == "GET" && len(encoded) > 0 {
 		path += "?" + encoded
 	}
 
