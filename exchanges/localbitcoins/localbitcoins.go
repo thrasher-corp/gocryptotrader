@@ -201,8 +201,7 @@ func (l *LocalBitcoins) Getads(args ...string) (AdData, error) {
 		return resp.Data, l.SendAuthenticatedHTTPRequest("GET", localbitcoinsAPIAds, nil, &resp)
 	}
 
-	params := url.Values{}
-	params.Set("ads", strings.Join(args, ","))
+	params := url.Values{"ads": {strings.Join(args, ",")}}
 
 	return resp.Data, l.SendAuthenticatedHTTPRequest("GET", localbitcoinsAPIAdGet, params, &resp)
 }
@@ -716,7 +715,7 @@ func (l *LocalBitcoins) SendAuthenticatedHTTPRequest(method, path string, params
 	headers["Content-Type"] = "application/x-www-form-urlencoded"
 
 	if l.Verbose {
-		log.Printf("Sending POST request to %s, path: %s, params: %s", l.APIUrl, path, encoded)
+		log.Printf("Sending POST request to `%s`, path: `%s`, params: `%s`.", l.APIUrl, path, encoded)
 	}
 
 	if method == "GET" && len(encoded) > 0 {

@@ -221,24 +221,19 @@ type DashBoardInfo struct {
 				LastOnline    string `json:"last_online"`
 			} `json:"advertiser"`
 		} `json:"advertisement"`
-		ContactID          int    `json:"contact_id"`
-		CanceledAt         string `json:"canceled_at"`
-		EscrowedAt         string `json:"escrowed_at"`
-		FundedAt           string `json:"funded_at"`
-		PaymentCompletedAt string `json:"payment_completed_at"`
-		DisputedAt         string `json:"disputed_at"`
-		ClosedAt           string `json:"closed_at"`
-		ReleasedAt         string `json:"released_at"`
-		IsBuying           bool   `json:"is_buying"`
-		IsSelling          bool   `json:"is_selling"`
-		AccountDetails     struct {
-			ReceiverName string `json:"receiver_name"`
-			IBAN         string `json:"iban"`
-			SwiftBIC     string `json:"swift_bic"`
-			Reference    string `json:"reference"`
-		} `json:"account_details"`
-		AccountInfo string `json:"account_info"`
-		Floating    bool   `json:"floating"`
+		ContactID          int         `json:"contact_id"`
+		CanceledAt         string      `json:"canceled_at"`
+		EscrowedAt         string      `json:"escrowed_at"`
+		FundedAt           string      `json:"funded_at"`
+		PaymentCompletedAt string      `json:"payment_completed_at"`
+		DisputedAt         string      `json:"disputed_at"`
+		ClosedAt           string      `json:"closed_at"`
+		ReleasedAt         string      `json:"released_at"`
+		IsBuying           bool        `json:"is_buying"`
+		IsSelling          bool        `json:"is_selling"`
+		AccountDetails     interface{} `json:"account_details"`
+		AccountInfo        string      `json:"account_info"`
+		Floating           bool        `json:"floating"`
 	} `json:"data"`
 	Actions struct {
 		MarkAsPaidURL           string `json:"mark_as_paid_url"`
