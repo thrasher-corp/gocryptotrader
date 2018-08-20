@@ -3,6 +3,7 @@ package alphapoint
 import (
 	"errors"
 
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
 	"github.com/thrasher-/gocryptotrader/exchanges"
@@ -106,7 +107,7 @@ func (a *Alphapoint) GetExchangeHistory(p pair.CurrencyPair, assetType string) (
 
 // SubmitExchangeOrder submits a new order and returns a true value when
 // successfully submitted
-func (a *Alphapoint) SubmitExchangeOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (int64, error) {
+func (a *Alphapoint) SubmitExchangeOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price decimal.Decimal, clientID string) (int64, error) {
 	//return a.CreateOrder(p.Pair().String(), side, orderType, amount, price)
 	return 0, errors.New("not yet implemented")
 }
@@ -131,20 +132,20 @@ func (a *Alphapoint) CancelAllExchangeOrders() error {
 }
 
 // GetExchangeOrderInfo returns information on a current open order
-func (a *Alphapoint) GetExchangeOrderInfo(orderID int64) (float64, error) {
+func (a *Alphapoint) GetExchangeOrderInfo(orderID int64) (decimal.Decimal, error) {
 	orders, err := a.GetOrders()
 	if err != nil {
-		return 0, err
+		return decimal.Zero, err
 	}
 
 	for x := range orders {
 		for y := range orders[x].Openorders {
 			if int64(orders[x].Openorders[y].Serverorderid) == orderID {
-				return float64(orders[x].Openorders[y].QtyRemaining), nil
+				return common.NewFromInt(orders[x].Openorders[y].QtyRemaining), nil
 			}
 		}
 	}
-	return 0, errors.New("order not found")
+	return decimal.Zero, errors.New("order not found")
 }
 
 // GetExchangeDepositAddress returns a deposit address for a specified currency
@@ -164,11 +165,11 @@ func (a *Alphapoint) GetExchangeDepositAddress(cryptocurrency pair.CurrencyItem)
 
 // WithdrawCryptoExchangeFunds returns a withdrawal ID when a withdrawal is
 // submitted
-func (a *Alphapoint) WithdrawCryptoExchangeFunds(address string, cryptocurrency pair.CurrencyItem, amount float64) (string, error) {
+func (a *Alphapoint) WithdrawCryptoExchangeFunds(address string, cryptocurrency pair.CurrencyItem, amount decimal.Decimal) (string, error) {
 	return "", errors.New("not yet implemented")
 }
 
 // WithdrawFiatExchangeFunds returns a withdrawal ID when a withdrawal is submitted
-func (a *Alphapoint) WithdrawFiatExchangeFunds(currency pair.CurrencyItem, amount float64) (string, error) {
+func (a *Alphapoint) WithdrawFiatExchangeFunds(currency pair.CurrencyItem, amount decimal.Decimal) (string, error) {
 	return "", errors.New("not yet implemented")
 }
