@@ -5,9 +5,9 @@ import (
 	"log"
 	"sync"
 
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
-	"github.com/shopspring/decimal"
 	"github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
@@ -80,7 +80,6 @@ func (a *ANX) UpdateTicker(p pair.CurrencyPair, assetType string) (ticker.Price,
 	tickerPrice.Pair = p
 
 	if tick.Data.Sell.Value != "" {
-		//tickerPrice.Ask, err = strconv.ParseFloat(tick.Data.Sell.Value, 64)
 		tickerPrice.Ask, err = decimal.NewFromString(tick.Data.Sell.Value)
 		if err != nil {
 			return tickerPrice, err
@@ -90,7 +89,6 @@ func (a *ANX) UpdateTicker(p pair.CurrencyPair, assetType string) (ticker.Price,
 	}
 
 	if tick.Data.Buy.Value != "" {
-		//tickerPrice.Bid, err = strconv.ParseFloat(tick.Data.Buy.Value, 64)
 		tickerPrice.Bid, err = decimal.NewFromString(tick.Data.Buy.Value)
 		if err != nil {
 			return tickerPrice, err
@@ -100,7 +98,6 @@ func (a *ANX) UpdateTicker(p pair.CurrencyPair, assetType string) (ticker.Price,
 	}
 
 	if tick.Data.Low.Value != "" {
-		//tickerPrice.Low, err = strconv.ParseFloat(tick.Data.Low.Value, 64)
 		tickerPrice.Low, err = decimal.NewFromString(tick.Data.Low.Value)
 		if err != nil {
 			return tickerPrice, err

@@ -51,9 +51,7 @@ func (o *Base) CalculateTotalBids() (decimal.Decimal, decimal.Decimal) {
 	amountCollated := decimal.Zero
 	total := decimal.Zero
 	for _, x := range o.Bids {
-		//amountCollated += x.Amount
 		amountCollated = amountCollated.Add(x.Amount)
-		//total += x.Amount * x.Price
 		total = total.Add(x.Amount.Mul(x.Price))
 	}
 	return amountCollated, total
@@ -65,9 +63,7 @@ func (o *Base) CalculateTotalAsks() (decimal.Decimal, decimal.Decimal) {
 	amountCollated := decimal.Zero
 	total := decimal.Zero
 	for _, x := range o.Asks {
-		//amountCollated += x.Amount
 		amountCollated = amountCollated.Add(x.Amount)
-		//total += x.Amount * x.Price
 		total = total.Add(x.Amount.Mul(x.Price))
 	}
 	return amountCollated, total
