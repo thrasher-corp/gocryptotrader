@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/thrasher-/gocryptotrader/config"
+	"github.com/thrasher-/gocryptotrader/currency/pair"
 )
 
 // Please add your private keys and customerID for better tests
@@ -234,5 +235,13 @@ func TestTransferAccountBalance(t *testing.T) {
 	_, err = b.TransferAccountBalance(1, "btc", "", false)
 	if err == nil {
 		t.Error("Test Failed - TransferAccountBalance() error", err)
+	}
+}
+
+func TestGetExchangeHistory(t *testing.T) {
+	p := pair.NewCurrencyPair("BTC", "USD")
+	_, err := b.GetExchangeHistory(p, "SPOT", time.Time{}, 0)
+	if err != nil {
+		t.Error("test failed - GetExchangeHistory() error", err)
 	}
 }

@@ -2,8 +2,10 @@ package bithumb
 
 import (
 	"testing"
+	"time"
 
 	"github.com/thrasher-/gocryptotrader/config"
+	"github.com/thrasher-/gocryptotrader/currency/pair"
 )
 
 // Please supply your own keys here for due diligence testing
@@ -67,7 +69,7 @@ func TestGetOrderBook(t *testing.T) {
 
 func TestGetTransactionHistory(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetTransactionHistory("btc")
+	_, err := b.GetTransactionHistory("btc", 0)
 	if err != nil {
 		t.Error("test failed - Bithumb GetTransactionHistory() error", err)
 	}
@@ -185,34 +187,10 @@ func TestMarketSellOrder(t *testing.T) {
 	}
 }
 
-// func TestRun(t *testing.T) {
-// 	t.Parallel()
-// 	b.Run()
-// }
-//
-// func TestUpdateTicker(t *testing.T) {
-// 	t.Parallel()
-// 	pair := b.GetEnabledCurrencies()[0]
-// 	_, err := b.UpdateTicker(pair, b.AssetTypes[0])
-// 	if err != nil {
-// 		t.Error("test failed - Bithumb UpdateTicker() error", err)
-// 	}
-// }
-//
-// func TestGetTickerPrice(t *testing.T) {
-// 	t.Parallel()
-// 	pair := b.GetEnabledCurrencies()[0]
-// 	_, err := b.GetTickerPrice(pair, b.AssetTypes[0])
-// 	if err != nil {
-// 		t.Error("test failed - Bithumb GetTickerPrice() error", err)
-// 	}
-// }
-//
-// func TestGetOrderbookEx(t *testing.T) {
-// 	t.Parallel()
-// 	pair := b.GetEnabledCurrencies()[0]
-// 	_, err := b.GetOrderbookEx(pair, b.AssetTypes[0])
-// 	if err != nil {
-// 		t.Error("test failed - Bithumb GetOrderbookEx() error", err)
-// 	}
-// }
+func TestGetExchangeHistory(t *testing.T) {
+	p := pair.NewCurrencyPair("BTC", "USD")
+	_, err := b.GetExchangeHistory(p, "SPOT", time.Time{}, 0)
+	if err != nil {
+		t.Error("test failed - Bithumb GetExchangeHistory() error", err)
+	}
+}

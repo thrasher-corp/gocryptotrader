@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/thrasher-/gocryptotrader/config"
+	"github.com/thrasher-/gocryptotrader/currency/pair"
 )
 
 var c CoinbasePro
@@ -63,7 +64,7 @@ func TestGetTrades(t *testing.T) {
 }
 
 func TestGetHistoricRates(t *testing.T) {
-	_, err := c.GetHistoricRates("BTC-USD", 0, 0, 0)
+	_, err := c.GetHistoricRates("BTC-USD", "", "", 0)
 	if err != nil {
 		t.Error("Test failed - GetHistoricRates() error", err)
 	}
@@ -222,5 +223,13 @@ func TestAuthRequests(t *testing.T) {
 		if err == nil {
 			t.Error("Test failed - GetTrailingVolume() error", err)
 		}
+	}
+}
+
+func TestGetExchangeHistory(t *testing.T) {
+	p := pair.NewCurrencyPairDelimiter("BTC-USD", "-")
+	_, err := c.GetExchangeHistory(p, "SPOT", time.Time{}, 0)
+	if err != nil {
+		t.Error("Test failed - GetExchangeHistory() error", err)
 	}
 }

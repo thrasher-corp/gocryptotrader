@@ -3,7 +3,7 @@
 set -e
 
 if [ -n "$TRAVIS_BUILD_DIR" ]; then
-    cd $TRAVIS_BUILD_DIR 
+    cd $TRAVIS_BUILD_DIR
 else
 	cd $GOPATH/src/github.com/thrasher-/gocryptotrader
 fi

@@ -44,3 +44,11 @@
 [[constraint]]
   branch = "master"
   name = "golang.org/x/crypto"
+
+[[constraint]]
+  branch = "master"
+  name = "github.com/volatiletech/sqlboiler"
+
+[[constraint]]
+  branch = "master"
+  name = "github.com/volatiletech/null"

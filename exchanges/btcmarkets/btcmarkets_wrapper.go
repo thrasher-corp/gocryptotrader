@@ -3,7 +3,10 @@ package btcmarkets
 import (
 	"errors"
 	"log"
+	"net/url"
+	"strconv"
 	"sync"
+	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
 
@@ -143,10 +146,31 @@ func (b *BTCMarkets) GetExchangeFundTransferHistory() ([]exchange.FundHistory, e
 }
 
 // GetExchangeHistory returns historic trade data since exchange opening.
-func (b *BTCMarkets) GetExchangeHistory(p pair.CurrencyPair, assetType string) ([]exchange.TradeHistory, error) {
+func (b *BTCMarkets) GetExchangeHistory(p pair.CurrencyPair, assetType string, timestampStart time.Time, tradeID int64) ([]exchange.TradeHistory, error) {
 	var resp []exchange.TradeHistory
 
-	return resp, errors.New("trade history not yet implemented")
+	v := url.Values{}
+	v.Set("since", strconv.FormatInt(tradeID, 10))
+
+	trades, err := b.GetTrades(p.GetFirstCurrency().String(), p.GetSecondCurrency().String(), v)
+	if err != nil {
+		return resp, err
+	}
+
+	if len(trades) == 0 {
+		return resp, errors.New("BTCMarkets GetExchangeHistory() error no history returned")
+	}
+
+	for i := range trades {
+		resp = append(resp, exchange.TradeHistory{
+			Amount:    trades[i].Amount,
+			Exchange:  b.Name,
+			Price:     trades[i].Price,
+			TID:       trades[i].TradeID,
+			Timestamp: time.Unix(trades[i].Date, 0),
+			Type:      "Not Supplied"})
+	}
+	return resp, nil
 }
 
 // SubmitExchangeOrder submits a new order

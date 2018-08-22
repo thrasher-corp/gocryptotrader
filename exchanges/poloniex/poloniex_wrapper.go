@@ -3,7 +3,9 @@ package poloniex
 import (
 	"errors"
 	"log"
+	"strconv"
 	"sync"
+	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
@@ -152,10 +154,42 @@ func (po *Poloniex) GetExchangeFundTransferHistory() ([]exchange.FundHistory, er
 }
 
 // GetExchangeHistory returns historic trade data since exchange opening.
-func (po *Poloniex) GetExchangeHistory(p pair.CurrencyPair, assetType string) ([]exchange.TradeHistory, error) {
+func (po *Poloniex) GetExchangeHistory(p pair.CurrencyPair, assetType string, timestampStart time.Time, tradeID int64) ([]exchange.TradeHistory, error) {
 	var resp []exchange.TradeHistory
 
-	return resp, errors.New("trade history not yet implemented")
+	if timestampStart.IsZero() {
+		timestampStart = time.Now().AddDate(0, -3, 0) // 3 months prior to now
+	}
+	timestampEnd := timestampStart.AddDate(0, 0, 1) // add 24 hours
+
+	trades, err := po.GetTradeHistory(p.Pair().String(), strconv.FormatInt(timestampStart.Unix(), 10), strconv.FormatInt(timestampEnd.Unix(), 10))
+	if err != nil {
+		return resp, err
+	}
+
+	for _, data := range trades {
+		cTime, err := ConvertTimeStringToRFC3339(data.Date)
+		if err != nil {
+			return resp, err
+		}
+		resp = append(resp, exchange.TradeHistory{
+			Timestamp: cTime,
+			TID:       data.TradeID,
+			Price:     data.Rate,
+			Amount:    data.Amount,
+			Exchange:  po.GetName(),
+			Type:      data.Type,
+		})
+	}
+
+	return resp, nil
+}
+
+// ConvertTimeStringToRFC3339 converts returned time string to time.Time
+func ConvertTimeStringToRFC3339(timestamp string) (time.Time, error) {
+	split := common.SplitStrings(timestamp, " ")
+	join := common.JoinStrings(split, "T")
+	return time.Parse(time.RFC3339, join+"Z")
 }
 
 // SubmitExchangeOrder submits a new order

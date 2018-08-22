@@ -4,6 +4,7 @@ import (
 	"errors"
 	"log"
 	"sync"
+	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
@@ -141,10 +142,33 @@ func (c *CoinbasePro) GetExchangeFundTransferHistory() ([]exchange.FundHistory, 
 }
 
 // GetExchangeHistory returns historic trade data since exchange opening.
-func (c *CoinbasePro) GetExchangeHistory(p pair.CurrencyPair, assetType string) ([]exchange.TradeHistory, error) {
+func (c *CoinbasePro) GetExchangeHistory(p pair.CurrencyPair, assetType string, timestampStart time.Time, tradeID int64) ([]exchange.TradeHistory, error) {
 	var resp []exchange.TradeHistory
 
-	return resp, errors.New("trade history not yet implemented")
+	if timestampStart.IsZero() {
+		timestampStart = time.Now().AddDate(0, -3, 0) // 3 months prior to now
+	}
+	timestampEnd := timestampStart.Add(5 * time.Hour)
+
+	formattedPair := exchange.FormatExchangeCurrency(c.GetName(), p)
+
+	trades, err := c.GetHistoricRates(formattedPair.String(), timestampStart.Format(time.RFC3339), timestampEnd.Format(time.RFC3339), 60)
+	if err != nil {
+		return resp, err
+	}
+
+	for _, data := range trades {
+		resp = append(resp, exchange.TradeHistory{
+			Timestamp: time.Unix(data.Time, 0),
+			TID:       0,
+			Price:     data.Close,
+			Amount:    data.Volume,
+			Exchange:  c.GetName(),
+			Type:      "Not Specified",
+		})
+	}
+
+	return resp, nil
 }
 
 // SubmitExchangeOrder submits a new order

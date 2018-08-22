@@ -119,7 +119,7 @@ func (b *BTCC) GetTicker(currencyPair string) (Ticker, error) {
 // limit - limits the returned trades example "10"
 // sinceTid - returns trade records starting from id supplied example "5000"
 // time - returns trade records starting from unix time 1406794449
-func (b *BTCC) GetTradeHistory(currencyPair string, limit, sinceTid int64, time time.Time) ([]Trade, error) {
+func (b *BTCC) GetTradeHistory(currencyPair string, limit, sinceTid int64, t time.Time) ([]Trade, error) {
 	trades := []Trade{}
 	path := fmt.Sprintf("%s/data/pro/historydata?symbol=%s", btccAPIUrl, currencyPair)
 	v := url.Values{}
@@ -130,8 +130,8 @@ func (b *BTCC) GetTradeHistory(currencyPair string, limit, sinceTid int64, time 
 	if sinceTid > 0 {
 		v.Set("since", strconv.FormatInt(sinceTid, 10))
 	}
-	if !time.IsZero() {
-		v.Set("sincetype", strconv.FormatInt(time.Unix(), 10))
+	if !t.IsZero() {
+		v.Set("sincetype", strconv.FormatInt(common.UnixMillis(t), 10))
 	}
 
 	path = common.EncodeURLValues(path, v)

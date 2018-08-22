@@ -1,6 +1,11 @@
 package exmo
 
-import "testing"
+import (
+	"testing"
+	"time"
+
+	"github.com/thrasher-/gocryptotrader/currency/pair"
+)
 
 const (
 	APIKey    = ""
@@ -94,5 +99,13 @@ func TestGetDepositAddress(t *testing.T) {
 	_, err := e.GetDepositAddress()
 	if err == nil {
 		t.Errorf("Test failed. Err: %s", err)
+	}
+}
+
+func TestGetExchangeHistory(t *testing.T) {
+	p := pair.NewCurrencyPairDelimiter("BTC_USD", "_")
+	_, err := e.GetExchangeHistory(p, "SPOT", time.Time{}, 0)
+	if err != nil {
+		t.Error("Test failed - Exmo GetExchangeHistory() error", err)
 	}
 }

@@ -4,6 +4,7 @@ import (
 	"errors"
 	"log"
 	"sync"
+	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
@@ -12,7 +13,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 )
 
-// Start starts the OKEX go routine
+// Start starts the Binance go routine
 func (b *Binance) Start(wg *sync.WaitGroup) {
 	wg.Add(1)
 	go func() {
@@ -21,7 +22,7 @@ func (b *Binance) Start(wg *sync.WaitGroup) {
 	}()
 }
 
-// Run implements the OKEX wrapper
+// Run implements the Binance wrapper
 func (b *Binance) Run() {
 	if b.Verbose {
 		log.Printf("%s Websocket: %s. (url: %s).\n", b.GetName(), common.IsEnabled(b.Websocket), b.WebsocketURL)
@@ -138,10 +139,35 @@ func (b *Binance) GetExchangeFundTransferHistory() ([]exchange.FundHistory, erro
 }
 
 // GetExchangeHistory returns historic trade data since exchange opening.
-func (b *Binance) GetExchangeHistory(p pair.CurrencyPair, assetType string) ([]exchange.TradeHistory, error) {
+func (b *Binance) GetExchangeHistory(p pair.CurrencyPair, assetType string, timestampStart time.Time, tradeID int64) ([]exchange.TradeHistory, error) {
 	var resp []exchange.TradeHistory
 
-	return resp, errors.New("trade history not yet implemented")
+	if timestampStart.IsZero() {
+		timestampStart = time.Now().AddDate(0, -3, 0) // set to three months prior
+	}
+	timestampEnd := timestampStart.Add(1 * time.Hour) // add 1 hr
+
+	formattedPair := exchange.FormatExchangeCurrency(b.GetName(), p)
+
+	aggTrades, err := b.GetAggregatedTrades(formattedPair.String(),
+		500,
+		common.UnixMillis(timestampStart),
+		common.UnixMillis(timestampEnd))
+	if err != nil {
+		return resp, err
+	}
+
+	for i := range aggTrades {
+		resp = append(resp, exchange.TradeHistory{
+			Timestamp: time.Unix(0, common.UnixMillisToNano(aggTrades[i].TimeStamp)),
+			TID:       aggTrades[i].LastTradeID,
+			Price:     aggTrades[i].Price,
+			Amount:    aggTrades[i].Quantity,
+			Exchange:  b.GetName(),
+			Type:      "Not Specified",
+		})
+	}
+	return resp, nil
 }
 
 // SubmitExchangeOrder submits a new order

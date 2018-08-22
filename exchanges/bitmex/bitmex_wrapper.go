@@ -138,7 +138,7 @@ func (b *Bitmex) GetExchangeFundTransferHistory() ([]exchange.FundHistory, error
 }
 
 // GetExchangeHistory returns historic trade data since exchange opening.
-func (b *Bitmex) GetExchangeHistory(p pair.CurrencyPair, assetType string) ([]exchange.TradeHistory, error) {
+func (b *Bitmex) GetExchangeHistory(p pair.CurrencyPair, assetType string, timestampStart time.Time, tradeID int64) ([]exchange.TradeHistory, error) {
 	var resp []exchange.TradeHistory
 
 	return resp, errors.New("trade history not yet implemented")

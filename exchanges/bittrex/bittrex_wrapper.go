@@ -4,6 +4,7 @@ import (
 	"errors"
 	"log"
 	"sync"
+	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
@@ -162,10 +163,30 @@ func (b *Bittrex) GetExchangeFundTransferHistory() ([]exchange.FundHistory, erro
 }
 
 // GetExchangeHistory returns historic trade data since exchange opening.
-func (b *Bittrex) GetExchangeHistory(p pair.CurrencyPair, assetType string) ([]exchange.TradeHistory, error) {
+func (b *Bittrex) GetExchangeHistory(p pair.CurrencyPair, assetType string, timestampStart time.Time, tradeID int64) ([]exchange.TradeHistory, error) {
 	var resp []exchange.TradeHistory
 
-	return resp, errors.New("trade history not yet implemented")
+	trades, err := b.GetMarketHistory(p.Pair().String())
+	if err != nil {
+		return resp, err
+	}
+
+	for _, data := range trades.Result {
+		t, err := time.Parse(time.RFC3339, data.Timestamp+"Z")
+		if err != nil {
+			return resp, err
+		}
+		resp = append(resp, exchange.TradeHistory{
+			Timestamp: t,
+			TID:       int64(data.ID),
+			Price:     data.Price,
+			Amount:    data.Quantity,
+			Exchange:  b.GetName(),
+			Type:      data.OrderType,
+		})
+	}
+
+	return resp, nil
 }
 
 // SubmitExchangeOrder submits a new order

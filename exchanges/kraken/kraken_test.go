@@ -2,8 +2,10 @@ package kraken
 
 import (
 	"testing"
+	"time"
 
 	"github.com/thrasher-/gocryptotrader/config"
+	"github.com/thrasher-/gocryptotrader/currency/pair"
 )
 
 var k Kraken
@@ -95,7 +97,7 @@ func TestGetDepth(t *testing.T) {
 
 func TestGetTrades(t *testing.T) {
 	t.Parallel()
-	_, err := k.GetTrades("BCHEUR")
+	_, err := k.GetTrades("BCHEUR", 0)
 	if err != nil {
 		t.Error("Test Failed - GetTrades() error", err)
 	}
@@ -217,5 +219,13 @@ func TestCancelOrder(t *testing.T) {
 	_, err := k.CancelOrder("OAVY7T-MV5VK-KHDF5X")
 	if err == nil {
 		t.Error("Test Failed - CancelOrder() error", err)
+	}
+}
+
+func TestGetExchangeHistory(t *testing.T) {
+	p := pair.NewCurrencyPair("XBT", "USD")
+	_, err := k.GetExchangeHistory(p, "SPOT", time.Time{}, 0)
+	if err != nil {
+		t.Error("Test Failed - GetExchangeHistory() error", err)
 	}
 }

@@ -4,6 +4,7 @@ import (
 	"errors"
 	"log"
 	"sync"
+	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
@@ -163,10 +164,48 @@ func (o *OKEX) GetExchangeFundTransferHistory() ([]exchange.FundHistory, error) 
 }
 
 // GetExchangeHistory returns historic trade data since exchange opening.
-func (o *OKEX) GetExchangeHistory(p pair.CurrencyPair, assetType string) ([]exchange.TradeHistory, error) {
+func (o *OKEX) GetExchangeHistory(p pair.CurrencyPair, assetType string, timestampStart time.Time, tradeID int64) ([]exchange.TradeHistory, error) {
 	var resp []exchange.TradeHistory
 
-	return resp, errors.New("trade history not yet implemented")
+	if assetType != "SPOT" {
+		trades, err := o.GetContractTradeHistory(p.Pair().String(), assetType)
+		if err != nil {
+			return resp, err
+		}
+
+		for _, data := range trades {
+			nano := common.UnixMillisToNano(int64(data.DateInMS))
+			resp = append(resp, exchange.TradeHistory{
+				Timestamp: time.Unix(0, nano),
+				TID:       int64(data.TID),
+				Price:     data.Price,
+				Amount:    data.Amount,
+				Exchange:  o.GetName(),
+				Type:      data.Type,
+			})
+		}
+		return resp, nil
+	}
+
+	trades, err := o.GetSpotRecentTrades(ActualSpotTradeHistoryRequestParams{
+		Symbol: p.Pair().String(),
+		Since:  int(tradeID)})
+	if err != nil {
+		return resp, err
+	}
+
+	for _, data := range trades {
+		nano := common.UnixMillisToNano(int64(data.DateInMS))
+		resp = append(resp, exchange.TradeHistory{
+			Timestamp: time.Unix(0, nano),
+			TID:       int64(data.TID),
+			Price:     data.Price,
+			Amount:    data.Amount,
+			Exchange:  o.GetName(),
+			Type:      data.Type,
+		})
+	}
+	return resp, nil
 }
 
 // SubmitExchangeOrder submits a new order

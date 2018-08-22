@@ -42,7 +42,7 @@ type AccountCurrencyInfo struct {
 
 // TradeHistory holds exchange history data
 type TradeHistory struct {
-	Timestamp int64
+	Timestamp time.Time
 	TID       int64
 	Price     float64
 	Amount    float64
@@ -128,7 +128,7 @@ type IBotExchange interface {
 	GetExchangeAccountInfo() (AccountInfo, error)
 	GetAuthenticatedAPISupport() bool
 	SetCurrencies(pairs []pair.CurrencyPair, enabledPairs bool) error
-	GetExchangeHistory(pair.CurrencyPair, string) ([]TradeHistory, error)
+	GetExchangeHistory(p pair.CurrencyPair, assetType string, timestampStart time.Time, tradeID int64) ([]TradeHistory, error)
 	SupportsAutoPairUpdates() bool
 	GetLastPairsUpdateTime() int64
 	SupportsRESTTickerBatchUpdates() bool
@@ -495,6 +495,11 @@ func (e *Base) SetCurrencies(pairs []pair.CurrencyPair, enabledPairs bool) error
 // UpdateCurrencies updates the exchange currency pairs for either enabledPairs or
 // availablePairs
 func (e *Base) UpdateCurrencies(exchangeProducts []string, enabled, force bool) error {
+	if len(exchangeProducts) == 0 {
+		log.Println("warning - UpdateCurrencies no exchange products submitted")
+		return nil
+	}
+
 	exchangeProducts = common.SplitStrings(common.StringToUpper(common.JoinStrings(exchangeProducts, ",")), ",")
 	var products []string
 

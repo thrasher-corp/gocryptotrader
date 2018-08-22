@@ -286,6 +286,15 @@ func RoundFloat(x float64, prec int) float64 {
 	return rounder / pow
 }
 
+// CountInt counts how many digits in an integer and returns the count
+func CountInt(i int64) (count int) {
+	for i != 0 {
+		i /= 10
+		count++
+	}
+	return count
+}
+
 // IsEnabled takes in a boolean param  and returns a string if it is enabled
 // or disabled
 func IsEnabled(isEnabled bool) string {
@@ -555,6 +564,11 @@ func GetOSPathSlash() string {
 		return "\\"
 	}
 	return "/"
+}
+
+// UnixMillisToNano converts Unix milli time to UnixNano
+func UnixMillisToNano(milli int64) int64 {
+	return milli * int64(time.Millisecond)
 }
 
 // UnixMillis converts a UnixNano timestamp to milliseconds

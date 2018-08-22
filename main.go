@@ -16,6 +16,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/currency"
 	"github.com/thrasher-/gocryptotrader/currency/forexprovider"
+	"github.com/thrasher-/gocryptotrader/database"
 	"github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/portfolio"
 )
@@ -27,12 +28,15 @@ type Bot struct {
 	portfolio  *portfolio.Base
 	exchanges  []exchange.IBotExchange
 	comms      *communications.Communications
+	db         *database.ORM
 	shutdown   chan bool
+	routines   *Routines
 	dryRun     bool
 	configFile string
 }
 
-const banner = `
+const (
+	banner = `
    ______        ______                     __        ______                  __
   / ____/____   / ____/_____ __  __ ____   / /_ ____ /_  __/_____ ______ ____/ /___   _____
  / / __ / __ \ / /    / ___// / / // __ \ / __// __ \ / /  / ___// __  // __  // _ \ / ___/
@@ -40,8 +44,11 @@ const banner = `
 \____/ \____/ \____//_/    \__, // .___/ \__/ \____//_/  /_/    \__,_/ \__,_/ \___//_/
                           /____//_/
 `
+)
 
 var bot Bot
+
+var dbPathDefault = database.GetDefaultPath()
 
 func main() {
 	bot.shutdown = make(chan bool)
@@ -52,10 +59,15 @@ func main() {
 		log.Fatal(err)
 	}
 
-	//Handle flags
-	flag.StringVar(&bot.configFile, "config", defaultPath, "config file to load")
-	dryrun := flag.Bool("dryrun", false, "dry runs bot, doesn't save config file")
-	version := flag.Bool("version", false, "retrieves current GoCryptoTrader version")
+	// Handle flags
+	flag.StringVar(&bot.configFile, "config", defaultPath, "-config sets filepath to load configuration")
+	dryrun := flag.Bool("dryrun", false, "-dryrun does not save config.json file")
+	version := flag.Bool("version", false, "-version retrieves current GoCryptoTrader version")
+	verbosity := flag.Bool("verbose", false, "-verbose increases verbosity for GoCryptoTrader")
+
+	dbSeedHistory := flag.Bool("seeddb", false, "-seeddb aggregates historic exchange trade data into the database")
+	dbPath := flag.String("dbPath", dbPathDefault, "-dbPath is a path to the database")
+
 	flag.Parse()
 
 	if *version {
@@ -117,8 +129,19 @@ func main() {
 	SeedExchangeAccountInfo(GetAllEnabledExchangeAccountInfo().Data)
 
 	go portfolio.StartPortfolioWatcher()
-	go TickerUpdaterRoutine()
-	go OrderbookUpdaterRoutine()
+
+	bot.db, err = database.Connect(*dbPath, *verbosity, bot.config)
+	if err != nil {
+		log.Fatalf("Database connection error with config %s - %s", bot.config.Name, err)
+	}
+
+	err = bot.db.LoadConfigurations()
+	if err != nil {
+		log.Fatalf("Database error %s - %s", bot.config.Name, err)
+	}
+	log.Println("Database connection successfully established")
+
+	bot.routines = StartUpdater(true, true, *dbSeedHistory)
 
 	if bot.config.Webserver.Enabled {
 		listenAddr := bot.config.Webserver.ListenAddress

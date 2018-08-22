@@ -197,10 +197,11 @@ func (b *Bitflyer) GetTicker(symbol string) (Ticker, error) {
 }
 
 // GetExecutionHistory returns past trades that were executed on the market
-func (b *Bitflyer) GetExecutionHistory(symbol string) ([]ExecutedTrade, error) {
+func (b *Bitflyer) GetExecutionHistory(symbol string, tradeID int64) ([]ExecutedTrade, error) {
 	var resp []ExecutedTrade
 	v := url.Values{}
 	v.Set("product_code", symbol)
+	v.Set("after", strconv.FormatInt(tradeID, 10))
 	path := fmt.Sprintf("%s%s?%s", japanURL, pubGetExecutionHistory, v.Encode())
 
 	return resp, b.SendHTTPREquest(path, &resp)

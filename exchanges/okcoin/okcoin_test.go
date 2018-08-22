@@ -2,8 +2,10 @@ package okcoin
 
 import (
 	"testing"
+	"time"
 
 	"github.com/thrasher-/gocryptotrader/config"
+	"github.com/thrasher-/gocryptotrader/currency/pair"
 )
 
 var o OKCoin
@@ -32,4 +34,12 @@ func TestSetup(t *testing.T) {
 	okcoinConfig.APISecret = apiSecret
 
 	o.Setup(okcoinConfig)
+}
+
+func TestGetExchangeHistory(t *testing.T) {
+	p := pair.NewCurrencyPairDelimiter("btc_cny", "_")
+	_, err := o.GetExchangeHistory(p, "SPOT", time.Time{}, 0)
+	if err != nil {
+		t.Error("test failed - OKCoin GetExchangeHistory() error", err)
+	}
 }

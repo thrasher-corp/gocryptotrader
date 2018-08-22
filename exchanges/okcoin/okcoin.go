@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/url"
+	"reflect"
 	"strconv"
 	"strings"
 	"time"
@@ -70,6 +71,8 @@ const (
 
 	okcoinAuthRate   = 0
 	okcoinUnauthRate = 0
+
+	returnTypeString = "string"
 )
 
 var (
@@ -194,7 +197,9 @@ func (o *OKCoin) GetOrderBook(symbol string, size int64, merge bool) (Orderbook,
 
 // GetTrades returns historic trades since a timestamp
 func (o *OKCoin) GetTrades(symbol string, since int64) ([]Trades, error) {
-	result := []Trades{}
+	var result []Trades
+	var resp []interface{}
+
 	vals := url.Values{}
 	vals.Set("symbol", symbol)
 	if since != 0 {
@@ -202,7 +207,44 @@ func (o *OKCoin) GetTrades(symbol string, since int64) ([]Trades, error) {
 	}
 
 	path := common.EncodeURLValues(o.APIUrl+okcoinTrades, vals)
-	return result, o.SendHTTPRequest(path, &result)
+
+	err := o.SendHTTPRequest(path, &resp)
+	if err != nil {
+		return result, err
+	}
+
+	// fix due to some responses being string and some being float64
+	for _, responses := range resp {
+		var trade Trades
+		for key, data := range responses.(map[string]interface{}) {
+			switch key {
+			case "date":
+				trade.Date = int64(data.(float64))
+			case "date_ms":
+				trade.DateMS = int64(data.(float64))
+			case "amount":
+				if reflect.TypeOf(data).String() == returnTypeString {
+					i, _ := strconv.ParseFloat(data.(string), 64)
+					trade.Amount = i
+				} else {
+					trade.Amount = data.(float64)
+				}
+			case "price":
+				if reflect.TypeOf(data).String() == returnTypeString {
+					i, _ := strconv.ParseFloat(data.(string), 64)
+					trade.Price = i
+				} else {
+					trade.Price = data.(float64)
+				}
+			case "type":
+				trade.Type = data.(string)
+			case "tid":
+				trade.TradeID = int64(data.(float64))
+			}
+		}
+		result = append(result, trade)
+	}
+	return result, nil
 }
 
 // GetKline returns kline data

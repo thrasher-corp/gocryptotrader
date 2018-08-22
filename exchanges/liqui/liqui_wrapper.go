@@ -4,6 +4,7 @@ import (
 	"errors"
 	"log"
 	"sync"
+	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
@@ -141,10 +142,28 @@ func (l *Liqui) GetExchangeFundTransferHistory() ([]exchange.FundHistory, error)
 }
 
 // GetExchangeHistory returns historic trade data since exchange opening.
-func (l *Liqui) GetExchangeHistory(p pair.CurrencyPair, assetType string) ([]exchange.TradeHistory, error) {
+func (l *Liqui) GetExchangeHistory(p pair.CurrencyPair, assetType string, timestampStart time.Time, tradeID int64) ([]exchange.TradeHistory, error) {
 	var resp []exchange.TradeHistory
 
-	return resp, errors.New("trade history not yet implemented")
+	formattedPair := exchange.FormatExchangeCurrency(l.GetName(), p)
+
+	trades, err := l.GetTrades(formattedPair.String())
+	if err != nil {
+		return resp, err
+	}
+
+	for _, data := range trades {
+		resp = append(resp, exchange.TradeHistory{
+			Timestamp: time.Unix(data.Timestamp, 0),
+			TID:       data.TID,
+			Price:     data.Price,
+			Amount:    data.Amount,
+			Exchange:  l.GetName(),
+			Type:      data.Type,
+		})
+	}
+
+	return resp, nil
 }
 
 // SubmitExchangeOrder submits a new order

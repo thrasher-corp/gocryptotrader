@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"strconv"
 	"sync"
+	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
@@ -193,10 +194,28 @@ func (k *Kraken) GetExchangeFundTransferHistory() ([]exchange.FundHistory, error
 }
 
 // GetExchangeHistory returns historic trade data since exchange opening.
-func (k *Kraken) GetExchangeHistory(p pair.CurrencyPair, assetType string) ([]exchange.TradeHistory, error) {
+func (k *Kraken) GetExchangeHistory(p pair.CurrencyPair, assetType string, timestampStart time.Time, tradeID int64) ([]exchange.TradeHistory, error) {
 	var resp []exchange.TradeHistory
 
-	return resp, errors.New("trade history not yet implemented")
+	formattedPair := exchange.FormatExchangeCurrency(k.GetName(), p)
+
+	trades, err := k.GetTrades(formattedPair.String(), tradeID)
+	if err != nil {
+		return resp, err
+	}
+
+	for _, data := range trades {
+		resp = append(resp, exchange.TradeHistory{
+			Timestamp: time.Unix(int64(data.Time), 0),
+			TID:       0,
+			Price:     data.Price,
+			Amount:    data.Volume,
+			Exchange:  k.GetName(),
+			Type:      data.BuyOrSell,
+		})
+	}
+
+	return resp, nil
 }
 
 // SubmitExchangeOrder submits a new order

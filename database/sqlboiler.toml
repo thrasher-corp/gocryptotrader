@@ -1,0 +1,2 @@
+[sqlite3]
+dbname = "/home/shazbot/go/src/github.com/thrasher-/gocryptotrader/database/database.db"

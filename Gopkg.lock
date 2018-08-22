@@ -8,22 +8,40 @@
   revision = "573f579df7ee6b7f2962625d35a624d11222f2ec"
 
 [[projects]]
+  name = "github.com/gofrs/uuid"
+  packages = ["."]
+  revision = "c52a24014454cb81a53adfe807a68f6a20b49d74"
+  version = "v3.0.0"
+
+[[projects]]
   name = "github.com/gorilla/context"
   packages = ["."]
-  revision = "1ea25387ff6f684839d82767c1733ff4d4d15d0a"
-  version = "v1.1"
+  revision = "08b5f424b9271eedf6f9f0ce86cb9396ed337a42"
+  version = "v1.1.1"
 
 [[projects]]
   name = "github.com/gorilla/mux"
   packages = ["."]
-  revision = "53c1911da2b537f792e7cafcb446b05ffe33b996"
-  version = "v1.6.1"
+  revision = "e3702bed27f0d39777b0b37b664b6280e8ef8fbf"
+  version = "v1.6.2"
 
 [[projects]]
   name = "github.com/gorilla/websocket"
   packages = ["."]
-  revision = "ea4d1f681babbce9545c9c5f3d5194a789c89f5b"
-  version = "v1.2.0"
+  revision = "3ff3320c2a1756a3691521efc290b4701575147c"
+  version = "v1.3.0"
+
+[[projects]]
+  name = "github.com/mattn/go-sqlite3"
+  packages = ["."]
+  revision = "25ecb14adfc7543176f7d85291ec7dba82c6f7e4"
+  version = "v1.9.0"
+
+[[projects]]
+  name = "github.com/pkg/errors"
+  packages = ["."]
+  revision = "645ef00459ed84a119197bfb8d8205042c6df63d"
+  version = "v0.8.0"
 
 [[projects]]
   branch = "master"
@@ -41,13 +59,48 @@
   branch = "master"
   name = "github.com/toorop/go-pusher"
   packages = ["."]
-  revision = "4549deda570234e4f8e9fd0d69c149d4dc07d0c9"
+  revision = "4521e2eb39fb43c73f929850b498354296f1c6de"
 
 [[projects]]
   name = "github.com/ugorji/go"
   packages = ["codec"]
-  revision = "9831f2c3ac1068a78f50999a30db84270f647af6"
-  version = "v1.1"
+  revision = "b4c50a2b199d93b13dc15e78929cfb23bfdf21ab"
+  version = "v1.1.1"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/volatiletech/inflect"
+  packages = ["."]
+  revision = "e7201282ae8da26cd97aed2e516f75c0bd91bb93"
+
+[[projects]]
+  name = "github.com/volatiletech/null"
+  packages = [
+    ".",
+    "convert"
+  ]
+  revision = "0681ee3b5e046ac8bfbbd3999e79d3905e96972f"
+  version = "v8.0.0"
+
+[[projects]]
+  name = "github.com/volatiletech/sqlboiler"
+  packages = [
+    "boil",
+    "drivers",
+    "importers",
+    "queries",
+    "queries/qm",
+    "randomize",
+    "strmangle"
+  ]
+  revision = "7d3d954a4be10dc06b9464fb3e6d74836274c467"
+  version = "v3.0.0"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/volatiletech/sqlboiler-sqlite3"
+  packages = ["driver"]
+  revision = "a11c9028802aade5891f332757654f51ff0e49e1"
 
 [[projects]]
   branch = "master"
@@ -56,17 +109,17 @@
     "pbkdf2",
     "scrypt"
   ]
-  revision = "df8d4716b3472e4a531c33cedbe537dae921a1a9"
+  revision = "614d502a4dac94afa3a6ce146bd1736da82514c6"
 
 [[projects]]
   branch = "master"
   name = "golang.org/x/net"
   packages = ["websocket"]
-  revision = "309822c5b9b9f80db67f016069a12628d94fad34"
+  revision = "922f4815f713f213882e8ef45e0d315b164d705c"
 
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "b77f3524104c74cc3e20314a7eff2b79bb9cbd19fd81671226ef998e4e816412"
+  inputs-digest = "bc2ff678730f350d7f5ff594a116e493d3d95f2355edce31aaff8a9349448a6e"
   solver-name = "gps-cdcl"
   solver-version = 1

@@ -2,8 +2,10 @@ package binance
 
 import (
 	"testing"
+	"time"
 
 	"github.com/thrasher-/gocryptotrader/config"
+	"github.com/thrasher-/gocryptotrader/currency/pair"
 )
 
 // Please supply your own keys here for due diligence testing
@@ -76,7 +78,7 @@ func TestGetHistoricalTrades(t *testing.T) {
 
 func TestGetAggregatedTrades(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetAggregatedTrades("BTCUSDT", 5)
+	_, err := b.GetAggregatedTrades("BTCUSDT", 5, 0, 0)
 	if err != nil {
 		t.Error("Test Failed - Binance GetAggregatedTrades() error", err)
 	}
@@ -203,5 +205,14 @@ func TestAllOrders(t *testing.T) {
 	_, err := b.AllOrders("BTCUSDT", "", "")
 	if err != nil {
 		t.Error("Test Failed - Binance AllOrders() error", err)
+	}
+}
+
+func TestGetExchangeHistory(t *testing.T) {
+	t.Parallel()
+	p := pair.NewCurrencyPair("BTC", "USDT")
+	_, err := b.GetExchangeHistory(p, "SPOT", time.Time{}, 0)
+	if err != nil {
+		t.Error("test failed - Binance GetExchangeHistory() error", err)
 	}
 }

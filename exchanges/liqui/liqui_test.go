@@ -3,6 +3,7 @@ package liqui
 import (
 	"net/url"
 	"testing"
+	"time"
 
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
@@ -134,5 +135,13 @@ func TestUpdateOrderbook(t *testing.T) {
 	_, err := l.UpdateOrderbook(p, "SPOT")
 	if err != nil {
 		t.Error("Test Failed - liqui UpdateOrderbook() error", err)
+	}
+}
+
+func TestGetExchangeHistory(t *testing.T) {
+	p := pair.NewCurrencyPairDelimiter("eth_btc", "_")
+	_, err := l.GetExchangeHistory(p, "SPOT", time.Time{}, 0)
+	if err != nil {
+		t.Error("Test Failed - liqui GetExchangeHistory() error", err)
 	}
 }

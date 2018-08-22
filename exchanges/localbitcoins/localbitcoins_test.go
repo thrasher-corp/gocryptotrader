@@ -2,8 +2,10 @@ package localbitcoins
 
 import (
 	"testing"
+	"time"
 
 	"github.com/thrasher-/gocryptotrader/config"
+	"github.com/thrasher-/gocryptotrader/currency/pair"
 )
 
 var l LocalBitcoins
@@ -80,5 +82,13 @@ func TestEditAd(t *testing.T) {
 	err := l.EditAd(edit, "1337")
 	if err == nil {
 		t.Error("Test Failed - EditAd() error", err)
+	}
+}
+
+func TestGetExchangeHistory(t *testing.T) {
+	p := pair.NewCurrencyPair("BTC", "USD")
+	_, err := l.GetExchangeHistory(p, "SPOT", time.Time{}, 0)
+	if err != nil {
+		t.Error("Test Failed - GetExchangeHistory() error", err)
 	}
 }

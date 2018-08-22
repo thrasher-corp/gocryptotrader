@@ -9,9 +9,11 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
+	"github.com/thrasher-/gocryptotrader/currency/pair"
 )
 
 // Please supply you own test keys here for due diligence testing.
@@ -294,5 +296,13 @@ func TestPEMLoadAndSign(t *testing.T) {
 	_, _, err = ecdsa.Sign(rand.Reader, privKey, common.GetSHA256([]byte("test")))
 	if err != nil {
 		t.Fatalf("Test Failed. TestPEMLoadAndSign Unable to sign: %s", err)
+	}
+}
+
+func TestGetExchangeHistory(t *testing.T) {
+	p := pair.NewCurrencyPair("BTC", "USDT")
+	_, err := h.GetExchangeHistory(p, "SPOT", time.Time{}, 0)
+	if err != nil {
+		t.Error("test failed - Huobi GetExchangeHistory() error", err)
 	}
 }

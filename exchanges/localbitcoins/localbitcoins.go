@@ -97,7 +97,7 @@ const (
 	statePaidPartlyConfirmed = "PAID_PARTLY_AND_CONFIRMED"
 
 	localbitcoinsAuthRate   = 0
-	localbitcoinsUnauthRate = 0
+	localbitcoinsUnauthRate = 1
 )
 
 var (
@@ -124,7 +124,7 @@ func (l *LocalBitcoins) SetDefaults() {
 	l.ConfigCurrencyPairFormat.Uppercase = true
 	l.SupportsAutoPairUpdating = false
 	l.SupportsRESTTickerBatching = true
-	l.Requester = request.New(l.Name, request.NewRateLimit(time.Second*0, localbitcoinsAuthRate), request.NewRateLimit(time.Second*0, localbitcoinsUnauthRate), common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
+	l.Requester = request.New(l.Name, request.NewRateLimit(time.Second*0, localbitcoinsAuthRate), request.NewRateLimit(time.Second*3, localbitcoinsUnauthRate), common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 }
 
 // Setup sets exchange configuration parameters
@@ -627,9 +627,12 @@ func (l *LocalBitcoins) GetTicker() (map[string]Ticker, error) {
 
 // GetTrades returns all closed trades in online buy and online sell categories,
 // updated every 15 minutes.
+// currency = fiat
 func (l *LocalBitcoins) GetTrades(currency string, values url.Values) ([]Trade, error) {
-	path := common.EncodeURLValues(fmt.Sprintf("%s/%s/trades.json", localbitcoinsAPIURL+localbitcoinsAPIBitcoincharts, currency), values)
-	result := []Trade{}
+	var result []Trade
+
+	path := common.EncodeURLValues(fmt.Sprintf("%s%s/trades.json",
+		localbitcoinsAPIURL+localbitcoinsAPIBitcoincharts, currency), values)
 
 	return result, l.SendHTTPRequest(path, &result)
 }

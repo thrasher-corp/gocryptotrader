@@ -3,7 +3,10 @@ package localbitcoins
 import (
 	"errors"
 	"log"
+	"net/url"
+	"strconv"
 	"sync"
+	"time"
 
 	"github.com/thrasher-/gocryptotrader/currency/pair"
 	"github.com/thrasher-/gocryptotrader/exchanges"
@@ -113,10 +116,31 @@ func (l *LocalBitcoins) GetExchangeFundTransferHistory() ([]exchange.FundHistory
 }
 
 // GetExchangeHistory returns historic trade data since exchange opening.
-func (l *LocalBitcoins) GetExchangeHistory(p pair.CurrencyPair, assetType string) ([]exchange.TradeHistory, error) {
+func (l *LocalBitcoins) GetExchangeHistory(p pair.CurrencyPair, assetType string, timestampStart time.Time, tradeID int64) ([]exchange.TradeHistory, error) {
 	var resp []exchange.TradeHistory
+	v := url.Values{}
 
-	return resp, errors.New("trade history not yet implemented")
+	if tradeID != 0 {
+		v.Set("since", strconv.FormatInt(tradeID, 10))
+	}
+
+	trades, err := l.GetTrades(p.GetSecondCurrency().Lower().String(), v)
+	if err != nil {
+		return resp, err
+	}
+
+	for _, data := range trades {
+		resp = append(resp, exchange.TradeHistory{
+			Timestamp: time.Unix(data.Date, 0),
+			TID:       data.TID,
+			Price:     data.Price,
+			Amount:    data.Amount,
+			Exchange:  l.GetName(),
+			Type:      "Not Specified",
+		})
+	}
+
+	return resp, nil
 }
 
 // SubmitExchangeOrder submits a new order
