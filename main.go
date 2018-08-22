@@ -30,6 +30,7 @@ type Bot struct {
 	comms      *communications.Communications
 	db         *database.ORM
 	shutdown   chan bool
+	routines   *Routines
 	dryRun     bool
 	configFile string
 	dataDir    string
@@ -167,8 +168,6 @@ func main() {
 	}
 
 	go portfolio.StartPortfolioWatcher()
-	go TickerUpdaterRoutine(*verbosity)
-	go OrderbookUpdaterRoutine(*verbosity)
 	go WebsocketRoutine(*verbosity)
 
 	bot.db, err = database.Connect(*dbPath, *verbosity, bot.config)
@@ -180,11 +179,9 @@ func main() {
 	if err != nil {
 		log.Fatalf("Database error %s - %s", bot.config.Name, err)
 	}
+	log.Println("Database connection successfully established")
 
-	log.Println("Database connection established")
-	if *dbSeedHistory {
-		go HistoricExchangeDataUpdaterRoutine()
-	}
+	bot.routines = StartUpdater(true, true, *dbSeedHistory)
 
 	<-bot.shutdown
 	Shutdown()

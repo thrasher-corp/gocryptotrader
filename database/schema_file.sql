@@ -121,7 +121,7 @@ CREATE TABLE exchange_trade_history (
   contract_type text NOT NULL,
   amount real NOT NULL,
   rate real NOT NULL,
-  order_id integer NOT NULL,
+  order_id integer,
   exchange_id integer NOT NULL,
   FOREIGN KEY(exchange_id) REFERENCES exchange_config(id)
 );

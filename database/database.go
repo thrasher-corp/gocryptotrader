@@ -220,7 +220,7 @@ func (o *ORM) InsertExchangeTradeHistoryData(transactionID int64, exchangeName, 
 		Amount:       amount,
 		Rate:         rate,
 		ContractType: "TEST",
-		OrderID:      transactionID,
+		OrderID:      null.Int64From(transactionID),
 		ExchangeID:   o.ExchangeID[exchangeName],
 	}
 	return tradeHistory.Insert(ctx, o.DB, boil.Infer())
@@ -251,7 +251,7 @@ func (o *ORM) GetExchangeTradeHistoryLast(exchangeName, currencyPair string) (ti
 		return time.Time{}, 0, err
 	}
 
-	return tradeHistory.FulfilledOn, tradeHistory.OrderID, nil
+	return tradeHistory.FulfilledOn, tradeHistory.OrderID.Int64, nil
 }
 
 // GetExchangeTradeHistory returns the full trade history by exchange name,
@@ -277,7 +277,7 @@ func (o *ORM) GetExchangeTradeHistory(exchName, currencyPair, assetType string) 
 		fullHistory = append(fullHistory,
 			exchange.TradeHistory{
 				Timestamp: trade.FulfilledOn,
-				TID:       trade.OrderID,
+				TID:       trade.OrderID.Int64,
 				Price:     trade.Rate,
 				Amount:    trade.Amount})
 	}

@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
+	"github.com/volatiletech/null"
 	"github.com/volatiletech/sqlboiler/boil"
 	"github.com/volatiletech/sqlboiler/queries"
 	"github.com/volatiletech/sqlboiler/queries/qm"
@@ -21,16 +22,16 @@ import (
 
 // ExchangeTradeHistory is an object representing the database table.
 type ExchangeTradeHistory struct {
-	ID           int64     `boil:"id" json:"id" toml:"id" yaml:"id"`
-	FulfilledOn  time.Time `boil:"fulfilled_on" json:"fulfilled_on" toml:"fulfilled_on" yaml:"fulfilled_on"`
-	CurrencyPair string    `boil:"currency_pair" json:"currency_pair" toml:"currency_pair" yaml:"currency_pair"`
-	AssetType    string    `boil:"asset_type" json:"asset_type" toml:"asset_type" yaml:"asset_type"`
-	OrderType    string    `boil:"order_type" json:"order_type" toml:"order_type" yaml:"order_type"`
-	ContractType string    `boil:"contract_type" json:"contract_type" toml:"contract_type" yaml:"contract_type"`
-	Amount       float64   `boil:"amount" json:"amount" toml:"amount" yaml:"amount"`
-	Rate         float64   `boil:"rate" json:"rate" toml:"rate" yaml:"rate"`
-	OrderID      int64     `boil:"order_id" json:"order_id" toml:"order_id" yaml:"order_id"`
-	ExchangeID   int64     `boil:"exchange_id" json:"exchange_id" toml:"exchange_id" yaml:"exchange_id"`
+	ID           int64      `boil:"id" json:"id" toml:"id" yaml:"id"`
+	FulfilledOn  time.Time  `boil:"fulfilled_on" json:"fulfilled_on" toml:"fulfilled_on" yaml:"fulfilled_on"`
+	CurrencyPair string     `boil:"currency_pair" json:"currency_pair" toml:"currency_pair" yaml:"currency_pair"`
+	AssetType    string     `boil:"asset_type" json:"asset_type" toml:"asset_type" yaml:"asset_type"`
+	OrderType    string     `boil:"order_type" json:"order_type" toml:"order_type" yaml:"order_type"`
+	ContractType string     `boil:"contract_type" json:"contract_type" toml:"contract_type" yaml:"contract_type"`
+	Amount       float64    `boil:"amount" json:"amount" toml:"amount" yaml:"amount"`
+	Rate         float64    `boil:"rate" json:"rate" toml:"rate" yaml:"rate"`
+	OrderID      null.Int64 `boil:"order_id" json:"order_id,omitempty" toml:"order_id" yaml:"order_id,omitempty"`
+	ExchangeID   int64      `boil:"exchange_id" json:"exchange_id" toml:"exchange_id" yaml:"exchange_id"`
 
 	R *exchangeTradeHistoryR `boil:"-" json:"-" toml:"-" yaml:"-"`
 	L exchangeTradeHistoryL  `boil:"-" json:"-" toml:"-" yaml:"-"`
