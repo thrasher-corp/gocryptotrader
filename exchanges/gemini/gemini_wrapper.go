@@ -141,7 +141,7 @@ func (g *Gemini) GetExchangeHistory(p pair.CurrencyPair, assetType string, times
 	}
 
 	for _, data := range trades {
-		t := common.ConvertUnixMilliToNano(data.Timestampms)
+		t := common.UnixMillisToNano(data.Timestampms)
 		resp = append(resp, exchange.TradeHistory{
 			Timestamp: time.Unix(0, t),
 			TID:       data.TID,

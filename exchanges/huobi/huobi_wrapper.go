@@ -173,7 +173,7 @@ func (h *HUOBI) GetExchangeHistory(p pair.CurrencyPair, assetType string, timest
 
 	for i := range trades {
 		for _, data := range trades[i].Trades {
-			t := common.ConvertUnixMilliToNano(data.Timestamp)
+			t := common.UnixMillisToNano(data.Timestamp)
 			resp = append(resp, exchange.TradeHistory{
 				Timestamp: time.Unix(0, t),
 				TID:       int64(data.ID),

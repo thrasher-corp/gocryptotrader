@@ -1,13 +1,22 @@
 package database
 
 import (
+	"log"
+	"os"
 	"testing"
 
+	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
+	"github.com/thrasher-/gocryptotrader/database/models"
+	"github.com/volatiletech/sqlboiler/queries/qm"
 )
 
 var (
-	o         *ORM
+	testWorkingDir, _ = os.Getwd()
+)
+
+var (
+	testConn  *ORM
 	connected bool
 	cfg       *config.Config
 )
@@ -19,39 +28,56 @@ func TestStartDB(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	o, err = Connect("gocryptotrader", "localhost", "gocryptotrader", "gocryptotrader", false, cfg)
+	var pathToDB string
+	if common.StringContains(testWorkingDir, "database") {
+		pathToDB = testWorkingDir + "/database.db"
+	} else {
+		pathToDB = testWorkingDir + "/database/database.db"
+	}
+
+	testConn, err = Connect(pathToDB, true, cfg)
 	if err != nil {
-		t.Fatal("test failed - Database Connect() error", err)
-	}
-	connected = true
-}
-
-func TestCheckLoadedConfiguration(t *testing.T) {
-	if connected {
-		b := o.checkLoadedConfiguration(cfg.Name)
-		if !b {
-			t.Error("test failed - Database checkLoadedConfiguration() error")
-		}
+		log.Println("WARNING - NO DATABASE CONNECTION!", err)
+	} else {
+		connected = true
 	}
 }
 
-func TestGetLoadedConfigurationID(t *testing.T) {
-	if connected {
-		i, err := o.getLoadedConfigurationID(cfg.Name)
-		if err != nil {
-			t.Error("test failed - Database getLoadedConfigurationID() error", err)
-		}
-		if i != 0 {
-			t.Error("test failed - Database getLoadedConfigurationID() error")
-		}
+func TestGetDefaultPath(t *testing.T) {
+	_ = GetDefaultPath()
+}
+
+func TestLoadConfigurations(t *testing.T) {
+	if !connected {
+		t.Skip()
+	}
+
+	err := testConn.LoadConfigurations()
+	if err != nil {
+		t.Fatal("test failed - LoadConfiguration error", err)
+	}
+
+	// forces update logic
+	err = testConn.LoadConfigurations()
+	if err != nil {
+		t.Fatal("test failed - LoadConfiguration error", err)
 	}
 }
 
-func TestDatabaseFlush(t *testing.T) {
-	if connected {
-		err := o.DatabaseFlush()
-		if err != nil {
-			t.Error("test failed - Database DatabaseFlush() error", err)
-		}
+func TestPurgeDB(t *testing.T) {
+	if !connected {
+		t.Skip()
+	}
+
+	_, err := models.ExchangeConfigs(qm.Where("config_id = ?",
+		testConn.ConfigID)).DeleteAll(ctx, testConn.DB)
+	if err != nil {
+		t.Error("test failed - purging test exchange config data", err)
+	}
+
+	_, err = models.Configs(qm.Where("id = ?",
+		testConn.ConfigID)).DeleteAll(ctx, testConn.DB)
+	if err != nil {
+		t.Error("test failed - purging test config data", err)
 	}
 }

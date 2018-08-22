@@ -4,7 +4,7 @@
 package models
 
 import (
-	"bytes"
+	"context"
 	"database/sql"
 	"fmt"
 	"reflect"
@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
+	"github.com/volatiletech/null"
 	"github.com/volatiletech/sqlboiler/boil"
 	"github.com/volatiletech/sqlboiler/queries"
 	"github.com/volatiletech/sqlboiler/queries/qm"
@@ -21,58 +22,90 @@ import (
 
 // Config is an object representing the database table.
 type Config struct {
-	ConfigID            int64  `boil:"config_id" json:"config_id" toml:"config_id" yaml:"config_id"`
-	Name                string `boil:"name" json:"name" toml:"name" yaml:"name"`
-	Password            string `boil:"password" json:"password" toml:"password" yaml:"password"`
-	EncryptConfig       int    `boil:"encrypt_config" json:"encrypt_config" toml:"encrypt_config" yaml:"encrypt_config"`
-	Cryptocurrencies    string `boil:"cryptocurrencies" json:"cryptocurrencies" toml:"cryptocurrencies" yaml:"cryptocurrencies"`
-	CurrencyFXProvider  string `boil:"currency_fx_provider" json:"currency_fx_provider" toml:"currency_fx_provider" yaml:"currency_fx_provider"`
-	FiatDisplayCurrency string `boil:"fiat_display_currency" json:"fiat_display_currency" toml:"fiat_display_currency" yaml:"fiat_display_currency"`
-	GlobalHTTPTimeout   int64  `boil:"global_http_timeout" json:"global_http_timeout" toml:"global_http_timeout" yaml:"global_http_timeout"`
+	ID                                int64       `boil:"id" json:"id" toml:"id" yaml:"id"`
+	ConfigName                        string      `boil:"config_name" json:"config_name" toml:"config_name" yaml:"config_name"`
+	GlobalHTTPTimeout                 int64       `boil:"global_http_timeout" json:"global_http_timeout" toml:"global_http_timeout" yaml:"global_http_timeout"`
+	WebserverEnabled                  bool        `boil:"webserver_enabled" json:"webserver_enabled" toml:"webserver_enabled" yaml:"webserver_enabled"`
+	WebserverAdminUsername            null.String `boil:"webserver_admin_username" json:"webserver_admin_username,omitempty" toml:"webserver_admin_username" yaml:"webserver_admin_username,omitempty"`
+	WebserverAdminPassword            null.String `boil:"webserver_admin_password" json:"webserver_admin_password,omitempty" toml:"webserver_admin_password" yaml:"webserver_admin_password,omitempty"`
+	WebserverListenAddress            null.String `boil:"webserver_listen_address" json:"webserver_listen_address,omitempty" toml:"webserver_listen_address" yaml:"webserver_listen_address,omitempty"`
+	WebserverWebsocketConnectionLimit null.Int64  `boil:"webserver_websocket_connection_limit" json:"webserver_websocket_connection_limit,omitempty" toml:"webserver_websocket_connection_limit" yaml:"webserver_websocket_connection_limit,omitempty"`
+	WebserverAllowInsecureOrigin      bool        `boil:"webserver_allow_insecure_origin" json:"webserver_allow_insecure_origin" toml:"webserver_allow_insecure_origin" yaml:"webserver_allow_insecure_origin"`
 
 	R *configR `boil:"-" json:"-" toml:"-" yaml:"-"`
 	L configL  `boil:"-" json:"-" toml:"-" yaml:"-"`
 }
 
 var ConfigColumns = struct {
-	ConfigID            string
-	Name                string
-	Password            string
-	EncryptConfig       string
-	Cryptocurrencies    string
-	CurrencyFXProvider  string
-	FiatDisplayCurrency string
-	GlobalHTTPTimeout   string
+	ID                                string
+	ConfigName                        string
+	GlobalHTTPTimeout                 string
+	WebserverEnabled                  string
+	WebserverAdminUsername            string
+	WebserverAdminPassword            string
+	WebserverListenAddress            string
+	WebserverWebsocketConnectionLimit string
+	WebserverAllowInsecureOrigin      string
 }{
-	ConfigID:            "config_id",
-	Name:                "name",
-	Password:            "password",
-	EncryptConfig:       "encrypt_config",
-	Cryptocurrencies:    "cryptocurrencies",
-	CurrencyFXProvider:  "currency_fx_provider",
-	FiatDisplayCurrency: "fiat_display_currency",
-	GlobalHTTPTimeout:   "global_http_timeout",
+	ID:                                "id",
+	ConfigName:                        "config_name",
+	GlobalHTTPTimeout:                 "global_http_timeout",
+	WebserverEnabled:                  "webserver_enabled",
+	WebserverAdminUsername:            "webserver_admin_username",
+	WebserverAdminPassword:            "webserver_admin_password",
+	WebserverListenAddress:            "webserver_listen_address",
+	WebserverWebsocketConnectionLimit: "webserver_websocket_connection_limit",
+	WebserverAllowInsecureOrigin:      "webserver_allow_insecure_origin",
+}
+
+// ConfigRels is where relationship names are stored.
+var ConfigRels = struct {
+	BankAccountConfigs             string
+	CommunicationConfigs           string
+	CommunicationConfigContacts    string
+	ExchangeConfigs                string
+	ForeignExchangeProviderConfigs string
+	Portfolios                     string
+}{
+	BankAccountConfigs:             "BankAccountConfigs",
+	CommunicationConfigs:           "CommunicationConfigs",
+	CommunicationConfigContacts:    "CommunicationConfigContacts",
+	ExchangeConfigs:                "ExchangeConfigs",
+	ForeignExchangeProviderConfigs: "ForeignExchangeProviderConfigs",
+	Portfolios:                     "Portfolios",
 }
 
 // configR is where relationships are stored.
 type configR struct {
-	OrderHistories OrderHistorySlice
+	BankAccountConfigs             BankAccountConfigSlice
+	CommunicationConfigs           CommunicationConfigSlice
+	CommunicationConfigContacts    CommunicationConfigContactSlice
+	ExchangeConfigs                ExchangeConfigSlice
+	ForeignExchangeProviderConfigs ForeignExchangeProviderConfigSlice
+	Portfolios                     PortfolioSlice
+}
+
+// NewStruct creates a new relationship struct
+func (*configR) NewStruct() *configR {
+	return &configR{}
 }
 
 // configL is where Load methods for each relationship are stored.
 type configL struct{}
 
 var (
-	configColumns               = []string{"config_id", "name", "password", "encrypt_config", "cryptocurrencies", "currency_fx_provider", "fiat_display_currency", "global_http_timeout"}
-	configColumnsWithoutDefault = []string{"config_id", "name", "password", "encrypt_config", "cryptocurrencies", "currency_fx_provider", "fiat_display_currency", "global_http_timeout"}
-	configColumnsWithDefault    = []string{}
-	configPrimaryKeyColumns     = []string{"config_id"}
+	configColumns               = []string{"id", "config_name", "global_http_timeout", "webserver_enabled", "webserver_admin_username", "webserver_admin_password", "webserver_listen_address", "webserver_websocket_connection_limit", "webserver_allow_insecure_origin"}
+	configColumnsWithoutDefault = []string{}
+	configColumnsWithDefault    = []string{"id", "config_name", "global_http_timeout", "webserver_enabled", "webserver_admin_username", "webserver_admin_password", "webserver_listen_address", "webserver_websocket_connection_limit", "webserver_allow_insecure_origin"}
+	configPrimaryKeyColumns     = []string{"id"}
 )
 
 type (
 	// ConfigSlice is an alias for a slice of pointers to Config.
 	// This should generally be used opposed to []Config.
 	ConfigSlice []*Config
+	// ConfigHook is the signature for custom Config hook methods
+	ConfigHook func(context.Context, boil.ContextExecutor, *Config) error
 
 	configQuery struct {
 		*queries.Query
@@ -95,27 +128,149 @@ var (
 var (
 	// Force time package dependency for automated UpdatedAt/CreatedAt.
 	_ = time.Second
-	// Force bytes in case of primary key column that uses []byte (for relationship compares)
-	_ = bytes.MinRead
 )
 
-// OneP returns a single config record from the query, and panics on error.
-func (q configQuery) OneP() *Config {
-	o, err := q.One()
-	if err != nil {
-		panic(boil.WrapErr(err))
+var configBeforeInsertHooks []ConfigHook
+var configBeforeUpdateHooks []ConfigHook
+var configBeforeDeleteHooks []ConfigHook
+var configBeforeUpsertHooks []ConfigHook
+
+var configAfterInsertHooks []ConfigHook
+var configAfterSelectHooks []ConfigHook
+var configAfterUpdateHooks []ConfigHook
+var configAfterDeleteHooks []ConfigHook
+var configAfterUpsertHooks []ConfigHook
+
+// doBeforeInsertHooks executes all "before insert" hooks.
+func (o *Config) doBeforeInsertHooks(ctx context.Context, exec boil.ContextExecutor) (err error) {
+	for _, hook := range configBeforeInsertHooks {
+		if err := hook(ctx, exec, o); err != nil {
+			return err
+		}
 	}
 
-	return o
+	return nil
+}
+
+// doBeforeUpdateHooks executes all "before Update" hooks.
+func (o *Config) doBeforeUpdateHooks(ctx context.Context, exec boil.ContextExecutor) (err error) {
+	for _, hook := range configBeforeUpdateHooks {
+		if err := hook(ctx, exec, o); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// doBeforeDeleteHooks executes all "before Delete" hooks.
+func (o *Config) doBeforeDeleteHooks(ctx context.Context, exec boil.ContextExecutor) (err error) {
+	for _, hook := range configBeforeDeleteHooks {
+		if err := hook(ctx, exec, o); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// doBeforeUpsertHooks executes all "before Upsert" hooks.
+func (o *Config) doBeforeUpsertHooks(ctx context.Context, exec boil.ContextExecutor) (err error) {
+	for _, hook := range configBeforeUpsertHooks {
+		if err := hook(ctx, exec, o); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// doAfterInsertHooks executes all "after Insert" hooks.
+func (o *Config) doAfterInsertHooks(ctx context.Context, exec boil.ContextExecutor) (err error) {
+	for _, hook := range configAfterInsertHooks {
+		if err := hook(ctx, exec, o); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// doAfterSelectHooks executes all "after Select" hooks.
+func (o *Config) doAfterSelectHooks(ctx context.Context, exec boil.ContextExecutor) (err error) {
+	for _, hook := range configAfterSelectHooks {
+		if err := hook(ctx, exec, o); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// doAfterUpdateHooks executes all "after Update" hooks.
+func (o *Config) doAfterUpdateHooks(ctx context.Context, exec boil.ContextExecutor) (err error) {
+	for _, hook := range configAfterUpdateHooks {
+		if err := hook(ctx, exec, o); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// doAfterDeleteHooks executes all "after Delete" hooks.
+func (o *Config) doAfterDeleteHooks(ctx context.Context, exec boil.ContextExecutor) (err error) {
+	for _, hook := range configAfterDeleteHooks {
+		if err := hook(ctx, exec, o); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// doAfterUpsertHooks executes all "after Upsert" hooks.
+func (o *Config) doAfterUpsertHooks(ctx context.Context, exec boil.ContextExecutor) (err error) {
+	for _, hook := range configAfterUpsertHooks {
+		if err := hook(ctx, exec, o); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// AddConfigHook registers your hook function for all future operations.
+func AddConfigHook(hookPoint boil.HookPoint, configHook ConfigHook) {
+	switch hookPoint {
+	case boil.BeforeInsertHook:
+		configBeforeInsertHooks = append(configBeforeInsertHooks, configHook)
+	case boil.BeforeUpdateHook:
+		configBeforeUpdateHooks = append(configBeforeUpdateHooks, configHook)
+	case boil.BeforeDeleteHook:
+		configBeforeDeleteHooks = append(configBeforeDeleteHooks, configHook)
+	case boil.BeforeUpsertHook:
+		configBeforeUpsertHooks = append(configBeforeUpsertHooks, configHook)
+	case boil.AfterInsertHook:
+		configAfterInsertHooks = append(configAfterInsertHooks, configHook)
+	case boil.AfterSelectHook:
+		configAfterSelectHooks = append(configAfterSelectHooks, configHook)
+	case boil.AfterUpdateHook:
+		configAfterUpdateHooks = append(configAfterUpdateHooks, configHook)
+	case boil.AfterDeleteHook:
+		configAfterDeleteHooks = append(configAfterDeleteHooks, configHook)
+	case boil.AfterUpsertHook:
+		configAfterUpsertHooks = append(configAfterUpsertHooks, configHook)
+	}
 }
 
 // One returns a single config record from the query.
-func (q configQuery) One() (*Config, error) {
+func (q configQuery) One(ctx context.Context, exec boil.ContextExecutor) (*Config, error) {
 	o := &Config{}
 
 	queries.SetLimit(q.Query, 1)
 
-	err := q.Bind(o)
+	err := q.Bind(ctx, exec, o)
 	if err != nil {
 		if errors.Cause(err) == sql.ErrNoRows {
 			return nil, sql.ErrNoRows
@@ -123,49 +278,41 @@ func (q configQuery) One() (*Config, error) {
 		return nil, errors.Wrap(err, "models: failed to execute a one query for config")
 	}
 
+	if err := o.doAfterSelectHooks(ctx, exec); err != nil {
+		return o, err
+	}
+
 	return o, nil
 }
 
-// AllP returns all Config records from the query, and panics on error.
-func (q configQuery) AllP() ConfigSlice {
-	o, err := q.All()
-	if err != nil {
-		panic(boil.WrapErr(err))
-	}
-
-	return o
-}
-
 // All returns all Config records from the query.
-func (q configQuery) All() (ConfigSlice, error) {
+func (q configQuery) All(ctx context.Context, exec boil.ContextExecutor) (ConfigSlice, error) {
 	var o []*Config
 
-	err := q.Bind(&o)
+	err := q.Bind(ctx, exec, &o)
 	if err != nil {
 		return nil, errors.Wrap(err, "models: failed to assign all query results to Config slice")
 	}
 
+	if len(configAfterSelectHooks) != 0 {
+		for _, obj := range o {
+			if err := obj.doAfterSelectHooks(ctx, exec); err != nil {
+				return o, err
+			}
+		}
+	}
+
 	return o, nil
 }
 
-// CountP returns the count of all Config records in the query, and panics on error.
-func (q configQuery) CountP() int64 {
-	c, err := q.Count()
-	if err != nil {
-		panic(boil.WrapErr(err))
-	}
-
-	return c
-}
-
 // Count returns the count of all Config records in the query.
-func (q configQuery) Count() (int64, error) {
+func (q configQuery) Count(ctx context.Context, exec boil.ContextExecutor) (int64, error) {
 	var count int64
 
 	queries.SetSelect(q.Query, nil)
 	queries.SetCount(q.Query)
 
-	err := q.Query.QueryRow().Scan(&count)
+	err := q.Query.QueryRowContext(ctx, exec).Scan(&count)
 	if err != nil {
 		return 0, errors.Wrap(err, "models: failed to count config rows")
 	}
@@ -173,24 +320,14 @@ func (q configQuery) Count() (int64, error) {
 	return count, nil
 }
 
-// Exists checks if the row exists in the table, and panics on error.
-func (q configQuery) ExistsP() bool {
-	e, err := q.Exists()
-	if err != nil {
-		panic(boil.WrapErr(err))
-	}
-
-	return e
-}
-
 // Exists checks if the row exists in the table.
-func (q configQuery) Exists() (bool, error) {
+func (q configQuery) Exists(ctx context.Context, exec boil.ContextExecutor) (bool, error) {
 	var count int64
 
 	queries.SetCount(q.Query)
 	queries.SetLimit(q.Query, 1)
 
-	err := q.Query.QueryRow().Scan(&count)
+	err := q.Query.QueryRowContext(ctx, exec).Scan(&count)
 	if err != nil {
 		return false, errors.Wrap(err, "models: failed to check if config exists")
 	}
@@ -198,89 +335,215 @@ func (q configQuery) Exists() (bool, error) {
 	return count > 0, nil
 }
 
-// OrderHistoriesG retrieves all the order_history's order history.
-func (o *Config) OrderHistoriesG(mods ...qm.QueryMod) orderHistoryQuery {
-	return o.OrderHistories(boil.GetDB(), mods...)
-}
-
-// OrderHistories retrieves all the order_history's order history with an executor.
-func (o *Config) OrderHistories(exec boil.Executor, mods ...qm.QueryMod) orderHistoryQuery {
+// BankAccountConfigs retrieves all the bank_account_config's BankAccountConfigs with an executor.
+func (o *Config) BankAccountConfigs(mods ...qm.QueryMod) bankAccountConfigQuery {
 	var queryMods []qm.QueryMod
 	if len(mods) != 0 {
 		queryMods = append(queryMods, mods...)
 	}
 
 	queryMods = append(queryMods,
-		qm.Where("\"order_history\".\"config_id\"=?", o.ConfigID),
+		qm.Where("\"bank_account_config\".\"config_id\"=?", o.ID),
 	)
 
-	query := OrderHistories(exec, queryMods...)
-	queries.SetFrom(query.Query, "\"order_history\"")
+	query := BankAccountConfigs(queryMods...)
+	queries.SetFrom(query.Query, "\"bank_account_config\"")
 
 	if len(queries.GetSelect(query.Query)) == 0 {
-		queries.SetSelect(query.Query, []string{"\"order_history\".*"})
+		queries.SetSelect(query.Query, []string{"\"bank_account_config\".*"})
 	}
 
 	return query
 }
 
-// LoadOrderHistories allows an eager lookup of values, cached into the
-// loaded structs of the objects.
-func (configL) LoadOrderHistories(e boil.Executor, singular bool, maybeConfig interface{}) error {
+// CommunicationConfigs retrieves all the communication_config's CommunicationConfigs with an executor.
+func (o *Config) CommunicationConfigs(mods ...qm.QueryMod) communicationConfigQuery {
+	var queryMods []qm.QueryMod
+	if len(mods) != 0 {
+		queryMods = append(queryMods, mods...)
+	}
+
+	queryMods = append(queryMods,
+		qm.Where("\"communication_config\".\"config_id\"=?", o.ID),
+	)
+
+	query := CommunicationConfigs(queryMods...)
+	queries.SetFrom(query.Query, "\"communication_config\"")
+
+	if len(queries.GetSelect(query.Query)) == 0 {
+		queries.SetSelect(query.Query, []string{"\"communication_config\".*"})
+	}
+
+	return query
+}
+
+// CommunicationConfigContacts retrieves all the communication_config_contact's CommunicationConfigContacts with an executor.
+func (o *Config) CommunicationConfigContacts(mods ...qm.QueryMod) communicationConfigContactQuery {
+	var queryMods []qm.QueryMod
+	if len(mods) != 0 {
+		queryMods = append(queryMods, mods...)
+	}
+
+	queryMods = append(queryMods,
+		qm.Where("\"communication_config_contact\".\"config_id\"=?", o.ID),
+	)
+
+	query := CommunicationConfigContacts(queryMods...)
+	queries.SetFrom(query.Query, "\"communication_config_contact\"")
+
+	if len(queries.GetSelect(query.Query)) == 0 {
+		queries.SetSelect(query.Query, []string{"\"communication_config_contact\".*"})
+	}
+
+	return query
+}
+
+// ExchangeConfigs retrieves all the exchange_config's ExchangeConfigs with an executor.
+func (o *Config) ExchangeConfigs(mods ...qm.QueryMod) exchangeConfigQuery {
+	var queryMods []qm.QueryMod
+	if len(mods) != 0 {
+		queryMods = append(queryMods, mods...)
+	}
+
+	queryMods = append(queryMods,
+		qm.Where("\"exchange_config\".\"config_id\"=?", o.ID),
+	)
+
+	query := ExchangeConfigs(queryMods...)
+	queries.SetFrom(query.Query, "\"exchange_config\"")
+
+	if len(queries.GetSelect(query.Query)) == 0 {
+		queries.SetSelect(query.Query, []string{"\"exchange_config\".*"})
+	}
+
+	return query
+}
+
+// ForeignExchangeProviderConfigs retrieves all the foreign_exchange_provider_config's ForeignExchangeProviderConfigs with an executor.
+func (o *Config) ForeignExchangeProviderConfigs(mods ...qm.QueryMod) foreignExchangeProviderConfigQuery {
+	var queryMods []qm.QueryMod
+	if len(mods) != 0 {
+		queryMods = append(queryMods, mods...)
+	}
+
+	queryMods = append(queryMods,
+		qm.Where("\"foreign_exchange_provider_config\".\"config_id\"=?", o.ID),
+	)
+
+	query := ForeignExchangeProviderConfigs(queryMods...)
+	queries.SetFrom(query.Query, "\"foreign_exchange_provider_config\"")
+
+	if len(queries.GetSelect(query.Query)) == 0 {
+		queries.SetSelect(query.Query, []string{"\"foreign_exchange_provider_config\".*"})
+	}
+
+	return query
+}
+
+// Portfolios retrieves all the portfolio's Portfolios with an executor.
+func (o *Config) Portfolios(mods ...qm.QueryMod) portfolioQuery {
+	var queryMods []qm.QueryMod
+	if len(mods) != 0 {
+		queryMods = append(queryMods, mods...)
+	}
+
+	queryMods = append(queryMods,
+		qm.Where("\"portfolio\".\"config_id\"=?", o.ID),
+	)
+
+	query := Portfolios(queryMods...)
+	queries.SetFrom(query.Query, "\"portfolio\"")
+
+	if len(queries.GetSelect(query.Query)) == 0 {
+		queries.SetSelect(query.Query, []string{"\"portfolio\".*"})
+	}
+
+	return query
+}
+
+// LoadBankAccountConfigs allows an eager lookup of values, cached into the
+// loaded structs of the objects. This is for a 1-M or N-M relationship.
+func (configL) LoadBankAccountConfigs(ctx context.Context, e boil.ContextExecutor, singular bool, maybeConfig interface{}, mods queries.Applicator) error {
 	var slice []*Config
 	var object *Config
 
-	count := 1
 	if singular {
 		object = maybeConfig.(*Config)
 	} else {
 		slice = *maybeConfig.(*[]*Config)
-		count = len(slice)
 	}
 
-	args := make([]interface{}, count)
+	args := make([]interface{}, 0, 1)
 	if singular {
 		if object.R == nil {
 			object.R = &configR{}
 		}
-		args[0] = object.ConfigID
+		args = append(args, object.ID)
 	} else {
-		for i, obj := range slice {
+	Outer:
+		for _, obj := range slice {
 			if obj.R == nil {
 				obj.R = &configR{}
 			}
-			args[i] = obj.ConfigID
+
+			for _, a := range args {
+				if a == obj.ID {
+					continue Outer
+				}
+			}
+
+			args = append(args, obj.ID)
 		}
 	}
 
-	query := fmt.Sprintf(
-		"select * from \"order_history\" where \"config_id\" in (%s)",
-		strmangle.Placeholders(dialect.IndexPlaceholders, count, 1, 1),
-	)
-	if boil.DebugMode {
-		fmt.Fprintf(boil.DebugWriter, "%s\n%v\n", query, args)
+	query := NewQuery(qm.From(`bank_account_config`), qm.WhereIn(`config_id in ?`, args...))
+	if mods != nil {
+		mods.Apply(query)
 	}
 
-	results, err := e.Query(query, args...)
+	results, err := query.QueryContext(ctx, e)
 	if err != nil {
-		return errors.Wrap(err, "failed to eager load order_history")
+		return errors.Wrap(err, "failed to eager load bank_account_config")
 	}
-	defer results.Close()
 
-	var resultSlice []*OrderHistory
+	var resultSlice []*BankAccountConfig
 	if err = queries.Bind(results, &resultSlice); err != nil {
-		return errors.Wrap(err, "failed to bind eager loaded slice order_history")
+		return errors.Wrap(err, "failed to bind eager loaded slice bank_account_config")
 	}
 
+	if err = results.Close(); err != nil {
+		return errors.Wrap(err, "failed to close results in eager load on bank_account_config")
+	}
+	if err = results.Err(); err != nil {
+		return errors.Wrap(err, "error occurred during iteration of eager loaded relations for bank_account_config")
+	}
+
+	if len(bankAccountConfigAfterSelectHooks) != 0 {
+		for _, obj := range resultSlice {
+			if err := obj.doAfterSelectHooks(ctx, e); err != nil {
+				return err
+			}
+		}
+	}
 	if singular {
-		object.R.OrderHistories = resultSlice
+		object.R.BankAccountConfigs = resultSlice
+		for _, foreign := range resultSlice {
+			if foreign.R == nil {
+				foreign.R = &bankAccountConfigR{}
+			}
+			foreign.R.Config = object
+		}
 		return nil
 	}
 
 	for _, foreign := range resultSlice {
 		for _, local := range slice {
-			if local.ConfigID == foreign.ConfigID {
-				local.R.OrderHistories = append(local.R.OrderHistories, foreign)
+			if local.ID == foreign.ConfigID {
+				local.R.BankAccountConfigs = append(local.R.BankAccountConfigs, foreign)
+				if foreign.R == nil {
+					foreign.R = &bankAccountConfigR{}
+				}
+				foreign.R.Config = local
 				break
 			}
 		}
@@ -289,81 +552,505 @@ func (configL) LoadOrderHistories(e boil.Executor, singular bool, maybeConfig in
 	return nil
 }
 
-// AddOrderHistoriesG adds the given related objects to the existing relationships
-// of the config, optionally inserting them as new records.
-// Appends related to o.R.OrderHistories.
-// Sets related.R.Config appropriately.
-// Uses the global database handle.
-func (o *Config) AddOrderHistoriesG(insert bool, related ...*OrderHistory) error {
-	return o.AddOrderHistories(boil.GetDB(), insert, related...)
-}
+// LoadCommunicationConfigs allows an eager lookup of values, cached into the
+// loaded structs of the objects. This is for a 1-M or N-M relationship.
+func (configL) LoadCommunicationConfigs(ctx context.Context, e boil.ContextExecutor, singular bool, maybeConfig interface{}, mods queries.Applicator) error {
+	var slice []*Config
+	var object *Config
 
-// AddOrderHistoriesP adds the given related objects to the existing relationships
-// of the config, optionally inserting them as new records.
-// Appends related to o.R.OrderHistories.
-// Sets related.R.Config appropriately.
-// Panics on error.
-func (o *Config) AddOrderHistoriesP(exec boil.Executor, insert bool, related ...*OrderHistory) {
-	if err := o.AddOrderHistories(exec, insert, related...); err != nil {
-		panic(boil.WrapErr(err))
+	if singular {
+		object = maybeConfig.(*Config)
+	} else {
+		slice = *maybeConfig.(*[]*Config)
 	}
-}
 
-// AddOrderHistoriesGP adds the given related objects to the existing relationships
-// of the config, optionally inserting them as new records.
-// Appends related to o.R.OrderHistories.
-// Sets related.R.Config appropriately.
-// Uses the global database handle and panics on error.
-func (o *Config) AddOrderHistoriesGP(insert bool, related ...*OrderHistory) {
-	if err := o.AddOrderHistories(boil.GetDB(), insert, related...); err != nil {
-		panic(boil.WrapErr(err))
+	args := make([]interface{}, 0, 1)
+	if singular {
+		if object.R == nil {
+			object.R = &configR{}
+		}
+		args = append(args, object.ID)
+	} else {
+	Outer:
+		for _, obj := range slice {
+			if obj.R == nil {
+				obj.R = &configR{}
+			}
+
+			for _, a := range args {
+				if a == obj.ID {
+					continue Outer
+				}
+			}
+
+			args = append(args, obj.ID)
+		}
 	}
+
+	query := NewQuery(qm.From(`communication_config`), qm.WhereIn(`config_id in ?`, args...))
+	if mods != nil {
+		mods.Apply(query)
+	}
+
+	results, err := query.QueryContext(ctx, e)
+	if err != nil {
+		return errors.Wrap(err, "failed to eager load communication_config")
+	}
+
+	var resultSlice []*CommunicationConfig
+	if err = queries.Bind(results, &resultSlice); err != nil {
+		return errors.Wrap(err, "failed to bind eager loaded slice communication_config")
+	}
+
+	if err = results.Close(); err != nil {
+		return errors.Wrap(err, "failed to close results in eager load on communication_config")
+	}
+	if err = results.Err(); err != nil {
+		return errors.Wrap(err, "error occurred during iteration of eager loaded relations for communication_config")
+	}
+
+	if len(communicationConfigAfterSelectHooks) != 0 {
+		for _, obj := range resultSlice {
+			if err := obj.doAfterSelectHooks(ctx, e); err != nil {
+				return err
+			}
+		}
+	}
+	if singular {
+		object.R.CommunicationConfigs = resultSlice
+		for _, foreign := range resultSlice {
+			if foreign.R == nil {
+				foreign.R = &communicationConfigR{}
+			}
+			foreign.R.Config = object
+		}
+		return nil
+	}
+
+	for _, foreign := range resultSlice {
+		for _, local := range slice {
+			if local.ID == foreign.ConfigID {
+				local.R.CommunicationConfigs = append(local.R.CommunicationConfigs, foreign)
+				if foreign.R == nil {
+					foreign.R = &communicationConfigR{}
+				}
+				foreign.R.Config = local
+				break
+			}
+		}
+	}
+
+	return nil
 }
 
-// AddOrderHistories adds the given related objects to the existing relationships
+// LoadCommunicationConfigContacts allows an eager lookup of values, cached into the
+// loaded structs of the objects. This is for a 1-M or N-M relationship.
+func (configL) LoadCommunicationConfigContacts(ctx context.Context, e boil.ContextExecutor, singular bool, maybeConfig interface{}, mods queries.Applicator) error {
+	var slice []*Config
+	var object *Config
+
+	if singular {
+		object = maybeConfig.(*Config)
+	} else {
+		slice = *maybeConfig.(*[]*Config)
+	}
+
+	args := make([]interface{}, 0, 1)
+	if singular {
+		if object.R == nil {
+			object.R = &configR{}
+		}
+		args = append(args, object.ID)
+	} else {
+	Outer:
+		for _, obj := range slice {
+			if obj.R == nil {
+				obj.R = &configR{}
+			}
+
+			for _, a := range args {
+				if a == obj.ID {
+					continue Outer
+				}
+			}
+
+			args = append(args, obj.ID)
+		}
+	}
+
+	query := NewQuery(qm.From(`communication_config_contact`), qm.WhereIn(`config_id in ?`, args...))
+	if mods != nil {
+		mods.Apply(query)
+	}
+
+	results, err := query.QueryContext(ctx, e)
+	if err != nil {
+		return errors.Wrap(err, "failed to eager load communication_config_contact")
+	}
+
+	var resultSlice []*CommunicationConfigContact
+	if err = queries.Bind(results, &resultSlice); err != nil {
+		return errors.Wrap(err, "failed to bind eager loaded slice communication_config_contact")
+	}
+
+	if err = results.Close(); err != nil {
+		return errors.Wrap(err, "failed to close results in eager load on communication_config_contact")
+	}
+	if err = results.Err(); err != nil {
+		return errors.Wrap(err, "error occurred during iteration of eager loaded relations for communication_config_contact")
+	}
+
+	if len(communicationConfigContactAfterSelectHooks) != 0 {
+		for _, obj := range resultSlice {
+			if err := obj.doAfterSelectHooks(ctx, e); err != nil {
+				return err
+			}
+		}
+	}
+	if singular {
+		object.R.CommunicationConfigContacts = resultSlice
+		for _, foreign := range resultSlice {
+			if foreign.R == nil {
+				foreign.R = &communicationConfigContactR{}
+			}
+			foreign.R.Config = object
+		}
+		return nil
+	}
+
+	for _, foreign := range resultSlice {
+		for _, local := range slice {
+			if local.ID == foreign.ConfigID {
+				local.R.CommunicationConfigContacts = append(local.R.CommunicationConfigContacts, foreign)
+				if foreign.R == nil {
+					foreign.R = &communicationConfigContactR{}
+				}
+				foreign.R.Config = local
+				break
+			}
+		}
+	}
+
+	return nil
+}
+
+// LoadExchangeConfigs allows an eager lookup of values, cached into the
+// loaded structs of the objects. This is for a 1-M or N-M relationship.
+func (configL) LoadExchangeConfigs(ctx context.Context, e boil.ContextExecutor, singular bool, maybeConfig interface{}, mods queries.Applicator) error {
+	var slice []*Config
+	var object *Config
+
+	if singular {
+		object = maybeConfig.(*Config)
+	} else {
+		slice = *maybeConfig.(*[]*Config)
+	}
+
+	args := make([]interface{}, 0, 1)
+	if singular {
+		if object.R == nil {
+			object.R = &configR{}
+		}
+		args = append(args, object.ID)
+	} else {
+	Outer:
+		for _, obj := range slice {
+			if obj.R == nil {
+				obj.R = &configR{}
+			}
+
+			for _, a := range args {
+				if a == obj.ID {
+					continue Outer
+				}
+			}
+
+			args = append(args, obj.ID)
+		}
+	}
+
+	query := NewQuery(qm.From(`exchange_config`), qm.WhereIn(`config_id in ?`, args...))
+	if mods != nil {
+		mods.Apply(query)
+	}
+
+	results, err := query.QueryContext(ctx, e)
+	if err != nil {
+		return errors.Wrap(err, "failed to eager load exchange_config")
+	}
+
+	var resultSlice []*ExchangeConfig
+	if err = queries.Bind(results, &resultSlice); err != nil {
+		return errors.Wrap(err, "failed to bind eager loaded slice exchange_config")
+	}
+
+	if err = results.Close(); err != nil {
+		return errors.Wrap(err, "failed to close results in eager load on exchange_config")
+	}
+	if err = results.Err(); err != nil {
+		return errors.Wrap(err, "error occurred during iteration of eager loaded relations for exchange_config")
+	}
+
+	if len(exchangeConfigAfterSelectHooks) != 0 {
+		for _, obj := range resultSlice {
+			if err := obj.doAfterSelectHooks(ctx, e); err != nil {
+				return err
+			}
+		}
+	}
+	if singular {
+		object.R.ExchangeConfigs = resultSlice
+		for _, foreign := range resultSlice {
+			if foreign.R == nil {
+				foreign.R = &exchangeConfigR{}
+			}
+			foreign.R.Config = object
+		}
+		return nil
+	}
+
+	for _, foreign := range resultSlice {
+		for _, local := range slice {
+			if local.ID == foreign.ConfigID {
+				local.R.ExchangeConfigs = append(local.R.ExchangeConfigs, foreign)
+				if foreign.R == nil {
+					foreign.R = &exchangeConfigR{}
+				}
+				foreign.R.Config = local
+				break
+			}
+		}
+	}
+
+	return nil
+}
+
+// LoadForeignExchangeProviderConfigs allows an eager lookup of values, cached into the
+// loaded structs of the objects. This is for a 1-M or N-M relationship.
+func (configL) LoadForeignExchangeProviderConfigs(ctx context.Context, e boil.ContextExecutor, singular bool, maybeConfig interface{}, mods queries.Applicator) error {
+	var slice []*Config
+	var object *Config
+
+	if singular {
+		object = maybeConfig.(*Config)
+	} else {
+		slice = *maybeConfig.(*[]*Config)
+	}
+
+	args := make([]interface{}, 0, 1)
+	if singular {
+		if object.R == nil {
+			object.R = &configR{}
+		}
+		args = append(args, object.ID)
+	} else {
+	Outer:
+		for _, obj := range slice {
+			if obj.R == nil {
+				obj.R = &configR{}
+			}
+
+			for _, a := range args {
+				if a == obj.ID {
+					continue Outer
+				}
+			}
+
+			args = append(args, obj.ID)
+		}
+	}
+
+	query := NewQuery(qm.From(`foreign_exchange_provider_config`), qm.WhereIn(`config_id in ?`, args...))
+	if mods != nil {
+		mods.Apply(query)
+	}
+
+	results, err := query.QueryContext(ctx, e)
+	if err != nil {
+		return errors.Wrap(err, "failed to eager load foreign_exchange_provider_config")
+	}
+
+	var resultSlice []*ForeignExchangeProviderConfig
+	if err = queries.Bind(results, &resultSlice); err != nil {
+		return errors.Wrap(err, "failed to bind eager loaded slice foreign_exchange_provider_config")
+	}
+
+	if err = results.Close(); err != nil {
+		return errors.Wrap(err, "failed to close results in eager load on foreign_exchange_provider_config")
+	}
+	if err = results.Err(); err != nil {
+		return errors.Wrap(err, "error occurred during iteration of eager loaded relations for foreign_exchange_provider_config")
+	}
+
+	if len(foreignExchangeProviderConfigAfterSelectHooks) != 0 {
+		for _, obj := range resultSlice {
+			if err := obj.doAfterSelectHooks(ctx, e); err != nil {
+				return err
+			}
+		}
+	}
+	if singular {
+		object.R.ForeignExchangeProviderConfigs = resultSlice
+		for _, foreign := range resultSlice {
+			if foreign.R == nil {
+				foreign.R = &foreignExchangeProviderConfigR{}
+			}
+			foreign.R.Config = object
+		}
+		return nil
+	}
+
+	for _, foreign := range resultSlice {
+		for _, local := range slice {
+			if local.ID == foreign.ConfigID {
+				local.R.ForeignExchangeProviderConfigs = append(local.R.ForeignExchangeProviderConfigs, foreign)
+				if foreign.R == nil {
+					foreign.R = &foreignExchangeProviderConfigR{}
+				}
+				foreign.R.Config = local
+				break
+			}
+		}
+	}
+
+	return nil
+}
+
+// LoadPortfolios allows an eager lookup of values, cached into the
+// loaded structs of the objects. This is for a 1-M or N-M relationship.
+func (configL) LoadPortfolios(ctx context.Context, e boil.ContextExecutor, singular bool, maybeConfig interface{}, mods queries.Applicator) error {
+	var slice []*Config
+	var object *Config
+
+	if singular {
+		object = maybeConfig.(*Config)
+	} else {
+		slice = *maybeConfig.(*[]*Config)
+	}
+
+	args := make([]interface{}, 0, 1)
+	if singular {
+		if object.R == nil {
+			object.R = &configR{}
+		}
+		args = append(args, object.ID)
+	} else {
+	Outer:
+		for _, obj := range slice {
+			if obj.R == nil {
+				obj.R = &configR{}
+			}
+
+			for _, a := range args {
+				if a == obj.ID {
+					continue Outer
+				}
+			}
+
+			args = append(args, obj.ID)
+		}
+	}
+
+	query := NewQuery(qm.From(`portfolio`), qm.WhereIn(`config_id in ?`, args...))
+	if mods != nil {
+		mods.Apply(query)
+	}
+
+	results, err := query.QueryContext(ctx, e)
+	if err != nil {
+		return errors.Wrap(err, "failed to eager load portfolio")
+	}
+
+	var resultSlice []*Portfolio
+	if err = queries.Bind(results, &resultSlice); err != nil {
+		return errors.Wrap(err, "failed to bind eager loaded slice portfolio")
+	}
+
+	if err = results.Close(); err != nil {
+		return errors.Wrap(err, "failed to close results in eager load on portfolio")
+	}
+	if err = results.Err(); err != nil {
+		return errors.Wrap(err, "error occurred during iteration of eager loaded relations for portfolio")
+	}
+
+	if len(portfolioAfterSelectHooks) != 0 {
+		for _, obj := range resultSlice {
+			if err := obj.doAfterSelectHooks(ctx, e); err != nil {
+				return err
+			}
+		}
+	}
+	if singular {
+		object.R.Portfolios = resultSlice
+		for _, foreign := range resultSlice {
+			if foreign.R == nil {
+				foreign.R = &portfolioR{}
+			}
+			foreign.R.Config = object
+		}
+		return nil
+	}
+
+	for _, foreign := range resultSlice {
+		for _, local := range slice {
+			if local.ID == foreign.ConfigID {
+				local.R.Portfolios = append(local.R.Portfolios, foreign)
+				if foreign.R == nil {
+					foreign.R = &portfolioR{}
+				}
+				foreign.R.Config = local
+				break
+			}
+		}
+	}
+
+	return nil
+}
+
+// AddBankAccountConfigs adds the given related objects to the existing relationships
 // of the config, optionally inserting them as new records.
-// Appends related to o.R.OrderHistories.
+// Appends related to o.R.BankAccountConfigs.
 // Sets related.R.Config appropriately.
-func (o *Config) AddOrderHistories(exec boil.Executor, insert bool, related ...*OrderHistory) error {
+func (o *Config) AddBankAccountConfigs(ctx context.Context, exec boil.ContextExecutor, insert bool, related ...*BankAccountConfig) error {
 	var err error
 	for _, rel := range related {
 		if insert {
-			rel.ConfigID = o.ConfigID
-			if err = rel.Insert(exec); err != nil {
+			rel.ConfigID = o.ID
+			if err = rel.Insert(ctx, exec, boil.Infer()); err != nil {
 				return errors.Wrap(err, "failed to insert into foreign table")
 			}
 		} else {
 			updateQuery := fmt.Sprintf(
-				"UPDATE \"order_history\" SET %s WHERE %s",
-				strmangle.SetParamNames("\"", "\"", 1, []string{"config_id"}),
-				strmangle.WhereClause("\"", "\"", 2, orderHistoryPrimaryKeyColumns),
+				"UPDATE \"bank_account_config\" SET %s WHERE %s",
+				strmangle.SetParamNames("\"", "\"", 0, []string{"config_id"}),
+				strmangle.WhereClause("\"", "\"", 0, bankAccountConfigPrimaryKeyColumns),
 			)
-			values := []interface{}{o.ConfigID, rel.OrderHistoryID}
+			values := []interface{}{o.ID, rel.ID}
 
 			if boil.DebugMode {
 				fmt.Fprintln(boil.DebugWriter, updateQuery)
 				fmt.Fprintln(boil.DebugWriter, values)
 			}
 
-			if _, err = exec.Exec(updateQuery, values...); err != nil {
+			if _, err = exec.ExecContext(ctx, updateQuery, values...); err != nil {
 				return errors.Wrap(err, "failed to update foreign table")
 			}
 
-			rel.ConfigID = o.ConfigID
+			rel.ConfigID = o.ID
 		}
 	}
 
 	if o.R == nil {
 		o.R = &configR{
-			OrderHistories: related,
+			BankAccountConfigs: related,
 		}
 	} else {
-		o.R.OrderHistories = append(o.R.OrderHistories, related...)
+		o.R.BankAccountConfigs = append(o.R.BankAccountConfigs, related...)
 	}
 
 	for _, rel := range related {
 		if rel.R == nil {
-			rel.R = &orderHistoryR{
+			rel.R = &bankAccountConfigR{
 				Config: o,
 			}
 		} else {
@@ -373,35 +1060,280 @@ func (o *Config) AddOrderHistories(exec boil.Executor, insert bool, related ...*
 	return nil
 }
 
-// ConfigsG retrieves all records.
-func ConfigsG(mods ...qm.QueryMod) configQuery {
-	return Configs(boil.GetDB(), mods...)
+// AddCommunicationConfigs adds the given related objects to the existing relationships
+// of the config, optionally inserting them as new records.
+// Appends related to o.R.CommunicationConfigs.
+// Sets related.R.Config appropriately.
+func (o *Config) AddCommunicationConfigs(ctx context.Context, exec boil.ContextExecutor, insert bool, related ...*CommunicationConfig) error {
+	var err error
+	for _, rel := range related {
+		if insert {
+			rel.ConfigID = o.ID
+			if err = rel.Insert(ctx, exec, boil.Infer()); err != nil {
+				return errors.Wrap(err, "failed to insert into foreign table")
+			}
+		} else {
+			updateQuery := fmt.Sprintf(
+				"UPDATE \"communication_config\" SET %s WHERE %s",
+				strmangle.SetParamNames("\"", "\"", 0, []string{"config_id"}),
+				strmangle.WhereClause("\"", "\"", 0, communicationConfigPrimaryKeyColumns),
+			)
+			values := []interface{}{o.ID, rel.ID}
+
+			if boil.DebugMode {
+				fmt.Fprintln(boil.DebugWriter, updateQuery)
+				fmt.Fprintln(boil.DebugWriter, values)
+			}
+
+			if _, err = exec.ExecContext(ctx, updateQuery, values...); err != nil {
+				return errors.Wrap(err, "failed to update foreign table")
+			}
+
+			rel.ConfigID = o.ID
+		}
+	}
+
+	if o.R == nil {
+		o.R = &configR{
+			CommunicationConfigs: related,
+		}
+	} else {
+		o.R.CommunicationConfigs = append(o.R.CommunicationConfigs, related...)
+	}
+
+	for _, rel := range related {
+		if rel.R == nil {
+			rel.R = &communicationConfigR{
+				Config: o,
+			}
+		} else {
+			rel.R.Config = o
+		}
+	}
+	return nil
+}
+
+// AddCommunicationConfigContacts adds the given related objects to the existing relationships
+// of the config, optionally inserting them as new records.
+// Appends related to o.R.CommunicationConfigContacts.
+// Sets related.R.Config appropriately.
+func (o *Config) AddCommunicationConfigContacts(ctx context.Context, exec boil.ContextExecutor, insert bool, related ...*CommunicationConfigContact) error {
+	var err error
+	for _, rel := range related {
+		if insert {
+			rel.ConfigID = o.ID
+			if err = rel.Insert(ctx, exec, boil.Infer()); err != nil {
+				return errors.Wrap(err, "failed to insert into foreign table")
+			}
+		} else {
+			updateQuery := fmt.Sprintf(
+				"UPDATE \"communication_config_contact\" SET %s WHERE %s",
+				strmangle.SetParamNames("\"", "\"", 0, []string{"config_id"}),
+				strmangle.WhereClause("\"", "\"", 0, communicationConfigContactPrimaryKeyColumns),
+			)
+			values := []interface{}{o.ID, rel.ID}
+
+			if boil.DebugMode {
+				fmt.Fprintln(boil.DebugWriter, updateQuery)
+				fmt.Fprintln(boil.DebugWriter, values)
+			}
+
+			if _, err = exec.ExecContext(ctx, updateQuery, values...); err != nil {
+				return errors.Wrap(err, "failed to update foreign table")
+			}
+
+			rel.ConfigID = o.ID
+		}
+	}
+
+	if o.R == nil {
+		o.R = &configR{
+			CommunicationConfigContacts: related,
+		}
+	} else {
+		o.R.CommunicationConfigContacts = append(o.R.CommunicationConfigContacts, related...)
+	}
+
+	for _, rel := range related {
+		if rel.R == nil {
+			rel.R = &communicationConfigContactR{
+				Config: o,
+			}
+		} else {
+			rel.R.Config = o
+		}
+	}
+	return nil
+}
+
+// AddExchangeConfigs adds the given related objects to the existing relationships
+// of the config, optionally inserting them as new records.
+// Appends related to o.R.ExchangeConfigs.
+// Sets related.R.Config appropriately.
+func (o *Config) AddExchangeConfigs(ctx context.Context, exec boil.ContextExecutor, insert bool, related ...*ExchangeConfig) error {
+	var err error
+	for _, rel := range related {
+		if insert {
+			rel.ConfigID = o.ID
+			if err = rel.Insert(ctx, exec, boil.Infer()); err != nil {
+				return errors.Wrap(err, "failed to insert into foreign table")
+			}
+		} else {
+			updateQuery := fmt.Sprintf(
+				"UPDATE \"exchange_config\" SET %s WHERE %s",
+				strmangle.SetParamNames("\"", "\"", 0, []string{"config_id"}),
+				strmangle.WhereClause("\"", "\"", 0, exchangeConfigPrimaryKeyColumns),
+			)
+			values := []interface{}{o.ID, rel.ID}
+
+			if boil.DebugMode {
+				fmt.Fprintln(boil.DebugWriter, updateQuery)
+				fmt.Fprintln(boil.DebugWriter, values)
+			}
+
+			if _, err = exec.ExecContext(ctx, updateQuery, values...); err != nil {
+				return errors.Wrap(err, "failed to update foreign table")
+			}
+
+			rel.ConfigID = o.ID
+		}
+	}
+
+	if o.R == nil {
+		o.R = &configR{
+			ExchangeConfigs: related,
+		}
+	} else {
+		o.R.ExchangeConfigs = append(o.R.ExchangeConfigs, related...)
+	}
+
+	for _, rel := range related {
+		if rel.R == nil {
+			rel.R = &exchangeConfigR{
+				Config: o,
+			}
+		} else {
+			rel.R.Config = o
+		}
+	}
+	return nil
+}
+
+// AddForeignExchangeProviderConfigs adds the given related objects to the existing relationships
+// of the config, optionally inserting them as new records.
+// Appends related to o.R.ForeignExchangeProviderConfigs.
+// Sets related.R.Config appropriately.
+func (o *Config) AddForeignExchangeProviderConfigs(ctx context.Context, exec boil.ContextExecutor, insert bool, related ...*ForeignExchangeProviderConfig) error {
+	var err error
+	for _, rel := range related {
+		if insert {
+			rel.ConfigID = o.ID
+			if err = rel.Insert(ctx, exec, boil.Infer()); err != nil {
+				return errors.Wrap(err, "failed to insert into foreign table")
+			}
+		} else {
+			updateQuery := fmt.Sprintf(
+				"UPDATE \"foreign_exchange_provider_config\" SET %s WHERE %s",
+				strmangle.SetParamNames("\"", "\"", 0, []string{"config_id"}),
+				strmangle.WhereClause("\"", "\"", 0, foreignExchangeProviderConfigPrimaryKeyColumns),
+			)
+			values := []interface{}{o.ID, rel.ID}
+
+			if boil.DebugMode {
+				fmt.Fprintln(boil.DebugWriter, updateQuery)
+				fmt.Fprintln(boil.DebugWriter, values)
+			}
+
+			if _, err = exec.ExecContext(ctx, updateQuery, values...); err != nil {
+				return errors.Wrap(err, "failed to update foreign table")
+			}
+
+			rel.ConfigID = o.ID
+		}
+	}
+
+	if o.R == nil {
+		o.R = &configR{
+			ForeignExchangeProviderConfigs: related,
+		}
+	} else {
+		o.R.ForeignExchangeProviderConfigs = append(o.R.ForeignExchangeProviderConfigs, related...)
+	}
+
+	for _, rel := range related {
+		if rel.R == nil {
+			rel.R = &foreignExchangeProviderConfigR{
+				Config: o,
+			}
+		} else {
+			rel.R.Config = o
+		}
+	}
+	return nil
+}
+
+// AddPortfolios adds the given related objects to the existing relationships
+// of the config, optionally inserting them as new records.
+// Appends related to o.R.Portfolios.
+// Sets related.R.Config appropriately.
+func (o *Config) AddPortfolios(ctx context.Context, exec boil.ContextExecutor, insert bool, related ...*Portfolio) error {
+	var err error
+	for _, rel := range related {
+		if insert {
+			rel.ConfigID = o.ID
+			if err = rel.Insert(ctx, exec, boil.Infer()); err != nil {
+				return errors.Wrap(err, "failed to insert into foreign table")
+			}
+		} else {
+			updateQuery := fmt.Sprintf(
+				"UPDATE \"portfolio\" SET %s WHERE %s",
+				strmangle.SetParamNames("\"", "\"", 0, []string{"config_id"}),
+				strmangle.WhereClause("\"", "\"", 0, portfolioPrimaryKeyColumns),
+			)
+			values := []interface{}{o.ID, rel.ID}
+
+			if boil.DebugMode {
+				fmt.Fprintln(boil.DebugWriter, updateQuery)
+				fmt.Fprintln(boil.DebugWriter, values)
+			}
+
+			if _, err = exec.ExecContext(ctx, updateQuery, values...); err != nil {
+				return errors.Wrap(err, "failed to update foreign table")
+			}
+
+			rel.ConfigID = o.ID
+		}
+	}
+
+	if o.R == nil {
+		o.R = &configR{
+			Portfolios: related,
+		}
+	} else {
+		o.R.Portfolios = append(o.R.Portfolios, related...)
+	}
+
+	for _, rel := range related {
+		if rel.R == nil {
+			rel.R = &portfolioR{
+				Config: o,
+			}
+		} else {
+			rel.R.Config = o
+		}
+	}
+	return nil
 }
 
 // Configs retrieves all the records using an executor.
-func Configs(exec boil.Executor, mods ...qm.QueryMod) configQuery {
+func Configs(mods ...qm.QueryMod) configQuery {
 	mods = append(mods, qm.From("\"config\""))
-	return configQuery{NewQuery(exec, mods...)}
-}
-
-// FindConfigG retrieves a single record by ID.
-func FindConfigG(configID int64, selectCols ...string) (*Config, error) {
-	return FindConfig(boil.GetDB(), configID, selectCols...)
-}
-
-// FindConfigGP retrieves a single record by ID, and panics on error.
-func FindConfigGP(configID int64, selectCols ...string) *Config {
-	retobj, err := FindConfig(boil.GetDB(), configID, selectCols...)
-	if err != nil {
-		panic(boil.WrapErr(err))
-	}
-
-	return retobj
+	return configQuery{NewQuery(mods...)}
 }
 
 // FindConfig retrieves a single record by ID with an executor.
 // If selectCols is empty Find will return all columns.
-func FindConfig(exec boil.Executor, configID int64, selectCols ...string) (*Config, error) {
+func FindConfig(ctx context.Context, exec boil.ContextExecutor, iD int64, selectCols ...string) (*Config, error) {
 	configObj := &Config{}
 
 	sel := "*"
@@ -409,12 +1341,12 @@ func FindConfig(exec boil.Executor, configID int64, selectCols ...string) (*Conf
 		sel = strings.Join(strmangle.IdentQuoteSlice(dialect.LQ, dialect.RQ, selectCols), ",")
 	}
 	query := fmt.Sprintf(
-		"select %s from \"config\" where \"config_id\"=$1", sel,
+		"select %s from \"config\" where \"id\"=?", sel,
 	)
 
-	q := queries.Raw(exec, query, configID)
+	q := queries.Raw(query, iD)
 
-	err := q.Bind(configObj)
+	err := q.Bind(ctx, exec, configObj)
 	if err != nil {
 		if errors.Cause(err) == sql.ErrNoRows {
 			return nil, sql.ErrNoRows
@@ -425,63 +1357,32 @@ func FindConfig(exec boil.Executor, configID int64, selectCols ...string) (*Conf
 	return configObj, nil
 }
 
-// FindConfigP retrieves a single record by ID with an executor, and panics on error.
-func FindConfigP(exec boil.Executor, configID int64, selectCols ...string) *Config {
-	retobj, err := FindConfig(exec, configID, selectCols...)
-	if err != nil {
-		panic(boil.WrapErr(err))
-	}
-
-	return retobj
-}
-
-// InsertG a single record. See Insert for whitelist behavior description.
-func (o *Config) InsertG(whitelist ...string) error {
-	return o.Insert(boil.GetDB(), whitelist...)
-}
-
-// InsertGP a single record, and panics on error. See Insert for whitelist
-// behavior description.
-func (o *Config) InsertGP(whitelist ...string) {
-	if err := o.Insert(boil.GetDB(), whitelist...); err != nil {
-		panic(boil.WrapErr(err))
-	}
-}
-
-// InsertP a single record using an executor, and panics on error. See Insert
-// for whitelist behavior description.
-func (o *Config) InsertP(exec boil.Executor, whitelist ...string) {
-	if err := o.Insert(exec, whitelist...); err != nil {
-		panic(boil.WrapErr(err))
-	}
-}
-
 // Insert a single record using an executor.
-// Whitelist behavior: If a whitelist is provided, only those columns supplied are inserted
-// No whitelist behavior: Without a whitelist, columns are inferred by the following rules:
-// - All columns without a default value are included (i.e. name, age)
-// - All columns with a default, but non-zero are included (i.e. health = 75)
-func (o *Config) Insert(exec boil.Executor, whitelist ...string) error {
+// See boil.Columns.InsertColumnSet documentation to understand column list inference for inserts.
+func (o *Config) Insert(ctx context.Context, exec boil.ContextExecutor, columns boil.Columns) error {
 	if o == nil {
 		return errors.New("models: no config provided for insertion")
 	}
 
 	var err error
 
+	if err := o.doBeforeInsertHooks(ctx, exec); err != nil {
+		return err
+	}
+
 	nzDefaults := queries.NonZeroDefaultSet(configColumnsWithDefault, o)
 
-	key := makeCacheKey(whitelist, nzDefaults)
+	key := makeCacheKey(columns, nzDefaults)
 	configInsertCacheMut.RLock()
 	cache, cached := configInsertCache[key]
 	configInsertCacheMut.RUnlock()
 
 	if !cached {
-		wl, returnColumns := strmangle.InsertColumnSet(
+		wl, returnColumns := columns.InsertColumnSet(
 			configColumns,
 			configColumnsWithDefault,
 			configColumnsWithoutDefault,
 			nzDefaults,
-			whitelist,
 		)
 
 		cache.valueMapping, err = queries.BindMapping(configType, configMapping, wl)
@@ -493,20 +1394,18 @@ func (o *Config) Insert(exec boil.Executor, whitelist ...string) error {
 			return err
 		}
 		if len(wl) != 0 {
-			cache.query = fmt.Sprintf("INSERT INTO \"config\" (\"%s\") %%sVALUES (%s)%%s", strings.Join(wl, "\",\""), strmangle.Placeholders(dialect.IndexPlaceholders, len(wl), 1, 1))
+			cache.query = fmt.Sprintf("INSERT INTO \"config\" (\"%s\") %%sVALUES (%s)%%s", strings.Join(wl, "\",\""), strmangle.Placeholders(dialect.UseIndexPlaceholders, len(wl), 1, 1))
 		} else {
-			cache.query = "INSERT INTO \"config\" DEFAULT VALUES"
+			cache.query = "INSERT INTO \"config\" () VALUES ()%s%s"
 		}
 
 		var queryOutput, queryReturning string
 
 		if len(cache.retMapping) != 0 {
-			queryReturning = fmt.Sprintf(" RETURNING \"%s\"", strings.Join(returnColumns, "\",\""))
+			cache.retQuery = fmt.Sprintf("SELECT \"%s\" FROM \"config\" WHERE %s", strings.Join(returnColumns, "\",\""), strmangle.WhereClause("\"", "\"", 0, configPrimaryKeyColumns))
 		}
 
-		if len(wl) != 0 {
-			cache.query = fmt.Sprintf(cache.query, queryOutput, queryReturning)
-		}
+		cache.query = fmt.Sprintf(cache.query, queryOutput, queryReturning)
 	}
 
 	value := reflect.Indirect(reflect.ValueOf(o))
@@ -517,84 +1416,86 @@ func (o *Config) Insert(exec boil.Executor, whitelist ...string) error {
 		fmt.Fprintln(boil.DebugWriter, vals)
 	}
 
-	if len(cache.retMapping) != 0 {
-		err = exec.QueryRow(cache.query, vals...).Scan(queries.PtrsFromMapping(value, cache.retMapping)...)
-	} else {
-		_, err = exec.Exec(cache.query, vals...)
-	}
+	result, err := exec.ExecContext(ctx, cache.query, vals...)
 
 	if err != nil {
 		return errors.Wrap(err, "models: unable to insert into config")
 	}
 
+	var lastID int64
+	var identifierCols []interface{}
+
+	if len(cache.retMapping) == 0 {
+		goto CacheNoHooks
+	}
+
+	lastID, err = result.LastInsertId()
+	if err != nil {
+		return ErrSyncFail
+	}
+
+	o.ID = int64(lastID)
+	if lastID != 0 && len(cache.retMapping) == 1 && cache.retMapping[0] == configMapping["ID"] {
+		goto CacheNoHooks
+	}
+
+	identifierCols = []interface{}{
+		o.ID,
+	}
+
+	if boil.DebugMode {
+		fmt.Fprintln(boil.DebugWriter, cache.retQuery)
+		fmt.Fprintln(boil.DebugWriter, identifierCols...)
+	}
+
+	err = exec.QueryRowContext(ctx, cache.retQuery, identifierCols...).Scan(queries.PtrsFromMapping(value, cache.retMapping)...)
+	if err != nil {
+		return errors.Wrap(err, "models: unable to populate default values for config")
+	}
+
+CacheNoHooks:
 	if !cached {
 		configInsertCacheMut.Lock()
 		configInsertCache[key] = cache
 		configInsertCacheMut.Unlock()
 	}
 
-	return nil
-}
-
-// UpdateG a single Config record. See Update for
-// whitelist behavior description.
-func (o *Config) UpdateG(whitelist ...string) error {
-	return o.Update(boil.GetDB(), whitelist...)
-}
-
-// UpdateGP a single Config record.
-// UpdateGP takes a whitelist of column names that should be updated.
-// Panics on error. See Update for whitelist behavior description.
-func (o *Config) UpdateGP(whitelist ...string) {
-	if err := o.Update(boil.GetDB(), whitelist...); err != nil {
-		panic(boil.WrapErr(err))
-	}
-}
-
-// UpdateP uses an executor to update the Config, and panics on error.
-// See Update for whitelist behavior description.
-func (o *Config) UpdateP(exec boil.Executor, whitelist ...string) {
-	err := o.Update(exec, whitelist...)
-	if err != nil {
-		panic(boil.WrapErr(err))
-	}
+	return o.doAfterInsertHooks(ctx, exec)
 }
 
 // Update uses an executor to update the Config.
-// Whitelist behavior: If a whitelist is provided, only the columns given are updated.
-// No whitelist behavior: Without a whitelist, columns are inferred by the following rules:
-// - All columns are inferred to start with
-// - All primary keys are subtracted from this set
-// Update does not automatically update the record in case of default values. Use .Reload()
-// to refresh the records.
-func (o *Config) Update(exec boil.Executor, whitelist ...string) error {
+// See boil.Columns.UpdateColumnSet documentation to understand column list inference for updates.
+// Update does not automatically update the record in case of default values. Use .Reload() to refresh the records.
+func (o *Config) Update(ctx context.Context, exec boil.ContextExecutor, columns boil.Columns) (int64, error) {
 	var err error
-	key := makeCacheKey(whitelist, nil)
+	if err = o.doBeforeUpdateHooks(ctx, exec); err != nil {
+		return 0, err
+	}
+	key := makeCacheKey(columns, nil)
 	configUpdateCacheMut.RLock()
 	cache, cached := configUpdateCache[key]
 	configUpdateCacheMut.RUnlock()
 
 	if !cached {
-		wl := strmangle.UpdateColumnSet(
+		wl := columns.UpdateColumnSet(
 			configColumns,
 			configPrimaryKeyColumns,
-			whitelist,
 		)
 
-		if len(whitelist) == 0 {
+		if !columns.IsWhitelist() {
 			wl = strmangle.SetComplement(wl, []string{"created_at"})
 		}
 		if len(wl) == 0 {
-			return errors.New("models: unable to update config, could not build whitelist")
+			return 0, errors.New("models: unable to update config, could not build whitelist")
 		}
 
 		cache.query = fmt.Sprintf("UPDATE \"config\" SET %s WHERE %s",
-			strmangle.SetParamNames("\"", "\"", 1, wl),
-			strmangle.WhereClause("\"", "\"", len(wl)+1, configPrimaryKeyColumns),
+			strmangle.SetParamNames("\"", "\"", 0, wl),
+			strmangle.WhereClause("\"", "\"", 0, configPrimaryKeyColumns),
 		)
 		cache.valueMapping, err = queries.BindMapping(configType, configMapping, append(wl, configPrimaryKeyColumns...))
 		if err != nil {
-			return err
+			return 0, err
 		}
 	}
 
@@ -605,9 +1506,15 @@ func (o *Config) Update(exec boil.Executor, whitelist ...string) error {
 		fmt.Fprintln(boil.DebugWriter, values)
 	}
 
-	_, err = exec.Exec(cache.query, values...)
+	var result sql.Result
+	result, err = exec.ExecContext(ctx, cache.query, values...)
 	if err != nil {
-		return errors.Wrap(err, "models: unable to update config row")
+		return 0, errors.Wrap(err, "models: unable to update config row")
+	}
+
+	rowsAff, err := result.RowsAffected()
+	if err != nil {
+		return 0, errors.Wrap(err, "models: failed to get rows affected by update for config")
 	}
 
 	if !cached {
@@ -616,56 +1523,35 @@ func (o *Config) Update(exec boil.Executor, whitelist ...string) error {
 		configUpdateCacheMut.Unlock()
 	}
 
-	return nil
-}
-
-// UpdateAllP updates all rows with matching column names, and panics on error.
-func (q configQuery) UpdateAllP(cols M) {
-	if err := q.UpdateAll(cols); err != nil {
-		panic(boil.WrapErr(err))
-	}
+	return rowsAff, o.doAfterUpdateHooks(ctx, exec)
 }
 
 // UpdateAll updates all rows with the specified column values.
-func (q configQuery) UpdateAll(cols M) error {
+func (q configQuery) UpdateAll(ctx context.Context, exec boil.ContextExecutor, cols M) (int64, error) {
 	queries.SetUpdate(q.Query, cols)
 
-	_, err := q.Query.Exec()
+	result, err := q.Query.ExecContext(ctx, exec)
 	if err != nil {
-		return errors.Wrap(err, "models: unable to update all for config")
+		return 0, errors.Wrap(err, "models: unable to update all for config")
 	}
 
-	return nil
-}
-
-// UpdateAllG updates all rows with the specified column values.
-func (o ConfigSlice) UpdateAllG(cols M) error {
-	return o.UpdateAll(boil.GetDB(), cols)
-}
-
-// UpdateAllGP updates all rows with the specified column values, and panics on error.
-func (o ConfigSlice) UpdateAllGP(cols M) {
-	if err := o.UpdateAll(boil.GetDB(), cols); err != nil {
-		panic(boil.WrapErr(err))
+	rowsAff, err := result.RowsAffected()
+	if err != nil {
+		return 0, errors.Wrap(err, "models: unable to retrieve rows affected for config")
 	}
-}
 
-// UpdateAllP updates all rows with the specified column values, and panics on error.
-func (o ConfigSlice) UpdateAllP(exec boil.Executor, cols M) {
-	if err := o.UpdateAll(exec, cols); err != nil {
-		panic(boil.WrapErr(err))
-	}
+	return rowsAff, nil
 }
 
 // UpdateAll updates all rows with the specified column values, using an executor.
-func (o ConfigSlice) UpdateAll(exec boil.Executor, cols M) error {
+func (o ConfigSlice) UpdateAll(ctx context.Context, exec boil.ContextExecutor, cols M) (int64, error) {
 	ln := int64(len(o))
 	if ln == 0 {
-		return nil
+		return 0, nil
 	}
 
 	if len(cols) == 0 {
-		return errors.New("models: update all requires at least one column argument")
+		return 0, errors.New("models: update all requires at least one column argument")
 	}
 
 	colNames := make([]string, len(cols))
@@ -685,257 +1571,99 @@ func (o ConfigSlice) UpdateAll(exec boil.Executor, cols M) error {
 	}
 
 	sql := fmt.Sprintf("UPDATE \"config\" SET %s WHERE %s",
-		strmangle.SetParamNames("\"", "\"", 1, colNames),
-		strmangle.WhereClauseRepeated(string(dialect.LQ), string(dialect.RQ), len(colNames)+1, configPrimaryKeyColumns, len(o)))
+		strmangle.SetParamNames("\"", "\"", 0, colNames),
+		strmangle.WhereClauseRepeated(string(dialect.LQ), string(dialect.RQ), 0, configPrimaryKeyColumns, len(o)))
 
 	if boil.DebugMode {
 		fmt.Fprintln(boil.DebugWriter, sql)
 		fmt.Fprintln(boil.DebugWriter, args...)
 	}
 
-	_, err := exec.Exec(sql, args...)
+	result, err := exec.ExecContext(ctx, sql, args...)
 	if err != nil {
-		return errors.Wrap(err, "models: unable to update all in config slice")
+		return 0, errors.Wrap(err, "models: unable to update all in config slice")
 	}
 
-	return nil
-}
-
-// UpsertG attempts an insert, and does an update or ignore on conflict.
-func (o *Config) UpsertG(updateOnConflict bool, conflictColumns []string, updateColumns []string, whitelist ...string) error {
-	return o.Upsert(boil.GetDB(), updateOnConflict, conflictColumns, updateColumns, whitelist...)
-}
-
-// UpsertGP attempts an insert, and does an update or ignore on conflict. Panics on error.
-func (o *Config) UpsertGP(updateOnConflict bool, conflictColumns []string, updateColumns []string, whitelist ...string) {
-	if err := o.Upsert(boil.GetDB(), updateOnConflict, conflictColumns, updateColumns, whitelist...); err != nil {
-		panic(boil.WrapErr(err))
-	}
-}
-
-// UpsertP attempts an insert using an executor, and does an update or ignore on conflict.
-// UpsertP panics on error.
-func (o *Config) UpsertP(exec boil.Executor, updateOnConflict bool, conflictColumns []string, updateColumns []string, whitelist ...string) {
-	if err := o.Upsert(exec, updateOnConflict, conflictColumns, updateColumns, whitelist...); err != nil {
-		panic(boil.WrapErr(err))
-	}
-}
-
-// Upsert attempts an insert using an executor, and does an update or ignore on conflict.
-func (o *Config) Upsert(exec boil.Executor, updateOnConflict bool, conflictColumns []string, updateColumns []string, whitelist ...string) error {
-	if o == nil {
-		return errors.New("models: no config provided for upsert")
-	}
-
-	nzDefaults := queries.NonZeroDefaultSet(configColumnsWithDefault, o)
-
-	// Build cache key in-line uglily - mysql vs postgres problems
-	buf := strmangle.GetBuffer()
-
-	if updateOnConflict {
-		buf.WriteByte('t')
-	} else {
-		buf.WriteByte('f')
-	}
-	buf.WriteByte('.')
-	for _, c := range conflictColumns {
-		buf.WriteString(c)
-	}
-	buf.WriteByte('.')
-	for _, c := range updateColumns {
-		buf.WriteString(c)
-	}
-	buf.WriteByte('.')
-	for _, c := range whitelist {
-		buf.WriteString(c)
-	}
-	buf.WriteByte('.')
-	for _, c := range nzDefaults {
-		buf.WriteString(c)
-	}
-	key := buf.String()
-	strmangle.PutBuffer(buf)
-
-	configUpsertCacheMut.RLock()
-	cache, cached := configUpsertCache[key]
-	configUpsertCacheMut.RUnlock()
-
-	var err error
-
-	if !cached {
-		insert, ret := strmangle.InsertColumnSet(
-			configColumns,
-			configColumnsWithDefault,
-			configColumnsWithoutDefault,
-			nzDefaults,
-			whitelist,
-		)
-
-		update := strmangle.UpdateColumnSet(
-			configColumns,
-			configPrimaryKeyColumns,
-			updateColumns,
-		)
-		if len(update) == 0 {
-			return errors.New("models: unable to upsert config, could not build update column list")
-		}
-
-		conflict := conflictColumns
-		if len(conflict) == 0 {
-			conflict = make([]string, len(configPrimaryKeyColumns))
-			copy(conflict, configPrimaryKeyColumns)
-		}
-		cache.query = queries.BuildUpsertQueryPostgres(dialect, "\"config\"", updateOnConflict, ret, update, conflict, insert)
-
-		cache.valueMapping, err = queries.BindMapping(configType, configMapping, insert)
-		if err != nil {
-			return err
-		}
-		if len(ret) != 0 {
-			cache.retMapping, err = queries.BindMapping(configType, configMapping, ret)
-			if err != nil {
-				return err
-			}
-		}
-	}
-
-	value := reflect.Indirect(reflect.ValueOf(o))
-	vals := queries.ValuesFromMapping(value, cache.valueMapping)
-	var returns []interface{}
-	if len(cache.retMapping) != 0 {
-		returns = queries.PtrsFromMapping(value, cache.retMapping)
-	}
-
-	if boil.DebugMode {
-		fmt.Fprintln(boil.DebugWriter, cache.query)
-		fmt.Fprintln(boil.DebugWriter, vals)
-	}
-
-	if len(cache.retMapping) != 0 {
-		err = exec.QueryRow(cache.query, vals...).Scan(returns...)
-		if err == sql.ErrNoRows {
-			err = nil // Postgres doesn't return anything when there's no update
-		}
-	} else {
-		_, err = exec.Exec(cache.query, vals...)
-	}
+	rowsAff, err := result.RowsAffected()
 	if err != nil {
-		return errors.Wrap(err, "models: unable to upsert config")
+		return 0, errors.Wrap(err, "models: unable to retrieve rows affected all in update all config")
 	}
-
-	if !cached {
-		configUpsertCacheMut.Lock()
-		configUpsertCache[key] = cache
-		configUpsertCacheMut.Unlock()
-	}
-
-	return nil
-}
-
-// DeleteP deletes a single Config record with an executor.
-// DeleteP will match against the primary key column to find the record to delete.
-// Panics on error.
-func (o *Config) DeleteP(exec boil.Executor) {
-	if err := o.Delete(exec); err != nil {
-		panic(boil.WrapErr(err))
-	}
-}
-
-// DeleteG deletes a single Config record.
-// DeleteG will match against the primary key column to find the record to delete.
-func (o *Config) DeleteG() error {
-	if o == nil {
-		return errors.New("models: no Config provided for deletion")
-	}
-
-	return o.Delete(boil.GetDB())
-}
-
-// DeleteGP deletes a single Config record.
-// DeleteGP will match against the primary key column to find the record to delete.
-// Panics on error.
-func (o *Config) DeleteGP() {
-	if err := o.DeleteG(); err != nil {
-		panic(boil.WrapErr(err))
-	}
+	return rowsAff, nil
 }
 
 // Delete deletes a single Config record with an executor.
 // Delete will match against the primary key column to find the record to delete.
-func (o *Config) Delete(exec boil.Executor) error {
+func (o *Config) Delete(ctx context.Context, exec boil.ContextExecutor) (int64, error) {
 	if o == nil {
-		return errors.New("models: no Config provided for delete")
+		return 0, errors.New("models: no Config provided for delete")
+	}
+
+	if err := o.doBeforeDeleteHooks(ctx, exec); err != nil {
+		return 0, err
 	}
 
 	args := queries.ValuesFromMapping(reflect.Indirect(reflect.ValueOf(o)), configPrimaryKeyMapping)
-	sql := "DELETE FROM \"config\" WHERE \"config_id\"=$1"
+	sql := "DELETE FROM \"config\" WHERE \"id\"=?"
 
 	if boil.DebugMode {
 		fmt.Fprintln(boil.DebugWriter, sql)
 		fmt.Fprintln(boil.DebugWriter, args...)
 	}
 
-	_, err := exec.Exec(sql, args...)
+	result, err := exec.ExecContext(ctx, sql, args...)
 	if err != nil {
-		return errors.Wrap(err, "models: unable to delete from config")
+		return 0, errors.Wrap(err, "models: unable to delete from config")
 	}
 
-	return nil
-}
-
-// DeleteAllP deletes all rows, and panics on error.
-func (q configQuery) DeleteAllP() {
-	if err := q.DeleteAll(); err != nil {
-		panic(boil.WrapErr(err))
+	rowsAff, err := result.RowsAffected()
+	if err != nil {
+		return 0, errors.Wrap(err, "models: failed to get rows affected by delete for config")
 	}
+
+	if err := o.doAfterDeleteHooks(ctx, exec); err != nil {
+		return 0, err
+	}
+
+	return rowsAff, nil
 }
 
 // DeleteAll deletes all matching rows.
-func (q configQuery) DeleteAll() error {
+func (q configQuery) DeleteAll(ctx context.Context, exec boil.ContextExecutor) (int64, error) {
 	if q.Query == nil {
-		return errors.New("models: no configQuery provided for delete all")
+		return 0, errors.New("models: no configQuery provided for delete all")
 	}
 
 	queries.SetDelete(q.Query)
 
-	_, err := q.Query.Exec()
+	result, err := q.Query.ExecContext(ctx, exec)
 	if err != nil {
-		return errors.Wrap(err, "models: unable to delete all from config")
+		return 0, errors.Wrap(err, "models: unable to delete all from config")
 	}
 
-	return nil
-}
-
-// DeleteAllGP deletes all rows in the slice, and panics on error.
-func (o ConfigSlice) DeleteAllGP() {
-	if err := o.DeleteAllG(); err != nil {
-		panic(boil.WrapErr(err))
+	rowsAff, err := result.RowsAffected()
+	if err != nil {
+		return 0, errors.Wrap(err, "models: failed to get rows affected by deleteall for config")
 	}
-}
 
-// DeleteAllG deletes all rows in the slice.
-func (o ConfigSlice) DeleteAllG() error {
-	if o == nil {
-		return errors.New("models: no Config slice provided for delete all")
-	}
-	return o.DeleteAll(boil.GetDB())
-}
-
-// DeleteAllP deletes all rows in the slice, using an executor, and panics on error.
-func (o ConfigSlice) DeleteAllP(exec boil.Executor) {
-	if err := o.DeleteAll(exec); err != nil {
-		panic(boil.WrapErr(err))
-	}
+	return rowsAff, nil
 }
 
 // DeleteAll deletes all rows in the slice, using an executor.
-func (o ConfigSlice) DeleteAll(exec boil.Executor) error {
+func (o ConfigSlice) DeleteAll(ctx context.Context, exec boil.ContextExecutor) (int64, error) {
 	if o == nil {
-		return errors.New("models: no Config slice provided for delete all")
+		return 0, errors.New("models: no Config slice provided for delete all")
 	}
 
 	if len(o) == 0 {
-		return nil
+		return 0, nil
+	}
+
+	if len(configBeforeDeleteHooks) != 0 {
+		for _, obj := range o {
+			if err := obj.doBeforeDeleteHooks(ctx, exec); err != nil {
+				return 0, err
+			}
+		}
 	}
 
 	var args []interface{}
@@ -945,48 +1673,38 @@ func (o ConfigSlice) DeleteAll(exec boil.Executor) error {
 	}
 
 	sql := "DELETE FROM \"config\" WHERE " +
-		strmangle.WhereClauseRepeated(string(dialect.LQ), string(dialect.RQ), 1, configPrimaryKeyColumns, len(o))
+		strmangle.WhereClauseRepeated(string(dialect.LQ), string(dialect.RQ), 0, configPrimaryKeyColumns, len(o))
 
 	if boil.DebugMode {
 		fmt.Fprintln(boil.DebugWriter, sql)
 		fmt.Fprintln(boil.DebugWriter, args)
 	}
 
-	_, err := exec.Exec(sql, args...)
+	result, err := exec.ExecContext(ctx, sql, args...)
 	if err != nil {
-		return errors.Wrap(err, "models: unable to delete all from config slice")
+		return 0, errors.Wrap(err, "models: unable to delete all from config slice")
 	}
 
-	return nil
-}
-
-// ReloadGP refetches the object from the database and panics on error.
-func (o *Config) ReloadGP() {
-	if err := o.ReloadG(); err != nil {
-		panic(boil.WrapErr(err))
-	}
-}
-
-// ReloadP refetches the object from the database with an executor. Panics on error.
-func (o *Config) ReloadP(exec boil.Executor) {
-	if err := o.Reload(exec); err != nil {
-		panic(boil.WrapErr(err))
-	}
-}
-
-// ReloadG refetches the object from the database using the primary keys.
-func (o *Config) ReloadG() error {
-	if o == nil {
-		return errors.New("models: no Config provided for reload")
+	rowsAff, err := result.RowsAffected()
+	if err != nil {
+		return 0, errors.Wrap(err, "models: failed to get rows affected by deleteall for config")
 	}
 
-	return o.Reload(boil.GetDB())
+	if len(configAfterDeleteHooks) != 0 {
+		for _, obj := range o {
+			if err := obj.doAfterDeleteHooks(ctx, exec); err != nil {
+				return 0, err
+			}
+		}
+	}
+
+	return rowsAff, nil
 }
 
 // Reload refetches the object from the database
 // using the primary keys with an executor.
-func (o *Config) Reload(exec boil.Executor) error {
-	ret, err := FindConfig(exec, o.ConfigID)
+func (o *Config) Reload(ctx context.Context, exec boil.ContextExecutor) error {
+	ret, err := FindConfig(ctx, exec, o.ID)
 	if err != nil {
 		return err
 	}
@@ -995,42 +1713,14 @@ func (o *Config) Reload(exec boil.Executor) error {
 	return nil
 }
 
-// ReloadAllGP refetches every row with matching primary key column values
-// and overwrites the original object slice with the newly updated slice.
-// Panics on error.
-func (o *ConfigSlice) ReloadAllGP() {
-	if err := o.ReloadAllG(); err != nil {
-		panic(boil.WrapErr(err))
-	}
-}
-
-// ReloadAllP refetches every row with matching primary key column values
-// and overwrites the original object slice with the newly updated slice.
-// Panics on error.
-func (o *ConfigSlice) ReloadAllP(exec boil.Executor) {
-	if err := o.ReloadAll(exec); err != nil {
-		panic(boil.WrapErr(err))
-	}
-}
-
-// ReloadAllG refetches every row with matching primary key column values
-// and overwrites the original object slice with the newly updated slice.
-func (o *ConfigSlice) ReloadAllG() error {
-	if o == nil {
-		return errors.New("models: empty ConfigSlice provided for reload all")
-	}
-
-	return o.ReloadAll(boil.GetDB())
-}
-
 // ReloadAll refetches every row with matching primary key column values
 // and overwrites the original object slice with the newly updated slice.
-func (o *ConfigSlice) ReloadAll(exec boil.Executor) error {
+func (o *ConfigSlice) ReloadAll(ctx context.Context, exec boil.ContextExecutor) error {
 	if o == nil || len(*o) == 0 {
 		return nil
 	}
 
-	configs := ConfigSlice{}
+	slice := ConfigSlice{}
 	var args []interface{}
 	for _, obj := range *o {
 		pkeyArgs := queries.ValuesFromMapping(reflect.Indirect(reflect.ValueOf(obj)), configPrimaryKeyMapping)
@@ -1038,31 +1728,31 @@ func (o *ConfigSlice) ReloadAll(exec boil.Executor) error {
 	}
 
 	sql := "SELECT \"config\".* FROM \"config\" WHERE " +
-		strmangle.WhereClauseRepeated(string(dialect.LQ), string(dialect.RQ), 1, configPrimaryKeyColumns, len(*o))
+		strmangle.WhereClauseRepeated(string(dialect.LQ), string(dialect.RQ), 0, configPrimaryKeyColumns, len(*o))
 
-	q := queries.Raw(exec, sql, args...)
+	q := queries.Raw(sql, args...)
 
-	err := q.Bind(&configs)
+	err := q.Bind(ctx, exec, &slice)
 	if err != nil {
 		return errors.Wrap(err, "models: unable to reload all in ConfigSlice")
 	}
 
-	*o = configs
+	*o = slice
 
 	return nil
 }
 
 // ConfigExists checks if the Config row exists.
-func ConfigExists(exec boil.Executor, configID int64) (bool, error) {
+func ConfigExists(ctx context.Context, exec boil.ContextExecutor, iD int64) (bool, error) {
 	var exists bool
-	sql := "select exists(select 1 from \"config\" where \"config_id\"=$1 limit 1)"
+	sql := "select exists(select 1 from \"config\" where \"id\"=? limit 1)"
 
 	if boil.DebugMode {
 		fmt.Fprintln(boil.DebugWriter, sql)
-		fmt.Fprintln(boil.DebugWriter, configID)
+		fmt.Fprintln(boil.DebugWriter, iD)
 	}
 
-	row := exec.QueryRow(sql, configID)
+	row := exec.QueryRowContext(ctx, sql, iD)
 
 	err := row.Scan(&exists)
 	if err != nil {
@@ -1070,29 +1760,4 @@ func ConfigExists(exec boil.Executor, configID int64) (bool, error) {
 	}
 
 	return exists, nil
-}
-
-// ConfigExistsG checks if the Config row exists.
-func ConfigExistsG(configID int64) (bool, error) {
-	return ConfigExists(boil.GetDB(), configID)
-}
-
-// ConfigExistsGP checks if the Config row exists. Panics on error.
-func ConfigExistsGP(configID int64) bool {
-	e, err := ConfigExists(boil.GetDB(), configID)
-	if err != nil {
-		panic(boil.WrapErr(err))
-	}
-
-	return e
-}
-
-// ConfigExistsP checks if the Config row exists. Panics on error.
-func ConfigExistsP(exec boil.Executor, configID int64) bool {
-	e, err := ConfigExists(exec, configID)
-	if err != nil {
-		panic(boil.WrapErr(err))
-	}
-
-	return e
 }

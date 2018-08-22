@@ -2,150 +2,46 @@
 
 
 [[projects]]
-  name = "cloud.google.com/go"
-  packages = ["civil"]
-  revision = "0fd7230b2a7505833d5f69b75cbd6c9582401479"
-  version = "v0.23.0"
-
-[[projects]]
   branch = "v2"
   name = "github.com/beatgammit/turnpike"
   packages = ["."]
   revision = "573f579df7ee6b7f2962625d35a624d11222f2ec"
 
 [[projects]]
-  branch = "master"
-  name = "github.com/denisenkom/go-mssqldb"
-  packages = [
-    ".",
-    "internal/cp"
-  ]
-  revision = "c12642a8f7884ab01719704032c36ff300ff52c6"
-
-[[projects]]
-  name = "github.com/fsnotify/fsnotify"
+  name = "github.com/gofrs/uuid"
   packages = ["."]
-  revision = "c2828203cd70a50dcccfb2761f8b1f8ceef9a8e9"
-  version = "v1.4.7"
-
-[[projects]]
-  name = "github.com/go-sql-driver/mysql"
-  packages = ["."]
-  revision = "d523deb1b23d913de5bdada721a6071e71283618"
-  version = "v1.4.0"
+  revision = "c52a24014454cb81a53adfe807a68f6a20b49d74"
+  version = "v3.0.0"
 
 [[projects]]
   name = "github.com/gorilla/context"
   packages = ["."]
-  revision = "1ea25387ff6f684839d82767c1733ff4d4d15d0a"
-  version = "v1.1"
+  revision = "08b5f424b9271eedf6f9f0ce86cb9396ed337a42"
+  version = "v1.1.1"
 
 [[projects]]
   name = "github.com/gorilla/mux"
   packages = ["."]
-  revision = "53c1911da2b537f792e7cafcb446b05ffe33b996"
-  version = "v1.6.1"
+  revision = "e3702bed27f0d39777b0b37b664b6280e8ef8fbf"
+  version = "v1.6.2"
 
 [[projects]]
   name = "github.com/gorilla/websocket"
   packages = ["."]
-  revision = "ea4d1f681babbce9545c9c5f3d5194a789c89f5b"
-  version = "v1.2.0"
+  revision = "3ff3320c2a1756a3691521efc290b4701575147c"
+  version = "v1.3.0"
 
 [[projects]]
-  branch = "master"
-  name = "github.com/hashicorp/hcl"
-  packages = [
-    ".",
-    "hcl/ast",
-    "hcl/parser",
-    "hcl/printer",
-    "hcl/scanner",
-    "hcl/strconv",
-    "hcl/token",
-    "json/parser",
-    "json/scanner",
-    "json/token"
-  ]
-  revision = "ef8a98b0bbce4a65b5aa4c368430a80ddc533168"
-
-[[projects]]
-  name = "github.com/kat-co/vala"
+  name = "github.com/mattn/go-sqlite3"
   packages = ["."]
-  revision = "bfe9b50e828ad56312e486cbf4165ff1ac3a9bae"
-  version = "v1"
-
-[[projects]]
-  branch = "master"
-  name = "github.com/lib/pq"
-  packages = [
-    ".",
-    "oid"
-  ]
-  revision = "90697d60dd844d5ef6ff15135d0203f65d2f53b8"
-
-[[projects]]
-  name = "github.com/magiconair/properties"
-  packages = ["."]
-  revision = "c2353362d570a7bfa228149c62842019201cfb71"
-  version = "v1.8.0"
-
-[[projects]]
-  branch = "master"
-  name = "github.com/mitchellh/mapstructure"
-  packages = ["."]
-  revision = "bb74f1db0675b241733089d5a1faa5dd8b0ef57b"
-
-[[projects]]
-  name = "github.com/pelletier/go-toml"
-  packages = ["."]
-  revision = "c01d1270ff3e442a8a57cddc1c92dc1138598194"
-  version = "v1.2.0"
+  revision = "25ecb14adfc7543176f7d85291ec7dba82c6f7e4"
+  version = "v1.9.0"
 
 [[projects]]
   name = "github.com/pkg/errors"
   packages = ["."]
   revision = "645ef00459ed84a119197bfb8d8205042c6df63d"
   version = "v0.8.0"
-
-[[projects]]
-  name = "github.com/satori/go.uuid"
-  packages = ["."]
-  revision = "f58768cc1a7a7e77a3bd49e98cdd21419399b6a3"
-  version = "v1.2.0"
-
-[[projects]]
-  name = "github.com/spf13/afero"
-  packages = [
-    ".",
-    "mem"
-  ]
-  revision = "63644898a8da0bc22138abf860edaf5277b6102e"
-  version = "v1.1.0"
-
-[[projects]]
-  name = "github.com/spf13/cast"
-  packages = ["."]
-  revision = "8965335b8c7107321228e3e3702cab9832751bac"
-  version = "v1.2.0"
-
-[[projects]]
-  branch = "master"
-  name = "github.com/spf13/jwalterweatherman"
-  packages = ["."]
-  revision = "7c0cea34c8ece3fbeb2b27ab9b59511d360fb394"
-
-[[projects]]
-  name = "github.com/spf13/pflag"
-  packages = ["."]
-  revision = "583c0c0531f06d5278b7d917446061adc344b5cd"
-  version = "v1.0.1"
-
-[[projects]]
-  name = "github.com/spf13/viper"
-  packages = ["."]
-  revision = "b5e8006cbee93ec955a89ab31e0e3ce3204f3736"
-  version = "v1.0.2"
 
 [[projects]]
   branch = "master"
@@ -163,13 +59,13 @@
   branch = "master"
   name = "github.com/toorop/go-pusher"
   packages = ["."]
-  revision = "4549deda570234e4f8e9fd0d69c149d4dc07d0c9"
+  revision = "4521e2eb39fb43c73f929850b498354296f1c6de"
 
 [[projects]]
   name = "github.com/ugorji/go"
   packages = ["codec"]
-  revision = "9831f2c3ac1068a78f50999a30db84270f647af6"
-  version = "v1.1"
+  revision = "b4c50a2b199d93b13dc15e78929cfb23bfdf21ab"
+  version = "v1.1.1"
 
 [[projects]]
   branch = "master"
@@ -178,79 +74,52 @@
   revision = "e7201282ae8da26cd97aed2e516f75c0bd91bb93"
 
 [[projects]]
+  name = "github.com/volatiletech/null"
+  packages = [
+    ".",
+    "convert"
+  ]
+  revision = "0681ee3b5e046ac8bfbbd3999e79d3905e96972f"
+  version = "v8.0.0"
+
+[[projects]]
   name = "github.com/volatiletech/sqlboiler"
   packages = [
-    "bdb",
-    "bdb/drivers",
     "boil",
+    "drivers",
+    "importers",
     "queries",
     "queries/qm",
     "randomize",
-    "strmangle",
-    "types"
+    "strmangle"
   ]
-  revision = "e92eb387e26dfcc2f39555a7fc96fe20b45d0a7a"
-  version = "v2.7.1"
+  revision = "7d3d954a4be10dc06b9464fb3e6d74836274c467"
+  version = "v3.0.0"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/volatiletech/sqlboiler-sqlite3"
+  packages = ["driver"]
+  revision = "a11c9028802aade5891f332757654f51ff0e49e1"
 
 [[projects]]
   branch = "master"
   name = "golang.org/x/crypto"
   packages = [
-    "md4",
     "pbkdf2",
     "scrypt"
   ]
-  revision = "df8d4716b3472e4a531c33cedbe537dae921a1a9"
+  revision = "614d502a4dac94afa3a6ce146bd1736da82514c6"
 
 [[projects]]
   branch = "master"
   name = "golang.org/x/net"
   packages = ["websocket"]
-  revision = "309822c5b9b9f80db67f016069a12628d94fad34"
-
-[[projects]]
-  branch = "master"
-  name = "golang.org/x/sys"
-  packages = ["unix"]
-  revision = "9527bec2660bd847c050fda93a0f0c6dee0800bb"
-
-[[projects]]
-  name = "golang.org/x/text"
-  packages = [
-    "internal/gen",
-    "internal/triegen",
-    "internal/ucd",
-    "transform",
-    "unicode/cldr",
-    "unicode/norm"
-  ]
-  revision = "f21a4dfb5e38f5895301dc265a8def02365cc3d0"
-  version = "v0.3.0"
-
-[[projects]]
-  name = "google.golang.org/appengine"
-  packages = ["cloudsql"]
-  revision = "150dc57a1b433e64154302bdc40b6bb8aefa313a"
-  version = "v1.0.0"
-
-[[projects]]
-  name = "gopkg.in/volatiletech/null.v6"
-  packages = [
-    ".",
-    "convert"
-  ]
-  revision = "0bef4e07ae1b27a2a4efa23bbb3006c8c3d2e01d"
-  version = "v6.4"
-
-[[projects]]
-  name = "gopkg.in/yaml.v2"
-  packages = ["."]
-  revision = "5420a8b6744d3b0345ab293f6fcba19c978f1183"
-  version = "v2.2.1"
+  revision = "922f4815f713f213882e8ef45e0d315b164d705c"
 
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "822be07dea3e5dc4abec05ec0911665fb5e0063b8a38f1675ad511f57868d4ce"
+  inputs-digest = "bc2ff678730f350d7f5ff594a116e493d3d95f2355edce31aaff8a9349448a6e"
   solver-name = "gps-cdcl"
   solver-version = 1

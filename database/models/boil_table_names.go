@@ -4,25 +4,27 @@
 package models
 
 var TableNames = struct {
-	Config               string
-	CurrencyPairFormat   string
-	ExchangeTradeHistory string
-	Exchanges            string
-	OrderHistory         string
-	Portfolio            string
-	Smsglobal            string
-	SmsglobalContacts    string
-	TaxableEvents        string
-	Webserver            string
+	BankAccountConfig              string
+	CommunicationConfig            string
+	CommunicationConfigContact     string
+	Config                         string
+	CryptocurrencyPortfolioAddress string
+	ExchangeConfig                 string
+	ExchangeCurrencyPairFormat     string
+	ExchangePortfolioOrderHistory  string
+	ExchangeTradeHistory           string
+	ForeignExchangeProviderConfig  string
+	Portfolio                      string
 }{
-	Config:               "config",
-	CurrencyPairFormat:   "currency_pair_format",
-	ExchangeTradeHistory: "exchange_trade_history",
-	Exchanges:            "exchanges",
-	OrderHistory:         "order_history",
-	Portfolio:            "portfolio",
-	Smsglobal:            "smsglobal",
-	SmsglobalContacts:    "smsglobal_contacts",
-	TaxableEvents:        "taxable_events",
-	Webserver:            "webserver",
+	BankAccountConfig:          "bank_account_config",
+	CommunicationConfig:        "communication_config",
+	CommunicationConfigContact: "communication_config_contact",
+	Config: "config",
+	CryptocurrencyPortfolioAddress: "cryptocurrency_portfolio_address",
+	ExchangeConfig:                 "exchange_config",
+	ExchangeCurrencyPairFormat:     "exchange_currency_pair_format",
+	ExchangePortfolioOrderHistory:  "exchange_portfolio_order_history",
+	ExchangeTradeHistory:           "exchange_trade_history",
+	ForeignExchangeProviderConfig:  "foreign_exchange_provider_config",
+	Portfolio:                      "portfolio",
 }

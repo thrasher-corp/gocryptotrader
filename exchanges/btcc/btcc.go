@@ -131,7 +131,7 @@ func (b *BTCC) GetTradeHistory(currencyPair string, limit, sinceTid int64, t tim
 		v.Set("since", strconv.FormatInt(sinceTid, 10))
 	}
 	if !t.IsZero() {
-		v.Set("sincetype", strconv.FormatInt(common.ConvertTimeToUnixMilli(t), 10))
+		v.Set("sincetype", strconv.FormatInt(common.UnixMillis(t), 10))
 	}
 
 	path = common.EncodeURLValues(path, v)

@@ -182,14 +182,14 @@ func (b *Bitfinex) GetExchangeHistory(p pair.CurrencyPair, assetType string, tim
 	}
 	timeStampEnd := timestampStart.Add(1 * time.Hour) // add 1 hr
 
-	th, err := b.GetTradesV2(strippedPair, common.ConvertTimeToUnixMilli(timestampStart), common.ConvertTimeToUnixMilli(timeStampEnd), false)
+	th, err := b.GetTradesV2(strippedPair, common.UnixMillis(timestampStart), common.UnixMillis(timeStampEnd), false)
 	if err != nil {
 		return resp, err
 	}
 
 	for i := range th {
 		resp = append(resp, exchange.TradeHistory{
-			Timestamp: time.Unix(0, common.ConvertUnixMilliToNano(th[i].Timestamp)),
+			Timestamp: time.Unix(0, common.UnixMillisToNano(th[i].Timestamp)),
 			TID:       th[i].TID,
 			Price:     th[i].Price,
 			Amount:    th[i].Amount,

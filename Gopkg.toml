@@ -46,5 +46,13 @@
   name = "golang.org/x/crypto"
 
 [[constraint]]
+  branch = "master"
   name = "github.com/volatiletech/sqlboiler"
-  version = "2.7.1"
+
+[[constraint]]
+  branch = "master"
+  name = "github.com/volatiletech/null"
+
+# [[override]]
+#   branch = "master"
+#   name = "github.com/satori/go.uuid"

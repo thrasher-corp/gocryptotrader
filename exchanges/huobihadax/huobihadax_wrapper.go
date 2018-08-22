@@ -4,6 +4,7 @@ import (
 	"errors"
 	"log"
 	"sync"
+	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
@@ -121,7 +122,7 @@ func (h *HUOBIHADAX) GetExchangeFundTransferHistory() ([]exchange.FundHistory, e
 }
 
 // GetExchangeHistory returns historic trade data since exchange opening.
-func (h *HUOBIHADAX) GetExchangeHistory(p pair.CurrencyPair, assetType string) ([]exchange.TradeHistory, error) {
+func (h *HUOBIHADAX) GetExchangeHistory(p pair.CurrencyPair, assetType string, timestampStart time.Time, tradeID int64) ([]exchange.TradeHistory, error) {
 	var resp []exchange.TradeHistory
 
 	return resp, errors.New("trade history not yet implemented")

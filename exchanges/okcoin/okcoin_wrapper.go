@@ -167,7 +167,7 @@ func (o *OKCoin) GetExchangeHistory(p pair.CurrencyPair, assetType string, times
 	}
 
 	for _, data := range trades {
-		nano := common.ConvertUnixMilliToNano(data.DateMS)
+		nano := common.UnixMillisToNano(data.DateMS)
 		resp = append(resp, exchange.TradeHistory{
 			Timestamp: time.Unix(0, nano),
 			TID:       data.TradeID,

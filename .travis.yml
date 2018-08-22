@@ -17,15 +17,9 @@ matrix:
       go:
         - 1.10.x
       before_install:
-        - go get -t -v ./...
+        - curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
+        - dep ensure -update -v
       script:
         - ./testdata/test.sh
-      install:
-        - go get github.com/gorilla/websocket
-        - go get github.com/toorop/go-pusher
-        - go get github.com/thrasher-/socketio
-        - go get github.com/beatgammit/turnpike
-        - go get github.com/gorilla/mux
-        - go get golang.org/x/crypto/scrypt
       after_success:
         - bash <(curl -s https://codecov.io/bash)

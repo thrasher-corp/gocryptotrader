@@ -155,7 +155,7 @@ func (b *BTCC) GetExchangeHistory(p pair.CurrencyPair, assetType string, timesta
 	}
 
 	for _, data := range th {
-		t := common.ConvertUnixMilliToNano(data.Timestamp)
+		t := common.UnixMillisToNano(data.Timestamp)
 		resp = append(resp, exchange.TradeHistory{
 			Timestamp: time.Unix(0, t),
 			TID:       data.ID,

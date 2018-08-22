@@ -495,6 +495,11 @@ func (e *Base) SetCurrencies(pairs []pair.CurrencyPair, enabledPairs bool) error
 // UpdateCurrencies updates the exchange currency pairs for either enabledPairs or
 // availablePairs
 func (e *Base) UpdateCurrencies(exchangeProducts []string, enabled, force bool) error {
+	if len(exchangeProducts) == 0 {
+		log.Println("warning - UpdateCurrencies no exchange products submitted")
+		return nil
+	}
+
 	exchangeProducts = common.SplitStrings(common.StringToUpper(common.JoinStrings(exchangeProducts, ",")), ",")
 	var products []string
 

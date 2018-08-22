@@ -4,27 +4,28 @@
 package models
 
 import (
-	"github.com/volatiletech/sqlboiler/boil"
+	"github.com/volatiletech/sqlboiler/drivers"
 	"github.com/volatiletech/sqlboiler/queries"
 	"github.com/volatiletech/sqlboiler/queries/qm"
 )
 
-var dialect = queries.Dialect{
-	LQ:                0x22,
-	RQ:                0x22,
-	IndexPlaceholders: true,
-	UseTopClause:      false,
-}
+var dialect = drivers.Dialect{
+	LQ: 0x22,
+	RQ: 0x22,
 
-// NewQueryG initializes a new Query using the passed in QueryMods
-func NewQueryG(mods ...qm.QueryMod) *queries.Query {
-	return NewQuery(boil.GetDB(), mods...)
+	UseIndexPlaceholders:    false,
+	UseLastInsertID:         true,
+	UseSchema:               false,
+	UseDefaultKeyword:       false,
+	UseAutoColumns:          false,
+	UseTopClause:            false,
+	UseOutputClause:         false,
+	UseCaseWhenExistsClause: false,
 }
 
 // NewQuery initializes a new Query using the passed in QueryMods
-func NewQuery(exec boil.Executor, mods ...qm.QueryMod) *queries.Query {
+func NewQuery(mods ...qm.QueryMod) *queries.Query {
 	q := &queries.Query{}
-	queries.SetExecutor(q, exec)
 	queries.SetDialect(q, &dialect)
 	qm.Apply(q, mods...)
 
