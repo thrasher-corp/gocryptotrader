@@ -30,6 +30,7 @@ type Bot struct {
 	comms      *communications.Communications
 	db         *database.ORM
 	shutdown   chan bool
+	routines   *Routines
 	dryRun     bool
 	configFile string
 }
@@ -128,8 +129,6 @@ func main() {
 	SeedExchangeAccountInfo(GetAllEnabledExchangeAccountInfo().Data)
 
 	go portfolio.StartPortfolioWatcher()
-	go TickerUpdaterRoutine()
-	go OrderbookUpdaterRoutine()
 
 	bot.db, err = database.Connect(*dbPath, *verbosity, bot.config)
 	if err != nil {
@@ -140,11 +139,9 @@ func main() {
 	if err != nil {
 		log.Fatalf("Database error %s - %s", bot.config.Name, err)
 	}
+	log.Println("Database connection successfully established")
 
-	log.Println("Database connection established")
-	if *dbSeedHistory {
-		go HistoricExchangeDataUpdaterRoutine()
-	}
+	bot.routines = StartUpdater(true, true, *dbSeedHistory)
 
 	if bot.config.Webserver.Enabled {
 		listenAddr := bot.config.Webserver.ListenAddress

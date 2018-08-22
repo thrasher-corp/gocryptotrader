@@ -18,7 +18,7 @@ matrix:
         - 1.10.x
       before_install:
         - curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
-        - dep ensure -update -v
+        - dep ensure -update
       script:
         - ./testdata/test.sh
       after_success:

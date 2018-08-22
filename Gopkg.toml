@@ -52,7 +52,3 @@
 [[constraint]]
   branch = "master"
   name = "github.com/volatiletech/null"
-
-# [[override]]
-#   branch = "master"
-#   name = "github.com/satori/go.uuid"
