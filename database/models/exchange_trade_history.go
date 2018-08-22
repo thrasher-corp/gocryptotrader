@@ -4,7 +4,7 @@
 package models
 
 import (
-	"bytes"
+	"context"
 	"database/sql"
 	"fmt"
 	"reflect"
@@ -21,60 +21,78 @@ import (
 
 // ExchangeTradeHistory is an object representing the database table.
 type ExchangeTradeHistory struct {
-	ExchangeTradeHistoryID int64     `boil:"exchange_trade_history_id" json:"exchange_trade_history_id" toml:"exchange_trade_history_id" yaml:"exchange_trade_history_id"`
-	ConfigID               int64     `boil:"config_id" json:"config_id" toml:"config_id" yaml:"config_id"`
-	ExchangeID             int64     `boil:"exchange_id" json:"exchange_id" toml:"exchange_id" yaml:"exchange_id"`
-	FulfilledOn            time.Time `boil:"fulfilled_on" json:"fulfilled_on" toml:"fulfilled_on" yaml:"fulfilled_on"`
-	CurrencyPair           string    `boil:"currency_pair" json:"currency_pair" toml:"currency_pair" yaml:"currency_pair"`
-	AssetType              string    `boil:"asset_type" json:"asset_type" toml:"asset_type" yaml:"asset_type"`
-	OrderType              string    `boil:"order_type" json:"order_type" toml:"order_type" yaml:"order_type"`
-	Amount                 float64   `boil:"amount" json:"amount" toml:"amount" yaml:"amount"`
-	Rate                   float64   `boil:"rate" json:"rate" toml:"rate" yaml:"rate"`
+	ID           int64     `boil:"id" json:"id" toml:"id" yaml:"id"`
+	FulfilledOn  time.Time `boil:"fulfilled_on" json:"fulfilled_on" toml:"fulfilled_on" yaml:"fulfilled_on"`
+	CurrencyPair string    `boil:"currency_pair" json:"currency_pair" toml:"currency_pair" yaml:"currency_pair"`
+	AssetType    string    `boil:"asset_type" json:"asset_type" toml:"asset_type" yaml:"asset_type"`
+	OrderType    string    `boil:"order_type" json:"order_type" toml:"order_type" yaml:"order_type"`
+	ContractType string    `boil:"contract_type" json:"contract_type" toml:"contract_type" yaml:"contract_type"`
+	Amount       float64   `boil:"amount" json:"amount" toml:"amount" yaml:"amount"`
+	Rate         float64   `boil:"rate" json:"rate" toml:"rate" yaml:"rate"`
+	OrderID      int64     `boil:"order_id" json:"order_id" toml:"order_id" yaml:"order_id"`
+	ExchangeID   int64     `boil:"exchange_id" json:"exchange_id" toml:"exchange_id" yaml:"exchange_id"`
 
 	R *exchangeTradeHistoryR `boil:"-" json:"-" toml:"-" yaml:"-"`
 	L exchangeTradeHistoryL  `boil:"-" json:"-" toml:"-" yaml:"-"`
 }
 
 var ExchangeTradeHistoryColumns = struct {
-	ExchangeTradeHistoryID string
-	ConfigID               string
-	ExchangeID             string
-	FulfilledOn            string
-	CurrencyPair           string
-	AssetType              string
-	OrderType              string
-	Amount                 string
-	Rate                   string
+	ID           string
+	FulfilledOn  string
+	CurrencyPair string
+	AssetType    string
+	OrderType    string
+	ContractType string
+	Amount       string
+	Rate         string
+	OrderID      string
+	ExchangeID   string
 }{
-	ExchangeTradeHistoryID: "exchange_trade_history_id",
-	ConfigID:               "config_id",
-	ExchangeID:             "exchange_id",
-	FulfilledOn:            "fulfilled_on",
-	CurrencyPair:           "currency_pair",
-	AssetType:              "asset_type",
-	OrderType:              "order_type",
-	Amount:                 "amount",
-	Rate:                   "rate",
+	ID:           "id",
+	FulfilledOn:  "fulfilled_on",
+	CurrencyPair: "currency_pair",
+	AssetType:    "asset_type",
+	OrderType:    "order_type",
+	ContractType: "contract_type",
+	Amount:       "amount",
+	Rate:         "rate",
+	OrderID:      "order_id",
+	ExchangeID:   "exchange_id",
+}
+
+// ExchangeTradeHistoryRels is where relationship names are stored.
+var ExchangeTradeHistoryRels = struct {
+	Exchange string
+}{
+	Exchange: "Exchange",
 }
 
 // exchangeTradeHistoryR is where relationships are stored.
 type exchangeTradeHistoryR struct {
+	Exchange *ExchangeConfig
+}
+
+// NewStruct creates a new relationship struct
+func (*exchangeTradeHistoryR) NewStruct() *exchangeTradeHistoryR {
+	return &exchangeTradeHistoryR{}
 }
 
 // exchangeTradeHistoryL is where Load methods for each relationship are stored.
 type exchangeTradeHistoryL struct{}
 
 var (
-	exchangeTradeHistoryColumns               = []string{"exchange_trade_history_id", "config_id", "exchange_id", "fulfilled_on", "currency_pair", "asset_type", "order_type", "amount", "rate"}
-	exchangeTradeHistoryColumnsWithoutDefault = []string{"exchange_trade_history_id", "config_id", "exchange_id", "fulfilled_on", "currency_pair", "asset_type", "order_type", "amount", "rate"}
-	exchangeTradeHistoryColumnsWithDefault    = []string{}
-	exchangeTradeHistoryPrimaryKeyColumns     = []string{"exchange_trade_history_id"}
+	exchangeTradeHistoryColumns               = []string{"id", "fulfilled_on", "currency_pair", "asset_type", "order_type", "contract_type", "amount", "rate", "order_id", "exchange_id"}
+	exchangeTradeHistoryColumnsWithoutDefault = []string{}
+	exchangeTradeHistoryColumnsWithDefault    = []string{"id", "fulfilled_on", "currency_pair", "asset_type", "order_type", "contract_type", "amount", "rate", "order_id", "exchange_id"}
+	exchangeTradeHistoryPrimaryKeyColumns     = []string{"id"}
 )
 
 type (
 	// ExchangeTradeHistorySlice is an alias for a slice of pointers to ExchangeTradeHistory.
 	// This should generally be used opposed to []ExchangeTradeHistory.
 	ExchangeTradeHistorySlice []*ExchangeTradeHistory
+	// ExchangeTradeHistoryHook is the signature for custom ExchangeTradeHistory hook methods
+	ExchangeTradeHistoryHook func(context.Context, boil.ContextExecutor, *ExchangeTradeHistory) error
 
 	exchangeTradeHistoryQuery struct {
 		*queries.Query
@@ -97,27 +115,149 @@ var (
 var (
 	// Force time package dependency for automated UpdatedAt/CreatedAt.
 	_ = time.Second
-	// Force bytes in case of primary key column that uses []byte (for relationship compares)
-	_ = bytes.MinRead
 )
 
-// OneP returns a single exchangeTradeHistory record from the query, and panics on error.
-func (q exchangeTradeHistoryQuery) OneP() *ExchangeTradeHistory {
-	o, err := q.One()
-	if err != nil {
-		panic(boil.WrapErr(err))
+var exchangeTradeHistoryBeforeInsertHooks []ExchangeTradeHistoryHook
+var exchangeTradeHistoryBeforeUpdateHooks []ExchangeTradeHistoryHook
+var exchangeTradeHistoryBeforeDeleteHooks []ExchangeTradeHistoryHook
+var exchangeTradeHistoryBeforeUpsertHooks []ExchangeTradeHistoryHook
+
+var exchangeTradeHistoryAfterInsertHooks []ExchangeTradeHistoryHook
+var exchangeTradeHistoryAfterSelectHooks []ExchangeTradeHistoryHook
+var exchangeTradeHistoryAfterUpdateHooks []ExchangeTradeHistoryHook
+var exchangeTradeHistoryAfterDeleteHooks []ExchangeTradeHistoryHook
+var exchangeTradeHistoryAfterUpsertHooks []ExchangeTradeHistoryHook
+
+// doBeforeInsertHooks executes all "before insert" hooks.
+func (o *ExchangeTradeHistory) doBeforeInsertHooks(ctx context.Context, exec boil.ContextExecutor) (err error) {
+	for _, hook := range exchangeTradeHistoryBeforeInsertHooks {
+		if err := hook(ctx, exec, o); err != nil {
+			return err
+		}
 	}
 
-	return o
+	return nil
+}
+
+// doBeforeUpdateHooks executes all "before Update" hooks.
+func (o *ExchangeTradeHistory) doBeforeUpdateHooks(ctx context.Context, exec boil.ContextExecutor) (err error) {
+	for _, hook := range exchangeTradeHistoryBeforeUpdateHooks {
+		if err := hook(ctx, exec, o); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// doBeforeDeleteHooks executes all "before Delete" hooks.
+func (o *ExchangeTradeHistory) doBeforeDeleteHooks(ctx context.Context, exec boil.ContextExecutor) (err error) {
+	for _, hook := range exchangeTradeHistoryBeforeDeleteHooks {
+		if err := hook(ctx, exec, o); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// doBeforeUpsertHooks executes all "before Upsert" hooks.
+func (o *ExchangeTradeHistory) doBeforeUpsertHooks(ctx context.Context, exec boil.ContextExecutor) (err error) {
+	for _, hook := range exchangeTradeHistoryBeforeUpsertHooks {
+		if err := hook(ctx, exec, o); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// doAfterInsertHooks executes all "after Insert" hooks.
+func (o *ExchangeTradeHistory) doAfterInsertHooks(ctx context.Context, exec boil.ContextExecutor) (err error) {
+	for _, hook := range exchangeTradeHistoryAfterInsertHooks {
+		if err := hook(ctx, exec, o); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// doAfterSelectHooks executes all "after Select" hooks.
+func (o *ExchangeTradeHistory) doAfterSelectHooks(ctx context.Context, exec boil.ContextExecutor) (err error) {
+	for _, hook := range exchangeTradeHistoryAfterSelectHooks {
+		if err := hook(ctx, exec, o); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// doAfterUpdateHooks executes all "after Update" hooks.
+func (o *ExchangeTradeHistory) doAfterUpdateHooks(ctx context.Context, exec boil.ContextExecutor) (err error) {
+	for _, hook := range exchangeTradeHistoryAfterUpdateHooks {
+		if err := hook(ctx, exec, o); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// doAfterDeleteHooks executes all "after Delete" hooks.
+func (o *ExchangeTradeHistory) doAfterDeleteHooks(ctx context.Context, exec boil.ContextExecutor) (err error) {
+	for _, hook := range exchangeTradeHistoryAfterDeleteHooks {
+		if err := hook(ctx, exec, o); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// doAfterUpsertHooks executes all "after Upsert" hooks.
+func (o *ExchangeTradeHistory) doAfterUpsertHooks(ctx context.Context, exec boil.ContextExecutor) (err error) {
+	for _, hook := range exchangeTradeHistoryAfterUpsertHooks {
+		if err := hook(ctx, exec, o); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// AddExchangeTradeHistoryHook registers your hook function for all future operations.
+func AddExchangeTradeHistoryHook(hookPoint boil.HookPoint, exchangeTradeHistoryHook ExchangeTradeHistoryHook) {
+	switch hookPoint {
+	case boil.BeforeInsertHook:
+		exchangeTradeHistoryBeforeInsertHooks = append(exchangeTradeHistoryBeforeInsertHooks, exchangeTradeHistoryHook)
+	case boil.BeforeUpdateHook:
+		exchangeTradeHistoryBeforeUpdateHooks = append(exchangeTradeHistoryBeforeUpdateHooks, exchangeTradeHistoryHook)
+	case boil.BeforeDeleteHook:
+		exchangeTradeHistoryBeforeDeleteHooks = append(exchangeTradeHistoryBeforeDeleteHooks, exchangeTradeHistoryHook)
+	case boil.BeforeUpsertHook:
+		exchangeTradeHistoryBeforeUpsertHooks = append(exchangeTradeHistoryBeforeUpsertHooks, exchangeTradeHistoryHook)
+	case boil.AfterInsertHook:
+		exchangeTradeHistoryAfterInsertHooks = append(exchangeTradeHistoryAfterInsertHooks, exchangeTradeHistoryHook)
+	case boil.AfterSelectHook:
+		exchangeTradeHistoryAfterSelectHooks = append(exchangeTradeHistoryAfterSelectHooks, exchangeTradeHistoryHook)
+	case boil.AfterUpdateHook:
+		exchangeTradeHistoryAfterUpdateHooks = append(exchangeTradeHistoryAfterUpdateHooks, exchangeTradeHistoryHook)
+	case boil.AfterDeleteHook:
+		exchangeTradeHistoryAfterDeleteHooks = append(exchangeTradeHistoryAfterDeleteHooks, exchangeTradeHistoryHook)
+	case boil.AfterUpsertHook:
+		exchangeTradeHistoryAfterUpsertHooks = append(exchangeTradeHistoryAfterUpsertHooks, exchangeTradeHistoryHook)
+	}
 }
 
 // One returns a single exchangeTradeHistory record from the query.
-func (q exchangeTradeHistoryQuery) One() (*ExchangeTradeHistory, error) {
+func (q exchangeTradeHistoryQuery) One(ctx context.Context, exec boil.ContextExecutor) (*ExchangeTradeHistory, error) {
 	o := &ExchangeTradeHistory{}
 
 	queries.SetLimit(q.Query, 1)
 
-	err := q.Bind(o)
+	err := q.Bind(ctx, exec, o)
 	if err != nil {
 		if errors.Cause(err) == sql.ErrNoRows {
 			return nil, sql.ErrNoRows
@@ -125,49 +265,41 @@ func (q exchangeTradeHistoryQuery) One() (*ExchangeTradeHistory, error) {
 		return nil, errors.Wrap(err, "models: failed to execute a one query for exchange_trade_history")
 	}
 
+	if err := o.doAfterSelectHooks(ctx, exec); err != nil {
+		return o, err
+	}
+
 	return o, nil
 }
 
-// AllP returns all ExchangeTradeHistory records from the query, and panics on error.
-func (q exchangeTradeHistoryQuery) AllP() ExchangeTradeHistorySlice {
-	o, err := q.All()
-	if err != nil {
-		panic(boil.WrapErr(err))
-	}
-
-	return o
-}
-
 // All returns all ExchangeTradeHistory records from the query.
-func (q exchangeTradeHistoryQuery) All() (ExchangeTradeHistorySlice, error) {
+func (q exchangeTradeHistoryQuery) All(ctx context.Context, exec boil.ContextExecutor) (ExchangeTradeHistorySlice, error) {
 	var o []*ExchangeTradeHistory
 
-	err := q.Bind(&o)
+	err := q.Bind(ctx, exec, &o)
 	if err != nil {
 		return nil, errors.Wrap(err, "models: failed to assign all query results to ExchangeTradeHistory slice")
 	}
 
+	if len(exchangeTradeHistoryAfterSelectHooks) != 0 {
+		for _, obj := range o {
+			if err := obj.doAfterSelectHooks(ctx, exec); err != nil {
+				return o, err
+			}
+		}
+	}
+
 	return o, nil
 }
 
-// CountP returns the count of all ExchangeTradeHistory records in the query, and panics on error.
-func (q exchangeTradeHistoryQuery) CountP() int64 {
-	c, err := q.Count()
-	if err != nil {
-		panic(boil.WrapErr(err))
-	}
-
-	return c
-}
-
 // Count returns the count of all ExchangeTradeHistory records in the query.
-func (q exchangeTradeHistoryQuery) Count() (int64, error) {
+func (q exchangeTradeHistoryQuery) Count(ctx context.Context, exec boil.ContextExecutor) (int64, error) {
 	var count int64
 
 	queries.SetSelect(q.Query, nil)
 	queries.SetCount(q.Query)
 
-	err := q.Query.QueryRow().Scan(&count)
+	err := q.Query.QueryRowContext(ctx, exec).Scan(&count)
 	if err != nil {
 		return 0, errors.Wrap(err, "models: failed to count exchange_trade_history rows")
 	}
@@ -175,24 +307,14 @@ func (q exchangeTradeHistoryQuery) Count() (int64, error) {
 	return count, nil
 }
 
-// Exists checks if the row exists in the table, and panics on error.
-func (q exchangeTradeHistoryQuery) ExistsP() bool {
-	e, err := q.Exists()
-	if err != nil {
-		panic(boil.WrapErr(err))
-	}
-
-	return e
-}
-
 // Exists checks if the row exists in the table.
-func (q exchangeTradeHistoryQuery) Exists() (bool, error) {
+func (q exchangeTradeHistoryQuery) Exists(ctx context.Context, exec boil.ContextExecutor) (bool, error) {
 	var count int64
 
 	queries.SetCount(q.Query)
 	queries.SetLimit(q.Query, 1)
 
-	err := q.Query.QueryRow().Scan(&count)
+	err := q.Query.QueryRowContext(ctx, exec).Scan(&count)
 	if err != nil {
 		return false, errors.Wrap(err, "models: failed to check if exchange_trade_history exists")
 	}
@@ -200,35 +322,171 @@ func (q exchangeTradeHistoryQuery) Exists() (bool, error) {
 	return count > 0, nil
 }
 
-// ExchangeTradeHistoriesG retrieves all records.
-func ExchangeTradeHistoriesG(mods ...qm.QueryMod) exchangeTradeHistoryQuery {
-	return ExchangeTradeHistories(boil.GetDB(), mods...)
+// Exchange pointed to by the foreign key.
+func (o *ExchangeTradeHistory) Exchange(mods ...qm.QueryMod) exchangeConfigQuery {
+	queryMods := []qm.QueryMod{
+		qm.Where("id=?", o.ExchangeID),
+	}
+
+	queryMods = append(queryMods, mods...)
+
+	query := ExchangeConfigs(queryMods...)
+	queries.SetFrom(query.Query, "\"exchange_config\"")
+
+	return query
+}
+
+// LoadExchange allows an eager lookup of values, cached into the
+// loaded structs of the objects. This is for an N-1 relationship.
+func (exchangeTradeHistoryL) LoadExchange(ctx context.Context, e boil.ContextExecutor, singular bool, maybeExchangeTradeHistory interface{}, mods queries.Applicator) error {
+	var slice []*ExchangeTradeHistory
+	var object *ExchangeTradeHistory
+
+	if singular {
+		object = maybeExchangeTradeHistory.(*ExchangeTradeHistory)
+	} else {
+		slice = *maybeExchangeTradeHistory.(*[]*ExchangeTradeHistory)
+	}
+
+	args := make([]interface{}, 0, 1)
+	if singular {
+		if object.R == nil {
+			object.R = &exchangeTradeHistoryR{}
+		}
+		args = append(args, object.ExchangeID)
+	} else {
+	Outer:
+		for _, obj := range slice {
+			if obj.R == nil {
+				obj.R = &exchangeTradeHistoryR{}
+			}
+
+			for _, a := range args {
+				if a == obj.ExchangeID {
+					continue Outer
+				}
+			}
+
+			args = append(args, obj.ExchangeID)
+		}
+	}
+
+	query := NewQuery(qm.From(`exchange_config`), qm.WhereIn(`id in ?`, args...))
+	if mods != nil {
+		mods.Apply(query)
+	}
+
+	results, err := query.QueryContext(ctx, e)
+	if err != nil {
+		return errors.Wrap(err, "failed to eager load ExchangeConfig")
+	}
+
+	var resultSlice []*ExchangeConfig
+	if err = queries.Bind(results, &resultSlice); err != nil {
+		return errors.Wrap(err, "failed to bind eager loaded slice ExchangeConfig")
+	}
+
+	if err = results.Close(); err != nil {
+		return errors.Wrap(err, "failed to close results of eager load for exchange_config")
+	}
+	if err = results.Err(); err != nil {
+		return errors.Wrap(err, "error occurred during iteration of eager loaded relations for exchange_config")
+	}
+
+	if len(exchangeTradeHistoryAfterSelectHooks) != 0 {
+		for _, obj := range resultSlice {
+			if err := obj.doAfterSelectHooks(ctx, e); err != nil {
+				return err
+			}
+		}
+	}
+
+	if len(resultSlice) == 0 {
+		return nil
+	}
+
+	if singular {
+		foreign := resultSlice[0]
+		object.R.Exchange = foreign
+		if foreign.R == nil {
+			foreign.R = &exchangeConfigR{}
+		}
+		foreign.R.ExchangeExchangeTradeHistories = append(foreign.R.ExchangeExchangeTradeHistories, object)
+		return nil
+	}
+
+	for _, local := range slice {
+		for _, foreign := range resultSlice {
+			if local.ExchangeID == foreign.ID {
+				local.R.Exchange = foreign
+				if foreign.R == nil {
+					foreign.R = &exchangeConfigR{}
+				}
+				foreign.R.ExchangeExchangeTradeHistories = append(foreign.R.ExchangeExchangeTradeHistories, local)
+				break
+			}
+		}
+	}
+
+	return nil
+}
+
+// SetExchange of the exchangeTradeHistory to the related item.
+// Sets o.R.Exchange to related.
+// Adds o to related.R.ExchangeExchangeTradeHistories.
+func (o *ExchangeTradeHistory) SetExchange(ctx context.Context, exec boil.ContextExecutor, insert bool, related *ExchangeConfig) error {
+	var err error
+	if insert {
+		if err = related.Insert(ctx, exec, boil.Infer()); err != nil {
+			return errors.Wrap(err, "failed to insert into foreign table")
+		}
+	}
+
+	updateQuery := fmt.Sprintf(
+		"UPDATE \"exchange_trade_history\" SET %s WHERE %s",
+		strmangle.SetParamNames("\"", "\"", 0, []string{"exchange_id"}),
+		strmangle.WhereClause("\"", "\"", 0, exchangeTradeHistoryPrimaryKeyColumns),
+	)
+	values := []interface{}{related.ID, o.ID}
+
+	if boil.DebugMode {
+		fmt.Fprintln(boil.DebugWriter, updateQuery)
+		fmt.Fprintln(boil.DebugWriter, values)
+	}
+
+	if _, err = exec.ExecContext(ctx, updateQuery, values...); err != nil {
+		return errors.Wrap(err, "failed to update local table")
+	}
+
+	o.ExchangeID = related.ID
+	if o.R == nil {
+		o.R = &exchangeTradeHistoryR{
+			Exchange: related,
+		}
+	} else {
+		o.R.Exchange = related
+	}
+
+	if related.R == nil {
+		related.R = &exchangeConfigR{
+			ExchangeExchangeTradeHistories: ExchangeTradeHistorySlice{o},
+		}
+	} else {
+		related.R.ExchangeExchangeTradeHistories = append(related.R.ExchangeExchangeTradeHistories, o)
+	}
+
+	return nil
 }
 
 // ExchangeTradeHistories retrieves all the records using an executor.
-func ExchangeTradeHistories(exec boil.Executor, mods ...qm.QueryMod) exchangeTradeHistoryQuery {
+func ExchangeTradeHistories(mods ...qm.QueryMod) exchangeTradeHistoryQuery {
 	mods = append(mods, qm.From("\"exchange_trade_history\""))
-	return exchangeTradeHistoryQuery{NewQuery(exec, mods...)}
-}
-
-// FindExchangeTradeHistoryG retrieves a single record by ID.
-func FindExchangeTradeHistoryG(exchangeTradeHistoryID int64, selectCols ...string) (*ExchangeTradeHistory, error) {
-	return FindExchangeTradeHistory(boil.GetDB(), exchangeTradeHistoryID, selectCols...)
-}
-
-// FindExchangeTradeHistoryGP retrieves a single record by ID, and panics on error.
-func FindExchangeTradeHistoryGP(exchangeTradeHistoryID int64, selectCols ...string) *ExchangeTradeHistory {
-	retobj, err := FindExchangeTradeHistory(boil.GetDB(), exchangeTradeHistoryID, selectCols...)
-	if err != nil {
-		panic(boil.WrapErr(err))
-	}
-
-	return retobj
+	return exchangeTradeHistoryQuery{NewQuery(mods...)}
 }
 
 // FindExchangeTradeHistory retrieves a single record by ID with an executor.
 // If selectCols is empty Find will return all columns.
-func FindExchangeTradeHistory(exec boil.Executor, exchangeTradeHistoryID int64, selectCols ...string) (*ExchangeTradeHistory, error) {
+func FindExchangeTradeHistory(ctx context.Context, exec boil.ContextExecutor, iD int64, selectCols ...string) (*ExchangeTradeHistory, error) {
 	exchangeTradeHistoryObj := &ExchangeTradeHistory{}
 
 	sel := "*"
@@ -236,12 +494,12 @@ func FindExchangeTradeHistory(exec boil.Executor, exchangeTradeHistoryID int64, 
 		sel = strings.Join(strmangle.IdentQuoteSlice(dialect.LQ, dialect.RQ, selectCols), ",")
 	}
 	query := fmt.Sprintf(
-		"select %s from \"exchange_trade_history\" where \"exchange_trade_history_id\"=$1", sel,
+		"select %s from \"exchange_trade_history\" where \"id\"=?", sel,
 	)
 
-	q := queries.Raw(exec, query, exchangeTradeHistoryID)
+	q := queries.Raw(query, iD)
 
-	err := q.Bind(exchangeTradeHistoryObj)
+	err := q.Bind(ctx, exec, exchangeTradeHistoryObj)
 	if err != nil {
 		if errors.Cause(err) == sql.ErrNoRows {
 			return nil, sql.ErrNoRows
@@ -252,63 +510,32 @@ func FindExchangeTradeHistory(exec boil.Executor, exchangeTradeHistoryID int64, 
 	return exchangeTradeHistoryObj, nil
 }
 
-// FindExchangeTradeHistoryP retrieves a single record by ID with an executor, and panics on error.
-func FindExchangeTradeHistoryP(exec boil.Executor, exchangeTradeHistoryID int64, selectCols ...string) *ExchangeTradeHistory {
-	retobj, err := FindExchangeTradeHistory(exec, exchangeTradeHistoryID, selectCols...)
-	if err != nil {
-		panic(boil.WrapErr(err))
-	}
-
-	return retobj
-}
-
-// InsertG a single record. See Insert for whitelist behavior description.
-func (o *ExchangeTradeHistory) InsertG(whitelist ...string) error {
-	return o.Insert(boil.GetDB(), whitelist...)
-}
-
-// InsertGP a single record, and panics on error. See Insert for whitelist
-// behavior description.
-func (o *ExchangeTradeHistory) InsertGP(whitelist ...string) {
-	if err := o.Insert(boil.GetDB(), whitelist...); err != nil {
-		panic(boil.WrapErr(err))
-	}
-}
-
-// InsertP a single record using an executor, and panics on error. See Insert
-// for whitelist behavior description.
-func (o *ExchangeTradeHistory) InsertP(exec boil.Executor, whitelist ...string) {
-	if err := o.Insert(exec, whitelist...); err != nil {
-		panic(boil.WrapErr(err))
-	}
-}
-
 // Insert a single record using an executor.
-// Whitelist behavior: If a whitelist is provided, only those columns supplied are inserted
-// No whitelist behavior: Without a whitelist, columns are inferred by the following rules:
-// - All columns without a default value are included (i.e. name, age)
-// - All columns with a default, but non-zero are included (i.e. health = 75)
-func (o *ExchangeTradeHistory) Insert(exec boil.Executor, whitelist ...string) error {
+// See boil.Columns.InsertColumnSet documentation to understand column list inference for inserts.
+func (o *ExchangeTradeHistory) Insert(ctx context.Context, exec boil.ContextExecutor, columns boil.Columns) error {
 	if o == nil {
 		return errors.New("models: no exchange_trade_history provided for insertion")
 	}
 
 	var err error
 
+	if err := o.doBeforeInsertHooks(ctx, exec); err != nil {
+		return err
+	}
+
 	nzDefaults := queries.NonZeroDefaultSet(exchangeTradeHistoryColumnsWithDefault, o)
 
-	key := makeCacheKey(whitelist, nzDefaults)
+	key := makeCacheKey(columns, nzDefaults)
 	exchangeTradeHistoryInsertCacheMut.RLock()
 	cache, cached := exchangeTradeHistoryInsertCache[key]
 	exchangeTradeHistoryInsertCacheMut.RUnlock()
 
 	if !cached {
-		wl, returnColumns := strmangle.InsertColumnSet(
+		wl, returnColumns := columns.InsertColumnSet(
 			exchangeTradeHistoryColumns,
 			exchangeTradeHistoryColumnsWithDefault,
 			exchangeTradeHistoryColumnsWithoutDefault,
 			nzDefaults,
-			whitelist,
 		)
 
 		cache.valueMapping, err = queries.BindMapping(exchangeTradeHistoryType, exchangeTradeHistoryMapping, wl)
@@ -320,20 +547,18 @@ func (o *ExchangeTradeHistory) Insert(exec boil.Executor, whitelist ...string) e
 			return err
 		}
 		if len(wl) != 0 {
-			cache.query = fmt.Sprintf("INSERT INTO \"exchange_trade_history\" (\"%s\") %%sVALUES (%s)%%s", strings.Join(wl, "\",\""), strmangle.Placeholders(dialect.IndexPlaceholders, len(wl), 1, 1))
+			cache.query = fmt.Sprintf("INSERT INTO \"exchange_trade_history\" (\"%s\") %%sVALUES (%s)%%s", strings.Join(wl, "\",\""), strmangle.Placeholders(dialect.UseIndexPlaceholders, len(wl), 1, 1))
 		} else {
-			cache.query = "INSERT INTO \"exchange_trade_history\" DEFAULT VALUES"
+			cache.query = "INSERT INTO \"exchange_trade_history\" () VALUES ()%s%s"
 		}
 
 		var queryOutput, queryReturning string
 
 		if len(cache.retMapping) != 0 {
-			queryReturning = fmt.Sprintf(" RETURNING \"%s\"", strings.Join(returnColumns, "\",\""))
+			cache.retQuery = fmt.Sprintf("SELECT \"%s\" FROM \"exchange_trade_history\" WHERE %s", strings.Join(returnColumns, "\",\""), strmangle.WhereClause("\"", "\"", 0, exchangeTradeHistoryPrimaryKeyColumns))
 		}
 
-		if len(wl) != 0 {
-			cache.query = fmt.Sprintf(cache.query, queryOutput, queryReturning)
-		}
+		cache.query = fmt.Sprintf(cache.query, queryOutput, queryReturning)
 	}
 
 	value := reflect.Indirect(reflect.ValueOf(o))
@@ -344,84 +569,86 @@ func (o *ExchangeTradeHistory) Insert(exec boil.Executor, whitelist ...string) e
 		fmt.Fprintln(boil.DebugWriter, vals)
 	}
 
-	if len(cache.retMapping) != 0 {
-		err = exec.QueryRow(cache.query, vals...).Scan(queries.PtrsFromMapping(value, cache.retMapping)...)
-	} else {
-		_, err = exec.Exec(cache.query, vals...)
-	}
+	result, err := exec.ExecContext(ctx, cache.query, vals...)
 
 	if err != nil {
 		return errors.Wrap(err, "models: unable to insert into exchange_trade_history")
 	}
 
+	var lastID int64
+	var identifierCols []interface{}
+
+	if len(cache.retMapping) == 0 {
+		goto CacheNoHooks
+	}
+
+	lastID, err = result.LastInsertId()
+	if err != nil {
+		return ErrSyncFail
+	}
+
+	o.ID = int64(lastID)
+	if lastID != 0 && len(cache.retMapping) == 1 && cache.retMapping[0] == exchangeTradeHistoryMapping["ID"] {
+		goto CacheNoHooks
+	}
+
+	identifierCols = []interface{}{
+		o.ID,
+	}
+
+	if boil.DebugMode {
+		fmt.Fprintln(boil.DebugWriter, cache.retQuery)
+		fmt.Fprintln(boil.DebugWriter, identifierCols...)
+	}
+
+	err = exec.QueryRowContext(ctx, cache.retQuery, identifierCols...).Scan(queries.PtrsFromMapping(value, cache.retMapping)...)
+	if err != nil {
+		return errors.Wrap(err, "models: unable to populate default values for exchange_trade_history")
+	}
+
+CacheNoHooks:
 	if !cached {
 		exchangeTradeHistoryInsertCacheMut.Lock()
 		exchangeTradeHistoryInsertCache[key] = cache
 		exchangeTradeHistoryInsertCacheMut.Unlock()
 	}
 
-	return nil
-}
-
-// UpdateG a single ExchangeTradeHistory record. See Update for
-// whitelist behavior description.
-func (o *ExchangeTradeHistory) UpdateG(whitelist ...string) error {
-	return o.Update(boil.GetDB(), whitelist...)
-}
-
-// UpdateGP a single ExchangeTradeHistory record.
-// UpdateGP takes a whitelist of column names that should be updated.
-// Panics on error. See Update for whitelist behavior description.
-func (o *ExchangeTradeHistory) UpdateGP(whitelist ...string) {
-	if err := o.Update(boil.GetDB(), whitelist...); err != nil {
-		panic(boil.WrapErr(err))
-	}
-}
-
-// UpdateP uses an executor to update the ExchangeTradeHistory, and panics on error.
-// See Update for whitelist behavior description.
-func (o *ExchangeTradeHistory) UpdateP(exec boil.Executor, whitelist ...string) {
-	err := o.Update(exec, whitelist...)
-	if err != nil {
-		panic(boil.WrapErr(err))
-	}
+	return o.doAfterInsertHooks(ctx, exec)
 }
 
 // Update uses an executor to update the ExchangeTradeHistory.
-// Whitelist behavior: If a whitelist is provided, only the columns given are updated.
-// No whitelist behavior: Without a whitelist, columns are inferred by the following rules:
-// - All columns are inferred to start with
-// - All primary keys are subtracted from this set
-// Update does not automatically update the record in case of default values. Use .Reload()
-// to refresh the records.
-func (o *ExchangeTradeHistory) Update(exec boil.Executor, whitelist ...string) error {
+// See boil.Columns.UpdateColumnSet documentation to understand column list inference for updates.
+// Update does not automatically update the record in case of default values. Use .Reload() to refresh the records.
+func (o *ExchangeTradeHistory) Update(ctx context.Context, exec boil.ContextExecutor, columns boil.Columns) (int64, error) {
 	var err error
-	key := makeCacheKey(whitelist, nil)
+	if err = o.doBeforeUpdateHooks(ctx, exec); err != nil {
+		return 0, err
+	}
+	key := makeCacheKey(columns, nil)
 	exchangeTradeHistoryUpdateCacheMut.RLock()
 	cache, cached := exchangeTradeHistoryUpdateCache[key]
 	exchangeTradeHistoryUpdateCacheMut.RUnlock()
 
 	if !cached {
-		wl := strmangle.UpdateColumnSet(
+		wl := columns.UpdateColumnSet(
 			exchangeTradeHistoryColumns,
 			exchangeTradeHistoryPrimaryKeyColumns,
-			whitelist,
 		)
 
-		if len(whitelist) == 0 {
+		if !columns.IsWhitelist() {
 			wl = strmangle.SetComplement(wl, []string{"created_at"})
 		}
 		if len(wl) == 0 {
-			return errors.New("models: unable to update exchange_trade_history, could not build whitelist")
+			return 0, errors.New("models: unable to update exchange_trade_history, could not build whitelist")
 		}
 
 		cache.query = fmt.Sprintf("UPDATE \"exchange_trade_history\" SET %s WHERE %s",
-			strmangle.SetParamNames("\"", "\"", 1, wl),
-			strmangle.WhereClause("\"", "\"", len(wl)+1, exchangeTradeHistoryPrimaryKeyColumns),
+			strmangle.SetParamNames("\"", "\"", 0, wl),
+			strmangle.WhereClause("\"", "\"", 0, exchangeTradeHistoryPrimaryKeyColumns),
 		)
 		cache.valueMapping, err = queries.BindMapping(exchangeTradeHistoryType, exchangeTradeHistoryMapping, append(wl, exchangeTradeHistoryPrimaryKeyColumns...))
 		if err != nil {
-			return err
+			return 0, err
 		}
 	}
 
@@ -432,9 +659,15 @@ func (o *ExchangeTradeHistory) Update(exec boil.Executor, whitelist ...string) e
 		fmt.Fprintln(boil.DebugWriter, values)
 	}
 
-	_, err = exec.Exec(cache.query, values...)
+	var result sql.Result
+	result, err = exec.ExecContext(ctx, cache.query, values...)
 	if err != nil {
-		return errors.Wrap(err, "models: unable to update exchange_trade_history row")
+		return 0, errors.Wrap(err, "models: unable to update exchange_trade_history row")
+	}
+
+	rowsAff, err := result.RowsAffected()
+	if err != nil {
+		return 0, errors.Wrap(err, "models: failed to get rows affected by update for exchange_trade_history")
 	}
 
 	if !cached {
@@ -443,56 +676,35 @@ func (o *ExchangeTradeHistory) Update(exec boil.Executor, whitelist ...string) e
 		exchangeTradeHistoryUpdateCacheMut.Unlock()
 	}
 
-	return nil
-}
-
-// UpdateAllP updates all rows with matching column names, and panics on error.
-func (q exchangeTradeHistoryQuery) UpdateAllP(cols M) {
-	if err := q.UpdateAll(cols); err != nil {
-		panic(boil.WrapErr(err))
-	}
+	return rowsAff, o.doAfterUpdateHooks(ctx, exec)
 }
 
 // UpdateAll updates all rows with the specified column values.
-func (q exchangeTradeHistoryQuery) UpdateAll(cols M) error {
+func (q exchangeTradeHistoryQuery) UpdateAll(ctx context.Context, exec boil.ContextExecutor, cols M) (int64, error) {
 	queries.SetUpdate(q.Query, cols)
 
-	_, err := q.Query.Exec()
+	result, err := q.Query.ExecContext(ctx, exec)
 	if err != nil {
-		return errors.Wrap(err, "models: unable to update all for exchange_trade_history")
+		return 0, errors.Wrap(err, "models: unable to update all for exchange_trade_history")
 	}
 
-	return nil
-}
-
-// UpdateAllG updates all rows with the specified column values.
-func (o ExchangeTradeHistorySlice) UpdateAllG(cols M) error {
-	return o.UpdateAll(boil.GetDB(), cols)
-}
-
-// UpdateAllGP updates all rows with the specified column values, and panics on error.
-func (o ExchangeTradeHistorySlice) UpdateAllGP(cols M) {
-	if err := o.UpdateAll(boil.GetDB(), cols); err != nil {
-		panic(boil.WrapErr(err))
+	rowsAff, err := result.RowsAffected()
+	if err != nil {
+		return 0, errors.Wrap(err, "models: unable to retrieve rows affected for exchange_trade_history")
 	}
-}
 
-// UpdateAllP updates all rows with the specified column values, and panics on error.
-func (o ExchangeTradeHistorySlice) UpdateAllP(exec boil.Executor, cols M) {
-	if err := o.UpdateAll(exec, cols); err != nil {
-		panic(boil.WrapErr(err))
-	}
+	return rowsAff, nil
 }
 
 // UpdateAll updates all rows with the specified column values, using an executor.
-func (o ExchangeTradeHistorySlice) UpdateAll(exec boil.Executor, cols M) error {
+func (o ExchangeTradeHistorySlice) UpdateAll(ctx context.Context, exec boil.ContextExecutor, cols M) (int64, error) {
 	ln := int64(len(o))
 	if ln == 0 {
-		return nil
+		return 0, nil
 	}
 
 	if len(cols) == 0 {
-		return errors.New("models: update all requires at least one column argument")
+		return 0, errors.New("models: update all requires at least one column argument")
 	}
 
 	colNames := make([]string, len(cols))
@@ -512,257 +724,99 @@ func (o ExchangeTradeHistorySlice) UpdateAll(exec boil.Executor, cols M) error {
 	}
 
 	sql := fmt.Sprintf("UPDATE \"exchange_trade_history\" SET %s WHERE %s",
-		strmangle.SetParamNames("\"", "\"", 1, colNames),
-		strmangle.WhereClauseRepeated(string(dialect.LQ), string(dialect.RQ), len(colNames)+1, exchangeTradeHistoryPrimaryKeyColumns, len(o)))
+		strmangle.SetParamNames("\"", "\"", 0, colNames),
+		strmangle.WhereClauseRepeated(string(dialect.LQ), string(dialect.RQ), 0, exchangeTradeHistoryPrimaryKeyColumns, len(o)))
 
 	if boil.DebugMode {
 		fmt.Fprintln(boil.DebugWriter, sql)
 		fmt.Fprintln(boil.DebugWriter, args...)
 	}
 
-	_, err := exec.Exec(sql, args...)
+	result, err := exec.ExecContext(ctx, sql, args...)
 	if err != nil {
-		return errors.Wrap(err, "models: unable to update all in exchangeTradeHistory slice")
+		return 0, errors.Wrap(err, "models: unable to update all in exchangeTradeHistory slice")
 	}
 
-	return nil
-}
-
-// UpsertG attempts an insert, and does an update or ignore on conflict.
-func (o *ExchangeTradeHistory) UpsertG(updateOnConflict bool, conflictColumns []string, updateColumns []string, whitelist ...string) error {
-	return o.Upsert(boil.GetDB(), updateOnConflict, conflictColumns, updateColumns, whitelist...)
-}
-
-// UpsertGP attempts an insert, and does an update or ignore on conflict. Panics on error.
-func (o *ExchangeTradeHistory) UpsertGP(updateOnConflict bool, conflictColumns []string, updateColumns []string, whitelist ...string) {
-	if err := o.Upsert(boil.GetDB(), updateOnConflict, conflictColumns, updateColumns, whitelist...); err != nil {
-		panic(boil.WrapErr(err))
-	}
-}
-
-// UpsertP attempts an insert using an executor, and does an update or ignore on conflict.
-// UpsertP panics on error.
-func (o *ExchangeTradeHistory) UpsertP(exec boil.Executor, updateOnConflict bool, conflictColumns []string, updateColumns []string, whitelist ...string) {
-	if err := o.Upsert(exec, updateOnConflict, conflictColumns, updateColumns, whitelist...); err != nil {
-		panic(boil.WrapErr(err))
-	}
-}
-
-// Upsert attempts an insert using an executor, and does an update or ignore on conflict.
-func (o *ExchangeTradeHistory) Upsert(exec boil.Executor, updateOnConflict bool, conflictColumns []string, updateColumns []string, whitelist ...string) error {
-	if o == nil {
-		return errors.New("models: no exchange_trade_history provided for upsert")
-	}
-
-	nzDefaults := queries.NonZeroDefaultSet(exchangeTradeHistoryColumnsWithDefault, o)
-
-	// Build cache key in-line uglily - mysql vs postgres problems
-	buf := strmangle.GetBuffer()
-
-	if updateOnConflict {
-		buf.WriteByte('t')
-	} else {
-		buf.WriteByte('f')
-	}
-	buf.WriteByte('.')
-	for _, c := range conflictColumns {
-		buf.WriteString(c)
-	}
-	buf.WriteByte('.')
-	for _, c := range updateColumns {
-		buf.WriteString(c)
-	}
-	buf.WriteByte('.')
-	for _, c := range whitelist {
-		buf.WriteString(c)
-	}
-	buf.WriteByte('.')
-	for _, c := range nzDefaults {
-		buf.WriteString(c)
-	}
-	key := buf.String()
-	strmangle.PutBuffer(buf)
-
-	exchangeTradeHistoryUpsertCacheMut.RLock()
-	cache, cached := exchangeTradeHistoryUpsertCache[key]
-	exchangeTradeHistoryUpsertCacheMut.RUnlock()
-
-	var err error
-
-	if !cached {
-		insert, ret := strmangle.InsertColumnSet(
-			exchangeTradeHistoryColumns,
-			exchangeTradeHistoryColumnsWithDefault,
-			exchangeTradeHistoryColumnsWithoutDefault,
-			nzDefaults,
-			whitelist,
-		)
-
-		update := strmangle.UpdateColumnSet(
-			exchangeTradeHistoryColumns,
-			exchangeTradeHistoryPrimaryKeyColumns,
-			updateColumns,
-		)
-		if len(update) == 0 {
-			return errors.New("models: unable to upsert exchange_trade_history, could not build update column list")
-		}
-
-		conflict := conflictColumns
-		if len(conflict) == 0 {
-			conflict = make([]string, len(exchangeTradeHistoryPrimaryKeyColumns))
-			copy(conflict, exchangeTradeHistoryPrimaryKeyColumns)
-		}
-		cache.query = queries.BuildUpsertQueryPostgres(dialect, "\"exchange_trade_history\"", updateOnConflict, ret, update, conflict, insert)
-
-		cache.valueMapping, err = queries.BindMapping(exchangeTradeHistoryType, exchangeTradeHistoryMapping, insert)
-		if err != nil {
-			return err
-		}
-		if len(ret) != 0 {
-			cache.retMapping, err = queries.BindMapping(exchangeTradeHistoryType, exchangeTradeHistoryMapping, ret)
-			if err != nil {
-				return err
-			}
-		}
-	}
-
-	value := reflect.Indirect(reflect.ValueOf(o))
-	vals := queries.ValuesFromMapping(value, cache.valueMapping)
-	var returns []interface{}
-	if len(cache.retMapping) != 0 {
-		returns = queries.PtrsFromMapping(value, cache.retMapping)
-	}
-
-	if boil.DebugMode {
-		fmt.Fprintln(boil.DebugWriter, cache.query)
-		fmt.Fprintln(boil.DebugWriter, vals)
-	}
-
-	if len(cache.retMapping) != 0 {
-		err = exec.QueryRow(cache.query, vals...).Scan(returns...)
-		if err == sql.ErrNoRows {
-			err = nil // Postgres doesn't return anything when there's no update
-		}
-	} else {
-		_, err = exec.Exec(cache.query, vals...)
-	}
+	rowsAff, err := result.RowsAffected()
 	if err != nil {
-		return errors.Wrap(err, "models: unable to upsert exchange_trade_history")
+		return 0, errors.Wrap(err, "models: unable to retrieve rows affected all in update all exchangeTradeHistory")
 	}
-
-	if !cached {
-		exchangeTradeHistoryUpsertCacheMut.Lock()
-		exchangeTradeHistoryUpsertCache[key] = cache
-		exchangeTradeHistoryUpsertCacheMut.Unlock()
-	}
-
-	return nil
-}
-
-// DeleteP deletes a single ExchangeTradeHistory record with an executor.
-// DeleteP will match against the primary key column to find the record to delete.
-// Panics on error.
-func (o *ExchangeTradeHistory) DeleteP(exec boil.Executor) {
-	if err := o.Delete(exec); err != nil {
-		panic(boil.WrapErr(err))
-	}
-}
-
-// DeleteG deletes a single ExchangeTradeHistory record.
-// DeleteG will match against the primary key column to find the record to delete.
-func (o *ExchangeTradeHistory) DeleteG() error {
-	if o == nil {
-		return errors.New("models: no ExchangeTradeHistory provided for deletion")
-	}
-
-	return o.Delete(boil.GetDB())
-}
-
-// DeleteGP deletes a single ExchangeTradeHistory record.
-// DeleteGP will match against the primary key column to find the record to delete.
-// Panics on error.
-func (o *ExchangeTradeHistory) DeleteGP() {
-	if err := o.DeleteG(); err != nil {
-		panic(boil.WrapErr(err))
-	}
+	return rowsAff, nil
 }
 
 // Delete deletes a single ExchangeTradeHistory record with an executor.
 // Delete will match against the primary key column to find the record to delete.
-func (o *ExchangeTradeHistory) Delete(exec boil.Executor) error {
+func (o *ExchangeTradeHistory) Delete(ctx context.Context, exec boil.ContextExecutor) (int64, error) {
 	if o == nil {
-		return errors.New("models: no ExchangeTradeHistory provided for delete")
+		return 0, errors.New("models: no ExchangeTradeHistory provided for delete")
+	}
+
+	if err := o.doBeforeDeleteHooks(ctx, exec); err != nil {
+		return 0, err
 	}
 
 	args := queries.ValuesFromMapping(reflect.Indirect(reflect.ValueOf(o)), exchangeTradeHistoryPrimaryKeyMapping)
-	sql := "DELETE FROM \"exchange_trade_history\" WHERE \"exchange_trade_history_id\"=$1"
+	sql := "DELETE FROM \"exchange_trade_history\" WHERE \"id\"=?"
 
 	if boil.DebugMode {
 		fmt.Fprintln(boil.DebugWriter, sql)
 		fmt.Fprintln(boil.DebugWriter, args...)
 	}
 
-	_, err := exec.Exec(sql, args...)
+	result, err := exec.ExecContext(ctx, sql, args...)
 	if err != nil {
-		return errors.Wrap(err, "models: unable to delete from exchange_trade_history")
+		return 0, errors.Wrap(err, "models: unable to delete from exchange_trade_history")
 	}
 
-	return nil
-}
-
-// DeleteAllP deletes all rows, and panics on error.
-func (q exchangeTradeHistoryQuery) DeleteAllP() {
-	if err := q.DeleteAll(); err != nil {
-		panic(boil.WrapErr(err))
+	rowsAff, err := result.RowsAffected()
+	if err != nil {
+		return 0, errors.Wrap(err, "models: failed to get rows affected by delete for exchange_trade_history")
 	}
+
+	if err := o.doAfterDeleteHooks(ctx, exec); err != nil {
+		return 0, err
+	}
+
+	return rowsAff, nil
 }
 
 // DeleteAll deletes all matching rows.
-func (q exchangeTradeHistoryQuery) DeleteAll() error {
+func (q exchangeTradeHistoryQuery) DeleteAll(ctx context.Context, exec boil.ContextExecutor) (int64, error) {
 	if q.Query == nil {
-		return errors.New("models: no exchangeTradeHistoryQuery provided for delete all")
+		return 0, errors.New("models: no exchangeTradeHistoryQuery provided for delete all")
 	}
 
 	queries.SetDelete(q.Query)
 
-	_, err := q.Query.Exec()
+	result, err := q.Query.ExecContext(ctx, exec)
 	if err != nil {
-		return errors.Wrap(err, "models: unable to delete all from exchange_trade_history")
+		return 0, errors.Wrap(err, "models: unable to delete all from exchange_trade_history")
 	}
 
-	return nil
-}
-
-// DeleteAllGP deletes all rows in the slice, and panics on error.
-func (o ExchangeTradeHistorySlice) DeleteAllGP() {
-	if err := o.DeleteAllG(); err != nil {
-		panic(boil.WrapErr(err))
+	rowsAff, err := result.RowsAffected()
+	if err != nil {
+		return 0, errors.Wrap(err, "models: failed to get rows affected by deleteall for exchange_trade_history")
 	}
-}
 
-// DeleteAllG deletes all rows in the slice.
-func (o ExchangeTradeHistorySlice) DeleteAllG() error {
-	if o == nil {
-		return errors.New("models: no ExchangeTradeHistory slice provided for delete all")
-	}
-	return o.DeleteAll(boil.GetDB())
-}
-
-// DeleteAllP deletes all rows in the slice, using an executor, and panics on error.
-func (o ExchangeTradeHistorySlice) DeleteAllP(exec boil.Executor) {
-	if err := o.DeleteAll(exec); err != nil {
-		panic(boil.WrapErr(err))
-	}
+	return rowsAff, nil
 }
 
 // DeleteAll deletes all rows in the slice, using an executor.
-func (o ExchangeTradeHistorySlice) DeleteAll(exec boil.Executor) error {
+func (o ExchangeTradeHistorySlice) DeleteAll(ctx context.Context, exec boil.ContextExecutor) (int64, error) {
 	if o == nil {
-		return errors.New("models: no ExchangeTradeHistory slice provided for delete all")
+		return 0, errors.New("models: no ExchangeTradeHistory slice provided for delete all")
 	}
 
 	if len(o) == 0 {
-		return nil
+		return 0, nil
+	}
+
+	if len(exchangeTradeHistoryBeforeDeleteHooks) != 0 {
+		for _, obj := range o {
+			if err := obj.doBeforeDeleteHooks(ctx, exec); err != nil {
+				return 0, err
+			}
+		}
 	}
 
 	var args []interface{}
@@ -772,48 +826,38 @@ func (o ExchangeTradeHistorySlice) DeleteAll(exec boil.Executor) error {
 	}
 
 	sql := "DELETE FROM \"exchange_trade_history\" WHERE " +
-		strmangle.WhereClauseRepeated(string(dialect.LQ), string(dialect.RQ), 1, exchangeTradeHistoryPrimaryKeyColumns, len(o))
+		strmangle.WhereClauseRepeated(string(dialect.LQ), string(dialect.RQ), 0, exchangeTradeHistoryPrimaryKeyColumns, len(o))
 
 	if boil.DebugMode {
 		fmt.Fprintln(boil.DebugWriter, sql)
 		fmt.Fprintln(boil.DebugWriter, args)
 	}
 
-	_, err := exec.Exec(sql, args...)
+	result, err := exec.ExecContext(ctx, sql, args...)
 	if err != nil {
-		return errors.Wrap(err, "models: unable to delete all from exchangeTradeHistory slice")
+		return 0, errors.Wrap(err, "models: unable to delete all from exchangeTradeHistory slice")
 	}
 
-	return nil
-}
-
-// ReloadGP refetches the object from the database and panics on error.
-func (o *ExchangeTradeHistory) ReloadGP() {
-	if err := o.ReloadG(); err != nil {
-		panic(boil.WrapErr(err))
-	}
-}
-
-// ReloadP refetches the object from the database with an executor. Panics on error.
-func (o *ExchangeTradeHistory) ReloadP(exec boil.Executor) {
-	if err := o.Reload(exec); err != nil {
-		panic(boil.WrapErr(err))
-	}
-}
-
-// ReloadG refetches the object from the database using the primary keys.
-func (o *ExchangeTradeHistory) ReloadG() error {
-	if o == nil {
-		return errors.New("models: no ExchangeTradeHistory provided for reload")
+	rowsAff, err := result.RowsAffected()
+	if err != nil {
+		return 0, errors.Wrap(err, "models: failed to get rows affected by deleteall for exchange_trade_history")
 	}
 
-	return o.Reload(boil.GetDB())
+	if len(exchangeTradeHistoryAfterDeleteHooks) != 0 {
+		for _, obj := range o {
+			if err := obj.doAfterDeleteHooks(ctx, exec); err != nil {
+				return 0, err
+			}
+		}
+	}
+
+	return rowsAff, nil
 }
 
 // Reload refetches the object from the database
 // using the primary keys with an executor.
-func (o *ExchangeTradeHistory) Reload(exec boil.Executor) error {
-	ret, err := FindExchangeTradeHistory(exec, o.ExchangeTradeHistoryID)
+func (o *ExchangeTradeHistory) Reload(ctx context.Context, exec boil.ContextExecutor) error {
+	ret, err := FindExchangeTradeHistory(ctx, exec, o.ID)
 	if err != nil {
 		return err
 	}
@@ -822,42 +866,14 @@ func (o *ExchangeTradeHistory) Reload(exec boil.Executor) error {
 	return nil
 }
 
-// ReloadAllGP refetches every row with matching primary key column values
-// and overwrites the original object slice with the newly updated slice.
-// Panics on error.
-func (o *ExchangeTradeHistorySlice) ReloadAllGP() {
-	if err := o.ReloadAllG(); err != nil {
-		panic(boil.WrapErr(err))
-	}
-}
-
-// ReloadAllP refetches every row with matching primary key column values
-// and overwrites the original object slice with the newly updated slice.
-// Panics on error.
-func (o *ExchangeTradeHistorySlice) ReloadAllP(exec boil.Executor) {
-	if err := o.ReloadAll(exec); err != nil {
-		panic(boil.WrapErr(err))
-	}
-}
-
-// ReloadAllG refetches every row with matching primary key column values
-// and overwrites the original object slice with the newly updated slice.
-func (o *ExchangeTradeHistorySlice) ReloadAllG() error {
-	if o == nil {
-		return errors.New("models: empty ExchangeTradeHistorySlice provided for reload all")
-	}
-
-	return o.ReloadAll(boil.GetDB())
-}
-
 // ReloadAll refetches every row with matching primary key column values
 // and overwrites the original object slice with the newly updated slice.
-func (o *ExchangeTradeHistorySlice) ReloadAll(exec boil.Executor) error {
+func (o *ExchangeTradeHistorySlice) ReloadAll(ctx context.Context, exec boil.ContextExecutor) error {
 	if o == nil || len(*o) == 0 {
 		return nil
 	}
 
-	exchangeTradeHistories := ExchangeTradeHistorySlice{}
+	slice := ExchangeTradeHistorySlice{}
 	var args []interface{}
 	for _, obj := range *o {
 		pkeyArgs := queries.ValuesFromMapping(reflect.Indirect(reflect.ValueOf(obj)), exchangeTradeHistoryPrimaryKeyMapping)
@@ -865,31 +881,31 @@ func (o *ExchangeTradeHistorySlice) ReloadAll(exec boil.Executor) error {
 	}
 
 	sql := "SELECT \"exchange_trade_history\".* FROM \"exchange_trade_history\" WHERE " +
-		strmangle.WhereClauseRepeated(string(dialect.LQ), string(dialect.RQ), 1, exchangeTradeHistoryPrimaryKeyColumns, len(*o))
+		strmangle.WhereClauseRepeated(string(dialect.LQ), string(dialect.RQ), 0, exchangeTradeHistoryPrimaryKeyColumns, len(*o))
 
-	q := queries.Raw(exec, sql, args...)
+	q := queries.Raw(sql, args...)
 
-	err := q.Bind(&exchangeTradeHistories)
+	err := q.Bind(ctx, exec, &slice)
 	if err != nil {
 		return errors.Wrap(err, "models: unable to reload all in ExchangeTradeHistorySlice")
 	}
 
-	*o = exchangeTradeHistories
+	*o = slice
 
 	return nil
 }
 
 // ExchangeTradeHistoryExists checks if the ExchangeTradeHistory row exists.
-func ExchangeTradeHistoryExists(exec boil.Executor, exchangeTradeHistoryID int64) (bool, error) {
+func ExchangeTradeHistoryExists(ctx context.Context, exec boil.ContextExecutor, iD int64) (bool, error) {
 	var exists bool
-	sql := "select exists(select 1 from \"exchange_trade_history\" where \"exchange_trade_history_id\"=$1 limit 1)"
+	sql := "select exists(select 1 from \"exchange_trade_history\" where \"id\"=? limit 1)"
 
 	if boil.DebugMode {
 		fmt.Fprintln(boil.DebugWriter, sql)
-		fmt.Fprintln(boil.DebugWriter, exchangeTradeHistoryID)
+		fmt.Fprintln(boil.DebugWriter, iD)
 	}
 
-	row := exec.QueryRow(sql, exchangeTradeHistoryID)
+	row := exec.QueryRowContext(ctx, sql, iD)
 
 	err := row.Scan(&exists)
 	if err != nil {
@@ -897,29 +913,4 @@ func ExchangeTradeHistoryExists(exec boil.Executor, exchangeTradeHistoryID int64
 	}
 
 	return exists, nil
-}
-
-// ExchangeTradeHistoryExistsG checks if the ExchangeTradeHistory row exists.
-func ExchangeTradeHistoryExistsG(exchangeTradeHistoryID int64) (bool, error) {
-	return ExchangeTradeHistoryExists(boil.GetDB(), exchangeTradeHistoryID)
-}
-
-// ExchangeTradeHistoryExistsGP checks if the ExchangeTradeHistory row exists. Panics on error.
-func ExchangeTradeHistoryExistsGP(exchangeTradeHistoryID int64) bool {
-	e, err := ExchangeTradeHistoryExists(boil.GetDB(), exchangeTradeHistoryID)
-	if err != nil {
-		panic(boil.WrapErr(err))
-	}
-
-	return e
-}
-
-// ExchangeTradeHistoryExistsP checks if the ExchangeTradeHistory row exists. Panics on error.
-func ExchangeTradeHistoryExistsP(exec boil.Executor, exchangeTradeHistoryID int64) bool {
-	e, err := ExchangeTradeHistoryExists(exec, exchangeTradeHistoryID)
-	if err != nil {
-		panic(boil.WrapErr(err))
-	}
-
-	return e
 }

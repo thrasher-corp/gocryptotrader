@@ -37,11 +37,7 @@ type Bot struct {
 }
 
 const (
-	dbname     = "gocryptotrader"
-	dbhost     = "localhost"
-	dbuser     = "gocryptotrader"
-	dbpassword = "gocryptotrader"
-	banner     = `
+	banner = `
    ______        ______                     __        ______                  __
   / ____/____   / ____/_____ __  __ ____   / /_ ____ /_  __/_____ ______ ____/ /___   _____
  / / __ / __ \ / /    / ___// / / // __ \ / __// __ \ / /  / ___// __  // __  // _ \ / ___/
@@ -52,6 +48,8 @@ const (
 )
 
 var bot Bot
+
+var dbPathDefault = database.GetDefaultPath()
 
 func main() {
 	bot.shutdown = make(chan bool)
@@ -69,12 +67,8 @@ func main() {
 	version := flag.Bool("version", false, "-version retrieves current GoCryptoTrader version")
 	verbosity := flag.Bool("verbose", false, "-verbose increases logging verbosity for GoCryptoTrader")
 
-	dbStart := flag.Bool("db", false, "-db connects to a postgres database")
 	dbSeedHistory := flag.Bool("seeddb", false, "-seeddb aggregates historic exchange trade data into the database")
-	dbName := flag.String("dbname", dbname, "-dbname changes database name")
-	dbHost := flag.String("dbhost", dbhost, "-dbhost changes database host details")
-	dbUser := flag.String("dbuser", dbuser, "-dbuser changes database username")
-	dbPassword := flag.String("dbpassword", dbpassword, "-dbpassword changes database password")
+	dbPath := flag.String("dbPath", dbPathDefault, "-dbPath is a path to the database")
 
 	flag.Parse()
 
@@ -173,20 +167,23 @@ func main() {
 	}
 
 	go portfolio.StartPortfolioWatcher()
-
-	go TickerUpdaterRoutine()
-	go OrderbookUpdaterRoutine()
+	go TickerUpdaterRoutine(*verbosity)
+	go OrderbookUpdaterRoutine(*verbosity)
 	go WebsocketRoutine(*verbosity)
 
-	if *dbStart {
-		bot.db, err = database.Connect(*dbName, *dbHost, *dbUser, *dbPassword, *verbosity, bot.config)
-		if err != nil {
-			log.Fatalf("Database connection error with config %s - %s", bot.config.Name, err)
-		}
-		log.Println("Database connection established")
-		if *dbSeedHistory {
-			go HistoricExchangeDataUpdaterRoutine()
-		}
+	bot.db, err = database.Connect(*dbPath, *verbosity, bot.config)
+	if err != nil {
+		log.Fatalf("Database connection error with config %s - %s", bot.config.Name, err)
+	}
+
+	err = bot.db.LoadConfigurations()
+	if err != nil {
+		log.Fatalf("Database error %s - %s", bot.config.Name, err)
+	}
+
+	log.Println("Database connection established")
+	if *dbSeedHistory {
+		go HistoricExchangeDataUpdaterRoutine()
 	}
 
 	<-bot.shutdown

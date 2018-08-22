@@ -4,7 +4,10 @@
 package models
 
 import (
+	"strconv"
+
 	"github.com/pkg/errors"
+	"github.com/volatiletech/sqlboiler/boil"
 	"github.com/volatiletech/sqlboiler/strmangle"
 )
 
@@ -28,12 +31,14 @@ type updateCache struct {
 	valueMapping []uint64
 }
 
-func makeCacheKey(wl, nzDefaults []string) string {
+func makeCacheKey(cols boil.Columns, nzDefaults []string) string {
 	buf := strmangle.GetBuffer()
 
-	for _, w := range wl {
+	buf.WriteString(strconv.Itoa(cols.Kind))
+	for _, w := range cols.Cols {
 		buf.WriteString(w)
 	}
+
 	if len(nzDefaults) != 0 {
 		buf.WriteByte('.')
 	}
