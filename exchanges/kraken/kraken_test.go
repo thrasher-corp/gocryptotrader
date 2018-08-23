@@ -39,10 +39,10 @@ func TestSetup(t *testing.T) {
 
 func TestGetFee(t *testing.T) {
 	t.Parallel()
-	if common.NotEqual(k.GetFee(true), common.OneTenth) {
+	if common.DecimalNotEqual(k.GetFee(true), common.OneTenth) {
 		t.Error("Test Failed - kraken GetFee() error")
 	}
-	if common.NotEqual(k.GetFee(false), decimal.NewFromFloat(0.35)) {
+	if common.DecimalNotEqual(k.GetFee(false), decimal.NewFromFloat(0.35)) {
 		t.Error("Test Failed - kraken GetFee() error")
 	}
 }

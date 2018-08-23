@@ -698,7 +698,7 @@ func (h *HUOBIHADAX) Withdraw(address, currency, addrTag string, amount, fee dec
 	vals.Set("currency", currency)
 	vals.Set("amount", amount.StringFixed(exchange.DefaultDecimalPrecision))
 
-	if common.NotZero(fee) {
+	if common.DecimalNotZero(fee) {
 		vals.Set("fee", fee.StringFixed(exchange.DefaultDecimalPrecision))
 	}
 

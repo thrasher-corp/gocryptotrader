@@ -57,10 +57,10 @@ func TestSetup(t *testing.T) {
 
 func TestGetFee(t *testing.T) {
 	t.Parallel()
-	if resp := b.GetFee("BTCUSD"); common.NotZero(resp) {
+	if resp := b.GetFee("BTCUSD"); common.DecimalNotZero(resp) {
 		t.Error("Test Failed - GetFee() error")
 	}
-	if resp := b.GetFee("bla"); common.NotZero(resp) {
+	if resp := b.GetFee("bla"); common.DecimalNotZero(resp) {
 		t.Error("Test Failed - GetFee() error")
 	}
 }

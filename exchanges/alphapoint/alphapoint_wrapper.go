@@ -23,8 +23,8 @@ func (a *Alphapoint) GetExchangeAccountInfo() (exchange.AccountInfo, error) {
 	for i := 0; i < len(account.Currencies); i++ {
 		var exchangeCurrency exchange.AccountCurrencyInfo
 		exchangeCurrency.CurrencyName = account.Currencies[i].Name
-		exchangeCurrency.TotalValue = common.NewFromInt(account.Currencies[i].Balance)
-		exchangeCurrency.Hold = common.NewFromInt(account.Currencies[i].Hold)
+		exchangeCurrency.TotalValue = common.DecimalFromInt(account.Currencies[i].Balance)
+		exchangeCurrency.Hold = common.DecimalFromInt(account.Currencies[i].Hold)
 
 		response.Currencies = append(response.Currencies, exchangeCurrency)
 	}
@@ -141,7 +141,7 @@ func (a *Alphapoint) GetExchangeOrderInfo(orderID int64) (decimal.Decimal, error
 	for x := range orders {
 		for y := range orders[x].Openorders {
 			if int64(orders[x].Openorders[y].Serverorderid) == orderID {
-				return common.NewFromInt(orders[x].Openorders[y].QtyRemaining), nil
+				return common.DecimalFromInt(orders[x].Openorders[y].QtyRemaining), nil
 			}
 		}
 	}

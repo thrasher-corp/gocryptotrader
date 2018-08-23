@@ -149,7 +149,7 @@ func main() {
 			y.Subtotal.StringFixed(2),
 			x,
 			y.Subtotal.Div(y.Balance).StringFixed(2),
-			common.Percentage(y.Subtotal, total).StringFixed(3))
+			common.DecimalPercentage(y.Subtotal, total).StringFixed(3))
 	}
 	printSummary("\tTotal balance", total)
 

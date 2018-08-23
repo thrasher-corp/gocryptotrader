@@ -452,18 +452,18 @@ func (b *BTCC) CancelIcebergOrder(orderID int64, symbol string) {
 func (b *BTCC) PlaceStopOrder(buyOder bool, stopPrice, price, amount, trailingAmt, trailingPct decimal.Decimal, symbol string) {
 	params := make([]interface{}, 0)
 
-	if common.GreaterThanZero(stopPrice) {
+	if common.DecimalGreaterThanZero(stopPrice) {
 		params = append(params, stopPrice)
 	}
 
 	params = append(params, price.StringFixed(exchange.DefaultDecimalPrecision))
 	params = append(params, amount.StringFixed(exchange.DefaultDecimalPrecision))
 
-	if common.GreaterThanZero(trailingAmt) {
+	if common.DecimalGreaterThanZero(trailingAmt) {
 		params = append(params, trailingAmt.StringFixed(exchange.DefaultDecimalPrecision))
 	}
 
-	if common.GreaterThanZero(trailingPct) {
+	if common.DecimalGreaterThanZero(trailingPct) {
 		params = append(params, trailingPct.StringFixed(exchange.DefaultDecimalPrecision))
 	}
 
@@ -511,7 +511,7 @@ func (b *BTCC) GetStopOrders(status, orderType string, stopPrice decimal.Decimal
 		params = append(params, orderType)
 	}
 
-	if common.GreaterThanZero(stopPrice) {
+	if common.DecimalGreaterThanZero(stopPrice) {
 		params = append(params, stopPrice)
 	}
 

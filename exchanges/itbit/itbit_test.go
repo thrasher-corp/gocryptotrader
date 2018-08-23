@@ -40,7 +40,7 @@ func TestSetup(t *testing.T) {
 
 func TestGetFee(t *testing.T) {
 	t.Parallel()
-	if common.NotEqual(i.GetFee(true), decimal.NewFromFloat(-0.1)) || common.NotEqual(i.GetFee(false), common.Half) {
+	if common.DecimalNotEqual(i.GetFee(true), decimal.NewFromFloat(-0.1)) || common.DecimalNotEqual(i.GetFee(false), common.Half) {
 		t.Error("Test Failed - GetFee() error")
 	}
 }

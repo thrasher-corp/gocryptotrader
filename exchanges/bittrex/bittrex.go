@@ -245,8 +245,8 @@ func (b *Bittrex) PlaceBuyLimit(currencyPair string, quantity, rate decimal.Deci
 	var id UUID
 	values := url.Values{}
 	values.Set("market", currencyPair)
-	values.Set("quantity", strconv.FormatFloat(common.Float(quantity), 'E', -1, 64))
-	values.Set("rate", strconv.FormatFloat(common.Float(rate), 'E', -1, 64))
+	values.Set("quantity", strconv.FormatFloat(common.DecimalToFloat(quantity), 'E', -1, 64))
+	values.Set("rate", strconv.FormatFloat(common.DecimalToFloat(rate), 'E', -1, 64))
 	path := fmt.Sprintf("%s/%s", bittrexAPIURL, bittrexAPIBuyLimit)
 
 	if err := b.SendAuthenticatedHTTPRequest(path, values, &id); err != nil {
@@ -269,8 +269,8 @@ func (b *Bittrex) PlaceSellLimit(currencyPair string, quantity, rate decimal.Dec
 	var id UUID
 	values := url.Values{}
 	values.Set("market", currencyPair)
-	values.Set("quantity", strconv.FormatFloat(common.Float(quantity), 'E', -1, 64))
-	values.Set("rate", strconv.FormatFloat(common.Float(rate), 'E', -1, 64))
+	values.Set("quantity", strconv.FormatFloat(common.DecimalToFloat(quantity), 'E', -1, 64))
+	values.Set("rate", strconv.FormatFloat(common.DecimalToFloat(rate), 'E', -1, 64))
 	path := fmt.Sprintf("%s/%s", bittrexAPIURL, bittrexAPISellLimit)
 
 	if err := b.SendAuthenticatedHTTPRequest(path, values, &id); err != nil {
@@ -378,7 +378,7 @@ func (b *Bittrex) Withdraw(currency, paymentID, address string, quantity decimal
 	var id UUID
 	values := url.Values{}
 	values.Set("currency", currency)
-	values.Set("quantity", strconv.FormatFloat(common.Float(quantity), 'E', -1, 64))
+	values.Set("quantity", strconv.FormatFloat(common.DecimalToFloat(quantity), 'E', -1, 64))
 	values.Set("address", address)
 	path := fmt.Sprintf("%s/%s", bittrexAPIURL, bittrexAPIWithdraw)
 

@@ -411,11 +411,11 @@ func (b *Binance) NewOrder(o NewOrderRequest) (NewOrderResponse, error) {
 		params.Set("newClientOrderID", o.NewClientOrderID)
 	}
 
-	if common.NotZero(o.StopPrice) {
+	if common.DecimalNotZero(o.StopPrice) {
 		params.Set("stopPrice", o.StopPrice.StringFixed(exchange.DefaultDecimalPrecision))
 	}
 
-	if common.NotZero(o.IcebergQty) {
+	if common.DecimalNotZero(o.IcebergQty) {
 		params.Set("icebergQty", o.IcebergQty.StringFixed(exchange.DefaultDecimalPrecision))
 	}
 

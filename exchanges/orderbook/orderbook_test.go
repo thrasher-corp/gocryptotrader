@@ -24,7 +24,7 @@ func TestCalculateTotalBids(t *testing.T) {
 	}
 
 	a, b := base.CalculateTotalBids()
-	//if a != 10 && b != 1000 {
+
 	if !a.Equal(Ten) && !b.Equal(Thousand) {
 		t.Fatal("Test failed. TestCalculateTotalBids expected a = 10 and b = 1000")
 	}
@@ -41,7 +41,7 @@ func TestCalculateTotaAsks(t *testing.T) {
 	}
 
 	a, b := base.CalculateTotalAsks()
-	//if a != 10 && b != 1000 {
+
 	if !a.Equal(Ten) && !b.Equal(Thousand) {
 		t.Fatal("Test failed. TestCalculateTotalAsks expected a = 10 and b = 1000")
 	}

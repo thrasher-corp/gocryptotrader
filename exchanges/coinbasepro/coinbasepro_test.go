@@ -38,7 +38,7 @@ func TestGetFee(t *testing.T) {
 	if c.GetFee(true).Equal(decimal.NewFromFloat(0.25)) {
 		t.Error("Test failed - GetFee() error")
 	}
-	if common.EqualZero(c.GetFee(false)) {
+	if common.DecimalEqualZero(c.GetFee(false)) {
 		t.Error("Test failed - GetFee() error")
 	}
 }

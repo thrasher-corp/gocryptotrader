@@ -38,7 +38,7 @@ func TestGetHistoricalRates(t *testing.T) {
 }
 
 func TestConvertCurrency(t *testing.T) {
-	_, err := f.ConvertCurrency("AUD", "EUR", "", common.NewFromInt(1337))
+	_, err := f.ConvertCurrency("AUD", "EUR", "", common.DecimalFromInt(1337))
 	if err == nil {
 		t.Error("test failed - fixer ConvertCurrency() error", err)
 	}

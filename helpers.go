@@ -334,7 +334,7 @@ func SeedExchangeAccountInfo(data []exchange.AccountInfo) {
 			total := onHold.Add(avail)
 
 			if !port.ExchangeAddressExists(exchangeName, currencyName) {
-				if common.LessThanOrEqualZero(total) {
+				if common.DecimalLessThanOrEqualZero(total) {
 					continue
 				}
 				log.Printf("Portfolio: Adding new exchange address: %s, %s, %s, %s\n",
@@ -345,7 +345,7 @@ func SeedExchangeAccountInfo(data []exchange.AccountInfo) {
 						Balance: total, Description: portfolio.PortfolioAddressExchange},
 				)
 			} else {
-				if common.LessThanOrEqualZero(total) {
+				if common.DecimalLessThanOrEqualZero(total) {
 					log.Printf("Portfolio: Removing %s %s entry.\n", exchangeName,
 						currencyName)
 					port.RemoveExchangeAddress(exchangeName, currencyName)

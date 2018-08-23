@@ -440,7 +440,7 @@ func (p *HitBTC) MoveOrder(orderID int64, rate, amount decimal.Decimal) (MoveOrd
 	values.Set("orderNumber", strconv.FormatInt(orderID, 10))
 	values.Set("rate", rate.StringFixed(exchange.DefaultDecimalPrecision))
 
-	if common.NotZero(amount) {
+	if common.DecimalNotZero(amount) {
 		values.Set("amount", amount.StringFixed(exchange.DefaultDecimalPrecision))
 	}
 

@@ -717,15 +717,15 @@ func (k *Kraken) AddOrder(symbol, side, orderType string, volume, price, price2,
 		"volume":    {volume.StringFixed(exchange.DefaultDecimalPrecision)},
 	}
 
-	if common.NotZero(price) {
+	if common.DecimalNotZero(price) {
 		params.Set("price", price.StringFixed(exchange.DefaultDecimalPrecision))
 	}
 
-	if common.NotZero(price2) {
+	if common.DecimalNotZero(price2) {
 		params.Set("price2", price2.StringFixed(exchange.DefaultDecimalPrecision))
 	}
 
-	if common.NotZero(leverage) {
+	if common.DecimalNotZero(leverage) {
 		params.Set("leverage", leverage.StringFixed(exchange.DefaultDecimalPrecision))
 	}
 

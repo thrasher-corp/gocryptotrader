@@ -36,7 +36,7 @@ func TestSetup(t *testing.T) {
 }
 
 func TestGetFee(t *testing.T) {
-	if common.NotZero(p.GetFee()) {
+	if common.DecimalNotZero(p.GetFee()) {
 		t.Error("Test faild - HitBTC GetFee() error")
 	}
 }

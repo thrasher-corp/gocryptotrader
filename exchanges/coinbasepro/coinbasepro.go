@@ -404,10 +404,10 @@ func (c *CoinbasePro) PlaceMarketOrder(clientRef string, size, funds decimal.Dec
 	request["product_id"] = productID
 	request["type"] = "market"
 
-	if common.NotZero(size) {
+	if common.DecimalNotZero(size) {
 		request["size"] = size.StringFixed(exchange.DefaultDecimalPrecision)
 	}
-	if common.NotZero(funds) {
+	if common.DecimalNotZero(funds) {
 		request["funds"] = funds.StringFixed(exchange.DefaultDecimalPrecision)
 	}
 	if clientRef != "" {
@@ -447,10 +447,10 @@ func (c *CoinbasePro) PlaceMarginOrder(clientRef string, size, funds decimal.Dec
 	request["product_id"] = productID
 	request["type"] = "margin"
 
-	if common.NotZero(size) {
+	if common.DecimalNotZero(size) {
 		request["size"] = size.StringFixed(exchange.DefaultDecimalPrecision)
 	}
-	if common.NotZero(funds) {
+	if common.DecimalNotZero(funds) {
 		request["funds"] = funds.StringFixed(exchange.DefaultDecimalPrecision)
 	}
 	if clientRef != "" {

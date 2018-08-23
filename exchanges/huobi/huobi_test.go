@@ -73,7 +73,7 @@ func TestSetup(t *testing.T) {
 
 func TestGetFee(t *testing.T) {
 	t.Parallel()
-	if common.NotZero(h.GetFee()) {
+	if common.DecimalNotZero(h.GetFee()) {
 		t.Errorf("test failed - Huobi GetFee() error")
 	}
 }

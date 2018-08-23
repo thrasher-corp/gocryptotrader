@@ -66,12 +66,12 @@ func TestGetTicker(t *testing.T) {
 			t.Fatal("Test Failed - Alphapoint GetTicker unmarshalling error: ", err)
 		}
 
-		if common.NotEqual(ticker.Last, decimal.NewFromFloat(249.76)) {
+		if common.DecimalNotEqual(ticker.Last, decimal.NewFromFloat(249.76)) {
 			t.Error("Test failed - Alphapoint GetTicker expected last = 249.76")
 		}
 	}
 
-	if common.LessThanZero(ticker.Last) {
+	if common.DecimalLessThanZero(ticker.Last) {
 		t.Error("Test failed - Alphapoint GetTicker last < 0")
 	}
 }
@@ -191,7 +191,7 @@ func TestGetOrderbook(t *testing.T) {
 			t.Fatal("Test Failed - TestGetOrderbook unmarshalling error: ", err)
 		}
 
-		if common.NotEqual(orderBook.Bids[0].Quantity, common.NewFromInt(725)) {
+		if common.DecimalNotEqual(orderBook.Bids[0].Quantity, common.DecimalFromInt(725)) {
 			t.Error("Test Failed - TestGetOrderbook Bids[0].Quantity != 725")
 		}
 	}

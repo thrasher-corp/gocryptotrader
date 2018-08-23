@@ -159,7 +159,7 @@ func (p *Base) AddAddress(address, coinType, description string, balance decimal
 				Balance: balance, Description: description},
 		)
 	} else {
-		if common.LessThanOrEqualZero(balance) {
+		if common.DecimalLessThanOrEqualZero(balance) {
 			p.RemoveAddress(address, coinType, description)
 		} else {
 			p.UpdateAddressBalance(address, balance)
@@ -264,7 +264,7 @@ func (p *Base) GetPersonalPortfolio() map[string]decimal.Decimal {
 func getPercentage(input map[string]decimal.Decimal, target string, totals map[string]decimal.Decimal) decimal.Decimal {
 	subtotal, _ := input[target]
 	total, _ := totals[target]
-	percentage := common.Percentage(subtotal, total)
+	percentage := common.DecimalPercentage(subtotal, total)
 	return percentage
 }
 
@@ -272,7 +272,7 @@ func getPercentage(input map[string]decimal.Decimal, target string, totals map[s
 // against the total coin amount.
 func getPercentageSpecific(input decimal.Decimal, target string, totals map[string]decimal.Decimal) decimal.Decimal {
 	total, _ := totals[target]
-	percentage := common.Percentage(input, total)
+	percentage := common.DecimalPercentage(input, total)
 	return percentage
 }
 

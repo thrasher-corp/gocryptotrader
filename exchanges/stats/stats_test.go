@@ -14,7 +14,7 @@ func TestLenByPrice(t *testing.T) {
 		Exchange:  "ANX",
 		Pair:      p,
 		AssetType: "SPOT",
-		Price:     common.NewFromInt(1200),
+		Price:     common.DecimalFromInt(1200),
 		Volume:    common.Five,
 	}
 
@@ -30,7 +30,7 @@ func TestLessByPrice(t *testing.T) {
 		Exchange:  "alphapoint",
 		Pair:      p,
 		AssetType: "SPOT",
-		Price:     common.NewFromInt(1200),
+		Price:     common.DecimalFromInt(1200),
 		Volume:    common.Five,
 	}
 
@@ -38,7 +38,7 @@ func TestLessByPrice(t *testing.T) {
 		Exchange:  "bitfinex",
 		Pair:      p,
 		AssetType: "SPOT",
-		Price:     common.NewFromInt(1198),
+		Price:     common.DecimalFromInt(1198),
 		Volume:    common.Twenty,
 	}
 
@@ -59,7 +59,7 @@ func TestSwapByPrice(t *testing.T) {
 		Exchange:  "bitstamp",
 		Pair:      p,
 		AssetType: "SPOT",
-		Price:     common.NewFromInt(1324),
+		Price:     common.DecimalFromInt(1324),
 		Volume:    common.Five,
 	}
 
@@ -67,7 +67,7 @@ func TestSwapByPrice(t *testing.T) {
 		Exchange:  "btcc",
 		Pair:      p,
 		AssetType: "SPOT",
-		Price:     common.NewFromInt(7863),
+		Price:     common.DecimalFromInt(7863),
 		Volume:    common.Twenty,
 	}
 
@@ -105,7 +105,7 @@ func TestSwapByVolume(t *testing.T) {
 func TestAdd(t *testing.T) {
 	Items = Items[:0]
 	p := pair.NewCurrencyPair("BTC", "USD")
-	Add("ANX", p, "SPOT", common.NewFromInt(1200), common.NewFromInt(42))
+	Add("ANX", p, "SPOT", common.DecimalFromInt(1200), common.DecimalFromInt(42))
 
 	if len(Items) < 1 {
 		t.Error("Test Failed - stats Add did not add exchange info.")
@@ -118,7 +118,7 @@ func TestAdd(t *testing.T) {
 	}
 
 	p.FirstCurrency = "XBT"
-	Add("ANX", p, "SPOT", common.NewFromInt(1201), common.NewFromInt(43))
+	Add("ANX", p, "SPOT", common.DecimalFromInt(1201), common.DecimalFromInt(43))
 
 	if Items[1].Pair.Pair() != "XBTUSD" {
 		t.Fatal("Test failed. stats Add did not add exchange info.")
@@ -134,12 +134,12 @@ func TestAdd(t *testing.T) {
 
 func TestAppend(t *testing.T) {
 	p := pair.NewCurrencyPair("BTC", "USD")
-	Append("sillyexchange", p, "SPOT", common.NewFromInt(1234), common.NewFromInt(45))
+	Append("sillyexchange", p, "SPOT", common.DecimalFromInt(1234), common.DecimalFromInt(45))
 	if len(Items) < 2 {
 		t.Error("Test Failed - stats Append did not add exchange values.")
 	}
 
-	Append("sillyexchange", p, "SPOT", common.NewFromInt(1234), common.NewFromInt(45))
+	Append("sillyexchange", p, "SPOT", common.DecimalFromInt(1234), common.DecimalFromInt(45))
 	if len(Items) == 3 {
 		t.Error("Test Failed - stats Append added exchange values")
 	}
@@ -147,11 +147,11 @@ func TestAppend(t *testing.T) {
 
 func TestAlreadyExists(t *testing.T) {
 	p := pair.NewCurrencyPair("BTC", "USD")
-	if !AlreadyExists("ANX", p, "SPOT", common.NewFromInt(1200), common.NewFromInt(42)) {
+	if !AlreadyExists("ANX", p, "SPOT", common.DecimalFromInt(1200), common.DecimalFromInt(42)) {
 		t.Error("Test Failed - stats AlreadyExists exchange does not exist.")
 	}
 	p.FirstCurrency = "dii"
-	if AlreadyExists("bla", p, "SPOT", common.NewFromInt(1234), common.NewFromInt(123)) {
+	if AlreadyExists("bla", p, "SPOT", common.DecimalFromInt(1234), common.DecimalFromInt(123)) {
 		t.Error("Test Failed - stats AlreadyExists found incorrect exchange.")
 	}
 }

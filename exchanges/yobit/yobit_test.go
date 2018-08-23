@@ -36,7 +36,7 @@ func TestSetup(t *testing.T) {
 
 func TestGetFee(t *testing.T) {
 	t.Parallel()
-	if common.NotEqual(y.GetFee(), common.TwoTenth) {
+	if common.DecimalNotEqual(y.GetFee(), common.TwoTenth) {
 		t.Error("Test Failed - GetFee() error")
 	}
 }

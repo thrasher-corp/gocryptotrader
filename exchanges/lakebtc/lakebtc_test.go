@@ -45,10 +45,10 @@ func TestGetTradablePairs(t *testing.T) {
 
 func TestGetFee(t *testing.T) {
 	t.Parallel()
-	if common.NotEqual(l.GetFee(false), decimal.NewFromFloat(0.2)) {
+	if common.DecimalNotEqual(l.GetFee(false), decimal.NewFromFloat(0.2)) {
 		t.Error("Test Failed - GetFee() error")
 	}
-	if common.NotEqual(l.GetFee(true), decimal.NewFromFloat(0.15)) {
+	if common.DecimalNotEqual(l.GetFee(true), decimal.NewFromFloat(0.15)) {
 		t.Error("Test Failed - GetFee() error")
 	}
 }

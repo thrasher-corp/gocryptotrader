@@ -132,7 +132,7 @@ func TestWithdrawCrypto(t *testing.T) {
 
 func TestWithdrawAUD(t *testing.T) {
 	t.Parallel()
-	_, err := bm.WithdrawAUD("BLA", "1337", "blawest", "1336", common.NewFromInt(10000000))
+	_, err := bm.WithdrawAUD("BLA", "1337", "blawest", "1336", common.DecimalFromInt(10000000))
 	if err == nil {
 		t.Error("Test failed - WithdrawAUD() error", err)
 	}

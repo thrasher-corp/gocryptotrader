@@ -241,7 +241,7 @@ func TestGetSpecificOrderbook(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if common.NotEqual(ob.Bids[0].Price, common.Thousand) {
+	if common.DecimalNotEqual(ob.Bids[0].Price, common.Thousand) {
 		t.Fatal("Unexpected result")
 	}
 
@@ -265,7 +265,7 @@ func TestGetSpecificTicker(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if common.NotEqual(tick.Last, common.Thousand) {
+	if common.DecimalNotEqual(tick.Last, common.Thousand) {
 		t.Fatal("Unexpected result")
 	}
 
@@ -302,7 +302,7 @@ func TestGetCollatedExchangeAccountInfoByCoin(t *testing.T) {
 		t.Fatal("Expected currency was not found in result map")
 	}
 
-	if common.NotEqual(amount.TotalValue, common.TwoHundred) {
+	if common.DecimalNotEqual(amount.TotalValue, common.TwoHundred) {
 		t.Fatal("Unexpected result")
 	}
 

@@ -234,7 +234,7 @@ func (w *WEX) Trade(pair, orderType string, amount, price decimal.Decimal) (int6
 	if result.Error != "" {
 		return 0, errors.New(result.Error)
 	}
-	return int64(common.Float(result.OrderID)), nil
+	return int64(common.DecimalToFloat(result.OrderID)), nil
 }
 
 // GetTransactionHistory returns the transaction history

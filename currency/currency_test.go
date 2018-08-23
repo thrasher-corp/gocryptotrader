@@ -222,7 +222,7 @@ func TestExtractBaseCurrency(t *testing.T) {
 		t.Fatalf("Test failed. Expected '' as base currency")
 	}
 
-	FXRates["USDAUD"] = common.NewFromInt(120)
+	FXRates["USDAUD"] = common.DecimalFromInt(120)
 
 	if extractBaseCurrency() != "USD" {
 		t.Fatalf("Test failed. Expected 'USD' as base currency")

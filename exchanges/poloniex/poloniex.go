@@ -529,7 +529,7 @@ func (p *Poloniex) MoveOrder(orderID int64, rate, amount decimal.Decimal) (MoveO
 	values.Set("orderNumber", strconv.FormatInt(orderID, 10))
 	values.Set("rate", rate.StringFixed(exchange.DefaultDecimalPrecision))
 
-	if common.NotZero(amount) {
+	if common.DecimalNotZero(amount) {
 		values.Set("amount", amount.StringFixed(exchange.DefaultDecimalPrecision))
 	}
 
@@ -651,7 +651,7 @@ func (p *Poloniex) PlaceMarginOrder(currency string, rate, amount, lendingRate d
 	values.Set("rate", rate.StringFixed(exchange.DefaultDecimalPrecision))
 	values.Set("amount", amount.StringFixed(exchange.DefaultDecimalPrecision))
 
-	if common.NotZero(lendingRate) {
+	if common.DecimalNotZero(lendingRate) {
 		values.Set("lendingRate", lendingRate.StringFixed(exchange.DefaultDecimalPrecision))
 	}
 

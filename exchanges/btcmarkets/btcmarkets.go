@@ -149,8 +149,8 @@ func (b *BTCMarkets) GetTrades(firstPair, secondPair string, values url.Values) 
 // orderType - example "limit"
 // clientReq - example "abc-cdf-1000"
 func (b *BTCMarkets) NewOrder(currency, instrument string, price, amount decimal.Decimal, orderSide, orderType, clientReq string) (int64, error) {
-	newPrice := int64(common.Float(price) * float64(common.SatoshisPerBTC))
-	newVolume := int64(common.Float(amount) * float64(common.SatoshisPerBTC))
+	newPrice := int64(common.DecimalToFloat(price) * float64(common.SatoshisPerBTC))
+	newVolume := int64(common.DecimalToFloat(amount) * float64(common.SatoshisPerBTC))
 
 	order := OrderToGo{
 		Currency:        common.StringToUpper(currency),
@@ -250,13 +250,13 @@ func (b *BTCMarkets) GetOrders(currency, instrument string, limit, since int64, 
 	}
 
 	for i := range resp.Orders {
-		resp.Orders[i].Price = resp.Orders[i].Price.Div(common.NewFromInt(common.SatoshisPerBTC))
-		resp.Orders[i].OpenVolume = resp.Orders[i].OpenVolume.Div(common.NewFromInt(common.SatoshisPerBTC))
-		resp.Orders[i].Volume = resp.Orders[i].Volume.Div(common.NewFromInt(common.SatoshisPerBTC))
+		resp.Orders[i].Price = resp.Orders[i].Price.Div(common.DecimalFromInt(common.SatoshisPerBTC))
+		resp.Orders[i].OpenVolume = resp.Orders[i].OpenVolume.Div(common.DecimalFromInt(common.SatoshisPerBTC))
+		resp.Orders[i].Volume = resp.Orders[i].Volume.Div(common.DecimalFromInt(common.SatoshisPerBTC))
 
 		for x := range resp.Orders[i].Trades {
-			resp.Orders[i].Trades[x].Fee = resp.Orders[i].Trades[x].Fee.Div(common.NewFromInt(common.SatoshisPerBTC))
-			resp.Orders[i].Trades[x].Price = resp.Orders[i].Trades[x].Price.Div(common.NewFromInt(common.SatoshisPerBTC))
+			resp.Orders[i].Trades[x].Fee = resp.Orders[i].Trades[x].Fee.Div(common.DecimalFromInt(common.SatoshisPerBTC))
+			resp.Orders[i].Trades[x].Price = resp.Orders[i].Trades[x].Price.Div(common.DecimalFromInt(common.SatoshisPerBTC))
 			resp.Orders[i].Trades[x].Volume = resp.Orders[i].Trades[x].Volume / common.SatoshisPerBTC
 		}
 	}
@@ -284,13 +284,13 @@ func (b *BTCMarkets) GetOrderDetail(orderID []int64) ([]Order, error) {
 	}
 
 	for i := range resp.Orders {
-		resp.Orders[i].Price = resp.Orders[i].Price.Div(common.NewFromInt(common.SatoshisPerBTC))
-		resp.Orders[i].OpenVolume = resp.Orders[i].OpenVolume.Div(common.NewFromInt(common.SatoshisPerBTC))
-		resp.Orders[i].Volume = resp.Orders[i].Volume.Div(common.NewFromInt(common.SatoshisPerBTC))
+		resp.Orders[i].Price = resp.Orders[i].Price.Div(common.DecimalFromInt(common.SatoshisPerBTC))
+		resp.Orders[i].OpenVolume = resp.Orders[i].OpenVolume.Div(common.DecimalFromInt(common.SatoshisPerBTC))
+		resp.Orders[i].Volume = resp.Orders[i].Volume.Div(common.DecimalFromInt(common.SatoshisPerBTC))
 
 		for x := range resp.Orders[i].Trades {
-			resp.Orders[i].Trades[x].Fee = resp.Orders[i].Trades[x].Fee.Div(common.NewFromInt(common.SatoshisPerBTC))
-			resp.Orders[i].Trades[x].Price = resp.Orders[i].Trades[x].Price.Div(common.NewFromInt(common.SatoshisPerBTC))
+			resp.Orders[i].Trades[x].Fee = resp.Orders[i].Trades[x].Fee.Div(common.DecimalFromInt(common.SatoshisPerBTC))
+			resp.Orders[i].Trades[x].Price = resp.Orders[i].Trades[x].Price.Div(common.DecimalFromInt(common.SatoshisPerBTC))
 			resp.Orders[i].Trades[x].Volume = resp.Orders[i].Trades[x].Volume / common.SatoshisPerBTC
 		}
 	}
@@ -308,15 +308,15 @@ func (b *BTCMarkets) GetAccountBalance() ([]AccountBalance, error) {
 
 	// All values are returned in Satoshis, even for fiat currencies.
 	for i := range balance {
-		balance[i].Balance = balance[i].Balance.Div(common.NewFromInt(common.SatoshisPerBTC))
-		balance[i].PendingFunds = balance[i].PendingFunds.Div(common.NewFromInt(common.SatoshisPerBTC))
+		balance[i].Balance = balance[i].Balance.Div(common.DecimalFromInt(common.SatoshisPerBTC))
+		balance[i].PendingFunds = balance[i].PendingFunds.Div(common.DecimalFromInt(common.SatoshisPerBTC))
 	}
 	return balance, nil
 }
 
 // WithdrawCrypto withdraws cryptocurrency into a designated address
 func (b *BTCMarkets) WithdrawCrypto(amount decimal.Decimal, currency, address string) (string, error) {
-	newAmount := int64(common.Float(amount) * float64(common.SatoshisPerBTC))
+	newAmount := int64(common.DecimalToFloat(amount) * float64(common.SatoshisPerBTC))
 
 	req := WithdrawRequestCrypto{
 		Amount:   newAmount,
@@ -340,7 +340,7 @@ func (b *BTCMarkets) WithdrawCrypto(amount decimal.Decimal, currency, address st
 // WithdrawAUD withdraws AUD into a designated bank address
 // Does not return a TxID!
 func (b *BTCMarkets) WithdrawAUD(accountName, accountNumber, bankName, bsbNumber string, amount decimal.Decimal) (string, error) {
-	newAmount := int64(common.Float(amount) * float64(common.SatoshisPerBTC))
+	newAmount := int64(common.DecimalToFloat(amount) * float64(common.SatoshisPerBTC))
 
 	req := WithdrawRequestAUD{
 		AccountName:   accountName,
