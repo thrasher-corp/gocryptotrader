@@ -53,7 +53,6 @@ func (y *Yobit) SetDefaults() {
 	y.Verbose = false
 	y.Websocket = false
 	y.RESTPollingDelay = 10
-	y.APIUrl = apiPublicURL
 	y.AuthenticatedAPISupport = true
 	y.Ticker = make(map[string]Ticker)
 	y.RequestCurrencyPairFormat.Delimiter = "_"
@@ -64,7 +63,12 @@ func (y *Yobit) SetDefaults() {
 	y.AssetTypes = []string{ticker.Spot}
 	y.SupportsAutoPairUpdating = false
 	y.SupportsRESTTickerBatching = true
-	y.Requester = request.New(y.Name, request.NewRateLimit(time.Second, yobitAuthRate), request.NewRateLimit(time.Second, yobitUnauthRate), common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
+	y.Requester = request.New(y.Name,
+		request.NewRateLimit(time.Second, yobitAuthRate),
+		request.NewRateLimit(time.Second, yobitUnauthRate),
+		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
+	y.APIUrl = apiPublicURL
+	y.APIUrlSupplementary = apiPrivateURL
 }
 
 // Setup sets exchange configuration parameters for Yobit
@@ -95,6 +99,10 @@ func (y *Yobit) Setup(exch config.ExchangeConfig) {
 		if err != nil {
 			log.Fatal(err)
 		}
+		err = y.SetAPIURL(exch)
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 }
 
@@ -106,7 +114,7 @@ func (y *Yobit) GetFee() float64 {
 // GetInfo returns the Yobit info
 func (y *Yobit) GetInfo() (Info, error) {
 	resp := Info{}
-	path := fmt.Sprintf("%s/%s/%s/", apiPublicURL, apiPublicVersion, publicInfo)
+	path := fmt.Sprintf("%s/%s/%s/", y.APIUrl, apiPublicVersion, publicInfo)
 
 	return resp, y.SendHTTPRequest(path, &resp)
 }
@@ -118,7 +126,7 @@ func (y *Yobit) GetTicker(symbol string) (map[string]Ticker, error) {
 	}
 
 	response := Response{}
-	path := fmt.Sprintf("%s/%s/%s/%s", apiPublicURL, apiPublicVersion, publicTicker, symbol)
+	path := fmt.Sprintf("%s/%s/%s/%s", y.APIUrl, apiPublicVersion, publicTicker, symbol)
 
 	return response.Data, y.SendHTTPRequest(path, &response.Data)
 }
@@ -130,7 +138,7 @@ func (y *Yobit) GetDepth(symbol string) (Orderbook, error) {
 	}
 
 	response := Response{}
-	path := fmt.Sprintf("%s/%s/%s/%s", apiPublicURL, apiPublicVersion, publicDepth, symbol)
+	path := fmt.Sprintf("%s/%s/%s/%s", y.APIUrl, apiPublicVersion, publicDepth, symbol)
 
 	return response.Data[symbol],
 		y.SendHTTPRequest(path, &response.Data)
@@ -143,7 +151,7 @@ func (y *Yobit) GetTrades(symbol string) ([]Trades, error) {
 	}
 
 	response := Response{}
-	path := fmt.Sprintf("%s/%s/%s/%s", apiPublicURL, apiPublicVersion, publicTrades, symbol)
+	path := fmt.Sprintf("%s/%s/%s/%s", y.APIUrl, apiPublicVersion, publicTrades, symbol)
 
 	return response.Data[symbol], y.SendHTTPRequest(path, &response.Data)
 }

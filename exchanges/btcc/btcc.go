@@ -67,7 +67,11 @@ func (b *BTCC) SetDefaults() {
 	b.AssetTypes = []string{ticker.Spot}
 	b.SupportsAutoPairUpdating = true
 	b.SupportsRESTTickerBatching = false
-	b.Requester = request.New(b.Name, request.NewRateLimit(time.Second, btccAuthRate), request.NewRateLimit(time.Second, btccUnauthRate), common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
+	b.Requester = request.New(b.Name,
+		request.NewRateLimit(time.Second, btccAuthRate),
+		request.NewRateLimit(time.Second, btccUnauthRate),
+		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
+	b.APIUrl = btccAPIUrl
 }
 
 // Setup is run on startup to setup exchange with config values
@@ -98,6 +102,10 @@ func (b *BTCC) Setup(exch config.ExchangeConfig) {
 		if err != nil {
 			log.Fatal(err)
 		}
+		err = b.SetAPIURL(exch)
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 }
 
@@ -110,7 +118,7 @@ func (b *BTCC) GetFee() float64 {
 // currencyPair - Example "btccny", "ltccny" or "ltcbtc"
 func (b *BTCC) GetTicker(currencyPair string) (Ticker, error) {
 	resp := Response{}
-	path := fmt.Sprintf("%s/data/pro/ticker?symbol=%s", btccAPIUrl, currencyPair)
+	path := fmt.Sprintf("%s/data/pro/ticker?symbol=%s", b.APIUrl, currencyPair)
 	return resp.Ticker, b.SendHTTPRequest(path, &resp)
 }
 
@@ -121,7 +129,7 @@ func (b *BTCC) GetTicker(currencyPair string) (Ticker, error) {
 // time - returns trade records starting from unix time 1406794449
 func (b *BTCC) GetTradeHistory(currencyPair string, limit, sinceTid int64, time time.Time) ([]Trade, error) {
 	trades := []Trade{}
-	path := fmt.Sprintf("%s/data/pro/historydata?symbol=%s", btccAPIUrl, currencyPair)
+	path := fmt.Sprintf("%s/data/pro/historydata?symbol=%s", b.APIUrl, currencyPair)
 	v := url.Values{}
 
 	if limit > 0 {
@@ -144,9 +152,9 @@ func (b *BTCC) GetTradeHistory(currencyPair string, limit, sinceTid int64, time 
 // orderbook
 func (b *BTCC) GetOrderBook(currencyPair string, limit int) (Orderbook, error) {
 	result := Orderbook{}
-	path := fmt.Sprintf("%s/data/pro/orderbook?symbol=%s&limit=%d", btccAPIUrl, currencyPair, limit)
+	path := fmt.Sprintf("%s/data/pro/orderbook?symbol=%s&limit=%d", b.APIUrl, currencyPair, limit)
 	if limit == 0 {
-		path = fmt.Sprintf("%s/data/pro/orderbook?symbol=%s", btccAPIUrl, currencyPair)
+		path = fmt.Sprintf("%s/data/pro/orderbook?symbol=%s", b.APIUrl, currencyPair)
 	}
 
 	return result, b.SendHTTPRequest(path, &result)
@@ -612,7 +620,7 @@ func (b *BTCC) SendAuthenticatedHTTPRequest(method string, params []interface{})
 	postData["params"] = params
 	postData["id"] = 1
 
-	apiURL := fmt.Sprintf("%s/%s", btccAPIUrl, btccAPIAuthenticatedMethod)
+	apiURL := fmt.Sprintf("%s/%s", b.APIUrl, btccAPIAuthenticatedMethod)
 
 	data, err := common.JSONEncode(postData)
 	if err != nil {

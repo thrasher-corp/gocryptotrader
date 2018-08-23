@@ -112,14 +112,20 @@ func (o *OKCoin) SetDefaults() {
 		o.Name = "OKCOIN International"
 		o.WebsocketURL = okcoinWebsocketURL
 		o.setCurrencyPairFormats()
-		o.Requester = request.New(o.Name, request.NewRateLimit(time.Second, okcoinAuthRate), request.NewRateLimit(time.Second, okcoinUnauthRate), common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
+		o.Requester = request.New(o.Name,
+			request.NewRateLimit(time.Second, okcoinAuthRate),
+			request.NewRateLimit(time.Second, okcoinUnauthRate),
+			common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 	} else {
 		o.APIUrl = okcoinAPIURLChina
 		o.Name = "OKCOIN China"
 		o.WebsocketURL = okcoinWebsocketURLChina
 		okcoinDefaultsSet = true
 		o.setCurrencyPairFormats()
-		o.Requester = request.New(o.Name, request.NewRateLimit(time.Second, okcoinAuthRate), request.NewRateLimit(time.Second, okcoinUnauthRate), common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
+		o.Requester = request.New(o.Name,
+			request.NewRateLimit(time.Second, okcoinAuthRate),
+			request.NewRateLimit(time.Second, okcoinUnauthRate),
+			common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 	}
 }
 
@@ -148,6 +154,10 @@ func (o *OKCoin) Setup(exch config.ExchangeConfig) {
 			log.Fatal(err)
 		}
 		err = o.SetAutoPairDefaults()
+		if err != nil {
+			log.Fatal(err)
+		}
+		err = o.SetAPIURL(exch)
 		if err != nil {
 			log.Fatal(err)
 		}

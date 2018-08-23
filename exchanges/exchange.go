@@ -1,6 +1,7 @@
 package exchange
 
 import (
+	"errors"
 	"log"
 	"net/http"
 	"sync"
@@ -105,6 +106,7 @@ type Base struct {
 	HTTPUserAgent                              string
 	WebsocketURL                               string
 	APIUrl                                     string
+	APIUrlSupplementary                        string
 	RequestCurrencyPairFormat                  config.CurrencyPairFormatConfig
 	ConfigCurrencyPairFormat                   config.CurrencyPairFormatConfig
 	*request.Requester
@@ -623,4 +625,18 @@ func OrderSideBuy() OrderSide {
 // OrderSideSell returns an OrderSide Sell order
 func OrderSideSell() OrderSide {
 	return "Sell"
+}
+
+// SetAPIURL sets configuration API URL for an exchange
+func (e *Base) SetAPIURL(ec config.ExchangeConfig) error {
+	if ec.APIURL == "" || ec.APIURLSupp == "" {
+		return errors.New("SetAPIURL error variable zero value")
+	}
+	if ec.APIURL != "DEFAULT" {
+		e.APIUrl = ec.APIURL
+	}
+	if ec.APIURLSupp != "DEFAULT" {
+		e.APIUrlSupplementary = ec.APIURLSupp
+	}
+	return nil
 }

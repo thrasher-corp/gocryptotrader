@@ -70,7 +70,11 @@ func (b *Bithumb) SetDefaults() {
 	b.AssetTypes = []string{ticker.Spot}
 	b.SupportsAutoPairUpdating = true
 	b.SupportsRESTTickerBatching = true
-	b.Requester = request.New(b.Name, request.NewRateLimit(time.Second, bithumbAuthRate), request.NewRateLimit(time.Second, bithumbUnauthRate), common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
+	b.Requester = request.New(b.Name,
+		request.NewRateLimit(time.Second, bithumbAuthRate),
+		request.NewRateLimit(time.Second, bithumbUnauthRate),
+		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
+	b.APIUrl = apiURL
 }
 
 // Setup takes in the supplied exchange configuration details and sets params
@@ -101,6 +105,10 @@ func (b *Bithumb) Setup(exch config.ExchangeConfig) {
 		if err != nil {
 			log.Fatal(err)
 		}
+		err = b.SetAPIURL(exch)
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 }
 
@@ -123,7 +131,7 @@ func (b *Bithumb) GetTradablePairs() ([]string, error) {
 // symbol e.g. "btc"
 func (b *Bithumb) GetTicker(symbol string) (Ticker, error) {
 	response := Ticker{}
-	path := fmt.Sprintf("%s%s%s", apiURL, publicTicker, common.StringToUpper(symbol))
+	path := fmt.Sprintf("%s%s%s", b.APIUrl, publicTicker, common.StringToUpper(symbol))
 
 	err := b.SendHTTPRequest(path, &response)
 	if err != nil {
@@ -145,7 +153,7 @@ func (b *Bithumb) GetAllTickers() (map[string]Ticker, error) {
 	}
 
 	response := Response{}
-	path := fmt.Sprintf("%s%s%s", apiURL, publicTicker, "all")
+	path := fmt.Sprintf("%s%s%s", b.APIUrl, publicTicker, "all")
 
 	err := b.SendHTTPRequest(path, &response)
 	if err != nil {
@@ -185,7 +193,7 @@ func (b *Bithumb) GetAllTickers() (map[string]Ticker, error) {
 // symbol e.g. "btc"
 func (b *Bithumb) GetOrderBook(symbol string) (Orderbook, error) {
 	response := Orderbook{}
-	path := fmt.Sprintf("%s%s%s", apiURL, publicOrderBook, common.StringToUpper(symbol))
+	path := fmt.Sprintf("%s%s%s", b.APIUrl, publicOrderBook, common.StringToUpper(symbol))
 
 	err := b.SendHTTPRequest(path, &response)
 	if err != nil {
@@ -204,7 +212,7 @@ func (b *Bithumb) GetOrderBook(symbol string) (Orderbook, error) {
 // symbol e.g. "btc"
 func (b *Bithumb) GetTransactionHistory(symbol string) (TransactionHistory, error) {
 	response := TransactionHistory{}
-	path := fmt.Sprintf("%s%s%s", apiURL, publicTransactionHistory, common.StringToUpper(symbol))
+	path := fmt.Sprintf("%s%s%s", b.APIUrl, publicTransactionHistory, common.StringToUpper(symbol))
 
 	err := b.SendHTTPRequest(path, &response)
 	if err != nil {
@@ -549,5 +557,5 @@ func (b *Bithumb) SendAuthenticatedHTTPRequest(path string, params url.Values, r
 	headers["Api-Nonce"] = b.Nonce.String()
 	headers["Content-Type"] = "application/x-www-form-urlencoded"
 
-	return b.SendPayload("POST", apiURL+path, headers, bytes.NewBufferString(payload), result, true, b.Verbose)
+	return b.SendPayload("POST", b.APIUrl+path, headers, bytes.NewBufferString(payload), result, true, b.Verbose)
 }

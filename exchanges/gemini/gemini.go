@@ -109,7 +109,11 @@ func (g *Gemini) SetDefaults() {
 	g.AssetTypes = []string{ticker.Spot}
 	g.SupportsAutoPairUpdating = true
 	g.SupportsRESTTickerBatching = false
-	g.Requester = request.New(g.Name, request.NewRateLimit(time.Minute, geminiAuthRate), request.NewRateLimit(time.Minute, geminiUnauthRate), common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
+	g.Requester = request.New(g.Name,
+		request.NewRateLimit(time.Minute, geminiAuthRate),
+		request.NewRateLimit(time.Minute, geminiUnauthRate),
+		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
+	g.APIUrl = geminiAPIURL
 }
 
 // Setup sets exchange configuration parameters
@@ -128,11 +132,7 @@ func (g *Gemini) Setup(exch config.ExchangeConfig) {
 		g.BaseCurrencies = common.SplitStrings(exch.BaseCurrencies, ",")
 		g.AvailablePairs = common.SplitStrings(exch.AvailablePairs, ",")
 		g.EnabledPairs = common.SplitStrings(exch.EnabledPairs, ",")
-		if exch.UseSandbox {
-			g.APIUrl = geminiSandboxAPIURL
-		} else {
-			g.APIUrl = geminiAPIURL
-		}
+
 		err := g.SetCurrencyPairFormat()
 		if err != nil {
 			log.Fatal(err)
@@ -144,6 +144,13 @@ func (g *Gemini) Setup(exch config.ExchangeConfig) {
 		err = g.SetAutoPairDefaults()
 		if err != nil {
 			log.Fatal(err)
+		}
+		err = g.SetAPIURL(exch)
+		if err != nil {
+			log.Fatal(err)
+		}
+		if exch.UseSandbox {
+			g.APIUrl = geminiSandboxAPIURL
 		}
 	}
 }

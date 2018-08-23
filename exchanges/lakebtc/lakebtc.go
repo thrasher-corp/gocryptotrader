@@ -56,7 +56,11 @@ func (l *LakeBTC) SetDefaults() {
 	l.AssetTypes = []string{ticker.Spot}
 	l.SupportsAutoPairUpdating = true
 	l.SupportsRESTTickerBatching = true
-	l.Requester = request.New(l.Name, request.NewRateLimit(time.Second, lakeBTCAuthRate), request.NewRateLimit(time.Second, lakeBTCUnauth), common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
+	l.Requester = request.New(l.Name,
+		request.NewRateLimit(time.Second, lakeBTCAuthRate),
+		request.NewRateLimit(time.Second, lakeBTCUnauth),
+		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
+	l.APIUrl = lakeBTCAPIURL
 }
 
 // Setup sets exchange configuration profile
@@ -84,6 +88,10 @@ func (l *LakeBTC) Setup(exch config.ExchangeConfig) {
 			log.Fatal(err)
 		}
 		err = l.SetAutoPairDefaults()
+		if err != nil {
+			log.Fatal(err)
+		}
+		err = l.SetAPIURL(exch)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -116,7 +124,7 @@ func (l *LakeBTC) GetFee(maker bool) float64 {
 // GetTicker returns the current ticker from lakeBTC
 func (l *LakeBTC) GetTicker() (map[string]Ticker, error) {
 	response := make(map[string]TickerResponse)
-	path := fmt.Sprintf("%s/%s", lakeBTCAPIURL, lakeBTCTicker)
+	path := fmt.Sprintf("%s/%s", l.APIUrl, lakeBTCTicker)
 
 	if err := l.SendHTTPRequest(path, &response); err != nil {
 		return nil, err
@@ -158,7 +166,7 @@ func (l *LakeBTC) GetOrderBook(currency string) (Orderbook, error) {
 		Bids [][]string `json:"bids"`
 		Asks [][]string `json:"asks"`
 	}
-	path := fmt.Sprintf("%s/%s?symbol=%s", lakeBTCAPIURL, lakeBTCOrderbook, common.StringToLower(currency))
+	path := fmt.Sprintf("%s/%s?symbol=%s", l.APIUrl, lakeBTCOrderbook, common.StringToLower(currency))
 	resp := Response{}
 	err := l.SendHTTPRequest(path, &resp)
 	if err != nil {
@@ -198,7 +206,7 @@ func (l *LakeBTC) GetOrderBook(currency string) (Orderbook, error) {
 
 // GetTradeHistory returns the trade history for a given currency pair
 func (l *LakeBTC) GetTradeHistory(currency string) ([]TradeHistory, error) {
-	path := fmt.Sprintf("%s/%s?symbol=%s", lakeBTCAPIURL, lakeBTCTrades, common.StringToLower(currency))
+	path := fmt.Sprintf("%s/%s?symbol=%s", l.APIUrl, lakeBTCTrades, common.StringToLower(currency))
 	resp := []TradeHistory{}
 
 	return resp, l.SendHTTPRequest(path, &resp)
@@ -320,7 +328,7 @@ func (l *LakeBTC) SendAuthenticatedHTTPRequest(method, params string, result int
 	hmac := common.GetHMAC(common.HashSHA1, []byte(req), []byte(l.APISecret))
 
 	if l.Verbose {
-		log.Printf("Sending POST request to %s calling method %s with params %s\n", lakeBTCAPIURL, method, req)
+		log.Printf("Sending POST request to %s calling method %s with params %s\n", l.APIUrl, method, req)
 	}
 
 	postData := make(map[string]interface{})
@@ -338,5 +346,5 @@ func (l *LakeBTC) SendAuthenticatedHTTPRequest(method, params string, result int
 	headers["Authorization"] = "Basic " + common.Base64Encode([]byte(l.APIKey+":"+common.HexEncodeToString(hmac)))
 	headers["Content-Type"] = "application/json-rpc"
 
-	return l.SendPayload("POST", lakeBTCAPIURL, headers, strings.NewReader(string(data)), result, true, l.Verbose)
+	return l.SendPayload("POST", l.APIUrl, headers, strings.NewReader(string(data)), result, true, l.Verbose)
 }
