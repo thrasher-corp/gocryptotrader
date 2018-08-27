@@ -72,10 +72,14 @@ func (c *CoinbasePro) SetDefaults() {
 	c.ConfigCurrencyPairFormat.Delimiter = ""
 	c.ConfigCurrencyPairFormat.Uppercase = true
 	c.AssetTypes = []string{ticker.Spot}
-	c.APIUrl = coinbaseproAPIURL
 	c.SupportsAutoPairUpdating = true
 	c.SupportsRESTTickerBatching = false
-	c.Requester = request.New(c.Name, request.NewRateLimit(time.Second, coinbaseproAuthRate), request.NewRateLimit(time.Second, coinbaseproUnauthRate), common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
+	c.Requester = request.New(c.Name,
+		request.NewRateLimit(time.Second, coinbaseproAuthRate),
+		request.NewRateLimit(time.Second, coinbaseproUnauthRate),
+		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
+	c.APIUrlDefault = coinbaseproAPIURL
+	c.APIUrl = c.APIUrlDefault
 }
 
 // Setup initialises the exchange parameters with the current configuration
@@ -106,6 +110,10 @@ func (c *CoinbasePro) Setup(exch config.ExchangeConfig) {
 			log.Fatal(err)
 		}
 		err = c.SetAutoPairDefaults()
+		if err != nil {
+			log.Fatal(err)
+		}
+		err = c.SetAPIURL(exch)
 		if err != nil {
 			log.Fatal(err)
 		}

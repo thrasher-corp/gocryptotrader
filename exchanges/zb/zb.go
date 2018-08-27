@@ -57,7 +57,14 @@ func (z *ZB) SetDefaults() {
 	z.AssetTypes = []string{ticker.Spot}
 	z.SupportsAutoPairUpdating = true
 	z.SupportsRESTTickerBatching = true
-	z.Requester = request.New(z.Name, request.NewRateLimit(time.Second*10, zbAuthRate), request.NewRateLimit(time.Second*10, zbUnauthRate), common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
+	z.Requester = request.New(z.Name,
+		request.NewRateLimit(time.Second*10, zbAuthRate),
+		request.NewRateLimit(time.Second*10, zbUnauthRate),
+		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
+	z.APIUrlDefault = zbTradeURL
+	z.APIUrl = z.APIUrlDefault
+	z.APIUrlSecondaryDefault = zbMarketURL
+	z.APIUrlSecondary = z.APIUrlSecondaryDefault
 }
 
 // Setup sets user configuration
@@ -86,6 +93,10 @@ func (z *ZB) Setup(exch config.ExchangeConfig) {
 			log.Fatal(err)
 		}
 		err = z.SetAutoPairDefaults()
+		if err != nil {
+			log.Fatal(err)
+		}
+		err = z.SetAPIURL(exch)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -162,7 +173,7 @@ func (z *ZB) GetAccountInfo() (AccountsResponse, error) {
 // GetMarkets returns market information including pricing, symbols and
 // each symbols decimal precision
 func (z *ZB) GetMarkets() (map[string]MarketResponseItem, error) {
-	url := fmt.Sprintf("%s/%s/%s", zbTradeURL, zbAPIVersion, zbMarkets)
+	url := fmt.Sprintf("%s/%s/%s", z.APIUrl, zbAPIVersion, zbMarkets)
 
 	var res interface{}
 	err := z.SendHTTPRequest(url, &res)
@@ -198,7 +209,7 @@ func (z *ZB) GetLatestSpotPrice(symbol string) (float64, error) {
 
 // GetTicker returns a ticker for a given symbol
 func (z *ZB) GetTicker(symbol string) (TickerResponse, error) {
-	url := fmt.Sprintf("%s/%s/%s?market=%s", zbTradeURL, zbAPIVersion, zbTicker, symbol)
+	url := fmt.Sprintf("%s/%s/%s?market=%s", z.APIUrl, zbAPIVersion, zbTicker, symbol)
 	var res TickerResponse
 
 	err := z.SendHTTPRequest(url, &res)
@@ -211,7 +222,7 @@ func (z *ZB) GetTicker(symbol string) (TickerResponse, error) {
 
 // GetTickers returns ticker data for all supported symbols
 func (z *ZB) GetTickers() (map[string]TickerChildResponse, error) {
-	url := fmt.Sprintf("%s/%s/%s", zbTradeURL, zbAPIVersion, zbTickers)
+	url := fmt.Sprintf("%s/%s/%s", z.APIUrl, zbAPIVersion, zbTickers)
 	resp := make(map[string]TickerChildResponse)
 
 	err := z.SendHTTPRequest(url, &resp)
@@ -224,7 +235,7 @@ func (z *ZB) GetTickers() (map[string]TickerChildResponse, error) {
 
 // GetOrderbook returns the orderbook for a given symbol
 func (z *ZB) GetOrderbook(symbol string) (OrderbookResponse, error) {
-	url := fmt.Sprintf("%s/%s/%s?market=%s", zbTradeURL, zbAPIVersion, zbDepth, symbol)
+	url := fmt.Sprintf("%s/%s/%s?market=%s", z.APIUrl, zbAPIVersion, zbDepth, symbol)
 	var res OrderbookResponse
 
 	err := z.SendHTTPRequest(url, &res)
@@ -254,7 +265,7 @@ func (z *ZB) GetSpotKline(arg KlinesRequestParams) (KLineResponse, error) {
 		vals.Set("size", fmt.Sprintf("%d", arg.Size))
 	}
 
-	url := fmt.Sprintf("%s/%s/%s?%s", zbTradeURL, zbAPIVersion, zbKline, vals.Encode())
+	url := fmt.Sprintf("%s/%s/%s?%s", z.APIUrl, zbAPIVersion, zbKline, vals.Encode())
 
 	var res KLineResponse
 	var rawKlines map[string]interface{}
@@ -307,10 +318,24 @@ func (z *ZB) SendAuthenticatedHTTPRequest(method, endpoint string, values url.Va
 	mapParams2Sign := url.Values{}
 	mapParams2Sign.Set("accesskey", z.APIKey)
 	mapParams2Sign.Set("method", values.Get("method"))
-	values.Set("sign", common.HexEncodeToString(common.GetHMAC(common.HashMD5, []byte(values.Encode()), []byte(common.Sha1ToHex(z.APISecret)))))
+
+	values.Set("sign",
+		common.HexEncodeToString(common.GetHMAC(common.HashMD5,
+			[]byte(values.Encode()),
+			[]byte(common.Sha1ToHex(z.APISecret)))))
+
 	values.Set("reqTime", fmt.Sprintf("%d", time.Now().UnixNano()/1e6))
 
-	url := fmt.Sprintf("%s/%s?%s", zbMarketURL, endpoint, values.Encode())
+	url := fmt.Sprintf("%s/%s?%s",
+		z.APIUrlSecondaryDefault,
+		endpoint,
+		values.Encode())
 
-	return z.SendPayload(method, url, nil, strings.NewReader(""), result, true, z.Verbose)
+	return z.SendPayload(method,
+		url,
+		nil,
+		strings.NewReader(""),
+		result,
+		true,
+		z.Verbose)
 }

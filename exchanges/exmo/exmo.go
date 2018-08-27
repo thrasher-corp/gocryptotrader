@@ -65,7 +65,12 @@ func (e *EXMO) SetDefaults() {
 	e.AssetTypes = []string{ticker.Spot}
 	e.SupportsAutoPairUpdating = true
 	e.SupportsRESTTickerBatching = true
-	e.Requester = request.New(e.Name, request.NewRateLimit(time.Minute, exmoAuthRate), request.NewRateLimit(time.Minute, exmoUnauthRate), common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
+	e.Requester = request.New(e.Name,
+		request.NewRateLimit(time.Minute, exmoAuthRate),
+		request.NewRateLimit(time.Minute, exmoUnauthRate),
+		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
+	e.APIUrlDefault = exmoAPIURL
+	e.APIUrl = e.APIUrlDefault
 }
 
 // Setup takes in the supplied exchange configuration details and sets params
@@ -96,6 +101,10 @@ func (e *EXMO) Setup(exch config.ExchangeConfig) {
 		if err != nil {
 			log.Fatal(err)
 		}
+		err = e.SetAPIURL(exch)
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 }
 
@@ -104,7 +113,7 @@ func (e *EXMO) GetTrades(symbol string) (map[string][]Trades, error) {
 	v := url.Values{}
 	v.Set("pair", symbol)
 	result := make(map[string][]Trades)
-	url := fmt.Sprintf("%s/v%s/%s", exmoAPIURL, exmoAPIVersion, exmoTrades)
+	url := fmt.Sprintf("%s/v%s/%s", e.APIUrl, exmoAPIVersion, exmoTrades)
 
 	return result, e.SendHTTPRequest(common.EncodeURLValues(url, v), &result)
 }
@@ -114,7 +123,7 @@ func (e *EXMO) GetOrderbook(symbol string) (map[string]Orderbook, error) {
 	v := url.Values{}
 	v.Set("pair", symbol)
 	result := make(map[string]Orderbook)
-	url := fmt.Sprintf("%s/v%s/%s", exmoAPIURL, exmoAPIVersion, exmoOrderbook)
+	url := fmt.Sprintf("%s/v%s/%s", e.APIUrl, exmoAPIVersion, exmoOrderbook)
 
 	return result, e.SendHTTPRequest(common.EncodeURLValues(url, v), &result)
 }
@@ -124,7 +133,7 @@ func (e *EXMO) GetTicker(symbol string) (map[string]Ticker, error) {
 	v := url.Values{}
 	v.Set("pair", symbol)
 	result := make(map[string]Ticker)
-	url := fmt.Sprintf("%s/v%s/%s", exmoAPIURL, exmoAPIVersion, exmoTicker)
+	url := fmt.Sprintf("%s/v%s/%s", e.APIUrl, exmoAPIVersion, exmoTicker)
 
 	return result, e.SendHTTPRequest(common.EncodeURLValues(url, v), &result)
 }
@@ -132,7 +141,7 @@ func (e *EXMO) GetTicker(symbol string) (map[string]Ticker, error) {
 // GetPairSettings returns the pair settings for a symbol or symbols
 func (e *EXMO) GetPairSettings() (map[string]PairSettings, error) {
 	result := make(map[string]PairSettings)
-	url := fmt.Sprintf("%s/v%s/%s", exmoAPIURL, exmoAPIVersion, exmoPairSettings)
+	url := fmt.Sprintf("%s/v%s/%s", e.APIUrl, exmoAPIVersion, exmoPairSettings)
 
 	return result, e.SendHTTPRequest(url, &result)
 }
@@ -140,7 +149,7 @@ func (e *EXMO) GetPairSettings() (map[string]PairSettings, error) {
 // GetCurrency returns a list of currencies
 func (e *EXMO) GetCurrency() ([]string, error) {
 	result := []string{}
-	url := fmt.Sprintf("%s/v%s/%s", exmoAPIURL, exmoAPIVersion, exmoCurrency)
+	url := fmt.Sprintf("%s/v%s/%s", e.APIUrl, exmoAPIVersion, exmoCurrency)
 
 	return result, e.SendHTTPRequest(url, &result)
 }
@@ -347,7 +356,7 @@ func (e *EXMO) SendAuthenticatedHTTPRequest(method, endpoint string, vals url.Va
 	headers["Sign"] = common.HexEncodeToString(hash)
 	headers["Content-Type"] = "application/x-www-form-urlencoded"
 
-	path := fmt.Sprintf("%s/v%s/%s", exmoAPIURL, exmoAPIVersion, endpoint)
+	path := fmt.Sprintf("%s/v%s/%s", e.APIUrl, exmoAPIVersion, endpoint)
 
 	return e.SendPayload(method, path, headers, strings.NewReader(payload), result, true, e.Verbose)
 }

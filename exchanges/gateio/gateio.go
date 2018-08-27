@@ -54,7 +54,14 @@ func (g *Gateio) SetDefaults() {
 	g.AssetTypes = []string{ticker.Spot}
 	g.SupportsAutoPairUpdating = true
 	g.SupportsRESTTickerBatching = true
-	g.Requester = request.New(g.Name, request.NewRateLimit(time.Second*10, gateioAuthRate), request.NewRateLimit(time.Second*10, gateioUnauthRate), common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
+	g.Requester = request.New(g.Name,
+		request.NewRateLimit(time.Second*10, gateioAuthRate),
+		request.NewRateLimit(time.Second*10, gateioUnauthRate),
+		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
+	g.APIUrlDefault = gateioTradeURL
+	g.APIUrl = g.APIUrlDefault
+	g.APIUrlSecondaryDefault = gateioMarketURL
+	g.APIUrlSecondary = g.APIUrlSecondaryDefault
 }
 
 // Setup sets user configuration
@@ -86,6 +93,10 @@ func (g *Gateio) Setup(exch config.ExchangeConfig) {
 		if err != nil {
 			log.Fatal(err)
 		}
+		err = g.SetAPIURL(exch)
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 }
 
@@ -93,7 +104,7 @@ func (g *Gateio) Setup(exch config.ExchangeConfig) {
 func (g *Gateio) GetSymbols() ([]string, error) {
 	var result []string
 
-	url := fmt.Sprintf("%s/%s/%s", gateioMarketURL, gateioAPIVersion, gateioSymbol)
+	url := fmt.Sprintf("%s/%s/%s", g.APIUrlSecondary, gateioAPIVersion, gateioSymbol)
 
 	err := g.SendHTTPRequest(url, &result)
 	if err != nil {
@@ -110,7 +121,7 @@ func (g *Gateio) GetMarketInfo() (MarketInfoResponse, error) {
 		Pairs  []interface{} `json:"pairs"`
 	}
 
-	url := fmt.Sprintf("%s/%s/%s", gateioMarketURL, gateioAPIVersion, gateioMarketInfo)
+	url := fmt.Sprintf("%s/%s/%s", g.APIUrlSecondary, gateioAPIVersion, gateioMarketInfo)
 
 	var res response
 	var result MarketInfoResponse
@@ -151,7 +162,7 @@ func (g *Gateio) GetLatestSpotPrice(symbol string) (float64, error) {
 // GetTicker returns a ticker for the supplied symbol
 // updated every 10 seconds
 func (g *Gateio) GetTicker(symbol string) (TickerResponse, error) {
-	url := fmt.Sprintf("%s/%s/%s/%s", gateioMarketURL, gateioAPIVersion, gateioTicker, symbol)
+	url := fmt.Sprintf("%s/%s/%s/%s", g.APIUrlSecondary, gateioAPIVersion, gateioTicker, symbol)
 
 	var res TickerResponse
 	err := g.SendHTTPRequest(url, &res)
@@ -163,7 +174,7 @@ func (g *Gateio) GetTicker(symbol string) (TickerResponse, error) {
 
 // GetTickers returns tickers for all symbols
 func (g *Gateio) GetTickers() (map[string]TickerResponse, error) {
-	url := fmt.Sprintf("%s/%s/%s", gateioMarketURL, gateioAPIVersion, gateioTickers)
+	url := fmt.Sprintf("%s/%s/%s", g.APIUrlSecondary, gateioAPIVersion, gateioTickers)
 
 	resp := make(map[string]TickerResponse)
 	err := g.SendHTTPRequest(url, &resp)
@@ -175,7 +186,7 @@ func (g *Gateio) GetTickers() (map[string]TickerResponse, error) {
 
 // GetOrderbook returns the orderbook data for a suppled symbol
 func (g *Gateio) GetOrderbook(symbol string) (Orderbook, error) {
-	url := fmt.Sprintf("%s/%s/%s/%s", gateioMarketURL, gateioAPIVersion, gateioOrderbook, symbol)
+	url := fmt.Sprintf("%s/%s/%s/%s", g.APIUrlSecondary, gateioAPIVersion, gateioOrderbook, symbol)
 
 	var resp OrderbookResponse
 	err := g.SendHTTPRequest(url, &resp)
@@ -229,7 +240,14 @@ func (g *Gateio) GetOrderbook(symbol string) (Orderbook, error) {
 
 // GetSpotKline returns kline data for the most recent time period
 func (g *Gateio) GetSpotKline(arg KlinesRequestParams) ([]*KLineResponse, error) {
-	url := fmt.Sprintf("%s/%s/%s/%s?group_sec=%d&range_hour=%d", gateioMarketURL, gateioAPIVersion, gateioKline, arg.Symbol, arg.GroupSec, arg.HourSize)
+	url := fmt.Sprintf("%s/%s/%s/%s?group_sec=%d&range_hour=%d",
+		g.APIUrlSecondary,
+		gateioAPIVersion,
+		gateioKline,
+		arg.Symbol,
+		arg.GroupSec,
+		arg.HourSize)
+
 	var rawKlines map[string]interface{}
 	err := g.SendHTTPRequest(url, &rawKlines)
 	if err != nil {
@@ -370,7 +388,7 @@ func (g *Gateio) SendAuthenticatedHTTPRequest(method, endpoint, param string, re
 	hmac := common.GetHMAC(common.HashSHA512, []byte(param), []byte(g.APISecret))
 	headers["sign"] = common.ByteArrayToString(hmac)
 
-	url := fmt.Sprintf("%s/%s/%s", gateioTradeURL, gateioAPIVersion, endpoint)
+	url := fmt.Sprintf("%s/%s/%s", g.APIUrl, gateioAPIVersion, endpoint)
 
 	return g.SendPayload(method, url, headers, strings.NewReader(param), result, true, g.Verbose)
 }

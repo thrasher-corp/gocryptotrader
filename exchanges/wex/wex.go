@@ -64,7 +64,14 @@ func (w *WEX) SetDefaults() {
 	w.AssetTypes = []string{ticker.Spot}
 	w.SupportsAutoPairUpdating = true
 	w.SupportsRESTTickerBatching = true
-	w.Requester = request.New(w.Name, request.NewRateLimit(time.Second, wexAuthRate), request.NewRateLimit(time.Second, wexUnauthRate), common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
+	w.Requester = request.New(w.Name,
+		request.NewRateLimit(time.Second, wexAuthRate),
+		request.NewRateLimit(time.Second, wexUnauthRate),
+		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
+	w.APIUrlDefault = wexAPIPublicURL
+	w.APIUrl = w.APIUrlDefault
+	w.APIUrlSecondaryDefault = wexAPIPrivateURL
+	w.APIUrlSecondary = w.APIUrlSecondaryDefault
 }
 
 // Setup sets exchange configuration parameters for WEX
@@ -95,6 +102,10 @@ func (w *WEX) Setup(exch config.ExchangeConfig) {
 		if err != nil {
 			log.Fatal(err)
 		}
+		err = w.SetAPIURL(exch)
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 }
 
@@ -121,7 +132,7 @@ func (w *WEX) GetFee() float64 {
 // GetInfo returns the WEX info
 func (w *WEX) GetInfo() (Info, error) {
 	resp := Info{}
-	req := fmt.Sprintf("%s/%s/%s/", wexAPIPublicURL, wexAPIPublicVersion, wexInfo)
+	req := fmt.Sprintf("%s/%s/%s/", w.APIUrl, wexAPIPublicVersion, wexInfo)
 
 	return resp, w.SendHTTPRequest(req, &resp)
 }
@@ -133,7 +144,7 @@ func (w *WEX) GetTicker(symbol string) (map[string]Ticker, error) {
 	}
 
 	response := Response{}
-	req := fmt.Sprintf("%s/%s/%s/%s", wexAPIPublicURL, wexAPIPublicVersion, wexTicker, symbol)
+	req := fmt.Sprintf("%s/%s/%s/%s", w.APIUrl, wexAPIPublicVersion, wexTicker, symbol)
 
 	return response.Data, w.SendHTTPRequest(req, &response.Data)
 }
@@ -145,7 +156,7 @@ func (w *WEX) GetDepth(symbol string) (Orderbook, error) {
 	}
 
 	response := Response{}
-	req := fmt.Sprintf("%s/%s/%s/%s", wexAPIPublicURL, wexAPIPublicVersion, wexDepth, symbol)
+	req := fmt.Sprintf("%s/%s/%s/%s", w.APIUrl, wexAPIPublicVersion, wexDepth, symbol)
 
 	return response.Data[symbol], w.SendHTTPRequest(req, &response.Data)
 }
@@ -157,7 +168,7 @@ func (w *WEX) GetTrades(symbol string) ([]Trades, error) {
 	}
 
 	response := Response{}
-	req := fmt.Sprintf("%s/%s/%s/%s", wexAPIPublicURL, wexAPIPublicVersion, wexTrades, symbol)
+	req := fmt.Sprintf("%s/%s/%s/%s", w.APIUrl, wexAPIPublicVersion, wexTrades, symbol)
 
 	return response.Data[symbol], w.SendHTTPRequest(req, &response.Data)
 }
@@ -350,7 +361,8 @@ func (w *WEX) SendHTTPRequest(path string, result interface{}) error {
 // SendAuthenticatedHTTPRequest sends an authenticated HTTP request to WEX
 func (w *WEX) SendAuthenticatedHTTPRequest(method string, values url.Values, result interface{}) (err error) {
 	if !w.AuthenticatedAPISupport {
-		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet, w.Name)
+		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet,
+			w.Name)
 	}
 
 	if w.Nonce.Get() == 0 {
@@ -366,7 +378,7 @@ func (w *WEX) SendAuthenticatedHTTPRequest(method string, values url.Values, res
 
 	if w.Verbose {
 		log.Printf("Sending POST request to %s calling method %s with params %s\n",
-			wexAPIPrivateURL,
+			w.APIUrlSecondary,
 			method,
 			encoded)
 	}
@@ -376,5 +388,11 @@ func (w *WEX) SendAuthenticatedHTTPRequest(method string, values url.Values, res
 	headers["Sign"] = common.HexEncodeToString(hmac)
 	headers["Content-Type"] = "application/x-www-form-urlencoded"
 
-	return w.SendPayload("POST", wexAPIPrivateURL, headers, strings.NewReader(encoded), result, true, w.Verbose)
+	return w.SendPayload("POST",
+		w.APIUrlSecondary,
+		headers,
+		strings.NewReader(encoded),
+		result,
+		true,
+		w.Verbose)
 }

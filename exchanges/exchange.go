@@ -1,6 +1,7 @@
 package exchange
 
 import (
+	"errors"
 	"log"
 	"net/http"
 	"sync"
@@ -105,6 +106,9 @@ type Base struct {
 	HTTPUserAgent                              string
 	WebsocketURL                               string
 	APIUrl                                     string
+	APIUrlDefault                              string
+	APIUrlSecondary                            string
+	APIUrlSecondaryDefault                     string
 	RequestCurrencyPairFormat                  config.CurrencyPairFormatConfig
 	ConfigCurrencyPairFormat                   config.CurrencyPairFormatConfig
 	*request.Requester
@@ -623,4 +627,38 @@ func OrderSideBuy() OrderSide {
 // OrderSideSell returns an OrderSide Sell order
 func OrderSideSell() OrderSide {
 	return "Sell"
+}
+
+// SetAPIURL sets configuration API URL for an exchange
+func (e *Base) SetAPIURL(ec config.ExchangeConfig) error {
+	if ec.APIURL == "" || ec.APIURLSecondary == "" {
+		return errors.New("SetAPIURL error variable zero value")
+	}
+	if ec.APIURL != config.APIURLDefaultMessage {
+		e.APIUrl = ec.APIURL
+	}
+	if ec.APIURLSecondary != config.APIURLDefaultMessage {
+		e.APIUrlSecondary = ec.APIURLSecondary
+	}
+	return nil
+}
+
+// GetAPIURL returns the set API URL
+func (e *Base) GetAPIURL() string {
+	return e.APIUrl
+}
+
+// GetSecondaryAPIURL returns the set Secondary API URL
+func (e *Base) GetSecondaryAPIURL() string {
+	return e.APIUrlSecondary
+}
+
+// GetAPIURLDefault returns exchange default URL
+func (e *Base) GetAPIURLDefault() string {
+	return e.APIUrlDefault
+}
+
+// GetAPIURLSecondaryDefault returns exchange default secondary URL
+func (e *Base) GetAPIURLSecondaryDefault() string {
+	return e.APIUrlSecondaryDefault
 }
