@@ -75,7 +75,8 @@ func (b *Binance) SetDefaults() {
 		request.NewRateLimit(time.Second, binanceAuthRate),
 		request.NewRateLimit(time.Second, binanceUnauthRate),
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
-	b.APIUrl = apiURL
+	b.APIUrlDefault = apiURL
+	b.APIUrl = b.APIUrlDefault
 }
 
 // Setup takes in the supplied exchange configuration details and sets params

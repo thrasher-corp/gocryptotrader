@@ -76,7 +76,8 @@ func (h *HUOBIHADAX) SetDefaults() {
 		request.NewRateLimit(time.Second*10, huobihadaxAuthRate),
 		request.NewRateLimit(time.Second*10, huobihadaxUnauthRate),
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
-	h.APIUrl = huobihadaxAPIURL
+	h.APIUrlDefault = huobihadaxAPIURL
+	h.APIUrl = h.APIUrlDefault
 }
 
 // Setup sets user configuration

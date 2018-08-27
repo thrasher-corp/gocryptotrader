@@ -77,7 +77,8 @@ func (b *Bitstamp) SetDefaults() {
 		request.NewRateLimit(time.Minute*10, bitstampAuthRate),
 		request.NewRateLimit(time.Minute*10, bitstampUnauthRate),
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
-	b.APIUrl = bitstampAPIURL
+	b.APIUrlDefault = bitstampAPIURL
+	b.APIUrl = b.APIUrlDefault
 }
 
 // Setup sets configuration values to bitstamp

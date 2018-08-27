@@ -71,7 +71,8 @@ func (b *BTCC) SetDefaults() {
 		request.NewRateLimit(time.Second, btccAuthRate),
 		request.NewRateLimit(time.Second, btccUnauthRate),
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
-	b.APIUrl = btccAPIUrl
+	b.APIUrlDefault = btccAPIUrl
+	b.APIUrl = b.APIUrlDefault
 }
 
 // Setup is run on startup to setup exchange with config values

@@ -66,7 +66,8 @@ func (c *COINUT) SetDefaults() {
 		request.NewRateLimit(time.Second, coinutAuthRate),
 		request.NewRateLimit(time.Second, coinutUnauthRate),
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
-	c.APIUrl = coinutAPIURL
+	c.APIUrlDefault = coinutAPIURL
+	c.APIUrl = c.APIUrlDefault
 }
 
 // Setup sets the current exchange configuration

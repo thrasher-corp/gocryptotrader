@@ -68,7 +68,8 @@ func (b *BTCMarkets) SetDefaults() {
 		request.NewRateLimit(time.Second*10, btcmarketsAuthLimit),
 		request.NewRateLimit(time.Second*10, btcmarketsUnauthLimit),
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
-	b.APIUrl = btcMarketsAPIURL
+	b.APIUrlDefault = btcMarketsAPIURL
+	b.APIUrl = b.APIUrlDefault
 }
 
 // Setup takes in an exchange configuration and sets all parameters

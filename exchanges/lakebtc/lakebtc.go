@@ -60,7 +60,8 @@ func (l *LakeBTC) SetDefaults() {
 		request.NewRateLimit(time.Second, lakeBTCAuthRate),
 		request.NewRateLimit(time.Second, lakeBTCUnauth),
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
-	l.APIUrl = lakeBTCAPIURL
+	l.APIUrlDefault = lakeBTCAPIURL
+	l.APIUrl = l.APIUrlDefault
 }
 
 // Setup sets exchange configuration profile

@@ -126,7 +126,8 @@ func (b *Bitmex) SetDefaults() {
 		request.NewRateLimit(time.Second, bitmexUnauthRate),
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 	b.shutdown = b.NewRoutineManagement()
-	b.APIUrl = bitmexAPIURL
+	b.APIUrlDefault = bitmexAPIURL
+	b.APIUrl = b.APIUrlDefault
 }
 
 // Setup takes in the supplied exchange configuration details and sets params

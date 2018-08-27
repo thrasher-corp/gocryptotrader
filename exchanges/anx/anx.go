@@ -62,7 +62,8 @@ func (a *ANX) SetDefaults() {
 		request.NewRateLimit(time.Second, anxAuthRate),
 		request.NewRateLimit(time.Second, anxUnauthRate),
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
-	a.APIUrl = anxAPIURL
+	a.APIUrlDefault = anxAPIURL
+	a.APIUrl = a.APIUrlDefault
 }
 
 //Setup is run on startup to setup exchange with config values

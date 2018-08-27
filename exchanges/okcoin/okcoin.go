@@ -108,7 +108,8 @@ func (o *OKCoin) SetDefaults() {
 
 	if okcoinDefaultsSet {
 		o.AssetTypes = append(o.AssetTypes, o.FuturesValues...)
-		o.APIUrl = okcoinAPIURL
+		o.APIUrlDefault = okcoinAPIURL
+		o.APIUrl = o.APIUrlDefault
 		o.Name = "OKCOIN International"
 		o.WebsocketURL = okcoinWebsocketURL
 		o.setCurrencyPairFormats()
@@ -117,7 +118,8 @@ func (o *OKCoin) SetDefaults() {
 			request.NewRateLimit(time.Second, okcoinUnauthRate),
 			common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 	} else {
-		o.APIUrl = okcoinAPIURLChina
+		o.APIUrlDefault = okcoinAPIURLChina
+		o.APIUrl = o.APIUrlDefault
 		o.Name = "OKCOIN China"
 		o.WebsocketURL = okcoinWebsocketURLChina
 		okcoinDefaultsSet = true

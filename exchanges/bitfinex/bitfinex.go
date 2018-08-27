@@ -105,7 +105,8 @@ func (b *Bitfinex) SetDefaults() {
 		request.NewRateLimit(time.Second*60, bitfinexAuthRate),
 		request.NewRateLimit(time.Second*60, bitfinexUnauthRate),
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
-	b.APIUrl = bitfinexAPIURLBase
+	b.APIUrlDefault = bitfinexAPIURLBase
+	b.APIUrl = b.APIUrlDefault
 }
 
 // Setup takes in the supplied exchange configuration details and sets params

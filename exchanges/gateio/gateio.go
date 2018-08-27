@@ -58,8 +58,10 @@ func (g *Gateio) SetDefaults() {
 		request.NewRateLimit(time.Second*10, gateioAuthRate),
 		request.NewRateLimit(time.Second*10, gateioUnauthRate),
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
-	g.APIUrl = gateioTradeURL
-	g.APIUrlSupplementary = gateioMarketURL
+	g.APIUrlDefault = gateioTradeURL
+	g.APIUrl = g.APIUrlDefault
+	g.APIUrlSecondaryDefault = gateioMarketURL
+	g.APIUrlSecondary = g.APIUrlSecondaryDefault
 }
 
 // Setup sets user configuration
@@ -102,7 +104,7 @@ func (g *Gateio) Setup(exch config.ExchangeConfig) {
 func (g *Gateio) GetSymbols() ([]string, error) {
 	var result []string
 
-	url := fmt.Sprintf("%s/%s/%s", g.APIUrlSupplementary, gateioAPIVersion, gateioSymbol)
+	url := fmt.Sprintf("%s/%s/%s", g.APIUrlSecondary, gateioAPIVersion, gateioSymbol)
 
 	err := g.SendHTTPRequest(url, &result)
 	if err != nil {
@@ -119,7 +121,7 @@ func (g *Gateio) GetMarketInfo() (MarketInfoResponse, error) {
 		Pairs  []interface{} `json:"pairs"`
 	}
 
-	url := fmt.Sprintf("%s/%s/%s", g.APIUrlSupplementary, gateioAPIVersion, gateioMarketInfo)
+	url := fmt.Sprintf("%s/%s/%s", g.APIUrlSecondary, gateioAPIVersion, gateioMarketInfo)
 
 	var res response
 	var result MarketInfoResponse
@@ -160,7 +162,7 @@ func (g *Gateio) GetLatestSpotPrice(symbol string) (float64, error) {
 // GetTicker returns a ticker for the supplied symbol
 // updated every 10 seconds
 func (g *Gateio) GetTicker(symbol string) (TickerResponse, error) {
-	url := fmt.Sprintf("%s/%s/%s/%s", g.APIUrlSupplementary, gateioAPIVersion, gateioTicker, symbol)
+	url := fmt.Sprintf("%s/%s/%s/%s", g.APIUrlSecondary, gateioAPIVersion, gateioTicker, symbol)
 
 	var res TickerResponse
 	err := g.SendHTTPRequest(url, &res)
@@ -172,7 +174,7 @@ func (g *Gateio) GetTicker(symbol string) (TickerResponse, error) {
 
 // GetTickers returns tickers for all symbols
 func (g *Gateio) GetTickers() (map[string]TickerResponse, error) {
-	url := fmt.Sprintf("%s/%s/%s", g.APIUrlSupplementary, gateioAPIVersion, gateioTickers)
+	url := fmt.Sprintf("%s/%s/%s", g.APIUrlSecondary, gateioAPIVersion, gateioTickers)
 
 	resp := make(map[string]TickerResponse)
 	err := g.SendHTTPRequest(url, &resp)
@@ -184,7 +186,7 @@ func (g *Gateio) GetTickers() (map[string]TickerResponse, error) {
 
 // GetOrderbook returns the orderbook data for a suppled symbol
 func (g *Gateio) GetOrderbook(symbol string) (Orderbook, error) {
-	url := fmt.Sprintf("%s/%s/%s/%s", g.APIUrlSupplementary, gateioAPIVersion, gateioOrderbook, symbol)
+	url := fmt.Sprintf("%s/%s/%s/%s", g.APIUrlSecondary, gateioAPIVersion, gateioOrderbook, symbol)
 
 	var resp OrderbookResponse
 	err := g.SendHTTPRequest(url, &resp)
@@ -239,7 +241,7 @@ func (g *Gateio) GetOrderbook(symbol string) (Orderbook, error) {
 // GetSpotKline returns kline data for the most recent time period
 func (g *Gateio) GetSpotKline(arg KlinesRequestParams) ([]*KLineResponse, error) {
 	url := fmt.Sprintf("%s/%s/%s/%s?group_sec=%d&range_hour=%d",
-		g.APIUrlSupplementary,
+		g.APIUrlSecondary,
 		gateioAPIVersion,
 		gateioKline,
 		arg.Symbol,

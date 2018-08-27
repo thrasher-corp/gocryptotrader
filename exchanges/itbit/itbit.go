@@ -59,7 +59,8 @@ func (i *ItBit) SetDefaults() {
 		request.NewRateLimit(time.Second, itbitAuthRate),
 		request.NewRateLimit(time.Second, itbitUnauthRate),
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
-	i.APIUrl = itbitAPIURL
+	i.APIUrlDefault = itbitAPIURL
+	i.APIUrl = i.APIUrlDefault
 }
 
 // Setup sets the exchange parameters from exchange config

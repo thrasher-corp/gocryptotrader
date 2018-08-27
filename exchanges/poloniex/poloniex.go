@@ -76,7 +76,8 @@ func (p *Poloniex) SetDefaults() {
 		request.NewRateLimit(time.Second, poloniexAuthRate),
 		request.NewRateLimit(time.Second, poloniexUnauthRate),
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
-	p.APIUrl = poloniexAPIURL
+	p.APIUrlDefault = poloniexAPIURL
+	p.APIUrl = p.APIUrlDefault
 }
 
 // Setup sets user exchange configuration settings

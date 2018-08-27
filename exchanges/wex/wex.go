@@ -68,8 +68,10 @@ func (w *WEX) SetDefaults() {
 		request.NewRateLimit(time.Second, wexAuthRate),
 		request.NewRateLimit(time.Second, wexUnauthRate),
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
-	w.APIUrl = wexAPIPublicURL
-	w.APIUrlSupplementary = wexAPIPrivateURL
+	w.APIUrlDefault = wexAPIPublicURL
+	w.APIUrl = w.APIUrlDefault
+	w.APIUrlSecondaryDefault = wexAPIPrivateURL
+	w.APIUrlSecondary = w.APIUrlSecondaryDefault
 }
 
 // Setup sets exchange configuration parameters for WEX
@@ -359,7 +361,8 @@ func (w *WEX) SendHTTPRequest(path string, result interface{}) error {
 // SendAuthenticatedHTTPRequest sends an authenticated HTTP request to WEX
 func (w *WEX) SendAuthenticatedHTTPRequest(method string, values url.Values, result interface{}) (err error) {
 	if !w.AuthenticatedAPISupport {
-		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet, w.Name)
+		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet,
+			w.Name)
 	}
 
 	if w.Nonce.Get() == 0 {
@@ -375,7 +378,7 @@ func (w *WEX) SendAuthenticatedHTTPRequest(method string, values url.Values, res
 
 	if w.Verbose {
 		log.Printf("Sending POST request to %s calling method %s with params %s\n",
-			w.APIUrlSupplementary,
+			w.APIUrlSecondary,
 			method,
 			encoded)
 	}
@@ -385,5 +388,11 @@ func (w *WEX) SendAuthenticatedHTTPRequest(method string, values url.Values, res
 	headers["Sign"] = common.HexEncodeToString(hmac)
 	headers["Content-Type"] = "application/x-www-form-urlencoded"
 
-	return w.SendPayload("POST", w.APIUrlSupplementary, headers, strings.NewReader(encoded), result, true, w.Verbose)
+	return w.SendPayload("POST",
+		w.APIUrlSecondary,
+		headers,
+		strings.NewReader(encoded),
+		result,
+		true,
+		w.Verbose)
 }

@@ -69,7 +69,8 @@ func (e *EXMO) SetDefaults() {
 		request.NewRateLimit(time.Minute, exmoAuthRate),
 		request.NewRateLimit(time.Minute, exmoUnauthRate),
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
-	e.APIUrl = exmoAPIURL
+	e.APIUrlDefault = exmoAPIURL
+	e.APIUrl = e.APIUrlDefault
 }
 
 // Setup takes in the supplied exchange configuration details and sets params

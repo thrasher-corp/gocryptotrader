@@ -67,8 +67,10 @@ func (y *Yobit) SetDefaults() {
 		request.NewRateLimit(time.Second, yobitAuthRate),
 		request.NewRateLimit(time.Second, yobitUnauthRate),
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
-	y.APIUrl = apiPublicURL
-	y.APIUrlSupplementary = apiPrivateURL
+	y.APIUrlDefault = apiPublicURL
+	y.APIUrl = y.APIUrlDefault
+	y.APIUrlSecondaryDefault = apiPrivateURL
+	y.APIUrlSecondary = y.APIUrlSecondaryDefault
 }
 
 // Setup sets exchange configuration parameters for Yobit

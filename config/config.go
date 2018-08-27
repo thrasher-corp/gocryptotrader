@@ -54,6 +54,7 @@ const (
 	WarningExchangeAuthAPIDefaultOrEmptyValues      = "WARNING -- Exchange %s: Authenticated API support disabled due to default/empty APIKey/Secret/ClientID values."
 	WarningCurrencyExchangeProvider                 = "WARNING -- Currency exchange provider invalid valid. Reset to Fixer."
 	WarningPairsLastUpdatedThresholdExceeded        = "WARNING -- Exchange %s: Last manual update of available currency pairs has exceeded %d days. Manual update required!"
+	APIURLDefaultMessage                            = "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API"
 )
 
 // Variables here are used for configuration
@@ -124,7 +125,7 @@ type ExchangeConfig struct {
 	APISecret                 string                    `json:"apiSecret"`
 	APIAuthPEMKey             string                    `json:"apiAuthPemKey,omitempty"`
 	APIURL                    string                    `json:"apiUrl"`
-	APIURLSupp                string                    `json:"apiUrlSupplementary"`
+	APIURLSecondary           string                    `json:"apiUrlSecondary"`
 	ClientID                  string                    `json:"clientId,omitempty"`
 	AvailablePairs            string                    `json:"availablePairs"`
 	EnabledPairs              string                    `json:"enabledPairs"`
@@ -620,14 +621,18 @@ func (c *Config) CheckExchangeConfigValues() error {
 			c.Exchanges[i].Name = "CoinbasePro"
 		}
 
-		if exch.APIURL == "" {
-			// Set default if nothing set
-			c.Exchanges[i].APIURL = "DEFAULT"
+		if exch.APIURL != APIURLDefaultMessage {
+			if exch.APIURL == "" {
+				// Set default if nothing set
+				c.Exchanges[i].APIURL = APIURLDefaultMessage
+			}
 		}
 
-		if exch.APIURLSupp == "" {
-			// Set default if nothing set
-			c.Exchanges[i].APIURLSupp = "DEFAULT"
+		if exch.APIURLSecondary != APIURLDefaultMessage {
+			if exch.APIURLSecondary == "" {
+				// Set default if nothing set
+				c.Exchanges[i].APIURLSecondary = APIURLDefaultMessage
+			}
 		}
 
 		if exch.Enabled {

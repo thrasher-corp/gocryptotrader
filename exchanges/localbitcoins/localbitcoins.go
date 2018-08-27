@@ -128,7 +128,8 @@ func (l *LocalBitcoins) SetDefaults() {
 		request.NewRateLimit(time.Second*0, localbitcoinsAuthRate),
 		request.NewRateLimit(time.Second*0, localbitcoinsUnauthRate),
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
-	l.APIUrl = localbitcoinsAPIURL
+	l.APIUrlDefault = localbitcoinsAPIURL
+	l.APIUrl = l.APIUrlDefault
 }
 
 // Setup sets exchange configuration parameters

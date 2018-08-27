@@ -65,8 +65,10 @@ func (l *Liqui) SetDefaults() {
 		request.NewRateLimit(time.Second, liquiAuthRate),
 		request.NewRateLimit(time.Second, liquiUnauthRate),
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
-	l.APIUrl = liquiAPIPublicURL
-	l.APIUrlSupplementary = liquiAPIPrivateURL
+	l.APIUrlDefault = liquiAPIPublicURL
+	l.APIUrl = l.APIUrlDefault
+	l.APIUrlSecondaryDefault = liquiAPIPrivateURL
+	l.APIUrlSecondary = l.APIUrlSecondaryDefault
 }
 
 // Setup sets exchange configuration parameters for liqui
@@ -294,7 +296,8 @@ func (l *Liqui) SendAuthenticatedHTTPRequest(method string, values url.Values, r
 	hmac := common.GetHMAC(common.HashSHA512, []byte(encoded), []byte(l.APISecret))
 
 	if l.Verbose {
-		log.Printf("Sending POST request to %s calling method %s with params %s\n", l.APIUrlSupplementary, method, encoded)
+		log.Printf("Sending POST request to %s calling method %s with params %s\n",
+			l.APIUrlSecondary, method, encoded)
 	}
 
 	headers := make(map[string]string)
@@ -302,5 +305,10 @@ func (l *Liqui) SendAuthenticatedHTTPRequest(method string, values url.Values, r
 	headers["Sign"] = common.HexEncodeToString(hmac)
 	headers["Content-Type"] = "application/x-www-form-urlencoded"
 
-	return l.SendPayload("POST", l.APIUrlSupplementary, headers, strings.NewReader(encoded), result, true, l.Verbose)
+	return l.SendPayload("POST",
+		l.APIUrlSecondary, headers,
+		strings.NewReader(encoded),
+		result,
+		true,
+		l.Verbose)
 }

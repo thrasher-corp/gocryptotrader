@@ -80,7 +80,8 @@ func (b *Bittrex) SetDefaults() {
 		request.NewRateLimit(time.Second, bittrexAuthRate),
 		request.NewRateLimit(time.Second, bittrexUnauthRate),
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
-	b.APIUrl = bittrexAPIURL
+	b.APIUrlDefault = bittrexAPIURL
+	b.APIUrl = b.APIUrlDefault
 }
 
 // Setup method sets current configuration details if enabled

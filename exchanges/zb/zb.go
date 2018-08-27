@@ -61,8 +61,10 @@ func (z *ZB) SetDefaults() {
 		request.NewRateLimit(time.Second*10, zbAuthRate),
 		request.NewRateLimit(time.Second*10, zbUnauthRate),
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
-	z.APIUrl = zbTradeURL
-	z.APIUrlSupplementary = zbMarketURL
+	z.APIUrlDefault = zbTradeURL
+	z.APIUrl = z.APIUrlDefault
+	z.APIUrlSecondaryDefault = zbMarketURL
+	z.APIUrlSecondary = z.APIUrlSecondaryDefault
 }
 
 // Setup sets user configuration
@@ -316,10 +318,24 @@ func (z *ZB) SendAuthenticatedHTTPRequest(method, endpoint string, values url.Va
 	mapParams2Sign := url.Values{}
 	mapParams2Sign.Set("accesskey", z.APIKey)
 	mapParams2Sign.Set("method", values.Get("method"))
-	values.Set("sign", common.HexEncodeToString(common.GetHMAC(common.HashMD5, []byte(values.Encode()), []byte(common.Sha1ToHex(z.APISecret)))))
+
+	values.Set("sign",
+		common.HexEncodeToString(common.GetHMAC(common.HashMD5,
+			[]byte(values.Encode()),
+			[]byte(common.Sha1ToHex(z.APISecret)))))
+
 	values.Set("reqTime", fmt.Sprintf("%d", time.Now().UnixNano()/1e6))
 
-	url := fmt.Sprintf("%s/%s?%s", z.APIUrlSupplementary, endpoint, values.Encode())
+	url := fmt.Sprintf("%s/%s?%s",
+		z.APIUrlSecondaryDefault,
+		endpoint,
+		values.Encode())
 
-	return z.SendPayload(method, url, nil, strings.NewReader(""), result, true, z.Verbose)
+	return z.SendPayload(method,
+		url,
+		nil,
+		strings.NewReader(""),
+		result,
+		true,
+		z.Verbose)
 }

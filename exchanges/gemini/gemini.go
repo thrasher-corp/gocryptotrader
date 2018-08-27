@@ -113,7 +113,8 @@ func (g *Gemini) SetDefaults() {
 		request.NewRateLimit(time.Minute, geminiAuthRate),
 		request.NewRateLimit(time.Minute, geminiUnauthRate),
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
-	g.APIUrl = geminiAPIURL
+	g.APIUrlDefault = geminiAPIURL
+	g.APIUrl = g.APIUrlDefault
 }
 
 // Setup sets exchange configuration parameters

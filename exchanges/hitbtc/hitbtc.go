@@ -70,7 +70,8 @@ func (p *HitBTC) SetDefaults() {
 		request.NewRateLimit(time.Second, hitbtcAuthRate),
 		request.NewRateLimit(time.Second, hitbtcUnauthRate),
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
-	p.APIUrl = apiURL
+	p.APIUrlDefault = apiURL
+	p.APIUrl = p.APIUrlDefault
 }
 
 // Setup sets user exchange configuration settings

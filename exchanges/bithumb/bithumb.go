@@ -74,7 +74,8 @@ func (b *Bithumb) SetDefaults() {
 		request.NewRateLimit(time.Second, bithumbAuthRate),
 		request.NewRateLimit(time.Second, bithumbUnauthRate),
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
-	b.APIUrl = apiURL
+	b.APIUrlDefault = apiURL
+	b.APIUrl = b.APIUrlDefault
 }
 
 // Setup takes in the supplied exchange configuration details and sets params

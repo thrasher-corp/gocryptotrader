@@ -73,7 +73,8 @@ func (k *Kraken) SetDefaults() {
 		request.NewRateLimit(time.Second, krakenAuthRate),
 		request.NewRateLimit(time.Second, krakenUnauthRate),
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
-	k.APIUrl = krakenAPIURL
+	k.APIUrlDefault = krakenAPIURL
+	k.APIUrl = k.APIUrlDefault
 }
 
 // Setup sets current exchange configuration

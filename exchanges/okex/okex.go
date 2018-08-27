@@ -112,7 +112,8 @@ func (o *OKEX) SetDefaults() {
 		request.NewRateLimit(time.Second, okexAuthRate),
 		request.NewRateLimit(time.Second, okexUnauthRate),
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
-	o.APIUrl = apiURL
+	o.APIUrlDefault = apiURL
+	o.APIUrl = o.APIUrlDefault
 }
 
 // Setup method sets current configuration details if enabled

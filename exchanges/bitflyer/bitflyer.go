@@ -92,8 +92,10 @@ func (b *Bitflyer) SetDefaults() {
 		request.NewRateLimit(time.Minute, bitflyerAuthRate),
 		request.NewRateLimit(time.Minute, bitflyerUnauthRate),
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
-	b.APIUrl = japanURL
-	b.APIUrlSupplementary = chainAnalysis
+	b.APIUrlDefault = japanURL
+	b.APIUrl = b.APIUrlDefault
+	b.APIUrlSecondaryDefault = chainAnalysis
+	b.APIUrlSecondary = b.APIUrlSecondaryDefault
 }
 
 // Setup takes in the supplied exchange configuration details and sets params
@@ -135,7 +137,7 @@ func (b *Bitflyer) Setup(exch config.ExchangeConfig) {
 // analysis system
 func (b *Bitflyer) GetLatestBlockCA() (ChainAnalysisBlock, error) {
 	var resp ChainAnalysisBlock
-	path := fmt.Sprintf("%s%s", b.APIUrlSupplementary, latestBlock)
+	path := fmt.Sprintf("%s%s", b.APIUrlSecondary, latestBlock)
 
 	return resp, b.SendHTTPRequest(path, &resp)
 }
@@ -144,7 +146,7 @@ func (b *Bitflyer) GetLatestBlockCA() (ChainAnalysisBlock, error) {
 // analysis system
 func (b *Bitflyer) GetBlockCA(blockhash string) (ChainAnalysisBlock, error) {
 	var resp ChainAnalysisBlock
-	path := fmt.Sprintf("%s%s%s", b.APIUrlSupplementary, blockByBlockHash, blockhash)
+	path := fmt.Sprintf("%s%s%s", b.APIUrlSecondary, blockByBlockHash, blockhash)
 
 	return resp, b.SendHTTPRequest(path, &resp)
 }
@@ -153,7 +155,7 @@ func (b *Bitflyer) GetBlockCA(blockhash string) (ChainAnalysisBlock, error) {
 // analysis system
 func (b *Bitflyer) GetBlockbyHeightCA(height int64) (ChainAnalysisBlock, error) {
 	var resp ChainAnalysisBlock
-	path := fmt.Sprintf("%s%s%s", b.APIUrlSupplementary, blockByBlockHeight, strconv.FormatInt(height, 10))
+	path := fmt.Sprintf("%s%s%s", b.APIUrlSecondary, blockByBlockHeight, strconv.FormatInt(height, 10))
 
 	return resp, b.SendHTTPRequest(path, &resp)
 }
@@ -162,7 +164,7 @@ func (b *Bitflyer) GetBlockbyHeightCA(height int64) (ChainAnalysisBlock, error) 
 // bitflyer chain analysis system
 func (b *Bitflyer) GetTransactionByHashCA(txHash string) (ChainAnalysisTransaction, error) {
 	var resp ChainAnalysisTransaction
-	path := fmt.Sprintf("%s%s%s", b.APIUrlSupplementary, transaction, txHash)
+	path := fmt.Sprintf("%s%s%s", b.APIUrlSecondary, transaction, txHash)
 
 	return resp, b.SendHTTPRequest(path, &resp)
 }
@@ -171,7 +173,7 @@ func (b *Bitflyer) GetTransactionByHashCA(txHash string) (ChainAnalysisTransacti
 // from bitflyer chain analysis system
 func (b *Bitflyer) GetAddressInfoCA(addressln string) (ChainAnalysisAddress, error) {
 	var resp ChainAnalysisAddress
-	path := fmt.Sprintf("%s%s%s", b.APIUrlSupplementary, address, addressln)
+	path := fmt.Sprintf("%s%s%s", b.APIUrlSecondary, address, addressln)
 
 	return resp, b.SendHTTPRequest(path, &resp)
 }
