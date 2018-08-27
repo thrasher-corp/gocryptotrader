@@ -8,8 +8,10 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
+	"github.com/gorilla/websocket"
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
@@ -78,6 +80,8 @@ var errMissValue = errors.New("warning - resp value is missing from exchange")
 // OKEX is the overaching type across the OKEX methods
 type OKEX struct {
 	exchange.Base
+	WebsocketConn *websocket.Conn
+	mu            sync.Mutex
 
 	// Spot and contract market error codes as per https://www.okex.com/rest_request.html
 	ErrorCodes map[string]error

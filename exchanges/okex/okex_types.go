@@ -1,11 +1,13 @@
 package okex
 
+import "encoding/json"
+
 // ContractPrice holds date and ticker price price for contracts.
 type ContractPrice struct {
 	Date   string `json:"date"`
 	Ticker struct {
 		Buy        float64 `json:"buy"`
-		ContractID int     `json:"contract_id"`
+		ContractID float64 `json:"contract_id"`
 		High       float64 `json:"high"`
 		Low        float64 `json:"low"`
 		Last       float64 `json:"last"`
@@ -15,6 +17,33 @@ type ContractPrice struct {
 	} `json:"ticker"`
 	Result bool        `json:"result"`
 	Error  interface{} `json:"error_code"`
+}
+
+type MultiStreamData struct {
+	Channel string          `json:"channel"`
+	Data    json.RawMessage `json:"data"`
+}
+
+type TickerStreamData struct {
+	Buy       string  `json:"buy"`
+	Change    string  `json:"change"`
+	High      string  `json:"high"`
+	Low       string  `json:"low"`
+	Last      string  `json:"last"`
+	Sell      string  `json:"sell"`
+	DayLow    string  `json:"dayLow"`
+	DayHigh   string  `json:"dayHigh"`
+	Timestamp float64 `json:"timestamp"`
+	Vol       string  `json:"vol"`
+}
+
+type DealsStreamData = [][]string
+type KlineStreamData = [][]string
+
+type DepthStreamData struct {
+	Asks      [][]string `json:"asks"`
+	Bids      [][]string `json:"bids"`
+	Timestamp float64    `json:"timestamp"`
 }
 
 // ContractDepth response depth
@@ -83,7 +112,7 @@ type HoldData struct {
 	BuyPriceAvg    float64 `json:"buy_price_avg"`
 	BuyPriceCost   float64 `json:"buy_price_cost"`
 	BuyProfitReal  float64 `json:"buy_profit_real"`
-	ContractID     int     `json:"contract_id"`
+	ContractID     float64 `json:"contract_id"`
 	ContractType   string  `json:"contract_type"`
 	CreateDate     int     `json:"create_date"`
 	LeverRate      float64 `json:"lever_rate"`
@@ -115,7 +144,7 @@ type SpotPrice struct {
 	Date   string `json:"date"`
 	Ticker struct {
 		Buy        float64 `json:"buy,string"`
-		ContractID int     `json:"contract_id"`
+		ContractID float64 `json:"contract_id"`
 		High       float64 `json:"high,string"`
 		Low        float64 `json:"low,string"`
 		Last       float64 `json:"last,string"`

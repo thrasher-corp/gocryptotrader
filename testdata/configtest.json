@@ -1048,32 +1048,31 @@
    ]
   },
   {
-   "name": "OKEX",
-   "enabled": true,
-   "verbose": false,
-   "websocket": false,
-   "useSandbox": false,
-   "restPollingDelay": 10,
-   "httpTimeout": 15000000000,
-   "httpUserAgent": "",
-   "authenticatedApiSupport": false,
-   "apiKey": "Key",
-   "apiSecret": "Secret",
-   "availablePairs": "ltc_btc,eth_btc,etc_btc,bch_btc,btc_usdt,eth_usdt,ltc_usdt,etc_usdt,bch_usdt,etc_eth,bt1_btc,bt2_btc,btg_btc,qtum_btc,hsr_btc,neo_btc,gas_btc,qtum_usdt,hsr_usdt,neo_usdt,gas_usdt,btc_usd,ltc_usd,eth_usd,etc_usd,bch_usd",
-   "enabledPairs": "btc_usd,ltc_usd",
-   "baseCurrencies": "USD",
-   "assetTypes": "SPOT,this_week,next_week,quarter",
-   "supportsAutoPairUpdates": false,
-   "pairsLastUpdated": 1522112372,
-   "configCurrencyPairFormat": {
-    "uppercase": false,
-    "delimiter": "_"
+   "Name": "OKEX",
+   "Enabled": true,
+   "Verbose": false,
+   "Websocket": false,
+   "UseSandbox": false,
+   "RESTPollingDelay": 10,
+   "HTTPTimeout": 15000000000,
+   "AuthenticatedAPISupport": false,
+   "APIKey": "Key",
+   "APISecret": "Secret",
+   "AvailablePairs": "ltc_btc,eth_btc,etc_btc,bch_btc,btc_usdt,eth_usdt,ltc_usdt,etc_usdt,bch_usdt,etc_eth,bt1_btc,bt2_btc,btg_btc,qtum_btc,hsr_btc,neo_btc,gas_btc,qtum_usdt,hsr_usdt,neo_usdt,gas_usdt,btc_usdt,ltc_usdt,eth_usdt,etc_usdt,bch_usdt",
+   "EnabledPairs": "btc_usdt,ltc_usdt",
+   "BaseCurrencies": "USD",
+   "AssetTypes": "SPOT,this_week,next_week,quarter",
+   "SupportsAutoPairUpdates": false,
+   "PairsLastUpdated": 1522112372,
+   "ConfigCurrencyPairFormat": {
+    "Uppercase": false,
+    "Delimiter": "_"
    },
-   "requestCurrencyPairFormat": {
-    "uppercase": false,
-    "delimiter": "_"
+   "RequestCurrencyPairFormat": {
+    "Uppercase": false,
+    "Delimiter": "_"
    },
-   "bankAccounts": [
+   "BankAccounts": [
     {
      "bankName": "",
      "bankAddress": "",
