@@ -127,6 +127,8 @@ func (b *Bitmex) SetDefaults() {
 		request.NewRateLimit(time.Second, bitmexUnauthRate),
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 	b.shutdown = b.NewRoutineManagement()
+	b.APIUrlDefault = bitmexAPIURL
+	b.APIUrl = b.APIUrlDefault
 }
 
 // Setup takes in the supplied exchange configuration details and sets params
@@ -148,6 +150,14 @@ func (b *Bitmex) Setup(exch config.ExchangeConfig) {
 			log.Fatal(err)
 		}
 		err = b.SetAssetTypes()
+		if err != nil {
+			log.Fatal(err)
+		}
+		err = b.SetAutoPairDefaults()
+		if err != nil {
+			log.Fatal(err)
+		}
+		err = b.SetAPIURL(exch)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -798,7 +808,7 @@ func (b *Bitmex) GetWalletSummary(currency string) ([]TransactionInfo, error) {
 // SendHTTPRequest sends an unauthenticated HTTP request
 func (b *Bitmex) SendHTTPRequest(path string, params Parameter, result interface{}) error {
 	var respCheck interface{}
-	path = bitmexAPIURL + path
+	path = b.APIUrl + path
 	if params != nil {
 		if !params.IsNil() {
 			encodedPath, err := params.ToURLVals(path)
@@ -857,7 +867,7 @@ func (b *Bitmex) SendAuthenticatedHTTPRequest(verb, path string, params Paramete
 	var respCheck interface{}
 
 	err := b.SendPayload(verb,
-		bitmexAPIURL+path,
+		b.APIUrl+path,
 		headers,
 		bytes.NewBuffer([]byte(payload)),
 		&respCheck,

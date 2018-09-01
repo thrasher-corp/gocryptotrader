@@ -29,6 +29,10 @@ func (o *OKEX) Run() {
 		log.Printf("%s polling delay: %ds.\n", o.GetName(), o.RESTPollingDelay)
 		log.Printf("%s %d currencies enabled: %s.\n", o.GetName(), len(o.EnabledPairs), o.EnabledPairs)
 	}
+
+	if o.Websocket {
+		go o.WebsocketClient()
+	}
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair

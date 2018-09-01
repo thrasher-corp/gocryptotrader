@@ -72,7 +72,12 @@ func (b *Binance) SetDefaults() {
 	b.SupportsAutoPairUpdating = true
 	b.SupportsRESTTickerBatching = true
 	b.SetValues()
-	b.Requester = request.New(b.Name, request.NewRateLimit(time.Second, binanceAuthRate), request.NewRateLimit(time.Second, binanceUnauthRate), common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
+	b.Requester = request.New(b.Name,
+		request.NewRateLimit(time.Second, binanceAuthRate),
+		request.NewRateLimit(time.Second, binanceUnauthRate),
+		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
+	b.APIUrlDefault = apiURL
+	b.APIUrl = b.APIUrlDefault
 }
 
 // Setup takes in the supplied exchange configuration details and sets params
@@ -103,6 +108,10 @@ func (b *Binance) Setup(exch config.ExchangeConfig) {
 		if err != nil {
 			log.Fatal(err)
 		}
+		err = b.SetAPIURL(exch)
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 }
 
@@ -128,7 +137,7 @@ func (b *Binance) GetExchangeValidCurrencyPairs() ([]string, error) {
 // information
 func (b *Binance) GetExchangeInfo() (ExchangeInfo, error) {
 	var resp ExchangeInfo
-	path := apiURL + exchangeInfo
+	path := b.APIUrl + exchangeInfo
 
 	return resp, b.SendHTTPRequest(path, &resp)
 }
@@ -152,7 +161,7 @@ func (b *Binance) GetOrderBook(obd OrderBookDataRequestParams) (OrderBook, error
 	params.Set("symbol", common.StringToUpper(obd.Symbol))
 	params.Set("limit", fmt.Sprintf("%d", obd.Limit))
 
-	path := fmt.Sprintf("%s%s?%s", apiURL, orderBookDepth, params.Encode())
+	path := fmt.Sprintf("%s%s?%s", b.APIUrl, orderBookDepth, params.Encode())
 
 	if err := b.SendHTTPRequest(path, &resp); err != nil {
 		return orderbook, err
@@ -203,7 +212,7 @@ func (b *Binance) GetRecentTrades(rtr RecentTradeRequestParams) ([]RecentTrade, 
 	params.Set("symbol", common.StringToUpper(rtr.Symbol))
 	params.Set("limit", fmt.Sprintf("%d", rtr.Limit))
 
-	path := fmt.Sprintf("%s%s?%s", apiURL, recentTrades, params.Encode())
+	path := fmt.Sprintf("%s%s?%s", b.APIUrl, recentTrades, params.Encode())
 
 	return resp, b.SendHTTPRequest(path, &resp)
 }
@@ -225,7 +234,7 @@ func (b *Binance) GetHistoricalTrades(symbol string, limit int, fromID int64) ([
 	params.Set("limit", strconv.Itoa(limit))
 	params.Set("fromid", strconv.FormatInt(fromID, 10))
 
-	path := fmt.Sprintf("%s%s?%s", apiURL, historicalTrades, params.Encode())
+	path := fmt.Sprintf("%s%s?%s", b.APIUrl, historicalTrades, params.Encode())
 
 	return resp, b.SendHTTPRequest(path, &resp)
 }
@@ -248,7 +257,7 @@ func (b *Binance) GetAggregatedTrades(symbol string, limit int) ([]AggregatedTra
 	params.Set("symbol", common.StringToUpper(symbol))
 	params.Set("limit", strconv.Itoa(limit))
 
-	path := fmt.Sprintf("%s%s?%s", apiURL, aggregatedTrades, params.Encode())
+	path := fmt.Sprintf("%s%s?%s", b.APIUrl, aggregatedTrades, params.Encode())
 
 	return resp, b.SendHTTPRequest(path, &resp)
 }
@@ -278,7 +287,7 @@ func (b *Binance) GetSpotKline(arg KlinesRequestParams) ([]CandleStick, error) {
 		params.Set("endTime", strconv.FormatInt(arg.EndTime, 10))
 	}
 
-	path := fmt.Sprintf("%s%s?%s", apiURL, candleStick, params.Encode())
+	path := fmt.Sprintf("%s%s?%s", b.APIUrl, candleStick, params.Encode())
 
 	if err := b.SendHTTPRequest(path, &resp); err != nil {
 		return kline, err
@@ -330,7 +339,7 @@ func (b *Binance) GetPriceChangeStats(symbol string) (PriceChangeStats, error) {
 	params := url.Values{}
 	params.Set("symbol", common.StringToUpper(symbol))
 
-	path := fmt.Sprintf("%s%s?%s", apiURL, priceChange, params.Encode())
+	path := fmt.Sprintf("%s%s?%s", b.APIUrl, priceChange, params.Encode())
 
 	return resp, b.SendHTTPRequest(path, &resp)
 }
@@ -338,7 +347,7 @@ func (b *Binance) GetPriceChangeStats(symbol string) (PriceChangeStats, error) {
 // GetTickers returns the ticker data for the last 24 hrs
 func (b *Binance) GetTickers() ([]PriceChangeStats, error) {
 	var resp []PriceChangeStats
-	path := fmt.Sprintf("%s%s", apiURL, priceChange)
+	path := fmt.Sprintf("%s%s", b.APIUrl, priceChange)
 	return resp, b.SendHTTPRequest(path, &resp)
 }
 
@@ -355,7 +364,7 @@ func (b *Binance) GetLatestSpotPrice(symbol string) (SymbolPrice, error) {
 	params := url.Values{}
 	params.Set("symbol", common.StringToUpper(symbol))
 
-	path := fmt.Sprintf("%s%s?%s", apiURL, symbolPrice, params.Encode())
+	path := fmt.Sprintf("%s%s?%s", b.APIUrl, symbolPrice, params.Encode())
 
 	return resp, b.SendHTTPRequest(path, &resp)
 }
@@ -373,7 +382,7 @@ func (b *Binance) GetBestPrice(symbol string) (BestPrice, error) {
 	params := url.Values{}
 	params.Set("symbol", common.StringToUpper(symbol))
 
-	path := fmt.Sprintf("%s%s?%s", apiURL, bestPrice, params.Encode())
+	path := fmt.Sprintf("%s%s?%s", b.APIUrl, bestPrice, params.Encode())
 
 	return resp, b.SendHTTPRequest(path, &resp)
 }
@@ -382,7 +391,7 @@ func (b *Binance) GetBestPrice(symbol string) (BestPrice, error) {
 func (b *Binance) NewOrderTest() (interface{}, error) {
 	var resp interface{}
 
-	path := fmt.Sprintf("%s%s", apiURL, newOrderTest)
+	path := fmt.Sprintf("%s%s", b.APIUrl, newOrderTest)
 
 	params := url.Values{}
 	params.Set("symbol", "BTCUSDT")
@@ -397,7 +406,7 @@ func (b *Binance) NewOrderTest() (interface{}, error) {
 func (b *Binance) NewOrder(o NewOrderRequest) (NewOrderResponse, error) {
 	var resp NewOrderResponse
 
-	path := fmt.Sprintf("%s%s", apiURL, newOrder)
+	path := fmt.Sprintf("%s%s", b.APIUrl, newOrder)
 
 	params := url.Values{}
 	params.Set("symbol", o.Symbol)
@@ -438,7 +447,7 @@ func (b *Binance) CancelOrder(symbol string, orderID int64, origClientOrderID st
 
 	var resp CancelOrderResponse
 
-	path := fmt.Sprintf("%s%s", apiURL, cancelOrder)
+	path := fmt.Sprintf("%s%s", b.APIUrl, cancelOrder)
 
 	params := url.Values{}
 	params.Set("symbol", symbol)
@@ -462,7 +471,7 @@ func (b *Binance) CancelOrder(symbol string, orderID int64, origClientOrderID st
 func (b *Binance) OpenOrders(symbol string) ([]QueryOrderData, error) {
 	var resp []QueryOrderData
 
-	path := fmt.Sprintf("%s%s", apiURL, openOrders)
+	path := fmt.Sprintf("%s%s", b.APIUrl, openOrders)
 
 	params := url.Values{}
 	if symbol != "" {
@@ -481,7 +490,7 @@ func (b *Binance) OpenOrders(symbol string) ([]QueryOrderData, error) {
 func (b *Binance) AllOrders(symbol, orderID, limit string) ([]QueryOrderData, error) {
 	var resp []QueryOrderData
 
-	path := fmt.Sprintf("%s%s", apiURL, allOrders)
+	path := fmt.Sprintf("%s%s", b.APIUrl, allOrders)
 
 	params := url.Values{}
 	params.Set("symbol", common.StringToUpper(symbol))
@@ -502,7 +511,7 @@ func (b *Binance) AllOrders(symbol, orderID, limit string) ([]QueryOrderData, er
 func (b *Binance) QueryOrder(symbol, origClientOrderID string, orderID int64) (QueryOrderData, error) {
 	var resp QueryOrderData
 
-	path := fmt.Sprintf("%s%s", apiURL, queryOrder)
+	path := fmt.Sprintf("%s%s", b.APIUrl, queryOrder)
 
 	params := url.Values{}
 	params.Set("symbol", common.StringToUpper(symbol))
@@ -532,7 +541,7 @@ func (b *Binance) GetAccount() (*Account, error) {
 
 	var resp response
 
-	path := fmt.Sprintf("%s%s", apiURL, accountInfo)
+	path := fmt.Sprintf("%s%s", b.APIUrl, accountInfo)
 	params := url.Values{}
 
 	if err := b.SendAuthHTTPRequest("GET", path, params, &resp); err != nil {

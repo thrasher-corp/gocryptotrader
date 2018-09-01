@@ -74,7 +74,12 @@ func (b *Bitstamp) SetDefaults() {
 	b.AssetTypes = []string{ticker.Spot}
 	b.SupportsAutoPairUpdating = true
 	b.SupportsRESTTickerBatching = false
-	b.Requester = request.New(b.Name, request.NewRateLimit(time.Minute*10, bitstampAuthRate), request.NewRateLimit(time.Minute*10, bitstampUnauthRate), common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
+	b.Requester = request.New(b.Name,
+		request.NewRateLimit(time.Minute*10, bitstampAuthRate),
+		request.NewRateLimit(time.Minute*10, bitstampUnauthRate),
+		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
+	b.APIUrlDefault = bitstampAPIURL
+	b.APIUrl = b.APIUrlDefault
 }
 
 // Setup sets configuration values to bitstamp
@@ -102,6 +107,10 @@ func (b *Bitstamp) Setup(exch config.ExchangeConfig) {
 			log.Fatal(err)
 		}
 		err = b.SetAutoPairDefaults()
+		if err != nil {
+			log.Fatal(err)
+		}
+		err = b.SetAPIURL(exch)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -137,7 +146,7 @@ func (b *Bitstamp) GetTicker(currency string, hourly bool) (Ticker, error) {
 
 	path := fmt.Sprintf(
 		"%s/v%s/%s/%s/",
-		bitstampAPIURL,
+		b.APIUrl,
 		bitstampAPIVersion,
 		tickerEndpoint,
 		common.StringToLower(currency),
@@ -158,7 +167,7 @@ func (b *Bitstamp) GetOrderbook(currency string) (Orderbook, error) {
 
 	path := fmt.Sprintf(
 		"%s/v%s/%s/%s/",
-		bitstampAPIURL,
+		b.APIUrl,
 		bitstampAPIVersion,
 		bitstampAPIOrderbook,
 		common.StringToLower(currency),
@@ -207,7 +216,12 @@ func (b *Bitstamp) GetOrderbook(currency string) (Orderbook, error) {
 // currently supports
 func (b *Bitstamp) GetTradingPairs() ([]TradingPair, error) {
 	var result []TradingPair
-	path := fmt.Sprintf("%s/v%s/%s", bitstampAPIURL, bitstampAPIVersion, bitstampAPITradingPairsInfo)
+
+	path := fmt.Sprintf("%s/v%s/%s",
+		b.APIUrl,
+		bitstampAPIVersion,
+		bitstampAPITradingPairsInfo)
+
 	return result, b.SendHTTPRequest(path, &result)
 }
 
@@ -219,7 +233,7 @@ func (b *Bitstamp) GetTransactions(currencyPair string, values url.Values) ([]Tr
 	path := common.EncodeURLValues(
 		fmt.Sprintf(
 			"%s/v%s/%s/%s/",
-			bitstampAPIURL,
+			b.APIUrl,
 			bitstampAPIVersion,
 			bitstampAPITransactions,
 			common.StringToLower(currencyPair),
@@ -233,7 +247,7 @@ func (b *Bitstamp) GetTransactions(currencyPair string, values url.Values) ([]Tr
 // GetEURUSDConversionRate returns the conversion rate between Euro and USD
 func (b *Bitstamp) GetEURUSDConversionRate() (EURUSDConversionRate, error) {
 	rate := EURUSDConversionRate{}
-	path := fmt.Sprintf("%s/%s", bitstampAPIURL, bitstampAPIEURUSD)
+	path := fmt.Sprintf("%s/%s", b.APIUrl, bitstampAPIEURUSD)
 
 	return rate, b.SendHTTPRequest(path, &rate)
 }
@@ -241,7 +255,7 @@ func (b *Bitstamp) GetEURUSDConversionRate() (EURUSDConversionRate, error) {
 // GetBalance returns full balance of currency held on the exchange
 func (b *Bitstamp) GetBalance() (Balances, error) {
 	balance := Balances{}
-	path := fmt.Sprintf("%s/%s", bitstampAPIURL, bitstampAPIBalance)
+	path := fmt.Sprintf("%s/%s", b.APIUrl, bitstampAPIBalance)
 
 	return balance, b.SendHTTPRequest(path, &balance)
 }
@@ -520,9 +534,9 @@ func (b *Bitstamp) SendAuthenticatedHTTPRequest(path string, v2 bool, values url
 	values.Set("signature", common.StringToUpper(common.HexEncodeToString(hmac)))
 
 	if v2 {
-		path = fmt.Sprintf("%s/v%s/%s/", bitstampAPIURL, bitstampAPIVersion, path)
+		path = fmt.Sprintf("%s/v%s/%s/", b.APIUrl, bitstampAPIVersion, path)
 	} else {
-		path = fmt.Sprintf("%s/%s/", bitstampAPIURL, path)
+		path = fmt.Sprintf("%s/%s/", b.APIUrl, path)
 	}
 
 	if b.Verbose {

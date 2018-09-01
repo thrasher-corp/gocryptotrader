@@ -56,7 +56,12 @@ func (i *ItBit) SetDefaults() {
 	i.AssetTypes = []string{ticker.Spot}
 	i.SupportsAutoPairUpdating = false
 	i.SupportsRESTTickerBatching = false
-	i.Requester = request.New(i.Name, request.NewRateLimit(time.Second, itbitAuthRate), request.NewRateLimit(time.Second, itbitUnauthRate), common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
+	i.Requester = request.New(i.Name,
+		request.NewRateLimit(time.Second, itbitAuthRate),
+		request.NewRateLimit(time.Second, itbitUnauthRate),
+		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
+	i.APIUrlDefault = itbitAPIURL
+	i.APIUrl = i.APIUrlDefault
 }
 
 // Setup sets the exchange parameters from exchange config
@@ -87,6 +92,10 @@ func (i *ItBit) Setup(exch config.ExchangeConfig) {
 		if err != nil {
 			log.Fatal(err)
 		}
+		err = i.SetAPIURL(exch)
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 }
 
@@ -102,7 +111,7 @@ func (i *ItBit) GetFee(maker bool) decimal.Decimal {
 // currencyPair - example "XBTUSD" "XBTSGD" "XBTEUR"
 func (i *ItBit) GetTicker(currencyPair string) (Ticker, error) {
 	var response Ticker
-	path := fmt.Sprintf("%s/%s/%s/%s", itbitAPIURL, itbitMarkets, currencyPair, itbitTicker)
+	path := fmt.Sprintf("%s/%s/%s/%s", i.APIUrl, itbitMarkets, currencyPair, itbitTicker)
 
 	return response, i.SendHTTPRequest(path, &response)
 }
@@ -111,7 +120,7 @@ func (i *ItBit) GetTicker(currencyPair string) (Ticker, error) {
 // currencyPair - example "XBTUSD" "XBTSGD" "XBTEUR"
 func (i *ItBit) GetOrderbook(currencyPair string) (OrderbookResponse, error) {
 	response := OrderbookResponse{}
-	path := fmt.Sprintf("%s/%s/%s/%s", itbitAPIURL, itbitMarkets, currencyPair, itbitOrderbook)
+	path := fmt.Sprintf("%s/%s/%s/%s", i.APIUrl, itbitMarkets, currencyPair, itbitOrderbook)
 
 	return response, i.SendHTTPRequest(path, &response)
 }
@@ -123,7 +132,7 @@ func (i *ItBit) GetOrderbook(currencyPair string) (OrderbookResponse, error) {
 func (i *ItBit) GetTradeHistory(currencyPair, timestamp string) (Trades, error) {
 	response := Trades{}
 	req := "trades?since=" + timestamp
-	path := fmt.Sprintf("%s/%s/%s/%s", itbitAPIURL, itbitMarkets, currencyPair, req)
+	path := fmt.Sprintf("%s/%s/%s/%s", i.APIUrl, itbitMarkets, currencyPair, req)
 
 	return response, i.SendHTTPRequest(path, &response)
 }
@@ -322,7 +331,7 @@ func (i *ItBit) SendAuthenticatedHTTPRequest(method string, path string, params 
 	}
 
 	request := make(map[string]interface{})
-	url := itbitAPIURL + path
+	url := i.APIUrl + path
 
 	if params != nil {
 		for key, value := range params {

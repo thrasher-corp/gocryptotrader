@@ -63,7 +63,12 @@ func (c *COINUT) SetDefaults() {
 	c.AssetTypes = []string{ticker.Spot}
 	c.SupportsAutoPairUpdating = true
 	c.SupportsRESTTickerBatching = false
-	c.Requester = request.New(c.Name, request.NewRateLimit(time.Second, coinutAuthRate), request.NewRateLimit(time.Second, coinutUnauthRate), common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
+	c.Requester = request.New(c.Name,
+		request.NewRateLimit(time.Second, coinutAuthRate),
+		request.NewRateLimit(time.Second, coinutUnauthRate),
+		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
+	c.APIUrlDefault = coinutAPIURL
+	c.APIUrl = c.APIUrlDefault
 }
 
 // Setup sets the current exchange configuration
@@ -91,6 +96,10 @@ func (c *COINUT) Setup(exch config.ExchangeConfig) {
 			log.Fatal(err)
 		}
 		err = c.SetAutoPairDefaults()
+		if err != nil {
+			log.Fatal(err)
+		}
+		err = c.SetAPIURL(exch)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -308,5 +317,5 @@ func (c *COINUT) SendHTTPRequest(apiRequest string, params map[string]interface{
 	}
 	headers["Content-Type"] = "application/json"
 
-	return c.SendPayload("POST", coinutAPIURL, headers, bytes.NewBuffer(payload), result, authenticated, c.Verbose)
+	return c.SendPayload("POST", c.APIUrl, headers, bytes.NewBuffer(payload), result, authenticated, c.Verbose)
 }

@@ -74,7 +74,12 @@ func (k *Kraken) SetDefaults() {
 	k.AssetTypes = []string{ticker.Spot}
 	k.SupportsAutoPairUpdating = true
 	k.SupportsRESTTickerBatching = true
-	k.Requester = request.New(k.Name, request.NewRateLimit(time.Second, krakenAuthRate), request.NewRateLimit(time.Second, krakenUnauthRate), common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
+	k.Requester = request.New(k.Name,
+		request.NewRateLimit(time.Second, krakenAuthRate),
+		request.NewRateLimit(time.Second, krakenUnauthRate),
+		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
+	k.APIUrlDefault = krakenAPIURL
+	k.APIUrl = k.APIUrlDefault
 }
 
 // Setup sets current exchange configuration
@@ -105,6 +110,10 @@ func (k *Kraken) Setup(exch config.ExchangeConfig) {
 		if err != nil {
 			log.Fatal(err)
 		}
+		err = k.SetAPIURL(exch)
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 }
 
@@ -118,7 +127,7 @@ func (k *Kraken) GetFee(cryptoTrade bool) decimal.Decimal {
 
 // GetServerTime returns current server time
 func (k *Kraken) GetServerTime() (TimeResponse, error) {
-	path := fmt.Sprintf("%s/%s/public/%s", krakenAPIURL, krakenAPIVersion, krakenServerTime)
+	path := fmt.Sprintf("%s/%s/public/%s", k.APIUrl, krakenAPIVersion, krakenServerTime)
 
 	var response struct {
 		Error  []string     `json:"error"`
@@ -134,7 +143,7 @@ func (k *Kraken) GetServerTime() (TimeResponse, error) {
 
 // GetAssets returns a full asset list
 func (k *Kraken) GetAssets() (map[string]Asset, error) {
-	path := fmt.Sprintf("%s/%s/public/%s", krakenAPIURL, krakenAPIVersion, krakenAssets)
+	path := fmt.Sprintf("%s/%s/public/%s", k.APIUrl, krakenAPIVersion, krakenAssets)
 
 	var response struct {
 		Error  []string         `json:"error"`
@@ -150,7 +159,7 @@ func (k *Kraken) GetAssets() (map[string]Asset, error) {
 
 // GetAssetPairs returns a full asset pair list
 func (k *Kraken) GetAssetPairs() (map[string]AssetPairs, error) {
-	path := fmt.Sprintf("%s/%s/public/%s", krakenAPIURL, krakenAPIVersion, krakenAssetPairs)
+	path := fmt.Sprintf("%s/%s/public/%s", k.APIUrl, krakenAPIVersion, krakenAssetPairs)
 
 	var response struct {
 		Error  []string              `json:"error"`
@@ -176,7 +185,7 @@ func (k *Kraken) GetTicker(symbol string) (Ticker, error) {
 	}
 
 	resp := Response{}
-	path := fmt.Sprintf("%s/%s/public/%s?%s", krakenAPIURL, krakenAPIVersion, krakenTicker, values.Encode())
+	path := fmt.Sprintf("%s/%s/public/%s?%s", k.APIUrl, krakenAPIVersion, krakenTicker, values.Encode())
 
 	err := k.SendHTTPRequest(path, &resp)
 	if err != nil {
@@ -214,7 +223,7 @@ func (k *Kraken) GetOHLC(symbol string) ([]OpenHighLowClose, error) {
 	var OHLC []OpenHighLowClose
 	var result Response
 
-	path := fmt.Sprintf("%s/%s/public/%s?%s", krakenAPIURL, krakenAPIVersion, krakenOHLC, values.Encode())
+	path := fmt.Sprintf("%s/%s/public/%s?%s", k.APIUrl, krakenAPIVersion, krakenOHLC, values.Encode())
 
 	err := k.SendHTTPRequest(path, &result)
 	if err != nil {
@@ -260,7 +269,7 @@ func (k *Kraken) GetDepth(symbol string) (Orderbook, error) {
 	var result interface{}
 	var orderBook Orderbook
 
-	path := fmt.Sprintf("%s/%s/public/%s?%s", krakenAPIURL, krakenAPIVersion, krakenDepth, values.Encode())
+	path := fmt.Sprintf("%s/%s/public/%s?%s", k.APIUrl, krakenAPIVersion, krakenDepth, values.Encode())
 
 	err := k.SendHTTPRequest(path, &result)
 	if err != nil {
@@ -319,7 +328,7 @@ func (k *Kraken) GetTrades(symbol string) ([]RecentTrades, error) {
 	var recentTrades []RecentTrades
 	var result interface{}
 
-	path := fmt.Sprintf("%s/%s/public/%s?%s", krakenAPIURL, krakenAPIVersion, krakenTrades, values.Encode())
+	path := fmt.Sprintf("%s/%s/public/%s?%s", k.APIUrl, krakenAPIVersion, krakenTrades, values.Encode())
 
 	err := k.SendHTTPRequest(path, &result)
 	if err != nil {
@@ -360,7 +369,7 @@ func (k *Kraken) GetSpread(symbol string) ([]Spread, error) {
 	var peanutButter []Spread
 	var response interface{}
 
-	path := fmt.Sprintf("%s/%s/public/%s?%s", krakenAPIURL, krakenAPIVersion, krakenSpread, values.Encode())
+	path := fmt.Sprintf("%s/%s/public/%s?%s", k.APIUrl, krakenAPIVersion, krakenSpread, values.Encode())
 
 	err := k.SendHTTPRequest(path, &response)
 	if err != nil {
@@ -836,12 +845,12 @@ func (k *Kraken) SendAuthenticatedHTTPRequest(method string, params url.Values, 
 	signature := common.Base64Encode(common.GetHMAC(common.HashSHA512, append([]byte(path), shasum...), secret))
 
 	if k.Verbose {
-		log.Printf("Sending POST request to %s, path: %s, params: %s", krakenAPIURL, path, encoded)
+		log.Printf("Sending POST request to %s, path: %s, params: %s", k.APIUrl, path, encoded)
 	}
 
 	headers := make(map[string]string)
 	headers["API-Key"] = k.APIKey
 	headers["API-Sign"] = signature
 
-	return k.SendPayload("POST", krakenAPIURL+path, headers, strings.NewReader(encoded), result, true, k.Verbose)
+	return k.SendPayload("POST", k.APIUrl+path, headers, strings.NewReader(encoded), result, true, k.Verbose)
 }

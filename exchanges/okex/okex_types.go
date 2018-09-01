@@ -1,6 +1,9 @@
 package okex
 
-import "github.com/shopspring/decimal"
+import {
+  "github.com/shopspring/decimal"
+  "encoding/json"
+}
 
 // ContractPrice holds date and ticker price price for contracts.
 type ContractPrice struct {
@@ -17,6 +20,33 @@ type ContractPrice struct {
 	} `json:"ticker"`
 	Result bool        `json:"result"`
 	Error  interface{} `json:"error_code"`
+}
+
+type MultiStreamData struct {
+	Channel string          `json:"channel"`
+	Data    json.RawMessage `json:"data"`
+}
+
+type TickerStreamData struct {
+	Buy       string  `json:"buy"`
+	Change    string  `json:"change"`
+	High      string  `json:"high"`
+	Low       string  `json:"low"`
+	Last      string  `json:"last"`
+	Sell      string  `json:"sell"`
+	DayLow    string  `json:"dayLow"`
+	DayHigh   string  `json:"dayHigh"`
+	Timestamp float64 `json:"timestamp"`
+	Vol       string  `json:"vol"`
+}
+
+type DealsStreamData = [][]string
+type KlineStreamData = [][]string
+
+type DepthStreamData struct {
+	Asks      [][]string `json:"asks"`
+	Bids      [][]string `json:"bids"`
+	Timestamp float64    `json:"timestamp"`
 }
 
 // ContractDepth response depth

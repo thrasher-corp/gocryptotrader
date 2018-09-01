@@ -62,7 +62,14 @@ func (l *Liqui) SetDefaults() {
 	l.AssetTypes = []string{ticker.Spot}
 	l.SupportsAutoPairUpdating = true
 	l.SupportsRESTTickerBatching = true
-	l.Requester = request.New(l.Name, request.NewRateLimit(time.Second, liquiAuthRate), request.NewRateLimit(time.Second, liquiUnauthRate), common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
+	l.Requester = request.New(l.Name,
+		request.NewRateLimit(time.Second, liquiAuthRate),
+		request.NewRateLimit(time.Second, liquiUnauthRate),
+		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
+	l.APIUrlDefault = liquiAPIPublicURL
+	l.APIUrl = l.APIUrlDefault
+	l.APIUrlSecondaryDefault = liquiAPIPrivateURL
+	l.APIUrlSecondary = l.APIUrlSecondaryDefault
 }
 
 // Setup sets exchange configuration parameters for liqui
@@ -90,6 +97,10 @@ func (l *Liqui) Setup(exch config.ExchangeConfig) {
 			log.Fatal(err)
 		}
 		err = l.SetAutoPairDefaults()
+		if err != nil {
+			log.Fatal(err)
+		}
+		err = l.SetAPIURL(exch)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -124,7 +135,7 @@ func (l *Liqui) GetAvailablePairs(nonHidden bool) []string {
 // commission for each pair.
 func (l *Liqui) GetInfo() (Info, error) {
 	resp := Info{}
-	req := fmt.Sprintf("%s/%s/%s/", liquiAPIPublicURL, liquiAPIPublicVersion, liquiInfo)
+	req := fmt.Sprintf("%s/%s/%s/", l.APIUrl, liquiAPIPublicVersion, liquiInfo)
 
 	return resp, l.SendHTTPRequest(req, &resp)
 }
@@ -143,7 +154,7 @@ func (l *Liqui) GetTicker(currencyPair string) (map[string]Ticker, error) {
 	}
 
 	response := Response{Data: make(map[string]Ticker)}
-	req := fmt.Sprintf("%s/%s/%s/%s", liquiAPIPublicURL, liquiAPIPublicVersion, liquiTicker, currencyPair)
+	req := fmt.Sprintf("%s/%s/%s/%s", l.APIUrl, liquiAPIPublicVersion, liquiTicker, currencyPair)
 
 	return response.Data, l.SendHTTPRequest(req, &response.Data)
 }
@@ -159,7 +170,7 @@ func (l *Liqui) GetDepth(currencyPair string) (Orderbook, error) {
 	}
 
 	response := Response{Data: make(map[string]Orderbook)}
-	req := fmt.Sprintf("%s/%s/%s/%s", liquiAPIPublicURL, liquiAPIPublicVersion, liquiDepth, currencyPair)
+	req := fmt.Sprintf("%s/%s/%s/%s", l.APIUrl, liquiAPIPublicVersion, liquiDepth, currencyPair)
 
 	return response.Data[currencyPair], l.SendHTTPRequest(req, &response.Data)
 }
@@ -175,7 +186,7 @@ func (l *Liqui) GetTrades(currencyPair string) ([]Trades, error) {
 	}
 
 	response := Response{Data: make(map[string][]Trades)}
-	req := fmt.Sprintf("%s/%s/%s/%s", liquiAPIPublicURL, liquiAPIPublicVersion, liquiTrades, currencyPair)
+	req := fmt.Sprintf("%s/%s/%s/%s", l.APIUrl, liquiAPIPublicVersion, liquiTrades, currencyPair)
 
 	return response.Data[currencyPair], l.SendHTTPRequest(req, &response.Data)
 }
@@ -286,7 +297,8 @@ func (l *Liqui) SendAuthenticatedHTTPRequest(method string, values url.Values, r
 	hmac := common.GetHMAC(common.HashSHA512, []byte(encoded), []byte(l.APISecret))
 
 	if l.Verbose {
-		log.Printf("Sending POST request to %s calling method %s with params %s\n", liquiAPIPrivateURL, method, encoded)
+		log.Printf("Sending POST request to %s calling method %s with params %s\n",
+			l.APIUrlSecondary, method, encoded)
 	}
 
 	headers := make(map[string]string)
@@ -294,5 +306,10 @@ func (l *Liqui) SendAuthenticatedHTTPRequest(method string, values url.Values, r
 	headers["Sign"] = common.HexEncodeToString(hmac)
 	headers["Content-Type"] = "application/x-www-form-urlencoded"
 
-	return l.SendPayload("POST", liquiAPIPrivateURL, headers, strings.NewReader(encoded), result, true, l.Verbose)
+	return l.SendPayload("POST",
+		l.APIUrlSecondary, headers,
+		strings.NewReader(encoded),
+		result,
+		true,
+		l.Verbose)
 }

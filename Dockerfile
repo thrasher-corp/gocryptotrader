@@ -5,8 +5,8 @@ COPY Gopkg.* ./
 RUN dep ensure -vendor-only
 COPY . .
 RUN mv -vn config_example.json config.json \
- && GOARCH=386 GOOS=linux CGO_ENABLED=0 go install -v \
- && mv /go/bin/linux_386 /go/bin/gocryptotrader
+ && GOARCH=386 GOOS=linux CGO_ENABLED=0 go build . \
+ && mv gocryptotrader /go/bin/gocryptotrader
 
 FROM alpine:latest
 RUN apk update && apk add --no-cache ca-certificates

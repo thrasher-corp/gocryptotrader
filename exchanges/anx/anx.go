@@ -59,7 +59,12 @@ func (a *ANX) SetDefaults() {
 	a.AssetTypes = []string{ticker.Spot}
 	a.SupportsAutoPairUpdating = true
 	a.SupportsRESTTickerBatching = false
-	a.Requester = request.New(a.Name, request.NewRateLimit(time.Second, anxAuthRate), request.NewRateLimit(time.Second, anxUnauthRate), common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
+	a.Requester = request.New(a.Name,
+		request.NewRateLimit(time.Second, anxAuthRate),
+		request.NewRateLimit(time.Second, anxUnauthRate),
+		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
+	a.APIUrlDefault = anxAPIURL
+	a.APIUrl = a.APIUrlDefault
 }
 
 //Setup is run on startup to setup exchange with config values
@@ -90,6 +95,10 @@ func (a *ANX) Setup(exch config.ExchangeConfig) {
 		if err != nil {
 			log.Fatal(err)
 		}
+		err = a.SetAPIURL(exch)
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 }
 
@@ -97,7 +106,7 @@ func (a *ANX) Setup(exch config.ExchangeConfig) {
 // and cryptocurrencies)
 func (a *ANX) GetCurrencies() (CurrenciesStore, error) {
 	var result CurrenciesStaticResponse
-	path := fmt.Sprintf("%sapi/3/%s", anxAPIURL, anxCurrencies)
+	path := fmt.Sprintf("%sapi/3/%s", a.APIUrl, anxCurrencies)
 
 	err := a.SendHTTPRequest(path, &result)
 	if err != nil {
@@ -118,7 +127,7 @@ func (a *ANX) GetFee(maker bool) decimal.Decimal {
 // GetTicker returns the current ticker
 func (a *ANX) GetTicker(currency string) (Ticker, error) {
 	var ticker Ticker
-	path := fmt.Sprintf("%sapi/2/%s/%s", anxAPIURL, currency, anxTicker)
+	path := fmt.Sprintf("%sapi/2/%s/%s", a.APIUrl, currency, anxTicker)
 
 	return ticker, a.SendHTTPRequest(path, &ticker)
 }
@@ -126,7 +135,7 @@ func (a *ANX) GetTicker(currency string) (Ticker, error) {
 // GetDepth returns current orderbook depth.
 func (a *ANX) GetDepth(currency string) (Depth, error) {
 	var depth Depth
-	path := fmt.Sprintf("%sapi/2/%s/%s", anxAPIURL, currency, anxDepth)
+	path := fmt.Sprintf("%sapi/2/%s/%s", a.APIUrl, currency, anxDepth)
 
 	return depth, a.SendHTTPRequest(path, &depth)
 }
@@ -392,5 +401,5 @@ func (a *ANX) SendAuthenticatedHTTPRequest(path string, params map[string]interf
 	headers["Rest-Sign"] = common.Base64Encode([]byte(hmac))
 	headers["Content-Type"] = "application/json"
 
-	return a.SendPayload("POST", anxAPIURL+path, headers, bytes.NewBuffer(PayloadJSON), result, true, a.Verbose)
+	return a.SendPayload("POST", a.APIUrl+path, headers, bytes.NewBuffer(PayloadJSON), result, true, a.Verbose)
 }
