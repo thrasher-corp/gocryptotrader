@@ -4,6 +4,7 @@ package binance
 
 import (
 	"encoding/json"
+	"time"
 )
 
 // Response holds basic binance api response data
@@ -413,3 +414,25 @@ var (
 	TimeIntervalWeek           = TimeInterval("1w")
 	TimeIntervalMonth          = TimeInterval("1M")
 )
+
+// Stream represents stream information.
+//
+// Read web docs to get more information about using streams.
+type Stream struct {
+	ListenKey string
+}
+
+type UserDataWebsocketRequest struct {
+	ListenKey string
+}
+
+type WSEvent struct {
+	Type   string
+	Time   time.Time
+	Symbol string
+}
+
+type AccountEvent struct {
+	WSEvent
+	Account
+}

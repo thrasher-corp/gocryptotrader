@@ -40,6 +40,7 @@ const (
 	symbolPrice      = "/api/v3/ticker/price"
 	bestPrice        = "/api/v3/ticker/bookTicker"
 	accountInfo      = "/api/v3/account"
+	userDataStream   = "/api/v1/userDataStream"
 
 	// Authenticated endpoints
 	newOrderTest = "/api/v3/order/test"
@@ -522,6 +523,38 @@ func (b *Binance) QueryOrder(symbol, origClientOrderID string, orderID int64) (Q
 	return resp, nil
 }
 
+// StartUserDataStream Create a listenKey
+// Start a new user data stream. The stream will close after 60 minutes unless a keepalive is sent.
+func (b *Binance) StartUserDataStream() (*Stream, error) {
+
+	path := fmt.Sprintf("%s%s", apiURL, userDataStream)
+	var resp *Stream
+
+	err := b.SendUserDataStreamAuthHTTPRequest("POST", path, url.Values{}, &resp)
+
+	return resp, err
+}
+
+func (b *Binance) KeepAliveUserDataStream(s *Stream) error {
+	urlparams := url.Values{}
+	urlparams.Add("listenKey", s.ListenKey)
+
+	path := fmt.Sprintf("%s%s", apiURL, userDataStream)
+	var resp struct{}
+
+	return b.SendUserDataStreamAuthHTTPRequest("PUT", path, urlparams, &resp)
+}
+
+func (b *Binance) CloseUserDataStream(s *Stream) error {
+	urlparams := url.Values{}
+	urlparams.Add("listenKey", s.ListenKey)
+
+	path := fmt.Sprintf("%s%s", apiURL, userDataStream)
+	var resp struct{}
+
+	return b.SendUserDataStreamAuthHTTPRequest("DELETE", path, urlparams, &resp)
+}
+
 // GetAccount returns binance user accounts
 func (b *Binance) GetAccount() (*Account, error) {
 	type respone struct {
@@ -550,6 +583,36 @@ func (b *Binance) SendHTTPRequest(path string, result interface{}) error {
 	return b.SendPayload("GET", path, nil, nil, result, false, b.Verbose)
 }
 
+// SendUserDataStreamAuthHTTPRequest sends an authenticated HTTP request
+func (b *Binance) SendUserDataStreamAuthHTTPRequest(method, path string, params url.Values, result interface{}) error {
+	if !b.AuthenticatedAPISupport {
+		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet, b.Name)
+	}
+
+	if params == nil {
+		params = url.Values{}
+	}
+
+	// signature := params.Encode()
+	// hmacSigned := common.GetHMAC(common.HashSHA256, []byte(signature), []byte(b.APISecret))
+	// hmacSignedStr := common.HexEncodeToString(hmacSigned)
+	// params.Set("signature", hmacSignedStr)
+
+	headers := make(map[string]string)
+	headers["X-MBX-APIKEY"] = b.APIKey
+	// headers["Content-Type"] = "application/x-www-form-urlencoded"
+	// c, _ := json.Marshal(headers)
+	// fmt.Println("headers", string(c))
+	// c, _ = json.Marshal(params)
+	// fmt.Println("params", string(c))
+	if b.Verbose {
+		log.Printf("sent path: \n%s\n", path)
+	}
+	path = common.EncodeURLValues(path, params)
+
+	return b.SendPayload(method, path, headers, bytes.NewBufferString(""), result, true, b.Verbose)
+}
+
 // SendAuthHTTPRequest sends an authenticated HTTP request
 func (b *Binance) SendAuthHTTPRequest(method, path string, params url.Values, result interface{}) error {
 	if !b.AuthenticatedAPISupport {
@@ -569,11 +632,7 @@ func (b *Binance) SendAuthHTTPRequest(method, path string, params url.Values, re
 
 	headers := make(map[string]string)
 	headers["X-MBX-APIKEY"] = b.APIKey
-	// headers["Content-Type"] = "application/x-www-form-urlencoded"
-	// c, _ := json.Marshal(headers)
-	// fmt.Println("headers", string(c))
-	// c, _ = json.Marshal(params)
-	// fmt.Println("params", string(c))
+
 	if b.Verbose {
 		log.Printf("sent path: \n%s\n", path)
 	}
