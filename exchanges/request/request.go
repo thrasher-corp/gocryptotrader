@@ -270,7 +270,12 @@ func (r *Requester) DoRequest(req *http.Request, method, path string, headers ma
 	// fmt.Println(common.JSONDecode(contents, result))
 
 	if result != nil {
-		return common.JSONDecode(contents, result)
+		err := common.JSONDecode(contents, result)
+		if err != nil {
+			return fmt.Errorf("Err:%s, Content:%s", err.Error(), string(contents))
+		}
+		return nil
+		// return common.JSONDecode(contents, result)
 	}
 
 	return nil

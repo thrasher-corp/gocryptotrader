@@ -1,13 +1,11 @@
 package main
 
 import (
-	"fmt"
 	"time"
 
 	"github.com/idoall/gocryptotrader/communications"
 	"github.com/idoall/gocryptotrader/config"
 	exchange "github.com/idoall/gocryptotrader/exchanges"
-	"github.com/idoall/gocryptotrader/exchanges/binance"
 	"github.com/idoall/gocryptotrader/portfolio"
 )
 
@@ -46,41 +44,39 @@ func getDefaultConfig() config.ExchangeConfig {
 		RESTPollingDelay:        10,
 		HTTPTimeout:             3 * time.Second,
 		AuthenticatedAPISupport: true,
-		APIKey:                  "robcDQaF6FkH4PgWHaf6xqwALjKW4o1RN3uwkUoKg3hGEPPcTfmPrtIndywlCpNs",
-		APISecret:               "VlB6dQrMNAEGegbG7woYoWXvlWPkHqLoXrA7l10wQlnrIYFXWzuPxoUMrP5Hs9FW",
+		APIKey:                  "",
+		APISecret:               "",
 	}
 }
 
 func main() {
-	fmt.Println(time.Now())
-	// exchange := gateio.Gateio{}
-	// exchange := bitfinex.Bitfinex{}
-	// exchange := okex.OKEX{}
-	// exchange := huobi.HUOBI{}
-	// exchange := zb.ZB{}
-	exchange := binance.Binance{}
-	defaultConfig := getDefaultConfig()
-	exchange.SetDefaults()
-	fmt.Println("----------setup-------")
-	exchange.Setup(defaultConfig)
+	// fmt.Println(time.Now())
+	// // exchange := gateio.Gateio{}
+	// // exchange := bitfinex.Bitfinex{}
+	// // exchange := okex.OKEX{}
+	// // exchange := huobi.HUOBI{}
+	// // exchange := zb.ZB{}
+	// exchange := binance.Binance{}
+	// defaultConfig := getDefaultConfig()
+	// exchange.SetDefaults()
+	// fmt.Println("----------setup-------")
+	// exchange.Setup(defaultConfig)
 
-	res, err := exchange.GetAccount()
+	// res, err := exchange.GetExchangeInfo()
 
-	if err != nil {
-		fmt.Println(err)
-	} else {
-		fmt.Printf("%v\n", res)
+	// if err != nil {
+	// 	fmt.Println(err)
+	// } else {
+	// 	// fmt.Printf("%v\n", res)
 
-		for _, v := range res.Balances {
-			fmt.Printf("%+v\n", v)
-		}
-		// for k, v := range list {
-		// 	ot, _ := utils.TimeFromUnixTimestampFloat(v.OpenTime)
-		// 	b, _ := json.Marshal(v)
-		// 	fmt.Println(k, ot.Format("2006-01-02 15:04:05"), utils.UnixMillis(ot), string(b))
-		// }
+	// 	for _, v := range res.Symbols {
+	// 		if v.BaseAsset == "BTC" {
+	// 			b, _ := commonutils.JSONEncode(v)
+	// 			fmt.Printf("%s\n", b)
+	// 		}
+	// 	}
 
-	}
+	// }
 
 	// sh1 := common.GetHMAC(common.MD5New, []byte("accesskey=6d8f62fd-3086-46e3-a0ba-c66a929c24e2&method=getAccountInfo"), []byte(common.Sha1ToHex("48939bbc-8d49-402b-b731-adadf2ea9628")))
 	// fmt.Println(common.HexEncodeToString((sh1)))
