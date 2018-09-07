@@ -280,7 +280,7 @@ type NewOrderResponse struct {
 		Price           float64 `json:"price,string"`
 		Qty             float64 `json:"qty,string"`
 		Commission      float64 `json:"commission,string"`
-		CommissionAsset float64 `json:"commissionAsset,string"`
+		CommissionAsset string  `json:"commissionAsset,string"`
 	} `json:"fills"`
 }
 
