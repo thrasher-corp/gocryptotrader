@@ -71,7 +71,12 @@ func (b *Binance) SetDefaults() {
 	// b.SupportsAutoPairUpdating = true
 	// b.SupportsRESTTickerBatching = true
 	// b.SetValues()
-	b.Requester = request.New(b.Name, request.NewRateLimit(time.Second, binanceAuthRate), request.NewRateLimit(time.Second, binanceUnauthRate), common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
+	b.Requester = request.New(b.Name,
+		request.NewRateLimit(time.Second, binanceAuthRate),
+		request.NewRateLimit(time.Second, binanceUnauthRate),
+		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
+	b.APIUrlDefault = apiURL
+	b.APIUrl = b.APIUrlDefault
 }
 
 // Setup takes in the supplied exchange configuration details and sets params
@@ -104,6 +109,8 @@ func (b *Binance) Setup(exch config.ExchangeConfig) {
 		// if err != nil {
 		// 	log.Fatal(err)
 		// }
+		b.APIUrlDefault = apiURL
+		b.APIUrl = b.APIUrlDefault
 	}
 }
 
