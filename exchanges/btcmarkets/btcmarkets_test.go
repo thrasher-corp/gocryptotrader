@@ -186,16 +186,16 @@ func TestGetExchangeOrderInfo(t *testing.T) {
 	}
 }
 
-func TestWithdrawExchangeCryptoFunds(t *testing.T) {
+func TestWithdrawCryptoExchangeFunds(t *testing.T) {
 	_, err := bm.WithdrawCryptoExchangeFunds("someaddress", "ltc", 0)
 	if err == nil {
 		t.Error("Test failed - WithdrawExchangeFunds() error", err)
 	}
 }
 
-func TestWithdrawExchangeFiatFundsToLocalBank(t *testing.T) {
+func TestWithdrawFiatExchangeFunds(t *testing.T) {
 	_, err := bm.WithdrawFiatExchangeFunds("AUD", 0)
 	if err == nil {
-		t.Error("Test failed - WithdrawExchangeFiatFunds() error", err)
+		t.Error("Test failed - WithdrawFiatExchangeFunds() error", err)
 	}
 }

@@ -24,9 +24,10 @@ const (
 	zbMarkets     = "markets"
 	zbKline       = "kline"
 	zbOrder       = "order"
-	// zbBalances    = "private/balances"
 	zbCancelOrder = "cancelOrder"
 	zbTicker      = "ticker"
+	zbTickers     = "allTicker"
+	zbDepth       = "depth"
 
 	zbAuthRate   = 100
 	zbUnauthRate = 100
@@ -84,19 +85,18 @@ func (h *ZB) Setup(exch config.ExchangeConfig) {
 }
 
 // SpotNewOrder submits an order to ZB
-func (h *ZB) SpotNewOrder(arg SpotNewOrderRequestParams) (int64, error) {
+func (z *ZB) SpotNewOrder(arg SpotNewOrderRequestParams) (int64, error) {
 	var result SpotNewOrderResponse
 
-	//
 	vals := url.Values{}
-	vals.Set("accesskey", h.APIKey)
+	vals.Set("accesskey", z.APIKey)
 	vals.Set("method", "order")
 	vals.Set("amount", strconv.FormatFloat(arg.Amount, 'f', -1, 64))
 	vals.Set("currency", arg.Symbol)
 	vals.Set("price", strconv.FormatFloat(arg.Price, 'f', -1, 64))
 	vals.Set("tradeType", string(arg.Type))
 
-	err := h.SendAuthenticatedHTTPRequest("GET", zbOrder, vals, &result)
+	err := z.SendAuthenticatedHTTPRequest("GET", zbOrder, vals, &result)
 	if err != nil {
 		return 0, err
 	}
@@ -105,28 +105,26 @@ func (h *ZB) SpotNewOrder(arg SpotNewOrderRequestParams) (int64, error) {
 	}
 	newOrderID, err := strconv.ParseInt(result.ID, 10, 64)
 	if err != nil {
-		return 0, errors.Wrap(err, "转换订单ID出错")
+		return 0, err
 	}
 	return newOrderID, nil
 }
 
 // CancelOrder cancels an order on Huobi
-func (h *ZB) CancelOrder(orderID int64) error {
+func (z *ZB) CancelOrder(orderID int64, symbol string) error {
 	type response struct {
-		Code    int    `json:"code"`    //返回代码
-		Message string `json:"message"` //提示信息
+		Code    int    `json:"code"`    // Result code
+		Message string `json:"message"` // Result Message
 	}
 
-	//
 	vals := url.Values{}
-	vals.Set("accesskey", h.APIKey)
+	vals.Set("accesskey", z.APIKey)
 	vals.Set("method", "cancelOrder")
 	vals.Set("id", strconv.FormatInt(orderID, 10))
-	vals.Set("currency", h.GetSymbol())
+	vals.Set("currency", symbol)
 
 	var result response
-
-	err := h.SendAuthenticatedHTTPRequest("GET", zbCancelOrder, vals, &result)
+	err := z.SendAuthenticatedHTTPRequest("GET", zbCancelOrder, vals, &result)
 	if err != nil {
 		return err
 	}
@@ -137,29 +135,29 @@ func (h *ZB) CancelOrder(orderID int64) error {
 	return nil
 }
 
-// GetAccountInfo 获取已开启的市场信息，包括价格、数量小数点位数
-func (h *ZB) GetAccountInfo() (AccountsResponse, error) {
+// GetAccountInfo returns account information including coin information
+// and pricing
+func (z *ZB) GetAccountInfo() (AccountsResponse, error) {
 	var result AccountsResponse
 
-	// var res interface{}
 	vals := url.Values{}
-	vals.Set("accesskey", h.APIKey)
+	vals.Set("accesskey", z.APIKey)
 	vals.Set("method", "getAccountInfo")
 
-	err := h.SendAuthenticatedHTTPRequest("GET", zbAccountInfo, vals, &result)
+	err := z.SendAuthenticatedHTTPRequest("GET", zbAccountInfo, vals, &result)
 	if err != nil {
 		return result, err
 	}
 	return result, nil
 }
 
-// GetMarkets 获取已开启的市场信息，包括价格、数量小数点位数
-func (h *ZB) GetMarkets() (map[string]MarketResponseItem, error) {
-
-	url := fmt.Sprintf("%s/%s/%s", zbTradeURL, zbAPIVersion, zbMarkets)
+// GetMarkets returns market information including pricing, symbols and
+// each symbols decimal precision
+func (z *ZB) GetMarkets() (map[string]MarketResponseItem, error) {
+	url := fmt.Sprintf("%s/%s/%s", z.APIUrl, zbAPIVersion, zbMarkets)
 
 	var res interface{}
-	err := h.SendHTTPRequest(url, &res)
+	err := z.SendHTTPRequest(url, &res)
 	if err != nil {
 		return nil, err
 	}
@@ -180,24 +178,22 @@ func (h *ZB) GetMarkets() (map[string]MarketResponseItem, error) {
 //
 // symbol: string of currency pair
 // 获取最新价格
-func (h *ZB) GetLatestSpotPrice(symbol string) (float64, error) {
-	res, err := h.GetTicker(symbol)
+func (z *ZB) GetLatestSpotPrice(symbol string) (float64, error) {
+	res, err := z.GetTicker(symbol)
 
 	if err != nil {
 		return 0, err
 	}
 
-	return common.FloatFromString(res.Ticket.Last)
+	return res.Ticker.Last, nil
 }
 
-// GetTicker K 线
-func (h *ZB) GetTicker(symbol string) (TicketResponse, error) {
+// GetTicker returns a ticker for a given symbol
+func (z *ZB) GetTicker(symbol string) (TickerResponse, error) {
+	url := fmt.Sprintf("%s/%s/%s?market=%s", z.APIUrl, zbAPIVersion, zbTicker, symbol)
+	var res TickerResponse
 
-	url := fmt.Sprintf("%s/%s/%s?market=%s", zbTradeURL, zbAPIVersion, zbTicker, symbol)
-
-	var res TicketResponse
-
-	err := h.SendHTTPRequest(url, &res)
+	err := z.SendHTTPRequest(url, &res)
 	if err != nil {
 		return res, err
 	}
@@ -205,10 +201,41 @@ func (h *ZB) GetTicker(symbol string) (TicketResponse, error) {
 	return res, nil
 }
 
-// GetSpotKline K 线
-func (h *ZB) GetSpotKline(arg KlinesRequestParams) (KLineResponse, error) {
+// GetTickers returns ticker data for all supported symbols
+func (z *ZB) GetTickers() (map[string]TickerChildResponse, error) {
+	url := fmt.Sprintf("%s/%s/%s", z.APIUrl, zbAPIVersion, zbTickers)
+	resp := make(map[string]TickerChildResponse)
 
-	// var res interface{}
+	err := z.SendHTTPRequest(url, &resp)
+	if err != nil {
+		return resp, err
+	}
+
+	return resp, nil
+}
+
+// GetOrderbook returns the orderbook for a given symbol
+func (z *ZB) GetOrderbook(symbol string) (OrderbookResponse, error) {
+	url := fmt.Sprintf("%s/%s/%s?market=%s", z.APIUrl, zbAPIVersion, zbDepth, symbol)
+	var res OrderbookResponse
+
+	err := z.SendHTTPRequest(url, &res)
+	if err != nil {
+		return res, err
+	}
+
+	// reverse asks data
+	var data [][]float64
+	for x := len(res.Asks) - 1; x != 0; x-- {
+		data = append(data, res.Asks[x])
+	}
+
+	res.Asks = data
+	return res, nil
+}
+
+// GetSpotKline returns Kline data
+func (z *ZB) GetSpotKline(arg KlinesRequestParams) (KLineResponse, error) {
 	vals := url.Values{}
 	vals.Set("type", string(arg.Type))
 	vals.Set("market", arg.Symbol)
@@ -219,34 +246,30 @@ func (h *ZB) GetSpotKline(arg KlinesRequestParams) (KLineResponse, error) {
 		vals.Set("size", fmt.Sprintf("%d", arg.Size))
 	}
 
-	// url := fmt.Sprintf("%s/%s/%s?market=%s", zbTradeURL, zbAPIVersion, zbKline, arg.Symbol)
-	url := fmt.Sprintf("%s/%s/%s?%s", zbTradeURL, zbAPIVersion, zbKline, vals.Encode())
+	url := fmt.Sprintf("%s/%s/%s?%s", z.APIUrl, zbAPIVersion, zbKline, vals.Encode())
 
 	var res KLineResponse
 	var rawKlines map[string]interface{}
-	err := h.SendHTTPRequest(url, &rawKlines)
+	err := z.SendHTTPRequest(url, &rawKlines)
 	if err != nil {
 		return res, err
 	}
 	if rawKlines == nil || rawKlines["symbol"] == nil {
-		return res, errors.Wrap(err, "rawKlines is nil")
+		return res, errors.New("zb GetSpotKline rawKlines is nil")
 	}
 
 	res.Symbol = rawKlines["symbol"].(string)
 	res.MoneyType = rawKlines["moneyType"].(string)
 
-	//对于 Data数据，再次解析
 	rawKlineDatasString, _ := json.Marshal(rawKlines["data"].([]interface{}))
 	rawKlineDatas := [][]interface{}{}
 	if err := json.Unmarshal(rawKlineDatasString, &rawKlineDatas); err != nil {
-		return res, errors.Wrap(err, "rawKlines unmarshal failed")
+		return res, errors.New("zb rawKlines unmarshal failed")
 	}
 	for _, k := range rawKlineDatas {
-		// s := strconv.FormatFloat(k[0].(float64), 'E', -1, 64)
-		//time.Unix(_item.Timestamp, 0).Format("2006-01-02 15:04:05")
 		ot, err := common.TimeFromUnixTimestampFloat(k[0])
 		if err != nil {
-			return res, errors.Wrap(err, "cannot parse Kline.OpenTime")
+			return res, errors.New("zb cannot parse Kline.OpenTime")
 		}
 		res.Data = append(res.Data, &KLineResponseData{
 			ID:        k[0].(float64),
@@ -263,26 +286,37 @@ func (h *ZB) GetSpotKline(arg KlinesRequestParams) (KLineResponse, error) {
 }
 
 // SendHTTPRequest sends an unauthenticated HTTP request
-func (h *ZB) SendHTTPRequest(path string, result interface{}) error {
-	return h.SendPayload("GET", path, nil, nil, result, false, h.Verbose)
+func (z *ZB) SendHTTPRequest(path string, result interface{}) error {
+	return z.SendPayload("GET", path, nil, nil, result, false, z.Verbose)
 }
 
 // SendAuthenticatedHTTPRequest sends authenticated requests to the zb API
-func (h *ZB) SendAuthenticatedHTTPRequest(method, endpoint string, values url.Values, result interface{}) error {
-	if !h.AuthenticatedAPISupport {
-		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet, h.Name)
+func (z *ZB) SendAuthenticatedHTTPRequest(method, endpoint string, values url.Values, result interface{}) error {
+	if !z.AuthenticatedAPISupport {
+		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet, z.Name)
 	}
 
-	headers := make(map[string]string)
-	headers["User-Agent"] = "Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/39.0.2171.71 Safari/537.36"
-
 	mapParams2Sign := url.Values{}
-	mapParams2Sign.Set("accesskey", h.APIKey)
+	mapParams2Sign.Set("accesskey", z.APIKey)
 	mapParams2Sign.Set("method", values.Get("method"))
-	values.Set("sign", common.HexEncodeToString(common.GetHMAC(common.MD5New, []byte(values.Encode()), []byte(common.Sha1ToHex(h.APISecret)))))
+
+	values.Set("sign",
+		common.HexEncodeToString(common.GetHMAC(common.HashMD5,
+			[]byte(values.Encode()),
+			[]byte(common.Sha1ToHex(z.APISecret)))))
+
 	values.Set("reqTime", fmt.Sprintf("%d", time.Now().UnixNano()/1e6))
 
-	url := fmt.Sprintf("%s/%s?%s", zbMarketURL, endpoint, values.Encode())
+	url := fmt.Sprintf("%s/%s?%s",
+		z.APIUrlSecondaryDefault,
+		endpoint,
+		values.Encode())
 
-	return h.SendPayload(method, url, headers, strings.NewReader(""), result, true, h.Verbose)
+	return z.SendPayload(method,
+		url,
+		nil,
+		strings.NewReader(""),
+		result,
+		true,
+		z.Verbose)
 }

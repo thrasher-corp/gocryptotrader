@@ -6,12 +6,12 @@ import (
 	"log"
 	"strconv"
 
-	"github.com/thrasher-/gocryptotrader/common"
-	"github.com/thrasher-/gocryptotrader/communications"
-	"github.com/thrasher-/gocryptotrader/communications/base"
-	"github.com/thrasher-/gocryptotrader/config"
-	"github.com/thrasher-/gocryptotrader/currency/pair"
-	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
+	"github.com/idoall/gocryptotrader/common"
+	"github.com/idoall/gocryptotrader/communications"
+	"github.com/idoall/gocryptotrader/communications/base"
+	"github.com/idoall/gocryptotrader/config"
+	"github.com/idoall/gocryptotrader/currency/pair"
+	"github.com/idoall/gocryptotrader/exchanges/ticker"
 )
 
 const (

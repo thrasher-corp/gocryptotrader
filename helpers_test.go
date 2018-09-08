@@ -145,7 +145,7 @@ func TestIsRelatablePairs(t *testing.T) {
 		t.Fatal("Unexpected result")
 	}
 
-	// Test relationl crypto pairs with diffrent ordering and similar names
+	// Test relationl crypto pairs with different ordering and similar names
 	result = IsRelatablePairs(pair.NewCurrencyPair("LTC", "XBT"), pair.NewCurrencyPair("BTC", "LTC"), false)
 	if !result {
 		t.Fatal("Unexpected result")

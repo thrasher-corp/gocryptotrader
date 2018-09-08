@@ -64,7 +64,12 @@ func (b *BTCMarkets) SetDefaults() {
 	b.AssetTypes = []string{ticker.Spot}
 	b.SupportsAutoPairUpdating = true
 	b.SupportsRESTTickerBatching = false
-	b.Requester = request.New(b.Name, request.NewRateLimit(time.Second*10, btcmarketsAuthLimit), request.NewRateLimit(time.Second*10, btcmarketsUnauthLimit), common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
+	b.Requester = request.New(b.Name,
+		request.NewRateLimit(time.Second*10, btcmarketsAuthLimit),
+		request.NewRateLimit(time.Second*10, btcmarketsUnauthLimit),
+		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
+	b.APIUrlDefault = btcMarketsAPIURL
+	b.APIUrl = b.APIUrlDefault
 }
 
 // Setup takes in an exchange configuration and sets all parameters
@@ -76,6 +81,7 @@ func (b *BTCMarkets) Setup(exch config.ExchangeConfig) {
 		b.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
 		b.SetAPIKeys(exch.APIKey, exch.APISecret, "", true)
 		b.SetHTTPClientTimeout(exch.HTTPTimeout)
+		b.SetHTTPClientUserAgent(exch.HTTPUserAgent)
 		b.RESTPollingDelay = exch.RESTPollingDelay
 		b.Verbose = exch.Verbose
 		b.Websocket = exch.Websocket
@@ -94,6 +100,10 @@ func (b *BTCMarkets) Setup(exch config.ExchangeConfig) {
 		if err != nil {
 			log.Fatal(err)
 		}
+		err = b.SetAPIURL(exch)
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 }
 
@@ -107,7 +117,7 @@ func (b *BTCMarkets) GetFee() float64 {
 func (b *BTCMarkets) GetTicker(firstPair, secondPair string) (Ticker, error) {
 	ticker := Ticker{}
 	path := fmt.Sprintf("%s/market/%s/%s/tick",
-		btcMarketsAPIURL,
+		b.APIUrl,
 		common.StringToUpper(firstPair),
 		common.StringToUpper(secondPair))
 
@@ -119,7 +129,7 @@ func (b *BTCMarkets) GetTicker(firstPair, secondPair string) (Ticker, error) {
 func (b *BTCMarkets) GetOrderbook(firstPair, secondPair string) (Orderbook, error) {
 	orderbook := Orderbook{}
 	path := fmt.Sprintf("%s/market/%s/%s/orderbook",
-		btcMarketsAPIURL,
+		b.APIUrl,
 		common.StringToUpper(firstPair),
 		common.StringToUpper(secondPair))
 
@@ -132,7 +142,7 @@ func (b *BTCMarkets) GetOrderbook(firstPair, secondPair string) (Orderbook, erro
 func (b *BTCMarkets) GetTrades(firstPair, secondPair string, values url.Values) ([]Trade, error) {
 	trades := []Trade{}
 	path := common.EncodeURLValues(fmt.Sprintf("%s/market/%s/%s/trades",
-		btcMarketsAPIURL, common.StringToUpper(firstPair),
+		b.APIUrl, common.StringToUpper(firstPair),
 		common.StringToUpper(secondPair)), values)
 
 	return trades, b.SendHTTPRequest(path, &trades)
@@ -394,7 +404,7 @@ func (b *BTCMarkets) SendAuthenticatedRequest(reqType, path string, data interfa
 	hmac := common.GetHMAC(common.HashSHA512, []byte(request), []byte(b.APISecret))
 
 	if b.Verbose {
-		log.Printf("Sending %s request to URL %s with params %s\n", reqType, btcMarketsAPIURL+path, request)
+		log.Printf("Sending %s request to URL %s with params %s\n", reqType, b.APIUrl+path, request)
 	}
 
 	headers := make(map[string]string)
@@ -405,5 +415,5 @@ func (b *BTCMarkets) SendAuthenticatedRequest(reqType, path string, data interfa
 	headers["timestamp"] = b.Nonce.String()[0:13]
 	headers["signature"] = common.Base64Encode(hmac)
 
-	return b.SendPayload(reqType, btcMarketsAPIURL+path, headers, bytes.NewBuffer(payload), result, true, b.Verbose)
+	return b.SendPayload(reqType, b.APIUrl+path, headers, bytes.NewBuffer(payload), result, true, b.Verbose)
 }

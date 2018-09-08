@@ -242,8 +242,8 @@ func (b *BTCMarkets) WithdrawFiatExchangeFunds(currency pair.CurrencyItem, amoun
 	return b.WithdrawAUD(bd.AccountName, bd.AccountNumber, bd.BankName, bd.BSBNumber, amount)
 }
 
-// WithdrawExchangeFiatFundsToInternationalBank returns a withdrawal ID when a
+// WithdrawFiatExchangeFundsToInternationalBank returns a withdrawal ID when a
 // withdrawal is submitted
-func (b *BTCMarkets) WithdrawExchangeFiatFundsToInternationalBank(currency pair.CurrencyItem, amount float64) (string, error) {
+func (b *BTCMarkets) WithdrawFiatExchangeFundsToInternationalBank(currency pair.CurrencyItem, amount float64) (string, error) {
 	return "", errors.New("not yet implemented")
 }

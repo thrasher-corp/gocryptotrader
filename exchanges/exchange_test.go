@@ -744,3 +744,46 @@ func TestUpdateCurrencies(t *testing.T) {
 		t.Errorf("Test Failed - Forced Exchange UpdateCurrencies() error: %s", err)
 	}
 }
+
+func TestAPIURL(t *testing.T) {
+	testURL := "https://api.something.com"
+	testURLSecondary := "https://api.somethingelse.com"
+	testURLDefault := "https://api.defaultsomething.com"
+	testURLSecondaryDefault := "https://api.defaultsomethingelse.com"
+
+	tester := Base{Name: "test"}
+
+	test := config.ExchangeConfig{}
+
+	err := tester.SetAPIURL(test)
+	if err == nil {
+		t.Error("test failed - setting zero value config")
+	}
+
+	test.APIURL = testURL
+	test.APIURLSecondary = testURLSecondary
+
+	tester.APIUrlDefault = testURLDefault
+	tester.APIUrlSecondaryDefault = testURLSecondaryDefault
+
+	err = tester.SetAPIURL(test)
+	if err != nil {
+		t.Error("test failed", err)
+	}
+
+	if tester.GetAPIURL() != testURL {
+		t.Error("test failed - incorrect return URL")
+	}
+
+	if tester.GetSecondaryAPIURL() != testURLSecondary {
+		t.Error("test failed - incorrect return URL")
+	}
+
+	if tester.GetAPIURLDefault() != testURLDefault {
+		t.Error("test failed - incorrect return URL")
+	}
+
+	if tester.GetAPIURLSecondaryDefault() != testURLSecondaryDefault {
+		t.Error("test failed - incorrect return URL")
+	}
+}

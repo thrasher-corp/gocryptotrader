@@ -189,20 +189,20 @@ func (w *WEX) GetExchangeDepositAddress(cryptocurrency pair.CurrencyItem) (strin
 	return "", errors.New("not yet implemented")
 }
 
-// WithdrawExchangeCryptoFunds returns a withdrawal ID when a withdrawal is
+// WithdrawCryptoExchangeFunds returns a withdrawal ID when a withdrawal is
 // submitted
 func (w *WEX) WithdrawCryptoExchangeFunds(address string, cryptocurrency pair.CurrencyItem, amount float64) (string, error) {
 	return "", errors.New("not yet implemented")
 }
 
-// WithdrawExchangeFiatFundsToLocalBank returns a withdrawal ID when a
+// WithdrawFiatExchangeFunds returns a withdrawal ID when a
 // withdrawal is submitted
 func (w *WEX) WithdrawFiatExchangeFunds(currency pair.CurrencyItem, amount float64) (string, error) {
 	return "", errors.New("not yet implemented")
 }
 
-// WithdrawExchangeFiatFundsToInternationalBank returns a withdrawal ID when a
+// WithdrawFiatExchangeFundsToInternationalBank returns a withdrawal ID when a
 // withdrawal is submitted
-func (w *WEX) WithdrawExchangeFiatFundsToInternationalBank(currency pair.CurrencyItem, amount float64) (string, error) {
+func (w *WEX) WithdrawFiatExchangeFundsToInternationalBank(currency pair.CurrencyItem, amount float64) (string, error) {
 	return "", errors.New("not yet implemented")
 }

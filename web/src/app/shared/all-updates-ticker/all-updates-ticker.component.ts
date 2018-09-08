@@ -9,36 +9,36 @@ import {  ExchangeCurrency, TickerUpdate } from './../../shared/classes/ticker';
   styleUrls: ['./all-updates-ticker.component.scss'],
 })
 export class AllEnabledCurrencyTickersComponent implements OnInit {
-  allCurrencies: ExchangeCurrency[] = < ExchangeCurrency[] > [];;
+  allCurrencies: ExchangeCurrency[] = < ExchangeCurrency[] > [];
   private ws: WebsocketResponseHandlerService;
   tickerCard: TickerUpdate = new TickerUpdate();
 
   constructor(private websocketHandler: WebsocketResponseHandlerService) {
-    this.tickerCard.Exchange = "Loading";
-    this.tickerCard.CurrencyPair = "...";
+    this.tickerCard.Exchange = 'Loading';
+    this.tickerCard.CurrencyPair = '...';
     this.tickerCard.Last = -1;
     this.ws = websocketHandler;
     this.ws.shared.subscribe(msg => {
       if (msg.event === WebSocketMessageType.TickerUpdate) {
-        if (window.localStorage["selectedExchange"] !== undefined &&
-          window.localStorage["selectedCurrency"] !== undefined) {
-          
-          this.tickerCard.Exchange = window.localStorage["selectedExchange"];
-          this.tickerCard.CurrencyPair = window.localStorage["selectedCurrency"];
-            
-          if (msg.exchange == this.tickerCard.Exchange &&
-              this.stripCurrencyCharacters(msg.data.CurrencyPair) ==  this.tickerCard.CurrencyPair) {
-                this.updateTicker(msg)
+        if (window.localStorage['selectedExchange'] !== undefined &&
+          window.localStorage['selectedCurrency'] !== undefined) {
+
+          this.tickerCard.Exchange = window.localStorage['selectedExchange'];
+          this.tickerCard.CurrencyPair = window.localStorage['selectedCurrency'];
+
+          if (msg.exchange === this.tickerCard.Exchange &&
+              this.stripCurrencyCharacters(msg.data.CurrencyPair) ===  this.tickerCard.CurrencyPair) {
+                this.updateTicker(msg);
             }
         } else {
-          this.updateTicker(msg)
+          this.updateTicker(msg);
         }
       }
     });
   }
 
   private updateTicker(msg: any): void {
-    var ticker = <TickerUpdate> msg.data;
+    const ticker = <TickerUpdate> msg.data;
     this.tickerCard = ticker;
     this.tickerCard.Exchange = msg.exchange;
   }

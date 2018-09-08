@@ -3,12 +3,11 @@
     <mat-toolbar color="primary">
         <a (click)="sidebarService.toggle()" class="material-icons">&#xE5D2;</a>
         <a mat-button class="docs-button" style="width:1rem;" routerLink="/" aria-label="Angular Material">
-            <span ><img style="width:100%; vertical-align:middle;" src="assets/images/gctlogo-small-cutoutt.png" /></span>
+            <span><img style="width:100%; vertical-align:middle;" src="assets/images/gctlogo-small-cutoutt.png" /></span>
         </a>
         <app-selected-currency></app-selected-currency>
         <div class="flex-spacer"></div>
-        <theme-picker></theme-picker>
-        &nbsp;
-        &nbsp;
+        <app-theme-picker></app-theme-picker>
+        &nbsp; &nbsp;
     </mat-toolbar>
 </nav>

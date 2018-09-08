@@ -26,6 +26,8 @@ const (
 	gateioBalances    = "private/balances"
 	gateioCancelOrder = "private/cancelOrder"
 	gateioTicker      = "ticker"
+	gateioTickers     = "tickers"
+	gateioOrderbook   = "orderBook"
 
 	gateioAuthRate   = 100
 	gateioUnauthRate = 100
@@ -37,35 +39,35 @@ type Gateio struct {
 }
 
 // SetDefaults sets default values for the exchange
-func (h *Gateio) SetDefaults() {
-	h.Name = "Gateio"
-	h.Enabled = false
-	h.Fee = 0
-	h.Verbose = false
-	h.Websocket = false
-	h.RESTPollingDelay = 10
-	h.RequestCurrencyPairFormat.Delimiter = "_"
-	h.RequestCurrencyPairFormat.Uppercase = true
+func (g *Gateio) SetDefaults() {
+	g.Name = "Gateio"
+	g.Enabled = false
+	g.Fee = 0
+	g.Verbose = false
+	g.Websocket = false
+	g.RESTPollingDelay = 10
+	g.RequestCurrencyPairFormat.Delimiter = "_"
+	g.RequestCurrencyPairFormat.Uppercase = true
 	authRateLimit := request.NewRateLimit(time.Second*10, gateioUnauthRate)
 	authRateLimit.SetRequests(3)
-	h.Requester = request.New(h.Name, request.NewRateLimit(time.Second*10, gateioAuthRate), authRateLimit, common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
+	g.Requester = request.New(g.Name, request.NewRateLimit(time.Second*10, gateioAuthRate), authRateLimit, common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 	// h.Requester = request.New(h.Name, request.NewRateLimit(time.Second*10, gateioAuthRate), request.NewRateLimit(time.Second*10, gateioUnauthRate), common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 }
 
 // Setup sets user configuration
-func (h *Gateio) Setup(exch config.ExchangeConfig) {
+func (g *Gateio) Setup(exch config.ExchangeConfig) {
 	if !exch.Enabled {
-		h.SetEnabled(false)
+		g.SetEnabled(false)
 	} else {
-		h.Enabled = true
-		h.BaseAsset = exch.BaseAsset
-		h.QuoteAsset = exch.QuoteAsset
-		h.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
-		h.SetAPIKeys(exch.APIKey, exch.APISecret, "", false)
-		h.SetHTTPClientTimeout(exch.HTTPTimeout)
-		h.RESTPollingDelay = exch.RESTPollingDelay
-		h.Verbose = exch.Verbose
-		h.Websocket = exch.Websocket
+		g.Enabled = true
+		g.BaseAsset = exch.BaseAsset
+		g.QuoteAsset = exch.QuoteAsset
+		g.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
+		g.SetAPIKeys(exch.APIKey, exch.APISecret, "", false)
+		g.SetHTTPClientTimeout(exch.HTTPTimeout)
+		g.RESTPollingDelay = exch.RESTPollingDelay
+		g.Verbose = exch.Verbose
+		g.Websocket = exch.Websocket
 		// h.BaseCurrencies = common.SplitStrings(exch.BaseCurrencies, ",")
 		// h.AvailablePairs = common.SplitStrings(exch.AvailablePairs, ",")
 		// h.EnabledPairs = common.SplitStrings(exch.EnabledPairs, ",")
@@ -81,12 +83,12 @@ func (h *Gateio) Setup(exch config.ExchangeConfig) {
 }
 
 // GetSymbols 返回所有系统支持的交易对
-func (h *Gateio) GetSymbols() ([]string, error) {
+func (g *Gateio) GetSymbols() ([]string, error) {
 	var result []string
 
 	url := fmt.Sprintf("%s/%s/%s", gateioMarketURL, gateioAPIVersion, gateioSymbol)
 
-	err := h.SendHTTPRequest(url, &result)
+	err := g.SendHTTPRequest(url, &result)
 	if err != nil {
 		return nil, nil
 	}
@@ -94,17 +96,17 @@ func (h *Gateio) GetSymbols() ([]string, error) {
 }
 
 // GetMarketInfo 返回所有系统支持的交易市场的参数信息，包括交易费，最小下单量，价格精度等。
-func (h *Gateio) GetMarketInfo() (MarketInfoResponse, error) {
+func (g *Gateio) GetMarketInfo() (MarketInfoResponse, error) {
 	type response struct {
 		Result string        `json:"result"`
 		Pairs  []interface{} `json:"pairs"`
 	}
 
-	url := fmt.Sprintf("%s/%s/%s", gateioMarketURL, gateioAPIVersion, gateioMarketInfo)
+	url := fmt.Sprintf("%s/%s/%s", g.APIUrlSecondary, gateioAPIVersion, gateioMarketInfo)
 
 	var res response
 	var result MarketInfoResponse
-	err := h.SendHTTPRequest(url, &res)
+	err := g.SendHTTPRequest(url, &res)
 	if err != nil {
 		return result, err
 	}
@@ -126,109 +128,173 @@ func (h *Gateio) GetMarketInfo() (MarketInfoResponse, error) {
 }
 
 // GetLatestSpotPrice returns latest spot price of symbol
+// updated every 10 seconds
 //
 // symbol: string of currency pair
-// 获取最新价格，官方每10秒钟更新一次
-func (h *Gateio) GetLatestSpotPrice(symbol string) (float64, error) {
-	res, err := h.GetTicker(symbol)
+func (g *Gateio) GetLatestSpotPrice(symbol string) (float64, error) {
+	res, err := g.GetTicker(symbol)
 	if err != nil {
 		return 0, err
 	}
-	price, err := strconv.ParseFloat(res.Last, 64)
-	if err != nil {
-		return 0, err
-	}
-	return price, nil
+
+	return res.Last, nil
 }
 
-// GetTicker returns 单项交易行情，官方每10秒钟更新一次
-func (h *Gateio) GetTicker(symbol string) (TickerResponse, error) {
-	url := fmt.Sprintf("%s/%s/%s/%s", gateioMarketURL, gateioAPIVersion, gateioTicker, symbol)
+// GetTicker returns a ticker for the supplied symbol
+// updated every 10 seconds
+func (g *Gateio) GetTicker(symbol string) (TickerResponse, error) {
+	url := fmt.Sprintf("%s/%s/%s/%s", g.APIUrlSecondary, gateioAPIVersion, gateioTicker, symbol)
 
 	var res TickerResponse
-	err := h.SendHTTPRequest(url, &res)
+	err := g.SendHTTPRequest(url, &res)
 	if err != nil {
 		return res, err
 	}
 	return res, nil
 }
 
-// GetSpotKline 返回市场最近时间段内的K先数据
-func (h *Gateio) GetSpotKline(arg KlinesRequestParams) ([]*KLineResponse, error) {
+// GetTickers returns tickers for all symbols
+func (g *Gateio) GetTickers() (map[string]TickerResponse, error) {
+	url := fmt.Sprintf("%s/%s/%s", g.APIUrlSecondary, gateioAPIVersion, gateioTickers)
 
-	url := fmt.Sprintf("%s/%s/%s/%s?group_sec=%d&range_hour=%d", gateioMarketURL, gateioAPIVersion, gateioKline, arg.Symbol, arg.GroupSec, arg.HourSize)
+	resp := make(map[string]TickerResponse)
+	err := g.SendHTTPRequest(url, &resp)
+	if err != nil {
+		return nil, err
+	}
+	return resp, nil
+}
+
+// GetOrderbook returns the orderbook data for a suppled symbol
+func (g *Gateio) GetOrderbook(symbol string) (Orderbook, error) {
+	url := fmt.Sprintf("%s/%s/%s/%s", g.APIUrlSecondary, gateioAPIVersion, gateioOrderbook, symbol)
+
+	var resp OrderbookResponse
+	err := g.SendHTTPRequest(url, &resp)
+	if err != nil {
+		return Orderbook{}, err
+	}
+
+	if resp.Result != "true" {
+		return Orderbook{}, errors.New("result was not true")
+	}
+
+	var ob Orderbook
+
+	// Asks are in reverse order
+	for x := len(resp.Asks) - 1; x != 0; x-- {
+		data := resp.Asks[x]
+
+		price, err := strconv.ParseFloat(data[0], 64)
+		if err != nil {
+			continue
+		}
+
+		amount, err := strconv.ParseFloat(data[1], 64)
+		if err != nil {
+			continue
+		}
+
+		ob.Asks = append(ob.Asks, OrderbookItem{Price: price, Amount: amount})
+	}
+
+	for x := range resp.Bids {
+		data := resp.Bids[x]
+
+		price, err := strconv.ParseFloat(data[0], 64)
+		if err != nil {
+			continue
+		}
+
+		amount, err := strconv.ParseFloat(data[1], 64)
+		if err != nil {
+			continue
+		}
+
+		ob.Bids = append(ob.Bids, OrderbookItem{Price: price, Amount: amount})
+	}
+
+	ob.Result = resp.Result
+	ob.Elapsed = resp.Elapsed
+	return ob, nil
+}
+
+// GetSpotKline returns kline data for the most recent time period
+func (g *Gateio) GetSpotKline(arg KlinesRequestParams) ([]*KLineResponse, error) {
+	url := fmt.Sprintf("%s/%s/%s/%s?group_sec=%d&range_hour=%d",
+		g.APIUrlSecondary,
+		gateioAPIVersion,
+		gateioKline,
+		arg.Symbol,
+		arg.GroupSec,
+		arg.HourSize)
 
 	var rawKlines map[string]interface{}
-	err := h.SendHTTPRequest(url, &rawKlines)
+	err := g.SendHTTPRequest(url, &rawKlines)
 	if err != nil {
 		return nil, err
 	}
 
 	var result []*KLineResponse
-
 	if rawKlines == nil || rawKlines["data"] == nil {
-		return nil, errors.Wrap(err, "rawKlines is nil")
+		return nil, fmt.Errorf("rawKlines is nil. Err: %s", err)
 	}
 
-	//对于 Data数据，再次解析
 	rawKlineDatasString, _ := json.Marshal(rawKlines["data"].([]interface{}))
 	rawKlineDatas := [][]interface{}{}
 	if err := json.Unmarshal(rawKlineDatasString, &rawKlineDatas); err != nil {
-		return nil, errors.Wrap(err, "rawKlineDatas unmarshal failed")
+		return nil, fmt.Errorf("rawKlines unmarshal failed. Err: %s", err)
 	}
+
 	for _, k := range rawKlineDatas {
 		otString, _ := strconv.ParseFloat(k[0].(string), 64)
 		ot, err := common.TimeFromUnixTimestampFloat(otString)
 		if err != nil {
-			return nil, errors.Wrap(err, "cannot parse Kline.OpenTime")
+			return nil, fmt.Errorf("cannot parse Kline.OpenTime. Err: %s", err)
 		}
 		_vol, err := common.FloatFromString(k[1])
 		if err != nil {
-			return nil, errors.Wrap(err, "cannot parse Kline.Volume")
+			return nil, fmt.Errorf("cannot parse Kline.Volume. Err: %s", err)
 		}
 		_id, err := common.FloatFromString(k[0])
 		if err != nil {
-			return nil, errors.Wrap(err, "cannot parse Kline.Id")
+			return nil, fmt.Errorf("cannot parse Kline.Id. Err: %s", err)
 		}
 		_close, err := common.FloatFromString(k[2])
 		if err != nil {
-			return nil, errors.Wrap(err, "cannot parse Kline.Close")
+			return nil, fmt.Errorf("cannot parse Kline.Close. Err: %s", err)
 		}
 		_high, err := common.FloatFromString(k[3])
 		if err != nil {
-			return nil, errors.Wrap(err, "cannot parse Kline.High")
+			return nil, fmt.Errorf("cannot parse Kline.High. Err: %s", err)
 		}
 		_low, err := common.FloatFromString(k[4])
 		if err != nil {
-			return nil, errors.Wrap(err, "cannot parse Kline.Low")
+			return nil, fmt.Errorf("cannot parse Kline.Low. Err: %s", err)
 		}
 		_open, err := common.FloatFromString(k[5])
 		if err != nil {
-			return nil, errors.Wrap(err, "cannot parse Kline.Open")
+			return nil, fmt.Errorf("cannot parse Kline.Open. Err: %s", err)
 		}
 		result = append(result, &KLineResponse{
 			ID:        _id,
 			KlineTime: ot,
-			Volume:    _vol,   //成交量
-			Close:     _close, //收盘价
-			High:      _high,  //最高
-			Low:       _low,   //最低
-			Open:      _open,  //开盘价
+			Volume:    _vol,
+			Close:     _close,
+			High:      _high,
+			Low:       _low,
+			Open:      _open,
 		})
 	}
-
 	return result, nil
 }
 
-// GetBalances 获取帐号资金余额
-// 通过以下API，用户可以使用程序控制自动进行账号资金查询，下单交易，取消挂单。
-// 请注意：请在您的程序中设置的HTTP请求头参数 Content-Type 为 application/x-www-form-urlencoded
-// 用户首先要通过这个链接获取API接口身份认证用到的Key和Secret。 然后在程序中用Secret作为密码，通过SHA512加密方式签名需要POST给服务器的数据得到Sign，并在HTTPS请求的Header部分传回Key和Sign。请参考以下接口说明和例子程序进行设置。
-func (h *Gateio) GetBalances() (BalancesResponse, error) {
+// GetBalances obtains the users account balance
+func (g *Gateio) GetBalances() (BalancesResponse, error) {
 
 	var result BalancesResponse
 
-	err := h.SendAuthenticatedHTTPRequest("POST", gateioBalances, "", &result)
+	err := g.SendAuthenticatedHTTPRequest("POST", gateioBalances, "", &result)
 	if err != nil {
 		return result, err
 	}
@@ -237,19 +303,19 @@ func (h *Gateio) GetBalances() (BalancesResponse, error) {
 }
 
 // SpotNewOrder 下订单
-func (h *Gateio) SpotNewOrder(arg SpotNewOrderRequestParams) (SpotNewOrderResponse, error) {
+func (g *Gateio) SpotNewOrder(arg SpotNewOrderRequestParams) (SpotNewOrderResponse, error) {
 	var result SpotNewOrderResponse
 
 	//获取交易对的价格精度格式
 	params := fmt.Sprintf("currencyPair=%s&rate=%s&amount=%s",
-		h.GetSymbol(),
+		g.GetSymbol(),
 		strconv.FormatFloat(arg.Price, 'f', -1, 64),
 		strconv.FormatFloat(arg.Amount, 'f', -1, 64),
 	)
 
 	strRequestURL := fmt.Sprintf("%s/%s", gateioOrder, arg.Type)
 
-	err := h.SendAuthenticatedHTTPRequest("POST", strRequestURL, params, &result)
+	err := g.SendAuthenticatedHTTPRequest("POST", strRequestURL, params, &result)
 	if err != nil {
 		return result, err
 	}
@@ -260,7 +326,7 @@ func (h *Gateio) SpotNewOrder(arg SpotNewOrderRequestParams) (SpotNewOrderRespon
 // CancelOrder 取消订单
 // @orderID 下单单号
 // @symbol 交易币种对(如 ltc_btc)
-func (h *Gateio) CancelOrder(orderID int64, symbol string) (bool, error) {
+func (g *Gateio) CancelOrder(orderID int64, symbol string) (bool, error) {
 	type response struct {
 		Result  bool   `json:"result"`
 		Code    int    `json:"code"`
@@ -273,7 +339,7 @@ func (h *Gateio) CancelOrder(orderID int64, symbol string) (bool, error) {
 		orderID,
 		symbol,
 	)
-	err := h.SendAuthenticatedHTTPRequest("POST", gateioCancelOrder, params, &result)
+	err := g.SendAuthenticatedHTTPRequest("POST", gateioCancelOrder, params, &result)
 	if err != nil {
 		return false, err
 	}
@@ -285,24 +351,25 @@ func (h *Gateio) CancelOrder(orderID int64, symbol string) (bool, error) {
 }
 
 // SendHTTPRequest sends an unauthenticated HTTP request
-func (h *Gateio) SendHTTPRequest(path string, result interface{}) error {
-	return h.SendPayload("GET", path, nil, nil, result, false, h.Verbose)
+func (g *Gateio) SendHTTPRequest(path string, result interface{}) error {
+	return g.SendPayload("GET", path, nil, nil, result, false, g.Verbose)
 }
 
 // SendAuthenticatedHTTPRequest sends authenticated requests to the Gateio API
-func (h *Gateio) SendAuthenticatedHTTPRequest(method, endpoint, param string, result interface{}) error {
-	if !h.AuthenticatedAPISupport {
-		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet, h.Name)
+// To use this you must setup an APIKey and APISecret from the exchange
+func (g *Gateio) SendAuthenticatedHTTPRequest(method, endpoint, param string, result interface{}) error {
+	if !g.AuthenticatedAPISupport {
+		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet, g.Name)
 	}
 
 	headers := make(map[string]string)
 	headers["Content-Type"] = "application/x-www-form-urlencoded"
-	headers["key"] = h.APIKey
+	headers["key"] = g.APIKey
 
-	hmac := common.GetHMAC(common.HashSHA512, []byte(param), []byte(h.APISecret))
+	hmac := common.GetHMAC(common.HashSHA512, []byte(param), []byte(g.APISecret))
 	headers["sign"] = common.ByteArrayToString(hmac)
 
-	url := fmt.Sprintf("%s/%s/%s", gateioTradeURL, gateioAPIVersion, endpoint)
+	url := fmt.Sprintf("%s/%s/%s", g.APIUrl, gateioAPIVersion, endpoint)
 
-	return h.SendPayload(method, url, headers, strings.NewReader(param), result, true, h.Verbose)
+	return g.SendPayload(method, url, headers, strings.NewReader(param), result, true, g.Verbose)
 }

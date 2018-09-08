@@ -1,0 +1,20 @@
+{{define "tools config" -}}
+{{template "header" .}}
+## Configuration management tool
+
+### Current Features
+
++ The configuration management tool takes in a "configuration".json file and
+writes to an output file while validating the inputting data.
+
+Example usage:
+
+```bash
+cd $GOPATH/src/github.com/thrasher-/gocryptotrader/tools/config/
+go run ./config.go -infile path/of/config.json -outfile path/of/new/config.json -encrypt falseOrTrue -key KEYHERE
+```
+
+### Please click GoDocs chevron above to view current GoDoc information for this package
+{{template "contributions"}}
+{{template "donations"}}
+{{end}}

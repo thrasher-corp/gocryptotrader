@@ -227,20 +227,20 @@ func (a *ANX) GetExchangeDepositAddress(cryptocurrency pair.CurrencyItem) (strin
 	return "", errors.New("not yet implemented")
 }
 
-// WithdrawExchangeCryptoFunds returns a withdrawal ID when a withdrawal is
+// WithdrawCryptoExchangeFunds returns a withdrawal ID when a withdrawal is
 // submitted
 func (a *ANX) WithdrawCryptoExchangeFunds(address string, cryptocurrency pair.CurrencyItem, amount float64) (string, error) {
 	return "", errors.New("not yet implemented")
 }
 
-// WithdrawExchangeFiatFundsToLocalBank returns a withdrawal ID when a withdrawal is
+// WithdrawFiatExchangeFunds returns a withdrawal ID when a withdrawal is
 // submitted
 func (a *ANX) WithdrawFiatExchangeFunds(currency pair.CurrencyItem, amount float64) (string, error) {
 	return "", errors.New("not yet implemented")
 }
 
-// WithdrawExchangeFiatFundsToInternationalBank returns a withdrawal ID when a withdrawal is
+// WithdrawFiatExchangeFundsToInternationalBank returns a withdrawal ID when a withdrawal is
 // submitted
-func (a *ANX) WithdrawExchangeFiatFundsToInternationalBank(currency pair.CurrencyItem, amount float64) (string, error) {
+func (a *ANX) WithdrawFiatExchangeFundsToInternationalBank(currency pair.CurrencyItem, amount float64) (string, error) {
 	return "", errors.New("not yet implemented")
 }

@@ -6,18 +6,18 @@ import (
 
 // Settings enforces standard variables across the provider packages
 type Settings struct {
-	Name             string
-	Enabled          bool
-	Verbose          bool
-	RESTPollingDelay time.Duration
-	APIKey           string
-	APIKeyLvl        int
-	PrimaryProvider  bool
+	Name             string        `json:"name"`
+	Enabled          bool          `json:"enabled"`
+	Verbose          bool          `json:"verbose"`
+	RESTPollingDelay time.Duration `json:"restPollingDelay"`
+	APIKey           string        `json:"apiKey"`
+	APIKeyLvl        int           `json:"apiKeyLvl"`
+	PrimaryProvider  bool          `json:"primaryProvider"`
 }
 
 // Base enforces standard variables across the provider packages
 type Base struct {
-	Settings
+	Settings `json:"settings"`
 }
 
 // GetName returns name of provider

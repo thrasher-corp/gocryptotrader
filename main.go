@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/idoall/gocryptotrader/communications"
@@ -50,7 +51,7 @@ func getDefaultConfig() config.ExchangeConfig {
 }
 
 func main() {
-	// fmt.Println(time.Now())
+	fmt.Println(time.Now())
 	// // exchange := gateio.Gateio{}
 	// // exchange := bitfinex.Bitfinex{}
 	// // exchange := okex.OKEX{}

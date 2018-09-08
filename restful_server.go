@@ -41,11 +41,11 @@ type AllEnabledExchangeAccounts struct {
 	Data []exchange.AccountInfo `json:"data"`
 }
 
-// RESTfulJSONResponse outputs a JSON response of the req interface
-func RESTfulJSONResponse(w http.ResponseWriter, r *http.Request, req interface{}) error {
+// RESTfulJSONResponse outputs a JSON response of the response interface
+func RESTfulJSONResponse(w http.ResponseWriter, r *http.Request, response interface{}) error {
 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 	w.WriteHeader(http.StatusOK)
-	return json.NewEncoder(w).Encode(req)
+	return json.NewEncoder(w).Encode(response)
 }
 
 // RESTfulError prints the REST method and error

@@ -23,23 +23,28 @@ export class WalletComponent implements OnInit {
   };
 
   constructor(private websocketHandler: WebsocketResponseHandlerService) {
-    this.wallet= null;
+    this.wallet = null;
     this.ws = websocketHandler;
     this.ws.shared.subscribe(msg => {
       if (msg.event === WebSocketMessageType.GetPortfolio) {
         this.wallet = <Wallet>msg.data;
-        console.log(msg.data);
-        this.attachIcon(this.wallet.coin_totals);
-        this.attachIcon(this.wallet.coins_offline);
-        this.attachIcon(this.wallet.coins_online);
-        
-        this.attachIcon(this.wallet.offline_summary.BTC);
-        this.attachIcon(this.wallet.offline_summary.ETH);
-        this.attachIcon(this.wallet.offline_summary.LTC);
-        
-        this.attachIcon(this.wallet.online_summary.BTC);
-        this.attachIcon(this.wallet.online_summary.ETH);
-        this.attachIcon(this.wallet.online_summary.LTC);
+        console.log('wallet: ' + msg.data);
+        console.log('message: ' + JSON.stringify(msg));
+        console.log('data: ' +  this.wallet);
+
+        if (this.wallet != null && this.wallet.coin_totals != null) {
+          this.attachIcon(this.wallet.coin_totals);
+          this.attachIcon(this.wallet.coins_offline);
+          this.attachIcon(this.wallet.coins_online);
+
+          this.attachIcon(this.wallet.offline_summary.BTC);
+          this.attachIcon(this.wallet.offline_summary.ETH);
+          this.attachIcon(this.wallet.offline_summary.LTC);
+
+          this.attachIcon(this.wallet.online_summary.BTC);
+          this.attachIcon(this.wallet.online_summary.ETH);
+          this.attachIcon(this.wallet.online_summary.LTC);
+        }
       }
     });
   }
@@ -47,25 +52,25 @@ export class WalletComponent implements OnInit {
   ngOnInit() {
     this.setWallet();
   }
-  
-  private setWallet():void {
+
+  private setWallet(): void {
     this.ws.messages.next(this.getWalletMessage);
   }
 
-  public coinIcon(coin:string) :string {
-    switch(coin) {
-      case "BTC": return "cc BTC";
-      case "LTC": return "cc LTC";
-      case "ETH": return "cc ETH";
+  public coinIcon(coin: string): string {
+    switch (coin) {
+      case 'BTC': return 'cc BTC';
+      case 'LTC': return 'cc LTC';
+      case 'ETH': return 'cc ETH';
     }
   }
 
   public attachIcon(items: CoinTotal[]): void {
     if (items) {
-      for (var i = 0; i < items.length; i++) {
+      for (let i = 0; i < items.length; i++) {
         items[i].icon = this.coinIcon(items[i].coin);
       }
-    }  
+    }
 }
 
 

@@ -10,35 +10,39 @@ const WEBSOCKET_URL = 'ws://localhost:9050/ws';
 @NgModule({
   })
 export class WebsocketResponseHandlerService {
-	public messages: Subject<any>;	
-	public shared: Observable<WebSocketMessage>;
-	public isConnected: boolean = false;
-	private ws: WebsocketService;
+    public messages: Subject<any>;
+    public shared: Observable<WebSocketMessage>;
+    public isConnected = false;
+    private ws: WebsocketService;
 
-	constructor(@Optional() @SkipSelf() parentModule: WebsocketResponseHandlerService, wsService: WebsocketService) {
-		this.ws = wsService;
-		this.messages = <Subject<WebSocketMessage>>this.ws
-			.connect(WEBSOCKET_URL).pipe(
+    constructor(@Optional() @SkipSelf() parentModule: WebsocketResponseHandlerService, wsService: WebsocketService) {
+        this.ws = wsService;
+        this.messages = <Subject<WebSocketMessage>>this.ws
+            .connect(WEBSOCKET_URL).pipe(
 
-			map((response: MessageEvent): WebSocketMessage => {
-				var interval = setInterval(() => {
-					this.isConnected = this.ws.isConnected;
-				}, 2000);
-				let websocketResponseMessage = JSON.parse(response.data);
-				var websocketResponseData = websocketResponseMessage.Data === undefined ? websocketResponseMessage.data : websocketResponseMessage.Data;
-				var websocketResponseEvent = websocketResponseMessage.Event === undefined ? websocketResponseMessage.event : websocketResponseMessage.Event;
-				let responseMessage = new WebSocketMessage();
-				
-				responseMessage.event = websocketResponseEvent;
-				responseMessage.data = websocketResponseData;
-				responseMessage.exchange = websocketResponseMessage.exchange;
-				responseMessage.assetType = websocketResponseMessage.assetType;
-				responseMessage.error = websocketResponseMessage.error;
+            map((response: MessageEvent): WebSocketMessage => {
+                const interval = setInterval(() => {
+                    this.isConnected = this.ws.isConnected;
+                }, 2000);
+                const websocketResponseMessage = JSON.parse(response.data);
+                const websocketResponseData = websocketResponseMessage.Data === undefined
+                    ? websocketResponseMessage.data
+                    : websocketResponseMessage.Data;
+                const websocketResponseEvent = websocketResponseMessage.Event === undefined
+                    ? websocketResponseMessage.event
+                    : websocketResponseMessage.Event;
+                const responseMessage = new WebSocketMessage();
 
-				return responseMessage;
-			}));
-			this.isConnected = this.ws.isConnected;
-			
-		this.shared = this.messages.pipe(share()); //multicast
-	}
+                responseMessage.event = websocketResponseEvent;
+                responseMessage.data = websocketResponseData;
+                responseMessage.exchange = websocketResponseMessage.exchange;
+                responseMessage.assetType = websocketResponseMessage.assetType;
+                responseMessage.error = websocketResponseMessage.error;
+
+                return responseMessage;
+            }));
+            this.isConnected = this.ws.isConnected;
+
+        this.shared = this.messages.pipe(share()); // multicast
+    }
 }

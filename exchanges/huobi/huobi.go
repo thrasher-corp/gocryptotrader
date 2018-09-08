@@ -71,8 +71,12 @@ func (h *HUOBI) SetDefaults() {
 	h.RESTPollingDelay = 10
 	h.RequestCurrencyPairFormat.Uppercase = true
 	h.SupportsRESTTickerBatching = false
-	h.Requester = request.New(h.Name, request.NewRateLimit(time.Second*10, huobiAuthRate), request.NewRateLimit(time.Second*10, huobiUnauthRate), common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
-	h.Requester.SetRateLimit(true, time.Second*10, 3)
+	h.Requester = request.New(h.Name,
+		request.NewRateLimit(time.Second*10, huobiAuthRate),
+		request.NewRateLimit(time.Second*10, huobiUnauthRate),
+		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
+	h.APIUrlDefault = huobiAPIURL
+	h.APIUrl = h.APIUrlDefault
 }
 
 // Setup sets user configuration
@@ -87,6 +91,7 @@ func (h *HUOBI) Setup(exch config.ExchangeConfig) {
 		h.SetAPIKeys(exch.APIKey, exch.APISecret, "", false)
 		h.APIAuthPEMKey = exch.APIAuthPEMKey
 		h.SetHTTPClientTimeout(exch.HTTPTimeout)
+		h.SetHTTPClientUserAgent(exch.HTTPUserAgent)
 		h.RESTPollingDelay = exch.RESTPollingDelay
 		h.Verbose = exch.Verbose
 		h.Websocket = exch.Websocket
@@ -119,8 +124,7 @@ func (h *HUOBI) GetFee() float64 {
 }
 
 // GetSpotKline returns kline data
-// @Description returns kline data
-// @Param	arg		KlinesRequestParams
+// KlinesRequestParams contains symbol, period and size
 func (h *HUOBI) GetSpotKline(arg KlinesRequestParams) ([]KlineItem, error) {
 	vals := url.Values{}
 	vals.Set("symbol", arg.Symbol)
@@ -136,7 +140,7 @@ func (h *HUOBI) GetSpotKline(arg KlinesRequestParams) ([]KlineItem, error) {
 	}
 
 	var result response
-	url := fmt.Sprintf("%s/%s", huobiAPIURL, huobiMarketHistoryKline)
+	url := fmt.Sprintf("%s/%s", h.APIUrl, huobiMarketHistoryKline)
 
 	err := h.SendHTTPRequest(common.EncodeURLValues(url, vals), &result)
 	if result.ErrorMessage != "" {
@@ -156,7 +160,7 @@ func (h *HUOBI) GetMarketDetailMerged(symbol string) (DetailMerged, error) {
 	}
 
 	var result response
-	url := fmt.Sprintf("%s/%s", huobiAPIURL, huobiMarketDetailMerged)
+	url := fmt.Sprintf("%s/%s", h.APIUrl, huobiMarketDetailMerged)
 
 	err := h.SendHTTPRequest(common.EncodeURLValues(url, vals), &result)
 	if result.ErrorMessage != "" {
@@ -180,7 +184,7 @@ func (h *HUOBI) GetDepth(obd OrderBookDataRequestParams) (Orderbook, error) {
 	}
 
 	var result response
-	url := fmt.Sprintf("%s/%s", huobiAPIURL, huobiMarketDepth)
+	url := fmt.Sprintf("%s/%s", h.APIUrl, huobiMarketDepth)
 
 	err := h.SendHTTPRequest(common.EncodeURLValues(url, vals), &result)
 	if result.ErrorMessage != "" {
@@ -202,7 +206,7 @@ func (h *HUOBI) GetTrades(symbol string) ([]Trade, error) {
 	}
 
 	var result response
-	url := fmt.Sprintf("%s/%s", huobiAPIURL, huobiMarketTrade)
+	url := fmt.Sprintf("%s/%s", h.APIUrl, huobiMarketTrade)
 
 	err := h.SendHTTPRequest(common.EncodeURLValues(url, vals), &result)
 	if result.ErrorMessage != "" {
@@ -243,7 +247,7 @@ func (h *HUOBI) GetTradeHistory(symbol, size string) ([]TradeHistory, error) {
 	}
 
 	var result response
-	url := fmt.Sprintf("%s/%s", huobiAPIURL, huobiMarketTradeHistory)
+	url := fmt.Sprintf("%s/%s", h.APIUrl, huobiMarketTradeHistory)
 
 	err := h.SendHTTPRequest(common.EncodeURLValues(url, vals), &result)
 	if result.ErrorMessage != "" {
@@ -263,7 +267,7 @@ func (h *HUOBI) GetMarketDetail(symbol string) (Detail, error) {
 	}
 
 	var result response
-	url := fmt.Sprintf("%s/%s", huobiAPIURL, huobiMarketDetail)
+	url := fmt.Sprintf("%s/%s", h.APIUrl, huobiMarketDetail)
 
 	err := h.SendHTTPRequest(common.EncodeURLValues(url, vals), &result)
 	if result.ErrorMessage != "" {
@@ -280,7 +284,7 @@ func (h *HUOBI) GetSymbols() ([]Symbol, error) {
 	}
 
 	var result response
-	url := fmt.Sprintf("%s/v%s/%s", huobiAPIURL, huobiAPIVersion, huobiSymbols)
+	url := fmt.Sprintf("%s/v%s/%s", h.APIUrl, huobiAPIVersion, huobiSymbols)
 
 	err := h.SendHTTPRequest(url, &result)
 	if result.ErrorMessage != "" {
@@ -297,7 +301,7 @@ func (h *HUOBI) GetCurrencies() ([]string, error) {
 	}
 
 	var result response
-	url := fmt.Sprintf("%s/v%s/%s", huobiAPIURL, huobiAPIVersion, huobiCurrencies)
+	url := fmt.Sprintf("%s/v%s/%s", h.APIUrl, huobiAPIVersion, huobiCurrencies)
 
 	err := h.SendHTTPRequest(url, &result)
 	if result.ErrorMessage != "" {
@@ -314,7 +318,7 @@ func (h *HUOBI) GetTimestamp() (int64, error) {
 	}
 
 	var result response
-	url := fmt.Sprintf("%s/v%s/%s", huobiAPIURL, huobiAPIVersion, huobiTimestamp)
+	url := fmt.Sprintf("%s/v%s/%s", h.APIUrl, huobiAPIVersion, huobiTimestamp)
 
 	err := h.SendHTTPRequest(url, &result)
 	if result.ErrorMessage != "" {
@@ -358,21 +362,21 @@ func (h *HUOBI) GetAccountBalance(accountID string) ([]AccountBalanceDetail, err
 
 // SpotNewOrder submits an order to Huobi
 func (h *HUOBI) SpotNewOrder(arg SpotNewOrderRequestParams) (int64, error) {
-	vals := make(map[string]string)
-	vals["account-id"] = fmt.Sprintf("%d", arg.AccountID)
-	vals["amount"] = strconv.FormatFloat(arg.Amount, 'f', -1, 64)
+	vals := url.Values{}
+	vals.Set("account-id", fmt.Sprintf("%d", arg.AccountID))
+	vals.Set("amount", strconv.FormatFloat(arg.Amount, 'f', -1, 64))
 
 	// Only set price if order type is not equal to buy-market or sell-market
-	if arg.Type != SpotNewOrderRequestTypeBuyMarkdt && arg.Type != SpotNewOrderRequestTypeSellMarkdt {
-		vals["price"] = strconv.FormatFloat(arg.Price, 'f', -1, 64)
+	if arg.Type != SpotNewOrderRequestTypeBuyMarket && arg.Type != SpotNewOrderRequestTypeSellMarket {
+		vals.Set("price", strconv.FormatFloat(arg.Price, 'f', -1, 64))
 	}
 
 	if arg.Source != "" {
-		vals["source"] = arg.Source
+		vals.Set("source", arg.Source)
 	}
 
-	vals["symbol"] = arg.Symbol
-	vals["type"] = string(arg.Type)
+	vals.Set("symbol", arg.Symbol)
+	vals.Set("type", string(arg.Type))
 
 	type response struct {
 		Response
@@ -817,7 +821,7 @@ func (h *HUOBI) SendAuthenticatedHTTPRequest(method, endpoint string, values url
 	privSig = append(privSig, s.Bytes()...)
 	values.Set("PrivateSignature", common.Base64Encode(privSig))
 
-	url := fmt.Sprintf("%s%s", huobiAPIURL, endpoint)
+	url := fmt.Sprintf("%s%s", h.APIUrl, endpoint)
 	url = common.EncodeURLValues(url, values)
 
 	return h.SendPayload(method, url, headers, bytes.NewBufferString(""), result, true, h.Verbose)

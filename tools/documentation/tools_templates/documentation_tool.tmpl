@@ -1,0 +1,23 @@
+{{define "tools documentation" -}}
+{{template "header" .}}
+## Documentation Management Tool
+
+### Current Features
+
++ Retrieves contribution activity via github API
++ Regenerates and updates documentation across the entire code base for each individual package
++ Allows for a documentation standard across this codebase
+
+#### How to example
+
++ This will update the entire codebase when a change is made in the documentation templates
+
+```sh
+cd $GOPATH/src/github.com/thrasher-/gocryptotrader/tools/documentation/
+go run gocryptotrader.go -r
+```
+
+### Please click GoDocs chevron above to view current GoDoc information for this package
+{{template "contributions"}}
+{{template "donations"}}
+{{end}}

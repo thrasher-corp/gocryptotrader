@@ -1,9 +1,140 @@
-# GoCryptoTrader package zb
+# GoCryptoTrader package Zb
+
+<img src="https://github.com/thrasher-/gocryptotrader/blob/master/web/src/assets/page-logo.png?raw=true" width="350px" height="350px" hspace="70">
+
+
+[![Build Status](https://travis-ci.org/thrasher-/gocryptotrader.svg?branch=master)](https://travis-ci.org/thrasher-/gocryptotrader)
+[![Software License](https://img.shields.io/badge/License-MIT-orange.svg?style=flat-square)](https://github.com/thrasher-/gocryptotrader/blob/master/LICENSE)
+[![GoDoc](https://godoc.org/github.com/thrasher-/gocryptotrader?status.svg)](https://godoc.org/github.com/thrasher-/gocryptotrader/exchanges/zb)
+[![Coverage Status](http://codecov.io/github/thrasher-/gocryptotrader/coverage.svg?branch=master)](http://codecov.io/github/thrasher-/gocryptotrader?branch=master)
+[![Go Report Card](https://goreportcard.com/badge/github.com/thrasher-/gocryptotrader)](https://goreportcard.com/report/github.com/thrasher-/gocryptotrader)
+
 
 This zb package is part of the GoCryptoTrader codebase.
 
-## ZB Exchange 
+## This is still in active development
+
+You can track ideas, planned features and what's in progresss on this Trello board: [https://trello.com/b/ZAhMhpOy/gocryptotrader](https://trello.com/b/ZAhMhpOy/gocryptotrader).
+
+Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader Slack](https://gocryptotrader.herokuapp.com/)
+
+## ZB Exchange
 
 ### Current Features
 
-ZB 交易所的支持，支持获取K线、买/卖订单、取消订单
++ REST functions
+
+### How to enable
+
++ [Enable via configuration](https://github.com/thrasher-/gocryptotrader/tree/master/config#enable-exchange-via-config-example)
+
++ Individual package example below:
+
+```go
+  // Exchanges will be abstracted out in further updates and examples will be
+  // supplied then
+```
+
+### How to do REST public/private calls
+
++ If enabled via "configuration".json file the exchange will be added to the
+IBotExchange array in the ```go var bot Bot``` and you will only be able to use
+the wrapper interface functions for accessing exchange data. View routines.go
+for an example of integration usage with GoCryptoTrader. Rudimentary example
+below:
+
+main.go
+```go
+var z exchange.IBotExchange
+
+for i := range bot.exchanges {
+  if bot.exchanges[i].GetName() == "ZB" {
+    z = bot.exchanges[i]
+  }
+}
+
+// Public calls - wrapper functions
+
+// Fetches current ticker information
+tick, err := z.GetTickerPrice()
+if err != nil {
+  // Handle error
+}
+
+// Fetches current orderbook information
+ob, err := z.GetOrderbookEx()
+if err != nil {
+  // Handle error
+}
+
+// Private calls - wrapper functions - make sure your APIKEY and APISECRET are
+// set and AuthenticatedAPISupport is set to true
+
+// Fetches current account information
+accountInfo, err := z.GetExchangeAccountInfo()
+if err != nil {
+  // Handle error
+}
+```
+
++ If enabled via individually importing package, rudimentary example below:
+
+```go
+// Public calls
+
+// Fetches current ticker information
+ticker, err := z.GetTicker()
+if err != nil {
+  // Handle error
+}
+
+// Fetches current orderbook information
+ob, err := z.GetOrderBook()
+if err != nil {
+  // Handle error
+}
+
+// Private calls - make sure your APIKEY and APISECRET are set and
+// AuthenticatedAPISupport is set to true
+
+// GetUserInfo returns account info
+accountInfo, err := z.GetUserInfo(...)
+if err != nil {
+  // Handle error
+}
+
+// Submits an order and the exchange and returns its tradeID
+tradeID, err := z.Trade(...)
+if err != nil {
+  // Handle error
+}
+```
+
+### How to do LongPolling public/private calls
+
+```go
+  // Exchanges will be abstracted out in further updates and examples will be
+  // supplied then
+```
+
+### Please click GoDocs chevron above to view current GoDoc information for this package
+
+## Contribution
+
+Please feel free to submit any pull requests or suggest any desired features to be added.
+
+When submitting a PR, please abide by our coding guidelines:
+
++ Code must adhere to the official Go [formatting](https://golang.org/doc/effective_go.html#formatting) guidelines (i.e. uses [gofmt](https://golang.org/cmd/gofmt/)).
++ Code must be documented adhering to the official Go [commentary](https://golang.org/doc/effective_go.html#commentary) guidelines.
++ Code must adhere to our [coding style](https://github.com/thrasher-/gocryptotrader/blob/master/doc/coding_style.md).
++ Pull requests need to be based on and opened against the `master` branch.
+
+## Donations
+
+<img src="https://github.com/thrasher-/gocryptotrader/blob/master/web/src/assets/donate.png?raw=true" hspace="70">
+
+If this framework helped you in any way, or you would like to support the developers working on it, please donate Bitcoin to:
+
+***1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB***
+

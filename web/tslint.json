@@ -1,7 +1,7 @@
 {
   "rulesDirectory": [
     "node_modules/codelyzer",
-	"node_modules/rxjs-tslint"
+    "node_modules/rxjs-tslint"
   ],
   "rules": {
     "rxjs-collapse-imports": true,
@@ -22,8 +22,7 @@
     "eofline": true,
     "forin": true,
     "import-blacklist": [
-      true,
-      "rxjs/Rx"
+      true
     ],
     "import-spacing": true,
     "indent": [

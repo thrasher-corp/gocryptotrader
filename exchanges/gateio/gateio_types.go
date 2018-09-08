@@ -16,6 +16,7 @@ var (
 // TimeInterval Interval represents interval enum.
 type TimeInterval int
 
+// TimeInterval vars
 var (
 	TimeIntervalMinute         = TimeInterval(60)
 	TimeIntervalThreeMinutes   = TimeInterval(60 * 3)
@@ -79,18 +80,39 @@ type KLineResponse struct {
 	Amount    float64 `db:"amount"`
 }
 
-// TickerResponse  获取单项交易行情有请求返回值
+// TickerResponse  holds the ticker response data
 type TickerResponse struct {
-	Result        string `json:"result"`
-	Volume        string `json:"baseVolume"`    //交易量
-	High          string `json:"high24hr"`      // 24小时最高价
-	Open          string `json:"highestBid"`    // 买方最高价
-	Last          string `json:"last"`          // 最新成交价
-	Low           string `json:"low24hr"`       // 24小时最低价
-	Close         string `json:"lowestAsk"`     // 卖方最低价
-	PercentChange string `json:"percentChange"` // 涨跌百分比
-	QuoteVolume   string `json:"quoteVolume"`   // 兑换货币交易量
+	Result        string  `json:"result"`
+	Volume        float64 `json:"baseVolume,string"`    // Trading volume
+	High          float64 `json:"high24hr,string"`      // 24 hour high price
+	Open          float64 `json:"highestBid,string"`    // Openening price
+	Last          float64 `json:"last,string"`          // Last price
+	Low           float64 `json:"low24hr,string"`       // 24 hour low price
+	Close         float64 `json:"lowestAsk,string"`     // Closing price
+	PercentChange float64 `json:"percentChange,string"` // Percentage change
+	QuoteVolume   float64 `json:"quoteVolume,string"`   // Quote currency volume
+}
 
+// OrderbookResponse stores the orderbook data
+type OrderbookResponse struct {
+	Result  string `json:"result"`
+	Elapsed string `json:"elapsed"`
+	Asks    [][]string
+	Bids    [][]string
+}
+
+// OrderbookItem stores an orderbook item
+type OrderbookItem struct {
+	Price  float64
+	Amount float64
+}
+
+// Orderbook stores the orderbook data
+type Orderbook struct {
+	Result  string
+	Elapsed string
+	Bids    []OrderbookItem
+	Asks    []OrderbookItem
 }
 
 // SpotNewOrderRequestParams 下单买入/卖出请求参数

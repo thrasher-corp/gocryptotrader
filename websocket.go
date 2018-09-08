@@ -26,16 +26,16 @@ type wsCommandHandler struct {
 }
 
 var wsHandlers = map[string]wsCommandHandler{
-	"auth":             wsCommandHandler{authRequired: false, handler: wsAuth},
-	"getconfig":        wsCommandHandler{authRequired: true, handler: wsGetConfig},
-	"saveconfig":       wsCommandHandler{authRequired: true, handler: wsSaveConfig},
-	"getaccountinfo":   wsCommandHandler{authRequired: true, handler: wsGetAccountInfo},
-	"gettickers":       wsCommandHandler{authRequired: false, handler: wsGetTickers},
-	"getticker":        wsCommandHandler{authRequired: false, handler: wsGetTicker},
-	"getorderbooks":    wsCommandHandler{authRequired: false, handler: wsGetOrderbooks},
-	"getorderbook":     wsCommandHandler{authRequired: false, handler: wsGetOrderbook},
-	"getexchangerates": wsCommandHandler{authRequired: false, handler: wsGetExchangeRates},
-	"getportfolio":     wsCommandHandler{authRequired: true, handler: wsGetPortfolio},
+	"auth":             {authRequired: false, handler: wsAuth},
+	"getconfig":        {authRequired: true, handler: wsGetConfig},
+	"saveconfig":       {authRequired: true, handler: wsSaveConfig},
+	"getaccountinfo":   {authRequired: true, handler: wsGetAccountInfo},
+	"gettickers":       {authRequired: false, handler: wsGetTickers},
+	"getticker":        {authRequired: false, handler: wsGetTicker},
+	"getorderbooks":    {authRequired: false, handler: wsGetOrderbooks},
+	"getorderbook":     {authRequired: false, handler: wsGetOrderbook},
+	"getexchangerates": {authRequired: false, handler: wsGetExchangeRates},
+	"getportfolio":     {authRequired: true, handler: wsGetPortfolio},
 }
 
 // WebsocketClient stores information related to the websocket client
@@ -306,21 +306,21 @@ func wsAuth(client *WebsocketClient, data interface{}) error {
 		wsResp.Data = WebsocketResponseSuccess
 		log.Println("websocket: client authenticated successfully")
 		return client.SendWebsocketMessage(wsResp)
-	} else {
-		wsResp.Error = "invalid username/password"
-		client.authFailures++
-		client.SendWebsocketMessage(wsResp)
-		if client.authFailures >= bot.config.Webserver.WebsocketMaxAuthFailures {
-			log.Printf("websocket: disconnecting client, maximum auth failures threshold reached (failures: %d limit: %d)",
-				client.authFailures, bot.config.Webserver.WebsocketMaxAuthFailures)
-			wsHub.Unregister <- client
-			return nil
-		}
+	}
 
-		log.Printf("websocket: client sent wrong username/password (failures: %d limit: %d)",
+	wsResp.Error = "invalid username/password"
+	client.authFailures++
+	client.SendWebsocketMessage(wsResp)
+	if client.authFailures >= bot.config.Webserver.WebsocketMaxAuthFailures {
+		log.Printf("websocket: disconnecting client, maximum auth failures threshold reached (failures: %d limit: %d)",
 			client.authFailures, bot.config.Webserver.WebsocketMaxAuthFailures)
+		wsHub.Unregister <- client
 		return nil
 	}
+
+	log.Printf("websocket: client sent wrong username/password (failures: %d limit: %d)",
+		client.authFailures, bot.config.Webserver.WebsocketMaxAuthFailures)
+	return nil
 }
 
 func wsGetConfig(client *WebsocketClient, data interface{}) error {

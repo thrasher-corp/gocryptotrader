@@ -96,11 +96,13 @@ type RecentTrade struct {
 	IsBestMatch  bool    `json:"isBestMatch"`
 }
 
+// MultiStreamData holds stream data
 type MultiStreamData struct {
 	Stream string          `json:"stream"`
 	Data   json.RawMessage `json:"data"`
 }
 
+// TradeStream holds the trade stream data
 type TradeStream struct {
 	EventType      string `json:"e"`
 	EventTime      int64  `json:"E"`
@@ -115,6 +117,7 @@ type TradeStream struct {
 	BestMatchPrice bool   `json:"M"`
 }
 
+// KlineStream holds the kline stream data
 type KlineStream struct {
 	EventType string `json:"e"`
 	EventTime int64  `json:"E"`
@@ -139,6 +142,7 @@ type KlineStream struct {
 	} `json:"k"`
 }
 
+// TickerStream holds the ticker stream data
 type TickerStream struct {
 	EventType              string `json:"e"`
 	EventTime              int64  `json:"E"`
@@ -398,6 +402,7 @@ type KlinesRequestParams struct {
 // TimeInterval represents interval enum.
 type TimeInterval string
 
+// Vars related to time intervals
 var (
 	TimeIntervalMinute         = TimeInterval("1m")
 	TimeIntervalThreeMinutes   = TimeInterval("3m")

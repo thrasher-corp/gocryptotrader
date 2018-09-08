@@ -48,8 +48,8 @@ npm run start:web
 
 Currently runs with:
 
-- Angular v5.2.5
-- Angular-CLI v1.6.4
+- Angular v6.0.9
+- Angular-CLI v6.0.8
 - Electron v1.8.7
 - Electron Builder v20.0.4
 

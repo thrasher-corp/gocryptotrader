@@ -22,6 +22,7 @@ const (
 	binancePingPeriod          = 20 * time.Second
 )
 
+// WebsocketClient starts and handles the websocket client connection
 func (b *Binance) WebsocketClient() {
 	for b.Enabled && b.Websocket {
 		var Dialer websocket.Dialer

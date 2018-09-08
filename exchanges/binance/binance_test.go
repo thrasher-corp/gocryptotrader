@@ -232,3 +232,29 @@ func TestAllOrders(t *testing.T) {
 
 	}
 }
+
+func TestOpenOrders(t *testing.T) {
+	t.Parallel()
+
+	if testAPIKey == "" || testAPISecret == "" {
+		t.Skip()
+	}
+
+	_, err := b.OpenOrders("BTCUSDT")
+	if err != nil {
+		t.Error("Test Failed - Binance OpenOrders() error", err)
+	}
+}
+
+func TestAllOrders(t *testing.T) {
+	t.Parallel()
+
+	if testAPIKey == "" || testAPISecret == "" {
+		t.Skip()
+	}
+
+	_, err := b.AllOrders("BTCUSDT", "", "")
+	if err != nil {
+		t.Error("Test Failed - Binance AllOrders() error", err)
+	}
+}

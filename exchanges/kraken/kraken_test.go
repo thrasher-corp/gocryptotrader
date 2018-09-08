@@ -47,11 +47,7 @@ func TestGetFee(t *testing.T) {
 
 func TestGetServerTime(t *testing.T) {
 	t.Parallel()
-	_, err := k.GetServerTime(false)
-	if err != nil {
-		t.Error("Test Failed - GetServerTime() error", err)
-	}
-	_, err = k.GetServerTime(true)
+	_, err := k.GetServerTime()
 	if err != nil {
 		t.Error("Test Failed - GetServerTime() error", err)
 	}
@@ -123,7 +119,8 @@ func TestGetBalance(t *testing.T) {
 
 func TestGetTradeBalance(t *testing.T) {
 	t.Parallel()
-	_, err := k.GetTradeBalance("", "")
+	args := TradeBalanceOptions{Asset: "ZEUR"}
+	_, err := k.GetTradeBalance(args)
 	if err == nil {
 		t.Error("Test Failed - GetTradeBalance() error", err)
 	}
@@ -131,7 +128,8 @@ func TestGetTradeBalance(t *testing.T) {
 
 func TestGetOpenOrders(t *testing.T) {
 	t.Parallel()
-	_, err := k.GetOpenOrders(true, 0)
+	args := OrderInfoOptions{Trades: true}
+	_, err := k.GetOpenOrders(args)
 	if err == nil {
 		t.Error("Test Failed - GetOpenOrders() error", err)
 	}
@@ -139,7 +137,8 @@ func TestGetOpenOrders(t *testing.T) {
 
 func TestGetClosedOrders(t *testing.T) {
 	t.Parallel()
-	_, err := k.GetClosedOrders(true, 0, 0, 0, 0, "")
+	args := GetClosedOrdersOptions{Trades: true, Start: "OE4KV4-4FVQ5-V7XGPU"}
+	_, err := k.GetClosedOrders(args)
 	if err == nil {
 		t.Error("Test Failed - GetClosedOrders() error", err)
 	}
@@ -147,7 +146,8 @@ func TestGetClosedOrders(t *testing.T) {
 
 func TestQueryOrdersInfo(t *testing.T) {
 	t.Parallel()
-	_, err := k.QueryOrdersInfo(false, 0, 0)
+	args := OrderInfoOptions{Trades: true}
+	_, err := k.QueryOrdersInfo(args, "OR6ZFV-AA6TT-CKFFIW", "OAMUAJ-HLVKG-D3QJ5F")
 	if err == nil {
 		t.Error("Test Failed - QueryOrdersInfo() error", err)
 	}
@@ -155,7 +155,8 @@ func TestQueryOrdersInfo(t *testing.T) {
 
 func TestGetTradesHistory(t *testing.T) {
 	t.Parallel()
-	_, err := k.GetTradesHistory("", false, 0, 0, 0)
+	args := GetTradesHistoryOptions{Trades: true, Start: "TMZEDR-VBJN2-NGY6DX", End: "TVRXG2-R62VE-RWP3UW"}
+	_, err := k.GetTradesHistory(args)
 	if err == nil {
 		t.Error("Test Failed - GetTradesHistory() error", err)
 	}
@@ -163,7 +164,7 @@ func TestGetTradesHistory(t *testing.T) {
 
 func TestQueryTrades(t *testing.T) {
 	t.Parallel()
-	_, err := k.QueryTrades(0, false)
+	_, err := k.QueryTrades(true, "TMZEDR-VBJN2-NGY6DX", "TFLWIB-KTT7L-4TWR3L", "TDVRAH-2H6OS-SLSXRX")
 	if err == nil {
 		t.Error("Test Failed - QueryTrades() error", err)
 	}
@@ -171,7 +172,7 @@ func TestQueryTrades(t *testing.T) {
 
 func TestOpenPositions(t *testing.T) {
 	t.Parallel()
-	_, err := k.OpenPositions(0, false)
+	_, err := k.OpenPositions(false)
 	if err == nil {
 		t.Error("Test Failed - OpenPositions() error", err)
 	}
@@ -179,7 +180,8 @@ func TestOpenPositions(t *testing.T) {
 
 func TestGetLedgers(t *testing.T) {
 	t.Parallel()
-	_, err := k.GetLedgers("bla", "bla", "bla", 0, 0, 0)
+	args := GetLedgersOptions{Start: "LRUHXI-IWECY-K4JYGO", End: "L5NIY7-JZQJD-3J4M2V", Ofs: 15}
+	_, err := k.GetLedgers(args)
 	if err == nil {
 		t.Error("Test Failed - GetLedgers() error", err)
 	}
@@ -187,7 +189,7 @@ func TestGetLedgers(t *testing.T) {
 
 func TestQueryLedgers(t *testing.T) {
 	t.Parallel()
-	_, err := k.QueryLedgers("1337")
+	_, err := k.QueryLedgers("LVTSFS-NHZVM-EXNZ5M")
 	if err == nil {
 		t.Error("Test Failed - QueryLedgers() error", err)
 	}
@@ -195,7 +197,7 @@ func TestQueryLedgers(t *testing.T) {
 
 func TestGetTradeVolume(t *testing.T) {
 	t.Parallel()
-	_, err := k.GetTradeVolume("BCHEUR")
+	_, err := k.GetTradeVolume(true, "OAVY7T-MV5VK-KHDF5X")
 	if err == nil {
 		t.Error("Test Failed - GetTradeVolume() error", err)
 	}
@@ -203,7 +205,8 @@ func TestGetTradeVolume(t *testing.T) {
 
 func TestAddOrder(t *testing.T) {
 	t.Parallel()
-	_, err := k.AddOrder("bla", "bla", "bla", 0, 0, 0, 0, 0)
+	args := AddOrderOptions{Oflags: "fcib"}
+	_, err := k.AddOrder("XXBTZUSD", "sell", "market", 0.00000001, 0, 0, 0, args)
 	if err == nil {
 		t.Error("Test Failed - AddOrder() error", err)
 	}
@@ -211,7 +214,7 @@ func TestAddOrder(t *testing.T) {
 
 func TestCancelOrder(t *testing.T) {
 	t.Parallel()
-	_, err := k.CancelOrder(1337)
+	_, err := k.CancelOrder("OAVY7T-MV5VK-KHDF5X")
 	if err == nil {
 		t.Error("Test Failed - CancelOrder() error", err)
 	}

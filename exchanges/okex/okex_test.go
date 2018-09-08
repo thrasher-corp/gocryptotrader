@@ -134,15 +134,15 @@ func TestGetContractCandlestickData(t *testing.T) {
 
 func TestGetContractHoldingsNumber(t *testing.T) {
 	t.Parallel()
-	_, err := o.GetContractHoldingsNumber("btc_usd", "this_week")
+	_, _, err := o.GetContractHoldingsNumber("btc_usd", "this_week")
 	if err != nil {
 		t.Error("Test failed - okex GetContractHoldingsNumber() error", err)
 	}
-	_, err = o.GetContractHoldingsNumber("btc_bla", "this_week")
+	_, _, err = o.GetContractHoldingsNumber("btc_bla", "this_week")
 	if err == nil {
 		t.Error("Test failed - okex GetContractHoldingsNumber() error", err)
 	}
-	_, err = o.GetContractHoldingsNumber("btc_usd", "this_bla")
+	_, _, err = o.GetContractHoldingsNumber("btc_usd", "this_bla")
 	if err == nil {
 		t.Error("Test failed - okex GetContractHoldingsNumber() error", err)
 	}
@@ -290,5 +290,49 @@ func TestGetUserInfo(t *testing.T) {
 		for k, v := range userInfo.Info["funds"]["freezed"] {
 			t.Log(k, v)
 		}
+	}
+}
+
+func TestSpotNewOrder(t *testing.T) {
+	t.Parallel()
+
+	if o.APIKey == "" || o.APISecret == "" {
+		t.Skip()
+	}
+
+	_, err := o.SpotNewOrder(SpotNewOrderRequestParams{
+		Symbol: "ltc_btc",
+		Amount: 1.1,
+		Price:  10.1,
+		Type:   SpotNewOrderRequestTypeBuy,
+	})
+	if err != nil {
+		t.Error("Test failed - okex SpotNewOrder() error", err)
+	}
+}
+
+func TestSpotCancelOrder(t *testing.T) {
+	t.Parallel()
+
+	if o.APIKey == "" || o.APISecret == "" {
+		t.Skip()
+	}
+
+	_, err := o.SpotCancelOrder("ltc_btc", 519158961)
+	if err != nil {
+		t.Error("Test failed - okex SpotCancelOrder() error", err)
+	}
+}
+
+func TestGetUserInfo(t *testing.T) {
+	t.Parallel()
+
+	if o.APIKey == "" || o.APISecret == "" {
+		t.Skip()
+	}
+
+	_, err := o.GetUserInfo()
+	if err != nil {
+		t.Error("Test failed - okex GetUserInfo() error", err)
 	}
 }

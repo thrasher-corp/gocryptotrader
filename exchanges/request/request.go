@@ -25,6 +25,7 @@ type Requester struct {
 	UnauthLimit   *RateLimit
 	AuthLimit     *RateLimit
 	Name          string
+	UserAgent     string
 	Cycle         time.Time
 	m             sync.Mutex
 	Jobs          chan Job
@@ -230,6 +231,10 @@ func (r *Requester) checkRequest(method, path string, body io.Reader, headers ma
 
 	for k, v := range headers {
 		req.Header.Add(k, v)
+	}
+
+	if r.UserAgent != "" && req.Header.Get("User-Agent") == "" {
+		req.Header.Add("User-Agent", r.UserAgent)
 	}
 
 	return req, nil

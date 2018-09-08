@@ -1,0 +1,18 @@
+{{define "tools portfolio" -}}
+{{template "header" .}}
+## Portfolio Retrievement Tool
+
+### Current Features
+
++ Fetches portfolio details
+
+Example:
+```bash
+cd $GOPATH/src/github.com/thrasher-/gocryptotrader/tools/portfolio/
+go run portfolio.go -infile path/to/config.json -key AESDecryptionKey
+```
+
+### Please click GoDocs chevron above to view current GoDoc information for this package
+{{template "contributions"}}
+{{template "donations"}}
+{{end}}

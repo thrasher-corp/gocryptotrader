@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"net/url"
 	"strconv"
 	"time"
@@ -13,6 +14,7 @@ import (
 	"github.com/idoall/gocryptotrader/config"
 	"github.com/idoall/gocryptotrader/exchanges"
 	"github.com/idoall/gocryptotrader/exchanges/request"
+	"github.com/idoall/gocryptotrader/exchanges/ticker"
 )
 
 const (
@@ -63,8 +65,19 @@ func (h *HUOBIHADAX) SetDefaults() {
 	h.Verbose = false
 	h.Websocket = false
 	h.RESTPollingDelay = 10
+	h.RequestCurrencyPairFormat.Delimiter = ""
 	h.RequestCurrencyPairFormat.Uppercase = false
-	h.Requester = request.New(h.Name, request.NewRateLimit(time.Second*10, huobihadaxAuthRate), request.NewRateLimit(time.Second*10, huobihadaxUnauthRate), common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
+	h.ConfigCurrencyPairFormat.Delimiter = "-"
+	h.ConfigCurrencyPairFormat.Uppercase = true
+	h.AssetTypes = []string{ticker.Spot}
+	h.SupportsAutoPairUpdating = true
+	h.SupportsRESTTickerBatching = false
+	h.Requester = request.New(h.Name,
+		request.NewRateLimit(time.Second*10, huobihadaxAuthRate),
+		request.NewRateLimit(time.Second*10, huobihadaxUnauthRate),
+		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
+	h.APIUrlDefault = huobihadaxAPIURL
+	h.APIUrl = h.APIUrlDefault
 }
 
 // Setup sets user configuration
@@ -73,47 +86,33 @@ func (h *HUOBIHADAX) Setup(exch config.ExchangeConfig) {
 		h.SetEnabled(false)
 	} else {
 		h.Enabled = true
-		h.BaseAsset = exch.BaseAsset
-		h.QuoteAsset = exch.QuoteAsset
 		h.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
 		h.SetAPIKeys(exch.APIKey, exch.APISecret, "", false)
+		h.APIAuthPEMKey = exch.APIAuthPEMKey
 		h.SetHTTPClientTimeout(exch.HTTPTimeout)
+		h.SetHTTPClientUserAgent(exch.HTTPUserAgent)
 		h.RESTPollingDelay = exch.RESTPollingDelay
 		h.Verbose = exch.Verbose
 		h.Websocket = exch.Websocket
-		// h.BaseCurrencies = common.SplitStrings(exch.BaseCurrencies, ",")
-		// h.AvailablePairs = common.SplitStrings(exch.AvailablePairs, ",")
-		// h.EnabledPairs = common.SplitStrings(exch.EnabledPairs, ",")
-
-		// h.RequestCurrencyPairFormat = config.CurrencyPairFormatConfig{
-		// 	Delimiter: exch.RequestCurrencyPairFormat.Delimiter,
-		// 	Uppercase: exch.RequestCurrencyPairFormat.Uppercase,
-		// 	Separator: exch.RequestCurrencyPairFormat.Separator,
-		// 	Index:     exch.RequestCurrencyPairFormat.Index,
-		// }
-
-		// h.ConfigCurrencyPairFormat = config.CurrencyPairFormatConfig{
-		// 	Delimiter: exch.ConfigCurrencyPairFormat.Delimiter,
-		// 	Uppercase: exch.ConfigCurrencyPairFormat.Uppercase,
-		// 	Separator: exch.ConfigCurrencyPairFormat.Separator,
-		// 	Index:     exch.ConfigCurrencyPairFormat.Index,
-		// }
-		// err := h.SetCurrencyPairFormat()
-		// if err != nil {
-		// 	log.Fatal(err)
-		// }
-
-		// h.AssetTypes = strings.Split(exch.AssetTypes, ",")
-		// // err = h.SetAssetTypes()
-		// // if err != nil {
-		// // 	log.Fatal(err)
-		// // }
-
-		// h.SupportsAutoPairUpdating = false
-		// err = h.SetAutoPairDefaults()
-		// if err != nil {
-		// 	log.Fatal(err)
-		// }
+		h.BaseCurrencies = common.SplitStrings(exch.BaseCurrencies, ",")
+		h.AvailablePairs = common.SplitStrings(exch.AvailablePairs, ",")
+		h.EnabledPairs = common.SplitStrings(exch.EnabledPairs, ",")
+		err := h.SetCurrencyPairFormat()
+		if err != nil {
+			log.Fatal(err)
+		}
+		err = h.SetAssetTypes()
+		if err != nil {
+			log.Fatal(err)
+		}
+		err = h.SetAutoPairDefaults()
+		if err != nil {
+			log.Fatal(err)
+		}
+		err = h.SetAPIURL(exch)
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 }
 
@@ -123,8 +122,7 @@ func (h *HUOBIHADAX) GetFee() float64 {
 }
 
 // GetSpotKline returns kline data
-// @Description returns kline data
-// @Param	arg		KlinesRequestParams
+// KlinesRequestParams holds the Kline request params
 func (h *HUOBIHADAX) GetSpotKline(arg KlinesRequestParams) ([]KlineItem, error) {
 	vals := url.Values{}
 	vals.Set("symbol", arg.Symbol)
@@ -140,7 +138,7 @@ func (h *HUOBIHADAX) GetSpotKline(arg KlinesRequestParams) ([]KlineItem, error) 
 	}
 
 	var result response
-	url := fmt.Sprintf("%s/%s", huobihadaxAPIURL, huobihadaxMarketHistoryKline)
+	url := fmt.Sprintf("%s/%s", h.APIUrl, huobihadaxMarketHistoryKline)
 
 	err := h.SendHTTPRequest(common.EncodeURLValues(url, vals), &result)
 	if result.ErrorMessage != "" {
@@ -160,7 +158,7 @@ func (h *HUOBIHADAX) GetMarketDetailMerged(symbol string) (DetailMerged, error) 
 	}
 
 	var result response
-	url := fmt.Sprintf("%s/%s", huobihadaxAPIURL, huobihadaxMarketDetailMerged)
+	url := fmt.Sprintf("%s/%s", h.APIUrl, huobihadaxMarketDetailMerged)
 
 	err := h.SendHTTPRequest(common.EncodeURLValues(url, vals), &result)
 	if result.ErrorMessage != "" {
@@ -184,7 +182,7 @@ func (h *HUOBIHADAX) GetDepth(symbol, depthType string) (Orderbook, error) {
 	}
 
 	var result response
-	url := fmt.Sprintf("%s/%s", huobihadaxAPIURL, huobihadaxMarketDepth)
+	url := fmt.Sprintf("%s/%s", h.APIUrl, huobihadaxMarketDepth)
 
 	err := h.SendHTTPRequest(common.EncodeURLValues(url, vals), &result)
 	if result.ErrorMessage != "" {
@@ -206,7 +204,7 @@ func (h *HUOBIHADAX) GetTrades(symbol string) ([]Trade, error) {
 	}
 
 	var result response
-	url := fmt.Sprintf("%s/%s", huobihadaxAPIURL, huobihadaxMarketTrade)
+	url := fmt.Sprintf("%s/%s", h.APIUrl, huobihadaxMarketTrade)
 
 	err := h.SendHTTPRequest(common.EncodeURLValues(url, vals), &result)
 	if result.ErrorMessage != "" {
@@ -218,7 +216,6 @@ func (h *HUOBIHADAX) GetTrades(symbol string) ([]Trade, error) {
 // GetLatestSpotPrice returns latest spot price of symbol
 //
 // symbol: string of currency pair
-// 获取最新价格
 func (h *HUOBIHADAX) GetLatestSpotPrice(symbol string) (float64, error) {
 	list, err := h.GetTradeHistory(symbol, "1")
 
@@ -247,7 +244,7 @@ func (h *HUOBIHADAX) GetTradeHistory(symbol, size string) ([]TradeHistory, error
 	}
 
 	var result response
-	url := fmt.Sprintf("%s/%s", huobihadaxAPIURL, huobihadaxMarketTradeHistory)
+	url := fmt.Sprintf("%s/%s", h.APIUrl, huobihadaxMarketTradeHistory)
 
 	err := h.SendHTTPRequest(common.EncodeURLValues(url, vals), &result)
 	if result.ErrorMessage != "" {
@@ -267,7 +264,7 @@ func (h *HUOBIHADAX) GetMarketDetail(symbol string) (Detail, error) {
 	}
 
 	var result response
-	url := fmt.Sprintf("%s/%s", huobihadaxAPIURL, huobihadaxMarketDetail)
+	url := fmt.Sprintf("%s/%s", h.APIUrl, huobihadaxMarketDetail)
 
 	err := h.SendHTTPRequest(common.EncodeURLValues(url, vals), &result)
 	if result.ErrorMessage != "" {
@@ -284,7 +281,7 @@ func (h *HUOBIHADAX) GetSymbols() ([]Symbol, error) {
 	}
 
 	var result response
-	url := fmt.Sprintf("%s/v%s/%s", huobihadaxAPIURL, huobihadaxAPIVersion, huobihadaxSymbols)
+	url := fmt.Sprintf("%s/v%s/%s", h.APIUrl, huobihadaxAPIVersion, huobihadaxSymbols)
 
 	err := h.SendHTTPRequest(url, &result)
 	if result.ErrorMessage != "" {
@@ -301,7 +298,7 @@ func (h *HUOBIHADAX) GetCurrencies() ([]string, error) {
 	}
 
 	var result response
-	url := fmt.Sprintf("%s/v%s/%s", huobihadaxAPIURL, huobihadaxAPIVersion, huobihadaxCurrencies)
+	url := fmt.Sprintf("%s/v%s/%s", h.APIUrl, huobihadaxAPIVersion, huobihadaxCurrencies)
 
 	err := h.SendHTTPRequest(url, &result)
 	if result.ErrorMessage != "" {
@@ -318,7 +315,7 @@ func (h *HUOBIHADAX) GetTimestamp() (int64, error) {
 	}
 
 	var result response
-	url := fmt.Sprintf("%s/v%s/%s", huobihadaxAPIURL, huobihadaxAPIVersion, huobihadaxTimestamp)
+	url := fmt.Sprintf("%s/v%s/%s", h.APIUrl, huobihadaxAPIVersion, huobihadaxTimestamp)
 
 	err := h.SendHTTPRequest(url, &result)
 	if result.ErrorMessage != "" {
@@ -367,7 +364,7 @@ func (h *HUOBIHADAX) SpotNewOrder(arg SpotNewOrderRequestParams) (int64, error) 
 	vals["amount"] = strconv.FormatFloat(arg.Amount, 'f', -1, 64)
 
 	// Only set price if order type is not equal to buy-market or sell-market
-	if arg.Type != SpotNewOrderRequestTypeBuyMarkdt && arg.Type != SpotNewOrderRequestTypeSellMarkdt {
+	if arg.Type != SpotNewOrderRequestTypeBuyMarket && arg.Type != SpotNewOrderRequestTypeSellMarket {
 		vals["price"] = strconv.FormatFloat(arg.Price, 'f', -1, 64)
 	}
 
@@ -383,8 +380,8 @@ func (h *HUOBIHADAX) SpotNewOrder(arg SpotNewOrderRequestParams) (int64, error) 
 		OrderID int64 `json:"data,string"`
 	}
 
-	//API 中指出对于POST请求，每个方法自带的参数不进行签名认证，即POST请求中需要进行签名运算的只有AccessKeyId、SignatureMethod、SignatureVersion、Timestamp四个参数，其它参数放在body中。
-	//所以对 Post 参数重新进行编码
+	// The API indicates that for the POST request, the parameters of each method are not signed and authenticated. That is, only the AccessKeyId, SignatureMethod, SignatureVersion, and Timestamp parameters are required for the POST request. The other parameters are placed in the body.
+	// So re-encode the Post parameter
 	bytesParams, _ := json.Marshal(vals)
 	postBodyParams := string(bytesParams)
 	if h.Verbose {
@@ -424,21 +421,20 @@ func (h *HUOBIHADAX) CancelOrderBatch(orderIDs []int64) (CancelOrderBatch, error
 		Data   CancelOrderBatch `json:"data"`
 	}
 
-	//用于发送参数格式化的
+	// Used to send param formatting
 	type postBody struct {
 		List []int64 `json:"order-ids"`
 	}
 
-	//格式化成 json 格式
-	bytesParams, _ := json.Marshal(&postBody{List: orderIDs})
+	// Format to JSON
+	bytesParams, _ := common.JSONEncode(&postBody{List: orderIDs})
 	postBodyParams := string(bytesParams)
 
-	// fmt.Println(postBodyParams)
 	var result response
 	err := h.SendAuthenticatedHTTPPostRequest("POST", huobihadaxOrderCancelBatch, postBodyParams, &result)
 
 	if len(result.Data.Failed) != 0 {
-		errJSON, _ := json.Marshal(result.Data.Failed)
+		errJSON, _ := common.JSONEncode(result.Data.Failed)
 		return CancelOrderBatch{}, errors.New(string(errJSON))
 	}
 	return result.Data, err
@@ -461,7 +457,7 @@ func (h *HUOBIHADAX) GetOrder(orderID int64) (OrderInfo, error) {
 	return result.Order, err
 }
 
-// GetOrderMatchResults returns matched order info for the specified order查询某个订单的成交明细
+// GetOrderMatchResults returns matched order info for the specified order
 func (h *HUOBIHADAX) GetOrderMatchResults(orderID int64) ([]OrderMatchInfo, error) {
 	type response struct {
 		Response
@@ -478,7 +474,7 @@ func (h *HUOBIHADAX) GetOrderMatchResults(orderID int64) ([]OrderMatchInfo, erro
 	return result.Orders, err
 }
 
-// GetOrders returns a list of orders查询当前委托、历史委托
+// GetOrders returns a list of orders
 func (h *HUOBIHADAX) GetOrders(symbol, types, start, end, states, from, direct, size string) ([]OrderInfo, error) {
 	type response struct {
 		Response
@@ -566,7 +562,6 @@ func (h *HUOBIHADAX) GetOrdersMatch(symbol, types, start, end, from, direct, siz
 }
 
 // MarginTransfer transfers assets into or out of the margin account
-//	现货账户划入至借贷账户/借贷账户划出至现货账户
 func (h *HUOBIHADAX) MarginTransfer(symbol, currency string, amount float64, in bool) (int64, error) {
 	vals := url.Values{}
 	vals.Set("symbol", symbol)
@@ -592,7 +587,7 @@ func (h *HUOBIHADAX) MarginTransfer(symbol, currency string, amount float64, in 
 	return result.TransferID, err
 }
 
-// MarginOrder submits a margin order application申请借贷
+// MarginOrder submits a margin order application
 func (h *HUOBIHADAX) MarginOrder(symbol, currency string, amount float64) (int64, error) {
 	vals := url.Values{}
 	vals.Set("symbol", symbol)
@@ -634,7 +629,7 @@ func (h *HUOBIHADAX) MarginRepayment(orderID int64, amount float64) (int64, erro
 	return result.MarginOrderID, err
 }
 
-// GetMarginLoanOrders returns the margin loan orders 查询借贷订单
+// GetMarginLoanOrders returns the margin loan orders
 func (h *HUOBIHADAX) GetMarginLoanOrders(symbol, currency, start, end, states, from, direct, size string) ([]MarginOrder, error) {
 	vals := url.Values{}
 	vals.Set("symbol", symbol)
@@ -678,7 +673,7 @@ func (h *HUOBIHADAX) GetMarginLoanOrders(symbol, currency, start, end, states, f
 	return result.MarginLoanOrders, err
 }
 
-// GetMarginAccountBalance returns the margin account balances借贷账户详情
+// GetMarginAccountBalance returns the margin account balances
 func (h *HUOBIHADAX) GetMarginAccountBalance(symbol string) ([]MarginAccountBalance, error) {
 	type response struct {
 		Response
@@ -699,7 +694,7 @@ func (h *HUOBIHADAX) GetMarginAccountBalance(symbol string) ([]MarginAccountBala
 	return result.Balances, err
 }
 
-// Withdraw withdraws the desired amount and currency申请提现虚拟币
+// Withdraw withdraws the desired amount and currency
 func (h *HUOBIHADAX) Withdraw(address, currency, addrTag string, amount, fee float64) (int64, error) {
 	type response struct {
 		Response
@@ -728,7 +723,7 @@ func (h *HUOBIHADAX) Withdraw(address, currency, addrTag string, amount, fee flo
 	return result.WithdrawID, err
 }
 
-// CancelWithdraw cancels a withdraw request申请取消提现虚拟币
+// CancelWithdraw cancels a withdraw request
 func (h *HUOBIHADAX) CancelWithdraw(withdrawID int64) (int64, error) {
 	type response struct {
 		Response
@@ -770,15 +765,13 @@ func (h *HUOBIHADAX) SendAuthenticatedHTTPPostRequest(method, endpoint, postBody
 		method, endpoint, signatureParams.Encode())
 
 	headers := make(map[string]string)
-	headers["User-Agent"] = "Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/39.0.2171.71 Safari/537.36"
 	headers["Content-Type"] = "application/json"
 	headers["Accept-Language"] = "zh-cn"
 
 	hmac := common.GetHMAC(common.HashSHA256, []byte(payload), []byte(h.APISecret))
 	signatureParams.Set("Signature", common.Base64Encode(hmac))
 
-	// fmt.Println("signatureParams", signatureParams)
-	url := fmt.Sprintf("%s%s", huobihadaxAPIURL, endpoint)
+	url := fmt.Sprintf("%s%s", h.APIUrl, endpoint)
 	url = common.EncodeURLValues(url, signatureParams)
 
 	return h.SendPayload(method, url, headers, bytes.NewBufferString(postBodyValues), result, true, h.Verbose)
@@ -805,7 +798,7 @@ func (h *HUOBIHADAX) SendAuthenticatedHTTPRequest(method, endpoint string, value
 	hmac := common.GetHMAC(common.HashSHA256, []byte(payload), []byte(h.APISecret))
 	values.Set("Signature", common.Base64Encode(hmac))
 
-	url := fmt.Sprintf("%s%s", huobihadaxAPIURL, endpoint)
+	url := fmt.Sprintf("%s%s", h.APIUrl, endpoint)
 	url = common.EncodeURLValues(url, values)
 
 	return h.SendPayload(method, url, headers, bytes.NewBufferString(""), result, true, h.Verbose)

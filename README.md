@@ -36,21 +36,19 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 | Bitfinex | Yes  | Yes        | NA  |
 | Bitflyer | Yes  | No      | NA  |
 | Bithumb | Yes  | NA       | NA  |
+| BitMEX | Yes | No | NA |
 | Bitstamp | Yes  | Yes       | No  |
 | Bittrex | Yes | No | NA |
 | BTCC | Yes  | Yes     | No  |
 | BTCMarkets | Yes | No       | NA  |
 | COINUT | Yes | No | NA |
 | Exmo | Yes | NA | NA |
-<<<<<<< HEAD
-| Gateio | Yes | Yes | No|
-| GDAX(Coinbase) | Yes | Yes | No|
-=======
 | CoinbasePro | Yes | Yes | No|
->>>>>>> master
+| GateIO | Yes | No | NA |
 | Gemini | Yes | No | No |
 | HitBTC | Yes | Yes | No |
-| Huobi.Pro | Yes | No |No |
+| Huobi.Pro | Yes | No | NA |
+| Huobi.Hadax | Yes | No | NA |
 | ItBit | Yes | NA | No |
 | Kraken | Yes | NA | NA |
 | LakeBTC | Yes | No | NA |
@@ -62,6 +60,7 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 | Poloniex | Yes | Yes | NA |
 | WEX     | Yes  | NA        | NA  |
 | Yobit | Yes | NA | NA |
+| ZB.COM | Yes | No | NA |
 
 We are aiming to support the top 20 highest volume exchanges based off the [CoinMarketCap exchange data](https://coinmarketcap.com/exchanges/volume/24-hour/).
 
@@ -161,15 +160,15 @@ Binaries will be published once the codebase reaches a stable condition.
 
 |User|Github|Contribution Amount|
 |--|--|--|
-| thrasher- | https://github.com/thrasher- | 442 |
-| shazbert | https://github.com/shazbert | 139 |
-| gloriousCode | https://github.com/gloriousCode | 121 |
+| thrasher- | https://github.com/thrasher- | 456 |
+| shazbert | https://github.com/shazbert | 142 |
+| gloriousCode | https://github.com/gloriousCode | 122 |
 | 140am | https://github.com/140am | 8 |
+| ermalguni | https://github.com/ermalguni | 4 |
+| marcofranssen | https://github.com/marcofranssen | 4 |
 | Betazoid | https://github.com/Betazoid | 4 |
-| marcofranssen | https://github.com/marcofranssen | 3 |
 | crackcomm | https://github.com/crackcomm | 3 |
 | bretep | https://github.com/bretep | 2 |
-| ermalguni | https://github.com/ermalguni | 2 |
 | gam-phon | https://github.com/gam-phon | 2 |
 | cornelk | https://github.com/cornelk | 2 |
 | if1live | https://github.com/if1live | 2 |
@@ -185,9 +184,7 @@ Binaries will be published once the codebase reaches a stable condition.
 | cavapoo2 | https://github.com/cavapoo2 | 1 |
 | tongxiaofeng | https://github.com/tongxiaofeng | 1 |
 | idealhack | https://github.com/idealhack | 1 |
+| vyloy | https://github.com/vyloy | 1 |
 | askew- | https://github.com/askew- | 1 |
 | whilei | https://github.com/whilei | 1 |
 | snipesjr | https://github.com/snipesjr | 1 |
-
-
-

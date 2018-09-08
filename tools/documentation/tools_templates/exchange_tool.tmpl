@@ -1,0 +1,23 @@
+{{define "tools exchange" -}}
+{{template "header" .}}
+## Exchange Template Management Tool
+
+### Current Features
+
++ Generates a basic template for incorporating a new exchange in the codebase
+
+#### How to example
+
++ This will update the entire codebase when a change is made in the documentation templates
++ add -name flag to generate an exchange e.g -name yobit
++ add supporting request protocols by adding either -rest, -ws and or -fix
+
+```sh
+cd $GOPATH/src/github.com/thrasher-/gocryptotrader/tools/exchange_template/
+go run exchange_template.go -name Bitmex -ws -rest
+```
+
+### Please click GoDocs chevron above to view current GoDoc information for this package
+{{template "contributions"}}
+{{template "donations"}}
+{{end}}

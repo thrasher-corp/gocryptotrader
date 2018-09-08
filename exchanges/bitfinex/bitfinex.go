@@ -16,9 +16,8 @@ import (
 )
 
 const (
-	bitfinexAPIURL             = "https://api.bitfinex.com/v1/"
 	bitfinexAPIURLBase         = "https://api.bitfinex.com"
-	bitfinexAPIVersion         = "1"
+	bitfinexAPIVersion         = "/v1/"
 	bitfinexAPIVersion2        = "2"
 	bitfinexTickerV2           = "ticker"
 	bitfinexTickersV2          = "tickers"
@@ -119,6 +118,7 @@ func (b *Bitfinex) Setup(exch config.ExchangeConfig) {
 		b.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
 		b.SetAPIKeys(exch.APIKey, exch.APISecret, "", false)
 		b.SetHTTPClientTimeout(exch.HTTPTimeout)
+		b.SetHTTPClientUserAgent(exch.HTTPUserAgent)
 		b.RESTPollingDelay = exch.RESTPollingDelay
 		b.Verbose = exch.Verbose
 		b.Websocket = exch.Websocket
@@ -143,7 +143,7 @@ func (b *Bitfinex) Setup(exch config.ExchangeConfig) {
 // GetPlatformStatus returns the Bifinex platform status
 func (b *Bitfinex) GetPlatformStatus() (int, error) {
 	var response []interface{}
-	path := fmt.Sprintf("%s/v%s/%s", bitfinexAPIURLBase, bitfinexAPIVersion2,
+	path := fmt.Sprintf("%s/v%s/%s", b.APIUrl, bitfinexAPIVersion2,
 		bitfinexPlatformStatus)
 
 	err := b.SendHTTPRequest(path, &response, b.Verbose)
@@ -173,7 +173,7 @@ func (b *Bitfinex) GetLatestSpotPrice(symbol string) (float64, error) {
 // GetTicker returns ticker information
 func (b *Bitfinex) GetTicker(symbol string) (Ticker, error) {
 	response := Ticker{}
-	path := common.EncodeURLValues(bitfinexAPIURL+bitfinexTicker+symbol, url.Values{})
+	path := common.EncodeURLValues(b.APIUrl+bitfinexAPIVersion+bitfinexTicker+symbol, url.Values{})
 
 	if err := b.SendHTTPRequest(path, &response, b.Verbose); err != nil {
 		return response, err
@@ -191,7 +191,7 @@ func (b *Bitfinex) GetTickerV2(symbol string) (Tickerv2, error) {
 	var response []interface{}
 	var ticker Tickerv2
 
-	path := fmt.Sprintf("%s/v%s/%s/%s", bitfinexAPIURLBase, bitfinexAPIVersion2, bitfinexTickerV2, symbol)
+	path := fmt.Sprintf("%s/v%s/%s/%s", b.APIUrl, bitfinexAPIVersion2, bitfinexTickerV2, symbol)
 	err := b.SendHTTPRequest(path, &response, b.Verbose)
 	if err != nil {
 		return ticker, err
@@ -234,7 +234,11 @@ func (b *Bitfinex) GetTickersV2(symbols string) ([]Tickersv2, error) {
 	v := url.Values{}
 	v.Set("symbols", symbols)
 
-	path := common.EncodeURLValues(fmt.Sprintf("%s/v%s/%s", bitfinexAPIURLBase, bitfinexAPIVersion2, bitfinexTickersV2), v)
+	path := common.EncodeURLValues(fmt.Sprintf("%s/v%s/%s",
+		b.APIUrl,
+		bitfinexAPIVersion2,
+		bitfinexTickersV2), v)
+
 	err := b.SendHTTPRequest(path, &response, b.Verbose)
 	if err != nil {
 		return nil, err
@@ -279,7 +283,7 @@ func (b *Bitfinex) GetTickersV2(symbols string) ([]Tickersv2, error) {
 // GetStats returns various statistics about the requested pair
 func (b *Bitfinex) GetStats(symbol string) ([]Stat, error) {
 	response := []Stat{}
-	path := fmt.Sprint(bitfinexAPIURL + bitfinexStats + symbol)
+	path := fmt.Sprint(b.APIUrl + bitfinexAPIVersion + bitfinexStats + symbol)
 
 	return response, b.SendHTTPRequest(path, &response, b.Verbose)
 }
@@ -289,7 +293,7 @@ func (b *Bitfinex) GetStats(symbol string) ([]Stat, error) {
 // symbol - example "USD"
 func (b *Bitfinex) GetFundingBook(symbol string) (FundingBook, error) {
 	response := FundingBook{}
-	path := fmt.Sprint(bitfinexAPIURL + bitfinexLendbook + symbol)
+	path := fmt.Sprint(b.APIUrl + bitfinexAPIVersion + bitfinexLendbook + symbol)
 
 	if err := b.SendHTTPRequest(path, &response, b.Verbose); err != nil {
 		return response, err
@@ -310,7 +314,7 @@ func (b *Bitfinex) GetFundingBook(symbol string) (FundingBook, error) {
 func (b *Bitfinex) GetOrderbook(currencyPair string, values url.Values) (Orderbook, error) {
 	response := Orderbook{}
 	path := common.EncodeURLValues(
-		bitfinexAPIURL+bitfinexOrderbook+currencyPair,
+		b.APIUrl+bitfinexAPIVersion+bitfinexOrderbook+currencyPair,
 		values,
 	)
 	return response, b.SendHTTPRequest(path, &response, b.Verbose)
@@ -325,7 +329,7 @@ func (b *Bitfinex) GetOrderbook(currencyPair string, values url.Values) (Orderbo
 func (b *Bitfinex) GetOrderbookV2(symbol, precision string, values url.Values) (OrderbookV2, error) {
 	var response [][]interface{}
 	var book OrderbookV2
-	path := common.EncodeURLValues(fmt.Sprintf("%s/v%s/%s/%s/%s", bitfinexAPIURLBase,
+	path := common.EncodeURLValues(fmt.Sprintf("%s/v%s/%s/%s/%s", b.APIUrl,
 		bitfinexAPIVersion2, bitfinexOrderbookV2, symbol, precision), values)
 	err := b.SendHTTPRequest(path, &response, b.Verbose)
 	if err != nil {
@@ -372,7 +376,7 @@ func (b *Bitfinex) GetOrderbookV2(symbol, precision string, values url.Values) (
 func (b *Bitfinex) GetTrades(currencyPair string, values url.Values) ([]TradeStructure, error) {
 	response := []TradeStructure{}
 	path := common.EncodeURLValues(
-		bitfinexAPIURL+bitfinexTrades+currencyPair,
+		b.APIUrl+bitfinexAPIVersion+bitfinexTrades+currencyPair,
 		values,
 	)
 	return response, b.SendHTTPRequest(path, &response, b.Verbose)
@@ -437,7 +441,7 @@ func (b *Bitfinex) GetLendbook(symbol string, values url.Values) (Lendbook, erro
 	if len(symbol) == 6 {
 		symbol = symbol[:3]
 	}
-	path := common.EncodeURLValues(bitfinexAPIURL+bitfinexLendbook+symbol, values)
+	path := common.EncodeURLValues(b.APIUrl+bitfinexAPIVersion+bitfinexLendbook+symbol, values)
 
 	return response, b.SendHTTPRequest(path, &response, b.Verbose)
 }
@@ -448,7 +452,7 @@ func (b *Bitfinex) GetLendbook(symbol string, values url.Values) (Lendbook, erro
 // Symbol - example "USD"
 func (b *Bitfinex) GetLends(symbol string, values url.Values) ([]Lends, error) {
 	response := []Lends{}
-	path := common.EncodeURLValues(bitfinexAPIURL+bitfinexLends+symbol, values)
+	path := common.EncodeURLValues(b.APIUrl+bitfinexAPIVersion+bitfinexLends+symbol, values)
 
 	return response, b.SendHTTPRequest(path, &response, b.Verbose)
 }
@@ -456,7 +460,7 @@ func (b *Bitfinex) GetLends(symbol string, values url.Values) ([]Lends, error) {
 // GetSymbols returns the available currency pairs on the exchange
 func (b *Bitfinex) GetSymbols() ([]string, error) {
 	products := []string{}
-	path := fmt.Sprint(bitfinexAPIURL + bitfinexSymbols)
+	path := fmt.Sprint(b.APIUrl + bitfinexAPIVersion + bitfinexSymbols)
 
 	return products, b.SendHTTPRequest(path, &products, b.Verbose)
 }
@@ -464,7 +468,7 @@ func (b *Bitfinex) GetSymbols() ([]string, error) {
 // GetSymbolsDetails a list of valid symbol IDs and the pair details
 func (b *Bitfinex) GetSymbolsDetails() ([]SymbolDetails, error) {
 	response := []SymbolDetails{}
-	path := fmt.Sprint(bitfinexAPIURL + bitfinexSymbolsDetails)
+	path := fmt.Sprint(b.APIUrl + bitfinexAPIVersion + bitfinexSymbolsDetails)
 
 	return response, b.SendHTTPRequest(path, &response, b.Verbose)
 }
@@ -910,7 +914,7 @@ func (b *Bitfinex) SendAuthenticatedHTTPRequest(method, path string, params map[
 	headers["X-BFX-PAYLOAD"] = PayloadBase64
 	headers["X-BFX-SIGNATURE"] = common.HexEncodeToString(hmac)
 
-	err = b.SendPayload(method, bitfinexAPIURL+path, headers, nil, result, true, b.Verbose)
+	err = b.SendPayload(method, b.APIUrl+bitfinexAPIVersion+path, headers, nil, result, true, b.Verbose)
 	if err != nil {
 		return err
 	}

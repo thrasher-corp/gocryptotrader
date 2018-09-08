@@ -1,16 +1,23 @@
 import { Component, OnInit } from '@angular/core';
 
+export class Order {
+  public count: number;
+  public total: number;
+  public price: number;
+  public amount: number;
+}
+
 @Component({
   selector: 'app-orders',
   templateUrl: './orders.component.html',
   styleUrls: ['./orders.component.scss']
 })
 export class OrdersComponent implements OnInit {
-  public orders:Order[] = [];
+  public orders: Order[] = [];
   constructor() { }
 
   ngOnInit() {
-    var item = new Order();
+    const item = new Order();
     item.amount = 12;
       item.price = 23;
       item.total = 3;
@@ -45,15 +52,7 @@ export class OrdersComponent implements OnInit {
     this.orders.push(item);
     this.orders.push(item);
     this.orders.push(item);
-    
+
   }
 
-}
-
-
-export class Order {
-  public count:number;
-  public total:number;
-  public price:number;
-  public amount:number;
 }

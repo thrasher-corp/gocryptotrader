@@ -12,6 +12,7 @@ import (
 	"github.com/idoall/gocryptotrader/exchanges/bitfinex"
 	"github.com/idoall/gocryptotrader/exchanges/bitflyer"
 	"github.com/idoall/gocryptotrader/exchanges/bithumb"
+	"github.com/idoall/gocryptotrader/exchanges/bitmex"
 	"github.com/idoall/gocryptotrader/exchanges/bitstamp"
 	"github.com/idoall/gocryptotrader/exchanges/bittrex"
 	"github.com/idoall/gocryptotrader/exchanges/btcc"
@@ -19,9 +20,11 @@ import (
 	"github.com/idoall/gocryptotrader/exchanges/coinbasepro"
 	"github.com/idoall/gocryptotrader/exchanges/coinut"
 	"github.com/idoall/gocryptotrader/exchanges/exmo"
+	"github.com/idoall/gocryptotrader/exchanges/gateio"
 	"github.com/idoall/gocryptotrader/exchanges/gemini"
 	"github.com/idoall/gocryptotrader/exchanges/hitbtc"
 	"github.com/idoall/gocryptotrader/exchanges/huobi"
+	"github.com/idoall/gocryptotrader/exchanges/huobihadax"
 	"github.com/idoall/gocryptotrader/exchanges/itbit"
 	"github.com/idoall/gocryptotrader/exchanges/kraken"
 	"github.com/idoall/gocryptotrader/exchanges/lakebtc"
@@ -32,6 +35,7 @@ import (
 	"github.com/idoall/gocryptotrader/exchanges/poloniex"
 	"github.com/idoall/gocryptotrader/exchanges/wex"
 	"github.com/idoall/gocryptotrader/exchanges/yobit"
+	"github.com/idoall/gocryptotrader/exchanges/zb"
 )
 
 // vars related to exchange functions
@@ -142,6 +146,8 @@ func LoadExchange(name string, useWG bool, wg *sync.WaitGroup) error {
 		exch = new(bitflyer.Bitflyer)
 	case "bithumb":
 		exch = new(bithumb.Bithumb)
+	case "bitmex":
+		exch = new(bitmex.Bitmex)
 	case "bitstamp":
 		exch = new(bitstamp.Bitstamp)
 	case "bittrex":
@@ -156,12 +162,16 @@ func LoadExchange(name string, useWG bool, wg *sync.WaitGroup) error {
 		exch = new(exmo.EXMO)
 	case "coinbasepro":
 		exch = new(coinbasepro.CoinbasePro)
+	case "gateio":
+		exch = new(gateio.Gateio)
 	case "gemini":
 		exch = new(gemini.Gemini)
 	case "hitbtc":
 		exch = new(hitbtc.HitBTC)
 	case "huobi":
 		exch = new(huobi.HUOBI)
+	case "huobihadax":
+		exch = new(huobihadax.HUOBIHADAX)
 	case "itbit":
 		exch = new(itbit.ItBit)
 	case "kraken":
@@ -184,6 +194,8 @@ func LoadExchange(name string, useWG bool, wg *sync.WaitGroup) error {
 		exch = new(wex.WEX)
 	case "yobit":
 		exch = new(yobit.Yobit)
+	case "zb":
+		exch = new(zb.ZB)
 	default:
 		return ErrExchangeNotFound
 	}

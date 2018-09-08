@@ -29,8 +29,10 @@ type DetailMerged struct {
 	Bid     []float64 `json:"bid"`
 }
 
+// OrderBookDataRequestParamsType var for request param types
 type OrderBookDataRequestParamsType string
 
+// vars for OrderBookDataRequestParamsTypes
 var (
 	OrderBookDataRequestParamsTypeNone  = OrderBookDataRequestParamsType("")
 	OrderBookDataRequestParamsTypeStep0 = OrderBookDataRequestParamsType("step0")
@@ -203,20 +205,20 @@ type SpotNewOrderRequestParams struct {
 	Type      SpotNewOrderRequestParamsType `json:"type"`       // 订单类型, buy-market: 市价买, sell-market: 市价卖, buy-limit: 限价买, sell-limit: 限价卖
 }
 
-// SpotNewOrderRequestParamsType 火币交易类型
+// SpotNewOrderRequestParamsType order types
 type SpotNewOrderRequestParamsType string
 
 var (
-	// SpotNewOrderRequestTypeBuyMarkdt 市价买
-	SpotNewOrderRequestTypeBuyMarkdt = SpotNewOrderRequestParamsType("buy-market")
+	// SpotNewOrderRequestTypeBuyMarket buy market order
+	SpotNewOrderRequestTypeBuyMarket = SpotNewOrderRequestParamsType("buy-market")
 
-	// SpotNewOrderRequestTypeSellMarkdt 市价卖
-	SpotNewOrderRequestTypeSellMarkdt = SpotNewOrderRequestParamsType("sell-market")
+	// SpotNewOrderRequestTypeSellMarket sell market order
+	SpotNewOrderRequestTypeSellMarket = SpotNewOrderRequestParamsType("sell-market")
 
-	// SpotNewOrderRequestTypeBuyLimit 限价买
+	// SpotNewOrderRequestTypeBuyLimit buy limit order
 	SpotNewOrderRequestTypeBuyLimit = SpotNewOrderRequestParamsType("buy-limit")
 
-	// SpotNewOrderRequestTypeSellLimit 限价卖
+	// SpotNewOrderRequestTypeSellLimit sell limit order
 	SpotNewOrderRequestTypeSellLimit = SpotNewOrderRequestParamsType("sell-limit")
 )
 

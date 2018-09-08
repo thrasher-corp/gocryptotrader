@@ -28,6 +28,10 @@ func (o *OKEX) Run() {
 		log.Printf("%s polling delay: %ds.\n", o.GetName(), o.RESTPollingDelay)
 		log.Printf("%s %d currencies enabled: %s.\n", o.GetName(), len(o.EnabledPairs), o.EnabledPairs)
 	}
+
+	if o.Websocket {
+		go o.WebsocketClient()
+	}
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
@@ -201,20 +205,20 @@ func (o *OKEX) GetExchangeDepositAddress(cryptocurrency pair.CurrencyItem) (stri
 	return "", errors.New("not yet implemented")
 }
 
-// WithdrawExchangeCryptoFunds returns a withdrawal ID when a withdrawal is
+// WithdrawCryptoExchangeFunds returns a withdrawal ID when a withdrawal is
 // submitted
 func (o *OKEX) WithdrawCryptoExchangeFunds(address string, cryptocurrency pair.CurrencyItem, amount float64) (string, error) {
 	return "", errors.New("not yet implemented")
 }
 
-// WithdrawExchangeFiatFundsToLocalBank returns a withdrawal ID when a
+// WithdrawFiatExchangeFunds returns a withdrawal ID when a
 // withdrawal is submitted
 func (o *OKEX) WithdrawFiatExchangeFunds(currency pair.CurrencyItem, amount float64) (string, error) {
 	return "", errors.New("not yet implemented")
 }
 
-// WithdrawExchangeFiatFundsToInternationalBank returns a withdrawal ID when a
+// WithdrawFiatExchangeFundsToInternationalBank returns a withdrawal ID when a
 // withdrawal is submitted
-func (o *OKEX) WithdrawExchangeFiatFundsToInternationalBank(currency pair.CurrencyItem, amount float64) (string, error) {
+func (o *OKEX) WithdrawFiatExchangeFundsToInternationalBank(currency pair.CurrencyItem, amount float64) (string, error) {
 	return "", errors.New("not yet implemented")
 }
