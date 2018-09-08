@@ -277,10 +277,11 @@ type NewOrderResponse struct {
 	Type            string  `json:"type"`
 	Side            string  `json:"side"`
 	Fills           []struct {
-		Price           float64 `json:"price,string"`
-		Qty             float64 `json:"qty,string"`
-		Commission      float64 `json:"commission,string"`
-		CommissionAsset string  `json:"commissionAsset,string"`
+		Price      float64 `json:"price,string"`
+		Qty        float64 `json:"qty,string"`
+		Commission float64 `json:"commission,string"`
+		// 用系统自带的JSON有BUG，无法解析出CommissionAsset字段，会提示:json: invalid use of ,string struct tag, trying to unmarshal "BTC" into string
+		// CommissionAsset string  `json:"commissionAsset,string"`
 	} `json:"fills"`
 }
 
