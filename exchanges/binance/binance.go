@@ -109,8 +109,8 @@ func (b *Binance) Setup(exch config.ExchangeConfig) {
 		// if err != nil {
 		// 	log.Fatal(err)
 		// }
-		b.APIUrlDefault = apiURL
-		b.APIUrl = b.APIUrlDefault
+
+		b.WebsocketURL = binanceDefaultWebsocketURL
 	}
 }
 

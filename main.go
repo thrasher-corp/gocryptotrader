@@ -2,11 +2,15 @@ package main
 
 import (
 	"fmt"
+	"log"
+	"os"
 	"time"
 
+	"github.com/agtorre/gocolorize"
 	"github.com/idoall/gocryptotrader/communications"
 	"github.com/idoall/gocryptotrader/config"
 	exchange "github.com/idoall/gocryptotrader/exchanges"
+	"github.com/idoall/gocryptotrader/exchanges/binance"
 	"github.com/idoall/gocryptotrader/portfolio"
 )
 
@@ -36,7 +40,7 @@ var bot Bot
 // getDefaultConfig 获取默认配置
 func getDefaultConfig() config.ExchangeConfig {
 	return config.ExchangeConfig{
-		Name:                    "ZB",
+		Name:                    "Binance",
 		Enabled:                 true,
 		Verbose:                 true,
 		Websocket:               true,
@@ -51,18 +55,34 @@ func getDefaultConfig() config.ExchangeConfig {
 }
 
 func main() {
-	fmt.Println(time.Now())
+	// new(binance.Binance).WebsocketClient()
 	// // exchange := gateio.Gateio{}
 	// // exchange := bitfinex.Bitfinex{}
 	// // exchange := okex.OKEX{}
 	// // exchange := huobi.HUOBI{}
 	// // exchange := zb.ZB{}
-	// exchange := binance.Binance{}
-	// defaultConfig := getDefaultConfig()
-	// exchange.SetDefaults()
-	// fmt.Println("----------setup-------")
-	// exchange.Setup(defaultConfig)
+	exchange := binance.Binance{}
+	defaultConfig := getDefaultConfig()
+	exchange.SetDefaults()
+	fmt.Println("----------setup-------")
+	exchange.Setup(defaultConfig)
 
+	ch := make(chan *binance.KlineStream)
+	done := make(chan struct{})
+	timeIntervals := []binance.TimeInterval{
+		binance.TimeIntervalFiveMinutes,
+		binance.TimeIntervalMinute,
+		binance.TimeIntervalDay,
+		binance.TimeIntervalHour,
+		binance.TimeIntervalTwoHours,
+	}
+
+	go exchange.WebsocketKline(ch, timeIntervals, done)
+	for {
+		fmt.Fprintln(os.Stdout, gocolorize.NewColor("green").Paint("接收....."))
+		kline := <-ch
+		log.Println("Kline received", "value:", kline.Kline.Interval, kline.Symbol, kline.EventTime, kline.Kline.HighPrice, kline.Kline.LowPrice)
+	}
 	// res, err := exchange.GetExchangeInfo()
 
 	// if err != nil {
