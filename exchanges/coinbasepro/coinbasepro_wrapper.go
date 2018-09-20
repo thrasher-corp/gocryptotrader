@@ -126,7 +126,7 @@ func (c *CoinbasePro) UpdateOrderbook(p pair.CurrencyPair, assetType string) (or
 	}
 
 	for x := range obNew.Asks {
-		orderBook.Asks = append(orderBook.Asks, orderbook.Item{Amount: obNew.Bids[x].Amount, Price: obNew.Bids[x].Price})
+		orderBook.Asks = append(orderBook.Asks, orderbook.Item{Amount: obNew.Asks[x].Amount, Price: obNew.Asks[x].Price})
 	}
 
 	orderbook.ProcessOrderbook(c.GetName(), p, orderBook, assetType)

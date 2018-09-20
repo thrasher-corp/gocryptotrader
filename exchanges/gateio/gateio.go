@@ -200,6 +200,10 @@ func (g *Gateio) GetOrderbook(symbol string) (Orderbook, error) {
 
 	var ob Orderbook
 
+	if len(resp.Asks) == 0 {
+		return ob, errors.New("asks are empty")
+	}
+
 	// Asks are in reverse order
 	for x := len(resp.Asks) - 1; x != 0; x-- {
 		data := resp.Asks[x]
@@ -215,6 +219,10 @@ func (g *Gateio) GetOrderbook(symbol string) (Orderbook, error) {
 		}
 
 		ob.Asks = append(ob.Asks, OrderbookItem{Price: price, Amount: amount})
+	}
+
+	if len(resp.Bids) == 0 {
+		return ob, errors.New("bids are empty")
 	}
 
 	for x := range resp.Bids {

@@ -59,8 +59,15 @@ func (h *HUOBIHADAX) UpdateTicker(p pair.CurrencyPair, assetType string) (ticker
 	tickerPrice.Last = tick.Close
 	tickerPrice.Volume = tick.Volume
 	tickerPrice.High = tick.High
-	tickerPrice.Ask = tick.Ask[0]
-	tickerPrice.Bid = tick.Bid[0]
+
+	if len(tick.Ask) > 0 {
+		tickerPrice.Ask = tick.Ask[0]
+	}
+
+	if len(tick.Bid) > 0 {
+		tickerPrice.Bid = tick.Bid[0]
+	}
+
 	ticker.ProcessTicker(h.GetName(), p, tickerPrice, assetType)
 	return ticker.GetTicker(h.Name, p, assetType)
 }
