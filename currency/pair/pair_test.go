@@ -37,10 +37,10 @@ func TestString(t *testing.T) {
 	}
 }
 
-func TestGetFirstCurrency(t *testing.T) {
+func TestFirstCurrency(t *testing.T) {
 	t.Parallel()
 	pair := NewCurrencyPair("BTC", "USD")
-	actual := pair.GetFirstCurrency()
+	actual := pair.FirstCurrency
 	expected := CurrencyItem("BTC")
 	if actual != expected {
 		t.Errorf(
@@ -50,10 +50,10 @@ func TestGetFirstCurrency(t *testing.T) {
 	}
 }
 
-func TestGetSecondCurrency(t *testing.T) {
+func TestSecondCurrency(t *testing.T) {
 	t.Parallel()
 	pair := NewCurrencyPair("BTC", "USD")
-	actual := pair.GetSecondCurrency()
+	actual := pair.SecondCurrency
 	expected := CurrencyItem("USD")
 	if actual != expected {
 		t.Errorf(

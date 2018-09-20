@@ -121,8 +121,8 @@ func SecondCurrencyExists(exchange string, p pair.CurrencyPair) bool {
 	defer m.Unlock()
 	for _, y := range Tickers {
 		if y.ExchangeName == exchange {
-			if _, ok := y.Price[p.GetFirstCurrency()]; ok {
-				if _, ok := y.Price[p.GetFirstCurrency()][p.GetSecondCurrency()]; ok {
+			if _, ok := y.Price[p.FirstCurrency]; ok {
+				if _, ok := y.Price[p.FirstCurrency][p.SecondCurrency]; ok {
 					return true
 				}
 			}

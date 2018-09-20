@@ -32,16 +32,6 @@ type CurrencyPair struct {
 	SecondCurrency CurrencyItem `json:"second_currency"`
 }
 
-// GetFirstCurrency returns the first currency item
-func (c CurrencyPair) GetFirstCurrency() CurrencyItem {
-	return c.FirstCurrency
-}
-
-// GetSecondCurrency returns the second currency item
-func (c CurrencyPair) GetSecondCurrency() CurrencyItem {
-	return c.SecondCurrency
-}
-
 // Pair returns a currency pair string
 func (c CurrencyPair) Pair() CurrencyItem {
 	return c.FirstCurrency + CurrencyItem(c.Delimiter) + c.SecondCurrency

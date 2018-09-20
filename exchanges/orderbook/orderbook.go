@@ -83,7 +83,7 @@ func GetOrderbook(exchange string, p pair.CurrencyPair, orderbookType string) (B
 		return Base{}, err
 	}
 
-	if !FirstCurrencyExists(exchange, p.GetFirstCurrency()) {
+	if !FirstCurrencyExists(exchange, p.FirstCurrency) {
 		return Base{}, errors.New(ErrPrimaryCurrencyNotFound)
 	}
 
@@ -91,7 +91,7 @@ func GetOrderbook(exchange string, p pair.CurrencyPair, orderbookType string) (B
 		return Base{}, errors.New(ErrSecondaryCurrencyNotFound)
 	}
 
-	return orderbook.Orderbook[p.GetFirstCurrency()][p.GetSecondCurrency()][orderbookType], nil
+	return orderbook.Orderbook[p.FirstCurrency][p.SecondCurrency][orderbookType], nil
 }
 
 // GetOrderbookByExchange returns an exchange orderbook
@@ -128,8 +128,8 @@ func SecondCurrencyExists(exchange string, p pair.CurrencyPair) bool {
 	defer m.Unlock()
 	for _, y := range Orderbooks {
 		if y.ExchangeName == exchange {
-			if _, ok := y.Orderbook[p.GetFirstCurrency()]; ok {
-				if _, ok := y.Orderbook[p.GetFirstCurrency()][p.GetSecondCurrency()]; ok {
+			if _, ok := y.Orderbook[p.FirstCurrency]; ok {
+				if _, ok := y.Orderbook[p.FirstCurrency][p.SecondCurrency]; ok {
 					return true
 				}
 			}
@@ -175,7 +175,7 @@ func ProcessOrderbook(exchangeName string, p pair.CurrencyPair, orderbookNew Bas
 		return
 	}
 
-	if FirstCurrencyExists(exchangeName, p.GetFirstCurrency()) {
+	if FirstCurrencyExists(exchangeName, p.FirstCurrency) {
 		if !SecondCurrencyExists(exchangeName, p) {
 			m.Lock()
 			a := orderbook.Orderbook[p.FirstCurrency]
