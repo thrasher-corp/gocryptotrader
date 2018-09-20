@@ -508,11 +508,8 @@ func (o *OKEX) GetContractlimit(symbol, contractType string) (map[string]float64
 
 // GetContractUserInfo returns OKEX Contract Account Info（Cross-Margin Mode）
 func (o *OKEX) GetContractUserInfo() error {
-	//Still figuring this one out Wrong API interface
 	var resp interface{}
-	path := fmt.Sprintf("%s%s%s.do", o.APIUrl, apiVersion, contractFutureUserInfo)
-
-	if err := o.SendAuthenticatedHTTPRequest(path, url.Values{}, &resp); err != nil {
+	if err := o.SendAuthenticatedHTTPRequest(contractFutureUserInfo, url.Values{}, &resp); err != nil {
 		return err
 	}
 
@@ -525,7 +522,6 @@ func (o *OKEX) GetContractUserInfo() error {
 
 // GetContractPosition returns User Contract Positions （Cross-Margin Mode）
 func (o *OKEX) GetContractPosition(symbol, contractType string) error {
-	//Still figuring out errors :( as above
 	var resp interface{}
 
 	if err := o.CheckSymbol(symbol); err != nil {
@@ -539,9 +535,7 @@ func (o *OKEX) GetContractPosition(symbol, contractType string) error {
 	values.Set("symbol", symbol)
 	values.Set("contract_type", contractType)
 
-	path := fmt.Sprintf("%s%s%s.do", o.APIUrl, apiVersion, "future_position")
-
-	if err := o.SendAuthenticatedHTTPRequest(path, values, &resp); err != nil {
+	if err := o.SendAuthenticatedHTTPRequest(contractFuturePosition, values, &resp); err != nil {
 		return err
 	}
 
@@ -583,9 +577,7 @@ func (o *OKEX) PlaceContractOrders(symbol, contractType, position string, levera
 	}
 	values.Set("lever_rate", strconv.FormatInt(int64(leverageRate), 10))
 
-	path := fmt.Sprintf("%s%s%s.do", o.APIUrl, apiVersion, "future_trade")
-
-	if err := o.SendAuthenticatedHTTPRequest(path, values, &resp); err != nil {
+	if err := o.SendAuthenticatedHTTPRequest(contractFutureTrade, values, &resp); err != nil {
 		return 0, err
 	}
 
@@ -593,6 +585,7 @@ func (o *OKEX) PlaceContractOrders(symbol, contractType, position string, levera
 	if code, ok := contractMap["error_code"]; ok {
 		return 0, o.GetErrorCode(code)
 	}
+
 	return contractMap["order_id"].(float64), nil
 }
 
@@ -609,9 +602,7 @@ func (o *OKEX) GetContractFuturesTradeHistory(symbol, date string, since int) er
 	values.Set("date", date)
 	values.Set("since", strconv.FormatInt(int64(since), 10))
 
-	path := fmt.Sprintf("%s%s%s.do", o.APIUrl, apiVersion, "future_trades_history")
-
-	if err := o.SendAuthenticatedHTTPRequest(path, values, &resp); err != nil {
+	if err := o.SendAuthenticatedHTTPRequest(contractFutureTradeHistory, values, &resp); err != nil {
 		return err
 	}
 
@@ -624,15 +615,12 @@ func (o *OKEX) GetContractFuturesTradeHistory(symbol, date string, since int) er
 
 // GetUserInfo returns the user info
 func (o *OKEX) GetUserInfo() (SpotUserInfo, error) {
-
-	strRequestURL := fmt.Sprintf("%s%s%s.do", o.APIUrl, apiVersion, spotUserInfo)
-
-	var res SpotUserInfo
-	err := o.SendAuthenticatedHTTPRequest(strRequestURL, url.Values{}, &res)
+	var resp SpotUserInfo
+	err := o.SendAuthenticatedHTTPRequest(spotUserInfo, url.Values{}, &resp)
 	if err != nil {
-		return res, err
+		return resp, err
 	}
-	return res, nil
+	return resp, nil
 }
 
 // SpotNewOrder creates a new spot order
@@ -643,15 +631,13 @@ func (o *OKEX) SpotNewOrder(arg SpotNewOrderRequestParams) (int64, error) {
 	}
 
 	var res response
-	strRequestURL := fmt.Sprintf("%s%s%s.do", o.APIUrl, apiVersion, spotTrade)
-
 	params := url.Values{}
 	params.Set("symbol", arg.Symbol)
 	params.Set("type", string(arg.Type))
 	params.Set("price", strconv.FormatFloat(arg.Price, 'f', -1, 64))
 	params.Set("amount", strconv.FormatFloat(arg.Amount, 'f', -1, 64))
 
-	err := o.SendAuthenticatedHTTPRequest(strRequestURL, params, &res)
+	err := o.SendAuthenticatedHTTPRequest(spotTrade, params, &res)
 	if err != nil {
 		return res.OrderID, err
 	}
@@ -671,13 +657,12 @@ func (o *OKEX) SpotCancelOrder(symbol string, argOrderID int64) (int64, error) {
 	}
 
 	var res response
-	strRequestURL := fmt.Sprintf("%s%s%s.do", o.APIUrl, apiVersion, spotCancelTrade)
 
 	params := url.Values{}
 	params.Set("symbol", symbol)
 	params.Set("order_id", strconv.FormatInt(argOrderID, 10))
 
-	err := o.SendAuthenticatedHTTPRequest(strRequestURL, params, &res)
+	err := o.SendAuthenticatedHTTPRequest(spotCancelTrade, params, &res)
 	var returnOrderID int64
 	if err != nil && res.ErrorCode != 0 {
 		return returnOrderID, err
@@ -906,7 +891,7 @@ func (o *OKEX) SendAuthenticatedHTTPRequest(method string, values url.Values, re
 	values.Set("sign", strings.ToUpper(common.HexEncodeToString(hasher)))
 
 	encoded := values.Encode()
-	path := o.APIUrl + method
+	path := o.APIUrl + apiVersion + method
 
 	if o.Verbose {
 		log.Printf("Sending POST request to %s with params %s\n", path, encoded)
