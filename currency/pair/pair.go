@@ -207,3 +207,12 @@ func FindPairDifferences(oldPairs, newPairs []string) ([]string, []string) {
 	}
 	return newPs, removedPs
 }
+
+// PairsToStringArray returns a list of pairs as a string array
+func PairsToStringArray(pairs []CurrencyPair) []string {
+	var p []string
+	for x := range pairs {
+		p = append(p, pairs[x].Pair().String())
+	}
+	return p
+}

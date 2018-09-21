@@ -462,6 +462,54 @@ func (c *Config) CheckCommunicationsConfig() error {
 	return nil
 }
 
+// CheckPairConsistency checks to see if the enabled pair exists in the
+// available pairs list
+func (c *Config) CheckPairConsistency(exchName string) error {
+	enabledPairs, err := c.GetEnabledPairs(exchName)
+	if err != nil {
+		return err
+	}
+
+	availPairs, err := c.GetAvailablePairs(exchName)
+	if err != nil {
+		return err
+	}
+
+	var pairs, pairsRemoved []pair.CurrencyPair
+	update := false
+	for x := range enabledPairs {
+		if !pair.Contains(availPairs, enabledPairs[x], true) {
+			update = true
+			pairsRemoved = append(pairsRemoved, enabledPairs[x])
+			continue
+		}
+		pairs = append(pairs, enabledPairs[x])
+	}
+
+	if !update {
+		return nil
+	}
+
+	exchCfg, err := c.GetExchangeConfig(exchName)
+	if err != nil {
+		return err
+	}
+
+	if len(pairs) == 0 {
+		exchCfg.EnabledPairs = availPairs[0].Pair().String()
+	} else {
+		exchCfg.EnabledPairs = common.JoinStrings(pair.PairsToStringArray(pairs), ",")
+	}
+
+	err = c.UpdateExchangeConfig(exchCfg)
+	if err != nil {
+		return err
+	}
+
+	log.Printf("Exchange %s: Removing enabled pair(s) %v from enabled pairs as it isn't an available pair", exchName, pair.PairsToStringArray(pairsRemoved))
+	return nil
+}
+
 // SupportsPair returns true or not whether the exchange supports the supplied
 // pair
 func (c *Config) SupportsPair(exchName string, p pair.CurrencyPair) (bool, error) {
@@ -670,6 +718,11 @@ func (c *Config) CheckExchangeConfigValues() error {
 			if exch.HTTPTimeout <= 0 {
 				log.Printf("Exchange %s HTTP Timeout value not set, defaulting to %v.", exch.Name, configDefaultHTTPTimeout)
 				c.Exchanges[i].HTTPTimeout = configDefaultHTTPTimeout
+			}
+
+			err := c.CheckPairConsistency(exch.Name)
+			if err != nil {
+				log.Printf("Exchange %s: CheckPairConsistency error: %s", exch.Name, err)
 			}
 
 			if len(exch.BankAccounts) == 0 {

@@ -358,3 +358,15 @@ func TestFindPairDifferences(t *testing.T) {
 		t.Error("Test failed. TestFindPairDifferences: Unexpected values")
 	}
 }
+
+func TestPairsToStringArray(t *testing.T) {
+	var pairs []CurrencyPair
+	pairs = append(pairs, NewCurrencyPair("BTC", "USD"))
+
+	expected := []string{"BTCUSD"}
+	actual := PairsToStringArray(pairs)
+
+	if actual[0] != expected[0] {
+		t.Error("Test failed. TestPairsToStringArray: Unexpected values")
+	}
+}
