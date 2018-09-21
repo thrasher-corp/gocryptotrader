@@ -128,6 +128,7 @@ func (b *Bitmex) SetDefaults() {
 	b.shutdown = b.NewRoutineManagement()
 	b.APIUrlDefault = bitmexAPIURL
 	b.APIUrl = b.APIUrlDefault
+	b.SupportsAutoPairUpdating = true
 }
 
 // Setup takes in the supplied exchange configuration details and sets params
