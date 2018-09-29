@@ -93,6 +93,7 @@ func (h *HUOBI) Setup(exch config.ExchangeConfig) {
 		h.Enabled = true
 		h.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
 		h.SetAPIKeys(exch.APIKey, exch.APISecret, "", false)
+		h.APIAuthPEMKeySupport = exch.APIAuthPEMKeySupport
 		h.APIAuthPEMKey = exch.APIAuthPEMKey
 		h.SetHTTPClientTimeout(exch.HTTPTimeout)
 		h.SetHTTPClientUserAgent(exch.HTTPUserAgent)
@@ -757,31 +758,33 @@ func (h *HUOBI) SendAuthenticatedHTTPRequest(method, endpoint string, values url
 	signature := common.Base64Encode(hmac)
 	values.Set("Signature", signature)
 
-	pemKey := strings.NewReader(h.APIAuthPEMKey)
-	pemBytes, err := ioutil.ReadAll(pemKey)
-	if err != nil {
-		return fmt.Errorf("Huobi unable to ioutil.ReadAll PEM key: %s", err)
-	}
+	if h.APIAuthPEMKeySupport == true {
+		pemKey := strings.NewReader(h.APIAuthPEMKey)
+		pemBytes, err := ioutil.ReadAll(pemKey)
+		if err != nil {
+			return fmt.Errorf("Huobi unable to ioutil.ReadAll PEM key: %s", err)
+		}
 
-	block, _ := pem.Decode(pemBytes)
-	if block == nil {
-		return fmt.Errorf("Huobi block is nil")
-	}
+		block, _ := pem.Decode(pemBytes)
+		if block == nil {
+			return fmt.Errorf("Huobi block is nil")
+		}
 
-	x509Encoded := block.Bytes
-	privKey, err := x509.ParseECPrivateKey(x509Encoded)
-	if err != nil {
-		return fmt.Errorf("Huobi unable to ParseECPrivKey: %s", err)
-	}
+		x509Encoded := block.Bytes
+		privKey, err := x509.ParseECPrivateKey(x509Encoded)
+		if err != nil {
+			return fmt.Errorf("Huobi unable to ParseECPrivKey: %s", err)
+		}
 
-	r, s, err := ecdsa.Sign(rand.Reader, privKey, common.GetSHA256([]byte(signature)))
-	if err != nil {
-		return fmt.Errorf("Huobi unable to sign: %s", err)
-	}
+		r, s, err := ecdsa.Sign(rand.Reader, privKey, common.GetSHA256([]byte(signature)))
+		if err != nil {
+			return fmt.Errorf("Huobi unable to sign: %s", err)
+		}
 
-	privSig := r.Bytes()
-	privSig = append(privSig, s.Bytes()...)
-	values.Set("PrivateSignature", common.Base64Encode(privSig))
+		privSig := r.Bytes()
+		privSig = append(privSig, s.Bytes()...)
+		values.Set("PrivateSignature", common.Base64Encode(privSig))
+	}
 
 	url := fmt.Sprintf("%s%s", h.APIUrl, endpoint)
 	url = common.EncodeURLValues(url, values)
