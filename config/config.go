@@ -123,6 +123,7 @@ type ExchangeConfig struct {
 	AuthenticatedAPISupport   bool                      `json:"authenticatedApiSupport"`
 	APIKey                    string                    `json:"apiKey"`
 	APISecret                 string                    `json:"apiSecret"`
+	APIAuthPEMKeySupport      bool                      `json:"apiAuthPemKeySupport,omitempty"`
 	APIAuthPEMKey             string                    `json:"apiAuthPemKey,omitempty"`
 	APIURL                    string                    `json:"apiUrl"`
 	APIURLSecondary           string                    `json:"apiUrlSecondary"`
