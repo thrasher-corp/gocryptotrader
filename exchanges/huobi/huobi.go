@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
@@ -752,7 +753,12 @@ func (h *HUOBI) SendAuthenticatedHTTPRequest(method, endpoint string, values url
 		method, endpoint, values.Encode())
 
 	headers := make(map[string]string)
-	headers["Content-Type"] = "application/x-www-form-urlencoded"
+
+	if method == http.MethodGet {
+		headers["Content-Type"] = "application/x-www-form-urlencoded"
+	} else {
+		headers["Content-Type"] = "application/json"
+	}
 
 	hmac := common.GetHMAC(common.HashSHA256, []byte(payload), []byte(h.APISecret))
 	signature := common.Base64Encode(hmac)
