@@ -617,9 +617,11 @@ func (h *HUOBI) MarginOrder(symbol, currency string, amount float64) (int64, err
 
 // MarginRepayment repays a margin amount for a margin ID
 func (h *HUOBI) MarginRepayment(orderID int64, amount float64) (int64, error) {
-	vals := url.Values{}
-	vals.Set("order-id", strconv.FormatInt(orderID, 10))
-	vals.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
+	data := struct {
+		Amount string `json:"amount"`
+	}{
+		Amount: strconv.FormatFloat(amount, 'f', -1, 64),
+	}
 
 	type response struct {
 		Response
@@ -628,7 +630,7 @@ func (h *HUOBI) MarginRepayment(orderID int64, amount float64) (int64, error) {
 
 	var result response
 	endpoint := fmt.Sprintf(huobiMarginRepay, strconv.FormatInt(orderID, 10))
-	err := h.SendAuthenticatedHTTPRequest("POST", endpoint, vals, nil, &result)
+	err := h.SendAuthenticatedHTTPRequest("POST", endpoint, nil, data, &result)
 
 	if result.ErrorMessage != "" {
 		return 0, errors.New(result.ErrorMessage)
