@@ -560,10 +560,15 @@ func (h *HUOBI) GetOrdersMatch(symbol, types, start, end, from, direct, size str
 
 // MarginTransfer transfers assets into or out of the margin account
 func (h *HUOBI) MarginTransfer(symbol, currency string, amount float64, in bool) (int64, error) {
-	vals := url.Values{}
-	vals.Set("symbol", symbol)
-	vals.Set("currency", currency)
-	vals.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
+	data := struct {
+		Symbol   string `json:"symbol"`
+		Currency string `json:"currency"`
+		Amount   string `json:"amount"`
+	}{
+		Symbol:   symbol,
+		Currency: currency,
+		Amount:   strconv.FormatFloat(amount, 'f', -1, 64),
+	}
 
 	path := huobiMarginTransferIn
 	if !in {
@@ -576,7 +581,7 @@ func (h *HUOBI) MarginTransfer(symbol, currency string, amount float64, in bool)
 	}
 
 	var result response
-	err := h.SendAuthenticatedHTTPRequest("POST", path, vals, nil, &result)
+	err := h.SendAuthenticatedHTTPRequest("POST", path, nil, data, &result)
 
 	if result.ErrorMessage != "" {
 		return 0, errors.New(result.ErrorMessage)
@@ -586,10 +591,15 @@ func (h *HUOBI) MarginTransfer(symbol, currency string, amount float64, in bool)
 
 // MarginOrder submits a margin order application
 func (h *HUOBI) MarginOrder(symbol, currency string, amount float64) (int64, error) {
-	vals := url.Values{}
-	vals.Set("symbol", symbol)
-	vals.Set("currency", currency)
-	vals.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
+	data := struct {
+		Symbol   string `json:"symbol"`
+		Currency string `json:"currency"`
+		Amount   string `json:"amount"`
+	}{
+		Symbol:   symbol,
+		Currency: currency,
+		Amount:   strconv.FormatFloat(amount, 'f', -1, 64),
+	}
 
 	type response struct {
 		Response
@@ -597,7 +607,7 @@ func (h *HUOBI) MarginOrder(symbol, currency string, amount float64) (int64, err
 	}
 
 	var result response
-	err := h.SendAuthenticatedHTTPRequest("POST", huobiMarginOrders, vals, nil, &result)
+	err := h.SendAuthenticatedHTTPRequest("POST", huobiMarginOrders, nil, data, &result)
 
 	if result.ErrorMessage != "" {
 		return 0, errors.New(result.ErrorMessage)
@@ -698,21 +708,28 @@ func (h *HUOBI) Withdraw(address, currency, addrTag string, amount, fee float64)
 		WithdrawID int64 `json:"data"`
 	}
 
-	vals := url.Values{}
-	vals.Set("address", address)
-	vals.Set("currency", currency)
-	vals.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
+	data := struct {
+		Address  string `json:"address"`
+		Amount   string `json:"amount"`
+		Currency string `json:"currency"`
+		Fee      string `json:"fee"`
+		AddrTag  string `json:"addr-tag"`
+	}{
+		Address:  address,
+		Currency: currency,
+		Amount:   strconv.FormatFloat(amount, 'f', -1, 64),
+	}
 
 	if fee != 0 {
-		vals.Set("fee", strconv.FormatFloat(fee, 'f', -1, 64))
+		data.Fee = strconv.FormatFloat(fee, 'f', -1, 64)
 	}
 
 	if currency == "XRP" {
-		vals.Set("addr-tag", addrTag)
+		data.AddrTag = addrTag
 	}
 
 	var result response
-	err := h.SendAuthenticatedHTTPRequest("POST", huobiWithdrawCreate, vals, nil, &result)
+	err := h.SendAuthenticatedHTTPRequest("POST", huobiWithdrawCreate, nil, data, &result)
 
 	if result.ErrorMessage != "" {
 		return 0, errors.New(result.ErrorMessage)
