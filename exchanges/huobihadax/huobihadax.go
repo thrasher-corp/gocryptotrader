@@ -20,6 +20,7 @@ import (
 const (
 	huobihadaxAPIURL     = "https://api.hadax.com"
 	huobihadaxAPIVersion = "1"
+	huobihadaxAPIName    = "hadax"
 
 	huobihadaxMarketHistoryKline   = "market/history/kline"
 	huobihadaxMarketDetail         = "market/detail"
@@ -282,7 +283,7 @@ func (h *HUOBIHADAX) GetSymbols() ([]Symbol, error) {
 	}
 
 	var result response
-	url := fmt.Sprintf("%s/v%s/%s", h.APIUrl, huobihadaxAPIVersion, huobihadaxSymbols)
+	url := fmt.Sprintf("%s/v%s/%s/%s", h.APIUrl, huobihadaxAPIVersion, huobihadaxAPIName, huobihadaxSymbols)
 
 	err := h.SendHTTPRequest(url, &result)
 	if result.ErrorMessage != "" {
@@ -299,7 +300,7 @@ func (h *HUOBIHADAX) GetCurrencies() ([]string, error) {
 	}
 
 	var result response
-	url := fmt.Sprintf("%s/v%s/%s", h.APIUrl, huobihadaxAPIVersion, huobihadaxCurrencies)
+	url := fmt.Sprintf("%s/v%s/%s/%s", h.APIUrl, huobihadaxAPIVersion, huobihadaxAPIName, huobihadaxCurrencies)
 
 	err := h.SendHTTPRequest(url, &result)
 	if result.ErrorMessage != "" {
@@ -349,7 +350,7 @@ func (h *HUOBIHADAX) GetAccountBalance(accountID string) ([]AccountBalanceDetail
 	}
 
 	var result response
-	endpoint := fmt.Sprintf(huobihadaxAccountBalance, accountID)
+	endpoint := fmt.Sprintf("%s/%s", huobihadaxAPIName, fmt.Sprintf(huobihadaxAccountBalance, accountID))
 	err := h.SendAuthenticatedHTTPRequest("GET", endpoint, url.Values{}, &result)
 
 	if result.ErrorMessage != "" {
@@ -390,7 +391,8 @@ func (h *HUOBIHADAX) SpotNewOrder(arg SpotNewOrderRequestParams) (int64, error) 
 	}
 
 	var result response
-	err := h.SendAuthenticatedHTTPPostRequest("POST", huobihadaxOrderPlace, postBodyParams, &result)
+	endpoint := fmt.Sprintf("%s/%s", huobihadaxAPIName, huobihadaxOrderPlace)
+	err := h.SendAuthenticatedHTTPPostRequest("POST", endpoint, postBodyParams, &result)
 
 	if result.ErrorMessage != "" {
 		return 0, errors.New(result.ErrorMessage)
