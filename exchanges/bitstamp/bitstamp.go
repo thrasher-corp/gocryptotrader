@@ -129,8 +129,51 @@ func (b *Bitstamp) Setup(exch config.ExchangeConfig) {
 	}
 }
 
-// GetFee returns fee on a currency pair
-func (b *Bitstamp) GetFee(currencyPair string) float64 {
+// GetFeeByType Generic fee
+func (b *Bitstamp) GetFeeByType(feeType string, currencyPair string, purchasePrice float64, amount float64) float64 {
+	switch feeType {
+	case exchange.TradeFee:
+		var err error
+		b.Balance, err = b.GetBalance()
+		if err != nil {
+			panic(err)
+		}
+		return b.GetTradingFeeByCurrency(currencyPair)
+	case exchange.BankFee:
+		fallthrough
+	case exchange.DepositFee:
+		return getDepositFees(feeType, amount)
+	case exchange.WithdrawalFee:
+		return getWithdrawalFees(currencyPair, amount)
+	default:
+		return 0
+	}
+}
+
+func getDepositFees(feeType string, amount float64, purchasePrice float64) float64 {
+	switch feeType {
+	case exchange.BankFee:
+		fee := amount * purchasePrice * 0.05
+		if fee > 300 {
+			return 300
+		}
+		return fee
+	default:
+		return 0
+	}
+}
+
+// getWithdrawalFees returns fee on a currency pair
+func getWithdrawalFees(currencyPair string, amount float64) float64 {
+	if amount <= 1000 {
+		return 10
+	} else {
+		return amount * 0.02
+	}
+}
+
+// GetTradingFeeByCurrency returns fee on a currency pair
+func (b *Bitstamp) GetTradingFeeByCurrency(currencyPair string) float64 {
 	switch currencyPair {
 	case "BTCUSD":
 		return b.Balance.BTCUSDFee

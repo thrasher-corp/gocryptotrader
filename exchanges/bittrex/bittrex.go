@@ -122,6 +122,16 @@ func (b *Bittrex) Setup(exch config.ExchangeConfig) {
 	}
 }
 
+// GetFeeByType Generic fee
+func (b *Bittrex) GetFeeByType(feeType string, currencyPair string, purchasePrice float64, amount float64) float64 {
+	switch feeType {
+	case exchange.TradeFee:
+		return amount * purchasePrice * 0.0025
+	default:
+		return 0
+	}
+}
+
 // GetMarkets is used to get the open and available trading markets at Bittrex
 // along with other meta data.
 func (b *Bittrex) GetMarkets() (Market, error) {

@@ -29,6 +29,15 @@ const (
 	DefaultHTTPTimeout = time.Second * 15
 )
 
+// Const declarations for fee types
+const (
+	BankFee              = "bankFee"
+	InternationalBankFee = "internationalBankFee"
+	TradeFee             = "tradeFee"
+	DepositFee           = "depositFee"
+	WithdrawalFee        = "withdrawalFee"
+)
+
 // AccountInfo is a Generic type to hold each exchange's holdings in
 // all enabled currencies
 type AccountInfo struct {
