@@ -4,8 +4,15 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"net/http"
+	"net/url"
 	"strconv"
+	"sync"
 	"time"
+
+	"github.com/thrasher-/gocryptotrader/currency/pair"
+
+	"github.com/thrasher-/gocryptotrader/exchanges"
 
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-/gocryptotrader/common"
@@ -55,15 +62,27 @@ const (
 
 var (
 	pongChan = make(chan int, 1)
-	timer    *time.Timer
 )
 
-// WebsocketConnect initiates a new websocket connection
-func (b *Bitmex) WebsocketConnect() error {
+// WsConnector initiates a new websocket connection
+func (b *Bitmex) WsConnector() error {
+	if !b.Websocket.IsEnabled() || !b.IsEnabled() {
+		return errors.New(exchange.WebsocketNotEnabled)
+	}
+
 	var dialer websocket.Dialer
 	var err error
 
-	b.WebsocketConn, _, err = dialer.Dial(bitmexWSURL, nil)
+	if b.Websocket.GetProxyAddress() != "" {
+		proxy, err := url.Parse(b.Websocket.GetProxyAddress())
+		if err != nil {
+			return err
+		}
+
+		dialer.Proxy = http.ProxyURL(proxy)
+	}
+
+	b.WebsocketConn, _, err = dialer.Dial(b.Websocket.GetWebsocketURL(), nil)
 	if err != nil {
 		return err
 	}
@@ -79,8 +98,6 @@ func (b *Bitmex) WebsocketConnect() error {
 		return err
 	}
 
-	go b.connectionHandler()
-
 	if b.Verbose {
 		log.Printf("Successfully connected to Bitmex %s at time: %s Limit: %d",
 			welcomeResp.Info,
@@ -88,7 +105,9 @@ func (b *Bitmex) WebsocketConnect() error {
 			welcomeResp.Limit.Remaining)
 	}
 
-	go b.handleIncomingData()
+	var c = make(chan []byte, 1)
+	go b.wsHandleIncomingData(c)
+	go b.wsReadData(c)
 
 	err = b.websocketSubscribe()
 	if err != nil {
@@ -105,218 +124,178 @@ func (b *Bitmex) WebsocketConnect() error {
 	return nil
 }
 
-// Timer handles connection loss or failure
-func (b *Bitmex) connectionHandler() {
-	defer func() {
-		if b.Verbose {
-			log.Println("Bitmex websocket: Connection handler routine shutdown")
-		}
-	}()
+func (b *Bitmex) wsReadData(c chan []byte) {
+	b.Websocket.Wg.Add(1)
+	defer b.Websocket.Wg.Done()
 
-	shutdown := b.shutdown.addRoutine()
-
-	timer = time.NewTimer(5 * time.Second)
 	for {
 		select {
-		case <-timer.C:
-			timeout := time.After(5 * time.Second)
-			err := b.WebsocketConn.WriteJSON("ping")
-			if err != nil {
-				b.reconnect()
-				return
-			}
-			for {
-				select {
-				case <-pongChan:
-					if b.Verbose {
-						log.Println("Bitmex websocket: PONG received")
-					}
-					break
-				case <-timeout:
-					log.Println("Bitmex websocket: Connection timed out - Closing connection....")
-					b.WebsocketConn.Close()
-
-					log.Println("Bitmex websocket: Connection timed out - Reconnecting...")
-					b.reconnect()
-					return
-				}
-			}
-		case <-shutdown:
-			log.Println("Bitmex websocket: shutdown requested - Closing connection....")
-			b.WebsocketConn.Close()
-			log.Println("Bitmex websocket: Sending shutdown message")
-			b.shutdown.routineShutdown()
+		case <-b.Websocket.ShutdownC:
 			return
-		}
-	}
-}
 
-// Reconnect handles reconnections to websocket API
-func (b *Bitmex) reconnect() {
-	for {
-		err := b.WebsocketConnect()
-		if err != nil {
-			log.Println("Bitmex websocket: Connection timed out - Failed to connect, sleeping...")
-			time.Sleep(time.Second * 2)
-			continue
-		}
-		return
-	}
-}
-
-// handleIncomingData services incoming data from the websocket connection
-func (b *Bitmex) handleIncomingData() {
-	defer func() {
-		if b.Verbose {
-			log.Println("Bitmex websocket: Response data handler routine shutdown")
-		}
-	}()
-
-	for {
-		_, resp, err := b.WebsocketConn.ReadMessage()
-		if err != nil {
-			if b.Verbose {
-				log.Println("Bitmex websocket: Connection error", err)
-			}
-			return
-		}
-
-		message := string(resp)
-		if common.StringContains(message, "pong") {
-			if b.Verbose {
-				log.Println("Bitmex websocket: PONG receieved")
-			}
-			pongChan <- 1
-			continue
-		}
-
-		if common.StringContains(message, "ping") {
-			err = b.WebsocketConn.WriteJSON("pong")
+		default:
+			_, resp, err := b.WebsocketConn.ReadMessage()
 			if err != nil {
-				if b.Verbose {
-					log.Println("Bitmex websocket error: ", err)
-				}
-				return
-			}
-		}
-
-		if !timer.Reset(5 * time.Second) {
-			log.Fatal("Bitmex websocket: Timer failed to set")
-		}
-
-		quickCapture := make(map[string]interface{})
-		err = common.JSONDecode(resp, &quickCapture)
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		var respError WebsocketErrorResponse
-		if _, ok := quickCapture["status"]; ok {
-			err = common.JSONDecode(resp, &respError)
-			if err != nil {
-				log.Fatal(err)
-			}
-			log.Printf("Bitmex websocket error: %s", respError.Error)
-			continue
-		}
-
-		if _, ok := quickCapture["success"]; ok {
-			var decodedResp WebsocketSubscribeResp
-			err := common.JSONDecode(resp, &decodedResp)
-			if err != nil {
-				log.Fatal(err)
-			}
-
-			if decodedResp.Success {
-				if b.Verbose {
-					if len(quickCapture) == 3 {
-						log.Printf("Bitmex Websocket: Successfully subscribed to %s",
-							decodedResp.Subscribe)
-					} else {
-						log.Println("Bitmex Websocket: Successfully authenticated websocket connection")
-					}
-				}
+				b.Websocket.DataHandler <- err
 				continue
 			}
-			log.Printf("Bitmex websocket error: Unable to subscribe %s",
-				decodedResp.Subscribe)
 
-		} else if _, ok := quickCapture["table"]; ok {
-			var decodedResp WebsocketMainResponse
-			err := common.JSONDecode(resp, &decodedResp)
-			if err != nil {
-				log.Fatal(err)
-			}
+			b.Websocket.TrafficTimer.Reset(exchange.WebsocketTrafficLimitTime)
 
-			switch decodedResp.Table {
-			case bitmexWSOrderbookL2:
-				var orderbooks OrderBookData
-				err = common.JSONDecode(resp, &orderbooks)
-				if err != nil {
-					log.Fatal(err)
-				}
-				err = b.processOrderbook(orderbooks.Data, orderbooks.Action)
-				if err != nil {
-					log.Fatal(err)
-				}
-			case bitmexWSTrade:
-				var trades TradeData
-				err = common.JSONDecode(resp, &trades)
-				if err != nil {
-					log.Fatal(err)
-				}
-				err = b.processTrades(trades.Data, trades.Action)
-				if err != nil {
-					log.Fatal(err)
-				}
-			case bitmexWSAnnouncement:
-				var announcement AnnouncementData
-				err = common.JSONDecode(resp, &announcement)
-				if err != nil {
-					log.Fatal(err)
-				}
-				err = b.processAnnouncement(announcement.Data, announcement.Action)
-				if err != nil {
-					log.Fatal(err)
-				}
-			default:
-				log.Fatal("Bitmex websocket error: Table unknown -", decodedResp.Table)
-			}
+			c <- resp
 		}
 	}
 }
 
-// Temporary local cache of Announcements
-var localAnnouncements []Announcement
-var partialLoadedAnnouncement bool
+// wsHandleIncomingData services incoming data from the websocket connection
+func (b *Bitmex) wsHandleIncomingData(c chan []byte) {
+	b.Websocket.Wg.Add(1)
+	defer b.Websocket.Wg.Done()
 
-// ProcessAnnouncement process announcements
-func (b *Bitmex) processAnnouncement(data []Announcement, action string) error {
-	switch action {
-	case bitmexActionInitialData:
-		if !partialLoadedAnnouncement {
-			localAnnouncements = data
+	for {
+		select {
+		case <-b.Websocket.ShutdownC:
+			return
+
+		case resp := <-c:
+			message := string(resp)
+			if common.StringContains(message, "pong") {
+				pongChan <- 1
+				continue
+			}
+
+			if common.StringContains(message, "ping") {
+				err := b.WebsocketConn.WriteJSON("pong")
+				if err != nil {
+					b.Websocket.DataHandler <- err
+				}
+			}
+
+			quickCapture := make(map[string]interface{})
+			err := common.JSONDecode(resp, &quickCapture)
+			if err != nil {
+				log.Fatal(err)
+			}
+
+			var respError WebsocketErrorResponse
+			if _, ok := quickCapture["status"]; ok {
+				err = common.JSONDecode(resp, &respError)
+				if err != nil {
+					log.Fatal(err)
+				}
+				b.Websocket.DataHandler <- errors.New(respError.Error)
+				continue
+			}
+
+			if _, ok := quickCapture["success"]; ok {
+				var decodedResp WebsocketSubscribeResp
+				err := common.JSONDecode(resp, &decodedResp)
+				if err != nil {
+					log.Fatal(err)
+				}
+
+				if decodedResp.Success {
+					if b.Verbose {
+						if len(quickCapture) == 3 {
+							log.Printf("Bitmex Websocket: Successfully subscribed to %s",
+								decodedResp.Subscribe)
+						} else {
+							log.Println("Bitmex Websocket: Successfully authenticated websocket connection")
+						}
+					}
+					continue
+				}
+
+				b.Websocket.DataHandler <- fmt.Errorf("Bitmex websocket error: Unable to subscribe %s",
+					decodedResp.Subscribe)
+
+			} else if _, ok := quickCapture["table"]; ok {
+				var decodedResp WebsocketMainResponse
+				err := common.JSONDecode(resp, &decodedResp)
+				if err != nil {
+					log.Fatal(err)
+				}
+
+				switch decodedResp.Table {
+				case bitmexWSOrderbookL2:
+					var orderbooks OrderBookData
+					err = common.JSONDecode(resp, &orderbooks)
+					if err != nil {
+						log.Fatal(err)
+					}
+					err = b.processOrderbook(orderbooks.Data, orderbooks.Action)
+					if err != nil {
+						log.Fatal(err)
+					}
+
+				case bitmexWSTrade:
+					var trades TradeData
+					err = common.JSONDecode(resp, &trades)
+					if err != nil {
+						log.Fatal(err)
+					}
+
+					if trades.Action == bitmexActionInitialData {
+						continue
+					}
+
+					for _, trade := range trades.Data {
+						timestamp, err := time.Parse(time.RFC3339, trade.Timestamp)
+						if err != nil {
+							log.Fatal(err)
+						}
+
+						b.Websocket.DataHandler <- exchange.TradeData{
+							Timestamp:    timestamp,
+							Price:        trade.Price,
+							Amount:       float64(trade.Size),
+							CurrencyPair: pair.NewCurrencyPairFromString(trade.Symbol),
+							Exchange:     b.GetName(),
+							AssetType:    "CONTRACT",
+							Side:         trade.Side,
+						}
+					}
+
+				case bitmexWSAnnouncement:
+					var announcement AnnouncementData
+
+					err = common.JSONDecode(resp, &announcement)
+					if err != nil {
+						log.Fatal(err)
+					}
+
+					if announcement.Action == bitmexActionInitialData {
+						continue
+					}
+
+					b.Websocket.DataHandler <- announcement.Data
+
+				default:
+					log.Fatal("Bitmex websocket error: Table unknown -", decodedResp.Table)
+				}
+			}
 		}
-		partialLoadedAnnouncement = true
-	default:
-		return fmt.Errorf("Bitmex websocket error: ProcessAnnouncement() unallocated action - %s",
-			action)
 	}
-	return nil
 }
 
 // Temporary local cache of orderbooks
 var localOb []OrderBookL2
+var obMtx sync.Mutex
 var partialLoaded bool
 
 // ProcessOrderbook processes orderbook updates
 func (b *Bitmex) processOrderbook(data []OrderBookL2, action string) error {
+	if len(data) < 1 {
+		return errors.New("no data receieved")
+	}
+
 	switch action {
 	case bitmexActionInitialData:
 		if !partialLoaded {
 			localOb = data
 		}
 		partialLoaded = true
+
 	case bitmexActionUpdateData:
 		if partialLoaded {
 			updated := len(data)
@@ -334,6 +313,7 @@ func (b *Bitmex) processOrderbook(data []OrderBookL2, action string) error {
 				return errors.New("Bitmex websocket error: Elements not updated correctly")
 			}
 		}
+
 	case bitmexActionInsertData:
 		if partialLoaded {
 			updated := len(data)
@@ -351,6 +331,7 @@ func (b *Bitmex) processOrderbook(data []OrderBookL2, action string) error {
 				return errors.New("Bitmex websocket error: Elements not updated correctly")
 			}
 		}
+
 	case bitmexActionDeleteData:
 		if partialLoaded {
 			updated := len(data)
@@ -369,29 +350,11 @@ func (b *Bitmex) processOrderbook(data []OrderBookL2, action string) error {
 			}
 		}
 	}
-	return nil
-}
 
-// Temporary local cache of orderbooks
-var localTrades []Trade
-var partialLoadedTrades bool
-
-// ProcessTrades processes new trades that have occured
-func (b *Bitmex) processTrades(data []Trade, action string) error {
-	switch action {
-	case bitmexActionInitialData:
-		if !partialLoadedTrades {
-			localTrades = data
-		}
-		partialLoadedTrades = true
-	case bitmexActionInsertData:
-		if partialLoadedTrades {
-			localTrades = append(localTrades, data...)
-		}
-	default:
-		return fmt.Errorf("Bitmex websocket error: ProcessTrades() unallocated action - %s",
-			action)
+	if !partialLoaded {
+		b.Websocket.DataHandler <- exchange.WebsocketOrderbookUpdated
 	}
+
 	return nil
 }
 
@@ -445,50 +408,24 @@ func (b *Bitmex) websocketSendAuth() error {
 	return b.WebsocketConn.WriteJSON(sendAuth)
 }
 
-// Shutdown to monitor and shut down routines package specific
-type Shutdown struct {
-	c            chan int
-	routineCount int
-	finishC      chan int
-}
+// WsShutdown terminates websocket connection and shuts down routines
+func (b *Bitmex) WsShutdown() error {
+	var (
+		c     = make(chan struct{}, 1)
+		timer = time.NewTimer(5 * time.Second)
+	)
 
-// NewRoutineManagement returns an new initial routine management system
-func (b *Bitmex) NewRoutineManagement() *Shutdown {
-	return &Shutdown{
-		c:       make(chan int, 1),
-		finishC: make(chan int, 1),
-	}
-}
+	go func(c chan struct{}) {
+		close(b.Websocket.ShutdownC)
+		b.Websocket.Wg.Wait()
+		c <- struct{}{}
+	}(c)
 
-// AddRoutine adds a routine to the monitor and returns a channel
-func (r *Shutdown) addRoutine() chan int {
-	log.Println("Bitmex Websocket: Routine added to monitor")
-	r.routineCount++
-	return r.c
-}
+	select {
+	case <-timer.C:
+		return errors.New("routines did not shutdown")
 
-// RoutineShutdown sends a message to the finisher channel
-func (r *Shutdown) routineShutdown() {
-	log.Println("Bitmex Websocket: Routine is shutting down")
-	r.finishC <- 1
-}
-
-// SignalShutdown signals a shutdown across routines
-func (r *Shutdown) SignalShutdown() {
-	log.Println("Bitmex Websocket: Shutdown signal sending..")
-	for i := 0; i < r.routineCount; i++ {
-		log.Printf("Bitmex Websocket: Shutdown signal sent to routine %d", i+1)
-		r.c <- 1
-	}
-
-	for {
-		<-r.finishC
-		r.routineCount--
-		if r.routineCount <= 0 {
-			close(r.c)
-			close(r.finishC)
-			log.Println("Bitmex Websocket: All routines stopped")
-			return
-		}
+	case <-c:
+		return nil
 	}
 }

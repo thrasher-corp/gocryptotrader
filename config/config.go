@@ -57,6 +57,7 @@ const (
 	WarningCurrencyExchangeProvider                 = "WARNING -- Currency exchange provider invalid valid. Reset to Fixer."
 	WarningPairsLastUpdatedThresholdExceeded        = "WARNING -- Exchange %s: Last manual update of available currency pairs has exceeded %d days. Manual update required!"
 	APIURLDefaultMessage                            = "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API"
+	WebsocketURLDefault                             = "NON_DEFAULT_HTTP_LINK_TO_WEBSOCKET_EXCHANGE_API"
 )
 
 // Variables here are used for configuration
@@ -95,15 +96,16 @@ type CurrencyPairFormatConfig struct {
 // prestart management of Portfolio, Communications, Webserver and Enabled
 // Exchanges
 type Config struct {
-	Name              string               `json:"name"`
-	EncryptConfig     int                  `json:"encryptConfig"`
-	GlobalHTTPTimeout time.Duration        `json:"globalHTTPTimeout"`
-	Currency          CurrencyConfig       `json:"currencyConfig"`
-	Communications    CommunicationsConfig `json:"communications"`
-	Portfolio         portfolio.Base       `json:"portfolioAddresses"`
-	Webserver         WebserverConfig      `json:"webserver"`
-	Exchanges         []ExchangeConfig     `json:"exchanges"`
-	BankAccounts      []BankAccount        `json:"bankAccounts"`
+	Name              string        `json:"name"`
+	EncryptConfig     int           `json:"encryptConfig"`
+	GlobalHTTPTimeout time.Duration `json:"globalHTTPTimeout"`
+	// GlobalProxy string `json:"globalProxy"`
+	Currency       CurrencyConfig       `json:"currencyConfig"`
+	Communications CommunicationsConfig `json:"communications"`
+	Portfolio      portfolio.Base       `json:"portfolioAddresses"`
+	Webserver      WebserverConfig      `json:"webserver"`
+	Exchanges      []ExchangeConfig     `json:"exchanges"`
+	BankAccounts   []BankAccount        `json:"bankAccounts"`
 
 	// Deprecated config settings, will be removed at a future date
 	CurrencyPairFormat  *CurrencyPairFormatConfig `json:"currencyPairFormat,omitempty"`
@@ -129,6 +131,8 @@ type ExchangeConfig struct {
 	APIAuthPEMKey             string                    `json:"apiAuthPemKey,omitempty"`
 	APIURL                    string                    `json:"apiUrl"`
 	APIURLSecondary           string                    `json:"apiUrlSecondary"`
+	ProxyAddress              string                    `json:"proxyAddress"`
+	WebsocketURL              string                    `json:"websocketUrl"`
 	ClientID                  string                    `json:"clientId,omitempty"`
 	AvailablePairs            string                    `json:"availablePairs"`
 	EnabledPairs              string                    `json:"enabledPairs"`
@@ -670,6 +674,12 @@ func (c *Config) CheckExchangeConfigValues() error {
 	for i, exch := range c.Exchanges {
 		if exch.Name == "GDAX" {
 			c.Exchanges[i].Name = "CoinbasePro"
+		}
+
+		if exch.WebsocketURL != WebsocketURLDefault {
+			if exch.WebsocketURL == "" {
+				c.Exchanges[i].WebsocketURL = WebsocketURLDefault
+			}
 		}
 
 		if exch.APIURL != APIURLDefaultMessage {

@@ -58,7 +58,6 @@ func (k *Kraken) SetDefaults() {
 	k.FiatFee = 0.35
 	k.CryptoFee = 0.10
 	k.Verbose = false
-	k.Websocket = false
 	k.RESTPollingDelay = 10
 	k.Ticker = make(map[string]Ticker)
 	k.RequestCurrencyPairFormat.Delimiter = ""
@@ -75,6 +74,7 @@ func (k *Kraken) SetDefaults() {
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 	k.APIUrlDefault = krakenAPIURL
 	k.APIUrl = k.APIUrlDefault
+	k.WebsocketInit()
 }
 
 // Setup sets current exchange configuration
@@ -89,7 +89,6 @@ func (k *Kraken) Setup(exch config.ExchangeConfig) {
 		k.SetHTTPClientUserAgent(exch.HTTPUserAgent)
 		k.RESTPollingDelay = exch.RESTPollingDelay
 		k.Verbose = exch.Verbose
-		k.Websocket = exch.Websocket
 		k.BaseCurrencies = common.SplitStrings(exch.BaseCurrencies, ",")
 		k.AvailablePairs = common.SplitStrings(exch.AvailablePairs, ",")
 		k.EnabledPairs = common.SplitStrings(exch.EnabledPairs, ",")
@@ -109,6 +108,7 @@ func (k *Kraken) Setup(exch config.ExchangeConfig) {
 		if err != nil {
 			log.Fatal(err)
 		}
+		k.SetClientProxyAddress(exch.ProxyAddress)
 	}
 }
 

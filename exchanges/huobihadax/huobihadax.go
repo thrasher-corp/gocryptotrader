@@ -64,7 +64,6 @@ func (h *HUOBIHADAX) SetDefaults() {
 	h.Enabled = false
 	h.Fee = 0
 	h.Verbose = false
-	h.Websocket = false
 	h.RESTPollingDelay = 10
 	h.RequestCurrencyPairFormat.Delimiter = ""
 	h.RequestCurrencyPairFormat.Uppercase = false
@@ -79,6 +78,7 @@ func (h *HUOBIHADAX) SetDefaults() {
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 	h.APIUrlDefault = huobihadaxAPIURL
 	h.APIUrl = h.APIUrlDefault
+	h.WebsocketInit()
 }
 
 // Setup sets user configuration
@@ -95,7 +95,6 @@ func (h *HUOBIHADAX) Setup(exch config.ExchangeConfig) {
 		h.SetHTTPClientUserAgent(exch.HTTPUserAgent)
 		h.RESTPollingDelay = exch.RESTPollingDelay
 		h.Verbose = exch.Verbose
-		h.Websocket = exch.Websocket
 		h.BaseCurrencies = common.SplitStrings(exch.BaseCurrencies, ",")
 		h.AvailablePairs = common.SplitStrings(exch.AvailablePairs, ",")
 		h.EnabledPairs = common.SplitStrings(exch.EnabledPairs, ",")
@@ -115,6 +114,7 @@ func (h *HUOBIHADAX) Setup(exch config.ExchangeConfig) {
 		if err != nil {
 			log.Fatal(err)
 		}
+		h.SetClientProxyAddress(exch.ProxyAddress)
 	}
 }
 

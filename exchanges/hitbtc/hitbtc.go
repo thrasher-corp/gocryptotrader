@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/gorilla/websocket"
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/exchanges"
@@ -49,6 +50,7 @@ const (
 // HitBTC is the overarching type across the hitbtc package
 type HitBTC struct {
 	exchange.Base
+	WebsocketConn *websocket.Conn
 }
 
 // SetDefaults sets default settings for hitbtc
@@ -57,7 +59,6 @@ func (p *HitBTC) SetDefaults() {
 	p.Enabled = false
 	p.Fee = 0
 	p.Verbose = false
-	p.Websocket = false
 	p.RESTPollingDelay = 10
 	p.RequestCurrencyPairFormat.Delimiter = ""
 	p.RequestCurrencyPairFormat.Uppercase = true
@@ -72,6 +73,7 @@ func (p *HitBTC) SetDefaults() {
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 	p.APIUrlDefault = apiURL
 	p.APIUrl = p.APIUrlDefault
+	p.WebsocketInit()
 }
 
 // Setup sets user exchange configuration settings
@@ -86,7 +88,7 @@ func (p *HitBTC) Setup(exch config.ExchangeConfig) {
 		p.SetHTTPClientUserAgent(exch.HTTPUserAgent)
 		p.RESTPollingDelay = exch.RESTPollingDelay // Max 60000ms
 		p.Verbose = exch.Verbose
-		p.Websocket = exch.Websocket
+		p.Websocket.SetEnabled(exch.Websocket)
 		p.BaseCurrencies = common.SplitStrings(exch.BaseCurrencies, ",")
 		p.AvailablePairs = common.SplitStrings(exch.AvailablePairs, ",")
 		p.EnabledPairs = common.SplitStrings(exch.EnabledPairs, ",")
@@ -106,6 +108,15 @@ func (p *HitBTC) Setup(exch config.ExchangeConfig) {
 		if err != nil {
 			log.Fatal(err)
 		}
+		p.SetClientProxyAddress(exch.ProxyAddress)
+		p.WebsocketSetup(
+			p.WsConnect,
+			p.WsShutdown,
+			exch.Websocket,
+			exch.ProxyAddress,
+			hitbtcWebsocketAddress,
+			exch.WebsocketURL,
+		)
 	}
 }
 

@@ -53,7 +53,6 @@ func (w *WEX) SetDefaults() {
 	w.Enabled = false
 	w.Fee = 0.2
 	w.Verbose = false
-	w.Websocket = false
 	w.RESTPollingDelay = 10
 	w.Ticker = make(map[string]Ticker)
 	w.RequestCurrencyPairFormat.Delimiter = "_"
@@ -72,6 +71,7 @@ func (w *WEX) SetDefaults() {
 	w.APIUrl = w.APIUrlDefault
 	w.APIUrlSecondaryDefault = wexAPIPrivateURL
 	w.APIUrlSecondary = w.APIUrlSecondaryDefault
+	w.WebsocketInit()
 }
 
 // Setup sets exchange configuration parameters for WEX
@@ -86,7 +86,6 @@ func (w *WEX) Setup(exch config.ExchangeConfig) {
 		w.SetHTTPClientUserAgent(exch.HTTPUserAgent)
 		w.RESTPollingDelay = exch.RESTPollingDelay
 		w.Verbose = exch.Verbose
-		w.Websocket = exch.Websocket
 		w.BaseCurrencies = common.SplitStrings(exch.BaseCurrencies, ",")
 		w.AvailablePairs = common.SplitStrings(exch.AvailablePairs, ",")
 		w.EnabledPairs = common.SplitStrings(exch.EnabledPairs, ",")
@@ -106,6 +105,7 @@ func (w *WEX) Setup(exch config.ExchangeConfig) {
 		if err != nil {
 			log.Fatal(err)
 		}
+		w.SetClientProxyAddress(exch.ProxyAddress)
 	}
 }
 

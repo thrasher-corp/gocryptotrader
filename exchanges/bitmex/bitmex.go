@@ -20,7 +20,6 @@ import (
 type Bitmex struct {
 	exchange.Base
 	WebsocketConn *websocket.Conn
-	shutdown      *Shutdown
 }
 
 const (
@@ -114,7 +113,6 @@ func (b *Bitmex) SetDefaults() {
 	b.Name = "Bitmex"
 	b.Enabled = false
 	b.Verbose = false
-	b.Websocket = false
 	b.RESTPollingDelay = 10
 	b.RequestCurrencyPairFormat.Delimiter = ""
 	b.RequestCurrencyPairFormat.Uppercase = true
@@ -125,10 +123,10 @@ func (b *Bitmex) SetDefaults() {
 		request.NewRateLimit(time.Second, bitmexAuthRate),
 		request.NewRateLimit(time.Second, bitmexUnauthRate),
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
-	b.shutdown = b.NewRoutineManagement()
 	b.APIUrlDefault = bitmexAPIURL
 	b.APIUrl = b.APIUrlDefault
 	b.SupportsAutoPairUpdating = true
+	b.WebsocketInit()
 }
 
 // Setup takes in the supplied exchange configuration details and sets params
@@ -141,7 +139,7 @@ func (b *Bitmex) Setup(exch config.ExchangeConfig) {
 		b.SetAPIKeys(exch.APIKey, exch.APISecret, "", false)
 		b.RESTPollingDelay = exch.RESTPollingDelay
 		b.Verbose = exch.Verbose
-		b.Websocket = exch.Websocket
+		b.Websocket.SetEnabled(exch.Websocket)
 		b.BaseCurrencies = common.SplitStrings(exch.BaseCurrencies, ",")
 		b.AvailablePairs = common.SplitStrings(exch.AvailablePairs, ",")
 		b.EnabledPairs = common.SplitStrings(exch.EnabledPairs, ",")
@@ -161,6 +159,15 @@ func (b *Bitmex) Setup(exch config.ExchangeConfig) {
 		if err != nil {
 			log.Fatal(err)
 		}
+		b.SetClientProxyAddress(exch.ProxyAddress)
+		b.WebsocketSetup(
+			b.WsConnector,
+			b.WsShutdown,
+			exch.Websocket,
+			exch.ProxyAddress,
+			bitmexWSURL,
+			exch.WebsocketURL,
+		)
 	}
 }
 

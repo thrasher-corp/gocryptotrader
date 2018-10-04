@@ -24,14 +24,14 @@ func (c *COINUT) Start(wg *sync.WaitGroup) {
 // Run implements the COINUT wrapper
 func (c *COINUT) Run() {
 	if c.Verbose {
-		log.Printf("%s Websocket: %s. (url: %s).\n", c.GetName(), common.IsEnabled(c.Websocket), coinutWebsocketURL)
+		log.Printf("%s Websocket: %s. (url: %s).\n", c.GetName(), common.IsEnabled(c.Websocket.IsEnabled()), coinutWebsocketURL)
 		log.Printf("%s polling delay: %ds.\n", c.GetName(), c.RESTPollingDelay)
 		log.Printf("%s %d currencies enabled: %s.\n", c.GetName(), len(c.EnabledPairs), c.EnabledPairs)
 	}
 
-	if c.Websocket {
-		go c.WebsocketClient()
-	}
+	// if c.Websocket.IsEnabled() {
+	// 	go c.WebsocketClient()
+	// }
 
 	exchangeProducts, err := c.GetInstruments()
 	if err != nil {
@@ -192,4 +192,10 @@ func (c *COINUT) WithdrawFiatExchangeFunds(currency pair.CurrencyItem, amount fl
 // withdrawal is submitted
 func (c *COINUT) WithdrawFiatExchangeFundsToInternationalBank(currency pair.CurrencyItem, amount float64) (string, error) {
 	return "", errors.New("not yet implemented")
+}
+
+// WebsocketConnect connects an exchange to the package defined websocket feeds
+// and returns a pointer to a websocket
+func (c *COINUT) WebsocketConnect() (*exchange.Websocket, error) {
+	return c.Websocket, c.Websocket.Connect()
 }

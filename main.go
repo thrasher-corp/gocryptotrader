@@ -133,10 +133,6 @@ func main() {
 	bot.portfolio.SeedPortfolio(bot.config.Portfolio)
 	SeedExchangeAccountInfo(GetAllEnabledExchangeAccountInfo().Data)
 
-	go portfolio.StartPortfolioWatcher()
-	go TickerUpdaterRoutine()
-	go OrderbookUpdaterRoutine()
-
 	if bot.config.Webserver.Enabled {
 		listenAddr := bot.config.Webserver.ListenAddress
 		log.Printf(
@@ -158,6 +154,14 @@ func main() {
 	} else {
 		log.Println("HTTP RESTful Webserver support disabled.")
 	}
+
+	go portfolio.StartPortfolioWatcher()
+	go TickerUpdaterRoutine()
+	go OrderbookUpdaterRoutine()
+
+	// NOTE WebsocketRoutine will be replaced and updated in routines.go when
+	// database branch is merged
+	go WebsocketRoutine()
 
 	<-bot.shutdown
 	Shutdown()

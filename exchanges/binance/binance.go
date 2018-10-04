@@ -22,7 +22,7 @@ type Binance struct {
 	exchange.Base
 	WebsocketConn *websocket.Conn
 
-	// valid string list that a required by the exchange
+	// Valid string list that is required by the exchange
 	validLimits    []int
 	validIntervals []TimeInterval
 }
@@ -61,7 +61,6 @@ func (b *Binance) SetDefaults() {
 	b.Name = "Binance"
 	b.Enabled = false
 	b.Verbose = false
-	b.Websocket = false
 	b.RESTPollingDelay = 10
 	b.RequestCurrencyPairFormat.Delimiter = ""
 	b.RequestCurrencyPairFormat.Uppercase = true
@@ -77,6 +76,7 @@ func (b *Binance) SetDefaults() {
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 	b.APIUrlDefault = apiURL
 	b.APIUrl = b.APIUrlDefault
+	b.WebsocketInit()
 }
 
 // Setup takes in the supplied exchange configuration details and sets params
@@ -91,7 +91,6 @@ func (b *Binance) Setup(exch config.ExchangeConfig) {
 		b.SetHTTPClientUserAgent(exch.HTTPUserAgent)
 		b.RESTPollingDelay = exch.RESTPollingDelay
 		b.Verbose = exch.Verbose
-		b.Websocket = exch.Websocket
 		b.BaseCurrencies = common.SplitStrings(exch.BaseCurrencies, ",")
 		b.AvailablePairs = common.SplitStrings(exch.AvailablePairs, ",")
 		b.EnabledPairs = common.SplitStrings(exch.EnabledPairs, ",")
@@ -111,6 +110,13 @@ func (b *Binance) Setup(exch config.ExchangeConfig) {
 		if err != nil {
 			log.Fatal(err)
 		}
+		b.SetClientProxyAddress(exch.ProxyAddress)
+		b.WebsocketSetup(b.WSConnect,
+			b.WSShutdown,
+			exch.Websocket,
+			exch.ProxyAddress,
+			binanceDefaultWebsocketURL,
+			exch.WebsocketURL)
 	}
 }
 

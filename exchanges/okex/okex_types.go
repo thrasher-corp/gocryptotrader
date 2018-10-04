@@ -19,11 +19,13 @@ type ContractPrice struct {
 	Error  interface{} `json:"error_code"`
 }
 
+// MultiStreamData contains raw data from okex
 type MultiStreamData struct {
 	Channel string          `json:"channel"`
 	Data    json.RawMessage `json:"data"`
 }
 
+// TickerStreamData contains ticker stream data from okex
 type TickerStreamData struct {
 	Buy       string  `json:"buy"`
 	Change    string  `json:"change"`
@@ -37,9 +39,13 @@ type TickerStreamData struct {
 	Vol       string  `json:"vol"`
 }
 
+// DealsStreamData defines Deals data
 type DealsStreamData = [][]string
+
+// KlineStreamData defines kline data
 type KlineStreamData = [][]string
 
+// DepthStreamData defines orderbook depth
 type DepthStreamData struct {
 	Asks      [][]string `json:"asks"`
 	Bids      [][]string `json:"bids"`

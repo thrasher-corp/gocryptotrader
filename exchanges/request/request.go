@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"net/url"
 	"sync"
 	"time"
 
@@ -16,7 +17,8 @@ import (
 var supportedMethods = []string{"GET", "POST", "HEAD", "PUT", "DELETE", "OPTIONS", "CONNECT"}
 
 const (
-	maxRequestJobs = 50
+	maxRequestJobs  = 50
+	proxyTLSTimeout = 10
 )
 
 // Requester struct for the request client
@@ -30,6 +32,7 @@ type Requester struct {
 	m             sync.Mutex
 	Jobs          chan Job
 	WorkerStarted bool
+	ProxyAddrs    []string
 }
 
 // RateLimit struct
@@ -191,6 +194,7 @@ func (r *Requester) GetRateLimit(auth bool) *RateLimit {
 
 // New returns a new Requester
 func New(name string, authLimit, unauthLimit *RateLimit, httpRequester *http.Client) *Requester {
+
 	return &Requester{
 		HTTPClient:  httpRequester,
 		UnauthLimit: unauthLimit,
@@ -379,4 +383,17 @@ func (r *Requester) SendPayload(method, path string, headers map[string]string, 
 		log.Printf("%s request. Job complete.", r.Name)
 	}
 	return resp.Error
+}
+
+// AddProxy adds a proxy address to the client transport
+func (r *Requester) AddProxy(p *url.URL) error {
+	if p.String() == "" {
+		return errors.New("No proxy URL supplied")
+	}
+
+	r.HTTPClient.Transport = &http.Transport{
+		Proxy:               http.ProxyURL(p),
+		TLSHandshakeTimeout: proxyTLSTimeout,
+	}
+	return nil
 }

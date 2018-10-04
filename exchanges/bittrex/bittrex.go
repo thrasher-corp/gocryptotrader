@@ -67,7 +67,6 @@ func (b *Bittrex) SetDefaults() {
 	b.Name = "Bittrex"
 	b.Enabled = false
 	b.Verbose = false
-	b.Websocket = false
 	b.RESTPollingDelay = 10
 	b.RequestCurrencyPairFormat.Delimiter = "-"
 	b.RequestCurrencyPairFormat.Uppercase = true
@@ -82,6 +81,7 @@ func (b *Bittrex) SetDefaults() {
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 	b.APIUrlDefault = bittrexAPIURL
 	b.APIUrl = b.APIUrlDefault
+	b.WebsocketInit()
 }
 
 // Setup method sets current configuration details if enabled
@@ -96,7 +96,6 @@ func (b *Bittrex) Setup(exch config.ExchangeConfig) {
 		b.SetHTTPClientUserAgent(exch.HTTPUserAgent)
 		b.RESTPollingDelay = exch.RESTPollingDelay
 		b.Verbose = exch.Verbose
-		b.Websocket = exch.Websocket
 		b.BaseCurrencies = common.SplitStrings(exch.BaseCurrencies, ",")
 		b.AvailablePairs = common.SplitStrings(exch.AvailablePairs, ",")
 		b.EnabledPairs = common.SplitStrings(exch.EnabledPairs, ",")
@@ -116,6 +115,7 @@ func (b *Bittrex) Setup(exch config.ExchangeConfig) {
 		if err != nil {
 			log.Fatal(err)
 		}
+		b.SetClientProxyAddress(exch.ProxyAddress)
 	}
 }
 

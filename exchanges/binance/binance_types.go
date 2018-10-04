@@ -73,6 +73,24 @@ type OrderBook struct {
 	}
 }
 
+// DepthUpdateParams is used as an embedded type for WebsocketDepthStream
+type DepthUpdateParams []struct {
+	PriceLevel float64
+	Quantity   float64
+	ingnore    []interface{}
+}
+
+// WebsocketDepthStream is the difference for the update depth stream
+type WebsocketDepthStream struct {
+	Event         string        `json:"e"`
+	Timestamp     int64         `json:"E"`
+	Pair          string        `json:"s"`
+	FirstUpdateID int64         `json:"U"`
+	LastUpdateID  int64         `json:"u"`
+	UpdateBids    []interface{} `json:"b"`
+	UpdateAsks    []interface{} `json:"a"`
+}
+
 // RecentTradeRequestParams represents Klines request data.
 type RecentTradeRequestParams struct {
 	Symbol string `json:"symbol"` // Required field. example LTCBTC, BTCUSDT

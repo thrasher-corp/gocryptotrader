@@ -56,7 +56,8 @@ const (
 // Bitstamp is the overarching type across the bitstamp package
 type Bitstamp struct {
 	exchange.Base
-	Balance Balances
+	Balance       Balances
+	WebsocketConn WebsocketConn
 }
 
 // SetDefaults sets default for Bitstamp
@@ -64,7 +65,6 @@ func (b *Bitstamp) SetDefaults() {
 	b.Name = "Bitstamp"
 	b.Enabled = false
 	b.Verbose = false
-	b.Websocket = false
 	b.RESTPollingDelay = 10
 	b.RequestCurrencyPairFormat.Delimiter = ""
 	b.RequestCurrencyPairFormat.Uppercase = true
@@ -79,6 +79,7 @@ func (b *Bitstamp) SetDefaults() {
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 	b.APIUrlDefault = bitstampAPIURL
 	b.APIUrl = b.APIUrlDefault
+	b.WebsocketInit()
 }
 
 // Setup sets configuration values to bitstamp
@@ -93,7 +94,7 @@ func (b *Bitstamp) Setup(exch config.ExchangeConfig) {
 		b.SetHTTPClientUserAgent(exch.HTTPUserAgent)
 		b.RESTPollingDelay = exch.RESTPollingDelay
 		b.Verbose = exch.Verbose
-		b.Websocket = exch.Websocket
+		b.Websocket.SetEnabled(exch.Websocket)
 		b.BaseCurrencies = common.SplitStrings(exch.BaseCurrencies, ",")
 		b.AvailablePairs = common.SplitStrings(exch.AvailablePairs, ",")
 		b.EnabledPairs = common.SplitStrings(exch.EnabledPairs, ",")
@@ -113,6 +114,13 @@ func (b *Bitstamp) Setup(exch config.ExchangeConfig) {
 		if err != nil {
 			log.Fatal(err)
 		}
+		b.SetClientProxyAddress(exch.ProxyAddress)
+		b.WebsocketSetup(b.WsConnect,
+			b.WsShutdown,
+			exch.Websocket,
+			exch.ProxyAddress,
+			BitstampPusherKey,
+			exch.WebsocketURL)
 	}
 }
 

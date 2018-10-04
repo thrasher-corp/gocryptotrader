@@ -46,7 +46,6 @@ func (i *ItBit) SetDefaults() {
 	i.MakerFee = -0.10
 	i.TakerFee = 0.50
 	i.Verbose = false
-	i.Websocket = false
 	i.RESTPollingDelay = 10
 	i.RequestCurrencyPairFormat.Delimiter = ""
 	i.RequestCurrencyPairFormat.Uppercase = true
@@ -61,6 +60,7 @@ func (i *ItBit) SetDefaults() {
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 	i.APIUrlDefault = itbitAPIURL
 	i.APIUrl = i.APIUrlDefault
+	i.WebsocketInit()
 }
 
 // Setup sets the exchange parameters from exchange config
@@ -75,7 +75,6 @@ func (i *ItBit) Setup(exch config.ExchangeConfig) {
 		i.SetHTTPClientUserAgent(exch.HTTPUserAgent)
 		i.RESTPollingDelay = exch.RESTPollingDelay
 		i.Verbose = exch.Verbose
-		i.Websocket = exch.Websocket
 		i.BaseCurrencies = common.SplitStrings(exch.BaseCurrencies, ",")
 		i.AvailablePairs = common.SplitStrings(exch.AvailablePairs, ",")
 		i.EnabledPairs = common.SplitStrings(exch.EnabledPairs, ",")
@@ -95,6 +94,7 @@ func (i *ItBit) Setup(exch config.ExchangeConfig) {
 		if err != nil {
 			log.Fatal(err)
 		}
+		i.SetClientProxyAddress(exch.ProxyAddress)
 	}
 }
 

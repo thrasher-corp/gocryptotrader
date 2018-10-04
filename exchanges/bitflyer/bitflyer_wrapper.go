@@ -24,7 +24,7 @@ func (b *Bitflyer) Start(wg *sync.WaitGroup) {
 // Run implements the Bitflyer wrapper
 func (b *Bitflyer) Run() {
 	if b.Verbose {
-		log.Printf("%s Websocket: %s.", b.GetName(), common.IsEnabled(b.Websocket))
+		log.Printf("%s Websocket: %s.", b.GetName(), common.IsEnabled(b.Websocket.IsEnabled()))
 		log.Printf("%s polling delay: %ds.\n", b.GetName(), b.RESTPollingDelay)
 		log.Printf("%s %d currencies enabled: %s.\n", b.GetName(), len(b.EnabledPairs), b.EnabledPairs)
 	}
@@ -200,4 +200,10 @@ func (b *Bitflyer) WithdrawFiatExchangeFunds(currency pair.CurrencyItem, amount 
 // withdrawal is submitted
 func (b *Bitflyer) WithdrawFiatExchangeFundsToInternationalBank(currency pair.CurrencyItem, amount float64) (string, error) {
 	return "", errors.New("not yet implemented")
+}
+
+// WebsocketConnect connects an exchange to the package defined websocket feeds
+// and returns a pointer to a websocket
+func (b *Bitflyer) WebsocketConnect() (*exchange.Websocket, error) {
+	return nil, errors.New("not yet implemented")
 }

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"net/url"
 	"sync"
 	"time"
 
@@ -26,6 +27,25 @@ const (
 	ErrExchangeNotFound = "Exchange not found in dataset."
 	// DefaultHTTPTimeout is the default HTTP/HTTPS Timeout for exchange requests
 	DefaultHTTPTimeout = time.Second * 15
+
+	// WebsocketNotEnabled alerts of a disabled websocket
+	WebsocketNotEnabled = "exchange_websocket_not_enabled"
+	// WebsocketConnected defines a connection const
+	WebsocketConnected = "websocket_connection_established"
+	// WebsocketDisconnected defines a disconnection const
+	WebsocketDisconnected = "websocket_disconnection_occured"
+	// WebsocketOrderbookUpdated tells the routine handler that there is a
+	// change in the orderbook structure
+	WebsocketOrderbookUpdated = "websocket_orderbook_updated"
+	// WebsocketTrafficLimitTime defines a standard time for no traffic from the
+	// websocket connection
+	WebsocketTrafficLimitTime = 5 * time.Second
+
+	websocketStateRefresh = "REFRESH"
+	websocketStateEnable  = "ENABLED"
+	websocketStateDisable = "DISABLED"
+
+	websocketRestablishConnection = 1 * time.Second
 )
 
 // AccountInfo is a Generic type to hold each exchange's holdings in
@@ -90,7 +110,6 @@ type Base struct {
 	Name                                       string
 	Enabled                                    bool
 	Verbose                                    bool
-	Websocket                                  bool
 	RESTPollingDelay                           time.Duration
 	AuthenticatedAPISupport                    bool
 	APIAuthPEMKeySupport                       bool
@@ -101,6 +120,7 @@ type Base struct {
 	AvailablePairs                             []string
 	EnabledPairs                               []string
 	AssetTypes                                 []string
+	ProxyAddr                                  *url.URL
 	PairsLastUpdated                           int64
 	SupportsAutoPairUpdating                   bool
 	SupportsRESTTickerBatching                 bool
@@ -113,7 +133,297 @@ type Base struct {
 	APIUrlSecondaryDefault                     string
 	RequestCurrencyPairFormat                  config.CurrencyPairFormatConfig
 	ConfigCurrencyPairFormat                   config.CurrencyPairFormatConfig
+	Websocket                                  *Websocket
 	*request.Requester
+}
+
+// WebsocketInit initialises the websocket struct
+func (e *Base) WebsocketInit() {
+	e.Websocket = &Websocket{
+		defaultURL: "",
+		enabled:    false,
+		proxyAddr:  "",
+		runningURL: "",
+		init:       true,
+	}
+}
+
+// WebsocketSetup sets main variables for websocket connection
+func (e *Base) WebsocketSetup(connector func() error,
+	shutdowner func() error,
+	wsEnabled bool,
+	proxyAddr,
+	defaultURL,
+	runningURL string) {
+
+	e.Websocket.DataHandler = make(chan interface{}, 1)
+	e.Websocket.state = make(chan string, 1)
+	e.Websocket.Connected = make(chan struct{}, 1)
+	e.Websocket.Disconnected = make(chan struct{}, 1)
+
+	e.Websocket.SetEnabled(wsEnabled)
+	e.Websocket.SetProxyAddress(proxyAddr)
+	e.Websocket.SetDefaultURL(defaultURL)
+	e.Websocket.SetConnector(connector)
+	e.Websocket.SetShutdowner(shutdowner)
+	e.Websocket.SetWebsocketURL(runningURL)
+
+	e.Websocket.init = false
+	go e.Websocket.stateChange()
+}
+
+// Websocket defines a return type for websocket connections via the interface
+// wrapper for routine processing in routines.go
+type Websocket struct {
+	proxyAddr  string
+	defaultURL string
+	runningURL string
+	enabled    bool
+	init       bool
+	connected  bool
+	state      chan string
+	connector  func() error
+	shutdowner func() error
+	m          sync.Mutex
+
+	// Connected denotes a channel switch for diversion of request flow
+	Connected chan struct{}
+
+	// Disconnected denotes a channel switch for diversion of request flow
+	Disconnected chan struct{}
+
+	// DataHandler pipes websocket data to an exchange websocket data handler
+	DataHandler chan interface{}
+
+	// ShutdownC is the main shutdown channel used within an exchange package
+	// called by its own defined Shutdown function
+	ShutdownC chan struct{}
+
+	// Wg defines a wait group for websocket routines for cleanly shutting down
+	// routines
+	Wg sync.WaitGroup
+
+	// TrafficTimer sets a timer if there is a halt in traffic throughput
+	TrafficTimer *time.Timer
+}
+
+func (w *Websocket) trafficMonitor() {
+	w.Wg.Add(1)
+	defer w.Wg.Done()
+
+	w.TrafficTimer = time.NewTimer(WebsocketTrafficLimitTime)
+
+	for {
+		select {
+		case <-w.ShutdownC:
+			return
+
+		case <-w.TrafficTimer.C:
+			// NOTE add ping handling to minimise reconnection
+			w.state <- websocketStateRefresh
+		}
+	}
+}
+
+// stateChange handles a state change
+func (w *Websocket) stateChange() {
+	for {
+		select {
+		case signal := <-w.state:
+			switch signal {
+			case websocketStateEnable:
+				for {
+					err := w.Connect()
+					if err != nil {
+						w.DataHandler <- err
+						time.Sleep(websocketRestablishConnection)
+						continue
+					}
+					break
+				}
+
+			case websocketStateDisable:
+				err := w.Shutdown()
+				if err != nil {
+					w.DataHandler <- err
+				}
+
+			case websocketStateRefresh:
+				err := w.Shutdown()
+				if err != nil {
+					w.DataHandler <- err
+				}
+
+				for {
+					err = w.Connect()
+					if err != nil {
+						w.DataHandler <- err
+						time.Sleep(websocketRestablishConnection)
+						continue
+					}
+					break
+				}
+			}
+		}
+	}
+}
+
+// Connect intiates a websocket connection by using a package defined shutdown
+// function
+func (w *Websocket) Connect() error {
+	if !w.IsEnabled() {
+		return errors.New("not enabled")
+	}
+
+	w.m.Lock()
+	defer w.m.Unlock()
+
+	w.ShutdownC = make(chan struct{}, 1)
+
+	go w.trafficMonitor()
+
+	err := w.connector()
+	if err != nil {
+		return err
+	}
+
+	w.Connected <- struct{}{}
+	return nil
+}
+
+// Shutdown attempts to shut down a websocket connection and associated routines
+// by using a package defined shutdown function
+func (w *Websocket) Shutdown() error {
+	w.m.Lock()
+	defer w.m.Unlock()
+
+	w.Disconnected <- struct{}{}
+	return w.shutdowner()
+}
+
+// SetWebsocketURL sets websocket URL
+func (w *Websocket) SetWebsocketURL(URL string) {
+	if URL == "" || URL == config.WebsocketURLDefault {
+		w.runningURL = w.defaultURL
+		return
+	}
+	w.runningURL = URL
+}
+
+// GetWebsocketURL returns the running websocket URL
+func (w *Websocket) GetWebsocketURL() string {
+	return w.runningURL
+}
+
+// SetEnabled sets if websocket is enabled
+func (w *Websocket) SetEnabled(enabled bool) {
+	if w.enabled == enabled {
+		return
+	}
+
+	w.enabled = enabled
+
+	if !w.init {
+		if enabled {
+			w.state <- websocketStateEnable
+			return
+		}
+
+		w.state <- websocketStateDisable
+	}
+}
+
+// IsEnabled returns bool
+func (w *Websocket) IsEnabled() bool {
+	return w.enabled
+}
+
+// SetProxyAddress sets websocket proxy address
+func (w *Websocket) SetProxyAddress(URL string) {
+	if w.proxyAddr == URL {
+		return
+	}
+
+	w.proxyAddr = URL
+
+	if !w.init {
+		w.state <- websocketStateRefresh
+	}
+}
+
+// GetProxyAddress returns the current websocket proxy
+func (w *Websocket) GetProxyAddress() string {
+	return w.proxyAddr
+}
+
+// SetDefaultURL sets default websocket URL
+func (w *Websocket) SetDefaultURL(defaultURL string) {
+	w.defaultURL = defaultURL
+}
+
+// GetDefaultURL returns the default websocket URL
+func (w *Websocket) GetDefaultURL() string {
+	return w.defaultURL
+}
+
+// SetConnector sets connection function
+func (w *Websocket) SetConnector(connector func() error) {
+	w.connector = connector
+}
+
+// SetShutdowner sets shutdown function
+func (w *Websocket) SetShutdowner(shutdowner func() error) {
+	w.shutdowner = shutdowner
+}
+
+// WebsocketOrderbookUpdate defines a websocket event in which the orderbook
+// has been updated in the orderbook package
+type WebsocketOrderbookUpdate struct {
+	Pair     pair.CurrencyPair
+	Asset    string
+	Exchange string
+}
+
+// TradeData defines trade data
+type TradeData struct {
+	Timestamp    time.Time
+	CurrencyPair pair.CurrencyPair
+	AssetType    string
+	Exchange     string
+	EventType    string
+	EventTime    int64
+	Price        float64
+	Amount       float64
+	Side         string
+}
+
+// TickerData defines ticker feed
+type TickerData struct {
+	Timestamp  time.Time
+	Pair       pair.CurrencyPair
+	AssetType  string
+	Exchange   string
+	ClosePrice float64
+	Quantity   float64
+	OpenPrice  float64
+	HighPrice  float64
+	LowPrice   float64
+}
+
+// KlineData defines kline feed
+type KlineData struct {
+	Timestamp  time.Time
+	Pair       pair.CurrencyPair
+	AssetType  string
+	Exchange   string
+	StartTime  time.Time
+	CloseTime  time.Time
+	Interval   string
+	OpenPrice  float64
+	ClosePrice float64
+	HighPrice  float64
+	LowPrice   float64
+	Volume     float64
 }
 
 // IBotExchange enforces standard functions for all exchanges supported in
@@ -149,6 +459,8 @@ type IBotExchange interface {
 
 	WithdrawCryptoExchangeFunds(address string, cryptocurrency pair.CurrencyItem, amount float64) (string, error)
 	WithdrawFiatExchangeFunds(currency pair.CurrencyItem, amount float64) (string, error)
+
+	WebsocketConnect() (*Websocket, error)
 }
 
 // SupportsRESTTickerBatchUpdates returns whether or not the
@@ -161,7 +473,10 @@ func (e *Base) SupportsRESTTickerBatchUpdates() bool {
 // HTTP Client
 func (e *Base) SetHTTPClientTimeout(t time.Duration) {
 	if e.Requester == nil {
-		e.Requester = request.New(e.Name, request.NewRateLimit(time.Second, 0), request.NewRateLimit(time.Second, 0), new(http.Client))
+		e.Requester = request.New(e.Name,
+			request.NewRateLimit(time.Second, 0),
+			request.NewRateLimit(time.Second, 0),
+			new(http.Client))
 	}
 	e.Requester.HTTPClient.Timeout = t
 }
@@ -169,7 +484,10 @@ func (e *Base) SetHTTPClientTimeout(t time.Duration) {
 // SetHTTPClient sets exchanges HTTP client
 func (e *Base) SetHTTPClient(h *http.Client) {
 	if e.Requester == nil {
-		e.Requester = request.New(e.Name, request.NewRateLimit(time.Second, 0), request.NewRateLimit(time.Second, 0), new(http.Client))
+		e.Requester = request.New(e.Name,
+			request.NewRateLimit(time.Second, 0),
+			request.NewRateLimit(time.Second, 0),
+			new(http.Client))
 	}
 	e.Requester.HTTPClient = h
 }
@@ -177,7 +495,10 @@ func (e *Base) SetHTTPClient(h *http.Client) {
 // GetHTTPClient gets the exchanges HTTP client
 func (e *Base) GetHTTPClient() *http.Client {
 	if e.Requester == nil {
-		e.Requester = request.New(e.Name, request.NewRateLimit(time.Second, 0), request.NewRateLimit(time.Second, 0), new(http.Client))
+		e.Requester = request.New(e.Name,
+			request.NewRateLimit(time.Second, 0),
+			request.NewRateLimit(time.Second, 0),
+			new(http.Client))
 	}
 	return e.Requester.HTTPClient
 }
@@ -185,7 +506,10 @@ func (e *Base) GetHTTPClient() *http.Client {
 // SetHTTPClientUserAgent sets the exchanges HTTP user agent
 func (e *Base) SetHTTPClientUserAgent(ua string) {
 	if e.Requester == nil {
-		e.Requester = request.New(e.Name, request.NewRateLimit(time.Second, 0), request.NewRateLimit(time.Second, 0), new(http.Client))
+		e.Requester = request.New(e.Name,
+			request.NewRateLimit(time.Second, 0),
+			request.NewRateLimit(time.Second, 0),
+			new(http.Client))
 	}
 	e.Requester.UserAgent = ua
 	e.HTTPUserAgent = ua
@@ -194,6 +518,19 @@ func (e *Base) SetHTTPClientUserAgent(ua string) {
 // GetHTTPClientUserAgent gets the exchanges HTTP user agent
 func (e *Base) GetHTTPClientUserAgent() string {
 	return e.HTTPUserAgent
+}
+
+// SetClientProxyAddress sets a proxy address for an exchange
+func (e *Base) SetClientProxyAddress(addr string) {
+	var err error
+	if addr != "" {
+		e.ProxyAddr, err = url.Parse(addr)
+		if err != nil {
+			log.Fatal("exchange.go - setting proxy address error", err)
+		}
+		return
+	}
+	e.ProxyAddr = nil
 }
 
 // SetAutoPairDefaults sets the default values for whether or not the exchange

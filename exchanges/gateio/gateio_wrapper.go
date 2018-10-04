@@ -24,7 +24,7 @@ func (g *Gateio) Start(wg *sync.WaitGroup) {
 // Run implements the GateIO wrapper
 func (g *Gateio) Run() {
 	if g.Verbose {
-		log.Printf("%s Websocket: %s. (url: %s).\n", g.GetName(), common.IsEnabled(g.Websocket), g.WebsocketURL)
+		log.Printf("%s Websocket: %s. (url: %s).\n", g.GetName(), common.IsEnabled(g.Websocket.IsEnabled()), g.WebsocketURL)
 		log.Printf("%s polling delay: %ds.\n", g.GetName(), g.RESTPollingDelay)
 		log.Printf("%s %d currencies enabled: %s.\n", g.GetName(), len(g.EnabledPairs), g.EnabledPairs)
 	}
@@ -174,4 +174,10 @@ func (g *Gateio) WithdrawFiatExchangeFunds(currency pair.CurrencyItem, amount fl
 // withdrawal is submitted
 func (g *Gateio) WithdrawFiatExchangeFundsToInternationalBank(currency pair.CurrencyItem, amount float64) (string, error) {
 	return "", errors.New("not yet implemented")
+}
+
+// WebsocketConnect connects an exchange to the package defined websocket feeds
+// and returns a pointer to a websocket
+func (g *Gateio) WebsocketConnect() (*exchange.Websocket, error) {
+	return nil, errors.New("not yet implemented")
 }

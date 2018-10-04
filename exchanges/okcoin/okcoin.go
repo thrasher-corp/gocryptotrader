@@ -19,7 +19,7 @@ import (
 
 const (
 	okcoinAPIURL                = "https://www.okcoin.com/api/v1/"
-	okcoinAPIURLChina           = "https://www.okcoin.cn/api/v1/"
+	okcoinAPIURLChina           = "https://www.okcoin.com/api/v1/"
 	okcoinAPIVersion            = "1"
 	okcoinWebsocketURL          = "wss://real.okcoin.com:10440/websocket/okcoinapi"
 	okcoinWebsocketURLChina     = "wss://real.okcoin.cn:10440/websocket/okcoinapi"
@@ -72,10 +72,6 @@ const (
 	okcoinUnauthRate = 0
 )
 
-var (
-	okcoinDefaultsSet = false
-)
-
 // OKCoin is the overarching type across this package
 type OKCoin struct {
 	exchange.Base
@@ -99,7 +95,6 @@ func (o *OKCoin) SetDefaults() {
 	o.SetWebsocketErrorDefaults()
 	o.Enabled = false
 	o.Verbose = false
-	o.Websocket = false
 	o.RESTPollingDelay = 10
 	o.AssetTypes = []string{ticker.Spot}
 	o.SupportsAutoPairUpdating = false
@@ -130,6 +125,7 @@ func (o *OKCoin) SetDefaults() {
 			request.NewRateLimit(time.Second, okcoinUnauthRate),
 			common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 	}
+	o.WebsocketInit()
 }
 
 // Setup sets exchange configuration parameters
@@ -137,6 +133,29 @@ func (o *OKCoin) Setup(exch config.ExchangeConfig) {
 	if !exch.Enabled {
 		o.SetEnabled(false)
 	} else {
+		if exch.Name == "OKCOIN International" {
+			o.AssetTypes = append(o.AssetTypes, o.FuturesValues...)
+			o.APIUrlDefault = okcoinAPIURL
+			o.APIUrl = o.APIUrlDefault
+			o.Name = "OKCOIN International"
+			o.WebsocketURL = okcoinWebsocketURL
+			o.setCurrencyPairFormats()
+			o.Requester = request.New(o.Name,
+				request.NewRateLimit(time.Second, okcoinAuthRate),
+				request.NewRateLimit(time.Second, okcoinUnauthRate),
+				common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
+		} else {
+			o.APIUrlDefault = okcoinAPIURLChina
+			o.APIUrl = o.APIUrlDefault
+			o.Name = "OKCOIN China"
+			o.WebsocketURL = okcoinWebsocketURLChina
+			o.setCurrencyPairFormats()
+			o.Requester = request.New(o.Name,
+				request.NewRateLimit(time.Second, okcoinAuthRate),
+				request.NewRateLimit(time.Second, okcoinUnauthRate),
+				common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
+		}
+
 		o.Enabled = true
 		o.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
 		o.SetAPIKeys(exch.APIKey, exch.APISecret, "", false)
@@ -144,7 +163,7 @@ func (o *OKCoin) Setup(exch config.ExchangeConfig) {
 		o.SetHTTPClientUserAgent(exch.HTTPUserAgent)
 		o.RESTPollingDelay = exch.RESTPollingDelay
 		o.Verbose = exch.Verbose
-		o.Websocket = exch.Websocket
+		o.Websocket.SetEnabled(exch.Websocket)
 		o.BaseCurrencies = common.SplitStrings(exch.BaseCurrencies, ",")
 		o.AvailablePairs = common.SplitStrings(exch.AvailablePairs, ",")
 		o.EnabledPairs = common.SplitStrings(exch.EnabledPairs, ",")
@@ -164,6 +183,13 @@ func (o *OKCoin) Setup(exch config.ExchangeConfig) {
 		if err != nil {
 			log.Fatal(err)
 		}
+		o.SetClientProxyAddress(exch.ProxyAddress)
+		o.WebsocketSetup(o.WsConnect,
+			o.WsShutdown,
+			exch.Websocket,
+			exch.ProxyAddress,
+			okcoinWebsocketURL,
+			o.WebsocketURL)
 	}
 }
 

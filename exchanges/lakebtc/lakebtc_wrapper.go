@@ -187,3 +187,9 @@ func (l *LakeBTC) WithdrawFiatExchangeFunds(currency pair.CurrencyItem, amount f
 func (l *LakeBTC) WithdrawFiatExchangeFundsToInternationalBank(currency pair.CurrencyItem, amount float64) (string, error) {
 	return "", errors.New("not yet implemented")
 }
+
+// WebsocketConnect connects an exchange to the package defined websocket feeds
+// and returns a pointer to a websocket
+func (l *LakeBTC) WebsocketConnect() (*exchange.Websocket, error) {
+	return nil, errors.New("not yet implemented")
+}

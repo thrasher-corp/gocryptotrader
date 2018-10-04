@@ -47,7 +47,6 @@ func (l *LakeBTC) SetDefaults() {
 	l.TakerFee = 0.2
 	l.MakerFee = 0.15
 	l.Verbose = false
-	l.Websocket = false
 	l.RESTPollingDelay = 10
 	l.RequestCurrencyPairFormat.Delimiter = ""
 	l.RequestCurrencyPairFormat.Uppercase = true
@@ -62,6 +61,7 @@ func (l *LakeBTC) SetDefaults() {
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 	l.APIUrlDefault = lakeBTCAPIURL
 	l.APIUrl = l.APIUrlDefault
+	l.WebsocketInit()
 }
 
 // Setup sets exchange configuration profile
@@ -76,7 +76,6 @@ func (l *LakeBTC) Setup(exch config.ExchangeConfig) {
 		l.SetHTTPClientUserAgent(exch.HTTPUserAgent)
 		l.RESTPollingDelay = exch.RESTPollingDelay
 		l.Verbose = exch.Verbose
-		l.Websocket = exch.Websocket
 		l.BaseCurrencies = common.SplitStrings(exch.BaseCurrencies, ",")
 		l.AvailablePairs = common.SplitStrings(exch.AvailablePairs, ",")
 		l.EnabledPairs = common.SplitStrings(exch.EnabledPairs, ",")
@@ -96,6 +95,7 @@ func (l *LakeBTC) Setup(exch config.ExchangeConfig) {
 		if err != nil {
 			log.Fatal(err)
 		}
+		l.SetClientProxyAddress(exch.ProxyAddress)
 	}
 }
 

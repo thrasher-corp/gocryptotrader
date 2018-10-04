@@ -24,14 +24,14 @@ func (h *HitBTC) Start(wg *sync.WaitGroup) {
 // Run implements the HitBTC wrapper
 func (h *HitBTC) Run() {
 	if h.Verbose {
-		log.Printf("%s Websocket: %s (url: %s).\n", h.GetName(), common.IsEnabled(h.Websocket), hitbtcWebsocketAddress)
+		log.Printf("%s Websocket: %s (url: %s).\n", h.GetName(), common.IsEnabled(h.Websocket.IsEnabled()), hitbtcWebsocketAddress)
 		log.Printf("%s polling delay: %ds.\n", h.GetName(), h.RESTPollingDelay)
 		log.Printf("%s %d currencies enabled: %s.\n", h.GetName(), len(h.EnabledPairs), h.EnabledPairs)
 	}
 
-	if h.Websocket {
-		go h.WebsocketClient()
-	}
+	// if h.Websocket.IsEnabled() {
+	// 	go h.WebsocketClient()
+	// }
 
 	exchangeProducts, err := h.GetSymbolsDetailed()
 	if err != nil {
@@ -206,4 +206,10 @@ func (h *HitBTC) WithdrawFiatExchangeFunds(currency pair.CurrencyItem, amount fl
 // withdrawal is submitted
 func (h *HitBTC) WithdrawFiatExchangeFundsToInternationalBank(currency pair.CurrencyItem, amount float64) (string, error) {
 	return "", errors.New("not yet implemented")
+}
+
+// WebsocketConnect connects an exchange to the package defined websocket feeds
+// and returns a pointer to a websocket
+func (h *HitBTC) WebsocketConnect() (*exchange.Websocket, error) {
+	return h.Websocket, h.Websocket.Connect()
 }

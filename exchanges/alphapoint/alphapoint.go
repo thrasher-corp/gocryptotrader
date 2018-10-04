@@ -55,7 +55,10 @@ func (a *Alphapoint) SetDefaults() {
 	a.AssetTypes = []string{ticker.Spot}
 	a.SupportsAutoPairUpdating = false
 	a.SupportsRESTTickerBatching = false
-	a.Requester = request.New(a.Name, request.NewRateLimit(time.Minute*10, alphapointAuthRate), request.NewRateLimit(time.Minute*10, alphapointUnauthRate), common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
+	a.Requester = request.New(a.Name,
+		request.NewRateLimit(time.Minute*10, alphapointAuthRate),
+		request.NewRateLimit(time.Minute*10, alphapointUnauthRate),
+		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 }
 
 // GetTicker returns current ticker information from Alphapoint for a selected

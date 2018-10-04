@@ -17,6 +17,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gorilla/websocket"
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
@@ -62,6 +63,7 @@ const (
 // HUOBI is the overarching type across this package
 type HUOBI struct {
 	exchange.Base
+	WebsocketConn *websocket.Conn
 }
 
 // SetDefaults sets default values for the exchange
@@ -70,7 +72,6 @@ func (h *HUOBI) SetDefaults() {
 	h.Enabled = false
 	h.Fee = 0
 	h.Verbose = false
-	h.Websocket = false
 	h.RESTPollingDelay = 10
 	h.RequestCurrencyPairFormat.Delimiter = ""
 	h.RequestCurrencyPairFormat.Uppercase = false
@@ -85,6 +86,7 @@ func (h *HUOBI) SetDefaults() {
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 	h.APIUrlDefault = huobiAPIURL
 	h.APIUrl = h.APIUrlDefault
+	h.WebsocketInit()
 }
 
 // Setup sets user configuration
@@ -101,7 +103,7 @@ func (h *HUOBI) Setup(exch config.ExchangeConfig) {
 		h.SetHTTPClientUserAgent(exch.HTTPUserAgent)
 		h.RESTPollingDelay = exch.RESTPollingDelay
 		h.Verbose = exch.Verbose
-		h.Websocket = exch.Websocket
+		h.Websocket.SetEnabled(exch.Websocket)
 		h.BaseCurrencies = common.SplitStrings(exch.BaseCurrencies, ",")
 		h.AvailablePairs = common.SplitStrings(exch.AvailablePairs, ",")
 		h.EnabledPairs = common.SplitStrings(exch.EnabledPairs, ",")
@@ -121,6 +123,15 @@ func (h *HUOBI) Setup(exch config.ExchangeConfig) {
 		if err != nil {
 			log.Fatal(err)
 		}
+		h.SetClientProxyAddress(exch.ProxyAddress)
+		h.WebsocketSetup(
+			h.WsConnect,
+			h.WsShutdown,
+			exch.Websocket,
+			exch.ProxyAddress,
+			huobiSocketIOAddress,
+			exch.WebsocketURL,
+		)
 	}
 }
 

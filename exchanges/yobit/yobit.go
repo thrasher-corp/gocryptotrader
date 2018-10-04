@@ -51,7 +51,6 @@ func (y *Yobit) SetDefaults() {
 	y.Enabled = true
 	y.Fee = 0.2
 	y.Verbose = false
-	y.Websocket = false
 	y.RESTPollingDelay = 10
 	y.AuthenticatedAPISupport = true
 	y.Ticker = make(map[string]Ticker)
@@ -71,6 +70,7 @@ func (y *Yobit) SetDefaults() {
 	y.APIUrl = y.APIUrlDefault
 	y.APIUrlSecondaryDefault = apiPrivateURL
 	y.APIUrlSecondary = y.APIUrlSecondaryDefault
+	y.WebsocketInit()
 }
 
 // Setup sets exchange configuration parameters for Yobit
@@ -83,7 +83,7 @@ func (y *Yobit) Setup(exch config.ExchangeConfig) {
 		y.SetAPIKeys(exch.APIKey, exch.APISecret, "", false)
 		y.RESTPollingDelay = exch.RESTPollingDelay
 		y.Verbose = exch.Verbose
-		y.Websocket = exch.Websocket
+		y.Websocket.SetEnabled(exch.Websocket)
 		y.BaseCurrencies = common.SplitStrings(exch.BaseCurrencies, ",")
 		y.AvailablePairs = common.SplitStrings(exch.AvailablePairs, ",")
 		y.EnabledPairs = common.SplitStrings(exch.EnabledPairs, ",")
@@ -105,6 +105,7 @@ func (y *Yobit) Setup(exch config.ExchangeConfig) {
 		if err != nil {
 			log.Fatal(err)
 		}
+		y.SetClientProxyAddress(exch.ProxyAddress)
 	}
 }
 

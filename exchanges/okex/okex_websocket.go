@@ -1,19 +1,26 @@
 package okex
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
+	"net/url"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-/gocryptotrader/common"
+	"github.com/thrasher-/gocryptotrader/currency/pair"
+	"github.com/thrasher-/gocryptotrader/exchanges"
 )
 
 const (
 	okexDefaultWebsocketURL = "wss://real.okex.com:10440/websocket/okexapi"
 )
+
+var comms chan []byte
 
 func (o *OKEX) writeToWebsocket(message string) error {
 	o.mu.Lock()
@@ -22,129 +29,298 @@ func (o *OKEX) writeToWebsocket(message string) error {
 	return o.WebsocketConn.WriteMessage(websocket.TextMessage, []byte(message))
 }
 
-func (o *OKEX) websocketConnect() {
-	var Dialer websocket.Dialer
+// WsConnect initiates a websocket connection
+func (o *OKEX) WsConnect() error {
+	if !o.Websocket.IsEnabled() || !o.IsEnabled() {
+		return errors.New(exchange.WebsocketNotEnabled)
+	}
+
+	var dialer websocket.Dialer
+
+	if o.Websocket.GetProxyAddress() != "" {
+		proxy, err := url.Parse(o.Websocket.GetProxyAddress())
+		if err != nil {
+			return err
+		}
+
+		dialer.Proxy = http.ProxyURL(proxy)
+	}
+
 	var err error
+	o.WebsocketConn, _, err = dialer.Dial(o.Websocket.GetWebsocketURL(),
+		http.Header{})
+	if err != nil {
+		return fmt.Errorf("%s Unable to connect to Websocket. Error: %s",
+			o.Name,
+			err)
+	}
+
+	comms = make(chan []byte)
+	go o.WsHandleData()
+	go o.WsReadData()
+	go o.wsPingHandler()
+
+	err = o.WsSubscribe()
+	if err != nil {
+		return fmt.Errorf("Error: Could not subscribe to the OKEX websocket %s",
+			err)
+	}
+
+	return nil
+}
+
+// WsSubscribe subscribes to the websocket channels
+func (o *OKEX) WsSubscribe() error {
 	myEnabledSubscriptionChannels := []string{}
 
 	for _, pair := range o.EnabledPairs {
-		myEnabledSubscriptionChannels = append(myEnabledSubscriptionChannels, fmt.Sprintf("{'event':'addChannel','channel':'ok_sub_spot_%s_ticker'}", pair))
-		myEnabledSubscriptionChannels = append(myEnabledSubscriptionChannels, fmt.Sprintf("{'event':'addChannel','channel':'ok_sub_spot_%s_depth'}", pair))
-		myEnabledSubscriptionChannels = append(myEnabledSubscriptionChannels, fmt.Sprintf("{'event':'addChannel','channel':'ok_sub_spot_%s_deals'}", pair))
-		myEnabledSubscriptionChannels = append(myEnabledSubscriptionChannels, fmt.Sprintf("{'event':'addChannel','channel':'ok_sub_spot_%s_kline_1min'}", pair))
+
+		// ----------- deprecate when usd pairs are upgraded to usdt ----------
+		checkSymbol := common.SplitStrings(pair, "_")
+		for i := range checkSymbol {
+			if common.StringContains(checkSymbol[i], "usdt") {
+				break
+			}
+			if common.StringContains(checkSymbol[i], "usd") {
+				checkSymbol[i] = "usdt"
+			}
+		}
+
+		symbolRedone := common.JoinStrings(checkSymbol, "_")
+		// ----------- deprecate when usd pairs are upgraded to usdt ----------
+
+		myEnabledSubscriptionChannels = append(myEnabledSubscriptionChannels,
+			fmt.Sprintf("{'event':'addChannel','channel':'ok_sub_spot_%s_ticker'}",
+				symbolRedone))
+
+		myEnabledSubscriptionChannels = append(myEnabledSubscriptionChannels,
+			fmt.Sprintf("{'event':'addChannel','channel':'ok_sub_spot_%s_depth'}",
+				symbolRedone))
+
+		myEnabledSubscriptionChannels = append(myEnabledSubscriptionChannels,
+			fmt.Sprintf("{'event':'addChannel','channel':'ok_sub_spot_%s_deals'}",
+				symbolRedone))
+
+		myEnabledSubscriptionChannels = append(myEnabledSubscriptionChannels,
+			fmt.Sprintf("{'event':'addChannel','channel':'ok_sub_spot_%s_kline_1min'}",
+				symbolRedone))
 	}
 
-	mySubscriptionString := "[" + strings.Join(myEnabledSubscriptionChannels, ",") + "]"
-
-	o.WebsocketConn, _, err = Dialer.Dial(okexDefaultWebsocketURL, http.Header{})
-
-	if err != nil {
-		log.Printf("%s Unable to connect to Websocket. Error: %s\n", o.Name, err)
-		return
+	for _, outgoing := range myEnabledSubscriptionChannels {
+		err := o.writeToWebsocket(outgoing)
+		if err != nil {
+			return err
+		}
 	}
 
-	if o.Verbose {
-		log.Printf("%s Connected to Websocket.\n", o.Name)
-		log.Printf("Subscription String is %s\n", mySubscriptionString)
-	}
+	return nil
+}
 
-	log.Printf("Subscription String is %s\n", mySubscriptionString)
+// WsReadData reads data from the websocket connection
+func (o *OKEX) WsReadData() {
+	o.Websocket.Wg.Add(1)
+	defer func() {
+		o.WebsocketConn.Close()
+		o.Websocket.Wg.Done()
+	}()
 
-	// subscribe to all the desired subscriptions
-	err = o.writeToWebsocket(mySubscriptionString)
+	for {
+		select {
+		case <-o.Websocket.ShutdownC:
+			return
 
-	if err != nil {
-		log.Printf("Error: Could not subscribe to the OKEX websocket %s", err)
-		return
+		default:
+			_, resp, err := o.WebsocketConn.ReadMessage()
+			if err != nil {
+				o.Websocket.DataHandler <- err
+				return
+			}
+			o.Websocket.TrafficTimer.Reset(exchange.WebsocketTrafficLimitTime)
+			comms <- resp
+		}
 	}
 }
 
-// WebsocketClient the main function handling the OKEX websocket
-// Documentation URL: https://github.com/okcoin-okex/API-docs-OKEx.com/blob/master/API-For-Spot-EN/WEBSOCKET%20API%20for%20SPOT.md
-func (o *OKEX) WebsocketClient() {
-	for o.Enabled && o.Websocket {
-		o.websocketConnect()
+func (o *OKEX) wsPingHandler() {
+	o.Websocket.Wg.Add(1)
+	defer o.Websocket.Wg.Done()
 
-		go func() {
-			for {
-				time.Sleep(time.Second * 27)
-				o.writeToWebsocket("{'event':'ping'}")
-				log.Printf("%s sent Ping message\n", o.GetName())
-			}
-		}()
+	ticker := time.NewTicker(time.Second * 27)
 
-		for o.Enabled && o.Websocket {
-			msgType, resp, err := o.WebsocketConn.ReadMessage()
+	for {
+		select {
+		case <-o.Websocket.ShutdownC:
+			return
 
+		case <-ticker.C:
+			err := o.writeToWebsocket("{'event':'ping'}")
 			if err != nil {
-				log.Printf("Error: Could not read from the OKEX websocket %s", err)
-				o.websocketConnect()
-				continue
+				o.Websocket.DataHandler <- err
+				return
+			}
+		}
+	}
+}
+
+// WsHandleData handles the read data from the websocket connection
+func (o *OKEX) WsHandleData() {
+	o.Websocket.Wg.Add(1)
+	defer o.Websocket.Wg.Done()
+
+	for {
+		select {
+		case <-o.Websocket.ShutdownC:
+			return
+
+		case resp := <-comms:
+			multiStreamDataArr := []MultiStreamData{}
+
+			err := common.JSONDecode(resp, &multiStreamDataArr)
+			if err != nil {
+				if strings.Contains(string(resp), "pong") {
+					continue
+				} else {
+					log.Fatal("okex.go error -", err)
+				}
 			}
 
-			switch msgType {
-			case websocket.TextMessage:
-				multiStreamDataArr := []MultiStreamData{}
-
-				err = common.JSONDecode(resp, &multiStreamDataArr)
-
-				if err != nil {
-					if strings.Contains(string(resp), "pong") {
-						log.Printf("%s received Pong message\n", o.GetName())
-					} else {
-						log.Printf("%s some other error happened: %s", o.GetName(), err)
-						continue
+			for _, multiStreamData := range multiStreamDataArr {
+				var errResponse ErrorResponse
+				if common.StringContains(string(resp), "error_msg") {
+					err = common.JSONDecode(resp, &errResponse)
+					if err != nil {
+						log.Fatal(err)
 					}
+					o.Websocket.DataHandler <- fmt.Errorf("okex.go error - %s resp: %s ",
+						errResponse.ErrorMsg,
+						string(resp))
+					continue
 				}
 
-				for _, multiStreamData := range multiStreamDataArr {
-					if strings.Contains(multiStreamData.Channel, "ticker") {
-						// ticker data
-						ticker := TickerStreamData{}
-						tickerDecodeError := common.JSONDecode(multiStreamData.Data, &ticker)
+				var newPair string
+				var assetType string
+				currencyPairSlice := common.SplitStrings(multiStreamData.Channel, "_")
+				if len(currencyPairSlice) > 5 {
+					newPair = currencyPairSlice[3] + "_" + currencyPairSlice[4]
+					assetType = currencyPairSlice[2]
+				}
 
-						if tickerDecodeError != nil {
-							log.Printf("OKEX Ticker Decode Error: %s", tickerDecodeError)
-							continue
+				if strings.Contains(multiStreamData.Channel, "ticker") {
+					var ticker TickerStreamData
+
+					err = common.JSONDecode(multiStreamData.Data, &ticker)
+					if err != nil {
+						log.Fatal("OKEX Ticker Decode Error:", err)
+					}
+
+					o.Websocket.DataHandler <- exchange.TickerData{
+						Timestamp: time.Unix(0, int64(ticker.Timestamp)),
+						Exchange:  o.GetName(),
+						AssetType: assetType,
+					}
+
+				} else if strings.Contains(multiStreamData.Channel, "deals") {
+					var deals DealsStreamData
+
+					err = common.JSONDecode(multiStreamData.Data, &deals)
+					if err != nil {
+						log.Fatal("OKEX Deals Decode Error:", err)
+					}
+
+					for _, trade := range deals {
+						price, _ := strconv.ParseFloat(trade[1], 64)
+						amount, _ := strconv.ParseFloat(trade[2], 64)
+						time, _ := time.Parse(time.RFC3339, trade[3])
+
+						o.Websocket.DataHandler <- exchange.TradeData{
+							Timestamp:    time,
+							Exchange:     o.GetName(),
+							AssetType:    assetType,
+							CurrencyPair: pair.NewCurrencyPairFromString(newPair),
+							Price:        price,
+							Amount:       amount,
+							EventType:    trade[4],
 						}
+					}
 
-						log.Printf("OKEX Channel: %s\tData: %s\n", multiStreamData.Channel, multiStreamData.Data)
-					} else if strings.Contains(multiStreamData.Channel, "deals") {
-						// orderbook data
-						deals := DealsStreamData{}
-						decodeError := common.JSONDecode(multiStreamData.Data, &deals)
+				} else if strings.Contains(multiStreamData.Channel, "kline") {
+					var klines KlineStreamData
 
-						if decodeError != nil {
-							log.Printf("OKEX Deals Decode Error: %s", decodeError)
-							continue
+					err := common.JSONDecode(multiStreamData.Data, &klines)
+					if err != nil {
+						log.Fatal("OKEX Klines Decode Error:", err)
+					}
+
+					for _, kline := range klines {
+						ntime, _ := strconv.ParseInt(kline[0], 10, 64)
+						open, _ := strconv.ParseFloat(kline[1], 64)
+						high, _ := strconv.ParseFloat(kline[2], 64)
+						low, _ := strconv.ParseFloat(kline[3], 64)
+						close, _ := strconv.ParseFloat(kline[4], 64)
+						volume, _ := strconv.ParseFloat(kline[5], 64)
+
+						o.Websocket.DataHandler <- exchange.KlineData{
+							Timestamp:  time.Unix(ntime, 0),
+							Pair:       pair.NewCurrencyPairFromString(newPair),
+							AssetType:  assetType,
+							Exchange:   o.GetName(),
+							OpenPrice:  open,
+							HighPrice:  high,
+							LowPrice:   low,
+							ClosePrice: close,
+							Volume:     volume,
 						}
+					}
 
-						log.Printf("OKEX Channel: %s\tData: %s\n", multiStreamData.Channel, multiStreamData.Data)
-					} else if strings.Contains(multiStreamData.Channel, "kline") {
-						// 1 min kline data
-						klines := KlineStreamData{}
-						decodeError := common.JSONDecode(multiStreamData.Data, &klines)
+				} else if strings.Contains(multiStreamData.Channel, "depth") {
+					var depth DepthStreamData
 
-						if decodeError != nil {
-							log.Printf("OKEX Klines Decode Error: %s", decodeError)
-							continue
-						}
+					err := common.JSONDecode(multiStreamData.Data, &depth)
+					if err != nil {
+						log.Fatal("OKEX Depth Decode Error:", err)
+					}
 
-						log.Printf("OKEX Channel: %s\tData: %s\n", multiStreamData.Channel, multiStreamData.Data)
-					} else if strings.Contains(multiStreamData.Channel, "depth") {
-						// market depth data
-						depth := DepthStreamData{}
-						decodeError := common.JSONDecode(multiStreamData.Data, &depth)
-
-						if decodeError != nil {
-							log.Printf("OKEX Depth Decode Error: %s", decodeError)
-							continue
-						}
-
-						log.Printf("OKEX Channel: %s\tData: %s\n", multiStreamData.Channel, multiStreamData.Data)
+					o.Websocket.DataHandler <- exchange.WebsocketOrderbookUpdate{
+						Exchange: o.GetName(),
+						Asset:    assetType,
+						Pair:     pair.NewCurrencyPairFromString(newPair),
 					}
 				}
 			}
 		}
 	}
+}
+
+// WsShutdown shuts down websocket connection and routines
+func (o *OKEX) WsShutdown() error {
+	timer := time.NewTimer(5 * time.Second)
+	c := make(chan struct{})
+
+	go func(c chan struct{}) {
+		close(o.Websocket.ShutdownC)
+		o.Websocket.Wg.Wait()
+		c <- struct{}{}
+	}(c)
+
+	select {
+	case <-timer.C:
+		return errors.New("Okex error - routines did not shut down")
+
+	case <-c:
+		return nil
+	}
+}
+
+// ErrorResponse defines an error response type from the websocket connection
+type ErrorResponse struct {
+	Result    bool   `json:"result"`
+	ErrorMsg  string `json:"error_msg"`
+	ErrorCode int64  `json:"error_code"`
+}
+
+// Request defines the JSON request structure to the websocket server
+type Request struct {
+	Event      string `json:"event"`
+	Channel    string `json:"channel"`
+	Parameters string `json:"parameters,omitempty"`
 }

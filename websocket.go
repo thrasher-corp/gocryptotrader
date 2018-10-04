@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"log"
 	"net/http"
 
@@ -235,6 +236,10 @@ func StartWebsocketHandler() {
 
 // BroadcastWebsocketMessage meow
 func BroadcastWebsocketMessage(evt WebsocketEvent) error {
+	if !wsHubStarted {
+		return errors.New("websocket service not started")
+	}
+
 	data, err := common.JSONEncode(evt)
 	if err != nil {
 		return err

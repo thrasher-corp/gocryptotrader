@@ -250,3 +250,9 @@ func (b *BTCMarkets) WithdrawFiatExchangeFunds(currency pair.CurrencyItem, amoun
 func (b *BTCMarkets) WithdrawFiatExchangeFundsToInternationalBank(currency pair.CurrencyItem, amount float64) (string, error) {
 	return "", errors.New("not yet implemented")
 }
+
+// WebsocketConnect connects an exchange to the package defined websocket feeds
+// and returns a pointer to a websocket
+func (b *BTCMarkets) WebsocketConnect() (*exchange.Websocket, error) {
+	return nil, errors.New("not yet implemented")
+}

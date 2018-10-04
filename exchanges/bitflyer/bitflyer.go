@@ -79,7 +79,6 @@ func (b *Bitflyer) SetDefaults() {
 	b.Name = "Bitflyer"
 	b.Enabled = false
 	b.Verbose = false
-	b.Websocket = false
 	b.RESTPollingDelay = 10
 	b.RequestCurrencyPairFormat.Delimiter = "_"
 	b.RequestCurrencyPairFormat.Uppercase = true
@@ -96,6 +95,7 @@ func (b *Bitflyer) SetDefaults() {
 	b.APIUrl = b.APIUrlDefault
 	b.APIUrlSecondaryDefault = chainAnalysis
 	b.APIUrlSecondary = b.APIUrlSecondaryDefault
+	b.WebsocketInit()
 }
 
 // Setup takes in the supplied exchange configuration details and sets params
@@ -110,7 +110,7 @@ func (b *Bitflyer) Setup(exch config.ExchangeConfig) {
 		b.SetHTTPClientUserAgent(exch.HTTPUserAgent)
 		b.RESTPollingDelay = exch.RESTPollingDelay
 		b.Verbose = exch.Verbose
-		b.Websocket = exch.Websocket
+		b.Websocket.SetEnabled(exch.Websocket)
 		b.BaseCurrencies = common.SplitStrings(exch.BaseCurrencies, ",")
 		b.AvailablePairs = common.SplitStrings(exch.AvailablePairs, ",")
 		b.EnabledPairs = common.SplitStrings(exch.EnabledPairs, ",")
@@ -130,6 +130,7 @@ func (b *Bitflyer) Setup(exch config.ExchangeConfig) {
 		if err != nil {
 			log.Fatal(err)
 		}
+		b.SetClientProxyAddress(exch.ProxyAddress)
 	}
 }
 

@@ -196,3 +196,9 @@ func (l *Liqui) WithdrawFiatExchangeFunds(currency pair.CurrencyItem, amount flo
 func (l *Liqui) WithdrawFiatExchangeFundsToInternationalBank(currency pair.CurrencyItem, amount float64) (string, error) {
 	return "", errors.New("not yet implemented")
 }
+
+// WebsocketConnect connects an exchange to the package defined websocket feeds
+// and returns a pointer to a websocket
+func (l *Liqui) WebsocketConnect() (*exchange.Websocket, error) {
+	return nil, errors.New("not yet implemented")
+}

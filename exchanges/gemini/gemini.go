@@ -100,7 +100,6 @@ func (g *Gemini) SetDefaults() {
 	g.Name = "Gemini"
 	g.Enabled = false
 	g.Verbose = false
-	g.Websocket = false
 	g.RESTPollingDelay = 10
 	g.RequestCurrencyPairFormat.Delimiter = ""
 	g.RequestCurrencyPairFormat.Uppercase = true
@@ -115,6 +114,7 @@ func (g *Gemini) SetDefaults() {
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 	g.APIUrlDefault = geminiAPIURL
 	g.APIUrl = g.APIUrlDefault
+	g.WebsocketInit()
 }
 
 // Setup sets exchange configuration parameters
@@ -129,7 +129,6 @@ func (g *Gemini) Setup(exch config.ExchangeConfig) {
 		g.SetHTTPClientUserAgent(exch.HTTPUserAgent)
 		g.RESTPollingDelay = exch.RESTPollingDelay
 		g.Verbose = exch.Verbose
-		g.Websocket = exch.Websocket
 		g.BaseCurrencies = common.SplitStrings(exch.BaseCurrencies, ",")
 		g.AvailablePairs = common.SplitStrings(exch.AvailablePairs, ",")
 		g.EnabledPairs = common.SplitStrings(exch.EnabledPairs, ",")
@@ -153,6 +152,7 @@ func (g *Gemini) Setup(exch config.ExchangeConfig) {
 		if exch.UseSandbox {
 			g.APIUrl = geminiSandboxAPIURL
 		}
+		g.SetClientProxyAddress(exch.ProxyAddress)
 	}
 }
 

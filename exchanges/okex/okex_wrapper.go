@@ -24,14 +24,14 @@ func (o *OKEX) Start(wg *sync.WaitGroup) {
 // Run implements the OKEX wrapper
 func (o *OKEX) Run() {
 	if o.Verbose {
-		log.Printf("%s Websocket: %s. (url: %s).\n", o.GetName(), common.IsEnabled(o.Websocket), o.WebsocketURL)
+		log.Printf("%s Websocket: %s. (url: %s).\n", o.GetName(), common.IsEnabled(o.Websocket.IsEnabled()), o.WebsocketURL)
 		log.Printf("%s polling delay: %ds.\n", o.GetName(), o.RESTPollingDelay)
 		log.Printf("%s %d currencies enabled: %s.\n", o.GetName(), len(o.EnabledPairs), o.EnabledPairs)
 	}
 
-	if o.Websocket {
-		go o.WebsocketClient()
-	}
+	// if o.Websocket.IsEnabled() {
+	// 	go o.WebsocketClient()
+	// }
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
@@ -203,4 +203,10 @@ func (o *OKEX) WithdrawFiatExchangeFunds(currency pair.CurrencyItem, amount floa
 // withdrawal is submitted
 func (o *OKEX) WithdrawFiatExchangeFundsToInternationalBank(currency pair.CurrencyItem, amount float64) (string, error) {
 	return "", errors.New("not yet implemented")
+}
+
+// WebsocketConnect connects an exchange to the package defined websocket feeds
+// and returns a pointer to a websocket
+func (o *OKEX) WebsocketConnect() (*exchange.Websocket, error) {
+	return o.Websocket, o.Websocket.Connect()
 }

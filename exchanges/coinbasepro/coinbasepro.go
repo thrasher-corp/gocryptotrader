@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/gorilla/websocket"
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/exchanges"
@@ -56,6 +57,7 @@ const (
 // CoinbasePro is the overarching type across the coinbasepro package
 type CoinbasePro struct {
 	exchange.Base
+	WebsocketConn *websocket.Conn
 }
 
 // SetDefaults sets default values for the exchange
@@ -65,7 +67,6 @@ func (c *CoinbasePro) SetDefaults() {
 	c.Verbose = false
 	c.TakerFee = 0.25
 	c.MakerFee = 0
-	c.Websocket = false
 	c.RESTPollingDelay = 10
 	c.RequestCurrencyPairFormat.Delimiter = "-"
 	c.RequestCurrencyPairFormat.Uppercase = true
@@ -80,6 +81,7 @@ func (c *CoinbasePro) SetDefaults() {
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 	c.APIUrlDefault = coinbaseproAPIURL
 	c.APIUrl = c.APIUrlDefault
+	c.WebsocketInit()
 }
 
 // Setup initialises the exchange parameters with the current configuration
@@ -94,7 +96,7 @@ func (c *CoinbasePro) Setup(exch config.ExchangeConfig) {
 		c.SetHTTPClientUserAgent(exch.HTTPUserAgent)
 		c.RESTPollingDelay = exch.RESTPollingDelay
 		c.Verbose = exch.Verbose
-		c.Websocket = exch.Websocket
+		c.Websocket.SetEnabled(exch.Websocket)
 		c.BaseCurrencies = common.SplitStrings(exch.BaseCurrencies, ",")
 		c.AvailablePairs = common.SplitStrings(exch.AvailablePairs, ",")
 		c.EnabledPairs = common.SplitStrings(exch.EnabledPairs, ",")
@@ -117,6 +119,15 @@ func (c *CoinbasePro) Setup(exch config.ExchangeConfig) {
 		if err != nil {
 			log.Fatal(err)
 		}
+		c.SetClientProxyAddress(exch.ProxyAddress)
+		c.WebsocketSetup(
+			c.WsConnect,
+			c.WsShutdown,
+			exch.Websocket,
+			exch.ProxyAddress,
+			coinbaseproWebsocketURL,
+			exch.WebsocketURL,
+		)
 	}
 }
 

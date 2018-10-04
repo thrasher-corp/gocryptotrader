@@ -46,7 +46,10 @@ func TestHTTPClient(t *testing.T) {
 	}
 
 	b := Base{Name: "RAWR"}
-	b.Requester = request.New(b.Name, request.NewRateLimit(time.Second, 1), request.NewRateLimit(time.Second, 1), new(http.Client))
+	b.Requester = request.New(b.Name,
+		request.NewRateLimit(time.Second, 1),
+		request.NewRateLimit(time.Second, 1),
+		new(http.Client))
 
 	b.SetHTTPClientTimeout(time.Second * 5)
 	if b.GetHTTPClient().Timeout != time.Second*5 {

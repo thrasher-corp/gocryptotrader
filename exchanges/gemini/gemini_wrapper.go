@@ -175,3 +175,9 @@ func (g *Gemini) WithdrawFiatExchangeFunds(currency pair.CurrencyItem, amount fl
 func (g *Gemini) WithdrawFiatExchangeFundsToInternationalBank(currency pair.CurrencyItem, amount float64) (string, error) {
 	return "", errors.New("not yet implemented")
 }
+
+// WebsocketConnect connects an exchange to the package defined websocket feeds
+// and returns a pointer to a websocket
+func (g *Gemini) WebsocketConnect() (*exchange.Websocket, error) {
+	return nil, errors.New("not yet implemented")
+}

@@ -50,7 +50,6 @@ func (l *Liqui) SetDefaults() {
 	l.Enabled = false
 	l.Fee = 0.25
 	l.Verbose = false
-	l.Websocket = false
 	l.RESTPollingDelay = 10
 	l.Ticker = make(map[string]Ticker)
 	l.RequestCurrencyPairFormat.Delimiter = "_"
@@ -69,6 +68,7 @@ func (l *Liqui) SetDefaults() {
 	l.APIUrl = l.APIUrlDefault
 	l.APIUrlSecondaryDefault = liquiAPIPrivateURL
 	l.APIUrlSecondary = l.APIUrlSecondaryDefault
+	l.WebsocketInit()
 }
 
 // Setup sets exchange configuration parameters for liqui
@@ -83,7 +83,6 @@ func (l *Liqui) Setup(exch config.ExchangeConfig) {
 		l.SetHTTPClientUserAgent(exch.HTTPUserAgent)
 		l.RESTPollingDelay = exch.RESTPollingDelay
 		l.Verbose = exch.Verbose
-		l.Websocket = exch.Websocket
 		l.BaseCurrencies = common.SplitStrings(exch.BaseCurrencies, ",")
 		l.AvailablePairs = common.SplitStrings(exch.AvailablePairs, ",")
 		l.EnabledPairs = common.SplitStrings(exch.EnabledPairs, ",")
@@ -103,6 +102,7 @@ func (l *Liqui) Setup(exch config.ExchangeConfig) {
 		if err != nil {
 			log.Fatal(err)
 		}
+		l.SetClientProxyAddress(exch.ProxyAddress)
 	}
 }
 

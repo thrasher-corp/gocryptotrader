@@ -244,3 +244,9 @@ func (a *ANX) WithdrawFiatExchangeFunds(currency pair.CurrencyItem, amount float
 func (a *ANX) WithdrawFiatExchangeFundsToInternationalBank(currency pair.CurrencyItem, amount float64) (string, error) {
 	return "", errors.New("not yet implemented")
 }
+
+// WebsocketConnect connects an exchange to the package defined websocket feeds
+// and returns a pointer to a websocket
+func (a *ANX) WebsocketConnect() (*exchange.Websocket, error) {
+	return nil, errors.New("not yet implemented")
+}

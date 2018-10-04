@@ -277,3 +277,115 @@ func OrderbookUpdaterRoutine() {
 		time.Sleep(time.Second * 10)
 	}
 }
+
+// WebsocketRoutine Initial routine management system for websocket
+func WebsocketRoutine() {
+	shutdowner = make(chan struct{}, 1)
+	log.Println("Connecting exchange Websocket services...")
+
+	for i := range bot.exchanges {
+		go func(i int) {
+			log.Printf("Establishing websocket connection for %s",
+				bot.exchanges[i].GetName())
+
+			ws, err := bot.exchanges[i].WebsocketConnect()
+			if err != nil {
+				switch err.Error() {
+				case "not yet implemented":
+					return
+
+				case exchange.WebsocketNotEnabled:
+					log.Println("Websocket MEMORY STORED")
+					// Store in memory for state change if enabled in future
+
+				case "current issues with BTCC endpoint":
+					return
+
+				default:
+					log.Println("Websocket error recieved:   ", err)
+					ws.SetEnabled(false)
+					return
+				}
+			}
+
+			go wsCaptcha(ws)
+		}(i)
+	}
+}
+
+var shutdowner chan struct{}
+
+func streamDiversion(ws *exchange.Websocket) {
+	for {
+		select {
+		case <-ws.Connected:
+			log.Println("EXCHANGE WEBSOCKET ACTIVATED________________________________")
+		case <-ws.Disconnected:
+			log.Println("REST POLLING ACTIVATED________________________________")
+		}
+	}
+}
+
+func wsCaptcha(ws *exchange.Websocket) {
+	go streamDiversion(ws)
+
+	for {
+		select {
+		case <-shutdowner:
+			log.Println("Routines.go - Shutdown captured")
+			return
+
+		case data := <-ws.DataHandler:
+			switch data.(type) {
+			case string:
+				switch data.(string) {
+				case exchange.WebsocketNotEnabled:
+					log.Println("Routines.go exchange not enabled test")
+
+				case exchange.WebsocketOrderbookUpdated:
+					log.Println("Orderbook change reflected")
+
+				default:
+					log.Println(data.(string))
+				}
+
+			case error:
+				log.Println("Websocket error recieved:   ", data) // NOTE needs logger update for exchange specific error handling
+
+			case exchange.TradeData:
+				// Trade Data
+				log.Println("Websocket trades Updated:   ", data.(exchange.TradeData))
+
+			case exchange.TickerData:
+				// Ticker data
+				log.Println("Websocket Ticker Updated:   ", data.(exchange.TickerData))
+
+			case exchange.KlineData:
+				// Kline data
+				log.Println("Websocket Kline Updated:    ", data.(exchange.KlineData))
+
+			case exchange.WebsocketOrderbookUpdate:
+				// Orderbook data
+				log.Println("Websocket Orderbook Updated:", data.(exchange.WebsocketOrderbookUpdate))
+
+			default:
+				log.Fatal("EDGE:", data)
+			}
+		}
+	}
+}
+
+// wsReconnect tries to reconnect to a websocket stream
+func wsReconnect(ws *exchange.Websocket) error {
+	log.Println("Websocket reconnection requested")
+	var err error
+	for i := 0; i < 5; i++ {
+		log.Println("websocket connection retrying", i)
+		err = ws.Connect()
+		if err == nil {
+			log.Println("websocket connection established")
+			return nil
+		}
+	}
+	return fmt.Errorf("Websocket failed to connect %s", err.Error())
+}
