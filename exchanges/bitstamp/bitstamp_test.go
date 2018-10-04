@@ -55,10 +55,10 @@ func TestSetup(t *testing.T) {
 
 func TestGetTradingFeeByCurrency(t *testing.T) {
 	t.Parallel()
-	if resp := b.GetTradingFeeByCurrency("BTCUSD"); resp != 0 {
+	if resp := b.GetTradingFeeByCurrency("BTCUSD", 0, 0); resp != 0 {
 		t.Error("Test Failed - GetFee() error")
 	}
-	if resp := b.GetTradingFeeByCurrency("bla"); resp != 0 {
+	if resp := b.GetTradingFeeByCurrency("bla", 0, 0); resp != 0 {
 		t.Error("Test Failed - GetFee() error")
 	}
 }

@@ -31,11 +31,12 @@ const (
 
 // Const declarations for fee types
 const (
-	BankFee              = "bankFee"
-	InternationalBankFee = "internationalBankFee"
-	TradeFee             = "tradeFee"
-	DepositFee           = "depositFee"
-	WithdrawalFee        = "withdrawalFee"
+	BankFee                        = "bankFee"
+	InternationalBankDepositFee    = "internationalBankDepositFee"
+	InternationalBankWithdrawalFee = "internationalBankWithdrawalFee"
+	CryptocurrencyTradeFee         = "cryptocurrencyTradeFee"
+	CyptocurrencyDepositFee        = "cyptocurrencyDepositFee"
+	CryptocurrencyWithdrawalFee    = "cryptocurrencyWithdrawalFee"
 )
 
 // AccountInfo is a Generic type to hold each exchange's holdings in
