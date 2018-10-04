@@ -5,6 +5,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/thrasher-/gocryptotrader/exchanges"
+
 	"github.com/thrasher-/gocryptotrader/config"
 )
 
@@ -53,10 +55,64 @@ func TestSetup(t *testing.T) {
 	}
 }
 
+func TestGetFeeByType(t *testing.T) {
+	t.Parallel()
+	b.SetDefaults()
+	TestSetup(t)
+
+	if resp := b.GetFeeByType(exchange.CryptocurrencyTradeFee, "BTCUSD", 1, 1); resp != float64(0) {
+		t.Errorf("Test Failed - GetFee() error. Expected: %f, Recieved: %f", float64(0), resp)
+	}
+
+	if resp := b.GetFeeByType(exchange.CryptocurrencyTradeFee, "BTCUSD", 10000000000, -1000000000); resp != float64(0) {
+		t.Errorf("Test Failed - GetFee() error. Expected: %f, Recieved: %f", float64(0), resp)
+	}
+
+	if resp := b.GetFeeByType(exchange.CryptocurrencyWithdrawalFee, "BTCUSD", 1, 1); resp != float64(0) {
+		t.Errorf("Test Failed - GetFee() error. Expected: %f, Recieved: %f", float64(0), resp)
+	}
+
+	if resp := b.GetFeeByType(exchange.CyptocurrencyDepositFee, "BTCUSD", 1, 1); resp != float64(0) {
+		t.Errorf("Test Failed - GetFee() error. Expected: %f, Recieved: %f", float64(0), resp)
+	}
+
+	if resp := b.GetFeeByType(exchange.InternationalBankDepositFee, "BTCUSD", 1, 1); resp != float64(7.5) {
+		t.Errorf("Test Failed - GetFee() error. Expected: %f, Recieved: %f", float64(7.5), resp)
+	}
+
+	if resp := b.GetFeeByType(exchange.InternationalBankDepositFee, "BTCUSD", 10000000, 100000); resp != float64(50) {
+		t.Errorf("Test Failed - GetFee() error. Expected: %f, Recieved: %f", float64(50), resp)
+	}
+
+	if resp := b.GetFeeByType(exchange.InternationalBankDepositFee, "BTCUSD", 10000000000, 1000000000); resp != float64(300) {
+		t.Errorf("Test Failed - GetFee() error. Expected: %f, Recieved: %f", float64(300), resp)
+	}
+
+	if resp := b.GetFeeByType(exchange.InternationalBankWithdrawalFee, "BTCUSD", 1, 1); resp != float64(15) {
+		t.Errorf("Test Failed - GetFee() error. Expected: %f, Recieved: %f", float64(15), resp)
+	}
+
+	if resp := b.GetFeeByType(exchange.InternationalBankWithdrawalFee, "BTCUSD", 10000000000, 1000000000); resp != float64(900000) {
+		t.Errorf("Test Failed - GetFee() error. Expected: %f, Recieved: %f", float64(900000), resp)
+	}
+}
+
 func TestGetTradingFeeByCurrency(t *testing.T) {
 	t.Parallel()
+	b.SetDefaults()
+	TestSetup(t)
+	b.Balance = Balances{}
+	b.Balance.BTCUSDFee = 1
+	b.Balance.BTCEURFee = 0
+
 	if resp := b.GetTradingFeeByCurrency("BTCUSD", 0, 0); resp != 0 {
 		t.Error("Test Failed - GetFee() error")
+	}
+	if resp := b.GetTradingFeeByCurrency("BTCUSD", 2, 2); resp != float64(4) {
+		t.Errorf("Test Failed - GetFee() error. Expected: %f, Recieved: %f", float64(4), resp)
+	}
+	if resp := b.GetTradingFeeByCurrency("BTCEUR", 2, 2); resp != float64(0) {
+		t.Errorf("Test Failed - GetFee() error. Expected: %f, Recieved: %f", float64(0), resp)
 	}
 	if resp := b.GetTradingFeeByCurrency("bla", 0, 0); resp != 0 {
 		t.Error("Test Failed - GetFee() error")
