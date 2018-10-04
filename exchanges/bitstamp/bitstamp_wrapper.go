@@ -78,8 +78,8 @@ func (b *Bitstamp) GetTickerPrice(p pair.CurrencyPair, assetType string) (ticker
 }
 
 // GetFeeByType returns an estimate of fee based on type of transaction
-func (b *Bitstamp) GetFeeByType(feeType string, currencyPair string, purchasePrice float64, amount float64) (float64, error) {
-	resp, err := b.GetFee(feeType, currencyPair, purchasePrice, amount)
+func (b *Bitstamp) GetFeeByType(feeType string, currencyPair string, purchasePrice float64, amount float64, isTaker bool, isMaker bool) (float64, error) {
+	resp, err := b.GetFee(feeType, currencyPair, purchasePrice, amount, isTaker, isMaker)
 	if err != nil {
 		return resp, err
 	}

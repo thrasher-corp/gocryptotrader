@@ -123,7 +123,7 @@ func (b *Bittrex) Setup(exch config.ExchangeConfig) {
 }
 
 // GetFee returns an estimate of fee based on type of transaction
-func (b *Bittrex) GetFee(feeType string, currency string, purchasePrice float64, amount float64) (float64, error) {
+func (b *Bittrex) GetFee(feeType string, currency string, purchasePrice float64, amount float64, isTaker bool, isMaker bool) (float64, error) {
 	var fee float64
 	var err error
 
@@ -132,14 +132,6 @@ func (b *Bittrex) GetFee(feeType string, currency string, purchasePrice float64,
 		fee = b.GetTradingFee(purchasePrice, amount)
 	case exchange.CryptocurrencyWithdrawalFee:
 		fee, err = b.GetWithdrawalFee(currency)
-	case exchange.CyptocurrencyDepositFee:
-		fallthrough
-	case exchange.InternationalBankDepositFee:
-		fallthrough
-	case exchange.InternationalBankWithdrawalFee:
-		fallthrough
-	default:
-		fee = 0
 	}
 	if fee < 0 {
 		fee = 0

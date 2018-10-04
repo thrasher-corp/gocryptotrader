@@ -224,8 +224,8 @@ func (b *Bittrex) GetWebsocket() (*exchange.Websocket, error) {
 }
 
 // GetFeeByType returns an estimate of fee based on type of transaction
-func (b *Bittrex) GetFeeByType(feeType string, currencyPair string, purchasePrice float64, amount float64) (float64, error) {
-	resp, err := b.GetFee(feeType, currencyPair, purchasePrice, amount)
+func (b *Bittrex) GetFeeByType(feeType string, currencyPair string, purchasePrice float64, amount float64, isTaker bool, isMaker bool) (float64, error) {
+	resp, err := b.GetFee(feeType, currencyPair, purchasePrice, amount, isTaker, isMaker)
 	if err != nil {
 		return resp, err
 	}
