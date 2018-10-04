@@ -122,14 +122,52 @@ func (b *Bittrex) Setup(exch config.ExchangeConfig) {
 	}
 }
 
-// GetFeeByType Generic fee
-func (b *Bittrex) GetFeeByType(feeType string, currencyPair string, purchasePrice float64, amount float64) float64 {
+// GetFee returns an estimate of fee based on type of transaction
+func (b *Bittrex) GetFee(feeType string, currency string, purchasePrice float64, amount float64) (float64, error) {
+	var fee float64
+	var err error
+
 	switch feeType {
-	case exchange.TradeFee:
-		return amount * purchasePrice * 0.0025
+	case exchange.CryptocurrencyTradeFee:
+		fee = b.GetTradingFee(purchasePrice, amount)
+	case exchange.CryptocurrencyWithdrawalFee:
+		fee, err = b.GetWithdrawalFee(currency)
+	case exchange.CyptocurrencyDepositFee:
+		fallthrough
+	case exchange.InternationalBankDepositFee:
+		fallthrough
+	case exchange.InternationalBankWithdrawalFee:
+		fallthrough
 	default:
-		return 0
+		fee = 0
 	}
+	if fee < 0 {
+		fee = 0
+	}
+	return fee, err
+}
+
+// GetWithdrawalFee returns the fee for withdrawing from the exchange
+func (b *Bittrex) GetWithdrawalFee(currency string) (float64, error) {
+	var fee float64
+
+	currencies, err := b.GetCurrencies()
+	if err != nil {
+		log.Fatal(err)
+	}
+	for _, result := range currencies.Result {
+		if result.Currency == currency {
+			fee = result.TxFee
+		}
+	}
+	return fee, err
+}
+
+// GetTradingFee returns the fee for trading any currency on Bittrex
+func (b *Bittrex) GetTradingFee(purchasePrice float64, amount float64) float64 {
+	var fee = 0.0025
+
+	return fee * purchasePrice * amount
 }
 
 // GetMarkets is used to get the open and available trading markets at Bittrex
