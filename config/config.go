@@ -497,7 +497,7 @@ func (c *Config) CheckPairConsistency(exchName string) error {
 	}
 
 	if len(pairs) == 0 {
-		exchCfg.EnabledPairs = availPairs[0].Pair().String()
+		exchCfg.EnabledPairs = pair.RandomPairFromPairs(availPairs).Pair().String()
 	} else {
 		exchCfg.EnabledPairs = common.JoinStrings(pair.PairsToStringArray(pairs), ",")
 	}

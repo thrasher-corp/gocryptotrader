@@ -154,6 +154,19 @@ func TestSwap(t *testing.T) {
 	}
 }
 
+func TestEmpty(t *testing.T) {
+	t.Parallel()
+	pair := NewCurrencyPair("BTC", "USD")
+	if pair.Empty() {
+		t.Error("Test failed. Empty() returned true when the pair was initialised")
+	}
+
+	var p CurrencyPair
+	if !p.Empty() {
+		t.Error("Test failed. Empty() returned true when the pair wasn't initialised")
+	}
+}
+
 func TestNewCurrencyPair(t *testing.T) {
 	t.Parallel()
 	pair := NewCurrencyPair("BTC", "USD")
@@ -368,5 +381,41 @@ func TestPairsToStringArray(t *testing.T) {
 
 	if actual[0] != expected[0] {
 		t.Error("Test failed. TestPairsToStringArray: Unexpected values")
+	}
+}
+
+func TestRandomPairFromPairs(t *testing.T) {
+	// Test that an empty pairs array returns an empty currency pair
+	result := RandomPairFromPairs([]CurrencyPair{})
+	if !result.Empty() {
+		t.Error("Test failed. TestRandomPairFromPairs: Unexpected values")
+	}
+
+	// Test that a populated pairs array returns a non-empty currency pair
+	var pairs []CurrencyPair
+	pairs = append(pairs, NewCurrencyPair("BTC", "USD"))
+	result = RandomPairFromPairs(pairs)
+
+	if result.Empty() {
+		t.Error("Test failed. TestRandomPairFromPairs: Unexpected values")
+	}
+
+	// Test that a populated pairs array over a number of attempts returns ALL
+	// currency pairs
+	pairs = append(pairs, NewCurrencyPair("ETH", "USD"))
+	expectedResults := make(map[string]bool)
+	for i := 0; i < 50; i++ {
+		p := RandomPairFromPairs(pairs).Pair().String()
+		_, ok := expectedResults[p]
+		if !ok {
+			expectedResults[p] = true
+		}
+	}
+
+	for x := range pairs {
+		_, ok := expectedResults[pairs[x].Pair().String()]
+		if !ok {
+			t.Error("Test failed. TestRandomPairFromPairs: Unexpected values")
+		}
 	}
 }

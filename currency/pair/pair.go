@@ -1,6 +1,7 @@
 package pair
 
 import (
+	"math/rand"
 	"strings"
 
 	"github.com/thrasher-/gocryptotrader/common"
@@ -78,6 +79,14 @@ func (c CurrencyPair) Swap() CurrencyPair {
 	p.FirstCurrency = c.SecondCurrency
 	p.SecondCurrency = c.FirstCurrency
 	return p
+}
+
+// Empty returns whether or not the pair is empty
+func (c CurrencyPair) Empty() bool {
+	if c.FirstCurrency == "" || c.SecondCurrency == "" {
+		return true
+	}
+	return false
 }
 
 // NewCurrencyPairDelimiter splits the desired currency string at delimeter,
@@ -215,4 +224,15 @@ func PairsToStringArray(pairs []CurrencyPair) []string {
 		p = append(p, pairs[x].Pair().String())
 	}
 	return p
+}
+
+// RandomPairFromPairs returns a random pair from a list of pairs
+func RandomPairFromPairs(pairs []CurrencyPair) CurrencyPair {
+	pairsLen := len(pairs)
+
+	if pairsLen == 0 {
+		return CurrencyPair{}
+	}
+
+	return pairs[rand.Intn(pairsLen)]
 }
