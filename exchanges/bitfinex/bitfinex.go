@@ -953,9 +953,9 @@ func (b *Bitfinex) GetFee(feeType string, currency string, purchasePrice float64
 		}
 		fee = b.GetCryptocurrencyWithdrawalFee(currency, amount, accountFees)
 	case exchange.InternationalBankDepositFee:
-		fee = getInternationalBankDepositFee(amount)
+		fee = getInternationalBankDepositFee(purchasePrice, amount)
 	case exchange.InternationalBankWithdrawalFee:
-		fee = getInternationalBankWithdrawalFee(amount)
+		fee = getInternationalBankWithdrawalFee(purchasePrice, amount)
 	}
 	if fee < 0 {
 		fee = 0
