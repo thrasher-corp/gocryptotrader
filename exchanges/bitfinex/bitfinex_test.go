@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/thrasher-/gocryptotrader/currency/symbol"
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
 )
@@ -615,5 +616,14 @@ func TestCloseMarginFunding(t *testing.T) {
 	_, err := b.CloseMarginFunding(1337)
 	if err == nil {
 		t.Error("Test Failed - CloseMarginFunding() error")
+	}
+}
+
+func TestGetCryptocurrencyWithdrawalFee(t *testing.T) {
+	var accountFees AccountFees
+	accountFees.Withdraw.BTC = 1
+	fee := b.GetCryptocurrencyWithdrawalFee(symbol.BTC, 1, accountFees)
+	if fee != 1 {
+		t.Errorf("Test failed. Expected %f Result %f", fee, float64(1))
 	}
 }

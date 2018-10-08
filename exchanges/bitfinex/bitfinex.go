@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/url"
+	"reflect"
 	"strconv"
 	"time"
 
@@ -933,4 +934,85 @@ func (b *Bitfinex) SendAuthenticatedHTTPRequest(method, path string, params map[
 		return err
 	}
 	return nil
+}
+
+// GetFee returns an estimate of fee based on type of transaction
+func (b *Bitfinex) GetFee(feeType string, currency string, purchasePrice float64, amount float64, isTaker bool, isMaker bool) (float64, error) {
+	var fee float64
+
+	switch feeType {
+	case exchange.CryptocurrencyTradeFee:
+		fee = b.GetTradingFee(currency, isTaker, isMaker)
+	case exchange.CyptocurrencyDepositFee:
+		//TODO: fee is charged when < $1000USD is transferred, need to infer value in some way
+		fee = 0
+	case exchange.CryptocurrencyWithdrawalFee:
+		accountFees, err := b.GetAccountFees()
+		if err != nil {
+			log.Fatal(err)
+		}
+		fee = b.GetCryptocurrencyWithdrawalFee(currency, amount, accountFees)
+	case exchange.InternationalBankDepositFee:
+		fee = getInternationalBankDepositFee(amount)
+	case exchange.InternationalBankWithdrawalFee:
+		fee = getInternationalBankWithdrawalFee(amount)
+	}
+	if fee < 0 {
+		fee = 0
+	}
+	return fee, nil
+}
+
+// GetCryptocurrencyWithdrawalFee returns an estimate of fee based on type of transaction
+func (b *Bitfinex) GetCryptocurrencyWithdrawalFee(currency string, amount float64, accountFees AccountFees) float64 {
+	var fee float64
+
+	accountFeeTypes := reflect.ValueOf(accountFees.Withdraw)
+	for i := 0; i < accountFeeTypes.NumField(); i++ {
+		accountFeeType := fmt.Sprintf("%s", accountFeeTypes.Type().Field(i).Name)
+		if currency == accountFeeType {
+			fee = accountFeeTypes.Field(i).Interface().(float64)
+			break
+		}
+	}
+
+	return fee * amount
+}
+
+func getInternationalBankDepositFee(purchasePrice, amount float64) float64 {
+	if amount <= 20 {
+		log.Fatal("Minimum $20 required")
+	}
+	return 0.001 * purchasePrice * amount
+}
+
+func getInternationalBankWithdrawalFee(purchasePrice, amount float64) float64 {
+	if amount <= 20 {
+		log.Fatal("Minimum $20 required")
+	}
+	return 0.001 * purchasePrice * amount
+}
+
+// GetTradingFee returns an estimate of fee based on type of whether is maker or taker fee
+func (b *Bitfinex) GetTradingFee(currency string, isTaker bool, isMaker bool) float64 {
+	var fee float64
+
+	accountInfo, err := b.GetAccountInfo()
+	for _, i := range accountInfo.Fees {
+		if currency == i.Pairs {
+			if isMaker {
+				fee, err = strconv.ParseFloat(i.MakerFees, 64)
+				if err != nil {
+					log.Fatal(err)
+				}
+			}
+			if isTaker {
+				fee, err = strconv.ParseFloat(i.TakerFees, 64)
+				if err != nil {
+					log.Fatal(err)
+				}
+			}
+		}
+	}
+	return fee
 }

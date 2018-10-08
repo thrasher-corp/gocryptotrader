@@ -385,3 +385,28 @@ func (b *Bitflyer) SendAuthHTTPRequest(path string, params url.Values, result in
 	headers["ACCESS-KEY"] = b.APIKey
 	headers["ACCESS-TIMESTAMP"] = strconv.FormatInt(int64(time.Now().UnixNano()), 10)
 }
+
+// GetFee returns an estimate of fee based on type of transaction
+func (b *Bitflyer) GetFee(feeType string, currency string, purchasePrice float64, amount float64, isTaker bool, isMaker bool) (float64, error) {
+	var fee float64
+
+	switch feeType {
+	case exchange.CryptocurrencyTradeFee:
+		fee = getTradingFee(purchasePrice, amount)
+	case exchange.CyptocurrencyDepositFee:
+		//fee = getDepositFee(currency, amount)
+	case exchange.CryptocurrencyWithdrawalFee:
+		//	fee = getWithdrawalFee(currency, amount)
+	}
+	if fee < 0 {
+		fee = 0
+	}
+	return fee, nil
+}
+
+// getDepositFee returns fee when performing a trade
+func getTradingFee(purchasePrice float64, amount float64) float64 {
+	fee := 0.0015
+
+	return fee * amount * purchasePrice
+}
