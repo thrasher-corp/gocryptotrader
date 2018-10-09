@@ -944,7 +944,7 @@ func TestTimeFromUnixTimestampFloat(t *testing.T) {
 	expectedOutput := time.Date(2014, time.October, 28, 0, 32, 0, 0, time.UTC)
 
 	actualOutput, err := TimeFromUnixTimestampFloat(testTimestamp)
-	if actualOutput != expectedOutput || err != nil {
+	if actualOutput.UTC().String() != expectedOutput.UTC().String() || err != nil {
 		t.Errorf("Test failed. Common TimeFromUnixTimestampFloat. Expected '%v'. Actual '%v'. Error: %s",
 			expectedOutput, actualOutput, err)
 	}
