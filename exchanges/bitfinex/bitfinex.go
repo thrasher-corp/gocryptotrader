@@ -949,7 +949,7 @@ func (b *Bitfinex) GetFee(feeType string, currency string, purchasePrice float64
 	case exchange.CryptocurrencyWithdrawalFee:
 		accountFees, err := b.GetAccountFees()
 		if err != nil {
-			log.Fatal(err)
+			return 0, err
 		}
 		fee = b.GetCryptocurrencyWithdrawalFee(currency, amount, accountFees)
 	case exchange.InternationalBankDepositFee:
@@ -980,16 +980,10 @@ func (b *Bitfinex) GetCryptocurrencyWithdrawalFee(currency string, amount float6
 }
 
 func getInternationalBankDepositFee(purchasePrice, amount float64) float64 {
-	if amount <= 20 {
-		log.Fatal("Minimum $20 required")
-	}
 	return 0.001 * purchasePrice * amount
 }
 
 func getInternationalBankWithdrawalFee(purchasePrice, amount float64) float64 {
-	if amount <= 20 {
-		log.Fatal("Minimum $20 required")
-	}
 	return 0.001 * purchasePrice * amount
 }
 

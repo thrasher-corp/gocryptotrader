@@ -139,8 +139,7 @@ func (b *Bitstamp) GetFee(feeType string, currency string, purchasePrice float64
 
 		b.Balance, err = b.GetBalance()
 		if err != nil {
-			log.Fatal(err)
-			fee = 0
+			return 0, err
 		}
 		fee = b.GetTradingFeeByCurrency(currency, purchasePrice, amount)
 	case exchange.CyptocurrencyDepositFee:

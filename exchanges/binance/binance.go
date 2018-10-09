@@ -661,7 +661,7 @@ func (b *Binance) GetFee(feeType string, currency string, purchasePrice float64,
 	case exchange.CryptocurrencyTradeFee:
 		multiplier, err := b.getMultiplier(isTaker, isMaker)
 		if err != nil {
-			log.Fatal(err)
+			return 0, err
 		}
 		fee = getTradingFee(purchasePrice, amount, multiplier)
 	case exchange.CryptocurrencyWithdrawalFee:
@@ -678,7 +678,7 @@ func (b *Binance) getMultiplier(isTaker bool, isMaker bool) (float64, error) {
 	var multiplier float64
 	account, err := b.GetAccount()
 	if err != nil {
-		log.Fatal(err)
+		return 0, err
 	}
 	if isTaker {
 		multiplier = float64(account.TakerCommission)

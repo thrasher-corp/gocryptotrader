@@ -145,14 +145,14 @@ func (b *Bittrex) GetWithdrawalFee(currency string) (float64, error) {
 
 	currencies, err := b.GetCurrencies()
 	if err != nil {
-		log.Fatal(err)
+		return 0, err
 	}
 	for _, result := range currencies.Result {
 		if result.Currency == currency {
 			fee = result.TxFee
 		}
 	}
-	return fee, err
+	return fee, nil
 }
 
 // GetTradingFee returns the fee for trading any currency on Bittrex
