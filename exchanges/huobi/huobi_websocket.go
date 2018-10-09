@@ -67,12 +67,19 @@ func (h *HUOBI) WsConnect() error {
 // WsReadData reads data from the websocket connection
 func (h *HUOBI) WsReadData() {
 	h.Websocket.Wg.Add(1)
-	defer h.Websocket.Wg.Done()
+
+	defer func() {
+		err := h.WebsocketConn.Close()
+		if err != nil {
+			h.Websocket.DataHandler <- fmt.Errorf("huobi_websocket.go - Unable to to close Websocket connection. Error: %s",
+				err)
+		}
+		h.Websocket.Wg.Done()
+	}()
 
 	for {
 		select {
 		case <-h.Websocket.ShutdownC:
-			h.WebsocketConn.Close()
 			return
 
 		default:
@@ -262,25 +269,6 @@ func (h *HUOBI) WsSubscribe() error {
 		}
 	}
 	return nil
-}
-
-// WsShutdown shuts down websocket connections and associated routines
-func (h *HUOBI) WsShutdown() error {
-	timer := time.NewTimer(5 * time.Second)
-	c := make(chan struct{}, 1)
-
-	func(c chan struct{}) {
-		close(h.Websocket.ShutdownC)
-		h.Websocket.Wg.Wait()
-		c <- struct{}{}
-	}(c)
-
-	select {
-	case <-timer.C:
-		return errors.New("huobi.go error - routines did not shut down")
-	case <-c:
-		return nil
-	}
 }
 
 // WsRequest defines a request data structure

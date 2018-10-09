@@ -2,6 +2,7 @@ package coinut
 
 import (
 	"errors"
+	"fmt"
 	"log"
 	"net/http"
 	"net/url"
@@ -40,12 +41,18 @@ type wsRequest struct {
 // WsReadData reads data from the websocket conection
 func (c *COINUT) WsReadData() {
 	c.Websocket.Wg.Add(1)
-	defer c.Websocket.Wg.Done()
+	defer func() {
+		err := c.WebsocketConn.Close()
+		if err != nil {
+			c.Websocket.DataHandler <- fmt.Errorf("coinut_websocket.go - Unable to to close Websocket connection. Error: %s",
+				err)
+		}
+		c.Websocket.Wg.Done()
+	}()
 
 	for {
 		select {
 		case <-c.Websocket.ShutdownC:
-			c.WebsocketConn.Close()
 			return
 
 		default:
@@ -224,25 +231,6 @@ func (c *COINUT) WsConnect() error {
 	go c.WsHandleData()
 
 	return nil
-}
-
-// WsShutdown shutsdown the websocket connection and routines
-func (c *COINUT) WsShutdown() error {
-	timer := time.NewTimer(5 * time.Second)
-	comms := make(chan struct{}, 1)
-
-	func(comms chan struct{}) {
-		close(c.Websocket.ShutdownC)
-		c.Websocket.Wg.Wait()
-		comms <- struct{}{}
-	}(comms)
-
-	select {
-	case <-timer.C:
-		return errors.New("coinut.go error - routines failed to shutdown")
-	case <-comms:
-		return c.WebsocketConn.Close()
-	}
 }
 
 // GetNonce returns a nonce for a required request

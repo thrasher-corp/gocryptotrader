@@ -120,9 +120,8 @@ func (c *CoinbasePro) Setup(exch config.ExchangeConfig) {
 			log.Fatal(err)
 		}
 		c.SetClientProxyAddress(exch.ProxyAddress)
-		c.WebsocketSetup(
-			c.WsConnect,
-			c.WsShutdown,
+		c.WebsocketSetup(c.WsConnect,
+			exch.Name,
 			exch.Websocket,
 			exch.ProxyAddress,
 			coinbaseproWebsocketURL,

@@ -61,9 +61,10 @@ type OrderBookData struct {
 
 // OrderBook actual structured data that can be used for orderbook
 type OrderBook struct {
-	Code int
-	Msg  string
-	Bids []struct {
+	LastUpdateID int64
+	Code         int
+	Msg          string
+	Bids         []struct {
 		Price    float64
 		Quantity float64
 	}

@@ -60,25 +60,6 @@ func (h *HitBTC) WsConnect() error {
 	return nil
 }
 
-// WsShutdown shuts down websocket connection and routines
-func (h *HitBTC) WsShutdown() error {
-	timer := time.NewTimer(5 * time.Second)
-	c := make(chan struct{}, 1)
-
-	go func(c chan struct{}) {
-		close(h.Websocket.ShutdownC)
-		h.Websocket.Wg.Wait()
-		c <- struct{}{}
-	}(c)
-
-	select {
-	case <-timer.C:
-		return errors.New("hitbtc.go error - routines did not shut down")
-	case <-c:
-		return h.WebsocketConn.Close()
-	}
-}
-
 // WsSubscribe subscribes to the relevant channels
 func (h *HitBTC) WsSubscribe() error {
 	enabledPairs := h.GetEnabledCurrencies()
@@ -133,7 +114,14 @@ func (h *HitBTC) WsSubscribe() error {
 // WsReadData reads from the websocket connection
 func (h *HitBTC) WsReadData() {
 	h.Websocket.Wg.Add(1)
-	defer h.Websocket.Wg.Done()
+	defer func() {
+		err := h.WebsocketConn.Close()
+		if err != nil {
+			h.Websocket.DataHandler <- fmt.Errorf("hitbtc_websocket.go - Unable to to close Websocket connection. Error: %s",
+				err)
+		}
+		h.Websocket.Wg.Done()
+	}()
 
 	for {
 		select {

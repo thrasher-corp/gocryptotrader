@@ -112,7 +112,7 @@ func (b *Binance) Setup(exch config.ExchangeConfig) {
 		}
 		b.SetClientProxyAddress(exch.ProxyAddress)
 		b.WebsocketSetup(b.WSConnect,
-			b.WSShutdown,
+			exch.Name,
 			exch.Websocket,
 			exch.ProxyAddress,
 			binanceDefaultWebsocketURL,
@@ -205,6 +205,8 @@ func (b *Binance) GetOrderBook(obd OrderBookDataRequestParams) (OrderBook, error
 			}
 		}
 	}
+
+	orderbook.LastUpdateID = resp.LastUpdateID
 	return orderbook, nil
 }
 

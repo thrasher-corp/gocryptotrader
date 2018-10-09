@@ -198,7 +198,14 @@ func (b *Bitstamp) WsConnect() error {
 // WsReadData reads data coming from bitstamp websocket connection
 func (b *Bitstamp) WsReadData() {
 	b.Websocket.Wg.Add(1)
-	defer b.Websocket.Wg.Done()
+	defer func() {
+		err := b.WebsocketConn.Client.Close()
+		if err != nil {
+			b.Websocket.DataHandler <- fmt.Errorf("bitstamp_websocket.go - Unable to to close Websocket connection. Error: %s",
+				err)
+		}
+		b.Websocket.Wg.Done()
+	}()
 
 	for {
 		select {
@@ -237,27 +244,6 @@ func (b *Bitstamp) WsReadData() {
 				AssetType:    "SPOT",
 			}
 		}
-	}
-}
-
-// WsShutdown shuts down websocket connection
-func (b *Bitstamp) WsShutdown() error {
-	timer := time.NewTimer(5 * time.Second)
-	c := make(chan struct{}, 1)
-
-	go func(c chan struct{}) {
-		close(b.Websocket.ShutdownC)
-		b.Websocket.Wg.Wait()
-		c <- struct{}{}
-	}(c)
-
-	select {
-	case <-timer.C:
-		return errors.New("bitstamp.go error - failed to shut down routines")
-	case <-c:
-		close(b.WebsocketConn.Data)
-		close(b.WebsocketConn.Trade)
-		return b.WebsocketConn.Client.Close()
 	}
 }
 

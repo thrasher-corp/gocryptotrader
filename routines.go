@@ -350,7 +350,7 @@ func wsCaptcha(ws *exchange.Websocket) {
 				}
 
 			case error:
-				log.Println("Websocket error recieved:   ", data) // NOTE needs logger update for exchange specific error handling
+				log.Fatal("Websocket error recieved:   ", data) // NOTE needs logger update for exchange specific error handling
 
 			case exchange.TradeData:
 				// Trade Data

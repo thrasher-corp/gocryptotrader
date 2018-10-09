@@ -2,6 +2,7 @@ package coinbasepro
 
 import (
 	"errors"
+	"fmt"
 	"log"
 	"net/http"
 	"net/url"
@@ -97,7 +98,14 @@ func (c *CoinbasePro) WsConnect() error {
 // WsReadData reads data from the websocket connection
 func (c *CoinbasePro) WsReadData(comms chan []byte) {
 	c.Websocket.Wg.Add(1)
-	defer c.Websocket.Wg.Done()
+	defer func() {
+		err := c.WebsocketConn.Close()
+		if err != nil {
+			c.Websocket.DataHandler <- fmt.Errorf("coinbasepro_websocket.go - Unable to to close Websocket connection. Error: %s",
+				err)
+		}
+		c.Websocket.Wg.Done()
+	}()
 
 	for {
 		select {
@@ -203,25 +211,6 @@ func (c *CoinbasePro) WsHandleData(comms chan []byte) {
 				log.Fatal("Edge test", string(resp))
 			}
 		}
-	}
-}
-
-// WsShutdown shuts down connection and
-func (c *CoinbasePro) WsShutdown() error {
-	timer := time.NewTimer(5 * time.Second)
-	comms := make(chan struct{}, 1)
-
-	go func(comms chan struct{}) {
-		close(c.Websocket.ShutdownC)
-		c.Websocket.Wg.Wait()
-		comms <- struct{}{}
-	}(comms)
-
-	select {
-	case <-timer.C:
-		return errors.New("coinbasepro.go - routines did not shutdown")
-	case <-comms:
-		return c.WebsocketConn.Close()
 	}
 }
 

@@ -116,7 +116,7 @@ func (b *Bitstamp) Setup(exch config.ExchangeConfig) {
 		}
 		b.SetClientProxyAddress(exch.ProxyAddress)
 		b.WebsocketSetup(b.WsConnect,
-			b.WsShutdown,
+			exch.Name,
 			exch.Websocket,
 			exch.ProxyAddress,
 			BitstampPusherKey,

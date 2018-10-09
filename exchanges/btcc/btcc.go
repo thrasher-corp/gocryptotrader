@@ -107,9 +107,8 @@ func (b *BTCC) Setup(exch config.ExchangeConfig) {
 			log.Fatal(err)
 		}
 		b.SetClientProxyAddress(exch.ProxyAddress)
-		b.WebsocketSetup(
-			b.WsConnect,
-			b.WsShutdown,
+		b.WebsocketSetup(b.WsConnect,
+			exch.Name,
 			exch.Websocket,
 			exch.ProxyAddress,
 			btccSocketioAddress,

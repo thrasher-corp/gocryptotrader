@@ -109,9 +109,8 @@ func (p *HitBTC) Setup(exch config.ExchangeConfig) {
 			log.Fatal(err)
 		}
 		p.SetClientProxyAddress(exch.ProxyAddress)
-		p.WebsocketSetup(
-			p.WsConnect,
-			p.WsShutdown,
+		p.WebsocketSetup(p.WsConnect,
+			exch.Name,
 			exch.Websocket,
 			exch.ProxyAddress,
 			hitbtcWebsocketAddress,

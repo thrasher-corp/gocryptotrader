@@ -92,7 +92,15 @@ func (p *Poloniex) WsSubscribe() error {
 // WsReadData reads data from the websocket connection
 func (p *Poloniex) WsReadData() {
 	p.Websocket.Wg.Add(1)
-	defer p.Websocket.Wg.Done()
+
+	defer func() {
+		err := p.WebsocketConn.Close()
+		if err != nil {
+			p.Websocket.DataHandler <- fmt.Errorf("poloniex_websocket.go - Unable to to close Websocket connection. Error: %s",
+				err)
+		}
+		p.Websocket.Wg.Done()
+	}()
 
 	for {
 		select {
@@ -124,7 +132,10 @@ func (p *Poloniex) WsHandleData() {
 
 		case resp := <-comms:
 			var check []interface{}
-			common.JSONDecode(resp, &check)
+			err := common.JSONDecode(resp, &check)
+			if err != nil {
+				log.Fatal("poloniex_websocket.go - ", err)
+			}
 
 			switch len(check) {
 			case 1:
@@ -382,25 +393,6 @@ func (p *Poloniex) WsProcessOrderbookUpdate(target []interface{}, symbol string)
 		}
 	}
 	return errors.New("poloniex.go error - currency pair not found")
-}
-
-// WsShutdown shuts down the websocket connection and routines
-func (p *Poloniex) WsShutdown() error {
-	timer := time.NewTimer(5 * time.Second)
-	c := make(chan struct{}, 1)
-
-	go func(chan struct{}) {
-		close(p.Websocket.ShutdownC)
-		p.Websocket.Wg.Wait()
-		c <- struct{}{}
-	}(c)
-
-	select {
-	case <-timer.C:
-		return errors.New("routines did not shut down")
-	case <-c:
-		return p.WebsocketConn.Close()
-	}
 }
 
 // WsCommand defines the request params after a websocket connection has been

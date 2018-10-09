@@ -104,7 +104,7 @@ func (c *COINUT) Setup(exch config.ExchangeConfig) {
 		}
 		c.SetClientProxyAddress(exch.ProxyAddress)
 		c.WebsocketSetup(c.WsConnect,
-			c.WsShutdown,
+			exch.Name,
 			exch.Websocket,
 			exch.ProxyAddress,
 			coinutWebsocketURL,

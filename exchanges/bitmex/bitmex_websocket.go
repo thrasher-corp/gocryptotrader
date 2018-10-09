@@ -10,12 +10,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/thrasher-/gocryptotrader/currency/pair"
-
-	"github.com/thrasher-/gocryptotrader/exchanges"
-
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-/gocryptotrader/common"
+	"github.com/thrasher-/gocryptotrader/currency/pair"
+	"github.com/thrasher-/gocryptotrader/exchanges"
 )
 
 const (
@@ -111,7 +109,7 @@ func (b *Bitmex) WsConnector() error {
 
 	err = b.websocketSubscribe()
 	if err != nil {
-		b.WebsocketConn.Close()
+		b.WebsocketConn.Close() // add error handling
 		return err
 	}
 
@@ -126,7 +124,14 @@ func (b *Bitmex) WsConnector() error {
 
 func (b *Bitmex) wsReadData(c chan []byte) {
 	b.Websocket.Wg.Add(1)
-	defer b.Websocket.Wg.Done()
+	defer func() {
+		err := b.WebsocketConn.Close()
+		if err != nil {
+			b.Websocket.DataHandler <- fmt.Errorf("bitmex_websocket.go - Unable to to close Websocket connection. Error: %s",
+				err)
+		}
+		b.Websocket.Wg.Done()
+	}()
 
 	for {
 		select {
@@ -406,26 +411,4 @@ func (b *Bitmex) websocketSendAuth() error {
 	sendAuth.Arguments = append(sendAuth.Arguments, signature)
 
 	return b.WebsocketConn.WriteJSON(sendAuth)
-}
-
-// WsShutdown terminates websocket connection and shuts down routines
-func (b *Bitmex) WsShutdown() error {
-	var (
-		c     = make(chan struct{}, 1)
-		timer = time.NewTimer(5 * time.Second)
-	)
-
-	go func(c chan struct{}) {
-		close(b.Websocket.ShutdownC)
-		b.Websocket.Wg.Wait()
-		c <- struct{}{}
-	}(c)
-
-	select {
-	case <-timer.C:
-		return errors.New("routines did not shutdown")
-
-	case <-c:
-		return nil
-	}
 }

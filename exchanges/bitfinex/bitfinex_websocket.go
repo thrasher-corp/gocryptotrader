@@ -11,12 +11,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/thrasher-/gocryptotrader/exchanges"
-	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
-
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
+	"github.com/thrasher-/gocryptotrader/exchanges"
+	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 )
 
 const (
@@ -205,7 +204,14 @@ type wsTraffic struct {
 // WsReadData reads and handles websocket stream data
 func (b *Bitfinex) WsReadData(comms chan wsTraffic) {
 	b.Websocket.Wg.Add(1)
-	defer b.Websocket.Wg.Done()
+	defer func() {
+		err := b.WebsocketConn.Close()
+		if err != nil {
+			b.Websocket.DataHandler <- fmt.Errorf("bitfinex_websocket.go - closing websocket connection error %s",
+				err)
+		}
+		b.Websocket.Wg.Done()
+	}()
 
 	for {
 		select {
@@ -502,25 +508,6 @@ func (b *Bitfinex) WsDataHandler(comms chan wsTraffic) {
 				}
 			}
 		}
-	}
-}
-
-// WsShutdown cleanly shuts down websocket connection and routines
-func (b *Bitfinex) WsShutdown() error {
-	timer := time.NewTimer(2 * time.Second)
-	var c = make(chan struct{}, 1)
-
-	go func(c chan struct{}) {
-		close(b.Websocket.ShutdownC)
-		b.Websocket.Wg.Wait()
-		c <- struct{}{}
-	}(c)
-
-	select {
-	case <-timer.C:
-		return errors.New("bitfinex.go error - routines failed to shutdown")
-	case <-c:
-		return nil
 	}
 }
 

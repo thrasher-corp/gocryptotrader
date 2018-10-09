@@ -93,7 +93,15 @@ func (o *OKCoin) WsConnect() error {
 // WsReadData reads from the websocket connection
 func (o *OKCoin) WsReadData() {
 	o.Websocket.Wg.Add(1)
-	defer o.Websocket.Wg.Done()
+
+	defer func() {
+		err := o.WebsocketConn.Close()
+		if err != nil {
+			o.Websocket.DataHandler <- fmt.Errorf("okcoin_websocket.go - Unable to to close Websocket connection. Error: %s",
+				err)
+		}
+		o.Websocket.Wg.Done()
+	}()
 
 	for {
 		select {
@@ -252,25 +260,6 @@ func (o *OKCoin) WsHandleData() {
 				log.Fatal("EDGE CASE:", string(resp))
 			}
 		}
-	}
-}
-
-// WsShutdown shuts down websocket connection and routines
-func (o *OKCoin) WsShutdown() error {
-	timer := time.NewTimer(5 * time.Second)
-	c := make(chan struct{})
-
-	go func(c chan struct{}) {
-		close(o.Websocket.ShutdownC)
-		o.Websocket.Wg.Wait()
-		c <- struct{}{}
-	}(c)
-
-	select {
-	case <-timer.C:
-		return errors.New("okcoin.go error - routines did not shutdown")
-	case <-c:
-		return nil
 	}
 }
 

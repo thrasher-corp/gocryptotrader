@@ -3,7 +3,6 @@ package binance
 import (
 	"errors"
 	"fmt"
-	"log"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -22,29 +21,32 @@ const (
 	binanceDefaultWebsocketURL = "wss://stream.binance.com:9443"
 )
 
-// OrderbookLocalCache stores a seeded localcache for websocket orderbook feeds,
-// allowing updates and deletions
-type OrderbookLocalCache struct {
-	orderbooks   []orderbook.Base
-	LastUpdateID int64
-	sync.Mutex
-}
-
-var localCache OrderbookLocalCache
+var lastUpdateID map[string]int64
+var m sync.Mutex
 
 // SeedLocalCache seeds depth data
 func (b *Binance) SeedLocalCache(p pair.CurrencyPair) error {
 	var newOrderBook orderbook.Base
 
+	formattedPair := exchange.FormatExchangeCurrency(b.Name, p)
+
 	orderbookNew, err := b.GetOrderBook(
 		OrderBookDataRequestParams{
-			Symbol: exchange.FormatExchangeCurrency(b.Name, p).String(),
+			Symbol: formattedPair.String(),
 			Limit:  1000,
 		})
 
 	if err != nil {
 		return err
 	}
+
+	m.Lock()
+	if lastUpdateID == nil {
+		lastUpdateID = make(map[string]int64)
+	}
+
+	lastUpdateID[formattedPair.String()] = orderbookNew.LastUpdateID
+	m.Unlock()
 
 	for _, bids := range orderbookNew.Bids {
 		newOrderBook.Bids = append(newOrderBook.Bids,
@@ -55,42 +57,32 @@ func (b *Binance) SeedLocalCache(p pair.CurrencyPair) error {
 			orderbook.Item{Amount: Asks.Quantity, Price: Asks.Price})
 	}
 
-	newOrderBook.Pair = p
-	newOrderBook.CurrencyPair = p.Pair().String()
+	newOrderBook.Pair = pair.NewCurrencyPairFromString(formattedPair.String())
+	newOrderBook.CurrencyPair = formattedPair.String()
 	newOrderBook.LastUpdated = time.Now()
 	newOrderBook.AssetType = "SPOT"
-	localCache.orderbooks = append(localCache.orderbooks, newOrderBook)
 
-	return nil
+	return b.Websocket.Orderbook.LoadSnapshot(newOrderBook, b.GetName())
 }
 
-// UpdatePriceLevels defines price levels that are needing updates
-type UpdatePriceLevels []orderbook.Item
-
 // UpdateLocalCache updates and returns the most recent iteration of the orderbook
-func (b *Binance) UpdateLocalCache(ob WebsocketDepthStream) (orderbook.Base, error) {
-	localCache.Lock()
-	defer localCache.Unlock()
-
-	var found bool
-	for x := range localCache.orderbooks {
-		if localCache.orderbooks[x].Pair.Pair().String() == ob.Pair {
-			found = true
-		}
+func (b *Binance) UpdateLocalCache(ob WebsocketDepthStream) error {
+	m.Lock()
+	ID, ok := lastUpdateID[ob.Pair]
+	if !ok {
+		return errors.New("binance_websocket.go - Unable to find lastUpdateID")
 	}
 
-	if !found {
-		err := b.SeedLocalCache(pair.NewCurrencyPairFromString(ob.Pair))
-		if err != nil {
-			return orderbook.Base{}, err
-		}
+	if ob.LastUpdateID+1 <= ID || ID >= ob.LastUpdateID+1 {
+		// Drop update, out of order
+		m.Unlock()
+		return nil
 	}
 
-	if ob.LastUpdateID <= localCache.LastUpdateID {
-		return orderbook.Base{}, errors.New("binance_websocket.go - depth event dropped")
-	}
+	lastUpdateID[ob.Pair] = ob.LastUpdateID
+	m.Unlock()
 
-	var updateBid, updateAsk UpdatePriceLevels
+	var updateBid, updateAsk []orderbook.Item
 
 	for _, bidsToUpdate := range ob.UpdateBids {
 		var priceToBeUpdated orderbook.Item
@@ -118,47 +110,15 @@ func (b *Binance) UpdateLocalCache(ob WebsocketDepthStream) (orderbook.Base, err
 		updateAsk = append(updateBid, priceToBeUpdated)
 	}
 
-	for x := range localCache.orderbooks {
-		if localCache.orderbooks[x].Pair.Pair().String() == ob.Pair {
+	updatedTime := time.Unix(ob.Timestamp, 0)
+	currencyPair := pair.NewCurrencyPairFromString(ob.Pair)
 
-			for _, bidsToBeUpdated := range updateBid {
-				for y := 0; y < len(localCache.orderbooks[x].Bids); y++ {
-					if localCache.orderbooks[x].Bids[y].Price == bidsToBeUpdated.Price {
-						if bidsToBeUpdated.Amount == 0 {
-							localCache.orderbooks[x].Bids = append(localCache.orderbooks[x].Bids[:y],
-								localCache.orderbooks[x].Bids[y+1:]...)
-							continue
-						}
-						localCache.orderbooks[x].Bids[y].Amount = bidsToBeUpdated.Amount
-					}
-				}
-				localCache.orderbooks[x].Bids = append(localCache.orderbooks[x].Bids, bidsToBeUpdated)
-			}
-
-			for _, asksToBeUpdated := range updateAsk {
-				for y := 0; y < len(localCache.orderbooks[x].Asks); y++ {
-					if localCache.orderbooks[x].Asks[y].Price == asksToBeUpdated.Price {
-						if asksToBeUpdated.Amount == 0 {
-							localCache.orderbooks[x].Asks = append(localCache.orderbooks[x].Asks[:y],
-								localCache.orderbooks[x].Asks[y+1:]...)
-							continue
-						}
-						localCache.orderbooks[x].Asks[y].Amount = asksToBeUpdated.Amount
-					}
-				}
-				localCache.orderbooks[x].Asks = append(localCache.orderbooks[x].Asks, asksToBeUpdated)
-			}
-			localCache.LastUpdateID = ob.LastUpdateID
-			return localCache.orderbooks[x], nil
-		}
-	}
-	return orderbook.Base{}, errors.New("binance_websocket.go - local depth cache not seeded correctly")
-}
-
-// WSResponse is general response type for channel communications
-type WSResponse struct {
-	MsgType int
-	Resp    []byte
+	return b.Websocket.Orderbook.Update(updateBid,
+		updateAsk,
+		currencyPair,
+		updatedTime,
+		b.GetName(),
+		"SPOT")
 }
 
 // WSConnect intiates a websocket connection
@@ -196,10 +156,18 @@ func (b *Binance) WSConnect() error {
 	if b.Websocket.GetProxyAddress() != "" {
 		url, err := url.Parse(b.Websocket.GetProxyAddress())
 		if err != nil {
-			return err
+			return fmt.Errorf("binance_websocket.go - Unable to connect to parse proxy address. Error: %s",
+				err)
 		}
 
 		Dialer.Proxy = http.ProxyURL(url)
+	}
+
+	for _, ePair := range b.GetEnabledCurrencies() {
+		err := b.SeedLocalCache(ePair)
+		if err != nil {
+			return err
+		}
 	}
 
 	b.WebsocketConn, _, err = Dialer.Dial(wsurl, http.Header{})
@@ -214,9 +182,17 @@ func (b *Binance) WSConnect() error {
 }
 
 // WSReadData reads from the websocket connection
-func (b *Binance) WSReadData(c chan WSResponse) {
+func (b *Binance) WSReadData() {
 	b.Websocket.Wg.Add(1)
-	defer b.Websocket.Wg.Done()
+
+	defer func() {
+		err := b.WebsocketConn.Close()
+		if err != nil {
+			b.Websocket.DataHandler <- fmt.Errorf("binance_websocket.go - Unable to to close Websocket connection. Error: %s",
+				err)
+		}
+		b.Websocket.Wg.Done()
+	}()
 
 	for {
 		select {
@@ -226,16 +202,13 @@ func (b *Binance) WSReadData(c chan WSResponse) {
 		default:
 			msgType, resp, err := b.WebsocketConn.ReadMessage()
 			if err != nil {
-				if common.StringContains(err.Error(), "websocket: close 1008") {
-					b.Websocket.DataHandler <- exchange.WebsocketDisconnected
-					return
-				}
-
-				b.Websocket.DataHandler <- err
-				continue
+				b.Websocket.DataHandler <- fmt.Errorf("binance_websocket.go - Websocket Read Data. Error: %s",
+					err)
+				return
 			}
+
 			b.Websocket.TrafficTimer.Reset(exchange.WebsocketTrafficLimitTime)
-			c <- WSResponse{MsgType: msgType, Resp: resp}
+			b.Websocket.Intercomm <- exchange.WebsocketResponse{Type: msgType, Raw: resp}
 		}
 	}
 }
@@ -245,23 +218,22 @@ func (b *Binance) WsHandleData() {
 	b.Websocket.Wg.Add(1)
 	defer b.Websocket.Wg.Done()
 
-	var c = make(chan WSResponse, 1)
-	go b.WSReadData(c)
+	go b.WSReadData()
 
 	for {
 		select {
 		case <-b.Websocket.ShutdownC:
 			return
 
-		case read := <-c:
-			switch read.MsgType {
+		case read := <-b.Websocket.Intercomm:
+			switch read.Type {
 			case websocket.TextMessage:
 				multiStreamData := MultiStreamData{}
 
-				err := common.JSONDecode(read.Resp, &multiStreamData)
+				err := common.JSONDecode(read.Raw, &multiStreamData)
 				if err != nil {
 					b.Websocket.DataHandler <- fmt.Errorf("binance_websocket.go - Could not load multi stream data: %s",
-						string(read.Resp))
+						string(read.Raw))
 					continue
 				}
 
@@ -270,18 +242,23 @@ func (b *Binance) WsHandleData() {
 
 					err := common.JSONDecode(multiStreamData.Data, &trade)
 					if err != nil {
-						b.Websocket.DataHandler <- err
+						b.Websocket.DataHandler <- fmt.Errorf("binance_websocket.go - Could not unmarshal trade data: %s",
+							err)
 						continue
 					}
 
 					price, err := strconv.ParseFloat(trade.Price, 64)
 					if err != nil {
-						log.Fatal(err)
+						b.Websocket.DataHandler <- fmt.Errorf("binance_websocket.go - price conversion error: %s",
+							err)
+						continue
 					}
 
 					amount, err := strconv.ParseFloat(trade.Quantity, 64)
 					if err != nil {
-						log.Fatal(err)
+						b.Websocket.DataHandler <- fmt.Errorf("binance_websocket.go - amount conversion error: %s",
+							err)
+						continue
 					}
 
 					b.Websocket.DataHandler <- exchange.TradeData{
@@ -326,7 +303,7 @@ func (b *Binance) WsHandleData() {
 					err := common.JSONDecode(multiStreamData.Data, &kline)
 					if err != nil {
 						b.Websocket.DataHandler <- fmt.Errorf("binance_websocket.go - Could not convert to a KlineStream structure %s",
-							err.Error())
+							err)
 						continue
 					}
 
@@ -354,49 +331,27 @@ func (b *Binance) WsHandleData() {
 					err := common.JSONDecode(multiStreamData.Data, &depth)
 					if err != nil {
 						b.Websocket.DataHandler <- fmt.Errorf("binance_websocket.go - Could not convert to depthStream structure %s",
-							err.Error())
+							err)
 						continue
 					}
 
-					newOrderbook, err := b.UpdateLocalCache(depth)
+					err = b.UpdateLocalCache(depth)
 					if err != nil {
-						if common.StringContains(err.Error(), "depth event dropped") {
-							continue
-						}
-						b.Websocket.DataHandler <- err
+						b.Websocket.DataHandler <- fmt.Errorf("binance_websocket.go - UpdateLocalCache error: %s",
+							err)
 						continue
 					}
 
-					orderbook.ProcessOrderbook(b.GetName(), newOrderbook.Pair, newOrderbook, newOrderbook.AssetType)
+					currencyPair := pair.NewCurrencyPairFromString(depth.Pair)
 
 					b.Websocket.DataHandler <- exchange.WebsocketOrderbookUpdate{
-						Pair:     newOrderbook.Pair,
-						Asset:    newOrderbook.AssetType,
+						Pair:     currencyPair,
+						Asset:    "SPOT",
 						Exchange: b.GetName(),
 					}
 					continue
 				}
-				log.Fatal("binance_websocket.go - websocket edge case, please open issue @github.com",
-					multiStreamData)
 			}
 		}
-	}
-}
-
-// WSShutdown shuts down websocket connection
-func (b *Binance) WSShutdown() error {
-	timer := time.NewTimer(5 * time.Second)
-	c := make(chan struct{}, 1)
-	go func(c chan struct{}) {
-		close(b.Websocket.ShutdownC)
-		b.Websocket.Wg.Wait()
-		c <- struct{}{}
-	}(c)
-
-	select {
-	case <-c:
-		return b.WebsocketConn.Close()
-	case <-timer.C:
-		return errors.New("binance_websocket.go - websocket routines failed to shutdown")
 	}
 }

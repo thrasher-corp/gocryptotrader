@@ -119,8 +119,13 @@ func (o *OKEX) WsSubscribe() error {
 // WsReadData reads data from the websocket connection
 func (o *OKEX) WsReadData() {
 	o.Websocket.Wg.Add(1)
+
 	defer func() {
-		o.WebsocketConn.Close()
+		err := o.WebsocketConn.Close()
+		if err != nil {
+			o.Websocket.DataHandler <- fmt.Errorf("okex_websocket.go - Unable to to close Websocket connection. Error: %s",
+				err)
+		}
 		o.Websocket.Wg.Done()
 	}()
 
@@ -288,26 +293,6 @@ func (o *OKEX) WsHandleData() {
 				}
 			}
 		}
-	}
-}
-
-// WsShutdown shuts down websocket connection and routines
-func (o *OKEX) WsShutdown() error {
-	timer := time.NewTimer(5 * time.Second)
-	c := make(chan struct{})
-
-	go func(c chan struct{}) {
-		close(o.Websocket.ShutdownC)
-		o.Websocket.Wg.Wait()
-		c <- struct{}{}
-	}(c)
-
-	select {
-	case <-timer.C:
-		return errors.New("Okex error - routines did not shut down")
-
-	case <-c:
-		return nil
 	}
 }
 

@@ -116,7 +116,7 @@ func (p *Poloniex) Setup(exch config.ExchangeConfig) {
 		}
 		p.SetClientProxyAddress(exch.ProxyAddress)
 		p.WebsocketSetup(p.WsConnect,
-			p.WsShutdown,
+			exch.Name,
 			exch.Websocket,
 			exch.ProxyAddress,
 			poloniexWebsocketAddress,

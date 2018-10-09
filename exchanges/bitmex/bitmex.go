@@ -162,7 +162,7 @@ func (b *Bitmex) Setup(exch config.ExchangeConfig) {
 		b.SetClientProxyAddress(exch.ProxyAddress)
 		b.WebsocketSetup(
 			b.WsConnector,
-			b.WsShutdown,
+			exch.Name,
 			exch.Websocket,
 			exch.ProxyAddress,
 			bitmexWSURL,

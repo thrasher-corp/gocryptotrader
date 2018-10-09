@@ -152,7 +152,7 @@ func (o *OKEX) Setup(exch config.ExchangeConfig) {
 		}
 		o.SetClientProxyAddress(exch.ProxyAddress)
 		o.WebsocketSetup(o.WsConnect,
-			o.WsShutdown,
+			exch.Name,
 			exch.Websocket,
 			exch.ProxyAddress,
 			okexDefaultWebsocketURL,
