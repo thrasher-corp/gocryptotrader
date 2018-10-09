@@ -146,11 +146,6 @@ func HexEncodeToString(input []byte) string {
 	return hex.EncodeToString(input)
 }
 
-// ByteArrayToString returns a string
-func ByteArrayToString(input []byte) string {
-	return fmt.Sprintf("%x", input)
-}
-
 // Base64Decode takes in a Base64 string and returns a byte array and an error
 func Base64Decode(input string) ([]byte, error) {
 	result, err := base64.StdEncoding.DecodeString(input)
@@ -358,7 +353,6 @@ func SendHTTPRequest(method, path string, headers map[string]string, body io.Rea
 	initialiseHTTPClient()
 
 	req, err := http.NewRequest(method, path, body)
-
 	if err != nil {
 		return "", err
 	}
@@ -368,7 +362,6 @@ func SendHTTPRequest(method, path string, headers map[string]string, body io.Rea
 	}
 
 	resp, err := HTTPClient.Do(req)
-
 	if err != nil {
 		return "", err
 	}
@@ -575,7 +568,7 @@ func FloatFromString(raw interface{}) (float64, error) {
 	}
 	flt, err := strconv.ParseFloat(str, 64)
 	if err != nil {
-		return 0, fmt.Errorf("unable to parse, value not string: %T", raw)
+		return 0, fmt.Errorf("Could not convert value: %s Error: %s", str, err)
 	}
 	return flt, nil
 }
@@ -601,7 +594,7 @@ func Int64FromString(raw interface{}) (int64, error) {
 	}
 	n, err := strconv.ParseInt(str, 10, 64)
 	if err != nil {
-		return 0, fmt.Errorf("unable to parse as int: %T", raw)
+		return 0, fmt.Errorf("unable to parse as int64: %T", raw)
 	}
 	return n, nil
 }
@@ -610,7 +603,7 @@ func Int64FromString(raw interface{}) (int64, error) {
 func TimeFromUnixTimestampFloat(raw interface{}) (time.Time, error) {
 	ts, ok := raw.(float64)
 	if !ok {
-		return time.Time{}, fmt.Errorf("unable to parse, value not int64: %T", raw)
+		return time.Time{}, fmt.Errorf("unable to parse, value not float64: %T", raw)
 	}
 	return time.Unix(0, int64(ts)*int64(time.Millisecond)), nil
 }

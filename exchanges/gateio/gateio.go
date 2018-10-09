@@ -394,7 +394,7 @@ func (g *Gateio) SendAuthenticatedHTTPRequest(method, endpoint, param string, re
 	headers["key"] = g.APIKey
 
 	hmac := common.GetHMAC(common.HashSHA512, []byte(param), []byte(g.APISecret))
-	headers["sign"] = common.ByteArrayToString(hmac)
+	headers["sign"] = common.HexEncodeToString(hmac)
 
 	url := fmt.Sprintf("%s/%s/%s", g.APIUrl, gateioAPIVersion, endpoint)
 
