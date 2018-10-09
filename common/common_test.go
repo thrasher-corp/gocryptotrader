@@ -725,7 +725,7 @@ func TestOutputCSV(t *testing.T) {
 	if err != nil {
 		t.Errorf("Test failed - common OutputCSV error: %s", err)
 	}
-	err = OutputCSV(":::notapath:::", data)
+	err = OutputCSV("/:::notapath:::", data)
 	if err == nil {
 		t.Error("Test failed - common OutputCSV, tried writing to invalid path")
 	}
@@ -844,7 +844,7 @@ func TestGetOSPathSlash(t *testing.T) {
 
 func TestUnixMillis(t *testing.T) {
 	t.Parallel()
-	testTime := time.Date(2014, time.October, 28, 11, 32, 0, 0, time.Local)
+	testTime := time.Date(2014, time.October, 28, 0, 32, 0, 0, time.UTC)
 	expectedOutput := int64(1414456320000)
 
 	actualOutput := UnixMillis(testTime)
@@ -941,7 +941,7 @@ func TestInt64FromString(t *testing.T) {
 func TestTimeFromUnixTimestampFloat(t *testing.T) {
 	t.Parallel()
 	testTimestamp := float64(1414456320000)
-	expectedOutput := time.Date(2014, time.October, 28, 11, 32, 0, 0, time.Local)
+	expectedOutput := time.Date(2014, time.October, 28, 0, 32, 0, 0, time.UTC)
 
 	actualOutput, err := TimeFromUnixTimestampFloat(testTimestamp)
 	if actualOutput != expectedOutput || err != nil {
