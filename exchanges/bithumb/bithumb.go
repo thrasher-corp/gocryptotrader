@@ -11,6 +11,7 @@ import (
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
+	"github.com/thrasher-/gocryptotrader/currency/symbol"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/request"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
@@ -575,7 +576,7 @@ func (b *Bithumb) GetFee(feeType string, currency string, purchasePrice float64,
 	case exchange.CyptocurrencyDepositFee:
 		fee = getDepositFee(currency, amount)
 	case exchange.CryptocurrencyWithdrawalFee:
-		fee = getWithdrawalFee(currency, amount)
+		fee = getWithdrawalFee(currency)
 	}
 	if fee < 0 {
 		fee = 0
@@ -595,27 +596,27 @@ func getDepositFee(currency string, amount float64) float64 {
 	var fee float64
 
 	switch currency {
-	case "BTC":
+	case symbol.BTC:
 		if amount <= 0.005 {
 			fee = 0.001
 		}
-	case "LTC":
+	case symbol.LTC:
 		if amount <= 0.3 {
 			fee = 0.01
 		}
-	case "DASH":
+	case symbol.DASH:
 		if amount <= 0.04 {
 			fee = 0.01
 		}
-	case "BCH":
+	case symbol.BCH:
 		if amount <= 0.03 {
 			fee = 0.001
 		}
-	case "ZEC":
+	case symbol.ZEC:
 		if amount <= 0.02 {
 			fee = 0.001
 		}
-	case "BTG":
+	case symbol.BTG:
 		if amount <= 0.15 {
 			fee = 0.001
 		}
@@ -625,99 +626,6 @@ func getDepositFee(currency string, amount float64) float64 {
 }
 
 // getWithdrawalFee returns fee on a currency when withdrawing out of bithumb
-func getWithdrawalFee(currency string, amount float64) float64 {
-	var fee float64
-
-	switch currency {
-	case "KRW":
-		fee = 1000
-	case "BTC":
-		fee = 0.001
-	case "ETH":
-		fee = 0.01
-	case "DASH":
-		fee = 0.01
-	case "LTC":
-		fee = 0.01
-	case "ETC":
-		fee = 0.01
-	case "XRP":
-		fee = 1
-	case "BCH":
-		fee = 0.001
-	case "XMR":
-		fee = 0.05
-	case "ZEC":
-		fee = 0.001
-	case "QTUM":
-		fee = 0.05
-	case "BTG":
-		fee = 0.001
-	case "ICX":
-		fee = 1
-	case "TRX":
-		fee = 5
-	case "ELF":
-		fee = 5
-	case "MITH":
-		fee = 5
-	case "MCO":
-		fee = 0.5
-	case "OMG":
-		fee = 0.4
-	case "KNC":
-		fee = 3
-	case "GNT":
-		fee = 12
-	case "HSR":
-		fee = 0.2
-	case "ZIL":
-		fee = 30
-	case "ETHOS":
-		fee = 2
-	case "PAY":
-		fee = 2.4
-	case "WAX":
-		fee = 5
-	case "POWR":
-		fee = 5
-	case "LRC":
-		fee = 10
-	case "GTO":
-		fee = 15
-	case "STEEM":
-		fee = 0.01
-	case "STRAT":
-		fee = 0.2
-	case "PPT":
-		fee = 0.5
-	case "CTXC":
-		fee = 4
-	case "CMT":
-		fee = 20
-	case "THETA":
-		fee = 24
-	case "WTC":
-		fee = 0.7
-	case "ITC":
-		fee = 5
-	case "TRUE":
-		fee = 4
-	case "ABT":
-		fee = 5
-	case "RNT":
-		fee = 20
-	case "PLY":
-		fee = 20
-	case "WAVES":
-		fee = 0.01
-	case "LINK":
-		fee = 10
-	case "ENJ":
-		fee = 35
-	case "PST":
-		fee = 30
-	}
-
-	return fee
+func getWithdrawalFee(currency string) float64 {
+	return WithdrawalFees[currency]
 }
