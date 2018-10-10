@@ -8,7 +8,6 @@ import (
 	"net/url"
 	"reflect"
 	"strconv"
-	"sync"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -187,23 +186,17 @@ func (b *Bitfinex) WsConnect() error {
 	}
 
 	pongReceive = make(chan struct{}, 1)
-	comms := make(chan wsTraffic, 1)
 
-	go b.WsReadData(comms)
-	go b.WsDataHandler(comms)
+	go b.WsReadData()
+	go b.WsDataHandler()
 
 	return nil
 }
 
-// wsTraffic defines websocket stream event
-type wsTraffic struct {
-	MsgType int
-	Resp    []byte
-}
-
 // WsReadData reads and handles websocket stream data
-func (b *Bitfinex) WsReadData(comms chan wsTraffic) {
+func (b *Bitfinex) WsReadData() {
 	b.Websocket.Wg.Add(1)
+
 	defer func() {
 		err := b.WebsocketConn.Close()
 		if err != nil {
@@ -226,16 +219,16 @@ func (b *Bitfinex) WsReadData(comms chan wsTraffic) {
 
 			b.Websocket.TrafficTimer.Reset(exchange.WebsocketTrafficLimitTime)
 
-			comms <- wsTraffic{
-				MsgType: msgType,
-				Resp:    resp,
+			b.Websocket.Intercomm <- exchange.WebsocketResponse{
+				Type: msgType,
+				Raw:  resp,
 			}
 		}
 	}
 }
 
 // WsDataHandler handles data from WsReadData
-func (b *Bitfinex) WsDataHandler(comms chan wsTraffic) {
+func (b *Bitfinex) WsDataHandler() {
 	b.Websocket.Wg.Add(1)
 	defer b.Websocket.Wg.Done()
 
@@ -244,12 +237,12 @@ func (b *Bitfinex) WsDataHandler(comms chan wsTraffic) {
 		case <-b.Websocket.ShutdownC:
 			return
 
-		case stream := <-comms:
+		case stream := <-b.Websocket.Intercomm:
 
-			switch stream.MsgType {
+			switch stream.Type {
 			case websocket.TextMessage:
 				var result interface{}
-				common.JSONDecode(stream.Resp, &result)
+				common.JSONDecode(stream.Raw, &result)
 
 				switch reflect.TypeOf(result).String() {
 				case "map[string]interface {}":
@@ -319,34 +312,25 @@ func (b *Bitfinex) WsDataHandler(comms chan wsTraffic) {
 							}
 
 							if len(newOrderbook) > 1 {
-								ob, err := localOrderBook.InsertInitialStore(pair.NewCurrencyPairFromString(chanInfo.Pair), "SPOT", newOrderbook)
+								err := b.WsInsertSnapshot(pair.NewCurrencyPairFromString(chanInfo.Pair),
+									"SPOT",
+									newOrderbook)
+
 								if err != nil {
-									b.Websocket.DataHandler <- err
-									continue
+									b.Websocket.DataHandler <- fmt.Errorf("bitfinex_websocket.go inserting snapshot error: %s",
+										err)
 								}
 
-								orderbook.ProcessOrderbook(b.GetName(), ob.Pair, ob, ob.AssetType)
-
-								b.Websocket.DataHandler <- exchange.WebsocketOrderbookUpdate{
-									Exchange: b.GetName(),
-									Asset:    ob.AssetType,
-									Pair:     ob.Pair,
-								}
 								continue
 							}
 
-							ob, err := localOrderBook.Update(pair.NewCurrencyPairFromString(chanInfo.Pair), "SPOT", newOrderbook[0])
+							err := b.WsUpdateOrderbook(pair.NewCurrencyPairFromString(chanInfo.Pair),
+								"SPOT",
+								newOrderbook[0])
+
 							if err != nil {
-								b.Websocket.DataHandler <- err
-								continue
-							}
-
-							orderbook.ProcessOrderbook(b.GetName(), ob.Pair, ob, ob.AssetType)
-
-							b.Websocket.DataHandler <- exchange.WebsocketOrderbookUpdate{
-								Exchange: b.GetName(),
-								Asset:    ob.AssetType,
-								Pair:     ob.Pair,
+								b.Websocket.DataHandler <- fmt.Errorf("bitfinex_websocket.go updating orderbook error: %s",
+									err)
 							}
 
 						case "ticker":
@@ -376,7 +360,12 @@ func (b *Bitfinex) WsDataHandler(comms chan wsTraffic) {
 											MarginFunding:     y[4].(float64),
 											MarginFundingType: int(y[5].(float64))})
 								}
-								log.Println("Position Snapshot:", positionSnapshot)
+
+								if len(positionSnapshot) == 0 {
+									continue
+								}
+
+								b.Websocket.DataHandler <- positionSnapshot
 
 							case bitfinexWebsocketPositionNew, bitfinexWebsocketPositionUpdate, bitfinexWebsocketPositionClose:
 								data := chanData[2].([]interface{})
@@ -387,7 +376,8 @@ func (b *Bitfinex) WsDataHandler(comms chan wsTraffic) {
 									Price:             data[3].(float64),
 									MarginFunding:     data[4].(float64),
 									MarginFundingType: int(data[5].(float64))}
-								log.Println("Current Position:", position)
+
+								b.Websocket.DataHandler <- position
 
 							case bitfinexWebsocketWalletSnapshot:
 								data := chanData[2].([]interface{})
@@ -401,7 +391,8 @@ func (b *Bitfinex) WsDataHandler(comms chan wsTraffic) {
 											Balance:           y[2].(float64),
 											UnsettledInterest: y[3].(float64)})
 								}
-								log.Println("Current Wallet Snaptshot:", walletSnapshot)
+
+								b.Websocket.DataHandler <- walletSnapshot
 
 							case bitfinexWebsocketWalletUpdate:
 								data := chanData[2].([]interface{})
@@ -410,7 +401,8 @@ func (b *Bitfinex) WsDataHandler(comms chan wsTraffic) {
 									Currency:          data[1].(string),
 									Balance:           data[2].(float64),
 									UnsettledInterest: data[3].(float64)}
-								log.Println("Update Wallet:", wallet)
+
+								b.Websocket.DataHandler <- wallet
 
 							case bitfinexWebsocketOrderSnapshot:
 								orderSnapshot := []WebsocketOrder{}
@@ -429,7 +421,8 @@ func (b *Bitfinex) WsDataHandler(comms chan wsTraffic) {
 											PriceAvg:   y[7].(float64),
 											Timestamp:  y[8].(string)})
 								}
-								log.Println("Orders Snapshot:", orderSnapshot)
+
+								b.Websocket.DataHandler <- orderSnapshot
 
 							case bitfinexWebsocketOrderNew, bitfinexWebsocketOrderUpdate, bitfinexWebsocketOrderCancel:
 								data := chanData[2].([]interface{})
@@ -444,7 +437,8 @@ func (b *Bitfinex) WsDataHandler(comms chan wsTraffic) {
 									PriceAvg:   data[7].(float64),
 									Timestamp:  data[8].(string),
 									Notify:     int(data[9].(float64))}
-								log.Println("Current Orders:", order)
+
+								b.Websocket.DataHandler <- order
 
 							case bitfinexWebsocketTradeExecuted:
 								data := chanData[2].([]interface{})
@@ -455,7 +449,8 @@ func (b *Bitfinex) WsDataHandler(comms chan wsTraffic) {
 									OrderID:        int64(data[3].(float64)),
 									AmountExecuted: data[4].(float64),
 									PriceExecuted:  data[5].(float64)}
-								log.Println("Current Trades:", trade)
+
+								b.Websocket.DataHandler <- trade
 							}
 
 						case "trades":
@@ -468,9 +463,12 @@ func (b *Bitfinex) WsDataHandler(comms chan wsTraffic) {
 									if _, ok := y[0].(string); ok {
 										continue
 									}
+
+									id, _ := y[0].(float64) // NULL is coming through
+
 									trades = append(trades,
 										WebsocketTrade{
-											//ID:        int64(y[0].(float64)), NULL is coming through
+											ID:        int64(id),
 											Timestamp: int64(y[1].(float64)),
 											Price:     y[2].(float64),
 											Amount:    y[3].(float64)})
@@ -511,21 +509,11 @@ func (b *Bitfinex) WsDataHandler(comms chan wsTraffic) {
 	}
 }
 
-var localOrderBook LocalStore
-
-// LocalStore defines the storage of a local cache of orderbooks
-type LocalStore struct {
-	ob []orderbook.Base
-	sync.Mutex
-}
-
-// InsertInitialStore add the initial orderbook snapshot when subscribed to a
+// WsInsertSnapshot add the initial orderbook snapshot when subscribed to a
 // channel
-func (l *LocalStore) InsertInitialStore(p pair.CurrencyPair, assetType string, books []WebsocketBook) (orderbook.Base, error) {
-	for _, ob := range l.ob {
-		if ob.Pair == p && ob.AssetType == assetType {
-			return orderbook.Base{}, errors.New("bitfinex.go error - Currency pair asset type already set for orderbook")
-		}
+func (b *Bitfinex) WsInsertSnapshot(p pair.CurrencyPair, assetType string, books []WebsocketBook) error {
+	if len(books) == 0 {
+		return errors.New("bitfinex.go error - no orderbooks submitted")
 	}
 
 	var bid, ask []orderbook.Item
@@ -538,109 +526,111 @@ func (l *LocalStore) InsertInitialStore(p pair.CurrencyPair, assetType string, b
 	}
 
 	if len(bid) == 0 && len(ask) == 0 {
-		return orderbook.Base{}, errors.New("bitfinex.go error - orderbooks not set correctly")
+		return errors.New("bitfinex.go error - no orderbooks in item lists")
 	}
 
-	l.ob = append(l.ob,
-		orderbook.Base{
-			Pair:         p,
-			CurrencyPair: p.Pair().String(),
-			Bids:         bid,
-			Asks:         ask,
-			LastUpdated:  time.Now(),
-			AssetType:    assetType})
+	var newOrderbook orderbook.Base
+	newOrderbook.Asks = ask
+	newOrderbook.AssetType = assetType
+	newOrderbook.Bids = bid
+	newOrderbook.CurrencyPair = p.Pair().String()
+	newOrderbook.LastUpdated = time.Now()
+	newOrderbook.Pair = p
 
-	return l.Get(p, assetType)
+	err := b.Websocket.Orderbook.LoadSnapshot(newOrderbook, b.GetName())
+	if err != nil {
+		return fmt.Errorf("bitfinex.go error - %s", err)
+	}
+
+	b.Websocket.DataHandler <- exchange.WebsocketOrderbookUpdate{Pair: p,
+		Asset:    assetType,
+		Exchange: b.GetName()}
+	return nil
 }
 
-// Update updates the orderbook list, removing and adding to the orderbook sides
-func (l *LocalStore) Update(p pair.CurrencyPair, assetType string, book WebsocketBook) (orderbook.Base, error) {
-	if book.Amount >= 0 {
-		if book.Count == 0 {
-			l.Remove(p, book, true)
+// WsUpdateOrderbook updates the orderbook list, removing and adding to the
+// orderbook sides
+func (b *Bitfinex) WsUpdateOrderbook(p pair.CurrencyPair, assetType string, book WebsocketBook) error {
 
-			return l.Get(p, assetType)
-		}
+	if book.Count > 0 {
+		if book.Amount > 0 {
+			// Update/add bid
+			newBidPrice := orderbook.Item{Price: book.Price, Amount: book.Amount}
+			err := b.Websocket.Orderbook.Update([]orderbook.Item{newBidPrice},
+				nil,
+				p,
+				time.Now(),
+				b.GetName(),
+				assetType)
 
-		l.Add(p, assetType, book.Amount, book.Price, true)
-		return l.Get(p, assetType)
-	}
-
-	if book.Count == 0 {
-		l.Remove(p, book, false)
-		return l.Get(p, assetType)
-	}
-
-	l.Add(p, assetType, book.Amount*-1, book.Price, false)
-	return l.Get(p, assetType)
-}
-
-// Get returns the full orderbook for a currency pair/asset
-func (l *LocalStore) Get(p pair.CurrencyPair, assetType string) (orderbook.Base, error) {
-	l.Lock()
-	defer l.Unlock()
-
-	for _, data := range l.ob {
-		if data.Pair == p && data.AssetType == assetType {
-			return data, nil
-		}
-	}
-	return orderbook.Base{}, errors.New("bitfinex.go error - could not find orderbook")
-}
-
-// Remove removes prices from an orderbook from either a bid or ask side
-func (l *LocalStore) Remove(p pair.CurrencyPair, book WebsocketBook, bid bool) {
-	l.Lock()
-	defer l.Unlock()
-	for x := range l.ob {
-		if l.ob[x].Pair == p {
-			if bid {
-				for y := range l.ob[x].Bids {
-					if l.ob[x].Bids[y].Price == book.Price {
-						l.ob[x].Bids = append(l.ob[x].Bids[:y], l.ob[x].Bids[y+1:]...)
-						l.ob[x].LastUpdated = time.Now()
-						return
-					}
-				}
-			} else {
-				for y := range l.ob[x].Asks {
-					if l.ob[x].Asks[y].Price == book.Price*-1 {
-						l.ob[x].Asks = append(l.ob[x].Asks[:y], l.ob[x].Asks[y+1:]...)
-						l.ob[x].LastUpdated = time.Now()
-						return
-					}
-				}
+			if err != nil {
+				return err
 			}
-		}
-	}
-}
 
-// Add adds a new orderbook entry on either a bid or ask side
-func (l *LocalStore) Add(p pair.CurrencyPair, assetType string, amount, price float64, bid bool) {
-	l.Lock()
-	defer l.Unlock()
+			b.Websocket.DataHandler <- exchange.WebsocketOrderbookUpdate{Pair: p,
+				Asset:    assetType,
+				Exchange: b.GetName()}
 
-	if bid {
-		for i := range l.ob {
-			if l.ob[i].Pair == p && l.ob[i].AssetType == assetType {
-				l.ob[i].Bids = append(l.ob[i].Bids, orderbook.Item{Amount: amount, Price: price})
-				l.ob[i].LastUpdated = time.Now()
-				return
-			}
+			return nil
 		}
-	} else {
-		for i := range l.ob {
-			if l.ob[i].Pair == p && l.ob[i].AssetType == assetType {
-				l.ob[i].Asks = append(l.ob[i].Asks, orderbook.Item{Amount: amount, Price: price})
-				l.ob[i].LastUpdated = time.Now()
-				return
-			}
+
+		// Update/add ask
+		newAskPrice := orderbook.Item{Price: book.Price, Amount: book.Amount * -1}
+		err := b.Websocket.Orderbook.Update(nil,
+			[]orderbook.Item{newAskPrice},
+			p,
+			time.Now(),
+			b.GetName(),
+			assetType)
+
+		if err != nil {
+			return err
 		}
+
+		b.Websocket.DataHandler <- exchange.WebsocketOrderbookUpdate{Pair: p,
+			Asset:    assetType,
+			Exchange: b.GetName()}
+
+		return nil
 	}
-	log.Fatalf("bitfinex.go error - Could not find orderbook for Pair:%s Asset:%s Amount:%f Price:%f, BID: %t",
-		p.Pair().String(),
-		assetType,
-		amount,
-		price,
-		bid)
+
+	if book.Amount == 1 {
+		// Remove bid
+		bidPriceRemove := orderbook.Item{Price: book.Price, Amount: 0}
+		err := b.Websocket.Orderbook.Update([]orderbook.Item{bidPriceRemove},
+			nil,
+			p,
+			time.Now(),
+			b.GetName(),
+			assetType)
+
+		if err != nil {
+			return err
+		}
+
+		b.Websocket.DataHandler <- exchange.WebsocketOrderbookUpdate{Pair: p,
+			Asset:    assetType,
+			Exchange: b.GetName()}
+
+		return nil
+	}
+
+	// Remove from ask
+	askPriceRemove := orderbook.Item{Price: book.Price, Amount: 0}
+	err := b.Websocket.Orderbook.Update(nil,
+		[]orderbook.Item{askPriceRemove},
+		p,
+		time.Now(),
+		b.GetName(),
+		assetType)
+
+	if err != nil {
+		return err
+	}
+
+	b.Websocket.DataHandler <- exchange.WebsocketOrderbookUpdate{Pair: p,
+		Asset:    assetType,
+		Exchange: b.GetName()}
+
+	return nil
 }

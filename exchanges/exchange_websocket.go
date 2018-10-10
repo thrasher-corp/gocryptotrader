@@ -307,7 +307,7 @@ func (w *Websocket) GetName() string {
 type WebsocketOrderbookLocal struct {
 	ob          []orderbook.Base
 	lastUpdated time.Time
-	sync.Mutex
+	m           sync.Mutex
 }
 
 // Update updates a local cache using bid targets and ask targets then updates
@@ -324,8 +324,8 @@ func (w *WebsocketOrderbookLocal) Update(bidTargets, askTargets []orderbook.Item
 		return errors.New("exchange.go WebsocketOrderbookLocal Update() - update is before last update time")
 	}
 
-	w.Lock()
-	defer w.Unlock()
+	w.m.Lock()
+	defer w.m.Unlock()
 
 	var orderbookAddress *orderbook.Base
 	for i := range w.ob {
@@ -420,8 +420,8 @@ func (w *WebsocketOrderbookLocal) LoadSnapshot(newOrderbook orderbook.Base, exch
 		return errors.New("exchange.go websocket orderbook cache LoadSnapshot() error - snapshot ask and bids are nil")
 	}
 
-	w.Lock()
-	defer w.Unlock()
+	w.m.Lock()
+	defer w.m.Unlock()
 
 	for i := range w.ob {
 		if w.ob[i].Pair == newOrderbook.Pair {
@@ -442,9 +442,9 @@ func (w *WebsocketOrderbookLocal) LoadSnapshot(newOrderbook orderbook.Base, exch
 // FlushCache flushes w.ob data to be garbage collected and refreshed when a
 // connection is lost and reconnected
 func (w *WebsocketOrderbookLocal) FlushCache() {
-	w.Lock()
+	w.m.Lock()
 	w.ob = nil
-	w.Unlock()
+	w.m.Unlock()
 }
 
 // WebsocketResponse defines a generalised data from the websocket connection
@@ -501,4 +501,12 @@ type KlineData struct {
 	HighPrice  float64
 	LowPrice   float64
 	Volume     float64
+}
+
+// WebsocketPositionUpdated reflects a change in orders/contracts on an exchange
+type WebsocketPositionUpdated struct {
+	Timestamp time.Time
+	Pair      pair.CurrencyPair
+	AssetType string
+	Exchange  string
 }

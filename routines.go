@@ -369,7 +369,7 @@ func wsCaptcha(ws *exchange.Websocket) {
 				log.Println("Websocket Orderbook Updated:", data.(exchange.WebsocketOrderbookUpdate))
 
 			default:
-				log.Fatal("EDGE:", data)
+				log.Println("Websocket Unknown type:     ", data)
 			}
 		}
 	}

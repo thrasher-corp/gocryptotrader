@@ -116,7 +116,7 @@ func (b *Bitmex) WsConnector() error {
 	if b.AuthenticatedAPISupport {
 		err := b.websocketSendAuth()
 		if err != nil {
-			log.Fatal(err)
+			return err
 		}
 	}
 	return nil

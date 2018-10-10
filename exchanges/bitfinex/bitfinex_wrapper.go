@@ -30,10 +30,6 @@ func (b *Bitfinex) Run() {
 		log.Printf("%s %d currencies enabled: %s.\n", b.GetName(), len(b.EnabledPairs), b.EnabledPairs)
 	}
 
-	// if b.Websocket.IsEnabled() {
-	// 	go b.WebsocketClient()
-	// }
-
 	exchangeProducts, err := b.GetSymbols()
 	if err != nil {
 		log.Printf("%s Failed to get available symbols.\n", b.GetName())
