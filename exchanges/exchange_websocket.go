@@ -315,7 +315,10 @@ type WebsocketOrderbookLocal struct {
 // Volume == 0; deletion at price target
 // Price target not found; append of price target
 // Price target found; ammend volume of price target
-func (w *WebsocketOrderbookLocal) Update(bidTargets, askTargets []orderbook.Item, p pair.CurrencyPair, updated time.Time, exchName, assetType string) error {
+func (w *WebsocketOrderbookLocal) Update(bidTargets, askTargets []orderbook.Item,
+	p pair.CurrencyPair,
+	updated time.Time,
+	exchName, assetType string) error {
 	if bidTargets == nil && askTargets == nil {
 		return errors.New("exchange.go websocket orderbook cache Update() error - cannot have bids and ask targets both nil")
 	}
@@ -329,7 +332,7 @@ func (w *WebsocketOrderbookLocal) Update(bidTargets, askTargets []orderbook.Item
 
 	var orderbookAddress *orderbook.Base
 	for i := range w.ob {
-		if w.ob[i].Pair == p {
+		if w.ob[i].Pair == p && w.ob[i].AssetType == assetType {
 			orderbookAddress = &w.ob[i]
 		}
 	}
@@ -424,7 +427,7 @@ func (w *WebsocketOrderbookLocal) LoadSnapshot(newOrderbook orderbook.Base, exch
 	defer w.m.Unlock()
 
 	for i := range w.ob {
-		if w.ob[i].Pair == newOrderbook.Pair {
+		if w.ob[i].Pair == newOrderbook.Pair && w.ob[i].AssetType == newOrderbook.AssetType {
 			return errors.New("exchange.go websocket orderbook cache LoadSnapshot() error - Snapshot instance already found")
 		}
 	}
@@ -436,6 +439,85 @@ func (w *WebsocketOrderbookLocal) LoadSnapshot(newOrderbook orderbook.Base, exch
 		newOrderbook.Pair,
 		newOrderbook,
 		newOrderbook.AssetType)
+
+	return nil
+}
+
+// UpdateUsingID bla bla bla
+func (w *WebsocketOrderbookLocal) UpdateUsingID(bidTargets, askTargets []orderbook.Item,
+	p pair.CurrencyPair,
+	updated time.Time,
+	exchName, assetType, action string) error {
+	w.m.Lock()
+	defer w.m.Unlock()
+
+	var orderbookAddress *orderbook.Base
+	for i := range w.ob {
+		if w.ob[i].Pair == p && w.ob[i].AssetType == assetType {
+			orderbookAddress = &w.ob[i]
+		}
+	}
+
+	if orderbookAddress == nil {
+		return fmt.Errorf("exchange.go WebsocketOrderbookLocal Update() - orderbook.Base could not be found for Exchange %s CurrencyPair: %s AssetType: %s",
+			exchName,
+			assetType,
+			p.Pair().String())
+	}
+
+	switch action {
+	case "update":
+		for _, target := range bidTargets {
+			for i := range orderbookAddress.Bids {
+				if orderbookAddress.Bids[i].ID == target.ID {
+					orderbookAddress.Bids[i].Amount = target.Amount
+					break
+				}
+			}
+		}
+
+		for _, target := range askTargets {
+			for i := range orderbookAddress.Asks {
+				if orderbookAddress.Asks[i].ID == target.ID {
+					orderbookAddress.Asks[i].Amount = target.Amount
+					break
+				}
+			}
+		}
+
+	case "delete":
+		for _, target := range bidTargets {
+			for i := range orderbookAddress.Bids {
+				if orderbookAddress.Bids[i].ID == target.ID {
+					orderbookAddress.Bids = append(orderbookAddress.Bids[:i],
+						orderbookAddress.Bids[i+1:]...)
+					break
+				}
+			}
+		}
+
+		for _, target := range askTargets {
+			for i := range orderbookAddress.Asks {
+				if orderbookAddress.Asks[i].ID == target.ID {
+					orderbookAddress.Asks = append(orderbookAddress.Asks[:i],
+						orderbookAddress.Asks[i+1:]...)
+					break
+				}
+			}
+		}
+
+	case "insert":
+		for _, target := range bidTargets {
+			orderbookAddress.Bids = append(orderbookAddress.Bids, target)
+		}
+
+		for _, target := range askTargets {
+			orderbookAddress.Asks = append(orderbookAddress.Asks, target)
+		}
+	}
+
+	orderbook.ProcessOrderbook(exchName, p, *orderbookAddress, assetType)
+
 	return nil
 }
 
