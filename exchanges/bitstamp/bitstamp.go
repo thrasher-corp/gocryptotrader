@@ -183,15 +183,15 @@ func (b *Bitstamp) GetTradingFeeByCurrency(currency string, purchasePrice float6
 	var fee float64
 
 	switch currency {
-	case "BTCUSD":
+	case symbol.BTC + symbol.USD:
 		fee = b.Balance.BTCUSDFee
-	case "BTCEUR":
+	case symbol.BTC + symbol.EUR:
 		fee = b.Balance.BTCEURFee
-	case "XRPEUR":
+	case symbol.XRP + symbol.EUR:
 		fee = b.Balance.XRPEURFee
-	case "XRPUSD":
+	case symbol.XRP + symbol.USD:
 		fee = b.Balance.XRPUSDFee
-	case "EURUSD":
+	case symbol.EUR + symbol.USD:
 		fee = b.Balance.EURUSDFee
 	default:
 		fee = 0

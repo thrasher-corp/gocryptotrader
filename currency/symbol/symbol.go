@@ -214,6 +214,7 @@ const (
 	HKD     = "HKD"
 	AUD     = "AUD"
 	USD     = "USD"
+	EUR     = "EUR"
 )
 
 // symbols map holds the currency name and symbol mappings

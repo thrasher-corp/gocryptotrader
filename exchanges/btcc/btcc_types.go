@@ -1,6 +1,7 @@
 package btcc
 
 import "encoding/json"
+import "github.com/thrasher-/gocryptotrader/currency/symbol"
 
 // WsAllTickerData defines multiple ticker data
 type WsAllTickerData []WsTicker
@@ -11,6 +12,11 @@ type WsOutgoing struct {
 	Symbol string `json:"symbol,omitempty"`
 	Count  int    `json:"count,omitempty"`
 	Len    int    `json:"len,omitempty"`
+
+
+// Response is the generalized response type
+type Response struct {
+	Ticker Ticker `json:"ticker"`
 }
 
 // WsResponseMain defines the main websocket response
@@ -79,4 +85,16 @@ type WsTicker struct {
 	ExecutionLimitDown float64 `json:"ExecutionLimitDown"`
 	ExecutionLimitUp   float64 `json:"ExecutionLimitUp"`
 	MsgType            string  `json:"MsgType"`
+}
+
+// WithdrawalFees the large list of predefined withdrawal fees
+// Prone to change
+var WithdrawalFees = map[string]float64{
+	symbol.USD:  0.005,
+	symbol.USDT: 10,
+	symbol.BTC:  0.001,
+	symbol.ETH:  0.01,
+	symbol.BCH:  0.0001,
+	symbol.LTC:  0.001,
+	symbol.DASH: 0.002,
 }

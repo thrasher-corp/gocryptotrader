@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/thrasher-/gocryptotrader/config"
+	"github.com/thrasher-/gocryptotrader/currency/symbol"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 )
 
@@ -191,39 +192,39 @@ func TestGetFee(t *testing.T) {
 	b.SetDefaults()
 	TestSetup(t)
 
-	if resp, err := b.GetFee(exchange.CryptocurrencyTradeFee, "BTCLTC", 1, 1, false, false); resp != float64(0.0015) || err != nil {
+	if resp, err := b.GetFee(exchange.CryptocurrencyTradeFee, symbol.BTC+symbol.LTC, 1, 1, false, false); resp != float64(0.0015) || err != nil {
 		t.Errorf("Test Failed - GetFee() error. Expected: %f, Recieved: %f", float64(0.0015), resp)
 	}
 
-	if resp, err := b.GetFee(exchange.CryptocurrencyTradeFee, "BTCLTC", 10000000000, -1000000000, true, true); resp != float64(0) || err != nil {
+	if resp, err := b.GetFee(exchange.CryptocurrencyTradeFee, symbol.BTC+symbol.LTC, 10000000000, -1000000000, true, true); resp != float64(0) || err != nil {
 		t.Errorf("Test Failed - GetFee() error. Expected: %f, Recieved: %f", float64(0), resp)
 	}
 
-	if resp, err := b.GetFee(exchange.CryptocurrencyTradeFee, "BTCLTC", 1, 1, true, false); resp != float64(0.0015) || err != nil {
+	if resp, err := b.GetFee(exchange.CryptocurrencyTradeFee, symbol.BTC+symbol.LTC, 1, 1, true, false); resp != float64(0.0015) || err != nil {
 		t.Errorf("Test Failed - GetFee() error. Expected: %f, Recieved: %f", float64(0.0015), resp)
 	}
 
-	if resp, err := b.GetFee(exchange.CryptocurrencyTradeFee, "BTCLTC", 10000000000, -1000000000, false, true); resp != float64(0) || err != nil {
+	if resp, err := b.GetFee(exchange.CryptocurrencyTradeFee, symbol.BTC+symbol.LTC, 10000000000, -1000000000, false, true); resp != float64(0) || err != nil {
 		t.Errorf("Test Failed - GetFee() error. Expected: %f, Recieved: %f", float64(0), resp)
 	}
 
-	if resp, err := b.GetFee(exchange.CryptocurrencyWithdrawalFee, "BTC", 1, 5, false, false); resp != float64(0.001) || err != nil {
+	if resp, err := b.GetFee(exchange.CryptocurrencyWithdrawalFee, symbol.BTC, 1, 5, false, false); resp != float64(0.001) || err != nil {
 		t.Errorf("Test Failed - GetFee() error. Expected: %f, Recieved: %f", float64(0), resp)
 	}
 
-	if resp, err := b.GetFee(exchange.CyptocurrencyDepositFee, "BTC", 1, 0.001, false, false); resp != float64(0.001) || err != nil {
+	if resp, err := b.GetFee(exchange.CyptocurrencyDepositFee, symbol.BTC, 1, 0.001, false, false); resp != float64(0.001) || err != nil {
 		t.Errorf("Test Failed - GetFee() error. Expected: %f, Recieved: %f", float64(0.001), resp)
 	}
 
-	if resp, err := b.GetFee(exchange.CyptocurrencyDepositFee, "BTC", 1, 555, false, false); resp != float64(0) || err != nil {
+	if resp, err := b.GetFee(exchange.CyptocurrencyDepositFee, symbol.BTC, 1, 555, false, false); resp != float64(0) || err != nil {
 		t.Errorf("Test Failed - GetFee() error. Expected: %f, Recieved: %f", float64(0), resp)
 	}
 
-	if resp, err := b.GetFee(exchange.InternationalBankDepositFee, "BTC", 1, 1, false, false); resp != float64(0) || err != nil {
+	if resp, err := b.GetFee(exchange.InternationalBankDepositFee, symbol.BTC, 1, 1, false, false); resp != float64(0) || err != nil {
 		t.Errorf("Test Failed - GetFee() error. Expected: %f, Recieved: %f", float64(0), resp)
 	}
 
-	if resp, err := b.GetFee(exchange.InternationalBankWithdrawalFee, "BTC", 1, 1, false, false); resp != float64(0) || err != nil {
+	if resp, err := b.GetFee(exchange.InternationalBankWithdrawalFee, symbol.BTC, 1, 1, false, false); resp != float64(0) || err != nil {
 		t.Errorf("Test Failed - GetFee() error. Expected: %f, Recieved: %f", float64(0), resp)
 	}
 

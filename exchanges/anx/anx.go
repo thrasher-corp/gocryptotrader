@@ -410,7 +410,7 @@ func (a *ANX) GetFee(feeType string, currency string, purchasePrice float64, amo
 	case exchange.CryptocurrencyWithdrawalFee:
 		fee = getCryptocurrencyWithdrawalFee(currency)
 	case exchange.InternationalBankWithdrawalFee:
-		fee = getInternationalWireWithdrawalFee(currency, amount)
+		fee = getInternationalBankWithdrawalFee(currency, amount)
 	}
 	if fee < 0 {
 		fee = 0
@@ -434,7 +434,7 @@ func getCryptocurrencyWithdrawalFee(currency string) float64 {
 	return WithdrawalFees[currency]
 }
 
-func getInternationalWireWithdrawalFee(currency string, amount float64) float64 {
+func getInternationalBankWithdrawalFee(currency string, amount float64) float64 {
 	var fee float64
 
 	if currency == symbol.HKD {

@@ -953,9 +953,9 @@ func (b *Bitfinex) GetFee(feeType string, currency string, purchasePrice float64
 		}
 		fee = b.GetCryptocurrencyWithdrawalFee(currency, amount, accountFees)
 	case exchange.InternationalBankDepositFee:
-		fee = getInternationalBankDepositFee(purchasePrice, amount)
+		fee = getInternationalBankDepositFee(amount)
 	case exchange.InternationalBankWithdrawalFee:
-		fee = getInternationalBankWithdrawalFee(purchasePrice, amount)
+		fee = getInternationalBankWithdrawalFee(amount)
 	}
 	if fee < 0 {
 		fee = 0
@@ -979,12 +979,12 @@ func (b *Bitfinex) GetCryptocurrencyWithdrawalFee(currency string, amount float6
 	return fee * amount
 }
 
-func getInternationalBankDepositFee(purchasePrice, amount float64) float64 {
-	return 0.001 * purchasePrice * amount
+func getInternationalBankDepositFee(amount float64) float64 {
+	return 0.001 * amount
 }
 
-func getInternationalBankWithdrawalFee(purchasePrice, amount float64) float64 {
-	return 0.001 * purchasePrice * amount
+func getInternationalBankWithdrawalFee(amount float64) float64 {
+	return 0.001 * amount
 }
 
 // GetTradingFee returns an estimate of fee based on type of whether is maker or taker fee
