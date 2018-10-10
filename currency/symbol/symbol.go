@@ -2,7 +2,7 @@ package symbol
 
 import "errors"
 
-// Const declarations for individual currencies/tokens
+// Const declarations for individual currencies/tokens/fiat
 // An ever growing list. Cares not for equivalence, just is
 const (
 	BTC     = "BTC"
@@ -211,6 +211,9 @@ const (
 	RNT     = "RNT"
 	PLY     = "PLY"
 	PST     = "PST"
+	HKD     = "HKD"
+	AUD     = "AUD"
+	USD     = "USD"
 )
 
 // symbols map holds the currency name and symbol mappings
