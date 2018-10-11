@@ -19,10 +19,10 @@ func TestSetDefaults(t *testing.T) {
 	if a.Enabled != false {
 		t.Error("Test Failed - ANX SetDefaults() incorrect values set")
 	}
-	if a.TakerFee != 0.6 {
+	if a.TakerFee != 0.02 {
 		t.Error("Test Failed - ANX SetDefaults() incorrect values set")
 	}
-	if a.MakerFee != 0.3 {
+	if a.MakerFee != 0.01 {
 		t.Error("Test Failed - ANX SetDefaults() incorrect values set")
 	}
 	if a.Verbose != false {
