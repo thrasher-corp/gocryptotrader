@@ -118,6 +118,10 @@ func (o *OKCoin) Setup(exch config.ExchangeConfig) {
 				request.NewRateLimit(time.Second, okcoinAuthRate),
 				request.NewRateLimit(time.Second, okcoinUnauthRate),
 				common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
+			o.ConfigCurrencyPairFormat.Delimiter = "_"
+			o.ConfigCurrencyPairFormat.Uppercase = true
+			o.RequestCurrencyPairFormat.Uppercase = false
+			o.RequestCurrencyPairFormat.Delimiter = "_"
 		} else {
 			o.APIUrlDefault = okcoinAPIURLChina
 			o.APIUrl = o.APIUrlDefault
@@ -128,6 +132,10 @@ func (o *OKCoin) Setup(exch config.ExchangeConfig) {
 				request.NewRateLimit(time.Second, okcoinAuthRate),
 				request.NewRateLimit(time.Second, okcoinUnauthRate),
 				common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
+			o.ConfigCurrencyPairFormat.Delimiter = "_"
+			o.ConfigCurrencyPairFormat.Uppercase = true
+			o.RequestCurrencyPairFormat.Uppercase = false
+			o.RequestCurrencyPairFormat.Delimiter = ""
 		}
 
 		o.Enabled = true
