@@ -378,8 +378,8 @@ func (w *WebsocketOrderbookLocal) Update(bidTargets, askTargets []orderbook.Item
 	if orderbookAddress == nil {
 		return fmt.Errorf("exchange.go WebsocketOrderbookLocal Update() - orderbook.Base could not be found for Exchange %s CurrencyPair: %s AssetType: %s",
 			exchName,
-			assetType,
-			p.Pair().String())
+			p.Pair().String(),
+			assetType)
 	}
 
 	if len(orderbookAddress.Asks) == 0 || len(orderbookAddress.Bids) == 0 {

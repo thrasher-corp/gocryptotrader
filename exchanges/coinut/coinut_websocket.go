@@ -6,7 +6,6 @@ import (
 	"log"
 	"net/http"
 	"net/url"
-	"sync"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -41,6 +40,7 @@ type wsRequest struct {
 // WsReadData reads data from the websocket conection
 func (c *COINUT) WsReadData() {
 	c.Websocket.Wg.Add(1)
+
 	defer func() {
 		err := c.WebsocketConn.Close()
 		if err != nil {
@@ -61,8 +61,9 @@ func (c *COINUT) WsReadData() {
 				c.Websocket.DataHandler <- err
 				return
 			}
+
 			c.Websocket.TrafficAlert <- struct{}{}
-			channels["comms"] <- resp
+			c.Websocket.Intercomm <- exchange.WebsocketResponse{Raw: resp}
 		}
 	}
 }
@@ -81,20 +82,20 @@ func (c *COINUT) WsHandleData() {
 		case <-c.Websocket.ShutdownC:
 			return
 
-		case resp := <-channels["comms"]:
+		case resp := <-c.Websocket.Intercomm:
 			var incoming wsResponse
-			err := common.JSONDecode(resp, &incoming)
+			err := common.JSONDecode(resp.Raw, &incoming)
 			if err != nil {
 				log.Fatal(err)
 			}
 
 			switch incoming.Reply {
 			case "hb":
-				channels["hb"] <- resp
+				channels["hb"] <- resp.Raw
 
 			case "inst_tick":
 				var ticker WsTicker
-				err := common.JSONDecode(resp, &ticker)
+				err := common.JSONDecode(resp.Raw, &ticker)
 				if err != nil {
 					log.Fatal(err)
 				}
@@ -111,7 +112,7 @@ func (c *COINUT) WsHandleData() {
 
 			case "inst_order_book":
 				var orderbooksnapshot WsOrderbookSnapshot
-				err := common.JSONDecode(resp, &orderbooksnapshot)
+				err := common.JSONDecode(resp.Raw, &orderbooksnapshot)
 				if err != nil {
 					log.Fatal(err)
 				}
@@ -131,7 +132,7 @@ func (c *COINUT) WsHandleData() {
 
 			case "inst_order_book_update":
 				var orderbookUpdate WsOrderbookUpdate
-				err := common.JSONDecode(resp, &orderbookUpdate)
+				err := common.JSONDecode(resp.Raw, &orderbookUpdate)
 				if err != nil {
 					log.Fatal(err)
 				}
@@ -151,14 +152,14 @@ func (c *COINUT) WsHandleData() {
 
 			case "inst_trade":
 				var tradeSnap WsTradeSnapshot
-				err := common.JSONDecode(resp, &tradeSnap)
+				err := common.JSONDecode(resp.Raw, &tradeSnap)
 				if err != nil {
 					log.Fatal(err)
 				}
 
 			case "inst_trade_update":
 				var tradeUpdate WsTradeUpdate
-				err := common.JSONDecode(resp, &tradeUpdate)
+				err := common.JSONDecode(resp.Raw, &tradeUpdate)
 				if err != nil {
 					log.Fatal(err)
 				}
@@ -173,9 +174,6 @@ func (c *COINUT) WsHandleData() {
 					Price:        tradeUpdate.Price,
 					Side:         tradeUpdate.Side,
 				}
-
-			default:
-				log.Fatal("Edge case:", string(resp))
 			}
 		}
 	}
@@ -224,7 +222,6 @@ func (c *COINUT) WsConnect() error {
 
 	// define bi-directional communication
 	channels = make(map[string]chan []byte)
-	channels["comms"] = make(chan []byte, 1)
 	channels["hb"] = make(chan []byte, 1)
 
 	go c.WsReadData()
@@ -328,9 +325,6 @@ func (c *COINUT) WsSubscribe() error {
 	return nil
 }
 
-var orderbookCache []orderbook.Base
-var obMtx sync.Mutex
-
 // WsProcessOrderbookSnapshot processes the orderbook snapshot
 func (c *COINUT) WsProcessOrderbookSnapshot(ob WsOrderbookSnapshot) error {
 	var bids []orderbook.Item
@@ -354,62 +348,33 @@ func (c *COINUT) WsProcessOrderbookSnapshot(ob WsOrderbookSnapshot) error {
 	newOrderbook.Bids = bids
 	newOrderbook.CurrencyPair = instrumentListByCode[ob.InstID]
 	newOrderbook.Pair = pair.NewCurrencyPairFromString(instrumentListByCode[ob.InstID])
+	newOrderbook.AssetType = "SPOT"
 	newOrderbook.LastUpdated = time.Now()
 
-	obMtx.Lock()
-	orderbookCache = append(orderbookCache, newOrderbook)
-	obMtx.Unlock()
-
-	return nil
+	return c.Websocket.Orderbook.LoadSnapshot(newOrderbook, c.GetName())
 }
 
 // WsProcessOrderbookUpdate process an orderbook update
 func (c *COINUT) WsProcessOrderbookUpdate(ob WsOrderbookUpdate) error {
-	obMtx.Lock()
-	defer obMtx.Unlock()
+	p := pair.NewCurrencyPairFromString(instrumentListByCode[ob.InstID])
 
-	for x := range orderbookCache {
-		if orderbookCache[x].CurrencyPair == instrumentListByCode[ob.InstID] {
-			if ob.Side == "buy" {
-				for y := range orderbookCache[x].Bids {
-					if orderbookCache[x].Bids[y].Price == ob.Price {
-						if ob.Volume == 0 {
-							orderbookCache[x].Bids = append(orderbookCache[x].Bids[:y],
-								orderbookCache[x].Bids[y+1:]...)
-							return nil
-						}
-						orderbookCache[x].Bids[y].Amount = ob.Volume
-						return nil
-					}
-				}
-				orderbookCache[x].Bids = append(orderbookCache[x].Bids,
-					orderbook.Item{
-						Amount: ob.Volume,
-						Price:  ob.Price,
-					})
-				return nil
-			}
-
-			for y := range orderbookCache[x].Asks {
-				if orderbookCache[x].Asks[y].Price == ob.Price {
-					if ob.Volume == 0 {
-						orderbookCache[x].Asks = append(orderbookCache[x].Asks[:y],
-							orderbookCache[x].Asks[y+1:]...)
-						return nil
-					}
-					orderbookCache[x].Asks[y].Amount = ob.Volume
-					return nil
-				}
-			}
-			orderbookCache[x].Bids = append(orderbookCache[x].Asks,
-				orderbook.Item{
-					Amount: ob.Volume,
-					Price:  ob.Price,
-				})
-			return nil
-		}
+	if ob.Side == "buy" {
+		return c.Websocket.Orderbook.Update([]orderbook.Item{
+			orderbook.Item{Price: ob.Price, Amount: ob.Volume}},
+			nil,
+			p,
+			time.Now(),
+			c.GetName(),
+			"SPOT")
 	}
-	return errors.New("coinut.go error - currency pair not found")
+
+	return c.Websocket.Orderbook.Update([]orderbook.Item{
+		orderbook.Item{Price: ob.Price, Amount: ob.Volume}},
+		nil,
+		p,
+		time.Now(),
+		c.GetName(),
+		"SPOT")
 }
 
 type wsHeartbeatResp struct {
