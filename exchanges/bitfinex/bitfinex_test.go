@@ -643,7 +643,6 @@ func setFeeBuilder() exchange.FeeBuilder {
 }
 
 func TestGetFee(t *testing.T) {
-	t.Parallel()
 	b.SetDefaults()
 	TestSetup(t)
 	var feeBuilder = setFeeBuilder()
