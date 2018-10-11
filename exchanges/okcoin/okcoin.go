@@ -132,7 +132,7 @@ func (o *OKCoin) Setup(exch config.ExchangeConfig) {
 				request.NewRateLimit(time.Second, okcoinAuthRate),
 				request.NewRateLimit(time.Second, okcoinUnauthRate),
 				common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
-			o.ConfigCurrencyPairFormat.Delimiter = "_"
+			o.ConfigCurrencyPairFormat.Delimiter = ""
 			o.ConfigCurrencyPairFormat.Uppercase = true
 			o.RequestCurrencyPairFormat.Uppercase = false
 			o.RequestCurrencyPairFormat.Delimiter = ""
