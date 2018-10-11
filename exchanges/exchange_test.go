@@ -14,7 +14,7 @@ import (
 
 func TestSupportsRESTTickerBatchUpdates(t *testing.T) {
 	b := Base{
-		Name: "RAWR",
+		Name:                       "RAWR",
 		SupportsRESTTickerBatching: true,
 	}
 
@@ -69,7 +69,7 @@ func TestSetAutoPairDefaults(t *testing.T) {
 	}
 
 	b := Base{
-		Name: "TESTNAME",
+		Name:                     "TESTNAME",
 		SupportsAutoPairUpdating: true,
 	}
 
@@ -139,7 +139,7 @@ func TestSetAutoPairDefaults(t *testing.T) {
 
 func TestSupportsAutoPairUpdates(t *testing.T) {
 	b := Base{
-		Name: "TESTNAME",
+		Name:                     "TESTNAME",
 		SupportsAutoPairUpdating: false,
 	}
 
@@ -177,6 +177,7 @@ func TestSetAssetTypes(t *testing.T) {
 	}
 
 	b.Name = "ANX"
+	b.AssetTypes = []string{"SPOT"}
 	err = b.SetAssetTypes()
 	if err != nil {
 		t.Fatalf("Test failed. TestSetAssetTypes. Error %s", err)
