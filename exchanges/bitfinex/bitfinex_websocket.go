@@ -217,7 +217,7 @@ func (b *Bitfinex) WsReadData() {
 				return
 			}
 
-			b.Websocket.TrafficTimer.Reset(exchange.WebsocketTrafficLimitTime)
+			b.Websocket.TrafficAlert <- struct{}{}
 
 			b.Websocket.Intercomm <- exchange.WebsocketResponse{
 				Type: msgType,

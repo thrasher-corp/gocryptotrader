@@ -249,8 +249,7 @@ func (k *Kraken) WithdrawFiatExchangeFundsToInternationalBank(currency pair.Curr
 	return "", errors.New("not yet implemented")
 }
 
-// WebsocketConnect connects an exchange to the package defined websocket feeds
-// and returns a pointer to a websocket
-func (k *Kraken) WebsocketConnect() (*exchange.Websocket, error) {
+// GetWebsocket returns a pointer to the exchange websocket
+func (k *Kraken) GetWebsocket() (*exchange.Websocket, error) {
 	return nil, errors.New("not yet implemented")
 }

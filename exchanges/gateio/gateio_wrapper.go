@@ -176,8 +176,7 @@ func (g *Gateio) WithdrawFiatExchangeFundsToInternationalBank(currency pair.Curr
 	return "", errors.New("not yet implemented")
 }
 
-// WebsocketConnect connects an exchange to the package defined websocket feeds
-// and returns a pointer to a websocket
-func (g *Gateio) WebsocketConnect() (*exchange.Websocket, error) {
+// GetWebsocket returns a pointer to the exchange websocket
+func (g *Gateio) GetWebsocket() (*exchange.Websocket, error) {
 	return nil, errors.New("not yet implemented")
 }

@@ -194,8 +194,7 @@ func (c *COINUT) WithdrawFiatExchangeFundsToInternationalBank(currency pair.Curr
 	return "", errors.New("not yet implemented")
 }
 
-// WebsocketConnect connects an exchange to the package defined websocket feeds
-// and returns a pointer to a websocket
-func (c *COINUT) WebsocketConnect() (*exchange.Websocket, error) {
-	return c.Websocket, c.Websocket.Connect()
+// GetWebsocket returns a pointer to the exchange websocket
+func (c *COINUT) GetWebsocket() (*exchange.Websocket, error) {
+	return c.Websocket, nil
 }

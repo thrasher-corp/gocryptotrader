@@ -204,8 +204,7 @@ func (b *BTCC) WithdrawFiatExchangeFundsToInternationalBank(currency pair.Curren
 	return "", errors.New("not yet implemented")
 }
 
-// WebsocketConnect connects an exchange to the package defined websocket feeds
-// and returns a pointer to a websocket
-func (b *BTCC) WebsocketConnect() (*exchange.Websocket, error) {
+// GetWebsocket returns a pointer to the exchange websocket
+func (b *BTCC) GetWebsocket() (*exchange.Websocket, error) {
 	return nil, errors.New("current issues with BTCC endpoint")
 }

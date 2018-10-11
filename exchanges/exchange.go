@@ -152,7 +152,7 @@ type IBotExchange interface {
 	WithdrawCryptoExchangeFunds(address string, cryptocurrency pair.CurrencyItem, amount float64) (string, error)
 	WithdrawFiatExchangeFunds(currency pair.CurrencyItem, amount float64) (string, error)
 
-	WebsocketConnect() (*Websocket, error)
+	GetWebsocket() (*Websocket, error)
 }
 
 // SupportsRESTTickerBatchUpdates returns whether or not the

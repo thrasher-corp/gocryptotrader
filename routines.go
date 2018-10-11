@@ -288,12 +288,17 @@ func WebsocketRoutine() {
 			log.Printf("Establishing websocket connection for %s",
 				bot.exchanges[i].GetName())
 
-			ws, err := bot.exchanges[i].WebsocketConnect()
+			ws, err := bot.exchanges[i].GetWebsocket()
+			if err != nil {
+				return
+			}
+
+			// Data handler routine
+			go wsCaptcha(ws)
+
+			err = ws.Connect()
 			if err != nil {
 				switch err.Error() {
-				case "not yet implemented":
-					return
-
 				case exchange.WebsocketNotEnabled:
 					log.Println("Websocket MEMORY STORED")
 					// Store in memory for state change if enabled in future
@@ -307,8 +312,6 @@ func WebsocketRoutine() {
 					return
 				}
 			}
-
-			go wsCaptcha(ws)
 		}(i)
 	}
 }

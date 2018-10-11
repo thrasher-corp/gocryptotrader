@@ -191,8 +191,7 @@ func (c *CoinbasePro) WithdrawFiatExchangeFunds(cryptocurrency pair.CurrencyItem
 	return "", errors.New("not yet implemented")
 }
 
-// WebsocketConnect connects an exchange to the package defined websocket feeds
-// and returns a pointer to a websocket
-func (c *CoinbasePro) WebsocketConnect() (*exchange.Websocket, error) {
-	return c.Websocket, c.Websocket.Connect()
+// GetWebsocket returns a pointer to the exchange websocket
+func (c *CoinbasePro) GetWebsocket() (*exchange.Websocket, error) {
+	return c.Websocket, nil
 }

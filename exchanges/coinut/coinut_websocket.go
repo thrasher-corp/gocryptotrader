@@ -61,7 +61,7 @@ func (c *COINUT) WsReadData() {
 				c.Websocket.DataHandler <- err
 				return
 			}
-			c.Websocket.TrafficTimer.Reset(exchange.WebsocketTrafficLimitTime)
+			c.Websocket.TrafficAlert <- struct{}{}
 			channels["comms"] <- resp
 		}
 	}
@@ -266,7 +266,7 @@ func (c *COINUT) WsSetInstrumentList() error {
 		return err
 	}
 
-	c.Websocket.TrafficTimer.Reset(exchange.WebsocketTrafficLimitTime)
+	c.Websocket.TrafficAlert <- struct{}{}
 
 	var list WsInstrumentList
 	err = common.JSONDecode(resp, &list)

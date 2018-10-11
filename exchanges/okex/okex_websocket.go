@@ -140,7 +140,7 @@ func (o *OKEX) WsReadData() {
 				o.Websocket.DataHandler <- err
 				return
 			}
-			o.Websocket.TrafficTimer.Reset(exchange.WebsocketTrafficLimitTime)
+			o.Websocket.TrafficAlert <- struct{}{}
 			comms <- resp
 		}
 	}

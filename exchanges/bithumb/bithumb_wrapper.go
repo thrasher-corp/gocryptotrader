@@ -189,8 +189,7 @@ func (b *Bithumb) WithdrawFiatExchangeFundsToInternationalBank(currency pair.Cur
 	return "", errors.New("not yet implemented")
 }
 
-// WebsocketConnect connects an exchange to the package defined websocket feeds
-// and returns a pointer to a websocket
-func (b *Bithumb) WebsocketConnect() (*exchange.Websocket, error) {
+// GetWebsocket returns a pointer to the exchange websocket
+func (b *Bithumb) GetWebsocket() (*exchange.Websocket, error) {
 	return nil, errors.New("not yet implemented")
 }

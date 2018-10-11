@@ -119,7 +119,7 @@ func (c *CoinbasePro) WsReadData(comms chan []byte) {
 				return
 			}
 
-			c.Websocket.TrafficTimer.Reset(exchange.WebsocketTrafficLimitTime)
+			c.Websocket.TrafficAlert <- struct{}{}
 			comms <- resp
 		}
 	}

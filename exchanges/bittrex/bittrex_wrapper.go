@@ -218,8 +218,7 @@ func (b *Bittrex) WithdrawFiatExchangeFundsToInternationalBank(currency pair.Cur
 	return "", errors.New("not yet implemented")
 }
 
-// WebsocketConnect connects an exchange to the package defined websocket feeds
-// and returns a pointer to a websocket
-func (b *Bittrex) WebsocketConnect() (*exchange.Websocket, error) {
+// GetWebsocket returns a pointer to the exchange websocket
+func (b *Bittrex) GetWebsocket() (*exchange.Websocket, error) {
 	return nil, errors.New("not yet implemented")
 }

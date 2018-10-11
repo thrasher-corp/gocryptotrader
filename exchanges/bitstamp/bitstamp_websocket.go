@@ -6,7 +6,6 @@ import (
 	"log"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
@@ -15,9 +14,6 @@ import (
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	"github.com/toorop/go-pusher"
 )
-
-var orderbookCache []orderbook.Base
-var mtx sync.Mutex
 
 // WebsocketConn defins a pusher websocket connection
 type WebsocketConn struct {
@@ -69,7 +65,7 @@ func (b *Bitstamp) findPairFromChannel(channelName string) (string, error) {
 		}
 	}
 
-	return "", errors.New("Could not find trading pair")
+	return "", errors.New("bistamp_websocket.go error - could not find trading pair")
 }
 
 // WsConnect connects to a websocket feed
@@ -82,7 +78,7 @@ func (b *Bitstamp) WsConnect() error {
 	var err error
 
 	if b.Websocket.GetProxyAddress() != "" {
-		log.Fatal("Bitstamp - set proxy address error: proxy not supported")
+		log.Println("bistamp_websocket.go warning - set proxy address error: proxy not supported")
 	}
 
 	b.WebsocketConn.Client, err = pusher.NewClient(BitstampPusherKey)
@@ -103,101 +99,78 @@ func (b *Bitstamp) WsConnect() error {
 		return fmt.Errorf("%s Websocket Bind error: %s", b.GetName(), err)
 	}
 
-	for _, p := range b.EnabledPairs {
-		orderbookSeed, err := b.GetOrderbook(p)
+	go b.WsReadData()
+
+	for _, p := range b.GetEnabledCurrencies() {
+		orderbookSeed, err := b.GetOrderbook(p.Pair().String())
 		if err != nil {
 			return err
 		}
 
-		// re-use memory on disconnect reconnect and flush bid and asks
-		var flushed bool
-		for i := range orderbookCache {
-			if orderbookCache[i].CurrencyPair == p {
-				var localOrderbook orderbook.Base
+		var newOrderbook orderbook.Base
 
-				var asks []orderbook.Item
-				for _, ask := range orderbookSeed.Asks {
-					var item orderbook.Item
-					item.Amount = ask.Amount
-					item.Price = ask.Price
-					asks = append(asks, item)
-				}
-
-				var bids []orderbook.Item
-				for _, bid := range orderbookSeed.Bids {
-					var item orderbook.Item
-					item.Amount = bid.Amount
-					item.Price = bid.Price
-					bids = append(bids, item)
-				}
-
-				localOrderbook.Asks = asks
-				localOrderbook.Bids = bids
-				localOrderbook.CurrencyPair = p
-				localOrderbook.Pair = pair.NewCurrencyPairFromString(p)
-				localOrderbook.LastUpdated = time.Unix(0, orderbookSeed.Timestamp)
-				localOrderbook.AssetType = "SPOT"
-
-				orderbookCache = append(orderbookCache, localOrderbook)
-				flushed = true
-			}
+		var asks []orderbook.Item
+		for _, ask := range orderbookSeed.Asks {
+			var item orderbook.Item
+			item.Amount = ask.Amount
+			item.Price = ask.Price
+			asks = append(asks, item)
 		}
 
-		if !flushed {
-			var localOrderbook orderbook.Base
+		var bids []orderbook.Item
+		for _, bid := range orderbookSeed.Bids {
+			var item orderbook.Item
+			item.Amount = bid.Amount
+			item.Price = bid.Price
+			bids = append(bids, item)
+		}
 
-			var asks []orderbook.Item
-			for _, ask := range orderbookSeed.Asks {
-				var item orderbook.Item
-				item.Amount = ask.Amount
-				item.Price = ask.Price
-				asks = append(asks, item)
-			}
+		newOrderbook.Asks = asks
+		newOrderbook.Bids = bids
+		newOrderbook.CurrencyPair = p.Pair().String()
+		newOrderbook.Pair = p
+		newOrderbook.LastUpdated = time.Unix(0, orderbookSeed.Timestamp)
+		newOrderbook.AssetType = "SPOT"
 
-			var bids []orderbook.Item
-			for _, bid := range orderbookSeed.Bids {
-				var item orderbook.Item
-				item.Amount = bid.Amount
-				item.Price = bid.Price
-				bids = append(bids, item)
-			}
+		err = b.Websocket.Orderbook.LoadSnapshot(newOrderbook, b.GetName())
+		if err != nil {
+			return err
+		}
 
-			localOrderbook.Asks = asks
-			localOrderbook.Bids = bids
-			localOrderbook.CurrencyPair = p
-			localOrderbook.Pair = pair.NewCurrencyPairFromString(p)
-			localOrderbook.LastUpdated = time.Unix(0, orderbookSeed.Timestamp)
-			localOrderbook.AssetType = "SPOT"
-
-			orderbookCache = append(orderbookCache, localOrderbook)
+		b.Websocket.DataHandler <- exchange.WebsocketOrderbookUpdate{
+			Pair:     p,
+			Asset:    "SPOT",
+			Exchange: b.GetName(),
 		}
 
 		err = b.WebsocketConn.Client.Subscribe(fmt.Sprintf("live_trades_%s",
-			strings.ToLower(p)))
+			strings.ToLower(p.Pair().String())))
 
 		if err != nil {
+			log.Println(err)
 			return fmt.Errorf("%s Websocket Trade subscription error: %s",
 				b.GetName(),
 				err)
 		}
 
 		err = b.WebsocketConn.Client.Subscribe(fmt.Sprintf("diff_order_book_%s",
-			strings.ToLower(p)))
+			strings.ToLower(p.Pair().String())))
+
 		if err != nil {
+			log.Println(err)
 			return fmt.Errorf("%s Websocket Trade subscription error: %s",
 				b.GetName(),
 				err)
 		}
+
 	}
-
-	go b.WsReadData()
-
 	return nil
 }
 
 // WsReadData reads data coming from bitstamp websocket connection
 func (b *Bitstamp) WsReadData() {
 	b.Websocket.Wg.Add(1)
+
 	defer func() {
 		err := b.WebsocketConn.Client.Close()
 		if err != nil {
@@ -213,7 +186,7 @@ func (b *Bitstamp) WsReadData() {
 			return
 
 		case data := <-b.WebsocketConn.Data:
-			b.Websocket.TrafficTimer.Reset(exchange.WebsocketTrafficLimitTime)
+			b.Websocket.TrafficAlert <- struct{}{}
 
 			result := PusherOrderbook{}
 			err := common.JSONDecode([]byte(data.Data), &result)
@@ -222,11 +195,15 @@ func (b *Bitstamp) WsReadData() {
 			}
 
 			currencyPair := common.SplitStrings(data.Channel, "_")
+			p := pair.NewCurrencyPairFromString(common.StringToUpper(currencyPair[3]))
 
-			go b.WsUpdateOrderbook(result, currencyPair[3])
+			err = b.WsUpdateOrderbook(result, p, "SPOT")
+			if err != nil {
+				b.Websocket.DataHandler <- err
+			}
 
 		case trade := <-b.WebsocketConn.Trade:
-			b.Websocket.TrafficTimer.Reset(exchange.WebsocketTrafficLimitTime)
+			b.Websocket.TrafficAlert <- struct{}{}
 
 			result := PusherTrade{}
 			err := common.JSONDecode([]byte(trade.Data), &result)
@@ -248,87 +225,54 @@ func (b *Bitstamp) WsReadData() {
 }
 
 // WsUpdateOrderbook updates local cache of orderbook information
-func (b *Bitstamp) WsUpdateOrderbook(ob PusherOrderbook, pair string) {
-	mtx.Lock()
-	defer mtx.Unlock()
+func (b *Bitstamp) WsUpdateOrderbook(ob PusherOrderbook, p pair.CurrencyPair, assetType string) error {
+	if len(ob.Asks) == 0 && len(ob.Bids) == 0 {
+		return errors.New("bitstamp_websocket.go error - no orderbook data")
+	}
 
-	for i := range orderbookCache {
-		if orderbookCache[i].CurrencyPair == pair {
-			if len(ob.Asks) > 0 {
-				for _, ask := range ob.Asks {
-					target, err := strconv.ParseFloat(ask[0], 64)
-					if err != nil {
-						log.Fatal(err)
-					}
-
-					VolumeAdjust, err := strconv.ParseFloat(ask[1], 64)
-					if err != nil {
-						log.Fatal(err)
-					}
-
-					var found bool
-					for x := range orderbookCache[i].Asks {
-						if orderbookCache[i].Asks[x].Price == target {
-							found = true
-							if VolumeAdjust == 0 {
-								orderbookCache[i].Asks = append(orderbookCache[i].Asks[:x],
-									orderbookCache[i].Asks[x+1:]...)
-								break
-							}
-							orderbookCache[i].Asks[x].Amount = VolumeAdjust
-							break
-						}
-					}
-
-					if !found {
-						orderbookCache[i].Asks = append(orderbookCache[i].Asks,
-							orderbook.Item{
-								Price:  target,
-								Amount: VolumeAdjust,
-							},
-						)
-					}
-				}
+	var asks, bids []orderbook.Item
+	if len(ob.Asks) > 0 {
+		for _, ask := range ob.Asks {
+			target, err := strconv.ParseFloat(ask[0], 64)
+			if err != nil {
+				log.Fatal(err)
 			}
 
-			if len(ob.Bids) > 0 {
-				for _, bid := range ob.Bids {
-					target, err := strconv.ParseFloat(bid[0], 64)
-					if err != nil {
-						log.Fatal(err)
-					}
-
-					VolumeAdjust, err := strconv.ParseFloat(bid[1], 64)
-					if err != nil {
-						log.Fatal(err)
-					}
-
-					var found bool
-					for x := range orderbookCache[i].Bids {
-						if orderbookCache[i].Asks[x].Price == target {
-							found = true
-							if VolumeAdjust == 0 {
-								orderbookCache[i].Bids = append(orderbookCache[i].Bids[:x],
-									orderbookCache[i].Bids[x+1:]...)
-								break
-							}
-							orderbookCache[i].Bids[x].Amount = VolumeAdjust
-							break
-						}
-					}
-
-					if !found {
-						orderbookCache[i].Asks = append(orderbookCache[i].Bids,
-							orderbook.Item{
-								Price:  target,
-								Amount: VolumeAdjust,
-							},
-						)
-					}
-				}
+			amount, err := strconv.ParseFloat(ask[1], 64)
+			if err != nil {
+				log.Fatal(err)
 			}
+
+			asks = append(asks, orderbook.Item{Price: target, Amount: amount})
 		}
 	}
 
-	b.Websocket.DataHandler <- exchange.WebsocketOrderbookUpdate{}
+	if len(ob.Bids) > 0 {
+		for _, bid := range ob.Bids {
+			target, err := strconv.ParseFloat(bid[0], 64)
+			if err != nil {
+				log.Fatal(err)
+			}
+
+			amount, err := strconv.ParseFloat(bid[1], 64)
+			if err != nil {
+				log.Fatal(err)
+			}
+
+			bids = append(bids, orderbook.Item{Price: target, Amount: amount})
+		}
+	}
+
+	err := b.Websocket.Orderbook.Update(bids, asks, p, time.Now(), b.GetName(), assetType)
+	if err != nil {
+		return err
+	}
+
+	b.Websocket.DataHandler <- exchange.WebsocketOrderbookUpdate{
+		Pair:     p,
+		Asset:    assetType,
+		Exchange: b.GetName(),
+	}
+
+	return nil
 }

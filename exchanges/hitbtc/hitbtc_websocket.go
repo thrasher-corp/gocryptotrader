@@ -135,7 +135,7 @@ func (h *HitBTC) WsReadData() {
 				return
 			}
 
-			h.Websocket.TrafficTimer.Reset(exchange.WebsocketTrafficLimitTime)
+			h.Websocket.TrafficAlert <- struct{}{}
 			channels["readData"] <- resp
 		}
 	}

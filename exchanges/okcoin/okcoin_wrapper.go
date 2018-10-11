@@ -235,8 +235,7 @@ func (o *OKCoin) WithdrawFiatExchangeFundsToInternationalBank(currency pair.Curr
 	return "", errors.New("not yet implemented")
 }
 
-// WebsocketConnect connects an exchange to the package defined websocket feeds
-// and returns a pointer to a websocket
-func (o *OKCoin) WebsocketConnect() (*exchange.Websocket, error) {
-	return o.Websocket, o.Websocket.Connect()
+// GetWebsocket returns a pointer to the exchange websocket
+func (o *OKCoin) GetWebsocket() (*exchange.Websocket, error) {
+	return o.Websocket, nil
 }

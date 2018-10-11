@@ -208,8 +208,7 @@ func (p *Poloniex) WithdrawFiatExchangeFundsToInternationalBank(currency pair.Cu
 	return "", errors.New("not yet implemented")
 }
 
-// WebsocketConnect connects an exchange to the package defined websocket feeds
-// and returns a pointer to a websocket
-func (p *Poloniex) WebsocketConnect() (*exchange.Websocket, error) {
-	return p.Websocket, p.Websocket.Connect()
+// GetWebsocket returns a pointer to the exchange websocket
+func (p *Poloniex) GetWebsocket() (*exchange.Websocket, error) {
+	return p.Websocket, nil
 }

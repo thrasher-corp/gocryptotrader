@@ -208,8 +208,7 @@ func (h *HitBTC) WithdrawFiatExchangeFundsToInternationalBank(currency pair.Curr
 	return "", errors.New("not yet implemented")
 }
 
-// WebsocketConnect connects an exchange to the package defined websocket feeds
-// and returns a pointer to a websocket
-func (h *HitBTC) WebsocketConnect() (*exchange.Websocket, error) {
-	return h.Websocket, h.Websocket.Connect()
+// GetWebsocket returns a pointer to the exchange websocket
+func (h *HitBTC) GetWebsocket() (*exchange.Websocket, error) {
+	return h.Websocket, nil
 }

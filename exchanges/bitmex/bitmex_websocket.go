@@ -151,7 +151,7 @@ func (b *Bitmex) wsReadData() {
 				return
 			}
 
-			b.Websocket.TrafficTimer.Reset(exchange.WebsocketTrafficLimitTime)
+			b.Websocket.TrafficAlert <- struct{}{}
 
 			b.Websocket.Intercomm <- exchange.WebsocketResponse{
 				Raw: resp,

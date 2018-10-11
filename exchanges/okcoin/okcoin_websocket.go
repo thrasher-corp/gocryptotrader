@@ -115,7 +115,7 @@ func (o *OKCoin) WsReadData() {
 				return
 			}
 
-			o.Websocket.TrafficTimer.Reset(exchange.WebsocketTrafficLimitTime)
+			o.Websocket.TrafficAlert <- struct{}{}
 			comms <- resp
 		}
 	}

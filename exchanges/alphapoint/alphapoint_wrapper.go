@@ -172,8 +172,7 @@ func (a *Alphapoint) WithdrawFiatExchangeFunds(currency pair.CurrencyItem, amoun
 	return "", errors.New("not yet implemented")
 }
 
-// WebsocketConnect connects an exchange to the package defined websocket feeds
-// and returns a pointer to a websocket
-func (a *Alphapoint) WebsocketConnect() (*exchange.Websocket, error) {
+// GetWebsocket returns a pointer to the exchange websocket
+func (a *Alphapoint) GetWebsocket() (*exchange.Websocket, error) {
 	return nil, errors.New("not yet implemented")
 }

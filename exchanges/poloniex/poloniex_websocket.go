@@ -114,7 +114,7 @@ func (p *Poloniex) WsReadData() {
 				return
 			}
 
-			p.Websocket.TrafficTimer.Reset(exchange.WebsocketTrafficLimitTime)
+			p.Websocket.TrafficAlert <- struct{}{}
 			comms <- resp
 		}
 	}

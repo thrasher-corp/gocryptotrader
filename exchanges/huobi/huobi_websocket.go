@@ -88,7 +88,7 @@ func (h *HUOBI) WsReadData() {
 				log.Fatal(err)
 			}
 
-			h.Websocket.TrafficTimer.Reset(exchange.WebsocketTrafficLimitTime)
+			h.Websocket.TrafficAlert <- struct{}{}
 
 			b := bytes.NewReader(resp)
 			gReader, err := gzip.NewReader(b)

@@ -56,6 +56,7 @@ func (e *Base) WebsocketSetup(connector func() error,
 	e.Websocket.Connected = make(chan struct{}, 1)
 	e.Websocket.Disconnected = make(chan struct{}, 1)
 	e.Websocket.Intercomm = make(chan WebsocketResponse, 1)
+	e.Websocket.TrafficAlert = make(chan struct{}, 1)
 
 	e.Websocket.SetEnabled(wsEnabled)
 	e.Websocket.SetProxyAddress(proxyAddr)
@@ -105,24 +106,58 @@ type Websocket struct {
 	// routines
 	Wg sync.WaitGroup
 
-	// TrafficTimer sets a timer if there is a halt in traffic throughput
-	TrafficTimer *time.Timer
+	// TrafficAlert monitors if there is a halt in traffic throughput
+	TrafficAlert chan struct{}
 }
 
+// trafficMonitor monitors traffic and switches connection modes for websocket
 func (w *Websocket) trafficMonitor() {
 	w.Wg.Add(1)
-	defer w.Wg.Done()
 
-	w.TrafficTimer = time.NewTimer(WebsocketTrafficLimitTime)
+	var connected bool
+	defer func(isConnected *bool) {
+		if *isConnected {
+			w.Disconnected <- struct{}{}
+		}
+		w.Wg.Done()
+	}(&connected)
+
+	trafficTimer := time.NewTimer(WebsocketTrafficLimitTime)
 
 	for {
 		select {
 		case <-w.ShutdownC:
 			return
 
-		case <-w.TrafficTimer.C:
-			// NOTE add ping handling to minimise reconnection
-			w.state <- websocketStateRefresh
+		case <-w.TrafficAlert:
+			if !connected {
+				w.Connected <- struct{}{}
+				connected = true
+			}
+
+			trafficTimer.Reset(WebsocketTrafficLimitTime)
+
+		case <-trafficTimer.C:
+			newtimer := time.NewTimer(WebsocketTrafficLimitTime)
+			if connected {
+				w.Disconnected <- struct{}{}
+				connected = false
+			}
+
+			select {
+			case <-w.ShutdownC:
+				return
+
+			case <-newtimer.C:
+				w.state <- websocketStateRefresh
+
+			case <-w.TrafficAlert:
+				trafficTimer.Reset(WebsocketTrafficLimitTime)
+				if connected {
+					w.Connected <- struct{}{}
+					connected = true
+				}
+			}
 		}
 	}
 }
@@ -186,10 +221,14 @@ func (w *Websocket) Connect() error {
 
 	err := w.connector()
 	if err != nil {
+		shutdownError := w.Shutdown()
+		if shutdownError != nil {
+			return fmt.Errorf("exchange_websocket.go connection error %s with shutdown error %s",
+				err,
+				shutdownError)
+		}
 		return err
 	}
-
-	w.Connected <- struct{}{}
 	return nil
 }
 
@@ -208,7 +247,6 @@ func (w *Websocket) Shutdown() error {
 
 	go func(c chan struct{}) {
 		close(w.ShutdownC)
-		w.Disconnected <- struct{}{}
 		w.Wg.Wait()
 		c <- struct{}{}
 	}(c)

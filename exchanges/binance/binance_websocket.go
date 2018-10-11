@@ -207,7 +207,7 @@ func (b *Binance) WSReadData() {
 				return
 			}
 
-			b.Websocket.TrafficTimer.Reset(exchange.WebsocketTrafficLimitTime)
+			b.Websocket.TrafficAlert <- struct{}{}
 			b.Websocket.Intercomm <- exchange.WebsocketResponse{Type: msgType, Raw: resp}
 		}
 	}
