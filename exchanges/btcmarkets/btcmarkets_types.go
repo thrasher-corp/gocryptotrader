@@ -17,6 +17,12 @@ type Response struct {
 	Status          string  `json:"status"`
 }
 
+// Market holds a tradable market instrument
+type Market struct {
+	Instrument string `json:"instrument"`
+	Currency   string `json:"currency"`
+}
+
 // Ticker holds ticker information
 type Ticker struct {
 	BestBID    float64 `json:"bestBid"`

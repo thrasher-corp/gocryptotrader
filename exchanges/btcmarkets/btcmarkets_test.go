@@ -45,6 +45,14 @@ func TestGetFee(t *testing.T) {
 	}
 }
 
+func TestGetMarkets(t *testing.T) {
+	t.Parallel()
+	_, err := bm.GetMarkets()
+	if err != nil {
+		t.Error("Test failed - GetMarkets() error", err)
+	}
+}
+
 func TestGetTicker(t *testing.T) {
 	t.Parallel()
 	_, err := bm.GetTicker("BTC", "AUD")

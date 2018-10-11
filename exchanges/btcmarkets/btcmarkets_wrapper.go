@@ -29,29 +29,32 @@ func (b *BTCMarkets) Run() {
 		log.Printf("%s %d currencies enabled: %s.\n", b.GetName(), len(b.EnabledPairs), b.EnabledPairs)
 	}
 
-	if !common.StringDataContains(b.EnabledPairs, "AUD") || !common.StringDataContains(b.EnabledPairs, "AUD") {
-		enabledPairs := []string{}
-		for x := range b.EnabledPairs {
-			enabledPairs = append(enabledPairs, b.EnabledPairs[x]+"AUD")
+	markets, err := b.GetMarkets()
+	if err != nil {
+		log.Printf("%s failed to get active market. Err: %s", b.Name, err)
+	} else {
+		forceUpgrade := false
+		if !common.StringDataContains(b.EnabledPairs, "-") || !common.StringDataContains(b.AvailablePairs, "-") {
+			forceUpgrade = true
 		}
 
-		availablePairs := []string{}
-		for x := range b.AvailablePairs {
-			availablePairs = append(availablePairs, b.AvailablePairs[x]+"AUD")
+		var currencies []string
+		for x := range markets {
+			currencies = append(currencies, markets[x].Instrument+"-"+markets[x].Currency)
 		}
 
-		log.Println("BTCMarkets: Upgrading available and enabled pairs")
+		if forceUpgrade {
+			enabledPairs := []string{"BTC-AUD"}
+			log.Println("WARNING: Available pairs for BTC Makrets reset due to config upgrade, please enable the pairs you would like again.")
 
-		err := b.UpdateCurrencies(enabledPairs, true, true)
+			err = b.UpdateCurrencies(enabledPairs, true, true)
+			if err != nil {
+				log.Printf("%s failed to update currencies. Err: %s", b.Name, err)
+			}
+		}
+		err = b.UpdateCurrencies(currencies, false, forceUpgrade)
 		if err != nil {
-			log.Printf("%s Failed to get config.\n", b.GetName())
-			return
-		}
-
-		err = b.UpdateCurrencies(availablePairs, false, true)
-		if err != nil {
-			log.Printf("%s Failed to get config.\n", b.GetName())
-			return
+			log.Printf("%s failed to update currencies. Err: %s", b.Name, err)
 		}
 	}
 }
