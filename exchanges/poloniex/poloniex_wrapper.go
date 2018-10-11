@@ -29,10 +29,6 @@ func (p *Poloniex) Run() {
 		log.Printf("%s %d currencies enabled: %s.\n", p.GetName(), len(p.EnabledPairs), p.EnabledPairs)
 	}
 
-	// if p.Websocket.IsEnabled() {
-	// 	go p.WebsocketClient()
-	// }
-
 	exchangeCurrencies, err := p.GetExchangeCurrencies()
 	if err != nil {
 		log.Printf("%s Failed to get available symbols.\n", p.GetName())

@@ -24,8 +24,6 @@ const (
 	wsSubKline          = "ok_sub_spot_%s_kline_%s"
 )
 
-var comms chan []byte
-
 // PingHandler handles the keep alive
 func (o *OKCoin) PingHandler(message string) error {
 	return o.WebsocketConn.WriteControl(websocket.PingMessage,
@@ -73,8 +71,6 @@ func (o *OKCoin) WsConnect() error {
 
 	o.WebsocketConn.SetPingHandler(o.PingHandler)
 
-	comms = make(chan []byte, 1)
-
 	go o.WsReadData()
 	go o.WsHandleData()
 
@@ -116,7 +112,7 @@ func (o *OKCoin) WsReadData() {
 			}
 
 			o.Websocket.TrafficAlert <- struct{}{}
-			comms <- resp
+			o.Websocket.Intercomm <- exchange.WebsocketResponse{Raw: resp}
 		}
 	}
 
@@ -132,9 +128,9 @@ func (o *OKCoin) WsHandleData() {
 		case <-o.Websocket.ShutdownC:
 			return
 
-		case resp := <-comms:
+		case resp := <-o.Websocket.Intercomm:
 			var init []WsResponse
-			err := common.JSONDecode(resp, &init)
+			err := common.JSONDecode(resp.Raw, &init)
 			if err != nil {
 				log.Fatal(err)
 			}
@@ -255,9 +251,6 @@ func (o *OKCoin) WsHandleData() {
 
 					deals = append(deals, newDeal)
 				}
-
-			default:
-				log.Fatal("EDGE CASE:", string(resp))
 			}
 		}
 	}

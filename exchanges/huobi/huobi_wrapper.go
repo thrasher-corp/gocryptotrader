@@ -30,10 +30,6 @@ func (h *HUOBI) Run() {
 		log.Printf("%s %d currencies enabled: %s.\n", h.GetName(), len(h.EnabledPairs), h.EnabledPairs)
 	}
 
-	// if h.Websocket.IsEnabled() {
-	// 	go h.WebsocketClient()
-	// }
-
 	exchangeProducts, err := h.GetSymbols()
 	if err != nil {
 		log.Printf("%s Failed to get available symbols.\n", h.GetName())

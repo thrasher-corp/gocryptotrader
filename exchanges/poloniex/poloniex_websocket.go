@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
-	"sync"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -24,8 +23,6 @@ const (
 	ws24HourExchangeVolumeID = 1003
 	wsHeartbeat              = 1010
 )
-
-var comms chan []byte
 
 // WsConnect initiates a websocket connection
 func (p *Poloniex) WsConnect() error {
@@ -49,8 +46,6 @@ func (p *Poloniex) WsConnect() error {
 	if err != nil {
 		return err
 	}
-
-	comms = make(chan []byte, 1)
 
 	go p.WsReadData()
 	go p.WsHandleData()
@@ -115,7 +110,7 @@ func (p *Poloniex) WsReadData() {
 			}
 
 			p.Websocket.TrafficAlert <- struct{}{}
-			comms <- resp
+			p.Websocket.Intercomm <- exchange.WebsocketResponse{Raw: resp}
 		}
 	}
 }
@@ -130,9 +125,9 @@ func (p *Poloniex) WsHandleData() {
 		case <-p.Websocket.ShutdownC:
 			return
 
-		case resp := <-comms:
+		case resp := <-p.Websocket.Intercomm:
 			var check []interface{}
-			err := common.JSONDecode(resp, &check)
+			err := common.JSONDecode(resp.Raw, &check)
 			if err != nil {
 				log.Fatal("poloniex_websocket.go - ", err)
 			}
@@ -264,21 +259,13 @@ func (p *Poloniex) WsHandleData() {
 								Amount: trade.Volume,
 								Price:  trade.Price,
 							}
-
-						default:
-							log.Fatal("poloniex.go error - type not recognised", string(resp))
 						}
 					}
 				}
-			default:
-				log.Fatal("poloniex.go error - edge case", string(resp))
 			}
 		}
 	}
 }
-
-var orderbookCache []orderbook.Base
-var obMtx sync.Mutex
 
 // WsProcessOrderbookSnapshot processes a new orderbook snapshot into a local
 // of orderbooks
@@ -329,16 +316,14 @@ func (p *Poloniex) WsProcessOrderbookSnapshot(ob []interface{}, symbol string) e
 	newOrderbook.LastUpdated = time.Now()
 	newOrderbook.Pair = pair.NewCurrencyPairFromString(symbol)
 
-	obMtx.Lock()
-	orderbookCache = append(orderbookCache, newOrderbook)
-	obMtx.Unlock()
-
-	return nil
+	return p.Websocket.Orderbook.LoadSnapshot(newOrderbook, p.GetName())
 }
 
 // WsProcessOrderbookUpdate processses new orderbook updates
 func (p *Poloniex) WsProcessOrderbookUpdate(target []interface{}, symbol string) error {
 	sideCheck := target[1].(float64)
+
+	cP := pair.NewCurrencyPairFromString(symbol)
 
 	price, err := strconv.ParseFloat(target[2].(string), 64)
 	if err != nil {
@@ -350,49 +335,21 @@ func (p *Poloniex) WsProcessOrderbookUpdate(target []interface{}, symbol string)
 		return err
 	}
 
-	obMtx.Lock()
-	defer obMtx.Unlock()
-
-	for x := range orderbookCache {
-		if orderbookCache[x].CurrencyPair == symbol {
-			if sideCheck == 0 {
-				for y := range orderbookCache[x].Asks {
-					if orderbookCache[x].Asks[y].Price == price {
-						if volume == 0 {
-							orderbookCache[x].Asks = append(orderbookCache[x].Asks[:y],
-								orderbookCache[x].Asks[y+1:]...)
-							return nil
-						}
-						orderbookCache[x].Asks[y].Amount = volume
-					}
-				}
-				if volume == 0 {
-					return nil
-				}
-				orderbookCache[x].Asks = append(orderbookCache[x].Asks,
-					orderbook.Item{Price: price, Amount: volume})
-				return nil
-			}
-
-			for y := range orderbookCache[x].Bids {
-				if orderbookCache[x].Bids[y].Price == price {
-					if volume == 0 {
-						orderbookCache[x].Bids = append(orderbookCache[x].Bids[:y],
-							orderbookCache[x].Bids[y+1:]...)
-						return nil
-					}
-					orderbookCache[x].Bids[y].Amount = volume
-				}
-			}
-			if volume == 0 {
-				return nil
-			}
-			orderbookCache[x].Bids = append(orderbookCache[x].Bids,
-				orderbook.Item{Price: price, Amount: volume})
-			return nil
-		}
+	if sideCheck == 0 {
+		return p.Websocket.Orderbook.Update(nil,
+			[]orderbook.Item{orderbook.Item{Price: price, Amount: volume}},
+			cP,
+			time.Now(),
+			p.GetName(),
+			"SPOT")
 	}
-	return errors.New("poloniex.go error - currency pair not found")
+
+	return p.Websocket.Orderbook.Update([]orderbook.Item{orderbook.Item{Price: price, Amount: volume}},
+		nil,
+		cP,
+		time.Now(),
+		p.GetName(),
+		"SPOT")
 }
 
 // WsCommand defines the request params after a websocket connection has been

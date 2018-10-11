@@ -20,8 +20,6 @@ const (
 	okexDefaultWebsocketURL = "wss://real.okex.com:10440/websocket/okexapi"
 )
 
-var comms chan []byte
-
 func (o *OKEX) writeToWebsocket(message string) error {
 	o.mu.Lock()
 	defer o.mu.Unlock()
@@ -55,7 +53,6 @@ func (o *OKEX) WsConnect() error {
 			err)
 	}
 
-	comms = make(chan []byte)
 	go o.WsHandleData()
 	go o.WsReadData()
 	go o.wsPingHandler()
@@ -141,7 +138,7 @@ func (o *OKEX) WsReadData() {
 				return
 			}
 			o.Websocket.TrafficAlert <- struct{}{}
-			comms <- resp
+			o.Websocket.Intercomm <- exchange.WebsocketResponse{Raw: resp}
 		}
 	}
 }
@@ -177,12 +174,12 @@ func (o *OKEX) WsHandleData() {
 		case <-o.Websocket.ShutdownC:
 			return
 
-		case resp := <-comms:
+		case resp := <-o.Websocket.Intercomm:
 			multiStreamDataArr := []MultiStreamData{}
 
-			err := common.JSONDecode(resp, &multiStreamDataArr)
+			err := common.JSONDecode(resp.Raw, &multiStreamDataArr)
 			if err != nil {
-				if strings.Contains(string(resp), "pong") {
+				if strings.Contains(string(resp.Raw), "pong") {
 					continue
 				} else {
 					log.Fatal("okex.go error -", err)
@@ -191,14 +188,14 @@ func (o *OKEX) WsHandleData() {
 
 			for _, multiStreamData := range multiStreamDataArr {
 				var errResponse ErrorResponse
-				if common.StringContains(string(resp), "error_msg") {
-					err = common.JSONDecode(resp, &errResponse)
+				if common.StringContains(string(resp.Raw), "error_msg") {
+					err = common.JSONDecode(resp.Raw, &errResponse)
 					if err != nil {
 						log.Fatal(err)
 					}
 					o.Websocket.DataHandler <- fmt.Errorf("okex.go error - %s resp: %s ",
 						errResponse.ErrorMsg,
-						string(resp))
+						string(resp.Raw))
 					continue
 				}
 
