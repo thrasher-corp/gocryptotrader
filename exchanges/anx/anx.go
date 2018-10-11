@@ -408,9 +408,9 @@ func (a *ANX) GetFee(feeBuilder exchange.FeeBuilder) (float64, error) {
 	case exchange.CryptocurrencyTradeFee:
 		fee = a.getTradingFee(feeBuilder.PurchasePrice, feeBuilder.Amount, feeBuilder.IsTaker, feeBuilder.IsMaker)
 	case exchange.CryptocurrencyWithdrawalFee:
-		fee = getCryptocurrencyWithdrawalFee(feeBuilder.CurrencyItem)
+		fee = getCryptocurrencyWithdrawalFee(feeBuilder.FirstCurrency)
 	case exchange.InternationalBankWithdrawalFee:
-		fee = getInternationalBankWithdrawalFee(feeBuilder.FirstCurrency, feeBuilder.Amount)
+		fee = getInternationalBankWithdrawalFee(feeBuilder.CurrencyItem, feeBuilder.Amount)
 	}
 	if fee < 0 {
 		fee = 0

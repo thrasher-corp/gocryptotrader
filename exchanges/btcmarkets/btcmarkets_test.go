@@ -41,7 +41,7 @@ func TestSetup(t *testing.T) {
 
 func TestGetMarkets(t *testing.T) {
 	t.Parallel()
-	_, err := bm.GetMarkets()
+	_, err := b.GetMarkets()
 	if err != nil {
 		t.Error("Test failed - GetMarkets() error", err)
 	}
