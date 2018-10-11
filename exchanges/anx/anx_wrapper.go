@@ -251,8 +251,8 @@ func (a *ANX) GetWebsocket() (*exchange.Websocket, error) {
 }
 
 // GetFeeByType returns an estimate of fee based on type of transaction
-func (a *ANX) GetFeeByType(feeType string, currencyPair string, purchasePrice float64, amount float64, isTaker bool, isMaker bool) (float64, error) {
-	resp, err := a.GetFee(feeType, currencyPair, purchasePrice, amount, isTaker, isMaker)
+func (a *ANX) GetFeeByType(feeBuilder exchange.FeeBuilder) (float64, error) {
+	resp, err := a.GetFee(feeBuilder)
 	if err != nil {
 		return resp, err
 	}

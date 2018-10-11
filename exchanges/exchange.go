@@ -39,6 +39,19 @@ const (
 	CryptocurrencyWithdrawalFee    = "cryptocurrencyWithdrawalFee"
 )
 
+// FeeBuilder is the type which holds all parameters required to calculate a fee for an exchange
+type FeeBuilder struct {
+	FirstCurrency  string
+	SecondCurrency string
+	Delimiter      string
+	FeeType        string
+	IsMaker        bool
+	IsTaker        bool
+	PurchasePrice  float64
+	Amount         float64
+	CurrencyItem   string
+}
+
 // AccountInfo is a Generic type to hold each exchange's holdings in
 // all enabled currencies
 type AccountInfo struct {

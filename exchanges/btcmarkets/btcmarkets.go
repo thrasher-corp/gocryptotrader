@@ -10,6 +10,7 @@ import (
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
+	"github.com/thrasher-/gocryptotrader/currency/symbol"
 	"github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/request"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
@@ -19,6 +20,7 @@ const (
 	btcMarketsAPIURL            = "https://api.btcmarkets.net"
 	btcMarketsAPIVersion        = "0"
 	btcMarketsAccountBalance    = "/account/balance"
+	btcMarketsTradingFee        = "/account/%s/%s/tradingfee"
 	btcMarketsOrderCreate       = "/order/create"
 	btcMarketsOrderCancel       = "/order/cancel"
 	btcMarketsOrderHistory      = "/order/history"
@@ -108,11 +110,6 @@ func (b *BTCMarkets) Setup(exch config.ExchangeConfig) {
 			log.Fatal(err)
 		}
 	}
-}
-
-// GetFee returns the BTCMarkets fee on transactions
-func (b *BTCMarkets) GetFee() float64 {
-	return b.Fee
 }
 
 // GetMarkets returns the BTCMarkets instruments
@@ -347,6 +344,17 @@ func (b *BTCMarkets) GetAccountBalance() ([]AccountBalance, error) {
 	return balance, nil
 }
 
+// GetTradingFee returns the account's trading fee for a currency pair
+func (b *BTCMarkets) GetTradingFee(firstPair, secondPair string) (float64, error) {
+	var fee float64
+	path := fmt.Sprintf(btcMarketsTradingFee, firstPair, secondPair)
+	err := b.SendAuthenticatedRequest("GET", path, nil, &fee)
+	if err != nil {
+		return 0, err
+	}
+	return fee, nil
+}
+
 // WithdrawCrypto withdraws cryptocurrency into a designated address
 func (b *BTCMarkets) WithdrawCrypto(amount float64, currency, address string) (string, error) {
 	newAmount := int64(amount * float64(common.SatoshisPerBTC))
@@ -441,4 +449,43 @@ func (b *BTCMarkets) SendAuthenticatedRequest(reqType, path string, data interfa
 	headers["signature"] = common.Base64Encode(hmac)
 
 	return b.SendPayload(reqType, b.APIUrl+path, headers, bytes.NewBuffer(payload), result, true, b.Verbose)
+}
+
+// GetFee returns an estimate of fee based on type of transaction
+func (b *BTCMarkets) GetFee(feeBuilder exchange.FeeBuilder) (float64, error) {
+	var fee float64
+
+	switch feeBuilder.FeeType {
+	case exchange.CryptocurrencyTradeFee:
+		tradingFee, err := b.GetTradingFee(feeBuilder.FirstCurrency, feeBuilder.SecondCurrency)
+		if err != nil {
+			return 0, err
+		}
+		fee = b.calculateTradingFee(tradingFee, feeBuilder.PurchasePrice, feeBuilder.Amount)
+	case exchange.CryptocurrencyWithdrawalFee:
+		fee = getCryptocurrencyWithdrawalFee(feeBuilder.FirstCurrency)
+	case exchange.InternationalBankWithdrawalFee:
+		fee = getInternationalBankWithdrawalFee(feeBuilder.CurrencyItem, feeBuilder.Amount)
+	}
+	if fee < 0 {
+		fee = 0
+	}
+	return fee, nil
+}
+
+func (b *BTCMarkets) calculateTradingFee(tradingFee, purchasePrice, amount float64) float64 {
+	return tradingFee * amount * purchasePrice
+}
+
+func getCryptocurrencyWithdrawalFee(currency string) float64 {
+	return WithdrawalFees[currency]
+}
+
+func getInternationalBankWithdrawalFee(currency string, amount float64) float64 {
+	var fee float64
+
+	if currency == symbol.AUD {
+		fee = 0
+	}
+	return fee
 }

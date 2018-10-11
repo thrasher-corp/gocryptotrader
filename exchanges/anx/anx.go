@@ -401,16 +401,16 @@ func (a *ANX) SendAuthenticatedHTTPRequest(path string, params map[string]interf
 }
 
 // GetFee returns an estimate of fee based on type of transaction
-func (a *ANX) GetFee(feeType string, currency string, purchasePrice float64, amount float64, isTaker bool, isMaker bool) (float64, error) {
+func (a *ANX) GetFee(feeBuilder exchange.FeeBuilder) (float64, error) {
 	var fee float64
 
-	switch feeType {
+	switch feeBuilder.FeeType {
 	case exchange.CryptocurrencyTradeFee:
-		fee = a.getTradingFee(purchasePrice, amount, isTaker, isMaker)
+		fee = a.getTradingFee(feeBuilder.PurchasePrice, feeBuilder.Amount, feeBuilder.IsTaker, feeBuilder.IsMaker)
 	case exchange.CryptocurrencyWithdrawalFee:
-		fee = getCryptocurrencyWithdrawalFee(currency)
+		fee = getCryptocurrencyWithdrawalFee(feeBuilder.CurrencyItem)
 	case exchange.InternationalBankWithdrawalFee:
-		fee = getInternationalBankWithdrawalFee(currency, amount)
+		fee = getInternationalBankWithdrawalFee(feeBuilder.FirstCurrency, feeBuilder.Amount)
 	}
 	if fee < 0 {
 		fee = 0
