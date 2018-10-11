@@ -29,10 +29,6 @@ func (c *COINUT) Run() {
 		log.Printf("%s %d currencies enabled: %s.\n", c.GetName(), len(c.EnabledPairs), c.EnabledPairs)
 	}
 
-	// if c.Websocket.IsEnabled() {
-	// 	go c.WebsocketClient()
-	// }
-
 	exchangeProducts, err := c.GetInstruments()
 	if err != nil {
 		log.Printf("%s Failed to get available products.\n", c.GetName())

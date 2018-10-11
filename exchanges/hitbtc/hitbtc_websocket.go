@@ -6,7 +6,6 @@ import (
 	"log"
 	"net/http"
 	"net/url"
-	"sync"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -20,8 +19,6 @@ const (
 	hitbtcWebsocketAddress = "wss://api.hitbtc.com/api/2/ws"
 	rpcVersion             = "2.0"
 )
-
-var channels map[string]chan []byte
 
 // WsConnect starts a new connection with the websocket API
 func (h *HitBTC) WsConnect() error {
@@ -45,9 +42,6 @@ func (h *HitBTC) WsConnect() error {
 	if err != nil {
 		return err
 	}
-
-	channels = make(map[string]chan []byte, 1)
-	channels["readData"] = make(chan []byte, 1)
 
 	go h.WsReadData()
 	go h.WsHandleData()
@@ -114,6 +108,7 @@ func (h *HitBTC) WsSubscribe() error {
 // WsReadData reads from the websocket connection
 func (h *HitBTC) WsReadData() {
 	h.Websocket.Wg.Add(1)
+
 	defer func() {
 		err := h.WebsocketConn.Close()
 		if err != nil {
@@ -136,7 +131,7 @@ func (h *HitBTC) WsReadData() {
 			}
 
 			h.Websocket.TrafficAlert <- struct{}{}
-			channels["readData"] <- resp
+			h.Websocket.Intercomm <- exchange.WebsocketResponse{Raw: resp}
 		}
 	}
 }
@@ -150,9 +145,9 @@ func (h *HitBTC) WsHandleData() {
 		select {
 		case <-h.Websocket.ShutdownC:
 
-		case resp := <-channels["readData"]:
+		case resp := <-h.Websocket.Intercomm:
 			var init capture
-			err := common.JSONDecode(resp, &init)
+			err := common.JSONDecode(resp.Raw, &init)
 			if err != nil {
 				log.Fatal(err)
 			}
@@ -171,7 +166,7 @@ func (h *HitBTC) WsHandleData() {
 			switch init.Method {
 			case "ticker":
 				var ticker WsTicker
-				err := common.JSONDecode(resp, &ticker)
+				err := common.JSONDecode(resp.Raw, &ticker)
 				if err != nil {
 					log.Fatal(err)
 				}
@@ -194,7 +189,7 @@ func (h *HitBTC) WsHandleData() {
 
 			case "snapshotOrderbook":
 				var obSnapshot WsOrderbook
-				err := common.JSONDecode(resp, &obSnapshot)
+				err := common.JSONDecode(resp.Raw, &obSnapshot)
 				if err != nil {
 					log.Fatal(err)
 				}
@@ -204,15 +199,9 @@ func (h *HitBTC) WsHandleData() {
 					log.Fatal(err)
 				}
 
-				h.Websocket.DataHandler <- exchange.WebsocketOrderbookUpdate{
-					Exchange: h.GetName(),
-					Asset:    "SPOT",
-					Pair:     pair.NewCurrencyPairFromString(obSnapshot.Params.Symbol),
-				}
-
 			case "updateOrderbook":
 				var obUpdate WsOrderbook
-				err := common.JSONDecode(resp, &obUpdate)
+				err := common.JSONDecode(resp.Raw, &obUpdate)
 				if err != nil {
 					log.Fatal(err)
 				}
@@ -221,27 +210,21 @@ func (h *HitBTC) WsHandleData() {
 
 			case "snapshotTrades":
 				var tradeSnapshot WsTrade
-				err := common.JSONDecode(resp, &tradeSnapshot)
+				err := common.JSONDecode(resp.Raw, &tradeSnapshot)
 				if err != nil {
 					log.Fatal(err)
 				}
 
 			case "updateTrades":
 				var tradeUpdates WsTrade
-				err := common.JSONDecode(resp, &tradeUpdates)
+				err := common.JSONDecode(resp.Raw, &tradeUpdates)
 				if err != nil {
 					log.Fatal(err)
 				}
-
-			default:
-				log.Fatal("edge case: ", string(resp))
 			}
 		}
 	}
 }
-
-var orderbookCache []orderbook.Base
-var obMtx sync.Mutex
 
 // WsProcessOrderbookSnapshot processes a full orderbook snapshot to a local cache
 func (h *HitBTC) WsProcessOrderbookSnapshot(ob WsOrderbook) error {
@@ -259,117 +242,58 @@ func (h *HitBTC) WsProcessOrderbookSnapshot(ob WsOrderbook) error {
 		asks = append(asks, orderbook.Item{Amount: ask.Size, Price: ask.Price})
 	}
 
+	p := pair.NewCurrencyPairFromString(ob.Params.Symbol)
+
 	var newOrderbook orderbook.Base
 	newOrderbook.Asks = asks
 	newOrderbook.Bids = bids
 	newOrderbook.AssetType = "SPOT"
 	newOrderbook.CurrencyPair = ob.Params.Symbol
 	newOrderbook.LastUpdated = time.Now()
-	newOrderbook.Pair = pair.NewCurrencyPairFromString(ob.Params.Symbol)
+	newOrderbook.Pair = p
 
-	obMtx.Lock()
-	orderbookCache = append(orderbookCache, newOrderbook)
-	obMtx.Unlock()
+	err := h.Websocket.Orderbook.LoadSnapshot(newOrderbook, h.GetName())
+	if err != nil {
+		return err
+	}
+
+	h.Websocket.DataHandler <- exchange.WebsocketOrderbookUpdate{
+		Exchange: h.GetName(),
+		Asset:    "SPOT",
+		Pair:     p,
+	}
 
 	return nil
 }
 
 // WsProcessOrderbookUpdate updates a local cache
-func (h *HitBTC) WsProcessOrderbookUpdate(ob WsOrderbook) {
-	go func() {
-		if len(ob.Params.Bid) == 0 && len(ob.Params.Ask) == 0 {
-			return
-		}
-
-		if len(ob.Params.Bid) > 0 {
-			for _, bid := range ob.Params.Bid {
-				err := h.WsUpdateBid(bid.Price, bid.Size, ob.Params.Symbol)
-				if err != nil {
-					log.Fatal(err)
-				}
-			}
-		}
-
-		if len(ob.Params.Bid) > 0 {
-			for _, ask := range ob.Params.Ask {
-				err := h.WsUpdateAsk(ask.Price, ask.Size, ob.Params.Symbol)
-				if err != nil {
-					log.Fatal(err)
-				}
-			}
-		}
-
-		h.Websocket.DataHandler <- exchange.WebsocketOrderbookUpdate{
-			Exchange: h.GetName(),
-			Asset:    "SPOT",
-			Pair:     pair.NewCurrencyPairFromString(ob.Params.Symbol),
-		}
-	}()
-}
-
-// WsUpdateBid updates bid side on orderbook cache
-func (h *HitBTC) WsUpdateBid(target, volume float64, symbol string) error {
-	obMtx.Lock()
-	defer obMtx.Unlock()
-
-	for x := range orderbookCache {
-		if orderbookCache[x].CurrencyPair == symbol {
-			for y := range orderbookCache[x].Bids {
-				if orderbookCache[x].Bids[y].Price == target {
-					if volume == 0 {
-						orderbookCache[x].Bids = append(orderbookCache[x].Bids[:y],
-							orderbookCache[x].Bids[y+1:]...)
-						return nil
-					}
-					orderbookCache[x].Bids[y].Amount = volume
-					return nil
-				}
-			}
-
-			if volume == 0 {
-				return nil
-			}
-
-			orderbookCache[x].Bids = append(orderbookCache[x].Bids,
-				orderbook.Item{
-					Price:  target,
-					Amount: volume})
-			return nil
-		}
+func (h *HitBTC) WsProcessOrderbookUpdate(ob WsOrderbook) error {
+	if len(ob.Params.Bid) == 0 && len(ob.Params.Ask) == 0 {
+		return errors.New("hitbtc_websocket.go error - no data")
 	}
-	return errors.New("hitbtc.go error - symbol not found")
-}
 
-// WsUpdateAsk updates ask side on orderbook cache
-func (h *HitBTC) WsUpdateAsk(target, volume float64, symbol string) error {
-	obMtx.Lock()
-	defer obMtx.Unlock()
-
-	for x := range orderbookCache {
-		if orderbookCache[x].CurrencyPair == symbol {
-			for y := range orderbookCache[x].Asks {
-				if orderbookCache[x].Asks[y].Price == target {
-					if volume == 0 {
-						orderbookCache[x].Asks = append(orderbookCache[x].Asks[:y],
-							orderbookCache[x].Asks[y+1:]...)
-						return nil
-					}
-					orderbookCache[x].Asks[y].Amount = volume
-					return nil
-				}
-			}
-			if volume == 0 {
-				return nil
-			}
-
-			orderbookCache[x].Asks = append(orderbookCache[x].Asks,
-				orderbook.Item{
-					Price:  target,
-					Amount: volume})
-			return nil
-		}
+	var bids, asks []orderbook.Item
+	for _, bid := range ob.Params.Bid {
+		bids = append(bids, orderbook.Item{Price: bid.Price, Amount: bid.Size})
 	}
-	return errors.New("hitbtc.go error - symbol not found")
+
+	for _, ask := range ob.Params.Ask {
+		asks = append(asks, orderbook.Item{Price: ask.Price, Amount: ask.Size})
+	}
+
+	p := pair.NewCurrencyPairFromString(ob.Params.Symbol)
+
+	err := h.Websocket.Orderbook.Update(bids, asks, p, time.Now(), h.GetName(), "SPOT")
+	if err != nil {
+		return err
+	}
+
+	h.Websocket.DataHandler <- exchange.WebsocketOrderbookUpdate{
+		Exchange: h.GetName(),
+		Asset:    "SPOT",
+		Pair:     p,
+	}
+	return nil
 }
 
 type capture struct {
