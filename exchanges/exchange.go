@@ -251,7 +251,8 @@ func (e *Base) SetAssetTypes() error {
 		exch.AssetTypes = common.JoinStrings(e.AssetTypes, ",")
 		update = true
 	} else {
-		e.AssetTypes = common.SplitStrings(exch.AssetTypes, ",")
+		exch.AssetTypes = common.JoinStrings(e.AssetTypes, ",")
+		update = true
 	}
 
 	if update {

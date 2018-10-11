@@ -101,18 +101,19 @@ func (o *OKCoin) SetDefaults() {
 	o.Verbose = false
 	o.Websocket = false
 	o.RESTPollingDelay = 10
-	o.FuturesValues = []string{"this_week", "next_week", "quarter"}
 	o.AssetTypes = []string{ticker.Spot}
 	o.SupportsAutoPairUpdating = false
 	o.SupportsRESTTickerBatching = false
 
 	if okcoinDefaultsSet {
-		o.AssetTypes = append(o.AssetTypes, o.FuturesValues...)
 		o.APIUrlDefault = okcoinAPIURL
 		o.APIUrl = o.APIUrlDefault
 		o.Name = "OKCOIN International"
 		o.WebsocketURL = okcoinWebsocketURL
-		o.setCurrencyPairFormats()
+		o.RequestCurrencyPairFormat.Delimiter = "_"
+		o.RequestCurrencyPairFormat.Uppercase = false
+		o.ConfigCurrencyPairFormat.Delimiter = "_"
+		o.ConfigCurrencyPairFormat.Uppercase = true
 		o.Requester = request.New(o.Name,
 			request.NewRateLimit(time.Second, okcoinAuthRate),
 			request.NewRateLimit(time.Second, okcoinUnauthRate),

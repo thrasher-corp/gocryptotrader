@@ -29,6 +29,34 @@ func (o *OKCoin) Run() {
 		log.Printf("%s %d currencies enabled: %s.\n", o.GetName(), len(o.EnabledPairs), o.EnabledPairs)
 	}
 
+	if o.APIUrl == okcoinAPIURL {
+		// OKCoin International
+		forceUpgrade := false
+		if !common.StringDataContains(o.EnabledPairs, "_") || !common.StringDataContains(o.AvailablePairs, "_") {
+			forceUpgrade = true
+		}
+
+		var currencies []string
+		for x := range o.AvailablePairs {
+			currencies = append(currencies, o.AvailablePairs[x][0:3]+"_"+o.AvailablePairs[x][3:])
+		}
+
+		if forceUpgrade {
+			enabledPairs := []string{"btc_usd"}
+			log.Println("WARNING: Available pairs for OKCoin International reset due to config upgrade, please enable the pairs you would like again.")
+
+			err := o.UpdateCurrencies(enabledPairs, true, true)
+			if err != nil {
+				log.Printf("%s failed to update currencies. Err: %s", o.Name, err)
+			}
+
+			err = o.UpdateCurrencies(currencies, false, true)
+			if err != nil {
+				log.Printf("%s failed to update currencies. Err: %s", o.Name, err)
+			}
+		}
+	}
+
 	if o.Websocket {
 		go o.WebsocketClient()
 	}

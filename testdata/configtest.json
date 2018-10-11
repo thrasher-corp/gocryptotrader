@@ -266,7 +266,7 @@
    "baseCurrencies": "JPY",
    "assetTypes": "SPOT",
    "supportsAutoPairUpdates": false,
-   "pairsLastUpdated": 1529037622,
+   "pairsLastUpdated": 1539221764,
    "configCurrencyPairFormat": {
     "uppercase": true,
     "delimiter": "_"
@@ -847,7 +847,7 @@
    "baseCurrencies": "USD,SGD,EUR",
    "assetTypes": "SPOT",
    "supportsAutoPairUpdates": false,
-   "pairsLastUpdated": 1529037622,
+   "pairsLastUpdated": 1539221764,
    "configCurrencyPairFormat": {
     "uppercase": true
    },
@@ -919,7 +919,7 @@
    "apiSecret": "Secret",
    "apiUrl": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
    "apiUrlSecondary": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
-   "availablePairs": "AUDUSD,BTCCAD,EURUSD,BTCAUD,USDJPY,XRPBTC,LTCBTC,USDCAD,USDNGN,ETHBTC,GBPUSD,NZDUSD,USDCHF,BTCUSD,USDSGD,BTCJPY,USDHKD,BCHBTC,BACETH,BTCNZD,BTCGBP,BTCSGD,BTCCHF,BTCNGN",
+   "availablePairs": "BTCCHF,NZDUSD,USDCHF,BTCGBP,BTCNGN,USDHKD,BTCEUR,BTCJPY,GBPUSD,BTCNZD,BTCUSD,USDCAD,USDSGD,LTCBTC,USDJPY,BTCAUD,EURUSD,USDNGN,BACETH,BTCCAD,BTCSGD,ETHBTC,BCHBTC,AUDUSD,XRPBTC",
    "enabledPairs": "BTCUSD,BTCAUD",
    "baseCurrencies": "USD,EUR,HKD,AUD,GBP,NZD,JPY,SGD,NGN,CHF,CAD",
    "assetTypes": "SPOT",
@@ -1001,7 +1001,7 @@
    "baseCurrencies": "ARS,AUD,BRL,CAD,CHF,CZK,DKK,EUR,GBP,HKD,ILS,INR,MXN,NOK,NZD,PLN,RUB,SEK,SGD,THB,USD,ZAR",
    "assetTypes": "SPOT",
    "supportsAutoPairUpdates": false,
-   "pairsLastUpdated": 1529037622,
+   "pairsLastUpdated": 1539221764,
    "configCurrencyPairFormat": {
     "uppercase": true
    },
@@ -1039,7 +1039,7 @@
    "baseCurrencies": "CNY",
    "assetTypes": "SPOT",
    "supportsAutoPairUpdates": false,
-   "pairsLastUpdated": 1529037622,
+   "pairsLastUpdated": 1539221764,
    "configCurrencyPairFormat": {
     "uppercase": true
    },
@@ -1073,14 +1073,15 @@
    "apiSecret": "Secret",
    "apiUrl": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
    "apiUrlSecondary": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
-   "availablePairs": "BTCUSD,LTCUSD",
-   "enabledPairs": "BTCUSD,LTCUSD",
+   "availablePairs": "BTC_USD,LTC_USD,ETH_USD,ETC_USD,BCH_USD,USDT_USD,ADA_USD,TUSD_USD,XLM_USD,XRP_USD,ZEC_USD,ZRX_USD,LTC_BTC,ETH_BTC,ETC_BTC,BCH_BTC,USDT_BTC,ADA_BTC,TUSD_BTC,XLM_BTC,XRP_BTC,ZEC_BTC,ZRX_BTC,LTC_ETH,ETC_ETH,BCH_ETH,USDT_ETH,ADA_ETH,TUSD_ETH,XLM_ETH,XRP_ETH,ZEC_ETH,ZRX_ETH",
+   "enabledPairs": "BTC_USD",
    "baseCurrencies": "USD",
-   "assetTypes": "SPOT,this_week,next_week,quarter",
+   "assetTypes": "SPOT",
    "supportsAutoPairUpdates": false,
-   "pairsLastUpdated": 1529037622,
+   "pairsLastUpdated": 1539221764,
    "configCurrencyPairFormat": {
-    "uppercase": true
+    "uppercase": true,
+    "delimiter": "_"
    },
    "requestCurrencyPairFormat": {
     "uppercase": false,
@@ -1112,12 +1113,12 @@
    "apiSecret": "Secret",
    "apiUrl": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
    "apiUrlSecondary": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
-   "availablePairs": "ltc_btc,eth_btc,etc_btc,bch_btc,btc_usdt,eth_usdt,ltc_usdt,etc_usdt,bch_usdt,etc_eth,bt1_btc,bt2_btc,btg_btc,qtum_btc,hsr_btc,neo_btc,gas_btc,qtum_usdt,hsr_usdt,neo_usdt,gas_usdt,btc_usd,ltc_usd,eth_usd,etc_usd,bch_usd",
-   "enabledPairs": "btc_usd,ltc_usd",
+   "availablePairs": "btc_usdt,eos_usdt,eth_usdt,bch_usdt,etc_usdt,eth_btc,etc_btc,xrp_usdt,bch_btc,trx_usdt,eos_btc,trx_btc,ltc_usdt,etc_eth,gto_usdt,gto_btc,ae_usdt,gto_eth,ont_usdt,dash_usdt,xrp_btc,btm_usdt,ltc_btc,eos_eth,hyc_usdt,zip_btc,hyc_eth,mith_usdt,dpy_usdt,qtum_usdt,ors_btc,mith_btc,xmr_usdt,zip_eth,mkr_btc,iost_usdt,zip_usdt,pst_usdt,mith_eth,hpb_btc,ae_btc,nas_usdt,cmt_usdt,true_usdt,hpb_usdt,ada_usdt,dash_btc,xlm_usdt,rct_eth,lba_usdt,neo_btc,egt_eth,hyc_btc,elf_usdt,int_usdt,qtum_btc,dadi_btc,xrp_eth,btm_btc,elf_btc,zil_usdt,hpb_eth,ors_eth,xmr_btc,lrc_usdt,lba_btc,iost_btc,bkx_btc,rfr_btc,of_usdt,bch_eth,neo_usdt,light_eth,vite_eth,mof_eth,ont_btc,light_usdt,let_usdt,ctxc_usdt,abl_eth,rnt_usdt,nas_btc,int_btc,trx_eth,bcn_btc,iota_usdt,zec_usdt,tnb_eth,show_usdt,bkx_usdt,xlm_btc,cmt_btc,zco_btc,zco_eth,ins_btc,bcd_usdt,itc_btc,vite_btc,cit_eth,kan_usdt,mda_btc,rfr_usdt,btm_eth,kcash_usdt,mdt_usdt,iota_btc,aac_usdt,wtc_usdt,storj_btc,mof_btc,ugc_usdt,aac_btc,chat_usdt,zil_btc,icx_usdt,zrx_usdt,mda_usdt,theta_usdt,act_usdt,mvp_eth,omg_usdt,ada_btc,vib_btc,lrc_btc,mco_btc,snt_usdt,xlm_eth,of_btc,soc_usdt,hc_usdt,tct_usdt,cvc_usdt,abl_btc,ugc_btc,ltc_eth,cvc_btc,iost_eth,kan_eth,true_btc,trio_eth,rfr_eth,swftc_eth,itc_usdt,lba_eth,xuc_usdt,ctxc_btc,dadi_eth,can_btc,zec_btc,hmc_btc,abt_usdt,elf_eth,mana_usdt,zrx_btc,stc_usdt,xem_usdt,knc_usdt,snt_btc,ae_eth,evx_btc,gnt_usdt,spf_btc,icx_btc,ace_btc,ont_eth,can_usdt,chat_btc,ssc_btc,gnx_btc,vib_usdt,storj_usdt,pra_usdt,ace_usdt,int_eth,insur_usdt,enj_btc,mdt_btc,snc_btc,swftc_usdt,dpy_btc,gnt_btc,xem_btc,mof_usdt,itc_eth,wtc_btc,ctxc_eth,let_btc,mana_btc,ins_usdt,of_eth,abt_eth,tnb_usdt,bcn_usdt,omg_btc,nas_eth,xas_usdt,knc_btc,soc_btc,topc_usdt,dat_usdt,cit_btc,mkr_eth,bcd_btc,hc_btc,hmc_usdt,bkx_eth,gas_usdt,act_btc,ugc_eth,aac_eth,ost_btc,cvt_usdt,tnb_btc,mdt_eth,dat_btc,ssc_usdt,true_eth,insur_btc,btg_btc,cvc_eth,qtum_eth,mkr_usdt,fair_btc,qun_btc,ark_btc,kan_btc,mco_usdt,swftc_btc,gnx_eth,pay_usdt,yee_usdt,qun_eth,ppt_btc,win_usdt,zen_usdt,gas_btc,light_btc,btg_usdt,pay_btc,nuls_btc,read_btc,key_usdt,abt_btc,ipc_usdt,theta_btc,key_btc,stc_btc,rnt_btc,nuls_usdt,wrc_usdt,kcash_btc,lrc_eth,knc_eth,sc_usdt,ppt_usdt,fair_usdt,qun_usdt,enj_eth,stc_eth,auto_usdt,hc_eth,dash_eth,insur_eth,iota_eth,rct_usdt,1st_usdt,zil_eth,sc_btc,dat_eth,ark_usdt,fair_eth,yoyo_btc,auto_btc,vib_eth,ardr_btc,evx_usdt,fun_btc,mana_eth,zrx_eth,xmr_eth,soc_eth,let_eth,mtl_btc,trio_usdt,can_eth,snt_eth,poe_btc,nano_btc,omg_eth,win_eth,1st_btc,wtc_eth,icx_eth,enj_usdt,neo_eth,zec_eth,pra_btc,lsk_btc,gnt_eth,nano_usdt,hot_usdt,gnx_usdt,hot_btc,ors_usdt,fun_usdt,storj_eth,show_btc,dpy_eth,bcx_btc,mvp_usdt,egt_usdt,salt_usdt,ssc_eth,xas_btc,aidoc_usdt,dgb_usdt,ost_usdt,hot_eth,hmc_eth,poe_usdt,uct_eth,utk_usdt,sub_btc,sc_eth,topc_btc,sngls_btc,lsk_usdt,rct_btc,key_eth,r_btc,1st_eth,mvp_btc,gas_eth,mth_btc,icn_btc,ren_btc,dent_usdt,cmt_eth,ins_eth,lev_usdt,eng_usdt,pst_btc,lend_usdt,pra_eth,ada_eth,ark_eth,kcash_eth,pay_eth,uct_usdt,sbtc_btc,cvt_eth,link_usdt,trio_btc,xem_eth,oax_btc,mtl_usdt,dcr_usdt,aidoc_btc,cvt_btc,zen_btc,mda_eth,r_usdt,ast_usdt,bnt_btc,tct_btc,auto_eth,mag_usdt,rcn_btc,gsc_usdt,act_eth,rcn_usdt,edo_btc,chat_eth,ipc_eth,dna_btc,ast_btc,xuc_btc,nuls_eth,dgb_btc,dnt_usdt,rnt_eth,bnt_usdt,lend_btc,link_btc,yee_btc,dcr_btc,mco_eth,mth_usdt,theta_eth,salt_btc,ppt_eth,mot_usdt,poe_eth,ref_usdt,lev_eth,ren_usdt,win_btc,lev_btc,bnt_eth,dent_btc,waves_btc,show_eth,yee_eth,sda_btc,fun_eth,tct_eth,rdn_usdt,cbt_btc,ren_eth,edo_usdt,eng_btc,sub_usdt,ref_eth,you_btc,lend_eth,egt_btc,ngc_btc,waves_usdt,spf_usdt,ipc_btc,oax_usdt,san_usdt,dna_usdt,dent_eth,uct_btc,mot_eth,ost_eth,mot_btc,icn_eth,link_eth,dgb_eth,cbt_usdt,hit_eth,rdn_btc,nxt_btc,r_eth,req_eth,xuc_eth,la_eth,snm_eth,ace_eth,yoyo_usdt,pst_eth,gsc_eth,ngc_usdt,sda_eth,yoyo_eth,amm_usdt,rdn_eth,vee_usdt,dadi_usdt,evx_eth,snc_usdt,dgd_btc,dgd_usdt,salt_eth,ubtc_usdt,sngls_eth,mtl_eth,topc_eth,cbt_eth,gsc_btc,dna_eth,xas_eth,you_eth,sub_eth,mag_btc,icn_usdt,zen_eth,lsk_eth,vee_eth,nano_eth,aidoc_eth,req_usdt,amm_btc,avt_btc,brd_eth,ngc_eth,eng_eth,spf_eth,mth_eth,avt_eth,waves_eth,viu_btc,dcr_eth,snc_eth,edo_eth,amm_eth,viu_eth,rcn_eth,ast_eth,hit_btc,atl_usdt,cag_btc,ukg_usdt,ssp_usdt,qvt_usdt,viu_usdt,ssp_btc,dgd_eth,cag_eth,mag_eth,avt_usdt,ssp_eth,cag_usdt,ukg_eth,brd_usdt,sngls_usdt,atl_eth",
+   "enabledPairs": "tct_eth",
    "baseCurrencies": "USD",
-   "assetTypes": "SPOT,this_week,next_week,quarter",
+   "assetTypes": "SPOT",
    "supportsAutoPairUpdates": false,
-   "pairsLastUpdated": 1522112372,
+   "pairsLastUpdated": 1539221764,
    "configCurrencyPairFormat": {
     "uppercase": false,
     "delimiter": "_"
@@ -1196,7 +1197,7 @@
    "baseCurrencies": "USD",
    "assetTypes": "SPOT",
    "supportsAutoPairUpdates": false,
-   "pairsLastUpdated": 1529037622,
+   "pairsLastUpdated": 1539221764,
    "configCurrencyPairFormat": {
     "uppercase": true,
     "delimiter": "_"

@@ -16,6 +16,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/config"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/request"
+	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 )
 
 const (
@@ -114,6 +115,7 @@ func (o *OKEX) SetDefaults() {
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 	o.APIUrlDefault = apiURL
 	o.APIUrl = o.APIUrlDefault
+	o.AssetTypes = []string{ticker.Spot}
 }
 
 // Setup method sets current configuration details if enabled
