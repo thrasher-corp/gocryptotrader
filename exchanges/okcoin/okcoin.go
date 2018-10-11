@@ -99,32 +99,6 @@ func (o *OKCoin) SetDefaults() {
 	o.AssetTypes = []string{ticker.Spot}
 	o.SupportsAutoPairUpdating = false
 	o.SupportsRESTTickerBatching = false
-
-	if okcoinDefaultsSet {
-		o.APIUrlDefault = okcoinAPIURL
-		o.APIUrl = o.APIUrlDefault
-		o.Name = "OKCOIN International"
-		o.WebsocketURL = okcoinWebsocketURL
-		o.RequestCurrencyPairFormat.Delimiter = "_"
-		o.RequestCurrencyPairFormat.Uppercase = false
-		o.ConfigCurrencyPairFormat.Delimiter = "_"
-		o.ConfigCurrencyPairFormat.Uppercase = true
-		o.Requester = request.New(o.Name,
-			request.NewRateLimit(time.Second, okcoinAuthRate),
-			request.NewRateLimit(time.Second, okcoinUnauthRate),
-			common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
-	} else {
-		o.APIUrlDefault = okcoinAPIURLChina
-		o.APIUrl = o.APIUrlDefault
-		o.Name = "OKCOIN China"
-		o.WebsocketURL = okcoinWebsocketURLChina
-		okcoinDefaultsSet = true
-		o.setCurrencyPairFormats()
-		o.Requester = request.New(o.Name,
-			request.NewRateLimit(time.Second, okcoinAuthRate),
-			request.NewRateLimit(time.Second, okcoinUnauthRate),
-			common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
-	}
 	o.WebsocketInit()
 }
 
