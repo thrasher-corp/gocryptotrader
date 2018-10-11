@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
-	"sync"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -20,9 +19,6 @@ import (
 const (
 	coinbaseproWebsocketURL = "wss://ws-feed.pro.coinbase.com"
 )
-
-var orderbookCache []orderbook.Base
-var obMtx sync.Mutex
 
 // WebsocketSubscriber subscribes to websocket channels with respect to enabled
 // currencies
@@ -70,7 +66,8 @@ func (c *CoinbasePro) WsConnect() error {
 	if c.Websocket.GetProxyAddress() != "" {
 		proxy, err := url.Parse(c.Websocket.GetProxyAddress())
 		if err != nil {
-			return err
+			return fmt.Errorf("coinbasepro_websocket.go error - proxy address %s",
+				err)
 		}
 
 		dialer.Proxy = http.ProxyURL(proxy)
@@ -80,7 +77,8 @@ func (c *CoinbasePro) WsConnect() error {
 	c.WebsocketConn, _, err = dialer.Dial(c.Websocket.GetWebsocketURL(),
 		http.Header{})
 	if err != nil {
-		return err
+		return fmt.Errorf("coinbasepro_websocket.go error - unable to connect to websocket %s",
+			err)
 	}
 
 	err = c.WebsocketSubscriber()
@@ -88,16 +86,16 @@ func (c *CoinbasePro) WsConnect() error {
 		return err
 	}
 
-	comms := make(chan []byte, 1)
-	go c.WsReadData(comms)
-	go c.WsHandleData(comms)
+	go c.WsReadData()
+	go c.WsHandleData()
 
 	return nil
 }
 
 // WsReadData reads data from the websocket connection
-func (c *CoinbasePro) WsReadData(comms chan []byte) {
+func (c *CoinbasePro) WsReadData() {
 	c.Websocket.Wg.Add(1)
+
 	defer func() {
 		err := c.WebsocketConn.Close()
 		if err != nil {
@@ -120,13 +118,13 @@ func (c *CoinbasePro) WsReadData(comms chan []byte) {
 			}
 
 			c.Websocket.TrafficAlert <- struct{}{}
-			comms <- resp
+			c.Websocket.Intercomm <- exchange.WebsocketResponse{Raw: resp}
 		}
 	}
 }
 
 // WsHandleData handles read data from websocket connection
-func (c *CoinbasePro) WsHandleData(comms chan []byte) {
+func (c *CoinbasePro) WsHandleData() {
 	c.Websocket.Wg.Add(1)
 	defer c.Websocket.Wg.Done()
 
@@ -135,7 +133,7 @@ func (c *CoinbasePro) WsHandleData(comms chan []byte) {
 		case <-c.Websocket.ShutdownC:
 			return
 
-		case resp := <-comms:
+		case resp := <-c.Websocket.Intercomm:
 			type MsgType struct {
 				Type      string `json:"type"`
 				Sequence  int64  `json:"sequence"`
@@ -143,7 +141,7 @@ func (c *CoinbasePro) WsHandleData(comms chan []byte) {
 			}
 
 			msgType := MsgType{}
-			err := common.JSONDecode(resp, &msgType)
+			err := common.JSONDecode(resp.Raw, &msgType)
 			if err != nil {
 				log.Fatal(err)
 			}
@@ -154,11 +152,11 @@ func (c *CoinbasePro) WsHandleData(comms chan []byte) {
 
 			switch msgType.Type {
 			case "error":
-				c.Websocket.DataHandler <- errors.New(string(resp))
+				c.Websocket.DataHandler <- errors.New(string(resp.Raw))
 
 			case "ticker":
 				ticker := WebsocketTicker{}
-				err := common.JSONDecode(resp, &ticker)
+				err := common.JSONDecode(resp.Raw, &ticker)
 				if err != nil {
 					log.Fatal(err)
 				}
@@ -176,7 +174,7 @@ func (c *CoinbasePro) WsHandleData(comms chan []byte) {
 
 			case "snapshot":
 				snapshot := WebsocketOrderbookSnapshot{}
-				err := common.JSONDecode(resp, &snapshot)
+				err := common.JSONDecode(resp.Raw, &snapshot)
 				if err != nil {
 					log.Fatal(err)
 				}
@@ -186,29 +184,20 @@ func (c *CoinbasePro) WsHandleData(comms chan []byte) {
 					log.Fatal(err)
 				}
 
-				c.Websocket.DataHandler <- exchange.WebsocketOrderbookUpdate{
-					Exchange: c.GetName(),
-					Asset:    "SPOT",
-					Pair:     pair.NewCurrencyPairFromString(snapshot.ProductID),
-				}
-
 			case "l2update":
 				update := WebsocketL2Update{}
-				err := common.JSONDecode(resp, &update)
+				err := common.JSONDecode(resp.Raw, &update)
 				if err != nil {
 					log.Fatal(err)
 				}
 
-				c.ProcessUpdate(update)
-
-				c.Websocket.DataHandler <- exchange.WebsocketOrderbookUpdate{
-					Exchange: c.GetName(),
-					Asset:    "SPOT",
-					Pair:     pair.NewCurrencyPairFromString(update.ProductID),
+				err = c.ProcessUpdate(update)
+				if err != nil {
+					log.Fatal(err)
 				}
 
 			default:
-				log.Fatal("Edge test", string(resp))
+				log.Fatal("Edge test", string(resp.Raw))
 			}
 		}
 	}
@@ -259,85 +248,58 @@ func (c *CoinbasePro) ProcessSnapshot(snapshot WebsocketOrderbookSnapshot) error
 			Amount: amount})
 	}
 
+	p := pair.NewCurrencyPairFromString(snapshot.ProductID)
+
 	base.AssetType = "SPOT"
-	base.Pair = pair.NewCurrencyPairFromString(snapshot.ProductID)
+	base.Pair = p
+	base.CurrencyPair = snapshot.ProductID
 	base.LastUpdated = time.Now()
 
-	orderbookCache = append(orderbookCache, base)
+	err := c.Websocket.Orderbook.LoadSnapshot(base, c.GetName())
+	if err != nil {
+		return err
+	}
+
+	c.Websocket.DataHandler <- exchange.WebsocketOrderbookUpdate{
+		Pair:     p,
+		Asset:    "SPOT",
+		Exchange: c.GetName(),
+	}
+
 	return nil
 }
 
-type targets struct {
-	Price  float64
-	Volume float64
-}
-
 // ProcessUpdate updates the orderbook local cache
-func (c *CoinbasePro) ProcessUpdate(update WebsocketL2Update) {
-	type Changes struct {
-		Asks []targets
-		Bids []targets
-	}
-
-	var changes Changes
+func (c *CoinbasePro) ProcessUpdate(update WebsocketL2Update) error {
+	var Asks, Bids []orderbook.Item
 
 	for _, data := range update.Changes {
 		price, _ := strconv.ParseFloat(data[1].(string), 64)
 		volume, _ := strconv.ParseFloat(data[2].(string), 64)
 
 		if data[0].(string) == "buy" {
-			changes.Bids = append(changes.Bids, targets{price, volume})
+			Bids = append(Bids, orderbook.Item{Price: price, Amount: volume})
 		} else {
-			changes.Asks = append(changes.Asks, targets{price, volume})
+			Asks = append(Asks, orderbook.Item{Price: price, Amount: volume})
 		}
 	}
 
-	obMtx.Lock()
-	defer obMtx.Unlock()
-
-	for x := range orderbookCache {
-		if orderbookCache[x].Pair.Pair().String() == update.ProductID {
-			if len(changes.Asks) != 0 {
-				for _, targets := range changes.Asks {
-					for y := range orderbookCache[x].Asks {
-						if orderbookCache[x].Asks[y].Price == targets.Price {
-							if targets.Volume == 0 {
-								orderbookCache[x].Asks = append(orderbookCache[x].Asks[:y],
-									orderbookCache[x].Asks[y+1:]...)
-								break
-							}
-							orderbookCache[x].Asks[y].Amount = targets.Volume
-							break
-						}
-					}
-					orderbookCache[x].Asks = append(orderbookCache[x].Asks,
-						orderbook.Item{
-							Price:  targets.Price,
-							Amount: targets.Volume,
-						})
-				}
-			}
-
-			if len(changes.Bids) != 0 {
-				for _, targets := range changes.Bids {
-					for y := range orderbookCache[x].Bids {
-						if orderbookCache[x].Bids[y].Price == targets.Price {
-							if targets.Volume == 0 {
-								orderbookCache[x].Bids = append(orderbookCache[x].Bids[:y],
-									orderbookCache[x].Bids[y+1:]...)
-								break
-							}
-							orderbookCache[x].Bids[y].Amount = targets.Volume
-							break
-						}
-					}
-					orderbookCache[x].Bids = append(orderbookCache[x].Bids,
-						orderbook.Item{
-							Price:  targets.Price,
-							Amount: targets.Volume,
-						})
-				}
-			}
-		}
+	if len(Asks) == 0 && len(Bids) == 0 {
+		return errors.New("coibasepro_websocket.go error - no data in websocket update")
 	}
+
+	p := pair.NewCurrencyPairFromString(update.ProductID)
+
+	err := c.Websocket.Orderbook.Update(Bids, Asks, p, time.Now(), c.GetName(), "SPOT")
+	if err != nil {
+		return err
+	}
+
+	c.Websocket.DataHandler <- exchange.WebsocketOrderbookUpdate{
+		Pair:     p,
+		Asset:    "SPOT",
+		Exchange: c.GetName(),
+	}
+
+	return nil
 }
