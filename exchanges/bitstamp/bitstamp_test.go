@@ -150,7 +150,6 @@ func TestGetFee(t *testing.T) {
 }
 
 func TestGetTradingFeeByCurrency(t *testing.T) {
-	t.Parallel()
 	b.SetDefaults()
 	TestSetup(t)
 	b.Balance = Balances{}
