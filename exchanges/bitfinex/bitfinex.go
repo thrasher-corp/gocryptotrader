@@ -937,12 +937,12 @@ func (b *Bitfinex) SendAuthenticatedHTTPRequest(method, path string, params map[
 }
 
 // GetFee returns an estimate of fee based on type of transaction
-func (b *Bitfinex) GetFee(feeType string, currency string, purchasePrice float64, amount float64, isTaker bool, isMaker bool) (float64, error) {
+func (b *Bitfinex) GetFee(feeBuilder exchange.FeeBuilder) (float64, error) {
 	var fee float64
 
-	switch feeType {
+	switch feeBuilder.FeeType {
 	case exchange.CryptocurrencyTradeFee:
-		fee = b.GetTradingFee(currency, isTaker, isMaker)
+		fee = b.GetTradingFee(feeBuilder.FirstCurrency+feeBuilder.Delimiter+feeBuilder.SecondCurrency, feeBuilder.IsTaker, feeBuilder.IsMaker)
 	case exchange.CyptocurrencyDepositFee:
 		//TODO: fee is charged when < $1000USD is transferred, need to infer value in some way
 		fee = 0
@@ -951,11 +951,11 @@ func (b *Bitfinex) GetFee(feeType string, currency string, purchasePrice float64
 		if err != nil {
 			return 0, err
 		}
-		fee = b.GetCryptocurrencyWithdrawalFee(currency, amount, accountFees)
+		fee = b.GetCryptocurrencyWithdrawalFee(feeBuilder.FirstCurrency, feeBuilder.Amount, accountFees)
 	case exchange.InternationalBankDepositFee:
-		fee = getInternationalBankDepositFee(amount)
+		fee = getInternationalBankDepositFee(feeBuilder.Amount)
 	case exchange.InternationalBankWithdrawalFee:
-		fee = getInternationalBankWithdrawalFee(amount)
+		fee = getInternationalBankWithdrawalFee(feeBuilder.Amount)
 	}
 	if fee < 0 {
 		fee = 0

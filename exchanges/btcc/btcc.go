@@ -7,7 +7,6 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
-	"github.com/thrasher-/gocryptotrader/currency/symbol"
 	"github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/request"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
@@ -97,14 +96,14 @@ func (b *BTCC) Setup(exch config.ExchangeConfig) {
 
 
 // GetFee returns an estimate of fee based on type of transaction
-func (b *BTCC) GetFee(feeType string, currency string, purchasePrice float64, amount float64, isTaker bool, isMaker bool) (float64, error) {
+func (b *BTCC) GetFee(feeBuilder exchange.FeeBuilder) (float64, error) {
 	var fee float64
 
-	switch feeType {
+	switch feeBuilder.FeeType {
 	case exchange.CryptocurrencyWithdrawalFee:
-		fee = getCryptocurrencyWithdrawalFee(currency)
+		fee = getCryptocurrencyWithdrawalFee(feeBuilder.FirstCurrency)
 	case exchange.InternationalBankWithdrawalFee:
-		fee = getInternationalBankWithdrawalFee(currency, amount)
+		fee = getInternationalBankWithdrawalFee(feeBuilder.CurrencyItem, feeBuilder.Amount)
 	}
 	if fee < 0 {
 		fee = 0
@@ -119,8 +118,6 @@ func getCryptocurrencyWithdrawalFee(currency string) float64 {
 func getInternationalBankWithdrawalFee(currency string, amount float64) float64 {
 	var fee float64
 
-	if currency == symbol.USD {
-		fee = WithdrawalFees[currency] * amount
-	}
+	fee = WithdrawalFees[currency] * amount
 	return fee
 }

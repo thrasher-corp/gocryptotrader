@@ -131,10 +131,10 @@ func (b *Bitstamp) Setup(exch config.ExchangeConfig) {
 }
 
 // GetFee returns an estimate of fee based on type of transaction
-func (b *Bitstamp) GetFee(feeType string, currency string, purchasePrice float64, amount float64, isTaker bool, isMaker bool) (float64, error) {
+func (b *Bitstamp) GetFee(feeBuilder exchange.FeeBuilder) (float64, error) {
 	var fee float64
 
-	switch feeType {
+	switch feeBuilder.FeeType {
 	case exchange.CryptocurrencyTradeFee:
 		var err error
 
@@ -142,13 +142,13 @@ func (b *Bitstamp) GetFee(feeType string, currency string, purchasePrice float64
 		if err != nil {
 			return 0, err
 		}
-		fee = b.GetTradingFeeByCurrency(currency, purchasePrice, amount)
+		fee = b.GetTradingFeeByCurrency(feeBuilder.FirstCurrency+feeBuilder.SecondCurrency, feeBuilder.PurchasePrice, feeBuilder.Amount)
 	case exchange.CyptocurrencyDepositFee:
 		fee = 0
 	case exchange.InternationalBankDepositFee:
-		fee = getInternationalBankDepositFee(amount)
+		fee = getInternationalBankDepositFee(feeBuilder.Amount)
 	case exchange.InternationalBankWithdrawalFee:
-		fee = getInternationalBankWithdrawalFee(amount)
+		fee = getInternationalBankWithdrawalFee(feeBuilder.Amount)
 	}
 	if fee < 0 {
 		fee = 0

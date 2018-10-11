@@ -567,16 +567,16 @@ func (b *Bithumb) SendAuthenticatedHTTPRequest(path string, params url.Values, r
 }
 
 // GetFee returns an estimate of fee based on type of transaction
-func (b *Bithumb) GetFee(feeType string, currency string, purchasePrice float64, amount float64, isTaker bool, isMaker bool) (float64, error) {
+func (b *Bithumb) GetFee(feeBuilder exchange.FeeBuilder) (float64, error) {
 	var fee float64
 
-	switch feeType {
+	switch feeBuilder.FeeType {
 	case exchange.CryptocurrencyTradeFee:
-		fee = getTradingFee(purchasePrice, amount)
+		fee = getTradingFee(feeBuilder.PurchasePrice, feeBuilder.Amount)
 	case exchange.CyptocurrencyDepositFee:
-		fee = getDepositFee(currency, amount)
+		fee = getDepositFee(feeBuilder.FirstCurrency, feeBuilder.Amount)
 	case exchange.CryptocurrencyWithdrawalFee:
-		fee = getWithdrawalFee(currency)
+		fee = getWithdrawalFee(feeBuilder.FirstCurrency)
 	}
 	if fee < 0 {
 		fee = 0

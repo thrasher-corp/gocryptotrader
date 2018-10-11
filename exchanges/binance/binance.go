@@ -654,18 +654,18 @@ func (b *Binance) SetValues() {
 }
 
 // GetFee returns an estimate of fee based on type of transaction
-func (b *Binance) GetFee(feeType string, currency string, purchasePrice float64, amount float64, isTaker bool, isMaker bool) (float64, error) {
+func (b *Binance) GetFee(feeBuilder exchange.FeeBuilder) (float64, error) {
 	var fee float64
 
-	switch feeType {
+	switch feeBuilder.FeeType {
 	case exchange.CryptocurrencyTradeFee:
-		multiplier, err := b.getMultiplier(isTaker, isMaker)
+		multiplier, err := b.getMultiplier(feeBuilder.IsTaker, feeBuilder.IsMaker)
 		if err != nil {
 			return 0, err
 		}
-		fee = getTradingFee(purchasePrice, amount, multiplier)
+		fee = getTradingFee(feeBuilder.PurchasePrice, feeBuilder.Amount, multiplier)
 	case exchange.CryptocurrencyWithdrawalFee:
-		fee = getWithdrawalFee(currency, purchasePrice, amount)
+		fee = getWithdrawalFee(feeBuilder.FirstCurrency, feeBuilder.PurchasePrice, feeBuilder.Amount)
 	}
 	if fee < 0 {
 		fee = 0

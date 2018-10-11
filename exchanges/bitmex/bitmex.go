@@ -914,13 +914,13 @@ func (b *Bitmex) CaptureError(resp, reType interface{}) error {
 }
 
 // GetFee returns an estimate of fee based on type of transaction
-func (b *Bitmex) GetFee(feeType string, currency string, purchasePrice float64, amount float64, isTaker bool, isMaker bool) (float64, error) {
+func (b *Bitmex) GetFee(feeBuilder exchange.FeeBuilder) (float64, error) {
 	var fee float64
 	var err error
 
-	switch feeType {
+	switch feeBuilder.FeeType {
 	case exchange.CryptocurrencyTradeFee:
-		fee = b.GetTradingFee(purchasePrice, amount, isTaker, isMaker)
+		fee = b.GetTradingFee(feeBuilder.PurchasePrice, feeBuilder.Amount, feeBuilder.IsTaker, feeBuilder.IsMaker)
 	}
 	if fee < 0 {
 		fee = 0
