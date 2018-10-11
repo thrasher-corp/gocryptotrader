@@ -26,8 +26,6 @@ const (
 	wsMarketTrade        = "market.%s.trade.detail"
 )
 
-var comms chan []byte
-
 // WsConnect initiates a new websocket connection
 func (h *HUOBI) WsConnect() error {
 	if !h.Websocket.IsEnabled() || !h.IsEnabled() {
@@ -50,8 +48,6 @@ func (h *HUOBI) WsConnect() error {
 	if err != nil {
 		return err
 	}
-
-	comms = make(chan []byte, 1)
 
 	go h.WsHandleData()
 	go h.WsReadData()
@@ -102,7 +98,7 @@ func (h *HUOBI) WsReadData() {
 			}
 			gReader.Close()
 
-			comms <- unzipped
+			h.Websocket.Intercomm <- exchange.WebsocketResponse{Raw: unzipped}
 		}
 	}
 }
@@ -115,9 +111,9 @@ func (h *HUOBI) WsHandleData() {
 	for {
 		select {
 		case <-h.Websocket.ShutdownC:
-		case resp := <-comms:
+		case resp := <-h.Websocket.Intercomm:
 			var init WsResponse
-			err := common.JSONDecode(resp, &init)
+			err := common.JSONDecode(resp.Raw, &init)
 			if err != nil {
 				log.Fatal(err)
 			}
@@ -144,7 +140,7 @@ func (h *HUOBI) WsHandleData() {
 			switch {
 			case common.StringContains(init.Channel, "depth"):
 				var depth WsDepth
-				err := common.JSONDecode(resp, &depth)
+				err := common.JSONDecode(resp.Raw, &depth)
 				if err != nil {
 					log.Fatal(err)
 				}
@@ -155,7 +151,7 @@ func (h *HUOBI) WsHandleData() {
 
 			case common.StringContains(init.Channel, "kline"):
 				var kline WsKline
-				err := common.JSONDecode(resp, &kline)
+				err := common.JSONDecode(resp.Raw, &kline)
 				if err != nil {
 					log.Fatal(err)
 				}
@@ -176,7 +172,7 @@ func (h *HUOBI) WsHandleData() {
 
 			case common.StringContains(init.Channel, "trade"):
 				var trade WsTrade
-				err := common.JSONDecode(resp, &trade)
+				err := common.JSONDecode(resp.Raw, &trade)
 				if err != nil {
 					log.Fatal(err)
 				}
@@ -189,16 +185,13 @@ func (h *HUOBI) WsHandleData() {
 					CurrencyPair: pair.NewCurrencyPairFromString(data[1]),
 					Timestamp:    time.Unix(0, trade.Tick.Timestamp),
 				}
-
-			default:
-				log.Fatal("EdgeCase:", string(resp))
 			}
 		}
 	}
 }
 
 // WsProcessOrderbook processes new orderbook data
-func (h *HUOBI) WsProcessOrderbook(ob WsDepth, symbol string) {
+func (h *HUOBI) WsProcessOrderbook(ob WsDepth, symbol string) error {
 	var bids []orderbook.Item
 	for _, data := range ob.Tick.Bids {
 		bidLevel := data.([]interface{})
@@ -213,18 +206,27 @@ func (h *HUOBI) WsProcessOrderbook(ob WsDepth, symbol string) {
 			Amount: askLevel[0].(float64)})
 	}
 
+	p := pair.NewCurrencyPairFromString(symbol)
+
 	var newOrderbook orderbook.Base
 	newOrderbook.Asks = asks
 	newOrderbook.Bids = bids
 	newOrderbook.CurrencyPair = symbol
 	newOrderbook.LastUpdated = time.Now()
-	newOrderbook.Pair = pair.NewCurrencyPairFromString(symbol)
+	newOrderbook.Pair = p
+
+	err := h.Websocket.Orderbook.LoadSnapshot(newOrderbook, h.GetName())
+	if err != nil {
+		return err
+	}
 
 	h.Websocket.DataHandler <- exchange.WebsocketOrderbookUpdate{
-		Pair:     pair.NewCurrencyPairFromString(symbol),
+		Pair:     p,
 		Exchange: h.GetName(),
 		Asset:    "SPOT",
 	}
+
+	return nil
 }
 
 // WsSubscribe susbcribes to the current websocket streams based on the enabled
