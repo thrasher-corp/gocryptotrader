@@ -1,10 +1,13 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"sync"
 	"time"
+
+	"github.com/thrasher-/gocryptotrader/common"
 
 	"github.com/thrasher-/gocryptotrader/currency"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
@@ -280,7 +283,6 @@ func OrderbookUpdaterRoutine() {
 
 // WebsocketRoutine Initial routine management system for websocket
 func WebsocketRoutine() {
-	shutdowner = make(chan struct{}, 1)
 	log.Println("Connecting exchange Websocket services...")
 
 	for i := range bot.exchanges {
@@ -294,48 +296,84 @@ func WebsocketRoutine() {
 			}
 
 			// Data handler routine
-			go wsCaptcha(ws)
+			go WebsocketDataHandler(ws)
 
 			err = ws.Connect()
 			if err != nil {
 				switch err.Error() {
 				case exchange.WebsocketNotEnabled:
-					log.Println("Websocket MEMORY STORED")
-					// Store in memory for state change if enabled in future
-
-				case "current issues with BTCC endpoint":
-					return
-
+					// Store in memory if enabled in future
 				default:
-					log.Println("Websocket error recieved:   ", err)
-					ws.SetEnabled(false)
-					return
+					err = Websocketshutdown(ws)
+					if err != nil {
+						log.Fatal(err)
+					}
 				}
 			}
 		}(i)
 	}
 }
 
-var shutdowner chan struct{}
+var shutdowner = make(chan struct{}, 1)
+var wg sync.WaitGroup
 
+// Websocketshutdown shuts down the exchange routines and then shuts down
+// governing routines
+func Websocketshutdown(ws *exchange.Websocket) error {
+	err := ws.Shutdown() // shutdown routines on the exchange
+	if err != nil {
+		log.Fatalf("routines.go error - failed to shutodwn %s", err)
+	}
+
+	timer := time.NewTimer(5 * time.Second)
+	c := make(chan struct{}, 1)
+
+	go func(c chan struct{}) {
+		close(shutdowner)
+		wg.Wait()
+		c <- struct{}{}
+	}(c)
+
+	select {
+	case <-timer.C:
+		return errors.New("routines.go error - failed to shutdown routines")
+
+	case <-c:
+		return nil
+	}
+}
+
+// streamDiversion is a diversion switch from websocket to REST or other
+// alternative feed
 func streamDiversion(ws *exchange.Websocket) {
+	wg.Add(1)
+	defer wg.Done()
+
 	for {
 		select {
+		case <-shutdowner:
+			return
+
 		case <-ws.Connected:
 			log.Println("EXCHANGE WEBSOCKET ACTIVATED________________________________")
+
 		case <-ws.Disconnected:
 			log.Println("REST POLLING ACTIVATED________________________________")
 		}
 	}
 }
 
-func wsCaptcha(ws *exchange.Websocket) {
+// WebsocketDataHandler handles websocket data coming from a websocket feed
+// associated with an exchange
+func WebsocketDataHandler(ws *exchange.Websocket) {
+	wg.Add(1)
+	defer wg.Done()
+
 	go streamDiversion(ws)
 
 	for {
 		select {
 		case <-shutdowner:
-			log.Println("Routines.go - Shutdown captured")
 			return
 
 		case data := <-ws.DataHandler:
@@ -353,7 +391,13 @@ func wsCaptcha(ws *exchange.Websocket) {
 				}
 
 			case error:
-				log.Fatal("Websocket error recieved:   ", data) // NOTE needs logger update for exchange specific error handling
+				switch {
+				case common.StringContains(data.(error).Error(), "close 1006"):
+					go WebsocketReconnect(ws)
+					continue
+				default:
+					log.Fatal("Websocket error recieved:   ", data) // NOTE needs logger update for exchange specific error handling
+				}
 
 			case exchange.TradeData:
 				// Trade Data
@@ -378,17 +422,29 @@ func wsCaptcha(ws *exchange.Websocket) {
 	}
 }
 
-// wsReconnect tries to reconnect to a websocket stream
-func wsReconnect(ws *exchange.Websocket) error {
-	log.Println("Websocket reconnection requested")
-	var err error
-	for i := 0; i < 5; i++ {
-		log.Println("websocket connection retrying", i)
-		err = ws.Connect()
-		if err == nil {
-			log.Println("websocket connection established")
-			return nil
+// WebsocketReconnect tries to reconnect to a websocket stream
+func WebsocketReconnect(ws *exchange.Websocket) {
+	log.Printf("Websocket reconnection requested for %s", ws.GetName())
+
+	err := ws.Shutdown()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	wg.Add(1)
+	defer wg.Done()
+
+	ticker := time.NewTicker(3 * time.Second)
+	for {
+		select {
+		case <-shutdowner:
+			return
+
+		case <-ticker.C:
+			err = ws.Connect()
+			if err == nil {
+				return
+			}
 		}
 	}
-	return fmt.Errorf("Websocket failed to connect %s", err.Error())
 }
