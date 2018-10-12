@@ -179,7 +179,8 @@ func relayWebsocketEvent(result interface{}, event, assetType, exchangeName stri
 func TickerUpdaterRoutine() {
 	log.Println("Starting ticker updater routine.")
 	var wg sync.WaitGroup
-	for {
+	d := time.Duration(10) * time.Second
+	for range time.Tick(d) {
 		wg.Add(len(bot.exchanges))
 		for x := range bot.exchanges {
 			go func(x int, wg *sync.WaitGroup) {
@@ -227,7 +228,6 @@ func TickerUpdaterRoutine() {
 		}
 		wg.Wait()
 		log.Println("All enabled currency tickers fetched.")
-		time.Sleep(time.Second * 10)
 	}
 }
 
@@ -236,7 +236,8 @@ func TickerUpdaterRoutine() {
 func OrderbookUpdaterRoutine() {
 	log.Println("Starting orderbook updater routine.")
 	var wg sync.WaitGroup
-	for {
+	d := time.Duration(10) * time.Second
+	for range time.Tick(d) {
 		wg.Add(len(bot.exchanges))
 		for x := range bot.exchanges {
 			go func(x int, wg *sync.WaitGroup) {
@@ -274,6 +275,5 @@ func OrderbookUpdaterRoutine() {
 		}
 		wg.Wait()
 		log.Println("All enabled currency orderbooks fetched.")
-		time.Sleep(time.Second * 10)
 	}
 }
