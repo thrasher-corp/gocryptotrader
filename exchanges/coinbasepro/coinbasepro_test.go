@@ -44,7 +44,7 @@ func TestGetFee(t *testing.T) {
 func TestGetProducts(t *testing.T) {
 	_, err := c.GetProducts()
 	if err != nil {
-		t.Error("Test failed - GetProducts() error")
+		t.Errorf("Test failed - Coinbase, GetProducts() Error: %s", err)
 	}
 }
 

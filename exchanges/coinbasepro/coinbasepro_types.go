@@ -2,13 +2,13 @@ package coinbasepro
 
 // Product holds product information
 type Product struct {
-	ID             string  `json:"id"`
-	BaseCurrency   string  `json:"base_currency"`
-	QuoteCurrency  string  `json:"quote_currency"`
-	BaseMinSize    float64 `json:"base_min_size,string"`
-	BaseMaxSize    int64   `json:"base_max_size,string"`
-	QuoteIncrement float64 `json:"quote_increment,string"`
-	DisplayName    string  `json:"string"`
+	ID             string      `json:"id"`
+	BaseCurrency   string      `json:"base_currency"`
+	QuoteCurrency  string      `json:"quote_currency"`
+	BaseMinSize    float64     `json:"base_min_size,string"`
+	BaseMaxSize    interface{} `json:"base_max_size"`
+	QuoteIncrement float64     `json:"quote_increment,string"`
+	DisplayName    string      `json:"string"`
 }
 
 // Ticker holds basic ticker information
