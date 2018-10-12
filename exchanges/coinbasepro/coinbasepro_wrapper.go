@@ -191,3 +191,12 @@ func (c *CoinbasePro) WithdrawFiatExchangeFunds(cryptocurrency pair.CurrencyItem
 func (c *CoinbasePro) GetWebsocket() (*exchange.Websocket, error) {
 	return c.Websocket, nil
 }
+
+// GetFeeByType returns an estimate of fee based on type of transaction
+func (c *CoinbasePro) GetFeeByType(feeBuilder exchange.FeeBuilder) (float64, error) {
+	resp, err := c.GetFee(feeBuilder)
+	if err != nil {
+		return resp, err
+	}
+	return resp, nil
+}

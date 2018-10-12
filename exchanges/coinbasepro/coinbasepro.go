@@ -7,11 +7,13 @@ import (
 	"log"
 	"net/url"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
+	"github.com/thrasher-/gocryptotrader/currency/symbol"
 	"github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/request"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
@@ -132,14 +134,6 @@ func (c *CoinbasePro) Setup(exch config.ExchangeConfig) {
 			log.Fatal(err)
 		}
 	}
-}
-
-// GetFee returns the current fee for the exchange
-func (c *CoinbasePro) GetFee(maker bool) float64 {
-	if maker {
-		return c.MakerFee
-	}
-	return c.TakerFee
 }
 
 // GetProducts returns supported currency pairs on the exchange with specific
@@ -827,4 +821,71 @@ func (c *CoinbasePro) SendAuthenticatedHTTPRequest(method, path string, params m
 	headers["Content-Type"] = "application/json"
 
 	return c.SendPayload(method, c.APIUrl+path, headers, bytes.NewBuffer(payload), result, true, c.Verbose)
+}
+
+// GetFee returns an estimate of fee based on type of transaction
+func (c *CoinbasePro) GetFee(feeBuilder exchange.FeeBuilder) (float64, error) {
+	var fee float64
+	switch feeBuilder.FeeType {
+	case exchange.CryptocurrencyTradeFee:
+		trailingVolume, err := c.GetTrailingVolume()
+		if err != nil {
+			return 0, err
+		}
+		fee = c.calculateTradingFee(trailingVolume, feeBuilder.FirstCurrency, feeBuilder.Delimiter, feeBuilder.SecondCurrency, feeBuilder.PurchasePrice, feeBuilder.Amount, feeBuilder.IsMaker)
+	case exchange.InternationalBankWithdrawalFee:
+		fee = getInternationalBankWithdrawalFee(feeBuilder.CurrencyItem, feeBuilder.Amount)
+	case exchange.InternationalBankDepositFee:
+		fee = getInternationalBankDepositFee(feeBuilder.CurrencyItem, feeBuilder.Amount)
+	}
+
+	if fee < 0 {
+		fee = 0
+	}
+
+	return fee, nil
+}
+
+func (c *CoinbasePro) calculateTradingFee(trailingVolume []Volume, firstCurrency, delimiter, secondCurrency string, purchasePrice, amount float64, isMaker bool) float64 {
+	var fee float64
+	for _, i := range trailingVolume {
+		if strings.EqualFold(i.ProductID, firstCurrency+delimiter+secondCurrency) {
+			if isMaker {
+				fee = 0
+			} else if i.Volume <= 10000000 {
+				fee = 0.003
+			} else if i.Volume > 10000000 && i.Volume <= 100000000 {
+				fee = 0.002
+			} else if i.Volume > 100000000 {
+				fee = 0.001
+			}
+			break
+		}
+	}
+
+	return fee * amount * purchasePrice
+}
+
+func getInternationalBankWithdrawalFee(currency string, amount float64) float64 {
+	var fee float64
+
+	if currency == symbol.USD {
+		fee = 25
+	} else if currency == symbol.EUR {
+		fee = 0.15
+	}
+
+	return fee
+}
+
+func getInternationalBankDepositFee(currency string, amount float64) float64 {
+	var fee float64
+
+	if currency == symbol.USD {
+		fee = 10
+	} else if currency == symbol.EUR {
+		fee = 0.15
+	}
+
+	return fee
 }

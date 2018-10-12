@@ -5,6 +5,8 @@ import (
 	"time"
 
 	"github.com/thrasher-/gocryptotrader/config"
+	"github.com/thrasher-/gocryptotrader/currency/symbol"
+	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 )
 
 var c CoinbasePro
@@ -30,15 +32,6 @@ func TestSetup(t *testing.T) {
 	}
 
 	c.Setup(gdxConfig)
-}
-
-func TestGetFee(t *testing.T) {
-	if c.GetFee(false) == 0 {
-		t.Error("Test failed - GetFee() error")
-	}
-	if c.GetFee(true) != 0 {
-		t.Error("Test failed - GetFee() error")
-	}
 }
 
 func TestGetProducts(t *testing.T) {
@@ -222,5 +215,187 @@ func TestAuthRequests(t *testing.T) {
 		if err == nil {
 			t.Error("Test failed - GetTrailingVolume() error", err)
 		}
+	}
+}
+
+func setFeeBuilder() exchange.FeeBuilder {
+	return exchange.FeeBuilder{
+		Amount:         1,
+		Delimiter:      "",
+		FeeType:        exchange.CryptocurrencyTradeFee,
+		FirstCurrency:  symbol.BTC,
+		SecondCurrency: symbol.LTC,
+		IsMaker:        false,
+		IsTaker:        false,
+		PurchasePrice:  1,
+	}
+}
+
+func TestGetFee(t *testing.T) {
+	c.SetDefaults()
+	TestSetup(t)
+
+	var feeBuilder = setFeeBuilder()
+
+	if apiKey != "" || apiSecret != "" {
+		// CryptocurrencyTradeFee Basic
+		if resp, err := c.GetFee(feeBuilder); resp != float64(0) || err != nil {
+			t.Error(err)
+			t.Errorf("Test Failed - GetFee() error. Expected: %f, Recieved: %f", float64(0), resp)
+		}
+
+		// CryptocurrencyTradeFee High quantity
+		feeBuilder = setFeeBuilder()
+		feeBuilder.Amount = 1000
+		feeBuilder.PurchasePrice = 1000
+		if resp, err := c.GetFee(feeBuilder); resp != float64(0) || err != nil {
+			t.Errorf("Test Failed - GetFee() error. Expected: %f, Recieved: %f", float64(0), resp)
+			t.Error(err)
+		}
+
+		// CryptocurrencyTradeFee IsTaker
+		feeBuilder = setFeeBuilder()
+		feeBuilder.IsTaker = true
+		if resp, err := c.GetFee(feeBuilder); resp != float64(0) || err != nil {
+			t.Errorf("Test Failed - GetFee() error. Expected: %f, Recieved: %f", float64(0.02), resp)
+			t.Error(err)
+		}
+
+		// CryptocurrencyTradeFee IsMaker
+		feeBuilder = setFeeBuilder()
+		feeBuilder.IsMaker = true
+		if resp, err := c.GetFee(feeBuilder); resp != float64(0) || err != nil {
+			t.Errorf("Test Failed - GetFee() error. Expected: %f, Recieved: %f", float64(0.01), resp)
+			t.Error(err)
+		}
+
+		// CryptocurrencyTradeFee Negative purchase price
+		feeBuilder = setFeeBuilder()
+		feeBuilder.PurchasePrice = -1000
+		if resp, err := c.GetFee(feeBuilder); resp != float64(0) || err != nil {
+			t.Errorf("Test Failed - GetFee() error. Expected: %f, Recieved: %f", float64(0), resp)
+			t.Error(err)
+		}
+	}
+
+	// CryptocurrencyWithdrawalFee Basic
+	feeBuilder = setFeeBuilder()
+	feeBuilder.FeeType = exchange.CryptocurrencyWithdrawalFee
+	if resp, err := c.GetFee(feeBuilder); resp != float64(0) || err != nil {
+		t.Errorf("Test Failed - GetFee() error. Expected: %f, Recieved: %f", float64(0), resp)
+		t.Error(err)
+	}
+
+	// CyptocurrencyDepositFee Basic
+	feeBuilder = setFeeBuilder()
+	feeBuilder.FeeType = exchange.CyptocurrencyDepositFee
+	if resp, err := c.GetFee(feeBuilder); resp != float64(0) || err != nil {
+		t.Errorf("Test Failed - GetFee() error. Expected: %f, Recieved: %f", float64(0), resp)
+		t.Error(err)
+	}
+
+	// InternationalBankDepositFee Basic
+	feeBuilder = setFeeBuilder()
+	feeBuilder.FeeType = exchange.InternationalBankDepositFee
+	feeBuilder.CurrencyItem = symbol.EUR
+	if resp, err := c.GetFee(feeBuilder); resp != float64(0.15) || err != nil {
+		t.Errorf("Test Failed - GetFee() error. Expected: %f, Recieved: %f", float64(0), resp)
+		t.Error(err)
+	}
+
+	// InternationalBankWithdrawalFee Basic
+	feeBuilder = setFeeBuilder()
+	feeBuilder.FeeType = exchange.InternationalBankWithdrawalFee
+	feeBuilder.CurrencyItem = symbol.USD
+	if resp, err := c.GetFee(feeBuilder); resp != float64(25) || err != nil {
+		t.Errorf("Test Failed - GetFee() error. Expected: %f, Recieved: %f", float64(0), resp)
+		t.Error(err)
+	}
+}
+
+func TestCalculateTradingFee(t *testing.T) {
+	t.Parallel()
+	// uppercase
+	var volume = []Volume{
+		Volume{
+			ProductID: "BTC_USD",
+			Volume:    100,
+		},
+	}
+
+	if resp := c.calculateTradingFee(volume, "btc", "_", "usd", 1, 1, false); resp != float64(0.003) {
+		t.Errorf("Test Failed - GetFee() error. Expected: %f, Recieved: %f", float64(0.003), resp)
+	}
+
+	// lowercase
+	volume = []Volume{
+		Volume{
+			ProductID: "btc_usd",
+			Volume:    100,
+		},
+	}
+
+	if resp := c.calculateTradingFee(volume, "btc", "_", "usd", 1, 1, false); resp != float64(0.003) {
+		t.Errorf("Test Failed - GetFee() error. Expected: %f, Recieved: %f", float64(0.003), resp)
+	}
+
+	// mixedCase
+	volume = []Volume{
+		Volume{
+			ProductID: "btc_USD",
+			Volume:    100,
+		},
+	}
+
+	if resp := c.calculateTradingFee(volume, "btc", "_", "usd", 1, 1, false); resp != float64(0.003) {
+		t.Errorf("Test Failed - GetFee() error. Expected: %f, Recieved: %f", float64(0.003), resp)
+	}
+
+	// medium volume
+	volume = []Volume{
+		Volume{
+			ProductID: "btc_USD",
+			Volume:    10000001,
+		},
+	}
+
+	if resp := c.calculateTradingFee(volume, "btc", "_", "usd", 1, 1, false); resp != float64(0.002) {
+		t.Errorf("Test Failed - GetFee() error. Expected: %f, Recieved: %f", float64(0.002), resp)
+	}
+
+	// high volume
+	volume = []Volume{
+		Volume{
+			ProductID: "btc_USD",
+			Volume:    100000010000,
+		},
+	}
+
+	if resp := c.calculateTradingFee(volume, "btc", "_", "usd", 1, 1, false); resp != float64(0.001) {
+		t.Errorf("Test Failed - GetFee() error. Expected: %f, Recieved: %f", float64(0.001), resp)
+	}
+
+	// no match
+	volume = []Volume{
+		Volume{
+			ProductID: "btc_beeteesee",
+			Volume:    100000010000,
+		},
+	}
+
+	if resp := c.calculateTradingFee(volume, "btc", "_", "usd", 1, 1, false); resp != float64(0) {
+		t.Errorf("Test Failed - GetFee() error. Expected: %f, Recieved: %f", float64(0), resp)
+	}
+
+	// taker
+	volume = []Volume{
+		Volume{
+			ProductID: "btc_USD",
+			Volume:    100000010000,
+		},
+	}
+
+	if resp := c.calculateTradingFee(volume, "btc", "_", "usd", 1, 1, true); resp != float64(0) {
+		t.Errorf("Test Failed - GetFee() error. Expected: %f, Recieved: %f", float64(0), resp)
 	}
 }

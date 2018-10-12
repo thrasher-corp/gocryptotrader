@@ -122,46 +122,6 @@ func (b *Bittrex) Setup(exch config.ExchangeConfig) {
 	}
 }
 
-// GetFee returns an estimate of fee based on type of transaction
-func (b *Bittrex) GetFee(feeBuilder exchange.FeeBuilder) (float64, error) {
-	var fee float64
-	var err error
-
-	switch feeBuilder.FeeType {
-	case exchange.CryptocurrencyTradeFee:
-		fee = b.GetTradingFee(feeBuilder.PurchasePrice, feeBuilder.Amount)
-	case exchange.CryptocurrencyWithdrawalFee:
-		fee, err = b.GetWithdrawalFee(feeBuilder.FirstCurrency)
-	}
-	if fee < 0 {
-		fee = 0
-	}
-	return fee, err
-}
-
-// GetWithdrawalFee returns the fee for withdrawing from the exchange
-func (b *Bittrex) GetWithdrawalFee(currency string) (float64, error) {
-	var fee float64
-
-	currencies, err := b.GetCurrencies()
-	if err != nil {
-		return 0, err
-	}
-	for _, result := range currencies.Result {
-		if result.Currency == currency {
-			fee = result.TxFee
-		}
-	}
-	return fee, nil
-}
-
-// GetTradingFee returns the fee for trading any currency on Bittrex
-func (b *Bittrex) GetTradingFee(purchasePrice float64, amount float64) float64 {
-	var fee = 0.0025
-
-	return fee * purchasePrice * amount
-}
-
 // GetMarkets is used to get the open and available trading markets at Bittrex
 // along with other meta data.
 func (b *Bittrex) GetMarkets() (Market, error) {
@@ -550,4 +510,44 @@ func (b *Bittrex) SendAuthenticatedHTTPRequest(path string, values url.Values, r
 	headers["apisign"] = common.HexEncodeToString(hmac)
 
 	return b.SendPayload("GET", rawQuery, headers, nil, result, true, b.Verbose)
+}
+
+// GetFee returns an estimate of fee based on type of transaction
+func (b *Bittrex) GetFee(feeBuilder exchange.FeeBuilder) (float64, error) {
+	var fee float64
+	var err error
+
+	switch feeBuilder.FeeType {
+	case exchange.CryptocurrencyTradeFee:
+		fee = b.GetTradingFee(feeBuilder.PurchasePrice, feeBuilder.Amount)
+	case exchange.CryptocurrencyWithdrawalFee:
+		fee, err = b.GetWithdrawalFee(feeBuilder.FirstCurrency)
+	}
+	if fee < 0 {
+		fee = 0
+	}
+	return fee, err
+}
+
+// GetWithdrawalFee returns the fee for withdrawing from the exchange
+func (b *Bittrex) GetWithdrawalFee(currency string) (float64, error) {
+	var fee float64
+
+	currencies, err := b.GetCurrencies()
+	if err != nil {
+		return 0, err
+	}
+	for _, result := range currencies.Result {
+		if result.Currency == currency {
+			fee = result.TxFee
+		}
+	}
+	return fee, nil
+}
+
+// GetTradingFee returns the fee for trading any currency on Bittrex
+func (b *Bittrex) GetTradingFee(purchasePrice float64, amount float64) float64 {
+	var fee = 0.0025
+
+	return fee * purchasePrice * amount
 }
