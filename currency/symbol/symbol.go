@@ -211,10 +211,12 @@ const (
 	RNT     = "RNT"
 	PLY     = "PLY"
 	PST     = "PST"
-	HKD     = "HKD"
-	AUD     = "AUD"
-	USD     = "USD"
-	EUR     = "EUR"
+	HKD     = "HKD" // Hong Kong Dollar
+	AUD     = "AUD" // Australian Dollar
+	USD     = "USD" // United States Dollar
+	EUR     = "EUR" // Euro
+	CAD     = "CAD" // Canadaian Dollar
+	SGD     = "SGD" // Singapore Dollar
 )
 
 // symbols map holds the currency name and symbol mappings
