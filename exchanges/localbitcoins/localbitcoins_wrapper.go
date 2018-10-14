@@ -69,7 +69,7 @@ func (l *LocalBitcoins) GetOrderbookEx(p pair.CurrencyPair, assetType string) (o
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (l *LocalBitcoins) UpdateOrderbook(p pair.CurrencyPair, assetType string) (orderbook.Base, error) {
 	var orderBook orderbook.Base
-	orderbookNew, err := l.GetOrderbook(p.GetSecondCurrency().String())
+	orderbookNew, err := l.GetOrderbook(p.SecondCurrency.String())
 	if err != nil {
 		return orderBook, err
 	}

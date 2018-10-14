@@ -94,6 +94,7 @@ type Base struct {
 	Websocket                                  bool
 	RESTPollingDelay                           time.Duration
 	AuthenticatedAPISupport                    bool
+	APIAuthPEMKeySupport                       bool
 	APISecret, APIKey, APIAuthPEMKey, ClientID string
 	Nonce                                      nonce.Nonce
 	TakerFee, MakerFee, Fee                    float64
@@ -254,7 +255,8 @@ func (e *Base) SetAssetTypes() error {
 		exch.AssetTypes = common.JoinStrings(e.AssetTypes, ",")
 		update = true
 	} else {
-		e.AssetTypes = common.SplitStrings(exch.AssetTypes, ",")
+		exch.AssetTypes = common.JoinStrings(e.AssetTypes, ",")
+		update = true
 	}
 
 	if update {

@@ -149,7 +149,7 @@ func TestCheckFXString(t *testing.T) {
 	t.Parallel()
 	p := pair.NewCurrencyPairDelimiter("FXBTC_JPY", "_")
 	p = b.CheckFXString(p)
-	if p.GetFirstCurrency().String() != "FX_BTC" {
+	if p.FirstCurrency.String() != "FX_BTC" {
 		t.Error("test failed - Bitflyer - CheckFXString() error")
 	}
 }

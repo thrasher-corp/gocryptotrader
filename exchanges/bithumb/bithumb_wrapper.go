@@ -64,7 +64,7 @@ func (b *Bithumb) UpdateTicker(p pair.CurrencyPair, assetType string) (ticker.Pr
 	}
 
 	for _, x := range b.GetEnabledCurrencies() {
-		currency := x.GetFirstCurrency().String()
+		currency := x.FirstCurrency.String()
 		var tp ticker.Price
 		tp.Pair = x
 		tp.Ask = tickers[currency].SellPrice
@@ -99,7 +99,7 @@ func (b *Bithumb) GetOrderbookEx(currency pair.CurrencyPair, assetType string) (
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (b *Bithumb) UpdateOrderbook(p pair.CurrencyPair, assetType string) (orderbook.Base, error) {
 	var orderBook orderbook.Base
-	currency := p.GetFirstCurrency().String()
+	currency := p.FirstCurrency.String()
 
 	orderbookNew, err := b.GetOrderBook(currency)
 	if err != nil {

@@ -59,7 +59,7 @@ func (b *BTCMarkets) SetDefaults() {
 	b.Ticker = make(map[string]Ticker)
 	b.RequestCurrencyPairFormat.Delimiter = ""
 	b.RequestCurrencyPairFormat.Uppercase = true
-	b.ConfigCurrencyPairFormat.Delimiter = ""
+	b.ConfigCurrencyPairFormat.Delimiter = "-"
 	b.ConfigCurrencyPairFormat.Uppercase = true
 	b.AssetTypes = []string{ticker.Spot}
 	b.SupportsAutoPairUpdating = true
@@ -110,6 +110,28 @@ func (b *BTCMarkets) Setup(exch config.ExchangeConfig) {
 // GetFee returns the BTCMarkets fee on transactions
 func (b *BTCMarkets) GetFee() float64 {
 	return b.Fee
+}
+
+// GetMarkets returns the BTCMarkets instruments
+func (b *BTCMarkets) GetMarkets() ([]Market, error) {
+	type marketsResp struct {
+		Response
+		Markets []Market `json:"markets"`
+	}
+
+	var resp marketsResp
+	path := fmt.Sprintf("%s/v2/market/active", b.APIUrl)
+
+	err := b.SendHTTPRequest(path, &resp)
+	if err != nil {
+		return nil, err
+	}
+
+	if !resp.Success {
+		return nil, fmt.Errorf("%s unable to get markets: %s", b.Name, resp.ErrorMessage)
+	}
+
+	return resp.Markets, nil
 }
 
 // GetTicker returns a ticker

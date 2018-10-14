@@ -197,8 +197,13 @@ func (g *Gemini) GetTicker(currencyPair string) (Ticker, error) {
 	if common.StringContains(currencyPair, "USD") {
 		ticker.Volume.USD, _ = strconv.ParseFloat(resp.Volume["USD"].(string), 64)
 	} else {
-		ticker.Volume.ETH, _ = strconv.ParseFloat(resp.Volume["ETH"].(string), 64)
-		ticker.Volume.BTC, _ = strconv.ParseFloat(resp.Volume["BTC"].(string), 64)
+		if resp.Volume["ETH"] != nil {
+			ticker.Volume.ETH, _ = strconv.ParseFloat(resp.Volume["ETH"].(string), 64)
+		}
+
+		if resp.Volume["BTC"] != nil {
+			ticker.Volume.BTC, _ = strconv.ParseFloat(resp.Volume["BTC"].(string), 64)
+		}
 	}
 
 	time, _ := resp.Volume["timestamp"].(float64)

@@ -90,7 +90,7 @@ func ReloadExchange(name string) error {
 	return nil
 }
 
-// UnloadExchange unloads an exchange by
+// UnloadExchange unloads an exchange by name
 func UnloadExchange(name string) error {
 	nameLower := common.StringToLower(name)
 

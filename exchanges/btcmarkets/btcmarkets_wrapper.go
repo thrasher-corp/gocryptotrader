@@ -29,29 +29,32 @@ func (b *BTCMarkets) Run() {
 		log.Printf("%s %d currencies enabled: %s.\n", b.GetName(), len(b.EnabledPairs), b.EnabledPairs)
 	}
 
-	if !common.StringDataContains(b.EnabledPairs, "AUD") || !common.StringDataContains(b.EnabledPairs, "AUD") {
-		enabledPairs := []string{}
-		for x := range b.EnabledPairs {
-			enabledPairs = append(enabledPairs, b.EnabledPairs[x]+"AUD")
+	markets, err := b.GetMarkets()
+	if err != nil {
+		log.Printf("%s failed to get active market. Err: %s", b.Name, err)
+	} else {
+		forceUpgrade := false
+		if !common.StringDataContains(b.EnabledPairs, "-") || !common.StringDataContains(b.AvailablePairs, "-") {
+			forceUpgrade = true
 		}
 
-		availablePairs := []string{}
-		for x := range b.AvailablePairs {
-			availablePairs = append(availablePairs, b.AvailablePairs[x]+"AUD")
+		var currencies []string
+		for x := range markets {
+			currencies = append(currencies, markets[x].Instrument+"-"+markets[x].Currency)
 		}
 
-		log.Println("BTCMarkets: Upgrading available and enabled pairs")
+		if forceUpgrade {
+			enabledPairs := []string{"BTC-AUD"}
+			log.Println("WARNING: Available pairs for BTC Makrets reset due to config upgrade, please enable the pairs you would like again.")
 
-		err := b.UpdateCurrencies(enabledPairs, true, true)
+			err = b.UpdateCurrencies(enabledPairs, true, true)
+			if err != nil {
+				log.Printf("%s failed to update currencies. Err: %s", b.Name, err)
+			}
+		}
+		err = b.UpdateCurrencies(currencies, false, forceUpgrade)
 		if err != nil {
-			log.Printf("%s Failed to get config.\n", b.GetName())
-			return
-		}
-
-		err = b.UpdateCurrencies(availablePairs, false, true)
-		if err != nil {
-			log.Printf("%s Failed to get config.\n", b.GetName())
-			return
+			log.Printf("%s failed to update currencies. Err: %s", b.Name, err)
 		}
 	}
 }
@@ -59,8 +62,8 @@ func (b *BTCMarkets) Run() {
 // UpdateTicker updates and returns the ticker for a currency pair
 func (b *BTCMarkets) UpdateTicker(p pair.CurrencyPair, assetType string) (ticker.Price, error) {
 	var tickerPrice ticker.Price
-	tick, err := b.GetTicker(p.GetFirstCurrency().String(),
-		p.GetSecondCurrency().String())
+	tick, err := b.GetTicker(p.FirstCurrency.String(),
+		p.SecondCurrency.String())
 	if err != nil {
 		return tickerPrice, err
 	}
@@ -93,8 +96,8 @@ func (b *BTCMarkets) GetOrderbookEx(p pair.CurrencyPair, assetType string) (orde
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (b *BTCMarkets) UpdateOrderbook(p pair.CurrencyPair, assetType string) (orderbook.Base, error) {
 	var orderBook orderbook.Base
-	orderbookNew, err := b.GetOrderbook(p.GetFirstCurrency().String(),
-		p.GetSecondCurrency().String())
+	orderbookNew, err := b.GetOrderbook(p.FirstCurrency.String(),
+		p.SecondCurrency.String())
 	if err != nil {
 		return orderBook, err
 	}
@@ -151,7 +154,7 @@ func (b *BTCMarkets) GetExchangeHistory(p pair.CurrencyPair, assetType string) (
 
 // SubmitExchangeOrder submits a new order
 func (b *BTCMarkets) SubmitExchangeOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (int64, error) {
-	return b.NewOrder(p.GetFirstCurrency().Upper().String(), p.GetSecondCurrency().Upper().String(), price, amount, side.Format(b.GetName()), orderType.Format(b.GetName()), clientID)
+	return b.NewOrder(p.FirstCurrency.Upper().String(), p.SecondCurrency.Upper().String(), price, amount, side.Format(b.GetName()), orderType.Format(b.GetName()), clientID)
 }
 
 // ModifyExchangeOrder will allow of changing orderbook placement and limit to

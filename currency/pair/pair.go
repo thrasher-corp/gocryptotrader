@@ -1,6 +1,7 @@
 package pair
 
 import (
+	"math/rand"
 	"strings"
 
 	"github.com/idoall/gocryptotrader/common"
@@ -30,16 +31,6 @@ type CurrencyPair struct {
 	Delimiter      string       `json:"delimiter"`
 	FirstCurrency  CurrencyItem `json:"first_currency"`
 	SecondCurrency CurrencyItem `json:"second_currency"`
-}
-
-// GetFirstCurrency returns the first currency item
-func (c CurrencyPair) GetFirstCurrency() CurrencyItem {
-	return c.FirstCurrency
-}
-
-// GetSecondCurrency returns the second currency item
-func (c CurrencyPair) GetSecondCurrency() CurrencyItem {
-	return c.SecondCurrency
 }
 
 // Pair returns a currency pair string
@@ -88,6 +79,14 @@ func (c CurrencyPair) Swap() CurrencyPair {
 	p.FirstCurrency = c.SecondCurrency
 	p.SecondCurrency = c.FirstCurrency
 	return p
+}
+
+// Empty returns whether or not the pair is empty
+func (c CurrencyPair) Empty() bool {
+	if c.FirstCurrency == "" || c.SecondCurrency == "" {
+		return true
+	}
+	return false
 }
 
 // NewCurrencyPairDelimiter splits the desired currency string at delimeter,
@@ -216,4 +215,24 @@ func FindPairDifferences(oldPairs, newPairs []string) ([]string, []string) {
 		}
 	}
 	return newPs, removedPs
+}
+
+// PairsToStringArray returns a list of pairs as a string array
+func PairsToStringArray(pairs []CurrencyPair) []string {
+	var p []string
+	for x := range pairs {
+		p = append(p, pairs[x].Pair().String())
+	}
+	return p
+}
+
+// RandomPairFromPairs returns a random pair from a list of pairs
+func RandomPairFromPairs(pairs []CurrencyPair) CurrencyPair {
+	pairsLen := len(pairs)
+
+	if pairsLen == 0 {
+		return CurrencyPair{}
+	}
+
+	return pairs[rand.Intn(pairsLen)]
 }

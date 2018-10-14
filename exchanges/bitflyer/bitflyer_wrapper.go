@@ -81,7 +81,7 @@ func (b *Bitflyer) GetTickerPrice(p pair.CurrencyPair, assetType string) (ticker
 
 // CheckFXString upgrades currency pair if needed
 func (b *Bitflyer) CheckFXString(p pair.CurrencyPair) pair.CurrencyPair {
-	if common.StringContains(p.GetFirstCurrency().String(), "FX") {
+	if common.StringContains(p.FirstCurrency.String(), "FX") {
 		p.FirstCurrency = "FX_BTC"
 		return p
 	}

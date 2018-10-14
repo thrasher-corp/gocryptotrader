@@ -140,6 +140,7 @@ func TestGetSHA256(t *testing.T) {
 }
 
 func TestGetHMAC(t *testing.T) {
+	t.Parallel()
 	expectedSha1 := []byte{
 		74, 253, 245, 154, 87, 168, 110, 182, 172, 101, 177, 49, 142, 2, 253, 165,
 		100, 66, 86, 246,
@@ -159,30 +160,50 @@ func TestGetHMAC(t *testing.T) {
 		201, 8, 232, 194, 168, 165, 58, 192, 26, 193, 167, 254, 183, 172, 4, 189,
 		158, 158, 150, 173, 33, 119, 125, 94, 13, 125, 89, 241, 184, 166, 128,
 	}
+	expectedmd5 := []byte{
+		113, 64, 132, 129, 213, 68, 231, 99, 252, 15, 175, 109, 198, 132, 139, 39,
+	}
 
 	sha1 := GetHMAC(HashSHA1, []byte("Hello,World"), []byte("1234"))
 	if string(sha1) != string(expectedSha1) {
-		t.Errorf("Test failed.Common GetHMAC error: Expected '%x'. Actual '%x'",
+		t.Errorf("Test failed. Common GetHMAC error: Expected '%x'. Actual '%x'",
 			expectedSha1, sha1,
 		)
 	}
 	sha256 := GetHMAC(HashSHA256, []byte("Hello,World"), []byte("1234"))
 	if string(sha256) != string(expectedsha256) {
-		t.Errorf("Test failed.Common GetHMAC error: Expected '%x'. Actual '%x'",
-			expectedSha1, sha1,
+		t.Errorf("Test failed. Common GetHMAC error: Expected '%x'. Actual '%x'",
+			expectedsha256, sha256,
 		)
 	}
 	sha512 := GetHMAC(HashSHA512, []byte("Hello,World"), []byte("1234"))
 	if string(sha512) != string(expectedsha512) {
-		t.Errorf("Test failed.Common GetHMAC error: Expected '%x'. Actual '%x'",
-			expectedSha1, sha1,
+		t.Errorf("Test failed. Common GetHMAC error: Expected '%x'. Actual '%x'",
+			expectedsha512, sha512,
 		)
 	}
 	sha512384 := GetHMAC(HashSHA512_384, []byte("Hello,World"), []byte("1234"))
 	if string(sha512384) != string(expectedsha512384) {
-		t.Errorf("Test failed.Common GetHMAC error: Expected '%x'. Actual '%x'",
-			expectedSha1, sha1,
+		t.Errorf("Test failed. Common GetHMAC error: Expected '%x'. Actual '%x'",
+			expectedsha512384, sha512384,
 		)
+	}
+	md5 := GetHMAC(HashMD5, []byte("Hello World"), []byte("1234"))
+	if string(md5) != string(expectedmd5) {
+		t.Errorf("Test failed. Common GetHMAC error: Expected '%x'. Actual '%x'",
+			expectedmd5, md5,
+		)
+	}
+
+}
+
+func TestSha1Tohex(t *testing.T) {
+	t.Parallel()
+	expectedResult := "fcfbfcd7d31d994ef660f6972399ab5d7a890149"
+	actualResult := Sha1ToHex("Testing Sha1ToHex")
+	if actualResult != expectedResult {
+		t.Errorf("Test failed. Expected '%s'. Actual '%s'",
+			expectedResult, actualResult)
 	}
 }
 
@@ -533,6 +554,20 @@ func TestSendHTTPRequest(t *testing.T) {
 	if err != nil {
 		t.Errorf("Test failed. %s ", err)
 	}
+	_, err = SendHTTPRequest(
+		methodGet, ":missingprotocolscheme", headers,
+		strings.NewReader(""),
+	)
+	if err == nil {
+		t.Error("Test failed. Common HTTPRequest accepted missing protocol")
+	}
+	_, err = SendHTTPRequest(
+		methodGet, "test://unsupportedprotocolscheme", headers,
+		strings.NewReader(""),
+	)
+	if err == nil {
+		t.Error("Test failed. Common HTTPRequest accepted invalid protocol")
+	}
 }
 
 func TestSendHTTPGetRequest(t *testing.T) {
@@ -547,7 +582,9 @@ func TestSendHTTPGetRequest(t *testing.T) {
 	url := `https://api.ethplorer.io/getAddressInfo/0xff71cb760666ab06aa73f34995b42dd4b85ea07b?apiKey=freekey`
 	result := test{}
 
-	err := SendHTTPGetRequest(url, true, false, &result)
+	var badresult int
+
+	err := SendHTTPGetRequest(url, true, true, &result)
 	if err != nil {
 		t.Errorf("Test failed - common SendHTTPGetRequest error: %s", err)
 	}
@@ -557,7 +594,15 @@ func TestSendHTTPGetRequest(t *testing.T) {
 	}
 	err = SendHTTPGetRequest(url, false, false, &result)
 	if err != nil {
-		t.Error("Test failed - common SendHTTPGetRequest error")
+		t.Errorf("Test failed - common SendHTTPGetRequest error: %s", err)
+	}
+	err = SendHTTPGetRequest("https://httpstat.us/202", false, false, &result)
+	if err == nil {
+		t.Error("Test failed = common SendHTTPGetRequest error: Ignored unexpected status code")
+	}
+	err = SendHTTPGetRequest(url, true, false, &badresult)
+	if err == nil {
+		t.Error("Test failed - common SendHTTPGetRequest error: Unmarshalled into bad type")
 	}
 }
 
@@ -587,6 +632,32 @@ func TestJSONEncode(t *testing.T) {
 	_, err = JSONEncode("WigWham")
 	if err != nil {
 		t.Errorf("Test failed - common JSONEncode error: %s", err)
+	}
+}
+
+func TestJSONDecode(t *testing.T) {
+	t.Parallel()
+	var data []byte
+	result := "Not a memory address"
+	err := JSONDecode(data, result)
+	if err == nil {
+		t.Error("Test failed. Common JSONDecode, unmarshalled when address not supplied")
+	}
+
+	type test struct {
+		Status int `json:"status"`
+		Data   []struct {
+			Address string  `json:"address"`
+			Balance float64 `json:"balance"`
+		} `json:"data"`
+	}
+
+	var v test
+	data = []byte(`{"status":1,"data":null}`)
+	err = JSONDecode(data, &v)
+	if err != nil || v.Status != 1 {
+		t.Errorf("Test failed. Common JSONDecode. Data: %v \nError: %s",
+			v, err)
 	}
 }
 
@@ -653,6 +724,10 @@ func TestOutputCSV(t *testing.T) {
 	err := OutputCSV(path, data)
 	if err != nil {
 		t.Errorf("Test failed - common OutputCSV error: %s", err)
+	}
+	err = OutputCSV("/:::notapath:::", data)
+	if err == nil {
+		t.Error("Test failed - common OutputCSV, tried writing to invalid path")
 	}
 }
 
@@ -748,5 +823,135 @@ func TestGetURIPath(t *testing.T) {
 			t.Errorf("Test failed. Expected '%s'. Actual '%s'.",
 				expectedOutput, actualOutput)
 		}
+	}
+}
+
+func TestGetExecutablePath(t *testing.T) {
+	t.Parallel()
+	_, err := GetExecutablePath()
+	if err != nil {
+		t.Errorf("Test failed. Common GetExecutablePath. Error: %s", err)
+	}
+}
+
+func TestGetOSPathSlash(t *testing.T) {
+	output := GetOSPathSlash()
+	if output != "/" && output != "\\" {
+		t.Errorf("Test failed. Common GetOSPathSlash. Returned '%s'", output)
+	}
+
+}
+
+func TestUnixMillis(t *testing.T) {
+	t.Parallel()
+	testTime := time.Date(2014, time.October, 28, 0, 32, 0, 0, time.UTC)
+	expectedOutput := int64(1414456320000)
+
+	actualOutput := UnixMillis(testTime)
+	if actualOutput != expectedOutput {
+		t.Errorf("Test failed. Common UnixMillis. Expected '%d'. Actual '%d'.",
+			expectedOutput, actualOutput)
+	}
+}
+
+func TestRecvWindow(t *testing.T) {
+	t.Parallel()
+	testTime := time.Duration(24760000)
+	expectedOutput := int64(24)
+
+	actualOutput := RecvWindow(testTime)
+	if actualOutput != expectedOutput {
+		t.Errorf("Test failed. Common RecvWindow. Expected '%d'. Actual '%d'",
+			expectedOutput, actualOutput)
+	}
+}
+
+func TestFloatFromString(t *testing.T) {
+	t.Parallel()
+	testString := "1.41421356237"
+	expectedOutput := float64(1.41421356237)
+
+	actualOutput, err := FloatFromString(testString)
+	if actualOutput != expectedOutput || err != nil {
+		t.Errorf("Test failed. Common FloatFromString. Expected '%v'. Actual '%v'. Error: %s",
+			expectedOutput, actualOutput, err)
+	}
+
+	var testByte []byte
+	_, err = FloatFromString(testByte)
+	if err == nil {
+		t.Error("Test failed. Common FloatFromString. Converted non-string.")
+	}
+
+	testString = "   something unconvertible  "
+	_, err = FloatFromString(testString)
+	if err == nil {
+		t.Error("Test failed. Common FloatFromString. Converted invalid syntax.")
+	}
+}
+
+func TestIntFromString(t *testing.T) {
+	t.Parallel()
+	testString := "1337"
+	expectedOutput := 1337
+
+	actualOutput, err := IntFromString(testString)
+	if actualOutput != expectedOutput || err != nil {
+		t.Errorf("Test failed. Common IntFromString. Expected '%v'. Actual '%v'. Error: %s",
+			expectedOutput, actualOutput, err)
+	}
+
+	var testByte []byte
+	_, err = IntFromString(testByte)
+	if err == nil {
+		t.Error("Test failed. Common IntFromString. Converted non-string.")
+	}
+
+	testString = "1.41421356237"
+	_, err = IntFromString(testString)
+	if err == nil {
+		t.Error("Test failed. Common IntFromString. Converted invalid syntax.")
+	}
+}
+
+func TestInt64FromString(t *testing.T) {
+	t.Parallel()
+	testString := "4398046511104"
+	expectedOutput := int64(1 << 42)
+
+	actualOutput, err := Int64FromString(testString)
+	if actualOutput != expectedOutput || err != nil {
+		t.Errorf("Test failed. Common Int64FromString. Expected '%v'. Actual '%v'. Error: %s",
+			expectedOutput, actualOutput, err)
+	}
+
+	var testByte []byte
+	_, err = Int64FromString(testByte)
+	if err == nil {
+		t.Error("Test failed. Common Int64FromString. Converted non-string.")
+	}
+
+	testString = "1.41421356237"
+	_, err = Int64FromString(testString)
+	if err == nil {
+		t.Error("Test failed. Common Int64FromString. Converted invalid syntax.")
+	}
+}
+
+func TestTimeFromUnixTimestampFloat(t *testing.T) {
+	t.Parallel()
+	testTimestamp := float64(1414456320000)
+	expectedOutput := time.Date(2014, time.October, 28, 0, 32, 0, 0, time.UTC)
+
+	actualOutput, err := TimeFromUnixTimestampFloat(testTimestamp)
+	if actualOutput.UTC().String() != expectedOutput.UTC().String() || err != nil {
+		t.Errorf("Test failed. Common TimeFromUnixTimestampFloat. Expected '%v'. Actual '%v'. Error: %s",
+			expectedOutput, actualOutput, err)
+	}
+
+	testString := "Time"
+	_, err = TimeFromUnixTimestampFloat(testString)
+	if err == nil {
+		t.Error("Test failed. Common TimeFromUnixTimestampFloat. Converted invalid syntax.")
 	}
 }
