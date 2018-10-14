@@ -55,48 +55,48 @@ type ConnectedUsers struct {
 
 // Execution Raw Order and Balance Data
 type Execution struct {
-	Account               int64   `json:"account"`
-	AvgPx                 float64 `json:"avgPx"`
+	Account               int64   `json:"account"` //所属用户ID
+	AvgPx                 float64 `json:"avgPx"`   //成交价格
 	ClOrdID               string  `json:"clOrdID"`
 	ClOrdLinkID           string  `json:"clOrdLinkID"`
-	Commission            float64 `json:"commission"`
+	Commission            float64 `json:"commission"` //佣金,0.00075,-0.00025
 	ContingencyType       string  `json:"contingencyType"`
-	CumQty                int64   `json:"cumQty"`
-	Currency              string  `json:"currency"`
+	CumQty                int64   `json:"cumQty"`   //交易数量
+	Currency              string  `json:"currency"` //交易的符号，例如USD
 	DisplayQty            int64   `json:"displayQty"`
 	ExDestination         string  `json:"exDestination"`
 	ExecComm              int64   `json:"execComm"`
 	ExecCost              int64   `json:"execCost"`
 	ExecID                string  `json:"execID"`
-	ExecInst              string  `json:"execInst"`
-	ExecType              string  `json:"execType"`
-	ForeignNotional       float64 `json:"foreignNotional"`
-	HomeNotional          float64 `json:"homeNotional"`
-	LastLiquidityInd      string  `json:"lastLiquidityInd"`
-	LastMkt               string  `json:"lastMkt"`
+	ExecInst              string  `json:"execInst"`         //"Close",""
+	ExecType              string  `json:"execType"`         //"Trade"
+	ForeignNotional       float64 `json:"foreignNotional"`  //40,-20
+	HomeNotional          float64 `json:"homeNotional"`     //-0.0064424,0.003229
+	LastLiquidityInd      string  `json:"lastLiquidityInd"` //"RemovedLiquidity","AddedLiquidity"
+	LastMkt               string  `json:"lastMkt"`          //"XBME"
 	LastPx                float64 `json:"lastPx"`
 	LastQty               int64   `json:"lastQty"`
 	LeavesQty             int64   `json:"leavesQty"`
-	MultiLegReportingType string  `json:"multiLegReportingType"`
+	MultiLegReportingType string  `json:"multiLegReportingType"` //"SingleSecurity"
 	OrdRejReason          string  `json:"ordRejReason"`
-	OrdStatus             string  `json:"ordStatus"`
-	OrdType               string  `json:"ordType"`
-	OrderID               string  `json:"orderID"`
+	OrdStatus             string  `json:"ordStatus"` //订单状态，例如："Filled"
+	OrdType               string  `json:"ordType"`   //订单类型，例如："Limit"
+	OrderID               string  `json:"orderID"`   //订单ID，类Guid
 	OrderQty              int64   `json:"orderQty"`
 	PegOffsetValue        float64 `json:"pegOffsetValue"`
 	PegPriceType          string  `json:"pegPriceType"`
 	Price                 float64 `json:"price"`
-	SettlCurrency         string  `json:"settlCurrency"`
-	Side                  string  `json:"side"`
+	SettlCurrency         string  `json:"settlCurrency"` //订单交易对，例如:XBt
+	Side                  string  `json:"side"`          //交易方向："Buy"\"Sell"
 	SimpleCumQty          float64 `json:"simpleCumQty"`
 	SimpleLeavesQty       float64 `json:"simpleLeavesQty"`
 	SimpleOrderQty        float64 `json:"simpleOrderQty"`
 	StopPx                float64 `json:"stopPx"`
-	Symbol                string  `json:"symbol"`
+	Symbol                string  `json:"symbol"` //交易对，例如"XBTUSD"
 	Text                  string  `json:"text"`
 	TimeInForce           string  `json:"timeInForce"`
-	Timestamp             string  `json:"timestamp"`
-	TradePublishIndicator string  `json:"tradePublishIndicator"`
+	Timestamp             string  `json:"timestamp"`             //订单时间
+	TradePublishIndicator string  `json:"tradePublishIndicator"` //"PublishTrade"
 	TransactTime          string  `json:"transactTime"`
 	TrdMatchID            string  `json:"trdMatchID"`
 	Triggered             string  `json:"triggered"`
@@ -278,14 +278,15 @@ type Notification struct {
 }
 
 // Order Placement, Cancellation, Amending, and History
+// http://www.onixs.biz/fix-dictionary/5.0.SP2/msgType_D_68.html
 type Order struct {
-	Account               int64   `json:"account"`
-	AvgPx                 float64 `json:"avgPx"`
-	ClOrdID               string  `json:"clOrdID"`
+	Account               int64   `json:"account"` //帐号ID
+	AvgPx                 float64 `json:"avgPx"`   //价格
+	ClOrdID               string  `json:"clOrdID"` //可指定的客户端ID
 	ClOrdLinkID           string  `json:"clOrdLinkID"`
-	ContingencyType       string  `json:"contingencyType"`
+	ContingencyType       string  `json:"contingencyType"` //
 	CumQty                int64   `json:"cumQty"`
-	Currency              string  `json:"currency"`
+	Currency              string  `json:"currency"` //USD
 	DisplayQty            int64   `json:"displayQty"`
 	ExDestination         string  `json:"exDestination"`
 	ExecInst              string  `json:"execInst"`
@@ -309,7 +310,7 @@ type Order struct {
 	Text                  string  `json:"text"`
 	TimeInForce           string  `json:"timeInForce"`
 	Timestamp             string  `json:"timestamp"`
-	TransactTime          string  `json:"transactTime"`
+	TransactTime          string  `json:"transactTime"` //发生消息所代表的业务事务时的时间戳
 	Triggered             string  `json:"triggered"`
 	WorkingIndicator      bool    `json:"workingIndicator"`
 }

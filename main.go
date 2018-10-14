@@ -2,15 +2,13 @@ package main
 
 import (
 	"fmt"
-	"log"
-	"os"
 	"time"
 
-	"github.com/agtorre/gocolorize"
+	"github.com/idoall/TokenExchangeCommon/commonutils"
 	"github.com/idoall/gocryptotrader/communications"
 	"github.com/idoall/gocryptotrader/config"
 	exchange "github.com/idoall/gocryptotrader/exchanges"
-	"github.com/idoall/gocryptotrader/exchanges/binance"
+	"github.com/idoall/gocryptotrader/exchanges/bitmex"
 	"github.com/idoall/gocryptotrader/portfolio"
 )
 
@@ -40,7 +38,7 @@ var bot Bot
 // getDefaultConfig 获取默认配置
 func getDefaultConfig() config.ExchangeConfig {
 	return config.ExchangeConfig{
-		Name:                    "Binance",
+		Name:                    "Bitmex",
 		Enabled:                 true,
 		Verbose:                 true,
 		Websocket:               true,
@@ -61,28 +59,43 @@ func main() {
 	// // exchange := okex.OKEX{}
 	// // exchange := huobi.HUOBI{}
 	// // exchange := zb.ZB{}
-	exchange := binance.Binance{}
+	// exchange := binance.Binance{}
+
+	exchange := bitmex.Bitmex{}
 	defaultConfig := getDefaultConfig()
 	exchange.SetDefaults()
 	fmt.Println("----------setup-------")
 	exchange.Setup(defaultConfig)
+	//bitmex.GenericRequestParams{}
+	list, err := exchange.GetStats()
+	if err != nil {
+		fmt.Println(err)
+	} else {
+		// fmt.Printf("%v\n", res)
 
-	ch := make(chan *binance.KlineStream)
-	done := make(chan struct{})
-	timeIntervals := []binance.TimeInterval{
-		binance.TimeIntervalFiveMinutes,
-		binance.TimeIntervalMinute,
-		binance.TimeIntervalDay,
-		binance.TimeIntervalHour,
-		binance.TimeIntervalTwoHours,
+		for _, v := range list {
+			b, _ := commonutils.JSONEncode(v)
+			fmt.Printf("%s\n", b)
+		}
+
 	}
 
-	go exchange.WebsocketKline(ch, timeIntervals, done)
-	for {
-		fmt.Fprintln(os.Stdout, gocolorize.NewColor("green").Paint("接收....."))
-		kline := <-ch
-		log.Println("Kline received", "value:", kline.Kline.Interval, kline.Symbol, kline.EventTime, kline.Kline.HighPrice, kline.Kline.LowPrice)
-	}
+	// ch := make(chan *binance.KlineStream)
+	// done := make(chan struct{})
+	// timeIntervals := []binance.TimeInterval{
+	// 	binance.TimeIntervalFiveMinutes,
+	// 	binance.TimeIntervalMinute,
+	// 	binance.TimeIntervalDay,
+	// 	binance.TimeIntervalHour,
+	// 	binance.TimeIntervalTwoHours,
+	// }
+
+	// go exchange.WebsocketKline(ch, timeIntervals, done)
+	// for {
+	// 	fmt.Fprintln(os.Stdout, gocolorize.NewColor("green").Paint("接收....."))
+	// 	kline := <-ch
+	// 	log.Println("Kline received", "value:", kline.Kline.Interval, kline.Symbol, kline.EventTime, kline.Kline.HighPrice, kline.Kline.LowPrice)
+	// }
 	// res, err := exchange.GetExchangeInfo()
 
 	// if err != nil {
