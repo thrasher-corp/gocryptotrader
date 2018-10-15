@@ -387,7 +387,7 @@ func (b *Bitflyer) SendAuthHTTPRequest(path string, params url.Values, result in
 }
 
 // GetFee returns an estimate of fee based on type of transaction
-func (b *Bitflyer) GetFee(feeType string, currency string, purchasePrice float64, amount float64, isTaker bool, isMaker bool) (float64, error) {
+func (b *Bitflyer) GetFee(feeType exchange.FeeType, currency string, purchasePrice float64, amount float64, isTaker bool, isMaker bool) (float64, error) {
 	var fee float64
 
 	switch feeType {

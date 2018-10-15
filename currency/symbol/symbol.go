@@ -211,12 +211,22 @@ const (
 	RNT     = "RNT"
 	PLY     = "PLY"
 	PST     = "PST"
+	KICK    = "KICK"
+	BTCZ    = "BTCZ"
+	DXT     = "DXT"
+	STQ     = "STQ"
+	INK     = "INK"
+	HBZ     = "HBZ"
 	HKD     = "HKD" // Hong Kong Dollar
 	AUD     = "AUD" // Australian Dollar
 	USD     = "USD" // United States Dollar
 	EUR     = "EUR" // Euro
 	CAD     = "CAD" // Canadaian Dollar
 	SGD     = "SGD" // Singapore Dollar
+	RUB     = "RUB" // Russian Ruble
+	PLN     = "PLN" // Polish złoty
+	TRY     = "TRY" // Turkish lira
+	UAH     = "UAH" // Ukrainian hryvnia
 )
 
 // symbols map holds the currency name and symbol mappings

@@ -354,7 +354,9 @@ func (c *COINUT) GetFee(feeBuilder exchange.FeeBuilder) (float64, error) {
 
 func (c *COINUT) calculateTradingFee(firstCurrency, secondCurrency string, purchasePrice, amount float64, isMaker bool) float64 {
 	var fee float64
-	if currency.IsCryptocurrency(firstCurrency) && !currency.IsCryptocurrency(secondCurrency) ||
+	if isMaker {
+		fee = 0
+	} else if currency.IsCryptocurrency(firstCurrency) && !currency.IsCryptocurrency(secondCurrency) ||
 		!currency.IsCryptocurrency(firstCurrency) && currency.IsCryptocurrency(secondCurrency) {
 		fee = 0.002
 	} else {
