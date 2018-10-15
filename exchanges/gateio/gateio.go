@@ -403,3 +403,39 @@ func (g *Gateio) SendAuthenticatedHTTPRequest(method, endpoint, param string, re
 
 	return g.SendPayload(method, url, headers, strings.NewReader(param), result, true, g.Verbose)
 }
+
+// GetFee returns an estimate of fee based on type of transaction
+func (g *Gateio) GetFee(feeBuilder exchange.FeeBuilder) (float64, error) {
+	var fee float64
+	switch feeBuilder.FeeType {
+	case exchange.CryptocurrencyTradeFee:
+		feePairs, err := g.GetMarketInfo()
+		if err != nil {
+			return 0, err
+		}
+		currencyPair := feeBuilder.FirstCurrency + feeBuilder.Delimiter + feeBuilder.SecondCurrency
+		var feeForPair float64
+		for _, i := range feePairs.Pairs {
+			if strings.EqualFold(currencyPair, i.Symbol) {
+				feeForPair = i.Fee
+			}
+		}
+		fee = calculateTradingFee(feeForPair, feeBuilder.PurchasePrice, feeBuilder.Amount)
+	case exchange.CryptocurrencyWithdrawalFee:
+		fee = getCryptocurrencyWithdrawalFee(feeBuilder.FirstCurrency)
+
+		if fee < 0 {
+			fee = 0
+		}
+	}
+
+	return fee, nil
+}
+
+func calculateTradingFee(feeForPair, purchasePrice, amount float64) float64 {
+	return (feeForPair / 100) * purchasePrice * amount
+}
+
+func getCryptocurrencyWithdrawalFee(currency string) float64 {
+	return WithdrawalFees[currency]
+}
