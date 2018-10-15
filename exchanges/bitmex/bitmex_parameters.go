@@ -901,7 +901,11 @@ func (p TradeGetBucketedParams) VerifyData() error {
 // ToURLVals converts struct values to url.values and encodes it on the supplied
 // path
 func (p TradeGetBucketedParams) ToURLVals(path string) (string, error) {
-	return "", nil
+	values, err := StructValsToURLVals(&p)
+	if err != nil {
+		return "", err
+	}
+	return common.EncodeURLValues(path, values), nil
 }
 
 // IsNil checks to see if any values has been set for the paramater

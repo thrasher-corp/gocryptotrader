@@ -492,6 +492,7 @@ func (b *Bitmex) GetOrderbook(params OrderBookGetL2Params) ([]OrderBookL2, error
 }
 
 // GetPositions returns positions
+// 查看持仓信息
 func (b *Bitmex) GetPositions(params PositionGetParams) ([]Position, error) {
 	var positions []Position
 
@@ -601,12 +602,13 @@ func (b *Bitmex) GetTrade(params GenericRequestParams) ([]Trade, error) {
 }
 
 // GetPreviousTrades previous trade history in time buckets
-func (b *Bitmex) GetPreviousTrades(params TradeGetBucketedParams) ([]Trade, error) {
-	var trade []Trade
+// 获取K线
+func (b *Bitmex) GetPreviousTrades(params TradeGetBucketedParams) ([]TradeBucket, error) {
+	var tradeBucket []TradeBucket
 
-	return trade, b.SendHTTPRequest(bitmexEndpointTradeBucketed,
+	return tradeBucket, b.SendHTTPRequest(bitmexEndpointTradeBucketed,
 		params,
-		&trade)
+		&tradeBucket)
 }
 
 // GetUserInfo returns your user information
@@ -829,9 +831,11 @@ func (b *Bitmex) GetWalletSummary(currency string) ([]TransactionInfo, error) {
 func (b *Bitmex) SendHTTPRequest(path string, params Parameter, result interface{}) error {
 	var respCheck interface{}
 	path = b.APIUrl + path
+
 	if params != nil {
 		if !params.IsNil() {
 			encodedPath, err := params.ToURLVals(path)
+
 			if err != nil {
 				return err
 			}
@@ -902,19 +906,19 @@ func (b *Bitmex) SendAuthenticatedHTTPRequest(verb, path string, params Paramete
 
 // CaptureError little hack that captures an error
 func (b *Bitmex) CaptureError(resp, reType interface{}) error {
-	var Error RequestError
+	// var Error RequestError
 
 	marshalled, err := json.Marshal(resp)
 	if err != nil {
 		return err
 	}
 
-	err = common.JSONDecode(marshalled, &Error)
-	if err == nil {
-		return fmt.Errorf("bitmex error %s: %s",
-			Error.Error.Name,
-			Error.Error.Message)
-	}
+	// err = common.JSONDecode(marshalled, &Error)
+	// if err == nil {
+	// 	return fmt.Errorf("bitmex error %s: %s",
+	// 		Error.Error.Name,
+	// 		Error.Error.Message)
+	// }
 
 	err = common.JSONDecode(marshalled, reType)
 	if err != nil {

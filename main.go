@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/idoall/TokenExchangeCommon/commonutils"
 	"github.com/idoall/gocryptotrader/communications"
 	"github.com/idoall/gocryptotrader/config"
 	exchange "github.com/idoall/gocryptotrader/exchanges"
@@ -54,11 +53,11 @@ func getDefaultConfig() config.ExchangeConfig {
 
 func main() {
 	// new(binance.Binance).WebsocketClient()
-	// // exchange := gateio.Gateio{}
-	// // exchange := bitfinex.Bitfinex{}
-	// // exchange := okex.OKEX{}
-	// // exchange := huobi.HUOBI{}
-	// // exchange := zb.ZB{}
+	// exchange := gateio.Gateio{}
+	// exchange := bitfinex.Bitfinex{}
+	// exchange := okex.OKEX{}
+	// exchange := huobi.HUOBI{}
+	// exchange := zb.ZB{}
 	// exchange := binance.Binance{}
 
 	exchange := bitmex.Bitmex{}
@@ -67,18 +66,97 @@ func main() {
 	fmt.Println("----------setup-------")
 	exchange.Setup(defaultConfig)
 	//bitmex.GenericRequestParams{}
-	list, err := exchange.GetStats()
-	if err != nil {
-		fmt.Println(err)
-	} else {
-		// fmt.Printf("%v\n", res)
 
-		for _, v := range list {
-			b, _ := commonutils.JSONEncode(v)
-			fmt.Printf("%s\n", b)
-		}
+	//--------------批量创建新订单
+	// list, err := exchange.CreateBulkOrders(bitmex.OrderNewBulkParams{
+	// 	[]bitmex.OrderNewParams{
+	// 		bitmex.OrderNewParams{
+	// 			Symbol:   "XBTUSD",
+	// 			Side:     "Buy",
+	// 			Price:    6520,
+	// 			ClOrdID:  "test/idoall1",
+	// 			OrderQty: 200,
+	// 		},
+	// 	},
+	// })
+	// if err != nil {
+	// 	fmt.Println(err)
+	// } else {
+	// 	for _, v := range list {
+	// 		b, _ := commonutils.JSONEncode(v)
+	// 		fmt.Printf("%s\n", b)
+	// 	}
+	// }
 
-	}
+	//------------------平仓
+	// res, err := exchange.CreateOrder(bitmex.OrderNewParams{
+	// 	Symbol: "XBTUSD",
+	// 	// Side:     "Buy",
+	// 	Price:    6210,
+	// 	ExecInst: "Close",
+	// 	// ClOrdID:  "test/idoall",
+	// 	// OrderQty: 10,
+	// })
+	// if err != nil {
+	// 	fmt.Println(err)
+	// } else {
+	// 	fmt.Printf("%v\n", res)
+	// }
+
+	//-----------------取消订单，平仓或者发布中未成交的都可以取消
+	// list, err := exchange.CancelOrders(bitmex.OrderCancelParams{
+	// 	OrderID: "94673f58-3edc-46a2-d2e3-7d201ddacffe",
+	// })
+
+	// // list, err := exchange.GetStats()
+	// if err != nil {
+	// 	fmt.Println(err)
+	// } else {
+	// 	for _, v := range list {
+	// 		b, _ := commonutils.JSONEncode(v)
+	// 		fmt.Printf("%s\n", b)
+	// 	}
+	// }
+
+	//---------------获取K线,每个时间段的统计，都是向前推5分钟，例如1小时的是从5分开始到一个小时的0分
+	// list, err := exchange.GetPreviousTrades(bitmex.TradeGetBucketedParams{
+	// 	BinSize: "5m",
+	// 	Symbol:  "xbt",
+	// 	Reverse: true,
+	// 	Count:   25,
+	// })
+
+	// // list, err := exchange.GetStats()
+	// if err != nil {
+	// 	fmt.Println(err)
+	// } else {
+	// 	for _, v := range list {
+	// 		t, _ := time.ParseInLocation("2006-01-02T15:04:05.000Z", v.Timestamp, time.Local)
+	// 		t = t.Add(time.Duration(8) * time.Hour)
+	// 		b, _ := commonutils.JSONEncode(v)
+	// 		fmt.Printf("%s %s\n", t.Format("2006-01-02 15:04:05"), b)
+	// 	}
+	// }
+
+	// list, err := exchange.CancelOrders(bitmex.OrderCancelParams{
+	// 	OrderID: "76049cb1-abba-efef-a918-373d151ee892",
+	// })
+
+	//----------BM调整杠杆
+	// res, err := exchange.LeveragePosition(bitmex.PositionUpdateLeverageParams{Leverage: 10, Symbol: "XBTUSD"})
+
+	// // list, err := exchange.GetStats()
+	// if err != nil {
+	// 	fmt.Println(err)
+	// } else {
+	// 	fmt.Printf("%+v\n", res)
+
+	// 	// for _, v := range list {
+	// 	// 	b, _ := commonutils.JSONEncode(v)
+	// 	// 	fmt.Printf("%s\n", b)
+	// 	// }
+
+	// }
 
 	// ch := make(chan *binance.KlineStream)
 	// done := make(chan struct{})

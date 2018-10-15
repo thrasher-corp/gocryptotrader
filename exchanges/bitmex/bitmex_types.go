@@ -79,7 +79,7 @@ type Execution struct {
 	LeavesQty             int64   `json:"leavesQty"`
 	MultiLegReportingType string  `json:"multiLegReportingType"` //"SingleSecurity"
 	OrdRejReason          string  `json:"ordRejReason"`
-	OrdStatus             string  `json:"ordStatus"` //订单状态，例如："Filled"
+	OrdStatus             string  `json:"ordStatus"` //订单状态，例如："Filled","Canceled"
 	OrdType               string  `json:"ordType"`   //订单类型，例如："Limit"
 	OrderID               string  `json:"orderID"`   //订单ID，类Guid
 	OrderQty              int64   `json:"orderQty"`
@@ -289,11 +289,11 @@ type Order struct {
 	Currency              string  `json:"currency"` //USD
 	DisplayQty            int64   `json:"displayQty"`
 	ExDestination         string  `json:"exDestination"`
-	ExecInst              string  `json:"execInst"`
+	ExecInst              string  `json:"execInst"` //如果是Close表示关闭
 	LeavesQty             int64   `json:"leavesQty"`
 	MultiLegReportingType string  `json:"multiLegReportingType"`
 	OrdRejReason          string  `json:"ordRejReason"`
-	OrdStatus             string  `json:"ordStatus"`
+	OrdStatus             string  `json:"ordStatus"` //订单状态，例如："Filled","Canceled","New":新订单
 	OrdType               string  `json:"ordType"`
 	OrderID               string  `json:"orderID"`
 	OrderQty              int64   `json:"orderQty"`
@@ -483,6 +483,23 @@ type Trade struct {
 	TickDirection   string  `json:"tickDirection"`
 	Timestamp       string  `json:"timestamp"`
 	TrdMatchID      string  `json:"trdMatchID"`
+}
+
+// TradeBucket K线相关
+type TradeBucket struct {
+	Timestamp       string  `json:"timestamp"`
+	Symbol          string  `json:"symbol"`
+	Open            float64 `json:"open"`
+	High            float64 `json:"high"`
+	Low             float64 `json:"low"`
+	Close           float64 `json:"close"`
+	Trades          float64 `json:"trades"`
+	Volume          float64 `json:"volume"`
+	VWap            float64 `json:"vwap"`
+	LastSize        float64 `json:"lastSize"`
+	TurnOver        int64   `json:"turnover"`
+	HomeNotional    float64 `json:"homeNotional"`
+	ForeignNotional float64 `json:"foreignNotional"` //40,-20
 }
 
 // User Account Operations
