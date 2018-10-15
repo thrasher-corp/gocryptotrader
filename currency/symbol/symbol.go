@@ -227,6 +227,7 @@ const (
 	PLN     = "PLN" // Polish złoty
 	TRY     = "TRY" // Turkish lira
 	UAH     = "UAH" // Ukrainian hryvnia
+	JPY     = "JPY" // Japanese yen
 )
 
 // symbols map holds the currency name and symbol mappings

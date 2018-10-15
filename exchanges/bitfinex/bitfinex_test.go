@@ -707,7 +707,7 @@ func TestGetFee(t *testing.T) {
 	// InternationalBankDepositFee Basic
 	feeBuilder = setFeeBuilder()
 	feeBuilder.FeeType = exchange.InternationalBankDepositFee
-	feeBuilder.FirstCurrency = symbol.HKD
+	feeBuilder.CurrencyItem = symbol.HKD
 	if resp, err := b.GetFee(feeBuilder); resp != float64(0.001) || err != nil {
 		t.Errorf("Test Failed - GetFee() error. Expected: %f, Recieved: %f", float64(0.001), resp)
 		t.Error(err)
@@ -716,7 +716,7 @@ func TestGetFee(t *testing.T) {
 	// InternationalBankWithdrawalFee Basic
 	feeBuilder = setFeeBuilder()
 	feeBuilder.FeeType = exchange.InternationalBankWithdrawalFee
-	feeBuilder.FirstCurrency = symbol.HKD
+	feeBuilder.CurrencyItem = symbol.HKD
 	if resp, err := b.GetFee(feeBuilder); resp != float64(0.001) || err != nil {
 		t.Errorf("Test Failed - GetFee() error. Expected: %f, Recieved: %f", float64(0.001), resp)
 		t.Error(err)
