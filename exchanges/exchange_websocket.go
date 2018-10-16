@@ -14,20 +14,12 @@ import (
 const (
 	// WebsocketNotEnabled alerts of a disabled websocket
 	WebsocketNotEnabled = "exchange_websocket_not_enabled"
-	// WebsocketConnected defines a connection const
-	WebsocketConnected = "websocket_connection_established"
-	// WebsocketDisconnected defines a disconnection const
-	WebsocketDisconnected = "websocket_disconnection_occured"
-	// WebsocketOrderbookUpdated tells the routine handler that there is a
-	// change in the orderbook structure
-	WebsocketOrderbookUpdated = "websocket_orderbook_updated"
 	// WebsocketTrafficLimitTime defines a standard time for no traffic from the
 	// websocket connection
 	WebsocketTrafficLimitTime = 5 * time.Second
-
-	websocketStateRefresh = "REFRESH"
-	websocketStateEnable  = "ENABLED"
-	websocketStateDisable = "DISABLED"
+	// WebsocketStateTimeout defines a const for when a websocket connection
+	// times out, will be handled by the routine management system
+	WebsocketStateTimeout = "TIMEOUT"
 
 	websocketRestablishConnection = 1 * time.Second
 )
@@ -52,7 +44,6 @@ func (e *Base) WebsocketSetup(connector func() error,
 	runningURL string) {
 
 	e.Websocket.DataHandler = make(chan interface{}, 1)
-	e.Websocket.state = make(chan string, 1)
 	e.Websocket.Connected = make(chan struct{}, 1)
 	e.Websocket.Disconnected = make(chan struct{}, 1)
 	e.Websocket.Intercomm = make(chan WebsocketResponse, 1)
@@ -66,7 +57,6 @@ func (e *Base) WebsocketSetup(connector func() error,
 	e.Websocket.SetExchangeName(exchangeName)
 
 	e.Websocket.init = false
-	go e.Websocket.stateChange()
 }
 
 // Websocket defines a return type for websocket connections via the interface
@@ -79,9 +69,7 @@ type Websocket struct {
 	enabled      bool
 	init         bool
 	connected    bool
-	state        chan string
 	connector    func() error
-	m            sync.Mutex
 
 	// Connected denotes a channel switch for diversion of request flow
 	Connected chan struct{}
@@ -114,106 +102,68 @@ type Websocket struct {
 func (w *Websocket) trafficMonitor() {
 	w.Wg.Add(1)
 
-	var connected bool
-	defer func(isConnected *bool) {
-		if *isConnected {
+	defer func() {
+		if w.connected {
 			w.Disconnected <- struct{}{}
 		}
 		w.Wg.Done()
-	}(&connected)
+	}()
 
-	trafficTimer := time.NewTimer(WebsocketTrafficLimitTime)
+	// Define an initial traffic timer which will be a delay then fall over to
+	// WebsocketTrafficLimitTime after first response
+	trafficTimer := time.NewTimer(5 * time.Second)
 
 	for {
 		select {
-		case <-w.ShutdownC:
+		case <-w.ShutdownC: // Returns on shutdown channel close
 			return
 
-		case <-w.TrafficAlert:
-			if !connected {
+		case <-w.TrafficAlert: // Resets timer on traffic
+			if !w.connected {
 				w.Connected <- struct{}{}
-				connected = true
+				w.connected = true
 			}
 
 			trafficTimer.Reset(WebsocketTrafficLimitTime)
 
-		case <-trafficTimer.C:
-			newtimer := time.NewTimer(WebsocketTrafficLimitTime)
-			if connected {
+		case <-trafficTimer.C: // Falls through when timer runs out
+			newtimer := time.NewTimer(10 * time.Second) // New secondary timer set
+			if w.connected {
+				// If connected divert traffic to rest
 				w.Disconnected <- struct{}{}
-				connected = false
+				w.connected = false
 			}
 
 			select {
-			case <-w.ShutdownC:
+			case <-w.ShutdownC: // Returns on shutdown channel close
 				return
 
-			case <-newtimer.C:
-				w.state <- websocketStateRefresh
+			case <-newtimer.C: // If secondary timer runs state timeout is sent to the data handler
+				w.DataHandler <- WebsocketStateTimeout
+				return
 
-			case <-w.TrafficAlert:
+			case <-w.TrafficAlert: // If in this time response traffic comes through
 				trafficTimer.Reset(WebsocketTrafficLimitTime)
-				if connected {
+				if !w.connected {
+					// If not connected divert traffic from REST to websocket
 					w.Connected <- struct{}{}
-					connected = true
+					w.connected = true
 				}
 			}
 		}
 	}
 }
 
-// stateChange handles a state change
-func (w *Websocket) stateChange() {
-	for {
-		select {
-		case signal := <-w.state:
-			switch signal {
-			case websocketStateEnable:
-				for {
-					err := w.Connect()
-					if err != nil {
-						w.DataHandler <- err
-						time.Sleep(websocketRestablishConnection)
-						continue
-					}
-					break
-				}
-
-			case websocketStateDisable:
-				err := w.Shutdown()
-				if err != nil {
-					w.DataHandler <- err
-				}
-
-			case websocketStateRefresh:
-				err := w.Shutdown()
-				if err != nil {
-					w.DataHandler <- err
-				}
-
-				for {
-					err = w.Connect()
-					if err != nil {
-						w.DataHandler <- err
-						time.Sleep(websocketRestablishConnection)
-						continue
-					}
-					break
-				}
-			}
-		}
-	}
-}
-
-// Connect intiates a websocket connection by using a package defined shutdown
+// Connect intiates a websocket connection by using a package defined connection
 // function
 func (w *Websocket) Connect() error {
 	if !w.IsEnabled() {
-		return errors.New("not enabled")
+		return errors.New("exchange_websocket.go error - websocket disabled")
 	}
 
-	w.m.Lock()
-	defer w.m.Unlock()
+	if w.connected {
+		return errors.New("exchange_websocket.go error - already connected, cannot connect again")
+	}
 
 	w.ShutdownC = make(chan struct{}, 1)
 
@@ -221,26 +171,25 @@ func (w *Websocket) Connect() error {
 
 	err := w.connector()
 	if err != nil {
-		shutdownError := w.Shutdown()
-		if shutdownError != nil {
-			return fmt.Errorf("exchange_websocket.go connection error %s with shutdown error %s",
-				err,
-				shutdownError)
-		}
-		return err
+		return fmt.Errorf("exchange_websocket.go connection error %s",
+			err)
 	}
+
+	// Divert for incoming websocket traffic
+	w.Connected <- struct{}{}
+	w.connected = true
+
 	return nil
 }
 
 // Shutdown attempts to shut down a websocket connection and associated routines
 // by using a package defined shutdown function
 func (w *Websocket) Shutdown() error {
-	w.m.Lock()
+	if !w.connected {
+		return errors.New("exchange_websocket.go error - System not connected to shut down")
+	}
 
-	defer func() {
-		w.Orderbook.FlushCache()
-		w.m.Unlock()
-	}()
+	defer w.Orderbook.FlushCache()
 
 	timer := time.NewTimer(5 * time.Second)
 	c := make(chan struct{}, 1)
@@ -253,6 +202,7 @@ func (w *Websocket) Shutdown() error {
 
 	select {
 	case <-c:
+		w.connected = false
 		return nil
 	case <-timer.C:
 		return fmt.Errorf("%s - Websocket routines failed to shutdown",
@@ -275,21 +225,28 @@ func (w *Websocket) GetWebsocketURL() string {
 }
 
 // SetEnabled sets if websocket is enabled
-func (w *Websocket) SetEnabled(enabled bool) {
+func (w *Websocket) SetEnabled(enabled bool) error {
 	if w.enabled == enabled {
-		return
+		return fmt.Errorf("exchange_websocket.go error - already set as %t",
+			enabled)
 	}
 
 	w.enabled = enabled
 
 	if !w.init {
 		if enabled {
-			w.state <- websocketStateEnable
-			return
+			if w.connected {
+				return nil
+			}
+			return w.Connect()
 		}
 
-		w.state <- websocketStateDisable
+		if !w.connected {
+			return nil
+		}
+		return w.Shutdown()
 	}
+	return nil
 }
 
 // IsEnabled returns bool
@@ -298,16 +255,24 @@ func (w *Websocket) IsEnabled() bool {
 }
 
 // SetProxyAddress sets websocket proxy address
-func (w *Websocket) SetProxyAddress(URL string) {
+func (w *Websocket) SetProxyAddress(URL string) error {
 	if w.proxyAddr == URL {
-		return
+		return errors.New("exchange_websocket.go error - Setting proxy address - same address")
 	}
 
 	w.proxyAddr = URL
 
-	if !w.init {
-		w.state <- websocketStateRefresh
+	if !w.init && w.enabled {
+		if w.connected {
+			err := w.Shutdown()
+			if err != nil {
+				return err
+			}
+			return w.Connect()
+		}
+		return w.Connect()
 	}
+	return nil
 }
 
 // GetProxyAddress returns the current websocket proxy

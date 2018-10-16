@@ -383,9 +383,6 @@ func WebsocketDataHandler(ws *exchange.Websocket) {
 				case exchange.WebsocketNotEnabled:
 					log.Println("Routines.go exchange not enabled test")
 
-				case exchange.WebsocketOrderbookUpdated:
-					log.Println("Orderbook change reflected")
-
 				default:
 					log.Println(data.(string))
 				}
