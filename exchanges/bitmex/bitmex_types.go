@@ -684,3 +684,14 @@ type WalletInfo struct {
 	WithdrawalLock   []string `json:"withdrawalLock"`
 	Withdrawn        int64    `json:"withdrawn"`
 }
+
+// TimeInterval represents interval enum.
+type TimeInterval string
+
+// Vars related to time intervals
+var (
+	TimeIntervalMinute      = TimeInterval("1m")
+	TimeIntervalFiveMinutes = TimeInterval("5m")
+	TimeIntervalHour        = TimeInterval("1h")
+	TimeIntervalDay         = TimeInterval("1d")
+)

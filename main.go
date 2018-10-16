@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/idoall/TokenExchangeCommon/commonutils"
 	"github.com/idoall/gocryptotrader/communications"
 	"github.com/idoall/gocryptotrader/config"
 	exchange "github.com/idoall/gocryptotrader/exchanges"
@@ -118,25 +119,27 @@ func main() {
 	// 	}
 	// }
 
-	//---------------获取K线,每个时间段的统计，都是向前推5分钟，例如1小时的是从5分开始到一个小时的0分
-	// list, err := exchange.GetPreviousTrades(bitmex.TradeGetBucketedParams{
-	// 	BinSize: "5m",
-	// 	Symbol:  "xbt",
-	// 	Reverse: true,
-	// 	Count:   25,
-	// })
+	// ---------------获取K线,每个时间段的统计，都是向前推5分钟，例如1小时的是从5分开始到一个小时的0分
+	list, err := exchange.GetPreviousTrades(bitmex.TradeGetBucketedParams{
+		BinSize:   string(bitmex.TimeIntervalFiveMinutes),
+		Symbol:    "XBT",
+		Reverse:   true,
+		Count:     50,
+		StartTime: "2015-09-25T12:05:00.000Z",
+		EndTime:   "2015-09-25T13:00:00.000Z",
+	})
 
-	// // list, err := exchange.GetStats()
-	// if err != nil {
-	// 	fmt.Println(err)
-	// } else {
-	// 	for _, v := range list {
-	// 		t, _ := time.ParseInLocation("2006-01-02T15:04:05.000Z", v.Timestamp, time.Local)
-	// 		t = t.Add(time.Duration(8) * time.Hour)
-	// 		b, _ := commonutils.JSONEncode(v)
-	// 		fmt.Printf("%s %s\n", t.Format("2006-01-02 15:04:05"), b)
-	// 	}
-	// }
+	// list, err := exchange.GetStats()
+	if err != nil {
+		fmt.Println(err)
+	} else {
+		for _, v := range list {
+			t, _ := time.ParseInLocation("2006-01-02T15:04:05.000Z", v.Timestamp, time.Local)
+			t = t.Add(time.Duration(8) * time.Hour)
+			b, _ := commonutils.JSONEncode(v)
+			fmt.Printf("%s %s\n", t.Format("2006-01-02 15:04:05"), b)
+		}
+	}
 
 	// list, err := exchange.CancelOrders(bitmex.OrderCancelParams{
 	// 	OrderID: "76049cb1-abba-efef-a918-373d151ee892",
