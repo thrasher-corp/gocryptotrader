@@ -208,3 +208,12 @@ func (h *HitBTC) WithdrawFiatExchangeFundsToInternationalBank(currency pair.Curr
 func (h *HitBTC) GetWebsocket() (*exchange.Websocket, error) {
 	return h.Websocket, nil
 }
+
+// GetFeeByType returns an estimate of fee based on type of transaction
+func (h *HitBTC) GetFeeByType(feeBuilder exchange.FeeBuilder) (float64, error) {
+	resp, err := h.GetFee(feeBuilder)
+	if err != nil {
+		return resp, err
+	}
+	return resp, nil
+}

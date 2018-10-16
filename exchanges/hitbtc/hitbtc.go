@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/thrasher-/gocryptotrader/currency/symbol"
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/exchanges"
@@ -54,57 +55,57 @@ type HitBTC struct {
 }
 
 // SetDefaults sets default settings for hitbtc
-func (p *HitBTC) SetDefaults() {
-	p.Name = "HitBTC"
-	p.Enabled = false
-	p.Fee = 0
-	p.Verbose = false
-	p.RESTPollingDelay = 10
-	p.RequestCurrencyPairFormat.Delimiter = ""
-	p.RequestCurrencyPairFormat.Uppercase = true
-	p.ConfigCurrencyPairFormat.Delimiter = "-"
-	p.ConfigCurrencyPairFormat.Uppercase = true
-	p.AssetTypes = []string{ticker.Spot}
-	p.SupportsAutoPairUpdating = true
-	p.SupportsRESTTickerBatching = true
-	p.Requester = request.New(p.Name,
+func (h *HitBTC) SetDefaults() {
+	h.Name = "HitBTC"
+	h.Enabled = false
+	h.Fee = 0
+	h.Verbose = false
+	h.RESTPollingDelay = 10
+	h.RequestCurrencyPairFormat.Delimiter = ""
+	h.RequestCurrencyPairFormat.Uppercase = true
+	h.ConfigCurrencyPairFormat.Delimiter = "-"
+	h.ConfigCurrencyPairFormat.Uppercase = true
+	h.AssetTypes = []string{ticker.Spot}
+	h.SupportsAutoPairUpdating = true
+	h.SupportsRESTTickerBatching = true
+	h.Requester = request.New(h.Name,
 		request.NewRateLimit(time.Second, hitbtcAuthRate),
 		request.NewRateLimit(time.Second, hitbtcUnauthRate),
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
-	p.APIUrlDefault = apiURL
-	p.APIUrl = p.APIUrlDefault
+	h.APIUrlDefault = apiURL
+	h.APIUrl = h.APIUrlDefault
 	p.WebsocketInit()
 }
 
 // Setup sets user exchange configuration settings
-func (p *HitBTC) Setup(exch config.ExchangeConfig) {
+func (h *HitBTC) Setup(exch config.ExchangeConfig) {
 	if !exch.Enabled {
-		p.SetEnabled(false)
+		h.SetEnabled(false)
 	} else {
-		p.Enabled = true
-		p.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
-		p.SetAPIKeys(exch.APIKey, exch.APISecret, "", false)
-		p.SetHTTPClientTimeout(exch.HTTPTimeout)
-		p.SetHTTPClientUserAgent(exch.HTTPUserAgent)
-		p.RESTPollingDelay = exch.RESTPollingDelay // Max 60000ms
-		p.Verbose = exch.Verbose
-		p.Websocket.SetEnabled(exch.Websocket)
-		p.BaseCurrencies = common.SplitStrings(exch.BaseCurrencies, ",")
-		p.AvailablePairs = common.SplitStrings(exch.AvailablePairs, ",")
-		p.EnabledPairs = common.SplitStrings(exch.EnabledPairs, ",")
-		err := p.SetCurrencyPairFormat()
+		h.Enabled = true
+		h.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
+		h.SetAPIKeys(exch.APIKey, exch.APISecret, "", false)
+		h.SetHTTPClientTimeout(exch.HTTPTimeout)
+		h.SetHTTPClientUserAgent(exch.HTTPUserAgent)
+		h.RESTPollingDelay = exch.RESTPollingDelay // Max 60000ms
+		h.Verbose = exch.Verbose
+		h.Websocket.SetEnabled(exch.Websocket)
+		h.BaseCurrencies = common.SplitStrings(exch.BaseCurrencies, ",")
+		h.AvailablePairs = common.SplitStrings(exch.AvailablePairs, ",")
+		h.EnabledPairs = common.SplitStrings(exch.EnabledPairs, ",")
+		err := h.SetCurrencyPairFormat()
 		if err != nil {
 			log.Fatal(err)
 		}
-		err = p.SetAssetTypes()
+		err = h.SetAssetTypes()
 		if err != nil {
 			log.Fatal(err)
 		}
-		err = p.SetAutoPairDefaults()
+		err = h.SetAutoPairDefaults()
 		if err != nil {
 			log.Fatal(err)
 		}
-		err = p.SetAPIURL(exch)
+		err = h.SetAPIURL(exch)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -123,25 +124,20 @@ func (p *HitBTC) Setup(exch config.ExchangeConfig) {
 	}
 }
 
-// GetFee returns the fee for hitbtc
-func (p *HitBTC) GetFee() float64 {
-	return p.Fee
-}
-
 // Public Market Data
 // https://api.hitbtc.com/?python#market-data
 
 // GetCurrencies returns the actual list of available currencies, tokens, ICO
 // etc.
-func (p *HitBTC) GetCurrencies(currency string) (map[string]Currencies, error) {
+func (h *HitBTC) GetCurrencies() (map[string]Currencies, error) {
 	type Response struct {
 		Data []Currencies
 	}
 	resp := Response{}
-	path := fmt.Sprintf("%s/%s/%s", p.APIUrl, apiV2Currency, currency)
+	path := fmt.Sprintf("%s/%s", h.APIUrl, apiV2Currency)
 
 	ret := make(map[string]Currencies)
-	err := p.SendHTTPRequest(path, &resp.Data)
+	err := h.SendHTTPRequest(path, &resp.Data)
 	if err != nil {
 		return ret, err
 	}
@@ -152,17 +148,34 @@ func (p *HitBTC) GetCurrencies(currency string) (map[string]Currencies, error) {
 	return ret, err
 }
 
+// GetCurrency returns the actual list of available currencies, tokens, ICO
+// etc.
+func (h *HitBTC) GetCurrency(currency string) (Currencies, error) {
+	type Response struct {
+		Data Currencies
+	}
+	resp := Response{}
+	path := fmt.Sprintf("%s/%s/%s", h.APIUrl, apiV2Currency, currency)
+
+	err := h.SendHTTPRequest(path, &resp.Data)
+	if err != nil {
+		return resp.Data, err
+	}
+
+	return resp.Data, err
+}
+
 // GetSymbols Return the actual list of currency symbols (currency pairs) traded
 // on HitBTC exchange. The first listed currency of a symbol is called the base
 // currency, and the second currency is called the quote currency. The currency
 // pair indicates how much of the quote currency is needed to purchase one unit
 // of the base currency.
-func (p *HitBTC) GetSymbols(symbol string) ([]string, error) {
+func (h *HitBTC) GetSymbols(symbol string) ([]string, error) {
 	resp := []Symbol{}
-	path := fmt.Sprintf("%s/%s/%s", p.APIUrl, apiV2Symbol, symbol)
+	path := fmt.Sprintf("%s/%s/%s", h.APIUrl, apiV2Symbol, symbol)
 
 	ret := make([]string, 0, len(resp))
-	err := p.SendHTTPRequest(path, &resp)
+	err := h.SendHTTPRequest(path, &resp)
 	if err != nil {
 		return ret, err
 	}
@@ -175,24 +188,24 @@ func (p *HitBTC) GetSymbols(symbol string) ([]string, error) {
 
 // GetSymbolsDetailed is the same as above but returns an array of symbols with
 // all their details.
-func (p *HitBTC) GetSymbolsDetailed() ([]Symbol, error) {
+func (h *HitBTC) GetSymbolsDetailed() ([]Symbol, error) {
 	resp := []Symbol{}
-	path := fmt.Sprintf("%s/%s", p.APIUrl, apiV2Symbol)
+	path := fmt.Sprintf("%s/%s", h.APIUrl, apiV2Symbol)
 
-	return resp, p.SendHTTPRequest(path, &resp)
+	return resp, h.SendHTTPRequest(path, &resp)
 }
 
 // GetTicker returns ticker information
-func (p *HitBTC) GetTicker(symbol string) (map[string]Ticker, error) {
+func (h *HitBTC) GetTicker(symbol string) (map[string]Ticker, error) {
 	resp1 := []TickerResponse{}
 	resp2 := TickerResponse{}
 	ret := make(map[string]TickerResponse)
 	result := make(map[string]Ticker)
-	path := fmt.Sprintf("%s/%s/%s", p.APIUrl, apiV2Ticker, symbol)
+	path := fmt.Sprintf("%s/%s/%s", h.APIUrl, apiV2Ticker, symbol)
 	var err error
 
 	if symbol == "" {
-		err = p.SendHTTPRequest(path, &resp1)
+		err = h.SendHTTPRequest(path, &resp1)
 		if err != nil {
 			return nil, err
 		}
@@ -203,7 +216,7 @@ func (p *HitBTC) GetTicker(symbol string) (map[string]Ticker, error) {
 			}
 		}
 	} else {
-		err = p.SendHTTPRequest(path, &resp2)
+		err = h.SendHTTPRequest(path, &resp2)
 		ret[resp2.Symbol] = resp2
 	}
 
@@ -245,12 +258,12 @@ func (p *HitBTC) GetTicker(symbol string) (map[string]Ticker, error) {
 }
 
 // GetTrades returns trades from hitbtc
-func (p *HitBTC) GetTrades(currencyPair, from, till, limit, offset, by, sort string) ([]TradeHistory, error) {
+func (h *HitBTC) GetTrades(currencyPair, from, till, limit, offset, by, sort string) ([]TradeHistory, error) {
 	// start   Number or Datetime
 	// end     Number or Datetime
 	// limit   Number
 	// offset  Number
-	// by      Filtration definition. Accepted values: id, timestamp. Default timestamp
+	// by      Filtration definition. Accepted values: id, timestamh. Default timestamp
 	// sort    Default DESC
 	vals := url.Values{}
 
@@ -279,14 +292,14 @@ func (p *HitBTC) GetTrades(currencyPair, from, till, limit, offset, by, sort str
 	}
 
 	resp := []TradeHistory{}
-	path := fmt.Sprintf("%s/%s/%s?%s", p.APIUrl, apiV2Trades, currencyPair, vals.Encode())
+	path := fmt.Sprintf("%s/%s/%s?%s", h.APIUrl, apiV2Trades, currencyPair, vals.Encode())
 
-	return resp, p.SendHTTPRequest(path, &resp)
+	return resp, h.SendHTTPRequest(path, &resp)
 }
 
 // GetOrderbook an order book is an electronic list of buy and sell orders for a
 // specific symbol, organized by price level.
-func (p *HitBTC) GetOrderbook(currencyPair string, limit int) (Orderbook, error) {
+func (h *HitBTC) GetOrderbook(currencyPair string, limit int) (Orderbook, error) {
 	// limit Limit of orderbook levels, default 100. Set 0 to view full orderbook levels
 	vals := url.Values{}
 
@@ -295,9 +308,9 @@ func (p *HitBTC) GetOrderbook(currencyPair string, limit int) (Orderbook, error)
 	}
 
 	resp := OrderbookResponse{}
-	path := fmt.Sprintf("%s/%s/%s?%s", p.APIUrl, apiV2Orderbook, currencyPair, vals.Encode())
+	path := fmt.Sprintf("%s/%s/%s?%s", h.APIUrl, apiV2Orderbook, currencyPair, vals.Encode())
 
-	err := p.SendHTTPRequest(path, &resp)
+	err := h.SendHTTPRequest(path, &resp)
 	if err != nil {
 		return Orderbook{}, err
 	}
@@ -315,7 +328,7 @@ func (p *HitBTC) GetOrderbook(currencyPair string, limit int) (Orderbook, error)
 
 // GetCandles returns candles which is used for OHLC a specific symbol.
 // Note: Result contain candles only with non zero volume.
-func (p *HitBTC) GetCandles(currencyPair, limit, period string) ([]ChartData, error) {
+func (h *HitBTC) GetCandles(currencyPair, limit, period string) ([]ChartData, error) {
 	// limit   Limit of candles, default 100.
 	// period  One of: M1 (one minute), M3, M5, M15, M30, H1, H4, D1, D7, 1M (one month). Default is M30 (30 minutes).
 	vals := url.Values{}
@@ -329,18 +342,18 @@ func (p *HitBTC) GetCandles(currencyPair, limit, period string) ([]ChartData, er
 	}
 
 	resp := []ChartData{}
-	path := fmt.Sprintf("%s/%s/%s?%s", p.APIUrl, apiV2Candles, currencyPair, vals.Encode())
+	path := fmt.Sprintf("%s/%s/%s?%s", h.APIUrl, apiV2Candles, currencyPair, vals.Encode())
 
-	return resp, p.SendHTTPRequest(path, &resp)
+	return resp, h.SendHTTPRequest(path, &resp)
 }
 
 // Authenticated Market Data
 // https://api.hitbtc.com/?python#market-data
 
 // GetBalances returns full balance for your account
-func (p *HitBTC) GetBalances() (map[string]Balance, error) {
+func (h *HitBTC) GetBalances() (map[string]Balance, error) {
 	result := []Balance{}
-	err := p.SendAuthenticatedHTTPRequest("GET", apiV2Balance, url.Values{}, &result)
+	err := h.SendAuthenticatedHTTPRequest("GET", apiV2Balance, url.Values{}, &result)
 	ret := make(map[string]Balance)
 
 	if err != nil {
@@ -355,31 +368,31 @@ func (p *HitBTC) GetBalances() (map[string]Balance, error) {
 }
 
 // GetDepositAddresses returns a deposit address for a specific currency
-func (p *HitBTC) GetDepositAddresses(currency string) (DepositCryptoAddresses, error) {
+func (h *HitBTC) GetDepositAddresses(currency string) (DepositCryptoAddresses, error) {
 	resp := DepositCryptoAddresses{}
-	err := p.SendAuthenticatedHTTPRequest("GET", apiV2CryptoAddress+"/"+currency, url.Values{}, &resp)
+	err := h.SendAuthenticatedHTTPRequest("GET", apiV2CryptoAddress+"/"+currency, url.Values{}, &resp)
 
 	return resp, err
 }
 
 // GenerateNewAddress generates a new deposit address for a currency
-func (p *HitBTC) GenerateNewAddress(currency string) (DepositCryptoAddresses, error) {
+func (h *HitBTC) GenerateNewAddress(currency string) (DepositCryptoAddresses, error) {
 	resp := DepositCryptoAddresses{}
-	err := p.SendAuthenticatedHTTPRequest("POST", apiV2CryptoAddress+"/"+currency, url.Values{}, &resp)
+	err := h.SendAuthenticatedHTTPRequest("POST", apiV2CryptoAddress+"/"+currency, url.Values{}, &resp)
 
 	return resp, err
 }
 
 // GetActiveorders returns all your active orders
-func (p *HitBTC) GetActiveorders(currency string) ([]Order, error) {
+func (h *HitBTC) GetActiveorders(currency string) ([]Order, error) {
 	resp := []Order{}
-	err := p.SendAuthenticatedHTTPRequest("GET", orders+"?symbol="+currency, url.Values{}, &resp)
+	err := h.SendAuthenticatedHTTPRequest("GET", orders+"?symbol="+currency, url.Values{}, &resp)
 
 	return resp, err
 }
 
 // GetAuthenticatedTradeHistory returns your trade history
-func (p *HitBTC) GetAuthenticatedTradeHistory(currency, start, end string) (interface{}, error) {
+func (h *HitBTC) GetAuthenticatedTradeHistory(currency, start, end string) (interface{}, error) {
 	values := url.Values{}
 
 	if start != "" {
@@ -394,17 +407,17 @@ func (p *HitBTC) GetAuthenticatedTradeHistory(currency, start, end string) (inte
 		values.Set("currencyPair", currency)
 		result := AuthenticatedTradeHistoryResponse{}
 
-		return result, p.SendAuthenticatedHTTPRequest("POST", apiV2TradeHistory, values, &result.Data)
+		return result, h.SendAuthenticatedHTTPRequest("POST", apiV2TradeHistory, values, &result.Data)
 	}
 
 	values.Set("currencyPair", "all")
 	result := AuthenticatedTradeHistoryAll{}
 
-	return result, p.SendAuthenticatedHTTPRequest("POST", apiV2TradeHistory, values, &result.Data)
+	return result, h.SendAuthenticatedHTTPRequest("POST", apiV2TradeHistory, values, &result.Data)
 }
 
 // PlaceOrder places an order on the exchange
-func (p *HitBTC) PlaceOrder(currency string, rate, amount float64, immediate, fillOrKill, buy bool) (OrderResponse, error) {
+func (h *HitBTC) PlaceOrder(currency string, rate, amount float64, immediate, fillOrKill, buy bool) (OrderResponse, error) {
 	result := OrderResponse{}
 	values := url.Values{}
 
@@ -427,7 +440,7 @@ func (p *HitBTC) PlaceOrder(currency string, rate, amount float64, immediate, fi
 		values.Set("fillOrKill", "1")
 	}
 
-	err := p.SendAuthenticatedHTTPRequest("POST", orderType, values, &result)
+	err := h.SendAuthenticatedHTTPRequest("POST", orderType, values, &result)
 
 	if err != nil {
 		return result, err
@@ -437,12 +450,12 @@ func (p *HitBTC) PlaceOrder(currency string, rate, amount float64, immediate, fi
 }
 
 // CancelOrder cancels a specific order by OrderID
-func (p *HitBTC) CancelOrder(orderID int64) (bool, error) {
+func (h *HitBTC) CancelOrder(orderID int64) (bool, error) {
 	result := GenericResponse{}
 	values := url.Values{}
 	values.Set("orderNumber", strconv.FormatInt(orderID, 10))
 
-	err := p.SendAuthenticatedHTTPRequest("POST", orderCancel, values, &result)
+	err := h.SendAuthenticatedHTTPRequest("POST", orderCancel, values, &result)
 
 	if err != nil {
 		return false, err
@@ -456,7 +469,7 @@ func (p *HitBTC) CancelOrder(orderID int64) (bool, error) {
 }
 
 // MoveOrder generates a new move order
-func (p *HitBTC) MoveOrder(orderID int64, rate, amount float64) (MoveOrderResponse, error) {
+func (h *HitBTC) MoveOrder(orderID int64, rate, amount float64) (MoveOrderResponse, error) {
 	result := MoveOrderResponse{}
 	values := url.Values{}
 	values.Set("orderNumber", strconv.FormatInt(orderID, 10))
@@ -466,7 +479,7 @@ func (p *HitBTC) MoveOrder(orderID int64, rate, amount float64) (MoveOrderRespon
 		values.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
 	}
 
-	err := p.SendAuthenticatedHTTPRequest("POST", orderMove, values, &result)
+	err := h.SendAuthenticatedHTTPRequest("POST", orderMove, values, &result)
 
 	if err != nil {
 		return result, err
@@ -480,7 +493,7 @@ func (p *HitBTC) MoveOrder(orderID int64, rate, amount float64) (MoveOrderRespon
 }
 
 // Withdraw allows for the withdrawal to a specific address
-func (p *HitBTC) Withdraw(currency, address string, amount float64) (bool, error) {
+func (h *HitBTC) Withdraw(currency, address string, amount float64) (bool, error) {
 	result := Withdraw{}
 	values := url.Values{}
 
@@ -488,7 +501,7 @@ func (p *HitBTC) Withdraw(currency, address string, amount float64) (bool, error
 	values.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
 	values.Set("address", address)
 
-	err := p.SendAuthenticatedHTTPRequest("POST", apiV2CryptoWithdraw, values, &result)
+	err := h.SendAuthenticatedHTTPRequest("POST", apiV2CryptoWithdraw, values, &result)
 
 	if err != nil {
 		return false, err
@@ -502,21 +515,21 @@ func (p *HitBTC) Withdraw(currency, address string, amount float64) (bool, error
 }
 
 // GetFeeInfo returns current fee information
-func (p *HitBTC) GetFeeInfo(currencyPair string) (Fee, error) {
+func (h *HitBTC) GetFeeInfo(currencyPair string) (Fee, error) {
 	result := Fee{}
-	err := p.SendAuthenticatedHTTPRequest("GET", apiV2FeeInfo+"/"+currencyPair, url.Values{}, &result)
+	err := h.SendAuthenticatedHTTPRequest("GET", apiV2FeeInfo+"/"+currencyPair, url.Values{}, &result)
 
 	return result, err
 }
 
 // GetTradableBalances returns current tradable balances
-func (p *HitBTC) GetTradableBalances() (map[string]map[string]float64, error) {
+func (h *HitBTC) GetTradableBalances() (map[string]map[string]float64, error) {
 	type Response struct {
 		Data map[string]map[string]interface{}
 	}
 	result := Response{}
 
-	err := p.SendAuthenticatedHTTPRequest("POST", tradableBalances, url.Values{}, &result.Data)
+	err := h.SendAuthenticatedHTTPRequest("POST", tradableBalances, url.Values{}, &result.Data)
 
 	if err != nil {
 		return nil, err
@@ -535,7 +548,7 @@ func (p *HitBTC) GetTradableBalances() (map[string]map[string]float64, error) {
 }
 
 // TransferBalance transfers a balance
-func (p *HitBTC) TransferBalance(currency, from, to string, amount float64) (bool, error) {
+func (h *HitBTC) TransferBalance(currency, from, to string, amount float64) (bool, error) {
 	values := url.Values{}
 	result := GenericResponse{}
 
@@ -544,7 +557,7 @@ func (p *HitBTC) TransferBalance(currency, from, to string, amount float64) (boo
 	values.Set("fromAccount", from)
 	values.Set("toAccount", to)
 
-	err := p.SendAuthenticatedHTTPRequest("POST", transferBalance, values, &result)
+	err := h.SendAuthenticatedHTTPRequest("POST", transferBalance, values, &result)
 
 	if err != nil {
 		return false, err
@@ -558,19 +571,64 @@ func (p *HitBTC) TransferBalance(currency, from, to string, amount float64) (boo
 }
 
 // SendHTTPRequest sends an unauthenticated HTTP request
-func (p *HitBTC) SendHTTPRequest(path string, result interface{}) error {
-	return p.SendPayload("GET", path, nil, nil, result, false, p.Verbose)
+func (h *HitBTC) SendHTTPRequest(path string, result interface{}) error {
+	return h.SendPayload("GET", path, nil, nil, result, false, h.Verbose)
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated http request
-func (p *HitBTC) SendAuthenticatedHTTPRequest(method, endpoint string, values url.Values, result interface{}) error {
-	if !p.AuthenticatedAPISupport {
-		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet, p.Name)
+func (h *HitBTC) SendAuthenticatedHTTPRequest(method, endpoint string, values url.Values, result interface{}) error {
+	if !h.AuthenticatedAPISupport {
+		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet, h.Name)
 	}
 	headers := make(map[string]string)
-	headers["Authorization"] = "Basic " + common.Base64Encode([]byte(p.APIKey+":"+p.APISecret))
+	headers["Authorization"] = "Basic " + common.Base64Encode([]byte(h.APIKey+":"+h.APISecret))
 
-	path := fmt.Sprintf("%s/%s", p.APIUrl, endpoint)
+	path := fmt.Sprintf("%s/%s", h.APIUrl, endpoint)
 
-	return p.SendPayload(method, path, headers, bytes.NewBufferString(values.Encode()), result, true, p.Verbose)
+	return h.SendPayload(method, path, headers, bytes.NewBufferString(values.Encode()), result, true, h.Verbose)
+}
+
+// GetFee returns an estimate of fee based on type of transaction
+func (h *HitBTC) GetFee(feeBuilder exchange.FeeBuilder) (float64, error) {
+	var fee float64
+	switch feeBuilder.FeeType {
+	case exchange.CryptocurrencyTradeFee:
+		feeInfo, err := h.GetFeeInfo(feeBuilder.FirstCurrency + feeBuilder.Delimiter + feeBuilder.SecondCurrency)
+		if err != nil {
+			return 0, err
+		}
+		calculateTradingFee(feeInfo, feeBuilder.PurchasePrice, feeBuilder.Amount, feeBuilder.IsMaker, feeBuilder.IsTaker)
+	case exchange.CryptocurrencyWithdrawalFee:
+		currencyInfo, err := h.GetCurrency(feeBuilder.FirstCurrency)
+		if err != nil {
+			return 0, err
+		}
+		fee, err = strconv.ParseFloat(currencyInfo.PayoutFee, 64)
+		if err != nil {
+			return 0, err
+		}
+	case exchange.CyptocurrencyDepositFee:
+		fee = calculateCryptocurrencyDepositFee(feeBuilder.FirstCurrency, feeBuilder.Amount)
+	}
+
+	return fee, nil
+}
+
+func calculateCryptocurrencyDepositFee(currency string, amount float64) float64 {
+	var fee float64
+	if currency == symbol.BTC {
+		fee = 0.0006
+	}
+	return fee * amount
+}
+
+func calculateTradingFee(feeInfo Fee, purchasePrice, amount float64, isMaker, isTaker bool) float64 {
+	var volumeFee float64
+	if isMaker {
+		volumeFee = feeInfo.ProvideLiquidityRate
+	} else if isTaker {
+		volumeFee = feeInfo.TakeLiquidityRate
+	}
+
+	return volumeFee * amount * purchasePrice
 }
