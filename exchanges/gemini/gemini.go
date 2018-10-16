@@ -40,6 +40,7 @@ const (
 	geminiNewAddress         = "newAddress"
 	geminiWithdraw           = "withdraw/"
 	geminiHeartbeat          = "heartbeat"
+	geminiVolume             = "notionalvolume"
 
 	// gemini limit rates
 	geminiAuthRate   = 600
@@ -389,6 +390,14 @@ func (g *Gemini) GetTradeHistory(currencyPair string, timestamp int64) ([]TradeH
 		g.SendAuthenticatedHTTPRequest("POST", geminiMyTrades, request, &response)
 }
 
+// GetNotionalVolume returns  the volume in price currency that has been traded across all pairs over a period of 30 days
+func (g *Gemini) GetNotionalVolume() (NotionalVolume, error) {
+	response := NotionalVolume{}
+
+	return response,
+		g.SendAuthenticatedHTTPRequest("POST", geminiVolume, nil, &response)
+}
+
 // GetTradeVolume returns a multi-arrayed volume response
 func (g *Gemini) GetTradeVolume() ([][]TradeVolume, error) {
 	response := [][]TradeVolume{}
@@ -495,4 +504,36 @@ func (g *Gemini) SendAuthenticatedHTTPRequest(method, path string, params map[st
 	headers["X-GEMINI-SIGNATURE"] = common.HexEncodeToString(hmac)
 
 	return g.SendPayload(method, g.APIUrl+"/v1/"+path, headers, strings.NewReader(""), result, true, g.Verbose)
+}
+
+// GetFee returns an estimate of fee based on type of transaction
+func (g *Gemini) GetFee(feeBuilder exchange.FeeBuilder) (float64, error) {
+	var fee float64
+	switch feeBuilder.FeeType {
+	case exchange.CryptocurrencyTradeFee:
+		notionVolume, err := g.GetNotionalVolume()
+		if err != nil {
+			return 0, err
+		}
+		calculateTradingFee(notionVolume, feeBuilder.PurchasePrice, feeBuilder.Amount, feeBuilder.IsMaker, feeBuilder.IsTaker)
+	case exchange.CryptocurrencyWithdrawalFee:
+		// TODO: no free transactions after 10; Need database to know how many trades have been done
+		// Could do via trade history, but would require analysis of response and dates to determine level of fee
+	}
+	if fee < 0 {
+		fee = 0
+	}
+
+	return fee, nil
+}
+
+func calculateTradingFee(notionVolume NotionalVolume, purchasePrice, amount float64, isMaker, isTaker bool) float64 {
+	var volumeFee float64
+	if isMaker {
+		volumeFee = (float64(notionVolume.MakerFee) / 100)
+	} else if isTaker {
+		volumeFee = (float64(notionVolume.TakerFee) / 100)
+	}
+
+	return volumeFee * amount * purchasePrice
 }
