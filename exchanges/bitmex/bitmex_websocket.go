@@ -47,6 +47,7 @@ const (
 	bitmexWSTransact             = "transact"
 	bitmexWSWallet               = "wallet"
 
+	bitmexActionTradeBucket = "partial"
 	bitmexActionInitialData = "partial"
 	bitmexActionInsertData  = "insert"
 	bitmexActionDeleteData  = "delete"
@@ -102,6 +103,85 @@ func (b *Bitmex) WebsocketConnect() error {
 			log.Fatal(err)
 		}
 	}
+	return nil
+}
+
+// WebsocketKline 获取 k 线
+func (b *Bitmex) WebsocketKline() error {
+	var dialer websocket.Dialer
+	var err error
+
+	b.WebsocketConn, _, err = dialer.Dial(bitmexWSURL, nil)
+	if err != nil {
+		return err
+	}
+
+	_, p, err := b.WebsocketConn.ReadMessage()
+	if err != nil {
+		return err
+	}
+
+	var welcomeResp WebsocketWelcome
+	err = common.JSONDecode(p, &welcomeResp)
+	if err != nil {
+		return err
+	}
+
+	go b.connectionHandler()
+
+	if b.Verbose {
+		log.Printf("Successfully connected to Bitmex %s at time: %s Limit: %d",
+			welcomeResp.Info,
+			welcomeResp.Timestamp,
+			welcomeResp.Limit.Remaining)
+	}
+
+	go b.handleIncomingData()
+
+	err = b.websocketSubscribeKline()
+	if err != nil {
+		b.WebsocketConn.Close()
+		return err
+	}
+
+	if b.AuthenticatedAPISupport {
+		err := b.websocketSendAuth()
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
+	return nil
+}
+
+// WebsocketSubscribe subscribes to a websocket channel
+func (b *Bitmex) websocketSubscribeKline() error {
+	// contracts := b.GetEnabledCurrencies()
+
+	// Subscriber
+	var subscriber WebsocketRequest
+	subscriber.Command = "subscribe"
+
+	// Announcement subscribe
+	subscriber.Arguments = append(subscriber.Arguments, "tradeBin1m:XBTUSD")
+	subscriber.Arguments = append(subscriber.Arguments, "tradeBin5m:XBTUSD")
+
+	// for _, contract := range contracts {
+	// 	// Orderbook subscribe
+	// 	subscriber.Arguments = append(subscriber.Arguments,
+	// 		bitmexWSOrderbookL2+":"+contract.Pair().String())
+
+	// 	// Trade subscribe
+	// 	subscriber.Arguments = append(subscriber.Arguments,
+	// 		bitmexWSTrade+":"+contract.Pair().String())
+
+	// 	// NOTE more added here in future
+	// }
+
+	err := b.WebsocketConn.WriteJSON(subscriber)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -249,6 +329,28 @@ func (b *Bitmex) handleIncomingData() {
 			}
 
 			switch decodedResp.Table {
+			case bitmexWSTrade1m:
+				var tradeBucketData TradeBucketData
+				err = common.JSONDecode(resp, &tradeBucketData)
+				if err != nil {
+					log.Fatal(err)
+				}
+				err = b.processTradeBucket(tradeBucketData.Data, tradeBucketData.Action)
+				if err != nil {
+					log.Fatal(err)
+				}
+				fmt.Printf("tradeBucketData 1m: %+v \n", tradeBucketData)
+			case bitmexWSTrade5m:
+				var tradeBucketData TradeBucketData
+				err = common.JSONDecode(resp, &tradeBucketData)
+				if err != nil {
+					log.Fatal(err)
+				}
+				err = b.processTradeBucket(tradeBucketData.Data, tradeBucketData.Action)
+				if err != nil {
+					log.Fatal(err)
+				}
+				fmt.Printf("tradeBucketData 5m: %+v \n", tradeBucketData)
 			case bitmexWSOrderbookL2:
 				var orderbooks OrderBookData
 				err = common.JSONDecode(resp, &orderbooks)
@@ -284,6 +386,25 @@ func (b *Bitmex) handleIncomingData() {
 			}
 		}
 	}
+}
+
+// Temporary local cache of TradeBucket
+var localTradeBuckets []TradeBucket
+var partialLoadedTradeBucket bool
+
+// ProcessAnnouncement process announcements
+func (b *Bitmex) processTradeBucket(data []TradeBucket, action string) error {
+	switch action {
+	case bitmexActionTradeBucket:
+		if !partialLoadedTradeBucket {
+			localTradeBuckets = data
+		}
+		partialLoadedTradeBucket = true
+	default:
+		return fmt.Errorf("Bitmex websocket error: processTradeBucket() unallocated action - %s",
+			action)
+	}
+	return nil
 }
 
 // Temporary local cache of Announcements

@@ -65,6 +65,12 @@ type TradeData struct {
 	Action string  `json:"action"`
 }
 
+// TradeBucketData contains trade resp data with action to be taken
+type TradeBucketData struct {
+	Data   []TradeBucket `json:"data"`
+	Action string        `json:"action"`
+}
+
 // AnnouncementData contains announcement resp data with action to be taken
 type AnnouncementData struct {
 	Data   []Announcement `json:"data"`

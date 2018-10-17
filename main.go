@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/idoall/TokenExchangeCommon/commonutils"
 	"github.com/idoall/gocryptotrader/communications"
 	"github.com/idoall/gocryptotrader/config"
 	exchange "github.com/idoall/gocryptotrader/exchanges"
@@ -47,8 +46,8 @@ func getDefaultConfig() config.ExchangeConfig {
 		RESTPollingDelay:        10,
 		HTTPTimeout:             3 * time.Second,
 		AuthenticatedAPISupport: true,
-		APIKey:                  "",
-		APISecret:               "",
+		APIKey:                  "X0X8_5ugrifK6dcAjRFY_UsN",
+		APISecret:               "DRKlKBwvHPVsRZGhfckzE272EYvUpYovZ5pgwiPx46J9c5j7",
 	}
 }
 
@@ -67,6 +66,12 @@ func main() {
 	fmt.Println("----------setup-------")
 	exchange.Setup(defaultConfig)
 	//bitmex.GenericRequestParams{}
+
+	err := exchange.WebsocketKline()
+	if err != nil {
+		panic(err)
+	}
+	time.Sleep(time.Duration(1) * time.Minute)
 
 	//--------------批量创建新订单
 	// list, err := exchange.CreateBulkOrders(bitmex.OrderNewBulkParams{
@@ -120,26 +125,27 @@ func main() {
 	// }
 
 	// ---------------获取K线,每个时间段的统计，都是向前推5分钟，例如1小时的是从5分开始到一个小时的0分
-	list, err := exchange.GetPreviousTrades(bitmex.TradeGetBucketedParams{
-		BinSize:   string(bitmex.TimeIntervalFiveMinutes),
-		Symbol:    "XBT",
-		Reverse:   true,
-		Count:     50,
-		StartTime: "2015-09-25T12:05:00.000Z",
-		EndTime:   "2015-09-25T13:00:00.000Z",
-	})
+	// list, err := exchange.GetPreviousTrades(bitmex.TradeGetBucketedParams{
+	// 	BinSize:   string(bitmex.TimeIntervalMinute),
+	// 	Symbol:    "XBT",
+	// 	Reverse:   false, //如果为true，从endTime开始是倒排序
+	// 	Partial:   true,  //当前时段在更新的数据也发送过来
+	// 	Count:     10,
+	// 	StartTime: "2017-01-01T00:00:00.000Z",
+	// 	EndTime:   "2018-10-26T13:00:00.000Z",
+	// })
 
-	// list, err := exchange.GetStats()
-	if err != nil {
-		fmt.Println(err)
-	} else {
-		for _, v := range list {
-			t, _ := time.ParseInLocation("2006-01-02T15:04:05.000Z", v.Timestamp, time.Local)
-			t = t.Add(time.Duration(8) * time.Hour)
-			b, _ := commonutils.JSONEncode(v)
-			fmt.Printf("%s %s\n", t.Format("2006-01-02 15:04:05"), b)
-		}
-	}
+	// // list, err := exchange.GetStats()
+	// if err != nil {
+	// 	fmt.Println(err)
+	// } else {
+	// 	for k, v := range list {
+	// 		t, _ := time.ParseInLocation("2006-01-02T15:04:05.000Z", v.Timestamp, time.Local)
+	// 		t = t.Add(time.Duration(8) * time.Hour)
+	// 		b, _ := commonutils.JSONEncode(v)
+	// 		fmt.Printf("index:%d %s %s\n", k, t.Format("2006-01-02 15:04:05"), b)
+	// 	}
+	// }
 
 	// list, err := exchange.CancelOrders(bitmex.OrderCancelParams{
 	// 	OrderID: "76049cb1-abba-efef-a918-373d151ee892",
