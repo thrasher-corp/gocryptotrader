@@ -115,14 +115,6 @@ func (k *Kraken) Setup(exch config.ExchangeConfig) {
 	}
 }
 
-// GetFee returns current fee for either crypto or fiat
-func (k *Kraken) GetFee(cryptoTrade bool) float64 {
-	if cryptoTrade {
-		return k.CryptoFee
-	}
-	return k.FiatFee
-}
-
 // GetServerTime returns current server time
 func (k *Kraken) GetServerTime() (TimeResponse, error) {
 	path := fmt.Sprintf("%s/%s/public/%s", k.APIUrl, krakenAPIVersion, krakenServerTime)
@@ -851,4 +843,33 @@ func (k *Kraken) SendAuthenticatedHTTPRequest(method string, params url.Values, 
 	headers["API-Sign"] = signature
 
 	return k.SendPayload("POST", k.APIUrl+path, headers, strings.NewReader(encoded), result, true, k.Verbose)
+}
+
+// GetFee returns an estimate of fee based on type of transaction
+func (k *Kraken) GetFee(feeBuilder exchange.FeeBuilder) (float64, error) {
+	var fee float64
+	currency := feeBuilder.FirstCurrency + feeBuilder.Delimiter + feeBuilder.SecondCurrency
+
+	switch feeBuilder.FeeType {
+	case exchange.CryptocurrencyTradeFee:
+		feePair, err := k.GetTradeVolume(true, currency)
+		if err != nil {
+			return 0, err
+		}
+		if feeBuilder.IsMaker {
+			fee = calculateTradingFee(currency, feePair.FeesMaker, feeBuilder.PurchasePrice, feeBuilder.Amount)
+		} else {
+			fee = calculateTradingFee(currency, feePair.Fees, feeBuilder.PurchasePrice, feeBuilder.Amount)
+
+		}
+	}
+	if fee < 0 {
+		fee = 0
+	}
+
+	return fee, nil
+}
+
+func calculateTradingFee(currency string, feePair map[string]TradeVolumeFee, purchasePrice, amount float64) float64 {
+	return (feePair[currency].Fee / 100) * purchasePrice * amount
 }

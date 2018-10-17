@@ -317,17 +317,22 @@ const (
 	TIX      = "TIX"
 	XTC      = "XTC"
 	BU       = "BU"
-	HKD      = "HKD" // Hong Kong Dollar
-	AUD      = "AUD" // Australian Dollar
-	USD      = "USD" // United States Dollar
-	EUR      = "EUR" // Euro
-	CAD      = "CAD" // Canadaian Dollar
-	SGD      = "SGD" // Singapore Dollar
-	RUB      = "RUB" // Russian Ruble
-	PLN      = "PLN" // Polish złoty
-	TRY      = "TRY" // Turkish lira
-	UAH      = "UAH" // Ukrainian hryvnia
-	JPY      = "JPY" // Japanese yen
+	XXBT     = "XXBT" // BTC, but XXBT instead
+	HKD      = "HKD"  // Hong Kong Dollar
+	AUD      = "AUD"  // Australian Dollar
+	USD      = "USD"  // United States Dollar
+	ZUSD     = "ZUSD" // United States Dollar, but with a Z in front of it
+	EUR      = "EUR"  // Euro
+	ZEUR     = "ZEUR" // Euro, but with a Z in front of it
+	CAD      = "CAD"  // Canadaian Dollar
+	ZCAD     = "ZCAD" // Canadaian Dollar, but with a Z in front of it
+	SGD      = "SGD"  // Singapore Dollar
+	RUB      = "RUB"  // Russian Ruble
+	PLN      = "PLN"  // Polish złoty
+	TRY      = "TRY"  // Turkish lira
+	UAH      = "UAH"  // Ukrainian hryvnia
+	JPY      = "JPY"  // Japanese yen
+	ZJPY     = "ZJPY" // Japanese yen, but with a Z in front of it
 )
 
 // symbols map holds the currency name and symbol mappings
