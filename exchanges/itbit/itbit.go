@@ -101,14 +101,6 @@ func (i *ItBit) Setup(exch config.ExchangeConfig) {
 	}
 }
 
-// GetFee returns the maker or taker fee
-func (i *ItBit) GetFee(maker bool) float64 {
-	if maker {
-		return i.MakerFee
-	}
-	return i.TakerFee
-}
-
 // GetTicker returns ticker info for a specified market.
 // currencyPair - example "XBTUSD" "XBTSGD" "XBTEUR"
 func (i *ItBit) GetTicker(currencyPair string) (Ticker, error) {
@@ -375,4 +367,28 @@ func (i *ItBit) SendAuthenticatedHTTPRequest(method string, path string, params 
 	headers["Content-Type"] = "application/json"
 
 	return i.SendPayload(method, url, headers, bytes.NewBuffer([]byte(PayloadJSON)), result, true, i.Verbose)
+}
+
+// GetFee returns an estimate of fee based on type of transaction
+func (i *ItBit) GetFee(feeBuilder exchange.FeeBuilder) (float64, error) {
+	var fee float64
+	switch feeBuilder.FeeType {
+	case exchange.CryptocurrencyTradeFee:
+		fee = calculateTradingFee(feeBuilder.PurchasePrice, feeBuilder.Amount, feeBuilder.IsMaker)
+	}
+	if fee < 0 {
+		fee = 0
+	}
+
+	return fee, nil
+}
+
+func calculateTradingFee(purchasePrice, amount float64, isMaker bool) float64 {
+	// TODO: Itbit has volume discounts, but not API endpoint to get the exact volume numbers
+	// When support is added, this needs to be updated to calculate the accurate volume fee
+	feePercent := 0.0025
+	if isMaker {
+		feePercent = 0
+	}
+	return feePercent * purchasePrice * amount
 }
