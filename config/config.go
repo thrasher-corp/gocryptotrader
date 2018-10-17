@@ -828,7 +828,7 @@ func (c *Config) CheckCurrencyConfigValues() error {
 				c.Currency.ForexProviders[i].PrimaryProvider = false
 				continue
 			}
-			if c.Currency.ForexProviders[i].APIKeyLvl == -1 {
+			if c.Currency.ForexProviders[i].APIKeyLvl == -1 && c.Currency.ForexProviders[i].Name != "CurrencyConverter" {
 				log.Printf("WARNING -- %s APIKey Level not set, functions limited. Please set this in your config.json file",
 					c.Currency.ForexProviders[i].Name)
 			}
