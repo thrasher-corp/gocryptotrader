@@ -60,6 +60,7 @@ const (
 	Qiwi            InternationalBankTransactionType = "qiwi"
 	VisaMastercard  InternationalBankTransactionType = "visaMastercard"
 	WebMoney        InternationalBankTransactionType = "webMoney"
+	Capitalist      InternationalBankTransactionType = "capitalist"
 )
 
 // FeeBuilder is the type which holds all parameters required to calculate a fee for an exchange
