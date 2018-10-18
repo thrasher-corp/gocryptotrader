@@ -49,7 +49,6 @@ func TestSetup(t *testing.T) {
 }
 
 func TestConnect(t *testing.T) {
-	t.Parallel()
 	err := s.Connect()
 	if err == nil {
 		t.Error("test failed - slack Connect() error")
@@ -73,7 +72,6 @@ func TestBuildURL(t *testing.T) {
 }
 
 func TestGetChannelsString(t *testing.T) {
-	t.Parallel()
 
 	s.Details.Channels = append(s.Details.Channels, struct {
 		Created        int      `json:"created"`
@@ -148,17 +146,16 @@ func TestGetUsernameByID(t *testing.T) {
 }
 
 func TestGetIDByName(t *testing.T) {
-	t.Parallel()
 	id, err := s.GetIDByName("batman")
 	if err == nil || len(id) != 0 {
 		t.Error("test failed - slack GetIDByName() error")
 	}
 
 	s.Details.Groups = append(s.Details.Groups, group{
-		Name: "batman",
+		Name: "this is a group",
 		ID:   "210314",
 	})
-	id, err = s.GetIDByName("batman")
+	id, err = s.GetIDByName("this is a group")
 	if err != nil || id != "210314" {
 		t.Errorf("test failed - slack GetIDByName() Expected '210314' Actual '%s' Error: %s",
 			id, err)
@@ -166,7 +163,6 @@ func TestGetIDByName(t *testing.T) {
 }
 
 func TestGetGroupIDByName(t *testing.T) {
-	t.Parallel()
 	id, err := s.GetGroupIDByName("batman")
 	if err == nil || len(id) != 0 {
 		t.Error("test failed - slack GetGroupIDByName() error")
@@ -185,7 +181,6 @@ func TestGetGroupIDByName(t *testing.T) {
 }
 
 func TestGetChannelIDByName(t *testing.T) {
-	t.Parallel()
 	id, err := s.GetChannelIDByName("1337")
 	if err == nil || len(id) != 0 {
 		t.Error("test failed - slack GetChannelIDByName() error")
@@ -218,7 +213,6 @@ func TestGetChannelIDByName(t *testing.T) {
 }
 
 func TestGetUsersInGroup(t *testing.T) {
-	t.Parallel()
 	username := s.GetUsersInGroup("supergroup")
 	if len(username) != 0 {
 		t.Error("test failed - slack GetUsersInGroup() error")
@@ -238,7 +232,6 @@ func TestGetUsersInGroup(t *testing.T) {
 }
 
 func TestNewConnection(t *testing.T) {
-	t.Parallel()
 	err := s.NewConnection()
 	if err == nil {
 		t.Error("test failed - slack NewConnection() error")
@@ -309,7 +302,6 @@ func TestHandleMessageResponse(t *testing.T) {
 }
 
 func TestHandleErrorResponse(t *testing.T) {
-	t.Parallel()
 	var data WebsocketResponse
 	err := s.handleErrorResponse(data)
 	if err == nil {

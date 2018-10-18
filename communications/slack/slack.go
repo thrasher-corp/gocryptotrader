@@ -146,7 +146,7 @@ func (s *Slack) GetUsersInGroup(group string) []string {
 // NewConnection connects the bot to a slack workgroup using a verification
 // token and a channel
 func (s *Slack) NewConnection() error {
-	if s.Connected {
+	if !s.Connected {
 		err := common.SendHTTPGetRequest(s.BuildURL(s.VerificationToken), true, s.Verbose, &s.Details)
 		if err != nil {
 			return err
