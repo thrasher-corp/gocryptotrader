@@ -310,13 +310,11 @@ func (l *Liqui) GetFee(feeBuilder exchange.FeeBuilder) (float64, error) {
 	var fee float64
 	switch feeBuilder.FeeType {
 	case exchange.CryptocurrencyTradeFee:
-		info, err := l.GetInfo()
-		if err != nil {
-			return 0, err
-		}
-		currency := feeBuilder.FirstCurrency + "_" + feeBuilder.SecondCurrency
-		fee = calculateTradingFee(info.Pairs, currency, feeBuilder.PurchasePrice, feeBuilder.Amount)
+		fee = calculateTradingFee(feeBuilder.PurchasePrice, feeBuilder.Amount, feeBuilder.IsMaker)
+	case exchange.CryptocurrencyWithdrawalFee:
+		fee = getCryptocurrencyWithdrawalFee(feeBuilder.FirstCurrency)
 	}
+
 	if fee < 0 {
 		fee = 0
 	}
@@ -324,6 +322,15 @@ func (l *Liqui) GetFee(feeBuilder exchange.FeeBuilder) (float64, error) {
 	return fee, nil
 }
 
-func calculateTradingFee(Pairs map[string]PairData, currency string, purchasePrice, amount float64) float64 {
-	return (Pairs[strings.ToLower(currency)].Fee / 100) * amount * purchasePrice
+func getCryptocurrencyWithdrawalFee(currency string) float64 {
+	return WithdrawalFees[currency]
+}
+
+func calculateTradingFee(purchasePrice, amount float64, isMaker bool) (fee float64) {
+	if isMaker {
+		fee = 0.001
+	} else {
+		fee = 0.0025
+	}
+	return fee * purchasePrice * amount
 }

@@ -174,8 +174,8 @@ func TestGetFee(t *testing.T) {
 	// CryptocurrencyTradeFee IsMaker
 	feeBuilder = setFeeBuilder()
 	feeBuilder.IsMaker = true
-	if resp, err := l.GetFee(feeBuilder); resp != float64(0.0025) || err != nil {
-		t.Errorf("Test Failed - GetFee() error. Expected: %f, Recieved: %f", float64(0.0025), resp)
+	if resp, err := l.GetFee(feeBuilder); resp != float64(0.001) || err != nil {
+		t.Errorf("Test Failed - GetFee() error. Expected: %f, Recieved: %f", float64(0.001), resp)
 		t.Error(err)
 	}
 
@@ -189,8 +189,8 @@ func TestGetFee(t *testing.T) {
 	// CryptocurrencyWithdrawalFee Basic
 	feeBuilder = setFeeBuilder()
 	feeBuilder.FeeType = exchange.CryptocurrencyWithdrawalFee
-	if resp, err := l.GetFee(feeBuilder); resp != float64(0) || err != nil {
-		t.Errorf("Test Failed - GetFee() error. Expected: %f, Recieved: %f", float64(0), resp)
+	if resp, err := l.GetFee(feeBuilder); resp != float64(0.01) || err != nil {
+		t.Errorf("Test Failed - GetFee() error. Expected: %f, Recieved: %f", float64(0.01), resp)
 		t.Error(err)
 	}
 
