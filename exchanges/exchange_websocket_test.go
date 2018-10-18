@@ -1,12 +1,10 @@
 package exchange
 
 import (
-	"log"
 	"testing"
 	"time"
 
 	"github.com/thrasher-/gocryptotrader/currency/pair"
-
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 )
 
@@ -59,7 +57,8 @@ func TestWebsocket(t *testing.T) {
 		var count int
 		for {
 			if count == 4 {
-				go func() { comms <- struct{}{} }()
+				close(comms)
+				return
 			}
 			select {
 			case <-wsTest.Websocket.Connected:
@@ -102,7 +101,6 @@ func TestWebsocket(t *testing.T) {
 		t.Fatal("test failed - setting enabled should not work")
 	}
 
-	log.Println("Setting Enabled")
 	// -- Set true normal
 	err = wsTest.Websocket.SetEnabled(true)
 	if err != nil {
@@ -115,12 +113,11 @@ func TestWebsocket(t *testing.T) {
 		t.Fatal("test failed - WebsocketSetup", err)
 	}
 
-	timer := time.NewTimer(10 * time.Second)
+	timer := time.NewTimer(5 * time.Second)
 	select {
 	case <-comms:
 	case <-timer.C:
 		t.Fatal("test failed - WebsocketSetup - timeout")
-	default:
 	}
 }
 

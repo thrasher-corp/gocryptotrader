@@ -70,6 +70,7 @@ type Websocket struct {
 	init         bool
 	connected    bool
 	connector    func() error
+	m            sync.Mutex
 
 	// Connected denotes a channel switch for diversion of request flow
 	Connected chan struct{}
@@ -99,8 +100,9 @@ type Websocket struct {
 }
 
 // trafficMonitor monitors traffic and switches connection modes for websocket
-func (w *Websocket) trafficMonitor() {
+func (w *Websocket) trafficMonitor(wg *sync.WaitGroup) {
 	w.Wg.Add(1)
+	wg.Done() // Makes sure we are unlocking after we add to waitgroup
 
 	defer func() {
 		if w.connected {
@@ -157,6 +159,9 @@ func (w *Websocket) trafficMonitor() {
 // Connect intiates a websocket connection by using a package defined connection
 // function
 func (w *Websocket) Connect() error {
+	w.m.Lock()
+	defer w.m.Unlock()
+
 	if !w.IsEnabled() {
 		return errors.New("exchange_websocket.go error - websocket disabled")
 	}
@@ -167,7 +172,10 @@ func (w *Websocket) Connect() error {
 
 	w.ShutdownC = make(chan struct{}, 1)
 
-	go w.trafficMonitor()
+	var anotherWG sync.WaitGroup
+	anotherWG.Add(1)
+	go w.trafficMonitor(&anotherWG)
+	anotherWG.Wait()
 
 	err := w.connector()
 	if err != nil {
@@ -185,11 +193,16 @@ func (w *Websocket) Connect() error {
 // Shutdown attempts to shut down a websocket connection and associated routines
 // by using a package defined shutdown function
 func (w *Websocket) Shutdown() error {
+	w.m.Lock()
+
+	defer func() {
+		w.Orderbook.FlushCache()
+		w.m.Unlock()
+	}()
+
 	if !w.connected {
 		return errors.New("exchange_websocket.go error - System not connected to shut down")
 	}
-
-	defer w.Orderbook.FlushCache()
 
 	timer := time.NewTimer(5 * time.Second)
 	c := make(chan struct{}, 1)
