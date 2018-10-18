@@ -61,6 +61,8 @@ var (
 
 // WebsocketConnect initiates a new websocket connection
 func (b *Bitmex) WebsocketConnect() error {
+	for b.Enabled && b.Websocket {
+	}
 	var dialer websocket.Dialer
 	var err error
 
@@ -79,8 +81,6 @@ func (b *Bitmex) WebsocketConnect() error {
 	if err != nil {
 		return err
 	}
-
-	go b.connectionHandler()
 
 	if b.Verbose {
 		log.Printf("Successfully connected to Bitmex %s at time: %s Limit: %d",
@@ -127,7 +127,7 @@ func (b *Bitmex) WebsocketKline() error {
 		return err
 	}
 
-	go b.connectionHandler()
+	// go b.connectionHandler()
 
 	if b.Verbose {
 		log.Printf("Successfully connected to Bitmex %s at time: %s Limit: %d",
@@ -136,21 +136,130 @@ func (b *Bitmex) WebsocketKline() error {
 			welcomeResp.Limit.Remaining)
 	}
 
-	go b.handleIncomingData()
+	// go b.handleIncomingData()
 
+	go b.websocketSubscribeReadKline()
+	// for {
+	// 	time.Sleep(time.Duration(2) * time.Second)
 	err = b.websocketSubscribeKline()
 	if err != nil {
 		b.WebsocketConn.Close()
 		return err
 	}
+	// }
 
-	if b.AuthenticatedAPISupport {
-		err := b.websocketSendAuth()
+	// if b.AuthenticatedAPISupport {
+	// 	err := b.websocketSendAuth()
+	// 	if err != nil {
+	// 		log.Fatal(err)
+	// 	}
+	// }
+	return nil
+}
+
+// WebsocketSubscribe subscribes to a websocket channel
+func (b *Bitmex) websocketSubscribeReadKline() {
+
+	defer func() {
+		if b.Verbose {
+			log.Println("Bitmex websocket: Response data handler routine shutdown")
+		}
+	}()
+
+	for {
+		_, resp, err := b.WebsocketConn.ReadMessage()
+		if err != nil {
+			if b.Verbose {
+				log.Println("Bitmex websocket: Connection error", err)
+			}
+			return
+		}
+
+		message := string(resp)
+		if common.StringContains(message, "pong") {
+			if b.Verbose {
+				log.Println("Bitmex websocket: PONG receieved")
+			}
+			// pongChan <- 1
+			continue
+		}
+
+		fmt.Printf("resp:%s \n", resp)
+		quickCapture := make(map[string]interface{})
+		err = common.JSONDecode(resp, &quickCapture)
 		if err != nil {
 			log.Fatal(err)
 		}
+
+		fmt.Printf("quickCapture:%+v \n", quickCapture)
+
+		var respError WebsocketErrorResponse
+		if _, ok := quickCapture["status"]; ok {
+			err = common.JSONDecode(resp, &respError)
+			if err != nil {
+				log.Fatal(err)
+			}
+			log.Printf("Bitmex websocket error: %s", respError.Error)
+			continue
+		}
+
+		if _, ok := quickCapture["success"]; ok {
+			var decodedResp WebsocketSubscribeResp
+			err := common.JSONDecode(resp, &decodedResp)
+			if err != nil {
+				log.Fatal(err)
+			}
+
+			if decodedResp.Success {
+				if b.Verbose {
+					if len(quickCapture) == 3 {
+						log.Printf("Bitmex Websocket: Successfully subscribed to %s",
+							decodedResp.Subscribe)
+					} else {
+						log.Println("Bitmex Websocket: Successfully authenticated websocket connection")
+					}
+				}
+				continue
+			}
+			log.Printf("Bitmex websocket error: Unable to subscribe %s",
+				decodedResp.Subscribe)
+
+		} else if _, ok := quickCapture["table"]; ok {
+			var decodedResp WebsocketMainResponse
+			err := common.JSONDecode(resp, &decodedResp)
+			if err != nil {
+				log.Fatal(err)
+			}
+
+			switch decodedResp.Table {
+			case bitmexWSTrade1m:
+				var tradeBucketData TradeBucketData
+				err = common.JSONDecode(resp, &tradeBucketData)
+				if err != nil {
+					log.Fatal(err)
+				}
+				// err = b.processTradeBucket(tradeBucketData.Data, tradeBucketData.Action)
+				// if err != nil {
+				// 	log.Fatal(err)
+				// }
+				fmt.Printf("tradeBucketData 1m: %+v \n", tradeBucketData)
+			case bitmexWSTrade5m:
+				var tradeBucketData TradeBucketData
+				err = common.JSONDecode(resp, &tradeBucketData)
+				if err != nil {
+					log.Fatal(err)
+				}
+				// err = b.processTradeBucket(tradeBucketData.Data, tradeBucketData.Action)
+				// if err != nil {
+				// 	log.Fatal(err)
+				// }
+				fmt.Printf("tradeBucketData 5m: %+v \n", tradeBucketData)
+
+			default:
+				log.Fatal("Bitmex websocket error: Table unknown -", decodedResp.Table)
+			}
+		}
 	}
-	return nil
 }
 
 // WebsocketSubscribe subscribes to a websocket channel
@@ -176,11 +285,13 @@ func (b *Bitmex) websocketSubscribeKline() error {
 
 	// 	// NOTE more added here in future
 	// }
-
+	// for {
+	// 	time.Sleep(time.Duration(2) * time.Second)
 	err := b.WebsocketConn.WriteJSON(subscriber)
 	if err != nil {
 		return err
 	}
+	// }
 
 	return nil
 }
@@ -234,7 +345,7 @@ func (b *Bitmex) connectionHandler() {
 // Reconnect handles reconnections to websocket API
 func (b *Bitmex) reconnect() {
 	for {
-		err := b.WebsocketConnect()
+		err := b.WebsocketKline()
 		if err != nil {
 			log.Println("Bitmex websocket: Connection timed out - Failed to connect, sleeping...")
 			time.Sleep(time.Second * 2)

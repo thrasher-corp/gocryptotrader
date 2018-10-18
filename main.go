@@ -71,7 +71,7 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	time.Sleep(time.Duration(1) * time.Minute)
+	time.Sleep(time.Duration(1) * time.Hour)
 
 	//--------------批量创建新订单
 	// list, err := exchange.CreateBulkOrders(bitmex.OrderNewBulkParams{
