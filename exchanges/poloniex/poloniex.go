@@ -129,11 +129,6 @@ func (p *Poloniex) Setup(exch config.ExchangeConfig) {
 	}
 }
 
-// GetFee returns the fee for poloniex
-func (p *Poloniex) GetFee() float64 {
-	return p.Fee
-}
-
 // GetTicker returns current ticker information
 func (p *Poloniex) GetTicker() (map[string]Ticker, error) {
 	type response struct {
@@ -890,4 +885,37 @@ func (p *Poloniex) SendAuthenticatedHTTPRequest(method, endpoint string, values 
 	path := fmt.Sprintf("%s/%s", p.APIUrl, poloniexAPITradingEndpoint)
 
 	return p.SendPayload(method, path, headers, bytes.NewBufferString(values.Encode()), result, true, p.Verbose)
+}
+
+// GetFee returns an estimate of fee based on type of transaction
+func (p *Poloniex) GetFee(feeBuilder exchange.FeeBuilder) (float64, error) {
+	var fee float64
+	switch feeBuilder.FeeType {
+	case exchange.CryptocurrencyTradeFee:
+		feeInfo, err := p.GetFeeInfo()
+		if err != nil {
+			return 0, err
+		}
+		fee = calculateTradingFee(feeInfo, feeBuilder.PurchasePrice, feeBuilder.Amount, feeBuilder.IsMaker)
+	case exchange.CryptocurrencyWithdrawalFee:
+		fee = getWithdrawalFee(feeBuilder.FirstCurrency)
+	}
+	if fee < 0 {
+		fee = 0
+	}
+
+	return fee, nil
+}
+
+func calculateTradingFee(feeInfo Fee, purchasePrice, amount float64, isMaker bool) (fee float64) {
+	if isMaker {
+		fee = feeInfo.MakerFee
+	} else {
+		fee = feeInfo.TakerFee
+	}
+	return fee * amount * purchasePrice
+}
+
+func getWithdrawalFee(currency string) float64 {
+	return WithdrawalFees[currency]
 }

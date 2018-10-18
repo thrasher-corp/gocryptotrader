@@ -1,5 +1,7 @@
 package poloniex
 
+import "github.com/thrasher-/gocryptotrader/currency/symbol"
+
 // Ticker holds ticker data
 type Ticker struct {
 	Last          float64 `json:"last,string"`
@@ -225,7 +227,6 @@ type Fee struct {
 	MakerFee        float64 `json:"makerFee,string"`
 	TakerFee        float64 `json:"takerFee,string"`
 	ThirtyDayVolume float64 `json:"thirtyDayVolume,string"`
-	NextTier        float64 `json:"nextTier,string"`
 }
 
 // Margin holds margin information
@@ -333,4 +334,69 @@ type WsTrade struct {
 	Volume    float64
 	Price     float64
 	Timestamp int64
+}
+
+// WithdrawalFees the large list of predefined withdrawal fees
+// Prone to change, using highest value
+var WithdrawalFees = map[string]float64{
+	symbol.ZRX:   5,
+	symbol.ARDR:  2,
+	symbol.REP:   0.1,
+	symbol.BTC:   0.0005,
+	symbol.BCH:   0.0001,
+	symbol.XBC:   0.0001,
+	symbol.BTCD:  0.01,
+	symbol.BTM:   0.01,
+	symbol.BTS:   5,
+	symbol.BURST: 1,
+	symbol.BCN:   1,
+	symbol.CVC:   1,
+	symbol.CLAM:  0.001,
+	symbol.XCP:   1,
+	symbol.DASH:  0.01,
+	symbol.DCR:   0.1,
+	symbol.DGB:   0.1,
+	symbol.DOGE:  5,
+	symbol.EMC2:  0.01,
+	symbol.EOS:   0,
+	symbol.ETH:   0.01,
+	symbol.ETC:   0.01,
+	symbol.EXP:   0.01,
+	symbol.FCT:   0.01,
+	symbol.GAME:  0.01,
+	symbol.GAS:   0,
+	symbol.GNO:   0.015,
+	symbol.GNT:   1,
+	symbol.GRC:   0.01,
+	symbol.HUC:   0.01,
+	symbol.LBC:   0.05,
+	symbol.LSK:   0.1,
+	symbol.LTC:   0.001,
+	symbol.MAID:  10,
+	symbol.XMR:   0.015,
+	symbol.NMC:   0.01,
+	symbol.NAV:   0.01,
+	symbol.XEM:   15,
+	symbol.NEOS:  0.0001,
+	symbol.NXT:   1,
+	symbol.OMG:   0.3,
+	symbol.OMNI:  0.1,
+	symbol.PASC:  0.01,
+	symbol.PPC:   0.01,
+	symbol.POT:   0.01,
+	symbol.XPM:   0.01,
+	symbol.XRP:   0.15,
+	symbol.SC:    10,
+	symbol.STEEM: 0.01,
+	symbol.SBD:   0.01,
+	symbol.XLM:   0.00001,
+	symbol.STORJ: 1,
+	symbol.STRAT: 0.01,
+	symbol.AMP:   5,
+	symbol.SYS:   0.01,
+	symbol.USDT:  10,
+	symbol.VRC:   0.01,
+	symbol.VTC:   0.001,
+	symbol.VIA:   0.01,
+	symbol.ZEC:   0.001,
 }
