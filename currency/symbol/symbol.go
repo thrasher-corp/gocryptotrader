@@ -317,7 +317,10 @@ const (
 	TIX      = "TIX"
 	XTC      = "XTC"
 	BU       = "BU"
+	GNO      = "GNO"
+	MLN      = "MLN"
 	XXBT     = "XXBT" // BTC, but XXBT instead
+	XDG      = "XDG"  // DOGE
 	HKD      = "HKD"  // Hong Kong Dollar
 	AUD      = "AUD"  // Australian Dollar
 	USD      = "USD"  // United States Dollar

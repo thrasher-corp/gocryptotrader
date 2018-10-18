@@ -1,5 +1,7 @@
 package kraken
 
+import "github.com/thrasher-/gocryptotrader/currency/symbol"
+
 // TimeResponse type
 type TimeResponse struct {
 	Unixtime int64  `json:"unixtime"`
@@ -285,6 +287,21 @@ type AddOrderResponse struct {
 	TransactionIds []string         `json:"txid"`
 }
 
+// WithdrawInformation Used to check withdrawal fees
+type WithdrawInformation struct {
+	Method string  `json:"method"`
+	Limit  float64 `json:"limit,string"`
+	Fee    float64 `json:"fee,string"`
+}
+
+// DepositMethods Used to check deposit fees
+type DepositMethods struct {
+	Method          string  `json:"method"`
+	Limit           float64 `json:"limit,string"`
+	Fee             float64 `json:"fee,string"`
+	AddressSetupFee float64 `json:"address-setup-fee,string"`
+}
+
 // OrderDescription represents an orders description
 type OrderDescription struct {
 	Close string `json:"close"`
@@ -307,4 +324,41 @@ type AddOrderOptions struct {
 type CancelOrderResponse struct {
 	Count   int64       `json:"count"`
 	Pending interface{} `json:"pending"`
+}
+
+// DepositFees the large list of predefined deposit fees
+// Prone to change
+var DepositFees = map[string]float64{
+	symbol.XTZ: 0.05,
+}
+
+// WithdrawalFees the large list of predefined withdrawal fees
+// Prone to change
+var WithdrawalFees = map[string]float64{
+	symbol.ZUSD: 5,
+	symbol.ZEUR: 5,
+	symbol.USD:  5,
+	symbol.EUR:  5,
+	symbol.REP:  0.01,
+	symbol.XXBT: 0.0005,
+	symbol.BTC:  0.0005,
+	symbol.XBT:  0.0005,
+	symbol.BCH:  0.0001,
+	symbol.ADA:  0.3,
+	symbol.DASH: 0.005,
+	symbol.XDG:  2,
+	symbol.EOS:  0.05,
+	symbol.ETH:  0.005,
+	symbol.ETC:  0.005,
+	symbol.GNO:  0.005,
+	symbol.ICN:  0.2,
+	symbol.LTC:  0.001,
+	symbol.MLN:  0.003,
+	symbol.XMR:  0.05,
+	symbol.QTUM: 0.01,
+	symbol.XRP:  0.02,
+	symbol.XLM:  0.00002,
+	symbol.USDT: 5,
+	symbol.XTZ:  0.05,
+	symbol.ZEC:  0.0001,
 }
