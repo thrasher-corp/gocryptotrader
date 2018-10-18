@@ -192,3 +192,12 @@ func (l *LakeBTC) WithdrawFiatExchangeFundsToInternationalBank(currency pair.Cur
 func (l *LakeBTC) GetWebsocket() (*exchange.Websocket, error) {
 	return nil, errors.New("not yet implemented")
 }
+
+// GetFeeByType returns an estimate of fee based on type of transaction
+func (l *LakeBTC) GetFeeByType(feeBuilder exchange.FeeBuilder) (float64, error) {
+	resp, err := l.GetFee(feeBuilder)
+	if err != nil {
+		return resp, err
+	}
+	return resp, nil
+}
