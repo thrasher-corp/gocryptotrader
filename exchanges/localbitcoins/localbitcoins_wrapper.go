@@ -144,7 +144,7 @@ func (l *LocalBitcoins) GetExchangeHistory(p pair.CurrencyPair, assetType string
 		v.Set("since", strconv.FormatInt(tradeID, 10))
 	}
 
-	trades, err := l.GetTrades(p.GetSecondCurrency().Lower().String(), v)
+	trades, err := l.GetTrades(p.SecondCurrency.Lower().String(), v)
 	if err != nil {
 		return resp, err
 	}

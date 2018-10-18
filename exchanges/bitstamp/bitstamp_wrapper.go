@@ -166,7 +166,7 @@ func (b *Bitstamp) GetExchangeHistory(p pair.CurrencyPair, assetType string, tim
 	values := url.Values{}
 	values.Set("time", "minute")
 
-	trans, err := b.GetTransactions(p.GetFirstCurrency().String()+p.GetSecondCurrency().String(),
+	trans, err := b.GetTransactions(p.FirstCurrency.String()+p.SecondCurrency.String(),
 		values)
 	if err != nil {
 		return resp, err

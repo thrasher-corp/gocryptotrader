@@ -37,6 +37,7 @@ func TestSetup(t *testing.T) {
 	okcoinConfig.APISecret = apiSecret
 
 	o.Setup(okcoinConfig)
+	o.APIUrl = okcoinAPIURL // NOTE Until websocket updates merged in
 }
 
 func setFeeBuilder() exchange.FeeBuilder {
@@ -209,7 +210,8 @@ func TestCancelExchangeOrder(t *testing.T) {
 }
 
 func TestGetExchangeHistory(t *testing.T) {
-	p := pair.NewCurrencyPairDelimiter("btc_cny", "_")
+
+	p := pair.NewCurrencyPairDelimiter("btc_usd", "_")
 	_, err := o.GetExchangeHistory(p, "SPOT", time.Time{}, 0)
 	if err != nil {
 		t.Error("test failed - OKCoin GetExchangeHistory() error", err)

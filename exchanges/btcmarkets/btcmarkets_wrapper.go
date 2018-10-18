@@ -156,7 +156,7 @@ func (b *BTCMarkets) GetExchangeHistory(p pair.CurrencyPair, assetType string, t
 	v := url.Values{}
 	v.Set("since", strconv.FormatInt(tradeID, 10))
 
-	trades, err := b.GetTrades(p.GetFirstCurrency().String(), p.GetSecondCurrency().String(), v)
+	trades, err := b.GetTrades(p.FirstCurrency.String(), p.SecondCurrency.String(), v)
 	if err != nil {
 		return resp, err
 	}
