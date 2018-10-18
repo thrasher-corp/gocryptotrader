@@ -10,6 +10,7 @@ import (
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
+	"github.com/thrasher-/gocryptotrader/currency/symbol"
 	"github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/request"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
@@ -115,14 +116,6 @@ func (l *LakeBTC) GetTradablePairs() ([]string, error) {
 	}
 
 	return currencies, nil
-}
-
-// GetFee returns maker or taker fee
-func (l *LakeBTC) GetFee(maker bool) float64 {
-	if maker {
-		return l.MakerFee
-	}
-	return l.TakerFee
 }
 
 // GetTicker returns the current ticker from lakeBTC
@@ -351,4 +344,39 @@ func (l *LakeBTC) SendAuthenticatedHTTPRequest(method, params string, result int
 	headers["Content-Type"] = "application/json-rpc"
 
 	return l.SendPayload("POST", l.APIUrl, headers, strings.NewReader(string(data)), result, true, l.Verbose)
+}
+
+// GetFee returns an estimate of fee based on type of transaction
+func (l *LakeBTC) GetFee(feeBuilder exchange.FeeBuilder) (float64, error) {
+	var fee float64
+	switch feeBuilder.FeeType {
+	case exchange.CryptocurrencyTradeFee:
+		fee = calculateTradingFee(feeBuilder.PurchasePrice, feeBuilder.Amount, feeBuilder.IsMaker)
+	case exchange.CyptocurrencyDepositFee:
+		fee = getCryptocurrencyWithdrawalFee(feeBuilder.FirstCurrency)
+	}
+
+	if fee < 0 {
+		fee = 0
+	}
+
+	return fee, nil
+}
+
+func calculateTradingFee(purchasePrice, amount float64, isMaker bool) (fee float64) {
+	if isMaker {
+		// TODO: Volume based fee calculation
+		fee = 0.0015
+	} else {
+		fee = 0.002
+	}
+
+	return fee * amount * purchasePrice
+}
+
+func getCryptocurrencyWithdrawalFee(currency string) (fee float64) {
+	if currency == symbol.BTC {
+		fee = 0.001
+	}
+	return fee
 }
