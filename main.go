@@ -46,8 +46,8 @@ func getDefaultConfig() config.ExchangeConfig {
 		RESTPollingDelay:        10,
 		HTTPTimeout:             3 * time.Second,
 		AuthenticatedAPISupport: true,
-		APIKey:                  "X0X8_5ugrifK6dcAjRFY_UsN",
-		APISecret:               "DRKlKBwvHPVsRZGhfckzE272EYvUpYovZ5pgwiPx46J9c5j7",
+		APIKey:                  "",
+		APISecret:               "",
 	}
 }
 

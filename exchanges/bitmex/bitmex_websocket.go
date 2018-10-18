@@ -184,14 +184,14 @@ func (b *Bitmex) websocketSubscribeReadKline() {
 			continue
 		}
 
-		fmt.Printf("resp:%s \n", resp)
+		// fmt.Printf("resp:%s \n", resp)
 		quickCapture := make(map[string]interface{})
 		err = common.JSONDecode(resp, &quickCapture)
 		if err != nil {
 			log.Fatal(err)
 		}
 
-		fmt.Printf("quickCapture:%+v \n", quickCapture)
+		// fmt.Printf("quickCapture:%+v \n", quickCapture)
 
 		var respError WebsocketErrorResponse
 		if _, ok := quickCapture["status"]; ok {
