@@ -401,12 +401,12 @@ func (w *WEX) GetFee(feeBuilder exchange.FeeBuilder) (float64, error) {
 	var fee float64
 	switch feeBuilder.FeeType {
 	case exchange.CryptocurrencyTradeFee:
-		butts, err := w.GetInfo()
+		info, err := w.GetInfo()
 		if err != nil {
 			return 0, err
 		}
 		currency := feeBuilder.FirstCurrency + feeBuilder.Delimiter + feeBuilder.SecondCurrency
-		fee = calculateTradingFee(butts, currency, feeBuilder.PurchasePrice, feeBuilder.Amount)
+		fee = calculateTradingFee(info, currency, feeBuilder.PurchasePrice, feeBuilder.Amount)
 	case exchange.CryptocurrencyWithdrawalFee:
 		fee = getWithdrawalFee(feeBuilder.FirstCurrency)
 	case exchange.InternationalBankDepositFee:
