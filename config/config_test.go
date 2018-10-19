@@ -689,7 +689,7 @@ func TestUpdateConfig(t *testing.T) {
 	}
 
 	newCfg := c
-	err = c.UpdateConfig("", newCfg)
+	err = c.UpdateConfig(ConfigTestFile, newCfg)
 	if err != nil {
 		t.Fatalf("Test failed. %s", err)
 	}
@@ -700,7 +700,7 @@ func TestUpdateConfig(t *testing.T) {
 	}
 
 	newCfg.Currency.Cryptocurrencies = ""
-	err = c.UpdateConfig("", newCfg)
+	err = c.UpdateConfig(ConfigTestFile, newCfg)
 	if err != nil {
 		t.Errorf("Test failed. %s", err)
 	}
