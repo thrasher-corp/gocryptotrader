@@ -61,6 +61,9 @@ const (
 	VisaMastercard  InternationalBankTransactionType = "visaMastercard"
 	WebMoney        InternationalBankTransactionType = "webMoney"
 	Capitalist      InternationalBankTransactionType = "capitalist"
+	WesternUnion    InternationalBankTransactionType = "westernUnion"
+	MoneyGram       InternationalBankTransactionType = "moneyGram"
+	Contact         InternationalBankTransactionType = "contact"
 )
 
 // FeeBuilder is the type which holds all parameters required to calculate a fee for an exchange

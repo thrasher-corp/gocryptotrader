@@ -11,6 +11,7 @@ import (
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
+	"github.com/thrasher-/gocryptotrader/currency/symbol"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/request"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
@@ -125,11 +126,6 @@ func (w *WEX) GetTradablePairs() ([]string, error) {
 	}
 
 	return currencies, nil
-}
-
-// GetFee returns the exchange fee
-func (w *WEX) GetFee() float64 {
-	return w.Fee
 }
 
 // GetInfo returns the WEX info
@@ -398,4 +394,61 @@ func (w *WEX) SendAuthenticatedHTTPRequest(method string, values url.Values, res
 		result,
 		true,
 		w.Verbose)
+}
+
+// GetFee returns an estimate of fee based on type of transaction
+func (w *WEX) GetFee(feeBuilder exchange.FeeBuilder) (float64, error) {
+	var fee float64
+	switch feeBuilder.FeeType {
+	case exchange.CryptocurrencyTradeFee:
+		butts, err := w.GetInfo()
+		if err != nil {
+			return 0, err
+		}
+		currency := feeBuilder.FirstCurrency + feeBuilder.Delimiter + feeBuilder.SecondCurrency
+		fee = calculateTradingFee(butts, currency, feeBuilder.PurchasePrice, feeBuilder.Amount)
+	case exchange.CryptocurrencyWithdrawalFee:
+		fee = getWithdrawalFee(feeBuilder.FirstCurrency)
+	case exchange.InternationalBankDepositFee:
+		fee = getInternationalBankDepositFee(feeBuilder.CurrencyItem, feeBuilder.Amount, feeBuilder.BankTransactionType)
+	}
+	if fee < 0 {
+		fee = 0
+	}
+
+	return fee, nil
+}
+
+func calculateTradingFee(info Info, currency string, purchasePrice, amount float64) (fee float64) {
+	fee = info.Pairs[common.StringToLower(currency)].Fee
+	return (fee / 100) * amount * purchasePrice
+}
+
+func getWithdrawalFee(currency string) float64 {
+	return WithdrawalFees[currency]
+}
+
+func getInternationalBankDepositFee(currency string, amount float64, bankTransactionType exchange.InternationalBankTransactionType) float64 {
+	var fee float64
+
+	switch bankTransactionType {
+	case exchange.WireTransfer:
+		fallthrough
+	case exchange.WesternUnion:
+		switch currency {
+		case symbol.USD:
+			fee = 0.065 * amount
+		}
+	case exchange.MoneyGram:
+		switch currency {
+		case symbol.USD:
+			fee = 0.065 * amount
+		}
+	case exchange.Contact:
+		switch currency {
+		case symbol.USD:
+			fee = 0.065 * amount
+		}
+	}
+	return fee
 }

@@ -428,6 +428,7 @@ const (
 	OMNI       = "OMNI"
 	PASC       = "PASC"
 	PPC        = "PPC"
+	DSH        = "DSH"
 	GML        = "GML"
 	GSY        = "GSY"
 	POT        = "POT"
