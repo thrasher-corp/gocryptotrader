@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"path"
+	"runtime"
 	"strconv"
 	"sync"
 	"time"
@@ -942,39 +944,71 @@ func GetFilePath(file string) (string, error) {
 
 	exePath, err := common.GetExecutablePath()
 	if err != nil {
-		log.Fatalf("Unable to get executable path: %s", err)
 		return "", err
 	}
 
-	tempPath := exePath + common.GetOSPathSlash()
-	encPath := tempPath + EncryptedConfigFile
-	cfgPath := tempPath + ConfigFile
+	oldDir := exePath + common.GetOSPathSlash()
+	oldDirs := []string{oldDir + ConfigFile, oldDir + EncryptedConfigFile}
 
-	data, err := common.ReadFile(encPath)
-	if err == nil {
-		if ConfirmECS(data) {
-			return encPath, nil
+	newDir := common.GetDefaultDataDir(runtime.GOOS) + common.GetOSPathSlash()
+	err = common.CheckDir(newDir, true)
+	if err != nil {
+		return "", err
+	}
+	newDirs := []string{newDir + ConfigFile, newDir + EncryptedConfigFile}
+
+	// First upgrade the old dir config file if it exists to the corresponding new one
+	for x := range oldDirs {
+		_, err := os.Stat(oldDirs[x])
+		if os.IsNotExist(err) {
+			continue
+		} else {
+			if path.Ext(oldDirs[x]) == ".json" {
+				err = os.Rename(oldDirs[x], newDirs[0])
+				if err != nil {
+					return "", err
+				}
+				log.Printf("Renamed old config file %s to %s", oldDirs[x], newDirs[0])
+			} else {
+				err = os.Rename(oldDirs[x], newDirs[1])
+				if err != nil {
+					return "", err
+				}
+				log.Printf("Renamed old config file %s to %s", oldDirs[x], newDirs[1])
+			}
 		}
-		err = os.Rename(encPath, cfgPath)
+	}
+
+	// Secondly check to see if the new config file extension is correct or not
+	for x := range newDirs {
+		_, err := os.Stat(newDirs[x])
+		if os.IsNotExist(err) {
+			continue
+		}
+
+		data, err := common.ReadFile(newDirs[x])
+		if ConfirmECS(data) {
+			if path.Ext(newDirs[x]) == ".dat" {
+				return newDirs[x], nil
+			}
+			err = os.Rename(newDirs[x], newDirs[1])
+			if err != nil {
+				return "", err
+			}
+			return newDirs[1], nil
+		}
+
+		if path.Ext(newDirs[x]) == ".json" {
+			return newDirs[x], nil
+		}
+		err = os.Rename(newDirs[x], newDirs[0])
 		if err != nil {
-			log.Fatalf("Unable to rename config file: %s", err)
 			return "", err
 		}
-		log.Printf("Renaming non-encrypted config file from %s to %s",
-			encPath, cfgPath)
-		return cfgPath, nil
+		return newDirs[0], nil
 	}
-	if !ConfirmECS(data) {
-		return cfgPath, nil
-	}
-	err = os.Rename(cfgPath, encPath)
-	if err != nil {
-		log.Fatalf("Unable to rename config file: %s", err)
-		return "", err
-	}
-	log.Printf("Renamed encrypted config file from %s to %s", cfgPath,
-		encPath)
-	return encPath, nil
+
+	return "", errors.New("config default file path error")
 }
 
 // ReadConfig verifies and checks for encryption and verifies the unencrypted

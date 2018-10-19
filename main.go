@@ -30,6 +30,8 @@ type Bot struct {
 	shutdown   chan bool
 	dryRun     bool
 	configFile string
+	dataDir    string
+	logFile    string
 }
 
 const banner = `
@@ -54,6 +56,7 @@ func main() {
 
 	//Handle flags
 	flag.StringVar(&bot.configFile, "config", defaultPath, "config file to load")
+	flag.StringVar(&bot.dataDir, "datadir", common.GetDefaultDataDir(runtime.GOOS), "default data directory for GoCryptoTrader files")
 	dryrun := flag.Bool("dryrun", false, "dry runs bot, doesn't save config file")
 	version := flag.Bool("version", false, "retrieves current GoCryptoTrader version")
 	flag.Parse()
@@ -67,14 +70,28 @@ func main() {
 		bot.dryRun = true
 	}
 
-	bot.config = &config.Cfg
 	fmt.Println(banner)
 	fmt.Println(BuildVersion(false))
-	log.Printf("Loading config file %s..\n", bot.configFile)
 
+	bot.config = &config.Cfg
+	log.Printf("Loading config file %s..\n", bot.configFile)
 	err = bot.config.LoadConfig(bot.configFile)
 	if err != nil {
 		log.Fatalf("Failed to load config. Err: %s", err)
+	}
+
+	err = common.CheckDir(bot.dataDir, true)
+	if err != nil {
+		log.Fatalf("Failed to open/create data directory: %s. Err: %s", bot.dataDir, err)
+	}
+	log.Printf("Using data directory: %s.\n", bot.dataDir)
+
+	bot.logFile = GetLogFile(bot.dataDir)
+	err = InitLogFile(bot.logFile)
+	if err != nil {
+		log.Printf("Failed to create log file writer. Err: %s", err)
+	} else {
+		log.Printf("Using log file: %s.\n", bot.logFile)
 	}
 
 	AdjustGoMaxProcs()
@@ -199,5 +216,9 @@ func Shutdown() {
 	}
 
 	log.Println("Exiting.")
+
+	if logFileHandle != nil {
+		logFileHandle.Close()
+	}
 	os.Exit(0)
 }

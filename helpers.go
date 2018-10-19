@@ -3,8 +3,11 @@ package main
 import (
 	"errors"
 	"fmt"
+	"io"
 	"log"
+	"os"
 
+	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
 	"github.com/thrasher-/gocryptotrader/currency/translation"
@@ -14,6 +17,36 @@ import (
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-/gocryptotrader/portfolio"
 )
+
+const (
+	logFile = "debug.log"
+)
+
+var (
+	logFileHandle *os.File
+)
+
+// InitLogFile initialises the log file
+func InitLogFile(lFile string) error {
+	if logFileHandle != nil {
+		return nil
+	}
+
+	var err error
+	logFileHandle, err = os.OpenFile(lFile, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+	if err != nil {
+		return err
+	}
+
+	wrt := io.MultiWriter(os.Stdout, logFileHandle)
+	log.SetOutput(wrt)
+	return nil
+}
+
+// GetLogFile returns the debug.log file
+func GetLogFile(dir string) string {
+	return dir + common.GetOSPathSlash() + logFile
+}
 
 // GetAllAvailablePairs returns a list of all available pairs on either enabled
 // or disabled exchanges

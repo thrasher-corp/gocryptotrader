@@ -21,6 +21,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"path"
 	"path/filepath"
 	"reflect"
 	"regexp"
@@ -606,4 +607,34 @@ func TimeFromUnixTimestampFloat(raw interface{}) (time.Time, error) {
 		return time.Time{}, fmt.Errorf("unable to parse, value not float64: %T", raw)
 	}
 	return time.Unix(0, int64(ts)*int64(time.Millisecond)), nil
+}
+
+// GetDefaultDataDir returns the default data directory
+// Windows - C:\Users\%USER%\AppData\Roaming\GoCryptoTrader
+// Linux/Unix or OSX - $HOME/.gocryptotrader
+func GetDefaultDataDir(env string) string {
+	if env == "windows" {
+		return os.Getenv("APPDATA") + GetOSPathSlash() + "GoCryptoTrader"
+	}
+	return path.Join(os.ExpandEnv("$HOME"), ".gocryptotrader")
+}
+
+// CheckDir checks to see if a particular directory exists
+// and attempts to create it if desired, if it doesn't exist
+func CheckDir(dir string, create bool) error {
+	_, err := os.Stat(dir)
+	if !os.IsNotExist(err) {
+		return nil
+	}
+
+	if !create {
+		return fmt.Errorf("directory %s does not exist. Err: %s", dir, err)
+	}
+
+	log.Printf("Directory %s does not exist.. creating.", dir)
+	err = os.Mkdir(dir, 0777)
+	if err != nil {
+		return fmt.Errorf("failed to create dir. Err: %s", err)
+	}
+	return nil
 }
