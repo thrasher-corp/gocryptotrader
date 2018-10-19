@@ -502,6 +502,15 @@ type TradeBucket struct {
 	ForeignNotional float64 `json:"foreignNotional"` //40,-20
 }
 
+// WSInstrument Data
+type WSInstrument struct {
+	Timestamp          string  `json:"timestamp"`
+	Symbol             string  `json:"symbol"`
+	LastPrice          float64 `json:"lastPrice"`
+	LastPriceProtected float64 `json:"lastPriceProtected"`
+	LastTickDirection  string  `json:"lastTickDirection"`
+}
+
 // User Account Operations
 type User struct {
 	TFAEnabled   string          `json:"TFAEnabled"`

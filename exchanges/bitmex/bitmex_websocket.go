@@ -254,6 +254,17 @@ func (b *Bitmex) websocketSubscribeReadKline() {
 				// 	log.Fatal(err)
 				// }
 				fmt.Printf("tradeBucketData 5m: %+v \n", tradeBucketData)
+			case bitmexWSInstrument:
+				var wsInstrumentData WSInstrumentData
+				err = common.JSONDecode(resp, &wsInstrumentData)
+				if err != nil {
+					log.Fatal(err)
+				}
+				if wsInstrumentData.Data[0].LastPriceProtected != 0 {
+					fmt.Printf("[%s] 最新报价: %.6f  %.6f\n", time.Now().Format("2006-01-02 15:04:05"), wsInstrumentData.Data[0].LastPriceProtected, wsInstrumentData.Data[0].LastPrice)
+				} else {
+					fmt.Printf("resp: %s\n", resp)
+				}
 
 			default:
 				log.Fatal("Bitmex websocket error: Table unknown -", decodedResp.Table)
@@ -273,6 +284,7 @@ func (b *Bitmex) websocketSubscribeKline() error {
 	// Announcement subscribe
 	subscriber.Arguments = append(subscriber.Arguments, "tradeBin1m:XBTUSD")
 	subscriber.Arguments = append(subscriber.Arguments, "tradeBin5m:XBTUSD")
+	subscriber.Arguments = append(subscriber.Arguments, "instrument:XBTUSD")
 
 	// for _, contract := range contracts {
 	// 	// Orderbook subscribe

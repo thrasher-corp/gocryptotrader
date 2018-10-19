@@ -71,6 +71,12 @@ type TradeBucketData struct {
 	Action string        `json:"action"`
 }
 
+// WSInstrumentData contains trade resp data with action to be taken
+type WSInstrumentData struct {
+	Data   []WSInstrument `json:"data"`
+	Action string         `json:"action"`
+}
+
 // AnnouncementData contains announcement resp data with action to be taken
 type AnnouncementData struct {
 	Data   []Announcement `json:"data"`
