@@ -166,3 +166,75 @@ func (b *Binance) WebsocketKline(ch chan *KlineStream, timeIntervals []TimeInter
 
 	}
 }
+
+// WebsocketLastPrice 获取 最新价格
+func (b *Binance) WebsocketLastPrice(chLastPrice chan float64, timeIntervals []TimeInterval, symbolList []string, done <-chan struct{}) {
+
+	for b.Enabled && b.Websocket {
+		select {
+		case <-done:
+			return
+		default:
+			var Dialer websocket.Dialer
+			var err error
+
+			streamsArray := []string{}
+			for _, tv := range timeIntervals {
+				for _, sv := range symbolList {
+					streamsArray = append(streamsArray, fmt.Sprintf("%s@kline_%s", strings.ToLower(sv), tv))
+				}
+			}
+
+			streams := commonutils.JoinStrings(streamsArray, "/")
+
+			wsurl := b.WebsocketURL + "/stream?streams=" + streams
+
+			// b.WebsocketConn, _, err = Dialer.Dial(binanceDefaultWebsocketURL+myenabledPairs, http.Header{})
+			b.WebsocketConn, _, err = Dialer.Dial(wsurl, http.Header{})
+			if err != nil {
+				log.Printf("%s Unable to connect to Websocket. Error: %s\n", b.Name, err)
+				continue
+			}
+
+			if b.Verbose {
+				log.Printf("%s Connected to Websocket.\n", b.Name)
+				log.Printf("wsurl:%s\n", streams)
+			}
+
+			for b.Enabled && b.Websocket {
+				select {
+				case <-done:
+					return
+				default:
+					_, resp, err := b.WebsocketConn.ReadMessage()
+					if err != nil {
+						log.Println(err)
+						break
+					}
+
+					multiStreamData := MultiStreamData{}
+					if err = common.JSONDecode(resp, &multiStreamData); err != nil {
+						log.Println("Could not load multi stream data.", string(resp))
+						continue
+					}
+
+					kline := KlineStream{}
+					if err = commonutils.JSONDecode(multiStreamData.Data, &kline); err != nil {
+						log.Println("Could not convert to a KlineStream structure")
+						continue
+					}
+
+					close, err := common.FloatFromString(kline.Kline.ClosePrice)
+					if err != nil {
+						log.Println("Could not convert to a ClosePrice float64")
+						continue
+					}
+					chLastPrice <- close
+				}
+			}
+			b.WebsocketConn.Close()
+			log.Printf("%s Websocket client disconnected.", b.Name)
+		}
+
+	}
+}
