@@ -61,8 +61,7 @@ var (
 
 // WebsocketConnect initiates a new websocket connection
 func (b *Bitmex) WebsocketConnect() error {
-	for b.Enabled && b.Websocket {
-	}
+
 	var dialer websocket.Dialer
 	var err error
 
@@ -106,206 +105,334 @@ func (b *Bitmex) WebsocketConnect() error {
 	return nil
 }
 
-// WebsocketKline 获取 k 线
-func (b *Bitmex) WebsocketKline() error {
-	var dialer websocket.Dialer
-	var err error
+// WebsocketKline 读取K线
+func (b *Bitmex) WebsocketKline(ch chan *TradeBucketData, timeIntervals []TimeInterval, symbolList []string, done <-chan struct{}) {
 
-	b.WebsocketConn, _, err = dialer.Dial(bitmexWSURL, nil)
-	if err != nil {
-		return err
-	}
-
-	_, p, err := b.WebsocketConn.ReadMessage()
-	if err != nil {
-		return err
-	}
-
-	var welcomeResp WebsocketWelcome
-	err = common.JSONDecode(p, &welcomeResp)
-	if err != nil {
-		return err
-	}
-
-	// go b.connectionHandler()
-
-	if b.Verbose {
-		log.Printf("Successfully connected to Bitmex %s at time: %s Limit: %d",
-			welcomeResp.Info,
-			welcomeResp.Timestamp,
-			welcomeResp.Limit.Remaining)
-	}
-
-	// go b.handleIncomingData()
-
-	go b.websocketSubscribeReadKline()
-	// for {
-	// 	time.Sleep(time.Duration(2) * time.Second)
-	err = b.websocketSubscribeKline()
-	if err != nil {
-		b.WebsocketConn.Close()
-		return err
-	}
-	// }
-
-	// if b.AuthenticatedAPISupport {
-	// 	err := b.websocketSendAuth()
-	// 	if err != nil {
-	// 		log.Fatal(err)
-	// 	}
-	// }
-	return nil
-}
-
-// WebsocketSubscribe subscribes to a websocket channel
-func (b *Bitmex) websocketSubscribeReadKline() {
-
-	defer func() {
-		if b.Verbose {
-			log.Println("Bitmex websocket: Response data handler routine shutdown")
-		}
-	}()
-
-	for {
-		_, resp, err := b.WebsocketConn.ReadMessage()
-		if err != nil {
-			if b.Verbose {
-				log.Println("Bitmex websocket: Connection error", err)
-			}
+	for b.Enabled && b.Websocket {
+		select {
+		case <-done:
 			return
-		}
+		default:
+			var dialer websocket.Dialer
+			var err error
 
-		message := string(resp)
-		if common.StringContains(message, "pong") {
-			if b.Verbose {
-				log.Println("Bitmex websocket: PONG receieved")
-			}
-			// pongChan <- 1
-			continue
-		}
-
-		// fmt.Printf("resp:%s \n", resp)
-		quickCapture := make(map[string]interface{})
-		err = common.JSONDecode(resp, &quickCapture)
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		// fmt.Printf("quickCapture:%+v \n", quickCapture)
-
-		var respError WebsocketErrorResponse
-		if _, ok := quickCapture["status"]; ok {
-			err = common.JSONDecode(resp, &respError)
+			b.WebsocketConn, _, err = dialer.Dial(bitmexWSURL, nil)
 			if err != nil {
-				log.Fatal(err)
-			}
-			log.Printf("Bitmex websocket error: %s", respError.Error)
-			continue
-		}
-
-		if _, ok := quickCapture["success"]; ok {
-			var decodedResp WebsocketSubscribeResp
-			err := common.JSONDecode(resp, &decodedResp)
-			if err != nil {
-				log.Fatal(err)
-			}
-
-			if decodedResp.Success {
-				if b.Verbose {
-					if len(quickCapture) == 3 {
-						log.Printf("Bitmex Websocket: Successfully subscribed to %s",
-							decodedResp.Subscribe)
-					} else {
-						log.Println("Bitmex Websocket: Successfully authenticated websocket connection")
-					}
-				}
+				log.Printf("%s Unable to connect to Websocket. Error: %s\n", b.Name, err)
 				continue
+			} else if b.Verbose {
+				log.Printf("%s Connected to Websocket.\n", b.Name)
 			}
-			log.Printf("Bitmex websocket error: Unable to subscribe %s",
-				decodedResp.Subscribe)
 
-		} else if _, ok := quickCapture["table"]; ok {
-			var decodedResp WebsocketMainResponse
-			err := common.JSONDecode(resp, &decodedResp)
+			_, p, err := b.WebsocketConn.ReadMessage()
+			if err != nil {
+				b.WebsocketConn.Close()
+				log.Fatal(fmt.Sprintf("First ReadMessage:%s", err.Error()))
+			}
+
+			//解析欢迎 信息
+			var welcomeResp WebsocketWelcome
+			err = common.JSONDecode(p, &welcomeResp)
+			if err != nil {
+				log.Fatal(fmt.Sprintf("WelCome ReadMessage:%s", err.Error()))
+			}
+			if b.Verbose {
+				log.Printf("Successfully connected to Bitmex %s at time: %s Limit: %d",
+					welcomeResp.Info,
+					welcomeResp.Timestamp,
+					welcomeResp.Limit.Remaining)
+			}
+
+			//订阅信息
+			var subscriber WebsocketRequest
+			subscriber.Command = "subscribe"
+
+			// 重新匹配要订阅的名称
+			for _, tv := range timeIntervals {
+				tradeName := ""
+				switch tv {
+				case TimeIntervalMinute:
+					tradeName = bitmexWSTrade1m
+				case TimeIntervalFiveMinutes:
+					tradeName = bitmexWSTrade5m
+				case TimeIntervalHour:
+					tradeName = bitmexWSTrade1h
+				case TimeIntervalDay:
+					tradeName = bitmexWSTrade1d
+				default:
+					continue
+				}
+				for _, sv := range symbolList {
+					subscriber.Arguments = append(subscriber.Arguments, fmt.Sprintf("%s:%s", tradeName, common.StringToUpper(sv)))
+				}
+			}
+
+			if b.Verbose {
+				if b, err := common.JSONEncode(subscriber); err != nil {
+					log.Fatal(err)
+				} else {
+					log.Printf("subscriber:%s\n", b)
+				}
+			}
+
+			err = b.WebsocketConn.WriteJSON(subscriber)
 			if err != nil {
 				log.Fatal(err)
 			}
 
-			switch decodedResp.Table {
-			case bitmexWSTrade1m:
-				var tradeBucketData TradeBucketData
-				err = common.JSONDecode(resp, &tradeBucketData)
-				if err != nil {
-					log.Fatal(err)
-				}
-				// err = b.processTradeBucket(tradeBucketData.Data, tradeBucketData.Action)
-				// if err != nil {
-				// 	log.Fatal(err)
-				// }
-				fmt.Printf("tradeBucketData 1m: %+v \n", tradeBucketData)
-			case bitmexWSTrade5m:
-				var tradeBucketData TradeBucketData
-				err = common.JSONDecode(resp, &tradeBucketData)
-				if err != nil {
-					log.Fatal(err)
-				}
-				// err = b.processTradeBucket(tradeBucketData.Data, tradeBucketData.Action)
-				// if err != nil {
-				// 	log.Fatal(err)
-				// }
-				fmt.Printf("tradeBucketData 5m: %+v \n", tradeBucketData)
-			case bitmexWSInstrument:
-				var wsInstrumentData WSInstrumentData
-				err = common.JSONDecode(resp, &wsInstrumentData)
-				if err != nil {
-					log.Fatal(err)
-				}
-				if wsInstrumentData.Data[0].LastPriceProtected != 0 {
-					fmt.Printf("[%s] 最新报价: %.6f  %.6f\n", time.Now().Format("2006-01-02 15:04:05"), wsInstrumentData.Data[0].LastPriceProtected, wsInstrumentData.Data[0].LastPrice)
-				} else {
-					fmt.Printf("resp: %s\n", resp)
-				}
+			for b.Enabled && b.Websocket {
+				select {
+				case <-done:
+					return
+				default:
+					_, resp, err := b.WebsocketConn.ReadMessage()
+					if err != nil {
+						if b.Verbose {
+							log.Println("Bitmex websocket: Connection error", err)
+						}
+						return
+					}
 
-			default:
-				log.Fatal("Bitmex websocket error: Table unknown -", decodedResp.Table)
+					quickCapture := make(map[string]interface{})
+					err = common.JSONDecode(resp, &quickCapture)
+					if err != nil {
+						fmt.Printf("Err resp:%s \n", resp)
+						log.Fatal(time.Now().Format("2006-01-02 15:04:05") + " " + err.Error())
+					}
+
+					//解析错误信息
+					var respError WebsocketErrorResponse
+					if _, ok := quickCapture["status"]; ok {
+						err = common.JSONDecode(resp, &respError)
+						if err != nil {
+							log.Fatal(err)
+						}
+						log.Printf("Bitmex websocket error: %s", respError.Error)
+						continue
+					}
+
+					if _, ok := quickCapture["success"]; ok {
+						var decodedResp WebsocketSubscribeResp
+						err := common.JSONDecode(resp, &decodedResp)
+						if err != nil {
+							log.Fatal(err)
+						}
+
+						if decodedResp.Success {
+							if b.Verbose {
+								if len(quickCapture) == 3 {
+									log.Printf("Bitmex Websocket: Successfully subscribed to %s",
+										decodedResp.Subscribe)
+								} else {
+									log.Println("Bitmex Websocket: Successfully authenticated websocket connection")
+								}
+							}
+							continue
+						}
+						log.Printf("Bitmex websocket error: Unable to subscribe %s",
+							decodedResp.Subscribe)
+
+					} else if _, ok := quickCapture["table"]; ok {
+						var decodedResp WebsocketMainResponse
+						err := common.JSONDecode(resp, &decodedResp)
+						if err != nil {
+							log.Fatal(err)
+						}
+
+						switch decodedResp.Table {
+						case bitmexWSTrade1m:
+							var tradeBucketData TradeBucketData
+							err = common.JSONDecode(resp, &tradeBucketData)
+							if err != nil {
+								log.Fatal(err)
+							}
+							tradeBucketData.TimeInterval = TimeIntervalMinute
+							ch <- &tradeBucketData
+						case bitmexWSTrade5m:
+							var tradeBucketData TradeBucketData
+							err = common.JSONDecode(resp, &tradeBucketData)
+							if err != nil {
+								log.Fatal(err)
+							}
+							tradeBucketData.TimeInterval = TimeIntervalFiveMinutes
+							ch <- &tradeBucketData
+						case bitmexWSTrade1h:
+							var tradeBucketData TradeBucketData
+							err = common.JSONDecode(resp, &tradeBucketData)
+							if err != nil {
+								log.Fatal(err)
+							}
+							tradeBucketData.TimeInterval = TimeIntervalHour
+							ch <- &tradeBucketData
+						case bitmexWSTrade1d:
+							var tradeBucketData TradeBucketData
+							err = common.JSONDecode(resp, &tradeBucketData)
+							if err != nil {
+								log.Fatal(err)
+							}
+							fmt.Printf("日线:%s \n", resp)
+							tradeBucketData.TimeInterval = TimeIntervalDay
+							ch <- &tradeBucketData
+
+						default:
+							log.Fatal("Bitmex websocket error: Table unknown -", decodedResp.Table)
+						}
+					}
+
+				}
 			}
+
+			b.WebsocketConn.Close()
+			log.Printf("%s Websocket client disconnected.", b.Name)
 		}
 	}
 }
 
-// WebsocketSubscribe subscribes to a websocket channel
-func (b *Bitmex) websocketSubscribeKline() error {
-	// contracts := b.GetEnabledCurrencies()
+// WebsocketLastPrice 读取 最新报价
+func (b *Bitmex) WebsocketLastPrice(lastPrice chan float64, symbolList []string, done <-chan struct{}) {
 
-	// Subscriber
-	var subscriber WebsocketRequest
-	subscriber.Command = "subscribe"
+	for b.Enabled && b.Websocket {
+		select {
+		case <-done:
+			return
+		default:
+			var dialer websocket.Dialer
+			var err error
 
-	// Announcement subscribe
-	subscriber.Arguments = append(subscriber.Arguments, "tradeBin1m:XBTUSD")
-	subscriber.Arguments = append(subscriber.Arguments, "tradeBin5m:XBTUSD")
-	subscriber.Arguments = append(subscriber.Arguments, "instrument:XBTUSD")
+			b.WebsocketConn, _, err = dialer.Dial(bitmexWSURL, nil)
+			if err != nil {
+				log.Printf("%s Unable to connect to Websocket. Error: %s\n", b.Name, err)
+				continue
+			} else if b.Verbose {
+				log.Printf("%s Connected to Websocket.\n", b.Name)
+			}
 
-	// for _, contract := range contracts {
-	// 	// Orderbook subscribe
-	// 	subscriber.Arguments = append(subscriber.Arguments,
-	// 		bitmexWSOrderbookL2+":"+contract.Pair().String())
+			_, p, err := b.WebsocketConn.ReadMessage()
+			if err != nil {
+				b.WebsocketConn.Close()
+				log.Fatal(fmt.Sprintf("First ReadMessage:%s", err.Error()))
+			}
 
-	// 	// Trade subscribe
-	// 	subscriber.Arguments = append(subscriber.Arguments,
-	// 		bitmexWSTrade+":"+contract.Pair().String())
+			//解析欢迎 信息
+			var welcomeResp WebsocketWelcome
+			err = common.JSONDecode(p, &welcomeResp)
+			if err != nil {
+				log.Fatal(fmt.Sprintf("WelCome ReadMessage:%s", err.Error()))
+			}
+			if b.Verbose {
+				log.Printf("Successfully connected to Bitmex %s at time: %s Limit: %d",
+					welcomeResp.Info,
+					welcomeResp.Timestamp,
+					welcomeResp.Limit.Remaining)
+			}
 
-	// 	// NOTE more added here in future
-	// }
-	// for {
-	// 	time.Sleep(time.Duration(2) * time.Second)
-	err := b.WebsocketConn.WriteJSON(subscriber)
-	if err != nil {
-		return err
+			//订阅信息
+			var subscriber WebsocketRequest
+			subscriber.Command = "subscribe"
+
+			// 重新匹配要订阅的名称
+			for _, sv := range symbolList {
+				subscriber.Arguments = append(subscriber.Arguments, fmt.Sprintf("%s:%s", bitmexWSInstrument, common.StringToUpper(sv)))
+			}
+
+			if b.Verbose {
+				if b, err := common.JSONEncode(subscriber); err != nil {
+					log.Fatal(err)
+				} else {
+					log.Printf("subscriber:%s\n", b)
+				}
+			}
+
+			err = b.WebsocketConn.WriteJSON(subscriber)
+			if err != nil {
+				log.Fatal(err)
+			}
+
+			for b.Enabled && b.Websocket {
+				select {
+				case <-done:
+					return
+				default:
+					_, resp, err := b.WebsocketConn.ReadMessage()
+					if err != nil {
+						if b.Verbose {
+							log.Println("Bitmex websocket: Connection error", err)
+						}
+						return
+					}
+
+					quickCapture := make(map[string]interface{})
+					err = common.JSONDecode(resp, &quickCapture)
+					if err != nil {
+						fmt.Printf("Err resp:%s \n", resp)
+						log.Fatal(time.Now().Format("2006-01-02 15:04:05") + " " + err.Error())
+					}
+
+					//解析错误信息
+					var respError WebsocketErrorResponse
+					if _, ok := quickCapture["status"]; ok {
+						err = common.JSONDecode(resp, &respError)
+						if err != nil {
+							log.Fatal(err)
+						}
+						log.Printf("Bitmex websocket error: %s", respError.Error)
+						continue
+					}
+
+					if _, ok := quickCapture["success"]; ok {
+						var decodedResp WebsocketSubscribeResp
+						err := common.JSONDecode(resp, &decodedResp)
+						if err != nil {
+							log.Fatal(err)
+						}
+
+						if decodedResp.Success {
+							if b.Verbose {
+								if len(quickCapture) == 3 {
+									log.Printf("Bitmex Websocket: Successfully subscribed to %s",
+										decodedResp.Subscribe)
+								} else {
+									log.Println("Bitmex Websocket: Successfully authenticated websocket connection")
+								}
+							}
+							continue
+						}
+						log.Printf("Bitmex websocket error: Unable to subscribe %s",
+							decodedResp.Subscribe)
+
+					} else if _, ok := quickCapture["table"]; ok {
+						var decodedResp WebsocketMainResponse
+						err := common.JSONDecode(resp, &decodedResp)
+						if err != nil {
+							log.Fatal(err)
+						}
+
+						switch decodedResp.Table {
+
+						case bitmexWSInstrument:
+							var wsInstrumentData WSInstrumentData
+							err = common.JSONDecode(resp, &wsInstrumentData)
+							if err != nil {
+								log.Fatal(err)
+							}
+							if wsInstrumentData.Data[0].LastPriceProtected != 0 {
+								lastPrice <- wsInstrumentData.Data[0].LastPriceProtected
+							} else if wsInstrumentData.Data[0].LastPrice != 0 {
+								lastPrice <- wsInstrumentData.Data[0].LastPrice
+							}
+
+						default:
+							log.Fatal("Bitmex websocket error: Table unknown -", decodedResp.Table)
+						}
+					}
+
+				}
+			}
+
+			b.WebsocketConn.Close()
+			log.Printf("%s Websocket client disconnected.", b.Name)
+		}
 	}
-	// }
-
-	return nil
 }
 
 // Timer handles connection loss or failure
@@ -323,6 +450,7 @@ func (b *Bitmex) connectionHandler() {
 		select {
 		case <-timer.C:
 			timeout := time.After(5 * time.Second)
+			log.Println("Bitmex websocket: Write ping")
 			err := b.WebsocketConn.WriteJSON("ping")
 			if err != nil {
 				b.reconnect()
@@ -357,7 +485,7 @@ func (b *Bitmex) connectionHandler() {
 // Reconnect handles reconnections to websocket API
 func (b *Bitmex) reconnect() {
 	for {
-		err := b.WebsocketKline()
+		err := b.WebsocketConnect()
 		if err != nil {
 			log.Println("Bitmex websocket: Connection timed out - Failed to connect, sleeping...")
 			time.Sleep(time.Second * 2)
@@ -452,28 +580,7 @@ func (b *Bitmex) handleIncomingData() {
 			}
 
 			switch decodedResp.Table {
-			case bitmexWSTrade1m:
-				var tradeBucketData TradeBucketData
-				err = common.JSONDecode(resp, &tradeBucketData)
-				if err != nil {
-					log.Fatal(err)
-				}
-				err = b.processTradeBucket(tradeBucketData.Data, tradeBucketData.Action)
-				if err != nil {
-					log.Fatal(err)
-				}
-				fmt.Printf("tradeBucketData 1m: %+v \n", tradeBucketData)
-			case bitmexWSTrade5m:
-				var tradeBucketData TradeBucketData
-				err = common.JSONDecode(resp, &tradeBucketData)
-				if err != nil {
-					log.Fatal(err)
-				}
-				err = b.processTradeBucket(tradeBucketData.Data, tradeBucketData.Action)
-				if err != nil {
-					log.Fatal(err)
-				}
-				fmt.Printf("tradeBucketData 5m: %+v \n", tradeBucketData)
+
 			case bitmexWSOrderbookL2:
 				var orderbooks OrderBookData
 				err = common.JSONDecode(resp, &orderbooks)
@@ -511,24 +618,24 @@ func (b *Bitmex) handleIncomingData() {
 	}
 }
 
-// Temporary local cache of TradeBucket
-var localTradeBuckets []TradeBucket
-var partialLoadedTradeBucket bool
+// // Temporary local cache of TradeBucket
+// var localTradeBuckets []TradeBucket
+// var partialLoadedTradeBucket bool
 
-// ProcessAnnouncement process announcements
-func (b *Bitmex) processTradeBucket(data []TradeBucket, action string) error {
-	switch action {
-	case bitmexActionTradeBucket:
-		if !partialLoadedTradeBucket {
-			localTradeBuckets = data
-		}
-		partialLoadedTradeBucket = true
-	default:
-		return fmt.Errorf("Bitmex websocket error: processTradeBucket() unallocated action - %s",
-			action)
-	}
-	return nil
-}
+// // ProcessAnnouncement process announcements
+// func (b *Bitmex) processTradeBucket(data []TradeBucket, action string) error {
+// 	switch action {
+// 	case bitmexActionTradeBucket:
+// 		if !partialLoadedTradeBucket {
+// 			localTradeBuckets = data
+// 		}
+// 		partialLoadedTradeBucket = true
+// 	default:
+// 		return fmt.Errorf("Bitmex websocket error: processTradeBucket() unallocated action - %s",
+// 			action)
+// 	}
+// 	return nil
+// }
 
 // Temporary local cache of Announcements
 var localAnnouncements []Announcement

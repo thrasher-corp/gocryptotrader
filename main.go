@@ -67,11 +67,48 @@ func main() {
 	exchange.Setup(defaultConfig)
 	//bitmex.GenericRequestParams{}
 
-	err := exchange.WebsocketKline()
-	if err != nil {
-		panic(err)
+	//--------------WebSocket 获取最新报价
+	chLen := 10
+	chLastPrice := make(chan float64, chLen)
+	done := make(chan struct{})
+
+	symbolList := []string{"xbtusd"}
+
+	go exchange.WebsocketLastPrice(chLastPrice, symbolList, done)
+
+	for {
+		select {
+		case <-done:
+			return
+		case lastPrice := <-chLastPrice:
+			fmt.Printf("[%s]最新报价：%.6f \n", time.Now().Format("2006-01-02 15:04:05"), lastPrice)
+		}
 	}
-	time.Sleep(time.Duration(1) * time.Hour)
+
+	//--------------WebSocket 获取K线
+	// chLen := 10
+	// chKline := make(chan *bitmex.TradeBucketData, chLen)
+	// done := make(chan struct{})
+
+	// // var subscribe, symbol []string
+	// timeIntervals := []bitmex.TimeInterval{
+	// 	bitmex.TimeIntervalMinute,
+	// 	bitmex.TimeIntervalFiveMinutes,
+	// 	bitmex.TimeIntervalHour,
+	// 	bitmex.TimeIntervalDay,
+	// }
+	// symbolList := []string{"xbtusd"}
+
+	// go exchange.WebsocketKline(chKline, timeIntervals, symbolList, done)
+
+	// for {
+	// 	select {
+	// 	case <-done:
+	// 		return
+	// 	case kline := <-chKline:
+	// 		fmt.Printf("%+v \n", kline)
+	// 	}
+	// }
 
 	//--------------批量创建新订单
 	// list, err := exchange.CreateBulkOrders(bitmex.OrderNewBulkParams{

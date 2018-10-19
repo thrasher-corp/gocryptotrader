@@ -67,8 +67,9 @@ type TradeData struct {
 
 // TradeBucketData contains trade resp data with action to be taken
 type TradeBucketData struct {
-	Data   []TradeBucket `json:"data"`
-	Action string        `json:"action"`
+	Data         []TradeBucket `json:"data"`
+	TimeInterval TimeInterval
+	Action       string `json:"action"`
 }
 
 // WSInstrumentData contains trade resp data with action to be taken
