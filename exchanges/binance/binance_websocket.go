@@ -168,7 +168,7 @@ func (b *Binance) WebsocketKline(ch chan *KlineStream, timeIntervals []TimeInter
 }
 
 // WebsocketLastPrice 获取 最新价格
-func (b *Binance) WebsocketLastPrice(chLastPrice chan float64, timeIntervals []TimeInterval, symbolList []string, done <-chan struct{}) {
+func (b *Binance) WebsocketLastPrice(ch chan *KlineStream, symbolList []string, done <-chan struct{}) {
 
 	for b.Enabled && b.Websocket {
 		select {
@@ -179,10 +179,8 @@ func (b *Binance) WebsocketLastPrice(chLastPrice chan float64, timeIntervals []T
 			var err error
 
 			streamsArray := []string{}
-			for _, tv := range timeIntervals {
-				for _, sv := range symbolList {
-					streamsArray = append(streamsArray, fmt.Sprintf("%s@kline_%s", strings.ToLower(sv), tv))
-				}
+			for _, sv := range symbolList {
+				streamsArray = append(streamsArray, fmt.Sprintf("%s@kline_1d", strings.ToLower(sv)))
 			}
 
 			streams := commonutils.JoinStrings(streamsArray, "/")
@@ -224,12 +222,7 @@ func (b *Binance) WebsocketLastPrice(chLastPrice chan float64, timeIntervals []T
 						continue
 					}
 
-					close, err := common.FloatFromString(kline.Kline.ClosePrice)
-					if err != nil {
-						log.Println("Could not convert to a ClosePrice float64")
-						continue
-					}
-					chLastPrice <- close
+					ch <- &kline
 				}
 			}
 			b.WebsocketConn.Close()

@@ -289,7 +289,7 @@ func (b *Bitmex) WebsocketKline(ch chan *TradeBucketData, timeIntervals []TimeIn
 }
 
 // WebsocketLastPrice 读取 最新报价
-func (b *Bitmex) WebsocketLastPrice(lastPrice chan float64, symbolList []string, done <-chan struct{}) {
+func (b *Bitmex) WebsocketLastPrice(ch chan *WSInstrumentData, symbolList []string, done <-chan struct{}) {
 
 	for b.Enabled && b.Websocket {
 		select {
@@ -415,10 +415,9 @@ func (b *Bitmex) WebsocketLastPrice(lastPrice chan float64, symbolList []string,
 							if err != nil {
 								log.Fatal(err)
 							}
-							if wsInstrumentData.Data[0].LastPriceProtected != 0 {
-								lastPrice <- wsInstrumentData.Data[0].LastPriceProtected
-							} else if wsInstrumentData.Data[0].LastPrice != 0 {
-								lastPrice <- wsInstrumentData.Data[0].LastPrice
+
+							if wsInstrumentData.Data[0].LastPrice != 0 {
+								ch <- &wsInstrumentData
 							}
 
 						default:
