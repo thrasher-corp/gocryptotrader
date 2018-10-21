@@ -96,16 +96,15 @@ type CurrencyPairFormatConfig struct {
 // prestart management of Portfolio, Communications, Webserver and Enabled
 // Exchanges
 type Config struct {
-	Name              string        `json:"name"`
-	EncryptConfig     int           `json:"encryptConfig"`
-	GlobalHTTPTimeout time.Duration `json:"globalHTTPTimeout"`
-	// GlobalProxy string `json:"globalProxy"`
-	Currency       CurrencyConfig       `json:"currencyConfig"`
-	Communications CommunicationsConfig `json:"communications"`
-	Portfolio      portfolio.Base       `json:"portfolioAddresses"`
-	Webserver      WebserverConfig      `json:"webserver"`
-	Exchanges      []ExchangeConfig     `json:"exchanges"`
-	BankAccounts   []BankAccount        `json:"bankAccounts"`
+	Name              string               `json:"name"`
+	EncryptConfig     int                  `json:"encryptConfig"`
+	GlobalHTTPTimeout time.Duration        `json:"globalHTTPTimeout"`
+	Currency          CurrencyConfig       `json:"currencyConfig"`
+	Communications    CommunicationsConfig `json:"communications"`
+	Portfolio         portfolio.Base       `json:"portfolioAddresses"`
+	Webserver         WebserverConfig      `json:"webserver"`
+	Exchanges         []ExchangeConfig     `json:"exchanges"`
+	BankAccounts      []BankAccount        `json:"bankAccounts"`
 
 	// Deprecated config settings, will be removed at a future date
 	CurrencyPairFormat  *CurrencyPairFormatConfig `json:"currencyPairFormat,omitempty"`
