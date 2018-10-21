@@ -70,6 +70,7 @@ func (b *Binance) UpdateLocalCache(ob WebsocketDepthStream) error {
 	m.Lock()
 	ID, ok := lastUpdateID[ob.Pair]
 	if !ok {
+		m.Unlock()
 		return errors.New("binance_websocket.go - Unable to find lastUpdateID")
 	}
 
