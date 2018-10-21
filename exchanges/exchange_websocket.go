@@ -225,7 +225,7 @@ func (w *Websocket) Shutdown() error {
 
 // SetWebsocketURL sets websocket URL
 func (w *Websocket) SetWebsocketURL(URL string) {
-	if URL == "" || URL == config.WebsocketURLDefault {
+	if URL == "" || URL == config.WebsocketURLNonDefaultMessage {
 		w.runningURL = w.defaultURL
 		return
 	}

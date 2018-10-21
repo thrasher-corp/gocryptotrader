@@ -674,10 +674,10 @@ func (e *Base) SetAPIURL(ec config.ExchangeConfig) error {
 	if ec.APIURL == "" || ec.APIURLSecondary == "" {
 		return errors.New("SetAPIURL error variable zero value")
 	}
-	if ec.APIURL != config.APIURLDefaultMessage {
+	if ec.APIURL != config.APIURLNonDefaultMessage {
 		e.APIUrl = ec.APIURL
 	}
-	if ec.APIURLSecondary != config.APIURLDefaultMessage {
+	if ec.APIURLSecondary != config.APIURLNonDefaultMessage {
 		e.APIUrlSecondary = ec.APIURLSecondary
 	}
 	return nil

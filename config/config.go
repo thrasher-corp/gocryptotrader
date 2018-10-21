@@ -56,8 +56,8 @@ const (
 	WarningExchangeAuthAPIDefaultOrEmptyValues      = "WARNING -- Exchange %s: Authenticated API support disabled due to default/empty APIKey/Secret/ClientID values."
 	WarningCurrencyExchangeProvider                 = "WARNING -- Currency exchange provider invalid valid. Reset to Fixer."
 	WarningPairsLastUpdatedThresholdExceeded        = "WARNING -- Exchange %s: Last manual update of available currency pairs has exceeded %d days. Manual update required!"
-	APIURLDefaultMessage                            = "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API"
-	WebsocketURLDefault                             = "NON_DEFAULT_HTTP_LINK_TO_WEBSOCKET_EXCHANGE_API"
+	APIURLNonDefaultMessage                         = "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API"
+	WebsocketURLNonDefaultMessage                   = "NON_DEFAULT_HTTP_LINK_TO_WEBSOCKET_EXCHANGE_API"
 )
 
 // Variables here are used for configuration
@@ -676,23 +676,23 @@ func (c *Config) CheckExchangeConfigValues() error {
 			c.Exchanges[i].Name = "CoinbasePro"
 		}
 
-		if exch.WebsocketURL != WebsocketURLDefault {
+		if exch.WebsocketURL != WebsocketURLNonDefaultMessage {
 			if exch.WebsocketURL == "" {
-				c.Exchanges[i].WebsocketURL = WebsocketURLDefault
+				c.Exchanges[i].WebsocketURL = WebsocketURLNonDefaultMessage
 			}
 		}
 
-		if exch.APIURL != APIURLDefaultMessage {
+		if exch.APIURL != APIURLNonDefaultMessage {
 			if exch.APIURL == "" {
 				// Set default if nothing set
-				c.Exchanges[i].APIURL = APIURLDefaultMessage
+				c.Exchanges[i].APIURL = APIURLNonDefaultMessage
 			}
 		}
 
-		if exch.APIURLSecondary != APIURLDefaultMessage {
+		if exch.APIURLSecondary != APIURLNonDefaultMessage {
 			if exch.APIURLSecondary == "" {
 				// Set default if nothing set
-				c.Exchanges[i].APIURLSecondary = APIURLDefaultMessage
+				c.Exchanges[i].APIURLSecondary = APIURLNonDefaultMessage
 			}
 		}
 
