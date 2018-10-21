@@ -464,7 +464,7 @@ func (b *Bitfinex) WsDataHandler() {
 										continue
 									}
 
-									id, _ := y[0].(float64) // NULL is coming through
+									id, _ := y[0].(float64)
 
 									trades = append(trades,
 										WebsocketTrade{
