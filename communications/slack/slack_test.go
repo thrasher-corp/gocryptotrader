@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	"github.com/thrasher-/gocryptotrader/common"
-
 	"github.com/thrasher-/gocryptotrader/communications/base"
 	"github.com/thrasher-/gocryptotrader/config"
 )
@@ -104,7 +103,6 @@ func TestGetChannelsString(t *testing.T) {
 }
 
 func TestGetUsernameByID(t *testing.T) {
-	t.Parallel()
 	username := s.GetUsernameByID("1337")
 	if len(username) != 0 {
 		t.Error("test failed - slack GetUsernameByID() error")
@@ -239,7 +237,6 @@ func TestNewConnection(t *testing.T) {
 }
 
 func TestWebsocketConnect(t *testing.T) {
-	t.Parallel()
 	err := s.WebsocketConnect()
 	if err == nil {
 		t.Error("test failed - slack WebsocketConnect() error")
@@ -247,7 +244,6 @@ func TestWebsocketConnect(t *testing.T) {
 }
 
 func TestHandlePresenceChange(t *testing.T) {
-	t.Parallel()
 	var pres PresenceChange
 	pres.User = "1337"
 	pres.Presence = "Present"
@@ -265,7 +261,6 @@ func TestHandlePresenceChange(t *testing.T) {
 }
 
 func TestHandleMessageResponse(t *testing.T) {
-	t.Parallel()
 	var data WebsocketResponse
 	data.ReplyTo = 1
 
@@ -316,13 +311,11 @@ func TestHandleErrorResponse(t *testing.T) {
 }
 
 func TestHandleHelloResponse(t *testing.T) {
-	t.Parallel()
 	var data WebsocketResponse
 	s.handleHelloResponse(data)
 }
 
 func TestHandleReconnectResponse(t *testing.T) {
-	t.Parallel()
 
 	err := s.handleReconnectResponse([]byte(`{"malformedjson}`))
 	if err == nil {
@@ -344,7 +337,6 @@ func TestHandleReconnectResponse(t *testing.T) {
 }
 
 func TestWebsocketSend(t *testing.T) {
-	t.Parallel()
 	err := s.WebsocketSend("test", "Hello World!")
 	if err == nil {
 		t.Error("test failed - slack WebsocketSend(), Sent message through nil websocket")
@@ -352,7 +344,6 @@ func TestWebsocketSend(t *testing.T) {
 }
 
 func TestHandleMessage(t *testing.T) {
-	t.Parallel()
 	var msg Message
 
 	err := s.HandleMessage(msg)
