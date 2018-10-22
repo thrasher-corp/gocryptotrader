@@ -461,7 +461,7 @@ func (b *BTCMarkets) GetFee(feeBuilder exchange.FeeBuilder) (float64, error) {
 		if err != nil {
 			return 0, err
 		}
-		fee = b.calculateTradingFee(tradingFee, feeBuilder.PurchasePrice, feeBuilder.Amount)
+		fee = calculateTradingFee(tradingFee, feeBuilder.PurchasePrice, feeBuilder.Amount)
 	case exchange.CryptocurrencyWithdrawalFee:
 		fee = getCryptocurrencyWithdrawalFee(feeBuilder.FirstCurrency)
 	case exchange.InternationalBankWithdrawalFee:
@@ -473,7 +473,7 @@ func (b *BTCMarkets) GetFee(feeBuilder exchange.FeeBuilder) (float64, error) {
 	return fee, nil
 }
 
-func (b *BTCMarkets) calculateTradingFee(tradingFee, purchasePrice, amount float64) float64 {
+func calculateTradingFee(tradingFee, purchasePrice, amount float64) float64 {
 	return tradingFee * amount * purchasePrice
 }
 

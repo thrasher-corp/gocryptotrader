@@ -406,7 +406,7 @@ func (a *ANX) GetFee(feeBuilder exchange.FeeBuilder) (float64, error) {
 
 	switch feeBuilder.FeeType {
 	case exchange.CryptocurrencyTradeFee:
-		fee = a.getTradingFee(feeBuilder.PurchasePrice, feeBuilder.Amount, feeBuilder.IsTaker, feeBuilder.IsMaker)
+		fee = a.calculateTradingFee(feeBuilder.PurchasePrice, feeBuilder.Amount, feeBuilder.IsTaker, feeBuilder.IsMaker)
 	case exchange.CryptocurrencyWithdrawalFee:
 		fee = getCryptocurrencyWithdrawalFee(feeBuilder.FirstCurrency)
 	case exchange.InternationalBankWithdrawalFee:
@@ -418,7 +418,7 @@ func (a *ANX) GetFee(feeBuilder exchange.FeeBuilder) (float64, error) {
 	return fee, nil
 }
 
-func (a *ANX) getTradingFee(purchasePrice, amount float64, isTaker, isMaker bool) float64 {
+func (a *ANX) calculateTradingFee(purchasePrice, amount float64, isTaker, isMaker bool) float64 {
 	var fee float64
 
 	if isMaker {

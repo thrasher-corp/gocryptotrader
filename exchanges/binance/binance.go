@@ -663,9 +663,9 @@ func (b *Binance) GetFee(feeBuilder exchange.FeeBuilder) (float64, error) {
 		if err != nil {
 			return 0, err
 		}
-		fee = getTradingFee(feeBuilder.PurchasePrice, feeBuilder.Amount, multiplier)
+		fee = calculateTradingFee(feeBuilder.PurchasePrice, feeBuilder.Amount, multiplier)
 	case exchange.CryptocurrencyWithdrawalFee:
-		fee = getWithdrawalFee(feeBuilder.FirstCurrency, feeBuilder.PurchasePrice, feeBuilder.Amount)
+		fee = getCryptocurrencyWithdrawalFee(feeBuilder.FirstCurrency, feeBuilder.PurchasePrice, feeBuilder.Amount)
 	}
 	if fee < 0 {
 		fee = 0
@@ -688,12 +688,12 @@ func (b *Binance) getMultiplier(isTaker bool, isMaker bool) (float64, error) {
 	return multiplier, nil
 }
 
-// getTradingFee returns the fee for trading any currency on Bittrex
-func getTradingFee(purchasePrice, amount, multiplier float64) float64 {
+// calculateTradingFee returns the fee for trading any currency on Bittrex
+func calculateTradingFee(purchasePrice, amount, multiplier float64) float64 {
 	return (multiplier / 100) * purchasePrice * amount
 }
 
-// GetWithdrawalFee returns the fee for withdrawing from the exchange
-func getWithdrawalFee(currency string, purchasePrice, amount float64) float64 {
+// getCryptocurrencyWithdrawalFee returns the fee for withdrawing from the exchange
+func getCryptocurrencyWithdrawalFee(currency string, purchasePrice, amount float64) float64 {
 	return WithdrawalFees[currency]
 }

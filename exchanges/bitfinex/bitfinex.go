@@ -942,7 +942,14 @@ func (b *Bitfinex) GetFee(feeBuilder exchange.FeeBuilder) (float64, error) {
 
 	switch feeBuilder.FeeType {
 	case exchange.CryptocurrencyTradeFee:
-		fee = b.GetTradingFee(feeBuilder.FirstCurrency+feeBuilder.Delimiter+feeBuilder.SecondCurrency, feeBuilder.IsTaker, feeBuilder.IsMaker)
+		accountInfo, err := b.GetAccountInfo()
+		if err != nil {
+			return 0, err
+		}
+		fee, err = b.CalculateTradingFee(accountInfo, feeBuilder.FirstCurrency+feeBuilder.Delimiter+feeBuilder.SecondCurrency, feeBuilder.IsTaker, feeBuilder.IsMaker)
+		if err != nil {
+			return 0, err
+		}
 	case exchange.CyptocurrencyDepositFee:
 		//TODO: fee is charged when < $1000USD is transferred, need to infer value in some way
 		fee = 0
@@ -987,26 +994,23 @@ func getInternationalBankWithdrawalFee(amount float64) float64 {
 	return 0.001 * amount
 }
 
-// GetTradingFee returns an estimate of fee based on type of whether is maker or taker fee
-func (b *Bitfinex) GetTradingFee(currency string, isTaker bool, isMaker bool) float64 {
-	var fee float64
-
-	accountInfo, err := b.GetAccountInfo()
+// CalculateTradingFee returns an estimate of fee based on type of whether is maker or taker fee
+func (b *Bitfinex) CalculateTradingFee(accountInfo AccountInfo, currency string, isTaker bool, isMaker bool) (fee float64, err error) {
 	for _, i := range accountInfo.Fees {
 		if currency == i.Pairs {
 			if isMaker {
 				fee, err = strconv.ParseFloat(i.MakerFees, 64)
 				if err != nil {
-					log.Fatal(err)
+					return 0, err
 				}
 			}
 			if isTaker {
 				fee, err = strconv.ParseFloat(i.TakerFees, 64)
 				if err != nil {
-					log.Fatal(err)
+					return 0, err
 				}
 			}
 		}
 	}
-	return fee
+	return fee, err
 }

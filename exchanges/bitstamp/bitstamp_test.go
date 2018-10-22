@@ -149,23 +149,23 @@ func TestGetFee(t *testing.T) {
 	}
 }
 
-func TestGetTradingFeeByCurrency(t *testing.T) {
+func TestCalculateTradingFee(t *testing.T) {
 	b.SetDefaults()
 	TestSetup(t)
 	b.Balance = Balances{}
 	b.Balance.BTCUSDFee = 1
 	b.Balance.BTCEURFee = 0
 
-	if resp := b.GetTradingFeeByCurrency(symbol.BTC+symbol.USD, 0, 0); resp != 0 {
+	if resp := b.CalculateTradingFee(symbol.BTC+symbol.USD, 0, 0); resp != 0 {
 		t.Error("Test Failed - GetFee() error")
 	}
-	if resp := b.GetTradingFeeByCurrency(symbol.BTC+symbol.USD, 2, 2); resp != float64(4) {
+	if resp := b.CalculateTradingFee(symbol.BTC+symbol.USD, 2, 2); resp != float64(4) {
 		t.Errorf("Test Failed - GetFee() error. Expected: %f, Recieved: %f", float64(4), resp)
 	}
-	if resp := b.GetTradingFeeByCurrency(symbol.BTC+symbol.EUR, 2, 2); resp != float64(0) {
+	if resp := b.CalculateTradingFee(symbol.BTC+symbol.EUR, 2, 2); resp != float64(0) {
 		t.Errorf("Test Failed - GetFee() error. Expected: %f, Recieved: %f", float64(0), resp)
 	}
-	if resp := b.GetTradingFeeByCurrency("bla", 0, 0); resp != 0 {
+	if resp := b.CalculateTradingFee("bla", 0, 0); resp != 0 {
 		t.Error("Test Failed - GetFee() error")
 	}
 }

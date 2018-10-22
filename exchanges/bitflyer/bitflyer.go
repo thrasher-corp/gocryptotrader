@@ -394,7 +394,7 @@ func (b *Bitflyer) GetFee(feeBuilder exchange.FeeBuilder) (float64, error) {
 
 	switch feeBuilder.FeeType {
 	case exchange.CryptocurrencyTradeFee:
-		fee = getTradingFee(feeBuilder.PurchasePrice, feeBuilder.Amount)
+		fee = calculateTradingFee(feeBuilder.PurchasePrice, feeBuilder.Amount)
 	case exchange.InternationalBankDepositFee:
 		fee = getDepositFee(feeBuilder.BankTransactionType, feeBuilder.CurrencyItem, feeBuilder.Amount)
 	case exchange.InternationalBankWithdrawalFee:
@@ -407,7 +407,7 @@ func (b *Bitflyer) GetFee(feeBuilder exchange.FeeBuilder) (float64, error) {
 }
 
 // getDepositFee returns fee when performing a trade
-func getTradingFee(purchasePrice float64, amount float64) float64 {
+func calculateTradingFee(purchasePrice float64, amount float64) float64 {
 	fee := 0.0015
 	// bitflyer has fee tiers, but does not disclose them via API, so the largest has to be assumed
 	return fee * amount * purchasePrice

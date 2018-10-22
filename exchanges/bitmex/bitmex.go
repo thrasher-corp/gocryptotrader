@@ -920,7 +920,7 @@ func (b *Bitmex) GetFee(feeBuilder exchange.FeeBuilder) (float64, error) {
 
 	switch feeBuilder.FeeType {
 	case exchange.CryptocurrencyTradeFee:
-		fee = b.GetTradingFee(feeBuilder.PurchasePrice, feeBuilder.Amount, feeBuilder.IsTaker, feeBuilder.IsMaker)
+		fee = calculateTradingFee(feeBuilder.PurchasePrice, feeBuilder.Amount, feeBuilder.IsTaker, feeBuilder.IsMaker)
 	}
 	if fee < 0 {
 		fee = 0
@@ -928,8 +928,8 @@ func (b *Bitmex) GetFee(feeBuilder exchange.FeeBuilder) (float64, error) {
 	return fee, err
 }
 
-// GetTradingFee returns the fee for trading any currency on Bittrex
-func (b *Bitmex) GetTradingFee(purchasePrice float64, amount float64, isTaker bool, isMaker bool) float64 {
+// calculateTradingFee returns the fee for trading any currency on Bittrex
+func calculateTradingFee(purchasePrice float64, amount float64, isTaker bool, isMaker bool) float64 {
 	var fee = 0.000750
 
 	if isMaker {

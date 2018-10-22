@@ -572,7 +572,7 @@ func (b *Bithumb) GetFee(feeBuilder exchange.FeeBuilder) (float64, error) {
 
 	switch feeBuilder.FeeType {
 	case exchange.CryptocurrencyTradeFee:
-		fee = getTradingFee(feeBuilder.PurchasePrice, feeBuilder.Amount)
+		fee = calculateTradingFee(feeBuilder.PurchasePrice, feeBuilder.Amount)
 	case exchange.CyptocurrencyDepositFee:
 		fee = getDepositFee(feeBuilder.FirstCurrency, feeBuilder.Amount)
 	case exchange.CryptocurrencyWithdrawalFee:
@@ -585,7 +585,7 @@ func (b *Bithumb) GetFee(feeBuilder exchange.FeeBuilder) (float64, error) {
 }
 
 // getDepositFee returns fee when performing a trade
-func getTradingFee(purchasePrice float64, amount float64) float64 {
+func calculateTradingFee(purchasePrice float64, amount float64) float64 {
 	fee := 0.0015
 
 	return fee * amount * purchasePrice
