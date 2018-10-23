@@ -28,15 +28,6 @@ var populatedList bool
 // wss://wsapi-na.coinut.com
 // wss://wsapi-eu.coinut.com
 
-type wsRequest struct {
-	Request   string `json:"request"`
-	SecType   string `json:"sec_type,omitempty"`
-	InstID    int64  `json:"inst_id,omitempty"`
-	TopN      int64  `json:"top_n,omitempty"`
-	Subscribe bool   `json:"subscribe"`
-	Nonce     int64  `json:"nonce"`
-}
-
 // WsReadData reads data from the websocket conection
 func (c *COINUT) WsReadData() {
 	c.Websocket.Wg.Add(1)
@@ -66,10 +57,6 @@ func (c *COINUT) WsReadData() {
 			c.Websocket.Intercomm <- exchange.WebsocketResponse{Raw: resp}
 		}
 	}
-}
-
-type wsResponse struct {
-	Reply string `json:"reply"`
 }
 
 // WsHandleData handles read data
@@ -375,103 +362,4 @@ func (c *COINUT) WsProcessOrderbookUpdate(ob WsOrderbookUpdate) error {
 		time.Now(),
 		c.GetName(),
 		"SPOT")
-}
-
-type wsHeartbeatResp struct {
-	Nonce  int64         `json:"nonce"`
-	Reply  string        `json:"reply"`
-	Status []interface{} `json:"status"`
-}
-
-// WsTicker defines the resp for ticker updates from the websocket connection
-type WsTicker struct {
-	HighestBuy   float64 `json:"highest_buy,string"`
-	InstID       int64   `json:"inst_id"`
-	Last         float64 `json:"last,string"`
-	LowestSell   float64 `json:"lowest_sell,string"`
-	OpenInterest float64 `json:"open_interest,string"`
-	Reply        string  `json:"reply"`
-	Timestamp    int64   `json:"timestamp"`
-	TransID      int64   `json:"trans_id"`
-	Volume       float64 `json:"volume,string"`
-	Volume24H    float64 `json:"volume24,string"`
-}
-
-// WsOrderbookSnapshot defines the resp for orderbook snapshot updates from
-// the websocket connection
-type WsOrderbookSnapshot struct {
-	Buy       []WsOrderbookData `json:"buy"`
-	Sell      []WsOrderbookData `json:"sell"`
-	InstID    int64             `json:"inst_id"`
-	Nonce     int64             `json:"nonce"`
-	TotalBuy  float64           `json:"total_buy,string"`
-	TotalSell float64           `json:"total_sell,string"`
-	Reply     string            `json:"reply"`
-	Status    []interface{}     `json:"status"`
-}
-
-// WsOrderbookData defines singular orderbook data
-type WsOrderbookData struct {
-	Count  int64   `json:"count"`
-	Price  float64 `json:"price,string"`
-	Volume float64 `json:"qty,string"`
-}
-
-// WsOrderbookUpdate defines orderbook update response from the websocket
-// connection
-type WsOrderbookUpdate struct {
-	Count    int64   `json:"count"`
-	InstID   int64   `json:"inst_id"`
-	Price    float64 `json:"price,string"`
-	Volume   float64 `json:"qty,string"`
-	TotalBuy float64 `json:"total_buy,string"`
-	Reply    string  `json:"reply"`
-	Side     string  `json:"side"`
-	TransID  int64   `json:"trans_id"`
-}
-
-// WsTradeSnapshot defines Market trade response from the websocket
-// connection
-type WsTradeSnapshot struct {
-	Nonce  int64         `json:"nonce"`
-	Reply  string        `json:"reply"`
-	Status []interface{} `json:"status"`
-	Trades []WsTradeData `json:"trades"`
-}
-
-// WsTradeData defines market trade data
-type WsTradeData struct {
-	Price     float64 `json:"price,string"`
-	Volume    float64 `json:"qty,string"`
-	Side      string  `json:"side"`
-	Timestamp int64   `json:"timestamp"`
-	TransID   int64   `json:"trans_id"`
-	// Where's instrument ID?
-}
-
-// WsTradeUpdate defines trade update response from the websocket connection
-type WsTradeUpdate struct {
-	InstID    int64   `json:"inst_id"`
-	Price     float64 `json:"price,string"`
-	Reply     string  `json:"reply"`
-	Side      string  `json:"side"`
-	Timestamp int64   `json:"timestamp"`
-	TransID   int64   `json:"trans_id"`
-	// Where's volume?
-}
-
-// WsInstrumentList defines instrument list
-type WsInstrumentList struct {
-	Spot   map[string][]WsSupportedCurrency `json:"SPOT"`
-	Nonce  int64                            `json:"nonce"`
-	Reply  string                           `json:"inst_list"`
-	Status []interface{}                    `json:"status"`
-}
-
-// WsSupportedCurrency defines supported currency on the exchange
-type WsSupportedCurrency struct {
-	Base          string `json:"base"`
-	InstID        int64  `json:"inst_id"`
-	DecimalPlaces int64  `json:"decimal_places"`
-	Quote         string `json:"quote"`
 }
