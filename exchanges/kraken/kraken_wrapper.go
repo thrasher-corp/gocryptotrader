@@ -46,7 +46,9 @@ func (k *Kraken) Run() {
 				continue
 			}
 			if v.Base[0] == 'X' {
-				v.Base = v.Base[1:]
+				if len(v.Base) > 3 {
+					v.Base = v.Base[1:]
+				}
 			}
 			if v.Quote[0] == 'Z' || v.Quote[0] == 'X' {
 				v.Quote = v.Quote[1:]
