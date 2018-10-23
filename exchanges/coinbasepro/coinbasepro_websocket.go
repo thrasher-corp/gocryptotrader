@@ -207,45 +207,33 @@ func (c *CoinbasePro) WsHandleData() {
 func (c *CoinbasePro) ProcessSnapshot(snapshot WebsocketOrderbookSnapshot) error {
 	var base orderbook.Base
 	for _, bid := range snapshot.Bids {
-		var price, amount float64
-		var err error
-		for i, data := range bid {
-			if i == 0 {
-				price, err = strconv.ParseFloat(data.(string), 64)
-				if err != nil {
-					return err
-				}
-				continue
-			}
-
-			amount, err = strconv.ParseFloat(data.(string), 64)
-			if err != nil {
-				return err
-			}
+		price, err := strconv.ParseFloat(bid[0].(string), 64)
+		if err != nil {
+			return err
 		}
-		base.Bids = append(base.Bids, orderbook.Item{Price: price,
-			Amount: amount})
+
+		amount, err := strconv.ParseFloat(bid[1].(string), 64)
+		if err != nil {
+			return err
+		}
+
+		base.Bids = append(base.Bids,
+			orderbook.Item{Price: price, Amount: amount})
 	}
 
 	for _, ask := range snapshot.Asks {
-		var price, amount float64
-		var err error
-		for i, data := range ask {
-			if i == 0 {
-				price, err = strconv.ParseFloat(data.(string), 64)
-				if err != nil {
-					return err
-				}
-				continue
-			}
-
-			amount, err = strconv.ParseFloat(data.(string), 64)
-			if err != nil {
-				return err
-			}
+		price, err := strconv.ParseFloat(ask[0].(string), 64)
+		if err != nil {
+			return err
 		}
-		base.Asks = append(base.Asks, orderbook.Item{Price: price,
-			Amount: amount})
+
+		amount, err := strconv.ParseFloat(ask[1].(string), 64)
+		if err != nil {
+			return err
+		}
+
+		base.Asks = append(base.Asks,
+			orderbook.Item{Price: price, Amount: amount})
 	}
 
 	p := pair.NewCurrencyPairFromString(snapshot.ProductID)

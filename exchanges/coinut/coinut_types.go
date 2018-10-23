@@ -319,7 +319,6 @@ type WsTradeData struct {
 	Side      string  `json:"side"`
 	Timestamp int64   `json:"timestamp"`
 	TransID   int64   `json:"trans_id"`
-	// Where's instrument ID?
 }
 
 // WsTradeUpdate defines trade update response from the websocket connection
@@ -330,7 +329,6 @@ type WsTradeUpdate struct {
 	Side      string  `json:"side"`
 	Timestamp int64   `json:"timestamp"`
 	TransID   int64   `json:"trans_id"`
-	// Where's volume?
 }
 
 // WsInstrumentList defines instrument list
