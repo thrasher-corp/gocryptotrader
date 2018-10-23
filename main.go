@@ -50,8 +50,6 @@ const (
 
 var bot Bot
 
-var dbPathDefault = database.GetDefaultPath()
-
 func main() {
 	bot.shutdown = make(chan bool)
 	HandleInterrupt()
@@ -62,14 +60,35 @@ func main() {
 	}
 
 	// Handle flags
-	flag.StringVar(&bot.configFile, "config", defaultPath, "-config sets filepath to load configuration")
-	flag.StringVar(&bot.dataDir, "datadir", common.GetDefaultDataDir(runtime.GOOS), "default data directory for GoCryptoTrader files")
-	dryrun := flag.Bool("dryrun", false, "-dryrun does not save config.json file")
-	version := flag.Bool("version", false, "-version retrieves current GoCryptoTrader version")
-	verbosity := flag.Bool("verbose", false, "-verbose increases logging verbosity for GoCryptoTrader")
+	flag.StringVar(&bot.configFile,
+		"config",
+		defaultPath,
+		"Sets filepath to load configuration")
 
-	dbSeedHistory := flag.Bool("seeddb", false, "-seeddb aggregates historic exchange trade data into the database")
-	dbPath := flag.String("dbPath", dbPathDefault, "-dbPath is a path to the database")
+	flag.StringVar(&bot.dataDir,
+		"datadir",
+		common.GetDefaultDataDir(runtime.GOOS),
+		"Sets non default data directory for GoCryptoTrader files")
+
+	dryrun := flag.Bool("dryrun",
+		false,
+		"Using flag does not save config.json file")
+
+	version := flag.Bool("version",
+		false,
+		"Displays current GoCryptoTrader version")
+
+	verbosity := flag.Bool("verbose",
+		false,
+		"Increases logging verbosity for GoCryptoTrader")
+
+	dbSeedHistory := flag.Bool("seeddb",
+		false,
+		"Aggregates historic exchange trade data into the database")
+
+	dbPath := flag.String("dbPath",
+		common.GetDefaultDataDir(runtime.GOOS)+common.GetOSPathSlash()+"database.db",
+		"Defines a non default path to the database")
 
 	flag.Parse()
 
@@ -94,7 +113,9 @@ func main() {
 
 	err = common.CheckDir(bot.dataDir, true)
 	if err != nil {
-		log.Fatalf("Failed to open/create data directory: %s. Err: %s", bot.dataDir, err)
+		log.Fatalf("Failed to open/create data directory: %s. Err: %s",
+			bot.dataDir,
+			err)
 	}
 	log.Printf("Using data directory: %s.\n", bot.dataDir)
 
@@ -126,15 +147,21 @@ func main() {
 	bot.comms = communications.NewComm(bot.config.GetCommunicationsConfig())
 	bot.comms.GetEnabledCommunicationMediums()
 
-	log.Printf("Fiat display currency: %s.", bot.config.Currency.FiatDisplayCurrency)
+	log.Printf("Fiat display currency: %s.",
+		bot.config.Currency.FiatDisplayCurrency)
+
 	currency.BaseCurrency = bot.config.Currency.FiatDisplayCurrency
 	currency.FXProviders = forexprovider.StartFXService(bot.config.GetCurrencyConfig().ForexProviders)
-	log.Printf("Primary forex conversion provider: %s.\n", bot.config.GetPrimaryForexProvider())
+
+	log.Printf("Primary forex conversion provider: %s.\n",
+		bot.config.GetPrimaryForexProvider())
+
 	err = bot.config.RetrieveConfigCurrencyPairs(true)
 	if err != nil {
 		log.Fatalf("Failed to retrieve config currency pairs. Error: %s", err)
 	}
 	log.Println("Successfully retrieved config currencies.")
+
 	log.Println("Fetching currency data from forex provider..")
 	err = currency.SeedCurrencyData(common.JoinStrings(currency.FiatCurrencies, ","))
 	if err != nil {
@@ -172,7 +199,8 @@ func main() {
 
 	bot.db, err = database.Connect(*dbPath, *verbosity, bot.config)
 	if err != nil {
-		log.Fatalf("Database connection error with config %s - %s", bot.config.Name, err)
+		log.Fatalf("Database connection error with config %s - %s",
+			bot.config.Name, err)
 	}
 
 	err = bot.db.LoadConfigurations()

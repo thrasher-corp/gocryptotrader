@@ -43,10 +43,6 @@ func TestStartDB(t *testing.T) {
 	}
 }
 
-func TestGetDefaultPath(t *testing.T) {
-	_ = GetDefaultPath()
-}
-
 func TestLoadConfigurations(t *testing.T) {
 	if !connected {
 		t.Skip()

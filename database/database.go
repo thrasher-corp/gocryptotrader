@@ -11,11 +11,12 @@ import (
 	"sync"
 	"time"
 
-	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/database/models"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/volatiletech/null"
+
+	// External package for SQL queries
 	_ "github.com/volatiletech/sqlboiler-sqlite3/driver"
 	"github.com/volatiletech/sqlboiler/boil"
 	"github.com/volatiletech/sqlboiler/queries/qm"
@@ -46,26 +47,69 @@ func Connect(sqlite3Path string, verbose bool, cfg *config.Config) (*ORM, error)
 			sqlite3Path)
 	}
 
-	SQLiteDB := new(ORM)
-	SQLiteDB.Config = cfg
+	SQLite := new(ORM)
+	SQLite.Config = cfg
 
 	var err error
-	SQLiteDB.DB, err = sql.Open("sqlite3", sqlite3Path)
+	SQLite.DB, err = sql.Open("sqlite3", sqlite3Path)
 	if err != nil {
 		return nil, err
 	}
 
-	err = SQLiteDB.DB.Ping()
+	err = SQLite.DB.Ping()
 	if err != nil {
 		return nil, err
 	}
 
-	SQLiteDB.ExchangeID = make(map[string]int64)
-	SQLiteDB.Verbose = verbose
+	// Instantiate tables in new database
+	for name, query := range databaseTables {
+		rows, err := SQLite.DB.Query(
+			fmt.Sprintf(
+				"SELECT name FROM sqlite_master WHERE type='table' AND name='%s'",
+				name))
+		if err != nil {
+			return nil, err
+		}
 
-	SQLiteDB.Connected = true
+		var returnedName string
+		for rows.Next() {
+			rows.Scan(&returnedName)
+		}
 
-	return SQLiteDB, nil
+		if returnedName == name {
+			continue
+		}
+
+		stmt, err := SQLite.DB.Prepare(query)
+		if err != nil {
+			return nil, err
+		}
+
+		_, err = stmt.Exec()
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	// Drop deprecated tabled
+	for _, query := range deprecatedDatabaseTables {
+		stmt, err := SQLite.DB.Prepare(query)
+		if err != nil {
+			return nil, err
+		}
+
+		_, err = stmt.Exec()
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	SQLite.ExchangeID = make(map[string]int64)
+	SQLite.Verbose = verbose
+
+	SQLite.Connected = true
+
+	return SQLite, nil
 }
 
 // LoadConfigurations loads configuration paramaters
@@ -282,20 +326,4 @@ func (o *ORM) GetExchangeTradeHistory(exchName, currencyPair, assetType string) 
 				Amount:    trade.Amount})
 	}
 	return fullHistory, nil
-}
-
-// GetDefaultPath returns the default database path
-func GetDefaultPath() string {
-	exPath, err := common.GetExecutablePath()
-	if err != nil {
-		panic(err)
-	}
-
-	defaultPath := fmt.Sprintf("%s%s%s%s%s",
-		exPath,
-		common.GetOSPathSlash(),
-		"gocryptotrader_filesystem",
-		common.GetOSPathSlash(),
-		"database.db")
-	return defaultPath
 }
