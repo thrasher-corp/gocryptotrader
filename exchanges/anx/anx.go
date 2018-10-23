@@ -31,6 +31,7 @@ const (
 	anxCreateAddress   = "receive/create"
 	anxTicker          = "money/ticker"
 	anxDepth           = "money/depth/full"
+	anxAccount         = "account"
 
 	// ANX rate limites for authenticated and unauthenticated requests
 	anxAuthRate   = 0
@@ -49,6 +50,8 @@ func (a *ANX) SetDefaults() {
 	a.TakerFee = 0.02
 	a.MakerFee = 0.01
 	a.Verbose = false
+	a.APIWithdrawalPermission = false
+	a.AutomaticAPIWithdrawlSupport = false
 	a.RESTPollingDelay = 10
 	a.RequestCurrencyPairFormat.Delimiter = ""
 	a.RequestCurrencyPairFormat.Uppercase = true
@@ -400,6 +403,7 @@ func (a *ANX) SendAuthenticatedHTTPRequest(path string, params map[string]interf
 	return a.SendPayload("POST", a.APIUrl+path, headers, bytes.NewBuffer(PayloadJSON), result, true, a.Verbose)
 }
 
+
 // GetFee returns an estimate of fee based on type of transaction
 func (a *ANX) GetFee(feeBuilder exchange.FeeBuilder) (float64, error) {
 	var fee float64
@@ -430,6 +434,11 @@ func (a *ANX) calculateTradingFee(purchasePrice, amount float64, isMaker bool) f
 	return fee
 }
 
+
+
+
+
+
 func getCryptocurrencyWithdrawalFee(currency string) float64 {
 	return WithdrawalFees[currency]
 }
@@ -442,4 +451,37 @@ func getInternationalBankWithdrawalFee(currency string, amount float64) float64 
 	}
 	//TODO, other fiat currencies require consultation with ANXPRO
 	return fee
+}
+
+func (a *ANX) GetAccountInformation() (AccountInformation, error) {
+	request := make(map[string]interface{})
+
+	var response AccountInformation
+
+	err := a.SendAuthenticatedHTTPRequest(anxOrderInfo, request, &response)
+
+	if err != nil {
+		return response, err
+	}
+
+	if response.ResultCode != "OK" {
+		log.Printf("Response code is not OK: %s\n", response.ResultCode)
+		return response, errors.New(response.ResultCode)
+	}
+	return response, nil
+}
+
+func (a *ANX) CheckAPIWithdrawPermission() (bool, error) {
+	accountInfo, err := a.GetAccountInformation()
+	if err != nil {
+		return false, err
+	}
+	var apiAllowsWithdraw bool
+	for _, a := range accountInfo.Rights {
+		if a == "withdraw" {
+			log.Printf("API key is missing withdrawal permissions")
+			apiAllowsWithdraw = true
+		}
+	}
+	return apiAllowsWithdraw, nil
 }

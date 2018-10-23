@@ -135,6 +135,8 @@
    "httpTimeout": 15000000000,
    "httpUserAgent": "",
    "authenticatedApiSupport": false,
+   "apiWithdrawalSupport": true,
+   "automaticApiWithdrawlSupport": false,
    "apiKey": "Key",
    "apiSecret": "Secret",
    "apiUrl": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
