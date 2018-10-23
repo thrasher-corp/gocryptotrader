@@ -669,6 +669,11 @@ func TestSetCurrencies(t *testing.T) {
 	if !pair.Contains(UAC.GetAvailableCurrencies(), newPair, true) {
 		t.Fatal("Test failed. TestSetCurrencies failed to set currencies")
 	}
+
+	err = UAC.SetCurrencies(nil, false)
+	if err == nil {
+		t.Fatal("Test failed. TestSetCurrencies should return an error when attempting to set an empty pairs array")
+	}
 }
 
 func TestUpdateCurrencies(t *testing.T) {
@@ -743,6 +748,13 @@ func TestUpdateCurrencies(t *testing.T) {
 	err = UAC.UpdateCurrencies(exchangeProducts, false, false)
 	if err != nil {
 		t.Errorf("Test Failed - Forced Exchange UpdateCurrencies() error: %s", err)
+	}
+
+	// Test that empty exchange products should return an error
+	exchangeProducts = nil
+	err = UAC.UpdateCurrencies(exchangeProducts, false, false)
+	if err == nil {
+		t.Errorf("Test failed - empty available pairs should return an error")
 	}
 }
 

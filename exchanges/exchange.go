@@ -2,6 +2,7 @@ package exchange
 
 import (
 	"errors"
+	"fmt"
 	"log"
 	"net/http"
 	"sync"
@@ -475,6 +476,10 @@ func (e *Base) SetAPIKeys(APIKey, APISecret, ClientID string, b64Decode bool) {
 // SetCurrencies sets the exchange currency pairs for either enabledPairs or
 // availablePairs
 func (e *Base) SetCurrencies(pairs []pair.CurrencyPair, enabledPairs bool) error {
+	if len(pairs) == 0 {
+		return fmt.Errorf("%s SetCurrencies error - pairs is empty", e.Name)
+	}
+
 	cfg := config.GetConfig()
 	exchCfg, err := cfg.GetExchangeConfig(e.Name)
 	if err != nil {
@@ -501,6 +506,10 @@ func (e *Base) SetCurrencies(pairs []pair.CurrencyPair, enabledPairs bool) error
 // UpdateCurrencies updates the exchange currency pairs for either enabledPairs or
 // availablePairs
 func (e *Base) UpdateCurrencies(exchangeProducts []string, enabled, force bool) error {
+	if len(exchangeProducts) == 0 {
+		return fmt.Errorf("%s UpdateCurrencies error - exchangeProducts is empty", e.Name)
+	}
+
 	exchangeProducts = common.SplitStrings(common.StringToUpper(common.JoinStrings(exchangeProducts, ",")), ",")
 	var products []string
 
