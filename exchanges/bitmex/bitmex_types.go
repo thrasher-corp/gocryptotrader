@@ -69,23 +69,23 @@ type Execution struct {
 	ExecCost              int64   `json:"execCost"`
 	ExecID                string  `json:"execID"`
 	ExecInst              string  `json:"execInst"`         //"Close",""
-	ExecType              string  `json:"execType"`         //"Trade"
+	ExecType              string  `json:"execType"`         //成交类别 ："Trade"/"Funding"
 	ForeignNotional       float64 `json:"foreignNotional"`  //40,-20
-	HomeNotional          float64 `json:"homeNotional"`     //-0.0064424,0.003229
+	HomeNotional          float64 `json:"homeNotional"`     //价值：-0.0064424,0.003229
 	LastLiquidityInd      string  `json:"lastLiquidityInd"` //"RemovedLiquidity","AddedLiquidity"
 	LastMkt               string  `json:"lastMkt"`          //"XBME"
-	LastPx                float64 `json:"lastPx"`
-	LastQty               int64   `json:"lastQty"`
+	LastPx                float64 `json:"lastPx"`           //成交价格
+	LastQty               int64   `json:"lastQty"`          //成交数量
 	LeavesQty             int64   `json:"leavesQty"`
-	MultiLegReportingType string  `json:"multiLegReportingType"` //"SingleSecurity"
-	OrdRejReason          string  `json:"ordRejReason"`
-	OrdStatus             string  `json:"ordStatus"` //订单状态，例如："Filled","Canceled"
-	OrdType               string  `json:"ordType"`   //订单类型，例如："Limit"
-	OrderID               string  `json:"orderID"`   //订单ID，类Guid
-	OrderQty              int64   `json:"orderQty"`
+	MultiLegReportingType string  `json:"multiLegReportingType"` //多链路类型:"SingleSecurity"
+	OrdRejReason          string  `json:"ordRejReason"`          //订单拒绝原因
+	OrdStatus             string  `json:"ordStatus"`             //订单状态，例如："Filled","Canceled"
+	OrdType               string  `json:"ordType"`               //订单类型，例如："Limit"
+	OrderID               string  `json:"orderID"`               //订单ID，类Guid
+	OrderQty              int64   `json:"orderQty"`              //订单数量
 	PegOffsetValue        float64 `json:"pegOffsetValue"`
 	PegPriceType          string  `json:"pegPriceType"`
-	Price                 float64 `json:"price"`
+	Price                 float64 `json:"price"`         //委托价格
 	SettlCurrency         string  `json:"settlCurrency"` //订单交易对，例如:XBt
 	Side                  string  `json:"side"`          //交易方向："Buy"\"Sell"
 	SimpleCumQty          float64 `json:"simpleCumQty"`

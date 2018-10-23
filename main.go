@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/idoall/TokenExchangeCommon/commonutils"
 	"github.com/idoall/gocryptotrader/communications"
 	"github.com/idoall/gocryptotrader/config"
 	exchange "github.com/idoall/gocryptotrader/exchanges"
@@ -67,23 +68,49 @@ func main() {
 	exchange.Setup(defaultConfig)
 	//bitmex.GenericRequestParams{}
 
-	//--------------WebSocket 获取最新报价
-	chLen := 10
-	chLastPrice := make(chan float64, chLen)
-	done := make(chan struct{})
-
-	symbolList := []string{"xbtusd"}
-
-	go exchange.WebsocketLastPrice(chLastPrice, symbolList, done)
-
-	for {
-		select {
-		case <-done:
-			return
-		case lastPrice := <-chLastPrice:
-			fmt.Printf("[%s]最新报价：%.6f \n", time.Now().Format("2006-01-02 15:04:05"), lastPrice)
+	list, err := exchange.GetAccountExecutionTradeHistory(bitmex.GenericRequestParams{
+		Symbol: exchange.GetSymbol(),
+	})
+	if err != nil {
+		panic(err)
+	} else {
+		for _, v := range list {
+			b, _ := commonutils.JSONEncode(v)
+			fmt.Printf("%s\n", b)
 		}
 	}
+
+	///--------------获取所有订单
+	// list, err := exchange.GetOrders(bitmex.GenericRequestParams{
+	// 	Symbol:  exchange.GetSymbol(),
+	// 	Reverse: true,
+	// })
+	// if err != nil {
+	// 	panic(err)
+	// } else {
+	// 	for _, v := range list {
+	// 		b, _ := commonutils.JSONEncode(v)
+	// 		fmt.Printf("%s\n", b)
+	// 	}
+	// }
+
+	//--------------WebSocket 获取最新报价
+	// chLen := 10
+	// ch := make(chan *bitmex.WSInstrumentData, chLen)
+	// done := make(chan struct{})
+
+	// symbolList := []string{"xbtusd"}
+
+	// go exchange.WebsocketLastPrice(ch, symbolList, done)
+
+	// for {
+	// 	select {
+	// 	case <-done:
+	// 		return
+	// 	case kline := <-ch:
+	// 		fmt.Printf("[%s]最新报价：%.6f \n", time.Now().Format("2006-01-02 15:04:05"), kline.Data[0].LastPrice)
+	// 	}
+	// }
 
 	//--------------WebSocket 获取K线
 	// chLen := 10
@@ -115,10 +142,10 @@ func main() {
 	// 	[]bitmex.OrderNewParams{
 	// 		bitmex.OrderNewParams{
 	// 			Symbol:   "XBTUSD",
-	// 			Side:     "Buy",
-	// 			Price:    6520,
+	// 			Side:     "Sell",
+	// 			Price:    6386.1,
 	// 			ClOrdID:  "test/idoall1",
-	// 			OrderQty: 200,
+	// 			OrderQty: 10,
 	// 		},
 	// 	},
 	// })

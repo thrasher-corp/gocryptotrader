@@ -272,7 +272,7 @@ func (b *Bitmex) GetAccountExecutions(params GenericRequestParams) ([]Execution,
 
 // GetAccountExecutionTradeHistory returns all balance-affecting executions.
 // This includes each trade, insurance charge, and settlement.
-// 获取所有订单的信息，包括每笔交易，保险费和结算
+// 获取个人中心的 交易历史 所有订单的信息，包括每笔交易，保险费和结算
 func (b *Bitmex) GetAccountExecutionTradeHistory(params GenericRequestParams) ([]Execution, error) {
 	var tradeHistory []Execution
 
