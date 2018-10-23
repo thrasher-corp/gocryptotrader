@@ -304,10 +304,7 @@ func WebsocketRoutine() {
 				case exchange.WebsocketNotEnabled:
 					// Store in memory if enabled in future
 				default:
-					err = Websocketshutdown(ws)
-					if err != nil {
-						log.Fatal(err)
-					}
+					log.Println(err)
 				}
 			}
 		}(i)

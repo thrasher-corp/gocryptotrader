@@ -30,10 +30,6 @@ func (b *BTCC) Run() {
 		log.Printf("%s %d currencies enabled: %s.\n", b.GetName(), len(b.EnabledPairs), b.EnabledPairs)
 	}
 
-	// if b.Websocket.IsEnabled() {
-	// 	go b.WebsocketClient()
-	// }
-
 	if common.StringDataContains(b.EnabledPairs, "CNY") || common.StringDataContains(b.AvailablePairs, "CNY") || common.StringDataContains(b.BaseCurrencies, "CNY") {
 		log.Println("WARNING: BTCC only supports BTCUSD now, upgrading available, enabled and base currencies to BTCUSD/USD")
 		pairs := []string{"BTCUSD"}
@@ -206,5 +202,5 @@ func (b *BTCC) WithdrawFiatExchangeFundsToInternationalBank(currency pair.Curren
 
 // GetWebsocket returns a pointer to the exchange websocket
 func (b *BTCC) GetWebsocket() (*exchange.Websocket, error) {
-	return nil, errors.New("current issues with BTCC endpoint")
+	return b.Websocket, nil
 }
