@@ -459,7 +459,7 @@ func (w *WebsocketOrderbookLocal) LoadSnapshot(newOrderbook orderbook.Base, exch
 	return nil
 }
 
-// UpdateUsingID bla bla bla
+// UpdateUsingID updates orderbooks using specified ID
 func (w *WebsocketOrderbookLocal) UpdateUsingID(bidTargets, askTargets []orderbook.Item,
 	p pair.CurrencyPair,
 	updated time.Time,
@@ -545,7 +545,7 @@ func (w *WebsocketOrderbookLocal) FlushCache() {
 	w.m.Unlock()
 }
 
-// WebsocketResponse defines a generalised data from the websocket connection
+// WebsocketResponse defines generalised data from the websocket connection
 type WebsocketResponse struct {
 	Type int
 	Raw  []byte

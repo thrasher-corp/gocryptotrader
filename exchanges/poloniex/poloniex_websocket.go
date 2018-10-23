@@ -352,39 +352,6 @@ func (p *Poloniex) WsProcessOrderbookUpdate(target []interface{}, symbol string)
 		"SPOT")
 }
 
-// WsCommand defines the request params after a websocket connection has been
-// established
-type WsCommand struct {
-	Command string      `json:"command"`
-	Channel interface{} `json:"channel"`
-	APIKey  string      `json:"key,omitempty"`
-	Payload string      `json:"payload,omitempty"`
-	Sign    string      `json:"sign,omitempty"`
-}
-
-// WsTicker defines the websocket ticker response
-type WsTicker struct {
-	LastPrice              float64
-	LowestAsk              float64
-	HighestBid             float64
-	PercentageChange       float64
-	BaseCurrencyVolume24H  float64
-	QuoteCurrencyVolume24H float64
-	IsFrozen               bool
-	HighestTradeIn24H      float64
-	LowestTradePrice24H    float64
-}
-
-// WsTrade defines the websocket trade response
-type WsTrade struct {
-	Symbol    string
-	TradeID   int64
-	Side      string
-	Volume    float64
-	Price     float64
-	Timestamp int64
-}
-
 // CurrencyPairID contains a list of IDS for currency pairs.
 var CurrencyPairID = map[int64]string{
 	7:   "BTC_BCN",
