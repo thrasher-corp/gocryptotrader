@@ -114,13 +114,18 @@ func (p *Poloniex) Setup(exch config.ExchangeConfig) {
 		if err != nil {
 			log.Fatal(err)
 		}
-		p.SetClientProxyAddress(exch.ProxyAddress)
-		p.WebsocketSetup(p.WsConnect,
+		err = p.SetClientProxyAddress(exch.ProxyAddress)
+		if err != nil {
+			log.Fatal(err)
+		}
+		err = p.WebsocketSetup(p.WsConnect,
 			exch.Name,
 			exch.Websocket,
-			exch.ProxyAddress,
 			poloniexWebsocketAddress,
 			exch.WebsocketURL)
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 }
 

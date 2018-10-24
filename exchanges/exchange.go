@@ -101,7 +101,6 @@ type Base struct {
 	AvailablePairs                             []string
 	EnabledPairs                               []string
 	AssetTypes                                 []string
-	ProxyAddr                                  *url.URL
 	PairsLastUpdated                           int64
 	SupportsAutoPairUpdating                   bool
 	SupportsRESTTickerBatching                 bool
@@ -212,17 +211,29 @@ func (e *Base) GetHTTPClientUserAgent() string {
 	return e.HTTPUserAgent
 }
 
-// SetClientProxyAddress sets a proxy address for an exchange
-func (e *Base) SetClientProxyAddress(addr string) {
-	var err error
+// SetClientProxyAddress sets a proxy address for REST and websocket requests
+func (e *Base) SetClientProxyAddress(addr string) error {
 	if addr != "" {
-		e.ProxyAddr, err = url.Parse(addr)
+		proxy, err := url.Parse(addr)
 		if err != nil {
-			log.Fatal("exchange.go - setting proxy address error", err)
+			return fmt.Errorf("exchange.go - setting proxy address error %s",
+				err)
 		}
-		return
+
+		err = e.Requester.SetProxy(proxy)
+		if err != nil {
+			return fmt.Errorf("exchange.go - setting proxy address error %s",
+				err)
+		}
+
+		if e.Websocket != nil {
+			err = e.Websocket.SetProxyAddress(addr)
+			if err != nil {
+				return err
+			}
+		}
 	}
-	e.ProxyAddr = nil
+	return nil
 }
 
 // SetAutoPairDefaults sets the default values for whether or not the exchange

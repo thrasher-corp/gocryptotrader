@@ -39,9 +39,8 @@ func (e *Base) WebsocketInit() {
 func (e *Base) WebsocketSetup(connector func() error,
 	exchangeName string,
 	wsEnabled bool,
-	proxyAddr,
 	defaultURL,
-	runningURL string) {
+	runningURL string) error {
 
 	e.Websocket.DataHandler = make(chan interface{}, 1)
 	e.Websocket.Connected = make(chan struct{}, 1)
@@ -49,14 +48,19 @@ func (e *Base) WebsocketSetup(connector func() error,
 	e.Websocket.Intercomm = make(chan WebsocketResponse, 1)
 	e.Websocket.TrafficAlert = make(chan struct{}, 1)
 
-	e.Websocket.SetEnabled(wsEnabled)
-	e.Websocket.SetProxyAddress(proxyAddr)
+	err := e.Websocket.SetEnabled(wsEnabled)
+	if err != nil {
+		return err
+	}
+
 	e.Websocket.SetDefaultURL(defaultURL)
 	e.Websocket.SetConnector(connector)
 	e.Websocket.SetWebsocketURL(runningURL)
 	e.Websocket.SetExchangeName(exchangeName)
 
 	e.Websocket.init = false
+
+	return nil
 }
 
 // Websocket defines a return type for websocket connections via the interface
@@ -241,6 +245,9 @@ func (w *Websocket) GetWebsocketURL() string {
 // SetEnabled sets if websocket is enabled
 func (w *Websocket) SetEnabled(enabled bool) error {
 	if w.enabled == enabled {
+		if w.init {
+			return nil
+		}
 		return fmt.Errorf("exchange_websocket.go error - already set as %t",
 			enabled)
 	}

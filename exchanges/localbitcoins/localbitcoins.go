@@ -159,7 +159,10 @@ func (l *LocalBitcoins) Setup(exch config.ExchangeConfig) {
 		if err != nil {
 			log.Fatal(err)
 		}
-		l.SetClientProxyAddress(exch.ProxyAddress)
+		err = l.SetClientProxyAddress(exch.ProxyAddress)
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 }
 

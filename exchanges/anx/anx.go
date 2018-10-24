@@ -97,7 +97,10 @@ func (a *ANX) Setup(exch config.ExchangeConfig) {
 		if err != nil {
 			log.Fatal(err)
 		}
-		a.SetClientProxyAddress(exch.ProxyAddress)
+		err = a.SetClientProxyAddress(exch.ProxyAddress)
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 }
 

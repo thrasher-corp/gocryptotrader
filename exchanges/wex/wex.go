@@ -105,7 +105,10 @@ func (w *WEX) Setup(exch config.ExchangeConfig) {
 		if err != nil {
 			log.Fatal(err)
 		}
-		w.SetClientProxyAddress(exch.ProxyAddress)
+		err = w.SetClientProxyAddress(exch.ProxyAddress)
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 }
 

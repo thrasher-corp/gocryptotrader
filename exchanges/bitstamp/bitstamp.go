@@ -114,13 +114,18 @@ func (b *Bitstamp) Setup(exch config.ExchangeConfig) {
 		if err != nil {
 			log.Fatal(err)
 		}
-		b.SetClientProxyAddress(exch.ProxyAddress)
-		b.WebsocketSetup(b.WsConnect,
+		err = b.SetClientProxyAddress(exch.ProxyAddress)
+		if err != nil {
+			log.Fatal(err)
+		}
+		err = b.WebsocketSetup(b.WsConnect,
 			exch.Name,
 			exch.Websocket,
-			exch.ProxyAddress,
 			BitstampPusherKey,
 			exch.WebsocketURL)
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 }
 

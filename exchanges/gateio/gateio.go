@@ -96,7 +96,10 @@ func (g *Gateio) Setup(exch config.ExchangeConfig) {
 		if err != nil {
 			log.Fatal(err)
 		}
-		g.SetClientProxyAddress(exch.ProxyAddress)
+		err = g.SetClientProxyAddress(exch.ProxyAddress)
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 }
 

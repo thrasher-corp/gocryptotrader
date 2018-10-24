@@ -159,15 +159,18 @@ func (b *Bitmex) Setup(exch config.ExchangeConfig) {
 		if err != nil {
 			log.Fatal(err)
 		}
-		b.SetClientProxyAddress(exch.ProxyAddress)
-		b.WebsocketSetup(
-			b.WsConnector,
+		err = b.SetClientProxyAddress(exch.ProxyAddress)
+		if err != nil {
+			log.Fatal(err)
+		}
+		err = b.WebsocketSetup(b.WsConnector,
 			exch.Name,
 			exch.Websocket,
-			exch.ProxyAddress,
 			bitmexWSURL,
-			exch.WebsocketURL,
-		)
+			exch.WebsocketURL)
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 }
 

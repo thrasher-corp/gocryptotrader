@@ -104,7 +104,10 @@ func (e *EXMO) Setup(exch config.ExchangeConfig) {
 		if err != nil {
 			log.Fatal(err)
 		}
-		e.SetClientProxyAddress(exch.ProxyAddress)
+		err = e.SetClientProxyAddress(exch.ProxyAddress)
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 }
 

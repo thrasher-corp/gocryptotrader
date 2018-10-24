@@ -150,14 +150,18 @@ func (o *OKEX) Setup(exch config.ExchangeConfig) {
 		if err != nil {
 			log.Fatal(err)
 		}
-		o.SetClientProxyAddress(exch.ProxyAddress)
-		o.WebsocketSetup(o.WsConnect,
+		err = o.SetClientProxyAddress(exch.ProxyAddress)
+		if err != nil {
+			log.Fatal(err)
+		}
+		err = o.WebsocketSetup(o.WsConnect,
 			exch.Name,
 			exch.Websocket,
-			exch.ProxyAddress,
 			okexDefaultWebsocketURL,
-			exch.WebsocketURL,
-		)
+			exch.WebsocketURL)
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 }
 

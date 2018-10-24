@@ -100,7 +100,10 @@ func (z *ZB) Setup(exch config.ExchangeConfig) {
 		if err != nil {
 			log.Fatal(err)
 		}
-		z.SetClientProxyAddress(exch.ProxyAddress)
+		err = z.SetClientProxyAddress(exch.ProxyAddress)
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 }
 

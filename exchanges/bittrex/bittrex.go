@@ -115,7 +115,10 @@ func (b *Bittrex) Setup(exch config.ExchangeConfig) {
 		if err != nil {
 			log.Fatal(err)
 		}
-		b.SetClientProxyAddress(exch.ProxyAddress)
+		err = b.SetClientProxyAddress(exch.ProxyAddress)
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 }
 

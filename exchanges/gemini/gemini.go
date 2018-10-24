@@ -152,7 +152,10 @@ func (g *Gemini) Setup(exch config.ExchangeConfig) {
 		if exch.UseSandbox {
 			g.APIUrl = geminiSandboxAPIURL
 		}
-		g.SetClientProxyAddress(exch.ProxyAddress)
+		err = g.SetClientProxyAddress(exch.ProxyAddress)
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 }
 

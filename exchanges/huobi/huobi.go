@@ -123,14 +123,18 @@ func (h *HUOBI) Setup(exch config.ExchangeConfig) {
 		if err != nil {
 			log.Fatal(err)
 		}
-		h.SetClientProxyAddress(exch.ProxyAddress)
-		h.WebsocketSetup(h.WsConnect,
+		err = h.SetClientProxyAddress(exch.ProxyAddress)
+		if err != nil {
+			log.Fatal(err)
+		}
+		err = h.WebsocketSetup(h.WsConnect,
 			exch.Name,
 			exch.Websocket,
-			exch.ProxyAddress,
 			huobiSocketIOAddress,
-			exch.WebsocketURL,
-		)
+			exch.WebsocketURL)
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 }
 

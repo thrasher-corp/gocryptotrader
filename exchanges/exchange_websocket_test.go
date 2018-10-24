@@ -23,10 +23,13 @@ func TestWebsocketInit(t *testing.T) {
 }
 
 func TestWebsocket(t *testing.T) {
+	if err := wsTest.Websocket.SetProxyAddress("testProxy"); err != nil {
+		t.Error("test failed - SetProxyAddress", err)
+	}
+
 	wsTest.WebsocketSetup(func() error { return nil },
 		"testName",
 		true,
-		"testProxy",
 		"testDefaultURL",
 		"testRunningURL")
 

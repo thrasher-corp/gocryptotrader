@@ -110,13 +110,18 @@ func (b *Binance) Setup(exch config.ExchangeConfig) {
 		if err != nil {
 			log.Fatal(err)
 		}
-		b.SetClientProxyAddress(exch.ProxyAddress)
-		b.WebsocketSetup(b.WSConnect,
+		err = b.SetClientProxyAddress(exch.ProxyAddress)
+		if err != nil {
+			log.Fatal(err)
+		}
+		err = b.WebsocketSetup(b.WSConnect,
 			exch.Name,
 			exch.Websocket,
-			exch.ProxyAddress,
 			binanceDefaultWebsocketURL,
 			exch.WebsocketURL)
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 }
 

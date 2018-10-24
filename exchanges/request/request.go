@@ -32,7 +32,6 @@ type Requester struct {
 	m             sync.Mutex
 	Jobs          chan Job
 	WorkerStarted bool
-	ProxyAddrs    []string
 }
 
 // RateLimit struct
@@ -385,8 +384,8 @@ func (r *Requester) SendPayload(method, path string, headers map[string]string, 
 	return resp.Error
 }
 
-// AddProxy adds a proxy address to the client transport
-func (r *Requester) AddProxy(p *url.URL) error {
+// SetProxy sets a proxy address to the client transport
+func (r *Requester) SetProxy(p *url.URL) error {
 	if p.String() == "" {
 		return errors.New("No proxy URL supplied")
 	}

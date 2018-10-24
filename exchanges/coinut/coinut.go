@@ -102,13 +102,18 @@ func (c *COINUT) Setup(exch config.ExchangeConfig) {
 		if err != nil {
 			log.Fatal(err)
 		}
-		c.SetClientProxyAddress(exch.ProxyAddress)
-		c.WebsocketSetup(c.WsConnect,
+		err = c.SetClientProxyAddress(exch.ProxyAddress)
+		if err != nil {
+			log.Fatal(err)
+		}
+		err = c.WebsocketSetup(c.WsConnect,
 			exch.Name,
 			exch.Websocket,
-			exch.ProxyAddress,
 			coinutWebsocketURL,
 			exch.WebsocketURL)
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 }
 

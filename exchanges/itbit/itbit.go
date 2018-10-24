@@ -94,7 +94,10 @@ func (i *ItBit) Setup(exch config.ExchangeConfig) {
 		if err != nil {
 			log.Fatal(err)
 		}
-		i.SetClientProxyAddress(exch.ProxyAddress)
+		err = i.SetClientProxyAddress(exch.ProxyAddress)
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 }
 
