@@ -515,7 +515,7 @@ func (g *Gemini) GetFee(feeBuilder exchange.FeeBuilder) (float64, error) {
 		if err != nil {
 			return 0, err
 		}
-		calculateTradingFee(notionVolume, feeBuilder.PurchasePrice, feeBuilder.Amount, feeBuilder.IsMaker, feeBuilder.IsTaker)
+		fee = calculateTradingFee(notionVolume, feeBuilder.PurchasePrice, feeBuilder.Amount, feeBuilder.IsMaker)
 	case exchange.CryptocurrencyWithdrawalFee:
 		// TODO: no free transactions after 10; Need database to know how many trades have been done
 		// Could do via trade history, but would require analysis of response and dates to determine level of fee
@@ -527,11 +527,11 @@ func (g *Gemini) GetFee(feeBuilder exchange.FeeBuilder) (float64, error) {
 	return fee, nil
 }
 
-func calculateTradingFee(notionVolume NotionalVolume, purchasePrice, amount float64, isMaker, isTaker bool) float64 {
+func calculateTradingFee(notionVolume NotionalVolume, purchasePrice, amount float64, isMaker bool) float64 {
 	var volumeFee float64
 	if isMaker {
 		volumeFee = (float64(notionVolume.MakerFee) / 100)
-	} else if isTaker {
+	} else {
 		volumeFee = (float64(notionVolume.TakerFee) / 100)
 	}
 

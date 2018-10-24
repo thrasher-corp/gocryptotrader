@@ -946,7 +946,7 @@ func (b *Bitfinex) GetFee(feeBuilder exchange.FeeBuilder) (float64, error) {
 		if err != nil {
 			return 0, err
 		}
-		fee, err = b.CalculateTradingFee(accountInfo, feeBuilder.FirstCurrency+feeBuilder.Delimiter+feeBuilder.SecondCurrency, feeBuilder.IsTaker, feeBuilder.IsMaker)
+		fee, err = b.CalculateTradingFee(accountInfo, feeBuilder.FirstCurrency+feeBuilder.Delimiter+feeBuilder.SecondCurrency, feeBuilder.IsMaker)
 		if err != nil {
 			return 0, err
 		}
@@ -995,7 +995,7 @@ func getInternationalBankWithdrawalFee(amount float64) float64 {
 }
 
 // CalculateTradingFee returns an estimate of fee based on type of whether is maker or taker fee
-func (b *Bitfinex) CalculateTradingFee(accountInfo AccountInfo, currency string, isTaker bool, isMaker bool) (fee float64, err error) {
+func (b *Bitfinex) CalculateTradingFee(accountInfo AccountInfo, currency string, isMaker bool) (fee float64, err error) {
 	for _, i := range accountInfo.Fees {
 		if currency == i.Pairs {
 			if isMaker {
@@ -1003,8 +1003,7 @@ func (b *Bitfinex) CalculateTradingFee(accountInfo AccountInfo, currency string,
 				if err != nil {
 					return 0, err
 				}
-			}
-			if isTaker {
+			} else {
 				fee, err = strconv.ParseFloat(i.TakerFees, 64)
 				if err != nil {
 					return 0, err

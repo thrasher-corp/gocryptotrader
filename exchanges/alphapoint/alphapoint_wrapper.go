@@ -178,6 +178,6 @@ func (a *Alphapoint) GetWebsocket() (*exchange.Websocket, error) {
 }
 
 // GetFeeByType returns an estimate of fee based on type of transaction
-func (a *Alphapoint) GetFeeByType(feeType string, currencyPair string, purchasePrice float64, amount float64, isTaker bool, isMaker bool) (float64, error) {
+func (a *Alphapoint) GetFeeByType(feeBuilder exchange.FeeBuilder) (float64, error) {
 	return 0, errors.New("not yet implemented")
 }

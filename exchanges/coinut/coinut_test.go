@@ -53,7 +53,6 @@ func setFeeBuilder() exchange.FeeBuilder {
 		FirstCurrency:  symbol.BTC,
 		SecondCurrency: symbol.LTC,
 		IsMaker:        false,
-		IsTaker:        false,
 		PurchasePrice:  1,
 	}
 }
@@ -82,7 +81,6 @@ func TestGetFee(t *testing.T) {
 
 	// CryptocurrencyTradeFee IsTaker
 	feeBuilder = setFeeBuilder()
-	feeBuilder.IsTaker = true
 	if resp, err := c.GetFee(feeBuilder); resp != float64(0.001) || err != nil {
 		t.Errorf("Test Failed - GetFee() error. Expected: %f, Recieved: %f", float64(0.001), resp)
 		t.Error(err)

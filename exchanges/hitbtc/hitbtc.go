@@ -597,7 +597,7 @@ func (h *HitBTC) GetFee(feeBuilder exchange.FeeBuilder) (float64, error) {
 		if err != nil {
 			return 0, err
 		}
-		calculateTradingFee(feeInfo, feeBuilder.PurchasePrice, feeBuilder.Amount, feeBuilder.IsMaker, feeBuilder.IsTaker)
+		fee = calculateTradingFee(feeInfo, feeBuilder.PurchasePrice, feeBuilder.Amount, feeBuilder.IsMaker)
 	case exchange.CryptocurrencyWithdrawalFee:
 		currencyInfo, err := h.GetCurrency(feeBuilder.FirstCurrency)
 		if err != nil {
@@ -622,11 +622,11 @@ func calculateCryptocurrencyDepositFee(currency string, amount float64) float64 
 	return fee * amount
 }
 
-func calculateTradingFee(feeInfo Fee, purchasePrice, amount float64, isMaker, isTaker bool) float64 {
+func calculateTradingFee(feeInfo Fee, purchasePrice, amount float64, isMaker bool) float64 {
 	var volumeFee float64
 	if isMaker {
 		volumeFee = feeInfo.ProvideLiquidityRate
-	} else if isTaker {
+	} else {
 		volumeFee = feeInfo.TakeLiquidityRate
 	}
 

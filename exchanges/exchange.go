@@ -74,7 +74,6 @@ type FeeBuilder struct {
 	SecondCurrency string
 	Delimiter      string
 	IsMaker        bool
-	IsTaker        bool
 	// Fiat currency used for bank deposits & withdrawals
 	CurrencyItem        string
 	BankTransactionType InternationalBankTransactionType

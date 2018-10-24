@@ -66,13 +66,12 @@ func TestGetCurrencies(t *testing.T) {
 
 func setFeeBuilder() exchange.FeeBuilder {
 	return exchange.FeeBuilder{
-		Amount:              1,
-		Delimiter:           "-",
-		FeeType:             exchange.CryptocurrencyTradeFee,
-		FirstCurrency:       symbol.BTC,
-		SecondCurrency:      symbol.LTC,
-		IsMaker:             false,
-		IsTaker:             false,
+		Amount:         1,
+		Delimiter:      "",
+		FeeType:        exchange.CryptocurrencyTradeFee,
+		FirstCurrency:  symbol.ETH,
+		SecondCurrency: symbol.BTC,
+		IsMaker:        false, 
 		PurchasePrice:       1,
 		CurrencyItem:        symbol.USD,
 		BankTransactionType: exchange.WireTransfer,
@@ -86,49 +85,48 @@ func TestGetFee(t *testing.T) {
 	var feeBuilder = setFeeBuilder()
 	if apiKey != "" && apiSecret != "" {
 		// CryptocurrencyTradeFee Basic
-		if resp, err := h.GetFee(feeBuilder); resp != float64(0) || err != nil {
+		if resp, err := h.GetFee(feeBuilder); resp != float64(0.001) || err != nil {
 			t.Error(err)
-			t.Errorf("Test Failed - GetFee() error. Expected: %f, Recieved: %f", float64(0), resp)
+			t.Errorf("Test Failed - GetFee() error. Expected: %f, Recieved: %f", float64(0.001), resp)
 		}
 
 		// CryptocurrencyTradeFee High quantity
 		feeBuilder = setFeeBuilder()
 		feeBuilder.Amount = 1000
 		feeBuilder.PurchasePrice = 1000
-		if resp, err := h.GetFee(feeBuilder); resp != float64(0) || err != nil {
-			t.Errorf("Test Failed - GetFee() error. Expected: %f, Recieved: %f", float64(0), resp)
+		if resp, err := h.GetFee(feeBuilder); resp != float64(1000) || err != nil {
+			t.Errorf("Test Failed - GetFee() error. Expected: %f, Recieved: %f", float64(1000), resp)
 			t.Error(err)
 		}
 
 		// CryptocurrencyTradeFee IsTaker
 		feeBuilder = setFeeBuilder()
-		feeBuilder.IsTaker = true
-		if resp, err := h.GetFee(feeBuilder); resp != float64(0) || err != nil {
-			t.Errorf("Test Failed - GetFee() error. Expected: %f, Recieved: %f", float64(0), resp)
+		if resp, err := h.GetFee(feeBuilder); resp != float64(0.001) || err != nil {
+			t.Errorf("Test Failed - GetFee() error. Expected: %f, Recieved: %f", float64(0.001), resp)
 			t.Error(err)
 		}
 
 		// CryptocurrencyTradeFee IsMaker
 		feeBuilder = setFeeBuilder()
 		feeBuilder.IsMaker = true
-		if resp, err := h.GetFee(feeBuilder); resp != float64(0) || err != nil {
-			t.Errorf("Test Failed - GetFee() error. Expected: %f, Recieved: %f", float64(0), resp)
+		if resp, err := h.GetFee(feeBuilder); resp != float64(-0.0001) || err != nil {
+			t.Errorf("Test Failed - GetFee() error. Expected: %f, Recieved: %f", float64(-0.0001), resp)
 			t.Error(err)
 		}
 
 		// CryptocurrencyTradeFee Negative purchase price
 		feeBuilder = setFeeBuilder()
 		feeBuilder.PurchasePrice = -1000
-		if resp, err := h.GetFee(feeBuilder); resp != float64(0) || err != nil {
-			t.Errorf("Test Failed - GetFee() error. Expected: %f, Recieved: %f", float64(0), resp)
+		if resp, err := h.GetFee(feeBuilder); resp != float64(-1) || err != nil {
+			t.Errorf("Test Failed - GetFee() error. Expected: %f, Recieved: %f", float64(-1), resp)
 			t.Error(err)
 		}
 
 		// CryptocurrencyWithdrawalFee Basic
 		feeBuilder = setFeeBuilder()
 		feeBuilder.FeeType = exchange.CryptocurrencyWithdrawalFee
-		if resp, err := h.GetFee(feeBuilder); resp != float64(0.001) || err != nil {
-			t.Errorf("Test Failed - GetFee() error. Expected: %f, Recieved: %f", float64(0.001), resp)
+		if resp, err := h.GetFee(feeBuilder); resp != float64(0.009580) || err != nil {
+			t.Errorf("Test Failed - GetFee() error. Expected: %f, Recieved: %f", float64(0.009580), resp)
 			t.Error(err)
 		}
 
@@ -145,6 +143,8 @@ func TestGetFee(t *testing.T) {
 	// CyptocurrencyDepositFee Basic
 	feeBuilder = setFeeBuilder()
 	feeBuilder.FeeType = exchange.CyptocurrencyDepositFee
+	feeBuilder.FirstCurrency = symbol.BTC
+	feeBuilder.SecondCurrency = symbol.LTC
 	if resp, err := h.GetFee(feeBuilder); resp != float64(0.0006) || err != nil {
 		t.Errorf("Test Failed - GetFee() error. Expected: %f, Recieved: %f", float64(0.0006), resp)
 		t.Error(err)

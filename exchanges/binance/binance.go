@@ -659,7 +659,7 @@ func (b *Binance) GetFee(feeBuilder exchange.FeeBuilder) (float64, error) {
 
 	switch feeBuilder.FeeType {
 	case exchange.CryptocurrencyTradeFee:
-		multiplier, err := b.getMultiplier(feeBuilder.IsTaker, feeBuilder.IsMaker)
+		multiplier, err := b.getMultiplier(feeBuilder.IsMaker)
 		if err != nil {
 			return 0, err
 		}
@@ -674,16 +674,16 @@ func (b *Binance) GetFee(feeBuilder exchange.FeeBuilder) (float64, error) {
 }
 
 // getMultiplier retrieves account based taker/maker fees
-func (b *Binance) getMultiplier(isTaker bool, isMaker bool) (float64, error) {
+func (b *Binance) getMultiplier(isMaker bool) (float64, error) {
 	var multiplier float64
 	account, err := b.GetAccount()
 	if err != nil {
 		return 0, err
 	}
-	if isTaker {
-		multiplier = float64(account.TakerCommission)
-	} else if isMaker {
+	if isMaker {
 		multiplier = float64(account.MakerCommission)
+	} else {
+		multiplier = float64(account.TakerCommission)
 	}
 	return multiplier, nil
 }
