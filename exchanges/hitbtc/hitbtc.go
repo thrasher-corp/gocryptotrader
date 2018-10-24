@@ -10,9 +10,9 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
-	"github.com/thrasher-/gocryptotrader/currency/symbol"
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
+	"github.com/thrasher-/gocryptotrader/currency/symbol"
 	"github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/request"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
@@ -74,7 +74,7 @@ func (h *HitBTC) SetDefaults() {
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 	h.APIUrlDefault = apiURL
 	h.APIUrl = h.APIUrlDefault
-	p.WebsocketInit()
+	h.WebsocketInit()
 }
 
 // Setup sets user exchange configuration settings
@@ -109,11 +109,11 @@ func (h *HitBTC) Setup(exch config.ExchangeConfig) {
 		if err != nil {
 			log.Fatal(err)
 		}
-		err = p.SetClientProxyAddress(exch.ProxyAddress)
+		err = h.SetClientProxyAddress(exch.ProxyAddress)
 		if err != nil {
 			log.Fatal(err)
 		}
-		err = p.WebsocketSetup(p.WsConnect,
+		err = h.WebsocketSetup(h.WsConnect,
 			exch.Name,
 			exch.Websocket,
 			hitbtcWebsocketAddress,

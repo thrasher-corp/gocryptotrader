@@ -12,11 +12,6 @@ type WsOutgoing struct {
 	Symbol string `json:"symbol,omitempty"`
 	Count  int    `json:"count,omitempty"`
 	Len    int    `json:"len,omitempty"`
-
-
-// Response is the generalized response type
-type Response struct {
-	Ticker Ticker `json:"ticker"`
 }
 
 // WsResponseMain defines the main websocket response
