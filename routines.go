@@ -53,16 +53,12 @@ func printConvertCurrencyFormat(origCurrency string, origPrice float64) string {
 	)
 }
 
-func printTickerSummary(result ticker.Price, p pair.CurrencyPair, assetType, exchangeName string, err error, verbose bool) {
+func printTickerSummary(result ticker.Price, p pair.CurrencyPair, assetType, exchangeName string, err error) {
 	if err != nil {
 		log.Printf("Failed to get %s %s ticker. Error: %s",
 			p.Pair().String(),
 			exchangeName,
 			err)
-		return
-	}
-
-	if !verbose {
 		return
 	}
 
@@ -106,16 +102,12 @@ func printTickerSummary(result ticker.Price, p pair.CurrencyPair, assetType, exc
 	}
 }
 
-func printOrderbookSummary(result orderbook.Base, p pair.CurrencyPair, assetType, exchangeName string, err error, verbose bool) {
+func printOrderbookSummary(result orderbook.Base, p pair.CurrencyPair, assetType, exchangeName string, err error) {
 	if err != nil {
 		log.Printf("Failed to get %s %s orderbook. Error: %s",
 			p.Pair().String(),
 			exchangeName,
 			err)
-		return
-	}
-
-	if !verbose {
 		return
 	}
 
@@ -170,7 +162,7 @@ func printOrderbookSummary(result orderbook.Base, p pair.CurrencyPair, assetType
 	}
 }
 
-func relayWebsocketEvent(result interface{}, event, assetType, exchangeName string, verbose bool) {
+func relayWebsocketEvent(result interface{}, event, assetType, exchangeName string) {
 	evt := WebsocketEvent{
 		Data:      result,
 		Event:     event,
@@ -179,16 +171,14 @@ func relayWebsocketEvent(result interface{}, event, assetType, exchangeName stri
 	}
 	err := BroadcastWebsocketMessage(evt)
 	if err != nil {
-		if verbose {
-			log.Println(fmt.Errorf("Failed to broadcast websocket event. Error: %s",
-				err))
-		}
+		log.Println(fmt.Errorf("Failed to broadcast websocket event. Error: %s",
+			err))
 	}
 }
 
 // TickerUpdaterRoutine fetches and updates the ticker for all enabled
 // currency pairs and exchanges
-func TickerUpdaterRoutine(verbose bool) {
+func TickerUpdaterRoutine() {
 	log.Println("Starting ticker updater routine.")
 	var wg sync.WaitGroup
 	for {
@@ -217,11 +207,11 @@ func TickerUpdaterRoutine(verbose bool) {
 					} else {
 						result, err = exch.GetTickerPrice(c, assetType)
 					}
-					printTickerSummary(result, c, assetType, exchangeName, err, verbose)
+					printTickerSummary(result, c, assetType, exchangeName, err)
 					if err == nil {
 						bot.comms.StageTickerData(exchangeName, assetType, result)
 						if bot.config.Webserver.Enabled {
-							relayWebsocketEvent(result, "ticker_update", assetType, exchangeName, verbose)
+							relayWebsocketEvent(result, "ticker_update", assetType, exchangeName)
 						}
 					}
 				}
@@ -238,16 +228,14 @@ func TickerUpdaterRoutine(verbose bool) {
 			}(x, &wg)
 		}
 		wg.Wait()
-		if verbose {
-			log.Println("All enabled currency tickers fetched.")
-		}
+		log.Println("All enabled currency tickers fetched.")
 		time.Sleep(time.Second * 10)
 	}
 }
 
 // OrderbookUpdaterRoutine fetches and updates the orderbooks for all enabled
 // currency pairs and exchanges
-func OrderbookUpdaterRoutine(verbose bool) {
+func OrderbookUpdaterRoutine() {
 	log.Println("Starting orderbook updater routine.")
 	var wg sync.WaitGroup
 	for {
@@ -270,11 +258,11 @@ func OrderbookUpdaterRoutine(verbose bool) {
 
 				processOrderbook := func(exch exchange.IBotExchange, c pair.CurrencyPair, assetType string) {
 					result, err := exch.UpdateOrderbook(c, assetType)
-					printOrderbookSummary(result, c, assetType, exchangeName, err, verbose)
+					printOrderbookSummary(result, c, assetType, exchangeName, err)
 					if err == nil {
 						bot.comms.StageOrderbookData(exchangeName, assetType, result)
 						if bot.config.Webserver.Enabled {
-							relayWebsocketEvent(result, "orderbook_update", assetType, exchangeName, verbose)
+							relayWebsocketEvent(result, "orderbook_update", assetType, exchangeName)
 						}
 					}
 				}
@@ -287,9 +275,7 @@ func OrderbookUpdaterRoutine(verbose bool) {
 			}(x, &wg)
 		}
 		wg.Wait()
-		if verbose {
-			log.Println("All enabled currency orderbooks fetched.")
-		}
+		log.Println("All enabled currency orderbooks fetched.")
 		time.Sleep(time.Second * 10)
 	}
 }

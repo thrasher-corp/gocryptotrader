@@ -59,7 +59,7 @@ func main() {
 	flag.StringVar(&bot.dataDir, "datadir", common.GetDefaultDataDir(runtime.GOOS), "default data directory for GoCryptoTrader files")
 	dryrun := flag.Bool("dryrun", false, "dry runs bot, doesn't save config file")
 	version := flag.Bool("version", false, "retrieves current GoCryptoTrader version")
-	verbosity := flag.Bool("verbose", false, "-verbose increases logging verbosity for GoCryptoTrader")
+	verbosity := flag.Bool("verbose", false, "increases logging verbosity for GoCryptoTrader")
 
 	flag.Parse()
 
@@ -159,8 +159,8 @@ func main() {
 
 	go portfolio.StartPortfolioWatcher()
 
-	go TickerUpdaterRoutine(*verbosity)
-	go OrderbookUpdaterRoutine(*verbosity)
+	go TickerUpdaterRoutine()
+	go OrderbookUpdaterRoutine()
 	go WebsocketRoutine(*verbosity)
 
 	<-bot.shutdown
