@@ -59,7 +59,7 @@ func main() {
 	flag.StringVar(&bot.dataDir, "datadir", common.GetDefaultDataDir(runtime.GOOS), "default data directory for GoCryptoTrader files")
 	dryrun := flag.Bool("dryrun", false, "dry runs bot, doesn't save config file")
 	version := flag.Bool("version", false, "retrieves current GoCryptoTrader version")
-	verbosity := flag.Bool("verbose", false, "-verbose increases verbosity for GoCryptoTrader")
+	verbosity := flag.Bool("verbose", false, "-verbose increases logging verbosity for GoCryptoTrader")
 
 	flag.Parse()
 
