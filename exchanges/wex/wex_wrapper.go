@@ -24,7 +24,7 @@ func (w *WEX) Start(wg *sync.WaitGroup) {
 // Run implements the WEX wrapper
 func (w *WEX) Run() {
 	if w.Verbose {
-		log.Printf("%s Websocket: %s.", w.GetName(), common.IsEnabled(w.Websocket))
+		log.Printf("%s Websocket: %s.", w.GetName(), common.IsEnabled(w.Websocket.IsEnabled()))
 		log.Printf("%s polling delay: %ds.\n", w.GetName(), w.RESTPollingDelay)
 		log.Printf("%s %d currencies enabled: %s.\n", w.GetName(), len(w.EnabledPairs), w.EnabledPairs)
 	}
@@ -205,4 +205,9 @@ func (w *WEX) WithdrawFiatExchangeFunds(currency pair.CurrencyItem, amount float
 // withdrawal is submitted
 func (w *WEX) WithdrawFiatExchangeFundsToInternationalBank(currency pair.CurrencyItem, amount float64) (string, error) {
 	return "", errors.New("not yet implemented")
+}
+
+// GetWebsocket returns a pointer to the exchange websocket
+func (w *WEX) GetWebsocket() (*exchange.Websocket, error) {
+	return nil, errors.New("not yet implemented")
 }

@@ -48,7 +48,6 @@ func (z *ZB) SetDefaults() {
 	z.Enabled = false
 	z.Fee = 0
 	z.Verbose = false
-	z.Websocket = false
 	z.RESTPollingDelay = 10
 	z.RequestCurrencyPairFormat.Delimiter = "_"
 	z.RequestCurrencyPairFormat.Uppercase = false
@@ -65,6 +64,7 @@ func (z *ZB) SetDefaults() {
 	z.APIUrl = z.APIUrlDefault
 	z.APIUrlSecondaryDefault = zbMarketURL
 	z.APIUrlSecondary = z.APIUrlSecondaryDefault
+	z.WebsocketInit()
 }
 
 // Setup sets user configuration
@@ -80,7 +80,7 @@ func (z *ZB) Setup(exch config.ExchangeConfig) {
 		z.SetHTTPClientUserAgent(exch.HTTPUserAgent)
 		z.RESTPollingDelay = exch.RESTPollingDelay
 		z.Verbose = exch.Verbose
-		z.Websocket = exch.Websocket
+		z.Websocket.SetEnabled(exch.Websocket)
 		z.BaseCurrencies = common.SplitStrings(exch.BaseCurrencies, ",")
 		z.AvailablePairs = common.SplitStrings(exch.AvailablePairs, ",")
 		z.EnabledPairs = common.SplitStrings(exch.EnabledPairs, ",")
@@ -97,6 +97,10 @@ func (z *ZB) Setup(exch config.ExchangeConfig) {
 			log.Fatal(err)
 		}
 		err = z.SetAPIURL(exch)
+		if err != nil {
+			log.Fatal(err)
+		}
+		err = z.SetClientProxyAddress(exch.ProxyAddress)
 		if err != nil {
 			log.Fatal(err)
 		}

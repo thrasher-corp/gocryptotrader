@@ -91,7 +91,6 @@ func (b *Bitfinex) SetDefaults() {
 	b.Name = "Bitfinex"
 	b.Enabled = false
 	b.Verbose = false
-	b.Websocket = false
 	b.RESTPollingDelay = 10
 	b.WebsocketSubdChannels = make(map[int]WebsocketChanInfo)
 	b.RequestCurrencyPairFormat.Delimiter = ""
@@ -107,6 +106,7 @@ func (b *Bitfinex) SetDefaults() {
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 	b.APIUrlDefault = bitfinexAPIURLBase
 	b.APIUrl = b.APIUrlDefault
+	b.WebsocketInit()
 }
 
 // Setup takes in the supplied exchange configuration details and sets params
@@ -121,7 +121,7 @@ func (b *Bitfinex) Setup(exch config.ExchangeConfig) {
 		b.SetHTTPClientUserAgent(exch.HTTPUserAgent)
 		b.RESTPollingDelay = exch.RESTPollingDelay
 		b.Verbose = exch.Verbose
-		b.Websocket = exch.Websocket
+		b.Websocket.SetEnabled(exch.Websocket)
 		b.BaseCurrencies = common.SplitStrings(exch.BaseCurrencies, ",")
 		b.AvailablePairs = common.SplitStrings(exch.AvailablePairs, ",")
 		b.EnabledPairs = common.SplitStrings(exch.EnabledPairs, ",")
@@ -138,6 +138,18 @@ func (b *Bitfinex) Setup(exch config.ExchangeConfig) {
 			log.Fatal(err)
 		}
 		err = b.SetAPIURL(exch)
+		if err != nil {
+			log.Fatal(err)
+		}
+		err = b.SetClientProxyAddress(exch.ProxyAddress)
+		if err != nil {
+			log.Fatal(err)
+		}
+		err = b.WebsocketSetup(b.WsConnect,
+			exch.Name,
+			exch.Websocket,
+			bitfinexWebsocket,
+			exch.WebsocketURL)
 		if err != nil {
 			log.Fatal(err)
 		}

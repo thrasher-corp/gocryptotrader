@@ -24,7 +24,7 @@ func (o *OKCoin) Start(wg *sync.WaitGroup) {
 // Run implements the OKCoin wrapper
 func (o *OKCoin) Run() {
 	if o.Verbose {
-		log.Printf("%s Websocket: %s. (url: %s).\n", o.GetName(), common.IsEnabled(o.Websocket), o.WebsocketURL)
+		log.Printf("%s Websocket: %s. (url: %s).\n", o.GetName(), common.IsEnabled(o.Websocket.IsEnabled()), o.WebsocketURL)
 		log.Printf("%s polling delay: %ds.\n", o.GetName(), o.RESTPollingDelay)
 		log.Printf("%s %d currencies enabled: %s.\n", o.GetName(), len(o.EnabledPairs), o.EnabledPairs)
 	}
@@ -55,10 +55,6 @@ func (o *OKCoin) Run() {
 				log.Printf("%s failed to update currencies. Err: %s", o.Name, err)
 			}
 		}
-	}
-
-	if o.Websocket {
-		go o.WebsocketClient()
 	}
 }
 
@@ -237,4 +233,9 @@ func (o *OKCoin) WithdrawFiatExchangeFunds(currency pair.CurrencyItem, amount fl
 // withdrawal is submitted
 func (o *OKCoin) WithdrawFiatExchangeFundsToInternationalBank(currency pair.CurrencyItem, amount float64) (string, error) {
 	return "", errors.New("not yet implemented")
+}
+
+// GetWebsocket returns a pointer to the exchange websocket
+func (o *OKCoin) GetWebsocket() (*exchange.Websocket, error) {
+	return o.Websocket, nil
 }

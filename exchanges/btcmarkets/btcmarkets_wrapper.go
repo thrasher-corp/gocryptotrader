@@ -250,3 +250,8 @@ func (b *BTCMarkets) WithdrawFiatExchangeFunds(currency pair.CurrencyItem, amoun
 func (b *BTCMarkets) WithdrawFiatExchangeFundsToInternationalBank(currency pair.CurrencyItem, amount float64) (string, error) {
 	return "", errors.New("not yet implemented")
 }
+
+// GetWebsocket returns a pointer to the exchange websocket
+func (b *BTCMarkets) GetWebsocket() (*exchange.Websocket, error) {
+	return nil, errors.New("not yet implemented")
+}

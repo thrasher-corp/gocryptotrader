@@ -250,3 +250,8 @@ func (k *Kraken) WithdrawFiatExchangeFunds(currency pair.CurrencyItem, amount fl
 func (k *Kraken) WithdrawFiatExchangeFundsToInternationalBank(currency pair.CurrencyItem, amount float64) (string, error) {
 	return "", errors.New("not yet implemented")
 }
+
+// GetWebsocket returns a pointer to the exchange websocket
+func (k *Kraken) GetWebsocket() (*exchange.Websocket, error) {
+	return nil, errors.New("not yet implemented")
+}

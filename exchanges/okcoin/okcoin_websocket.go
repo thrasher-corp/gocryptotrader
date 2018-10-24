@@ -1,524 +1,258 @@
 package okcoin
 
 import (
+	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
 	"net/url"
-	"reflect"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-/gocryptotrader/common"
+	"github.com/thrasher-/gocryptotrader/currency/pair"
+	"github.com/thrasher-/gocryptotrader/exchanges"
 )
 
 const (
-	okcoinWebsocketUSDRealTrades      = "ok_usd_realtrades"
-	okcoinWebsocketCNYRealTrades      = "ok_cny_realtrades"
-	okcoinWebsocketSpotUSDTrade       = "ok_spotusd_trade"
-	okcoinWebsocketSpotCNYTrade       = "ok_spotcny_trade"
-	okcoinWebsocketSpotUSDCancelOrder = "ok_spotusd_cancel_order"
-	okcoinWebsocketSpotCNYCancelOrder = "ok_spotcny_cancel_order"
-	okcoinWebsocketSpotUSDUserInfo    = "ok_spotusd_userinfo"
-	okcoinWebsocketSpotCNYUserInfo    = "ok_spotcny_userinfo"
-	okcoinWebsocketSpotUSDOrderInfo   = "ok_spotusd_order_info"
-	okcoinWebsocketSpotCNYOrderInfo   = "ok_spotcny_order_info"
-	okcoinWebsocketFuturesTrade       = "ok_futuresusd_trade"
-	okcoinWebsocketFuturesCancelOrder = "ok_futuresusd_cancel_order"
-	okcoinWebsocketFuturesRealTrades  = "ok_usd_future_realtrades"
-	okcoinWebsocketFuturesUserInfo    = "ok_futureusd_userinfo"
-	okcoinWebsocketFuturesOrderInfo   = "ok_futureusd_order_info"
+	wsSubTicker         = "ok_sub_spot_%s_ticker"
+	wsSubDepthIncrement = "ok_sub_spot_%s_depth"
+	wsSubDepthFull      = "ok_sub_spot_%s_depth_%s"
+	wsSubTrades         = "ok_sub_spot_%s_deals"
+	wsSubKline          = "ok_sub_spot_%s_kline_%s"
 )
 
 // PingHandler handles the keep alive
 func (o *OKCoin) PingHandler(message string) error {
-	err := o.WebsocketConn.WriteControl(websocket.PingMessage, []byte("{'event':'ping'}"), time.Now().Add(time.Second))
-
-	if err != nil {
-		log.Println(err)
-		return err
-	}
-	return nil
+	return o.WebsocketConn.WriteControl(websocket.PingMessage,
+		[]byte("{'event':'ping'}"),
+		time.Now().Add(time.Second))
 }
 
 // AddChannel adds a new channel on the websocket client
-func (o *OKCoin) AddChannel(channel string) {
+func (o *OKCoin) AddChannel(channel string) error {
 	event := WebsocketEvent{"addChannel", channel}
 	json, err := common.JSONEncode(event)
 	if err != nil {
-		log.Println(err)
-		return
-	}
-	err = o.WebsocketConn.WriteMessage(websocket.TextMessage, json)
-
-	if err != nil {
-		log.Println(err)
-		return
+		return err
 	}
 
-	if o.Verbose {
-		log.Printf("%s Adding channel: %s\n", o.GetName(), channel)
-	}
+	return o.WebsocketConn.WriteMessage(websocket.TextMessage, json)
 }
 
-// RemoveChannel removes a channel on the websocket client
-func (o *OKCoin) RemoveChannel(channel string) {
-	event := WebsocketEvent{"removeChannel", channel}
-	json, err := common.JSONEncode(event)
-	if err != nil {
-		log.Println(err)
-		return
-	}
-	err = o.WebsocketConn.WriteMessage(websocket.TextMessage, json)
-
-	if err != nil {
-		log.Println(err)
-		return
+// WsConnect initiates a websocket connection
+func (o *OKCoin) WsConnect() error {
+	if !o.Websocket.IsEnabled() || !o.IsEnabled() {
+		return errors.New(exchange.WebsocketNotEnabled)
 	}
 
-	if o.Verbose {
-		log.Printf("%s Removing channel: %s\n", o.GetName(), channel)
-	}
-}
+	klineValues := []string{"1min", "3min", "5min", "15min", "30min", "1hour",
+		"2hour", "4hour", "6hour", "12hour", "day", "3day", "week"}
 
-// WebsocketSpotTrade handles spot trade request on the websocket client
-func (o *OKCoin) WebsocketSpotTrade(symbol, orderType string, price, amount float64) {
-	values := make(map[string]string)
-	values["symbol"] = symbol
-	values["type"] = orderType
-	values["price"] = strconv.FormatFloat(price, 'f', -1, 64)
-	values["amount"] = strconv.FormatFloat(amount, 'f', -1, 64)
+	var dialer websocket.Dialer
 
-	channel := okcoinWebsocketSpotUSDTrade
-	if o.WebsocketURL == okcoinWebsocketURLChina {
-		channel = okcoinWebsocketSpotCNYTrade
-	}
-
-	o.AddChannelAuthenticated(channel, values)
-}
-
-// WebsocketFuturesTrade handles a futures trade on the websocket client
-func (o *OKCoin) WebsocketFuturesTrade(symbol, contractType string, price, amount float64, orderType, matchPrice, leverage int) {
-	values := make(map[string]string)
-	values["symbol"] = symbol
-	values["contract_type"] = contractType
-	values["price"] = strconv.FormatFloat(price, 'f', -1, 64)
-	values["amount"] = strconv.FormatFloat(amount, 'f', -1, 64)
-	values["type"] = strconv.Itoa(orderType)
-	values["match_price"] = strconv.Itoa(matchPrice)
-	values["lever_rate"] = strconv.Itoa(orderType)
-	o.AddChannelAuthenticated(okcoinWebsocketFuturesTrade, values)
-}
-
-// WebsocketSpotCancel cancels a spot trade on the websocket client
-func (o *OKCoin) WebsocketSpotCancel(symbol string, orderID int64) {
-	values := make(map[string]string)
-	values["symbol"] = symbol
-	values["order_id"] = strconv.FormatInt(orderID, 10)
-
-	channel := okcoinWebsocketSpotUSDCancelOrder
-	if o.WebsocketURL == okcoinWebsocketURLChina {
-		channel = okcoinWebsocketSpotCNYCancelOrder
-	}
-
-	o.AddChannelAuthenticated(channel, values)
-}
-
-// WebsocketFuturesCancel cancels a futures contract on the websocket client
-func (o *OKCoin) WebsocketFuturesCancel(symbol, contractType string, orderID int64) {
-	values := make(map[string]string)
-	values["symbol"] = symbol
-	values["order_id"] = strconv.FormatInt(orderID, 10)
-	values["contract_type"] = contractType
-	o.AddChannelAuthenticated(okcoinWebsocketFuturesCancelOrder, values)
-}
-
-// WebsocketSpotOrderInfo request information on an order on the websocket
-// client
-func (o *OKCoin) WebsocketSpotOrderInfo(symbol string, orderID int64) {
-	values := make(map[string]string)
-	values["symbol"] = symbol
-	values["order_id"] = strconv.FormatInt(orderID, 10)
-
-	channel := okcoinWebsocketSpotUSDOrderInfo
-	if o.WebsocketURL == okcoinWebsocketURLChina {
-		channel = okcoinWebsocketSpotCNYOrderInfo
-	}
-
-	o.AddChannelAuthenticated(channel, values)
-}
-
-// WebsocketFuturesOrderInfo requests futures order info on the websocket client
-func (o *OKCoin) WebsocketFuturesOrderInfo(symbol, contractType string, orderID int64, orderStatus, currentPage, pageLength int) {
-	values := make(map[string]string)
-	values["symbol"] = symbol
-	values["order_id"] = strconv.FormatInt(orderID, 10)
-	values["contract_type"] = contractType
-	values["status"] = strconv.Itoa(orderStatus)
-	values["current_page"] = strconv.Itoa(currentPage)
-	values["page_length"] = strconv.Itoa(pageLength)
-	o.AddChannelAuthenticated(okcoinWebsocketFuturesOrderInfo, values)
-}
-
-// ConvertToURLValues converts values to url.Values
-func (o *OKCoin) ConvertToURLValues(values map[string]string) url.Values {
-	urlVals := url.Values{}
-	for i, x := range values {
-		urlVals.Set(i, x)
-	}
-	return urlVals
-}
-
-// WebsocketSign signs values on the webcoket client
-func (o *OKCoin) WebsocketSign(values map[string]string) string {
-	values["api_key"] = o.APIKey
-	urlVals := o.ConvertToURLValues(values)
-	return strings.ToUpper(common.HexEncodeToString(common.GetMD5([]byte(urlVals.Encode() + "&secret_key=" + o.APISecret))))
-}
-
-// AddChannelAuthenticated adds an authenticated channel on the websocket client
-func (o *OKCoin) AddChannelAuthenticated(channel string, values map[string]string) {
-	values["sign"] = o.WebsocketSign(values)
-	event := WebsocketEventAuth{"addChannel", channel, values}
-	json, err := common.JSONEncode(event)
-	if err != nil {
-		log.Println(err)
-		return
-	}
-	err = o.WebsocketConn.WriteMessage(websocket.TextMessage, json)
-
-	if err != nil {
-		log.Println(err)
-		return
-	}
-
-	if o.Verbose {
-		log.Printf("%s Adding authenticated channel: %s\n", o.GetName(), channel)
-	}
-}
-
-// RemoveChannelAuthenticated removes the added authenticated channel on the
-// websocket client
-func (o *OKCoin) RemoveChannelAuthenticated(conn *websocket.Conn, channel string, values map[string]string) {
-	values["sign"] = o.WebsocketSign(values)
-	event := WebsocketEventAuthRemove{"removeChannel", channel, values}
-	json, err := common.JSONEncode(event)
-	if err != nil {
-		log.Println(err)
-		return
-	}
-	err = o.WebsocketConn.WriteMessage(websocket.TextMessage, json)
-
-	if err != nil {
-		log.Println(err)
-		return
-	}
-
-	if o.Verbose {
-		log.Printf("%s Removing authenticated channel: %s\n", o.GetName(), channel)
-	}
-}
-
-// WebsocketClient starts a websocket client
-func (o *OKCoin) WebsocketClient() {
-	klineValues := []string{"1min", "3min", "5min", "15min", "30min", "1hour", "2hour", "4hour", "6hour", "12hour", "day", "3day", "week"}
-	var currencyChan, userinfoChan string
-
-	if o.WebsocketURL == okcoinWebsocketURLChina {
-		currencyChan = okcoinWebsocketCNYRealTrades
-		userinfoChan = okcoinWebsocketSpotCNYUserInfo
-	} else {
-		currencyChan = okcoinWebsocketUSDRealTrades
-		userinfoChan = okcoinWebsocketSpotUSDUserInfo
-	}
-
-	for o.Enabled && o.Websocket {
-		var Dialer websocket.Dialer
-		var err error
-		o.WebsocketConn, _, err = Dialer.Dial(o.WebsocketURL, http.Header{})
-
+	if o.Websocket.GetProxyAddress() != "" {
+		proxy, err := url.Parse(o.Websocket.GetProxyAddress())
 		if err != nil {
-			log.Printf("%s Unable to connect to Websocket. Error: %s\n", o.GetName(), err)
-			continue
+			return err
 		}
 
-		if o.Verbose {
-			log.Printf("%s Connected to Websocket.\n", o.GetName())
+		dialer.Proxy = http.ProxyURL(proxy)
+	}
+
+	var err error
+	o.WebsocketConn, _, err = dialer.Dial(o.Websocket.GetWebsocketURL(),
+		http.Header{})
+	if err != nil {
+		return err
+	}
+
+	o.WebsocketConn.SetPingHandler(o.PingHandler)
+
+	go o.WsReadData()
+	go o.WsHandleData()
+
+	for _, p := range o.GetEnabledCurrencies() {
+		fPair := exchange.FormatExchangeCurrency(o.GetName(), p)
+
+		o.AddChannel(fmt.Sprintf(wsSubDepthFull, fPair.String(), "20"))
+		o.AddChannel(fmt.Sprintf(wsSubKline, fPair.String(), klineValues[0]))
+		o.AddChannel(fmt.Sprintf(wsSubTicker, fPair.String()))
+		o.AddChannel(fmt.Sprintf(wsSubTrades, fPair.String()))
+	}
+
+	return nil
+}
+
+// WsReadData reads from the websocket connection
+func (o *OKCoin) WsReadData() {
+	o.Websocket.Wg.Add(1)
+
+	defer func() {
+		err := o.WebsocketConn.Close()
+		if err != nil {
+			o.Websocket.DataHandler <- fmt.Errorf("okcoin_websocket.go - Unable to to close Websocket connection. Error: %s",
+				err)
 		}
+		o.Websocket.Wg.Done()
+	}()
 
-		o.WebsocketConn.SetPingHandler(o.PingHandler)
+	for {
+		select {
+		case <-o.Websocket.ShutdownC:
+			return
 
-		if o.AuthenticatedAPISupport {
-			if o.WebsocketURL == okcoinWebsocketURL {
-				o.AddChannelAuthenticated(okcoinWebsocketFuturesRealTrades, map[string]string{})
-				o.AddChannelAuthenticated(okcoinWebsocketFuturesUserInfo, map[string]string{})
-			}
-			o.AddChannelAuthenticated(currencyChan, map[string]string{})
-			o.AddChannelAuthenticated(userinfoChan, map[string]string{})
-		}
-
-		for _, x := range o.EnabledPairs {
-			currency := common.StringToLower(x)
-			currencyUL := currency[0:3] + "_" + currency[3:]
-			if o.AuthenticatedAPISupport {
-				o.WebsocketSpotOrderInfo(currencyUL, -1)
-			}
-			if o.WebsocketURL == okcoinWebsocketURL {
-				o.AddChannel(fmt.Sprintf("ok_%s_future_index", currency))
-				for _, y := range o.FuturesValues {
-					if o.AuthenticatedAPISupport {
-						o.WebsocketFuturesOrderInfo(currencyUL, y, -1, 1, 1, 50)
-					}
-					o.AddChannel(fmt.Sprintf("ok_%s_future_ticker_%s", currency, y))
-					o.AddChannel(fmt.Sprintf("ok_%s_future_depth_%s_60", currency, y))
-					o.AddChannel(fmt.Sprintf("ok_%s_future_trade_v1_%s", currency, y))
-					for _, z := range klineValues {
-						o.AddChannel(fmt.Sprintf("ok_future_%s_kline_%s_%s", currency, y, z))
-					}
-				}
-			} else {
-				o.AddChannel(fmt.Sprintf("ok_%s_ticker", currency))
-				o.AddChannel(fmt.Sprintf("ok_%s_depth60", currency))
-				o.AddChannel(fmt.Sprintf("ok_%s_trades_v1", currency))
-
-				for _, y := range klineValues {
-					o.AddChannel(fmt.Sprintf("ok_%s_kline_%s", currency, y))
-				}
-			}
-		}
-
-		for o.Enabled && o.Websocket {
-			msgType, resp, err := o.WebsocketConn.ReadMessage()
+		default:
+			_, resp, err := o.WebsocketConn.ReadMessage()
 			if err != nil {
-				log.Println(err)
-				break
+				o.Websocket.DataHandler <- err
+				return
 			}
-			switch msgType {
-			case websocket.TextMessage:
-				response := []interface{}{}
-				err = common.JSONDecode(resp, &response)
 
-				if err != nil {
-					log.Println(err)
+			o.Websocket.TrafficAlert <- struct{}{}
+			o.Websocket.Intercomm <- exchange.WebsocketResponse{Raw: resp}
+		}
+	}
+
+}
+
+// WsHandleData handles stream data from the websocket connection
+func (o *OKCoin) WsHandleData() {
+	o.Websocket.Wg.Add(1)
+	defer o.Websocket.Wg.Done()
+
+	for {
+		select {
+		case <-o.Websocket.ShutdownC:
+			return
+
+		case resp := <-o.Websocket.Intercomm:
+			var init []WsResponse
+			err := common.JSONDecode(resp.Raw, &init)
+			if err != nil {
+				log.Fatal(err)
+			}
+
+			if init[0].ErrorCode != "" {
+				log.Fatal(o.WebsocketErrors[init[0].ErrorCode])
+			}
+
+			if init[0].Success {
+				if init[0].Data == nil {
 					continue
 				}
+			}
 
-				for _, y := range response {
-					z := y.(map[string]interface{})
-					channel := z["channel"]
-					data := z["data"]
-					success := z["success"]
-					errorcode := z["errorcode"]
-					channelStr, ok := channel.(string)
+			if init[0].Channel == "addChannel" {
+				continue
+			}
 
-					if !ok {
-						log.Println("Unable to convert channel to string")
-						continue
+			var currencyPairSlice []string
+			splitChar := common.SplitStrings(init[0].Channel, "_")
+			currencyPairSlice = append(currencyPairSlice,
+				common.StringToUpper(splitChar[3]))
+			currencyPairSlice = append(currencyPairSlice,
+				common.StringToUpper(splitChar[4]))
+			currencyPair := common.JoinStrings(currencyPairSlice, "-")
+
+			assetType := common.StringToUpper(splitChar[2])
+
+			switch {
+			case common.StringContains(init[0].Channel, "ticker") &&
+				common.StringContains(init[0].Channel, "spot"):
+				var ticker WsTicker
+
+				err = common.JSONDecode(init[0].Data, &ticker)
+				if err != nil {
+					log.Fatal(err)
+
+				}
+
+				o.Websocket.DataHandler <- exchange.TickerData{
+					Timestamp:  time.Unix(0, ticker.Timestamp),
+					Pair:       pair.NewCurrencyPairFromString(currencyPair),
+					AssetType:  assetType,
+					Exchange:   o.GetName(),
+					ClosePrice: ticker.Close,
+					OpenPrice:  ticker.Open,
+					HighPrice:  ticker.Last,
+					LowPrice:   ticker.Low,
+					Quantity:   ticker.Volume,
+				}
+
+			case common.StringContains(init[0].Channel, "depth"):
+				var orderbook WsOrderbook
+
+				err = common.JSONDecode(init[0].Data, &orderbook)
+				if err != nil {
+					log.Fatal(err)
+				}
+
+				o.Websocket.DataHandler <- exchange.WebsocketOrderbookUpdate{
+					Pair:     pair.NewCurrencyPairFromString(currencyPair),
+					Exchange: o.GetName(),
+					Asset:    assetType,
+				}
+
+			case common.StringContains(init[0].Channel, "kline"):
+				var klineData [][]interface{}
+
+				err = common.JSONDecode(init[0].Data, &klineData)
+				if err != nil {
+					log.Fatal(err)
+				}
+
+				var klines []WsKlines
+				for _, data := range klineData {
+					var newKline WsKlines
+
+					newKline.Timestamp, _ = strconv.ParseInt(data[0].(string), 10, 64)
+					newKline.Open, _ = strconv.ParseFloat(data[1].(string), 64)
+					newKline.High, _ = strconv.ParseFloat(data[1].(string), 64)
+					newKline.Low, _ = strconv.ParseFloat(data[1].(string), 64)
+					newKline.Close, _ = strconv.ParseFloat(data[1].(string), 64)
+					newKline.Volume, _ = strconv.ParseFloat(data[1].(string), 64)
+
+					klines = append(klines, newKline)
+				}
+
+				for _, data := range klines {
+					o.Websocket.DataHandler <- exchange.KlineData{
+						Timestamp:  time.Unix(0, data.Timestamp),
+						Pair:       pair.NewCurrencyPairFromString(currencyPair),
+						AssetType:  assetType,
+						Exchange:   o.GetName(),
+						OpenPrice:  data.Open,
+						ClosePrice: data.Close,
+						HighPrice:  data.High,
+						LowPrice:   data.Low,
+						Volume:     data.Volume,
 					}
+				}
 
-					if success != "true" && success != nil {
-						errorCodeStr, ok := errorcode.(string)
-						if !ok {
-							log.Printf("%s Websocket: Unable to convert errorcode to string.\n", o.GetName())
-							log.Printf("%s Websocket: channel %s error code: %s.\n", o.GetName(), channelStr, errorcode)
-						} else {
-							log.Printf("%s Websocket: channel %s error: %s.\n", o.GetName(), channelStr, o.WebsocketErrors[errorCodeStr])
-						}
-						continue
-					}
+			case common.StringContains(init[0].Channel, "spot") &&
+				common.StringContains(init[0].Channel, "deals"):
+				var dealsData [][]interface{}
+				err = common.JSONDecode(init[0].Data, &dealsData)
+				if err != nil {
+					log.Fatal(err)
+				}
 
-					if success == "true" {
-						if data == nil {
-							continue
-						}
-					}
+				var deals []WsDeals
+				for _, data := range dealsData {
+					var newDeal WsDeals
+					newDeal.TID, _ = strconv.ParseInt(data[0].(string), 10, 64)
+					newDeal.Price, _ = strconv.ParseFloat(data[1].(string), 64)
+					newDeal.Amount, _ = strconv.ParseFloat(data[2].(string), 64)
+					newDeal.Timestamp, _ = data[3].(string)
+					newDeal.Type, _ = data[4].(string)
 
-					dataJSON, err := common.JSONEncode(data)
-
-					if err != nil {
-						log.Println(err)
-						continue
-					}
-
-					switch true {
-					case common.StringContains(channelStr, "ticker") && !common.StringContains(channelStr, "future"):
-						tickerValues := []string{"buy", "high", "last", "low", "sell", "timestamp"}
-						tickerMap := data.(map[string]interface{})
-						ticker := WebsocketTicker{}
-						ticker.Vol = tickerMap["vol"].(string)
-
-						for _, z := range tickerValues {
-							result := reflect.TypeOf(tickerMap[z]).String()
-							if result == "string" {
-								value, errTickVals := strconv.ParseFloat(tickerMap[z].(string), 64)
-								if errTickVals != nil {
-									log.Println(errTickVals)
-									continue
-								}
-
-								switch z {
-								case "buy":
-									ticker.Buy = value
-								case "high":
-									ticker.High = value
-								case "last":
-									ticker.Last = value
-								case "low":
-									ticker.Low = value
-								case "sell":
-									ticker.Sell = value
-								case "timestamp":
-									ticker.Timestamp = value
-								}
-
-							} else if result == "float64" {
-								switch z {
-								case "buy":
-									ticker.Buy = tickerMap[z].(float64)
-								case "high":
-									ticker.High = tickerMap[z].(float64)
-								case "last":
-									ticker.Last = tickerMap[z].(float64)
-								case "low":
-									ticker.Low = tickerMap[z].(float64)
-								case "sell":
-									ticker.Sell = tickerMap[z].(float64)
-								case "timestamp":
-									ticker.Timestamp = tickerMap[z].(float64)
-								}
-							}
-						}
-					case common.StringContains(channelStr, "ticker") && common.StringContains(channelStr, "future"):
-						ticker := WebsocketFuturesTicker{}
-						err = common.JSONDecode(dataJSON, &ticker)
-
-						if err != nil {
-							log.Println(err)
-							continue
-						}
-					case common.StringContains(channelStr, "depth"):
-						orderbook := WebsocketOrderbook{}
-						err = common.JSONDecode(dataJSON, &orderbook)
-
-						if err != nil {
-							log.Println(err)
-							continue
-						}
-					case common.StringContains(channelStr, "trades_v1") || common.StringContains(channelStr, "trade_v1"):
-						type TradeResponse struct {
-							Data [][]string
-						}
-
-						trades := TradeResponse{}
-						err = common.JSONDecode(dataJSON, &trades.Data)
-
-						if err != nil {
-							log.Println(err)
-							continue
-						}
-						// to-do: convert from string array to trade struct
-					case common.StringContains(channelStr, "kline"):
-						klines := []interface{}{}
-
-						err = common.JSONDecode(dataJSON, &klines)
-						if err != nil {
-							log.Println(err)
-							continue
-						}
-					case common.StringContains(channelStr, "spot") && common.StringContains(channelStr, "realtrades"):
-						if string(dataJSON) == "null" {
-							continue
-						}
-						realtrades := WebsocketRealtrades{}
-
-						err = common.JSONDecode(dataJSON, &realtrades)
-						if err != nil {
-							log.Println(err)
-							continue
-						}
-					case common.StringContains(channelStr, "future") && common.StringContains(channelStr, "realtrades"):
-						if string(dataJSON) == "null" {
-							continue
-						}
-						realtrades := WebsocketFuturesRealtrades{}
-
-						err = common.JSONDecode(dataJSON, &realtrades)
-						if err != nil {
-							log.Println(err)
-							continue
-						}
-					case common.StringContains(channelStr, "spot") && common.StringContains(channelStr, "trade") || common.StringContains(channelStr, "futures") && common.StringContains(channelStr, "trade"):
-						tradeOrder := WebsocketTradeOrderResponse{}
-
-						err = common.JSONDecode(dataJSON, &tradeOrder)
-						if err != nil {
-							log.Println(err)
-							continue
-						}
-					case common.StringContains(channelStr, "cancel_order"):
-						cancelOrder := WebsocketTradeOrderResponse{}
-
-						err = common.JSONDecode(dataJSON, &cancelOrder)
-						if err != nil {
-							log.Println(err)
-							continue
-						}
-					case common.StringContains(channelStr, "spot") && common.StringContains(channelStr, "userinfo"):
-						userinfo := WebsocketUserinfo{}
-
-						err = common.JSONDecode(dataJSON, &userinfo)
-						if err != nil {
-							log.Println(err)
-							continue
-						}
-					case common.StringContains(channelStr, "futureusd_userinfo"):
-						userinfo := WebsocketFuturesUserInfo{}
-
-						err = common.JSONDecode(dataJSON, &userinfo)
-						if err != nil {
-							log.Println(err)
-							continue
-						}
-					case common.StringContains(channelStr, "spot") && common.StringContains(channelStr, "order_info"):
-						type OrderInfoResponse struct {
-							Result bool             `json:"result"`
-							Orders []WebsocketOrder `json:"orders"`
-						}
-						var orders OrderInfoResponse
-
-						err = common.JSONDecode(dataJSON, &orders)
-						if err != nil {
-							log.Println(err)
-							continue
-						}
-					case common.StringContains(channelStr, "futureusd_order_info"):
-						type OrderInfoResponse struct {
-							Result bool                    `json:"result"`
-							Orders []WebsocketFuturesOrder `json:"orders"`
-						}
-						var orders OrderInfoResponse
-
-						err = common.JSONDecode(dataJSON, &orders)
-						if err != nil {
-							log.Println(err)
-							continue
-						}
-					case common.StringContains(channelStr, "future_index"):
-						index := WebsocketFutureIndex{}
-
-						err = common.JSONDecode(dataJSON, &index)
-						if err != nil {
-							log.Println(err)
-							continue
-						}
-					}
+					deals = append(deals, newDeal)
 				}
 			}
 		}
-		o.WebsocketConn.Close()
-		log.Printf("%s Websocket client disconnected.", o.GetName())
 	}
 }
 
@@ -566,4 +300,55 @@ func (o *OKCoin) SetWebsocketErrorDefaults() {
 		"20024": "Signature does not match",
 		"20025": "Leverage rate error",
 	}
+}
+
+// WsOrderbook defines orderbook data from websocket connection
+type WsOrderbook struct {
+	Asks      [][]string `json:"asks"`
+	Bids      [][]string `json:"bids"`
+	Timestamp int64      `json:"timestamp"`
+}
+
+// WsResponse defines initial response stream
+type WsResponse struct {
+	Channel   string          `json:"channel"`
+	Result    bool            `json:"result"`
+	Success   bool            `json:"success"`
+	ErrorCode string          `json:"errorcode"`
+	Data      json.RawMessage `json:"data"`
+}
+
+// WsKlines defines a Kline response data from the websocket connection
+type WsKlines struct {
+	Timestamp int64
+	Open      float64
+	High      float64
+	Low       float64
+	Close     float64
+	Volume    float64
+}
+
+// WsTicker holds ticker data for websocket
+type WsTicker struct {
+	High      float64 `json:"high,string"`
+	Volume    float64 `json:"vol,string"`
+	Last      float64 `json:"last,string"`
+	Low       float64 `json:"low,string"`
+	Buy       float64 `json:"buy,string"`
+	Change    float64 `json:"change,string"`
+	Sell      float64 `json:"sell,string"`
+	DayLow    float64 `json:"dayLow,string"`
+	Close     float64 `json:"close,string"`
+	DayHigh   float64 `json:"dayHigh,string"`
+	Open      float64 `json:"open,string"`
+	Timestamp int64   `json:"timestamp"`
+}
+
+// WsDeals defines a deal response from the websocket connection
+type WsDeals struct {
+	TID       int64
+	Price     float64
+	Amount    float64
+	Timestamp string
+	Type      string
 }

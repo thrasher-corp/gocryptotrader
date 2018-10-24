@@ -101,7 +101,6 @@ func (o *OKEX) SetDefaults() {
 	o.Name = "OKEX"
 	o.Enabled = false
 	o.Verbose = false
-	o.Websocket = false
 	o.RESTPollingDelay = 10
 	o.RequestCurrencyPairFormat.Delimiter = "_"
 	o.RequestCurrencyPairFormat.Uppercase = false
@@ -116,6 +115,7 @@ func (o *OKEX) SetDefaults() {
 	o.APIUrlDefault = apiURL
 	o.APIUrl = o.APIUrlDefault
 	o.AssetTypes = []string{ticker.Spot}
+	o.WebsocketInit()
 }
 
 // Setup method sets current configuration details if enabled
@@ -130,7 +130,7 @@ func (o *OKEX) Setup(exch config.ExchangeConfig) {
 		o.SetHTTPClientUserAgent(exch.HTTPUserAgent)
 		o.RESTPollingDelay = exch.RESTPollingDelay
 		o.Verbose = exch.Verbose
-		o.Websocket = exch.Websocket
+		o.Websocket.SetEnabled(exch.Websocket)
 		o.BaseCurrencies = common.SplitStrings(exch.BaseCurrencies, ",")
 		o.AvailablePairs = common.SplitStrings(exch.AvailablePairs, ",")
 		o.EnabledPairs = common.SplitStrings(exch.EnabledPairs, ",")
@@ -147,6 +147,18 @@ func (o *OKEX) Setup(exch config.ExchangeConfig) {
 			log.Fatal(err)
 		}
 		err = o.SetAPIURL(exch)
+		if err != nil {
+			log.Fatal(err)
+		}
+		err = o.SetClientProxyAddress(exch.ProxyAddress)
+		if err != nil {
+			log.Fatal(err)
+		}
+		err = o.WebsocketSetup(o.WsConnect,
+			exch.Name,
+			exch.Websocket,
+			okexDefaultWebsocketURL,
+			exch.WebsocketURL)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -588,7 +600,11 @@ func (o *OKEX) PlaceContractOrders(symbol, contractType, position string, levera
 		return 0, o.GetErrorCode(code)
 	}
 
-	return contractMap["order_id"].(float64), nil
+	if orderID, ok := contractMap["order_id"]; ok {
+		return orderID.(float64), nil
+	}
+
+	return 0, errors.New("orderID returned nil")
 }
 
 // GetContractFuturesTradeHistory returns OKEX Contract Trade History (Not for Personal)

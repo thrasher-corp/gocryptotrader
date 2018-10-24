@@ -55,7 +55,6 @@ func (e *EXMO) SetDefaults() {
 	e.Name = "EXMO"
 	e.Enabled = false
 	e.Verbose = false
-	e.Websocket = false
 	e.RESTPollingDelay = 10
 	e.RequestCurrencyPairFormat.Delimiter = "_"
 	e.RequestCurrencyPairFormat.Uppercase = true
@@ -71,6 +70,7 @@ func (e *EXMO) SetDefaults() {
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 	e.APIUrlDefault = exmoAPIURL
 	e.APIUrl = e.APIUrlDefault
+	e.WebsocketInit()
 }
 
 // Setup takes in the supplied exchange configuration details and sets params
@@ -85,7 +85,6 @@ func (e *EXMO) Setup(exch config.ExchangeConfig) {
 		e.SetHTTPClientUserAgent(exch.HTTPUserAgent)
 		e.RESTPollingDelay = exch.RESTPollingDelay
 		e.Verbose = exch.Verbose
-		e.Websocket = exch.Websocket
 		e.BaseCurrencies = common.SplitStrings(exch.BaseCurrencies, ",")
 		e.AvailablePairs = common.SplitStrings(exch.AvailablePairs, ",")
 		e.EnabledPairs = common.SplitStrings(exch.EnabledPairs, ",")
@@ -102,6 +101,10 @@ func (e *EXMO) Setup(exch config.ExchangeConfig) {
 			log.Fatal(err)
 		}
 		err = e.SetAPIURL(exch)
+		if err != nil {
+			log.Fatal(err)
+		}
+		err = e.SetClientProxyAddress(exch.ProxyAddress)
 		if err != nil {
 			log.Fatal(err)
 		}

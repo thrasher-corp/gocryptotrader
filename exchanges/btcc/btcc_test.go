@@ -28,8 +28,9 @@ func TestSetup(t *testing.T) {
 	}
 	b.Setup(bConfig)
 
-	if !b.IsEnabled() || b.AuthenticatedAPISupport || b.RESTPollingDelay != time.Duration(10) ||
-		b.Verbose || b.Websocket || len(b.BaseCurrencies) < 1 ||
+	if !b.IsEnabled() || b.AuthenticatedAPISupport ||
+		b.RESTPollingDelay != time.Duration(10) || b.Verbose ||
+		b.Websocket.IsEnabled() || len(b.BaseCurrencies) < 1 ||
 		len(b.AvailablePairs) < 1 || len(b.EnabledPairs) < 1 {
 		t.Error("Test Failed - BTCC Setup values not set correctly")
 	}
@@ -41,38 +42,38 @@ func TestGetFee(t *testing.T) {
 	}
 }
 
-func TestGetTicker(t *testing.T) {
-	t.Skip()
-	_, err := b.GetTicker("BTCUSD")
-	if err != nil {
-		t.Error("Test failed - GetTicker() error", err)
-	}
-}
+// func TestGetTicker(t *testing.T) {
+// 	t.Skip()
+// 	_, err := b.GetTicker("BTCUSD")
+// 	if err != nil {
+// 		t.Error("Test failed - GetTicker() error", err)
+// 	}
+// }
 
-func TestGetTradeHistory(t *testing.T) {
-	t.Skip()
-	_, err := b.GetTradeHistory("BTCUSD", 0, 0, time.Time{})
-	if err != nil {
-		t.Error("Test failed - GetTradeHistory() error", err)
-	}
-}
+// func TestGetTradeHistory(t *testing.T) {
+// 	t.Skip()
+// 	_, err := b.GetTradeHistory("BTCUSD", 0, 0, time.Time{})
+// 	if err != nil {
+// 		t.Error("Test failed - GetTradeHistory() error", err)
+// 	}
+// }
 
-func TestGetOrderBook(t *testing.T) {
-	t.Skip()
-	_, err := b.GetOrderBook("BTCUSD", 100)
-	if err != nil {
-		t.Error("Test failed - GetOrderBook() error", err)
-	}
-	_, err = b.GetOrderBook("BTCUSD", 0)
-	if err != nil {
-		t.Error("Test failed - GetOrderBook() error", err)
-	}
-}
+// func TestGetOrderBook(t *testing.T) {
+// 	t.Skip()
+// 	_, err := b.GetOrderBook("BTCUSD", 100)
+// 	if err != nil {
+// 		t.Error("Test failed - GetOrderBook() error", err)
+// 	}
+// 	_, err = b.GetOrderBook("BTCUSD", 0)
+// 	if err != nil {
+// 		t.Error("Test failed - GetOrderBook() error", err)
+// 	}
+// }
 
-func TestGetAccountInfo(t *testing.T) {
-	t.Skip()
-	err := b.GetAccountInfo("")
-	if err == nil {
-		t.Error("Test failed - GetAccountInfo() error", err)
-	}
-}
+// func TestGetAccountInfo(t *testing.T) {
+// 	t.Skip()
+// 	err := b.GetAccountInfo("")
+// 	if err == nil {
+// 		t.Error("Test failed - GetAccountInfo() error", err)
+// 	}
+// }

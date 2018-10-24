@@ -53,7 +53,6 @@ func (c *COINUT) SetDefaults() {
 	c.TakerFee = 0.1 //spot
 	c.MakerFee = 0
 	c.Verbose = false
-	c.Websocket = false
 	c.RESTPollingDelay = 10
 	c.RequestCurrencyPairFormat.Delimiter = ""
 	c.RequestCurrencyPairFormat.Uppercase = true
@@ -68,6 +67,7 @@ func (c *COINUT) SetDefaults() {
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 	c.APIUrlDefault = coinutAPIURL
 	c.APIUrl = c.APIUrlDefault
+	c.WebsocketInit()
 }
 
 // Setup sets the current exchange configuration
@@ -82,7 +82,7 @@ func (c *COINUT) Setup(exch config.ExchangeConfig) {
 		c.SetHTTPClientUserAgent(exch.HTTPUserAgent)
 		c.RESTPollingDelay = exch.RESTPollingDelay
 		c.Verbose = exch.Verbose
-		c.Websocket = exch.Websocket
+		c.Websocket.SetEnabled(exch.Websocket)
 		c.BaseCurrencies = common.SplitStrings(exch.BaseCurrencies, ",")
 		c.AvailablePairs = common.SplitStrings(exch.AvailablePairs, ",")
 		c.EnabledPairs = common.SplitStrings(exch.EnabledPairs, ",")
@@ -99,6 +99,18 @@ func (c *COINUT) Setup(exch config.ExchangeConfig) {
 			log.Fatal(err)
 		}
 		err = c.SetAPIURL(exch)
+		if err != nil {
+			log.Fatal(err)
+		}
+		err = c.SetClientProxyAddress(exch.ProxyAddress)
+		if err != nil {
+			log.Fatal(err)
+		}
+		err = c.WebsocketSetup(c.WsConnect,
+			exch.Name,
+			exch.Websocket,
+			coinutWebsocketURL,
+			exch.WebsocketURL)
 		if err != nil {
 			log.Fatal(err)
 		}

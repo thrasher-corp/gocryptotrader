@@ -4,29 +4,55 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"strconv"
 	"strings"
+	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
+	"github.com/thrasher-/gocryptotrader/currency/pair"
+	"github.com/thrasher-/gocryptotrader/exchanges"
+	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	"github.com/toorop/go-pusher"
 )
 
+// WebsocketConn defins a pusher websocket connection
+type WebsocketConn struct {
+	Client *pusher.Client
+	Data   chan *pusher.Event
+	Trade  chan *pusher.Event
+}
+
 // PusherOrderbook holds order book information to be pushed
 type PusherOrderbook struct {
-	Asks [][]string `json:"asks"`
-	Bids [][]string `json:"bids"`
+	Asks      [][]string `json:"asks"`
+	Bids      [][]string `json:"bids"`
+	Timestamp int64      `json:"timestamp,string"`
 }
 
 // PusherTrade holds trade information to be pushed
 type PusherTrade struct {
-	Price  float64 `json:"price"`
-	Amount float64 `json:"amount"`
+	Price       float64 `json:"price"`
+	Amount      float64 `json:"amount"`
+	ID          int64   `json:"id"`
+	Type        int64   `json:"type"`
+	Timestamp   int64   `json:"timestamp,string"`
+	BuyOrderID  int64   `json:"buy_order_id"`
+	SellOrderID int64   `json:"sell_order_id"`
+}
+
+// PusherOrders defines order information
+type PusherOrders struct {
 	ID     int64   `json:"id"`
+	Amount float64 `json:"amount"`
+	Price  float64 `json:""`
 }
 
 const (
 	// BitstampPusherKey holds the current pusher key
 	BitstampPusherKey = "de504dc5763aeef9ff52"
 )
+
+var tradingPairs map[string]string
 
 // findPairFromChannel extracts the capitalized trading pair from the channel and returns it only if enabled in the config
 func (b *Bitstamp) findPairFromChannel(channelName string) (string, error) {
@@ -39,92 +65,214 @@ func (b *Bitstamp) findPairFromChannel(channelName string) (string, error) {
 		}
 	}
 
-	return "", errors.New("Could not find trading pair")
+	return "", errors.New("bistamp_websocket.go error - could not find trading pair")
 }
 
-// PusherClient starts the push mechanism
-func (b *Bitstamp) PusherClient() {
-	for b.Enabled && b.Websocket {
-		// hold the mapping of channel:tradingPair in order not to always compute it
-		seenTradingPairs := map[string]string{}
+// WsConnect connects to a websocket feed
+func (b *Bitstamp) WsConnect() error {
+	if !b.Websocket.IsEnabled() || !b.IsEnabled() {
+		return errors.New(exchange.WebsocketNotEnabled)
+	}
 
-		pusherClient, err := pusher.NewClient(BitstampPusherKey)
+	tradingPairs = make(map[string]string)
+	var err error
+
+	if b.Websocket.GetProxyAddress() != "" {
+		log.Println("bistamp_websocket.go warning - set proxy address error: proxy not supported")
+	}
+
+	b.WebsocketConn.Client, err = pusher.NewClient(BitstampPusherKey)
+	if err != nil {
+		return fmt.Errorf("%s Unable to connect to Websocket. Error: %s",
+			b.GetName(),
+			err)
+	}
+
+	b.WebsocketConn.Data, err = b.WebsocketConn.Client.Bind("data")
+	if err != nil {
+		return fmt.Errorf("%s Websocket Bind error: %s", b.GetName(), err)
+
+	}
+
+	b.WebsocketConn.Trade, err = b.WebsocketConn.Client.Bind("trade")
+	if err != nil {
+		return fmt.Errorf("%s Websocket Bind error: %s", b.GetName(), err)
+	}
+
+	go b.WsReadData()
+
+	for _, p := range b.GetEnabledCurrencies() {
+		orderbookSeed, err := b.GetOrderbook(p.Pair().String())
 		if err != nil {
-			log.Printf("%s Unable to connect to Websocket. Error: %s\n", b.GetName(), err)
-			continue
+			return err
 		}
 
-		for _, pair := range b.EnabledPairs {
-			err = pusherClient.Subscribe(fmt.Sprintf("live_trades_%s", strings.ToLower(pair)))
+		var newOrderbook orderbook.Base
+
+		var asks []orderbook.Item
+		for _, ask := range orderbookSeed.Asks {
+			var item orderbook.Item
+			item.Amount = ask.Amount
+			item.Price = ask.Price
+			asks = append(asks, item)
+		}
+
+		var bids []orderbook.Item
+		for _, bid := range orderbookSeed.Bids {
+			var item orderbook.Item
+			item.Amount = bid.Amount
+			item.Price = bid.Price
+			bids = append(bids, item)
+		}
+
+		newOrderbook.Asks = asks
+		newOrderbook.Bids = bids
+		newOrderbook.CurrencyPair = p.Pair().String()
+		newOrderbook.Pair = p
+		newOrderbook.LastUpdated = time.Unix(0, orderbookSeed.Timestamp)
+		newOrderbook.AssetType = "SPOT"
+
+		err = b.Websocket.Orderbook.LoadSnapshot(newOrderbook, b.GetName())
+		if err != nil {
+			return err
+		}
+
+		b.Websocket.DataHandler <- exchange.WebsocketOrderbookUpdate{
+			Pair:     p,
+			Asset:    "SPOT",
+			Exchange: b.GetName(),
+		}
+
+		err = b.WebsocketConn.Client.Subscribe(fmt.Sprintf("live_trades_%s",
+			strings.ToLower(p.Pair().String())))
+
+		if err != nil {
+			log.Println(err)
+			return fmt.Errorf("%s Websocket Trade subscription error: %s",
+				b.GetName(),
+				err)
+		}
+
+		err = b.WebsocketConn.Client.Subscribe(fmt.Sprintf("diff_order_book_%s",
+			strings.ToLower(p.Pair().String())))
+
+		if err != nil {
+			log.Println(err)
+			return fmt.Errorf("%s Websocket Trade subscription error: %s",
+				b.GetName(),
+				err)
+		}
+
+	}
+	return nil
+}
+
+// WsReadData reads data coming from bitstamp websocket connection
+func (b *Bitstamp) WsReadData() {
+	b.Websocket.Wg.Add(1)
+
+	defer func() {
+		err := b.WebsocketConn.Client.Close()
+		if err != nil {
+			b.Websocket.DataHandler <- fmt.Errorf("bitstamp_websocket.go - Unable to to close Websocket connection. Error: %s",
+				err)
+		}
+		b.Websocket.Wg.Done()
+	}()
+
+	for {
+		select {
+		case <-b.Websocket.ShutdownC:
+			return
+
+		case data := <-b.WebsocketConn.Data:
+			b.Websocket.TrafficAlert <- struct{}{}
+
+			result := PusherOrderbook{}
+			err := common.JSONDecode([]byte(data.Data), &result)
 			if err != nil {
-				log.Printf("%s Websocket Trade subscription error: %s\n", b.GetName(), err)
+				log.Fatal(err)
 			}
 
-			err = pusherClient.Subscribe(fmt.Sprintf("order_book_%s", strings.ToLower(pair)))
+			currencyPair := common.SplitStrings(data.Channel, "_")
+			p := pair.NewCurrencyPairFromString(common.StringToUpper(currencyPair[3]))
+
+			err = b.WsUpdateOrderbook(result, p, "SPOT")
 			if err != nil {
-				log.Printf("%s Websocket Trade subscription error: %s\n", b.GetName(), err)
+				b.Websocket.DataHandler <- err
 			}
-		}
 
-		dataChannelTrade, err := pusherClient.Bind("data")
-		if err != nil {
-			log.Printf("%s Websocket Bind error: %s\n", b.GetName(), err)
-			continue
-		}
+		case trade := <-b.WebsocketConn.Trade:
+			b.Websocket.TrafficAlert <- struct{}{}
 
-		tradeChannelTrade, err := pusherClient.Bind("trade")
-		if err != nil {
-			log.Printf("%s Websocket Bind error: %s\n", b.GetName(), err)
-			continue
-		}
+			result := PusherTrade{}
+			err := common.JSONDecode([]byte(trade.Data), &result)
+			if err != nil {
+				log.Fatal(err)
+			}
 
-		log.Printf("%s Pusher client connected.\n", b.GetName())
+			currencyPair := common.SplitStrings(trade.Channel, "_")
 
-		for b.Websocket {
-			select {
-			case data := <-dataChannelTrade:
-				result := PusherOrderbook{}
-				err := common.JSONDecode([]byte(data.Data), &result)
-				var channelTradingPair string
-				var ok bool
-
-				if channelTradingPair, ok = seenTradingPairs[data.Channel]; !ok {
-					if foundTradingPair, noPair := b.findPairFromChannel(data.Channel); noPair == nil {
-						seenTradingPairs[data.Channel] = foundTradingPair
-					} else {
-						log.Printf("%s Pair from Channel: %s does not seem to be enabled or found", b.GetName(), data.Channel)
-						continue
-					}
-				}
-
-				log.Printf("%s Pusher: received ticker for Pair: %s\n", b.GetName(), channelTradingPair)
-
-				if err != nil {
-					log.Println(err)
-				}
-			case trade := <-tradeChannelTrade:
-				result := PusherTrade{}
-				err := common.JSONDecode([]byte(trade.Data), &result)
-
-				if err != nil {
-					log.Println(err)
-				}
-
-				var channelTradingPair string
-				var ok bool
-
-				if channelTradingPair, ok = seenTradingPairs[trade.Channel]; !ok {
-					if foundTradingPair, noPair := b.findPairFromChannel(trade.Channel); noPair == nil {
-						seenTradingPairs[trade.Channel] = foundTradingPair
-					} else {
-						log.Printf("%s LiveTrade Pair from Channel: %s does not seem to be enabled or found", b.GetName(), trade.Channel)
-						continue
-					}
-				}
-
-				log.Println(trade.Channel)
-				log.Printf("%s Pusher trade: Pair: %s Price: %f Amount: %f\n", b.GetName(), channelTradingPair, result.Price, result.Amount)
+			b.Websocket.DataHandler <- exchange.TradeData{
+				Price:        result.Price,
+				Amount:       result.Amount,
+				CurrencyPair: pair.NewCurrencyPairFromString(currencyPair[2]),
+				Exchange:     b.GetName(),
+				AssetType:    "SPOT",
 			}
 		}
 	}
+}
+
+// WsUpdateOrderbook updates local cache of orderbook information
+func (b *Bitstamp) WsUpdateOrderbook(ob PusherOrderbook, p pair.CurrencyPair, assetType string) error {
+	if len(ob.Asks) == 0 && len(ob.Bids) == 0 {
+		return errors.New("bitstamp_websocket.go error - no orderbook data")
+	}
+
+	var asks, bids []orderbook.Item
+	if len(ob.Asks) > 0 {
+		for _, ask := range ob.Asks {
+			target, err := strconv.ParseFloat(ask[0], 64)
+			if err != nil {
+				log.Fatal(err)
+			}
+
+			amount, err := strconv.ParseFloat(ask[1], 64)
+			if err != nil {
+				log.Fatal(err)
+			}
+
+			asks = append(asks, orderbook.Item{Price: target, Amount: amount})
+		}
+	}
+
+	if len(ob.Bids) > 0 {
+		for _, bid := range ob.Bids {
+			target, err := strconv.ParseFloat(bid[0], 64)
+			if err != nil {
+				log.Fatal(err)
+			}
+
+			amount, err := strconv.ParseFloat(bid[1], 64)
+			if err != nil {
+				log.Fatal(err)
+			}
+
+			bids = append(bids, orderbook.Item{Price: target, Amount: amount})
+		}
+	}
+
+	err := b.Websocket.Orderbook.Update(bids, asks, p, time.Now(), b.GetName(), assetType)
+	if err != nil {
+		return err
+	}
+
+	b.Websocket.DataHandler <- exchange.WebsocketOrderbookUpdate{
+		Pair:     p,
+		Asset:    assetType,
+		Exchange: b.GetName(),
+	}
+
+	return nil
 }

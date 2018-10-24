@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"net/url"
 	"sync"
 	"time"
 
@@ -90,7 +91,6 @@ type Base struct {
 	Name                                       string
 	Enabled                                    bool
 	Verbose                                    bool
-	Websocket                                  bool
 	RESTPollingDelay                           time.Duration
 	AuthenticatedAPISupport                    bool
 	APIAuthPEMKeySupport                       bool
@@ -113,6 +113,7 @@ type Base struct {
 	APIUrlSecondaryDefault                     string
 	RequestCurrencyPairFormat                  config.CurrencyPairFormatConfig
 	ConfigCurrencyPairFormat                   config.CurrencyPairFormatConfig
+	Websocket                                  *Websocket
 	*request.Requester
 }
 
@@ -149,6 +150,8 @@ type IBotExchange interface {
 
 	WithdrawCryptoExchangeFunds(address string, cryptocurrency pair.CurrencyItem, amount float64) (string, error)
 	WithdrawFiatExchangeFunds(currency pair.CurrencyItem, amount float64) (string, error)
+
+	GetWebsocket() (*Websocket, error)
 }
 
 // SupportsRESTTickerBatchUpdates returns whether or not the
@@ -161,7 +164,10 @@ func (e *Base) SupportsRESTTickerBatchUpdates() bool {
 // HTTP Client
 func (e *Base) SetHTTPClientTimeout(t time.Duration) {
 	if e.Requester == nil {
-		e.Requester = request.New(e.Name, request.NewRateLimit(time.Second, 0), request.NewRateLimit(time.Second, 0), new(http.Client))
+		e.Requester = request.New(e.Name,
+			request.NewRateLimit(time.Second, 0),
+			request.NewRateLimit(time.Second, 0),
+			new(http.Client))
 	}
 	e.Requester.HTTPClient.Timeout = t
 }
@@ -169,7 +175,10 @@ func (e *Base) SetHTTPClientTimeout(t time.Duration) {
 // SetHTTPClient sets exchanges HTTP client
 func (e *Base) SetHTTPClient(h *http.Client) {
 	if e.Requester == nil {
-		e.Requester = request.New(e.Name, request.NewRateLimit(time.Second, 0), request.NewRateLimit(time.Second, 0), new(http.Client))
+		e.Requester = request.New(e.Name,
+			request.NewRateLimit(time.Second, 0),
+			request.NewRateLimit(time.Second, 0),
+			new(http.Client))
 	}
 	e.Requester.HTTPClient = h
 }
@@ -177,7 +186,10 @@ func (e *Base) SetHTTPClient(h *http.Client) {
 // GetHTTPClient gets the exchanges HTTP client
 func (e *Base) GetHTTPClient() *http.Client {
 	if e.Requester == nil {
-		e.Requester = request.New(e.Name, request.NewRateLimit(time.Second, 0), request.NewRateLimit(time.Second, 0), new(http.Client))
+		e.Requester = request.New(e.Name,
+			request.NewRateLimit(time.Second, 0),
+			request.NewRateLimit(time.Second, 0),
+			new(http.Client))
 	}
 	return e.Requester.HTTPClient
 }
@@ -185,7 +197,10 @@ func (e *Base) GetHTTPClient() *http.Client {
 // SetHTTPClientUserAgent sets the exchanges HTTP user agent
 func (e *Base) SetHTTPClientUserAgent(ua string) {
 	if e.Requester == nil {
-		e.Requester = request.New(e.Name, request.NewRateLimit(time.Second, 0), request.NewRateLimit(time.Second, 0), new(http.Client))
+		e.Requester = request.New(e.Name,
+			request.NewRateLimit(time.Second, 0),
+			request.NewRateLimit(time.Second, 0),
+			new(http.Client))
 	}
 	e.Requester.UserAgent = ua
 	e.HTTPUserAgent = ua
@@ -194,6 +209,31 @@ func (e *Base) SetHTTPClientUserAgent(ua string) {
 // GetHTTPClientUserAgent gets the exchanges HTTP user agent
 func (e *Base) GetHTTPClientUserAgent() string {
 	return e.HTTPUserAgent
+}
+
+// SetClientProxyAddress sets a proxy address for REST and websocket requests
+func (e *Base) SetClientProxyAddress(addr string) error {
+	if addr != "" {
+		proxy, err := url.Parse(addr)
+		if err != nil {
+			return fmt.Errorf("exchange.go - setting proxy address error %s",
+				err)
+		}
+
+		err = e.Requester.SetProxy(proxy)
+		if err != nil {
+			return fmt.Errorf("exchange.go - setting proxy address error %s",
+				err)
+		}
+
+		if e.Websocket != nil {
+			err = e.Websocket.SetProxyAddress(addr)
+			if err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }
 
 // SetAutoPairDefaults sets the default values for whether or not the exchange
@@ -645,10 +685,10 @@ func (e *Base) SetAPIURL(ec config.ExchangeConfig) error {
 	if ec.APIURL == "" || ec.APIURLSecondary == "" {
 		return errors.New("SetAPIURL error variable zero value")
 	}
-	if ec.APIURL != config.APIURLDefaultMessage {
+	if ec.APIURL != config.APIURLNonDefaultMessage {
 		e.APIUrl = ec.APIURL
 	}
-	if ec.APIURLSecondary != config.APIURLDefaultMessage {
+	if ec.APIURLSecondary != config.APIURLNonDefaultMessage {
 		e.APIUrlSecondary = ec.APIURLSecondary
 	}
 	return nil

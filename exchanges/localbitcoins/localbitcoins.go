@@ -116,7 +116,6 @@ func (l *LocalBitcoins) SetDefaults() {
 	l.Enabled = false
 	l.Verbose = false
 	l.Verbose = false
-	l.Websocket = false
 	l.RESTPollingDelay = 10
 	l.RequestCurrencyPairFormat.Delimiter = ""
 	l.RequestCurrencyPairFormat.Uppercase = true
@@ -130,6 +129,7 @@ func (l *LocalBitcoins) SetDefaults() {
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 	l.APIUrlDefault = localbitcoinsAPIURL
 	l.APIUrl = l.APIUrlDefault
+	l.WebsocketInit()
 }
 
 // Setup sets exchange configuration parameters
@@ -144,7 +144,6 @@ func (l *LocalBitcoins) Setup(exch config.ExchangeConfig) {
 		l.SetHTTPClientUserAgent(exch.HTTPUserAgent)
 		l.RESTPollingDelay = exch.RESTPollingDelay
 		l.Verbose = exch.Verbose
-		l.Websocket = exch.Websocket
 		l.BaseCurrencies = common.SplitStrings(exch.BaseCurrencies, ",")
 		l.AvailablePairs = common.SplitStrings(exch.AvailablePairs, ",")
 		l.EnabledPairs = common.SplitStrings(exch.EnabledPairs, ",")
@@ -157,6 +156,10 @@ func (l *LocalBitcoins) Setup(exch config.ExchangeConfig) {
 			log.Fatal(err)
 		}
 		err = l.SetAPIURL(exch)
+		if err != nil {
+			log.Fatal(err)
+		}
+		err = l.SetClientProxyAddress(exch.ProxyAddress)
 		if err != nil {
 			log.Fatal(err)
 		}

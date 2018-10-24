@@ -24,13 +24,9 @@ func (c *CoinbasePro) Start(wg *sync.WaitGroup) {
 // Run implements the coinbasepro wrapper
 func (c *CoinbasePro) Run() {
 	if c.Verbose {
-		log.Printf("%s Websocket: %s. (url: %s).\n", c.GetName(), common.IsEnabled(c.Websocket), coinbaseproWebsocketURL)
+		log.Printf("%s Websocket: %s. (url: %s).\n", c.GetName(), common.IsEnabled(c.Websocket.IsEnabled()), coinbaseproWebsocketURL)
 		log.Printf("%s polling delay: %ds.\n", c.GetName(), c.RESTPollingDelay)
 		log.Printf("%s %d currencies enabled: %s.\n", c.GetName(), len(c.EnabledPairs), c.EnabledPairs)
-	}
-
-	if c.Websocket {
-		go c.WebsocketClient()
 	}
 
 	exchangeProducts, err := c.GetProducts()
@@ -189,4 +185,9 @@ func (c *CoinbasePro) WithdrawCryptoExchangeFunds(address string, cryptocurrency
 // submitted
 func (c *CoinbasePro) WithdrawFiatExchangeFunds(cryptocurrency pair.CurrencyItem, amount float64) (string, error) {
 	return "", errors.New("not yet implemented")
+}
+
+// GetWebsocket returns a pointer to the exchange websocket
+func (c *CoinbasePro) GetWebsocket() (*exchange.Websocket, error) {
+	return c.Websocket, nil
 }

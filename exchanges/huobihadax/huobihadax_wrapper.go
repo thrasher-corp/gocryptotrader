@@ -24,7 +24,7 @@ func (h *HUOBIHADAX) Start(wg *sync.WaitGroup) {
 // Run implements the OKEX wrapper
 func (h *HUOBIHADAX) Run() {
 	if h.Verbose {
-		log.Printf("%s Websocket: %s. (url: %s).\n", h.GetName(), common.IsEnabled(h.Websocket), h.WebsocketURL)
+		log.Printf("%s Websocket: %s. (url: %s).\n", h.GetName(), common.IsEnabled(h.Websocket.IsEnabled()), h.WebsocketURL)
 		log.Printf("%s polling delay: %ds.\n", h.GetName(), h.RESTPollingDelay)
 		log.Printf("%s %d currencies enabled: %s.\n", h.GetName(), len(h.EnabledPairs), h.EnabledPairs)
 	}
@@ -182,4 +182,9 @@ func (h *HUOBIHADAX) WithdrawFiatExchangeFunds(currency pair.CurrencyItem, amoun
 // withdrawal is submitted
 func (h *HUOBIHADAX) WithdrawFiatExchangeFundsToInternationalBank(currency pair.CurrencyItem, amount float64) (string, error) {
 	return "", errors.New("not yet implemented")
+}
+
+// GetWebsocket returns a pointer to the exchange websocket
+func (h *HUOBIHADAX) GetWebsocket() (*exchange.Websocket, error) {
+	return nil, errors.New("not yet implemented")
 }

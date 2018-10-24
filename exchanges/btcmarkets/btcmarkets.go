@@ -54,7 +54,6 @@ func (b *BTCMarkets) SetDefaults() {
 	b.Enabled = false
 	b.Fee = 0.85
 	b.Verbose = false
-	b.Websocket = false
 	b.RESTPollingDelay = 10
 	b.Ticker = make(map[string]Ticker)
 	b.RequestCurrencyPairFormat.Delimiter = ""
@@ -70,6 +69,7 @@ func (b *BTCMarkets) SetDefaults() {
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 	b.APIUrlDefault = btcMarketsAPIURL
 	b.APIUrl = b.APIUrlDefault
+	b.WebsocketInit()
 }
 
 // Setup takes in an exchange configuration and sets all parameters
@@ -84,7 +84,6 @@ func (b *BTCMarkets) Setup(exch config.ExchangeConfig) {
 		b.SetHTTPClientUserAgent(exch.HTTPUserAgent)
 		b.RESTPollingDelay = exch.RESTPollingDelay
 		b.Verbose = exch.Verbose
-		b.Websocket = exch.Websocket
 		b.BaseCurrencies = common.SplitStrings(exch.BaseCurrencies, ",")
 		b.AvailablePairs = common.SplitStrings(exch.AvailablePairs, ",")
 		b.EnabledPairs = common.SplitStrings(exch.EnabledPairs, ",")
@@ -101,6 +100,10 @@ func (b *BTCMarkets) Setup(exch config.ExchangeConfig) {
 			log.Fatal(err)
 		}
 		err = b.SetAPIURL(exch)
+		if err != nil {
+			log.Fatal(err)
+		}
+		err = b.SetClientProxyAddress(exch.ProxyAddress)
 		if err != nil {
 			log.Fatal(err)
 		}

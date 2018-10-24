@@ -25,13 +25,9 @@ func (b *Bitstamp) Start(wg *sync.WaitGroup) {
 // Run implements the Bitstamp wrapper
 func (b *Bitstamp) Run() {
 	if b.Verbose {
-		log.Printf("%s Websocket: %s.", b.GetName(), common.IsEnabled(b.Websocket))
+		log.Printf("%s Websocket: %s.", b.GetName(), common.IsEnabled(b.Websocket.IsEnabled()))
 		log.Printf("%s polling delay: %ds.\n", b.GetName(), b.RESTPollingDelay)
 		log.Printf("%s %d currencies enabled: %s.\n", b.GetName(), len(b.EnabledPairs), b.EnabledPairs)
-	}
-
-	if b.Websocket {
-		go b.PusherClient()
 	}
 
 	pairs, err := b.GetTradingPairs()
@@ -210,4 +206,9 @@ func (b *Bitstamp) WithdrawFiatExchangeFunds(currency pair.CurrencyItem, amount 
 // withdrawal is submitted
 func (b *Bitstamp) WithdrawFiatExchangeFundsToInternationalBank(currency pair.CurrencyItem, amount float64) (string, error) {
 	return "", errors.New("not yet implemented")
+}
+
+// GetWebsocket returns a pointer to the exchange websocket
+func (b *Bitstamp) GetWebsocket() (*exchange.Websocket, error) {
+	return b.Websocket, nil
 }

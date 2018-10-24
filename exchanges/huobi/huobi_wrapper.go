@@ -25,13 +25,9 @@ func (h *HUOBI) Start(wg *sync.WaitGroup) {
 // Run implements the HUOBI wrapper
 func (h *HUOBI) Run() {
 	if h.Verbose {
-		log.Printf("%s Websocket: %s (url: %s).\n", h.GetName(), common.IsEnabled(h.Websocket), huobiSocketIOAddress)
+		log.Printf("%s Websocket: %s (url: %s).\n", h.GetName(), common.IsEnabled(h.Websocket.IsEnabled()), huobiSocketIOAddress)
 		log.Printf("%s polling delay: %ds.\n", h.GetName(), h.RESTPollingDelay)
 		log.Printf("%s %d currencies enabled: %s.\n", h.GetName(), len(h.EnabledPairs), h.EnabledPairs)
-	}
-
-	if h.Websocket {
-		go h.WebsocketClient()
 	}
 
 	exchangeProducts, err := h.GetSymbols()
@@ -221,4 +217,9 @@ func (h *HUOBI) WithdrawFiatExchangeFunds(currency pair.CurrencyItem, amount flo
 // withdrawal is submitted
 func (h *HUOBI) WithdrawFiatExchangeFundsToInternationalBank(currency pair.CurrencyItem, amount float64) (string, error) {
 	return "", errors.New("not yet implemented")
+}
+
+// GetWebsocket returns a pointer to the exchange websocket
+func (h *HUOBI) GetWebsocket() (*exchange.Websocket, error) {
+	return h.Websocket, nil
 }

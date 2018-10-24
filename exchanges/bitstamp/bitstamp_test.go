@@ -29,7 +29,7 @@ func TestSetDefaults(t *testing.T) {
 	if b.Verbose != false {
 		t.Error("Test Failed - SetDefaults() error")
 	}
-	if b.Websocket != false {
+	if b.Websocket.IsEnabled() != false {
 		t.Error("Test Failed - SetDefaults() error")
 	}
 	if b.RESTPollingDelay != 10 {
@@ -47,7 +47,7 @@ func TestSetup(t *testing.T) {
 	b.Setup(bConfig)
 
 	if !b.IsEnabled() || b.AuthenticatedAPISupport || b.RESTPollingDelay != time.Duration(10) ||
-		b.Verbose || b.Websocket || len(b.BaseCurrencies) < 1 ||
+		b.Verbose || b.Websocket.IsEnabled() || len(b.BaseCurrencies) < 1 ||
 		len(b.AvailablePairs) < 1 || len(b.EnabledPairs) < 1 {
 		t.Error("Test Failed - Bitstamp Setup values not set correctly")
 	}

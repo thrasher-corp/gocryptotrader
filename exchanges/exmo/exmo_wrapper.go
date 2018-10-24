@@ -224,3 +224,8 @@ func (e *EXMO) WithdrawFiatExchangeFunds(currency pair.CurrencyItem, amount floa
 func (e *EXMO) WithdrawFiatExchangeFundsToInternationalBank(currency pair.CurrencyItem, amount float64) (string, error) {
 	return "", errors.New("not yet implemented")
 }
+
+// GetWebsocket returns a pointer to the exchange websocket
+func (e *EXMO) GetWebsocket() (*exchange.Websocket, error) {
+	return nil, errors.New("not yet implemented")
+}

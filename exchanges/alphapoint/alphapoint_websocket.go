@@ -14,7 +14,7 @@ const (
 
 // WebsocketClient starts a new webstocket connection
 func (a *Alphapoint) WebsocketClient() {
-	for a.Enabled && a.Websocket {
+	for a.Enabled {
 		var Dialer websocket.Dialer
 		var err error
 		a.WebsocketConn, _, err = Dialer.Dial(a.WebsocketURL, http.Header{})
@@ -35,7 +35,7 @@ func (a *Alphapoint) WebsocketClient() {
 			return
 		}
 
-		for a.Enabled && a.Websocket {
+		for a.Enabled {
 			msgType, resp, err := a.WebsocketConn.ReadMessage()
 			if err != nil {
 				log.Println(err)

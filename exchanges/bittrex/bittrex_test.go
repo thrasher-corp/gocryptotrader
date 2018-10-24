@@ -32,8 +32,9 @@ func TestSetup(t *testing.T) {
 
 	b.Setup(bConfig)
 
-	if !b.IsEnabled() || b.AuthenticatedAPISupport || b.RESTPollingDelay != time.Duration(10) ||
-		b.Verbose || b.Websocket || len(b.BaseCurrencies) < 1 ||
+	if !b.IsEnabled() || b.AuthenticatedAPISupport ||
+		b.RESTPollingDelay != time.Duration(10) || b.Verbose ||
+		b.Websocket.IsEnabled() || len(b.BaseCurrencies) < 1 ||
 		len(b.AvailablePairs) < 1 || len(b.EnabledPairs) < 1 {
 		t.Error("Test Failed - Bittrex Setup values not set correctly")
 	}

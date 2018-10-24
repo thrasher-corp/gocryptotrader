@@ -47,7 +47,6 @@ func (a *ANX) SetDefaults() {
 	a.TakerFee = 0.6
 	a.MakerFee = 0.3
 	a.Verbose = false
-	a.Websocket = false
 	a.RESTPollingDelay = 10
 	a.RequestCurrencyPairFormat.Delimiter = ""
 	a.RequestCurrencyPairFormat.Uppercase = true
@@ -64,6 +63,7 @@ func (a *ANX) SetDefaults() {
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 	a.APIUrlDefault = anxAPIURL
 	a.APIUrl = a.APIUrlDefault
+	a.WebsocketInit()
 }
 
 //Setup is run on startup to setup exchange with config values
@@ -78,7 +78,6 @@ func (a *ANX) Setup(exch config.ExchangeConfig) {
 		a.SetHTTPClientUserAgent(exch.HTTPUserAgent)
 		a.RESTPollingDelay = exch.RESTPollingDelay
 		a.Verbose = exch.Verbose
-		a.Websocket = exch.Websocket
 		a.BaseCurrencies = common.SplitStrings(exch.BaseCurrencies, ",")
 		a.AvailablePairs = common.SplitStrings(exch.AvailablePairs, ",")
 		a.EnabledPairs = common.SplitStrings(exch.EnabledPairs, ",")
@@ -95,6 +94,10 @@ func (a *ANX) Setup(exch config.ExchangeConfig) {
 			log.Fatal(err)
 		}
 		err = a.SetAPIURL(exch)
+		if err != nil {
+			log.Fatal(err)
+		}
+		err = a.SetClientProxyAddress(exch.ProxyAddress)
 		if err != nil {
 			log.Fatal(err)
 		}

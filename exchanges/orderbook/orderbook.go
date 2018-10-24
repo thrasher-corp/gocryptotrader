@@ -27,6 +27,7 @@ var (
 type Item struct {
 	Amount float64
 	Price  float64
+	ID     int64
 }
 
 // Base holds the fields for the orderbook base
@@ -36,6 +37,7 @@ type Base struct {
 	Bids         []Item            `json:"bids"`
 	Asks         []Item            `json:"asks"`
 	LastUpdated  time.Time         `json:"last_updated"`
+	AssetType    string
 }
 
 // Orderbook holds the orderbook information for a currency pair and type

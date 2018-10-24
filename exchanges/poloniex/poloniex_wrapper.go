@@ -13,54 +13,50 @@ import (
 )
 
 // Start starts the Poloniex go routine
-func (po *Poloniex) Start(wg *sync.WaitGroup) {
+func (p *Poloniex) Start(wg *sync.WaitGroup) {
 	wg.Add(1)
 	go func() {
-		po.Run()
+		p.Run()
 		wg.Done()
 	}()
 }
 
 // Run implements the Poloniex wrapper
-func (po *Poloniex) Run() {
-	if po.Verbose {
-		log.Printf("%s Websocket: %s (url: %s).\n", po.GetName(), common.IsEnabled(po.Websocket), poloniexWebsocketAddress)
-		log.Printf("%s polling delay: %ds.\n", po.GetName(), po.RESTPollingDelay)
-		log.Printf("%s %d currencies enabled: %s.\n", po.GetName(), len(po.EnabledPairs), po.EnabledPairs)
+func (p *Poloniex) Run() {
+	if p.Verbose {
+		log.Printf("%s Websocket: %s (url: %s).\n", p.GetName(), common.IsEnabled(p.Websocket.IsEnabled()), poloniexWebsocketAddress)
+		log.Printf("%s polling delay: %ds.\n", p.GetName(), p.RESTPollingDelay)
+		log.Printf("%s %d currencies enabled: %s.\n", p.GetName(), len(p.EnabledPairs), p.EnabledPairs)
 	}
 
-	if po.Websocket {
-		go po.WebsocketClient()
-	}
-
-	exchangeCurrencies, err := po.GetExchangeCurrencies()
+	exchangeCurrencies, err := p.GetExchangeCurrencies()
 	if err != nil {
-		log.Printf("%s Failed to get available symbols.\n", po.GetName())
+		log.Printf("%s Failed to get available symbols.\n", p.GetName())
 	} else {
 		forceUpdate := false
-		if common.StringDataCompare(po.AvailablePairs, "BTC_USDT") {
+		if common.StringDataCompare(p.AvailablePairs, "BTC_USDT") {
 			log.Printf("%s contains invalid pair, forcing upgrade of available currencies.\n",
-				po.GetName())
+				p.GetName())
 			forceUpdate = true
 		}
-		err = po.UpdateCurrencies(exchangeCurrencies, false, forceUpdate)
+		err = p.UpdateCurrencies(exchangeCurrencies, false, forceUpdate)
 		if err != nil {
-			log.Printf("%s Failed to update available currencies %s.\n", po.GetName(), err)
+			log.Printf("%s Failed to update available currencies %s.\n", p.GetName(), err)
 		}
 	}
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
-func (po *Poloniex) UpdateTicker(currencyPair pair.CurrencyPair, assetType string) (ticker.Price, error) {
+func (p *Poloniex) UpdateTicker(currencyPair pair.CurrencyPair, assetType string) (ticker.Price, error) {
 	var tickerPrice ticker.Price
-	tick, err := po.GetTicker()
+	tick, err := p.GetTicker()
 	if err != nil {
 		return tickerPrice, err
 	}
 
-	for _, x := range po.GetEnabledCurrencies() {
+	for _, x := range p.GetEnabledCurrencies() {
 		var tp ticker.Price
-		curr := exchange.FormatExchangeCurrency(po.GetName(), x).String()
+		curr := exchange.FormatExchangeCurrency(p.GetName(), x).String()
 		tp.Pair = x
 		tp.Ask = tick[curr].LowestAsk
 		tp.Bid = tick[curr].HighestBid
@@ -68,39 +64,39 @@ func (po *Poloniex) UpdateTicker(currencyPair pair.CurrencyPair, assetType strin
 		tp.Last = tick[curr].Last
 		tp.Low = tick[curr].Low24Hr
 		tp.Volume = tick[curr].BaseVolume
-		ticker.ProcessTicker(po.GetName(), x, tp, assetType)
+		ticker.ProcessTicker(p.GetName(), x, tp, assetType)
 	}
-	return ticker.GetTicker(po.Name, currencyPair, assetType)
+	return ticker.GetTicker(p.Name, currencyPair, assetType)
 }
 
 // GetTickerPrice returns the ticker for a currency pair
-func (po *Poloniex) GetTickerPrice(currencyPair pair.CurrencyPair, assetType string) (ticker.Price, error) {
-	tickerNew, err := ticker.GetTicker(po.GetName(), currencyPair, assetType)
+func (p *Poloniex) GetTickerPrice(currencyPair pair.CurrencyPair, assetType string) (ticker.Price, error) {
+	tickerNew, err := ticker.GetTicker(p.GetName(), currencyPair, assetType)
 	if err != nil {
-		return po.UpdateTicker(currencyPair, assetType)
+		return p.UpdateTicker(currencyPair, assetType)
 	}
 	return tickerNew, nil
 }
 
 // GetOrderbookEx returns orderbook base on the currency pair
-func (po *Poloniex) GetOrderbookEx(currencyPair pair.CurrencyPair, assetType string) (orderbook.Base, error) {
-	ob, err := orderbook.GetOrderbook(po.GetName(), currencyPair, assetType)
+func (p *Poloniex) GetOrderbookEx(currencyPair pair.CurrencyPair, assetType string) (orderbook.Base, error) {
+	ob, err := orderbook.GetOrderbook(p.GetName(), currencyPair, assetType)
 	if err != nil {
-		return po.UpdateOrderbook(currencyPair, assetType)
+		return p.UpdateOrderbook(currencyPair, assetType)
 	}
 	return ob, nil
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (po *Poloniex) UpdateOrderbook(currencyPair pair.CurrencyPair, assetType string) (orderbook.Base, error) {
+func (p *Poloniex) UpdateOrderbook(currencyPair pair.CurrencyPair, assetType string) (orderbook.Base, error) {
 	var orderBook orderbook.Base
-	orderbookNew, err := po.GetOrderbook("", 1000)
+	orderbookNew, err := p.GetOrderbook("", 1000)
 	if err != nil {
 		return orderBook, err
 	}
 
-	for _, x := range po.GetEnabledCurrencies() {
-		currency := exchange.FormatExchangeCurrency(po.Name, x).String()
+	for _, x := range p.GetEnabledCurrencies() {
+		currency := exchange.FormatExchangeCurrency(p.Name, x).String()
 		data, ok := orderbookNew.Data[currency]
 		if !ok {
 			continue
@@ -120,17 +116,17 @@ func (po *Poloniex) UpdateOrderbook(currencyPair pair.CurrencyPair, assetType st
 			obItems = append(obItems, orderbook.Item{Amount: obData.Amount, Price: obData.Price})
 		}
 		orderBook.Asks = obItems
-		orderbook.ProcessOrderbook(po.Name, x, orderBook, assetType)
+		orderbook.ProcessOrderbook(p.Name, x, orderBook, assetType)
 	}
-	return orderbook.GetOrderbook(po.Name, currencyPair, assetType)
+	return orderbook.GetOrderbook(p.Name, currencyPair, assetType)
 }
 
 // GetExchangeAccountInfo retrieves balances for all enabled currencies for the
 // Poloniex exchange
-func (po *Poloniex) GetExchangeAccountInfo() (exchange.AccountInfo, error) {
+func (p *Poloniex) GetExchangeAccountInfo() (exchange.AccountInfo, error) {
 	var response exchange.AccountInfo
-	response.ExchangeName = po.GetName()
-	accountBalance, err := po.GetBalances()
+	response.ExchangeName = p.GetName()
+	accountBalance, err := p.GetBalances()
 	if err != nil {
 		return response, err
 	}
@@ -146,64 +142,69 @@ func (po *Poloniex) GetExchangeAccountInfo() (exchange.AccountInfo, error) {
 
 // GetExchangeFundTransferHistory returns funding history, deposits and
 // withdrawals
-func (po *Poloniex) GetExchangeFundTransferHistory() ([]exchange.FundHistory, error) {
+func (p *Poloniex) GetExchangeFundTransferHistory() ([]exchange.FundHistory, error) {
 	var fundHistory []exchange.FundHistory
 	return fundHistory, errors.New("not supported on exchange")
 }
 
 // GetExchangeHistory returns historic trade data since exchange opening.
-func (po *Poloniex) GetExchangeHistory(p pair.CurrencyPair, assetType string) ([]exchange.TradeHistory, error) {
+func (p *Poloniex) GetExchangeHistory(cP pair.CurrencyPair, assetType string) ([]exchange.TradeHistory, error) {
 	var resp []exchange.TradeHistory
 
 	return resp, errors.New("trade history not yet implemented")
 }
 
 // SubmitExchangeOrder submits a new order
-func (po *Poloniex) SubmitExchangeOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (int64, error) {
+func (p *Poloniex) SubmitExchangeOrder(cP pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (int64, error) {
 	return 0, errors.New("not yet implemented")
 }
 
 // ModifyExchangeOrder will allow of changing orderbook placement and limit to
 // market conversion
-func (po *Poloniex) ModifyExchangeOrder(orderID int64, action exchange.ModifyOrder) (int64, error) {
+func (p *Poloniex) ModifyExchangeOrder(orderID int64, action exchange.ModifyOrder) (int64, error) {
 	return 0, errors.New("not yet implemented")
 }
 
 // CancelExchangeOrder cancels an order by its corresponding ID number
-func (po *Poloniex) CancelExchangeOrder(orderID int64) error {
+func (p *Poloniex) CancelExchangeOrder(orderID int64) error {
 	return errors.New("not yet implemented")
 }
 
 // CancelAllExchangeOrders cancels all orders associated with a currency pair
-func (po *Poloniex) CancelAllExchangeOrders() error {
+func (p *Poloniex) CancelAllExchangeOrders() error {
 	return errors.New("not yet implemented")
 }
 
 // GetExchangeOrderInfo returns information on a current open order
-func (po *Poloniex) GetExchangeOrderInfo(orderID int64) (exchange.OrderDetail, error) {
+func (p *Poloniex) GetExchangeOrderInfo(orderID int64) (exchange.OrderDetail, error) {
 	var orderDetail exchange.OrderDetail
 	return orderDetail, errors.New("not yet implemented")
 }
 
 // GetExchangeDepositAddress returns a deposit address for a specified currency
-func (po *Poloniex) GetExchangeDepositAddress(cryptocurrency pair.CurrencyItem) (string, error) {
+func (p *Poloniex) GetExchangeDepositAddress(cryptocurrency pair.CurrencyItem) (string, error) {
 	return "", errors.New("not yet implemented")
 }
 
 // WithdrawCryptoExchangeFunds returns a withdrawal ID when a withdrawal is
 // submitted
-func (po *Poloniex) WithdrawCryptoExchangeFunds(address string, cryptocurrency pair.CurrencyItem, amount float64) (string, error) {
+func (p *Poloniex) WithdrawCryptoExchangeFunds(address string, cryptocurrency pair.CurrencyItem, amount float64) (string, error) {
 	return "", errors.New("not yet implemented")
 }
 
 // WithdrawFiatExchangeFunds returns a withdrawal ID when a
 // withdrawal is submitted
-func (po *Poloniex) WithdrawFiatExchangeFunds(currency pair.CurrencyItem, amount float64) (string, error) {
+func (p *Poloniex) WithdrawFiatExchangeFunds(currency pair.CurrencyItem, amount float64) (string, error) {
 	return "", errors.New("not yet implemented")
 }
 
 // WithdrawFiatExchangeFundsToInternationalBank returns a withdrawal ID when a
 // withdrawal is submitted
-func (po *Poloniex) WithdrawFiatExchangeFundsToInternationalBank(currency pair.CurrencyItem, amount float64) (string, error) {
+func (p *Poloniex) WithdrawFiatExchangeFundsToInternationalBank(currency pair.CurrencyItem, amount float64) (string, error) {
 	return "", errors.New("not yet implemented")
+}
+
+// GetWebsocket returns a pointer to the exchange websocket
+func (p *Poloniex) GetWebsocket() (*exchange.Websocket, error) {
+	return p.Websocket, nil
 }

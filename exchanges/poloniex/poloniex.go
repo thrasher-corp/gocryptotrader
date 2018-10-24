@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/gorilla/websocket"
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/exchanges"
@@ -55,6 +56,7 @@ const (
 // Poloniex is the overarching type across the poloniex package
 type Poloniex struct {
 	exchange.Base
+	WebsocketConn *websocket.Conn
 }
 
 // SetDefaults sets default settings for poloniex
@@ -63,7 +65,6 @@ func (p *Poloniex) SetDefaults() {
 	p.Enabled = false
 	p.Fee = 0
 	p.Verbose = false
-	p.Websocket = false
 	p.RESTPollingDelay = 10
 	p.RequestCurrencyPairFormat.Delimiter = "_"
 	p.RequestCurrencyPairFormat.Uppercase = true
@@ -78,6 +79,7 @@ func (p *Poloniex) SetDefaults() {
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 	p.APIUrlDefault = poloniexAPIURL
 	p.APIUrl = p.APIUrlDefault
+	p.WebsocketInit()
 }
 
 // Setup sets user exchange configuration settings
@@ -92,7 +94,7 @@ func (p *Poloniex) Setup(exch config.ExchangeConfig) {
 		p.SetHTTPClientUserAgent(exch.HTTPUserAgent)
 		p.RESTPollingDelay = exch.RESTPollingDelay
 		p.Verbose = exch.Verbose
-		p.Websocket = exch.Websocket
+		p.Websocket.SetEnabled(exch.Websocket)
 		p.BaseCurrencies = common.SplitStrings(exch.BaseCurrencies, ",")
 		p.AvailablePairs = common.SplitStrings(exch.AvailablePairs, ",")
 		p.EnabledPairs = common.SplitStrings(exch.EnabledPairs, ",")
@@ -109,6 +111,18 @@ func (p *Poloniex) Setup(exch config.ExchangeConfig) {
 			log.Fatal(err)
 		}
 		err = p.SetAPIURL(exch)
+		if err != nil {
+			log.Fatal(err)
+		}
+		err = p.SetClientProxyAddress(exch.ProxyAddress)
+		if err != nil {
+			log.Fatal(err)
+		}
+		err = p.WebsocketSetup(p.WsConnect,
+			exch.Name,
+			exch.Websocket,
+			poloniexWebsocketAddress,
+			exch.WebsocketURL)
 		if err != nil {
 			log.Fatal(err)
 		}

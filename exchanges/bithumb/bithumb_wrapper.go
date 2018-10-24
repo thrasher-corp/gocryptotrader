@@ -24,7 +24,7 @@ func (b *Bithumb) Start(wg *sync.WaitGroup) {
 // Run implements the OKEX wrapper
 func (b *Bithumb) Run() {
 	if b.Verbose {
-		log.Printf("%s Websocket: %s. (url: %s).\n", b.GetName(), common.IsEnabled(b.Websocket), b.WebsocketURL)
+		log.Printf("%s Websocket: %s. (url: %s).\n", b.GetName(), common.IsEnabled(b.Websocket.IsEnabled()), b.WebsocketURL)
 		log.Printf("%s polling delay: %ds.\n", b.GetName(), b.RESTPollingDelay)
 		log.Printf("%s %d currencies enabled: %s.\n", b.GetName(), len(b.EnabledPairs), b.EnabledPairs)
 	}
@@ -187,4 +187,9 @@ func (b *Bithumb) WithdrawFiatExchangeFunds(currency pair.CurrencyItem, amount f
 // withdrawal is submitted
 func (b *Bithumb) WithdrawFiatExchangeFundsToInternationalBank(currency pair.CurrencyItem, amount float64) (string, error) {
 	return "", errors.New("not yet implemented")
+}
+
+// GetWebsocket returns a pointer to the exchange websocket
+func (b *Bithumb) GetWebsocket() (*exchange.Websocket, error) {
+	return nil, errors.New("not yet implemented")
 }

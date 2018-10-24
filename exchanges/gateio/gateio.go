@@ -45,7 +45,6 @@ func (g *Gateio) SetDefaults() {
 	g.Name = "GateIO"
 	g.Enabled = false
 	g.Verbose = false
-	g.Websocket = false
 	g.RESTPollingDelay = 10
 	g.RequestCurrencyPairFormat.Delimiter = "_"
 	g.RequestCurrencyPairFormat.Uppercase = false
@@ -62,6 +61,7 @@ func (g *Gateio) SetDefaults() {
 	g.APIUrl = g.APIUrlDefault
 	g.APIUrlSecondaryDefault = gateioMarketURL
 	g.APIUrlSecondary = g.APIUrlSecondaryDefault
+	g.WebsocketInit()
 }
 
 // Setup sets user configuration
@@ -77,7 +77,6 @@ func (g *Gateio) Setup(exch config.ExchangeConfig) {
 		g.SetHTTPClientUserAgent(exch.HTTPUserAgent)
 		g.RESTPollingDelay = exch.RESTPollingDelay
 		g.Verbose = exch.Verbose
-		g.Websocket = exch.Websocket
 		g.BaseCurrencies = common.SplitStrings(exch.BaseCurrencies, ",")
 		g.AvailablePairs = common.SplitStrings(exch.AvailablePairs, ",")
 		g.EnabledPairs = common.SplitStrings(exch.EnabledPairs, ",")
@@ -94,6 +93,10 @@ func (g *Gateio) Setup(exch config.ExchangeConfig) {
 			log.Fatal(err)
 		}
 		err = g.SetAPIURL(exch)
+		if err != nil {
+			log.Fatal(err)
+		}
+		err = g.SetClientProxyAddress(exch.ProxyAddress)
 		if err != nil {
 			log.Fatal(err)
 		}
