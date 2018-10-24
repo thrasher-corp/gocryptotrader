@@ -68,6 +68,40 @@ func main() {
 	exchange.Setup(defaultConfig)
 	//bitmex.GenericRequestParams{}
 
+	//-----------获取合约费率等信息
+	// instrumentsList, err := exchange.GetActiveInstruments(bitmex.GenericRequestParams{
+	// 	Symbol: exchange.GetSymbol(),
+	// })
+	// if err != nil {
+	// 	panic(err)
+	// } else {
+	// 	for _, v := range instrumentsList {
+	// 		if v.Symbol == "XBTUSD" {
+	// 			t, _ := time.ParseInLocation("2006-01-02T15:04:05.000Z", v.Front, time.Local)
+	// 			t = t.Add(time.Duration(8) * time.Hour)
+	// 			fmt.Printf("资金费率：%.4f%% %d个小时内\n", v.FundingRate, (t.Hour() - time.Now().Hour()))
+
+	// 			heli := (v.FundingRate * float64((t.Hour()-time.Now().Hour())/3))
+	// 			fmt.Printf("资金费用基差率:%f\n", heli)
+	// 			fmt.Printf("标记价格:%f\n", 6441*(1+heli))
+	// 			b, _ := commonutils.JSONEncode(v)
+	// 			fmt.Printf("%s:%s\n", v.Symbol, b)
+	// 		}
+	// 	}
+	// }
+
+	//利率计算方法
+	//溢价指数 ：https://www.bitmex.com/api/v1/trade?symbol=.XBTUSDPI8H&count=200&columns=price&reverse=true
+	// 计价利率指数：0.0600%
+	// 基础利率指数：0.0300%
+	// 其中
+	//   基础利率指数 = 基础货币的借贷利率	https://www.bitmex.com/api/v1/trade?symbol=.XBTBON8H&count=200&columns=price&reverse=true
+	//   计价利率指数 = 计价货币的借贷利率	https://www.bitmex.com/api/v1/trade?symbol=.USDBON8H&count=200&columns=price&reverse=true
+	//   资金费率间隔 = 3 (因为资金每 8 小时产生)
+
+	//   利率：(0.0006-0.0003)/3=0.0001
+
+	///--------------获取个人中心、交易历史
 	list, err := exchange.GetAccountExecutionTradeHistory(bitmex.GenericRequestParams{
 		Symbol: exchange.GetSymbol(),
 	})
@@ -75,6 +109,17 @@ func main() {
 		panic(err)
 	} else {
 		for _, v := range list {
+			// 			资金费用基差率 = 资金费率 *  (至下一个缴付资金费用的时间 / 资金费用时间间隔)
+			// 合理价格       = 指数价格 * (1 + 资金费用基差率)
+			// a :=
+			cumQty := v.CumQty
+			if v.Side == "Sell" {
+				cumQty = -cumQty
+			}
+			fmt.Printf("仓位：%d 价值:%.4f 开仓价格：%.2f 标记价格：\n", cumQty, v.SimpleCumQty, v.AvgPx)
+			// f, _ := commonutils.FloatFromString(v.ExecCost)
+			// fmt.Println(f)
+			// fmt.Println(v.ExecCost)
 			b, _ := commonutils.JSONEncode(v)
 			fmt.Printf("%s\n", b)
 		}

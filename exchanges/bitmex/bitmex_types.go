@@ -71,8 +71,8 @@ type Execution struct {
 	ExecInst              string  `json:"execInst"`         //"Close",""
 	ExecType              string  `json:"execType"`         //成交类别 ："Trade"/"Funding"
 	ForeignNotional       float64 `json:"foreignNotional"`  //40,-20
-	HomeNotional          float64 `json:"homeNotional"`     //价值：-0.0064424,0.003229
-	LastLiquidityInd      string  `json:"lastLiquidityInd"` //"RemovedLiquidity","AddedLiquidity"
+	HomeNotional          float64 `json:"homeNotional"`     //保证金 //价值：-0.0064424,0.003229
+	LastLiquidityInd      string  `json:"lastLiquidityInd"` //移出流动性"RemovedLiquidity",加入流动性(新订单)"AddedLiquidity"
 	LastMkt               string  `json:"lastMkt"`          //"XBME"
 	LastPx                float64 `json:"lastPx"`           //成交价格
 	LastQty               int64   `json:"lastQty"`          //成交数量
@@ -88,7 +88,7 @@ type Execution struct {
 	Price                 float64 `json:"price"`         //委托价格
 	SettlCurrency         string  `json:"settlCurrency"` //订单交易对，例如:XBt
 	Side                  string  `json:"side"`          //交易方向："Buy"\"Sell"
-	SimpleCumQty          float64 `json:"simpleCumQty"`
+	SimpleCumQty          float64 `json:"simpleCumQty"`  //价值，
 	SimpleLeavesQty       float64 `json:"simpleLeavesQty"`
 	SimpleOrderQty        float64 `json:"simpleOrderQty"`
 	StopPx                float64 `json:"stopPx"`
@@ -125,17 +125,17 @@ type Instrument struct {
 	ClosingTimestamp               string  `json:"closingTimestamp"`
 	Deleverage                     bool    `json:"deleverage"`
 	Expiry                         string  `json:"expiry"`
-	FairBasis                      float64 `json:"fairBasis"`
-	FairBasisRate                  float64 `json:"fairBasisRate"`
-	FairMethod                     string  `json:"fairMethod"`
-	FairPrice                      float64 `json:"fairPrice"`
+	FairBasis                      float64 `json:"fairBasis"`     //合理基差0.53
+	FairBasisRate                  float64 `json:"fairBasisRate"` //合理基差率0.1095=10%
+	FairMethod                     string  `json:"fairMethod"`    //标记方法
+	FairPrice                      float64 `json:"fairPrice"`     //标记价格
 	Front                          string  `json:"front"`
-	FundingBaseSymbol              string  `json:"fundingBaseSymbol"`
-	FundingInterval                string  `json:"fundingInterval"`
-	FundingPremiumSymbol           string  `json:"fundingPremiumSymbol"`
-	FundingQuoteSymbol             string  `json:"fundingQuoteSymbol"`
-	FundingRate                    float64 `json:"fundingRate"`
-	FundingTimestamp               string  `json:"fundingTimestamp"`
+	FundingBaseSymbol              string  `json:"fundingBaseSymbol"`    //基础货币利率符号
+	FundingInterval                string  `json:"fundingInterval"`      //资金费用收取间隔
+	FundingPremiumSymbol           string  `json:"fundingPremiumSymbol"` //资金费用溢价符号
+	FundingQuoteSymbol             string  `json:"fundingQuoteSymbol"`   //计价货币利率符号
+	FundingRate                    float64 `json:"fundingRate"`          //预测费率
+	FundingTimestamp               string  `json:"fundingTimestamp"`     //下一个资金费率
 	HasLiquidity                   bool    `json:"hasLiquidity"`
 	HighPrice                      float64 `json:"highPrice"`
 	ImpactAskPrice                 float64 `json:"impactAskPrice"`
@@ -157,17 +157,17 @@ type Instrument struct {
 	LimitDownPrice                 float64 `json:"limitDownPrice"`
 	LimitUpPrice                   float64 `json:"limitUpPrice"`
 	Listing                        string  `json:"listing"`
-	LotSize                        int64   `json:"lotSize"`
+	LotSize                        int64   `json:"lotSize"` //最小合约数量
 	LowPrice                       float64 `json:"lowPrice"`
 	MaintMargin                    float64 `json:"maintMargin"`
-	MakerFee                       float64 `json:"makerFee"`
+	MakerFee                       float64 `json:"makerFee"` //基础利率指数
 	MarkMethod                     string  `json:"markMethod"`
-	MarkPrice                      float64 `json:"markPrice"`
-	MaxOrderQty                    int64   `json:"maxOrderQty"`
-	MaxPrice                       float64 `json:"maxPrice"`
+	MarkPrice                      float64 `json:"markPrice"`   //标记价格
+	MaxOrderQty                    int64   `json:"maxOrderQty"` //最大委托数量
+	MaxPrice                       float64 `json:"maxPrice"`    //最大委托价格
 	MidPrice                       float64 `json:"midPrice"`
 	Multiplier                     int64   `json:"multiplier"`
-	OpenInterest                   int64   `json:"openInterest"`
+	OpenInterest                   int64   `json:"openInterest"` //未平仓合约数量
 	OpenValue                      int64   `json:"openValue"`
 	OpeningTimestamp               string  `json:"openingTimestamp"`
 	OptionMultiplier               float64 `json:"optionMultiplier"`
@@ -179,22 +179,22 @@ type Instrument struct {
 	PrevClosePrice                 float64 `json:"prevClosePrice"`
 	PrevPrice24h                   float64 `json:"prevPrice24h"`
 	PrevTotalTurnover              int64   `json:"prevTotalTurnover"`
-	PrevTotalVolume                int64   `json:"prevTotalVolume"`
+	PrevTotalVolume                int64   `json:"prevTotalVolume"` //总交易量
 	PublishInterval                string  `json:"publishInterval"`
 	PublishTime                    string  `json:"publishTime"`
-	QuoteCurrency                  string  `json:"quoteCurrency"`
+	QuoteCurrency                  string  `json:"quoteCurrency"` //计价货币
 	QuoteToSettleMultiplier        int64   `json:"quoteToSettleMultiplier"`
 	RebalanceInterval              string  `json:"rebalanceInterval"`
 	RebalanceTimestamp             string  `json:"rebalanceTimestamp"`
 	Reference                      string  `json:"reference"`
 	ReferenceSymbol                string  `json:"referenceSymbol"`
 	RelistInterval                 string  `json:"relistInterval"`
-	RiskLimit                      int64   `json:"riskLimit"`
-	RiskStep                       int64   `json:"riskStep"`
+	RiskLimit                      int64   `json:"riskLimit"` //风险限额,20000000000表示200xbt
+	RiskStep                       int64   `json:"riskStep"`  //风险限额递增值,10000000000表示100xbt
 	RootSymbol                     string  `json:"rootSymbol"`
 	SellLeg                        string  `json:"sellLeg"`
-	SessionInterval                string  `json:"sessionInterval"`
-	SettlCurrency                  string  `json:"settlCurrency"`
+	SessionInterval                string  `json:"sessionInterval"` //
+	SettlCurrency                  string  `json:"settlCurrency"`   //结算货币
 	Settle                         string  `json:"settle"`
 	SettledPrice                   float64 `json:"settledPrice"`
 	SettlementFee                  float64 `json:"settlementFee"`
@@ -202,7 +202,7 @@ type Instrument struct {
 	Symbol                         string  `json:"symbol"`
 	TakerFee                       float64 `json:"takerFee"`
 	Taxed                          bool    `json:"taxed"`
-	TickSize                       float64 `json:"tickSize"`
+	TickSize                       float64 `json:"tickSize"` //最小价格变化
 	Timestamp                      string  `json:"timestamp"`
 	TotalTurnover                  int64   `json:"totalTurnover"`
 	TotalVolume                    int64   `json:"totalVolume"`
@@ -359,7 +359,7 @@ type Position struct {
 	LastPrice            float64 `json:"lastPrice"`
 	LastValue            int64   `json:"lastValue"`
 	Leverage             float64 `json:"leverage"`
-	LiquidationPrice     float64 `json:"liquidationPrice"`
+	LiquidationPrice     float64 `json:"liquidationPrice"` //强平价格
 	LongBankrupt         int64   `json:"longBankrupt"`
 	MaintMargin          int64   `json:"maintMargin"`
 	MaintMarginReq       float64 `json:"maintMarginReq"`

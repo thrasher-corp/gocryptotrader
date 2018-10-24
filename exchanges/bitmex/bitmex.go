@@ -15,6 +15,7 @@ import (
 )
 
 // Bitmex is the overarching type across this package
+// 资金时间戳：UTC 4:00（北京时间 12:00）、UTC 12:00（北京时间 20:00）和 UTC 20:00（北京时间 04:00）
 type Bitmex struct {
 	exchange.Base
 	WebsocketConn *websocket.Conn
