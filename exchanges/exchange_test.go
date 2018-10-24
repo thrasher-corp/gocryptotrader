@@ -64,6 +64,36 @@ func TestHTTPClient(t *testing.T) {
 		t.Fatalf("Test failed. TestHTTPClient unexpected value")
 	}
 }
+
+func TestSetClientProxyAddress(t *testing.T) {
+	requester := request.New("testicles",
+		&request.RateLimit{},
+		&request.RateLimit{},
+		&http.Client{})
+
+	newBase := Base{Name: "Testicles", Requester: requester}
+
+	newBase.WebsocketInit()
+
+	err := newBase.SetClientProxyAddress(":invalid")
+	if err == nil {
+		t.Error("Test failed. SetClientProxyAddress parsed invalid URL")
+	}
+
+	if newBase.Websocket.GetProxyAddress() != "" {
+		t.Error("Test failed. SetClientProxyAddress error", err)
+	}
+
+	err = newBase.SetClientProxyAddress("www.valid.com")
+	if err != nil {
+		t.Error("Test failed. SetClientProxyAddress error", err)
+	}
+
+	if newBase.Websocket.GetProxyAddress() != "www.valid.com" {
+		t.Error("Test failed. SetClientProxyAddress error", err)
+	}
+}
+
 func TestSetAutoPairDefaults(t *testing.T) {
 	cfg := config.GetConfig()
 	err := cfg.LoadConfig(config.ConfigTestFile)
