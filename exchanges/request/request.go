@@ -18,7 +18,7 @@ var supportedMethods = []string{"GET", "POST", "HEAD", "PUT", "DELETE", "OPTIONS
 
 const (
 	maxRequestJobs  = 50
-	proxyTLSTimeout = 10
+	proxyTLSTimeout = 15 * time.Second
 )
 
 // Requester struct for the request client
