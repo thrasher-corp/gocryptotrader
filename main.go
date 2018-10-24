@@ -59,6 +59,8 @@ func main() {
 	flag.StringVar(&bot.dataDir, "datadir", common.GetDefaultDataDir(runtime.GOOS), "default data directory for GoCryptoTrader files")
 	dryrun := flag.Bool("dryrun", false, "dry runs bot, doesn't save config file")
 	version := flag.Bool("version", false, "retrieves current GoCryptoTrader version")
+	verbosity := flag.Bool("verbose", false, "-verbose increases verbosity for GoCryptoTrader")
+
 	flag.Parse()
 
 	if *version {
@@ -156,12 +158,10 @@ func main() {
 	}
 
 	go portfolio.StartPortfolioWatcher()
-	go TickerUpdaterRoutine()
-	go OrderbookUpdaterRoutine()
 
-	// NOTE WebsocketRoutine will be replaced and updated in routines.go when
-	// database branch is merged
-	go WebsocketRoutine()
+	go TickerUpdaterRoutine(*verbosity)
+	go OrderbookUpdaterRoutine(*verbosity)
+	go WebsocketRoutine(*verbosity)
 
 	<-bot.shutdown
 	Shutdown()

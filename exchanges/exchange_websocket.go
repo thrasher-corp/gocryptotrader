@@ -163,7 +163,8 @@ func (w *Websocket) Connect() error {
 	defer w.m.Unlock()
 
 	if !w.IsEnabled() {
-		return errors.New("exchange_websocket.go error - websocket disabled")
+		return fmt.Errorf("exchange_websocket.go %s error - websocket disabled",
+			w.GetName())
 	}
 
 	if w.connected {
