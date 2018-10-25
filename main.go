@@ -87,7 +87,7 @@ func main() {
 		"Aggregates historic exchange trade data into the database")
 
 	dbPath := flag.String("dbPath",
-		common.GetDefaultDataDir(runtime.GOOS)+common.GetOSPathSlash()+"database.db",
+		database.DefaultPath,
 		"Defines a non default path to the database")
 
 	flag.Parse()
@@ -118,6 +118,11 @@ func main() {
 			err)
 	}
 	log.Printf("Using data directory: %s.\n", bot.dataDir)
+
+	err = database.Setup(database.DefaultDir)
+	if err != nil {
+		log.Fatal("Failed to set up database directory", err)
+	}
 
 	bot.logFile = GetLogFile(bot.dataDir)
 	err = InitLogFile(bot.logFile)
@@ -209,7 +214,7 @@ func main() {
 	}
 	log.Println("Database connection successfully established")
 
-	bot.routines = StartUpdater(true, true, *dbSeedHistory)
+	bot.routines = StartUpdater(true, true, *dbSeedHistory, *verbosity)
 
 	<-bot.shutdown
 	Shutdown()
@@ -255,6 +260,11 @@ func Shutdown() {
 
 	if len(portfolio.Portfolio.Addresses) != 0 {
 		bot.config.Portfolio = portfolio.Portfolio
+	}
+
+	err := bot.db.Disconnect()
+	if err != nil {
+		log.Println("Unable to disconnect from database.")
 	}
 
 	if !bot.dryRun {

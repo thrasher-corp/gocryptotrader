@@ -8,9 +8,11 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"runtime"
 	"sync"
 	"time"
 
+	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/database/models"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
@@ -21,6 +23,15 @@ import (
 	"github.com/volatiletech/sqlboiler/boil"
 	"github.com/volatiletech/sqlboiler/queries/qm"
 )
+
+// DefaultDir is the default directory for the database
+var DefaultDir = fmt.Sprintf("%s%sdatabase%s",
+	common.GetDefaultDataDir(runtime.GOOS),
+	common.GetOSPathSlash(),
+	common.GetOSPathSlash())
+
+// DefaultPath is the full default path to the database
+var DefaultPath = DefaultDir + "database.db"
 
 // ctx set global context
 var ctx = context.Background()
@@ -34,13 +45,44 @@ type ORM struct {
 	Verbose   bool
 	Connected bool
 
-	ConfigID   int64
-	ExchangeID map[string]int64
+	ConfigID           int64
+	ExchangeID         map[string]int64
+	ExchangeNameFromID map[int64]string
 
 	sync.Mutex
 }
 
-// Connect connects to a db
+// Setup creates and sets database directory folders and supplementary files
+// that works in conjunction with SQLBoiler
+func Setup(defaultDir string) error {
+	err := common.CheckDir(defaultDir, true)
+	if err != nil {
+		return err
+	}
+
+	_, err = common.ReadFile(defaultDir + "sqlboiler.toml")
+	if err != nil {
+		tomlFile := fmt.Sprintf(
+			`[sqlite3]
+dbname = "%s"`, DefaultPath)
+		err = common.WriteFile(defaultDir+"sqlboiler.toml", []byte(tomlFile))
+		if err != nil {
+			return err
+		}
+	}
+
+	_, err = common.ReadFile(defaultDir + "schema.sql")
+	if err != nil {
+		err = common.WriteFile(defaultDir+"schema.sql", []byte(fullSchema))
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// Connect initiates a connection to a SQLite database
 func Connect(sqlite3Path string, verbose bool, cfg *config.Config) (*ORM, error) {
 	if verbose {
 		log.Printf("Opening connection to sqlite3 database using PATH: %s",
@@ -105,6 +147,7 @@ func Connect(sqlite3Path string, verbose bool, cfg *config.Config) (*ORM, error)
 	}
 
 	SQLite.ExchangeID = make(map[string]int64)
+	SQLite.ExchangeNameFromID = make(map[int64]string)
 	SQLite.Verbose = verbose
 
 	SQLite.Connected = true
@@ -198,6 +241,7 @@ func (o *ORM) UpdateExchangeConfigurations() error {
 			}
 
 			o.ExchangeID[config.Name] = config.ID
+			o.ExchangeNameFromID[config.ID] = config.Name
 			continue
 		}
 
@@ -225,6 +269,7 @@ func (o *ORM) UpdateExchangeConfigurations() error {
 		}
 
 		o.ExchangeID[config.Name] = config.ID
+		o.ExchangeNameFromID[config.ID] = config.Name
 	}
 	return nil
 }
@@ -272,7 +317,7 @@ func (o *ORM) InsertExchangeTradeHistoryData(transactionID int64, exchangeName, 
 
 // GetExchangeTradeHistoryLast returns the last updated time.Time and tradeID
 // values for the most recent trade history data in the set.
-func (o *ORM) GetExchangeTradeHistoryLast(exchangeName, currencyPair string) (time.Time, int64, error) {
+func (o *ORM) GetExchangeTradeHistoryLast(exchangeName, currencyPair, assetType string) (time.Time, int64, error) {
 	if !o.Connected {
 		if o.Verbose {
 			log.Println("cannot get order history data, no database connnection")
@@ -286,6 +331,7 @@ func (o *ORM) GetExchangeTradeHistoryLast(exchangeName, currencyPair string) (ti
 	tradeHistory, err := models.ExchangeTradeHistories(
 		qm.Where("exchange_id = ?", o.ExchangeID[exchangeName]),
 		qm.And("currency_pair = ?", currencyPair),
+		qm.And("asset_type = ?", assetType),
 		qm.OrderBy("fulfilled_on DESC"),
 		qm.Limit(1)).One(ctx, o.DB)
 	if err != nil {
@@ -320,10 +366,17 @@ func (o *ORM) GetExchangeTradeHistory(exchName, currencyPair, assetType string) 
 	for _, trade := range tradeHistory {
 		fullHistory = append(fullHistory,
 			exchange.TradeHistory{
+				Exchange:  o.ExchangeNameFromID[trade.ExchangeID],
 				Timestamp: trade.FulfilledOn,
 				TID:       trade.OrderID.Int64,
 				Price:     trade.Rate,
-				Amount:    trade.Amount})
+				Amount:    trade.Amount,
+				Type:      trade.OrderType})
 	}
 	return fullHistory, nil
+}
+
+// Disconnect closes the database connection
+func (o *ORM) Disconnect() error {
+	return o.DB.Close()
 }

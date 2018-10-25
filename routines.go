@@ -20,7 +20,7 @@ import (
 // Routines wraps Updater types for specifically shutting down monitored
 // routines
 type Routines struct {
-	Updaters []Updater
+	Updaters []*Updater
 	sync.WaitGroup
 }
 
@@ -28,7 +28,7 @@ type Routines struct {
 func (r *Routines) Shutdown() {
 	r.Add(len(r.Updaters))
 	for i := range r.Updaters {
-		r.Updaters[i].ShutdownRoutines(r.WaitGroup)
+		r.Updaters[i].ShutdownRoutines(&r.WaitGroup)
 	}
 	r.Wait()
 }
@@ -59,7 +59,7 @@ type Updater struct {
 }
 
 // StartUpdater intialises
-func StartUpdater(updateTicker, updateOrderbook, UpdateHistory bool) *Routines {
+func StartUpdater(updateTicker, updateOrderbook, UpdateHistory, verbose bool) *Routines {
 	var routines Routines
 	for _, exch := range bot.exchanges {
 		enabledAssetTypes, err := exchange.GetExchangeAssetTypes(exch.GetName())
@@ -80,8 +80,8 @@ func StartUpdater(updateTicker, updateOrderbook, UpdateHistory bool) *Routines {
 					Shutdown:             make(chan struct{}, 1),
 					RESTPollingDelay:     1 * time.Second, // Test time
 				}
-				updater.Run()
-				routines.Updaters = append(routines.Updaters, updater)
+				updater.Run(verbose)
+				routines.Updaters = append(routines.Updaters, &updater)
 			}
 		}
 	}
@@ -89,20 +89,20 @@ func StartUpdater(updateTicker, updateOrderbook, UpdateHistory bool) *Routines {
 }
 
 // Run runs the updater routines
-func (u *Updater) Run() error {
+func (u *Updater) Run(verbose bool) error {
 	if u.KeepUpdatedTicker {
 		u.Ticker = make(chan struct{}, 1)
-		go u.TickerHandler()
+		go u.TickerHandler(verbose)
 	}
 
 	if u.KeepUpdatedOrderbook {
 		u.Orderbook = make(chan struct{}, 1)
-		go u.OrderbookHandler()
+		go u.OrderbookHandler(verbose)
 	}
 
 	if u.SeedDBTradeHistory {
 		u.History = make(chan struct{}, 1)
-		go u.HistoryHandler()
+		go u.HistoryHandler(verbose)
 	}
 
 	if !u.KeepUpdatedTicker && !u.KeepUpdatedOrderbook && !u.SeedDBTradeHistory {
@@ -138,7 +138,7 @@ func (u *Updater) PollingDelay() {
 }
 
 // TickerHandler handles the rest ticker routine
-func (u *Updater) TickerHandler() {
+func (u *Updater) TickerHandler(verbose bool) {
 	log.Printf("Ticker REST handler started for %s %s %s",
 		u.Exch.GetName(),
 		u.CurrencyPair.Pair().String(),
@@ -157,7 +157,7 @@ func (u *Updater) TickerHandler() {
 			log.Printf("%s Ticker Updater Routine shutting down", u.Exch.GetName())
 			return
 		case <-u.Ticker:
-			err := u.ProcessTickerREST()
+			err := u.ProcessTickerREST(verbose)
 			if err != nil {
 				switch err.Error() {
 				default:
@@ -199,10 +199,10 @@ func (u *Updater) TickerHandler() {
 }
 
 // ProcessTickerREST processes tickers using an exchange REST interface
-func (u *Updater) ProcessTickerREST() error {
+func (u *Updater) ProcessTickerREST(verbose bool) error {
 	result, err := u.Exch.UpdateTicker(u.CurrencyPair, u.AssetType)
 	u.Finish <- struct{}{}
-	printTickerSummary(result, u.CurrencyPair, u.AssetType, u.Exch.GetName(), err)
+	printTickerSummary(result, u.CurrencyPair, u.AssetType, u.Exch.GetName(), err, verbose)
 	if err != nil {
 		return err
 	}
@@ -214,13 +214,13 @@ func (u *Updater) ProcessTickerREST() error {
 
 	bot.comms.StageTickerData(u.Exch.GetName(), u.AssetType, result)
 	if bot.config.Webserver.Enabled {
-		relayWebsocketEvent(result, "ticker_update", u.AssetType, u.Exch.GetName())
+		relayWebsocketEvent(result, "ticker_update", u.AssetType, u.Exch.GetName(), verbose)
 	}
 	return nil
 }
 
 // OrderbookHandler handles the orderbook routine
-func (u *Updater) OrderbookHandler() {
+func (u *Updater) OrderbookHandler(verbose bool) {
 	log.Printf("Orderbook REST handler started for %s %s %s",
 		u.Exch.GetName(),
 		u.CurrencyPair.Pair().String(),
@@ -239,7 +239,7 @@ func (u *Updater) OrderbookHandler() {
 			log.Printf("%s Orderbook Updater Routine shutting down", u.Exch.GetName())
 			return
 		case <-u.Orderbook:
-			err := u.ProcessOrderbookREST()
+			err := u.ProcessOrderbookREST(verbose)
 			if err != nil {
 				switch err.Error() {
 				default:
@@ -281,10 +281,10 @@ func (u *Updater) OrderbookHandler() {
 }
 
 // ProcessOrderbookREST processes REST orderbook fetching
-func (u *Updater) ProcessOrderbookREST() error {
+func (u *Updater) ProcessOrderbookREST(verbose bool) error {
 	result, err := u.Exch.UpdateOrderbook(u.CurrencyPair, u.AssetType)
 	u.Finish <- struct{}{}
-	printOrderbookSummary(result, u.CurrencyPair, u.AssetType, u.Exch.GetName(), err)
+	printOrderbookSummary(result, u.CurrencyPair, u.AssetType, u.Exch.GetName(), err, verbose)
 	if err != nil {
 		return err
 	}
@@ -297,7 +297,7 @@ func (u *Updater) ProcessOrderbookREST() error {
 	bot.comms.StageOrderbookData(u.Exch.GetName(), u.AssetType, result)
 
 	if bot.config.Webserver.Enabled {
-		relayWebsocketEvent(result, "orderbook_update", u.AssetType, u.Exch.GetName())
+		relayWebsocketEvent(result, "orderbook_update", u.AssetType, u.Exch.GetName(), verbose)
 	}
 	return nil
 }
@@ -328,7 +328,7 @@ func (u *Updater) IsOrderbookChanged(new orderbook.Base) bool {
 }
 
 // HistoryHandler handles keeping currency pair/asset types up to date
-func (u *Updater) HistoryHandler() {
+func (u *Updater) HistoryHandler(verbose bool) {
 	log.Printf("History REST handler started for %s %s %s",
 		u.Exch.GetName(),
 		u.CurrencyPair.Pair().String(),
@@ -393,7 +393,8 @@ func (u *Updater) HistoryHandler() {
 // using the exchange REST interface
 func (u *Updater) ProcessHistoryREST() error {
 	lastTime, tradeID, err := bot.db.GetExchangeTradeHistoryLast(u.Exch.GetName(),
-		u.CurrencyPair.Pair().String())
+		u.CurrencyPair.Pair().String(),
+		u.AssetType)
 	u.Finish <- struct{}{}
 	if err != nil {
 		log.Fatal(err)
@@ -478,7 +479,7 @@ func (u *Updater) ValidateData(i interface{}) error {
 }
 
 // ShutdownRoutines shutsdown all routines attached to the Updater type
-func (u *Updater) ShutdownRoutines(wg sync.WaitGroup) {
+func (u *Updater) ShutdownRoutines(wg *sync.WaitGroup) {
 	log.Println("Shutdown Routine called for", u.Exch.GetName())
 	var routineCount int
 	if u.KeepUpdatedTicker {
@@ -1011,7 +1012,9 @@ func Processor(exch exchange.IBotExchange, currencyPair pair.CurrencyPair, asset
 
 // processHistory fetches historic values and inserts them into the database
 func processHistory(exch exchange.IBotExchange, c pair.CurrencyPair, assetType string) error {
-	lastTime, tradeID, err := bot.db.GetExchangeTradeHistoryLast(exch.GetName(), c.Pair().String())
+	lastTime, tradeID, err := bot.db.GetExchangeTradeHistoryLast(exch.GetName(),
+		c.Pair().String(),
+		assetType)
 	if err != nil {
 		log.Fatal(err)
 	}
