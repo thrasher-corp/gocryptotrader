@@ -6,9 +6,9 @@ import (
 	"log"
 	"sync"
 
-	"github.com/thrasher-/gocryptotrader/common"
+{{if .WS}} "github.com/thrasher-/gocryptotrader/common" {{end}}
 	"github.com/thrasher-/gocryptotrader/currency/pair"
-	exchange "github.com/thrasher-/gocryptotrader/exchanges"
+	"github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 )
@@ -25,7 +25,7 @@ func ({{.Variable}} *{{.CapitalName}}) Start(wg *sync.WaitGroup) {
 // Run implements the {{.CapitalName}} wrapper
 func ({{.Variable}} *{{.CapitalName}}) Run() {
 	if {{.Variable}}.Verbose {
-		log.Printf("%s Websocket: %s. (url: %s).\n", {{.Variable}}.GetName(), common.IsEnabled({{.Variable}}.Websocket), {{.Variable}}.WebsocketURL)
+{{if .WS}} log.Printf("%s Websocket: %s. (url: %s).\n", {{.Variable}}.GetName(), common.IsEnabled({{.Variable}}.Websocket.IsEnabled()), {{.Variable}}.Websocket.GetWebsocketURL()) {{end}}
 		log.Printf("%s polling delay: %ds.\n", {{.Variable}}.GetName(), {{.Variable}}.RESTPollingDelay)
 		log.Printf("%s %d currencies enabled: %s.\n", {{.Variable}}.GetName(), len({{.Variable}}.EnabledPairs), {{.Variable}}.EnabledPairs)
 	}
@@ -164,10 +164,15 @@ func ({{.Variable}} *{{.CapitalName}}) WithdrawFiatExchangeFunds(currency pair.C
 	return "", errors.New("not yet implemented")
 }
 
-// WithdrawExchangeFiatFundsToInternationalBank returns a withdrawal ID when a withdrawal is
+// WithdrawFiatExchangeFundsToInternationalBank returns a withdrawal ID when a withdrawal is
 // submitted
-func ({{.Variable}} *{{.CapitalName}}) WithdrawExchangeFiatFundsToInternationalBank(currency pair.CurrencyItem, amount float64) (string, error) {
+func ({{.Variable}} *{{.CapitalName}}) WithdrawFiatExchangeFundsToInternationalBank(currency pair.CurrencyItem, amount float64) (string, error) {
 	return "", errors.New("not yet implemented")
+}
+
+// GetWebsocket returns a pointer to the exchange websocket
+func ({{.Variable}} *{{.CapitalName}}) GetWebsocket() (*exchange.Websocket, error) {
+	return nil, errors.New("not yet implemented")
 }
 
 {{end}}
