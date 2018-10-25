@@ -221,33 +221,42 @@ func TestGetFee(t *testing.T) {
 	var feeBuilder = setFeeBuilder()
 
 	if apiKey != "" || apiSecret != "" {
-		// CryptocurrencyTradeFee Basic
-		if resp, err := b.GetFee(feeBuilder); resp != float64(0) || err != nil {
+		// CryptocurrencyTradeFee Fiat
+		feeBuilder = setFeeBuilder()
+		feeBuilder.SecondCurrency = symbol.USD
+		if resp, err := b.GetFee(feeBuilder); resp != float64(0.00849999) || err != nil {
 			t.Error(err)
-			t.Errorf("Test Failed - GetFee() error. Expected: %f, Recieved: %f", float64(0), resp)
+			t.Errorf("Test Failed - GetFee() error. Expected: %f, Recieved: %f", float64(0.00849999), resp)
+		}
+
+		// CryptocurrencyTradeFee Basic
+		feeBuilder = setFeeBuilder()
+		if resp, err := b.GetFee(feeBuilder); resp != float64(0.0022) || err != nil {
+			t.Error(err)
+			t.Errorf("Test Failed - GetFee() error. Expected: %f, Recieved: %f", float64(0.0022), resp)
 		}
 
 		// CryptocurrencyTradeFee High quantity
 		feeBuilder = setFeeBuilder()
 		feeBuilder.Amount = 1000
 		feeBuilder.PurchasePrice = 1000
-		if resp, err := b.GetFee(feeBuilder); resp != float64(0) || err != nil {
-			t.Errorf("Test Failed - GetFee() error. Expected: %f, Recieved: %f", float64(0), resp)
+		if resp, err := b.GetFee(feeBuilder); resp != float64(2200) || err != nil {
+			t.Errorf("Test Failed - GetFee() error. Expected: %f, Recieved: %f", float64(22000), resp)
 			t.Error(err)
 		}
 
 		// CryptocurrencyTradeFee IsTaker
 		feeBuilder = setFeeBuilder()
-		if resp, err := b.GetFee(feeBuilder); resp != float64(0) || err != nil {
-			t.Errorf("Test Failed - GetFee() error. Expected: %f, Recieved: %f", float64(0.02), resp)
+		if resp, err := b.GetFee(feeBuilder); resp != float64(0.0022) || err != nil {
+			t.Errorf("Test Failed - GetFee() error. Expected: %f, Recieved: %f", float64(0.0022), resp)
 			t.Error(err)
 		}
 
 		// CryptocurrencyTradeFee IsMaker
 		feeBuilder = setFeeBuilder()
 		feeBuilder.IsMaker = true
-		if resp, err := b.GetFee(feeBuilder); resp != float64(0) || err != nil {
-			t.Errorf("Test Failed - GetFee() error. Expected: %f, Recieved: %f", float64(0.01), resp)
+		if resp, err := b.GetFee(feeBuilder); resp != float64(0.0022) || err != nil {
+			t.Errorf("Test Failed - GetFee() error. Expected: %f, Recieved: %f", float64(0.0022), resp)
 			t.Error(err)
 		}
 

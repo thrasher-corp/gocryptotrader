@@ -53,6 +53,15 @@ type Trade struct {
 	Date    int64   `json:"date"`
 }
 
+// 30 day trade volume
+type TradingFee struct {
+	Success        bool    `json:"success"`
+	ErrorCode      int     `json:"errorCode"`
+	ErrorMessage   string  `json:"errorMessage"`
+	TradingFeeRate float64 `json:"tradingfeerate"`
+	Volume30Day    float64 `json:"volume30day"`
+}
+
 // OrderToGo holds order information to be sent to the exchange
 type OrderToGo struct {
 	Currency        string `json:"currency"`
