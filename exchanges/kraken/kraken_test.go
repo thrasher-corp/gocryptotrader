@@ -214,12 +214,12 @@ func TestCancelOrder(t *testing.T) {
 
 func setFeeBuilder() exchange.FeeBuilder {
 	return exchange.FeeBuilder{
-		Amount:         1,
-		Delimiter:      "",
-		FeeType:        exchange.CryptocurrencyTradeFee,
-		FirstCurrency:  symbol.XXBT,
-		SecondCurrency: symbol.ZUSD,
-		IsMaker:        false,
+		Amount:              1,
+		Delimiter:           "",
+		FeeType:             exchange.CryptocurrencyTradeFee,
+		FirstCurrency:       symbol.XXBT,
+		SecondCurrency:      symbol.ZUSD,
+		IsMaker:             false,
 		PurchasePrice:       1,
 		CurrencyItem:        symbol.USD,
 		BankTransactionType: exchange.WireTransfer,
@@ -244,13 +244,6 @@ func TestGetFee(t *testing.T) {
 		feeBuilder.PurchasePrice = 1000
 		if resp, err := k.GetFee(feeBuilder); resp != float64(2600) || err != nil {
 			t.Errorf("Test Failed - GetFee() error. Expected: %f, Recieved: %f", float64(2600), resp)
-			t.Error(err)
-		}
-
-		// CryptocurrencyTradeFee IsTaker
-		feeBuilder = setFeeBuilder()
-		if resp, err := k.GetFee(feeBuilder); resp != float64(0.0026) || err != nil {
-			t.Errorf("Test Failed - GetFee() error. Expected: %f, Recieved: %f", float64(0.0026), resp)
 			t.Error(err)
 		}
 

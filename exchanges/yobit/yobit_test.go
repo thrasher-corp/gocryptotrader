@@ -180,13 +180,6 @@ func TestGetFee(t *testing.T) {
 		t.Error(err)
 	}
 
-	// CryptocurrencyTradeFee IsTaker
-	feeBuilder = setFeeBuilder()
-	if resp, err := y.GetFee(feeBuilder); resp != float64(0.002) || err != nil {
-		t.Errorf("Test Failed - GetFee() error. Expected: %f, Recieved: %f", float64(0.002), resp)
-		t.Error(err)
-	}
-
 	// CryptocurrencyTradeFee IsMaker
 	feeBuilder = setFeeBuilder()
 	feeBuilder.IsMaker = true
