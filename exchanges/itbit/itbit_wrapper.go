@@ -185,9 +185,5 @@ func (i *ItBit) GetWebsocket() (*exchange.Websocket, error) {
 
 // GetFeeByType returns an estimate of fee based on type of transaction
 func (i *ItBit) GetFeeByType(feeBuilder exchange.FeeBuilder) (float64, error) {
-	resp, err := i.GetFee(feeBuilder)
-	if err != nil {
-		return resp, err
-	}
-	return resp, nil
+	return i.GetFee(feeBuilder)
 }

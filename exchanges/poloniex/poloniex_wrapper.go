@@ -211,9 +211,5 @@ func (p *Poloniex) GetWebsocket() (*exchange.Websocket, error) {
 
 // GetFeeByType returns an estimate of fee based on type of transaction
 func (p *Poloniex) GetFeeByType(feeBuilder exchange.FeeBuilder) (float64, error) {
-	resp, err := p.GetFee(feeBuilder)
-	if err != nil {
-		return resp, err
-	}
-	return resp, nil
+	return p.GetFee(feeBuilder)
 }

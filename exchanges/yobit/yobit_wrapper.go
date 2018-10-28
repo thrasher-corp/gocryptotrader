@@ -196,9 +196,5 @@ func (y *Yobit) GetWebsocket() (*exchange.Websocket, error) {
 
 // GetFeeByType returns an estimate of fee based on type of transaction
 func (y *Yobit) GetFeeByType(feeBuilder exchange.FeeBuilder) (float64, error) {
-	resp, err := y.GetFee(feeBuilder)
-	if err != nil {
-		return resp, err
-	}
-	return resp, nil
+	return y.GetFee(feeBuilder)
 }

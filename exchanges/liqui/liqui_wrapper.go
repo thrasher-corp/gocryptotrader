@@ -204,9 +204,5 @@ func (l *Liqui) GetWebsocket() (*exchange.Websocket, error) {
 
 // GetFeeByType returns an estimate of fee based on type of transaction
 func (l *Liqui) GetFeeByType(feeBuilder exchange.FeeBuilder) (float64, error) {
-	resp, err := l.GetFee(feeBuilder)
-	if err != nil {
-		return resp, err
-	}
-	return resp, nil
+	return l.GetFee(feeBuilder)
 }

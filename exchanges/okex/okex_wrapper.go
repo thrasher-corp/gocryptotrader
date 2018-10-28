@@ -208,9 +208,5 @@ func (o *OKEX) GetWebsocket() (*exchange.Websocket, error) {
 
 // GetFeeByType returns an estimate of fee based on type of transaction
 func (o *OKEX) GetFeeByType(feeBuilder exchange.FeeBuilder) (float64, error) {
-	resp, err := o.GetFee(feeBuilder)
-	if err != nil {
-		return resp, err
-	}
-	return resp, nil
+	return o.GetFee(feeBuilder)
 }

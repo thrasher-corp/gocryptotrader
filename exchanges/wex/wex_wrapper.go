@@ -214,9 +214,5 @@ func (w *WEX) GetWebsocket() (*exchange.Websocket, error) {
 
 // GetFeeByType returns an estimate of fee based on type of transaction
 func (w *WEX) GetFeeByType(feeBuilder exchange.FeeBuilder) (float64, error) {
-	resp, err := w.GetFee(feeBuilder)
-	if err != nil {
-		return resp, err
-	}
-	return resp, nil
+	return w.GetFee(feeBuilder)
 }

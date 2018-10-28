@@ -197,9 +197,5 @@ func (c *COINUT) GetWebsocket() (*exchange.Websocket, error) {
 
 // GetFeeByType returns an estimate of fee based on type of transaction
 func (c *COINUT) GetFeeByType(feeBuilder exchange.FeeBuilder) (float64, error) {
-	resp, err := c.GetFee(feeBuilder)
-	if err != nil {
-		return resp, err
-	}
-	return resp, nil
+	return c.GetFee(feeBuilder)
 }

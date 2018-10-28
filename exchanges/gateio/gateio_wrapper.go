@@ -183,9 +183,5 @@ func (g *Gateio) GetWebsocket() (*exchange.Websocket, error) {
 
 // GetFeeByType returns an estimate of fee based on type of transaction
 func (g *Gateio) GetFeeByType(feeBuilder exchange.FeeBuilder) (float64, error) {
-	resp, err := g.GetFee(feeBuilder)
-	if err != nil {
-		return resp, err
-	}
-	return resp, nil
+	return g.GetFee(feeBuilder)
 }
