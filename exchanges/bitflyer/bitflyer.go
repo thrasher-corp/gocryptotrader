@@ -388,7 +388,7 @@ func (b *Bitflyer) SendAuthHTTPRequest(path string, params url.Values, result in
 }
 
 // GetFee returns an estimate of fee based on type of transaction
-// TODO: Figure out the wierd fee structure. Do we use Bitcoin Easy Exchange,Lightning Spot,Bitcoin Market,Lightning FX/Futures ???
+// TODO: Figure out the weird fee structure. Do we use Bitcoin Easy Exchange,Lightning Spot,Bitcoin Market,Lightning FX/Futures ???
 func (b *Bitflyer) GetFee(feeBuilder exchange.FeeBuilder) (float64, error) {
 	var fee float64
 

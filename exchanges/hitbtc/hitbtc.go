@@ -157,12 +157,7 @@ func (h *HitBTC) GetCurrency(currency string) (Currencies, error) {
 	resp := Response{}
 	path := fmt.Sprintf("%s/%s/%s", h.APIUrl, apiV2Currency, currency)
 
-	err := h.SendHTTPRequest(path, &resp.Data)
-	if err != nil {
-		return resp.Data, err
-	}
-
-	return resp.Data, err
+	return resp.Data, h.SendHTTPRequest(path, &resp.Data)
 }
 
 // GetSymbols Return the actual list of currency symbols (currency pairs) traded

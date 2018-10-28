@@ -345,13 +345,10 @@ func (b *BTCMarkets) GetAccountBalance() ([]AccountBalance, error) {
 }
 
 // GetTradingFee returns the account's trading fee for a currency pair
-func (b *BTCMarkets) GetTradingFee(firstPair, secondPair string) (tradingFee TradingFee, err error) {
+func (b *BTCMarkets) GetTradingFee(firstPair, secondPair string) (TradingFee, error) {
+	var tradingFee TradingFee
 	path := fmt.Sprintf(btcMarketsTradingFee, firstPair, secondPair)
-	err = b.SendAuthenticatedRequest("GET", path, nil, &tradingFee)
-	if err != nil {
-		return tradingFee, err
-	}
-	return tradingFee, nil
+	return tradingFee, b.SendAuthenticatedRequest("GET", path, nil, &tradingFee)
 }
 
 // WithdrawCrypto withdraws cryptocurrency into a designated address
