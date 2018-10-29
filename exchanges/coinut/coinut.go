@@ -10,6 +10,8 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
+	"github.com/thrasher-/gocryptotrader/currency"
+	"github.com/thrasher-/gocryptotrader/currency/symbol"
 	"github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/request"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
@@ -329,4 +331,83 @@ func (c *COINUT) SendHTTPRequest(apiRequest string, params map[string]interface{
 	headers["Content-Type"] = "application/json"
 
 	return c.SendPayload("POST", c.APIUrl, headers, bytes.NewBuffer(payload), result, authenticated, c.Verbose)
+}
+
+// GetFee returns an estimate of fee based on type of transaction
+func (c *COINUT) GetFee(feeBuilder exchange.FeeBuilder) (float64, error) {
+	var fee float64
+	switch feeBuilder.FeeType {
+	case exchange.CryptocurrencyTradeFee:
+		fee = c.calculateTradingFee(feeBuilder.FirstCurrency, feeBuilder.SecondCurrency, feeBuilder.PurchasePrice, feeBuilder.Amount, feeBuilder.IsMaker)
+	case exchange.InternationalBankWithdrawalFee:
+		fee = getInternationalBankWithdrawalFee(feeBuilder.CurrencyItem, feeBuilder.Amount)
+	case exchange.InternationalBankDepositFee:
+		fee = getInternationalBankDepositFee(feeBuilder.CurrencyItem, feeBuilder.Amount)
+	}
+
+	if fee < 0 {
+		fee = 0
+	}
+
+	return fee, nil
+}
+
+func (c *COINUT) calculateTradingFee(firstCurrency, secondCurrency string, purchasePrice, amount float64, isMaker bool) float64 {
+	var fee float64
+	if isMaker {
+		fee = 0
+	} else if currency.IsCryptocurrency(firstCurrency) && !currency.IsCryptocurrency(secondCurrency) ||
+		!currency.IsCryptocurrency(firstCurrency) && currency.IsCryptocurrency(secondCurrency) {
+		fee = 0.002
+	} else {
+		fee = 0.001
+	}
+
+	return fee * amount * purchasePrice
+}
+
+func getInternationalBankWithdrawalFee(currency string, amount float64) float64 {
+	var fee float64
+
+	if currency == symbol.USD {
+		if amount*0.001 < 10 {
+			fee = 10
+		} else {
+			fee = amount * 0.001
+		}
+	} else if currency == symbol.CAD {
+		if amount*0.005 < 10 {
+			fee = 2
+		} else {
+			fee = amount * 0.005
+		}
+	} else if currency == symbol.SGD {
+		if amount*0.001 < 10 {
+			fee = 10
+		} else {
+			fee = amount * 0.001
+		}
+	}
+
+	return fee
+}
+
+func getInternationalBankDepositFee(currency string, amount float64) float64 {
+	var fee float64
+
+	if currency == symbol.USD {
+		if amount*0.001 < 10 {
+			fee = 10
+		} else {
+			fee = amount * 0.001
+		}
+	} else if currency == symbol.CAD {
+		if amount*0.005 < 10 {
+			fee = 2
+		} else {
+			fee = amount * 0.005
+		}
+	}
+
+	return fee
 }

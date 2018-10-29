@@ -1,6 +1,7 @@
 package zb
 
 import "time"
+import "github.com/thrasher-/gocryptotrader/currency/symbol"
 
 // OrderbookResponse holds the orderbook data for a symbol
 type OrderbookResponse struct {
@@ -135,3 +136,77 @@ var (
 	TimeIntervalThreeDays      = TimeInterval("3day")
 	TimeIntervalWeek           = TimeInterval("1week")
 )
+
+// WithdrawalFees the large list of predefined withdrawal fees
+// Prone to change, using highest value
+var WithdrawalFees = map[string]float64{
+	symbol.ZB:     5,
+	symbol.BTC:    0.001,
+	symbol.BCH:    0.0006,
+	symbol.LTC:    0.005,
+	symbol.ETH:    0.01,
+	symbol.ETC:    0.01,
+	symbol.BTS:    3,
+	symbol.EOS:    0.1,
+	symbol.QTUM:   0.01,
+	symbol.HC:     0.001,
+	symbol.XRP:    0.1,
+	symbol.QC:     5,
+	symbol.DASH:   0.002,
+	symbol.BCD:    0,
+	symbol.UBTC:   0.001,
+	symbol.SBTC:   0,
+	symbol.INK:    60,
+	symbol.BTH:    0.01,
+	symbol.LBTC:   0.01,
+	symbol.CHAT:   20,
+	symbol.BITCNY: 20,
+	symbol.HLC:    100,
+	symbol.BTP:    0.001,
+	symbol.TOPC:   200,
+	symbol.ENT:    50,
+	symbol.BAT:    40,
+	symbol.FIRST:  30,
+	symbol.SAFE:   0.001,
+	symbol.QUN:    200,
+	symbol.BTN:    0.005,
+	symbol.TRUE:   5,
+	symbol.CDC:    1,
+	symbol.DDM:    1,
+	symbol.HOTC:   150,
+	symbol.USDT:   5,
+	symbol.XUC:    1,
+	symbol.EPC:    40,
+	symbol.BDS:    3,
+	symbol.GRAM:   5,
+	symbol.DOGE:   20,
+	symbol.NEO:    0,
+	symbol.OMG:    0.5,
+	symbol.BTM:    4,
+	symbol.SNT:    60,
+	symbol.AE:     3,
+	symbol.ICX:    3,
+	symbol.ZRX:    10,
+	symbol.EDO:    4,
+	symbol.FUN:    250,
+	symbol.MANA:   70,
+	symbol.RCN:    70,
+	symbol.MCO:    0.6,
+	symbol.MITH:   10,
+	symbol.KNC:    5,
+	symbol.XLM:    0.1,
+	symbol.GNT:    20,
+	symbol.MTL:    3,
+	symbol.SUB:    20,
+	symbol.XEM:    4,
+	symbol.EOSDAC: 0,
+	symbol.KAN:    350,
+	symbol.AAA:    1,
+	symbol.XWC:    1,
+	symbol.PDX:    1,
+	symbol.SLT:    100,
+	symbol.ADA:    1,
+	symbol.HPY:    100,
+	symbol.PAX:    5,
+	symbol.XTZ:    0.1,
+}

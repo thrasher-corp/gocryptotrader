@@ -239,3 +239,8 @@ func (o *OKCoin) WithdrawFiatExchangeFundsToInternationalBank(currency pair.Curr
 func (o *OKCoin) GetWebsocket() (*exchange.Websocket, error) {
 	return o.Websocket, nil
 }
+
+// GetFeeByType returns an estimate of fee based on type of transaction
+func (o *OKCoin) GetFeeByType(feeBuilder exchange.FeeBuilder) (float64, error) {
+	return o.GetFee(feeBuilder)
+}

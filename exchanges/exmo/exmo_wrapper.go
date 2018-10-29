@@ -229,3 +229,8 @@ func (e *EXMO) WithdrawFiatExchangeFundsToInternationalBank(currency pair.Curren
 func (e *EXMO) GetWebsocket() (*exchange.Websocket, error) {
 	return nil, errors.New("not yet implemented")
 }
+
+// GetFeeByType returns an estimate of fee based on type of transaction
+func (e *EXMO) GetFeeByType(feeBuilder exchange.FeeBuilder) (float64, error) {
+	return e.GetFee(feeBuilder)
+}

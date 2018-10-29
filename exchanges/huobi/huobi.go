@@ -138,11 +138,6 @@ func (h *HUOBI) Setup(exch config.ExchangeConfig) {
 	}
 }
 
-// GetFee returns Huobi fee
-func (h *HUOBI) GetFee() float64 {
-	return h.Fee
-}
-
 // GetSpotKline returns kline data
 // KlinesRequestParams contains symbol, period and size
 func (h *HUOBI) GetSpotKline(arg KlinesRequestParams) ([]KlineItem, error) {
@@ -852,4 +847,23 @@ func (h *HUOBI) SendAuthenticatedHTTPRequest(method, endpoint string, values url
 	}
 
 	return h.SendPayload(method, url, headers, bytes.NewReader(body), result, true, h.Verbose)
+}
+
+// GetFee returns an estimate of fee based on type of transaction
+func (h *HUOBI) GetFee(feeBuilder exchange.FeeBuilder) (float64, error) {
+	var fee float64
+	switch feeBuilder.FeeType {
+	case exchange.CryptocurrencyTradeFee:
+		fee = calculateTradingFee(feeBuilder.PurchasePrice, feeBuilder.Amount)
+	}
+	if fee < 0 {
+		fee = 0
+	}
+
+	return fee, nil
+}
+
+func calculateTradingFee(purchasePrice, amount float64) float64 {
+	feePercent := 0.002
+	return feePercent * purchasePrice * amount
 }

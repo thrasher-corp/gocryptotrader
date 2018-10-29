@@ -652,3 +652,48 @@ func (b *Binance) SetValues() {
 		TimeIntervalMonth,
 	}
 }
+
+// GetFee returns an estimate of fee based on type of transaction
+func (b *Binance) GetFee(feeBuilder exchange.FeeBuilder) (float64, error) {
+	var fee float64
+
+	switch feeBuilder.FeeType {
+	case exchange.CryptocurrencyTradeFee:
+		multiplier, err := b.getMultiplier(feeBuilder.IsMaker)
+		if err != nil {
+			return 0, err
+		}
+		fee = calculateTradingFee(feeBuilder.PurchasePrice, feeBuilder.Amount, multiplier)
+	case exchange.CryptocurrencyWithdrawalFee:
+		fee = getCryptocurrencyWithdrawalFee(feeBuilder.FirstCurrency, feeBuilder.PurchasePrice, feeBuilder.Amount)
+	}
+	if fee < 0 {
+		fee = 0
+	}
+	return fee, nil
+}
+
+// getMultiplier retrieves account based taker/maker fees
+func (b *Binance) getMultiplier(isMaker bool) (float64, error) {
+	var multiplier float64
+	account, err := b.GetAccount()
+	if err != nil {
+		return 0, err
+	}
+	if isMaker {
+		multiplier = float64(account.MakerCommission)
+	} else {
+		multiplier = float64(account.TakerCommission)
+	}
+	return multiplier, nil
+}
+
+// calculateTradingFee returns the fee for trading any currency on Bittrex
+func calculateTradingFee(purchasePrice, amount, multiplier float64) float64 {
+	return (multiplier / 100) * purchasePrice * amount
+}
+
+// getCryptocurrencyWithdrawalFee returns the fee for withdrawing from the exchange
+func getCryptocurrencyWithdrawalFee(currency string, purchasePrice, amount float64) float64 {
+	return WithdrawalFees[currency]
+}

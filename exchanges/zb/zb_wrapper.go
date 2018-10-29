@@ -189,3 +189,8 @@ func (z *ZB) WithdrawFiatExchangeFundsToInternationalBank(currency pair.Currency
 func (z *ZB) GetWebsocket() (*exchange.Websocket, error) {
 	return nil, errors.New("not yet implemented")
 }
+
+// GetFeeByType returns an estimate of fee based on type of transaction
+func (z *ZB) GetFeeByType(feeBuilder exchange.FeeBuilder) (float64, error) {
+	return z.GetFee(feeBuilder)
+}

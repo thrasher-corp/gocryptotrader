@@ -148,14 +148,14 @@ func (p *Poloniex) GetExchangeFundTransferHistory() ([]exchange.FundHistory, err
 }
 
 // GetExchangeHistory returns historic trade data since exchange opening.
-func (p *Poloniex) GetExchangeHistory(cP pair.CurrencyPair, assetType string) ([]exchange.TradeHistory, error) {
+func (p *Poloniex) GetExchangeHistory(currencyPair pair.CurrencyPair, assetType string) ([]exchange.TradeHistory, error) {
 	var resp []exchange.TradeHistory
 
 	return resp, errors.New("trade history not yet implemented")
 }
 
 // SubmitExchangeOrder submits a new order
-func (p *Poloniex) SubmitExchangeOrder(cP pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (int64, error) {
+func (p *Poloniex) SubmitExchangeOrder(currencyPair pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (int64, error) {
 	return 0, errors.New("not yet implemented")
 }
 
@@ -207,4 +207,9 @@ func (p *Poloniex) WithdrawFiatExchangeFundsToInternationalBank(currency pair.Cu
 // GetWebsocket returns a pointer to the exchange websocket
 func (p *Poloniex) GetWebsocket() (*exchange.Websocket, error) {
 	return p.Websocket, nil
+}
+
+// GetFeeByType returns an estimate of fee based on type of transaction
+func (p *Poloniex) GetFeeByType(feeBuilder exchange.FeeBuilder) (float64, error) {
+	return p.GetFee(feeBuilder)
 }

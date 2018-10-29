@@ -29,6 +29,59 @@ const (
 	DefaultHTTPTimeout = time.Second * 15
 )
 
+// FeeType custom type for calculating fees based on method
+type FeeType string
+
+// InternationalBankTransactionType custom type for calculating fees based on fiat transaction types
+type InternationalBankTransactionType string
+
+// Const declarations for fee types
+const (
+	BankFee                        FeeType = "bankFee"
+	InternationalBankDepositFee    FeeType = "internationalBankDepositFee"
+	InternationalBankWithdrawalFee FeeType = "internationalBankWithdrawalFee"
+	CryptocurrencyTradeFee         FeeType = "cryptocurrencyTradeFee"
+	CyptocurrencyDepositFee        FeeType = "cyptocurrencyDepositFee"
+	CryptocurrencyWithdrawalFee    FeeType = "cryptocurrencyWithdrawalFee"
+)
+
+// Const declarations for international transaction types
+const (
+	WireTransfer    InternationalBankTransactionType = "wireTransfer"
+	PerfectMoney    InternationalBankTransactionType = "perfectMoney"
+	Neteller        InternationalBankTransactionType = "neteller"
+	AdvCash         InternationalBankTransactionType = "advCash"
+	Payeer          InternationalBankTransactionType = "payeer"
+	Skrill          InternationalBankTransactionType = "skrill"
+	Simplex         InternationalBankTransactionType = "simplex"
+	SEPA            InternationalBankTransactionType = "sepa"
+	RapidTransfer   InternationalBankTransactionType = "rapidTransfer"
+	MisterTangoSEPA InternationalBankTransactionType = "misterTangoSepa"
+	Qiwi            InternationalBankTransactionType = "qiwi"
+	VisaMastercard  InternationalBankTransactionType = "visaMastercard"
+	WebMoney        InternationalBankTransactionType = "webMoney"
+	Capitalist      InternationalBankTransactionType = "capitalist"
+	WesternUnion    InternationalBankTransactionType = "westernUnion"
+	MoneyGram       InternationalBankTransactionType = "moneyGram"
+	Contact         InternationalBankTransactionType = "contact"
+)
+
+// FeeBuilder is the type which holds all parameters required to calculate a fee for an exchange
+type FeeBuilder struct {
+	FeeType FeeType
+	//Used for calculating crypto trading fees, deposits & withdrawals
+	FirstCurrency  string
+	SecondCurrency string
+	Delimiter      string
+	IsMaker        bool
+	// Fiat currency used for bank deposits & withdrawals
+	CurrencyItem        string
+	BankTransactionType InternationalBankTransactionType
+	// Used to multiply for fee calculations
+	PurchasePrice float64
+	Amount        float64
+}
+
 // AccountInfo is a Generic type to hold each exchange's holdings in
 // all enabled currencies
 type AccountInfo struct {

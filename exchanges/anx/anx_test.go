@@ -4,32 +4,34 @@ import (
 	"testing"
 
 	"github.com/thrasher-/gocryptotrader/config"
+	"github.com/thrasher-/gocryptotrader/currency/symbol"
+	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 )
 
-var anx ANX
+var a ANX
 
 func TestSetDefaults(t *testing.T) {
-	anx.SetDefaults()
+	a.SetDefaults()
 
-	if anx.Name != "ANX" {
+	if a.Name != "ANX" {
 		t.Error("Test Failed - ANX SetDefaults() incorrect values set")
 	}
-	if anx.Enabled != false {
+	if a.Enabled != false {
 		t.Error("Test Failed - ANX SetDefaults() incorrect values set")
 	}
-	if anx.TakerFee != 0.6 {
+	if a.TakerFee != 0.02 {
 		t.Error("Test Failed - ANX SetDefaults() incorrect values set")
 	}
-	if anx.MakerFee != 0.3 {
+	if a.MakerFee != 0.01 {
 		t.Error("Test Failed - ANX SetDefaults() incorrect values set")
 	}
-	if anx.Verbose != false {
+	if a.Verbose != false {
 		t.Error("Test Failed - ANX SetDefaults() incorrect values set")
 	}
-	if anx.Websocket.IsEnabled() != false {
+	if a.Websocket.IsEnabled() != false {
 		t.Error("Test Failed - ANX SetDefaults() incorrect values set")
 	}
-	if anx.RESTPollingDelay != 10 {
+	if a.RESTPollingDelay != 10 {
 		t.Error("Test Failed - ANX SetDefaults() incorrect values set")
 	}
 }
@@ -41,67 +43,56 @@ func TestSetup(t *testing.T) {
 	if err != nil {
 		t.Error("Test Failed - ANX Setup() init error")
 	}
-	anx.Setup(anxConfig)
+	a.Setup(anxConfig)
 
-	if anx.Enabled != true {
+	if a.Enabled != true {
 		t.Error("Test Failed - ANX Setup() incorrect values set")
 	}
-	if anx.AuthenticatedAPISupport != false {
+	if a.AuthenticatedAPISupport != false {
 		t.Error("Test Failed - ANX Setup() incorrect values set")
 	}
-	if len(anx.APIKey) != 0 {
+	if len(a.APIKey) != 0 {
 		t.Error("Test Failed - ANX Setup() incorrect values set")
 	}
-	if len(anx.APISecret) != 0 {
+	if len(a.APISecret) != 0 {
 		t.Error("Test Failed - ANX Setup() incorrect values set")
 	}
-	if anx.RESTPollingDelay != 10 {
+	if a.RESTPollingDelay != 10 {
 		t.Error("Test Failed - ANX Setup() incorrect values set")
 	}
-	if anx.Verbose != false {
+	if a.Verbose != false {
 		t.Error("Test Failed - ANX Setup() incorrect values set")
 	}
-	if anx.Websocket.IsEnabled() != false {
+	if a.Websocket.IsEnabled() != false {
 		t.Error("Test Failed - ANX Setup() incorrect values set")
 	}
-	if len(anx.BaseCurrencies) <= 0 {
+	if len(a.BaseCurrencies) <= 0 {
 		t.Error("Test Failed - ANX Setup() incorrect values set")
 	}
-	if len(anx.AvailablePairs) <= 0 {
+	if len(a.AvailablePairs) <= 0 {
 		t.Error("Test Failed - ANX Setup() incorrect values set")
 	}
-	if len(anx.EnabledPairs) <= 0 {
+	if len(a.EnabledPairs) <= 0 {
 		t.Error("Test Failed - ANX Setup() incorrect values set")
 	}
 }
 
 func TestGetCurrencies(t *testing.T) {
-	_, err := anx.GetCurrencies()
+	_, err := a.GetCurrencies()
 	if err != nil {
 		t.Fatalf("Test failed. TestGetCurrencies failed. Err: %s", err)
 	}
 }
 
 func TestGetTradablePairs(t *testing.T) {
-	_, err := anx.GetTradablePairs()
+	_, err := a.GetTradablePairs()
 	if err != nil {
 		t.Fatalf("Test failed. TestGetTradablePairs failed. Err: %s", err)
 	}
 }
 
-func TestGetFee(t *testing.T) {
-	makerFeeExpected, takerFeeExpected := 0.3, 0.6
-
-	if anx.GetFee(true) != makerFeeExpected {
-		t.Error("Test Failed - ANX GetFee() incorrect return value")
-	}
-	if anx.GetFee(false) != takerFeeExpected {
-		t.Error("Test Failed - ANX GetFee() incorrect return value")
-	}
-}
-
 func TestGetTicker(t *testing.T) {
-	ticker, err := anx.GetTicker("BTCUSD")
+	ticker, err := a.GetTicker("BTCUSD")
 	if err != nil {
 		t.Errorf("Test Failed - ANX GetTicker() error: %s", err)
 	}
@@ -111,7 +102,7 @@ func TestGetTicker(t *testing.T) {
 }
 
 func TestGetDepth(t *testing.T) {
-	ticker, err := anx.GetDepth("BTCUSD")
+	ticker, err := a.GetDepth("BTCUSD")
 	if err != nil {
 		t.Errorf("Test Failed - ANX GetDepth() error: %s", err)
 	}
@@ -121,7 +112,7 @@ func TestGetDepth(t *testing.T) {
 }
 
 func TestGetAPIKey(t *testing.T) {
-	apiKey, apiSecret, err := anx.GetAPIKey("userName", "passWord", "", "1337")
+	apiKey, apiSecret, err := a.GetAPIKey("userName", "passWord", "", "1337")
 	if err == nil {
 		t.Error("Test Failed - ANX GetAPIKey() Incorrect")
 	}
@@ -130,5 +121,89 @@ func TestGetAPIKey(t *testing.T) {
 	}
 	if apiSecret != "" {
 		t.Error("Test Failed - ANX GetAPIKey() Incorrect")
+	}
+}
+
+func setFeeBuilder() exchange.FeeBuilder {
+	return exchange.FeeBuilder{
+		Amount:         1,
+		Delimiter:      "",
+		FeeType:        exchange.CryptocurrencyTradeFee,
+		FirstCurrency:  symbol.BTC,
+		SecondCurrency: symbol.LTC,
+		IsMaker:        false,
+		PurchasePrice:  1,
+	}
+}
+
+func TestGetFee(t *testing.T) {
+	a.SetDefaults()
+	TestSetup(t)
+
+	var feeBuilder = setFeeBuilder()
+
+	// CryptocurrencyTradeFee Basic
+	if resp, err := a.GetFee(feeBuilder); resp != float64(0.02) || err != nil {
+		t.Error(err)
+		t.Errorf("Test Failed - GetFee() error. Expected: %f, Recieved: %f", float64(0), resp)
+	}
+
+	// CryptocurrencyTradeFee High quantity
+	feeBuilder = setFeeBuilder()
+	feeBuilder.Amount = 1000
+	feeBuilder.PurchasePrice = 1000
+	if resp, err := a.GetFee(feeBuilder); resp != float64(20000) || err != nil {
+		t.Errorf("Test Failed - GetFee() error. Expected: %f, Recieved: %f", float64(20000), resp)
+		t.Error(err)
+	}
+
+	// CryptocurrencyTradeFee IsMaker
+	feeBuilder = setFeeBuilder()
+	feeBuilder.IsMaker = true
+	if resp, err := a.GetFee(feeBuilder); resp != float64(0.01) || err != nil {
+		t.Errorf("Test Failed - GetFee() error. Expected: %f, Recieved: %f", float64(0.01), resp)
+		t.Error(err)
+	}
+
+	// CryptocurrencyTradeFee Negative purchase price
+	feeBuilder = setFeeBuilder()
+	feeBuilder.PurchasePrice = -1000
+	if resp, err := a.GetFee(feeBuilder); resp != float64(0) || err != nil {
+		t.Errorf("Test Failed - GetFee() error. Expected: %f, Recieved: %f", float64(0), resp)
+		t.Error(err)
+	}
+
+	// CryptocurrencyWithdrawalFee Basic
+	feeBuilder = setFeeBuilder()
+	feeBuilder.FeeType = exchange.CryptocurrencyWithdrawalFee
+	if resp, err := a.GetFee(feeBuilder); resp != float64(0.002) || err != nil {
+		t.Errorf("Test Failed - GetFee() error. Expected: %f, Recieved: %f", float64(0), resp)
+		t.Error(err)
+	}
+
+	// CyptocurrencyDepositFee Basic
+	feeBuilder = setFeeBuilder()
+	feeBuilder.FeeType = exchange.CyptocurrencyDepositFee
+	if resp, err := a.GetFee(feeBuilder); resp != float64(0) || err != nil {
+		t.Errorf("Test Failed - GetFee() error. Expected: %f, Recieved: %f", float64(0), resp)
+		t.Error(err)
+	}
+
+	// InternationalBankDepositFee Basic
+	feeBuilder = setFeeBuilder()
+	feeBuilder.FeeType = exchange.InternationalBankDepositFee
+	feeBuilder.CurrencyItem = symbol.HKD
+	if resp, err := a.GetFee(feeBuilder); resp != float64(0) || err != nil {
+		t.Errorf("Test Failed - GetFee() error. Expected: %f, Recieved: %f", float64(0), resp)
+		t.Error(err)
+	}
+
+	// InternationalBankWithdrawalFee Basic
+	feeBuilder = setFeeBuilder()
+	feeBuilder.FeeType = exchange.InternationalBankWithdrawalFee
+	feeBuilder.CurrencyItem = symbol.HKD
+	if resp, err := a.GetFee(feeBuilder); resp != float64(250.01) || err != nil {
+		t.Errorf("Test Failed - GetFee() error. Expected: %f, Recieved: %f", float64(250.01), resp)
+		t.Error(err)
 	}
 }

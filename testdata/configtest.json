@@ -1,6 +1,6 @@
 {
  "name": "",
- "encryptConfig": 0,
+ "encryptConfig": -1,
  "globalHTTPTimeout": 15000000000,
  "currencyConfig": {
   "forexProviders": [

@@ -8,6 +8,8 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/thrasher-/gocryptotrader/currency/symbol"
+
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/exchanges"
@@ -44,8 +46,8 @@ type ANX struct {
 func (a *ANX) SetDefaults() {
 	a.Name = "ANX"
 	a.Enabled = false
-	a.TakerFee = 0.6
-	a.MakerFee = 0.3
+	a.TakerFee = 0.02
+	a.MakerFee = 0.01
 	a.Verbose = false
 	a.RESTPollingDelay = 10
 	a.RequestCurrencyPairFormat.Delimiter = ""
@@ -116,14 +118,6 @@ func (a *ANX) GetCurrencies() (CurrenciesStore, error) {
 	}
 
 	return result.CurrenciesResponse, nil
-}
-
-// GetFee returns maker or taker fees
-func (a *ANX) GetFee(maker bool) float64 {
-	if maker {
-		return a.MakerFee
-	}
-	return a.TakerFee
 }
 
 // GetTicker returns the current ticker
@@ -404,4 +398,48 @@ func (a *ANX) SendAuthenticatedHTTPRequest(path string, params map[string]interf
 	headers["Content-Type"] = "application/json"
 
 	return a.SendPayload("POST", a.APIUrl+path, headers, bytes.NewBuffer(PayloadJSON), result, true, a.Verbose)
+}
+
+// GetFee returns an estimate of fee based on type of transaction
+func (a *ANX) GetFee(feeBuilder exchange.FeeBuilder) (float64, error) {
+	var fee float64
+
+	switch feeBuilder.FeeType {
+	case exchange.CryptocurrencyTradeFee:
+		fee = a.calculateTradingFee(feeBuilder.PurchasePrice, feeBuilder.Amount, feeBuilder.IsMaker)
+	case exchange.CryptocurrencyWithdrawalFee:
+		fee = getCryptocurrencyWithdrawalFee(feeBuilder.FirstCurrency)
+	case exchange.InternationalBankWithdrawalFee:
+		fee = getInternationalBankWithdrawalFee(feeBuilder.CurrencyItem, feeBuilder.Amount)
+	}
+	if fee < 0 {
+		fee = 0
+	}
+	return fee, nil
+}
+
+func (a *ANX) calculateTradingFee(purchasePrice, amount float64, isMaker bool) float64 {
+	var fee float64
+
+	if isMaker {
+		fee = a.MakerFee * amount * purchasePrice
+	} else {
+		fee = a.TakerFee * amount * purchasePrice
+	}
+
+	return fee
+}
+
+func getCryptocurrencyWithdrawalFee(currency string) float64 {
+	return WithdrawalFees[currency]
+}
+
+func getInternationalBankWithdrawalFee(currency string, amount float64) float64 {
+	var fee float64
+
+	if currency == symbol.HKD {
+		fee = 250 + (WithdrawalFees[currency] * amount)
+	}
+	//TODO, other fiat currencies require consultation with ANXPRO
+	return fee
 }

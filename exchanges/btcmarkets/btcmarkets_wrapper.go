@@ -255,3 +255,8 @@ func (b *BTCMarkets) WithdrawFiatExchangeFundsToInternationalBank(currency pair.
 func (b *BTCMarkets) GetWebsocket() (*exchange.Websocket, error) {
 	return nil, errors.New("not yet implemented")
 }
+
+// GetFeeByType returns an estimate of fee based on type of transaction
+func (b *BTCMarkets) GetFeeByType(feeBuilder exchange.FeeBuilder) (float64, error) {
+	return b.GetFee(feeBuilder)
+}

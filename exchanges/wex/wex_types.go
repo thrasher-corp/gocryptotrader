@@ -1,5 +1,7 @@
 package wex
 
+import "github.com/thrasher-/gocryptotrader/currency/symbol"
+
 // Response is a generic struct used for exchange API request result
 type Response struct {
 	Return  interface{} `json:"return"`
@@ -151,4 +153,20 @@ type RedeemCoupon struct {
 	CouponCurrency string  `json:"couponCurrency"`
 	TransID        int64   `json:"transID"`
 	Error          string  `json:"error"`
+}
+
+// WithdrawalFees the large list of predefined withdrawal fees
+// Prone to change, using highest value
+var WithdrawalFees = map[string]float64{
+	symbol.BTC:  0.0004,
+	symbol.LTC:  0.001,
+	symbol.NMC:  0.1,
+	symbol.NVC:  0.1,
+	symbol.PPC:  0.1,
+	symbol.DSH:  0.001,
+	symbol.ETH:  0.003,
+	symbol.BCH:  0.001,
+	symbol.ZEC:  0.001,
+	symbol.USDT: 10,
+	symbol.XMR:  0.01,
 }

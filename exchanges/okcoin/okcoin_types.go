@@ -1,5 +1,7 @@
 package okcoin
 
+import "github.com/thrasher-/gocryptotrader/currency/symbol"
+
 // Ticker holds ticker data
 type Ticker struct {
 	Buy  float64 `json:",string"`
@@ -414,4 +416,14 @@ type WebsocketEventAuthRemove struct {
 type WebsocketTradeOrderResponse struct {
 	OrderID int64 `json:"order_id,string"`
 	Result  bool  `json:"result,string"`
+}
+
+// WithdrawalFees the large list of predefined withdrawal fees
+// Prone to change, using highest value
+var WithdrawalFees = map[string]float64{
+	symbol.BTC: 0.005,
+	symbol.LTC: 0.2,
+	symbol.ETH: 0.01,
+	symbol.ETC: 0.2,
+	symbol.BCH: 0.002,
 }

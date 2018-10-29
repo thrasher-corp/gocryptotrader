@@ -12,6 +12,7 @@ import (
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
+	"github.com/thrasher-/gocryptotrader/currency/symbol"
 	"github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/request"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
@@ -129,22 +130,74 @@ func (b *Bitstamp) Setup(exch config.ExchangeConfig) {
 	}
 }
 
-// GetFee returns fee on a currency pair
-func (b *Bitstamp) GetFee(currencyPair string) float64 {
-	switch currencyPair {
-	case "BTCUSD":
-		return b.Balance.BTCUSDFee
-	case "BTCEUR":
-		return b.Balance.BTCEURFee
-	case "XRPEUR":
-		return b.Balance.XRPEURFee
-	case "XRPUSD":
-		return b.Balance.XRPUSDFee
-	case "EURUSD":
-		return b.Balance.EURUSDFee
-	default:
-		return 0
+// GetFee returns an estimate of fee based on type of transaction
+func (b *Bitstamp) GetFee(feeBuilder exchange.FeeBuilder) (float64, error) {
+	var fee float64
+
+	switch feeBuilder.FeeType {
+	case exchange.CryptocurrencyTradeFee:
+		var err error
+
+		b.Balance, err = b.GetBalance()
+		if err != nil {
+			return 0, err
+		}
+		fee = b.CalculateTradingFee(feeBuilder.FirstCurrency+feeBuilder.SecondCurrency, feeBuilder.PurchasePrice, feeBuilder.Amount)
+	case exchange.CyptocurrencyDepositFee:
+		fee = 0
+	case exchange.InternationalBankDepositFee:
+		fee = getInternationalBankDepositFee(feeBuilder.Amount)
+	case exchange.InternationalBankWithdrawalFee:
+		fee = getInternationalBankWithdrawalFee(feeBuilder.Amount)
 	}
+	if fee < 0 {
+		fee = 0
+	}
+	return fee, nil
+}
+
+// getInternationalBankWithdrawalFee returns international withdrawal fee
+func getInternationalBankWithdrawalFee(amount float64) float64 {
+	fee := amount * 0.0009
+
+	if fee < 15 {
+		return 15
+	}
+	return fee
+}
+
+// getInternationalBankDepositFee returns international deposit fee
+func getInternationalBankDepositFee(amount float64) float64 {
+	fee := amount * 0.0005
+
+	if fee < 7.5 {
+		return 7.5
+	}
+	if fee > 300 {
+		return 300
+	}
+	return fee
+}
+
+// CalculateTradingFee returns fee on a currency pair
+func (b *Bitstamp) CalculateTradingFee(currency string, purchasePrice float64, amount float64) float64 {
+	var fee float64
+
+	switch currency {
+	case symbol.BTC + symbol.USD:
+		fee = b.Balance.BTCUSDFee
+	case symbol.BTC + symbol.EUR:
+		fee = b.Balance.BTCEURFee
+	case symbol.XRP + symbol.EUR:
+		fee = b.Balance.XRPEURFee
+	case symbol.XRP + symbol.USD:
+		fee = b.Balance.XRPUSDFee
+	case symbol.EUR + symbol.USD:
+		fee = b.Balance.EURUSDFee
+	default:
+		fee = 0
+	}
+	return fee * purchasePrice * amount
 }
 
 // GetTicker returns ticker information

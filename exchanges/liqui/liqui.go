@@ -1,7 +1,6 @@
 package liqui
 
 import (
-	"errors"
 	"fmt"
 	"log"
 	"net/url"
@@ -107,16 +106,6 @@ func (l *Liqui) Setup(exch config.ExchangeConfig) {
 			log.Fatal(err)
 		}
 	}
-}
-
-// GetFee returns a fee for a specific currency
-func (l *Liqui) GetFee(currency string) (float64, error) {
-	val, ok := l.Info.Pairs[common.StringToLower(currency)]
-	if !ok {
-		return 0, errors.New("currency does not exist")
-	}
-
-	return val.Fee, nil
 }
 
 // GetAvailablePairs returns all available pairs
@@ -314,4 +303,34 @@ func (l *Liqui) SendAuthenticatedHTTPRequest(method string, values url.Values, r
 		result,
 		true,
 		l.Verbose)
+}
+
+// GetFee returns an estimate of fee based on type of transaction
+func (l *Liqui) GetFee(feeBuilder exchange.FeeBuilder) (float64, error) {
+	var fee float64
+	switch feeBuilder.FeeType {
+	case exchange.CryptocurrencyTradeFee:
+		fee = calculateTradingFee(feeBuilder.PurchasePrice, feeBuilder.Amount, feeBuilder.IsMaker)
+	case exchange.CryptocurrencyWithdrawalFee:
+		fee = getCryptocurrencyWithdrawalFee(feeBuilder.FirstCurrency)
+	}
+
+	if fee < 0 {
+		fee = 0
+	}
+
+	return fee, nil
+}
+
+func getCryptocurrencyWithdrawalFee(currency string) float64 {
+	return WithdrawalFees[currency]
+}
+
+func calculateTradingFee(purchasePrice, amount float64, isMaker bool) (fee float64) {
+	if isMaker {
+		fee = 0.001
+	} else {
+		fee = 0.0025
+	}
+	return fee * purchasePrice * amount
 }

@@ -180,3 +180,8 @@ func (g *Gateio) WithdrawFiatExchangeFundsToInternationalBank(currency pair.Curr
 func (g *Gateio) GetWebsocket() (*exchange.Websocket, error) {
 	return nil, errors.New("not yet implemented")
 }
+
+// GetFeeByType returns an estimate of fee based on type of transaction
+func (g *Gateio) GetFeeByType(feeBuilder exchange.FeeBuilder) (float64, error) {
+	return g.GetFee(feeBuilder)
+}

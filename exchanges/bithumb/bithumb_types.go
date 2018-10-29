@@ -1,5 +1,7 @@
 package bithumb
 
+import "github.com/thrasher-/gocryptotrader/currency/symbol"
+
 // Ticker holds ticker data
 type Ticker struct {
 	OpeningPrice float64 `json:"opening_price,string"`
@@ -226,4 +228,53 @@ type MarketSell struct {
 		Fee    float64 `json:"fee,string"`
 	} `json:"data"`
 	Message string `json:"message"`
+}
+
+// WithdrawalFees the large list of predefined withdrawal fees
+// Prone to change
+var WithdrawalFees = map[string]float64{
+	symbol.KRW:   1000,
+	symbol.BTC:   0.001,
+	symbol.ETH:   0.01,
+	symbol.DASH:  0.01,
+	symbol.LTC:   0.01,
+	symbol.ETC:   0.01,
+	symbol.XRP:   1,
+	symbol.BCH:   0.001,
+	symbol.XMR:   0.05,
+	symbol.ZEC:   0.001,
+	symbol.QTUM:  0.05,
+	symbol.BTG:   0.001,
+	symbol.ICX:   1,
+	symbol.TRX:   5,
+	symbol.ELF:   5,
+	symbol.MITH:  5,
+	symbol.MCO:   0.5,
+	symbol.OMG:   0.4,
+	symbol.KNC:   3,
+	symbol.GNT:   12,
+	symbol.HSR:   0.2,
+	symbol.ZIL:   30,
+	symbol.ETHOS: 2,
+	symbol.PAY:   2.4,
+	symbol.WAX:   5,
+	symbol.POWR:  5,
+	symbol.LRC:   10,
+	symbol.GTO:   15,
+	symbol.STEEM: 0.01,
+	symbol.STRAT: 0.2,
+	symbol.PPT:   0.5,
+	symbol.CTXC:  4,
+	symbol.CMT:   20,
+	symbol.THETA: 24,
+	symbol.WTC:   0.7,
+	symbol.ITC:   5,
+	symbol.TRUE:  4,
+	symbol.ABT:   5,
+	symbol.RNT:   20,
+	symbol.PLY:   20,
+	symbol.WAVES: 0.01,
+	symbol.LINK:  10,
+	symbol.ENJ:   35,
+	symbol.PST:   30,
 }

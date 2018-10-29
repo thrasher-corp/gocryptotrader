@@ -140,6 +140,24 @@ type TradeVolume struct {
 	SellTakerCount    float64 `json:"sell_taker_count"`
 }
 
+// NotionalVolume api call for fees
+type NotionalVolume struct {
+	MakerFee              int64                  `json:"maker_fee_bps"`
+	TakerFee              int64                  `json:"taker_fee_bps"`
+	AuctionFee            int64                  `json:"auction_fee_bps"`
+	ThirtyDayVolume       float64                `json:"notional_30d_volume"`
+	LastedUpdated         int64                  `json:"last_updated_ms"`
+	AccountID             int64                  `json:"account_id"`
+	Date                  string                 `json:"date"`
+	OneDayNotionalVolumes []OneDayNotionalVolume `json:"notional_1d_volume"`
+}
+
+// OneDayNotionalVolume Contains the notioanl volume for a single day
+type OneDayNotionalVolume struct {
+	Date             string  `json:"date"`
+	NotationalVolume float64 `json:"notional_volume"`
+}
+
 // Balance is a simple balance type
 type Balance struct {
 	Currency  string  `json:"currency"`

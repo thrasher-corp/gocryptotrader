@@ -1,5 +1,7 @@
 package exmo
 
+import "github.com/thrasher-/gocryptotrader/currency/symbol"
+
 // Trades holds trade data
 type Trades struct {
 	TradeID  int64   `json:"trade_id"`
@@ -141,4 +143,34 @@ type WalletHistory struct {
 		Amount    float64 `json:"amount,string"`
 		Account   string  `json:"account,string"`
 	}
+}
+
+// WithdrawalFees the large list of predefined withdrawal fees
+// Prone to change
+var WithdrawalFees = map[string]float64{
+	symbol.BTC:   0.0005,
+	symbol.LTC:   0.01,
+	symbol.DOGE:  1,
+	symbol.DASH:  0.01,
+	symbol.ETH:   0.01,
+	symbol.WAVES: 0.001,
+	symbol.ZEC:   0.001,
+	symbol.USDT:  5,
+	symbol.XMR:   0.05,
+	symbol.XRP:   0.02,
+	symbol.KICK:  50,
+	symbol.ETC:   0.01,
+	symbol.BCH:   0.001,
+	symbol.BTG:   0.001,
+	symbol.HBZ:   65,
+	symbol.BTCZ:  5,
+	symbol.DXT:   20,
+	symbol.STQ:   100,
+	symbol.XLM:   0.001,
+	symbol.OMG:   0.5,
+	symbol.TRX:   1,
+	symbol.ADA:   1,
+	symbol.INK:   50,
+	symbol.ZRX:   1,
+	symbol.GNT:   1,
 }

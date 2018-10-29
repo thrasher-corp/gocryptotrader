@@ -201,3 +201,8 @@ func (l *Liqui) WithdrawFiatExchangeFundsToInternationalBank(currency pair.Curre
 func (l *Liqui) GetWebsocket() (*exchange.Websocket, error) {
 	return nil, errors.New("not yet implemented")
 }
+
+// GetFeeByType returns an estimate of fee based on type of transaction
+func (l *Liqui) GetFeeByType(feeBuilder exchange.FeeBuilder) (float64, error) {
+	return l.GetFee(feeBuilder)
+}

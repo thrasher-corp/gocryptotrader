@@ -77,6 +77,12 @@ func (b *Bitstamp) GetTickerPrice(p pair.CurrencyPair, assetType string) (ticker
 	return tick, nil
 }
 
+// GetFeeByType returns an estimate of fee based on type of transaction
+func (b *Bitstamp) GetFeeByType(feeBuilder exchange.FeeBuilder) (float64, error) {
+	return b.GetFee(feeBuilder)
+
+}
+
 // GetOrderbookEx returns the orderbook for a currency pair
 func (b *Bitstamp) GetOrderbookEx(p pair.CurrencyPair, assetType string) (orderbook.Base, error) {
 	ob, err := orderbook.GetOrderbook(b.GetName(), p, assetType)

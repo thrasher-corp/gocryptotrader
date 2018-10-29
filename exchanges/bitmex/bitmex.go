@@ -912,3 +912,29 @@ func (b *Bitmex) CaptureError(resp, reType interface{}) error {
 	}
 	return nil
 }
+
+// GetFee returns an estimate of fee based on type of transaction
+func (b *Bitmex) GetFee(feeBuilder exchange.FeeBuilder) (float64, error) {
+	var fee float64
+	var err error
+
+	switch feeBuilder.FeeType {
+	case exchange.CryptocurrencyTradeFee:
+		fee = calculateTradingFee(feeBuilder.PurchasePrice, feeBuilder.Amount, feeBuilder.IsMaker)
+	}
+	if fee < 0 {
+		fee = 0
+	}
+	return fee, err
+}
+
+// calculateTradingFee returns the fee for trading any currency on Bittrex
+func calculateTradingFee(purchasePrice float64, amount float64, isMaker bool) float64 {
+	var fee = 0.000750
+
+	if isMaker {
+		fee -= 0.000250
+	}
+
+	return fee * purchasePrice * amount
+}

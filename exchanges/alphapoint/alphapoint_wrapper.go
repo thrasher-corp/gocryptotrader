@@ -176,3 +176,8 @@ func (a *Alphapoint) WithdrawFiatExchangeFunds(currency pair.CurrencyItem, amoun
 func (a *Alphapoint) GetWebsocket() (*exchange.Websocket, error) {
 	return nil, errors.New("not yet implemented")
 }
+
+// GetFeeByType returns an estimate of fee based on type of transaction
+func (a *Alphapoint) GetFeeByType(feeBuilder exchange.FeeBuilder) (float64, error) {
+	return 0, errors.New("not yet implemented")
+}

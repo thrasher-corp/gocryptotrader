@@ -11,6 +11,7 @@ import (
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
+	"github.com/thrasher-/gocryptotrader/currency/symbol"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/request"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
@@ -563,4 +564,68 @@ func (b *Bithumb) SendAuthenticatedHTTPRequest(path string, params url.Values, r
 	headers["Content-Type"] = "application/x-www-form-urlencoded"
 
 	return b.SendPayload("POST", b.APIUrl+path, headers, bytes.NewBufferString(payload), result, true, b.Verbose)
+}
+
+// GetFee returns an estimate of fee based on type of transaction
+func (b *Bithumb) GetFee(feeBuilder exchange.FeeBuilder) (float64, error) {
+	var fee float64
+
+	switch feeBuilder.FeeType {
+	case exchange.CryptocurrencyTradeFee:
+		fee = calculateTradingFee(feeBuilder.PurchasePrice, feeBuilder.Amount)
+	case exchange.CyptocurrencyDepositFee:
+		fee = getDepositFee(feeBuilder.FirstCurrency, feeBuilder.Amount)
+	case exchange.CryptocurrencyWithdrawalFee:
+		fee = getWithdrawalFee(feeBuilder.FirstCurrency)
+	}
+	if fee < 0 {
+		fee = 0
+	}
+	return fee, nil
+}
+
+// getDepositFee returns fee when performing a trade
+func calculateTradingFee(purchasePrice float64, amount float64) float64 {
+	fee := 0.0015
+
+	return fee * amount * purchasePrice
+}
+
+// getDepositFee returns fee on a currency when depositing small amounts to bithumb
+func getDepositFee(currency string, amount float64) float64 {
+	var fee float64
+
+	switch currency {
+	case symbol.BTC:
+		if amount <= 0.005 {
+			fee = 0.001
+		}
+	case symbol.LTC:
+		if amount <= 0.3 {
+			fee = 0.01
+		}
+	case symbol.DASH:
+		if amount <= 0.04 {
+			fee = 0.01
+		}
+	case symbol.BCH:
+		if amount <= 0.03 {
+			fee = 0.001
+		}
+	case symbol.ZEC:
+		if amount <= 0.02 {
+			fee = 0.001
+		}
+	case symbol.BTG:
+		if amount <= 0.15 {
+			fee = 0.001
+		}
+	}
+
+	return fee
+}
+
+// getWithdrawalFee returns fee on a currency when withdrawing out of bithumb
+func getWithdrawalFee(currency string) float64 {
+	return WithdrawalFees[currency]
 }

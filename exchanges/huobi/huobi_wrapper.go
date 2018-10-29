@@ -223,3 +223,8 @@ func (h *HUOBI) WithdrawFiatExchangeFundsToInternationalBank(currency pair.Curre
 func (h *HUOBI) GetWebsocket() (*exchange.Websocket, error) {
 	return h.Websocket, nil
 }
+
+// GetFeeByType returns an estimate of fee based on type of transaction
+func (h *HUOBI) GetFeeByType(feeBuilder exchange.FeeBuilder) (float64, error) {
+	return h.GetFee(feeBuilder)
+}

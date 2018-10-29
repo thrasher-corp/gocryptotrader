@@ -1107,3 +1107,33 @@ func (o *OKEX) CheckType(typeInput string) error {
 	}
 	return nil
 }
+
+// GetFee returns an estimate of fee based on type of transaction
+func (o *OKEX) GetFee(feeBuilder exchange.FeeBuilder) (float64, error) {
+	var fee float64
+	switch feeBuilder.FeeType {
+	case exchange.CryptocurrencyTradeFee:
+		fee = calculateTradingFee(feeBuilder.PurchasePrice, feeBuilder.Amount, feeBuilder.IsMaker)
+	case exchange.CryptocurrencyWithdrawalFee:
+		fee = getWithdrawalFee(feeBuilder.FirstCurrency)
+	}
+	if fee < 0 {
+		fee = 0
+	}
+
+	return fee, nil
+}
+
+func calculateTradingFee(purchasePrice, amount float64, isMaker bool) (fee float64) {
+	// TODO volume based fees
+	if isMaker {
+		fee = 0.001
+	} else {
+		fee = 0.0015
+	}
+	return fee * amount * purchasePrice
+}
+
+func getWithdrawalFee(currency string) float64 {
+	return WithdrawalFees[currency]
+}

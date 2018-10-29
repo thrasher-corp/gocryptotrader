@@ -255,3 +255,8 @@ func (k *Kraken) WithdrawFiatExchangeFundsToInternationalBank(currency pair.Curr
 func (k *Kraken) GetWebsocket() (*exchange.Websocket, error) {
 	return nil, errors.New("not yet implemented")
 }
+
+// GetFeeByType returns an estimate of fee based on type of transaction
+func (k *Kraken) GetFeeByType(feeBuilder exchange.FeeBuilder) (float64, error) {
+	return k.GetFee(feeBuilder)
+}

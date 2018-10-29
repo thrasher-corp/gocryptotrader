@@ -4,6 +4,8 @@ import (
 	"testing"
 
 	"github.com/thrasher-/gocryptotrader/config"
+	"github.com/thrasher-/gocryptotrader/currency/symbol"
+	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 )
 
 // Please supply your own keys here for due diligence testing
@@ -185,34 +187,86 @@ func TestMarketSellOrder(t *testing.T) {
 	}
 }
 
-// func TestRun(t *testing.T) {
-// 	t.Parallel()
-// 	b.Run()
-// }
-//
-// func TestUpdateTicker(t *testing.T) {
-// 	t.Parallel()
-// 	pair := b.GetEnabledCurrencies()[0]
-// 	_, err := b.UpdateTicker(pair, b.AssetTypes[0])
-// 	if err != nil {
-// 		t.Error("test failed - Bithumb UpdateTicker() error", err)
-// 	}
-// }
-//
-// func TestGetTickerPrice(t *testing.T) {
-// 	t.Parallel()
-// 	pair := b.GetEnabledCurrencies()[0]
-// 	_, err := b.GetTickerPrice(pair, b.AssetTypes[0])
-// 	if err != nil {
-// 		t.Error("test failed - Bithumb GetTickerPrice() error", err)
-// 	}
-// }
-//
-// func TestGetOrderbookEx(t *testing.T) {
-// 	t.Parallel()
-// 	pair := b.GetEnabledCurrencies()[0]
-// 	_, err := b.GetOrderbookEx(pair, b.AssetTypes[0])
-// 	if err != nil {
-// 		t.Error("test failed - Bithumb GetOrderbookEx() error", err)
-// 	}
-// }
+func setFeeBuilder() exchange.FeeBuilder {
+	return exchange.FeeBuilder{
+		Amount:         1,
+		Delimiter:      "",
+		FeeType:        exchange.CryptocurrencyTradeFee,
+		FirstCurrency:  symbol.BTC,
+		SecondCurrency: symbol.LTC,
+		IsMaker:        false,
+		PurchasePrice:  1,
+	}
+}
+
+func TestGetFee(t *testing.T) {
+	b.SetDefaults()
+	TestSetup(t)
+	var feeBuilder = setFeeBuilder()
+
+	// CryptocurrencyTradeFee Basic
+	if resp, err := b.GetFee(feeBuilder); resp != float64(0.0015) || err != nil {
+		t.Error(err)
+		t.Errorf("Test Failed - GetFee() error. Expected: %f, Recieved: %f", float64(0.0015), resp)
+	}
+
+	// CryptocurrencyTradeFee High quantity
+	feeBuilder = setFeeBuilder()
+	feeBuilder.Amount = 1000
+	feeBuilder.PurchasePrice = 1000
+	if resp, err := b.GetFee(feeBuilder); resp != float64(1500) || err != nil {
+		t.Errorf("Test Failed - GetFee() error. Expected: %f, Recieved: %f", float64(1500), resp)
+		t.Error(err)
+	}
+
+
+	// CryptocurrencyTradeFee IsMaker
+	feeBuilder = setFeeBuilder()
+	feeBuilder.IsMaker = true
+	if resp, err := b.GetFee(feeBuilder); resp != float64(0.0015) || err != nil {
+		t.Errorf("Test Failed - GetFee() error. Expected: %f, Recieved: %f", float64(0.0015), resp)
+		t.Error(err)
+	}
+
+	// CryptocurrencyTradeFee Negative purchase price
+	feeBuilder = setFeeBuilder()
+	feeBuilder.PurchasePrice = -1000
+	if resp, err := b.GetFee(feeBuilder); resp != float64(0) || err != nil {
+		t.Errorf("Test Failed - GetFee() error. Expected: %f, Recieved: %f", float64(0), resp)
+		t.Error(err)
+	}
+
+	// CryptocurrencyWithdrawalFee Basic
+	feeBuilder = setFeeBuilder()
+	feeBuilder.FeeType = exchange.CryptocurrencyWithdrawalFee
+	if resp, err := b.GetFee(feeBuilder); resp != float64(0.001) || err != nil {
+		t.Errorf("Test Failed - GetFee() error. Expected: %f, Recieved: %f", float64(0.001), resp)
+		t.Error(err)
+	}
+
+	// CyptocurrencyDepositFee Basic
+	feeBuilder = setFeeBuilder()
+	feeBuilder.FeeType = exchange.CyptocurrencyDepositFee
+	if resp, err := b.GetFee(feeBuilder); resp != float64(0) || err != nil {
+		t.Errorf("Test Failed - GetFee() error. Expected: %f, Recieved: %f", float64(0), resp)
+		t.Error(err)
+	}
+
+	// InternationalBankDepositFee Basic
+	feeBuilder = setFeeBuilder()
+	feeBuilder.FeeType = exchange.InternationalBankDepositFee
+	feeBuilder.CurrencyItem = symbol.HKD
+	if resp, err := b.GetFee(feeBuilder); resp != float64(0) || err != nil {
+		t.Errorf("Test Failed - GetFee() error. Expected: %f, Recieved: %f", float64(0), resp)
+		t.Error(err)
+	}
+
+	// InternationalBankWithdrawalFee Basic
+	feeBuilder = setFeeBuilder()
+	feeBuilder.FeeType = exchange.InternationalBankWithdrawalFee
+	feeBuilder.CurrencyItem = symbol.HKD
+	if resp, err := b.GetFee(feeBuilder); resp != float64(0) || err != nil {
+		t.Errorf("Test Failed - GetFee() error. Expected: %f, Recieved: %f", float64(0), resp)
+		t.Error(err)
+	}
+}

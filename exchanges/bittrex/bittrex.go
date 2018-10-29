@@ -511,3 +511,43 @@ func (b *Bittrex) SendAuthenticatedHTTPRequest(path string, values url.Values, r
 
 	return b.SendPayload("GET", rawQuery, headers, nil, result, true, b.Verbose)
 }
+
+// GetFee returns an estimate of fee based on type of transaction
+func (b *Bittrex) GetFee(feeBuilder exchange.FeeBuilder) (float64, error) {
+	var fee float64
+	var err error
+
+	switch feeBuilder.FeeType {
+	case exchange.CryptocurrencyTradeFee:
+		fee = calculateTradingFee(feeBuilder.PurchasePrice, feeBuilder.Amount)
+	case exchange.CryptocurrencyWithdrawalFee:
+		fee, err = b.GetWithdrawalFee(feeBuilder.FirstCurrency)
+	}
+	if fee < 0 {
+		fee = 0
+	}
+	return fee, err
+}
+
+// GetWithdrawalFee returns the fee for withdrawing from the exchange
+func (b *Bittrex) GetWithdrawalFee(currency string) (float64, error) {
+	var fee float64
+
+	currencies, err := b.GetCurrencies()
+	if err != nil {
+		return 0, err
+	}
+	for _, result := range currencies.Result {
+		if result.Currency == currency {
+			fee = result.TxFee
+		}
+	}
+	return fee, nil
+}
+
+// calculateTradingFee returns the fee for trading any currency on Bittrex
+func calculateTradingFee(purchasePrice float64, amount float64) float64 {
+	var fee = 0.0025
+
+	return fee * purchasePrice * amount
+}

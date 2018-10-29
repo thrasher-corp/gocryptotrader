@@ -9,6 +9,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/thrasher-/gocryptotrader/currency/symbol"
+
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
@@ -178,18 +180,6 @@ func (o *OKCoin) Setup(exch config.ExchangeConfig) {
 			log.Fatal(err)
 		}
 	}
-}
-
-// GetFee returns current fees for the exchange
-func (o *OKCoin) GetFee(maker bool) float64 {
-	if o.APIUrl == okcoinAPIURL {
-		if maker {
-			return o.MakerFee
-		}
-		return o.TakerFee
-	}
-	// Chinese exchange does not have any trading fees
-	return 0
 }
 
 // GetTicker returns the current ticker
@@ -1026,4 +1016,47 @@ func (o *OKCoin) SetErrorDefaults() {
 		"20027": "No transaction record",
 		"20028": "No such contract",
 	}
+}
+
+// GetFee returns an estimate of fee based on type of transaction
+func (o *OKCoin) GetFee(feeBuilder exchange.FeeBuilder) (float64, error) {
+	var fee float64
+	switch feeBuilder.FeeType {
+	case exchange.CryptocurrencyTradeFee:
+		fee = calculateTradingFee(feeBuilder.PurchasePrice, feeBuilder.Amount, feeBuilder.IsMaker)
+	case exchange.InternationalBankWithdrawalFee:
+		fee = calculateInternationalBankWithdrawalFee(feeBuilder.CurrencyItem, feeBuilder.PurchasePrice, feeBuilder.Amount)
+	case exchange.CryptocurrencyWithdrawalFee:
+		fee = getWithdrawalFee(feeBuilder.FirstCurrency)
+	}
+	if fee < 0 {
+		fee = 0
+	}
+
+	return fee, nil
+}
+
+func calculateTradingFee(purchasePrice, amount float64, isMaker bool) (fee float64) {
+	// TODO volume based fees
+	if isMaker {
+		fee = 0.0005
+	} else {
+		fee = 0.0015
+	}
+	return fee * amount * purchasePrice
+}
+
+func calculateInternationalBankWithdrawalFee(currency string, purchasePrice, amount float64) (fee float64) {
+	if currency == symbol.USD {
+		if purchasePrice*amount*0.001 < 15 {
+			fee = 15
+		} else {
+			fee = purchasePrice * amount * 0.001
+		}
+	}
+	return fee
+}
+
+func getWithdrawalFee(currency string) float64 {
+	return WithdrawalFees[currency]
 }

@@ -91,6 +91,8 @@ type Currencies struct {
 	PayoutEnabled      bool   `json:"payoutEnabled"`      // Is allowed for withdraw (false for ICO)
 	PayoutIsPaymentID  bool   `json:"payoutIsPaymentId"`  // Is allowed to provide additional information for withdraw
 	TransferEnabled    bool   `json:"transferEnabled"`    // Is allowed to transfer between trading and account (may be disabled on maintain)
+	Delisted           bool   `json:"delisted"`           // True if currency delisted (stopped deposit and trading)
+	PayoutFee          string `json:"payoutFee"`          // Default withdraw fee
 }
 
 // LoanOrder contains information about your loans

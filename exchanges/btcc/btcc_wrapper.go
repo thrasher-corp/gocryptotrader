@@ -204,3 +204,8 @@ func (b *BTCC) WithdrawFiatExchangeFundsToInternationalBank(currency pair.Curren
 func (b *BTCC) GetWebsocket() (*exchange.Websocket, error) {
 	return b.Websocket, nil
 }
+
+// GetFeeByType returns an estimate of fee based on type of transaction
+func (b *BTCC) GetFeeByType(feeBuilder exchange.FeeBuilder) (float64, error) {
+	return b.GetFee(feeBuilder)
+}

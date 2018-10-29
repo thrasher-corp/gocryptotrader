@@ -10,6 +10,7 @@ import (
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
+	"github.com/thrasher-/gocryptotrader/currency/symbol"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/request"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
@@ -384,4 +385,56 @@ func (b *Bitflyer) SendAuthHTTPRequest(path string, params url.Values, result in
 	headers := make(map[string]string)
 	headers["ACCESS-KEY"] = b.APIKey
 	headers["ACCESS-TIMESTAMP"] = strconv.FormatInt(int64(time.Now().UnixNano()), 10)
+}
+
+// GetFee returns an estimate of fee based on type of transaction
+// TODO: Figure out the weird fee structure. Do we use Bitcoin Easy Exchange,Lightning Spot,Bitcoin Market,Lightning FX/Futures ???
+func (b *Bitflyer) GetFee(feeBuilder exchange.FeeBuilder) (float64, error) {
+	var fee float64
+
+	switch feeBuilder.FeeType {
+	case exchange.CryptocurrencyTradeFee:
+		fee = calculateTradingFee(feeBuilder.PurchasePrice, feeBuilder.Amount)
+	case exchange.InternationalBankDepositFee:
+		fee = getDepositFee(feeBuilder.BankTransactionType, feeBuilder.CurrencyItem, feeBuilder.Amount)
+	case exchange.InternationalBankWithdrawalFee:
+		fee = getWithdrawalFee(feeBuilder.BankTransactionType, feeBuilder.CurrencyItem, feeBuilder.Amount)
+	}
+	if fee < 0 {
+		fee = 0
+	}
+	return fee, nil
+}
+
+// getDepositFee returns fee when performing a trade
+func calculateTradingFee(purchasePrice float64, amount float64) float64 {
+	fee := 0.0015
+	// bitflyer has fee tiers, but does not disclose them via API, so the largest has to be assumed
+	return fee * amount * purchasePrice
+}
+
+func getDepositFee(bankTransactionType exchange.InternationalBankTransactionType, currency string, amount float64) (fee float64) {
+	switch bankTransactionType {
+	case exchange.WireTransfer:
+		switch currency {
+		case symbol.JPY:
+			fee = 324
+		}
+	}
+	return fee
+}
+
+func getWithdrawalFee(bankTransactionType exchange.InternationalBankTransactionType, currency string, amount float64) (fee float64) {
+	switch bankTransactionType {
+	case exchange.WireTransfer:
+		switch currency {
+		case symbol.JPY:
+			if amount < 30000 {
+				fee = 540
+			} else {
+				fee = 756
+			}
+		}
+	}
+	return fee
 }

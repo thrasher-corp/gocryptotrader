@@ -1,5 +1,7 @@
 package anx
 
+import "github.com/thrasher-/gocryptotrader/currency/symbol"
+
 // Currency holds the currency information
 type Currency struct {
 	Decimals               int     `json:"decimals"`
@@ -145,4 +147,17 @@ type Depth struct {
 		Asks           []DepthItem `json:"asks"`
 		Bids           []DepthItem `json:"bids"`
 	} `json:"data"`
+}
+
+// WithdrawalFees the large list of predefined withdrawal fees
+// Prone to change
+var WithdrawalFees = map[string]float64{
+	symbol.BTC:  0.002,
+	symbol.DOGE: 0.1,
+	symbol.ETH:  0.005,
+	symbol.GNT:  0.001,
+	symbol.LTC:  0.02,
+	symbol.OAX:  0.001,
+	symbol.XRP:  1,
+	symbol.HKD:  0.01,
 }

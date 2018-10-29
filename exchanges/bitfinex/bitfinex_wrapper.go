@@ -226,3 +226,8 @@ func (b *Bitfinex) WithdrawFiatExchangeFundsToInternationalBank(currency pair.Cu
 func (b *Bitfinex) GetWebsocket() (*exchange.Websocket, error) {
 	return b.Websocket, nil
 }
+
+// GetFeeByType returns an estimate of fee based on type of transaction
+func (b *Bitfinex) GetFeeByType(feeBuilder exchange.FeeBuilder) (float64, error) {
+	return b.GetFee(feeBuilder)
+}

@@ -11,6 +11,7 @@ import (
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
+	"github.com/thrasher-/gocryptotrader/currency/symbol"
 	"github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/request"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
@@ -110,11 +111,6 @@ func (y *Yobit) Setup(exch config.ExchangeConfig) {
 			log.Fatal(err)
 		}
 	}
-}
-
-// GetFee returns the exchange fee
-func (y *Yobit) GetFee() float64 {
-	return y.Fee
 }
 
 // GetInfo returns the Yobit info
@@ -357,4 +353,111 @@ func (y *Yobit) SendAuthenticatedHTTPRequest(path string, params url.Values, res
 	headers["Content-Type"] = "application/x-www-form-urlencoded"
 
 	return y.SendPayload("POST", apiPrivateURL, headers, strings.NewReader(encoded), result, true, y.Verbose)
+}
+
+// GetFee returns an estimate of fee based on type of transaction
+func (y *Yobit) GetFee(feeBuilder exchange.FeeBuilder) (float64, error) {
+	var fee float64
+	switch feeBuilder.FeeType {
+	case exchange.CryptocurrencyTradeFee:
+		fee = calculateTradingFee(feeBuilder.PurchasePrice, feeBuilder.Amount)
+	case exchange.CryptocurrencyWithdrawalFee:
+		fee = getWithdrawalFee(feeBuilder.FirstCurrency)
+	case exchange.InternationalBankDepositFee:
+		fee = getInternationalBankDepositFee(feeBuilder.CurrencyItem, feeBuilder.Amount, feeBuilder.BankTransactionType)
+	case exchange.InternationalBankWithdrawalFee:
+		fee = getInternationalBankWithdrawalFee(feeBuilder.CurrencyItem, feeBuilder.Amount, feeBuilder.BankTransactionType)
+	}
+	if fee < 0 {
+		fee = 0
+	}
+
+	return fee, nil
+}
+
+func calculateTradingFee(purchasePrice, amount float64) (fee float64) {
+	fee = 0.002
+	return fee * amount * purchasePrice
+}
+
+func getWithdrawalFee(currency string) float64 {
+	return WithdrawalFees[currency]
+}
+
+func getInternationalBankWithdrawalFee(currency string, amount float64, bankTransactionType exchange.InternationalBankTransactionType) float64 {
+	var fee float64
+
+	switch bankTransactionType {
+	case exchange.PerfectMoney:
+		switch currency {
+		case symbol.USD:
+			fee = 0.02 * amount
+		}
+	case exchange.Payeer:
+		switch currency {
+		case symbol.USD:
+			fee = 0.03 * amount
+		case symbol.RUR:
+			fee = 0.006 * amount
+		}
+	case exchange.AdvCash:
+		switch currency {
+		case symbol.USD:
+			fee = 0.04 * amount
+		case symbol.RUR:
+			fee = 0.03 * amount
+		}
+	case exchange.Qiwi:
+		switch currency {
+		case symbol.RUR:
+			fee = 0.04 * amount
+		}
+	case exchange.Capitalist:
+		switch currency {
+		case symbol.USD:
+			fee = 0.06 * amount
+		}
+	}
+
+	return fee
+}
+
+// No real fees for yobit deposits, but want to be explicit on what each payment type supports
+func getInternationalBankDepositFee(currency string, amount float64, bankTransactionType exchange.InternationalBankTransactionType) float64 {
+	var fee float64
+	switch bankTransactionType {
+	case exchange.PerfectMoney:
+		switch currency {
+		case symbol.USD:
+			fee = 0
+		}
+	case exchange.Payeer:
+		switch currency {
+		case symbol.USD:
+			fee = 0
+		case symbol.RUR:
+			fee = 0
+		}
+	case exchange.AdvCash:
+		switch currency {
+		case symbol.USD:
+			fee = 0
+		case symbol.RUR:
+			fee = 0
+		}
+	case exchange.Qiwi:
+		switch currency {
+		case symbol.RUR:
+			fee = 0
+		}
+	case exchange.Capitalist:
+		switch currency {
+		case symbol.USD:
+			fee = 0
+		case symbol.RUR:
+			fee = 0
+		}
+	}
+
+	return fee
 }

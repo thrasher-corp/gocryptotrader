@@ -93,7 +93,31 @@ func (b *BTCC) Setup(exch config.ExchangeConfig) {
 	}
 }
 
-// GetFee returns the fees associated with transactions
-func (b *BTCC) GetFee() float64 {
-	return b.Fee
+
+
+// GetFee returns an estimate of fee based on type of transaction
+func (b *BTCC) GetFee(feeBuilder exchange.FeeBuilder) (float64, error) {
+	var fee float64
+
+	switch feeBuilder.FeeType {
+	case exchange.CryptocurrencyWithdrawalFee:
+		fee = getCryptocurrencyWithdrawalFee(feeBuilder.FirstCurrency)
+	case exchange.InternationalBankWithdrawalFee:
+		fee = getInternationalBankWithdrawalFee(feeBuilder.CurrencyItem, feeBuilder.Amount)
+	}
+	if fee < 0 {
+		fee = 0
+	}
+	return fee, nil
+}
+
+func getCryptocurrencyWithdrawalFee(currency string) float64 {
+	return WithdrawalFees[currency]
+}
+
+func getInternationalBankWithdrawalFee(currency string, amount float64) float64 {
+	var fee float64
+
+	fee = WithdrawalFees[currency] * amount
+	return fee
 }

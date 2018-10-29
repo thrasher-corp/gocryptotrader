@@ -166,14 +166,6 @@ func (l *LocalBitcoins) Setup(exch config.ExchangeConfig) {
 	}
 }
 
-// GetFee returns the fee for maker or taker
-func (l *LocalBitcoins) GetFee(maker bool) float64 {
-	if maker {
-		return l.MakerFee
-	}
-	return l.TakerFee
-}
-
 // GetAccountInfo lets you retrieve the public user information on a
 // LocalBitcoins user. The response contains the same information that is found
 // on an account's public profile page.
@@ -734,4 +726,10 @@ func (l *LocalBitcoins) SendAuthenticatedHTTPRequest(method, path string, params
 	}
 
 	return l.SendPayload(method, l.APIUrl+path, headers, strings.NewReader(encoded), result, true, l.Verbose)
+}
+
+// GetFee returns an estimate of fee based on type of transaction
+func (l *LocalBitcoins) GetFee(feeBuilder exchange.FeeBuilder) (float64, error) {
+	// No fees will be used
+	return 0, nil
 }
