@@ -50,8 +50,6 @@ func (a *ANX) SetDefaults() {
 	a.TakerFee = 0.02
 	a.MakerFee = 0.01
 	a.Verbose = false
-	a.APIWithdrawalPermission = false
-	a.AutomaticAPIWithdrawlSupport = false
 	a.RESTPollingDelay = 10
 	a.RequestCurrencyPairFormat.Delimiter = ""
 	a.RequestCurrencyPairFormat.Uppercase = true
@@ -403,7 +401,6 @@ func (a *ANX) SendAuthenticatedHTTPRequest(path string, params map[string]interf
 	return a.SendPayload("POST", a.APIUrl+path, headers, bytes.NewBuffer(PayloadJSON), result, true, a.Verbose)
 }
 
-
 // GetFee returns an estimate of fee based on type of transaction
 func (a *ANX) GetFee(feeBuilder exchange.FeeBuilder) (float64, error) {
 	var fee float64
@@ -434,11 +431,6 @@ func (a *ANX) calculateTradingFee(purchasePrice, amount float64, isMaker bool) f
 	return fee
 }
 
-
-
-
-
-
 func getCryptocurrencyWithdrawalFee(currency string) float64 {
 	return WithdrawalFees[currency]
 }
@@ -453,6 +445,7 @@ func getInternationalBankWithdrawalFee(currency string, amount float64) float64 
 	return fee
 }
 
+// GetAccountInformation retrieves details including API permissions
 func (a *ANX) GetAccountInformation() (AccountInformation, error) {
 	request := make(map[string]interface{})
 
@@ -471,6 +464,7 @@ func (a *ANX) GetAccountInformation() (AccountInformation, error) {
 	return response, nil
 }
 
+// CheckAPIWithdrawPermission checks if the API key is allowed to withdraw
 func (a *ANX) CheckAPIWithdrawPermission() (bool, error) {
 	accountInfo, err := a.GetAccountInformation()
 	if err != nil {

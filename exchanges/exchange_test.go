@@ -844,3 +844,19 @@ func TestAPIURL(t *testing.T) {
 		t.Error("test failed - incorrect return URL")
 	}
 }
+
+func TestGetWithdrawPermissions(t *testing.T) {
+	cfg := config.GetConfig()
+	err := cfg.LoadConfig(config.ConfigTestFile)
+	if err != nil {
+		t.Fatal("Test failed. TestUpdateEnabledCurrencies failed to load config")
+	}
+
+	UAC := Base{Name: "ANX"}
+	UAC.APIWithdrawPermissions = AutoWithdrawCrypto | AutoWithdrawCryptoWithPermission
+	withdrawPermissions := UAC.GetWithdrawPermissions()
+	if withdrawPermissions != AutoWithdrawCryptoText+" & "+AutoWithdrawCryptoWithPermissionText {
+		t.Errorf("Excpected: %s, Recieved: %s", AutoWithdrawCryptoText+" & "+AutoWithdrawCryptoWithPermissionText, withdrawPermissions)
+	}
+
+}
