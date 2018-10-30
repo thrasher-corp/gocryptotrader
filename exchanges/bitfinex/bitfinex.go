@@ -93,6 +93,7 @@ func (b *Bitfinex) SetDefaults() {
 	b.Verbose = false
 	b.RESTPollingDelay = 10
 	b.WebsocketSubdChannels = make(map[int]WebsocketChanInfo)
+	b.APIWithdrawPermissions = exchange.AutoWithdrawCryptoWithAPIPermission | exchange.AutoWithdrawFiatWithAPIPermission
 	b.RequestCurrencyPairFormat.Delimiter = ""
 	b.RequestCurrencyPairFormat.Uppercase = true
 	b.ConfigCurrencyPairFormat.Delimiter = ""

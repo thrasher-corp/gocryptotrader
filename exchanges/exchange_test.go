@@ -853,10 +853,10 @@ func TestGetWithdrawPermissions(t *testing.T) {
 	}
 
 	UAC := Base{Name: "ANX"}
-	UAC.APIWithdrawPermissions = AutoWithdrawCrypto | AutoWithdrawCryptoWithPermission
+	UAC.APIWithdrawPermissions = AutoWithdrawCrypto | AutoWithdrawCryptoWithAPIPermission
 	withdrawPermissions := UAC.GetWithdrawPermissions()
-	if withdrawPermissions != AutoWithdrawCryptoText+" & "+AutoWithdrawCryptoWithPermissionText {
-		t.Errorf("Excpected: %s, Recieved: %s", AutoWithdrawCryptoText+" & "+AutoWithdrawCryptoWithPermissionText, withdrawPermissions)
+	if withdrawPermissions != AutoWithdrawCryptoText+" & "+AutoWithdrawCryptoWithAPIPermissionText {
+		t.Errorf("Excpected: %s, Recieved: %s", AutoWithdrawCryptoText+" & "+AutoWithdrawCryptoWithAPIPermissionText, withdrawPermissions)
 	}
 
 }

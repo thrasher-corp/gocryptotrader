@@ -114,6 +114,7 @@ func (b *Bitmex) SetDefaults() {
 	b.Enabled = false
 	b.Verbose = false
 	b.RESTPollingDelay = 10
+	b.APIWithdrawPermissions = exchange.WithdrawCryptoWithAPIPermission | exchange.WithdrawCryptoWithEmail | exchange.WithdrawCryptoWith2FA
 	b.RequestCurrencyPairFormat.Delimiter = ""
 	b.RequestCurrencyPairFormat.Uppercase = true
 	b.ConfigCurrencyPairFormat.Delimiter = ""

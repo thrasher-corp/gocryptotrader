@@ -86,37 +86,46 @@ type FeeBuilder struct {
 // Definitions for each type of withdrawal method for a given exchange
 const (
 	// No withdraw
-	NoWithdrawalMethods                   uint64 = 0
-	NoWithdrawalMethodsText               string = "NONE"
-	AutoWithdrawCrypto                    uint64 = (1 << 0)
-	AutoWithdrawCryptoWithPermission      uint64 = (1 << 1)
-	AutoWithdrawCryptoWithSetup           uint64 = (1 << 2)
-	AutoWithdrawCryptoText                string = "AUTO WITHDRAW CRYPTO"
-	AutoWithdrawCryptoWithPermissionText  string = "AUTO WITHDRAW CRYPTO WITH PERMISSION"
-	AutoWithdrawCryptoWithSetupText       string = "AUTO WITHDRAW CRYPTO WITH SETUP"
-	WithdrawCryptoWith2FA                 uint64 = (1 << 3)
-	WithdrawCryptoWithSMS                 uint64 = (1 << 4)
-	WithdrawCryptoWithEmail               uint64 = (1 << 5)
-	WithdrawCryptoWithWebsiteApproval     uint64 = (1 << 6)
-	WithdrawCryptoWith2FAText             string = "WITHDRAW CRYPTO WITH 2FA"
-	WithdrawCryptoWithSMSText             string = "WITHDRAW CRYPTO WITH SMS"
-	WithdrawCryptoWithEmailText           string = "WITHDRAW CRYPTO WITH EMAIL"
-	WithdrawCryptoWithWebsiteApprovalText string = "WITHDRAW CRYPTO WITH WEBSITE APPROVAL"
-	AutoWithdrawFiat                      uint64 = (1 << 7)
-	AutoWithdrawFiatWithPermission        uint64 = (1 << 8)
-	AutoWithdrawFiatWithSetup             uint64 = (1 << 9)
-	AutoWithdrawFiatText                  string = "AUTO WITHDRAW FIAT"
-	AutoWithdrawFiatWithPermissionText    string = "AUTO WITHDRAW FIAT WITH PERMISSION"
-	AutoWithdrawFiatWithSetupText         string = "AUTO WITHDRAW FIAT WITH SETUP"
-	WithdrawFiatWith2FA                   uint64 = (1 << 10)
-	WithdrawFiatWithSMS                   uint64 = (1 << 11)
-	WithdrawFiatWithEmail                 uint64 = (1 << 12)
-	WithdrawFiatWithWebsiteApproval       uint64 = (1 << 13)
-	WithdrawFiatWith2FAText               string = "WITHDRAW FIAT WITH 2FA"
-	WithdrawFiatWithSMSText               string = "WITHDRAW FIAT WITH SMS"
-	WithdrawFiatWithEmailText             string = "WITHDRAW FIAT WITH EMAIL"
-	WithdrawFiatWithWebsiteApprovalText   string = "WITHDRAW FIAT WITH WEBSITE APPROVAL"
-	UnknownWithdrawalTypeText             string = "UNKNOWN"
+	NoAPIWithdrawalMethods                  uint64 = 0
+	NoAPIWithdrawalMethodsText              string = "NONE, WEBSITE ONLY"
+	AutoWithdrawCrypto                      uint64 = (1 << 0)
+	AutoWithdrawCryptoWithAPIPermission     uint64 = (1 << 1)
+	AutoWithdrawCryptoWithSetup             uint64 = (1 << 2)
+	AutoWithdrawCryptoText                  string = "AUTO WITHDRAW CRYPTO"
+	AutoWithdrawCryptoWithAPIPermissionText string = "AUTO WITHDRAW CRYPTO WITH API PERMISSION"
+	AutoWithdrawCryptoWithSetupText         string = "AUTO WITHDRAW CRYPTO WITH SETUP"
+	WithdrawCryptoWith2FA                   uint64 = (1 << 3)
+	WithdrawCryptoWithSMS                   uint64 = (1 << 4)
+	WithdrawCryptoWithEmail                 uint64 = (1 << 5)
+	WithdrawCryptoWithWebsiteApproval       uint64 = (1 << 6)
+	WithdrawCryptoWithAPIPermission         uint64 = (1 << 7)
+	WithdrawCryptoWith2FAText               string = "WITHDRAW CRYPTO WITH 2FA"
+	WithdrawCryptoWithSMSText               string = "WITHDRAW CRYPTO WITH SMS"
+	WithdrawCryptoWithEmailText             string = "WITHDRAW CRYPTO WITH EMAIL"
+	WithdrawCryptoWithWebsiteApprovalText   string = "WITHDRAW CRYPTO WITH WEBSITE APPROVAL"
+	WithdrawCryptoWithAPIPermissionText     string = "WITHDRAW CRYPTO WITH API PERMISSION"
+	AutoWithdrawFiat                        uint64 = (1 << 8)
+	AutoWithdrawFiatWithAPIPermission       uint64 = (1 << 9)
+	AutoWithdrawFiatWithSetup               uint64 = (1 << 10)
+	AutoWithdrawFiatText                    string = "AUTO WITHDRAW FIAT"
+	AutoWithdrawFiatWithAPIPermissionText   string = "AUTO WITHDRAW FIAT WITH API PERMISSION"
+	AutoWithdrawFiatWithSetupText           string = "AUTO WITHDRAW FIAT WITH SETUP"
+	WithdrawFiatWith2FA                     uint64 = (1 << 11)
+	WithdrawFiatWithSMS                     uint64 = (1 << 12)
+	WithdrawFiatWithEmail                   uint64 = (1 << 13)
+	WithdrawFiatWithWebsiteApproval         uint64 = (1 << 14)
+	WithdrawFiatWithAPIPermission           uint64 = (1 << 15)
+	WithdrawFiatWith2FAText                 string = "WITHDRAW FIAT WITH 2FA"
+	WithdrawFiatWithSMSText                 string = "WITHDRAW FIAT WITH SMS"
+	WithdrawFiatWithEmailText               string = "WITHDRAW FIAT WITH EMAIL"
+	WithdrawFiatWithWebsiteApprovalText     string = "WITHDRAW FIAT WITH WEBSITE APPROVAL"
+	WithdrawFiatWithAPIPermissionText       string = "WITHDRAW FIAT WITH API PERMISSION"
+	WithdrawCryptoViaWebsiteOnly            uint64 = (1 << 16)
+	WithdrawFiatViaWebsiteOnly              uint64 = (1 << 17)
+	WithdrawCryptoViaWebsiteOnlyText        string = "WITHDRAW CRYPTO VIA WEBSITE ONLY"
+	WithdrawFiatViaWebsiteOnlyText          string = "WITHDRAW FIAT VIA WEBSITE ONLY"
+
+	UnknownWithdrawalTypeText string = "UNKNOWN"
 )
 
 // AccountInfo is a Generic type to hold each exchange's holdings in
@@ -821,8 +830,8 @@ func (e *Base) GetWithdrawPermissions() string {
 			case AutoWithdrawCrypto:
 				services = append(services, AutoWithdrawCryptoText)
 				break
-			case AutoWithdrawCryptoWithPermission:
-				services = append(services, AutoWithdrawCryptoWithPermissionText)
+			case AutoWithdrawCryptoWithAPIPermission:
+				services = append(services, AutoWithdrawCryptoWithAPIPermissionText)
 				break
 			case AutoWithdrawCryptoWithSetup:
 				services = append(services, AutoWithdrawCryptoWithSetupText)
@@ -839,11 +848,14 @@ func (e *Base) GetWithdrawPermissions() string {
 			case WithdrawCryptoWithWebsiteApproval:
 				services = append(services, WithdrawCryptoWithWebsiteApprovalText)
 				break
+			case WithdrawCryptoWithAPIPermission:
+				services = append(services, WithdrawCryptoWithAPIPermissionText)
+				break
 			case AutoWithdrawFiat:
 				services = append(services, AutoWithdrawFiatText)
 				break
-			case AutoWithdrawFiatWithPermission:
-				services = append(services, AutoWithdrawFiatWithPermissionText)
+			case AutoWithdrawFiatWithAPIPermission:
+				services = append(services, AutoWithdrawFiatWithAPIPermissionText)
 				break
 			case AutoWithdrawFiatWithSetup:
 				services = append(services, AutoWithdrawFiatWithSetupText)
@@ -860,6 +872,15 @@ func (e *Base) GetWithdrawPermissions() string {
 			case WithdrawFiatWithWebsiteApproval:
 				services = append(services, WithdrawFiatWithWebsiteApprovalText)
 				break
+			case WithdrawFiatWithAPIPermission:
+				services = append(services, WithdrawFiatWithAPIPermissionText)
+				break
+			case WithdrawCryptoViaWebsiteOnly:
+				services = append(services, WithdrawCryptoViaWebsiteOnlyText)
+				break
+			case WithdrawFiatViaWebsiteOnly:
+				services = append(services, WithdrawFiatViaWebsiteOnlyText)
+				break
 			default:
 				services = append(services, fmt.Sprintf("%s[%v]", UnknownWithdrawalTypeText, check))
 			}
@@ -869,5 +890,5 @@ func (e *Base) GetWithdrawPermissions() string {
 		return strings.Join(services, " & ")
 	}
 
-	return NoWithdrawalMethodsText
+	return NoAPIWithdrawalMethodsText
 }
