@@ -9,8 +9,8 @@ import (
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/currency"
+	"github.com/thrasher-/gocryptotrader/exchanges/assets"
 	"github.com/thrasher-/gocryptotrader/exchanges/request"
-	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 )
 
 const (
@@ -20,8 +20,15 @@ const (
 
 func TestSupportsRESTTickerBatchUpdates(t *testing.T) {
 	b := Base{
-		Name:                       "RAWR",
-		SupportsRESTTickerBatching: true,
+		Name: "RAWR",
+		Features: Features{
+			Supports: FeaturesSupported{
+				REST: true,
+				RESTCapabilities: ProtocolFeatures{
+					TickerBatching: true,
+				},
+			},
+		},
 	}
 
 	if !b.SupportsRESTTickerBatchUpdates() {
@@ -107,79 +114,35 @@ func TestSetAutoPairDefaults(t *testing.T) {
 		t.Fatalf("Test failed. TestSetAutoPairDefaults failed to load config file. Error: %s", err)
 	}
 
-	b := Base{
-		Name:                     "TESTNAME",
-		SupportsAutoPairUpdating: true,
-	}
-
-	err = b.SetAutoPairDefaults()
-	if err == nil {
-		t.Fatal("Test failed. TestSetAutoPairDefaults returned nil error for a non-existent exchange")
-	}
-
-	b.Name = "Bitstamp"
-	err = b.SetAutoPairDefaults()
-	if err != nil {
-		t.Fatalf("Test failed. TestSetAutoPairDefaults. Error %s", err)
-	}
-
-	exch, err := cfg.GetExchangeConfig(b.Name)
+	exch, err := cfg.GetExchangeConfig("Bitstamp")
 	if err != nil {
 		t.Fatalf("Test failed. TestSetAutoPairDefaults load config failed. Error %s", err)
 	}
 
-	if !exch.SupportsAutoPairUpdates {
+	if !exch.Features.Supports.RESTCapabilities.AutoPairUpdates {
 		t.Fatalf("Test failed. TestSetAutoPairDefaults Incorrect value")
 	}
 
-	if exch.PairsLastUpdated != 0 {
+	if exch.CurrencyPairs.LastUpdated != 0 {
 		t.Fatalf("Test failed. TestSetAutoPairDefaults Incorrect value")
 	}
 
-	exch.SupportsAutoPairUpdates = false
-	err = cfg.UpdateExchangeConfig(&exch)
-	if err != nil {
-		t.Fatalf("Test failed. TestSetAutoPairDefaults update config failed. Error %s", err)
-	}
+	exch.Features.Supports.RESTCapabilities.AutoPairUpdates = false
+	cfg.UpdateExchangeConfig(exch)
 
-	exch, err = cfg.GetExchangeConfig(b.Name)
+	exch, err = cfg.GetExchangeConfig("Bitstamp")
 	if err != nil {
 		t.Fatalf("Test failed. TestSetAutoPairDefaults load config failed. Error %s", err)
 	}
 
-	if exch.SupportsAutoPairUpdates {
-		t.Fatal("Test failed. TestSetAutoPairDefaults Incorrect value")
-	}
-
-	err = b.SetAutoPairDefaults()
-	if err != nil {
-		t.Fatalf("Test failed. TestSetAutoPairDefaults. Error %s", err)
-	}
-
-	exch, err = cfg.GetExchangeConfig(b.Name)
-	if err != nil {
-		t.Fatalf("Test failed. TestSetAutoPairDefaults load config failed. Error %s", err)
-	}
-
-	if !exch.SupportsAutoPairUpdates {
-		t.Fatal("Test failed. TestSetAutoPairDefaults Incorrect value")
-	}
-
-	b.SupportsAutoPairUpdating = false
-	err = b.SetAutoPairDefaults()
-	if err != nil {
-		t.Fatalf("Test failed. TestSetAutoPairDefaults. Error %s", err)
-	}
-
-	if b.PairsLastUpdated == 0 {
+	if exch.Features.Supports.RESTCapabilities.AutoPairUpdates {
 		t.Fatal("Test failed. TestSetAutoPairDefaults Incorrect value")
 	}
 }
 
 func TestSupportsAutoPairUpdates(t *testing.T) {
 	b := Base{
-		Name:                     "TESTNAME",
-		SupportsAutoPairUpdating: false,
+		Name: "TESTNAME",
 	}
 
 	if b.SupportsAutoPairUpdates() {
@@ -189,10 +152,8 @@ func TestSupportsAutoPairUpdates(t *testing.T) {
 
 func TestGetLastPairsUpdateTime(t *testing.T) {
 	testTime := time.Now().Unix()
-	b := Base{
-		Name:             "TESTNAME",
-		PairsLastUpdated: testTime,
-	}
+	var b Base
+	b.CurrencyPairs.LastUpdated = testTime
 
 	if b.GetLastPairsUpdateTime() != testTime {
 		t.Fatal("Test failed. TestGetLastPairsUpdateTim Incorrect value")
@@ -210,25 +171,15 @@ func TestSetAssetTypes(t *testing.T) {
 		Name: "TESTNAME",
 	}
 
-	err = b.SetAssetTypes()
-	if err == nil {
-		t.Fatal("Test failed. TestSetAssetTypes returned nil error for a non-existent exchange")
-	}
-
-	b.Name = defaultTestExchange
-	b.AssetTypes = []string{"SPOT"}
-	err = b.SetAssetTypes()
-	if err != nil {
-		t.Fatalf("Test failed. TestSetAssetTypes. Error %s", err)
-	}
-
+	b.Name = "ANX"
+	b.CurrencyPairs.AssetTypes = assets.AssetTypes{assets.AssetTypeSpot}
 	exch, err := cfg.GetExchangeConfig(b.Name)
 	if err != nil {
 		t.Fatalf("Test failed. TestSetAssetTypes load config failed. Error %s", err)
 	}
 
-	exch.AssetTypes = ""
-	err = cfg.UpdateExchangeConfig(&exch)
+	exch.CurrencyPairs.AssetTypes = assets.New("")
+	err = cfg.UpdateExchangeConfig(exch)
 	if err != nil {
 		t.Fatalf("Test failed. TestSetAssetTypes update config failed. Error %s", err)
 	}
@@ -237,24 +188,27 @@ func TestSetAssetTypes(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Test failed. TestSetAssetTypes load config failed. Error %s", err)
 	}
+	b.Config = exch
 
-	if exch.AssetTypes != "" {
+	if exch.CurrencyPairs.AssetTypes.JoinToString(",") != "" {
 		t.Fatal("Test failed. TestSetAssetTypes assetTypes != ''")
 	}
 
-	err = b.SetAssetTypes()
-	if err != nil {
-		t.Fatalf("Test failed. TestSetAssetTypes. Error %s", err)
-	}
-
-	if !common.StringDataCompare(b.AssetTypes, ticker.Spot) {
+	b.SetAssetTypes()
+	if !common.StringDataCompare(b.CurrencyPairs.AssetTypes.Strings(), assets.AssetTypeSpot.String()) {
 		t.Fatal("Test failed. TestSetAssetTypes assetTypes is not set")
 	}
 }
 
 func TestGetAssetTypes(t *testing.T) {
 	testExchange := Base{
-		AssetTypes: []string{"SPOT", "Binary", "Futures"},
+		CurrencyPairs: currency.PairsManager{
+			AssetTypes: assets.AssetTypes{
+				assets.AssetTypeSpot,
+				assets.AssetTypeBinary,
+				assets.AssetTypeFutures,
+			},
+		},
 	}
 
 	aT := testExchange.GetAssetTypes()
@@ -263,48 +217,9 @@ func TestGetAssetTypes(t *testing.T) {
 	}
 }
 
-func TestGetExchangeAssetTypes(t *testing.T) {
-	cfg := config.GetConfig()
-	err := cfg.LoadConfig(config.ConfigTestFile)
-	if err != nil {
-		t.Fatalf("Failed to load config file. Error: %s", err)
-	}
-
-	result, err := GetExchangeAssetTypes("Bitfinex")
-	if err != nil {
-		t.Fatal("Test failed. Unable to obtain Bitfinex asset types")
-	}
-
-	if !common.StringDataCompare(result, ticker.Spot) {
-		t.Fatal("Test failed. Bitfinex does not contain default asset type 'SPOT'")
-	}
-
-	_, err = GetExchangeAssetTypes("non-existent-exchange")
-	if err == nil {
-		t.Fatal("Test failed. Got asset types for non-existent exchange")
-	}
-}
-
-func TestCompareCurrencyPairFormats(t *testing.T) {
-	cfgOne := config.CurrencyPairFormatConfig{
-		Delimiter: "-",
-		Uppercase: true,
-		Index:     "",
-		Separator: ",",
-	}
-
-	cfgTwo := cfgOne
-	if !CompareCurrencyPairFormats(cfgOne, &cfgTwo) {
-		t.Fatal("Test failed. CompareCurrencyPairFormats should be true")
-	}
-
-	cfgTwo.Delimiter = "~"
-	if CompareCurrencyPairFormats(cfgOne, &cfgTwo) {
-		t.Fatal("Test failed. CompareCurrencyPairFormats should not be true")
-	}
-}
-
 func TestSetCurrencyPairFormat(t *testing.T) {
+	t.Skip()
+	// TO-DO
 	cfg := config.GetConfig()
 	err := cfg.LoadConfig(config.ConfigTestFile)
 	if err != nil {
@@ -315,25 +230,20 @@ func TestSetCurrencyPairFormat(t *testing.T) {
 		Name: "TESTNAME",
 	}
 
-	err = b.SetCurrencyPairFormat()
-	if err == nil {
-		t.Fatal("Test failed. TestSetCurrencyPairFormat returned nil error for a non-existent exchange")
-	}
-
-	b.Name = defaultTestExchange
-	err = b.SetCurrencyPairFormat()
-	if err != nil {
-		t.Fatalf("Test failed. TestSetCurrencyPairFormat. Error %s", err)
-	}
-
+	b.Name = "ANX"
 	exch, err := cfg.GetExchangeConfig(b.Name)
 	if err != nil {
 		t.Fatalf("Test failed. TestSetCurrencyPairFormat load config failed. Error %s", err)
 	}
+	b.Config = exch
+	b.SetCurrencyPairFormat()
+	if exch.CurrencyPairs.ConfigFormat.Delimiter != "-" && !exch.CurrencyPairs.ConfigFormat.Uppercase {
+		t.Fatal("Test failed. TestSetCurrencyPairFormat exch values are not nil")
+	}
 
-	exch.ConfigCurrencyPairFormat = nil
-	exch.RequestCurrencyPairFormat = nil
-	err = cfg.UpdateExchangeConfig(&exch)
+	exch.CurrencyPairs.ConfigFormat = nil
+	exch.CurrencyPairs.RequestFormat = nil
+	err = cfg.UpdateExchangeConfig(exch)
 	if err != nil {
 		t.Fatalf("Test failed. TestSetCurrencyPairFormat update config failed. Error %s", err)
 	}
@@ -343,39 +253,18 @@ func TestSetCurrencyPairFormat(t *testing.T) {
 		t.Fatalf("Test failed. TestSetCurrencyPairFormat load config failed. Error %s", err)
 	}
 
-	if exch.ConfigCurrencyPairFormat != nil && exch.RequestCurrencyPairFormat != nil {
+	if exch.CurrencyPairs.ConfigFormat != nil && exch.CurrencyPairs.RequestFormat != nil {
 		t.Fatal("Test failed. TestSetCurrencyPairFormat exch values are not nil")
 	}
 
-	err = b.SetCurrencyPairFormat()
-	if err != nil {
-		t.Fatalf("Test failed. TestSetCurrencyPairFormat. Error %s", err)
-	}
-
-	if b.ConfigCurrencyPairFormat.Delimiter != "" &&
-		b.ConfigCurrencyPairFormat.Index != currency.BTC.String() &&
-		b.ConfigCurrencyPairFormat.Uppercase {
-		t.Fatal("Test failed. TestSetCurrencyPairFormat ConfigCurrencyPairFormat values are incorrect")
-	}
-
-	if b.RequestCurrencyPairFormat.Delimiter != "" &&
-		b.RequestCurrencyPairFormat.Index != currency.BTC.String() &&
-		b.RequestCurrencyPairFormat.Uppercase {
-		t.Fatal("Test failed. TestSetCurrencyPairFormat RequestCurrencyPairFormat values are incorrect")
-	}
-
-	// if currency pairs are the same as the config, should load from config
-	err = b.SetCurrencyPairFormat()
-	if err != nil {
-		t.Fatalf("Test failed. TestSetCurrencyPairFormat. Error %s", err)
+	b.SetCurrencyPairFormat()
+	if exch.CurrencyPairs.ConfigFormat.Delimiter != "-" && !exch.CurrencyPairs.ConfigFormat.Uppercase {
+		t.Fatal("Test failed. TestSetCurrencyPairFormat exch values are not nil")
 	}
 }
 
 func TestGetAuthenticatedAPISupport(t *testing.T) {
-	base := Base{
-		AuthenticatedAPISupport: false,
-	}
-
+	var base Base
 	if base.GetAuthenticatedAPISupport() {
 		t.Fatal("Test failed. TestGetAuthenticatedAPISupport returned true when it should of been false.")
 	}
@@ -388,207 +277,208 @@ func TestGetName(t *testing.T) {
 
 	name := GetName.GetName()
 	if name != "TESTNAME" {
-		t.Error("Test Failed - Exchange getName() returned incorrect name")
+		t.Error("Test Failed - Exchange GetName() returned incorrect name")
 	}
 }
 
-func TestGetEnabledCurrencies(t *testing.T) {
+func TestGetEnabledPairs(t *testing.T) {
 	b := Base{
 		Name: "TESTNAME",
 	}
 
-	b.EnabledPairs = currency.NewPairsFromStrings([]string{"BTC-USD"})
-	format := config.CurrencyPairFormatConfig{
+	b.CurrencyPairs.StorePairs(assets.AssetTypeSpot,
+		currency.NewPairsFromStrings([]string{"BTC-USD"}), true)
+	format := currency.PairFormat{
 		Delimiter: "-",
 		Index:     "",
 		Uppercase: true,
 	}
 
-	b.RequestCurrencyPairFormat = format
-	b.ConfigCurrencyPairFormat = format
-	c := b.GetEnabledCurrencies()
+	assetType := assets.AssetTypeSpot
+	b.CurrencyPairs.UseGlobalFormat = true
+	b.CurrencyPairs.RequestFormat = &format
+	b.CurrencyPairs.ConfigFormat = &format
+
+	c := b.GetEnabledPairs(assetType)
 	if c[0].String() != defaultTestCurrencyPair {
-		t.Error("Test Failed - Exchange GetAvailableCurrencies() incorrect string")
+		t.Error("Test Failed - Exchange GetAvailablePairs() incorrect string")
 	}
 
 	format.Delimiter = "~"
-	b.RequestCurrencyPairFormat = format
-	c = b.GetEnabledCurrencies()
-	if c[0].String() != defaultTestCurrencyPair {
-		t.Error("Test Failed - Exchange GetAvailableCurrencies() incorrect string")
+	b.CurrencyPairs.RequestFormat = &format
+	c = b.GetEnabledPairs(assetType)
+	if c[0].String() != "BTC~USD" {
+		t.Error("Test Failed - Exchange GetAvailablePairs() incorrect string")
 	}
 
 	format.Delimiter = ""
-	b.ConfigCurrencyPairFormat = format
-	c = b.GetEnabledCurrencies()
+	b.CurrencyPairs.ConfigFormat = &format
+	c = b.GetEnabledPairs(assetType)
 	if c[0].String() != "BTCUSD" {
-		t.Error("Test Failed - Exchange GetAvailableCurrencies() incorrect string")
+		t.Error("Test Failed - Exchange GetAvailablePairs() incorrect string")
 	}
 
-	b.EnabledPairs = currency.NewPairsFromStrings([]string{"BTCDOGE"})
-	format.Index = "BTC"
-	b.ConfigCurrencyPairFormat = format
-	c = b.GetEnabledCurrencies()
-	if c[0].Base.String() != "BTC" && c[0].Quote.String() != "DOGE" {
-		t.Error("Test Failed - Exchange GetAvailableCurrencies() incorrect string")
-	}
-
-	b.EnabledPairs = currency.NewPairsFromStrings([]string{"BTC_USD"})
-	b.RequestCurrencyPairFormat.Delimiter = ""
-	b.ConfigCurrencyPairFormat.Delimiter = "_"
-	c = b.GetEnabledCurrencies()
-	if c[0].Base != currency.BTC && c[0].Quote != currency.USD {
-		t.Error("Test Failed - Exchange GetAvailableCurrencies() incorrect string")
-	}
-
-	b.EnabledPairs = currency.NewPairsFromStrings([]string{"BTCDOGE"})
-	b.RequestCurrencyPairFormat.Delimiter = ""
-	b.ConfigCurrencyPairFormat.Delimiter = ""
-	b.ConfigCurrencyPairFormat.Index = currency.BTC.String()
-	c = b.GetEnabledCurrencies()
-	if c[0].Base != currency.BTC && c[0].Quote != currency.DOGE {
-		t.Error("Test Failed - Exchange GetAvailableCurrencies() incorrect string")
-	}
-
-	b.EnabledPairs = currency.NewPairsFromStrings([]string{"BTCUSD"})
-	b.ConfigCurrencyPairFormat.Index = ""
-	c = b.GetEnabledCurrencies()
-	if c[0].Base != currency.BTC && c[0].Quote != currency.USD {
-		t.Error("Test Failed - Exchange GetAvailableCurrencies() incorrect string")
-	}
-}
-
-func TestGetAvailableCurrencies(t *testing.T) {
-	b := Base{
-		Name: "TESTNAME",
-	}
-
-	b.AvailablePairs = currency.NewPairsFromStrings([]string{"BTC-USD"})
-	format := config.CurrencyPairFormatConfig{
-		Delimiter: "-",
-		Index:     "",
-		Uppercase: true,
-	}
-
-	b.RequestCurrencyPairFormat = format
-	b.ConfigCurrencyPairFormat = format
-	c := b.GetAvailableCurrencies()
-	if c[0].String() != defaultTestCurrencyPair {
-		t.Error("Test Failed - Exchange GetAvailableCurrencies() incorrect string")
-	}
-
-	format.Delimiter = "~"
-	b.RequestCurrencyPairFormat = format
-	c = b.GetAvailableCurrencies()
-	if c[0].String() != defaultTestCurrencyPair {
-		t.Error("Test Failed - Exchange GetAvailableCurrencies() incorrect string")
-	}
-
-	format.Delimiter = ""
-	b.ConfigCurrencyPairFormat = format
-	c = b.GetAvailableCurrencies()
-	if c[0].String() != "BTCUSD" {
-		t.Error("Test Failed - Exchange GetAvailableCurrencies() incorrect string", c[0])
-	}
-
-	b.AvailablePairs = currency.NewPairsFromStrings([]string{"BTCDOGE"})
+	b.CurrencyPairs.StorePairs(assets.AssetTypeSpot,
+		currency.NewPairsFromStrings([]string{"BTCDOGE"}), true)
 	format.Index = currency.BTC.String()
-	b.ConfigCurrencyPairFormat = format
-	c = b.GetAvailableCurrencies()
+	b.CurrencyPairs.ConfigFormat = &format
+	c = b.GetEnabledPairs(assetType)
 	if c[0].Base != currency.BTC && c[0].Quote != currency.DOGE {
-		t.Error("Test Failed - Exchange GetAvailableCurrencies() incorrect string")
+		t.Error("Test Failed - Exchange GetAvailablePairs() incorrect string")
 	}
 
-	b.AvailablePairs = currency.NewPairsFromStrings([]string{"BTC_USD"})
-	b.RequestCurrencyPairFormat.Delimiter = ""
-	b.ConfigCurrencyPairFormat.Delimiter = "_"
-	c = b.GetAvailableCurrencies()
+	b.CurrencyPairs.StorePairs(assets.AssetTypeSpot,
+		currency.NewPairsFromStrings([]string{"BTC_USD"}), true)
+	b.CurrencyPairs.RequestFormat.Delimiter = ""
+	b.CurrencyPairs.ConfigFormat.Delimiter = "_"
+	c = b.GetEnabledPairs(assetType)
 	if c[0].Base != currency.BTC && c[0].Quote != currency.USD {
-		t.Error("Test Failed - Exchange GetAvailableCurrencies() incorrect string")
+		t.Error("Test Failed - Exchange GetAvailablePairs() incorrect string")
 	}
 
-	b.AvailablePairs = currency.NewPairsFromStrings([]string{"BTCDOGE"})
-	b.RequestCurrencyPairFormat.Delimiter = ""
-	b.ConfigCurrencyPairFormat.Delimiter = ""
-	b.ConfigCurrencyPairFormat.Index = currency.BTC.String()
-	c = b.GetAvailableCurrencies()
+	b.CurrencyPairs.StorePairs(assets.AssetTypeSpot,
+		currency.NewPairsFromStrings([]string{"BTCDOGE"}), true)
+	b.CurrencyPairs.RequestFormat.Delimiter = ""
+	b.CurrencyPairs.ConfigFormat.Delimiter = ""
+	b.CurrencyPairs.ConfigFormat.Index = currency.BTC.String()
+	c = b.GetEnabledPairs(assetType)
 	if c[0].Base != currency.BTC && c[0].Quote != currency.DOGE {
-		t.Error("Test Failed - Exchange GetAvailableCurrencies() incorrect string")
+		t.Error("Test Failed - Exchange GetAvailablePairs() incorrect string")
 	}
 
-	b.AvailablePairs = currency.NewPairsFromStrings([]string{"BTCUSD"})
-	b.ConfigCurrencyPairFormat.Index = ""
-	c = b.GetAvailableCurrencies()
+	b.CurrencyPairs.StorePairs(assets.AssetTypeSpot,
+		currency.NewPairsFromStrings([]string{"BTCUSD"}), true)
+	b.CurrencyPairs.ConfigFormat.Index = ""
+	c = b.GetEnabledPairs(assetType)
 	if c[0].Base != currency.BTC && c[0].Quote != currency.USD {
-		t.Error("Test Failed - Exchange GetAvailableCurrencies() incorrect string")
+		t.Error("Test Failed - Exchange GetAvailablePairs() incorrect string")
 	}
 }
 
-func TestSupportsCurrency(t *testing.T) {
+func TestGetAvailablePairs(t *testing.T) {
 	b := Base{
 		Name: "TESTNAME",
 	}
 
-	b.AvailablePairs = currency.NewPairsFromStrings([]string{defaultTestCurrencyPair, "ETH-USD"})
-	b.EnabledPairs = currency.NewPairsFromStrings([]string{defaultTestCurrencyPair})
+	b.CurrencyPairs.StorePairs(assets.AssetTypeSpot,
+		currency.NewPairsFromStrings([]string{defaultTestCurrencyPair}), false)
+	format := currency.PairFormat{
+		Delimiter: "-",
+		Index:     "",
+		Uppercase: true,
+	}
 
-	format := config.CurrencyPairFormatConfig{
+	assetType := assets.AssetTypeSpot
+	b.CurrencyPairs.UseGlobalFormat = true
+	b.CurrencyPairs.RequestFormat = &format
+	b.CurrencyPairs.ConfigFormat = &format
+
+	c := b.GetAvailablePairs(assetType)
+	if c[0].String() != defaultTestCurrencyPair {
+		t.Error("Test Failed - Exchange GetAvailablePairs() incorrect string")
+	}
+
+	format.Delimiter = "~"
+	b.CurrencyPairs.RequestFormat = &format
+	c = b.GetAvailablePairs(assetType)
+	if c[0].String() != "BTC~USD" {
+		t.Error("Test Failed - Exchange GetAvailablePairs() incorrect string")
+	}
+
+	format.Delimiter = ""
+	b.CurrencyPairs.ConfigFormat = &format
+	c = b.GetAvailablePairs(assetType)
+	if c[0].String() != "BTCUSD" {
+		t.Error("Test Failed - Exchange GetAvailablePairs() incorrect string")
+	}
+
+	b.CurrencyPairs.StorePairs(assets.AssetTypeSpot,
+		currency.NewPairsFromStrings([]string{"BTCDOGE"}), false)
+	format.Index = currency.BTC.String()
+	b.CurrencyPairs.ConfigFormat = &format
+	c = b.GetAvailablePairs(assetType)
+	if c[0].Base != currency.BTC && c[0].Quote != currency.DOGE {
+		t.Error("Test Failed - Exchange GetAvailablePairs() incorrect string")
+	}
+
+	b.CurrencyPairs.StorePairs(assets.AssetTypeSpot,
+		currency.NewPairsFromStrings([]string{"BTC_USD"}), false)
+	b.CurrencyPairs.RequestFormat.Delimiter = ""
+	b.CurrencyPairs.ConfigFormat.Delimiter = "_"
+	c = b.GetAvailablePairs(assetType)
+	if c[0].Base != currency.BTC && c[0].Quote != currency.USD {
+		t.Error("Test Failed - Exchange GetAvailablePairs() incorrect string")
+	}
+
+	b.CurrencyPairs.StorePairs(assets.AssetTypeSpot,
+		currency.NewPairsFromStrings([]string{"BTCDOGE"}), false)
+	b.CurrencyPairs.RequestFormat.Delimiter = ""
+	b.CurrencyPairs.ConfigFormat.Delimiter = ""
+	b.CurrencyPairs.ConfigFormat.Index = currency.BTC.String()
+	c = b.GetAvailablePairs(assetType)
+	if c[0].Base != currency.BTC && c[0].Quote != currency.DOGE {
+		t.Error("Test Failed - Exchange GetAvailablePairs() incorrect string")
+	}
+
+	b.CurrencyPairs.StorePairs(assets.AssetTypeSpot,
+		currency.NewPairsFromStrings([]string{"BTCUSD"}), false)
+	b.CurrencyPairs.ConfigFormat.Index = ""
+	c = b.GetAvailablePairs(assetType)
+	if c[0].Base != currency.BTC && c[0].Quote != currency.USD {
+		t.Error("Test Failed - Exchange GetAvailablePairs() incorrect string")
+	}
+}
+
+func TestSupportsPair(t *testing.T) {
+	b := Base{
+		Name: "TESTNAME",
+	}
+
+	b.CurrencyPairs.StorePairs(assets.AssetTypeSpot,
+		currency.NewPairsFromStrings([]string{
+			defaultTestCurrencyPair, "ETH-USD"}), false)
+	b.CurrencyPairs.StorePairs(assets.AssetTypeSpot,
+		currency.NewPairsFromStrings([]string{defaultTestCurrencyPair}), true)
+
+	format := &currency.PairFormat{
 		Delimiter: "-",
 		Index:     "",
 	}
 
-	b.RequestCurrencyPairFormat = format
-	b.ConfigCurrencyPairFormat = format
+	b.CurrencyPairs.UseGlobalFormat = true
+	b.CurrencyPairs.RequestFormat = format
+	b.CurrencyPairs.ConfigFormat = format
+	assetType := assets.AssetTypeSpot
 
-	if !b.SupportsCurrency(currency.NewPairFromStrings("BTC", "USD"), true) {
-		t.Error("Test Failed - Exchange SupportsCurrency() incorrect value")
+	if !b.SupportsPair(currency.NewPair(currency.BTC, currency.USD), true, assetType) {
+		t.Error("Test Failed - Exchange SupportsPair() incorrect value")
 	}
 
-	if !b.SupportsCurrency(currency.NewPairFromStrings("ETH", "USD"), false) {
-		t.Error("Test Failed - Exchange SupportsCurrency() incorrect value")
+	if !b.SupportsPair(currency.NewPair(currency.ETH, currency.USD), false, assetType) {
+		t.Error("Test Failed - Exchange SupportsPair() incorrect value")
 	}
 
-	if b.SupportsCurrency(currency.NewPairFromStrings("ASD", "ASDF"), true) {
-		t.Error("Test Failed - Exchange SupportsCurrency() incorrect value")
-	}
-}
-func TestGetExchangeFormatCurrencySeperator(t *testing.T) {
-	cfg := config.GetConfig()
-	err := cfg.LoadConfig(config.ConfigTestFile)
-	if err != nil {
-		t.Fatalf("Failed to load config file. Error: %s", err)
-	}
-
-	expected := true
-	actual := GetExchangeFormatCurrencySeperator("Yobit")
-
-	if expected != actual {
-		t.Errorf("Test failed - TestGetExchangeFormatCurrencySeperator expected %v != actual %v",
-			expected, actual)
-	}
-
-	expected = false
-	actual = GetExchangeFormatCurrencySeperator("LocalBitcoins")
-
-	if expected != actual {
-		t.Errorf("Test failed - TestGetExchangeFormatCurrencySeperator expected %v != actual %v",
-			expected, actual)
-	}
-
-	expected = false
-	actual = GetExchangeFormatCurrencySeperator("blah")
-
-	if expected != actual {
-		t.Errorf("Test failed - TestGetExchangeFormatCurrencySeperator expected %v != actual %v",
-			expected, actual)
+	if b.SupportsPair(currency.NewPairFromStrings("ASD", "ASDF"), true, assetType) {
+		t.Error("Test Failed - Exchange SupportsPair() incorrect value")
 	}
 }
 
-func TestGetAndFormatExchangeCurrencies(t *testing.T) {
-	cfg := config.GetConfig()
-	err := cfg.LoadConfig(config.ConfigTestFile)
-	if err != nil {
-		t.Fatalf("Failed to load config file. Error: %s", err)
+func TestFormatExchangeCurrencies(t *testing.T) {
+	e := Base{
+		CurrencyPairs: currency.PairsManager{
+			UseGlobalFormat: true,
+
+			RequestFormat: &currency.PairFormat{
+				Uppercase: false,
+				Delimiter: "~",
+				Separator: "^",
+			},
+
+			ConfigFormat: &currency.PairFormat{
+				Uppercase: true,
+				Delimiter: "_",
+			},
+		},
 	}
 
 	var pairs = []currency.Pair{
@@ -596,52 +486,32 @@ func TestGetAndFormatExchangeCurrencies(t *testing.T) {
 		currency.NewPairDelimiter("LTC_BTC", "_"),
 	}
 
-	actual, err := GetAndFormatExchangeCurrencies("Yobit", pairs)
+	actual, err := e.FormatExchangeCurrencies(pairs, assets.AssetTypeSpot)
 	if err != nil {
-		t.Errorf("Test failed - Exchange TestGetAndFormatExchangeCurrencies error %s", err)
+		t.Errorf("Test failed - Exchange TestFormatExchangeCurrencies error %s", err)
 	}
-	expected := "btc_usd-ltc_btc"
+	expected := "btc~usd^ltc~btc"
 
 	if actual != expected {
-		t.Errorf("Test failed - Exchange TestGetAndFormatExchangeCurrencies %s != %s",
+		t.Errorf("Test failed - Exchange TestFormatExchangeCurrencies %s != %s",
 			actual, expected)
-	}
-
-	_, err = GetAndFormatExchangeCurrencies("non-existent", pairs)
-	if err == nil {
-		t.Errorf("Test failed - Exchange TestGetAndFormatExchangeCurrencies returned nil error on non-existent exchange")
 	}
 }
 
 func TestFormatExchangeCurrency(t *testing.T) {
-	cfg := config.GetConfig()
-	err := cfg.LoadConfig(config.ConfigTestFile)
-	if err != nil {
-		t.Fatalf("Failed to load config file. Error: %s", err)
+	var b Base
+	b.CurrencyPairs.UseGlobalFormat = true
+	b.CurrencyPairs.RequestFormat = &currency.PairFormat{
+		Uppercase: true,
+		Delimiter: "-",
 	}
 
 	p := currency.NewPair(currency.BTC, currency.USD)
 	expected := defaultTestCurrencyPair
-	actual := FormatExchangeCurrency("CoinbasePro", p)
+	actual := b.FormatExchangeCurrency(p, assets.AssetTypeSpot)
 
 	if actual.String() != expected {
 		t.Errorf("Test failed - Exchange TestFormatExchangeCurrency %s != %s",
-			actual, expected)
-	}
-}
-
-func TestFormatCurrency(t *testing.T) {
-	cfg := config.GetConfig()
-	err := cfg.LoadConfig(config.ConfigTestFile)
-	if err != nil {
-		t.Fatalf("Failed to load config file. Error: %s", err)
-	}
-
-	p := currency.NewPair(currency.BTC, currency.USD)
-	expected := defaultTestCurrencyPair
-	actual := FormatCurrency(p).String()
-	if actual != expected {
-		t.Errorf("Test failed - Exchange TestFormatCurrency %s != %s",
 			actual, expected)
 	}
 }
@@ -671,141 +541,128 @@ func TestIsEnabled(t *testing.T) {
 
 func TestSetAPIKeys(t *testing.T) {
 	SetAPIKeys := Base{
-		Name:                    "TESTNAME",
-		Enabled:                 false,
-		AuthenticatedAPISupport: false,
+		Name:    "TESTNAME",
+		Enabled: false,
 	}
 
-	SetAPIKeys.SetAPIKeys("RocketMan", "Digereedoo", "007", false)
-	if SetAPIKeys.APIKey != "" && SetAPIKeys.APISecret != "" && SetAPIKeys.ClientID != "" {
-		t.Error("Test Failed - SetAPIKeys() set values without authenticated API support enabled")
+	SetAPIKeys.SetAPIKeys("RocketMan", "Digereedoo", "007")
+	if SetAPIKeys.API.Credentials.Key != "RocketMan" && SetAPIKeys.API.Credentials.Secret != "Digereedoo" && SetAPIKeys.API.Credentials.ClientID != "007" {
+		t.Error("Test Failed - SetAPIKeys() unable to set API credentials")
 	}
 
-	SetAPIKeys.AuthenticatedAPISupport = true
-	SetAPIKeys.SetAPIKeys("RocketMan", "Digereedoo", "007", false)
-	if SetAPIKeys.APIKey != "RocketMan" && SetAPIKeys.APISecret != "Digereedoo" && SetAPIKeys.ClientID != "007" {
-		t.Error("Test Failed - Exchange SetAPIKeys() did not set correct values")
-	}
-	SetAPIKeys.SetAPIKeys("RocketMan", "Digereedoo", "007", true)
+	SetAPIKeys.API.CredentialsValidator.RequiresBase64DecodeSecret = true
+	SetAPIKeys.SetAPIKeys("RocketMan", "Digereedoo", "007")
 }
 
-func TestSetCurrencies(t *testing.T) {
+func TestSetPairs(t *testing.T) {
+	t.Skip()
+	// TO-DO
 	cfg := config.GetConfig()
 	err := cfg.LoadConfig(config.ConfigTestFile)
 	if err != nil {
-		t.Fatal("Test failed. TestSetCurrencies failed to load config")
-	}
-
-	UAC := Base{Name: "ASDF"}
-	UAC.AvailablePairs = currency.NewPairsFromStrings([]string{"ETHLTC", "LTCBTC"})
-	UAC.EnabledPairs = currency.NewPairsFromStrings([]string{"ETHLTC"})
-	newPair := currency.NewPairDelimiter("ETH_USDT", "_")
-
-	err = UAC.SetCurrencies([]currency.Pair{newPair}, true)
-	if err == nil {
-		t.Fatal("Test failed. TestSetCurrencies returned nil error on non-existent exchange")
+		t.Fatal("Test failed. TestSetPairs failed to load config")
 	}
 
 	anxCfg, err := cfg.GetExchangeConfig(defaultTestExchange)
 	if err != nil {
-		t.Fatal("Test failed. TestSetCurrencies failed to load config")
+		t.Fatal("Test failed. TestSetPairs failed to load config")
 	}
 
-	UAC.Name = defaultTestExchange
-	UAC.ConfigCurrencyPairFormat.Delimiter = anxCfg.ConfigCurrencyPairFormat.Delimiter
-	UAC.SetCurrencies(currency.Pairs{newPair}, true)
-	if !UAC.GetEnabledCurrencies().Contains(newPair, true) {
-		t.Fatal("Test failed. TestSetCurrencies failed to set currencies")
+	newPair := currency.NewPairDelimiter("ETH_USDT", "_")
+	assetType := assets.AssetTypeSpot
+
+	var UAC Base
+	UAC.Name = "ANX"
+	UAC.Config = anxCfg
+	err = UAC.SetupDefaults(anxCfg)
+	if err != nil {
+		t.Fatalf("Test failed. TestSetPairs unable to set defaults: %s", err)
 	}
 
-	UAC.SetCurrencies(currency.Pairs{newPair}, false)
-	if !UAC.GetAvailableCurrencies().Contains(newPair, true) {
-		t.Fatal("Test failed. TestSetCurrencies failed to set currencies")
+	err = UAC.SetPairs([]currency.Pair{newPair}, assets.AssetTypeSpot, true)
+	if err != nil {
+		t.Fatalf("Test failed. TestSetPairs failed to set currencies: %s", err)
 	}
 
-	err = UAC.SetCurrencies(nil, false)
+	if !UAC.GetEnabledPairs(assetType).Contains(newPair, true) {
+		t.Fatal("Test failed. TestSetPairs failed to set currencies")
+	}
+
+	UAC.SetPairs([]currency.Pair{newPair}, assets.AssetTypeSpot, false)
+	if !UAC.GetAvailablePairs(assetType).Contains(newPair, true) {
+		t.Fatal("Test failed. TestSetPairs failed to set currencies")
+	}
+
+	err = UAC.SetPairs(nil, assets.AssetTypeSpot, false)
 	if err == nil {
-		t.Fatal("Test failed. TestSetCurrencies should return an error when attempting to set an empty pairs array")
+		t.Fatal("Test failed. TestSetPairs should return an error when attempting to set an empty pairs array")
 	}
 }
 
-func TestUpdateCurrencies(t *testing.T) {
+func TestUpdatePairs(t *testing.T) {
 	cfg := config.GetConfig()
 	err := cfg.LoadConfig(config.ConfigTestFile)
 	if err != nil {
-		t.Fatal("Test failed. TestUpdateEnabledCurrencies failed to load config")
+		t.Fatal("Test failed. TestUpdatePairs failed to load config")
+	}
+
+	anxCfg, err := cfg.GetExchangeConfig("ANX")
+	if err != nil {
+		t.Fatal("Test failed. TestUpdatePairs failed to load config")
 	}
 
 	UAC := Base{Name: "ANX"}
+	UAC.Config = anxCfg
 	exchangeProducts := currency.NewPairsFromStrings([]string{"ltc", "btc", "usd", "aud", ""})
-
-	// Test updating exchange products for an exchange which doesn't exist
-	UAC.Name = "Blah"
-	err = UAC.UpdateCurrencies(exchangeProducts, true, false)
-	if err == nil {
-		t.Errorf("Test Failed - Exchange TestUpdateCurrencies succeeded on an exchange which doesn't exist")
-	}
-
-	// Test updating exchange products
-	UAC.Name = defaultTestExchange
-	err = UAC.UpdateCurrencies(exchangeProducts, true, false)
+	err = UAC.UpdatePairs(exchangeProducts, assets.AssetTypeSpot, true, false)
 	if err != nil {
-		t.Errorf("Test Failed - Exchange TestUpdateCurrencies error: %s", err)
+		t.Errorf("Test Failed - TestUpdatePairs error: %s", err)
 	}
 
 	// Test updating the same new products, diff should be 0
-	UAC.Name = defaultTestExchange
-	err = UAC.UpdateCurrencies(exchangeProducts, true, false)
+	err = UAC.UpdatePairs(exchangeProducts, assets.AssetTypeSpot, true, false)
 	if err != nil {
-		t.Errorf("Test Failed - Exchange TestUpdateCurrencies error: %s", err)
+		t.Errorf("Test Failed - TestUpdatePairs error: %s", err)
 	}
 
 	// Test force updating to only one product
 	exchangeProducts = currency.NewPairsFromStrings([]string{"btc"})
-	err = UAC.UpdateCurrencies(exchangeProducts, true, true)
+	err = UAC.UpdatePairs(exchangeProducts, assets.AssetTypeSpot, true, true)
 	if err != nil {
-		t.Errorf("Test Failed - Forced Exchange TestUpdateCurrencies error: %s", err)
+		t.Errorf("Test Failed - TestUpdatePairs error: %s", err)
 	}
 
+	// Test updating exchange products
 	exchangeProducts = currency.NewPairsFromStrings([]string{"ltc", "btc", "usd", "aud"})
-	// Test updating exchange products for an exchange which doesn't exist
-	UAC.Name = "Blah"
-	err = UAC.UpdateCurrencies(exchangeProducts, false, false)
-	if err == nil {
-		t.Errorf("Test Failed - Exchange UpdateCurrencies() succeeded on an exchange which doesn't exist")
-	}
-
-	// Test updating exchange products
-	UAC.Name = defaultTestExchange
-	err = UAC.UpdateCurrencies(exchangeProducts, false, false)
+	UAC.Name = "ANX"
+	err = UAC.UpdatePairs(exchangeProducts, assets.AssetTypeSpot, false, false)
 	if err != nil {
-		t.Errorf("Test Failed - Exchange UpdateCurrencies() error: %s", err)
+		t.Errorf("Test Failed - Exchange UpdatePairs() error: %s", err)
 	}
 
 	// Test updating the same new products, diff should be 0
-	UAC.Name = defaultTestExchange
-	err = UAC.UpdateCurrencies(exchangeProducts, false, false)
+	err = UAC.UpdatePairs(exchangeProducts, assets.AssetTypeSpot, false, false)
 	if err != nil {
-		t.Errorf("Test Failed - Exchange UpdateCurrencies() error: %s", err)
+		t.Errorf("Test Failed - Exchange UpdatePairs() error: %s", err)
 	}
 
 	// Test force updating to only one product
 	exchangeProducts = currency.NewPairsFromStrings([]string{"btc"})
-	err = UAC.UpdateCurrencies(exchangeProducts, false, true)
+	err = UAC.UpdatePairs(exchangeProducts, assets.AssetTypeSpot, false, true)
 	if err != nil {
-		t.Errorf("Test Failed - Forced Exchange UpdateCurrencies() error: %s", err)
+		t.Errorf("Test Failed - Forced Exchange UpdatePairs() error: %s", err)
 	}
 
 	// Test update currency pairs with btc excluded
 	exchangeProducts = currency.NewPairsFromStrings([]string{"ltc", "eth"})
-	err = UAC.UpdateCurrencies(exchangeProducts, false, false)
+	err = UAC.UpdatePairs(exchangeProducts, assets.AssetTypeSpot, false, false)
 	if err != nil {
-		t.Errorf("Test Failed - Forced Exchange UpdateCurrencies() error: %s", err)
+		t.Errorf("Test Failed - Forced Exchange UpdatePairs() error: %s", err)
 	}
 
 	// Test that empty exchange products should return an error
 	exchangeProducts = nil
-	err = UAC.UpdateCurrencies(exchangeProducts, false, false)
+	err = UAC.UpdatePairs(exchangeProducts, assets.AssetTypeSpot, false, false)
 	if err == nil {
 		t.Errorf("Test failed - empty available pairs should return an error")
 	}
@@ -818,21 +675,20 @@ func TestSetAPIURL(t *testing.T) {
 	testURLSecondaryDefault := "https://api.defaultsomethingelse.com"
 
 	tester := Base{Name: "test"}
+	tester.Config = new(config.ExchangeConfig)
 
-	test := config.ExchangeConfig{}
-
-	err := tester.SetAPIURL(&test)
+	err := tester.SetAPIURL()
 	if err == nil {
 		t.Error("test failed - setting zero value config")
 	}
 
-	test.APIURL = testURL
-	test.APIURLSecondary = testURLSecondary
+	tester.Config.API.Endpoints.URL = testURL
+	tester.Config.API.Endpoints.URLSecondary = testURLSecondary
 
-	tester.APIUrlDefault = testURLDefault
-	tester.APIUrlSecondaryDefault = testURLSecondaryDefault
+	tester.API.Endpoints.URLDefault = testURLDefault
+	tester.API.Endpoints.URLSecondaryDefault = testURLSecondaryDefault
 
-	err = tester.SetAPIURL(&test)
+	err = tester.SetAPIURL()
 	if err != nil {
 		t.Error("test failed", err)
 	}
@@ -859,14 +715,16 @@ func BenchmarkSetAPIURL(b *testing.B) {
 
 	test := config.ExchangeConfig{}
 
-	test.APIURL = "https://api.something.com"
-	test.APIURLSecondary = "https://api.somethingelse.com"
+	test.API.Endpoints.URL = "https://api.something.com"
+	test.API.Endpoints.URLSecondary = "https://api.somethingelse.com"
 
-	tester.APIUrlDefault = "https://api.defaultsomething.com"
-	tester.APIUrlSecondaryDefault = "https://api.defaultsomethingelse.com"
+	tester.API.Endpoints.URLDefault = "https://api.defaultsomething.com"
+	tester.API.Endpoints.URLDefault = "https://api.defaultsomethingelse.com"
+
+	tester.Config = &test
 
 	for i := 0; i < b.N; i++ {
-		err := tester.SetAPIURL(&test)
+		err := tester.SetAPIURL()
 		if err != nil {
 			b.Errorf("Benchmark failed %v", err)
 		}
@@ -904,13 +762,7 @@ func TestSupportsWithdrawPermissions(t *testing.T) {
 }
 
 func TestFormatWithdrawPermissions(t *testing.T) {
-	cfg := config.GetConfig()
-	err := cfg.LoadConfig(config.ConfigTestFile)
-	if err != nil {
-		t.Fatal("Test failed. TestUpdateEnabledCurrencies failed to load config")
-	}
-
-	UAC := Base{Name: defaultTestExchange}
+	UAC := Base{Name: "ANX"}
 	UAC.APIWithdrawPermissions = AutoWithdrawCrypto |
 		AutoWithdrawCryptoWithAPIPermission |
 		AutoWithdrawCryptoWithSetup |
@@ -944,6 +796,17 @@ func TestFormatWithdrawPermissions(t *testing.T) {
 	}
 }
 
+func TestOrderSides(t *testing.T) {
+	var os = BuyOrderSide
+	if os.ToString() != "BUY" {
+		t.Errorf("test failed - unexpected string %s", os.ToString())
+	}
+
+	if os.ToLower() != "buy" {
+		t.Errorf("test failed - unexpected string %s", os.ToString())
+	}
+}
+
 func TestOrderTypes(t *testing.T) {
 	var ot OrderType = "Mo'Money"
 
@@ -951,10 +814,8 @@ func TestOrderTypes(t *testing.T) {
 		t.Errorf("test failed - unexpected string %s", ot.ToString())
 	}
 
-	var os OrderSide = "BUY"
-
-	if os.ToString() != "BUY" {
-		t.Errorf("test failed - unexpected string %s", os.ToString())
+	if ot.ToLower() != "mo'money" {
+		t.Errorf("test failed - unexpected string %s", ot.ToString())
 	}
 }
 

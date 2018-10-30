@@ -6,15 +6,9 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
-	"time"
 
-	"github.com/thrasher-/gocryptotrader/common"
-	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
-	"github.com/thrasher-/gocryptotrader/exchanges/request"
-	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
-	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
 const (
@@ -76,76 +70,11 @@ type Bitflyer struct {
 	exchange.Base
 }
 
-// SetDefaults sets the basic defaults for Bitflyer
-func (b *Bitflyer) SetDefaults() {
-	b.Name = "Bitflyer"
-	b.Enabled = false
-	b.Verbose = false
-	b.RESTPollingDelay = 10
-	b.APIWithdrawPermissions = exchange.WithdrawCryptoViaWebsiteOnly |
-		exchange.AutoWithdrawFiat
-	b.RequestCurrencyPairFormat.Delimiter = "_"
-	b.RequestCurrencyPairFormat.Uppercase = true
-	b.ConfigCurrencyPairFormat.Delimiter = "_"
-	b.ConfigCurrencyPairFormat.Uppercase = true
-	b.AssetTypes = []string{ticker.Spot}
-	b.SupportsAutoPairUpdating = false
-	b.SupportsRESTTickerBatching = false
-	b.Requester = request.New(b.Name,
-		request.NewRateLimit(time.Minute, bitflyerAuthRate),
-		request.NewRateLimit(time.Minute, bitflyerUnauthRate),
-		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
-	b.APIUrlDefault = japanURL
-	b.APIUrl = b.APIUrlDefault
-	b.APIUrlSecondaryDefault = chainAnalysis
-	b.APIUrlSecondary = b.APIUrlSecondaryDefault
-	b.WebsocketInit()
-}
-
-// Setup takes in the supplied exchange configuration details and sets params
-func (b *Bitflyer) Setup(exch *config.ExchangeConfig) {
-	if !exch.Enabled {
-		b.SetEnabled(false)
-	} else {
-		b.Enabled = true
-		b.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
-		b.SetAPIKeys(exch.APIKey, exch.APISecret, "", false)
-		b.SetHTTPClientTimeout(exch.HTTPTimeout)
-		b.SetHTTPClientUserAgent(exch.HTTPUserAgent)
-		b.RESTPollingDelay = exch.RESTPollingDelay
-		b.Verbose = exch.Verbose
-		b.Websocket.SetWsStatusAndConnection(exch.Websocket)
-		b.BaseCurrencies = exch.BaseCurrencies
-		b.AvailablePairs = exch.AvailablePairs
-		b.EnabledPairs = exch.EnabledPairs
-		err := b.SetCurrencyPairFormat()
-		if err != nil {
-			log.Fatal(err)
-		}
-		err = b.SetAssetTypes()
-		if err != nil {
-			log.Fatal(err)
-		}
-		err = b.SetAutoPairDefaults()
-		if err != nil {
-			log.Fatal(err)
-		}
-		err = b.SetAPIURL(exch)
-		if err != nil {
-			log.Fatal(err)
-		}
-		err = b.SetClientProxyAddress(exch.ProxyAddress)
-		if err != nil {
-			log.Fatal(err)
-		}
-	}
-}
-
 // GetLatestBlockCA returns the latest block information from bitflyer chain
 // analysis system
 func (b *Bitflyer) GetLatestBlockCA() (ChainAnalysisBlock, error) {
 	var resp ChainAnalysisBlock
-	path := fmt.Sprintf("%s%s", b.APIUrlSecondary, latestBlock)
+	path := fmt.Sprintf("%s%s", b.API.Endpoints.URLSecondary, latestBlock)
 
 	return resp, b.SendHTTPRequest(path, &resp)
 }
@@ -154,7 +83,7 @@ func (b *Bitflyer) GetLatestBlockCA() (ChainAnalysisBlock, error) {
 // analysis system
 func (b *Bitflyer) GetBlockCA(blockhash string) (ChainAnalysisBlock, error) {
 	var resp ChainAnalysisBlock
-	path := fmt.Sprintf("%s%s%s", b.APIUrlSecondary, blockByBlockHash, blockhash)
+	path := fmt.Sprintf("%s%s%s", b.API.Endpoints.URLSecondary, blockByBlockHash, blockhash)
 
 	return resp, b.SendHTTPRequest(path, &resp)
 }
@@ -163,7 +92,7 @@ func (b *Bitflyer) GetBlockCA(blockhash string) (ChainAnalysisBlock, error) {
 // analysis system
 func (b *Bitflyer) GetBlockbyHeightCA(height int64) (ChainAnalysisBlock, error) {
 	var resp ChainAnalysisBlock
-	path := fmt.Sprintf("%s%s%s", b.APIUrlSecondary, blockByBlockHeight, strconv.FormatInt(height, 10))
+	path := fmt.Sprintf("%s%s%s", b.API.Endpoints.URLSecondary, blockByBlockHeight, strconv.FormatInt(height, 10))
 
 	return resp, b.SendHTTPRequest(path, &resp)
 }
@@ -172,7 +101,7 @@ func (b *Bitflyer) GetBlockbyHeightCA(height int64) (ChainAnalysisBlock, error) 
 // bitflyer chain analysis system
 func (b *Bitflyer) GetTransactionByHashCA(txHash string) (ChainAnalysisTransaction, error) {
 	var resp ChainAnalysisTransaction
-	path := fmt.Sprintf("%s%s%s", b.APIUrlSecondary, transaction, txHash)
+	path := fmt.Sprintf("%s%s%s", b.API.Endpoints.URLSecondary, transaction, txHash)
 
 	return resp, b.SendHTTPRequest(path, &resp)
 }
@@ -181,7 +110,7 @@ func (b *Bitflyer) GetTransactionByHashCA(txHash string) (ChainAnalysisTransacti
 // from bitflyer chain analysis system
 func (b *Bitflyer) GetAddressInfoCA(addressln string) (ChainAnalysisAddress, error) {
 	var resp ChainAnalysisAddress
-	path := fmt.Sprintf("%s%s%s", b.APIUrlSecondary, address, addressln)
+	path := fmt.Sprintf("%s%s%s", b.API.Endpoints.URLSecondary, address, addressln)
 
 	return resp, b.SendHTTPRequest(path, &resp)
 }
@@ -189,7 +118,7 @@ func (b *Bitflyer) GetAddressInfoCA(addressln string) (ChainAnalysisAddress, err
 // GetMarkets returns market information
 func (b *Bitflyer) GetMarkets() ([]MarketInfo, error) {
 	var resp []MarketInfo
-	path := fmt.Sprintf("%s%s", b.APIUrl, pubGetMarkets)
+	path := fmt.Sprintf("%s%s", b.API.Endpoints.URL, pubGetMarkets)
 
 	return resp, b.SendHTTPRequest(path, &resp)
 }
@@ -199,7 +128,7 @@ func (b *Bitflyer) GetOrderBook(symbol string) (Orderbook, error) {
 	var resp Orderbook
 	v := url.Values{}
 	v.Set("product_code", symbol)
-	path := fmt.Sprintf("%s%s?%s", b.APIUrl, pubGetBoard, v.Encode())
+	path := fmt.Sprintf("%s%s?%s", b.API.Endpoints.URL, pubGetBoard, v.Encode())
 
 	return resp, b.SendHTTPRequest(path, &resp)
 }
@@ -209,7 +138,7 @@ func (b *Bitflyer) GetTicker(symbol string) (Ticker, error) {
 	var resp Ticker
 	v := url.Values{}
 	v.Set("product_code", symbol)
-	path := fmt.Sprintf("%s%s?%s", b.APIUrl, pubGetTicker, v.Encode())
+	path := fmt.Sprintf("%s%s?%s", b.API.Endpoints.URL, pubGetTicker, v.Encode())
 
 	return resp, b.SendHTTPRequest(path, &resp)
 }
@@ -219,7 +148,7 @@ func (b *Bitflyer) GetExecutionHistory(symbol string) ([]ExecutedTrade, error) {
 	var resp []ExecutedTrade
 	v := url.Values{}
 	v.Set("product_code", symbol)
-	path := fmt.Sprintf("%s%s?%s", b.APIUrl, pubGetExecutionHistory, v.Encode())
+	path := fmt.Sprintf("%s%s?%s", b.API.Endpoints.URL, pubGetExecutionHistory, v.Encode())
 
 	return resp, b.SendHTTPRequest(path, &resp)
 }
@@ -228,7 +157,7 @@ func (b *Bitflyer) GetExecutionHistory(symbol string) ([]ExecutedTrade, error) {
 func (b *Bitflyer) GetExchangeStatus() (string, error) {
 	resp := make(map[string]string)
 
-	path := fmt.Sprintf("%s%s", b.APIUrl, pubGetHealth)
+	path := fmt.Sprintf("%s%s", b.API.Endpoints.URL, pubGetHealth)
 
 	err := b.SendHTTPRequest(path, &resp)
 	if err != nil {
@@ -255,8 +184,7 @@ func (b *Bitflyer) GetChats(fromDate string) ([]ChatLog, error) {
 	var resp []ChatLog
 	v := url.Values{}
 	v.Set("from_date", fromDate)
-	path := fmt.Sprintf("%s%s?%s", b.APIUrl, pubGetChats, v.Encode())
-
+	path := fmt.Sprintf("%s%s?%s", b.API.Endpoints.URL, pubGetChats, v.Encode())
 	return resp, b.SendHTTPRequest(path, &resp)
 }
 
@@ -387,7 +315,7 @@ func (b *Bitflyer) SendHTTPRequest(path string, result interface{}) error {
 // TODO: Fill out this function once API access is obtained
 func (b *Bitflyer) SendAuthHTTPRequest() {
 	// headers := make(map[string]string)
-	// headers["ACCESS-KEY"] = b.APIKey
+	// headers["ACCESS-KEY"] = b.API.Credentials.Key
 	// headers["ACCESS-TIMESTAMP"] = strconv.FormatInt(time.Now().UnixNano(), 10)
 }
 

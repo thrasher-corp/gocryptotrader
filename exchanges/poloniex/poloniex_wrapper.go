@@ -8,12 +8,109 @@ import (
 	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
+	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
+	"github.com/thrasher-/gocryptotrader/exchanges/assets"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-/gocryptotrader/exchanges/request"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 	log "github.com/thrasher-/gocryptotrader/logger"
 )
+
+// GetDefaultConfig returns a default exchange config
+func (p *Poloniex) GetDefaultConfig() (*config.ExchangeConfig, error) {
+	p.SetDefaults()
+	exchCfg := new(config.ExchangeConfig)
+	exchCfg.Name = p.Name
+	exchCfg.HTTPTimeout = exchange.DefaultHTTPTimeout
+	exchCfg.BaseCurrencies = p.BaseCurrencies
+
+	err := p.SetupDefaults(exchCfg)
+	if err != nil {
+		return nil, err
+	}
+
+	if p.Features.Supports.RESTCapabilities.AutoPairUpdates {
+		err = p.UpdateTradablePairs(true)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return exchCfg, nil
+}
+
+// SetDefaults sets default settings for poloniex
+func (p *Poloniex) SetDefaults() {
+	p.Name = "Poloniex"
+	p.Enabled = true
+	p.Verbose = true
+	p.APIWithdrawPermissions = exchange.AutoWithdrawCryptoWithAPIPermission |
+		exchange.NoFiatWithdrawals
+	p.API.CredentialsValidator.RequiresKey = true
+	p.API.CredentialsValidator.RequiresSecret = true
+
+	p.CurrencyPairs = currency.PairsManager{
+		AssetTypes: assets.AssetTypes{
+			assets.AssetTypeSpot,
+		},
+		UseGlobalFormat: true,
+		RequestFormat: &currency.PairFormat{
+			Delimiter: "_",
+			Uppercase: true,
+		},
+		ConfigFormat: &currency.PairFormat{
+			Delimiter: "_",
+			Uppercase: true,
+		},
+	}
+
+	p.Features = exchange.Features{
+		Supports: exchange.FeaturesSupported{
+			REST:      true,
+			Websocket: true,
+			RESTCapabilities: exchange.ProtocolFeatures{
+				AutoPairUpdates: true,
+				TickerBatching:  true,
+			},
+		},
+		Enabled: exchange.FeaturesEnabled{
+			AutoPairUpdates: true,
+		},
+	}
+
+	p.Requester = request.New(p.Name,
+		request.NewRateLimit(time.Second, poloniexAuthRate),
+		request.NewRateLimit(time.Second, poloniexUnauthRate),
+		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
+
+	p.API.Endpoints.URLDefault = poloniexAPIURL
+	p.API.Endpoints.URL = p.API.Endpoints.URLDefault
+	p.WebsocketInit()
+	p.Websocket.Functionality = exchange.WebsocketTradeDataSupported |
+		exchange.WebsocketOrderbookSupported |
+		exchange.WebsocketTickerSupported
+}
+
+// Setup sets user exchange configuration settings
+func (p *Poloniex) Setup(exch *config.ExchangeConfig) error {
+	if !exch.Enabled {
+		p.SetEnabled(false)
+		return nil
+	}
+
+	err := p.SetupDefaults(exch)
+	if err != nil {
+		return err
+	}
+
+	return p.WebsocketSetup(p.WsConnect,
+		exch.Name,
+		exch.Features.Enabled.Websocket,
+		poloniexWebsocketAddress,
+		exch.API.Endpoints.WebsocketURL)
+}
 
 // Start starts the Poloniex go routine
 func (p *Poloniex) Start(wg *sync.WaitGroup) {
@@ -28,45 +125,63 @@ func (p *Poloniex) Start(wg *sync.WaitGroup) {
 func (p *Poloniex) Run() {
 	if p.Verbose {
 		log.Debugf("%s Websocket: %s (url: %s).\n", p.GetName(), common.IsEnabled(p.Websocket.IsEnabled()), poloniexWebsocketAddress)
-		log.Debugf("%s polling delay: %ds.\n", p.GetName(), p.RESTPollingDelay)
-		log.Debugf("%s %d currencies enabled: %s.\n", p.GetName(), len(p.EnabledPairs), p.EnabledPairs)
+		p.PrintEnabledPairs()
 	}
 
-	exchangeCurrencies, err := p.GetExchangeCurrencies()
+	forceUpdate := false
+	if common.StringDataCompare(p.GetAvailablePairs(assets.AssetTypeSpot).Strings(), "BTC_USDT") {
+		log.Warnf("%s contains invalid pair, forcing upgrade of available currencies.\n",
+			p.Name)
+		forceUpdate = true
+	}
+
+	if !p.GetEnabledFeatures().AutoPairUpdates && !forceUpdate {
+		return
+	}
+
+	err := p.UpdateTradablePairs(forceUpdate)
 	if err != nil {
-		log.Errorf("%s Failed to get available symbols.\n", p.GetName())
-	} else {
-		forceUpdate := false
-		if common.StringDataCompare(p.AvailablePairs.Strings(), "BTC_USDT") {
-			log.Warnf("%s contains invalid pair, forcing upgrade of available currencies.\n",
-				p.GetName())
-			forceUpdate = true
-		}
-
-		var newExchangeCurrencies currency.Pairs
-		for _, p := range exchangeCurrencies {
-			newExchangeCurrencies = append(newExchangeCurrencies,
-				currency.NewPairFromString(p))
-		}
-
-		err = p.UpdateCurrencies(newExchangeCurrencies, false, forceUpdate)
-		if err != nil {
-			log.Errorf("%s Failed to update available currencies %s.\n", p.GetName(), err)
-		}
+		log.Errorf("%s failed to update tradable pairs. Err: %s", p.Name, err)
 	}
 }
 
+// FetchTradablePairs returns a list of the exchanges tradable pairs
+func (p *Poloniex) FetchTradablePairs(asset assets.AssetType) ([]string, error) {
+	resp, err := p.GetTicker()
+	if err != nil {
+		return nil, err
+	}
+
+	var currencies []string
+	for x := range resp {
+		currencies = append(currencies, x)
+	}
+
+	return currencies, nil
+}
+
+// UpdateTradablePairs updates the exchanges available pairs and stores
+// them in the exchanges config
+func (p *Poloniex) UpdateTradablePairs(forceUpgrade bool) error {
+	pairs, err := p.FetchTradablePairs(assets.AssetTypeSpot)
+	if err != nil {
+		return err
+	}
+
+	return p.UpdatePairs(currency.NewPairsFromStrings(pairs), assets.AssetTypeSpot, false, forceUpgrade)
+}
+
 // UpdateTicker updates and returns the ticker for a currency pair
-func (p *Poloniex) UpdateTicker(currencyPair currency.Pair, assetType string) (ticker.Price, error) {
+func (p *Poloniex) UpdateTicker(currencyPair currency.Pair, assetType assets.AssetType) (ticker.Price, error) {
 	var tickerPrice ticker.Price
 	tick, err := p.GetTicker()
 	if err != nil {
 		return tickerPrice, err
 	}
 
-	for _, x := range p.GetEnabledCurrencies() {
+	for _, x := range p.GetEnabledPairs(assetType) {
 		var tp ticker.Price
-		curr := exchange.FormatExchangeCurrency(p.GetName(), x).String()
+		curr := p.FormatExchangeCurrency(x, assetType).String()
 		tp.Pair = x
 		tp.Ask = tick[curr].LowestAsk
 		tp.Bid = tick[curr].HighestBid
@@ -83,8 +198,8 @@ func (p *Poloniex) UpdateTicker(currencyPair currency.Pair, assetType string) (t
 	return ticker.GetTicker(p.Name, currencyPair, assetType)
 }
 
-// GetTickerPrice returns the ticker for a currency pair
-func (p *Poloniex) GetTickerPrice(currencyPair currency.Pair, assetType string) (ticker.Price, error) {
+// FetchTicker returns the ticker for a currency pair
+func (p *Poloniex) FetchTicker(currencyPair currency.Pair, assetType assets.AssetType) (ticker.Price, error) {
 	tickerNew, err := ticker.GetTicker(p.GetName(), currencyPair, assetType)
 	if err != nil {
 		return p.UpdateTicker(currencyPair, assetType)
@@ -92,8 +207,8 @@ func (p *Poloniex) GetTickerPrice(currencyPair currency.Pair, assetType string) 
 	return tickerNew, nil
 }
 
-// GetOrderbookEx returns orderbook base on the currency pair
-func (p *Poloniex) GetOrderbookEx(currencyPair currency.Pair, assetType string) (orderbook.Base, error) {
+// FetchOrderbook returns orderbook base on the currency pair
+func (p *Poloniex) FetchOrderbook(currencyPair currency.Pair, assetType assets.AssetType) (orderbook.Base, error) {
 	ob, err := orderbook.Get(p.GetName(), currencyPair, assetType)
 	if err != nil {
 		return p.UpdateOrderbook(currencyPair, assetType)
@@ -102,15 +217,15 @@ func (p *Poloniex) GetOrderbookEx(currencyPair currency.Pair, assetType string) 
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (p *Poloniex) UpdateOrderbook(currencyPair currency.Pair, assetType string) (orderbook.Base, error) {
+func (p *Poloniex) UpdateOrderbook(currencyPair currency.Pair, assetType assets.AssetType) (orderbook.Base, error) {
 	var orderBook orderbook.Base
 	orderbookNew, err := p.GetOrderbook("", 1000)
 	if err != nil {
 		return orderBook, err
 	}
 
-	for _, x := range p.GetEnabledCurrencies() {
-		currency := exchange.FormatExchangeCurrency(p.Name, x).String()
+	for _, x := range p.GetEnabledPairs(assetType) {
+		currency := p.FormatExchangeCurrency(x, assetType).String()
 		data, ok := orderbookNew.Data[currency]
 		if !ok {
 			continue
@@ -177,10 +292,8 @@ func (p *Poloniex) GetFundingHistory() ([]exchange.FundHistory, error) {
 }
 
 // GetExchangeHistory returns historic trade data since exchange opening.
-func (p *Poloniex) GetExchangeHistory(currencyPair currency.Pair, assetType string) ([]exchange.TradeHistory, error) {
-	var resp []exchange.TradeHistory
-
-	return resp, common.ErrNotYetImplemented
+func (p *Poloniex) GetExchangeHistory(currencyPair currency.Pair, assetType assets.AssetType) ([]exchange.TradeHistory, error) {
+	return nil, common.ErrNotYetImplemented
 }
 
 // SubmitOrder submits a new order
@@ -310,7 +423,7 @@ func (p *Poloniex) GetWebsocket() (*exchange.Websocket, error) {
 
 // GetFeeByType returns an estimate of fee based on type of transaction
 func (p *Poloniex) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) {
-	if (p.APIKey == "" || p.APISecret == "") && // Todo check connection status
+	if !p.AllowAuthenticatedRequest() && // Todo check connection status
 		feeBuilder.FeeType == exchange.CryptocurrencyTradeFee {
 		feeBuilder.FeeType = exchange.OfflineTradeFee
 	}
@@ -327,7 +440,7 @@ func (p *Poloniex) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) 
 	var orders []exchange.OrderDetail
 	for currencyPair, openOrders := range resp.Data {
 		symbol := currency.NewPairDelimiter(currencyPair,
-			p.ConfigCurrencyPairFormat.Delimiter)
+			p.CurrencyPairs.ConfigFormat.Delimiter)
 
 		for _, order := range openOrders {
 			orderSide := exchange.OrderSide(strings.ToUpper(order.Type))
@@ -369,7 +482,7 @@ func (p *Poloniex) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) 
 	var orders []exchange.OrderDetail
 	for currencyPair, historicOrders := range resp.Data {
 		symbol := currency.NewPairDelimiter(currencyPair,
-			p.ConfigCurrencyPairFormat.Delimiter)
+			p.CurrencyPairs.ConfigFormat.Delimiter)
 
 		for _, order := range historicOrders {
 			orderSide := exchange.OrderSide(strings.ToUpper(order.Type))

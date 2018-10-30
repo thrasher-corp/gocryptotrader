@@ -29,11 +29,11 @@ func TestSetup(t *testing.T) {
 		if err != nil {
 			t.Error("Test Failed - Poloniex Setup() init error")
 		}
-		poloniexConfig.AuthenticatedAPISupport = true
-		poloniexConfig.APIKey = apiKey
-		poloniexConfig.APISecret = apiSecret
+		poloniexConfig.API.AuthenticatedSupport = true
+		poloniexConfig.API.Credentials.Key = apiKey
+		poloniexConfig.API.Credentials.Secret = apiSecret
 		p.SetDefaults()
-		p.Setup(&poloniexConfig)
+		p.Setup(poloniexConfig)
 		isSetup = true
 	}
 }
@@ -242,11 +242,7 @@ func TestGetOrderHistory(t *testing.T) {
 // Any tests below this line have the ability to impact your orders on the exchange. Enable canManipulateRealOrders to run them
 // ----------------------------------------------------------------------------------------------------------------------------
 func areTestAPIKeysSet() bool {
-	if p.APIKey != "" && p.APIKey != "Key" &&
-		p.APISecret != "" && p.APISecret != "Secret" {
-		return true
-	}
-	return false
+	return p.ValidateAPICredentials()
 }
 
 func TestSubmitOrder(t *testing.T) {
@@ -265,7 +261,7 @@ func TestSubmitOrder(t *testing.T) {
 
 	response, err := p.SubmitOrder(pair,
 		exchange.BuyOrderSide,
-		exchange.MarketOrderType,
+		exchange.LimitOrderType,
 		1,
 		10,
 		"hi")

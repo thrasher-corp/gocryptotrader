@@ -10,11 +10,8 @@ import (
 
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-/gocryptotrader/common"
-	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
-	"github.com/thrasher-/gocryptotrader/exchanges/request"
-	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
@@ -43,78 +40,6 @@ const (
 	btseDeleteOrders  = "deleteOrders"
 	btseFills         = "fills"
 )
-
-// SetDefaults sets the basic defaults for BTSE
-func (b *BTSE) SetDefaults() {
-	b.Name = "BTSE"
-	b.Enabled = false
-	b.Verbose = false
-	b.RESTPollingDelay = 10
-	b.APIWithdrawPermissions = exchange.NoAPIWithdrawalMethods
-	b.RequestCurrencyPairFormat.Delimiter = "-"
-	b.RequestCurrencyPairFormat.Uppercase = true
-	b.ConfigCurrencyPairFormat.Delimiter = "-"
-	b.ConfigCurrencyPairFormat.Uppercase = true
-	b.AssetTypes = []string{ticker.Spot}
-	b.Requester = request.New(b.Name,
-		request.NewRateLimit(time.Second, 0),
-		request.NewRateLimit(time.Second, 0),
-		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
-	b.APIUrlDefault = btseAPIURL
-	b.APIUrl = b.APIUrlDefault
-	b.SupportsAutoPairUpdating = true
-	b.SupportsRESTTickerBatching = false
-	b.WebsocketInit()
-	b.Websocket.Functionality = exchange.WebsocketOrderbookSupported |
-		exchange.WebsocketTickerSupported
-}
-
-// Setup takes in the supplied exchange configuration details and sets params
-func (b *BTSE) Setup(exch *config.ExchangeConfig) {
-	if !exch.Enabled {
-		b.SetEnabled(false)
-	} else {
-		b.Enabled = true
-		b.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
-		b.SetAPIKeys(exch.APIKey, exch.APISecret, "", false)
-		b.SetHTTPClientTimeout(exch.HTTPTimeout)
-		b.SetHTTPClientUserAgent(exch.HTTPUserAgent)
-		b.RESTPollingDelay = exch.RESTPollingDelay
-		b.Verbose = exch.Verbose
-		b.Websocket.SetWsStatusAndConnection(exch.Websocket)
-		b.BaseCurrencies = exch.BaseCurrencies
-		b.AvailablePairs = exch.AvailablePairs
-		b.EnabledPairs = exch.EnabledPairs
-		err := b.SetCurrencyPairFormat()
-		if err != nil {
-			log.Fatal(err)
-		}
-		err = b.SetAssetTypes()
-		if err != nil {
-			log.Fatal(err)
-		}
-		err = b.SetAutoPairDefaults()
-		if err != nil {
-			log.Fatal(err)
-		}
-		err = b.SetAPIURL(exch)
-		if err != nil {
-			log.Fatal(err)
-		}
-		err = b.SetClientProxyAddress(exch.ProxyAddress)
-		if err != nil {
-			log.Fatal(err)
-		}
-		err = b.WebsocketSetup(b.WsConnect,
-			exch.Name,
-			exch.Websocket,
-			btseWebsocket,
-			exch.WebsocketURL)
-		if err != nil {
-			log.Fatal(err)
-		}
-	}
-}
 
 // GetMarkets returns a list of markets available on BTSE
 func (b *BTSE) GetMarkets() (*Markets, error) {
@@ -251,14 +176,15 @@ func (b *BTSE) GetFills(orderID, productID, before, after, limit string) (*Fille
 
 // SendHTTPRequest sends an HTTP request to the desired endpoint
 func (b *BTSE) SendHTTPRequest(method, endpoint string, result interface{}) error {
-	p := fmt.Sprintf("%s/%s", btseAPIURL, endpoint)
+	p := fmt.Sprintf("%s/%s", b.API.Endpoints.URL, endpoint)
 	return b.SendPayload(method, p, nil, nil, &result, false, false, b.Verbose)
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated HTTP request to the desired endpoint
 func (b *BTSE) SendAuthenticatedHTTPRequest(method, endpoint string, req map[string]interface{}, result interface{}) error {
-	if !b.AuthenticatedAPISupport {
-		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet, b.Name)
+	if !b.AllowAuthenticatedRequest() {
+		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet,
+			b.Name)
 	}
 
 	payload, err := common.JSONEncode(req)
@@ -267,13 +193,13 @@ func (b *BTSE) SendAuthenticatedHTTPRequest(method, endpoint string, req map[str
 	}
 
 	headers := make(map[string]string)
-	headers["API-KEY"] = b.APIKey
-	headers["API-PASSPHRASE"] = b.APISecret
+	headers["API-KEY"] = b.API.Credentials.Key
+	headers["API-PASSPHRASE"] = b.API.Credentials.Secret
 	if len(payload) > 0 {
 		headers["Content-Type"] = "application/json"
 	}
 
-	p := fmt.Sprintf("%s/%s", btseAPIURL, endpoint)
+	p := fmt.Sprintf("%s/%s", b.API.Endpoints.URL, endpoint)
 	if b.Verbose {
 		log.Debugf("Sending %s request to URL %s with params %s\n", method, p, string(payload))
 	}

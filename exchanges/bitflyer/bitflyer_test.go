@@ -7,6 +7,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
+	"github.com/thrasher-/gocryptotrader/exchanges/assets"
 	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
@@ -31,11 +32,11 @@ func TestSetup(t *testing.T) {
 		t.Error("Test Failed - bitflyer Setup() init error")
 	}
 
-	bitflyerConfig.AuthenticatedAPISupport = true
-	bitflyerConfig.APIKey = apiKey
-	bitflyerConfig.APISecret = apiSecret
+	bitflyerConfig.API.AuthenticatedSupport = true
+	bitflyerConfig.API.Credentials.Key = apiKey
+	bitflyerConfig.API.Credentials.Secret = apiSecret
 
-	b.Setup(&bitflyerConfig)
+	b.Setup(bitflyerConfig)
 }
 
 func TestGetLatestBlockCA(t *testing.T) {
@@ -130,11 +131,11 @@ func TestCheckFXString(t *testing.T) {
 	}
 }
 
-func TestGetTickerPrice(t *testing.T) {
+func TestFetchTicker(t *testing.T) {
 	t.Parallel()
 	var p currency.Pair
 
-	currencies := b.GetAvailableCurrencies()
+	currencies := b.GetAvailablePairs(assets.AssetTypeSpot)
 	for _, pair := range currencies {
 		if pair.String() == "FXBTC_JPY" {
 			p = pair
@@ -142,9 +143,9 @@ func TestGetTickerPrice(t *testing.T) {
 		}
 	}
 
-	_, err := b.GetTickerPrice(p, b.AssetTypes[0])
+	_, err := b.FetchTicker(p, assets.AssetTypeSpot)
 	if err != nil {
-		t.Error("test failed - Bitflyer - GetTickerPrice() error", err)
+		t.Error("test failed - Bitflyer - FetchTicker() error", err)
 	}
 }
 
@@ -291,11 +292,7 @@ func TestGetOrderHistory(t *testing.T) {
 // Any tests below this line have the ability to impact your orders on the exchange. Enable canManipulateRealOrders to run them
 // ----------------------------------------------------------------------------------------------------------------------------
 func areTestAPIKeysSet() bool {
-	if b.APIKey != "" && b.APIKey != "Key" &&
-		b.APISecret != "" && b.APISecret != "Secret" {
-		return true
-	}
-	return false
+	return b.ValidateAPICredentials()
 }
 
 func TestSubmitOrder(t *testing.T) {
@@ -311,7 +308,7 @@ func TestSubmitOrder(t *testing.T) {
 		Base:      currency.LTC,
 		Quote:     currency.BTC,
 	}
-	_, err := b.SubmitOrder(p, exchange.BuyOrderSide, exchange.MarketOrderType, 1, 1, "clientId")
+	_, err := b.SubmitOrder(p, exchange.BuyOrderSide, exchange.LimitOrderType, 1, 1, "clientId")
 	if err != common.ErrNotYetImplemented {
 		t.Errorf("Expected 'Not Yet Implemented', received %v", err)
 	}

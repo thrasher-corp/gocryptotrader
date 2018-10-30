@@ -9,14 +9,97 @@ import (
 	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
+	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
+	"github.com/thrasher-/gocryptotrader/exchanges/assets"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-/gocryptotrader/exchanges/request"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
-// Start starts the OKEX go routine
+// GetDefaultConfig returns a default exchange config
+func (b *Bithumb) GetDefaultConfig() (*config.ExchangeConfig, error) {
+	b.SetDefaults()
+	exchCfg := new(config.ExchangeConfig)
+	exchCfg.Name = b.Name
+	exchCfg.HTTPTimeout = exchange.DefaultHTTPTimeout
+	exchCfg.BaseCurrencies = b.BaseCurrencies
+
+	err := b.SetupDefaults(exchCfg)
+	if err != nil {
+		return nil, err
+	}
+
+	if b.Features.Supports.RESTCapabilities.AutoPairUpdates {
+		err = b.UpdateTradablePairs(true)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return exchCfg, nil
+}
+
+// SetDefaults sets the basic defaults for Bithumb
+func (b *Bithumb) SetDefaults() {
+	b.Name = "Bithumb"
+	b.Enabled = true
+	b.Verbose = true
+	b.APIWithdrawPermissions = exchange.AutoWithdrawCrypto |
+		exchange.AutoWithdrawFiat
+	b.API.CredentialsValidator.RequiresKey = true
+	b.API.CredentialsValidator.RequiresSecret = true
+
+	b.CurrencyPairs = currency.PairsManager{
+		AssetTypes: assets.AssetTypes{
+			assets.AssetTypeSpot,
+		},
+
+		UseGlobalFormat: true,
+		RequestFormat: &currency.PairFormat{
+			Uppercase: true,
+		},
+		ConfigFormat: &currency.PairFormat{
+			Uppercase: true,
+			Index:     "KRW",
+		},
+	}
+
+	b.Features = exchange.Features{
+		Supports: exchange.FeaturesSupported{
+			REST: true,
+			RESTCapabilities: exchange.ProtocolFeatures{
+				AutoPairUpdates: true,
+				TickerBatching:  true,
+			},
+		},
+		Enabled: exchange.FeaturesEnabled{
+			AutoPairUpdates: true,
+		},
+	}
+
+	b.Requester = request.New(b.Name,
+		request.NewRateLimit(time.Second, bithumbAuthRate),
+		request.NewRateLimit(time.Second, bithumbUnauthRate),
+		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
+
+	b.API.Endpoints.URLDefault = apiURL
+	b.API.Endpoints.URL = b.API.Endpoints.URLDefault
+}
+
+// Setup takes in the supplied exchange configuration details and sets params
+func (b *Bithumb) Setup(exch *config.ExchangeConfig) error {
+	if !exch.Enabled {
+		b.SetEnabled(false)
+		return nil
+	}
+
+	return b.SetupDefaults(exch)
+}
+
+// Start starts the Bithumb go routine
 func (b *Bithumb) Start(wg *sync.WaitGroup) {
 	wg.Add(1)
 	go func() {
@@ -25,33 +108,24 @@ func (b *Bithumb) Start(wg *sync.WaitGroup) {
 	}()
 }
 
-// Run implements the OKEX wrapper
+// Run implements the Bithumb wrapper
 func (b *Bithumb) Run() {
 	if b.Verbose {
-		log.Debugf("%s Websocket: %s. (url: %s).\n", b.GetName(), common.IsEnabled(b.Websocket.IsEnabled()), b.WebsocketURL)
-		log.Debugf("%s polling delay: %ds.\n", b.GetName(), b.RESTPollingDelay)
-		log.Debugf("%s %d currencies enabled: %s.\n", b.GetName(), len(b.EnabledPairs), b.EnabledPairs)
+		b.PrintEnabledPairs()
 	}
 
-	exchangeProducts, err := b.GetTradingPairs()
-	if err != nil {
-		log.Errorf("%s Failed to get available symbols.\n", b.GetName())
-	} else {
-		var newExchangeProducts currency.Pairs
-		for _, p := range exchangeProducts {
-			newExchangeProducts = append(newExchangeProducts,
-				currency.NewPairFromString(p))
-		}
+	if !b.GetEnabledFeatures().AutoPairUpdates {
+		return
+	}
 
-		err = b.UpdateCurrencies(newExchangeProducts, false, false)
-		if err != nil {
-			log.Errorf("%s Failed to update available symbols.\n", b.GetName())
-		}
+	err := b.UpdateTradablePairs(false)
+	if err != nil {
+		log.Errorf("%s failed to update tradable pairs. Err: %s", b.Name, err)
 	}
 }
 
-// GetTradingPairs gets the available trading currencies
-func (b *Bithumb) GetTradingPairs() ([]string, error) {
+// FetchTradablePairs returns a list of the exchanges tradable pairs
+func (b *Bithumb) FetchTradablePairs(asset assets.AssetType) ([]string, error) {
 	currencies, err := b.GetTradablePairs()
 	if err != nil {
 		return nil, err
@@ -64,8 +138,19 @@ func (b *Bithumb) GetTradingPairs() ([]string, error) {
 	return currencies, nil
 }
 
+// UpdateTradablePairs updates the exchanges available pairs and stores
+// them in the exchanges config
+func (b *Bithumb) UpdateTradablePairs(forceUpdate bool) error {
+	pairs, err := b.FetchTradablePairs(assets.AssetTypeSpot)
+	if err != nil {
+		return err
+	}
+
+	return b.UpdatePairs(currency.NewPairsFromStrings(pairs), assets.AssetTypeSpot, false, forceUpdate)
+}
+
 // UpdateTicker updates and returns the ticker for a currency pair
-func (b *Bithumb) UpdateTicker(p currency.Pair, assetType string) (ticker.Price, error) {
+func (b *Bithumb) UpdateTicker(p currency.Pair, assetType assets.AssetType) (ticker.Price, error) {
 	var tickerPrice ticker.Price
 
 	tickers, err := b.GetAllTickers()
@@ -73,7 +158,7 @@ func (b *Bithumb) UpdateTicker(p currency.Pair, assetType string) (ticker.Price,
 		return tickerPrice, err
 	}
 
-	for _, x := range b.GetEnabledCurrencies() {
+	for _, x := range b.GetEnabledPairs(assetType) {
 		currency := x.Base.String()
 		var tp ticker.Price
 		tp.Pair = x
@@ -92,8 +177,8 @@ func (b *Bithumb) UpdateTicker(p currency.Pair, assetType string) (ticker.Price,
 	return ticker.GetTicker(b.Name, p, assetType)
 }
 
-// GetTickerPrice returns the ticker for a currency pair
-func (b *Bithumb) GetTickerPrice(p currency.Pair, assetType string) (ticker.Price, error) {
+// FetchTicker returns the ticker for a currency pair
+func (b *Bithumb) FetchTicker(p currency.Pair, assetType assets.AssetType) (ticker.Price, error) {
 	tickerNew, err := ticker.GetTicker(b.GetName(), p, assetType)
 	if err != nil {
 		return b.UpdateTicker(p, assetType)
@@ -101,17 +186,17 @@ func (b *Bithumb) GetTickerPrice(p currency.Pair, assetType string) (ticker.Pric
 	return tickerNew, nil
 }
 
-// GetOrderbookEx returns orderbook base on the currency pair
-func (b *Bithumb) GetOrderbookEx(currency currency.Pair, assetType string) (orderbook.Base, error) {
-	ob, err := orderbook.Get(b.GetName(), currency, assetType)
+// FetchOrderbook returns orderbook base on the currency pair
+func (b *Bithumb) FetchOrderbook(p currency.Pair, assetType assets.AssetType) (orderbook.Base, error) {
+	ob, err := orderbook.Get(b.GetName(), p, assetType)
 	if err != nil {
-		return b.UpdateOrderbook(currency, assetType)
+		return b.UpdateOrderbook(p, assetType)
 	}
 	return ob, nil
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (b *Bithumb) UpdateOrderbook(p currency.Pair, assetType string) (orderbook.Base, error) {
+func (b *Bithumb) UpdateOrderbook(p currency.Pair, assetType assets.AssetType) (orderbook.Base, error) {
 	var orderBook orderbook.Base
 	currency := p.Base.String()
 
@@ -180,10 +265,8 @@ func (b *Bithumb) GetFundingHistory() ([]exchange.FundHistory, error) {
 }
 
 // GetExchangeHistory returns historic trade data since exchange opening.
-func (b *Bithumb) GetExchangeHistory(p currency.Pair, assetType string) ([]exchange.TradeHistory, error) {
-	var resp []exchange.TradeHistory
-
-	return resp, common.ErrNotYetImplemented
+func (b *Bithumb) GetExchangeHistory(p currency.Pair, assetType assets.AssetType) ([]exchange.TradeHistory, error) {
+	return nil, common.ErrNotYetImplemented
 }
 
 // SubmitOrder submits a new order
@@ -244,7 +327,7 @@ func (b *Bithumb) CancelAllOrders(orderCancellation *exchange.OrderCancellation)
 	}
 	var allOrders []OrderData
 
-	for _, currency := range b.GetEnabledCurrencies() {
+	for _, currency := range b.GetEnabledPairs(assets.AssetTypeSpot) {
 		orders, err := b.GetOrders("",
 			orderCancellation.Side.ToString(),
 			"100",
@@ -326,7 +409,7 @@ func (b *Bithumb) GetWebsocket() (*exchange.Websocket, error) {
 
 // GetFeeByType returns an estimate of fee based on type of transaction
 func (b *Bithumb) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) {
-	if (b.APIKey == "" || b.APISecret == "") && // Todo check connection status
+	if !b.AllowAuthenticatedRequest() && // Todo check connection status
 		feeBuilder.FeeType == exchange.CryptocurrencyTradeFee {
 		feeBuilder.FeeType = exchange.OfflineTradeFee
 	}
@@ -357,7 +440,7 @@ func (b *Bithumb) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) (
 			Status:          string(exchange.ActiveOrderStatus),
 			CurrencyPair: currency.NewPairWithDelimiter(resp.Data[i].OrderCurrency,
 				resp.Data[i].PaymentCurrency,
-				b.ConfigCurrencyPairFormat.Delimiter),
+				b.CurrencyPairs.ConfigFormat.Delimiter),
 		}
 
 		if resp.Data[i].Type == "bid" {
@@ -373,7 +456,6 @@ func (b *Bithumb) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) (
 	exchange.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks,
 		getOrdersRequest.EndTicks)
 	exchange.FilterOrdersByCurrencies(&orders, getOrdersRequest.Currencies)
-
 	return orders, nil
 }
 
@@ -401,7 +483,7 @@ func (b *Bithumb) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) (
 			RemainingAmount: resp.Data[i].UnitsRemaining,
 			CurrencyPair: currency.NewPairWithDelimiter(resp.Data[i].OrderCurrency,
 				resp.Data[i].PaymentCurrency,
-				b.ConfigCurrencyPairFormat.Delimiter),
+				b.CurrencyPairs.ConfigFormat.Delimiter),
 		}
 
 		if resp.Data[i].Type == "bid" {
@@ -417,6 +499,5 @@ func (b *Bithumb) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) (
 	exchange.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks,
 		getOrdersRequest.EndTicks)
 	exchange.FilterOrdersByCurrencies(&orders, getOrdersRequest.Currencies)
-
 	return orders, nil
 }

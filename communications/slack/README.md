@@ -63,6 +63,38 @@ err := s.Connect
 Once the bot has started you can interact with the bot using these commands
 via Slack:
 
+main.go
+```go
+var b exchange.IBotExchange
+
+for i := range bot.Exchanges {
+  if bot.Exchanges[i].GetName() == "Bitfinex" {
+    b = bot.Exchanges[i]
+  }
+}
+
+// Public calls - wrapper functions
+
+// Fetches current ticker information
+tick, err := b.FetchTicker()
+if err != nil {
+  // Handle error
+}
+
+// Fetches current orderbook information
+ob, err := b.FetchOrderbook()
+if err != nil {
+  // Handle error
+}
+
+// Private calls - wrapper functions - make sure your APIKEY and APISECRET are
+// set and AuthenticatedAPISupport is set to true
+
+// Fetches current account information
+accountInfo, err := b.GetAccountInfo()
+if err != nil {
+  // Handle error
+}
 ```
 !status 		- Displays current working status of bot
 !help 			- Displays help text

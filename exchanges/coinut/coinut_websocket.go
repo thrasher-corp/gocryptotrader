@@ -11,6 +11,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
+	"github.com/thrasher-/gocryptotrader/exchanges/assets"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 )
 
@@ -85,7 +86,7 @@ func (c *COINUT) WsHandleData() {
 				c.Websocket.DataHandler <- exchange.TickerData{
 					Timestamp:  time.Unix(0, ticker.Timestamp),
 					Exchange:   c.GetName(),
-					AssetType:  "SPOT",
+					AssetType:  assets.AssetTypeSpot,
 					HighPrice:  ticker.HighestBuy,
 					LowPrice:   ticker.LowestSell,
 					ClosePrice: ticker.Last,
@@ -110,7 +111,7 @@ func (c *COINUT) WsHandleData() {
 
 				c.Websocket.DataHandler <- exchange.WebsocketOrderbookUpdate{
 					Exchange: c.GetName(),
-					Asset:    "SPOT",
+					Asset:    assets.AssetTypeSpot,
 					Pair:     currency.NewPairFromString(currencyPair),
 				}
 
@@ -132,7 +133,7 @@ func (c *COINUT) WsHandleData() {
 
 				c.Websocket.DataHandler <- exchange.WebsocketOrderbookUpdate{
 					Exchange: c.GetName(),
-					Asset:    "SPOT",
+					Asset:    assets.AssetTypeSpot,
 					Pair:     currency.NewPairFromString(currencyPair),
 				}
 
@@ -157,7 +158,7 @@ func (c *COINUT) WsHandleData() {
 				c.Websocket.DataHandler <- exchange.TradeData{
 					Timestamp:    time.Unix(tradeUpdate.Timestamp, 0),
 					CurrencyPair: currency.NewPairFromString(currencyPair),
-					AssetType:    "SPOT",
+					AssetType:    assets.AssetTypeSpot,
 					Exchange:     c.GetName(),
 					Price:        tradeUpdate.Price,
 					Side:         tradeUpdate.Side,
@@ -232,7 +233,7 @@ func (c *COINUT) GetNonce() int64 {
 func (c *COINUT) WsSetInstrumentList() error {
 	req, err := common.JSONEncode(wsRequest{
 		Request: "inst_list",
-		SecType: "SPOT",
+		SecType: "spot",
 		Nonce:   c.GetNonce(),
 	})
 
@@ -272,7 +273,7 @@ func (c *COINUT) WsSetInstrumentList() error {
 
 // WsSubscribe subscribes to websocket streams
 func (c *COINUT) WsSubscribe() error {
-	pairs := c.GetEnabledCurrencies()
+	pairs := c.GetEnabledPairs(assets.AssetTypeSpot)
 
 	for _, p := range pairs {
 		ticker := wsRequest{
@@ -334,7 +335,8 @@ func (c *COINUT) WsProcessOrderbookSnapshot(ob *WsOrderbookSnapshot) error {
 	newOrderBook.Asks = asks
 	newOrderBook.Bids = bids
 	newOrderBook.Pair = currency.NewPairFromString(instrumentListByCode[ob.InstID])
-	newOrderBook.AssetType = "SPOT"
+	newOrderBook.AssetType = assets.AssetTypeSpot
+	newOrderBook.LastUpdated = time.Now()
 
 	return c.Websocket.Orderbook.LoadSnapshot(&newOrderBook, c.GetName(), false)
 }
@@ -343,14 +345,14 @@ func (c *COINUT) WsProcessOrderbookSnapshot(ob *WsOrderbookSnapshot) error {
 func (c *COINUT) WsProcessOrderbookUpdate(ob *WsOrderbookUpdate) error {
 	p := currency.NewPairFromString(instrumentListByCode[ob.InstID])
 
-	if ob.Side == "buy" {
+	if ob.Side == exchange.BuyOrderSide.ToLower().ToString() {
 		return c.Websocket.Orderbook.Update([]orderbook.Item{
 			{Price: ob.Price, Amount: ob.Volume}},
 			nil,
 			p,
 			time.Now(),
 			c.GetName(),
-			"SPOT")
+			assets.AssetTypeSpot)
 	}
 
 	return c.Websocket.Orderbook.Update([]orderbook.Item{
@@ -359,5 +361,5 @@ func (c *COINUT) WsProcessOrderbookUpdate(ob *WsOrderbookUpdate) error {
 		p,
 		time.Now(),
 		c.GetName(),
-		"SPOT")
+		assets.AssetTypeSpot)
 }

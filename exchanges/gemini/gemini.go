@@ -7,14 +7,10 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-/gocryptotrader/common"
-	"github.com/thrasher-/gocryptotrader/config"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
-	"github.com/thrasher-/gocryptotrader/exchanges/request"
-	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
@@ -84,14 +80,14 @@ func AddSession(g *Gemini, sessionID int, apiKey, apiSecret, role string, needsH
 		return errors.New("sessionID already being used")
 	}
 
-	g.APIKey = apiKey
-	g.APISecret = apiSecret
+	g.API.Credentials.Key = apiKey
+	g.API.Credentials.Secret = apiSecret
 	g.Role = role
 	g.RequiresHeartBeat = needsHeartbeat
-	g.APIUrl = geminiAPIURL
+	g.API.Endpoints.URL = geminiAPIURL
 
 	if isSandbox {
-		g.APIUrl = geminiSandboxAPIURL
+		g.API.Endpoints.URL = geminiSandboxAPIURL
 	}
 
 	Session[sessionID] = g
@@ -99,87 +95,10 @@ func AddSession(g *Gemini, sessionID int, apiKey, apiSecret, role string, needsH
 	return nil
 }
 
-// SetDefaults sets package defaults for gemini exchange
-func (g *Gemini) SetDefaults() {
-	g.Name = "Gemini"
-	g.Enabled = false
-	g.Verbose = false
-	g.RESTPollingDelay = 10
-	g.APIWithdrawPermissions = exchange.AutoWithdrawCryptoWithAPIPermission |
-		exchange.AutoWithdrawCryptoWithSetup |
-		exchange.WithdrawFiatViaWebsiteOnly
-	g.RequestCurrencyPairFormat.Delimiter = ""
-	g.RequestCurrencyPairFormat.Uppercase = true
-	g.ConfigCurrencyPairFormat.Delimiter = ""
-	g.ConfigCurrencyPairFormat.Uppercase = true
-	g.AssetTypes = []string{ticker.Spot}
-	g.SupportsAutoPairUpdating = true
-	g.SupportsRESTTickerBatching = false
-	g.Requester = request.New(g.Name,
-		request.NewRateLimit(time.Minute, geminiAuthRate),
-		request.NewRateLimit(time.Minute, geminiUnauthRate),
-		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
-	g.APIUrlDefault = geminiAPIURL
-	g.APIUrl = g.APIUrlDefault
-	g.WebsocketInit()
-	g.Websocket.Functionality = exchange.WebsocketOrderbookSupported |
-		exchange.WebsocketTradeDataSupported
-}
-
-// Setup sets exchange configuration parameters
-func (g *Gemini) Setup(exch *config.ExchangeConfig) {
-	if !exch.Enabled {
-		g.SetEnabled(false)
-	} else {
-		g.Enabled = true
-		g.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
-		g.SetAPIKeys(exch.APIKey, exch.APISecret, "", false)
-		g.SetHTTPClientTimeout(exch.HTTPTimeout)
-		g.SetHTTPClientUserAgent(exch.HTTPUserAgent)
-		g.RESTPollingDelay = exch.RESTPollingDelay
-		g.Verbose = exch.Verbose
-		g.BaseCurrencies = exch.BaseCurrencies
-		g.AvailablePairs = exch.AvailablePairs
-		g.EnabledPairs = exch.EnabledPairs
-
-		err := g.SetCurrencyPairFormat()
-		if err != nil {
-			log.Fatal(err)
-		}
-		err = g.SetAssetTypes()
-		if err != nil {
-			log.Fatal(err)
-		}
-		err = g.SetAutoPairDefaults()
-		if err != nil {
-			log.Fatal(err)
-		}
-		err = g.SetAPIURL(exch)
-		if err != nil {
-			log.Fatal(err)
-		}
-		if exch.UseSandbox {
-			g.APIUrl = geminiSandboxAPIURL
-		}
-		err = g.SetClientProxyAddress(exch.ProxyAddress)
-		if err != nil {
-			log.Fatal(err)
-		}
-		err = g.WebsocketSetup(g.WsConnect,
-			exch.Name,
-			exch.Websocket,
-			geminiWebsocketEndpoint,
-			exch.WebsocketURL)
-		if err != nil {
-			log.Fatal(err)
-		}
-	}
-}
-
 // GetSymbols returns all available symbols for trading
 func (g *Gemini) GetSymbols() ([]string, error) {
 	symbols := []string{}
-	path := fmt.Sprintf("%s/v%s/%s", g.APIUrl, geminiAPIVersion, geminiSymbols)
+	path := fmt.Sprintf("%s/v%s/%s", g.API.Endpoints.URL, geminiAPIVersion, geminiSymbols)
 
 	return symbols, g.SendHTTPRequest(path, &symbols)
 }
@@ -197,7 +116,7 @@ func (g *Gemini) GetTicker(currencyPair string) (Ticker, error) {
 
 	ticker := Ticker{}
 	resp := TickerResponse{}
-	path := fmt.Sprintf("%s/v%s/%s/%s", g.APIUrl, geminiAPIVersion, geminiTicker, currencyPair)
+	path := fmt.Sprintf("%s/v%s/%s/%s", g.API.Endpoints.URL, geminiAPIVersion, geminiTicker, currencyPair)
 
 	err := g.SendHTTPRequest(path, &resp)
 	if err != nil {
@@ -238,7 +157,7 @@ func (g *Gemini) GetTicker(currencyPair string) (Ticker, error) {
 // params - limit_bids or limit_asks [OPTIONAL] default 50, 0 returns all Values
 // Type is an integer ie "params.Set("limit_asks", 30)"
 func (g *Gemini) GetOrderbook(currencyPair string, params url.Values) (Orderbook, error) {
-	path := common.EncodeURLValues(fmt.Sprintf("%s/v%s/%s/%s", g.APIUrl, geminiAPIVersion, geminiOrderbook, currencyPair), params)
+	path := common.EncodeURLValues(fmt.Sprintf("%s/v%s/%s/%s", g.API.Endpoints.URL, geminiAPIVersion, geminiOrderbook, currencyPair), params)
 	orderbook := Orderbook{}
 
 	return orderbook, g.SendHTTPRequest(path, &orderbook)
@@ -254,7 +173,7 @@ func (g *Gemini) GetOrderbook(currencyPair string, params url.Values) (Orderbook
 // include_breaks	boolean	Optional. Whether to display broken trades. False by
 // default. Can be '1' or 'true' to activate
 func (g *Gemini) GetTrades(currencyPair string, params url.Values) ([]Trade, error) {
-	path := common.EncodeURLValues(fmt.Sprintf("%s/v%s/%s/%s", g.APIUrl, geminiAPIVersion, geminiTrades, currencyPair), params)
+	path := common.EncodeURLValues(fmt.Sprintf("%s/v%s/%s/%s", g.API.Endpoints.URL, geminiAPIVersion, geminiTrades, currencyPair), params)
 	trades := []Trade{}
 
 	return trades, g.SendHTTPRequest(path, &trades)
@@ -262,7 +181,7 @@ func (g *Gemini) GetTrades(currencyPair string, params url.Values) ([]Trade, err
 
 // GetAuction returns auction information
 func (g *Gemini) GetAuction(currencyPair string) (Auction, error) {
-	path := fmt.Sprintf("%s/v%s/%s/%s", g.APIUrl, geminiAPIVersion, geminiAuction, currencyPair)
+	path := fmt.Sprintf("%s/v%s/%s/%s", g.API.Endpoints.URL, geminiAPIVersion, geminiAuction, currencyPair)
 	auction := Auction{}
 
 	return auction, g.SendHTTPRequest(path, &auction)
@@ -280,7 +199,7 @@ func (g *Gemini) GetAuction(currencyPair string) (Auction, error) {
 //          include_indicative - [bool] Whether to include publication of
 // indicative prices and quantities.
 func (g *Gemini) GetAuctionHistory(currencyPair string, params url.Values) ([]AuctionHistory, error) {
-	path := common.EncodeURLValues(fmt.Sprintf("%s/v%s/%s/%s/%s", g.APIUrl, geminiAPIVersion, geminiAuction, currencyPair, geminiAuctionHistory), params)
+	path := common.EncodeURLValues(fmt.Sprintf("%s/v%s/%s/%s/%s", g.API.Endpoints.URL, geminiAPIVersion, geminiAuction, currencyPair, geminiAuctionHistory), params)
 	auctionHist := []AuctionHistory{}
 
 	return auctionHist, g.SendHTTPRequest(path, &auctionHist)
@@ -496,7 +415,7 @@ func (g *Gemini) SendHTTPRequest(path string, result interface{}) error {
 // SendAuthenticatedHTTPRequest sends an authenticated HTTP request to the
 // exchange and returns an error
 func (g *Gemini) SendAuthenticatedHTTPRequest(method, path string, params map[string]interface{}, result interface{}) (err error) {
-	if !g.AuthenticatedAPISupport {
+	if !g.AllowAuthenticatedRequest() {
 		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet, g.Name)
 	}
 
@@ -519,16 +438,17 @@ func (g *Gemini) SendAuthenticatedHTTPRequest(method, path string, params map[st
 	}
 
 	PayloadBase64 := common.Base64Encode(PayloadJSON)
-	hmac := common.GetHMAC(common.HashSHA512_384, []byte(PayloadBase64), []byte(g.APISecret))
+	hmac := common.GetHMAC(common.HashSHA512_384, []byte(PayloadBase64), []byte(g.API.Credentials.Secret))
 
 	headers["Content-Length"] = "0"
 	headers["Content-Type"] = "text/plain"
-	headers["X-GEMINI-APIKEY"] = g.APIKey
+	headers["X-GEMINI-APIKEY"] = g.API.Credentials.Key
 	headers["X-GEMINI-PAYLOAD"] = PayloadBase64
 	headers["X-GEMINI-SIGNATURE"] = common.HexEncodeToString(hmac)
 	headers["Cache-Control"] = "no-cache"
 
-	return g.SendPayload(method, g.APIUrl+"/v1/"+path, headers, strings.NewReader(""), result, true, false, g.Verbose)
+	return g.SendPayload(method, g.API.Endpoints.URL+"/v1/"+path, headers,
+		strings.NewReader(""), result, true, false, g.Verbose)
 }
 
 // GetFee returns an estimate of fee based on type of transaction

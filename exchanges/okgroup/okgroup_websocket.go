@@ -15,6 +15,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/thrasher-/gocryptotrader/exchanges/assets"
+
 	"github.com/thrasher-/gocryptotrader/currency"
 
 	"github.com/gorilla/websocket"
@@ -204,7 +206,7 @@ func (o *OKGroup) WsConnect() error {
 // WsSubscribeToDefaults subscribes to the websocket channels
 func (o *OKGroup) WsSubscribeToDefaults() (err error) {
 	channelsToSubscribe := []string{okGroupWsSpotDepth, okGroupWsSpotCandle300s, okGroupWsSpotTicker, okGroupWsSpotTrade}
-	for _, pair := range o.EnabledPairs {
+	for _, pair := range o.GetEnabledPairs(assets.AssetTypeSpot) {
 		formattedPair := strings.ToUpper(strings.Replace(pair.String(), "_", "-", 1))
 		for _, channel := range channelsToSubscribe {
 			err = o.WsSubscribeToChannel(fmt.Sprintf("%v:%s", channel, formattedPair))
@@ -362,11 +364,11 @@ func (o *OKGroup) WsLogin() error {
 	utcTime := time.Now().UTC()
 	unixTime := utcTime.Unix()
 	signPath := "/users/self/verify"
-	hmac := common.GetHMAC(common.HashSHA256, []byte(fmt.Sprintf("%v", unixTime)+http.MethodGet+signPath), []byte(o.APISecret))
+	hmac := common.GetHMAC(common.HashSHA256, []byte(fmt.Sprintf("%v", unixTime)+http.MethodGet+signPath), []byte(o.API.Credentials.Secret))
 	base64 := common.Base64Encode(hmac)
 	resp := WebsocketEventRequest{
 		Operation: "login",
-		Arguments: []string{o.APIKey, o.ClientID, fmt.Sprintf("%v", unixTime), base64},
+		Arguments: []string{o.API.Credentials.Key, o.API.Credentials.ClientID, fmt.Sprintf("%v", unixTime), base64},
 	}
 	json, err := common.JSONEncode(resp)
 	if err != nil {
@@ -408,9 +410,9 @@ func (o *OKGroup) GetWsChannelWithoutOrderType(table string) string {
 
 // GetAssetTypeFromTableName gets the asset type from the table name
 // eg "spot/ticker:BTCUSD" results in "SPOT"
-func (o *OKGroup) GetAssetTypeFromTableName(table string) string {
+func (o *OKGroup) GetAssetTypeFromTableName(table string) assets.AssetType {
 	assetIndex := strings.Index(table, "/")
-	return strings.ToUpper(table[:assetIndex])
+	return assets.AssetType(strings.ToUpper(table[:assetIndex]))
 }
 
 // WsHandleDataResponse classifies the WS response and sends to appropriate handler
@@ -627,7 +629,7 @@ func (o *OKGroup) WsProcessPartialOrderBook(wsEventData *WebsocketDataWrapper, i
 // WsProcessUpdateOrderbook updates an existing orderbook using websocket data
 // After merging WS data, it will sort, validate and finally update the existing orderbook
 func (o *OKGroup) WsProcessUpdateOrderbook(wsEventData *WebsocketDataWrapper, instrument currency.Pair, tableName string) error {
-	internalOrderbook, err := o.GetOrderbookEx(instrument, o.GetAssetTypeFromTableName(tableName))
+	internalOrderbook, err := o.FetchOrderbook(instrument, o.GetAssetTypeFromTableName(tableName))
 	if err != nil {
 		return errors.New("orderbook nil, could not load existing orderbook")
 	}

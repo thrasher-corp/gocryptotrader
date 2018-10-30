@@ -19,6 +19,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
+	"github.com/thrasher-/gocryptotrader/exchanges/assets"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	log "github.com/thrasher-/gocryptotrader/logger"
 )
@@ -118,7 +119,7 @@ func (k *Kraken) WsConnect() error {
 // WsSubscribeToDefaults subscribes to the websocket channels
 func (k *Kraken) WsSubscribeToDefaults() {
 	channelsToSubscribe := []string{krakenWsTicker, krakenWsTrade, krakenWsOrderbook, krakenWsOHLC, krakenWsSpread}
-	for _, pair := range k.EnabledPairs {
+	for _, pair := range k.GetEnabledPairs(assets.AssetTypeSpot) {
 		// Kraken WS formats pairs with / but config and REST use -
 		formattedPair := strings.ToUpper(strings.Replace(pair.String(), "-", "/", 1))
 		for _, channel := range channelsToSubscribe {

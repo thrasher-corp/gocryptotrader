@@ -30,11 +30,11 @@ func TestSetup(t *testing.T) {
 		t.Error("Test Failed - Bithumb Setup() init error")
 	}
 
-	bitConfig.AuthenticatedAPISupport = true
-	bitConfig.APIKey = apiKey
-	bitConfig.APISecret = apiSecret
+	bitConfig.API.AuthenticatedSupport = true
+	bitConfig.API.Credentials.Key = apiKey
+	bitConfig.API.Credentials.Secret = apiSecret
 
-	b.Setup(&bitConfig)
+	b.Setup(bitConfig)
 }
 
 func TestGetTradablePairs(t *testing.T) {
@@ -334,11 +334,7 @@ func TestGetOrderHistory(t *testing.T) {
 // Any tests below this line have the ability to impact your orders on the exchange. Enable canManipulateRealOrders to run them
 // ----------------------------------------------------------------------------------------------------------------------------
 func areTestAPIKeysSet() bool {
-	if b.APIKey != "" && b.APIKey != "Key" &&
-		b.APISecret != "" && b.APISecret != "Secret" {
-		return true
-	}
-	return false
+	return b.ValidateAPICredentials()
 }
 
 func TestSubmitOrder(t *testing.T) {
@@ -354,7 +350,7 @@ func TestSubmitOrder(t *testing.T) {
 		Base:      currency.BTC,
 		Quote:     currency.LTC,
 	}
-	response, err := b.SubmitOrder(p, exchange.BuyOrderSide, exchange.MarketOrderType, 1, 1, "clientId")
+	response, err := b.SubmitOrder(p, exchange.BuyOrderSide, exchange.LimitOrderType, 1, 1, "clientId")
 	if areTestAPIKeysSet() && (err != nil || !response.IsOrderPlaced) {
 		t.Errorf("Order failed to be placed: %v", err)
 	} else if !areTestAPIKeysSet() && err == nil {

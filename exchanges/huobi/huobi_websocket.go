@@ -15,6 +15,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
+	"github.com/thrasher-/gocryptotrader/exchanges/assets"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	log "github.com/thrasher-/gocryptotrader/logger"
 )
@@ -155,7 +156,7 @@ func (h *HUOBI) WsHandleData() {
 				h.Websocket.DataHandler <- exchange.KlineData{
 					Timestamp:  time.Unix(0, kline.Timestamp),
 					Exchange:   h.GetName(),
-					AssetType:  "SPOT",
+					AssetType:  assets.AssetTypeSpot,
 					Pair:       currency.NewPairFromString(data[1]),
 					OpenPrice:  kline.Tick.Open,
 					ClosePrice: kline.Tick.Close,
@@ -176,7 +177,7 @@ func (h *HUOBI) WsHandleData() {
 
 				h.Websocket.DataHandler <- exchange.TradeData{
 					Exchange:     h.GetName(),
-					AssetType:    "SPOT",
+					AssetType:    assets.AssetTypeSpot,
 					CurrencyPair: currency.NewPairFromString(data[1]),
 					Timestamp:    time.Unix(0, trade.Tick.Timestamp),
 				}
@@ -216,7 +217,7 @@ func (h *HUOBI) WsProcessOrderbook(ob *WsDepth, symbol string) error {
 	h.Websocket.DataHandler <- exchange.WebsocketOrderbookUpdate{
 		Pair:     p,
 		Exchange: h.GetName(),
-		Asset:    "SPOT",
+		Asset:    assets.AssetTypeSpot,
 	}
 
 	return nil
@@ -225,10 +226,10 @@ func (h *HUOBI) WsProcessOrderbook(ob *WsDepth, symbol string) error {
 // WsSubscribe susbcribes to the current websocket streams based on the enabled
 // pair
 func (h *HUOBI) WsSubscribe() error {
-	pairs := h.GetEnabledCurrencies()
+	pairs := h.GetEnabledPairs(assets.AssetTypeSpot)
 
 	for _, p := range pairs {
-		fPair := exchange.FormatExchangeCurrency(h.GetName(), p)
+		fPair := h.FormatExchangeCurrency(p, assets.AssetTypeSpot)
 
 		depthTopic := fmt.Sprintf(wsMarketDepth, fPair.String())
 		depthJSON, err := common.JSONEncode(WsRequest{Subscribe: depthTopic})

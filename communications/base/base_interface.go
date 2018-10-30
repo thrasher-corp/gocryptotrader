@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/thrasher-/gocryptotrader/config"
+	"github.com/thrasher-/gocryptotrader/exchanges/assets"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 	log "github.com/thrasher-/gocryptotrader/logger"
@@ -25,8 +26,8 @@ type ICommunicate interface {
 // Setup sets up communication variables and intiates a connection to the
 // communication mediums
 func (c IComm) Setup() {
-	TickerStaged = make(map[string]map[string]map[string]ticker.Price)
-	OrderbookStaged = make(map[string]map[string]map[string]Orderbook)
+	TickerStaged = make(map[string]map[assets.AssetType]map[string]ticker.Price)
+	OrderbookStaged = make(map[string]map[assets.AssetType]map[string]Orderbook)
 	ServiceStarted = time.Now()
 
 	for i := range c {
@@ -68,12 +69,12 @@ func (c IComm) GetEnabledCommunicationMediums() {
 }
 
 // StageTickerData stages updated ticker data for the communications package
-func (c IComm) StageTickerData(exchangeName, assetType string, tickerPrice *ticker.Price) {
+func (c IComm) StageTickerData(exchangeName string, assetType assets.AssetType, tickerPrice *ticker.Price) {
 	m.Lock()
 	defer m.Unlock()
 
 	if _, ok := TickerStaged[exchangeName]; !ok {
-		TickerStaged[exchangeName] = make(map[string]map[string]ticker.Price)
+		TickerStaged[exchangeName] = make(map[assets.AssetType]map[string]ticker.Price)
 	}
 
 	if _, ok := TickerStaged[exchangeName][assetType]; !ok {
@@ -85,12 +86,12 @@ func (c IComm) StageTickerData(exchangeName, assetType string, tickerPrice *tick
 
 // StageOrderbookData stages updated orderbook data for the communications
 // package
-func (c IComm) StageOrderbookData(exchangeName, assetType string, ob *orderbook.Base) {
+func (c IComm) StageOrderbookData(exchangeName string, assetType assets.AssetType, ob *orderbook.Base) {
 	m.Lock()
 	defer m.Unlock()
 
 	if _, ok := OrderbookStaged[exchangeName]; !ok {
-		OrderbookStaged[exchangeName] = make(map[string]map[string]Orderbook)
+		OrderbookStaged[exchangeName] = make(map[assets.AssetType]map[string]Orderbook)
 	}
 
 	if _, ok := OrderbookStaged[exchangeName][assetType]; !ok {

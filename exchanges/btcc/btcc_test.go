@@ -2,7 +2,6 @@ package btcc
 
 import (
 	"testing"
-	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
@@ -30,12 +29,11 @@ func TestSetup(t *testing.T) {
 	if err != nil {
 		t.Error("Test Failed - BTCC Setup() init error")
 	}
-	b.Setup(&bConfig)
+	b.Setup(bConfig)
 
-	if !b.IsEnabled() || b.AuthenticatedAPISupport ||
-		b.RESTPollingDelay != time.Duration(10) || b.Verbose ||
+	if !b.IsEnabled() || b.API.AuthenticatedSupport ||
 		b.Websocket.IsEnabled() || len(b.BaseCurrencies) < 1 ||
-		len(b.AvailablePairs) < 1 || len(b.EnabledPairs) < 1 {
+		b.Verbose {
 		t.Error("Test Failed - BTCC Setup values not set correctly")
 	}
 }
@@ -217,11 +215,7 @@ func TestGetOrderHistory(t *testing.T) {
 // Any tests below this line have the ability to impact your orders on the exchange. Enable canManipulateRealOrders to run them
 // ----------------------------------------------------------------------------------------------------------------------------
 func areTestAPIKeysSet() bool {
-	if b.APIKey != "" && b.APIKey != "Key" &&
-		b.APISecret != "" && b.APISecret != "Secret" {
-		return true
-	}
-	return false
+	return b.ValidateAPICredentials()
 }
 
 func TestSubmitOrder(t *testing.T) {

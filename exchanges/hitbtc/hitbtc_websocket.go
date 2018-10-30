@@ -11,6 +11,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
+	"github.com/thrasher-/gocryptotrader/exchanges/assets"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 )
 
@@ -49,9 +50,9 @@ func (h *HitBTC) WsConnect() error {
 
 // WsSubscribe subscribes to the relevant channels
 func (h *HitBTC) WsSubscribe() error {
-	enabledPairs := h.GetEnabledCurrencies()
+	enabledPairs := h.GetEnabledPairs(assets.AssetTypeSpot)
 	for _, p := range enabledPairs {
-		pF := exchange.FormatExchangeCurrency(h.GetName(), p)
+		pF := h.FormatExchangeCurrency(p, assets.AssetTypeSpot)
 
 		tickerSubReq, err := common.JSONEncode(WsNotification{
 			JSONRPCVersion: rpcVersion,
@@ -169,7 +170,7 @@ func (h *HitBTC) WsHandleData() {
 
 				h.Websocket.DataHandler <- exchange.TickerData{
 					Exchange:  h.GetName(),
-					AssetType: "SPOT",
+					AssetType: assets.AssetTypeSpot,
 					Pair:      currency.NewPairFromString(ticker.Params.Symbol),
 					Quantity:  ticker.Params.Volume,
 					Timestamp: ts,
@@ -243,7 +244,8 @@ func (h *HitBTC) WsProcessOrderbookSnapshot(ob WsOrderbook) error {
 	var newOrderBook orderbook.Base
 	newOrderBook.Asks = asks
 	newOrderBook.Bids = bids
-	newOrderBook.AssetType = "SPOT"
+	newOrderBook.AssetType = assets.AssetTypeSpot
+	newOrderBook.LastUpdated = time.Now()
 	newOrderBook.Pair = p
 
 	err := h.Websocket.Orderbook.LoadSnapshot(&newOrderBook, h.GetName(), false)
@@ -253,7 +255,7 @@ func (h *HitBTC) WsProcessOrderbookSnapshot(ob WsOrderbook) error {
 
 	h.Websocket.DataHandler <- exchange.WebsocketOrderbookUpdate{
 		Exchange: h.GetName(),
-		Asset:    "SPOT",
+		Asset:    assets.AssetTypeSpot,
 		Pair:     p,
 	}
 
@@ -277,14 +279,14 @@ func (h *HitBTC) WsProcessOrderbookUpdate(ob WsOrderbook) error {
 
 	p := currency.NewPairFromString(ob.Params.Symbol)
 
-	err := h.Websocket.Orderbook.Update(bids, asks, p, time.Now(), h.GetName(), "SPOT")
+	err := h.Websocket.Orderbook.Update(bids, asks, p, time.Now(), h.GetName(), assets.AssetTypeSpot)
 	if err != nil {
 		return err
 	}
 
 	h.Websocket.DataHandler <- exchange.WebsocketOrderbookUpdate{
 		Exchange: h.GetName(),
-		Asset:    "SPOT",
+		Asset:    assets.AssetTypeSpot,
 		Pair:     p,
 	}
 	return nil

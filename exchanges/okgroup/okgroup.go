@@ -16,7 +16,6 @@ import (
 	"github.com/google/go-querystring/query"
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-/gocryptotrader/common"
-	"github.com/thrasher-/gocryptotrader/config"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	log "github.com/thrasher-/gocryptotrader/logger"
 )
@@ -92,62 +91,14 @@ type OKGroup struct {
 	// Spot and contract market error codes as per https://www.okex.com/rest_request.html
 	ErrorCodes map[string]error
 	// Stores for corresponding variable checks
-	ContractTypes    []string
-	CurrencyPairs    []string
-	ContractPosition []string
-	Types            []string
+	ContractTypes         []string
+	CurrencyPairsDefaults []string
+	ContractPosition      []string
+	Types                 []string
 	// URLs to be overridden by implementations of OKGroup
 	APIURL       string
 	APIVersion   string
 	WebsocketURL string
-}
-
-// Setup method sets current configuration details if enabled
-func (o *OKGroup) Setup(exch *config.ExchangeConfig) {
-	if !exch.Enabled {
-		o.SetEnabled(false)
-	} else {
-		o.Name = exch.Name
-		o.Enabled = true
-		o.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
-		o.SetAPIKeys(exch.APIKey, exch.APISecret, exch.ClientID, false)
-		o.SetHTTPClientTimeout(exch.HTTPTimeout)
-		o.SetHTTPClientUserAgent(exch.HTTPUserAgent)
-		o.RESTPollingDelay = exch.RESTPollingDelay
-		o.Verbose = exch.Verbose
-		o.Websocket.SetWsStatusAndConnection(exch.Websocket)
-		o.BaseCurrencies = exch.BaseCurrencies
-		o.AvailablePairs = exch.AvailablePairs
-		o.EnabledPairs = exch.EnabledPairs
-		err := o.SetCurrencyPairFormat()
-		if err != nil {
-			log.Fatal(err)
-		}
-		err = o.SetAssetTypes()
-		if err != nil {
-			log.Fatal(err)
-		}
-		err = o.SetAutoPairDefaults()
-		if err != nil {
-			log.Fatal(err)
-		}
-		err = o.SetAPIURL(exch)
-		if err != nil {
-			log.Fatal(err)
-		}
-		err = o.SetClientProxyAddress(exch.ProxyAddress)
-		if err != nil {
-			log.Fatal(err)
-		}
-		err = o.WebsocketSetup(o.WsConnect,
-			exch.Name,
-			exch.Websocket,
-			o.WebsocketURL,
-			exch.WebsocketURL)
-		if err != nil {
-			log.Fatal(err)
-		}
-	}
 }
 
 // GetAccountCurrencies returns a list of tradable spot instruments and their properties
@@ -585,8 +536,9 @@ func (o *OKGroup) GetErrorCode(code interface{}) error {
 // path with a JSON payload (of present)
 // URL arguments must be in the request path and not as url.URL values
 func (o *OKGroup) SendHTTPRequest(httpMethod, requestType, requestPath string, data, result interface{}, authenticated bool) (err error) {
-	if authenticated && !o.AuthenticatedAPISupport {
-		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet, o.Name)
+	if authenticated && !o.AllowAuthenticatedRequest() {
+		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet,
+			o.Name)
 	}
 
 	utcTime := time.Now().UTC()
@@ -606,7 +558,7 @@ func (o *OKGroup) SendHTTPRequest(httpMethod, requestType, requestPath string, d
 		}
 	}
 
-	path := o.APIUrl + requestType + o.APIVersion + requestPath
+	path := o.API.Endpoints.URL + requestType + o.APIVersion + requestPath
 	if o.Verbose {
 		log.Debugf("Sending %v request to %s \n", requestType, path)
 	}
@@ -614,13 +566,15 @@ func (o *OKGroup) SendHTTPRequest(httpMethod, requestType, requestPath string, d
 	headers := make(map[string]string)
 	headers["Content-Type"] = "application/json"
 	if authenticated {
-		signPath := fmt.Sprintf("/%v%v%v%v", OKGroupAPIPath, requestType, o.APIVersion, requestPath)
-		hmac := common.GetHMAC(common.HashSHA256, []byte(iso+httpMethod+signPath+string(payload)), []byte(o.APISecret))
-		base64 := common.Base64Encode(hmac)
-		headers["OK-ACCESS-KEY"] = o.APIKey
-		headers["OK-ACCESS-SIGN"] = base64
+		signPath := fmt.Sprintf("/%v%v%v%v", OKGroupAPIPath,
+			requestType, o.APIVersion, requestPath)
+		hmac := common.GetHMAC(common.HashSHA256,
+			[]byte(iso+httpMethod+signPath+string(payload)),
+			[]byte(o.API.Credentials.Secret))
+		headers["OK-ACCESS-KEY"] = o.API.Credentials.Key
+		headers["OK-ACCESS-SIGN"] = common.Base64Encode(hmac)
 		headers["OK-ACCESS-TIMESTAMP"] = iso
-		headers["OK-ACCESS-PASSPHRASE"] = o.ClientID
+		headers["OK-ACCESS-PASSPHRASE"] = o.API.Credentials.ClientID
 	}
 
 	var intermediary json.RawMessage
@@ -660,7 +614,7 @@ func (o *OKGroup) SendHTTPRequest(httpMethod, requestType, requestPath string, d
 // to check on this, this end.
 func (o *OKGroup) SetCheckVarDefaults() {
 	o.ContractTypes = []string{"this_week", "next_week", "quarter"}
-	o.CurrencyPairs = []string{"btc_usd", "ltc_usd", "eth_usd", "etc_usd", "bch_usd"}
+	o.CurrencyPairsDefaults = []string{"btc_usd", "ltc_usd", "eth_usd", "etc_usd", "bch_usd"}
 	o.Types = []string{"1min", "3min", "5min", "15min", "30min", "1day", "3day",
 		"1week", "1hour", "2hour", "4hour", "6hour", "12hour"}
 	o.ContractPosition = []string{"1", "2", "3", "4"}

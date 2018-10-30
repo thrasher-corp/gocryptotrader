@@ -34,7 +34,8 @@ import (
 
 // Vars for common.go operations
 var (
-	HTTPClient *http.Client
+	HTTPClient    *http.Client
+	HTTPUserAgent string
 
 	// ErrNotYetImplemented defines a common error across the code base that
 	// alerts of a function that has not been completed or tied into main code
@@ -359,6 +360,10 @@ func SendHTTPRequest(method, urlPath string, headers map[string]string, body io.
 
 	for k, v := range headers {
 		req.Header.Add(k, v)
+	}
+
+	if HTTPUserAgent != "" && req.Header.Get("User-Agent") == "" {
+		req.Header.Add("User-Agent", HTTPUserAgent)
 	}
 
 	resp, err := HTTPClient.Do(req)

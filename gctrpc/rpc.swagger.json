@@ -1,0 +1,1628 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "title": "rpc.proto",
+    "version": "version not set"
+  },
+  "schemes": [
+    "http",
+    "https"
+  ],
+  "consumes": [
+    "application/json"
+  ],
+  "produces": [
+    "application/json"
+  ],
+  "paths": {
+    "/v1/addevent": {
+      "post": {
+        "operationId": "AddEvent",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/gctrpcAddEventResponse"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/gctrpcAddEventRequest"
+            }
+          }
+        ],
+        "tags": [
+          "GoCryptoTrader"
+        ]
+      }
+    },
+    "/v1/addportfolioaddress": {
+      "post": {
+        "operationId": "AddPortfolioAddress",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/gctrpcAddPortfolioAddressResponse"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/gctrpcAddPortfolioAddressRequest"
+            }
+          }
+        ],
+        "tags": [
+          "GoCryptoTrader"
+        ]
+      }
+    },
+    "/v1/cancelallorders": {
+      "post": {
+        "operationId": "CancelAllOrders",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/gctrpcCancelAllOrdersResponse"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/gctrpcCancelAllOrdersRequest"
+            }
+          }
+        ],
+        "tags": [
+          "GoCryptoTrader"
+        ]
+      }
+    },
+    "/v1/cancelorder": {
+      "post": {
+        "operationId": "CancelOrder",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/gctrpcCancelOrderResponse"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/gctrpcCancelOrderRequest"
+            }
+          }
+        ],
+        "tags": [
+          "GoCryptoTrader"
+        ]
+      }
+    },
+    "/v1/disableexchange": {
+      "post": {
+        "operationId": "DisableExchange",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/gctrpcGenericExchangeNameResponse"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/gctrpcGenericExchangeNameRequest"
+            }
+          }
+        ],
+        "tags": [
+          "GoCryptoTrader"
+        ]
+      }
+    },
+    "/v1/enableexchange": {
+      "post": {
+        "operationId": "EnableExchange",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/gctrpcGenericExchangeNameResponse"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/gctrpcGenericExchangeNameRequest"
+            }
+          }
+        ],
+        "tags": [
+          "GoCryptoTrader"
+        ]
+      }
+    },
+    "/v1/getaccountinfo": {
+      "get": {
+        "operationId": "GetAccountInfo",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/gctrpcGetAccountInfoResponse"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "exchange",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "GoCryptoTrader"
+        ]
+      }
+    },
+    "/v1/getconfig": {
+      "get": {
+        "operationId": "GetConfig",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/gctrpcGetConfigResponse"
+            }
+          }
+        },
+        "tags": [
+          "GoCryptoTrader"
+        ]
+      }
+    },
+    "/v1/getcryptodepositaddress": {
+      "post": {
+        "operationId": "GetCryptocurrencyDepositAddress",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/gctrpcGetCryptocurrencyDepositAddressResponse"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/gctrpcGetCryptocurrencyDepositAddressRequest"
+            }
+          }
+        ],
+        "tags": [
+          "GoCryptoTrader"
+        ]
+      }
+    },
+    "/v1/getcryptodepositaddresses": {
+      "post": {
+        "operationId": "GetCryptocurrencyDepositAddresses",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/gctrpcGetCryptocurrencyDepositAddressesResponse"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/gctrpcGetCryptocurrencyDepositAddressesRequest"
+            }
+          }
+        ],
+        "tags": [
+          "GoCryptoTrader"
+        ]
+      }
+    },
+    "/v1/getevents": {
+      "get": {
+        "operationId": "GetEvents",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/gctrpcGetEventsResponse"
+            }
+          }
+        },
+        "tags": [
+          "GoCryptoTrader"
+        ]
+      }
+    },
+    "/v1/getexchangeinfo": {
+      "get": {
+        "operationId": "GetExchangeInfo",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/gctrpcGetExchangeInfoResponse"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "exchange",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "GoCryptoTrader"
+        ]
+      }
+    },
+    "/v1/getexchanges": {
+      "get": {
+        "operationId": "GetExchanges",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/gctrpcGetExchangesResponse"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "enabled",
+            "in": "query",
+            "required": false,
+            "type": "boolean",
+            "format": "boolean"
+          }
+        ],
+        "tags": [
+          "GoCryptoTrader"
+        ]
+      }
+    },
+    "/v1/getforexproviders": {
+      "get": {
+        "operationId": "GetForexProviders",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/gctrpcGetForexProvidersResponse"
+            }
+          }
+        },
+        "tags": [
+          "GoCryptoTrader"
+        ]
+      }
+    },
+    "/v1/getforexrates": {
+      "get": {
+        "operationId": "GetForexRates",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/gctrpcGetForexRatesResponse"
+            }
+          }
+        },
+        "tags": [
+          "GoCryptoTrader"
+        ]
+      }
+    },
+    "/v1/getinfo": {
+      "get": {
+        "operationId": "GetInfo",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/gctrpcGetInfoResponse"
+            }
+          }
+        },
+        "tags": [
+          "GoCryptoTrader"
+        ]
+      }
+    },
+    "/v1/getorder": {
+      "post": {
+        "operationId": "GetOrder",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/gctrpcOrderDetails"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/gctrpcGetOrderRequest"
+            }
+          }
+        ],
+        "tags": [
+          "GoCryptoTrader"
+        ]
+      }
+    },
+    "/v1/getorderbook": {
+      "post": {
+        "operationId": "GetOrderbook",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/gctrpcOrderbookResponse"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/gctrpcGetOrderbookRequest"
+            }
+          }
+        ],
+        "tags": [
+          "GoCryptoTrader"
+        ]
+      }
+    },
+    "/v1/getorderbooks": {
+      "get": {
+        "operationId": "GetOrderbooks",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/gctrpcGetOrderbooksResponse"
+            }
+          }
+        },
+        "tags": [
+          "GoCryptoTrader"
+        ]
+      }
+    },
+    "/v1/getorders": {
+      "post": {
+        "operationId": "GetOrders",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/gctrpcGetOrdersResponse"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/gctrpcGetOrdersRequest"
+            }
+          }
+        ],
+        "tags": [
+          "GoCryptoTrader"
+        ]
+      }
+    },
+    "/v1/getportfolio": {
+      "get": {
+        "operationId": "GetPortfolio",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/gctrpcGetPortfolioResponse"
+            }
+          }
+        },
+        "tags": [
+          "GoCryptoTrader"
+        ]
+      }
+    },
+    "/v1/getportfoliosummary": {
+      "get": {
+        "operationId": "GetPortfolioSummary",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/gctrpcGetPortfolioSummaryResponse"
+            }
+          }
+        },
+        "tags": [
+          "GoCryptoTrader"
+        ]
+      }
+    },
+    "/v1/getticker": {
+      "post": {
+        "operationId": "GetTicker",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/gctrpcTickerResponse"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/gctrpcGetTickerRequest"
+            }
+          }
+        ],
+        "tags": [
+          "GoCryptoTrader"
+        ]
+      }
+    },
+    "/v1/gettickers": {
+      "get": {
+        "operationId": "GetTickers",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/gctrpcGetTickersResponse"
+            }
+          }
+        },
+        "tags": [
+          "GoCryptoTrader"
+        ]
+      }
+    },
+    "/v1/removeevent": {
+      "post": {
+        "operationId": "RemoveEvent",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/gctrpcRemoveEventResponse"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/gctrpcRemoveEventRequest"
+            }
+          }
+        ],
+        "tags": [
+          "GoCryptoTrader"
+        ]
+      }
+    },
+    "/v1/removeportfolioaddress": {
+      "post": {
+        "operationId": "RemovePortfolioAddress",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/gctrpcRemovePortfolioAddressResponse"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/gctrpcRemovePortfolioAddressRequest"
+            }
+          }
+        ],
+        "tags": [
+          "GoCryptoTrader"
+        ]
+      }
+    },
+    "/v1/submitorder": {
+      "post": {
+        "operationId": "SubmitOrder",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/gctrpcSubmitOrderResponse"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/gctrpcSubmitOrderRequest"
+            }
+          }
+        ],
+        "tags": [
+          "GoCryptoTrader"
+        ]
+      }
+    },
+    "/v1/withdrawcryptofunds": {
+      "post": {
+        "operationId": "WithdrawCryptocurrencyFunds",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/gctrpcWithdrawResponse"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/gctrpcWithdrawCurrencyRequest"
+            }
+          }
+        ],
+        "tags": [
+          "GoCryptoTrader"
+        ]
+      }
+    },
+    "/v1/withdrawfiatfunds": {
+      "post": {
+        "operationId": "WithdrawFiatFunds",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/gctrpcWithdrawResponse"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/gctrpcWithdrawCurrencyRequest"
+            }
+          }
+        ],
+        "tags": [
+          "GoCryptoTrader"
+        ]
+      }
+    }
+  },
+  "definitions": {
+    "CancelAllOrdersResponseOrders": {
+      "type": "object",
+      "properties": {
+        "exchange": {
+          "type": "string"
+        },
+        "order_status": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "gctrpcAccount": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "currencies": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/gctrpcAccountCurrencyInfo"
+          }
+        }
+      }
+    },
+    "gctrpcAccountCurrencyInfo": {
+      "type": "object",
+      "properties": {
+        "currency": {
+          "type": "string"
+        },
+        "total_value": {
+          "type": "number",
+          "format": "double"
+        },
+        "hold": {
+          "type": "number",
+          "format": "double"
+        }
+      }
+    },
+    "gctrpcAddEventRequest": {
+      "type": "object",
+      "properties": {
+        "exchange": {
+          "type": "string"
+        },
+        "item": {
+          "type": "string"
+        },
+        "condition_params": {
+          "$ref": "#/definitions/gctrpcConditionParams"
+        },
+        "pair": {
+          "$ref": "#/definitions/gctrpcCurrencyPair"
+        },
+        "asset_type": {
+          "type": "string"
+        },
+        "action": {
+          "type": "string"
+        }
+      }
+    },
+    "gctrpcAddEventResponse": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "int64"
+        }
+      }
+    },
+    "gctrpcAddPortfolioAddressRequest": {
+      "type": "object",
+      "properties": {
+        "address": {
+          "type": "string"
+        },
+        "coin_type": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "balance": {
+          "type": "number",
+          "format": "double"
+        }
+      }
+    },
+    "gctrpcAddPortfolioAddressResponse": {
+      "type": "object"
+    },
+    "gctrpcCancelAllOrdersRequest": {
+      "type": "object",
+      "properties": {
+        "exchange": {
+          "type": "string"
+        }
+      }
+    },
+    "gctrpcCancelAllOrdersResponse": {
+      "type": "object",
+      "properties": {
+        "orders": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/CancelAllOrdersResponseOrders"
+          }
+        }
+      }
+    },
+    "gctrpcCancelOrderRequest": {
+      "type": "object",
+      "properties": {
+        "exchange": {
+          "type": "string"
+        },
+        "account_id": {
+          "type": "string"
+        },
+        "order_id": {
+          "type": "string"
+        },
+        "pair": {
+          "$ref": "#/definitions/gctrpcCurrencyPair"
+        },
+        "asset_type": {
+          "type": "string"
+        },
+        "wallet_address": {
+          "type": "string"
+        },
+        "side": {
+          "type": "string"
+        }
+      }
+    },
+    "gctrpcCancelOrderResponse": {
+      "type": "object"
+    },
+    "gctrpcCoin": {
+      "type": "object",
+      "properties": {
+        "coin": {
+          "type": "string"
+        },
+        "balance": {
+          "type": "number",
+          "format": "double"
+        },
+        "address": {
+          "type": "string"
+        },
+        "percentage": {
+          "type": "number",
+          "format": "double"
+        }
+      }
+    },
+    "gctrpcConditionParams": {
+      "type": "object",
+      "properties": {
+        "condition": {
+          "type": "string"
+        },
+        "price": {
+          "type": "number",
+          "format": "double"
+        },
+        "check_bids": {
+          "type": "boolean",
+          "format": "boolean"
+        },
+        "check_bids_and_asks": {
+          "type": "boolean",
+          "format": "boolean"
+        },
+        "orderbook_amount": {
+          "type": "number",
+          "format": "double"
+        }
+      }
+    },
+    "gctrpcCurrencyPair": {
+      "type": "object",
+      "properties": {
+        "delimiter": {
+          "type": "string"
+        },
+        "base": {
+          "type": "string"
+        },
+        "quote": {
+          "type": "string"
+        }
+      }
+    },
+    "gctrpcForexProvider": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "enabled": {
+          "type": "boolean",
+          "format": "boolean"
+        },
+        "verbose": {
+          "type": "boolean",
+          "format": "boolean"
+        },
+        "rest_rolling_delay": {
+          "type": "string"
+        },
+        "api_key": {
+          "type": "string"
+        },
+        "api_key_level": {
+          "type": "string",
+          "format": "int64"
+        },
+        "primary_provider": {
+          "type": "boolean",
+          "format": "boolean"
+        }
+      }
+    },
+    "gctrpcForexRatesConversion": {
+      "type": "object",
+      "properties": {
+        "from": {
+          "type": "string"
+        },
+        "to": {
+          "type": "string"
+        },
+        "rate": {
+          "type": "number",
+          "format": "double"
+        },
+        "inverse_rate": {
+          "type": "number",
+          "format": "double"
+        }
+      }
+    },
+    "gctrpcGenericExchangeNameRequest": {
+      "type": "object",
+      "properties": {
+        "exchange": {
+          "type": "string"
+        }
+      }
+    },
+    "gctrpcGenericExchangeNameResponse": {
+      "type": "object"
+    },
+    "gctrpcGetAccountInfoResponse": {
+      "type": "object",
+      "properties": {
+        "exchange": {
+          "type": "string"
+        },
+        "accounts": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/gctrpcAccount"
+          }
+        }
+      }
+    },
+    "gctrpcGetConfigResponse": {
+      "type": "object",
+      "properties": {
+        "data": {
+          "type": "string",
+          "format": "byte"
+        }
+      }
+    },
+    "gctrpcGetCryptocurrencyDepositAddressRequest": {
+      "type": "object",
+      "properties": {
+        "exchange": {
+          "type": "string"
+        },
+        "cryptocurrency": {
+          "type": "string"
+        }
+      }
+    },
+    "gctrpcGetCryptocurrencyDepositAddressResponse": {
+      "type": "object",
+      "properties": {
+        "address": {
+          "type": "string"
+        }
+      }
+    },
+    "gctrpcGetCryptocurrencyDepositAddressesRequest": {
+      "type": "object",
+      "properties": {
+        "exchange": {
+          "type": "string"
+        }
+      }
+    },
+    "gctrpcGetCryptocurrencyDepositAddressesResponse": {
+      "type": "object",
+      "properties": {
+        "addresses": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "gctrpcGetEventsResponse": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "int64"
+        },
+        "exchange": {
+          "type": "string"
+        },
+        "item": {
+          "type": "string"
+        },
+        "condition_params": {
+          "$ref": "#/definitions/gctrpcConditionParams"
+        },
+        "pair": {
+          "$ref": "#/definitions/gctrpcCurrencyPair"
+        },
+        "action": {
+          "type": "string"
+        },
+        "executed": {
+          "type": "boolean",
+          "format": "boolean"
+        }
+      }
+    },
+    "gctrpcGetExchangeInfoResponse": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "enabled": {
+          "type": "boolean",
+          "format": "boolean"
+        },
+        "verbose": {
+          "type": "boolean",
+          "format": "boolean"
+        },
+        "using_sandbox": {
+          "type": "boolean",
+          "format": "boolean"
+        },
+        "http_timeout": {
+          "type": "string"
+        },
+        "http_useragent": {
+          "type": "string"
+        },
+        "http_proxy": {
+          "type": "string"
+        },
+        "base_currencies": {
+          "type": "string"
+        },
+        "supported_assets": {
+          "type": "string"
+        },
+        "enabled_pairs": {
+          "type": "string"
+        },
+        "available_pairs": {
+          "type": "string"
+        },
+        "authenticated_api": {
+          "type": "boolean",
+          "format": "boolean"
+        }
+      }
+    },
+    "gctrpcGetExchangesResponse": {
+      "type": "object",
+      "properties": {
+        "exchanges": {
+          "type": "string"
+        }
+      }
+    },
+    "gctrpcGetForexProvidersResponse": {
+      "type": "object",
+      "properties": {
+        "forex_providers": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/gctrpcForexProvider"
+          }
+        }
+      }
+    },
+    "gctrpcGetForexRatesResponse": {
+      "type": "object",
+      "properties": {
+        "forex_rates": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/gctrpcForexRatesConversion"
+          }
+        }
+      }
+    },
+    "gctrpcGetInfoResponse": {
+      "type": "object",
+      "properties": {
+        "uptime": {
+          "type": "string"
+        },
+        "available_exchanges": {
+          "type": "string",
+          "format": "int64"
+        },
+        "enabled_exchanges": {
+          "type": "string",
+          "format": "int64"
+        },
+        "default_forex_provider": {
+          "type": "string"
+        },
+        "default_fiat_currency": {
+          "type": "string"
+        }
+      }
+    },
+    "gctrpcGetOrderRequest": {
+      "type": "object",
+      "properties": {
+        "exchange": {
+          "type": "string"
+        },
+        "order_id": {
+          "type": "string"
+        }
+      }
+    },
+    "gctrpcGetOrderbookRequest": {
+      "type": "object",
+      "properties": {
+        "exchange": {
+          "type": "string"
+        },
+        "pair": {
+          "$ref": "#/definitions/gctrpcCurrencyPair"
+        },
+        "asset_type": {
+          "type": "string"
+        }
+      }
+    },
+    "gctrpcGetOrderbooksResponse": {
+      "type": "object",
+      "properties": {
+        "orderbooks": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/gctrpcOrderbooks"
+          }
+        }
+      }
+    },
+    "gctrpcGetOrdersRequest": {
+      "type": "object",
+      "properties": {
+        "exchange": {
+          "type": "string"
+        },
+        "asset_type": {
+          "type": "string"
+        },
+        "pair": {
+          "$ref": "#/definitions/gctrpcCurrencyPair"
+        }
+      }
+    },
+    "gctrpcGetOrdersResponse": {
+      "type": "object",
+      "properties": {
+        "orders": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/gctrpcOrderDetails"
+          }
+        }
+      }
+    },
+    "gctrpcGetPortfolioResponse": {
+      "type": "object",
+      "properties": {
+        "portfolio": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/gctrpcPortfolioAddress"
+          }
+        }
+      }
+    },
+    "gctrpcGetPortfolioSummaryResponse": {
+      "type": "object",
+      "properties": {
+        "coin_totals": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/gctrpcCoin"
+          }
+        },
+        "coins_offline": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/gctrpcCoin"
+          }
+        },
+        "coins_offline_summary": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/gctrpcOfflineCoins"
+          }
+        },
+        "coins_online": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/gctrpcCoin"
+          }
+        },
+        "coins_online_summary": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/gctrpcOnlineCoins"
+          }
+        }
+      }
+    },
+    "gctrpcGetTickerRequest": {
+      "type": "object",
+      "properties": {
+        "exchange": {
+          "type": "string"
+        },
+        "pair": {
+          "$ref": "#/definitions/gctrpcCurrencyPair"
+        },
+        "asset_type": {
+          "type": "string"
+        }
+      }
+    },
+    "gctrpcGetTickersResponse": {
+      "type": "object",
+      "properties": {
+        "tickers": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/gctrpcTickers"
+          }
+        }
+      }
+    },
+    "gctrpcOfflineCoinSummary": {
+      "type": "object",
+      "properties": {
+        "address": {
+          "type": "string"
+        },
+        "balance": {
+          "type": "number",
+          "format": "double"
+        },
+        "percentage": {
+          "type": "number",
+          "format": "double"
+        }
+      }
+    },
+    "gctrpcOfflineCoins": {
+      "type": "object",
+      "properties": {
+        "addresses": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/gctrpcOfflineCoinSummary"
+          }
+        }
+      }
+    },
+    "gctrpcOnlineCoinSummary": {
+      "type": "object",
+      "properties": {
+        "balance": {
+          "type": "number",
+          "format": "double"
+        },
+        "percentage": {
+          "type": "number",
+          "format": "double"
+        }
+      }
+    },
+    "gctrpcOnlineCoins": {
+      "type": "object",
+      "properties": {
+        "coins": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/gctrpcOnlineCoinSummary"
+          }
+        }
+      }
+    },
+    "gctrpcOrderDetails": {
+      "type": "object",
+      "properties": {
+        "exchange": {
+          "type": "string"
+        },
+        "id": {
+          "type": "string"
+        },
+        "base_currency": {
+          "type": "string"
+        },
+        "quote_currency": {
+          "type": "string"
+        },
+        "asset_type": {
+          "type": "string"
+        },
+        "order_side": {
+          "type": "string"
+        },
+        "order_type": {
+          "type": "string"
+        },
+        "creation_time": {
+          "type": "string",
+          "format": "int64"
+        },
+        "status": {
+          "type": "string"
+        },
+        "price": {
+          "type": "number",
+          "format": "double"
+        },
+        "amount": {
+          "type": "number",
+          "format": "double"
+        },
+        "open_volume": {
+          "type": "number",
+          "format": "double"
+        }
+      }
+    },
+    "gctrpcOrderbookItem": {
+      "type": "object",
+      "properties": {
+        "amount": {
+          "type": "number",
+          "format": "double"
+        },
+        "price": {
+          "type": "number",
+          "format": "double"
+        },
+        "id": {
+          "type": "string",
+          "format": "int64"
+        }
+      }
+    },
+    "gctrpcOrderbookResponse": {
+      "type": "object",
+      "properties": {
+        "pair": {
+          "$ref": "#/definitions/gctrpcCurrencyPair"
+        },
+        "currency_pair": {
+          "type": "string"
+        },
+        "bids": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/gctrpcOrderbookItem"
+          }
+        },
+        "asks": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/gctrpcOrderbookItem"
+          }
+        },
+        "last_updated": {
+          "type": "string",
+          "format": "int64"
+        },
+        "asset_type": {
+          "type": "string"
+        }
+      }
+    },
+    "gctrpcOrderbooks": {
+      "type": "object",
+      "properties": {
+        "exchange": {
+          "type": "string"
+        },
+        "orderbooks": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/gctrpcOrderbookResponse"
+          }
+        }
+      }
+    },
+    "gctrpcPortfolioAddress": {
+      "type": "object",
+      "properties": {
+        "address": {
+          "type": "string"
+        },
+        "coin_type": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "balance": {
+          "type": "number",
+          "format": "double"
+        }
+      }
+    },
+    "gctrpcRemoveEventRequest": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "int64"
+        }
+      }
+    },
+    "gctrpcRemoveEventResponse": {
+      "type": "object"
+    },
+    "gctrpcRemovePortfolioAddressRequest": {
+      "type": "object",
+      "properties": {
+        "address": {
+          "type": "string"
+        },
+        "coin_type": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        }
+      }
+    },
+    "gctrpcRemovePortfolioAddressResponse": {
+      "type": "object"
+    },
+    "gctrpcSubmitOrderRequest": {
+      "type": "object",
+      "properties": {
+        "exchange": {
+          "type": "string"
+        },
+        "pair": {
+          "$ref": "#/definitions/gctrpcCurrencyPair"
+        },
+        "side": {
+          "type": "string"
+        },
+        "order_type": {
+          "type": "string"
+        },
+        "amount": {
+          "type": "number",
+          "format": "double"
+        },
+        "price": {
+          "type": "number",
+          "format": "double"
+        },
+        "client_id": {
+          "type": "string"
+        }
+      }
+    },
+    "gctrpcSubmitOrderResponse": {
+      "type": "object",
+      "properties": {
+        "order_placed": {
+          "type": "boolean",
+          "format": "boolean"
+        },
+        "order_id": {
+          "type": "string"
+        }
+      }
+    },
+    "gctrpcTickerResponse": {
+      "type": "object",
+      "properties": {
+        "pair": {
+          "$ref": "#/definitions/gctrpcCurrencyPair"
+        },
+        "last_updated": {
+          "type": "string",
+          "format": "int64"
+        },
+        "currency_pair": {
+          "type": "string"
+        },
+        "last": {
+          "type": "number",
+          "format": "double"
+        },
+        "high": {
+          "type": "number",
+          "format": "double"
+        },
+        "low": {
+          "type": "number",
+          "format": "double"
+        },
+        "bid": {
+          "type": "number",
+          "format": "double"
+        },
+        "ask": {
+          "type": "number",
+          "format": "double"
+        },
+        "volume": {
+          "type": "number",
+          "format": "double"
+        },
+        "price_ath": {
+          "type": "number",
+          "format": "double"
+        }
+      }
+    },
+    "gctrpcTickers": {
+      "type": "object",
+      "properties": {
+        "exchange": {
+          "type": "string"
+        },
+        "tickers": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/gctrpcTickerResponse"
+          }
+        }
+      }
+    },
+    "gctrpcWithdrawCurrencyRequest": {
+      "type": "object",
+      "properties": {
+        "exchange": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "one_time_password": {
+          "type": "string"
+        },
+        "account_id": {
+          "type": "string"
+        },
+        "pin": {
+          "type": "string",
+          "format": "int64"
+        },
+        "trade_password": {
+          "type": "string"
+        },
+        "currency": {
+          "type": "string"
+        },
+        "address": {
+          "type": "string"
+        },
+        "address_tag": {
+          "type": "string"
+        },
+        "amount": {
+          "type": "number",
+          "format": "double"
+        },
+        "fee_amount": {
+          "type": "number",
+          "format": "double"
+        },
+        "bank_name": {
+          "type": "string"
+        },
+        "bank_address": {
+          "type": "string"
+        },
+        "bank_city": {
+          "type": "string"
+        },
+        "bank_country": {
+          "type": "string"
+        },
+        "swife_code": {
+          "type": "string"
+        },
+        "wire_currency": {
+          "type": "string"
+        }
+      }
+    },
+    "gctrpcWithdrawResponse": {
+      "type": "object",
+      "properties": {
+        "result": {
+          "type": "string"
+        }
+      }
+    }
+  }
+}

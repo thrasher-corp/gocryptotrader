@@ -1,0 +1,581 @@
+syntax = "proto3";
+
+import "google/api/annotations.proto";
+
+package gctrpc;
+
+message GetInfoRequest {}
+
+message GetInfoResponse {
+    string uptime = 1;
+    int64 available_exchanges = 2;
+    int64 enabled_exchanges = 3;
+    string default_forex_provider = 4;
+    string default_fiat_currency = 5;
+}
+
+message GenericExchangeNameRequest {
+    string exchange = 1;
+}
+
+message GenericExchangeNameResponse {}
+
+message GetExchangesRequest {
+    bool enabled = 1;
+}
+
+message GetExchangesResponse {
+    string exchanges = 1;
+}
+
+message DisableExchangeRequest {
+    string exchange = 1;
+}
+
+message GetExchangeInfoResponse {
+    string name = 1;
+    bool enabled = 2;
+    bool verbose = 3;
+    bool using_sandbox = 4;
+    string http_timeout = 5;
+    string http_useragent = 6;
+    string http_proxy = 7;
+    string base_currencies = 8;
+    string supported_assets = 9;
+    string enabled_pairs = 10;
+    string available_pairs = 11;
+    bool authenticated_api = 12;
+}
+
+message GetTickerRequest {
+    string exchange = 1;
+    CurrencyPair pair = 2;
+    string asset_type = 3;
+}
+
+message CurrencyPair {
+    string delimiter = 1;
+    string base = 2;
+    string quote = 3;
+}
+
+message TickerResponse {
+    CurrencyPair pair = 1;
+    int64 last_updated = 2;
+    string currency_pair = 3;
+    double last = 4;
+    double high = 5;
+    double low = 6;
+    double bid = 7;
+    double ask = 8;
+    double volume = 9;
+    double price_ath = 10;
+}
+
+message GetTickersRequest {}
+
+message Tickers {
+    string exchange = 1;
+    repeated TickerResponse tickers = 2;
+}
+
+message GetTickersResponse {
+    repeated Tickers tickers  = 1;
+}
+
+message GetOrderbookRequest {
+    string exchange = 1;
+    CurrencyPair pair = 2;
+    string asset_type = 3;
+}
+
+message OrderbookItem {
+    double amount = 1;
+    double price = 2;
+    int64 id = 3;
+}
+
+message OrderbookResponse {
+    CurrencyPair pair = 1;
+    string currency_pair = 2;
+    repeated OrderbookItem bids = 3;
+    repeated OrderbookItem asks = 4;
+    int64 last_updated = 5;
+    string asset_type = 6; 
+}
+
+message GetOrderbooksRequest {}
+
+message Orderbooks {
+    string exchange = 1;
+    repeated OrderbookResponse orderbooks = 2;
+}
+
+message GetOrderbooksResponse {
+   repeated Orderbooks orderbooks = 1;
+}
+
+message GetAccountInfoRequest {
+    string exchange = 1;
+}
+
+message Account {
+    string id = 1;
+    repeated AccountCurrencyInfo currencies = 2;
+}
+
+message AccountCurrencyInfo {
+    string currency = 1;
+    double total_value = 2;
+    double hold = 3;
+}
+
+message GetAccountInfoResponse {
+    string exchange = 1;
+    repeated Account accounts = 2;
+}
+
+message GetConfigRequest {}
+
+message GetConfigResponse {
+    bytes data = 1;
+}
+
+message PortfolioAddress {
+    string address = 1;
+    string coin_type = 2;
+    string description = 3;
+    double balance = 4;
+}
+
+message GetPortfolioRequest {}
+
+message GetPortfolioResponse {
+    repeated PortfolioAddress portfolio = 1;
+}
+
+message GetPortfolioSummaryRequest {}
+
+message Coin {
+    string coin = 1;
+    double balance = 2;
+    string address = 3;
+    double percentage = 4;
+}
+
+message OfflineCoinSummary {
+    string address = 1;
+    double balance = 2;
+    double percentage = 3;
+}
+
+message OnlineCoinSummary {
+    double balance = 1;
+    double percentage = 2;
+}
+
+message OfflineCoins {
+    repeated OfflineCoinSummary addresses = 1;
+}
+
+message OnlineCoins {
+    map<string, OnlineCoinSummary> coins = 1; 
+}
+
+message GetPortfolioSummaryResponse {
+    repeated Coin coin_totals = 1;
+    repeated Coin coins_offline = 2;
+    map<string, OfflineCoins> coins_offline_summary = 3;
+    repeated Coin coins_online = 4;
+    map<string, OnlineCoins> coins_online_summary = 5;
+}
+
+message AddPortfolioAddressRequest {
+    string address = 1;
+    string coin_type = 2;
+    string description = 3;
+    double balance = 4;
+}
+
+message AddPortfolioAddressResponse {}
+
+message RemovePortfolioAddressRequest {
+    string address = 1;
+    string coin_type = 2;
+    string description = 3;
+}
+
+message RemovePortfolioAddressResponse {}
+
+message GetForexProvidersRequest {}
+
+message ForexProvider {
+    string name = 1;
+    bool enabled = 2;
+    bool verbose = 3;
+    string rest_rolling_delay = 4;
+    string api_key = 5;
+    int64 api_key_level =6;
+    bool primary_provider = 7;
+}
+
+message GetForexProvidersResponse {
+    repeated ForexProvider forex_providers = 1;
+}
+
+message GetForexRatesRequest {}
+
+message ForexRatesConversion {
+    string from = 1;
+    string to = 2;
+    double rate = 3;
+    double inverse_rate = 4;
+
+}
+message GetForexRatesResponse {
+    repeated ForexRatesConversion forex_rates = 1;
+}
+
+message OrderDetails {
+    string exchange = 1;
+    string id = 2;
+    string base_currency = 3;
+    string quote_currency = 4;
+    string asset_type = 5;
+    string order_side = 6;
+    string order_type = 7;
+    int64 creation_time = 8;
+    string status = 9;
+    double price = 10;
+    double amount = 11;
+    double open_volume = 12;
+}
+
+message GetOrdersRequest {
+    string exchange = 1;
+    string asset_type = 2;
+    CurrencyPair pair = 3;
+}
+
+message GetOrdersResponse {
+    repeated OrderDetails orders = 1;
+}
+
+message GetOrderRequest {
+    string exchange = 1;
+    string order_id = 2;
+}
+
+message SubmitOrderRequest {
+    string exchange = 1;
+    CurrencyPair pair = 2;
+    string side = 3;
+    string order_type = 4;
+    double amount = 5;
+    double price = 6;
+    string client_id = 7;
+}
+
+message SubmitOrderResponse {
+    bool order_placed = 1;
+    string order_id = 2;
+}
+
+message CancelOrderRequest {
+    string exchange = 1;
+    string account_id = 2;
+    string order_id = 3;
+    CurrencyPair pair = 4;
+    string asset_type = 5;
+    string wallet_address = 6;
+    string side = 7;
+}
+
+message CancelOrderResponse {}
+
+message CancelAllOrdersRequest {
+    string exchange = 1;
+}
+
+message CancelAllOrdersResponse {
+    message Orders {
+        string exchange = 1;
+        map<string, string> order_status = 2;
+    }
+    repeated Orders orders = 1; 
+}
+
+message GetEventsRequest {}
+
+
+message ConditionParams {
+    string condition = 1;
+    double price = 2;
+    bool check_bids = 3;
+    bool check_bids_and_asks = 4;
+    double orderbook_amount = 5;
+}
+
+message GetEventsResponse {
+    int64 id = 1;
+    string exchange = 2;
+    string item = 3;
+    ConditionParams condition_params = 4;
+    CurrencyPair pair = 5;
+    string action = 6;
+    bool executed = 7;
+}
+
+message AddEventRequest {
+    string exchange = 1;
+    string item = 2;
+    ConditionParams condition_params = 3;
+    CurrencyPair pair = 4;
+    string asset_type = 5;
+    string action = 6;
+}
+
+message AddEventResponse {
+    int64 id = 1;
+}
+
+message RemoveEventRequest {
+    int64 id = 1;
+}
+
+message RemoveEventResponse {}
+
+message GetCryptocurrencyDepositAddressesRequest {
+    string exchange = 1;
+}
+
+message GetCryptocurrencyDepositAddressesResponse {
+    map<string, string> addresses = 1;
+}
+
+message GetCryptocurrencyDepositAddressRequest {
+    string exchange = 1;
+    string cryptocurrency = 2;
+}
+
+message GetCryptocurrencyDepositAddressResponse {
+    string address = 1;
+}
+
+message WithdrawCurrencyRequest {
+    string exchange = 1;
+    string description = 2;
+    string one_time_password = 3;
+    string account_id = 4;
+    int64 pin = 5;
+    string trade_password = 6;
+    string currency = 7;
+    string address = 8;
+    string address_tag = 9;
+    double amount = 10;
+    double fee_amount = 11;
+    string bank_name = 12;
+    string bank_address = 13;
+    string bank_city = 14;
+    string bank_country = 15;
+    string swife_code = 16;
+    string wire_currency = 17;
+}
+
+message WithdrawResponse {
+    string result = 1;
+}
+
+service GoCryptoTrader {
+    rpc GetInfo (GetInfoRequest) returns (GetInfoResponse) {
+        option (google.api.http) = {
+            get :"/v1/getinfo"
+        };
+    }
+
+    rpc GetExchanges (GetExchangesRequest) returns (GetExchangesResponse) {
+        option (google.api.http) = {
+            get: "/v1/getexchanges"
+        };
+    }
+
+    rpc DisableExchange (GenericExchangeNameRequest) returns (GenericExchangeNameResponse) {
+        option (google.api.http) = {
+            post: "/v1/disableexchange"
+            body: "*"
+        };
+    }
+
+    rpc GetExchangeInfo (GenericExchangeNameRequest) returns (GetExchangeInfoResponse) {
+        option (google.api.http) = {
+            get: "/v1/getexchangeinfo"
+        };
+    }
+
+    rpc EnableExchange (GenericExchangeNameRequest) returns (GenericExchangeNameResponse) {
+        option (google.api.http) = {
+            post: "/v1/enableexchange"
+            body: "*"
+        };
+    }
+
+    rpc GetTicker (GetTickerRequest) returns (TickerResponse) {
+        option (google.api.http) = {
+            post: "/v1/getticker"
+            body: "*"
+        };
+    }
+
+    rpc GetTickers (GetTickersRequest) returns (GetTickersResponse) {
+        option (google.api.http) = {
+            get: "/v1/gettickers"
+        };
+    }
+
+    rpc GetOrderbook (GetOrderbookRequest) returns (OrderbookResponse) {
+        option (google.api.http) = {
+            post: "/v1/getorderbook"
+            body: "*"
+        };
+    }
+
+    rpc GetOrderbooks (GetOrderbooksRequest) returns (GetOrderbooksResponse) {
+        option (google.api.http) = {
+            get: "/v1/getorderbooks"
+        };
+    }
+
+    rpc GetAccountInfo (GetAccountInfoRequest) returns (GetAccountInfoResponse) {
+        option (google.api.http) = {
+            get: "/v1/getaccountinfo"
+        };
+    }
+
+    rpc GetConfig (GetConfigRequest) returns (GetConfigResponse) {
+        option (google.api.http) = {
+            get: "/v1/getconfig"
+        };
+    }
+
+    rpc GetPortfolio (GetPortfolioRequest) returns (GetPortfolioResponse) {
+        option (google.api.http) = {
+            get: "/v1/getportfolio"
+        };
+    }
+
+    rpc GetPortfolioSummary (GetPortfolioSummaryRequest) returns (GetPortfolioSummaryResponse) {
+        option (google.api.http) = {
+            get: "/v1/getportfoliosummary"
+        };
+    }
+
+
+    rpc AddPortfolioAddress (AddPortfolioAddressRequest) returns (AddPortfolioAddressResponse) {
+        option (google.api.http) = {
+            post: "/v1/addportfolioaddress"
+            body: "*"
+        };
+    }
+
+    rpc RemovePortfolioAddress (RemovePortfolioAddressRequest) returns (RemovePortfolioAddressResponse) {
+        option (google.api.http) = {
+            post: "/v1/removeportfolioaddress"
+            body: "*"
+        };
+    }
+
+    rpc GetForexProviders (GetForexProvidersRequest) returns (GetForexProvidersResponse) {
+        option (google.api.http) = {
+            get: "/v1/getforexproviders"
+        };
+    }
+
+    rpc GetForexRates (GetForexRatesRequest) returns (GetForexRatesResponse) {
+        option (google.api.http) = {
+            get: "/v1/getforexrates"
+        };
+    }
+
+    rpc GetOrders (GetOrdersRequest) returns (GetOrdersResponse) {
+        option (google.api.http) = {
+            post: "/v1/getorders"
+            body: "*"
+        };
+    }
+
+    rpc GetOrder (GetOrderRequest) returns (OrderDetails) {
+        option (google.api.http) = {
+            post: "/v1/getorder"
+            body: "*"
+        };
+    }
+
+    rpc SubmitOrder (SubmitOrderRequest) returns (SubmitOrderResponse) {
+        option (google.api.http) = {
+            post: "/v1/submitorder"
+            body: "*"
+        };
+    }
+
+    rpc CancelOrder (CancelOrderRequest) returns (CancelOrderResponse) {
+        option (google.api.http) = {
+            post: "/v1/cancelorder"
+            body: "*"
+        };
+    }
+
+    rpc CancelAllOrders (CancelAllOrdersRequest) returns (CancelAllOrdersResponse) {
+        option (google.api.http) = {
+            post: "/v1/cancelallorders"
+            body: "*"
+        };
+    }
+
+    rpc GetEvents(GetEventsRequest) returns (GetEventsResponse) {
+        option (google.api.http) = {
+            get: "/v1/getevents"
+        };
+    }
+
+    rpc AddEvent(AddEventRequest) returns (AddEventResponse) {
+        option (google.api.http) = {
+            post: "/v1/addevent"
+            body: "*"
+        };
+    }
+
+    rpc RemoveEvent(RemoveEventRequest) returns (RemoveEventResponse) {
+        option (google.api.http) = {
+            post: "/v1/removeevent"
+            body: "*"
+        };
+    }
+
+    rpc GetCryptocurrencyDepositAddresses(GetCryptocurrencyDepositAddressesRequest) returns (GetCryptocurrencyDepositAddressesResponse) {
+        option (google.api.http) = {
+            post: "/v1/getcryptodepositaddresses"
+            body: "*"
+        };
+    }
+
+    rpc GetCryptocurrencyDepositAddress(GetCryptocurrencyDepositAddressRequest) returns (GetCryptocurrencyDepositAddressResponse) {
+        option (google.api.http) = {
+            post: "/v1/getcryptodepositaddress"
+            body: "*"
+        };
+    }
+
+    rpc WithdrawCryptocurrencyFunds(WithdrawCurrencyRequest) returns (WithdrawResponse) {
+        option (google.api.http) = {
+            post: "/v1/withdrawcryptofunds"
+            body: "*"
+        };
+    }
+
+    rpc WithdrawFiatFunds(WithdrawCurrencyRequest) returns (WithdrawResponse) {
+        option (google.api.http) = {
+            post: "/v1/withdrawfiatfunds"
+            body: "*"
+        };
+    }
+}

@@ -9,6 +9,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
+	"github.com/thrasher-/gocryptotrader/exchanges/assets"
 )
 
 var y Yobit
@@ -31,11 +32,19 @@ func TestSetup(t *testing.T) {
 	if err != nil {
 		t.Error("Test Failed - Yobit init error")
 	}
-	conf.APIKey = apiKey
-	conf.APISecret = apiSecret
-	conf.AuthenticatedAPISupport = true
+	conf.API.Credentials.Key = apiKey
+	conf.API.Credentials.Secret = apiSecret
+	conf.API.AuthenticatedSupport = true
 
-	y.Setup(&conf)
+	y.Setup(conf)
+}
+
+func TestFetchTradablePairs(t *testing.T) {
+	t.Parallel()
+	_, err := y.FetchTradablePairs(assets.AssetTypeSpot)
+	if err != nil {
+		t.Errorf("Test failed. FetchTradablePairs err: %s", err)
+	}
 }
 
 func TestGetInfo(t *testing.T) {
@@ -104,7 +113,7 @@ func TestCancelOrder(t *testing.T) {
 
 func TestTrade(t *testing.T) {
 	t.Parallel()
-	_, err := y.Trade("", "buy", 0, 0)
+	_, err := y.Trade("", exchange.BuyOrderSide.ToLower().ToString(), 0, 0)
 	if err == nil {
 		t.Error("Test Failed - Trade() error", err)
 	}
@@ -352,11 +361,7 @@ func TestGetOrderHistory(t *testing.T) {
 // Any tests below this line have the ability to impact your orders on the exchange. Enable canManipulateRealOrders to run them
 // ----------------------------------------------------------------------------------------------------------------------------
 func areTestAPIKeysSet() bool {
-	if y.APIKey != "" && y.APIKey != "Key" &&
-		y.APISecret != "" && y.APISecret != "Secret" {
-		return true
-	}
-	return false
+	return y.ValidateAPICredentials()
 }
 
 func TestSubmitOrder(t *testing.T) {
@@ -372,7 +377,7 @@ func TestSubmitOrder(t *testing.T) {
 		Base:      currency.BTC,
 		Quote:     currency.USD,
 	}
-	response, err := y.SubmitOrder(pair, exchange.BuyOrderSide, exchange.MarketOrderType, 1, 10, "hi")
+	response, err := y.SubmitOrder(pair, exchange.BuyOrderSide, exchange.LimitOrderType, 1, 10, "hi")
 	if areTestAPIKeysSet() && (err != nil || !response.IsOrderPlaced) {
 		t.Errorf("Order failed to be placed: %v", err)
 	} else if !areTestAPIKeysSet() && err == nil {

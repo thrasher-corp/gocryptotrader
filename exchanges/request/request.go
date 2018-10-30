@@ -20,10 +20,19 @@ import (
 var supportedMethods = []string{http.MethodGet, http.MethodPost, http.MethodHead,
 	http.MethodPut, http.MethodDelete, http.MethodOptions, http.MethodConnect}
 
+// Const vars for rate limiter
 const (
-	maxRequestJobs              = 50
-	proxyTLSTimeout             = 15 * time.Second
-	defaultTimeoutRetryAttempts = 3
+	DefaultMaxRequestJobs       = 50
+	DefaultTimeoutRetryAttempts = 3
+
+	proxyTLSTimeout = 15 * time.Second
+)
+
+// Vars for rate limiter
+var (
+	MaxRequestJobs       = DefaultMaxRequestJobs
+	TimeoutRetryAttempts = DefaultTimeoutRetryAttempts
+	DisableRateLimiter   bool
 )
 
 // Requester struct for the request client
@@ -41,6 +50,7 @@ type Requester struct {
 	WorkerStarted        bool
 	Nonce                nonce.Nonce
 	fifoLock             sync.Mutex
+	DisableRateLimiter   bool
 }
 
 // RateLimit struct
@@ -145,6 +155,10 @@ func (r *Requester) IsRateLimited(auth bool) bool {
 
 // RequiresRateLimiter returns whether or not the request Requester requires a rate limiter
 func (r *Requester) RequiresRateLimiter() bool {
+	if DisableRateLimiter {
+		return false
+	}
+
 	if r.AuthLimit.GetRate() != 0 || r.UnauthLimit.GetRate() != 0 {
 		return true
 	}
@@ -217,9 +231,9 @@ func New(name string, authLimit, unauthLimit *RateLimit, httpRequester *http.Cli
 		UnauthLimit:          unauthLimit,
 		AuthLimit:            authLimit,
 		Name:                 name,
-		Jobs:                 make(chan Job, maxRequestJobs),
+		Jobs:                 make(chan Job, MaxRequestJobs),
 		disengage:            make(chan struct{}, 1),
-		timeoutRetryAttempts: defaultTimeoutRetryAttempts,
+		timeoutRetryAttempts: TimeoutRetryAttempts,
 	}
 }
 
@@ -427,7 +441,7 @@ func (r *Requester) SendPayload(method, path string, headers map[string]string, 
 		return r.DoRequest(req, path, body, result, authRequest, verbose)
 	}
 
-	if len(r.Jobs) == maxRequestJobs {
+	if len(r.Jobs) == MaxRequestJobs {
 		r.unlock()
 		return errors.New("max request jobs reached")
 	}

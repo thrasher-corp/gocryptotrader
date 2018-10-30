@@ -9,13 +9,107 @@ import (
 	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
+	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
+	"github.com/thrasher-/gocryptotrader/exchanges/assets"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-/gocryptotrader/exchanges/request"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
-
 	log "github.com/thrasher-/gocryptotrader/logger"
 )
+
+// GetDefaultConfig returns a default exchange config
+func (h *HitBTC) GetDefaultConfig() (*config.ExchangeConfig, error) {
+	h.SetDefaults()
+	exchCfg := new(config.ExchangeConfig)
+	exchCfg.Name = h.Name
+	exchCfg.HTTPTimeout = exchange.DefaultHTTPTimeout
+	exchCfg.BaseCurrencies = h.BaseCurrencies
+
+	err := h.SetupDefaults(exchCfg)
+	if err != nil {
+		return nil, err
+	}
+
+	if h.Features.Supports.RESTCapabilities.AutoPairUpdates {
+		err = h.UpdateTradablePairs(true)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return exchCfg, nil
+}
+
+// SetDefaults sets default settings for hitbtc
+func (h *HitBTC) SetDefaults() {
+	h.Name = "HitBTC"
+	h.Enabled = true
+	h.Verbose = true
+	h.APIWithdrawPermissions = exchange.AutoWithdrawCrypto |
+		exchange.NoFiatWithdrawals
+	h.API.CredentialsValidator.RequiresKey = true
+	h.API.CredentialsValidator.RequiresSecret = true
+
+	h.CurrencyPairs = currency.PairsManager{
+		AssetTypes: assets.AssetTypes{
+			assets.AssetTypeSpot,
+		},
+		UseGlobalFormat: true,
+		RequestFormat: &currency.PairFormat{
+			Uppercase: true,
+		},
+		ConfigFormat: &currency.PairFormat{
+			Delimiter: "-",
+			Uppercase: true,
+		},
+	}
+
+	h.Features = exchange.Features{
+		Supports: exchange.FeaturesSupported{
+			REST:      true,
+			Websocket: true,
+			RESTCapabilities: exchange.ProtocolFeatures{
+				AutoPairUpdates: true,
+				TickerBatching:  true,
+			},
+		},
+		Enabled: exchange.FeaturesEnabled{
+			AutoPairUpdates: true,
+		},
+	}
+
+	h.Requester = request.New(h.Name,
+		request.NewRateLimit(time.Second, hitbtcAuthRate),
+		request.NewRateLimit(time.Second, hitbtcUnauthRate),
+		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
+
+	h.API.Endpoints.URLDefault = apiURL
+	h.API.Endpoints.URL = h.API.Endpoints.URLDefault
+	h.WebsocketInit()
+	h.Websocket.Functionality = exchange.WebsocketTickerSupported |
+		exchange.WebsocketOrderbookSupported
+}
+
+// Setup sets user exchange configuration settings
+func (h *HitBTC) Setup(exch *config.ExchangeConfig) error {
+	if !exch.Enabled {
+		h.SetEnabled(false)
+		return nil
+	}
+
+	err := h.SetupDefaults(exch)
+	if err != nil {
+		return err
+	}
+
+	return h.WebsocketSetup(h.WsConnect,
+		exch.Name,
+		exch.Features.Enabled.Websocket,
+		hitbtcWebsocketAddress,
+		exch.API.Endpoints.WebsocketURL)
+}
 
 // Start starts the HitBTC go routine
 func (h *HitBTC) Start(wg *sync.WaitGroup) {
@@ -30,59 +124,67 @@ func (h *HitBTC) Start(wg *sync.WaitGroup) {
 func (h *HitBTC) Run() {
 	if h.Verbose {
 		log.Debugf("%s Websocket: %s (url: %s).\n", h.GetName(), common.IsEnabled(h.Websocket.IsEnabled()), hitbtcWebsocketAddress)
-		log.Debugf("%s polling delay: %ds.\n", h.GetName(), h.RESTPollingDelay)
-		log.Debugf("%s %d currencies enabled: %s.\n", h.GetName(), len(h.EnabledPairs), h.EnabledPairs)
+		h.PrintEnabledPairs()
 	}
 
-	exchangeProducts, err := h.GetSymbolsDetailed()
-	if err != nil {
-		log.Errorf("%s Failed to get available symbols.\n", h.GetName())
-	} else {
-		forceUpgrade := false
-		if !common.StringDataContains(h.EnabledPairs.Strings(), "-") ||
-			!common.StringDataContains(h.AvailablePairs.Strings(), "-") {
-			forceUpgrade = true
-		}
-		var currencies []string
-		for x := range exchangeProducts {
-			currencies = append(currencies, exchangeProducts[x].BaseCurrency+"-"+exchangeProducts[x].QuoteCurrency)
-		}
+	forceUpdate := false
+	if !common.StringDataContains(h.GetEnabledPairs(assets.AssetTypeSpot).Strings(), "-") ||
+		!common.StringDataContains(h.GetAvailablePairs(assets.AssetTypeSpot).Strings(), "-") {
+		enabledPairs := []string{"BTC-USD"}
+		log.Warn("WARNING: Available pairs for HitBTC reset due to config upgrade, please enable the ones you would like again.")
+		forceUpdate = true
 
-		if forceUpgrade {
-			enabledPairs := currency.Pairs{currency.Pair{Base: currency.BTC,
-				Quote: currency.USD, Delimiter: "-"}}
-
-			log.Warn("Available pairs for HitBTC reset due to config upgrade, please enable the ones you would like again.")
-
-			err = h.UpdateCurrencies(enabledPairs, true, true)
-			if err != nil {
-				log.Errorf("%s Failed to update enabled currencies.\n", h.GetName())
-			}
-		}
-
-		var newCurrencies currency.Pairs
-		for _, p := range currencies {
-			newCurrencies = append(newCurrencies,
-				currency.NewPairFromString(p))
-		}
-
-		err = h.UpdateCurrencies(newCurrencies, false, forceUpgrade)
+		err := h.UpdatePairs(currency.NewPairsFromStrings(enabledPairs), assets.AssetTypeSpot, true, true)
 		if err != nil {
-			log.Errorf("%s Failed to update available currencies.\n", h.GetName())
+			log.Errorf("%s failed to update enabled currencies.\n", h.GetName())
 		}
+	}
+
+	if !h.GetEnabledFeatures().AutoPairUpdates && !forceUpdate {
+		return
+	}
+
+	err := h.UpdateTradablePairs(forceUpdate)
+	if err != nil {
+		log.Errorf("%s failed to update tradable pairs. Err: %s", h.Name, err)
 	}
 }
 
+// FetchTradablePairs returns a list of the exchanges tradable pairs
+func (h *HitBTC) FetchTradablePairs(asset assets.AssetType) ([]string, error) {
+	symbols, err := h.GetSymbolsDetailed()
+	if err != nil {
+		return nil, err
+	}
+
+	var pairs []string
+	for x := range symbols {
+		pairs = append(pairs, symbols[x].BaseCurrency+"-"+symbols[x].QuoteCurrency)
+	}
+	return pairs, nil
+}
+
+// UpdateTradablePairs updates the exchanges available pairs and stores
+// them in the exchanges config
+func (h *HitBTC) UpdateTradablePairs(forceUpdate bool) error {
+	pairs, err := h.FetchTradablePairs(assets.AssetTypeSpot)
+	if err != nil {
+		return err
+	}
+
+	return h.UpdatePairs(currency.NewPairsFromStrings(pairs), assets.AssetTypeSpot, false, forceUpdate)
+}
+
 // UpdateTicker updates and returns the ticker for a currency pair
-func (h *HitBTC) UpdateTicker(currencyPair currency.Pair, assetType string) (ticker.Price, error) {
+func (h *HitBTC) UpdateTicker(currencyPair currency.Pair, assetType assets.AssetType) (ticker.Price, error) {
 	tick, err := h.GetTicker("")
 	if err != nil {
 		return ticker.Price{}, err
 	}
 
-	for _, x := range h.GetEnabledCurrencies() {
+	for _, x := range h.GetEnabledPairs(assetType) {
 		var tp ticker.Price
-		curr := exchange.FormatExchangeCurrency(h.GetName(), x).String()
+		curr := h.FormatExchangeCurrency(x, assetType).String()
 		tp.Pair = x
 		tp.Ask = tick[curr].Ask
 		tp.Bid = tick[curr].Bid
@@ -99,28 +201,28 @@ func (h *HitBTC) UpdateTicker(currencyPair currency.Pair, assetType string) (tic
 	return ticker.GetTicker(h.Name, currencyPair, assetType)
 }
 
-// GetTickerPrice returns the ticker for a currency pair
-func (h *HitBTC) GetTickerPrice(currencyPair currency.Pair, assetType string) (ticker.Price, error) {
-	tickerNew, err := ticker.GetTicker(h.GetName(), currencyPair, assetType)
+// FetchTicker returns the ticker for a currency pair
+func (h *HitBTC) FetchTicker(p currency.Pair, assetType assets.AssetType) (ticker.Price, error) {
+	tickerNew, err := ticker.GetTicker(h.GetName(), p, assetType)
 	if err != nil {
-		return h.UpdateTicker(currencyPair, assetType)
+		return h.UpdateTicker(p, assetType)
 	}
 	return tickerNew, nil
 }
 
-// GetOrderbookEx returns orderbook base on the currency pair
-func (h *HitBTC) GetOrderbookEx(currencyPair currency.Pair, assetType string) (orderbook.Base, error) {
-	ob, err := orderbook.Get(h.GetName(), currencyPair, assetType)
+// FetchOrderbook returns orderbook base on the currency pair
+func (h *HitBTC) FetchOrderbook(p currency.Pair, assetType assets.AssetType) (orderbook.Base, error) {
+	ob, err := orderbook.Get(h.GetName(), p, assetType)
 	if err != nil {
-		return h.UpdateOrderbook(currencyPair, assetType)
+		return h.UpdateOrderbook(p, assetType)
 	}
 	return ob, nil
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (h *HitBTC) UpdateOrderbook(currencyPair currency.Pair, assetType string) (orderbook.Base, error) {
+func (h *HitBTC) UpdateOrderbook(currencyPair currency.Pair, assetType assets.AssetType) (orderbook.Base, error) {
 	var orderBook orderbook.Base
-	orderbookNew, err := h.GetOrderbook(exchange.FormatExchangeCurrency(h.GetName(), currencyPair).String(), 1000)
+	orderbookNew, err := h.GetOrderbook(h.FormatExchangeCurrency(currencyPair, assetType).String(), 1000)
 	if err != nil {
 		return orderBook, err
 	}
@@ -181,10 +283,8 @@ func (h *HitBTC) GetFundingHistory() ([]exchange.FundHistory, error) {
 }
 
 // GetExchangeHistory returns historic trade data since exchange opening.
-func (h *HitBTC) GetExchangeHistory(p currency.Pair, assetType string) ([]exchange.TradeHistory, error) {
-	var resp []exchange.TradeHistory
-
-	return resp, common.ErrNotYetImplemented
+func (h *HitBTC) GetExchangeHistory(p currency.Pair, assetType assets.AssetType) ([]exchange.TradeHistory, error) {
+	return nil, common.ErrNotYetImplemented
 }
 
 // SubmitOrder submits a new order
@@ -286,7 +386,7 @@ func (h *HitBTC) GetWebsocket() (*exchange.Websocket, error) {
 
 // GetFeeByType returns an estimate of fee based on type of transaction
 func (h *HitBTC) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) {
-	if (h.APIKey == "" || h.APISecret == "") && // Todo check connection status
+	if !h.AllowAuthenticatedRequest() && // Todo check connection status
 		feeBuilder.FeeType == exchange.CryptocurrencyTradeFee {
 		feeBuilder.FeeType = exchange.OfflineTradeFee
 	}
@@ -311,7 +411,7 @@ func (h *HitBTC) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) ([
 	var orders []exchange.OrderDetail
 	for i := range allOrders {
 		symbol := currency.NewPairDelimiter(allOrders[i].Symbol,
-			h.ConfigCurrencyPairFormat.Delimiter)
+			h.CurrencyPairs.ConfigFormat.Delimiter)
 		side := exchange.OrderSide(strings.ToUpper(allOrders[i].Side))
 		orderDate, err := time.Parse(time.RFC3339, allOrders[i].CreatedAt)
 		if err != nil {
@@ -333,7 +433,6 @@ func (h *HitBTC) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) ([
 	exchange.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks,
 		getOrdersRequest.EndTicks)
 	exchange.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
-
 	return orders, nil
 }
 
@@ -356,7 +455,7 @@ func (h *HitBTC) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) ([
 	var orders []exchange.OrderDetail
 	for i := range allOrders {
 		symbol := currency.NewPairDelimiter(allOrders[i].Symbol,
-			h.ConfigCurrencyPairFormat.Delimiter)
+			h.CurrencyPairs.ConfigFormat.Delimiter)
 		side := exchange.OrderSide(strings.ToUpper(allOrders[i].Side))
 		orderDate, err := time.Parse(time.RFC3339, allOrders[i].CreatedAt)
 		if err != nil {
@@ -377,6 +476,5 @@ func (h *HitBTC) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) ([
 
 	exchange.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
 	exchange.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
-
 	return orders, nil
 }

@@ -31,12 +31,12 @@ func TestSetup(t *testing.T) {
 	if err != nil {
 		t.Error("Test Failed - Gemini Setup() init error")
 	}
-	itbitConfig.AuthenticatedAPISupport = true
-	itbitConfig.APIKey = apiKey
-	itbitConfig.APISecret = apiSecret
-	itbitConfig.ClientID = clientID
+	itbitConfig.API.AuthenticatedSupport = true
+	itbitConfig.API.Credentials.Key = apiKey
+	itbitConfig.API.Credentials.Secret = apiSecret
+	itbitConfig.API.Credentials.ClientID = clientID
 
-	i.Setup(&itbitConfig)
+	i.Setup(itbitConfig)
 }
 
 func TestGetTicker(t *testing.T) {
@@ -106,7 +106,9 @@ func TestGetFundingHistory(t *testing.T) {
 }
 
 func TestPlaceOrder(t *testing.T) {
-	_, err := i.PlaceOrder("1337", "buy", "limit", "USD", 1, 0.2, "banjo", "sauce")
+	_, err := i.PlaceOrder("1337", exchange.BuyOrderSide.ToLower().ToString(),
+		exchange.LimitOrderType.ToLower().ToString(), "USD", 1, 0.2, "banjo",
+		"sauce")
 	if err == nil {
 		t.Error("Test Failed - PlaceOrder() error", err)
 	}
@@ -291,11 +293,7 @@ func TestGetOrderHistory(t *testing.T) {
 // Any tests below this line have the ability to impact your orders on the exchange. Enable canManipulateRealOrders to run them
 // ----------------------------------------------------------------------------------------------------------------------------
 func areTestAPIKeysSet() bool {
-	if i.APIKey != "" && i.APIKey != "Key" &&
-		i.APISecret != "" && i.APISecret != "Secret" {
-		return true
-	}
-	return false
+	return i.ValidateAPICredentials()
 }
 
 func TestSubmitOrder(t *testing.T) {

@@ -61,19 +61,19 @@ func TestSetup(t *testing.T) {
 		t.Error("Test Failed - Gemini Setup() init error")
 	}
 
-	geminiConfig.AuthenticatedAPISupport = true
+	geminiConfig.API.AuthenticatedSupport = true
 
-	Session[1].Setup(&geminiConfig)
-	Session[2].Setup(&geminiConfig)
+	Session[1].Setup(geminiConfig)
+	Session[2].Setup(geminiConfig)
 
-	Session[1].APIKey = apiKey1
-	Session[1].APISecret = apiSecret1
+	Session[1].API.Credentials.Key = apiKey1
+	Session[1].API.Credentials.Secret = apiSecret1
 
-	Session[2].APIKey = apiKey2
-	Session[2].APISecret = apiSecret2
+	Session[2].API.Credentials.Key = apiKey2
+	Session[2].API.Credentials.Secret = apiSecret2
 
-	Session[1].APIUrl = geminiSandboxAPIURL
-	Session[2].APIUrl = geminiSandboxAPIURL
+	Session[1].API.Endpoints.URL = geminiSandboxAPIURL
+	Session[2].API.Endpoints.URL = geminiSandboxAPIURL
 }
 
 func TestGetSymbols(t *testing.T) {
@@ -140,11 +140,13 @@ func TestGetAuctionHistory(t *testing.T) {
 
 func TestNewOrder(t *testing.T) {
 	t.Parallel()
-	_, err := Session[1].NewOrder("btcusd", 1, 4500, "buy", "exchange limit")
+	_, err := Session[1].NewOrder("btcusd", 1, 4500,
+		exchange.BuyOrderSide.ToLower().ToString(), "exchange limit")
 	if err == nil {
 		t.Error("Test Failed - NewOrder() error", err)
 	}
-	_, err = Session[2].NewOrder("btcusd", 1, 4500, "buy", "exchange limit")
+	_, err = Session[2].NewOrder("btcusd", 1, 4500,
+		exchange.BuyOrderSide.ToLower().ToString(), "exchange limit")
 	if err == nil {
 		t.Error("Test Failed - NewOrder() error", err)
 	}
@@ -395,11 +397,7 @@ func TestGetOrderHistory(t *testing.T) {
 // Any tests below this line have the ability to impact your orders on the exchange. Enable canManipulateRealOrders to run them
 // ----------------------------------------------------------------------------------------------------------------------------
 func areTestAPIKeysSet() bool {
-	if Session[1].APIKey != "" && Session[1].APIKey != "Key" &&
-		Session[1].APISecret != "" && Session[1].APISecret != "Secret" {
-		return true
-	}
-	return false
+	return Session[1].ValidateAPICredentials()
 }
 
 func TestSubmitOrder(t *testing.T) {
@@ -416,7 +414,8 @@ func TestSubmitOrder(t *testing.T) {
 		Base:      currency.LTC,
 		Quote:     currency.BTC,
 	}
-	response, err := Session[1].SubmitOrder(p, exchange.BuyOrderSide, exchange.MarketOrderType, 1, 10, "1234234")
+	response, err := Session[1].SubmitOrder(p, exchange.BuyOrderSide,
+		exchange.LimitOrderType, 1, 10, "1234234")
 	if areTestAPIKeysSet() && (err != nil || !response.IsOrderPlaced) {
 		t.Errorf("Order failed to be placed: %v", err)
 	} else if !areTestAPIKeysSet() && err == nil {

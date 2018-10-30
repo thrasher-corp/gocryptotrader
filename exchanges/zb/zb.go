@@ -14,11 +14,7 @@ import (
 
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-/gocryptotrader/common"
-	"github.com/thrasher-/gocryptotrader/config"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
-	"github.com/thrasher-/gocryptotrader/exchanges/request"
-	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
-	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
 const (
@@ -51,90 +47,12 @@ type ZB struct {
 	exchange.Base
 }
 
-// SetDefaults sets default values for the exchange
-func (z *ZB) SetDefaults() {
-	z.Name = "ZB"
-	z.Enabled = false
-	z.Fee = 0
-	z.Verbose = false
-	z.RESTPollingDelay = 10
-	z.APIWithdrawPermissions = exchange.AutoWithdrawCrypto |
-		exchange.NoFiatWithdrawals
-	z.RequestCurrencyPairFormat.Delimiter = "_"
-	z.RequestCurrencyPairFormat.Uppercase = false
-	z.ConfigCurrencyPairFormat.Delimiter = "_"
-	z.ConfigCurrencyPairFormat.Uppercase = true
-	z.AssetTypes = []string{ticker.Spot}
-	z.SupportsAutoPairUpdating = true
-	z.SupportsRESTTickerBatching = true
-	z.Requester = request.New(z.Name,
-		request.NewRateLimit(time.Second*10, zbAuthRate),
-		request.NewRateLimit(time.Second*10, zbUnauthRate),
-		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
-	z.APIUrlDefault = zbTradeURL
-	z.APIUrl = z.APIUrlDefault
-	z.APIUrlSecondaryDefault = zbMarketURL
-	z.APIUrlSecondary = z.APIUrlSecondaryDefault
-	z.WebsocketInit()
-	z.Websocket.Functionality = exchange.WebsocketTickerSupported |
-		exchange.WebsocketOrderbookSupported |
-		exchange.WebsocketTradeDataSupported
-}
-
-// Setup sets user configuration
-func (z *ZB) Setup(exch *config.ExchangeConfig) {
-	if !exch.Enabled {
-		z.SetEnabled(false)
-	} else {
-		z.Enabled = true
-		z.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
-		z.SetAPIKeys(exch.APIKey, exch.APISecret, "", false)
-		z.APIAuthPEMKey = exch.APIAuthPEMKey
-		z.SetHTTPClientTimeout(exch.HTTPTimeout)
-		z.SetHTTPClientUserAgent(exch.HTTPUserAgent)
-		z.RESTPollingDelay = exch.RESTPollingDelay
-		z.Verbose = exch.Verbose
-		z.Websocket.SetWsStatusAndConnection(exch.Websocket)
-		z.BaseCurrencies = exch.BaseCurrencies
-		z.AvailablePairs = exch.AvailablePairs
-		z.EnabledPairs = exch.EnabledPairs
-		err := z.SetCurrencyPairFormat()
-		if err != nil {
-			log.Fatal(err)
-		}
-		err = z.SetAssetTypes()
-		if err != nil {
-			log.Fatal(err)
-		}
-		err = z.SetAutoPairDefaults()
-		if err != nil {
-			log.Fatal(err)
-		}
-		err = z.SetAPIURL(exch)
-		if err != nil {
-			log.Fatal(err)
-		}
-		err = z.SetClientProxyAddress(exch.ProxyAddress)
-		if err != nil {
-			log.Fatal(err)
-		}
-		err = z.WebsocketSetup(z.WsConnect,
-			exch.Name,
-			exch.Websocket,
-			zbWebsocketAPI,
-			exch.WebsocketURL)
-		if err != nil {
-			log.Fatal(err)
-		}
-	}
-}
-
 // SpotNewOrder submits an order to ZB
 func (z *ZB) SpotNewOrder(arg SpotNewOrderRequestParams) (int64, error) {
 	var result SpotNewOrderResponse
 
 	vals := url.Values{}
-	vals.Set("accesskey", z.APIKey)
+	vals.Set("accesskey", z.API.Credentials.Key)
 	vals.Set("method", "order")
 	vals.Set("amount", strconv.FormatFloat(arg.Amount, 'f', -1, 64))
 	vals.Set("currency", arg.Symbol)
@@ -163,7 +81,7 @@ func (z *ZB) CancelExistingOrder(orderID int64, symbol string) error {
 	}
 
 	vals := url.Values{}
-	vals.Set("accesskey", z.APIKey)
+	vals.Set("accesskey", z.API.Credentials.Key)
 	vals.Set("method", "cancelOrder")
 	vals.Set("id", strconv.FormatInt(orderID, 10))
 	vals.Set("currency", symbol)
@@ -186,7 +104,7 @@ func (z *ZB) GetAccountInformation() (AccountsResponse, error) {
 	var result AccountsResponse
 
 	vals := url.Values{}
-	vals.Set("accesskey", z.APIKey)
+	vals.Set("accesskey", z.API.Credentials.Key)
 	vals.Set("method", "getAccountInfo")
 
 	return result, z.SendAuthenticatedHTTPRequest(http.MethodGet, vals, &result)
@@ -196,7 +114,7 @@ func (z *ZB) GetAccountInformation() (AccountsResponse, error) {
 func (z *ZB) GetUnfinishedOrdersIgnoreTradeType(currency string, pageindex, pagesize int64) ([]Order, error) {
 	var result []Order
 	vals := url.Values{}
-	vals.Set("accesskey", z.APIKey)
+	vals.Set("accesskey", z.API.Credentials.Key)
 	vals.Set("method", zbUnfinishedOrdersIgnoreTradeType)
 	vals.Set("currency", currency)
 	vals.Set("pageIndex", strconv.FormatInt(pageindex, 10))
@@ -210,7 +128,7 @@ func (z *ZB) GetUnfinishedOrdersIgnoreTradeType(currency string, pageindex, page
 func (z *ZB) GetOrders(currency string, pageindex, side int64) ([]Order, error) {
 	var response []Order
 	vals := url.Values{}
-	vals.Set("accesskey", z.APIKey)
+	vals.Set("accesskey", z.API.Credentials.Key)
 	vals.Set("method", zbGetOrdersGet)
 	vals.Set("currency", currency)
 	vals.Set("pageIndex", strconv.FormatInt(pageindex, 10))
@@ -221,7 +139,7 @@ func (z *ZB) GetOrders(currency string, pageindex, side int64) ([]Order, error) 
 // GetMarkets returns market information including pricing, symbols and
 // each symbols decimal precision
 func (z *ZB) GetMarkets() (map[string]MarketResponseItem, error) {
-	endpoint := fmt.Sprintf("%s/%s/%s", z.APIUrl, zbAPIVersion, zbMarkets)
+	endpoint := fmt.Sprintf("%s/%s/%s", z.API.Endpoints.URL, zbAPIVersion, zbMarkets)
 
 	var res interface{}
 	err := z.SendHTTPRequest(endpoint, &res)
@@ -257,30 +175,36 @@ func (z *ZB) GetLatestSpotPrice(symbol string) (float64, error) {
 
 // GetTicker returns a ticker for a given symbol
 func (z *ZB) GetTicker(symbol string) (TickerResponse, error) {
-	urlPath := fmt.Sprintf("%s/%s/%s?market=%s", z.APIUrl, zbAPIVersion, zbTicker, symbol)
+	urlPath := fmt.Sprintf("%s/%s/%s?market=%s", z.API.Endpoints.URL, zbAPIVersion, zbTicker, symbol)
 	var res TickerResponse
-
 	err := z.SendHTTPRequest(urlPath, &res)
 	return res, err
 }
 
 // GetTickers returns ticker data for all supported symbols
 func (z *ZB) GetTickers() (map[string]TickerChildResponse, error) {
-	urlPath := fmt.Sprintf("%s/%s/%s", z.APIUrl, zbAPIVersion, zbTickers)
+	urlPath := fmt.Sprintf("%s/%s/%s", z.API.Endpoints.URL, zbAPIVersion, zbTickers)
 	resp := make(map[string]TickerChildResponse)
-
 	err := z.SendHTTPRequest(urlPath, &resp)
 	return resp, err
 }
 
 // GetOrderbook returns the orderbook for a given symbol
 func (z *ZB) GetOrderbook(symbol string) (OrderbookResponse, error) {
-	urlPath := fmt.Sprintf("%s/%s/%s?market=%s", z.APIUrl, zbAPIVersion, zbDepth, symbol)
+	urlPath := fmt.Sprintf("%s/%s/%s?market=%s", z.API.Endpoints.URL, zbAPIVersion, zbDepth, symbol)
 	var res OrderbookResponse
 
 	err := z.SendHTTPRequest(urlPath, &res)
 	if err != nil {
 		return res, err
+	}
+
+	if len(res.Asks) == 0 {
+		return res, fmt.Errorf("ZB GetOrderbook asks is empty")
+	}
+
+	if len(res.Bids) == 0 {
+		return res, fmt.Errorf("ZB GetOrderbook bids is empty")
 	}
 
 	// reverse asks data
@@ -305,7 +229,7 @@ func (z *ZB) GetSpotKline(arg KlinesRequestParams) (KLineResponse, error) {
 		vals.Set("size", fmt.Sprintf("%d", arg.Size))
 	}
 
-	urlPath := fmt.Sprintf("%s/%s/%s?%s", z.APIUrl, zbAPIVersion, zbKline, vals.Encode())
+	urlPath := fmt.Sprintf("%s/%s/%s?%s", z.API.Endpoints.URL, zbAPIVersion, zbKline, vals.Encode())
 
 	var res KLineResponse
 	var rawKlines map[string]interface{}
@@ -366,21 +290,21 @@ func (z *ZB) SendHTTPRequest(path string, result interface{}) error {
 
 // SendAuthenticatedHTTPRequest sends authenticated requests to the zb API
 func (z *ZB) SendAuthenticatedHTTPRequest(httpMethod string, params url.Values, result interface{}) error {
-	if !z.AuthenticatedAPISupport {
+	if !z.AllowAuthenticatedRequest() {
 		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet, z.Name)
 	}
 
-	params.Set("accesskey", z.APIKey)
+	params.Set("accesskey", z.API.Credentials.Key)
 
 	hmac := common.GetHMAC(common.HashMD5,
 		[]byte(params.Encode()),
-		[]byte(common.Sha1ToHex(z.APISecret)))
+		[]byte(common.Sha1ToHex(z.API.Credentials.Secret)))
 
 	params.Set("reqTime", fmt.Sprintf("%d", common.UnixMillis(time.Now())))
 	params.Set("sign", fmt.Sprintf("%x", hmac))
 
 	urlPath := fmt.Sprintf("%s/%s?%s",
-		z.APIUrlSecondary,
+		z.API.Endpoints.URLSecondary,
 		params.Get("method"),
 		params.Encode())
 
@@ -487,7 +411,7 @@ func (z *ZB) Withdraw(currency, address, safepassword string, amount, fees float
 	}
 
 	vals := url.Values{}
-	vals.Set("accesskey", z.APIKey)
+	vals.Set("accesskey", z.API.Credentials.Key)
 	vals.Set("amount", fmt.Sprintf("%v", amount))
 	vals.Set("currency", currency)
 	vals.Set("fees", fmt.Sprintf("%v", fees))

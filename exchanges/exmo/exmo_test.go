@@ -30,15 +30,12 @@ func TestSetup(t *testing.T) {
 	if err != nil {
 		t.Error("Test Failed - OKCoin Setup() init error")
 	}
-	exmoConf.AuthenticatedAPISupport = true
-	exmoConf.APIKey = APIKey
-	exmoConf.APISecret = APISecret
 
-	e.Setup(&exmoConf)
+	e.Setup(exmoConf)
 
-	e.AuthenticatedAPISupport = true
-	e.APIKey = APIKey
-	e.APISecret = APISecret
+	e.API.AuthenticatedSupport = true
+	e.API.Credentials.Key = APIKey
+	e.API.Credentials.Secret = APISecret
 }
 
 func TestGetTrades(t *testing.T) {
@@ -299,11 +296,7 @@ func TestGetOrderHistory(t *testing.T) {
 // Any tests below this line have the ability to impact your orders on the exchange. Enable canManipulateRealOrders to run them
 // ----------------------------------------------------------------------------------------------------------------------------
 func areTestAPIKeysSet() bool {
-	if e.APIKey != "" && e.APIKey != "Key" &&
-		e.APISecret != "" && e.APISecret != "Secret" {
-		return true
-	}
-	return false
+	return e.ValidateAPICredentials()
 }
 
 func TestSubmitOrder(t *testing.T) {
@@ -318,7 +311,8 @@ func TestSubmitOrder(t *testing.T) {
 		Base:      currency.BTC,
 		Quote:     currency.USD,
 	}
-	response, err := e.SubmitOrder(p, exchange.BuyOrderSide, exchange.MarketOrderType, 1, 10, "1234234")
+	response, err := e.SubmitOrder(p, exchange.BuyOrderSide,
+		exchange.LimitOrderType, 1, 10, "1234234")
 	if areTestAPIKeysSet() && (err != nil || !response.IsOrderPlaced) {
 		t.Errorf("Order failed to be placed: %v", err)
 	} else if !areTestAPIKeysSet() && err == nil {

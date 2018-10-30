@@ -7,6 +7,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
+	"github.com/thrasher-/gocryptotrader/exchanges/assets"
 )
 
 // Please supply your own keys here for due diligence testing
@@ -30,17 +31,17 @@ func TestSetup(t *testing.T) {
 		t.Error("Test Failed - Binance Setup() init error")
 	}
 
-	binanceConfig.AuthenticatedAPISupport = true
-	binanceConfig.APIKey = apiKey
-	binanceConfig.APISecret = apiSecret
-	b.Setup(&binanceConfig)
+	binanceConfig.API.AuthenticatedSupport = true
+	binanceConfig.API.Credentials.Key = apiKey
+	binanceConfig.API.Credentials.Secret = apiSecret
+	b.Setup(binanceConfig)
 }
 
-func TestGetExchangeValidCurrencyPairs(t *testing.T) {
+func TestFetchTradablePairs(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetExchangeValidCurrencyPairs()
+	_, err := b.FetchTradablePairs(assets.AssetTypeSpot)
 	if err != nil {
-		t.Error("Test Failed - Binance GetExchangeValidCurrencyPairs() error", err)
+		t.Error("Test Failed - Binance FetchTradablePairs(asset asets.AssetType) error", err)
 	}
 }
 
@@ -145,7 +146,7 @@ func TestNewOrder(t *testing.T) {
 	}
 	_, err := b.NewOrder(&NewOrderRequest{
 		Symbol:      "BTCUSDT",
-		Side:        BinanceRequestParamsSideSell,
+		Side:        exchange.SellOrderSide.ToString(),
 		TradeType:   BinanceRequestParamsOrderLimit,
 		TimeInForce: BinanceRequestParamsTimeGTC,
 		Quantity:    0.01,
@@ -394,11 +395,7 @@ func TestGetOrderHistory(t *testing.T) {
 // -----------------------------------------------------------------------------------------------------------------------------
 
 func areTestAPIKeysSet() bool {
-	if b.APIKey != "" && b.APIKey != "Key" &&
-		b.APISecret != "" && b.APISecret != "Secret" {
-		return true
-	}
-	return false
+	return b.ValidateAPICredentials()
 }
 
 func TestSubmitOrder(t *testing.T) {
@@ -410,7 +407,8 @@ func TestSubmitOrder(t *testing.T) {
 		Base:      currency.LTC,
 		Quote:     currency.BTC,
 	}
-	response, err := b.SubmitOrder(p, exchange.BuyOrderSide, exchange.MarketOrderType, 1, 1, "clientId")
+	response, err := b.SubmitOrder(p, exchange.BuyOrderSide,
+		exchange.LimitOrderType, 1, 1, "clientId")
 	if areTestAPIKeysSet() && (err != nil || !response.IsOrderPlaced) {
 		t.Errorf("Order failed to be placed: %v", err)
 	} else if !areTestAPIKeysSet() && err == nil {

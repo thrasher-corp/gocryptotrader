@@ -13,6 +13,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
+	"github.com/thrasher-/gocryptotrader/exchanges/assets"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	log "github.com/thrasher-/gocryptotrader/logger"
 )
@@ -24,16 +25,17 @@ const (
 // WebsocketSubscriber subscribes to websocket channels with respect to enabled
 // currencies
 func (b *BTSE) WebsocketSubscriber() error {
+	currencies := b.GetEnabledPairs(assets.AssetTypeSpot).Strings()
 	subscribe := websocketSubscribe{
 		Type: "subscribe",
 		Channels: []websocketChannel{
 			{
 				Name:       "snapshot",
-				ProductIDs: b.EnabledPairs.Strings(),
+				ProductIDs: currencies,
 			},
 			{
 				Name:       "ticker",
-				ProductIDs: b.EnabledPairs.Strings(),
+				ProductIDs: currencies,
 			},
 		},
 	}

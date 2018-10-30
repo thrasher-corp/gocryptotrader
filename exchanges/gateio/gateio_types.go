@@ -7,17 +7,6 @@ import (
 	"github.com/thrasher-/gocryptotrader/currency"
 )
 
-// SpotNewOrderRequestParamsType order type (buy or sell)
-type SpotNewOrderRequestParamsType string
-
-var (
-	// SpotNewOrderRequestParamsTypeBuy buy order
-	SpotNewOrderRequestParamsTypeBuy = SpotNewOrderRequestParamsType("buy")
-
-	// SpotNewOrderRequestParamsTypeSell sell order
-	SpotNewOrderRequestParamsTypeSell = SpotNewOrderRequestParamsType("sell")
-)
-
 // TimeInterval Interval represents interval enum.
 type TimeInterval int
 
@@ -116,10 +105,10 @@ type Orderbook struct {
 
 // SpotNewOrderRequestParams Order params
 type SpotNewOrderRequestParams struct {
-	Amount float64                       `json:"amount"` // Order quantity
-	Price  float64                       `json:"price"`  // Order price
-	Symbol string                        `json:"symbol"` // Trading pair; btc_usdt, eth_btc......
-	Type   SpotNewOrderRequestParamsType `json:"type"`   // Order type (buy or sell),
+	Amount float64 `json:"amount"` // Order quantity
+	Price  float64 `json:"price"`  // Order price
+	Symbol string  `json:"symbol"` // Trading pair; btc_usdt, eth_btc......
+	Type   string  `json:"type"`   // Order type (buy or sell),
 }
 
 // SpotNewOrderResponse Order response

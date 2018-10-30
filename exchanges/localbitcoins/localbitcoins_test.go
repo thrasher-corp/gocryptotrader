@@ -30,11 +30,11 @@ func TestSetup(t *testing.T) {
 	if err != nil {
 		t.Error("Test Failed - LakeBTC Setup() init error")
 	}
-	localbitcoinsConfig.AuthenticatedAPISupport = true
-	localbitcoinsConfig.APIKey = apiKey
-	localbitcoinsConfig.APISecret = apiSecret
+	localbitcoinsConfig.API.AuthenticatedSupport = true
+	localbitcoinsConfig.API.Credentials.Key = apiKey
+	localbitcoinsConfig.API.Credentials.Secret = apiSecret
 
-	l.Setup(&localbitcoinsConfig)
+	l.Setup(localbitcoinsConfig)
 }
 
 func TestGetTicker(t *testing.T) {
@@ -55,7 +55,7 @@ func TestGetTradableCurrencies(t *testing.T) {
 
 func TestGetAccountInfo(t *testing.T) {
 	t.Parallel()
-	if l.APIKey == "" || l.APISecret == "" {
+	if !l.ValidateAPICredentials() {
 		t.Skip()
 	}
 	_, err := l.GetAccountInformation("", true)
@@ -70,7 +70,7 @@ func TestGetAccountInfo(t *testing.T) {
 
 func TestGetads(t *testing.T) {
 	t.Parallel()
-	if l.APIKey == "" || l.APISecret == "" {
+	if !l.ValidateAPICredentials() {
 		t.Skip()
 	}
 	_, err := l.Getads("")
@@ -85,7 +85,7 @@ func TestGetads(t *testing.T) {
 
 func TestEditAd(t *testing.T) {
 	t.Parallel()
-	if l.APIKey == "" || l.APISecret == "" {
+	if !l.ValidateAPICredentials() {
 		t.Skip()
 	}
 	edit := AdEdit{}
@@ -245,11 +245,7 @@ func TestGetOrderHistory(t *testing.T) {
 // Any tests below this line have the ability to impact your orders on the exchange. Enable canManipulateRealOrders to run them
 // ----------------------------------------------------------------------------------------------------------------------------
 func areTestAPIKeysSet() bool {
-	if l.APIKey != "" && l.APIKey != "Key" &&
-		l.APISecret != "" && l.APISecret != "Secret" {
-		return true
-	}
-	return false
+	return l.ValidateAPICredentials()
 }
 
 func TestSubmitOrder(t *testing.T) {
@@ -265,7 +261,7 @@ func TestSubmitOrder(t *testing.T) {
 		Base:      currency.BTC,
 		Quote:     currency.EUR,
 	}
-	response, err := l.SubmitOrder(p, exchange.BuyOrderSide, exchange.MarketOrderType, 1, 10, "hi")
+	response, err := l.SubmitOrder(p, exchange.BuyOrderSide, exchange.LimitOrderType, 1, 10, "hi")
 	if areTestAPIKeysSet() && (err != nil || !response.IsOrderPlaced) {
 		t.Errorf("Order failed to be placed: %v", err)
 	} else if !areTestAPIKeysSet() && err == nil {

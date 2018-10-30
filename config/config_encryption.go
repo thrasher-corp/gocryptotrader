@@ -33,7 +33,7 @@ var (
 
 // PromptForConfigEncryption asks for encryption key
 func (c *Config) PromptForConfigEncryption() bool {
-	log.Println("Would you like to encrypt your config file (y/n)?")
+	log.Infof("Would you like to encrypt your config file (y/n)?")
 
 	input := ""
 	_, err := fmt.Scanln(&input)

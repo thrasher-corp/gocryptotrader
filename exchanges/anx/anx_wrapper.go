@@ -8,12 +8,109 @@ import (
 	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
+	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
+	"github.com/thrasher-/gocryptotrader/exchanges/assets"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-/gocryptotrader/exchanges/request"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 	log "github.com/thrasher-/gocryptotrader/logger"
 )
+
+// GetDefaultConfig returns a default exchange config for Alphapoint
+func (a *ANX) GetDefaultConfig() (*config.ExchangeConfig, error) {
+	a.SetDefaults()
+	exchCfg := new(config.ExchangeConfig)
+	exchCfg.Name = a.Name
+	exchCfg.HTTPTimeout = exchange.DefaultHTTPTimeout
+	exchCfg.BaseCurrencies = a.BaseCurrencies
+
+	err := a.SetupDefaults(exchCfg)
+	if err != nil {
+		return nil, err
+	}
+
+	if a.Features.Supports.RESTCapabilities.AutoPairUpdates {
+		err = a.UpdateTradablePairs(true)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return exchCfg, nil
+}
+
+// SetDefaults sets current default settings
+func (a *ANX) SetDefaults() {
+	a.Name = "ANX"
+	a.Enabled = true
+	a.Verbose = true
+	a.BaseCurrencies = currency.Currencies{
+		currency.USD,
+		currency.HKD,
+		currency.EUR,
+		currency.CAD,
+		currency.AUD,
+		currency.SGD,
+		currency.JPY,
+		currency.GBP,
+		currency.NZD,
+	}
+	a.API.CredentialsValidator.RequiresKey = true
+	a.API.CredentialsValidator.RequiresSecret = true
+
+	a.APIWithdrawPermissions = exchange.WithdrawCryptoWithEmail |
+		exchange.AutoWithdrawCryptoWithSetup |
+		exchange.WithdrawCryptoWith2FA |
+		exchange.WithdrawFiatViaWebsiteOnly
+
+	a.CurrencyPairs = currency.PairsManager{
+		AssetTypes: assets.AssetTypes{
+			assets.AssetTypeSpot,
+		},
+		UseGlobalFormat: true,
+		RequestFormat: &currency.PairFormat{
+			Uppercase: true,
+		},
+		ConfigFormat: &currency.PairFormat{
+			Delimiter: "_",
+			Uppercase: true,
+		},
+	}
+
+	a.Features = exchange.Features{
+		Supports: exchange.FeaturesSupported{
+			REST:      true,
+			Websocket: false,
+			RESTCapabilities: exchange.ProtocolFeatures{
+				AutoPairUpdates: true,
+				TickerBatching:  false,
+			},
+		},
+		Enabled: exchange.FeaturesEnabled{
+			AutoPairUpdates: false,
+		},
+	}
+
+	a.Requester = request.New(a.Name,
+		request.NewRateLimit(time.Second, anxAuthRate),
+		request.NewRateLimit(time.Second, anxUnauthRate),
+		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
+
+	a.API.Endpoints.URLDefault = anxAPIURL
+	a.API.Endpoints.URL = a.API.Endpoints.URLDefault
+}
+
+// Setup is run on startup to setup exchange with config values
+func (a *ANX) Setup(exch *config.ExchangeConfig) error {
+	if !exch.Enabled {
+		a.SetEnabled(false)
+		return nil
+	}
+
+	return a.SetupDefaults(exch)
+}
 
 // Start starts the ANX go routine
 func (a *ANX) Start(wg *sync.WaitGroup) {
@@ -27,52 +124,46 @@ func (a *ANX) Start(wg *sync.WaitGroup) {
 // Run implements the ANX wrapper
 func (a *ANX) Run() {
 	if a.Verbose {
-		log.Debugf("%s polling delay: %ds.\n", a.GetName(), a.RESTPollingDelay)
-		log.Debugf("%s %d currencies enabled: %s.\n", a.GetName(), len(a.EnabledPairs), a.EnabledPairs)
+		a.PrintEnabledPairs()
 	}
 
-	tradablePairs, err := a.GetTradablePairs()
-	if err != nil {
-		log.Debugf("%s Failed to get available symbols.\n", a.GetName())
-	} else {
-		forceUpgrade := false
-		if !common.StringDataContains(a.EnabledPairs.Strings(), "_") ||
-			!common.StringDataContains(a.AvailablePairs.Strings(), "_") {
-			forceUpgrade = true
-		}
+	forceUpdate := false
+	if !common.StringDataContains(a.GetEnabledPairs(assets.AssetTypeSpot).Strings(), "_") ||
+		!common.StringDataContains(a.GetAvailablePairs(assets.AssetTypeSpot).Strings(), "_") {
+		enabledPairs := currency.NewPairsFromStrings([]string{"BTC_USD,BTC_HKD,BTC_EUR,BTC_CAD,BTC_AUD,BTC_SGD,BTC_JPY,BTC_GBP,BTC_NZD,LTC_BTC,DOG_EBTC,STR_BTC,XRP_BTC"})
+		log.Warn("WARNING: Enabled pairs for ANX reset due to config upgrade, please enable the ones you would like again.")
 
-		if forceUpgrade {
-			newPairs := []string{"BTC_USD,BTC_HKD,BTC_EUR,BTC_CAD,BTC_AUD,BTC_SGD,BTC_JPY,BTC_GBP,BTC_NZD,LTC_BTC,DOG_EBTC,STR_BTC,XRP_BTC"}
-
-			var enabledPairs currency.Pairs
-			for _, p := range newPairs {
-				enabledPairs = append(enabledPairs,
-					currency.NewPairDelimiter(p, "_"))
-			}
-
-			log.Warn("Enabled pairs for ANX reset due to config upgrade, please enable the ones you would like again.")
-
-			err = a.UpdateCurrencies(enabledPairs, true, true)
-			if err != nil {
-				log.Errorf("%s Failed to get config.\n", a.GetName())
-			}
-		}
-
-		var exchangeProducts currency.Pairs
-		for _, p := range tradablePairs {
-			exchangeProducts = append(exchangeProducts,
-				currency.NewPairDelimiter(p, "_"))
-		}
-
-		err = a.UpdateCurrencies(exchangeProducts, false, forceUpgrade)
+		forceUpdate = true
+		err := a.UpdatePairs(enabledPairs, assets.AssetTypeSpot, true, true)
 		if err != nil {
-			log.Errorf("%s Failed to get config.\n", a.GetName())
+			log.Errorf("%s failed to update currencies.\n", a.GetName())
+			return
 		}
+	}
+
+	if !a.GetEnabledFeatures().AutoPairUpdates && !forceUpdate {
+		return
+	}
+
+	err := a.UpdateTradablePairs(forceUpdate)
+	if err != nil {
+		log.Errorf("%s failed to update tradable pairs. Err: %s", a.GetName(), err)
 	}
 }
 
-// GetTradablePairs returns a list of available
-func (a *ANX) GetTradablePairs() ([]string, error) {
+// UpdateTradablePairs updates the exchanges available pairs and stores
+// them in the exchanges config
+func (a *ANX) UpdateTradablePairs(forceUpdate bool) error {
+	pairs, err := a.FetchTradablePairs(assets.AssetTypeSpot)
+	if err != nil {
+		return err
+	}
+
+	return a.UpdatePairs(currency.NewPairsFromStrings(pairs), assets.AssetTypeSpot, false, forceUpdate)
+}
+
+// FetchTradablePairs returns a list of the exchanges tradable pairs
+func (a *ANX) FetchTradablePairs(asset assets.AssetType) ([]string, error) {
 	result, err := a.GetCurrencies()
 	if err != nil {
 		return nil, err
@@ -87,9 +178,9 @@ func (a *ANX) GetTradablePairs() ([]string, error) {
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
-func (a *ANX) UpdateTicker(p currency.Pair, assetType string) (ticker.Price, error) {
+func (a *ANX) UpdateTicker(p currency.Pair, assetType assets.AssetType) (ticker.Price, error) {
 	var tickerPrice ticker.Price
-	tick, err := a.GetTicker(exchange.FormatExchangeCurrency(a.GetName(), p).String())
+	tick, err := a.GetTicker(a.FormatExchangeCurrency(p, assetType).String())
 	if err != nil {
 		return tickerPrice, err
 	}
@@ -158,8 +249,8 @@ func (a *ANX) UpdateTicker(p currency.Pair, assetType string) (ticker.Price, err
 	return ticker.GetTicker(a.Name, p, assetType)
 }
 
-// GetTickerPrice returns the ticker for a currency pair
-func (a *ANX) GetTickerPrice(p currency.Pair, assetType string) (ticker.Price, error) {
+// FetchTicker returns the ticker for a currency pair
+func (a *ANX) FetchTicker(p currency.Pair, assetType assets.AssetType) (ticker.Price, error) {
 	tickerNew, err := ticker.GetTicker(a.GetName(), p, assetType)
 	if err != nil {
 		return a.UpdateTicker(p, assetType)
@@ -167,8 +258,8 @@ func (a *ANX) GetTickerPrice(p currency.Pair, assetType string) (ticker.Price, e
 	return tickerNew, nil
 }
 
-// GetOrderbookEx returns the orderbook for a currency pair
-func (a *ANX) GetOrderbookEx(p currency.Pair, assetType string) (orderbook.Base, error) {
+// FetchOrderbook returns the orderbook for a currency pair
+func (a *ANX) FetchOrderbook(p currency.Pair, assetType assets.AssetType) (orderbook.Base, error) {
 	ob, err := orderbook.Get(a.GetName(), p, assetType)
 	if err != nil {
 		return a.UpdateOrderbook(p, assetType)
@@ -177,9 +268,9 @@ func (a *ANX) GetOrderbookEx(p currency.Pair, assetType string) (orderbook.Base,
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (a *ANX) UpdateOrderbook(p currency.Pair, assetType string) (orderbook.Base, error) {
+func (a *ANX) UpdateOrderbook(p currency.Pair, assetType assets.AssetType) (orderbook.Base, error) {
 	var orderBook orderbook.Base
-	orderbookNew, err := a.GetDepth(exchange.FormatExchangeCurrency(a.GetName(), p).String())
+	orderbookNew, err := a.GetDepth(a.FormatExchangeCurrency(p, assetType).String())
 	if err != nil {
 		return orderBook, err
 	}
@@ -244,10 +335,8 @@ func (a *ANX) GetFundingHistory() ([]exchange.FundHistory, error) {
 }
 
 // GetExchangeHistory returns historic trade data since exchange opening.
-func (a *ANX) GetExchangeHistory(p currency.Pair, assetType string) ([]exchange.TradeHistory, error) {
-	var resp []exchange.TradeHistory
-
-	return resp, common.ErrNotYetImplemented
+func (a *ANX) GetExchangeHistory(p currency.Pair, assetType assets.AssetType) ([]exchange.TradeHistory, error) {
+	return nil, common.ErrNotYetImplemented
 }
 
 // SubmitOrder submits a new order
@@ -367,7 +456,7 @@ func (a *ANX) GetWebsocket() (*exchange.Websocket, error) {
 
 // GetFeeByType returns an estimate of fee based on type of transaction
 func (a *ANX) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) {
-	if (a.APIKey == "" || a.APISecret == "") && // Todo check connection status
+	if !a.AllowAuthenticatedRequest() && // Todo check connection status
 		feeBuilder.FeeType == exchange.CryptocurrencyTradeFee {
 		feeBuilder.FeeType = exchange.OfflineTradeFee
 	}
@@ -389,7 +478,7 @@ func (a *ANX) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) ([]ex
 		orderDetail := exchange.OrderDetail{
 			Amount: resp[i].TradedCurrencyAmount,
 			CurrencyPair: currency.NewPairWithDelimiter(resp[i].TradedCurrency,
-				resp[i].SettlementCurrency, a.ConfigCurrencyPairFormat.Delimiter),
+				resp[i].SettlementCurrency, a.CurrencyPairs.ConfigFormat.Delimiter),
 			OrderDate: orderDate,
 			Exchange:  a.Name,
 			ID:        resp[i].OrderID,
@@ -405,7 +494,6 @@ func (a *ANX) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) ([]ex
 	exchange.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks,
 		getOrdersRequest.EndTicks)
 	exchange.FilterOrdersByCurrencies(&orders, getOrdersRequest.Currencies)
-
 	return orders, nil
 }
 
@@ -432,7 +520,7 @@ func (a *ANX) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) ([]ex
 			Status:    resp[i].OrderStatus,
 			CurrencyPair: currency.NewPairWithDelimiter(resp[i].TradedCurrency,
 				resp[i].SettlementCurrency,
-				a.ConfigCurrencyPairFormat.Delimiter),
+				a.CurrencyPairs.ConfigFormat.Delimiter),
 		}
 
 		orders = append(orders, orderDetail)
@@ -442,6 +530,5 @@ func (a *ANX) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) ([]ex
 	exchange.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks,
 		getOrdersRequest.EndTicks)
 	exchange.FilterOrdersByCurrencies(&orders, getOrdersRequest.Currencies)
-
 	return orders, nil
 }

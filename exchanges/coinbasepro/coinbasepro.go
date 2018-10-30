@@ -8,15 +8,11 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-/gocryptotrader/common"
-	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
-	"github.com/thrasher-/gocryptotrader/exchanges/request"
-	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
@@ -63,100 +59,22 @@ type CoinbasePro struct {
 	WebsocketConn *websocket.Conn
 }
 
-// SetDefaults sets default values for the exchange
-func (c *CoinbasePro) SetDefaults() {
-	c.Name = "CoinbasePro"
-	c.Enabled = false
-	c.Verbose = false
-	c.TakerFee = 0.25
-	c.MakerFee = 0
-	c.RESTPollingDelay = 10
-	c.APIWithdrawPermissions = exchange.AutoWithdrawCryptoWithAPIPermission |
-		exchange.AutoWithdrawFiatWithAPIPermission
-	c.RequestCurrencyPairFormat.Delimiter = "-"
-	c.RequestCurrencyPairFormat.Uppercase = true
-	c.ConfigCurrencyPairFormat.Delimiter = ""
-	c.ConfigCurrencyPairFormat.Uppercase = true
-	c.AssetTypes = []string{ticker.Spot}
-	c.SupportsAutoPairUpdating = true
-	c.SupportsRESTTickerBatching = false
-	c.Requester = request.New(c.Name,
-		request.NewRateLimit(time.Second, coinbaseproAuthRate),
-		request.NewRateLimit(time.Second, coinbaseproUnauthRate),
-		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
-	c.APIUrlDefault = coinbaseproAPIURL
-	c.APIUrl = c.APIUrlDefault
-	c.WebsocketInit()
-	c.Websocket.Functionality = exchange.WebsocketTickerSupported |
-		exchange.WebsocketOrderbookSupported
-}
-
-// Setup initialises the exchange parameters with the current configuration
-func (c *CoinbasePro) Setup(exch *config.ExchangeConfig) {
-	if !exch.Enabled {
-		c.SetEnabled(false)
-	} else {
-		c.Enabled = true
-		c.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
-		c.SetAPIKeys(exch.APIKey, exch.APISecret, exch.ClientID, true)
-		c.SetHTTPClientTimeout(exch.HTTPTimeout)
-		c.SetHTTPClientUserAgent(exch.HTTPUserAgent)
-		c.RESTPollingDelay = exch.RESTPollingDelay
-		c.Verbose = exch.Verbose
-		c.Websocket.SetWsStatusAndConnection(exch.Websocket)
-		c.BaseCurrencies = exch.BaseCurrencies
-		c.AvailablePairs = exch.AvailablePairs
-		c.EnabledPairs = exch.EnabledPairs
-		if exch.UseSandbox {
-			c.APIUrl = coinbaseproSandboxAPIURL
-		}
-		err := c.SetCurrencyPairFormat()
-		if err != nil {
-			log.Fatal(err)
-		}
-		err = c.SetAssetTypes()
-		if err != nil {
-			log.Fatal(err)
-		}
-		err = c.SetAutoPairDefaults()
-		if err != nil {
-			log.Fatal(err)
-		}
-		err = c.SetAPIURL(exch)
-		if err != nil {
-			log.Fatal(err)
-		}
-		err = c.SetClientProxyAddress(exch.ProxyAddress)
-		if err != nil {
-			log.Fatal(err)
-		}
-		err = c.WebsocketSetup(c.WsConnect,
-			exch.Name,
-			exch.Websocket,
-			coinbaseproWebsocketURL,
-			exch.WebsocketURL)
-		if err != nil {
-			log.Fatal(err)
-		}
-	}
-}
-
 // GetProducts returns supported currency pairs on the exchange with specific
 // information about the pair
 func (c *CoinbasePro) GetProducts() ([]Product, error) {
 	products := []Product{}
 
-	return products, c.SendHTTPRequest(c.APIUrl+coinbaseproProducts, &products)
+	return products, c.SendHTTPRequest(c.API.Endpoints.URL+coinbaseproProducts, &products)
 }
 
 // GetOrderbook returns orderbook by currency pair and level
 func (c *CoinbasePro) GetOrderbook(symbol string, level int) (interface{}, error) {
 	orderbook := OrderbookResponse{}
 
-	path := fmt.Sprintf("%s/%s/%s", c.APIUrl+coinbaseproProducts, symbol, coinbaseproOrderbook)
+	path := fmt.Sprintf("%s/%s/%s", c.API.Endpoints.URL+coinbaseproProducts, symbol, coinbaseproOrderbook)
 	if level > 0 {
 		levelStr := strconv.Itoa(level)
-		path = fmt.Sprintf("%s/%s/%s?level=%s", c.APIUrl+coinbaseproProducts, symbol, coinbaseproOrderbook, levelStr)
+		path = fmt.Sprintf("%s/%s/%s?level=%s", c.API.Endpoints.URL+coinbaseproProducts, symbol, coinbaseproOrderbook, levelStr)
 	}
 
 	if err := c.SendHTTPRequest(path, &orderbook); err != nil {
@@ -226,7 +144,7 @@ func (c *CoinbasePro) GetOrderbook(symbol string, level int) (interface{}, error
 func (c *CoinbasePro) GetTicker(currencyPair string) (Ticker, error) {
 	tick := Ticker{}
 	path := fmt.Sprintf(
-		"%s/%s/%s", c.APIUrl+coinbaseproProducts, currencyPair, coinbaseproTicker)
+		"%s/%s/%s", c.API.Endpoints.URL+coinbaseproProducts, currencyPair, coinbaseproTicker)
 	return tick, c.SendHTTPRequest(path, &tick)
 }
 
@@ -235,8 +153,7 @@ func (c *CoinbasePro) GetTicker(currencyPair string) (Ticker, error) {
 func (c *CoinbasePro) GetTrades(currencyPair string) ([]Trade, error) {
 	trades := []Trade{}
 	path := fmt.Sprintf(
-		"%s/%s/%s", c.APIUrl+coinbaseproProducts, currencyPair, coinbaseproTrades)
-
+		"%s/%s/%s", c.API.Endpoints.URL+coinbaseproProducts, currencyPair, coinbaseproTrades)
 	return trades, c.SendHTTPRequest(path, &trades)
 }
 
@@ -260,7 +177,7 @@ func (c *CoinbasePro) GetHistoricRates(currencyPair string, start, end, granular
 	}
 
 	path := common.EncodeURLValues(
-		fmt.Sprintf("%s/%s/%s", c.APIUrl+coinbaseproProducts, currencyPair, coinbaseproHistory),
+		fmt.Sprintf("%s/%s/%s", c.API.Endpoints.URL+coinbaseproProducts, currencyPair, coinbaseproHistory),
 		values)
 
 	if err := c.SendHTTPRequest(path, &resp); err != nil {
@@ -292,7 +209,7 @@ func (c *CoinbasePro) GetHistoricRates(currencyPair string, start, end, granular
 func (c *CoinbasePro) GetStats(currencyPair string) (Stats, error) {
 	stats := Stats{}
 	path := fmt.Sprintf(
-		"%s/%s/%s", c.APIUrl+coinbaseproProducts, currencyPair, coinbaseproStats)
+		"%s/%s/%s", c.API.Endpoints.URL+coinbaseproProducts, currencyPair, coinbaseproStats)
 
 	return stats, c.SendHTTPRequest(path, &stats)
 }
@@ -302,14 +219,14 @@ func (c *CoinbasePro) GetStats(currencyPair string) (Stats, error) {
 func (c *CoinbasePro) GetCurrencies() ([]Currency, error) {
 	currencies := []Currency{}
 
-	return currencies, c.SendHTTPRequest(c.APIUrl+coinbaseproCurrencies, &currencies)
+	return currencies, c.SendHTTPRequest(c.API.Endpoints.URL+coinbaseproCurrencies, &currencies)
 }
 
 // GetServerTime returns the API server time
 func (c *CoinbasePro) GetServerTime() (ServerTime, error) {
 	serverTime := ServerTime{}
 
-	return serverTime, c.SendHTTPRequest(c.APIUrl+coinbaseproTime, &serverTime)
+	return serverTime, c.SendHTTPRequest(c.API.Endpoints.URL+coinbaseproTime, &serverTime)
 }
 
 // GetAccounts returns a list of trading accounts associated with the APIKEYS
@@ -370,7 +287,7 @@ func (c *CoinbasePro) GetHolds(accountID string) ([]AccountHolds, error) {
 func (c *CoinbasePro) PlaceLimitOrder(clientRef string, price, amount float64, side, timeInforce, cancelAfter, productID, stp string, postOnly bool) (string, error) {
 	resp := GeneralizedOrderResponse{}
 	req := make(map[string]interface{})
-	req["type"] = "limit"
+	req["type"] = exchange.LimitOrderType.ToLower().ToString()
 	req["price"] = strconv.FormatFloat(price, 'f', -1, 64)
 	req["size"] = strconv.FormatFloat(amount, 'f', -1, 64)
 	req["side"] = side
@@ -421,7 +338,7 @@ func (c *CoinbasePro) PlaceMarketOrder(clientRef string, size, funds float64, si
 	req := make(map[string]interface{})
 	req["side"] = side
 	req["product_id"] = productID
-	req["type"] = "market"
+	req["type"] = exchange.MarketOrderType.ToLower().ToString()
 
 	if size != 0 {
 		req["size"] = strconv.FormatFloat(size, 'f', -1, 64)
@@ -524,7 +441,7 @@ func (c *CoinbasePro) GetOrders(status []string, currencyPair string) ([]General
 		params.Set("product_id", currencyPair)
 	}
 
-	path := common.EncodeURLValues(c.APIUrl+coinbaseproOrders, params)
+	path := common.EncodeURLValues(c.API.Endpoints.URL+coinbaseproOrders, params)
 	path = common.GetURIPath(path)
 
 	return resp,
@@ -554,7 +471,7 @@ func (c *CoinbasePro) GetFills(orderID, currencyPair string) ([]FillResponse, er
 		return resp, errors.New("no parameters set")
 	}
 
-	path := common.EncodeURLValues(c.APIUrl+coinbaseproFills, params)
+	path := common.EncodeURLValues(c.API.Endpoints.URL+coinbaseproFills, params)
 	uri := common.GetURIPath(path)
 
 	return resp,
@@ -570,7 +487,7 @@ func (c *CoinbasePro) GetFundingRecords(status string) ([]Funding, error) {
 	params := url.Values{}
 	params.Set("status", status)
 
-	path := common.EncodeURLValues(c.APIUrl+coinbaseproFunding, params)
+	path := common.EncodeURLValues(c.API.Endpoints.URL+coinbaseproFunding, params)
 	uri := common.GetURIPath(path)
 
 	return resp,
@@ -797,7 +714,7 @@ func (c *CoinbasePro) SendHTTPRequest(path string, result interface{}) error {
 
 // SendAuthenticatedHTTPRequest sends an authenticated HTTP reque
 func (c *CoinbasePro) SendAuthenticatedHTTPRequest(method, path string, params map[string]interface{}, result interface{}) (err error) {
-	if !c.AuthenticatedAPISupport {
+	if !c.AllowAuthenticatedRequest() {
 		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet,
 			c.Name)
 	}
@@ -817,16 +734,16 @@ func (c *CoinbasePro) SendAuthenticatedHTTPRequest(method, path string, params m
 
 	n := c.Requester.GetNonce(true).String()
 	message := n + method + "/" + path + string(payload)
-	hmac := common.GetHMAC(common.HashSHA256, []byte(message), []byte(c.APISecret))
+	hmac := common.GetHMAC(common.HashSHA256, []byte(message), []byte(c.API.Credentials.Secret))
 	headers := make(map[string]string)
 	headers["CB-ACCESS-SIGN"] = common.Base64Encode(hmac)
 	headers["CB-ACCESS-TIMESTAMP"] = n
-	headers["CB-ACCESS-KEY"] = c.APIKey
-	headers["CB-ACCESS-PASSPHRASE"] = c.ClientID
+	headers["CB-ACCESS-KEY"] = c.API.Credentials.Key
+	headers["CB-ACCESS-PASSPHRASE"] = c.API.Credentials.ClientID
 	headers["Content-Type"] = "application/json"
 
 	return c.SendPayload(method,
-		c.APIUrl+path,
+		c.API.Endpoints.URL+path,
 		headers,
 		bytes.NewBuffer(payload),
 		result,

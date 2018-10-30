@@ -30,11 +30,11 @@ func TestSetup(t *testing.T) {
 	if err != nil {
 		t.Error("Test Failed - BTC Markets Setup() init error")
 	}
-	bConfig.APIKey = apiKey
-	bConfig.APISecret = apiSecret
-	bConfig.AuthenticatedAPISupport = true
+	bConfig.API.Credentials.Key = apiKey
+	bConfig.API.Credentials.Secret = apiSecret
+	bConfig.API.AuthenticatedSupport = true
 
-	b.Setup(&bConfig)
+	b.Setup(bConfig)
 }
 
 func TestGetMarkets(t *testing.T) {
@@ -78,7 +78,8 @@ func TestGetTrades(t *testing.T) {
 
 func TestNewOrder(t *testing.T) {
 	t.Parallel()
-	_, err := b.NewOrder("AUD", "BTC", 0, 0, "Bid", "limit", "testTest")
+	_, err := b.NewOrder("AUD", "BTC", 0, 0, "Bid",
+		exchange.LimitOrderType.ToLower().ToString(), "testTest")
 	if err == nil {
 		t.Error("Test failed - NewOrder() error", err)
 	}
@@ -320,11 +321,7 @@ func TestGetOrderHistory(t *testing.T) {
 // Any tests below this line have the ability to impact your orders on the exchange. Enable canManipulateRealOrders to run them
 // ----------------------------------------------------------------------------------------------------------------------------
 func areTestAPIKeysSet() bool {
-	if b.APIKey != "" && b.APIKey != "Key" &&
-		b.APISecret != "" && b.APISecret != "Secret" {
-		return true
-	}
-	return false
+	return b.ValidateAPICredentials()
 }
 
 func TestSubmitOrder(t *testing.T) {

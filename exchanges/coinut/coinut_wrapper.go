@@ -9,12 +9,108 @@ import (
 	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
+	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
+	"github.com/thrasher-/gocryptotrader/exchanges/assets"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-/gocryptotrader/exchanges/request"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 	log "github.com/thrasher-/gocryptotrader/logger"
 )
+
+// GetDefaultConfig returns a default exchange config
+func (c *COINUT) GetDefaultConfig() (*config.ExchangeConfig, error) {
+	c.SetDefaults()
+	exchCfg := new(config.ExchangeConfig)
+	exchCfg.Name = c.Name
+	exchCfg.HTTPTimeout = exchange.DefaultHTTPTimeout
+	exchCfg.BaseCurrencies = c.BaseCurrencies
+
+	err := c.SetupDefaults(exchCfg)
+	if err != nil {
+		return nil, err
+	}
+
+	if c.Features.Supports.RESTCapabilities.AutoPairUpdates {
+		err = c.UpdateTradablePairs(true)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return exchCfg, nil
+}
+
+// SetDefaults sets current default values
+func (c *COINUT) SetDefaults() {
+	c.Name = "COINUT"
+	c.Enabled = true
+	c.Verbose = true
+	c.APIWithdrawPermissions = exchange.WithdrawCryptoViaWebsiteOnly |
+		exchange.WithdrawFiatViaWebsiteOnly
+	c.API.CredentialsValidator.RequiresKey = true
+	c.API.CredentialsValidator.RequiresClientID = true
+	c.API.CredentialsValidator.RequiresBase64DecodeSecret = true
+
+	c.CurrencyPairs = currency.PairsManager{
+		AssetTypes: assets.AssetTypes{
+			assets.AssetTypeSpot,
+		},
+		UseGlobalFormat: true,
+		RequestFormat: &currency.PairFormat{
+			Uppercase: true,
+		},
+		ConfigFormat: &currency.PairFormat{
+			Uppercase: true,
+		},
+	}
+
+	c.Features = exchange.Features{
+		Supports: exchange.FeaturesSupported{
+			REST:      true,
+			Websocket: true,
+			RESTCapabilities: exchange.ProtocolFeatures{
+				AutoPairUpdates: true,
+				TickerBatching:  false,
+			},
+		},
+		Enabled: exchange.FeaturesEnabled{
+			AutoPairUpdates: true,
+		},
+	}
+
+	c.Requester = request.New(c.Name,
+		request.NewRateLimit(time.Second, coinutAuthRate),
+		request.NewRateLimit(time.Second, coinutUnauthRate),
+		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
+
+	c.API.Endpoints.URLDefault = coinutAPIURL
+	c.API.Endpoints.URL = c.API.Endpoints.URLDefault
+	c.WebsocketInit()
+	c.Websocket.Functionality = exchange.WebsocketTickerSupported |
+		exchange.WebsocketOrderbookSupported |
+		exchange.WebsocketTradeDataSupported
+}
+
+// Setup sets the current exchange configuration
+func (c *COINUT) Setup(exch *config.ExchangeConfig) error {
+	if !exch.Enabled {
+		c.SetEnabled(false)
+		return nil
+	}
+
+	err := c.SetupDefaults(exch)
+	if err != nil {
+		return err
+	}
+
+	return c.WebsocketSetup(c.WsConnect,
+		exch.Name,
+		exch.Features.Enabled.Websocket,
+		coinutWebsocketURL,
+		exch.API.Endpoints.WebsocketURL)
+}
 
 // Start starts the COINUT go routine
 func (c *COINUT) Start(wg *sync.WaitGroup) {
@@ -29,33 +125,45 @@ func (c *COINUT) Start(wg *sync.WaitGroup) {
 func (c *COINUT) Run() {
 	if c.Verbose {
 		log.Debugf("%s Websocket: %s. (url: %s).\n", c.GetName(), common.IsEnabled(c.Websocket.IsEnabled()), coinutWebsocketURL)
-		log.Debugf("%s polling delay: %ds.\n", c.GetName(), c.RESTPollingDelay)
-		log.Debugf("%s %d currencies enabled: %s.\n", c.GetName(), len(c.EnabledPairs), c.EnabledPairs)
+		c.PrintEnabledPairs()
 	}
 
-	exchangeProducts, err := c.GetInstruments()
-	if err != nil {
-		log.Debugf("%s Failed to get available products.\n", c.GetName())
+	if !c.GetEnabledFeatures().AutoPairUpdates {
 		return
 	}
 
-	currencies := []string{}
-	c.InstrumentMap = make(map[string]int)
-	for x, y := range exchangeProducts.Instruments {
-		c.InstrumentMap[x] = y[0].InstID
-		currencies = append(currencies, x)
-	}
-
-	var newCurrencies currency.Pairs
-	for _, p := range currencies {
-		newCurrencies = append(newCurrencies,
-			currency.NewPairFromString(p))
-	}
-
-	err = c.UpdateCurrencies(newCurrencies, false, false)
+	err := c.UpdateTradablePairs(false)
 	if err != nil {
-		log.Errorf("%s Failed to update available currencies.\n", c.GetName())
+		log.Errorf("%s failed to update tradable pairs. Err: %s", c.Name, err)
 	}
+}
+
+// FetchTradablePairs returns a list of the exchanges tradable pairs
+func (c *COINUT) FetchTradablePairs(asset assets.AssetType) ([]string, error) {
+	i, err := c.GetInstruments()
+	if err != nil {
+		return nil, err
+	}
+
+	var pairs []string
+	c.InstrumentMap = make(map[string]int)
+	for x, y := range i.Instruments {
+		c.InstrumentMap[x] = y[0].InstID
+		pairs = append(pairs, x)
+	}
+
+	return pairs, nil
+}
+
+// UpdateTradablePairs updates the exchanges available pairs and stores
+// them in the exchanges config
+func (c *COINUT) UpdateTradablePairs(forceUpdate bool) error {
+	pairs, err := c.FetchTradablePairs(assets.AssetTypeSpot)
+	if err != nil {
+		return err
+	}
+
+	return c.UpdatePairs(currency.NewPairsFromStrings(pairs), assets.AssetTypeSpot, false, forceUpdate)
 }
 
 // GetAccountInfo retrieves balances for all enabled currencies for the
@@ -134,7 +242,7 @@ func (c *COINUT) GetAccountInfo() (exchange.AccountInfo, error) {
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
-func (c *COINUT) UpdateTicker(p currency.Pair, assetType string) (ticker.Price, error) {
+func (c *COINUT) UpdateTicker(p currency.Pair, assetType assets.AssetType) (ticker.Price, error) {
 	var tickerPrice ticker.Price
 	tick, err := c.GetInstrumentTicker(c.InstrumentMap[p.String()])
 	if err != nil {
@@ -156,8 +264,8 @@ func (c *COINUT) UpdateTicker(p currency.Pair, assetType string) (ticker.Price, 
 
 }
 
-// GetTickerPrice returns the ticker for a currency pair
-func (c *COINUT) GetTickerPrice(p currency.Pair, assetType string) (ticker.Price, error) {
+// FetchTicker returns the ticker for a currency pair
+func (c *COINUT) FetchTicker(p currency.Pair, assetType assets.AssetType) (ticker.Price, error) {
 	tickerNew, err := ticker.GetTicker(c.GetName(), p, assetType)
 	if err != nil {
 		return c.UpdateTicker(p, assetType)
@@ -165,8 +273,8 @@ func (c *COINUT) GetTickerPrice(p currency.Pair, assetType string) (ticker.Price
 	return tickerNew, nil
 }
 
-// GetOrderbookEx returns orderbook base on the currency pair
-func (c *COINUT) GetOrderbookEx(p currency.Pair, assetType string) (orderbook.Base, error) {
+// FetchOrderbook returns orderbook base on the currency pair
+func (c *COINUT) FetchOrderbook(p currency.Pair, assetType assets.AssetType) (orderbook.Base, error) {
 	ob, err := orderbook.Get(c.GetName(), p, assetType)
 	if err != nil {
 		return c.UpdateOrderbook(p, assetType)
@@ -175,7 +283,7 @@ func (c *COINUT) GetOrderbookEx(p currency.Pair, assetType string) (orderbook.Ba
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (c *COINUT) UpdateOrderbook(p currency.Pair, assetType string) (orderbook.Base, error) {
+func (c *COINUT) UpdateOrderbook(p currency.Pair, assetType assets.AssetType) (orderbook.Base, error) {
 	var orderBook orderbook.Base
 	orderbookNew, err := c.GetInstrumentOrderbook(c.InstrumentMap[p.String()], 200)
 	if err != nil {
@@ -211,10 +319,8 @@ func (c *COINUT) GetFundingHistory() ([]exchange.FundHistory, error) {
 }
 
 // GetExchangeHistory returns historic trade data since exchange opening.
-func (c *COINUT) GetExchangeHistory(p currency.Pair, assetType string) ([]exchange.TradeHistory, error) {
-	var resp []exchange.TradeHistory
-
-	return resp, common.ErrNotYetImplemented
+func (c *COINUT) GetExchangeHistory(p currency.Pair, assetType assets.AssetType) ([]exchange.TradeHistory, error) {
+	return nil, common.ErrNotYetImplemented
 }
 
 // SubmitOrder submits a new order
@@ -288,7 +394,8 @@ func (c *COINUT) CancelOrder(order *exchange.OrderCancellation) error {
 		return err
 	}
 
-	currencyArray := instruments.Instruments[exchange.FormatExchangeCurrency(c.Name, order.CurrencyPair).String()]
+	currencyArray := instruments.Instruments[c.FormatExchangeCurrency(order.CurrencyPair,
+		order.AssetType).String()]
 	currencyID := currencyArray[0].InstID
 	_, err = c.CancelExistingOrder(currencyID, int(orderIDInt))
 
@@ -383,7 +490,7 @@ func (c *COINUT) GetWebsocket() (*exchange.Websocket, error) {
 
 // GetFeeByType returns an estimate of fee based on type of transaction
 func (c *COINUT) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) {
-	if c.APIKey == "" && // Todo check connection status
+	if !c.AllowAuthenticatedRequest() && // Todo check connection status
 		feeBuilder.FeeType == exchange.CryptocurrencyTradeFee {
 		feeBuilder.FeeType = exchange.OfflineTradeFee
 	}
@@ -403,7 +510,7 @@ func (c *COINUT) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) ([
 			for _, currency := range getOrdersRequest.Currencies {
 				currStr := fmt.Sprintf("%v%v%v",
 					currency.Base.String(),
-					c.ConfigCurrencyPairFormat.Delimiter,
+					c.CurrencyPairs.ConfigFormat.Delimiter,
 					currency.Quote.String())
 				if strings.EqualFold(currStr, instrument) {
 					openOrders, err := c.GetOpenOrders(instrumentData.InstID)
@@ -442,7 +549,6 @@ func (c *COINUT) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) ([
 
 	exchange.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
 	exchange.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
-
 	return orders, nil
 }
 
@@ -460,7 +566,7 @@ func (c *COINUT) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) ([
 			for _, currency := range getOrdersRequest.Currencies {
 				currStr := fmt.Sprintf("%v%v%v",
 					currency.Base.String(),
-					c.ConfigCurrencyPairFormat.Delimiter,
+					c.CurrencyPairs.ConfigFormat.Delimiter,
 					currency.Quote.String())
 				if strings.EqualFold(currStr, instrument) {
 					orders, err := c.GetTradeHistory(instrumentData.InstID, -1, -1)
@@ -500,6 +606,5 @@ func (c *COINUT) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) ([
 	exchange.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks,
 		getOrdersRequest.EndTicks)
 	exchange.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
-
 	return orders, nil
 }

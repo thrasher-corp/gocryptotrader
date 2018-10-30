@@ -7,10 +7,7 @@ import (
 	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
-	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/okgroup"
-	"github.com/thrasher-/gocryptotrader/exchanges/request"
-	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 )
 
 const (
@@ -48,38 +45,6 @@ const (
 // OKEX bases all account, spot and margin methods off okgroup implementation
 type OKEX struct {
 	okgroup.OKGroup
-}
-
-// SetDefaults method assignes the default values for OKEX
-func (o *OKEX) SetDefaults() {
-	o.SetErrorDefaults()
-	o.SetCheckVarDefaults()
-	o.Name = okExExchangeName
-	o.Enabled = false
-	o.Verbose = false
-	o.RESTPollingDelay = 10
-	o.APIWithdrawPermissions = exchange.AutoWithdrawCrypto |
-		exchange.NoFiatWithdrawals
-	o.RequestCurrencyPairFormat.Delimiter = "_"
-	o.RequestCurrencyPairFormat.Uppercase = false
-	o.ConfigCurrencyPairFormat.Delimiter = "_"
-	o.ConfigCurrencyPairFormat.Uppercase = true
-	o.SupportsAutoPairUpdating = true
-	o.SupportsRESTTickerBatching = false
-	o.Requester = request.New(o.Name,
-		request.NewRateLimit(time.Second, okExAuthRate),
-		request.NewRateLimit(time.Second, okExUnauthRate),
-		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
-	o.APIUrlDefault = okExAPIURL
-	o.APIUrl = okExAPIURL
-	o.AssetTypes = []string{ticker.Spot}
-	o.WebsocketInit()
-	o.APIVersion = okExAPIVersion
-	o.WebsocketURL = OkExWebsocketURL
-	o.Websocket.Functionality = exchange.WebsocketTickerSupported |
-		exchange.WebsocketTradeDataSupported |
-		exchange.WebsocketKlineSupported |
-		exchange.WebsocketOrderbookSupported
 }
 
 // GetFuturesPostions Get the information of all holding positions in futures trading.
@@ -187,7 +152,7 @@ func (o *OKEX) GetFuturesOrderBook(request okgroup.GetFuturesOrderBookRequest) (
 	}
 
 	var tmpOB tempOB
-	err = o.SendHTTPRequest(http.MethodGet, okGroupFuturesSubsection, requestURL, nil, &tmpOB, true)
+	err = o.SendHTTPRequest(http.MethodGet, okGroupFuturesSubsection, requestURL, nil, &tmpOB, false)
 	if err != nil {
 		return resp, err
 	}
@@ -248,7 +213,7 @@ func (o *OKEX) GetAllFuturesTokenInfo() (resp []okgroup.GetFuturesTokenInfoRespo
 // GetFuturesTokenInfoForCurrency Get the last traded price, best bid/ask price, 24 hour trading volume and more info of a contract.
 func (o *OKEX) GetFuturesTokenInfoForCurrency(instrumentID string) (resp okgroup.GetFuturesTokenInfoResponse, _ error) {
 	requestURL := fmt.Sprintf("%v/%v/%v", okgroup.OKGroupInstruments, instrumentID, okgroup.OKGroupTicker)
-	return resp, o.SendHTTPRequest(http.MethodGet, okGroupFuturesSubsection, requestURL, nil, &resp, true)
+	return resp, o.SendHTTPRequest(http.MethodGet, okGroupFuturesSubsection, requestURL, nil, &resp, false)
 }
 
 // GetFuturesFilledOrder Get the recent 300 transactions of all contracts. Pagination is not supported here.

@@ -7,16 +7,11 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-/gocryptotrader/common"
-	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
-	"github.com/thrasher-/gocryptotrader/exchanges/request"
-	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
-	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
 const (
@@ -51,89 +46,10 @@ type Gateio struct {
 	exchange.Base
 }
 
-// SetDefaults sets default values for the exchange
-func (g *Gateio) SetDefaults() {
-	g.Name = "GateIO"
-	g.Enabled = false
-	g.Verbose = false
-	g.RESTPollingDelay = 10
-	g.APIWithdrawPermissions = exchange.AutoWithdrawCrypto |
-		exchange.NoFiatWithdrawals
-	g.RequestCurrencyPairFormat.Delimiter = "_"
-	g.RequestCurrencyPairFormat.Uppercase = false
-	g.ConfigCurrencyPairFormat.Delimiter = "_"
-	g.ConfigCurrencyPairFormat.Uppercase = true
-	g.AssetTypes = []string{ticker.Spot}
-	g.SupportsAutoPairUpdating = true
-	g.SupportsRESTTickerBatching = true
-	g.Requester = request.New(g.Name,
-		request.NewRateLimit(time.Second*10, gateioAuthRate),
-		request.NewRateLimit(time.Second*10, gateioUnauthRate),
-		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
-	g.APIUrlDefault = gateioTradeURL
-	g.APIUrl = g.APIUrlDefault
-	g.APIUrlSecondaryDefault = gateioMarketURL
-	g.APIUrlSecondary = g.APIUrlSecondaryDefault
-	g.WebsocketInit()
-	g.Websocket.Functionality = exchange.WebsocketTickerSupported |
-		exchange.WebsocketTradeDataSupported |
-		exchange.WebsocketOrderbookSupported |
-		exchange.WebsocketKlineSupported
-}
-
-// Setup sets user configuration
-func (g *Gateio) Setup(exch *config.ExchangeConfig) {
-	if !exch.Enabled {
-		g.SetEnabled(false)
-	} else {
-		g.Enabled = true
-		g.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
-		g.SetAPIKeys(exch.APIKey, exch.APISecret, "", false)
-		g.APIAuthPEMKey = exch.APIAuthPEMKey
-		g.SetHTTPClientTimeout(exch.HTTPTimeout)
-		g.SetHTTPClientUserAgent(exch.HTTPUserAgent)
-		g.RESTPollingDelay = exch.RESTPollingDelay
-		g.Verbose = exch.Verbose
-		g.BaseCurrencies = exch.BaseCurrencies
-		g.AvailablePairs = exch.AvailablePairs
-		g.EnabledPairs = exch.EnabledPairs
-		err := g.SetCurrencyPairFormat()
-		if err != nil {
-			log.Fatal(err)
-		}
-		err = g.SetAssetTypes()
-		if err != nil {
-			log.Fatal(err)
-		}
-		err = g.SetAutoPairDefaults()
-		if err != nil {
-			log.Fatal(err)
-		}
-		err = g.SetAPIURL(exch)
-		if err != nil {
-			log.Fatal(err)
-		}
-		err = g.SetClientProxyAddress(exch.ProxyAddress)
-		if err != nil {
-			log.Fatal(err)
-		}
-		err = g.WebsocketSetup(g.WsConnect,
-			exch.Name,
-			exch.Websocket,
-			gateioWebsocketEndpoint,
-			exch.WebsocketURL)
-		if err != nil {
-			log.Fatal(err)
-		}
-	}
-}
-
 // GetSymbols returns all supported symbols
 func (g *Gateio) GetSymbols() ([]string, error) {
 	var result []string
-
-	urlPath := fmt.Sprintf("%s/%s/%s", g.APIUrlSecondary, gateioAPIVersion, gateioSymbol)
-
+	urlPath := fmt.Sprintf("%s/%s/%s", g.API.Endpoints.URLSecondary, gateioAPIVersion, gateioSymbol)
 	err := g.SendHTTPRequest(urlPath, &result)
 	if err != nil {
 		return nil, nil
@@ -149,8 +65,7 @@ func (g *Gateio) GetMarketInfo() (MarketInfoResponse, error) {
 		Pairs  []interface{} `json:"pairs"`
 	}
 
-	urlPath := fmt.Sprintf("%s/%s/%s", g.APIUrlSecondary, gateioAPIVersion, gateioMarketInfo)
-
+	urlPath := fmt.Sprintf("%s/%s/%s", g.API.Endpoints.URLSecondary, gateioAPIVersion, gateioMarketInfo)
 	var res response
 	var result MarketInfoResponse
 	err := g.SendHTTPRequest(urlPath, &res)
@@ -190,15 +105,14 @@ func (g *Gateio) GetLatestSpotPrice(symbol string) (float64, error) {
 // GetTicker returns a ticker for the supplied symbol
 // updated every 10 seconds
 func (g *Gateio) GetTicker(symbol string) (TickerResponse, error) {
-	urlPath := fmt.Sprintf("%s/%s/%s/%s", g.APIUrlSecondary, gateioAPIVersion, gateioTicker, symbol)
+	urlPath := fmt.Sprintf("%s/%s/%s/%s", g.API.Endpoints.URLSecondary, gateioAPIVersion, gateioTicker, symbol)
 	var res TickerResponse
 	return res, g.SendHTTPRequest(urlPath, &res)
 }
 
 // GetTickers returns tickers for all symbols
 func (g *Gateio) GetTickers() (map[string]TickerResponse, error) {
-	urlPath := fmt.Sprintf("%s/%s/%s", g.APIUrlSecondary, gateioAPIVersion, gateioTickers)
-
+	urlPath := fmt.Sprintf("%s/%s/%s", g.API.Endpoints.URLSecondary, gateioAPIVersion, gateioTickers)
 	resp := make(map[string]TickerResponse)
 	err := g.SendHTTPRequest(urlPath, &resp)
 	if err != nil {
@@ -209,8 +123,7 @@ func (g *Gateio) GetTickers() (map[string]TickerResponse, error) {
 
 // GetOrderbook returns the orderbook data for a suppled symbol
 func (g *Gateio) GetOrderbook(symbol string) (Orderbook, error) {
-	urlPath := fmt.Sprintf("%s/%s/%s/%s", g.APIUrlSecondary, gateioAPIVersion, gateioOrderbook, symbol)
-
+	urlPath := fmt.Sprintf("%s/%s/%s/%s", g.API.Endpoints.URLSecondary, gateioAPIVersion, gateioOrderbook, symbol)
 	var resp OrderbookResponse
 	err := g.SendHTTPRequest(urlPath, &resp)
 	if err != nil {
@@ -272,7 +185,7 @@ func (g *Gateio) GetOrderbook(symbol string) (Orderbook, error) {
 // GetSpotKline returns kline data for the most recent time period
 func (g *Gateio) GetSpotKline(arg KlinesRequestParams) ([]*KLineResponse, error) {
 	urlPath := fmt.Sprintf("%s/%s/%s/%s?group_sec=%d&range_hour=%d",
-		g.APIUrlSecondary,
+		g.API.Endpoints.URLSecondary,
 		gateioAPIVersion,
 		gateioKline,
 		arg.Symbol,
@@ -462,19 +375,19 @@ func (g *Gateio) GetTradeHistory(symbol string) (TradHistoryResponse, error) {
 // SendAuthenticatedHTTPRequest sends authenticated requests to the Gateio API
 // To use this you must setup an APIKey and APISecret from the exchange
 func (g *Gateio) SendAuthenticatedHTTPRequest(method, endpoint, param string, result interface{}) error {
-	if !g.AuthenticatedAPISupport {
+	if !g.AllowAuthenticatedRequest() {
 		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet,
 			g.Name)
 	}
 
 	headers := make(map[string]string)
 	headers["Content-Type"] = "application/x-www-form-urlencoded"
-	headers["key"] = g.APIKey
+	headers["key"] = g.API.Credentials.Key
 
-	hmac := common.GetHMAC(common.HashSHA512, []byte(param), []byte(g.APISecret))
+	hmac := common.GetHMAC(common.HashSHA512, []byte(param), []byte(g.API.Credentials.Secret))
 	headers["sign"] = common.HexEncodeToString(hmac)
 
-	urlPath := fmt.Sprintf("%s/%s/%s", g.APIUrl, gateioAPIVersion, endpoint)
+	urlPath := fmt.Sprintf("%s/%s/%s", g.API.Endpoints.URL, gateioAPIVersion, endpoint)
 
 	var intermidiary json.RawMessage
 

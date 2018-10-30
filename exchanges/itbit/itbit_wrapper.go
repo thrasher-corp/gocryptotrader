@@ -9,12 +9,94 @@ import (
 	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
+	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
+	"github.com/thrasher-/gocryptotrader/exchanges/assets"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-/gocryptotrader/exchanges/request"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 	log "github.com/thrasher-/gocryptotrader/logger"
 )
+
+// GetDefaultConfig returns a default exchange config
+func (i *ItBit) GetDefaultConfig() (*config.ExchangeConfig, error) {
+	i.SetDefaults()
+	exchCfg := new(config.ExchangeConfig)
+	exchCfg.Name = i.Name
+	exchCfg.HTTPTimeout = exchange.DefaultHTTPTimeout
+	exchCfg.BaseCurrencies = i.BaseCurrencies
+
+	err := i.SetupDefaults(exchCfg)
+	if err != nil {
+		return nil, err
+	}
+
+	if i.Features.Supports.RESTCapabilities.AutoPairUpdates {
+		err = i.UpdateTradablePairs(true)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return exchCfg, nil
+}
+
+// SetDefaults sets the defaults for the exchange
+func (i *ItBit) SetDefaults() {
+	i.Name = "ITBIT"
+	i.Enabled = true
+	i.Verbose = true
+	i.APIWithdrawPermissions = exchange.WithdrawCryptoViaWebsiteOnly |
+		exchange.WithdrawFiatViaWebsiteOnly
+	i.API.CredentialsValidator.RequiresClientID = true
+	i.API.CredentialsValidator.RequiresSecret = true
+
+	i.CurrencyPairs = currency.PairsManager{
+		AssetTypes: assets.AssetTypes{
+			assets.AssetTypeSpot,
+		},
+		UseGlobalFormat: true,
+		RequestFormat: &currency.PairFormat{
+			Uppercase: true,
+		},
+		ConfigFormat: &currency.PairFormat{
+			Uppercase: true,
+		},
+	}
+
+	i.Features = exchange.Features{
+		Supports: exchange.FeaturesSupported{
+			REST:      true,
+			Websocket: false,
+			RESTCapabilities: exchange.ProtocolFeatures{
+				AutoPairUpdates: false,
+				TickerBatching:  false,
+			},
+		},
+		Enabled: exchange.FeaturesEnabled{
+			AutoPairUpdates: false,
+		},
+	}
+
+	i.Requester = request.New(i.Name,
+		request.NewRateLimit(time.Second, itbitAuthRate),
+		request.NewRateLimit(time.Second, itbitUnauthRate),
+		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
+
+	i.API.Endpoints.URLDefault = itbitAPIURL
+	i.API.Endpoints.URL = i.API.Endpoints.URLDefault
+}
+
+// Setup sets the exchange parameters from exchange config
+func (i *ItBit) Setup(exch *config.ExchangeConfig) error {
+	if !exch.Enabled {
+		i.SetEnabled(false)
+		return nil
+	}
+
+	return i.SetupDefaults(exch)
+}
 
 // Start starts the ItBit go routine
 func (i *ItBit) Start(wg *sync.WaitGroup) {
@@ -28,16 +110,25 @@ func (i *ItBit) Start(wg *sync.WaitGroup) {
 // Run implements the ItBit wrapper
 func (i *ItBit) Run() {
 	if i.Verbose {
-		log.Debugf("%s polling delay: %ds.\n", i.GetName(), i.RESTPollingDelay)
-		log.Debugf("%s %d currencies enabled: %s.\n", i.GetName(), len(i.EnabledPairs), i.EnabledPairs)
+		i.PrintEnabledPairs()
 	}
 }
 
+// FetchTradablePairs returns a list of the exchanges tradable pairs
+func (i *ItBit) FetchTradablePairs(asset assets.AssetType) ([]string, error) {
+	return nil, common.ErrFunctionNotSupported
+}
+
+// UpdateTradablePairs updates the exchanges available pairs and stores
+// them in the exchanges config
+func (i *ItBit) UpdateTradablePairs(forceUpdate bool) error {
+	return common.ErrFunctionNotSupported
+}
+
 // UpdateTicker updates and returns the ticker for a currency pair
-func (i *ItBit) UpdateTicker(p currency.Pair, assetType string) (ticker.Price, error) {
+func (i *ItBit) UpdateTicker(p currency.Pair, assetType assets.AssetType) (ticker.Price, error) {
 	var tickerPrice ticker.Price
-	tick, err := i.GetTicker(exchange.FormatExchangeCurrency(i.Name,
-		p).String())
+	tick, err := i.GetTicker(i.FormatExchangeCurrency(p, assetType).String())
 	if err != nil {
 		return tickerPrice, err
 	}
@@ -58,8 +149,8 @@ func (i *ItBit) UpdateTicker(p currency.Pair, assetType string) (ticker.Price, e
 	return ticker.GetTicker(i.Name, p, assetType)
 }
 
-// GetTickerPrice returns the ticker for a currency pair
-func (i *ItBit) GetTickerPrice(p currency.Pair, assetType string) (ticker.Price, error) {
+// FetchTicker returns the ticker for a currency pair
+func (i *ItBit) FetchTicker(p currency.Pair, assetType assets.AssetType) (ticker.Price, error) {
 	tickerNew, err := ticker.GetTicker(i.GetName(), p, assetType)
 	if err != nil {
 		return i.UpdateTicker(p, assetType)
@@ -67,8 +158,8 @@ func (i *ItBit) GetTickerPrice(p currency.Pair, assetType string) (ticker.Price,
 	return tickerNew, nil
 }
 
-// GetOrderbookEx returns orderbook base on the currency pair
-func (i *ItBit) GetOrderbookEx(p currency.Pair, assetType string) (orderbook.Base, error) {
+// FetchOrderbook returns orderbook base on the currency pair
+func (i *ItBit) FetchOrderbook(p currency.Pair, assetType assets.AssetType) (orderbook.Base, error) {
 	ob, err := orderbook.Get(i.GetName(), p, assetType)
 	if err != nil {
 		return i.UpdateOrderbook(p, assetType)
@@ -77,10 +168,9 @@ func (i *ItBit) GetOrderbookEx(p currency.Pair, assetType string) (orderbook.Bas
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (i *ItBit) UpdateOrderbook(p currency.Pair, assetType string) (orderbook.Base, error) {
+func (i *ItBit) UpdateOrderbook(p currency.Pair, assetType assets.AssetType) (orderbook.Base, error) {
 	var orderBook orderbook.Base
-	orderbookNew, err := i.GetOrderbook(exchange.FormatExchangeCurrency(i.Name,
-		p).String())
+	orderbookNew, err := i.GetOrderbook(i.FormatExchangeCurrency(p, assetType).String())
 	if err != nil {
 		return orderBook, err
 	}
@@ -178,10 +268,8 @@ func (i *ItBit) GetFundingHistory() ([]exchange.FundHistory, error) {
 }
 
 // GetExchangeHistory returns historic trade data since exchange opening.
-func (i *ItBit) GetExchangeHistory(p currency.Pair, assetType string) ([]exchange.TradeHistory, error) {
-	var resp []exchange.TradeHistory
-
-	return resp, common.ErrNotYetImplemented
+func (i *ItBit) GetExchangeHistory(p currency.Pair, assetType assets.AssetType) ([]exchange.TradeHistory, error) {
+	return nil, common.ErrNotYetImplemented
 }
 
 // SubmitOrder submits a new order
@@ -301,7 +389,7 @@ func (i *ItBit) GetWebsocket() (*exchange.Websocket, error) {
 
 // GetFeeByType returns an estimate of fee based on type of transaction
 func (i *ItBit) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) {
-	if (i.APIKey == "" || i.APISecret == "") && // Todo check connection status
+	if !i.AllowAuthenticatedRequest() && // Todo check connection status
 		feeBuilder.FeeType == exchange.CryptocurrencyTradeFee {
 		feeBuilder.FeeType = exchange.OfflineTradeFee
 	}
@@ -327,7 +415,7 @@ func (i *ItBit) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) ([]
 	var orders []exchange.OrderDetail
 	for j := range allOrders {
 		symbol := currency.NewPairDelimiter(allOrders[j].Instrument,
-			i.ConfigCurrencyPairFormat.Delimiter)
+			i.CurrencyPairs.ConfigFormat.Delimiter)
 		side := exchange.OrderSide(strings.ToUpper(allOrders[j].Side))
 		orderDate, err := time.Parse(time.RFC3339, allOrders[j].CreatedTime)
 		if err != nil {
@@ -351,7 +439,6 @@ func (i *ItBit) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) ([]
 		getOrdersRequest.EndTicks)
 	exchange.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
 	exchange.FilterOrdersByCurrencies(&orders, getOrdersRequest.Currencies)
-
 	return orders, nil
 }
 
@@ -379,7 +466,7 @@ func (i *ItBit) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) ([]
 		}
 
 		symbol := currency.NewPairDelimiter(allOrders[j].Instrument,
-			i.ConfigCurrencyPairFormat.Delimiter)
+			i.CurrencyPairs.ConfigFormat.Delimiter)
 		side := exchange.OrderSide(strings.ToUpper(allOrders[j].Side))
 		orderDate, err := time.Parse(time.RFC3339, allOrders[j].CreatedTime)
 		if err != nil {
@@ -403,6 +490,5 @@ func (i *ItBit) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) ([]
 		getOrdersRequest.EndTicks)
 	exchange.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
 	exchange.FilterOrdersByCurrencies(&orders, getOrdersRequest.Currencies)
-
 	return orders, nil
 }

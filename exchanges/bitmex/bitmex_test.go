@@ -31,11 +31,12 @@ func TestSetup(t *testing.T) {
 	if err != nil {
 		t.Error("Test Failed - Bitmex Setup() init error")
 	}
-	bitmexConfig.AuthenticatedAPISupport = true
-	bitmexConfig.APIKey = apiKey
-	bitmexConfig.APISecret = apiSecret
 
-	b.Setup(&bitmexConfig)
+	bitmexConfig.API.AuthenticatedSupport = true
+	bitmexConfig.API.Credentials.Key = apiKey
+	bitmexConfig.API.Credentials.Secret = apiSecret
+
+	b.Setup(bitmexConfig)
 }
 
 func TestStart(t *testing.T) {
@@ -504,11 +505,7 @@ func TestGetOrderHistory(t *testing.T) {
 // Any tests below this line have the ability to impact your orders on the exchange. Enable canManipulateRealOrders to run them
 // ----------------------------------------------------------------------------------------------------------------------------
 func areTestAPIKeysSet() bool {
-	if b.APIKey != "" && b.APIKey != "Key" &&
-		b.APISecret != "" && b.APISecret != "Secret" {
-		return true
-	}
-	return false
+	return b.ValidateAPICredentials()
 }
 
 func TestSubmitOrder(t *testing.T) {
@@ -524,7 +521,7 @@ func TestSubmitOrder(t *testing.T) {
 		Base:      currency.XBT,
 		Quote:     currency.USD,
 	}
-	response, err := b.SubmitOrder(p, exchange.BuyOrderSide, exchange.MarketOrderType, 1, 1, "clientId")
+	response, err := b.SubmitOrder(p, exchange.BuyOrderSide, exchange.LimitOrderType, 1, 1, "clientId")
 	if areTestAPIKeysSet() && (err != nil || !response.IsOrderPlaced) {
 		t.Errorf("Order failed to be placed: %v", err)
 	} else if !areTestAPIKeysSet() && err == nil {

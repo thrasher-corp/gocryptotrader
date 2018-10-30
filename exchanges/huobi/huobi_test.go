@@ -25,35 +25,6 @@ const (
 
 var h HUOBI
 
-// getDefaultConfig returns a default huobi config
-func getDefaultConfig() config.ExchangeConfig {
-	return config.ExchangeConfig{
-		Name:                    "Huobi",
-		Enabled:                 true,
-		Verbose:                 true,
-		Websocket:               false,
-		UseSandbox:              false,
-		RESTPollingDelay:        10,
-		HTTPTimeout:             15000000000,
-		AuthenticatedAPISupport: true,
-		APIKey:                  "",
-		APISecret:               "",
-		ClientID:                "",
-		AvailablePairs:          currency.NewPairsFromStrings([]string{"BTC-USDT", "BCH-USDT"}),
-		EnabledPairs:            currency.NewPairsFromStrings([]string{"BTC-USDT"}),
-		BaseCurrencies:          currency.NewCurrenciesFromStringArray([]string{"USD"}),
-		AssetTypes:              "SPOT",
-		SupportsAutoPairUpdates: false,
-		ConfigCurrencyPairFormat: &config.CurrencyPairFormatConfig{
-			Uppercase: true,
-			Delimiter: "-",
-		},
-		RequestCurrencyPairFormat: &config.CurrencyPairFormatConfig{
-			Uppercase: false,
-		},
-	}
-}
-
 func TestSetDefaults(t *testing.T) {
 	h.SetDefaults()
 }
@@ -65,11 +36,11 @@ func TestSetup(t *testing.T) {
 	if err != nil {
 		t.Error("Test Failed - Huobi Setup() init error")
 	}
-	hConfig.AuthenticatedAPISupport = true
-	hConfig.APIKey = apiKey
-	hConfig.APISecret = apiSecret
+	hConfig.API.AuthenticatedSupport = true
+	hConfig.API.Credentials.Key = apiKey
+	hConfig.API.Credentials.Secret = apiSecret
 
-	h.Setup(&hConfig)
+	h.Setup(hConfig)
 }
 
 func TestGetSpotKline(t *testing.T) {
@@ -163,7 +134,7 @@ func TestGetTimestamp(t *testing.T) {
 func TestGetAccounts(t *testing.T) {
 	t.Parallel()
 
-	if h.APIKey == "" || h.APISecret == "" || h.APIAuthPEMKey == "" {
+	if !h.ValidateAPICredentials() {
 		t.Skip()
 	}
 
@@ -176,7 +147,7 @@ func TestGetAccounts(t *testing.T) {
 func TestGetAccountBalance(t *testing.T) {
 	t.Parallel()
 
-	if h.APIKey == "" || h.APISecret == "" || h.APIAuthPEMKey == "" {
+	if !h.ValidateAPICredentials() {
 		t.Skip()
 	}
 
@@ -195,7 +166,7 @@ func TestGetAccountBalance(t *testing.T) {
 func TestSpotNewOrder(t *testing.T) {
 	t.Parallel()
 
-	if h.APIKey == "" || h.APISecret == "" || h.APIAuthPEMKey == "" {
+	if !h.ValidateAPICredentials() {
 		t.Skip()
 	}
 
@@ -234,7 +205,7 @@ func TestGetOrder(t *testing.T) {
 func TestGetMarginLoanOrders(t *testing.T) {
 	t.Parallel()
 
-	if h.APIKey == "" || h.APISecret == "" || h.APIAuthPEMKey == "" {
+	if !h.ValidateAPICredentials() {
 		t.Skip()
 	}
 
@@ -247,7 +218,7 @@ func TestGetMarginLoanOrders(t *testing.T) {
 func TestGetMarginAccountBalance(t *testing.T) {
 	t.Parallel()
 
-	if h.APIKey == "" || h.APISecret == "" || h.APIAuthPEMKey == "" {
+	if !h.ValidateAPICredentials() {
 		t.Skip()
 	}
 
@@ -269,7 +240,7 @@ func TestCancelWithdraw(t *testing.T) {
 func TestPEMLoadAndSign(t *testing.T) {
 	t.Parallel()
 
-	pemKey := strings.NewReader(h.APIAuthPEMKey)
+	pemKey := strings.NewReader(h.API.Credentials.PEMKey)
 	pemBytes, err := ioutil.ReadAll(pemKey)
 	if err != nil {
 		t.Fatalf("Test Failed. TestPEMLoadAndSign Unable to ioutil.ReadAll PEM key: %s", err)
@@ -444,24 +415,19 @@ func TestGetOrderHistory(t *testing.T) {
 // Any tests below this line have the ability to impact your orders on the exchange. Enable canManipulateRealOrders to run them
 // ----------------------------------------------------------------------------------------------------------------------------
 func areTestAPIKeysSet() bool {
-	if h.APIKey != "" && h.APIKey != "Key" &&
-		h.APISecret != "" && h.APISecret != "Secret" {
-		return true
-	}
-	return false
+	return h.ValidateAPICredentials()
 }
 
 func TestSubmitOrder(t *testing.T) {
 	h.SetDefaults()
 	TestSetup(t)
 
-	if areTestAPIKeysSet() && !canManipulateRealOrders {
-		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
+	if !h.ValidateAPICredentials() {
+		t.Skip()
 	}
 
-	if (h.APIKey == "" || h.APIKey == "Key") &&
-		(h.APISecret == "" || h.APISecret == "Secret") {
-		t.Skip()
+	if areTestAPIKeysSet() && !canManipulateRealOrders {
+		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 
 	var p = currency.Pair{
@@ -472,14 +438,12 @@ func TestSubmitOrder(t *testing.T) {
 
 	accounts, err := h.GetAccounts()
 	if err != nil {
-		t.Errorf("Failed to get accounts. Err: %s", err)
+		t.Fatalf("Failed to get accounts. Err: %s", err)
 	}
 
 	response, err := h.SubmitOrder(p, exchange.BuyOrderSide, exchange.LimitOrderType, 1, 10, strconv.FormatInt(accounts[0].ID, 10))
 	if areTestAPIKeysSet() && (err != nil || !response.IsOrderPlaced) {
 		t.Errorf("Order failed to be placed: %v", err)
-	} else if !areTestAPIKeysSet() && err == nil {
-		t.Error("Expecting an error when no keys are set")
 	}
 }
 

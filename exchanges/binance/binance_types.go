@@ -280,7 +280,7 @@ type NewOrderRequest struct {
 	// Symbol (currency pair to trade)
 	Symbol string
 	// Side Buy or Sell
-	Side RequestParamsSideType
+	Side string
 	// TradeType (market or limit order)
 	TradeType RequestParamsOrderType
 	// TimeInForce specifies how long the order remains in effect.
@@ -365,17 +365,6 @@ type Account struct {
 	UpdateTime       int64     `json:"updateTime"`
 	Balances         []Balance `json:"balances"`
 }
-
-// RequestParamsSideType trade order side (buy or sell)
-type RequestParamsSideType string
-
-var (
-	// BinanceRequestParamsSideBuy buy order type
-	BinanceRequestParamsSideBuy = RequestParamsSideType("BUY")
-
-	// BinanceRequestParamsSideSell sell order type
-	BinanceRequestParamsSideSell = RequestParamsSideType("SELL")
-)
 
 // RequestParamsTimeForceType Time in force
 type RequestParamsTimeForceType string
