@@ -13,6 +13,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
+	"github.com/thrasher-/gocryptotrader/exchanges/assets"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	log "github.com/thrasher-/gocryptotrader/logger"
 )
@@ -206,7 +207,7 @@ func (b *BTCC) WsHandleData() {
 				}
 
 				tick := exchange.TickerData{}
-				tick.AssetType = "SPOT"
+				tick.AssetType = assets.AssetTypeSpot
 				tick.ClosePrice = ticker.PrevCls
 				tick.Exchange = b.GetName()
 				tick.HighPrice = ticker.High
@@ -272,7 +273,7 @@ func (b *BTCC) WsUpdateCurrencyPairs() error {
 					currency.NewPairFromString(tickers[i].Symbol))
 			}
 
-			err = b.UpdateCurrencies(availableTickers, false, true)
+			err = b.UpdatePairs(availableTickers, assets.AssetTypeSpot, false, true)
 			if err != nil {
 				return fmt.Errorf("%s failed to update available currencies. %s",
 					b.Name,
@@ -315,7 +316,7 @@ func (b *BTCC) WsProcessOrderbookSnapshot(ob *WsOrderbookSnapshot) error {
 	var newOrderBook orderbook.Base
 
 	newOrderBook.Asks = asks
-	newOrderBook.AssetType = "SPOT"
+	newOrderBook.AssetType = assets.AssetTypeSpot
 	newOrderBook.Bids = bids
 	newOrderBook.Pair = currency.NewPairFromString(ob.Symbol)
 
@@ -326,7 +327,7 @@ func (b *BTCC) WsProcessOrderbookSnapshot(ob *WsOrderbookSnapshot) error {
 
 	b.Websocket.DataHandler <- exchange.WebsocketOrderbookUpdate{
 		Exchange: b.GetName(),
-		Asset:    "SPOT",
+		Asset:    assets.AssetTypeSpot,
 		Pair:     currency.NewPairFromString(ob.Symbol),
 	}
 
@@ -368,14 +369,14 @@ func (b *BTCC) WsProcessOrderbookUpdate(ob *WsOrderbookSnapshot) error {
 
 	p := currency.NewPairFromString(ob.Symbol)
 
-	err := b.Websocket.Orderbook.Update(bids, asks, p, time.Now(), b.GetName(), "SPOT")
+	err := b.Websocket.Orderbook.Update(bids, asks, p, time.Now(), b.GetName(), assets.AssetTypeSpot)
 	if err != nil {
 		return err
 	}
 
 	b.Websocket.DataHandler <- exchange.WebsocketOrderbookUpdate{
 		Exchange: b.GetName(),
-		Asset:    "SPOT",
+		Asset:    assets.AssetTypeSpot,
 		Pair:     currency.NewPairFromString(ob.Symbol),
 	}
 
@@ -454,8 +455,7 @@ func (b *BTCC) WsProcessOldOrderbookSnapshot(ob WsOrderbookSnapshotOld, symbol s
 	}
 
 	p := currency.NewPairFromString(symbol)
-
-	err := b.Websocket.Orderbook.Update(bids, asks, p, time.Now(), b.GetName(), "SPOT")
+	err := b.Websocket.Orderbook.Update(bids, asks, p, time.Now(), b.GetName(), assets.AssetTypeSpot)
 	if err != nil {
 		return err
 	}
@@ -463,7 +463,7 @@ func (b *BTCC) WsProcessOldOrderbookSnapshot(ob WsOrderbookSnapshotOld, symbol s
 	b.Websocket.DataHandler <- exchange.WebsocketOrderbookUpdate{
 		Exchange: b.GetName(),
 		Pair:     p,
-		Asset:    "SPOT",
+		Asset:    assets.AssetTypeSpot,
 	}
 
 	return nil
@@ -477,7 +477,7 @@ func (b *BTCC) GenerateDefaultSubscriptions() {
 	})
 
 	var channels = []string{"SubOrderBook", "GetTrades", "Subscribe"}
-	enabledCurrencies := b.GetEnabledCurrencies()
+	enabledCurrencies := b.GetEnabledPairs(assets.AssetTypeSpot)
 	for i := range channels {
 		for j := range enabledCurrencies {
 			params := make(map[string]interface{})

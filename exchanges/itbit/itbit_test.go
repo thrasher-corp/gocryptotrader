@@ -31,12 +31,12 @@ func TestSetup(t *testing.T) {
 	if err != nil {
 		t.Error("Test Failed - Gemini Setup() init error")
 	}
-	itbitConfig.AuthenticatedAPISupport = true
-	itbitConfig.APIKey = apiKey
-	itbitConfig.APISecret = apiSecret
-	itbitConfig.ClientID = clientID
+	itbitConfig.API.AuthenticatedSupport = true
+	itbitConfig.API.Credentials.Key = apiKey
+	itbitConfig.API.Credentials.Secret = apiSecret
+	itbitConfig.API.Credentials.ClientID = clientID
 
-	i.Setup(&itbitConfig)
+	i.Setup(itbitConfig)
 }
 
 func TestGetTicker(t *testing.T) {
@@ -106,7 +106,9 @@ func TestGetFundingHistory(t *testing.T) {
 }
 
 func TestPlaceOrder(t *testing.T) {
-	_, err := i.PlaceOrder("1337", "buy", "limit", "USD", 1, 0.2, "banjo", "sauce")
+	_, err := i.PlaceOrder("1337", exchange.BuyOrderSide.ToLower().ToString(),
+		exchange.LimitOrderType.ToLower().ToString(), "USD", 1, 0.2, "banjo",
+		"sauce")
 	if err == nil {
 		t.Error("Test Failed - PlaceOrder() error", err)
 	}
@@ -291,11 +293,7 @@ func TestGetOrderHistory(t *testing.T) {
 // Any tests below this line have the ability to impact your orders on the exchange. Enable canManipulateRealOrders to run them
 // ----------------------------------------------------------------------------------------------------------------------------
 func areTestAPIKeysSet() bool {
-	if i.APIKey != "" && i.APIKey != "Key" &&
-		i.APISecret != "" && i.APISecret != "Secret" {
-		return true
-	}
-	return false
+	return i.ValidateAPICredentials()
 }
 
 func TestSubmitOrder(t *testing.T) {
@@ -395,11 +393,13 @@ func TestModifyOrder(t *testing.T) {
 func TestWithdraw(t *testing.T) {
 	i.SetDefaults()
 	TestSetup(t)
-	var withdrawCryptoRequest = exchange.WithdrawRequest{
-		Amount:      100,
-		Currency:    currency.LTC,
-		Address:     "1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB",
-		Description: "WITHDRAW IT ALL",
+	withdrawCryptoRequest := exchange.CryptoWithdrawRequest{
+		GenericWithdrawRequestInfo: exchange.GenericWithdrawRequestInfo{
+			Amount:      -1,
+			Currency:    currency.BTC,
+			Description: "WITHDRAW IT ALL",
+		},
+		Address: "1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB",
 	}
 
 	if areTestAPIKeysSet() && !canManipulateRealOrders {
@@ -420,8 +420,7 @@ func TestWithdrawFiat(t *testing.T) {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 
-	var withdrawFiatRequest = exchange.WithdrawRequest{}
-
+	var withdrawFiatRequest = exchange.FiatWithdrawRequest{}
 	_, err := i.WithdrawFiatFunds(&withdrawFiatRequest)
 	if err != common.ErrFunctionNotSupported {
 		t.Errorf("Expected '%v', received: '%v'", common.ErrFunctionNotSupported, err)
@@ -436,8 +435,7 @@ func TestWithdrawInternationalBank(t *testing.T) {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 
-	var withdrawFiatRequest = exchange.WithdrawRequest{}
-
+	var withdrawFiatRequest = exchange.FiatWithdrawRequest{}
 	_, err := i.WithdrawFiatFundsToInternationalBank(&withdrawFiatRequest)
 	if err != common.ErrFunctionNotSupported {
 		t.Errorf("Expected '%v', received: '%v'", common.ErrFunctionNotSupported, err)

@@ -10,6 +10,7 @@ import (
 	"io"
 
 	"github.com/thrasher-/gocryptotrader/common"
+	gctcrypto "github.com/thrasher-/gocryptotrader/common/crypto"
 	log "github.com/thrasher-/gocryptotrader/logger"
 	"golang.org/x/crypto/scrypt"
 )
@@ -33,7 +34,7 @@ var (
 
 // PromptForConfigEncryption asks for encryption key
 func (c *Config) PromptForConfigEncryption() bool {
-	log.Println("Would you like to encrypt your config file (y/n)?")
+	log.Infof("Would you like to encrypt your config file (y/n)?")
 
 	input := ""
 	_, err := fmt.Scanln(&input)
@@ -191,7 +192,7 @@ func getScryptDK(key, salt []byte) ([]byte, error) {
 
 func makeNewSessionDK(key []byte) ([]byte, error) {
 	var err error
-	storedSalt, err = common.GetRandomSalt([]byte(SaltPrefix), SaltRandomLength)
+	storedSalt, err = gctcrypto.GetRandomSalt([]byte(SaltPrefix), SaltRandomLength)
 	if err != nil {
 		return nil, err
 	}

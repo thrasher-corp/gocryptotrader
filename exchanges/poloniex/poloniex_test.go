@@ -29,11 +29,11 @@ func TestSetup(t *testing.T) {
 		if err != nil {
 			t.Error("Test Failed - Poloniex Setup() init error")
 		}
-		poloniexConfig.AuthenticatedAPISupport = true
-		poloniexConfig.APIKey = apiKey
-		poloniexConfig.APISecret = apiSecret
+		poloniexConfig.API.AuthenticatedSupport = true
+		poloniexConfig.API.Credentials.Key = apiKey
+		poloniexConfig.API.Credentials.Secret = apiSecret
 		p.SetDefaults()
-		p.Setup(&poloniexConfig)
+		p.Setup(poloniexConfig)
 		isSetup = true
 	}
 }
@@ -242,11 +242,7 @@ func TestGetOrderHistory(t *testing.T) {
 // Any tests below this line have the ability to impact your orders on the exchange. Enable canManipulateRealOrders to run them
 // ----------------------------------------------------------------------------------------------------------------------------
 func areTestAPIKeysSet() bool {
-	if p.APIKey != "" && p.APIKey != "Key" &&
-		p.APISecret != "" && p.APISecret != "Secret" {
-		return true
-	}
-	return false
+	return p.ValidateAPICredentials()
 }
 
 func TestSubmitOrder(t *testing.T) {
@@ -265,7 +261,7 @@ func TestSubmitOrder(t *testing.T) {
 
 	response, err := p.SubmitOrder(pair,
 		exchange.BuyOrderSide,
-		exchange.MarketOrderType,
+		exchange.LimitOrderType,
 		1,
 		10,
 		"hi")
@@ -346,11 +342,13 @@ func TestModifyOrder(t *testing.T) {
 func TestWithdraw(t *testing.T) {
 	t.Parallel()
 	TestSetup(t)
-	var withdrawCryptoRequest = exchange.WithdrawRequest{
-		Amount:      100,
-		Currency:    currency.LTC,
-		Address:     "1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB",
-		Description: "WITHDRAW IT ALL",
+	withdrawCryptoRequest := exchange.CryptoWithdrawRequest{
+		GenericWithdrawRequestInfo: exchange.GenericWithdrawRequestInfo{
+			Amount:      -1,
+			Currency:    currency.BTC,
+			Description: "WITHDRAW IT ALL",
+		},
+		Address: "1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB",
 	}
 
 	if areTestAPIKeysSet() && !canManipulateRealOrders {
@@ -374,8 +372,7 @@ func TestWithdrawFiat(t *testing.T) {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 
-	var withdrawFiatRequest = exchange.WithdrawRequest{}
-
+	var withdrawFiatRequest = exchange.FiatWithdrawRequest{}
 	_, err := p.WithdrawFiatFunds(&withdrawFiatRequest)
 	if err != common.ErrFunctionNotSupported {
 		t.Errorf("Expected '%v', received: '%v'", common.ErrFunctionNotSupported, err)
@@ -390,8 +387,7 @@ func TestWithdrawInternationalBank(t *testing.T) {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 
-	var withdrawFiatRequest = exchange.WithdrawRequest{}
-
+	var withdrawFiatRequest = exchange.FiatWithdrawRequest{}
 	_, err := p.WithdrawFiatFundsToInternationalBank(&withdrawFiatRequest)
 	if err != common.ErrFunctionNotSupported {
 		t.Errorf("Expected '%v', received: '%v'", common.ErrFunctionNotSupported, err)

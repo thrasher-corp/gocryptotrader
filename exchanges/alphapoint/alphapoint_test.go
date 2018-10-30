@@ -20,22 +20,22 @@ func TestSetDefaults(t *testing.T) {
 	SetDefaults := Alphapoint{}
 
 	SetDefaults.SetDefaults()
-	if SetDefaults.APIUrl != "https://sim3.alphapoint.com:8400" {
-		t.Error("Test Failed - SetDefaults: String Incorrect -", SetDefaults.APIUrl)
+	if SetDefaults.API.Endpoints.URL != "https://sim3.alphapoint.com:8400" {
+		t.Error("Test Failed - SetDefaults: String Incorrect -", SetDefaults.API.Endpoints.URL)
 	}
-	if SetDefaults.WebsocketURL != "wss://sim3.alphapoint.com:8401/v1/GetTicker/" {
-		t.Error("Test Failed - SetDefaults: String Incorrect -", SetDefaults.WebsocketURL)
+	if SetDefaults.API.Endpoints.WebsocketURL != "wss://sim3.alphapoint.com:8401/v1/GetTicker/" {
+		t.Error("Test Failed - SetDefaults: String Incorrect -", SetDefaults.API.Endpoints.WebsocketURL)
 	}
 }
 
 func testSetAPIKey(a *Alphapoint) {
-	a.APIKey = apiKey
-	a.APISecret = apiSecret
-	a.AuthenticatedAPISupport = true
+	a.API.Credentials.Key = apiKey
+	a.API.Credentials.Secret = apiSecret
+	a.API.AuthenticatedSupport = true
 }
 
 func testIsAPIKeysSet(a *Alphapoint) bool {
-	if apiKey != "" && apiSecret != "" && a.AuthenticatedAPISupport {
+	if apiKey != "" && apiSecret != "" && a.API.AuthenticatedSupport {
 		return true
 	}
 	return false
@@ -412,7 +412,7 @@ func TestCreateOrder(t *testing.T) {
 		return
 	}
 
-	_, err := a.CreateOrder("", "", exchange.MarketOrderType.ToString(), 0.01, 0)
+	_, err := a.CreateOrder("", "", exchange.LimitOrderType.ToString(), 0.01, 0)
 	if err == nil {
 		t.Error("Test Failed - GetUserInfo() error")
 	}
@@ -526,11 +526,7 @@ func TestGetOrderHistory(t *testing.T) {
 // ----------------------------------------------------------------------------------------------------------------------------
 
 func areTestAPIKeysSet(a *Alphapoint) bool {
-	if a.APIKey != "" && a.APIKey != "Key" &&
-		a.APISecret != "" && a.APISecret != "Secret" {
-		return true
-	}
-	return false
+	return a.ValidateAPICredentials()
 }
 
 func TestSubmitOrder(t *testing.T) {
@@ -545,7 +541,7 @@ func TestSubmitOrder(t *testing.T) {
 		Base:      currency.BTC,
 		Quote:     currency.USD,
 	}
-	response, err := a.SubmitOrder(p, exchange.BuyOrderSide, exchange.MarketOrderType, 1, 1, "clientId")
+	response, err := a.SubmitOrder(p, exchange.BuyOrderSide, exchange.LimitOrderType, 1, 1, "clientId")
 	if !areTestAPIKeysSet(a) && err == nil {
 		t.Error("Expecting an error when no keys are set")
 	}
@@ -628,13 +624,7 @@ func TestModifyOrder(t *testing.T) {
 func TestWithdraw(t *testing.T) {
 	a := &Alphapoint{}
 	a.SetDefaults()
-	var withdrawCryptoRequest = exchange.WithdrawRequest{
-		Amount:      100,
-		Currency:    currency.BTC,
-		Address:     "1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB",
-		Description: "WITHDRAW IT ALL",
-		AddressTag:  "0123456789",
-	}
+	var withdrawCryptoRequest = exchange.CryptoWithdrawRequest{}
 
 	_, err := a.WithdrawCryptocurrencyFunds(&withdrawCryptoRequest)
 	if err != common.ErrNotYetImplemented {
@@ -650,8 +640,7 @@ func TestWithdrawFiat(t *testing.T) {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 
-	var withdrawFiatRequest = exchange.WithdrawRequest{}
-
+	var withdrawFiatRequest = exchange.FiatWithdrawRequest{}
 	_, err := a.WithdrawFiatFunds(&withdrawFiatRequest)
 	if err != common.ErrNotYetImplemented {
 		t.Errorf("Expected '%v', received: '%v'", common.ErrNotYetImplemented, err)
@@ -666,8 +655,7 @@ func TestWithdrawInternationalBank(t *testing.T) {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 
-	var withdrawFiatRequest = exchange.WithdrawRequest{}
-
+	var withdrawFiatRequest = exchange.FiatWithdrawRequest{}
 	_, err := a.WithdrawFiatFundsToInternationalBank(&withdrawFiatRequest)
 	if err != common.ErrNotYetImplemented {
 		t.Errorf("Expected '%v', received: '%v'", common.ErrNotYetImplemented, err)

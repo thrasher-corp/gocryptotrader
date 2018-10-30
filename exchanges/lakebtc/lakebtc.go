@@ -6,14 +6,11 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
-	"github.com/thrasher-/gocryptotrader/config"
+	"github.com/thrasher-/gocryptotrader/common/crypto"
 	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
-	"github.com/thrasher-/gocryptotrader/exchanges/request"
-	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
@@ -42,90 +39,10 @@ type LakeBTC struct {
 	exchange.Base
 }
 
-// SetDefaults sets LakeBTC defaults
-func (l *LakeBTC) SetDefaults() {
-	l.Name = "LakeBTC"
-	l.Enabled = false
-	l.TakerFee = 0.2
-	l.MakerFee = 0.15
-	l.Verbose = false
-	l.RESTPollingDelay = 10
-	l.APIWithdrawPermissions = exchange.AutoWithdrawCrypto |
-		exchange.WithdrawFiatViaWebsiteOnly
-	l.RequestCurrencyPairFormat.Delimiter = ""
-	l.RequestCurrencyPairFormat.Uppercase = true
-	l.ConfigCurrencyPairFormat.Delimiter = ""
-	l.ConfigCurrencyPairFormat.Uppercase = true
-	l.AssetTypes = []string{ticker.Spot}
-	l.SupportsAutoPairUpdating = true
-	l.SupportsRESTTickerBatching = true
-	l.Requester = request.New(l.Name,
-		request.NewRateLimit(time.Second, lakeBTCAuthRate),
-		request.NewRateLimit(time.Second, lakeBTCUnauth),
-		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
-	l.APIUrlDefault = lakeBTCAPIURL
-	l.APIUrl = l.APIUrlDefault
-	l.WebsocketInit()
-}
-
-// Setup sets exchange configuration profile
-func (l *LakeBTC) Setup(exch *config.ExchangeConfig) {
-	if !exch.Enabled {
-		l.SetEnabled(false)
-	} else {
-		l.Enabled = true
-		l.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
-		l.SetAPIKeys(exch.APIKey, exch.APISecret, "", false)
-		l.SetHTTPClientTimeout(exch.HTTPTimeout)
-		l.SetHTTPClientUserAgent(exch.HTTPUserAgent)
-		l.RESTPollingDelay = exch.RESTPollingDelay
-		l.Verbose = exch.Verbose
-		l.HTTPDebugging = exch.HTTPDebugging
-		l.BaseCurrencies = exch.BaseCurrencies
-		l.AvailablePairs = exch.AvailablePairs
-		l.EnabledPairs = exch.EnabledPairs
-		err := l.SetCurrencyPairFormat()
-		if err != nil {
-			log.Fatal(err)
-		}
-		err = l.SetAssetTypes()
-		if err != nil {
-			log.Fatal(err)
-		}
-		err = l.SetAutoPairDefaults()
-		if err != nil {
-			log.Fatal(err)
-		}
-		err = l.SetAPIURL(exch)
-		if err != nil {
-			log.Fatal(err)
-		}
-		err = l.SetClientProxyAddress(exch.ProxyAddress)
-		if err != nil {
-			log.Fatal(err)
-		}
-	}
-}
-
-// GetTradablePairs returns a list of available pairs from the exchange
-func (l *LakeBTC) GetTradablePairs() ([]string, error) {
-	result, err := l.GetTicker()
-	if err != nil {
-		return nil, err
-	}
-
-	var currencies []string
-	for x := range result {
-		currencies = append(currencies, common.StringToUpper(x))
-	}
-
-	return currencies, nil
-}
-
 // GetTicker returns the current ticker from lakeBTC
 func (l *LakeBTC) GetTicker() (map[string]Ticker, error) {
 	response := make(map[string]TickerResponse)
-	path := fmt.Sprintf("%s/%s", l.APIUrl, lakeBTCTicker)
+	path := fmt.Sprintf("%s/%s", l.API.Endpoints.URL, lakeBTCTicker)
 
 	if err := l.SendHTTPRequest(path, &response); err != nil {
 		return nil, err
@@ -165,7 +82,7 @@ func (l *LakeBTC) GetOrderBook(currency string) (Orderbook, error) {
 		Bids [][]string `json:"bids"`
 		Asks [][]string `json:"asks"`
 	}
-	path := fmt.Sprintf("%s/%s?symbol=%s", l.APIUrl, lakeBTCOrderbook, common.StringToLower(currency))
+	path := fmt.Sprintf("%s/%s?symbol=%s", l.API.Endpoints.URL, lakeBTCOrderbook, common.StringToLower(currency))
 	resp := Response{}
 	err := l.SendHTTPRequest(path, &resp)
 	if err != nil {
@@ -205,16 +122,14 @@ func (l *LakeBTC) GetOrderBook(currency string) (Orderbook, error) {
 
 // GetTradeHistory returns the trade history for a given currency pair
 func (l *LakeBTC) GetTradeHistory(currency string) ([]TradeHistory, error) {
-	path := fmt.Sprintf("%s/%s?symbol=%s", l.APIUrl, lakeBTCTrades, common.StringToLower(currency))
+	path := fmt.Sprintf("%s/%s?symbol=%s", l.API.Endpoints.URL, lakeBTCTrades, common.StringToLower(currency))
 	var resp []TradeHistory
-
 	return resp, l.SendHTTPRequest(path, &resp)
 }
 
 // GetAccountInformation returns your current account information
 func (l *LakeBTC) GetAccountInformation() (AccountInfo, error) {
 	resp := AccountInfo{}
-
 	return resp, l.SendAuthenticatedHTTPRequest(lakeBTCGetAccountInfo, "", &resp)
 }
 
@@ -340,17 +255,17 @@ func (l *LakeBTC) SendHTTPRequest(path string, result interface{}) error {
 
 // SendAuthenticatedHTTPRequest sends an autheticated HTTP request to a LakeBTC
 func (l *LakeBTC) SendAuthenticatedHTTPRequest(method, params string, result interface{}) (err error) {
-	if !l.AuthenticatedAPISupport {
+	if !l.AllowAuthenticatedRequest() {
 		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet, l.Name)
 	}
 
 	n := l.Requester.GetNonce(true).String()
 
-	req := fmt.Sprintf("tonce=%s&accesskey=%s&requestmethod=post&id=1&method=%s&params=%s", n, l.APIKey, method, params)
-	hmac := common.GetHMAC(common.HashSHA1, []byte(req), []byte(l.APISecret))
+	req := fmt.Sprintf("tonce=%s&accesskey=%s&requestmethod=post&id=1&method=%s&params=%s", n, l.API.Credentials.Key, method, params)
+	hmac := crypto.GetHMAC(crypto.HashSHA1, []byte(req), []byte(l.API.Credentials.Secret))
 
 	if l.Verbose {
-		log.Debugf("Sending POST request to %s calling method %s with params %s\n", l.APIUrl, method, req)
+		log.Debugf("Sending POST request to %s calling method %s with params %s\n", l.API.Endpoints.URL, method, req)
 	}
 
 	postData := make(map[string]interface{})
@@ -365,10 +280,11 @@ func (l *LakeBTC) SendAuthenticatedHTTPRequest(method, params string, result int
 
 	headers := make(map[string]string)
 	headers["Json-Rpc-Tonce"] = l.Nonce.String()
-	headers["Authorization"] = "Basic " + common.Base64Encode([]byte(l.APIKey+":"+common.HexEncodeToString(hmac)))
+	headers["Authorization"] = "Basic " + crypto.Base64Encode([]byte(l.API.Credentials.Key+":"+crypto.HexEncodeToString(hmac)))
 	headers["Content-Type"] = "application/json-rpc"
 
-	return l.SendPayload(http.MethodPost, l.APIUrl, headers, strings.NewReader(string(data)), result, true, true, l.Verbose, l.HTTPDebugging)
+	return l.SendPayload(http.MethodPost, l.API.Endpoints.URL, headers,
+		strings.NewReader(string(data)), result, true, true, l.Verbose, l.HTTPDebugging)
 }
 
 // GetFee returns an estimate of fee based on type of transaction

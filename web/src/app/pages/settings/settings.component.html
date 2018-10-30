@@ -226,13 +226,13 @@
                 <mat-checkbox name="exchangeEnabled" [(ngModel)]="exchange.enabled">Enabled</mat-checkbox>
                 <div mat-line></div>
                 <mat-form-field>
-                    <input matInput name="apiKey" [(ngModel)]="exchange.APIKey" [disabled]="!exchange.enabled" placeholder="API Key*">
+                    <input matInput name="apiKey" [(ngModel)]="exchange.API.Credentials.Key" [disabled]="!exchange.enabled" placeholder="API Key*">
                 </mat-form-field>
                 <mat-form-field>
-                    <input matInput name="apiSecretKey" type="password" [(ngModel)]="exchange.APISecret" [disabled]="!exchange.enabled" placeholder="API Secret Key*">
+                    <input matInput name="apiSecretKey" type="password" [(ngModel)]="exchange.API.Credentials.Secret" [disabled]="!exchange.enabled" placeholder="API Secret Key*">
                 </mat-form-field>
                 <mat-form-field>
-                    <input matInput name="apiClientId" [(ngModel)]="exchange.clientID" [disabled]="!exchange.enabled" placeholder="API ClientID">
+                    <input matInput name="apiClientId" [(ngModel)]="exchange.API.Credentials.ClientID" [disabled]="!exchange.enabled" placeholder="API ClientID">
                 </mat-form-field>
                 <div mat-line></div>
                 <h4>

@@ -1,22 +1,12 @@
 package common
 
 import (
-	"crypto/hmac"
-	"crypto/md5" // nolint:gosec
-	"crypto/rand"
-	"crypto/sha1" // nolint:gosec
-	"crypto/sha256"
-	"crypto/sha512"
-	"encoding/base64"
 	"encoding/csv"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"hash"
 	"io"
 	"io/ioutil"
-	"math"
 	"net/http"
 	"net/url"
 	"os"
@@ -34,7 +24,8 @@ import (
 
 // Vars for common.go operations
 var (
-	HTTPClient *http.Client
+	HTTPClient    *http.Client
+	HTTPUserAgent string
 
 	// ErrNotYetImplemented defines a common error across the code base that
 	// alerts of a function that has not been completed or tied into main code
@@ -47,11 +38,6 @@ var (
 
 // Const declarations for common.go operations
 const (
-	HashSHA1 = iota
-	HashSHA256
-	HashSHA512
-	HashSHA512_384
-	HashMD5
 	SatoshisPerBTC = 100000000
 	SatoshisPerLTC = 100000000
 	WeiPerEther    = 1000000000000000000
@@ -69,95 +55,6 @@ func initialiseHTTPClient() {
 func NewHTTPClientWithTimeout(t time.Duration) *http.Client {
 	h := &http.Client{Timeout: t}
 	return h
-}
-
-// GetRandomSalt returns a random salt
-func GetRandomSalt(input []byte, saltLen int) ([]byte, error) {
-	if saltLen <= 0 {
-		return nil, errors.New("salt length is too small")
-	}
-	salt := make([]byte, saltLen)
-	if _, err := io.ReadFull(rand.Reader, salt); err != nil {
-		return nil, err
-	}
-
-	var result []byte
-	if input != nil {
-		result = input
-	}
-	result = append(result, salt...)
-	return result, nil
-}
-
-// GetMD5 returns a MD5 hash of a byte array
-func GetMD5(input []byte) []byte {
-	m := md5.New() // nolint:gosec
-	m.Write(input)
-	return m.Sum(nil)
-}
-
-// GetSHA512 returns a SHA512 hash of a byte array
-func GetSHA512(input []byte) []byte {
-	sha := sha512.New()
-	sha.Write(input)
-	return sha.Sum(nil)
-}
-
-// GetSHA256 returns a SHA256 hash of a byte array
-func GetSHA256(input []byte) []byte {
-	sha := sha256.New()
-	sha.Write(input)
-	return sha.Sum(nil)
-}
-
-// GetHMAC returns a keyed-hash message authentication code using the desired
-// hashtype
-func GetHMAC(hashType int, input, key []byte) []byte {
-	var hasher func() hash.Hash
-
-	switch hashType {
-	case HashSHA1:
-		hasher = sha1.New
-	case HashSHA256:
-		hasher = sha256.New
-	case HashSHA512:
-		hasher = sha512.New
-	case HashSHA512_384:
-		hasher = sha512.New384
-	case HashMD5:
-		hasher = md5.New
-	}
-
-	h := hmac.New(hasher, key)
-	h.Write(input)
-	return h.Sum(nil)
-}
-
-// Sha1ToHex takes a string, sha1 hashes it and return a hex string of the
-// result
-func Sha1ToHex(data string) string {
-	h := sha1.New() // nolint:gosec
-	h.Write([]byte(data))
-	return hex.EncodeToString(h.Sum(nil))
-}
-
-// HexEncodeToString takes in a hexadecimal byte array and returns a string
-func HexEncodeToString(input []byte) string {
-	return hex.EncodeToString(input)
-}
-
-// Base64Decode takes in a Base64 string and returns a byte array and an error
-func Base64Decode(input string) ([]byte, error) {
-	result, err := base64.StdEncoding.DecodeString(input)
-	if err != nil {
-		return nil, err
-	}
-	return result, nil
-}
-
-// Base64Encode takes in a byte array then returns an encoded base64 string
-func Base64Encode(input []byte) string {
-	return base64.StdEncoding.EncodeToString(input)
 }
 
 // StringSliceDifference concatenates slices together based on its index and
@@ -260,27 +157,6 @@ func StringToLower(input string) string {
 	return strings.ToLower(input)
 }
 
-// RoundFloat rounds your floating point number to the desired decimal place
-func RoundFloat(x float64, prec int) float64 {
-	var rounder float64
-	pow := math.Pow(10, float64(prec))
-	intermed := x * pow
-	_, frac := math.Modf(intermed)
-	intermed += .5
-	x = .5
-	if frac < 0.0 {
-		x = -.5
-		intermed--
-	}
-	if frac >= x {
-		rounder = math.Ceil(intermed)
-	} else {
-		rounder = math.Floor(intermed)
-	}
-
-	return rounder / pow
-}
-
 // IsEnabled takes in a boolean param  and returns a string if it is enabled
 // or disabled
 func IsEnabled(isEnabled bool) string {
@@ -314,33 +190,6 @@ func YesOrNo(input string) bool {
 	return false
 }
 
-// CalculateAmountWithFee returns a calculated fee included amount on fee
-func CalculateAmountWithFee(amount, fee float64) float64 {
-	return amount + CalculateFee(amount, fee)
-}
-
-// CalculateFee returns a simple fee on amount
-func CalculateFee(amount, fee float64) float64 {
-	return amount * (fee / 100)
-}
-
-// CalculatePercentageGainOrLoss returns the percentage rise over a certain
-// period
-func CalculatePercentageGainOrLoss(priceNow, priceThen float64) float64 {
-	return (priceNow - priceThen) / priceThen * 100
-}
-
-// CalculatePercentageDifference returns the percentage of difference between
-// multiple time periods
-func CalculatePercentageDifference(amount, secondAmount float64) float64 {
-	return (amount - secondAmount) / ((amount + secondAmount) / 2) * 100
-}
-
-// CalculateNetProfit returns net profit
-func CalculateNetProfit(amount, priceThen, priceNow, costs float64) float64 {
-	return (priceNow * amount) - (priceThen * amount) - costs
-}
-
 // SendHTTPRequest sends a request using the http package and returns a response
 // as a string and an error
 func SendHTTPRequest(method, urlPath string, headers map[string]string, body io.Reader) (string, error) {
@@ -359,6 +208,10 @@ func SendHTTPRequest(method, urlPath string, headers map[string]string, body io.
 
 	for k, v := range headers {
 		req.Header.Add(k, v)
+	}
+
+	if HTTPUserAgent != "" && req.Header.Get("User-Agent") == "" {
+		req.Header.Add("User-Agent", HTTPUserAgent)
 	}
 
 	resp, err := HTTPClient.Do(req)

@@ -30,17 +30,17 @@ func TestSetup(t *testing.T) {
 	if err != nil {
 		t.Error("Test Failed - ZB Setup() init error")
 	}
-	zbConfig.AuthenticatedAPISupport = true
-	zbConfig.APIKey = apiKey
-	zbConfig.APISecret = apiSecret
+	zbConfig.API.AuthenticatedSupport = true
+	zbConfig.API.Credentials.Key = apiKey
+	zbConfig.API.Credentials.Secret = apiSecret
 
-	z.Setup(&zbConfig)
+	z.Setup(zbConfig)
 }
 
 func TestSpotNewOrder(t *testing.T) {
 	t.Parallel()
 
-	if z.APIKey == "" || z.APISecret == "" {
+	if !z.ValidateAPICredentials() {
 		t.Skip()
 	}
 
@@ -61,7 +61,7 @@ func TestSpotNewOrder(t *testing.T) {
 func TestCancelExistingOrder(t *testing.T) {
 	t.Parallel()
 
-	if z.APIKey == "" || z.APISecret == "" {
+	if !z.ValidateAPICredentials() {
 		t.Skip()
 	}
 
@@ -282,11 +282,7 @@ func TestGetOrderHistory(t *testing.T) {
 // Any tests below this line have the ability to impact your orders on the exchange. Enable canManipulateRealOrders to run them
 // ----------------------------------------------------------------------------------------------------------------------------
 func areTestAPIKeysSet() bool {
-	if z.APIKey != "" && z.APIKey != "Key" &&
-		z.APISecret != "" && z.APISecret != "Secret" {
-		return true
-	}
-	return false
+	return z.ValidateAPICredentials()
 }
 
 func TestSubmitOrder(t *testing.T) {
@@ -295,7 +291,7 @@ func TestSubmitOrder(t *testing.T) {
 
 	if areTestAPIKeysSet() && !canManipulateRealOrders {
 		t.Skip(fmt.Sprintf("ApiKey: %s. Can place orders: %v",
-			z.APIKey,
+			z.API.Credentials.Key,
 			canManipulateRealOrders))
 	}
 	var pair = currency.Pair{
@@ -306,7 +302,7 @@ func TestSubmitOrder(t *testing.T) {
 
 	response, err := z.SubmitOrder(pair,
 		exchange.BuyOrderSide,
-		exchange.MarketOrderType,
+		exchange.LimitOrderType,
 		1,
 		10,
 		"hi")
@@ -376,7 +372,7 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 }
 
 func TestGetAccountInfo(t *testing.T) {
-	if apiKey != "" || apiSecret != "" {
+	if z.ValidateAPICredentials() {
 		_, err := z.GetAccountInfo()
 		if err != nil {
 			t.Error("Test Failed - GetAccountInfo() error", err)
@@ -399,12 +395,14 @@ func TestModifyOrder(t *testing.T) {
 func TestWithdraw(t *testing.T) {
 	z.SetDefaults()
 	TestSetup(t)
-	var withdrawCryptoRequest = exchange.WithdrawRequest{
-		Amount:      100,
-		Currency:    currency.BTC,
-		Address:     "1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB",
-		Description: "WITHDRAW IT ALL",
-		FeeAmount:   1,
+	withdrawCryptoRequest := exchange.CryptoWithdrawRequest{
+		GenericWithdrawRequestInfo: exchange.GenericWithdrawRequestInfo{
+			Amount:      -1,
+			Currency:    currency.BTC,
+			Description: "WITHDRAW IT ALL",
+		},
+		Address:   "1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB",
+		FeeAmount: 1,
 	}
 
 	if areTestAPIKeysSet() && !canManipulateRealOrders {
@@ -428,8 +426,7 @@ func TestWithdrawFiat(t *testing.T) {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 
-	var withdrawFiatRequest = exchange.WithdrawRequest{}
-
+	var withdrawFiatRequest = exchange.FiatWithdrawRequest{}
 	_, err := z.WithdrawFiatFunds(&withdrawFiatRequest)
 	if err != common.ErrFunctionNotSupported {
 		t.Errorf("Expected '%v', received: '%v'", common.ErrFunctionNotSupported, err)
@@ -444,8 +441,7 @@ func TestWithdrawInternationalBank(t *testing.T) {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 
-	var withdrawFiatRequest = exchange.WithdrawRequest{}
-
+	var withdrawFiatRequest = exchange.FiatWithdrawRequest{}
 	_, err := z.WithdrawFiatFundsToInternationalBank(&withdrawFiatRequest)
 	if err != common.ErrFunctionNotSupported {
 		t.Errorf("Expected '%v', received: '%v'", common.ErrFunctionNotSupported, err)

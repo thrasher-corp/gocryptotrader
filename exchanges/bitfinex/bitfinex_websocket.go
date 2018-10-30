@@ -11,8 +11,10 @@ import (
 
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-/gocryptotrader/common"
+	"github.com/thrasher-/gocryptotrader/common/crypto"
 	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
+	"github.com/thrasher-/gocryptotrader/exchanges/assets"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	log "github.com/thrasher-/gocryptotrader/logger"
 )
@@ -79,13 +81,13 @@ func (b *Bitfinex) WsSendAuth() error {
 	req := make(map[string]interface{})
 	payload := "AUTH" + strconv.FormatInt(time.Now().UnixNano(), 10)[:13]
 	req["event"] = "auth"
-	req["apiKey"] = b.APIKey
+	req["apiKey"] = b.API.Credentials.Key
 
-	req["authSig"] = common.HexEncodeToString(
-		common.GetHMAC(
-			common.HashSHA512_384,
+	req["authSig"] = crypto.HexEncodeToString(
+		crypto.GetHMAC(
+			crypto.HashSHA512_384,
 			[]byte(payload),
-			[]byte(b.APISecret)))
+			[]byte(b.API.Credentials.Secret)))
 
 	req["authPayload"] = payload
 
@@ -156,7 +158,7 @@ func (b *Bitfinex) WsConnect() error {
 		}
 	}
 
-	if b.AuthenticatedAPISupport {
+	if b.AllowAuthenticatedRequest() {
 		err = b.WsSendAuth()
 		if err != nil {
 			return err
@@ -232,7 +234,7 @@ func (b *Bitfinex) WsDataHandler() {
 							b.Websocket.DataHandler <- fmt.Errorf("bitfinex.go error - Websocket unable to AUTH. Error code: %s",
 								eventData["code"].(string))
 
-							b.AuthenticatedAPISupport = false
+							b.API.AuthenticatedSupport = false
 						}
 					}
 
@@ -280,7 +282,7 @@ func (b *Bitfinex) WsDataHandler() {
 
 						if len(newOrderbook) > 1 {
 							err := b.WsInsertSnapshot(currency.NewPairFromString(chanInfo.Pair),
-								"SPOT",
+								assets.AssetTypeSpot,
 								newOrderbook)
 
 							if err != nil {
@@ -291,7 +293,7 @@ func (b *Bitfinex) WsDataHandler() {
 						}
 
 						err := b.WsUpdateOrderbook(currency.NewPairFromString(chanInfo.Pair),
-							"SPOT",
+							assets.AssetTypeSpot,
 							newOrderbook[0])
 
 						if err != nil {
@@ -307,7 +309,7 @@ func (b *Bitfinex) WsDataHandler() {
 							LowPrice:   chanData[10].(float64),
 							Pair:       currency.NewPairFromString(chanInfo.Pair),
 							Exchange:   b.GetName(),
-							AssetType:  "SPOT",
+							AssetType:  assets.AssetTypeSpot,
 						}
 
 					case "account":
@@ -463,7 +465,7 @@ func (b *Bitfinex) WsDataHandler() {
 								Price:        trades[0].Price,
 								Amount:       newAmount,
 								Exchange:     b.GetName(),
-								AssetType:    "SPOT",
+								AssetType:    assets.AssetTypeSpot,
 								Side:         side,
 							}
 						}
@@ -476,7 +478,7 @@ func (b *Bitfinex) WsDataHandler() {
 
 // WsInsertSnapshot add the initial orderbook snapshot when subscribed to a
 // channel
-func (b *Bitfinex) WsInsertSnapshot(p currency.Pair, assetType string, books []WebsocketBook) error {
+func (b *Bitfinex) WsInsertSnapshot(p currency.Pair, assetType assets.AssetType, books []WebsocketBook) error {
 	if len(books) == 0 {
 		return errors.New("bitfinex.go error - no orderbooks submitted")
 	}
@@ -513,7 +515,7 @@ func (b *Bitfinex) WsInsertSnapshot(p currency.Pair, assetType string, books []W
 
 // WsUpdateOrderbook updates the orderbook list, removing and adding to the
 // orderbook sides
-func (b *Bitfinex) WsUpdateOrderbook(p currency.Pair, assetType string, book WebsocketBook) error {
+func (b *Bitfinex) WsUpdateOrderbook(p currency.Pair, assetType assets.AssetType, book WebsocketBook) error {
 
 	if book.Count > 0 {
 		if book.Amount > 0 {
@@ -603,14 +605,15 @@ func (b *Bitfinex) GenerateDefaultSubscriptions() {
 	var channels = []string{"book", "trades", "ticker"}
 	subscriptions := []exchange.WebsocketChannelSubscription{}
 	for i := range channels {
-		for j := range b.EnabledPairs {
+		enabledPairs := b.GetEnabledPairs(assets.AssetTypeSpot)
+		for j := range enabledPairs {
 			params := make(map[string]interface{})
 			if channels[i] == "book" {
 				params["prec"] = "P0"
 			}
 			subscriptions = append(subscriptions, exchange.WebsocketChannelSubscription{
 				Channel:  channels[i],
-				Currency: b.EnabledPairs[j],
+				Currency: enabledPairs[j],
 				Params:   params,
 			})
 		}

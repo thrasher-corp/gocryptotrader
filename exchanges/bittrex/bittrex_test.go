@@ -2,7 +2,6 @@ package bittrex
 
 import (
 	"testing"
-	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
@@ -33,16 +32,14 @@ func TestSetup(t *testing.T) {
 	if err != nil {
 		t.Error("Test Failed - Bittrex Setup() init error")
 	}
-	bConfig.APIKey = apiKey
-	bConfig.APISecret = apiSecret
-	bConfig.AuthenticatedAPISupport = true
+	bConfig.API.Credentials.Key = apiKey
+	bConfig.API.Credentials.Secret = apiSecret
+	bConfig.API.AuthenticatedSupport = true
 
-	b.Setup(&bConfig)
+	b.Setup(bConfig)
 
-	if !b.IsEnabled() ||
-		b.RESTPollingDelay != time.Duration(10) || b.Verbose ||
-		b.Websocket.IsEnabled() || len(b.BaseCurrencies) < 1 ||
-		len(b.AvailablePairs) < 1 || len(b.EnabledPairs) < 1 {
+	if !b.IsEnabled() || !b.API.AuthenticatedSupport ||
+		b.Verbose || len(b.BaseCurrencies) < 1 {
 		t.Error("Test Failed - Bittrex Setup values not set correctly")
 	}
 }
@@ -365,11 +362,7 @@ func TestGetOrderHistory(t *testing.T) {
 // Any tests below this line have the ability to impact your orders on the exchange. Enable canManipulateRealOrders to run them
 // ----------------------------------------------------------------------------------------------------------------------------
 func areTestAPIKeysSet() bool {
-	if b.APIKey != "" && b.APIKey != "Key" &&
-		b.APISecret != "" && b.APISecret != "Secret" {
-		return true
-	}
-	return false
+	return b.ValidateAPICredentials()
 }
 
 func TestSubmitOrder(t *testing.T) {
@@ -460,11 +453,13 @@ func TestModifyOrder(t *testing.T) {
 func TestWithdraw(t *testing.T) {
 	b.SetDefaults()
 	TestSetup(t)
-	var withdrawCryptoRequest = exchange.WithdrawRequest{
-		Amount:      100,
-		Currency:    currency.LTC,
-		Address:     "1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB",
-		Description: "WITHDRAW IT ALL",
+	withdrawCryptoRequest := exchange.CryptoWithdrawRequest{
+		GenericWithdrawRequestInfo: exchange.GenericWithdrawRequestInfo{
+			Amount:      -1,
+			Currency:    currency.BTC,
+			Description: "WITHDRAW IT ALL",
+		},
+		Address: "1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB",
 	}
 
 	if areTestAPIKeysSet() && !canManipulateRealOrders {
@@ -488,7 +483,7 @@ func TestWithdrawFiat(t *testing.T) {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 
-	var withdrawFiatRequest = exchange.WithdrawRequest{}
+	var withdrawFiatRequest = exchange.FiatWithdrawRequest{}
 
 	_, err := b.WithdrawFiatFunds(&withdrawFiatRequest)
 	if err != common.ErrFunctionNotSupported {
@@ -504,7 +499,7 @@ func TestWithdrawInternationalBank(t *testing.T) {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 
-	var withdrawFiatRequest = exchange.WithdrawRequest{}
+	var withdrawFiatRequest = exchange.FiatWithdrawRequest{}
 
 	_, err := b.WithdrawFiatFundsToInternationalBank(&withdrawFiatRequest)
 	if err != common.ErrFunctionNotSupported {

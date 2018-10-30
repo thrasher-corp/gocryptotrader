@@ -7,14 +7,11 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
-	"github.com/thrasher-/gocryptotrader/config"
+	"github.com/thrasher-/gocryptotrader/common/crypto"
 	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
-	"github.com/thrasher-/gocryptotrader/exchanges/request"
-	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
@@ -52,76 +49,12 @@ type EXMO struct {
 	exchange.Base
 }
 
-// SetDefaults sets the basic defaults for exmo
-func (e *EXMO) SetDefaults() {
-	e.Name = "EXMO"
-	e.Enabled = false
-	e.Verbose = false
-	e.RESTPollingDelay = 10
-	e.APIWithdrawPermissions = exchange.AutoWithdrawCryptoWithSetup | exchange.NoFiatWithdrawals
-	e.RequestCurrencyPairFormat.Delimiter = "_"
-	e.RequestCurrencyPairFormat.Uppercase = true
-	e.RequestCurrencyPairFormat.Separator = ","
-	e.ConfigCurrencyPairFormat.Delimiter = "_"
-	e.ConfigCurrencyPairFormat.Uppercase = true
-	e.AssetTypes = []string{ticker.Spot}
-	e.SupportsAutoPairUpdating = true
-	e.SupportsRESTTickerBatching = true
-	e.Requester = request.New(e.Name,
-		request.NewRateLimit(time.Minute, exmoAuthRate),
-		request.NewRateLimit(time.Minute, exmoUnauthRate),
-		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
-	e.APIUrlDefault = exmoAPIURL
-	e.APIUrl = e.APIUrlDefault
-	e.WebsocketInit()
-}
-
-// Setup takes in the supplied exchange configuration details and sets params
-func (e *EXMO) Setup(exch *config.ExchangeConfig) {
-	if !exch.Enabled {
-		e.SetEnabled(false)
-	} else {
-		e.Enabled = true
-		e.HTTPDebugging = exch.HTTPDebugging
-		e.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
-		e.SetAPIKeys(exch.APIKey, exch.APISecret, "", false)
-		e.SetHTTPClientTimeout(exch.HTTPTimeout)
-		e.SetHTTPClientUserAgent(exch.HTTPUserAgent)
-		e.RESTPollingDelay = exch.RESTPollingDelay
-		e.Verbose = exch.Verbose
-		e.BaseCurrencies = exch.BaseCurrencies
-		e.AvailablePairs = exch.AvailablePairs
-		e.EnabledPairs = exch.EnabledPairs
-		err := e.SetCurrencyPairFormat()
-		if err != nil {
-			log.Fatal(err)
-		}
-		err = e.SetAssetTypes()
-		if err != nil {
-			log.Fatal(err)
-		}
-		err = e.SetAutoPairDefaults()
-		if err != nil {
-			log.Fatal(err)
-		}
-		err = e.SetAPIURL(exch)
-		if err != nil {
-			log.Fatal(err)
-		}
-		err = e.SetClientProxyAddress(exch.ProxyAddress)
-		if err != nil {
-			log.Fatal(err)
-		}
-	}
-}
-
 // GetTrades returns the trades for a symbol or symbols
 func (e *EXMO) GetTrades(symbol string) (map[string][]Trades, error) {
 	v := url.Values{}
 	v.Set("pair", symbol)
 	result := make(map[string][]Trades)
-	urlPath := fmt.Sprintf("%s/v%s/%s", e.APIUrl, exmoAPIVersion, exmoTrades)
-
+	urlPath := fmt.Sprintf("%s/v%s/%s", e.API.Endpoints.URL, exmoAPIVersion, exmoTrades)
 	return result, e.SendHTTPRequest(common.EncodeURLValues(urlPath, v), &result)
 }
 
@@ -130,8 +63,7 @@ func (e *EXMO) GetOrderbook(symbol string) (map[string]Orderbook, error) {
 	v := url.Values{}
 	v.Set("pair", symbol)
 	result := make(map[string]Orderbook)
-	urlPath := fmt.Sprintf("%s/v%s/%s", e.APIUrl, exmoAPIVersion, exmoOrderbook)
-
+	urlPath := fmt.Sprintf("%s/v%s/%s", e.API.Endpoints.URL, exmoAPIVersion, exmoOrderbook)
 	return result, e.SendHTTPRequest(common.EncodeURLValues(urlPath, v), &result)
 }
 
@@ -140,23 +72,21 @@ func (e *EXMO) GetTicker(symbol string) (map[string]Ticker, error) {
 	v := url.Values{}
 	v.Set("pair", symbol)
 	result := make(map[string]Ticker)
-	urlPath := fmt.Sprintf("%s/v%s/%s", e.APIUrl, exmoAPIVersion, exmoTicker)
-
+	urlPath := fmt.Sprintf("%s/v%s/%s", e.API.Endpoints.URL, exmoAPIVersion, exmoTicker)
 	return result, e.SendHTTPRequest(common.EncodeURLValues(urlPath, v), &result)
 }
 
 // GetPairSettings returns the pair settings for a symbol or symbols
 func (e *EXMO) GetPairSettings() (map[string]PairSettings, error) {
 	result := make(map[string]PairSettings)
-	urlPath := fmt.Sprintf("%s/v%s/%s", e.APIUrl, exmoAPIVersion, exmoPairSettings)
-
+	urlPath := fmt.Sprintf("%s/v%s/%s", e.API.Endpoints.URL, exmoAPIVersion, exmoPairSettings)
 	return result, e.SendHTTPRequest(urlPath, &result)
 }
 
 // GetCurrency returns a list of currencies
 func (e *EXMO) GetCurrency() ([]string, error) {
 	var result []string
-	urlPath := fmt.Sprintf("%s/v%s/%s", e.APIUrl, exmoAPIVersion, exmoCurrency)
+	urlPath := fmt.Sprintf("%s/v%s/%s", e.API.Endpoints.URL, exmoAPIVersion, exmoCurrency)
 	return result, e.SendHTTPRequest(urlPath, &result)
 }
 
@@ -377,7 +307,7 @@ func (e *EXMO) SendHTTPRequest(path string, result interface{}) error {
 
 // SendAuthenticatedHTTPRequest sends an authenticated HTTP request
 func (e *EXMO) SendAuthenticatedHTTPRequest(method, endpoint string, vals url.Values, result interface{}) error {
-	if !e.AuthenticatedAPISupport {
+	if !e.AllowAuthenticatedRequest() {
 		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet,
 			e.Name)
 	}
@@ -386,9 +316,9 @@ func (e *EXMO) SendAuthenticatedHTTPRequest(method, endpoint string, vals url.Va
 	vals.Set("nonce", n)
 
 	payload := vals.Encode()
-	hash := common.GetHMAC(common.HashSHA512,
+	hash := crypto.GetHMAC(crypto.HashSHA512,
 		[]byte(payload),
-		[]byte(e.APISecret))
+		[]byte(e.API.Credentials.Secret))
 
 	if e.Verbose {
 		log.Debugf("Sending %s request to %s with params %s\n",
@@ -398,11 +328,11 @@ func (e *EXMO) SendAuthenticatedHTTPRequest(method, endpoint string, vals url.Va
 	}
 
 	headers := make(map[string]string)
-	headers["Key"] = e.APIKey
-	headers["Sign"] = common.HexEncodeToString(hash)
+	headers["Key"] = e.API.Credentials.Key
+	headers["Sign"] = crypto.HexEncodeToString(hash)
 	headers["Content-Type"] = "application/x-www-form-urlencoded"
 
-	path := fmt.Sprintf("%s/v%s/%s", e.APIUrl, exmoAPIVersion, endpoint)
+	path := fmt.Sprintf("%s/v%s/%s", e.API.Endpoints.URL, exmoAPIVersion, endpoint)
 
 	return e.SendPayload(method,
 		path,

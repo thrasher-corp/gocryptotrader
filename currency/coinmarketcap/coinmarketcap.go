@@ -8,7 +8,6 @@ package coinmarketcap
 import (
 	"errors"
 	"fmt"
-	"log"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -17,6 +16,7 @@ import (
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/exchanges/request"
+	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
 // Coinmarketcap account plan bitmasks, url and enpoint consts
@@ -84,13 +84,14 @@ func (c *Coinmarketcap) Setup(conf Settings) {
 	if !conf.Enabled {
 		c.Enabled = false
 	} else {
+		err := c.SetAccountPlan(conf.AccountPlan)
+		if err != nil {
+			log.Errorf("CoinMarketCap enabled but SetAccountPlan failed. Err: %s", err)
+			return
+		}
 		c.Enabled = true
 		c.Verbose = conf.Verbose
 		c.APIkey = conf.APIkey
-		err := c.SetAccountPlan(conf.AccountPlan)
-		if err != nil {
-			log.Fatal(err)
-		}
 	}
 }
 

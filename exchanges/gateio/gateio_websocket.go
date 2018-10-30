@@ -12,8 +12,10 @@ import (
 
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-/gocryptotrader/common"
+	"github.com/thrasher-/gocryptotrader/common/crypto"
 	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
+	"github.com/thrasher-/gocryptotrader/exchanges/assets"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	log "github.com/thrasher-/gocryptotrader/logger"
 )
@@ -47,7 +49,7 @@ func (g *Gateio) WsConnect() error {
 		return err
 	}
 
-	if g.AuthenticatedAPISupport {
+	if g.API.AuthenticatedSupport {
 		err = g.wsServerSignIn()
 		if err != nil {
 			log.Errorf("%v - wsServerSignin() failed: %v", g.GetName(), err)
@@ -64,11 +66,11 @@ func (g *Gateio) WsConnect() error {
 func (g *Gateio) wsServerSignIn() error {
 	nonce := int(time.Now().Unix() * 1000)
 	sigTemp := g.GenerateSignature(strconv.Itoa(nonce))
-	signature := common.Base64Encode(sigTemp)
+	signature := crypto.Base64Encode(sigTemp)
 	signinWsRequest := WebsocketRequest{
 		ID:     IDSignIn,
 		Method: "server.sign",
-		Params: []interface{}{g.APIKey, signature, nonce},
+		Params: []interface{}{g.API.Credentials.Key, signature, nonce},
 	}
 	return g.wsSend(signinWsRequest)
 }
@@ -119,7 +121,7 @@ func (g *Gateio) WsHandleData() {
 				if common.StringContains(result.Error.Message, "authentication") {
 					g.Websocket.DataHandler <- fmt.Errorf("%v - WebSocket authentication failed ",
 						g.GetName())
-					g.AuthenticatedAPISupport = false
+					g.API.AuthenticatedSupport = false
 					continue
 				}
 				g.Websocket.DataHandler <- fmt.Errorf("gateio_websocket.go error %s",
@@ -186,7 +188,7 @@ func (g *Gateio) WsHandleData() {
 				g.Websocket.DataHandler <- exchange.TickerData{
 					Timestamp:  time.Now(),
 					Pair:       currency.NewPairFromString(c),
-					AssetType:  "SPOT",
+					AssetType:  assets.AssetTypeSpot,
 					Exchange:   g.GetName(),
 					ClosePrice: ticker.Close,
 					Quantity:   ticker.BaseVolume,
@@ -214,7 +216,7 @@ func (g *Gateio) WsHandleData() {
 					g.Websocket.DataHandler <- exchange.TradeData{
 						Timestamp:    time.Now(),
 						CurrencyPair: currency.NewPairFromString(c),
-						AssetType:    "SPOT",
+						AssetType:    assets.AssetTypeSpot,
 						Exchange:     g.GetName(),
 						Price:        trade.Price,
 						Amount:       trade.Amount,
@@ -282,7 +284,8 @@ func (g *Gateio) WsHandleData() {
 					var newOrderBook orderbook.Base
 					newOrderBook.Asks = asks
 					newOrderBook.Bids = bids
-					newOrderBook.AssetType = "SPOT"
+					newOrderBook.AssetType = assets.AssetTypeSpot
+					newOrderBook.LastUpdated = time.Now()
 					newOrderBook.Pair = currency.NewPairFromString(c)
 
 					err = g.Websocket.Orderbook.LoadSnapshot(&newOrderBook,
@@ -297,7 +300,7 @@ func (g *Gateio) WsHandleData() {
 						currency.NewPairFromString(c),
 						time.Now(),
 						g.GetName(),
-						"SPOT")
+						assets.AssetTypeSpot)
 					if err != nil {
 						g.Websocket.DataHandler <- err
 					}
@@ -305,7 +308,7 @@ func (g *Gateio) WsHandleData() {
 
 				g.Websocket.DataHandler <- exchange.WebsocketOrderbookUpdate{
 					Pair:     currency.NewPairFromString(c),
-					Asset:    "SPOT",
+					Asset:    assets.AssetTypeSpot,
 					Exchange: g.GetName(),
 				}
 
@@ -326,7 +329,7 @@ func (g *Gateio) WsHandleData() {
 				g.Websocket.DataHandler <- exchange.KlineData{
 					Timestamp:  time.Now(),
 					Pair:       currency.NewPairFromString(data[7].(string)),
-					AssetType:  "SPOT",
+					AssetType:  assets.AssetTypeSpot,
 					Exchange:   g.GetName(),
 					OpenPrice:  open,
 					ClosePrice: closePrice,
@@ -342,12 +345,12 @@ func (g *Gateio) WsHandleData() {
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
 func (g *Gateio) GenerateDefaultSubscriptions() {
 	var channels = []string{"ticker.subscribe", "trades.subscribe", "depth.subscribe", "kline.subscribe"}
-	if g.AuthenticatedAPISupport {
+	if g.AllowAuthenticatedRequest() {
 		channels = append(channels, "balance.subscribe", "order.subscribe")
 	}
 
 	subscriptions := []exchange.WebsocketChannelSubscription{}
-	enabledCurrencies := g.GetEnabledCurrencies()
+	enabledCurrencies := g.GetEnabledPairs(assets.AssetTypeSpot)
 	for i := range channels {
 		for j := range enabledCurrencies {
 			params := make(map[string]interface{})

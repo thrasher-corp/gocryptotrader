@@ -3,7 +3,6 @@ package bitstamp
 import (
 	"net/url"
 	"testing"
-	"time"
 
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/currency"
@@ -26,16 +25,13 @@ func TestSetDefaults(t *testing.T) {
 	if b.Name != "Bitstamp" {
 		t.Error("Test Failed - SetDefaults() error")
 	}
-	if b.Enabled {
+	if !b.Enabled {
 		t.Error("Test Failed - SetDefaults() error")
 	}
-	if b.Verbose {
+	if !b.Verbose {
 		t.Error("Test Failed - SetDefaults() error")
 	}
 	if b.Websocket.IsEnabled() {
-		t.Error("Test Failed - SetDefaults() error")
-	}
-	if b.RESTPollingDelay != 10 {
 		t.Error("Test Failed - SetDefaults() error")
 	}
 }
@@ -47,16 +43,14 @@ func TestSetup(t *testing.T) {
 	if err != nil {
 		t.Error("Test Failed - Bitstamp Setup() init error")
 	}
-	bConfig.APIKey = apiKey
-	bConfig.APISecret = apiSecret
-	bConfig.ClientID = customerID
+	bConfig.API.Credentials.Key = apiKey
+	bConfig.API.Credentials.Secret = apiSecret
+	bConfig.API.Credentials.ClientID = customerID
 
-	b.Setup(&bConfig)
-	b.ClientID = customerID
+	b.Setup(bConfig)
 
-	if !b.IsEnabled() || b.RESTPollingDelay != time.Duration(10) ||
-		b.Verbose || b.Websocket.IsEnabled() || len(b.BaseCurrencies) < 1 ||
-		len(b.AvailablePairs) < 1 || len(b.EnabledPairs) < 1 {
+	if !b.IsEnabled() || b.API.AuthenticatedSupport ||
+		b.Verbose || b.Websocket.IsEnabled() || len(b.BaseCurrencies) < 1 {
 		t.Error("Test Failed - Bitstamp Setup values not set correctly")
 	}
 }
@@ -267,8 +261,7 @@ func TestGetOpenOrders(t *testing.T) {
 
 func TestGetOrderStatus(t *testing.T) {
 	t.Parallel()
-
-	if !areTestAPIKeysSet() {
+	if !b.ValidateAPICredentials() {
 		t.Skip()
 	}
 
@@ -298,8 +291,7 @@ func TestCancelAllExistingOrders(t *testing.T) {
 
 func TestPlaceOrder(t *testing.T) {
 	t.Parallel()
-
-	if !areTestAPIKeysSet() {
+	if !b.ValidateAPICredentials() {
 		t.Skip()
 	}
 
@@ -324,8 +316,7 @@ func TestGetWithdrawalRequests(t *testing.T) {
 
 func TestCryptoWithdrawal(t *testing.T) {
 	t.Parallel()
-
-	if !areTestAPIKeysSet() {
+	if !b.ValidateAPICredentials() {
 		t.Skip()
 	}
 
@@ -355,8 +346,7 @@ func TestGetUnconfirmedBitcoinDeposits(t *testing.T) {
 
 func TestTransferAccountBalance(t *testing.T) {
 	t.Parallel()
-
-	if !areTestAPIKeysSet() {
+	if !b.ValidateAPICredentials() {
 		t.Skip()
 	}
 
@@ -417,11 +407,7 @@ func TestGetOrderHistory(t *testing.T) {
 // Any tests below this line have the ability to impact your orders on the exchange. Enable canManipulateRealOrders to run them
 // ----------------------------------------------------------------------------------------------------------------------------
 func areTestAPIKeysSet() bool {
-	if b.APIKey != "" && b.APIKey != "Key" &&
-		b.APISecret != "" && b.APISecret != "Secret" {
-		return true
-	}
-	return false
+	return b.ValidateAPICredentials()
 }
 
 func TestSubmitOrder(t *testing.T) {
@@ -436,7 +422,8 @@ func TestSubmitOrder(t *testing.T) {
 		Base:      currency.BTC,
 		Quote:     currency.USD,
 	}
-	response, err := b.SubmitOrder(p, exchange.BuyOrderSide, exchange.MarketOrderType, 1, 1, "clientId")
+	response, err := b.SubmitOrder(p,
+		exchange.BuyOrderSide, exchange.LimitOrderType, 1, 1, "clientId")
 	if areTestAPIKeysSet() && (err != nil || !response.IsOrderPlaced) {
 		t.Errorf("Order failed to be placed: %v", err)
 	} else if !areTestAPIKeysSet() && err == nil {
@@ -511,11 +498,14 @@ func TestModifyOrder(t *testing.T) {
 func TestWithdraw(t *testing.T) {
 	b.SetDefaults()
 	TestSetup(t)
-	var withdrawCryptoRequest = exchange.WithdrawRequest{
-		Amount:      100,
-		Currency:    currency.BTC,
-		Address:     "1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB",
-		Description: "WITHDRAW IT ALL",
+
+	withdrawCryptoRequest := exchange.CryptoWithdrawRequest{
+		GenericWithdrawRequestInfo: exchange.GenericWithdrawRequestInfo{
+			Amount:      -1,
+			Currency:    currency.BTC,
+			Description: "WITHDRAW IT ALL",
+		},
+		Address: "1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB",
 	}
 
 	if areTestAPIKeysSet() && !canManipulateRealOrders {
@@ -539,10 +529,12 @@ func TestWithdrawFiat(t *testing.T) {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 
-	var withdrawFiatRequest = exchange.WithdrawRequest{
-		Amount:                   100,
-		Currency:                 currency.USD,
-		Description:              "WITHDRAW IT ALL",
+	var withdrawFiatRequest = exchange.FiatWithdrawRequest{
+		GenericWithdrawRequestInfo: exchange.GenericWithdrawRequestInfo{
+			Amount:      -1,
+			Currency:    currency.USD,
+			Description: "WITHDRAW IT ALL",
+		},
 		BankAccountName:          "Satoshi Nakamoto",
 		BankAccountNumber:        12345,
 		BankAddress:              "123 Fake St",
@@ -574,10 +566,12 @@ func TestWithdrawInternationalBank(t *testing.T) {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 
-	var withdrawFiatRequest = exchange.WithdrawRequest{
-		Amount:                        100,
-		Currency:                      currency.USD,
-		Description:                   "WITHDRAW IT ALL",
+	var withdrawFiatRequest = exchange.FiatWithdrawRequest{
+		GenericWithdrawRequestInfo: exchange.GenericWithdrawRequestInfo{
+			Amount:      -1,
+			Currency:    currency.USD,
+			Description: "WITHDRAW IT ALL",
+		},
 		BankAccountName:               "Satoshi Nakamoto",
 		BankAccountNumber:             12345,
 		BankAddress:                   "123 Fake St",

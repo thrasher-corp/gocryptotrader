@@ -388,9 +388,9 @@ func (p *Base) GetPortfolioGroupedCoin() map[currency.Code][]string {
 	return result
 }
 
-// SeedPortfolio appends a portfolio base object with another base portfolio
+// Seed appends a portfolio base object with another base portfolio
 // addresses
-func (p *Base) SeedPortfolio(port Base) {
+func (p *Base) Seed(port Base) {
 	p.Addresses = port.Addresses
 }
 

@@ -30,11 +30,11 @@ func TestSetup(t *testing.T) {
 	if err != nil {
 		t.Error("Test Failed - GateIO Setup() init error")
 	}
-	gateioConfig.AuthenticatedAPISupport = true
-	gateioConfig.APIKey = apiKey
-	gateioConfig.APISecret = apiSecret
+	gateioConfig.API.AuthenticatedSupport = true
+	gateioConfig.API.Credentials.Key = apiKey
+	gateioConfig.API.Credentials.Secret = apiSecret
 
-	g.Setup(&gateioConfig)
+	g.Setup(gateioConfig)
 }
 
 func TestGetSymbols(t *testing.T) {
@@ -64,7 +64,7 @@ func TestSpotNewOrder(t *testing.T) {
 		Symbol: "btc_usdt",
 		Amount: 1.1,
 		Price:  10.1,
-		Type:   SpotNewOrderRequestParamsTypeSell,
+		Type:   exchange.SellOrderSide.ToLower().ToString(),
 	})
 	if err != nil {
 		t.Errorf("Test failed - Gateio SpotNewOrder: %s", err)
@@ -301,11 +301,7 @@ func TestGetOrderHistory(t *testing.T) {
 // Any tests below this line have the ability to impact your orders on the exchange. Enable canManipulateRealOrders to run them
 // ----------------------------------------------------------------------------------------------------------------------------
 func areTestAPIKeysSet() bool {
-	if g.APIKey != "" && g.APIKey != "Key" &&
-		g.APISecret != "" && g.APISecret != "Secret" {
-		return true
-	}
-	return false
+	return g.ValidateAPICredentials()
 }
 
 func TestSubmitOrder(t *testing.T) {
@@ -321,7 +317,8 @@ func TestSubmitOrder(t *testing.T) {
 		Base:      currency.LTC,
 		Quote:     currency.BTC,
 	}
-	response, err := g.SubmitOrder(p, exchange.BuyOrderSide, exchange.MarketOrderType, 1, 10, "1234234")
+	response, err := g.SubmitOrder(p, exchange.BuyOrderSide,
+		exchange.LimitOrderType, 1, 10, "1234234")
 	if areTestAPIKeysSet() && (err != nil || !response.IsOrderPlaced) {
 		t.Errorf("Order failed to be placed: %v", err)
 	} else if !areTestAPIKeysSet() && err == nil {
@@ -410,11 +407,13 @@ func TestModifyOrder(t *testing.T) {
 func TestWithdraw(t *testing.T) {
 	g.SetDefaults()
 	TestSetup(t)
-	var withdrawCryptoRequest = exchange.WithdrawRequest{
-		Amount:      100,
-		Currency:    currency.LTC,
-		Address:     "1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB",
-		Description: "WITHDRAW IT ALL",
+	withdrawCryptoRequest := exchange.CryptoWithdrawRequest{
+		GenericWithdrawRequestInfo: exchange.GenericWithdrawRequestInfo{
+			Amount:      -1,
+			Currency:    currency.BTC,
+			Description: "WITHDRAW IT ALL",
+		},
+		Address: "1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB",
 	}
 
 	if areTestAPIKeysSet() && !canManipulateRealOrders {
@@ -438,8 +437,7 @@ func TestWithdrawFiat(t *testing.T) {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 
-	var withdrawFiatRequest = exchange.WithdrawRequest{}
-
+	var withdrawFiatRequest = exchange.FiatWithdrawRequest{}
 	_, err := g.WithdrawFiatFunds(&withdrawFiatRequest)
 	if err != common.ErrFunctionNotSupported {
 		t.Errorf("Expected '%v', received: '%v'", common.ErrFunctionNotSupported, err)
@@ -454,8 +452,7 @@ func TestWithdrawInternationalBank(t *testing.T) {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 
-	var withdrawFiatRequest = exchange.WithdrawRequest{}
-
+	var withdrawFiatRequest = exchange.FiatWithdrawRequest{}
 	_, err := g.WithdrawFiatFundsToInternationalBank(&withdrawFiatRequest)
 	if err != common.ErrFunctionNotSupported {
 		t.Errorf("Expected '%v', received: '%v'", common.ErrFunctionNotSupported, err)

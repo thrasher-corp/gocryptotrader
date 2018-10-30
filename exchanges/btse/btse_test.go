@@ -30,11 +30,11 @@ func TestSetup(t *testing.T) {
 		t.Error("Test Failed - BTSE Setup() init error")
 	}
 
-	btseConfig.AuthenticatedAPISupport = true
-	btseConfig.APIKey = apiKey
-	btseConfig.APISecret = apiSecret
+	btseConfig.API.AuthenticatedSupport = true
+	btseConfig.API.Credentials.Key = apiKey
+	btseConfig.API.Credentials.Secret = apiSecret
 
-	b.Setup(&btseConfig)
+	b.Setup(btseConfig)
 }
 
 func TestGetMarkets(t *testing.T) {
@@ -229,11 +229,7 @@ func TestParseOrderTime(t *testing.T) {
 }
 
 func areTestAPIKeysSet() bool {
-	if b.APIKey != "" && b.APIKey != "Key" &&
-		b.APISecret != "" && b.APISecret != "Secret" {
-		return true
-	}
-	return false
+	return b.ValidateAPICredentials()
 }
 
 // Any tests below this line have the ability to impact your orders on the exchange. Enable canManipulateRealOrders to run them

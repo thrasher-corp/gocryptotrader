@@ -7,14 +7,10 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
-	"time"
 
-	"github.com/thrasher-/gocryptotrader/common"
-	"github.com/thrasher-/gocryptotrader/config"
+	"github.com/thrasher-/gocryptotrader/common/crypto"
 	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
-	"github.com/thrasher-/gocryptotrader/exchanges/request"
-	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
@@ -44,83 +40,12 @@ const (
 // Yobit is the overarching type across the Yobit package
 type Yobit struct {
 	exchange.Base
-	Ticker map[string]Ticker
-}
-
-// SetDefaults sets current default value for Yobit
-func (y *Yobit) SetDefaults() {
-	y.Name = "Yobit"
-	y.Enabled = true
-	y.Fee = 0.2
-	y.Verbose = false
-	y.RESTPollingDelay = 10
-	y.AuthenticatedAPISupport = true
-	y.Ticker = make(map[string]Ticker)
-	y.APIWithdrawPermissions = exchange.AutoWithdrawCryptoWithAPIPermission |
-		exchange.WithdrawFiatViaWebsiteOnly
-	y.RequestCurrencyPairFormat.Delimiter = "_"
-	y.RequestCurrencyPairFormat.Uppercase = false
-	y.RequestCurrencyPairFormat.Separator = "-"
-	y.ConfigCurrencyPairFormat.Delimiter = "_"
-	y.ConfigCurrencyPairFormat.Uppercase = true
-	y.AssetTypes = []string{ticker.Spot}
-	y.SupportsAutoPairUpdating = false
-	y.SupportsRESTTickerBatching = true
-	y.Requester = request.New(y.Name,
-		request.NewRateLimit(time.Second, yobitAuthRate),
-		request.NewRateLimit(time.Second, yobitUnauthRate),
-		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
-	y.APIUrlDefault = apiPublicURL
-	y.APIUrl = y.APIUrlDefault
-	y.APIUrlSecondaryDefault = apiPrivateURL
-	y.APIUrlSecondary = y.APIUrlSecondaryDefault
-	y.WebsocketInit()
-}
-
-// Setup sets exchange configuration parameters for Yobit
-func (y *Yobit) Setup(exch *config.ExchangeConfig) {
-	if !exch.Enabled {
-		y.SetEnabled(false)
-	} else {
-		y.Enabled = true
-		y.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
-		y.SetAPIKeys(exch.APIKey, exch.APISecret, "", false)
-		y.RESTPollingDelay = exch.RESTPollingDelay
-		y.Verbose = exch.Verbose
-		y.HTTPDebugging = exch.HTTPDebugging
-		y.Websocket.SetWsStatusAndConnection(exch.Websocket)
-		y.BaseCurrencies = exch.BaseCurrencies
-		y.AvailablePairs = exch.AvailablePairs
-		y.EnabledPairs = exch.EnabledPairs
-		y.SetHTTPClientTimeout(exch.HTTPTimeout)
-		y.SetHTTPClientUserAgent(exch.HTTPUserAgent)
-		err := y.SetCurrencyPairFormat()
-		if err != nil {
-			log.Fatal(err)
-		}
-		err = y.SetAssetTypes()
-		if err != nil {
-			log.Fatal(err)
-		}
-		err = y.SetAutoPairDefaults()
-		if err != nil {
-			log.Fatal(err)
-		}
-		err = y.SetAPIURL(exch)
-		if err != nil {
-			log.Fatal(err)
-		}
-		err = y.SetClientProxyAddress(exch.ProxyAddress)
-		if err != nil {
-			log.Fatal(err)
-		}
-	}
 }
 
 // GetInfo returns the Yobit info
 func (y *Yobit) GetInfo() (Info, error) {
 	resp := Info{}
-	path := fmt.Sprintf("%s/%s/%s/", y.APIUrl, apiPublicVersion, publicInfo)
+	path := fmt.Sprintf("%s/%s/%s/", y.API.Endpoints.URL, apiPublicVersion, publicInfo)
 
 	return resp, y.SendHTTPRequest(path, &resp)
 }
@@ -132,7 +57,7 @@ func (y *Yobit) GetTicker(symbol string) (map[string]Ticker, error) {
 	}
 
 	response := Response{}
-	path := fmt.Sprintf("%s/%s/%s/%s", y.APIUrl, apiPublicVersion, publicTicker, symbol)
+	path := fmt.Sprintf("%s/%s/%s/%s", y.API.Endpoints.URL, apiPublicVersion, publicTicker, symbol)
 
 	return response.Data, y.SendHTTPRequest(path, &response.Data)
 }
@@ -144,7 +69,7 @@ func (y *Yobit) GetDepth(symbol string) (Orderbook, error) {
 	}
 
 	response := Response{}
-	path := fmt.Sprintf("%s/%s/%s/%s", y.APIUrl, apiPublicVersion, publicDepth, symbol)
+	path := fmt.Sprintf("%s/%s/%s/%s", y.API.Endpoints.URL, apiPublicVersion, publicDepth, symbol)
 
 	return response.Data[symbol],
 		y.SendHTTPRequest(path, &response.Data)
@@ -157,7 +82,7 @@ func (y *Yobit) GetTrades(symbol string) ([]Trades, error) {
 	}
 
 	response := Response{}
-	path := fmt.Sprintf("%s/%s/%s/%s", y.APIUrl, apiPublicVersion, publicTrades, symbol)
+	path := fmt.Sprintf("%s/%s/%s/%s", y.API.Endpoints.URL, apiPublicVersion, publicTrades, symbol)
 
 	return response.Data[symbol], y.SendHTTPRequest(path, &response.Data)
 }
@@ -344,9 +269,8 @@ func (y *Yobit) SendHTTPRequest(path string, result interface{}) error {
 
 // SendAuthenticatedHTTPRequest sends an authenticated HTTP request to Yobit
 func (y *Yobit) SendAuthenticatedHTTPRequest(path string, params url.Values, result interface{}) (err error) {
-	if !y.AuthenticatedAPISupport {
-		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet,
-			y.Name)
+	if !y.AllowAuthenticatedRequest() {
+		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet, y.Name)
 	}
 
 	if params == nil {
@@ -359,9 +283,7 @@ func (y *Yobit) SendAuthenticatedHTTPRequest(path string, params url.Values, res
 	params.Set("method", path)
 
 	encoded := params.Encode()
-	hmac := common.GetHMAC(common.HashSHA512,
-		[]byte(encoded),
-		[]byte(y.APISecret))
+	hmac := crypto.GetHMAC(crypto.HashSHA512, []byte(encoded), []byte(y.API.Credentials.Secret))
 
 	if y.Verbose {
 		log.Debugf("Sending POST request to %s calling path %s with params %s\n",
@@ -371,8 +293,8 @@ func (y *Yobit) SendAuthenticatedHTTPRequest(path string, params url.Values, res
 	}
 
 	headers := make(map[string]string)
-	headers["Key"] = y.APIKey
-	headers["Sign"] = common.HexEncodeToString(hmac)
+	headers["Key"] = y.API.Credentials.Key
+	headers["Sign"] = crypto.HexEncodeToString(hmac)
 	headers["Content-Type"] = "application/x-www-form-urlencoded"
 
 	return y.SendPayload(http.MethodPost,

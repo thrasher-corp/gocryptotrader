@@ -5,17 +5,15 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-	"sort"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
+	"github.com/thrasher-/gocryptotrader/common/crypto"
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/currency"
-	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-/gocryptotrader/exchanges/assets"
 	"github.com/thrasher-/gocryptotrader/exchanges/request"
-	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
@@ -23,358 +21,41 @@ const (
 	warningBase64DecryptSecretKeyFailed = "exchange %s unable to base64 decode secret key.. Disabling Authenticated API support" // nolint:gosec
 	// WarningAuthenticatedRequestWithoutCredentialsSet error message for authenticated request without credentials set
 	WarningAuthenticatedRequestWithoutCredentialsSet = "exchange %s authenticated HTTP request called but not supported due to unset/default API keys"
-	// ErrExchangeNotFound is a stand for an error message
-	ErrExchangeNotFound = "exchange not found in dataset"
 	// DefaultHTTPTimeout is the default HTTP/HTTPS Timeout for exchange requests
 	DefaultHTTPTimeout = time.Second * 15
 )
 
-// FeeType custom type for calculating fees based on method
-type FeeType uint8
-
-// Const declarations for fee types
-const (
-	BankFee FeeType = iota
-	InternationalBankDepositFee
-	InternationalBankWithdrawalFee
-	CryptocurrencyTradeFee
-	CyptocurrencyDepositFee
-	CryptocurrencyWithdrawalFee
-	OfflineTradeFee
-)
-
-// InternationalBankTransactionType custom type for calculating fees based on fiat transaction types
-type InternationalBankTransactionType uint8
-
-// Const declarations for international transaction types
-const (
-	WireTransfer InternationalBankTransactionType = iota
-	PerfectMoney
-	Neteller
-	AdvCash
-	Payeer
-	Skrill
-	Simplex
-	SEPA
-	Swift
-	RapidTransfer
-	MisterTangoSEPA
-	Qiwi
-	VisaMastercard
-	WebMoney
-	Capitalist
-	WesternUnion
-	MoneyGram
-	Contact
-)
-
-// SubmitOrderResponse is what is returned after submitting an order to an
-// exchange
-type SubmitOrderResponse struct {
-	IsOrderPlaced bool
-	OrderID       string
-}
-
-// FeeBuilder is the type which holds all parameters required to calculate a fee
-// for an exchange
-type FeeBuilder struct {
-	IsMaker             bool
-	PurchasePrice       float64
-	Amount              float64
-	FeeType             FeeType
-	FiatCurrency        currency.Code
-	BankTransactionType InternationalBankTransactionType
-	Pair                currency.Pair
-}
-
-// OrderCancellation type required when requesting to cancel an order
-type OrderCancellation struct {
-	AccountID     string
-	OrderID       string
-	WalletAddress string
-	Side          OrderSide
-	CurrencyPair  currency.Pair
-}
-
-// WithdrawRequest used for wrapper crypto and FIAT withdraw methods
-type WithdrawRequest struct {
-	// General withdraw information
-	Description     string
-	OneTimePassword int64
-	AccountID       string
-	PIN             int64
-	TradePassword   string
-	Amount          float64
-	Currency        currency.Code
-	// Crypto related information
-	Address    string
-	AddressTag string
-	FeeAmount  float64
-	// FIAT related information
-	BankAccountName   string
-	BankAccountNumber float64
-	BankName          string
-	BankAddress       string
-	BankCity          string
-	BankCountry       string
-	BankPostalCode    string
-	SwiftCode         string
-	IBAN              string
-	BankCode          float64
-	IsExpressWire     bool
-	// Intermediary bank information
-	RequiresIntermediaryBank      bool
-	IntermediaryBankAccountNumber float64
-	IntermediaryBankName          string
-	IntermediaryBankAddress       string
-	IntermediaryBankCity          string
-	IntermediaryBankCountry       string
-	IntermediaryBankPostalCode    string
-	IntermediarySwiftCode         string
-	IntermediaryBankCode          float64
-	IntermediaryIBAN              string
-	WireCurrency                  string
-}
-
-// Definitions for each type of withdrawal method for a given exchange
-const (
-	// No withdraw
-	NoAPIWithdrawalMethods                  uint32 = 0
-	NoAPIWithdrawalMethodsText              string = "NONE, WEBSITE ONLY"
-	AutoWithdrawCrypto                      uint32 = (1 << 0)
-	AutoWithdrawCryptoWithAPIPermission     uint32 = (1 << 1)
-	AutoWithdrawCryptoWithSetup             uint32 = (1 << 2)
-	AutoWithdrawCryptoText                  string = "AUTO WITHDRAW CRYPTO"
-	AutoWithdrawCryptoWithAPIPermissionText string = "AUTO WITHDRAW CRYPTO WITH API PERMISSION"
-	AutoWithdrawCryptoWithSetupText         string = "AUTO WITHDRAW CRYPTO WITH SETUP"
-	WithdrawCryptoWith2FA                   uint32 = (1 << 3)
-	WithdrawCryptoWithSMS                   uint32 = (1 << 4)
-	WithdrawCryptoWithEmail                 uint32 = (1 << 5)
-	WithdrawCryptoWithWebsiteApproval       uint32 = (1 << 6)
-	WithdrawCryptoWithAPIPermission         uint32 = (1 << 7)
-	WithdrawCryptoWith2FAText               string = "WITHDRAW CRYPTO WITH 2FA"
-	WithdrawCryptoWithSMSText               string = "WITHDRAW CRYPTO WITH SMS"
-	WithdrawCryptoWithEmailText             string = "WITHDRAW CRYPTO WITH EMAIL"
-	WithdrawCryptoWithWebsiteApprovalText   string = "WITHDRAW CRYPTO WITH WEBSITE APPROVAL"
-	WithdrawCryptoWithAPIPermissionText     string = "WITHDRAW CRYPTO WITH API PERMISSION"
-	AutoWithdrawFiat                        uint32 = (1 << 8)
-	AutoWithdrawFiatWithAPIPermission       uint32 = (1 << 9)
-	AutoWithdrawFiatWithSetup               uint32 = (1 << 10)
-	AutoWithdrawFiatText                    string = "AUTO WITHDRAW FIAT"
-	AutoWithdrawFiatWithAPIPermissionText   string = "AUTO WITHDRAW FIAT WITH API PERMISSION"
-	AutoWithdrawFiatWithSetupText           string = "AUTO WITHDRAW FIAT WITH SETUP"
-	WithdrawFiatWith2FA                     uint32 = (1 << 11)
-	WithdrawFiatWithSMS                     uint32 = (1 << 12)
-	WithdrawFiatWithEmail                   uint32 = (1 << 13)
-	WithdrawFiatWithWebsiteApproval         uint32 = (1 << 14)
-	WithdrawFiatWithAPIPermission           uint32 = (1 << 15)
-	WithdrawFiatWith2FAText                 string = "WITHDRAW FIAT WITH 2FA"
-	WithdrawFiatWithSMSText                 string = "WITHDRAW FIAT WITH SMS"
-	WithdrawFiatWithEmailText               string = "WITHDRAW FIAT WITH EMAIL"
-	WithdrawFiatWithWebsiteApprovalText     string = "WITHDRAW FIAT WITH WEBSITE APPROVAL"
-	WithdrawFiatWithAPIPermissionText       string = "WITHDRAW FIAT WITH API PERMISSION"
-	WithdrawCryptoViaWebsiteOnly            uint32 = (1 << 16)
-	WithdrawFiatViaWebsiteOnly              uint32 = (1 << 17)
-	WithdrawCryptoViaWebsiteOnlyText        string = "WITHDRAW CRYPTO VIA WEBSITE ONLY"
-	WithdrawFiatViaWebsiteOnlyText          string = "WITHDRAW FIAT VIA WEBSITE ONLY"
-	NoFiatWithdrawals                       uint32 = (1 << 18)
-	NoFiatWithdrawalsText                   string = "NO FIAT WITHDRAWAL"
-
-	UnknownWithdrawalTypeText string = "UNKNOWN"
-)
-
-// AccountInfo is a Generic type to hold each exchange's holdings in
-// all enabled currencies
-type AccountInfo struct {
-	Exchange string
-	Accounts []Account
-}
-
-// Account defines a singular account type with asocciated currencies
-type Account struct {
-	ID         string
-	Currencies []AccountCurrencyInfo
-}
-
-// AccountCurrencyInfo is a sub type to store currency name and value
-type AccountCurrencyInfo struct {
-	CurrencyName currency.Code
-	TotalValue   float64
-	Hold         float64
-}
-
-// TradeHistory holds exchange history data
-type TradeHistory struct {
-	Timestamp   time.Time
-	TID         int64
-	Price       float64
-	Amount      float64
-	Exchange    string
-	Type        string
-	Fee         float64
-	Description string
-}
-
-// OrderDetail holds order detail data
-type OrderDetail struct {
-	Exchange        string
-	AccountID       string
-	ID              string
-	CurrencyPair    currency.Pair
-	OrderSide       OrderSide
-	OrderType       OrderType
-	OrderDate       time.Time
-	Status          string
-	Price           float64
-	Amount          float64
-	ExecutedAmount  float64
-	RemainingAmount float64
-	Fee             float64
-	Trades          []TradeHistory
-}
-
-// FundHistory holds exchange funding history data
-type FundHistory struct {
-	ExchangeName      string
-	Status            string
-	TransferID        string
-	Description       string
-	Timestamp         time.Time
-	Currency          string
-	Amount            float64
-	Fee               float64
-	TransferType      string
-	CryptoToAddress   string
-	CryptoFromAddress string
-	CryptoTxID        string
-	BankTo            string
-	BankFrom          string
-}
-
-// Base stores the individual exchange information
-type Base struct {
-	Name                                       string
-	Enabled                                    bool
-	Verbose                                    bool
-	RESTPollingDelay                           time.Duration
-	AuthenticatedAPISupport                    bool
-	APIWithdrawPermissions                     uint32
-	APIAuthPEMKeySupport                       bool
-	APISecret, APIKey, APIAuthPEMKey, ClientID string
-	TakerFee, MakerFee, Fee                    float64
-	BaseCurrencies                             currency.Currencies
-	AvailablePairs                             currency.Pairs
-	EnabledPairs                               currency.Pairs
-	AssetTypes                                 []string
-	PairsLastUpdated                           int64
-	SupportsAutoPairUpdating                   bool
-	SupportsRESTTickerBatching                 bool
-	HTTPTimeout                                time.Duration
-	HTTPUserAgent                              string
-	HTTPDebugging                              bool
-	WebsocketURL                               string
-	APIUrl                                     string
-	APIUrlDefault                              string
-	APIUrlSecondary                            string
-	APIUrlSecondaryDefault                     string
-	RequestCurrencyPairFormat                  config.CurrencyPairFormatConfig
-	ConfigCurrencyPairFormat                   config.CurrencyPairFormatConfig
-	Websocket                                  *Websocket
-	*request.Requester
-}
-
-// IBotExchange enforces standard functions for all exchanges supported in
-// GoCryptoTrader
-type IBotExchange interface {
-	Setup(exch *config.ExchangeConfig)
-	Start(wg *sync.WaitGroup)
-	SetDefaults()
-	GetName() string
-	IsEnabled() bool
-	SetEnabled(bool)
-	GetTickerPrice(currency currency.Pair, assetType string) (ticker.Price, error)
-	UpdateTicker(currency currency.Pair, assetType string) (ticker.Price, error)
-	GetOrderbookEx(currency currency.Pair, assetType string) (orderbook.Base, error)
-	UpdateOrderbook(currency currency.Pair, assetType string) (orderbook.Base, error)
-	GetEnabledCurrencies() currency.Pairs
-	GetAvailableCurrencies() currency.Pairs
-	GetAssetTypes() []string
-	GetAccountInfo() (AccountInfo, error)
-	GetAuthenticatedAPISupport() bool
-	SetCurrencies(pairs []currency.Pair, enabledPairs bool) error
-	GetExchangeHistory(p currency.Pair, assetType string) ([]TradeHistory, error)
-	SupportsAutoPairUpdates() bool
-	GetLastPairsUpdateTime() int64
-	SupportsRESTTickerBatchUpdates() bool
-	GetFeeByType(feeBuilder *FeeBuilder) (float64, error)
-	GetWithdrawPermissions() uint32
-	FormatWithdrawPermissions() string
-	SupportsWithdrawPermissions(permissions uint32) bool
-	GetFundingHistory() ([]FundHistory, error)
-	SubmitOrder(p currency.Pair, side OrderSide, orderType OrderType, amount, price float64, clientID string) (SubmitOrderResponse, error)
-	ModifyOrder(action *ModifyOrder) (string, error)
-	CancelOrder(order *OrderCancellation) error
-	CancelAllOrders(orders *OrderCancellation) (CancelAllOrdersResponse, error)
-	GetOrderInfo(orderID string) (OrderDetail, error)
-	GetDepositAddress(cryptocurrency currency.Code, accountID string) (string, error)
-	GetOrderHistory(getOrdersRequest *GetOrdersRequest) ([]OrderDetail, error)
-	GetActiveOrders(getOrdersRequest *GetOrdersRequest) ([]OrderDetail, error)
-	WithdrawCryptocurrencyFunds(withdrawRequest *WithdrawRequest) (string, error)
-	WithdrawFiatFunds(withdrawRequest *WithdrawRequest) (string, error)
-	WithdrawFiatFundsToInternationalBank(withdrawRequest *WithdrawRequest) (string, error)
-	GetWebsocket() (*Websocket, error)
-	SubscribeToWebsocketChannels(channels []WebsocketChannelSubscription) error
-	UnsubscribeToWebsocketChannels(channels []WebsocketChannelSubscription) error
-}
-
-// SupportsRESTTickerBatchUpdates returns whether or not the
-// exhange supports REST batch ticker fetching
-func (e *Base) SupportsRESTTickerBatchUpdates() bool {
-	return e.SupportsRESTTickerBatching
+func (e *Base) checkAndInitRequester() {
+	if e.Requester == nil {
+		e.Requester = request.New(e.Name,
+			request.NewRateLimit(time.Second, 0),
+			request.NewRateLimit(time.Second, 0),
+			new(http.Client))
+	}
 }
 
 // SetHTTPClientTimeout sets the timeout value for the exchanges
 // HTTP Client
 func (e *Base) SetHTTPClientTimeout(t time.Duration) {
-	if e.Requester == nil {
-		e.Requester = request.New(e.Name,
-			request.NewRateLimit(time.Second, 0),
-			request.NewRateLimit(time.Second, 0),
-			new(http.Client))
-	}
+	e.checkAndInitRequester()
 	e.Requester.HTTPClient.Timeout = t
 }
 
 // SetHTTPClient sets exchanges HTTP client
 func (e *Base) SetHTTPClient(h *http.Client) {
-	if e.Requester == nil {
-		e.Requester = request.New(e.Name,
-			request.NewRateLimit(time.Second, 0),
-			request.NewRateLimit(time.Second, 0),
-			new(http.Client))
-	}
+	e.checkAndInitRequester()
 	e.Requester.HTTPClient = h
 }
 
 // GetHTTPClient gets the exchanges HTTP client
 func (e *Base) GetHTTPClient() *http.Client {
-	if e.Requester == nil {
-		e.Requester = request.New(e.Name,
-			request.NewRateLimit(time.Second, 0),
-			request.NewRateLimit(time.Second, 0),
-			new(http.Client))
-	}
+	e.checkAndInitRequester()
 	return e.Requester.HTTPClient
 }
 
 // SetHTTPClientUserAgent sets the exchanges HTTP user agent
 func (e *Base) SetHTTPClientUserAgent(ua string) {
-	if e.Requester == nil {
-		e.Requester = request.New(e.Name,
-			request.NewRateLimit(time.Second, 0),
-			request.NewRateLimit(time.Second, 0),
-			new(http.Client))
-	}
+	e.checkAndInitRequester()
 	e.Requester.UserAgent = ua
 	e.HTTPUserAgent = ua
 }
@@ -409,88 +90,137 @@ func (e *Base) SetClientProxyAddress(addr string) error {
 	return nil
 }
 
-// SetAutoPairDefaults sets the default values for whether or not the exchange
-// supports auto pair updating or not
-func (e *Base) SetAutoPairDefaults() error {
-	cfg := config.GetConfig()
-	exch, err := cfg.GetExchangeConfig(e.Name)
-	if err != nil {
-		return err
-	}
-
-	update := false
-	if e.SupportsAutoPairUpdating {
-		if !exch.SupportsAutoPairUpdates {
-			exch.SupportsAutoPairUpdates = true
-			exch.PairsLastUpdated = 0
-			update = true
+// SetFeatureDefaults sets the exchanges default feature
+// support set
+func (e *Base) SetFeatureDefaults() {
+	if e.Config.Features == nil {
+		s := &config.FeaturesConfig{
+			Supports: config.FeaturesSupportedConfig{
+				Websocket: e.Features.Supports.Websocket,
+				REST:      e.Features.Supports.REST,
+				RESTCapabilities: config.ProtocolFeaturesConfig{
+					AutoPairUpdates: e.Features.Supports.RESTCapabilities.AutoPairUpdates,
+				},
+			},
 		}
+
+		if e.Config.SupportsAutoPairUpdates != nil {
+			s.Supports.RESTCapabilities.AutoPairUpdates = *e.Config.SupportsAutoPairUpdates
+			s.Enabled.AutoPairUpdates = *e.Config.SupportsAutoPairUpdates
+		} else {
+			s.Supports.RESTCapabilities.AutoPairUpdates = e.Features.Supports.RESTCapabilities.AutoPairUpdates
+			s.Enabled.AutoPairUpdates = e.Features.Supports.RESTCapabilities.AutoPairUpdates
+			if !s.Supports.RESTCapabilities.AutoPairUpdates {
+				e.Config.CurrencyPairs.LastUpdated = time.Now().Unix()
+				e.CurrencyPairs.LastUpdated = e.Config.CurrencyPairs.LastUpdated
+			}
+		}
+		e.Config.Features = s
+		e.Config.SupportsAutoPairUpdates = nil
 	} else {
-		if exch.PairsLastUpdated == 0 {
-			exch.PairsLastUpdated = time.Now().Unix()
-			e.PairsLastUpdated = exch.PairsLastUpdated
-			update = true
+		if e.Features.Supports.RESTCapabilities.AutoPairUpdates != e.Config.Features.Supports.RESTCapabilities.AutoPairUpdates {
+			e.Config.Features.Supports.RESTCapabilities.AutoPairUpdates = e.Features.Supports.RESTCapabilities.AutoPairUpdates
+
+			if !e.Config.Features.Supports.RESTCapabilities.AutoPairUpdates {
+				e.Config.CurrencyPairs.LastUpdated = time.Now().Unix()
+			}
 		}
+
+		if e.Features.Supports.REST != e.Config.Features.Supports.REST {
+			e.Config.Features.Supports.REST = e.Features.Supports.REST
+		}
+
+		if e.Features.Supports.RESTCapabilities.TickerBatching != e.Config.Features.Supports.RESTCapabilities.TickerBatching {
+			e.Config.Features.Supports.RESTCapabilities.TickerBatching = e.Features.Supports.RESTCapabilities.TickerBatching
+		}
+
+		if e.Features.Supports.Websocket != e.Config.Features.Supports.Websocket {
+			e.Config.Features.Supports.Websocket = e.Features.Supports.Websocket
+		}
+
+		e.Features.Enabled.AutoPairUpdates = e.Config.Features.Enabled.AutoPairUpdates
+	}
+}
+
+// SetAPICredentialDefaults sets the API Credential validator defaults
+func (e *Base) SetAPICredentialDefaults() {
+	// Exchange hardcoded settings take precedence and overwrite the config settings
+	if e.Config.API.CredentialsValidator.RequiresKey != e.API.CredentialsValidator.RequiresKey {
+		e.Config.API.CredentialsValidator.RequiresKey = e.API.CredentialsValidator.RequiresKey
 	}
 
-	if update {
-		return cfg.UpdateExchangeConfig(&exch)
+	if e.Config.API.CredentialsValidator.RequiresSecret != e.API.CredentialsValidator.RequiresSecret {
+		e.Config.API.CredentialsValidator.RequiresSecret = e.API.CredentialsValidator.RequiresSecret
 	}
-	return nil
+
+	if e.Config.API.CredentialsValidator.RequiresBase64DecodeSecret != e.API.CredentialsValidator.RequiresBase64DecodeSecret {
+		e.Config.API.CredentialsValidator.RequiresBase64DecodeSecret = e.API.CredentialsValidator.RequiresBase64DecodeSecret
+	}
+
+	if e.Config.API.CredentialsValidator.RequiresClientID != e.API.CredentialsValidator.RequiresClientID {
+		e.Config.API.CredentialsValidator.RequiresClientID = e.API.CredentialsValidator.RequiresClientID
+	}
+
+	if e.Config.API.CredentialsValidator.RequiresPEM != e.API.CredentialsValidator.RequiresPEM {
+		e.Config.API.CredentialsValidator.RequiresPEM = e.API.CredentialsValidator.RequiresPEM
+	}
+}
+
+// SetHTTPRateLimiter sets the exchanges default HTTP rate limiter and updates the exchange's config
+// to default settings if it doesn't exist
+func (e *Base) SetHTTPRateLimiter() {
+	e.checkAndInitRequester()
+
+	if e.RequiresRateLimiter() {
+		if e.Config.HTTPRateLimiter == nil {
+			e.Config.HTTPRateLimiter = new(config.HTTPRateLimitConfig)
+			e.Config.HTTPRateLimiter.Authenticated.Duration = e.GetRateLimit(true).Duration
+			e.Config.HTTPRateLimiter.Authenticated.Rate = e.GetRateLimit(true).Rate
+			e.Config.HTTPRateLimiter.Unauthenticated.Duration = e.GetRateLimit(false).Duration
+			e.Config.HTTPRateLimiter.Unauthenticated.Rate = e.GetRateLimit(false).Rate
+		} else {
+			e.SetRateLimit(true, e.Config.HTTPRateLimiter.Authenticated.Duration,
+				e.Config.HTTPRateLimiter.Authenticated.Rate)
+			e.SetRateLimit(false, e.Config.HTTPRateLimiter.Unauthenticated.Duration,
+				e.Config.HTTPRateLimiter.Unauthenticated.Rate)
+		}
+	}
+}
+
+// SupportsRESTTickerBatchUpdates returns whether or not the
+// exhange supports REST batch ticker fetching
+func (e *Base) SupportsRESTTickerBatchUpdates() bool {
+	return e.Features.Supports.RESTCapabilities.TickerBatching
 }
 
 // SupportsAutoPairUpdates returns whether or not the exchange supports
 // auto currency pair updating
 func (e *Base) SupportsAutoPairUpdates() bool {
-	return e.SupportsAutoPairUpdating
+	if e.Features.Supports.RESTCapabilities.AutoPairUpdates || e.Features.Supports.WebsocketCapabilities.AutoPairUpdates {
+		return true
+	}
+	return false
 }
 
 // GetLastPairsUpdateTime returns the unix timestamp of when the exchanges
 // currency pairs were last updated
 func (e *Base) GetLastPairsUpdateTime() int64 {
-	return e.PairsLastUpdated
+	return e.CurrencyPairs.LastUpdated
 }
 
 // SetAssetTypes checks the exchange asset types (whether it supports SPOT,
 // Binary or Futures) and sets it to a default setting if it doesn't exist
-func (e *Base) SetAssetTypes() error {
-	cfg := config.GetConfig()
-	exch, err := cfg.GetExchangeConfig(e.Name)
-	if err != nil {
-		return err
+func (e *Base) SetAssetTypes() {
+	if e.Config.CurrencyPairs.AssetTypes.JoinToString(",") == "" {
+		e.Config.CurrencyPairs.AssetTypes = e.CurrencyPairs.AssetTypes
+	} else if e.Config.CurrencyPairs.AssetTypes.JoinToString(",") != e.CurrencyPairs.AssetTypes.JoinToString(",") {
+		e.Config.CurrencyPairs.AssetTypes = e.CurrencyPairs.AssetTypes
 	}
-
-	var update bool
-	if exch.AssetTypes == "" {
-		exch.AssetTypes = common.JoinStrings(e.AssetTypes, ",")
-		update = true
-	} else {
-		e.AssetTypes = common.SplitStrings(exch.AssetTypes, ",")
-		update = true
-	}
-
-	if update {
-		return cfg.UpdateExchangeConfig(&exch)
-	}
-
-	return nil
 }
 
 // GetAssetTypes returns the available asset types for an individual exchange
-func (e *Base) GetAssetTypes() []string {
-	return e.AssetTypes
-}
-
-// GetExchangeAssetTypes returns the asset types the exchange supports (SPOT,
-// binary, futures)
-func GetExchangeAssetTypes(exchName string) ([]string, error) {
-	cfg := config.GetConfig()
-	exch, err := cfg.GetExchangeConfig(exchName)
-	if err != nil {
-		return nil, err
-	}
-
-	return common.SplitStrings(exch.AssetTypes, ","), nil
+func (e *Base) GetAssetTypes() assets.AssetTypes {
+	return e.CurrencyPairs.AssetTypes
 }
 
 // GetClientBankAccounts returns banking details associated with
@@ -507,74 +237,51 @@ func (e *Base) GetExchangeBankAccounts(exchangeName, depositCurrency string) (co
 	return cfg.GetExchangeBankAccounts(exchangeName, depositCurrency)
 }
 
-// CompareCurrencyPairFormats checks and returns whether or not the two supplied
-// config currency pairs match
-func CompareCurrencyPairFormats(pair1 config.CurrencyPairFormatConfig, pair2 *config.CurrencyPairFormatConfig) bool {
-	if pair1.Delimiter != pair2.Delimiter ||
-		pair1.Uppercase != pair2.Uppercase ||
-		pair1.Separator != pair2.Separator ||
-		pair1.Index != pair2.Index {
-		return false
-	}
-	return true
-}
-
 // SetCurrencyPairFormat checks the exchange request and config currency pair
 // formats and sets it to a default setting if it doesn't exist
-func (e *Base) SetCurrencyPairFormat() error {
-	cfg := config.GetConfig()
-	exch, err := cfg.GetExchangeConfig(e.Name)
-	if err != nil {
-		return err
+func (e *Base) SetCurrencyPairFormat() {
+	if e.Config.CurrencyPairs == nil {
+		e.Config.CurrencyPairs = new(currency.PairsManager)
 	}
 
-	update := false
-	if exch.RequestCurrencyPairFormat == nil {
-		exch.RequestCurrencyPairFormat = &config.CurrencyPairFormatConfig{
-			Delimiter: e.RequestCurrencyPairFormat.Delimiter,
-			Uppercase: e.RequestCurrencyPairFormat.Uppercase,
-			Separator: e.RequestCurrencyPairFormat.Separator,
-			Index:     e.RequestCurrencyPairFormat.Index,
+	e.Config.CurrencyPairs.UseGlobalFormat = e.CurrencyPairs.UseGlobalFormat
+
+	if e.Config.CurrencyPairs.UseGlobalFormat {
+		if e.Config.CurrencyPairs.ConfigFormat == nil {
+			e.Config.CurrencyPairs.ConfigFormat = e.CurrencyPairs.ConfigFormat
 		}
-		update = true
-	} else {
-		if CompareCurrencyPairFormats(e.RequestCurrencyPairFormat,
-			exch.RequestCurrencyPairFormat) {
-			e.RequestCurrencyPairFormat = *exch.RequestCurrencyPairFormat
-		} else {
-			*exch.RequestCurrencyPairFormat = e.RequestCurrencyPairFormat
-			update = true
+
+		if e.Config.CurrencyPairs.RequestFormat == nil {
+			e.Config.CurrencyPairs.RequestFormat = e.CurrencyPairs.RequestFormat
 		}
+
+		return
 	}
 
-	if exch.ConfigCurrencyPairFormat == nil {
-		exch.ConfigCurrencyPairFormat = &config.CurrencyPairFormatConfig{
-			Delimiter: e.ConfigCurrencyPairFormat.Delimiter,
-			Uppercase: e.ConfigCurrencyPairFormat.Uppercase,
-			Separator: e.ConfigCurrencyPairFormat.Separator,
-			Index:     e.ConfigCurrencyPairFormat.Index,
-		}
-		update = true
-	} else {
-		if CompareCurrencyPairFormats(e.ConfigCurrencyPairFormat,
-			exch.ConfigCurrencyPairFormat) {
-			e.ConfigCurrencyPairFormat = *exch.ConfigCurrencyPairFormat
-		} else {
-			*exch.ConfigCurrencyPairFormat = e.ConfigCurrencyPairFormat
-			update = true
-		}
+	if e.Config.CurrencyPairs.ConfigFormat != nil {
+		e.Config.CurrencyPairs.ConfigFormat = nil
 	}
 
-	if update {
-		return cfg.UpdateExchangeConfig(&exch)
+	if e.Config.CurrencyPairs.RequestFormat != nil {
+		e.Config.CurrencyPairs.RequestFormat = nil
 	}
-	return nil
+
+	assetTypes := e.GetAssetTypes()
+	for x := range assetTypes {
+		if e.Config.CurrencyPairs.Get(assetTypes[x]) == nil {
+			r := e.CurrencyPairs.Get(assetTypes[x])
+			if r == nil {
+				continue
+			}
+			e.Config.CurrencyPairs.Store(assetTypes[x], *e.CurrencyPairs.Get(assetTypes[x]))
+		}
+	}
 }
 
 // GetAuthenticatedAPISupport returns whether the exchange supports
 // authenticated API requests
 func (e *Base) GetAuthenticatedAPISupport() bool {
-	return e.AuthenticatedAPISupport
+	return e.API.AuthenticatedSupport
 }
 
 // GetName is a method that returns the name of the exchange base
@@ -582,82 +289,82 @@ func (e *Base) GetName() string {
 	return e.Name
 }
 
-// GetEnabledCurrencies is a method that returns the enabled currency pairs of
-// the exchange base
-func (e *Base) GetEnabledCurrencies() currency.Pairs {
-	return e.EnabledPairs.Format(e.ConfigCurrencyPairFormat.Delimiter,
-		e.ConfigCurrencyPairFormat.Index,
-		e.ConfigCurrencyPairFormat.Uppercase)
+// GetEnabledFeatures returns the exchanges enabled features
+func (e *Base) GetEnabledFeatures() FeaturesEnabled {
+	return e.Features.Enabled
 }
 
-// GetAvailableCurrencies is a method that returns the available currency pairs
-// of the exchange base
-func (e *Base) GetAvailableCurrencies() currency.Pairs {
-	return e.AvailablePairs.Format(e.ConfigCurrencyPairFormat.Delimiter,
-		e.ConfigCurrencyPairFormat.Index,
-		e.ConfigCurrencyPairFormat.Uppercase)
+// GetSupportedFeatures returns the exchanges supported features
+func (e *Base) GetSupportedFeatures() FeaturesSupported {
+	return e.Features.Supports
 }
 
-// SupportsCurrency returns true or not whether a currency pair exists in the
+// GetPairFormat returns the pair format based on the exchange and
+// asset type
+func (e *Base) GetPairFormat(assetType assets.AssetType, requestFormat bool) currency.PairFormat {
+	if e.CurrencyPairs.UseGlobalFormat {
+		if requestFormat {
+			return *e.CurrencyPairs.RequestFormat
+		}
+		return *e.CurrencyPairs.ConfigFormat
+	}
+
+	if requestFormat {
+		return *e.CurrencyPairs.Get(assetType).RequestFormat
+	}
+	return *e.CurrencyPairs.Get(assetType).ConfigFormat
+}
+
+// GetEnabledPairs is a method that returns the enabled currency pairs of
+// the exchange by asset type
+func (e *Base) GetEnabledPairs(assetType assets.AssetType) currency.Pairs {
+	format := e.GetPairFormat(assetType, false)
+	pairs := e.CurrencyPairs.GetPairs(assetType, true)
+	return pairs.Format(format.Delimiter, format.Index, format.Uppercase)
+}
+
+// GetAvailablePairs is a method that returns the available currency pairs
+// of the exchange by asset type
+func (e *Base) GetAvailablePairs(assetType assets.AssetType) currency.Pairs {
+	format := e.GetPairFormat(assetType, false)
+	pairs := e.CurrencyPairs.GetPairs(assetType, false)
+	return pairs.Format(format.Delimiter, format.Index, format.Uppercase)
+}
+
+// SupportsPair returns true or not whether a currency pair exists in the
 // exchange available currencies or not
-func (e *Base) SupportsCurrency(p currency.Pair, enabledPairs bool) bool {
+func (e *Base) SupportsPair(p currency.Pair, enabledPairs bool, assetType assets.AssetType) bool {
 	if enabledPairs {
-		return e.GetEnabledCurrencies().Contains(p, false)
+		return e.GetEnabledPairs(assetType).Contains(p, false)
 	}
-	return e.GetAvailableCurrencies().Contains(p, false)
+	return e.GetAvailablePairs(assetType).Contains(p, false)
 }
 
-// GetExchangeFormatCurrencySeperator returns whether or not a specific
-// exchange contains a separator used for API requests
-func GetExchangeFormatCurrencySeperator(exchName string) bool {
-	cfg := config.GetConfig()
-	exch, err := cfg.GetExchangeConfig(exchName)
-	if err != nil {
-		return false
-	}
-
-	if exch.RequestCurrencyPairFormat.Separator != "" {
-		return true
-	}
-	return false
-}
-
-// GetAndFormatExchangeCurrencies returns a pair.CurrencyItem string containing
+// FormatExchangeCurrencies returns a string containing
 // the exchanges formatted currency pairs
-func GetAndFormatExchangeCurrencies(exchName string, pairs []currency.Pair) (string, error) {
+func (e *Base) FormatExchangeCurrencies(pairs []currency.Pair, assetType assets.AssetType) (string, error) {
 	var currencyItems string
-	cfg := config.GetConfig()
-	exch, err := cfg.GetExchangeConfig(exchName)
-	if err != nil {
-		return currencyItems, err
-	}
+	pairFmt := e.GetPairFormat(assetType, true)
 
 	for x := range pairs {
-		currencyItems += FormatExchangeCurrency(exchName, pairs[x]).String()
+		currencyItems += e.FormatExchangeCurrency(pairs[x], assetType).String()
 		if x == len(pairs)-1 {
 			continue
 		}
-		currencyItems += exch.RequestCurrencyPairFormat.Separator
+		currencyItems += pairFmt.Separator
+	}
+
+	if currencyItems == "" {
+		return "", errors.New("returned empty string")
 	}
 	return currencyItems, nil
 }
 
 // FormatExchangeCurrency is a method that formats and returns a currency pair
-// based on the exchange currency format
-func FormatExchangeCurrency(exchName string, p currency.Pair) currency.Pair {
-	cfg := config.GetConfig()
-	exch, _ := cfg.GetExchangeConfig(exchName)
-
-	return p.Format(exch.RequestCurrencyPairFormat.Delimiter,
-		exch.RequestCurrencyPairFormat.Uppercase)
-}
-
-// FormatCurrency is a method that formats and returns a currency pair
 // based on the user currency display preferences
-func FormatCurrency(p currency.Pair) currency.Pair {
-	cfg := config.GetConfig()
-	return p.Format(cfg.Currency.CurrencyPairFormat.Delimiter,
-		cfg.Currency.CurrencyPairFormat.Uppercase)
+func (e *Base) FormatExchangeCurrency(p currency.Pair, assetType assets.AssetType) currency.Pair {
+	pairFmt := e.GetPairFormat(assetType, true)
+	return p.Format(pairFmt.Delimiter, pairFmt.Uppercase)
 }
 
 // SetEnabled is a method that sets if the exchange is enabled
@@ -671,65 +378,171 @@ func (e *Base) IsEnabled() bool {
 }
 
 // SetAPIKeys is a method that sets the current API keys for the exchange
-func (e *Base) SetAPIKeys(apiKey, apiSecret, clientID string, b64Decode bool) {
-	if !e.AuthenticatedAPISupport {
-		return
-	}
+func (e *Base) SetAPIKeys(apiKey, apiSecret, clientID string) {
+	e.API.Credentials.Key = apiKey
+	e.API.Credentials.ClientID = clientID
 
-	e.APIKey = apiKey
-	e.ClientID = clientID
-
-	if b64Decode {
-		result, err := common.Base64Decode(apiSecret)
+	if e.API.CredentialsValidator.RequiresBase64DecodeSecret {
+		result, err := crypto.Base64Decode(apiSecret)
 		if err != nil {
-			e.AuthenticatedAPISupport = false
+			e.API.AuthenticatedSupport = false
 			log.Warnf(warningBase64DecryptSecretKeyFailed, e.Name)
 		}
-		e.APISecret = string(result)
+		e.API.Credentials.Secret = string(result)
 	} else {
-		e.APISecret = apiSecret
+		e.API.Credentials.Secret = apiSecret
 	}
 }
 
-// SetCurrencies sets the exchange currency pairs for either enabledPairs or
+// SetupDefaults sets the exchange settings based on the supplied config
+func (e *Base) SetupDefaults(exch *config.ExchangeConfig) error {
+	e.Enabled = true
+	e.LoadedByConfig = true
+	e.Config = exch
+	e.Verbose = exch.Verbose
+
+	e.API.AuthenticatedSupport = exch.API.AuthenticatedSupport
+	if e.API.AuthenticatedSupport {
+		e.SetAPIKeys(exch.API.Credentials.Key, exch.API.Credentials.Secret, exch.API.Credentials.ClientID)
+	}
+
+	if exch.HTTPTimeout <= time.Duration(0) {
+		exch.HTTPTimeout = DefaultHTTPTimeout
+	} else {
+		e.SetHTTPClientTimeout(exch.HTTPTimeout)
+	}
+
+	if exch.CurrencyPairs == nil {
+		exch.CurrencyPairs = new(currency.PairsManager)
+	}
+
+	e.HTTPDebugging = exch.HTTPDebugging
+	e.SetHTTPClientUserAgent(exch.HTTPUserAgent)
+	e.SetHTTPRateLimiter()
+	e.SetAssetTypes()
+	e.SetCurrencyPairFormat()
+	e.SetFeatureDefaults()
+	e.SetAPIURL()
+	e.SetAPICredentialDefaults()
+	e.SetClientProxyAddress(exch.ProxyAddress)
+	e.SetHTTPRateLimiter()
+
+	e.BaseCurrencies = exch.BaseCurrencies
+
+	assetTypes := e.GetAssetTypes()
+	for x := range assetTypes {
+		p := exch.CurrencyPairs.Get(assetTypes[x])
+		if p != nil {
+			e.CurrencyPairs.Store(assetTypes[x], *p)
+		}
+	}
+
+	if e.Features.Supports.Websocket {
+		e.Websocket.SetWsStatusAndConnection(exch.Features.Enabled.Websocket)
+	}
+	return nil
+}
+
+// AllowAuthenticatedRequest checks to see if the required fields have been set before sending an authenticated
+// API request
+func (e *Base) AllowAuthenticatedRequest() bool {
+	// Individual package usage, allow request if API credentials are valid a
+	// and without needing to set AuthenticatedSupport to true
+	if !e.LoadedByConfig && !e.ValidateAPICredentials() {
+		return false
+	}
+
+	// Bot usage, AuthenticatedSupport can be disabled by user if desired, so don't
+	// allow authenticated requests.
+	if !e.API.AuthenticatedSupport && e.LoadedByConfig {
+		return false
+	}
+
+	// Check to see if the user has enabled AuthenticatedSupport, but has invalid
+	// API credentials set and loaded by config
+	if e.API.AuthenticatedSupport && e.LoadedByConfig && !e.ValidateAPICredentials() {
+		return false
+	}
+
+	return true
+}
+
+// ValidateAPICredentials validates the exchanges API credentials
+func (e *Base) ValidateAPICredentials() bool {
+	if e.API.CredentialsValidator.RequiresKey {
+		if e.API.Credentials.Key == "" ||
+			e.API.Credentials.Key == config.DefaultAPIKey {
+			log.Warnf("exchange %s requires API key but default/empty one set",
+				e.Name)
+			return false
+		}
+	}
+
+	if e.API.CredentialsValidator.RequiresSecret {
+		if e.API.Credentials.Secret == "" ||
+			e.API.Credentials.Secret == config.DefaultAPISecret {
+			log.Warnf("exchange %s requires API secret but default/empty one set",
+				e.Name)
+			return false
+		}
+	}
+
+	if e.API.CredentialsValidator.RequiresPEM {
+		if e.API.Credentials.PEMKey == "" ||
+			common.StringContains(e.API.Credentials.PEMKey, "JUSTADUMMY") {
+			log.Warnf("exchange %s requires API PEM key but default/empty one set",
+				e.Name)
+			return false
+		}
+	}
+
+	if e.API.CredentialsValidator.RequiresClientID {
+		if e.API.Credentials.ClientID == "" ||
+			e.API.Credentials.ClientID == config.DefaultAPIClientID {
+			log.Warnf("exchange %s requires API ClientID but default/empty one set",
+				e.Name)
+			return false
+		}
+	}
+
+	if e.API.CredentialsValidator.RequiresBase64DecodeSecret && !e.LoadedByConfig {
+		_, err := crypto.Base64Decode(e.API.Credentials.Secret)
+		if err != nil {
+			log.Warnf("exchange %s API secret base64 decode failed: %s",
+				e.Name, err)
+			return false
+		}
+	}
+	return true
+}
+
+// SetPairs sets the exchange currency pairs for either enabledPairs or
 // availablePairs
-func (e *Base) SetCurrencies(pairs []currency.Pair, enabledPairs bool) error {
+func (e *Base) SetPairs(pairs currency.Pairs, assetType assets.AssetType, enabled bool) error {
 	if len(pairs) == 0 {
-		return fmt.Errorf("%s SetCurrencies error - pairs is empty", e.Name)
+		return fmt.Errorf("%s SetPairs error - pairs is empty", e.Name)
 	}
 
-	cfg := config.GetConfig()
-	exchCfg, err := cfg.GetExchangeConfig(e.Name)
-	if err != nil {
-		return err
-	}
-
+	pairFmt := e.GetPairFormat(assetType, false)
 	var newPairs currency.Pairs
 	for x := range pairs {
-		newPairs = append(newPairs, pairs[x].Format(exchCfg.ConfigCurrencyPairFormat.Delimiter,
-			exchCfg.ConfigCurrencyPairFormat.Uppercase))
+		newPairs = append(newPairs, pairs[x].Format(pairFmt.Delimiter,
+			pairFmt.Uppercase))
 	}
 
-	if enabledPairs {
-		exchCfg.EnabledPairs = newPairs
-		e.EnabledPairs = newPairs
-	} else {
-		exchCfg.AvailablePairs = newPairs
-		e.AvailablePairs = newPairs
-	}
-
-	return cfg.UpdateExchangeConfig(&exchCfg)
+	e.CurrencyPairs.StorePairs(assetType, newPairs, enabled)
+	e.Config.CurrencyPairs.StorePairs(assetType, newPairs, enabled)
+	return nil
 }
 
-// UpdateCurrencies updates the exchange currency pairs for either enabledPairs or
+// UpdatePairs updates the exchange currency pairs for either enabledPairs or
 // availablePairs
-func (e *Base) UpdateCurrencies(exchangeProducts currency.Pairs, enabled, force bool) error {
+func (e *Base) UpdatePairs(exchangeProducts currency.Pairs, assetType assets.AssetType, enabled, force bool) error {
 	if len(exchangeProducts) == 0 {
-		return fmt.Errorf("%s UpdateCurrencies error - exchangeProducts is empty", e.Name)
+		return fmt.Errorf("%s UpdatePairs error - exchangeProducts is empty", e.Name)
 	}
 
 	exchangeProducts = exchangeProducts.Upper()
-
 	var products currency.Pairs
 	for x := range exchangeProducts {
 		if exchangeProducts[x].String() == "" {
@@ -740,155 +553,94 @@ func (e *Base) UpdateCurrencies(exchangeProducts currency.Pairs, enabled, force 
 
 	var newPairs, removedPairs currency.Pairs
 	var updateType string
+	targetPairs := e.CurrencyPairs.GetPairs(assetType, enabled)
 
 	if enabled {
-		newPairs, removedPairs = e.EnabledPairs.FindDifferences(products)
+		newPairs, removedPairs = targetPairs.FindDifferences(products)
 		updateType = "enabled"
 	} else {
-		newPairs, removedPairs = e.AvailablePairs.FindDifferences(products)
+		newPairs, removedPairs = targetPairs.FindDifferences(products)
 		updateType = "available"
 	}
 
 	if force || len(newPairs) > 0 || len(removedPairs) > 0 {
-		cfg := config.GetConfig()
-		exch, err := cfg.GetExchangeConfig(e.Name)
-		if err != nil {
-			return err
-		}
-
 		if force {
-			log.Debugf("%s forced update of %s pairs.", e.Name, updateType)
+			log.Debugf("%s forced update of %s [%v] pairs.", e.Name, updateType,
+				strings.ToUpper(assetType.String()))
 		} else {
 			if len(newPairs) > 0 {
-				log.Debugf("%s Updating pairs - New: %s.\n", e.Name, newPairs)
+				log.Debugf("%s Updating pairs [%v] - New: %s.\n", e.Name,
+					strings.ToUpper(assetType.String()), newPairs)
 			}
 			if len(removedPairs) > 0 {
-				log.Debugf("%s Updating pairs - Removed: %s.\n", e.Name, removedPairs)
+				log.Debugf("%s Updating pairs [%v] - Removed: %s.\n", e.Name,
+					strings.ToUpper(assetType.String()), removedPairs)
 			}
 		}
-
-		if enabled {
-			exch.EnabledPairs = products
-			e.EnabledPairs = products
-		} else {
-			exch.AvailablePairs = products
-			e.AvailablePairs = products
-		}
-		return cfg.UpdateExchangeConfig(&exch)
+		e.Config.CurrencyPairs.StorePairs(assetType, products, enabled)
+		e.CurrencyPairs.StorePairs(assetType, products, enabled)
 	}
 	return nil
 }
 
-// ModifyOrder is a an order modifyer
-type ModifyOrder struct {
-	OrderID string
-	OrderType
-	OrderSide
-	Price           float64
-	Amount          float64
-	LimitPriceUpper float64
-	LimitPriceLower float64
-	CurrencyPair    currency.Pair
-
-	ImmediateOrCancel bool
-	HiddenOrder       bool
-	FillOrKill        bool
-	PostOnly          bool
-}
-
-// ModifyOrderResponse is an order modifying return type
-type ModifyOrderResponse struct {
-	OrderID string
-}
-
-// Format holds exchange formatting
-type Format struct {
-	ExchangeName string
-	OrderType    map[string]string
-	OrderSide    map[string]string
-}
-
-// CancelAllOrdersResponse returns the status from attempting to cancel all orders on an exchagne
-type CancelAllOrdersResponse struct {
-	OrderStatus map[string]string
-}
-
-// Formatting contain a range of exchanges formatting
-type Formatting []Format
-
-// OrderType enforces a standard for Ordertypes across the code base
-type OrderType string
-
-// OrderType ...types
-const (
-	AnyOrderType               OrderType = "ANY"
-	LimitOrderType             OrderType = "LIMIT"
-	MarketOrderType            OrderType = "MARKET"
-	ImmediateOrCancelOrderType OrderType = "IMMEDIATE_OR_CANCEL"
-	StopOrderType              OrderType = "STOP"
-	TrailingStopOrderType      OrderType = "TRAILINGSTOP"
-	UnknownOrderType           OrderType = "UNKNOWN"
-)
-
-// ToString changes the ordertype to the exchange standard and returns a string
-func (o OrderType) ToString() string {
-	return fmt.Sprintf("%v", o)
-}
-
-// OrderSide enforces a standard for OrderSides across the code base
-type OrderSide string
-
-// OrderSide types
-const (
-	AnyOrderSide  OrderSide = "ANY"
-	BuyOrderSide  OrderSide = "BUY"
-	SellOrderSide OrderSide = "SELL"
-	BidOrderSide  OrderSide = "BID"
-	AskOrderSide  OrderSide = "ASK"
-)
-
-// ToString changes the ordertype to the exchange standard and returns a string
-func (o OrderSide) ToString() string {
-	return fmt.Sprintf("%v", o)
-}
-
 // SetAPIURL sets configuration API URL for an exchange
-func (e *Base) SetAPIURL(ec *config.ExchangeConfig) error {
-	if ec.APIURL == "" || ec.APIURLSecondary == "" {
-		return errors.New("empty config API URLs")
+func (e *Base) SetAPIURL() error {
+	if e.Config.API.Endpoints.URL == "" || e.Config.API.Endpoints.URLSecondary == "" {
+		return fmt.Errorf("exchange %s: SetAPIURL error. URL vals are empty", e.Name)
 	}
-	if ec.APIURL != config.APIURLNonDefaultMessage {
-		e.APIUrl = ec.APIURL
+	if e.Config.API.Endpoints.URL != config.APIURLNonDefaultMessage {
+		e.API.Endpoints.URL = e.Config.API.Endpoints.URL
 	}
-	if ec.APIURLSecondary != config.APIURLNonDefaultMessage {
-		e.APIUrlSecondary = ec.APIURLSecondary
+	if e.Config.API.Endpoints.URLSecondary != config.APIURLNonDefaultMessage {
+		e.API.Endpoints.URLSecondary = e.Config.API.Endpoints.URLSecondary
 	}
 	return nil
 }
 
 // GetAPIURL returns the set API URL
 func (e *Base) GetAPIURL() string {
-	return e.APIUrl
+	return e.API.Endpoints.URL
 }
 
 // GetSecondaryAPIURL returns the set Secondary API URL
 func (e *Base) GetSecondaryAPIURL() string {
-	return e.APIUrlSecondary
+	return e.API.Endpoints.URLSecondary
 }
 
 // GetAPIURLDefault returns exchange default URL
 func (e *Base) GetAPIURLDefault() string {
-	return e.APIUrlDefault
+	return e.API.Endpoints.URLDefault
 }
 
 // GetAPIURLSecondaryDefault returns exchange default secondary URL
 func (e *Base) GetAPIURLSecondaryDefault() string {
-	return e.APIUrlSecondaryDefault
+	return e.API.Endpoints.URLSecondaryDefault
+}
+
+// SupportsWebsocket returns whether or not the exchange supports
+// websocket
+func (e *Base) SupportsWebsocket() bool {
+	return e.Features.Supports.Websocket
+}
+
+// SupportsREST returns whether or not the exchange supports
+// REST
+func (e *Base) SupportsREST() bool {
+	return e.Features.Supports.REST
+}
+
+// IsWebsocketEnabled returns whether or not the exchange has its
+// websocket client enabled
+func (e *Base) IsWebsocketEnabled() bool {
+	if e.Websocket != nil {
+		return e.Websocket.IsEnabled()
+	}
+	return false
 }
 
 // GetWithdrawPermissions passes through the exchange's withdraw permissions
 func (e *Base) GetWithdrawPermissions() uint32 {
-	return e.APIWithdrawPermissions
+	return e.Features.Supports.WithdrawPermissions
 }
 
 // SupportsWithdrawPermissions compares the supplied permissions with the exchange's to verify they're supported
@@ -954,223 +706,16 @@ func (e *Base) FormatWithdrawPermissions() string {
 	return NoAPIWithdrawalMethodsText
 }
 
-// GetOrdersRequest used for GetOrderHistory and GetOpenOrders wrapper functions
-type GetOrdersRequest struct {
-	OrderType  OrderType
-	OrderSide  OrderSide
-	StartTicks time.Time
-	EndTicks   time.Time
-	// Currencies Empty array = all currencies. Some endpoints only support singular currency enquiries
-	Currencies []currency.Pair
+// IsAssetTypeSupported whether or not the supplied asset is supported
+// by the exchange
+func (e *Base) IsAssetTypeSupported(asset assets.AssetType) bool {
+	return e.CurrencyPairs.AssetTypes.Contains(asset)
 }
 
-// OrderStatus defines order status types
-type OrderStatus string
-
-// All OrderStatus types
-const (
-	AnyOrderStatus             OrderStatus = "ANY"
-	NewOrderStatus             OrderStatus = "NEW"
-	ActiveOrderStatus          OrderStatus = "ACTIVE"
-	PartiallyFilledOrderStatus OrderStatus = "PARTIALLY_FILLED"
-	FilledOrderStatus          OrderStatus = "FILLED"
-	CancelledOrderStatus       OrderStatus = "CANCELED"
-	PendingCancelOrderStatus   OrderStatus = "PENDING_CANCEL"
-	RejectedOrderStatus        OrderStatus = "REJECTED"
-	ExpiredOrderStatus         OrderStatus = "EXPIRED"
-	HiddenOrderStatus          OrderStatus = "HIDDEN"
-	UnknownOrderStatus         OrderStatus = "UNKNOWN"
-)
-
-// FilterOrdersBySide removes any OrderDetails that don't match the orderStatus provided
-func FilterOrdersBySide(orders *[]OrderDetail, orderSide OrderSide) {
-	if orderSide == "" || orderSide == AnyOrderSide {
-		return
-	}
-
-	var filteredOrders []OrderDetail
-	for i := range *orders {
-		if strings.EqualFold(string((*orders)[i].OrderSide), string(orderSide)) {
-			filteredOrders = append(filteredOrders, (*orders)[i])
-		}
-	}
-
-	*orders = filteredOrders
-}
-
-// FilterOrdersByType removes any OrderDetails that don't match the orderType provided
-func FilterOrdersByType(orders *[]OrderDetail, orderType OrderType) {
-	if orderType == "" || orderType == AnyOrderType {
-		return
-	}
-
-	var filteredOrders []OrderDetail
-	for i := range *orders {
-		if strings.EqualFold(string((*orders)[i].OrderType), string(orderType)) {
-			filteredOrders = append(filteredOrders, (*orders)[i])
-		}
-	}
-
-	*orders = filteredOrders
-}
-
-// FilterOrdersByTickRange removes any OrderDetails outside of the tick range
-func FilterOrdersByTickRange(orders *[]OrderDetail, startTicks, endTicks time.Time) {
-	if startTicks.IsZero() || endTicks.IsZero() ||
-		startTicks.Unix() == 0 || endTicks.Unix() == 0 || endTicks.Before(startTicks) {
-		return
-	}
-
-	var filteredOrders []OrderDetail
-	for i := range *orders {
-		if (*orders)[i].OrderDate.Unix() >= startTicks.Unix() && (*orders)[i].OrderDate.Unix() <= endTicks.Unix() {
-			filteredOrders = append(filteredOrders, (*orders)[i])
-		}
-	}
-
-	*orders = filteredOrders
-}
-
-// FilterOrdersByCurrencies removes any OrderDetails that do not match the provided currency list
-// It is forgiving in that the provided currencies can match quote or base currencies
-func FilterOrdersByCurrencies(orders *[]OrderDetail, currencies []currency.Pair) {
-	if len(currencies) == 0 {
-		return
-	}
-
-	var filteredOrders []OrderDetail
-	for i := range *orders {
-		matchFound := false
-		for _, c := range currencies {
-			if !matchFound && (*orders)[i].CurrencyPair.EqualIncludeReciprocal(c) {
-				matchFound = true
-			}
-		}
-
-		if matchFound {
-			filteredOrders = append(filteredOrders, (*orders)[i])
-		}
-	}
-
-	*orders = filteredOrders
-}
-
-// ByPrice used for sorting orders by price
-type ByPrice []OrderDetail
-
-func (b ByPrice) Len() int {
-	return len(b)
-}
-
-func (b ByPrice) Less(i, j int) bool {
-	return b[i].Price < b[j].Price
-}
-
-func (b ByPrice) Swap(i, j int) {
-	b[i], b[j] = b[j], b[i]
-}
-
-// SortOrdersByPrice the caller function to sort orders
-func SortOrdersByPrice(orders *[]OrderDetail, reverse bool) {
-	if reverse {
-		sort.Sort(sort.Reverse(ByPrice(*orders)))
-	} else {
-		sort.Sort(ByPrice(*orders))
-	}
-}
-
-// ByOrderType used for sorting orders by order type
-type ByOrderType []OrderDetail
-
-func (b ByOrderType) Len() int {
-	return len(b)
-}
-
-func (b ByOrderType) Less(i, j int) bool {
-	return b[i].OrderType.ToString() < b[j].OrderType.ToString()
-}
-
-func (b ByOrderType) Swap(i, j int) {
-	b[i], b[j] = b[j], b[i]
-}
-
-// SortOrdersByType the caller function to sort orders
-func SortOrdersByType(orders *[]OrderDetail, reverse bool) {
-	if reverse {
-		sort.Sort(sort.Reverse(ByOrderType(*orders)))
-	} else {
-		sort.Sort(ByOrderType(*orders))
-	}
-}
-
-// ByCurrency used for sorting orders by order currency
-type ByCurrency []OrderDetail
-
-func (b ByCurrency) Len() int {
-	return len(b)
-}
-
-func (b ByCurrency) Less(i, j int) bool {
-	return b[i].CurrencyPair.String() < b[j].CurrencyPair.String()
-}
-
-func (b ByCurrency) Swap(i, j int) {
-	b[i], b[j] = b[j], b[i]
-}
-
-// SortOrdersByCurrency the caller function to sort orders
-func SortOrdersByCurrency(orders *[]OrderDetail, reverse bool) {
-	if reverse {
-		sort.Sort(sort.Reverse(ByCurrency(*orders)))
-	} else {
-		sort.Sort(ByCurrency(*orders))
-	}
-}
-
-// ByDate used for sorting orders by order date
-type ByDate []OrderDetail
-
-func (b ByDate) Len() int {
-	return len(b)
-}
-
-func (b ByDate) Less(i, j int) bool {
-	return b[i].OrderDate.Unix() < b[j].OrderDate.Unix()
-}
-
-func (b ByDate) Swap(i, j int) {
-	b[i], b[j] = b[j], b[i]
-}
-
-// SortOrdersByDate the caller function to sort orders
-func SortOrdersByDate(orders *[]OrderDetail, reverse bool) {
-	if reverse {
-		sort.Sort(sort.Reverse(ByDate(*orders)))
-	} else {
-		sort.Sort(ByDate(*orders))
-	}
-}
-
-// ByOrderSide used for sorting orders by order side (buy sell)
-type ByOrderSide []OrderDetail
-
-func (b ByOrderSide) Len() int {
-	return len(b)
-}
-
-func (b ByOrderSide) Less(i, j int) bool {
-	return b[i].OrderSide.ToString() < b[j].OrderSide.ToString()
-}
-
-func (b ByOrderSide) Swap(i, j int) {
-	b[i], b[j] = b[j], b[i]
-}
-
-// SortOrdersBySide the caller function to sort orders
-func SortOrdersBySide(orders *[]OrderDetail, reverse bool) {
-	if reverse {
-		sort.Sort(sort.Reverse(ByOrderSide(*orders)))
-	} else {
-		sort.Sort(ByOrderSide(*orders))
+// PrintEnabledPairs prints the exchanges enabled asset pairs
+func (e *Base) PrintEnabledPairs() {
+	for k, v := range e.CurrencyPairs.Pairs {
+		log.Infof("Asset type %v:", k)
+		log.Infof("\t Enabled pairs: %v", v.Enabled)
 	}
 }

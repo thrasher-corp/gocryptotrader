@@ -6,14 +6,11 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
-	"github.com/thrasher-/gocryptotrader/config"
+	"github.com/thrasher-/gocryptotrader/common/crypto"
 	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
-	"github.com/thrasher-/gocryptotrader/exchanges/request"
-	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
@@ -48,72 +45,6 @@ const (
 // BTCMarkets is the overarching type across the BTCMarkets package
 type BTCMarkets struct {
 	exchange.Base
-	Ticker map[string]Ticker
-}
-
-// SetDefaults sets basic defaults
-func (b *BTCMarkets) SetDefaults() {
-	b.Name = "BTC Markets"
-	b.Enabled = false
-	b.Fee = 0.85
-	b.Verbose = false
-	b.RESTPollingDelay = 10
-	b.Ticker = make(map[string]Ticker)
-	b.APIWithdrawPermissions = exchange.AutoWithdrawCrypto |
-		exchange.AutoWithdrawFiat
-	b.RequestCurrencyPairFormat.Delimiter = ""
-	b.RequestCurrencyPairFormat.Uppercase = true
-	b.ConfigCurrencyPairFormat.Delimiter = "-"
-	b.ConfigCurrencyPairFormat.Uppercase = true
-	b.AssetTypes = []string{ticker.Spot}
-	b.SupportsAutoPairUpdating = true
-	b.SupportsRESTTickerBatching = false
-	b.Requester = request.New(b.Name,
-		request.NewRateLimit(time.Second*10, btcmarketsAuthLimit),
-		request.NewRateLimit(time.Second*10, btcmarketsUnauthLimit),
-		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
-	b.APIUrlDefault = btcMarketsAPIURL
-	b.APIUrl = b.APIUrlDefault
-	b.WebsocketInit()
-}
-
-// Setup takes in an exchange configuration and sets all parameters
-func (b *BTCMarkets) Setup(exch *config.ExchangeConfig) {
-	if !exch.Enabled {
-		b.SetEnabled(false)
-	} else {
-		b.Enabled = true
-		b.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
-		b.SetAPIKeys(exch.APIKey, exch.APISecret, "", true)
-		b.SetHTTPClientTimeout(exch.HTTPTimeout)
-		b.SetHTTPClientUserAgent(exch.HTTPUserAgent)
-		b.RESTPollingDelay = exch.RESTPollingDelay
-		b.Verbose = exch.Verbose
-		b.HTTPDebugging = exch.HTTPDebugging
-		b.BaseCurrencies = exch.BaseCurrencies
-		b.AvailablePairs = exch.AvailablePairs
-		b.EnabledPairs = exch.EnabledPairs
-		err := b.SetCurrencyPairFormat()
-		if err != nil {
-			log.Fatal(err)
-		}
-		err = b.SetAssetTypes()
-		if err != nil {
-			log.Fatal(err)
-		}
-		err = b.SetAutoPairDefaults()
-		if err != nil {
-			log.Fatal(err)
-		}
-		err = b.SetAPIURL(exch)
-		if err != nil {
-			log.Fatal(err)
-		}
-		err = b.SetClientProxyAddress(exch.ProxyAddress)
-		if err != nil {
-			log.Fatal(err)
-		}
-	}
 }
 
 // GetMarkets returns the BTCMarkets instruments
@@ -124,7 +55,7 @@ func (b *BTCMarkets) GetMarkets() ([]Market, error) {
 	}
 
 	var resp marketsResp
-	path := fmt.Sprintf("%s/v2/market/active", b.APIUrl)
+	path := fmt.Sprintf("%s/v2/market/active", b.API.Endpoints.URL)
 
 	err := b.SendHTTPRequest(path, &resp)
 	if err != nil {
@@ -143,7 +74,7 @@ func (b *BTCMarkets) GetMarkets() ([]Market, error) {
 func (b *BTCMarkets) GetTicker(firstPair, secondPair string) (Ticker, error) {
 	tick := Ticker{}
 	path := fmt.Sprintf("%s/market/%s/%s/tick",
-		b.APIUrl,
+		b.API.Endpoints.URL,
 		common.StringToUpper(firstPair),
 		common.StringToUpper(secondPair))
 
@@ -155,7 +86,7 @@ func (b *BTCMarkets) GetTicker(firstPair, secondPair string) (Ticker, error) {
 func (b *BTCMarkets) GetOrderbook(firstPair, secondPair string) (Orderbook, error) {
 	orderbook := Orderbook{}
 	path := fmt.Sprintf("%s/market/%s/%s/orderbook",
-		b.APIUrl,
+		b.API.Endpoints.URL,
 		common.StringToUpper(firstPair),
 		common.StringToUpper(secondPair))
 
@@ -168,7 +99,7 @@ func (b *BTCMarkets) GetOrderbook(firstPair, secondPair string) (Orderbook, erro
 func (b *BTCMarkets) GetTrades(firstPair, secondPair string, values url.Values) ([]Trade, error) {
 	var trades []Trade
 	path := common.EncodeURLValues(fmt.Sprintf("%s/market/%s/%s/trades",
-		b.APIUrl, common.StringToUpper(firstPair),
+		b.API.Endpoints.URL, common.StringToUpper(firstPair),
 		common.StringToUpper(secondPair)), values)
 
 	return trades, b.SendHTTPRequest(path, &trades)
@@ -182,7 +113,7 @@ func (b *BTCMarkets) GetTrades(firstPair, secondPair string, values url.Values) 
 // orderside - example "Bid" or "Ask"
 // orderType - example "limit"
 // clientReq - example "abc-cdf-1000"
-func (b *BTCMarkets) NewOrder(currency, instrument string, price, amount float64, orderSide, orderType, clientReq string) (int64, error) {
+func (b *BTCMarkets) NewOrder(instrument, currency string, price, amount float64, orderSide, orderType, clientReq string) (int64, error) {
 	newPrice := int64(price * float64(common.SatoshisPerBTC))
 	newVolume := int64(amount * float64(common.SatoshisPerBTC))
 
@@ -437,7 +368,7 @@ func (b *BTCMarkets) SendHTTPRequest(path string, result interface{}) error {
 
 // SendAuthenticatedRequest sends an authenticated HTTP request
 func (b *BTCMarkets) SendAuthenticatedRequest(reqType, path string, data, result interface{}) (err error) {
-	if !b.AuthenticatedAPISupport {
+	if !b.AllowAuthenticatedRequest() {
 		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet,
 			b.Name)
 	}
@@ -457,13 +388,13 @@ func (b *BTCMarkets) SendAuthenticatedRequest(reqType, path string, data, result
 		req = path + "\n" + n + "\n"
 	}
 
-	hmac := common.GetHMAC(common.HashSHA512,
-		[]byte(req), []byte(b.APISecret))
+	hmac := crypto.GetHMAC(crypto.HashSHA512,
+		[]byte(req), []byte(b.API.Credentials.Secret))
 
 	if b.Verbose {
 		log.Debugf("Sending %s request to URL %s with params %s\n",
 			reqType,
-			b.APIUrl+path,
+			b.API.Endpoints.URL+path,
 			req)
 	}
 
@@ -471,12 +402,12 @@ func (b *BTCMarkets) SendAuthenticatedRequest(reqType, path string, data, result
 	headers["Accept"] = "application/json"
 	headers["Accept-Charset"] = "UTF-8"
 	headers["Content-Type"] = "application/json"
-	headers["apikey"] = b.APIKey
+	headers["apikey"] = b.API.Credentials.Key
 	headers["timestamp"] = n
-	headers["signature"] = common.Base64Encode(hmac)
+	headers["signature"] = crypto.Base64Encode(hmac)
 
 	return b.SendPayload(reqType,
-		b.APIUrl+path,
+		b.API.Endpoints.URL+path,
 		headers,
 		bytes.NewBuffer(payload),
 		result,

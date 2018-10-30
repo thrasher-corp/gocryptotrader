@@ -12,8 +12,8 @@ import (
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
+	"github.com/thrasher-/gocryptotrader/exchanges/assets"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
-	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
@@ -120,7 +120,7 @@ func (b *Bitstamp) WsHandleData() {
 				currencyPair := common.SplitStrings(wsResponse.Channel, "_")
 				p := currency.NewPairFromString(common.StringToUpper(currencyPair[3]))
 
-				err = b.wsUpdateOrderbook(wsOrderBookTemp.Data, p, ticker.Spot)
+				err = b.wsUpdateOrderbook(wsOrderBookTemp.Data, p, assets.AssetTypeSpot)
 				if err != nil {
 					b.Websocket.DataHandler <- err
 					continue
@@ -143,7 +143,7 @@ func (b *Bitstamp) WsHandleData() {
 					Amount:       wsTradeTemp.Data.Amount,
 					CurrencyPair: p,
 					Exchange:     b.GetName(),
-					AssetType:    ticker.Spot,
+					AssetType:    assets.AssetTypeSpot,
 				}
 			}
 		}
@@ -152,7 +152,7 @@ func (b *Bitstamp) WsHandleData() {
 
 func (b *Bitstamp) generateDefaultSubscriptions() {
 	var channels = []string{"live_trades_", "diff_order_book_"}
-	enabledCurrencies := b.GetEnabledCurrencies()
+	enabledCurrencies := b.GetEnabledPairs(assets.AssetTypeSpot)
 	subscriptions := []exchange.WebsocketChannelSubscription{}
 	for i := range channels {
 		for j := range enabledCurrencies {
@@ -192,7 +192,7 @@ func (b *Bitstamp) Unsubscribe(channelToSubscribe exchange.WebsocketChannelSubsc
 	return b.WebsocketConn.WriteJSON(req)
 }
 
-func (b *Bitstamp) wsUpdateOrderbook(ob websocketOrderBook, p currency.Pair, assetType string) error {
+func (b *Bitstamp) wsUpdateOrderbook(ob websocketOrderBook, p currency.Pair, assetType assets.AssetType) error {
 	if len(ob.Asks) == 0 && len(ob.Bids) == 0 {
 		return errors.New("bitstamp_websocket.go error - no orderbook data")
 	}
@@ -250,7 +250,7 @@ func (b *Bitstamp) wsUpdateOrderbook(ob websocketOrderBook, p currency.Pair, ass
 }
 
 func (b *Bitstamp) seedOrderBook() error {
-	p := b.GetEnabledCurrencies()
+	p := b.GetEnabledPairs(assets.AssetTypeSpot)
 	for x := range p {
 		orderbookSeed, err := b.GetOrderbook(p[x].String())
 		if err != nil {
@@ -277,7 +277,7 @@ func (b *Bitstamp) seedOrderBook() error {
 		newOrderBook.Asks = asks
 		newOrderBook.Bids = bids
 		newOrderBook.Pair = p[x]
-		newOrderBook.AssetType = ticker.Spot
+		newOrderBook.AssetType = assets.AssetTypeSpot
 
 		err = b.Websocket.Orderbook.LoadSnapshot(&newOrderBook, b.GetName(), false)
 		if err != nil {
@@ -286,7 +286,7 @@ func (b *Bitstamp) seedOrderBook() error {
 
 		b.Websocket.DataHandler <- exchange.WebsocketOrderbookUpdate{
 			Pair:     p[x],
-			Asset:    ticker.Spot,
+			Asset:    assets.AssetTypeSpot,
 			Exchange: b.GetName(),
 		}
 	}

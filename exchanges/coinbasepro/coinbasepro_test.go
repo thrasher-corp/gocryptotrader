@@ -31,10 +31,10 @@ func TestSetup(t *testing.T) {
 	if err != nil {
 		t.Error("Test Failed - coinbasepro Setup() init error")
 	}
-	gdxConfig.APIKey = apiKey
-	gdxConfig.APISecret = apiSecret
-	gdxConfig.AuthenticatedAPISupport = true
-	c.Setup(&gdxConfig)
+	gdxConfig.API.Credentials.Key = apiKey
+	gdxConfig.API.Credentials.Secret = apiSecret
+	gdxConfig.API.AuthenticatedSupport = true
+	c.Setup(gdxConfig)
 }
 
 func TestGetProducts(t *testing.T) {
@@ -88,7 +88,7 @@ func TestGetServerTime(t *testing.T) {
 
 func TestAuthRequests(t *testing.T) {
 
-	if c.APIKey != "" && c.APISecret != "" && c.ClientID != "" {
+	if c.ValidateAPICredentials() {
 
 		_, err := c.GetAccounts()
 		if err == nil {
@@ -110,12 +110,14 @@ func TestAuthRequests(t *testing.T) {
 			t.Error("Test failed - GetHolds() error", err)
 		}
 
-		_, err = c.PlaceLimitOrder("", 0, 0, "buy", "", "", "BTC-USD", "", false)
+		_, err = c.PlaceLimitOrder("", 0, 0, exchange.BuyOrderSide.ToLower().ToString(),
+			"", "", "BTC-USD", "", false)
 		if err == nil {
 			t.Error("Test failed - PlaceLimitOrder() error", err)
 		}
 
-		_, err = c.PlaceMarketOrder("", 1, 0, "buy", "BTC-USD", "")
+		_, err = c.PlaceMarketOrder("", 1, 0, exchange.BuyOrderSide.ToLower().ToString(),
+			"BTC-USD", "")
 		if err == nil {
 			t.Error("Test failed - PlaceMarketOrder() error", err)
 		}
@@ -457,11 +459,7 @@ func TestGetOrderHistory(t *testing.T) {
 // Any tests below this line have the ability to impact your orders on the exchange. Enable canManipulateRealOrders to run them
 // ----------------------------------------------------------------------------------------------------------------------------
 func areTestAPIKeysSet() bool {
-	if c.APIKey != "" && c.APIKey != "Key" &&
-		c.APISecret != "" && c.APISecret != "Secret" {
-		return true
-	}
-	return false
+	return c.ValidateAPICredentials()
 }
 
 func TestSubmitOrder(t *testing.T) {
@@ -477,7 +475,8 @@ func TestSubmitOrder(t *testing.T) {
 		Base:      currency.BTC,
 		Quote:     currency.LTC,
 	}
-	response, err := c.SubmitOrder(p, exchange.BuyOrderSide, exchange.LimitOrderType, 1, 1, "clientId")
+	response, err := c.SubmitOrder(p, exchange.BuyOrderSide,
+		exchange.LimitOrderType, 1, 1, "clientId")
 	if areTestAPIKeysSet() && (err != nil || !response.IsOrderPlaced) {
 		t.Errorf("Order failed to be placed: %v", err)
 	} else if !areTestAPIKeysSet() && err == nil {
@@ -554,11 +553,13 @@ func TestModifyOrder(t *testing.T) {
 func TestWithdraw(t *testing.T) {
 	c.SetDefaults()
 	TestSetup(t)
-	var withdrawCryptoRequest = exchange.WithdrawRequest{
-		Amount:      100,
-		Currency:    currency.LTC,
-		Address:     "1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB",
-		Description: "WITHDRAW IT ALL",
+	withdrawCryptoRequest := exchange.CryptoWithdrawRequest{
+		GenericWithdrawRequestInfo: exchange.GenericWithdrawRequestInfo{
+			Amount:      -1,
+			Currency:    currency.BTC,
+			Description: "WITHDRAW IT ALL",
+		},
+		Address: "1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB",
 	}
 
 	if areTestAPIKeysSet() && !canManipulateRealOrders {
@@ -582,9 +583,11 @@ func TestWithdrawFiat(t *testing.T) {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 
-	var withdrawFiatRequest = exchange.WithdrawRequest{
-		Amount:   100,
-		Currency: currency.USD,
+	var withdrawFiatRequest = exchange.FiatWithdrawRequest{
+		GenericWithdrawRequestInfo: exchange.GenericWithdrawRequestInfo{
+			Amount:   100,
+			Currency: currency.USD,
+		},
 		BankName: "Federal Reserve Bank",
 	}
 
@@ -605,9 +608,11 @@ func TestWithdrawInternationalBank(t *testing.T) {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 
-	var withdrawFiatRequest = exchange.WithdrawRequest{
-		Amount:   100,
-		Currency: currency.USD,
+	var withdrawFiatRequest = exchange.FiatWithdrawRequest{
+		GenericWithdrawRequestInfo: exchange.GenericWithdrawRequestInfo{
+			Amount:   100,
+			Currency: currency.USD,
+		},
 		BankName: "Federal Reserve Bank",
 	}
 

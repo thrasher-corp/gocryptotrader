@@ -4,11 +4,12 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
-	"sync"
 
 	"github.com/thrasher-/gocryptotrader/common"
+	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
+	"github.com/thrasher-/gocryptotrader/exchanges/assets"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 	log "github.com/thrasher-/gocryptotrader/logger"
@@ -18,44 +19,31 @@ import (
 // Therefore this OKGroup_Wrapper can be shared between OKEX and OKCoin.
 // When circumstances change, wrapper funcs can be split appropriately
 
-// Start starts the OKGroup go routine
-func (o *OKGroup) Start(wg *sync.WaitGroup) {
-	wg.Add(1)
-	go func() {
-		o.Run()
-		wg.Done()
-	}()
-}
-
-// Run implements the OKEX wrapper
-func (o *OKGroup) Run() {
-	if o.Verbose {
-		log.Debugf("%s Websocket: %s. (url: %s).\n", o.GetName(), common.IsEnabled(o.Websocket.IsEnabled()), o.WebsocketURL)
-		log.Debugf("%s polling delay: %ds.\n", o.GetName(), o.RESTPollingDelay)
-		log.Debugf("%s %d currencies enabled: %s.\n", o.GetName(), len(o.EnabledPairs), o.EnabledPairs)
+// Setup sets user exchange configuration settings
+func (o *OKGroup) Setup(exch *config.ExchangeConfig) error {
+	if !exch.Enabled {
+		o.SetEnabled(false)
+		return nil
 	}
 
-	prods, err := o.GetSpotTokenPairDetails()
+	err := o.SetupDefaults(exch)
 	if err != nil {
-		log.Errorf("%v failed to obtain available spot instruments. Err: %s", o.Name, err)
-		return
+		return err
 	}
 
-	var pairs currency.Pairs
-	for x := range prods {
-		pairs = append(pairs, currency.NewPairFromString(prods[x].BaseCurrency+"_"+prods[x].QuoteCurrency))
-	}
-
-	err = o.UpdateCurrencies(pairs, false, false)
-	if err != nil {
-		log.Errorf("%v failed to update available currencies. Err: %s", o.Name, err)
-		return
-	}
+	return o.WebsocketSetup(o.WsConnect,
+		o.Subscribe,
+		o.Unsubscribe,
+		exch.Name,
+		exch.Features.Enabled.Websocket,
+		exch.Verbose,
+		o.WebsocketURL,
+		exch.API.Endpoints.WebsocketURL)
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
-func (o *OKGroup) UpdateTicker(p currency.Pair, assetType string) (tickerData ticker.Price, err error) {
-	resp, err := o.GetSpotAllTokenPairsInformationForCurrency(exchange.FormatExchangeCurrency(o.Name, p).String())
+func (o *OKGroup) UpdateTicker(p currency.Pair, assetType assets.AssetType) (tickerData ticker.Price, err error) {
+	resp, err := o.GetSpotAllTokenPairsInformationForCurrency(o.FormatExchangeCurrency(p, assetType).String())
 	if err != nil {
 		return
 	}
@@ -66,7 +54,7 @@ func (o *OKGroup) UpdateTicker(p currency.Pair, assetType string) (tickerData ti
 		Last:        resp.Last,
 		LastUpdated: resp.Timestamp,
 		Low:         resp.Low24h,
-		Pair:        exchange.FormatExchangeCurrency(o.Name, p),
+		Pair:        o.FormatExchangeCurrency(p, assetType),
 		Volume:      resp.BaseVolume24h,
 	}
 
@@ -74,8 +62,8 @@ func (o *OKGroup) UpdateTicker(p currency.Pair, assetType string) (tickerData ti
 	return
 }
 
-// GetTickerPrice returns the ticker for a currency pair
-func (o *OKGroup) GetTickerPrice(p currency.Pair, assetType string) (tickerData ticker.Price, err error) {
+// FetchTicker returns the ticker for a currency pair
+func (o *OKGroup) FetchTicker(p currency.Pair, assetType assets.AssetType) (tickerData ticker.Price, err error) {
 	tickerData, err = ticker.GetTicker(o.GetName(), p, assetType)
 	if err != nil {
 		return o.UpdateTicker(p, assetType)
@@ -83,8 +71,8 @@ func (o *OKGroup) GetTickerPrice(p currency.Pair, assetType string) (tickerData 
 	return
 }
 
-// GetOrderbookEx returns orderbook base on the currency pair
-func (o *OKGroup) GetOrderbookEx(p currency.Pair, assetType string) (resp orderbook.Base, err error) {
+// FetchOrderbook returns orderbook base on the currency pair
+func (o *OKGroup) FetchOrderbook(p currency.Pair, assetType assets.AssetType) (resp orderbook.Base, err error) {
 	ob, err := orderbook.Get(o.GetName(), p, assetType)
 	if err != nil {
 		return o.UpdateOrderbook(p, assetType)
@@ -93,9 +81,9 @@ func (o *OKGroup) GetOrderbookEx(p currency.Pair, assetType string) (resp orderb
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (o *OKGroup) UpdateOrderbook(p currency.Pair, assetType string) (resp orderbook.Base, err error) {
+func (o *OKGroup) UpdateOrderbook(p currency.Pair, assetType assets.AssetType) (resp orderbook.Base, err error) {
 	orderbookNew, err := o.GetSpotOrderBook(GetSpotOrderBookRequest{
-		InstrumentID: exchange.FormatExchangeCurrency(o.Name, p).String(),
+		InstrumentID: o.FormatExchangeCurrency(p, assetType).String(),
 	})
 	if err != nil {
 		return
@@ -213,7 +201,7 @@ func (o *OKGroup) GetFundingHistory() (resp []exchange.FundHistory, err error) {
 }
 
 // GetExchangeHistory returns historic trade data since exchange opening.
-func (o *OKGroup) GetExchangeHistory(p currency.Pair, assetType string) ([]exchange.TradeHistory, error) {
+func (o *OKGroup) GetExchangeHistory(p currency.Pair, assetType assets.AssetType) ([]exchange.TradeHistory, error) {
 	return nil, common.ErrNotYetImplemented
 }
 
@@ -221,7 +209,7 @@ func (o *OKGroup) GetExchangeHistory(p currency.Pair, assetType string) ([]excha
 func (o *OKGroup) SubmitOrder(p currency.Pair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (resp exchange.SubmitOrderResponse, err error) {
 	request := PlaceSpotOrderRequest{
 		ClientOID:    clientID,
-		InstrumentID: exchange.FormatExchangeCurrency(o.Name, p).String(),
+		InstrumentID: o.FormatExchangeCurrency(p, assets.AssetTypeSpot).String(),
 		Side:         strings.ToLower(side.ToString()),
 		Type:         strings.ToLower(orderType.ToString()),
 		Size:         strconv.FormatFloat(amount, 'f', -1, 64),
@@ -253,8 +241,9 @@ func (o *OKGroup) CancelOrder(orderCancellation *exchange.OrderCancellation) (er
 		return
 	}
 	orderCancellationResponse, err := o.CancelSpotOrder(CancelSpotOrderRequest{
-		InstrumentID: exchange.FormatExchangeCurrency(o.Name, orderCancellation.CurrencyPair).String(),
-		OrderID:      orderID,
+		InstrumentID: o.FormatExchangeCurrency(orderCancellation.CurrencyPair,
+			assets.AssetTypeSpot).String(),
+		OrderID: orderID,
 	})
 	if !orderCancellationResponse.Result {
 		err = fmt.Errorf("order %v failed to be cancelled", orderCancellationResponse.OrderID)
@@ -276,8 +265,9 @@ func (o *OKGroup) CancelAllOrders(orderCancellation *exchange.OrderCancellation)
 	}
 
 	cancelOrdersResponse, err := o.CancelMultipleSpotOrders(CancelMultipleSpotOrdersRequest{
-		InstrumentID: exchange.FormatExchangeCurrency(o.Name, orderCancellation.CurrencyPair).String(),
-		OrderIDs:     orderIDNumbers,
+		InstrumentID: o.FormatExchangeCurrency(orderCancellation.CurrencyPair,
+			assets.AssetTypeSpot).String(),
+		OrderIDs: orderIDNumbers,
 	})
 	if err != nil {
 		return
@@ -301,7 +291,7 @@ func (o *OKGroup) GetOrderInfo(orderID string) (resp exchange.OrderDetail, err e
 	resp = exchange.OrderDetail{
 		Amount: order.Size,
 		CurrencyPair: currency.NewPairDelimiter(order.InstrumentID,
-			o.ConfigCurrencyPairFormat.Delimiter),
+			o.CurrencyPairs.Get(assets.AssetTypeSpot).ConfigFormat.Delimiter),
 		Exchange:       o.Name,
 		OrderDate:      order.Timestamp,
 		ExecutedAmount: order.FilledSize,
@@ -322,7 +312,7 @@ func (o *OKGroup) GetDepositAddress(p currency.Code, accountID string) (_ string
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
 // submitted
-func (o *OKGroup) WithdrawCryptocurrencyFunds(withdrawRequest *exchange.WithdrawRequest) (string, error) {
+func (o *OKGroup) WithdrawCryptocurrencyFunds(withdrawRequest *exchange.CryptoWithdrawRequest) (string, error) {
 	withdrawal, err := o.AccountWithdraw(AccountWithdrawRequest{
 		Amount:      withdrawRequest.Amount,
 		Currency:    withdrawRequest.Currency.Lower().String(),
@@ -343,13 +333,13 @@ func (o *OKGroup) WithdrawCryptocurrencyFunds(withdrawRequest *exchange.Withdraw
 
 // WithdrawFiatFunds returns a withdrawal ID when a
 // withdrawal is submitted
-func (o *OKGroup) WithdrawFiatFunds(withdrawRequest *exchange.WithdrawRequest) (string, error) {
+func (o *OKGroup) WithdrawFiatFunds(withdrawRequest *exchange.FiatWithdrawRequest) (string, error) {
 	return "", common.ErrFunctionNotSupported
 }
 
 // WithdrawFiatFundsToInternationalBank returns a withdrawal ID when a
 // withdrawal is submitted
-func (o *OKGroup) WithdrawFiatFundsToInternationalBank(withdrawRequest *exchange.WithdrawRequest) (string, error) {
+func (o *OKGroup) WithdrawFiatFundsToInternationalBank(withdrawRequest *exchange.FiatWithdrawRequest) (string, error) {
 	return "", common.ErrFunctionNotSupported
 }
 
@@ -357,7 +347,8 @@ func (o *OKGroup) WithdrawFiatFundsToInternationalBank(withdrawRequest *exchange
 func (o *OKGroup) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) (resp []exchange.OrderDetail, err error) {
 	for _, currency := range getOrdersRequest.Currencies {
 		spotOpenOrders, err := o.GetSpotOpenOrders(GetSpotOpenOrdersRequest{
-			InstrumentID: exchange.FormatExchangeCurrency(o.Name, currency).String(),
+			InstrumentID: o.FormatExchangeCurrency(currency,
+				assets.AssetTypeSpot).String(),
 		})
 		if err != nil {
 			return resp, err
@@ -386,8 +377,9 @@ func (o *OKGroup) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) (
 func (o *OKGroup) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) (resp []exchange.OrderDetail, err error) {
 	for _, currency := range getOrdersRequest.Currencies {
 		spotOpenOrders, err := o.GetSpotOrders(GetSpotOrdersRequest{
-			Status:       strings.Join([]string{"filled", "cancelled", "failure"}, "|"),
-			InstrumentID: exchange.FormatExchangeCurrency(o.Name, currency).String(),
+			Status: strings.Join([]string{"filled", "cancelled", "failure"}, "|"),
+			InstrumentID: o.FormatExchangeCurrency(currency,
+				assets.AssetTypeSpot).String(),
 		})
 		if err != nil {
 			return resp, err
@@ -418,7 +410,7 @@ func (o *OKGroup) GetWebsocket() (*exchange.Websocket, error) {
 
 // GetFeeByType returns an estimate of fee based on type of transaction
 func (o *OKGroup) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) {
-	if (o.APIKey == "" || o.APISecret == "") && // Todo check connection status
+	if !o.AllowAuthenticatedRequest() && // Todo check connection status
 		feeBuilder.FeeType == exchange.CryptocurrencyTradeFee {
 		feeBuilder.FeeType = exchange.OfflineTradeFee
 	}

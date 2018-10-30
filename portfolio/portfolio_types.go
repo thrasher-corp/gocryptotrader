@@ -4,7 +4,7 @@ import "github.com/thrasher-/gocryptotrader/currency"
 
 // Base holds the portfolio base addresses
 type Base struct {
-	Addresses []Address
+	Addresses []Address `json:"addresses"`
 }
 
 // Address sub type holding address information for portfolio

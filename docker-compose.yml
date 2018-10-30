@@ -7,9 +7,10 @@ services:
     depends_on:
       - daemon
     ports:
-      - "9051:80"
+      - "9052:80"
 
   daemon:
     build: .
     ports:
+      - "9051:9051"
       - "9050:9050"

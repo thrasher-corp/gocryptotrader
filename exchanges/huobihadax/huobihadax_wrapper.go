@@ -9,14 +9,116 @@ import (
 	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
+	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
+	"github.com/thrasher-/gocryptotrader/exchanges/assets"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-/gocryptotrader/exchanges/request"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
-// Start starts the OKEX go routine
+// GetDefaultConfig returns a default exchange config
+func (h *HUOBIHADAX) GetDefaultConfig() (*config.ExchangeConfig, error) {
+	h.SetDefaults()
+	exchCfg := new(config.ExchangeConfig)
+	exchCfg.Name = h.Name
+	exchCfg.HTTPTimeout = exchange.DefaultHTTPTimeout
+	exchCfg.BaseCurrencies = h.BaseCurrencies
+
+	err := h.SetupDefaults(exchCfg)
+	if err != nil {
+		return nil, err
+	}
+
+	if h.Features.Supports.RESTCapabilities.AutoPairUpdates {
+		err = h.UpdateTradablePairs(true)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return exchCfg, nil
+}
+
+// SetDefaults sets default values for the exchange
+func (h *HUOBIHADAX) SetDefaults() {
+	h.Name = "HuobiHadax"
+	h.Enabled = true
+	h.Verbose = true
+	h.API.CredentialsValidator.RequiresKey = true
+	h.API.CredentialsValidator.RequiresSecret = true
+
+	h.CurrencyPairs = currency.PairsManager{
+		AssetTypes: assets.AssetTypes{
+			assets.AssetTypeSpot,
+		},
+
+		UseGlobalFormat: true,
+		RequestFormat: &currency.PairFormat{
+			Uppercase: false,
+		},
+		ConfigFormat: &currency.PairFormat{
+			Delimiter: "-",
+			Uppercase: true,
+		},
+	}
+
+	h.Features = exchange.Features{
+		Supports: exchange.FeaturesSupported{
+			REST:      true,
+			Websocket: true,
+			RESTCapabilities: exchange.ProtocolFeatures{
+				AutoPairUpdates: true,
+				TickerBatching:  false,
+			},
+			WithdrawPermissions: exchange.AutoWithdrawCryptoWithSetup |
+				exchange.NoFiatWithdrawals,
+		},
+		Enabled: exchange.FeaturesEnabled{
+			AutoPairUpdates: true,
+		},
+	}
+
+	h.Requester = request.New(h.Name,
+		request.NewRateLimit(time.Second*10, huobihadaxAuthRate),
+		request.NewRateLimit(time.Second*10, huobihadaxUnauthRate),
+		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
+
+	h.API.Endpoints.URLDefault = huobihadaxAPIURL
+	h.API.Endpoints.URL = h.API.Endpoints.URLDefault
+	h.WebsocketInit()
+	h.Websocket.Functionality = exchange.WebsocketKlineSupported |
+		exchange.WebsocketTradeDataSupported |
+		exchange.WebsocketOrderbookSupported |
+		exchange.WebsocketSubscribeSupported |
+		exchange.WebsocketUnsubscribeSupported
+}
+
+// Setup sets user configuration
+func (h *HUOBIHADAX) Setup(exch *config.ExchangeConfig) error {
+	if !exch.Enabled {
+		h.SetEnabled(false)
+		return nil
+	}
+
+	err := h.SetupDefaults(exch)
+	if err != nil {
+		return err
+	}
+
+	return h.WebsocketSetup(h.WsConnect,
+		h.Subscribe,
+		h.Unsubscribe,
+		exch.Name,
+		exch.Features.Enabled.Websocket,
+		exch.Verbose,
+		huobiGlobalWebsocketEndpoint,
+		exch.API.Endpoints.WebsocketURL)
+}
+
+// Start starts the HUOBIHADAX go routine
 func (h *HUOBIHADAX) Start(wg *sync.WaitGroup) {
 	wg.Add(1)
 	go func() {
@@ -25,37 +127,52 @@ func (h *HUOBIHADAX) Start(wg *sync.WaitGroup) {
 	}()
 }
 
-// Run implements the OKEX wrapper
+// Run implements the HUOBIHADAX wrapper
 func (h *HUOBIHADAX) Run() {
 	if h.Verbose {
-		log.Debugf("%s Websocket: %s. (url: %s).\n", h.GetName(), common.IsEnabled(h.Websocket.IsEnabled()), h.WebsocketURL)
-		log.Debugf("%s polling delay: %ds.\n", h.GetName(), h.RESTPollingDelay)
-		log.Debugf("%s %d currencies enabled: %s.\n", h.GetName(), len(h.EnabledPairs), h.EnabledPairs)
+		h.PrintEnabledPairs()
 	}
 
-	exchangeProducts, err := h.GetSymbols()
-	if err != nil {
-		log.Debugf("%s Failed to get available symbols.\n", h.GetName())
-	} else {
-		var currencies currency.Pairs
-		for x := range exchangeProducts {
-			currencies = append(currencies,
-				currency.NewPairWithDelimiter(exchangeProducts[x].BaseCurrency,
-					exchangeProducts[x].QuoteCurrency,
-					"-"))
-		}
+	if !h.GetEnabledFeatures().AutoPairUpdates {
+		return
+	}
 
-		err = h.UpdateCurrencies(currencies, false, false)
-		if err != nil {
-			log.Debugf("%s Failed to update available currencies.\n", h.GetName())
-		}
+	err := h.UpdateTradablePairs(false)
+	if err != nil {
+		log.Errorf("%s failed to update tradable pairs. Err: %s", h.Name, err)
 	}
 }
 
+// FetchTradablePairs returns a list of the exchanges tradable pairs
+func (h *HUOBIHADAX) FetchTradablePairs(asset assets.AssetType) ([]string, error) {
+	symbols, err := h.GetSymbols()
+	if err != nil {
+		return nil, err
+	}
+
+	var pairs []string
+	for x := range symbols {
+		pairs = append(pairs, symbols[x].BaseCurrency+"-"+symbols[x].QuoteCurrency)
+	}
+
+	return pairs, nil
+}
+
+// UpdateTradablePairs updates the exchanges available pairs and stores
+// them in the exchanges config
+func (h *HUOBIHADAX) UpdateTradablePairs(forceUpdate bool) error {
+	pairs, err := h.FetchTradablePairs(assets.AssetTypeSpot)
+	if err != nil {
+		return err
+	}
+
+	return h.UpdatePairs(currency.NewPairsFromStrings(pairs), assets.AssetTypeSpot, false, forceUpdate)
+}
+
 // UpdateTicker updates and returns the ticker for a currency pair
-func (h *HUOBIHADAX) UpdateTicker(p currency.Pair, assetType string) (ticker.Price, error) {
+func (h *HUOBIHADAX) UpdateTicker(p currency.Pair, assetType assets.AssetType) (ticker.Price, error) {
 	var tickerPrice ticker.Price
-	tick, err := h.GetMarketDetailMerged(exchange.FormatExchangeCurrency(h.Name, p).String())
+	tick, err := h.GetMarketDetailMerged(h.FormatExchangeCurrency(p, assetType).String())
 	if err != nil {
 		return tickerPrice, err
 	}
@@ -82,8 +199,8 @@ func (h *HUOBIHADAX) UpdateTicker(p currency.Pair, assetType string) (ticker.Pri
 	return ticker.GetTicker(h.Name, p, assetType)
 }
 
-// GetTickerPrice returns the ticker for a currency pair
-func (h *HUOBIHADAX) GetTickerPrice(p currency.Pair, assetType string) (ticker.Price, error) {
+// FetchTicker returns the ticker for a currency pair
+func (h *HUOBIHADAX) FetchTicker(p currency.Pair, assetType assets.AssetType) (ticker.Price, error) {
 	tickerNew, err := ticker.GetTicker(h.GetName(), p, assetType)
 	if err != nil {
 		return h.UpdateTicker(p, assetType)
@@ -91,8 +208,8 @@ func (h *HUOBIHADAX) GetTickerPrice(p currency.Pair, assetType string) (ticker.P
 	return tickerNew, nil
 }
 
-// GetOrderbookEx returns orderbook base on the currency pair
-func (h *HUOBIHADAX) GetOrderbookEx(p currency.Pair, assetType string) (orderbook.Base, error) {
+// FetchOrderbook returns orderbook base on the currency pair
+func (h *HUOBIHADAX) FetchOrderbook(p currency.Pair, assetType assets.AssetType) (orderbook.Base, error) {
 	ob, err := orderbook.Get(h.GetName(), p, assetType)
 	if err != nil {
 		return h.UpdateOrderbook(p, assetType)
@@ -101,9 +218,9 @@ func (h *HUOBIHADAX) GetOrderbookEx(p currency.Pair, assetType string) (orderboo
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (h *HUOBIHADAX) UpdateOrderbook(p currency.Pair, assetType string) (orderbook.Base, error) {
+func (h *HUOBIHADAX) UpdateOrderbook(p currency.Pair, assetType assets.AssetType) (orderbook.Base, error) {
 	var orderBook orderbook.Base
-	orderbookNew, err := h.GetDepth(exchange.FormatExchangeCurrency(h.Name, p).String(), "step1")
+	orderbookNew, err := h.GetDepth(h.FormatExchangeCurrency(p, assetType).String(), "step1")
 	if err != nil {
 		return orderBook, err
 	}
@@ -218,10 +335,8 @@ func (h *HUOBIHADAX) GetFundingHistory() ([]exchange.FundHistory, error) {
 }
 
 // GetExchangeHistory returns historic trade data since exchange opening.
-func (h *HUOBIHADAX) GetExchangeHistory(p currency.Pair, assetType string) ([]exchange.TradeHistory, error) {
-	var resp []exchange.TradeHistory
-
-	return resp, common.ErrNotYetImplemented
+func (h *HUOBIHADAX) GetExchangeHistory(p currency.Pair, assetType assets.AssetType) ([]exchange.TradeHistory, error) {
+	return nil, common.ErrNotYetImplemented
 }
 
 // SubmitOrder submits a new order
@@ -294,8 +409,8 @@ func (h *HUOBIHADAX) CancelAllOrders(orderCancellation *exchange.OrderCancellati
 	cancelAllOrdersResponse := exchange.CancelAllOrdersResponse{
 		OrderStatus: make(map[string]string),
 	}
-	for _, currency := range h.GetEnabledCurrencies() {
-		resp, err := h.CancelOpenOrdersBatch(orderCancellation.AccountID, exchange.FormatExchangeCurrency(h.Name, currency).String())
+	for _, currency := range h.GetEnabledPairs(assets.AssetTypeSpot) {
+		resp, err := h.CancelOpenOrdersBatch(orderCancellation.AccountID, h.FormatExchangeCurrency(currency, assets.AssetTypeSpot).String())
 		if err != nil {
 			return cancelAllOrdersResponse, err
 		}
@@ -325,20 +440,20 @@ func (h *HUOBIHADAX) GetDepositAddress(cryptocurrency currency.Code, accountID s
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
 // submitted
-func (h *HUOBIHADAX) WithdrawCryptocurrencyFunds(withdrawRequest *exchange.WithdrawRequest) (string, error) {
+func (h *HUOBIHADAX) WithdrawCryptocurrencyFunds(withdrawRequest *exchange.CryptoWithdrawRequest) (string, error) {
 	resp, err := h.Withdraw(withdrawRequest.Currency, withdrawRequest.Address, withdrawRequest.AddressTag, withdrawRequest.Amount, withdrawRequest.FeeAmount)
 	return fmt.Sprintf("%v", resp), err
 }
 
 // WithdrawFiatFunds returns a withdrawal ID when a
 // withdrawal is submitted
-func (h *HUOBIHADAX) WithdrawFiatFunds(withdrawRequest *exchange.WithdrawRequest) (string, error) {
+func (h *HUOBIHADAX) WithdrawFiatFunds(withdrawRequest *exchange.FiatWithdrawRequest) (string, error) {
 	return "", common.ErrFunctionNotSupported
 }
 
 // WithdrawFiatFundsToInternationalBank returns a withdrawal ID when a
 // withdrawal is submitted
-func (h *HUOBIHADAX) WithdrawFiatFundsToInternationalBank(withdrawRequest *exchange.WithdrawRequest) (string, error) {
+func (h *HUOBIHADAX) WithdrawFiatFundsToInternationalBank(withdrawRequest *exchange.FiatWithdrawRequest) (string, error) {
 	return "", common.ErrFunctionNotSupported
 }
 
@@ -349,7 +464,7 @@ func (h *HUOBIHADAX) GetWebsocket() (*exchange.Websocket, error) {
 
 // GetFeeByType returns an estimate of fee based on type of transaction
 func (h *HUOBIHADAX) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) {
-	if (h.APIKey == "" || h.APISecret == "") && // Todo check connection status
+	if !h.AllowAuthenticatedRequest() && // Todo check connection status
 		feeBuilder.FeeType == exchange.CryptocurrencyTradeFee {
 		feeBuilder.FeeType = exchange.OfflineTradeFee
 	}
@@ -371,7 +486,7 @@ func (h *HUOBIHADAX) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest
 
 	var allOrders []OrderInfo
 	for _, currency := range getOrdersRequest.Currencies {
-		resp, err := h.GetOpenOrders(h.ClientID,
+		resp, err := h.GetOpenOrders(h.API.Credentials.ClientID,
 			currency.Lower().String(),
 			side,
 			500)
@@ -384,7 +499,7 @@ func (h *HUOBIHADAX) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest
 	var orders []exchange.OrderDetail
 	for i := range allOrders {
 		symbol := currency.NewPairDelimiter(allOrders[i].Symbol,
-			h.ConfigCurrencyPairFormat.Delimiter)
+			h.CurrencyPairs.Get(assets.AssetTypeSpot).ConfigFormat.Delimiter)
 		orderDate := time.Unix(0, allOrders[i].CreatedAt*int64(time.Millisecond))
 
 		orders = append(orders, exchange.OrderDetail{
@@ -398,10 +513,8 @@ func (h *HUOBIHADAX) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest
 			CurrencyPair:    symbol,
 		})
 	}
-
 	exchange.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks,
 		getOrdersRequest.EndTicks)
-
 	return orders, nil
 }
 
@@ -432,7 +545,7 @@ func (h *HUOBIHADAX) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest
 	var orders []exchange.OrderDetail
 	for i := range allOrders {
 		symbol := currency.NewPairDelimiter(allOrders[i].Symbol,
-			h.ConfigCurrencyPairFormat.Delimiter)
+			h.CurrencyPairs.Get(assets.AssetTypeSpot).ConfigFormat.Delimiter)
 		orderDate := time.Unix(0, allOrders[i].CreatedAt*int64(time.Millisecond))
 
 		orders = append(orders, exchange.OrderDetail{
@@ -447,7 +560,6 @@ func (h *HUOBIHADAX) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest
 
 	exchange.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks,
 		getOrdersRequest.EndTicks)
-
 	return orders, nil
 }
 

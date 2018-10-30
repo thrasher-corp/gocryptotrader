@@ -34,13 +34,14 @@ func TestSetup(t *testing.T) {
 	if err != nil {
 		t.Error("Test Failed - kraken Setup() init error", err)
 	}
-	krakenConfig.AuthenticatedAPISupport = true
-	krakenConfig.APIKey = apiKey
-	krakenConfig.APISecret = apiSecret
-	krakenConfig.ClientID = clientID
-	krakenConfig.WebsocketURL = k.WebsocketURL
+	krakenConfig.API.AuthenticatedSupport = true
+	krakenConfig.API.Credentials.Key = apiKey
+	krakenConfig.API.Credentials.Secret = apiSecret
+	krakenConfig.API.Credentials.ClientID = clientID
+	krakenConfig.API.Endpoints.WebsocketURL = k.API.Endpoints.WebsocketURL
 	subscribeToDefaultChannels = false
-	k.Setup(&krakenConfig)
+
+	k.Setup(krakenConfig)
 }
 
 // TestGetServerTime API endpoint test
@@ -233,7 +234,9 @@ func TestGetTradeVolume(t *testing.T) {
 func TestAddOrder(t *testing.T) {
 	t.Parallel()
 	args := AddOrderOptions{Oflags: "fcib"}
-	_, err := k.AddOrder("XXBTZUSD", "sell", "market", 0.00000001, 0, 0, 0, &args)
+	_, err := k.AddOrder("XXBTZUSD",
+		exchange.SellOrderSide.ToLower().ToString(), exchange.LimitOrderType.ToLower().ToString(),
+		0.00000001, 0, 0, 0, &args)
 	if err == nil {
 		t.Error("Test Failed - AddOrder() error", err)
 	}
@@ -407,11 +410,7 @@ func TestGetOrderHistory(t *testing.T) {
 // Any tests below this line have the ability to impact your orders on the exchange. Enable canManipulateRealOrders to run them
 // ----------------------------------------------------------------------------------------------------------------------------
 func areTestAPIKeysSet() bool {
-	if k.APIKey != "" && k.APIKey != "Key" &&
-		k.APISecret != "" && k.APISecret != "Secret" {
-		return true
-	}
-	return false
+	return k.ValidateAPICredentials()
 }
 
 // TestSubmitOrder wrapper test
@@ -428,7 +427,7 @@ func TestSubmitOrder(t *testing.T) {
 		Base:      currency.XBT,
 		Quote:     currency.CAD,
 	}
-	response, err := k.SubmitOrder(p, exchange.BuyOrderSide, exchange.MarketOrderType, 1, 10, "hi")
+	response, err := k.SubmitOrder(p, exchange.BuyOrderSide, exchange.LimitOrderType, 1, 10, "hi")
 	if areTestAPIKeysSet() && (err != nil || !response.IsOrderPlaced) {
 		t.Errorf("Order failed to be placed: %v", err)
 	} else if !areTestAPIKeysSet() && err == nil {
@@ -522,12 +521,15 @@ func TestModifyOrder(t *testing.T) {
 func TestWithdraw(t *testing.T) {
 	k.SetDefaults()
 	TestSetup(t)
-	var withdrawCryptoRequest = exchange.WithdrawRequest{
-		Amount:        100,
-		Currency:      currency.XXBT,
-		Address:       "1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB",
-		Description:   "donation",
-		TradePassword: "Key",
+
+	withdrawCryptoRequest := exchange.CryptoWithdrawRequest{
+		GenericWithdrawRequestInfo: exchange.GenericWithdrawRequestInfo{
+			Amount:        -1,
+			Currency:      currency.XXBT,
+			Description:   "WITHDRAW IT ALL",
+			TradePassword: "Key",
+		},
+		Address: "1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB",
 	}
 
 	if areTestAPIKeysSet() && !canManipulateRealOrders {
@@ -552,12 +554,13 @@ func TestWithdrawFiat(t *testing.T) {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 
-	var withdrawFiatRequest = exchange.WithdrawRequest{
-		Amount:        100,
-		Currency:      currency.EUR,
-		Address:       "",
-		Description:   "donation",
-		TradePassword: "someBank",
+	var withdrawFiatRequest = exchange.FiatWithdrawRequest{
+		GenericWithdrawRequestInfo: exchange.GenericWithdrawRequestInfo{
+			Amount:        -1,
+			Currency:      currency.EUR,
+			Description:   "WITHDRAW IT ALL",
+			TradePassword: "someBank",
+		},
 	}
 
 	_, err := k.WithdrawFiatFunds(&withdrawFiatRequest)
@@ -578,12 +581,13 @@ func TestWithdrawInternationalBank(t *testing.T) {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 
-	var withdrawFiatRequest = exchange.WithdrawRequest{
-		Amount:        100,
-		Currency:      currency.EUR,
-		Address:       "",
-		Description:   "donation",
-		TradePassword: "someBank",
+	var withdrawFiatRequest = exchange.FiatWithdrawRequest{
+		GenericWithdrawRequestInfo: exchange.GenericWithdrawRequestInfo{
+			Amount:        -1,
+			Currency:      currency.EUR,
+			Description:   "WITHDRAW IT ALL",
+			TradePassword: "someBank",
+		},
 	}
 
 	_, err := k.WithdrawFiatFundsToInternationalBank(&withdrawFiatRequest)

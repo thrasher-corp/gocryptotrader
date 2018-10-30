@@ -125,7 +125,7 @@
   }
  },
  "portfolioAddresses": {
-  "Addresses": [
+  "addresses": [
    {
     "Address": "1JCe8z4jJVNXSjohjM4i9Hh813dLCNx2Sy",
     "CoinType": "BTC",
@@ -153,13 +153,13 @@
   ]
  },
  "webserver": {
-  "enabled": false,
+  "enabled": true,
   "adminUsername": "admin",
   "adminPassword": "Password",
   "listenAddress": ":9050",
   "websocketConnectionLimit": 1,
   "websocketMaxAuthFailures": 3,
-  "websocketAllowInsecureOrigin": false
+  "websocketAllowInsecureOrigin": true
  },
  "exchanges": [
   {
@@ -1300,7 +1300,7 @@
    "websocket": false,
    "useSandbox": false,
    "restPollingDelay": 10,
-   "httpTimeout": 10,
+   "httpTimeout": 15000000000,
    "httpUserAgent": "",
    "httpDebugging": false,
    "authenticatedApiSupport": false,

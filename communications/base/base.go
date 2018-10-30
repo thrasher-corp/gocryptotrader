@@ -6,14 +6,15 @@ import (
 	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
+	"github.com/thrasher-/gocryptotrader/exchanges/assets"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 )
 
 // global vars contain staged update data that will be sent to the communication
 // mediums
 var (
-	TickerStaged    map[string]map[string]map[string]ticker.Price
-	OrderbookStaged map[string]map[string]map[string]Orderbook
+	TickerStaged    map[string]map[assets.AssetType]map[string]ticker.Price
+	OrderbookStaged map[string]map[assets.AssetType]map[string]Orderbook
 	PortfolioStaged Portfolio
 	SettingsStaged  Settings
 	ServiceStarted  time.Time
