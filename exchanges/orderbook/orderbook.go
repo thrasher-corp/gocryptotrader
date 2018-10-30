@@ -166,11 +166,6 @@ func ProcessOrderbook(exchangeName string, p pair.CurrencyPair, orderbookNew Bas
 	orderbookNew.CurrencyPair = p.Pair().String()
 	orderbookNew.LastUpdated = time.Now()
 
-	if len(Orderbooks) == 0 {
-		CreateNewOrderbook(exchangeName, p, orderbookNew, orderbookType)
-		return
-	}
-
 	orderbook, err := GetOrderbookByExchange(exchangeName)
 	if err != nil {
 		CreateNewOrderbook(exchangeName, p, orderbookNew, orderbookType)
@@ -178,19 +173,12 @@ func ProcessOrderbook(exchangeName string, p pair.CurrencyPair, orderbookNew Bas
 	}
 
 	if FirstCurrencyExists(exchangeName, p.FirstCurrency) {
-		if SecondCurrencyExists(exchangeName, p) {
-			m.Lock()
-			orderbook.Orderbook[p.FirstCurrency][p.SecondCurrency][orderbookType] = orderbookNew
-			m.Unlock()
-			return
-		} else {
-			m.Lock()
-			b := make(map[string]Base)
-			b[orderbookType] = orderbookNew
-			orderbook.Orderbook[p.FirstCurrency][p.SecondCurrency] = b
-			m.Unlock()
-			return
-		}
+		m.Lock()
+		a := make(map[string]Base)
+		a[orderbookType] = orderbookNew
+		orderbook.Orderbook[p.FirstCurrency][p.SecondCurrency] = a
+		m.Unlock()
+		return
 	}
 
 	m.Lock()
