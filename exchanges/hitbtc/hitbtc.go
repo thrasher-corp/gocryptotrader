@@ -61,6 +61,7 @@ func (h *HitBTC) SetDefaults() {
 	h.Fee = 0
 	h.Verbose = false
 	h.RESTPollingDelay = 10
+	h.APIWithdrawPermissions = exchange.AutoWithdrawCrypto
 	h.RequestCurrencyPairFormat.Delimiter = ""
 	h.RequestCurrencyPairFormat.Uppercase = true
 	h.ConfigCurrencyPairFormat.Delimiter = "-"
