@@ -279,6 +279,7 @@ func TestProcessOrderbook(t *testing.T) {
 	_ = rand.NewSource(time.Now().Unix())
 
 	var wg sync.WaitGroup
+	var m sync.Mutex
 
 	for i := 0; i < 500; i++ {
 		wg.Add(1)
@@ -297,7 +298,9 @@ func TestProcessOrderbook(t *testing.T) {
 			}
 
 			ProcessOrderbook(newName, newPairs, base, Spot)
+			m.Lock()
 			testArray = append(testArray, quick{Name: newName, P: newPairs, Bids: bids, Asks: asks})
+			m.Unlock()
 			wg.Done()
 		}()
 	}
