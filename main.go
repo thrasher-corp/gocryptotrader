@@ -30,7 +30,6 @@ type Bot struct {
 	comms      *communications.Communications
 	db         *database.ORM
 	shutdown   chan bool
-	routines   *Routines
 	dryRun     bool
 	configFile string
 	dataDir    string
@@ -200,7 +199,6 @@ func main() {
 	}
 
 	go portfolio.StartPortfolioWatcher()
-	go WebsocketRoutine(*verbosity)
 
 	bot.db, err = database.Connect(*dbPath, *verbosity, bot.config)
 	if err != nil {
@@ -214,7 +212,12 @@ func main() {
 	}
 	log.Println("Database connection successfully established")
 
-	bot.routines = StartUpdater(true, true, *dbSeedHistory, *verbosity)
+	err = StartMonitor(bot.exchanges, true, true, *dbSeedHistory, *verbosity)
+	if err != nil {
+		log.Fatal("Currency asset monitor failure", err)
+	}
+
+	go WebsocketRoutine(*verbosity)
 
 	<-bot.shutdown
 	Shutdown()

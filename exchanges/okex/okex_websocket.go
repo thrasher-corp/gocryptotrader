@@ -236,11 +236,13 @@ func (o *OKEX) WsHandleData() {
 						log.Fatal("OKEX Ticker Decode Error:", err)
 					}
 
-					o.Websocket.DataHandler <- exchange.TickerData{
-						Timestamp: time.Unix(0, int64(ticker.Timestamp)),
-						Exchange:  o.GetName(),
-						AssetType: assetType,
-					}
+					// TODO correct ticker processing
+
+					// o.Websocket.DataHandler <- exchange.TickerData{
+					// 	Timestamp: time.Unix(0, int64(ticker.Timestamp)),
+					// 	Exchange:  o.GetName(),
+					// 	AssetType: assetType,
+					// }
 
 				} else if strings.Contains(multiStreamData.Channel, "deals") {
 					var deals DealsStreamData
@@ -303,11 +305,13 @@ func (o *OKEX) WsHandleData() {
 						log.Fatal("OKEX Depth Decode Error:", err)
 					}
 
-					o.Websocket.DataHandler <- exchange.WebsocketOrderbookUpdate{
-						Exchange: o.GetName(),
-						Asset:    assetType,
-						Pair:     pair.NewCurrencyPairFromString(newPair),
-					}
+					// TODO correct orderbook processing
+
+					// o.Websocket.DataHandler <- exchange.WebsocketOrderbookUpdate{
+					// 	Exchange: o.GetName(),
+					// 	Asset:    assetType,
+					// 	Pair:     pair.NewCurrencyPairFromString(newPair),
+					// }
 				}
 			}
 		}
