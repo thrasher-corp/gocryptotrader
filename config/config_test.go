@@ -20,11 +20,15 @@ func TestGetExchangeBankAccounts(t *testing.T) {
 	cfg := GetConfig()
 	err := cfg.LoadConfig(ConfigTestFile)
 	if err != nil {
-		t.Error("Test failed. GetDepositBankAccounts LoadConfig error", err)
+		t.Error("Test failed. GetExchangeBankAccounts LoadConfig error", err)
 	}
 	_, err = cfg.GetExchangeBankAccounts("Bitfinex", "USD")
 	if err != nil {
-		t.Error("Test failed. GetDepositBankAccounts error", err)
+		t.Error("Test failed. GetExchangeBankAccounts error", err)
+	}
+	_, err = cfg.GetExchangeBankAccounts("Not an exchange", "Not a currency")
+	if err == nil {
+		t.Error("Test failed. GetExchangeBankAccounts, no error returned for invalid exchange")
 	}
 }
 
@@ -32,13 +36,13 @@ func TestUpdateExchangeBankAccounts(t *testing.T) {
 	cfg := GetConfig()
 	err := cfg.LoadConfig(ConfigTestFile)
 	if err != nil {
-		t.Error("Test failed. UpdateDepositBankAccounts LoadConfig error", err)
+		t.Error("Test failed. UpdateExchangeBankAccounts LoadConfig error", err)
 	}
 
 	b := []BankAccount{{Enabled: false}}
 	err = cfg.UpdateExchangeBankAccounts("Bitfinex", b)
 	if err != nil {
-		t.Error("Test failed. UpdateDepositBankAccounts error", err)
+		t.Error("Test failed. UpdateExchangeBankAccounts error", err)
 	}
 	var count int
 	for _, exch := range cfg.Exchanges {
@@ -49,7 +53,12 @@ func TestUpdateExchangeBankAccounts(t *testing.T) {
 		}
 	}
 	if count != 1 {
-		t.Error("Test failed. UpdateDepositBankAccounts error")
+		t.Error("Test failed. UpdateExchangeBankAccounts error")
+	}
+
+	err = cfg.UpdateExchangeBankAccounts("Not an exchange", b)
+	if err == nil {
+		t.Error("Test failed. UpdateExchangeBankAccounts, no error returned for invalid exchange")
 	}
 }
 
@@ -99,7 +108,54 @@ func TestUpdateClientBankAccounts(t *testing.T) {
 		}
 	}
 	if count != 1 {
-		t.Error("Test failed. UpdateDepositBankAccounts error")
+		t.Error("Test failed. UpdateClientBankAccounts error")
+	}
+}
+
+func TestCheckClientBankAccounts(t *testing.T) {
+	cfg := GetConfig()
+	err := cfg.LoadConfig(ConfigTestFile)
+	if err != nil {
+		t.Error("Test failed. CheckClientBankAccounts LoadConfig error", err)
+	}
+
+	cfg.BankAccounts = nil
+	err = cfg.CheckClientBankAccounts()
+	if err != nil || len(cfg.BankAccounts) == 0 {
+		t.Error("Test failed. CheckClientBankAccounts error:", err)
+	}
+
+	cfg.BankAccounts = nil
+	cfg.BankAccounts = append(cfg.BankAccounts, BankAccount{
+		Enabled:  true,
+		BankName: "test",
+	})
+	err = cfg.CheckClientBankAccounts()
+	if err.Error() != "banking details for test is enabled but variables not set correctly" {
+		t.Error("Test failed. CheckClientBankAccounts unexpected error:", err)
+	}
+
+	cfg.BankAccounts[0].BankAddress = "test"
+	err = cfg.CheckClientBankAccounts()
+	if err.Error() != "banking account details for test variables not set correctly" {
+		t.Error("Test failed. CheckClientBankAccounts unexpected error:", err)
+	}
+
+	cfg.BankAccounts[0].AccountName = "Thrasher"
+	cfg.BankAccounts[0].AccountNumber = "1337"
+	err = cfg.CheckClientBankAccounts()
+	if err.Error() != "critical banking numbers not set for test in Thrasher account" {
+		t.Error("Test failed. CheckClientBankAccounts unexpected error:", err)
+	}
+
+	cfg.BankAccounts[0].IBAN = "12345678"
+	err = cfg.CheckClientBankAccounts()
+	if err != nil {
+		t.Error("Test failed. CheckClientBankAccounts error:", err)
+	}
+	if cfg.BankAccounts[0].SupportedExchanges == "" {
+		t.Error("Test failed. CheckClientBankAccounts SupportedExchanges unexpectedly nil, data:",
+			cfg.BankAccounts[0])
 	}
 }
 
@@ -121,6 +177,141 @@ func TestUpdateCommunicationsConfig(t *testing.T) {
 	cfg.UpdateCommunicationsConfig(CommunicationsConfig{SlackConfig: SlackConfig{Name: "TEST"}})
 	if cfg.Communications.SlackConfig.Name != "TEST" {
 		t.Error("Test failed. UpdateCommunicationsConfig LoadConfig error")
+	}
+}
+
+func TestCheckCommunicationsConfig(t *testing.T) {
+	cfg := GetConfig()
+	err := cfg.LoadConfig(ConfigTestFile)
+	if err != nil {
+		t.Error("Test failed. CheckCommunicationsConfig LoadConfig error", err)
+	}
+
+	cfg.Communications = CommunicationsConfig{}
+	err = cfg.CheckCommunicationsConfig()
+	if err != nil {
+		t.Error("Test failed. CheckCommunicationsConfig error:", err)
+	}
+	if cfg.Communications.SlackConfig.Name != "Slack" ||
+		cfg.Communications.SMSGlobalConfig.Name != "SMSGlobal" ||
+		cfg.Communications.SMTPConfig.Name != "SMTP" ||
+		cfg.Communications.TelegramConfig.Name != "Telegram" {
+		t.Error("Test failed. CheckCommunicationsConfig unexpected data:",
+			cfg.Communications)
+	}
+
+	cfg.SMS = &SMSGlobalConfig{}
+	cfg.Communications.SMSGlobalConfig.Name = ""
+	err = cfg.CheckCommunicationsConfig()
+	if err != nil || cfg.Communications.SMSGlobalConfig.Password != "test" {
+		t.Error("Test failed. CheckCommunicationsConfig error:", err)
+	}
+
+	cfg.SMS.Contacts = append(cfg.SMS.Contacts, SMSContact{
+		Name:    "Bobby",
+		Number:  "4321",
+		Enabled: false,
+	})
+	cfg.Communications.SMSGlobalConfig.Name = ""
+	err = cfg.CheckCommunicationsConfig()
+	if err != nil || cfg.Communications.SMSGlobalConfig.Contacts[0].Name != "Bobby" {
+		t.Error("Test failed. CheckCommunicationsConfig error:", err)
+	}
+
+	cfg.SMS = &SMSGlobalConfig{}
+	err = cfg.CheckCommunicationsConfig()
+	if err != nil {
+		t.Error("Test failed. CheckCommunicationsConfig error:", err)
+	}
+	if cfg.SMS != nil {
+		t.Error("Test failed. CheckCommunicationsConfig unexpected data:",
+			cfg.SMS)
+	}
+
+	cfg.Communications.SlackConfig.Name = "NOT Slack"
+	err = cfg.CheckCommunicationsConfig()
+	if err.Error() != "Communications config name/s not set correctly" {
+		t.Error("Test failed. CheckCommunicationsConfig unexpected error:", err)
+	}
+
+	cfg.Communications.SlackConfig.Name = "Slack"
+	cfg.Communications.SlackConfig.Enabled = true
+	err = cfg.CheckCommunicationsConfig()
+	if err.Error() != "Slack enabled in config but variable data not set" {
+		t.Error("Test failed. CheckCommunicationsConfig unexpected error:", err)
+	}
+
+	cfg.Communications.SlackConfig.Enabled = false
+	cfg.Communications.SMSGlobalConfig.Enabled = true
+	cfg.Communications.SMSGlobalConfig.Password = ""
+	err = cfg.CheckCommunicationsConfig()
+	if err.Error() != "SMSGlobal enabled in config but variable data not set" {
+		t.Error("Test failed. CheckCommunicationsConfig unexpected error:", err)
+	}
+
+	cfg.Communications.SMSGlobalConfig.Enabled = false
+	cfg.Communications.SMTPConfig.Enabled = true
+	cfg.Communications.SMTPConfig.AccountPassword = ""
+	err = cfg.CheckCommunicationsConfig()
+	if err.Error() != "SMTP enabled in config but variable data not set" {
+		t.Error("Test failed. CheckCommunicationsConfig unexpected error:", err)
+	}
+
+	cfg.Communications.SMTPConfig.Enabled = false
+	cfg.Communications.TelegramConfig.Enabled = true
+	cfg.Communications.TelegramConfig.VerificationToken = ""
+	err = cfg.CheckCommunicationsConfig()
+	if err.Error() != "Telegram enabled in config but variable data not set" {
+		t.Error("Test failed. CheckCommunicationsConfig unexpected error:", err)
+	}
+}
+
+func TestCheckPairConsistency(t *testing.T) {
+	cfg := GetConfig()
+	err := cfg.LoadConfig(ConfigTestFile)
+	if err != nil {
+		t.Error("Test failed. CheckPairConsistency LoadConfig error", err)
+	}
+
+	err = cfg.CheckPairConsistency("asdf")
+	if err == nil {
+		t.Error("Test failed. CheckPairConsistency. Non-existent exchange returned nil error")
+	}
+
+	cfg.Exchanges = append(cfg.Exchanges, ExchangeConfig{
+		Name:           "TestExchange",
+		Enabled:        true,
+		AvailablePairs: "DOGE_USD,DOGE_AUD",
+		EnabledPairs:   "DOGE_USD,DOGE_AUD,DOGE_BTC",
+		ConfigCurrencyPairFormat: &CurrencyPairFormatConfig{
+			Uppercase: true,
+			Delimiter: "_",
+		},
+	})
+	tec, err := cfg.GetExchangeConfig("TestExchange")
+	if err != nil {
+		t.Error("Test failed. CheckPairConsistency GetExchangeConfig error", err)
+	}
+
+	err = cfg.CheckPairConsistency("TestExchange")
+	if err != nil {
+		t.Error("Test failed. CheckPairConsistency error:", err)
+	}
+	// Calling again immediately to hit the if !update {return nil}
+	err = cfg.CheckPairConsistency("TestExchange")
+	if err != nil {
+		t.Error("Test failed. CheckPairConsistency error:", err)
+	}
+
+	tec.EnabledPairs = "DOGE_LTC,BTC_LTC"
+	err = cfg.UpdateExchangeConfig(tec)
+	if err != nil {
+		t.Error("Test failed. CheckPairConsistency Update config failed, error:", err)
+	}
+
+	err = cfg.CheckPairConsistency("TestExchange")
+	if err != nil {
+		t.Error("Test failed. CheckPairConsistency error:", err)
 	}
 }
 
@@ -153,22 +344,19 @@ func TestGetAvailablePairs(t *testing.T) {
 	err := cfg.LoadConfig(ConfigTestFile)
 	if err != nil {
 		t.Errorf(
-			"Test failed. TestGetAvailablePairs. LoadConfig Error: %s", err.Error(),
-		)
+			"Test failed. TestGetAvailablePairs. LoadConfig Error: %s", err.Error())
 	}
 
 	_, err = cfg.GetAvailablePairs("asdf")
 	if err == nil {
 		t.Error(
-			"Test failed. TestGetAvailablePairs. Non-existent exchange returned nil error",
-		)
+			"Test failed. TestGetAvailablePairs. Non-existent exchange returned nil error")
 	}
 
 	_, err = cfg.GetAvailablePairs("Bitfinex")
 	if err != nil {
 		t.Errorf(
-			"Test failed. TestGetAvailablePairs. Incorrect values. Err: %s", err,
-		)
+			"Test failed. TestGetAvailablePairs. Incorrect values. Err: %s", err)
 	}
 }
 
@@ -177,22 +365,19 @@ func TestGetEnabledPairs(t *testing.T) {
 	err := cfg.LoadConfig(ConfigTestFile)
 	if err != nil {
 		t.Errorf(
-			"Test failed. TestGetEnabledPairs. LoadConfig Error: %s", err.Error(),
-		)
+			"Test failed. TestGetEnabledPairs. LoadConfig Error: %s", err.Error())
 	}
 
 	_, err = cfg.GetEnabledPairs("asdf")
 	if err == nil {
 		t.Error(
-			"Test failed. TestGetEnabledPairs. Non-existent exchange returned nil error",
-		)
+			"Test failed. TestGetEnabledPairs. Non-existent exchange returned nil error")
 	}
 
 	_, err = cfg.GetEnabledPairs("Bitfinex")
 	if err != nil {
 		t.Errorf(
-			"Test failed. TestGetEnabledPairs. Incorrect values. Err: %s", err,
-		)
+			"Test failed. TestGetEnabledPairs. Incorrect values. Err: %s", err)
 	}
 }
 
@@ -375,6 +560,11 @@ func TestGetForexProviderConfig(t *testing.T) {
 	if err != nil {
 		t.Error("Test failed. GetForexProviderConfig error", err)
 	}
+
+	_, err = cfg.GetForexProviderConfig("this is not a forex provider")
+	if err == nil {
+		t.Error("Test failed. GetForexProviderConfig no error for invalid provider")
+	}
 }
 
 func TestGetPrimaryForexProvider(t *testing.T) {
@@ -386,6 +576,14 @@ func TestGetPrimaryForexProvider(t *testing.T) {
 	primary := cfg.GetPrimaryForexProvider()
 	if primary == "" {
 		t.Error("Test failed. GetPrimaryForexProvider error")
+	}
+
+	for i := range cfg.Currency.ForexProviders {
+		cfg.Currency.ForexProviders[i].PrimaryProvider = false
+	}
+	primary = cfg.GetPrimaryForexProvider()
+	if primary != "" {
+		t.Error("Test failed. GetPrimaryForexProvider error, expected nil got:", primary)
 	}
 }
 
@@ -418,7 +616,6 @@ func TestUpdateExchangeConfig(t *testing.T) {
 }
 
 func TestCheckExchangeConfigValues(t *testing.T) {
-	t.Parallel()
 	checkExchangeConfigValues := Config{}
 
 	err := checkExchangeConfigValues.LoadConfig(ConfigTestFile)

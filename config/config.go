@@ -324,25 +324,25 @@ func (c *Config) CheckClientBankAccounts() error {
 		return nil
 	}
 
-	for _, bank := range c.BankAccounts {
-		if bank.Enabled == true {
-			if bank.BankName == "" || bank.BankAddress == "" {
+	for i := range c.BankAccounts {
+		if c.BankAccounts[i].Enabled == true {
+			if c.BankAccounts[i].BankName == "" || c.BankAccounts[i].BankAddress == "" {
 				return fmt.Errorf("banking details for %s is enabled but variables not set correctly",
-					bank.BankName)
+					c.BankAccounts[i].BankName)
 			}
 
-			if bank.AccountName == "" || bank.AccountNumber == "" {
+			if c.BankAccounts[i].AccountName == "" || c.BankAccounts[i].AccountNumber == "" {
 				return fmt.Errorf("banking account details for %s variables not set correctly",
-					bank.BankName)
+					c.BankAccounts[i].BankName)
 			}
-			if bank.IBAN == "" && bank.SWIFTCode == "" && bank.BSBNumber == "" {
+			if c.BankAccounts[i].IBAN == "" && c.BankAccounts[i].SWIFTCode == "" && c.BankAccounts[i].BSBNumber == "" {
 				return fmt.Errorf("critical banking numbers not set for %s in %s account",
-					bank.BankName,
-					bank.AccountName)
+					c.BankAccounts[i].BankName,
+					c.BankAccounts[i].AccountName)
 			}
 
-			if bank.SupportedExchanges == "" {
-				bank.SupportedExchanges = "ALL"
+			if c.BankAccounts[i].SupportedExchanges == "" {
+				c.BankAccounts[i].SupportedExchanges = "ALL"
 			}
 		}
 	}
@@ -382,17 +382,33 @@ func (c *Config) CheckCommunicationsConfig() error {
 	}
 
 	if c.Communications.SMSGlobalConfig.Name == "" {
-		if c.SMS.Contacts != nil {
-			c.Communications.SMSGlobalConfig = SMSGlobalConfig{
-				Name:     "SMSGlobal",
-				Enabled:  c.SMS.Enabled,
-				Verbose:  c.SMS.Verbose,
-				Username: c.SMS.Username,
-				Password: c.SMS.Password,
-				Contacts: c.SMS.Contacts,
+		if c.SMS != nil {
+			if c.SMS.Contacts != nil {
+				c.Communications.SMSGlobalConfig = SMSGlobalConfig{
+					Name:     "SMSGlobal",
+					Enabled:  c.SMS.Enabled,
+					Verbose:  c.SMS.Verbose,
+					Username: c.SMS.Username,
+					Password: c.SMS.Password,
+					Contacts: c.SMS.Contacts,
+				}
+				// flush old SMS config
+				c.SMS = nil
+			} else {
+				c.Communications.SMSGlobalConfig = SMSGlobalConfig{
+					Name:     "SMSGlobal",
+					Username: "main",
+					Password: "test",
+
+					Contacts: []SMSContact{
+						{
+							Name:    "bob",
+							Number:  "1234",
+							Enabled: false,
+						},
+					},
+				}
 			}
-			// flush old SMS config
-			c.SMS = nil
 		} else {
 			c.Communications.SMSGlobalConfig = SMSGlobalConfig{
 				Name:     "SMSGlobal",
@@ -408,6 +424,7 @@ func (c *Config) CheckCommunicationsConfig() error {
 				},
 			}
 		}
+
 	} else {
 		if c.SMS != nil {
 			// flush old SMS config
@@ -441,7 +458,8 @@ func (c *Config) CheckCommunicationsConfig() error {
 	}
 	if c.Communications.SlackConfig.Enabled {
 		if c.Communications.SlackConfig.TargetChannel == "" ||
-			c.Communications.SlackConfig.VerificationToken == "" {
+			c.Communications.SlackConfig.VerificationToken == "" ||
+			c.Communications.SlackConfig.VerificationToken == "testtest" {
 			return errors.New("Slack enabled in config but variable data not set")
 		}
 	}
@@ -456,7 +474,7 @@ func (c *Config) CheckCommunicationsConfig() error {
 		if c.Communications.SMTPConfig.Host == "" ||
 			c.Communications.SMTPConfig.Port == "" ||
 			c.Communications.SMTPConfig.AccountName == "" ||
-			len(c.Communications.SMTPConfig.AccountName) == 0 {
+			c.Communications.SMTPConfig.AccountPassword == "" {
 			return errors.New("SMTP enabled in config but variable data not set")
 		}
 	}
@@ -503,6 +521,7 @@ func (c *Config) CheckPairConsistency(exchName string) error {
 
 	if len(pairs) == 0 {
 		exchCfg.EnabledPairs = pair.RandomPairFromPairs(availPairs).Pair().String()
+		log.Printf("Exchange %s: No enabled pairs found in available pairs, randomly added %v\n", exchName, exchCfg.EnabledPairs)
 	} else {
 		exchCfg.EnabledPairs = common.JoinStrings(pair.PairsToStringArray(pairs), ",")
 	}
