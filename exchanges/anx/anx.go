@@ -62,13 +62,14 @@ func (a *ANX) SetDefaults() {
 	a.AssetTypes = []string{ticker.Spot}
 	a.SupportsAutoPairUpdating = true
 	a.SupportsRESTTickerBatching = false
+	a.SupportsRESTAPI = true
+	a.SupportsWebsocketAPI = false
 	a.Requester = request.New(a.Name,
 		request.NewRateLimit(time.Second, anxAuthRate),
 		request.NewRateLimit(time.Second, anxUnauthRate),
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 	a.APIUrlDefault = anxAPIURL
 	a.APIUrl = a.APIUrlDefault
-	a.WebsocketInit()
 }
 
 //Setup is run on startup to setup exchange with config values

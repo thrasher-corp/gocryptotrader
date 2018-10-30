@@ -77,7 +77,7 @@ func main() {
 
 	displayCurrency = cfg.FiatDisplayCurrency
 	port := portfolio.Base{}
-	port.SeedPortfolio(cfg.Portfolio)
+	port.Seed(cfg.Portfolio)
 	result := port.GetPortfolioSummary()
 
 	log.Println("Fetched portfolio data.")
@@ -98,7 +98,7 @@ func main() {
 			fiatCurrencies = append(fiatCurrencies, y.Coin)
 		}
 	}
-	err = currency.SeedCurrencyData(common.JoinStrings(fiatCurrencies, ","))
+	err = currency.Seed(common.JoinStrings(fiatCurrencies, ","))
 	if err != nil {
 		log.Fatal(err)
 	}

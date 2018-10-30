@@ -5,7 +5,6 @@ import (
 	"log"
 	"sync"
 
-	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
 	"github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
@@ -24,7 +23,6 @@ func (h *HUOBIHADAX) Start(wg *sync.WaitGroup) {
 // Run implements the OKEX wrapper
 func (h *HUOBIHADAX) Run() {
 	if h.Verbose {
-		log.Printf("%s Websocket: %s. (url: %s).\n", h.GetName(), common.IsEnabled(h.Websocket.IsEnabled()), h.WebsocketURL)
 		log.Printf("%s polling delay: %ds.\n", h.GetName(), h.RESTPollingDelay)
 		log.Printf("%s %d currencies enabled: %s.\n", h.GetName(), len(h.EnabledPairs), h.EnabledPairs)
 	}
@@ -72,8 +70,8 @@ func (h *HUOBIHADAX) UpdateTicker(p pair.CurrencyPair, assetType string) (ticker
 	return ticker.GetTicker(h.Name, p, assetType)
 }
 
-// GetTickerPrice returns the ticker for a currency pair
-func (h *HUOBIHADAX) GetTickerPrice(p pair.CurrencyPair, assetType string) (ticker.Price, error) {
+// FetchTicker returns the ticker for a currency pair
+func (h *HUOBIHADAX) FetchTicker(p pair.CurrencyPair, assetType string) (ticker.Price, error) {
 	tickerNew, err := ticker.GetTicker(h.GetName(), p, assetType)
 	if err != nil {
 		return h.UpdateTicker(p, assetType)
@@ -81,8 +79,8 @@ func (h *HUOBIHADAX) GetTickerPrice(p pair.CurrencyPair, assetType string) (tick
 	return tickerNew, nil
 }
 
-// GetOrderbookEx returns orderbook base on the currency pair
-func (h *HUOBIHADAX) GetOrderbookEx(p pair.CurrencyPair, assetType string) (orderbook.Base, error) {
+// FetchOrderbook returns orderbook base on the currency pair
+func (h *HUOBIHADAX) FetchOrderbook(p pair.CurrencyPair, assetType string) (orderbook.Base, error) {
 	ob, err := orderbook.GetOrderbook(h.GetName(), p, assetType)
 	if err != nil {
 		return h.UpdateOrderbook(p, assetType)

@@ -89,8 +89,8 @@ func (c *CoinbasePro) UpdateTicker(p pair.CurrencyPair, assetType string) (ticke
 	return ticker.GetTicker(c.Name, p, assetType)
 }
 
-// GetTickerPrice returns the ticker for a currency pair
-func (c *CoinbasePro) GetTickerPrice(p pair.CurrencyPair, assetType string) (ticker.Price, error) {
+// FetchTicker returns the ticker for a currency pair
+func (c *CoinbasePro) FetchTicker(p pair.CurrencyPair, assetType string) (ticker.Price, error) {
 	tickerNew, err := ticker.GetTicker(c.GetName(), p, assetType)
 	if err != nil {
 		return c.UpdateTicker(p, assetType)
@@ -98,8 +98,8 @@ func (c *CoinbasePro) GetTickerPrice(p pair.CurrencyPair, assetType string) (tic
 	return tickerNew, nil
 }
 
-// GetOrderbookEx returns orderbook base on the currency pair
-func (c *CoinbasePro) GetOrderbookEx(p pair.CurrencyPair, assetType string) (orderbook.Base, error) {
+// FetchOrderbook returns orderbook base on the currency pair
+func (c *CoinbasePro) FetchOrderbook(p pair.CurrencyPair, assetType string) (orderbook.Base, error) {
 	ob, err := orderbook.GetOrderbook(c.GetName(), p, assetType)
 	if err != nil {
 		return c.UpdateOrderbook(p, assetType)

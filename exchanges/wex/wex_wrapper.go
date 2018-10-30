@@ -24,7 +24,6 @@ func (w *WEX) Start(wg *sync.WaitGroup) {
 // Run implements the WEX wrapper
 func (w *WEX) Run() {
 	if w.Verbose {
-		log.Printf("%s Websocket: %s.", w.GetName(), common.IsEnabled(w.Websocket.IsEnabled()))
 		log.Printf("%s polling delay: %ds.\n", w.GetName(), w.RESTPollingDelay)
 		log.Printf("%s %d currencies enabled: %s.\n", w.GetName(), len(w.EnabledPairs), w.EnabledPairs)
 	}
@@ -82,8 +81,8 @@ func (w *WEX) UpdateTicker(p pair.CurrencyPair, assetType string) (ticker.Price,
 	return ticker.GetTicker(w.Name, p, assetType)
 }
 
-// GetTickerPrice returns the ticker for a currency pair
-func (w *WEX) GetTickerPrice(p pair.CurrencyPair, assetType string) (ticker.Price, error) {
+// FetchTicker returns the ticker for a currency pair
+func (w *WEX) FetchTicker(p pair.CurrencyPair, assetType string) (ticker.Price, error) {
 	tick, err := ticker.GetTicker(w.GetName(), p, assetType)
 	if err != nil {
 		return w.UpdateTicker(p, assetType)
@@ -91,8 +90,8 @@ func (w *WEX) GetTickerPrice(p pair.CurrencyPair, assetType string) (ticker.Pric
 	return tick, nil
 }
 
-// GetOrderbookEx returns the orderbook for a currency pair
-func (w *WEX) GetOrderbookEx(p pair.CurrencyPair, assetType string) (orderbook.Base, error) {
+// FetchOrderbook returns the orderbook for a currency pair
+func (w *WEX) FetchOrderbook(p pair.CurrencyPair, assetType string) (orderbook.Base, error) {
 	ob, err := orderbook.GetOrderbook(w.GetName(), p, assetType)
 	if err != nil {
 		return w.UpdateOrderbook(p, assetType)

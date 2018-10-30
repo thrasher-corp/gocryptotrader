@@ -53,7 +53,7 @@ type Trade struct {
 	Date    int64   `json:"date"`
 }
 
-// 30 day trade volume
+// TradingFee 30 day trade volume
 type TradingFee struct {
 	Success        bool    `json:"success"`
 	ErrorCode      int     `json:"errorCode"`

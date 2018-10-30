@@ -80,8 +80,8 @@ func (h *HitBTC) UpdateTicker(currencyPair pair.CurrencyPair, assetType string) 
 	return ticker.GetTicker(h.Name, currencyPair, assetType)
 }
 
-// GetTickerPrice returns the ticker for a currency pair
-func (h *HitBTC) GetTickerPrice(currencyPair pair.CurrencyPair, assetType string) (ticker.Price, error) {
+// FetchTicker returns the ticker for a currency pair
+func (h *HitBTC) FetchTicker(currencyPair pair.CurrencyPair, assetType string) (ticker.Price, error) {
 	tickerNew, err := ticker.GetTicker(h.GetName(), currencyPair, assetType)
 	if err != nil {
 		return h.UpdateTicker(currencyPair, assetType)
@@ -89,8 +89,8 @@ func (h *HitBTC) GetTickerPrice(currencyPair pair.CurrencyPair, assetType string
 	return tickerNew, nil
 }
 
-// GetOrderbookEx returns orderbook base on the currency pair
-func (h *HitBTC) GetOrderbookEx(currencyPair pair.CurrencyPair, assetType string) (orderbook.Base, error) {
+// FetchOrderbook returns orderbook base on the currency pair
+func (h *HitBTC) FetchOrderbook(currencyPair pair.CurrencyPair, assetType string) (orderbook.Base, error) {
 	ob, err := orderbook.GetOrderbook(h.GetName(), currencyPair, assetType)
 	if err != nil {
 		return h.UpdateOrderbook(currencyPair, assetType)

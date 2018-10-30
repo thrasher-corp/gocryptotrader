@@ -18,7 +18,6 @@ import (
 	"github.com/thrasher-/gocryptotrader/currency/forexprovider"
 	"github.com/thrasher-/gocryptotrader/currency/forexprovider/base"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
-	"github.com/thrasher-/gocryptotrader/portfolio"
 )
 
 // Constants declared here are filename strings and test strings
@@ -67,168 +66,6 @@ var (
 	testBypass     bool
 	m              sync.Mutex
 )
-
-// WebserverConfig struct holds the prestart variables for the webserver.
-type WebserverConfig struct {
-	Enabled                      bool   `json:"enabled"`
-	AdminUsername                string `json:"adminUsername"`
-	AdminPassword                string `json:"adminPassword"`
-	ListenAddress                string `json:"listenAddress"`
-	WebsocketConnectionLimit     int    `json:"websocketConnectionLimit"`
-	WebsocketMaxAuthFailures     int    `json:"websocketMaxAuthFailures"`
-	WebsocketAllowInsecureOrigin bool   `json:"websocketAllowInsecureOrigin"`
-}
-
-// Post holds the bot configuration data
-type Post struct {
-	Data Config `json:"data"`
-}
-
-// CurrencyPairFormatConfig stores the users preferred currency pair display
-type CurrencyPairFormatConfig struct {
-	Uppercase bool   `json:"uppercase"`
-	Delimiter string `json:"delimiter,omitempty"`
-	Separator string `json:"separator,omitempty"`
-	Index     string `json:"index,omitempty"`
-}
-
-// Config is the overarching object that holds all the information for
-// prestart management of Portfolio, Communications, Webserver and Enabled
-// Exchanges
-type Config struct {
-	Name              string               `json:"name"`
-	EncryptConfig     int                  `json:"encryptConfig"`
-	GlobalHTTPTimeout time.Duration        `json:"globalHTTPTimeout"`
-	Currency          CurrencyConfig       `json:"currencyConfig"`
-	Communications    CommunicationsConfig `json:"communications"`
-	Portfolio         portfolio.Base       `json:"portfolioAddresses"`
-	Webserver         WebserverConfig      `json:"webserver"`
-	Exchanges         []ExchangeConfig     `json:"exchanges"`
-	BankAccounts      []BankAccount        `json:"bankAccounts"`
-
-	// Deprecated config settings, will be removed at a future date
-	CurrencyPairFormat  *CurrencyPairFormatConfig `json:"currencyPairFormat,omitempty"`
-	FiatDisplayCurrency string                    `json:"fiatDispayCurrency,omitempty"`
-	Cryptocurrencies    string                    `json:"cryptocurrencies,omitempty"`
-	SMS                 *SMSGlobalConfig          `json:"smsGlobal,omitempty"`
-}
-
-// ExchangeConfig holds all the information needed for each enabled Exchange.
-type ExchangeConfig struct {
-	Name                      string                    `json:"name"`
-	Enabled                   bool                      `json:"enabled"`
-	Verbose                   bool                      `json:"verbose"`
-	Websocket                 bool                      `json:"websocket"`
-	UseSandbox                bool                      `json:"useSandbox"`
-	RESTPollingDelay          time.Duration             `json:"restPollingDelay"`
-	HTTPTimeout               time.Duration             `json:"httpTimeout"`
-	HTTPUserAgent             string                    `json:"httpUserAgent"`
-	AuthenticatedAPISupport   bool                      `json:"authenticatedApiSupport"`
-	APIKey                    string                    `json:"apiKey"`
-	APISecret                 string                    `json:"apiSecret"`
-	APIAuthPEMKeySupport      bool                      `json:"apiAuthPemKeySupport,omitempty"`
-	APIAuthPEMKey             string                    `json:"apiAuthPemKey,omitempty"`
-	APIURL                    string                    `json:"apiUrl"`
-	APIURLSecondary           string                    `json:"apiUrlSecondary"`
-	ProxyAddress              string                    `json:"proxyAddress"`
-	WebsocketURL              string                    `json:"websocketUrl"`
-	ClientID                  string                    `json:"clientId,omitempty"`
-	AvailablePairs            string                    `json:"availablePairs"`
-	EnabledPairs              string                    `json:"enabledPairs"`
-	BaseCurrencies            string                    `json:"baseCurrencies"`
-	AssetTypes                string                    `json:"assetTypes"`
-	SupportsAutoPairUpdates   bool                      `json:"supportsAutoPairUpdates"`
-	PairsLastUpdated          int64                     `json:"pairsLastUpdated,omitempty"`
-	ConfigCurrencyPairFormat  *CurrencyPairFormatConfig `json:"configCurrencyPairFormat"`
-	RequestCurrencyPairFormat *CurrencyPairFormatConfig `json:"requestCurrencyPairFormat"`
-	BankAccounts              []BankAccount             `json:"bankAccounts"`
-}
-
-// BankAccount holds differing bank account details by supported funding
-// currency
-type BankAccount struct {
-	Enabled             bool   `json:"enabled,omitempty"`
-	BankName            string `json:"bankName"`
-	BankAddress         string `json:"bankAddress"`
-	AccountName         string `json:"accountName"`
-	AccountNumber       string `json:"accountNumber"`
-	SWIFTCode           string `json:"swiftCode"`
-	IBAN                string `json:"iban"`
-	BSBNumber           string `json:"bsbNumber,omitempty"`
-	SupportedCurrencies string `json:"supportedCurrencies"`
-	SupportedExchanges  string `json:"supportedExchanges,omitempty"`
-}
-
-// BankTransaction defines a related banking transaction
-type BankTransaction struct {
-	ReferenceNumber     string `json:"referenceNumber"`
-	TransactionNumber   string `json:"transactionNumber"`
-	PaymentInstructions string `json:"paymentInstructions"`
-}
-
-// CurrencyConfig holds all the information needed for currency related manipulation
-type CurrencyConfig struct {
-	ForexProviders      []base.Settings           `json:"forexProviders"`
-	Cryptocurrencies    string                    `json:"cryptocurrencies"`
-	CurrencyPairFormat  *CurrencyPairFormatConfig `json:"currencyPairFormat"`
-	FiatDisplayCurrency string                    `json:"fiatDisplayCurrency"`
-}
-
-// CommunicationsConfig holds all the information needed for each
-// enabled communication package
-type CommunicationsConfig struct {
-	SlackConfig     SlackConfig     `json:"slack"`
-	SMSGlobalConfig SMSGlobalConfig `json:"smsGlobal"`
-	SMTPConfig      SMTPConfig      `json:"smtp"`
-	TelegramConfig  TelegramConfig  `json:"telegram"`
-}
-
-// SlackConfig holds all variables to start and run the Slack package
-type SlackConfig struct {
-	Name              string `json:"name"`
-	Enabled           bool   `json:"enabled"`
-	Verbose           bool   `json:"verbose"`
-	TargetChannel     string `json:"targetChannel"`
-	VerificationToken string `json:"verificationToken"`
-}
-
-// SMSContact stores the SMS contact info
-type SMSContact struct {
-	Name    string `json:"name"`
-	Number  string `json:"number"`
-	Enabled bool   `json:"enabled"`
-}
-
-// SMSGlobalConfig structure holds all the variables you need for instant
-// messaging and broadcast used by SMSGlobal
-type SMSGlobalConfig struct {
-	Name     string       `json:"name"`
-	Enabled  bool         `json:"enabled"`
-	Verbose  bool         `json:"verbose"`
-	Username string       `json:"username"`
-	Password string       `json:"password"`
-	Contacts []SMSContact `json:"contacts"`
-}
-
-// SMTPConfig holds all variables to start and run the SMTP package
-type SMTPConfig struct {
-	Name            string `json:"name"`
-	Enabled         bool   `json:"enabled"`
-	Verbose         bool   `json:"verbose"`
-	Host            string `json:"host"`
-	Port            string `json:"port"`
-	AccountName     string `json:"accountName"`
-	AccountPassword string `json:"accountPassword"`
-	RecipientList   string `json:"recipientList"`
-}
-
-// TelegramConfig holds all variables to start and run the Telegram package
-type TelegramConfig struct {
-	Name              string `json:"name"`
-	Enabled           bool   `json:"enabled"`
-	Verbose           bool   `json:"verbose"`
-	VerificationToken string `json:"verificationToken"`
-}
 
 // GetCurrencyConfig returns currency configurations
 func (c *Config) GetCurrencyConfig() CurrencyConfig {
@@ -793,18 +630,18 @@ func (c *Config) CheckExchangeConfigValues() error {
 	return nil
 }
 
-// CheckWebserverConfigValues checks information before webserver starts and
-// returns an error if values are incorrect.
-func (c *Config) CheckWebserverConfigValues() error {
-	if c.Webserver.AdminUsername == "" || c.Webserver.AdminPassword == "" {
+// CheckRESTServerConfigValues checks information before the REST server starts
+// and returns an error if values are incorrect
+func (c *Config) CheckRESTServerConfigValues() error {
+	if c.RESTServer.AdminUsername == "" || c.RESTServer.AdminPassword == "" {
 		return errors.New(WarningWebserverCredentialValuesEmpty)
 	}
 
-	if !common.StringContains(c.Webserver.ListenAddress, ":") {
+	if !common.StringContains(c.RESTServer.ListenAddress, ":") {
 		return errors.New(WarningWebserverListenAddressInvalid)
 	}
 
-	portStr := common.SplitStrings(c.Webserver.ListenAddress, ":")[1]
+	portStr := common.SplitStrings(c.RESTServer.ListenAddress, ":")[1]
 	port, err := strconv.Atoi(portStr)
 	if err != nil {
 		return errors.New(WarningWebserverListenAddressInvalid)
@@ -814,12 +651,42 @@ func (c *Config) CheckWebserverConfigValues() error {
 		return errors.New(WarningWebserverListenAddressInvalid)
 	}
 
-	if c.Webserver.WebsocketConnectionLimit <= 0 {
-		c.Webserver.WebsocketConnectionLimit = 1
+	return nil
+}
+
+// CheckWebsocketServerConfigValues checks information before the websocket server
+// starts and returns an error if values are incorrect
+func (c *Config) CheckWebsocketServerConfigValues() error {
+	if c.WebsocketServer.AdminUsername == "" || c.WebsocketServer.AdminPassword == "" {
+		return errors.New(WarningWebserverCredentialValuesEmpty)
 	}
 
-	if c.Webserver.WebsocketMaxAuthFailures <= 0 {
-		c.Webserver.WebsocketMaxAuthFailures = 3
+	if !common.StringContains(c.WebsocketServer.ListenAddress, ":") {
+		return errors.New(WarningWebserverListenAddressInvalid)
+	}
+
+	portStr := common.SplitStrings(c.WebsocketServer.ListenAddress, ":")[1]
+	port, err := strconv.Atoi(portStr)
+	if err != nil {
+		return errors.New(WarningWebserverListenAddressInvalid)
+	}
+
+	if port < 1 || port > 65355 {
+		return errors.New(WarningWebserverListenAddressInvalid)
+	}
+
+	if c.RESTServer.Enabled && c.RESTServer.ListenAddress == c.WebsocketServer.ListenAddress {
+		port++
+		log.Printf("Config: Updating Websocket server port to %v prevent duplicate listen port", port)
+		c.WebsocketServer.ListenAddress = common.ExtractHost(c.WebsocketServer.ListenAddress) + ":" + strconv.Itoa(port)
+	}
+
+	if c.WebsocketServer.WebsocketConnectionLimit <= 0 {
+		c.WebsocketServer.WebsocketConnectionLimit = 1
+	}
+
+	if c.WebsocketServer.WebsocketMaxAuthFailures <= 0 {
+		c.WebsocketServer.WebsocketMaxAuthFailures = 3
 	}
 
 	return nil
@@ -1154,11 +1021,35 @@ func (c *Config) CheckConfig() error {
 		log.Fatal(err)
 	}
 
-	if c.Webserver.Enabled {
-		err = c.CheckWebserverConfigValues()
+	if c.Webserver != nil {
+		// Migrate to new settings for REST and Websocket
+		c.RESTServer.AdminUsername = c.Webserver.AdminUsername
+		c.RESTServer.AdminPassword = c.Webserver.AdminPassword
+		c.RESTServer.Enabled = c.Webserver.Enabled
+		c.RESTServer.ListenAddress = c.Webserver.ListenAddress
+
+		c.WebsocketServer.AdminUsername = c.RESTServer.AdminUsername
+		c.WebsocketServer.AdminPassword = c.RESTServer.AdminPassword
+		c.WebsocketServer.Enabled = c.RESTServer.Enabled
+		c.WebsocketServer.ListenAddress = c.Webserver.ListenAddress
+
+		// Then flush the old webserver settings
+		c.Webserver = nil
+	}
+
+	if c.RESTServer.Enabled {
+		err = c.CheckRESTServerConfigValues()
 		if err != nil {
 			log.Print(fmt.Errorf(ErrCheckingConfigValues, err))
-			c.Webserver.Enabled = false
+			c.RESTServer.Enabled = false
+		}
+	}
+
+	if c.WebsocketServer.Enabled {
+		err = c.CheckWebsocketServerConfigValues()
+		if err != nil {
+			log.Print(fmt.Errorf(ErrCheckingConfigValues, err))
+			c.WebsocketServer.Enabled = false
 		}
 	}
 

@@ -81,6 +81,8 @@ func (h *HUOBI) SetDefaults() {
 	h.AssetTypes = []string{ticker.Spot}
 	h.SupportsAutoPairUpdating = true
 	h.SupportsRESTTickerBatching = false
+	h.SupportsRESTAPI = true
+	h.SupportsWebsocketAPI = true
 	h.Requester = request.New(h.Name,
 		request.NewRateLimit(time.Second*10, huobiAuthRate),
 		request.NewRateLimit(time.Second*10, huobiUnauthRate),

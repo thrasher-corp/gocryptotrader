@@ -78,6 +78,8 @@ func (c *CoinbasePro) SetDefaults() {
 	c.AssetTypes = []string{ticker.Spot}
 	c.SupportsAutoPairUpdating = true
 	c.SupportsRESTTickerBatching = false
+	c.SupportsRESTAPI = true
+	c.SupportsWebsocketAPI = true
 	c.Requester = request.New(c.Name,
 		request.NewRateLimit(time.Second, coinbaseproAuthRate),
 		request.NewRateLimit(time.Second, coinbaseproUnauthRate),

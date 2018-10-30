@@ -27,7 +27,7 @@ func TestSetDefaults(t *testing.T) {
 }
 
 func TestSeedCurrencyData(t *testing.T) {
-	err := SeedCurrencyData("AUD")
+	err := Seed("AUD")
 	if err != nil {
 		t.Fatal(err)
 	}

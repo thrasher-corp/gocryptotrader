@@ -2,15 +2,15 @@ package portfolio
 
 // Base holds the portfolio base addresses
 type Base struct {
-	Addresses []Address
+	Addresses []Address `json:"addresses"`
 }
 
 // Address sub type holding address information for portfolio
 type Address struct {
-	Address     string
-	CoinType    string
-	Balance     float64
-	Description string
+	Address     string  `json:"address"`
+	CoinType    string  `json:"coinType"`
+	Balance     float64 `json:"balance"`
+	Description string  `json:"description"`
 }
 
 // EtherchainBalanceResponse holds JSON incoming and outgoing data for

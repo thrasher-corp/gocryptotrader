@@ -49,8 +49,8 @@ func (a *Alphapoint) UpdateTicker(p pair.CurrencyPair, assetType string) (ticker
 	return ticker.GetTicker(a.Name, p, assetType)
 }
 
-// GetTickerPrice returns the ticker for a currency pair
-func (a *Alphapoint) GetTickerPrice(p pair.CurrencyPair, assetType string) (ticker.Price, error) {
+// FetchTicker returns the ticker for a currency pair
+func (a *Alphapoint) FetchTicker(p pair.CurrencyPair, assetType string) (ticker.Price, error) {
 	tick, err := ticker.GetTicker(a.GetName(), p, assetType)
 	if err != nil {
 		return a.UpdateTicker(p, assetType)
@@ -80,8 +80,8 @@ func (a *Alphapoint) UpdateOrderbook(p pair.CurrencyPair, assetType string) (ord
 	return orderbook.GetOrderbook(a.Name, p, assetType)
 }
 
-// GetOrderbookEx returns the orderbook for a currency pair
-func (a *Alphapoint) GetOrderbookEx(p pair.CurrencyPair, assetType string) (orderbook.Base, error) {
+// FetchOrderbook returns the orderbook for a currency pair
+func (a *Alphapoint) FetchOrderbook(p pair.CurrencyPair, assetType string) (orderbook.Base, error) {
 	ob, err := orderbook.GetOrderbook(a.GetName(), p, assetType)
 	if err != nil {
 		return a.UpdateOrderbook(p, assetType)

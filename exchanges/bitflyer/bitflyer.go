@@ -89,6 +89,8 @@ func (b *Bitflyer) SetDefaults() {
 	b.AssetTypes = []string{ticker.Spot}
 	b.SupportsAutoPairUpdating = false
 	b.SupportsRESTTickerBatching = false
+	b.SupportsRESTAPI = true
+	b.SupportsWebsocketAPI = false
 	b.Requester = request.New(b.Name,
 		request.NewRateLimit(time.Minute, bitflyerAuthRate),
 		request.NewRateLimit(time.Minute, bitflyerUnauthRate),
@@ -97,7 +99,6 @@ func (b *Bitflyer) SetDefaults() {
 	b.APIUrl = b.APIUrlDefault
 	b.APIUrlSecondaryDefault = chainAnalysis
 	b.APIUrlSecondary = b.APIUrlSecondaryDefault
-	b.WebsocketInit()
 }
 
 // Setup takes in the supplied exchange configuration details and sets params
@@ -112,7 +113,6 @@ func (b *Bitflyer) Setup(exch config.ExchangeConfig) {
 		b.SetHTTPClientUserAgent(exch.HTTPUserAgent)
 		b.RESTPollingDelay = exch.RESTPollingDelay
 		b.Verbose = exch.Verbose
-		b.Websocket.SetEnabled(exch.Websocket)
 		b.BaseCurrencies = common.SplitStrings(exch.BaseCurrencies, ",")
 		b.AvailablePairs = common.SplitStrings(exch.AvailablePairs, ",")
 		b.EnabledPairs = common.SplitStrings(exch.EnabledPairs, ",")

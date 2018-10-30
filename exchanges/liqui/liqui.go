@@ -60,6 +60,8 @@ func (l *Liqui) SetDefaults() {
 	l.AssetTypes = []string{ticker.Spot}
 	l.SupportsAutoPairUpdating = true
 	l.SupportsRESTTickerBatching = true
+	l.SupportsRESTAPI = true
+	l.SupportsWebsocketAPI = false
 	l.Requester = request.New(l.Name,
 		request.NewRateLimit(time.Second, liquiAuthRate),
 		request.NewRateLimit(time.Second, liquiUnauthRate),

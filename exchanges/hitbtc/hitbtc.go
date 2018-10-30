@@ -69,6 +69,8 @@ func (h *HitBTC) SetDefaults() {
 	h.AssetTypes = []string{ticker.Spot}
 	h.SupportsAutoPairUpdating = true
 	h.SupportsRESTTickerBatching = true
+	h.SupportsRESTAPI = true
+	h.SupportsWebsocketAPI = true
 	h.Requester = request.New(h.Name,
 		request.NewRateLimit(time.Second, hitbtcAuthRate),
 		request.NewRateLimit(time.Second, hitbtcUnauthRate),

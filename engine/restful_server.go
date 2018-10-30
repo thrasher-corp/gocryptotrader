@@ -1,4 +1,4 @@
-package main
+package engine
 
 import (
 	"encoding/json"
@@ -11,35 +11,6 @@ import (
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 )
-
-// AllEnabledExchangeOrderbooks holds the enabled exchange orderbooks
-type AllEnabledExchangeOrderbooks struct {
-	Data []EnabledExchangeOrderbooks `json:"data"`
-}
-
-// EnabledExchangeOrderbooks is a sub type for singular exchanges and respective
-// orderbooks
-type EnabledExchangeOrderbooks struct {
-	ExchangeName   string           `json:"exchangeName"`
-	ExchangeValues []orderbook.Base `json:"exchangeValues"`
-}
-
-// AllEnabledExchangeCurrencies holds the enabled exchange currencies
-type AllEnabledExchangeCurrencies struct {
-	Data []EnabledExchangeCurrencies `json:"data"`
-}
-
-// EnabledExchangeCurrencies is a sub type for singular exchanges and respective
-// currencies
-type EnabledExchangeCurrencies struct {
-	ExchangeName   string         `json:"exchangeName"`
-	ExchangeValues []ticker.Price `json:"exchangeValues"`
-}
-
-// AllEnabledExchangeAccounts holds all enabled accounts info
-type AllEnabledExchangeAccounts struct {
-	Data []exchange.AccountInfo `json:"data"`
-}
 
 // RESTfulJSONResponse outputs a JSON response of the response interface
 func RESTfulJSONResponse(w http.ResponseWriter, r *http.Request, response interface{}) error {
@@ -55,9 +26,9 @@ func RESTfulError(method string, err error) {
 }
 
 // RESTGetAllSettings replies to a request with an encoded JSON response about the
-// trading bots configuration.
+// trading Bots configuration.
 func RESTGetAllSettings(w http.ResponseWriter, r *http.Request) {
-	err := RESTfulJSONResponse(w, r, bot.config)
+	err := RESTfulJSONResponse(w, r, Bot.Config)
 	if err != nil {
 		RESTfulError(r.Method, err)
 	}
@@ -74,12 +45,12 @@ func RESTSaveAllSettings(w http.ResponseWriter, r *http.Request) {
 		RESTfulError(r.Method, err)
 	}
 	//Save change the settings
-	err = bot.config.UpdateConfig(bot.configFile, responseData.Data)
+	err = Bot.Config.UpdateConfig(Bot.Settings.ConfigFile, responseData.Data)
 	if err != nil {
 		RESTfulError(r.Method, err)
 	}
 
-	err = RESTfulJSONResponse(w, r, bot.config)
+	err = RESTfulJSONResponse(w, r, Bot.Config)
 	if err != nil {
 		RESTfulError(r.Method, err)
 	}
@@ -116,7 +87,7 @@ func RESTGetOrderbook(w http.ResponseWriter, r *http.Request) {
 func GetAllActiveOrderbooks() []EnabledExchangeOrderbooks {
 	var orderbookData []EnabledExchangeOrderbooks
 
-	for _, individualBot := range bot.exchanges {
+	for _, individualBot := range Bot.Exchanges {
 		if individualBot != nil && individualBot.IsEnabled() {
 			var individualExchange EnabledExchangeOrderbooks
 			exchangeName := individualBot.GetName()
@@ -134,11 +105,11 @@ func GetAllActiveOrderbooks() []EnabledExchangeOrderbooks {
 				var ob orderbook.Base
 				if len(assetTypes) > 1 {
 					for y := range assetTypes {
-						ob, err = individualBot.GetOrderbookEx(currency,
+						ob, err = individualBot.FetchOrderbook(currency,
 							assetTypes[y])
 					}
 				} else {
-					ob, err = individualBot.GetOrderbookEx(currency,
+					ob, err = individualBot.FetchOrderbook(currency,
 						assetTypes[0])
 				}
 
@@ -171,9 +142,9 @@ func RESTGetAllActiveOrderbooks(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// RESTGetPortfolio returns the bot portfolio
+// RESTGetPortfolio returns the Bot portfolio
 func RESTGetPortfolio(w http.ResponseWriter, r *http.Request) {
-	result := bot.portfolio.GetPortfolioSummary()
+	result := Bot.Portfolio.GetPortfolioSummary()
 	err := RESTfulJSONResponse(w, r, result)
 	if err != nil {
 		RESTfulError(r.Method, err)
@@ -207,7 +178,7 @@ func RESTGetTicker(w http.ResponseWriter, r *http.Request) {
 func GetAllActiveTickers() []EnabledExchangeCurrencies {
 	var tickerData []EnabledExchangeCurrencies
 
-	for _, individualBot := range bot.exchanges {
+	for _, individualBot := range Bot.Exchanges {
 		if individualBot != nil && individualBot.IsEnabled() {
 			var individualExchange EnabledExchangeCurrencies
 			exchangeName := individualBot.GetName()
@@ -224,11 +195,11 @@ func GetAllActiveTickers() []EnabledExchangeCurrencies {
 				var tickerPrice ticker.Price
 				if len(assetTypes) > 1 {
 					for y := range assetTypes {
-						tickerPrice, err = individualBot.GetTickerPrice(currency,
+						tickerPrice, err = individualBot.FetchTicker(currency,
 							assetTypes[y])
 					}
 				} else {
-					tickerPrice, err = individualBot.GetTickerPrice(currency,
+					tickerPrice, err = individualBot.FetchTicker(currency,
 						assetTypes[0])
 				}
 
@@ -264,7 +235,7 @@ func RESTGetAllActiveTickers(w http.ResponseWriter, r *http.Request) {
 // GetAllEnabledExchangeAccountInfo returns all the current enabled exchanges
 func GetAllEnabledExchangeAccountInfo() AllEnabledExchangeAccounts {
 	var response AllEnabledExchangeAccounts
-	for _, individualBot := range bot.exchanges {
+	for _, individualBot := range Bot.Exchanges {
 		if individualBot != nil && individualBot.IsEnabled() {
 			if !individualBot.GetAuthenticatedAPISupport() {
 				log.Printf("GetAllEnabledExchangeAccountInfo: Skippping %s due to disabled authenticated API support.", individualBot.GetName())

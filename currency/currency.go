@@ -36,15 +36,15 @@ func SetDefaults() {
 	BaseCurrency = DefaultBaseCurrency
 
 	FXProviders = forexprovider.NewDefaultFXProvider()
-	err := SeedCurrencyData(DefaultCurrencies)
+	err := Seed(DefaultCurrencies)
 	if err != nil {
 		log.Printf("Failed to seed currency data. Err: %s", err)
 		return
 	}
 }
 
-// SeedCurrencyData returns rates correlated with suported currencies
-func SeedCurrencyData(currencies string) error {
+// Seed returns rates correlated with suported currencies
+func Seed(currencies string) error {
 	if FXRates == nil {
 		FXRates = make(map[string]float64)
 	}
@@ -157,7 +157,7 @@ func ConvertCurrency(amount float64, from, to string) (float64, error) {
 	}
 
 	if len(FXRates) == 0 {
-		SeedCurrencyData(from + "," + to)
+		Seed(from + "," + to)
 	}
 
 	// Need to extract the base currency to see if we actually got it from the Forex API

@@ -69,13 +69,14 @@ func (k *Kraken) SetDefaults() {
 	k.AssetTypes = []string{ticker.Spot}
 	k.SupportsAutoPairUpdating = true
 	k.SupportsRESTTickerBatching = true
+	k.SupportsRESTAPI = true
+	k.SupportsWebsocketAPI = false
 	k.Requester = request.New(k.Name,
 		request.NewRateLimit(time.Second, krakenAuthRate),
 		request.NewRateLimit(time.Second, krakenUnauthRate),
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 	k.APIUrlDefault = krakenAPIURL
 	k.APIUrl = k.APIUrlDefault
-	k.WebsocketInit()
 }
 
 // Setup sets current exchange configuration

@@ -65,6 +65,8 @@ func (w *WEX) SetDefaults() {
 	w.AssetTypes = []string{ticker.Spot}
 	w.SupportsAutoPairUpdating = true
 	w.SupportsRESTTickerBatching = true
+	w.SupportsRESTAPI = true
+	w.SupportsWebsocketAPI = false
 	w.Requester = request.New(w.Name,
 		request.NewRateLimit(time.Second, wexAuthRate),
 		request.NewRateLimit(time.Second, wexUnauthRate),
@@ -73,7 +75,6 @@ func (w *WEX) SetDefaults() {
 	w.APIUrl = w.APIUrlDefault
 	w.APIUrlSecondaryDefault = wexAPIPrivateURL
 	w.APIUrlSecondary = w.APIUrlSecondaryDefault
-	w.WebsocketInit()
 }
 
 // Setup sets exchange configuration parameters for WEX

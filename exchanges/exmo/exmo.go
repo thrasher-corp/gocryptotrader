@@ -66,13 +66,14 @@ func (e *EXMO) SetDefaults() {
 	e.AssetTypes = []string{ticker.Spot}
 	e.SupportsAutoPairUpdating = true
 	e.SupportsRESTTickerBatching = true
+	e.SupportsRESTAPI = true
+	e.SupportsWebsocketAPI = false
 	e.Requester = request.New(e.Name,
 		request.NewRateLimit(time.Minute, exmoAuthRate),
 		request.NewRateLimit(time.Minute, exmoUnauthRate),
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 	e.APIUrlDefault = exmoAPIURL
 	e.APIUrl = e.APIUrlDefault
-	e.WebsocketInit()
 }
 
 // Setup takes in the supplied exchange configuration details and sets params

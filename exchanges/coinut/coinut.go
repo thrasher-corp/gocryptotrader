@@ -64,6 +64,8 @@ func (c *COINUT) SetDefaults() {
 	c.AssetTypes = []string{ticker.Spot}
 	c.SupportsAutoPairUpdating = true
 	c.SupportsRESTTickerBatching = false
+	c.SupportsRESTAPI = true
+	c.SupportsWebsocketAPI = true
 	c.Requester = request.New(c.Name,
 		request.NewRateLimit(time.Second, coinutAuthRate),
 		request.NewRateLimit(time.Second, coinutUnauthRate),

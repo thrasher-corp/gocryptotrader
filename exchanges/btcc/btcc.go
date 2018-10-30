@@ -40,6 +40,8 @@ func (b *BTCC) SetDefaults() {
 	b.AssetTypes = []string{ticker.Spot}
 	b.SupportsAutoPairUpdating = true
 	b.SupportsRESTTickerBatching = false
+	b.SupportsRESTAPI = false
+	b.SupportsWebsocketAPI = true
 	b.Requester = request.New(b.Name,
 		request.NewRateLimit(time.Second, btccAuthRate),
 		request.NewRateLimit(time.Second, btccUnauthRate),

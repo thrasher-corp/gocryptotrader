@@ -75,6 +75,8 @@ func (b *Bitstamp) SetDefaults() {
 	b.AssetTypes = []string{ticker.Spot}
 	b.SupportsAutoPairUpdating = true
 	b.SupportsRESTTickerBatching = false
+	b.SupportsRESTAPI = true
+	b.SupportsWebsocketAPI = true
 	b.Requester = request.New(b.Name,
 		request.NewRateLimit(time.Minute*10, bitstampAuthRate),
 		request.NewRateLimit(time.Minute*10, bitstampUnauthRate),

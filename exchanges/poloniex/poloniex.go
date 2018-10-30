@@ -74,6 +74,8 @@ func (p *Poloniex) SetDefaults() {
 	p.AssetTypes = []string{ticker.Spot}
 	p.SupportsAutoPairUpdating = true
 	p.SupportsRESTTickerBatching = true
+	p.SupportsRESTAPI = true
+	p.SupportsWebsocketAPI = true
 	p.Requester = request.New(p.Name,
 		request.NewRateLimit(time.Second, poloniexAuthRate),
 		request.NewRateLimit(time.Second, poloniexUnauthRate),

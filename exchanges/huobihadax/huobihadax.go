@@ -73,13 +73,14 @@ func (h *HUOBIHADAX) SetDefaults() {
 	h.AssetTypes = []string{ticker.Spot}
 	h.SupportsAutoPairUpdating = true
 	h.SupportsRESTTickerBatching = false
+	h.SupportsRESTAPI = true
+	h.SupportsWebsocketAPI = false
 	h.Requester = request.New(h.Name,
 		request.NewRateLimit(time.Second*10, huobihadaxAuthRate),
 		request.NewRateLimit(time.Second*10, huobihadaxUnauthRate),
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 	h.APIUrlDefault = huobihadaxAPIURL
 	h.APIUrl = h.APIUrlDefault
-	h.WebsocketInit()
 }
 
 // Setup sets user configuration

@@ -79,7 +79,7 @@ func main() {
 		log.Fatalf("Failed to load config file: %s", err)
 	}
 
-	listenAddr := cfg.Webserver.ListenAddress
+	listenAddr := cfg.WebsocketServer.ListenAddress
 	wsHost := fmt.Sprintf("ws://%s:%d/ws", common.ExtractHost(listenAddr),
 		common.ExtractPort(listenAddr))
 	log.Printf("Connecting to websocket host: %s", wsHost)

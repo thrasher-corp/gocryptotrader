@@ -1,4 +1,4 @@
-package main
+package engine
 
 import (
 	"encoding/json"
@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"reflect"
-	"strings"
 	"testing"
 
 	"github.com/thrasher-/gocryptotrader/config"
@@ -14,7 +13,7 @@ import (
 
 func loadConfig(t *testing.T) *config.Config {
 	cfg := config.GetConfig()
-	err := cfg.LoadConfig(strings.Replace(config.ConfigTestFile, "..", ".", 1))
+	err := cfg.LoadConfig("")
 	if err != nil {
 		t.Error("Test failed. GetCurrencyConfig LoadConfig error", err)
 	}

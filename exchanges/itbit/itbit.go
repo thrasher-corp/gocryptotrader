@@ -56,13 +56,14 @@ func (i *ItBit) SetDefaults() {
 	i.AssetTypes = []string{ticker.Spot}
 	i.SupportsAutoPairUpdating = false
 	i.SupportsRESTTickerBatching = false
+	i.SupportsRESTAPI = true
+	i.SupportsWebsocketAPI = false
 	i.Requester = request.New(i.Name,
 		request.NewRateLimit(time.Second, itbitAuthRate),
 		request.NewRateLimit(time.Second, itbitUnauthRate),
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 	i.APIUrlDefault = itbitAPIURL
 	i.APIUrl = i.APIUrlDefault
-	i.WebsocketInit()
 }
 
 // Setup sets the exchange parameters from exchange config

@@ -47,22 +47,22 @@ main.go
 ```go
 var l exchange.IBotExchange
 
-for i := range bot.exchanges {
-  if bot.exchanges[i].GetName() == "LocalBitcoins" {
-    l = bot.exchanges[i]
+for i := range bot.Exchanges {
+  if bot.Exchanges[i].GetName() == "LocalBitcoins" {
+    l = bot.Exchanges[i]
   }
 }
 
 // Public calls - wrapper functions
 
 // Fetches current ticker information
-tick, err := l.GetTickerPrice()
+tick, err := l.FetchTicker()
 if err != nil {
   // Handle error
 }
 
 // Fetches current orderbook information
-ob, err := l.GetOrderbookEx()
+ob, err := l.FetchOrderbook()
 if err != nil {
   // Handle error
 }

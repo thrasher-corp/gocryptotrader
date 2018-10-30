@@ -76,13 +76,14 @@ func (b *Bittrex) SetDefaults() {
 	b.AssetTypes = []string{ticker.Spot}
 	b.SupportsAutoPairUpdating = true
 	b.SupportsRESTTickerBatching = true
+	b.SupportsRESTAPI = true
+	b.SupportsWebsocketAPI = false
 	b.Requester = request.New(b.Name,
 		request.NewRateLimit(time.Second, bittrexAuthRate),
 		request.NewRateLimit(time.Second, bittrexUnauthRate),
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 	b.APIUrlDefault = bittrexAPIURL
 	b.APIUrl = b.APIUrlDefault
-	b.WebsocketInit()
 }
 
 // Setup method sets current configuration details if enabled

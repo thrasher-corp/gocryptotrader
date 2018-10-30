@@ -1,9 +1,10 @@
-package main
+package engine
 
 import (
 	"errors"
 	"log"
 	"sync"
+	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
@@ -49,8 +50,8 @@ var (
 // CheckExchangeExists returns true whether or not an exchange has already
 // been loaded
 func CheckExchangeExists(exchName string) bool {
-	for x := range bot.exchanges {
-		if common.StringToLower(bot.exchanges[x].GetName()) == common.StringToLower(exchName) {
+	for x := range Bot.Exchanges {
+		if common.StringToLower(Bot.Exchanges[x].GetName()) == common.StringToLower(exchName) {
 			return true
 		}
 	}
@@ -59,9 +60,9 @@ func CheckExchangeExists(exchName string) bool {
 
 // GetExchangeByName returns an exchange given an exchange name
 func GetExchangeByName(exchName string) exchange.IBotExchange {
-	for x := range bot.exchanges {
-		if common.StringToLower(bot.exchanges[x].GetName()) == common.StringToLower(exchName) {
-			return bot.exchanges[x]
+	for x := range Bot.Exchanges {
+		if common.StringToLower(Bot.Exchanges[x].GetName()) == common.StringToLower(exchName) {
+			return Bot.Exchanges[x]
 		}
 	}
 	return nil
@@ -71,7 +72,7 @@ func GetExchangeByName(exchName string) exchange.IBotExchange {
 func ReloadExchange(name string) error {
 	nameLower := common.StringToLower(name)
 
-	if len(bot.exchanges) == 0 {
+	if len(Bot.Exchanges) == 0 {
 		return ErrNoExchangesLoaded
 	}
 
@@ -79,7 +80,7 @@ func ReloadExchange(name string) error {
 		return ErrExchangeNotFound
 	}
 
-	exchCfg, err := bot.config.GetExchangeConfig(name)
+	exchCfg, err := Bot.Config.GetExchangeConfig(name)
 	if err != nil {
 		return err
 	}
@@ -94,7 +95,7 @@ func ReloadExchange(name string) error {
 func UnloadExchange(name string) error {
 	nameLower := common.StringToLower(name)
 
-	if len(bot.exchanges) == 0 {
+	if len(Bot.Exchanges) == 0 {
 		return ErrNoExchangesLoaded
 	}
 
@@ -102,21 +103,21 @@ func UnloadExchange(name string) error {
 		return ErrExchangeNotFound
 	}
 
-	exchCfg, err := bot.config.GetExchangeConfig(name)
+	exchCfg, err := Bot.Config.GetExchangeConfig(name)
 	if err != nil {
 		return err
 	}
 
 	exchCfg.Enabled = false
-	err = bot.config.UpdateExchangeConfig(exchCfg)
+	err = Bot.Config.UpdateExchangeConfig(exchCfg)
 	if err != nil {
 		return err
 	}
 
-	for x := range bot.exchanges {
-		if bot.exchanges[x].GetName() == name {
-			bot.exchanges[x].SetEnabled(false)
-			bot.exchanges = append(bot.exchanges[:x], bot.exchanges[x+1:]...)
+	for x := range Bot.Exchanges {
+		if Bot.Exchanges[x].GetName() == name {
+			Bot.Exchanges[x].SetEnabled(false)
+			Bot.Exchanges = append(Bot.Exchanges[:x], Bot.Exchanges[x+1:]...)
 			return nil
 		}
 	}
@@ -129,7 +130,7 @@ func LoadExchange(name string, useWG bool, wg *sync.WaitGroup) error {
 	nameLower := common.StringToLower(name)
 	var exch exchange.IBotExchange
 
-	if len(bot.exchanges) > 0 {
+	if len(Bot.Exchanges) > 0 {
 		if CheckExchangeExists(nameLower) {
 			return ErrExchangeAlreadyLoaded
 		}
@@ -205,10 +206,30 @@ func LoadExchange(name string, useWG bool, wg *sync.WaitGroup) error {
 	}
 
 	exch.SetDefaults()
-	bot.exchanges = append(bot.exchanges, exch)
-	exchCfg, err := bot.config.GetExchangeConfig(name)
+	Bot.Exchanges = append(Bot.Exchanges, exch)
+	exchCfg, err := Bot.Config.GetExchangeConfig(name)
 	if err != nil {
 		return err
+	}
+
+	if Bot.Settings.EnableAllPairs {
+		exchCfg.EnabledPairs = exchCfg.AvailablePairs
+	}
+
+	if Bot.Settings.EnableExchangeVerbose {
+		exchCfg.Verbose = true
+	}
+
+	if Bot.Settings.ExchangeHTTPUserAgent != "" {
+		exchCfg.HTTPUserAgent = Bot.Settings.ExchangeHTTPUserAgent
+	}
+
+	if Bot.Settings.ExchangeHTTPProxy != "" {
+		exchCfg.ProxyAddress = Bot.Settings.ExchangeHTTPProxy
+	}
+
+	if Bot.Settings.ExchangeHTTPTimeout != time.Duration(time.Second*15) {
+		exchCfg.HTTPTimeout = Bot.Settings.ExchangeHTTPTimeout
 	}
 
 	exchCfg.Enabled = true
@@ -224,10 +245,10 @@ func LoadExchange(name string, useWG bool, wg *sync.WaitGroup) error {
 	return nil
 }
 
-// SetupExchanges sets up the exchanges used by the bot
+// SetupExchanges sets up the exchanges used by the Bot
 func SetupExchanges() {
 	var wg sync.WaitGroup
-	for _, exch := range bot.config.Exchanges {
+	for _, exch := range Bot.Config.Exchanges {
 		if CheckExchangeExists(exch.Name) {
 			e := GetExchangeByName(exch.Name)
 			if e == nil {
@@ -248,7 +269,7 @@ func SetupExchanges() {
 			return
 
 		}
-		if !exch.Enabled {
+		if !exch.Enabled && !Bot.Settings.EnableAllExchanges {
 			log.Printf("%s: Exchange support: Disabled", exch.Name)
 			continue
 		} else {

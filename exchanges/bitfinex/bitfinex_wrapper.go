@@ -71,8 +71,8 @@ func (b *Bitfinex) UpdateTicker(p pair.CurrencyPair, assetType string) (ticker.P
 	return ticker.GetTicker(b.Name, p, assetType)
 }
 
-// GetTickerPrice returns the ticker for a currency pair
-func (b *Bitfinex) GetTickerPrice(p pair.CurrencyPair, assetType string) (ticker.Price, error) {
+// FetchTicker returns the ticker for a currency pair
+func (b *Bitfinex) FetchTicker(p pair.CurrencyPair, assetType string) (ticker.Price, error) {
 	tick, err := ticker.GetTicker(b.GetName(), p, ticker.Spot)
 	if err != nil {
 		return b.UpdateTicker(p, assetType)
@@ -80,8 +80,8 @@ func (b *Bitfinex) GetTickerPrice(p pair.CurrencyPair, assetType string) (ticker
 	return tick, nil
 }
 
-// GetOrderbookEx returns the orderbook for a currency pair
-func (b *Bitfinex) GetOrderbookEx(p pair.CurrencyPair, assetType string) (orderbook.Base, error) {
+// FetchOrderbook returns the orderbook for a currency pair
+func (b *Bitfinex) FetchOrderbook(p pair.CurrencyPair, assetType string) (orderbook.Base, error) {
 	ob, err := orderbook.GetOrderbook(b.GetName(), p, assetType)
 	if err != nil {
 		return b.UpdateOrderbook(p, assetType)

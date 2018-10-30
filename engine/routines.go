@@ -1,4 +1,4 @@
-package main
+package engine
 
 import (
 	"errors"
@@ -18,7 +18,7 @@ import (
 )
 
 func printCurrencyFormat(price float64) string {
-	displaySymbol, err := symbol.GetSymbolByCurrencyName(bot.config.Currency.FiatDisplayCurrency)
+	displaySymbol, err := symbol.GetSymbolByCurrencyName(Bot.Config.Currency.FiatDisplayCurrency)
 	if err != nil {
 		log.Printf("Failed to get display symbol: %s", err)
 	}
@@ -27,7 +27,7 @@ func printCurrencyFormat(price float64) string {
 }
 
 func printConvertCurrencyFormat(origCurrency string, origPrice float64) string {
-	displayCurrency := bot.config.Currency.FiatDisplayCurrency
+	displayCurrency := Bot.Config.Currency.FiatDisplayCurrency
 	conv, err := currency.ConvertCurrency(origPrice, origCurrency, displayCurrency)
 	if err != nil {
 		log.Printf("Failed to convert currency: %s", err)
@@ -63,7 +63,7 @@ func printTickerSummary(result ticker.Price, p pair.CurrencyPair, assetType, exc
 	}
 
 	stats.Add(exchangeName, p, assetType, result.Last, result.Volume)
-	if currency.IsFiatCurrency(p.SecondCurrency.String()) && p.SecondCurrency.String() != bot.config.Currency.FiatDisplayCurrency {
+	if currency.IsFiatCurrency(p.SecondCurrency.String()) && p.SecondCurrency.String() != Bot.Config.Currency.FiatDisplayCurrency {
 		origCurrency := p.SecondCurrency.Upper().String()
 		log.Printf("%s %s %s: TICKER: Last %s Ask %s Bid %s High %s Low %s Volume %.8f",
 			exchangeName,
@@ -76,7 +76,7 @@ func printTickerSummary(result ticker.Price, p pair.CurrencyPair, assetType, exc
 			printConvertCurrencyFormat(origCurrency, result.Low),
 			result.Volume)
 	} else {
-		if currency.IsFiatCurrency(p.SecondCurrency.String()) && p.SecondCurrency.Upper().String() == bot.config.Currency.FiatDisplayCurrency {
+		if currency.IsFiatCurrency(p.SecondCurrency.String()) && p.SecondCurrency.Upper().String() == Bot.Config.Currency.FiatDisplayCurrency {
 			log.Printf("%s %s %s: TICKER: Last %s Ask %s Bid %s High %s Low %s Volume %.8f",
 				exchangeName,
 				exchange.FormatCurrency(p).String(),
@@ -114,7 +114,7 @@ func printOrderbookSummary(result orderbook.Base, p pair.CurrencyPair, assetType
 	bidsAmount, bidsValue := result.CalculateTotalBids()
 	asksAmount, asksValue := result.CalculateTotalAsks()
 
-	if currency.IsFiatCurrency(p.SecondCurrency.String()) && p.SecondCurrency.String() != bot.config.Currency.FiatDisplayCurrency {
+	if currency.IsFiatCurrency(p.SecondCurrency.String()) && p.SecondCurrency.String() != Bot.Config.Currency.FiatDisplayCurrency {
 		origCurrency := p.SecondCurrency.Upper().String()
 		log.Printf("%s %s %s: ORDERBOOK: Bids len: %d Amount: %f %s. Total value: %s Asks len: %d Amount: %f %s. Total value: %s",
 			exchangeName,
@@ -130,7 +130,7 @@ func printOrderbookSummary(result orderbook.Base, p pair.CurrencyPair, assetType
 			printConvertCurrencyFormat(origCurrency, asksValue),
 		)
 	} else {
-		if currency.IsFiatCurrency(p.SecondCurrency.String()) && p.SecondCurrency.Upper().String() == bot.config.Currency.FiatDisplayCurrency {
+		if currency.IsFiatCurrency(p.SecondCurrency.String()) && p.SecondCurrency.Upper().String() == Bot.Config.Currency.FiatDisplayCurrency {
 			log.Printf("%s %s %s: ORDERBOOK: Bids len: %d Amount: %f %s. Total value: %s Asks len: %d Amount: %f %s. Total value: %s",
 				exchangeName,
 				exchange.FormatCurrency(p).String(),
@@ -182,16 +182,18 @@ func TickerUpdaterRoutine() {
 	log.Println("Starting ticker updater routine.")
 	var wg sync.WaitGroup
 	for {
-		wg.Add(len(bot.exchanges))
-		for x := range bot.exchanges {
+		wg.Add(len(Bot.Exchanges))
+		for x := range Bot.Exchanges {
 			go func(x int, wg *sync.WaitGroup) {
 				defer wg.Done()
-				if bot.exchanges[x] == nil {
+
+				if Bot.Exchanges[x] == nil || !Bot.Exchanges[x].SupportsREST() {
 					return
 				}
-				exchangeName := bot.exchanges[x].GetName()
-				enabledCurrencies := bot.exchanges[x].GetEnabledCurrencies()
-				supportsBatching := bot.exchanges[x].SupportsRESTTickerBatchUpdates()
+
+				exchangeName := Bot.Exchanges[x].GetName()
+				enabledCurrencies := Bot.Exchanges[x].GetEnabledCurrencies()
+				supportsBatching := Bot.Exchanges[x].SupportsRESTTickerBatchUpdates()
 				assetTypes, err := exchange.GetExchangeAssetTypes(exchangeName)
 				if err != nil {
 					log.Printf("failed to get %s exchange asset types. Error: %s",
@@ -205,12 +207,12 @@ func TickerUpdaterRoutine() {
 					if update {
 						result, err = exch.UpdateTicker(c, assetType)
 					} else {
-						result, err = exch.GetTickerPrice(c, assetType)
+						result, err = exch.FetchTicker(c, assetType)
 					}
 					printTickerSummary(result, c, assetType, exchangeName, err)
 					if err == nil {
-						bot.comms.StageTickerData(exchangeName, assetType, result)
-						if bot.config.Webserver.Enabled {
+						Bot.CommsRelayer.StageTickerData(exchangeName, assetType, result)
+						if Bot.Config.WebsocketServer.Enabled {
 							relayWebsocketEvent(result, "ticker_update", assetType, exchangeName)
 						}
 					}
@@ -219,10 +221,10 @@ func TickerUpdaterRoutine() {
 				for y := range assetTypes {
 					for z := range enabledCurrencies {
 						if supportsBatching && z > 0 {
-							processTicker(bot.exchanges[x], false, enabledCurrencies[z], assetTypes[y])
+							processTicker(Bot.Exchanges[x], false, enabledCurrencies[z], assetTypes[y])
 							continue
 						}
-						processTicker(bot.exchanges[x], true, enabledCurrencies[z], assetTypes[y])
+						processTicker(Bot.Exchanges[x], true, enabledCurrencies[z], assetTypes[y])
 					}
 				}
 			}(x, &wg)
@@ -239,16 +241,17 @@ func OrderbookUpdaterRoutine() {
 	log.Println("Starting orderbook updater routine.")
 	var wg sync.WaitGroup
 	for {
-		wg.Add(len(bot.exchanges))
-		for x := range bot.exchanges {
+		wg.Add(len(Bot.Exchanges))
+		for x := range Bot.Exchanges {
 			go func(x int, wg *sync.WaitGroup) {
 				defer wg.Done()
 
-				if bot.exchanges[x] == nil {
+				if Bot.Exchanges[x] == nil || !Bot.Exchanges[x].SupportsREST() {
 					return
 				}
-				exchangeName := bot.exchanges[x].GetName()
-				enabledCurrencies := bot.exchanges[x].GetEnabledCurrencies()
+
+				exchangeName := Bot.Exchanges[x].GetName()
+				enabledCurrencies := Bot.Exchanges[x].GetEnabledCurrencies()
 				assetTypes, err := exchange.GetExchangeAssetTypes(exchangeName)
 				if err != nil {
 					log.Printf("failed to get %s exchange asset types. Error: %s",
@@ -260,8 +263,8 @@ func OrderbookUpdaterRoutine() {
 					result, err := exch.UpdateOrderbook(c, assetType)
 					printOrderbookSummary(result, c, assetType, exchangeName, err)
 					if err == nil {
-						bot.comms.StageOrderbookData(exchangeName, assetType, result)
-						if bot.config.Webserver.Enabled {
+						Bot.CommsRelayer.StageOrderbookData(exchangeName, assetType, result)
+						if Bot.Config.WebsocketServer.Enabled {
 							relayWebsocketEvent(result, "orderbook_update", assetType, exchangeName)
 						}
 					}
@@ -269,7 +272,7 @@ func OrderbookUpdaterRoutine() {
 
 				for y := range assetTypes {
 					for z := range enabledCurrencies {
-						processOrderbook(bot.exchanges[x], enabledCurrencies[z], assetTypes[y])
+						processOrderbook(Bot.Exchanges[x], enabledCurrencies[z], assetTypes[y])
 					}
 				}
 			}(x, &wg)
@@ -281,31 +284,35 @@ func OrderbookUpdaterRoutine() {
 }
 
 // WebsocketRoutine Initial routine management system for websocket
-func WebsocketRoutine(verbose bool) {
-	log.Println("Connecting exchange websocket services...")
+func WebsocketRoutine() {
+	if Bot.Settings.Verbose {
+		log.Println("Connecting exchange websocket services...")
+	}
 
-	for i := range bot.exchanges {
+	for i := range Bot.Exchanges {
 		go func(i int) {
-			if verbose {
-				log.Printf("Establishing websocket connection for %s",
-					bot.exchanges[i].GetName())
-			}
+			if Bot.Exchanges[i].SupportsWebsocket() {
+				if Bot.Settings.Verbose {
+					log.Printf("Exchange %s websocket support: Yes Enabled: %v", Bot.Exchanges[i].GetName(),
+						common.IsEnabled(Bot.Exchanges[i].IsWebsocketEnabled()))
+				}
 
-			ws, err := bot.exchanges[i].GetWebsocket()
-			if err != nil {
-				return
-			}
+				if Bot.Exchanges[i].IsWebsocketEnabled() {
+					ws, err := Bot.Exchanges[i].GetWebsocket()
+					if err != nil {
+						return
+					}
+					// Data handler routine
+					go WebsocketDataHandler(ws)
 
-			// Data handler routine
-			go WebsocketDataHandler(ws, verbose)
-
-			err = ws.Connect()
-			if err != nil {
-				switch err.Error() {
-				case exchange.WebsocketNotEnabled:
-					// Store in memory if enabled in future
-				default:
-					log.Println(err)
+					err = ws.Connect()
+					if err != nil {
+						log.Println(err)
+					}
+				}
+			} else {
+				if Bot.Settings.Verbose {
+					log.Printf("Exchange %s websocket support: No", Bot.Exchanges[i].GetName())
 				}
 			}
 		}(i)
@@ -343,7 +350,7 @@ func Websocketshutdown(ws *exchange.Websocket) error {
 
 // streamDiversion is a diversion switch from websocket to REST or other
 // alternative feed
-func streamDiversion(ws *exchange.Websocket, verbose bool) {
+func streamDiversion(ws *exchange.Websocket) {
 	wg.Add(1)
 	defer wg.Done()
 
@@ -353,12 +360,12 @@ func streamDiversion(ws *exchange.Websocket, verbose bool) {
 			return
 
 		case <-ws.Connected:
-			if verbose {
+			if Bot.Settings.Verbose {
 				log.Printf("exchange %s websocket feed connected", ws.GetName())
 			}
 
 		case <-ws.Disconnected:
-			if verbose {
+			if Bot.Settings.Verbose {
 				log.Printf("exchange %s websocket feed disconnected, switching to REST functionality",
 					ws.GetName())
 			}
@@ -368,11 +375,11 @@ func streamDiversion(ws *exchange.Websocket, verbose bool) {
 
 // WebsocketDataHandler handles websocket data coming from a websocket feed
 // associated with an exchange
-func WebsocketDataHandler(ws *exchange.Websocket, verbose bool) {
+func WebsocketDataHandler(ws *exchange.Websocket) {
 	wg.Add(1)
 	defer wg.Done()
 
-	go streamDiversion(ws, verbose)
+	go streamDiversion(ws)
 
 	for {
 		select {
@@ -384,7 +391,7 @@ func WebsocketDataHandler(ws *exchange.Websocket, verbose bool) {
 			case string:
 				switch data.(string) {
 				case exchange.WebsocketNotEnabled:
-					if verbose {
+					if Bot.Settings.Verbose {
 						log.Printf("routines.go warning - exchange %s weboscket not enabled",
 							ws.GetName())
 					}
@@ -396,7 +403,7 @@ func WebsocketDataHandler(ws *exchange.Websocket, verbose bool) {
 			case error:
 				switch {
 				case common.StringContains(data.(error).Error(), "close 1006"):
-					go WebsocketReconnect(ws, verbose)
+					go WebsocketReconnect(ws, Bot.Settings.Verbose)
 					continue
 				default:
 					log.Fatalf("routines.go exchange %s websocket error - %s", ws.GetName(), data)
@@ -404,27 +411,27 @@ func WebsocketDataHandler(ws *exchange.Websocket, verbose bool) {
 
 			case exchange.TradeData:
 				// Trade Data
-				if verbose {
+				if Bot.Settings.Verbose {
 					log.Println("Websocket trades Updated:   ", data.(exchange.TradeData))
 				}
 
 			case exchange.TickerData:
 				// Ticker data
-				if verbose {
+				if Bot.Settings.Verbose {
 					log.Println("Websocket Ticker Updated:   ", data.(exchange.TickerData))
 				}
 			case exchange.KlineData:
 				// Kline data
-				if verbose {
+				if Bot.Settings.Verbose {
 					log.Println("Websocket Kline Updated:    ", data.(exchange.KlineData))
 				}
 			case exchange.WebsocketOrderbookUpdate:
 				// Orderbook data
-				if verbose {
+				if Bot.Settings.Verbose {
 					log.Println("Websocket Orderbook Updated:", data.(exchange.WebsocketOrderbookUpdate))
 				}
 			default:
-				if verbose {
+				if Bot.Settings.Verbose {
 					log.Println("Websocket Unknown type:     ", data)
 				}
 			}

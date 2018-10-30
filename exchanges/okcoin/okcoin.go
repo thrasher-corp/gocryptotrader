@@ -102,6 +102,8 @@ func (o *OKCoin) SetDefaults() {
 	o.APIWithdrawPermissions = exchange.AutoWithdrawCrypto | exchange.WithdrawFiatViaWebsiteOnly
 	o.SupportsAutoPairUpdating = false
 	o.SupportsRESTTickerBatching = false
+	o.SupportsRESTAPI = true
+	o.SupportsWebsocketAPI = true
 	o.WebsocketInit()
 }
 

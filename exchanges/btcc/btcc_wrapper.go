@@ -82,8 +82,8 @@ func (b *BTCC) UpdateTicker(p pair.CurrencyPair, assetType string) (ticker.Price
 	return ticker.Price{}, errors.New("REST NOT SUPPORTED")
 }
 
-// GetTickerPrice returns the ticker for a currency pair
-func (b *BTCC) GetTickerPrice(p pair.CurrencyPair, assetType string) (ticker.Price, error) {
+// FetchTicker returns the ticker for a currency pair
+func (b *BTCC) FetchTicker(p pair.CurrencyPair, assetType string) (ticker.Price, error) {
 	// tickerNew, err := ticker.GetTicker(b.GetName(), p, assetType)
 	// if err != nil {
 	// 	return b.UpdateTicker(p, assetType)
@@ -92,8 +92,8 @@ func (b *BTCC) GetTickerPrice(p pair.CurrencyPair, assetType string) (ticker.Pri
 	return ticker.Price{}, errors.New("REST NOT SUPPORTED")
 }
 
-// GetOrderbookEx returns the orderbook for a currency pair
-func (b *BTCC) GetOrderbookEx(p pair.CurrencyPair, assetType string) (orderbook.Base, error) {
+// FetchOrderbook returns the orderbook for a currency pair
+func (b *BTCC) FetchOrderbook(p pair.CurrencyPair, assetType string) (orderbook.Base, error) {
 	// ob, err := orderbook.GetOrderbook(b.GetName(), p, assetType)
 	// if err != nil {
 	// 	return b.UpdateOrderbook(p, assetType)

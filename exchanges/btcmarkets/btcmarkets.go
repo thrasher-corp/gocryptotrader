@@ -66,13 +66,14 @@ func (b *BTCMarkets) SetDefaults() {
 	b.AssetTypes = []string{ticker.Spot}
 	b.SupportsAutoPairUpdating = true
 	b.SupportsRESTTickerBatching = false
+	b.SupportsRESTAPI = true
+	b.SupportsWebsocketAPI = false
 	b.Requester = request.New(b.Name,
 		request.NewRateLimit(time.Second*10, btcmarketsAuthLimit),
 		request.NewRateLimit(time.Second*10, btcmarketsUnauthLimit),
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 	b.APIUrlDefault = btcMarketsAPIURL
 	b.APIUrl = b.APIUrlDefault
-	b.WebsocketInit()
 }
 
 // Setup takes in an exchange configuration and sets all parameters

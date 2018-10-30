@@ -1,4 +1,4 @@
-package main
+package engine
 
 import (
 	"testing"
@@ -10,8 +10,11 @@ var testSetup = false
 
 func SetupTest(t *testing.T) {
 	if !testSetup {
-		bot.config = &config.Cfg
-		err := bot.config.LoadConfig("./testdata/configtest.json")
+		if Bot == nil {
+			Bot = new(Engine)
+		}
+		Bot.Config = &config.Cfg
+		err := Bot.Config.LoadConfig("")
 		if err != nil {
 			t.Fatalf("Test failed. SetupTest: Failed to load config: %s", err)
 		}

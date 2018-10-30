@@ -51,22 +51,22 @@ main.go
 ```go
 var a exchange.IBotExchange
 
-for i := range bot.exchanges {
-  if bot.exchanges[i].GetName() == "ANX" {
-    a = bot.exchanges[i]
+for i := range bot.Exchanges {
+  if bot.Exchanges[i].GetName() == "ANX" {
+    a = bot.Exchanges[i]
   }
 }
 
 // Public calls - wrapper functions
 
 // Fetches current ticker information
-tick, err := a.GetTickerPrice()
+tick, err := a.FetchTicker()
 if err != nil {
   // Handle error
 }
 
 // Fetches current orderbook information
-ob, err := a.GetOrderbookEx()
+ob, err := a.FetchOrderbook()
 if err != nil {
   // Handle error
 }

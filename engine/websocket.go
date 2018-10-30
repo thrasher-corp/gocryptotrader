@@ -1,4 +1,4 @@
-package main
+package engine
 
 import (
 	"errors"
@@ -37,52 +37,6 @@ var wsHandlers = map[string]wsCommandHandler{
 	"getorderbook":     {authRequired: false, handler: wsGetOrderbook},
 	"getexchangerates": {authRequired: false, handler: wsGetExchangeRates},
 	"getportfolio":     {authRequired: true, handler: wsGetPortfolio},
-}
-
-// WebsocketClient stores information related to the websocket client
-type WebsocketClient struct {
-	Hub           *WebsocketHub
-	Conn          *websocket.Conn
-	Authenticated bool
-	authFailures  int
-	Send          chan []byte
-}
-
-// WebsocketHub stores the data for managing websocket clients
-type WebsocketHub struct {
-	Clients    map[*WebsocketClient]bool
-	Broadcast  chan []byte
-	Register   chan *WebsocketClient
-	Unregister chan *WebsocketClient
-}
-
-// WebsocketEvent is the struct used for websocket events
-type WebsocketEvent struct {
-	Exchange  string `json:"exchange,omitempty"`
-	AssetType string `json:"assetType,omitempty"`
-	Event     string
-	Data      interface{}
-}
-
-// WebsocketEventResponse is the struct used for websocket event responses
-type WebsocketEventResponse struct {
-	Event string      `json:"event"`
-	Data  interface{} `json:"data"`
-	Error string      `json:"error"`
-}
-
-// WebsocketOrderbookTickerRequest is a struct used for ticker and orderbook
-// requests
-type WebsocketOrderbookTickerRequest struct {
-	Exchange  string `json:"exchangeName"`
-	Currency  string `json:"currency"`
-	AssetType string `json:"assetType"`
-}
-
-// WebsocketAuth is a struct used for
-type WebsocketAuth struct {
-	Username string `json:"username"`
-	Password string `json:"password"`
 }
 
 // NewWebsocketHub Creates a new websocket hub
@@ -256,7 +210,7 @@ func WebsocketClientHandler(w http.ResponseWriter, r *http.Request) {
 		StartWebsocketHandler()
 	}
 
-	connectionLimit := bot.config.Webserver.WebsocketConnectionLimit
+	connectionLimit := Bot.Config.Webserver.WebsocketConnectionLimit
 	numClients := len(wsHub.Clients)
 
 	if numClients >= connectionLimit {
@@ -273,7 +227,7 @@ func WebsocketClientHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Allow insecure origin if the Origin request header is present and not
 	// equal to the Host request header. Default to false
-	if bot.config.Webserver.WebsocketAllowInsecureOrigin {
+	if Bot.Config.Webserver.WebsocketAllowInsecureOrigin {
 		upgrader.CheckOrigin = func(r *http.Request) bool { return true }
 	}
 
@@ -305,8 +259,8 @@ func wsAuth(client *WebsocketClient, data interface{}) error {
 		return err
 	}
 
-	hashPW := common.HexEncodeToString(common.GetSHA256([]byte(bot.config.Webserver.AdminPassword)))
-	if auth.Username == bot.config.Webserver.AdminUsername && auth.Password == hashPW {
+	hashPW := common.HexEncodeToString(common.GetSHA256([]byte(Bot.Config.Webserver.AdminPassword)))
+	if auth.Username == Bot.Config.Webserver.AdminUsername && auth.Password == hashPW {
 		client.Authenticated = true
 		wsResp.Data = WebsocketResponseSuccess
 		log.Println("websocket: client authenticated successfully")
@@ -316,22 +270,22 @@ func wsAuth(client *WebsocketClient, data interface{}) error {
 	wsResp.Error = "invalid username/password"
 	client.authFailures++
 	client.SendWebsocketMessage(wsResp)
-	if client.authFailures >= bot.config.Webserver.WebsocketMaxAuthFailures {
+	if client.authFailures >= Bot.Config.Webserver.WebsocketMaxAuthFailures {
 		log.Printf("websocket: disconnecting client, maximum auth failures threshold reached (failures: %d limit: %d)",
-			client.authFailures, bot.config.Webserver.WebsocketMaxAuthFailures)
+			client.authFailures, Bot.Config.Webserver.WebsocketMaxAuthFailures)
 		wsHub.Unregister <- client
 		return nil
 	}
 
 	log.Printf("websocket: client sent wrong username/password (failures: %d limit: %d)",
-		client.authFailures, bot.config.Webserver.WebsocketMaxAuthFailures)
+		client.authFailures, Bot.Config.Webserver.WebsocketMaxAuthFailures)
 	return nil
 }
 
 func wsGetConfig(client *WebsocketClient, data interface{}) error {
 	wsResp := WebsocketEventResponse{
 		Event: "GetConfig",
-		Data:  bot.config,
+		Data:  Bot.Config,
 	}
 	return client.SendWebsocketMessage(wsResp)
 }
@@ -348,7 +302,7 @@ func wsSaveConfig(client *WebsocketClient, data interface{}) error {
 		return err
 	}
 
-	err = bot.config.UpdateConfig(bot.configFile, cfg)
+	err = Bot.Config.UpdateConfig(Bot.Settings.ConfigFile, cfg)
 	if err != nil {
 		wsResp.Error = err.Error()
 		client.SendWebsocketMessage(wsResp)
@@ -445,6 +399,6 @@ func wsGetPortfolio(client *WebsocketClient, data interface{}) error {
 	wsResp := WebsocketEventResponse{
 		Event: "GetPortfolio",
 	}
-	wsResp.Data = bot.portfolio.GetPortfolioSummary()
+	wsResp.Data = Bot.Portfolio.GetPortfolioSummary()
 	return client.SendWebsocketMessage(wsResp)
 }

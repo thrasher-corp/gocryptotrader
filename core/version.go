@@ -1,6 +1,9 @@
-package main
+package core
 
-import "fmt"
+import (
+	"fmt"
+	"runtime"
+)
 
 // const vars related to the app version
 const (
@@ -16,10 +19,10 @@ const (
 	Issues          = "Issues: https://github.com/thrasher-/gocryptotrader/issues"
 )
 
-// BuildVersion returns the version string
-func BuildVersion(short bool) string {
-	versionStr := fmt.Sprintf("GoCryptoTrader v%s.%s",
-		MajorVersion, MinorVersion)
+// Version returns the version string
+func Version(short bool) string {
+	versionStr := fmt.Sprintf("GoCryptoTrader v%s.%s %s %s",
+		MajorVersion, MinorVersion, runtime.GOARCH, runtime.Version())
 	if !IsRelease {
 		versionStr += " pre-release.\n"
 		if !short {

@@ -57,13 +57,14 @@ func (l *LakeBTC) SetDefaults() {
 	l.AssetTypes = []string{ticker.Spot}
 	l.SupportsAutoPairUpdating = true
 	l.SupportsRESTTickerBatching = true
+	l.SupportsRESTAPI = true
+	l.SupportsWebsocketAPI = false
 	l.Requester = request.New(l.Name,
 		request.NewRateLimit(time.Second, lakeBTCAuthRate),
 		request.NewRateLimit(time.Second, lakeBTCUnauth),
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 	l.APIUrlDefault = lakeBTCAPIURL
 	l.APIUrl = l.APIUrlDefault
-	l.WebsocketInit()
 }
 
 // Setup sets exchange configuration profile

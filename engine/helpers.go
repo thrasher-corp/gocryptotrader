@@ -1,13 +1,10 @@
-package main
+package engine
 
 import (
 	"errors"
 	"fmt"
-	"io"
 	"log"
-	"os"
 
-	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
 	"github.com/thrasher-/gocryptotrader/currency/translation"
@@ -18,47 +15,17 @@ import (
 	"github.com/thrasher-/gocryptotrader/portfolio"
 )
 
-const (
-	logFile = "debug.log"
-)
-
-var (
-	logFileHandle *os.File
-)
-
-// InitLogFile initialises the log file
-func InitLogFile(lFile string) error {
-	if logFileHandle != nil {
-		return nil
-	}
-
-	var err error
-	logFileHandle, err = os.OpenFile(lFile, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
-	if err != nil {
-		return err
-	}
-
-	wrt := io.MultiWriter(os.Stdout, logFileHandle)
-	log.SetOutput(wrt)
-	return nil
-}
-
-// GetLogFile returns the debug.log file
-func GetLogFile(dir string) string {
-	return dir + common.GetOSPathSlash() + logFile
-}
-
 // GetAllAvailablePairs returns a list of all available pairs on either enabled
 // or disabled exchanges
 func GetAllAvailablePairs(enabledExchangesOnly bool) []pair.CurrencyPair {
 	var pairList []pair.CurrencyPair
-	for x := range bot.config.Exchanges {
-		if enabledExchangesOnly && !bot.config.Exchanges[x].Enabled {
+	for x := range Bot.Config.Exchanges {
+		if enabledExchangesOnly && !Bot.Config.Exchanges[x].Enabled {
 			continue
 		}
 
-		exchName := bot.config.Exchanges[x].Name
-		pairs, err := bot.config.GetAvailablePairs(exchName)
+		exchName := Bot.Config.Exchanges[x].Name
+		pairs, err := Bot.Config.GetAvailablePairs(exchName)
 		if err != nil {
 			continue
 		}
@@ -124,12 +91,12 @@ func IsRelatablePairs(p1, p2 pair.CurrencyPair, includeUSDT bool) bool {
 func MapCurrenciesByExchange(p []pair.CurrencyPair, enabledExchangesOnly bool) map[string][]pair.CurrencyPair {
 	currencyExchange := make(map[string][]pair.CurrencyPair)
 	for x := range p {
-		for y := range bot.config.Exchanges {
-			if enabledExchangesOnly && !bot.config.Exchanges[y].Enabled {
+		for y := range Bot.Config.Exchanges {
+			if enabledExchangesOnly && !Bot.Config.Exchanges[y].Enabled {
 				continue
 			}
-			exchName := bot.config.Exchanges[y].Name
-			success, err := bot.config.SupportsPair(exchName, p[x])
+			exchName := Bot.Config.Exchanges[y].Name
+			success, err := Bot.Config.SupportsPair(exchName, p[x])
 			if err != nil || !success {
 				continue
 			}
@@ -155,13 +122,13 @@ func MapCurrenciesByExchange(p []pair.CurrencyPair, enabledExchangesOnly bool) m
 // a currency pair based on whether the exchange is enabled or not
 func GetExchangeNamesByCurrency(p pair.CurrencyPair, enabled bool) []string {
 	var exchanges []string
-	for x := range bot.config.Exchanges {
-		if enabled != bot.config.Exchanges[x].Enabled {
+	for x := range Bot.Config.Exchanges {
+		if enabled != Bot.Config.Exchanges[x].Enabled {
 			continue
 		}
 
-		exchName := bot.config.Exchanges[x].Name
-		success, err := bot.config.SupportsPair(exchName, p)
+		exchName := Bot.Config.Exchanges[x].Name
+		success, err := Bot.Config.SupportsPair(exchName, p)
 		if err != nil {
 			continue
 		}
@@ -259,10 +226,10 @@ func GetRelatableCurrencies(p pair.CurrencyPair, incOrig, incUSDT bool) []pair.C
 func GetSpecificOrderbook(currency, exchangeName, assetType string) (orderbook.Base, error) {
 	var specificOrderbook orderbook.Base
 	var err error
-	for x := range bot.exchanges {
-		if bot.exchanges[x] != nil {
-			if bot.exchanges[x].GetName() == exchangeName {
-				specificOrderbook, err = bot.exchanges[x].GetOrderbookEx(
+	for x := range Bot.Exchanges {
+		if Bot.Exchanges[x] != nil {
+			if Bot.Exchanges[x].GetName() == exchangeName {
+				specificOrderbook, err = Bot.Exchanges[x].FetchOrderbook(
 					pair.NewCurrencyPairFromString(currency),
 					assetType,
 				)
@@ -278,10 +245,10 @@ func GetSpecificOrderbook(currency, exchangeName, assetType string) (orderbook.B
 func GetSpecificTicker(currency, exchangeName, assetType string) (ticker.Price, error) {
 	var specificTicker ticker.Price
 	var err error
-	for x := range bot.exchanges {
-		if bot.exchanges[x] != nil {
-			if bot.exchanges[x].GetName() == exchangeName {
-				specificTicker, err = bot.exchanges[x].GetTickerPrice(
+	for x := range Bot.Exchanges {
+		if Bot.Exchanges[x] != nil {
+			if Bot.Exchanges[x].GetName() == exchangeName {
+				specificTicker, err = Bot.Exchanges[x].FetchTicker(
 					pair.NewCurrencyPairFromString(currency),
 					assetType,
 				)

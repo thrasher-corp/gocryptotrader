@@ -1,4 +1,4 @@
-package main
+package engine
 
 import (
 	"log"
@@ -25,14 +25,17 @@ var (
 func SetupTestHelpers(t *testing.T) {
 	if !helperTestLoaded {
 		if !testSetup {
-			bot.config = &config.Cfg
-			err := bot.config.LoadConfig("./testdata/configtest.json")
+			if Bot == nil {
+				Bot = new(Engine)
+			}
+			Bot.Config = &config.Cfg
+			err := Bot.Config.LoadConfig("./testdata/configtest.json")
 			if err != nil {
 				t.Fatalf("Test failed. SetupTest: Failed to load config: %s", err)
 			}
 			testSetup = true
 		}
-		err := bot.config.RetrieveConfigCurrencyPairs(true)
+		err := Bot.Config.RetrieveConfigCurrencyPairs(true)
 		if err != nil {
 			t.Fatalf("Failed to retrieve config currency pairs. %s", err)
 		}

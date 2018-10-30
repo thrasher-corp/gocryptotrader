@@ -127,6 +127,8 @@ func (b *Bitmex) SetDefaults() {
 	b.APIUrlDefault = bitmexAPIURL
 	b.APIUrl = b.APIUrlDefault
 	b.SupportsAutoPairUpdating = true
+	b.SupportsRESTAPI = true
+	b.SupportsWebsocketAPI = true
 	b.WebsocketInit()
 }
 

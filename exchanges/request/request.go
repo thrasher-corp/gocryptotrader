@@ -17,10 +17,17 @@ import (
 
 var supportedMethods = []string{"GET", "POST", "HEAD", "PUT", "DELETE", "OPTIONS", "CONNECT"}
 
+// Const vars for rate limiter
 const (
-	maxRequestJobs              = 50
+	DefaultMaxRequestJobs       = 50
 	proxyTLSTimeout             = 15 * time.Second
 	defaultTimeoutRetryAttempts = 3
+)
+
+// Vars for rate limiter
+var (
+	MaxRequestJobs     = DefaultMaxRequestJobs
+	DisableRateLimiter bool
 )
 
 // Requester struct for the request client
@@ -35,6 +42,7 @@ type Requester struct {
 	m                    sync.Mutex
 	Jobs                 chan Job
 	WorkerStarted        bool
+	DisableRateLimiter   bool
 }
 
 // RateLimit struct
@@ -139,6 +147,10 @@ func (r *Requester) IsRateLimited(auth bool) bool {
 
 // RequiresRateLimiter returns whether or not the request Requester requires a rate limiter
 func (r *Requester) RequiresRateLimiter() bool {
+	if DisableRateLimiter {
+		return false
+	}
+
 	if r.AuthLimit.GetRate() != 0 || r.UnauthLimit.GetRate() != 0 {
 		return true
 	}
@@ -211,7 +223,7 @@ func New(name string, authLimit, unauthLimit *RateLimit, httpRequester *http.Cli
 		UnauthLimit:          unauthLimit,
 		AuthLimit:            authLimit,
 		Name:                 name,
-		Jobs:                 make(chan Job, maxRequestJobs),
+		Jobs:                 make(chan Job, MaxRequestJobs),
 		timeoutRetryAttempts: defaultTimeoutRetryAttempts,
 	}
 }
@@ -369,7 +381,7 @@ func (r *Requester) SendPayload(method, path string, headers map[string]string, 
 		return r.DoRequest(req, method, path, headers, body, result, authRequest, verbose)
 	}
 
-	if len(r.Jobs) == maxRequestJobs {
+	if len(r.Jobs) == MaxRequestJobs {
 		return errors.New("max request jobs reached")
 	}
 

@@ -49,8 +49,8 @@ func (i *ItBit) UpdateTicker(p pair.CurrencyPair, assetType string) (ticker.Pric
 	return ticker.GetTicker(i.Name, p, assetType)
 }
 
-// GetTickerPrice returns the ticker for a currency pair
-func (i *ItBit) GetTickerPrice(p pair.CurrencyPair, assetType string) (ticker.Price, error) {
+// FetchTicker returns the ticker for a currency pair
+func (i *ItBit) FetchTicker(p pair.CurrencyPair, assetType string) (ticker.Price, error) {
 	tickerNew, err := ticker.GetTicker(i.GetName(), p, assetType)
 	if err != nil {
 		return i.UpdateTicker(p, assetType)
@@ -58,8 +58,8 @@ func (i *ItBit) GetTickerPrice(p pair.CurrencyPair, assetType string) (ticker.Pr
 	return tickerNew, nil
 }
 
-// GetOrderbookEx returns orderbook base on the currency pair
-func (i *ItBit) GetOrderbookEx(p pair.CurrencyPair, assetType string) (orderbook.Base, error) {
+// FetchOrderbook returns orderbook base on the currency pair
+func (i *ItBit) FetchOrderbook(p pair.CurrencyPair, assetType string) (orderbook.Base, error) {
 	ob, err := orderbook.GetOrderbook(i.GetName(), p, assetType)
 	if err != nil {
 		return i.UpdateOrderbook(p, assetType)

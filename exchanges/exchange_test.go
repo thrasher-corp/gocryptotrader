@@ -382,7 +382,7 @@ func TestGetName(t *testing.T) {
 
 	name := GetName.GetName()
 	if name != "TESTNAME" {
-		t.Error("Test Failed - Exchange getName() returned incorrect name")
+		t.Error("Test Failed - Exchange GetName() returned incorrect name")
 	}
 }
 

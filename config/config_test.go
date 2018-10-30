@@ -709,75 +709,125 @@ func TestCheckExchangeConfigValues(t *testing.T) {
 	}
 }
 
-func TestCheckWebserverConfigValues(t *testing.T) {
-	checkWebserverConfigValues := GetConfig()
-	err := checkWebserverConfigValues.LoadConfig(ConfigTestFile)
+func TestCheckRESTServerConfigValues(t *testing.T) {
+	c := GetConfig()
+	err := c.LoadConfig(ConfigTestFile)
 	if err != nil {
 		t.Errorf(
-			"Test failed. checkWebserverConfigValues.LoadConfig: %s", err.Error(),
+			"Test failed. CheckRESTServerConfigValues: %s", err.Error(),
 		)
 	}
 
-	err = checkWebserverConfigValues.CheckWebserverConfigValues()
+	err = c.CheckRESTServerConfigValues()
 	if err != nil {
 		t.Errorf(
-			"Test failed. checkWebserverConfigValues.CheckWebserverConfigValues: %s",
+			"Test failed. CheckRESTServerConfigValues: %s",
 			err.Error(),
 		)
 	}
 
-	checkWebserverConfigValues.Webserver.WebsocketConnectionLimit = -1
-	err = checkWebserverConfigValues.CheckWebserverConfigValues()
+	c.RESTServer.ListenAddress = ":0"
+	err = c.CheckRESTServerConfigValues()
+	if err == nil {
+		t.Error(
+			"Test failed. CheckRESTServerConfigValues error",
+		)
+	}
+
+	c.RESTServer.ListenAddress = ":LOLOLOL"
+	err = c.CheckRESTServerConfigValues()
+	if err == nil {
+		t.Error(
+			"Test failed. CheckRESTServerConfigValues error",
+		)
+	}
+
+	c.RESTServer.ListenAddress = "LOLOLOL"
+	err = c.CheckRESTServerConfigValues()
+	if err == nil {
+		t.Error(
+			"Test failed. CheckRESTServerConfigValues error",
+		)
+	}
+
+	c.RESTServer.AdminUsername = ""
+	err = c.CheckRESTServerConfigValues()
+	if err == nil {
+		t.Error(
+			"Test failed. CheckRESTServerConfigValues error",
+		)
+	}
+}
+
+func TestCheckWebsocketServerConfigValues(t *testing.T) {
+	c := GetConfig()
+	err := c.LoadConfig(ConfigTestFile)
 	if err != nil {
 		t.Errorf(
-			"Test failed. checkWebserverConfigValues.CheckWebserverConfigValues: %s",
+			"Test failed. TestCheckWebsocketServerConfigValues - LoadConfig: %s", err.Error(),
+		)
+	}
+
+	err = c.CheckWebsocketServerConfigValues()
+	if err != nil {
+		t.Errorf(
+			"Test failed. CheckWebsocketServerConfigValues: %s",
 			err.Error(),
 		)
 	}
 
-	if checkWebserverConfigValues.Webserver.WebsocketConnectionLimit != 1 {
-		t.Error(
-			"Test failed. checkWebserverConfigValues.CheckWebserverConfigValues error",
+	c.WebsocketServer.WebsocketConnectionLimit = -1
+	err = c.CheckWebsocketServerConfigValues()
+	if err != nil {
+		t.Errorf(
+			"Test failed. CheckWebsocketServerConfigValues: %s",
+			err.Error(),
 		)
 	}
 
-	checkWebserverConfigValues.Webserver.WebsocketMaxAuthFailures = -1
-	checkWebserverConfigValues.CheckWebserverConfigValues()
-	if checkWebserverConfigValues.Webserver.WebsocketMaxAuthFailures != 3 {
+	if c.WebsocketServer.WebsocketConnectionLimit != 1 {
 		t.Error(
-			"Test failed. checkWebserverConfigValues.CheckWebserverConfigValues error",
+			"Test failed. CheckWebsocketServerConfigValues invalid values",
 		)
 	}
 
-	checkWebserverConfigValues.Webserver.ListenAddress = ":0"
-	err = checkWebserverConfigValues.CheckWebserverConfigValues()
+	c.WebsocketServer.WebsocketMaxAuthFailures = -1
+	c.CheckWebsocketServerConfigValues()
+	if c.WebsocketServer.WebsocketMaxAuthFailures != 3 {
+		t.Error(
+			"Test failed. CheckWebsocketServerConfigValues invalid values",
+		)
+	}
+
+	c.WebsocketServer.ListenAddress = ":0"
+	err = c.CheckWebsocketServerConfigValues()
 	if err == nil {
 		t.Error(
-			"Test failed. checkWebserverConfigValues.CheckWebserverConfigValues error",
+			"Test failed. CheckWebsocketServerConfigValues should have returned an error on a bad listen address (bad port)",
 		)
 	}
 
-	checkWebserverConfigValues.Webserver.ListenAddress = ":LOLOLOL"
-	err = checkWebserverConfigValues.CheckWebserverConfigValues()
+	c.WebsocketServer.ListenAddress = ":LOLOLOL"
+	err = c.CheckWebsocketServerConfigValues()
 	if err == nil {
 		t.Error(
-			"Test failed. checkWebserverConfigValues.CheckWebserverConfigValues error",
+			"Test failed. CheckWebsocketServerConfigValues should have returned an error on a bad listen address (bad port)",
 		)
 	}
 
-	checkWebserverConfigValues.Webserver.ListenAddress = "LOLOLOL"
-	err = checkWebserverConfigValues.CheckWebserverConfigValues()
+	c.WebsocketServer.ListenAddress = "LOLOLOL"
+	err = c.CheckWebsocketServerConfigValues()
 	if err == nil {
 		t.Error(
-			"Test failed. checkWebserverConfigValues.CheckWebserverConfigValues error",
+			"Test failed. CheckWebsocketServerConfigValues should have returned an error on a bad listen address",
 		)
 	}
 
-	checkWebserverConfigValues.Webserver.AdminUsername = ""
-	err = checkWebserverConfigValues.CheckWebserverConfigValues()
+	c.WebsocketServer.AdminUsername = ""
+	err = c.CheckWebsocketServerConfigValues()
 	if err == nil {
 		t.Error(
-			"Test failed. checkWebserverConfigValues.CheckWebserverConfigValues error",
+			"Test failed. CheckWebsocketServerConfigValues should have returned an error on a nil AdminUsername",
 		)
 	}
 }
