@@ -178,13 +178,16 @@ func ProcessOrderbook(exchangeName string, p pair.CurrencyPair, orderbookNew Bas
 	}
 
 	if FirstCurrencyExists(exchangeName, p.FirstCurrency) {
-		if !SecondCurrencyExists(exchangeName, p) {
+		if SecondCurrencyExists(exchangeName, p) {
 			m.Lock()
-			a := orderbook.Orderbook[p.FirstCurrency]
+			orderbook.Orderbook[p.FirstCurrency][p.SecondCurrency][orderbookType] = orderbookNew
+			m.Unlock()
+			return
+		} else {
+			m.Lock()
 			b := make(map[string]Base)
 			b[orderbookType] = orderbookNew
-			a[p.SecondCurrency] = b
-			orderbook.Orderbook[p.FirstCurrency] = a
+			orderbook.Orderbook[p.FirstCurrency][p.SecondCurrency] = b
 			m.Unlock()
 			return
 		}
