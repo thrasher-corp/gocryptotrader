@@ -50,7 +50,6 @@ const (
 type Kraken struct {
 	exchange.Base
 	CryptoFee, FiatFee float64
-	Ticker             map[string]Ticker
 }
 
 // SetDefaults sets current default settings
@@ -61,7 +60,6 @@ func (k *Kraken) SetDefaults() {
 	k.CryptoFee = 0.10
 	k.Verbose = false
 	k.RESTPollingDelay = 10
-	k.Ticker = make(map[string]Ticker)
 	k.RequestCurrencyPairFormat.Delimiter = ""
 	k.RequestCurrencyPairFormat.Uppercase = true
 	k.RequestCurrencyPairFormat.Separator = ","
@@ -200,6 +198,48 @@ func (k *Kraken) GetTicker(symbol string) (Ticker, error) {
 		ticker.Open, _ = strconv.ParseFloat(y.Open, 64)
 	}
 	return ticker, nil
+}
+
+// GetTickers supports fetching multiple tickers from Kraken
+// pairList must be in the format pairs separated by commas
+// ("LTCUSD,ETCUSD")
+func (k *Kraken) GetTickers(pairList string) (Tickers, error) {
+	values := url.Values{}
+	values.Set("pair", pairList)
+
+	type Response struct {
+		Error []interface{}             `json:"error"`
+		Data  map[string]TickerResponse `json:"result"`
+	}
+
+	resp := Response{}
+	path := fmt.Sprintf("%s/%s/public/%s?%s", krakenAPIURL, krakenAPIVersion, krakenTicker, values.Encode())
+
+	err := k.SendHTTPRequest(path, &resp)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(resp.Error) > 0 {
+		return nil, fmt.Errorf("Kraken error: %s", resp.Error)
+	}
+
+	tickers := make(Tickers)
+
+	for x, y := range resp.Data {
+		ticker := Ticker{}
+		ticker.Ask, _ = strconv.ParseFloat(y.Ask[0], 64)
+		ticker.Bid, _ = strconv.ParseFloat(y.Bid[0], 64)
+		ticker.Last, _ = strconv.ParseFloat(y.Last[0], 64)
+		ticker.Volume, _ = strconv.ParseFloat(y.Volume[1], 64)
+		ticker.VWAP, _ = strconv.ParseFloat(y.VWAP[1], 64)
+		ticker.Trades = y.Trades[1]
+		ticker.Low, _ = strconv.ParseFloat(y.Low[1], 64)
+		ticker.High, _ = strconv.ParseFloat(y.High[1], 64)
+		ticker.Open, _ = strconv.ParseFloat(y.Open, 64)
+		tickers[x] = ticker
+	}
+	return tickers, nil
 }
 
 // GetOHLC returns an array of open high low close values of a currency pair

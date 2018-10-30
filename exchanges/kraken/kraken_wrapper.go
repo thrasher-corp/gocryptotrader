@@ -2,10 +2,7 @@ package kraken
 
 import (
 	"errors"
-	"fmt"
 	"log"
-	"net/url"
-	"strconv"
 	"sync"
 
 	"github.com/thrasher-/gocryptotrader/common"
@@ -80,13 +77,13 @@ func (k *Kraken) UpdateTicker(p pair.CurrencyPair, assetType string) (ticker.Pri
 	if err != nil {
 		return tickerPrice, err
 	}
-	err = k.SetTicker(pairsCollated.String())
+	tickers, err := k.GetTickers(pairsCollated.String())
 	if err != nil {
 		return tickerPrice, err
 	}
 
 	for _, x := range pairs {
-		for y, z := range k.Ticker {
+		for y, z := range tickers {
 			if common.StringContains(y, x.FirstCurrency.Upper().String()) && common.StringContains(y, x.SecondCurrency.Upper().String()) {
 				var tp ticker.Price
 				tp.Pair = x
@@ -101,44 +98,6 @@ func (k *Kraken) UpdateTicker(p pair.CurrencyPair, assetType string) (ticker.Pri
 		}
 	}
 	return ticker.GetTicker(k.GetName(), p, assetType)
-}
-
-// SetTicker sets ticker information from kraken
-func (k *Kraken) SetTicker(symbol string) error {
-	values := url.Values{}
-	values.Set("pair", symbol)
-
-	type Response struct {
-		Error []interface{}             `json:"error"`
-		Data  map[string]TickerResponse `json:"result"`
-	}
-
-	resp := Response{}
-	path := fmt.Sprintf("%s/%s/public/%s?%s", krakenAPIURL, krakenAPIVersion, krakenTicker, values.Encode())
-
-	err := k.SendHTTPRequest(path, &resp)
-	if err != nil {
-		return err
-	}
-
-	if len(resp.Error) > 0 {
-		return fmt.Errorf("Kraken error: %s", resp.Error)
-	}
-
-	for x, y := range resp.Data {
-		ticker := Ticker{}
-		ticker.Ask, _ = strconv.ParseFloat(y.Ask[0], 64)
-		ticker.Bid, _ = strconv.ParseFloat(y.Bid[0], 64)
-		ticker.Last, _ = strconv.ParseFloat(y.Last[0], 64)
-		ticker.Volume, _ = strconv.ParseFloat(y.Volume[1], 64)
-		ticker.VWAP, _ = strconv.ParseFloat(y.VWAP[1], 64)
-		ticker.Trades = y.Trades[1]
-		ticker.Low, _ = strconv.ParseFloat(y.Low[1], 64)
-		ticker.High, _ = strconv.ParseFloat(y.High[1], 64)
-		ticker.Open, _ = strconv.ParseFloat(y.Open, 64)
-		k.Ticker[x] = ticker
-	}
-	return nil
 }
 
 // GetTickerPrice returns the ticker for a currency pair

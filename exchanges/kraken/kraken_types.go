@@ -49,6 +49,9 @@ type Ticker struct {
 	Open   float64
 }
 
+// Tickers stores a map of tickers
+type Tickers map[string]Ticker
+
 // TickerResponse holds ticker information before its put into the Ticker struct
 type TickerResponse struct {
 	Ask    []string `json:"a"`

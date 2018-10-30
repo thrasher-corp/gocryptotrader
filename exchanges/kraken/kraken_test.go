@@ -69,6 +69,14 @@ func TestGetTicker(t *testing.T) {
 	}
 }
 
+func TestGetTickers(t *testing.T) {
+	t.Parallel()
+	_, err := k.GetTickers("LTCUSD,ETCUSD")
+	if err != nil {
+		t.Error("Test failed - GetTickers() error", err)
+	}
+}
+
 func TestGetOHLC(t *testing.T) {
 	t.Parallel()
 	_, err := k.GetOHLC("BCHEUR")
