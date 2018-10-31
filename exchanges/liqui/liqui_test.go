@@ -219,3 +219,15 @@ func TestGetFee(t *testing.T) {
 		t.Error(err)
 	}
 }
+
+func TestGetWithdrawPermissions(t *testing.T) {
+	// Arrange
+	l.SetDefaults()
+	expectedResult := exchange.NoAPIWithdrawalMethodsText
+	// Act
+	withdrawPermissions := l.GetWithdrawPermissions()
+	// Assert
+	if withdrawPermissions != expectedResult {
+		t.Errorf("Excpected: %s, Recieved: %s", expectedResult, withdrawPermissions)
+	}
+}

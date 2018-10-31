@@ -213,3 +213,8 @@ func (h *HitBTC) GetWebsocket() (*exchange.Websocket, error) {
 func (h *HitBTC) GetFeeByType(feeBuilder exchange.FeeBuilder) (float64, error) {
 	return h.GetFee(feeBuilder)
 }
+
+// GetWithdrawCapabilities returns the types of withdrawal methods permitted by the exchange
+func (h *HitBTC) GetWithdrawCapabilities() string {
+	return h.GetWithdrawPermissions()
+}

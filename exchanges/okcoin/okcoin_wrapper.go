@@ -244,3 +244,8 @@ func (o *OKCoin) GetWebsocket() (*exchange.Websocket, error) {
 func (o *OKCoin) GetFeeByType(feeBuilder exchange.FeeBuilder) (float64, error) {
 	return o.GetFee(feeBuilder)
 }
+
+// GetWithdrawCapabilities returns the types of withdrawal methods permitted by the exchange
+func (o *OKCoin) GetWithdrawCapabilities() string {
+	return o.GetWithdrawPermissions()
+}

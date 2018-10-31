@@ -196,3 +196,8 @@ func (c *CoinbasePro) GetWebsocket() (*exchange.Websocket, error) {
 func (c *CoinbasePro) GetFeeByType(feeBuilder exchange.FeeBuilder) (float64, error) {
 	return c.GetFee(feeBuilder)
 }
+
+// GetWithdrawCapabilities returns the types of withdrawal methods permitted by the exchange
+func (c *CoinbasePro) GetWithdrawCapabilities() string {
+	return c.GetWithdrawPermissions()
+}

@@ -219,13 +219,7 @@ func (b *Bitstamp) GetWebsocket() (*exchange.Websocket, error) {
 	return b.Websocket, nil
 }
 
-// CanAutomaticallyWithdrawViaAPI checks if the exchange can withdraw without any additional verificantion
-// eg 2FA, email confirmation
-func (b *Bitstamp) CanAutomaticallyWithdrawViaAPI() (bool, error) {
-	return false, errors.New("not yet implemented")
-}
-
-// CanWithdrawViaAPI checks the permissions on the API keys to verify it can withdraw
-func (b *Bitstamp) CanWithdrawViaAPI() (bool, error) {
-	return false, errors.New("not yet implemented")
+// GetWithdrawCapabilities returns the types of withdrawal methods permitted by the exchange
+func (b *Bitstamp) GetWithdrawCapabilities() string {
+	return b.GetWithdrawPermissions()
 }

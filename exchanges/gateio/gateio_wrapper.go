@@ -185,3 +185,8 @@ func (g *Gateio) GetWebsocket() (*exchange.Websocket, error) {
 func (g *Gateio) GetFeeByType(feeBuilder exchange.FeeBuilder) (float64, error) {
 	return g.GetFee(feeBuilder)
 }
+
+// GetWithdrawCapabilities returns the types of withdrawal methods permitted by the exchange
+func (g *Gateio) GetWithdrawCapabilities() string {
+	return g.GetWithdrawPermissions()
+}

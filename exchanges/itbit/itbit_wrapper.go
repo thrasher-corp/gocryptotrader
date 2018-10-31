@@ -187,3 +187,8 @@ func (i *ItBit) GetWebsocket() (*exchange.Websocket, error) {
 func (i *ItBit) GetFeeByType(feeBuilder exchange.FeeBuilder) (float64, error) {
 	return i.GetFee(feeBuilder)
 }
+
+// GetWithdrawCapabilities returns the types of withdrawal methods permitted by the exchange
+func (i *ItBit) GetWithdrawCapabilities() string {
+	return i.GetWithdrawPermissions()
+}

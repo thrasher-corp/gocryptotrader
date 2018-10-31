@@ -80,12 +80,12 @@ func TestEditAd(t *testing.T) {
 
 func setFeeBuilder() exchange.FeeBuilder {
 	return exchange.FeeBuilder{
-		Amount:         1,
-		Delimiter:      "-",
-		FeeType:        exchange.CryptocurrencyTradeFee,
-		FirstCurrency:  symbol.LTC,
-		SecondCurrency: symbol.BTC,
-		IsMaker:        false,
+		Amount:              1,
+		Delimiter:           "-",
+		FeeType:             exchange.CryptocurrencyTradeFee,
+		FirstCurrency:       symbol.LTC,
+		SecondCurrency:      symbol.BTC,
+		IsMaker:             false,
 		PurchasePrice:       1,
 		CurrencyItem:        symbol.USD,
 		BankTransactionType: exchange.WireTransfer,
@@ -165,5 +165,17 @@ func TestGetFee(t *testing.T) {
 	if resp, err := l.GetFee(feeBuilder); resp != float64(0) || err != nil {
 		t.Errorf("Test Failed - GetFee() error. Expected: %f, Recieved: %f", float64(0), resp)
 		t.Error(err)
+	}
+}
+
+func TestGetWithdrawPermissions(t *testing.T) {
+	// Arrange
+	l.SetDefaults()
+	expectedResult := exchange.NoAPIWithdrawalMethodsText
+	// Act
+	withdrawPermissions := l.GetWithdrawPermissions()
+	// Assert
+	if withdrawPermissions != expectedResult {
+		t.Errorf("Excpected: %s, Recieved: %s", expectedResult, withdrawPermissions)
 	}
 }

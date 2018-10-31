@@ -86,42 +86,42 @@ type FeeBuilder struct {
 // Definitions for each type of withdrawal method for a given exchange
 const (
 	// No withdraw
-	NoAPIWithdrawalMethods                  uint64 = 0
+	NoAPIWithdrawalMethods                  uint32 = 0
 	NoAPIWithdrawalMethodsText              string = "NONE, WEBSITE ONLY"
-	AutoWithdrawCrypto                      uint64 = (1 << 0)
-	AutoWithdrawCryptoWithAPIPermission     uint64 = (1 << 1)
-	AutoWithdrawCryptoWithSetup             uint64 = (1 << 2)
+	AutoWithdrawCrypto                      uint32 = (1 << 0)
+	AutoWithdrawCryptoWithAPIPermission     uint32 = (1 << 1)
+	AutoWithdrawCryptoWithSetup             uint32 = (1 << 2)
 	AutoWithdrawCryptoText                  string = "AUTO WITHDRAW CRYPTO"
 	AutoWithdrawCryptoWithAPIPermissionText string = "AUTO WITHDRAW CRYPTO WITH API PERMISSION"
 	AutoWithdrawCryptoWithSetupText         string = "AUTO WITHDRAW CRYPTO WITH SETUP"
-	WithdrawCryptoWith2FA                   uint64 = (1 << 3)
-	WithdrawCryptoWithSMS                   uint64 = (1 << 4)
-	WithdrawCryptoWithEmail                 uint64 = (1 << 5)
-	WithdrawCryptoWithWebsiteApproval       uint64 = (1 << 6)
-	WithdrawCryptoWithAPIPermission         uint64 = (1 << 7)
+	WithdrawCryptoWith2FA                   uint32 = (1 << 3)
+	WithdrawCryptoWithSMS                   uint32 = (1 << 4)
+	WithdrawCryptoWithEmail                 uint32 = (1 << 5)
+	WithdrawCryptoWithWebsiteApproval       uint32 = (1 << 6)
+	WithdrawCryptoWithAPIPermission         uint32 = (1 << 7)
 	WithdrawCryptoWith2FAText               string = "WITHDRAW CRYPTO WITH 2FA"
 	WithdrawCryptoWithSMSText               string = "WITHDRAW CRYPTO WITH SMS"
 	WithdrawCryptoWithEmailText             string = "WITHDRAW CRYPTO WITH EMAIL"
 	WithdrawCryptoWithWebsiteApprovalText   string = "WITHDRAW CRYPTO WITH WEBSITE APPROVAL"
 	WithdrawCryptoWithAPIPermissionText     string = "WITHDRAW CRYPTO WITH API PERMISSION"
-	AutoWithdrawFiat                        uint64 = (1 << 8)
-	AutoWithdrawFiatWithAPIPermission       uint64 = (1 << 9)
-	AutoWithdrawFiatWithSetup               uint64 = (1 << 10)
+	AutoWithdrawFiat                        uint32 = (1 << 8)
+	AutoWithdrawFiatWithAPIPermission       uint32 = (1 << 9)
+	AutoWithdrawFiatWithSetup               uint32 = (1 << 10)
 	AutoWithdrawFiatText                    string = "AUTO WITHDRAW FIAT"
 	AutoWithdrawFiatWithAPIPermissionText   string = "AUTO WITHDRAW FIAT WITH API PERMISSION"
 	AutoWithdrawFiatWithSetupText           string = "AUTO WITHDRAW FIAT WITH SETUP"
-	WithdrawFiatWith2FA                     uint64 = (1 << 11)
-	WithdrawFiatWithSMS                     uint64 = (1 << 12)
-	WithdrawFiatWithEmail                   uint64 = (1 << 13)
-	WithdrawFiatWithWebsiteApproval         uint64 = (1 << 14)
-	WithdrawFiatWithAPIPermission           uint64 = (1 << 15)
+	WithdrawFiatWith2FA                     uint32 = (1 << 11)
+	WithdrawFiatWithSMS                     uint32 = (1 << 12)
+	WithdrawFiatWithEmail                   uint32 = (1 << 13)
+	WithdrawFiatWithWebsiteApproval         uint32 = (1 << 14)
+	WithdrawFiatWithAPIPermission           uint32 = (1 << 15)
 	WithdrawFiatWith2FAText                 string = "WITHDRAW FIAT WITH 2FA"
 	WithdrawFiatWithSMSText                 string = "WITHDRAW FIAT WITH SMS"
 	WithdrawFiatWithEmailText               string = "WITHDRAW FIAT WITH EMAIL"
 	WithdrawFiatWithWebsiteApprovalText     string = "WITHDRAW FIAT WITH WEBSITE APPROVAL"
 	WithdrawFiatWithAPIPermissionText       string = "WITHDRAW FIAT WITH API PERMISSION"
-	WithdrawCryptoViaWebsiteOnly            uint64 = (1 << 16)
-	WithdrawFiatViaWebsiteOnly              uint64 = (1 << 17)
+	WithdrawCryptoViaWebsiteOnly            uint32 = (1 << 16)
+	WithdrawFiatViaWebsiteOnly              uint32 = (1 << 17)
 	WithdrawCryptoViaWebsiteOnlyText        string = "WITHDRAW CRYPTO VIA WEBSITE ONLY"
 	WithdrawFiatViaWebsiteOnlyText          string = "WITHDRAW FIAT VIA WEBSITE ONLY"
 
@@ -192,7 +192,7 @@ type Base struct {
 	Verbose                                    bool
 	RESTPollingDelay                           time.Duration
 	AuthenticatedAPISupport                    bool
-	APIWithdrawPermissions                     uint64
+	APIWithdrawPermissions                     uint32
 	APIAuthPEMKeySupport                       bool
 	APISecret, APIKey, APIAuthPEMKey, ClientID string
 	Nonce                                      nonce.Nonce
@@ -823,8 +823,8 @@ func (e *Base) GetAPIURLSecondaryDefault() string {
 // GetWithdrawPermissions will return each of the exchange's compatible withdrawal methods
 func (e *Base) GetWithdrawPermissions() string {
 	services := []string{}
-	for i := 0; i < 8; i++ {
-		var check uint64 = 1 << uint64(i)
+	for i := 0; i < 32; i++ {
+		var check uint32 = 1 << uint32(i)
 		if e.APIWithdrawPermissions&check != 0 {
 			switch check {
 			case AutoWithdrawCrypto:

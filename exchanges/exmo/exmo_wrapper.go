@@ -234,3 +234,8 @@ func (e *EXMO) GetWebsocket() (*exchange.Websocket, error) {
 func (e *EXMO) GetFeeByType(feeBuilder exchange.FeeBuilder) (float64, error) {
 	return e.GetFee(feeBuilder)
 }
+
+// GetWithdrawCapabilities returns the types of withdrawal methods permitted by the exchange
+func (e *EXMO) GetWithdrawCapabilities() string {
+	return e.GetWithdrawPermissions()
+}

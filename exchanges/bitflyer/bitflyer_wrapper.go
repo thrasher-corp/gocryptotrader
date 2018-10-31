@@ -207,13 +207,7 @@ func (b *Bitflyer) GetWebsocket() (*exchange.Websocket, error) {
 	return nil, errors.New("not yet implemented")
 }
 
-// CanAutomaticallyWithdrawViaAPI checks if the exchange can withdraw without any additional verificantion
-// eg 2FA, email confirmation
-func (b *Bitflyer) CanAutomaticallyWithdrawViaAPI() (bool, error) {
-	return false, errors.New("not yet implemented")
-}
-
-// CanWithdrawViaAPI checks the permissions on the API keys to verify it can withdraw
-func (b *Bitflyer) CanWithdrawViaAPI() (bool, error) {
-	return false, errors.New("not yet implemented")
+// GetWithdrawCapabilities returns the types of withdrawal methods permitted by the exchange
+func (b *Bitflyer) GetWithdrawCapabilities() string {
+	return b.GetWithdrawPermissions()
 }

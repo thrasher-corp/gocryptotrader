@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/thrasher-/gocryptotrader/common"
+	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 )
 
 const (
@@ -488,5 +489,18 @@ func TestGetOrderFee(t *testing.T) {
 	_, err := a.GetOrderFee("", "", 1, 1)
 	if err == nil {
 		t.Error("Test Failed - GetUserInfo() error")
+	}
+}
+
+func TestGetWithdrawPermissions(t *testing.T) {
+	// Arrange
+	a := &Alphapoint{}
+	a.SetDefaults()
+	expectedResult := exchange.AutoWithdrawCryptoWithAPIPermissionText + " & " + exchange.WithdrawCryptoWith2FAText
+	// Act
+	withdrawPermissions := a.GetWithdrawPermissions()
+	// Assert
+	if withdrawPermissions != expectedResult {
+		t.Errorf("Excpected: %s, Recieved: %s", expectedResult, withdrawPermissions)
 	}
 }

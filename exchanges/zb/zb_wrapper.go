@@ -194,3 +194,8 @@ func (z *ZB) GetWebsocket() (*exchange.Websocket, error) {
 func (z *ZB) GetFeeByType(feeBuilder exchange.FeeBuilder) (float64, error) {
 	return z.GetFee(feeBuilder)
 }
+
+// GetWithdrawCapabilities returns the types of withdrawal methods permitted by the exchange
+func (z *ZB) GetWithdrawCapabilities() string {
+	return z.GetWithdrawPermissions()
+}
