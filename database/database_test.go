@@ -35,6 +35,8 @@ func TestStartDB(t *testing.T) {
 		t.Error(err)
 	}
 
+	cfg.Name = "testName"
+
 	db, err = Connect("./testdatabase.db", true, cfg)
 	if err != nil {
 		t.Error("test failed - TestStartDB failed to connect", err)
