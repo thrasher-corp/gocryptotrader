@@ -1,6 +1,9 @@
 package orderbook
 
 import (
+	"math/rand"
+	"strconv"
+	"sync"
 	"testing"
 	"time"
 
@@ -263,4 +266,65 @@ func TestProcessOrderbook(t *testing.T) {
 	if a != 200 && b != 84000 {
 		t.Fatal("Test failed. TestProcessOrderbook CalculateTotalsBids incorrect values")
 	}
+
+	type quick struct {
+		Name string
+		P    pair.CurrencyPair
+		Bids []Item
+		Asks []Item
+	}
+
+	var testArray []quick
+
+	_ = rand.NewSource(time.Now().Unix())
+
+	var wg sync.WaitGroup
+	var m sync.Mutex
+
+	for i := 0; i < 500; i++ {
+		wg.Add(1)
+		go func() {
+			newName := "Exchange" + strconv.FormatInt(rand.Int63(), 10)
+			newPairs := pair.NewCurrencyPair("BTC"+strconv.FormatInt(rand.Int63(), 10),
+				"USD"+strconv.FormatInt(rand.Int63(), 10))
+
+			asks := []Item{{Price: rand.Float64(), Amount: rand.Float64()}}
+			bids := []Item{{Price: rand.Float64(), Amount: rand.Float64()}}
+			base := Base{
+				Pair:         newPairs,
+				CurrencyPair: newPairs.Pair().String(),
+				Asks:         asks,
+				Bids:         bids,
+			}
+
+			ProcessOrderbook(newName, newPairs, base, Spot)
+			m.Lock()
+			testArray = append(testArray, quick{Name: newName, P: newPairs, Bids: bids, Asks: asks})
+			m.Unlock()
+			wg.Done()
+		}()
+	}
+	wg.Wait()
+
+	for _, test := range testArray {
+		wg.Add(1)
+		go func(test quick) {
+			result, err := GetOrderbook(test.Name, test.P, Spot)
+			if err != nil {
+				t.Fatal("Test failed. TestProcessOrderbook failed to retrieve new orderbook")
+			}
+
+			if result.Asks[0] != test.Asks[0] {
+				t.Error("Test failed. TestProcessOrderbook failed bad values")
+			}
+
+			if result.Bids[0] != test.Bids[0] {
+				t.Error("Test failed. TestProcessOrderbook failed bad values")
+			}
+
+			wg.Done()
+		}(test)
+	}
+
+	wg.Wait()
 }
