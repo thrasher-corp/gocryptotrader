@@ -60,6 +60,7 @@ func (k *Kraken) SetDefaults() {
 	k.CryptoFee = 0.10
 	k.Verbose = false
 	k.RESTPollingDelay = 10
+	k.APIWithdrawPermissions = exchange.AutoWithdrawCryptoWithSetup | exchange.WithdrawCryptoWith2FA | exchange.AutoWithdrawFiatWithSetup | exchange.WithdrawFiatWith2FA
 	k.RequestCurrencyPairFormat.Delimiter = ""
 	k.RequestCurrencyPairFormat.Uppercase = true
 	k.RequestCurrencyPairFormat.Separator = ","
@@ -960,9 +961,9 @@ func (k *Kraken) GetFee(feeBuilder exchange.FeeBuilder) (float64, error) {
 	case exchange.InternationalBankWithdrawalFee:
 		fee = getWithdrawalFee(feeBuilder.CurrencyItem)
 	}
-		if fee < 0 {
-			fee = 0
-		}
+	if fee < 0 {
+		fee = 0
+	}
 
 	return fee, nil
 }
