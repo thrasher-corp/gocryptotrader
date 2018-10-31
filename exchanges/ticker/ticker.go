@@ -157,10 +157,6 @@ func ProcessTicker(exchangeName string, p pair.CurrencyPair, tickerNew Price, ti
 
 	tickerNew.CurrencyPair = p.Pair().String()
 	tickerNew.LastUpdated = time.Now()
-	if len(Tickers) == 0 {
-		CreateNewTicker(exchangeName, p, tickerNew, tickerType)
-		return
-	}
 
 	ticker, err := GetTickerByExchange(exchangeName)
 	if err != nil {
@@ -169,16 +165,12 @@ func ProcessTicker(exchangeName string, p pair.CurrencyPair, tickerNew Price, ti
 	}
 
 	if FirstCurrencyExists(exchangeName, p.FirstCurrency) {
-		if !SecondCurrencyExists(exchangeName, p) {
-			m.Lock()
-			a := ticker.Price[p.FirstCurrency]
-			b := make(map[string]Price)
-			b[tickerType] = tickerNew
-			a[p.SecondCurrency] = b
-			ticker.Price[p.FirstCurrency] = a
-			m.Unlock()
-			return
-		}
+		m.Lock()
+		a := make(map[string]Price)
+		a[tickerType] = tickerNew
+		ticker.Price[p.FirstCurrency][p.SecondCurrency] = a
+		m.Unlock()
+		return
 	}
 
 	m.Lock()

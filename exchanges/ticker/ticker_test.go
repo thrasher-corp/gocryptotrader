@@ -1,8 +1,12 @@
 package ticker
 
 import (
+	"math/rand"
 	"reflect"
+	"strconv"
+	"sync"
 	"testing"
+	"time"
 
 	"github.com/thrasher-/gocryptotrader/currency/pair"
 )
@@ -275,4 +279,57 @@ func TestProcessTicker(t *testing.T) { //non-appending function to tickers
 	if err != nil {
 		t.Fatal("Test failed. TestProcessTicker failed to return an existing ticker")
 	}
+
+	type quick struct {
+		Name string
+		P    pair.CurrencyPair
+		TP   Price
+	}
+
+	var testArray []quick
+
+	_ = rand.NewSource(time.Now().Unix())
+
+	var wg sync.WaitGroup
+	var sm sync.Mutex
+
+	for i := 0; i < 500; i++ {
+		wg.Add(1)
+		go func() {
+			newName := "Exchange" + strconv.FormatInt(rand.Int63(), 10)
+			newPairs := pair.NewCurrencyPair("BTC"+strconv.FormatInt(rand.Int63(), 10),
+				"USD"+strconv.FormatInt(rand.Int63(), 10))
+
+			tp := Price{
+				Pair:         newPairs,
+				CurrencyPair: newPairs.Pair().String(),
+				Last:         rand.Float64(),
+			}
+
+			ProcessTicker(newName, newPairs, tp, Spot)
+			sm.Lock()
+			testArray = append(testArray, quick{Name: newName, P: newPairs, TP: tp})
+			sm.Unlock()
+			wg.Done()
+		}()
+	}
+	wg.Wait()
+
+	for _, test := range testArray {
+		wg.Add(1)
+		go func(test quick) {
+			result, err := GetTicker(test.Name, test.P, Spot)
+			if err != nil {
+				t.Fatal("Test failed. TestProcessTicker failed to retrieve new ticker")
+			}
+
+			if result.Last != test.TP.Last {
+				t.Error("Test failed. TestProcessTicker failed bad values")
+			}
+
+			wg.Done()
+		}(test)
+	}
+	wg.Wait()
+
 }
