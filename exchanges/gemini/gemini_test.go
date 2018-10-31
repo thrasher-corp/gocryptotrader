@@ -312,8 +312,6 @@ func TestGetFee(t *testing.T) {
 
 func TestGetWithdrawPermissions(t *testing.T) {
 	// Arrange
-	TestAddSession(t)
-	TestSetDefaults(t)
 	expectedResult := exchange.AutoWithdrawCryptoWithAPIPermissionText + " & " + exchange.AutoWithdrawCryptoWithSetupText + " & " + exchange.WithdrawFiatViaWebsiteOnlyText
 	// Act
 	withdrawPermissions := Session[1].GetWithdrawPermissions()
