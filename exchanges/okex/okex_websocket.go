@@ -1,8 +1,11 @@
 package okex
 
 import (
+	"bytes"
+	"compress/flate"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"net/url"
@@ -132,13 +135,31 @@ func (o *OKEX) WsReadData() {
 			return
 
 		default:
-			_, resp, err := o.WebsocketConn.ReadMessage()
+			mType, resp, err := o.WebsocketConn.ReadMessage()
 			if err != nil {
 				o.Websocket.DataHandler <- err
 				return
 			}
+
 			o.Websocket.TrafficAlert <- struct{}{}
-			o.Websocket.Intercomm <- exchange.WebsocketResponse{Raw: resp}
+
+			var standardMessage []byte
+
+			switch mType {
+			case websocket.TextMessage:
+				standardMessage = resp
+
+			case websocket.BinaryMessage:
+				reader := flate.NewReader(bytes.NewReader(resp))
+				standardMessage, err = ioutil.ReadAll(reader)
+				reader.Close()
+				if err != nil {
+					o.Websocket.DataHandler <- err
+					return
+				}
+			}
+
+			o.Websocket.Intercomm <- exchange.WebsocketResponse{Raw: standardMessage}
 		}
 	}
 }
