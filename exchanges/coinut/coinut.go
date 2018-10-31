@@ -56,7 +56,7 @@ func (c *COINUT) SetDefaults() {
 	c.MakerFee = 0
 	c.Verbose = false
 	c.RESTPollingDelay = 10
-	c.APIWithdrawPermissions = exchange.NoAPIWithdrawalMethods
+	c.APIWithdrawPermissions = exchange.WithdrawCryptoViaWebsiteOnly | exchange.WithdrawFiatViaWebsiteOnly
 	c.RequestCurrencyPairFormat.Delimiter = ""
 	c.RequestCurrencyPairFormat.Uppercase = true
 	c.ConfigCurrencyPairFormat.Delimiter = ""

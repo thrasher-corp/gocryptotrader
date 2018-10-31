@@ -237,6 +237,6 @@ func TestGetWithdrawPermissions(t *testing.T) {
 	withdrawPermissions := z.GetWithdrawPermissions()
 	// Assert
 	if withdrawPermissions != expectedResult {
-		t.Errorf("Excpected: %s, Recieved: %s", expectedResult, withdrawPermissions)
+		t.Errorf("Expected: %s, Recieved: %s", expectedResult, withdrawPermissions)
 	}
 }
