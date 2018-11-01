@@ -11,7 +11,7 @@ fi
 echo "" > testdata/coverage.txt
 
 for d in $(go list ./... | grep -v vendor); do
-    go test -race -coverprofile=profile.out -covermode=atomic -cover $d
+    go test -v -mod=vendor -race -coverprofile=profile.out -covermode=atomic -cover $d
     if [ -f profile.out ]; then
         cat profile.out >> testdata/coverage.txt
         rm profile.out
