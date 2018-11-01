@@ -1358,6 +1358,7 @@
  ],
  "bankAccounts": [
   {
+   "enabled": true,
    "bankName": "test",
    "bankAddress": "test",
    "accountName": "TestAccount",
