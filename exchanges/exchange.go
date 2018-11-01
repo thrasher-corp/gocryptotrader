@@ -829,58 +829,40 @@ func (e *Base) GetWithdrawPermissions() string {
 			switch check {
 			case AutoWithdrawCrypto:
 				services = append(services, AutoWithdrawCryptoText)
-				break
 			case AutoWithdrawCryptoWithAPIPermission:
 				services = append(services, AutoWithdrawCryptoWithAPIPermissionText)
-				break
 			case AutoWithdrawCryptoWithSetup:
 				services = append(services, AutoWithdrawCryptoWithSetupText)
-				break
 			case WithdrawCryptoWith2FA:
 				services = append(services, WithdrawCryptoWith2FAText)
-				break
 			case WithdrawCryptoWithSMS:
 				services = append(services, WithdrawCryptoWithSMSText)
-				break
 			case WithdrawCryptoWithEmail:
 				services = append(services, WithdrawCryptoWithEmailText)
-				break
 			case WithdrawCryptoWithWebsiteApproval:
 				services = append(services, WithdrawCryptoWithWebsiteApprovalText)
-				break
 			case WithdrawCryptoWithAPIPermission:
 				services = append(services, WithdrawCryptoWithAPIPermissionText)
-				break
 			case AutoWithdrawFiat:
 				services = append(services, AutoWithdrawFiatText)
-				break
 			case AutoWithdrawFiatWithAPIPermission:
 				services = append(services, AutoWithdrawFiatWithAPIPermissionText)
-				break
 			case AutoWithdrawFiatWithSetup:
 				services = append(services, AutoWithdrawFiatWithSetupText)
-				break
 			case WithdrawFiatWith2FA:
 				services = append(services, WithdrawFiatWith2FAText)
-				break
 			case WithdrawFiatWithSMS:
 				services = append(services, WithdrawFiatWithSMSText)
-				break
 			case WithdrawFiatWithEmail:
 				services = append(services, WithdrawFiatWithEmailText)
-				break
 			case WithdrawFiatWithWebsiteApproval:
 				services = append(services, WithdrawFiatWithWebsiteApprovalText)
-				break
 			case WithdrawFiatWithAPIPermission:
 				services = append(services, WithdrawFiatWithAPIPermissionText)
-				break
 			case WithdrawCryptoViaWebsiteOnly:
 				services = append(services, WithdrawCryptoViaWebsiteOnlyText)
-				break
 			case WithdrawFiatViaWebsiteOnly:
 				services = append(services, WithdrawFiatViaWebsiteOnlyText)
-				break
 			default:
 				services = append(services, fmt.Sprintf("%s[%v]", UnknownWithdrawalTypeText, check))
 			}

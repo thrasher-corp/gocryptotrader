@@ -469,15 +469,22 @@ func (a *ANX) GetAccountInformation() (AccountInformation, error) {
 // CheckAPIWithdrawPermission checks if the API key is allowed to withdraw
 func (a *ANX) CheckAPIWithdrawPermission() (bool, error) {
 	accountInfo, err := a.GetAccountInformation()
+
 	if err != nil {
 		return false, err
 	}
+
 	var apiAllowsWithdraw bool
+
 	for _, a := range accountInfo.Rights {
 		if a == "withdraw" {
-			log.Printf("API key is missing withdrawal permissions")
 			apiAllowsWithdraw = true
 		}
 	}
+
+	if !apiAllowsWithdraw {
+		log.Printf("API key is missing withdrawal permissions")
+	}
+
 	return apiAllowsWithdraw, nil
 }
