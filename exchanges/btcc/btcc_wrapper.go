@@ -32,13 +32,15 @@ func (b *BTCC) Run() {
 
 	if !common.StringDataContains(b.EnabledPairs, "_") || !common.StringDataContains(b.AvailablePairs, "_") {
 		var availP []string
-		for _, p := range b.GetAvailableCurrencies() {
-			availP = append(availP, p.Display("_", true).String())
+		for _, p := range b.AvailablePairs {
+			cP := pair.NewCurrencyPairFromString(p)
+			availP = append(availP, cP.Display("_", true).String())
 		}
 
 		var enabledP []string
-		for _, p := range b.GetEnabledCurrencies() {
-			enabledP = append(enabledP, p.Display("_", true).String())
+		for _, p := range b.EnabledPairs {
+			cP := pair.NewCurrencyPairFromString(p)
+			enabledP = append(enabledP, cP.Display("_", true).String())
 		}
 
 		err := b.UpdateCurrencies(availP, false, true)
