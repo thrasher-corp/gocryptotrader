@@ -185,416 +185,193 @@ func relayWebsocketEvent(result interface{}, event, assetType, exchangeName stri
 	}
 }
 
-// Update is the main update type monitoring multiple assets
-var update Monitor
+// Updater is the main update type monitoring multiple assets
+var updater Updater
 
-// Monitor defines the Enabled and disabled trading assets
-type Monitor struct {
-	// Enabled trading assets
-	Enabled map[string][]*TradingAsset
+// Updater defines the Enabled and disabled trading assets
+type Updater struct {
+	// Assets is the enabled list of tradable assets for an exchange
+	Assets    []*TradingAsset
+	Websocket WebsocketService
 
-	// Disabled trading assets, so we dont iterate over non-functional assets
-	// but keep them in memory if enabled later on
-	Disabled []*TradingAsset
+	shutdown chan struct{}      // main shutdown
+	pool     chan WorkerRequest // to worker pool
 
-	shutdown        chan struct{}      // main shutdown
-	refreshExchange chan string        // batched timer shutdown
-	doWork          chan WorkerRequest // to worker pool
-	toFramer        chan WorkerRequest // to framing routine
-	finisher        chan WorkerRequest // to finisher routine
-
-	wg           sync.WaitGroup             // main wait group
-	jobWg        map[string]*sync.WaitGroup // job specific wait group for an exchange for job creation and tracking
-	WebsocketMtx sync.Mutex                 // websocket mutex
+	wg sync.WaitGroup
 	sync.Mutex
 }
 
 // TradingAsset defines a supported trading asset on an exchange
 type TradingAsset struct {
+	Enabled      bool
 	Exchange     exchange.IBotExchange
 	AssetType    string
 	CurrencyPair pair.CurrencyPair
-
-	Ticker            TradeData
-	Orderbook         TradeData
-	History           TradeData
-	WebsocketOverride bool
+	Ticker       TradeData
+	Orderbook    TradeData
+	History      TradeData
 }
 
 // TradeData defines actually request trade data
 type TradeData struct {
 	Enabled     bool
+	Updating    bool // Currently being updated
 	LastUpdated time.Time
 }
 
-// StartMonitor starts a full monitor for all enabled cryptocurrency asset pairs
-func StartMonitor(exchanges []exchange.IBotExchange, ticker, orderbook, history, verbose bool) error {
+// StartUpdater starts a full monitor for all enabled cryptocurrency asset pairs
+func StartUpdater(exchanges []exchange.IBotExchange, ticker, orderbook, history, verbose bool) error {
 	log.Println("GoCryptoTrader - asset monitor service started")
 
-	update = Monitor{
-		Enabled:  make(map[string][]*TradingAsset),
+	updater = Updater{
 		shutdown: make(chan struct{}, 1),
-		doWork:   make(chan WorkerRequest, 1000),
-		toFramer: make(chan WorkerRequest, 1000),
-		finisher: make(chan WorkerRequest, 1000),
-		jobWg:    make(map[string]*sync.WaitGroup),
+		pool:     make(chan WorkerRequest, 10000),
 	}
 
 	for i := range exchanges {
-		availableCurrencies := exchanges[i].GetAvailableCurrencies()
 		enabledCurrencies := exchanges[i].GetEnabledCurrencies()
-
-		// TODO - Update asset retrieval
-
-		for _, availableCurrency := range availableCurrencies {
-			var isEnabled bool
-			for _, enabledCurrency := range enabledCurrencies {
-				if availableCurrency == enabledCurrency {
-					isEnabled = true
-					break
-				}
-			}
-
-			tradingAsset := &TradingAsset{
+		// TODO - Update asset retrieval through interface
+		for _, enabledCurrency := range enabledCurrencies {
+			updater.Assets = append(updater.Assets, &TradingAsset{
 				Exchange:     exchanges[i],
 				AssetType:    "SPOT",
-				CurrencyPair: availableCurrency,
+				CurrencyPair: enabledCurrency,
 				Ticker:       TradeData{Enabled: ticker},
 				Orderbook:    TradeData{Enabled: orderbook},
 				History:      TradeData{Enabled: history},
-			}
-
-			if isEnabled {
-				update.Enabled[common.StringToUpper(exchanges[i].GetName())] = append(update.Enabled[common.StringToUpper(exchanges[i].GetName())], tradingAsset)
-				continue
-			}
-
-			update.Disabled = append(update.Disabled, tradingAsset)
+			})
 		}
 	}
 
-	go update.WorkFramer(verbose)
-	go update.Finalise(verbose)
-
-	// Creates workers in a pool
-	for i := 0; i < maxWorkers; i++ {
-		go update.Worker(i, verbose)
+	err := updater.StartWebsocketService(verbose)
+	if err != nil {
+		return err
 	}
 
-	update.StartJobs()
+	// Adds worker to a worker pool
+	for i := 0; i < maxWorkers; i++ {
+		go updater.Worker(i, verbose)
+	}
+
+	go updater.WorkFramer(verbose)
 
 	return nil
 }
 
-// UpdateTicker updates ticker details in the asset register
-func (m *Monitor) UpdateTicker(t exchange.TickerData) error {
-	m.Mutex.Lock()
-	defer m.Mutex.Unlock()
-
-	for i := range m.Enabled[common.StringToUpper(t.Exchange)] {
-		if common.StringToUpper(m.Enabled[common.StringToUpper(t.Exchange)][i].AssetType) == common.StringToUpper(t.AssetType) &&
-			m.Enabled[common.StringToUpper(t.Exchange)][i].CurrencyPair.Display("", true) == t.Pair.Display("", true) {
-			m.Enabled[common.StringToUpper(t.Exchange)][i].Ticker.LastUpdated = time.Now()
-			return nil
-		}
-	}
-
-	return fmt.Errorf("routines.go error - can not find ticker trading asset for Exchange:%s, Asset:%s, CurrencyPair:%s",
-		t.Exchange,
-		t.AssetType,
-		t.Pair.Display("", true))
-}
-
-// UpdateOrderbook updates orderbook details in the asset register
-func (m *Monitor) UpdateOrderbook(o orderbook.Base, exchangeName string) error {
-	m.Mutex.Lock()
-	defer m.Mutex.Unlock()
-	for i := range m.Enabled[common.StringToUpper(exchangeName)] {
-		if common.StringToUpper(m.Enabled[common.StringToUpper(exchangeName)][i].AssetType) == common.StringToUpper(o.AssetType) &&
-			m.Enabled[common.StringToUpper(exchangeName)][i].CurrencyPair.Display("", true) == o.Pair.Display("", true) {
-			m.Enabled[common.StringToUpper(exchangeName)][i].Ticker.LastUpdated = time.Now()
-			return nil
-		}
-	}
-	return fmt.Errorf("routines.go error - can not find orderbook trading asset for Exchange:%s, Asset:%s, CurrencyPair:%s",
-		exchangeName,
-		o.AssetType,
-		o.Pair.Display("", true))
-}
-
-// SwitchRESTFunctionality stops REST requests when websocket feeds are active
-// and restarts REST when connection fails
-func (m *Monitor) SwitchRESTFunctionality(websocketActive bool, exchangeName string) {
-	m.WebsocketMtx.Lock()
-	if websocketActive {
-		for x := range m.Enabled {
-			for y := range m.Enabled[x] {
-				if m.Enabled[x][y].Exchange.GetName() == exchangeName {
-					m.Enabled[x][y].WebsocketOverride = true
-				}
-			}
-		}
-
-		rMtx.Lock()
-		for x := range register {
-			for y := range register[x] {
-				register[x][y] <- struct{}{}
-			}
-		}
-		rMtx.Unlock()
-
-		m.jobWg[exchangeName].Wait()
-	} else {
-		m.StartJobs()
-	}
-	m.WebsocketMtx.Lock()
-}
-
-// StartJobs creates tickets of jobs that are enabled per exchange, asset type,
-// currency pair
-func (m *Monitor) StartJobs() {
-	for _, exchangeJobs := range m.Enabled {
-		for _, job := range exchangeJobs {
-			job.WebsocketOverride = false
-			if m.jobWg[job.Exchange.GetName()] == nil {
-				var wg sync.WaitGroup
-				m.jobWg[job.Exchange.GetName()] = &wg
-			}
-
-			if job.Orderbook.Enabled {
-				m.toFramer <- WorkerRequest{
-					Exchange:     job.Exchange,
-					Update:       updateOrderbook,
-					CurrencyPair: job.CurrencyPair,
-					Asset:        job.AssetType,
-					Reset:        true,
-					Override:     &job.WebsocketOverride,
-				}
-				m.jobWg[job.Exchange.GetName()].Add(1)
-			}
-
-			if job.Ticker.Enabled {
-				m.toFramer <- WorkerRequest{
-					Exchange:     job.Exchange,
-					Update:       updateTicker,
-					CurrencyPair: job.CurrencyPair,
-					Asset:        job.AssetType,
-					Reset:        true,
-					Override:     &job.WebsocketOverride,
-				}
-				m.jobWg[job.Exchange.GetName()].Add(1)
-			}
-
-			if job.History.Enabled {
-				m.toFramer <- WorkerRequest{
-					Exchange:     job.Exchange,
-					Update:       updateHistory,
-					CurrencyPair: job.CurrencyPair,
-					Asset:        job.AssetType,
-					Reset:        true,
-					Override:     &job.WebsocketOverride,
-				}
-				m.jobWg[job.Exchange.GetName()].Add(1)
-			}
-		}
-	}
-}
-
 // WorkerRequest defines a job to be executed
 type WorkerRequest struct {
-	Reset        bool
 	Exchange     exchange.IBotExchange
 	Update       string
 	CurrencyPair pair.CurrencyPair
 	Asset        string
-	LastUpdated  time.Time
-	Override     *bool
-}
-
-// Finalise updates timer information and cycles jobs
-func (m *Monitor) Finalise(verbose bool) {
-	m.wg.Add(1)
-	defer m.wg.Done()
-
-	for {
-		select {
-		case <-m.shutdown:
-			return
-
-		case job := <-m.finisher:
-			go func() {
-				m.Lock()
-				for i := range m.Enabled[job.Exchange.GetName()] {
-					if m.Enabled[job.Exchange.GetName()][i].CurrencyPair == job.CurrencyPair &&
-						m.Enabled[job.Exchange.GetName()][i].AssetType == job.Asset {
-						switch job.Update {
-						case updateTicker:
-							m.Enabled[job.Exchange.GetName()][i].Ticker.LastUpdated = job.LastUpdated
-							if m.Enabled[job.Exchange.GetName()][i].Ticker.Enabled {
-								m.toFramer <- job
-							}
-							return
-
-						case updateOrderbook:
-							m.Enabled[job.Exchange.GetName()][i].Orderbook.LastUpdated = job.LastUpdated
-							if m.Enabled[job.Exchange.GetName()][i].Orderbook.Enabled {
-								m.toFramer <- job
-							}
-							return
-
-						case updateHistory:
-							m.Enabled[job.Exchange.GetName()][i].History.LastUpdated = job.LastUpdated
-							if m.Enabled[job.Exchange.GetName()][i].History.Enabled {
-								m.toFramer <- job
-							}
-							return
-						}
-					}
-				}
-
-				for i := range m.Disabled {
-					if m.Disabled[i].CurrencyPair == job.CurrencyPair &&
-						m.Disabled[i].AssetType == job.Asset &&
-						m.Disabled[i].Exchange.GetName() == job.Exchange.GetName() {
-						switch job.Update {
-						case updateTicker:
-							m.Disabled[i].Ticker.LastUpdated = job.LastUpdated
-
-						case updateOrderbook:
-							m.Disabled[i].Orderbook.LastUpdated = job.LastUpdated
-
-						case updateHistory:
-							m.Disabled[i].History.LastUpdated = job.LastUpdated
-
-						default:
-							log.Fatal("Could not find trading asset at all", job)
-						}
-					}
-				}
-				m.Unlock()
-			}()
-		}
-	}
 }
 
 // WorkFramer frames jobs in 250ms frames to minimise CPU usage in main check
 // routine & minimise multiple routines in time.Sleep
-func (m *Monitor) WorkFramer(verbose bool) {
+func (u *Updater) WorkFramer(verbose bool) {
 	if verbose {
 		log.Println("routines.go WorkFramer() - started")
 	}
 
-	m.wg.Add(1)
-	defer m.wg.Done()
+	u.wg.Add(1)
+	defer u.wg.Done()
 
 	ticker := time.NewTicker(maxFrameSize)
 
-	var jobs []WorkerRequest
-
 	for {
 		select {
-		case <-m.shutdown:
+		case <-u.shutdown:
 			return
-
-		case job := <-m.toFramer:
-			if *job.Override {
-				if verbose {
-					log.Println("routines.go WorkFramer() websocket override - job dropped")
-				}
-
-				m.jobWg[job.Exchange.GetName()].Done()
-				continue
-			}
-
-			if job.Reset {
-				// On initial start and websocket disconnect this will bypass
-				// timer dispatch
-				job.Reset = false
-				m.doWork <- job
-				continue
-			}
-
-			jobs = append(jobs, job)
 
 		case <-ticker.C:
-			if len(jobs) != 0 {
-				go m.TimerDispatch(jobs)
-				jobs = nil
+			u.Lock()
+			for i := range u.Assets {
+				if u.Assets[i].History.Enabled && !u.Assets[i].History.Updating {
+					if u.Assets[i].History.LastUpdated.IsZero() {
+						u.Assets[i].History.Updating = true
+						u.pool <- WorkerRequest{
+							Exchange:     u.Assets[i].Exchange,
+							Update:       updateHistory,
+							CurrencyPair: u.Assets[i].CurrencyPair,
+							Asset:        u.Assets[i].AssetType,
+						}
+					} else {
+						if u.Assets[i].History.LastUpdated.Add(10 * time.Second).Before(time.Now()) {
+							u.Assets[i].History.Updating = true
+							u.pool <- WorkerRequest{
+								Exchange:     u.Assets[i].Exchange,
+								Update:       updateHistory,
+								CurrencyPair: u.Assets[i].CurrencyPair,
+								Asset:        u.Assets[i].AssetType,
+							}
+						}
+					}
+				}
+
+				if u.Assets[i].Orderbook.Enabled && !u.Assets[i].Orderbook.Updating {
+					if u.Assets[i].Orderbook.LastUpdated.IsZero() {
+						u.Assets[i].Orderbook.Updating = true
+						u.pool <- WorkerRequest{
+							Exchange:     u.Assets[i].Exchange,
+							Update:       updateOrderbook,
+							CurrencyPair: u.Assets[i].CurrencyPair,
+							Asset:        u.Assets[i].AssetType,
+						}
+					} else {
+						if u.Assets[i].Orderbook.LastUpdated.Add(10 * time.Second).Before(time.Now()) {
+							u.Assets[i].Orderbook.Updating = true
+							u.pool <- WorkerRequest{
+								Exchange:     u.Assets[i].Exchange,
+								Update:       updateOrderbook,
+								CurrencyPair: u.Assets[i].CurrencyPair,
+								Asset:        u.Assets[i].AssetType,
+							}
+						}
+					}
+				}
+
+				if u.Assets[i].Ticker.Enabled && !u.Assets[i].Ticker.Updating {
+					if u.Assets[i].Ticker.LastUpdated.IsZero() {
+						u.Assets[i].Ticker.Updating = true
+						u.pool <- WorkerRequest{
+							Exchange:     u.Assets[i].Exchange,
+							Update:       updateTicker,
+							CurrencyPair: u.Assets[i].CurrencyPair,
+							Asset:        u.Assets[i].AssetType,
+						}
+					} else {
+						if u.Assets[i].Ticker.LastUpdated.Add(10 * time.Second).Before(time.Now()) {
+							u.Assets[i].Ticker.Updating = true
+							u.pool <- WorkerRequest{
+								Exchange:     u.Assets[i].Exchange,
+								Update:       updateTicker,
+								CurrencyPair: u.Assets[i].CurrencyPair,
+								Asset:        u.Assets[i].AssetType,
+							}
+						}
+					}
+				}
 			}
+			u.Unlock()
 		}
 	}
 }
 
-var register = make(map[int][]chan struct{})
-var rMtx sync.Mutex
-var rWg sync.WaitGroup
-
-// TimerDispatch routine sleeps batched requests via time delay
-func (m *Monitor) TimerDispatch(jobs []WorkerRequest) {
-	timer := time.NewTimer(10 * time.Second)
-	refresh := make(chan struct{}, 1)
-	var registeredNumber int
-
-	rMtx.Lock()
-	rWg.Add(1)
-	registeredNumber = len(register) - 1
-	register[registeredNumber] = append(register[registeredNumber], refresh)
-	rMtx.Unlock()
-
-	for {
-		select {
-		case <-refresh:
-			// When websocket connects on an exchange this will drop all exchange
-			//jobs
-			var newList []WorkerRequest
-			for _, job := range jobs {
-				if *job.Override {
-					m.jobWg[job.Exchange.GetName()].Done()
-					continue
-				}
-				newList = append(newList, job)
-			}
-			jobs = newList
-			rWg.Done()
-			rMtx.Lock()
-			rWg.Add(1)
-			rMtx.Unlock()
-
-		case <-timer.C:
-			for _, job := range jobs {
-				if *job.Override {
-					// Secondary catch if webosocket connects - might be redundant
-					m.jobWg[job.Exchange.GetName()].Done()
-					continue
-				}
-				m.doWork <- job
-			}
-
-			// deregister
-			rMtx.Lock()
-			delete(register, registeredNumber)
-			rWg.Done()
-			rMtx.Unlock()
-			return
-		}
-	}
-}
-
-// Worker is a worker routine that executes work from the doWork channel
-func (m *Monitor) Worker(id int, verbose bool) {
+// Worker initiates a request from a worker pool
+func (u *Updater) Worker(id int, verbose bool) {
 	if verbose {
 		log.Printf("routines.go - Worker routine started id: %d", id)
 	}
 
-	m.wg.Add(1)
-	defer m.wg.Done()
+	u.wg.Add(1)
+	defer u.wg.Done()
 
 	for {
 		select {
-		case <-m.shutdown:
+		case <-u.shutdown:
 			return
 
-		case job := <-m.doWork:
+		case job := <-u.pool:
 			if verbose {
 				log.Printf("worker routine ID: %d job recieved for Exchange: %s CurrencyPair: %s Asset: %s Update: %s",
 					id,
@@ -604,15 +381,9 @@ func (m *Monitor) Worker(id int, verbose bool) {
 					job.Update)
 			}
 
-			if *job.Override {
-				// Edge catch if websocket connects
-				m.jobWg[job.Exchange.GetName()].Done()
-				continue
-			}
-
 			switch job.Update {
 			case updateTicker:
-				err := m.ProcessTickerREST(job.Exchange, job.CurrencyPair, job.Asset, job.Exchange.GetName(), verbose)
+				err := u.ProcessTickerREST(job.Exchange, job.CurrencyPair, job.Asset, job.Exchange.GetName(), verbose)
 				if err != nil {
 					switch err.Error() {
 					default:
@@ -653,7 +424,7 @@ func (m *Monitor) Worker(id int, verbose bool) {
 				}
 
 			case updateOrderbook:
-				err := m.ProcessOrderbookREST(job.Exchange, job.CurrencyPair, job.Asset, verbose)
+				err := u.ProcessOrderbookREST(job.Exchange, job.CurrencyPair, job.Asset, verbose)
 				if err != nil {
 					switch err.Error() {
 					default:
@@ -694,7 +465,7 @@ func (m *Monitor) Worker(id int, verbose bool) {
 				}
 
 			case updateHistory:
-				err := m.ProcessHistoryREST(job.Exchange, job.CurrencyPair, job.Asset, verbose)
+				err := u.ProcessHistoryREST(job.Exchange, job.CurrencyPair, job.Asset, verbose)
 				if err != nil {
 					switch err.Error() {
 					case "history up to date":
@@ -738,21 +509,50 @@ func (m *Monitor) Worker(id int, verbose bool) {
 					}
 				}
 			}
-			job.LastUpdated = time.Now() // update time on main asset ledger
-			m.toFramer <- job            // re-circulate job
+
+			var updated bool
+			u.Lock()
+			for i := range u.Assets {
+				if u.Assets[i].Exchange.GetName() == job.Exchange.GetName() &&
+					u.Assets[i].CurrencyPair == job.CurrencyPair &&
+					u.Assets[i].AssetType == job.Asset {
+					switch job.Update {
+					case updateHistory:
+						u.Assets[i].History.LastUpdated = time.Now()
+						u.Assets[i].History.Updating = false
+					case updateOrderbook:
+						u.Assets[i].Orderbook.LastUpdated = time.Now()
+						u.Assets[i].Orderbook.Updating = false
+					case updateTicker:
+						u.Assets[i].Ticker.LastUpdated = time.Now()
+						u.Assets[i].Ticker.Updating = false
+					}
+					updated = true
+					break
+				}
+			}
+			u.Unlock()
+
+			if !updated {
+				log.Fatalf("routines.go error - worker could not update asset %s, %s, %s, for jon %s",
+					job.Exchange.GetName(),
+					job.CurrencyPair,
+					job.Asset,
+					job.Update)
+			}
 		}
 	}
 }
 
 // ProcessTickerREST processes tickers data, utilising a REST endpoint
-func (m *Monitor) ProcessTickerREST(exch exchange.IBotExchange, p pair.CurrencyPair, assetType, exchangeName string, verbose bool) error {
+func (u *Updater) ProcessTickerREST(exch exchange.IBotExchange, p pair.CurrencyPair, assetType, exchangeName string, verbose bool) error {
 	result, err := exch.UpdateTicker(p, assetType)
 	printTickerSummary(result, p, assetType, exchangeName, err)
 	if err != nil {
 		return err
 	}
 
-	err = m.ValidateData(result)
+	err = u.ValidateData(result)
 	if err != nil {
 		return err
 	}
@@ -765,14 +565,14 @@ func (m *Monitor) ProcessTickerREST(exch exchange.IBotExchange, p pair.CurrencyP
 }
 
 // ProcessOrderbookREST processes orderbook data, utilising a REST endpoint
-func (m *Monitor) ProcessOrderbookREST(exch exchange.IBotExchange, p pair.CurrencyPair, assetType string, verbose bool) error {
+func (u *Updater) ProcessOrderbookREST(exch exchange.IBotExchange, p pair.CurrencyPair, assetType string, verbose bool) error {
 	result, err := exch.UpdateOrderbook(p, assetType)
 	printOrderbookSummary(result, p, assetType, exch.GetName(), err)
 	if err != nil {
 		return err
 	}
 
-	err = m.ValidateData(result)
+	err = u.ValidateData(result)
 	if err != nil {
 		return err
 	}
@@ -786,7 +586,7 @@ func (m *Monitor) ProcessOrderbookREST(exch exchange.IBotExchange, p pair.Curren
 }
 
 // ProcessHistoryREST processes history data, utilising a REST endpoint
-func (m *Monitor) ProcessHistoryREST(exch exchange.IBotExchange, p pair.CurrencyPair, assetType string, verbose bool) error {
+func (u *Updater) ProcessHistoryREST(exch exchange.IBotExchange, p pair.CurrencyPair, assetType string, verbose bool) error {
 	lastTime, tradeID, err := bot.db.GetExchangeTradeHistoryLast(exch.GetName(),
 		p.Pair().String(),
 		assetType)
@@ -831,7 +631,7 @@ func (m *Monitor) ProcessHistoryREST(exch exchange.IBotExchange, p pair.Currency
 
 // ValidateData validates incoming from either a REST endpoint or websocket feed
 // by its type
-func (m *Monitor) ValidateData(i interface{}) error {
+func (u *Updater) ValidateData(i interface{}) error {
 	switch i.(type) {
 	case ticker.Price:
 		if i.(ticker.Price).Ask == 0 && i.(ticker.Price).Bid == 0 &&
@@ -858,9 +658,21 @@ func (m *Monitor) ValidateData(i interface{}) error {
 	return nil
 }
 
-// WebsocketRoutine Initial routine management system for websocket
-func WebsocketRoutine(verbose bool) {
-	log.Println("Connecting exchange websocket services...")
+// WebsocketService defines the websocket connection suite
+type WebsocketService struct {
+	Conn []*exchange.Websocket
+	sync.Mutex
+	sync.WaitGroup
+}
+
+// StartWebsocketService connects to the websocket endpoint for each enabled
+// exchange
+func (u *Updater) StartWebsocketService(verbose bool) error {
+	if verbose {
+		log.Println("Connecting exchange websocket services...")
+	}
+
+	u.Websocket = WebsocketService{}
 
 	for i := range bot.exchanges {
 		go func(i int) {
@@ -871,63 +683,41 @@ func WebsocketRoutine(verbose bool) {
 
 			ws, err := bot.exchanges[i].GetWebsocket()
 			if err != nil {
+				if common.StringContains(err.Error(), "not yet implemented") {
+					return
+				}
+				log.Println("Websocket Error:", err)
 				return
 			}
 
 			// Data handler routine
-			go WebsocketDataHandler(ws, verbose)
+			go u.WebsocketDataHandler(ws, verbose)
 
 			err = ws.Connect()
 			if err != nil {
-				switch err.Error() {
-				case exchange.WebsocketNotEnabled:
-					// Store in memory if enabled in future
-				default:
-					log.Println(err)
+				if common.StringContains(err.Error(), "websocket disabled") {
+					return
 				}
+				log.Println("Websocket Error:", err)
+				return
 			}
+			u.Websocket.Lock()
+			u.Websocket.Conn = append(u.Websocket.Conn, ws)
+			u.Websocket.Unlock()
 		}(i)
 	}
+
+	return nil
 }
 
-var shutdowner = make(chan struct{}, 1)
-var wg sync.WaitGroup
-
-// Websocketshutdown shuts down the exchange routines and then shuts down
-// governing routines
-func Websocketshutdown(ws *exchange.Websocket) error {
-	err := ws.Shutdown() // shutdown routines on the exchange
-	if err != nil {
-		log.Fatalf("routines.go error - failed to shutodwn %s", err)
-	}
-
-	timer := time.NewTimer(5 * time.Second)
-	c := make(chan struct{}, 1)
-
-	go func(c chan struct{}) {
-		close(shutdowner)
-		wg.Wait()
-		c <- struct{}{}
-	}(c)
-
-	select {
-	case <-timer.C:
-		return errors.New("routines.go error - failed to shutdown routines")
-
-	case <-c:
-		return nil
-	}
-}
-
-// streamDiversion is a diversion switch from websocket to REST or other
-// alternative feed
-func streamDiversion(ws *exchange.Websocket, verbose bool) {
-	wg.Add(1)
-	defer wg.Done()
+// WebsocketIsAlive alerts of full websocket disconnection
+func (u *Updater) WebsocketIsAlive(ws *exchange.Websocket, verbose bool) {
+	u.Websocket.Add(1)
+	defer u.Websocket.Done()
 
 	for {
 		select {
-		case <-shutdowner:
+		case <-u.shutdown:
 			return
 
 		case <-ws.Connected:
@@ -935,30 +725,26 @@ func streamDiversion(ws *exchange.Websocket, verbose bool) {
 				log.Printf("exchange %s websocket feed connected", ws.GetName())
 			}
 
-			update.SwitchRESTFunctionality(true, ws.GetName())
-
 		case <-ws.Disconnected:
 			if verbose {
 				log.Printf("exchange %s websocket feed disconnected, switching to REST functionality",
 					ws.GetName())
 			}
-
-			update.SwitchRESTFunctionality(false, ws.GetName())
 		}
 	}
 }
 
 // WebsocketDataHandler handles websocket data coming from a websocket feed
 // associated with an exchange
-func WebsocketDataHandler(ws *exchange.Websocket, verbose bool) {
-	wg.Add(1)
-	defer wg.Done()
+func (u *Updater) WebsocketDataHandler(ws *exchange.Websocket, verbose bool) {
+	u.Websocket.Add(1)
+	defer u.Websocket.Done()
 
-	go streamDiversion(ws, verbose)
+	go u.WebsocketIsAlive(ws, verbose)
 
 	for {
 		select {
-		case <-shutdowner:
+		case <-u.shutdown:
 			return
 
 		case data := <-ws.DataHandler:
@@ -978,7 +764,7 @@ func WebsocketDataHandler(ws *exchange.Websocket, verbose bool) {
 			case error:
 				switch {
 				case common.StringContains(data.(error).Error(), "close 1006"):
-					go WebsocketReconnect(ws, verbose)
+					go u.WebsocketReconnect(ws, verbose)
 					continue
 				default:
 					log.Fatalf("routines.go exchange %s websocket error - %s", ws.GetName(), data)
@@ -991,9 +777,29 @@ func WebsocketDataHandler(ws *exchange.Websocket, verbose bool) {
 				}
 
 			case exchange.TickerData:
-				// Ticker data
+				wsTicker := data.(exchange.TickerData)
 				if verbose {
-					log.Println("Websocket Ticker Updated:   ", data.(exchange.TickerData))
+					log.Println("Websocket Ticker Updated:   ", wsTicker)
+				}
+
+				var updated bool
+				u.Lock()
+				for i := range u.Assets {
+					if u.Assets[i].AssetType == wsTicker.AssetType &&
+						u.Assets[i].CurrencyPair.Display("", true) == wsTicker.Pair.Display("", true) &&
+						u.Assets[i].Exchange.GetName() == wsTicker.Exchange {
+						u.Assets[i].Ticker.LastUpdated = time.Now()
+						updated = true
+						break
+					}
+				}
+				u.Unlock()
+
+				if !updated {
+					log.Printf("routines.go error - websocket failed to update ticker asset %s, %s, %s",
+						wsTicker.Exchange,
+						wsTicker.Pair,
+						wsTicker.AssetType)
 				}
 
 			case exchange.KlineData:
@@ -1003,9 +809,29 @@ func WebsocketDataHandler(ws *exchange.Websocket, verbose bool) {
 				}
 
 			case exchange.WebsocketOrderbookUpdate:
-				// Orderbook data
+				wsOrderbook := data.(exchange.WebsocketOrderbookUpdate)
 				if verbose {
-					log.Println("Websocket Orderbook Updated:", data.(exchange.WebsocketOrderbookUpdate))
+					log.Println("Websocket Orderbook Updated:", wsOrderbook)
+				}
+
+				var updated bool
+				u.Lock()
+				for i := range u.Assets {
+					if u.Assets[i].AssetType == wsOrderbook.Asset &&
+						u.Assets[i].CurrencyPair.Display("", true) == wsOrderbook.Pair.Display("", true) &&
+						u.Assets[i].Exchange.GetName() == wsOrderbook.Exchange {
+						u.Assets[i].Ticker.LastUpdated = time.Now()
+						updated = true
+						break
+					}
+				}
+				u.Unlock()
+
+				if !updated {
+					log.Printf("routines.go error - websocket failed to update orderbook asset %s, %s, %s",
+						wsOrderbook.Exchange,
+						wsOrderbook.Pair,
+						wsOrderbook.Asset)
 				}
 
 			default:
@@ -1018,7 +844,7 @@ func WebsocketDataHandler(ws *exchange.Websocket, verbose bool) {
 }
 
 // WebsocketReconnect tries to reconnect to a websocket stream
-func WebsocketReconnect(ws *exchange.Websocket, verbose bool) {
+func (u *Updater) WebsocketReconnect(ws *exchange.Websocket, verbose bool) {
 	if verbose {
 		log.Printf("Websocket reconnection requested for %s", ws.GetName())
 	}
@@ -1028,13 +854,13 @@ func WebsocketReconnect(ws *exchange.Websocket, verbose bool) {
 		log.Fatal(err)
 	}
 
-	wg.Add(1)
-	defer wg.Done()
+	u.Websocket.Add(1)
+	defer u.Websocket.Done()
 
 	ticker := time.NewTicker(3 * time.Second)
 	for {
 		select {
-		case <-shutdowner:
+		case <-u.shutdown:
 			return
 
 		case <-ticker.C:

@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
-	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
@@ -31,35 +30,25 @@ func (b *BTCC) Run() {
 		log.Printf("%s %d currencies enabled: %s.\n", b.GetName(), len(b.EnabledPairs), b.EnabledPairs)
 	}
 
-	if common.StringDataContains(b.EnabledPairs, "CNY") || common.StringDataContains(b.AvailablePairs, "CNY") || common.StringDataContains(b.BaseCurrencies, "CNY") {
-		log.Println("WARNING: BTCC only supports BTCUSD now, upgrading available, enabled and base currencies to BTCUSD/USD")
-		pairs := []string{"BTCUSD"}
-		cfg := config.GetConfig()
-		exchCfg, err := cfg.GetExchangeConfig(b.Name)
-		if err != nil {
-			log.Printf("%s failed to get exchange config. %s\n", b.Name, err)
-			return
+	if !common.StringDataContains(b.EnabledPairs, "_") || !common.StringDataContains(b.AvailablePairs, "_") {
+		var availP []string
+		for _, p := range b.GetAvailableCurrencies() {
+			availP = append(availP, p.Display("_", true).String())
 		}
 
-		exchCfg.BaseCurrencies = "USD"
-		exchCfg.AvailablePairs = pairs[0]
-		exchCfg.EnabledPairs = pairs[0]
-		b.BaseCurrencies = []string{"USD"}
+		var enabledP []string
+		for _, p := range b.GetEnabledCurrencies() {
+			enabledP = append(enabledP, p.Display("_", true).String())
+		}
 
-		err = b.UpdateCurrencies(pairs, false, true)
+		err := b.UpdateCurrencies(availP, false, true)
 		if err != nil {
 			log.Printf("%s failed to update available currencies. %s\n", b.Name, err)
 		}
 
-		err = b.UpdateCurrencies(pairs, true, true)
+		err = b.UpdateCurrencies(enabledP, true, true)
 		if err != nil {
 			log.Printf("%s failed to update enabled currencies. %s\n", b.Name, err)
-		}
-
-		err = cfg.UpdateExchangeConfig(exchCfg)
-		if err != nil {
-			log.Printf("%s failed to update config. %s\n", b.Name, err)
-			return
 		}
 	}
 }

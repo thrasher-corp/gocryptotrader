@@ -212,12 +212,10 @@ func main() {
 	}
 	log.Println("Database connection successfully established")
 
-	err = StartMonitor(bot.exchanges, true, true, *dbSeedHistory, *verbosity)
+	err = StartUpdater(bot.exchanges, true, true, *dbSeedHistory, *verbosity)
 	if err != nil {
-		log.Fatal("Currency asset monitor failure", err)
+		log.Fatal("Currency asset updater failure", err)
 	}
-
-	go WebsocketRoutine(*verbosity)
 
 	<-bot.shutdown
 	Shutdown()

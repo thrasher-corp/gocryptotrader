@@ -211,20 +211,31 @@ func (p *Poloniex) WsHandleData() {
 					tickerData := check[2].([]interface{})
 					var ticker WsTicker
 
-					ticker.LastPrice, _ = tickerData[0].(float64)
-					// ticker.LowestAsk, _ = strconv.ParseFloat(tickerData[1].(string), 64)
-					ticker.HighestBid, _ = strconv.ParseFloat(tickerData[2].(string), 64)
-					ticker.PercentageChange, _ = strconv.ParseFloat(tickerData[3].(string), 64)
-					ticker.BaseCurrencyVolume24H, _ = strconv.ParseFloat(tickerData[4].(string), 64)
-					ticker.QuoteCurrencyVolume24H, _ = strconv.ParseFloat(tickerData[5].(string), 64)
-					frozen, _ := strconv.ParseInt(tickerData[6].(string), 10, 64)
+					currencyID := int64(tickerData[0].(float64))
+					symbol, ok := CurrencyPairID[currencyID]
+					if !ok {
+						// TODO log updated supported currency through this
+						// symbol check
+						continue
+					}
+
+					currencyPair := pair.NewCurrencyPairFromString(symbol)
+
+					ticker.LastPrice, _ = tickerData[1].(float64)
+					ticker.LowestAsk, _ = strconv.ParseFloat(tickerData[2].(string), 64)
+					ticker.HighestBid, _ = strconv.ParseFloat(tickerData[3].(string), 64)
+					ticker.PercentageChange, _ = strconv.ParseFloat(tickerData[4].(string), 64)
+					ticker.BaseCurrencyVolume24H, _ = strconv.ParseFloat(tickerData[5].(string), 64)
+					ticker.QuoteCurrencyVolume24H, _ = strconv.ParseFloat(tickerData[6].(string), 64)
+					frozen := tickerData[7].(float64)
 					if frozen == 1 {
 						ticker.IsFrozen = true
 					}
-					ticker.HighestTradeIn24H, _ = tickerData[7].(float64)
-					ticker.LowestTradePrice24H, _ = strconv.ParseFloat(tickerData[8].(string), 64)
+					ticker.HighestTradeIn24H, _ = tickerData[8].(float64)
+					ticker.LowestTradePrice24H, _ = strconv.ParseFloat(tickerData[9].(string), 64)
 
 					p.Websocket.DataHandler <- exchange.TickerData{
+						Pair:      currencyPair,
 						Timestamp: time.Now(),
 						Exchange:  p.GetName(),
 						AssetType: "SPOT",
@@ -459,6 +470,8 @@ var CurrencyPairID = map[int64]string{
 	224: "USDC_BTC",
 	226: "USDC_USDT",
 	225: "USDC_ETH",
+	231: "USDT_MANA",
+	233: "ETH_BNT",
 }
 
 // CurrencyID defines IDs to a currency supported by the exchange
