@@ -17,6 +17,8 @@ Please delete options that are not relevant.
 
 Please describe the tests that you ran to verify your changes. Provide instructions so we can reproduce. Please also list any relevant details for your test configuration
 
+## Please also consider improving test coverage whilst working on a certain package
+
 - [ ] Test A
 - [ ] Test B
 
@@ -28,5 +30,5 @@ Please describe the tests that you ran to verify your changes. Provide instructi
 - [ ] I have made corresponding changes to the documentation and regenerated documentation via the documentation tool 
 - [ ] My changes generate no new warnings
 - [ ] I have added tests that prove my fix is effective or that my feature works
-- [ ] New and existing unit tests pass locally with my changes
+- [ ] New and existing unit tests pass locally and on Travis with my changes
 - [ ] Any dependent changes have been merged and published in downstream modules

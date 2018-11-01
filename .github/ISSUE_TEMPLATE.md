@@ -6,6 +6,8 @@ Please provide any relevant information about your setup. This is important in c
 
 * Operating System:
 
+* GoCryptoTrader version (gocryptotrader -version):
+
 ## Expected Behavior
 
 Please describe the behavior you are expecting
@@ -28,4 +30,4 @@ Please provide detailed steps for reproducing the issue.
 
 ### Failure Logs
 
-Please include any relevant log snippets or files here.
+By default, GoCryptoTrader stores its debug.log file in %APPDATA%\GoCryptoTrader on Windows and ~/.gocryptotrader on Linux/Unix/macOS. Raw text or a link to a pastebin type site is preferred.
