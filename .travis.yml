@@ -20,6 +20,6 @@ matrix:
         - GO111MODULE=on
       install: true
       script:
-        - ./testdata/test.sh
+        - go test -race -coverprofile=./testdata/coverage.txt -covermode=atomic  ./...
       after_success:
         - bash <(curl -s https://codecov.io/bash)
