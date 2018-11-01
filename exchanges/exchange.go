@@ -747,6 +747,12 @@ var formats = Formatting{
 // OrderType enforces a standard for Ordertypes across the code base
 type OrderType string
 
+// OrderType ...types
+const (
+	Limit  OrderType = "Limit"
+	Market OrderType = "Market"
+)
+
 // Format changes the ordertype to the exchange standard and returns a string
 func (o OrderType) Format(exchangeName string) string {
 	for _, format := range formats {
@@ -759,16 +765,22 @@ func (o OrderType) Format(exchangeName string) string {
 
 // OrderTypeLimit returns an OrderType limit order
 func OrderTypeLimit() OrderType {
-	return "Limit"
+	return Limit
 }
 
 // OrderTypeMarket returns an OrderType Market order
 func OrderTypeMarket() OrderType {
-	return "Market"
+	return Market
 }
 
 // OrderSide enforces a standard for OrderSides across the code base
 type OrderSide string
+
+// OrderSide types
+const (
+	Buy  OrderSide = "Buy"
+	Sell OrderSide = "Sell"
+)
 
 // Format changes the ordertype to the exchange standard and returns a string
 func (o OrderSide) Format(exchangeName string) string {
@@ -782,12 +794,12 @@ func (o OrderSide) Format(exchangeName string) string {
 
 // OrderSideBuy returns an OrderSide buy order
 func OrderSideBuy() OrderSide {
-	return "Buy"
+	return Buy
 }
 
 // OrderSideSell returns an OrderSide Sell order
 func OrderSideSell() OrderSide {
-	return "Sell"
+	return Sell
 }
 
 // SetAPIURL sets configuration API URL for an exchange

@@ -196,10 +196,10 @@ func (a *ANX) GetDataToken() (string, error) {
 }
 
 // NewOrder sends a new order request to the exchange.
-func (a *ANX) NewOrder(orderType string, buy bool, tradedCurrency, tradedCurrencyAmount, settlementCurrency, settlementCurrencyAmount, limitPriceSettlement string,
-	replace bool, replaceUUID string, replaceIfActive bool) error {
-	request := make(map[string]interface{})
+func (a *ANX) NewOrder(orderType string, buy bool, tradedCurrency string, tradedCurrencyAmount float64, settlementCurrency string, settlementCurrencyAmount float64, limitPriceSettlement float64,
+	replace bool, replaceUUID string, replaceIfActive bool) (string, error) {
 
+	request := make(map[string]interface{})
 	var order Order
 	order.OrderType = orderType
 	order.BuyTradedCurrency = buy
@@ -230,13 +230,13 @@ func (a *ANX) NewOrder(orderType string, buy bool, tradedCurrency, tradedCurrenc
 
 	err := a.SendAuthenticatedHTTPRequest(anxOrderNew, request, &response)
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	if response.ResultCode != "OK" {
-		return errors.New("Response code is not OK: %s" + response.ResultCode)
+		return "", errors.New("Response code is not OK: %s" + response.ResultCode)
 	}
-	return nil
+	return response.OrderID, nil
 }
 
 // OrderInfo returns information about a specific order

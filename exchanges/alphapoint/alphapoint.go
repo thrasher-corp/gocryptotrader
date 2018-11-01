@@ -359,17 +359,26 @@ func (a *Alphapoint) WithdrawCoins(symbol, product, address string, amount float
 	return nil
 }
 
+func (a *Alphapoint) convertOrderTypeToOrderTypeNumber(orderType string) (orderTypeNumber int64) {
+	if orderType == exchange.OrderTypeMarket().Format(a.Name) {
+		orderTypeNumber = 1
+	}
+
+	return orderTypeNumber
+}
+
 // CreateOrder creates a market or limit order
 // symbol - Instrument code (ex: “BTCUSD”)
 // side - “buy” or “sell”
 // orderType - “1” for market orders, “0” for limit orders
 // quantity - Quantity
 // price - Price in USD
-func (a *Alphapoint) CreateOrder(symbol, side string, orderType int, quantity, price float64) (int64, error) {
+func (a *Alphapoint) CreateOrder(symbol, side, orderType string, quantity, price float64) (int64, error) {
+	orderTypeNumber := a.convertOrderTypeToOrderTypeNumber(orderType)
 	request := make(map[string]interface{})
 	request["ins"] = symbol
 	request["side"] = side
-	request["orderType"] = orderType
+	request["orderType"] = orderTypeNumber
 	request["qty"] = strconv.FormatFloat(quantity, 'f', -1, 64)
 	request["px"] = strconv.FormatFloat(price, 'f', -1, 64)
 	response := Response{}
