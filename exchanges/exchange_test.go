@@ -246,6 +246,17 @@ func TestSetAssetTypes(t *testing.T) {
 	}
 }
 
+func TestGetAssetTypes(t *testing.T) {
+	testExchange := Base{
+		AssetTypes: []string{"SPOT", "Binary", "Futures"},
+	}
+
+	aT := testExchange.GetAssetTypes()
+	if len(aT) != 3 {
+		t.Error("Test failed. TestGetAssetTypes failed")
+	}
+}
+
 func TestGetExchangeAssetTypes(t *testing.T) {
 	cfg := config.GetConfig()
 	err := cfg.LoadConfig(config.ConfigTestFile)
