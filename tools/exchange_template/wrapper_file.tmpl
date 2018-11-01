@@ -121,7 +121,7 @@ func ({{.Variable}} *{{.CapitalName}}) GetExchangeHistory(p pair.CurrencyPair, a
 }
 
 // SubmitExchangeOrder submits a new order
-func ({{.Variable}} *{{.CapitalName}}) SubmitExchangeOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (int64, error) {
+func ({{.Variable}} *{{.CapitalName}}) SubmitExchangeOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (string, error) {
 	return 0, errors.New("not yet implemented")
 }
 
