@@ -19,6 +19,7 @@ matrix:
       env:
         - GO111MODULE=on
       install: true
+      
       script:
         - go test -race -coverprofile=./testdata/coverage.txt -covermode=atomic  ./...
       after_success:
