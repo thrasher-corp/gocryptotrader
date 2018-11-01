@@ -186,6 +186,7 @@ type IBotExchange interface {
 	UpdateOrderbook(currency pair.CurrencyPair, assetType string) (orderbook.Base, error)
 	GetEnabledCurrencies() []pair.CurrencyPair
 	GetAvailableCurrencies() []pair.CurrencyPair
+	GetAssetTypes() []string
 	GetExchangeAccountInfo() (AccountInfo, error)
 	GetAuthenticatedAPISupport() bool
 	SetCurrencies(pairs []pair.CurrencyPair, enabledPairs bool) error
@@ -355,6 +356,11 @@ func (e *Base) SetAssetTypes() error {
 	}
 
 	return nil
+}
+
+// GetAssetTypes returns the available asset types for an individual exchange
+func (e *Base) GetAssetTypes() []string {
+	return e.AssetTypes
 }
 
 // GetExchangeAssetTypes returns the asset types the exchange supports (SPOT,
