@@ -519,6 +519,8 @@ func (g *Gemini) GetFee(feeBuilder exchange.FeeBuilder) (float64, error) {
 	case exchange.CryptocurrencyWithdrawalFee:
 		// TODO: no free transactions after 10; Need database to know how many trades have been done
 		// Could do via trade history, but would require analysis of response and dates to determine level of fee
+	case exchange.InternationalBankWithdrawalFee:
+		fee = 0
 	}
 	if fee < 0 {
 		fee = 0

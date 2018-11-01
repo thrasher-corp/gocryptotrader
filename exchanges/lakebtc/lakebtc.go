@@ -354,6 +354,9 @@ func (l *LakeBTC) GetFee(feeBuilder exchange.FeeBuilder) (float64, error) {
 		fee = calculateTradingFee(feeBuilder.PurchasePrice, feeBuilder.Amount, feeBuilder.IsMaker)
 	case exchange.CyptocurrencyDepositFee:
 		fee = getCryptocurrencyWithdrawalFee(feeBuilder.FirstCurrency)
+	case exchange.InternationalBankWithdrawalFee:
+		// fees for withdrawals are dynamic. They cannot be calculated in advance
+		// As they are manually performed via the website, it can only be determined when submitting the request
 	}
 
 	if fee < 0 {

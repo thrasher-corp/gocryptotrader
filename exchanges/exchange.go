@@ -55,6 +55,7 @@ const (
 	Skrill          InternationalBankTransactionType = "skrill"
 	Simplex         InternationalBankTransactionType = "simplex"
 	SEPA            InternationalBankTransactionType = "sepa"
+	Swift           InternationalBankTransactionType = "swift"
 	RapidTransfer   InternationalBankTransactionType = "rapidTransfer"
 	MisterTangoSEPA InternationalBankTransactionType = "misterTangoSepa"
 	Qiwi            InternationalBankTransactionType = "qiwi"

@@ -11,6 +11,7 @@ import (
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
+	"github.com/thrasher-/gocryptotrader/currency/symbol"
 	"github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/request"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
@@ -375,7 +376,10 @@ func (i *ItBit) GetFee(feeBuilder exchange.FeeBuilder) (float64, error) {
 	switch feeBuilder.FeeType {
 	case exchange.CryptocurrencyTradeFee:
 		fee = calculateTradingFee(feeBuilder.PurchasePrice, feeBuilder.Amount, feeBuilder.IsMaker)
+	case exchange.InternationalBankWithdrawalFee:
+		fee = getInternationalBankWithdrawalFee(feeBuilder.CurrencyItem, feeBuilder.Amount, feeBuilder.BankTransactionType)
 	}
+
 	if fee < 0 {
 		fee = 0
 	}
@@ -391,4 +395,14 @@ func calculateTradingFee(purchasePrice, amount float64, isMaker bool) float64 {
 		feePercent = 0
 	}
 	return feePercent * purchasePrice * amount
+}
+
+func getInternationalBankWithdrawalFee(currency string, amount float64, bankTransactionType exchange.InternationalBankTransactionType) float64 {
+	var fee float64
+	if (bankTransactionType == exchange.Swift || bankTransactionType == exchange.WireTransfer) && currency == symbol.USD {
+		fee = 40
+	} else if (bankTransactionType == exchange.SEPA || bankTransactionType == exchange.WireTransfer) && currency == symbol.EUR {
+		fee = 1
+	}
+	return fee
 }
