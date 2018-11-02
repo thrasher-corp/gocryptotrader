@@ -284,4 +284,10 @@ func TestDoRequest(t *testing.T) {
 	if err != nil {
 		t.Fatal("unexpected values")
 	}
+
+	r.HTTPClient.Timeout = 1 * time.Second
+	err = r.SendPayload("POST", "https://httpstat.us/200?sleep=20000", nil, nil, nil, false, true)
+	if err == nil {
+		t.Fatal(err)
+	}
 }

@@ -6,6 +6,7 @@ import (
 	"io"
 	"io/ioutil"
 	"log"
+	"net"
 	"net/http"
 	"net/url"
 	"sync"
@@ -247,36 +248,50 @@ func (r *Requester) DoRequest(req *http.Request, method, path string, headers ma
 		log.Printf("%s exchange request path: %s requires rate limiter: %v", r.Name, path, r.RequiresRateLimiter())
 	}
 
-	resp, err := r.HTTPClient.Do(req)
+	var timeoutError error
+	for i := 0; i < 4; i++ { // 3 attempts for extra requests due to client timeout
+		resp, err := r.HTTPClient.Do(req)
+		if err != nil {
+			if timeoutErr, ok := err.(net.Error); ok && timeoutErr.Timeout() {
+				if verbose {
+					log.Printf("%s request has timed-out retrying request, count %d",
+						r.Name,
+						i)
+				}
+				timeoutError = err
+				continue
+			}
 
-	if err != nil {
-		if r.RequiresRateLimiter() {
-			r.DecrementRequests(authRequest)
+			if r.RequiresRateLimiter() {
+				r.DecrementRequests(authRequest)
+			}
+			return err
 		}
-		return err
-	}
-	if resp == nil {
-		if r.RequiresRateLimiter() {
-			r.DecrementRequests(authRequest)
+		if resp == nil {
+			if r.RequiresRateLimiter() {
+				r.DecrementRequests(authRequest)
+			}
+			return errors.New("resp is nil")
 		}
-		return errors.New("resp is nil")
-	}
 
-	contents, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return err
-	}
+		contents, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			return err
+		}
 
-	resp.Body.Close()
-	if verbose {
-		log.Printf("%s exchange raw response: %s", r.Name, string(contents[:]))
-	}
+		resp.Body.Close()
+		if verbose {
+			log.Printf("%s exchange raw response: %s", r.Name, string(contents[:]))
+		}
 
-	if result != nil {
-		return common.JSONDecode(contents, result)
-	}
+		if result != nil {
+			return common.JSONDecode(contents, result)
+		}
 
-	return nil
+		return nil
+	}
+	return fmt.Errorf("request.go error - failed to retry request %s",
+		timeoutError)
 }
 
 func (r *Requester) worker() {
