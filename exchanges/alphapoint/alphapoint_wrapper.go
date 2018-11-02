@@ -183,6 +183,6 @@ func (a *Alphapoint) GetFeeByType(feeBuilder exchange.FeeBuilder) (float64, erro
 }
 
 // GetWithdrawCapabilities returns the types of withdrawal methods permitted by the exchange
-func (a *Alphapoint) GetWithdrawCapabilities() string {
+func (a *Alphapoint) GetWithdrawCapabilities() uint32 {
 	return a.GetWithdrawPermissions()
 }

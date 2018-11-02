@@ -220,6 +220,6 @@ func (b *Bitstamp) GetWebsocket() (*exchange.Websocket, error) {
 }
 
 // GetWithdrawCapabilities returns the types of withdrawal methods permitted by the exchange
-func (b *Bitstamp) GetWithdrawCapabilities() string {
+func (b *Bitstamp) GetWithdrawCapabilities() uint32 {
 	return b.GetWithdrawPermissions()
 }

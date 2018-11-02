@@ -187,6 +187,6 @@ func (g *Gateio) GetFeeByType(feeBuilder exchange.FeeBuilder) (float64, error) {
 }
 
 // GetWithdrawCapabilities returns the types of withdrawal methods permitted by the exchange
-func (g *Gateio) GetWithdrawCapabilities() string {
+func (g *Gateio) GetWithdrawCapabilities() uint32 {
 	return g.GetWithdrawPermissions()
 }

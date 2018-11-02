@@ -200,6 +200,6 @@ func (b *Bithumb) GetFeeByType(feeBuilder exchange.FeeBuilder) (float64, error) 
 }
 
 // GetWithdrawCapabilities returns the types of withdrawal methods permitted by the exchange
-func (b *Bithumb) GetWithdrawCapabilities() string {
+func (b *Bithumb) GetWithdrawCapabilities() uint32 {
 	return b.GetWithdrawPermissions()
 }

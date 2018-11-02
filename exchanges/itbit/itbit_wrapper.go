@@ -189,6 +189,6 @@ func (i *ItBit) GetFeeByType(feeBuilder exchange.FeeBuilder) (float64, error) {
 }
 
 // GetWithdrawCapabilities returns the types of withdrawal methods permitted by the exchange
-func (i *ItBit) GetWithdrawCapabilities() string {
+func (i *ItBit) GetWithdrawCapabilities() uint32 {
 	return i.GetWithdrawPermissions()
 }

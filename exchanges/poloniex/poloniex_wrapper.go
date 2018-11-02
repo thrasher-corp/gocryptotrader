@@ -215,6 +215,6 @@ func (p *Poloniex) GetFeeByType(feeBuilder exchange.FeeBuilder) (float64, error)
 }
 
 // GetWithdrawCapabilities returns the types of withdrawal methods permitted by the exchange
-func (p *Poloniex) GetWithdrawCapabilities() string {
+func (p *Poloniex) GetWithdrawCapabilities() uint32 {
 	return p.GetWithdrawPermissions()
 }

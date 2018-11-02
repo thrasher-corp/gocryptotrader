@@ -200,6 +200,6 @@ func (y *Yobit) GetFeeByType(feeBuilder exchange.FeeBuilder) (float64, error) {
 }
 
 // GetWithdrawCapabilities returns the types of withdrawal methods permitted by the exchange
-func (y *Yobit) GetWithdrawCapabilities() string {
+func (y *Yobit) GetWithdrawCapabilities() uint32 {
 	return y.GetWithdrawPermissions()
 }

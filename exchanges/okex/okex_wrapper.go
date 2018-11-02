@@ -212,6 +212,6 @@ func (o *OKEX) GetFeeByType(feeBuilder exchange.FeeBuilder) (float64, error) {
 }
 
 // GetWithdrawCapabilities returns the types of withdrawal methods permitted by the exchange
-func (o *OKEX) GetWithdrawCapabilities() string {
+func (o *OKEX) GetWithdrawCapabilities() uint32 {
 	return o.GetWithdrawPermissions()
 }

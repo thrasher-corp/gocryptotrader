@@ -201,6 +201,6 @@ func (c *COINUT) GetFeeByType(feeBuilder exchange.FeeBuilder) (float64, error) {
 }
 
 // GetWithdrawCapabilities returns the types of withdrawal methods permitted by the exchange
-func (c *COINUT) GetWithdrawCapabilities() string {
+func (c *COINUT) GetWithdrawCapabilities() uint32 {
 	return c.GetWithdrawPermissions()
 }

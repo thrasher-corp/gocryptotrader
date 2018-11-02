@@ -196,6 +196,6 @@ func (z *ZB) GetFeeByType(feeBuilder exchange.FeeBuilder) (float64, error) {
 }
 
 // GetWithdrawCapabilities returns the types of withdrawal methods permitted by the exchange
-func (z *ZB) GetWithdrawCapabilities() string {
+func (z *ZB) GetWithdrawCapabilities() uint32 {
 	return z.GetWithdrawPermissions()
 }

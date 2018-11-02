@@ -208,6 +208,6 @@ func (b *Bitflyer) GetWebsocket() (*exchange.Websocket, error) {
 }
 
 // GetWithdrawCapabilities returns the types of withdrawal methods permitted by the exchange
-func (b *Bitflyer) GetWithdrawCapabilities() string {
+func (b *Bitflyer) GetWithdrawCapabilities() uint32 {
 	return b.GetWithdrawPermissions()
 }

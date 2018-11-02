@@ -256,6 +256,6 @@ func (a *ANX) GetFeeByType(feeBuilder exchange.FeeBuilder) (float64, error) {
 }
 
 // GetWithdrawCapabilities returns the types of withdrawal methods permitted by the exchange
-func (a *ANX) GetWithdrawCapabilities() string {
+func (a *ANX) GetWithdrawCapabilities() uint32 {
 	return a.GetWithdrawPermissions()
 }

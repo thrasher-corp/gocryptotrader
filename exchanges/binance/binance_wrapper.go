@@ -201,6 +201,6 @@ func (b *Binance) GetFeeByType(feeBuilder exchange.FeeBuilder) (float64, error) 
 }
 
 // GetWithdrawCapabilities returns the types of withdrawal methods permitted by the exchange
-func (b *Binance) GetWithdrawCapabilities() string {
+func (b *Binance) GetWithdrawCapabilities() uint32 {
 	return b.GetWithdrawPermissions()
 }

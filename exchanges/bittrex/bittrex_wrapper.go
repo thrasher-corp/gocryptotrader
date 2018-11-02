@@ -230,6 +230,6 @@ func (b *Bittrex) GetFeeByType(feeBuilder exchange.FeeBuilder) (float64, error) 
 }
 
 // GetWithdrawCapabilities returns the types of withdrawal methods permitted by the exchange
-func (b *Bittrex) GetWithdrawCapabilities() string {
+func (b *Bittrex) GetWithdrawCapabilities() uint32 {
 	return b.GetWithdrawPermissions()
 }

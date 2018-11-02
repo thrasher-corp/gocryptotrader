@@ -208,6 +208,6 @@ func (l *Liqui) GetFeeByType(feeBuilder exchange.FeeBuilder) (float64, error) {
 }
 
 // GetWithdrawCapabilities returns the types of withdrawal methods permitted by the exchange
-func (l *Liqui) GetWithdrawCapabilities() string {
+func (l *Liqui) GetWithdrawCapabilities() uint32 {
 	return l.GetWithdrawPermissions()
 }

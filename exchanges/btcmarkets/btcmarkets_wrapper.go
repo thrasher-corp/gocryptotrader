@@ -262,6 +262,6 @@ func (b *BTCMarkets) GetFeeByType(feeBuilder exchange.FeeBuilder) (float64, erro
 }
 
 // GetWithdrawCapabilities returns the types of withdrawal methods permitted by the exchange
-func (b *BTCMarkets) GetWithdrawCapabilities() string {
+func (b *BTCMarkets) GetWithdrawCapabilities() uint32 {
 	return b.GetWithdrawPermissions()
 }

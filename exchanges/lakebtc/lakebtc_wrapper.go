@@ -199,6 +199,6 @@ func (l *LakeBTC) GetFeeByType(feeBuilder exchange.FeeBuilder) (float64, error) 
 }
 
 // GetWithdrawCapabilities returns the types of withdrawal methods permitted by the exchange
-func (l *LakeBTC) GetWithdrawCapabilities() string {
+func (l *LakeBTC) GetWithdrawCapabilities() uint32 {
 	return l.GetWithdrawPermissions()
 }

@@ -845,7 +845,7 @@ func TestAPIURL(t *testing.T) {
 	}
 }
 
-func TestGetWithdrawPermissions(t *testing.T) {
+func TestSupportsWithdrawPermissions(t *testing.T) {
 	cfg := config.GetConfig()
 	err := cfg.LoadConfig(config.ConfigTestFile)
 	if err != nil {
@@ -854,7 +854,37 @@ func TestGetWithdrawPermissions(t *testing.T) {
 
 	UAC := Base{Name: "ANX"}
 	UAC.APIWithdrawPermissions = AutoWithdrawCrypto | AutoWithdrawCryptoWithAPIPermission
-	withdrawPermissions := UAC.GetWithdrawPermissions()
+	withdrawPermissions := UAC.SupportsWithdrawPermissions(AutoWithdrawCrypto)
+	if withdrawPermissions {
+		t.Errorf("Expected: %v, Recieved: %v", false, withdrawPermissions)
+	}
+
+	withdrawPermissions = UAC.SupportsWithdrawPermissions(AutoWithdrawCrypto | AutoWithdrawCryptoWithAPIPermission)
+	if !withdrawPermissions {
+		t.Errorf("Expected: %v, Recieved: %v", true, withdrawPermissions)
+	}
+
+	withdrawPermissions = UAC.SupportsWithdrawPermissions(AutoWithdrawCrypto | AutoWithdrawCryptoWithAPIPermission | WithdrawCryptoWith2FA)
+	if !withdrawPermissions {
+		t.Errorf("Expected: %v, Recieved: %v", true, withdrawPermissions)
+	}
+
+	withdrawPermissions = UAC.SupportsWithdrawPermissions(WithdrawCryptoWith2FA)
+	if withdrawPermissions {
+		t.Errorf("Expected: %v, Recieved: %v", false, withdrawPermissions)
+	}
+}
+
+func TestFormatWithdrawPermissions(t *testing.T) {
+	cfg := config.GetConfig()
+	err := cfg.LoadConfig(config.ConfigTestFile)
+	if err != nil {
+		t.Fatal("Test failed. TestUpdateEnabledCurrencies failed to load config")
+	}
+
+	UAC := Base{Name: "ANX"}
+	UAC.APIWithdrawPermissions = AutoWithdrawCrypto | AutoWithdrawCryptoWithAPIPermission
+	withdrawPermissions := UAC.FormatWithdrawPermissions()
 	if withdrawPermissions != AutoWithdrawCryptoText+" & "+AutoWithdrawCryptoWithAPIPermissionText {
 		t.Errorf("Expected: %s, Recieved: %s", AutoWithdrawCryptoText+" & "+AutoWithdrawCryptoWithAPIPermissionText, withdrawPermissions)
 	}

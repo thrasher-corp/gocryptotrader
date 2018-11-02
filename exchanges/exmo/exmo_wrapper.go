@@ -236,6 +236,6 @@ func (e *EXMO) GetFeeByType(feeBuilder exchange.FeeBuilder) (float64, error) {
 }
 
 // GetWithdrawCapabilities returns the types of withdrawal methods permitted by the exchange
-func (e *EXMO) GetWithdrawCapabilities() string {
+func (e *EXMO) GetWithdrawCapabilities() uint32 {
 	return e.GetWithdrawPermissions()
 }

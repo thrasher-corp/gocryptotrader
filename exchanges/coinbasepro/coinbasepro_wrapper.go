@@ -198,6 +198,6 @@ func (c *CoinbasePro) GetFeeByType(feeBuilder exchange.FeeBuilder) (float64, err
 }
 
 // GetWithdrawCapabilities returns the types of withdrawal methods permitted by the exchange
-func (c *CoinbasePro) GetWithdrawCapabilities() string {
+func (c *CoinbasePro) GetWithdrawCapabilities() uint32 {
 	return c.GetWithdrawPermissions()
 }

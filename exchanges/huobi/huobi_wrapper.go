@@ -230,6 +230,6 @@ func (h *HUOBI) GetFeeByType(feeBuilder exchange.FeeBuilder) (float64, error) {
 }
 
 // GetWithdrawCapabilities returns the types of withdrawal methods permitted by the exchange
-func (h *HUOBI) GetWithdrawCapabilities() string {
+func (h *HUOBI) GetWithdrawCapabilities() uint32 {
 	return h.GetWithdrawPermissions()
 }

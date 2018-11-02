@@ -187,6 +187,6 @@ func (g *Gemini) GetFeeByType(feeBuilder exchange.FeeBuilder) (float64, error) {
 }
 
 // GetWithdrawCapabilities returns the types of withdrawal methods permitted by the exchange
-func (g *Gemini) GetWithdrawCapabilities() string {
+func (g *Gemini) GetWithdrawCapabilities() uint32 {
 	return g.GetWithdrawPermissions()
 }

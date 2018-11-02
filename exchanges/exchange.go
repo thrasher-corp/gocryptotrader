@@ -241,6 +241,10 @@ type IBotExchange interface {
 	GetLastPairsUpdateTime() int64
 	SupportsRESTTickerBatchUpdates() bool
 
+	GetWithdrawPermissions() uint32
+	FormatWithdrawPermissions() string
+	SupportsWithdrawPermissions(permissions uint32) bool
+
 	GetExchangeFundTransferHistory() ([]FundHistory, error)
 	SubmitExchangeOrder(p pair.CurrencyPair, side OrderSide, orderType OrderType, amount, price float64, clientID string) (int64, error)
 	ModifyExchangeOrder(orderID int64, modify ModifyOrder) (int64, error)
@@ -820,12 +824,26 @@ func (e *Base) GetAPIURLSecondaryDefault() string {
 	return e.APIUrlSecondaryDefault
 }
 
-// GetWithdrawPermissions will return each of the exchange's compatible withdrawal methods
-func (e *Base) GetWithdrawPermissions() string {
+// GetWithdrawPermissions passes through the exchange's withdraw permissions
+func (e *Base) GetWithdrawPermissions() uint32 {
+	return e.APIWithdrawPermissions
+}
+
+// SupportsWithdrawPermissions compares the supplied permissions with the exchange's to verify they're supported
+func (e *Base) SupportsWithdrawPermissions(permissions uint32) bool {
+	exchangePermissions := e.GetWithdrawPermissions()
+	if permissions&exchangePermissions == exchangePermissions {
+		return true
+	}
+	return false
+}
+
+// FormatWithdrawPermissions will return each of the exchange's compatible withdrawal methods in readable form
+func (e *Base) FormatWithdrawPermissions() string {
 	services := []string{}
 	for i := 0; i < 32; i++ {
 		var check uint32 = 1 << uint32(i)
-		if e.APIWithdrawPermissions&check != 0 {
+		if e.GetWithdrawPermissions()&check != 0 {
 			switch check {
 			case AutoWithdrawCrypto:
 				services = append(services, AutoWithdrawCryptoText)

@@ -215,6 +215,6 @@ func (h *HitBTC) GetFeeByType(feeBuilder exchange.FeeBuilder) (float64, error) {
 }
 
 // GetWithdrawCapabilities returns the types of withdrawal methods permitted by the exchange
-func (h *HitBTC) GetWithdrawCapabilities() string {
+func (h *HitBTC) GetWithdrawCapabilities() uint32 {
 	return h.GetWithdrawPermissions()
 }
