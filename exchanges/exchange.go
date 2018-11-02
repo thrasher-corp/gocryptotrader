@@ -832,7 +832,7 @@ func (e *Base) GetWithdrawPermissions() uint32 {
 // SupportsWithdrawPermissions compares the supplied permissions with the exchange's to verify they're supported
 func (e *Base) SupportsWithdrawPermissions(permissions uint32) bool {
 	exchangePermissions := e.GetWithdrawPermissions()
-	if permissions&exchangePermissions == exchangePermissions {
+	if permissions&exchangePermissions == permissions {
 		return true
 	}
 	return false
