@@ -3,6 +3,7 @@ package binance
 import (
 	"errors"
 	"log"
+	"strconv"
 	"sync"
 
 	"github.com/thrasher-/gocryptotrader/common"
@@ -142,7 +143,17 @@ func (b *Binance) GetExchangeHistory(p pair.CurrencyPair, assetType string) ([]e
 
 // SubmitExchangeOrder submits a new order
 func (b *Binance) SubmitExchangeOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (string, error) {
-	return 0, errors.New("not yet implemented")
+	var orderRequest = NewOrderRequest{
+		Symbol:    p.FirstCurrency.String() + p.SecondCurrency.String(),
+		Side:      RequestParamsSideType(side.Format(b.Name)),
+		Price:     price,
+		Quantity:  amount,
+		TradeType: RequestParamsOrderType(orderType.Format(b.Name)),
+	}
+
+	response, err := b.NewOrder(orderRequest)
+
+	return strconv.FormatInt(response.OrderID, 64), err
 }
 
 // ModifyExchangeOrder will allow of changing orderbook placement and limit to

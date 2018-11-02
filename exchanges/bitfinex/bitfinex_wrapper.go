@@ -4,6 +4,7 @@ import (
 	"errors"
 	"log"
 	"net/url"
+	"strconv"
 	"sync"
 
 	"github.com/thrasher-/gocryptotrader/common"
@@ -175,7 +176,14 @@ func (b *Bitfinex) GetExchangeHistory(p pair.CurrencyPair, assetType string) ([]
 
 // SubmitExchangeOrder submits a new order
 func (b *Bitfinex) SubmitExchangeOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (string, error) {
-	return 0, errors.New("not yet implemented")
+	var isBuying bool
+	if side == exchange.Buy {
+		isBuying = true
+	}
+
+	butts, err := b.NewOrder(p.Pair().String(), amount, price, isBuying, orderType.Format(b.Name), false)
+
+	return strconv.FormatInt(butts.OrderID, 64), err
 }
 
 // ModifyExchangeOrder will allow of changing orderbook placement and limit to
