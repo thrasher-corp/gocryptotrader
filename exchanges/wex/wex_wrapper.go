@@ -216,3 +216,8 @@ func (w *WEX) GetWebsocket() (*exchange.Websocket, error) {
 func (w *WEX) GetFeeByType(feeBuilder exchange.FeeBuilder) (float64, error) {
 	return w.GetFee(feeBuilder)
 }
+
+// GetWithdrawCapabilities returns the types of withdrawal methods permitted by the exchange
+func (w *WEX) GetWithdrawCapabilities() uint32 {
+	return w.GetWithdrawPermissions()
+}

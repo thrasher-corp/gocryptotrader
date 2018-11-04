@@ -390,3 +390,15 @@ func TestCalculateTradingFee(t *testing.T) {
 		t.Errorf("Test Failed - GetFee() error. Expected: %f, Recieved: %f", float64(0), resp)
 	}
 }
+
+func TestFormatWithdrawPermissions(t *testing.T) {
+	// Arrange
+	c.SetDefaults()
+	expectedResult := exchange.AutoWithdrawCryptoWithAPIPermissionText + " & " + exchange.AutoWithdrawFiatWithAPIPermissionText
+	// Act
+	withdrawPermissions := c.FormatWithdrawPermissions()
+	// Assert
+	if withdrawPermissions != expectedResult {
+		t.Errorf("Expected: %s, Recieved: %s", expectedResult, withdrawPermissions)
+	}
+}

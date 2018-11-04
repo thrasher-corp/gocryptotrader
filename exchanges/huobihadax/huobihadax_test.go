@@ -360,3 +360,15 @@ func TestGetFee(t *testing.T) {
 		t.Error(err)
 	}
 }
+
+func TestFormatWithdrawPermissions(t *testing.T) {
+	// Arrange
+	h.SetDefaults()
+	expectedResult := exchange.AutoWithdrawCryptoWithSetupText
+	// Act
+	withdrawPermissions := h.FormatWithdrawPermissions()
+	// Assert
+	if withdrawPermissions != expectedResult {
+		t.Errorf("Expected: %s, Recieved: %s", expectedResult, withdrawPermissions)
+	}
+}

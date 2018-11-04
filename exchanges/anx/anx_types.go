@@ -57,6 +57,29 @@ type CurrencyPair struct {
 	SimpleTradeEnabled   bool    `json:"simpleTradeEnabled"`
 }
 
+// AccountInformation Used by Get account information
+// Retrieves details of the account and api's
+type AccountInformation struct {
+	UserUUID   string   `json:"userUuid"`
+	Rights     []string `json:"Rights"`
+	ResultCode string   `json:"resultCode"`
+	Wallets    struct {
+		Balance              Amount `json:"Balance"`
+		AvailableBalance     Amount `json:"Available_Balance"`
+		DailyWithdrawalLimit Amount `json:"Daily_Withdrawal_Limit"`
+		MaxWithdraw          Amount `json:"Max_Withdraw"`
+	}
+}
+
+// Amount basic storage of wallet details
+type Amount struct {
+	DisplayShort string  `json:"displayShort"`
+	ValueInt     int64   `json:"valueInt"`
+	Currency     string  `json:"currency"`
+	Display      string  `json:"display"`
+	Value        float64 `json:"value"`
+}
+
 // CurrencyPairs stores currency pair info
 type CurrencyPairs map[string]CurrencyPair
 

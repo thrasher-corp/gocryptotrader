@@ -183,7 +183,6 @@ func TestGetFee(t *testing.T) {
 			t.Error(err)
 		}
 
-
 		// CryptocurrencyTradeFee IsMaker
 		feeBuilder = setFeeBuilder()
 		feeBuilder.IsMaker = true
@@ -233,5 +232,17 @@ func TestGetFee(t *testing.T) {
 	if resp, err := b.GetFee(feeBuilder); resp != float64(540) || err != nil {
 		t.Errorf("Test Failed - GetFee() error. Expected: %f, Recieved: %f", float64(540), resp)
 		t.Error(err)
+	}
+}
+
+func TestFormatWithdrawPermissions(t *testing.T) {
+	// Arrange
+	b.SetDefaults()
+	expectedResult := exchange.AutoWithdrawFiatText + " & " + exchange.WithdrawCryptoViaWebsiteOnlyText
+	// Act
+	withdrawPermissions := b.FormatWithdrawPermissions()
+	// Assert
+	if withdrawPermissions != expectedResult {
+		t.Errorf("Expected: %s, Recieved: %s", expectedResult, withdrawPermissions)
 	}
 }

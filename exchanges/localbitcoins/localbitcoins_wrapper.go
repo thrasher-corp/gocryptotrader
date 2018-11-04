@@ -178,3 +178,8 @@ func (l *LocalBitcoins) GetWebsocket() (*exchange.Websocket, error) {
 func (l *LocalBitcoins) GetFeeByType(feeBuilder exchange.FeeBuilder) (float64, error) {
 	return l.GetFee(feeBuilder)
 }
+
+// GetWithdrawCapabilities returns the types of withdrawal methods permitted by the exchange
+func (l *LocalBitcoins) GetWithdrawCapabilities() uint32 {
+	return l.GetWithdrawPermissions()
+}

@@ -181,3 +181,8 @@ func (a *Alphapoint) GetWebsocket() (*exchange.Websocket, error) {
 func (a *Alphapoint) GetFeeByType(feeBuilder exchange.FeeBuilder) (float64, error) {
 	return 0, errors.New("not yet implemented")
 }
+
+// GetWithdrawCapabilities returns the types of withdrawal methods permitted by the exchange
+func (a *Alphapoint) GetWithdrawCapabilities() uint32 {
+	return a.GetWithdrawPermissions()
+}

@@ -48,6 +48,7 @@ func (i *ItBit) SetDefaults() {
 	i.TakerFee = 0.50
 	i.Verbose = false
 	i.RESTPollingDelay = 10
+	i.APIWithdrawPermissions = exchange.WithdrawCryptoViaWebsiteOnly | exchange.WithdrawFiatViaWebsiteOnly
 	i.RequestCurrencyPairFormat.Delimiter = ""
 	i.RequestCurrencyPairFormat.Uppercase = true
 	i.ConfigCurrencyPairFormat.Delimiter = ""

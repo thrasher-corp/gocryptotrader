@@ -148,12 +148,12 @@ func TestRedeemYobicode(t *testing.T) {
 
 func setFeeBuilder() exchange.FeeBuilder {
 	return exchange.FeeBuilder{
-		Amount:         1,
-		Delimiter:      "-",
-		FeeType:        exchange.CryptocurrencyTradeFee,
-		FirstCurrency:  symbol.LTC,
-		SecondCurrency: symbol.BTC,
-		IsMaker:        false,
+		Amount:              1,
+		Delimiter:           "-",
+		FeeType:             exchange.CryptocurrencyTradeFee,
+		FirstCurrency:       symbol.LTC,
+		SecondCurrency:      symbol.BTC,
+		IsMaker:             false,
 		PurchasePrice:       1,
 		CurrencyItem:        symbol.USD,
 		BankTransactionType: exchange.WireTransfer,
@@ -295,5 +295,17 @@ func TestGetFee(t *testing.T) {
 	if resp, err := y.GetFee(feeBuilder); resp != float64(0) || err != nil {
 		t.Errorf("Test Failed - GetFee() error. Expected: %f, Recieved: %f", float64(0), resp)
 		t.Error(err)
+	}
+}
+
+func TestFormatWithdrawPermissions(t *testing.T) {
+	// Arrange
+	y.SetDefaults()
+	expectedResult := exchange.AutoWithdrawCryptoWithAPIPermissionText + " & " + exchange.WithdrawFiatViaWebsiteOnlyText
+	// Act
+	withdrawPermissions := y.FormatWithdrawPermissions()
+	// Assert
+	if withdrawPermissions != expectedResult {
+		t.Errorf("Expected: %s, Recieved: %s", expectedResult, withdrawPermissions)
 	}
 }

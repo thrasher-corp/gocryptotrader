@@ -228,3 +228,8 @@ func (h *HUOBI) GetWebsocket() (*exchange.Websocket, error) {
 func (h *HUOBI) GetFeeByType(feeBuilder exchange.FeeBuilder) (float64, error) {
 	return h.GetFee(feeBuilder)
 }
+
+// GetWithdrawCapabilities returns the types of withdrawal methods permitted by the exchange
+func (h *HUOBI) GetWithdrawCapabilities() uint32 {
+	return h.GetWithdrawPermissions()
+}

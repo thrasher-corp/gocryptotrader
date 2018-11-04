@@ -209,3 +209,8 @@ func (b *BTCC) GetWebsocket() (*exchange.Websocket, error) {
 func (b *BTCC) GetFeeByType(feeBuilder exchange.FeeBuilder) (float64, error) {
 	return b.GetFee(feeBuilder)
 }
+
+// GetWithdrawCapabilities returns the types of withdrawal methods permitted by the exchange
+func (b *BTCC) GetWithdrawCapabilities() uint32 {
+	return b.GetWithdrawPermissions()
+}

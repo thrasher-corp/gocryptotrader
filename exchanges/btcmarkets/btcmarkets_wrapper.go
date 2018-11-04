@@ -260,3 +260,8 @@ func (b *BTCMarkets) GetWebsocket() (*exchange.Websocket, error) {
 func (b *BTCMarkets) GetFeeByType(feeBuilder exchange.FeeBuilder) (float64, error) {
 	return b.GetFee(feeBuilder)
 }
+
+// GetWithdrawCapabilities returns the types of withdrawal methods permitted by the exchange
+func (b *BTCMarkets) GetWithdrawCapabilities() uint32 {
+	return b.GetWithdrawPermissions()
+}

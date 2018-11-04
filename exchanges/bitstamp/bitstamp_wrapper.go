@@ -218,3 +218,8 @@ func (b *Bitstamp) WithdrawFiatExchangeFundsToInternationalBank(currency pair.Cu
 func (b *Bitstamp) GetWebsocket() (*exchange.Websocket, error) {
 	return b.Websocket, nil
 }
+
+// GetWithdrawCapabilities returns the types of withdrawal methods permitted by the exchange
+func (b *Bitstamp) GetWithdrawCapabilities() uint32 {
+	return b.GetWithdrawPermissions()
+}

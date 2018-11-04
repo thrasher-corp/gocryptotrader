@@ -206,3 +206,8 @@ func (b *Bitflyer) WithdrawFiatExchangeFundsToInternationalBank(currency pair.Cu
 func (b *Bitflyer) GetWebsocket() (*exchange.Websocket, error) {
 	return nil, errors.New("not yet implemented")
 }
+
+// GetWithdrawCapabilities returns the types of withdrawal methods permitted by the exchange
+func (b *Bitflyer) GetWithdrawCapabilities() uint32 {
+	return b.GetWithdrawPermissions()
+}

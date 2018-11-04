@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"strings"
 	"sync"
 	"time"
 
@@ -20,7 +21,6 @@ import (
 
 const (
 	warningBase64DecryptSecretKeyFailed = "WARNING -- Exchange %s unable to base64 decode secret key.. Disabling Authenticated API support."
-
 	// WarningAuthenticatedRequestWithoutCredentialsSet error message for authenticated request without credentials set
 	WarningAuthenticatedRequestWithoutCredentialsSet = "WARNING -- Exchange %s authenticated HTTP request called but not supported due to unset/default API keys."
 	// ErrExchangeNotFound is a constant for an error message
@@ -82,6 +82,51 @@ type FeeBuilder struct {
 	PurchasePrice float64
 	Amount        float64
 }
+
+// Definitions for each type of withdrawal method for a given exchange
+const (
+	// No withdraw
+	NoAPIWithdrawalMethods                  uint32 = 0
+	NoAPIWithdrawalMethodsText              string = "NONE, WEBSITE ONLY"
+	AutoWithdrawCrypto                      uint32 = (1 << 0)
+	AutoWithdrawCryptoWithAPIPermission     uint32 = (1 << 1)
+	AutoWithdrawCryptoWithSetup             uint32 = (1 << 2)
+	AutoWithdrawCryptoText                  string = "AUTO WITHDRAW CRYPTO"
+	AutoWithdrawCryptoWithAPIPermissionText string = "AUTO WITHDRAW CRYPTO WITH API PERMISSION"
+	AutoWithdrawCryptoWithSetupText         string = "AUTO WITHDRAW CRYPTO WITH SETUP"
+	WithdrawCryptoWith2FA                   uint32 = (1 << 3)
+	WithdrawCryptoWithSMS                   uint32 = (1 << 4)
+	WithdrawCryptoWithEmail                 uint32 = (1 << 5)
+	WithdrawCryptoWithWebsiteApproval       uint32 = (1 << 6)
+	WithdrawCryptoWithAPIPermission         uint32 = (1 << 7)
+	WithdrawCryptoWith2FAText               string = "WITHDRAW CRYPTO WITH 2FA"
+	WithdrawCryptoWithSMSText               string = "WITHDRAW CRYPTO WITH SMS"
+	WithdrawCryptoWithEmailText             string = "WITHDRAW CRYPTO WITH EMAIL"
+	WithdrawCryptoWithWebsiteApprovalText   string = "WITHDRAW CRYPTO WITH WEBSITE APPROVAL"
+	WithdrawCryptoWithAPIPermissionText     string = "WITHDRAW CRYPTO WITH API PERMISSION"
+	AutoWithdrawFiat                        uint32 = (1 << 8)
+	AutoWithdrawFiatWithAPIPermission       uint32 = (1 << 9)
+	AutoWithdrawFiatWithSetup               uint32 = (1 << 10)
+	AutoWithdrawFiatText                    string = "AUTO WITHDRAW FIAT"
+	AutoWithdrawFiatWithAPIPermissionText   string = "AUTO WITHDRAW FIAT WITH API PERMISSION"
+	AutoWithdrawFiatWithSetupText           string = "AUTO WITHDRAW FIAT WITH SETUP"
+	WithdrawFiatWith2FA                     uint32 = (1 << 11)
+	WithdrawFiatWithSMS                     uint32 = (1 << 12)
+	WithdrawFiatWithEmail                   uint32 = (1 << 13)
+	WithdrawFiatWithWebsiteApproval         uint32 = (1 << 14)
+	WithdrawFiatWithAPIPermission           uint32 = (1 << 15)
+	WithdrawFiatWith2FAText                 string = "WITHDRAW FIAT WITH 2FA"
+	WithdrawFiatWithSMSText                 string = "WITHDRAW FIAT WITH SMS"
+	WithdrawFiatWithEmailText               string = "WITHDRAW FIAT WITH EMAIL"
+	WithdrawFiatWithWebsiteApprovalText     string = "WITHDRAW FIAT WITH WEBSITE APPROVAL"
+	WithdrawFiatWithAPIPermissionText       string = "WITHDRAW FIAT WITH API PERMISSION"
+	WithdrawCryptoViaWebsiteOnly            uint32 = (1 << 16)
+	WithdrawFiatViaWebsiteOnly              uint32 = (1 << 17)
+	WithdrawCryptoViaWebsiteOnlyText        string = "WITHDRAW CRYPTO VIA WEBSITE ONLY"
+	WithdrawFiatViaWebsiteOnlyText          string = "WITHDRAW FIAT VIA WEBSITE ONLY"
+
+	UnknownWithdrawalTypeText string = "UNKNOWN"
+)
 
 // AccountInfo is a Generic type to hold each exchange's holdings in
 // all enabled currencies
@@ -147,6 +192,7 @@ type Base struct {
 	Verbose                                    bool
 	RESTPollingDelay                           time.Duration
 	AuthenticatedAPISupport                    bool
+	APIWithdrawPermissions                     uint32
 	APIAuthPEMKeySupport                       bool
 	APISecret, APIKey, APIAuthPEMKey, ClientID string
 	Nonce                                      nonce.Nonce
@@ -194,6 +240,10 @@ type IBotExchange interface {
 	SupportsAutoPairUpdates() bool
 	GetLastPairsUpdateTime() int64
 	SupportsRESTTickerBatchUpdates() bool
+
+	GetWithdrawPermissions() uint32
+	FormatWithdrawPermissions() string
+	SupportsWithdrawPermissions(permissions uint32) bool
 
 	GetExchangeFundTransferHistory() ([]FundHistory, error)
 	SubmitExchangeOrder(p pair.CurrencyPair, side OrderSide, orderType OrderType, amount, price float64, clientID string) (int64, error)
@@ -772,4 +822,73 @@ func (e *Base) GetAPIURLDefault() string {
 // GetAPIURLSecondaryDefault returns exchange default secondary URL
 func (e *Base) GetAPIURLSecondaryDefault() string {
 	return e.APIUrlSecondaryDefault
+}
+
+// GetWithdrawPermissions passes through the exchange's withdraw permissions
+func (e *Base) GetWithdrawPermissions() uint32 {
+	return e.APIWithdrawPermissions
+}
+
+// SupportsWithdrawPermissions compares the supplied permissions with the exchange's to verify they're supported
+func (e *Base) SupportsWithdrawPermissions(permissions uint32) bool {
+	exchangePermissions := e.GetWithdrawPermissions()
+	if permissions&exchangePermissions == permissions {
+		return true
+	}
+	return false
+}
+
+// FormatWithdrawPermissions will return each of the exchange's compatible withdrawal methods in readable form
+func (e *Base) FormatWithdrawPermissions() string {
+	services := []string{}
+	for i := 0; i < 32; i++ {
+		var check uint32 = 1 << uint32(i)
+		if e.GetWithdrawPermissions()&check != 0 {
+			switch check {
+			case AutoWithdrawCrypto:
+				services = append(services, AutoWithdrawCryptoText)
+			case AutoWithdrawCryptoWithAPIPermission:
+				services = append(services, AutoWithdrawCryptoWithAPIPermissionText)
+			case AutoWithdrawCryptoWithSetup:
+				services = append(services, AutoWithdrawCryptoWithSetupText)
+			case WithdrawCryptoWith2FA:
+				services = append(services, WithdrawCryptoWith2FAText)
+			case WithdrawCryptoWithSMS:
+				services = append(services, WithdrawCryptoWithSMSText)
+			case WithdrawCryptoWithEmail:
+				services = append(services, WithdrawCryptoWithEmailText)
+			case WithdrawCryptoWithWebsiteApproval:
+				services = append(services, WithdrawCryptoWithWebsiteApprovalText)
+			case WithdrawCryptoWithAPIPermission:
+				services = append(services, WithdrawCryptoWithAPIPermissionText)
+			case AutoWithdrawFiat:
+				services = append(services, AutoWithdrawFiatText)
+			case AutoWithdrawFiatWithAPIPermission:
+				services = append(services, AutoWithdrawFiatWithAPIPermissionText)
+			case AutoWithdrawFiatWithSetup:
+				services = append(services, AutoWithdrawFiatWithSetupText)
+			case WithdrawFiatWith2FA:
+				services = append(services, WithdrawFiatWith2FAText)
+			case WithdrawFiatWithSMS:
+				services = append(services, WithdrawFiatWithSMSText)
+			case WithdrawFiatWithEmail:
+				services = append(services, WithdrawFiatWithEmailText)
+			case WithdrawFiatWithWebsiteApproval:
+				services = append(services, WithdrawFiatWithWebsiteApprovalText)
+			case WithdrawFiatWithAPIPermission:
+				services = append(services, WithdrawFiatWithAPIPermissionText)
+			case WithdrawCryptoViaWebsiteOnly:
+				services = append(services, WithdrawCryptoViaWebsiteOnlyText)
+			case WithdrawFiatViaWebsiteOnly:
+				services = append(services, WithdrawFiatViaWebsiteOnlyText)
+			default:
+				services = append(services, fmt.Sprintf("%s[%v]", UnknownWithdrawalTypeText, check))
+			}
+		}
+	}
+	if len(services) > 0 {
+		return strings.Join(services, " & ")
+	}
+
+	return NoAPIWithdrawalMethodsText
 }

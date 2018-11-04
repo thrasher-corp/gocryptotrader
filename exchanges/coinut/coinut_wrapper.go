@@ -199,3 +199,8 @@ func (c *COINUT) GetWebsocket() (*exchange.Websocket, error) {
 func (c *COINUT) GetFeeByType(feeBuilder exchange.FeeBuilder) (float64, error) {
 	return c.GetFee(feeBuilder)
 }
+
+// GetWithdrawCapabilities returns the types of withdrawal methods permitted by the exchange
+func (c *COINUT) GetWithdrawCapabilities() uint32 {
+	return c.GetWithdrawPermissions()
+}

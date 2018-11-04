@@ -198,3 +198,8 @@ func (y *Yobit) GetWebsocket() (*exchange.Websocket, error) {
 func (y *Yobit) GetFeeByType(feeBuilder exchange.FeeBuilder) (float64, error) {
 	return y.GetFee(feeBuilder)
 }
+
+// GetWithdrawCapabilities returns the types of withdrawal methods permitted by the exchange
+func (y *Yobit) GetWithdrawCapabilities() uint32 {
+	return y.GetWithdrawPermissions()
+}

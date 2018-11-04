@@ -334,3 +334,15 @@ func TestTransferAccountBalance(t *testing.T) {
 		t.Error("Test Failed - TransferAccountBalance() error", err)
 	}
 }
+
+func TestFormatWithdrawPermissions(t *testing.T) {
+	// Arrange
+	b.SetDefaults()
+	expectedResult := exchange.AutoWithdrawCryptoText + " & " + exchange.AutoWithdrawFiatText
+	// Act
+	withdrawPermissions := b.FormatWithdrawPermissions()
+	// Assert
+	if withdrawPermissions != expectedResult {
+		t.Errorf("Expected: %s, Recieved: %s", expectedResult, withdrawPermissions)
+	}
+}

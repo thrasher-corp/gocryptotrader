@@ -99,6 +99,7 @@ func (o *OKCoin) SetDefaults() {
 	o.Verbose = false
 	o.RESTPollingDelay = 10
 	o.AssetTypes = []string{ticker.Spot}
+	o.APIWithdrawPermissions = exchange.AutoWithdrawCrypto | exchange.WithdrawFiatViaWebsiteOnly
 	o.SupportsAutoPairUpdating = false
 	o.SupportsRESTTickerBatching = false
 	o.WebsocketInit()

@@ -102,6 +102,7 @@ func (g *Gemini) SetDefaults() {
 	g.Enabled = false
 	g.Verbose = false
 	g.RESTPollingDelay = 10
+	g.APIWithdrawPermissions = exchange.AutoWithdrawCryptoWithAPIPermission | exchange.AutoWithdrawCryptoWithSetup | exchange.WithdrawFiatViaWebsiteOnly
 	g.RequestCurrencyPairFormat.Delimiter = ""
 	g.RequestCurrencyPairFormat.Uppercase = true
 	g.ConfigCurrencyPairFormat.Delimiter = ""

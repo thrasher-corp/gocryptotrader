@@ -49,6 +49,7 @@ func (z *ZB) SetDefaults() {
 	z.Fee = 0
 	z.Verbose = false
 	z.RESTPollingDelay = 10
+	z.APIWithdrawPermissions = exchange.AutoWithdrawCrypto
 	z.RequestCurrencyPairFormat.Delimiter = "_"
 	z.RequestCurrencyPairFormat.Uppercase = false
 	z.ConfigCurrencyPairFormat.Delimiter = "_"

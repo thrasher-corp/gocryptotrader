@@ -70,6 +70,7 @@ func (c *CoinbasePro) SetDefaults() {
 	c.TakerFee = 0.25
 	c.MakerFee = 0
 	c.RESTPollingDelay = 10
+	c.APIWithdrawPermissions = exchange.AutoWithdrawCryptoWithAPIPermission | exchange.AutoWithdrawFiatWithAPIPermission
 	c.RequestCurrencyPairFormat.Delimiter = "-"
 	c.RequestCurrencyPairFormat.Uppercase = true
 	c.ConfigCurrencyPairFormat.Delimiter = ""

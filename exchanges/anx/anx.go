@@ -31,6 +31,7 @@ const (
 	anxCreateAddress   = "receive/create"
 	anxTicker          = "money/ticker"
 	anxDepth           = "money/depth/full"
+	anxAccount         = "account"
 
 	// ANX rate limites for authenticated and unauthenticated requests
 	anxAuthRate   = 0
@@ -56,6 +57,8 @@ func (a *ANX) SetDefaults() {
 	a.ConfigCurrencyPairFormat.Delimiter = "_"
 	a.ConfigCurrencyPairFormat.Uppercase = true
 	a.ConfigCurrencyPairFormat.Index = ""
+	a.APIWithdrawPermissions = exchange.WithdrawCryptoWithEmail | exchange.AutoWithdrawCryptoWithSetup |
+		exchange.WithdrawCryptoWith2FA | exchange.WithdrawFiatViaWebsiteOnly
 	a.AssetTypes = []string{ticker.Spot}
 	a.SupportsAutoPairUpdating = true
 	a.SupportsRESTTickerBatching = false
@@ -442,4 +445,46 @@ func getInternationalBankWithdrawalFee(currency string, amount float64) float64 
 	}
 	//TODO, other fiat currencies require consultation with ANXPRO
 	return fee
+}
+
+// GetAccountInformation retrieves details including API permissions
+func (a *ANX) GetAccountInformation() (AccountInformation, error) {
+	request := make(map[string]interface{})
+
+	var response AccountInformation
+
+	err := a.SendAuthenticatedHTTPRequest(anxOrderInfo, request, &response)
+
+	if err != nil {
+		return response, err
+	}
+
+	if response.ResultCode != "OK" {
+		log.Printf("Response code is not OK: %s\n", response.ResultCode)
+		return response, errors.New(response.ResultCode)
+	}
+	return response, nil
+}
+
+// CheckAPIWithdrawPermission checks if the API key is allowed to withdraw
+func (a *ANX) CheckAPIWithdrawPermission() (bool, error) {
+	accountInfo, err := a.GetAccountInformation()
+
+	if err != nil {
+		return false, err
+	}
+
+	var apiAllowsWithdraw bool
+
+	for _, a := range accountInfo.Rights {
+		if a == "withdraw" {
+			apiAllowsWithdraw = true
+		}
+	}
+
+	if !apiAllowsWithdraw {
+		log.Printf("API key is missing withdrawal permissions")
+	}
+
+	return apiAllowsWithdraw, nil
 }

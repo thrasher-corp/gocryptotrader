@@ -164,12 +164,12 @@ func TestRedeemCoupon(t *testing.T) {
 
 func setFeeBuilder() exchange.FeeBuilder {
 	return exchange.FeeBuilder{
-		Amount:         1,
-		Delimiter:      "_",
-		FeeType:        exchange.CryptocurrencyTradeFee,
-		FirstCurrency:  symbol.LTC,
-		SecondCurrency: symbol.BTC,
-		IsMaker:        false,
+		Amount:              1,
+		Delimiter:           "_",
+		FeeType:             exchange.CryptocurrencyTradeFee,
+		FirstCurrency:       symbol.LTC,
+		SecondCurrency:      symbol.BTC,
+		IsMaker:             false,
 		PurchasePrice:       1,
 		CurrencyItem:        symbol.USD,
 		BankTransactionType: exchange.WireTransfer,
@@ -195,7 +195,6 @@ func TestGetFee(t *testing.T) {
 		t.Errorf("Test Failed - GetFee() error. Expected: %f, Recieved: %f", float64(2000), resp)
 		t.Error(err)
 	}
-
 
 	// CryptocurrencyTradeFee IsMaker
 	feeBuilder = setFeeBuilder()
@@ -252,5 +251,17 @@ func TestGetFee(t *testing.T) {
 	if resp, err := w.GetFee(feeBuilder); resp != float64(0) || err != nil {
 		t.Errorf("Test Failed - GetFee() error. Expected: %f, Recieved: %f", float64(0), resp)
 		t.Error(err)
+	}
+}
+
+func TestFormatWithdrawPermissions(t *testing.T) {
+	// Arrange
+	w.SetDefaults()
+	expectedResult := exchange.AutoWithdrawCryptoWithAPIPermissionText
+	// Act
+	withdrawPermissions := w.FormatWithdrawPermissions()
+	// Assert
+	if withdrawPermissions != expectedResult {
+		t.Errorf("Expected: %s, Recieved: %s", expectedResult, withdrawPermissions)
 	}
 }

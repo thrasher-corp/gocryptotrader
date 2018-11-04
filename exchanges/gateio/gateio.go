@@ -46,6 +46,7 @@ func (g *Gateio) SetDefaults() {
 	g.Enabled = false
 	g.Verbose = false
 	g.RESTPollingDelay = 10
+	g.APIWithdrawPermissions = exchange.AutoWithdrawCrypto
 	g.RequestCurrencyPairFormat.Delimiter = "_"
 	g.RequestCurrencyPairFormat.Uppercase = false
 	g.ConfigCurrencyPairFormat.Delimiter = "_"

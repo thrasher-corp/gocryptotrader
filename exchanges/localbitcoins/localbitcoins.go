@@ -117,6 +117,7 @@ func (l *LocalBitcoins) SetDefaults() {
 	l.Verbose = false
 	l.Verbose = false
 	l.RESTPollingDelay = 10
+	l.APIWithdrawPermissions = exchange.WithdrawCryptoViaWebsiteOnly
 	l.RequestCurrencyPairFormat.Delimiter = ""
 	l.RequestCurrencyPairFormat.Uppercase = true
 	l.ConfigCurrencyPairFormat.Delimiter = ""

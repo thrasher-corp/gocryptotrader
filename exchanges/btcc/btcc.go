@@ -32,6 +32,7 @@ func (b *BTCC) SetDefaults() {
 	b.Fee = 0
 	b.Verbose = false
 	b.RESTPollingDelay = 10
+	b.APIWithdrawPermissions = exchange.NoAPIWithdrawalMethods
 	b.RequestCurrencyPairFormat.Delimiter = ""
 	b.RequestCurrencyPairFormat.Uppercase = true
 	b.ConfigCurrencyPairFormat.Delimiter = ""
@@ -92,8 +93,6 @@ func (b *BTCC) Setup(exch config.ExchangeConfig) {
 		}
 	}
 }
-
-
 
 // GetFee returns an estimate of fee based on type of transaction
 func (b *BTCC) GetFee(feeBuilder exchange.FeeBuilder) (float64, error) {
