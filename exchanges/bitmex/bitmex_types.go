@@ -65,8 +65,8 @@ type Execution struct {
 	Currency              string  `json:"currency"` //交易的符号，例如USD
 	DisplayQty            int64   `json:"displayQty"`
 	ExDestination         string  `json:"exDestination"`
-	ExecComm              int64   `json:"execComm"`
-	ExecCost              int64   `json:"execCost"`
+	ExecComm              int64   `json:"execComm"` //交易历史-已付费用
+	ExecCost              int64   `json:"execCost"` //交易历史-价值
 	ExecID                string  `json:"execID"`
 	ExecInst              string  `json:"execInst"`         //"Close",""
 	ExecType              string  `json:"execType"`         //成交类别 ："Trade"/"Funding"
@@ -85,11 +85,11 @@ type Execution struct {
 	OrderQty              int64   `json:"orderQty"`              //订单数量
 	PegOffsetValue        float64 `json:"pegOffsetValue"`
 	PegPriceType          string  `json:"pegPriceType"`
-	Price                 float64 `json:"price"`         //委托价格
-	SettlCurrency         string  `json:"settlCurrency"` //订单交易对，例如:XBt
-	Side                  string  `json:"side"`          //交易方向："Buy"\"Sell"
-	SimpleCumQty          float64 `json:"simpleCumQty"`  //价值，
-	SimpleLeavesQty       float64 `json:"simpleLeavesQty"`
+	Price                 float64 `json:"price"`           //委托价格
+	SettlCurrency         string  `json:"settlCurrency"`   //订单交易对，例如:XBt
+	Side                  string  `json:"side"`            //交易方向："Buy"\"Sell"
+	SimpleCumQty          float64 `json:"simpleCumQty"`    //价值，
+	SimpleLeavesQty       float64 `json:"simpleLeavesQty"` //新订单时的订单价值
 	SimpleOrderQty        float64 `json:"simpleOrderQty"`
 	StopPx                float64 `json:"stopPx"`
 	Symbol                string  `json:"symbol"` //交易对，例如"XBTUSD"
