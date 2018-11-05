@@ -188,9 +188,28 @@ func (b *Bitmex) WebsocketKline(ch chan *TradeBucketData, timeIntervals []TimeIn
 					_, resp, err := b.WebsocketConn.ReadMessage()
 					if err != nil {
 						if b.Verbose {
+
 							log.Println("Bitmex websocket: Connection error", err)
 						}
 						return
+					}
+
+					message := string(resp)
+					if common.StringContains(message, "pong") {
+						if b.Verbose {
+							log.Println("Bitmex websocket: PONG receieved")
+						}
+						continue
+					}
+
+					if common.StringContains(message, "ping") {
+						err = b.WebsocketConn.WriteJSON("pong")
+						if err != nil {
+							if b.Verbose {
+								log.Println("Bitmex websocket error: ", err)
+							}
+							return
+						}
 					}
 
 					quickCapture := make(map[string]interface{})
@@ -238,7 +257,8 @@ func (b *Bitmex) WebsocketKline(ch chan *TradeBucketData, timeIntervals []TimeIn
 						if err != nil {
 							log.Fatal(err)
 						}
-
+						// fmt.Println(decodedResp.Table)
+						// fmt.Printf("[%s]%s\n", decodedResp.Table, resp)
 						switch decodedResp.Table {
 						case bitmexWSTrade1m:
 							var tradeBucketData TradeBucketData
