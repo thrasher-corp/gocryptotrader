@@ -141,7 +141,15 @@ func (b *Bithumb) GetExchangeHistory(p pair.CurrencyPair, assetType string) ([]e
 
 // SubmitExchangeOrder submits a new order
 func (b *Bithumb) SubmitExchangeOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (string, error) {
-	return 0, errors.New("not yet implemented")
+	var err error
+	if side == exchange.Buy {
+		result, err := b.MarketBuyOrder(p.FirstCurrency.String(), amount)
+		return result.OrderID, err
+	} else if side == exchange.Sell {
+		result, err := b.MarketSellOrder(p.FirstCurrency.String(), amount)
+		return result.OrderID, err
+	}
+	return "", err
 }
 
 // ModifyExchangeOrder will allow of changing orderbook placement and limit to

@@ -286,7 +286,7 @@ type OrderNewParams struct {
 
 	// DisplayQty - [Optional] quantity to display in the book. Use 0 for a fully
 	// hidden order.
-	DisplayQty int32 `json:"displayQty,omitempty"`
+	DisplayQty float64 `json:"displayQty,omitempty"`
 
 	// ExecInst - [Optional] execution instructions. Valid options:
 	// ParticipateDoNotInitiate, AllOrNone, MarkPrice, IndexPrice, LastPrice,
@@ -303,7 +303,7 @@ type OrderNewParams struct {
 	OrdType string `json:"ordType,omitempty"`
 
 	//OrderQty Order quantity in units of the instrument (i.e. contracts).
-	OrderQty int32 `json:"orderQty,omitempty"`
+	OrderQty float64 `json:"orderQty,omitempty"`
 
 	// PegOffsetValue - [Optional] trailing offset from the current price for
 	// 'Stop', 'StopLimit', 'MarketIfTouched', and 'LimitIfTouched' orders; use a
