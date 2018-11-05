@@ -2,6 +2,7 @@ package request
 
 import (
 	"net/http"
+	"net/url"
 	"testing"
 	"time"
 )
@@ -283,5 +284,41 @@ func TestDoRequest(t *testing.T) {
 	err = r.SendPayload("GET", "https://www.google.com", nil, nil, result, false, false)
 	if err != nil {
 		t.Fatal("unexpected values")
+	}
+
+	err = r.SetTimeoutRetryAttempts(1)
+	if err != nil {
+		t.Fatal("test failed - setting timeout retry attempts")
+	}
+
+	err = r.SetTimeoutRetryAttempts(-1)
+	if err == nil {
+		t.Fatal("test failed - setting timeout retry attempts with negative value")
+	}
+
+	r.HTTPClient.Timeout = 1 * time.Second
+	err = r.SendPayload("POST", "https://httpstat.us/200?sleep=20000", nil, nil, nil, false, true)
+	if err == nil {
+		t.Fatal(err)
+	}
+
+	proxy, err := url.Parse("")
+	if err != nil {
+		t.Error("failed to parse proxy address")
+	}
+
+	err = r.SetProxy(proxy)
+	if err == nil {
+		t.Error("failed to set proxy")
+	}
+
+	proxy, err = url.Parse("https://192.0.0.1")
+	if err != nil {
+		t.Error("failed to parse proxy address")
+	}
+
+	err = r.SetProxy(proxy)
+	if err != nil {
+		t.Error("failed to set proxy")
 	}
 }

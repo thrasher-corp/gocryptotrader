@@ -6,6 +6,7 @@ import (
 	"io"
 	"io/ioutil"
 	"log"
+	"net"
 	"net/http"
 	"net/url"
 	"sync"
@@ -17,21 +18,23 @@ import (
 var supportedMethods = []string{"GET", "POST", "HEAD", "PUT", "DELETE", "OPTIONS", "CONNECT"}
 
 const (
-	maxRequestJobs  = 50
-	proxyTLSTimeout = 15 * time.Second
+	maxRequestJobs              = 50
+	proxyTLSTimeout             = 15 * time.Second
+	defaultTimeoutRetryAttempts = 3
 )
 
 // Requester struct for the request client
 type Requester struct {
-	HTTPClient    *http.Client
-	UnauthLimit   *RateLimit
-	AuthLimit     *RateLimit
-	Name          string
-	UserAgent     string
-	Cycle         time.Time
-	m             sync.Mutex
-	Jobs          chan Job
-	WorkerStarted bool
+	HTTPClient           *http.Client
+	UnauthLimit          *RateLimit
+	AuthLimit            *RateLimit
+	Name                 string
+	UserAgent            string
+	Cycle                time.Time
+	timeoutRetryAttempts int
+	m                    sync.Mutex
+	Jobs                 chan Job
+	WorkerStarted        bool
 }
 
 // RateLimit struct
@@ -191,15 +194,25 @@ func (r *Requester) GetRateLimit(auth bool) *RateLimit {
 	return r.UnauthLimit
 }
 
+// SetTimeoutRetryAttempts sets the amount of times the job will be retried
+// if it times out
+func (r *Requester) SetTimeoutRetryAttempts(n int) error {
+	if n < 0 {
+		return errors.New("routines.go error - timeout retry attempts cannot be less than zero")
+	}
+	r.timeoutRetryAttempts = n
+	return nil
+}
+
 // New returns a new Requester
 func New(name string, authLimit, unauthLimit *RateLimit, httpRequester *http.Client) *Requester {
-
 	return &Requester{
-		HTTPClient:  httpRequester,
-		UnauthLimit: unauthLimit,
-		AuthLimit:   authLimit,
-		Name:        name,
-		Jobs:        make(chan Job, maxRequestJobs),
+		HTTPClient:           httpRequester,
+		UnauthLimit:          unauthLimit,
+		AuthLimit:            authLimit,
+		Name:                 name,
+		Jobs:                 make(chan Job, maxRequestJobs),
+		timeoutRetryAttempts: defaultTimeoutRetryAttempts,
 	}
 }
 
@@ -247,36 +260,50 @@ func (r *Requester) DoRequest(req *http.Request, method, path string, headers ma
 		log.Printf("%s exchange request path: %s requires rate limiter: %v", r.Name, path, r.RequiresRateLimiter())
 	}
 
-	resp, err := r.HTTPClient.Do(req)
+	var timeoutError error
+	for i := 0; i < r.timeoutRetryAttempts+1; i++ {
+		resp, err := r.HTTPClient.Do(req)
+		if err != nil {
+			if timeoutErr, ok := err.(net.Error); ok && timeoutErr.Timeout() {
+				if verbose {
+					log.Printf("%s request has timed-out retrying request, count %d",
+						r.Name,
+						i)
+				}
+				timeoutError = err
+				continue
+			}
 
-	if err != nil {
-		if r.RequiresRateLimiter() {
-			r.DecrementRequests(authRequest)
+			if r.RequiresRateLimiter() {
+				r.DecrementRequests(authRequest)
+			}
+			return err
 		}
-		return err
-	}
-	if resp == nil {
-		if r.RequiresRateLimiter() {
-			r.DecrementRequests(authRequest)
+		if resp == nil {
+			if r.RequiresRateLimiter() {
+				r.DecrementRequests(authRequest)
+			}
+			return errors.New("resp is nil")
 		}
-		return errors.New("resp is nil")
-	}
 
-	contents, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return err
-	}
+		contents, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			return err
+		}
 
-	resp.Body.Close()
-	if verbose {
-		log.Printf("%s exchange raw response: %s", r.Name, string(contents[:]))
-	}
+		resp.Body.Close()
+		if verbose {
+			log.Printf("%s exchange raw response: %s", r.Name, string(contents[:]))
+		}
 
-	if result != nil {
-		return common.JSONDecode(contents, result)
-	}
+		if result != nil {
+			return common.JSONDecode(contents, result)
+		}
 
-	return nil
+		return nil
+	}
+	return fmt.Errorf("request.go error - failed to retry request %s",
+		timeoutError)
 }
 
 func (r *Requester) worker() {
