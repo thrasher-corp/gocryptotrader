@@ -21,7 +21,7 @@ import (
 
 const (
 	coinbaseproAPIURL                  = "https://api.pro.coinbase.com/"
-	coinbaseproSandboxAPIURL           = "https://public.sandbox.pro.coinbase.com"
+	coinbaseproSandboxAPIURL           = "https://api-public.sandbox.pro.coinbase.com/"
 	coinbaseproAPIVersion              = "0"
 	coinbaseproProducts                = "products"
 	coinbaseproOrderbook               = "book"
