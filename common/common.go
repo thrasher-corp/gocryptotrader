@@ -627,8 +627,11 @@ func GetDefaultDataDir() string {
 		}
 		return path.Join(configPath, "gocryptotrader")
 	}
-	dir, _ := os.Getwd()
-	return path.Join(dir, ".gocryptotrader")
+	runPath, err := GetExecutablePath()
+	if err != nil {
+		return "gocryptotrader"
+	}
+	return path.Join(runPath, ".gocryptotrader")
 }
 
 // CheckDir checks to see if a particular directory exists
