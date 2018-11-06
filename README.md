@@ -90,9 +90,9 @@ When submitting a PR, please abide by our coding guidelines:
 Download and install Go from [Go Downloads](https://golang.org/dl/) for your
 platform.
 
-### Linux/OSX
-
 GoCryptoTrader is built using [Go Modules](https://github.com/golang/go/wiki/Modules) and requires Go 1.11 or above
+
+### Linux
 
 Using Go Modules you now clone this repository **outside** your GOPATH
 
@@ -100,8 +100,20 @@ Using Go Modules you now clone this repository **outside** your GOPATH
 git clone https://github.com/thrasher-/gocryptotrader.git
 cd gocryptotrader
 go build
-mkdir ~/.gocryptotrader
+mkdir ~/.config/gocryptotrader
 cp config_example.json ~/.gocryptotrader/config.json
+```
+
+### OSX
+
+Using Go Modules you now clone this repository **outside** your GOPATH
+
+```bash
+git clone https://github.com/thrasher-/gocryptotrader.git
+cd gocryptotrader
+go build
+mkdir ~/Library/Preferences/gocryptotrader
+cp config_example.json ~/Library/Preferences/gocryptotrader/config.json
 ```
 
 ### Windows
