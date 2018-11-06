@@ -629,7 +629,7 @@ func GetDefaultDataDir() string {
 	}
 	runPath, err := GetExecutablePath()
 	if err != nil {
-		return "gocryptotrader"
+		return "gocryptotraderdata"
 	}
 	return path.Join(runPath, ".gocryptotrader")
 }
