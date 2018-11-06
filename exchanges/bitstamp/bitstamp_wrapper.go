@@ -3,6 +3,7 @@ package bitstamp
 import (
 	"errors"
 	"log"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -166,7 +167,11 @@ func (b *Bitstamp) GetExchangeHistory(p pair.CurrencyPair, assetType string) ([]
 
 // SubmitExchangeOrder submits a new order
 func (b *Bitstamp) SubmitExchangeOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (string, error) {
-	return 0, errors.New("not yet implemented")
+	buy := side == exchange.Buy
+	market := orderType == exchange.Market
+	order, err := b.PlaceOrder(p.Pair().String(), price, amount, buy, market)
+
+	return strconv.FormatInt(order.ID, 64), err
 }
 
 // ModifyExchangeOrder will allow of changing orderbook placement and limit to

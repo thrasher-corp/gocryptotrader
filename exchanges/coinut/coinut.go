@@ -171,7 +171,9 @@ func (c *COINUT) NewOrder(instrumentID int, quantity, price float64, buy bool, o
 	var result interface{}
 	params := make(map[string]interface{})
 	params["inst_id"] = instrumentID
-	params["price"] = price
+	if price > 0 {
+		params["price"] = price
+	}
 	params["qty"] = quantity
 	params["side"] = "BUY"
 	if !buy {
@@ -179,7 +181,17 @@ func (c *COINUT) NewOrder(instrumentID int, quantity, price float64, buy bool, o
 	}
 	params["client_ord_id"] = orderID
 
-	return result, c.SendHTTPRequest(coinutOrder, params, true, &result)
+	err := c.SendHTTPRequest(coinutOrder, params, true, &result)
+	if _, ok := result.(OrderRejectResponse); ok {
+		return result.(OrderRejectResponse), err
+	}
+	if _, ok := result.(OrderFilledResponse); ok {
+		return result.(OrderFilledResponse), err
+	}
+	if _, ok := result.(OrdersBase); ok {
+		return result.(OrdersBase), err
+	}
+	return result, errors.New("Could not handle response")
 }
 
 // NewOrders places multiple orders on the exchange

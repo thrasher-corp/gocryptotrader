@@ -2,7 +2,9 @@ package coinut
 
 import (
 	"errors"
+	"fmt"
 	"log"
+	"strconv"
 	"sync"
 
 	"github.com/thrasher-/gocryptotrader/common"
@@ -142,7 +144,45 @@ func (c *COINUT) GetExchangeHistory(p pair.CurrencyPair, assetType string) ([]ex
 
 // SubmitExchangeOrder submits a new order
 func (c *COINUT) SubmitExchangeOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (string, error) {
-	return 0, errors.New("not yet implemented")
+	var err error
+	var APIresponse interface{}
+	var response string
+	buy := side == exchange.Buy
+	clientIDInt, err := strconv.ParseUint(clientID, 0, 32)
+	clientIDUint := uint32(clientIDInt)
+
+	if err != nil {
+		return "", err
+	}
+	// Need to get the ID of the currency sent
+	instrucments, err := c.GetInstruments()
+	if err != nil {
+		return "", err
+	}
+
+	currencyArray := instrucments.Instruments[p.Pair().String()]
+	currencyID := currencyArray[0].InstID
+
+	if orderType == exchange.Limit {
+		APIresponse, err = c.NewOrder(currencyID, amount, price, buy, clientIDUint)
+	} else if orderType == exchange.Market {
+		APIresponse, err = c.NewOrder(currencyID, amount, 0, buy, clientIDUint)
+	}
+	switch APIresponse.(type) {
+	case OrdersBase:
+		orderResult := APIresponse.(OrdersBase)
+		return fmt.Sprintf("%v", orderResult.OrderID), err
+	case OrderFilledResponse:
+		orderResult := APIresponse.(OrderFilledResponse)
+		return fmt.Sprintf("%v", orderResult.Order.OrderID), err
+	case OrderRejectResponse:
+		orderResult := APIresponse.(OrderRejectResponse)
+		// What should actually happen when its rejected?
+		// An order id is still valid and can be verified that it failed
+		// But a failed order isn't too useful
+		return fmt.Sprintf("%v", orderResult.OrderID), err
+	}
+	return response, err
 }
 
 // ModifyExchangeOrder will allow of changing orderbook placement and limit to

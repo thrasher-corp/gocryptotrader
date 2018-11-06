@@ -145,7 +145,18 @@ func (c *CoinbasePro) GetExchangeHistory(p pair.CurrencyPair, assetType string) 
 
 // SubmitExchangeOrder submits a new order
 func (c *CoinbasePro) SubmitExchangeOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (string, error) {
-	return 0, errors.New("not yet implemented")
+	var response string
+	var err error
+	if orderType == exchange.Market {
+		response, err = c.PlaceMarginOrder("", amount, amount, side.Format(c.Name), p.Pair().String(), "")
+
+	} else if orderType == exchange.Limit {
+		response, err = c.PlaceLimitOrder("", price, amount, side.Format(c.Name), "", "", p.Pair().String(), "", false)
+	} else {
+		err = errors.New("not supported")
+	}
+
+	return response, err
 }
 
 // ModifyExchangeOrder will allow of changing orderbook placement and limit to

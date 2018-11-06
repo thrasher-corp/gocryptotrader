@@ -150,7 +150,7 @@ type DepositAddress struct {
 type UUID struct {
 	Success bool   `json:"success"`
 	Message string `json:"message"`
-	Result  []struct {
+	Result  struct {
 		ID string `json:"uuid"`
 	} `json:"result"`
 }
