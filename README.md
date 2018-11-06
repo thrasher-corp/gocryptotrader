@@ -93,12 +93,13 @@ platform.
 ### Linux/OSX
 
 GoCryptoTrader is built using [Go Modules](https://github.com/golang/go/wiki/Modules) and requires Go 1.11 or above
-Using Go Modules you now clone this repository **outside** your GOPATH 
+
+Using Go Modules you now clone this repository **outside** your GOPATH
 
 ```bash
 git clone https://github.com/thrasher-/gocryptotrader.git
 cd gocryptotrader
-go build 
+go build
 mkdir ~/.gocryptotrader
 cp config_example.json ~/.gocryptotrader/config.json
 ```
@@ -163,6 +164,3 @@ Binaries will be published once the codebase reaches a stable condition.
 | vyloy | https://github.com/vyloy | 1 |
 | askew- | https://github.com/askew- | 1 |
 | whilei | https://github.com/whilei | 1 |
-
-
-
