@@ -2,6 +2,7 @@ package gateio
 
 import (
 	"errors"
+	"fmt"
 	"log"
 	"sync"
 
@@ -128,7 +129,24 @@ func (g *Gateio) GetExchangeHistory(p pair.CurrencyPair, assetType string) ([]ex
 
 // SubmitExchangeOrder submits a new order
 func (g *Gateio) SubmitExchangeOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (string, error) {
-	return 0, errors.New("not yet implemented")
+	var orderTypeFormat SpotNewOrderRequestParamsType
+
+	if side == exchange.Buy {
+		orderTypeFormat = SpotNewOrderRequestParamsTypeBuy
+	} else {
+		orderTypeFormat = SpotNewOrderRequestParamsTypeSell
+
+	}
+
+	var spotNewOrderRequestParams = SpotNewOrderRequestParams{
+		Amount: amount,
+		Price:  price,
+		Symbol: p.Pair().String(),
+		Type:   orderTypeFormat,
+	}
+	response, err := g.SpotNewOrder(spotNewOrderRequestParams)
+
+	return fmt.Sprintf("%v", response.OrderNumber), err
 }
 
 // ModifyExchangeOrder will allow of changing orderbook placement and limit to

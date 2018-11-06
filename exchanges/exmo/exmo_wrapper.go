@@ -2,6 +2,7 @@ package exmo
 
 import (
 	"errors"
+	"fmt"
 	"log"
 	"strconv"
 	"sync"
@@ -177,7 +178,9 @@ func (e *EXMO) GetExchangeHistory(p pair.CurrencyPair, assetType string) ([]exch
 
 // SubmitExchangeOrder submits a new order
 func (e *EXMO) SubmitExchangeOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (string, error) {
-	return 0, errors.New("not yet implemented")
+	response, err := e.CreateOrder(p.Pair().String(), orderType.Format(e.Name), price, amount)
+
+	return fmt.Sprintf("%v", response), err
 }
 
 // ModifyExchangeOrder will allow of changing orderbook placement and limit to

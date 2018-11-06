@@ -2,6 +2,7 @@ package gemini
 
 import (
 	"errors"
+	"fmt"
 	"log"
 	"net/url"
 	"sync"
@@ -128,7 +129,9 @@ func (g *Gemini) GetExchangeHistory(p pair.CurrencyPair, assetType string) ([]ex
 
 // SubmitExchangeOrder submits a new order
 func (g *Gemini) SubmitExchangeOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (string, error) {
-	return 0, errors.New("not yet implemented")
+	response, err := g.NewOrder(p.Pair().String(), amount, price, side.Format(g.Name), orderType.Format(g.Name))
+
+	return fmt.Sprintf("%v", response), err
 }
 
 // ModifyExchangeOrder will allow of changing orderbook placement and limit to

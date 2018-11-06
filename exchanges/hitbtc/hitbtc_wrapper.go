@@ -2,6 +2,7 @@ package hitbtc
 
 import (
 	"errors"
+	"fmt"
 	"log"
 	"sync"
 
@@ -156,7 +157,11 @@ func (h *HitBTC) GetExchangeHistory(p pair.CurrencyPair, assetType string) ([]ex
 
 // SubmitExchangeOrder submits a new order
 func (h *HitBTC) SubmitExchangeOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (string, error) {
-	return 0, errors.New("not yet implemented")
+	isImmediate := orderType == exchange.Market
+	isBuying := side == exchange.Buy
+	response, err := h.PlaceOrder(p.Pair().String(), price, amount, isImmediate, false, isBuying)
+
+	return fmt.Sprintf("%v", response.OrderNumber), err
 }
 
 // ModifyExchangeOrder will allow of changing orderbook placement and limit to

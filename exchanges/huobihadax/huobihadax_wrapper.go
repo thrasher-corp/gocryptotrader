@@ -2,7 +2,9 @@ package huobihadax
 
 import (
 	"errors"
+	"fmt"
 	"log"
+	"strconv"
 	"sync"
 
 	"github.com/thrasher-/gocryptotrader/common"
@@ -136,7 +138,34 @@ func (h *HUOBIHADAX) GetExchangeHistory(p pair.CurrencyPair, assetType string) (
 
 // SubmitExchangeOrder submits a new order
 func (h *HUOBIHADAX) SubmitExchangeOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (string, error) {
-	return 0, errors.New("not yet implemented")
+	accountIDInt64, err := strconv.ParseInt(clientID, 0, 64)
+	var formattedType SpotNewOrderRequestParamsType
+
+	if err != nil {
+		return "", errors.New("Bad client ID sent")
+	}
+
+	if side == exchange.Buy && orderType == exchange.Market {
+		formattedType = SpotNewOrderRequestTypeBuyMarket
+	} else if side == exchange.Sell && orderType == exchange.Market {
+		formattedType = SpotNewOrderRequestTypeSellMarket
+	} else if side == exchange.Buy && orderType == exchange.Limit {
+		formattedType = SpotNewOrderRequestTypeBuyLimit
+	} else if side == exchange.Sell && orderType == exchange.Limit {
+		formattedType = SpotNewOrderRequestTypeSellLimit
+	}
+
+	var params = SpotNewOrderRequestParams{
+		AccountID: int(accountIDInt64),
+		Amount:    amount,
+		Price:     price,
+		Source:    "api",
+		Symbol:    p.Pair().String(),
+		Type:      formattedType,
+	}
+	response, err := h.SpotNewOrder(params)
+
+	return fmt.Sprintf("%v", response), err
 }
 
 // ModifyExchangeOrder will allow of changing orderbook placement and limit to
