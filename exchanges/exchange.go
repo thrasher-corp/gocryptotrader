@@ -246,7 +246,7 @@ type IBotExchange interface {
 	SupportsWithdrawPermissions(permissions uint32) bool
 
 	GetExchangeFundTransferHistory() ([]FundHistory, error)
-	SubmitExchangeOrder(p pair.CurrencyPair, side OrderSide, orderType OrderType, amount, price float64, clientID string) (int64, error)
+	SubmitExchangeOrder(p pair.CurrencyPair, side OrderSide, orderType OrderType, amount, price float64, clientID string) (string, error)
 	ModifyExchangeOrder(orderID int64, modify ModifyOrder) (int64, error)
 	CancelExchangeOrder(orderID int64) error
 	CancelAllExchangeOrders() error

@@ -72,7 +72,7 @@ func TestTrade(t *testing.T) {
 	if l.APIKey == "" || l.APISecret == "" {
 		t.Skip()
 	}
-	_, err := l.Trade(0, 0, 0, "USD")
+	_, err := l.Trade(false, 0, 0, "USD")
 	if err == nil {
 		t.Error("Test Failed - Trade() error", err)
 	}

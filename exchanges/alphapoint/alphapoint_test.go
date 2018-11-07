@@ -411,7 +411,7 @@ func TestCreateOrder(t *testing.T) {
 		return
 	}
 
-	_, err := a.CreateOrder("", "", 1, 0.01, 0)
+	_, err := a.CreateOrder("", "", exchange.OrderTypeMarket().Format(a.Name), 0.01, 0)
 	if err == nil {
 		t.Error("Test Failed - GetUserInfo() error")
 	}
