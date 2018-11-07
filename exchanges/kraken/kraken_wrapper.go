@@ -3,6 +3,7 @@ package kraken
 import (
 	"errors"
 	"log"
+	"strings"
 	"sync"
 
 	"github.com/thrasher-/gocryptotrader/common"
@@ -162,7 +163,12 @@ func (k *Kraken) GetExchangeHistory(p pair.CurrencyPair, assetType string) ([]ex
 
 // SubmitExchangeOrder submits a new order
 func (k *Kraken) SubmitExchangeOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (string, error) {
-	return 0, errors.New("not yet implemented")
+	var args = AddOrderOptions{}
+
+	response, err := k.AddOrder(p.Pair().String(), side.Format(k.Name), orderType.Format(k.Name), amount, price, 0, 0, args)
+	orderIds := strings.Join(response.TransactionIds, ",")
+
+	return orderIds, err
 }
 
 // ModifyExchangeOrder will allow of changing orderbook placement and limit to

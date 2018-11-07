@@ -2,6 +2,7 @@ package wex
 
 import (
 	"errors"
+	"fmt"
 	"log"
 	"sync"
 
@@ -159,7 +160,9 @@ func (w *WEX) GetExchangeHistory(p pair.CurrencyPair, assetType string) ([]excha
 
 // SubmitExchangeOrder submits a new order
 func (w *WEX) SubmitExchangeOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (string, error) {
-	return 0, errors.New("not yet implemented")
+	response, err := w.Trade(p.Pair().String(), orderType.Format(w.Name), amount, price)
+
+	return fmt.Sprintf("%v", response), err
 }
 
 // ModifyExchangeOrder will allow of changing orderbook placement and limit to

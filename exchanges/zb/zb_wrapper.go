@@ -2,6 +2,7 @@ package zb
 
 import (
 	"errors"
+	"fmt"
 	"log"
 	"sync"
 
@@ -137,7 +138,24 @@ func (z *ZB) GetExchangeHistory(p pair.CurrencyPair, assetType string) ([]exchan
 
 // SubmitExchangeOrder submits a new order
 func (z *ZB) SubmitExchangeOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (string, error) {
-	return 0, errors.New("not yet implemented")
+	var oT SpotNewOrderRequestParamsType
+
+	if side == exchange.Buy {
+		oT = SpotNewOrderRequestParamsTypeBuy
+	} else {
+		oT = SpotNewOrderRequestParamsTypeSell
+	}
+
+	var params = SpotNewOrderRequestParams{
+		Amount: amount,
+		Price:  price,
+		Symbol: p.Pair().String(),
+		Type:   oT,
+	}
+	response, err := z.SpotNewOrder(params)
+
+	return fmt.Sprintf("%v", response), err
+
 }
 
 // ModifyExchangeOrder will allow of changing orderbook placement and limit to

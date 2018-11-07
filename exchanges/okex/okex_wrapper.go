@@ -2,6 +2,7 @@ package okex
 
 import (
 	"errors"
+	"fmt"
 	"log"
 	"sync"
 
@@ -153,7 +154,32 @@ func (o *OKEX) GetExchangeHistory(p pair.CurrencyPair, assetType string) ([]exch
 
 // SubmitExchangeOrder submits a new order
 func (o *OKEX) SubmitExchangeOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (string, error) {
-	return 0, errors.New("not yet implemented")
+	var oT SpotNewOrderRequestType
+
+	if orderType == exchange.Limit {
+		if side == exchange.Buy {
+			oT = SpotNewOrderRequestTypeBuy
+		} else {
+			oT = SpotNewOrderRequestTypeSell
+		}
+	} else if orderType == exchange.Market {
+		if side == exchange.Buy {
+			oT = SpotNewOrderRequestTypeBuyMarket
+		} else {
+			oT = SpotNewOrderRequestTypeSellMarket
+		}
+	}
+
+	var params = SpotNewOrderRequestParams{
+		Amount: amount,
+		Price:  price,
+		Symbol: p.Pair().String(),
+		Type:   oT,
+	}
+
+	response, err := o.SpotNewOrder(params)
+
+	return fmt.Sprintf("%v", response), err
 }
 
 // ModifyExchangeOrder will allow of changing orderbook placement and limit to
