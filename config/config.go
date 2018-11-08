@@ -8,7 +8,6 @@ import (
 	"log"
 	"os"
 	"path"
-	"runtime"
 	"strconv"
 	"sync"
 	"time"
@@ -845,7 +844,8 @@ func GetFilePath(file string) (string, error) {
 	oldDir := exePath + common.GetOSPathSlash()
 	oldDirs := []string{oldDir + ConfigFile, oldDir + EncryptedConfigFile}
 
-	newDir := common.GetDefaultDataDir(runtime.GOOS) + common.GetOSPathSlash()
+	defaultDir, _ := common.GetDefaultDataDir()
+	newDir := defaultDir + common.GetOSPathSlash()
 	err = common.CheckDir(newDir, true)
 	if err != nil {
 		return "", err

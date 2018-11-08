@@ -21,13 +21,17 @@ func main() {
 		log.Fatal(err)
 	}
 
+	dataDir, err := common.GetDefaultDataDir()
+	if err != nil {
+		log.Fatal(err)
+	}
 	//Handle flags
 	var settings engine.Settings
 	versionFlag := flag.Bool("version", false, "retrieves current GoCryptoTrader version")
 
 	// Core settings
 	flag.StringVar(&settings.ConfigFile, "config", defaultPath, "config file to load")
-	flag.StringVar(&settings.DataDir, "datadir", common.GetDefaultDataDir(runtime.GOOS), "default data directory for GoCryptoTrader files")
+	flag.StringVar(&settings.DataDir, "datadir", dataDir, "default data directory for GoCryptoTrader files")
 	flag.IntVar(&settings.GoMaxProcs, "gomaxprocs", runtime.NumCPU(), "sets the runtime GOMAXPROCS value")
 	flag.BoolVar(&settings.EnableDryRun, "dryrun", false, "dry runs bot, doesn't save config file")
 	flag.BoolVar(&settings.EnableAllExchanges, "enableallexchanges", false, "enables all exchanges")

@@ -4,7 +4,10 @@ import (
 	"bytes"
 	"fmt"
 	"net/url"
+	"os"
+	"path"
 	"reflect"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -953,5 +956,30 @@ func TestTimeFromUnixTimestampFloat(t *testing.T) {
 	_, err = TimeFromUnixTimestampFloat(testString)
 	if err == nil {
 		t.Error("Test failed. Common TimeFromUnixTimestampFloat. Converted invalid syntax.")
+	}
+}
+
+func TestGetDefaultDataDir(t *testing.T) {
+	t.Parallel()
+	defaultDir, err := GetDefaultDataDir()
+	if err != nil {
+		t.Errorf("Test failed. Common GetDefaultDataDir returned error %s", err)
+	}
+	var dataDir string
+	switch env := runtime.GOOS; env {
+	case "windows":
+		dataDir = os.Getenv("APPDATA") + GetOSPathSlash() + "GoCryptoTrader"
+	case "darwin":
+		dataDir = path.Join(os.ExpandEnv("$HOME"), "/Library/Preferences/gocryptotrader")
+	case "linux":
+		configPath, pathIsSet := os.LookupEnv("XDG_CONFIG_HOME")
+		if !pathIsSet {
+			dataDir = path.Join(os.ExpandEnv("$HOME"), "/.config/gocryptotrader")
+			break
+		}
+		dataDir = path.Join(configPath, "gocryptotrader")
+	}
+	if defaultDir != dataDir {
+		t.Errorf("Test failed Common GetDefaultDataDir. returned wrong location expected: %s got: %s", dataDir, defaultDir)
 	}
 }

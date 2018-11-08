@@ -617,11 +617,30 @@ func TimeFromUnixTimestampFloat(raw interface{}) (time.Time, error) {
 // GetDefaultDataDir returns the default data directory
 // Windows - C:\Users\%USER%\AppData\Roaming\GoCryptoTrader
 // Linux/Unix or OSX - $HOME/.gocryptotrader
-func GetDefaultDataDir(env string) string {
-	if env == "windows" {
-		return os.Getenv("APPDATA") + GetOSPathSlash() + "GoCryptoTrader"
+// OSX - ~/Library/Preferences/gocryptotrader
+// if all else fails current working directory
+func GetDefaultDataDir() (string, error) {
+	var dataDir string
+	switch env := runtime.GOOS; env {
+	case "windows":
+		dataDir = os.Getenv("APPDATA") + GetOSPathSlash() + "GoCryptoTrader"
+	case "darwin":
+		dataDir = path.Join(os.ExpandEnv("$HOME"), "/Library/Preferences/gocryptotrader")
+	case "linux":
+		configPath, pathIsSet := os.LookupEnv("XDG_CONFIG_HOME")
+		if !pathIsSet {
+			dataDir = path.Join(os.ExpandEnv("$HOME"), "/.config/gocryptotrader")
+			break
+		}
+		dataDir = path.Join(configPath, "gocryptotrader")
+	default:
+		runPath, err := GetExecutablePath()
+		if err != nil {
+			return "", fmt.Errorf("GetExecutablePath failed %s", err)
+		}
+		dataDir = path.Join(runPath, ".gocryptotrader")
 	}
-	return path.Join(os.ExpandEnv("$HOME"), ".gocryptotrader")
+	return dataDir, nil
 }
 
 // CheckDir checks to see if a particular directory exists
@@ -637,7 +656,7 @@ func CheckDir(dir string, create bool) error {
 	}
 
 	log.Printf("Directory %s does not exist.. creating.", dir)
-	err = os.Mkdir(dir, 0777)
+	err = os.MkdirAll(dir, 0770)
 	if err != nil {
 		return fmt.Errorf("failed to create dir. Err: %s", err)
 	}
