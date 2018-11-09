@@ -30,7 +30,7 @@ func RESTLogger(inner http.Handler, name string) http.Handler {
 func StartRESTServer() {
 	listenAddr := Bot.Config.RESTServer.ListenAddress
 	log.Printf("HTTP REST server support enabled. Listen URL: http://%s:%d\n", common.ExtractHost(listenAddr), common.ExtractPort(listenAddr))
-	err := http.ListenAndServe(listenAddr, newRouter(true))
+	err := http.ListenAndServe(listenAddr, NewRouter(true))
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -40,7 +40,7 @@ func StartRESTServer() {
 func StartWebsocketServer() {
 	listenAddr := Bot.Config.WebsocketServer.ListenAddress
 	log.Printf("Websocket server support enabled. Listen URL: ws://%s:%d/ws\n", common.ExtractHost(listenAddr), common.ExtractPort(listenAddr))
-	err := http.ListenAndServe(listenAddr, newRouter(false))
+	err := http.ListenAndServe(listenAddr, NewRouter(false))
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -48,9 +48,10 @@ func StartWebsocketServer() {
 
 // NewRouter takes in the exchange interfaces and returns a new multiplexor
 // router
-func newRouter(isREST bool) *mux.Router {
+func NewRouter(isREST bool) *mux.Router {
 	router := mux.NewRouter().StrictSlash(true)
 	var routes []Route
+	listenAddr := Bot.Config.RESTServer.ListenAddress
 
 	if isREST {
 		routes = []Route{
@@ -65,6 +66,7 @@ func newRouter(isREST bool) *mux.Router {
 			Route{"IndividualExchangeOrderbook", "GET", "/exchanges/{exchangeName}/orderbook/latest/{currency}", RESTGetOrderbook},
 		}
 	} else {
+		listenAddr = Bot.Config.WebsocketServer.ListenAddress
 		routes = []Route{
 			Route{"ws", "GET", "/ws", WebsocketClientHandler},
 		}
@@ -79,7 +81,8 @@ func newRouter(isREST bool) *mux.Router {
 			Methods(route.Method).
 			Path(route.Pattern).
 			Name(route.Name).
-			Handler(handler)
+			Handler(handler).
+			Host(common.ExtractHost(listenAddr))
 	}
 	return router
 }
