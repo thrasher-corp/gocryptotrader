@@ -3,9 +3,13 @@
   "version": "0.1.0",
   "private": true,
   "proxy": "http://localhost:9050",
+  "main": "src/electron-starter.js",
+  "homepage": "./",
   "dependencies": {
     "@material-ui/core": "^3.4.0",
     "@material-ui/icons": "^3.0.1",
+    "cross-env": "^5.2.0",
+    "electron": "^3.0.10",
     "react": "^16.6.3",
     "react-dom": "^16.6.3",
     "react-router-dom": "^4.3.1",
@@ -19,7 +23,9 @@
     "lint:fix": "eslint --fix src",
     "test": "react-scripts test --env=jsdom",
     "test:coverage": "react-scripts test --env=jsdom --coverage",
-    "eject": "react-scripts eject"
+    "eject": "react-scripts eject",
+    "electron": "electron .",
+    "electron-dev": "cross-env ELECTRON_START_URL=http://localhost:3000 electron ."
   },
   "browserslist": [
     ">0.2%",
