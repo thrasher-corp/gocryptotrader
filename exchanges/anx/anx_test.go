@@ -4,11 +4,16 @@ import (
 	"testing"
 
 	"github.com/thrasher-/gocryptotrader/config"
+	"github.com/thrasher-/gocryptotrader/currency/pair"
 	"github.com/thrasher-/gocryptotrader/currency/symbol"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 )
 
 var a ANX
+
+const (
+	canPlaceOrders = false
+)
 
 func TestSetDefaults(t *testing.T) {
 	a.SetDefaults()
@@ -40,6 +45,8 @@ func TestSetup(t *testing.T) {
 	anxSetupConfig := config.GetConfig()
 	anxSetupConfig.LoadConfig("../../testdata/configtest.json")
 	anxConfig, err := anxSetupConfig.GetExchangeConfig("ANX")
+	anxConfig.AuthenticatedAPISupport = true
+
 	if err != nil {
 		t.Error("Test Failed - ANX Setup() init error")
 	}
@@ -48,15 +55,7 @@ func TestSetup(t *testing.T) {
 	if a.Enabled != true {
 		t.Error("Test Failed - ANX Setup() incorrect values set")
 	}
-	if a.AuthenticatedAPISupport != false {
-		t.Error("Test Failed - ANX Setup() incorrect values set")
-	}
-	if len(a.APIKey) != 0 {
-		t.Error("Test Failed - ANX Setup() incorrect values set")
-	}
-	if len(a.APISecret) != 0 {
-		t.Error("Test Failed - ANX Setup() incorrect values set")
-	}
+
 	if a.RESTPollingDelay != 10 {
 		t.Error("Test Failed - ANX Setup() incorrect values set")
 	}
@@ -218,5 +217,30 @@ func TestFormatWithdrawPermissions(t *testing.T) {
 	// Assert
 	if withdrawPermissions != expectedResult {
 		t.Errorf("Expected: %s, Recieved: %s", expectedResult, withdrawPermissions)
+	}
+}
+
+// This will really really use the API to place an order
+// If you're going to test this, make sure you're willing to place real orders on the exchange
+func TestSubmitOrder(t *testing.T) {
+	a.SetDefaults()
+	TestSetup(t)
+
+	if a.APIKey == "" || a.APISecret == "" ||
+		a.APIKey == "Key" || a.APISecret == "Secret" ||
+		!canPlaceOrders {
+		t.Skip()
+	}
+	var p = pair.CurrencyPair{
+		Delimiter:      "_",
+		FirstCurrency:  "BTC",
+		SecondCurrency: "USD",
+	}
+	response, err := a.SubmitExchangeOrder(p, exchange.Buy, exchange.Market, 1, 1, "clientId")
+	if err != nil {
+		t.Error("Something happehned: ", err)
+	}
+	if response == "" {
+		t.Errorf("OrderId not returned")
 	}
 }

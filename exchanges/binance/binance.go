@@ -445,8 +445,12 @@ func (b *Binance) NewOrder(o NewOrderRequest) (NewOrderResponse, error) {
 	params.Set("side", string(o.Side))
 	params.Set("type", string(o.TradeType))
 	params.Set("quantity", strconv.FormatFloat(o.Quantity, 'f', -1, 64))
-	params.Set("price", strconv.FormatFloat(o.Price, 'f', -1, 64))
-	params.Set("timeInForce", string(o.TimeInForce))
+	if o.TradeType == "LIMIT" {
+		params.Set("price", strconv.FormatFloat(o.Price, 'f', -1, 64))
+	}
+	if o.TimeInForce != "" {
+		params.Set("timeInForce", string(o.TimeInForce))
+	}
 
 	if o.NewClientOrderID != "" {
 		params.Set("newClientOrderID", o.NewClientOrderID)

@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/thrasher-/gocryptotrader/currency/pair"
 	"github.com/thrasher-/gocryptotrader/currency/symbol"
 	"github.com/thrasher-/gocryptotrader/exchanges"
 
@@ -13,9 +14,10 @@ import (
 
 // Please add your private keys and customerID for better tests
 const (
-	apiKey     = ""
-	apiSecret  = ""
-	customerID = ""
+	apiKey         = ""
+	apiSecret      = ""
+	customerID     = ""
+	canPlaceOrders = false
 )
 
 var b Bitstamp
@@ -47,9 +49,11 @@ func TestSetup(t *testing.T) {
 	if err != nil {
 		t.Error("Test Failed - Bitstamp Setup() init error")
 	}
+	bConfig.APIKey = apiKey
+	bConfig.APISecret = apiSecret
 	b.Setup(bConfig)
 
-	if !b.IsEnabled() || b.AuthenticatedAPISupport || b.RESTPollingDelay != time.Duration(10) ||
+	if !b.IsEnabled() || b.RESTPollingDelay != time.Duration(10) ||
 		b.Verbose || b.Websocket.IsEnabled() || len(b.BaseCurrencies) < 1 ||
 		len(b.AvailablePairs) < 1 || len(b.EnabledPairs) < 1 {
 		t.Error("Test Failed - Bitstamp Setup values not set correctly")
@@ -344,5 +348,30 @@ func TestFormatWithdrawPermissions(t *testing.T) {
 	// Assert
 	if withdrawPermissions != expectedResult {
 		t.Errorf("Expected: %s, Recieved: %s", expectedResult, withdrawPermissions)
+	}
+}
+
+// This will really really use the API to place an order
+// If you're going to test this, make sure you're willing to place real orders on the exchange
+func TestSubmitOrder(t *testing.T) {
+	b.SetDefaults()
+	TestSetup(t)
+
+	if b.APIKey == "" || b.APISecret == "" ||
+		b.APIKey == "Key" || b.APISecret == "Secret" ||
+		!canPlaceOrders {
+		t.Skip()
+	}
+	var p = pair.CurrencyPair{
+		Delimiter:      "",
+		FirstCurrency:  "BTC",
+		SecondCurrency: "USD",
+	}
+	response, err := b.SubmitExchangeOrder(p, exchange.Buy, exchange.Market, 1, 1, "clientId")
+	if err != nil {
+		t.Error("Something happened: ", err)
+	}
+	if response == "" {
+		t.Errorf("OrderId not returned")
 	}
 }

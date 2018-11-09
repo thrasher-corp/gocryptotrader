@@ -157,7 +157,7 @@ func (l *LocalBitcoins) SubmitExchangeOrder(p pair.CurrencyPair, side exchange.O
 	// Now to figure out what ad we just submitted
 	// The only details we have are the params above
 	var adID string
-	ads, err := l.Getads("", "")
+	ads, err := l.Getads()
 	for _, i := range ads.AdList {
 		if i.Data.PriceEquation == params.PriceEquation &&
 			i.Data.Lat == float64(params.Latitude) &&

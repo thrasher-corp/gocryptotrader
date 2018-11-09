@@ -100,6 +100,10 @@ func (b *Bitstamp) Setup(exch config.ExchangeConfig) {
 		b.BaseCurrencies = common.SplitStrings(exch.BaseCurrencies, ",")
 		b.AvailablePairs = common.SplitStrings(exch.AvailablePairs, ",")
 		b.EnabledPairs = common.SplitStrings(exch.EnabledPairs, ",")
+		b.APIKey = exch.APIKey
+		b.APISecret = exch.APISecret
+		b.SetAPIKeys(exch.APIKey, exch.APISecret, b.ClientID, false)
+		b.AuthenticatedAPISupport = true
 		err := b.SetCurrencyPairFormat()
 		if err != nil {
 			log.Fatal(err)
@@ -612,5 +616,7 @@ func (b *Bitstamp) SendAuthenticatedHTTPRequest(path string, v2 bool, values url
 	headers := make(map[string]string)
 	headers["Content-Type"] = "application/x-www-form-urlencoded"
 
-	return b.SendPayload("POST", path, headers, strings.NewReader(values.Encode()), result, true, b.Verbose)
+	butts := values.Encode()
+	buttsTwo := strings.NewReader(butts)
+	return b.SendPayload("POST", path, headers, buttsTwo, result, true, b.Verbose)
 }

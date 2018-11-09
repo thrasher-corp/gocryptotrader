@@ -78,7 +78,7 @@ func (a *ANX) Setup(exch config.ExchangeConfig) {
 	} else {
 		a.Enabled = true
 		a.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
-		a.SetAPIKeys(exch.APIKey, exch.APISecret, "", true)
+		a.SetAPIKeys(exch.APIKey, exch.APISecret, "", false)
 		a.SetHTTPClientTimeout(exch.HTTPTimeout)
 		a.SetHTTPClientUserAgent(exch.HTTPUserAgent)
 		a.RESTPollingDelay = exch.RESTPollingDelay
@@ -223,7 +223,7 @@ func (a *ANX) NewOrder(orderType string, buy bool, tradedCurrency string, traded
 
 	type OrderResponse struct {
 		OrderID    string `json:"orderId"`
-		Timestamp  int64  `json:"timestamp"`
+		Timestamp  int64  `json:"timestamp,string"`
 		ResultCode string `json:"resultCode"`
 	}
 	var response OrderResponse
@@ -234,7 +234,7 @@ func (a *ANX) NewOrder(orderType string, buy bool, tradedCurrency string, traded
 	}
 
 	if response.ResultCode != "OK" {
-		return "", errors.New("Response code is not OK: %s" + response.ResultCode)
+		return "", errors.New("Response code is not OK: " + response.ResultCode)
 	}
 	return response.OrderID, nil
 }

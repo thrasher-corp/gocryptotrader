@@ -2,8 +2,8 @@ package bitstamp
 
 import (
 	"errors"
+	"fmt"
 	"log"
-	"strconv"
 	"strings"
 	"sync"
 
@@ -171,7 +171,7 @@ func (b *Bitstamp) SubmitExchangeOrder(p pair.CurrencyPair, side exchange.OrderS
 	market := orderType == exchange.Market
 	order, err := b.PlaceOrder(p.Pair().String(), price, amount, buy, market)
 
-	return strconv.FormatInt(order.ID, 64), err
+	return fmt.Sprintf("%v", order.ID), err
 }
 
 // ModifyExchangeOrder will allow of changing orderbook placement and limit to
