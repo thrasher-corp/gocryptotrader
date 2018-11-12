@@ -1,22 +1,157 @@
 import { inherits } from 'util';
 
+
+export interface ForexProvider {
+  name: string;
+  enabled: boolean;
+  verbose: boolean;
+  restPollingDelay: number;
+  apiKey: string;
+  apiKeyLvl: number;
+  primaryProvider: boolean;
+}
+
+export interface CurrencyPairFormat {
+  uppercase: boolean;
+  delimiter: string;
+}
+
+export interface CurrencyConfig {
+  forexProviders: ForexProvider[];
+  cryptocurrencies: string;
+  currencyPairFormat: CurrencyPairFormat;
+  fiatDisplayCurrency: string;
+}
+
+export interface Slack {
+  name: string;
+  enabled: boolean;
+  verbose: boolean;
+  targetChannel: string;
+  verificationToken: string;
+}
+
+export interface Contact {
+  name: string;
+  number: string;
+  enabled: boolean;
+}
+
+export interface SmsGlobal {
+  name: string;
+  enabled: boolean;
+  verbose: boolean;
+  username: string;
+  password: string;
+  contacts: Contact[];
+}
+
+export interface Smtp {
+  name: string;
+  enabled: boolean;
+  verbose: boolean;
+  host: string;
+  port: string;
+  accountName: string;
+  accountPassword: string;
+  recipientList: string;
+}
+
+export interface Telegram {
+  name: string;
+  enabled: boolean;
+  verbose: boolean;
+  verificationToken: string;
+}
+
+export interface Communications {
+  slack: Slack;
+  smsGlobal: SmsGlobal;
+  smtp: Smtp;
+  telegram: Telegram;
+}
+
+export interface Address {
+  Address: string;
+  CoinType: string;
+  Balance: number;
+  Description: string;
+}
+
+
+
+export interface Webserver {
+  enabled: boolean;
+  adminUsername: string;
+  adminPassword: string;
+  listenAddress: string;
+  websocketConnectionLimit: number;
+  websocketMaxAuthFailures: number;
+  websocketAllowInsecureOrigin: boolean;
+}
+
+export interface ConfigCurrencyPairFormat {
+  uppercase: boolean;
+  delimiter: string;
+}
+
+export interface RequestCurrencyPairFormat {
+  uppercase: boolean;
+}
+
+export interface BankAccount {
+  bankName: string;
+  bankAddress: string;
+  accountName: string;
+  accountNumber: string;
+  swiftCode: string;
+  iban: string;
+  supportedCurrencies: string;
+}
+
+export interface Exchange {
+  name: string;
+  enabled: boolean;
+  verbose: boolean;
+  websocket: boolean;
+  useSandbox: boolean;
+  restPollingDelay: number;
+  httpTimeout: number;
+  httpUserAgent: string;
+  authenticatedApiSupport: boolean;
+  apiKey: string;
+  apiSecret: string;
+  apiUrl: string;
+  apiUrlSecondary: string;
+  availablePairs: string;
+  enabledPairs: string;
+  baseCurrencies: string;
+  assetTypes: string;
+  supportsAutoPairUpdates: boolean;
+  configCurrencyPairFormat: ConfigCurrencyPairFormat;
+  requestCurrencyPairFormat: RequestCurrencyPairFormat;
+  bankAccounts: BankAccount[];
+  pairs: CurrencyPairRedux[];
+}
+
+
+
+
 export class CurrencyPairRedux {
-  Name: string;
-  ParsedName: string;
-  Enabled: boolean;
+  name: string;
+  parsedName: string;
+  enabled: boolean;
 }
 
 export class Config {
-    Name: string;
-    EncryptConfig?: number;
-    Cryptocurrencies: string;
-    CurrencyExchangeProvider: string;
-    CurrencyPairFormat: CurrencyPairFormat;
-    PortfolioAddresses: PortfolioAddresses;
-    Webserver: Webserver;
-    Exchanges: Exchange[];
-    Communications: Communcations;
-    CurrencyConfig: CurrencyConfig;
+  name: string;
+  encryptConfig: number;
+  globalHTTPTimeout: number;
+  currencyConfig: CurrencyConfig;
+  communications: Communications;
+  portfolioAddresses: PortfolioAddresses;
+  webserver: Webserver;
+  exchanges: Exchange[];
 
     public isConfigCacheValid(): boolean {
         const dateStored = +new Date(window.localStorage['configDate']);
@@ -33,20 +168,17 @@ export class Config {
 
   public setConfig(data: any): void {
     const configData = <Config>data;
-    this.Cryptocurrencies = configData.Cryptocurrencies;
-    this.CurrencyExchangeProvider = configData.CurrencyExchangeProvider;
-    this.Exchanges = configData.Exchanges;
-    this.CurrencyPairFormat = configData.CurrencyPairFormat;
-    this.EncryptConfig = configData.EncryptConfig;
-    this.Exchanges = configData.Exchanges;
-    this.Name = configData.Name;
-    this.PortfolioAddresses = configData.PortfolioAddresses;
-    this.Communications = configData.Communications;
-    this.CurrencyConfig = configData.CurrencyConfig;
-    this.Webserver = configData.Webserver;
-    if (configData.Exchanges.length > 0
-      && configData.Exchanges[0].Pairs
-      && configData.Exchanges[0].Pairs.length > 0) {
+    this.communications = configData.communications;
+    this.currencyConfig = configData.currencyConfig;
+    this.encryptConfig = configData.encryptConfig;
+    this.globalHTTPTimeout = configData.globalHTTPTimeout;
+    this.name = configData.name;
+    this.portfolioAddresses = configData.portfolioAddresses;
+    this.exchanges = configData.exchanges;
+    this.webserver = configData.webserver;
+    if (configData.exchanges.length > 0
+      && configData.exchanges[0].pairs
+      && configData.exchanges[0].pairs.length > 0) {
       console.log('Successfully retrieved well-formed pairs');
       return;
     }
@@ -66,20 +198,20 @@ export class Config {
     }
 
     public fromArrayToRedux(): void {
-        for (let i = 0; i < this.Exchanges.length; i++) {
-          this.Exchanges[i].Pairs = new Array<CurrencyPairRedux>();
-          const avail = this.Exchanges[i].AvailablePairs.split(',');
-          const enabled = this.Exchanges[i].EnabledPairs.split(',');
+        for (let i = 0; i < this.exchanges.length; i++) {
+          this.exchanges[i].pairs = new Array<CurrencyPairRedux>();
+          const avail = this.exchanges[i].availablePairs.split(',');
+          const enabled = this.exchanges[i].enabledPairs.split(',');
           for (let j = 0; j < avail.length; j++) {
             const currencyPair = new CurrencyPairRedux();
-            currencyPair.Name = avail[j];
-            currencyPair.ParsedName = this.stripCurrencyCharacters(avail[j]);
+            currencyPair.name = avail[j];
+            currencyPair.parsedName = this.stripCurrencyCharacters(avail[j]);
             if (enabled.indexOf(avail[j]) > 0) {
-              currencyPair.Enabled = true;
+              currencyPair.enabled = true;
             } else {
-              currencyPair.Enabled = false;
+              currencyPair.enabled = false;
             }
-            this.Exchanges[i].Pairs.push(currencyPair);
+            this.exchanges[i].pairs.push(currencyPair);
           }
         }
 
@@ -98,23 +230,23 @@ export class Config {
       }
 
     public fromReduxToArray(): void {
-        for (let i = 0; i < this.Exchanges.length; i++) {
+        for (let i = 0; i < this.exchanges.length; i++) {
           // Step 1, iterate over the Pairs
-          const enabled = this.Exchanges[i].EnabledPairs.split(',');
-          for (let j = 0; j < this.Exchanges[i].Pairs.length; j++) {
-            if (this.Exchanges[i].Pairs[j].Enabled) {
-              if (enabled.indexOf(this.Exchanges[i].Pairs[j].Name) === -1) {
+          const enabled = this.exchanges[i].enabledPairs.split(',');
+          for (let j = 0; j < this.exchanges[i].pairs.length; j++) {
+            if (this.exchanges[i].pairs[j].enabled) {
+              if (enabled.indexOf(this.exchanges[i].pairs[j].name) === -1) {
                 // Step 3 if its not in the enabled list, add it
-                enabled.push(this.Exchanges[i].Pairs[j].Name);
+                enabled.push(this.exchanges[i].pairs[j].name);
               }
             } else {
-              if (enabled.indexOf(this.Exchanges[i].Pairs[j].Name) > -1) {
-                enabled.splice(enabled.indexOf(this.Exchanges[i].Pairs[j].Name), 1);
+              if (enabled.indexOf(this.exchanges[i].pairs[j].name) > -1) {
+                enabled.splice(enabled.indexOf(this.exchanges[i].pairs[j].name), 1);
               }
             }
           }
           // Step 4 JSONifiy the enabled list and set it to the this.settings.Exchanges[i].EnabledPairs
-          this.Exchanges[i].EnabledPairs = enabled.join();
+          this.exchanges[i].enabledPairs = enabled.join();
         }
       }
   }
@@ -167,22 +299,22 @@ export class Config {
   }
 
   export interface Exchange {
-    Name: string;
-    Enabled: boolean;
-    Verbose: boolean;
-    Websocket: boolean;
+    name: string;
+    enabled: boolean;
+    verbose: boolean;
+    websocket: boolean;
     RESTPollingDelay: number;
-    AuthenticatedAPISupport: boolean;
+    authenticatedAPISupport: boolean;
     APIKey: string;
     APISecret: string;
-    AvailablePairs: string;
-    EnabledPairs: string;
-    BaseCurrencies: string;
-    AssetTypes: string;
-    ConfigCurrencyPairFormat: ConfigCurrencyPairFormat;
-    RequestCurrencyPairFormat: RequestCurrencyPairFormat;
-    ClientID: string;
-    Pairs: CurrencyPairRedux[];
+    availablePairs: string;
+    enabledPairs: string;
+    baseCurrencies: string;
+    assetTypes: string;
+    configCurrencyPairFormat: ConfigCurrencyPairFormat;
+    requestCurrencyPairFormat: RequestCurrencyPairFormat;
+    clientID: string;
+    pairs: CurrencyPairRedux[];
 }
 
 
