@@ -80,7 +80,7 @@ func (c *COINUT) Setup(exch config.ExchangeConfig) {
 	} else {
 		c.Enabled = true
 		c.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
-		c.SetAPIKeys(exch.APIKey, exch.APISecret, exch.ClientID, true)
+		c.SetAPIKeys(exch.APIKey, exch.APISecret, exch.ClientID, false)
 		c.SetHTTPClientTimeout(exch.HTTPTimeout)
 		c.SetHTTPClientUserAgent(exch.HTTPUserAgent)
 		c.RESTPollingDelay = exch.RESTPollingDelay
@@ -172,9 +172,9 @@ func (c *COINUT) NewOrder(instrumentID int, quantity, price float64, buy bool, o
 	params := make(map[string]interface{})
 	params["inst_id"] = instrumentID
 	if price > 0 {
-		params["price"] = price
+		params["price"] = fmt.Sprintf("%v", price)
 	}
-	params["qty"] = quantity
+	params["qty"] = fmt.Sprintf("%v", quantity)
 	params["side"] = "BUY"
 	if !buy {
 		params["side"] = "SELL"
@@ -191,7 +191,7 @@ func (c *COINUT) NewOrder(instrumentID int, quantity, price float64, buy bool, o
 	if _, ok := result.(OrdersBase); ok {
 		return result.(OrdersBase), err
 	}
-	return result, errors.New("Could not handle response")
+	return result, err
 }
 
 // NewOrders places multiple orders on the exchange

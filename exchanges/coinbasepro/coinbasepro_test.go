@@ -1,10 +1,12 @@
 package coinbasepro
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
 	"github.com/thrasher-/gocryptotrader/config"
+	"github.com/thrasher-/gocryptotrader/currency/pair"
 	"github.com/thrasher-/gocryptotrader/currency/symbol"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 )
@@ -13,9 +15,10 @@ var c CoinbasePro
 
 // Please supply your APIKeys here for better testing
 const (
-	apiKey    = ""
-	apiSecret = ""
-	clientID  = "" //passphrase you made at API CREATION
+	apiKey         = ""
+	apiSecret      = ""
+	clientID       = "" //passphrase you made at API CREATION
+	canPlaceOrders = false
 )
 
 func TestSetDefaults(t *testing.T) {
@@ -30,7 +33,9 @@ func TestSetup(t *testing.T) {
 	if err != nil {
 		t.Error("Test Failed - coinbasepro Setup() init error")
 	}
-
+	gdxConfig.APIKey = apiKey
+	gdxConfig.APISecret = apiSecret
+	gdxConfig.AuthenticatedAPISupport = true
 	c.Setup(gdxConfig)
 }
 
@@ -400,5 +405,30 @@ func TestFormatWithdrawPermissions(t *testing.T) {
 	// Assert
 	if withdrawPermissions != expectedResult {
 		t.Errorf("Expected: %s, Recieved: %s", expectedResult, withdrawPermissions)
+	}
+}
+
+// This will really really use the API to place an order
+// If you're going to test this, make sure you're willing to place real orders on the exchange
+func TestSubmitOrder(t *testing.T) {
+	c.SetDefaults()
+	TestSetup(t)
+
+	if c.APIKey == "" || c.APISecret == "" ||
+		c.APIKey == "Key" || c.APISecret == "Secret" ||
+		!canPlaceOrders {
+		t.Skip(fmt.Sprintf("ApiKey: %s. Can Place others: %v", c.APIKey, canPlaceOrders))
+	}
+	var p = pair.CurrencyPair{
+		Delimiter:      "-",
+		FirstCurrency:  "BTC",
+		SecondCurrency: "LTC",
+	}
+	response, err := c.SubmitExchangeOrder(p, exchange.Buy, exchange.Limit, 1, 1, "clientId")
+	if err != nil {
+		t.Error("Something happened: ", err)
+	}
+	if response == "" {
+		t.Errorf("OrderId not returned.")
 	}
 }

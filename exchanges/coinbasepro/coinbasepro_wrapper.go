@@ -156,6 +156,10 @@ func (c *CoinbasePro) SubmitExchangeOrder(p pair.CurrencyPair, side exchange.Ord
 		err = errors.New("not supported")
 	}
 
+	if response == "" {
+		err = errors.New("No orderId returned")
+	}
+
 	return response, err
 }
 

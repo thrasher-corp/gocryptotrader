@@ -147,7 +147,7 @@ func (c *COINUT) SubmitExchangeOrder(p pair.CurrencyPair, side exchange.OrderSid
 	var err error
 	var APIresponse interface{}
 	var response string
-	buy := side == exchange.Buy
+	isBuyOrder := side == exchange.Buy
 	clientIDInt, err := strconv.ParseUint(clientID, 0, 32)
 	clientIDUint := uint32(clientIDInt)
 
@@ -155,18 +155,18 @@ func (c *COINUT) SubmitExchangeOrder(p pair.CurrencyPair, side exchange.OrderSid
 		return "", err
 	}
 	// Need to get the ID of the currency sent
-	instrucments, err := c.GetInstruments()
+	instruments, err := c.GetInstruments()
 	if err != nil {
 		return "", err
 	}
 
-	currencyArray := instrucments.Instruments[p.Pair().String()]
+	currencyArray := instruments.Instruments[p.Pair().String()]
 	currencyID := currencyArray[0].InstID
 
 	if orderType == exchange.Limit {
-		APIresponse, err = c.NewOrder(currencyID, amount, price, buy, clientIDUint)
+		APIresponse, err = c.NewOrder(currencyID, amount, price, isBuyOrder, clientIDUint)
 	} else if orderType == exchange.Market {
-		APIresponse, err = c.NewOrder(currencyID, amount, 0, buy, clientIDUint)
+		APIresponse, err = c.NewOrder(currencyID, amount, 0, isBuyOrder, clientIDUint)
 	}
 	switch APIresponse.(type) {
 	case OrdersBase:
