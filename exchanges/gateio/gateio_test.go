@@ -1,9 +1,11 @@
 package gateio
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/thrasher-/gocryptotrader/config"
+	"github.com/thrasher-/gocryptotrader/currency/pair"
 	"github.com/thrasher-/gocryptotrader/currency/symbol"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 )
@@ -11,8 +13,9 @@ import (
 // Please supply your own APIKEYS here for due diligence testing
 
 const (
-	apiKey    = ""
-	apiSecret = ""
+	apiKey         = ""
+	apiSecret      = ""
+	canPlaceOrders = false
 )
 
 var g Gateio
@@ -245,5 +248,32 @@ func TestFormatWithdrawPermissions(t *testing.T) {
 	// Assert
 	if withdrawPermissions != expectedResult {
 		t.Errorf("Expected: %s, Recieved: %s", expectedResult, withdrawPermissions)
+	}
+}
+
+// This will really really use the API to place an order
+// If you're going to test this, make sure you're willing to place real orders on the exchange
+func TestSubmitOrder(t *testing.T) {
+	g.SetDefaults()
+	TestSetup(t)
+	g.Verbose = true
+
+	if g.APIKey == "" || g.APISecret == "" ||
+		g.APIKey == "Key" || g.APISecret == "Secret" ||
+		!canPlaceOrders {
+		t.Skip(fmt.Sprintf("ApiKey: %s. Can place orders: %v", g.APIKey, canPlaceOrders))
+	}
+	var p = pair.CurrencyPair{
+		Delimiter:      "_",
+		FirstCurrency:  "LTC",
+		SecondCurrency: "BTC",
+	}
+	response, err := g.SubmitExchangeOrder(p, exchange.Buy, exchange.Market, 1, 10, "1234234")
+
+	if err != nil {
+		t.Error("Something happened: ", err)
+	}
+	if response == "" {
+		t.Errorf("OrderId not returned.")
 	}
 }

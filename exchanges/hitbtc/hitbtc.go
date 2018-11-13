@@ -37,7 +37,7 @@ const (
 	apiV2TradeHistory   = "api/2/history/trades"
 	apiV2FeeInfo        = "api/2/trading/fee"
 	orders              = "order"
-	orderBuy            = "buy"
+	orderBuy            = "api/2/order"
 	orderSell           = "sell"
 	orderCancel         = "cancelOrder"
 	orderMove           = "moveOrder"

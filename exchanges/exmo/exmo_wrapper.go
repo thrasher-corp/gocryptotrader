@@ -178,7 +178,18 @@ func (e *EXMO) GetExchangeHistory(p pair.CurrencyPair, assetType string) ([]exch
 
 // SubmitExchangeOrder submits a new order
 func (e *EXMO) SubmitExchangeOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (string, error) {
-	response, err := e.CreateOrder(p.Pair().String(), orderType.Format(e.Name), price, amount)
+	var oT string
+	if orderType == exchange.Limit {
+		return "", errors.New("Not supported")
+	} else if orderType == exchange.Market {
+		if side == exchange.Buy {
+			oT = "market_buy"
+		} else {
+			oT = "market_sell"
+		}
+	}
+
+	response, err := e.CreateOrder(p.Pair().String(), oT, price, amount)
 
 	return fmt.Sprintf("%v", response), err
 }
