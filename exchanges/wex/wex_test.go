@@ -300,8 +300,8 @@ func TestSubmitOrder(t *testing.T) {
 	}
 	var pair = pair.CurrencyPair{
 		Delimiter:      "_",
-		FirstCurrency:  "BTC",
-		SecondCurrency: "USD",
+		FirstCurrency:  symbol.BTC,
+		SecondCurrency: symbol.USD,
 	}
 	response, err := w.SubmitExchangeOrder(pair, exchange.Buy, exchange.Market, 1, 10, "hi")
 

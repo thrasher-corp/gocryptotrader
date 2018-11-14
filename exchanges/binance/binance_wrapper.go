@@ -150,18 +150,18 @@ func (b *Binance) SubmitExchangeOrder(p pair.CurrencyPair, side exchange.OrderSi
 		sideType = BinanceRequestParamsSideSell
 	}
 
-	var orderTypeTypeType RequestParamsOrderType
+	var requestParamsOrderType RequestParamsOrderType
 	if orderType == exchange.Market {
-		orderTypeTypeType = BinanceRequestParamsOrderMarket
+		requestParamsOrderType = BinanceRequestParamsOrderMarket
 	} else if orderType == exchange.Limit {
-		orderTypeTypeType = BinanceRequestParamsOrderLimit
+		requestParamsOrderType = BinanceRequestParamsOrderLimit
 	}
 	var orderRequest = NewOrderRequest{
 		Symbol:    p.FirstCurrency.String() + p.SecondCurrency.String(),
 		Side:      sideType,
 		Price:     price,
 		Quantity:  amount,
-		TradeType: orderTypeTypeType,
+		TradeType: requestParamsOrderType,
 	}
 
 	response, err := b.NewOrder(orderRequest)

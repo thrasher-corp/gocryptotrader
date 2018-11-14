@@ -389,8 +389,8 @@ func TestSubmitOrder(t *testing.T) {
 	}
 	var p = pair.CurrencyPair{
 		Delimiter:      "",
-		FirstCurrency:  "btc",
-		SecondCurrency: "usdt",
+		FirstCurrency:  symbol.BTC,
+		SecondCurrency: symbol.USDT,
 	}
 	accounts, err := h.GetAccounts()
 

@@ -257,8 +257,8 @@ func TestSubmitOrder(t *testing.T) {
 	}
 	var pair = pair.CurrencyPair{
 		Delimiter:      "_",
-		FirstCurrency:  "QTUM",
-		SecondCurrency: "USDT",
+		FirstCurrency:  symbol.QTUM,
+		SecondCurrency: symbol.USDT,
 	}
 	response, err := z.SubmitExchangeOrder(pair, exchange.Buy, exchange.Market, 1, 10, "hi")
 

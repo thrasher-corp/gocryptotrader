@@ -20,8 +20,8 @@ import (
 
 // Please supply you own test keys here for due diligence testing.
 const (
-	apiKey    = ""
-	apiSecret = ""
+	apiKey         = ""
+	apiSecret      = ""
 	canPlaceOrders = false
 )
 
@@ -411,8 +411,8 @@ func TestSubmitOrder(t *testing.T) {
 	}
 	var p = pair.CurrencyPair{
 		Delimiter:      "",
-		FirstCurrency:  "btc",
-		SecondCurrency: "usdt",
+		FirstCurrency:  symbol.BTC,
+		SecondCurrency: symbol.USDT,
 	}
 	accounts, err := h.GetAccounts()
 

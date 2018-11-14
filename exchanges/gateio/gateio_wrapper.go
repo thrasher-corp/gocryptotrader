@@ -135,7 +135,6 @@ func (g *Gateio) SubmitExchangeOrder(p pair.CurrencyPair, side exchange.OrderSid
 		orderTypeFormat = SpotNewOrderRequestParamsTypeBuy
 	} else {
 		orderTypeFormat = SpotNewOrderRequestParamsTypeSell
-
 	}
 
 	var spotNewOrderRequestParams = SpotNewOrderRequestParams{
@@ -144,6 +143,7 @@ func (g *Gateio) SubmitExchangeOrder(p pair.CurrencyPair, side exchange.OrderSid
 		Symbol: p.Pair().String(),
 		Type:   orderTypeFormat,
 	}
+
 	response, err := g.SpotNewOrder(spotNewOrderRequestParams)
 
 	return fmt.Sprintf("%v", response.OrderNumber), err

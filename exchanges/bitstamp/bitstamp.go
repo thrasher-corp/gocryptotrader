@@ -616,7 +616,7 @@ func (b *Bitstamp) SendAuthenticatedHTTPRequest(path string, v2 bool, values url
 	headers := make(map[string]string)
 	headers["Content-Type"] = "application/x-www-form-urlencoded"
 
-	butts := values.Encode()
-	buttsTwo := strings.NewReader(butts)
-	return b.SendPayload("POST", path, headers, buttsTwo, result, true, b.Verbose)
+	encodedValues := values.Encode()
+	readerValues := strings.NewReader(encodedValues)
+	return b.SendPayload("POST", path, headers, readerValues, result, true, b.Verbose)
 }
