@@ -173,11 +173,13 @@ func (h *HUOBI) GetExchangeHistory(p pair.CurrencyPair, assetType string) ([]exc
 
 // SubmitExchangeOrder submits a new order
 func (h *HUOBI) SubmitExchangeOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (string, error) {
-	accountIDInt64, err := strconv.ParseInt(clientID, 0, 64)
+	accountID, err := strconv.ParseInt(clientID, 10, 64)
 	var formattedType SpotNewOrderRequestParamsType
-
-	if err != nil {
-		return "", errors.New("Bad client ID sent")
+	var params = SpotNewOrderRequestParams{
+		Amount:    amount,
+		Source:    "api",
+		Symbol:    common.StringToLower(p.Pair().String()),
+		AccountID: int(accountID),
 	}
 
 	if side == exchange.Buy && orderType == exchange.Market {
@@ -186,18 +188,15 @@ func (h *HUOBI) SubmitExchangeOrder(p pair.CurrencyPair, side exchange.OrderSide
 		formattedType = SpotNewOrderRequestTypeSellMarket
 	} else if side == exchange.Buy && orderType == exchange.Limit {
 		formattedType = SpotNewOrderRequestTypeBuyLimit
+		params.Price = price
 	} else if side == exchange.Sell && orderType == exchange.Limit {
 		formattedType = SpotNewOrderRequestTypeSellLimit
+		params.Price = price
+
 	}
 
-	var params = SpotNewOrderRequestParams{
-		AccountID: int(accountIDInt64),
-		Amount:    amount,
-		Price:     price,
-		Source:    "api",
-		Symbol:    p.Pair().String(),
-		Type:      formattedType,
-	}
+	params.Type = formattedType
+
 	response, err := h.SpotNewOrder(params)
 
 	return fmt.Sprintf("%v", response), err

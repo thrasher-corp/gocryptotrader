@@ -1,9 +1,11 @@
 package kraken
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/thrasher-/gocryptotrader/config"
+	"github.com/thrasher-/gocryptotrader/currency/pair"
 	"github.com/thrasher-/gocryptotrader/currency/symbol"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 )
@@ -12,9 +14,10 @@ var k Kraken
 
 // Please add your own APIkeys to do correct due diligence testing.
 const (
-	apiKey    = ""
-	apiSecret = ""
-	clientID  = ""
+	apiKey         = ""
+	apiSecret      = ""
+	clientID       = ""
+	canPlaceOrders = false
 )
 
 func TestSetDefaults(t *testing.T) {
@@ -325,5 +328,32 @@ func TestFormatWithdrawPermissions(t *testing.T) {
 	// Assert
 	if withdrawPermissions != expectedResult {
 		t.Errorf("Expected: %s, Recieved: %s", expectedResult, withdrawPermissions)
+	}
+}
+
+// This will really really use the API to place an order
+// If you're going to test this, make sure you're willing to place real orders on the exchange
+func TestSubmitOrder(t *testing.T) {
+	k.SetDefaults()
+	TestSetup(t)
+	k.Verbose = true
+
+	if k.APIKey == "" || k.APISecret == "" ||
+		k.APIKey == "Key" || k.APISecret == "Secret" ||
+		!canPlaceOrders {
+		t.Skip(fmt.Sprintf("ApiKey: %s. Can place orders: %v", k.APIKey, canPlaceOrders))
+	}
+	var p = pair.CurrencyPair{
+		Delimiter:      "",
+		FirstCurrency:  "XBT",
+		SecondCurrency: "CAD",
+	}
+	response, err := k.SubmitExchangeOrder(p, exchange.Buy, exchange.Market, 1, 10, "hi")
+
+	if err != nil {
+		t.Error("Something happened: ", err)
+	}
+	if response == "" {
+		t.Errorf("OrderId not returned.")
 	}
 }

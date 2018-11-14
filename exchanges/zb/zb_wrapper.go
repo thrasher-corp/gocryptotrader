@@ -149,7 +149,7 @@ func (z *ZB) SubmitExchangeOrder(p pair.CurrencyPair, side exchange.OrderSide, o
 	var params = SpotNewOrderRequestParams{
 		Amount: amount,
 		Price:  price,
-		Symbol: p.Pair().String(),
+		Symbol: common.StringToLower(p.Pair().String()),
 		Type:   oT,
 	}
 	response, err := z.SpotNewOrder(params)

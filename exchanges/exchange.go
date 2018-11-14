@@ -760,7 +760,8 @@ func (o OrderType) Format(exchangeName string) string {
 			return format.OrderType[string(o)]
 		}
 	}
-	return ""
+
+	return fmt.Sprintf("%v", o)
 }
 
 // OrderTypeLimit returns an OrderType limit order
@@ -789,7 +790,7 @@ func (o OrderSide) Format(exchangeName string) string {
 			return format.OrderSide[string(o)]
 		}
 	}
-	return ""
+	return fmt.Sprintf("%v", o)
 }
 
 // OrderSideBuy returns an OrderSide buy order

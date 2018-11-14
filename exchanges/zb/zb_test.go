@@ -5,14 +5,16 @@ import (
 	"testing"
 
 	"github.com/thrasher-/gocryptotrader/config"
+	"github.com/thrasher-/gocryptotrader/currency/pair"
 	"github.com/thrasher-/gocryptotrader/currency/symbol"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 )
 
 // Please supply you own test keys here for due diligence testing.
 const (
-	apiKey    = ""
-	apiSecret = ""
+	apiKey         = ""
+	apiSecret      = ""
+	canPlaceOrders = false
 )
 
 var z ZB
@@ -238,5 +240,32 @@ func TestFormatWithdrawPermissions(t *testing.T) {
 	// Assert
 	if withdrawPermissions != expectedResult {
 		t.Errorf("Expected: %s, Recieved: %s", expectedResult, withdrawPermissions)
+	}
+}
+
+// This will really really use the API to place an order
+// If you're going to test this, make sure you're willing to place real orders on the exchange
+func TestSubmitOrder(t *testing.T) {
+	z.SetDefaults()
+	TestSetup(t)
+	z.Verbose = true
+
+	if z.APIKey == "" || z.APISecret == "" ||
+		z.APIKey == "Key" || z.APISecret == "Secret" ||
+		!canPlaceOrders {
+		t.Skip(fmt.Sprintf("ApiKey: %s. Can place orders: %v", z.APIKey, canPlaceOrders))
+	}
+	var pair = pair.CurrencyPair{
+		Delimiter:      "_",
+		FirstCurrency:  "QTUM",
+		SecondCurrency: "USDT",
+	}
+	response, err := z.SubmitExchangeOrder(pair, exchange.Buy, exchange.Market, 1, 10, "hi")
+
+	if err != nil {
+		t.Error("Something happened: ", err)
+	}
+	if response == "" {
+		t.Errorf("OrderId not returned.")
 	}
 }

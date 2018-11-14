@@ -142,7 +142,7 @@ func (l *LakeBTC) GetExchangeHistory(p pair.CurrencyPair, assetType string) ([]e
 // SubmitExchangeOrder submits a new order
 func (l *LakeBTC) SubmitExchangeOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (string, error) {
 	isBuyOrder := side == exchange.Buy
-	response, err := l.Trade(isBuyOrder, amount, price, p.Pair().String())
+	response, err := l.Trade(isBuyOrder, amount, price, common.StringToLower(p.Pair().String()))
 
 	return fmt.Sprintf("%v", response.ID), err
 }
