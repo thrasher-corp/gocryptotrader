@@ -413,30 +413,17 @@ func (h *HitBTC) GetAuthenticatedTradeHistory(currency, start, end string) (inte
 }
 
 // PlaceOrder places an order on the exchange
-func (h *HitBTC) PlaceOrder(currency string, rate, amount float64, immediate, fillOrKill, buy bool) (OrderResponse, error) {
+func (h *HitBTC) PlaceOrder(currency string, rate, amount float64, orderType, side string) (OrderResponse, error) {
 	result := OrderResponse{}
 	values := url.Values{}
 
-	var orderType string
-	if buy {
-		orderType = orderBuy
-	} else {
-		orderType = orderSell
-	}
-
-	values.Set("currencyPair", currency)
+	values.Set("symbol", currency)
 	values.Set("rate", strconv.FormatFloat(rate, 'f', -1, 64))
-	values.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
+	values.Set("quantity", strconv.FormatFloat(amount, 'f', -1, 64))
+	values.Set("side", side)
+	values.Set("price", strconv.FormatFloat(rate, 'f', -1, 64))
 
-	if immediate {
-		values.Set("immediateOrCancel", "1")
-	}
-
-	if fillOrKill {
-		values.Set("fillOrKill", "1")
-	}
-
-	err := h.SendAuthenticatedHTTPRequest("POST", orderType, values, &result)
+	err := h.SendAuthenticatedHTTPRequest("POST", orderBuy, values, &result)
 
 	if err != nil {
 		return result, err

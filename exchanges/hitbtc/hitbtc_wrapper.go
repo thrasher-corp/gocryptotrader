@@ -157,9 +157,7 @@ func (h *HitBTC) GetExchangeHistory(p pair.CurrencyPair, assetType string) ([]ex
 
 // SubmitExchangeOrder submits a new order
 func (h *HitBTC) SubmitExchangeOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (string, error) {
-	isImmediate := orderType == exchange.Market
-	isBuying := side == exchange.Buy
-	response, err := h.PlaceOrder(p.Pair().String(), price, amount, isImmediate, false, isBuying)
+	response, err := h.PlaceOrder(p.Pair().String(), price, amount, common.StringToLower(orderType.Format(h.Name)), common.StringToLower(side.Format(h.Name)))
 
 	return fmt.Sprintf("%v", response.OrderNumber), err
 }
