@@ -59,35 +59,36 @@ func main() {
 	}
 
 	// Handle flags
-	flag.StringVar(&bot.configFile,
-		"config",
-		defaultPath,
+	flag.StringVar(&bot.configFile, "config", defaultPath,
 		"Sets filepath to load configuration")
 
-	flag.StringVar(&bot.dataDir,
-		"datadir",
+	flag.StringVar(&bot.dataDir, "datadir",
 		common.GetDefaultDataDir(runtime.GOOS),
 		"Sets non default data directory for GoCryptoTrader files")
 
-	dryrun := flag.Bool("dryrun",
-		false,
+	dryrun := flag.Bool("dryrun", false,
 		"Using flag does not save config.json file")
 
-	version := flag.Bool("version",
-		false,
+	version := flag.Bool("version", false,
 		"Displays current GoCryptoTrader version")
 
-	verbosity := flag.Bool("verbose",
-		false,
+	verbosity := flag.Bool("verbose", false,
 		"Increases logging verbosity for GoCryptoTrader")
 
-	dbSeedHistory := flag.Bool("seeddb",
-		false,
-		"Aggregates historic exchange trade data into the database")
+	dbSeedHistory := flag.Bool("H", false,
+		"Aggregates historic exchange trade data into the database, based of enabled exchange & enabled currency via the configuration")
 
-	dbPath := flag.String("dbPath",
-		database.DefaultPath,
+	dbPath := flag.String("D", database.DefaultPath,
 		"Defines a non default path to the database")
+
+	configName := flag.String("U", "",
+		"Sets saved configuration stored in database")
+
+	configOverride := flag.Bool("O", true,
+		"Sets config.json to override stored database configuration")
+
+	saveConfig := flag.Bool("S", true,
+		"Saves current supplied config.json as named configuration in database")
 
 	flag.Parse()
 
@@ -103,13 +104,6 @@ func main() {
 	fmt.Println(banner)
 	fmt.Println(BuildVersion(false))
 
-	bot.config = &config.Cfg
-	log.Printf("Loading config file %s..\n", bot.configFile)
-	err = bot.config.LoadConfig(bot.configFile)
-	if err != nil {
-		log.Fatalf("Failed to load config. Err: %s", err)
-	}
-
 	err = common.CheckDir(bot.dataDir, true)
 	if err != nil {
 		log.Fatalf("Failed to open/create data directory: %s. Err: %s",
@@ -118,10 +112,47 @@ func main() {
 	}
 	log.Printf("Using data directory: %s.\n", bot.dataDir)
 
-	err = database.Setup(database.DefaultDir)
+	log.Printf("Setting up database directory with supplementary files at %s",
+		database.DefaultDir)
+	err = database.Setup(database.DefaultDir, *verbosity)
 	if err != nil {
 		log.Fatal("Failed to set up database directory", err)
 	}
+
+	log.Printf("Connecting to database at %s", *dbPath)
+	if *saveConfig {
+		log.Printf("Saving configuration from %s to database", defaultPath)
+	}
+
+	if *configOverride {
+		log.Printf("Configuration from %s will override selected database configuration",
+			defaultPath)
+	}
+
+	if *dbSeedHistory {
+		log.Println("Warning: Current database is set to fetch historical trade data")
+	}
+
+	bot.db, err = database.Connect(*dbPath, *verbosity)
+	if err != nil {
+		log.Fatalf("Database connection error with config %s - %s",
+			bot.config.Name, err)
+	}
+
+	err = bot.db.UserLogin()
+	if err != nil {
+		log.Fatal("User failed to authenticate - ", err)
+	}
+
+	bot.config, err = bot.db.GetConfig(*configName,
+		bot.configFile,
+		*configOverride,
+		*saveConfig)
+	if err != nil {
+		log.Fatal("Failed to get configuration -", err)
+	}
+
+	log.Printf("Configuration %s succesfully loaded", bot.config.Name)
 
 	bot.logFile = GetLogFile(bot.dataDir)
 	err = InitLogFile(bot.logFile)
@@ -199,18 +230,6 @@ func main() {
 	}
 
 	go portfolio.StartPortfolioWatcher()
-
-	bot.db, err = database.Connect(*dbPath, *verbosity, bot.config)
-	if err != nil {
-		log.Fatalf("Database connection error with config %s - %s",
-			bot.config.Name, err)
-	}
-
-	err = bot.db.LoadConfigurations()
-	if err != nil {
-		log.Fatalf("Database error %s - %s", bot.config.Name, err)
-	}
-	log.Println("Database connection successfully established")
 
 	err = StartUpdater(bot.exchanges, true, true, *dbSeedHistory, *verbosity)
 	if err != nil {

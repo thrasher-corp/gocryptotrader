@@ -1,7 +1,5 @@
 package database
 
-//go:generate sqlboiler sqlite3 --wipe --no-hooks
-
 import (
 	"context"
 	"database/sql"
@@ -16,7 +14,6 @@ import (
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/database/models"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
-	"github.com/volatiletech/null"
 
 	// External package for SQL queries
 	_ "github.com/volatiletech/sqlboiler-sqlite3/driver"
@@ -39,61 +36,81 @@ var ctx = context.Background()
 // ORM is the overarching type across the database package that handles database
 // connections and relational mapping
 type ORM struct {
-	DB     *sql.DB
-	Config *config.Config
-
+	DB        *sql.DB
+	Path      string
+	Config    *config.Config
+	sessionID int64
 	Verbose   bool
 	Connected bool
-
-	ConfigID           int64
-	ExchangeID         map[string]int64
-	ExchangeNameFromID map[int64]string
 
 	sync.Mutex
 }
 
 // Setup creates and sets database directory folders and supplementary files
-// that works in conjunction with SQLBoiler
-func Setup(defaultDir string) error {
-	err := common.CheckDir(defaultDir, true)
+// that works in conjunction with SQLBoiler TODO create new tool that
+// autogenrates new database models depending on schema and database.
+func Setup(dirPath string, verbose bool) error {
+	// Checks to see if default directory is made
+	err := common.CheckDir(dirPath, true)
 	if err != nil {
 		return err
 	}
 
-	_, err = common.ReadFile(defaultDir + "sqlboiler.toml")
+	// Creates a configuration file that points to a database for generating new
+	// database models
+	_, err = common.ReadFile(dirPath + "sqlboiler.toml")
 	if err != nil {
 		tomlFile := fmt.Sprintf(
 			`[sqlite3]
 dbname = "%s"`, DefaultPath)
-		err = common.WriteFile(defaultDir+"sqlboiler.toml", []byte(tomlFile))
+		err = common.WriteFile(dirPath+"sqlboiler.toml", []byte(tomlFile))
 		if err != nil {
 			return err
 		}
+
+		if verbose {
+			log.Printf("Created helper file for SQLBoiler model deployment %s",
+				dirPath+"sqlboiler.toml")
+		}
+	} else {
+		if verbose {
+			log.Printf("SQLBoiler file found at %s",
+				dirPath+"sqlboiler.toml")
+		}
 	}
 
-	_, err = common.ReadFile(defaultDir + "schema.sql")
+	// Creates a schema file for informational deployment
+	_, err = common.ReadFile(dirPath + "db.schema")
 	if err != nil {
-		err = common.WriteFile(defaultDir+"schema.sql", []byte(fullSchema))
+		err = common.WriteFile(dirPath+"db.schema", []byte(fullSchema))
 		if err != nil {
 			return err
 		}
+		if verbose {
+			log.Printf("Created schema file for database update and SQLBoiler model deployment %s",
+				dirPath+"db.schema")
+		}
+	} else {
+		if verbose {
+			log.Printf("Schema file found at %s",
+				dirPath+"db.schema")
+		}
 	}
-
 	return nil
 }
 
 // Connect initiates a connection to a SQLite database
-func Connect(sqlite3Path string, verbose bool, cfg *config.Config) (*ORM, error) {
+func Connect(sqlite3Path string, verbose bool) (*ORM, error) {
 	if verbose {
 		log.Printf("Opening connection to sqlite3 database using PATH: %s",
 			sqlite3Path)
 	}
 
 	SQLite := new(ORM)
-	SQLite.Config = cfg
+	SQLite.Path = sqlite3Path
 
 	var err error
-	SQLite.DB, err = sql.Open("sqlite3", sqlite3Path)
+	SQLite.DB, err = sql.Open("sqlite3", SQLite.Path)
 	if err != nil {
 		return nil, err
 	}
@@ -133,145 +150,219 @@ func Connect(sqlite3Path string, verbose bool, cfg *config.Config) (*ORM, error)
 		}
 	}
 
-	// Drop deprecated tabled
-	for _, query := range deprecatedDatabaseTables {
-		stmt, err := SQLite.DB.Prepare(query)
-		if err != nil {
-			return nil, err
-		}
-
-		_, err = stmt.Exec()
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	SQLite.ExchangeID = make(map[string]int64)
-	SQLite.ExchangeNameFromID = make(map[int64]string)
 	SQLite.Verbose = verbose
-
 	SQLite.Connected = true
 
 	return SQLite, nil
 }
 
-// LoadConfigurations loads configuration paramaters
-func (o *ORM) LoadConfigurations() error {
-	if err := o.UpdateMainConfig(); err != nil {
-		return err
-	}
-	return o.UpdateExchangeConfigurations()
-}
-
-// UpdateMainConfig checks, inserts and updates configuration paramaters
-func (o *ORM) UpdateMainConfig() error {
-	config, err := models.Configs(qm.Where("config_name = ?",
-		o.Config.Name)).One(ctx, o.DB)
-
-	if err != nil {
-		config = &models.Config{
-			ConfigName:                        o.Config.Name,
-			GlobalHTTPTimeout:                 o.Config.GlobalHTTPTimeout.Nanoseconds(),
-			WebserverAdminPassword:            null.StringFrom(o.Config.Webserver.AdminPassword),
-			WebserverAdminUsername:            null.StringFrom(o.Config.Webserver.AdminUsername),
-			WebserverAllowInsecureOrigin:      o.Config.Webserver.WebsocketAllowInsecureOrigin,
-			WebserverEnabled:                  o.Config.Webserver.Enabled,
-			WebserverListenAddress:            null.StringFrom(o.Config.Webserver.ListenAddress),
-			WebserverWebsocketConnectionLimit: null.Int64From(int64(o.Config.Webserver.WebsocketConnectionLimit)),
-		}
-
-		err = config.Insert(ctx, o.DB, boil.Infer())
+// UserLogin creates or logs in to a saved user profile
+func (o *ORM) UserLogin() error {
+	for {
+		username, err := common.PromptForUsername()
 		if err != nil {
 			return err
 		}
 
-		o.ConfigID = config.ID
-		return nil
-	}
-
-	config.GlobalHTTPTimeout = o.Config.GlobalHTTPTimeout.Nanoseconds()
-	config.WebserverAdminPassword = null.StringFrom(o.Config.Webserver.AdminPassword)
-	config.WebserverAdminUsername = null.StringFrom(o.Config.Webserver.AdminUsername)
-	config.WebserverAllowInsecureOrigin = o.Config.Webserver.WebsocketAllowInsecureOrigin
-	config.WebserverEnabled = o.Config.Webserver.Enabled
-	config.WebserverListenAddress = null.StringFrom(o.Config.Webserver.ListenAddress)
-	config.WebserverWebsocketConnectionLimit = null.Int64From(int64(o.Config.Webserver.WebsocketConnectionLimit))
-
-	_, err = config.Update(ctx, o.DB, boil.Infer())
-	if err != nil {
-		return err
-	}
-
-	o.ConfigID = config.ID
-	return nil
-}
-
-// UpdateExchangeConfigurations checks, updates and inserts new exchange
-// configurations
-func (o *ORM) UpdateExchangeConfigurations() error {
-	for _, exch := range o.Config.Exchanges {
-		config, err := models.ExchangeConfigs(qm.Where("name = ?",
-			exch.Name)).One(ctx, o.DB)
-
+		users, err := o.getUser(username)
 		if err != nil {
-			config = &models.ExchangeConfig{
-				Name:                     exch.Name,
-				Enabled:                  exch.Enabled,
-				Verbose:                  exch.Verbose,
-				WebsocketEnabled:         exch.Websocket,
-				UseSandbox:               exch.UseSandbox,
-				RestPollingDelay:         int64(exch.RESTPollingDelay),
-				HTTPTimeout:              int64(exch.HTTPTimeout),
-				AuthenticatedAPISupport:  exch.AuthenticatedAPISupport,
-				APIKey:                   null.NewString(exch.APIKey, true),
-				APISecret:                null.NewString(exch.APISecret, true),
-				ClientID:                 null.NewString(exch.ClientID, true),
-				AvailablePairs:           exch.AvailablePairs,
-				EnabledPairs:             exch.EnabledPairs,
-				BaseCurrencies:           exch.BaseCurrencies,
-				AssetTypes:               exch.AssetTypes,
-				SupportedAutoPairUpdates: exch.SupportsAutoPairUpdates,
-				PairsLastUpdated:         time.Unix(exch.PairsLastUpdated, 0),
-				ConfigID:                 o.ConfigID,
-			}
+			return err
+		}
 
-			err = config.Insert(ctx, o.DB, boil.Infer())
+		if len(users) > 1 {
+			return errors.New("duplicate users found in database")
+		}
+
+		if len(users) == 1 {
+			for tries := 3; tries > 0; tries-- {
+				err = common.ComparePassword([]byte(users[0].Password))
+				if err != nil {
+					fmt.Println("Incorrect password, try again.")
+					continue
+				}
+				return o.SetUserID(username)
+			}
+			return fmt.Errorf("Failed to authenticate using password for username %s",
+				username)
+		}
+
+		var decision string
+		fmt.Printf("Username %s not found in database, would you like to create a new user, enter [y,n], then press enter to continue.",
+			username)
+		fmt.Scanln(&decision)
+
+		if common.YesOrNo(decision) {
+			pw, err := common.PromptForPassword(true)
 			if err != nil {
 				return err
 			}
 
-			o.ExchangeID[config.Name] = config.ID
-			o.ExchangeNameFromID[config.ID] = config.Name
-			continue
+			err = o.insertUser(username, pw)
+			if err != nil {
+				return err
+			}
+			return o.SetUserID(username)
+		}
+	}
+}
+
+// getUser returns a slice of users associated witht he username string
+func (o *ORM) getUser(username string) (models.GCTUserSlice, error) {
+	return models.GCTUsers(qm.Where("name = ?", username)).All(ctx, o.DB)
+}
+
+// insertUser inserts a new user by username and password
+func (o *ORM) insertUser(username string, password []byte) error {
+	exists, err := models.GCTUsers(qm.Where("name = ?", username)).Exists(ctx, o.DB)
+	if err != nil {
+		return err
+	}
+
+	if exists {
+		return errors.New("username already found")
+	}
+
+	hashPw, err := common.HashPassword(password)
+	if err != nil {
+		return err
+	}
+
+	newuser := &models.GCTUser{
+		Name:       username,
+		Password:   hashPw,
+		InsertedAt: time.Now(),
+		AmendedAt:  time.Now(),
+	}
+
+	return newuser.Insert(ctx, o.DB, boil.Infer())
+}
+
+// SetUserID sets us id as session for adding rows associated with user
+func (o *ORM) SetUserID(username string) error {
+	user, err := models.GCTUsers(qm.Where("name = ?", username)).One(ctx, o.DB)
+	if err != nil {
+		return err
+	}
+
+	o.sessionID = user.ID
+	return nil
+}
+
+// GetConfig returns a saved configuration
+func (o *ORM) GetConfig(configName, configPath string, configOverride, saveConfig bool) (*config.Config, error) {
+	switch {
+	case configOverride && saveConfig:
+		if configPath == "" {
+			return nil,
+				errors.New("database.go - GetConfig() error - no config path found")
 		}
 
-		config.Enabled = exch.Enabled
-		config.Verbose = exch.Verbose
-		config.WebsocketEnabled = exch.Websocket
-		config.UseSandbox = exch.UseSandbox
-		config.RestPollingDelay = int64(exch.RESTPollingDelay)
-		config.HTTPTimeout = int64(exch.HTTPTimeout)
-		config.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
-		config.APIKey = null.NewString(exch.APIKey, true)
-		config.APISecret = null.NewString(exch.APISecret, true)
-		config.ClientID = null.NewString(exch.ClientID, true)
-		config.AvailablePairs = exch.AvailablePairs
-		config.EnabledPairs = exch.EnabledPairs
-		config.BaseCurrencies = exch.BaseCurrencies
-		config.AssetTypes = exch.AssetTypes
-		config.SupportedAutoPairUpdates = exch.SupportsAutoPairUpdates
-		config.PairsLastUpdated = time.Unix(exch.PairsLastUpdated, 0)
-		config.ConfigID = o.ConfigID
-
-		_, err = config.Update(ctx, o.DB, boil.Infer())
+		var cfg = config.GetConfig()
+		err := cfg.LoadConfig(configPath)
 		if err != nil {
+			return nil, fmt.Errorf("database.go - GetConfig() error %s", err)
+		}
+		return cfg, o.saveConfiguration(cfg)
+
+	case configOverride && !saveConfig:
+		if configPath == "" {
+			return nil,
+				errors.New("database.go - GetConfig() error - no config path found")
+		}
+
+		var cfg = config.GetConfig()
+		err := cfg.LoadConfig(configPath)
+		if err != nil {
+			return nil, fmt.Errorf("database.go - GetConfig() error %s", err)
+		}
+		return cfg, nil
+
+	case !configOverride && saveConfig:
+		if configPath == "" {
+			return nil,
+				errors.New("database.go - GetConfig() error - no config path found")
+		}
+
+		var cfg = config.GetConfig()
+		err := cfg.LoadConfig(configPath)
+		if err != nil {
+			return nil, fmt.Errorf("database.go - GetConfig() error %s", err)
+		}
+
+		err = o.saveConfiguration(cfg)
+		if err != nil {
+			return nil, err
+		}
+
+		if cfg.Name == configName {
+			return cfg, nil
+		}
+
+		return o.getSavedConfiguration(configName)
+
+	default:
+		return o.getSavedConfiguration(configName)
+	}
+}
+
+// getSavedConfiguration returns the saved configuration in the database by its
+// configuration name
+func (o *ORM) getSavedConfiguration(configName string) (*config.Config, error) {
+	if configName == "" {
+		return nil,
+			errors.New("database.go - getSavedConfiguration() error - no config name supplied")
+	}
+
+	var configuration config.Config
+	cfg, err := models.GCTConfigs(qm.Where("config_name = ?",
+		configName)).One(ctx, o.DB)
+	if err != nil {
+		return nil, err
+	}
+
+	return &configuration, common.JSONDecode(cfg.ConfigFull, &configuration)
+}
+
+// saveConfiguration saves the configuration
+func (o *ORM) saveConfiguration(c *config.Config) error {
+	configs, err := models.GCTConfigs().All(ctx, o.DB)
+	if err != nil {
+		return err
+	}
+
+	for _, cfg := range configs {
+		if cfg.ConfigName == c.Name {
+			encodedConfig, err := common.JSONEncode(*c)
+			if err != nil {
+				return err
+			}
+
+			cfg.ConfigFull = encodedConfig
+			cfg.AmendedAt = time.Now()
+			cfg.GCTUserID = o.sessionID
+
+			_, err = cfg.Update(ctx, o.DB, boil.Infer())
 			return err
 		}
-
-		o.ExchangeID[config.Name] = config.ID
-		o.ExchangeNameFromID[config.ID] = config.Name
 	}
-	return nil
+
+	saveConfig := &models.GCTConfig{}
+	saveConfig.ConfigName = c.Name
+
+	encodedConfig, err := common.JSONEncode(*c)
+	if err != nil {
+		return err
+	}
+
+	saveConfig.ConfigFull = encodedConfig
+	saveConfig.ConfigName = c.Name
+
+	nowTime := time.Now()
+	saveConfig.InsertedAt = nowTime
+	saveConfig.AmendedAt = nowTime
+	saveConfig.GCTUserID = o.sessionID
+
+	return saveConfig.Insert(ctx, o.DB, boil.Infer())
 }
 
 // InsertExchangeTradeHistoryData inserts historic trade data
@@ -287,7 +378,7 @@ func (o *ORM) InsertExchangeTradeHistoryData(transactionID int64, exchangeName, 
 	defer o.Unlock()
 
 	dataExists, err := models.ExchangeTradeHistories(
-		qm.Where("exchange_id = ?", o.ExchangeID[exchangeName]),
+		qm.Where("exchange_name = ?", exchangeName),
 		qm.And("fulfilled_on = ?", fulfilledOn),
 		qm.And("currency_pair = ?", currencyPair),
 		qm.And("asset_type = ?", assetType),
@@ -308,10 +399,12 @@ func (o *ORM) InsertExchangeTradeHistoryData(transactionID int64, exchangeName, 
 		OrderType:    orderType,
 		Amount:       amount,
 		Rate:         rate,
-		ContractType: "TEST",
-		OrderID:      null.Int64From(transactionID),
-		ExchangeID:   o.ExchangeID[exchangeName],
+		OrderID:      transactionID,
+		ExchangeName: exchangeName,
+		InsertedAt:   time.Now(),
+		AmendedAt:    time.Now(),
 	}
+
 	return tradeHistory.Insert(ctx, o.DB, boil.Infer())
 }
 
@@ -329,7 +422,7 @@ func (o *ORM) GetExchangeTradeHistoryLast(exchangeName, currencyPair, assetType 
 	defer o.Unlock()
 
 	tradeHistory, err := models.ExchangeTradeHistories(
-		qm.Where("exchange_id = ?", o.ExchangeID[exchangeName]),
+		qm.Where("exchange_name = ?", exchangeName),
 		qm.And("currency_pair = ?", currencyPair),
 		qm.And("asset_type = ?", assetType),
 		qm.OrderBy("fulfilled_on DESC"),
@@ -341,7 +434,7 @@ func (o *ORM) GetExchangeTradeHistoryLast(exchangeName, currencyPair, assetType 
 		return time.Time{}, 0, err
 	}
 
-	return tradeHistory.FulfilledOn, tradeHistory.OrderID.Int64, nil
+	return tradeHistory.FulfilledOn, tradeHistory.OrderID, nil
 }
 
 // GetExchangeTradeHistory returns the full trade history by exchange name,
@@ -351,7 +444,7 @@ func (o *ORM) GetExchangeTradeHistory(exchName, currencyPair, assetType string) 
 	defer o.Unlock()
 
 	tradeHistory, err := models.ExchangeTradeHistories(
-		qm.Where("exchange_id = ?", o.ExchangeID[exchName]),
+		qm.Where("exchange_name = ?", exchName),
 		qm.And("currency_pair = ?", currencyPair),
 		qm.And("asset_type = ?", assetType)).All(ctx, o.DB)
 	if err != nil {
@@ -366,9 +459,9 @@ func (o *ORM) GetExchangeTradeHistory(exchName, currencyPair, assetType string) 
 	for _, trade := range tradeHistory {
 		fullHistory = append(fullHistory,
 			exchange.TradeHistory{
-				Exchange:  o.ExchangeNameFromID[trade.ExchangeID],
+				Exchange:  trade.ExchangeName,
 				Timestamp: trade.FulfilledOn,
-				TID:       trade.OrderID.Int64,
+				TID:       trade.OrderID,
 				Price:     trade.Rate,
 				Amount:    trade.Amount,
 				Type:      trade.OrderType})

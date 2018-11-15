@@ -6,8 +6,9 @@ require (
 	github.com/gorilla/context v0.0.0-20160226214623-1ea25387ff6f // indirect
 	github.com/gorilla/mux v1.6.1
 	github.com/gorilla/websocket v1.2.0
-	github.com/mattn/go-sqlite3 v1.10.0 // indirect
+	github.com/mattn/go-sqlite3 v1.10.0
 	github.com/pkg/errors v0.8.0
+	github.com/spf13/viper v1.2.1
 	github.com/streamrail/concurrent-map v0.0.0-20160823150647-8bf1e9bacbf6 // indirect
 	github.com/thrasher-/socketio v0.0.0-20150420123453-38b9599889b9 // indirect
 	github.com/toorop/go-pusher v0.0.0-20180107133620-4549deda5702

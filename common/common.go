@@ -1,6 +1,7 @@
 package common
 
 import (
+	"bytes"
 	"crypto/hmac"
 	"crypto/md5"
 	"crypto/rand"
@@ -28,7 +29,12 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
+
+	"golang.org/x/crypto/ssh/terminal"
+
+	"golang.org/x/crypto/bcrypt"
 )
 
 // Vars for common.go operations
@@ -659,4 +665,73 @@ func CheckDir(dir string, create bool) error {
 		return fmt.Errorf("failed to create dir. Err: %s", err)
 	}
 	return nil
+}
+
+// PromptForUsername prompts for username stored in database and returns a
+// string from stdin
+func PromptForUsername() (string, error) {
+	fmt.Println("\nWelcome to the GoCryptoTrader platform, please either enter a new username or a username that has already been loaded into the database, then press enter to continue.")
+	var username string
+	for {
+		i, err := fmt.Scanln(&username)
+		if err != nil {
+			return "", err
+		}
+		if i == 0 {
+			fmt.Println("Invalid input, please re-enter username, then press enter to continue")
+			continue
+		}
+		return username, nil
+	}
+}
+
+// PromptForPassword prompts for password associated with username and eeturns a
+// byte array from stdin for comparison
+func PromptForPassword(newPassword bool) ([]byte, error) {
+	fmt.Println("Please enter password, then press enter to continue")
+
+	var password, match []byte
+	var err error
+	for {
+		password, err = terminal.ReadPassword(int(syscall.Stdin))
+		if err != nil {
+			return nil, fmt.Errorf("common.go PromptForPassword() error - %s", err)
+		}
+		fmt.Println()
+
+		if !newPassword {
+			return []byte(password), nil
+		}
+
+		fmt.Println("Please re-enter password, then press enter to continue")
+
+		match, err = terminal.ReadPassword(int(syscall.Stdin))
+		if err != nil {
+			return nil, fmt.Errorf("common.go PromptForPassword() error - %s", err)
+		}
+
+		if bytes.Compare(password, match) == 0 {
+			return []byte(password), nil
+		}
+		fmt.Println("Password mismatch, please re-enter password, then press enter to continue")
+	}
+}
+
+// ComparePassword compares password to a stored hash in the database
+func ComparePassword(storedHash []byte) error {
+	pw, err := PromptForPassword(false)
+	if err != nil {
+		return err
+	}
+
+	return bcrypt.CompareHashAndPassword(storedHash, pw)
+}
+
+// HashPassword returns a hash of the password for storage in the database
+func HashPassword(password []byte) (string, error) {
+	hashPw, err := bcrypt.GenerateFromPassword(password, bcrypt.MinCost)
+	if err != nil {
+		return "", err
+	}
+	return string(hashPw), nil
 }
