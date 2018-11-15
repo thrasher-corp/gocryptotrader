@@ -187,7 +187,7 @@ func (o *ORM) UserLogin() error {
 		}
 
 		var decision string
-		fmt.Printf("Username %s not found in database, would you like to create a new user, enter [y,n], then press enter to continue.",
+		fmt.Printf("Username %s not found in database, would you like to create a new user, enter [y,n],\nthen press enter to continue.\n",
 			username)
 		fmt.Scanln(&decision)
 

@@ -670,7 +670,7 @@ func CheckDir(dir string, create bool) error {
 // PromptForUsername prompts for username stored in database and returns a
 // string from stdin
 func PromptForUsername() (string, error) {
-	fmt.Println("\nWelcome to the GoCryptoTrader platform, please either enter a new username or a username that has already been loaded into the database, then press enter to continue.")
+	fmt.Println("\nWelcome to the GoCryptoTrader platform, please either enter a new username or\na username that has already been loaded into the database, then press enter to continue.")
 	var username string
 	for {
 		i, err := fmt.Scanln(&username)
