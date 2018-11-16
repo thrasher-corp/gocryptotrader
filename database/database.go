@@ -36,12 +36,13 @@ var ctx = context.Background()
 // ORM is the overarching type across the database package that handles database
 // connections and relational mapping
 type ORM struct {
-	DB        *sql.DB
-	Path      string
-	Config    *config.Config
-	sessionID int64
-	Verbose   bool
-	Connected bool
+	DB          *sql.DB
+	Path        string
+	Config      *config.Config
+	sessionID   int64
+	sessionCred []byte
+	Verbose     bool
+	Connected   bool
 
 	sync.Mutex
 }
@@ -175,12 +176,12 @@ func (o *ORM) UserLogin() error {
 
 		if len(users) == 1 {
 			for tries := 3; tries > 0; tries-- {
-				err = common.ComparePassword([]byte(users[0].Password))
+				pw, err := common.ComparePassword([]byte(users[0].Password))
 				if err != nil {
 					fmt.Println("Incorrect password, try again.")
 					continue
 				}
-				return o.SetUserID(username)
+				return o.SetSessionData(username, pw)
 			}
 			return fmt.Errorf("Failed to authenticate using password for username %s",
 				username)
@@ -201,7 +202,7 @@ func (o *ORM) UserLogin() error {
 			if err != nil {
 				return err
 			}
-			return o.SetUserID(username)
+			return o.SetSessionData(username, pw)
 		}
 	}
 }
@@ -237,14 +238,16 @@ func (o *ORM) insertUser(username string, password []byte) error {
 	return newuser.Insert(ctx, o.DB, boil.Infer())
 }
 
-// SetUserID sets us id as session for adding rows associated with user
-func (o *ORM) SetUserID(username string) error {
+// SetSessionData sets user data for handling user/database connection
+func (o *ORM) SetSessionData(username string, cred []byte) error {
 	user, err := models.GCTUsers(qm.Where("name = ?", username)).One(ctx, o.DB)
 	if err != nil {
 		return err
 	}
 
 	o.sessionID = user.ID
+	o.sessionCred = cred
+
 	return nil
 }
 
@@ -320,7 +323,12 @@ func (o *ORM) getSavedConfiguration(configName string) (*config.Config, error) {
 		return nil, err
 	}
 
-	return &configuration, common.JSONDecode(cfg.ConfigFull, &configuration)
+	decryptedFile, err := o.DeEncryptConfiguration(cfg.ConfigFull)
+	if err != nil {
+		return nil, err
+	}
+
+	return &configuration, common.JSONDecode(decryptedFile, &configuration)
 }
 
 // saveConfiguration saves the configuration
@@ -337,7 +345,12 @@ func (o *ORM) saveConfiguration(c *config.Config) error {
 				return err
 			}
 
-			cfg.ConfigFull = encodedConfig
+			payload, err := o.EncryptConfiguration(encodedConfig)
+			if err != nil {
+				return err
+			}
+
+			cfg.ConfigFull = payload
 			cfg.AmendedAt = time.Now()
 			cfg.GCTUserID = o.sessionID
 
@@ -354,7 +367,12 @@ func (o *ORM) saveConfiguration(c *config.Config) error {
 		return err
 	}
 
-	saveConfig.ConfigFull = encodedConfig
+	payload, err := o.EncryptConfiguration(encodedConfig)
+	if err != nil {
+		return err
+	}
+
+	saveConfig.ConfigFull = payload
 	saveConfig.ConfigName = c.Name
 
 	nowTime := time.Now()
@@ -363,6 +381,16 @@ func (o *ORM) saveConfiguration(c *config.Config) error {
 	saveConfig.GCTUserID = o.sessionID
 
 	return saveConfig.Insert(ctx, o.DB, boil.Infer())
+}
+
+// EncryptConfiguration encrypts configuration before saving to database
+func (o *ORM) EncryptConfiguration(payload []byte) ([]byte, error) {
+	return config.EncryptConfigFile(payload, o.sessionCred)
+}
+
+// DeEncryptConfiguration unencrypts configuration when retrieving from database
+func (o *ORM) DeEncryptConfiguration(payload []byte) ([]byte, error) {
+	return config.DecryptConfigFile(payload, o.sessionCred)
 }
 
 // InsertExchangeTradeHistoryData inserts historic trade data

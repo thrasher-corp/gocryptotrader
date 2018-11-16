@@ -8,6 +8,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"golang.org/x/crypto/bcrypt"
 )
 
 func TestIsEnabled(t *testing.T) {
@@ -979,5 +981,25 @@ func TestUnixMilliToNano(t *testing.T) {
 	UnixNano := UnixMillisToNano(timeOne)
 	if CountInt(UnixNano) != 19 {
 		t.Error("test failed - ConvertUnixMilliToNano() error count mistmatch")
+	}
+}
+
+func TestHashPassword(t *testing.T) {
+	h1, err := HashPassword([]byte(""))
+	if err != nil {
+		t.Error("test failed - HashPassword() error", err)
+	}
+
+	if err := bcrypt.CompareHashAndPassword([]byte(h1), []byte("")); err != nil {
+		t.Error("test failed - comparing hashed password")
+	}
+
+	h2, err := HashPassword([]byte(""))
+	if err != nil {
+		t.Error("test failed - HashPassword() error", err)
+	}
+
+	if err := bcrypt.CompareHashAndPassword([]byte(h2), []byte("lol")); err == nil {
+		t.Error("test failed - comparing hashed password")
 	}
 }

@@ -5,8 +5,6 @@ import (
 	"testing"
 	"time"
 
-	// "time"
-
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
 )
@@ -64,7 +62,7 @@ func TestGetUser(t *testing.T) {
 }
 
 func TestSetUserID(t *testing.T) {
-	err := db.SetUserID("testuser")
+	err := db.SetSessionData("testuser", []byte("testpw"))
 	if err != nil {
 		t.Fatal("test failed - setUserID() error", err)
 	}
@@ -108,6 +106,16 @@ func TestGetConfig(t *testing.T) {
 	cfg, err = db.GetConfig("", config.ConfigTestFile, false, false)
 	if err == nil {
 		t.Fatal("test failed - GetConfig() error, configuration name nil, override off, saveconfig off")
+	}
+
+	cfg, err = db.GetConfig(TESTCONFNAME, "", true, false)
+	if err == nil {
+		t.Fatal("test failed - GetConfig() error, configuration path nil, override on, saveconfig off")
+	}
+
+	cfg, err = db.GetConfig("", config.ConfigTestFile, true, false)
+	if err != nil {
+		t.Fatal("test failed - GetConfig() error, configuration name nil, override on, saveconfig off")
 	}
 }
 

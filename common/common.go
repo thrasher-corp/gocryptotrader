@@ -718,13 +718,13 @@ func PromptForPassword(newPassword bool) ([]byte, error) {
 }
 
 // ComparePassword compares password to a stored hash in the database
-func ComparePassword(storedHash []byte) error {
+func ComparePassword(storedHash []byte) ([]byte, error) {
 	pw, err := PromptForPassword(false)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	return bcrypt.CompareHashAndPassword(storedHash, pw)
+	return pw, bcrypt.CompareHashAndPassword(storedHash, pw)
 }
 
 // HashPassword returns a hash of the password for storage in the database
