@@ -98,7 +98,7 @@ func TestGetSpotKline(t *testing.T) {
 
 func TestGetAveragePrice(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetGetAveragePrice("BTCUSDT")
+	_, err := b.GetAveragePrice("BTCUSDT")
 	if err != nil {
 		t.Error("Test Failed - Binance GetAveragePrice() error", err)
 	}
