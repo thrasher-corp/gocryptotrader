@@ -34,14 +34,21 @@ type ExchangeInfo struct {
 		OrderTypes         []string `json:"orderTypes"`
 		IcebergAllowed     bool     `json:"icebergAllowed"`
 		Filters            []struct {
-			FilterType  string  `json:"filterType"`
-			MinPrice    float64 `json:"minPrice,string"`
-			MaxPrice    float64 `json:"maxPrice,string"`
-			TickSize    float64 `json:"tickSize,string"`
-			MinQty      float64 `json:"minQty,string"`
-			MaxQty      float64 `json:"maxQty,string"`
-			StepSize    float64 `json:"stepSize,string"`
-			MinNotional float64 `json:"minNotional,string"`
+			FilterType          string  `json:"filterType"`
+			MinPrice            float64 `json:"minPrice,string"`
+			MaxPrice            float64 `json:"maxPrice,string"`
+			TickSize            float64 `json:"tickSize,string"`
+			MultiplierUp        float64 `json:"multiplierUp,string"`
+			MultiplierDown      float64 `json:"multiplierDown,string"`
+			AvgPriceMins        int64   `json:"avgPriceMins"`
+			MinQty              float64 `json:"minQty,string"`
+			MaxQty              float64 `json:"maxQty,string"`
+			StepSize            float64 `json:"stepSize,string"`
+			MinNotional         float64 `json:"minNotional,string"`
+			ApplyToMarket       bool    `json:"applyToMarket"`
+			Limit               int64   `json:"limit"`
+			MaxNumAlgoOrders    int64   `json:"maxNumAlgoOrders"`
+			MaxNumIcebergOrders int64   `json:"maxNumIcebergOrders"`
 		} `json:"filters"`
 	} `json:"symbols"`
 }
