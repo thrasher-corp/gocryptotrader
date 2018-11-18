@@ -37,6 +37,7 @@ const (
 	historicalTrades = "/api/v1/historicalTrades"
 	aggregatedTrades = "/api/v1/aggTrades"
 	candleStick      = "/api/v1/klines"
+	averagePrice     = "/api/v3/avgPrice"
 	priceChange      = "/api/v1/ticker/24hr"
 	symbolPrice      = "/api/v3/ticker/price"
 	bestPrice        = "/api/v3/ticker/bookTicker"
@@ -337,6 +338,24 @@ func (b *Binance) GetSpotKline(arg KlinesRequestParams) ([]CandleStick, error) {
 		kline = append(kline, candle)
 	}
 	return kline, nil
+}
+
+// GetAveragePrice returns current average price for a symbol.
+//
+// symbol: string of currency pair
+func (b *Binance) GetAveragePrice(symbol string) (AveragePrice, error) {
+	resp := AveragePrice{}
+
+	if err := b.CheckSymbol(symbol); err != nil {
+		return resp, err
+	}
+
+	params := url.Values{}
+	params.Set("symbol", common.StringToUpper(symbol))
+
+	path := fmt.Sprintf("%s%s?%s", b.APIUrl, averagePrice, params.Encode())
+
+	return resp, b.SendHTTPRequest(path, &resp)
 }
 
 // GetPriceChangeStats returns price change statistics for the last 24 hours
