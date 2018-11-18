@@ -168,6 +168,8 @@ func (o *OKEX) SubmitExchangeOrder(p pair.CurrencyPair, side exchange.OrderSide,
 		} else {
 			oT = SpotNewOrderRequestTypeSellMarket
 		}
+	} else {
+		return "", errors.New("Unsupported order type")
 	}
 
 	var params = SpotNewOrderRequestParams{

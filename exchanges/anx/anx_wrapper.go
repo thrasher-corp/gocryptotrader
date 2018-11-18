@@ -199,13 +199,16 @@ func (a *ANX) GetExchangeHistory(p pair.CurrencyPair, assetType string) ([]excha
 func (a *ANX) SubmitExchangeOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (string, error) {
 	var isBuying bool
 	var limitPriceInSettlementCurrency float64
+
 	if side == exchange.Buy {
 		isBuying = true
 	}
+
 	if orderType == exchange.Limit {
 		limitPriceInSettlementCurrency = price
 	}
-	return a.NewOrder(orderType.Format(a.Name), isBuying, p.FirstCurrency.String(), amount, p.SecondCurrency.String(), amount, limitPriceInSettlementCurrency, false, "", false)
+
+	return a.NewOrder(orderType.ToString(), isBuying, p.FirstCurrency.String(), amount, p.SecondCurrency.String(), amount, limitPriceInSettlementCurrency, false, "", false)
 }
 
 // ModifyExchangeOrder will allow of changing orderbook placement and limit to

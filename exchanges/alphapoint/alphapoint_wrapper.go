@@ -107,7 +107,7 @@ func (a *Alphapoint) GetExchangeHistory(p pair.CurrencyPair, assetType string) (
 // SubmitExchangeOrder submits a new order and returns a true value when
 // successfully submitted
 func (a *Alphapoint) SubmitExchangeOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (string, error) {
-	response, err := a.CreateOrder(p.Pair().String(), side.Format(a.Name), orderType.Format(a.Name), amount, price)
+	response, err := a.CreateOrder(p.Pair().String(), side.ToString(), orderType.ToString(), amount, price)
 
 	return fmt.Sprintf("%v", response), err
 }

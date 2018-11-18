@@ -129,7 +129,7 @@ func (g *Gemini) GetExchangeHistory(p pair.CurrencyPair, assetType string) ([]ex
 
 // SubmitExchangeOrder submits a new order
 func (g *Gemini) SubmitExchangeOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (string, error) {
-	response, err := g.NewOrder(p.Pair().String(), amount, price, side.Format(g.Name), orderType.Format(g.Name))
+	response, err := g.NewOrder(p.Pair().String(), amount, price, side.ToString(), orderType.ToString())
 
 	return fmt.Sprintf("%v", response), err
 }

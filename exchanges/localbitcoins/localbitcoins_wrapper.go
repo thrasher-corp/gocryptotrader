@@ -123,9 +123,6 @@ func (l *LocalBitcoins) GetExchangeHistory(p pair.CurrencyPair, assetType string
 
 // SubmitExchangeOrder submits a new order
 func (l *LocalBitcoins) SubmitExchangeOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (string, error) {
-	// Does not return any data, used for populating BankName
-	//paymentMethods := l.GetPaymentMethods()
-
 	// These are placeholder details
 	// TODO store a user's localbitcoin details to use here
 	var params = AdCreate{
@@ -138,7 +135,7 @@ func (l *LocalBitcoins) SubmitExchangeOrder(p pair.CurrencyPair, side exchange.O
 		Currency:                   p.SecondCurrency.String(),
 		AccountInfo:                "-",
 		BankName:                   "Bank",
-		MSG:                        fmt.Sprintf("%s %s %s!", side.Format(l.Name), side.Format(l.Name), side.Format(l.Name)),
+		MSG:                        fmt.Sprintf("%s", side.ToString()),
 		SMSVerficationRequired:     true,
 		TrackMaxAmount:             true,
 		RequireTrustedByAdvertiser: true,

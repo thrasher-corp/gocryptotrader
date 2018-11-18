@@ -165,7 +165,7 @@ func (k *Kraken) GetExchangeHistory(p pair.CurrencyPair, assetType string) ([]ex
 func (k *Kraken) SubmitExchangeOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (string, error) {
 	var args = AddOrderOptions{}
 
-	response, err := k.AddOrder(p.Pair().String(), side.Format(k.Name), orderType.Format(k.Name), amount, price, 0, 0, args)
+	response, err := k.AddOrder(p.Pair().String(), side.ToString(), orderType.ToString(), amount, price, 0, 0, args)
 	orderIds := strings.Join(response.TransactionIds, ",")
 
 	return orderIds, err

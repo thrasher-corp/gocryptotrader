@@ -182,7 +182,7 @@ func (b *Bitfinex) SubmitExchangeOrder(p pair.CurrencyPair, side exchange.OrderS
 		isBuying = true
 	}
 
-	response, err := b.NewOrder(p.Pair().String(), amount, price, isBuying, orderType.Format(b.Name), false)
+	response, err := b.NewOrder(p.Pair().String(), amount, price, isBuying, orderType.ToString(), false)
 
 	return fmt.Sprintf("%v", response.OrderID), err
 }

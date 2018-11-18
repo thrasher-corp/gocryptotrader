@@ -167,7 +167,10 @@ func (c *COINUT) SubmitExchangeOrder(p pair.CurrencyPair, side exchange.OrderSid
 		APIresponse, err = c.NewOrder(currencyID, amount, price, isBuyOrder, clientIDUint)
 	} else if orderType == exchange.Market {
 		APIresponse, err = c.NewOrder(currencyID, amount, 0, isBuyOrder, clientIDUint)
+	} else {
+		return "", errors.New("unsupported order type")
 	}
+
 	switch APIresponse.(type) {
 	case OrdersBase:
 		orderResult := APIresponse.(OrdersBase)
@@ -177,10 +180,7 @@ func (c *COINUT) SubmitExchangeOrder(p pair.CurrencyPair, side exchange.OrderSid
 		return fmt.Sprintf("%v", orderResult.Order.OrderID), err
 	case OrderRejectResponse:
 		orderResult := APIresponse.(OrderRejectResponse)
-		// What should actually happen when its rejected?
-		// An order id is still valid and can be verified that it failed
-		// But a failed order isn't too useful
-		return fmt.Sprintf("%v", orderResult.OrderID), err
+		return "", fmt.Errorf("OrderID: %v was rejected: %v", orderResult.OrderID, orderResult.Reasons)
 	}
 	return response, err
 }

@@ -142,7 +142,7 @@ func (y *Yobit) GetExchangeHistory(p pair.CurrencyPair, assetType string) ([]exc
 
 // SubmitExchangeOrder submits a new order
 func (y *Yobit) SubmitExchangeOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (string, error) {
-	response, err := y.Trade(p.Pair().String(), orderType.Format(y.Name), amount, price)
+	response, err := y.Trade(p.Pair().String(), orderType.ToString(), amount, price)
 
 	return fmt.Sprintf("%v", response), err
 }

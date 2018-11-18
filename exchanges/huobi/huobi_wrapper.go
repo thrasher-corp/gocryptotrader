@@ -192,7 +192,8 @@ func (h *HUOBI) SubmitExchangeOrder(p pair.CurrencyPair, side exchange.OrderSide
 	} else if side == exchange.Sell && orderType == exchange.Limit {
 		formattedType = SpotNewOrderRequestTypeSellLimit
 		params.Price = price
-
+	} else {
+		return "", errors.New("Unsupported order type")
 	}
 
 	params.Type = formattedType

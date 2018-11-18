@@ -160,7 +160,7 @@ func (w *WEX) GetExchangeHistory(p pair.CurrencyPair, assetType string) ([]excha
 
 // SubmitExchangeOrder submits a new order
 func (w *WEX) SubmitExchangeOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (string, error) {
-	response, err := w.Trade(common.StringToLower(p.Pair().String()), common.StringToLower(side.Format(w.Name)), amount, price)
+	response, err := w.Trade(common.StringToLower(p.Pair().String()), common.StringToLower(side.ToString()), amount, price)
 
 	return fmt.Sprintf("%v", response), err
 }

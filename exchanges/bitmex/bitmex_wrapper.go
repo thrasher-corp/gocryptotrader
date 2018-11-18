@@ -146,10 +146,10 @@ func (b *Bitmex) GetExchangeHistory(p pair.CurrencyPair, assetType string) ([]ex
 // SubmitExchangeOrder submits a new order
 func (b *Bitmex) SubmitExchangeOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (string, error) {
 	var orderNewParams = OrderNewParams{
-		OrdType:  side.Format(b.Name),
+		OrdType:  side.ToString(),
 		Symbol:   p.Pair().String(),
 		OrderQty: amount,
-		Side:     side.Format(b.Name),
+		Side:     side.ToString(),
 	}
 
 	if orderType == exchange.Limit {

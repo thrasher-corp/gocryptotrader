@@ -238,7 +238,7 @@ func TestSubmitOrder(t *testing.T) {
 	}
 	response, err := a.SubmitExchangeOrder(p, exchange.Buy, exchange.Market, 1, 1, "clientId")
 	if err != nil {
-		t.Error("Something happehned: ", err)
+		t.Error("Something happened: ", err)
 	}
 	if response == "" {
 		t.Errorf("OrderId not returned")

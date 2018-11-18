@@ -729,21 +729,6 @@ type Format struct {
 // Formatting contain a range of exchanges formatting
 type Formatting []Format
 
-// formats is a quick formatting list for generic parameters
-var formats = Formatting{
-	Format{
-		ExchangeName: "BTC Markets",
-		OrderType: map[string]string{
-			"Limit":  "Limit",
-			"Market": "Market",
-		},
-		OrderSide: map[string]string{
-			"Buy":  "Bid",
-			"Sell": "Ask",
-		},
-	},
-}
-
 // OrderType enforces a standard for Ordertypes across the code base
 type OrderType string
 
@@ -753,25 +738,9 @@ const (
 	Market OrderType = "Market"
 )
 
-// Format changes the ordertype to the exchange standard and returns a string
-func (o OrderType) Format(exchangeName string) string {
-	for _, format := range formats {
-		if format.ExchangeName == exchangeName {
-			return format.OrderType[string(o)]
-		}
-	}
-
+// ToString changes the ordertype to the exchange standard and returns a string
+func (o OrderType) ToString() string {
 	return fmt.Sprintf("%v", o)
-}
-
-// OrderTypeLimit returns an OrderType limit order
-func OrderTypeLimit() OrderType {
-	return Limit
-}
-
-// OrderTypeMarket returns an OrderType Market order
-func OrderTypeMarket() OrderType {
-	return Market
 }
 
 // OrderSide enforces a standard for OrderSides across the code base
@@ -783,13 +752,8 @@ const (
 	Sell OrderSide = "Sell"
 )
 
-// Format changes the ordertype to the exchange standard and returns a string
-func (o OrderSide) Format(exchangeName string) string {
-	for _, format := range formats {
-		if format.ExchangeName == exchangeName {
-			return format.OrderSide[string(o)]
-		}
-	}
+// ToString changes the ordertype to the exchange standard and returns a string
+func (o OrderSide) ToString() string {
 	return fmt.Sprintf("%v", o)
 }
 

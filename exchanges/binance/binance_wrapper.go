@@ -155,7 +155,10 @@ func (b *Binance) SubmitExchangeOrder(p pair.CurrencyPair, side exchange.OrderSi
 		requestParamsOrderType = BinanceRequestParamsOrderMarket
 	} else if orderType == exchange.Limit {
 		requestParamsOrderType = BinanceRequestParamsOrderLimit
+	} else {
+		return "", errors.New("Unsupported order type")
 	}
+
 	var orderRequest = NewOrderRequest{
 		Symbol:    p.FirstCurrency.String() + p.SecondCurrency.String(),
 		Side:      sideType,

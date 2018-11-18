@@ -151,7 +151,7 @@ func (i *ItBit) SubmitExchangeOrder(p pair.CurrencyPair, side exchange.OrderSide
 		return "", fmt.Errorf("No wallet found with currency: %s with amount >= %v", p.FirstCurrency.String(), amount)
 	}
 
-	response, err := i.PlaceOrder(wallet, side.Format(i.Name), orderType.Format(i.Name), p.FirstCurrency.String(), amount, price, p.Pair().String(), "")
+	response, err := i.PlaceOrder(wallet, side.ToString(), orderType.ToString(), p.FirstCurrency.String(), amount, price, p.Pair().String(), "")
 
 	return response.ID, err
 }

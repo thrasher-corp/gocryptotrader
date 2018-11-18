@@ -155,7 +155,7 @@ func TestGetExchangeFundTransferHistory(t *testing.T) {
 
 func TestSubmitExchangeOrder(t *testing.T) {
 	p := pair.NewCurrencyPair("LTC", "AUD")
-	_, err := b.SubmitExchangeOrder(p, exchange.OrderSideSell(), exchange.OrderTypeMarket(), 0, 0.0, "testID001")
+	_, err := b.SubmitExchangeOrder(p, exchange.Sell, exchange.Market, 0, 0.0, "testID001")
 	if err == nil {
 		t.Error("Test failed - SubmitExchangeOrder() error", err)
 	}
