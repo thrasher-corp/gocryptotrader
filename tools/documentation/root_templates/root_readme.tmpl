@@ -93,39 +93,24 @@ platform.
 
 ### Linux/OSX
 
-We use the `dep` tool provided by Golang for managing dependencies. As it is not officially part
-of the go tools package suite, you will need to manually install it if you have not already.
-
-On MacOS you can install or upgrade to the latest released version with Homebrew:
-
-```sh
-brew install dep
-brew upgrade dep
-```
-
-On linux or MacOS, you can also install it via `go get`:
-
-```sh
-go get -u github.com/golang/dep/cmd/dep
-```
-
-After `dep` is installed, please follow the instructions below:
+GoCryptoTrader is built using [Go Modules](https://github.com/golang/go/wiki/Modules) and requires Go 1.11 or above
+Using Go Modules you now clone this repository **outside** your GOPATH 
 
 ```bash
-go get github.com/thrasher-/gocryptotrader
-cd $GOPATH/src/github.com/thrasher-/gocryptotrader
-make get
-make install
-cp $GOPATH/src/github.com/thrasher-/gocryptotrader/config_example.json $GOPATH/bin/config.json
+git clone https://github.com/thrasher-/gocryptotrader.git
+cd gocryptotrader
+go build 
+mkdir ~/.gocryptotrader
+cp config_example.json ~/.gocryptotrader/config.json
 ```
 
 ### Windows
 
 ```bash
-go get github.com/thrasher-/gocryptotrader
-cd %GOPATH%\src\github.com\thrasher-\gocryptotrader
-go install
-copy %GOPATH%\src\github.com\thrasher-\gocryptotrader\config_example.json %GOPATH%\bin\config.json
+git clone https://github.com/thrasher-/gocryptotrader.git
+cd gocryptotrader
+go build
+copy config_example.json %APPDATA%\GoCryptoTrader\config.json
 ```
 
 + Make any neccessary changes to the `config.json` file.
