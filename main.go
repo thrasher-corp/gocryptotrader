@@ -84,7 +84,7 @@ func main() {
 	configName := flag.String("use-config", "",
 		"Sets saved configuration stored in database")
 
-	configOverride := flag.Bool("o-config", false,
+	configOverride := flag.Bool("o-config", true,
 		"Sets config.json to override stored database configuration")
 
 	saveConfig := flag.Bool("save-config", true,
@@ -124,7 +124,7 @@ func main() {
 		log.Printf("Saving configuration from %s to database", defaultPath)
 	}
 
-	if !*configOverride {
+	if *configOverride {
 		log.Printf("Configuration from %s will override selected database configuration",
 			defaultPath)
 	}
