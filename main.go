@@ -75,19 +75,19 @@ func main() {
 	verbosity := flag.Bool("verbose", false,
 		"Increases logging verbosity for GoCryptoTrader")
 
-	dbSeedHistory := flag.Bool("H", false,
+	dbSeedHistory := flag.Bool("history", false,
 		"Aggregates historic exchange trade data into the database, based of enabled exchange & enabled currency via the configuration")
 
-	dbPath := flag.String("D", database.DefaultPath,
+	dbPath := flag.String("db-path", database.DefaultPath,
 		"Defines a non default path to the database")
 
-	configName := flag.String("U", "",
+	configName := flag.String("use-config", "",
 		"Sets saved configuration stored in database")
 
-	configOverride := flag.Bool("O", false,
+	configOverride := flag.Bool("o-config", false,
 		"Sets config.json to override stored database configuration")
 
-	saveConfig := flag.Bool("S", true,
+	saveConfig := flag.Bool("save-config", true,
 		"Saves current supplied config.json as named configuration in database")
 
 	flag.Parse()

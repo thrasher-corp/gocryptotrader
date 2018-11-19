@@ -670,7 +670,7 @@ func CheckDir(dir string, create bool) error {
 // PromptForUsername prompts for username stored in database and returns a
 // string from stdin
 func PromptForUsername() (string, error) {
-	fmt.Println("\nWelcome to the GoCryptoTrader platform, please either enter a new username or\na username that has already been loaded into the database, then press enter to continue.")
+	fmt.Println("\nWelcome to the GoCryptoTrader platform, please enter a username, then press enter to continue.")
 	var username string
 	for {
 		i, err := fmt.Scanln(&username)
@@ -678,14 +678,14 @@ func PromptForUsername() (string, error) {
 			return "", err
 		}
 		if i == 0 {
-			fmt.Println("Invalid input, please re-enter username, then press enter to continue")
+			fmt.Println("Invalid input, please re-enter username, then press enter to continue.")
 			continue
 		}
 		return username, nil
 	}
 }
 
-// PromptForPassword prompts for password associated with username and eeturns a
+// PromptForPassword prompts for password associated with username and returns a
 // byte array from stdin for comparison
 func PromptForPassword(newPassword bool) ([]byte, error) {
 	fmt.Println("Please enter password, then press enter to continue")
@@ -703,7 +703,7 @@ func PromptForPassword(newPassword bool) ([]byte, error) {
 			return []byte(password), nil
 		}
 
-		fmt.Println("Please re-enter password, then press enter to continue")
+		fmt.Println("Please re-enter password, then press enter to continue.")
 
 		match, err = terminal.ReadPassword(int(syscall.Stdin))
 		if err != nil {
@@ -713,7 +713,7 @@ func PromptForPassword(newPassword bool) ([]byte, error) {
 		if bytes.Compare(password, match) == 0 {
 			return []byte(password), nil
 		}
-		fmt.Println("Password mismatch, please re-enter password, then press enter to continue")
+		fmt.Println("Password mismatch, please re-enter password, then press enter to continue.")
 	}
 }
 
