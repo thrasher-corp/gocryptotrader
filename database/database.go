@@ -337,7 +337,6 @@ func (o *ORM) saveConfiguration(c *config.Config) error {
 	if err != nil {
 		if common.StringContains(err.Error(), "no rows in result set") {
 			saveConfig := &models.GCTConfig{}
-			saveConfig.ConfigName = c.Name
 
 			encodedConfig, err := common.JSONEncode(*c)
 			if err != nil {
@@ -351,10 +350,9 @@ func (o *ORM) saveConfiguration(c *config.Config) error {
 
 			saveConfig.ConfigFull = payload
 			saveConfig.ConfigName = c.Name
-
-			nowTime := time.Now()
-			saveConfig.InsertedAt = nowTime
-			saveConfig.AmendedAt = nowTime
+			t := time.Now()
+			saveConfig.InsertedAt = t
+			saveConfig.AmendedAt = t
 			saveConfig.GCTUserID = o.sessionID
 
 			return saveConfig.Insert(ctx, o.DB, boil.Infer())
