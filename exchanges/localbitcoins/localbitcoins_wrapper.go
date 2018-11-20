@@ -136,12 +136,12 @@ func (l *LocalBitcoins) GetFundingHistory() ([]exchange.FundHistory, error) {
 }
 
 // GetExchangeHistory returns historic trade data since exchange opening.
-func (l *LocalBitcoins) GetExchangeHistory(p pair.CurrencyPair, assetType string, timestampStart time.Time, tradeID int64) ([]exchange.TradeHistory, error) {
+func (l *LocalBitcoins) GetExchangeHistory(p pair.CurrencyPair, assetType string, timestampStart time.Time, tradeID string) ([]exchange.TradeHistory, error) {
 	var resp []exchange.TradeHistory
 	v := url.Values{}
 
-	if tradeID != 0 {
-		v.Set("since", strconv.FormatInt(tradeID, 10))
+	if tradeID != "" {
+		v.Set("since", tradeID)
 	}
 
 	trades, err := l.GetTrades(p.SecondCurrency.Lower().String(), v)
@@ -150,13 +150,14 @@ func (l *LocalBitcoins) GetExchangeHistory(p pair.CurrencyPair, assetType string
 	}
 
 	for _, data := range trades {
+		orderID := strconv.FormatInt(data.TID, 10)
 		resp = append(resp, exchange.TradeHistory{
 			Timestamp: time.Unix(data.Date, 0),
-			TID:       data.TID,
+			TID:       orderID,
 			Price:     data.Price,
 			Amount:    data.Amount,
 			Exchange:  l.GetName(),
-			Type:      "Not Specified",
+			Type:      "Trading Type - Not Specified",
 		})
 	}
 

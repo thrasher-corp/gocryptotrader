@@ -150,7 +150,7 @@ func (h *HitBTC) GetFundingHistory() ([]exchange.FundHistory, error) {
 }
 
 // GetExchangeHistory returns historic trade data since exchange opening.
-func (h *HitBTC) GetExchangeHistory(p pair.CurrencyPair, assetType string, timestampStart time.Time, tradeID int64) ([]exchange.TradeHistory, error) {
+func (h *HitBTC) GetExchangeHistory(p pair.CurrencyPair, assetType string, timestampStart time.Time, tradeID string) ([]exchange.TradeHistory, error) {
 	var resp []exchange.TradeHistory
 
 	if timestampStart.IsZero() {
@@ -173,9 +173,12 @@ func (h *HitBTC) GetExchangeHistory(p pair.CurrencyPair, assetType string, times
 		if err != nil {
 			return resp, err
 		}
+
+		orderID := strconv.FormatInt(data.ID, 10)
+
 		resp = append(resp, exchange.TradeHistory{
 			Timestamp: t,
-			TID:       data.ID,
+			TID:       orderID,
 			Price:     data.Price,
 			Amount:    data.Quantity,
 			Exchange:  h.GetName(),

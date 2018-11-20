@@ -123,7 +123,7 @@ func (g *Gemini) GetFundingHistory() ([]exchange.FundHistory, error) {
 }
 
 // GetExchangeHistory returns historic trade data since exchange opening.
-func (g *Gemini) GetExchangeHistory(p pair.CurrencyPair, assetType string, timestampStart time.Time, tradeID int64) ([]exchange.TradeHistory, error) {
+func (g *Gemini) GetExchangeHistory(p pair.CurrencyPair, assetType string, timestampStart time.Time, tradeID string) ([]exchange.TradeHistory, error) {
 	var resp []exchange.TradeHistory
 
 	if timestampStart.IsZero() {
@@ -142,9 +142,10 @@ func (g *Gemini) GetExchangeHistory(p pair.CurrencyPair, assetType string, times
 
 	for _, data := range trades {
 		t := common.UnixMillisToNano(data.Timestampms)
+		orderID := strconv.FormatInt(data.TID, 10)
 		resp = append(resp, exchange.TradeHistory{
 			Timestamp: time.Unix(0, t),
-			TID:       data.TID,
+			TID:       orderID,
 			Price:     data.Price,
 			Amount:    data.Amount,
 			Exchange:  g.GetName(),

@@ -28,7 +28,7 @@ type ExchangeTradeHistory struct {
 	OrderType    string    `boil:"order_type" json:"order_type" toml:"order_type" yaml:"order_type"`
 	Amount       float64   `boil:"amount" json:"amount" toml:"amount" yaml:"amount"`
 	Rate         float64   `boil:"rate" json:"rate" toml:"rate" yaml:"rate"`
-	OrderID      int64     `boil:"order_id" json:"order_id" toml:"order_id" yaml:"order_id"`
+	OrderID      string    `boil:"order_id" json:"order_id" toml:"order_id" yaml:"order_id"`
 	ExchangeName string    `boil:"exchange_name" json:"exchange_name" toml:"exchange_name" yaml:"exchange_name"`
 	CreatedAt    time.Time `boil:"created_at" json:"created_at" toml:"created_at" yaml:"created_at"`
 	UpdatedAt    time.Time `boil:"updated_at" json:"updated_at" toml:"updated_at" yaml:"updated_at"`

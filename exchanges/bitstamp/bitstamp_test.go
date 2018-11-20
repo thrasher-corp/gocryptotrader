@@ -428,7 +428,7 @@ func TestCancelExchangeOrder(t *testing.T) {
 
 func TestGetExchangeHistory(t *testing.T) {
 	p := pair.NewCurrencyPair("BTC", "USD")
-	_, err := b.GetExchangeHistory(p, "SPOT", time.Time{}, 0)
+	_, err := b.GetExchangeHistory(p, "SPOT", time.Time{}, "")
 	if err != nil {
 		t.Error("test failed - GetExchangeHistory() error", err)
 	}

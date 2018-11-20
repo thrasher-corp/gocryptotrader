@@ -460,7 +460,7 @@ func TestCancelExchangeOrder(t *testing.T) {
 
 func TestGetExchangeHistory(t *testing.T) {
 	p := pair.NewCurrencyPair("BTC", "USDT")
-	_, err := h.GetExchangeHistory(p, "SPOT", time.Time{}, 0)
+	_, err := h.GetExchangeHistory(p, "SPOT", time.Time{}, "")
 	if err != nil {
 		t.Error("test failed - Huobi GetExchangeHistory() error", err)
 	}

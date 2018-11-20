@@ -154,7 +154,7 @@ func TestSaveConfiguration(t *testing.T) {
 
 func TestInsertDeleteTradeHistoryData(t *testing.T) {
 	insertedTime := time.Now()
-	err := db.InsertExchangeTradeHistoryData(1337,
+	err := db.InsertExchangeTradeHistoryData("1337",
 		"Bitstamp",
 		"BTCUSD",
 		"SPOT",
@@ -178,8 +178,8 @@ func TestInsertDeleteTradeHistoryData(t *testing.T) {
 			getTime.String())
 	}
 
-	if id != 1337 {
-		t.Errorf("test failed - expected 1337 recieved %d time failure error",
+	if id != "1337" {
+		t.Errorf("test failed - expected 1337 recieved %s time failure error",
 			id)
 	}
 
@@ -207,8 +207,8 @@ func TestInsertDeleteTradeHistoryData(t *testing.T) {
 			fullHistory[0].Price)
 	}
 
-	if fullHistory[0].TID != 1337 {
-		t.Errorf("test failed - expected 1337 recieved %d error",
+	if fullHistory[0].TID != "1337" {
+		t.Errorf("test failed - expected 1337 recieved %s error",
 			fullHistory[0].TID)
 	}
 

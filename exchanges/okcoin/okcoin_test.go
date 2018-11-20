@@ -212,7 +212,7 @@ func TestCancelExchangeOrder(t *testing.T) {
 func TestGetExchangeHistory(t *testing.T) {
 
 	p := pair.NewCurrencyPairDelimiter("btc_usd", "_")
-	_, err := o.GetExchangeHistory(p, "SPOT", time.Time{}, 0)
+	_, err := o.GetExchangeHistory(p, "SPOT", time.Time{}, "")
 	if err != nil {
 		t.Error("test failed - OKCoin GetExchangeHistory() error", err)
 	}

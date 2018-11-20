@@ -161,7 +161,7 @@ func (b *Bitstamp) GetFundingHistory() ([]exchange.FundHistory, error) {
 }
 
 // GetExchangeHistory returns historic trade data since exchange opening.
-func (b *Bitstamp) GetExchangeHistory(p pair.CurrencyPair, assetType string, timestampStart time.Time, tradeID int64) ([]exchange.TradeHistory, error) {
+func (b *Bitstamp) GetExchangeHistory(p pair.CurrencyPair, assetType string, timestampStart time.Time, tradeID string) ([]exchange.TradeHistory, error) {
 	var resp []exchange.TradeHistory
 	values := url.Values{}
 	values.Set("time", "minute")
@@ -173,9 +173,10 @@ func (b *Bitstamp) GetExchangeHistory(p pair.CurrencyPair, assetType string, tim
 	}
 
 	for i := range trans {
+		orderID := strconv.FormatInt(trans[i].TradeID, 10)
 		resp = append(resp, exchange.TradeHistory{
 			Timestamp: time.Unix(trans[i].Date, 0),
-			TID:       trans[i].TradeID,
+			TID:       orderID,
 			Price:     trans[i].Price,
 			Amount:    trans[i].Amount,
 			Exchange:  b.GetName(),

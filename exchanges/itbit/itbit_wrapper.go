@@ -124,10 +124,10 @@ func (i *ItBit) GetFundingHistory() ([]exchange.FundHistory, error) {
 }
 
 // GetExchangeHistory returns historic trade data since exchange opening.
-func (i *ItBit) GetExchangeHistory(p pair.CurrencyPair, assetType string, timestampStart time.Time, tradeID int64) ([]exchange.TradeHistory, error) {
+func (i *ItBit) GetExchangeHistory(p pair.CurrencyPair, assetType string, timestampStart time.Time, tradeID string) ([]exchange.TradeHistory, error) {
 	var resp []exchange.TradeHistory
 
-	trades, err := i.GetTradeHistory(p.Pair().String(), strconv.FormatInt(tradeID, 10))
+	trades, err := i.GetTradeHistory(p.Pair().String(), tradeID)
 	if err != nil {
 		return resp, err
 	}
@@ -137,9 +137,12 @@ func (i *ItBit) GetExchangeHistory(p pair.CurrencyPair, assetType string, timest
 		if err != nil {
 			return resp, err
 		}
+
+		orderID := strconv.FormatInt(data.MatchNumber, 10)
+
 		resp = append(resp, exchange.TradeHistory{
 			Timestamp: t,
-			TID:       data.MatchNumber,
+			TID:       orderID,
 			Price:     data.Price,
 			Amount:    data.Amount,
 			Exchange:  i.GetName(),

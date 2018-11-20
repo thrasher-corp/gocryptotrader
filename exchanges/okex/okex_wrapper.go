@@ -164,7 +164,7 @@ func (o *OKEX) GetFundingHistory() ([]exchange.FundHistory, error) {
 }
 
 // GetExchangeHistory returns historic trade data since exchange opening.
-func (o *OKEX) GetExchangeHistory(p pair.CurrencyPair, assetType string, timestampStart time.Time, tradeID int64) ([]exchange.TradeHistory, error) {
+func (o *OKEX) GetExchangeHistory(p pair.CurrencyPair, assetType string, timestampStart time.Time, tradeID string) ([]exchange.TradeHistory, error) {
 	var resp []exchange.TradeHistory
 
 	if assetType != "SPOT" {
@@ -175,9 +175,10 @@ func (o *OKEX) GetExchangeHistory(p pair.CurrencyPair, assetType string, timesta
 
 		for _, data := range trades {
 			nano := common.UnixMillisToNano(int64(data.DateInMS))
+			orderID := strconv.FormatInt(int64(data.TID), 10)
 			resp = append(resp, exchange.TradeHistory{
 				Timestamp: time.Unix(0, nano),
-				TID:       int64(data.TID),
+				TID:       orderID,
 				Price:     data.Price,
 				Amount:    data.Amount,
 				Exchange:  o.GetName(),
@@ -187,18 +188,21 @@ func (o *OKEX) GetExchangeHistory(p pair.CurrencyPair, assetType string, timesta
 		return resp, nil
 	}
 
+	ID, _ := strconv.ParseInt(tradeID, 10, 64)
+
 	trades, err := o.GetSpotRecentTrades(ActualSpotTradeHistoryRequestParams{
 		Symbol: p.Pair().String(),
-		Since:  int(tradeID)})
+		Since:  int(ID)})
 	if err != nil {
 		return resp, err
 	}
 
 	for _, data := range trades {
 		nano := common.UnixMillisToNano(int64(data.DateInMS))
+		orderID := strconv.FormatInt(int64(data.TID), 10)
 		resp = append(resp, exchange.TradeHistory{
 			Timestamp: time.Unix(0, nano),
-			TID:       int64(data.TID),
+			TID:       orderID,
 			Price:     data.Price,
 			Amount:    data.Amount,
 			Exchange:  o.GetName(),

@@ -150,11 +150,16 @@ func (b *BTCMarkets) GetFundingHistory() ([]exchange.FundHistory, error) {
 }
 
 // GetExchangeHistory returns historic trade data since exchange opening.
-func (b *BTCMarkets) GetExchangeHistory(p pair.CurrencyPair, assetType string, timestampStart time.Time, tradeID int64) ([]exchange.TradeHistory, error) {
+func (b *BTCMarkets) GetExchangeHistory(p pair.CurrencyPair, assetType string, timestampStart time.Time, tradeID string) ([]exchange.TradeHistory, error) {
 	var resp []exchange.TradeHistory
 
+	ID, err := strconv.ParseInt(tradeID, 10, 64)
+	if err != nil {
+		return resp, err
+	}
+
 	v := url.Values{}
-	v.Set("since", strconv.FormatInt(tradeID, 10))
+	v.Set("since", strconv.FormatInt(ID, 10))
 
 	trades, err := b.GetTrades(p.FirstCurrency.String(), p.SecondCurrency.String(), v)
 	if err != nil {
@@ -166,11 +171,12 @@ func (b *BTCMarkets) GetExchangeHistory(p pair.CurrencyPair, assetType string, t
 	}
 
 	for i := range trades {
+		orderID := strconv.FormatInt(trades[i].TradeID, 10)
 		resp = append(resp, exchange.TradeHistory{
 			Amount:    trades[i].Amount,
 			Exchange:  b.Name,
 			Price:     trades[i].Price,
-			TID:       trades[i].TradeID,
+			TID:       orderID,
 			Timestamp: time.Unix(trades[i].Date, 0),
 			Type:      "Not Supplied"})
 	}

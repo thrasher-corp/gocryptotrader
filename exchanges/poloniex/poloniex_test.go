@@ -255,7 +255,7 @@ func TestCancelExchangeOrder(t *testing.T) {
 
 func TestGetExchangeHistory(t *testing.T) {
 	pOne := pair.NewCurrencyPairDelimiter("BTC_NXT", "_")
-	_, err := p.GetExchangeHistory(pOne, "SPOT", time.Time{}, 0)
+	_, err := p.GetExchangeHistory(pOne, "SPOT", time.Time{}, "")
 	if err != nil {
 		t.Error("Test faild - Poloniex GetExchangeHistory() error", err)
 	}

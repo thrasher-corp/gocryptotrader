@@ -2,6 +2,7 @@ package kraken
 
 import (
 	"log"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -155,12 +156,14 @@ func (k *Kraken) GetFundingHistory() ([]exchange.FundHistory, error) {
 }
 
 // GetExchangeHistory returns historic trade data since exchange opening.
-func (k *Kraken) GetExchangeHistory(p pair.CurrencyPair, assetType string, timestampStart time.Time, tradeID int64) ([]exchange.TradeHistory, error) {
+func (k *Kraken) GetExchangeHistory(p pair.CurrencyPair, assetType string, timestampStart time.Time, tradeID string) ([]exchange.TradeHistory, error) {
 	var resp []exchange.TradeHistory
+
+	ID, _ := strconv.ParseInt(tradeID, 10, 64)
 
 	formattedPair := exchange.FormatExchangeCurrency(k.GetName(), p)
 
-	trades, err := k.GetTrades(formattedPair.String(), tradeID)
+	trades, err := k.GetTrades(formattedPair.String(), ID)
 	if err != nil {
 		return resp, err
 	}
@@ -168,7 +171,7 @@ func (k *Kraken) GetExchangeHistory(p pair.CurrencyPair, assetType string, times
 	for _, data := range trades {
 		resp = append(resp, exchange.TradeHistory{
 			Timestamp: time.Unix(int64(data.Time), 0),
-			TID:       0,
+			TID:       "OrderID - Not specified",
 			Price:     data.Price,
 			Amount:    data.Volume,
 			Exchange:  k.GetName(),

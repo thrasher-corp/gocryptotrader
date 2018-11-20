@@ -137,7 +137,7 @@ func (b *Binance) GetFundingHistory() ([]exchange.FundHistory, error) {
 }
 
 // GetExchangeHistory returns historic trade data since exchange opening.
-func (b *Binance) GetExchangeHistory(p pair.CurrencyPair, assetType string, timestampStart time.Time, tradeID int64) ([]exchange.TradeHistory, error) {
+func (b *Binance) GetExchangeHistory(p pair.CurrencyPair, assetType string, timestampStart time.Time, tradeID string) ([]exchange.TradeHistory, error) {
 	var resp []exchange.TradeHistory
 
 	if timestampStart.IsZero() {
@@ -156,9 +156,10 @@ func (b *Binance) GetExchangeHistory(p pair.CurrencyPair, assetType string, time
 	}
 
 	for i := range aggTrades {
+		orderID := strconv.FormatInt(aggTrades[i].LastTradeID, 10)
 		resp = append(resp, exchange.TradeHistory{
 			Timestamp: time.Unix(0, common.UnixMillisToNano(aggTrades[i].TimeStamp)),
-			TID:       aggTrades[i].LastTradeID,
+			TID:       orderID,
 			Price:     aggTrades[i].Price,
 			Amount:    aggTrades[i].Quantity,
 			Exchange:  b.GetName(),

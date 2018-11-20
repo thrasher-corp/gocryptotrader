@@ -169,7 +169,7 @@ func (b *Bitfinex) GetFundingHistory() ([]exchange.FundHistory, error) {
 }
 
 // GetExchangeHistory returns historic trade data since exchange opening.
-func (b *Bitfinex) GetExchangeHistory(p pair.CurrencyPair, assetType string, timestampStart time.Time, tradeID int64) ([]exchange.TradeHistory, error) {
+func (b *Bitfinex) GetExchangeHistory(p pair.CurrencyPair, assetType string, timestampStart time.Time, tradeID string) ([]exchange.TradeHistory, error) {
 	var resp []exchange.TradeHistory
 
 	strippedPair := p.FirstCurrency.String() + p.SecondCurrency.String()
@@ -185,9 +185,10 @@ func (b *Bitfinex) GetExchangeHistory(p pair.CurrencyPair, assetType string, tim
 	}
 
 	for i := range th {
+		orderID := strconv.FormatInt(th[i].TID, 10)
 		resp = append(resp, exchange.TradeHistory{
 			Timestamp: time.Unix(0, common.UnixMillisToNano(th[i].Timestamp)),
-			TID:       th[i].TID,
+			TID:       orderID,
 			Price:     th[i].Price,
 			Amount:    th[i].Amount,
 			Exchange:  b.GetName(),

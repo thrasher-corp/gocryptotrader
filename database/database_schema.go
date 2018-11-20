@@ -42,7 +42,7 @@ var schema = map[string]string{
 		order_type text NOT NULL DEFAULT "NOT SPECIFIED",
 		amount real NOT NULL,
 		rate real NOT NULL,
-		order_id integer NOT NULL,
+		order_id text NOT NULL,
 		exchange_name text NOT NULL,
 		created_at DATETIME NOT NULL,
 		updated_at DATETIME NOT NULL,

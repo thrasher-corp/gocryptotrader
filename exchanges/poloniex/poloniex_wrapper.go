@@ -150,7 +150,7 @@ func (p *Poloniex) GetFundingHistory() ([]exchange.FundHistory, error) {
 }
 
 // GetExchangeHistory returns historic trade data since exchange opening.
-func (p *Poloniex) GetExchangeHistory(cp pair.CurrencyPair, assetType string, timestampStart time.Time, tradeID int64) ([]exchange.TradeHistory, error) {
+func (p *Poloniex) GetExchangeHistory(cp pair.CurrencyPair, assetType string, timestampStart time.Time, tradeID string) ([]exchange.TradeHistory, error) {
 	var resp []exchange.TradeHistory
 
 	if timestampStart.IsZero() {
@@ -168,9 +168,12 @@ func (p *Poloniex) GetExchangeHistory(cp pair.CurrencyPair, assetType string, ti
 		if err != nil {
 			return resp, err
 		}
+
+		orderID := strconv.FormatInt(data.TradeID, 10)
+
 		resp = append(resp, exchange.TradeHistory{
 			Timestamp: cTime,
-			TID:       data.TradeID,
+			TID:       orderID,
 			Price:     data.Rate,
 			Amount:    data.Amount,
 			Exchange:  p.GetName(),

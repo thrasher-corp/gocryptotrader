@@ -3,6 +3,7 @@ package bittrex
 import (
 	"errors"
 	"log"
+	"strconv"
 	"sync"
 	"time"
 
@@ -163,7 +164,7 @@ func (b *Bittrex) GetFundingHistory() ([]exchange.FundHistory, error) {
 }
 
 // GetExchangeHistory returns historic trade data since exchange opening.
-func (b *Bittrex) GetExchangeHistory(p pair.CurrencyPair, assetType string, timestampStart time.Time, tradeID int64) ([]exchange.TradeHistory, error) {
+func (b *Bittrex) GetExchangeHistory(p pair.CurrencyPair, assetType string, timestampStart time.Time, tradeID string) ([]exchange.TradeHistory, error) {
 	var resp []exchange.TradeHistory
 
 	trades, err := b.GetMarketHistory(p.Pair().String())
@@ -176,9 +177,12 @@ func (b *Bittrex) GetExchangeHistory(p pair.CurrencyPair, assetType string, time
 		if err != nil {
 			return resp, err
 		}
+
+		orderID := strconv.FormatInt(int64(data.ID), 10)
+
 		resp = append(resp, exchange.TradeHistory{
 			Timestamp: t,
-			TID:       int64(data.ID),
+			TID:       orderID,
 			Price:     data.Price,
 			Amount:    data.Quantity,
 			Exchange:  b.GetName(),

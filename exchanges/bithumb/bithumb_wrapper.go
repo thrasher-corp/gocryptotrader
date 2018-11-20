@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"strconv"
 	"sync"
 	"time"
 
@@ -135,18 +136,22 @@ func (b *Bithumb) GetFundingHistory() ([]exchange.FundHistory, error) {
 }
 
 // GetExchangeHistory returns historic trade data since exchange opening.
-func (b *Bithumb) GetExchangeHistory(p pair.CurrencyPair, assetType string, timestampStart time.Time, tradeID int64) ([]exchange.TradeHistory, error) {
+func (b *Bithumb) GetExchangeHistory(p pair.CurrencyPair, assetType string, timestampStart time.Time, tradeID string) ([]exchange.TradeHistory, error) {
 	var resp []exchange.TradeHistory
 
-	trans, err := b.GetTransactionHistory(p.FirstCurrency.String(), tradeID)
+	ID, _ := strconv.ParseInt(tradeID, 10, 64)
+
+	trans, err := b.GetTransactionHistory(p.FirstCurrency.String(), ID)
 	if err != nil {
 		return resp, err
 	}
 
 	for _, data := range trans.Data {
+		orderID := strconv.FormatInt(data.ContNumber, 10)
+
 		resp = append(resp, exchange.TradeHistory{
 			Timestamp: ConvertToRFC3339(data.TransactionDate),
-			TID:       data.ContNumber,
+			TID:       orderID,
 			Price:     data.Price,
 			Amount:    data.UnitsTraded,
 			Exchange:  b.GetName(),

@@ -390,7 +390,7 @@ func (o *ORM) DeEncryptConfiguration(payload []byte) ([]byte, error) {
 }
 
 // InsertExchangeTradeHistoryData inserts historic trade data
-func (o *ORM) InsertExchangeTradeHistoryData(transactionID int64, exchangeName, currencyPair, assetType, orderType string, amount, rate float64, fulfilledOn time.Time) error {
+func (o *ORM) InsertExchangeTradeHistoryData(orderID, exchangeName, currencyPair, assetType, orderType string, amount, rate float64, fulfilledOn time.Time) error {
 	if !o.Connected {
 		if o.Verbose {
 			log.Println("cannot get exchange history data, no database connnection")
@@ -420,7 +420,7 @@ func (o *ORM) InsertExchangeTradeHistoryData(transactionID int64, exchangeName, 
 		OrderType:    orderType,
 		Amount:       amount,
 		Rate:         rate,
-		OrderID:      transactionID,
+		OrderID:      orderID,
 		ExchangeName: exchangeName,
 	}
 
@@ -429,12 +429,12 @@ func (o *ORM) InsertExchangeTradeHistoryData(transactionID int64, exchangeName, 
 
 // GetExchangeTradeHistoryLast returns the last updated time.Time and tradeID
 // values for the most recent trade history data in the set.
-func (o *ORM) GetExchangeTradeHistoryLast(exchangeName, currencyPair, assetType string) (time.Time, int64, error) {
+func (o *ORM) GetExchangeTradeHistoryLast(exchangeName, currencyPair, assetType string) (time.Time, string, error) {
 	if !o.Connected {
 		if o.Verbose {
 			log.Println("cannot get order history data, no database connnection")
 		}
-		return time.Time{}, 0, errors.New("no database connection")
+		return time.Time{}, "", errors.New("no database connection")
 	}
 
 	tradeHistory, err := models.ExchangeTradeHistories(
@@ -445,9 +445,9 @@ func (o *ORM) GetExchangeTradeHistoryLast(exchangeName, currencyPair, assetType 
 		qm.Limit(1)).One(ctx, o.DB)
 	if err != nil {
 		if err.Error() == "sql: no rows in result set" {
-			return time.Time{}, 0, nil
+			return time.Time{}, "", nil
 		}
-		return time.Time{}, 0, err
+		return time.Time{}, "", err
 	}
 
 	return tradeHistory.FulfilledOn, tradeHistory.OrderID, nil

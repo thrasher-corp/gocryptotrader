@@ -138,7 +138,7 @@ func (c *CoinbasePro) GetFundingHistory() ([]exchange.FundHistory, error) {
 }
 
 // GetExchangeHistory returns historic trade data since exchange opening.
-func (c *CoinbasePro) GetExchangeHistory(p pair.CurrencyPair, assetType string, timestampStart time.Time, tradeID int64) ([]exchange.TradeHistory, error) {
+func (c *CoinbasePro) GetExchangeHistory(p pair.CurrencyPair, assetType string, timestampStart time.Time, tradeID string) ([]exchange.TradeHistory, error) {
 	var resp []exchange.TradeHistory
 
 	if timestampStart.IsZero() {
@@ -156,11 +156,11 @@ func (c *CoinbasePro) GetExchangeHistory(p pair.CurrencyPair, assetType string, 
 	for _, data := range trades {
 		resp = append(resp, exchange.TradeHistory{
 			Timestamp: time.Unix(data.Time, 0),
-			TID:       0,
+			TID:       "OrderID - Not Specified",
 			Price:     data.Close,
 			Amount:    data.Volume,
 			Exchange:  c.GetName(),
-			Type:      "Not Specified",
+			Type:      "Trading Type - Not Specified",
 		})
 	}
 

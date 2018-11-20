@@ -3,6 +3,7 @@ package bitflyer
 import (
 	"errors"
 	"log"
+	"strconv"
 	"sync"
 	"time"
 
@@ -147,9 +148,12 @@ func (b *Bitflyer) GetFundingHistory() ([]exchange.FundHistory, error) {
 }
 
 // GetExchangeHistory returns historic trade data since exchange opening.
-func (b *Bitflyer) GetExchangeHistory(p pair.CurrencyPair, assetType string, timestampStart time.Time, tradeID int64) ([]exchange.TradeHistory, error) {
+func (b *Bitflyer) GetExchangeHistory(p pair.CurrencyPair, assetType string, timestampStart time.Time, tradeID string) ([]exchange.TradeHistory, error) {
 	var resp []exchange.TradeHistory
-	trades, err := b.GetExecutionHistory(p.Pair().String(), tradeID)
+
+	ID, _ := strconv.ParseInt(tradeID, 10, 64)
+
+	trades, err := b.GetExecutionHistory(p.Pair().String(), ID)
 	if err != nil {
 		return resp, err
 	}
@@ -159,9 +163,12 @@ func (b *Bitflyer) GetExchangeHistory(p pair.CurrencyPair, assetType string, tim
 		if err != nil {
 			return resp, err
 		}
+
+		orderID := strconv.FormatInt(data.ID, 10)
+
 		resp = append(resp, exchange.TradeHistory{
 			Timestamp: t,
-			TID:       data.ID,
+			TID:       orderID,
 			Price:     data.Price,
 			Amount:    data.Size,
 			Exchange:  b.GetName(),

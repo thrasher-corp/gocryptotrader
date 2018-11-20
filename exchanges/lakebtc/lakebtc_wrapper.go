@@ -133,7 +133,7 @@ func (l *LakeBTC) GetFundingHistory() ([]exchange.FundHistory, error) {
 }
 
 // GetExchangeHistory returns historic trade data since exchange opening.
-func (l *LakeBTC) GetExchangeHistory(p pair.CurrencyPair, assetType string, timestampStart time.Time, tradeID int64) ([]exchange.TradeHistory, error) {
+func (l *LakeBTC) GetExchangeHistory(p pair.CurrencyPair, assetType string, timestampStart time.Time, tradeID string) ([]exchange.TradeHistory, error) {
 	var resp []exchange.TradeHistory
 
 	th, err := l.GetTradeHistory(p.Pair().String())
@@ -142,9 +142,10 @@ func (l *LakeBTC) GetExchangeHistory(p pair.CurrencyPair, assetType string, time
 	}
 
 	for _, data := range th {
+		orderID := strconv.FormatInt(data.TID, 10)
 		resp = append(resp, exchange.TradeHistory{
 			Timestamp: time.Unix(data.Date, 0),
-			TID:       data.TID,
+			TID:       orderID,
 			Price:     data.Price,
 			Amount:    data.Amount,
 			Exchange:  l.GetName(),

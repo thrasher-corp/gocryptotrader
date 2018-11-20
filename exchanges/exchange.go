@@ -160,7 +160,7 @@ type AccountCurrencyInfo struct {
 // TradeHistory holds exchange history data
 type TradeHistory struct {
 	Timestamp time.Time
-	TID       int64
+	TID       string
 	Price     float64
 	Amount    float64
 	Exchange  string
@@ -251,7 +251,7 @@ type IBotExchange interface {
 	GetAccountInfo() (AccountInfo, error)
 	GetAuthenticatedAPISupport() bool
 	SetCurrencies(pairs []pair.CurrencyPair, enabledPairs bool) error
-	GetExchangeHistory(p pair.CurrencyPair, assetType string, timestampStart time.Time, tradeID int64) ([]TradeHistory, error)
+	GetExchangeHistory(p pair.CurrencyPair, assetType string, timestampStart time.Time, tradeID string) ([]TradeHistory, error)
 	SupportsAutoPairUpdates() bool
 	GetLastPairsUpdateTime() int64
 	SupportsRESTTickerBatchUpdates() bool
