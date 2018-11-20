@@ -397,9 +397,6 @@ func (o *ORM) InsertExchangeTradeHistoryData(transactionID int64, exchangeName, 
 		return nil
 	}
 
-	o.Lock()
-	defer o.Unlock()
-
 	dataExists, err := models.ExchangeTradeHistories(
 		qm.Where("exchange_name = ?", exchangeName),
 		qm.And("fulfilled_on = ?", fulfilledOn),
@@ -441,9 +438,6 @@ func (o *ORM) GetExchangeTradeHistoryLast(exchangeName, currencyPair, assetType 
 		return time.Time{}, 0, errors.New("no database connection")
 	}
 
-	o.Lock()
-	defer o.Unlock()
-
 	tradeHistory, err := models.ExchangeTradeHistories(
 		qm.Where("exchange_name = ?", exchangeName),
 		qm.And("currency_pair = ?", currencyPair),
@@ -463,9 +457,6 @@ func (o *ORM) GetExchangeTradeHistoryLast(exchangeName, currencyPair, assetType 
 // GetExchangeTradeHistory returns the full trade history by exchange name,
 // currency pair and asset class
 func (o *ORM) GetExchangeTradeHistory(exchName, currencyPair, assetType string) ([]exchange.TradeHistory, error) {
-	o.Lock()
-	defer o.Unlock()
-
 	tradeHistory, err := models.ExchangeTradeHistories(
 		qm.Where("exchange_name = ?", exchName),
 		qm.And("currency_pair = ?", currencyPair),
