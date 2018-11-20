@@ -465,10 +465,6 @@ func (o *ORM) GetExchangeTradeHistory(exchName, currencyPair, assetType string) 
 		return nil, err
 	}
 
-	if len(tradeHistory) == 0 {
-		return nil, errors.New("no exchange trade data could be found")
-	}
-
 	var fullHistory []exchange.TradeHistory
 	for _, trade := range tradeHistory {
 		fullHistory = append(fullHistory,
