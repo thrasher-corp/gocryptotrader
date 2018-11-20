@@ -83,6 +83,13 @@ dbname = "%s"`, DefaultPath)
 	// Creates a schema file for informational deployment
 	_, err = common.ReadFile(dirPath + "db.schema")
 	if err != nil {
+		var fullSchema string
+
+		fullSchema += schema["gct_user"] + "\n\n"
+		fullSchema += schema["gct_config"] + "\n\n"
+		fullSchema += schema["order_history"] + "\n\n"
+		fullSchema += schema["exchange_trade_history"]
+
 		err = common.WriteFile(dirPath+"db.schema", []byte(fullSchema))
 		if err != nil {
 			return err
@@ -122,7 +129,7 @@ func Connect(sqlite3Path string, verbose bool) (*ORM, error) {
 	}
 
 	// Instantiate tables in new database
-	for name, query := range databaseTables {
+	for name, query := range schema {
 		rows, err := SQLite.DB.Query(
 			fmt.Sprintf(
 				"SELECT name FROM sqlite_master WHERE type='table' AND name='%s'",
