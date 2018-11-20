@@ -38,6 +38,11 @@ Big thank you to the team at volatiletech for providing this tool https://github
 ### How to enable
 
 + Using gocryptotrader binary will create db automatically no setup required.
++ To enable loading of exchange history data use the `-history` flag, this will seed historic trade action that has been matched by exchange.
++ To override a saved configuration please use the `-o-config` flag, this will load a supplied config.json into memory.
++ To save a new configuration you can use the `-save-config` flag, please be aware that if you do not change the configuration name it will overwrite your initial configuration loaded in database.
++ To use a saved configuration in database use the `-use-config` flag then appened the name e.g. `-use-config arb_euro`.
++ You can specify a unique path to a database by using the `-db-path` flag e.g. `-db-path ./newdatabase.db`.
 
 + If enabled via individually importing package, rudimentary example below:
 

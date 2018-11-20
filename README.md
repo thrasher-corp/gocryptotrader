@@ -149,6 +149,7 @@ Binaries will be published once the codebase reaches a stable condition.
 | soxipy | https://github.com/soxipy | 2 |
 | herenow | https://github.com/herenow | 2 |
 | xtda | https://github.com/xtda | 1 |
+| blombard | https://github.com/blombard | 1 |
 | daniel-cohen | https://github.com/daniel-cohen | 1 |
 | frankzougc | https://github.com/frankzougc | 1 |
 | starit | https://github.com/starit | 1 |
@@ -162,7 +163,6 @@ Binaries will be published once the codebase reaches a stable condition.
 | tongxiaofeng | https://github.com/tongxiaofeng | 1 |
 | idealhack | https://github.com/idealhack | 1 |
 | vyloy | https://github.com/vyloy | 1 |
-| askew- | https://github.com/askew- | 1 |
 
 
 
