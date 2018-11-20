@@ -757,16 +757,6 @@ func (o OrderSide) ToString() string {
 	return fmt.Sprintf("%v", o)
 }
 
-// OrderSideBuy returns an OrderSide buy order
-func OrderSideBuy() OrderSide {
-	return Buy
-}
-
-// OrderSideSell returns an OrderSide Sell order
-func OrderSideSell() OrderSide {
-	return Sell
-}
-
 // SetAPIURL sets configuration API URL for an exchange
 func (e *Base) SetAPIURL(ec config.ExchangeConfig) error {
 	if ec.APIURL == "" || ec.APIURLSecondary == "" {

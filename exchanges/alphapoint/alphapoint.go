@@ -360,7 +360,7 @@ func (a *Alphapoint) WithdrawCoins(symbol, product, address string, amount float
 }
 
 func (a *Alphapoint) convertOrderTypeToOrderTypeNumber(orderType string) (orderTypeNumber int64) {
-	if orderType == exchange.OrderTypeMarket().Format(a.Name) {
+	if orderType == exchange.Market.ToString() {
 		orderTypeNumber = 1
 	}
 
