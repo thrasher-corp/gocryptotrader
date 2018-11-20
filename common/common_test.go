@@ -987,19 +987,21 @@ func TestUnixMilliToNano(t *testing.T) {
 func TestHashPassword(t *testing.T) {
 	h1, err := HashPassword([]byte(""))
 	if err != nil {
-		t.Error("test failed - HashPassword() error", err)
+		t.Error("test failed - comparing hashed password")
 	}
 
 	if err := bcrypt.CompareHashAndPassword([]byte(h1), []byte("")); err != nil {
 		t.Error("test failed - comparing hashed password")
 	}
 
-	h2, err := HashPassword([]byte(""))
-	if err != nil {
-		t.Error("test failed - HashPassword() error", err)
+	testHash := "$2a$04$qY88NSuF1sCqGFYnRZwaoeBZs1vxzQ2Ew9yR3sZewoY1e7OxgRPyi"
+	testHash2 := "$2a$04$68ddOizpKaMzKJij07q0POYQRSksUujd5xeh3j9KKcp.sEwo1ucsW"
+
+	if err := bcrypt.CompareHashAndPassword([]byte(testHash), []byte("")); err != nil {
+		t.Error("test failed - comparing hashed password")
 	}
 
-	if err := bcrypt.CompareHashAndPassword([]byte(h2), []byte("lol")); err == nil {
+	if err := bcrypt.CompareHashAndPassword([]byte(testHash2), []byte("")); err != nil {
 		t.Error("test failed - comparing hashed password")
 	}
 }
