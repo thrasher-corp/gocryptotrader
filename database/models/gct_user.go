@@ -21,28 +21,28 @@ import (
 
 // GCTUser is an object representing the database table.
 type GCTUser struct {
-	ID         int64     `boil:"id" json:"id" toml:"id" yaml:"id"`
-	Name       string    `boil:"name" json:"name" toml:"name" yaml:"name"`
-	Password   string    `boil:"password" json:"password" toml:"password" yaml:"password"`
-	InsertedAt time.Time `boil:"inserted_at" json:"inserted_at" toml:"inserted_at" yaml:"inserted_at"`
-	AmendedAt  time.Time `boil:"amended_at" json:"amended_at" toml:"amended_at" yaml:"amended_at"`
+	ID        int64     `boil:"id" json:"id" toml:"id" yaml:"id"`
+	Name      string    `boil:"name" json:"name" toml:"name" yaml:"name"`
+	Password  string    `boil:"password" json:"password" toml:"password" yaml:"password"`
+	CreatedAt time.Time `boil:"created_at" json:"created_at" toml:"created_at" yaml:"created_at"`
+	UpdatedAt time.Time `boil:"updated_at" json:"updated_at" toml:"updated_at" yaml:"updated_at"`
 
 	R *gctUserR `boil:"-" json:"-" toml:"-" yaml:"-"`
 	L gctUserL  `boil:"-" json:"-" toml:"-" yaml:"-"`
 }
 
 var GCTUserColumns = struct {
-	ID         string
-	Name       string
-	Password   string
-	InsertedAt string
-	AmendedAt  string
+	ID        string
+	Name      string
+	Password  string
+	CreatedAt string
+	UpdatedAt string
 }{
-	ID:         "id",
-	Name:       "name",
-	Password:   "password",
-	InsertedAt: "inserted_at",
-	AmendedAt:  "amended_at",
+	ID:        "id",
+	Name:      "name",
+	Password:  "password",
+	CreatedAt: "created_at",
+	UpdatedAt: "updated_at",
 }
 
 // GCTUserRels is where relationship names are stored.
@@ -66,9 +66,9 @@ func (*gctUserR) NewStruct() *gctUserR {
 type gctUserL struct{}
 
 var (
-	gctUserColumns               = []string{"id", "name", "password", "inserted_at", "amended_at"}
+	gctUserColumns               = []string{"id", "name", "password", "created_at", "updated_at"}
 	gctUserColumnsWithoutDefault = []string{}
-	gctUserColumnsWithDefault    = []string{"id", "name", "password", "inserted_at", "amended_at"}
+	gctUserColumnsWithDefault    = []string{"id", "name", "password", "created_at", "updated_at"}
 	gctUserPrimaryKeyColumns     = []string{"id"}
 )
 
@@ -76,6 +76,8 @@ type (
 	// GCTUserSlice is an alias for a slice of pointers to GCTUser.
 	// This should generally be used opposed to []GCTUser.
 	GCTUserSlice []*GCTUser
+	// GCTUserHook is the signature for custom GCTUser hook methods
+	GCTUserHook func(context.Context, boil.ContextExecutor, *GCTUser) error
 
 	gctUserQuery struct {
 		*queries.Query
@@ -100,6 +102,140 @@ var (
 	_ = time.Second
 )
 
+var gctUserBeforeInsertHooks []GCTUserHook
+var gctUserBeforeUpdateHooks []GCTUserHook
+var gctUserBeforeDeleteHooks []GCTUserHook
+var gctUserBeforeUpsertHooks []GCTUserHook
+
+var gctUserAfterInsertHooks []GCTUserHook
+var gctUserAfterSelectHooks []GCTUserHook
+var gctUserAfterUpdateHooks []GCTUserHook
+var gctUserAfterDeleteHooks []GCTUserHook
+var gctUserAfterUpsertHooks []GCTUserHook
+
+// doBeforeInsertHooks executes all "before insert" hooks.
+func (o *GCTUser) doBeforeInsertHooks(ctx context.Context, exec boil.ContextExecutor) (err error) {
+	for _, hook := range gctUserBeforeInsertHooks {
+		if err := hook(ctx, exec, o); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// doBeforeUpdateHooks executes all "before Update" hooks.
+func (o *GCTUser) doBeforeUpdateHooks(ctx context.Context, exec boil.ContextExecutor) (err error) {
+	for _, hook := range gctUserBeforeUpdateHooks {
+		if err := hook(ctx, exec, o); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// doBeforeDeleteHooks executes all "before Delete" hooks.
+func (o *GCTUser) doBeforeDeleteHooks(ctx context.Context, exec boil.ContextExecutor) (err error) {
+	for _, hook := range gctUserBeforeDeleteHooks {
+		if err := hook(ctx, exec, o); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// doBeforeUpsertHooks executes all "before Upsert" hooks.
+func (o *GCTUser) doBeforeUpsertHooks(ctx context.Context, exec boil.ContextExecutor) (err error) {
+	for _, hook := range gctUserBeforeUpsertHooks {
+		if err := hook(ctx, exec, o); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// doAfterInsertHooks executes all "after Insert" hooks.
+func (o *GCTUser) doAfterInsertHooks(ctx context.Context, exec boil.ContextExecutor) (err error) {
+	for _, hook := range gctUserAfterInsertHooks {
+		if err := hook(ctx, exec, o); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// doAfterSelectHooks executes all "after Select" hooks.
+func (o *GCTUser) doAfterSelectHooks(ctx context.Context, exec boil.ContextExecutor) (err error) {
+	for _, hook := range gctUserAfterSelectHooks {
+		if err := hook(ctx, exec, o); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// doAfterUpdateHooks executes all "after Update" hooks.
+func (o *GCTUser) doAfterUpdateHooks(ctx context.Context, exec boil.ContextExecutor) (err error) {
+	for _, hook := range gctUserAfterUpdateHooks {
+		if err := hook(ctx, exec, o); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// doAfterDeleteHooks executes all "after Delete" hooks.
+func (o *GCTUser) doAfterDeleteHooks(ctx context.Context, exec boil.ContextExecutor) (err error) {
+	for _, hook := range gctUserAfterDeleteHooks {
+		if err := hook(ctx, exec, o); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// doAfterUpsertHooks executes all "after Upsert" hooks.
+func (o *GCTUser) doAfterUpsertHooks(ctx context.Context, exec boil.ContextExecutor) (err error) {
+	for _, hook := range gctUserAfterUpsertHooks {
+		if err := hook(ctx, exec, o); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// AddGCTUserHook registers your hook function for all future operations.
+func AddGCTUserHook(hookPoint boil.HookPoint, gctUserHook GCTUserHook) {
+	switch hookPoint {
+	case boil.BeforeInsertHook:
+		gctUserBeforeInsertHooks = append(gctUserBeforeInsertHooks, gctUserHook)
+	case boil.BeforeUpdateHook:
+		gctUserBeforeUpdateHooks = append(gctUserBeforeUpdateHooks, gctUserHook)
+	case boil.BeforeDeleteHook:
+		gctUserBeforeDeleteHooks = append(gctUserBeforeDeleteHooks, gctUserHook)
+	case boil.BeforeUpsertHook:
+		gctUserBeforeUpsertHooks = append(gctUserBeforeUpsertHooks, gctUserHook)
+	case boil.AfterInsertHook:
+		gctUserAfterInsertHooks = append(gctUserAfterInsertHooks, gctUserHook)
+	case boil.AfterSelectHook:
+		gctUserAfterSelectHooks = append(gctUserAfterSelectHooks, gctUserHook)
+	case boil.AfterUpdateHook:
+		gctUserAfterUpdateHooks = append(gctUserAfterUpdateHooks, gctUserHook)
+	case boil.AfterDeleteHook:
+		gctUserAfterDeleteHooks = append(gctUserAfterDeleteHooks, gctUserHook)
+	case boil.AfterUpsertHook:
+		gctUserAfterUpsertHooks = append(gctUserAfterUpsertHooks, gctUserHook)
+	}
+}
+
 // One returns a single gctUser record from the query.
 func (q gctUserQuery) One(ctx context.Context, exec boil.ContextExecutor) (*GCTUser, error) {
 	o := &GCTUser{}
@@ -114,6 +250,10 @@ func (q gctUserQuery) One(ctx context.Context, exec boil.ContextExecutor) (*GCTU
 		return nil, errors.Wrap(err, "models: failed to execute a one query for gct_user")
 	}
 
+	if err := o.doAfterSelectHooks(ctx, exec); err != nil {
+		return o, err
+	}
+
 	return o, nil
 }
 
@@ -124,6 +264,14 @@ func (q gctUserQuery) All(ctx context.Context, exec boil.ContextExecutor) (GCTUs
 	err := q.Bind(ctx, exec, &o)
 	if err != nil {
 		return nil, errors.Wrap(err, "models: failed to assign all query results to GCTUser slice")
+	}
+
+	if len(gctUserAfterSelectHooks) != 0 {
+		for _, obj := range o {
+			if err := obj.doAfterSelectHooks(ctx, exec); err != nil {
+				return o, err
+			}
+		}
 	}
 
 	return o, nil
@@ -237,6 +385,13 @@ func (gctUserL) LoadGCTConfigs(ctx context.Context, e boil.ContextExecutor, sing
 		return errors.Wrap(err, "error occurred during iteration of eager loaded relations for gct_config")
 	}
 
+	if len(gctConfigAfterSelectHooks) != 0 {
+		for _, obj := range resultSlice {
+			if err := obj.doAfterSelectHooks(ctx, e); err != nil {
+				return err
+			}
+		}
+	}
 	if singular {
 		object.R.GCTConfigs = resultSlice
 		for _, foreign := range resultSlice {
@@ -357,6 +512,18 @@ func (o *GCTUser) Insert(ctx context.Context, exec boil.ContextExecutor, columns
 	}
 
 	var err error
+	currTime := time.Now().In(boil.GetLocation())
+
+	if o.CreatedAt.IsZero() {
+		o.CreatedAt = currTime
+	}
+	if o.UpdatedAt.IsZero() {
+		o.UpdatedAt = currTime
+	}
+
+	if err := o.doBeforeInsertHooks(ctx, exec); err != nil {
+		return err
+	}
 
 	nzDefaults := queries.NonZeroDefaultSet(gctUserColumnsWithDefault, o)
 
@@ -448,14 +615,21 @@ CacheNoHooks:
 		gctUserInsertCacheMut.Unlock()
 	}
 
-	return nil
+	return o.doAfterInsertHooks(ctx, exec)
 }
 
 // Update uses an executor to update the GCTUser.
 // See boil.Columns.UpdateColumnSet documentation to understand column list inference for updates.
 // Update does not automatically update the record in case of default values. Use .Reload() to refresh the records.
 func (o *GCTUser) Update(ctx context.Context, exec boil.ContextExecutor, columns boil.Columns) (int64, error) {
+	currTime := time.Now().In(boil.GetLocation())
+
+	o.UpdatedAt = currTime
+
 	var err error
+	if err = o.doBeforeUpdateHooks(ctx, exec); err != nil {
+		return 0, err
+	}
 	key := makeCacheKey(columns, nil)
 	gctUserUpdateCacheMut.RLock()
 	cache, cached := gctUserUpdateCache[key]
@@ -508,7 +682,7 @@ func (o *GCTUser) Update(ctx context.Context, exec boil.ContextExecutor, columns
 		gctUserUpdateCacheMut.Unlock()
 	}
 
-	return rowsAff, nil
+	return rowsAff, o.doAfterUpdateHooks(ctx, exec)
 }
 
 // UpdateAll updates all rows with the specified column values.
@@ -583,6 +757,10 @@ func (o *GCTUser) Delete(ctx context.Context, exec boil.ContextExecutor) (int64,
 		return 0, errors.New("models: no GCTUser provided for delete")
 	}
 
+	if err := o.doBeforeDeleteHooks(ctx, exec); err != nil {
+		return 0, err
+	}
+
 	args := queries.ValuesFromMapping(reflect.Indirect(reflect.ValueOf(o)), gctUserPrimaryKeyMapping)
 	sql := "DELETE FROM \"gct_user\" WHERE \"id\"=?"
 
@@ -599,6 +777,10 @@ func (o *GCTUser) Delete(ctx context.Context, exec boil.ContextExecutor) (int64,
 	rowsAff, err := result.RowsAffected()
 	if err != nil {
 		return 0, errors.Wrap(err, "models: failed to get rows affected by delete for gct_user")
+	}
+
+	if err := o.doAfterDeleteHooks(ctx, exec); err != nil {
+		return 0, err
 	}
 
 	return rowsAff, nil
@@ -635,6 +817,14 @@ func (o GCTUserSlice) DeleteAll(ctx context.Context, exec boil.ContextExecutor) 
 		return 0, nil
 	}
 
+	if len(gctUserBeforeDeleteHooks) != 0 {
+		for _, obj := range o {
+			if err := obj.doBeforeDeleteHooks(ctx, exec); err != nil {
+				return 0, err
+			}
+		}
+	}
+
 	var args []interface{}
 	for _, obj := range o {
 		pkeyArgs := queries.ValuesFromMapping(reflect.Indirect(reflect.ValueOf(obj)), gctUserPrimaryKeyMapping)
@@ -657,6 +847,14 @@ func (o GCTUserSlice) DeleteAll(ctx context.Context, exec boil.ContextExecutor) 
 	rowsAff, err := result.RowsAffected()
 	if err != nil {
 		return 0, errors.Wrap(err, "models: failed to get rows affected by deleteall for gct_user")
+	}
+
+	if len(gctUserAfterDeleteHooks) != 0 {
+		for _, obj := range o {
+			if err := obj.doAfterDeleteHooks(ctx, exec); err != nil {
+				return 0, err
+			}
+		}
 	}
 
 	return rowsAff, nil

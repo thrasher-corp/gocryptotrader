@@ -236,10 +236,8 @@ func (o *ORM) insertUser(username string, password []byte) error {
 	}
 
 	newuser := &models.GCTUser{
-		Name:       username,
-		Password:   hashPw,
-		InsertedAt: time.Now(),
-		AmendedAt:  time.Now(),
+		Name:     username,
+		Password: hashPw,
 	}
 
 	return newuser.Insert(ctx, o.DB, boil.Infer())
@@ -357,9 +355,6 @@ func (o *ORM) saveConfiguration(c *config.Config) error {
 
 			saveConfig.ConfigFull = payload
 			saveConfig.ConfigName = c.Name
-			t := time.Now()
-			saveConfig.InsertedAt = t
-			saveConfig.AmendedAt = t
 			saveConfig.GCTUserID = o.sessionID
 
 			return saveConfig.Insert(ctx, o.DB, boil.Infer())
@@ -378,7 +373,6 @@ func (o *ORM) saveConfiguration(c *config.Config) error {
 	}
 
 	cfg.ConfigFull = payload
-	cfg.AmendedAt = time.Now()
 	cfg.GCTUserID = o.sessionID
 
 	_, err = cfg.Update(ctx, o.DB, boil.Infer())
@@ -428,8 +422,6 @@ func (o *ORM) InsertExchangeTradeHistoryData(transactionID int64, exchangeName, 
 		Rate:         rate,
 		OrderID:      transactionID,
 		ExchangeName: exchangeName,
-		InsertedAt:   time.Now(),
-		AmendedAt:    time.Now(),
 	}
 
 	return tradeHistory.Insert(ctx, o.DB, boil.Infer())

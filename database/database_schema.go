@@ -5,16 +5,16 @@ var schema = map[string]string{
 		id integer NOT NULL PRIMARY KEY AUTOINCREMENT,
   		name text NOT NULL,
   		password text NOT NULL,
- 		inserted_at DATETIME NOT NULL,
- 		amended_at DATETIME NOT NULL
+		created_at DATETIME NOT NULL,
+		updated_at DATETIME NOT NULL
 	  );`,
 
 	"gct_config": `CREATE TABLE gct_config (
 		id integer NOT NULL PRIMARY KEY AUTOINCREMENT,
 		config_name text NOT NULL,
 		config_full BLOB NOT NULL,
-		inserted_at DATETIME NOT NULL,
-		amended_at DATETIME NOT NULL,
+		created_at DATETIME NOT NULL,
+		updated_at DATETIME NOT NULL,
 		gct_user_id integer NOT NULL,
   		FOREIGN KEY(gct_user_id) REFERENCES gct_user(id) 
 	);`,
@@ -29,8 +29,9 @@ var schema = map[string]string{
 		amount real NOT NULL,
 		rate real NOT NULL,
 		exchange_name text NOT NULL,
-		inserted_at DATETIME NOT NULL,
-		amended_at DATETIME NOT NULL
+		created_at DATETIME NOT NULL,
+		updated_at DATETIME NOT NULL,
+		UNIQUE(exchange_name, fulfilled_on, currency_pair , asset_type, amount, rate)
 	);`,
 
 	"exchange_trade_history": `CREATE TABLE exchange_trade_history (
@@ -43,8 +44,9 @@ var schema = map[string]string{
 		rate real NOT NULL,
 		order_id integer NOT NULL,
 		exchange_name text NOT NULL,
-		inserted_at DATETIME NOT NULL,
-		amended_at DATETIME NOT NULL
+		created_at DATETIME NOT NULL,
+		updated_at DATETIME NOT NULL,
+		UNIQUE(exchange_name, fulfilled_on, currency_pair , asset_type, amount, rate)
 	);`}
 
 var deprecatedDatabaseTables = []string{}

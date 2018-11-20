@@ -30,8 +30,8 @@ type OrderHistory struct {
 	Amount       float64   `boil:"amount" json:"amount" toml:"amount" yaml:"amount"`
 	Rate         float64   `boil:"rate" json:"rate" toml:"rate" yaml:"rate"`
 	ExchangeName string    `boil:"exchange_name" json:"exchange_name" toml:"exchange_name" yaml:"exchange_name"`
-	InsertedAt   time.Time `boil:"inserted_at" json:"inserted_at" toml:"inserted_at" yaml:"inserted_at"`
-	AmendedAt    time.Time `boil:"amended_at" json:"amended_at" toml:"amended_at" yaml:"amended_at"`
+	CreatedAt    time.Time `boil:"created_at" json:"created_at" toml:"created_at" yaml:"created_at"`
+	UpdatedAt    time.Time `boil:"updated_at" json:"updated_at" toml:"updated_at" yaml:"updated_at"`
 
 	R *orderHistoryR `boil:"-" json:"-" toml:"-" yaml:"-"`
 	L orderHistoryL  `boil:"-" json:"-" toml:"-" yaml:"-"`
@@ -47,8 +47,8 @@ var OrderHistoryColumns = struct {
 	Amount       string
 	Rate         string
 	ExchangeName string
-	InsertedAt   string
-	AmendedAt    string
+	CreatedAt    string
+	UpdatedAt    string
 }{
 	ID:           "id",
 	OrderID:      "order_id",
@@ -59,8 +59,8 @@ var OrderHistoryColumns = struct {
 	Amount:       "amount",
 	Rate:         "rate",
 	ExchangeName: "exchange_name",
-	InsertedAt:   "inserted_at",
-	AmendedAt:    "amended_at",
+	CreatedAt:    "created_at",
+	UpdatedAt:    "updated_at",
 }
 
 // OrderHistoryRels is where relationship names are stored.
@@ -80,9 +80,9 @@ func (*orderHistoryR) NewStruct() *orderHistoryR {
 type orderHistoryL struct{}
 
 var (
-	orderHistoryColumns               = []string{"id", "order_id", "fulfilled_on", "currency_pair", "asset_type", "order_type", "amount", "rate", "exchange_name", "inserted_at", "amended_at"}
+	orderHistoryColumns               = []string{"id", "order_id", "fulfilled_on", "currency_pair", "asset_type", "order_type", "amount", "rate", "exchange_name", "created_at", "updated_at"}
 	orderHistoryColumnsWithoutDefault = []string{}
-	orderHistoryColumnsWithDefault    = []string{"id", "order_id", "fulfilled_on", "currency_pair", "asset_type", "order_type", "amount", "rate", "exchange_name", "inserted_at", "amended_at"}
+	orderHistoryColumnsWithDefault    = []string{"id", "order_id", "fulfilled_on", "currency_pair", "asset_type", "order_type", "amount", "rate", "exchange_name", "created_at", "updated_at"}
 	orderHistoryPrimaryKeyColumns     = []string{"id"}
 )
 
@@ -90,6 +90,8 @@ type (
 	// OrderHistorySlice is an alias for a slice of pointers to OrderHistory.
 	// This should generally be used opposed to []OrderHistory.
 	OrderHistorySlice []*OrderHistory
+	// OrderHistoryHook is the signature for custom OrderHistory hook methods
+	OrderHistoryHook func(context.Context, boil.ContextExecutor, *OrderHistory) error
 
 	orderHistoryQuery struct {
 		*queries.Query
@@ -114,6 +116,140 @@ var (
 	_ = time.Second
 )
 
+var orderHistoryBeforeInsertHooks []OrderHistoryHook
+var orderHistoryBeforeUpdateHooks []OrderHistoryHook
+var orderHistoryBeforeDeleteHooks []OrderHistoryHook
+var orderHistoryBeforeUpsertHooks []OrderHistoryHook
+
+var orderHistoryAfterInsertHooks []OrderHistoryHook
+var orderHistoryAfterSelectHooks []OrderHistoryHook
+var orderHistoryAfterUpdateHooks []OrderHistoryHook
+var orderHistoryAfterDeleteHooks []OrderHistoryHook
+var orderHistoryAfterUpsertHooks []OrderHistoryHook
+
+// doBeforeInsertHooks executes all "before insert" hooks.
+func (o *OrderHistory) doBeforeInsertHooks(ctx context.Context, exec boil.ContextExecutor) (err error) {
+	for _, hook := range orderHistoryBeforeInsertHooks {
+		if err := hook(ctx, exec, o); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// doBeforeUpdateHooks executes all "before Update" hooks.
+func (o *OrderHistory) doBeforeUpdateHooks(ctx context.Context, exec boil.ContextExecutor) (err error) {
+	for _, hook := range orderHistoryBeforeUpdateHooks {
+		if err := hook(ctx, exec, o); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// doBeforeDeleteHooks executes all "before Delete" hooks.
+func (o *OrderHistory) doBeforeDeleteHooks(ctx context.Context, exec boil.ContextExecutor) (err error) {
+	for _, hook := range orderHistoryBeforeDeleteHooks {
+		if err := hook(ctx, exec, o); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// doBeforeUpsertHooks executes all "before Upsert" hooks.
+func (o *OrderHistory) doBeforeUpsertHooks(ctx context.Context, exec boil.ContextExecutor) (err error) {
+	for _, hook := range orderHistoryBeforeUpsertHooks {
+		if err := hook(ctx, exec, o); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// doAfterInsertHooks executes all "after Insert" hooks.
+func (o *OrderHistory) doAfterInsertHooks(ctx context.Context, exec boil.ContextExecutor) (err error) {
+	for _, hook := range orderHistoryAfterInsertHooks {
+		if err := hook(ctx, exec, o); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// doAfterSelectHooks executes all "after Select" hooks.
+func (o *OrderHistory) doAfterSelectHooks(ctx context.Context, exec boil.ContextExecutor) (err error) {
+	for _, hook := range orderHistoryAfterSelectHooks {
+		if err := hook(ctx, exec, o); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// doAfterUpdateHooks executes all "after Update" hooks.
+func (o *OrderHistory) doAfterUpdateHooks(ctx context.Context, exec boil.ContextExecutor) (err error) {
+	for _, hook := range orderHistoryAfterUpdateHooks {
+		if err := hook(ctx, exec, o); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// doAfterDeleteHooks executes all "after Delete" hooks.
+func (o *OrderHistory) doAfterDeleteHooks(ctx context.Context, exec boil.ContextExecutor) (err error) {
+	for _, hook := range orderHistoryAfterDeleteHooks {
+		if err := hook(ctx, exec, o); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// doAfterUpsertHooks executes all "after Upsert" hooks.
+func (o *OrderHistory) doAfterUpsertHooks(ctx context.Context, exec boil.ContextExecutor) (err error) {
+	for _, hook := range orderHistoryAfterUpsertHooks {
+		if err := hook(ctx, exec, o); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// AddOrderHistoryHook registers your hook function for all future operations.
+func AddOrderHistoryHook(hookPoint boil.HookPoint, orderHistoryHook OrderHistoryHook) {
+	switch hookPoint {
+	case boil.BeforeInsertHook:
+		orderHistoryBeforeInsertHooks = append(orderHistoryBeforeInsertHooks, orderHistoryHook)
+	case boil.BeforeUpdateHook:
+		orderHistoryBeforeUpdateHooks = append(orderHistoryBeforeUpdateHooks, orderHistoryHook)
+	case boil.BeforeDeleteHook:
+		orderHistoryBeforeDeleteHooks = append(orderHistoryBeforeDeleteHooks, orderHistoryHook)
+	case boil.BeforeUpsertHook:
+		orderHistoryBeforeUpsertHooks = append(orderHistoryBeforeUpsertHooks, orderHistoryHook)
+	case boil.AfterInsertHook:
+		orderHistoryAfterInsertHooks = append(orderHistoryAfterInsertHooks, orderHistoryHook)
+	case boil.AfterSelectHook:
+		orderHistoryAfterSelectHooks = append(orderHistoryAfterSelectHooks, orderHistoryHook)
+	case boil.AfterUpdateHook:
+		orderHistoryAfterUpdateHooks = append(orderHistoryAfterUpdateHooks, orderHistoryHook)
+	case boil.AfterDeleteHook:
+		orderHistoryAfterDeleteHooks = append(orderHistoryAfterDeleteHooks, orderHistoryHook)
+	case boil.AfterUpsertHook:
+		orderHistoryAfterUpsertHooks = append(orderHistoryAfterUpsertHooks, orderHistoryHook)
+	}
+}
+
 // One returns a single orderHistory record from the query.
 func (q orderHistoryQuery) One(ctx context.Context, exec boil.ContextExecutor) (*OrderHistory, error) {
 	o := &OrderHistory{}
@@ -128,6 +264,10 @@ func (q orderHistoryQuery) One(ctx context.Context, exec boil.ContextExecutor) (
 		return nil, errors.Wrap(err, "models: failed to execute a one query for order_history")
 	}
 
+	if err := o.doAfterSelectHooks(ctx, exec); err != nil {
+		return o, err
+	}
+
 	return o, nil
 }
 
@@ -138,6 +278,14 @@ func (q orderHistoryQuery) All(ctx context.Context, exec boil.ContextExecutor) (
 	err := q.Bind(ctx, exec, &o)
 	if err != nil {
 		return nil, errors.Wrap(err, "models: failed to assign all query results to OrderHistory slice")
+	}
+
+	if len(orderHistoryAfterSelectHooks) != 0 {
+		for _, obj := range o {
+			if err := obj.doAfterSelectHooks(ctx, exec); err != nil {
+				return o, err
+			}
+		}
 	}
 
 	return o, nil
@@ -213,6 +361,18 @@ func (o *OrderHistory) Insert(ctx context.Context, exec boil.ContextExecutor, co
 	}
 
 	var err error
+	currTime := time.Now().In(boil.GetLocation())
+
+	if o.CreatedAt.IsZero() {
+		o.CreatedAt = currTime
+	}
+	if o.UpdatedAt.IsZero() {
+		o.UpdatedAt = currTime
+	}
+
+	if err := o.doBeforeInsertHooks(ctx, exec); err != nil {
+		return err
+	}
 
 	nzDefaults := queries.NonZeroDefaultSet(orderHistoryColumnsWithDefault, o)
 
@@ -304,14 +464,21 @@ CacheNoHooks:
 		orderHistoryInsertCacheMut.Unlock()
 	}
 
-	return nil
+	return o.doAfterInsertHooks(ctx, exec)
 }
 
 // Update uses an executor to update the OrderHistory.
 // See boil.Columns.UpdateColumnSet documentation to understand column list inference for updates.
 // Update does not automatically update the record in case of default values. Use .Reload() to refresh the records.
 func (o *OrderHistory) Update(ctx context.Context, exec boil.ContextExecutor, columns boil.Columns) (int64, error) {
+	currTime := time.Now().In(boil.GetLocation())
+
+	o.UpdatedAt = currTime
+
 	var err error
+	if err = o.doBeforeUpdateHooks(ctx, exec); err != nil {
+		return 0, err
+	}
 	key := makeCacheKey(columns, nil)
 	orderHistoryUpdateCacheMut.RLock()
 	cache, cached := orderHistoryUpdateCache[key]
@@ -364,7 +531,7 @@ func (o *OrderHistory) Update(ctx context.Context, exec boil.ContextExecutor, co
 		orderHistoryUpdateCacheMut.Unlock()
 	}
 
-	return rowsAff, nil
+	return rowsAff, o.doAfterUpdateHooks(ctx, exec)
 }
 
 // UpdateAll updates all rows with the specified column values.
@@ -439,6 +606,10 @@ func (o *OrderHistory) Delete(ctx context.Context, exec boil.ContextExecutor) (i
 		return 0, errors.New("models: no OrderHistory provided for delete")
 	}
 
+	if err := o.doBeforeDeleteHooks(ctx, exec); err != nil {
+		return 0, err
+	}
+
 	args := queries.ValuesFromMapping(reflect.Indirect(reflect.ValueOf(o)), orderHistoryPrimaryKeyMapping)
 	sql := "DELETE FROM \"order_history\" WHERE \"id\"=?"
 
@@ -455,6 +626,10 @@ func (o *OrderHistory) Delete(ctx context.Context, exec boil.ContextExecutor) (i
 	rowsAff, err := result.RowsAffected()
 	if err != nil {
 		return 0, errors.Wrap(err, "models: failed to get rows affected by delete for order_history")
+	}
+
+	if err := o.doAfterDeleteHooks(ctx, exec); err != nil {
+		return 0, err
 	}
 
 	return rowsAff, nil
@@ -491,6 +666,14 @@ func (o OrderHistorySlice) DeleteAll(ctx context.Context, exec boil.ContextExecu
 		return 0, nil
 	}
 
+	if len(orderHistoryBeforeDeleteHooks) != 0 {
+		for _, obj := range o {
+			if err := obj.doBeforeDeleteHooks(ctx, exec); err != nil {
+				return 0, err
+			}
+		}
+	}
+
 	var args []interface{}
 	for _, obj := range o {
 		pkeyArgs := queries.ValuesFromMapping(reflect.Indirect(reflect.ValueOf(obj)), orderHistoryPrimaryKeyMapping)
@@ -513,6 +696,14 @@ func (o OrderHistorySlice) DeleteAll(ctx context.Context, exec boil.ContextExecu
 	rowsAff, err := result.RowsAffected()
 	if err != nil {
 		return 0, errors.Wrap(err, "models: failed to get rows affected by deleteall for order_history")
+	}
+
+	if len(orderHistoryAfterDeleteHooks) != 0 {
+		for _, obj := range o {
+			if err := obj.doAfterDeleteHooks(ctx, exec); err != nil {
+				return 0, err
+			}
+		}
 	}
 
 	return rowsAff, nil
