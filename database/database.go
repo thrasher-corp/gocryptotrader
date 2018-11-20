@@ -333,13 +333,12 @@ func (o *ORM) getSavedConfiguration(configName string) (*config.Config, error) {
 
 // saveConfiguration saves the configuration
 func (o *ORM) saveConfiguration(c *config.Config) error {
-	configs, err := models.GCTConfigs().All(ctx, o.DB)
+	cfg, err := models.GCTConfigs(qm.Where("config_name = ?", c.Name)).One(ctx, o.DB)
 	if err != nil {
-		return err
-	}
+		if common.StringContains(err.Error(), "no rows in result set") {
+			saveConfig := &models.GCTConfig{}
+			saveConfig.ConfigName = c.Name
 
-	for _, cfg := range configs {
-		if cfg.ConfigName == c.Name {
 			encodedConfig, err := common.JSONEncode(*c)
 			if err != nil {
 				return err
@@ -350,17 +349,18 @@ func (o *ORM) saveConfiguration(c *config.Config) error {
 				return err
 			}
 
-			cfg.ConfigFull = payload
-			cfg.AmendedAt = time.Now()
-			cfg.GCTUserID = o.sessionID
+			saveConfig.ConfigFull = payload
+			saveConfig.ConfigName = c.Name
 
-			_, err = cfg.Update(ctx, o.DB, boil.Infer())
-			return err
+			nowTime := time.Now()
+			saveConfig.InsertedAt = nowTime
+			saveConfig.AmendedAt = nowTime
+			saveConfig.GCTUserID = o.sessionID
+
+			return saveConfig.Insert(ctx, o.DB, boil.Infer())
 		}
+		return err
 	}
-
-	saveConfig := &models.GCTConfig{}
-	saveConfig.ConfigName = c.Name
 
 	encodedConfig, err := common.JSONEncode(*c)
 	if err != nil {
@@ -372,15 +372,12 @@ func (o *ORM) saveConfiguration(c *config.Config) error {
 		return err
 	}
 
-	saveConfig.ConfigFull = payload
-	saveConfig.ConfigName = c.Name
+	cfg.ConfigFull = payload
+	cfg.AmendedAt = time.Now()
+	cfg.GCTUserID = o.sessionID
 
-	nowTime := time.Now()
-	saveConfig.InsertedAt = nowTime
-	saveConfig.AmendedAt = nowTime
-	saveConfig.GCTUserID = o.sessionID
-
-	return saveConfig.Insert(ctx, o.DB, boil.Infer())
+	_, err = cfg.Update(ctx, o.DB, boil.Infer())
+	return err
 }
 
 // EncryptConfiguration encrypts configuration before saving to database
