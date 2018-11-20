@@ -398,20 +398,8 @@ func (o *ORM) InsertExchangeTradeHistoryData(orderID, exchangeName, currencyPair
 		return nil
 	}
 
-	dataExists, err := models.ExchangeTradeHistories(
-		qm.Where("exchange_name = ?", exchangeName),
-		qm.And("fulfilled_on = ?", fulfilledOn),
-		qm.And("currency_pair = ?", currencyPair),
-		qm.And("asset_type = ?", assetType),
-		qm.And("amount = ?", amount),
-		qm.And("rate = ?", rate)).Exists(ctx, o.DB)
-	if err != nil {
-		return err
-	}
-
-	if dataExists {
-		return errors.New("row already found")
-	}
+	o.Lock()
+	defer o.Unlock()
 
 	tradeHistory := &models.ExchangeTradeHistory{
 		FulfilledOn:  fulfilledOn,
@@ -437,6 +425,9 @@ func (o *ORM) GetExchangeTradeHistoryLast(exchangeName, currencyPair, assetType 
 		return time.Time{}, "", errors.New("no database connection")
 	}
 
+	o.Lock()
+	defer o.Unlock()
+
 	tradeHistory, err := models.ExchangeTradeHistories(
 		qm.Where("exchange_name = ?", exchangeName),
 		qm.And("currency_pair = ?", currencyPair),
@@ -456,6 +447,9 @@ func (o *ORM) GetExchangeTradeHistoryLast(exchangeName, currencyPair, assetType 
 // GetExchangeTradeHistory returns the full trade history by exchange name,
 // currency pair and asset class
 func (o *ORM) GetExchangeTradeHistory(exchName, currencyPair, assetType string) ([]exchange.TradeHistory, error) {
+	o.Lock()
+	defer o.Unlock()
+
 	tradeHistory, err := models.ExchangeTradeHistories(
 		qm.Where("exchange_name = ?", exchName),
 		qm.And("currency_pair = ?", currencyPair),

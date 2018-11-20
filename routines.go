@@ -620,7 +620,7 @@ func (u *Updater) ProcessHistoryREST(exch exchange.IBotExchange, p pair.Currency
 			result[i].Price,
 			result[i].Timestamp)
 		if err != nil {
-			if err.Error() == "row already found" {
+			if common.StringContains(err.Error(), "UNIQUE constraint failed") {
 				continue
 			}
 			log.Fatal(err)
