@@ -1168,7 +1168,7 @@
   },
   {
    "name": "WEX",
-   "enabled": false,
+   "enabled": true,
    "verbose": false,
    "websocket": false,
    "useSandbox": false,

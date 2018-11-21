@@ -35,7 +35,6 @@ func TestSetup(t *testing.T) {
 }
 
 func TestGetTradablePairs(t *testing.T) {
-	t.Skip()
 	t.Parallel()
 	_, err := w.GetTradablePairs()
 	if err != nil {
@@ -44,7 +43,6 @@ func TestGetTradablePairs(t *testing.T) {
 }
 
 func TestGetInfo(t *testing.T) {
-	t.Skip()
 	t.Parallel()
 	_, err := w.GetInfo()
 	if err != nil {
@@ -53,7 +51,6 @@ func TestGetInfo(t *testing.T) {
 }
 
 func TestGetTicker(t *testing.T) {
-	t.Skip()
 	t.Parallel()
 	_, err := w.GetTicker("btc_usd")
 	if err != nil {
@@ -62,7 +59,6 @@ func TestGetTicker(t *testing.T) {
 }
 
 func TestGetDepth(t *testing.T) {
-	t.Skip()
 	t.Parallel()
 	_, err := w.GetDepth("btc_usd")
 	if err != nil {
@@ -71,7 +67,6 @@ func TestGetDepth(t *testing.T) {
 }
 
 func TestGetTrades(t *testing.T) {
-	t.Skip()
 	t.Parallel()
 	_, err := w.GetTrades("btc_usd")
 	if err != nil {
@@ -80,7 +75,6 @@ func TestGetTrades(t *testing.T) {
 }
 
 func TestGetAccountInfo(t *testing.T) {
-	t.Skip()
 	t.Parallel()
 	_, err := w.GetAccountInfo()
 	if err == nil {
@@ -89,7 +83,6 @@ func TestGetAccountInfo(t *testing.T) {
 }
 
 func TestGetActiveOrders(t *testing.T) {
-	t.Skip()
 	t.Parallel()
 	_, err := w.GetActiveOrders("")
 	if err == nil {
@@ -98,7 +91,6 @@ func TestGetActiveOrders(t *testing.T) {
 }
 
 func TestGetOrderInfo(t *testing.T) {
-	t.Skip()
 	t.Parallel()
 	_, err := w.GetOrderInfo(6196974)
 	if err == nil {
@@ -107,7 +99,6 @@ func TestGetOrderInfo(t *testing.T) {
 }
 
 func TestCancelOrder(t *testing.T) {
-	t.Skip()
 	t.Parallel()
 	_, err := w.CancelOrder(1337)
 	if err == nil {
@@ -116,7 +107,6 @@ func TestCancelOrder(t *testing.T) {
 }
 
 func TestTrade(t *testing.T) {
-	t.Skip()
 	t.Parallel()
 	_, err := w.Trade("", "buy", 0, 0)
 	if err == nil {
@@ -125,7 +115,6 @@ func TestTrade(t *testing.T) {
 }
 
 func TestGetTransactionHistory(t *testing.T) {
-	t.Skip()
 	t.Parallel()
 	_, err := w.GetTransactionHistory(0, 0, 0, "", "", "")
 	if err == nil {
@@ -134,7 +123,6 @@ func TestGetTransactionHistory(t *testing.T) {
 }
 
 func TestGetTradeHistory(t *testing.T) {
-	t.Skip()
 	t.Parallel()
 	_, err := w.GetTradeHistory(0, 0, 0, "", "", "", "")
 	if err == nil {
@@ -143,7 +131,6 @@ func TestGetTradeHistory(t *testing.T) {
 }
 
 func TestWithdrawCoins(t *testing.T) {
-	t.Skip()
 	t.Parallel()
 	_, err := w.WithdrawCoins("", 0, "")
 	if err == nil {
@@ -152,7 +139,6 @@ func TestWithdrawCoins(t *testing.T) {
 }
 
 func TestCoinDepositAddress(t *testing.T) {
-	t.Skip()
 	t.Parallel()
 	_, err := w.CoinDepositAddress("btc")
 	if err == nil {
@@ -161,7 +147,6 @@ func TestCoinDepositAddress(t *testing.T) {
 }
 
 func TestCreateCoupon(t *testing.T) {
-	t.Skip()
 	t.Parallel()
 	_, err := w.CreateCoupon("bla", 0)
 	if err == nil {
@@ -170,7 +155,6 @@ func TestCreateCoupon(t *testing.T) {
 }
 
 func TestRedeemCoupon(t *testing.T) {
-	t.Skip()
 	t.Parallel()
 	_, err := w.RedeemCoupon("bla")
 	if err == nil {
@@ -193,7 +177,6 @@ func setFeeBuilder() exchange.FeeBuilder {
 }
 
 func TestGetFee(t *testing.T) {
-	t.Skip()
 	w.SetDefaults()
 	TestSetup(t)
 	var feeBuilder = setFeeBuilder()
