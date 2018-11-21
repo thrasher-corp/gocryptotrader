@@ -849,7 +849,7 @@ func (e *Base) FormatWithdrawPermissions() string {
 			case WithdrawFiatViaWebsiteOnly:
 				services = append(services, WithdrawFiatViaWebsiteOnlyText)
 			default:
-				services = append(services, fmt.Sprintf("%s[%v]", UnknownWithdrawalTypeText, check))
+				services = append(services, fmt.Sprintf("%s[1<<%v]", UnknownWithdrawalTypeText, i))
 			}
 		}
 	}
