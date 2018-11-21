@@ -177,10 +177,11 @@ func (e *EXMO) GetExchangeHistory(p pair.CurrencyPair, assetType string) ([]exch
 }
 
 // SubmitExchangeOrder submits a new order
-func (e *EXMO) SubmitExchangeOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (string, error) {
+func (e *EXMO) SubmitExchangeOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (exchange.SubmitOrderResponse, error) {
+	var submitOrderResponse exchange.SubmitOrderResponse
 	var oT string
 	if orderType == exchange.Limit {
-		return "", errors.New("Unsupported order type")
+		return submitOrderResponse, errors.New("Unsupported order type")
 	} else if orderType == exchange.Market {
 		if side == exchange.Buy {
 			oT = "market_buy"
@@ -188,12 +189,20 @@ func (e *EXMO) SubmitExchangeOrder(p pair.CurrencyPair, side exchange.OrderSide,
 			oT = "market_sell"
 		}
 	} else {
-		return "", errors.New("Unsupported order type")
+		return submitOrderResponse, errors.New("Unsupported order type")
 	}
 
 	response, err := e.CreateOrder(p.Pair().String(), oT, price, amount)
 
-	return fmt.Sprintf("%v", response), err
+	if response > 0 {
+		submitOrderResponse.OrderID = fmt.Sprintf("%v", response)
+	}
+
+	if err == nil {
+		submitOrderResponse.IsOrderPlaced = true
+	}
+
+	return submitOrderResponse, err
 }
 
 // ModifyExchangeOrder will allow of changing orderbook placement and limit to

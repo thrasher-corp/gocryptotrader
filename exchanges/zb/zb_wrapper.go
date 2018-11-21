@@ -137,7 +137,8 @@ func (z *ZB) GetExchangeHistory(p pair.CurrencyPair, assetType string) ([]exchan
 }
 
 // SubmitExchangeOrder submits a new order
-func (z *ZB) SubmitExchangeOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (string, error) {
+func (z *ZB) SubmitExchangeOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (exchange.SubmitOrderResponse, error) {
+	var submitOrderResponse exchange.SubmitOrderResponse
 	var oT SpotNewOrderRequestParamsType
 
 	if side == exchange.Buy {
@@ -154,8 +155,15 @@ func (z *ZB) SubmitExchangeOrder(p pair.CurrencyPair, side exchange.OrderSide, o
 	}
 	response, err := z.SpotNewOrder(params)
 
-	return fmt.Sprintf("%v", response), err
+	if response > 0 {
+		submitOrderResponse.OrderID = fmt.Sprintf("%v", response)
+	}
 
+	if err == nil {
+		submitOrderResponse.IsOrderPlaced = true
+	}
+
+	return submitOrderResponse, err
 }
 
 // ModifyExchangeOrder will allow of changing orderbook placement and limit to

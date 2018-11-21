@@ -128,7 +128,8 @@ func (g *Gateio) GetExchangeHistory(p pair.CurrencyPair, assetType string) ([]ex
 }
 
 // SubmitExchangeOrder submits a new order
-func (g *Gateio) SubmitExchangeOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (string, error) {
+func (g *Gateio) SubmitExchangeOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (exchange.SubmitOrderResponse, error) {
+	var submitOrderResponse exchange.SubmitOrderResponse
 	var orderTypeFormat SpotNewOrderRequestParamsType
 
 	if side == exchange.Buy {
@@ -146,7 +147,15 @@ func (g *Gateio) SubmitExchangeOrder(p pair.CurrencyPair, side exchange.OrderSid
 
 	response, err := g.SpotNewOrder(spotNewOrderRequestParams)
 
-	return fmt.Sprintf("%v", response.OrderNumber), err
+	if response.OrderNumber > 0 {
+		submitOrderResponse.OrderID = fmt.Sprintf("%v", response)
+	}
+
+	if err == nil {
+		submitOrderResponse.IsOrderPlaced = true
+	}
+
+	return submitOrderResponse, err
 }
 
 // ModifyExchangeOrder will allow of changing orderbook placement and limit to

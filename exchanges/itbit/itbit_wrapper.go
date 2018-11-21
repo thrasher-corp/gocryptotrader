@@ -130,12 +130,13 @@ func (i *ItBit) GetExchangeHistory(p pair.CurrencyPair, assetType string) ([]exc
 }
 
 // SubmitExchangeOrder submits a new order
-func (i *ItBit) SubmitExchangeOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (string, error) {
+func (i *ItBit) SubmitExchangeOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (exchange.SubmitOrderResponse, error) {
+	var submitOrderResponse exchange.SubmitOrderResponse
 	var wallet string
 
 	wallets, err := i.GetWallets(nil)
 	if err != nil {
-		return "", err
+		return submitOrderResponse, err
 	}
 
 	// Determine what wallet ID to use if there is any actual available currency to make the trade!
@@ -148,12 +149,20 @@ func (i *ItBit) SubmitExchangeOrder(p pair.CurrencyPair, side exchange.OrderSide
 	}
 
 	if wallet == "" {
-		return "", fmt.Errorf("No wallet found with currency: %s with amount >= %v", p.FirstCurrency.String(), amount)
+		return submitOrderResponse, fmt.Errorf("No wallet found with currency: %s with amount >= %v", p.FirstCurrency.String(), amount)
 	}
 
 	response, err := i.PlaceOrder(wallet, side.ToString(), orderType.ToString(), p.FirstCurrency.String(), amount, price, p.Pair().String(), "")
 
-	return response.ID, err
+	if response.ID != "" {
+		submitOrderResponse.OrderID = response.ID
+	}
+
+	if err == nil {
+		submitOrderResponse.IsOrderPlaced = true
+	}
+
+	return submitOrderResponse, err
 }
 
 // ModifyExchangeOrder will allow of changing orderbook placement and limit to

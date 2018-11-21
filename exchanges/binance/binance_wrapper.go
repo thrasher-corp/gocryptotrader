@@ -142,7 +142,9 @@ func (b *Binance) GetExchangeHistory(p pair.CurrencyPair, assetType string) ([]e
 }
 
 // SubmitExchangeOrder submits a new order
-func (b *Binance) SubmitExchangeOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (string, error) {
+func (b *Binance) SubmitExchangeOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (exchange.SubmitOrderResponse, error) {
+	var submitOrderResponse exchange.SubmitOrderResponse
+
 	var sideType RequestParamsSideType
 	if side == exchange.Buy {
 		sideType = BinanceRequestParamsSideBuy
@@ -156,7 +158,8 @@ func (b *Binance) SubmitExchangeOrder(p pair.CurrencyPair, side exchange.OrderSi
 	} else if orderType == exchange.Limit {
 		requestParamsOrderType = BinanceRequestParamsOrderLimit
 	} else {
-		return "", errors.New("Unsupported order type")
+		submitOrderResponse.IsOrderPlaced = false
+		return submitOrderResponse, errors.New("Unsupported order type")
 	}
 
 	var orderRequest = NewOrderRequest{
@@ -169,7 +172,15 @@ func (b *Binance) SubmitExchangeOrder(p pair.CurrencyPair, side exchange.OrderSi
 
 	response, err := b.NewOrder(orderRequest)
 
-	return fmt.Sprintf("%v", response), err
+	if response.OrderID > 0 {
+		submitOrderResponse.OrderID = fmt.Sprintf("%v", response.OrderID)
+	}
+
+	if err == nil {
+		submitOrderResponse.IsOrderPlaced = true
+	}
+
+	return submitOrderResponse, err
 }
 
 // ModifyExchangeOrder will allow of changing orderbook placement and limit to

@@ -137,7 +137,8 @@ func (h *HUOBIHADAX) GetExchangeHistory(p pair.CurrencyPair, assetType string) (
 }
 
 // SubmitExchangeOrder submits a new order
-func (h *HUOBIHADAX) SubmitExchangeOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (string, error) {
+func (h *HUOBIHADAX) SubmitExchangeOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (exchange.SubmitOrderResponse, error) {
+	var submitOrderResponse exchange.SubmitOrderResponse
 	accountID, err := strconv.ParseInt(clientID, 0, 64)
 	var formattedType SpotNewOrderRequestParamsType
 	var params = SpotNewOrderRequestParams{
@@ -158,14 +159,22 @@ func (h *HUOBIHADAX) SubmitExchangeOrder(p pair.CurrencyPair, side exchange.Orde
 		formattedType = SpotNewOrderRequestTypeSellLimit
 		params.Price = price
 	} else {
-		return "", errors.New("Unsupported order type")
+		return submitOrderResponse, errors.New("Unsupported order type")
 	}
 
 	params.Type = formattedType
 
 	response, err := h.SpotNewOrder(params)
 
-	return fmt.Sprintf("%v", response), err
+	if response > 0 {
+		submitOrderResponse.OrderID = fmt.Sprintf("%v", response)
+	}
+
+	if err == nil {
+		submitOrderResponse.IsOrderPlaced = true
+	}
+
+	return submitOrderResponse, err
 }
 
 // ModifyExchangeOrder will allow of changing orderbook placement and limit to

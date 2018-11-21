@@ -304,11 +304,7 @@ func TestSubmitOrder(t *testing.T) {
 		SecondCurrency: symbol.USD,
 	}
 	response, err := w.SubmitExchangeOrder(pair, exchange.Buy, exchange.Market, 1, 10, "hi")
-
-	if err != nil {
-		t.Error("Something happened: ", err)
-	}
-	if response == "" {
-		t.Errorf("OrderId not returned.")
+	if err != nil || !response.IsOrderPlaced {
+		t.Errorf("Order failed to be placed: %v", err)
 	}
 }

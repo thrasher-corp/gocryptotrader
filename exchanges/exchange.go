@@ -67,6 +67,12 @@ const (
 	Contact         InternationalBankTransactionType = "contact"
 )
 
+// SubmitOrderResponse is what is returned after submitting an order to an exchange
+type SubmitOrderResponse struct {
+	IsOrderPlaced bool
+	OrderID   string
+}
+
 // FeeBuilder is the type which holds all parameters required to calculate a fee for an exchange
 type FeeBuilder struct {
 	FeeType FeeType
@@ -246,7 +252,7 @@ type IBotExchange interface {
 	SupportsWithdrawPermissions(permissions uint32) bool
 
 	GetExchangeFundTransferHistory() ([]FundHistory, error)
-	SubmitExchangeOrder(p pair.CurrencyPair, side OrderSide, orderType OrderType, amount, price float64, clientID string) (string, error)
+	SubmitExchangeOrder(p pair.CurrencyPair, side OrderSide, orderType OrderType, amount, price float64, clientID string) (SubmitOrderResponse, error)
 	ModifyExchangeOrder(orderID int64, modify ModifyOrder) (int64, error)
 	CancelExchangeOrder(orderID int64) error
 	CancelAllExchangeOrders() error

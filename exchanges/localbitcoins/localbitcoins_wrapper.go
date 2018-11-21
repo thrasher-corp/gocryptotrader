@@ -122,7 +122,8 @@ func (l *LocalBitcoins) GetExchangeHistory(p pair.CurrencyPair, assetType string
 }
 
 // SubmitExchangeOrder submits a new order
-func (l *LocalBitcoins) SubmitExchangeOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (string, error) {
+func (l *LocalBitcoins) SubmitExchangeOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (exchange.SubmitOrderResponse, error) {
+	var submitOrderResponse exchange.SubmitOrderResponse
 	// These are placeholder details
 	// TODO store a user's localbitcoin details to use here
 	var params = AdCreate{
@@ -148,7 +149,10 @@ func (l *LocalBitcoins) SubmitExchangeOrder(p pair.CurrencyPair, side exchange.O
 	// Does not return any orderID, so create the add, then get the order
 	err := l.CreateAd(params)
 	if err != nil {
-		return "", err
+		return submitOrderResponse, err
+	}
+	if err == nil {
+		submitOrderResponse.IsOrderPlaced = true
 	}
 
 	// Now to figure out what ad we just submitted
@@ -174,11 +178,14 @@ func (l *LocalBitcoins) SubmitExchangeOrder(p pair.CurrencyPair, side exchange.O
 			adID = fmt.Sprintf("%v", i.Data.AdID)
 		}
 	}
-	if adID == "" {
-		return "", errors.New("Ad placed, but not found via API")
+
+	if adID != "" {
+		submitOrderResponse.OrderID = adID
+	} else {
+		return submitOrderResponse, errors.New("Ad placed, but not found via API")
 	}
 
-	return adID, err
+	return submitOrderResponse, err
 }
 
 // ModifyExchangeOrder will allow of changing orderbook placement and limit to

@@ -140,11 +140,20 @@ func (l *LakeBTC) GetExchangeHistory(p pair.CurrencyPair, assetType string) ([]e
 }
 
 // SubmitExchangeOrder submits a new order
-func (l *LakeBTC) SubmitExchangeOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (string, error) {
+func (l *LakeBTC) SubmitExchangeOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (exchange.SubmitOrderResponse, error) {
+	var submitOrderResponse exchange.SubmitOrderResponse
 	isBuyOrder := side == exchange.Buy
 	response, err := l.Trade(isBuyOrder, amount, price, common.StringToLower(p.Pair().String()))
 
-	return fmt.Sprintf("%v", response.ID), err
+	if response.ID > 0 {
+		submitOrderResponse.OrderID = fmt.Sprintf("%v", response.ID)
+	}
+
+	if err == nil {
+		submitOrderResponse.IsOrderPlaced = true
+	}
+
+	return submitOrderResponse, err
 }
 
 // ModifyExchangeOrder will allow of changing orderbook placement and limit to

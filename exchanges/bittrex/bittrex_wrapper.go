@@ -169,13 +169,14 @@ func (b *Bittrex) GetExchangeHistory(p pair.CurrencyPair, assetType string) ([]e
 }
 
 // SubmitExchangeOrder submits a new order
-func (b *Bittrex) SubmitExchangeOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (string, error) {
+func (b *Bittrex) SubmitExchangeOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (exchange.SubmitOrderResponse, error) {
+	var submitOrderResponse exchange.SubmitOrderResponse
 	buy := side == exchange.Buy
 	var response UUID
 	var err error
 
 	if orderType != exchange.Limit {
-		return "", errors.New("not supported on exchange")
+		return submitOrderResponse, errors.New("not supported on exchange")
 	}
 
 	if buy {
@@ -184,7 +185,15 @@ func (b *Bittrex) SubmitExchangeOrder(p pair.CurrencyPair, side exchange.OrderSi
 		response, err = b.PlaceSellLimit(p.Pair().String(), amount, price)
 	}
 
-	return response.Result.ID, err
+	if response.Result.ID != "" {
+		submitOrderResponse.OrderID = response.Result.ID
+	}
+
+	if err == nil {
+		submitOrderResponse.IsOrderPlaced = true
+	}
+
+	return submitOrderResponse, err
 }
 
 // ModifyExchangeOrder will allow of changing orderbook placement and limit to

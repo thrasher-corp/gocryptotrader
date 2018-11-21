@@ -144,7 +144,8 @@ func (b *Bitmex) GetExchangeHistory(p pair.CurrencyPair, assetType string) ([]ex
 }
 
 // SubmitExchangeOrder submits a new order
-func (b *Bitmex) SubmitExchangeOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (string, error) {
+func (b *Bitmex) SubmitExchangeOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (exchange.SubmitOrderResponse, error) {
+	var submitOrderResponse exchange.SubmitOrderResponse
 	var orderNewParams = OrderNewParams{
 		OrdType:  side.ToString(),
 		Symbol:   p.Pair().String(),
@@ -157,7 +158,15 @@ func (b *Bitmex) SubmitExchangeOrder(p pair.CurrencyPair, side exchange.OrderSid
 	}
 
 	response, err := b.CreateOrder(orderNewParams)
-	return response.OrderID, err
+	if response.OrderID != "" {
+		submitOrderResponse.OrderID = response.OrderID
+	}
+
+	if err == nil {
+		submitOrderResponse.IsOrderPlaced = true
+	}
+
+	return submitOrderResponse, err
 }
 
 // ModifyExchangeOrder will allow of changing orderbook placement and limit to

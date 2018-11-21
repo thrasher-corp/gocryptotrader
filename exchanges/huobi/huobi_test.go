@@ -417,11 +417,7 @@ func TestSubmitOrder(t *testing.T) {
 	accounts, err := h.GetAccounts()
 
 	response, err := h.SubmitExchangeOrder(p, exchange.Buy, exchange.Limit, 1, 10, strconv.FormatInt(accounts[0].ID, 10))
-
-	if err != nil {
-		t.Error("Something happened: ", err)
-	}
-	if response == "" {
-		t.Errorf("OrderId not returned.")
+	if err != nil || !response.IsOrderPlaced {
+		t.Errorf("Order failed to be placed: %v", err)
 	}
 }

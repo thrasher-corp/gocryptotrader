@@ -153,7 +153,8 @@ func (o *OKEX) GetExchangeHistory(p pair.CurrencyPair, assetType string) ([]exch
 }
 
 // SubmitExchangeOrder submits a new order
-func (o *OKEX) SubmitExchangeOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (string, error) {
+func (o *OKEX) SubmitExchangeOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (exchange.SubmitOrderResponse, error) {
+	var submitOrderResponse exchange.SubmitOrderResponse
 	var oT SpotNewOrderRequestType
 
 	if orderType == exchange.Limit {
@@ -169,7 +170,7 @@ func (o *OKEX) SubmitExchangeOrder(p pair.CurrencyPair, side exchange.OrderSide,
 			oT = SpotNewOrderRequestTypeSellMarket
 		}
 	} else {
-		return "", errors.New("Unsupported order type")
+		return submitOrderResponse, errors.New("Unsupported order type")
 	}
 
 	var params = SpotNewOrderRequestParams{
@@ -181,7 +182,15 @@ func (o *OKEX) SubmitExchangeOrder(p pair.CurrencyPair, side exchange.OrderSide,
 
 	response, err := o.SpotNewOrder(params)
 
-	return fmt.Sprintf("%v", response), err
+	if response > 0 {
+		submitOrderResponse.OrderID = fmt.Sprintf("%v", response)
+	}
+
+	if err == nil {
+		submitOrderResponse.IsOrderPlaced = true
+	}
+
+	return submitOrderResponse, err
 }
 
 // ModifyExchangeOrder will allow of changing orderbook placement and limit to

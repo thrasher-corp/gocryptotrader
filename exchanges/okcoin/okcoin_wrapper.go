@@ -187,7 +187,8 @@ func (o *OKCoin) GetExchangeHistory(p pair.CurrencyPair, assetType string) ([]ex
 }
 
 // SubmitExchangeOrder submits a new order
-func (o *OKCoin) SubmitExchangeOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (string, error) {
+func (o *OKCoin) SubmitExchangeOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (exchange.SubmitOrderResponse, error) {
+	var submitOrderResponse exchange.SubmitOrderResponse
 	var oT string
 	if orderType == exchange.Limit {
 		if side == exchange.Buy {
@@ -202,12 +203,20 @@ func (o *OKCoin) SubmitExchangeOrder(p pair.CurrencyPair, side exchange.OrderSid
 			oT = "sell_market"
 		}
 	} else {
-		return "", errors.New("Unsupported order type")
+		return submitOrderResponse, errors.New("Unsupported order type")
 	}
 
 	response, err := o.Trade(amount, price, p.Pair().String(), oT)
 
-	return fmt.Sprintf("%v", response), err
+	if response > 0 {
+		submitOrderResponse.OrderID = fmt.Sprintf("%v", response)
+	}
+
+	if err == nil {
+		submitOrderResponse.IsOrderPlaced = true
+	}
+
+	return submitOrderResponse, err
 }
 
 // ModifyExchangeOrder will allow of changing orderbook placement and limit to
