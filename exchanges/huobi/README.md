@@ -71,7 +71,7 @@ if err != nil {
 // set and AuthenticatedAPISupport is set to true
 
 // Fetches current account information
-accountInfo, err := h.GetExchangeAccountInfo()
+accountInfo, err := h.GetAccountInfo()
 if err != nil {
   // Handle error
 }

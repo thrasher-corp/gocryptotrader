@@ -216,12 +216,12 @@ func TestSpotNewOrder(t *testing.T) {
 	}
 }
 
-func TestCancelOrder(t *testing.T) {
+func TestCancelExistingOrder(t *testing.T) {
 	t.Parallel()
 
-	_, err := h.CancelOrder(1337)
+	_, err := h.CancelExistingOrder(1337)
 	if err == nil {
-		t.Error("Test failed - Huobi TestCancelOrder: Invalid orderID returned true")
+		t.Error("Test failed - Huobi TestCancelExistingOrder: Invalid orderID returned true")
 	}
 }
 
@@ -416,7 +416,7 @@ func TestSubmitOrder(t *testing.T) {
 	}
 	accounts, err := h.GetAccounts()
 
-	response, err := h.SubmitExchangeOrder(p, exchange.Buy, exchange.Limit, 1, 10, strconv.FormatInt(accounts[0].ID, 10))
+	response, err := h.SubmitOrder(p, exchange.Buy, exchange.Limit, 1, 10, strconv.FormatInt(accounts[0].ID, 10))
 	if err != nil || !response.IsOrderPlaced {
 		t.Errorf("Order failed to be placed: %v", err)
 	}

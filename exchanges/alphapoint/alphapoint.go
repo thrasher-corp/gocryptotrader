@@ -270,8 +270,8 @@ func (a *Alphapoint) SetUserInfo(firstName, lastName, cell2FACountryCode, cell2F
 	return response, nil
 }
 
-// GetAccountInfo returns account info
-func (a *Alphapoint) GetAccountInfo() (AccountInfo, error) {
+// GetAccountInformation returns account info
+func (a *Alphapoint) GetAccountInformation() (AccountInfo, error) {
 	response := AccountInfo{}
 
 	err := a.SendAuthenticatedHTTPRequest(
@@ -398,7 +398,7 @@ func (a *Alphapoint) CreateOrder(symbol, side, orderType string, quantity, price
 	return response.ServerOrderID, nil
 }
 
-// ModifyOrder modifies and existing Order
+// ModifyExistingOrder modifies and existing Order
 // OrderId - tracked order id number
 // symbol - Instrument code (ex: “BTCUSD”)
 // modifyAction - “0” or “1”
@@ -406,7 +406,7 @@ func (a *Alphapoint) CreateOrder(symbol, side, orderType string, quantity, price
 // book. A buy order will be modified to the highest bid and a sell order will
 // be modified to the lowest ask price. “1” means "Execute now", which will
 // convert a limit order into a market order.
-func (a *Alphapoint) ModifyOrder(symbol string, OrderID, action int64) (int64, error) {
+func (a *Alphapoint) ModifyExistingOrder(symbol string, OrderID, action int64) (int64, error) {
 	request := make(map[string]interface{})
 	request["ins"] = symbol
 	request["serverOrderId"] = OrderID
@@ -428,10 +428,10 @@ func (a *Alphapoint) ModifyOrder(symbol string, OrderID, action int64) (int64, e
 	return response.ModifyOrderID, nil
 }
 
-// CancelOrder cancels an order that has not been executed.
+// CancelExistingOrder cancels an order that has not been executed.
 // symbol - Instrument code (ex: “BTCUSD”)
 // OrderId - Order id (ex: 1000)
-func (a *Alphapoint) CancelOrder(symbol string, OrderID int64) (int64, error) {
+func (a *Alphapoint) CancelExistingOrder(symbol string, OrderID int64) (int64, error) {
 	request := make(map[string]interface{})
 	request["ins"] = symbol
 	request["serverOrderId"] = OrderID
@@ -452,9 +452,9 @@ func (a *Alphapoint) CancelOrder(symbol string, OrderID int64) (int64, error) {
 	return response.CancelOrderID, nil
 }
 
-// CancelAllOrders cancels all open orders by symbol
+// CancelAllExistingOrders cancels all open orders by symbol
 // symbol - Instrument code (ex: “BTCUSD”)
-func (a *Alphapoint) CancelAllOrders(symbol string) error {
+func (a *Alphapoint) CancelAllExistingOrders(symbol string) error {
 	request := make(map[string]interface{})
 	request["ins"] = symbol
 	response := Response{}

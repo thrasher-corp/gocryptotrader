@@ -478,9 +478,8 @@ func (b *Binance) NewOrder(o NewOrderRequest) (NewOrderResponse, error) {
 	return resp, nil
 }
 
-// CancelOrder sends a cancel order to Binance
-func (b *Binance) CancelOrder(symbol string, orderID int64, origClientOrderID string) (CancelOrderResponse, error) {
-
+// CancelExistingOrder sends a cancel order to Binance
+func (b *Binance) CancelExistingOrder(symbol string, orderID int64, origClientOrderID string) (CancelOrderResponse, error) {
 	var resp CancelOrderResponse
 
 	path := fmt.Sprintf("%s%s", b.APIUrl, cancelOrder)
@@ -496,10 +495,7 @@ func (b *Binance) CancelOrder(symbol string, orderID int64, origClientOrderID st
 		params.Set("origClientOrderId", origClientOrderID)
 	}
 
-	if err := b.SendAuthHTTPRequest("DELETE", path, params, &resp); err != nil {
-		return resp, err
-	}
-	return resp, nil
+	return resp, b.SendAuthHTTPRequest("DELETE", path, params, &resp)
 }
 
 // OpenOrders Current open orders

@@ -417,7 +417,7 @@ func TestCreateOrder(t *testing.T) {
 	}
 }
 
-func TestModifyOrder(t *testing.T) {
+func TestModifyExistingOrder(t *testing.T) {
 	a := &Alphapoint{}
 	a.SetDefaults()
 	testSetAPIKey(a)
@@ -426,13 +426,13 @@ func TestModifyOrder(t *testing.T) {
 		return
 	}
 
-	_, err := a.ModifyOrder("", 1, 1)
+	_, err := a.ModifyExistingOrder("", 1, 1)
 	if err == nil {
 		t.Error("Test Failed - GetUserInfo() error")
 	}
 }
 
-func TestCancelOrder(t *testing.T) {
+func TestCancelExistingOrder(t *testing.T) {
 	a := &Alphapoint{}
 	a.SetDefaults()
 	testSetAPIKey(a)
@@ -441,13 +441,13 @@ func TestCancelOrder(t *testing.T) {
 		return
 	}
 
-	_, err := a.CancelOrder("", 1)
+	_, err := a.CancelExistingOrder("", 1)
 	if err == nil {
 		t.Error("Test Failed - GetUserInfo() error")
 	}
 }
 
-func TestCancelAllOrders(t *testing.T) {
+func TestCancelAllExistingOrders(t *testing.T) {
 	a := &Alphapoint{}
 	a.SetDefaults()
 	testSetAPIKey(a)
@@ -456,7 +456,7 @@ func TestCancelAllOrders(t *testing.T) {
 		return
 	}
 
-	err := a.CancelAllOrders("")
+	err := a.CancelAllExistingOrders("")
 	if err == nil {
 		t.Error("Test Failed - GetUserInfo() error")
 	}

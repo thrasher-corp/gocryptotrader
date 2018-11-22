@@ -173,8 +173,8 @@ func (w *WEX) GetTrades(symbol string) ([]Trades, error) {
 	return response.Data[symbol], w.SendHTTPRequest(req, &response.Data)
 }
 
-// GetAccountInfo returns a users account info
-func (w *WEX) GetAccountInfo() (AccountInfo, error) {
+// GetAccountInformation returns a users account info
+func (w *WEX) GetAccountInformation() (AccountInfo, error) {
 	var result AccountInfo
 
 	err := w.SendAuthenticatedHTTPRequest(wexAccountInfo, url.Values{}, &result)
@@ -198,8 +198,8 @@ func (w *WEX) GetActiveOrders(pair string) (map[string]ActiveOrders, error) {
 	return result, w.SendAuthenticatedHTTPRequest(wexActiveOrders, req, &result)
 }
 
-// GetOrderInfo returns the order info for a specific order ID
-func (w *WEX) GetOrderInfo(OrderID int64) (map[string]OrderInfo, error) {
+// GetOrderInformation returns the order info for a specific order ID
+func (w *WEX) GetOrderInformation(OrderID int64) (map[string]OrderInfo, error) {
 	req := url.Values{}
 	req.Add("order_id", strconv.FormatInt(OrderID, 10))
 
@@ -208,8 +208,8 @@ func (w *WEX) GetOrderInfo(OrderID int64) (map[string]OrderInfo, error) {
 	return result, w.SendAuthenticatedHTTPRequest(wexOrderInfo, req, &result)
 }
 
-// CancelOrder cancels an order for a specific order ID
-func (w *WEX) CancelOrder(OrderID int64) (bool, error) {
+// CancelExistingOrder cancels an order for a specific order ID
+func (w *WEX) CancelExistingOrder(OrderID int64) (bool, error) {
 	req := url.Values{}
 	req.Add("order_id", strconv.FormatInt(OrderID, 10))
 

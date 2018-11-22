@@ -100,9 +100,9 @@ func TestAuthRequests(t *testing.T) {
 			t.Error("Test Failed - liqui GetOrderInfo() error", err)
 		}
 
-		_, err = l.CancelOrder(1337)
+		_, err = l.CancelExistingOrder(1337)
 		if err == nil {
-			t.Error("Test Failed - liqui CancelOrder() error", err)
+			t.Error("Test Failed - liqui CancelExistingOrder() error", err)
 		}
 
 		_, err = l.GetTradeHistory(url.Values{}, "")
@@ -251,7 +251,7 @@ func TestSubmitOrder(t *testing.T) {
 		FirstCurrency:  symbol.BTC,
 		SecondCurrency: symbol.EUR,
 	}
-	response, err := l.SubmitExchangeOrder(p, exchange.Buy, exchange.Market, 1, 10, "hi")
+	response, err := l.SubmitOrder(p, exchange.Buy, exchange.Market, 1, 10, "hi")
 	if err != nil || !response.IsOrderPlaced {
 		t.Errorf("Order failed to be placed: %v", err)
 	}

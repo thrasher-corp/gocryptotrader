@@ -4,18 +4,19 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
 	"github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 )
 
-// GetExchangeAccountInfo retrieves balances for all enabled currencies on the
+// GetAccountInfo retrieves balances for all enabled currencies on the
 // Alphapoint exchange
-func (a *Alphapoint) GetExchangeAccountInfo() (exchange.AccountInfo, error) {
+func (a *Alphapoint) GetAccountInfo() (exchange.AccountInfo, error) {
 	var response exchange.AccountInfo
 	response.ExchangeName = a.GetName()
-	account, err := a.GetAccountInfo()
+	account, err := a.GetAccountInformation()
 	if err != nil {
 		return response, err
 	}
@@ -27,7 +28,6 @@ func (a *Alphapoint) GetExchangeAccountInfo() (exchange.AccountInfo, error) {
 
 		response.Currencies = append(response.Currencies, exchangeCurrency)
 	}
-	//If it all works out
 	return response, nil
 }
 
@@ -90,23 +90,23 @@ func (a *Alphapoint) GetOrderbookEx(p pair.CurrencyPair, assetType string) (orde
 	return ob, nil
 }
 
-// GetExchangeFundTransferHistory returns funding history, deposits and
+// GetFundingHistory returns funding history, deposits and
 // withdrawals
-func (a *Alphapoint) GetExchangeFundTransferHistory() ([]exchange.FundHistory, error) {
+func (a *Alphapoint) GetFundingHistory() ([]exchange.FundHistory, error) {
 	var fundHistory []exchange.FundHistory
-	return fundHistory, errors.New("not supported on exchange")
+	return fundHistory, common.ErrFunctionNotSupported
 }
 
 // GetExchangeHistory returns historic trade data since exchange opening.
 func (a *Alphapoint) GetExchangeHistory(p pair.CurrencyPair, assetType string) ([]exchange.TradeHistory, error) {
 	var resp []exchange.TradeHistory
 
-	return resp, errors.New("trade history not yet implemented")
+	return resp, common.ErrNotYetImplemented
 }
 
-// SubmitExchangeOrder submits a new order and returns a true value when
+// SubmitOrder submits a new order and returns a true value when
 // successfully submitted
-func (a *Alphapoint) SubmitExchangeOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (exchange.SubmitOrderResponse, error) {
+func (a *Alphapoint) SubmitOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (exchange.SubmitOrderResponse, error) {
 	var submitOrderResponse exchange.SubmitOrderResponse
 
 	response, err := a.CreateOrder(p.Pair().String(), side.ToString(), orderType.ToString(), amount, price)
@@ -121,27 +121,27 @@ func (a *Alphapoint) SubmitExchangeOrder(p pair.CurrencyPair, side exchange.Orde
 	return submitOrderResponse, err
 }
 
-// ModifyExchangeOrder will allow of changing orderbook placement and limit to
+// ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
-func (a *Alphapoint) ModifyExchangeOrder(orderID int64, action exchange.ModifyOrder) (int64, error) {
-	//return a.ModifyOrder(p.Pair().String(), orderID, action)
-	return 0, errors.New("not yet implemented")
+func (a *Alphapoint) ModifyOrder(orderID int64, action exchange.ModifyOrder) (int64, error) {
+	// return a.ModifyExistingOrder(p.Pair().String(), orderID, action)
+	return 0, common.ErrNotYetImplemented
 }
 
-// CancelExchangeOrder cancels an order by its corresponding ID number
-func (a *Alphapoint) CancelExchangeOrder(orderID int64) error {
-	//return a.CancelOrder(p.Pair().String(), orderID)
-	return errors.New("not yet implemented")
+// CancelOrder cancels an order by its corresponding ID number
+func (a *Alphapoint) CancelOrder(orderID int64) error {
+	// return a.CancelExistingOrder(p.Pair().String(), orderID)
+	return common.ErrNotYetImplemented
 }
 
-// CancelAllExchangeOrders cancels all orders associated with a currency pair
-func (a *Alphapoint) CancelAllExchangeOrders() error {
-	//return a.CancelAllOrders(p.Pair().String())
-	return errors.New("not yet implemented")
+// CancelAllOrders cancels all orders associated with a currency pair
+func (a *Alphapoint) CancelAllOrders() error {
+	// return a.CancelAllExistingOrders(p.Pair().String())
+	return common.ErrNotYetImplemented
 }
 
-// GetExchangeOrderInfo returns information on a current open order
-func (a *Alphapoint) GetExchangeOrderInfo(orderID int64) (float64, error) {
+// GetOrderInfo returns information on a current open order
+func (a *Alphapoint) GetOrderInfo(orderID int64) (float64, error) {
 	orders, err := a.GetOrders()
 	if err != nil {
 		return 0, err
@@ -157,8 +157,8 @@ func (a *Alphapoint) GetExchangeOrderInfo(orderID int64) (float64, error) {
 	return 0, errors.New("order not found")
 }
 
-// GetExchangeDepositAddress returns a deposit address for a specified currency
-func (a *Alphapoint) GetExchangeDepositAddress(cryptocurrency pair.CurrencyItem) (string, error) {
+// GetDepositAddress returns a deposit address for a specified currency
+func (a *Alphapoint) GetDepositAddress(cryptocurrency pair.CurrencyItem) (string, error) {
 	addreses, err := a.GetDepositAddresses()
 	if err != nil {
 		return "", err
@@ -172,25 +172,25 @@ func (a *Alphapoint) GetExchangeDepositAddress(cryptocurrency pair.CurrencyItem)
 	return "", errors.New("associated currency address not found")
 }
 
-// WithdrawCryptoExchangeFunds returns a withdrawal ID when a withdrawal is
+// WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
 // submitted
-func (a *Alphapoint) WithdrawCryptoExchangeFunds(address string, cryptocurrency pair.CurrencyItem, amount float64) (string, error) {
-	return "", errors.New("not yet implemented")
+func (a *Alphapoint) WithdrawCryptocurrencyFunds(address string, cryptocurrency pair.CurrencyItem, amount float64) (string, error) {
+	return "", common.ErrNotYetImplemented
 }
 
-// WithdrawFiatExchangeFunds returns a withdrawal ID when a withdrawal is submitted
-func (a *Alphapoint) WithdrawFiatExchangeFunds(currency pair.CurrencyItem, amount float64) (string, error) {
-	return "", errors.New("not yet implemented")
+// WithdrawFiatFunds returns a withdrawal ID when a withdrawal is submitted
+func (a *Alphapoint) WithdrawFiatFunds(currency pair.CurrencyItem, amount float64) (string, error) {
+	return "", common.ErrNotYetImplemented
 }
 
 // GetWebsocket returns a pointer to the exchange websocket
 func (a *Alphapoint) GetWebsocket() (*exchange.Websocket, error) {
-	return nil, errors.New("not yet implemented")
+	return nil, common.ErrNotYetImplemented
 }
 
 // GetFeeByType returns an estimate of fee based on type of transaction
 func (a *Alphapoint) GetFeeByType(feeBuilder exchange.FeeBuilder) (float64, error) {
-	return 0, errors.New("not yet implemented")
+	return 0, common.ErrNotYetImplemented
 }
 
 // GetWithdrawCapabilities returns the types of withdrawal methods permitted by the exchange

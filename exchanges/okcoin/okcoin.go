@@ -437,8 +437,8 @@ func (o *OKCoin) BatchTrade(orderData string, symbol, orderType string) (BatchTr
 	return result, nil
 }
 
-// CancelOrder cancels a specific order or list of orders by orderID
-func (o *OKCoin) CancelOrder(orderID []int64, symbol string) (CancelOrderResponse, error) {
+// CancelExistingOrder cancels a specific order or list of orders by orderID
+func (o *OKCoin) CancelExistingOrder(orderID []int64, symbol string) (CancelOrderResponse, error) {
 	v := url.Values{}
 	orders := []string{}
 	result := CancelOrderResponse{}
@@ -458,8 +458,8 @@ func (o *OKCoin) CancelOrder(orderID []int64, symbol string) (CancelOrderRespons
 	return result, o.SendAuthenticatedHTTPRequest(okcoinOrderCancel, v, &result)
 }
 
-// GetOrderInfo returns order information by orderID
-func (o *OKCoin) GetOrderInfo(orderID int64, symbol string) ([]OrderInfo, error) {
+// GetOrderInformation returns order information by orderID
+func (o *OKCoin) GetOrderInformation(orderID int64, symbol string) ([]OrderInfo, error) {
 	type Response struct {
 		Result bool        `json:"result"`
 		Orders []OrderInfo `json:"orders"`

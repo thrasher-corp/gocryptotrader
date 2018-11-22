@@ -210,8 +210,8 @@ func (i *ItBit) GetWalletTrades(walletID string, params url.Values) (Records, er
 	return resp, nil
 }
 
-// GetFundingHistory returns all funding history for a specified wallet.
-func (i *ItBit) GetFundingHistory(walletID string, params url.Values) (FundingRecords, error) {
+// GetFundingHistoryForWallet returns all funding history for a specified wallet.
+func (i *ItBit) GetFundingHistoryForWallet(walletID string, params url.Values) (FundingRecords, error) {
 	resp := FundingRecords{}
 	url := fmt.Sprintf("/%s/%s/%s", itbitWallets, walletID, itbitFundingHistory)
 	path := common.EncodeURLValues(url, params)
@@ -269,16 +269,16 @@ func (i *ItBit) GetOrder(walletID string, params url.Values) (Order, error) {
 	return resp, nil
 }
 
-// CancelOrder cancels and open order. *This is not a guarantee that the order
-// has been cancelled!*
-func (i *ItBit) CancelOrder(walletID, orderID string) error {
+// CancelExistingOrder cancels and open order. *This is not a guarantee that the
+// order has been cancelled!*
+func (i *ItBit) CancelExistingOrder(walletID, orderID string) error {
 	path := fmt.Sprintf("/%s/%s/%s/%s", itbitWallets, walletID, itbitOrders, orderID)
 
 	return i.SendAuthenticatedHTTPRequest("DELETE", path, nil, nil)
 }
 
-// GetDepositAddress returns a deposit address to send cryptocurrency to.
-func (i *ItBit) GetDepositAddress(walletID, currency string) (CryptoCurrencyDeposit, error) {
+// GetCryptoDepositAddress returns a deposit address to send cryptocurrency to.
+func (i *ItBit) GetCryptoDepositAddress(walletID, currency string) (CryptoCurrencyDeposit, error) {
 	resp := CryptoCurrencyDeposit{}
 	path := fmt.Sprintf("/%s/%s/%s", itbitWallets, walletID, itbitCryptoDeposits)
 	params := make(map[string]interface{})

@@ -71,7 +71,7 @@ if err != nil {
 // set and AuthenticatedAPISupport is set to true
 
 // Fetches current account information
-accountInfo, err := z.GetExchangeAccountInfo()
+accountInfo, err := z.GetAccountInfo()
 if err != nil {
   // Handle error
 }

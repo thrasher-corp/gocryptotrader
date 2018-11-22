@@ -122,14 +122,14 @@ func TestAuthRequests(t *testing.T) {
 			t.Error("Test failed - PlaceMarketOrder() error", err)
 		}
 
-		err = c.CancelOrder("1337")
+		err = c.CancelExistingOrder("1337")
 		if err == nil {
-			t.Error("Test failed - CancelOrder() error", err)
+			t.Error("Test failed - CancelExistingOrder() error", err)
 		}
 
-		_, err = c.CancelAllOrders("BTC-USD")
+		_, err = c.CancelAllExistingOrders("BTC-USD")
 		if err == nil {
-			t.Error("Test failed - CancelAllOrders() error", err)
+			t.Error("Test failed - CancelAllExistingOrders() error", err)
 		}
 
 		_, err = c.GetOrders([]string{"open", "done"}, "BTC-USD")
@@ -424,7 +424,7 @@ func TestSubmitOrder(t *testing.T) {
 		FirstCurrency:  symbol.BTC,
 		SecondCurrency: symbol.LTC,
 	}
-	response, err := c.SubmitExchangeOrder(p, exchange.Buy, exchange.Limit, 1, 1, "clientId")
+	response, err := c.SubmitOrder(p, exchange.Buy, exchange.Limit, 1, 1, "clientId")
 	if err != nil || !response.IsOrderPlaced {
 		t.Errorf("Order failed to be placed: %v", err)
 	}

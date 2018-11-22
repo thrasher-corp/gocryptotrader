@@ -290,8 +290,8 @@ func (b *Bitmex) GetAccountExecutionTradeHistory(params GenericRequestParams) ([
 		&tradeHistory)
 }
 
-// GetFundingHistory returns funding history
-func (b *Bitmex) GetFundingHistory() ([]Funding, error) {
+// GetFullFundingHistory returns funding history
+func (b *Bitmex) GetFullFundingHistory() ([]Funding, error) {
 	var fundingHistory []Funding
 
 	return fundingHistory, b.SendHTTPRequest(bitmexEndpointFundingHistory,
@@ -433,8 +433,8 @@ func (b *Bitmex) CancelOrders(params OrderCancelParams) ([]Order, error) {
 		&cancelledOrders)
 }
 
-// CancelAllOrders cancels all open orders on the exchange
-func (b *Bitmex) CancelAllOrders(params OrderCancelAllParams) ([]Order, error) {
+// CancelAllExistingOrders cancels all open orders on the exchange
+func (b *Bitmex) CancelAllExistingOrders(params OrderCancelAllParams) ([]Order, error) {
 	var cancelledOrders []Order
 
 	return cancelledOrders, b.SendAuthenticatedHTTPRequest("DELETE",
@@ -696,8 +696,8 @@ func (b *Bitmex) ConfirmWithdrawal(token string) (TransactionInfo, error) {
 		&info)
 }
 
-// GetDepositAddress returns a deposit address for a cryptocurency
-func (b *Bitmex) GetDepositAddress(currency string) (string, error) {
+// GetCryptoDepositAddress returns a deposit address for a cryptocurency
+func (b *Bitmex) GetCryptoDepositAddress(currency string) (string, error) {
 	var address string
 
 	return address, b.SendAuthenticatedHTTPRequest("GET",

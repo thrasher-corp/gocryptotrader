@@ -46,7 +46,7 @@ func (s *SMTPservice) Connect() error {
 
 // PushEvent sends an event to supplied recipient list via SMTP
 func (s *SMTPservice) PushEvent(base.Event) error {
-	return errors.New("not yet implemented")
+	return common.ErrNotYetImplemented
 }
 
 // Send sends an email template to the recipient list via your SMTP host when

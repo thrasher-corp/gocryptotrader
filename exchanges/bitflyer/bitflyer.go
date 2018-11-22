@@ -279,8 +279,8 @@ func (b *Bitflyer) GetCollateralAccounts() {
 	// Needs to be updated
 }
 
-// GetDepositAddress returns an address for cryptocurrency deposits
-func (b *Bitflyer) GetDepositAddress() {
+// GetCryptoDepositAddress returns an address for cryptocurrency deposits
+func (b *Bitflyer) GetCryptoDepositAddress() {
 	// Needs to be updated
 }
 
@@ -319,8 +319,8 @@ func (b *Bitflyer) SendOrder() {
 	// Needs to be updated
 }
 
-// CancelOrder cancels an order
-func (b *Bitflyer) CancelOrder() {
+// CancelExistingOrder cancels an order
+func (b *Bitflyer) CancelExistingOrder() {
 	// Needs to be updated
 }
 
@@ -334,8 +334,8 @@ func (b *Bitflyer) CancelParentOrder() {
 	// Needs to be updated
 }
 
-// CancelAllOrders cancels all orders on the exchange
-func (b *Bitflyer) CancelAllOrders() {
+// CancelAllExistingOrders cancels all orders on the exchange
+func (b *Bitflyer) CancelAllExistingOrders() {
 	// Needs to be updated
 }
 

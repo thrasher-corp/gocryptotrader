@@ -484,18 +484,18 @@ func (c *CoinbasePro) PlaceMarginOrder(clientRef string, size, funds float64, si
 	return resp.ID, nil
 }
 
-// CancelOrder cancels order by orderID
-func (c *CoinbasePro) CancelOrder(orderID string) error {
+// CancelExistingOrder cancels order by orderID
+func (c *CoinbasePro) CancelExistingOrder(orderID string) error {
 	path := fmt.Sprintf("%s/%s", coinbaseproOrders, orderID)
 
 	return c.SendAuthenticatedHTTPRequest("DELETE", path, nil, nil)
 }
 
-// CancelAllOrders cancels all open orders on the exchange and returns and array
-// of order IDs
+// CancelAllExistingOrders cancels all open orders on the exchange and returns
+// and array of order IDs
 // currencyPair - [optional] all orders for a currencyPair string will be
 // canceled
-func (c *CoinbasePro) CancelAllOrders(currencyPair string) ([]string, error) {
+func (c *CoinbasePro) CancelAllExistingOrders(currencyPair string) ([]string, error) {
 	var resp []string
 	request := make(map[string]interface{})
 

@@ -417,8 +417,8 @@ func (b *Bitstamp) GetOrderStatus(OrderID int64) (OrderStatus, error) {
 		b.SendAuthenticatedHTTPRequest(bitstampAPIOrderStatus, false, req, &resp)
 }
 
-// CancelOrder cancels order by ID
-func (b *Bitstamp) CancelOrder(OrderID int64) (bool, error) {
+// CancelExistingOrder cancels order by ID
+func (b *Bitstamp) CancelExistingOrder(OrderID int64) (bool, error) {
 	result := false
 	var req = url.Values{}
 	req.Add("id", strconv.FormatInt(OrderID, 10))
@@ -427,8 +427,8 @@ func (b *Bitstamp) CancelOrder(OrderID int64) (bool, error) {
 		b.SendAuthenticatedHTTPRequest(bitstampAPICancelOrder, true, req, &result)
 }
 
-// CancelAllOrders cancels all open orders on the exchange
-func (b *Bitstamp) CancelAllOrders() (bool, error) {
+// CancelAllExistingOrders cancels all open orders on the exchange
+func (b *Bitstamp) CancelAllExistingOrders() (bool, error) {
 	result := false
 
 	return result,

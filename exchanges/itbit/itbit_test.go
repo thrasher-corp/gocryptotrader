@@ -101,7 +101,7 @@ func TestGetWalletTrades(t *testing.T) {
 }
 
 func TestGetFundingHistory(t *testing.T) {
-	_, err := i.GetFundingHistory("1337", url.Values{})
+	_, err := i.GetFundingHistoryForWallet("1337", url.Values{})
 	if err == nil {
 		t.Error("Test Failed - GetFundingHistory() error", err)
 	}
@@ -121,18 +121,18 @@ func TestGetOrder(t *testing.T) {
 	}
 }
 
-func TestCancelOrder(t *testing.T) {
+func TestCancelExistingOrder(t *testing.T) {
 	t.Skip()
-	err := i.CancelOrder("1337", "1337order")
+	err := i.CancelExistingOrder("1337", "1337order")
 	if err == nil {
 		t.Error("Test Failed - CancelOrder() error", err)
 	}
 }
 
-func TestGetDepositAddress(t *testing.T) {
-	_, err := i.GetDepositAddress("1337", "AUD")
+func TestGetCryptoDepositAddress(t *testing.T) {
+	_, err := i.GetCryptoDepositAddress("1337", "AUD")
 	if err == nil {
-		t.Error("Test Failed - GetDepositAddress() error", err)
+		t.Error("Test Failed - GetCryptoDepositAddress() error", err)
 	}
 }
 
@@ -262,7 +262,7 @@ func TestSubmitOrder(t *testing.T) {
 		FirstCurrency:  symbol.BTC,
 		SecondCurrency: symbol.USDT,
 	}
-	response, err := i.SubmitExchangeOrder(p, exchange.Buy, exchange.Limit, 1, 10, "hi")
+	response, err := i.SubmitOrder(p, exchange.Buy, exchange.Limit, 1, 10, "hi")
 	if err != nil || !response.IsOrderPlaced {
 		t.Errorf("Order failed to be placed: %v", err)
 	}

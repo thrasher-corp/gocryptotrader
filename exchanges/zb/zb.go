@@ -134,8 +134,8 @@ func (z *ZB) SpotNewOrder(arg SpotNewOrderRequestParams) (int64, error) {
 	return newOrderID, nil
 }
 
-// CancelOrder cancels an order on Huobi
-func (z *ZB) CancelOrder(orderID int64, symbol string) error {
+// CancelExistingOrder cancels an order
+func (z *ZB) CancelExistingOrder(orderID int64, symbol string) error {
 	type response struct {
 		Code    int    `json:"code"`    // Result code
 		Message string `json:"message"` // Result Message
@@ -159,9 +159,9 @@ func (z *ZB) CancelOrder(orderID int64, symbol string) error {
 	return nil
 }
 
-// GetAccountInfo returns account information including coin information
+// GetAccountInformation returns account information including coin information
 // and pricing
-func (z *ZB) GetAccountInfo() (AccountsResponse, error) {
+func (z *ZB) GetAccountInformation() (AccountsResponse, error) {
 	var result AccountsResponse
 
 	vals := url.Values{}

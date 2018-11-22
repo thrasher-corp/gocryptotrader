@@ -159,8 +159,8 @@ func (y *Yobit) GetTrades(symbol string) ([]Trades, error) {
 	return response.Data[symbol], y.SendHTTPRequest(path, &response.Data)
 }
 
-// GetAccountInfo returns a users account info
-func (y *Yobit) GetAccountInfo() (AccountInfo, error) {
+// GetAccountInformation returns a users account info
+func (y *Yobit) GetAccountInformation() (AccountInfo, error) {
 	result := AccountInfo{}
 
 	err := y.SendAuthenticatedHTTPRequest(privateAccountInfo, url.Values{}, &result)
@@ -203,8 +203,8 @@ func (y *Yobit) GetActiveOrders(pair string) (map[string]ActiveOrders, error) {
 	return result, y.SendAuthenticatedHTTPRequest(privateActiveOrders, req, &result)
 }
 
-// GetOrderInfo returns the order info for a specific order ID
-func (y *Yobit) GetOrderInfo(OrderID int64) (map[string]OrderInfo, error) {
+// GetOrderInformation returns the order info for a specific order ID
+func (y *Yobit) GetOrderInformation(OrderID int64) (map[string]OrderInfo, error) {
 	req := url.Values{}
 	req.Add("order_id", strconv.FormatInt(OrderID, 10))
 
@@ -213,8 +213,8 @@ func (y *Yobit) GetOrderInfo(OrderID int64) (map[string]OrderInfo, error) {
 	return result, y.SendAuthenticatedHTTPRequest(privateOrderInfo, req, &result)
 }
 
-// CancelOrder cancels an order for a specific order ID
-func (y *Yobit) CancelOrder(OrderID int64) (bool, error) {
+// CancelExistingOrder cancels an order for a specific order ID
+func (y *Yobit) CancelExistingOrder(OrderID int64) (bool, error) {
 	req := url.Values{}
 	req.Add("order_id", strconv.FormatInt(OrderID, 10))
 
@@ -247,8 +247,8 @@ func (y *Yobit) GetTradeHistory(TIDFrom, Count, TIDEnd int64, order, since, end,
 	return result, y.SendAuthenticatedHTTPRequest(privateTradeHistory, req, &result)
 }
 
-// GetDepositAddress returns the deposit address for a specific currency
-func (y *Yobit) GetDepositAddress(coin string) (DepositAddress, error) {
+// GetCryptoDepositAddress returns the deposit address for a specific currency
+func (y *Yobit) GetCryptoDepositAddress(coin string) (DepositAddress, error) {
 	req := url.Values{}
 	req.Add("coinName", coin)
 

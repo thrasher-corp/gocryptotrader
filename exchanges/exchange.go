@@ -23,8 +23,8 @@ const (
 	warningBase64DecryptSecretKeyFailed = "WARNING -- Exchange %s unable to base64 decode secret key.. Disabling Authenticated API support."
 	// WarningAuthenticatedRequestWithoutCredentialsSet error message for authenticated request without credentials set
 	WarningAuthenticatedRequestWithoutCredentialsSet = "WARNING -- Exchange %s authenticated HTTP request called but not supported due to unset/default API keys."
-	// ErrExchangeNotFound is a constant for an error message
-	ErrExchangeNotFound = "Exchange not found in dataset."
+	// ErrExchangeNotFound is a stand for an error message
+	ErrExchangeNotFound = "Exchange not found in dataset"
 	// DefaultHTTPTimeout is the default HTTP/HTTPS Timeout for exchange requests
 	DefaultHTTPTimeout = time.Second * 15
 )
@@ -70,7 +70,7 @@ const (
 // SubmitOrderResponse is what is returned after submitting an order to an exchange
 type SubmitOrderResponse struct {
 	IsOrderPlaced bool
-	OrderID   string
+	OrderID       string
 }
 
 // FeeBuilder is the type which holds all parameters required to calculate a fee for an exchange
@@ -239,7 +239,7 @@ type IBotExchange interface {
 	GetEnabledCurrencies() []pair.CurrencyPair
 	GetAvailableCurrencies() []pair.CurrencyPair
 	GetAssetTypes() []string
-	GetExchangeAccountInfo() (AccountInfo, error)
+	GetAccountInfo() (AccountInfo, error)
 	GetAuthenticatedAPISupport() bool
 	SetCurrencies(pairs []pair.CurrencyPair, enabledPairs bool) error
 	GetExchangeHistory(pair.CurrencyPair, string) ([]TradeHistory, error)
@@ -251,16 +251,16 @@ type IBotExchange interface {
 	FormatWithdrawPermissions() string
 	SupportsWithdrawPermissions(permissions uint32) bool
 
-	GetExchangeFundTransferHistory() ([]FundHistory, error)
-	SubmitExchangeOrder(p pair.CurrencyPair, side OrderSide, orderType OrderType, amount, price float64, clientID string) (SubmitOrderResponse, error)
-	ModifyExchangeOrder(orderID int64, modify ModifyOrder) (int64, error)
-	CancelExchangeOrder(orderID int64) error
-	CancelAllExchangeOrders() error
-	GetExchangeOrderInfo(orderID int64) (OrderDetail, error)
-	GetExchangeDepositAddress(cryptocurrency pair.CurrencyItem) (string, error)
+	GetFundingHistory() ([]FundHistory, error)
+	SubmitOrder(p pair.CurrencyPair, side OrderSide, orderType OrderType, amount, price float64, clientID string) (SubmitOrderResponse, error)
+	ModifyOrder(orderID int64, modify ModifyOrder) (int64, error)
+	CancelOrder(orderID int64) error
+	CancelAllOrders() error
+	GetOrderInfo(orderID int64) (OrderDetail, error)
+	GetDepositAddress(cryptocurrency pair.CurrencyItem) (string, error)
 
-	WithdrawCryptoExchangeFunds(address string, cryptocurrency pair.CurrencyItem, amount float64) (string, error)
-	WithdrawFiatExchangeFunds(currency pair.CurrencyItem, amount float64) (string, error)
+	WithdrawCryptocurrencyFunds(address string, cryptocurrency pair.CurrencyItem, amount float64) (string, error)
+	WithdrawFiatFunds(currency pair.CurrencyItem, amount float64) (string, error)
 
 	GetWebsocket() (*Websocket, error)
 }

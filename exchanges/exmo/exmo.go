@@ -185,8 +185,8 @@ func (e *EXMO) CreateOrder(pair, orderType string, price, amount float64) (int64
 	return result.OrderID, err
 }
 
-// CancelOrder cancels an order by the orderID
-func (e *EXMO) CancelOrder(orderID int64) error {
+// CancelExistingOrder cancels an order by the orderID
+func (e *EXMO) CancelExistingOrder(orderID int64) error {
 	v := url.Values{}
 	v.Set("order_id", strconv.FormatInt(orderID, 10))
 	var result interface{}
@@ -256,8 +256,8 @@ func (e *EXMO) GetRequiredAmount(pair string, amount float64) (RequiredAmount, e
 	return result, err
 }
 
-// GetDepositAddress returns a list of addresses for cryptocurrency deposits
-func (e *EXMO) GetDepositAddress() (map[string]string, error) {
+// GetCryptoDepositAddress returns a list of addresses for cryptocurrency deposits
+func (e *EXMO) GetCryptoDepositAddress() (map[string]string, error) {
 	result := make(map[string]string)
 	err := e.SendAuthenticatedHTTPRequest("POST", exmoDepositAddress, url.Values{}, &result)
 	log.Println(reflect.TypeOf(result).String())

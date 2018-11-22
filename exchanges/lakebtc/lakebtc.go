@@ -210,8 +210,8 @@ func (l *LakeBTC) GetTradeHistory(currency string) ([]TradeHistory, error) {
 	return resp, l.SendHTTPRequest(path, &resp)
 }
 
-// GetAccountInfo returns your current account information
-func (l *LakeBTC) GetAccountInfo() (AccountInfo, error) {
+// GetAccountInformation returns your current account information
+func (l *LakeBTC) GetAccountInformation() (AccountInfo, error) {
 	resp := AccountInfo{}
 
 	return resp, l.SendAuthenticatedHTTPRequest(lakeBTCGetAccountInfo, "", &resp)
@@ -259,8 +259,8 @@ func (l *LakeBTC) GetOrders(orders []int64) ([]Orders, error) {
 		l.SendAuthenticatedHTTPRequest(lakeBTCGetOrders, common.JoinStrings(ordersStr, ","), &resp)
 }
 
-// CancelOrder cancels an order by ID number and returns an error
-func (l *LakeBTC) CancelOrder(orderID int64) error {
+// CancelExistingOrder cancels an order by ID number and returns an error
+func (l *LakeBTC) CancelExistingOrder(orderID int64) error {
 	type Response struct {
 		Result bool `json:"Result"`
 	}

@@ -383,15 +383,15 @@ func TestNewOrderMulti(t *testing.T) {
 	}
 }
 
-func TestCancelOrder(t *testing.T) {
+func TestCancelExistingOrder(t *testing.T) {
 	if b.APIKey == "" || b.APISecret == "" {
 		t.SkipNow()
 	}
 	t.Parallel()
 
-	_, err := b.CancelOrder(1337)
+	_, err := b.CancelExistingOrder(1337)
 	if err == nil {
-		t.Error("Test Failed - CancelOrder() error")
+		t.Error("Test Failed - CancelExistingOrder() error")
 	}
 }
 
@@ -407,15 +407,15 @@ func TestCancelMultipleOrders(t *testing.T) {
 	}
 }
 
-func TestCancelAllOrders(t *testing.T) {
+func TestCancelAllExistingOrders(t *testing.T) {
 	if b.APIKey == "" || b.APISecret == "" {
 		t.SkipNow()
 	}
 	t.Parallel()
 
-	_, err := b.CancelAllOrders()
+	_, err := b.CancelAllExistingOrders()
 	if err == nil {
-		t.Error("Test Failed - CancelAllOrders() error")
+		t.Error("Test Failed - CancelAllExistingOrders() error")
 	}
 }
 
@@ -737,7 +737,7 @@ func TestSubmitOrder(t *testing.T) {
 		FirstCurrency:  symbol.LTC,
 		SecondCurrency: symbol.BTC,
 	}
-	response, err := b.SubmitExchangeOrder(p, exchange.Buy, exchange.Market, 1, 1, "clientId")
+	response, err := b.SubmitOrder(p, exchange.Buy, exchange.Market, 1, 1, "clientId")
 	if err != nil || !response.IsOrderPlaced {
 		t.Errorf("Order failed to be placed: %v", err)
 	}
