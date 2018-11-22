@@ -219,11 +219,11 @@ func (l *LakeBTC) GetAccountInfo() (AccountInfo, error) {
 
 // Trade executes an order on the exchange and returns trade inforamtion or an
 // error
-func (l *LakeBTC) Trade(orderType int, amount, price float64, currency string) (Trade, error) {
+func (l *LakeBTC) Trade(isBuyOrder bool, amount, price float64, currency string) (Trade, error) {
 	resp := Trade{}
 	params := strconv.FormatFloat(price, 'f', -1, 64) + "," + strconv.FormatFloat(amount, 'f', -1, 64) + "," + currency
 
-	if orderType == 1 {
+	if isBuyOrder {
 		if err := l.SendAuthenticatedHTTPRequest(lakeBTCBuyOrder, params, &resp); err != nil {
 			return resp, err
 		}

@@ -2,6 +2,7 @@ package bitstamp
 
 import (
 	"errors"
+	"fmt"
 	"log"
 	"strings"
 	"sync"
@@ -165,8 +166,21 @@ func (b *Bitstamp) GetExchangeHistory(p pair.CurrencyPair, assetType string) ([]
 }
 
 // SubmitExchangeOrder submits a new order
-func (b *Bitstamp) SubmitExchangeOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (int64, error) {
-	return 0, errors.New("not yet implemented")
+func (b *Bitstamp) SubmitExchangeOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (exchange.SubmitOrderResponse, error) {
+	var submitOrderResponse exchange.SubmitOrderResponse
+	buy := side == exchange.Buy
+	market := orderType == exchange.Market
+	response, err := b.PlaceOrder(p.Pair().String(), price, amount, buy, market)
+
+	if response.ID > 0 {
+		submitOrderResponse.OrderID = fmt.Sprintf("%v", response.ID)
+	}
+
+	if err == nil {
+		submitOrderResponse.IsOrderPlaced = true
+	}
+
+	return submitOrderResponse, err
 }
 
 // ModifyExchangeOrder will allow of changing orderbook placement and limit to

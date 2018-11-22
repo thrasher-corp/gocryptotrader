@@ -67,6 +67,12 @@ const (
 	Contact         InternationalBankTransactionType = "contact"
 )
 
+// SubmitOrderResponse is what is returned after submitting an order to an exchange
+type SubmitOrderResponse struct {
+	IsOrderPlaced bool
+	OrderID   string
+}
+
 // FeeBuilder is the type which holds all parameters required to calculate a fee for an exchange
 type FeeBuilder struct {
 	FeeType FeeType
@@ -246,7 +252,7 @@ type IBotExchange interface {
 	SupportsWithdrawPermissions(permissions uint32) bool
 
 	GetExchangeFundTransferHistory() ([]FundHistory, error)
-	SubmitExchangeOrder(p pair.CurrencyPair, side OrderSide, orderType OrderType, amount, price float64, clientID string) (int64, error)
+	SubmitExchangeOrder(p pair.CurrencyPair, side OrderSide, orderType OrderType, amount, price float64, clientID string) (SubmitOrderResponse, error)
 	ModifyExchangeOrder(orderID int64, modify ModifyOrder) (int64, error)
 	CancelExchangeOrder(orderID int64) error
 	CancelAllExchangeOrders() error
@@ -729,65 +735,32 @@ type Format struct {
 // Formatting contain a range of exchanges formatting
 type Formatting []Format
 
-// formats is a quick formatting list for generic parameters
-var formats = Formatting{
-	Format{
-		ExchangeName: "BTC Markets",
-		OrderType: map[string]string{
-			"Limit":  "Limit",
-			"Market": "Market",
-		},
-		OrderSide: map[string]string{
-			"Buy":  "Bid",
-			"Sell": "Ask",
-		},
-	},
-}
-
 // OrderType enforces a standard for Ordertypes across the code base
 type OrderType string
 
-// Format changes the ordertype to the exchange standard and returns a string
-func (o OrderType) Format(exchangeName string) string {
-	for _, format := range formats {
-		if format.ExchangeName == exchangeName {
-			return format.OrderType[string(o)]
-		}
-	}
-	return ""
-}
+// OrderType ...types
+const (
+	Limit  OrderType = "Limit"
+	Market OrderType = "Market"
+)
 
-// OrderTypeLimit returns an OrderType limit order
-func OrderTypeLimit() OrderType {
-	return "Limit"
-}
-
-// OrderTypeMarket returns an OrderType Market order
-func OrderTypeMarket() OrderType {
-	return "Market"
+// ToString changes the ordertype to the exchange standard and returns a string
+func (o OrderType) ToString() string {
+	return fmt.Sprintf("%v", o)
 }
 
 // OrderSide enforces a standard for OrderSides across the code base
 type OrderSide string
 
-// Format changes the ordertype to the exchange standard and returns a string
-func (o OrderSide) Format(exchangeName string) string {
-	for _, format := range formats {
-		if format.ExchangeName == exchangeName {
-			return format.OrderSide[string(o)]
-		}
-	}
-	return ""
-}
+// OrderSide types
+const (
+	Buy  OrderSide = "Buy"
+	Sell OrderSide = "Sell"
+)
 
-// OrderSideBuy returns an OrderSide buy order
-func OrderSideBuy() OrderSide {
-	return "Buy"
-}
-
-// OrderSideSell returns an OrderSide Sell order
-func OrderSideSell() OrderSide {
-	return "Sell"
+// ToString changes the ordertype to the exchange standard and returns a string
+func (o OrderSide) ToString() string {
+	return fmt.Sprintf("%v", o)
 }
 
 // SetAPIURL sets configuration API URL for an exchange
@@ -882,7 +855,7 @@ func (e *Base) FormatWithdrawPermissions() string {
 			case WithdrawFiatViaWebsiteOnly:
 				services = append(services, WithdrawFiatViaWebsiteOnlyText)
 			default:
-				services = append(services, fmt.Sprintf("%s[%v]", UnknownWithdrawalTypeText, check))
+				services = append(services, fmt.Sprintf("%s[1<<%v]", UnknownWithdrawalTypeText, i))
 			}
 		}
 	}

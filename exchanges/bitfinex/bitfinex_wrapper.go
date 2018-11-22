@@ -2,6 +2,7 @@ package bitfinex
 
 import (
 	"errors"
+	"fmt"
 	"log"
 	"net/url"
 	"sync"
@@ -174,8 +175,25 @@ func (b *Bitfinex) GetExchangeHistory(p pair.CurrencyPair, assetType string) ([]
 }
 
 // SubmitExchangeOrder submits a new order
-func (b *Bitfinex) SubmitExchangeOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (int64, error) {
-	return 0, errors.New("not yet implemented")
+func (b *Bitfinex) SubmitExchangeOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (exchange.SubmitOrderResponse, error) {
+	var submitOrderResponse exchange.SubmitOrderResponse
+	var isBuying bool
+
+	if side == exchange.Buy {
+		isBuying = true
+	}
+
+	response, err := b.NewOrder(p.Pair().String(), amount, price, isBuying, orderType.ToString(), false)
+
+	if response.OrderID > 0 {
+		submitOrderResponse.OrderID = fmt.Sprintf("%v", response.OrderID)
+	}
+
+	if err == nil {
+		submitOrderResponse.IsOrderPlaced = true
+	}
+
+	return submitOrderResponse, err
 }
 
 // ModifyExchangeOrder will allow of changing orderbook placement and limit to

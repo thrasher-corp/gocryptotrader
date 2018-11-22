@@ -99,15 +99,15 @@ type CurrenciesStaticResponse struct {
 
 // Order holds order information
 type Order struct {
-	OrderType                      string `json:"orderType"`
-	BuyTradedCurrency              bool   `json:"buyTradedCurrency"`
-	TradedCurrency                 string `json:"tradedCurrency"`
-	SettlementCurrency             string `json:"settlementCurrency"`
-	TradedCurrencyAmount           string `json:"tradedCurrencyAmount"`
-	SettlementCurrencyAmount       string `json:"settlementCurrencyAmount"`
-	LimitPriceInSettlementCurrency string `json:"limitPriceInSettlementCurrency"`
-	ReplaceExistingOrderUUID       string `json:"replaceExistingOrderUuid"`
-	ReplaceOnlyIfActive            bool   `json:"replaceOnlyIfActive"`
+	OrderType                      string  `json:"orderType"`
+	BuyTradedCurrency              bool    `json:"buyTradedCurrency"`
+	TradedCurrency                 string  `json:"tradedCurrency"`
+	SettlementCurrency             string  `json:"settlementCurrency"`
+	TradedCurrencyAmount           float64 `json:"tradedCurrencyAmount,string"`
+	SettlementCurrencyAmount       float64 `json:"settlementCurrencyAmount,string"`
+	LimitPriceInSettlementCurrency float64 `json:"limitPriceInSettlementCurrency,string"`
+	ReplaceExistingOrderUUID       string  `json:"replaceExistingOrderUuid"`
+	ReplaceOnlyIfActive            bool    `json:"replaceOnlyIfActive"`
 }
 
 // OrderResponse holds order response data

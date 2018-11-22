@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/thrasher-/gocryptotrader/currency/pair"
 	"github.com/thrasher-/gocryptotrader/currency/symbol"
 	"github.com/thrasher-/gocryptotrader/exchanges"
 
@@ -13,9 +14,10 @@ import (
 
 // Please add your private keys and customerID for better tests
 const (
-	apiKey     = ""
-	apiSecret  = ""
-	customerID = ""
+	apiKey         = ""
+	apiSecret      = ""
+	customerID     = ""
+	canPlaceOrders = false
 )
 
 var b Bitstamp
@@ -47,9 +49,11 @@ func TestSetup(t *testing.T) {
 	if err != nil {
 		t.Error("Test Failed - Bitstamp Setup() init error")
 	}
+	bConfig.APIKey = apiKey
+	bConfig.APISecret = apiSecret
 	b.Setup(bConfig)
 
-	if !b.IsEnabled() || b.AuthenticatedAPISupport || b.RESTPollingDelay != time.Duration(10) ||
+	if !b.IsEnabled() || b.RESTPollingDelay != time.Duration(10) ||
 		b.Verbose || b.Websocket.IsEnabled() || len(b.BaseCurrencies) < 1 ||
 		len(b.AvailablePairs) < 1 || len(b.EnabledPairs) < 1 {
 		t.Error("Test Failed - Bitstamp Setup values not set correctly")
@@ -248,7 +252,10 @@ func TestGetOpenOrders(t *testing.T) {
 
 func TestGetOrderStatus(t *testing.T) {
 	t.Parallel()
-
+	if b.APIKey == "" || b.APISecret == "" ||
+		b.APIKey == "Key" || b.APISecret == "Secret" {
+		t.Skip()
+	}
 	_, err := b.GetOrderStatus(1337)
 	if err == nil {
 		t.Error("Test Failed - GetOpenOrders() error")
@@ -275,7 +282,10 @@ func TestCancelAllOrders(t *testing.T) {
 
 func TestPlaceOrder(t *testing.T) {
 	t.Parallel()
-
+	if b.APIKey == "" || b.APISecret == "" ||
+		b.APIKey == "Key" || b.APISecret == "Secret" {
+		t.Skip()
+	}
 	_, err := b.PlaceOrder("btcusd", 0.01, 1, true, true)
 	if err == nil {
 		t.Error("Test Failed - PlaceOrder() error")
@@ -297,6 +307,10 @@ func TestGetWithdrawalRequests(t *testing.T) {
 
 func TestCryptoWithdrawal(t *testing.T) {
 	t.Parallel()
+	if b.APIKey == "" || b.APISecret == "" ||
+		b.APIKey == "Key" || b.APISecret == "Secret" {
+		t.Skip()
+	}
 
 	_, err := b.CryptoWithdrawal(0, "bla", "btc", "", true)
 	if err == nil {
@@ -323,8 +337,12 @@ func TestGetUnconfirmedBitcoinDeposits(t *testing.T) {
 }
 
 func TestTransferAccountBalance(t *testing.T) {
-	t.Parallel()
 
+	t.Parallel()
+	if b.APIKey == "" || b.APISecret == "" ||
+		b.APIKey == "Key" || b.APISecret == "Secret" {
+		t.Skip()
+	}
 	_, err := b.TransferAccountBalance(1, "", "", true)
 	if err == nil {
 		t.Error("Test Failed - TransferAccountBalance() error", err)
@@ -344,5 +362,27 @@ func TestFormatWithdrawPermissions(t *testing.T) {
 	// Assert
 	if withdrawPermissions != expectedResult {
 		t.Errorf("Expected: %s, Recieved: %s", expectedResult, withdrawPermissions)
+	}
+}
+
+// This will really really use the API to place an order
+// If you're going to test this, make sure you're willing to place real orders on the exchange
+func TestSubmitOrder(t *testing.T) {
+	b.SetDefaults()
+	TestSetup(t)
+
+	if b.APIKey == "" || b.APISecret == "" ||
+		b.APIKey == "Key" || b.APISecret == "Secret" ||
+		!canPlaceOrders {
+		t.Skip()
+	}
+	var p = pair.CurrencyPair{
+		Delimiter:      "",
+		FirstCurrency:  symbol.BTC,
+		SecondCurrency: symbol.USD,
+	}
+	response, err := b.SubmitExchangeOrder(p, exchange.Buy, exchange.Market, 1, 1, "clientId")
+	if err != nil || !response.IsOrderPlaced {
+		t.Errorf("Order failed to be placed: %v", err)
 	}
 }

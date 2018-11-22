@@ -2,6 +2,7 @@ package lakebtc
 
 import (
 	"errors"
+	"fmt"
 	"log"
 	"strconv"
 	"sync"
@@ -139,8 +140,20 @@ func (l *LakeBTC) GetExchangeHistory(p pair.CurrencyPair, assetType string) ([]e
 }
 
 // SubmitExchangeOrder submits a new order
-func (l *LakeBTC) SubmitExchangeOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (int64, error) {
-	return 0, errors.New("not yet implemented")
+func (l *LakeBTC) SubmitExchangeOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (exchange.SubmitOrderResponse, error) {
+	var submitOrderResponse exchange.SubmitOrderResponse
+	isBuyOrder := side == exchange.Buy
+	response, err := l.Trade(isBuyOrder, amount, price, common.StringToLower(p.Pair().String()))
+
+	if response.ID > 0 {
+		submitOrderResponse.OrderID = fmt.Sprintf("%v", response.ID)
+	}
+
+	if err == nil {
+		submitOrderResponse.IsOrderPlaced = true
+	}
+
+	return submitOrderResponse, err
 }
 
 // ModifyExchangeOrder will allow of changing orderbook placement and limit to

@@ -14,8 +14,9 @@ var b BTCMarkets
 
 // Please supply your own keys here to do better tests
 const (
-	apiKey    = ""
-	apiSecret = ""
+	apiKey         = ""
+	apiSecret      = ""
+	canPlaceOrders = false
 )
 
 func TestSetDefaults(t *testing.T) {
@@ -154,7 +155,7 @@ func TestGetExchangeFundTransferHistory(t *testing.T) {
 
 func TestSubmitExchangeOrder(t *testing.T) {
 	p := pair.NewCurrencyPair("LTC", "AUD")
-	_, err := b.SubmitExchangeOrder(p, exchange.OrderSideSell(), exchange.OrderTypeMarket(), 0, 0.0, "testID001")
+	_, err := b.SubmitExchangeOrder(p, exchange.Sell, exchange.Market, 0, 0.0, "testID001")
 	if err == nil {
 		t.Error("Test failed - SubmitExchangeOrder() error", err)
 	}
@@ -306,5 +307,27 @@ func TestFormatWithdrawPermissions(t *testing.T) {
 	// Assert
 	if withdrawPermissions != expectedResult {
 		t.Errorf("Expected: %s, Recieved: %s", expectedResult, withdrawPermissions)
+	}
+}
+
+// This will really really use the API to place an order
+// If you're going to test this, make sure you're willing to place real orders on the exchange
+func TestSubmitOrder(t *testing.T) {
+	b.SetDefaults()
+	TestSetup(t)
+
+	if b.APIKey == "" || b.APISecret == "" ||
+		b.APIKey == "Key" || b.APISecret == "Secret" ||
+		!canPlaceOrders {
+		t.Skip()
+	}
+	var p = pair.CurrencyPair{
+		Delimiter:      "-",
+		FirstCurrency:  symbol.BTC,
+		SecondCurrency: symbol.LTC,
+	}
+	response, err := b.SubmitExchangeOrder(p, exchange.Buy, exchange.Limit, 1, 1, "clientId")
+	if err != nil || !response.IsOrderPlaced {
+		t.Errorf("Order failed to be placed: %v", err)
 	}
 }

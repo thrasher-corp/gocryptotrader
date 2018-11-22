@@ -1,10 +1,12 @@
 package gemini
 
 import (
+	"fmt"
 	"net/url"
 	"testing"
 
 	"github.com/thrasher-/gocryptotrader/config"
+	"github.com/thrasher-/gocryptotrader/currency/pair"
 	"github.com/thrasher-/gocryptotrader/currency/symbol"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 )
@@ -21,6 +23,8 @@ const (
 	apiSecret2        = ""
 	apiKeyRole2       = ""
 	sessionHeartBeat2 = false
+
+	canPlaceOrders = false
 )
 
 func TestAddSession(t *testing.T) {
@@ -318,5 +322,28 @@ func TestFormatWithdrawPermissions(t *testing.T) {
 	// Assert
 	if withdrawPermissions != expectedResult {
 		t.Errorf("Expected: %s, Recieved: %s", expectedResult, withdrawPermissions)
+	}
+}
+
+// This will really really use the API to place an order
+// If you're going to test this, make sure you're willing to place real orders on the exchange
+func TestSubmitOrder(t *testing.T) {
+	Session[1].SetDefaults()
+	TestSetup(t)
+	Session[1].Verbose = true
+
+	if Session[1].APIKey == "" || Session[1].APISecret == "" ||
+		Session[1].APIKey == "Key" || Session[1].APISecret == "Secret" ||
+		!canPlaceOrders {
+		t.Skip(fmt.Sprintf("ApiKey: %s. Can place orders: %v", Session[1].APIKey, canPlaceOrders))
+	}
+	var p = pair.CurrencyPair{
+		Delimiter:      "_",
+		FirstCurrency:  symbol.LTC,
+		SecondCurrency: symbol.BTC,
+	}
+	response, err := Session[1].SubmitExchangeOrder(p, exchange.Buy, exchange.Market, 1, 10, "1234234")
+	if err != nil || !response.IsOrderPlaced {
+		t.Errorf("Order failed to be placed: %v", err)
 	}
 }

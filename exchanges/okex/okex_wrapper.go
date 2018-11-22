@@ -2,6 +2,7 @@ package okex
 
 import (
 	"errors"
+	"fmt"
 	"log"
 	"sync"
 
@@ -152,8 +153,44 @@ func (o *OKEX) GetExchangeHistory(p pair.CurrencyPair, assetType string) ([]exch
 }
 
 // SubmitExchangeOrder submits a new order
-func (o *OKEX) SubmitExchangeOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (int64, error) {
-	return 0, errors.New("not yet implemented")
+func (o *OKEX) SubmitExchangeOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (exchange.SubmitOrderResponse, error) {
+	var submitOrderResponse exchange.SubmitOrderResponse
+	var oT SpotNewOrderRequestType
+
+	if orderType == exchange.Limit {
+		if side == exchange.Buy {
+			oT = SpotNewOrderRequestTypeBuy
+		} else {
+			oT = SpotNewOrderRequestTypeSell
+		}
+	} else if orderType == exchange.Market {
+		if side == exchange.Buy {
+			oT = SpotNewOrderRequestTypeBuyMarket
+		} else {
+			oT = SpotNewOrderRequestTypeSellMarket
+		}
+	} else {
+		return submitOrderResponse, errors.New("Unsupported order type")
+	}
+
+	var params = SpotNewOrderRequestParams{
+		Amount: amount,
+		Price:  price,
+		Symbol: p.Pair().String(),
+		Type:   oT,
+	}
+
+	response, err := o.SpotNewOrder(params)
+
+	if response > 0 {
+		submitOrderResponse.OrderID = fmt.Sprintf("%v", response)
+	}
+
+	if err == nil {
+		submitOrderResponse.IsOrderPlaced = true
+	}
+
+	return submitOrderResponse, err
 }
 
 // ModifyExchangeOrder will allow of changing orderbook placement and limit to

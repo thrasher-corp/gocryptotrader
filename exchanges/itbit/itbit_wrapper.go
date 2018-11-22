@@ -2,6 +2,7 @@ package itbit
 
 import (
 	"errors"
+	"fmt"
 	"log"
 	"strconv"
 	"sync"
@@ -129,8 +130,39 @@ func (i *ItBit) GetExchangeHistory(p pair.CurrencyPair, assetType string) ([]exc
 }
 
 // SubmitExchangeOrder submits a new order
-func (i *ItBit) SubmitExchangeOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (int64, error) {
-	return 0, errors.New("not yet implemented")
+func (i *ItBit) SubmitExchangeOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (exchange.SubmitOrderResponse, error) {
+	var submitOrderResponse exchange.SubmitOrderResponse
+	var wallet string
+
+	wallets, err := i.GetWallets(nil)
+	if err != nil {
+		return submitOrderResponse, err
+	}
+
+	// Determine what wallet ID to use if there is any actual available currency to make the trade!
+	for _, i := range wallets {
+		for j := range i.Balances {
+			if i.Balances[j].Currency == p.FirstCurrency.String() && i.Balances[j].AvailableBalance >= amount {
+				wallet = i.ID
+			}
+		}
+	}
+
+	if wallet == "" {
+		return submitOrderResponse, fmt.Errorf("No wallet found with currency: %s with amount >= %v", p.FirstCurrency.String(), amount)
+	}
+
+	response, err := i.PlaceOrder(wallet, side.ToString(), orderType.ToString(), p.FirstCurrency.String(), amount, price, p.Pair().String(), "")
+
+	if response.ID != "" {
+		submitOrderResponse.OrderID = response.ID
+	}
+
+	if err == nil {
+		submitOrderResponse.IsOrderPlaced = true
+	}
+
+	return submitOrderResponse, err
 }
 
 // ModifyExchangeOrder will allow of changing orderbook placement and limit to

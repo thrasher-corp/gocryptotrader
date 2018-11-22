@@ -2,6 +2,7 @@ package alphapoint
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/thrasher-/gocryptotrader/currency/pair"
 	"github.com/thrasher-/gocryptotrader/exchanges"
@@ -105,9 +106,19 @@ func (a *Alphapoint) GetExchangeHistory(p pair.CurrencyPair, assetType string) (
 
 // SubmitExchangeOrder submits a new order and returns a true value when
 // successfully submitted
-func (a *Alphapoint) SubmitExchangeOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (int64, error) {
-	//return a.CreateOrder(p.Pair().String(), side, orderType, amount, price)
-	return 0, errors.New("not yet implemented")
+func (a *Alphapoint) SubmitExchangeOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (exchange.SubmitOrderResponse, error) {
+	var submitOrderResponse exchange.SubmitOrderResponse
+
+	response, err := a.CreateOrder(p.Pair().String(), side.ToString(), orderType.ToString(), amount, price)
+	if response > 0 {
+		submitOrderResponse.OrderID = fmt.Sprintf("%v", response)
+	}
+
+	if err == nil {
+		submitOrderResponse.IsOrderPlaced = true
+	}
+
+	return submitOrderResponse, err
 }
 
 // ModifyExchangeOrder will allow of changing orderbook placement and limit to

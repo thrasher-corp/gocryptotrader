@@ -2,6 +2,7 @@ package liqui
 
 import (
 	"errors"
+	"fmt"
 	"log"
 	"sync"
 
@@ -148,8 +149,19 @@ func (l *Liqui) GetExchangeHistory(p pair.CurrencyPair, assetType string) ([]exc
 }
 
 // SubmitExchangeOrder submits a new order
-func (l *Liqui) SubmitExchangeOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (int64, error) {
-	return 0, errors.New("not yet implemented")
+func (l *Liqui) SubmitExchangeOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (exchange.SubmitOrderResponse, error) {
+	var submitOrderResponse exchange.SubmitOrderResponse
+	response, err := l.Trade(p.Pair().String(), fmt.Sprintf("%s", orderType), amount, price)
+
+	if response > 0 {
+		submitOrderResponse.OrderID = fmt.Sprintf("%v", response)
+	}
+
+	if err == nil {
+		submitOrderResponse.IsOrderPlaced = true
+	}
+
+	return submitOrderResponse, err
 }
 
 // ModifyExchangeOrder will allow of changing orderbook placement and limit to

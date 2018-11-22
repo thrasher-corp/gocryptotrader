@@ -2,6 +2,7 @@ package okcoin
 
 import (
 	"errors"
+	"fmt"
 	"log"
 	"sync"
 
@@ -186,8 +187,36 @@ func (o *OKCoin) GetExchangeHistory(p pair.CurrencyPair, assetType string) ([]ex
 }
 
 // SubmitExchangeOrder submits a new order
-func (o *OKCoin) SubmitExchangeOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (int64, error) {
-	return 0, errors.New("not yet implemented")
+func (o *OKCoin) SubmitExchangeOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (exchange.SubmitOrderResponse, error) {
+	var submitOrderResponse exchange.SubmitOrderResponse
+	var oT string
+	if orderType == exchange.Limit {
+		if side == exchange.Buy {
+			oT = "buy"
+		} else {
+			oT = "sell"
+		}
+	} else if orderType == exchange.Market {
+		if side == exchange.Buy {
+			oT = "buy_market"
+		} else {
+			oT = "sell_market"
+		}
+	} else {
+		return submitOrderResponse, errors.New("Unsupported order type")
+	}
+
+	response, err := o.Trade(amount, price, p.Pair().String(), oT)
+
+	if response > 0 {
+		submitOrderResponse.OrderID = fmt.Sprintf("%v", response)
+	}
+
+	if err == nil {
+		submitOrderResponse.IsOrderPlaced = true
+	}
+
+	return submitOrderResponse, err
 }
 
 // ModifyExchangeOrder will allow of changing orderbook placement and limit to

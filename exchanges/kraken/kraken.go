@@ -788,12 +788,12 @@ func (k *Kraken) GetTradeVolume(feeinfo bool, symbol ...string) (TradeVolumeResp
 func (k *Kraken) AddOrder(symbol, side, orderType string, volume, price, price2, leverage float64, args AddOrderOptions) (AddOrderResponse, error) {
 	params := url.Values{
 		"pair":      {symbol},
-		"type":      {side},
-		"ordertype": {orderType},
+		"type":      {common.StringToLower(side)},
+		"ordertype": {common.StringToLower(orderType)},
 		"volume":    {strconv.FormatFloat(volume, 'f', -1, 64)},
 	}
 
-	if price != 0 {
+	if orderType == "limit" || price > 0 {
 		params.Set("price", strconv.FormatFloat(price, 'f', -1, 64))
 	}
 

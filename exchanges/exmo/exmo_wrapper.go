@@ -2,6 +2,7 @@ package exmo
 
 import (
 	"errors"
+	"fmt"
 	"log"
 	"strconv"
 	"sync"
@@ -176,8 +177,32 @@ func (e *EXMO) GetExchangeHistory(p pair.CurrencyPair, assetType string) ([]exch
 }
 
 // SubmitExchangeOrder submits a new order
-func (e *EXMO) SubmitExchangeOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (int64, error) {
-	return 0, errors.New("not yet implemented")
+func (e *EXMO) SubmitExchangeOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (exchange.SubmitOrderResponse, error) {
+	var submitOrderResponse exchange.SubmitOrderResponse
+	var oT string
+	if orderType == exchange.Limit {
+		return submitOrderResponse, errors.New("Unsupported order type")
+	} else if orderType == exchange.Market {
+		if side == exchange.Buy {
+			oT = "market_buy"
+		} else {
+			oT = "market_sell"
+		}
+	} else {
+		return submitOrderResponse, errors.New("Unsupported order type")
+	}
+
+	response, err := e.CreateOrder(p.Pair().String(), oT, price, amount)
+
+	if response > 0 {
+		submitOrderResponse.OrderID = fmt.Sprintf("%v", response)
+	}
+
+	if err == nil {
+		submitOrderResponse.IsOrderPlaced = true
+	}
+
+	return submitOrderResponse, err
 }
 
 // ModifyExchangeOrder will allow of changing orderbook placement and limit to

@@ -1,9 +1,11 @@
 package yobit
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/thrasher-/gocryptotrader/config"
+	"github.com/thrasher-/gocryptotrader/currency/pair"
 	"github.com/thrasher-/gocryptotrader/currency/symbol"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 )
@@ -12,8 +14,9 @@ var y Yobit
 
 // Please supply your own keys for better unit testing
 const (
-	apiKey    = ""
-	apiSecret = ""
+	apiKey         = ""
+	apiSecret      = ""
+	canPlaceOrders = false
 )
 
 func TestSetDefaults(t *testing.T) {
@@ -307,5 +310,28 @@ func TestFormatWithdrawPermissions(t *testing.T) {
 	// Assert
 	if withdrawPermissions != expectedResult {
 		t.Errorf("Expected: %s, Recieved: %s", expectedResult, withdrawPermissions)
+	}
+}
+
+// This will really really use the API to place an order
+// If you're going to test this, make sure you're willing to place real orders on the exchange
+func TestSubmitOrder(t *testing.T) {
+	y.SetDefaults()
+	TestSetup(t)
+	y.Verbose = true
+
+	if y.APIKey == "" || y.APISecret == "" ||
+		y.APIKey == "Key" || y.APISecret == "Secret" ||
+		!canPlaceOrders {
+		t.Skip(fmt.Sprintf("ApiKey: %s. Can place orders: %v", y.APIKey, canPlaceOrders))
+	}
+	var pair = pair.CurrencyPair{
+		Delimiter:      "_",
+		FirstCurrency:  symbol.BTC,
+		SecondCurrency: symbol.USD,
+	}
+	response, err := y.SubmitExchangeOrder(pair, exchange.Buy, exchange.Market, 1, 10, "hi")
+	if err != nil || !response.IsOrderPlaced {
+		t.Errorf("Order failed to be placed: %v", err)
 	}
 }

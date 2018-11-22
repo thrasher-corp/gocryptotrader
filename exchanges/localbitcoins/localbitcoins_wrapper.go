@@ -2,7 +2,9 @@ package localbitcoins
 
 import (
 	"errors"
+	"fmt"
 	"log"
+	"math"
 	"sync"
 
 	"github.com/thrasher-/gocryptotrader/currency/pair"
@@ -120,8 +122,70 @@ func (l *LocalBitcoins) GetExchangeHistory(p pair.CurrencyPair, assetType string
 }
 
 // SubmitExchangeOrder submits a new order
-func (l *LocalBitcoins) SubmitExchangeOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (int64, error) {
-	return 0, errors.New("not yet implemented")
+func (l *LocalBitcoins) SubmitExchangeOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (exchange.SubmitOrderResponse, error) {
+	var submitOrderResponse exchange.SubmitOrderResponse
+	// These are placeholder details
+	// TODO store a user's localbitcoin details to use here
+	var params = AdCreate{
+		PriceEquation:              "USD_in_AUD",
+		Latitude:                   1,
+		Longitude:                  1,
+		City:                       "City",
+		Location:                   "Location",
+		CountryCode:                "US",
+		Currency:                   p.SecondCurrency.String(),
+		AccountInfo:                "-",
+		BankName:                   "Bank",
+		MSG:                        fmt.Sprintf("%s", side.ToString()),
+		SMSVerficationRequired:     true,
+		TrackMaxAmount:             true,
+		RequireTrustedByAdvertiser: true,
+		RequireIdentification:      true,
+		OnlineProvider:             "",
+		TradeType:                  "",
+		MinAmount:                  int(math.Round(amount)),
+	}
+
+	// Does not return any orderID, so create the add, then get the order
+	err := l.CreateAd(params)
+	if err != nil {
+		return submitOrderResponse, err
+	}
+	if err == nil {
+		submitOrderResponse.IsOrderPlaced = true
+	}
+
+	// Now to figure out what ad we just submitted
+	// The only details we have are the params above
+	var adID string
+	ads, err := l.Getads()
+	for _, i := range ads.AdList {
+		if i.Data.PriceEquation == params.PriceEquation &&
+			i.Data.Lat == float64(params.Latitude) &&
+			i.Data.Lon == float64(params.Longitude) &&
+			i.Data.City == params.City &&
+			i.Data.Location == params.Location &&
+			i.Data.CountryCode == params.CountryCode &&
+			i.Data.Currency == params.Currency &&
+			i.Data.AccountInfo == params.AccountInfo &&
+			i.Data.BankName == params.BankName &&
+			i.Data.SMSVerficationRequired == params.SMSVerficationRequired &&
+			i.Data.TrackMaxAmount == params.TrackMaxAmount &&
+			i.Data.RequireTrustedByAdvertiser == params.RequireTrustedByAdvertiser &&
+			i.Data.OnlineProvider == params.OnlineProvider &&
+			i.Data.TradeType == params.TradeType &&
+			i.Data.MinAmount == fmt.Sprintf("%v", params.MinAmount) {
+			adID = fmt.Sprintf("%v", i.Data.AdID)
+		}
+	}
+
+	if adID != "" {
+		submitOrderResponse.OrderID = adID
+	} else {
+		return submitOrderResponse, errors.New("Ad placed, but not found via API")
+	}
+
+	return submitOrderResponse, err
 }
 
 // ModifyExchangeOrder will allow of changing orderbook placement and limit to

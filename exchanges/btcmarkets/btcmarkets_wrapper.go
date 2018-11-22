@@ -2,6 +2,7 @@ package btcmarkets
 
 import (
 	"errors"
+	"fmt"
 	"log"
 	"sync"
 
@@ -153,8 +154,19 @@ func (b *BTCMarkets) GetExchangeHistory(p pair.CurrencyPair, assetType string) (
 }
 
 // SubmitExchangeOrder submits a new order
-func (b *BTCMarkets) SubmitExchangeOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (int64, error) {
-	return b.NewOrder(p.FirstCurrency.Upper().String(), p.SecondCurrency.Upper().String(), price, amount, side.Format(b.GetName()), orderType.Format(b.GetName()), clientID)
+func (b *BTCMarkets) SubmitExchangeOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (exchange.SubmitOrderResponse, error) {
+	var submitOrderResponse exchange.SubmitOrderResponse
+	response, err := b.NewOrder(p.FirstCurrency.Upper().String(), p.SecondCurrency.Upper().String(), price, amount, side.ToString(), orderType.ToString(), clientID)
+
+	if response > 0 {
+		submitOrderResponse.OrderID = fmt.Sprintf("%v", response)
+	}
+
+	if err == nil {
+		submitOrderResponse.IsOrderPlaced = true
+	}
+
+	return submitOrderResponse, err
 }
 
 // ModifyExchangeOrder will allow of changing orderbook placement and limit to

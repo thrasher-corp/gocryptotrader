@@ -1,10 +1,12 @@
 package coinut
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
 	"github.com/thrasher-/gocryptotrader/config"
+	"github.com/thrasher-/gocryptotrader/currency/pair"
 	"github.com/thrasher-/gocryptotrader/currency/symbol"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 )
@@ -13,8 +15,9 @@ var c COINUT
 
 // Please supply your own keys here to do better tests
 const (
-	apiKey    = ""
-	apiSecret = ""
+	apiKey         = ""
+	apiSecret      = ""
+	canPlaceOrders = false
 )
 
 func TestSetDefaults(t *testing.T) {
@@ -28,10 +31,13 @@ func TestSetup(t *testing.T) {
 	if err != nil {
 		t.Error("Test Failed - Coinut Setup() init error")
 	}
+	bConfig.AuthenticatedAPISupport = true
+	bConfig.APISecret = apiSecret
+	bConfig.Verbose = true
 	c.Setup(bConfig)
 
-	if !c.IsEnabled() || c.AuthenticatedAPISupport ||
-		c.RESTPollingDelay != time.Duration(10) || c.Verbose ||
+	if !c.IsEnabled() ||
+		c.RESTPollingDelay != time.Duration(10) ||
 		c.Websocket.IsEnabled() || len(c.BaseCurrencies) < 1 ||
 		len(c.AvailablePairs) < 1 || len(c.EnabledPairs) < 1 {
 		t.Error("Test Failed - Coinut Setup values not set correctly")
@@ -184,5 +190,28 @@ func TestFormatWithdrawPermissions(t *testing.T) {
 	// Assert
 	if withdrawPermissions != expectedResult {
 		t.Errorf("Expected: %s, Recieved: %s", expectedResult, withdrawPermissions)
+	}
+}
+
+// This will really really use the API to place an order
+// If you're going to test this, make sure you're willing to place real orders on the exchange
+func TestSubmitOrder(t *testing.T) {
+	c.SetDefaults()
+	TestSetup(t)
+	c.Verbose = true
+
+	if c.APISecret == "" ||
+		c.APISecret == "Secret" ||
+		!canPlaceOrders {
+		t.Skip(fmt.Sprintf("ApiKey: %s. Can place orders: %v", c.APIKey, canPlaceOrders))
+	}
+	var p = pair.CurrencyPair{
+		Delimiter:      "",
+		FirstCurrency:  symbol.BTC,
+		SecondCurrency: symbol.USD,
+	}
+	response, err := c.SubmitExchangeOrder(p, exchange.Buy, exchange.Limit, 1, 10, "1234234")
+	if err != nil || !response.IsOrderPlaced {
+		t.Errorf("Order failed to be placed: %v", err)
 	}
 }

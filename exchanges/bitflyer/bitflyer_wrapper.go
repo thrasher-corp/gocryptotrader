@@ -153,8 +153,10 @@ func (b *Bitflyer) GetExchangeHistory(p pair.CurrencyPair, assetType string) ([]
 }
 
 // SubmitExchangeOrder submits a new order
-func (b *Bitflyer) SubmitExchangeOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (int64, error) {
-	return 0, errors.New("not yet implemented")
+func (b *Bitflyer) SubmitExchangeOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (exchange.SubmitOrderResponse, error) {
+	var submitOrderResponse exchange.SubmitOrderResponse
+
+	return submitOrderResponse, errors.New("not yet implemented")
 }
 
 // ModifyExchangeOrder will allow of changing orderbook placement and limit to

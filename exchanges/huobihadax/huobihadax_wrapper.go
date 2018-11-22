@@ -2,7 +2,9 @@ package huobihadax
 
 import (
 	"errors"
+	"fmt"
 	"log"
+	"strconv"
 	"sync"
 
 	"github.com/thrasher-/gocryptotrader/common"
@@ -135,8 +137,44 @@ func (h *HUOBIHADAX) GetExchangeHistory(p pair.CurrencyPair, assetType string) (
 }
 
 // SubmitExchangeOrder submits a new order
-func (h *HUOBIHADAX) SubmitExchangeOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (int64, error) {
-	return 0, errors.New("not yet implemented")
+func (h *HUOBIHADAX) SubmitExchangeOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (exchange.SubmitOrderResponse, error) {
+	var submitOrderResponse exchange.SubmitOrderResponse
+	accountID, err := strconv.ParseInt(clientID, 0, 64)
+	var formattedType SpotNewOrderRequestParamsType
+	var params = SpotNewOrderRequestParams{
+		Amount:    amount,
+		Source:    "api",
+		Symbol:    common.StringToLower(p.Pair().String()),
+		AccountID: int(accountID),
+	}
+
+	if side == exchange.Buy && orderType == exchange.Market {
+		formattedType = SpotNewOrderRequestTypeBuyMarket
+	} else if side == exchange.Sell && orderType == exchange.Market {
+		formattedType = SpotNewOrderRequestTypeSellMarket
+	} else if side == exchange.Buy && orderType == exchange.Limit {
+		formattedType = SpotNewOrderRequestTypeBuyLimit
+		params.Price = price
+	} else if side == exchange.Sell && orderType == exchange.Limit {
+		formattedType = SpotNewOrderRequestTypeSellLimit
+		params.Price = price
+	} else {
+		return submitOrderResponse, errors.New("Unsupported order type")
+	}
+
+	params.Type = formattedType
+
+	response, err := h.SpotNewOrder(params)
+
+	if response > 0 {
+		submitOrderResponse.OrderID = fmt.Sprintf("%v", response)
+	}
+
+	if err == nil {
+		submitOrderResponse.IsOrderPlaced = true
+	}
+
+	return submitOrderResponse, err
 }
 
 // ModifyExchangeOrder will allow of changing orderbook placement and limit to

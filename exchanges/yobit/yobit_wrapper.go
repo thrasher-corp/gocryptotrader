@@ -2,6 +2,7 @@ package yobit
 
 import (
 	"errors"
+	"fmt"
 	"log"
 	"sync"
 
@@ -140,8 +141,19 @@ func (y *Yobit) GetExchangeHistory(p pair.CurrencyPair, assetType string) ([]exc
 }
 
 // SubmitExchangeOrder submits a new order
-func (y *Yobit) SubmitExchangeOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (int64, error) {
-	return 0, errors.New("not yet implemented")
+func (y *Yobit) SubmitExchangeOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (exchange.SubmitOrderResponse, error) {
+	var submitOrderResponse exchange.SubmitOrderResponse
+	response, err := y.Trade(p.Pair().String(), orderType.ToString(), amount, price)
+
+	if response > 0 {
+		submitOrderResponse.OrderID = fmt.Sprintf("%v", response)
+	}
+
+	if err == nil {
+		submitOrderResponse.IsOrderPlaced = true
+	}
+
+	return submitOrderResponse, err
 }
 
 // ModifyExchangeOrder will allow of changing orderbook placement and limit to

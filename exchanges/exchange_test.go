@@ -883,10 +883,48 @@ func TestFormatWithdrawPermissions(t *testing.T) {
 	}
 
 	UAC := Base{Name: "ANX"}
-	UAC.APIWithdrawPermissions = AutoWithdrawCrypto | AutoWithdrawCryptoWithAPIPermission
+	UAC.APIWithdrawPermissions = AutoWithdrawCrypto |
+		AutoWithdrawCryptoWithAPIPermission |
+		AutoWithdrawCryptoWithSetup |
+		WithdrawCryptoWith2FA |
+		WithdrawCryptoWithSMS |
+		WithdrawCryptoWithEmail |
+		WithdrawCryptoWithWebsiteApproval |
+		WithdrawCryptoWithAPIPermission |
+		AutoWithdrawFiat |
+		AutoWithdrawFiatWithAPIPermission |
+		AutoWithdrawFiatWithSetup |
+		WithdrawFiatWith2FA |
+		WithdrawFiatWithSMS |
+		WithdrawFiatWithEmail |
+		WithdrawFiatWithWebsiteApproval |
+		WithdrawFiatWithAPIPermission |
+		WithdrawCryptoViaWebsiteOnly |
+		WithdrawFiatViaWebsiteOnly |
+		1<<18
 	withdrawPermissions := UAC.FormatWithdrawPermissions()
-	if withdrawPermissions != AutoWithdrawCryptoText+" & "+AutoWithdrawCryptoWithAPIPermissionText {
+	if withdrawPermissions != "AUTO WITHDRAW CRYPTO & AUTO WITHDRAW CRYPTO WITH API PERMISSION & AUTO WITHDRAW CRYPTO WITH SETUP & WITHDRAW CRYPTO WITH 2FA & WITHDRAW CRYPTO WITH SMS & WITHDRAW CRYPTO WITH EMAIL & WITHDRAW CRYPTO WITH WEBSITE APPROVAL & WITHDRAW CRYPTO WITH API PERMISSION & AUTO WITHDRAW FIAT & AUTO WITHDRAW FIAT WITH API PERMISSION & AUTO WITHDRAW FIAT WITH SETUP & WITHDRAW FIAT WITH 2FA & WITHDRAW FIAT WITH SMS & WITHDRAW FIAT WITH EMAIL & WITHDRAW FIAT WITH WEBSITE APPROVAL & WITHDRAW FIAT WITH API PERMISSION & WITHDRAW CRYPTO VIA WEBSITE ONLY & WITHDRAW FIAT VIA WEBSITE ONLY & UNKNOWN[1<<18]" {
 		t.Errorf("Expected: %s, Recieved: %s", AutoWithdrawCryptoText+" & "+AutoWithdrawCryptoWithAPIPermissionText, withdrawPermissions)
 	}
 
+	UAC.APIWithdrawPermissions = NoAPIWithdrawalMethods
+	withdrawPermissions = UAC.FormatWithdrawPermissions()
+
+	if withdrawPermissions != NoAPIWithdrawalMethodsText {
+		t.Errorf("Expected: %s, Recieved: %s", NoAPIWithdrawalMethodsText, withdrawPermissions)
+	}
+}
+
+func TestOrderTypes(t *testing.T) {
+	var ot OrderType = "Mo'Money"
+
+	if ot.ToString() != "Mo'Money" {
+		t.Errorf("test failed - unexpected string %s", ot.ToString())
+	}
+
+	var os OrderSide = "BUY"
+
+	if os.ToString() != "BUY" {
+		t.Errorf("test failed - unexpected string %s", os.ToString())
+	}
 }

@@ -2,6 +2,7 @@ package bithumb
 
 import (
 	"errors"
+	"fmt"
 	"log"
 	"sync"
 
@@ -140,8 +141,29 @@ func (b *Bithumb) GetExchangeHistory(p pair.CurrencyPair, assetType string) ([]e
 }
 
 // SubmitExchangeOrder submits a new order
-func (b *Bithumb) SubmitExchangeOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (int64, error) {
-	return 0, errors.New("not yet implemented")
+func (b *Bithumb) SubmitExchangeOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (exchange.SubmitOrderResponse, error) {
+	var submitOrderResponse exchange.SubmitOrderResponse
+	var err error
+	var orderID string
+	if side == exchange.Buy {
+		var result MarketBuy
+		result, err = b.MarketBuyOrder(p.FirstCurrency.String(), amount)
+		orderID = result.OrderID
+	} else if side == exchange.Sell {
+		var result MarketSell
+		result, err = b.MarketSellOrder(p.FirstCurrency.String(), amount)
+		orderID = result.OrderID
+	}
+
+	if orderID != "" {
+		submitOrderResponse.OrderID = fmt.Sprintf("%v", orderID)
+	}
+
+	if err == nil {
+		submitOrderResponse.IsOrderPlaced = true
+	}
+
+	return submitOrderResponse, err
 }
 
 // ModifyExchangeOrder will allow of changing orderbook placement and limit to

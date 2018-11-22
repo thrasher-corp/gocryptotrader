@@ -2,6 +2,7 @@ package poloniex
 
 import (
 	"errors"
+	"fmt"
 	"log"
 	"sync"
 
@@ -155,8 +156,21 @@ func (p *Poloniex) GetExchangeHistory(currencyPair pair.CurrencyPair, assetType 
 }
 
 // SubmitExchangeOrder submits a new order
-func (p *Poloniex) SubmitExchangeOrder(currencyPair pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (int64, error) {
-	return 0, errors.New("not yet implemented")
+func (p *Poloniex) SubmitExchangeOrder(currencyPair pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (exchange.SubmitOrderResponse, error) {
+	var submitOrderResponse exchange.SubmitOrderResponse
+	fillOrKill := orderType == exchange.Market
+	isBuyOrder := side == exchange.Buy
+	response, err := p.PlaceOrder(currencyPair.Pair().String(), price, amount, false, fillOrKill, isBuyOrder)
+
+	if response.OrderNumber > 0 {
+		submitOrderResponse.OrderID = fmt.Sprintf("%v", response.OrderNumber)
+	}
+
+	if err == nil {
+		submitOrderResponse.IsOrderPlaced = true
+	}
+
+	return submitOrderResponse, err
 }
 
 // ModifyExchangeOrder will allow of changing orderbook placement and limit to

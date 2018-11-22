@@ -1,15 +1,18 @@
 package exmo
 
 import (
+	"fmt"
 	"testing"
 
+	"github.com/thrasher-/gocryptotrader/currency/pair"
 	"github.com/thrasher-/gocryptotrader/currency/symbol"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 )
 
 const (
-	APIKey    = ""
-	APISecret = ""
+	APIKey         = ""
+	APISecret      = ""
+	canPlaceOrders = false
 )
 
 var (
@@ -243,5 +246,28 @@ func TestFormatWithdrawPermissions(t *testing.T) {
 	// Assert
 	if withdrawPermissions != expectedResult {
 		t.Errorf("Expected: %s, Recieved: %s", expectedResult, withdrawPermissions)
+	}
+}
+
+// This will really really use the API to place an order
+// If you're going to test this, make sure you're willing to place real orders on the exchange
+func TestSubmitOrder(t *testing.T) {
+	e.SetDefaults()
+	TestSetup(t)
+	e.Verbose = true
+
+	if e.APISecret == "" ||
+		e.APISecret == "Secret" ||
+		!canPlaceOrders {
+		t.Skip(fmt.Sprintf("ApiKey: %s. Can place orders: %v", e.APIKey, canPlaceOrders))
+	}
+	var p = pair.CurrencyPair{
+		Delimiter:      "_",
+		FirstCurrency:  symbol.BTC,
+		SecondCurrency: symbol.USD,
+	}
+	response, err := e.SubmitExchangeOrder(p, exchange.Buy, exchange.Market, 1, 10, "1234234")
+	if err != nil || !response.IsOrderPlaced {
+		t.Errorf("Order failed to be placed: %v", err)
 	}
 }

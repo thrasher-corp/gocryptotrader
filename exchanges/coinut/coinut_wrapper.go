@@ -2,7 +2,9 @@ package coinut
 
 import (
 	"errors"
+	"fmt"
 	"log"
+	"strconv"
 	"sync"
 
 	"github.com/thrasher-/gocryptotrader/common"
@@ -141,8 +143,52 @@ func (c *COINUT) GetExchangeHistory(p pair.CurrencyPair, assetType string) ([]ex
 }
 
 // SubmitExchangeOrder submits a new order
-func (c *COINUT) SubmitExchangeOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (int64, error) {
-	return 0, errors.New("not yet implemented")
+func (c *COINUT) SubmitExchangeOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (exchange.SubmitOrderResponse, error) {
+	var submitOrderResponse exchange.SubmitOrderResponse
+	var err error
+	var APIresponse interface{}
+	isBuyOrder := side == exchange.Buy
+	clientIDInt, err := strconv.ParseUint(clientID, 0, 32)
+	clientIDUint := uint32(clientIDInt)
+
+	if err != nil {
+		return submitOrderResponse, err
+	}
+	// Need to get the ID of the currency sent
+	instruments, err := c.GetInstruments()
+	if err != nil {
+		return submitOrderResponse, err
+	}
+
+	currencyArray := instruments.Instruments[p.Pair().String()]
+	currencyID := currencyArray[0].InstID
+
+	if orderType == exchange.Limit {
+		APIresponse, err = c.NewOrder(currencyID, amount, price, isBuyOrder, clientIDUint)
+	} else if orderType == exchange.Market {
+		APIresponse, err = c.NewOrder(currencyID, amount, 0, isBuyOrder, clientIDUint)
+	} else {
+		return submitOrderResponse, errors.New("unsupported order type")
+	}
+
+	switch APIresponse.(type) {
+	case OrdersBase:
+		orderResult := APIresponse.(OrdersBase)
+		submitOrderResponse.OrderID = fmt.Sprintf("%v", orderResult.OrderID)
+	case OrderFilledResponse:
+		orderResult := APIresponse.(OrderFilledResponse)
+		submitOrderResponse.OrderID = fmt.Sprintf("%v", orderResult.Order.OrderID)
+	case OrderRejectResponse:
+		orderResult := APIresponse.(OrderRejectResponse)
+		submitOrderResponse.OrderID = fmt.Sprintf("%v", orderResult.OrderID)
+		err = fmt.Errorf("OrderID: %v was rejected: %v", orderResult.OrderID, orderResult.Reasons)
+	}
+
+	if err == nil {
+		submitOrderResponse.IsOrderPlaced = true
+	}
+
+	return submitOrderResponse, err
 }
 
 // ModifyExchangeOrder will allow of changing orderbook placement and limit to

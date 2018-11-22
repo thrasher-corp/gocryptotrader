@@ -121,8 +121,8 @@ func ({{.Variable}} *{{.CapitalName}}) GetExchangeHistory(p pair.CurrencyPair, a
 }
 
 // SubmitExchangeOrder submits a new order
-func ({{.Variable}} *{{.CapitalName}}) SubmitExchangeOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (int64, error) {
-	return 0, errors.New("not yet implemented")
+func ({{.Variable}} *{{.CapitalName}}) SubmitExchangeOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (exchange.SubmitOrderResponse, error) {
+	return "", errors.New("not yet implemented")
 }
 
 // ModifyExchangeOrder will allow of changing orderbook placement and limit to

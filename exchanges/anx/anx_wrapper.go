@@ -196,8 +196,30 @@ func (a *ANX) GetExchangeHistory(p pair.CurrencyPair, assetType string) ([]excha
 }
 
 // SubmitExchangeOrder submits a new order
-func (a *ANX) SubmitExchangeOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (int64, error) {
-	return 0, errors.New("not yet implemented")
+func (a *ANX) SubmitExchangeOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (exchange.SubmitOrderResponse, error) {
+	var submitOrderResponse exchange.SubmitOrderResponse
+
+	var isBuying bool
+	var limitPriceInSettlementCurrency float64
+
+	if side == exchange.Buy {
+		isBuying = true
+	}
+
+	if orderType == exchange.Limit {
+		limitPriceInSettlementCurrency = price
+	}
+
+	response, err := a.NewOrder(orderType.ToString(), isBuying, p.FirstCurrency.String(), amount, p.SecondCurrency.String(), amount, limitPriceInSettlementCurrency, false, "", false)
+	if response != "" {
+		submitOrderResponse.OrderID = response
+	}
+
+	if err == nil {
+		submitOrderResponse.IsOrderPlaced = true
+	}
+
+	return submitOrderResponse, err
 }
 
 // ModifyExchangeOrder will allow of changing orderbook placement and limit to
