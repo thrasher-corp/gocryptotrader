@@ -138,23 +138,23 @@ func TestNewOrder(t *testing.T) {
 	}
 }
 
-func TestCancelOrder(t *testing.T) {
+func TestCancelExistingOrder(t *testing.T) {
 	t.Parallel()
-	_, err := Session[1].CancelOrder(1337)
+	_, err := Session[1].CancelExistingOrder(1337)
 	if err == nil {
-		t.Error("Test Failed - CancelOrder() error", err)
+		t.Error("Test Failed - CancelExistingOrder() error", err)
 	}
 }
 
-func TestCancelOrders(t *testing.T) {
+func TestCancelExistingOrders(t *testing.T) {
 	t.Parallel()
-	_, err := Session[1].CancelOrders(false)
+	_, err := Session[1].CancelExistingOrders(false)
 	if err == nil {
-		t.Error("Test Failed - CancelOrders() error", err)
+		t.Error("Test Failed - CancelExistingOrders() error", err)
 	}
-	_, err = Session[2].CancelOrders(true)
+	_, err = Session[2].CancelExistingOrders(true)
 	if err == nil {
-		t.Error("Test Failed - CancelOrders() error", err)
+		t.Error("Test Failed - CancelExistingOrders() error", err)
 	}
 }
 
@@ -198,11 +198,11 @@ func TestGetBalances(t *testing.T) {
 	}
 }
 
-func TestGetDepositAddress(t *testing.T) {
+func TestGetCryptoDepositAddress(t *testing.T) {
 	t.Parallel()
-	_, err := Session[1].GetDepositAddress("LOL123", "btc")
+	_, err := Session[1].GetCryptoDepositAddress("LOL123", "btc")
 	if err == nil {
-		t.Error("Test Failed - GetDepositAddress() error", err)
+		t.Error("Test Failed - GetCryptoDepositAddress() error", err)
 	}
 }
 
@@ -342,7 +342,7 @@ func TestSubmitOrder(t *testing.T) {
 		FirstCurrency:  symbol.LTC,
 		SecondCurrency: symbol.BTC,
 	}
-	response, err := Session[1].SubmitExchangeOrder(p, exchange.Buy, exchange.Market, 1, 10, "1234234")
+	response, err := Session[1].SubmitOrder(p, exchange.Buy, exchange.Market, 1, 10, "1234234")
 	if err != nil || !response.IsOrderPlaced {
 		t.Errorf("Order failed to be placed: %v", err)
 	}

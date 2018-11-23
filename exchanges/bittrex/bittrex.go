@@ -315,8 +315,8 @@ func (b *Bittrex) GetOpenOrders(currencyPair string) (Order, error) {
 	return orders, nil
 }
 
-// CancelOrder is used to cancel a buy or sell order.
-func (b *Bittrex) CancelOrder(uuid string) (Balances, error) {
+// CancelExistingOrder is used to cancel a buy or sell order.
+func (b *Bittrex) CancelExistingOrder(uuid string) (Balances, error) {
 	var balances Balances
 	values := url.Values{}
 	values.Set("uuid", uuid)
@@ -365,10 +365,10 @@ func (b *Bittrex) GetAccountBalanceByCurrency(currency string) (Balance, error) 
 	return balance, nil
 }
 
-// GetDepositAddress is used to retrieve or generate an address for a specific
+// GetCryptoDepositAddress is used to retrieve or generate an address for a specific
 // currency. If one does not exist, the call will fail and return
 // ADDRESS_GENERATING until one is available.
-func (b *Bittrex) GetDepositAddress(currency string) (DepositAddress, error) {
+func (b *Bittrex) GetCryptoDepositAddress(currency string) (DepositAddress, error) {
 	var address DepositAddress
 	values := url.Values{}
 	values.Set("currency", currency)

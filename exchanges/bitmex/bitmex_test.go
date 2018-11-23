@@ -126,7 +126,7 @@ func TestGetAccountExecutionTradeHistory(t *testing.T) {
 
 func TestGetFundingHistory(t *testing.T) {
 	_, err := b.GetFundingHistory()
-	if err != nil {
+	if err == nil {
 		t.Error("test failed - GetFundingHistory() error", err)
 	}
 }
@@ -240,7 +240,7 @@ func TestCancelOrders(t *testing.T) {
 }
 
 func TestCancelAllOrders(t *testing.T) {
-	_, err := b.CancelAllOrders(OrderCancelAllParams{})
+	_, err := b.CancelAllExistingOrders(OrderCancelAllParams{})
 	if err == nil {
 		t.Error("test failed - CancelAllOrders() error", err)
 	}
@@ -480,7 +480,7 @@ func TestSubmitOrder(t *testing.T) {
 		FirstCurrency:  symbol.XBT,
 		SecondCurrency: symbol.USD,
 	}
-	response, err := b.SubmitExchangeOrder(p, exchange.Buy, exchange.Market, 1, 1, "clientId")
+	response, err := b.SubmitOrder(p, exchange.Buy, exchange.Market, 1, 1, "clientId")
 	if err != nil || !response.IsOrderPlaced {
 		t.Errorf("Order failed to be placed: %v", err)
 	}

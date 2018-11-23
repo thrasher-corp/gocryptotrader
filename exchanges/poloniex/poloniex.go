@@ -521,8 +521,8 @@ func (p *Poloniex) PlaceOrder(currency string, rate, amount float64, immediate, 
 	return result, nil
 }
 
-// CancelOrder cancels and order by orderID
-func (p *Poloniex) CancelOrder(orderID int64) (bool, error) {
+// CancelExistingOrder cancels and order by orderID
+func (p *Poloniex) CancelExistingOrder(orderID int64) (bool, error) {
 	result := GenericResponse{}
 	values := url.Values{}
 	values.Set("orderNumber", strconv.FormatInt(orderID, 10))

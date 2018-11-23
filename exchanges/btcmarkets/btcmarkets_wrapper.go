@@ -117,9 +117,9 @@ func (b *BTCMarkets) UpdateOrderbook(p pair.CurrencyPair, assetType string) (ord
 	return orderbook.GetOrderbook(b.Name, p, assetType)
 }
 
-// GetExchangeAccountInfo retrieves balances for all enabled currencies for the
+// GetAccountInfo retrieves balances for all enabled currencies for the
 // BTCMarkets exchange
-func (b *BTCMarkets) GetExchangeAccountInfo() (exchange.AccountInfo, error) {
+func (b *BTCMarkets) GetAccountInfo() (exchange.AccountInfo, error) {
 	var response exchange.AccountInfo
 	response.ExchangeName = b.GetName()
 
@@ -139,22 +139,22 @@ func (b *BTCMarkets) GetExchangeAccountInfo() (exchange.AccountInfo, error) {
 	return response, nil
 }
 
-// GetExchangeFundTransferHistory returns funding history, deposits and
+// GetFundingHistory returns funding history, deposits and
 // withdrawals
-func (b *BTCMarkets) GetExchangeFundTransferHistory() ([]exchange.FundHistory, error) {
+func (b *BTCMarkets) GetFundingHistory() ([]exchange.FundHistory, error) {
 	var fundHistory []exchange.FundHistory
-	return fundHistory, errors.New("not supported on exchange")
+	return fundHistory, common.ErrFunctionNotSupported
 }
 
 // GetExchangeHistory returns historic trade data since exchange opening.
 func (b *BTCMarkets) GetExchangeHistory(p pair.CurrencyPair, assetType string) ([]exchange.TradeHistory, error) {
 	var resp []exchange.TradeHistory
 
-	return resp, errors.New("trade history not yet implemented")
+	return resp, common.ErrNotYetImplemented
 }
 
-// SubmitExchangeOrder submits a new order
-func (b *BTCMarkets) SubmitExchangeOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (exchange.SubmitOrderResponse, error) {
+// SubmitOrder submits a new order
+func (b *BTCMarkets) SubmitOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (exchange.SubmitOrderResponse, error) {
 	var submitOrderResponse exchange.SubmitOrderResponse
 	response, err := b.NewOrder(p.FirstCurrency.Upper().String(), p.SecondCurrency.Upper().String(), price, amount, side.ToString(), orderType.ToString(), clientID)
 
@@ -169,23 +169,23 @@ func (b *BTCMarkets) SubmitExchangeOrder(p pair.CurrencyPair, side exchange.Orde
 	return submitOrderResponse, err
 }
 
-// ModifyExchangeOrder will allow of changing orderbook placement and limit to
+// ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
-func (b *BTCMarkets) ModifyExchangeOrder(orderID int64, action exchange.ModifyOrder) (int64, error) {
-	return 0, errors.New("not supported on exchange")
+func (b *BTCMarkets) ModifyOrder(orderID int64, action exchange.ModifyOrder) (int64, error) {
+	return 0, common.ErrFunctionNotSupported
 }
 
-// CancelExchangeOrder cancels an order by its corresponding ID number
-func (b *BTCMarkets) CancelExchangeOrder(orderID int64) error {
-	_, err := b.CancelOrder([]int64{orderID})
+// CancelOrder cancels an order by its corresponding ID number
+func (b *BTCMarkets) CancelOrder(orderID int64) error {
+	_, err := b.CancelExistingOrder([]int64{orderID})
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-// CancelAllExchangeOrders cancels all orders associated with a currency pair
-func (b *BTCMarkets) CancelAllExchangeOrders() error {
+// CancelAllOrders cancels all orders associated with a currency pair
+func (b *BTCMarkets) CancelAllOrders() error {
 	orders, err := b.GetOrders("", "", 0, 0, true)
 	if err != nil {
 		return err
@@ -196,15 +196,15 @@ func (b *BTCMarkets) CancelAllExchangeOrders() error {
 		orderList = append(orderList, order.ID)
 	}
 
-	_, err = b.CancelOrder(orderList)
+	_, err = b.CancelExistingOrder(orderList)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-// GetExchangeOrderInfo returns information on a current open order
-func (b *BTCMarkets) GetExchangeOrderInfo(orderID int64) (exchange.OrderDetail, error) {
+// GetOrderInfo returns information on a current open order
+func (b *BTCMarkets) GetOrderInfo(orderID int64) (exchange.OrderDetail, error) {
 	var OrderDetail exchange.OrderDetail
 
 	orders, err := b.GetOrderDetail([]int64{orderID})
@@ -237,19 +237,19 @@ func (b *BTCMarkets) GetExchangeOrderInfo(orderID int64) (exchange.OrderDetail, 
 	return OrderDetail, nil
 }
 
-// GetExchangeDepositAddress returns a deposit address for a specified currency
-func (b *BTCMarkets) GetExchangeDepositAddress(cryptocurrency pair.CurrencyItem) (string, error) {
-	return "", errors.New("not supported on exchange")
+// GetDepositAddress returns a deposit address for a specified currency
+func (b *BTCMarkets) GetDepositAddress(cryptocurrency pair.CurrencyItem) (string, error) {
+	return "", common.ErrFunctionNotSupported
 }
 
-// WithdrawCryptoExchangeFunds returns a withdrawal ID when a withdrawal is submitted
-func (b *BTCMarkets) WithdrawCryptoExchangeFunds(address string, cryptocurrency pair.CurrencyItem, amount float64) (string, error) {
+// WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is submitted
+func (b *BTCMarkets) WithdrawCryptocurrencyFunds(address string, cryptocurrency pair.CurrencyItem, amount float64) (string, error) {
 	return b.WithdrawCrypto(amount, cryptocurrency.String(), address)
 }
 
-// WithdrawFiatExchangeFunds returns a withdrawal ID when a
+// WithdrawFiatFunds returns a withdrawal ID when a
 // withdrawal is submitted
-func (b *BTCMarkets) WithdrawFiatExchangeFunds(currency pair.CurrencyItem, amount float64) (string, error) {
+func (b *BTCMarkets) WithdrawFiatFunds(currency pair.CurrencyItem, amount float64) (string, error) {
 	bd, err := b.GetClientBankAccounts(b.Name, currency.Upper().String())
 	if err != nil {
 		return "", err
@@ -257,15 +257,15 @@ func (b *BTCMarkets) WithdrawFiatExchangeFunds(currency pair.CurrencyItem, amoun
 	return b.WithdrawAUD(bd.AccountName, bd.AccountNumber, bd.BankName, bd.BSBNumber, amount)
 }
 
-// WithdrawFiatExchangeFundsToInternationalBank returns a withdrawal ID when a
+// WithdrawFiatFundsToInternationalBank returns a withdrawal ID when a
 // withdrawal is submitted
-func (b *BTCMarkets) WithdrawFiatExchangeFundsToInternationalBank(currency pair.CurrencyItem, amount float64) (string, error) {
-	return "", errors.New("not yet implemented")
+func (b *BTCMarkets) WithdrawFiatFundsToInternationalBank(currency pair.CurrencyItem, amount float64) (string, error) {
+	return "", common.ErrNotYetImplemented
 }
 
 // GetWebsocket returns a pointer to the exchange websocket
 func (b *BTCMarkets) GetWebsocket() (*exchange.Websocket, error) {
-	return nil, errors.New("not yet implemented")
+	return nil, common.ErrNotYetImplemented
 }
 
 // GetFeeByType returns an estimate of fee based on type of transaction

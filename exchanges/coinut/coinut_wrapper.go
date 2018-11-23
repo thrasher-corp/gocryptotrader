@@ -50,9 +50,9 @@ func (c *COINUT) Run() {
 	}
 }
 
-// GetExchangeAccountInfo retrieves balances for all enabled currencies for the
+// GetAccountInfo retrieves balances for all enabled currencies for the
 // COINUT exchange
-func (c *COINUT) GetExchangeAccountInfo() (exchange.AccountInfo, error) {
+func (c *COINUT) GetAccountInfo() (exchange.AccountInfo, error) {
 	var response exchange.AccountInfo
 	/*
 		response.ExchangeName = e.GetName()
@@ -128,22 +128,23 @@ func (c *COINUT) UpdateOrderbook(p pair.CurrencyPair, assetType string) (orderbo
 	return orderbook.GetOrderbook(c.Name, p, assetType)
 }
 
-// GetExchangeFundTransferHistory returns funding history, deposits and
+// GetFundingHistory returns funding history, deposits and
 // withdrawals
-func (c *COINUT) GetExchangeFundTransferHistory() ([]exchange.FundHistory, error) {
+func (c *COINUT) GetFundingHistory() ([]exchange.FundHistory, error) {
 	var fundHistory []exchange.FundHistory
-	return fundHistory, errors.New("not supported on exchange")
+
+	return fundHistory, common.ErrFunctionNotSupported
 }
 
 // GetExchangeHistory returns historic trade data since exchange opening.
 func (c *COINUT) GetExchangeHistory(p pair.CurrencyPair, assetType string) ([]exchange.TradeHistory, error) {
 	var resp []exchange.TradeHistory
 
-	return resp, errors.New("trade history not yet implemented")
+	return resp, common.ErrNotYetImplemented
 }
 
-// SubmitExchangeOrder submits a new order
-func (c *COINUT) SubmitExchangeOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (exchange.SubmitOrderResponse, error) {
+// SubmitOrder submits a new order
+func (c *COINUT) SubmitOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (exchange.SubmitOrderResponse, error) {
 	var submitOrderResponse exchange.SubmitOrderResponse
 	var err error
 	var APIresponse interface{}
@@ -191,49 +192,49 @@ func (c *COINUT) SubmitExchangeOrder(p pair.CurrencyPair, side exchange.OrderSid
 	return submitOrderResponse, err
 }
 
-// ModifyExchangeOrder will allow of changing orderbook placement and limit to
+// ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
-func (c *COINUT) ModifyExchangeOrder(orderID int64, action exchange.ModifyOrder) (int64, error) {
-	return 0, errors.New("not yet implemented")
+func (c *COINUT) ModifyOrder(orderID int64, action exchange.ModifyOrder) (int64, error) {
+	return 0, common.ErrNotYetImplemented
 }
 
-// CancelExchangeOrder cancels an order by its corresponding ID number
-func (c *COINUT) CancelExchangeOrder(orderID int64) error {
-	return errors.New("not yet implemented")
+// CancelOrder cancels an order by its corresponding ID number
+func (c *COINUT) CancelOrder(orderID int64) error {
+	return common.ErrNotYetImplemented
 }
 
-// CancelAllExchangeOrders cancels all orders associated with a currency pair
-func (c *COINUT) CancelAllExchangeOrders() error {
-	return errors.New("not yet implemented")
+// CancelAllOrders cancels all orders associated with a currency pair
+func (c *COINUT) CancelAllOrders() error {
+	return common.ErrNotYetImplemented
 }
 
-// GetExchangeOrderInfo returns information on a current open order
-func (c *COINUT) GetExchangeOrderInfo(orderID int64) (exchange.OrderDetail, error) {
+// GetOrderInfo returns information on a current open order
+func (c *COINUT) GetOrderInfo(orderID int64) (exchange.OrderDetail, error) {
 	var orderDetail exchange.OrderDetail
-	return orderDetail, errors.New("not yet implemented")
+	return orderDetail, common.ErrNotYetImplemented
 }
 
-// GetExchangeDepositAddress returns a deposit address for a specified currency
-func (c *COINUT) GetExchangeDepositAddress(cryptocurrency pair.CurrencyItem) (string, error) {
-	return "", errors.New("not yet implemented")
+// GetDepositAddress returns a deposit address for a specified currency
+func (c *COINUT) GetDepositAddress(cryptocurrency pair.CurrencyItem) (string, error) {
+	return "", common.ErrNotYetImplemented
 }
 
-// WithdrawCryptoExchangeFunds returns a withdrawal ID when a withdrawal is
+// WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
 // submitted
-func (c *COINUT) WithdrawCryptoExchangeFunds(address string, cryptocurrency pair.CurrencyItem, amount float64) (string, error) {
-	return "", errors.New("not yet implemented")
+func (c *COINUT) WithdrawCryptocurrencyFunds(address string, cryptocurrency pair.CurrencyItem, amount float64) (string, error) {
+	return "", common.ErrNotYetImplemented
 }
 
-// WithdrawFiatExchangeFunds returns a withdrawal ID when a
+// WithdrawFiatFunds returns a withdrawal ID when a
 // withdrawal is submitted
-func (c *COINUT) WithdrawFiatExchangeFunds(currency pair.CurrencyItem, amount float64) (string, error) {
-	return "", errors.New("not yet implemented")
+func (c *COINUT) WithdrawFiatFunds(currency pair.CurrencyItem, amount float64) (string, error) {
+	return "", common.ErrNotYetImplemented
 }
 
-// WithdrawFiatExchangeFundsToInternationalBank returns a withdrawal ID when a
+// WithdrawFiatFundsToInternationalBank returns a withdrawal ID when a
 // withdrawal is submitted
-func (c *COINUT) WithdrawFiatExchangeFundsToInternationalBank(currency pair.CurrencyItem, amount float64) (string, error) {
-	return "", errors.New("not yet implemented")
+func (c *COINUT) WithdrawFiatFundsToInternationalBank(currency pair.CurrencyItem, amount float64) (string, error) {
+	return "", common.ErrNotYetImplemented
 }
 
 // GetWebsocket returns a pointer to the exchange websocket

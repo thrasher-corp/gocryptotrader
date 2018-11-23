@@ -41,13 +41,13 @@ func TestGetAccountInfo(t *testing.T) {
 	if l.APIKey == "" || l.APISecret == "" {
 		t.Skip()
 	}
-	_, err := l.GetAccountInfo("", true)
+	_, err := l.GetAccountInformation("", true)
 	if err == nil {
-		t.Error("Test Failed - GetAccountInfo() error", err)
+		t.Error("Test Failed - GetAccountInformation() error", err)
 	}
-	_, err = l.GetAccountInfo("bitcoinbaron", false)
+	_, err = l.GetAccountInformation("bitcoinbaron", false)
 	if err != nil {
-		t.Error("Test Failed - GetAccountInfo() error", err)
+		t.Error("Test Failed - GetAccountInformation() error", err)
 	}
 }
 

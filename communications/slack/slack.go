@@ -77,7 +77,7 @@ func (s *Slack) Connect() error {
 
 // PushEvent pushes an event to either a slack channel or specific client
 func (s *Slack) PushEvent(base.Event) error {
-	return errors.New("not yet implemented")
+	return common.ErrNotYetImplemented
 }
 
 // BuildURL returns an appended token string with the SlackURL

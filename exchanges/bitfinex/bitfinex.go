@@ -489,8 +489,8 @@ func (b *Bitfinex) GetSymbolsDetails() ([]SymbolDetails, error) {
 	return response, b.SendHTTPRequest(path, &response, b.Verbose)
 }
 
-// GetAccountInfo returns information about your account incl. trading fees
-func (b *Bitfinex) GetAccountInfo() ([]AccountInfo, error) {
+// GetAccountInformation returns information about your account incl. trading fees
+func (b *Bitfinex) GetAccountInformation() ([]AccountInfo, error) {
 
 	var responses []AccountInfo
 	err := b.SendAuthenticatedHTTPRequest("POST", bitfinexAccountInfo, nil, &responses)
@@ -628,8 +628,8 @@ func (b *Bitfinex) NewOrderMulti(orders []PlaceOrder) (OrderMultiResponse, error
 		b.SendAuthenticatedHTTPRequest("POST", bitfinexOrderNewMulti, request, &response)
 }
 
-// CancelOrder cancels a single order
-func (b *Bitfinex) CancelOrder(OrderID int64) (Order, error) {
+// CancelExistingOrder cancels a single order by OrderID
+func (b *Bitfinex) CancelExistingOrder(OrderID int64) (Order, error) {
 	response := Order{}
 	request := make(map[string]interface{})
 	request["order_id"] = OrderID
@@ -648,8 +648,8 @@ func (b *Bitfinex) CancelMultipleOrders(OrderIDs []int64) (string, error) {
 		b.SendAuthenticatedHTTPRequest("POST", bitfinexOrderCancelMulti, request, nil)
 }
 
-// CancelAllOrders cancels all active and open orders
-func (b *Bitfinex) CancelAllOrders() (string, error) {
+// CancelAllExistingOrders cancels all active and open orders
+func (b *Bitfinex) CancelAllExistingOrders() (string, error) {
 	response := GenericResponse{}
 
 	return response.Result,
@@ -925,7 +925,7 @@ func (b *Bitfinex) GetFee(feeBuilder exchange.FeeBuilder) (float64, error) {
 
 	switch feeBuilder.FeeType {
 	case exchange.CryptocurrencyTradeFee:
-		accountInfos, err := b.GetAccountInfo()
+		accountInfos, err := b.GetAccountInformation()
 		if err != nil {
 			return 0, err
 		}

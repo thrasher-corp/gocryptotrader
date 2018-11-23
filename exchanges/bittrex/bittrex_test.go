@@ -140,12 +140,12 @@ func TestGetOpenOrders(t *testing.T) {
 	}
 }
 
-func TestCancelOrder(t *testing.T) {
+func TestCancelExistingOrder(t *testing.T) {
 	t.Parallel()
 
-	_, err := b.CancelOrder("blaaaaaaa")
+	_, err := b.CancelExistingOrder("blaaaaaaa")
 	if err == nil {
-		t.Error("Test Failed - Bittrex - CancelOrder() error")
+		t.Error("Test Failed - Bittrex - CancelExistingOrder() error")
 	}
 }
 
@@ -349,7 +349,7 @@ func TestSubmitOrder(t *testing.T) {
 		FirstCurrency:  symbol.BTC,
 		SecondCurrency: symbol.LTC,
 	}
-	response, err := b.SubmitExchangeOrder(p, exchange.Buy, exchange.Limit, 1, 1, "clientId")
+	response, err := b.SubmitOrder(p, exchange.Buy, exchange.Limit, 1, 1, "clientId")
 	if err != nil || !response.IsOrderPlaced {
 		t.Errorf("Order failed to be placed: %v", err)
 	}

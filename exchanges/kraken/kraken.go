@@ -845,8 +845,8 @@ func (k *Kraken) AddOrder(symbol, side, orderType string, volume, price, price2,
 	return response.Result, GetError(response.Error)
 }
 
-// CancelOrder cancels order by orderID
-func (k *Kraken) CancelOrder(txid string) (CancelOrderResponse, error) {
+// CancelExistingOrder cancels order by orderID
+func (k *Kraken) CancelExistingOrder(txid string) (CancelOrderResponse, error) {
 	values := url.Values{
 		"txid": {txid},
 	}

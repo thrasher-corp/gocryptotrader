@@ -215,11 +215,11 @@ func TestAddOrder(t *testing.T) {
 	}
 }
 
-func TestCancelOrder(t *testing.T) {
+func TestCancelExistingOrder(t *testing.T) {
 	t.Parallel()
-	_, err := k.CancelOrder("OAVY7T-MV5VK-KHDF5X")
+	_, err := k.CancelExistingOrder("OAVY7T-MV5VK-KHDF5X")
 	if err == nil {
-		t.Error("Test Failed - CancelOrder() error", err)
+		t.Error("Test Failed - CancelExistingOrder() error", err)
 	}
 }
 
@@ -348,7 +348,7 @@ func TestSubmitOrder(t *testing.T) {
 		FirstCurrency:  symbol.XBT,
 		SecondCurrency: symbol.CAD,
 	}
-	response, err := k.SubmitExchangeOrder(p, exchange.Buy, exchange.Market, 1, 10, "hi")
+	response, err := k.SubmitOrder(p, exchange.Buy, exchange.Market, 1, 10, "hi")
 	if err != nil || !response.IsOrderPlaced {
 		t.Errorf("Order failed to be placed: %v", err)
 	}

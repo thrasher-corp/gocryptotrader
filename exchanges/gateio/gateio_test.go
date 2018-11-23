@@ -73,16 +73,16 @@ func TestSpotNewOrder(t *testing.T) {
 	}
 }
 
-func TestCancelOrder(t *testing.T) {
+func TestCancelExistingOrder(t *testing.T) {
 	t.Parallel()
 
 	if apiKey == "" || apiSecret == "" {
 		t.Skip()
 	}
 
-	_, err := g.CancelOrder(917591554, "btc_usdt")
+	_, err := g.CancelExistingOrder(917591554, "btc_usdt")
 	if err != nil {
-		t.Errorf("Test failed - Gateio CancelOrder: %s", err)
+		t.Errorf("Test failed - Gateio CancelExistingOrder: %s", err)
 	}
 }
 
@@ -268,7 +268,7 @@ func TestSubmitOrder(t *testing.T) {
 		FirstCurrency:  symbol.LTC,
 		SecondCurrency: symbol.BTC,
 	}
-	response, err := g.SubmitExchangeOrder(p, exchange.Buy, exchange.Market, 1, 10, "1234234")
+	response, err := g.SubmitOrder(p, exchange.Buy, exchange.Market, 1, 10, "1234234")
 	if err != nil || !response.IsOrderPlaced {
 		t.Errorf("Order failed to be placed: %v", err)
 	}

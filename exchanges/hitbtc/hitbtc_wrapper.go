@@ -1,7 +1,6 @@
 package hitbtc
 
 import (
-	"errors"
 	"fmt"
 	"log"
 	"sync"
@@ -121,9 +120,9 @@ func (h *HitBTC) UpdateOrderbook(currencyPair pair.CurrencyPair, assetType strin
 	return orderbook.GetOrderbook(h.Name, currencyPair, assetType)
 }
 
-// GetExchangeAccountInfo retrieves balances for all enabled currencies for the
+// GetAccountInfo retrieves balances for all enabled currencies for the
 // HitBTC exchange
-func (h *HitBTC) GetExchangeAccountInfo() (exchange.AccountInfo, error) {
+func (h *HitBTC) GetAccountInfo() (exchange.AccountInfo, error) {
 	var response exchange.AccountInfo
 	response.ExchangeName = h.GetName()
 	accountBalance, err := h.GetBalances()
@@ -141,22 +140,22 @@ func (h *HitBTC) GetExchangeAccountInfo() (exchange.AccountInfo, error) {
 	return response, nil
 }
 
-// GetExchangeFundTransferHistory returns funding history, deposits and
+// GetFundingHistory returns funding history, deposits and
 // withdrawals
-func (h *HitBTC) GetExchangeFundTransferHistory() ([]exchange.FundHistory, error) {
+func (h *HitBTC) GetFundingHistory() ([]exchange.FundHistory, error) {
 	var fundHistory []exchange.FundHistory
-	return fundHistory, errors.New("not supported on exchange")
+	return fundHistory, common.ErrFunctionNotSupported
 }
 
 // GetExchangeHistory returns historic trade data since exchange opening.
 func (h *HitBTC) GetExchangeHistory(p pair.CurrencyPair, assetType string) ([]exchange.TradeHistory, error) {
 	var resp []exchange.TradeHistory
 
-	return resp, errors.New("trade history not yet implemented")
+	return resp, common.ErrNotYetImplemented
 }
 
-// SubmitExchangeOrder submits a new order
-func (h *HitBTC) SubmitExchangeOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (exchange.SubmitOrderResponse, error) {
+// SubmitOrder submits a new order
+func (h *HitBTC) SubmitOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (exchange.SubmitOrderResponse, error) {
 	var submitOrderResponse exchange.SubmitOrderResponse
 	response, err := h.PlaceOrder(p.Pair().String(), price, amount, common.StringToLower(orderType.ToString()), common.StringToLower(side.ToString()))
 
@@ -171,49 +170,49 @@ func (h *HitBTC) SubmitExchangeOrder(p pair.CurrencyPair, side exchange.OrderSid
 	return submitOrderResponse, err
 }
 
-// ModifyExchangeOrder will allow of changing orderbook placement and limit to
+// ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
-func (h *HitBTC) ModifyExchangeOrder(orderID int64, action exchange.ModifyOrder) (int64, error) {
-	return 0, errors.New("not yet implemented")
+func (h *HitBTC) ModifyOrder(orderID int64, action exchange.ModifyOrder) (int64, error) {
+	return 0, common.ErrNotYetImplemented
 }
 
-// CancelExchangeOrder cancels an order by its corresponding ID number
-func (h *HitBTC) CancelExchangeOrder(orderID int64) error {
-	return errors.New("not yet implemented")
+// CancelOrder cancels an order by its corresponding ID number
+func (h *HitBTC) CancelOrder(orderID int64) error {
+	return common.ErrNotYetImplemented
 }
 
-// CancelAllExchangeOrders cancels all orders associated with a currency pair
-func (h *HitBTC) CancelAllExchangeOrders() error {
-	return errors.New("not yet implemented")
+// CancelAllOrders cancels all orders associated with a currency pair
+func (h *HitBTC) CancelAllOrders() error {
+	return common.ErrNotYetImplemented
 }
 
-// GetExchangeOrderInfo returns information on a current open order
-func (h *HitBTC) GetExchangeOrderInfo(orderID int64) (exchange.OrderDetail, error) {
+// GetOrderInfo returns information on a current open order
+func (h *HitBTC) GetOrderInfo(orderID int64) (exchange.OrderDetail, error) {
 	var orderDetail exchange.OrderDetail
-	return orderDetail, errors.New("not yet implemented")
+	return orderDetail, common.ErrNotYetImplemented
 }
 
-// GetExchangeDepositAddress returns a deposit address for a specified currency
-func (h *HitBTC) GetExchangeDepositAddress(cryptocurrency pair.CurrencyItem) (string, error) {
-	return "", errors.New("not yet implemented")
+// GetDepositAddress returns a deposit address for a specified currency
+func (h *HitBTC) GetDepositAddress(cryptocurrency pair.CurrencyItem) (string, error) {
+	return "", common.ErrNotYetImplemented
 }
 
-// WithdrawCryptoExchangeFunds returns a withdrawal ID when a withdrawal is
+// WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
 // submitted
-func (h *HitBTC) WithdrawCryptoExchangeFunds(address string, cryptocurrency pair.CurrencyItem, amount float64) (string, error) {
-	return "", errors.New("not yet implemented")
+func (h *HitBTC) WithdrawCryptocurrencyFunds(address string, cryptocurrency pair.CurrencyItem, amount float64) (string, error) {
+	return "", common.ErrNotYetImplemented
 }
 
-// WithdrawFiatExchangeFunds returns a withdrawal ID when a
+// WithdrawFiatFunds returns a withdrawal ID when a
 // withdrawal is submitted
-func (h *HitBTC) WithdrawFiatExchangeFunds(currency pair.CurrencyItem, amount float64) (string, error) {
-	return "", errors.New("not yet implemented")
+func (h *HitBTC) WithdrawFiatFunds(currency pair.CurrencyItem, amount float64) (string, error) {
+	return "", common.ErrNotYetImplemented
 }
 
-// WithdrawFiatExchangeFundsToInternationalBank returns a withdrawal ID when a
+// WithdrawFiatFundsToInternationalBank returns a withdrawal ID when a
 // withdrawal is submitted
-func (h *HitBTC) WithdrawFiatExchangeFundsToInternationalBank(currency pair.CurrencyItem, amount float64) (string, error) {
-	return "", errors.New("not yet implemented")
+func (h *HitBTC) WithdrawFiatFundsToInternationalBank(currency pair.CurrencyItem, amount float64) (string, error) {
+	return "", common.ErrNotYetImplemented
 }
 
 // GetWebsocket returns a pointer to the exchange websocket

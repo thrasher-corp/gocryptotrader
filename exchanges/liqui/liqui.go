@@ -183,10 +183,10 @@ func (l *Liqui) GetTrades(currencyPair string) ([]Trades, error) {
 	return response.Data[currencyPair], l.SendHTTPRequest(req, &response.Data)
 }
 
-// GetAccountInfo returns information about the user’s current balance, API-key
+// GetAccountInformation returns information about the user’s current balance, API-key
 // privileges, the number of open orders and Server Time. To use this method you
 // need a privilege of the key info.
-func (l *Liqui) GetAccountInfo() (AccountInfo, error) {
+func (l *Liqui) GetAccountInformation() (AccountInfo, error) {
 	var result AccountInfo
 
 	return result,
@@ -217,8 +217,8 @@ func (l *Liqui) GetActiveOrders(pair string) (map[string]ActiveOrders, error) {
 	return result, l.SendAuthenticatedHTTPRequest(liquiActiveOrders, req, &result)
 }
 
-// GetOrderInfo returns the information on particular order.
-func (l *Liqui) GetOrderInfo(OrderID int64) (map[string]OrderInfo, error) {
+// GetOrderInfoByID returns the information on particular order.
+func (l *Liqui) GetOrderInfoByID(OrderID int64) (map[string]OrderInfo, error) {
 	result := make(map[string]OrderInfo)
 
 	req := url.Values{}
@@ -227,8 +227,8 @@ func (l *Liqui) GetOrderInfo(OrderID int64) (map[string]OrderInfo, error) {
 	return result, l.SendAuthenticatedHTTPRequest(liquiOrderInfo, req, &result)
 }
 
-// CancelOrder method is used for order cancelation.
-func (l *Liqui) CancelOrder(OrderID int64) (bool, error) {
+// CancelExistingOrder method is used for order cancelation.
+func (l *Liqui) CancelExistingOrder(OrderID int64) (bool, error) {
 	req := url.Values{}
 	req.Add("order_id", strconv.FormatInt(OrderID, 10))
 

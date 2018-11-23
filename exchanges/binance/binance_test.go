@@ -166,16 +166,16 @@ func TestNewOrder(t *testing.T) {
 	}
 }
 
-func TestCancelOrder(t *testing.T) {
+func TestCancelExistingOrder(t *testing.T) {
 	t.Parallel()
 
 	if testAPIKey == "" || testAPISecret == "" {
 		t.Skip()
 	}
 
-	_, err := b.CancelOrder("BTCUSDT", 82584683, "")
+	_, err := b.CancelExistingOrder("BTCUSDT", 82584683, "")
 	if err == nil {
-		t.Error("Test Failed - Binance CancelOrder() error", err)
+		t.Error("Test Failed - Binance CancelExistingOrder() error", err)
 	}
 }
 
@@ -355,7 +355,7 @@ func TestSubmitOrder(t *testing.T) {
 		FirstCurrency:  symbol.LTC,
 		SecondCurrency: symbol.BTC,
 	}
-	response, err := b.SubmitExchangeOrder(p, exchange.Buy, exchange.Market, 1, 1, "clientId")
+	response, err := b.SubmitOrder(p, exchange.Buy, exchange.Market, 1, 1, "clientId")
 	if err != nil || !response.IsOrderPlaced {
 		t.Errorf("Order failed to be placed: %v", err)
 	}

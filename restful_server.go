@@ -270,7 +270,7 @@ func GetAllEnabledExchangeAccountInfo() AllEnabledExchangeAccounts {
 				log.Printf("GetAllEnabledExchangeAccountInfo: Skippping %s due to disabled authenticated API support.", individualBot.GetName())
 				continue
 			}
-			individualExchange, err := individualBot.GetExchangeAccountInfo()
+			individualExchange, err := individualBot.GetAccountInfo()
 			if err != nil {
 				log.Printf("Error encountered retrieving exchange account info for %s. Error %s",
 					individualBot.GetName(), err)

@@ -212,8 +212,8 @@ func (c *COINUT) GetOpenOrders(instrumentID int) ([]OrdersResponse, error) {
 	return result, c.SendHTTPRequest(coinutOrdersOpen, params, true, &result)
 }
 
-// CancelOrder cancels a specific order and returns if it was actioned
-func (c *COINUT) CancelOrder(instrumentID, orderID int) (bool, error) {
+// CancelExistingOrder cancels a specific order and returns if it was actioned
+func (c *COINUT) CancelExistingOrder(instrumentID, orderID int) (bool, error) {
 	var result GenericResponse
 	params := make(map[string]interface{})
 	params["inst_id"] = instrumentID

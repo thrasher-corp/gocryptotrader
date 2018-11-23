@@ -125,20 +125,20 @@ func (b *BTCC) UpdateOrderbook(p pair.CurrencyPair, assetType string) (orderbook
 	return orderbook.Base{}, errors.New("REST NOT SUPPORTED")
 }
 
-// GetExchangeAccountInfo : Retrieves balances for all enabled currencies for
+// GetAccountInfo : Retrieves balances for all enabled currencies for
 // the Kraken exchange - TODO
-func (b *BTCC) GetExchangeAccountInfo() (exchange.AccountInfo, error) {
+func (b *BTCC) GetAccountInfo() (exchange.AccountInfo, error) {
 	// var response exchange.AccountInfo
 	// response.ExchangeName = b.GetName()
 	// return response, nil
 	return exchange.AccountInfo{}, errors.New("REST NOT SUPPORTED")
 }
 
-// GetExchangeFundTransferHistory returns funding history, deposits and
+// GetFundingHistory returns funding history, deposits and
 // withdrawals
-func (b *BTCC) GetExchangeFundTransferHistory() ([]exchange.FundHistory, error) {
+func (b *BTCC) GetFundingHistory() ([]exchange.FundHistory, error) {
 	// var fundHistory []exchange.FundHistory
-	// return fundHistory, errors.New("not supported on exchange")
+	// return fundHistory, common.ErrFunctionNotSupported
 	return nil, errors.New("REST NOT SUPPORTED")
 }
 
@@ -146,60 +146,60 @@ func (b *BTCC) GetExchangeFundTransferHistory() ([]exchange.FundHistory, error) 
 func (b *BTCC) GetExchangeHistory(p pair.CurrencyPair, assetType string) ([]exchange.TradeHistory, error) {
 	// var resp []exchange.TradeHistory
 
-	// return resp, errors.New("trade history not yet implemented")
+	// return resp, common.ErrNotYetImplemented
 	return nil, errors.New("REST NOT SUPPORTED")
 }
 
-// SubmitExchangeOrder submits a new order
-func (b *BTCC) SubmitExchangeOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (exchange.SubmitOrderResponse, error) {
+// SubmitOrder submits a new order
+func (b *BTCC) SubmitOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (exchange.SubmitOrderResponse, error) {
 	var submitOrderResponse exchange.SubmitOrderResponse
 
-	return submitOrderResponse, errors.New("not yet implemented")
+	return submitOrderResponse, common.ErrNotYetImplemented
 }
 
-// ModifyExchangeOrder will allow of changing orderbook placement and limit to
+// ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
-func (b *BTCC) ModifyExchangeOrder(orderID int64, action exchange.ModifyOrder) (int64, error) {
-	return 0, errors.New("not yet implemented")
+func (b *BTCC) ModifyOrder(orderID int64, action exchange.ModifyOrder) (int64, error) {
+	return 0, common.ErrNotYetImplemented
 }
 
-// CancelExchangeOrder cancels an order by its corresponding ID number
-func (b *BTCC) CancelExchangeOrder(orderID int64) error {
-	return errors.New("not yet implemented")
+// CancelOrder cancels an order by its corresponding ID number
+func (b *BTCC) CancelOrder(orderID int64) error {
+	return common.ErrNotYetImplemented
 }
 
-// CancelAllExchangeOrders cancels all orders associated with a currency pair
-func (b *BTCC) CancelAllExchangeOrders() error {
-	return errors.New("not yet implemented")
+// CancelAllOrders cancels all orders associated with a currency pair
+func (b *BTCC) CancelAllOrders() error {
+	return common.ErrNotYetImplemented
 }
 
-// GetExchangeOrderInfo returns information on a current open order
-func (b *BTCC) GetExchangeOrderInfo(orderID int64) (exchange.OrderDetail, error) {
+// GetOrderInfo returns information on a current open order
+func (b *BTCC) GetOrderInfo(orderID int64) (exchange.OrderDetail, error) {
 	var orderDetail exchange.OrderDetail
-	return orderDetail, errors.New("not yet implemented")
+	return orderDetail, common.ErrNotYetImplemented
 }
 
-// GetExchangeDepositAddress returns a deposit address for a specified currency
-func (b *BTCC) GetExchangeDepositAddress(cryptocurrency pair.CurrencyItem) (string, error) {
-	return "", errors.New("not yet implemented")
+// GetDepositAddress returns a deposit address for a specified currency
+func (b *BTCC) GetDepositAddress(cryptocurrency pair.CurrencyItem) (string, error) {
+	return "", common.ErrNotYetImplemented
 }
 
-// WithdrawCryptoExchangeFunds returns a withdrawal ID when a withdrawal is
+// WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
 // submitted
-func (b *BTCC) WithdrawCryptoExchangeFunds(address string, cryptocurrency pair.CurrencyItem, amount float64) (string, error) {
-	return "", errors.New("not yet implemented")
+func (b *BTCC) WithdrawCryptocurrencyFunds(address string, cryptocurrency pair.CurrencyItem, amount float64) (string, error) {
+	return "", common.ErrNotYetImplemented
 }
 
-// WithdrawFiatExchangeFunds returns a withdrawal ID when a
+// WithdrawFiatFunds returns a withdrawal ID when a
 // withdrawal is submitted
-func (b *BTCC) WithdrawFiatExchangeFunds(currency pair.CurrencyItem, amount float64) (string, error) {
-	return "", errors.New("not yet implemented")
+func (b *BTCC) WithdrawFiatFunds(currency pair.CurrencyItem, amount float64) (string, error) {
+	return "", common.ErrNotYetImplemented
 }
 
-// WithdrawFiatExchangeFundsToInternationalBank returns a withdrawal ID when a
+// WithdrawFiatFundsToInternationalBank returns a withdrawal ID when a
 // withdrawal is submitted
-func (b *BTCC) WithdrawFiatExchangeFundsToInternationalBank(currency pair.CurrencyItem, amount float64) (string, error) {
-	return "", errors.New("not yet implemented")
+func (b *BTCC) WithdrawFiatFundsToInternationalBank(currency pair.CurrencyItem, amount float64) (string, error) {
+	return "", common.ErrNotYetImplemented
 }
 
 // GetWebsocket returns a pointer to the exchange websocket

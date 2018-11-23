@@ -167,10 +167,10 @@ func (l *LocalBitcoins) Setup(exch config.ExchangeConfig) {
 	}
 }
 
-// GetAccountInfo lets you retrieve the public user information on a
+// GetAccountInformation lets you retrieve the public user information on a
 // LocalBitcoins user. The response contains the same information that is found
 // on an account's public profile page.
-func (l *LocalBitcoins) GetAccountInfo(username string, self bool) (AccountInfo, error) {
+func (l *LocalBitcoins) GetAccountInformation(username string, self bool) (AccountInfo, error) {
 	type response struct {
 		Data AccountInfo `json:"data"`
 	}

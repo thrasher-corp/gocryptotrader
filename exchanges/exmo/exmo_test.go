@@ -93,13 +93,13 @@ func TestGetRequiredAmount(t *testing.T) {
 	}
 }
 
-func TestGetDepositAddress(t *testing.T) {
+func TestGetCryptoDepositAddress(t *testing.T) {
 	t.Parallel()
 	if APIKey == "" || APISecret == "" {
 		t.Skip()
 	}
 	TestSetup(t)
-	_, err := e.GetDepositAddress()
+	_, err := e.GetCryptoDepositAddress()
 	if err == nil {
 		t.Errorf("Test failed. Err: %s", err)
 	}
@@ -266,7 +266,7 @@ func TestSubmitOrder(t *testing.T) {
 		FirstCurrency:  symbol.BTC,
 		SecondCurrency: symbol.USD,
 	}
-	response, err := e.SubmitExchangeOrder(p, exchange.Buy, exchange.Market, 1, 10, "1234234")
+	response, err := e.SubmitOrder(p, exchange.Buy, exchange.Market, 1, 10, "1234234")
 	if err != nil || !response.IsOrderPlaced {
 		t.Errorf("Order failed to be placed: %v", err)
 	}

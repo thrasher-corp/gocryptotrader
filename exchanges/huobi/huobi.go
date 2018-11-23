@@ -414,8 +414,8 @@ func (h *HUOBI) SpotNewOrder(arg SpotNewOrderRequestParams) (int64, error) {
 	return result.OrderID, err
 }
 
-// CancelOrder cancels an order on Huobi
-func (h *HUOBI) CancelOrder(orderID int64) (int64, error) {
+// CancelExistingOrder cancels an order on Huobi
+func (h *HUOBI) CancelExistingOrder(orderID int64) (int64, error) {
 	type response struct {
 		Response
 		OrderID int64 `json:"data,string"`

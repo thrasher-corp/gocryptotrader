@@ -211,7 +211,7 @@ func TestSubmitOrder(t *testing.T) {
 		FirstCurrency:  symbol.BTC,
 		SecondCurrency: symbol.LTC,
 	}
-	response, err := p.SubmitExchangeOrder(pair, exchange.Buy, exchange.Market, 1, 10, "hi")
+	response, err := p.SubmitOrder(pair, exchange.Buy, exchange.Market, 1, 10, "hi")
 	if err != nil || !response.IsOrderPlaced {
 		t.Errorf("Order failed to be placed: %v", err)
 	}

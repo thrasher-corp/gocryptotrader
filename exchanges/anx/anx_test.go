@@ -9,6 +9,12 @@ import (
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 )
 
+// Please supply your own keys here for due diligence testing
+const (
+	testAPIKey    = ""
+	testAPISecret = ""
+)
+
 var a ANX
 
 const (
@@ -51,11 +57,15 @@ func TestSetup(t *testing.T) {
 		t.Error("Test Failed - ANX Setup() init error")
 	}
 	a.Setup(anxConfig)
+	if testAPIKey != "" && testAPISecret != "" {
+		a.APIKey = testAPIKey
+		a.APISecret = testAPISecret
+		a.AuthenticatedAPISupport = true
+	}
 
 	if a.Enabled != true {
 		t.Error("Test Failed - ANX Setup() incorrect values set")
 	}
-
 	if a.RESTPollingDelay != 10 {
 		t.Error("Test Failed - ANX Setup() incorrect values set")
 	}
@@ -236,7 +246,7 @@ func TestSubmitOrder(t *testing.T) {
 		FirstCurrency:  symbol.BTC,
 		SecondCurrency: symbol.USD,
 	}
-	response, err := a.SubmitExchangeOrder(p, exchange.Buy, exchange.Market, 1, 1, "clientId")
+	response, err := a.SubmitOrder(p, exchange.Buy, exchange.Market, 1, 1, "clientId")
 	if err != nil || !response.IsOrderPlaced {
 		t.Errorf("Order failed to be placed: %v", err)
 	}

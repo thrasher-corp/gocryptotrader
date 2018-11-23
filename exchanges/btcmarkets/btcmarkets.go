@@ -206,9 +206,9 @@ func (b *BTCMarkets) NewOrder(currency, instrument string, price, amount float64
 	return int64(resp.ID), nil
 }
 
-// CancelOrder cancels an order by its ID
+// CancelExistingOrder cancels an order by its ID
 // orderID - id for order example "1337"
-func (b *BTCMarkets) CancelOrder(orderID []int64) (bool, error) {
+func (b *BTCMarkets) CancelExistingOrder(orderID []int64) (bool, error) {
 	resp := Response{}
 	type CancelOrder struct {
 		OrderIDs []int64 `json:"orderIds"`

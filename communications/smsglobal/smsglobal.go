@@ -60,7 +60,7 @@ func (s *SMSGlobal) Connect() error {
 
 // PushEvent pushes an event to a contact list via SMS
 func (s *SMSGlobal) PushEvent(base.Event) error {
-	return errors.New("not yet implemented")
+	return common.ErrNotYetImplemented
 }
 
 // GetEnabledContacts returns how many SMS contacts are enabled in the

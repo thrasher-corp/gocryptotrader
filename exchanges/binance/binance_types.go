@@ -231,7 +231,7 @@ type CandleStick struct {
 	TakerBuyQuoteAssetVolume float64
 }
 
-// AvgPrice holds current average symbol price
+// AveragePrice holds current average symbol price
 type AveragePrice struct {
 	Mins  int64   `json:"mins"`
 	Price float64 `json:"price,string"`

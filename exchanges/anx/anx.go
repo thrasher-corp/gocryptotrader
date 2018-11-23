@@ -321,8 +321,8 @@ func (a *ANX) CreateNewSubAccount(currency, name string) (string, error) {
 	return response.SubAccount, nil
 }
 
-// GetDepositAddress returns a deposit address for a specific currency
-func (a *ANX) GetDepositAddress(currency, name string, new bool) (string, error) {
+// GetDepositAddressByCurrency returns a deposit address for a specific currency
+func (a *ANX) GetDepositAddressByCurrency(currency, name string, new bool) (string, error) {
 	request := make(map[string]interface{})
 	request["ccy"] = currency
 
@@ -449,12 +449,8 @@ func getInternationalBankWithdrawalFee(currency string, amount float64) float64 
 
 // GetAccountInformation retrieves details including API permissions
 func (a *ANX) GetAccountInformation() (AccountInformation, error) {
-	request := make(map[string]interface{})
-
 	var response AccountInformation
-
-	err := a.SendAuthenticatedHTTPRequest(anxOrderInfo, request, &response)
-
+	err := a.SendAuthenticatedHTTPRequest(anxOrderInfo, nil, &response)
 	if err != nil {
 		return response, err
 	}

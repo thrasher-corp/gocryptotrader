@@ -87,11 +87,11 @@ func TestNewOrder(t *testing.T) {
 	}
 }
 
-func TestCancelOrder(t *testing.T) {
+func TestCancelExistingOrder(t *testing.T) {
 	t.Parallel()
-	_, err := b.CancelOrder([]int64{1337})
+	_, err := b.CancelExistingOrder([]int64{1337})
 	if err == nil {
-		t.Error("Test failed - CancelOrder() error", err)
+		t.Error("Test failed - CancelExistingOrder() error", err)
 	}
 }
 
@@ -139,67 +139,59 @@ func TestWithdrawAUD(t *testing.T) {
 	}
 }
 
-func TestGetExchangeAccountInfo(t *testing.T) {
-	_, err := b.GetExchangeAccountInfo()
+func TestGetAccountInfo(t *testing.T) {
+	_, err := b.GetAccountInfo()
 	if err == nil {
-		t.Error("Test failed - GetExchangeAccountInfo() error", err)
+		t.Error("Test failed - GetAccountInfo() error", err)
 	}
 }
 
-func TestGetExchangeFundTransferHistory(t *testing.T) {
-	_, err := b.GetExchangeFundTransferHistory()
+func TestGetFundingHistory(t *testing.T) {
+	_, err := b.GetFundingHistory()
 	if err == nil {
-		t.Error("Test failed - GetExchangeAccountInfo() error", err)
+		t.Error("Test failed - GetAccountInfo() error", err)
 	}
 }
 
-func TestSubmitExchangeOrder(t *testing.T) {
-	p := pair.NewCurrencyPair("LTC", "AUD")
-	_, err := b.SubmitExchangeOrder(p, exchange.Sell, exchange.Market, 0, 0.0, "testID001")
+func TestModifyOrder(t *testing.T) {
+	_, err := b.ModifyOrder(1337, exchange.ModifyOrder{})
 	if err == nil {
-		t.Error("Test failed - SubmitExchangeOrder() error", err)
+		t.Error("Test failed - ModifyOrder() error", err)
 	}
 }
 
-func TestModifyExchangeOrder(t *testing.T) {
-	_, err := b.ModifyExchangeOrder(1337, exchange.ModifyOrder{})
+func TestCancelOrder(t *testing.T) {
+	err := b.CancelOrder(1337)
 	if err == nil {
-		t.Error("Test failed - ModifyExchangeOrder() error", err)
+		t.Error("Test failed - CancelgOrder() error", err)
 	}
 }
 
-func TestCancelExchangeOrder(t *testing.T) {
-	err := b.CancelExchangeOrder(1337)
+func TestCancelAllOrders(t *testing.T) {
+	err := b.CancelAllOrders()
 	if err == nil {
-		t.Error("Test failed - CancelExchangeOrder() error", err)
+		t.Error("Test failed - CancelAllOrders() error", err)
 	}
 }
 
-func TestCancelAllExchangeOrders(t *testing.T) {
-	err := b.CancelAllExchangeOrders()
+func TestGetOrderInfo(t *testing.T) {
+	_, err := b.GetOrderInfo(1337)
 	if err == nil {
-		t.Error("Test failed - CancelAllExchangeOrders() error", err)
+		t.Error("Test failed - GetOrderInfo() error", err)
 	}
 }
 
-func TestGetExchangeOrderInfo(t *testing.T) {
-	_, err := b.GetExchangeOrderInfo(1337)
-	if err == nil {
-		t.Error("Test failed - GetExchangeOrderInfo() error", err)
-	}
-}
-
-func TestWithdrawCryptoExchangeFunds(t *testing.T) {
-	_, err := b.WithdrawCryptoExchangeFunds("someaddress", "ltc", 0)
+func TestWithdrawCryptocurrencyFunds(t *testing.T) {
+	_, err := b.WithdrawCryptocurrencyFunds("someaddress", "ltc", 0)
 	if err == nil {
 		t.Error("Test failed - WithdrawExchangeFunds() error", err)
 	}
 }
 
-func TestWithdrawFiatExchangeFunds(t *testing.T) {
-	_, err := b.WithdrawFiatExchangeFunds("AUD", 0)
+func TestWithdrawFiatFunds(t *testing.T) {
+	_, err := b.WithdrawFiatFunds("AUD", 0)
 	if err == nil {
-		t.Error("Test failed - WithdrawFiatExchangeFunds() error", err)
+		t.Error("Test failed - WithdrawFiatFunds() error", err)
 	}
 }
 
@@ -326,7 +318,7 @@ func TestSubmitOrder(t *testing.T) {
 		FirstCurrency:  symbol.BTC,
 		SecondCurrency: symbol.LTC,
 	}
-	response, err := b.SubmitExchangeOrder(p, exchange.Buy, exchange.Limit, 1, 1, "clientId")
+	response, err := b.SubmitOrder(p, exchange.Buy, exchange.Limit, 1, 1, "clientId")
 	if err != nil || !response.IsOrderPlaced {
 		t.Errorf("Order failed to be placed: %v", err)
 	}

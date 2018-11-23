@@ -432,8 +432,8 @@ func (h *HitBTC) PlaceOrder(currency string, rate, amount float64, orderType, si
 	return result, nil
 }
 
-// CancelOrder cancels a specific order by OrderID
-func (h *HitBTC) CancelOrder(orderID int64) (bool, error) {
+// CancelExistingOrder cancels a specific order by OrderID
+func (h *HitBTC) CancelExistingOrder(orderID int64) (bool, error) {
 	result := GenericResponse{}
 	values := url.Values{}
 	values.Set("orderNumber", strconv.FormatInt(orderID, 10))

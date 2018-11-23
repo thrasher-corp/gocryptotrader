@@ -34,6 +34,14 @@ import (
 // Vars for common.go operations
 var (
 	HTTPClient *http.Client
+
+	// ErrNotYetImplemented defines a common error across the code base that
+	// alerts of a function that has not been completed or tied into main code
+	ErrNotYetImplemented = errors.New("Not Yet Implemented")
+
+	// ErrFunctionNotSupported defines a standardised error for an unsupported
+	// wrapper function by an API
+	ErrFunctionNotSupported = errors.New("Unsupported Wrapper Function")
 )
 
 // Const declarations for common.go operations

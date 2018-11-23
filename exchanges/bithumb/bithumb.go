@@ -233,8 +233,8 @@ func (b *Bithumb) GetTransactionHistory(symbol string) (TransactionHistory, erro
 	return response, nil
 }
 
-// GetAccountInfo returns account information
-func (b *Bithumb) GetAccountInfo() (Account, error) {
+// GetAccountInformation returns account information
+func (b *Bithumb) GetAccountInformation() (Account, error) {
 	response := Account{}
 
 	err := b.SendAuthenticatedHTTPRequest(privateAccInfo, nil, &response)

@@ -300,9 +300,9 @@ func (g *Gemini) NewOrder(symbol string, amount, price float64, side, orderType 
 	return response.OrderID, nil
 }
 
-// CancelOrder will cancel an order. If the order is already canceled, the
+// CancelExistingOrder will cancel an order. If the order is already canceled, the
 // message will succeed but have no effect.
-func (g *Gemini) CancelOrder(OrderID int64) (Order, error) {
+func (g *Gemini) CancelExistingOrder(OrderID int64) (Order, error) {
 	request := make(map[string]interface{})
 	request["order_id"] = OrderID
 
@@ -318,11 +318,11 @@ func (g *Gemini) CancelOrder(OrderID int64) (Order, error) {
 	return response, nil
 }
 
-// CancelOrders will cancel all outstanding orders created by all sessions owned
-// by this account, including interactive orders placed through the UI. If
-// sessions = true will only cancel the order that is called on this session
-// asssociated with the APIKEY
-func (g *Gemini) CancelOrders(CancelBySession bool) (OrderResult, error) {
+// CancelExistingOrders will cancel all outstanding orders created by all
+// sessions owned by this account, including interactive orders placed through
+// the UI. If sessions = true will only cancel the order that is called on this
+// session asssociated with the APIKEY
+func (g *Gemini) CancelExistingOrders(CancelBySession bool) (OrderResult, error) {
 	response := OrderResult{}
 	path := geminiOrderCancelAll
 	if CancelBySession {
@@ -415,8 +415,8 @@ func (g *Gemini) GetBalances() ([]Balance, error) {
 		g.SendAuthenticatedHTTPRequest("POST", geminiBalances, nil, &response)
 }
 
-// GetDepositAddress returns a deposit address
-func (g *Gemini) GetDepositAddress(depositAddlabel, currency string) (DepositAddress, error) {
+// GetCryptoDepositAddress returns a deposit address
+func (g *Gemini) GetCryptoDepositAddress(depositAddlabel, currency string) (DepositAddress, error) {
 	response := DepositAddress{}
 
 	err := g.SendAuthenticatedHTTPRequest("POST", geminiDeposit+"/"+currency+"/"+geminiNewAddress, nil, &response)

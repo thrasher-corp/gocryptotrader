@@ -59,16 +59,16 @@ func TestSpotNewOrder(t *testing.T) {
 	}
 }
 
-func TestCancelOrder(t *testing.T) {
+func TestCancelExistingOrder(t *testing.T) {
 	t.Parallel()
 
 	if z.APIKey == "" || z.APISecret == "" {
 		t.Skip()
 	}
 
-	err := z.CancelOrder(20180629145864850, "btc_usdt")
+	err := z.CancelExistingOrder(20180629145864850, "btc_usdt")
 	if err != nil {
-		t.Errorf("Test failed - ZB CancelOrder: %s", err)
+		t.Errorf("Test failed - ZB CancelExistingOrder: %s", err)
 	}
 }
 
@@ -260,7 +260,7 @@ func TestSubmitOrder(t *testing.T) {
 		FirstCurrency:  symbol.QTUM,
 		SecondCurrency: symbol.USDT,
 	}
-	response, err := z.SubmitExchangeOrder(pair, exchange.Buy, exchange.Market, 1, 10, "hi")
+	response, err := z.SubmitOrder(pair, exchange.Buy, exchange.Market, 1, 10, "hi")
 	if err != nil || !response.IsOrderPlaced {
 		t.Errorf("Order failed to be placed: %v", err)
 	}

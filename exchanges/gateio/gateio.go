@@ -354,10 +354,10 @@ func (g *Gateio) SpotNewOrder(arg SpotNewOrderRequestParams) (SpotNewOrderRespon
 	return result, nil
 }
 
-// CancelOrder cancels an order given the supplied orderID and symbol
+// CancelExistingOrder cancels an order given the supplied orderID and symbol
 // orderID order ID number
 // symbol trade pair (ltc_btc)
-func (g *Gateio) CancelOrder(orderID int64, symbol string) (bool, error) {
+func (g *Gateio) CancelExistingOrder(orderID int64, symbol string) (bool, error) {
 	type response struct {
 		Result  bool   `json:"result"`
 		Code    int    `json:"code"`
