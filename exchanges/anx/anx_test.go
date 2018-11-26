@@ -1,6 +1,7 @@
 package anx
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/thrasher-/gocryptotrader/config"
@@ -249,5 +250,23 @@ func TestSubmitOrder(t *testing.T) {
 	response, err := a.SubmitOrder(p, exchange.Buy, exchange.Market, 1, 1, "clientId")
 	if err != nil || !response.IsOrderPlaced {
 		t.Errorf("Order failed to be placed: %v", err)
+	}
+}
+
+func TestCancelExchangeOrder(t *testing.T) {
+	a.SetDefaults()
+	TestSetup(t)
+	a.APIKey = ""
+	a.APISecret = ""
+	a.AuthenticatedAPISupport = true
+	a.Verbose = true
+	butts, errrr := a.GetDataToken()
+	fmt.Sprintf("%v %v", butts, errrr)
+
+	var buttsMcgee exchange.OrderCancellation
+	_, err := a.CancelOrder(buttsMcgee)
+
+	if err != nil {
+		t.Error("Could not cancel order:", err)
 	}
 }

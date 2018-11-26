@@ -172,8 +172,14 @@ func (i *ItBit) ModifyOrder(orderID int64, action exchange.ModifyOrder) (int64, 
 }
 
 // CancelOrder cancels an order by its corresponding ID number
-func (i *ItBit) CancelOrder(orderID int64) error {
-	return common.ErrNotYetImplemented
+func (i *ItBit) CancelOrder(order exchange.OrderCancellation) (bool, error) {
+	err := i.CancelExistingOrder(order.WalletAddress, order.OrderID)
+
+	if err != nil {
+		return false, err
+	}
+
+	return true, err
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair

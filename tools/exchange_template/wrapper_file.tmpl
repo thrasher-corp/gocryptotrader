@@ -132,7 +132,7 @@ func ({{.Variable}} *{{.CapitalName}}) ModifyOrder(orderID int64, action exchang
 }
 
 // CancelOrder cancels an order by its corresponding ID number
-func ({{.Variable}} *{{.CapitalName}}) CancelOrder(orderID int64) error {
+func ({{.Variable}} *{{.CapitalName}}) CancelOrder(order exchange.OrderCancellation) (bool, error) {
 	return common.ErrNotYetImplemented
 }
 

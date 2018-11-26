@@ -3,6 +3,7 @@ package hitbtc
 import (
 	"fmt"
 	"log"
+	"strconv"
 	"sync"
 
 	"github.com/thrasher-/gocryptotrader/common"
@@ -177,8 +178,20 @@ func (h *HitBTC) ModifyOrder(orderID int64, action exchange.ModifyOrder) (int64,
 }
 
 // CancelOrder cancels an order by its corresponding ID number
-func (h *HitBTC) CancelOrder(orderID int64) error {
-	return common.ErrNotYetImplemented
+func (h *HitBTC) CancelOrder(order exchange.OrderCancellation) (bool, error) {
+	orderIDInt, err := strconv.ParseInt(order.OrderID, 10, 64)
+
+	if err != nil {
+		return false, err
+	}
+
+	_, err = h.CancelExistingOrder(orderIDInt)
+
+	if err != nil {
+		return false, err
+	}
+
+	return true, err
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair

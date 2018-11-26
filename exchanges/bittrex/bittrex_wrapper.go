@@ -203,8 +203,14 @@ func (b *Bittrex) ModifyOrder(orderID int64, action exchange.ModifyOrder) (int64
 }
 
 // CancelOrder cancels an order by its corresponding ID number
-func (b *Bittrex) CancelOrder(orderID int64) error {
-	return common.ErrNotYetImplemented
+func (b *Bittrex) CancelOrder(order exchange.OrderCancellation) (bool, error) {
+	_, err := b.CancelExistingOrder(order.OrderID)
+
+	if err != nil {
+		return false, err
+	}
+
+	return true, err
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair

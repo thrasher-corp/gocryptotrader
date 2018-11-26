@@ -213,8 +213,8 @@ func (l *LocalBitcoins) ModifyOrder(orderID int64, action exchange.ModifyOrder) 
 }
 
 // CancelOrder cancels an order by its corresponding ID number
-func (l *LocalBitcoins) CancelOrder(orderID int64) error {
-	return common.ErrNotYetImplemented
+func (l *LocalBitcoins) CancelOrder(order exchange.OrderCancellation) (bool, error) {
+	return false, common.ErrNotYetImplemented
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair

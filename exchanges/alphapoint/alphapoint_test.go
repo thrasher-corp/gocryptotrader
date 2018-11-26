@@ -441,7 +441,7 @@ func TestCancelExistingOrder(t *testing.T) {
 		return
 	}
 
-	_, err := a.CancelExistingOrder("", 1)
+	_, err := a.CancelExistingOrder(1)
 	if err == nil {
 		t.Error("Test Failed - GetUserInfo() error")
 	}

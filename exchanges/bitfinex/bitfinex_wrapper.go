@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"net/url"
+	"strconv"
 	"sync"
 
 	"github.com/thrasher-/gocryptotrader/common"
@@ -202,8 +203,20 @@ func (b *Bitfinex) ModifyOrder(orderID int64, action exchange.ModifyOrder) (int6
 }
 
 // CancelOrder cancels an order by its corresponding ID number
-func (b *Bitfinex) CancelOrder(orderID int64) error {
-	return common.ErrNotYetImplemented
+func (b *Bitfinex) CancelOrder(order exchange.OrderCancellation) (bool, error) {
+	orderIDInt, err := strconv.ParseInt(order.OrderID, 10, 64)
+
+	if err != nil {
+		return false, err
+	}
+
+	_, err = b.CancelExistingOrder(orderIDInt)
+
+	if err != nil {
+		return false, err
+	}
+
+	return true, err
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair

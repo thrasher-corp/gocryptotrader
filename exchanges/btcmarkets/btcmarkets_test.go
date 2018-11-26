@@ -161,7 +161,9 @@ func TestModifyOrder(t *testing.T) {
 }
 
 func TestCancelOrder(t *testing.T) {
-	err := b.CancelOrder(1337)
+
+	_, err := b.CancelExistingOrder([]int64{1337})
+
 	if err == nil {
 		t.Error("Test failed - CancelgOrder() error", err)
 	}

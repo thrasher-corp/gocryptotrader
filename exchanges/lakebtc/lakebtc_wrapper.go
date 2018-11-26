@@ -162,8 +162,20 @@ func (l *LakeBTC) ModifyOrder(orderID int64, action exchange.ModifyOrder) (int64
 }
 
 // CancelOrder cancels an order by its corresponding ID number
-func (l *LakeBTC) CancelOrder(orderID int64) error {
-	return common.ErrNotYetImplemented
+func (l *LakeBTC) CancelOrder(order exchange.OrderCancellation) (bool, error) {
+	orderIDInt, err := strconv.ParseInt(order.OrderID, 10, 64)
+
+	if err != nil {
+		return false, err
+	}
+
+	err = l.CancelExistingOrder(orderIDInt)
+
+	if err != nil {
+		return false, err
+	}
+
+	return true, err
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair

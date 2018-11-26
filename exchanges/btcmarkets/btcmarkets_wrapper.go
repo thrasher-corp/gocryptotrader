@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"strconv"
 	"sync"
 
 	"github.com/thrasher-/gocryptotrader/common"
@@ -176,12 +177,16 @@ func (b *BTCMarkets) ModifyOrder(orderID int64, action exchange.ModifyOrder) (in
 }
 
 // CancelOrder cancels an order by its corresponding ID number
-func (b *BTCMarkets) CancelOrder(orderID int64) error {
-	_, err := b.CancelExistingOrder([]int64{orderID})
+func (b *BTCMarkets) CancelOrder(order exchange.OrderCancellation) (bool, error) {
+	orderIDInt, err := strconv.ParseInt(order.OrderID, 10, 64)
+
+	_, err = b.CancelExistingOrder([]int64{orderIDInt})
+
 	if err != nil {
-		return err
+		return false, err
 	}
-	return nil
+
+	return true, err
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
@@ -193,7 +198,13 @@ func (b *BTCMarkets) CancelAllOrders() error {
 
 	var orderList []int64
 	for _, order := range orders {
-		orderList = append(orderList, order.ID)
+		orderIDInt, strconvErr := strconv.ParseInt(order.ID, 10, 64)
+
+		if strconvErr != nil {
+			return strconvErr
+		}
+
+		orderList = append(orderList, orderIDInt)
 	}
 
 	_, err = b.CancelExistingOrder(orderList)

@@ -185,8 +185,14 @@ func (k *Kraken) ModifyOrder(orderID int64, action exchange.ModifyOrder) (int64,
 }
 
 // CancelOrder cancels an order by its corresponding ID number
-func (k *Kraken) CancelOrder(orderID int64) error {
-	return common.ErrNotYetImplemented
+func (k *Kraken) CancelOrder(order exchange.OrderCancellation) (bool, error) {
+	_, err := k.CancelExistingOrder(order.OrderID)
+
+	if err != nil {
+		return false, err
+	}
+
+	return true, err
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair

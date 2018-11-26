@@ -108,9 +108,9 @@ func TestCancelOrder(t *testing.T) {
 	if l.APIKey == "" || l.APISecret == "" {
 		t.Skip()
 	}
-	err := l.CancelOrder(1337)
+	err := l.CancelExistingOrder(1337)
 	if err == nil {
-		t.Error("Test Failed - CancelOrder() error", err)
+		t.Error("Test Failed - CancelExistingOrder() error", err)
 	}
 }
 
