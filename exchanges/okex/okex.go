@@ -52,10 +52,11 @@ const (
 
 	// Spot requests
 	// Unauthenticated
-	spotPrice  = "ticker"
-	spotDepth  = "depth"
-	spotTrades = "trades"
-	spotKline  = "kline"
+	spotPrice   = "ticker"
+	spotDepth   = "depth"
+	spotTrades  = "trades"
+	spotKline   = "kline"
+	instruments = "instruments"
 
 	// Authenticated
 	spotUserInfo       = "userinfo"
@@ -106,8 +107,8 @@ func (o *OKEX) SetDefaults() {
 	o.RequestCurrencyPairFormat.Delimiter = "_"
 	o.RequestCurrencyPairFormat.Uppercase = false
 	o.ConfigCurrencyPairFormat.Delimiter = "_"
-	o.ConfigCurrencyPairFormat.Uppercase = false
-	o.SupportsAutoPairUpdating = false
+	o.ConfigCurrencyPairFormat.Uppercase = true
+	o.SupportsAutoPairUpdating = true
 	o.SupportsRESTTickerBatching = false
 	o.Requester = request.New(o.Name,
 		request.NewRateLimit(time.Second, okexAuthRate),
@@ -164,6 +165,20 @@ func (o *OKEX) Setup(exch config.ExchangeConfig) {
 			log.Fatal(err)
 		}
 	}
+}
+
+// GetSpotInstruments returns a list of tradable spot instruments and their properties
+func (o *OKEX) GetSpotInstruments() ([]SpotInstrument, error) {
+	var resp []SpotInstrument
+
+	path := fmt.Sprintf("%sspot/v3/%s", o.APIUrl, instruments)
+	err := o.SendHTTPRequest(path, &resp)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return resp, nil
 }
 
 // GetContractPrice returns current contract prices

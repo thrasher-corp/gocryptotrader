@@ -97,7 +97,7 @@ const (
 	statePaidPartlyConfirmed = "PAID_PARTLY_AND_CONFIRMED"
 
 	localbitcoinsAuthRate   = 0
-	localbitcoinsUnauthRate = 0
+	localbitcoinsUnauthRate = 1
 )
 
 var (
@@ -122,11 +122,11 @@ func (l *LocalBitcoins) SetDefaults() {
 	l.RequestCurrencyPairFormat.Uppercase = true
 	l.ConfigCurrencyPairFormat.Delimiter = ""
 	l.ConfigCurrencyPairFormat.Uppercase = true
-	l.SupportsAutoPairUpdating = false
+	l.SupportsAutoPairUpdating = true
 	l.SupportsRESTTickerBatching = true
 	l.Requester = request.New(l.Name,
-		request.NewRateLimit(time.Second*0, localbitcoinsAuthRate),
-		request.NewRateLimit(time.Second*0, localbitcoinsUnauthRate),
+		request.NewRateLimit(time.Millisecond*500, localbitcoinsAuthRate),
+		request.NewRateLimit(time.Millisecond*500, localbitcoinsUnauthRate),
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 	l.APIUrlDefault = localbitcoinsAPIURL
 	l.APIUrl = l.APIUrlDefault
@@ -628,6 +628,21 @@ func (l *LocalBitcoins) GetTicker() (map[string]Ticker, error) {
 	result := make(map[string]Ticker)
 
 	return result, l.SendHTTPRequest(l.APIUrl+localbitcoinsAPITicker, &result)
+}
+
+// GetTradableCurrencies returns a list of tradable fiat currencies
+func (l *LocalBitcoins) GetTradableCurrencies() ([]string, error) {
+	resp, err := l.GetTicker()
+	if err != nil {
+		return nil, err
+	}
+
+	var currencies []string
+	for x := range resp {
+		currencies = append(currencies, x)
+	}
+
+	return currencies, nil
 }
 
 // GetTrades returns all closed trades in online buy and online sell categories,

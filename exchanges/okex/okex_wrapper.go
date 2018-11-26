@@ -29,6 +29,22 @@ func (o *OKEX) Run() {
 		log.Printf("%s polling delay: %ds.\n", o.GetName(), o.RESTPollingDelay)
 		log.Printf("%s %d currencies enabled: %s.\n", o.GetName(), len(o.EnabledPairs), o.EnabledPairs)
 	}
+
+	prods, err := o.GetSpotInstruments()
+	if err != nil {
+		log.Printf("OKEX failed to obtain available spot instruments. Err: %d", err)
+		return
+	}
+
+	var pairs []string
+	for x := range prods {
+		pairs = append(pairs, prods[x].BaseCurrency+"_"+prods[x].QuoteCurrency)
+	}
+
+	err = o.UpdateCurrencies(pairs, false, false)
+	if err != nil {
+		log.Printf("OKEX failed to update available currencies. Err: %s", err)
+	}
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair

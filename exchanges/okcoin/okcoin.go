@@ -22,9 +22,11 @@ import (
 const (
 	okcoinAPIURL                = "https://www.okcoin.com/api/v1/"
 	okcoinAPIURLChina           = "https://www.okcoin.com/api/v1/"
+	okcoinAPIURLBase            = "https://www.okcoin.com/api/"
 	okcoinAPIVersion            = "1"
 	okcoinWebsocketURL          = "wss://real.okcoin.com:10440/websocket/okcoinapi"
 	okcoinWebsocketURLChina     = "wss://real.okcoin.cn:10440/websocket/okcoinapi"
+	okcoinInstruments           = "instruments"
 	okcoinTicker                = "ticker.do"
 	okcoinDepth                 = "depth.do"
 	okcoinTrades                = "trades.do"
@@ -125,6 +127,7 @@ func (o *OKCoin) Setup(exch config.ExchangeConfig) {
 			o.ConfigCurrencyPairFormat.Uppercase = true
 			o.RequestCurrencyPairFormat.Uppercase = false
 			o.RequestCurrencyPairFormat.Delimiter = "_"
+			o.SupportsAutoPairUpdating = true
 		} else {
 			o.APIUrlDefault = okcoinAPIURLChina
 			o.APIUrl = o.APIUrlDefault
@@ -181,6 +184,20 @@ func (o *OKCoin) Setup(exch config.ExchangeConfig) {
 			log.Fatal(err)
 		}
 	}
+}
+
+// GetSpotInstruments returns a list of tradable spot instruments and their properties
+func (o *OKCoin) GetSpotInstruments() ([]SpotInstrument, error) {
+	var resp []SpotInstrument
+
+	path := fmt.Sprintf("%sspot/v3/%s", okcoinAPIURLBase, okcoinInstruments)
+	err := o.SendHTTPRequest(path, &resp)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return resp, nil
 }
 
 // GetTicker returns the current ticker

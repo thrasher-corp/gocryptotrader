@@ -29,6 +29,23 @@ func (l *LocalBitcoins) Run() {
 		log.Printf("%s polling delay: %ds.\n", l.GetName(), l.RESTPollingDelay)
 		log.Printf("%s %d currencies enabled: %s.\n", l.GetName(), len(l.EnabledPairs), l.EnabledPairs)
 	}
+
+	currencies, err := l.GetTradableCurrencies()
+	if err != nil {
+		log.Printf("%s failed to obtain available tradable currencies. Err: %s", l.Name, err)
+		return
+	}
+
+	var pairs []string
+	for x := range currencies {
+		pairs = append(pairs, "BTC"+currencies[x])
+	}
+
+	err = l.UpdateCurrencies(pairs, false, false)
+	if err != nil {
+		log.Printf("%s failed to update available currencies. Err %s", l.Name, err)
+	}
+
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair

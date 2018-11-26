@@ -37,9 +37,19 @@ func (o *OKCoin) Run() {
 			forceUpgrade = true
 		}
 
-		var currencies []string
-		for x := range o.AvailablePairs {
-			currencies = append(currencies, o.AvailablePairs[x][0:3]+"_"+o.AvailablePairs[x][3:])
+		prods, err := o.GetSpotInstruments()
+		if err != nil {
+			log.Printf("OKEX failed to obtain available spot instruments. Err: %d", err)
+		} else {
+			var pairs []string
+			for x := range prods {
+				pairs = append(pairs, prods[x].BaseCurrency+"_"+prods[x].QuoteCurrency)
+			}
+
+			err = o.UpdateCurrencies(pairs, false, forceUpgrade)
+			if err != nil {
+				log.Printf("OKEX failed to update available currencies. Err: %s", err)
+			}
 		}
 
 		if forceUpgrade {
@@ -47,11 +57,6 @@ func (o *OKCoin) Run() {
 			log.Println("WARNING: Available pairs for OKCoin International reset due to config upgrade, please enable the pairs you would like again.")
 
 			err := o.UpdateCurrencies(enabledPairs, true, true)
-			if err != nil {
-				log.Printf("%s failed to update currencies. Err: %s", o.Name, err)
-			}
-
-			err = o.UpdateCurrencies(currencies, false, true)
 			if err != nil {
 				log.Printf("%s failed to update currencies. Err: %s", o.Name, err)
 			}

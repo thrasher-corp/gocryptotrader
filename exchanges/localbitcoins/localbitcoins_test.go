@@ -36,6 +36,22 @@ func TestSetup(t *testing.T) {
 	l.Setup(localbitcoinsConfig)
 }
 
+func TestGetTicker(t *testing.T) {
+	t.Parallel()
+	_, err := l.GetTicker()
+	if err != nil {
+		t.Errorf("Test failed - GetTicker() returned: %s", err)
+	}
+}
+
+func TestGetTradableCurrencies(t *testing.T) {
+	t.Parallel()
+	_, err := l.GetTradableCurrencies()
+	if err != nil {
+		t.Errorf("Test failed - GetTradableCurrencies() returned: %s", err)
+	}
+}
+
 func TestGetAccountInfo(t *testing.T) {
 	t.Parallel()
 	if l.APIKey == "" || l.APISecret == "" {

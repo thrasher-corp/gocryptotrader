@@ -53,6 +53,14 @@ func setFeeBuilder() exchange.FeeBuilder {
 	}
 }
 
+func TestGetSpotInstruments(t *testing.T) {
+	t.Parallel()
+	_, err := o.GetSpotInstruments()
+	if err != nil {
+		t.Errorf("Test failed - okcoin GetSpotInstruments() failed: %s", err)
+	}
+}
+
 func TestGetFee(t *testing.T) {
 	o.SetDefaults()
 	var feeBuilder = setFeeBuilder()

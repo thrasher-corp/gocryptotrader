@@ -3,6 +3,20 @@ package okex
 import "encoding/json"
 import "github.com/thrasher-/gocryptotrader/currency/symbol"
 
+// SpotInstrument stores the spot instrument info
+type SpotInstrument struct {
+	BaseCurrency   string  `json:"base_currency"`
+	BaseIncrement  float64 `json:"base_increment,string"`
+	BaseMinSize    float64 `json:"base_min_size,string"`
+	InstrumentID   string  `json:"instrument_id"`
+	MinSize        float64 `json:"min_size,string"`
+	ProductID      string  `json:"product_id"`
+	QuoteCurrency  string  `json:"quote_currency"`
+	QuoteIncrement float64 `json:"quote_increment,string"`
+	SizeIncrement  float64 `json:"size_increment,string"`
+	TickSize       float64 `json:"tick_size,string"`
+}
+
 // ContractPrice holds date and ticker price price for contracts.
 type ContractPrice struct {
 	Date   string `json:"date"`

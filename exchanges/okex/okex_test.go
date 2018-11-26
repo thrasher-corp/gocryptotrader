@@ -41,6 +41,14 @@ func TestSetup(t *testing.T) {
 	o.Setup(okexConfig)
 }
 
+func TestGetSpotInstruments(t *testing.T) {
+	t.Parallel()
+	_, err := o.GetSpotInstruments()
+	if err != nil {
+		t.Errorf("Test failed - okex GetSpotInstruments() failed: %s", err)
+	}
+}
+
 func TestGetContractPrice(t *testing.T) {
 	t.Parallel()
 	_, err := o.GetContractPrice("btc_usd", "this_week")
