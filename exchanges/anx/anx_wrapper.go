@@ -162,11 +162,17 @@ func (a *ANX) UpdateOrderbook(p pair.CurrencyPair, assetType string) (orderbook.
 	}
 
 	for x := range orderbookNew.Data.Asks {
-		orderBook.Asks = append(orderBook.Asks, orderbook.Item{Price: orderbookNew.Data.Asks[x].Price, Amount: orderbookNew.Data.Asks[x].Amount})
+		orderBook.Asks = append(orderBook.Asks,
+			orderbook.Item{
+				Price:  orderbookNew.Data.Asks[x].Price,
+				Amount: orderbookNew.Data.Asks[x].Amount})
 	}
 
 	for x := range orderbookNew.Data.Bids {
-		orderBook.Bids = append(orderBook.Bids, orderbook.Item{Price: orderbookNew.Data.Bids[x].Price, Amount: orderbookNew.Data.Bids[x].Amount})
+		orderBook.Bids = append(orderBook.Bids,
+			orderbook.Item{
+				Price:  orderbookNew.Data.Bids[x].Price,
+				Amount: orderbookNew.Data.Bids[x].Amount})
 	}
 
 	orderbook.ProcessOrderbook(a.GetName(), p, orderBook, assetType)
@@ -177,7 +183,25 @@ func (a *ANX) UpdateOrderbook(p pair.CurrencyPair, assetType string) (orderbook.
 // exchange
 func (a *ANX) GetAccountInfo() (exchange.AccountInfo, error) {
 	var info exchange.AccountInfo
-	return info, common.ErrNotYetImplemented
+
+	raw, err := a.GetAccountInformation()
+	if err != nil {
+		return info, err
+	}
+
+	var balance []exchange.AccountCurrencyInfo
+	for currency, info := range raw.Wallets {
+		balance = append(balance, exchange.AccountCurrencyInfo{
+			CurrencyName: currency,
+			TotalValue:   info.AvailableBalance.Value,
+			Hold:         info.Balance.Value,
+		})
+	}
+
+	info.ExchangeName = a.GetName()
+	info.Currencies = balance
+
+	return info, nil
 }
 
 // GetFundingHistory returns funding history, deposits and
@@ -209,7 +233,17 @@ func (a *ANX) SubmitOrder(p pair.CurrencyPair, side exchange.OrderSide, orderTyp
 		limitPriceInSettlementCurrency = price
 	}
 
-	response, err := a.NewOrder(orderType.ToString(), isBuying, p.FirstCurrency.String(), amount, p.SecondCurrency.String(), amount, limitPriceInSettlementCurrency, false, "", false)
+	response, err := a.NewOrder(orderType.ToString(),
+		isBuying,
+		p.FirstCurrency.String(),
+		amount,
+		p.SecondCurrency.String(),
+		amount,
+		limitPriceInSettlementCurrency,
+		false,
+		"",
+		false)
+
 	if response != "" {
 		submitOrderResponse.OrderID = response
 	}
