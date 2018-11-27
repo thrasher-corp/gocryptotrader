@@ -166,7 +166,7 @@ func TestCancelExistingOrder(t *testing.T) {
 	}
 
 	_, err := b.CancelExistingOrder("BTCUSDT", 82584683, "")
-	if err == nil {
+	if err != nil {
 		t.Error("Test Failed - Binance CancelExistingOrder() error", err)
 	}
 }
@@ -179,7 +179,7 @@ func TestQueryOrder(t *testing.T) {
 	}
 
 	_, err := b.QueryOrder("BTCUSDT", "", 1337)
-	if err != nil {
+	if err == nil {
 		t.Error("Test Failed - Binance QueryOrder() error", err)
 	}
 }
@@ -386,8 +386,19 @@ func TestCancelExchangeOrder(t *testing.T) {
 	// Act
 	err := b.CancelOrder(orderCancellation)
 
-	// Assert 
+	// Assert
 	if err != nil {
 		t.Errorf("Could not cancel order: %s", err)
+	}
+}
+
+func TestGetAccountInfo(t *testing.T) {
+	if testAPIKey == "" || testAPISecret == "" {
+		t.Skip()
+	}
+
+	_, err := b.GetAccountInfo()
+	if err != nil {
+		t.Error("test failed - GetAccountInfo() error:", err)
 	}
 }

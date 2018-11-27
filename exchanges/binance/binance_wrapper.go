@@ -36,7 +36,8 @@ func (b *Binance) Run() {
 		log.Printf("%s Failed to get exchange info.\n", b.GetName())
 	} else {
 		forceUpgrade := false
-		if !common.StringDataContains(b.EnabledPairs, "-") || !common.StringDataContains(b.AvailablePairs, "-") {
+		if !common.StringDataContains(b.EnabledPairs, "-") ||
+			!common.StringDataContains(b.AvailablePairs, "-") {
 			forceUpgrade = true
 		}
 
@@ -110,11 +111,13 @@ func (b *Binance) UpdateOrderbook(p pair.CurrencyPair, assetType string) (orderb
 	}
 
 	for _, bids := range orderbookNew.Bids {
-		orderBook.Bids = append(orderBook.Bids, orderbook.Item{Amount: bids.Quantity, Price: bids.Price})
+		orderBook.Bids = append(orderBook.Bids,
+			orderbook.Item{Amount: bids.Quantity, Price: bids.Price})
 	}
 
 	for _, asks := range orderbookNew.Asks {
-		orderBook.Asks = append(orderBook.Asks, orderbook.Item{Amount: asks.Quantity, Price: asks.Price})
+		orderBook.Asks = append(orderBook.Asks,
+			orderbook.Item{Amount: asks.Quantity, Price: asks.Price})
 	}
 
 	orderbook.ProcessOrderbook(b.GetName(), p, orderBook, assetType)
@@ -124,8 +127,35 @@ func (b *Binance) UpdateOrderbook(p pair.CurrencyPair, assetType string) (orderb
 // GetAccountInfo retrieves balances for all enabled currencies for the
 // Bithumb exchange
 func (b *Binance) GetAccountInfo() (exchange.AccountInfo, error) {
-	var response exchange.AccountInfo
-	return response, common.ErrNotYetImplemented
+	var info exchange.AccountInfo
+	raw, err := b.GetAccount()
+	if err != nil {
+		return info, err
+	}
+
+	var currencyBalance []exchange.AccountCurrencyInfo
+	for _, balance := range raw.Balances {
+		freeCurrency, err := strconv.ParseFloat(balance.Free, 64)
+		if err != nil {
+			return info, err
+		}
+
+		lockedCurrency, err := strconv.ParseFloat(balance.Locked, 64)
+		if err != nil {
+			return info, err
+		}
+
+		currencyBalance = append(currencyBalance, exchange.AccountCurrencyInfo{
+			CurrencyName: balance.Asset,
+			TotalValue:   freeCurrency + lockedCurrency,
+			Hold:         freeCurrency,
+		})
+	}
+
+	info.ExchangeName = b.GetName()
+	info.Currencies = currencyBalance
+
+	return info, nil
 }
 
 // GetFundingHistory returns funding history, deposits and
