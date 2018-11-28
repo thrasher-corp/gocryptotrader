@@ -431,10 +431,10 @@ func (a *Alphapoint) ModifyExistingOrder(symbol string, OrderID, action int64) (
 // CancelExistingOrder cancels an order that has not been executed.
 // symbol - Instrument code (ex: “BTCUSD”)
 // OrderId - Order id (ex: 1000)
-func (a *Alphapoint) CancelExistingOrder(OrderID int64) (int64, error) {
+func (a *Alphapoint) CancelExistingOrder(OrderID int64, OMSID string) (int64, error) {
 	request := make(map[string]interface{})
 	request["OrderId"] = OrderID
-	request["serverOrderId"] = OrderID
+	request["OMSId"] = OMSID
 	response := Response{}
 
 	err := a.SendAuthenticatedHTTPRequest(

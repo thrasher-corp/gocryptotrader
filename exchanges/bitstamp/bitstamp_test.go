@@ -51,6 +51,8 @@ func TestSetup(t *testing.T) {
 	}
 	bConfig.APIKey = apiKey
 	bConfig.APISecret = apiSecret
+	bConfig.ClientID = customerID
+
 	b.Setup(bConfig)
 
 	if !b.IsEnabled() || b.RESTPollingDelay != time.Duration(10) ||

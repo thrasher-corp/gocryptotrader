@@ -291,7 +291,7 @@ func (r *Requester) DoRequest(req *http.Request, method, path string, headers ma
 			return err
 		}
 
-		if resp.StatusCode != 200 {
+		if resp.StatusCode != 200 && resp.StatusCode != 201 && resp.StatusCode != 202 {
 			return fmt.Errorf("Error: HTTP Status code %s. Body: %s", resp.Status, contents)
 		}
 

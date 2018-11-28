@@ -508,7 +508,7 @@ func TestCancelExchangeOrder(t *testing.T) {
 	currencyPair.Delimiter = ""
 
 	var orderCancellation = exchange.OrderCancellation{
-		OrderID:       "1",
+		OrderID:       "123456789012345678901234567890123456",
 		WalletAddress: "1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB",
 		AccountID:     "1",
 		CurrencyPair:  currencyPair,

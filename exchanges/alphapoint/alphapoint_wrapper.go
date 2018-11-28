@@ -137,7 +137,7 @@ func (a *Alphapoint) CancelOrder(order exchange.OrderCancellation) (bool, error)
 		return false, err
 	}
 
-	_, err = a.CancelExistingOrder(orderIDInt)
+	_, err = a.CancelExistingOrder(orderIDInt, order.AccountID)
 
 	if err != nil {
 		return false, err

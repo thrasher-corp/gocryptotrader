@@ -1,7 +1,6 @@
 package coinut
 
 import (
-	"fmt"
 	"testing"
 	"time"
 
@@ -195,16 +194,24 @@ func TestFormatWithdrawPermissions(t *testing.T) {
 
 // Any tests below this line have the ability to impact your orders on the exchange. Enable canManipulateRealOrders to run them
 // ----------------------------------------------------------------------------------------------------------------------------
+func isRealOrderTestEnabled() bool {
+	if c.APISecret == "" ||
+		c.APISecret == "Secret" ||
+		!canManipulateRealOrders {
+		return false
+	}
+	return true
+}
+
 func TestSubmitOrder(t *testing.T) {
 	c.SetDefaults()
 	TestSetup(t)
 	c.Verbose = true
 
-	if c.APISecret == "" ||
-		c.APISecret == "Secret" ||
-		!canManipulateRealOrders {
-		t.Skip(fmt.Sprintf("ApiKey: %s. Can place orders: %v", c.APIKey, canManipulateRealOrders))
+	if !isRealOrderTestEnabled() {
+		t.Skip()
 	}
+
 	var p = pair.CurrencyPair{
 		Delimiter:      "",
 		FirstCurrency:  symbol.BTC,

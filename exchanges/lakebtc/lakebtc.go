@@ -27,7 +27,7 @@ const (
 	lakeBTCSellOrder           = "sellOrder"
 	lakeBTCOpenOrders          = "openOrders"
 	lakeBTCGetOrders           = "getOrders"
-	lakeBTCCancelOrder         = "cancelOrder"
+	lakeBTCCancelOrder         = "cancelOrders"
 	lakeBTCGetTrades           = "getTrades"
 	lakeBTCGetExternalAccounts = "getExternalAccounts"
 	lakeBTCCreateWithdraw      = "createWithdraw"

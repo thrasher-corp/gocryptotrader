@@ -179,7 +179,6 @@ func (b *Bitmex) ModifyOrder(orderID int64, action exchange.ModifyOrder) (int64,
 // CancelOrder cancels an order by its corresponding ID number
 func (b *Bitmex) CancelOrder(order exchange.OrderCancellation) (bool, error) {
 	var params = OrderCancelParams{
-		ClOrdID: order.AccountID,
 		OrderID: order.OrderID,
 	}
 	_, err := b.CancelOrders(params)
