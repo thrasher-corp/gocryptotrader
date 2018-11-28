@@ -916,6 +916,7 @@ func (b *Bitfinex) SendAuthenticatedHTTPRequest(method, path string, params map[
 	if err != nil {
 		return err
 	}
+
 	return nil
 }
 

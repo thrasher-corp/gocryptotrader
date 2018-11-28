@@ -12,9 +12,9 @@ import (
 
 // Please supply you own test keys here for due diligence testing.
 const (
-	apiKey         = ""
-	apiSecret      = ""
-	canPlaceOrders = false
+	apiKey                  = ""
+	apiSecret               = ""
+	canManipulateRealOrders = false
 )
 
 var z ZB
@@ -243,17 +243,24 @@ func TestFormatWithdrawPermissions(t *testing.T) {
 	}
 }
 
-// This will really really use the API to place an order
-// If you're going to test this, make sure you're willing to place real orders on the exchange
+// Any tests below this line have the ability to impact your orders on the exchange. Enable canManipulateRealOrders to run them
+// ----------------------------------------------------------------------------------------------------------------------------
+func isRealOrderTestEnabled() bool {
+	if z.APIKey == "" || z.APISecret == "" ||
+		z.APIKey == "Key" || z.APISecret == "Secret" ||
+		!canManipulateRealOrders {
+		return false
+	}
+	return true
+}
+
 func TestSubmitOrder(t *testing.T) {
 	z.SetDefaults()
 	TestSetup(t)
 	z.Verbose = true
 
-	if z.APIKey == "" || z.APISecret == "" ||
-		z.APIKey == "Key" || z.APISecret == "Secret" ||
-		!canPlaceOrders {
-		t.Skip(fmt.Sprintf("ApiKey: %s. Can place orders: %v", z.APIKey, canPlaceOrders))
+	if !isRealOrderTestEnabled() {
+		t.Skip(fmt.Sprintf("ApiKey: %s. Can place orders: %v", z.APIKey, canManipulateRealOrders))
 	}
 	var pair = pair.CurrencyPair{
 		Delimiter:      "_",
@@ -263,5 +270,34 @@ func TestSubmitOrder(t *testing.T) {
 	response, err := z.SubmitOrder(pair, exchange.Buy, exchange.Market, 1, 10, "hi")
 	if err != nil || !response.IsOrderPlaced {
 		t.Errorf("Order failed to be placed: %v", err)
+	}
+}
+
+func TestCancelExchangeOrder(t *testing.T) {
+	// Arrange
+	z.SetDefaults()
+	TestSetup(t)
+
+	if !isRealOrderTestEnabled() {
+		t.Skip()
+	}
+
+	z.Verbose = true
+	currencyPair := pair.NewCurrencyPair(symbol.LTC, symbol.BTC)
+	currencyPair.Delimiter = ""
+
+	var orderCancellation = exchange.OrderCancellation{
+		OrderID:       "1",
+		WalletAddress: "1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB",
+		AccountID:     "1",
+		CurrencyPair:  currencyPair,
+	}
+
+	// Act
+	wasOrderCancelled, err := z.CancelOrder(orderCancellation)
+
+	// Assert
+	if !wasOrderCancelled || err != nil {
+		t.Errorf("Could not cancel order: %s", err)
 	}
 }

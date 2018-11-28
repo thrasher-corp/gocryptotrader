@@ -1,7 +1,6 @@
 package yobit
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/thrasher-/gocryptotrader/config"
@@ -14,9 +13,9 @@ var y Yobit
 
 // Please supply your own keys for better unit testing
 const (
-	apiKey         = ""
-	apiSecret      = ""
-	canPlaceOrders = false
+	apiKey                  = ""
+	apiSecret               = ""
+	canManipulateRealOrders = false
 )
 
 func TestSetDefaults(t *testing.T) {
@@ -313,18 +312,26 @@ func TestFormatWithdrawPermissions(t *testing.T) {
 	}
 }
 
-// This will really really use the API to place an order
-// If you're going to test this, make sure you're willing to place real orders on the exchange
+// Any tests below this line have the ability to impact your orders on the exchange. Enable canManipulateRealOrders to run them
+// ----------------------------------------------------------------------------------------------------------------------------
+func isRealOrderTestEnabled() bool {
+	if y.APIKey == "" || y.APISecret == "" ||
+		y.APIKey == "Key" || y.APISecret == "Secret" ||
+		!canManipulateRealOrders {
+		return false
+	}
+	return true
+}
+
 func TestSubmitOrder(t *testing.T) {
 	y.SetDefaults()
 	TestSetup(t)
 	y.Verbose = true
 
-	if y.APIKey == "" || y.APISecret == "" ||
-		y.APIKey == "Key" || y.APISecret == "Secret" ||
-		!canPlaceOrders {
-		t.Skip(fmt.Sprintf("ApiKey: %s. Can place orders: %v", y.APIKey, canPlaceOrders))
+	if !isRealOrderTestEnabled() {
+		t.Skip()
 	}
+
 	var pair = pair.CurrencyPair{
 		Delimiter:      "_",
 		FirstCurrency:  symbol.BTC,
@@ -333,5 +340,34 @@ func TestSubmitOrder(t *testing.T) {
 	response, err := y.SubmitOrder(pair, exchange.Buy, exchange.Market, 1, 10, "hi")
 	if err != nil || !response.IsOrderPlaced {
 		t.Errorf("Order failed to be placed: %v", err)
+	}
+}
+
+func TestCancelExchangeOrder(t *testing.T) {
+	// Arrange
+	y.SetDefaults()
+	TestSetup(t)
+
+	if !isRealOrderTestEnabled() {
+		t.Skip()
+	}
+
+	y.Verbose = true
+	currencyPair := pair.NewCurrencyPair(symbol.LTC, symbol.BTC)
+	currencyPair.Delimiter = ""
+
+	var orderCancellation = exchange.OrderCancellation{
+		OrderID:       "1",
+		WalletAddress: "1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB",
+		AccountID:     "1",
+		CurrencyPair:  currencyPair,
+	}
+
+	// Act
+	wasOrderCancelled, err := y.CancelOrder(orderCancellation)
+
+	// Assert
+	if !wasOrderCancelled || err != nil {
+		t.Errorf("Could not cancel order: %s", err)
 	}
 }

@@ -1,7 +1,6 @@
 package anx
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/thrasher-/gocryptotrader/config"
@@ -12,15 +11,12 @@ import (
 
 // Please supply your own keys here for due diligence testing
 const (
-	testAPIKey    = ""
-	testAPISecret = ""
+	testAPIKey              = ""
+	testAPISecret           = ""
+	canManipulateRealOrders = false
 )
 
 var a ANX
-
-const (
-	canPlaceOrders = false
-)
 
 func TestSetDefaults(t *testing.T) {
 	a.SetDefaults()
@@ -231,15 +227,23 @@ func TestFormatWithdrawPermissions(t *testing.T) {
 	}
 }
 
-// This will really really use the API to place an order
-// If you're going to test this, make sure you're willing to place real orders on the exchange
+// Any tests below this line have the ability to impact your orders on the exchange. Enable canManipulateRealOrders to run them
+// ----------------------------------------------------------------------------------------------------------------------------
+
+func isRealOrderTestEnabled() bool {
+	if a.APIKey == "" || a.APISecret == "" ||
+		a.APIKey == "Key" || a.APISecret == "Secret" ||
+		!canManipulateRealOrders {
+		return false
+	}
+	return true
+}
+
 func TestSubmitOrder(t *testing.T) {
 	a.SetDefaults()
 	TestSetup(t)
 
-	if a.APIKey == "" || a.APISecret == "" ||
-		a.APIKey == "Key" || a.APISecret == "Secret" ||
-		!canPlaceOrders {
+	if !isRealOrderTestEnabled() {
 		t.Skip()
 	}
 	var p = pair.CurrencyPair{
@@ -254,19 +258,29 @@ func TestSubmitOrder(t *testing.T) {
 }
 
 func TestCancelExchangeOrder(t *testing.T) {
+	// Arrange
 	a.SetDefaults()
 	TestSetup(t)
-	a.APIKey = ""
-	a.APISecret = ""
-	a.AuthenticatedAPISupport = true
+
+	if !isRealOrderTestEnabled() {
+		t.Skip()
+	}
+
 	a.Verbose = true
-	butts, errrr := a.GetDataToken()
-	fmt.Sprintf("%v %v", butts, errrr)
+	currencyPair := pair.NewCurrencyPair(symbol.BTC, symbol.LTC)
+	currencyPair.Delimiter = "_"
 
-	var buttsMcgee exchange.OrderCancellation
-	_, err := a.CancelOrder(buttsMcgee)
+	var orderCancellation = exchange.OrderCancellation{
+		OrderID:       "1",
+		WalletAddress: "1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB",
+		AccountID:     "1",
+		CurrencyPair:  currencyPair,
+	}
+	// Act
+	wasOrderCancelled, err := a.CancelOrder(orderCancellation)
 
-	if err != nil {
-		t.Error("Could not cancel order:", err)
+	// Assert
+	if !wasOrderCancelled || err != nil {
+		t.Errorf("Test Failed - ANX CancelOrder() error: %s", err)
 	}
 }

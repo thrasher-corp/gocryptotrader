@@ -14,9 +14,9 @@ var b BTCMarkets
 
 // Please supply your own keys here to do better tests
 const (
-	apiKey         = ""
-	apiSecret      = ""
-	canPlaceOrders = false
+	apiKey                  = ""
+	apiSecret               = ""
+	canManipulateRealOrders = false
 )
 
 func TestSetDefaults(t *testing.T) {
@@ -304,17 +304,25 @@ func TestFormatWithdrawPermissions(t *testing.T) {
 	}
 }
 
-// This will really really use the API to place an order
-// If you're going to test this, make sure you're willing to place real orders on the exchange
+// Any tests below this line have the ability to impact your orders on the exchange. Enable canManipulateRealOrders to run them
+// ----------------------------------------------------------------------------------------------------------------------------
+func isRealOrderTestEnabled() bool {
+	if b.APIKey == "" || b.APISecret == "" ||
+		b.APIKey == "Key" || b.APISecret == "Secret" ||
+		!canManipulateRealOrders {
+		return false
+	}
+	return true
+}
+
 func TestSubmitOrder(t *testing.T) {
 	b.SetDefaults()
 	TestSetup(t)
 
-	if b.APIKey == "" || b.APISecret == "" ||
-		b.APIKey == "Key" || b.APISecret == "Secret" ||
-		!canPlaceOrders {
+	if !isRealOrderTestEnabled() {
 		t.Skip()
 	}
+
 	var p = pair.CurrencyPair{
 		Delimiter:      "-",
 		FirstCurrency:  symbol.BTC,
@@ -323,5 +331,34 @@ func TestSubmitOrder(t *testing.T) {
 	response, err := b.SubmitOrder(p, exchange.Buy, exchange.Limit, 1, 1, "clientId")
 	if err != nil || !response.IsOrderPlaced {
 		t.Errorf("Order failed to be placed: %v", err)
+	}
+}
+
+func TestCancelExchangeOrder(t *testing.T) {
+	// Arrange
+	b.SetDefaults()
+	TestSetup(t)
+
+	if !isRealOrderTestEnabled() {
+		t.Skip()
+	}
+
+	b.Verbose = true
+	currencyPair := pair.NewCurrencyPair(symbol.LTC, symbol.BTC)
+	currencyPair.Delimiter = ""
+
+	var orderCancellation = exchange.OrderCancellation{
+		OrderID:       "1",
+		WalletAddress: "1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB",
+		AccountID:     "1",
+		CurrencyPair:  currencyPair,
+	}
+
+	// Act
+	wasOrderCancelled, err := b.CancelOrder(orderCancellation)
+
+	// Assert
+	if !wasOrderCancelled || err != nil {
+		t.Errorf("Could not cancel order: %s", err)
 	}
 }

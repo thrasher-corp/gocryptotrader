@@ -291,8 +291,13 @@ func (r *Requester) DoRequest(req *http.Request, method, path string, headers ma
 			return err
 		}
 
+		if resp.StatusCode != 200 {
+			return fmt.Errorf("Error: HTTP Status code %s. Body: %s", resp.Status, contents)
+		}
+
 		resp.Body.Close()
 		if verbose {
+			log.Printf("HTTP status: %s, Code: %v", resp.Status, resp.StatusCode)
 			log.Printf("%s exchange raw response: %s", r.Name, string(contents[:]))
 		}
 
