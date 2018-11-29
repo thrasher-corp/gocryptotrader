@@ -434,21 +434,6 @@ func TestModifyExistingOrder(t *testing.T) {
 	}
 }
 
-func TestCancelExistingOrder(t *testing.T) {
-	a := &Alphapoint{}
-	a.SetDefaults()
-	testSetAPIKey(a)
-
-	if !testIsAPIKeysSet(a) {
-		return
-	}
-
-	_, err := a.CancelExistingOrder(1)
-	if err == nil {
-		t.Error("Test Failed - GetUserInfo() error")
-	}
-}
-
 func TestCancelAllExistingOrders(t *testing.T) {
 	a := &Alphapoint{}
 	a.SetDefaults()

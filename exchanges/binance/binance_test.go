@@ -138,14 +138,6 @@ func TestGetBestPrice(t *testing.T) {
 	}
 }
 
-func TestNewOrderTest(t *testing.T) {
-	t.Parallel()
-	_, err := b.NewOrderTest()
-	if err != nil {
-		t.Error("Test Failed - Binance NewOrderTest() error", err)
-	}
-}
-
 func TestNewOrder(t *testing.T) {
 	t.Parallel()
 

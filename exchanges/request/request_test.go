@@ -274,7 +274,7 @@ func TestDoRequest(t *testing.T) {
 
 	headers := make(map[string]string)
 	headers["content-type"] = "content/text"
-	err = r.SendPayload("POST", "https://api.bitfinex.com", headers, nil, result, false, true)
+	err = r.SendPayload("POST", "https://bitfinex.com", headers, nil, result, false, true)
 	if err != nil {
 		t.Fatal(err)
 	}
