@@ -212,20 +212,14 @@ func (e *EXMO) ModifyOrder(orderID int64, action exchange.ModifyOrder) (int64, e
 }
 
 // CancelOrder cancels an order by its corresponding ID number
-func (e *EXMO) CancelOrder(order exchange.OrderCancellation) (bool, error) {
+func (e *EXMO) CancelOrder(order exchange.OrderCancellation) error {
 	orderIDInt, err := strconv.ParseInt(order.OrderID, 10, 64)
 
 	if err != nil {
-		return false, err
+		return err
 	}
 
-	e.CancelExistingOrder(orderIDInt)
-
-	if err != nil {
-		return false, err
-	}
-
-	return true, err
+	return e.CancelExistingOrder(orderIDInt)
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair

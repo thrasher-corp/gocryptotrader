@@ -173,14 +173,9 @@ func (b *Bithumb) ModifyOrder(orderID int64, action exchange.ModifyOrder) (int64
 }
 
 // CancelOrder cancels an order by its corresponding ID number
-func (b *Bithumb) CancelOrder(order exchange.OrderCancellation) (bool, error) {
+func (b *Bithumb) CancelOrder(order exchange.OrderCancellation) error {
 	_, err := b.CancelTrade(order.Side.ToString(), order.OrderID, order.CurrencyPair.FirstCurrency.String())
-
-	if err != nil {
-		return false, err
-	}
-
-	return true, err
+	return err
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair

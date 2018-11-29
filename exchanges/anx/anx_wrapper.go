@@ -228,15 +228,9 @@ func (a *ANX) ModifyOrder(orderID int64, action exchange.ModifyOrder) (int64, er
 }
 
 // CancelOrder cancels an order by its corresponding ID number
-func (a *ANX) CancelOrder(order exchange.OrderCancellation) (bool, error) {
+func (a *ANX) CancelOrder(order exchange.OrderCancellation) error {
 	orderIDs := []string{order.OrderID}
-	err := a.CancelOrderByIDs(orderIDs)
-
-	if err != nil {
-		return false, err
-	}
-
-	return true, err
+	return a.CancelOrderByIDs(orderIDs)
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair

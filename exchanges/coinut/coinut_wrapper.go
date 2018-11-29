@@ -199,29 +199,25 @@ func (c *COINUT) ModifyOrder(orderID int64, action exchange.ModifyOrder) (int64,
 }
 
 // CancelOrder cancels an order by its corresponding ID number
-func (c *COINUT) CancelOrder(order exchange.OrderCancellation) (bool, error) {
+func (c *COINUT) CancelOrder(order exchange.OrderCancellation) error {
 	orderIDInt, err := strconv.ParseInt(order.OrderID, 10, 64)
 
 	if err != nil {
-		return false, err
+		return err
 	}
 
 	// Need to get the ID of the currency sent
 	instruments, err := c.GetInstruments()
 
 	if err != nil {
-		return false, err
+		return err
 	}
 
-	currencyArray := instruments.Instruments[order.CurrencyPair.Pair().String()]
+	currencyArray := instruments.Instruments[exchange.FormatExchangeCurrency(c.Name, order.CurrencyPair).String()]
 	currencyID := currencyArray[0].InstID
 	_, err = c.CancelExistingOrder(currencyID, int(orderIDInt))
 
-	if err != nil {
-		return false, err
-	}
-
-	return true, err
+	return err
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair

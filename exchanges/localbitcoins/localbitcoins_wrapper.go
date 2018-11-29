@@ -213,14 +213,8 @@ func (l *LocalBitcoins) ModifyOrder(orderID int64, action exchange.ModifyOrder) 
 }
 
 // CancelOrder cancels an order by its corresponding ID number
-func (l *LocalBitcoins) CancelOrder(order exchange.OrderCancellation) (bool, error) {
-	err := l.DeleteAd(order.OrderID)
-	
-	if err != nil {
-		return false, err
-	}
-
-	return true, err
+func (l *LocalBitcoins) CancelOrder(order exchange.OrderCancellation) error {
+	return l.DeleteAd(order.OrderID)
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair

@@ -164,8 +164,8 @@ func (b *BTCC) ModifyOrder(orderID int64, action exchange.ModifyOrder) (int64, e
 }
 
 // CancelOrder cancels an order by its corresponding ID number
-func (b *BTCC) CancelOrder(order exchange.OrderCancellation) (bool, error) {
-	return false, common.ErrNotYetImplemented
+func (b *BTCC) CancelOrder(order exchange.OrderCancellation) error {
+	return common.ErrNotYetImplemented
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair

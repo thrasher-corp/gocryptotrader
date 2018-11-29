@@ -292,7 +292,6 @@ func TestCancelExchangeOrder(t *testing.T) {
 
 	g.Verbose = true
 	currencyPair := pair.NewCurrencyPair(symbol.LTC, symbol.BTC)
-	currencyPair.Delimiter = ""
 
 	var orderCancellation = exchange.OrderCancellation{
 		OrderID:       "1",
@@ -302,10 +301,10 @@ func TestCancelExchangeOrder(t *testing.T) {
 	}
 
 	// Act
-	wasOrderCancelled, err := g.CancelOrder(orderCancellation)
+	err := g.CancelOrder(orderCancellation)
 
 	// Assert
-	if !wasOrderCancelled || err != nil {
+	if err != nil {
 		t.Errorf("Could not cancel order: %s", err)
 	}
 }
