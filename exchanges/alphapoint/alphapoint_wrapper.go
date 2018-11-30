@@ -3,6 +3,7 @@ package alphapoint
 import (
 	"errors"
 	"fmt"
+	"strconv"
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
@@ -129,9 +130,16 @@ func (a *Alphapoint) ModifyOrder(orderID int64, action exchange.ModifyOrder) (in
 }
 
 // CancelOrder cancels an order by its corresponding ID number
-func (a *Alphapoint) CancelOrder(orderID int64) error {
-	// return a.CancelExistingOrder(p.Pair().String(), orderID)
-	return common.ErrNotYetImplemented
+func (a *Alphapoint) CancelOrder(order exchange.OrderCancellation) error {
+	orderIDInt, err := strconv.ParseInt(order.OrderID, 10, 64)
+
+	if err != nil {
+		return err
+	}
+
+	_, err = a.CancelExistingOrder(orderIDInt, order.AccountID)
+
+	return err
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair

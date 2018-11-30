@@ -228,8 +228,9 @@ func (a *ANX) ModifyOrder(orderID int64, action exchange.ModifyOrder) (int64, er
 }
 
 // CancelOrder cancels an order by its corresponding ID number
-func (a *ANX) CancelOrder(orderID int64) error {
-	return common.ErrNotYetImplemented
+func (a *ANX) CancelOrder(order exchange.OrderCancellation) error {
+	orderIDs := []string{order.OrderID}
+	return a.CancelOrderByIDs(orderIDs)
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair

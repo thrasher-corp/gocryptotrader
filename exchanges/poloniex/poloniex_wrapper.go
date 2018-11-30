@@ -3,6 +3,7 @@ package poloniex
 import (
 	"fmt"
 	"log"
+	"strconv"
 	"sync"
 
 	"github.com/thrasher-/gocryptotrader/common"
@@ -179,8 +180,16 @@ func (p *Poloniex) ModifyOrder(orderID int64, action exchange.ModifyOrder) (int6
 }
 
 // CancelOrder cancels an order by its corresponding ID number
-func (p *Poloniex) CancelOrder(orderID int64) error {
-	return common.ErrNotYetImplemented
+func (p *Poloniex) CancelOrder(order exchange.OrderCancellation) error {
+	orderIDInt, err := strconv.ParseInt(order.OrderID, 10, 64)
+
+	if err != nil {
+		return err
+	}
+
+	_, err = p.CancelExistingOrder(orderIDInt)
+
+	return err
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair

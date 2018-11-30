@@ -216,8 +216,18 @@ func (c *COINUT) GetOpenOrders(instrumentID int) ([]OrdersResponse, error) {
 func (c *COINUT) CancelExistingOrder(instrumentID, orderID int) (bool, error) {
 	var result GenericResponse
 	params := make(map[string]interface{})
-	params["inst_id"] = instrumentID
-	params["order_id"] = orderID
+	type Request struct {
+		InstrumentID int `json:"inst_id"`
+		OrderID      int `json:"order_id"`
+	}
+
+	var entry = Request{
+		InstrumentID: instrumentID,
+		OrderID:      orderID,
+	}
+
+	entries := []Request{entry}
+	params["entries"] = entries
 
 	err := c.SendHTTPRequest(coinutOrdersCancel, params, true, &result)
 	if err != nil {

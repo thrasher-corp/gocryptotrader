@@ -39,7 +39,6 @@ const (
 	orders              = "order"
 	orderBuy            = "api/2/order"
 	orderSell           = "sell"
-	orderCancel         = "cancelOrder"
 	orderMove           = "moveOrder"
 	tradableBalances    = "returnTradableBalances"
 	transferBalance     = "transferBalance"
@@ -436,9 +435,8 @@ func (h *HitBTC) PlaceOrder(currency string, rate, amount float64, orderType, si
 func (h *HitBTC) CancelExistingOrder(orderID int64) (bool, error) {
 	result := GenericResponse{}
 	values := url.Values{}
-	values.Set("orderNumber", strconv.FormatInt(orderID, 10))
 
-	err := h.SendAuthenticatedHTTPRequest("POST", orderCancel, values, &result)
+	err := h.SendAuthenticatedHTTPRequest("DELETE", orderBuy+"/"+strconv.FormatInt(orderID, 10), values, &result)
 
 	if err != nil {
 		return false, err

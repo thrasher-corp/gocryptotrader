@@ -173,8 +173,9 @@ func (b *Bithumb) ModifyOrder(orderID int64, action exchange.ModifyOrder) (int64
 }
 
 // CancelOrder cancels an order by its corresponding ID number
-func (b *Bithumb) CancelOrder(orderID int64) error {
-	return common.ErrNotYetImplemented
+func (b *Bithumb) CancelOrder(order exchange.OrderCancellation) error {
+	_, err := b.CancelTrade(order.Side.ToString(), order.OrderID, order.CurrencyPair.FirstCurrency.String())
+	return err
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair

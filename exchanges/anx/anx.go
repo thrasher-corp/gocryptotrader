@@ -24,6 +24,7 @@ const (
 	anxCurrencies      = "currencyStatic"
 	anxDataToken       = "dataToken"
 	anxOrderNew        = "order/new"
+	anxCancel          = "order/cancel"
 	anxOrderInfo       = "order/info"
 	anxSend            = "send"
 	anxSubaccountNew   = "subaccount/new"
@@ -237,6 +238,26 @@ func (a *ANX) NewOrder(orderType string, buy bool, tradedCurrency string, traded
 		return "", errors.New("Response code is not OK: " + response.ResultCode)
 	}
 	return response.OrderID, nil
+}
+
+// CancelOrderByIDs cancels orders, requires already knowing order IDs
+// There is no existing API call to retrieve orderIds
+func (a *ANX) CancelOrderByIDs(orderIds []string) (err error) {
+	request := make(map[string]interface{})
+	request["orderIds"] = orderIds
+	type OrderCancelResponse struct {
+		Order      OrderResponse `json:"order"`
+		ResultCode string        `json:"resultCode"`
+		UUID       int64         `json:"uuid"`
+		ErrorCode  int64         `json:"errorCode"`
+	}
+	var response OrderCancelResponse
+	err = a.SendAuthenticatedHTTPRequest(anxCancel, request, &response)
+	if response.ResultCode != "OK" {
+		log.Printf("Response code is not OK: %s\n", response.ResultCode)
+		return errors.New(response.ResultCode)
+	}
+	return err
 }
 
 // OrderInfo returns information about a specific order

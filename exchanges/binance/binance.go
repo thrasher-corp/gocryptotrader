@@ -419,21 +419,6 @@ func (b *Binance) GetBestPrice(symbol string) (BestPrice, error) {
 	return resp, b.SendHTTPRequest(path, &resp)
 }
 
-// NewOrderTest sends a new order
-func (b *Binance) NewOrderTest() (interface{}, error) {
-	var resp interface{}
-
-	path := fmt.Sprintf("%s%s", b.APIUrl, newOrderTest)
-
-	params := url.Values{}
-	params.Set("symbol", "BTCUSDT")
-	params.Set("side", "BUY")
-	params.Set("type", "MARKET")
-	params.Set("quantity", "0.1")
-
-	return resp, b.SendAuthHTTPRequest("POST", path, params, &resp)
-}
-
 // NewOrder sends a new order to Binance
 func (b *Binance) NewOrder(o NewOrderRequest) (NewOrderResponse, error) {
 	var resp NewOrderResponse

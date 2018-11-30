@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"strconv"
 	"sync"
 
 	"github.com/thrasher-/gocryptotrader/common"
@@ -231,8 +232,17 @@ func (o *OKCoin) ModifyOrder(orderID int64, action exchange.ModifyOrder) (int64,
 }
 
 // CancelOrder cancels an order by its corresponding ID number
-func (o *OKCoin) CancelOrder(orderID int64) error {
-	return common.ErrNotYetImplemented
+func (o *OKCoin) CancelOrder(order exchange.OrderCancellation) error {
+	orderIDInt, err := strconv.ParseInt(order.OrderID, 10, 64)
+	orders := []int64{orderIDInt}
+
+	if err != nil {
+		return err
+	}
+
+	_, err = o.CancelExistingOrder(orders, exchange.FormatExchangeCurrency(o.Name, order.CurrencyPair).String())
+
+	return err
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair

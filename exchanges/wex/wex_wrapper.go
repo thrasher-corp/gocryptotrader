@@ -3,6 +3,7 @@ package wex
 import (
 	"fmt"
 	"log"
+	"strconv"
 	"sync"
 
 	"github.com/thrasher-/gocryptotrader/common"
@@ -180,8 +181,16 @@ func (w *WEX) ModifyOrder(orderID int64, action exchange.ModifyOrder) (int64, er
 }
 
 // CancelOrder cancels an order by its corresponding ID number
-func (w *WEX) CancelOrder(orderID int64) error {
-	return common.ErrNotYetImplemented
+func (w *WEX) CancelOrder(order exchange.OrderCancellation) error {
+	orderIDInt, err := strconv.ParseInt(order.OrderID, 10, 64)
+
+	if err != nil {
+		return err
+	}
+
+	_, err = w.CancelExistingOrder(orderIDInt)
+
+	return err
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair

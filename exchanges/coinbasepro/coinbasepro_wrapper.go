@@ -175,8 +175,8 @@ func (c *CoinbasePro) ModifyOrder(orderID int64, action exchange.ModifyOrder) (i
 }
 
 // CancelOrder cancels an order by its corresponding ID number
-func (c *CoinbasePro) CancelOrder(orderID int64) error {
-	return common.ErrNotYetImplemented
+func (c *CoinbasePro) CancelOrder(order exchange.OrderCancellation) error {
+	return c.CancelExistingOrder(order.OrderID)
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair

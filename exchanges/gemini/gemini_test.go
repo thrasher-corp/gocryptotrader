@@ -1,7 +1,6 @@
 package gemini
 
 import (
-	"fmt"
 	"net/url"
 	"testing"
 
@@ -24,7 +23,7 @@ const (
 	apiKeyRole2       = ""
 	sessionHeartBeat2 = false
 
-	canPlaceOrders = false
+	canManipulateRealOrders = false
 )
 
 func TestAddSession(t *testing.T) {
@@ -325,18 +324,26 @@ func TestFormatWithdrawPermissions(t *testing.T) {
 	}
 }
 
-// This will really really use the API to place an order
-// If you're going to test this, make sure you're willing to place real orders on the exchange
+// Any tests below this line have the ability to impact your orders on the exchange. Enable canManipulateRealOrders to run them
+// ----------------------------------------------------------------------------------------------------------------------------
+func isRealOrderTestEnabled() bool {
+	if Session[1].APIKey == "" || Session[1].APISecret == "" ||
+		Session[1].APIKey == "Key" || Session[1].APISecret == "Secret" ||
+		!canManipulateRealOrders {
+		return false
+	}
+	return true
+}
+
 func TestSubmitOrder(t *testing.T) {
 	Session[1].SetDefaults()
 	TestSetup(t)
 	Session[1].Verbose = true
 
-	if Session[1].APIKey == "" || Session[1].APISecret == "" ||
-		Session[1].APIKey == "Key" || Session[1].APISecret == "Secret" ||
-		!canPlaceOrders {
-		t.Skip(fmt.Sprintf("ApiKey: %s. Can place orders: %v", Session[1].APIKey, canPlaceOrders))
+	if !isRealOrderTestEnabled() {
+		t.Skip()
 	}
+
 	var p = pair.CurrencyPair{
 		Delimiter:      "_",
 		FirstCurrency:  symbol.LTC,
@@ -345,5 +352,33 @@ func TestSubmitOrder(t *testing.T) {
 	response, err := Session[1].SubmitOrder(p, exchange.Buy, exchange.Market, 1, 10, "1234234")
 	if err != nil || !response.IsOrderPlaced {
 		t.Errorf("Order failed to be placed: %v", err)
+	}
+}
+
+func TestCancelExchangeOrder(t *testing.T) {
+	// Arrange
+	Session[1].SetDefaults()
+	TestSetup(t)
+
+	if !isRealOrderTestEnabled() {
+		t.Skip()
+	}
+
+	Session[1].Verbose = true
+	currencyPair := pair.NewCurrencyPair(symbol.LTC, symbol.BTC)
+
+	var orderCancellation = exchange.OrderCancellation{
+		OrderID:       "1",
+		WalletAddress: "1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB",
+		AccountID:     "1",
+		CurrencyPair:  currencyPair,
+	}
+
+	// Act
+	err := Session[1].CancelOrder(orderCancellation)
+
+	// Assert
+	if err != nil {
+		t.Errorf("Could not cancel order: %s", err)
 	}
 }

@@ -1,7 +1,6 @@
 package kraken
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/thrasher-/gocryptotrader/config"
@@ -14,10 +13,10 @@ var k Kraken
 
 // Please add your own APIkeys to do correct due diligence testing.
 const (
-	apiKey         = ""
-	apiSecret      = ""
-	clientID       = ""
-	canPlaceOrders = false
+	apiKey                  = ""
+	apiSecret               = ""
+	clientID                = ""
+	canManipulateRealOrders = false
 )
 
 func TestSetDefaults(t *testing.T) {
@@ -331,18 +330,26 @@ func TestFormatWithdrawPermissions(t *testing.T) {
 	}
 }
 
-// This will really really use the API to place an order
-// If you're going to test this, make sure you're willing to place real orders on the exchange
+// Any tests below this line have the ability to impact your orders on the exchange. Enable canManipulateRealOrders to run them
+// ----------------------------------------------------------------------------------------------------------------------------
+func isRealOrderTestEnabled() bool {
+	if k.APIKey == "" || k.APISecret == "" ||
+		k.APIKey == "Key" || k.APISecret == "Secret" ||
+		!canManipulateRealOrders {
+		return false
+	}
+	return true
+}
+
 func TestSubmitOrder(t *testing.T) {
 	k.SetDefaults()
 	TestSetup(t)
 	k.Verbose = true
 
-	if k.APIKey == "" || k.APISecret == "" ||
-		k.APIKey == "Key" || k.APISecret == "Secret" ||
-		!canPlaceOrders {
-		t.Skip(fmt.Sprintf("ApiKey: %s. Can place orders: %v", k.APIKey, canPlaceOrders))
+	if !isRealOrderTestEnabled() {
+		t.Skip()
 	}
+
 	var p = pair.CurrencyPair{
 		Delimiter:      "",
 		FirstCurrency:  symbol.XBT,
@@ -351,5 +358,33 @@ func TestSubmitOrder(t *testing.T) {
 	response, err := k.SubmitOrder(p, exchange.Buy, exchange.Market, 1, 10, "hi")
 	if err != nil || !response.IsOrderPlaced {
 		t.Errorf("Order failed to be placed: %v", err)
+	}
+}
+
+func TestCancelExchangeOrder(t *testing.T) {
+	// Arrange
+	k.SetDefaults()
+	TestSetup(t)
+
+	if !isRealOrderTestEnabled() {
+		t.Skip()
+	}
+
+	k.Verbose = true
+	currencyPair := pair.NewCurrencyPair(symbol.LTC, symbol.BTC)
+
+	var orderCancellation = exchange.OrderCancellation{
+		OrderID:       "1",
+		WalletAddress: "1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB",
+		AccountID:     "1",
+		CurrencyPair:  currencyPair,
+	}
+
+	// Act
+	err := k.CancelOrder(orderCancellation)
+
+	// Assert
+	if err != nil {
+		t.Errorf("Could not cancel order: %s", err)
 	}
 }

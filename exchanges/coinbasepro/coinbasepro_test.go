@@ -1,7 +1,6 @@
 package coinbasepro
 
 import (
-	"fmt"
 	"testing"
 	"time"
 
@@ -15,10 +14,10 @@ var c CoinbasePro
 
 // Please supply your APIKeys here for better testing
 const (
-	apiKey         = ""
-	apiSecret      = ""
-	clientID       = "" //passphrase you made at API CREATION
-	canPlaceOrders = false
+	apiKey                  = ""
+	apiSecret               = ""
+	clientID                = "" //passphrase you made at API CREATION
+	canManipulateRealOrders = false
 )
 
 func TestSetDefaults(t *testing.T) {
@@ -408,17 +407,25 @@ func TestFormatWithdrawPermissions(t *testing.T) {
 	}
 }
 
-// This will really really use the API to place an order
-// If you're going to test this, make sure you're willing to place real orders on the exchange
+// Any tests below this line have the ability to impact your orders on the exchange. Enable canManipulateRealOrders to run them
+// ----------------------------------------------------------------------------------------------------------------------------
+func isRealOrderTestEnabled() bool {
+	if c.APIKey == "" || c.APISecret == "" ||
+		c.APIKey == "Key" || c.APISecret == "Secret" ||
+		!canManipulateRealOrders {
+		return false
+	}
+	return true
+}
+
 func TestSubmitOrder(t *testing.T) {
 	c.SetDefaults()
 	TestSetup(t)
 
-	if c.APIKey == "" || c.APISecret == "" ||
-		c.APIKey == "Key" || c.APISecret == "Secret" ||
-		!canPlaceOrders {
-		t.Skip(fmt.Sprintf("ApiKey: %s. Can Place others: %v", c.APIKey, canPlaceOrders))
+	if !isRealOrderTestEnabled() {
+		t.Skip()
 	}
+
 	var p = pair.CurrencyPair{
 		Delimiter:      "-",
 		FirstCurrency:  symbol.BTC,
@@ -427,5 +434,33 @@ func TestSubmitOrder(t *testing.T) {
 	response, err := c.SubmitOrder(p, exchange.Buy, exchange.Limit, 1, 1, "clientId")
 	if err != nil || !response.IsOrderPlaced {
 		t.Errorf("Order failed to be placed: %v", err)
+	}
+}
+
+func TestCancelExchangeOrder(t *testing.T) {
+	// Arrange
+	c.SetDefaults()
+	TestSetup(t)
+
+	if !isRealOrderTestEnabled() {
+		t.Skip()
+	}
+
+	c.Verbose = true
+	currencyPair := pair.NewCurrencyPair(symbol.LTC, symbol.BTC)
+
+	var orderCancellation = exchange.OrderCancellation{
+		OrderID:       "1",
+		WalletAddress: "1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB",
+		AccountID:     "1",
+		CurrencyPair:  currencyPair,
+	}
+
+	// Act
+	err := c.CancelOrder(orderCancellation)
+
+	// Assert
+	if err != nil {
+		t.Errorf("Could not cancel order: %s", err)
 	}
 }

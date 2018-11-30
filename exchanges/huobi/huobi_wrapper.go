@@ -219,8 +219,16 @@ func (h *HUOBI) ModifyOrder(orderID int64, action exchange.ModifyOrder) (int64, 
 }
 
 // CancelOrder cancels an order by its corresponding ID number
-func (h *HUOBI) CancelOrder(orderID int64) error {
-	return common.ErrNotYetImplemented
+func (h *HUOBI) CancelOrder(order exchange.OrderCancellation) error {
+	orderIDInt, err := strconv.ParseInt(order.OrderID, 10, 64)
+
+	if err != nil {
+		return err
+	}
+
+	_, err = h.CancelExistingOrder(orderIDInt)
+
+	return err
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair

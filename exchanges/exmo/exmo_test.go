@@ -1,7 +1,6 @@
 package exmo
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/thrasher-/gocryptotrader/currency/pair"
@@ -10,9 +9,9 @@ import (
 )
 
 const (
-	APIKey         = ""
-	APISecret      = ""
-	canPlaceOrders = false
+	APIKey                  = ""
+	APISecret               = ""
+	canManipulateRealOrders = false
 )
 
 var (
@@ -249,18 +248,26 @@ func TestFormatWithdrawPermissions(t *testing.T) {
 	}
 }
 
-// This will really really use the API to place an order
-// If you're going to test this, make sure you're willing to place real orders on the exchange
+// Any tests below this line have the ability to impact your orders on the exchange. Enable canManipulateRealOrders to run them
+// ----------------------------------------------------------------------------------------------------------------------------
+func isRealOrderTestEnabled() bool {
+	if e.APIKey == "" || e.APISecret == "" ||
+		e.APIKey == "Key" || e.APISecret == "Secret" ||
+		!canManipulateRealOrders {
+		return false
+	}
+	return true
+}
+
 func TestSubmitOrder(t *testing.T) {
 	e.SetDefaults()
 	TestSetup(t)
 	e.Verbose = true
 
-	if e.APISecret == "" ||
-		e.APISecret == "Secret" ||
-		!canPlaceOrders {
-		t.Skip(fmt.Sprintf("ApiKey: %s. Can place orders: %v", e.APIKey, canPlaceOrders))
+	if !isRealOrderTestEnabled() {
+		t.Skip()
 	}
+
 	var p = pair.CurrencyPair{
 		Delimiter:      "_",
 		FirstCurrency:  symbol.BTC,
@@ -269,5 +276,33 @@ func TestSubmitOrder(t *testing.T) {
 	response, err := e.SubmitOrder(p, exchange.Buy, exchange.Market, 1, 10, "1234234")
 	if err != nil || !response.IsOrderPlaced {
 		t.Errorf("Order failed to be placed: %v", err)
+	}
+}
+
+func TestCancelExchangeOrder(t *testing.T) {
+	// Arrange
+	e.SetDefaults()
+	TestSetup(t)
+
+	if !isRealOrderTestEnabled() {
+		t.Skip()
+	}
+
+	e.Verbose = true
+	currencyPair := pair.NewCurrencyPair(symbol.LTC, symbol.BTC)
+
+	var orderCancellation = exchange.OrderCancellation{
+		OrderID:       "1",
+		WalletAddress: "1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB",
+		AccountID:     "1",
+		CurrencyPair:  currencyPair,
+	}
+
+	// Act
+	err := e.CancelOrder(orderCancellation)
+
+	// Assert
+	if err != nil {
+		t.Errorf("Could not cancel order: %s", err)
 	}
 }

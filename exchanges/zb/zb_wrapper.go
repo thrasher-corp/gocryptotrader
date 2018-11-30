@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"strconv"
 	"sync"
 
 	"github.com/thrasher-/gocryptotrader/common"
@@ -173,8 +174,14 @@ func (z *ZB) ModifyOrder(orderID int64, action exchange.ModifyOrder) (int64, err
 }
 
 // CancelOrder cancels an order by its corresponding ID number
-func (z *ZB) CancelOrder(orderID int64) error {
-	return common.ErrNotYetImplemented
+func (z *ZB) CancelOrder(order exchange.OrderCancellation) error {
+	orderIDInt, err := strconv.ParseInt(order.OrderID, 10, 64)
+
+	if err != nil {
+		return err
+	}
+
+	return z.CancelExistingOrder(orderIDInt, exchange.FormatExchangeCurrency(z.Name, order.CurrencyPair).String())
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair

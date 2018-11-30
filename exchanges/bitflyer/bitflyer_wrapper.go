@@ -166,7 +166,7 @@ func (b *Bitflyer) ModifyOrder(orderID int64, action exchange.ModifyOrder) (int6
 }
 
 // CancelOrder cancels an order by its corresponding ID number
-func (b *Bitflyer) CancelOrder(orderID int64) error {
+func (b *Bitflyer) CancelOrder(order exchange.OrderCancellation) error {
 	return common.ErrNotYetImplemented
 }
 
