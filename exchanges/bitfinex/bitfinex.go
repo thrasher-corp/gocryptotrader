@@ -653,7 +653,7 @@ func (b *Bitfinex) CancelAllExistingOrders() (string, error) {
 	response := GenericResponse{}
 
 	return response.Result,
-		b.SendAuthenticatedHTTPRequest("GET", bitfinexOrderCancelAll, nil, nil)
+		b.SendAuthenticatedHTTPRequest("POST", bitfinexOrderCancelAll, nil, nil)
 }
 
 // ReplaceOrder replaces an older order with a new order

@@ -211,7 +211,22 @@ func (b *Bittrex) CancelOrder(order exchange.OrderCancellation) error {
 
 // CancelAllOrders cancels all orders associated with a currency pair
 func (b *Bittrex) CancelAllOrders(orders []exchange.OrderCancellation) error {
-	return common.ErrNotYetImplemented
+
+	openOrders, err := b.GetOpenOrders("")
+
+	if err != nil {
+		return err
+	}
+
+	for _, order := range openOrders.Result {
+		_, err := b.CancelExistingOrder(order.OrderUUID)
+
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 // GetOrderInfo returns information on a current open order

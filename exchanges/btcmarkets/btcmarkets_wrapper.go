@@ -187,13 +187,13 @@ func (b *BTCMarkets) CancelOrder(order exchange.OrderCancellation) error {
 
 // CancelAllOrders cancels all orders associated with a currency pair
 func (b *BTCMarkets) CancelAllOrders(orders []exchange.OrderCancellation) error {
-	orders, err := b.GetOrders("", "", 0, 0, true)
+	openOrders, err := b.GetOrders("", "", 0, 0, true)
 	if err != nil {
 		return err
 	}
 
 	var orderList []int64
-	for _, order := range orders {
+	for _, order := range openOrders {
 		orderIDInt, strconvErr := strconv.ParseInt(order.ID, 10, 64)
 
 		if strconvErr != nil {
