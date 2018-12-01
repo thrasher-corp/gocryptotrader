@@ -211,7 +211,7 @@ func (i *ItBit) CancelOrder(order exchange.OrderCancellation) error {
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
-func (i *ItBit) CancelAllOrders() error {
+func (i *ItBit) CancelAllOrders(orders []exchange.OrderCancellation) error {
 	return common.ErrNotYetImplemented
 }
 

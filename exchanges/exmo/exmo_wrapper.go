@@ -223,7 +223,7 @@ func (e *EXMO) CancelOrder(order exchange.OrderCancellation) error {
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
-func (e *EXMO) CancelAllOrders() error {
+func (e *EXMO) CancelAllOrders(orders []exchange.OrderCancellation) error {
 	return common.ErrNotYetImplemented
 }
 

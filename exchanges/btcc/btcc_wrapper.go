@@ -169,7 +169,7 @@ func (b *BTCC) CancelOrder(order exchange.OrderCancellation) error {
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
-func (b *BTCC) CancelAllOrders() error {
+func (b *BTCC) CancelAllOrders(orders []exchange.OrderCancellation) error {
 	return common.ErrNotYetImplemented
 }
 

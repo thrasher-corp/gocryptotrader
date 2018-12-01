@@ -194,7 +194,7 @@ func (w *WEX) CancelOrder(order exchange.OrderCancellation) error {
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
-func (w *WEX) CancelAllOrders() error {
+func (w *WEX) CancelAllOrders(orders []exchange.OrderCancellation) error {
 	return common.ErrNotYetImplemented
 }
 

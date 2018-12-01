@@ -454,9 +454,9 @@ func (a *Alphapoint) CancelExistingOrder(OrderID int64, OMSID string) (int64, er
 
 // CancelAllExistingOrders cancels all open orders by symbol
 // symbol - Instrument code (ex: “BTCUSD”)
-func (a *Alphapoint) CancelAllExistingOrders(symbol string) error {
+func (a *Alphapoint) CancelAllExistingOrders(OMSID string) error {
 	request := make(map[string]interface{})
-	request["ins"] = symbol
+	request["OMSId"] = OMSID
 	response := Response{}
 
 	err := a.SendAuthenticatedHTTPRequest(

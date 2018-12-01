@@ -173,7 +173,7 @@ func (l *LakeBTC) CancelOrder(order exchange.OrderCancellation) error {
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
-func (l *LakeBTC) CancelAllOrders() error {
+func (l *LakeBTC) CancelAllOrders(orders []exchange.OrderCancellation) error {
 	return common.ErrNotYetImplemented
 }
 

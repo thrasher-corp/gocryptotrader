@@ -216,7 +216,7 @@ func (b *Bitfinex) CancelOrder(order exchange.OrderCancellation) error {
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
-func (b *Bitfinex) CancelAllOrders() error {
+func (b *Bitfinex) CancelAllOrders(orders []exchange.OrderCancellation) error {
 	return common.ErrNotYetImplemented
 }
 

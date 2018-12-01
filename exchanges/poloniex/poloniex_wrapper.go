@@ -193,7 +193,7 @@ func (p *Poloniex) CancelOrder(order exchange.OrderCancellation) error {
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
-func (p *Poloniex) CancelAllOrders() error {
+func (p *Poloniex) CancelAllOrders(orders []exchange.OrderCancellation) error {
 	return common.ErrNotYetImplemented
 }
 

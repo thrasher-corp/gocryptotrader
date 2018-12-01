@@ -144,9 +144,16 @@ func (a *Alphapoint) CancelOrder(order exchange.OrderCancellation) error {
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
-func (a *Alphapoint) CancelAllOrders() error {
-	// return a.CancelAllExistingOrders(p.Pair().String())
-	return common.ErrNotYetImplemented
+func (a *Alphapoint) CancelAllOrders(orders []exchange.OrderCancellation) error {
+	for _, order := range orders {
+		err := a.CancelAllExistingOrders(order.AccountID)
+
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 // GetOrderInfo returns information on a current open order

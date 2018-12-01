@@ -191,7 +191,7 @@ func (h *HitBTC) CancelOrder(order exchange.OrderCancellation) error {
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
-func (h *HitBTC) CancelAllOrders() error {
+func (h *HitBTC) CancelAllOrders(orders []exchange.OrderCancellation) error {
 	return common.ErrNotYetImplemented
 }
 

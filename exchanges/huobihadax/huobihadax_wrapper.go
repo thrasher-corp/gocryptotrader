@@ -262,7 +262,7 @@ func (h *HUOBIHADAX) CancelOrder(order exchange.OrderCancellation) error {
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
-func (h *HUOBIHADAX) CancelAllOrders() error {
+func (h *HUOBIHADAX) CancelAllOrders(orders []exchange.OrderCancellation) error {
 	return common.ErrNotYetImplemented
 }
 

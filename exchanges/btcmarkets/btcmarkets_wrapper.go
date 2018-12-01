@@ -186,7 +186,7 @@ func (b *BTCMarkets) CancelOrder(order exchange.OrderCancellation) error {
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
-func (b *BTCMarkets) CancelAllOrders() error {
+func (b *BTCMarkets) CancelAllOrders(orders []exchange.OrderCancellation) error {
 	orders, err := b.GetOrders("", "", 0, 0, true)
 	if err != nil {
 		return err

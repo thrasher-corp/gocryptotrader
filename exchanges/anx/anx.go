@@ -24,7 +24,8 @@ const (
 	anxCurrencies      = "currencyStatic"
 	anxDataToken       = "dataToken"
 	anxOrderNew        = "order/new"
-	anxCancel          = "order/cancel"
+	anxOrderCancel     = "order/cancel"
+	anxOrderList       = "order/list"
 	anxOrderInfo       = "order/info"
 	anxSend            = "send"
 	anxSubaccountNew   = "subaccount/new"
@@ -252,12 +253,38 @@ func (a *ANX) CancelOrderByIDs(orderIds []string) (err error) {
 		ErrorCode  int64         `json:"errorCode"`
 	}
 	var response OrderCancelResponse
-	err = a.SendAuthenticatedHTTPRequest(anxCancel, request, &response)
+	err = a.SendAuthenticatedHTTPRequest(anxOrderCancel, request, &response)
 	if response.ResultCode != "OK" {
 		log.Printf("Response code is not OK: %s\n", response.ResultCode)
 		return errors.New(response.ResultCode)
 	}
 	return err
+}
+
+// GetOrderList retrieves orders from the exchange
+func (a *ANX) GetOrderList(isActiveOrdersOnly bool) ([]OrderResponse, error) {
+	request := make(map[string]interface{})
+	request["activeOnly"] = isActiveOrdersOnly
+
+	type OrderListResponse struct {
+		Timestamp      int64           `json:"timestamp"`
+		ResultCode     string          `json:"resultCode"`
+		Count          int64           `json:"count"`
+		OrderResponses []OrderResponse `json:"orders"`
+	}
+	var response OrderListResponse
+	err := a.SendAuthenticatedHTTPRequest(anxOrderList, request, &response)
+
+	if err != nil {
+		return nil, err
+	}
+
+	if response.ResultCode != "OK" {
+		log.Printf("Response code is not OK: %s\n", response.ResultCode)
+		return nil, errors.New(response.ResultCode)
+	}
+
+	return response.OrderResponses, err
 }
 
 // OrderInfo returns information about a specific order

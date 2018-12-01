@@ -200,7 +200,7 @@ func (b *Bithumb) CancelOrder(order exchange.OrderCancellation) error {
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
-func (b *Bithumb) CancelAllOrders() error {
+func (b *Bithumb) CancelAllOrders(orders []exchange.OrderCancellation) error {
 	return common.ErrNotYetImplemented
 }
 

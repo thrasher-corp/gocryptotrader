@@ -487,13 +487,13 @@ func (b *Binance) CancelExistingOrder(symbol string, orderID int64, origClientOr
 // Get all open orders on a symbol. Careful when accessing this with no symbol.
 func (b *Binance) OpenOrders(symbol string) ([]QueryOrderData, error) {
 	var resp []QueryOrderData
-
 	path := fmt.Sprintf("%s%s", b.APIUrl, openOrders)
-
 	params := url.Values{}
+
 	if symbol != "" {
 		params.Set("symbol", common.StringToUpper(symbol))
 	}
+
 	if err := b.SendAuthHTTPRequest("GET", path, params, &resp); err != nil {
 		return resp, err
 	}

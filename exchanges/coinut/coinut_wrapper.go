@@ -286,7 +286,7 @@ func (c *COINUT) CancelOrder(order exchange.OrderCancellation) error {
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
-func (c *COINUT) CancelAllOrders() error {
+func (c *COINUT) CancelAllOrders(orders []exchange.OrderCancellation) error {
 	return common.ErrNotYetImplemented
 }
 

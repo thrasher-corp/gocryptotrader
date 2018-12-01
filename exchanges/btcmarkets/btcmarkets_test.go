@@ -172,7 +172,7 @@ func TestCancelOrder(t *testing.T) {
 func TestCancelAllOrders(t *testing.T) {
 	err := b.CancelAllOrders()
 	if err == nil {
-		t.Error("Test failed - CancelAllOrders() error", err)
+		t.Error("Test failed - CancelAllOrders(orders []exchange.OrderCancellation) error", err)
 	}
 }
 

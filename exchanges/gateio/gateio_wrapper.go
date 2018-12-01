@@ -231,7 +231,7 @@ func (g *Gateio) CancelOrder(order exchange.OrderCancellation) error {
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
-func (g *Gateio) CancelAllOrders() error {
+func (g *Gateio) CancelAllOrders(orders []exchange.OrderCancellation) error {
 	return common.ErrNotYetImplemented
 }
 

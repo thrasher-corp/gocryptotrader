@@ -202,7 +202,7 @@ func (b *Bitstamp) CancelOrder(order exchange.OrderCancellation) error {
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
-func (b *Bitstamp) CancelAllOrders() error {
+func (b *Bitstamp) CancelAllOrders(orders []exchange.OrderCancellation) error {
 	return common.ErrNotYetImplemented
 }
 

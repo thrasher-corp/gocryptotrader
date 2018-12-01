@@ -171,7 +171,7 @@ func (b *Bitflyer) CancelOrder(order exchange.OrderCancellation) error {
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
-func (b *Bitflyer) CancelAllOrders() error {
+func (b *Bitflyer) CancelAllOrders(orders []exchange.OrderCancellation) error {
 	return common.ErrNotYetImplemented
 }
 

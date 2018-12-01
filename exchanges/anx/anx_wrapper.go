@@ -268,8 +268,20 @@ func (a *ANX) CancelOrder(order exchange.OrderCancellation) error {
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
-func (a *ANX) CancelAllOrders() error {
-	return common.ErrNotYetImplemented
+func (a *ANX) CancelAllOrders(orders []exchange.OrderCancellation) (err error) {
+	// Only retrieve active orders to actually cancel
+	placedOrders, err := a.GetOrderList(true)
+
+	if err != nil {
+		return err
+	}
+
+	var orderIDs []string
+	for _, order := range placedOrders {
+		orderIDs = append(orderIDs, order.OrderID)
+	}
+
+	return a.CancelOrderByIDs(orderIDs)
 }
 
 // GetOrderInfo returns information on a current open order

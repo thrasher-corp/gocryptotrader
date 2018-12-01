@@ -234,8 +234,22 @@ func (b *Binance) CancelOrder(order exchange.OrderCancellation) error {
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
-func (b *Binance) CancelAllOrders() error {
-	return common.ErrNotYetImplemented
+func (b *Binance) CancelAllOrders(orders []exchange.OrderCancellation) error {
+	openOrders, err := b.OpenOrders("")
+
+	if err != nil {
+		return err
+	}
+
+	for _, order := range openOrders {
+		_, err = b.CancelExistingOrder(order.Symbol, order.OrderID, "")
+
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 // GetOrderInfo returns information on a current open order
