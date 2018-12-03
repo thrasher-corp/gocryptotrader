@@ -18,8 +18,8 @@ import (
 )
 
 const (
-	wexAPIPublicURL       = "https://wex.link/api"
-	wexAPIPrivateURL      = "https://wex.link/tapi"
+	wexAPIPublicURL       = "https://wex.fit/api"
+	wexAPIPrivateURL      = "https://wex.fit/tapi"
 	wexAPIPublicVersion   = "3"
 	wexAPIPrivateVersion  = "1"
 	wexInfo               = "info"

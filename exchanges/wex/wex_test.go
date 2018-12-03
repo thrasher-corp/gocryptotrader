@@ -16,7 +16,7 @@ const (
 	apiKey                  = ""
 	apiSecret               = ""
 	canManipulateRealOrders = false
-	isWexEncounteringIssues = true
+	isWexEncounteringIssues = false
 )
 
 func TestSetDefaults(t *testing.T) {
