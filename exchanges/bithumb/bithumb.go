@@ -238,11 +238,16 @@ func (b *Bithumb) GetTransactionHistory(symbol string) (TransactionHistory, erro
 	return response, nil
 }
 
-// GetAccountInformation returns account information
-func (b *Bithumb) GetAccountInformation() (Account, error) {
+// GetAccountInformation returns account information by singular currency
+func (b *Bithumb) GetAccountInformation(currency string) (Account, error) {
 	response := Account{}
 
-	err := b.SendAuthenticatedHTTPRequest(privateAccInfo, nil, &response)
+	val := url.Values{}
+	if currency != "" {
+		val.Set("currency", currency)
+	}
+
+	err := b.SendAuthenticatedHTTPRequest(privateAccInfo, val, &response)
 	if err != nil {
 		return response, err
 	}
@@ -254,10 +259,15 @@ func (b *Bithumb) GetAccountInformation() (Account, error) {
 }
 
 // GetAccountBalance returns customer wallet information
-func (b *Bithumb) GetAccountBalance() (Balance, error) {
-	response := Balance{}
+func (b *Bithumb) GetAccountBalance(c string) (Balance, error) {
+	var response Balance
 
-	err := b.SendAuthenticatedHTTPRequest(privateAccBalance, nil, &response)
+	vals := url.Values{}
+	if c != "" {
+		vals.Set("currency", c)
+	}
+
+	err := b.SendAuthenticatedHTTPRequest(privateAccBalance, vals, &response)
 	if err != nil {
 		return response, err
 	}

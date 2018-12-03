@@ -1,9 +1,10 @@
 package bithumb
 
 import (
-	"errors"
 	"fmt"
 	"log"
+	"reflect"
+	"strconv"
 	"sync"
 
 	"github.com/thrasher-/gocryptotrader/common"
@@ -122,8 +123,93 @@ func (b *Bithumb) UpdateOrderbook(p pair.CurrencyPair, assetType string) (orderb
 // GetAccountInfo retrieves balances for all enabled currencies for the
 // Bithumb exchange
 func (b *Bithumb) GetAccountInfo() (exchange.AccountInfo, error) {
-	var response exchange.AccountInfo
-	return response, errors.New("not implemented")
+	var info exchange.AccountInfo
+	info.ExchangeName = b.GetName()
+
+	bal, err := b.GetAccountBalance("ALL")
+	if err != nil {
+		return info, err
+	}
+
+	var exchangeBalances []exchange.AccountCurrencyInfo
+
+	// Added due to increasing of the usuable currencies on exchange, usually
+	// without notificatation, so we dont need to update structs later on
+	for tag, datum := range bal.Data {
+		splitTag := common.SplitStrings(tag, "_")
+		c := splitTag[len(splitTag)-1]
+		switch splitTag[0] {
+		case "available":
+			var hold float64
+			if reflect.TypeOf(datum).String() != "float64" {
+				hold, err = strconv.ParseFloat(datum.(string), 64)
+				if err != nil {
+					return info, err
+				}
+			} else {
+				hold = datum.(float64)
+			}
+
+			var appended bool
+			for i := range exchangeBalances {
+				if exchangeBalances[i].CurrencyName == c {
+					exchangeBalances[i].Hold = hold
+					appended = true
+					break
+				}
+			}
+
+			if !appended {
+				exchangeBalances = append(exchangeBalances, exchange.AccountCurrencyInfo{
+					CurrencyName: c,
+					Hold:         hold,
+				})
+			}
+
+		case "in":
+			// NOTE: Captures in use coins, not used
+
+		case "total":
+			var totalValue float64
+			if reflect.TypeOf(datum).String() != "float64" {
+				totalValue, err = strconv.ParseFloat(datum.(string), 64)
+				if err != nil {
+					return info, err
+				}
+			} else {
+				totalValue = datum.(float64)
+			}
+
+			var appended bool
+			for i := range exchangeBalances {
+				if exchangeBalances[i].CurrencyName == c {
+					exchangeBalances[i].TotalValue = totalValue
+					appended = true
+					break
+				}
+			}
+
+			if !appended {
+				exchangeBalances = append(exchangeBalances, exchange.AccountCurrencyInfo{
+					CurrencyName: c,
+					TotalValue:   totalValue,
+				})
+			}
+
+		case "misu":
+			// NOTE: Captures misu data
+
+		case "xcoin":
+			// NOTE: Captures xcoin data
+
+		default:
+			return info, fmt.Errorf("Unhandled tag %s", tag)
+		}
+	}
+
+	info.Currencies = exchangeBalances
+
+	return info, nil
 }
 
 // GetFundingHistory returns funding history, deposits and
