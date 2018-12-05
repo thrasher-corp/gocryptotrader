@@ -460,10 +460,6 @@ func (h *HitBTC) CancelAllExistingOrders() error {
 		return err
 	}
 
-	if result.Success != 1 {
-		return errors.New(result.Error)
-	}
-
 	return nil
 }
 

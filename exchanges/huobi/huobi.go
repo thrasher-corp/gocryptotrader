@@ -29,33 +29,34 @@ const (
 	huobiAPIURL     = "https://api.huobi.pro"
 	huobiAPIVersion = "1"
 
-	huobiMarketHistoryKline   = "market/history/kline"
-	huobiMarketDetail         = "market/detail"
-	huobiMarketDetailMerged   = "market/detail/merged"
-	huobiMarketDepth          = "market/depth"
-	huobiMarketTrade          = "market/trade"
-	huobiMarketTradeHistory   = "market/history/trade"
-	huobiSymbols              = "common/symbols"
-	huobiCurrencies           = "common/currencys"
-	huobiTimestamp            = "common/timestamp"
-	huobiAccounts             = "account/accounts"
-	huobiAccountBalance       = "account/accounts/%s/balance"
-	huobiOrderPlace           = "order/orders/place"
-	huobiOrderCancel          = "order/orders/%s/submitcancel"
-	huobiOrderCancelBatch     = "order/orders/batchcancel"
-	huobiGetOrder             = "order/orders/%s"
-	huobiGetOrderMatch        = "order/orders/%s/matchresults"
-	huobiGetOrders            = "order/orders"
-	huobiGetOpenOrders        = "order/order/openOrders"
-	huobiGetOrdersMatch       = "orders/matchresults"
-	huobiMarginTransferIn     = "dw/transfer-in/margin"
-	huobiMarginTransferOut    = "dw/transfer-out/margin"
-	huobiMarginOrders         = "margin/orders"
-	huobiMarginRepay          = "margin/orders/%s/repay"
-	huobiMarginLoanOrders     = "margin/loan-orders"
-	huobiMarginAccountBalance = "margin/accounts/balance"
-	huobiWithdrawCreate       = "dw/withdraw/api/create"
-	huobiWithdrawCancel       = "dw/withdraw-virtual/%s/cancel"
+	huobiMarketHistoryKline    = "market/history/kline"
+	huobiMarketDetail          = "market/detail"
+	huobiMarketDetailMerged    = "market/detail/merged"
+	huobiMarketDepth           = "market/depth"
+	huobiMarketTrade           = "market/trade"
+	huobiMarketTradeHistory    = "market/history/trade"
+	huobiSymbols               = "common/symbols"
+	huobiCurrencies            = "common/currencys"
+	huobiTimestamp             = "common/timestamp"
+	huobiAccounts              = "account/accounts"
+	huobiAccountBalance        = "account/accounts/%s/balance"
+	huobiOrderPlace            = "order/orders/place"
+	huobiOrderCancel           = "order/orders/%s/submitcancel"
+	huobiOrderCancelBatch      = "order/orders/batchcancel"
+	huobiBatchCancelOpenOrders = "order/order/batchCancelOpenOrders"
+	huobiGetOrder              = "order/orders/%s"
+	huobiGetOrderMatch         = "order/orders/%s/matchresults"
+	huobiGetOrders             = "order/orders"
+	huobiGetOpenOrders         = "order/order/openOrders"
+	huobiGetOrdersMatch        = "orders/matchresults"
+	huobiMarginTransferIn      = "dw/transfer-in/margin"
+	huobiMarginTransferOut     = "dw/transfer-out/margin"
+	huobiMarginOrders          = "margin/orders"
+	huobiMarginRepay           = "margin/orders/%s/repay"
+	huobiMarginLoanOrders      = "margin/loan-orders"
+	huobiMarginAccountBalance  = "margin/accounts/balance"
+	huobiWithdrawCreate        = "dw/withdraw/api/create"
+	huobiWithdrawCancel        = "dw/withdraw-virtual/%s/cancel"
 
 	huobiAuthRate   = 100
 	huobiUnauthRate = 100
@@ -452,6 +453,21 @@ func (h *HUOBI) CancelOrderBatch(orderIDs []int64) ([]CancelOrderBatch, error) {
 		return nil, errors.New(result.ErrorMessage)
 	}
 	return result.Data, err
+}
+
+// CancelOpenOrdersBatch cancels a batch of orders -- to-do
+func (h *HUOBI) CancelOpenOrdersBatch(accountID string) (CancelOpenOrdersBatch, error) {
+	params := url.Values{}
+	params.Set("account-id", accountID)
+	var result CancelOpenOrdersBatch
+
+	err := h.SendAuthenticatedHTTPRequest("POST", huobiBatchCancelOpenOrders, params, nil, &result)
+
+	if result.Data.FailedCount > 0 {
+		return result, fmt.Errorf("There were %v failed order cancellations", result.Data.FailedCount)
+	}
+
+	return result, err
 }
 
 // GetOrder returns order information for the specified order

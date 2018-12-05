@@ -195,6 +195,35 @@ func (i *ItBit) GetWalletBalance(walletID, currency string) (Balance, error) {
 	return resp, nil
 }
 
+// GetOrders returns active orders for itBit
+// perPage defaults to & has a limit of 50
+func (i *ItBit) GetOrders(walletID, symbol, status string, page, perPage int64) ([]Order, error) {
+	var resp []Order
+	params := make(map[string]interface{})
+	params["walletID"] = walletID
+
+	if symbol != "" {
+		params["instrument"] = symbol
+	}
+	if status != "" {
+		params["status"] = status
+	}
+	if page > 0 {
+		params["page"] = strconv.FormatInt(page, 10)
+	}
+	if perPage > 0 {
+		params["perPage"] = strconv.FormatInt(perPage, 10)
+	}
+
+	err := i.SendAuthenticatedHTTPRequest("GET", itbitOrders, params, &resp)
+
+	if err != nil {
+		return resp, err
+	}
+
+	return resp, nil
+}
+
 // GetWalletTrades returns all trades for a specified wallet.
 func (i *ItBit) GetWalletTrades(walletID string, params url.Values) (Records, error) {
 	resp := Records{}

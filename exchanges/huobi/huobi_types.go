@@ -21,6 +21,16 @@ type KlineItem struct {
 	Count  int     `json:"count"`
 }
 
+// CancelOpenOrdersBatch stores open order batch response data
+type CancelOpenOrdersBatch struct {
+	Data struct {
+		FailedCount  int `json:"failed-count"`
+		NextID       int `json:"next-id"`
+		SuccessCount int `json:"success-count"`
+	} `json:"data"`
+	Status string `json:"status"`
+}
+
 // DetailMerged stores the ticker detail merged data
 type DetailMerged struct {
 	Detail
