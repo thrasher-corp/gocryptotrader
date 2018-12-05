@@ -75,6 +75,9 @@ func (p *Poloniex) WsSubscribe() error {
 			Command: "subscribe",
 			Channel: fPair.String(),
 		})
+		if err != nil {
+			return err
+		}
 
 		err = p.WebsocketConn.WriteMessage(websocket.TextMessage, orderbookJSON)
 		if err != nil {
