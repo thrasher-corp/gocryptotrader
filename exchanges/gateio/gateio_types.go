@@ -130,6 +130,31 @@ type SpotNewOrderResponse struct {
 	Filledrate   float64 `json:"filledRate,string"`   // FilledPrice
 }
 
+// OpenOrdersResponse the main response from GetOpenOrders
+type OpenOrdersResponse struct {
+	Code    int         `json:"code"`
+	Elapsed string      `json:"elapsed"`
+	Message string      `json:"message"`
+	Orders  []OpenOrder `json:"orders"`
+	Result  string      `json:"result"`
+}
+
+// OpenOrder details each open order
+type OpenOrder struct {
+	Amount        string  `json:"amount"`
+	CurrencyPair  string  `json:"currencyPair"`
+	FilledAmount  int     `json:"filledAmount"`
+	FilledRate    int     `json:"filledRate"`
+	InitialAmount string  `json:"initialAmount"`
+	InitialRate   float64 `json:"initialRate"`
+	OrderNumber   string  `json:"orderNumber"`
+	Rate          float64 `json:"rate"`
+	Status        string  `json:"status"`
+	Timestamp     string  `json:"timestamp"`
+	Total         string  `json:"total"`
+	Type          string  `json:"type"`
+}
+
 // WithdrawalFees the large list of predefined withdrawal fees
 // Prone to change
 var WithdrawalFees = map[string]float64{

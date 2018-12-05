@@ -210,7 +210,7 @@ func (z *ZB) CancelOrder(order exchange.OrderCancellation) error {
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
-func (z *ZB) CancelAllOrders(orders []exchange.OrderCancellation) error {
+func (z *ZB) CancelAllOrders(orderCancellation exchange.OrderCancellation) error {
 	return common.ErrNotYetImplemented
 }
 

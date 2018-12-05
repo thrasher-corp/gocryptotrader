@@ -244,7 +244,7 @@ func (o *OKEX) CancelOrder(order exchange.OrderCancellation) error {
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
-func (o *OKEX) CancelAllOrders(orders []exchange.OrderCancellation) error {
+func (o *OKEX) CancelAllOrders(orderCancellation exchange.OrderCancellation) error {
 	return common.ErrNotYetImplemented
 }
 

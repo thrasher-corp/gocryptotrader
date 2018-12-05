@@ -164,8 +164,10 @@ func (g *Gemini) CancelOrder(order exchange.OrderCancellation) error {
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
-func (g *Gemini) CancelAllOrders(orders []exchange.OrderCancellation) error {
-	return common.ErrNotYetImplemented
+func (g *Gemini) CancelAllOrders(orderCancellation exchange.OrderCancellation) error {
+	_, err := g.CancelExistingOrders(false)
+
+	return err
 }
 
 // GetOrderInfo returns information on a current open order

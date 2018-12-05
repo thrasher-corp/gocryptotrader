@@ -264,7 +264,7 @@ type IBotExchange interface {
 	SubmitOrder(p pair.CurrencyPair, side OrderSide, orderType OrderType, amount, price float64, clientID string) (SubmitOrderResponse, error)
 	ModifyOrder(orderID int64, modify ModifyOrder) (int64, error)
 	CancelOrder(order OrderCancellation) error
-	CancelAllOrders(orders []OrderCancellation) error
+	CancelAllOrders(orders OrderCancellation) error
 	GetOrderInfo(orderID int64) (OrderDetail, error)
 	GetDepositAddress(cryptocurrency pair.CurrencyItem) (string, error)
 

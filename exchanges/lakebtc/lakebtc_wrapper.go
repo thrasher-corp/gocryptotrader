@@ -173,8 +173,19 @@ func (l *LakeBTC) CancelOrder(order exchange.OrderCancellation) error {
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
-func (l *LakeBTC) CancelAllOrders(orders []exchange.OrderCancellation) error {
-	return common.ErrNotYetImplemented
+func (l *LakeBTC) CancelAllOrders(orderCancellation exchange.OrderCancellation) error {
+	openOrders, err := l.GetOpenOrders()
+	if err != nil {
+		return err
+	}
+
+	var ordersToCancel []string
+	for _, order := range openOrders {
+		orderIDString := strconv.FormatInt(order.ID, 10)
+		ordersToCancel = append(ordersToCancel, orderIDString)
+	}
+
+	return l.CancelExistingOrders(ordersToCancel)
 }
 
 // GetOrderInfo returns information on a current open order

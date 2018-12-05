@@ -278,6 +278,25 @@ func (l *LakeBTC) CancelExistingOrder(orderID int64) error {
 	return nil
 }
 
+// CancelExistingOrders cancels an order by ID number and returns an error
+func (l *LakeBTC) CancelExistingOrders(orderIDs []string) error {
+	type Response struct {
+		Result bool `json:"Result"`
+	}
+
+	resp := Response{}
+	params := common.JoinStrings(orderIDs, ",")
+	err := l.SendAuthenticatedHTTPRequest(lakeBTCCancelOrder, params, &resp)
+	if err != nil {
+		return err
+	}
+
+	if resp.Result != true {
+		return errors.New("unable to cancel order")
+	}
+	return nil
+}
+
 // GetTrades returns trades associated with your account by timestamp
 func (l *LakeBTC) GetTrades(timestamp int64) ([]AuthenticatedTradeHistory, error) {
 	params := ""

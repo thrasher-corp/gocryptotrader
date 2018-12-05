@@ -268,7 +268,7 @@ func (a *ANX) CancelOrder(order exchange.OrderCancellation) error {
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
-func (a *ANX) CancelAllOrders(orders []exchange.OrderCancellation) (err error) {
+func (a *ANX) CancelAllOrders(orderCancellation exchange.OrderCancellation) (err error) {
 	// Only retrieve active orders to actually cancel
 	placedOrders, err := a.GetOrderList(true)
 

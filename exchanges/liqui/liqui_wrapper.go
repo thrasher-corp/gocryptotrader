@@ -184,7 +184,7 @@ func (l *Liqui) CancelOrder(order exchange.OrderCancellation) error {
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
-func (l *Liqui) CancelAllOrders(orders []exchange.OrderCancellation) error {
+func (l *Liqui) CancelAllOrders(orderCancellation exchange.OrderCancellation) error {
 	return common.ErrNotYetImplemented
 }
 

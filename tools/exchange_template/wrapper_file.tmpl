@@ -137,7 +137,7 @@ func ({{.Variable}} *{{.CapitalName}}) CancelOrder(order exchange.OrderCancellat
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
-func ({{.Variable}} *{{.CapitalName}}) CancelAllOrders(orders []exchange.OrderCancellation) error {
+func ({{.Variable}} *{{.CapitalName}}) CancelAllOrders(orderCancellation exchange.OrderCancellation) error {
 	return common.ErrNotYetImplemented
 }
 

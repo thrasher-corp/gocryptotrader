@@ -207,7 +207,7 @@ func (k *Kraken) CancelOrder(order exchange.OrderCancellation) error {
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
-func (k *Kraken) CancelAllOrders(orders []exchange.OrderCancellation) error {
+func (k *Kraken) CancelAllOrders(orderCancellation exchange.OrderCancellation) error {
 	return common.ErrNotYetImplemented
 }
 

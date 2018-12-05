@@ -234,7 +234,7 @@ func (b *Binance) CancelOrder(order exchange.OrderCancellation) error {
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
-func (b *Binance) CancelAllOrders(orders []exchange.OrderCancellation) error {
+func (b *Binance) CancelAllOrders(orderCancellation exchange.OrderCancellation) error {
 	openOrders, err := b.OpenOrders("")
 
 	if err != nil {

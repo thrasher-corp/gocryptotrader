@@ -449,6 +449,24 @@ func (h *HitBTC) CancelExistingOrder(orderID int64) (bool, error) {
 	return true, nil
 }
 
+// CancelAllExistingOrders cancels all open orders
+func (h *HitBTC) CancelAllExistingOrders() error {
+	result := GenericResponse{}
+	values := url.Values{}
+
+	err := h.SendAuthenticatedHTTPRequest("DELETE", orderBuy, values, &result)
+
+	if err != nil {
+		return err
+	}
+
+	if result.Success != 1 {
+		return errors.New(result.Error)
+	}
+
+	return nil
+}
+
 // MoveOrder generates a new move order
 func (h *HitBTC) MoveOrder(orderID int64, rate, amount float64) (MoveOrderResponse, error) {
 	result := MoveOrderResponse{}

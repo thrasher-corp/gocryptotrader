@@ -286,7 +286,7 @@ func (c *COINUT) CancelOrder(order exchange.OrderCancellation) error {
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
-func (c *COINUT) CancelAllOrders(orders []exchange.OrderCancellation) error {
+func (c *COINUT) CancelAllOrders(orderCancellation exchange.OrderCancellation) error {
 	// TODO, this is a terrible implementation. Requires DB to improve
 	// Coinut provides no way of retrieving orders without a currency
 	// So we need to retrieve all currencies, then retrieve orders for each currency

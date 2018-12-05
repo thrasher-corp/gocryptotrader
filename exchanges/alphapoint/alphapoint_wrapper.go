@@ -143,14 +143,12 @@ func (a *Alphapoint) CancelOrder(order exchange.OrderCancellation) error {
 	return err
 }
 
-// CancelAllOrders cancels all orders associated with a currency pair
-func (a *Alphapoint) CancelAllOrders(orders []exchange.OrderCancellation) error {
-	for _, order := range orders {
-		err := a.CancelAllExistingOrders(order.AccountID)
+// CancelAllOrders cancels all orders for a given account
+func (a *Alphapoint) CancelAllOrders(orderCancellation exchange.OrderCancellation) error {
+	err := a.CancelAllExistingOrders(orderCancellation.AccountID)
 
-		if err != nil {
-			return err
-		}
+	if err != nil {
+		return err
 	}
 
 	return nil

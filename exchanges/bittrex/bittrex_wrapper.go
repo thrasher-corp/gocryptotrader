@@ -210,7 +210,7 @@ func (b *Bittrex) CancelOrder(order exchange.OrderCancellation) error {
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
-func (b *Bittrex) CancelAllOrders(orders []exchange.OrderCancellation) error {
+func (b *Bittrex) CancelAllOrders(orderCancellation exchange.OrderCancellation) error {
 
 	openOrders, err := b.GetOpenOrders("")
 

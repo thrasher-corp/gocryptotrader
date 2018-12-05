@@ -218,7 +218,7 @@ func (l *LocalBitcoins) CancelOrder(order exchange.OrderCancellation) error {
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
-func (l *LocalBitcoins) CancelAllOrders(orders []exchange.OrderCancellation) error {
+func (l *LocalBitcoins) CancelAllOrders(orderCancellation exchange.OrderCancellation) error {
 	return common.ErrNotYetImplemented
 }
 

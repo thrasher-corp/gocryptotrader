@@ -35,6 +35,7 @@ const (
 	huobihadaxAccountBalance       = "account/accounts/%s/balance"
 	huobihadaxOrderPlace           = "order/orders/place"
 	huobihadaxOrderCancel          = "order/orders/%s/submitcancel"
+	huobihadaxGetOpenOrders        = "order/order/openOrders"
 	huobihadaxOrderCancelBatch     = "order/orders/batchcancel"
 	huobihadaxGetOrder             = "order/orders/%s"
 	huobihadaxGetOrderMatch        = "order/orders/%s/matchresults"
@@ -441,6 +442,29 @@ func (h *HUOBIHADAX) CancelOrderBatch(orderIDs []int64) (CancelOrderBatch, error
 		return CancelOrderBatch{}, errors.New(string(errJSON))
 	}
 	return result.Data, err
+}
+
+// GetOpenOrders returns a list of orders
+func (h *HUOBIHADAX) GetOpenOrders(accountID, symbol, side string, size int) ([]OrderInfo, error) {
+	type response struct {
+		Response
+		Orders []OrderInfo `json:"data"`
+	}
+
+	vals := url.Values{}
+	vals.Set("symbol", symbol)
+	vals.Set("accountID", accountID)
+	vals.Set("side", side)
+	vals.Set("size", fmt.Sprintf("%v", size))
+
+	var result response
+	err := h.SendAuthenticatedHTTPRequest("GET", huobihadaxGetOpenOrders, vals, &result)
+
+	if result.ErrorMessage != "" {
+		return nil, errors.New(result.ErrorMessage)
+	}
+
+	return result.Orders, err
 }
 
 // GetOrder returns order information for the specified order

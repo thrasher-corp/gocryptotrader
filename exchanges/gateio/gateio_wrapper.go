@@ -231,8 +231,27 @@ func (g *Gateio) CancelOrder(order exchange.OrderCancellation) error {
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
-func (g *Gateio) CancelAllOrders(orders []exchange.OrderCancellation) error {
-	return common.ErrNotYetImplemented
+func (g *Gateio) CancelAllOrders(orderCancellation exchange.OrderCancellation) error {
+	openOrders, err := g.GetOpenOrders("")
+
+	if err != nil {
+		return err
+	}
+
+	var uniqueSymbols map[string]string
+	for _, openOrder := range openOrders.Orders {
+		uniqueSymbols[openOrder.CurrencyPair] = openOrder.CurrencyPair
+	}
+
+	for _, uniqueSymbol := range uniqueSymbols {
+		err = g.CancelAllExistingOrders(-1, uniqueSymbol)
+
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 // GetOrderInfo returns information on a current open order

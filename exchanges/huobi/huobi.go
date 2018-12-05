@@ -46,6 +46,7 @@ const (
 	huobiGetOrder             = "order/orders/%s"
 	huobiGetOrderMatch        = "order/orders/%s/matchresults"
 	huobiGetOrders            = "order/orders"
+	huobiGetOpenOrders        = "order/order/openOrders"
 	huobiGetOrdersMatch       = "orders/matchresults"
 	huobiMarginTransferIn     = "dw/transfer-in/margin"
 	huobiMarginTransferOut    = "dw/transfer-out/margin"
@@ -129,6 +130,7 @@ func (h *HUOBI) Setup(exch config.ExchangeConfig) {
 		if err != nil {
 			log.Fatal(err)
 		}
+
 		err = h.WebsocketSetup(h.WsConnect,
 			exch.Name,
 			exch.Websocket,
@@ -527,6 +529,29 @@ func (h *HUOBI) GetOrders(symbol, types, start, end, states, from, direct, size 
 	if result.ErrorMessage != "" {
 		return nil, errors.New(result.ErrorMessage)
 	}
+	return result.Orders, err
+}
+
+// GetOpenOrders returns a list of orders
+func (h *HUOBI) GetOpenOrders(accountID, symbol, side string, size int) ([]OrderInfo, error) {
+	type response struct {
+		Response
+		Orders []OrderInfo `json:"data"`
+	}
+
+	vals := url.Values{}
+	vals.Set("symbol", symbol)
+	vals.Set("accountID", accountID)
+	vals.Set("side", side)
+	vals.Set("size", fmt.Sprintf("%v", size))
+
+	var result response
+	err := h.SendAuthenticatedHTTPRequest("GET", huobiGetOpenOrders, vals, nil, &result)
+
+	if result.ErrorMessage != "" {
+		return nil, errors.New(result.ErrorMessage)
+	}
+
 	return result.Orders, err
 }
 
