@@ -425,24 +425,28 @@ func (p *Poloniex) GetDepositsWithdrawals(start, end string) (DepositsWithdrawal
 }
 
 // GetOpenOrders returns current unfilled opened orders
-func (p *Poloniex) GetOpenOrders(currency string) (interface{}, error) {
+func (p *Poloniex) GetOpenOrders(currency string) (OpenOrdersResponse, error) {
 	values := url.Values{}
 
-	if currency != "" {
-		values.Set("currencyPair", currency)
-		result := OpenOrdersResponse{}
+	values.Set("currencyPair", currency)
+	result := OpenOrdersResponse{}
 
-		err := p.SendAuthenticatedHTTPRequest("POST", poloniexOrders, values, &result.Data)
-		if err != nil {
-			return result, err
-		}
-
-		return result, nil
+	err := p.SendAuthenticatedHTTPRequest("POST", poloniexOrders, values, &result.Data)
+	if err != nil {
+		return result, err
 	}
+
+	return result, nil
+}
+
+// GetOpenOrdersForAllCurrencies returns all open orders
+func (p *Poloniex) GetOpenOrdersForAllCurrencies() (OpenOrdersResponseAll, error) {
+	values := url.Values{}
 	values.Set("currencyPair", "all")
 	result := OpenOrdersResponseAll{}
 
 	err := p.SendAuthenticatedHTTPRequest("POST", poloniexOrders, values, &result.Data)
+
 	if err != nil {
 		return result, err
 	}

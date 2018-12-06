@@ -247,7 +247,25 @@ func (o *OKCoin) CancelOrder(order exchange.OrderCancellation) error {
 
 // CancelAllOrders cancels all orders associated with a currency pair
 func (o *OKCoin) CancelAllOrders(orderCancellation exchange.OrderCancellation) error {
-	return common.ErrNotYetImplemented
+	orderInfo, err := o.GetOrderInformation(-1, exchange.FormatExchangeCurrency(o.Name, orderCancellation.CurrencyPair).String())
+
+	if err != nil {
+		return err
+	}
+
+	var ordersToCancel []int64
+
+	for _, order := range orderInfo {
+		ordersToCancel = append(ordersToCancel, order.OrderID)
+	}
+
+	_, err = o.CancelExistingOrder(ordersToCancel, exchange.FormatExchangeCurrency(o.Name, orderCancellation.CurrencyPair).String())
+
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // GetOrderInfo returns information on a current open order

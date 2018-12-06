@@ -185,7 +185,27 @@ func (l *Liqui) CancelOrder(order exchange.OrderCancellation) error {
 
 // CancelAllOrders cancels all orders associated with a currency pair
 func (l *Liqui) CancelAllOrders(orderCancellation exchange.OrderCancellation) error {
-	return common.ErrNotYetImplemented
+	activeOrders, err := l.GetActiveOrders("")
+
+	if err != nil {
+		return err
+	}
+
+	for activeOrder := range activeOrders {
+		orderIDInt, err := strconv.ParseInt(activeOrder, 10, 64)
+
+		if err != nil {
+			return err
+		}
+
+		_, err = l.CancelExistingOrder(orderIDInt)
+
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 // GetOrderInfo returns information on a current open order

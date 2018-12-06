@@ -195,7 +195,35 @@ func (w *WEX) CancelOrder(order exchange.OrderCancellation) error {
 
 // CancelAllOrders cancels all orders associated with a currency pair
 func (w *WEX) CancelAllOrders(orderCancellation exchange.OrderCancellation) error {
-	return common.ErrNotYetImplemented
+	var allActiveOrders map[string]ActiveOrders
+
+	for _, pair := range w.EnabledPairs {
+		activeOrders, err := w.GetActiveOrders(pair)
+
+		if err != nil {
+			return err
+		}
+
+		for k, v := range activeOrders {
+			allActiveOrders[k] = v
+		}
+	}
+
+	for k := range allActiveOrders {
+		orderIDInt, err := strconv.ParseInt(k, 10, 64)
+
+		if err != nil {
+			return err
+		}
+
+		_, err = w.CancelExistingOrder(orderIDInt)
+
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 // GetOrderInfo returns information on a current open order

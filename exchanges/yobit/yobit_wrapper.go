@@ -177,7 +177,35 @@ func (y *Yobit) CancelOrder(order exchange.OrderCancellation) error {
 
 // CancelAllOrders cancels all orders associated with a currency pair
 func (y *Yobit) CancelAllOrders(orderCancellation exchange.OrderCancellation) error {
-	return common.ErrNotYetImplemented
+	var allActiveOrders []map[string]ActiveOrders
+	for _, pair := range y.EnabledPairs {
+		activeOrdersForPair, err := y.GetActiveOrders(pair)
+
+		if err != nil {
+			return err
+		}
+
+		allActiveOrders = append(allActiveOrders, activeOrdersForPair)
+	}
+
+	for _, activeOrders := range allActiveOrders {
+		for key := range activeOrders {
+			orderIDInt, err := strconv.ParseInt(key, 10, 64)
+
+			if err != nil {
+				return err
+			}
+
+			_, err = y.CancelExistingOrder(orderIDInt)
+
+			if err != nil {
+				return err
+			}
+
+		}
+	}
+
+	return nil
 }
 
 // GetOrderInfo returns information on a current open order

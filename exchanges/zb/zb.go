@@ -22,14 +22,15 @@ const (
 	zbMarketURL  = "https://trade.zb.com/api"
 	zbAPIVersion = "v1"
 
-	zbAccountInfo = "getAccountInfo"
-	zbMarkets     = "markets"
-	zbKline       = "kline"
-	zbOrder       = "order"
-	zbCancelOrder = "cancelOrder"
-	zbTicker      = "ticker"
-	zbTickers     = "allTicker"
-	zbDepth       = "depth"
+	zbAccountInfo                     = "getAccountInfo"
+	zbMarkets                         = "markets"
+	zbKline                           = "kline"
+	zbOrder                           = "order"
+	zbCancelOrder                     = "cancelOrder"
+	zbTicker                          = "ticker"
+	zbTickers                         = "allTicker"
+	zbDepth                           = "depth"
+	zbUnfinishedOrdersIgnoreTradeType = "getUnfinishedOrdersIgnoreTradeType"
 
 	zbAuthRate   = 100
 	zbUnauthRate = 100
