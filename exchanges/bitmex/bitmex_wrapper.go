@@ -205,7 +205,9 @@ func (b *Bitmex) CancelOrder(order exchange.OrderCancellation) error {
 
 // CancelAllOrders cancels all orders associated with a currency pair
 func (b *Bitmex) CancelAllOrders(orderCancellation exchange.OrderCancellation) error {
-	return common.ErrNotYetImplemented
+	var emptyParams OrderCancelAllParams
+	_, err := b.CancelAllExistingOrders(emptyParams)
+	return err
 }
 
 // GetOrderInfo returns information on a current open order

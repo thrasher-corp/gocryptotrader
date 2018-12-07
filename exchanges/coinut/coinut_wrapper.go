@@ -298,10 +298,10 @@ func (c *COINUT) CancelAllOrders(orderCancellation exchange.OrderCancellation) e
 	}
 
 	var allTheOrders []OrdersResponse
-	for _, instrumentz := range instruments.Instruments {
-		for _, instrument := range instrumentz {
+	for _, allInstrumentData := range instruments.Instruments {
+		for _, instrumentData := range allInstrumentData {
 
-			openOrders, err := c.GetOpenOrders(instrument.InstID)
+			openOrders, err := c.GetOpenOrders(instrumentData.InstID)
 
 			if err != nil {
 				return err

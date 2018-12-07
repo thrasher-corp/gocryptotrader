@@ -115,22 +115,25 @@ type LastTransactionTicker struct {
 
 // Orders contains information about your current orders
 type Orders struct {
-	Status string `json:"status"`
-	Data   []struct {
-		OrderID         string  `json:"order_id"`
-		OrderCurrency   string  `json:"order_currency"`
-		OrderDate       int64   `json:"order_date"`
-		PaymentCurrency string  `json:"payment_currency"`
-		Type            string  `json:"type"`
-		Status          string  `json:"status"`
-		Units           float64 `json:"units,string"`
-		UnitsRemaining  float64 `json:"units_remaining,string"`
-		Price           float64 `json:"price,string"`
-		Fee             float64 `json:"fee,string"`
-		Total           float64 `json:"total,string"`
-		DateCompleted   int64   `json:"date_completed"`
-	} `json:"data"`
-	Message string `json:"message"`
+	Status  string      `json:"status"`
+	Data    []OrderData `json:"data"`
+	Message string      `json:"message"`
+}
+
+// OrderData contains all individual order details
+type OrderData struct {
+	OrderID         string  `json:"order_id"`
+	OrderCurrency   string  `json:"order_currency"`
+	OrderDate       int64   `json:"order_date"`
+	PaymentCurrency string  `json:"payment_currency"`
+	Type            string  `json:"type"`
+	Status          string  `json:"status"`
+	Units           float64 `json:"units,string"`
+	UnitsRemaining  float64 `json:"units_remaining,string"`
+	Price           float64 `json:"price,string"`
+	Fee             float64 `json:"fee,string"`
+	Total           float64 `json:"total,string"`
+	DateCompleted   int64   `json:"date_completed"`
 }
 
 // UserTransactions holds users full transaction list

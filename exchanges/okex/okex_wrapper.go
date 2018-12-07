@@ -243,16 +243,23 @@ func (o *OKEX) CancelOrder(order exchange.OrderCancellation) error {
 	return err
 }
 
-// CancelAllOrders cancels all orders associated with a currency pair
+// CancelAllOrders cancels all orders for all enabled currencies
 func (o *OKEX) CancelAllOrders(orderCancellation exchange.OrderCancellation) error {
-	openOrders, err := o.GetOpenTokenOrders("0", "4", "100", exchange.FormatExchangeCurrency(o.Name, orderCancellation.CurrencyPair).String())
+	var allOpenOrders []OpenTokenOrders
+	for _, currency := range o.GetEnabledCurrencies() {
+		openOrders, err := o.GetOpenTokenOrders("0", "4", "100", exchange.FormatExchangeCurrency(o.Name, currency).String())
 
-	if err != nil {
-		return err
+		if err != nil {
+			return err
+		}
+
+		for _, openOrder := range openOrders {
+			allOpenOrders = append(allOpenOrders, openOrder)
+		}
 	}
 
-	for _, openOrder := range openOrders {
-		_, err = o.SpotCancelOrder(exchange.FormatExchangeCurrency(o.Name, orderCancellation.CurrencyPair).String(), openOrder.OrderID)
+	for _, openOrder := range allOpenOrders {
+		_, err := o.SpotCancelOrder(openOrder.InstrumentID, openOrder.OrderID)
 
 		if err != nil {
 			return err

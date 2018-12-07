@@ -174,8 +174,7 @@ func (b *Bitflyer) CancelOrder(order exchange.OrderCancellation) error {
 func (b *Bitflyer) CancelAllOrders(orderCancellation exchange.OrderCancellation) error {
 	// TODO, implement BitFlyer API
 	b.CancelAllExistingOrders()
-
-	return nil
+	return common.ErrNotYetImplemented
 }
 
 // GetOrderInfo returns information on a current open order
