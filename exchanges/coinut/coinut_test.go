@@ -252,6 +252,34 @@ func TestCancelExchangeOrder(t *testing.T) {
 	}
 }
 
+func TestCancelAllExchangeOrders(t *testing.T) {
+	// Arrange
+	c.SetDefaults()
+	TestSetup(t)
+
+	if !isRealOrderTestEnabled() {
+		t.Skip()
+	}
+
+	c.Verbose = true
+	currencyPair := pair.NewCurrencyPair(symbol.LTC, symbol.BTC)
+
+	var orderCancellation = exchange.OrderCancellation{
+		OrderID:       "1",
+		WalletAddress: "1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB",
+		AccountID:     "1",
+		CurrencyPair:  currencyPair,
+	}
+
+	// Act
+	err := c.CancelAllOrders(orderCancellation)
+
+	// Assert
+	if err != nil {
+		t.Errorf("Could not cancel order: %s", err)
+	}
+}
+
 func TestGetAccountInfo(t *testing.T) {
 	if apiKey != "" || clientID != "" {
 		_, err := c.GetAccountInfo()

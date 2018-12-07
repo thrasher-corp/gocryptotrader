@@ -367,9 +367,7 @@ func TestCancelExchangeOrder(t *testing.T) {
 	b.SetDefaults()
 	TestSetup(t)
 
-	if b.APIKey == "" || b.APISecret == "" ||
-		b.APIKey == "Key" || b.APISecret == "Secret" ||
-		!canManipulateRealOrders {
+	if !isRealOrderTestEnabled() {
 		t.Skip()
 	}
 
@@ -385,6 +383,34 @@ func TestCancelExchangeOrder(t *testing.T) {
 
 	// Act
 	err := b.CancelOrder(orderCancellation)
+
+	// Assert
+	if err != nil {
+		t.Errorf("Could not cancel order: %s", err)
+	}
+}
+
+func TestCancelAllExchangeOrders(t *testing.T) {
+	// Arrange
+	b.SetDefaults()
+	TestSetup(t)
+
+	if !isRealOrderTestEnabled() {
+		t.Skip()
+	}
+
+	b.Verbose = true
+	currencyPair := pair.NewCurrencyPair(symbol.LTC, symbol.BTC)
+
+	var orderCancellation = exchange.OrderCancellation{
+		OrderID:       "1",
+		WalletAddress: "1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB",
+		AccountID:     "1",
+		CurrencyPair:  currencyPair,
+	}
+
+	// Act
+	err := b.CancelAllOrders(orderCancellation)
 
 	// Assert
 	if err != nil {
