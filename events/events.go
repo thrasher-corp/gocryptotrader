@@ -126,7 +126,7 @@ func (e *Event) ExecuteAction() bool {
 	return true
 }
 
-// EventToString turns the structure event into a string
+// String turns the structure event into a string
 func (e *Event) String() string {
 	condition := common.SplitStrings(e.Condition, ",")
 	return fmt.Sprintf(

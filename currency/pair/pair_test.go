@@ -202,7 +202,7 @@ func TestNewCurrencyPairDelimiter(t *testing.T) {
 	}
 }
 
-// NewCurrencyPairFromIndex returns a CurrencyPair via a currency string and
+// TestNewCurrencyPairFromIndex returns a CurrencyPair via a currency string and
 // specific index
 func TestNewCurrencyPairFromIndex(t *testing.T) {
 	t.Parallel()

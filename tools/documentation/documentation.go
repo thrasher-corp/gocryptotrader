@@ -142,7 +142,7 @@ func main() {
 	fmt.Println("\nTool finished")
 }
 
-// Iterates through codebase paths to check for readme files and either adds
+// updateReadme iterates through codebase paths to check for readme files and either adds
 // or replaces with new readme files.
 func updateReadme() error {
 	addPaths()
@@ -181,7 +181,7 @@ func updateReadme() error {
 	return nil
 }
 
-// Adds paths to different potential README.md files in the codebase
+// addPaths adds paths to different potential README.md files in the codebase
 func addPaths() {
 	codebasePaths["common"] = fmt.Sprintf(commonPath, path, path, path)
 
@@ -288,7 +288,7 @@ func getCapital(name string) string {
 	return cap + last
 }
 
-// returns a string for godoc package names
+// getslashFromName returns a string for godoc package names
 func getslashFromName(packageName string) string {
 	if strings.Contains(packageName, " ") {
 		s := strings.Split(packageName, " ")
@@ -315,7 +315,7 @@ var globS = []string{
 	fmt.Sprintf("web_templates%s*", common.GetOSPathSlash()),
 }
 
-// adds all the template files
+// addTemplates adds all the template files
 func addTemplates() error {
 	tmpl = template.New("")
 
@@ -338,7 +338,7 @@ func checkReadme(packageName string) bool {
 	return os.IsNotExist(err)
 }
 
-// replaces readme file
+// replaceReadme replaces readme file
 func replaceReadme(packageName string) error {
 	if packageName == licenseName || packageName == contributorName {
 		if err := deleteFile(codebasePaths[packageName] + packageName); err != nil {
@@ -352,7 +352,7 @@ func replaceReadme(packageName string) error {
 	return createReadme(packageName)
 }
 
-// creates new readme file and executes template
+// createReadme creates new readme file and executes template
 func createReadme(packageName string) error {
 	if packageName == licenseName || packageName == contributorName {
 		file, err := os.Create(codebasePaths[packageName] + packageName)

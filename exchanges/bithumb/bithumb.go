@@ -592,7 +592,7 @@ func (b *Bithumb) GetFee(feeBuilder exchange.FeeBuilder) (float64, error) {
 	return fee, nil
 }
 
-// getDepositFee returns fee when performing a trade
+// calculateTradingFee returns fee when performing a trade
 func calculateTradingFee(purchasePrice float64, amount float64) float64 {
 	fee := 0.0015
 

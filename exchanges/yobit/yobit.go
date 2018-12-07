@@ -423,7 +423,7 @@ func getInternationalBankWithdrawalFee(currency string, amount float64, bankTran
 	return fee
 }
 
-// No real fees for yobit deposits, but want to be explicit on what each payment type supports
+// getInternationalBankDepositFee; No real fees for yobit deposits, but want to be explicit on what each payment type supports
 func getInternationalBankDepositFee(currency string, amount float64, bankTransactionType exchange.InternationalBankTransactionType) float64 {
 	var fee float64
 	switch bankTransactionType {

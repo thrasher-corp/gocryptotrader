@@ -407,7 +407,7 @@ func (b *Bitflyer) GetFee(feeBuilder exchange.FeeBuilder) (float64, error) {
 	return fee, nil
 }
 
-// getDepositFee returns fee when performing a trade
+// calculateTradingFee returns fee when performing a trade
 func calculateTradingFee(purchasePrice float64, amount float64) float64 {
 	fee := 0.0015
 	// bitflyer has fee tiers, but does not disclose them via API, so the largest has to be assumed
