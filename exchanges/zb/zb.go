@@ -176,6 +176,25 @@ func (z *ZB) GetAccountInformation() (AccountsResponse, error) {
 	return result, nil
 }
 
+// GetUnfinishedOrdersIgnoreTradeType returns unfinished orders
+func (z *ZB) GetUnfinishedOrdersIgnoreTradeType(currency, pageindex, pagesize string) ([]UnfinishedOpenOrder, error) {
+	var result []UnfinishedOpenOrder
+	vals := url.Values{}
+	vals.Set("accesskey", z.APIKey)
+	vals.Set("method", zbUnfinishedOrdersIgnoreTradeType)
+	vals.Set("currency", currency)
+	vals.Set("pageIndex", pageindex)
+	vals.Set("pageSize", pagesize)
+
+	err := z.SendAuthenticatedHTTPRequest("GET", zbUnfinishedOrdersIgnoreTradeType, vals, &result)
+
+	if err != nil {
+		return result, err
+	}
+
+	return result, nil
+}
+
 // GetMarkets returns market information including pricing, symbols and
 // each symbols decimal precision
 func (z *ZB) GetMarkets() (map[string]MarketResponseItem, error) {

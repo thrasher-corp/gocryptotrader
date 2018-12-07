@@ -29,6 +29,18 @@ type AccountsBaseResponse struct {
 	AuthMobileEnabled    bool   `json:"auth_mobile_enabled"`    //是否开通手机验证
 }
 
+type UnfinishedOpenOrder struct {
+	Currency    string  `json:"currency"`
+	ID          int64   `json:"id"`
+	Price       int     `json:"price"`
+	Status      int     `json:"status"`
+	TotalAmount float64 `json:"total_amount"`
+	TradeAmount int     `json:"trade_amount"`
+	TradeDate   int     `json:"trade_date"`
+	TradeMoney  int     `json:"trade_money"`
+	Type        int     `json:"type"`
+}
+
 // AccountsResponse 用户基本信息
 type AccountsResponse struct {
 	Result struct {

@@ -40,6 +40,19 @@ type MultiStreamData struct {
 	Data    json.RawMessage `json:"data"`
 }
 
+type OpenTokenOrders struct {
+	FilledNotional string `json:"filled_notional"`
+	FilledSize     string `json:"filled_size"`
+	InstrumentID   string `json:"instrument_id"`
+	OrderID        int64  `json:"order_id"`
+	Price          string `json:"price"`
+	Side           string `json:"side"`
+	Size           string `json:"size"`
+	Status         string `json:"status"`
+	Timestamp      string `json:"timestamp"`
+	Type           string `json:"type"`
+}
+
 // TickerStreamData contains ticker stream data from okex
 type TickerStreamData struct {
 	Buy       string  `json:"buy"`

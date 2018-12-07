@@ -70,6 +70,7 @@ const (
 	spotCancelWithdraw = "cancel_withdraw"
 	spotWithdrawInfo   = "withdraw_info"
 	spotAccountRecords = "account_records"
+	spotOrders         = " /spot/v3/orders_pending"
 
 	myWalletInfo = "wallet_info.do"
 
@@ -648,6 +649,27 @@ func (o *OKEX) GetContractFuturesTradeHistory(symbol, date string, since int) er
 		return o.GetErrorCode(code)
 	}
 	return nil
+}
+
+// GetOpenTokenOrders returns OKEX open orders for token type
+func (o *OKEX) GetOpenTokenOrders(from, to, limit, instrument string) ([]OpenTokenOrders, error) {
+	var resp []OpenTokenOrders
+
+	if err := o.CheckSymbol(instrument); err != nil {
+		return nil, err
+	}
+
+	values := url.Values{}
+	values.Set("from", from)
+	values.Set("to", to)
+	values.Set("limit", limit)
+	values.Set("instrument", instrument)
+
+	if err := o.SendAuthenticatedHTTPRequest(contractFutureTradeHistory, values, &resp); err != nil {
+		return nil, err
+	}
+
+	return resp, nil
 }
 
 // GetUserInfo returns the user info

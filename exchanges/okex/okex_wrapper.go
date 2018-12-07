@@ -245,7 +245,21 @@ func (o *OKEX) CancelOrder(order exchange.OrderCancellation) error {
 
 // CancelAllOrders cancels all orders associated with a currency pair
 func (o *OKEX) CancelAllOrders(orderCancellation exchange.OrderCancellation) error {
-	return common.ErrNotYetImplemented
+	openOrders, err := o.GetOpenTokenOrders("0", "4", "100", exchange.FormatExchangeCurrency(o.Name, orderCancellation.CurrencyPair).String())
+
+	if err != nil {
+		return err
+	}
+
+	for _, openOrder := range openOrders {
+		_, err = o.SpotCancelOrder(exchange.FormatExchangeCurrency(o.Name, orderCancellation.CurrencyPair).String(), openOrder.OrderID)
+
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 // GetOrderInfo returns information on a current open order
