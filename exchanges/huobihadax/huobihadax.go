@@ -763,7 +763,7 @@ func (h *HUOBIHADAX) SendAuthenticatedHTTPPostRequest(method, endpoint, postBody
 	signatureParams.Set("Timestamp", time.Now().UTC().Format("2006-01-02T15:04:05"))
 
 	endpoint = fmt.Sprintf("/v%s/%s", huobihadaxAPIVersion, endpoint)
-	payload := fmt.Sprintf("%s\napi.huobi.pro\n%s\n%s",
+	payload := fmt.Sprintf("%s\napi.hadax.com\n%s\n%s",
 		method, endpoint, signatureParams.Encode())
 
 	headers := make(map[string]string)
@@ -791,7 +791,7 @@ func (h *HUOBIHADAX) SendAuthenticatedHTTPRequest(method, endpoint string, value
 	values.Set("Timestamp", time.Now().UTC().Format("2006-01-02T15:04:05"))
 
 	endpoint = fmt.Sprintf("/v%s/%s", huobihadaxAPIVersion, endpoint)
-	payload := fmt.Sprintf("%s\napi.huobi.pro\n%s\n%s",
+	payload := fmt.Sprintf("%s\napi.hadax.com\n%s\n%s",
 		method, endpoint, values.Encode())
 
 	headers := make(map[string]string)
