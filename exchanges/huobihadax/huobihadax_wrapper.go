@@ -114,12 +114,77 @@ func (h *HUOBIHADAX) UpdateOrderbook(p pair.CurrencyPair, assetType string) (ord
 	return orderbook.GetOrderbook(h.Name, p, assetType)
 }
 
+var mtx sync.Mutex
+
+// GetAccountID returns the account ID for trades NOTE interim implementation
+// does not account for multiple account IDs
+func (h *HUOBIHADAX) GetAccountID() (string, error) {
+	mtx.Lock()
+	defer mtx.Unlock()
+
+	if h.AccountID == "" {
+		acc, err := h.GetAccounts()
+		if err != nil {
+			return "", err
+		}
+
+		if len(acc) > 0 {
+			return strconv.FormatInt(acc[0].ID, 10), nil
+		}
+
+		return "", errors.New("no account ID fetched")
+	}
+
+	return h.AccountID, nil
+}
+
 //GetAccountInfo retrieves balances for all enabled currencies for the
 // HUOBIHADAX exchange - to-do
 func (h *HUOBIHADAX) GetAccountInfo() (exchange.AccountInfo, error) {
-	var response exchange.AccountInfo
-	response.ExchangeName = h.GetName()
-	return response, nil
+	var info exchange.AccountInfo
+	info.ExchangeName = h.GetName()
+
+	accID, err := h.GetAccountID()
+	if err != nil {
+		return info, err
+	}
+
+	acc, err := h.GetAccountBalance(accID)
+	if err != nil {
+		return info, err
+	}
+
+	type hold struct {
+		Avail float64
+		Hold  float64
+	}
+
+	var currencyData = make(map[string]*hold)
+	for _, data := range acc {
+		_, ok := currencyData[data.Currency]
+		if !ok {
+			currencyData[data.Currency] = &hold{}
+		}
+
+		if data.Type == "trade" {
+			currencyData[data.Currency].Avail = data.Balance
+		} else {
+			currencyData[data.Currency].Hold = data.Balance
+		}
+	}
+
+	var balances []exchange.AccountCurrencyInfo
+
+	for key, data := range currencyData {
+		balances = append(balances, exchange.AccountCurrencyInfo{
+			CurrencyName: key,
+			TotalValue:   data.Avail + data.Hold,
+			Hold:         data.Hold,
+		})
+	}
+
+	info.Currencies = balances
+	return info, nil
 }
 
 // GetFundingHistory returns funding history, deposits and

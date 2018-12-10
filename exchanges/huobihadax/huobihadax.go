@@ -55,6 +55,7 @@ const (
 
 // HUOBIHADAX is the overarching type across this package
 type HUOBIHADAX struct {
+	AccountID string
 	exchange.Base
 }
 
