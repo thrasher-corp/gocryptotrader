@@ -456,3 +456,17 @@ func TestCancelExchangeOrder(t *testing.T) {
 		t.Errorf("Could not cancel order: %s", err)
 	}
 }
+
+func TestGetAccountInfo(t *testing.T) {
+	if apiKey == "" || apiSecret == "" {
+		_, err := h.GetAccountInfo()
+		if err == nil {
+			t.Error("Test Failed - GetAccountInfo() error")
+		}
+	} else {
+		_, err := h.GetAccountInfo()
+		if err != nil {
+			t.Error("Test Failed - GetAccountInfo() error", err)
+		}
+	}
+}

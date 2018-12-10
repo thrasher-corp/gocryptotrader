@@ -63,6 +63,7 @@ const (
 // HUOBI is the overarching type across this package
 type HUOBI struct {
 	exchange.Base
+	AccountID     string
 	WebsocketConn *websocket.Conn
 }
 
@@ -367,7 +368,11 @@ func (h *HUOBI) GetAccountBalance(accountID string) ([]AccountBalanceDetail, err
 
 	var result response
 	endpoint := fmt.Sprintf(huobiAccountBalance, accountID)
-	err := h.SendAuthenticatedHTTPRequest("GET", endpoint, url.Values{}, nil, &result)
+
+	v := url.Values{}
+	v.Set("account-id", accountID)
+
+	err := h.SendAuthenticatedHTTPRequest("GET", endpoint, v, nil, &result)
 
 	if result.ErrorMessage != "" {
 		return nil, errors.New(result.ErrorMessage)
