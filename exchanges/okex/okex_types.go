@@ -40,11 +40,13 @@ type MultiStreamData struct {
 	Data    json.RawMessage `json:"data"`
 }
 
+// TokenOrderResponse is returned after a request for all Token Orders
 type TokenOrdersResponse struct {
 	Result bool         `json:"result"`
 	Orders []TokenOrder `json:"orders"`
 }
 
+// TokenOrder is the individual order details returned from TokenOrderResponse
 type TokenOrder struct {
 	Amount     float64 `json:"amount"`
 	AvgPrice   int64   `json:"avg_price"`

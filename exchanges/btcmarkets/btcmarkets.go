@@ -294,7 +294,7 @@ func (b *BTCMarkets) GetOrders(currency, instrument string, limit, since int64, 
 	return resp.Orders, nil
 }
 
-// GetOpenOrders returns the BTCMarkets instruments
+// GetOpenOrders returns all open orders
 func (b *BTCMarkets) GetOpenOrders() ([]Order, error) {
 	type marketsResp struct {
 		Response
@@ -314,7 +314,6 @@ func (b *BTCMarkets) GetOpenOrders() ([]Order, error) {
 	}
 
 	return resp.Orders, nil
-
 }
 
 // GetOrderDetail returns order information an a specific order
