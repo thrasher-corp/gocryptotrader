@@ -204,8 +204,8 @@ func (c *COINUT) NewOrders(orders []Order) ([]OrdersBase, error) {
 }
 
 // GetOpenOrders returns a list of open order and relevant information
-func (c *COINUT) GetOpenOrders(instrumentID int) ([]OrdersResponse, error) {
-	var result []OrdersResponse
+func (c *COINUT) GetOpenOrders(instrumentID int) (GetOpenOrdersResponse, error) {
+	var result GetOpenOrdersResponse
 	params := make(map[string]interface{})
 	params["inst_id"] = instrumentID
 
@@ -358,7 +358,7 @@ func (c *COINUT) SendHTTPRequest(apiRequest string, params map[string]interface{
 	headers := make(map[string]string)
 	if authenticated {
 		headers["X-USER"] = c.ClientID
-		hmac := common.GetHMAC(common.HashSHA256, []byte(payload), []byte(c.APIKey))
+		hmac := common.GetHMAC(common.HashSHA256, []byte(payload), []byte(c.APISecret))
 		headers["X-SIGNATURE"] = common.HexEncodeToString(hmac)
 	}
 	headers["Content-Type"] = "application/json"

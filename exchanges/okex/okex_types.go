@@ -40,17 +40,20 @@ type MultiStreamData struct {
 	Data    json.RawMessage `json:"data"`
 }
 
-type OpenTokenOrders struct {
-	FilledNotional string `json:"filled_notional"`
-	FilledSize     string `json:"filled_size"`
-	InstrumentID   string `json:"instrument_id"`
-	OrderID        int64  `json:"order_id"`
-	Price          string `json:"price"`
-	Side           string `json:"side"`
-	Size           string `json:"size"`
-	Status         string `json:"status"`
-	Timestamp      string `json:"timestamp"`
-	Type           string `json:"type"`
+type TokenOrdersResponse struct {
+	Result bool         `json:"result"`
+	Orders []TokenOrder `json:"orders"`
+}
+
+type TokenOrder struct {
+	Amount     float64 `json:"amount"`
+	AvgPrice   int64   `json:"avg_price"`
+	DealAmount int64   `json:"deal_amount"`
+	OrderID    int64   `json:"order_id"`
+	Price      int64   `json:"price"`
+	Status     int64   `json:"status"`
+	Symbol     string  `json:"symbol"`
+	Type       string  `json:"type"`
 }
 
 // TickerStreamData contains ticker stream data from okex

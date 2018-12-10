@@ -451,7 +451,7 @@ func (h *HitBTC) CancelExistingOrder(orderID int64) (bool, error) {
 
 // CancelAllExistingOrders cancels all open orders
 func (h *HitBTC) CancelAllExistingOrders() error {
-	result := GenericResponse{}
+	var result interface{}
 	values := url.Values{}
 
 	err := h.SendAuthenticatedHTTPRequest("DELETE", orderBuy, values, &result)

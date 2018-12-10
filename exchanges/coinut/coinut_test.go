@@ -32,9 +32,9 @@ func TestSetup(t *testing.T) {
 	}
 	bConfig.AuthenticatedAPISupport = true
 	bConfig.APIKey = apiKey
-	bConfig.ClientID = clientID
 	bConfig.Verbose = true
 	c.Setup(bConfig)
+	c.ClientID = clientID
 
 	if !c.IsEnabled() ||
 		c.RESTPollingDelay != time.Duration(10) ||
@@ -196,8 +196,8 @@ func TestFormatWithdrawPermissions(t *testing.T) {
 // Any tests below this line have the ability to impact your orders on the exchange. Enable canManipulateRealOrders to run them
 // ----------------------------------------------------------------------------------------------------------------------------
 func isRealOrderTestEnabled() bool {
-	if c.APISecret == "" ||
-		c.APISecret == "Secret" ||
+	if c.APIKey == "" ||
+		c.APIKey == "Key" ||
 		!canManipulateRealOrders {
 		return false
 	}

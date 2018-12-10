@@ -426,7 +426,7 @@ func (g *Gateio) GetOpenOrders(symbol string) (OpenOrdersResponse, error) {
 		return result, err
 	}
 
-	if result.Result != "" {
+	if result.Code > 0 {
 		return result, fmt.Errorf("code:%d message:%s", result.Code, result.Message)
 	}
 

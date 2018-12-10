@@ -297,7 +297,7 @@ func (c *COINUT) CancelAllOrders(orderCancellation exchange.OrderCancellation) e
 		return err
 	}
 
-	var allTheOrders []OrdersResponse
+	var allTheOrders []OrderResponse
 	for _, allInstrumentData := range instruments.Instruments {
 		for _, instrumentData := range allInstrumentData {
 
@@ -307,25 +307,30 @@ func (c *COINUT) CancelAllOrders(orderCancellation exchange.OrderCancellation) e
 				return err
 			}
 
-			for _, openOrder := range openOrders {
+			for _, openOrder := range openOrders.Orders {
 				allTheOrders = append(allTheOrders, openOrder)
 			}
 		}
 	}
 
 	var allTheOrdersToCancel []CancelOrders
-	for _, ordersToCancel := range allTheOrders {
-		for _, orderToCancel := range ordersToCancel.Data {
-			cancelOrder := CancelOrders{
-				InstrumentID: orderToCancel.InstrumentID,
-				OrderID:      orderToCancel.OrderID,
-			}
-			allTheOrdersToCancel = append(allTheOrdersToCancel, cancelOrder)
+	for _, orderToCancel := range allTheOrders {
+		cancelOrder := CancelOrders{
+			InstrumentID: orderToCancel.InstrumentID,
+			OrderID:      orderToCancel.OrderID,
+		}
+		allTheOrdersToCancel = append(allTheOrdersToCancel, cancelOrder)
+	}
+
+	if len(allTheOrdersToCancel) > 0 {
+		_, err = c.CancelOrders(allTheOrdersToCancel)
+
+		if err != nil {
+			return err
 		}
 	}
-	_, err = c.CancelOrders(allTheOrdersToCancel)
 
-	return err
+	return nil
 }
 
 // GetOrderInfo returns information on a current open order
