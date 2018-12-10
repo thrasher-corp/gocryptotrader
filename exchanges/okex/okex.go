@@ -70,7 +70,6 @@ const (
 	spotCancelWithdraw = "cancel_withdraw"
 	spotWithdrawInfo   = "withdraw_info"
 	spotAccountRecords = "account_records"
-	spotOrders         = " /spot/v3/orders_pending"
 
 	myWalletInfo = "wallet_info.do"
 
@@ -640,7 +639,7 @@ func (o *OKEX) GetContractFuturesTradeHistory(symbol, date string, since int) er
 	values.Set("date", date)
 	values.Set("since", strconv.FormatInt(int64(since), 10))
 
-	if err := o.SendAuthenticatedHTTPRequest(contractFutureTradeHistory, values, &resp); err != nil {
+	if err := o.SendAuthenticatedHTTPRequest("POST", contractFutureTradeHistory, values, &resp); err != nil {
 		return err
 	}
 
@@ -651,22 +650,15 @@ func (o *OKEX) GetContractFuturesTradeHistory(symbol, date string, since int) er
 	return nil
 }
 
-// GetOpenTokenOrders returns OKEX open orders for token type
-func (o *OKEX) GetOpenTokenOrders(from, to, limit, instrument string) ([]OpenTokenOrders, error) {
-	var resp []OpenTokenOrders
-
-	if err := o.CheckSymbol(instrument); err != nil {
-		return nil, err
-	}
-
+// GetTokenOrders returns details for a single orderID or all open orders when orderID == -1
+func (o *OKEX) GetTokenOrders(symbol string, orderID int64) (TokenOrdersResponse, error) {
+	var resp TokenOrdersResponse
 	values := url.Values{}
-	values.Set("from", from)
-	values.Set("to", to)
-	values.Set("limit", limit)
-	values.Set("instrument", instrument)
+	values.Set("symbol", symbol)
+	values.Set("order_id", strconv.FormatInt(orderID, 10))
 
 	if err := o.SendAuthenticatedHTTPRequest(contractFutureTradeHistory, values, &resp); err != nil {
-		return nil, err
+		return resp, err
 	}
 
 	return resp, nil
@@ -719,7 +711,7 @@ func (o *OKEX) SpotCancelOrder(symbol string, argOrderID int64) (int64, error) {
 	params.Set("symbol", symbol)
 	params.Set("order_id", strconv.FormatInt(argOrderID, 10))
 
-	var returnOrderID int64
+	err := o.SendAuthenticatedHTTPRequest(spotCancelTrade, params, &res)	var returnOrderID int64
 	err := o.SendAuthenticatedHTTPRequest(spotCancelTrade+".do", params, &res)
 	if err != nil {
 		return returnOrderID, err

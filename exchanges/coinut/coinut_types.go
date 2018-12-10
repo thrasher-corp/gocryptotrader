@@ -144,7 +144,7 @@ type OrdersResponse struct {
 
 // CancelOrders holds information about a cancelled order
 type CancelOrders struct {
-	InstrumentID int64 `json:"int"`
+	InstrumentID int64 `json:"inst_id"`
 	OrderID      int64 `json:"order_id"`
 }
 

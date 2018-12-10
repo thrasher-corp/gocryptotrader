@@ -259,12 +259,13 @@ func (o *OKCoin) CancelAllOrders(orderCancellation exchange.OrderCancellation) e
 		ordersToCancel = append(ordersToCancel, order.OrderID)
 	}
 
-	_, err = o.CancelExistingOrder(ordersToCancel, exchange.FormatExchangeCurrency(o.Name, orderCancellation.CurrencyPair).String())
+	if len(ordersToCancel) > 0 {
+		_, err = o.CancelExistingOrder(ordersToCancel, exchange.FormatExchangeCurrency(o.Name, orderCancellation.CurrencyPair).String())
 
-	if err != nil {
-		return err
+		if err != nil {
+			return err
+		}
 	}
-
 	return nil
 }
 

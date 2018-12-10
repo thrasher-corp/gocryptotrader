@@ -54,6 +54,7 @@ func TestSetup(t *testing.T) {
 	bConfig.ClientID = customerID
 
 	b.Setup(bConfig)
+	b.ClientID = customerID
 
 	if !b.IsEnabled() || b.RESTPollingDelay != time.Duration(10) ||
 		b.Verbose || b.Websocket.IsEnabled() || len(b.BaseCurrencies) < 1 ||

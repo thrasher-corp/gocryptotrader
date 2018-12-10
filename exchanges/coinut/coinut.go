@@ -240,7 +240,17 @@ func (c *COINUT) CancelExistingOrder(instrumentID, orderID int) (bool, error) {
 func (c *COINUT) CancelOrders(orders []CancelOrders) (CancelOrdersResponse, error) {
 	var result CancelOrdersResponse
 	params := make(map[string]interface{})
-	params["entries"] = orders
+	type Request struct {
+		InstrumentID int `json:"inst_id"`
+		OrderID      int `json:"order_id"`
+	}
+
+	entries := []CancelOrders{}
+	for _, order := range orders {
+		entries = append(entries, order)
+	}
+
+	params["entries"] = entries
 
 	return result, c.SendHTTPRequest(coinutOrdersCancel, params, true, &result)
 }

@@ -43,7 +43,7 @@ const (
 	huobiOrderPlace            = "order/orders/place"
 	huobiOrderCancel           = "order/orders/%s/submitcancel"
 	huobiOrderCancelBatch      = "order/orders/batchcancel"
-	huobiBatchCancelOpenOrders = "order/order/batchCancelOpenOrders"
+	huobiBatchCancelOpenOrders = "order/orders/batchCancelOpenOrders"
 	huobiGetOrder              = "order/orders/%s"
 	huobiGetOrderMatch         = "order/orders/%s/matchresults"
 	huobiGetOrders             = "order/orders"
@@ -456,13 +456,21 @@ func (h *HUOBI) CancelOrderBatch(orderIDs []int64) ([]CancelOrderBatch, error) {
 }
 
 // CancelOpenOrdersBatch cancels a batch of orders -- to-do
-func (h *HUOBI) CancelOpenOrdersBatch(accountID string) (CancelOpenOrdersBatch, error) {
+func (h *HUOBI) CancelOpenOrdersBatch(accountID, symbol string) (CancelOpenOrdersBatch, error) {
 	params := url.Values{}
+
 	params.Set("account-id", accountID)
 	var result CancelOpenOrdersBatch
 
-	err := h.SendAuthenticatedHTTPRequest("POST", huobiBatchCancelOpenOrders, params, nil, &result)
+	data := struct {
+		AccountID string `json:"account-id"`
+		Symbol    string `json:"symbol"`
+	}{
+		AccountID: accountID,
+		Symbol:    symbol,
+	}
 
+	err := h.SendAuthenticatedHTTPRequest("POST", huobiBatchCancelOpenOrders, url.Values{}, data, &result)
 	if result.Data.FailedCount > 0 {
 		return result, fmt.Errorf("There were %v failed order cancellations", result.Data.FailedCount)
 	}

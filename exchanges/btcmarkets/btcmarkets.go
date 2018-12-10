@@ -294,6 +294,29 @@ func (b *BTCMarkets) GetOrders(currency, instrument string, limit, since int64, 
 	return resp.Orders, nil
 }
 
+// GetOpenOrders returns the BTCMarkets instruments
+func (b *BTCMarkets) GetOpenOrders() ([]Order, error) {
+	type marketsResp struct {
+		Response
+		Orders []Order `json:"orders"`
+	}
+	request := make(map[string]interface{})
+	var resp marketsResp
+	path := fmt.Sprintf("/v2/order/open")
+
+	err := b.SendAuthenticatedRequest("GET", path, request, &resp)
+	if err != nil {
+		return nil, err
+	}
+
+	if !resp.Success {
+		return nil, errors.New(resp.ErrorMessage)
+	}
+
+	return resp.Orders, nil
+
+}
+
 // GetOrderDetail returns order information an a specific order
 // orderID - example "1337"
 func (b *BTCMarkets) GetOrderDetail(orderID []int64) ([]Order, error) {

@@ -208,20 +208,22 @@ func (k *Kraken) CancelOrder(order exchange.OrderCancellation) error {
 
 // CancelAllOrders cancels all orders associated with a currency pair
 func (k *Kraken) CancelAllOrders(orderCancellation exchange.OrderCancellation) error {
-	openOrders, err := k.GetOpenOrders()
+	var emptyOrderOptions OrderInfoOptions
+	openOrders, err := k.GetOpenOrders(emptyOrderOptions)
 
 	if err != nil {
 		return err
 	}
 
-	for orderID := range openOrders.Open {
-		_, err = k.CancelExistingOrder(orderID)
+	if openOrders.Count > 0 {
+		for orderID := range openOrders.Open {
+			_, err = k.CancelExistingOrder(orderID)
 
-		if err != nil {
-			return err
+			if err != nil {
+				return err
+			}
 		}
 	}
-
 	return nil
 }
 
