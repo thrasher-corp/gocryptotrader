@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"net/url"
+	"reflect"
 	"strconv"
 	"time"
 
@@ -174,6 +175,10 @@ func (b *Bithumb) GetAllTickers() (map[string]Ticker, error) {
 	result := make(map[string]Ticker)
 	for k, v := range response.Data {
 		if k == "date" {
+			continue
+		}
+
+		if reflect.TypeOf(v).String() != "map[string]interface {}" {
 			continue
 		}
 
