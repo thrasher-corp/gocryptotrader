@@ -3,6 +3,7 @@ package itbit
 import (
 	"fmt"
 	"log"
+	"net/url"
 	"strconv"
 	"sync"
 
@@ -107,12 +108,45 @@ func (i *ItBit) UpdateOrderbook(p pair.CurrencyPair, assetType string) (orderboo
 	return orderbook.GetOrderbook(i.Name, p, assetType)
 }
 
-// GetAccountInfo retrieves balances for all enabled currencies for the
-//ItBit exchange - to-do
+// GetAccountInfo retrieves balances for all enabled currencies
 func (i *ItBit) GetAccountInfo() (exchange.AccountInfo, error) {
-	var response exchange.AccountInfo
-	response.ExchangeName = i.GetName()
-	return response, nil
+	var info exchange.AccountInfo
+	info.ExchangeName = i.GetName()
+
+	wallets, err := i.GetWallets(url.Values{})
+	if err != nil {
+		return info, err
+	}
+
+	type bro struct {
+		TotalValue float64
+		Hold       float64
+	}
+
+	var amounts = make(map[string]*bro)
+
+	for _, wallet := range wallets {
+		for _, cb := range wallet.Balances {
+			if _, ok := amounts[cb.Currency]; !ok {
+				amounts[cb.Currency] = &bro{}
+			}
+
+			amounts[cb.Currency].TotalValue += cb.TotalBalance
+			amounts[cb.Currency].Hold += cb.TotalBalance - cb.AvailableBalance
+		}
+	}
+
+	var fullBalance []exchange.AccountCurrencyInfo
+
+	for key, data := range amounts {
+		fullBalance = append(fullBalance, exchange.AccountCurrencyInfo{
+			CurrencyName: key,
+			TotalValue:   data.TotalValue,
+			Hold:         data.Hold,
+		})
+	}
+
+	return info, nil
 }
 
 // GetFundingHistory returns funding history, deposits and
