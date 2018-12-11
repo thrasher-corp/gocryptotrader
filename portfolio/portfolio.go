@@ -267,7 +267,7 @@ func getPercentage(input map[string]float64, target string, totals map[string]fl
 	return percentage
 }
 
-// getPercentage returns the percentage a specific value of a target coin amount
+// getPercentageSpecific returns the percentage a specific value of a target coin amount
 // against the total coin amount.
 func getPercentageSpecific(input float64, target string, totals map[string]float64) float64 {
 	total, _ := totals[target]

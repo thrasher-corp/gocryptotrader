@@ -404,7 +404,7 @@ func TestTrimString(t *testing.T) {
 	}
 }
 
-// ReplaceString replaces a string with another
+// TestReplaceString replaces a string with another
 func TestReplaceString(t *testing.T) {
 	t.Parallel()
 	currency := "BTC-USD"

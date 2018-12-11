@@ -45,7 +45,7 @@ func (n *Nonce) Set(val int64) {
 	n.mtx.Unlock()
 }
 
-// Returns a string version of the nonce
+// String returns a string version of the nonce
 func (n *Nonce) String() string {
 	n.mtx.Lock()
 	result := strconv.FormatInt(n.n, 10)
