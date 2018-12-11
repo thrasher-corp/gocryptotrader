@@ -1,7 +1,6 @@
 package zb
 
 import (
-	"errors"
 	"fmt"
 	"log"
 	"strconv"
@@ -119,8 +118,34 @@ func (z *ZB) UpdateOrderbook(p pair.CurrencyPair, assetType string) (orderbook.B
 // GetAccountInfo retrieves balances for all enabled currencies for the
 // ZB exchange
 func (z *ZB) GetAccountInfo() (exchange.AccountInfo, error) {
-	var response exchange.AccountInfo
-	return response, errors.New("not implemented")
+	var info exchange.AccountInfo
+	bal, err := z.GetAccountInformation()
+	if err != nil {
+		return info, err
+	}
+
+	var balances []exchange.AccountCurrencyInfo
+	for _, data := range bal.Result.Coins {
+		hold, err := strconv.ParseFloat(data.Freez, 64)
+		if err != nil {
+			return info, err
+		}
+
+		avail, err := strconv.ParseFloat(data.Available, 64)
+		if err != nil {
+			return info, err
+		}
+
+		balances = append(balances, exchange.AccountCurrencyInfo{
+			CurrencyName: data.EnName,
+			TotalValue:   hold + avail,
+			Hold:         hold,
+		})
+	}
+
+	info.ExchangeName = z.GetName()
+	info.Currencies = balances
+	return info, nil
 }
 
 // GetFundingHistory returns funding history, deposits and
