@@ -164,10 +164,18 @@ func (g *Gemini) CancelOrder(order exchange.OrderCancellation) error {
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
-func (g *Gemini) CancelAllOrders(orderCancellation exchange.OrderCancellation) error {
-	_, err := g.CancelExistingOrders(false)
+func (g *Gemini) CancelAllOrders(orderCancellation exchange.OrderCancellation) (exchange.CancelAllOrdersResponse, error) {
+	var cancelAllOrdersResponse exchange.CancelAllOrdersResponse
+	resp, err := g.CancelExistingOrders(false)
+	if err != nil {
+		return cancelAllOrdersResponse, err
+	}
 
-	return err
+	for _, order := range resp.Details.CancelRejects {
+		cancelAllOrdersResponse.OrderStatus[order] = "Could not cancel order"
+	}
+
+	return cancelAllOrdersResponse, nil
 }
 
 // GetOrderInfo returns information on a current open order

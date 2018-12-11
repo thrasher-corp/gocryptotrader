@@ -210,13 +210,13 @@ func (z *ZB) CancelOrder(order exchange.OrderCancellation) error {
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
-func (z *ZB) CancelAllOrders(orderCancellation exchange.OrderCancellation) error {
+func (z *ZB) CancelAllOrders(orderCancellation exchange.OrderCancellation) (exchange.CancelAllOrdersResponse, error) {
+	var cancelAllOrdersResponse exchange.CancelAllOrdersResponse
 	var allOpenOrders []UnfinishedOpenOrder
 	for _, currency := range z.GetEnabledCurrencies() {
 		openOrders, err := z.GetUnfinishedOrdersIgnoreTradeType(exchange.FormatExchangeCurrency(z.Name, currency).String(), "1", "10")
-
 		if err != nil {
-			return err
+			return cancelAllOrdersResponse, err
 		}
 
 		for _, openOrder := range openOrders {
@@ -226,13 +226,12 @@ func (z *ZB) CancelAllOrders(orderCancellation exchange.OrderCancellation) error
 
 	for _, openOrder := range allOpenOrders {
 		err := z.CancelExistingOrder(openOrder.ID, openOrder.Currency)
-
 		if err != nil {
-			return err
+			cancelAllOrdersResponse.OrderStatus[strconv.FormatInt(openOrder.ID, 10)] = err.Error()
 		}
 	}
 
-	return nil
+	return cancelAllOrdersResponse, nil
 }
 
 // GetOrderInfo returns information on a current open order

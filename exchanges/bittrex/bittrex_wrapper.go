@@ -210,23 +210,21 @@ func (b *Bittrex) CancelOrder(order exchange.OrderCancellation) error {
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
-func (b *Bittrex) CancelAllOrders(orderCancellation exchange.OrderCancellation) error {
-
+func (b *Bittrex) CancelAllOrders(orderCancellation exchange.OrderCancellation) (exchange.CancelAllOrdersResponse, error) {
+	var cancelAllOrdersResponse exchange.CancelAllOrdersResponse
 	openOrders, err := b.GetOpenOrders("")
-
 	if err != nil {
-		return err
+		return cancelAllOrdersResponse, err
 	}
 
 	for _, order := range openOrders.Result {
 		_, err := b.CancelExistingOrder(order.OrderUUID)
-
 		if err != nil {
-			return err
+			cancelAllOrdersResponse.OrderStatus[order.OrderUUID] = err.Error()
 		}
 	}
 
-	return nil
+	return cancelAllOrdersResponse, nil
 }
 
 // GetOrderInfo returns information on a current open order

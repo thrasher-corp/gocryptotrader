@@ -1,7 +1,6 @@
 package anx
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/thrasher-/gocryptotrader/config"
@@ -228,19 +227,6 @@ func TestFormatWithdrawPermissions(t *testing.T) {
 	}
 }
 
-func TestGetDataToken(t *testing.T) {
-	a.SetDefaults()
-	TestSetup(t)
-
-	response, err := a.GetDataToken()
-
-	if err != nil {
-		t.Errorf("Test Failed - CancelAllOrders() error: %s", err)
-	}
-
-	fmt.Println(response)
-}
-
 // Any tests below this line have the ability to impact your orders on the exchange. Enable canManipulateRealOrders to run them
 // ----------------------------------------------------------------------------------------------------------------------------
 
@@ -317,11 +303,15 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 		CurrencyPair:  currencyPair,
 	}
 	// Act
-	err := a.CancelAllOrders(orderCancellation)
+	resp, err := a.CancelAllOrders(orderCancellation)
 
 	// Assert
 	if err != nil {
-		t.Errorf("Test Failed - CancelAllOrders() error: %s", err)
+		t.Errorf("Could not cancel order: %s", err)
+	}
+
+	if len(resp.OrderStatus) > 0 {
+		t.Errorf("%v orders failed to cancel", len(resp.OrderStatus))
 	}
 }
 

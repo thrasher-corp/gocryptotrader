@@ -568,10 +568,14 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 		CurrencyPair:  currencyPair,
 	}
 	// Act
-	err := a.CancelAllOrders(orderCancellation)
+	resp, err := a.CancelAllOrders(orderCancellation)
 
 	// Assert
 	if err != nil {
-		t.Errorf("Test Failed - CancelAllOrders() error: %s", err)
+		t.Errorf("Could not cancel order: %s", err)
+	}
+
+	if len(resp.OrderStatus) > 0 {
+		t.Errorf("%v orders failed to cancel", len(resp.OrderStatus))
 	}
 }

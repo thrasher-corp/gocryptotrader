@@ -2,6 +2,13 @@ package anx
 
 import "github.com/thrasher-/gocryptotrader/currency/symbol"
 
+// List of strings
+const (
+	CancelOrderNotFound    string = "ORDER_NOT_FOUND"
+	CancelRequestSubmitted string = "CANCEL_REQUEST_SUBMITTED"
+	CancelOrderWrongState  string = "ORDER_CANCEL_WRONG_STATE"
+)
+
 // Currency holds the currency information
 type Currency struct {
 	Decimals               int     `json:"decimals"`
@@ -126,6 +133,21 @@ type OrderResponse struct {
 	TradedCurrency                 string `json:"tradedCurrency"`
 	TradedCurrencyAmount           string `json:"tradedCurrencyAmount"`
 	TradedCurrencyOutstanding      string `json:"tradedCurrencyOutstanding"`
+}
+
+// OrderCancelResponse returned when cancelling multiple orders
+
+type OrderCancelResponse struct {
+	OrderCancellationResponses []OrderCancellationResponse `json:"orderIds"`
+	ResultCode                 string                      `json:"resultCode"`
+	UUID                       int64                       `json:"uuid"`
+	ErrorCode                  int64                       `json:"errorCode"`
+}
+
+// OrderCancellationResponse contians the orderID and error when cancelling multiple orders
+type OrderCancellationResponse struct {
+	UUID  string `json:"uuid"`
+	Error string `json:"errorCode"`
 }
 
 // TickerComponent is a sub-type for ticker

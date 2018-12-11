@@ -1,6 +1,7 @@
 package bitstamp
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"strconv"
@@ -202,10 +203,13 @@ func (b *Bitstamp) CancelOrder(order exchange.OrderCancellation) error {
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
-func (b *Bitstamp) CancelAllOrders(orderCancellation exchange.OrderCancellation) error {
-	_, err := b.CancelAllExistingOrders()
+func (b *Bitstamp) CancelAllOrders(orderCancellation exchange.OrderCancellation) (exchange.CancelAllOrdersResponse, error) {
+	isCancelAllSuccessful, err := b.CancelAllExistingOrders()
+	if !isCancelAllSuccessful {
+		err = errors.New("Cancel all failed. Bitstamp provides no further information. Check order status to verify")
+	}
 
-	return err
+	return exchange.CancelAllOrdersResponse{}, err
 }
 
 // GetOrderInfo returns information on a current open order

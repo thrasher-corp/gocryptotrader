@@ -243,22 +243,17 @@ func (a *ANX) NewOrder(orderType string, buy bool, tradedCurrency string, traded
 
 // CancelOrderByIDs cancels orders, requires already knowing order IDs
 // There is no existing API call to retrieve orderIds
-func (a *ANX) CancelOrderByIDs(orderIds []string) (err error) {
+func (a *ANX) CancelOrderByIDs(orderIds []string) (OrderCancelResponse, error) {
 	request := make(map[string]interface{})
 	request["orderIds"] = orderIds
-	type OrderCancelResponse struct {
-		Order      OrderResponse `json:"order"`
-		ResultCode string        `json:"resultCode"`
-		UUID       int64         `json:"uuid"`
-		ErrorCode  int64         `json:"errorCode"`
-	}
 	var response OrderCancelResponse
-	err = a.SendAuthenticatedHTTPRequest(anxOrderCancel, request, &response)
+
+	err := a.SendAuthenticatedHTTPRequest(anxOrderCancel, request, &response)
 	if response.ResultCode != "OK" {
-		log.Printf("Response code is not OK: %s\n", response.ResultCode)
-		return errors.New(response.ResultCode)
+		return response, errors.New(response.ResultCode)
 	}
-	return err
+
+	return response, err
 }
 
 // GetOrderList retrieves orders from the exchange

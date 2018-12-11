@@ -219,22 +219,22 @@ func (l *LocalBitcoins) CancelOrder(order exchange.OrderCancellation) error {
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
-func (l *LocalBitcoins) CancelAllOrders(orderCancellation exchange.OrderCancellation) error {
+func (l *LocalBitcoins) CancelAllOrders(orderCancellation exchange.OrderCancellation) (exchange.CancelAllOrdersResponse, error) {
+	var cancelAllOrdersResponse exchange.CancelAllOrdersResponse
 	ads, err := l.Getads()
 
 	if err != nil {
-		return err
+		return cancelAllOrdersResponse, err
 	}
 
 	for _, ad := range ads.AdList {
 		adIDString := strconv.FormatInt(ad.Data.AdID, 10)
 		err = l.DeleteAd(adIDString)
-
 		if err != nil {
-			return err
+			cancelAllOrdersResponse.OrderStatus[strconv.FormatInt(ad.Data.AdID, 10)] = err.Error()
 		}
 	}
-	return nil
+	return cancelAllOrdersResponse, nil
 }
 
 // GetOrderInfo returns information on a current open order

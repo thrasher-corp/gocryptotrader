@@ -244,18 +244,18 @@ func (o *OKEX) CancelOrder(order exchange.OrderCancellation) error {
 }
 
 // CancelAllOrders cancels all orders for all enabled currencies
-func (o *OKEX) CancelAllOrders(orderCancellation exchange.OrderCancellation) error {
+func (o *OKEX) CancelAllOrders(orderCancellation exchange.OrderCancellation) (exchange.CancelAllOrdersResponse, error) {
+	var cancelAllOrdersResponse exchange.CancelAllOrdersResponse
 	var allOpenOrders []TokenOrder
 	for _, currency := range o.GetEnabledCurrencies() {
 		formattedCurrency := exchange.FormatExchangeCurrency(o.Name, currency).String()
 		openOrders, err := o.GetTokenOrders(formattedCurrency, -1)
-
 		if err != nil {
-			return err
+			return cancelAllOrdersResponse, err
 		}
 
 		if !openOrders.Result {
-			return fmt.Errorf("Something went wrong for currency %s", formattedCurrency)
+			return cancelAllOrdersResponse, fmt.Errorf("Something went wrong for currency %s", formattedCurrency)
 		}
 
 		for _, openOrder := range openOrders.Orders {
@@ -265,13 +265,12 @@ func (o *OKEX) CancelAllOrders(orderCancellation exchange.OrderCancellation) err
 
 	for _, openOrder := range allOpenOrders {
 		_, err := o.SpotCancelOrder(openOrder.Symbol, openOrder.OrderID)
-
 		if err != nil {
-			return err
+			cancelAllOrdersResponse.OrderStatus[strconv.FormatInt(openOrder.OrderID, 10)] = err.Error()
 		}
 	}
 
-	return nil
+	return cancelAllOrdersResponse, nil
 }
 
 // GetOrderInfo returns information on a current open order

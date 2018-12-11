@@ -193,24 +193,23 @@ func (p *Poloniex) CancelOrder(order exchange.OrderCancellation) error {
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
-func (p *Poloniex) CancelAllOrders(orderCancellation exchange.OrderCancellation) error {
+func (p *Poloniex) CancelAllOrders(orderCancellation exchange.OrderCancellation) (exchange.CancelAllOrdersResponse, error) {
+	var cancelAllOrdersResponse exchange.CancelAllOrdersResponse
 	openOrders, err := p.GetOpenOrdersForAllCurrencies()
-
 	if err != nil {
-		return err
+		return cancelAllOrdersResponse, err
 	}
 
 	for _, openOrderPerCurrency := range openOrders.Data {
 		for _, openOrder := range openOrderPerCurrency {
 			_, err = p.CancelExistingOrder(openOrder.OrderNumber)
-
 			if err != nil {
-				return err
+				cancelAllOrdersResponse.OrderStatus[strconv.FormatInt(openOrder.OrderNumber, 10)] = err.Error()
 			}
 		}
 	}
 
-	return nil
+	return cancelAllOrdersResponse, nil
 }
 
 // GetOrderInfo returns information on a current open order

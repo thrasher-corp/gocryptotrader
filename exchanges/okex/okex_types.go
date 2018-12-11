@@ -40,7 +40,7 @@ type MultiStreamData struct {
 	Data    json.RawMessage `json:"data"`
 }
 
-// TokenOrderResponse is returned after a request for all Token Orders
+// TokenOrdersResponse is returned after a request for all Token Orders
 type TokenOrdersResponse struct {
 	Result bool         `json:"result"`
 	Orders []TokenOrder `json:"orders"`

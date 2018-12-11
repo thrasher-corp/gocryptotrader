@@ -99,7 +99,7 @@ func TestAuthRequests(t *testing.T) {
 			t.Error("Test Failed - liqui GetOrderInfo() error", err)
 		}
 
-		_, err = l.CancelExistingOrder(1337)
+		err = l.CancelExistingOrder(1337)
 		if err == nil {
 			t.Error("Test Failed - liqui CancelExistingOrder() error", err)
 		}
@@ -312,10 +312,14 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 	}
 
 	// Act
-	err := l.CancelAllOrders(orderCancellation)
+	resp, err := l.CancelAllOrders(orderCancellation)
 
 	// Assert
 	if err != nil {
 		t.Errorf("Could not cancel order: %s", err)
+	}
+
+	if len(resp.OrderStatus) > 0 {
+		t.Errorf("%v orders failed to cancel", len(resp.OrderStatus))
 	}
 }

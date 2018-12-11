@@ -264,16 +264,17 @@ func (a *ANX) ModifyOrder(orderID int64, action exchange.ModifyOrder) (int64, er
 // CancelOrder cancels an order by its corresponding ID number
 func (a *ANX) CancelOrder(order exchange.OrderCancellation) error {
 	orderIDs := []string{order.OrderID}
-	return a.CancelOrderByIDs(orderIDs)
+	_, err := a.CancelOrderByIDs(orderIDs)
+	return err
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
-func (a *ANX) CancelAllOrders(orderCancellation exchange.OrderCancellation) (err error) {
-	// Only retrieve active orders to actually cancel
+func (a *ANX) CancelAllOrders(orderCancellation exchange.OrderCancellation) (exchange.CancelAllOrdersResponse, error) {
+	var cancelAllOrdersResponse exchange.CancelAllOrdersResponse
 	placedOrders, err := a.GetOrderList(true)
 
 	if err != nil {
-		return err
+		return cancelAllOrdersResponse, err
 	}
 
 	var orderIDs []string
@@ -281,7 +282,15 @@ func (a *ANX) CancelAllOrders(orderCancellation exchange.OrderCancellation) (err
 		orderIDs = append(orderIDs, order.OrderID)
 	}
 
-	return a.CancelOrderByIDs(orderIDs)
+	resp, err := a.CancelOrderByIDs(orderIDs)
+
+	for _, order := range resp.OrderCancellationResponses {
+		if order.Error != CancelRequestSubmitted {
+			cancelAllOrdersResponse.OrderStatus[order.UUID] = order.Error
+		}
+	}
+
+	return cancelAllOrdersResponse, err
 }
 
 // GetOrderInfo returns information on a current open order

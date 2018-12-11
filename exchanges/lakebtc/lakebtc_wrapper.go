@@ -173,10 +173,11 @@ func (l *LakeBTC) CancelOrder(order exchange.OrderCancellation) error {
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
-func (l *LakeBTC) CancelAllOrders(orderCancellation exchange.OrderCancellation) error {
+func (l *LakeBTC) CancelAllOrders(orderCancellation exchange.OrderCancellation) (exchange.CancelAllOrdersResponse, error) {
+	var cancelAllOrdersResponse exchange.CancelAllOrdersResponse
 	openOrders, err := l.GetOpenOrders()
 	if err != nil {
-		return err
+		return cancelAllOrdersResponse, err
 	}
 
 	var ordersToCancel []string
@@ -185,7 +186,8 @@ func (l *LakeBTC) CancelAllOrders(orderCancellation exchange.OrderCancellation) 
 		ordersToCancel = append(ordersToCancel, orderIDString)
 	}
 
-	return l.CancelExistingOrders(ordersToCancel)
+	return cancelAllOrdersResponse, l.CancelExistingOrders(ordersToCancel)
+
 }
 
 // GetOrderInfo returns information on a current open order

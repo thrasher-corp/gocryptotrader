@@ -411,10 +411,14 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 	}
 
 	// Act
-	err := b.CancelAllOrders(orderCancellation)
+	resp, err := b.CancelAllOrders(orderCancellation)
 
 	// Assert
 	if err != nil {
 		t.Errorf("Could not cancel order: %s", err)
+	}
+
+	if len(resp.OrderStatus) > 0 {
+		t.Errorf("%v orders failed to cancel", len(resp.OrderStatus))
 	}
 }

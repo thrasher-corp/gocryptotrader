@@ -107,9 +107,9 @@ func (o *OKEX) SetDefaults() {
 	o.Verbose = false
 	o.RESTPollingDelay = 10
 	o.APIWithdrawPermissions = exchange.AutoWithdrawCrypto
-	o.RequestCurrencyPairFormat.Delimiter = "_"
-	o.RequestCurrencyPairFormat.Uppercase = false
-	o.ConfigCurrencyPairFormat.Delimiter = "_"
+	o.RequestCurrencyPairFormat.Delimiter = "-"
+	o.RequestCurrencyPairFormat.Uppercase = true
+	o.ConfigCurrencyPairFormat.Delimiter = "-"
 	o.ConfigCurrencyPairFormat.Uppercase = true
 	o.SupportsAutoPairUpdating = true
 	o.SupportsRESTTickerBatching = false

@@ -246,11 +246,12 @@ func (o *OKCoin) CancelOrder(order exchange.OrderCancellation) error {
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
-func (o *OKCoin) CancelAllOrders(orderCancellation exchange.OrderCancellation) error {
+func (o *OKCoin) CancelAllOrders(orderCancellation exchange.OrderCancellation) (exchange.CancelAllOrdersResponse, error) {
+	var cancelAllOrdersResponse exchange.CancelAllOrdersResponse
 	orderInfo, err := o.GetOrderInformation(-1, exchange.FormatExchangeCurrency(o.Name, orderCancellation.CurrencyPair).String())
 
 	if err != nil {
-		return err
+		return cancelAllOrdersResponse, err
 	}
 
 	var ordersToCancel []int64
@@ -260,13 +261,19 @@ func (o *OKCoin) CancelAllOrders(orderCancellation exchange.OrderCancellation) e
 	}
 
 	if len(ordersToCancel) > 0 {
-		_, err = o.CancelExistingOrder(ordersToCancel, exchange.FormatExchangeCurrency(o.Name, orderCancellation.CurrencyPair).String())
-
+		resp, err := o.CancelExistingOrder(ordersToCancel, exchange.FormatExchangeCurrency(o.Name, orderCancellation.CurrencyPair).String())
 		if err != nil {
-			return err
+			return cancelAllOrdersResponse, err
+		}
+
+		for _, order := range common.SplitStrings(resp.Error, ",") {
+			if err != nil {
+				cancelAllOrdersResponse.OrderStatus[order] = "Order could not be cancelled"
+			}
 		}
 	}
-	return nil
+
+	return cancelAllOrdersResponse, nil
 }
 
 // GetOrderInfo returns information on a current open order

@@ -16,7 +16,7 @@ const (
 	apiKey                  = ""
 	apiSecret               = ""
 	canManipulateRealOrders = false
-	isWexEncounteringIssues = false
+	isWexEncounteringIssues = true
 )
 
 func TestSetDefaults(t *testing.T) {
@@ -411,10 +411,14 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 	}
 
 	// Act
-	err := w.CancelAllOrders(orderCancellation)
+	resp, err := w.CancelAllOrders(orderCancellation)
 
 	// Assert
 	if err != nil {
 		t.Errorf("Could not cancel order: %s", err)
+	}
+
+	if len(resp.OrderStatus) > 0 {
+		t.Errorf("%v orders failed to cancel", len(resp.OrderStatus))
 	}
 }

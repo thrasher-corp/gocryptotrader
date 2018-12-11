@@ -183,7 +183,6 @@ func (w *WEX) ModifyOrder(orderID int64, action exchange.ModifyOrder) (int64, er
 // CancelOrder cancels an order by its corresponding ID number
 func (w *WEX) CancelOrder(order exchange.OrderCancellation) error {
 	orderIDInt, err := strconv.ParseInt(order.OrderID, 10, 64)
-
 	if err != nil {
 		return err
 	}
@@ -194,14 +193,14 @@ func (w *WEX) CancelOrder(order exchange.OrderCancellation) error {
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
-func (w *WEX) CancelAllOrders(orderCancellation exchange.OrderCancellation) error {
+func (w *WEX) CancelAllOrders(orderCancellation exchange.OrderCancellation) (exchange.CancelAllOrdersResponse, error) {
+	var cancelAllOrdersResponse exchange.CancelAllOrdersResponse
 	var allActiveOrders map[string]ActiveOrders
 
 	for _, pair := range w.EnabledPairs {
 		activeOrders, err := w.GetActiveOrders(pair)
-
 		if err != nil {
-			return err
+			return cancelAllOrdersResponse, err
 		}
 
 		for k, v := range activeOrders {
@@ -211,19 +210,17 @@ func (w *WEX) CancelAllOrders(orderCancellation exchange.OrderCancellation) erro
 
 	for k := range allActiveOrders {
 		orderIDInt, err := strconv.ParseInt(k, 10, 64)
-
 		if err != nil {
-			return err
+			return cancelAllOrdersResponse, err
 		}
 
 		_, err = w.CancelExistingOrder(orderIDInt)
-
 		if err != nil {
-			return err
+			cancelAllOrdersResponse.OrderStatus[k] = err.Error()
 		}
 	}
 
-	return nil
+	return cancelAllOrdersResponse, nil
 }
 
 // GetOrderInfo returns information on a current open order

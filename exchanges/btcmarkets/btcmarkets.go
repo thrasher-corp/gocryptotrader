@@ -208,7 +208,7 @@ func (b *BTCMarkets) NewOrder(currency, instrument string, price, amount float64
 
 // CancelExistingOrder cancels an order by its ID
 // orderID - id for order example "1337"
-func (b *BTCMarkets) CancelExistingOrder(orderID []int64) (bool, error) {
+func (b *BTCMarkets) CancelExistingOrder(orderID []int64) ([]ResponseDetails, error) {
 	resp := Response{}
 	type CancelOrder struct {
 		OrderIDs []int64 `json:"orderIds"`
@@ -218,28 +218,14 @@ func (b *BTCMarkets) CancelExistingOrder(orderID []int64) (bool, error) {
 
 	err := b.SendAuthenticatedRequest("POST", btcMarketsOrderCancel, orders, &resp)
 	if err != nil {
-		return false, err
+		return resp.Responses, err
 	}
 
 	if !resp.Success {
-		return false, fmt.Errorf("%s Unable to cancel order. Error message: %s", b.GetName(), resp.ErrorMessage)
+		return resp.Responses, fmt.Errorf("%s Unable to cancel order. Error message: %s", b.GetName(), resp.ErrorMessage)
 	}
 
-	ordersToBeCancelled := len(orderID)
-	ordersCancelled := 0
-	for _, y := range resp.Responses {
-		if y.Success {
-			ordersCancelled++
-			log.Printf("%s Cancelled order %d.\n", b.GetName(), y.ID)
-		} else {
-			log.Printf("%s Unable to cancel order %d. Error message: %s", b.GetName(), y.ID, y.ErrorMessage)
-		}
-	}
-
-	if ordersCancelled == ordersToBeCancelled {
-		return true, nil
-	}
-	return false, fmt.Errorf("%s Unable to cancel order(s)", b.GetName())
+	return resp.Responses, nil
 }
 
 // GetOrders returns current order information on the exchange

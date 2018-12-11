@@ -228,18 +228,12 @@ func (l *Liqui) GetOrderInfoByID(OrderID int64) (map[string]OrderInfo, error) {
 }
 
 // CancelExistingOrder method is used for order cancelation.
-func (l *Liqui) CancelExistingOrder(OrderID int64) (bool, error) {
+func (l *Liqui) CancelExistingOrder(OrderID int64) error {
 	req := url.Values{}
 	req.Add("order_id", strconv.FormatInt(OrderID, 10))
-
 	var result CancelOrder
 
-	err := l.SendAuthenticatedHTTPRequest(liquiCancelOrder, req, &result)
-	if err != nil {
-		return false, err
-	}
-
-	return true, nil
+	return l.SendAuthenticatedHTTPRequest(liquiCancelOrder, req, &result)
 }
 
 // GetTradeHistory returns trade history

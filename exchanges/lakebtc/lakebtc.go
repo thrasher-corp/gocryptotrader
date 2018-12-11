@@ -292,7 +292,7 @@ func (l *LakeBTC) CancelExistingOrders(orderIDs []string) error {
 	}
 
 	if resp.Result != true {
-		return errors.New("unable to cancel order")
+		return fmt.Errorf("unable to cancel order(s): %v", orderIDs)
 	}
 	return nil
 }
