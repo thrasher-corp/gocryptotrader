@@ -1,6 +1,7 @@
 package okex
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
@@ -69,6 +70,8 @@ const (
 	spotCancelWithdraw = "cancel_withdraw"
 	spotWithdrawInfo   = "withdraw_info"
 	spotAccountRecords = "account_records"
+
+	myWalletInfo = "wallet_info.do"
 
 	// just your average return type from okex
 	returnTypeOne = "map[string]interface {}"
@@ -934,7 +937,27 @@ func (o *OKEX) SendAuthenticatedHTTPRequest(method string, values url.Values, re
 	headers := make(map[string]string)
 	headers["Content-Type"] = "application/x-www-form-urlencoded"
 
-	return o.SendPayload("POST", path, headers, strings.NewReader(encoded), result, true, o.Verbose)
+	var intermediary json.RawMessage
+
+	errCap := struct {
+		Result bool  `json:"result"`
+		Error  int64 `json:"error_code"`
+	}{}
+
+	err = o.SendPayload("POST", path, headers, strings.NewReader(encoded), &intermediary, true, o.Verbose)
+	if err != nil {
+		return err
+	}
+
+	err = common.JSONDecode(intermediary, &errCap)
+	if err == nil {
+		if !errCap.Result {
+			return fmt.Errorf("SendAuthenticatedHTTPRequest error - %s",
+				o.ErrorCodes[strconv.FormatInt(errCap.Error, 10)])
+		}
+	}
+
+	return common.JSONDecode(intermediary, result)
 }
 
 // SetErrorDefaults sets the full error default list
@@ -1152,4 +1175,19 @@ func calculateTradingFee(purchasePrice, amount float64, isMaker bool) (fee float
 
 func getWithdrawalFee(currency string) float64 {
 	return WithdrawalFees[currency]
+}
+
+// GetBalance returns the full balance accross all wallets
+func (o *OKEX) GetBalance() ([]Balance, error) {
+	var response []Balance
+
+	err := o.SendAuthenticatedHTTPRequest(myWalletInfo, url.Values{}, &response)
+	if err != nil {
+		if common.StringContains(err.Error(), o.ErrorCodes["10004"].Error()) {
+			return response, nil
+		}
+		return response, err
+	}
+
+	return response, nil
 }

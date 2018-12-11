@@ -428,3 +428,11 @@ var WithdrawalFees = map[string]float64{
 	symbol.ZIL:   20,
 	symbol.ZIP:   1000,
 }
+
+// Balance defines returned balance data
+type Balance struct {
+	Available float64 `json:"available"`
+	Balance   float64 `json:"balance"`
+	Currency  string  `json:"currency"`
+	Hold      float64 `json:"hold "`
+}
