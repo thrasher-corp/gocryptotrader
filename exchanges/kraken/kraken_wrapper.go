@@ -141,9 +141,24 @@ func (k *Kraken) UpdateOrderbook(p pair.CurrencyPair, assetType string) (orderbo
 // GetAccountInfo retrieves balances for all enabled currencies for the
 // Kraken exchange - to-do
 func (k *Kraken) GetAccountInfo() (exchange.AccountInfo, error) {
-	var response exchange.AccountInfo
-	response.ExchangeName = k.GetName()
-	return response, nil
+	var info exchange.AccountInfo
+	info.ExchangeName = k.GetName()
+
+	bal, err := k.GetBalance()
+	if err != nil {
+		return info, err
+	}
+
+	var balances []exchange.AccountCurrencyInfo
+	for key, data := range bal {
+		balances = append(balances, exchange.AccountCurrencyInfo{
+			CurrencyName: key,
+			TotalValue:   data,
+		})
+	}
+
+	info.Currencies = balances
+	return info, nil
 }
 
 // GetFundingHistory returns funding history, deposits and
