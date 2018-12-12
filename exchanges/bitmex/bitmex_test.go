@@ -521,3 +521,17 @@ func TestCancelExchangeOrder(t *testing.T) {
 		t.Errorf("Could not cancel order: %s", err)
 	}
 }
+
+func TestGetAccountInfo(t *testing.T) {
+	if testAPIKey != "" || testAPISecret != "" {
+		_, err := b.GetAccountInfo()
+		if err != nil {
+			t.Error("Test Failed - GetAccountInfo() error", err)
+		}
+	} else {
+		_, err := b.GetAccountInfo()
+		if err == nil {
+			t.Error("Test Failed - GetAccountInfo() error")
+		}
+	}
+}

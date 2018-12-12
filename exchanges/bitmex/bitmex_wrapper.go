@@ -125,8 +125,25 @@ func (b *Bitmex) UpdateOrderbook(p pair.CurrencyPair, assetType string) (orderbo
 // GetAccountInfo retrieves balances for all enabled currencies for the
 // Bitmex exchange
 func (b *Bitmex) GetAccountInfo() (exchange.AccountInfo, error) {
-	var response exchange.AccountInfo
-	return response, common.ErrNotYetImplemented
+	var info exchange.AccountInfo
+
+	bal, err := b.GetAllUserMargin()
+	if err != nil {
+		return info, err
+	}
+
+	// Need to update to add Margin/Liquidity availibilty
+	var balances []exchange.AccountCurrencyInfo
+	for _, data := range bal {
+		balances = append(balances, exchange.AccountCurrencyInfo{
+			CurrencyName: data.Currency,
+			TotalValue:   float64(data.WalletBalance),
+		})
+	}
+
+	info.ExchangeName = b.GetName()
+	info.Currencies = balances
+	return info, nil
 }
 
 // GetFundingHistory returns funding history, deposits and
