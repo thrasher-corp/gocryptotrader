@@ -285,8 +285,15 @@ func TestCancelExchangeOrder(t *testing.T) {
 }
 
 func TestGetAccountInfo(t *testing.T) {
-	_, err := a.GetAccountInfo()
-	if err == nil {
-		t.Error("test failed - GetAccountInfo() error:", err)
+	if testAPIKey != "" || testAPISecret != "" {
+		_, err := a.GetAccountInfo()
+		if err != nil {
+			t.Error("test failed - GetAccountInfo() error:", err)
+		}
+	} else {
+		_, err := a.GetAccountInfo()
+		if err == nil {
+			t.Error("test failed - GetAccountInfo() error")
+		}
 	}
 }
