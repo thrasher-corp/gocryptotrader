@@ -136,7 +136,6 @@ type OrderResponse struct {
 }
 
 // OrderCancelResponse returned when cancelling multiple orders
-
 type OrderCancelResponse struct {
 	OrderCancellationResponses []OrderCancellationResponse `json:"orderIds"`
 	ResultCode                 string                      `json:"resultCode"`

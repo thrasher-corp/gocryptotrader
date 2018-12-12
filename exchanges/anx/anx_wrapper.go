@@ -272,7 +272,6 @@ func (a *ANX) CancelOrder(order exchange.OrderCancellation) error {
 func (a *ANX) CancelAllOrders(orderCancellation exchange.OrderCancellation) (exchange.CancelAllOrdersResponse, error) {
 	var cancelAllOrdersResponse exchange.CancelAllOrdersResponse
 	placedOrders, err := a.GetOrderList(true)
-
 	if err != nil {
 		return cancelAllOrdersResponse, err
 	}
@@ -283,6 +282,9 @@ func (a *ANX) CancelAllOrders(orderCancellation exchange.OrderCancellation) (exc
 	}
 
 	resp, err := a.CancelOrderByIDs(orderIDs)
+	if err != nil {
+		return cancelAllOrdersResponse, err
+	}
 
 	for _, order := range resp.OrderCancellationResponses {
 		if order.Error != CancelRequestSubmitted {

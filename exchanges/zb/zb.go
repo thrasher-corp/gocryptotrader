@@ -187,7 +187,6 @@ func (z *ZB) GetUnfinishedOrdersIgnoreTradeType(currency, pageindex, pagesize st
 	vals.Set("pageSize", pagesize)
 
 	err := z.SendAuthenticatedHTTPRequest("GET", zbUnfinishedOrdersIgnoreTradeType, vals, &result)
-
 	if err != nil {
 		return result, err
 	}

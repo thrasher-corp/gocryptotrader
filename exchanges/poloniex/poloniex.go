@@ -446,7 +446,6 @@ func (p *Poloniex) GetOpenOrdersForAllCurrencies() (OpenOrdersResponseAll, error
 	result := OpenOrdersResponseAll{}
 
 	err := p.SendAuthenticatedHTTPRequest("POST", poloniexOrders, values, &result.Data)
-
 	if err != nil {
 		return result, err
 	}
