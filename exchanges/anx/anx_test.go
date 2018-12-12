@@ -266,7 +266,6 @@ func TestCancelExchangeOrder(t *testing.T) {
 		t.Skip()
 	}
 
-	a.Verbose = true
 	currencyPair := pair.NewCurrencyPair(symbol.BTC, symbol.LTC)
 
 	var orderCancellation = exchange.OrderCancellation{
@@ -293,7 +292,6 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 		t.Skip()
 	}
 
-	a.Verbose = true
 	currencyPair := pair.NewCurrencyPair(symbol.BTC, symbol.LTC)
 
 	var orderCancellation = exchange.OrderCancellation{

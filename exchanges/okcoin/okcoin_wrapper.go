@@ -249,13 +249,11 @@ func (o *OKCoin) CancelOrder(order exchange.OrderCancellation) error {
 func (o *OKCoin) CancelAllOrders(orderCancellation exchange.OrderCancellation) (exchange.CancelAllOrdersResponse, error) {
 	var cancelAllOrdersResponse exchange.CancelAllOrdersResponse
 	orderInfo, err := o.GetOrderInformation(-1, exchange.FormatExchangeCurrency(o.Name, orderCancellation.CurrencyPair).String())
-
 	if err != nil {
 		return cancelAllOrdersResponse, err
 	}
 
 	var ordersToCancel []int64
-
 	for _, order := range orderInfo {
 		ordersToCancel = append(ordersToCancel, order.OrderID)
 	}

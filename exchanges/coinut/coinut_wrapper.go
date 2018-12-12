@@ -303,7 +303,6 @@ func (c *COINUT) CancelAllOrders(orderCancellation exchange.OrderCancellation) (
 		for _, instrumentData := range allInstrumentData {
 
 			openOrders, err := c.GetOpenOrders(instrumentData.InstID)
-
 			if err != nil {
 				return cancelAllOrdersResponse, err
 			}

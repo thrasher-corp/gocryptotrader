@@ -637,7 +637,6 @@ func setFeeBuilder() exchange.FeeBuilder {
 
 func TestGetFee(t *testing.T) {
 	b.SetDefaults()
-	b.Verbose = true
 	TestSetup(t)
 	var feeBuilder = setFeeBuilder()
 
@@ -759,7 +758,6 @@ func TestCancelExchangeOrder(t *testing.T) {
 		t.Skip()
 	}
 
-	b.Verbose = true
 	currencyPair := pair.NewCurrencyPair(symbol.LTC, symbol.BTC)
 
 	var orderCancellation = exchange.OrderCancellation{
@@ -787,7 +785,6 @@ func TestCancelAllExchangeOrdera(t *testing.T) {
 		t.Skip()
 	}
 
-	b.Verbose = true
 	currencyPair := pair.NewCurrencyPair(symbol.LTC, symbol.BTC)
 
 	var orderCancellation = exchange.OrderCancellation{

@@ -32,7 +32,6 @@ func TestSetup(t *testing.T) {
 	}
 	bConfig.AuthenticatedAPISupport = true
 	bConfig.APIKey = apiKey
-	bConfig.Verbose = true
 	c.Setup(bConfig)
 	c.ClientID = clientID
 
@@ -196,6 +195,7 @@ func TestFormatWithdrawPermissions(t *testing.T) {
 // Any tests below this line have the ability to impact your orders on the exchange. Enable canManipulateRealOrders to run them
 // ----------------------------------------------------------------------------------------------------------------------------
 func isRealOrderTestEnabled() bool {
+
 	if c.APIKey == "" ||
 		c.APIKey == "Key" ||
 		!canManipulateRealOrders {
@@ -207,7 +207,6 @@ func isRealOrderTestEnabled() bool {
 func TestSubmitOrder(t *testing.T) {
 	c.SetDefaults()
 	TestSetup(t)
-	c.Verbose = true
 
 	if !isRealOrderTestEnabled() {
 		t.Skip()
@@ -233,7 +232,6 @@ func TestCancelExchangeOrder(t *testing.T) {
 		t.Skip()
 	}
 
-	c.Verbose = true
 	currencyPair := pair.NewCurrencyPair(symbol.LTC, symbol.BTC)
 
 	var orderCancellation = exchange.OrderCancellation{
@@ -261,7 +259,6 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 		t.Skip()
 	}
 
-	c.Verbose = true
 	currencyPair := pair.NewCurrencyPair(symbol.LTC, symbol.BTC)
 
 	var orderCancellation = exchange.OrderCancellation{

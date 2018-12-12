@@ -197,7 +197,6 @@ func (l *Liqui) CancelAllOrders(orderCancellation exchange.OrderCancellation) (e
 		}
 
 		err = l.CancelExistingOrder(orderIDInt)
-
 		if err != nil {
 			cancelAllOrdersResponse.OrderStatus[activeOrder] = err.Error()
 		}

@@ -153,13 +153,11 @@ func (g *Gemini) ModifyOrder(orderID int64, action exchange.ModifyOrder) (int64,
 // CancelOrder cancels an order by its corresponding ID number
 func (g *Gemini) CancelOrder(order exchange.OrderCancellation) error {
 	orderIDInt, err := strconv.ParseInt(order.OrderID, 10, 64)
-
 	if err != nil {
 		return err
 	}
 
 	_, err = g.CancelExistingOrder(orderIDInt)
-
 	return err
 }
 

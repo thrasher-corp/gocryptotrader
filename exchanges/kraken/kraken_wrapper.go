@@ -211,7 +211,6 @@ func (k *Kraken) CancelAllOrders(orderCancellation exchange.OrderCancellation) (
 	var cancelAllOrdersResponse exchange.CancelAllOrdersResponse
 	var emptyOrderOptions OrderInfoOptions
 	openOrders, err := k.GetOpenOrders(emptyOrderOptions)
-
 	if err != nil {
 		return cancelAllOrdersResponse, err
 	}
@@ -219,12 +218,12 @@ func (k *Kraken) CancelAllOrders(orderCancellation exchange.OrderCancellation) (
 	if openOrders.Count > 0 {
 		for orderID := range openOrders.Open {
 			_, err = k.CancelExistingOrder(orderID)
-
 			if err != nil {
 				cancelAllOrdersResponse.OrderStatus[orderID] = err.Error()
 			}
 		}
 	}
+	
 	return cancelAllOrdersResponse, nil
 }
 

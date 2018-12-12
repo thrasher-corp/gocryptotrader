@@ -389,7 +389,6 @@ func isRealOrderTestEnabled() bool {
 func TestSubmitOrder(t *testing.T) {
 	h.SetDefaults()
 	TestSetup(t)
-	h.Verbose = true
 
 	if !isRealOrderTestEnabled() {
 		t.Skip()
@@ -417,7 +416,6 @@ func TestCancelExchangeOrder(t *testing.T) {
 		t.Skip()
 	}
 
-	h.Verbose = true
 	currencyPair := pair.NewCurrencyPair(symbol.LTC, symbol.BTC)
 
 	var orderCancellation = exchange.OrderCancellation{
@@ -445,7 +443,6 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 		t.Skip()
 	}
 
-	h.Verbose = true
 	currencyPair := pair.NewCurrencyPair(symbol.LTC, symbol.BTC)
 
 	var orderCancellation = exchange.OrderCancellation{

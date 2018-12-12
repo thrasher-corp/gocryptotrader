@@ -244,7 +244,6 @@ func isRealOrderTestEnabled() bool {
 func TestSubmitOrder(t *testing.T) {
 	z.SetDefaults()
 	TestSetup(t)
-	z.Verbose = true
 
 	if !isRealOrderTestEnabled() {
 		t.Skip(fmt.Sprintf("ApiKey: %s. Can place orders: %v", z.APIKey, canManipulateRealOrders))
@@ -269,7 +268,6 @@ func TestCancelExchangeOrder(t *testing.T) {
 		t.Skip()
 	}
 
-	z.Verbose = true
 	currencyPair := pair.NewCurrencyPair(symbol.LTC, symbol.BTC)
 
 	var orderCancellation = exchange.OrderCancellation{
@@ -297,7 +295,6 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 		t.Skip()
 	}
 
-	z.Verbose = true
 	currencyPair := pair.NewCurrencyPair(symbol.LTC, symbol.BTC)
 
 	var orderCancellation = exchange.OrderCancellation{

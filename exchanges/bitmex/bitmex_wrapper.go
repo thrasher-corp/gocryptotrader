@@ -208,7 +208,6 @@ func (b *Bitmex) CancelAllOrders(orderCancellation exchange.OrderCancellation) (
 	var cancelAllOrdersResponse exchange.CancelAllOrdersResponse
 	var emptyParams OrderCancelAllParams
 	orders, err := b.CancelAllExistingOrders(emptyParams)
-
 	if err != nil {
 		return cancelAllOrdersResponse, err
 	}
@@ -217,7 +216,7 @@ func (b *Bitmex) CancelAllOrders(orderCancellation exchange.OrderCancellation) (
 		cancelAllOrdersResponse.OrderStatus[order.OrderID] = order.OrdRejReason
 	}
 
-	return cancelAllOrdersResponse, err
+	return cancelAllOrdersResponse, nil
 }
 
 // GetOrderInfo returns information on a current open order

@@ -206,7 +206,6 @@ func (b *Bithumb) CancelAllOrders(orderCancellation exchange.OrderCancellation) 
 
 	for _, currency := range b.GetEnabledCurrencies() {
 		orders, err := b.GetOrders("", orderCancellation.Side.ToString(), "100", "", currency.FirstCurrency.String())
-
 		if err != nil {
 			return cancelAllOrdersResponse, err
 		}

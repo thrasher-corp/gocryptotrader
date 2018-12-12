@@ -398,7 +398,6 @@ func (g *Gateio) CancelAllExistingOrders(orderType int64, symbol string) error {
 		symbol,
 	)
 	err := g.SendAuthenticatedHTTPRequest("POST", gateioCancelAllOrders, params, &result)
-
 	if err != nil {
 		return err
 	}
@@ -421,7 +420,6 @@ func (g *Gateio) GetOpenOrders(symbol string) (OpenOrdersResponse, error) {
 	}
 
 	err := g.SendAuthenticatedHTTPRequest("POST", gateioOpenOrders, params, &result)
-
 	if err != nil {
 		return result, err
 	}

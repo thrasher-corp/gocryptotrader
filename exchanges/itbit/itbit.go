@@ -216,7 +216,6 @@ func (i *ItBit) GetOrders(walletID, symbol, status string, page, perPage int64) 
 	}
 
 	err := i.SendAuthenticatedHTTPRequest("GET", itbitOrders, params, &resp)
-
 	if err != nil {
 		return resp, err
 	}

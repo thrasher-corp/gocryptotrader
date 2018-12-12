@@ -195,12 +195,10 @@ func (b *BTCMarkets) CancelAllOrders(orderCancellation exchange.OrderCancellatio
 
 	var orderList []int64
 	for _, order := range openOrders {
-		orderIDInt, strconvErr := strconv.ParseInt(order.ID, 10, 64)
-
-		if strconvErr != nil {
-			cancelAllOrdersResponse.OrderStatus[order.ID] = strconvErr.Error()
+		orderIDInt, err := strconv.ParseInt(order.ID, 10, 64)
+		if err != nil {
+			cancelAllOrdersResponse.OrderStatus[order.ID] = err.Error()
 		}
-
 		orderList = append(orderList, orderIDInt)
 	}
 
