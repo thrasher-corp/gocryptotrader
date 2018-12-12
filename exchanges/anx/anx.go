@@ -269,7 +269,6 @@ func (a *ANX) GetOrderList(isActiveOrdersOnly bool) ([]OrderResponse, error) {
 	}
 	var response OrderListResponse
 	err := a.SendAuthenticatedHTTPRequest(anxOrderList, request, &response)
-
 	if err != nil {
 		return nil, err
 	}
