@@ -53,23 +53,86 @@ func (c *COINUT) Run() {
 // GetAccountInfo retrieves balances for all enabled currencies for the
 // COINUT exchange
 func (c *COINUT) GetAccountInfo() (exchange.AccountInfo, error) {
-	var response exchange.AccountInfo
-	/*
-		response.ExchangeName = e.GetName()
-		accountBalance, err := e.GetAccounts()
-		if err != nil {
-			return response, err
-		}
-		for i := 0; i < len(accountBalance); i++ {
-			var exchangeCurrency exchange.AccountCurrencyInfo
-			exchangeCurrency.CurrencyName = accountBalance[i].Currency
-			exchangeCurrency.TotalValue = accountBalance[i].Available
-			exchangeCurrency.Hold = accountBalance[i].Hold
+	var info exchange.AccountInfo
+	bal, err := c.GetUserBalance()
+	if err != nil {
+		return info, err
+	}
 
-			response.Currencies = append(response.Currencies, exchangeCurrency)
-		}
-	*/
-	return response, nil
+	var balances []exchange.AccountCurrencyInfo
+	balances = append(balances, exchange.AccountCurrencyInfo{
+		CurrencyName: "BCH",
+		TotalValue:   bal.BCH,
+	})
+
+	balances = append(balances, exchange.AccountCurrencyInfo{
+		CurrencyName: "BTC",
+		TotalValue:   bal.BTC,
+	})
+
+	balances = append(balances, exchange.AccountCurrencyInfo{
+		CurrencyName: "BTG",
+		TotalValue:   bal.BTG,
+	})
+
+	balances = append(balances, exchange.AccountCurrencyInfo{
+		CurrencyName: "CAD",
+		TotalValue:   bal.CAD,
+	})
+
+	balances = append(balances, exchange.AccountCurrencyInfo{
+		CurrencyName: "ETC",
+		TotalValue:   bal.ETC,
+	})
+
+	balances = append(balances, exchange.AccountCurrencyInfo{
+		CurrencyName: "ETH",
+		TotalValue:   bal.ETH,
+	})
+
+	balances = append(balances, exchange.AccountCurrencyInfo{
+		CurrencyName: "LCH",
+		TotalValue:   bal.LCH,
+	})
+
+	balances = append(balances, exchange.AccountCurrencyInfo{
+		CurrencyName: "LTC",
+		TotalValue:   bal.LTC,
+	})
+
+	balances = append(balances, exchange.AccountCurrencyInfo{
+		CurrencyName: "MYR",
+		TotalValue:   bal.MYR,
+	})
+
+	balances = append(balances, exchange.AccountCurrencyInfo{
+		CurrencyName: "SGD",
+		TotalValue:   bal.SGD,
+	})
+
+	balances = append(balances, exchange.AccountCurrencyInfo{
+		CurrencyName: "USD",
+		TotalValue:   bal.USD,
+	})
+
+	balances = append(balances, exchange.AccountCurrencyInfo{
+		CurrencyName: "USDT",
+		TotalValue:   bal.USDT,
+	})
+
+	balances = append(balances, exchange.AccountCurrencyInfo{
+		CurrencyName: "XMR",
+		TotalValue:   bal.XMR,
+	})
+
+	balances = append(balances, exchange.AccountCurrencyInfo{
+		CurrencyName: "ZEC",
+		TotalValue:   bal.ZEC,
+	})
+
+	info.ExchangeName = c.GetName()
+	info.Currencies = balances
+	return info, nil
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
