@@ -118,17 +118,17 @@ func (i *ItBit) GetAccountInfo() (exchange.AccountInfo, error) {
 		return info, err
 	}
 
-	type bro struct {
+	type balance struct {
 		TotalValue float64
 		Hold       float64
 	}
 
-	var amounts = make(map[string]*bro)
+	var amounts = make(map[string]*balance)
 
 	for _, wallet := range wallets {
 		for _, cb := range wallet.Balances {
 			if _, ok := amounts[cb.Currency]; !ok {
-				amounts[cb.Currency] = &bro{}
+				amounts[cb.Currency] = &balance{}
 			}
 
 			amounts[cb.Currency].TotalValue += cb.TotalBalance
