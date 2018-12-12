@@ -77,18 +77,6 @@ func TestGetTransactionHistory(t *testing.T) {
 	}
 }
 
-func TestGetAccountInfo(t *testing.T) {
-	t.Parallel()
-	if testAPIKey == "" || testAPISecret == "" {
-		t.Skip()
-	}
-
-	_, err := b.GetAccountInfo()
-	if err != nil {
-		t.Error("test failed - Bithumb GetAccountInfo() error", err)
-	}
-}
-
 func TestGetAccountBalance(t *testing.T) {
 	t.Parallel()
 	if testAPIKey == "" || testAPISecret == "" {
@@ -354,5 +342,21 @@ func TestCancelExchangeOrder(t *testing.T) {
 	// Assert
 	if err != nil {
 		t.Errorf("Could not cancel order: %s", err)
+	}
+}
+
+func TestGetAccountInfo(t *testing.T) {
+	b.Verbose = true
+	t.Parallel()
+	if testAPIKey != "" || testAPISecret != "" {
+		_, err := b.GetAccountInfo()
+		if err != nil {
+			t.Error("test failed - Bithumb GetAccountInfo() error", err)
+		}
+	} else {
+		_, err := b.GetAccountInfo()
+		if err == nil {
+			t.Error("test failed - Bithumb GetAccountInfo() error")
+		}
 	}
 }

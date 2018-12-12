@@ -140,6 +140,9 @@ func (b *Bithumb) GetAccountInfo() (exchange.AccountInfo, error) {
 		c := splitTag[len(splitTag)-1]
 		switch splitTag[0] {
 		case "available":
+			// NOTE: Captures available data
+
+		case "in":
 			var hold float64
 			if reflect.TypeOf(datum).String() != "float64" {
 				hold, err = strconv.ParseFloat(datum.(string), 64)
@@ -165,9 +168,6 @@ func (b *Bithumb) GetAccountInfo() (exchange.AccountInfo, error) {
 					Hold:         hold,
 				})
 			}
-
-		case "in":
-			// NOTE: Captures in use coins, not used
 
 		case "total":
 			var totalValue float64
