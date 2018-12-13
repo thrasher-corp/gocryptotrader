@@ -3,8 +3,6 @@ package bithumb
 import (
 	"fmt"
 	"log"
-	"reflect"
-	"strconv"
 	"sync"
 
 	"github.com/thrasher-/gocryptotrader/common"
@@ -124,91 +122,28 @@ func (b *Bithumb) UpdateOrderbook(p pair.CurrencyPair, assetType string) (orderb
 // Bithumb exchange
 func (b *Bithumb) GetAccountInfo() (exchange.AccountInfo, error) {
 	var info exchange.AccountInfo
-	info.ExchangeName = b.GetName()
-
 	bal, err := b.GetAccountBalance("ALL")
 	if err != nil {
 		return info, err
 	}
 
 	var exchangeBalances []exchange.AccountCurrencyInfo
-
-	// Added due to increasing of the usuable currencies on exchange, usually
-	// without notificatation, so we dont need to update structs later on
-	for tag, datum := range bal.Data {
-		splitTag := common.SplitStrings(tag, "_")
-		c := splitTag[len(splitTag)-1]
-		switch splitTag[0] {
-		case "available":
-			// NOTE: Captures available data
-
-		case "in":
-			var hold float64
-			if reflect.TypeOf(datum).String() != "float64" {
-				hold, err = strconv.ParseFloat(datum.(string), 64)
-				if err != nil {
-					return info, err
-				}
-			} else {
-				hold = datum.(float64)
-			}
-
-			var appended bool
-			for i := range exchangeBalances {
-				if exchangeBalances[i].CurrencyName == c {
-					exchangeBalances[i].Hold = hold
-					appended = true
-					break
-				}
-			}
-
-			if !appended {
-				exchangeBalances = append(exchangeBalances, exchange.AccountCurrencyInfo{
-					CurrencyName: c,
-					Hold:         hold,
-				})
-			}
-
-		case "total":
-			var totalValue float64
-			if reflect.TypeOf(datum).String() != "float64" {
-				totalValue, err = strconv.ParseFloat(datum.(string), 64)
-				if err != nil {
-					return info, err
-				}
-			} else {
-				totalValue = datum.(float64)
-			}
-
-			var appended bool
-			for i := range exchangeBalances {
-				if exchangeBalances[i].CurrencyName == c {
-					exchangeBalances[i].TotalValue = totalValue
-					appended = true
-					break
-				}
-			}
-
-			if !appended {
-				exchangeBalances = append(exchangeBalances, exchange.AccountCurrencyInfo{
-					CurrencyName: c,
-					TotalValue:   totalValue,
-				})
-			}
-
-		case "misu":
-			// NOTE: Captures misu data
-
-		case "xcoin":
-			// NOTE: Captures xcoin data
-
-		default:
-			return info, fmt.Errorf("Unhandled tag %s", tag)
+	for key, totalAmount := range bal.Total {
+		hold, ok := bal.InUse[key]
+		if !ok {
+			return info, fmt.Errorf("GetAccountInfo error - in use item not found for currency %s",
+				key)
 		}
+
+		exchangeBalances = append(exchangeBalances, exchange.AccountCurrencyInfo{
+			CurrencyName: key,
+			TotalValue:   totalAmount,
+			Hold:         hold,
+		})
 	}
 
 	info.Currencies = exchangeBalances
-
+	info.ExchangeName = b.GetName()
 	return info, nil
 }
 

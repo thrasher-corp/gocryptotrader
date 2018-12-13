@@ -268,3 +268,12 @@ var WithdrawalFees = map[string]float64{
 	symbol.ENJ:   35,
 	symbol.PST:   30,
 }
+
+// FullBalance defines a return type with full balance data
+type FullBalance struct {
+	InUse     map[string]float64
+	Misu      map[string]float64
+	Total     map[string]float64
+	Xcoin     map[string]float64
+	Available map[string]float64
+}

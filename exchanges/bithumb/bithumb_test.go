@@ -346,7 +346,6 @@ func TestCancelExchangeOrder(t *testing.T) {
 }
 
 func TestGetAccountInfo(t *testing.T) {
-	b.Verbose = true
 	t.Parallel()
 	if testAPIKey != "" || testAPISecret != "" {
 		_, err := b.GetAccountInfo()
