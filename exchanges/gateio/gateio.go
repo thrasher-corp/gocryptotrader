@@ -405,13 +405,13 @@ func (g *Gateio) SendAuthenticatedHTTPRequest(method, endpoint, param string, re
 	}
 
 	errCap := struct {
-		Result  string `json:"result"`
+		Result  bool   `json:"result,string"`
 		Code    int    `json:"code"`
 		Message string `json:"message"`
 	}{}
 
 	if err := common.JSONDecode(intermidiary, &errCap); err == nil {
-		if errCap.Result == "false" {
+		if !errCap.Result {
 			return fmt.Errorf("GateIO auth request error, code: %d message: %s",
 				errCap.Code,
 				errCap.Message)
