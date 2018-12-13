@@ -7,6 +7,8 @@ import (
 	"strconv"
 	"sync"
 
+	"github.com/thrasher-/gocryptotrader/currency/symbol"
+
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
 	"github.com/thrasher-/gocryptotrader/exchanges"
@@ -61,72 +63,72 @@ func (c *COINUT) GetAccountInfo() (exchange.AccountInfo, error) {
 
 	var balances []exchange.AccountCurrencyInfo
 	balances = append(balances, exchange.AccountCurrencyInfo{
-		CurrencyName: "BCH",
+		CurrencyName: symbol.BCH,
 		TotalValue:   bal.BCH,
 	})
 
 	balances = append(balances, exchange.AccountCurrencyInfo{
-		CurrencyName: "BTC",
+		CurrencyName: symbol.BTC,
 		TotalValue:   bal.BTC,
 	})
 
 	balances = append(balances, exchange.AccountCurrencyInfo{
-		CurrencyName: "BTG",
+		CurrencyName: symbol.BTG,
 		TotalValue:   bal.BTG,
 	})
 
 	balances = append(balances, exchange.AccountCurrencyInfo{
-		CurrencyName: "CAD",
+		CurrencyName: symbol.CAD,
 		TotalValue:   bal.CAD,
 	})
 
 	balances = append(balances, exchange.AccountCurrencyInfo{
-		CurrencyName: "ETC",
+		CurrencyName: symbol.ETC,
 		TotalValue:   bal.ETC,
 	})
 
 	balances = append(balances, exchange.AccountCurrencyInfo{
-		CurrencyName: "ETH",
+		CurrencyName: symbol.ETH,
 		TotalValue:   bal.ETH,
 	})
 
 	balances = append(balances, exchange.AccountCurrencyInfo{
-		CurrencyName: "LCH",
+		CurrencyName: symbol.LCH,
 		TotalValue:   bal.LCH,
 	})
 
 	balances = append(balances, exchange.AccountCurrencyInfo{
-		CurrencyName: "LTC",
+		CurrencyName: symbol.LTC,
 		TotalValue:   bal.LTC,
 	})
 
 	balances = append(balances, exchange.AccountCurrencyInfo{
-		CurrencyName: "MYR",
+		CurrencyName: symbol.MYR,
 		TotalValue:   bal.MYR,
 	})
 
 	balances = append(balances, exchange.AccountCurrencyInfo{
-		CurrencyName: "SGD",
+		CurrencyName: symbol.SGD,
 		TotalValue:   bal.SGD,
 	})
 
 	balances = append(balances, exchange.AccountCurrencyInfo{
-		CurrencyName: "USD",
+		CurrencyName: symbol.USD,
 		TotalValue:   bal.USD,
 	})
 
 	balances = append(balances, exchange.AccountCurrencyInfo{
-		CurrencyName: "USDT",
+		CurrencyName: symbol.USDT,
 		TotalValue:   bal.USDT,
 	})
 
 	balances = append(balances, exchange.AccountCurrencyInfo{
-		CurrencyName: "XMR",
+		CurrencyName: symbol.XMR,
 		TotalValue:   bal.XMR,
 	})
 
 	balances = append(balances, exchange.AccountCurrencyInfo{
-		CurrencyName: "ZEC",
+		CurrencyName: symbol.ZEC,
 		TotalValue:   bal.ZEC,
 	})
 
