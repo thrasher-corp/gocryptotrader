@@ -168,7 +168,6 @@ func (o *OKEX) GetAccountInfo() (exchange.AccountInfo, error) {
 
 	info.ExchangeName = o.GetName()
 	info.Currencies = balances
-
 	return info, nil
 }
 
@@ -236,13 +235,11 @@ func (o *OKEX) ModifyOrder(orderID int64, action exchange.ModifyOrder) (int64, e
 // CancelOrder cancels an order by its corresponding ID number
 func (o *OKEX) CancelOrder(order exchange.OrderCancellation) error {
 	orderIDInt, err := strconv.ParseInt(order.OrderID, 10, 64)
-
 	if err != nil {
 		return err
 	}
 
 	_, err = o.SpotCancelOrder(exchange.FormatExchangeCurrency(o.Name, order.CurrencyPair).String(), orderIDInt)
-
 	return err
 }
 

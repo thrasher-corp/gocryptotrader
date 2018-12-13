@@ -687,23 +687,22 @@ func (o *OKEX) SpotNewOrder(arg SpotNewOrderRequestParams) (int64, error) {
 // orderID orderID
 // returns orderID or an error
 func (o *OKEX) SpotCancelOrder(symbol string, argOrderID int64) (int64, error) {
-	type response struct {
+	var res = struct {
 		Result    bool   `json:"result"`
 		OrderID   string `json:"order_id"`
 		ErrorCode int    `json:"error_code"`
-	}
-
-	var res response
+	}{}
 
 	params := url.Values{}
 	params.Set("symbol", symbol)
 	params.Set("order_id", strconv.FormatInt(argOrderID, 10))
 
-	err := o.SendAuthenticatedHTTPRequest(spotCancelTrade, params, &res)
 	var returnOrderID int64
-	if err != nil && res.ErrorCode != 0 {
+	err := o.SendAuthenticatedHTTPRequest(spotCancelTrade+".do", params, &res)
+	if err != nil {
 		return returnOrderID, err
 	}
+
 	if res.ErrorCode != 0 {
 		return returnOrderID, fmt.Errorf("ErrCode:%d ErrMsg:%s", res.ErrorCode, o.ErrorCodes[strconv.Itoa(res.ErrorCode)])
 	}
@@ -967,7 +966,7 @@ func (o *OKEX) SetErrorDefaults() {
 		"10000": errors.New("Required field, can not be null"),
 		"10001": errors.New("Request frequency too high to exceed the limit allowed"),
 		"10002": errors.New("System error"),
-		"10004": errors.New("Request failed"),
+		"10004": errors.New("Request failed - Your API key might need to be recreated"),
 		"10005": errors.New("'SecretKey' does not exist"),
 		"10006": errors.New("'Api_key' does not exist"),
 		"10007": errors.New("Signature does not match"),
@@ -1178,16 +1177,37 @@ func getWithdrawalFee(currency string) float64 {
 }
 
 // GetBalance returns the full balance accross all wallets
-func (o *OKEX) GetBalance() ([]Balance, error) {
-	var response []Balance
+func (o *OKEX) GetBalance() ([]FullBalance, error) {
+	var resp Balance
+	var balances []FullBalance
 
-	err := o.SendAuthenticatedHTTPRequest(myWalletInfo, url.Values{}, &response)
+	err := o.SendAuthenticatedHTTPRequest(myWalletInfo, url.Values{}, &resp)
 	if err != nil {
-		if common.StringContains(err.Error(), o.ErrorCodes["10004"].Error()) {
-			return response, nil
-		}
-		return response, err
+		return balances, err
 	}
 
-	return response, nil
+	for key, available := range resp.Info.Funds.Free {
+		free, err := strconv.ParseFloat(available, 64)
+		if err != nil {
+			return balances, err
+		}
+
+		inUse, ok := resp.Info.Funds.Holds[key]
+		if !ok {
+			return balances, fmt.Errorf("hold currency %s not found in map", key)
+		}
+
+		hold, err := strconv.ParseFloat(inUse, 64)
+		if err != nil {
+			return balances, err
+		}
+
+		balances = append(balances, FullBalance{
+			Currency:  key,
+			Available: free,
+			Hold:      hold,
+		})
+	}
+
+	return balances, nil
 }
