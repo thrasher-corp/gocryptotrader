@@ -245,7 +245,9 @@ func (o *OKEX) CancelOrder(order exchange.OrderCancellation) error {
 
 // CancelAllOrders cancels all orders for all enabled currencies
 func (o *OKEX) CancelAllOrders(orderCancellation exchange.OrderCancellation) (exchange.CancelAllOrdersResponse, error) {
-	var cancelAllOrdersResponse exchange.CancelAllOrdersResponse
+	cancelAllOrdersResponse := exchange.CancelAllOrdersResponse{
+		OrderStatus: make(map[string]string),
+	}
 	var allOpenOrders []TokenOrder
 	for _, currency := range o.GetEnabledCurrencies() {
 		formattedCurrency := exchange.FormatExchangeCurrency(o.Name, currency).String()

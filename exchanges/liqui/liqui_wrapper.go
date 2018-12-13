@@ -184,7 +184,9 @@ func (l *Liqui) CancelOrder(order exchange.OrderCancellation) error {
 
 // CancelAllOrders cancels all orders associated with a currency pair
 func (l *Liqui) CancelAllOrders(orderCancellation exchange.OrderCancellation) (exchange.CancelAllOrdersResponse, error) {
-	var cancelAllOrdersResponse exchange.CancelAllOrdersResponse
+	cancelAllOrdersResponse := exchange.CancelAllOrdersResponse{
+		OrderStatus: make(map[string]string),
+	}
 	activeOrders, err := l.GetActiveOrders("")
 	if err != nil {
 		return cancelAllOrdersResponse, err

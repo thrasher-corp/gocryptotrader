@@ -220,7 +220,9 @@ func (l *LocalBitcoins) CancelOrder(order exchange.OrderCancellation) error {
 
 // CancelAllOrders cancels all orders associated with a currency pair
 func (l *LocalBitcoins) CancelAllOrders(orderCancellation exchange.OrderCancellation) (exchange.CancelAllOrdersResponse, error) {
-	var cancelAllOrdersResponse exchange.CancelAllOrdersResponse
+	cancelAllOrdersResponse := exchange.CancelAllOrdersResponse{
+		OrderStatus: make(map[string]string),
+	}
 	ads, err := l.Getads()
 	if err != nil {
 		return cancelAllOrdersResponse, err
@@ -233,7 +235,7 @@ func (l *LocalBitcoins) CancelAllOrders(orderCancellation exchange.OrderCancella
 			cancelAllOrdersResponse.OrderStatus[strconv.FormatInt(ad.Data.AdID, 10)] = err.Error()
 		}
 	}
-	
+
 	return cancelAllOrdersResponse, nil
 }
 

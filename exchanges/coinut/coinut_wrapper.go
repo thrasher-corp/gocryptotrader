@@ -291,8 +291,9 @@ func (c *COINUT) CancelAllOrders(orderCancellation exchange.OrderCancellation) (
 	// Coinut provides no way of retrieving orders without a currency
 	// So we need to retrieve all currencies, then retrieve orders for each currency
 	// Then cancel. Advisable to never use this until DB due to performance
-	var cancelAllOrdersResponse exchange.CancelAllOrdersResponse
-
+	cancelAllOrdersResponse := exchange.CancelAllOrdersResponse{
+		OrderStatus: make(map[string]string),
+	}
 	instruments, err := c.GetInstruments()
 	if err != nil {
 		return cancelAllOrdersResponse, err

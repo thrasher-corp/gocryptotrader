@@ -639,7 +639,7 @@ func (o *OKEX) GetContractFuturesTradeHistory(symbol, date string, since int) er
 	values.Set("date", date)
 	values.Set("since", strconv.FormatInt(int64(since), 10))
 
-	if err := o.SendAuthenticatedHTTPRequest("POST", contractFutureTradeHistory, values, &resp); err != nil {
+	if err := o.SendAuthenticatedHTTPRequest(contractFutureTradeHistory, values, &resp); err != nil {
 		return err
 	}
 
@@ -710,8 +710,8 @@ func (o *OKEX) SpotCancelOrder(symbol string, argOrderID int64) (int64, error) {
 	params := url.Values{}
 	params.Set("symbol", symbol)
 	params.Set("order_id", strconv.FormatInt(argOrderID, 10))
+	var returnOrderID int64
 
-	err := o.SendAuthenticatedHTTPRequest(spotCancelTrade, params, &res)	var returnOrderID int64
 	err := o.SendAuthenticatedHTTPRequest(spotCancelTrade+".do", params, &res)
 	if err != nil {
 		return returnOrderID, err

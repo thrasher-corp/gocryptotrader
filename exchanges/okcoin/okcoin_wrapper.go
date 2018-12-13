@@ -247,7 +247,9 @@ func (o *OKCoin) CancelOrder(order exchange.OrderCancellation) error {
 
 // CancelAllOrders cancels all orders associated with a currency pair
 func (o *OKCoin) CancelAllOrders(orderCancellation exchange.OrderCancellation) (exchange.CancelAllOrdersResponse, error) {
-	var cancelAllOrdersResponse exchange.CancelAllOrdersResponse
+	cancelAllOrdersResponse := exchange.CancelAllOrdersResponse{
+		OrderStatus: make(map[string]string),
+	}
 	orderInfo, err := o.GetOrderInformation(-1, exchange.FormatExchangeCurrency(o.Name, orderCancellation.CurrencyPair).String())
 	if err != nil {
 		return cancelAllOrdersResponse, err

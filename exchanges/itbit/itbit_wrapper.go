@@ -212,7 +212,9 @@ func (i *ItBit) CancelOrder(order exchange.OrderCancellation) error {
 
 // CancelAllOrders cancels all orders associated with a currency pair
 func (i *ItBit) CancelAllOrders(orderCancellation exchange.OrderCancellation) (exchange.CancelAllOrdersResponse, error) {
-	var cancelAllOrdersResponse exchange.CancelAllOrdersResponse
+	cancelAllOrdersResponse := exchange.CancelAllOrdersResponse{
+		OrderStatus: make(map[string]string),
+	}
 	openOrders, err := i.GetOrders(orderCancellation.WalletAddress, "", "open", 0, 0)
 	if err != nil {
 		return cancelAllOrdersResponse, err
