@@ -616,3 +616,10 @@ var WithdrawalFees = map[string]float64{
 	symbol.APPC:    12.4,
 	symbol.PIVX:    0.02,
 }
+
+// WithdrawResponse contains status of withdrawal request
+type WithdrawResponse struct {
+	Success bool   `json:"success"`
+	Msg     string `json:"msg"`
+	ID      int64  `json:"id"`
+}
