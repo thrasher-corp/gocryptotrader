@@ -15,7 +15,7 @@ var c COINUT
 // Please supply your own keys here to do better tests
 const (
 	apiKey                  = ""
-	apiSecret               = ""
+	clientID                = ""
 	canManipulateRealOrders = false
 )
 
@@ -31,7 +31,8 @@ func TestSetup(t *testing.T) {
 		t.Error("Test Failed - Coinut Setup() init error")
 	}
 	bConfig.AuthenticatedAPISupport = true
-	bConfig.APISecret = apiSecret
+	bConfig.APIKey = apiKey
+	bConfig.ClientID = clientID
 	bConfig.Verbose = true
 	c.Setup(bConfig)
 
@@ -248,5 +249,19 @@ func TestCancelExchangeOrder(t *testing.T) {
 	// Assert
 	if err != nil {
 		t.Errorf("Could not cancel order: %s", err)
+	}
+}
+
+func TestGetAccountInfo(t *testing.T) {
+	if apiKey != "" || clientID != "" {
+		_, err := c.GetAccountInfo()
+		if err != nil {
+			t.Error("Test Failed - GetAccountInfo() error", err)
+		}
+	} else {
+		_, err := c.GetAccountInfo()
+		if err == nil {
+			t.Error("Test Failed - GetAccountInfo() error")
+		}
 	}
 }

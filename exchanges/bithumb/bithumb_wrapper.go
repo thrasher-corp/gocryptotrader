@@ -1,7 +1,6 @@
 package bithumb
 
 import (
-	"errors"
 	"fmt"
 	"log"
 	"sync"
@@ -122,8 +121,30 @@ func (b *Bithumb) UpdateOrderbook(p pair.CurrencyPair, assetType string) (orderb
 // GetAccountInfo retrieves balances for all enabled currencies for the
 // Bithumb exchange
 func (b *Bithumb) GetAccountInfo() (exchange.AccountInfo, error) {
-	var response exchange.AccountInfo
-	return response, errors.New("not implemented")
+	var info exchange.AccountInfo
+	bal, err := b.GetAccountBalance("ALL")
+	if err != nil {
+		return info, err
+	}
+
+	var exchangeBalances []exchange.AccountCurrencyInfo
+	for key, totalAmount := range bal.Total {
+		hold, ok := bal.InUse[key]
+		if !ok {
+			return info, fmt.Errorf("GetAccountInfo error - in use item not found for currency %s",
+				key)
+		}
+
+		exchangeBalances = append(exchangeBalances, exchange.AccountCurrencyInfo{
+			CurrencyName: key,
+			TotalValue:   totalAmount,
+			Hold:         hold,
+		})
+	}
+
+	info.Currencies = exchangeBalances
+	info.ExchangeName = b.GetName()
+	return info, nil
 }
 
 // GetFundingHistory returns funding history, deposits and

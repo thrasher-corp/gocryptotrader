@@ -238,11 +238,16 @@ func (b *Bithumb) GetTransactionHistory(symbol string) (TransactionHistory, erro
 	return response, nil
 }
 
-// GetAccountInformation returns account information
-func (b *Bithumb) GetAccountInformation() (Account, error) {
+// GetAccountInformation returns account information by singular currency
+func (b *Bithumb) GetAccountInformation(currency string) (Account, error) {
 	response := Account{}
 
-	err := b.SendAuthenticatedHTTPRequest(privateAccInfo, nil, &response)
+	val := url.Values{}
+	if currency != "" {
+		val.Set("currency", currency)
+	}
+
+	err := b.SendAuthenticatedHTTPRequest(privateAccInfo, val, &response)
 	if err != nil {
 		return response, err
 	}
@@ -254,18 +259,68 @@ func (b *Bithumb) GetAccountInformation() (Account, error) {
 }
 
 // GetAccountBalance returns customer wallet information
-func (b *Bithumb) GetAccountBalance() (Balance, error) {
-	response := Balance{}
+func (b *Bithumb) GetAccountBalance(c string) (FullBalance, error) {
+	var response Balance
+	var fullBalance = FullBalance{
+		make(map[string]float64),
+		make(map[string]float64),
+		make(map[string]float64),
+		make(map[string]float64),
+		make(map[string]float64),
+	}
 
-	err := b.SendAuthenticatedHTTPRequest(privateAccBalance, nil, &response)
+	vals := url.Values{}
+	if c != "" {
+		vals.Set("currency", c)
+	}
+
+	err := b.SendAuthenticatedHTTPRequest(privateAccBalance, vals, &response)
 	if err != nil {
-		return response, err
+		return fullBalance, err
 	}
 
 	if response.Status != noError {
-		return response, errors.New(response.Message)
+		return fullBalance, errors.New(response.Message)
 	}
-	return response, nil
+
+	// Added due to increasing of the usuable currencies on exchange, usually
+	// without notificatation, so we dont need to update structs later on
+	for tag, datum := range response.Data {
+		splitTag := common.SplitStrings(tag, "_")
+		c := splitTag[len(splitTag)-1]
+		var val float64
+		if reflect.TypeOf(datum).String() != "float64" {
+			val, err = strconv.ParseFloat(datum.(string), 64)
+			if err != nil {
+				return fullBalance, err
+			}
+		} else {
+			val = datum.(float64)
+		}
+
+		switch splitTag[0] {
+		case "available":
+			fullBalance.Available[c] = val
+
+		case "in":
+			fullBalance.InUse[c] = val
+
+		case "total":
+			fullBalance.Total[c] = val
+
+		case "misu":
+			fullBalance.Misu[c] = val
+
+		case "xcoin":
+			fullBalance.Xcoin[c] = val
+
+		default:
+			return fullBalance, fmt.Errorf("GetAccountBalance error tag name %s unhandled",
+				splitTag)
+		}
+	}
+
+	return fullBalance, nil
 }
 
 // GetWalletAddress returns customer wallet address

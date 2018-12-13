@@ -1510,6 +1510,8 @@ const (
 	UAH        = "UAH"  // Ukrainian hryvnia
 	JPY        = "JPY"  // Japanese yen
 	ZJPY       = "ZJPY" // Japanese yen, but with a Z in front of it
+	LCH        = "LCH"
+	MYR        = "MYR"
 )
 
 // symbols map holds the currency name and symbol mappings

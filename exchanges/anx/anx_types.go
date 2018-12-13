@@ -63,12 +63,12 @@ type AccountInformation struct {
 	UserUUID   string   `json:"userUuid"`
 	Rights     []string `json:"Rights"`
 	ResultCode string   `json:"resultCode"`
-	Wallets    struct {
+	Wallets    map[string]struct {
 		Balance              Amount `json:"Balance"`
 		AvailableBalance     Amount `json:"Available_Balance"`
 		DailyWithdrawalLimit Amount `json:"Daily_Withdrawal_Limit"`
 		MaxWithdraw          Amount `json:"Max_Withdraw"`
-	}
+	} `json:"Wallets"`
 }
 
 // Amount basic storage of wallet details

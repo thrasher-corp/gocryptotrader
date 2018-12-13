@@ -406,7 +406,6 @@ func (a *ANX) SendAuthenticatedHTTPRequest(path string, params map[string]interf
 	}
 
 	PayloadJSON, err := common.JSONEncode(request)
-
 	if err != nil {
 		return errors.New("SendAuthenticatedHTTPRequest: Unable to JSON request")
 	}
@@ -471,7 +470,7 @@ func getInternationalBankWithdrawalFee(currency string, amount float64) float64 
 // GetAccountInformation retrieves details including API permissions
 func (a *ANX) GetAccountInformation() (AccountInformation, error) {
 	var response AccountInformation
-	err := a.SendAuthenticatedHTTPRequest(anxOrderInfo, nil, &response)
+	err := a.SendAuthenticatedHTTPRequest(anxAccount, nil, &response)
 	if err != nil {
 		return response, err
 	}

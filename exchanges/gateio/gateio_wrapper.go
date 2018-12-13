@@ -1,7 +1,6 @@
 package gateio
 
 import (
-	"errors"
 	"fmt"
 	"log"
 	"strconv"
@@ -110,8 +109,62 @@ func (g *Gateio) UpdateOrderbook(p pair.CurrencyPair, assetType string) (orderbo
 // GetAccountInfo retrieves balances for all enabled currencies for the
 // ZB exchange
 func (g *Gateio) GetAccountInfo() (exchange.AccountInfo, error) {
-	var response exchange.AccountInfo
-	return response, errors.New("not implemented")
+	var info exchange.AccountInfo
+
+	balance, err := g.GetBalances()
+	if err != nil {
+		return info, err
+	}
+
+	if len(balance.Available) == 0 && len(balance.Locked) == 0 {
+		return info, nil
+	}
+
+	var balances []exchange.AccountCurrencyInfo
+
+	for _, data := range balance.Locked {
+		for key, amountStr := range data {
+			lockedF, err := strconv.ParseFloat(amountStr, 64)
+			if err != nil {
+				return info, err
+			}
+
+			balances = append(balances, exchange.AccountCurrencyInfo{
+				CurrencyName: key,
+				Hold:         lockedF,
+			})
+		}
+	}
+
+	for _, data := range balance.Available {
+		for key, amountStr := range data {
+			availAmount, err := strconv.ParseFloat(amountStr, 64)
+			if err != nil {
+				return info, err
+			}
+
+			var updated bool
+			for i := range balances {
+				if balances[i].CurrencyName == key {
+					balances[i].TotalValue = balances[i].Hold + availAmount
+					updated = true
+					break
+				}
+			}
+
+			if !updated {
+				balances = append(balances, exchange.AccountCurrencyInfo{
+					CurrencyName: key,
+					TotalValue:   availAmount,
+				})
+			}
+		}
+	}
+
+	info.Currencies = balances
+	info.ExchangeName = g.GetName()
+
+	return info, nil
 }
 
 // GetFundingHistory returns funding history, deposits and

@@ -2,6 +2,7 @@ package itbit
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
@@ -326,6 +327,10 @@ func (i *ItBit) SendAuthenticatedHTTPRequest(method string, path string, params 
 		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet, i.Name)
 	}
 
+	if i.ClientID == "" {
+		return errors.New("client ID not set")
+	}
+
 	request := make(map[string]interface{})
 	url := i.APIUrl + path
 
@@ -368,7 +373,29 @@ func (i *ItBit) SendAuthenticatedHTTPRequest(method string, path string, params 
 	headers["X-Auth-Nonce"] = nonce
 	headers["Content-Type"] = "application/json"
 
-	return i.SendPayload(method, url, headers, bytes.NewBuffer([]byte(PayloadJSON)), result, true, i.Verbose)
+	var intermediary json.RawMessage
+
+	errCheck := struct {
+		Code        int    `json:"code"`
+		Description string `json:"description"`
+		RequestID   string `json:"requestId"`
+	}{}
+
+	err = i.SendPayload(method, url, headers, bytes.NewBuffer([]byte(PayloadJSON)), &intermediary, true, i.Verbose)
+	if err != nil {
+		return err
+	}
+
+	err = common.JSONDecode(intermediary, &errCheck)
+	if err == nil {
+		if errCheck.Code != 0 || errCheck.Description != "" {
+			return fmt.Errorf("itbit.go SendAuthRequest error code: %d description: %s",
+				errCheck.Code,
+				errCheck.Description)
+		}
+	}
+
+	return common.JSONDecode(intermediary, result)
 }
 
 // GetFee returns an estimate of fee based on type of transaction

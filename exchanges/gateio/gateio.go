@@ -322,15 +322,10 @@ func (g *Gateio) GetSpotKline(arg KlinesRequestParams) ([]*KLineResponse, error)
 
 // GetBalances obtains the users account balance
 func (g *Gateio) GetBalances() (BalancesResponse, error) {
-
 	var result BalancesResponse
 
-	err := g.SendAuthenticatedHTTPRequest("POST", gateioBalances, "", &result)
-	if err != nil {
-		return result, err
-	}
-
-	return result, nil
+	return result,
+		g.SendAuthenticatedHTTPRequest("POST", gateioBalances, "", &result)
 }
 
 // SpotNewOrder places a new order
@@ -402,7 +397,28 @@ func (g *Gateio) SendAuthenticatedHTTPRequest(method, endpoint, param string, re
 
 	url := fmt.Sprintf("%s/%s/%s", g.APIUrl, gateioAPIVersion, endpoint)
 
-	return g.SendPayload(method, url, headers, strings.NewReader(param), result, true, g.Verbose)
+	var intermidiary json.RawMessage
+
+	err := g.SendPayload(method, url, headers, strings.NewReader(param), &intermidiary, true, g.Verbose)
+	if err != nil {
+		return err
+	}
+
+	errCap := struct {
+		Result  bool   `json:"result,string"`
+		Code    int    `json:"code"`
+		Message string `json:"message"`
+	}{}
+
+	if err := common.JSONDecode(intermidiary, &errCap); err == nil {
+		if !errCap.Result {
+			return fmt.Errorf("GateIO auth request error, code: %d message: %s",
+				errCap.Code,
+				errCap.Message)
+		}
+	}
+
+	return common.JSONDecode(intermidiary, result)
 }
 
 // GetFee returns an estimate of fee based on type of transaction

@@ -428,3 +428,20 @@ var WithdrawalFees = map[string]float64{
 	symbol.ZIL:   20,
 	symbol.ZIP:   1000,
 }
+
+// FullBalance defines a structured return type with balance data
+type FullBalance struct {
+	Available float64
+	Currency  string
+	Hold      float64
+}
+
+// Balance defines returned balance data
+type Balance struct {
+	Info struct {
+		Funds struct {
+			Free  map[string]string `json:"free"`
+			Holds map[string]string `json:"holds"`
+		} `json:"funds"`
+	} `json:"info"`
+}

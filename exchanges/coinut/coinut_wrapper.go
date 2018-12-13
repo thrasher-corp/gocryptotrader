@@ -7,6 +7,8 @@ import (
 	"strconv"
 	"sync"
 
+	"github.com/thrasher-/gocryptotrader/currency/symbol"
+
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
 	"github.com/thrasher-/gocryptotrader/exchanges"
@@ -53,23 +55,86 @@ func (c *COINUT) Run() {
 // GetAccountInfo retrieves balances for all enabled currencies for the
 // COINUT exchange
 func (c *COINUT) GetAccountInfo() (exchange.AccountInfo, error) {
-	var response exchange.AccountInfo
-	/*
-		response.ExchangeName = e.GetName()
-		accountBalance, err := e.GetAccounts()
-		if err != nil {
-			return response, err
-		}
-		for i := 0; i < len(accountBalance); i++ {
-			var exchangeCurrency exchange.AccountCurrencyInfo
-			exchangeCurrency.CurrencyName = accountBalance[i].Currency
-			exchangeCurrency.TotalValue = accountBalance[i].Available
-			exchangeCurrency.Hold = accountBalance[i].Hold
+	var info exchange.AccountInfo
+	bal, err := c.GetUserBalance()
+	if err != nil {
+		return info, err
+	}
 
-			response.Currencies = append(response.Currencies, exchangeCurrency)
-		}
-	*/
-	return response, nil
+	var balances []exchange.AccountCurrencyInfo
+	balances = append(balances, exchange.AccountCurrencyInfo{
+		CurrencyName: symbol.BCH,
+		TotalValue:   bal.BCH,
+	})
+
+	balances = append(balances, exchange.AccountCurrencyInfo{
+		CurrencyName: symbol.BTC,
+		TotalValue:   bal.BTC,
+	})
+
+	balances = append(balances, exchange.AccountCurrencyInfo{
+		CurrencyName: symbol.BTG,
+		TotalValue:   bal.BTG,
+	})
+
+	balances = append(balances, exchange.AccountCurrencyInfo{
+		CurrencyName: symbol.CAD,
+		TotalValue:   bal.CAD,
+	})
+
+	balances = append(balances, exchange.AccountCurrencyInfo{
+		CurrencyName: symbol.ETC,
+		TotalValue:   bal.ETC,
+	})
+
+	balances = append(balances, exchange.AccountCurrencyInfo{
+		CurrencyName: symbol.ETH,
+		TotalValue:   bal.ETH,
+	})
+
+	balances = append(balances, exchange.AccountCurrencyInfo{
+		CurrencyName: symbol.LCH,
+		TotalValue:   bal.LCH,
+	})
+
+	balances = append(balances, exchange.AccountCurrencyInfo{
+		CurrencyName: symbol.LTC,
+		TotalValue:   bal.LTC,
+	})
+
+	balances = append(balances, exchange.AccountCurrencyInfo{
+		CurrencyName: symbol.MYR,
+		TotalValue:   bal.MYR,
+	})
+
+	balances = append(balances, exchange.AccountCurrencyInfo{
+		CurrencyName: symbol.SGD,
+		TotalValue:   bal.SGD,
+	})
+
+	balances = append(balances, exchange.AccountCurrencyInfo{
+		CurrencyName: symbol.USD,
+		TotalValue:   bal.USD,
+	})
+
+	balances = append(balances, exchange.AccountCurrencyInfo{
+		CurrencyName: symbol.USDT,
+		TotalValue:   bal.USDT,
+	})
+
+	balances = append(balances, exchange.AccountCurrencyInfo{
+		CurrencyName: symbol.XMR,
+		TotalValue:   bal.XMR,
+	})
+
+	balances = append(balances, exchange.AccountCurrencyInfo{
+		CurrencyName: symbol.ZEC,
+		TotalValue:   bal.ZEC,
+	})
+
+	info.ExchangeName = c.GetName()
+	info.Currencies = balances
+	return info, nil
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair

@@ -411,7 +411,6 @@ func isRealOrderTestEnabled() bool {
 func TestSubmitOrder(t *testing.T) {
 	o.SetDefaults()
 	TestSetup(t)
-	o.Verbose = true
 
 	if !isRealOrderTestEnabled() {
 		t.Skip()
@@ -437,7 +436,6 @@ func TestCancelExchangeOrder(t *testing.T) {
 		t.Skip()
 	}
 
-	o.Verbose = true
 	currencyPair := pair.NewCurrencyPair(symbol.LTC, symbol.BTC)
 
 	var orderCancellation = exchange.OrderCancellation{
@@ -453,5 +451,19 @@ func TestCancelExchangeOrder(t *testing.T) {
 	// Assert
 	if err != nil {
 		t.Errorf("Could not cancel order: %s", err)
+	}
+}
+
+func TestGetAccountInfo(t *testing.T) {
+	if apiKey != "" || apiSecret != "" {
+		_, err := o.GetAccountInfo()
+		if err != nil {
+			t.Error("Test Failed - GetAccountInfo() error", err)
+		}
+	} else {
+		_, err := o.GetAccountInfo()
+		if err == nil {
+			t.Error("Test Failed - GetAccountInfo() error")
+		}
 	}
 }

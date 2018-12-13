@@ -744,6 +744,16 @@ func (b *Bitmex) GetUserMargin(currency string) (UserMargin, error) {
 		&info)
 }
 
+// GetAllUserMargin returns user margin information
+func (b *Bitmex) GetAllUserMargin() ([]UserMargin, error) {
+	var info []UserMargin
+
+	return info, b.SendAuthenticatedHTTPRequest("GET",
+		bitmexEndpointUserMargin,
+		UserCurrencyParams{Currency: "all"},
+		&info)
+}
+
 // GetMinimumWithdrawalFee returns minimum withdrawal fee information
 func (b *Bitmex) GetMinimumWithdrawalFee(currency string) (MinWithdrawalFee, error) {
 	var fee MinWithdrawalFee

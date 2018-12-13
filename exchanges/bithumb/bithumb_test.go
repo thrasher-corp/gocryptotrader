@@ -77,23 +77,23 @@ func TestGetTransactionHistory(t *testing.T) {
 	}
 }
 
-func TestGetAccountInfo(t *testing.T) {
-	t.Parallel()
-	_, err := b.GetAccountInfo()
-	if err == nil {
-		t.Error("test failed - Bithumb GetAccountInfo() error", err)
-	}
-}
-
 func TestGetAccountBalance(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetAccountBalance()
+	if testAPIKey == "" || testAPISecret == "" {
+		t.Skip()
+	}
+
+	_, err := b.GetAccountBalance("BTC")
 	if err == nil {
 		t.Error("test failed - Bithumb GetAccountBalance() error", err)
 	}
 }
 
 func TestGetWalletAddress(t *testing.T) {
+	if testAPIKey == "" || testAPISecret == "" {
+		t.Skip()
+	}
+
 	t.Parallel()
 	_, err := b.GetWalletAddress("")
 	if err == nil {
@@ -159,6 +159,9 @@ func TestWithdrawCrypto(t *testing.T) {
 
 func TestRequestKRWDepositDetails(t *testing.T) {
 	t.Parallel()
+	if testAPIKey == "" || testAPISecret == "" {
+		t.Skip()
+	}
 	_, err := b.RequestKRWDepositDetails()
 	if err == nil {
 		t.Error("test failed - Bithumb RequestKRWDepositDetails() error", err)
@@ -339,5 +342,20 @@ func TestCancelExchangeOrder(t *testing.T) {
 	// Assert
 	if err != nil {
 		t.Errorf("Could not cancel order: %s", err)
+	}
+}
+
+func TestGetAccountInfo(t *testing.T) {
+	t.Parallel()
+	if testAPIKey != "" || testAPISecret != "" {
+		_, err := b.GetAccountInfo()
+		if err != nil {
+			t.Error("test failed - Bithumb GetAccountInfo() error", err)
+		}
+	} else {
+		_, err := b.GetAccountInfo()
+		if err == nil {
+			t.Error("test failed - Bithumb GetAccountInfo() error")
+		}
 	}
 }

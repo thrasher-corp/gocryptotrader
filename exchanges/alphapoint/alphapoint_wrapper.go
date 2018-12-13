@@ -95,7 +95,8 @@ func (a *Alphapoint) GetOrderbookEx(p pair.CurrencyPair, assetType string) (orde
 // withdrawals
 func (a *Alphapoint) GetFundingHistory() ([]exchange.FundHistory, error) {
 	var fundHistory []exchange.FundHistory
-	return fundHistory, common.ErrFunctionNotSupported
+	// https://alphapoint.github.io/slate/#generatetreasuryactivityreport
+	return fundHistory, common.ErrNotYetImplemented
 }
 
 // GetExchangeHistory returns historic trade data since exchange opening.

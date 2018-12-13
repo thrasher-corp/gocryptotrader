@@ -79,19 +79,9 @@ type Account struct {
 
 // Balance holds balance details
 type Balance struct {
-	Status string `json:"status"`
-	Data   struct {
-		TotalBTC     float64 `json:"total_btc,string"`
-		TotalKRW     float64 `json:"total_krw"`
-		InUseBTC     float64 `json:"in_use_btc,string"`
-		InUseKRW     float64 `json:"in_use_krw"`
-		AvailableBTC float64 `json:"available_btc,string"`
-		AvailableKRW float64 `json:"available_krw"`
-		MisuKRW      float64 `json:"misu_krw"`
-		MisuBTC      float64 `json:"misu_btc,string"`
-		XcoinLast    float64 `json:"xcoin_last,string"`
-	} `json:"data"`
-	Message string `json:"message"`
+	Status  string                 `json:"status"`
+	Data    map[string]interface{} `json:"data"`
+	Message string                 `json:"message"`
 }
 
 // WalletAddressRes contains wallet address information
@@ -277,4 +267,13 @@ var WithdrawalFees = map[string]float64{
 	symbol.LINK:  10,
 	symbol.ENJ:   35,
 	symbol.PST:   30,
+}
+
+// FullBalance defines a return type with full balance data
+type FullBalance struct {
+	InUse     map[string]float64
+	Misu      map[string]float64
+	Total     map[string]float64
+	Xcoin     map[string]float64
+	Available map[string]float64
 }

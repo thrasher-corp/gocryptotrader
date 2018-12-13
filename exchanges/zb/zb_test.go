@@ -112,19 +112,6 @@ func TestGetMarkets(t *testing.T) {
 	}
 }
 
-func TestGetAccountInfo(t *testing.T) {
-	t.Parallel()
-
-	if z.APIKey == "" || z.APISecret == "" {
-		t.Skip()
-	}
-
-	_, err := z.GetAccountInfo()
-	if err != nil {
-		t.Errorf("Test failed - ZB GetAccountInfo: %s", err)
-	}
-}
-
 func TestGetSpotKline(t *testing.T) {
 	t.Parallel()
 
@@ -298,5 +285,19 @@ func TestCancelExchangeOrder(t *testing.T) {
 	// Assert
 	if err != nil {
 		t.Errorf("Could not cancel order: %s", err)
+	}
+}
+
+func TestGetAccountInfo(t *testing.T) {
+	if apiKey != "" || apiSecret != "" {
+		_, err := z.GetAccountInfo()
+		if err != nil {
+			t.Error("Test Failed - GetAccountInfo() error", err)
+		}
+	} else {
+		_, err := z.GetAccountInfo()
+		if err == nil {
+			t.Error("Test Failed - GetAccountInfo() error")
+		}
 	}
 }

@@ -151,8 +151,24 @@ func (o *OKEX) UpdateOrderbook(p pair.CurrencyPair, assetType string) (orderbook
 // GetAccountInfo retrieves balances for all enabled currencies for the
 // OKEX exchange
 func (o *OKEX) GetAccountInfo() (exchange.AccountInfo, error) {
-	var response exchange.AccountInfo
-	return response, errors.New("not implemented")
+	var info exchange.AccountInfo
+	bal, err := o.GetBalance()
+	if err != nil {
+		return info, err
+	}
+
+	var balances []exchange.AccountCurrencyInfo
+	for _, data := range bal {
+		balances = append(balances, exchange.AccountCurrencyInfo{
+			CurrencyName: data.Currency,
+			TotalValue:   data.Available + data.Hold,
+			Hold:         data.Hold,
+		})
+	}
+
+	info.ExchangeName = o.GetName()
+	info.Currencies = balances
+	return info, nil
 }
 
 // GetFundingHistory returns funding history, deposits and
@@ -219,13 +235,11 @@ func (o *OKEX) ModifyOrder(orderID int64, action exchange.ModifyOrder) (int64, e
 // CancelOrder cancels an order by its corresponding ID number
 func (o *OKEX) CancelOrder(order exchange.OrderCancellation) error {
 	orderIDInt, err := strconv.ParseInt(order.OrderID, 10, 64)
-
 	if err != nil {
 		return err
 	}
 
 	_, err = o.SpotCancelOrder(exchange.FormatExchangeCurrency(o.Name, order.CurrencyPair).String(), orderIDInt)
-
 	return err
 }
 

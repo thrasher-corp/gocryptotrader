@@ -68,16 +68,24 @@ type Trades struct {
 
 // UserBalance holds user balances on the exchange
 type UserBalance struct {
-	BTC               float64 `json:"btc,string"`
-	ETC               float64 `json:"etc,string"`
-	ETH               float64 `json:"eth,string"`
-	LTC               float64 `json:"ltc,string"`
-	Equity            float64 `json:"equity,string,string"`
-	InitialMargin     float64 `json:"initial_margin,string"`
-	MaintenanceMargin float64 `json:"maintenance_margin,string"`
-	RealizedPL        float64 `json:"realized_pl,string"`
-	TransID           int64   `json:"trans_id"`
-	UnrealizedPL      float64 `json:"unrealized_pl,string"`
+	BCH     float64  `json:"BCH,string"`
+	BTC     float64  `json:"BTC,string"`
+	BTG     float64  `json:"BTG,string"`
+	CAD     float64  `json:"CAD,string"`
+	ETC     float64  `json:"ETC,string"`
+	ETH     float64  `json:"ETH,string"`
+	LCH     float64  `json:"LCH,string"`
+	LTC     float64  `json:"LTC,string"`
+	MYR     float64  `json:"MYR,string"`
+	SGD     float64  `json:"SGD,string"`
+	USD     float64  `json:"USD,string"`
+	USDT    float64  `json:"USDT,string"`
+	XMR     float64  `json:"XMR,string"`
+	ZEC     float64  `json:"ZEC,string"`
+	Nonce   int64    `json:"nonce"`
+	Reply   string   `json:"reply"`
+	Status  []string `json:"status"`
+	TransID int64    `json:"trans_id"`
 }
 
 // Order holds order information

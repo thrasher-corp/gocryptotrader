@@ -336,13 +336,34 @@ func (z *ZB) SendAuthenticatedHTTPRequest(method, endpoint string, values url.Va
 		endpoint,
 		values.Encode())
 
-	return z.SendPayload(method,
+	var intermediary json.RawMessage
+
+	errCap := struct {
+		Code    int64  `json:"code"`
+		Message string `json:"message"`
+	}{}
+
+	err := z.SendPayload(method,
 		url,
 		nil,
 		strings.NewReader(""),
-		result,
+		&intermediary,
 		true,
 		z.Verbose)
+	if err != nil {
+		return err
+	}
+
+	err = common.JSONDecode(intermediary, &errCap)
+	if err == nil {
+		if errCap.Code != 0 {
+			return fmt.Errorf("SendAuthenticatedHTTPRequest error code: %d message %s",
+				errCap.Code,
+				errorCode[errCap.Code])
+		}
+	}
+
+	return common.JSONDecode(intermediary, result)
 }
 
 // GetFee returns an estimate of fee based on type of transaction
@@ -368,4 +389,35 @@ func calculateTradingFee(purchasePrice, amount float64) (fee float64) {
 
 func getWithdrawalFee(currency string) float64 {
 	return WithdrawalFees[currency]
+}
+
+var errorCode = map[int64]string{
+	1000: "Successful call",
+	1001: "General error message",
+	1002: "internal error",
+	1003: "Verification failed",
+	1004: "Financial security password lock",
+	1005: "The fund security password is incorrect. Please confirm and re-enter.",
+	1006: "Real-name certification is awaiting review or review",
+	1009: "This interface is being maintained",
+	1010: "Not open yet",
+	1012: "Insufficient permissions",
+	1013: "Can not trade, if you have any questions, please contact online customer service",
+	1014: "Cannot be sold during the pre-sale period",
+	2002: "Insufficient balance in Bitcoin account",
+	2003: "Insufficient balance of Litecoin account",
+	2005: "Insufficient balance in Ethereum account",
+	2006: "Insufficient balance in ETC currency account",
+	2007: "Insufficient balance of BTS currency account",
+	2009: "Insufficient account balance",
+	3001: "Pending order not found",
+	3002: "Invalid amount",
+	3003: "Invalid quantity",
+	3004: "User does not exist",
+	3005: "Invalid parameter",
+	3006: "Invalid IP or inconsistent with the bound IP",
+	3007: "Request time has expired",
+	3008: "Transaction history not found",
+	4001: "API interface is locked",
+	4002: "Request too frequently",
 }
