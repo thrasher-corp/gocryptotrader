@@ -264,7 +264,7 @@ type IBotExchange interface {
 	SubmitOrder(p pair.CurrencyPair, side OrderSide, orderType OrderType, amount, price float64, clientID string) (SubmitOrderResponse, error)
 	ModifyOrder(orderID int64, modify ModifyOrder) (int64, error)
 	CancelOrder(order OrderCancellation) error
-	CancelAllOrders() error
+	CancelAllOrders(orders OrderCancellation) (CancelAllOrdersResponse, error)
 	GetOrderInfo(orderID int64) (OrderDetail, error)
 	GetDepositAddress(cryptocurrency pair.CurrencyItem) (string, error)
 
@@ -739,6 +739,11 @@ type Format struct {
 	ExchangeName string
 	OrderType    map[string]string
 	OrderSide    map[string]string
+}
+
+// CancelAllOrdersResponse returns the status from attempting to cancel all orders on an exchagne
+type CancelAllOrdersResponse struct {
+	OrderStatus map[string]string
 }
 
 // Formatting contain a range of exchanges formatting

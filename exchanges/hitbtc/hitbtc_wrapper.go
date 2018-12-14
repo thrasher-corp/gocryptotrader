@@ -191,8 +191,20 @@ func (h *HitBTC) CancelOrder(order exchange.OrderCancellation) error {
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
-func (h *HitBTC) CancelAllOrders() error {
-	return common.ErrNotYetImplemented
+func (h *HitBTC) CancelAllOrders(orderCancellation exchange.OrderCancellation) (exchange.CancelAllOrdersResponse, error) {
+	cancelAllOrdersResponse := exchange.CancelAllOrdersResponse{
+		OrderStatus: make(map[string]string),
+	}
+	resp, err := h.CancelAllExistingOrders()
+	if err != nil {
+		return cancelAllOrdersResponse, err
+	}
+
+	for _, order := range resp {
+		cancelAllOrdersResponse.OrderStatus[strconv.FormatInt(order.ID, 10)] = fmt.Sprintf("Could not cancel order %v. Status: %v", order.ID, order.Status)
+	}
+
+	return cancelAllOrdersResponse, nil
 }
 
 // GetOrderInfo returns information on a current open order

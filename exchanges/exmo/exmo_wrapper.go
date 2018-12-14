@@ -223,8 +223,23 @@ func (e *EXMO) CancelOrder(order exchange.OrderCancellation) error {
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
-func (e *EXMO) CancelAllOrders() error {
-	return common.ErrNotYetImplemented
+func (e *EXMO) CancelAllOrders(orderCancellation exchange.OrderCancellation) (exchange.CancelAllOrdersResponse, error) {
+	cancelAllOrdersResponse := exchange.CancelAllOrdersResponse{
+		OrderStatus: make(map[string]string),
+	}
+	openOrders, err := e.GetOpenOrders()
+	if err != nil {
+		return cancelAllOrdersResponse, err
+	}
+
+	for _, order := range openOrders {
+		err = e.CancelExistingOrder(order.OrderID)
+		if err != nil {
+			cancelAllOrdersResponse.OrderStatus[strconv.FormatInt(order.OrderID, 10)] = err.Error()
+		}
+	}
+
+	return cancelAllOrdersResponse, nil
 }
 
 // GetOrderInfo returns information on a current open order

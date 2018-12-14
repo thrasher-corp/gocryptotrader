@@ -137,6 +137,15 @@ type OrdersBase struct {
 	OrderResponse
 }
 
+// GetOpenOrdersResponse holds all order data from GetOpenOrders request
+type GetOpenOrdersResponse struct {
+	Nonce   int             `json:"nonce"`
+	Orders  []OrderResponse `json:"orders"`
+	Reply   string          `json:"reply"`
+	Status  []string        `json:"status"`
+	TransID int             `json:"trans_id"`
+}
+
 // OrdersResponse holds the full data range on orders
 type OrdersResponse struct {
 	Data []OrdersBase
@@ -144,7 +153,7 @@ type OrdersResponse struct {
 
 // CancelOrders holds information about a cancelled order
 type CancelOrders struct {
-	InstrumentID int   `json:"int"`
+	InstrumentID int64 `json:"inst_id"`
 	OrderID      int64 `json:"order_id"`
 }
 

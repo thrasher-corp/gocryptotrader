@@ -286,8 +286,57 @@ func (c *COINUT) CancelOrder(order exchange.OrderCancellation) error {
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
-func (c *COINUT) CancelAllOrders() error {
-	return common.ErrNotYetImplemented
+func (c *COINUT) CancelAllOrders(orderCancellation exchange.OrderCancellation) (exchange.CancelAllOrdersResponse, error) {
+	// TODO, this is a terrible implementation. Requires DB to improve
+	// Coinut provides no way of retrieving orders without a currency
+	// So we need to retrieve all currencies, then retrieve orders for each currency
+	// Then cancel. Advisable to never use this until DB due to performance
+	cancelAllOrdersResponse := exchange.CancelAllOrdersResponse{
+		OrderStatus: make(map[string]string),
+	}
+	instruments, err := c.GetInstruments()
+	if err != nil {
+		return cancelAllOrdersResponse, err
+	}
+
+	var allTheOrders []OrderResponse
+	for _, allInstrumentData := range instruments.Instruments {
+		for _, instrumentData := range allInstrumentData {
+
+			openOrders, err := c.GetOpenOrders(instrumentData.InstID)
+			if err != nil {
+				return cancelAllOrdersResponse, err
+			}
+
+			for _, openOrder := range openOrders.Orders {
+				allTheOrders = append(allTheOrders, openOrder)
+			}
+		}
+	}
+
+	var allTheOrdersToCancel []CancelOrders
+	for _, orderToCancel := range allTheOrders {
+		cancelOrder := CancelOrders{
+			InstrumentID: orderToCancel.InstrumentID,
+			OrderID:      orderToCancel.OrderID,
+		}
+		allTheOrdersToCancel = append(allTheOrdersToCancel, cancelOrder)
+	}
+
+	if len(allTheOrdersToCancel) > 0 {
+		resp, err := c.CancelOrders(allTheOrdersToCancel)
+		if err != nil {
+			return cancelAllOrdersResponse, err
+		}
+
+		for _, order := range resp.Results {
+			if order.Status != "OK" {
+				cancelAllOrdersResponse.OrderStatus[strconv.FormatInt(order.OrderID, 10)] = order.Status
+			}
+		}
+	}
+
+	return cancelAllOrdersResponse, nil
 }
 
 // GetOrderInfo returns information on a current open order

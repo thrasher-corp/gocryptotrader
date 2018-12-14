@@ -40,6 +40,24 @@ type MultiStreamData struct {
 	Data    json.RawMessage `json:"data"`
 }
 
+// TokenOrdersResponse is returned after a request for all Token Orders
+type TokenOrdersResponse struct {
+	Result bool         `json:"result"`
+	Orders []TokenOrder `json:"orders"`
+}
+
+// TokenOrder is the individual order details returned from TokenOrderResponse
+type TokenOrder struct {
+	Amount     float64 `json:"amount"`
+	AvgPrice   int64   `json:"avg_price"`
+	DealAmount int64   `json:"deal_amount"`
+	OrderID    int64   `json:"order_id"`
+	Price      int64   `json:"price"`
+	Status     int64   `json:"status"`
+	Symbol     string  `json:"symbol"`
+	Type       string  `json:"type"`
+}
+
 // TickerStreamData contains ticker stream data from okex
 type TickerStreamData struct {
 	Buy       string  `json:"buy"`

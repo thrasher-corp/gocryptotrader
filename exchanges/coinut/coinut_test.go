@@ -32,9 +32,8 @@ func TestSetup(t *testing.T) {
 	}
 	bConfig.AuthenticatedAPISupport = true
 	bConfig.APIKey = apiKey
-	bConfig.ClientID = clientID
-	bConfig.Verbose = true
 	c.Setup(bConfig)
+	c.ClientID = clientID
 
 	if !c.IsEnabled() ||
 		c.RESTPollingDelay != time.Duration(10) ||
@@ -196,8 +195,9 @@ func TestFormatWithdrawPermissions(t *testing.T) {
 // Any tests below this line have the ability to impact your orders on the exchange. Enable canManipulateRealOrders to run them
 // ----------------------------------------------------------------------------------------------------------------------------
 func isRealOrderTestEnabled() bool {
-	if c.APISecret == "" ||
-		c.APISecret == "Secret" ||
+
+	if c.APIKey == "" ||
+		c.APIKey == "Key" ||
 		!canManipulateRealOrders {
 		return false
 	}
@@ -207,7 +207,6 @@ func isRealOrderTestEnabled() bool {
 func TestSubmitOrder(t *testing.T) {
 	c.SetDefaults()
 	TestSetup(t)
-	c.Verbose = true
 
 	if !isRealOrderTestEnabled() {
 		t.Skip()
@@ -233,7 +232,6 @@ func TestCancelExchangeOrder(t *testing.T) {
 		t.Skip()
 	}
 
-	c.Verbose = true
 	currencyPair := pair.NewCurrencyPair(symbol.LTC, symbol.BTC)
 
 	var orderCancellation = exchange.OrderCancellation{
@@ -249,6 +247,37 @@ func TestCancelExchangeOrder(t *testing.T) {
 	// Assert
 	if err != nil {
 		t.Errorf("Could not cancel order: %s", err)
+	}
+}
+
+func TestCancelAllExchangeOrders(t *testing.T) {
+	// Arrange
+	c.SetDefaults()
+	TestSetup(t)
+
+	if !isRealOrderTestEnabled() {
+		t.Skip()
+	}
+
+	currencyPair := pair.NewCurrencyPair(symbol.LTC, symbol.BTC)
+
+	var orderCancellation = exchange.OrderCancellation{
+		OrderID:       "1",
+		WalletAddress: "1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB",
+		AccountID:     "1",
+		CurrencyPair:  currencyPair,
+	}
+
+	// Act
+	resp, err := c.CancelAllOrders(orderCancellation)
+
+	// Assert
+	if err != nil {
+		t.Errorf("Could not cancel order: %s", err)
+	}
+
+	if len(resp.OrderStatus) > 0 {
+		t.Errorf("%v orders failed to cancel", len(resp.OrderStatus))
 	}
 }
 

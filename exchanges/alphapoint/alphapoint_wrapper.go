@@ -133,7 +133,6 @@ func (a *Alphapoint) ModifyOrder(orderID int64, action exchange.ModifyOrder) (in
 // CancelOrder cancels an order by its corresponding ID number
 func (a *Alphapoint) CancelOrder(order exchange.OrderCancellation) error {
 	orderIDInt, err := strconv.ParseInt(order.OrderID, 10, 64)
-
 	if err != nil {
 		return err
 	}
@@ -143,10 +142,9 @@ func (a *Alphapoint) CancelOrder(order exchange.OrderCancellation) error {
 	return err
 }
 
-// CancelAllOrders cancels all orders associated with a currency pair
-func (a *Alphapoint) CancelAllOrders() error {
-	// return a.CancelAllExistingOrders(p.Pair().String())
-	return common.ErrNotYetImplemented
+// CancelAllOrders cancels all orders for a given account
+func (a *Alphapoint) CancelAllOrders(orderCancellation exchange.OrderCancellation) (exchange.CancelAllOrdersResponse, error) {
+	return exchange.CancelAllOrdersResponse{}, a.CancelAllExistingOrders(orderCancellation.AccountID)
 }
 
 // GetOrderInfo returns information on a current open order

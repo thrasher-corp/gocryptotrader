@@ -46,6 +46,16 @@ type Trade struct {
 	Timestamp int64   `json:"ts"`
 }
 
+// CancelOpenOrdersBatch stores open order batch response data
+type CancelOpenOrdersBatch struct {
+	Data struct {
+		FailedCount  int `json:"failed-count"`
+		NextID       int `json:"next-id"`
+		SuccessCount int `json:"success-count"`
+	} `json:"data"`
+	Status string `json:"status"`
+}
+
 // TradeHistory stores the the trade history data
 type TradeHistory struct {
 	ID        int64   `json:"id"`

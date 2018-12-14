@@ -21,15 +21,17 @@ const (
 	gateioMarketURL  = "https://data.gateio.io"
 	gateioAPIVersion = "api2/1"
 
-	gateioSymbol      = "pairs"
-	gateioMarketInfo  = "marketinfo"
-	gateioKline       = "candlestick2"
-	gateioOrder       = "private"
-	gateioBalances    = "private/balances"
-	gateioCancelOrder = "private/cancelOrder"
-	gateioTicker      = "ticker"
-	gateioTickers     = "tickers"
-	gateioOrderbook   = "orderBook"
+	gateioSymbol          = "pairs"
+	gateioMarketInfo      = "marketinfo"
+	gateioKline           = "candlestick2"
+	gateioOrder           = "private"
+	gateioBalances        = "private/balances"
+	gateioCancelOrder     = "private/cancelOrder"
+	gateioCancelAllOrders = "private/cancelAllOrders"
+	gateioOpenOrders      = "private/openOrders"
+	gateioTicker          = "ticker"
+	gateioTickers         = "tickers"
+	gateioOrderbook       = "orderBook"
 
 	gateioAuthRate   = 100
 	gateioUnauthRate = 100
@@ -379,6 +381,54 @@ func (g *Gateio) CancelExistingOrder(orderID int64, symbol string) (bool, error)
 // SendHTTPRequest sends an unauthenticated HTTP request
 func (g *Gateio) SendHTTPRequest(path string, result interface{}) error {
 	return g.SendPayload("GET", path, nil, nil, result, false, g.Verbose)
+}
+
+// CancelAllExistingOrders all orders for a given symbol and side
+// orderType (0: sell,1: buy,-1: unlimited)
+func (g *Gateio) CancelAllExistingOrders(orderType int64, symbol string) error {
+	type response struct {
+		Result  bool   `json:"result"`
+		Code    int    `json:"code"`
+		Message string `json:"message"`
+	}
+
+	var result response
+	params := fmt.Sprintf("type=%d&currencyPair=%s",
+		orderType,
+		symbol,
+	)
+	err := g.SendAuthenticatedHTTPRequest("POST", gateioCancelAllOrders, params, &result)
+	if err != nil {
+		return err
+	}
+
+	if !result.Result {
+		return fmt.Errorf("code:%d message:%s", result.Code, result.Message)
+	}
+
+	return nil
+}
+
+//
+// GetOpenOrders retrieves all orders with an optional symbol filter
+func (g *Gateio) GetOpenOrders(symbol string) (OpenOrdersResponse, error) {
+	var params string
+	var result OpenOrdersResponse
+
+	if symbol != "" {
+		params = fmt.Sprintf("currencyPair=%s", symbol)
+	}
+
+	err := g.SendAuthenticatedHTTPRequest("POST", gateioOpenOrders, params, &result)
+	if err != nil {
+		return result, err
+	}
+
+	if result.Code > 0 {
+		return result, fmt.Errorf("code:%d message:%s", result.Code, result.Message)
+	}
+
+	return result, nil
 }
 
 // SendAuthenticatedHTTPRequest sends authenticated requests to the Gateio API

@@ -200,8 +200,31 @@ func (b *Bithumb) CancelOrder(order exchange.OrderCancellation) error {
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
-func (b *Bithumb) CancelAllOrders() error {
-	return common.ErrNotYetImplemented
+func (b *Bithumb) CancelAllOrders(orderCancellation exchange.OrderCancellation) (exchange.CancelAllOrdersResponse, error) {
+	cancelAllOrdersResponse := exchange.CancelAllOrdersResponse{
+		OrderStatus: make(map[string]string),
+	}
+	var allOrders []OrderData
+
+	for _, currency := range b.GetEnabledCurrencies() {
+		orders, err := b.GetOrders("", orderCancellation.Side.ToString(), "100", "", currency.FirstCurrency.String())
+		if err != nil {
+			return cancelAllOrdersResponse, err
+		}
+
+		for _, order := range orders.Data {
+			allOrders = append(allOrders, order)
+		}
+	}
+
+	for _, order := range allOrders {
+		_, err := b.CancelTrade(orderCancellation.Side.ToString(), order.OrderID, orderCancellation.CurrencyPair.FirstCurrency.String())
+		if err != nil {
+			cancelAllOrdersResponse.OrderStatus[order.OrderID] = err.Error()
+		}
+	}
+
+	return cancelAllOrdersResponse, nil
 }
 
 // GetOrderInfo returns information on a current open order

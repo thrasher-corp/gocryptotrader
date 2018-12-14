@@ -169,8 +169,8 @@ func (b *BTCC) CancelOrder(order exchange.OrderCancellation) error {
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
-func (b *BTCC) CancelAllOrders() error {
-	return common.ErrNotYetImplemented
+func (b *BTCC) CancelAllOrders(orderCancellation exchange.OrderCancellation) (exchange.CancelAllOrdersResponse, error) {
+	return exchange.CancelAllOrdersResponse{}, common.ErrNotYetImplemented
 }
 
 // GetOrderInfo returns information on a current open order

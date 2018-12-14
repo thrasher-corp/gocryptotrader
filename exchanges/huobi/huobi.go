@@ -29,32 +29,34 @@ const (
 	huobiAPIURL     = "https://api.huobi.pro"
 	huobiAPIVersion = "1"
 
-	huobiMarketHistoryKline   = "market/history/kline"
-	huobiMarketDetail         = "market/detail"
-	huobiMarketDetailMerged   = "market/detail/merged"
-	huobiMarketDepth          = "market/depth"
-	huobiMarketTrade          = "market/trade"
-	huobiMarketTradeHistory   = "market/history/trade"
-	huobiSymbols              = "common/symbols"
-	huobiCurrencies           = "common/currencys"
-	huobiTimestamp            = "common/timestamp"
-	huobiAccounts             = "account/accounts"
-	huobiAccountBalance       = "account/accounts/%s/balance"
-	huobiOrderPlace           = "order/orders/place"
-	huobiOrderCancel          = "order/orders/%s/submitcancel"
-	huobiOrderCancelBatch     = "order/orders/batchcancel"
-	huobiGetOrder             = "order/orders/%s"
-	huobiGetOrderMatch        = "order/orders/%s/matchresults"
-	huobiGetOrders            = "order/orders"
-	huobiGetOrdersMatch       = "orders/matchresults"
-	huobiMarginTransferIn     = "dw/transfer-in/margin"
-	huobiMarginTransferOut    = "dw/transfer-out/margin"
-	huobiMarginOrders         = "margin/orders"
-	huobiMarginRepay          = "margin/orders/%s/repay"
-	huobiMarginLoanOrders     = "margin/loan-orders"
-	huobiMarginAccountBalance = "margin/accounts/balance"
-	huobiWithdrawCreate       = "dw/withdraw/api/create"
-	huobiWithdrawCancel       = "dw/withdraw-virtual/%s/cancel"
+	huobiMarketHistoryKline    = "market/history/kline"
+	huobiMarketDetail          = "market/detail"
+	huobiMarketDetailMerged    = "market/detail/merged"
+	huobiMarketDepth           = "market/depth"
+	huobiMarketTrade           = "market/trade"
+	huobiMarketTradeHistory    = "market/history/trade"
+	huobiSymbols               = "common/symbols"
+	huobiCurrencies            = "common/currencys"
+	huobiTimestamp             = "common/timestamp"
+	huobiAccounts              = "account/accounts"
+	huobiAccountBalance        = "account/accounts/%s/balance"
+	huobiOrderPlace            = "order/orders/place"
+	huobiOrderCancel           = "order/orders/%s/submitcancel"
+	huobiOrderCancelBatch      = "order/orders/batchcancel"
+	huobiBatchCancelOpenOrders = "order/orders/batchCancelOpenOrders"
+	huobiGetOrder              = "order/orders/%s"
+	huobiGetOrderMatch         = "order/orders/%s/matchresults"
+	huobiGetOrders             = "order/orders"
+	huobiGetOpenOrders         = "order/order/openOrders"
+	huobiGetOrdersMatch        = "orders/matchresults"
+	huobiMarginTransferIn      = "dw/transfer-in/margin"
+	huobiMarginTransferOut     = "dw/transfer-out/margin"
+	huobiMarginOrders          = "margin/orders"
+	huobiMarginRepay           = "margin/orders/%s/repay"
+	huobiMarginLoanOrders      = "margin/loan-orders"
+	huobiMarginAccountBalance  = "margin/accounts/balance"
+	huobiWithdrawCreate        = "dw/withdraw/api/create"
+	huobiWithdrawCancel        = "dw/withdraw-virtual/%s/cancel"
 
 	huobiAuthRate   = 100
 	huobiUnauthRate = 100
@@ -129,6 +131,7 @@ func (h *HUOBI) Setup(exch config.ExchangeConfig) {
 		if err != nil {
 			log.Fatal(err)
 		}
+
 		err = h.WebsocketSetup(h.WsConnect,
 			exch.Name,
 			exch.Websocket,
@@ -452,6 +455,29 @@ func (h *HUOBI) CancelOrderBatch(orderIDs []int64) ([]CancelOrderBatch, error) {
 	return result.Data, err
 }
 
+// CancelOpenOrdersBatch cancels a batch of orders -- to-do
+func (h *HUOBI) CancelOpenOrdersBatch(accountID, symbol string) (CancelOpenOrdersBatch, error) {
+	params := url.Values{}
+
+	params.Set("account-id", accountID)
+	var result CancelOpenOrdersBatch
+
+	data := struct {
+		AccountID string `json:"account-id"`
+		Symbol    string `json:"symbol"`
+	}{
+		AccountID: accountID,
+		Symbol:    symbol,
+	}
+
+	err := h.SendAuthenticatedHTTPRequest("POST", huobiBatchCancelOpenOrders, url.Values{}, data, &result)
+	if result.Data.FailedCount > 0 {
+		return result, fmt.Errorf("There were %v failed order cancellations", result.Data.FailedCount)
+	}
+
+	return result, err
+}
+
 // GetOrder returns order information for the specified order
 func (h *HUOBI) GetOrder(orderID int64) (OrderInfo, error) {
 	type response struct {
@@ -527,6 +553,29 @@ func (h *HUOBI) GetOrders(symbol, types, start, end, states, from, direct, size 
 	if result.ErrorMessage != "" {
 		return nil, errors.New(result.ErrorMessage)
 	}
+	return result.Orders, err
+}
+
+// GetOpenOrders returns a list of orders
+func (h *HUOBI) GetOpenOrders(accountID, symbol, side string, size int) ([]OrderInfo, error) {
+	type response struct {
+		Response
+		Orders []OrderInfo `json:"data"`
+	}
+
+	vals := url.Values{}
+	vals.Set("symbol", symbol)
+	vals.Set("accountID", accountID)
+	vals.Set("side", side)
+	vals.Set("size", fmt.Sprintf("%v", size))
+
+	var result response
+	err := h.SendAuthenticatedHTTPRequest("GET", huobiGetOpenOrders, vals, nil, &result)
+
+	if result.ErrorMessage != "" {
+		return nil, errors.New(result.ErrorMessage)
+	}
+
 	return result.Orders, err
 }
 

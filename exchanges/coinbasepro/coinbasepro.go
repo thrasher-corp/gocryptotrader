@@ -499,7 +499,7 @@ func (c *CoinbasePro) CancelAllExistingOrders(currencyPair string) ([]string, er
 	var resp []string
 	request := make(map[string]interface{})
 
-	if len(currencyPair) != 0 {
+	if len(currencyPair) > 0 {
 		request["product_id"] = currencyPair
 	}
 	return resp, c.SendAuthenticatedHTTPRequest("DELETE", coinbaseproOrders, request, &resp)

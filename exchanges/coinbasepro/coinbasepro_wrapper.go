@@ -180,8 +180,10 @@ func (c *CoinbasePro) CancelOrder(order exchange.OrderCancellation) error {
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
-func (c *CoinbasePro) CancelAllOrders() error {
-	return common.ErrNotYetImplemented
+func (c *CoinbasePro) CancelAllOrders(orderCancellation exchange.OrderCancellation) (exchange.CancelAllOrdersResponse, error) {
+	// CancellAllExisting orders returns a list of successful cancellations, we're only interested in failures
+	_, err := c.CancelAllExistingOrders("")
+	return exchange.CancelAllOrdersResponse{}, err
 }
 
 // GetOrderInfo returns information on a current open order

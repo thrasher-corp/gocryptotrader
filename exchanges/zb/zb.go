@@ -22,14 +22,15 @@ const (
 	zbMarketURL  = "https://trade.zb.com/api"
 	zbAPIVersion = "v1"
 
-	zbAccountInfo = "getAccountInfo"
-	zbMarkets     = "markets"
-	zbKline       = "kline"
-	zbOrder       = "order"
-	zbCancelOrder = "cancelOrder"
-	zbTicker      = "ticker"
-	zbTickers     = "allTicker"
-	zbDepth       = "depth"
+	zbAccountInfo                     = "getAccountInfo"
+	zbMarkets                         = "markets"
+	zbKline                           = "kline"
+	zbOrder                           = "order"
+	zbCancelOrder                     = "cancelOrder"
+	zbTicker                          = "ticker"
+	zbTickers                         = "allTicker"
+	zbDepth                           = "depth"
+	zbUnfinishedOrdersIgnoreTradeType = "getUnfinishedOrdersIgnoreTradeType"
 
 	zbAuthRate   = 100
 	zbUnauthRate = 100
@@ -172,6 +173,24 @@ func (z *ZB) GetAccountInformation() (AccountsResponse, error) {
 	if err != nil {
 		return result, err
 	}
+	return result, nil
+}
+
+// GetUnfinishedOrdersIgnoreTradeType returns unfinished orders
+func (z *ZB) GetUnfinishedOrdersIgnoreTradeType(currency, pageindex, pagesize string) ([]UnfinishedOpenOrder, error) {
+	var result []UnfinishedOpenOrder
+	vals := url.Values{}
+	vals.Set("accesskey", z.APIKey)
+	vals.Set("method", zbUnfinishedOrdersIgnoreTradeType)
+	vals.Set("currency", currency)
+	vals.Set("pageIndex", pageindex)
+	vals.Set("pageSize", pagesize)
+
+	err := z.SendAuthenticatedHTTPRequest("GET", zbUnfinishedOrdersIgnoreTradeType, vals, &result)
+	if err != nil {
+		return result, err
+	}
+
 	return result, nil
 }
 

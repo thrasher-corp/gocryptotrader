@@ -22,32 +22,34 @@ const (
 	huobihadaxAPIVersion = "1"
 	huobihadaxAPIName    = "hadax"
 
-	huobihadaxMarketHistoryKline   = "market/history/kline"
-	huobihadaxMarketDetail         = "market/detail"
-	huobihadaxMarketDetailMerged   = "market/detail/merged"
-	huobihadaxMarketDepth          = "market/depth"
-	huobihadaxMarketTrade          = "market/trade"
-	huobihadaxMarketTradeHistory   = "market/history/trade"
-	huobihadaxSymbols              = "common/symbols"
-	huobihadaxCurrencies           = "common/currencys"
-	huobihadaxTimestamp            = "common/timestamp"
-	huobihadaxAccounts             = "account/accounts"
-	huobihadaxAccountBalance       = "account/accounts/%s/balance"
-	huobihadaxOrderPlace           = "order/orders/place"
-	huobihadaxOrderCancel          = "order/orders/%s/submitcancel"
-	huobihadaxOrderCancelBatch     = "order/orders/batchcancel"
-	huobihadaxGetOrder             = "order/orders/%s"
-	huobihadaxGetOrderMatch        = "order/orders/%s/matchresults"
-	huobihadaxGetOrders            = "order/orders"
-	huobihadaxGetOrdersMatch       = "orders/matchresults"
-	huobihadaxMarginTransferIn     = "dw/transfer-in/margin"
-	huobihadaxMarginTransferOut    = "dw/transfer-out/margin"
-	huobihadaxMarginOrders         = "margin/orders"
-	huobihadaxMarginRepay          = "margin/orders/%s/repay"
-	huobihadaxMarginLoanOrders     = "margin/loan-orders"
-	huobihadaxMarginAccountBalance = "margin/accounts/balance"
-	huobihadaxWithdrawCreate       = "dw/withdraw/api/create"
-	huobihadaxWithdrawCancel       = "dw/withdraw-virtual/%s/cancel"
+	huobihadaxMarketHistoryKline    = "market/history/kline"
+	huobihadaxMarketDetail          = "market/detail"
+	huobihadaxMarketDetailMerged    = "market/detail/merged"
+	huobihadaxMarketDepth           = "market/depth"
+	huobihadaxMarketTrade           = "market/trade"
+	huobihadaxMarketTradeHistory    = "market/history/trade"
+	huobihadaxSymbols               = "common/symbols"
+	huobihadaxCurrencies            = "common/currencys"
+	huobihadaxTimestamp             = "common/timestamp"
+	huobihadaxAccounts              = "account/accounts"
+	huobihadaxAccountBalance        = "account/accounts/%s/balance"
+	huobihadaxOrderPlace            = "order/orders/place"
+	huobihadaxOrderCancel           = "order/orders/%s/submitcancel"
+	huobihadaxGetOpenOrders         = "order/order/openOrders"
+	huobihadaxOrderCancelBatch      = "order/orders/batchcancel"
+	huobiHadaxBatchCancelOpenOrders = "order/orders/batchCancelOpenOrders"
+	huobihadaxGetOrder              = "order/orders/%s"
+	huobihadaxGetOrderMatch         = "order/orders/%s/matchresults"
+	huobihadaxGetOrders             = "order/orders"
+	huobihadaxGetOrdersMatch        = "orders/matchresults"
+	huobihadaxMarginTransferIn      = "dw/transfer-in/margin"
+	huobihadaxMarginTransferOut     = "dw/transfer-out/margin"
+	huobihadaxMarginOrders          = "margin/orders"
+	huobihadaxMarginRepay           = "margin/orders/%s/repay"
+	huobihadaxMarginLoanOrders      = "margin/loan-orders"
+	huobihadaxMarginAccountBalance  = "margin/accounts/balance"
+	huobihadaxWithdrawCreate        = "dw/withdraw/api/create"
+	huobihadaxWithdrawCancel        = "dw/withdraw-virtual/%s/cancel"
 
 	huobihadaxAuthRate   = 100
 	huobihadaxUnauthRate = 100
@@ -441,6 +443,56 @@ func (h *HUOBIHADAX) CancelOrderBatch(orderIDs []int64) (CancelOrderBatch, error
 		return CancelOrderBatch{}, errors.New(string(errJSON))
 	}
 	return result.Data, err
+}
+
+// CancelOpenOrdersBatch cancels a batch of orders -- to-do
+func (h *HUOBIHADAX) CancelOpenOrdersBatch(accountID, symbol string) (CancelOpenOrdersBatch, error) {
+	params := url.Values{}
+
+	params.Set("account-id", accountID)
+	var result CancelOpenOrdersBatch
+
+	data := struct {
+		AccountID string `json:"account-id"`
+		Symbol    string `json:"symbol"`
+	}{
+		AccountID: accountID,
+		Symbol:    symbol,
+	}
+
+	bytesParams, _ := common.JSONEncode(data)
+	postBodyParams := string(bytesParams)
+
+	err := h.SendAuthenticatedHTTPPostRequest("POST", huobiHadaxBatchCancelOpenOrders, postBodyParams, &result)
+
+	if result.Data.FailedCount > 0 {
+		return result, fmt.Errorf("There were %v failed order cancellations", result.Data.FailedCount)
+	}
+
+	return result, err
+}
+
+// GetOpenOrders returns a list of orders
+func (h *HUOBIHADAX) GetOpenOrders(accountID, symbol, side string, size int) ([]OrderInfo, error) {
+	type response struct {
+		Response
+		Orders []OrderInfo `json:"data"`
+	}
+
+	vals := url.Values{}
+	vals.Set("symbol", symbol)
+	vals.Set("accountID", accountID)
+	vals.Set("side", side)
+	vals.Set("size", fmt.Sprintf("%v", size))
+
+	var result response
+	err := h.SendAuthenticatedHTTPRequest("GET", huobihadaxGetOpenOrders, vals, &result)
+
+	if result.ErrorMessage != "" {
+		return nil, errors.New(result.ErrorMessage)
+	}
+
+	return result.Orders, err
 }
 
 // GetOrder returns order information for the specified order

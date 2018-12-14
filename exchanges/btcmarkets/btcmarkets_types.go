@@ -4,19 +4,22 @@ import "github.com/thrasher-/gocryptotrader/currency/symbol"
 
 // Response is the genralized response type
 type Response struct {
+	Success         bool              `json:"success"`
+	ErrorCode       int               `json:"errorCode"`
+	ErrorMessage    string            `json:"errorMessage"`
+	ID              int               `json:"id"`
+	Responses       []ResponseDetails `json:"responses"`
+	ClientRequestID string            `json:"clientRequestId"`
+	Orders          []Order           `json:"orders"`
+	Status          string            `json:"status"`
+}
+
+// ResponseDetails holds order status details
+type ResponseDetails struct {
 	Success      bool   `json:"success"`
 	ErrorCode    int    `json:"errorCode"`
 	ErrorMessage string `json:"errorMessage"`
-	ID           int    `json:"id"`
-	Responses    []struct {
-		Success      bool   `json:"success"`
-		ErrorCode    int    `json:"errorCode"`
-		ErrorMessage string `json:"errorMessage"`
-		ID           int64  `json:"id"`
-	}
-	ClientRequestID string  `json:"clientRequestId"`
-	Orders          []Order `json:"orders"`
-	Status          string  `json:"status"`
+	ID           int64  `json:"id"`
 }
 
 // Market holds a tradable market instrument

@@ -207,8 +207,26 @@ func (k *Kraken) CancelOrder(order exchange.OrderCancellation) error {
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
-func (k *Kraken) CancelAllOrders() error {
-	return common.ErrNotYetImplemented
+func (k *Kraken) CancelAllOrders(orderCancellation exchange.OrderCancellation) (exchange.CancelAllOrdersResponse, error) {
+	cancelAllOrdersResponse := exchange.CancelAllOrdersResponse{
+		OrderStatus: make(map[string]string),
+	}
+	var emptyOrderOptions OrderInfoOptions
+	openOrders, err := k.GetOpenOrders(emptyOrderOptions)
+	if err != nil {
+		return cancelAllOrdersResponse, err
+	}
+
+	if openOrders.Count > 0 {
+		for orderID := range openOrders.Open {
+			_, err = k.CancelExistingOrder(orderID)
+			if err != nil {
+				cancelAllOrdersResponse.OrderStatus[orderID] = err.Error()
+			}
+		}
+	}
+
+	return cancelAllOrdersResponse, nil
 }
 
 // GetOrderInfo returns information on a current open order

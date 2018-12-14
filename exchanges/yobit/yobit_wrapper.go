@@ -165,19 +165,45 @@ func (y *Yobit) ModifyOrder(orderID int64, action exchange.ModifyOrder) (int64, 
 // CancelOrder cancels an order by its corresponding ID number
 func (y *Yobit) CancelOrder(order exchange.OrderCancellation) error {
 	orderIDInt, err := strconv.ParseInt(order.OrderID, 10, 64)
-
 	if err != nil {
 		return err
 	}
 
 	_, err = y.CancelExistingOrder(orderIDInt)
-
 	return err
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
-func (y *Yobit) CancelAllOrders() error {
-	return common.ErrNotYetImplemented
+func (y *Yobit) CancelAllOrders(orderCancellation exchange.OrderCancellation) (exchange.CancelAllOrdersResponse, error) {
+	cancelAllOrdersResponse := exchange.CancelAllOrdersResponse{
+		OrderStatus: make(map[string]string),
+	}
+	var allActiveOrders []map[string]ActiveOrders
+
+	for _, pair := range y.EnabledPairs {
+		activeOrdersForPair, err := y.GetActiveOrders(pair)
+		if err != nil {
+			return cancelAllOrdersResponse, err
+		}
+
+		allActiveOrders = append(allActiveOrders, activeOrdersForPair)
+	}
+
+	for _, activeOrders := range allActiveOrders {
+		for key := range activeOrders {
+			orderIDInt, err := strconv.ParseInt(key, 10, 64)
+			if err != nil {
+				return cancelAllOrdersResponse, err
+			}
+
+			_, err = y.CancelExistingOrder(orderIDInt)
+			if err != nil {
+				cancelAllOrdersResponse.OrderStatus[key] = err.Error()
+			}
+		}
+	}
+
+	return cancelAllOrdersResponse, nil
 }
 
 // GetOrderInfo returns information on a current open order

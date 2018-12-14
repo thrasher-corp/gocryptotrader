@@ -264,12 +264,37 @@ func (a *ANX) ModifyOrder(orderID int64, action exchange.ModifyOrder) (int64, er
 // CancelOrder cancels an order by its corresponding ID number
 func (a *ANX) CancelOrder(order exchange.OrderCancellation) error {
 	orderIDs := []string{order.OrderID}
-	return a.CancelOrderByIDs(orderIDs)
+	_, err := a.CancelOrderByIDs(orderIDs)
+	return err
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
-func (a *ANX) CancelAllOrders() error {
-	return common.ErrNotYetImplemented
+func (a *ANX) CancelAllOrders(orderCancellation exchange.OrderCancellation) (exchange.CancelAllOrdersResponse, error) {
+	cancelAllOrdersResponse := exchange.CancelAllOrdersResponse{
+		OrderStatus: make(map[string]string),
+	}
+	placedOrders, err := a.GetOrderList(true)
+	if err != nil {
+		return cancelAllOrdersResponse, err
+	}
+
+	var orderIDs []string
+	for _, order := range placedOrders {
+		orderIDs = append(orderIDs, order.OrderID)
+	}
+
+	resp, err := a.CancelOrderByIDs(orderIDs)
+	if err != nil {
+		return cancelAllOrdersResponse, err
+	}
+
+	for _, order := range resp.OrderCancellationResponses {
+		if order.Error != CancelRequestSubmitted {
+			cancelAllOrdersResponse.OrderStatus[order.UUID] = order.Error
+		}
+	}
+
+	return cancelAllOrdersResponse, err
 }
 
 // GetOrderInfo returns information on a current open order

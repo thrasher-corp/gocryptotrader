@@ -171,8 +171,10 @@ func (b *Bitflyer) CancelOrder(order exchange.OrderCancellation) error {
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
-func (b *Bitflyer) CancelAllOrders() error {
-	return common.ErrNotYetImplemented
+func (b *Bitflyer) CancelAllOrders(orderCancellation exchange.OrderCancellation) (exchange.CancelAllOrdersResponse, error) {
+	// TODO, implement BitFlyer API
+	b.CancelAllExistingOrders()
+	return exchange.CancelAllOrdersResponse{}, common.ErrNotYetImplemented
 }
 
 // GetOrderInfo returns information on a current open order

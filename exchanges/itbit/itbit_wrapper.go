@@ -211,8 +211,23 @@ func (i *ItBit) CancelOrder(order exchange.OrderCancellation) error {
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
-func (i *ItBit) CancelAllOrders() error {
-	return common.ErrNotYetImplemented
+func (i *ItBit) CancelAllOrders(orderCancellation exchange.OrderCancellation) (exchange.CancelAllOrdersResponse, error) {
+	cancelAllOrdersResponse := exchange.CancelAllOrdersResponse{
+		OrderStatus: make(map[string]string),
+	}
+	openOrders, err := i.GetOrders(orderCancellation.WalletAddress, "", "open", 0, 0)
+	if err != nil {
+		return cancelAllOrdersResponse, err
+	}
+
+	for _, openOrder := range openOrders {
+		err = i.CancelExistingOrder(orderCancellation.WalletAddress, openOrder.ID)
+		if err != nil {
+			cancelAllOrdersResponse.OrderStatus[openOrder.ID] = err.Error()
+		}
+	}
+
+	return cancelAllOrdersResponse, nil
 }
 
 // GetOrderInfo returns information on a current open order

@@ -186,28 +186,37 @@ func (b *BTCMarkets) CancelOrder(order exchange.OrderCancellation) error {
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
-func (b *BTCMarkets) CancelAllOrders() error {
-	orders, err := b.GetOrders("", "", 0, 0, true)
+func (b *BTCMarkets) CancelAllOrders(orderCancellation exchange.OrderCancellation) (exchange.CancelAllOrdersResponse, error) {
+	cancelAllOrdersResponse := exchange.CancelAllOrdersResponse{
+		OrderStatus: make(map[string]string),
+	}
+	openOrders, err := b.GetOpenOrders()
 	if err != nil {
-		return err
+		return cancelAllOrdersResponse, err
 	}
 
 	var orderList []int64
-	for _, order := range orders {
-		orderIDInt, strconvErr := strconv.ParseInt(order.ID, 10, 64)
-
-		if strconvErr != nil {
-			return strconvErr
+	for _, order := range openOrders {
+		orderIDInt, err := strconv.ParseInt(order.ID, 10, 64)
+		if err != nil {
+			cancelAllOrdersResponse.OrderStatus[order.ID] = err.Error()
 		}
-
 		orderList = append(orderList, orderIDInt)
 	}
 
-	_, err = b.CancelExistingOrder(orderList)
-	if err != nil {
-		return err
+	if len(orderList) > 0 {
+		orders, err := b.CancelExistingOrder(orderList)
+		if err != nil {
+			return cancelAllOrdersResponse, err
+		}
+
+		for _, order := range orders {
+			if err != nil {
+				cancelAllOrdersResponse.OrderStatus[strconv.FormatInt(order.ID, 10)] = err.Error()
+			}
+		}
 	}
-	return nil
+	return cancelAllOrdersResponse, nil
 }
 
 // GetOrderInfo returns information on a current open order

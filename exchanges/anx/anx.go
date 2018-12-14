@@ -24,7 +24,8 @@ const (
 	anxCurrencies      = "currencyStatic"
 	anxDataToken       = "dataToken"
 	anxOrderNew        = "order/new"
-	anxCancel          = "order/cancel"
+	anxOrderCancel     = "order/cancel"
+	anxOrderList       = "order/list"
 	anxOrderInfo       = "order/info"
 	anxSend            = "send"
 	anxSubaccountNew   = "subaccount/new"
@@ -242,22 +243,42 @@ func (a *ANX) NewOrder(orderType string, buy bool, tradedCurrency string, traded
 
 // CancelOrderByIDs cancels orders, requires already knowing order IDs
 // There is no existing API call to retrieve orderIds
-func (a *ANX) CancelOrderByIDs(orderIds []string) (err error) {
+func (a *ANX) CancelOrderByIDs(orderIds []string) (OrderCancelResponse, error) {
 	request := make(map[string]interface{})
 	request["orderIds"] = orderIds
-	type OrderCancelResponse struct {
-		Order      OrderResponse `json:"order"`
-		ResultCode string        `json:"resultCode"`
-		UUID       int64         `json:"uuid"`
-		ErrorCode  int64         `json:"errorCode"`
-	}
 	var response OrderCancelResponse
-	err = a.SendAuthenticatedHTTPRequest(anxCancel, request, &response)
+
+	err := a.SendAuthenticatedHTTPRequest(anxOrderCancel, request, &response)
+	if response.ResultCode != "OK" {
+		return response, errors.New(response.ResultCode)
+	}
+
+	return response, err
+}
+
+// GetOrderList retrieves orders from the exchange
+func (a *ANX) GetOrderList(isActiveOrdersOnly bool) ([]OrderResponse, error) {
+	request := make(map[string]interface{})
+	request["activeOnly"] = isActiveOrdersOnly
+
+	type OrderListResponse struct {
+		Timestamp      int64           `json:"timestamp"`
+		ResultCode     string          `json:"resultCode"`
+		Count          int64           `json:"count"`
+		OrderResponses []OrderResponse `json:"orders"`
+	}
+	var response OrderListResponse
+	err := a.SendAuthenticatedHTTPRequest(anxOrderList, request, &response)
+	if err != nil {
+		return nil, err
+	}
+
 	if response.ResultCode != "OK" {
 		log.Printf("Response code is not OK: %s\n", response.ResultCode)
-		return errors.New(response.ResultCode)
+		return nil, errors.New(response.ResultCode)
 	}
-	return err
+
+	return response.OrderResponses, err
 }
 
 // OrderInfo returns information about a specific order

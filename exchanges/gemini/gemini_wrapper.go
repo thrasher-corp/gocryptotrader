@@ -153,19 +153,29 @@ func (g *Gemini) ModifyOrder(orderID int64, action exchange.ModifyOrder) (int64,
 // CancelOrder cancels an order by its corresponding ID number
 func (g *Gemini) CancelOrder(order exchange.OrderCancellation) error {
 	orderIDInt, err := strconv.ParseInt(order.OrderID, 10, 64)
-
 	if err != nil {
 		return err
 	}
 
 	_, err = g.CancelExistingOrder(orderIDInt)
-
 	return err
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
-func (g *Gemini) CancelAllOrders() error {
-	return common.ErrNotYetImplemented
+func (g *Gemini) CancelAllOrders(orderCancellation exchange.OrderCancellation) (exchange.CancelAllOrdersResponse, error) {
+	cancelAllOrdersResponse := exchange.CancelAllOrdersResponse{
+		OrderStatus: make(map[string]string),
+	}
+	resp, err := g.CancelExistingOrders(false)
+	if err != nil {
+		return cancelAllOrdersResponse, err
+	}
+
+	for _, order := range resp.Details.CancelRejects {
+		cancelAllOrdersResponse.OrderStatus[order] = "Could not cancel order"
+	}
+
+	return cancelAllOrdersResponse, nil
 }
 
 // GetOrderInfo returns information on a current open order

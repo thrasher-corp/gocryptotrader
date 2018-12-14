@@ -262,8 +262,22 @@ func (h *HUOBIHADAX) CancelOrder(order exchange.OrderCancellation) error {
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
-func (h *HUOBIHADAX) CancelAllOrders() error {
-	return common.ErrNotYetImplemented
+func (h *HUOBIHADAX) CancelAllOrders(orderCancellation exchange.OrderCancellation) (exchange.CancelAllOrdersResponse, error) {
+	cancelAllOrdersResponse := exchange.CancelAllOrdersResponse{
+		OrderStatus: make(map[string]string),
+	}
+	for _, currency := range h.GetEnabledCurrencies() {
+		resp, err := h.CancelOpenOrdersBatch(orderCancellation.AccountID, exchange.FormatExchangeCurrency(h.Name, currency).String())
+		if err != nil {
+			return cancelAllOrdersResponse, err
+		}
+
+		if resp.Data.FailedCount > 0 {
+			return cancelAllOrdersResponse, fmt.Errorf("%v orders failed to cancel", resp.Data.FailedCount)
+		}
+	}
+
+	return cancelAllOrdersResponse, nil
 }
 
 // GetOrderInfo returns information on a current open order

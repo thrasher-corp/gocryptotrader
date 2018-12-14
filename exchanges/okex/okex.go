@@ -650,6 +650,20 @@ func (o *OKEX) GetContractFuturesTradeHistory(symbol, date string, since int) er
 	return nil
 }
 
+// GetTokenOrders returns details for a single orderID or all open orders when orderID == -1
+func (o *OKEX) GetTokenOrders(symbol string, orderID int64) (TokenOrdersResponse, error) {
+	var resp TokenOrdersResponse
+	values := url.Values{}
+	values.Set("symbol", symbol)
+	values.Set("order_id", strconv.FormatInt(orderID, 10))
+
+	if err := o.SendAuthenticatedHTTPRequest(contractFutureTradeHistory, values, &resp); err != nil {
+		return resp, err
+	}
+
+	return resp, nil
+}
+
 // GetUserInfo returns the user info
 func (o *OKEX) GetUserInfo() (SpotUserInfo, error) {
 	var resp SpotUserInfo
@@ -696,8 +710,8 @@ func (o *OKEX) SpotCancelOrder(symbol string, argOrderID int64) (int64, error) {
 	params := url.Values{}
 	params.Set("symbol", symbol)
 	params.Set("order_id", strconv.FormatInt(argOrderID, 10))
-
 	var returnOrderID int64
+
 	err := o.SendAuthenticatedHTTPRequest(spotCancelTrade+".do", params, &res)
 	if err != nil {
 		return returnOrderID, err
