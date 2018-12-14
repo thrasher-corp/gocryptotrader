@@ -262,7 +262,7 @@ type IBotExchange interface {
 
 	GetFundingHistory() ([]FundHistory, error)
 	SubmitOrder(p pair.CurrencyPair, side OrderSide, orderType OrderType, amount, price float64, clientID string) (SubmitOrderResponse, error)
-	ModifyOrder(orderID int64, modify ModifyOrder) (int64, error)
+	ModifyOrder(action ModifyOrder) ModifyOrderResponse
 	CancelOrder(order OrderCancellation) error
 	CancelAllOrders(orders OrderCancellation) (CancelAllOrdersResponse, error)
 	GetOrderInfo(orderID int64) (OrderDetail, error)
@@ -728,10 +728,22 @@ func (e *Base) UpdateCurrencies(exchangeProducts []string, enabled, force bool) 
 
 // ModifyOrder is a an order modifyer
 type ModifyOrder struct {
+	OrderID string
 	OrderType
 	OrderSide
-	Price  float64
-	Amount float64
+	Price             float64
+	Amount            float64
+	LimitPriceUpper   float64
+	LimitPriceLower   float64
+	Currency          pair.CurrencyPair
+	ImmediateOrCancel bool
+	HiddenOrder       bool
+	FillOrKill        bool
+}
+
+// ModifyOrderResponse is an order modifying return type
+type ModifyOrderResponse struct {
+	Error error
 }
 
 // Format holds exchange formatting
@@ -754,8 +766,9 @@ type OrderType string
 
 // OrderType ...types
 const (
-	Limit  OrderType = "Limit"
-	Market OrderType = "Market"
+	Limit             OrderType = "Limit"
+	Market            OrderType = "Market"
+	ImmediateOrCancel OrderType = "IMMEDIATE_OR_CANCEL"
 )
 
 // ToString changes the ordertype to the exchange standard and returns a string

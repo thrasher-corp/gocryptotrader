@@ -207,8 +207,10 @@ func (e *EXMO) SubmitOrder(p pair.CurrencyPair, side exchange.OrderSide, orderTy
 
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
-func (e *EXMO) ModifyOrder(orderID int64, action exchange.ModifyOrder) (int64, error) {
-	return 0, common.ErrNotYetImplemented
+func (e *EXMO) ModifyOrder(action exchange.ModifyOrder) exchange.ModifyOrderResponse {
+	return exchange.ModifyOrderResponse{
+		Error: common.ErrNotYetImplemented,
+	}
 }
 
 // CancelOrder cancels an order by its corresponding ID number

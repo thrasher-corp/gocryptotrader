@@ -186,8 +186,10 @@ func (b *Bitstamp) SubmitOrder(p pair.CurrencyPair, side exchange.OrderSide, ord
 
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
-func (b *Bitstamp) ModifyOrder(orderID int64, action exchange.ModifyOrder) (int64, error) {
-	return 0, common.ErrNotYetImplemented
+func (b *Bitstamp) ModifyOrder(action exchange.ModifyOrder) exchange.ModifyOrderResponse {
+	return exchange.ModifyOrderResponse{
+		Error: common.ErrNotYetImplemented,
+	}
 }
 
 // CancelOrder cancels an order by its corresponding ID number
