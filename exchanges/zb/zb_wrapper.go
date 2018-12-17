@@ -196,7 +196,7 @@ func (z *ZB) SubmitOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType
 // market conversion
 func (z *ZB) ModifyOrder(action exchange.ModifyOrder) exchange.ModifyOrderResponse {
 	return exchange.ModifyOrderResponse{
-		Error: common.ErrNotYetImplemented,
+		Error: common.ErrFunctionNotSupported,
 	}
 }
 
