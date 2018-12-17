@@ -336,18 +336,6 @@ func TestWalletTransfer(t *testing.T) {
 	}
 }
 
-func TestWithdrawal(t *testing.T) {
-	if b.APIKey == "" || b.APISecret == "" {
-		t.SkipNow()
-	}
-	t.Parallel()
-
-	_, err := b.Withdrawal("LITECOIN", "deposit", "1000", 0.01)
-	if err == nil {
-		t.Error("Test Failed - Withdrawal() error")
-	}
-}
-
 func TestNewOrder(t *testing.T) {
 	if b.APIKey == "" || b.APISecret == "" {
 		t.SkipNow()

@@ -98,6 +98,21 @@ type OrderCancellation struct {
 	Side          OrderSide
 }
 
+// WithdrawRequest used for wrapper crypto and FIAT withdraw methods
+type WithdrawRequest struct {
+	// Crypto related information
+	Currency      pair.CurrencyItem
+	WalletAddress string
+	Amount        float64
+	// FIAT related information
+	BankName     string
+	BankAddress  string
+	BankCity     string
+	BankCountry  string
+	SwiftCode    string
+	WireCurrency string
+}
+
 // Definitions for each type of withdrawal method for a given exchange
 const (
 	// No withdraw
@@ -268,8 +283,8 @@ type IBotExchange interface {
 	GetOrderInfo(orderID int64) (OrderDetail, error)
 	GetDepositAddress(cryptocurrency pair.CurrencyItem) (string, error)
 
-	WithdrawCryptocurrencyFunds(address string, cryptocurrency pair.CurrencyItem, amount float64) (string, error)
-	WithdrawFiatFunds(currency pair.CurrencyItem, amount float64) (string, error)
+	WithdrawCryptocurrencyFunds(wtihdrawRequest WithdrawRequest) (string, error)
+	WithdrawFiatFunds(wtihdrawRequest WithdrawRequest) (string, error)
 
 	GetWebsocket() (*Websocket, error)
 }

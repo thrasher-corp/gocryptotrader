@@ -11,6 +11,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
+	"github.com/thrasher-/gocryptotrader/currency/symbol"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/request"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
@@ -582,15 +583,18 @@ func (b *Bitfinex) WalletTransfer(amount float64, currency, walletFrom, walletTo
 		b.SendAuthenticatedHTTPRequest("POST", bitfinexTransfer, request, &response)
 }
 
-// Withdrawal requests a withdrawal from one of your wallets.
-// Major Upgrade needed on this function to include all query params
-func (b *Bitfinex) Withdrawal(withdrawType, wallet, address string, amount float64) ([]Withdrawal, error) {
+// WithdrawCryptocurrency requests a withdrawal from one of your wallets.
+// For FIAT, use WithdrawFIAT
+func (b *Bitfinex) WithdrawCryptocurrency(withdrawType, wallet, address, currency, paymentID string, amount float64) ([]Withdrawal, error) {
 	response := []Withdrawal{}
 	request := make(map[string]interface{})
 	request["withdrawal_type"] = withdrawType
 	request["walletselected"] = wallet
 	request["amount"] = strconv.FormatFloat(amount, 'f', -1, 64)
 	request["address"] = address
+	if currency == symbol.XMR {
+		request["paymend_id"] = paymentID
+	}
 
 	return response,
 		b.SendAuthenticatedHTTPRequest("POST", bitfinexWithdrawal, request, &response)
@@ -998,4 +1002,52 @@ func (b *Bitfinex) CalculateTradingFee(accountInfos []AccountInfo, purchasePrice
 		}
 	}
 	return (fee / 100) * purchasePrice * amount, err
+}
+
+// ConvertSymbolToWithdrawalType You need to have specific withdrawal types to withdraw from Bitfinex
+func (b *Bitfinex) ConvertSymbolToWithdrawalType(currency string) string {
+	switch currency {
+	case symbol.BTC:
+		return "bitcoin"
+	case symbol.LTC:
+		return "litecoin"
+	case symbol.ETH:
+		return "ethereum"
+	case symbol.ETC:
+		return "ethereumc"
+	case symbol.USDT:
+		return "tetheruso"
+	case "Wire":
+		return "wire"
+	case symbol.ZEC:
+		return "zcash"
+	case symbol.XMR:
+		return "monero"
+	case symbol.DSH:
+		return "dash"
+	case symbol.XRP:
+		return "ripple"
+	case symbol.SAN:
+		return "santiment"
+	case symbol.OMG:
+		return "omisego"
+	case symbol.BCH:
+		return "bcash"
+	case symbol.ETP:
+		return "metaverse"
+	case symbol.AVT:
+		return "aventus"
+	case symbol.EDO:
+		return "eidoo"
+	case symbol.BTG:
+		return "bgold"
+	case symbol.DATA:
+		return "datacoin"
+	case symbol.GNT:
+		return "golem"
+	case symbol.SNT:
+		return "status"
+	default:
+		return common.StringToLower(currency)
+	}
 }

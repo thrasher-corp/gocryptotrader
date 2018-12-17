@@ -311,20 +311,20 @@ func (a *ANX) GetDepositAddress(cryptocurrency pair.CurrencyItem) (string, error
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
 // submitted
-func (a *ANX) WithdrawCryptocurrencyFunds(address string, cryptocurrency pair.CurrencyItem, amount float64) (string, error) {
+func (a *ANX) WithdrawCryptocurrencyFunds(withdrawRequest exchange.WithdrawRequest) (string, error) {
 	return a.Send(cryptocurrency.String(), address, "", fmt.Sprintf("%v", amount))
 }
 
 // WithdrawFiatFunds returns a withdrawal ID when a withdrawal is
 // submitted
-func (a *ANX) WithdrawFiatFunds(currency pair.CurrencyItem, amount float64) (string, error) {
+func (a *ANX) WithdrawFiatFunds(withdrawRequest exchange.WithdrawRequest) (string, error) {
 	// Fiat withdawals available via website
 	return "", common.ErrNotYetImplemented
 }
 
 // WithdrawFiatFundsToInternationalBank returns a withdrawal ID when a withdrawal is
 // submitted
-func (a *ANX) WithdrawFiatFundsToInternationalBank(currency pair.CurrencyItem, amount float64) (string, error) {
+func (a *ANX) WithdrawFiatFundsToInternationalBank(withdrawRequest exchange.WithdrawRequest) (string, error) {
 	// Fiat withdawals available via website
 	return "", common.ErrNotYetImplemented
 }
