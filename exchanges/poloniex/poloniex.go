@@ -544,18 +544,37 @@ func (p *Poloniex) CancelExistingOrder(orderID int64) (bool, error) {
 }
 
 // MoveOrder moves an order
-func (p *Poloniex) MoveOrder(orderID int64, rate, amount float64) (MoveOrderResponse, error) {
+func (p *Poloniex) MoveOrder(orderID int64, rate, amount float64, postOnly, immediateOrCancel bool) (MoveOrderResponse, error) {
 	result := MoveOrderResponse{}
 	values := url.Values{}
+
+	if orderID == 0 {
+		return result, errors.New("OrderID cannot be zero")
+	}
+
+	if rate == 0 {
+		return result, errors.New("Rate cannot be zero")
+	}
+
 	values.Set("orderNumber", strconv.FormatInt(orderID, 10))
 	values.Set("rate", strconv.FormatFloat(rate, 'f', -1, 64))
+
+	if postOnly {
+		values.Set("postOnly", "true")
+	}
+
+	if immediateOrCancel {
+		values.Set("immediateOrCancel", "true")
+	}
 
 	if amount != 0 {
 		values.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
 	}
 
-	err := p.SendAuthenticatedHTTPRequest("POST", poloniexOrderMove, values, &result)
-
+	err := p.SendAuthenticatedHTTPRequest("POST",
+		poloniexOrderMove,
+		values,
+		&result)
 	if err != nil {
 		return result, err
 	}

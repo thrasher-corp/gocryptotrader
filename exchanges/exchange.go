@@ -731,19 +731,22 @@ type ModifyOrder struct {
 	OrderID string
 	OrderType
 	OrderSide
-	Price             float64
-	Amount            float64
-	LimitPriceUpper   float64
-	LimitPriceLower   float64
-	Currency          pair.CurrencyPair
+	Price           float64
+	Amount          float64
+	LimitPriceUpper float64
+	LimitPriceLower float64
+	Currency        pair.CurrencyPair
+
 	ImmediateOrCancel bool
 	HiddenOrder       bool
 	FillOrKill        bool
+	PostOnly          bool
 }
 
 // ModifyOrderResponse is an order modifying return type
 type ModifyOrderResponse struct {
-	Error error
+	OrderID string
+	Error   error
 }
 
 // Format holds exchange formatting

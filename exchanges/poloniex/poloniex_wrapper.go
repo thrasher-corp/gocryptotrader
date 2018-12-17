@@ -176,8 +176,27 @@ func (p *Poloniex) SubmitOrder(currencyPair pair.CurrencyPair, side exchange.Ord
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
 func (p *Poloniex) ModifyOrder(action exchange.ModifyOrder) exchange.ModifyOrderResponse {
+	oID, err := strconv.ParseInt(action.OrderID, 10, 64)
+	if err != nil {
+		return exchange.ModifyOrderResponse{
+			Error: err,
+		}
+	}
+
+	resp, err := p.MoveOrder(oID,
+		action.Price,
+		action.Amount,
+		action.PostOnly,
+		action.ImmediateOrCancel)
+	if err != nil {
+		return exchange.ModifyOrderResponse{
+			Error: err,
+		}
+	}
+
 	return exchange.ModifyOrderResponse{
-		Error: common.ErrNotYetImplemented,
+		OrderID: strconv.FormatInt(resp.OrderNumber, 10),
+		Error:   nil,
 	}
 }
 
