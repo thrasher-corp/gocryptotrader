@@ -48,6 +48,22 @@ func TestGetMarkets(t *testing.T) {
 	}
 }
 
+func TestAreAPIKeysSet(t *testing.T) {
+	var errMsg string
+	if apiKey != "" && apiKey != "Key" {
+		errMsg += "Cannot commit populated testAPIKey. "
+	}
+	if apiSecret != "" && apiSecret != "Secret" {
+		errMsg += "Cannot commit populated testAPISecret. "
+	}
+	if canManipulateRealOrders {
+		errMsg += "Cannot commit with canManipulateRealOrders enabled."
+	}
+	if len(errMsg) > 0 {
+		t.Error(errMsg)
+	}
+}
+
 func TestGetTicker(t *testing.T) {
 	t.Parallel()
 	_, err := b.GetTicker("BTC", "AUD")

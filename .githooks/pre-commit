@@ -1,0 +1,30 @@
+#!/bin/sh
+
+STAGED_GO_FILES=$(git diff --cached --name-only | grep "test.go$")
+
+if [[ "$STAGED_GO_FILES" = "" ]]; then
+  exit 0
+fi
+
+PASS=true
+
+for FILE in $STAGED_GO_FILES
+do
+EXCHANGE_DIRECTORY=$(echo  $FILE | rev | cut -d"/" -f2-  | rev)
+ROOT_PATH="./"
+TEST_PATH="$ROOT_PATH$EXCHANGE_DIRECTORY"
+  go test $TEST_PATH -run TestAreAPIKeysSet
+   if [[ $? == 1 ]]; then
+    printf "$TEST_PATH\033[0m \033[0;30m\033[41mFAILURE! Please ensure API Keys are not set and canManipulateRealOrders is not enabled\033[0m\n"
+    PASS=false
+  fi
+done
+
+if ! $PASS; then
+  printf "COMMIT FAILED\n"
+  exit 1
+else
+  printf "COMMIT SUCCEEDED\n"
+fi
+
+exit 0
