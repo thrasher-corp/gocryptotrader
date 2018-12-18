@@ -200,7 +200,7 @@ func (b *Bittrex) SubmitOrder(p pair.CurrencyPair, side exchange.OrderSide, orde
 // market conversion
 func (b *Bittrex) ModifyOrder(action exchange.ModifyOrder) exchange.ModifyOrderResponse {
 	return exchange.ModifyOrderResponse{
-		Error: common.ErrNotYetImplemented,
+		Error: common.ErrFunctionNotSupported,
 	}
 }
 
