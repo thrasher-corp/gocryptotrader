@@ -1,9 +1,9 @@
-This Git hook is designed to prevent you from commit your keys.
+This Git hook is designed to prevent you from commit your keys to the repo
 
-#To use:
-##Command method:
+# To use:
+## Command method:
 Run the following:
 `git config core.hooksPath .githooks`
 
-##Copy method:
+## Copy method:
 Copy pre-commit to .git/hooks
