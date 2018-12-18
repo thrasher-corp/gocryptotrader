@@ -190,8 +190,22 @@ func (b *Bitmex) SubmitOrder(p pair.CurrencyPair, side exchange.OrderSide, order
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
 func (b *Bitmex) ModifyOrder(action exchange.ModifyOrder) exchange.ModifyOrderResponse {
+	var params OrderAmendParams
+
+	params.OrderID = action.OrderID
+	params.OrderQty = int32(action.Amount)
+	params.Price = action.Price
+
+	order, err := b.AmendOrder(params)
+	if err != nil {
+		return exchange.ModifyOrderResponse{
+			Error: err,
+		}
+	}
+
 	return exchange.ModifyOrderResponse{
-		Error: common.ErrNotYetImplemented,
+		OrderID: order.OrderID,
+		Error:   nil,
 	}
 }
 

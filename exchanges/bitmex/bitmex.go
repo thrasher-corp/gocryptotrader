@@ -403,13 +403,13 @@ func (b *Bitmex) GetOrders(params GenericRequestParams) ([]Order, error) {
 }
 
 // AmendOrder amends the quantity or price of an open order
-func (b *Bitmex) AmendOrder(params OrderAmendParams) ([]Order, error) {
-	var orders []Order
+func (b *Bitmex) AmendOrder(params OrderAmendParams) (Order, error) {
+	var order Order
 
-	return orders, b.SendAuthenticatedHTTPRequest("PUT",
+	return order, b.SendAuthenticatedHTTPRequest("PUT",
 		bitmexEndpointOrder,
 		params,
-		&orders)
+		&order)
 }
 
 // CreateOrder creates a new order

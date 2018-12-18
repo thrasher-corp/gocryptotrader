@@ -5,10 +5,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
 	"github.com/thrasher-/gocryptotrader/currency/symbol"
-	exchange "github.com/thrasher-/gocryptotrader/exchanges"
+	"github.com/thrasher-/gocryptotrader/exchanges"
+
+	"github.com/thrasher-/gocryptotrader/config"
 )
 
 // Please supply your own keys here for due diligence testing
@@ -563,5 +564,12 @@ func TestGetAccountInfo(t *testing.T) {
 		if err == nil {
 			t.Error("Test Failed - GetAccountInfo() error")
 		}
+	}
+}
+
+func TestModifyOrder(t *testing.T) {
+	res := b.ModifyOrder(exchange.ModifyOrder{OrderID: "1337"})
+	if res.Error == nil {
+		t.Error("Test Failed - ModifyOrder() error")
 	}
 }
