@@ -216,7 +216,7 @@ func (g *Gateio) SubmitOrder(p pair.CurrencyPair, side exchange.OrderSide, order
 // market conversion
 func (g *Gateio) ModifyOrder(action exchange.ModifyOrder) exchange.ModifyOrderResponse {
 	return exchange.ModifyOrderResponse{
-		Error: common.ErrNotYetImplemented,
+		Error: common.ErrFunctionNotSupported,
 	}
 }
 
