@@ -261,7 +261,7 @@ func (c *COINUT) SubmitOrder(p pair.CurrencyPair, side exchange.OrderSide, order
 // market conversion
 func (c *COINUT) ModifyOrder(action exchange.ModifyOrder) exchange.ModifyOrderResponse {
 	return exchange.ModifyOrderResponse{
-		Error: common.ErrNotYetImplemented,
+		Error: common.ErrFunctionNotSupported,
 	}
 }
 
