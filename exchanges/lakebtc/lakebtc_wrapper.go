@@ -159,7 +159,7 @@ func (l *LakeBTC) SubmitOrder(p pair.CurrencyPair, side exchange.OrderSide, orde
 // market conversion
 func (l *LakeBTC) ModifyOrder(action exchange.ModifyOrder) exchange.ModifyOrderResponse {
 	return exchange.ModifyOrderResponse{
-		Error: common.ErrNotYetImplemented,
+		Error: common.ErrFunctionNotSupported,
 	}
 }
 
