@@ -168,7 +168,7 @@ func (l *Liqui) SubmitOrder(p pair.CurrencyPair, side exchange.OrderSide, orderT
 // market conversion
 func (l *Liqui) ModifyOrder(action exchange.ModifyOrder) exchange.ModifyOrderResponse {
 	return exchange.ModifyOrderResponse{
-		Error: common.ErrNotYetImplemented,
+		Error: common.ErrFunctionNotSupported,
 	}
 }
 
