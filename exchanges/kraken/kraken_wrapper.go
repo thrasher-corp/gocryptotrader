@@ -197,7 +197,7 @@ func (k *Kraken) SubmitOrder(p pair.CurrencyPair, side exchange.OrderSide, order
 // market conversion
 func (k *Kraken) ModifyOrder(action exchange.ModifyOrder) exchange.ModifyOrderResponse {
 	return exchange.ModifyOrderResponse{
-		Error: common.ErrNotYetImplemented,
+		Error: common.ErrFunctionNotSupported,
 	}
 }
 
