@@ -203,7 +203,7 @@ func (i *ItBit) SubmitOrder(p pair.CurrencyPair, side exchange.OrderSide, orderT
 // market conversion
 func (i *ItBit) ModifyOrder(action exchange.ModifyOrder) exchange.ModifyOrderResponse {
 	return exchange.ModifyOrderResponse{
-		Error: common.ErrNotYetImplemented,
+		Error: common.ErrFunctionNotSupported,
 	}
 }
 
