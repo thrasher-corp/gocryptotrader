@@ -281,7 +281,7 @@ func (h *HUOBI) SubmitOrder(p pair.CurrencyPair, side exchange.OrderSide, orderT
 // market conversion
 func (h *HUOBI) ModifyOrder(action exchange.ModifyOrder) exchange.ModifyOrderResponse {
 	return exchange.ModifyOrderResponse{
-		Error: common.ErrNotYetImplemented,
+		Error: common.ErrFunctionNotSupported,
 	}
 }
 
