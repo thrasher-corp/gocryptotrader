@@ -209,7 +209,7 @@ func (e *EXMO) SubmitOrder(p pair.CurrencyPair, side exchange.OrderSide, orderTy
 // market conversion
 func (e *EXMO) ModifyOrder(action exchange.ModifyOrder) exchange.ModifyOrderResponse {
 	return exchange.ModifyOrderResponse{
-		Error: common.ErrNotYetImplemented,
+		Error: common.ErrFunctionNotSupported,
 	}
 }
 
