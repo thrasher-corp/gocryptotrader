@@ -13,8 +13,8 @@ var k Kraken
 
 // Please add your own APIkeys to do correct due diligence testing.
 const (
-	apiKey                  = ""
-	apiSecret               = ""
+	testAPIKey              = ""
+	testAPISecret           = ""
 	clientID                = ""
 	canManipulateRealOrders = false
 )
@@ -32,11 +32,41 @@ func TestSetup(t *testing.T) {
 	}
 
 	krakenConfig.AuthenticatedAPISupport = true
-	krakenConfig.APIKey = apiKey
-	krakenConfig.APISecret = apiSecret
+	krakenConfig.APIKey = testAPIKey
+	krakenConfig.APISecret = testAPISecret
 	krakenConfig.ClientID = clientID
 
 	k.Setup(krakenConfig)
+}
+
+// TestAreAPIKeysSet is part of a pre-commit hook to prevent commiting your API keys
+func TestAreAPIKeysSet(t *testing.T) {
+	var errMsg string
+	// Local keys
+	if testAPIKey != "" && testAPIKey != "Key" {
+		errMsg += "Cannot commit populated testAPIKey. "
+	}
+	if testAPISecret != "" && testAPISecret != "Secret" {
+		errMsg += "Cannot commit populated testAPISecret. "
+	}
+	if clientID != "" {
+		errMsg += "Cannot commit populated clientID. "
+	}
+	if canManipulateRealOrders {
+		errMsg += "Cannot commit with canManipulateRealOrders enabled."
+	}
+	//configtest.json keys
+	k.SetDefaults()
+	TestSetup(t)
+	if k.APIKey != "" && k.APIKey != "Key" {
+		errMsg += "API key present in testconfig.json"
+	}
+	if k.APISecret != "" && k.APISecret != "Key" {
+		errMsg += "API secret key present in testconfig.json"
+	}
+	if len(errMsg) > 0 {
+		t.Error(errMsg)
+	}
 }
 
 func TestGetServerTime(t *testing.T) {
@@ -241,7 +271,7 @@ func TestGetFee(t *testing.T) {
 	TestSetup(t)
 	var feeBuilder = setFeeBuilder()
 
-	if apiKey != "" && apiSecret != "" {
+	if testAPIKey != "" && testAPISecret != "" {
 		// CryptocurrencyTradeFee Basic
 		if resp, err := k.GetFee(feeBuilder); resp != float64(0.0026) || err != nil {
 			t.Error(err)
@@ -419,7 +449,7 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 }
 
 func TestGetAccountInfo(t *testing.T) {
-	if apiKey != "" || apiSecret != "" || clientID != "" {
+	if testAPIKey != "" || testAPISecret != "" || clientID != "" {
 		_, err := k.GetAccountInfo()
 		if err != nil {
 			t.Error("Test Failed - GetAccountInfo() error", err)

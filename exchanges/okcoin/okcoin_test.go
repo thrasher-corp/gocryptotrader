@@ -14,8 +14,8 @@ var o OKCoin
 // Please supply your own APIKEYS here for due diligence testing
 
 const (
-	apiKey                  = ""
-	apiSecret               = ""
+	testAPIKey              = ""
+	testAPISecret           = ""
 	canManipulateRealOrders = false
 )
 
@@ -32,10 +32,37 @@ func TestSetup(t *testing.T) {
 	}
 
 	okcoinConfig.AuthenticatedAPISupport = true
-	okcoinConfig.APIKey = apiKey
-	okcoinConfig.APISecret = apiSecret
+	okcoinConfig.APIKey = testAPIKey
+	okcoinConfig.APISecret = testAPISecret
 
 	o.Setup(okcoinConfig)
+}
+
+// TestAreAPIKeysSet is part of a pre-commit hook to prevent commiting your API keys
+func TestAreAPIKeysSet(t *testing.T) {
+	var errMsg string
+	// Local keys
+	if testAPIKey != "" && testAPIKey != "Key" {
+		errMsg += "Cannot commit populated testAPIKey. "
+	}
+	if testAPISecret != "" && testAPISecret != "Secret" {
+		errMsg += "Cannot commit populated testAPISecret. "
+	}
+	if canManipulateRealOrders {
+		errMsg += "Cannot commit with canManipulateRealOrders enabled."
+	}
+	//configtest.json keys
+	o.SetDefaults()
+	TestSetup(t)
+	if o.APIKey != "" && o.APIKey != "Key" {
+		errMsg += "API key present in testconfig.json"
+	}
+	if o.APISecret != "" && o.APISecret != "Key" {
+		errMsg += "API secret key present in testconfig.json"
+	}
+	if len(errMsg) > 0 {
+		t.Error(errMsg)
+	}
 }
 
 func setFeeBuilder() exchange.FeeBuilder {

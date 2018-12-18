@@ -9,8 +9,8 @@ import (
 )
 
 const (
-	APIKey                  = ""
-	APISecret               = ""
+	testAPIKey              = ""
+	testAPISecret           = ""
 	canManipulateRealOrders = false
 )
 
@@ -24,8 +24,35 @@ func TestDefault(t *testing.T) {
 
 func TestSetup(t *testing.T) {
 	e.AuthenticatedAPISupport = true
-	e.APIKey = APIKey
-	e.APISecret = APISecret
+	e.APIKey = testAPIKey
+	e.APISecret = testAPISecret
+}
+
+// TestAreAPIKeysSet is part of a pre-commit hook to prevent commiting your API keys
+func TestAreAPIKeysSet(t *testing.T) {
+	var errMsg string
+	// Local keys
+	if testAPIKey != "" && testAPIKey != "Key" {
+		errMsg += "Cannot commit populated testAPIKey. "
+	}
+	if testAPISecret != "" && testAPISecret != "Secret" {
+		errMsg += "Cannot commit populated testAPISecret. "
+	}
+	if canManipulateRealOrders {
+		errMsg += "Cannot commit with canManipulateRealOrders enabled."
+	}
+	//configtest.json keys
+	e.SetDefaults()
+	TestSetup(t)
+	if e.APIKey != "" && e.APIKey != "Key" {
+		errMsg += "API key present in testconfig.json"
+	}
+	if e.APISecret != "" && e.APISecret != "Key" {
+		errMsg += "API secret key present in testconfig.json"
+	}
+	if len(errMsg) > 0 {
+		t.Error(errMsg)
+	}
 }
 
 func TestGetTrades(t *testing.T) {
@@ -70,7 +97,7 @@ func TestGetCurrency(t *testing.T) {
 
 func TestGetUserInfo(t *testing.T) {
 	t.Parallel()
-	if APIKey == "" || APISecret == "" {
+	if testAPIKey == "" || testAPISecret == "" {
 		t.Skip()
 	}
 	TestSetup(t)
@@ -82,7 +109,7 @@ func TestGetUserInfo(t *testing.T) {
 
 func TestGetRequiredAmount(t *testing.T) {
 	t.Parallel()
-	if APIKey == "" || APISecret == "" {
+	if testAPIKey == "" || testAPISecret == "" {
 		t.Skip()
 	}
 	TestSetup(t)
@@ -94,7 +121,7 @@ func TestGetRequiredAmount(t *testing.T) {
 
 func TestGetCryptoDepositAddress(t *testing.T) {
 	t.Parallel()
-	if APIKey == "" || APISecret == "" {
+	if testAPIKey == "" || testAPISecret == "" {
 		t.Skip()
 	}
 	TestSetup(t)

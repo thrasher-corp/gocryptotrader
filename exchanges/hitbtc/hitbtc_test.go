@@ -14,8 +14,8 @@ var h HitBTC
 // Please supply your own APIKEYS here for due diligence testing
 
 const (
-	apiKey                  = ""
-	apiSecret               = ""
+	testAPIKey              = ""
+	testAPISecret           = ""
 	canManipulateRealOrders = false
 )
 
@@ -32,10 +32,37 @@ func TestSetup(t *testing.T) {
 	}
 
 	hitbtcConfig.AuthenticatedAPISupport = true
-	hitbtcConfig.APIKey = apiKey
-	hitbtcConfig.APISecret = apiSecret
+	hitbtcConfig.APIKey = testAPIKey
+	hitbtcConfig.APISecret = testAPISecret
 
 	h.Setup(hitbtcConfig)
+}
+
+// TestAreAPIKeysSet is part of a pre-commit hook to prevent commiting your API keys
+func TestAreAPIKeysSet(t *testing.T) {
+	var errMsg string
+	// Local keys
+	if testAPIKey != "" && testAPIKey != "Key" {
+		errMsg += "Cannot commit populated testAPIKey. "
+	}
+	if testAPISecret != "" && testAPISecret != "Secret" {
+		errMsg += "Cannot commit populated testAPISecret. "
+	}
+	if canManipulateRealOrders {
+		errMsg += "Cannot commit with canManipulateRealOrders enabled."
+	}
+	//configtest.json keys
+	h.SetDefaults()
+	TestSetup(t)
+	if h.APIKey != "" && h.APIKey != "Key" {
+		errMsg += "API key present in testconfig.json"
+	}
+	if h.APISecret != "" && h.APISecret != "Key" {
+		errMsg += "API secret key present in testconfig.json"
+	}
+	if len(errMsg) > 0 {
+		t.Error(errMsg)
+	}
 }
 
 func TestGetOrderbook(t *testing.T) {
@@ -85,7 +112,7 @@ func TestGetFee(t *testing.T) {
 	TestSetup(t)
 
 	var feeBuilder = setFeeBuilder()
-	if apiKey != "" && apiSecret != "" {
+	if testAPIKey != "" && testAPISecret != "" {
 		// CryptocurrencyTradeFee Basic
 		if resp, err := h.GetFee(feeBuilder); resp != float64(0.001) || err != nil {
 			t.Error(err)

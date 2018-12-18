@@ -13,8 +13,8 @@ var w WEX
 
 // Please supply your own keys for better unit testing
 const (
-	apiKey                  = ""
-	apiSecret               = ""
+	testAPIKey              = ""
+	testAPISecret           = ""
 	canManipulateRealOrders = false
 	isWexEncounteringIssues = true
 )
@@ -30,11 +30,38 @@ func TestSetup(t *testing.T) {
 	if err != nil {
 		t.Error("Test Failed - WEX init error")
 	}
-	conf.APIKey = apiKey
-	conf.APISecret = apiSecret
+	conf.APIKey = testAPIKey
+	conf.APISecret = testAPISecret
 	conf.AuthenticatedAPISupport = true
 
 	w.Setup(conf)
+}
+
+// TestAreAPIKeysSet is part of a pre-commit hook to prevent commiting your API keys
+func TestAreAPIKeysSet(t *testing.T) {
+	var errMsg string
+	// Local keys
+	if testAPIKey != "" && testAPIKey != "Key" {
+		errMsg += "Cannot commit populated testAPIKey. "
+	}
+	if testAPISecret != "" && testAPISecret != "Secret" {
+		errMsg += "Cannot commit populated testAPISecret. "
+	}
+	if canManipulateRealOrders {
+		errMsg += "Cannot commit with canManipulateRealOrders enabled."
+	}
+	//configtest.json keys
+	w.SetDefaults()
+	TestSetup(t)
+	if w.APIKey != "" && w.APIKey != "Key" {
+		errMsg += "API key present in testconfig.json"
+	}
+	if w.APISecret != "" && w.APISecret != "Key" {
+		errMsg += "API secret key present in testconfig.json"
+	}
+	if len(errMsg) > 0 {
+		t.Error(errMsg)
+	}
 }
 
 func TestGetTradablePairs(t *testing.T) {

@@ -83,6 +83,33 @@ func TestSetup(t *testing.T) {
 	}
 }
 
+// TestAreAPIKeysSet is part of a pre-commit hook to prevent commiting your API keys
+func TestAreAPIKeysSet(t *testing.T) {
+	var errMsg string
+	// Local keys
+	if testAPIKey != "" && testAPIKey != "Key" {
+		errMsg += "Cannot commit populated testAPIKey. "
+	}
+	if testAPISecret != "" && testAPISecret != "Secret" {
+		errMsg += "Cannot commit populated testAPISecret. "
+	}
+	if canManipulateRealOrders {
+		errMsg += "Cannot commit with canManipulateRealOrders enabled."
+	}
+	//configtest.json keys
+	a.SetDefaults()
+	TestSetup(t)
+	if a.APIKey != "" && a.APIKey != "Key" {
+		errMsg += "API key present in testconfig.json"
+	}
+	if a.APISecret != "" && a.APISecret != "Secret" {
+		errMsg += "API secret key present in testconfig.json"
+	}
+	if len(errMsg) > 0 {
+		t.Error(errMsg)
+	}
+}
+
 func TestGetCurrencies(t *testing.T) {
 	_, err := a.GetCurrencies()
 	if err != nil {

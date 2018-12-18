@@ -13,8 +13,8 @@ var o OKEX
 
 // Please supply you own test keys here for due diligence testing.
 const (
-	apiKey                  = ""
-	apiSecret               = ""
+	testAPIKey              = ""
+	testAPISecret           = ""
 	canManipulateRealOrders = false
 )
 
@@ -34,10 +34,37 @@ func TestSetup(t *testing.T) {
 	}
 
 	okexConfig.AuthenticatedAPISupport = true
-	okexConfig.APIKey = apiKey
-	okexConfig.APISecret = apiSecret
+	okexConfig.APIKey = testAPIKey
+	okexConfig.APISecret = testAPISecret
 
 	o.Setup(okexConfig)
+}
+
+// TestAreAPIKeysSet is part of a pre-commit hook to prevent commiting your API keys
+func TestAreAPIKeysSet(t *testing.T) {
+	var errMsg string
+	// Local keys
+	if testAPIKey != "" && testAPIKey != "Key" {
+		errMsg += "Cannot commit populated testAPIKey. "
+	}
+	if testAPISecret != "" && testAPISecret != "Secret" {
+		errMsg += "Cannot commit populated testAPISecret. "
+	}
+	if canManipulateRealOrders {
+		errMsg += "Cannot commit with canManipulateRealOrders enabled."
+	}
+	//configtest.json keys
+	o.SetDefaults()
+	TestSetup(t)
+	if o.APIKey != "" && o.APIKey != "Key" {
+		errMsg += "API key present in testconfig.json"
+	}
+	if o.APISecret != "" && o.APISecret != "Key" {
+		errMsg += "API secret key present in testconfig.json"
+	}
+	if len(errMsg) > 0 {
+		t.Error(errMsg)
+	}
 }
 
 func TestGetSpotInstruments(t *testing.T) {
@@ -486,7 +513,7 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 }
 
 func TestGetAccountInfo(t *testing.T) {
-	if apiKey != "" || apiSecret != "" {
+	if testAPIKey != "" || testAPISecret != "" {
 		_, err := o.GetAccountInfo()
 		if err != nil {
 			t.Error("Test Failed - GetAccountInfo() error", err)

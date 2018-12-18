@@ -12,8 +12,8 @@ import (
 
 // Please supply you own test keys here for due diligence testing.
 const (
-	apiKey                  = ""
-	apiSecret               = ""
+	testAPIKey              = ""
+	testAPISecret           = ""
 	canManipulateRealOrders = false
 )
 
@@ -32,10 +32,37 @@ func TestSetup(t *testing.T) {
 	}
 
 	zbConfig.AuthenticatedAPISupport = true
-	zbConfig.APIKey = apiKey
-	zbConfig.APISecret = apiSecret
+	zbConfig.APIKey = testAPIKey
+	zbConfig.APISecret = testAPISecret
 
 	z.Setup(zbConfig)
+}
+
+// TestAreAPIKeysSet is part of a pre-commit hook to prevent commiting your API keys
+func TestAreAPIKeysSet(t *testing.T) {
+	var errMsg string
+	// Local keys
+	if testAPIKey != "" && testAPIKey != "Key" {
+		errMsg += "Cannot commit populated testAPIKey. "
+	}
+	if testAPISecret != "" && testAPISecret != "Secret" {
+		errMsg += "Cannot commit populated testAPISecret. "
+	}
+	if canManipulateRealOrders {
+		errMsg += "Cannot commit with canManipulateRealOrders enabled."
+	}
+	//configtest.json keys
+	z.SetDefaults()
+	TestSetup(t)
+	if z.APIKey != "" && z.APIKey != "Key" {
+		errMsg += "API key present in testconfig.json"
+	}
+	if z.APISecret != "" && z.APISecret != "Key" {
+		errMsg += "API secret key present in testconfig.json"
+	}
+	if len(errMsg) > 0 {
+		t.Error(errMsg)
+	}
 }
 
 func TestSpotNewOrder(t *testing.T) {
@@ -318,7 +345,7 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 }
 
 func TestGetAccountInfo(t *testing.T) {
-	if apiKey != "" || apiSecret != "" {
+	if testAPIKey != "" || testAPISecret != "" {
 		_, err := z.GetAccountInfo()
 		if err != nil {
 			t.Error("Test Failed - GetAccountInfo() error", err)

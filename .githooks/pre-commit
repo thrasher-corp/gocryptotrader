@@ -1,8 +1,10 @@
 #!/bin/sh
+  echo "Running git hook to look for API keys\n"
 
 STAGED_GO_FILES=$(git diff --cached --name-only | grep "test.go$")
 
 if [[ "$STAGED_GO_FILES" = "" ]]; then
+  echo "No staged files contain keys\n"
   exit 0
 fi
 
@@ -13,9 +15,10 @@ do
 EXCHANGE_DIRECTORY=$(echo  $FILE | rev | cut -d"/" -f2-  | rev)
 ROOT_PATH="./"
 TEST_PATH="$ROOT_PATH$EXCHANGE_DIRECTORY"
+  echo "Running test for staged file: $FILE"
   go test $TEST_PATH -run TestAreAPIKeysSet
    if [[ $? == 1 ]]; then
-    printf "$TEST_PATH\033[0m \033[0;30m\033[41mFAILURE! Please ensure API Keys are not set and canManipulateRealOrders is not enabled\033[0m\n"
+    echo "$TEST_PATH\033[0m \033[0;30m\033[41mFAILURE! Please ensure API Keys are not set and canManipulateRealOrders is not enabled\033[0m\n"
     PASS=false
   fi
 done

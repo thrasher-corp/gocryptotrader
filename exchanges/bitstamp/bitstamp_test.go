@@ -14,8 +14,8 @@ import (
 
 // Please add your private keys and customerID for better tests
 const (
-	apiKey                  = ""
-	apiSecret               = ""
+	testAPIKey              = ""
+	testAPISecret           = ""
 	customerID              = ""
 	canManipulateRealOrders = false
 )
@@ -49,8 +49,8 @@ func TestSetup(t *testing.T) {
 	if err != nil {
 		t.Error("Test Failed - Bitstamp Setup() init error")
 	}
-	bConfig.APIKey = apiKey
-	bConfig.APISecret = apiSecret
+	bConfig.APIKey = testAPIKey
+	bConfig.APISecret = testAPISecret
 	bConfig.ClientID = customerID
 
 	b.Setup(bConfig)
@@ -60,6 +60,36 @@ func TestSetup(t *testing.T) {
 		b.Verbose || b.Websocket.IsEnabled() || len(b.BaseCurrencies) < 1 ||
 		len(b.AvailablePairs) < 1 || len(b.EnabledPairs) < 1 {
 		t.Error("Test Failed - Bitstamp Setup values not set correctly")
+	}
+}
+
+// TestAreAPIKeysSet is part of a pre-commit hook to prevent commiting your API keys
+func TestAreAPIKeysSet(t *testing.T) {
+	var errMsg string
+	// Local keys
+	if testAPIKey != "" && testAPIKey != "Key" {
+		errMsg += "Cannot commit populated testAPIKey. "
+	}
+	if testAPISecret != "" && testAPISecret != "Secret" {
+		errMsg += "Cannot commit populated testAPISecret. "
+	}
+	if customerID != "" {
+		errMsg += "Cannot commit populated customerID. "
+	}
+	if canManipulateRealOrders {
+		errMsg += "Cannot commit with canManipulateRealOrders enabled."
+	}
+	//configtest.json keys
+	b.SetDefaults()
+	TestSetup(t)
+	if b.APIKey != "" && b.APIKey != "Key" {
+		errMsg += "API key present in testconfig.json"
+	}
+	if b.APISecret != "" && b.APISecret != "Key" {
+		errMsg += "API secret key present in testconfig.json"
+	}
+	if len(errMsg) > 0 {
+		t.Error(errMsg)
 	}
 }
 

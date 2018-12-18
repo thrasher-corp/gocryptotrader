@@ -14,7 +14,7 @@ var c COINUT
 
 // Please supply your own keys here to do better tests
 const (
-	apiKey                  = ""
+	testAPIKey              = ""
 	clientID                = ""
 	canManipulateRealOrders = false
 )
@@ -31,7 +31,7 @@ func TestSetup(t *testing.T) {
 		t.Error("Test Failed - Coinut Setup() init error")
 	}
 	bConfig.AuthenticatedAPISupport = true
-	bConfig.APIKey = apiKey
+	bConfig.APIKey = testAPIKey
 	c.Setup(bConfig)
 	c.ClientID = clientID
 
@@ -40,6 +40,30 @@ func TestSetup(t *testing.T) {
 		c.Websocket.IsEnabled() || len(c.BaseCurrencies) < 1 ||
 		len(c.AvailablePairs) < 1 || len(c.EnabledPairs) < 1 {
 		t.Error("Test Failed - Coinut Setup values not set correctly")
+	}
+}
+
+// TestAreAPIKeysSet is part of a pre-commit hook to prevent commiting your API keys
+func TestAreAPIKeysSet(t *testing.T) {
+	var errMsg string
+	// Local keys
+	if testAPIKey != "" && testAPIKey != "Key" {
+		errMsg += "Cannot commit populated testAPIKey. "
+	}
+	if clientID != "" {
+		errMsg += "Cannot commit populated clientID. "
+	}
+	if canManipulateRealOrders {
+		errMsg += "Cannot commit with canManipulateRealOrders enabled."
+	}
+	//configtest.json keys
+	c.SetDefaults()
+	TestSetup(t)
+	if c.APIKey != "" && c.APIKey != "Key" {
+		errMsg += "API key present in testconfig.json"
+	}
+	if len(errMsg) > 0 {
+		t.Error(errMsg)
 	}
 }
 
@@ -282,7 +306,7 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 }
 
 func TestGetAccountInfo(t *testing.T) {
-	if apiKey != "" || clientID != "" {
+	if testAPIKey != "" || clientID != "" {
 		_, err := c.GetAccountInfo()
 		if err != nil {
 			t.Error("Test Failed - GetAccountInfo() error", err)

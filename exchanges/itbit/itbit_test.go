@@ -14,8 +14,8 @@ var i ItBit
 
 // Please provide your own keys to do proper testing
 const (
-	apiKey                  = ""
-	apiSecret               = ""
+	testAPIKey              = ""
+	testAPISecret           = ""
 	clientID                = ""
 	canManipulateRealOrders = false
 )
@@ -33,11 +33,41 @@ func TestSetup(t *testing.T) {
 	}
 
 	itbitConfig.AuthenticatedAPISupport = true
-	itbitConfig.APIKey = apiKey
-	itbitConfig.APISecret = apiSecret
+	itbitConfig.APIKey = testAPIKey
+	itbitConfig.APISecret = testAPISecret
 	itbitConfig.ClientID = clientID
 
 	i.Setup(itbitConfig)
+}
+
+// TestAreAPIKeysSet is part of a pre-commit hook to prevent commiting your API keys
+func TestAreAPIKeysSet(t *testing.T) {
+	var errMsg string
+	// Local keys
+	if testAPIKey != "" && testAPIKey != "Key" {
+		errMsg += "Cannot commit populated testAPIKey. "
+	}
+	if testAPISecret != "" && testAPISecret != "Secret" {
+		errMsg += "Cannot commit populated testAPISecret. "
+	}
+	if clientID != "" {
+		errMsg += "Cannot commit populated clientID. "
+	}
+	if canManipulateRealOrders {
+		errMsg += "Cannot commit with canManipulateRealOrders enabled."
+	}
+	//configtest.json keys
+	i.SetDefaults()
+	TestSetup(t)
+	if i.APIKey != "" && i.APIKey != "Key" {
+		errMsg += "API key present in testconfig.json"
+	}
+	if i.APISecret != "" && i.APISecret != "Key" {
+		errMsg += "API secret key present in testconfig.json"
+	}
+	if len(errMsg) > 0 {
+		t.Error(errMsg)
+	}
 }
 
 func TestGetTicker(t *testing.T) {
@@ -333,7 +363,7 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 }
 
 func TestGetAccountInfo(t *testing.T) {
-	if apiKey != "" || apiSecret != "" || clientID != "" {
+	if testAPIKey != "" || testAPISecret != "" || clientID != "" {
 		_, err := i.GetAccountInfo()
 		if err == nil {
 			t.Error("Test Failed - GetAccountInfo() error")

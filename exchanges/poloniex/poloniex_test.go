@@ -14,8 +14,8 @@ var p Poloniex
 // Please supply your own APIKEYS here for due diligence testing
 
 const (
-	apiKey                  = ""
-	apiSecret               = ""
+	testAPIKey              = ""
+	testAPISecret           = ""
 	canManipulateRealOrders = false
 )
 
@@ -32,10 +32,37 @@ func TestSetup(t *testing.T) {
 	}
 
 	poloniexConfig.AuthenticatedAPISupport = true
-	poloniexConfig.APIKey = apiKey
-	poloniexConfig.APISecret = apiSecret
+	poloniexConfig.APIKey = testAPIKey
+	poloniexConfig.APISecret = testAPISecret
 
 	p.Setup(poloniexConfig)
+}
+
+// TestAreAPIKeysSet is part of a pre-commit hook to prevent commiting your API keys
+func TestAreAPIKeysSet(t *testing.T) {
+	var errMsg string
+	// Local keys
+	if testAPIKey != "" && testAPIKey != "Key" {
+		errMsg += "Cannot commit populated testAPIKey. "
+	}
+	if testAPISecret != "" && testAPISecret != "Secret" {
+		errMsg += "Cannot commit populated testAPISecret. "
+	}
+	if canManipulateRealOrders {
+		errMsg += "Cannot commit with canManipulateRealOrders enabled."
+	}
+	//configtest.json keys
+	p.SetDefaults()
+	TestSetup(t)
+	if p.APIKey != "" && p.APIKey != "Key" {
+		errMsg += "API key present in testconfig.json"
+	}
+	if p.APISecret != "" && p.APISecret != "Key" {
+		errMsg += "API secret key present in testconfig.json"
+	}
+	if len(errMsg) > 0 {
+		t.Error(errMsg)
+	}
 }
 
 func TestGetTicker(t *testing.T) {
@@ -106,7 +133,7 @@ func TestGetFee(t *testing.T) {
 	TestSetup(t)
 	var feeBuilder = setFeeBuilder()
 
-	if apiKey != "" && apiSecret != "" {
+	if testAPIKey != "" && testAPISecret != "" {
 		// CryptocurrencyTradeFee Basic
 		if resp, err := p.GetFee(feeBuilder); resp != float64(0.002) || err != nil {
 			t.Error(err)

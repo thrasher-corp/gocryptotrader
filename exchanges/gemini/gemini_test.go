@@ -13,13 +13,13 @@ import (
 // Please enter sandbox API keys & assigned roles for better testing procedures
 
 const (
-	apiKey1           = ""
-	apiSecret1        = ""
+	testAPIKey1       = ""
+	testAPISecret1    = ""
 	apiKeyRole1       = ""
 	sessionHeartBeat1 = false
 
-	apiKey2           = ""
-	apiSecret2        = ""
+	testAPIKey2       = ""
+	testAPISecret2    = ""
 	apiKeyRole2       = ""
 	sessionHeartBeat2 = false
 
@@ -28,16 +28,16 @@ const (
 
 func TestAddSession(t *testing.T) {
 	var g1 Gemini
-	err := AddSession(&g1, 1, apiKey1, apiSecret1, apiKeyRole1, true, false)
+	err := AddSession(&g1, 1, testAPIKey1, testAPISecret1, apiKeyRole1, true, false)
 	if err != nil {
 		t.Error("Test failed - AddSession() error")
 	}
-	err = AddSession(&g1, 1, apiKey1, apiSecret1, apiKeyRole1, true, false)
+	err = AddSession(&g1, 1, testAPIKey1, testAPISecret1, apiKeyRole1, true, false)
 	if err == nil {
 		t.Error("Test failed - AddSession() error")
 	}
 	var g2 Gemini
-	err = AddSession(&g2, 2, apiKey2, apiSecret2, apiKeyRole2, false, true)
+	err = AddSession(&g2, 2, testAPIKey2, testAPISecret2, apiKeyRole2, false, true)
 	if err != nil {
 		t.Error("Test failed - AddSession() error")
 	}
@@ -61,6 +61,30 @@ func TestSetup(t *testing.T) {
 
 	Session[1].Setup(geminiConfig)
 	Session[2].Setup(geminiConfig)
+}
+
+// TestAreAPIKeysSet is part of a pre-commit hook to prevent commiting your API keys
+func TestAreAPIKeysSet(t *testing.T) {
+	var errMsg string
+	// Local keys
+	if testAPIKey1 != "" && testAPIKey1 != "Key" {
+		errMsg += "Cannot commit populated testAPIKey1. "
+	}
+	if testAPISecret1 != "" && testAPISecret1 != "Secret" {
+		errMsg += "Cannot commit populated testAPISecret1. "
+	}
+	if testAPIKey2 != "" && testAPIKey2 != "Key" {
+		errMsg += "Cannot commit populated testAPIKey2. "
+	}
+	if testAPISecret2 != "" && testAPISecret2 != "Secret" {
+		errMsg += "Cannot commit populated testAPISecret2. "
+	}
+	if canManipulateRealOrders {
+		errMsg += "Cannot commit with canManipulateRealOrders enabled."
+	}
+	if len(errMsg) > 0 {
+		t.Error(errMsg)
+	}
 }
 
 func TestGetSymbols(t *testing.T) {
@@ -100,7 +124,7 @@ func TestGetTrades(t *testing.T) {
 }
 
 func TestGetNotionalVolume(t *testing.T) {
-	if apiKey2 != "" && apiSecret2 != "" {
+	if testAPIKey2 != "" && testAPISecret2 != "" {
 		t.Parallel()
 		_, err := Session[2].GetNotionalVolume()
 		if err != nil {
@@ -238,7 +262,7 @@ func setFeeBuilder() exchange.FeeBuilder {
 func TestGetFee(t *testing.T) {
 
 	var feeBuilder = setFeeBuilder()
-	if apiKey1 != "" && apiSecret1 != "" {
+	if testAPIKey1 != "" && testAPISecret1 != "" {
 		// CryptocurrencyTradeFee Basic
 		if resp, err := Session[1].GetFee(feeBuilder); resp != float64(0.01) || err != nil {
 			t.Error(err)

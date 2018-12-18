@@ -14,8 +14,8 @@ var c CoinbasePro
 
 // Please supply your APIKeys here for better testing
 const (
-	apiKey                  = ""
-	apiSecret               = ""
+	testAPIKey              = ""
+	testAPISecret           = ""
 	clientID                = "" //passphrase you made at API CREATION
 	canManipulateRealOrders = false
 )
@@ -32,10 +32,40 @@ func TestSetup(t *testing.T) {
 	if err != nil {
 		t.Error("Test Failed - coinbasepro Setup() init error")
 	}
-	gdxConfig.APIKey = apiKey
-	gdxConfig.APISecret = apiSecret
+	gdxConfig.APIKey = testAPIKey
+	gdxConfig.APISecret = testAPISecret
 	gdxConfig.AuthenticatedAPISupport = true
 	c.Setup(gdxConfig)
+}
+
+// TestAreAPIKeysSet is part of a pre-commit hook to prevent commiting your API keys
+func TestAreAPIKeysSet(t *testing.T) {
+	var errMsg string
+	// Local keys
+	if testAPIKey != "" && testAPIKey != "Key" {
+		errMsg += "Cannot commit populated testAPIKey. "
+	}
+	if testAPISecret != "" && testAPISecret != "Secret" {
+		errMsg += "Cannot commit populated testAPISecret. "
+	}
+	if clientID != "" {
+		errMsg += "Cannot commit populated clientID. "
+	}
+	if canManipulateRealOrders {
+		errMsg += "Cannot commit with canManipulateRealOrders enabled."
+	}
+	//configtest.json keys
+	c.SetDefaults()
+	TestSetup(t)
+	if c.APIKey != "" && c.APIKey != "Key" {
+		errMsg += "API key present in testconfig.json"
+	}
+	if c.APISecret != "" && c.APISecret != "Key" {
+		errMsg += "API secret key present in testconfig.json"
+	}
+	if len(errMsg) > 0 {
+		t.Error(errMsg)
+	}
 }
 
 func TestGetProducts(t *testing.T) {
@@ -240,7 +270,7 @@ func TestGetFee(t *testing.T) {
 
 	var feeBuilder = setFeeBuilder()
 
-	if apiKey != "" || apiSecret != "" {
+	if testAPIKey != "" || testAPISecret != "" {
 		// CryptocurrencyTradeFee Basic
 		if resp, err := c.GetFee(feeBuilder); resp != float64(0.003) || err != nil {
 			t.Error(err)

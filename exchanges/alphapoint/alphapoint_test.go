@@ -35,7 +35,25 @@ func testSetAPIKey(a *Alphapoint) {
 	a.AuthenticatedAPISupport = true
 }
 
-func testIsAPIKeysSet(a *Alphapoint) bool {
+// TestAreAPIKeysSet is part of a pre-commit hook to prevent commiting your API keys
+func TestAreAPIKeysSet(t *testing.T) {
+	var errMsg string
+	// Local keys
+	if testAPIKey != "" && testAPIKey != "Key" {
+		errMsg += "Cannot commit populated testAPIKey. "
+	}
+	if testAPISecret != "" && testAPISecret != "Secret" {
+		errMsg += "Cannot commit populated testAPISecret. "
+	}
+	if canManipulateRealOrders {
+		errMsg += "Cannot commit with canManipulateRealOrders enabled."
+	}
+	if len(errMsg) > 0 {
+		t.Error(errMsg)
+	}
+}
+
+func testCanRunAuthenticatedEndpoint(a *Alphapoint) bool {
 	if testAPIKey != "" && testAPISecret != "" && a.AuthenticatedAPISupport {
 		return true
 	}
@@ -296,7 +314,7 @@ func TestCreateAccount(t *testing.T) {
 	a.SetDefaults()
 	testSetAPIKey(a)
 
-	if !testIsAPIKeysSet(a) {
+	if !testCanRunAuthenticatedEndpoint(a) {
 		return
 	}
 
@@ -319,7 +337,7 @@ func TestGetUserInfo(t *testing.T) {
 	a.SetDefaults()
 	testSetAPIKey(a)
 
-	if !testIsAPIKeysSet(a) {
+	if !testCanRunAuthenticatedEndpoint(a) {
 		return
 	}
 
@@ -334,7 +352,7 @@ func TestSetUserInfo(t *testing.T) {
 	a.SetDefaults()
 	testSetAPIKey(a)
 
-	if !testIsAPIKeysSet(a) {
+	if !testCanRunAuthenticatedEndpoint(a) {
 		return
 	}
 
@@ -349,7 +367,7 @@ func TestGetAccountInfo(t *testing.T) {
 	a.SetDefaults()
 	testSetAPIKey(a)
 
-	if !testIsAPIKeysSet(a) {
+	if !testCanRunAuthenticatedEndpoint(a) {
 		return
 	}
 
@@ -364,7 +382,7 @@ func TestGetAccountTrades(t *testing.T) {
 	a.SetDefaults()
 	testSetAPIKey(a)
 
-	if !testIsAPIKeysSet(a) {
+	if !testCanRunAuthenticatedEndpoint(a) {
 		return
 	}
 
@@ -379,7 +397,7 @@ func TestGetDepositAddresses(t *testing.T) {
 	a.SetDefaults()
 	testSetAPIKey(a)
 
-	if !testIsAPIKeysSet(a) {
+	if !testCanRunAuthenticatedEndpoint(a) {
 		return
 	}
 
@@ -394,7 +412,7 @@ func TestWithdrawCoins(t *testing.T) {
 	a.SetDefaults()
 	testSetAPIKey(a)
 
-	if !testIsAPIKeysSet(a) {
+	if !testCanRunAuthenticatedEndpoint(a) {
 		return
 	}
 
@@ -409,7 +427,7 @@ func TestCreateOrder(t *testing.T) {
 	a.SetDefaults()
 	testSetAPIKey(a)
 
-	if !testIsAPIKeysSet(a) {
+	if !testCanRunAuthenticatedEndpoint(a) {
 		return
 	}
 
@@ -424,7 +442,7 @@ func TestModifyExistingOrder(t *testing.T) {
 	a.SetDefaults()
 	testSetAPIKey(a)
 
-	if !testIsAPIKeysSet(a) {
+	if !testCanRunAuthenticatedEndpoint(a) {
 		return
 	}
 
@@ -439,7 +457,7 @@ func TestCancelAllExistingOrders(t *testing.T) {
 	a.SetDefaults()
 	testSetAPIKey(a)
 
-	if !testIsAPIKeysSet(a) {
+	if !testCanRunAuthenticatedEndpoint(a) {
 		return
 	}
 
@@ -454,7 +472,7 @@ func TestGetOrders(t *testing.T) {
 	a.SetDefaults()
 	testSetAPIKey(a)
 
-	if !testIsAPIKeysSet(a) {
+	if !testCanRunAuthenticatedEndpoint(a) {
 		return
 	}
 
@@ -469,7 +487,7 @@ func TestGetOrderFee(t *testing.T) {
 	a.SetDefaults()
 	testSetAPIKey(a)
 
-	if !testIsAPIKeysSet(a) {
+	if !testCanRunAuthenticatedEndpoint(a) {
 		return
 	}
 

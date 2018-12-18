@@ -14,8 +14,8 @@ var b BTCMarkets
 
 // Please supply your own keys here to do better tests
 const (
-	apiKey                  = ""
-	apiSecret               = ""
+	testAPIKey              = ""
+	testAPISecret           = ""
 	canManipulateRealOrders = false
 )
 
@@ -31,13 +31,40 @@ func TestSetup(t *testing.T) {
 		t.Error("Test Failed - BTC Markets Setup() init error")
 	}
 
-	if apiKey != "" && apiSecret != "" {
-		bConfig.APIKey = apiKey
-		bConfig.APISecret = apiSecret
+	if testAPIKey != "" && testAPISecret != "" {
+		bConfig.APIKey = testAPIKey
+		bConfig.APISecret = testAPISecret
 		bConfig.AuthenticatedAPISupport = true
 	}
 
 	b.Setup(bConfig)
+}
+
+// TestAreAPIKeysSet is part of a pre-commit hook to prevent commiting your API keys
+func TestAreAPIKeysSet(t *testing.T) {
+	var errMsg string
+	// Local keys
+	if testAPIKey != "" && testAPIKey != "Key" {
+		errMsg += "Cannot commit populated testAPIKey. "
+	}
+	if testAPISecret != "" && testAPISecret != "Secret" {
+		errMsg += "Cannot commit populated testAPISecret. "
+	}
+	if canManipulateRealOrders {
+		errMsg += "Cannot commit with canManipulateRealOrders enabled."
+	}
+	//configtest.json keys
+	b.SetDefaults()
+	TestSetup(t)
+	if b.APIKey != "" && b.APIKey != "Key" {
+		errMsg += "API key present in testconfig.json"
+	}
+	if b.APISecret != "" && b.APISecret != "Key" {
+		errMsg += "API secret key present in testconfig.json"
+	}
+	if len(errMsg) > 0 {
+		t.Error(errMsg)
+	}
 }
 
 func TestGetMarkets(t *testing.T) {
@@ -45,22 +72,6 @@ func TestGetMarkets(t *testing.T) {
 	_, err := b.GetMarkets()
 	if err != nil {
 		t.Error("Test failed - GetMarkets() error", err)
-	}
-}
-
-func TestAreAPIKeysSet(t *testing.T) {
-	var errMsg string
-	if apiKey != "" && apiKey != "Key" {
-		errMsg += "Cannot commit populated testAPIKey. "
-	}
-	if apiSecret != "" && apiSecret != "Secret" {
-		errMsg += "Cannot commit populated testAPISecret. "
-	}
-	if canManipulateRealOrders {
-		errMsg += "Cannot commit with canManipulateRealOrders enabled."
-	}
-	if len(errMsg) > 0 {
-		t.Error(errMsg)
 	}
 }
 
@@ -224,7 +235,7 @@ func TestGetFee(t *testing.T) {
 
 	var feeBuilder = setFeeBuilder()
 
-	if apiKey != "" || apiSecret != "" {
+	if testAPIKey != "" || testAPISecret != "" {
 		// CryptocurrencyTradeFee Fiat
 		feeBuilder = setFeeBuilder()
 		feeBuilder.SecondCurrency = symbol.USD

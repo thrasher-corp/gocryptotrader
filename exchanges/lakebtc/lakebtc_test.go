@@ -13,8 +13,8 @@ var l LakeBTC
 
 // Please add your own APIkeys to do correct due diligence testing.
 const (
-	apiKey                  = ""
-	apiSecret               = ""
+	testAPIKey              = ""
+	testAPISecret           = ""
 	canManipulateRealOrders = false
 )
 
@@ -31,10 +31,37 @@ func TestSetup(t *testing.T) {
 	}
 
 	lakebtcConfig.AuthenticatedAPISupport = true
-	lakebtcConfig.APIKey = apiKey
-	lakebtcConfig.APISecret = apiSecret
+	lakebtcConfig.APIKey = testAPIKey
+	lakebtcConfig.APISecret = testAPISecret
 
 	l.Setup(lakebtcConfig)
+}
+
+// TestAreAPIKeysSet is part of a pre-commit hook to prevent commiting your API keys
+func TestAreAPIKeysSet(t *testing.T) {
+	var errMsg string
+	// Local keys
+	if testAPIKey != "" && testAPIKey != "Key" {
+		errMsg += "Cannot commit populated testAPIKey. "
+	}
+	if testAPISecret != "" && testAPISecret != "Secret" {
+		errMsg += "Cannot commit populated testAPISecret. "
+	}
+	if canManipulateRealOrders {
+		errMsg += "Cannot commit with canManipulateRealOrders enabled."
+	}
+	//configtest.json keys
+	l.SetDefaults()
+	TestSetup(t)
+	if l.APIKey != "" && l.APIKey != "Key" {
+		errMsg += "API key present in testconfig.json"
+	}
+	if l.APISecret != "" && l.APISecret != "Key" {
+		errMsg += "API secret key present in testconfig.json"
+	}
+	if len(errMsg) > 0 {
+		t.Error(errMsg)
+	}
 }
 
 func TestGetTradablePairs(t *testing.T) {
