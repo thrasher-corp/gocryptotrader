@@ -230,7 +230,7 @@ func (o *OKEX) SubmitOrder(p pair.CurrencyPair, side exchange.OrderSide, orderTy
 // market conversion
 func (o *OKEX) ModifyOrder(action exchange.ModifyOrder) exchange.ModifyOrderResponse {
 	return exchange.ModifyOrderResponse{
-		Error: common.ErrNotYetImplemented,
+		Error: common.ErrFunctionNotSupported,
 	}
 }
 
