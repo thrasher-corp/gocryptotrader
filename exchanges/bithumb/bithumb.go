@@ -2,6 +2,7 @@ package bithumb
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
@@ -428,6 +429,29 @@ func (b *Bithumb) PlaceTrade(orderCurrency, transactionType string, units float6
 	return response, nil
 }
 
+// ModifyTrade modifies an order already on the exchange books
+func (b *Bithumb) ModifyTrade(orderID, orderCurrency, transactionType string, units float64, price int64) (OrderPlace, error) {
+	response := OrderPlace{}
+
+	params := url.Values{}
+	params.Set("order_currency", common.StringToUpper(orderCurrency))
+	params.Set("Payment_currency", "KRW")
+	params.Set("type", common.StringToUpper(transactionType))
+	params.Set("units", strconv.FormatFloat(units, 'f', -1, 64))
+	params.Set("price", strconv.FormatInt(price, 10))
+	params.Set("order_id", orderID)
+
+	err := b.SendAuthenticatedHTTPRequest(privatePlaceTrade, params, &response)
+	if err != nil {
+		return response, err
+	}
+
+	if response.Status != noError {
+		return response, errors.New(response.Message)
+	}
+	return response, nil
+}
+
 // GetOrderDetails returns specific order details
 //
 // orderID: Order number registered for purchase/sales
@@ -615,7 +639,9 @@ func (b *Bithumb) SendAuthenticatedHTTPRequest(path string, params url.Values, r
 	params.Set("endpoint", path)
 	payload := params.Encode()
 	hmacPayload := path + string(0) + payload + string(0) + b.Nonce.String()
-	hmac := common.GetHMAC(common.HashSHA512, []byte(hmacPayload), []byte(b.APISecret))
+	hmac := common.GetHMAC(common.HashSHA512,
+		[]byte(hmacPayload),
+		[]byte(b.APISecret))
 	hmacStr := common.HexEncodeToString(hmac)
 
 	headers := make(map[string]string)
@@ -624,7 +650,34 @@ func (b *Bithumb) SendAuthenticatedHTTPRequest(path string, params url.Values, r
 	headers["Api-Nonce"] = b.Nonce.String()
 	headers["Content-Type"] = "application/x-www-form-urlencoded"
 
-	return b.SendPayload("POST", b.APIUrl+path, headers, bytes.NewBufferString(payload), result, true, b.Verbose)
+	var intermediary json.RawMessage
+
+	errCapture := struct {
+		Status  string `json:"status"`
+		Message string `json:"message"`
+	}{}
+
+	err := b.SendPayload("POST",
+		b.APIUrl+path,
+		headers,
+		bytes.NewBufferString(payload),
+		&intermediary,
+		true,
+		b.Verbose)
+	if err != nil {
+		return err
+	}
+
+	err = common.JSONDecode(intermediary, &errCapture)
+	if err == nil {
+		if errCapture.Status != "" && errCapture.Status != "0000" {
+			return fmt.Errorf("SendAuthenticatedHTTPRequest error Code:%s Message:%s",
+				errCapture.Status,
+				errCode[errCapture.Status])
+		}
+	}
+
+	return common.JSONDecode(intermediary, result)
 }
 
 // GetFee returns an estimate of fee based on type of transaction
@@ -691,4 +744,15 @@ func getDepositFee(currency string, amount float64) float64 {
 // getWithdrawalFee returns fee on a currency when withdrawing out of bithumb
 func getWithdrawalFee(currency string) float64 {
 	return WithdrawalFees[currency]
+}
+
+var errCode = map[string]string{
+	"5100": "Bad Request",
+	"5200": "Not Member",
+	"5300": "Invalid Apikey",
+	"5302": "Method Not Allowed",
+	"5400": "Database Fail",
+	"5500": "Invalid Parameter",
+	"5600": "CUSTOM NOTICE (상황별 에러 메시지 출력) usually means transaction not allowed",
+	"5900": "Unknown Error",
 }

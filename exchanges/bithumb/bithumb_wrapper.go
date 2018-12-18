@@ -190,8 +190,21 @@ func (b *Bithumb) SubmitOrder(p pair.CurrencyPair, side exchange.OrderSide, orde
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
 func (b *Bithumb) ModifyOrder(action exchange.ModifyOrder) exchange.ModifyOrderResponse {
+	order, err := b.ModifyTrade(action.OrderID,
+		action.Currency.FirstCurrency.String(),
+		common.StringToLower(action.OrderSide.ToString()),
+		action.Amount,
+		int64(action.Price))
+
+	if err != nil {
+		return exchange.ModifyOrderResponse{
+			Error: err,
+		}
+	}
+
 	return exchange.ModifyOrderResponse{
-		Error: common.ErrNotYetImplemented,
+		OrderID: order.Data[0].ContID,
+		Error:   nil,
 	}
 }
 
