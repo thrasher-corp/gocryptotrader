@@ -188,7 +188,7 @@ func (b *Bitstamp) SubmitOrder(p pair.CurrencyPair, side exchange.OrderSide, ord
 // market conversion
 func (b *Bitstamp) ModifyOrder(action exchange.ModifyOrder) exchange.ModifyOrderResponse {
 	return exchange.ModifyOrderResponse{
-		Error: common.ErrNotYetImplemented,
+		Error: common.ErrFunctionNotSupported,
 	}
 }
 
