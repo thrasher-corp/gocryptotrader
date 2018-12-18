@@ -174,7 +174,7 @@ func (b *BTCMarkets) SubmitOrder(p pair.CurrencyPair, side exchange.OrderSide, o
 // market conversion
 func (b *BTCMarkets) ModifyOrder(action exchange.ModifyOrder) exchange.ModifyOrderResponse {
 	return exchange.ModifyOrderResponse{
-		Error: common.ErrNotYetImplemented,
+		Error: common.ErrFunctionNotSupported,
 	}
 }
 
