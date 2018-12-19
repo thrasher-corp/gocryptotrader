@@ -163,7 +163,7 @@ func (b *Bitflyer) SubmitOrder(p pair.CurrencyPair, side exchange.OrderSide, ord
 // market conversion
 func (b *Bitflyer) ModifyOrder(action exchange.ModifyOrder) exchange.ModifyOrderResponse {
 	return exchange.ModifyOrderResponse{
-		Error: common.ErrNotYetImplemented,
+		Error: common.ErrFunctionNotSupported,
 	}
 }
 
