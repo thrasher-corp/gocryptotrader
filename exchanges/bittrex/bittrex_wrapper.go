@@ -198,10 +198,8 @@ func (b *Bittrex) SubmitOrder(p pair.CurrencyPair, side exchange.OrderSide, orde
 
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
-func (b *Bittrex) ModifyOrder(action exchange.ModifyOrder) exchange.ModifyOrderResponse {
-	return exchange.ModifyOrderResponse{
-		Error: common.ErrFunctionNotSupported,
-	}
+func (b *Bittrex) ModifyOrder(action exchange.ModifyOrder) (string, error) {
+	return "", common.ErrFunctionNotSupported
 }
 
 // CancelOrder cancels an order by its corresponding ID number

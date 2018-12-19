@@ -154,9 +154,9 @@ func TestGetFundingHistory(t *testing.T) {
 }
 
 func TestModifyOrder(t *testing.T) {
-	resp := b.ModifyOrder(exchange.ModifyOrder{})
-	if resp.Error == nil {
-		t.Error("Test failed - ModifyOrder() error", resp.Error)
+	_, err := b.ModifyOrder(exchange.ModifyOrder{})
+	if err == nil {
+		t.Error("Test failed - ModifyOrder() error")
 	}
 }
 

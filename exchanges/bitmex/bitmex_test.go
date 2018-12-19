@@ -568,8 +568,8 @@ func TestGetAccountInfo(t *testing.T) {
 }
 
 func TestModifyOrder(t *testing.T) {
-	res := b.ModifyOrder(exchange.ModifyOrder{OrderID: "1337"})
-	if res.Error == nil {
+	_, err := b.ModifyOrder(exchange.ModifyOrder{OrderID: "1337"})
+	if err == nil {
 		t.Error("Test Failed - ModifyOrder() error")
 	}
 }

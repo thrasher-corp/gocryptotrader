@@ -125,11 +125,9 @@ func (a *Alphapoint) SubmitOrder(p pair.CurrencyPair, side exchange.OrderSide, o
 
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
-func (a *Alphapoint) ModifyOrder(action exchange.ModifyOrder) exchange.ModifyOrderResponse {
+func (a *Alphapoint) ModifyOrder(action exchange.ModifyOrder) (string, error) {
 	// return a.ModifyExistingOrder(p.Pair().String(), orderID, action)
-	return exchange.ModifyOrderResponse{
-		Error: common.ErrNotYetImplemented,
-	}
+	return "", common.ErrNotYetImplemented
 }
 
 // CancelOrder cancels an order by its corresponding ID number

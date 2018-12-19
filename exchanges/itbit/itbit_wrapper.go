@@ -201,10 +201,8 @@ func (i *ItBit) SubmitOrder(p pair.CurrencyPair, side exchange.OrderSide, orderT
 
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
-func (i *ItBit) ModifyOrder(action exchange.ModifyOrder) exchange.ModifyOrderResponse {
-	return exchange.ModifyOrderResponse{
-		Error: common.ErrFunctionNotSupported,
-	}
+func (i *ItBit) ModifyOrder(action exchange.ModifyOrder) (string, error) {
+	return "", common.ErrFunctionNotSupported
 }
 
 // CancelOrder cancels an order by its corresponding ID number

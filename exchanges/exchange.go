@@ -262,7 +262,7 @@ type IBotExchange interface {
 
 	GetFundingHistory() ([]FundHistory, error)
 	SubmitOrder(p pair.CurrencyPair, side OrderSide, orderType OrderType, amount, price float64, clientID string) (SubmitOrderResponse, error)
-	ModifyOrder(action ModifyOrder) ModifyOrderResponse
+	ModifyOrder(action ModifyOrder) (string, error)
 	CancelOrder(order OrderCancellation) error
 	CancelAllOrders(orders OrderCancellation) (CancelAllOrdersResponse, error)
 	GetOrderInfo(orderID int64) (OrderDetail, error)
@@ -746,7 +746,6 @@ type ModifyOrder struct {
 // ModifyOrderResponse is an order modifying return type
 type ModifyOrderResponse struct {
 	OrderID string
-	Error   error
 }
 
 // Format holds exchange formatting

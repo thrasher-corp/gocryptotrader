@@ -161,10 +161,8 @@ func (b *Bitflyer) SubmitOrder(p pair.CurrencyPair, side exchange.OrderSide, ord
 
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
-func (b *Bitflyer) ModifyOrder(action exchange.ModifyOrder) exchange.ModifyOrderResponse {
-	return exchange.ModifyOrderResponse{
-		Error: common.ErrFunctionNotSupported,
-	}
+func (b *Bitflyer) ModifyOrder(action exchange.ModifyOrder) (string, error) {
+	return "", common.ErrFunctionNotSupported
 }
 
 // CancelOrder cancels an order by its corresponding ID number

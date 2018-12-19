@@ -194,10 +194,8 @@ func (z *ZB) SubmitOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType
 
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
-func (z *ZB) ModifyOrder(action exchange.ModifyOrder) exchange.ModifyOrderResponse {
-	return exchange.ModifyOrderResponse{
-		Error: common.ErrFunctionNotSupported,
-	}
+func (z *ZB) ModifyOrder(action exchange.ModifyOrder) (string, error) {
+	return "", common.ErrFunctionNotSupported
 }
 
 // CancelOrder cancels an order by its corresponding ID number
