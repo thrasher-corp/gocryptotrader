@@ -259,7 +259,7 @@ func (a *ANX) SubmitOrder(p pair.CurrencyPair, side exchange.OrderSide, orderTyp
 // market conversion
 func (a *ANX) ModifyOrder(action exchange.ModifyOrder) exchange.ModifyOrderResponse {
 	return exchange.ModifyOrderResponse{
-		Error: common.ErrNotYetImplemented,
+		Error: common.ErrFunctionNotSupported,
 	}
 }
 
