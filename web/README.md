@@ -1,9 +1,7 @@
-
-## The Angular version of the front-end is being replaced by a React implemtnation on this branch: https://github.com/thrasher-/gocryptotrader/tree/react-web/web
-
 # GoCryptoTrader package Web
 
 <img src="https://github.com/thrasher-/gocryptotrader/blob/master/web/src/assets/page-logo.png?raw=true" width="350px" height="350px" hspace="70">
+
 
 [![Build Status](https://travis-ci.org/thrasher-/gocryptotrader.svg?branch=master)](https://travis-ci.org/thrasher-/gocryptotrader)
 [![Software License](https://img.shields.io/badge/License-MIT-orange.svg?style=flat-square)](https://github.com/thrasher-/gocryptotrader/blob/master/LICENSE)
@@ -12,12 +10,17 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/thrasher-/gocryptotrader)](https://goreportcard.com/report/github.com/thrasher-/gocryptotrader)
 
 
-There will be no further development on the Angular front end and all development should be directed to the new branch until it is merged. 
+This web package is part of the GoCryptoTrader codebase.
+
+## This is still in active development
 
 You can track ideas, planned features and what's in progresss on this Trello board: [https://trello.com/b/ZAhMhpOy/gocryptotrader](https://trello.com/b/ZAhMhpOy/gocryptotrader).
 
 Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader Slack](https://gocryptotrader.herokuapp.com/)
 
+
+# The Angular version of the front-end is being replaced by a React implementation on this branch: https://github.com/thrasher-/gocryptotrader/tree/react-web/web
+### There will be no further development on the Angular front end and all development should be directed to the new branch until it is merged.
 
 ## Install dependencies with npm
 
@@ -41,7 +44,6 @@ npm run start:web
 Currently runs with:
 
 - Angular v7
-
 
 ## To build for production
 
