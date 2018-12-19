@@ -93,12 +93,12 @@ platform.
 ### Linux/OSX
 
 GoCryptoTrader is built using [Go Modules](https://github.com/golang/go/wiki/Modules) and requires Go 1.11 or above
-Using Go Modules you now clone this repository **outside** your GOPATH 
+Using Go Modules you now clone this repository **outside** your GOPATH
 
 ```bash
 git clone https://github.com/thrasher-/gocryptotrader.git
 cd gocryptotrader
-go build 
+go build
 mkdir ~/.gocryptotrader
 cp config_example.json ~/.gocryptotrader/config.json
 ```
@@ -133,21 +133,24 @@ Binaries will be published once the codebase reaches a stable condition.
 
 |User|Github|Contribution Amount|
 |--|--|--|
-| thrasher- | https://github.com/thrasher- | 482 |
-| shazbert | https://github.com/shazbert | 151 |
-| gloriousCode | https://github.com/gloriousCode | 132 |
+| thrasher- | https://github.com/thrasher- | 489 |
+| shazbert | https://github.com/shazbert | 156 |
+| gloriousCode | https://github.com/gloriousCode | 139 |
 | ermalguni | https://github.com/ermalguni | 14 |
 | 140am | https://github.com/140am | 8 |
 | marcofranssen | https://github.com/marcofranssen | 8 |
 | cranktakular | https://github.com/cranktakular | 5 |
 | crackcomm | https://github.com/crackcomm | 3 |
+| andreygrehov | https://github.com/andreygrehov | 2 |
 | bretep | https://github.com/bretep | 2 |
 | gam-phon | https://github.com/gam-phon | 2 |
 | cornelk | https://github.com/cornelk | 2 |
 | if1live | https://github.com/if1live | 2 |
 | soxipy | https://github.com/soxipy | 2 |
 | herenow | https://github.com/herenow | 2 |
-| andreygrehov | https://github.com/andreygrehov | 1 |
+| xtda | https://github.com/xtda | 1 |
+| blombard | https://github.com/blombard | 1 |
+| CodeLingoBot | https://github.com/CodeLingoBot | 1 |
 | daniel-cohen | https://github.com/daniel-cohen | 1 |
 | frankzougc | https://github.com/frankzougc | 1 |
 | starit | https://github.com/starit | 1 |
@@ -160,9 +163,6 @@ Binaries will be published once the codebase reaches a stable condition.
 | cavapoo2 | https://github.com/cavapoo2 | 1 |
 | tongxiaofeng | https://github.com/tongxiaofeng | 1 |
 | idealhack | https://github.com/idealhack | 1 |
-| vyloy | https://github.com/vyloy | 1 |
-| askew- | https://github.com/askew- | 1 |
-| whilei | https://github.com/whilei | 1 |
 
 
 
