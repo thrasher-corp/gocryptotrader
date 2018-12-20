@@ -126,7 +126,6 @@ func (a *Alphapoint) SubmitOrder(p pair.CurrencyPair, side exchange.OrderSide, o
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
 func (a *Alphapoint) ModifyOrder(action exchange.ModifyOrder) (string, error) {
-	// return a.ModifyExistingOrder(p.Pair().String(), orderID, action)
 	return "", common.ErrNotYetImplemented
 }
 
