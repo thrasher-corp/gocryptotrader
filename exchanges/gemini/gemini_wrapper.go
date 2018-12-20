@@ -146,8 +146,8 @@ func (g *Gemini) SubmitOrder(p pair.CurrencyPair, side exchange.OrderSide, order
 
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
-func (g *Gemini) ModifyOrder(orderID int64, action exchange.ModifyOrder) (int64, error) {
-	return 0, common.ErrNotYetImplemented
+func (g *Gemini) ModifyOrder(action exchange.ModifyOrder) (string, error) {
+	return "", common.ErrFunctionNotSupported
 }
 
 // CancelOrder cancels an order by its corresponding ID number

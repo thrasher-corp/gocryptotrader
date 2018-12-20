@@ -258,6 +258,10 @@ func (r *Requester) checkRequest(method, path string, body io.Reader, headers ma
 func (r *Requester) DoRequest(req *http.Request, method, path string, headers map[string]string, body io.Reader, result interface{}, authRequest, verbose bool) error {
 	if verbose {
 		log.Printf("%s exchange request path: %s requires rate limiter: %v", r.Name, path, r.RequiresRateLimiter())
+		for k, d := range headers {
+			log.Printf("%s exchange request header [%s]: %s", r.Name, k, d)
+		}
+		log.Println(body)
 	}
 
 	var timeoutError error

@@ -6,7 +6,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
 	"github.com/thrasher-/gocryptotrader/currency/symbol"
-	exchange "github.com/thrasher-/gocryptotrader/exchanges"
+	"github.com/thrasher-/gocryptotrader/exchanges"
 )
 
 var p Poloniex
@@ -278,5 +278,12 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 
 	if len(resp.OrderStatus) > 0 {
 		t.Errorf("%v orders failed to cancel", len(resp.OrderStatus))
+	}
+}
+
+func TestModifyOrder(t *testing.T) {
+	_, err := p.ModifyOrder(exchange.ModifyOrder{OrderID: "1337", Price: 1337})
+	if err == nil {
+		t.Error("Test Failed - ModifyOrder() error")
 	}
 }

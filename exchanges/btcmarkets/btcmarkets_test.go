@@ -153,13 +153,6 @@ func TestGetFundingHistory(t *testing.T) {
 	}
 }
 
-func TestModifyOrder(t *testing.T) {
-	_, err := b.ModifyOrder(1337, exchange.ModifyOrder{})
-	if err == nil {
-		t.Error("Test failed - ModifyOrder() error", err)
-	}
-}
-
 func TestCancelOrder(t *testing.T) {
 
 	_, err := b.CancelExistingOrder([]int64{1337})
@@ -382,5 +375,12 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 
 	if len(resp.OrderStatus) > 0 {
 		t.Errorf("%v orders failed to cancel", len(resp.OrderStatus))
+	}
+}
+
+func TestModifyOrder(t *testing.T) {
+	_, err := b.ModifyOrder(exchange.ModifyOrder{})
+	if err == nil {
+		t.Error("Test failed - ModifyOrder() error")
 	}
 }

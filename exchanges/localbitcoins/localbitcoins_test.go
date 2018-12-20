@@ -285,3 +285,10 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 		t.Errorf("%v orders failed to cancel", len(resp.OrderStatus))
 	}
 }
+
+func TestModifyOrder(t *testing.T) {
+	_, err := l.ModifyOrder(exchange.ModifyOrder{})
+	if err == nil {
+		t.Error("Test failed - ModifyOrder() error")
+	}
+}

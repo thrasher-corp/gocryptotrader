@@ -176,8 +176,8 @@ func (w *WEX) SubmitOrder(p pair.CurrencyPair, side exchange.OrderSide, orderTyp
 
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
-func (w *WEX) ModifyOrder(orderID int64, action exchange.ModifyOrder) (int64, error) {
-	return 0, common.ErrNotYetImplemented
+func (w *WEX) ModifyOrder(action exchange.ModifyOrder) (string, error) {
+	return "", common.ErrNotYetImplemented
 }
 
 // CancelOrder cancels an order by its corresponding ID number

@@ -6,7 +6,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
 	"github.com/thrasher-/gocryptotrader/currency/symbol"
-	exchange "github.com/thrasher-/gocryptotrader/exchanges"
+	"github.com/thrasher-/gocryptotrader/exchanges"
 )
 
 // Please supply your own keys here for due diligence testing
@@ -387,5 +387,17 @@ func TestGetAccountInfo(t *testing.T) {
 		if err == nil {
 			t.Error("test failed - Bithumb GetAccountInfo() error")
 		}
+	}
+}
+
+func TestModifyOrder(t *testing.T) {
+	curr := pair.NewCurrencyPairFromString("BTCUSD")
+	_, err := b.ModifyOrder(exchange.ModifyOrder{OrderID: "1337",
+		Price:     100,
+		Amount:    1000,
+		OrderSide: exchange.Sell,
+		Currency:  curr})
+	if err == nil {
+		t.Error("Test Failed - ModifyOrder() error")
 	}
 }

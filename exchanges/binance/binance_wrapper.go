@@ -26,9 +26,15 @@ func (b *Binance) Start(wg *sync.WaitGroup) {
 // Run implements the OKEX wrapper
 func (b *Binance) Run() {
 	if b.Verbose {
-		log.Printf("%s Websocket: %s. (url: %s).\n", b.GetName(), common.IsEnabled(b.Websocket.IsEnabled()), b.Websocket.GetWebsocketURL())
-		log.Printf("%s polling delay: %ds.\n", b.GetName(), b.RESTPollingDelay)
-		log.Printf("%s %d currencies enabled: %s.\n", b.GetName(), len(b.EnabledPairs), b.EnabledPairs)
+		log.Printf("%s Websocket: %s. (url: %s).\n%s polling delay: %ds.\n%s %d currencies enabled: %s.\n",
+			b.GetName(),
+			common.IsEnabled(b.Websocket.IsEnabled()),
+			b.Websocket.GetWebsocketURL(),
+			b.GetName(),
+			b.RESTPollingDelay,
+			b.GetName(),
+			len(b.EnabledPairs),
+			b.EnabledPairs)
 	}
 
 	symbols, err := b.GetExchangeValidCurrencyPairs()
@@ -60,7 +66,6 @@ func (b *Binance) Run() {
 // UpdateTicker updates and returns the ticker for a currency pair
 func (b *Binance) UpdateTicker(p pair.CurrencyPair, assetType string) (ticker.Price, error) {
 	var tickerPrice ticker.Price
-
 	tick, err := b.GetTickers()
 	if err != nil {
 		return tickerPrice, err
@@ -154,7 +159,6 @@ func (b *Binance) GetAccountInfo() (exchange.AccountInfo, error) {
 
 	info.ExchangeName = b.GetName()
 	info.Currencies = currencyBalance
-
 	return info, nil
 }
 
@@ -168,7 +172,6 @@ func (b *Binance) GetFundingHistory() ([]exchange.FundHistory, error) {
 // GetExchangeHistory returns historic trade data since exchange opening.
 func (b *Binance) GetExchangeHistory(p pair.CurrencyPair, assetType string) ([]exchange.TradeHistory, error) {
 	var resp []exchange.TradeHistory
-
 	return resp, common.ErrNotYetImplemented
 }
 
@@ -216,19 +219,20 @@ func (b *Binance) SubmitOrder(p pair.CurrencyPair, side exchange.OrderSide, orde
 
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
-func (b *Binance) ModifyOrder(orderID int64, action exchange.ModifyOrder) (int64, error) {
-	return 0, common.ErrNotYetImplemented
+func (b *Binance) ModifyOrder(action exchange.ModifyOrder) (string, error) {
+	return "", common.ErrFunctionNotSupported
 }
 
 // CancelOrder cancels an order by its corresponding ID number
 func (b *Binance) CancelOrder(order exchange.OrderCancellation) error {
 	orderIDInt, err := strconv.ParseInt(order.OrderID, 10, 64)
-
 	if err != nil {
 		return err
 	}
 
-	_, err = b.CancelExistingOrder(exchange.FormatExchangeCurrency(b.Name, order.CurrencyPair).String(), orderIDInt, order.AccountID)
+	_, err = b.CancelExistingOrder(exchange.FormatExchangeCurrency(b.Name, order.CurrencyPair).String(),
+		orderIDInt,
+		order.AccountID)
 
 	return err
 }

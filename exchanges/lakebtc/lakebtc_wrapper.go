@@ -157,8 +157,8 @@ func (l *LakeBTC) SubmitOrder(p pair.CurrencyPair, side exchange.OrderSide, orde
 
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
-func (l *LakeBTC) ModifyOrder(orderID int64, action exchange.ModifyOrder) (int64, error) {
-	return 0, common.ErrNotYetImplemented
+func (l *LakeBTC) ModifyOrder(action exchange.ModifyOrder) (string, error) {
+	return "", common.ErrFunctionNotSupported
 }
 
 // CancelOrder cancels an order by its corresponding ID number

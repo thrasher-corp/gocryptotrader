@@ -340,3 +340,10 @@ func TestGetAccountInfo(t *testing.T) {
 		}
 	}
 }
+
+func TestModifyOrder(t *testing.T) {
+	_, err := i.ModifyOrder(exchange.ModifyOrder{})
+	if err == nil {
+		t.Error("Test failed - ModifyOrder() error")
+	}
+}

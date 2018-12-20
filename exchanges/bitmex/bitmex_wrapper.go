@@ -3,6 +3,7 @@ package bitmex
 import (
 	"errors"
 	"log"
+	"math"
 	"sync"
 	"time"
 
@@ -164,6 +165,12 @@ func (b *Bitmex) GetExchangeHistory(p pair.CurrencyPair, assetType string) ([]ex
 // SubmitOrder submits a new order
 func (b *Bitmex) SubmitOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (exchange.SubmitOrderResponse, error) {
 	var submitOrderResponse exchange.SubmitOrderResponse
+
+	if math.Mod(amount, 1) != 0 {
+		return submitOrderResponse,
+			errors.New("contract amount can not have decimals")
+	}
+
 	var orderNewParams = OrderNewParams{
 		OrdType:  side.ToString(),
 		Symbol:   p.Pair().String(),
@@ -189,8 +196,23 @@ func (b *Bitmex) SubmitOrder(p pair.CurrencyPair, side exchange.OrderSide, order
 
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
-func (b *Bitmex) ModifyOrder(orderID int64, action exchange.ModifyOrder) (int64, error) {
-	return 0, common.ErrNotYetImplemented
+func (b *Bitmex) ModifyOrder(action exchange.ModifyOrder) (string, error) {
+	var params OrderAmendParams
+
+	if math.Mod(action.Amount, 1) != 0 {
+		return "", errors.New("contract amount can not have decimals")
+	}
+
+	params.OrderID = action.OrderID
+	params.OrderQty = int32(action.Amount)
+	params.Price = action.Price
+
+	order, err := b.AmendOrder(params)
+	if err != nil {
+		return "", err
+	}
+
+	return order.OrderID, nil
 }
 
 // CancelOrder cancels an order by its corresponding ID number
