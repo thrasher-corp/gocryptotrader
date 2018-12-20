@@ -577,3 +577,13 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 		t.Errorf("%v orders failed to cancel", len(resp.OrderStatus))
 	}
 }
+
+func TestModifyOrder(t *testing.T) {
+	a := &Alphapoint{}
+	a.SetDefaults()
+
+	_, err := a.ModifyOrder(exchange.ModifyOrder{})
+	if err == nil {
+		t.Error("Test failed - ModifyOrder() error")
+	}
+}

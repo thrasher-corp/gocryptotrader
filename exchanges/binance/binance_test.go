@@ -430,3 +430,10 @@ func TestGetAccountInfo(t *testing.T) {
 		t.Error("test failed - GetAccountInfo() error:", err)
 	}
 }
+
+func TestModifyOrder(t *testing.T) {
+	_, err := b.ModifyOrder(exchange.ModifyOrder{})
+	if err == nil {
+		t.Error("Test failed - ModifyOrder() error")
+	}
+}
