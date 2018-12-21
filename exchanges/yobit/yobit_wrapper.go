@@ -215,7 +215,12 @@ func (y *Yobit) GetOrderInfo(orderID int64) (exchange.OrderDetail, error) {
 
 // GetDepositAddress returns a deposit address for a specified currency
 func (y *Yobit) GetDepositAddress(cryptocurrency pair.CurrencyItem) (string, error) {
-	return "", common.ErrNotYetImplemented
+	a, err := y.GetCryptoDepositAddress(cryptocurrency.String())
+	if err != nil {
+		return "", err
+	}
+
+	return a.Return.Address, nil
 }
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is

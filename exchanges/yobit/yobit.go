@@ -258,8 +258,8 @@ func (y *Yobit) GetCryptoDepositAddress(coin string) (DepositAddress, error) {
 	if err != nil {
 		return result, err
 	}
-	if result.Error != "" {
-		return result, errors.New(result.Error)
+	if result.Success != 1 {
+		return result, fmt.Errorf("%s", result.Error)
 	}
 	return result, nil
 }
