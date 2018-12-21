@@ -401,3 +401,18 @@ func TestWithdrawInternationalBank(t *testing.T) {
 		t.Errorf("Expected '%v', recieved: '%v'", common.ErrFunctionNotSupported, err)
 	}
 }
+
+func TestGetDepositAddress(t *testing.T) {
+	if apiKey != "" || apiSecret != "" {
+		_, err := z.GetDepositAddress(symbol.BTC)
+		if err != nil {
+			t.Error("Test Failed - GetDepositAddress() error PLEASE MAKE SURE YOU CREATE DEPOSIT ADDRESSES VIA ZB.COM",
+				err)
+		}
+	} else {
+		_, err := z.GetDepositAddress(symbol.BTC)
+		if err == nil {
+			t.Error("Test Failed - GetDepositAddress() error")
+		}
+	}
+}

@@ -130,6 +130,18 @@ type KLineResponse struct {
 	Data      []*KLineResponseData `json:"data"`      // KLine数据
 }
 
+// UserAddress defines Users Address for depositing funds
+type UserAddress struct {
+	Code    int64 `json:"code"`
+	Message struct {
+		Description  string `json:"des"`
+		IsSuccessful bool   `json:"isSuc"`
+		Data         struct {
+			Key string `json:"key"`
+		} `json:"datas"`
+	} `json:"message"`
+}
+
 // TimeInterval represents interval enum.
 type TimeInterval string
 

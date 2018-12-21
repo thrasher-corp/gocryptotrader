@@ -244,7 +244,12 @@ func (z *ZB) GetOrderInfo(orderID int64) (exchange.OrderDetail, error) {
 
 // GetDepositAddress returns a deposit address for a specified currency
 func (z *ZB) GetDepositAddress(cryptocurrency pair.CurrencyItem) (string, error) {
-	return "", common.ErrNotYetImplemented
+	address, err := z.GetCryptoAddress(cryptocurrency)
+	if err != nil {
+		return "", err
+	}
+
+	return address.Message.Data.Key, nil
 }
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
