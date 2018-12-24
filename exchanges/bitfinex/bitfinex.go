@@ -588,7 +588,7 @@ func (b *Bitfinex) WalletTransfer(amount float64, currency, walletFrom, walletTo
 func (b *Bitfinex) WithdrawCryptocurrency(withdrawType, wallet, address, currency, paymentID string, amount float64) ([]Withdrawal, error) {
 	response := []Withdrawal{}
 	request := make(map[string]interface{})
-	request["withdrawal_type"] = withdrawType
+	request["withdraw_type"] = withdrawType
 	request["walletselected"] = wallet
 	request["amount"] = strconv.FormatFloat(amount, 'f', -1, 64)
 	request["address"] = address

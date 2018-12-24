@@ -312,7 +312,7 @@ func (a *ANX) GetDepositAddress(cryptocurrency pair.CurrencyItem) (string, error
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
 // submitted
 func (a *ANX) WithdrawCryptocurrencyFunds(withdrawRequest exchange.WithdrawRequest) (string, error) {
-	return a.Send(cryptocurrency.String(), address, "", fmt.Sprintf("%v", amount))
+	return a.Send(withdrawRequest.Currency.String(), withdrawRequest.DestinationWalletAddress, "", fmt.Sprintf("%v", withdrawRequest.Amount))
 }
 
 // WithdrawFiatFunds returns a withdrawal ID when a withdrawal is

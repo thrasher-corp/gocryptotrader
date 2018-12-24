@@ -100,10 +100,15 @@ type OrderCancellation struct {
 
 // WithdrawRequest used for wrapper crypto and FIAT withdraw methods
 type WithdrawRequest struct {
+	Description     string
+	OneTimePassword int64
 	// Crypto related information
-	Currency      pair.CurrencyItem
-	WalletAddress string
-	Amount        float64
+	Currency                 pair.CurrencyItem
+	OriginWalletAddress      string
+	DestinationWalletAddress string
+	AddressTag               string
+	Amount                   float64
+	FeeAmount                float64
 	// FIAT related information
 	BankName     string
 	BankAddress  string

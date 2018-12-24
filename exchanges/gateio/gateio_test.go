@@ -252,7 +252,7 @@ func TestFormatWithdrawPermissions(t *testing.T) {
 
 // Any tests below this line have the ability to impact your orders on the exchange. Enable canManipulateRealOrders to run them
 // ----------------------------------------------------------------------------------------------------------------------------
-func isRealOrderTestEnabled() bool {
+func isAuthenticatedRequest() bool {
 	if g.APIKey == "" || g.APISecret == "" ||
 		g.APIKey == "Key" || g.APISecret == "Secret" ||
 		!canManipulateRealOrders {
@@ -265,7 +265,7 @@ func TestSubmitOrder(t *testing.T) {
 	g.SetDefaults()
 	TestSetup(t)
 
-	if !isRealOrderTestEnabled() {
+	if !isAuthenticatedRequest() {
 		t.Skip()
 	}
 
@@ -285,7 +285,7 @@ func TestCancelExchangeOrder(t *testing.T) {
 	g.SetDefaults()
 	TestSetup(t)
 
-	if !isRealOrderTestEnabled() {
+	if !isAuthenticatedRequest() {
 		t.Skip()
 	}
 
@@ -312,7 +312,7 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 	g.SetDefaults()
 	TestSetup(t)
 
-	if !isRealOrderTestEnabled() {
+	if !isAuthenticatedRequest() {
 		t.Skip()
 	}
 

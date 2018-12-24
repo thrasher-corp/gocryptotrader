@@ -4,6 +4,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
 	"github.com/thrasher-/gocryptotrader/currency/symbol"
@@ -173,21 +174,30 @@ func TestFormatWithdrawPermissions(t *testing.T) {
 
 // Any tests below this line have the ability to impact your orders on the exchange. Enable canManipulateRealOrders to run them
 // ----------------------------------------------------------------------------------------------------------------------------
-func isRealOrderTestEnabled() bool {
-	if b.APIKey == "" || b.APISecret == "" ||
-		b.APIKey == "Key" || b.APISecret == "Secret" ||
-		!canManipulateRealOrders {
-		return false
+func isAuthenticatedRequest() bool {
+	if (b.APIKey != "" && b.APIKey != "Key" &&
+		b.APISecret != "" && b.APISecret != "Secret") &&
+		canManipulateRealOrders {
+		return true
 	}
-	return true
+	return false
+}
+
+func skipRealOrderTest() bool {
+	if (b.APIKey != "" && b.APIKey != "Key" &&
+		b.APISecret != "" && b.APISecret != "Secret") &&
+		!canManipulateRealOrders {
+		return true
+	}
+	return false
 }
 
 func TestSubmitOrder(t *testing.T) {
 	b.SetDefaults()
 	TestSetup(t)
 
-	if !isRealOrderTestEnabled() {
-		t.Skip()
+	if skipRealOrderTest() {
+		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 
 	var p = pair.CurrencyPair{
@@ -195,9 +205,9 @@ func TestSubmitOrder(t *testing.T) {
 		FirstCurrency:  symbol.BTC,
 		SecondCurrency: symbol.LTC,
 	}
-	response, err := b.SubmitOrder(p, exchange.Buy, exchange.Limit, 1, 1, "clientId")
-	if err != nil || !response.IsOrderPlaced {
-		t.Errorf("Order failed to be placed: %v", err)
+	_, err := b.SubmitOrder(p, exchange.Buy, exchange.Limit, 1, 1, "clientId")
+	if err != common.ErrNotYetImplemented {
+		t.Errorf("Expected 'Not Yet Implemented', recieved %v", err)
 	}
 }
 
@@ -206,8 +216,8 @@ func TestCancelExchangeOrder(t *testing.T) {
 	b.SetDefaults()
 	TestSetup(t)
 
-	if !isRealOrderTestEnabled() {
-		t.Skip()
+	if skipRealOrderTest() {
+		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 
 	currencyPair := pair.NewCurrencyPair(symbol.LTC, symbol.BTC)
@@ -223,8 +233,8 @@ func TestCancelExchangeOrder(t *testing.T) {
 	err := b.CancelOrder(orderCancellation)
 
 	// Assert
-	if err != nil {
-		t.Errorf("Could not cancel order: %s", err)
+	if err != common.ErrNotYetImplemented {
+		t.Errorf("Expected 'Not Yet Implemented', recieved %v", err)
 	}
 }
 
@@ -233,8 +243,8 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 	b.SetDefaults()
 	TestSetup(t)
 
-	if !isRealOrderTestEnabled() {
-		t.Skip()
+	if skipRealOrderTest() {
+		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 
 	currencyPair := pair.NewCurrencyPair(symbol.LTC, symbol.BTC)
@@ -247,15 +257,32 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 	}
 
 	// Act
-	resp, err := b.CancelAllOrders(orderCancellation)
+	_, err := b.CancelAllOrders(orderCancellation)
 
 	// Assert
-	if err != nil {
-		t.Errorf("Could not cancel order: %s", err)
+	if err != common.ErrNotYetImplemented {
+		t.Errorf("Expected 'Not Yet Implemented', recieved %v", err)
+	}
+}
+
+func TestWithdraw(t *testing.T) {
+	b.SetDefaults()
+	TestSetup(t)
+	b.Verbose = true
+	var withdrawCryptoRequest = exchange.WithdrawRequest{
+		Amount:                   100,
+		Currency:                 symbol.LTC,
+		DestinationWalletAddress: "1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB",
+		Description:              "WITHDRAW IT ALL",
 	}
 
-	if len(resp.OrderStatus) > 0 {
-		t.Errorf("%v orders failed to cancel", len(resp.OrderStatus))
+	if skipRealOrderTest() {
+		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
+	}
+
+	_, err := b.WithdrawCryptocurrencyFunds(withdrawCryptoRequest)
+	if err != common.ErrNotYetImplemented {
+		t.Errorf("Expected 'Not Yet Implemented', recieved %v", err)
 	}
 }
 

@@ -1,6 +1,7 @@
 package bitfinex
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"net/url"
@@ -234,9 +235,20 @@ func (b *Bitfinex) GetDepositAddress(cryptocurrency pair.CurrencyItem) (string, 
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is submitted
 func (b *Bitfinex) WithdrawCryptocurrencyFunds(withdrawRequest exchange.WithdrawRequest) (string, error) {
-	//withdrawalType := b.ConvertSymbolToWithdrawalType(fmt.Sprintf("%v", withdrawRequest.Currency))
-	//resp, err := b.WithdrawCryptocurrency(withdrawalType)
-	return "", common.ErrNotYetImplemented
+	withdrawalType := b.ConvertSymbolToWithdrawalType(withdrawRequest.Currency.String())
+	// Bitfinex has support for three types, exchange, margin and deposit
+	// As this is for trading, I've made the wrapper default 'exchange'
+	// TODO: Discover an automated way to make the decision for wallet type to withdraw from
+	walletType := "exchange"
+	resp, err := b.WithdrawCryptocurrency(withdrawalType, walletType, withdrawRequest.DestinationWalletAddress, withdrawRequest.Currency.String(), withdrawRequest.Description, withdrawRequest.Amount)
+	if err != nil {
+		return "", err
+	}
+	if len(resp) == 0 {
+		return "", errors.New("No withdrawID returned. Check order status")
+	}
+
+	return fmt.Sprintf("%v", resp[0].WithdrawalID), err
 }
 
 // WithdrawFiatFunds returns a withdrawal ID when a

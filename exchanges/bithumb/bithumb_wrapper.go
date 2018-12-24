@@ -251,7 +251,8 @@ func (b *Bithumb) GetDepositAddress(cryptocurrency pair.CurrencyItem) (string, e
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
 // submitted
 func (b *Bithumb) WithdrawCryptocurrencyFunds(withdrawRequest exchange.WithdrawRequest) (string, error) {
-	return "", common.ErrNotYetImplemented
+	_, err := b.WithdrawCrypto(withdrawRequest.OriginWalletAddress, withdrawRequest.DestinationWalletAddress, withdrawRequest.Currency.String(), withdrawRequest.Amount)
+	return "", err
 }
 
 // WithdrawFiatFunds returns a withdrawal ID when a

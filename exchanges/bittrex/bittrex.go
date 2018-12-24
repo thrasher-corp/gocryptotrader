@@ -390,7 +390,7 @@ func (b *Bittrex) Withdraw(currency, paymentID, address string, quantity float64
 	var id UUID
 	values := url.Values{}
 	values.Set("currency", currency)
-	values.Set("quantity", strconv.FormatFloat(quantity, 'E', -1, 64))
+	values.Set("quantity", fmt.Sprintf("%v", quantity))
 	values.Set("address", address)
 	path := fmt.Sprintf("%s/%s", b.APIUrl, bittrexAPIWithdraw)
 

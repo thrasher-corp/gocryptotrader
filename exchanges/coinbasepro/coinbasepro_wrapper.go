@@ -200,7 +200,8 @@ func (c *CoinbasePro) GetDepositAddress(cryptocurrency pair.CurrencyItem) (strin
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
 // submitted
 func (c *CoinbasePro) WithdrawCryptocurrencyFunds(withdrawRequest exchange.WithdrawRequest) (string, error) {
-	return "", common.ErrNotYetImplemented
+	resp, err := c.WithdrawCrypto(withdrawRequest.Amount, withdrawRequest.Currency.String(), withdrawRequest.DestinationWalletAddress)
+	return resp.ID, err
 }
 
 // WithdrawFiatFunds returns a withdrawal ID when a withdrawal is

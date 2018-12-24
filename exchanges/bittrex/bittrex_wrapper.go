@@ -2,6 +2,7 @@ package bittrex
 
 import (
 	"errors"
+	"fmt"
 	"log"
 	"sync"
 
@@ -243,7 +244,8 @@ func (b *Bittrex) GetDepositAddress(cryptocurrency pair.CurrencyItem) (string, e
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
 // submitted
 func (b *Bittrex) WithdrawCryptocurrencyFunds(withdrawRequest exchange.WithdrawRequest) (string, error) {
-	return "", common.ErrNotYetImplemented
+	uuid, err := b.Withdraw(withdrawRequest.Currency.String(), withdrawRequest.AddressTag, withdrawRequest.DestinationWalletAddress, withdrawRequest.Amount)
+	return fmt.Sprintf("%v", uuid), err
 }
 
 // WithdrawFiatFunds returns a withdrawal ID when a
