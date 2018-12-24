@@ -7,6 +7,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/thrasher-/gocryptotrader/currency/symbol"
+
 	"github.com/thrasher-/gocryptotrader/currency/pair"
 )
 
@@ -151,7 +153,7 @@ func TestFirstCurrencyExists(t *testing.T) {
 		t.Fatal("Test failed. TestFirstCurrencyExists expected first currency doesn't exist")
 	}
 
-	var item pair.CurrencyItem = "blah"
+	var item symbol.Name = "blah"
 	if FirstCurrencyExists("Exchange", item) {
 		t.Fatal("Test failed. TestFirstCurrencyExists unexpected first currency exists")
 	}
@@ -285,8 +287,8 @@ func TestProcessOrderbook(t *testing.T) {
 		wg.Add(1)
 		go func() {
 			newName := "Exchange" + strconv.FormatInt(rand.Int63(), 10)
-			newPairs := pair.NewCurrencyPair("BTC"+strconv.FormatInt(rand.Int63(), 10),
-				"USD"+strconv.FormatInt(rand.Int63(), 10))
+			newPairs := pair.NewCurrencyPair(symbol.Name("BTC"+strconv.FormatInt(rand.Int63(), 10)),
+				symbol.Name("USD"+strconv.FormatInt(rand.Int63(), 10)))
 
 			asks := []Item{{Price: rand.Float64(), Amount: rand.Float64()}}
 			bids := []Item{{Price: rand.Float64(), Amount: rand.Float64()}}

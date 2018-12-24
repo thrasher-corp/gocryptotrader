@@ -3,12 +3,14 @@ package translation
 import (
 	"testing"
 
+	"github.com/thrasher-/gocryptotrader/currency/symbol"
+
 	"github.com/thrasher-/gocryptotrader/currency/pair"
 )
 
 func TestGetTranslation(t *testing.T) {
 	currencyPair := pair.NewCurrencyPair("BTC", "USD")
-	expected := pair.CurrencyItem("XBT")
+	expected := symbol.Name("XBT")
 	actual, err := GetTranslation(currencyPair.FirstCurrency)
 	if err != nil {
 		t.Error("GetTranslation: failed to retrieve translation for BTC")

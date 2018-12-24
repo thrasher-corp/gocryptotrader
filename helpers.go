@@ -10,6 +10,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
+	"github.com/thrasher-/gocryptotrader/currency/symbol"
 	"github.com/thrasher-/gocryptotrader/currency/translation"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
@@ -181,7 +182,7 @@ func GetRelatableCryptocurrencies(p pair.CurrencyPair) []pair.CurrencyPair {
 	cryptocurrencies := currency.CryptoCurrencies
 
 	for x := range cryptocurrencies {
-		newPair := pair.NewCurrencyPair(p.FirstCurrency.String(), cryptocurrencies[x])
+		newPair := pair.NewCurrencyPair(p.FirstCurrency, symbol.Name(cryptocurrencies[x]))
 		if pair.Contains(pairs, newPair, false) {
 			continue
 		}
@@ -198,7 +199,7 @@ func GetRelatableFiatCurrencies(p pair.CurrencyPair) []pair.CurrencyPair {
 	fiatCurrencies := currency.FiatCurrencies
 
 	for x := range fiatCurrencies {
-		newPair := pair.NewCurrencyPair(p.FirstCurrency.String(), fiatCurrencies[x])
+		newPair := pair.NewCurrencyPair(p.FirstCurrency, symbol.Name(fiatCurrencies[x]))
 		if pair.Contains(pairs, newPair, false) {
 			continue
 		}
@@ -227,20 +228,20 @@ func GetRelatableCurrencies(p pair.CurrencyPair, incOrig, incUSDT bool) []pair.C
 
 		first, err := translation.GetTranslation(p.FirstCurrency)
 		if err == nil {
-			addPair(pair.NewCurrencyPair(first.String(),
-				p.SecondCurrency.String()))
+			addPair(pair.NewCurrencyPair(first,
+				p.SecondCurrency))
 
 			second, err := translation.GetTranslation(p.SecondCurrency)
 			if err == nil {
-				addPair(pair.NewCurrencyPair(first.String(),
-					second.String()))
+				addPair(pair.NewCurrencyPair(first,
+					second))
 			}
 		}
 
 		second, err := translation.GetTranslation(p.SecondCurrency)
 		if err == nil {
-			addPair(pair.NewCurrencyPair(p.FirstCurrency.String(),
-				second.String()))
+			addPair(pair.NewCurrencyPair(p.FirstCurrency,
+				second))
 		}
 	}
 
@@ -295,8 +296,8 @@ func GetSpecificTicker(currency, exchangeName, assetType string) (ticker.Price, 
 // GetCollatedExchangeAccountInfoByCoin collates individual exchange account
 // information and turns into into a map string of
 // exchange.AccountCurrencyInfo
-func GetCollatedExchangeAccountInfoByCoin(accounts []exchange.AccountInfo) map[string]exchange.AccountCurrencyInfo {
-	result := make(map[string]exchange.AccountCurrencyInfo)
+func GetCollatedExchangeAccountInfoByCoin(accounts []exchange.AccountInfo) map[symbol.Name]exchange.AccountCurrencyInfo {
+	result := make(map[symbol.Name]exchange.AccountCurrencyInfo)
 	for i := 0; i < len(accounts); i++ {
 		for j := 0; j < len(accounts[i].Currencies); j++ {
 			currencyName := accounts[i].Currencies[j].CurrencyName
@@ -365,7 +366,7 @@ func SeedExchangeAccountInfo(data []exchange.AccountInfo) {
 			avail := data[i].Currencies[j].TotalValue
 			total := onHold + avail
 
-			if !port.ExchangeAddressExists(exchangeName, currencyName) {
+			if !port.ExchangeAddressExists(exchangeName, currencyName.String()) {
 				if total <= 0 {
 					continue
 				}
@@ -373,23 +374,23 @@ func SeedExchangeAccountInfo(data []exchange.AccountInfo) {
 					exchangeName, currencyName, total, portfolio.PortfolioAddressExchange)
 				port.Addresses = append(
 					port.Addresses,
-					portfolio.Address{Address: exchangeName, CoinType: currencyName,
+					portfolio.Address{Address: exchangeName, CoinType: currencyName.String(),
 						Balance: total, Description: portfolio.PortfolioAddressExchange},
 				)
 			} else {
 				if total <= 0 {
 					log.Printf("Portfolio: Removing %s %s entry.\n", exchangeName,
 						currencyName)
-					port.RemoveExchangeAddress(exchangeName, currencyName)
+					port.RemoveExchangeAddress(exchangeName, currencyName.String())
 				} else {
-					balance, ok := port.GetAddressBalance(exchangeName, currencyName, portfolio.PortfolioAddressExchange)
+					balance, ok := port.GetAddressBalance(exchangeName, currencyName.String(), portfolio.PortfolioAddressExchange)
 					if !ok {
 						continue
 					}
 					if balance != total {
 						log.Printf("Portfolio: Updating %s %s entry with balance %f.\n",
 							exchangeName, currencyName, total)
-						port.UpdateExchangeAddressBalance(exchangeName, currencyName, total)
+						port.UpdateExchangeAddressBalance(exchangeName, currencyName.String(), total)
 					}
 				}
 			}

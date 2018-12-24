@@ -9,6 +9,7 @@ import (
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
+	"github.com/thrasher-/gocryptotrader/currency/symbol"
 	"github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
@@ -177,7 +178,7 @@ func (h *HUOBIHADAX) GetAccountInfo() (exchange.AccountInfo, error) {
 
 	for key, data := range currencyData {
 		balances = append(balances, exchange.AccountCurrencyInfo{
-			CurrencyName: key,
+			CurrencyName: symbol.Name(key),
 			TotalValue:   data.Avail + data.Hold,
 			Hold:         data.Hold,
 		})

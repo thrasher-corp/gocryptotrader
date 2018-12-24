@@ -147,7 +147,7 @@ type WalletHistory struct {
 
 // WithdrawalFees the large list of predefined withdrawal fees
 // Prone to change
-var WithdrawalFees = map[string]float64{
+var WithdrawalFees = map[symbol.Name]float64{
 	symbol.BTC:   0.0005,
 	symbol.LTC:   0.01,
 	symbol.DOGE:  1,

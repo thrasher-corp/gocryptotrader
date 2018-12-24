@@ -9,6 +9,7 @@ import (
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
+	"github.com/thrasher-/gocryptotrader/currency/symbol"
 	"github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
@@ -140,7 +141,7 @@ func (i *ItBit) GetAccountInfo() (exchange.AccountInfo, error) {
 
 	for key, data := range amounts {
 		fullBalance = append(fullBalance, exchange.AccountCurrencyInfo{
-			CurrencyName: key,
+			CurrencyName: symbol.Name(key),
 			TotalValue:   data.TotalValue,
 			Hold:         data.Hold,
 		})

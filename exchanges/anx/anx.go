@@ -474,11 +474,11 @@ func (a *ANX) calculateTradingFee(purchasePrice, amount float64, isMaker bool) f
 	return fee
 }
 
-func getCryptocurrencyWithdrawalFee(currency string) float64 {
+func getCryptocurrencyWithdrawalFee(currency symbol.Name) float64 {
 	return WithdrawalFees[currency]
 }
 
-func getInternationalBankWithdrawalFee(currency string, amount float64) float64 {
+func getInternationalBankWithdrawalFee(currency symbol.Name, amount float64) float64 {
 	var fee float64
 
 	if currency == symbol.HKD {

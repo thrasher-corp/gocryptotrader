@@ -1,5 +1,9 @@
 package alphapoint
 
+import (
+	"github.com/thrasher-/gocryptotrader/currency/symbol"
+)
+
 // Response contains general responses from the exchange
 type Response struct {
 	IsAccepted    bool    `json:"isAccepted"`
@@ -128,9 +132,9 @@ type UserInfoSet struct {
 // and volume
 type AccountInfo struct {
 	Currencies []struct {
-		Name    string `json:"name"`
-		Balance int    `json:"balance"`
-		Hold    int    `json:"hold"`
+		Name    symbol.Name `json:"name"`
+		Balance int         `json:"balance"`
+		Hold    int         `json:"hold"`
 	} `json:"currencies"`
 	ProductPairs []struct {
 		ProductPairName string `json:"productPairName"`

@@ -5,6 +5,8 @@ import (
 	"log"
 	"sync"
 
+	"github.com/thrasher-/gocryptotrader/currency/symbol"
+
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
@@ -136,7 +138,7 @@ func (b *Bithumb) GetAccountInfo() (exchange.AccountInfo, error) {
 		}
 
 		exchangeBalances = append(exchangeBalances, exchange.AccountCurrencyInfo{
-			CurrencyName: key,
+			CurrencyName: symbol.Name(key),
 			TotalValue:   totalAmount,
 			Hold:         hold,
 		})

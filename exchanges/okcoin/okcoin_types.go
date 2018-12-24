@@ -434,7 +434,7 @@ type WebsocketTradeOrderResponse struct {
 
 // WithdrawalFees the large list of predefined withdrawal fees
 // Prone to change, using highest value
-var WithdrawalFees = map[string]float64{
+var WithdrawalFees = map[symbol.Name]float64{
 	symbol.BTC: 0.005,
 	symbol.LTC: 0.2,
 	symbol.ETH: 0.01,

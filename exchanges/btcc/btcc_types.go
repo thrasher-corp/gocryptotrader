@@ -84,7 +84,7 @@ type WsTicker struct {
 
 // WithdrawalFees the large list of predefined withdrawal fees
 // Prone to change
-var WithdrawalFees = map[string]float64{
+var WithdrawalFees = map[symbol.Name]float64{
 	symbol.USD:  0.005,
 	symbol.USDT: 10,
 	symbol.BTC:  0.001,

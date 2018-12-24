@@ -11,8 +11,8 @@ type Response struct {
 
 // Info holds server time and pair information
 type Info struct {
-	ServerTime int64           `json:"server_time"`
-	Pairs      map[string]Pair `json:"pairs"`
+	ServerTime int64                `json:"server_time"`
+	Pairs      map[symbol.Name]Pair `json:"pairs"`
 }
 
 // Ticker stores the ticker information
@@ -157,7 +157,7 @@ type RedeemCoupon struct {
 
 // WithdrawalFees the large list of predefined withdrawal fees
 // Prone to change, using highest value
-var WithdrawalFees = map[string]float64{
+var WithdrawalFees = map[symbol.Name]float64{
 	symbol.BTC:  0.0004,
 	symbol.LTC:  0.001,
 	symbol.NMC:  0.1,

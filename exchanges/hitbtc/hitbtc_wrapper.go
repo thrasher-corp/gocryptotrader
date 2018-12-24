@@ -8,6 +8,7 @@ import (
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
+	"github.com/thrasher-/gocryptotrader/currency/symbol"
 	"github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
@@ -133,7 +134,7 @@ func (h *HitBTC) GetAccountInfo() (exchange.AccountInfo, error) {
 
 	for _, item := range accountBalance {
 		var exchangeCurrency exchange.AccountCurrencyInfo
-		exchangeCurrency.CurrencyName = item.Currency
+		exchangeCurrency.CurrencyName = symbol.Name(item.Currency)
 		exchangeCurrency.TotalValue = item.Available
 		exchangeCurrency.Hold = item.Reserved
 		response.Currencies = append(response.Currencies, exchangeCurrency)

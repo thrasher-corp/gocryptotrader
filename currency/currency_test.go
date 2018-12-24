@@ -3,6 +3,8 @@ package currency
 import (
 	"testing"
 
+	"github.com/thrasher-/gocryptotrader/currency/symbol"
+
 	"github.com/thrasher-/gocryptotrader/currency/pair"
 )
 
@@ -125,7 +127,7 @@ func TestIsCryptocurrency(t *testing.T) {
 	}
 
 	CryptoCurrencies = []string{"BTC", "LTC", "DASH"}
-	var str1, str2, str3 string = "USD", "BTC", "pterodactyl123"
+	var str1, str2, str3 symbol.Name = "USD", "BTC", "pterodactyl123"
 
 	if IsCryptocurrency(str1) {
 		t.Errorf(

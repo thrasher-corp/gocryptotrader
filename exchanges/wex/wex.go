@@ -123,7 +123,7 @@ func (w *WEX) GetTradablePairs() ([]string, error) {
 
 	var currencies []string
 	for x := range result.Pairs {
-		currencies = append(currencies, common.StringToUpper(x))
+		currencies = append(currencies, x.Upper().String())
 	}
 
 	return currencies, nil
@@ -406,7 +406,7 @@ func (w *WEX) GetFee(feeBuilder exchange.FeeBuilder) (float64, error) {
 		if err != nil {
 			return 0, err
 		}
-		currency := feeBuilder.FirstCurrency + feeBuilder.Delimiter + feeBuilder.SecondCurrency
+		currency := feeBuilder.FirstCurrency + symbol.Name(feeBuilder.Delimiter) + feeBuilder.SecondCurrency
 		fee = calculateTradingFee(info, currency, feeBuilder.PurchasePrice, feeBuilder.Amount)
 	case exchange.CryptocurrencyWithdrawalFee:
 		fee = getWithdrawalFee(feeBuilder.FirstCurrency)
@@ -420,16 +420,16 @@ func (w *WEX) GetFee(feeBuilder exchange.FeeBuilder) (float64, error) {
 	return fee, nil
 }
 
-func calculateTradingFee(info Info, currency string, purchasePrice, amount float64) (fee float64) {
-	fee = info.Pairs[common.StringToLower(currency)].Fee
+func calculateTradingFee(info Info, currency symbol.Name, purchasePrice, amount float64) (fee float64) {
+	fee = info.Pairs[currency].Fee
 	return (fee / 100) * amount * purchasePrice
 }
 
-func getWithdrawalFee(currency string) float64 {
+func getWithdrawalFee(currency symbol.Name) float64 {
 	return WithdrawalFees[currency]
 }
 
-func getInternationalBankDepositFee(currency string, amount float64, bankTransactionType exchange.InternationalBankTransactionType) float64 {
+func getInternationalBankDepositFee(currency symbol.Name, amount float64, bankTransactionType exchange.InternationalBankTransactionType) float64 {
 	var fee float64
 
 	switch bankTransactionType {

@@ -8,6 +8,7 @@ import (
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
+	"github.com/thrasher-/gocryptotrader/currency/symbol"
 	"github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
@@ -125,7 +126,7 @@ func (l *Liqui) GetAccountInfo() (exchange.AccountInfo, error) {
 
 	for x, y := range accountBalance.Funds {
 		var exchangeCurrency exchange.AccountCurrencyInfo
-		exchangeCurrency.CurrencyName = common.StringToUpper(x)
+		exchangeCurrency.CurrencyName = symbol.Name(common.StringToUpper(x))
 		exchangeCurrency.TotalValue = y
 		exchangeCurrency.Hold = 0
 		response.Currencies = append(response.Currencies, exchangeCurrency)

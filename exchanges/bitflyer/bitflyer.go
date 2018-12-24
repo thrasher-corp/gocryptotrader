@@ -414,7 +414,7 @@ func calculateTradingFee(purchasePrice float64, amount float64) float64 {
 	return fee * amount * purchasePrice
 }
 
-func getDepositFee(bankTransactionType exchange.InternationalBankTransactionType, currency string, amount float64) (fee float64) {
+func getDepositFee(bankTransactionType exchange.InternationalBankTransactionType, currency symbol.Name, amount float64) (fee float64) {
 	switch bankTransactionType {
 	case exchange.WireTransfer:
 		switch currency {
@@ -425,7 +425,7 @@ func getDepositFee(bankTransactionType exchange.InternationalBankTransactionType
 	return fee
 }
 
-func getWithdrawalFee(bankTransactionType exchange.InternationalBankTransactionType, currency string, amount float64) (fee float64) {
+func getWithdrawalFee(bankTransactionType exchange.InternationalBankTransactionType, currency symbol.Name, amount float64) (fee float64) {
 	switch bankTransactionType {
 	case exchange.WireTransfer:
 		switch currency {

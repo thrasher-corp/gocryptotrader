@@ -8,6 +8,7 @@ import (
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
+	"github.com/thrasher-/gocryptotrader/currency/symbol"
 	"github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
@@ -114,7 +115,7 @@ func (l *LakeBTC) GetAccountInfo() (exchange.AccountInfo, error) {
 		for z, w := range accountInfo.Locked {
 			if z == x {
 				var exchangeCurrency exchange.AccountCurrencyInfo
-				exchangeCurrency.CurrencyName = common.StringToUpper(x)
+				exchangeCurrency.CurrencyName = symbol.Name(common.StringToUpper(x))
 				exchangeCurrency.TotalValue, _ = strconv.ParseFloat(y, 64)
 				exchangeCurrency.Hold, _ = strconv.ParseFloat(w, 64)
 				response.Currencies = append(response.Currencies, exchangeCurrency)

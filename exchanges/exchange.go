@@ -13,6 +13,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
+	"github.com/thrasher-/gocryptotrader/currency/symbol"
 	"github.com/thrasher-/gocryptotrader/exchanges/nonce"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-/gocryptotrader/exchanges/request"
@@ -77,12 +78,12 @@ type SubmitOrderResponse struct {
 type FeeBuilder struct {
 	FeeType FeeType
 	//Used for calculating crypto trading fees, deposits & withdrawals
-	FirstCurrency  string
-	SecondCurrency string
+	FirstCurrency  symbol.Name
+	SecondCurrency symbol.Name
 	Delimiter      string
 	IsMaker        bool
 	// Fiat currency used for bank deposits & withdrawals
-	CurrencyItem        string
+	CurrencyItem        symbol.Name
 	BankTransactionType InternationalBankTransactionType
 	// Used to multiply for fee calculations
 	PurchasePrice float64
@@ -152,7 +153,7 @@ type AccountInfo struct {
 
 // AccountCurrencyInfo is a sub type to store currency name and value
 type AccountCurrencyInfo struct {
-	CurrencyName string
+	CurrencyName symbol.Name
 	TotalValue   float64
 	Hold         float64
 }

@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"log"
 
+	"github.com/thrasher-/gocryptotrader/currency/symbol"
+
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency/forexprovider"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
@@ -90,20 +92,22 @@ func IsFiatCurrency(currency string) bool {
 }
 
 // IsCryptocurrency checks if the currency passed is an enabled CRYPTO currency.
-func IsCryptocurrency(currency string) bool {
-	return common.StringDataCompare(CryptoCurrencies, common.StringToUpper(currency))
+func IsCryptocurrency(currency symbol.Name) bool {
+	return common.StringDataCompare(CryptoCurrencies, currency.Upper().String())
 }
 
 // IsCryptoPair checks to see if the pair is a crypto pair e.g. BTCLTC
 func IsCryptoPair(p pair.CurrencyPair) bool {
-	return IsCryptocurrency(p.FirstCurrency.String()) &&
-		IsCryptocurrency(p.SecondCurrency.String())
+	return IsCryptocurrency(p.FirstCurrency) &&
+		IsCryptocurrency(p.SecondCurrency)
 }
 
 // IsCryptoFiatPair checks to see if the pair is a crypto fiat pair e.g. BTCUSD
 func IsCryptoFiatPair(p pair.CurrencyPair) bool {
-	return IsCryptocurrency(p.FirstCurrency.String()) && !IsCryptocurrency(p.SecondCurrency.String()) ||
-		!IsCryptocurrency(p.FirstCurrency.String()) && IsCryptocurrency(p.SecondCurrency.String())
+	return IsCryptocurrency(p.FirstCurrency) &&
+		!IsCryptocurrency(p.SecondCurrency) ||
+		!IsCryptocurrency(p.FirstCurrency) &&
+			IsCryptocurrency(p.SecondCurrency)
 }
 
 // IsFiatPair checks to see if the pair is a fiat pair e.g. EURUSD

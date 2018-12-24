@@ -149,7 +149,7 @@ type RedeemCoupon struct {
 
 // WithdrawalFees the large list of predefined withdrawal fees
 // Prone to change, using highest value
-var WithdrawalFees = map[string]float64{
+var WithdrawalFees = map[symbol.Name]float64{
 	symbol.ZERO07:     0.002,
 	symbol.BIT16:      0.002,
 	symbol.TWO015:     0.002,

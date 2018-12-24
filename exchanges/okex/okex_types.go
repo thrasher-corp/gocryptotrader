@@ -297,7 +297,7 @@ var (
 
 // WithdrawalFees the large list of predefined withdrawal fees
 // Prone to change, using highest value
-var WithdrawalFees = map[string]float64{
+var WithdrawalFees = map[symbol.Name]float64{
 	symbol.ZRX:   10,
 	symbol.ACE:   2.2,
 	symbol.ACT:   0.01,

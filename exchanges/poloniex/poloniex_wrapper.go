@@ -8,6 +8,7 @@ import (
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
+	"github.com/thrasher-/gocryptotrader/currency/symbol"
 	"github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
@@ -134,7 +135,7 @@ func (p *Poloniex) GetAccountInfo() (exchange.AccountInfo, error) {
 
 	for x, y := range accountBalance.Currency {
 		var exchangeCurrency exchange.AccountCurrencyInfo
-		exchangeCurrency.CurrencyName = x
+		exchangeCurrency.CurrencyName = symbol.Name(x)
 		exchangeCurrency.TotalValue = y
 		response.Currencies = append(response.Currencies, exchangeCurrency)
 	}

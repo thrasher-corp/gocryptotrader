@@ -453,7 +453,7 @@ func calculateTradingFee(purchasePrice, amount float64, isMaker bool) float64 {
 	return feePercent * purchasePrice * amount
 }
 
-func getInternationalBankWithdrawalFee(currency string, amount float64, bankTransactionType exchange.InternationalBankTransactionType) float64 {
+func getInternationalBankWithdrawalFee(currency symbol.Name, amount float64, bankTransactionType exchange.InternationalBankTransactionType) float64 {
 	var fee float64
 	if (bankTransactionType == exchange.Swift || bankTransactionType == exchange.WireTransfer) && currency == symbol.USD {
 		fee = 40

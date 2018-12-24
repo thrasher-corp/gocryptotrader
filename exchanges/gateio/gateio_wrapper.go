@@ -8,6 +8,7 @@ import (
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
+	"github.com/thrasher-/gocryptotrader/currency/symbol"
 	"github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
@@ -130,7 +131,7 @@ func (g *Gateio) GetAccountInfo() (exchange.AccountInfo, error) {
 			}
 
 			balances = append(balances, exchange.AccountCurrencyInfo{
-				CurrencyName: key,
+				CurrencyName: symbol.Name(key),
 				Hold:         lockedF,
 			})
 		}
@@ -145,7 +146,7 @@ func (g *Gateio) GetAccountInfo() (exchange.AccountInfo, error) {
 
 			var updated bool
 			for i := range balances {
-				if balances[i].CurrencyName == key {
+				if balances[i].CurrencyName == symbol.Name(key) {
 					balances[i].TotalValue = balances[i].Hold + availAmount
 					updated = true
 					break
@@ -154,7 +155,7 @@ func (g *Gateio) GetAccountInfo() (exchange.AccountInfo, error) {
 
 			if !updated {
 				balances = append(balances, exchange.AccountCurrencyInfo{
-					CurrencyName: key,
+					CurrencyName: symbol.Name(key),
 					TotalValue:   availAmount,
 				})
 			}

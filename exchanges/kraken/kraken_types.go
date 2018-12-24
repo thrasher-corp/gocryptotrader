@@ -268,10 +268,10 @@ type LedgerInfo struct {
 
 // TradeVolumeResponse type
 type TradeVolumeResponse struct {
-	Currency  string                    `json:"currency"`
-	Volume    float64                   `json:"volume,string"`
-	Fees      map[string]TradeVolumeFee `json:"fees"`
-	FeesMaker map[string]TradeVolumeFee `json:"fees_maker"`
+	Currency  string                         `json:"currency"`
+	Volume    float64                        `json:"volume,string"`
+	Fees      map[symbol.Name]TradeVolumeFee `json:"fees"`
+	FeesMaker map[symbol.Name]TradeVolumeFee `json:"fees_maker"`
 }
 
 // TradeVolumeFee type
@@ -331,13 +331,13 @@ type CancelOrderResponse struct {
 
 // DepositFees the large list of predefined deposit fees
 // Prone to change
-var DepositFees = map[string]float64{
+var DepositFees = map[symbol.Name]float64{
 	symbol.XTZ: 0.05,
 }
 
 // WithdrawalFees the large list of predefined withdrawal fees
 // Prone to change
-var WithdrawalFees = map[string]float64{
+var WithdrawalFees = map[symbol.Name]float64{
 	symbol.ZUSD: 5,
 	symbol.ZEUR: 5,
 	symbol.USD:  5,

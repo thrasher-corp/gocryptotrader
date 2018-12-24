@@ -9,6 +9,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/thrasher-/gocryptotrader/currency/symbol"
+
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
@@ -479,10 +481,10 @@ func (g *Gateio) GetFee(feeBuilder exchange.FeeBuilder) (fee float64, err error)
 		if err != nil {
 			return 0, err
 		}
-		currencyPair := feeBuilder.FirstCurrency + feeBuilder.Delimiter + feeBuilder.SecondCurrency
+		currencyPair := feeBuilder.FirstCurrency + symbol.Name(feeBuilder.Delimiter) + feeBuilder.SecondCurrency
 		var feeForPair float64
 		for _, i := range feePairs.Pairs {
-			if strings.EqualFold(currencyPair, i.Symbol) {
+			if strings.EqualFold(currencyPair.String(), i.Symbol) {
 				feeForPair = i.Fee
 			}
 		}
@@ -505,6 +507,6 @@ func calculateTradingFee(feeForPair, purchasePrice, amount float64) float64 {
 	return (feeForPair / 100) * purchasePrice * amount
 }
 
-func getCryptocurrencyWithdrawalFee(currency string) float64 {
+func getCryptocurrencyWithdrawalFee(currency symbol.Name) float64 {
 	return WithdrawalFees[currency]
 }

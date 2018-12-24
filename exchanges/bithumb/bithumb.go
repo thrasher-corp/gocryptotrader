@@ -606,7 +606,7 @@ func calculateTradingFee(purchasePrice float64, amount float64) float64 {
 }
 
 // getDepositFee returns fee on a currency when depositing small amounts to bithumb
-func getDepositFee(currency string, amount float64) float64 {
+func getDepositFee(currency symbol.Name, amount float64) float64 {
 	var fee float64
 
 	switch currency {
@@ -640,7 +640,7 @@ func getDepositFee(currency string, amount float64) float64 {
 }
 
 // getWithdrawalFee returns fee on a currency when withdrawing out of bithumb
-func getWithdrawalFee(currency string) float64 {
+func getWithdrawalFee(currency symbol.Name) float64 {
 	return WithdrawalFees[currency]
 }
 

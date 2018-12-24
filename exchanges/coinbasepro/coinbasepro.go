@@ -833,7 +833,7 @@ func (c *CoinbasePro) GetFee(feeBuilder exchange.FeeBuilder) (float64, error) {
 		if err != nil {
 			return 0, err
 		}
-		fee = c.calculateTradingFee(trailingVolume, feeBuilder.FirstCurrency, feeBuilder.Delimiter, feeBuilder.SecondCurrency, feeBuilder.PurchasePrice, feeBuilder.Amount, feeBuilder.IsMaker)
+		fee = c.calculateTradingFee(trailingVolume, feeBuilder.FirstCurrency, symbol.Name(feeBuilder.Delimiter), feeBuilder.SecondCurrency, feeBuilder.PurchasePrice, feeBuilder.Amount, feeBuilder.IsMaker)
 	case exchange.InternationalBankWithdrawalFee:
 		fee = getInternationalBankWithdrawalFee(feeBuilder.CurrencyItem, feeBuilder.Amount)
 	case exchange.InternationalBankDepositFee:
@@ -847,10 +847,10 @@ func (c *CoinbasePro) GetFee(feeBuilder exchange.FeeBuilder) (float64, error) {
 	return fee, nil
 }
 
-func (c *CoinbasePro) calculateTradingFee(trailingVolume []Volume, firstCurrency, delimiter, secondCurrency string, purchasePrice, amount float64, isMaker bool) float64 {
+func (c *CoinbasePro) calculateTradingFee(trailingVolume []Volume, firstCurrency, delimiter, secondCurrency symbol.Name, purchasePrice, amount float64, isMaker bool) float64 {
 	var fee float64
 	for _, i := range trailingVolume {
-		if strings.EqualFold(i.ProductID, firstCurrency+delimiter+secondCurrency) {
+		if strings.EqualFold(i.ProductID, string(firstCurrency+delimiter+secondCurrency)) {
 			if isMaker {
 				fee = 0
 			} else if i.Volume <= 10000000 {
@@ -867,7 +867,7 @@ func (c *CoinbasePro) calculateTradingFee(trailingVolume []Volume, firstCurrency
 	return fee * amount * purchasePrice
 }
 
-func getInternationalBankWithdrawalFee(currency string, amount float64) float64 {
+func getInternationalBankWithdrawalFee(currency symbol.Name, amount float64) float64 {
 	var fee float64
 
 	if currency == symbol.USD {
@@ -879,7 +879,7 @@ func getInternationalBankWithdrawalFee(currency string, amount float64) float64 
 	return fee
 }
 
-func getInternationalBankDepositFee(currency string, amount float64) float64 {
+func getInternationalBankDepositFee(currency symbol.Name, amount float64) float64 {
 	var fee float64
 
 	if currency == symbol.USD {

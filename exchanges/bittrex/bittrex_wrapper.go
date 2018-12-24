@@ -5,6 +5,8 @@ import (
 	"log"
 	"sync"
 
+	"github.com/thrasher-/gocryptotrader/currency/symbol"
+
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
@@ -72,7 +74,7 @@ func (b *Bittrex) GetAccountInfo() (exchange.AccountInfo, error) {
 
 	for i := 0; i < len(accountBalance.Result); i++ {
 		var exchangeCurrency exchange.AccountCurrencyInfo
-		exchangeCurrency.CurrencyName = accountBalance.Result[i].Currency
+		exchangeCurrency.CurrencyName = symbol.Name(accountBalance.Result[i].Currency)
 		exchangeCurrency.TotalValue = accountBalance.Result[i].Balance
 		exchangeCurrency.Hold = accountBalance.Result[i].Balance - accountBalance.Result[i].Available
 		response.Currencies = append(response.Currencies, exchangeCurrency)

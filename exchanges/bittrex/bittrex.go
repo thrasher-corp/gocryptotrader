@@ -8,6 +8,8 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/thrasher-/gocryptotrader/currency/symbol"
+
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/exchanges"
@@ -531,7 +533,7 @@ func (b *Bittrex) GetFee(feeBuilder exchange.FeeBuilder) (float64, error) {
 }
 
 // GetWithdrawalFee returns the fee for withdrawing from the exchange
-func (b *Bittrex) GetWithdrawalFee(currency string) (float64, error) {
+func (b *Bittrex) GetWithdrawalFee(currency symbol.Name) (float64, error) {
 	var fee float64
 
 	currencies, err := b.GetCurrencies()
@@ -539,7 +541,7 @@ func (b *Bittrex) GetWithdrawalFee(currency string) (float64, error) {
 		return 0, err
 	}
 	for _, result := range currencies.Result {
-		if result.Currency == currency {
+		if result.Currency == currency.String() {
 			fee = result.TxFee
 		}
 	}

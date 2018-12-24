@@ -8,6 +8,7 @@ import (
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
+	"github.com/thrasher-/gocryptotrader/currency/symbol"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
@@ -111,7 +112,7 @@ func (y *Yobit) GetAccountInfo() (exchange.AccountInfo, error) {
 
 	for x, y := range accountBalance.FundsInclOrders {
 		var exchangeCurrency exchange.AccountCurrencyInfo
-		exchangeCurrency.CurrencyName = common.StringToUpper(x)
+		exchangeCurrency.CurrencyName = symbol.Name(common.StringToUpper(x))
 		exchangeCurrency.TotalValue = y
 		exchangeCurrency.Hold = 0
 		for z, w := range accountBalance.Funds {

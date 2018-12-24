@@ -3,10 +3,10 @@ package translation
 import (
 	"errors"
 
-	"github.com/thrasher-/gocryptotrader/currency/pair"
+	"github.com/thrasher-/gocryptotrader/currency/symbol"
 )
 
-var translations = map[pair.CurrencyItem]pair.CurrencyItem{
+var translations = map[symbol.Name]symbol.Name{
 	"BTC":  "XBT",
 	"ETH":  "XETH",
 	"DOGE": "XDG",
@@ -14,7 +14,7 @@ var translations = map[pair.CurrencyItem]pair.CurrencyItem{
 }
 
 // GetTranslation returns similar strings for a particular currency
-func GetTranslation(currency pair.CurrencyItem) (pair.CurrencyItem, error) {
+func GetTranslation(currency symbol.Name) (symbol.Name, error) {
 	for k, v := range translations {
 		if k == currency {
 			return v, nil
@@ -28,7 +28,7 @@ func GetTranslation(currency pair.CurrencyItem) (pair.CurrencyItem, error) {
 }
 
 // HasTranslation returns whether or not a particular currency has a translation
-func HasTranslation(currency pair.CurrencyItem) bool {
+func HasTranslation(currency symbol.Name) bool {
 	_, err := GetTranslation(currency)
 	if err != nil {
 		return false

@@ -10,6 +10,7 @@ import (
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
+	"github.com/thrasher-/gocryptotrader/currency/symbol"
 	"github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/request"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
@@ -317,7 +318,7 @@ func (l *Liqui) GetFee(feeBuilder exchange.FeeBuilder) (float64, error) {
 	return fee, nil
 }
 
-func getCryptocurrencyWithdrawalFee(currency string) float64 {
+func getCryptocurrencyWithdrawalFee(currency symbol.Name) float64 {
 	return WithdrawalFees[currency]
 }
 

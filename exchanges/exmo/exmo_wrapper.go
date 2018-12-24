@@ -7,6 +7,8 @@ import (
 	"strconv"
 	"sync"
 
+	"github.com/thrasher-/gocryptotrader/currency/symbol"
+
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
@@ -148,7 +150,7 @@ func (e *EXMO) GetAccountInfo() (exchange.AccountInfo, error) {
 
 	for x, y := range result.Balances {
 		var exchangeCurrency exchange.AccountCurrencyInfo
-		exchangeCurrency.CurrencyName = common.StringToUpper(x)
+		exchangeCurrency.CurrencyName = symbol.Name(common.StringToUpper(x))
 		for z, w := range result.Reserved {
 			if z == x {
 				avail, _ := strconv.ParseFloat(y, 64)

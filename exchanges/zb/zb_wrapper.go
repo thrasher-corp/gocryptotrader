@@ -8,6 +8,7 @@ import (
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
+	"github.com/thrasher-/gocryptotrader/currency/symbol"
 	"github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
@@ -137,7 +138,7 @@ func (z *ZB) GetAccountInfo() (exchange.AccountInfo, error) {
 		}
 
 		balances = append(balances, exchange.AccountCurrencyInfo{
-			CurrencyName: data.EnName,
+			CurrencyName: symbol.Name(data.EnName),
 			TotalValue:   hold + avail,
 			Hold:         hold,
 		})

@@ -7,6 +7,8 @@ import (
 	"strconv"
 	"sync"
 
+	"github.com/thrasher-/gocryptotrader/currency/symbol"
+
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
@@ -151,7 +153,7 @@ func (b *Binance) GetAccountInfo() (exchange.AccountInfo, error) {
 		}
 
 		currencyBalance = append(currencyBalance, exchange.AccountCurrencyInfo{
-			CurrencyName: balance.Asset,
+			CurrencyName: symbol.Name(balance.Asset),
 			TotalValue:   freeCurrency + lockedCurrency,
 			Hold:         freeCurrency,
 		})

@@ -5,6 +5,8 @@ import (
 	"log"
 	"sync"
 
+	"github.com/thrasher-/gocryptotrader/currency/symbol"
+
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
 	"github.com/thrasher-/gocryptotrader/exchanges"
@@ -57,7 +59,7 @@ func (c *CoinbasePro) GetAccountInfo() (exchange.AccountInfo, error) {
 	}
 	for i := 0; i < len(accountBalance); i++ {
 		var exchangeCurrency exchange.AccountCurrencyInfo
-		exchangeCurrency.CurrencyName = accountBalance[i].Currency
+		exchangeCurrency.CurrencyName = symbol.Name(accountBalance[i].Currency)
 		exchangeCurrency.TotalValue = accountBalance[i].Available
 		exchangeCurrency.Hold = accountBalance[i].Hold
 

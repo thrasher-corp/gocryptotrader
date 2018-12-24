@@ -385,7 +385,7 @@ func (c *COINUT) GetFee(feeBuilder exchange.FeeBuilder) (float64, error) {
 	return fee, nil
 }
 
-func (c *COINUT) calculateTradingFee(firstCurrency, secondCurrency string, purchasePrice, amount float64, isMaker bool) float64 {
+func (c *COINUT) calculateTradingFee(firstCurrency, secondCurrency symbol.Name, purchasePrice, amount float64, isMaker bool) float64 {
 	var fee float64
 	if isMaker {
 		fee = 0
@@ -399,7 +399,7 @@ func (c *COINUT) calculateTradingFee(firstCurrency, secondCurrency string, purch
 	return fee * amount * purchasePrice
 }
 
-func getInternationalBankWithdrawalFee(currency string, amount float64) float64 {
+func getInternationalBankWithdrawalFee(currency symbol.Name, amount float64) float64 {
 	var fee float64
 
 	if currency == symbol.USD {
@@ -425,7 +425,7 @@ func getInternationalBankWithdrawalFee(currency string, amount float64) float64 
 	return fee
 }
 
-func getInternationalBankDepositFee(currency string, amount float64) float64 {
+func getInternationalBankDepositFee(currency symbol.Name, amount float64) float64 {
 	var fee float64
 
 	if currency == symbol.USD {

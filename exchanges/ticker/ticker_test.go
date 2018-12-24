@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/thrasher-/gocryptotrader/currency/pair"
+	"github.com/thrasher-/gocryptotrader/currency/symbol"
 )
 
 func TestPriceToString(t *testing.T) {
@@ -297,8 +298,8 @@ func TestProcessTicker(t *testing.T) { //non-appending function to tickers
 		wg.Add(1)
 		go func() {
 			newName := "Exchange" + strconv.FormatInt(rand.Int63(), 10)
-			newPairs := pair.NewCurrencyPair("BTC"+strconv.FormatInt(rand.Int63(), 10),
-				"USD"+strconv.FormatInt(rand.Int63(), 10))
+			newPairs := pair.NewCurrencyPair(symbol.Name("BTC"+strconv.FormatInt(rand.Int63(), 10)),
+				symbol.Name("USD"+strconv.FormatInt(rand.Int63(), 10)))
 
 			tp := Price{
 				Pair:         newPairs,

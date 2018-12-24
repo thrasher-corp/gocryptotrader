@@ -9,6 +9,7 @@ import (
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
+	"github.com/thrasher-/gocryptotrader/currency/symbol"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
@@ -160,7 +161,7 @@ func (o *OKEX) GetAccountInfo() (exchange.AccountInfo, error) {
 	var balances []exchange.AccountCurrencyInfo
 	for _, data := range bal {
 		balances = append(balances, exchange.AccountCurrencyInfo{
-			CurrencyName: data.Currency,
+			CurrencyName: symbol.Name(data.Currency),
 			TotalValue:   data.Available + data.Hold,
 			Hold:         data.Hold,
 		})

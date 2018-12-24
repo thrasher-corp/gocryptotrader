@@ -354,7 +354,7 @@ func (b *BTCMarkets) GetAccountBalance() ([]AccountBalance, error) {
 }
 
 // GetTradingFee returns the account's trading fee for a currency pair
-func (b *BTCMarkets) GetTradingFee(firstPair, secondPair string) (TradingFee, error) {
+func (b *BTCMarkets) GetTradingFee(firstPair, secondPair symbol.Name) (TradingFee, error) {
 	var tradingFee TradingFee
 	path := fmt.Sprintf(btcMarketsTradingFee, firstPair, secondPair)
 	return tradingFee, b.SendAuthenticatedRequest("GET", path, nil, &tradingFee)
@@ -466,7 +466,7 @@ func (b *BTCMarkets) GetFee(feeBuilder exchange.FeeBuilder) (float64, error) {
 		if err != nil {
 			return 0, err
 		}
-		fee = calculateTradingFee(feeBuilder.FirstCurrency+feeBuilder.Delimiter+feeBuilder.SecondCurrency, tradingFee, feeBuilder.PurchasePrice, feeBuilder.Amount)
+		fee = calculateTradingFee(feeBuilder.FirstCurrency+symbol.Name(feeBuilder.Delimiter)+feeBuilder.SecondCurrency, tradingFee, feeBuilder.PurchasePrice, feeBuilder.Amount)
 	case exchange.CryptocurrencyWithdrawalFee:
 		fee = getCryptocurrencyWithdrawalFee(feeBuilder.FirstCurrency)
 	case exchange.InternationalBankWithdrawalFee:
@@ -478,17 +478,17 @@ func (b *BTCMarkets) GetFee(feeBuilder exchange.FeeBuilder) (float64, error) {
 	return fee, nil
 }
 
-func calculateTradingFee(curr string, tradingFee TradingFee, purchasePrice, amount float64) (fee float64) {
+func calculateTradingFee(curr symbol.Name, tradingFee TradingFee, purchasePrice, amount float64) (fee float64) {
 	fee = tradingFee.TradingFeeRate / 100000000
 
 	return fee * amount * purchasePrice
 }
 
-func getCryptocurrencyWithdrawalFee(currency string) float64 {
+func getCryptocurrencyWithdrawalFee(currency symbol.Name) float64 {
 	return WithdrawalFees[currency]
 }
 
-func getInternationalBankWithdrawalFee(currency string, amount float64) float64 {
+func getInternationalBankWithdrawalFee(currency symbol.Name, amount float64) float64 {
 	var fee float64
 
 	if currency == symbol.AUD {

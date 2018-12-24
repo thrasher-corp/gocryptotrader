@@ -4,6 +4,8 @@ import (
 	"math/rand"
 	"strings"
 
+	"github.com/thrasher-/gocryptotrader/currency/symbol"
+
 	"github.com/thrasher-/gocryptotrader/common"
 )
 
@@ -28,14 +30,14 @@ func (c CurrencyItem) String() string {
 
 // CurrencyPair holds currency pair information
 type CurrencyPair struct {
-	Delimiter      string       `json:"delimiter"`
-	FirstCurrency  CurrencyItem `json:"first_currency"`
-	SecondCurrency CurrencyItem `json:"second_currency"`
+	Delimiter      string      `json:"delimiter"`
+	FirstCurrency  symbol.Name `json:"first_currency"`
+	SecondCurrency symbol.Name `json:"second_currency"`
 }
 
 // Pair returns a currency pair string
 func (c CurrencyPair) Pair() CurrencyItem {
-	return c.FirstCurrency + CurrencyItem(c.Delimiter) + c.SecondCurrency
+	return CurrencyItem(c.FirstCurrency + symbol.Name(c.Delimiter) + c.SecondCurrency)
 }
 
 // Display formats and returns the currency based on user preferences,
@@ -44,9 +46,9 @@ func (c CurrencyPair) Display(delimiter string, uppercase bool) CurrencyItem {
 	var pair CurrencyItem
 
 	if delimiter != "" {
-		pair = c.FirstCurrency + CurrencyItem(delimiter) + c.SecondCurrency
+		pair = CurrencyItem(c.FirstCurrency + symbol.Name(delimiter) + c.SecondCurrency)
 	} else {
-		pair = c.FirstCurrency + c.SecondCurrency
+		pair = CurrencyItem(c.FirstCurrency + c.SecondCurrency)
 	}
 
 	if uppercase {
@@ -95,16 +97,16 @@ func NewCurrencyPairDelimiter(currency, delimiter string) CurrencyPair {
 	result := strings.Split(currency, delimiter)
 	return CurrencyPair{
 		Delimiter:      delimiter,
-		FirstCurrency:  CurrencyItem(result[0]),
-		SecondCurrency: CurrencyItem(result[1]),
+		FirstCurrency:  symbol.Name(result[0]),
+		SecondCurrency: symbol.Name(result[1]),
 	}
 }
 
 // NewCurrencyPair returns a CurrencyPair without a delimiter
-func NewCurrencyPair(firstCurrency, secondCurrency string) CurrencyPair {
+func NewCurrencyPair(firstCurrency, secondCurrency symbol.Name) CurrencyPair {
 	return CurrencyPair{
-		FirstCurrency:  CurrencyItem(firstCurrency),
-		SecondCurrency: CurrencyItem(secondCurrency),
+		FirstCurrency:  firstCurrency,
+		SecondCurrency: secondCurrency,
 	}
 }
 
@@ -113,9 +115,11 @@ func NewCurrencyPair(firstCurrency, secondCurrency string) CurrencyPair {
 func NewCurrencyPairFromIndex(currency, index string) CurrencyPair {
 	i := strings.Index(currency, index)
 	if i == 0 {
-		return NewCurrencyPair(currency[0:len(index)], currency[len(index):])
+		return NewCurrencyPair(symbol.Name(currency[0:len(index)]),
+			symbol.Name(currency[len(index):]))
 	}
-	return NewCurrencyPair(currency[0:i], currency[i:])
+	return NewCurrencyPair(symbol.Name(currency[0:i]),
+		symbol.Name(currency[i:]))
 }
 
 // NewCurrencyPairFromString converts currency string into a new CurrencyPair
@@ -129,7 +133,8 @@ func NewCurrencyPairFromString(currency string) CurrencyPair {
 			return NewCurrencyPairDelimiter(currency, delimiter)
 		}
 	}
-	return NewCurrencyPair(currency[0:3], currency[3:])
+	return NewCurrencyPair(symbol.Name(currency[0:3]),
+		symbol.Name(currency[3:]))
 }
 
 // Contains checks to see if a specified pair exists inside a currency pair
@@ -177,7 +182,8 @@ func FormatPairs(pairs []string, delimiter, index string) []CurrencyPair {
 			if index != "" {
 				p = NewCurrencyPairFromIndex(pairs[x], index)
 			} else {
-				p = NewCurrencyPair(pairs[x][0:3], pairs[x][3:])
+				p = NewCurrencyPair(symbol.Name(pairs[x][0:3]),
+					symbol.Name(pairs[x][3:]))
 			}
 		}
 		result = append(result, p)

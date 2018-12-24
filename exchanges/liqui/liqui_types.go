@@ -137,7 +137,7 @@ type WithdrawCoins struct {
 
 // WithdrawalFees the large list of predefined withdrawal fees
 // Prone to change
-var WithdrawalFees = map[string]float64{
+var WithdrawalFees = map[symbol.Name]float64{
 	symbol.ZRX:   5,
 	symbol.ADX:   10,
 	symbol.AE:    2,

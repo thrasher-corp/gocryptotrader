@@ -7,6 +7,8 @@ import (
 	"strconv"
 	"sync"
 
+	"github.com/thrasher-/gocryptotrader/currency/symbol"
+
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
 	"github.com/thrasher-/gocryptotrader/exchanges"
@@ -58,7 +60,8 @@ func (b *Bitfinex) UpdateTicker(p pair.CurrencyPair, assetType string) (ticker.P
 	}
 
 	for x := range tickerNew {
-		newP := pair.NewCurrencyPair(tickerNew[x].Symbol[1:4], tickerNew[x].Symbol[4:])
+		newP := pair.NewCurrencyPair(symbol.Name(tickerNew[x].Symbol[1:4]),
+			symbol.Name(tickerNew[x].Symbol[4:]))
 		var tick ticker.Price
 		tick.Pair = newP
 		tick.Ask = tickerNew[x].Ask
@@ -151,7 +154,7 @@ func (b *Bitfinex) GetAccountInfo() (exchange.AccountInfo, error) {
 
 	for x, y := range accounts {
 		var exchangeCurrency exchange.AccountCurrencyInfo
-		exchangeCurrency.CurrencyName = common.StringToUpper(x)
+		exchangeCurrency.CurrencyName = symbol.Name(common.StringToUpper(x))
 		exchangeCurrency.TotalValue = y.Available + y.OnHold
 		exchangeCurrency.Hold = y.OnHold
 		response.Currencies = append(response.Currencies, exchangeCurrency)

@@ -170,11 +170,11 @@ func TestCalculateTradingFee(t *testing.T) {
 
 func TestGetTicker(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetTicker(symbol.BTC+symbol.USD, false)
+	_, err := b.GetTicker(string(symbol.BTC+symbol.USD), false)
 	if err != nil {
 		t.Error("Test Failed - GetTicker() error", err)
 	}
-	_, err = b.GetTicker(symbol.BTC+symbol.USD, true)
+	_, err = b.GetTicker(string(symbol.BTC+symbol.USD), true)
 	if err != nil {
 		t.Error("Test Failed - GetTicker() error", err)
 	}
@@ -182,7 +182,7 @@ func TestGetTicker(t *testing.T) {
 
 func TestGetOrderbook(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetOrderbook(symbol.BTC + symbol.USD)
+	_, err := b.GetOrderbook(string(symbol.BTC + symbol.USD))
 	if err != nil {
 		t.Error("Test Failed - GetOrderbook() error", err)
 	}
@@ -201,7 +201,7 @@ func TestGetTransactions(t *testing.T) {
 	value := url.Values{}
 	value.Set("time", "hour")
 
-	_, err := b.GetTransactions(symbol.BTC+symbol.USD, value)
+	_, err := b.GetTransactions(string(symbol.BTC+symbol.USD), value)
 	if err != nil {
 		t.Error("Test Failed - GetTransactions() error", err)
 	}

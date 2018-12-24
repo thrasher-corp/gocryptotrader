@@ -8,6 +8,8 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/thrasher-/gocryptotrader/currency/symbol"
+
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
@@ -958,15 +960,15 @@ func (b *Bitfinex) GetFee(feeBuilder exchange.FeeBuilder) (float64, error) {
 }
 
 // GetCryptocurrencyWithdrawalFee returns an estimate of fee based on type of transaction
-func (b *Bitfinex) GetCryptocurrencyWithdrawalFee(currency string, accountFees AccountFees) (fee float64, err error) {
-	switch accountFees.Withdraw[currency].(type) {
+func (b *Bitfinex) GetCryptocurrencyWithdrawalFee(currency symbol.Name, accountFees AccountFees) (fee float64, err error) {
+	switch accountFees.Withdraw[currency.String()].(type) {
 	case string:
-		fee, err = strconv.ParseFloat(accountFees.Withdraw[currency].(string), 64)
+		fee, err = strconv.ParseFloat(accountFees.Withdraw[currency.String()].(string), 64)
 		if err != nil {
 			return 0, err
 		}
 	case float64:
-		fee = accountFees.Withdraw[currency].(float64)
+		fee = accountFees.Withdraw[currency.String()].(float64)
 	}
 
 	return fee, nil
@@ -981,10 +983,10 @@ func getInternationalBankWithdrawalFee(amount float64) float64 {
 }
 
 // CalculateTradingFee returns an estimate of fee based on type of whether is maker or taker fee
-func (b *Bitfinex) CalculateTradingFee(accountInfos []AccountInfo, purchasePrice, amount float64, currency string, isMaker bool) (fee float64, err error) {
+func (b *Bitfinex) CalculateTradingFee(accountInfos []AccountInfo, purchasePrice, amount float64, currency symbol.Name, isMaker bool) (fee float64, err error) {
 	for _, i := range accountInfos {
 		for _, j := range i.Fees {
-			if currency == j.Pairs {
+			if currency.String() == j.Pairs {
 				if isMaker {
 					fee = j.MakerFees
 				} else {

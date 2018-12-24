@@ -12,6 +12,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
+	"github.com/thrasher-/gocryptotrader/currency/symbol"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/request"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
@@ -699,6 +700,6 @@ func calculateTradingFee(purchasePrice, amount, multiplier float64) float64 {
 }
 
 // getCryptocurrencyWithdrawalFee returns the fee for withdrawing from the exchange
-func getCryptocurrencyWithdrawalFee(currency string, purchasePrice, amount float64) float64 {
+func getCryptocurrencyWithdrawalFee(currency symbol.Name, purchasePrice, amount float64) float64 {
 	return WithdrawalFees[currency]
 }

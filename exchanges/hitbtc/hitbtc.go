@@ -509,9 +509,9 @@ func (h *HitBTC) Withdraw(currency, address string, amount float64) (bool, error
 }
 
 // GetFeeInfo returns current fee information
-func (h *HitBTC) GetFeeInfo(currencyPair string) (Fee, error) {
+func (h *HitBTC) GetFeeInfo(currencyPair symbol.Name) (Fee, error) {
 	result := Fee{}
-	err := h.SendAuthenticatedHTTPRequest("GET", apiV2FeeInfo+"/"+currencyPair, url.Values{}, &result)
+	err := h.SendAuthenticatedHTTPRequest("GET", apiV2FeeInfo+"/"+currencyPair.String(), url.Values{}, &result)
 
 	return result, err
 }
@@ -587,13 +587,13 @@ func (h *HitBTC) GetFee(feeBuilder exchange.FeeBuilder) (float64, error) {
 	var fee float64
 	switch feeBuilder.FeeType {
 	case exchange.CryptocurrencyTradeFee:
-		feeInfo, err := h.GetFeeInfo(feeBuilder.FirstCurrency + feeBuilder.Delimiter + feeBuilder.SecondCurrency)
+		feeInfo, err := h.GetFeeInfo(feeBuilder.FirstCurrency + symbol.Name(feeBuilder.Delimiter) + feeBuilder.SecondCurrency)
 		if err != nil {
 			return 0, err
 		}
 		fee = calculateTradingFee(feeInfo, feeBuilder.PurchasePrice, feeBuilder.Amount, feeBuilder.IsMaker)
 	case exchange.CryptocurrencyWithdrawalFee:
-		currencyInfo, err := h.GetCurrency(feeBuilder.FirstCurrency)
+		currencyInfo, err := h.GetCurrency(feeBuilder.FirstCurrency.String())
 		if err != nil {
 			return 0, err
 		}
@@ -608,7 +608,7 @@ func (h *HitBTC) GetFee(feeBuilder exchange.FeeBuilder) (float64, error) {
 	return fee, nil
 }
 
-func calculateCryptocurrencyDepositFee(currency string, amount float64) float64 {
+func calculateCryptocurrencyDepositFee(currency symbol.Name, amount float64) float64 {
 	var fee float64
 	if currency == symbol.BTC {
 		fee = 0.0006

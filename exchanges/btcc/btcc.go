@@ -4,6 +4,8 @@ import (
 	"log"
 	"time"
 
+	"github.com/thrasher-/gocryptotrader/currency/symbol"
+
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
@@ -110,11 +112,11 @@ func (b *BTCC) GetFee(feeBuilder exchange.FeeBuilder) (float64, error) {
 	return fee, nil
 }
 
-func getCryptocurrencyWithdrawalFee(currency string) float64 {
+func getCryptocurrencyWithdrawalFee(currency symbol.Name) float64 {
 	return WithdrawalFees[currency]
 }
 
-func getInternationalBankWithdrawalFee(currency string, amount float64) float64 {
+func getInternationalBankWithdrawalFee(currency symbol.Name, amount float64) float64 {
 	var fee float64
 
 	fee = WithdrawalFees[currency] * amount

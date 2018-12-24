@@ -338,7 +338,7 @@ type WsTrade struct {
 
 // WithdrawalFees the large list of predefined withdrawal fees
 // Prone to change, using highest value
-var WithdrawalFees = map[string]float64{
+var WithdrawalFees = map[symbol.Name]float64{
 	symbol.ZRX:   5,
 	symbol.ARDR:  2,
 	symbol.REP:   0.1,

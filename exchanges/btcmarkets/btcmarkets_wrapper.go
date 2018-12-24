@@ -7,6 +7,8 @@ import (
 	"strconv"
 	"sync"
 
+	"github.com/thrasher-/gocryptotrader/currency/symbol"
+
 	"github.com/thrasher-/gocryptotrader/common"
 
 	"github.com/thrasher-/gocryptotrader/currency/pair"
@@ -131,7 +133,7 @@ func (b *BTCMarkets) GetAccountInfo() (exchange.AccountInfo, error) {
 
 	for i := 0; i < len(accountBalance); i++ {
 		var exchangeCurrency exchange.AccountCurrencyInfo
-		exchangeCurrency.CurrencyName = accountBalance[i].Currency
+		exchangeCurrency.CurrencyName = symbol.Name(accountBalance[i].Currency)
 		exchangeCurrency.TotalValue = accountBalance[i].Balance
 		exchangeCurrency.Hold = accountBalance[i].PendingFunds
 

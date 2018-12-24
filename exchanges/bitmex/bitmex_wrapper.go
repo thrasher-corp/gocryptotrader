@@ -7,6 +7,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/thrasher-/gocryptotrader/currency/symbol"
+
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
@@ -137,7 +139,7 @@ func (b *Bitmex) GetAccountInfo() (exchange.AccountInfo, error) {
 	var balances []exchange.AccountCurrencyInfo
 	for _, data := range bal {
 		balances = append(balances, exchange.AccountCurrencyInfo{
-			CurrencyName: data.Currency,
+			CurrencyName: symbol.Name(data.Currency),
 			TotalValue:   float64(data.WalletBalance),
 		})
 	}

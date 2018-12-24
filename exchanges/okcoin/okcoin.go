@@ -1064,7 +1064,7 @@ func calculateTradingFee(purchasePrice, amount float64, isMaker bool) (fee float
 	return fee * amount * purchasePrice
 }
 
-func calculateInternationalBankWithdrawalFee(currency string, purchasePrice, amount float64) (fee float64) {
+func calculateInternationalBankWithdrawalFee(currency symbol.Name, purchasePrice, amount float64) (fee float64) {
 	if currency == symbol.USD {
 		if purchasePrice*amount*0.001 < 15 {
 			fee = 15
@@ -1075,6 +1075,6 @@ func calculateInternationalBankWithdrawalFee(currency string, purchasePrice, amo
 	return fee
 }
 
-func getWithdrawalFee(currency string) float64 {
+func getWithdrawalFee(currency symbol.Name) float64 {
 	return WithdrawalFees[currency]
 }

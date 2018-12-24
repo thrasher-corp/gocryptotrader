@@ -10,6 +10,7 @@ import (
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
+	"github.com/thrasher-/gocryptotrader/currency/symbol"
 	"github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/request"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
@@ -925,11 +926,11 @@ func (k *Kraken) SendAuthenticatedHTTPRequest(method string, params url.Values, 
 // GetFee returns an estimate of fee based on type of transaction
 func (k *Kraken) GetFee(feeBuilder exchange.FeeBuilder) (float64, error) {
 	var fee float64
-	currency := feeBuilder.FirstCurrency + feeBuilder.Delimiter + feeBuilder.SecondCurrency
+	currency := feeBuilder.FirstCurrency + symbol.Name(feeBuilder.Delimiter) + feeBuilder.SecondCurrency
 
 	switch feeBuilder.FeeType {
 	case exchange.CryptocurrencyTradeFee:
-		feePair, err := k.GetTradeVolume(true, currency)
+		feePair, err := k.GetTradeVolume(true, currency.String())
 		if err != nil {
 			return 0, err
 		}
@@ -941,7 +942,7 @@ func (k *Kraken) GetFee(feeBuilder exchange.FeeBuilder) (float64, error) {
 	case exchange.CryptocurrencyWithdrawalFee:
 		fee = getWithdrawalFee(feeBuilder.FirstCurrency)
 	case exchange.InternationalBankDepositFee:
-		depositMethods, err := k.GetDepositMethods(feeBuilder.CurrencyItem)
+		depositMethods, err := k.GetDepositMethods(feeBuilder.CurrencyItem.String())
 		if err != nil {
 			return 0, err
 		}
@@ -968,14 +969,14 @@ func (k *Kraken) GetFee(feeBuilder exchange.FeeBuilder) (float64, error) {
 	return fee, nil
 }
 
-func getWithdrawalFee(currency string) float64 {
+func getWithdrawalFee(currency symbol.Name) float64 {
 	return WithdrawalFees[currency]
 }
 
-func getCryptocurrencyDepositFee(currency string) float64 {
+func getCryptocurrencyDepositFee(currency symbol.Name) float64 {
 	return DepositFees[currency]
 }
 
-func calculateTradingFee(currency string, feePair map[string]TradeVolumeFee, purchasePrice, amount float64) float64 {
+func calculateTradingFee(currency symbol.Name, feePair map[symbol.Name]TradeVolumeFee, purchasePrice, amount float64) float64 {
 	return (feePair[currency].Fee / 100) * purchasePrice * amount
 }

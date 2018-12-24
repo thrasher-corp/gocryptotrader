@@ -5,6 +5,8 @@ import (
 	"strconv"
 	"sync"
 
+	"github.com/thrasher-/gocryptotrader/currency/symbol"
+
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
 	"github.com/thrasher-/gocryptotrader/exchanges"
@@ -192,7 +194,7 @@ func (a *ANX) GetAccountInfo() (exchange.AccountInfo, error) {
 	var balance []exchange.AccountCurrencyInfo
 	for currency, info := range raw.Wallets {
 		balance = append(balance, exchange.AccountCurrencyInfo{
-			CurrencyName: currency,
+			CurrencyName: symbol.Name(currency),
 			TotalValue:   info.AvailableBalance.Value,
 			Hold:         info.Balance.Value,
 		})

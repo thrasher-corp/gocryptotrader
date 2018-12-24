@@ -5,6 +5,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/thrasher-/gocryptotrader/currency/symbol"
+
 	"github.com/thrasher-/gocryptotrader/currency/pair"
 )
 
@@ -42,7 +44,7 @@ type Base struct {
 
 // Orderbook holds the orderbook information for a currency pair and type
 type Orderbook struct {
-	Orderbook    map[pair.CurrencyItem]map[pair.CurrencyItem]map[string]Base
+	Orderbook    map[symbol.Name]map[symbol.Name]map[string]Base
 	ExchangeName string
 }
 
@@ -110,7 +112,7 @@ func GetOrderbookByExchange(exchange string) (*Orderbook, error) {
 
 // FirstCurrencyExists checks to see if the first currency of the orderbook map
 // exists
-func FirstCurrencyExists(exchange string, currency pair.CurrencyItem) bool {
+func FirstCurrencyExists(exchange string, currency symbol.Name) bool {
 	m.Lock()
 	defer m.Unlock()
 	for _, y := range Orderbooks {
@@ -146,8 +148,8 @@ func CreateNewOrderbook(exchangeName string, p pair.CurrencyPair, orderbookNew B
 	defer m.Unlock()
 	orderbook := Orderbook{}
 	orderbook.ExchangeName = exchangeName
-	orderbook.Orderbook = make(map[pair.CurrencyItem]map[pair.CurrencyItem]map[string]Base)
-	a := make(map[pair.CurrencyItem]map[string]Base)
+	orderbook.Orderbook = make(map[symbol.Name]map[symbol.Name]map[string]Base)
+	a := make(map[symbol.Name]map[string]Base)
 	b := make(map[string]Base)
 	b[orderbookType] = orderbookNew
 	a[p.SecondCurrency] = b
@@ -182,7 +184,7 @@ func ProcessOrderbook(exchangeName string, p pair.CurrencyPair, orderbookNew Bas
 	}
 
 	m.Lock()
-	a := make(map[pair.CurrencyItem]map[string]Base)
+	a := make(map[symbol.Name]map[string]Base)
 	b := make(map[string]Base)
 	b[orderbookType] = orderbookNew
 	a[p.SecondCurrency] = b

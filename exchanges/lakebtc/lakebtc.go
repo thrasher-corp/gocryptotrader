@@ -397,7 +397,7 @@ func calculateTradingFee(purchasePrice, amount float64, isMaker bool) (fee float
 	return fee * amount * purchasePrice
 }
 
-func getCryptocurrencyWithdrawalFee(currency string) (fee float64) {
+func getCryptocurrencyWithdrawalFee(currency symbol.Name) (fee float64) {
 	if currency == symbol.BTC {
 		fee = 0.001
 	}

@@ -7,6 +7,7 @@ import (
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
+	"github.com/thrasher-/gocryptotrader/currency/symbol"
 	"github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
@@ -152,7 +153,7 @@ func (k *Kraken) GetAccountInfo() (exchange.AccountInfo, error) {
 	var balances []exchange.AccountCurrencyInfo
 	for key, data := range bal {
 		balances = append(balances, exchange.AccountCurrencyInfo{
-			CurrencyName: key,
+			CurrencyName: symbol.Name(key),
 			TotalValue:   data,
 		})
 	}

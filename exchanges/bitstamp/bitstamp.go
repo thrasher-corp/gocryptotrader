@@ -185,7 +185,7 @@ func getInternationalBankDepositFee(amount float64) float64 {
 }
 
 // CalculateTradingFee returns fee on a currency pair
-func (b *Bitstamp) CalculateTradingFee(currency string, purchasePrice float64, amount float64) float64 {
+func (b *Bitstamp) CalculateTradingFee(currency symbol.Name, purchasePrice float64, amount float64) float64 {
 	var fee float64
 
 	switch currency {

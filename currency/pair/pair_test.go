@@ -2,6 +2,8 @@ package pair
 
 import (
 	"testing"
+
+	"github.com/thrasher-/gocryptotrader/currency/symbol"
 )
 
 func TestLower(t *testing.T) {
@@ -41,7 +43,7 @@ func TestFirstCurrency(t *testing.T) {
 	t.Parallel()
 	pair := NewCurrencyPair("BTC", "USD")
 	actual := pair.FirstCurrency
-	expected := CurrencyItem("BTC")
+	expected := symbol.Name("BTC")
 	if actual != expected {
 		t.Errorf(
 			"Test failed. GetFirstCurrency(): %s was not equal to expected value: %s",
@@ -54,7 +56,7 @@ func TestSecondCurrency(t *testing.T) {
 	t.Parallel()
 	pair := NewCurrencyPair("BTC", "USD")
 	actual := pair.SecondCurrency
-	expected := CurrencyItem("USD")
+	expected := symbol.Name("USD")
 	if actual != expected {
 		t.Errorf(
 			"Test failed. GetSecondCurrency(): %s was not equal to expected value: %s",
