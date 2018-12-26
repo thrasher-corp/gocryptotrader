@@ -122,6 +122,11 @@ type WithdrawalRequests struct {
 	TransactionID string `json:"transaction_id"` // Bitcoin withdrawals only
 }
 
+type CryptoWithdrawalResponse struct {
+	ID    string `json:"id"`
+	Error string `json:"error"`
+}
+
 // UnconfirmedBTCTransactions holds address information about unconfirmed
 // transactions
 type UnconfirmedBTCTransactions struct {

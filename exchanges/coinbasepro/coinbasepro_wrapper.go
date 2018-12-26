@@ -206,7 +206,7 @@ func (c *CoinbasePro) WithdrawCryptocurrencyFunds(withdrawRequest exchange.Withd
 
 // WithdrawFiatFunds returns a withdrawal ID when a withdrawal is
 // submitted
-func (c *CoinbasePro) WithdrawFiatFunds(cryptocurrency pair.CurrencyItem, amount float64) (string, error) {
+func (c *CoinbasePro) WithdrawFiatFunds(withdrawRequest exchange.WithdrawRequest) (string, error) {
 	return "", common.ErrNotYetImplemented
 }
 

@@ -321,8 +321,10 @@ func TestSubmitOrder(t *testing.T) {
 		SecondCurrency: symbol.LTC,
 	}
 	response, err := b.SubmitOrder(p, exchange.Buy, exchange.Market, 1, 1, "clientId")
-	if err != nil || !response.IsOrderPlaced {
+	if isAuthenticatedRequest() && (err != nil || !response.IsOrderPlaced) {
 		t.Errorf("Order failed to be placed: %v", err)
+	} else if !isAuthenticatedRequest() && err == nil {
+		t.Error("Expecting an error when no keys are set")
 	}
 }
 
@@ -420,7 +422,6 @@ func TestModifyOrder(t *testing.T) {
 func TestWithdraw(t *testing.T) {
 	b.SetDefaults()
 	TestSetup(t)
-	b.Verbose = true
 	if skipRealOrderTest() {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}

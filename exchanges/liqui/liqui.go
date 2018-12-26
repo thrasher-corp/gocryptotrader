@@ -1,6 +1,7 @@
 package liqui
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"net/url"
@@ -201,10 +202,13 @@ func (l *Liqui) Trade(pair, orderType string, amount, price float64) (float64, e
 	req.Add("type", orderType)
 	req.Add("amount", strconv.FormatFloat(amount, 'f', -1, 64))
 	req.Add("rate", strconv.FormatFloat(price, 'f', -1, 64))
-
 	var result Trade
 
-	return result.OrderID, l.SendAuthenticatedHTTPRequest(liquiTrade, req, &result)
+	err := l.SendAuthenticatedHTTPRequest(liquiTrade, req, &result)
+	if result.Success == 0 {
+		return -1, errors.New(result.Error)
+	}
+	return result.OrderID, err
 }
 
 // GetActiveOrders returns the list of your active orders.
@@ -233,7 +237,11 @@ func (l *Liqui) CancelExistingOrder(OrderID int64) error {
 	req.Add("order_id", strconv.FormatInt(OrderID, 10))
 	var result CancelOrder
 
-	return l.SendAuthenticatedHTTPRequest(liquiCancelOrder, req, &result)
+	err := l.SendAuthenticatedHTTPRequest(liquiCancelOrder, req, &result)
+	if result.Success == 0 {
+		return errors.New(result.Error)
+	}
+	return err
 }
 
 // GetTradeHistory returns trade history

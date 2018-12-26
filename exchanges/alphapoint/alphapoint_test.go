@@ -613,7 +613,6 @@ func TestModifyOrder(t *testing.T) {
 func TestWithdraw(t *testing.T) {
 	a := &Alphapoint{}
 	a.SetDefaults()
-	a.Verbose = true
 	var withdrawCryptoRequest = exchange.WithdrawRequest{
 		Amount:                   100,
 		Currency:                 symbol.BTC,

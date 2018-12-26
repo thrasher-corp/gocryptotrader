@@ -358,8 +358,10 @@ func TestSubmitOrder(t *testing.T) {
 		SecondCurrency: symbol.LTC,
 	}
 	response, err := b.SubmitOrder(p, exchange.Buy, exchange.Limit, 1, 1, "clientId")
-	if err != nil || !response.IsOrderPlaced {
+	if isAuthenticatedRequest() && (err != nil || !response.IsOrderPlaced) {
 		t.Errorf("Order failed to be placed: %v", err)
+	} else if !isAuthenticatedRequest() && err == nil {
+		t.Error("Expecting an error when no keys are set")
 	}
 }
 
@@ -385,8 +387,11 @@ func TestCancelExchangeOrder(t *testing.T) {
 	err := b.CancelOrder(orderCancellation)
 
 	// Assert
-	if err != nil {
-		t.Errorf("Could not cancel order: %s", err)
+	if !isAuthenticatedRequest() && err == nil {
+		t.Errorf("Expecting an error when no keys are set: %v", err)
+	}
+	if isAuthenticatedRequest() && err != nil {
+		t.Errorf("Could not cancel orders: %v", err)
 	}
 }
 
@@ -412,8 +417,11 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 	resp, err := b.CancelAllOrders(orderCancellation)
 
 	// Assert
-	if err != nil {
-		t.Errorf("Could not cancel order: %s", err)
+	if !isAuthenticatedRequest() && err == nil {
+		t.Errorf("Expecting an error when no keys are set: %v", err)
+	}
+	if isAuthenticatedRequest() && err != nil {
+		t.Errorf("Could not cancel orders: %v", err)
 	}
 
 	if len(resp.OrderStatus) > 0 {
@@ -431,7 +439,6 @@ func TestModifyOrder(t *testing.T) {
 func TestWithdraw(t *testing.T) {
 	b.SetDefaults()
 	TestSetup(t)
-	b.Verbose = true
 	var withdrawCryptoRequest = exchange.WithdrawRequest{
 		Amount:                   100,
 		Currency:                 symbol.LTC,

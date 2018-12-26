@@ -240,8 +240,10 @@ func (o *OKCoin) CancelOrder(order exchange.OrderCancellation) error {
 		return err
 	}
 
-	_, err = o.CancelExistingOrder(orders, exchange.FormatExchangeCurrency(o.Name, order.CurrencyPair).String())
-
+	resp, err := o.CancelExistingOrder(orders, exchange.FormatExchangeCurrency(o.Name, order.CurrencyPair).String())
+	if !resp.Result {
+		return errors.New(resp.ErrorCode)
+	}
 	return err
 }
 
@@ -266,7 +268,7 @@ func (o *OKCoin) CancelAllOrders(orderCancellation exchange.OrderCancellation) (
 			return cancelAllOrdersResponse, err
 		}
 
-		for _, order := range common.SplitStrings(resp.Error, ",") {
+		for _, order := range common.SplitStrings(resp.ErrorCode, ",") {
 			if err != nil {
 				cancelAllOrdersResponse.OrderStatus[order] = "Order could not be cancelled"
 			}

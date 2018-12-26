@@ -168,7 +168,7 @@ func (i *ItBit) SubmitOrder(p pair.CurrencyPair, side exchange.OrderSide, orderT
 	var submitOrderResponse exchange.SubmitOrderResponse
 	var wallet string
 
-	wallets, err := i.GetWallets(nil)
+	wallets, err := i.GetWallets(url.Values{})
 	if err != nil {
 		return submitOrderResponse, err
 	}

@@ -262,8 +262,10 @@ func TestSubmitOrder(t *testing.T) {
 		SecondCurrency: symbol.USD,
 	}
 	response, err := a.SubmitOrder(p, exchange.Buy, exchange.Market, 1, 1, "clientId")
-	if err != nil || !response.IsOrderPlaced {
+	if isAuthenticatedRequest() && (err != nil || !response.IsOrderPlaced) {
 		t.Errorf("Order failed to be placed: %v", err)
+	} else if !isAuthenticatedRequest() && err == nil {
+		t.Error("Expecting an error when no keys are set")
 	}
 }
 
@@ -288,8 +290,10 @@ func TestCancelExchangeOrder(t *testing.T) {
 	err := a.CancelOrder(orderCancellation)
 
 	// Assert
-	if err != nil {
-		t.Errorf("Test Failed - ANX CancelOrder() error: %s", err)
+	if isAuthenticatedRequest() && err != nil {
+		t.Errorf("Could not cancel order: %s", err)
+	} else if !isAuthenticatedRequest() && err == nil {
+		t.Errorf("Expecting an error when no keys are set: %v", err)
 	}
 }
 
@@ -349,7 +353,6 @@ func TestModifyOrder(t *testing.T) {
 func TestWithdraw(t *testing.T) {
 	a.SetDefaults()
 	TestSetup(t)
-	a.Verbose = true
 
 	if skipRealOrderTest() {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")

@@ -226,7 +226,15 @@ func (b *Bitstamp) GetDepositAddress(cryptocurrency pair.CurrencyItem) (string, 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
 // submitted
 func (b *Bitstamp) WithdrawCryptocurrencyFunds(withdrawRequest exchange.WithdrawRequest) (string, error) {
-	return b.CryptoWithdrawal(withdrawRequest.Amount, withdrawRequest.DestinationWalletAddress, withdrawRequest.Currency.String(), withdrawRequest.AddressTag, true)
+	resp, err := b.CryptoWithdrawal(withdrawRequest.Amount, withdrawRequest.DestinationWalletAddress, withdrawRequest.Currency.String(), withdrawRequest.AddressTag, true)
+	if err != nil {
+		return "", err
+	}
+	if resp.Error != "" {
+		return "", errors.New(resp.Error)
+	}
+
+	return resp.ID, nil
 }
 
 // WithdrawFiatFunds returns a withdrawal ID when a

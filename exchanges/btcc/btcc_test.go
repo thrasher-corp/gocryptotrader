@@ -268,7 +268,6 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 func TestWithdraw(t *testing.T) {
 	b.SetDefaults()
 	TestSetup(t)
-	b.Verbose = true
 	var withdrawCryptoRequest = exchange.WithdrawRequest{
 		Amount:                   100,
 		Currency:                 symbol.LTC,

@@ -310,6 +310,10 @@ func (h *HUOBI) CancelAllOrders(orderCancellation exchange.OrderCancellation) (e
 		if resp.Data.FailedCount > 0 {
 			return cancelAllOrdersResponse, fmt.Errorf("%v orders failed to cancel", resp.Data.FailedCount)
 		}
+
+		if resp.Status == "error" {
+			return cancelAllOrdersResponse, errors.New(resp.ErrorMessage)
+		}
 	}
 
 	return cancelAllOrdersResponse, nil
