@@ -138,8 +138,8 @@ func (h *HUOBIHADAX) GetAccountID() (string, error) {
 	return h.AccountID, nil
 }
 
-//GetAccountInfo retrieves balances for all enabled currencies for the
-// HUOBIHADAX exchange - to-do
+// GetAccountInfo retrieves balances for all enabled currencies for the
+// HUOBIHADAX exchange
 func (h *HUOBIHADAX) GetAccountInfo() (exchange.AccountInfo, error) {
 	var info exchange.AccountInfo
 	info.ExchangeName = h.GetName()

@@ -38,7 +38,7 @@ const (
 )
 
 var (
-	mtx            sync.Mutex
+	mtx sync.Mutex
 )
 
 // WsConnect initiates a websocket client connection

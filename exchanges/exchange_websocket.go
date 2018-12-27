@@ -326,7 +326,7 @@ func (w *Websocket) GetName() string {
 	return w.exchangeName
 }
 
-// WebsocketOrderbookLocal defines a local cache of orderbooks for ammending,
+// WebsocketOrderbookLocal defines a local cache of orderbooks for amending,
 // appending and deleting changes and updates the main store in orderbook.go
 type WebsocketOrderbookLocal struct {
 	ob          []orderbook.Base
@@ -338,7 +338,7 @@ type WebsocketOrderbookLocal struct {
 // main cache in orderbook.go
 // Volume == 0; deletion at price target
 // Price target not found; append of price target
-// Price target found; ammend volume of price target
+// Price target found; amend volume of price target
 func (w *WebsocketOrderbookLocal) Update(bidTargets, askTargets []orderbook.Item,
 	p pair.CurrencyPair,
 	updated time.Time,
@@ -388,7 +388,7 @@ func (w *WebsocketOrderbookLocal) Update(bidTargets, askTargets []orderbook.Item
 							orderbookAddress.Bids[y+1:]...)
 						return
 					}
-					// Ammend
+					// Amend
 					orderbookAddress.Bids[y].Amount = bidTargets[x].Amount
 					return
 				}
@@ -418,7 +418,7 @@ func (w *WebsocketOrderbookLocal) Update(bidTargets, askTargets []orderbook.Item
 							orderbookAddress.Asks[y+1:]...)
 						return
 					}
-					// Ammend
+					// Amend
 					orderbookAddress.Asks[y].Amount = askTargets[x].Amount
 					return
 				}

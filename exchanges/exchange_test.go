@@ -851,27 +851,27 @@ func TestSupportsWithdrawPermissions(t *testing.T) {
 	withdrawPermissions := UAC.SupportsWithdrawPermissions(AutoWithdrawCrypto)
 
 	if !withdrawPermissions {
-		t.Errorf("Expected: %v, Recieved: %v", true, withdrawPermissions)
+		t.Errorf("Expected: %v, Received: %v", true, withdrawPermissions)
 	}
 
 	withdrawPermissions = UAC.SupportsWithdrawPermissions(AutoWithdrawCrypto | AutoWithdrawCryptoWithAPIPermission)
 	if !withdrawPermissions {
-		t.Errorf("Expected: %v, Recieved: %v", true, withdrawPermissions)
+		t.Errorf("Expected: %v, Received: %v", true, withdrawPermissions)
 	}
 
 	withdrawPermissions = UAC.SupportsWithdrawPermissions(AutoWithdrawCrypto | WithdrawCryptoWith2FA)
 	if withdrawPermissions {
-		t.Errorf("Expected: %v, Recieved: %v", false, withdrawPermissions)
+		t.Errorf("Expected: %v, Received: %v", false, withdrawPermissions)
 	}
 
 	withdrawPermissions = UAC.SupportsWithdrawPermissions(AutoWithdrawCrypto | AutoWithdrawCryptoWithAPIPermission | WithdrawCryptoWith2FA)
 	if withdrawPermissions {
-		t.Errorf("Expected: %v, Recieved: %v", false, withdrawPermissions)
+		t.Errorf("Expected: %v, Received: %v", false, withdrawPermissions)
 	}
 
 	withdrawPermissions = UAC.SupportsWithdrawPermissions(WithdrawCryptoWith2FA)
 	if withdrawPermissions {
-		t.Errorf("Expected: %v, Recieved: %v", false, withdrawPermissions)
+		t.Errorf("Expected: %v, Received: %v", false, withdrawPermissions)
 	}
 }
 
@@ -904,14 +904,14 @@ func TestFormatWithdrawPermissions(t *testing.T) {
 		1<<18
 	withdrawPermissions := UAC.FormatWithdrawPermissions()
 	if withdrawPermissions != "AUTO WITHDRAW CRYPTO & AUTO WITHDRAW CRYPTO WITH API PERMISSION & AUTO WITHDRAW CRYPTO WITH SETUP & WITHDRAW CRYPTO WITH 2FA & WITHDRAW CRYPTO WITH SMS & WITHDRAW CRYPTO WITH EMAIL & WITHDRAW CRYPTO WITH WEBSITE APPROVAL & WITHDRAW CRYPTO WITH API PERMISSION & AUTO WITHDRAW FIAT & AUTO WITHDRAW FIAT WITH API PERMISSION & AUTO WITHDRAW FIAT WITH SETUP & WITHDRAW FIAT WITH 2FA & WITHDRAW FIAT WITH SMS & WITHDRAW FIAT WITH EMAIL & WITHDRAW FIAT WITH WEBSITE APPROVAL & WITHDRAW FIAT WITH API PERMISSION & WITHDRAW CRYPTO VIA WEBSITE ONLY & WITHDRAW FIAT VIA WEBSITE ONLY & UNKNOWN[1<<18]" {
-		t.Errorf("Expected: %s, Recieved: %s", AutoWithdrawCryptoText+" & "+AutoWithdrawCryptoWithAPIPermissionText, withdrawPermissions)
+		t.Errorf("Expected: %s, Received: %s", AutoWithdrawCryptoText+" & "+AutoWithdrawCryptoWithAPIPermissionText, withdrawPermissions)
 	}
 
 	UAC.APIWithdrawPermissions = NoAPIWithdrawalMethods
 	withdrawPermissions = UAC.FormatWithdrawPermissions()
 
 	if withdrawPermissions != NoAPIWithdrawalMethodsText {
-		t.Errorf("Expected: %s, Recieved: %s", NoAPIWithdrawalMethodsText, withdrawPermissions)
+		t.Errorf("Expected: %s, Received: %s", NoAPIWithdrawalMethodsText, withdrawPermissions)
 	}
 }
 

@@ -441,7 +441,7 @@ type WebsocketTicker struct {
 	BestAsk   float64 `json:"best_ask,string"`
 }
 
-// WebsocketOrderbookSnapshot defines a snapshot reponse
+// WebsocketOrderbookSnapshot defines a snapshot response
 type WebsocketOrderbookSnapshot struct {
 	ProductID string          `json:"product_id"`
 	Type      string          `json:"type"`

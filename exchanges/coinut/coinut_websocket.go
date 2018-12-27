@@ -28,7 +28,7 @@ var populatedList bool
 // wss://wsapi-na.coinut.com
 // wss://wsapi-eu.coinut.com
 
-// WsReadData reads data from the websocket conection
+// WsReadData reads data from the websocket connection
 func (c *COINUT) WsReadData() {
 	c.Websocket.Wg.Add(1)
 
@@ -347,7 +347,7 @@ func (c *COINUT) WsProcessOrderbookUpdate(ob WsOrderbookUpdate) error {
 
 	if ob.Side == "buy" {
 		return c.Websocket.Orderbook.Update([]orderbook.Item{
-			orderbook.Item{Price: ob.Price, Amount: ob.Volume}},
+			{Price: ob.Price, Amount: ob.Volume}},
 			nil,
 			p,
 			time.Now(),
@@ -356,7 +356,7 @@ func (c *COINUT) WsProcessOrderbookUpdate(ob WsOrderbookUpdate) error {
 	}
 
 	return c.Websocket.Orderbook.Update([]orderbook.Item{
-		orderbook.Item{Price: ob.Price, Amount: ob.Volume}},
+		{Price: ob.Price, Amount: ob.Volume}},
 		nil,
 		p,
 		time.Now(),

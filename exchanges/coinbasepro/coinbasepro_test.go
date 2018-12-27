@@ -244,7 +244,7 @@ func TestGetFee(t *testing.T) {
 		// CryptocurrencyTradeFee Basic
 		if resp, err := c.GetFee(feeBuilder); resp != float64(0.003) || err != nil {
 			t.Error(err)
-			t.Errorf("Test Failed - GetFee() error. Expected: %f, Recieved: %f", float64(0.003), resp)
+			t.Errorf("Test Failed - GetFee() error. Expected: %f, Received: %f", float64(0.003), resp)
 		}
 
 		// CryptocurrencyTradeFee High quantity
@@ -252,7 +252,7 @@ func TestGetFee(t *testing.T) {
 		feeBuilder.Amount = 1000
 		feeBuilder.PurchasePrice = 1000
 		if resp, err := c.GetFee(feeBuilder); resp != float64(3000) || err != nil {
-			t.Errorf("Test Failed - GetFee() error. Expected: %f, Recieved: %f", float64(3000), resp)
+			t.Errorf("Test Failed - GetFee() error. Expected: %f, Received: %f", float64(3000), resp)
 			t.Error(err)
 		}
 
@@ -260,7 +260,7 @@ func TestGetFee(t *testing.T) {
 		feeBuilder = setFeeBuilder()
 		feeBuilder.IsMaker = true
 		if resp, err := c.GetFee(feeBuilder); resp != float64(0) || err != nil {
-			t.Errorf("Test Failed - GetFee() error. Expected: %f, Recieved: %f", float64(0.01), resp)
+			t.Errorf("Test Failed - GetFee() error. Expected: %f, Received: %f", float64(0.01), resp)
 			t.Error(err)
 		}
 
@@ -268,7 +268,7 @@ func TestGetFee(t *testing.T) {
 		feeBuilder = setFeeBuilder()
 		feeBuilder.PurchasePrice = -1000
 		if resp, err := c.GetFee(feeBuilder); resp != float64(0) || err != nil {
-			t.Errorf("Test Failed - GetFee() error. Expected: %f, Recieved: %f", float64(0), resp)
+			t.Errorf("Test Failed - GetFee() error. Expected: %f, Received: %f", float64(0), resp)
 			t.Error(err)
 		}
 	}
@@ -277,7 +277,7 @@ func TestGetFee(t *testing.T) {
 	feeBuilder = setFeeBuilder()
 	feeBuilder.FeeType = exchange.CryptocurrencyWithdrawalFee
 	if resp, err := c.GetFee(feeBuilder); resp != float64(0) || err != nil {
-		t.Errorf("Test Failed - GetFee() error. Expected: %f, Recieved: %f", float64(0), resp)
+		t.Errorf("Test Failed - GetFee() error. Expected: %f, Received: %f", float64(0), resp)
 		t.Error(err)
 	}
 
@@ -285,7 +285,7 @@ func TestGetFee(t *testing.T) {
 	feeBuilder = setFeeBuilder()
 	feeBuilder.FeeType = exchange.CyptocurrencyDepositFee
 	if resp, err := c.GetFee(feeBuilder); resp != float64(0) || err != nil {
-		t.Errorf("Test Failed - GetFee() error. Expected: %f, Recieved: %f", float64(0), resp)
+		t.Errorf("Test Failed - GetFee() error. Expected: %f, Received: %f", float64(0), resp)
 		t.Error(err)
 	}
 
@@ -294,7 +294,7 @@ func TestGetFee(t *testing.T) {
 	feeBuilder.FeeType = exchange.InternationalBankDepositFee
 	feeBuilder.CurrencyItem = symbol.EUR
 	if resp, err := c.GetFee(feeBuilder); resp != float64(0.15) || err != nil {
-		t.Errorf("Test Failed - GetFee() error. Expected: %f, Recieved: %f", float64(0), resp)
+		t.Errorf("Test Failed - GetFee() error. Expected: %f, Received: %f", float64(0), resp)
 		t.Error(err)
 	}
 
@@ -303,7 +303,7 @@ func TestGetFee(t *testing.T) {
 	feeBuilder.FeeType = exchange.InternationalBankWithdrawalFee
 	feeBuilder.CurrencyItem = symbol.USD
 	if resp, err := c.GetFee(feeBuilder); resp != float64(25) || err != nil {
-		t.Errorf("Test Failed - GetFee() error. Expected: %f, Recieved: %f", float64(0), resp)
+		t.Errorf("Test Failed - GetFee() error. Expected: %f, Received: %f", float64(0), resp)
 		t.Error(err)
 	}
 }
@@ -312,86 +312,86 @@ func TestCalculateTradingFee(t *testing.T) {
 	t.Parallel()
 	// uppercase
 	var volume = []Volume{
-		Volume{
+		{
 			ProductID: "BTC_USD",
 			Volume:    100,
 		},
 	}
 
 	if resp := c.calculateTradingFee(volume, "btc", "_", "usd", 1, 1, false); resp != float64(0.003) {
-		t.Errorf("Test Failed - GetFee() error. Expected: %f, Recieved: %f", float64(0.003), resp)
+		t.Errorf("Test Failed - GetFee() error. Expected: %f, Received: %f", float64(0.003), resp)
 	}
 
 	// lowercase
 	volume = []Volume{
-		Volume{
+		{
 			ProductID: "btc_usd",
 			Volume:    100,
 		},
 	}
 
 	if resp := c.calculateTradingFee(volume, "btc", "_", "usd", 1, 1, false); resp != float64(0.003) {
-		t.Errorf("Test Failed - GetFee() error. Expected: %f, Recieved: %f", float64(0.003), resp)
+		t.Errorf("Test Failed - GetFee() error. Expected: %f, Received: %f", float64(0.003), resp)
 	}
 
 	// mixedCase
 	volume = []Volume{
-		Volume{
+		{
 			ProductID: "btc_USD",
 			Volume:    100,
 		},
 	}
 
 	if resp := c.calculateTradingFee(volume, "btc", "_", "usd", 1, 1, false); resp != float64(0.003) {
-		t.Errorf("Test Failed - GetFee() error. Expected: %f, Recieved: %f", float64(0.003), resp)
+		t.Errorf("Test Failed - GetFee() error. Expected: %f, Received: %f", float64(0.003), resp)
 	}
 
 	// medium volume
 	volume = []Volume{
-		Volume{
+		{
 			ProductID: "btc_USD",
 			Volume:    10000001,
 		},
 	}
 
 	if resp := c.calculateTradingFee(volume, "btc", "_", "usd", 1, 1, false); resp != float64(0.002) {
-		t.Errorf("Test Failed - GetFee() error. Expected: %f, Recieved: %f", float64(0.002), resp)
+		t.Errorf("Test Failed - GetFee() error. Expected: %f, Received: %f", float64(0.002), resp)
 	}
 
 	// high volume
 	volume = []Volume{
-		Volume{
+		{
 			ProductID: "btc_USD",
 			Volume:    100000010000,
 		},
 	}
 
 	if resp := c.calculateTradingFee(volume, "btc", "_", "usd", 1, 1, false); resp != float64(0.001) {
-		t.Errorf("Test Failed - GetFee() error. Expected: %f, Recieved: %f", float64(0.001), resp)
+		t.Errorf("Test Failed - GetFee() error. Expected: %f, Received: %f", float64(0.001), resp)
 	}
 
 	// no match
 	volume = []Volume{
-		Volume{
+		{
 			ProductID: "btc_beeteesee",
 			Volume:    100000010000,
 		},
 	}
 
 	if resp := c.calculateTradingFee(volume, "btc", "_", "usd", 1, 1, false); resp != float64(0) {
-		t.Errorf("Test Failed - GetFee() error. Expected: %f, Recieved: %f", float64(0), resp)
+		t.Errorf("Test Failed - GetFee() error. Expected: %f, Received: %f", float64(0), resp)
 	}
 
 	// taker
 	volume = []Volume{
-		Volume{
+		{
 			ProductID: "btc_USD",
 			Volume:    100000010000,
 		},
 	}
 
 	if resp := c.calculateTradingFee(volume, "btc", "_", "usd", 1, 1, true); resp != float64(0) {
-		t.Errorf("Test Failed - GetFee() error. Expected: %f, Recieved: %f", float64(0), resp)
+		t.Errorf("Test Failed - GetFee() error. Expected: %f, Received: %f", float64(0), resp)
 	}
 }
 
@@ -403,7 +403,7 @@ func TestFormatWithdrawPermissions(t *testing.T) {
 	withdrawPermissions := c.FormatWithdrawPermissions()
 	// Assert
 	if withdrawPermissions != expectedResult {
-		t.Errorf("Expected: %s, Recieved: %s", expectedResult, withdrawPermissions)
+		t.Errorf("Expected: %s, Received: %s", expectedResult, withdrawPermissions)
 	}
 }
 

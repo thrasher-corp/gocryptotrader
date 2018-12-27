@@ -89,7 +89,7 @@ type FeeBuilder struct {
 	Amount        float64
 }
 
-// OrderCancellation type requred when requesting to cancel an order
+// OrderCancellation type required when requesting to cancel an order
 type OrderCancellation struct {
 	AccountID     string
 	OrderID       string
@@ -407,7 +407,7 @@ func (e *Base) SetAssetTypes() error {
 		return err
 	}
 
-	update := false
+	var update = false
 	if exch.AssetTypes == "" {
 		exch.AssetTypes = common.JoinStrings(e.AssetTypes, ",")
 		update = true

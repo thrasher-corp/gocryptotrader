@@ -203,7 +203,7 @@ func (c *CoinbasePro) WsHandleData() {
 	}
 }
 
-// ProcessSnapshot processes the intial orderbook snap shot
+// ProcessSnapshot processes the initial orderbook snap shot
 func (c *CoinbasePro) ProcessSnapshot(snapshot WebsocketOrderbookSnapshot) error {
 	var base orderbook.Base
 	for _, bid := range snapshot.Bids {

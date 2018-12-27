@@ -676,7 +676,7 @@ func (b *Bitmex) ConfirmEmail(token string) (ConfirmEmail, error) {
 		&confirmation)
 }
 
-// ConfirmTwoFactorAuth confirmas 2FA for this account.
+// ConfirmTwoFactorAuth confirms 2FA for this account.
 func (b *Bitmex) ConfirmTwoFactorAuth(token, typ string) (bool, error) {
 	var working bool
 
@@ -686,7 +686,7 @@ func (b *Bitmex) ConfirmTwoFactorAuth(token, typ string) (bool, error) {
 		&working)
 }
 
-// ConfirmWithdrawal confirmas a withdrawal
+// ConfirmWithdrawal confirms a withdrawal
 func (b *Bitmex) ConfirmWithdrawal(token string) (TransactionInfo, error) {
 	var info TransactionInfo
 

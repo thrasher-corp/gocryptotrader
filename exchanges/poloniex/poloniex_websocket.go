@@ -340,14 +340,14 @@ func (p *Poloniex) WsProcessOrderbookUpdate(target []interface{}, symbol string)
 
 	if sideCheck == 0 {
 		return p.Websocket.Orderbook.Update(nil,
-			[]orderbook.Item{orderbook.Item{Price: price, Amount: volume}},
+			[]orderbook.Item{{Price: price, Amount: volume}},
 			cP,
 			time.Now(),
 			p.GetName(),
 			"SPOT")
 	}
 
-	return p.Websocket.Orderbook.Update([]orderbook.Item{orderbook.Item{Price: price, Amount: volume}},
+	return p.Websocket.Orderbook.Update([]orderbook.Item{{Price: price, Amount: volume}},
 		nil,
 		cP,
 		time.Now(),

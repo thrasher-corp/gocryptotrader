@@ -249,14 +249,14 @@ func TestUpdate(t *testing.T) {
 	BTCUSDPAIR := pair.NewCurrencyPairFromString("BTCUSD")
 
 	bidTargets := []orderbook.Item{
-		orderbook.Item{Price: 49, Amount: 24},    // Ammend
+		orderbook.Item{Price: 49, Amount: 24},    // Amend
 		orderbook.Item{Price: 48, Amount: 0},     // Delete
 		orderbook.Item{Price: 1337, Amount: 100}, // Append
 		orderbook.Item{Price: 1336, Amount: 0},   // Ghost delete
 	}
 
 	askTargets := []orderbook.Item{
-		orderbook.Item{Price: 51, Amount: 24},    // Ammend
+		orderbook.Item{Price: 51, Amount: 24},    // Amend
 		orderbook.Item{Price: 52, Amount: 0},     // Delete
 		orderbook.Item{Price: 1337, Amount: 100}, // Append
 		orderbook.Item{Price: 1336, Amount: 0},   // Ghost delete
@@ -285,14 +285,14 @@ func TestUpdate(t *testing.T) {
 	}
 
 	bidTargets = []orderbook.Item{
-		orderbook.Item{Price: 5999, Amount: 24},  // Ammend
+		orderbook.Item{Price: 5999, Amount: 24},  // Amend
 		orderbook.Item{Price: 5998, Amount: 0},   // Delete
 		orderbook.Item{Price: 1337, Amount: 100}, // Append
 		orderbook.Item{Price: 1336, Amount: 0},   // Ghost delete
 	}
 
 	askTargets = []orderbook.Item{
-		orderbook.Item{Price: 6000, Amount: 24},  // Ammend
+		orderbook.Item{Price: 6000, Amount: 24},  // Amend
 		orderbook.Item{Price: 6001, Amount: 0},   // Delete
 		orderbook.Item{Price: 1337, Amount: 100}, // Append
 		orderbook.Item{Price: 1336, Amount: 0},   // Ghost delete

@@ -69,10 +69,7 @@ func (s *Slack) Setup(config config.CommunicationsConfig) {
 
 // Connect connects to the service
 func (s *Slack) Connect() error {
-	if err := s.NewConnection(); err != nil {
-		return err
-	}
-	return nil
+	return s.NewConnection()
 }
 
 // PushEvent pushes an event to either a slack channel or specific client
@@ -299,10 +296,7 @@ func (s *Slack) handleErrorResponse(data WebsocketResponse) error {
 
 		s.ReconnectURL = ""
 		s.Connected = false
-		if err := s.NewConnection(); err != nil {
-			return err
-		}
-		return nil
+		return s.NewConnection()
 	}
 	return fmt.Errorf("Unknown error '%s'", data.Error.Msg)
 }
