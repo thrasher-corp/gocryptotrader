@@ -399,7 +399,11 @@ func TestSubmitOrder(t *testing.T) {
 		FirstCurrency:  symbol.BTC,
 		SecondCurrency: symbol.USDT,
 	}
+
 	accounts, err := h.GetAccounts()
+	if err != nil {
+		t.Errorf("Failed to get accounts. Err: %s", err)
+	}
 
 	response, err := h.SubmitOrder(p, exchange.Buy, exchange.Limit, 1, 10, strconv.FormatInt(accounts[0].ID, 10))
 	if err != nil || !response.IsOrderPlaced {

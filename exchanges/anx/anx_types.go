@@ -143,7 +143,7 @@ type OrderCancelResponse struct {
 	ErrorCode                  int64                       `json:"errorCode"`
 }
 
-// OrderCancellationResponse contians the orderID and error when cancelling multiple orders
+// OrderCancellationResponse contains the orderID and error when cancelling multiple orders
 type OrderCancellationResponse struct {
 	UUID  string `json:"uuid"`
 	Error string `json:"errorCode"`

@@ -1190,7 +1190,7 @@ func getWithdrawalFee(currency string) float64 {
 	return WithdrawalFees[currency]
 }
 
-// GetBalance returns the full balance accross all wallets
+// GetBalance returns the full balance across all wallets
 func (o *OKEX) GetBalance() ([]FullBalance, error) {
 	var resp Balance
 	var balances []FullBalance

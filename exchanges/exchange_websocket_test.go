@@ -127,31 +127,31 @@ func TestWebsocket(t *testing.T) {
 func TestInsertingSnapShots(t *testing.T) {
 	var snapShot1 orderbook.Base
 	asks := []orderbook.Item{
-		orderbook.Item{Price: 6000, Amount: 1, ID: 1},
-		orderbook.Item{Price: 6001, Amount: 0.5, ID: 2},
-		orderbook.Item{Price: 6002, Amount: 2, ID: 3},
-		orderbook.Item{Price: 6003, Amount: 3, ID: 4},
-		orderbook.Item{Price: 6004, Amount: 5, ID: 5},
-		orderbook.Item{Price: 6005, Amount: 2, ID: 6},
-		orderbook.Item{Price: 6006, Amount: 1.5, ID: 7},
-		orderbook.Item{Price: 6007, Amount: 0.5, ID: 8},
-		orderbook.Item{Price: 6008, Amount: 23, ID: 9},
-		orderbook.Item{Price: 6009, Amount: 9, ID: 10},
-		orderbook.Item{Price: 6010, Amount: 7, ID: 11},
+		{Price: 6000, Amount: 1, ID: 1},
+		{Price: 6001, Amount: 0.5, ID: 2},
+		{Price: 6002, Amount: 2, ID: 3},
+		{Price: 6003, Amount: 3, ID: 4},
+		{Price: 6004, Amount: 5, ID: 5},
+		{Price: 6005, Amount: 2, ID: 6},
+		{Price: 6006, Amount: 1.5, ID: 7},
+		{Price: 6007, Amount: 0.5, ID: 8},
+		{Price: 6008, Amount: 23, ID: 9},
+		{Price: 6009, Amount: 9, ID: 10},
+		{Price: 6010, Amount: 7, ID: 11},
 	}
 
 	bids := []orderbook.Item{
-		orderbook.Item{Price: 5999, Amount: 1, ID: 12},
-		orderbook.Item{Price: 5998, Amount: 0.5, ID: 13},
-		orderbook.Item{Price: 5997, Amount: 2, ID: 14},
-		orderbook.Item{Price: 5996, Amount: 3, ID: 15},
-		orderbook.Item{Price: 5995, Amount: 5, ID: 16},
-		orderbook.Item{Price: 5994, Amount: 2, ID: 17},
-		orderbook.Item{Price: 5993, Amount: 1.5, ID: 18},
-		orderbook.Item{Price: 5992, Amount: 0.5, ID: 19},
-		orderbook.Item{Price: 5991, Amount: 23, ID: 20},
-		orderbook.Item{Price: 5990, Amount: 9, ID: 21},
-		orderbook.Item{Price: 5989, Amount: 7, ID: 22},
+		{Price: 5999, Amount: 1, ID: 12},
+		{Price: 5998, Amount: 0.5, ID: 13},
+		{Price: 5997, Amount: 2, ID: 14},
+		{Price: 5996, Amount: 3, ID: 15},
+		{Price: 5995, Amount: 5, ID: 16},
+		{Price: 5994, Amount: 2, ID: 17},
+		{Price: 5993, Amount: 1.5, ID: 18},
+		{Price: 5992, Amount: 0.5, ID: 19},
+		{Price: 5991, Amount: 23, ID: 20},
+		{Price: 5990, Amount: 9, ID: 21},
+		{Price: 5989, Amount: 7, ID: 22},
 	}
 
 	snapShot1.Asks = asks
@@ -165,31 +165,31 @@ func TestInsertingSnapShots(t *testing.T) {
 
 	var snapShot2 orderbook.Base
 	asks = []orderbook.Item{
-		orderbook.Item{Price: 51, Amount: 1, ID: 1},
-		orderbook.Item{Price: 52, Amount: 0.5, ID: 2},
-		orderbook.Item{Price: 53, Amount: 2, ID: 3},
-		orderbook.Item{Price: 54, Amount: 3, ID: 4},
-		orderbook.Item{Price: 55, Amount: 5, ID: 5},
-		orderbook.Item{Price: 56, Amount: 2, ID: 6},
-		orderbook.Item{Price: 57, Amount: 1.5, ID: 7},
-		orderbook.Item{Price: 58, Amount: 0.5, ID: 8},
-		orderbook.Item{Price: 59, Amount: 23, ID: 9},
-		orderbook.Item{Price: 50, Amount: 9, ID: 10},
-		orderbook.Item{Price: 60, Amount: 7, ID: 11},
+		{Price: 51, Amount: 1, ID: 1},
+		{Price: 52, Amount: 0.5, ID: 2},
+		{Price: 53, Amount: 2, ID: 3},
+		{Price: 54, Amount: 3, ID: 4},
+		{Price: 55, Amount: 5, ID: 5},
+		{Price: 56, Amount: 2, ID: 6},
+		{Price: 57, Amount: 1.5, ID: 7},
+		{Price: 58, Amount: 0.5, ID: 8},
+		{Price: 59, Amount: 23, ID: 9},
+		{Price: 50, Amount: 9, ID: 10},
+		{Price: 60, Amount: 7, ID: 11},
 	}
 
 	bids = []orderbook.Item{
-		orderbook.Item{Price: 49, Amount: 1, ID: 12},
-		orderbook.Item{Price: 48, Amount: 0.5, ID: 13},
-		orderbook.Item{Price: 47, Amount: 2, ID: 14},
-		orderbook.Item{Price: 46, Amount: 3, ID: 15},
-		orderbook.Item{Price: 45, Amount: 5, ID: 16},
-		orderbook.Item{Price: 44, Amount: 2, ID: 17},
-		orderbook.Item{Price: 43, Amount: 1.5, ID: 18},
-		orderbook.Item{Price: 42, Amount: 0.5, ID: 19},
-		orderbook.Item{Price: 41, Amount: 23, ID: 20},
-		orderbook.Item{Price: 40, Amount: 9, ID: 21},
-		orderbook.Item{Price: 39, Amount: 7, ID: 22},
+		{Price: 49, Amount: 1, ID: 12},
+		{Price: 48, Amount: 0.5, ID: 13},
+		{Price: 47, Amount: 2, ID: 14},
+		{Price: 46, Amount: 3, ID: 15},
+		{Price: 45, Amount: 5, ID: 16},
+		{Price: 44, Amount: 2, ID: 17},
+		{Price: 43, Amount: 1.5, ID: 18},
+		{Price: 42, Amount: 0.5, ID: 19},
+		{Price: 41, Amount: 23, ID: 20},
+		{Price: 40, Amount: 9, ID: 21},
+		{Price: 39, Amount: 7, ID: 22},
 	}
 
 	snapShot2.Asks = asks
@@ -203,31 +203,31 @@ func TestInsertingSnapShots(t *testing.T) {
 
 	var snapShot3 orderbook.Base
 	asks = []orderbook.Item{
-		orderbook.Item{Price: 51, Amount: 1, ID: 1},
-		orderbook.Item{Price: 52, Amount: 0.5, ID: 2},
-		orderbook.Item{Price: 53, Amount: 2, ID: 3},
-		orderbook.Item{Price: 54, Amount: 3, ID: 4},
-		orderbook.Item{Price: 55, Amount: 5, ID: 5},
-		orderbook.Item{Price: 56, Amount: 2, ID: 6},
-		orderbook.Item{Price: 57, Amount: 1.5, ID: 7},
-		orderbook.Item{Price: 58, Amount: 0.5, ID: 8},
-		orderbook.Item{Price: 59, Amount: 23, ID: 9},
-		orderbook.Item{Price: 50, Amount: 9, ID: 10},
-		orderbook.Item{Price: 60, Amount: 7, ID: 11},
+		{Price: 51, Amount: 1, ID: 1},
+		{Price: 52, Amount: 0.5, ID: 2},
+		{Price: 53, Amount: 2, ID: 3},
+		{Price: 54, Amount: 3, ID: 4},
+		{Price: 55, Amount: 5, ID: 5},
+		{Price: 56, Amount: 2, ID: 6},
+		{Price: 57, Amount: 1.5, ID: 7},
+		{Price: 58, Amount: 0.5, ID: 8},
+		{Price: 59, Amount: 23, ID: 9},
+		{Price: 50, Amount: 9, ID: 10},
+		{Price: 60, Amount: 7, ID: 11},
 	}
 
 	bids = []orderbook.Item{
-		orderbook.Item{Price: 49, Amount: 1, ID: 12},
-		orderbook.Item{Price: 48, Amount: 0.5, ID: 13},
-		orderbook.Item{Price: 47, Amount: 2, ID: 14},
-		orderbook.Item{Price: 46, Amount: 3, ID: 15},
-		orderbook.Item{Price: 45, Amount: 5, ID: 16},
-		orderbook.Item{Price: 44, Amount: 2, ID: 17},
-		orderbook.Item{Price: 43, Amount: 1.5, ID: 18},
-		orderbook.Item{Price: 42, Amount: 0.5, ID: 19},
-		orderbook.Item{Price: 41, Amount: 23, ID: 20},
-		orderbook.Item{Price: 40, Amount: 9, ID: 21},
-		orderbook.Item{Price: 39, Amount: 7, ID: 22},
+		{Price: 49, Amount: 1, ID: 12},
+		{Price: 48, Amount: 0.5, ID: 13},
+		{Price: 47, Amount: 2, ID: 14},
+		{Price: 46, Amount: 3, ID: 15},
+		{Price: 45, Amount: 5, ID: 16},
+		{Price: 44, Amount: 2, ID: 17},
+		{Price: 43, Amount: 1.5, ID: 18},
+		{Price: 42, Amount: 0.5, ID: 19},
+		{Price: 41, Amount: 23, ID: 20},
+		{Price: 40, Amount: 9, ID: 21},
+		{Price: 39, Amount: 7, ID: 22},
 	}
 
 	snapShot3.Asks = asks
@@ -249,17 +249,17 @@ func TestUpdate(t *testing.T) {
 	BTCUSDPAIR := pair.NewCurrencyPairFromString("BTCUSD")
 
 	bidTargets := []orderbook.Item{
-		orderbook.Item{Price: 49, Amount: 24},    // Amend
-		orderbook.Item{Price: 48, Amount: 0},     // Delete
-		orderbook.Item{Price: 1337, Amount: 100}, // Append
-		orderbook.Item{Price: 1336, Amount: 0},   // Ghost delete
+		{Price: 49, Amount: 24},    // Amend
+		{Price: 48, Amount: 0},     // Delete
+		{Price: 1337, Amount: 100}, // Append
+		{Price: 1336, Amount: 0},   // Ghost delete
 	}
 
 	askTargets := []orderbook.Item{
-		orderbook.Item{Price: 51, Amount: 24},    // Amend
-		orderbook.Item{Price: 52, Amount: 0},     // Delete
-		orderbook.Item{Price: 1337, Amount: 100}, // Append
-		orderbook.Item{Price: 1336, Amount: 0},   // Ghost delete
+		{Price: 51, Amount: 24},    // Amend
+		{Price: 52, Amount: 0},     // Delete
+		{Price: 1337, Amount: 100}, // Append
+		{Price: 1336, Amount: 0},   // Ghost delete
 	}
 
 	err := wsTest.Websocket.Orderbook.Update(bidTargets,
@@ -285,17 +285,17 @@ func TestUpdate(t *testing.T) {
 	}
 
 	bidTargets = []orderbook.Item{
-		orderbook.Item{Price: 5999, Amount: 24},  // Amend
-		orderbook.Item{Price: 5998, Amount: 0},   // Delete
-		orderbook.Item{Price: 1337, Amount: 100}, // Append
-		orderbook.Item{Price: 1336, Amount: 0},   // Ghost delete
+		{Price: 5999, Amount: 24},  // Amend
+		{Price: 5998, Amount: 0},   // Delete
+		{Price: 1337, Amount: 100}, // Append
+		{Price: 1336, Amount: 0},   // Ghost delete
 	}
 
 	askTargets = []orderbook.Item{
-		orderbook.Item{Price: 6000, Amount: 24},  // Amend
-		orderbook.Item{Price: 6001, Amount: 0},   // Delete
-		orderbook.Item{Price: 1337, Amount: 100}, // Append
-		orderbook.Item{Price: 1336, Amount: 0},   // Ghost delete
+		{Price: 6000, Amount: 24},  // Amend
+		{Price: 6001, Amount: 0},   // Delete
+		{Price: 1337, Amount: 100}, // Append
+		{Price: 1336, Amount: 0},   // Ghost delete
 	}
 
 	err = wsTest.Websocket.Orderbook.Update(bidTargets,

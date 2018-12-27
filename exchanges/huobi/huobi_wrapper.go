@@ -240,6 +240,10 @@ func (h *HUOBI) GetExchangeHistory(p pair.CurrencyPair, assetType string) ([]exc
 func (h *HUOBI) SubmitOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (exchange.SubmitOrderResponse, error) {
 	var submitOrderResponse exchange.SubmitOrderResponse
 	accountID, err := strconv.ParseInt(clientID, 10, 64)
+	if err != nil {
+		return submitOrderResponse, err
+	}
+
 	var formattedType SpotNewOrderRequestParamsType
 	var params = SpotNewOrderRequestParams{
 		Amount:    amount,

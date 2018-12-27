@@ -407,7 +407,7 @@ func (e *Base) SetAssetTypes() error {
 		return err
 	}
 
-	var update = false
+	var update bool
 	if exch.AssetTypes == "" {
 		exch.AssetTypes = common.JoinStrings(e.AssetTypes, ",")
 		update = true

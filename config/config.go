@@ -1015,10 +1015,15 @@ func GetFilePath(file string) (string, error) {
 		}
 
 		data, err := common.ReadFile(newDirs[x])
+		if err != nil {
+			return "", err
+		}
+
 		if ConfirmECS(data) {
 			if path.Ext(newDirs[x]) == ".dat" {
 				return newDirs[x], nil
 			}
+
 			err = os.Rename(newDirs[x], newDirs[1])
 			if err != nil {
 				return "", err
@@ -1029,10 +1034,12 @@ func GetFilePath(file string) (string, error) {
 		if path.Ext(newDirs[x]) == ".json" {
 			return newDirs[x], nil
 		}
+
 		err = os.Rename(newDirs[x], newDirs[0])
 		if err != nil {
 			return "", err
 		}
+
 		return newDirs[0], nil
 	}
 

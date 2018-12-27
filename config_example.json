@@ -265,7 +265,7 @@
    "baseCurrencies": "JPY",
    "assetTypes": "SPOT",
    "supportsAutoPairUpdates": false,
-   "pairsLastUpdated": 1543208659,
+   "pairsLastUpdated": 1545884823,
    "configCurrencyPairFormat": {
     "uppercase": true,
     "delimiter": "_"
@@ -873,7 +873,7 @@
    "baseCurrencies": "USD,SGD",
    "assetTypes": "SPOT",
    "supportsAutoPairUpdates": false,
-   "pairsLastUpdated": 1543208659,
+   "pairsLastUpdated": 1545884823,
    "configCurrencyPairFormat": {
     "uppercase": true
    },
@@ -1074,7 +1074,7 @@
    "baseCurrencies": "CNY",
    "assetTypes": "SPOT",
    "supportsAutoPairUpdates": false,
-   "pairsLastUpdated": 1543207521,
+   "pairsLastUpdated": 1545884823,
    "configCurrencyPairFormat": {
     "uppercase": true
    },
@@ -1280,7 +1280,7 @@
    "baseCurrencies": "USD,RUR",
    "assetTypes": "SPOT",
    "supportsAutoPairUpdates": false,
-   "pairsLastUpdated": 1543208659,
+   "pairsLastUpdated": 1545884823,
    "configCurrencyPairFormat": {
     "uppercase": true,
     "delimiter": "_"
