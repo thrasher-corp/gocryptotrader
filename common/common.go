@@ -57,9 +57,9 @@ const (
 )
 
 func initialiseHTTPClient() {
-	// If the HTTPClient isn't set, start a new client with a default timeout of 5 seconds
+	// If the HTTPClient isn't set, start a new client with a default timeout of 15 seconds
 	if HTTPClient == nil {
-		HTTPClient = NewHTTPClientWithTimeout(time.Duration(time.Second * 5))
+		HTTPClient = NewHTTPClientWithTimeout(time.Duration(time.Second * 15))
 	}
 }
 
