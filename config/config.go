@@ -5,7 +5,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"log"
+
 	"os"
 	"path"
 	"runtime"
@@ -18,6 +18,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/currency/forexprovider"
 	"github.com/thrasher-/gocryptotrader/currency/forexprovider/base"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
+	log "github.com/thrasher-/gocryptotrader/logger"
 	"github.com/thrasher-/gocryptotrader/portfolio"
 )
 
@@ -99,6 +100,7 @@ type Config struct {
 	Name              string               `json:"name"`
 	EncryptConfig     int                  `json:"encryptConfig"`
 	GlobalHTTPTimeout time.Duration        `json:"globalHTTPTimeout"`
+	Logging           log.Logging          `json:"logging"`
 	Currency          CurrencyConfig       `json:"currencyConfig"`
 	Communications    CommunicationsConfig `json:"communications"`
 	Portfolio         portfolio.Base       `json:"portfolioAddresses"`
