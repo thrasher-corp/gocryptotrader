@@ -8,8 +8,6 @@ import (
 	"path"
 	"runtime"
 	"time"
-
-	"github.com/thrasher-/gocryptotrader/common"
 )
 
 func init() {
@@ -88,17 +86,12 @@ func clearAllLoggers() {
 
 func setupOutputs() {
 	if len(Logger.File) > 0 {
-		logPath := path.Join(common.GetDefaultDataDir(runtime.GOOS), "logs")
-		err := common.CheckDir(logPath, true)
-		if err != nil {
-			Error(err)
-		}
-		logFile := path.Join(logPath, Logger.File)
+		logFile := path.Join(LogPath, Logger.File)
 		if Logger.Rotate {
 			currentTime := time.Now()
 			newName := currentTime.Format("2006-01-02 15-04-05")
 			newFile := newName + " " + Logger.File
-			err := os.Rename(logFile, path.Join(logPath, newFile))
+			err := os.Rename(logFile, path.Join(LogPath, newFile))
 			if err != nil {
 				Errorf("Failed to rename old log file %s", err)
 			}

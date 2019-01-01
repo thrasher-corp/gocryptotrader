@@ -2,13 +2,13 @@ package main
 
 import (
 	"errors"
-	"log"
 	"net/http"
 
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/currency"
+	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
 // Const vars for websocket
@@ -102,7 +102,7 @@ func (h *WebsocketHub) run() {
 			h.Clients[client] = true
 		case client := <-h.Unregister:
 			if _, ok := h.Clients[client]; ok {
-				log.Printf("websocket: disconnected client")
+				log.Debugln("websocket: disconnected client")
 				delete(h.Clients, client)
 				close(client.Send)
 			}
@@ -111,7 +111,7 @@ func (h *WebsocketHub) run() {
 				select {
 				case client.Send <- message:
 				default:
-					log.Printf("websocket: disconnected client")
+					log.Debugln("websocket: disconnected client")
 					close(client.Send)
 					delete(h.Clients, client)
 				}
@@ -124,7 +124,7 @@ func (h *WebsocketHub) run() {
 func (c *WebsocketClient) SendWebsocketMessage(evt interface{}) error {
 	data, err := common.JSONEncode(evt)
 	if err != nil {
-		log.Printf("websocket: failed to send message: %s", err)
+		log.Errorf("websocket: failed to send message: %s", err)
 		return err
 	}
 
@@ -142,7 +142,7 @@ func (c *WebsocketClient) read() {
 		msgType, message, err := c.Conn.ReadMessage()
 		if err != nil {
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
-				log.Printf("websocket: client disconnected, err: %s", err)
+				log.Errorf("websocket: client disconnected, err: %s", err)
 			}
 			break
 		}
@@ -151,39 +151,39 @@ func (c *WebsocketClient) read() {
 			var evt WebsocketEvent
 			err := common.JSONDecode(message, &evt)
 			if err != nil {
-				log.Printf("websocket: failed to decode JSON sent from client %s", err)
+				log.Errorf("websocket: failed to decode JSON sent from client %s", err)
 				break
 			}
 
 			if evt.Event == "" {
-				log.Printf("websocket: client sent a blank event, disconnecting")
+				log.Warnf("websocket: client sent a blank event, disconnecting")
 				break
 			}
 
 			dataJSON, err := common.JSONEncode(evt.Data)
 			if err != nil {
-				log.Printf("websocket: client sent data we couldn't JSON decode")
+				log.Errorf("websocket: client sent data we couldn't JSON decode")
 				break
 			}
 
 			req := common.StringToLower(evt.Event)
-			log.Printf("websocket: request received: %s", req)
+			log.Debugf("websocket: request received: %s", req)
 
 			result, ok := wsHandlers[req]
 			if !ok {
-				log.Printf("websocket: unsupported event")
+				log.Debugln("websocket: unsupported event")
 				continue
 			}
 
 			if result.authRequired && !c.Authenticated {
-				log.Printf("Websocket: request %s failed due to unauthenticated request on an authenticated API", evt.Event)
+				log.Warnf("Websocket: request %s failed due to unauthenticated request on an authenticated API", evt.Event)
 				c.SendWebsocketMessage(WebsocketEventResponse{Event: evt.Event, Error: "unauthorised request on authenticated API"})
 				continue
 			}
 
 			err = result.handler(c, dataJSON)
 			if err != nil {
-				log.Printf("websocket: request %s failed. Error %s", evt.Event, err)
+				log.Errorf("websocket: request %s failed. Error %s", evt.Event, err)
 				continue
 			}
 		}
@@ -199,13 +199,13 @@ func (c *WebsocketClient) write() {
 		case message, ok := <-c.Send:
 			if !ok {
 				c.Conn.WriteMessage(websocket.CloseMessage, []byte{})
-				log.Printf("websocket: hub closed the channel")
+				log.Debugln("websocket: hub closed the channel")
 				return
 			}
 
 			w, err := c.Conn.NextWriter(websocket.TextMessage)
 			if err != nil {
-				log.Printf("websocket: failed to create new io.writeCloser: %s", err)
+				log.Errorf("websocket: failed to create new io.writeCloser: %s", err)
 				return
 			}
 			w.Write(message)
@@ -217,7 +217,7 @@ func (c *WebsocketClient) write() {
 			}
 
 			if err := w.Close(); err != nil {
-				log.Printf("websocket: failed to close io.WriteCloser: %s", err)
+				log.Errorf("websocket: failed to close io.WriteCloser: %s", err)
 				return
 			}
 		}

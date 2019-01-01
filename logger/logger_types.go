@@ -25,6 +25,7 @@ var (
 	logFileHandle *os.File
 	logfileErr    error
 	logOutput     io.Writer
+	LogPath       string
 
 	// Logger create a pointer to Logging struct for holding data
 	Logger = &Logging{}

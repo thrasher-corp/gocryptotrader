@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"path"
 
 	"net/http"
 	"os"
@@ -85,14 +86,20 @@ func main() {
 		log.Fatalf("Failed to load config. Err: %s", err)
 	}
 
-	log.Logger = &bot.config.Logging
-	log.SetupLogger()
-
 	err = common.CheckDir(bot.dataDir, true)
 	if err != nil {
 		log.Fatalf("Failed to open/create data directory: %s. Err: %s", bot.dataDir, err)
 	}
 	log.Debugf("Using data directory: %s.\n", bot.dataDir)
+
+	log.Logger = &bot.config.Logging
+	logPath := path.Join(common.GetDefaultDataDir(runtime.GOOS), "logs")
+	err = common.CheckDir(logPath, true)
+	if err != nil {
+		log.Error(err)
+	}
+	log.LogPath = logPath
+	log.SetupLogger()
 
 	AdjustGoMaxProcs()
 	log.Debugf("Bot '%s' started.\n", bot.config.Name)
