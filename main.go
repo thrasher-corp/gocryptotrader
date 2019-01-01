@@ -194,7 +194,7 @@ func HandleInterrupt() {
 	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
 	go func() {
 		sig := <-c
-		log.Printf("Captured %v, shutdown requested.", sig)
+		log.Debugf("Captured %v, shutdown requested.", sig)
 		bot.shutdown <- true
 	}()
 }

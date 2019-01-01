@@ -2,12 +2,13 @@ package main
 
 import (
 	"fmt"
-	"log"
+
 	"net/http"
 	"time"
 
 	"github.com/gorilla/mux"
-	"github.com/thrasher-/gocryptotrader/exchanges"
+	exchange "github.com/thrasher-/gocryptotrader/exchanges"
+	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
 // RESTLogger logs the requests internally

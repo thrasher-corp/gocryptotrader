@@ -2,7 +2,7 @@ package main
 
 import (
 	"errors"
-	"log"
+
 	"sync"
 
 	"github.com/thrasher-/gocryptotrader/common"
@@ -36,6 +36,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/exchanges/wex"
 	"github.com/thrasher-/gocryptotrader/exchanges/yobit"
 	"github.com/thrasher-/gocryptotrader/exchanges/zb"
+	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
 // vars related to exchange functions
@@ -86,7 +87,7 @@ func ReloadExchange(name string) error {
 
 	e := GetExchangeByName(nameLower)
 	e.Setup(exchCfg)
-	log.Printf("%s exchange reloaded successfully.\n", name)
+	log.Debugf("%s exchange reloaded successfully.\n", name)
 	return nil
 }
 
@@ -231,13 +232,13 @@ func SetupExchanges() {
 		if CheckExchangeExists(exch.Name) {
 			e := GetExchangeByName(exch.Name)
 			if e == nil {
-				log.Println(ErrExchangeNotFound)
+				log.Errorf("%s", ErrExchangeNotFound)
 				continue
 			}
 
 			err := ReloadExchange(exch.Name)
 			if err != nil {
-				log.Printf("ReloadExchange %s failed: %s", exch.Name, err)
+				log.Errorf("ReloadExchange %s failed: %s", exch.Name, err)
 				continue
 			}
 
@@ -249,16 +250,16 @@ func SetupExchanges() {
 
 		}
 		if !exch.Enabled {
-			log.Printf("%s: Exchange support: Disabled", exch.Name)
+			log.Debugf("%s: Exchange support: Disabled", exch.Name)
 			continue
 		} else {
 			err := LoadExchange(exch.Name, true, &wg)
 			if err != nil {
-				log.Printf("LoadExchange %s failed: %s", exch.Name, err)
+				log.Errorf("LoadExchange %s failed: %s", exch.Name, err)
 				continue
 			}
 		}
-		log.Printf(
+		log.Debugf(
 			"%s: Exchange support: Enabled (Authenticated API support: %s - Verbose mode: %s).\n",
 			exch.Name,
 			common.IsEnabled(exch.AuthenticatedAPISupport),
