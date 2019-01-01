@@ -2,6 +2,13 @@
  "name": "",
  "encryptConfig": -1,
  "globalHTTPTimeout": 15000000000,
+ "logging": {
+  "enabled": true,
+  "file": "debug.txt",
+  "colour": false,
+  "level": "DEBUG|WARN|INFO|ERROR|FATAL",
+  "rotate": true
+ },
  "currencyConfig": {
   "forexProviders": [
    {
