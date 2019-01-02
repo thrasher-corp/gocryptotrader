@@ -1,7 +1,6 @@
 package anx
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/thrasher-/gocryptotrader/config"
@@ -362,5 +361,4 @@ func TestWithdraw(t *testing.T) {
 	} else if !areTestAPIKeysSet() && err == nil {
 		t.Error("Expecting an error when no keys are set")
 	}
-	fmt.Printf(err.Error())
 }
