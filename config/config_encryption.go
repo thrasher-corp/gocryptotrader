@@ -8,9 +8,9 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 
 	"github.com/thrasher-/gocryptotrader/common"
+	log "github.com/thrasher-/gocryptotrader/logger"
 	"golang.org/x/crypto/scrypt"
 )
 

@@ -2,7 +2,8 @@ package base
 
 import (
 	"errors"
-	"log"
+
+	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
 // IFXProviders contains an array of foreign exchange interfaces
@@ -24,12 +25,12 @@ func (fxp IFXProviders) GetCurrencyData(baseCurrency, symbols string) (map[strin
 		if fxp[x].IsPrimaryProvider() && fxp[x].IsEnabled() {
 			rates, err := fxp[x].GetRates(baseCurrency, symbols)
 			if err != nil {
-				log.Println(err)
+				log.Error(err)
 				for y := range fxp {
 					if !fxp[y].IsPrimaryProvider() && fxp[x].IsEnabled() {
 						rates, err = fxp[y].GetRates(baseCurrency, symbols)
 						if err != nil {
-							log.Println(err)
+							log.Error(err)
 							continue
 						}
 						return rates, nil

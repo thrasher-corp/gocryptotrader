@@ -2,11 +2,11 @@ package currency
 
 import (
 	"fmt"
-	"log"
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency/forexprovider"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
+	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
 const (
@@ -38,7 +38,7 @@ func SetDefaults() {
 	FXProviders = forexprovider.NewDefaultFXProvider()
 	err := SeedCurrencyData(DefaultCurrencies)
 	if err != nil {
-		log.Printf("Failed to seed currency data. Err: %s", err)
+		log.Errorf("Failed to seed currency data. Err: %s", err)
 		return
 	}
 }

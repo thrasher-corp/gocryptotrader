@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
 	"net/http"
 	"sync"
 	"time"
@@ -16,6 +15,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/communications/base"
 	"github.com/thrasher-/gocryptotrader/config"
+	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
 // const declares main slack url and commands that will be supported on client
@@ -154,13 +154,13 @@ func (s *Slack) NewConnection() error {
 		}
 
 		if s.Verbose {
-			log.Printf("%s [%s] connected to %s [%s] \nWebsocket URL: %s.\n",
+			log.Debugf("%s [%s] connected to %s [%s] \nWebsocket URL: %s.\n",
 				s.Details.Self.Name,
 				s.Details.Self.ID,
 				s.Details.Team.Domain,
 				s.Details.Team.ID,
 				s.Details.URL)
-			log.Printf("Slack channels: %s", s.GetChannelsString())
+			log.Debugf("Slack channels: %s", s.GetChannelsString())
 		}
 
 		s.TargetChannelID, err = s.GetIDByName(s.TargetChannel)
@@ -197,14 +197,14 @@ func (s *Slack) WebsocketReader() {
 	for {
 		_, resp, err := s.WebsocketConn.ReadMessage()
 		if err != nil {
-			log.Fatal(err)
+			log.Error(err)
 		}
 
 		var data WebsocketResponse
 
 		err = common.JSONDecode(resp, &data)
 		if err != nil {
-			log.Println(err)
+			log.Error(err)
 			continue
 		}
 
@@ -239,10 +239,10 @@ func (s *Slack) WebsocketReader() {
 
 		case "pong":
 			if s.Verbose {
-				log.Println("Pong received from server")
+				log.Debugf("Pong received from server")
 			}
 		default:
-			log.Println(string(resp))
+			log.Debugf(string(resp))
 		}
 	}
 }
@@ -254,7 +254,7 @@ func (s *Slack) handlePresenceChange(resp []byte) error {
 		return err
 	}
 	if s.Verbose {
-		log.Printf("Presence change. User %s [%s] changed status to %s\n",
+		log.Debugf("Presence change. User %s [%s] changed status to %s\n",
 			s.GetUsernameByID(pres.User),
 			pres.User, pres.Presence)
 	}
@@ -271,7 +271,7 @@ func (s *Slack) handleMessageResponse(resp []byte, data WebsocketResponse) error
 		return err
 	}
 	if s.Verbose {
-		log.Printf("Msg received by %s [%s] with text: %s\n",
+		log.Debugf("Msg received by %s [%s] with text: %s\n",
 			s.GetUsernameByID(msg.User),
 			msg.User, msg.Text)
 	}
@@ -283,7 +283,7 @@ func (s *Slack) handleMessageResponse(resp []byte, data WebsocketResponse) error
 func (s *Slack) handleErrorResponse(data WebsocketResponse) error {
 	if data.Error.Msg == "Socket URL has expired" {
 		if s.Verbose {
-			log.Println("Slack websocket URL has expired.. Reconnecting")
+			log.Debugf("Slack websocket URL has expired.. Reconnecting")
 		}
 
 		if s.WebsocketConn == nil {
@@ -291,7 +291,7 @@ func (s *Slack) handleErrorResponse(data WebsocketResponse) error {
 		}
 
 		if err := s.WebsocketConn.Close(); err != nil {
-			log.Println(err)
+			log.Error(err)
 		}
 
 		s.ReconnectURL = ""
@@ -303,7 +303,7 @@ func (s *Slack) handleErrorResponse(data WebsocketResponse) error {
 
 func (s *Slack) handleHelloResponse(data WebsocketResponse) {
 	if s.Verbose {
-		log.Println("Websocket connected successfully.")
+		log.Debugln("Websocket connected successfully.")
 	}
 	s.Connected = true
 	go s.WebsocketKeepAlive()
@@ -320,7 +320,7 @@ func (s *Slack) handleReconnectResponse(resp []byte) error {
 	}
 	s.ReconnectURL = recURL.URL
 	if s.Verbose {
-		log.Printf("Reconnect URL set to %s\n", s.ReconnectURL)
+		log.Debugf("Reconnect URL set to %s\n", s.ReconnectURL)
 	}
 	return nil
 }
@@ -332,7 +332,7 @@ func (s *Slack) WebsocketKeepAlive() {
 	for {
 		<-ticker.C
 		if err := s.WebsocketSend("ping", ""); err != nil {
-			log.Println("slack WebsocketKeepAlive() error", err)
+			log.Debugf("slack WebsocketKeepAlive() error %s", err)
 		}
 	}
 }

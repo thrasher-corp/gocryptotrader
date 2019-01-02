@@ -3,10 +3,10 @@ package portfolio
 import (
 	"errors"
 	"fmt"
-	"log"
 	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
+	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
 const (
@@ -390,7 +390,7 @@ func (p *Base) SeedPortfolio(port Base) {
 // StartPortfolioWatcher observes the portfolio object
 func StartPortfolioWatcher() {
 	addrCount := len(Portfolio.Addresses)
-	log.Printf(
+	log.Debugf(
 		"PortfolioWatcher started: Have %d entries in portfolio.\n", addrCount,
 	)
 	for {
@@ -398,7 +398,7 @@ func StartPortfolioWatcher() {
 		for key, value := range data {
 			success := Portfolio.UpdatePortfolio(value, key)
 			if success {
-				log.Printf(
+				log.Debugf(
 					"PortfolioWatcher: Successfully updated address balance for %s address(es) %s\n",
 					key, value,
 				)
