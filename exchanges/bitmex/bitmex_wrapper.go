@@ -258,7 +258,7 @@ func (b *Bitmex) GetDepositAddress(cryptocurrency pair.CurrencyItem) (string, er
 // submitted
 func (b *Bitmex) WithdrawCryptocurrencyFunds(withdrawRequest exchange.WithdrawRequest) (string, error) {
 	var request = UserRequestWithdrawalParams{
-		Address:  withdrawRequest.DestinationWalletAddress,
+		Address:  withdrawRequest.Address,
 		Amount:   withdrawRequest.Amount,
 		Currency: withdrawRequest.Currency.String(),
 		OtpToken: withdrawRequest.OneTimePassword,

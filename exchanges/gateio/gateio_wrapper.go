@@ -269,7 +269,7 @@ func (g *Gateio) GetDepositAddress(cryptocurrency pair.CurrencyItem) (string, er
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
 // submitted
 func (g *Gateio) WithdrawCryptocurrencyFunds(withdrawRequest exchange.WithdrawRequest) (string, error) {
-	return "", common.ErrNotYetImplemented
+	return g.WithdrawCrypto(withdrawRequest.Currency.String(), withdrawRequest.Address, withdrawRequest.Amount)
 }
 
 // WithdrawFiatFunds returns a withdrawal ID when a

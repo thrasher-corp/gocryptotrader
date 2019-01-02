@@ -282,7 +282,10 @@ func (e *EXMO) GetCryptoDepositAddress() (map[string]string, error) {
 // NOTE: This API function is available only after request to their tech support team
 func (e *EXMO) WithdrawCryptocurrency(currency, address, invoice string, amount float64) (int64, error) {
 	type response struct {
-		TaskID int64 `json:"task_id,string"`
+		TaskID  int64  `json:"task_id,string"`
+		Result  bool   `json:"result"`
+		Error   string `json:"error"`
+		Success int64  `json:"success"`
 	}
 
 	v := url.Values{}
@@ -294,9 +297,15 @@ func (e *EXMO) WithdrawCryptocurrency(currency, address, invoice string, amount 
 	}
 
 	v.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
-	var result response
-	err := e.SendAuthenticatedHTTPRequest("POST", exmoWithdrawCrypt, v, &result)
-	return result.TaskID, err
+	var resp response
+	err := e.SendAuthenticatedHTTPRequest("POST", exmoWithdrawCrypt, v, &resp)
+	if err != nil {
+		return -1, err
+	}
+	if resp.Success == 0 || !resp.Result {
+		return -1, errors.New(resp.Error)
+	}
+	return resp.TaskID, err
 }
 
 // GetWithdrawTXID gets the result of a withdrawal request

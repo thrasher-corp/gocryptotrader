@@ -232,19 +232,9 @@ func TestFormatWithdrawPermissions(t *testing.T) {
 
 // Any tests below this line have the ability to impact your orders on the exchange. Enable canManipulateRealOrders to run them
 // ----------------------------------------------------------------------------------------------------------------------------
-func isAuthenticatedRequest() bool {
-	if (z.APIKey != "" && z.APIKey != "Key" &&
-		z.APISecret != "" && z.APISecret != "Secret") &&
-		canManipulateRealOrders {
-		return true
-	}
-	return false
-}
-
-func skipRealOrderTest() bool {
-	if (z.APIKey != "" && z.APIKey != "Key" &&
-		z.APISecret != "" && z.APISecret != "Secret") &&
-		!canManipulateRealOrders {
+func areTestAPIKeysSet() bool {
+	if z.APIKey != "" && z.APIKey != "Key" &&
+		z.APISecret != "" && z.APISecret != "Secret" {
 		return true
 	}
 	return false
@@ -254,7 +244,7 @@ func TestSubmitOrder(t *testing.T) {
 	z.SetDefaults()
 	TestSetup(t)
 
-	if !isAuthenticatedRequest() {
+	if areTestAPIKeysSet() && !canManipulateRealOrders {
 		t.Skip(fmt.Sprintf("ApiKey: %s. Can place orders: %v", z.APIKey, canManipulateRealOrders))
 	}
 	var pair = pair.CurrencyPair{
@@ -263,9 +253,9 @@ func TestSubmitOrder(t *testing.T) {
 		SecondCurrency: symbol.USDT,
 	}
 	response, err := z.SubmitOrder(pair, exchange.Buy, exchange.Market, 1, 10, "hi")
-	if isAuthenticatedRequest() && (err != nil || !response.IsOrderPlaced) {
+	if areTestAPIKeysSet() && (err != nil || !response.IsOrderPlaced) {
 		t.Errorf("Order failed to be placed: %v", err)
-	} else if !isAuthenticatedRequest() && err == nil {
+	} else if !areTestAPIKeysSet() && err == nil {
 		t.Error("Expecting an error when no keys are set")
 	}
 }
@@ -275,7 +265,7 @@ func TestCancelExchangeOrder(t *testing.T) {
 	z.SetDefaults()
 	TestSetup(t)
 
-	if skipRealOrderTest() {
+	if areTestAPIKeysSet() && !canManipulateRealOrders {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 
@@ -292,10 +282,10 @@ func TestCancelExchangeOrder(t *testing.T) {
 	err := z.CancelOrder(orderCancellation)
 
 	// Assert
-	if !isAuthenticatedRequest() && err == nil {
+	if !areTestAPIKeysSet() && err == nil {
 		t.Errorf("Expecting an error when no keys are set: %v", err)
 	}
-	if isAuthenticatedRequest() && err != nil {
+	if areTestAPIKeysSet() && err != nil {
 		t.Errorf("Could not cancel orders: %v", err)
 	}
 }
@@ -305,7 +295,7 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 	z.SetDefaults()
 	TestSetup(t)
 
-	if skipRealOrderTest() {
+	if areTestAPIKeysSet() && !canManipulateRealOrders {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 
@@ -322,10 +312,10 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 	resp, err := z.CancelAllOrders(orderCancellation)
 
 	// Assert
-	if !isAuthenticatedRequest() && err == nil {
+	if !areTestAPIKeysSet() && err == nil {
 		t.Errorf("Expecting an error when no keys are set: %v", err)
 	}
-	if isAuthenticatedRequest() && err != nil {
+	if areTestAPIKeysSet() && err != nil {
 		t.Errorf("Could not cancel orders: %v", err)
 	}
 
@@ -352,5 +342,29 @@ func TestModifyOrder(t *testing.T) {
 	_, err := z.ModifyOrder(exchange.ModifyOrder{})
 	if err == nil {
 		t.Error("Test failed - ModifyOrder() error")
+	}
+}
+
+func TestWithdraw(t *testing.T) {
+	z.SetDefaults()
+	TestSetup(t)
+	var withdrawCryptoRequest = exchange.WithdrawRequest{
+		Amount:      100,
+		Currency:    symbol.BTC,
+		Address:     "1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB",
+		Description: "WITHDRAW IT ALL",
+		FeeAmount:   1,
+	}
+
+	if areTestAPIKeysSet() && !canManipulateRealOrders {
+		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
+	}
+
+	_, err := z.WithdrawCryptocurrencyFunds(withdrawCryptoRequest)
+	if !areTestAPIKeysSet() && err == nil {
+		t.Errorf("Expecting an error when no keys are set: %v", err)
+	}
+	if areTestAPIKeysSet() && err != nil {
+		t.Errorf("Withdraw failed to be placed: %v", err)
 	}
 }

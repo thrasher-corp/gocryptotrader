@@ -135,17 +135,6 @@ func TestGetExternalAccounts(t *testing.T) {
 	}
 }
 
-func TestCreateWithdraw(t *testing.T) {
-	t.Parallel()
-	if l.APIKey == "" || l.APISecret == "" {
-		t.Skip()
-	}
-	_, err := l.CreateWithdraw(0, 1337)
-	if err == nil {
-		t.Error("Test Failed - CreateWithdraw() error", err)
-	}
-}
-
 func setFeeBuilder() exchange.FeeBuilder {
 	return exchange.FeeBuilder{
 		Amount:              1,
@@ -250,19 +239,9 @@ func TestFormatWithdrawPermissions(t *testing.T) {
 
 // Any tests below this line have the ability to impact your orders on the exchange. Enable canManipulateRealOrders to run them
 // ----------------------------------------------------------------------------------------------------------------------------
-func isAuthenticatedRequest() bool {
-	if (l.APIKey != "" && l.APIKey != "Key" &&
-		l.APISecret != "" && l.APISecret != "Secret") &&
-		canManipulateRealOrders {
-		return true
-	}
-	return false
-}
-
-func skipRealOrderTest() bool {
-	if (l.APIKey != "" && l.APIKey != "Key" &&
-		l.APISecret != "" && l.APISecret != "Secret") &&
-		!canManipulateRealOrders {
+func areTestAPIKeysSet() bool {
+	if l.APIKey != "" && l.APIKey != "Key" &&
+		l.APISecret != "" && l.APISecret != "Secret" {
 		return true
 	}
 	return false
@@ -272,7 +251,7 @@ func TestSubmitOrder(t *testing.T) {
 	l.SetDefaults()
 	TestSetup(t)
 
-	if skipRealOrderTest() {
+	if areTestAPIKeysSet() && !canManipulateRealOrders {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 
@@ -282,9 +261,9 @@ func TestSubmitOrder(t *testing.T) {
 		SecondCurrency: symbol.EUR,
 	}
 	response, err := l.SubmitOrder(p, exchange.Buy, exchange.Market, 1, 10, "hi")
-	if isAuthenticatedRequest() && (err != nil || !response.IsOrderPlaced) {
+	if areTestAPIKeysSet() && (err != nil || !response.IsOrderPlaced) {
 		t.Errorf("Order failed to be placed: %v", err)
-	} else if !isAuthenticatedRequest() && err == nil {
+	} else if !areTestAPIKeysSet() && err == nil {
 		t.Error("Expecting an error when no keys are set")
 	}
 }
@@ -294,7 +273,7 @@ func TestCancelExchangeOrder(t *testing.T) {
 	l.SetDefaults()
 	TestSetup(t)
 
-	if skipRealOrderTest() {
+	if areTestAPIKeysSet() && !canManipulateRealOrders {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 
@@ -311,10 +290,10 @@ func TestCancelExchangeOrder(t *testing.T) {
 	err := l.CancelOrder(orderCancellation)
 
 	// Assert
-	if !isAuthenticatedRequest() && err == nil {
+	if !areTestAPIKeysSet() && err == nil {
 		t.Errorf("Expecting an error when no keys are set: %v", err)
 	}
-	if isAuthenticatedRequest() && err != nil {
+	if areTestAPIKeysSet() && err != nil {
 		t.Errorf("Could not cancel orders: %v", err)
 	}
 }
@@ -324,7 +303,7 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 	l.SetDefaults()
 	TestSetup(t)
 
-	if skipRealOrderTest() {
+	if areTestAPIKeysSet() && !canManipulateRealOrders {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 
@@ -341,10 +320,10 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 	resp, err := l.CancelAllOrders(orderCancellation)
 
 	// Assert
-	if !isAuthenticatedRequest() && err == nil {
+	if !areTestAPIKeysSet() && err == nil {
 		t.Errorf("Expecting an error when no keys are set: %v", err)
 	}
-	if isAuthenticatedRequest() && err != nil {
+	if areTestAPIKeysSet() && err != nil {
 		t.Errorf("Could not cancel orders: %v", err)
 	}
 
@@ -357,5 +336,28 @@ func TestModifyOrder(t *testing.T) {
 	_, err := l.ModifyOrder(exchange.ModifyOrder{})
 	if err == nil {
 		t.Error("Test failed - ModifyOrder() error")
+	}
+}
+
+func TestWithdraw(t *testing.T) {
+	l.SetDefaults()
+	TestSetup(t)
+	var withdrawCryptoRequest = exchange.WithdrawRequest{
+		Amount:      100,
+		Currency:    symbol.BTC,
+		Address:     "1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB",
+		Description: "7860767916",
+	}
+
+	if areTestAPIKeysSet() && !canManipulateRealOrders {
+		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
+	}
+
+	_, err := l.WithdrawCryptocurrencyFunds(withdrawCryptoRequest)
+	if !areTestAPIKeysSet() && err == nil {
+		t.Errorf("Expecting an error when no keys are set: %v", err)
+	}
+	if areTestAPIKeysSet() && err != nil {
+		t.Errorf("Withdraw failed to be placed: %v", err)
 	}
 }

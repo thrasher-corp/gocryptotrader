@@ -298,7 +298,8 @@ func (h *HUOBIHADAX) GetDepositAddress(cryptocurrency pair.CurrencyItem) (string
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
 // submitted
 func (h *HUOBIHADAX) WithdrawCryptocurrencyFunds(withdrawRequest exchange.WithdrawRequest) (string, error) {
-	return "", common.ErrNotYetImplemented
+	resp, err := h.Withdraw(withdrawRequest.Address, withdrawRequest.Currency.Lower().String(), withdrawRequest.AddressTag, withdrawRequest.Amount, withdrawRequest.FeeAmount)
+	return fmt.Sprintf("%v", resp), err
 }
 
 // WithdrawFiatFunds returns a withdrawal ID when a

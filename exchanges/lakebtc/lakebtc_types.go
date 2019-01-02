@@ -110,4 +110,5 @@ type Withdraw struct {
 	Source            string  `json:"source"`
 	ExternalAccountID int64   `json:"external_account_id,string"`
 	At                int64   `json:"at"`
+	Error             string  `json:"error"`
 }

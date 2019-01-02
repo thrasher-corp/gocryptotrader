@@ -28,6 +28,7 @@ const (
 	gateioBalances        = "private/balances"
 	gateioCancelOrder     = "private/cancelOrder"
 	gateioCancelAllOrders = "private/cancelAllOrders"
+	gateioWithdraw        = "private/withdraw"
 	gateioOpenOrders      = "private/openOrders"
 	gateioTicker          = "ticker"
 	gateioTickers         = "tickers"
@@ -507,4 +508,29 @@ func calculateTradingFee(feeForPair, purchasePrice, amount float64) float64 {
 
 func getCryptocurrencyWithdrawalFee(currency string) float64 {
 	return WithdrawalFees[currency]
+}
+
+// WithdrawCrypto deposits cryptocurrency to your selected wallet
+func (g *Gateio) WithdrawCrypto(currency, address string, amount float64) (string, error) {
+	type response struct {
+		Result  bool   `json:"result"`
+		Message string `json:"message"`
+		Code    int    `json:"code"`
+	}
+
+	var result response
+	params := fmt.Sprintf("currency=%v&amount=%v&address=%v",
+		currency,
+		address,
+		amount,
+	)
+	err := g.SendAuthenticatedHTTPRequest("POST", gateioWithdraw, params, &result)
+	if err != nil {
+		return "", err
+	}
+	if !result.Result {
+		return "", fmt.Errorf("code:%d message:%s", result.Code, result.Message)
+	}
+
+	return "", nil
 }

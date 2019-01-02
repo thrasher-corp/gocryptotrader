@@ -23,23 +23,28 @@ const (
 	apiKeyRole2       = ""
 	sessionHeartBeat2 = false
 
-	canManipulateRealOrders = false
+	canManipulateRealOrders = !false
 )
 
 func TestAddSession(t *testing.T) {
 	var g1 Gemini
-	err := AddSession(&g1, 1, apiKey1, apiSecret1, apiKeyRole1, true, false)
-	if err != nil {
-		t.Error("Test failed - AddSession() error")
+	if Session[1] == nil {
+		err := AddSession(&g1, 1, apiKey1, apiSecret1, apiKeyRole1, true, false)
+		if err != nil {
+			t.Error("Test failed - AddSession() error", err)
+		}
+		err = AddSession(&g1, 1, apiKey1, apiSecret1, apiKeyRole1, true, false)
+		if err == nil {
+			t.Error("Test failed - AddSession() error", err)
+		}
 	}
-	err = AddSession(&g1, 1, apiKey1, apiSecret1, apiKeyRole1, true, false)
-	if err == nil {
-		t.Error("Test failed - AddSession() error")
-	}
-	var g2 Gemini
-	err = AddSession(&g2, 2, apiKey2, apiSecret2, apiKeyRole2, false, true)
-	if err != nil {
-		t.Error("Test failed - AddSession() error")
+
+	if len(Session) <= 1 {
+		var g2 Gemini
+		err := AddSession(&g2, 2, apiKey2, apiSecret2, apiKeyRole2, false, true)
+		if err != nil {
+			t.Error("Test failed - AddSession() error", err)
+		}
 	}
 }
 
@@ -61,6 +66,13 @@ func TestSetup(t *testing.T) {
 
 	Session[1].Setup(geminiConfig)
 	Session[2].Setup(geminiConfig)
+
+	Session[1].APIKey = apiKey1
+	Session[1].APISecret = apiSecret1
+
+	Session[2].APIKey = apiKey2
+	Session[2].APISecret = apiSecret2
+
 }
 
 func TestGetSymbols(t *testing.T) {
@@ -326,29 +338,20 @@ func TestFormatWithdrawPermissions(t *testing.T) {
 
 // Any tests below this line have the ability to impact your orders on the exchange. Enable canManipulateRealOrders to run them
 // ----------------------------------------------------------------------------------------------------------------------------
-func isAuthenticatedRequest() bool {
-	if (Session[1].APIKey != "" && Session[1].APIKey != "Key" &&
-		Session[1].APISecret != "" && Session[1].APISecret != "Secret") &&
-		canManipulateRealOrders {
-		return true
-	}
-	return false
-}
-
-func skipRealOrderTest() bool {
-	if (Session[1].APIKey != "" && Session[1].APIKey != "Key" &&
-		Session[1].APISecret != "" && Session[1].APISecret != "Secret") &&
-		!canManipulateRealOrders {
+func areTestAPIKeysSet() bool {
+	if Session[1].APIKey != "" && Session[1].APIKey != "Key" &&
+		Session[1].APISecret != "" && Session[1].APISecret != "Secret" {
 		return true
 	}
 	return false
 }
 
 func TestSubmitOrder(t *testing.T) {
-	Session[1].SetDefaults()
+	TestAddSession(t)
+	TestSetDefaults(t)
 	TestSetup(t)
 
-	if skipRealOrderTest() {
+	if areTestAPIKeysSet() && !canManipulateRealOrders {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 
@@ -358,19 +361,20 @@ func TestSubmitOrder(t *testing.T) {
 		SecondCurrency: symbol.BTC,
 	}
 	response, err := Session[1].SubmitOrder(p, exchange.Buy, exchange.Market, 1, 10, "1234234")
-	if isAuthenticatedRequest() && (err != nil || !response.IsOrderPlaced) {
+	if areTestAPIKeysSet() && (err != nil || !response.IsOrderPlaced) {
 		t.Errorf("Order failed to be placed: %v", err)
-	} else if !isAuthenticatedRequest() && err == nil {
+	} else if !areTestAPIKeysSet() && err == nil {
 		t.Error("Expecting an error when no keys are set")
 	}
 }
 
 func TestCancelExchangeOrder(t *testing.T) {
 	// Arrange
-	Session[1].SetDefaults()
+	TestAddSession(t)
+	TestSetDefaults(t)
 	TestSetup(t)
 
-	if skipRealOrderTest() {
+	if areTestAPIKeysSet() && !canManipulateRealOrders {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 
@@ -387,20 +391,21 @@ func TestCancelExchangeOrder(t *testing.T) {
 	err := Session[1].CancelOrder(orderCancellation)
 
 	// Assert
-	if !isAuthenticatedRequest() && err == nil {
+	if !areTestAPIKeysSet() && err == nil {
 		t.Errorf("Expecting an error when no keys are set: %v", err)
 	}
-	if isAuthenticatedRequest() && err != nil {
+	if areTestAPIKeysSet() && err != nil {
 		t.Errorf("Could not cancel orders: %v", err)
 	}
 }
 
 func TestCancelAllExchangeOrders(t *testing.T) {
 	// Arrange
-	Session[1].SetDefaults()
+	TestAddSession(t)
+	TestSetDefaults(t)
 	TestSetup(t)
 
-	if skipRealOrderTest() {
+	if areTestAPIKeysSet() && !canManipulateRealOrders {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 
@@ -417,10 +422,10 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 	resp, err := Session[1].CancelAllOrders(orderCancellation)
 
 	// Assert
-	if !isAuthenticatedRequest() && err == nil {
+	if !areTestAPIKeysSet() && err == nil {
 		t.Errorf("Expecting an error when no keys are set: %v", err)
 	}
-	if isAuthenticatedRequest() && err != nil {
+	if areTestAPIKeysSet() && err != nil {
 		t.Errorf("Could not cancel orders: %v", err)
 	}
 
@@ -433,5 +438,29 @@ func TestModifyOrder(t *testing.T) {
 	_, err := Session[1].ModifyOrder(exchange.ModifyOrder{})
 	if err == nil {
 		t.Error("Test failed - ModifyOrder() error")
+	}
+}
+
+func TestWithdraw(t *testing.T) {
+	TestAddSession(t)
+	TestSetDefaults(t)
+	TestSetup(t)
+	var withdrawCryptoRequest = exchange.WithdrawRequest{
+		Amount:      100,
+		Currency:    symbol.BTC,
+		Address:     "1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB",
+		Description: "WITHDRAW IT ALL",
+	}
+
+	if areTestAPIKeysSet() && !canManipulateRealOrders {
+		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
+	}
+
+	_, err := Session[1].WithdrawCryptocurrencyFunds(withdrawCryptoRequest)
+	if !areTestAPIKeysSet() && err == nil {
+		t.Errorf("Expecting an error when no keys are set: %v", err)
+	}
+	if areTestAPIKeysSet() && err != nil {
+		t.Errorf("Withdraw failed to be placed: %v", err)
 	}
 }

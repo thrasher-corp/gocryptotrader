@@ -1,6 +1,7 @@
 package gemini
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"net/url"
@@ -192,7 +193,15 @@ func (g *Gemini) GetDepositAddress(cryptocurrency pair.CurrencyItem) (string, er
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
 // submitted
 func (g *Gemini) WithdrawCryptocurrencyFunds(withdrawRequest exchange.WithdrawRequest) (string, error) {
-	return "", common.ErrNotYetImplemented
+	resp, err := g.WithdrawCrypto(withdrawRequest.Address, withdrawRequest.Currency.String(), withdrawRequest.Amount)
+	if err != nil {
+		return "", err
+	}
+	if resp.Result == "error" {
+		return "", errors.New(resp.Message)
+	}
+
+	return resp.TXHash, err
 }
 
 // WithdrawFiatFunds returns a withdrawal ID when a

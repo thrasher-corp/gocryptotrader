@@ -221,7 +221,9 @@ func (h *HitBTC) GetDepositAddress(cryptocurrency pair.CurrencyItem) (string, er
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
 // submitted
 func (h *HitBTC) WithdrawCryptocurrencyFunds(withdrawRequest exchange.WithdrawRequest) (string, error) {
-	return "", common.ErrNotYetImplemented
+	_, err := h.Withdraw(withdrawRequest.Currency.String(), withdrawRequest.Address, withdrawRequest.Amount)
+
+	return "", err
 }
 
 // WithdrawFiatFunds returns a withdrawal ID when a

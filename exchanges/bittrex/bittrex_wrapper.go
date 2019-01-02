@@ -244,7 +244,7 @@ func (b *Bittrex) GetDepositAddress(cryptocurrency pair.CurrencyItem) (string, e
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
 // submitted
 func (b *Bittrex) WithdrawCryptocurrencyFunds(withdrawRequest exchange.WithdrawRequest) (string, error) {
-	uuid, err := b.Withdraw(withdrawRequest.Currency.String(), withdrawRequest.AddressTag, withdrawRequest.DestinationWalletAddress, withdrawRequest.Amount)
+	uuid, err := b.Withdraw(withdrawRequest.Currency.String(), withdrawRequest.AddressTag, withdrawRequest.Address, withdrawRequest.Amount)
 	return fmt.Sprintf("%v", uuid), err
 }
 

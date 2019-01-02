@@ -239,7 +239,8 @@ func (w *WEX) GetDepositAddress(cryptocurrency pair.CurrencyItem) (string, error
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
 // submitted
 func (w *WEX) WithdrawCryptocurrencyFunds(withdrawRequest exchange.WithdrawRequest) (string, error) {
-	return "", common.ErrNotYetImplemented
+	resp, err := w.WithdrawCoins(withdrawRequest.Currency.String(), withdrawRequest.Amount, withdrawRequest.Address)
+	return fmt.Sprintf("%v", resp.TID), err
 }
 
 // WithdrawFiatFunds returns a withdrawal ID when a

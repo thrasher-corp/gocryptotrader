@@ -240,7 +240,7 @@ func (b *Bitfinex) WithdrawCryptocurrencyFunds(withdrawRequest exchange.Withdraw
 	// As this is for trading, I've made the wrapper default 'exchange'
 	// TODO: Discover an automated way to make the decision for wallet type to withdraw from
 	walletType := "exchange"
-	resp, err := b.WithdrawCryptocurrency(withdrawalType, walletType, withdrawRequest.DestinationWalletAddress, withdrawRequest.Currency.String(), withdrawRequest.Description, withdrawRequest.Amount)
+	resp, err := b.WithdrawCryptocurrency(withdrawalType, walletType, withdrawRequest.Address, withdrawRequest.Currency.String(), withdrawRequest.Description, withdrawRequest.Amount)
 	if err != nil {
 		return "", err
 	}

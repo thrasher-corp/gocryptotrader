@@ -447,7 +447,9 @@ func (b *Bithumb) WithdrawCrypto(address, destination, currency string, units fl
 
 	params := url.Values{}
 	params.Set("address", address)
-	params.Set("destination", destination)
+	if len(destination) > 0 {
+		params.Set("destination", destination)
+	}
 	params.Set("currency", common.StringToUpper(currency))
 	params.Set("units", strconv.FormatFloat(units, 'f', -1, 64))
 

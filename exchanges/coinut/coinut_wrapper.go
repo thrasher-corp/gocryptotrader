@@ -353,19 +353,19 @@ func (c *COINUT) GetDepositAddress(cryptocurrency pair.CurrencyItem) (string, er
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
 // submitted
 func (c *COINUT) WithdrawCryptocurrencyFunds(withdrawRequest exchange.WithdrawRequest) (string, error) {
-	return "", common.ErrNotYetImplemented
+	return "", common.ErrFunctionNotSupported
 }
 
 // WithdrawFiatFunds returns a withdrawal ID when a
 // withdrawal is submitted
 func (c *COINUT) WithdrawFiatFunds(withdrawRequest exchange.WithdrawRequest) (string, error) {
-	return "", common.ErrNotYetImplemented
+	return "", common.ErrFunctionNotSupported
 }
 
 // WithdrawFiatFundsToInternationalBank returns a withdrawal ID when a
 // withdrawal is submitted
 func (c *COINUT) WithdrawFiatFundsToInternationalBank(withdrawRequest exchange.WithdrawRequest) (string, error) {
-	return "", common.ErrNotYetImplemented
+	return "", common.ErrFunctionNotSupported
 }
 
 // GetWebsocket returns a pointer to the exchange websocket

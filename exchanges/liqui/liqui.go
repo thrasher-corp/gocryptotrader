@@ -265,7 +265,15 @@ func (l *Liqui) WithdrawCoins(coin string, amount float64, address string) (With
 	req.Add("address", address)
 
 	var result WithdrawCoins
-	return result, l.SendAuthenticatedHTTPRequest(liquiWithdrawCoin, req, &result)
+	err := l.SendAuthenticatedHTTPRequest(liquiWithdrawCoin, req, &result)
+	if err != nil {
+		return WithdrawCoins{}, err
+	}
+	if len(result.Error) > 0 {
+		return result, errors.New(result.Error)
+	}
+
+	return result, nil
 }
 
 // SendHTTPRequest sends an unauthenticated HTTP request

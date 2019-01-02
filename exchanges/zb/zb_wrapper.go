@@ -250,7 +250,7 @@ func (z *ZB) GetDepositAddress(cryptocurrency pair.CurrencyItem) (string, error)
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
 // submitted
 func (z *ZB) WithdrawCryptocurrencyFunds(withdrawRequest exchange.WithdrawRequest) (string, error) {
-	return "", common.ErrNotYetImplemented
+	return z.Withdraw(withdrawRequest.Currency.Lower().String(), withdrawRequest.Address, withdrawRequest.TradePassword, withdrawRequest.Amount, withdrawRequest.FeeAmount, false)
 }
 
 // WithdrawFiatFunds returns a withdrawal ID when a
