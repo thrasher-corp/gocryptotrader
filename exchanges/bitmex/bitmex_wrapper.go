@@ -2,7 +2,6 @@ package bitmex
 
 import (
 	"errors"
-	"log"
 	"math"
 	"sync"
 	"time"
@@ -12,6 +11,7 @@ import (
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
+	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
 // Start starts the Bitmex go routine
@@ -26,14 +26,14 @@ func (b *Bitmex) Start(wg *sync.WaitGroup) {
 // Run implements the Bitmex wrapper
 func (b *Bitmex) Run() {
 	if b.Verbose {
-		log.Printf("%s Websocket: %s. (url: %s).\n", b.GetName(), common.IsEnabled(b.Websocket.IsEnabled()), b.WebsocketURL)
-		log.Printf("%s polling delay: %ds.\n", b.GetName(), b.RESTPollingDelay)
-		log.Printf("%s %d currencies enabled: %s.\n", b.GetName(), len(b.EnabledPairs), b.EnabledPairs)
+		log.Debugf("%s Websocket: %s. (url: %s).\n", b.GetName(), common.IsEnabled(b.Websocket.IsEnabled()), b.WebsocketURL)
+		log.Debugf("%s polling delay: %ds.\n", b.GetName(), b.RESTPollingDelay)
+		log.Debugf("%s %d currencies enabled: %s.\n", b.GetName(), len(b.EnabledPairs), b.EnabledPairs)
 	}
 
 	marketInfo, err := b.GetActiveInstruments(GenericRequestParams{})
 	if err != nil {
-		log.Printf("%s Failed to get available symbols.\n", b.GetName())
+		log.Errorf("%s Failed to get available symbols.\n", b.GetName())
 
 	} else {
 		var exchangeProducts []string
@@ -43,7 +43,7 @@ func (b *Bitmex) Run() {
 
 		err = b.UpdateCurrencies(exchangeProducts, false, false)
 		if err != nil {
-			log.Printf("%s Failed to update available currencies.\n", b.GetName())
+			log.Errorf("%s Failed to update available currencies.\n", b.GetName())
 		}
 	}
 }

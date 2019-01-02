@@ -145,7 +145,7 @@ func printOrderbookSummary(result orderbook.Base, p pair.CurrencyPair, assetType
 				printCurrencyFormat(asksValue),
 			)
 		} else {
-			log.Printf("%s %s %s: ORDERBOOK: Bids len: %d Amount: %f %s. Total value: %f Asks len: %d Amount: %f %s. Total value: %f",
+			log.Infof("%s %s %s: ORDERBOOK: Bids len: %d Amount: %f %s. Total value: %f Asks len: %d Amount: %f %s. Total value: %f",
 				exchangeName,
 				exchange.FormatCurrency(p).String(),
 				assetType,

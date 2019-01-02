@@ -1,12 +1,12 @@
 package base
 
 import (
-	"log"
 	"time"
 
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
+	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
 // IComm is the main interface array across the communication packages
@@ -33,7 +33,7 @@ func (c IComm) Setup() {
 		if c[i].IsEnabled() && !c[i].IsConnected() {
 			err := c[i].Connect()
 			if err != nil {
-				log.Printf("Communications: %s failed to connect. Err: %s", c[i].GetName(), err)
+				log.Errorf("Communications: %s failed to connect. Err: %s", c[i].GetName(), err)
 			}
 		}
 	}
@@ -45,7 +45,7 @@ func (c IComm) PushEvent(event Event) {
 		if c[i].IsEnabled() && c[i].IsConnected() {
 			err := c[i].PushEvent(event)
 			if err != nil {
-				log.Printf("Communications error - PushEvent() in package %s with %v",
+				log.Errorf("Communications error - PushEvent() in package %s with %v",
 					c[i].GetName(), event)
 			}
 		}
@@ -58,12 +58,12 @@ func (c IComm) GetEnabledCommunicationMediums() {
 	var count int
 	for i := range c {
 		if c[i].IsEnabled() && c[i].IsConnected() {
-			log.Printf("Communications: Medium %s is enabled.", c[i].GetName())
+			log.Debugf("Communications: Medium %s is enabled.", c[i].GetName())
 			count++
 		}
 	}
 	if count == 0 {
-		log.Println("Communications: No communication mediums are enabled.")
+		log.Warnf("Communications: No communication mediums are enabled.")
 	}
 }
 

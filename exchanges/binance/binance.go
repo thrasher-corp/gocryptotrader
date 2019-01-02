@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"log"
 	"net/url"
 	"strconv"
 	"time"
@@ -15,6 +14,7 @@ import (
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/request"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
+	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
 // Binance is the overarching type across the Bithumb package
@@ -598,7 +598,7 @@ func (b *Binance) SendAuthHTTPRequest(method, path string, params url.Values, re
 	headers["X-MBX-APIKEY"] = b.APIKey
 
 	if b.Verbose {
-		log.Printf("sent path: \n%s\n", path)
+		log.Debugf("sent path: \n%s\n", path)
 	}
 	path = common.EncodeURLValues(path, params)
 
