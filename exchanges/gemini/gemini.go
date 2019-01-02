@@ -3,7 +3,7 @@ package gemini
 import (
 	"errors"
 	"fmt"
-	"log"
+
 	"net/url"
 	"strconv"
 	"strings"
@@ -11,9 +11,10 @@ import (
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
-	"github.com/thrasher-/gocryptotrader/exchanges"
+	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/request"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
+	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
 const (
@@ -494,7 +495,7 @@ func (g *Gemini) SendAuthenticatedHTTPRequest(method, path string, params map[st
 	}
 
 	if g.Verbose {
-		log.Printf("Request JSON: %s\n", PayloadJSON)
+		log.Debugf("Request JSON: %s", PayloadJSON)
 	}
 
 	PayloadBase64 := common.Base64Encode(PayloadJSON)

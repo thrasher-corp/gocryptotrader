@@ -2,16 +2,16 @@ package gemini
 
 import (
 	"fmt"
-	"log"
 	"net/url"
 	"strconv"
 	"sync"
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
-	"github.com/thrasher-/gocryptotrader/exchanges"
+	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
+	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
 // Start starts the Gemini go routine
@@ -26,17 +26,17 @@ func (g *Gemini) Start(wg *sync.WaitGroup) {
 // Run implements the Gemini wrapper
 func (g *Gemini) Run() {
 	if g.Verbose {
-		log.Printf("%s polling delay: %ds.\n", g.GetName(), g.RESTPollingDelay)
-		log.Printf("%s %d currencies enabled: %s.\n", g.GetName(), len(g.EnabledPairs), g.EnabledPairs)
+		log.Debugf("%s polling delay: %ds.\n", g.GetName(), g.RESTPollingDelay)
+		log.Debugf("%s %d currencies enabled: %s.\n", g.GetName(), len(g.EnabledPairs), g.EnabledPairs)
 	}
 
 	exchangeProducts, err := g.GetSymbols()
 	if err != nil {
-		log.Printf("%s Failed to get available symbols.\n", g.GetName())
+		log.Errorf("%s Failed to get available symbols.\n", g.GetName())
 	} else {
 		err = g.UpdateCurrencies(exchangeProducts, false, false)
 		if err != nil {
-			log.Printf("%s Failed to update available currencies.\n", g.GetName())
+			log.Errorf("%s Failed to update available currencies.\n", g.GetName())
 		}
 	}
 }
