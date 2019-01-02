@@ -1,22 +1,20 @@
 package bitstamp
 
 import (
+	"encoding/json"
 	"net/url"
 	"testing"
 	"time"
 
-	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
 	"github.com/thrasher-/gocryptotrader/currency/symbol"
 	"github.com/thrasher-/gocryptotrader/exchanges"
+	"github.com/thrasher-/gocryptotrader/config"
 )
 
-// Please add your private keys and customerID for better tests
+// Set API data in "../../testdata/apikeys.json"
 const (
-	apiKey                  = ""
-	apiSecret               = ""
-	customerID              = "" // This is the customer id you use to log in
-	canManipulateRealOrders = false
+	customerID              = ""	canManipulateRealOrders = false
 )
 
 var b Bitstamp
@@ -30,9 +28,6 @@ func TestSetDefaults(t *testing.T) {
 	if b.Enabled != false {
 		t.Error("Test Failed - SetDefaults() error")
 	}
-	if b.Verbose != false {
-		t.Error("Test Failed - SetDefaults() error")
-	}
 	if b.Websocket.IsEnabled() != false {
 		t.Error("Test Failed - SetDefaults() error")
 	}
@@ -44,16 +39,29 @@ func TestSetDefaults(t *testing.T) {
 func TestSetup(t *testing.T) {
 	cfg := config.GetConfig()
 	cfg.LoadConfig("../../testdata/configtest.json")
-	bConfig, err := cfg.GetExchangeConfig("Bitstamp")
+	exchangeConfig, err := cfg.GetExchangeConfig("Bitstamp")
 	if err != nil {
 		t.Error("Test Failed - Bitstamp Setup() init error")
 	}
-	bConfig.APIKey = apiKey
-	bConfig.APISecret = apiSecret
-	bConfig.ClientID = customerID
+	apiKeyFile, err := common.ReadFile("../../testdata/apikeys.json")
+	if err != nil {
+		t.Error(err)
+	}
+	var exchangesAPIKeys []config.ExchangeConfig
+	err = json.Unmarshal(apiKeyFile, &exchangesAPIKeys)
+	if err != nil {
+		t.Error(err)
+	}
+	for _, exchangeAPIKeys := range exchangesAPIKeys {
+		if exchangeAPIKeys.Name == exchangeConfig.Name {
+			exchangeConfig.APIKey = exchangeAPIKeys.APIKey
+			exchangeConfig.APISecret = exchangeAPIKeys.APISecret
+			exchangeConfig.ClientID = exchangeAPIKeys.ClientID
+			exchangeConfig.Verbose = exchangeAPIKeys.Verbose
+		}
+	}
 
-	b.Setup(bConfig)
-	b.ClientID = customerID
+	b.Setup(exchangeConfig)
 
 	if !b.IsEnabled() || b.RESTPollingDelay != time.Duration(10) ||
 		b.Verbose || b.Websocket.IsEnabled() || len(b.BaseCurrencies) < 1 ||

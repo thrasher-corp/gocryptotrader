@@ -1,6 +1,7 @@
 package exchange
 
 import (
+	"fmt"
 	"net/http"
 	"testing"
 	"time"
@@ -928,4 +929,29 @@ func TestOrderTypes(t *testing.T) {
 	if os.ToString() != "BUY" {
 		t.Errorf("test failed - unexpected string %s", os.ToString())
 	}
+}
+
+//loadTestKeys returns all test API key data
+func loadTestKeys() []ExchangeAPIKeys {
+	return []ExchangeAPIKeys{}
+}
+
+// LoadExchangeAPIKeys returns an individual exchange's test API keys
+func LoadExchangeAPIKeys(exchangeName string) (ExchangeAPIKeys, error) {
+	resp := loadTestKeys()
+	for _, exchange := range resp {
+		if exchange.Exchange == exchangeName {
+			return exchange, nil
+		}
+	}
+
+	return ExchangeAPIKeys{}, fmt.Errorf("Exchange: '%v' not found in apikeys.json", exchangeName)
+}
+
+// ExchangeAPIKeys stores test API key data
+type ExchangeAPIKeys struct {
+	Exchange  string `json:"exchange"`
+	APIKey    string `json:"api-key"`
+	APISecret string `json:"api-secret"`
+	ClientID  string `json:"client-id"`
 }

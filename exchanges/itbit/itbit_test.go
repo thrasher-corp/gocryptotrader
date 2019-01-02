@@ -1,6 +1,7 @@
 package itbit
 
 import (
+	"encoding/json"
 	"net/url"
 	"testing"
 
@@ -13,11 +14,8 @@ import (
 
 var i ItBit
 
-// Please provide your own keys to do proper testing
+// Set API data in "../../testdata/apikeys.json"
 const (
-	apiKey                  = ""
-	apiSecret               = ""
-	clientID                = ""
 	canManipulateRealOrders = false
 )
 
@@ -28,17 +26,31 @@ func TestSetDefaults(t *testing.T) {
 func TestSetup(t *testing.T) {
 	cfg := config.GetConfig()
 	cfg.LoadConfig("../../testdata/configtest.json")
-	itbitConfig, err := cfg.GetExchangeConfig("ITBIT")
+	exchangeConfig, err := cfg.GetExchangeConfig("ITBIT")
 	if err != nil {
 		t.Error("Test Failed - Gemini Setup() init error")
 	}
 
-	itbitConfig.AuthenticatedAPISupport = true
-	itbitConfig.APIKey = apiKey
-	itbitConfig.APISecret = apiSecret
-	itbitConfig.ClientID = clientID
+	exchangeConfig.AuthenticatedAPISupport = true
+	apiKeyFile, err := common.ReadFile("../../testdata/apikeys.json")
+	if err != nil {
+		t.Error(err)
+	}
+	var exchangesAPIKeys []config.ExchangeConfig
+	err = json.Unmarshal(apiKeyFile, &exchangesAPIKeys)
+	if err != nil {
+		t.Error(err)
+	}
+	for _, exchangeAPIKeys := range exchangesAPIKeys {
+		if exchangeAPIKeys.Name == exchangeConfig.Name {
+			exchangeConfig.APIKey = exchangeAPIKeys.APIKey
+			exchangeConfig.APISecret = exchangeAPIKeys.APISecret
+			exchangeConfig.Verbose = exchangeAPIKeys.Verbose
+			exchangeConfig.ClientID = exchangeAPIKeys.ClientID
+		}
+	}
 
-	i.Setup(itbitConfig)
+	i.Setup(exchangeConfig)
 }
 
 func TestGetTicker(t *testing.T) {
@@ -340,7 +352,7 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 }
 
 func TestGetAccountInfo(t *testing.T) {
-	if apiKey != "" || apiSecret != "" || clientID != "" {
+	if i.APIKey != "" || i.APISecret != "" || i.ClientID != "" {
 		_, err := i.GetAccountInfo()
 		if err == nil {
 			t.Error("Test Failed - GetAccountInfo() error")

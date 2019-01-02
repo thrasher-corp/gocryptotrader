@@ -1,6 +1,7 @@
 package bittrex
 
 import (
+	"encoding/json"
 	"testing"
 	"time"
 
@@ -11,10 +12,8 @@ import (
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 )
 
-// Please supply you own test keys here to run better tests.
+// Set API data in "../../testdata/apikeys.json"
 const (
-	apiKey                  = ""
-	apiSecret               = ""
 	canManipulateRealOrders = false
 )
 
@@ -30,15 +29,30 @@ func TestSetDefaults(t *testing.T) {
 func TestSetup(t *testing.T) {
 	cfg := config.GetConfig()
 	cfg.LoadConfig("../../testdata/configtest.json")
-	bConfig, err := cfg.GetExchangeConfig("Bittrex")
+	exchangeConfig, err := cfg.GetExchangeConfig("Bittrex")
 	if err != nil {
 		t.Error("Test Failed - Bittrex Setup() init error")
 	}
-	bConfig.APIKey = apiKey
-	bConfig.APISecret = apiSecret
-	bConfig.AuthenticatedAPISupport = true
 
-	b.Setup(bConfig)
+	exchangeConfig.AuthenticatedAPISupport = true
+	apiKeyFile, err := common.ReadFile("../../testdata/apikeys.json")
+	if err != nil {
+		t.Error(err)
+	}
+	var exchangesAPIKeys []config.ExchangeConfig
+	err = json.Unmarshal(apiKeyFile, &exchangesAPIKeys)
+	if err != nil {
+		t.Error(err)
+	}
+	for _, exchangeAPIKeys := range exchangesAPIKeys {
+		if exchangeAPIKeys.Name == exchangeConfig.Name {
+			exchangeConfig.APIKey = exchangeAPIKeys.APIKey
+			exchangeConfig.APISecret = exchangeAPIKeys.APISecret
+			exchangeConfig.Verbose = exchangeAPIKeys.Verbose
+		}
+	}
+
+	b.Setup(exchangeConfig)
 
 	if !b.IsEnabled() ||
 		b.RESTPollingDelay != time.Duration(10) || b.Verbose ||

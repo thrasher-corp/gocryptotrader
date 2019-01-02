@@ -1,6 +1,7 @@
 package coinut
 
 import (
+	"encoding/json"
 	"testing"
 	"time"
 
@@ -13,10 +14,8 @@ import (
 
 var c COINUT
 
-// Please supply your own keys here to do better tests
+// Set API data in "../../testdata/apikeys.json"
 const (
-	apiKey                  = ""
-	clientID                = ""
 	canManipulateRealOrders = false
 )
 
@@ -27,14 +26,30 @@ func TestSetDefaults(t *testing.T) {
 func TestSetup(t *testing.T) {
 	cfg := config.GetConfig()
 	cfg.LoadConfig("../../testdata/configtest.json")
-	bConfig, err := cfg.GetExchangeConfig("COINUT")
+	exchangeConfig, err := cfg.GetExchangeConfig("COINUT")
 	if err != nil {
 		t.Error("Test Failed - Coinut Setup() init error")
 	}
-	bConfig.AuthenticatedAPISupport = true
-	bConfig.APIKey = apiKey
-	c.Setup(bConfig)
-	c.ClientID = clientID
+	exchangeConfig.AuthenticatedAPISupport = true
+
+	apiKeyFile, err := common.ReadFile("../../testdata/apikeys.json")
+	if err != nil {
+		t.Error(err)
+	}
+	var exchangesAPIKeys []config.ExchangeConfig
+	err = json.Unmarshal(apiKeyFile, &exchangesAPIKeys)
+	if err != nil {
+		t.Error(err)
+	}
+	for _, exchangeAPIKeys := range exchangesAPIKeys {
+		if exchangeAPIKeys.Name == exchangeConfig.Name {
+			exchangeConfig.APIKey = exchangeAPIKeys.APIKey
+			exchangeConfig.Verbose = exchangeAPIKeys.Verbose
+			exchangeConfig.ClientID = exchangeAPIKeys.ClientID
+		}
+	}
+
+	c.Setup(exchangeConfig)
 
 	if !c.IsEnabled() ||
 		c.RESTPollingDelay != time.Duration(10) ||
@@ -289,7 +304,7 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 }
 
 func TestGetAccountInfo(t *testing.T) {
-	if apiKey != "" || clientID != "" {
+	if c.APIKey != "" || c.ClientID != "" {
 		_, err := c.GetAccountInfo()
 		if err != nil {
 			t.Error("Test Failed - GetAccountInfo() error", err)

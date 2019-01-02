@@ -1,19 +1,16 @@
 package binance
 
 import (
+	"encoding/json"
 	"testing"
 
-	"github.com/thrasher-/gocryptotrader/common"
-	"github.com/thrasher-/gocryptotrader/config"
-	"github.com/thrasher-/gocryptotrader/currency/pair"
+	"github.com/thrasher-/gocryptotrader/common"	"github.com/thrasher-/gocryptotrader/currency/pair"
 	"github.com/thrasher-/gocryptotrader/currency/symbol"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 )
 
-// Please supply your own keys here for due diligence testing
+// Set API data in "../../testdata/apikeys.json"
 const (
-	testAPIKey              = ""
-	testAPISecret           = ""
 	canManipulateRealOrders = false
 )
 
@@ -26,15 +23,29 @@ func TestSetDefaults(t *testing.T) {
 func TestSetup(t *testing.T) {
 	cfg := config.GetConfig()
 	cfg.LoadConfig("../../testdata/configtest.json")
-	binanceConfig, err := cfg.GetExchangeConfig("Binance")
+	exchangeConfig, err := cfg.GetExchangeConfig("Binance")
 	if err != nil {
 		t.Error("Test Failed - Binance Setup() init error")
 	}
 
-	binanceConfig.AuthenticatedAPISupport = true
-	binanceConfig.APIKey = testAPIKey
-	binanceConfig.APISecret = testAPISecret
-	b.Setup(binanceConfig)
+	apiKeyFile, err := common.ReadFile("../../testdata/apikeys.json")
+	if err != nil {
+		t.Error(err)
+	}
+	var exchangesAPIKeys []config.ExchangeConfig
+	err = json.Unmarshal(apiKeyFile, &exchangesAPIKeys)
+	if err != nil {
+		t.Error(err)
+	}
+	for _, exchangeAPIKeys := range exchangesAPIKeys {
+		if exchangeAPIKeys.Name == exchangeConfig.Name {
+			exchangeConfig.APIKey = exchangeAPIKeys.APIKey
+			exchangeConfig.APISecret = exchangeAPIKeys.APISecret
+			exchangeConfig.Verbose = exchangeAPIKeys.Verbose
+		}
+	}
+
+	b.Setup(exchangeConfig)
 }
 
 func TestGetExchangeValidCurrencyPairs(t *testing.T) {
@@ -141,7 +152,7 @@ func TestGetBestPrice(t *testing.T) {
 func TestNewOrder(t *testing.T) {
 	t.Parallel()
 
-	if testAPIKey == "" || testAPISecret == "" {
+	if b.APIKey == "" || b.APISecret == "" {
 		t.Skip()
 	}
 	_, err := b.NewOrder(NewOrderRequest{
@@ -161,7 +172,7 @@ func TestNewOrder(t *testing.T) {
 func TestCancelExistingOrder(t *testing.T) {
 	t.Parallel()
 
-	if testAPIKey == "" || testAPISecret == "" {
+	if b.APIKey == "" || b.APISecret == "" {
 		t.Skip()
 	}
 
@@ -174,7 +185,7 @@ func TestCancelExistingOrder(t *testing.T) {
 func TestQueryOrder(t *testing.T) {
 	t.Parallel()
 
-	if testAPIKey == "" || testAPISecret == "" {
+	if b.APIKey == "" || b.APISecret == "" {
 		t.Skip()
 	}
 
@@ -187,7 +198,7 @@ func TestQueryOrder(t *testing.T) {
 func TestOpenOrders(t *testing.T) {
 	t.Parallel()
 
-	if testAPIKey == "" || testAPISecret == "" {
+	if b.APIKey == "" || b.APISecret == "" {
 		t.Skip()
 	}
 
@@ -200,7 +211,7 @@ func TestOpenOrders(t *testing.T) {
 func TestAllOrders(t *testing.T) {
 	t.Parallel()
 
-	if testAPIKey == "" || testAPISecret == "" {
+	if b.APIKey == "" || b.APISecret == "" {
 		t.Skip()
 	}
 
@@ -211,7 +222,7 @@ func TestAllOrders(t *testing.T) {
 }
 
 func TestGetAccount(t *testing.T) {
-	if testAPIKey == "" || testAPISecret == "" {
+	if b.APIKey == "" || b.APISecret == "" {
 		t.Skip()
 	}
 	t.Parallel()
@@ -250,7 +261,7 @@ func TestGetFee(t *testing.T) {
 
 	var feeBuilder = setFeeBuilder()
 
-	if testAPIKey != "" || testAPISecret != "" {
+	if b.APIKey != "" || b.APISecret != "" {
 		// CryptocurrencyTradeFee Basic
 		if resp, err := b.GetFee(feeBuilder); resp != float64(0.1) || err != nil {
 			t.Error(err)
@@ -416,9 +427,7 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 }
 
 func TestGetAccountInfo(t *testing.T) {
-	b.SetDefaults()
-	TestSetup(t)
-	if testAPIKey == "" || testAPISecret == "" {
+	if b.APIKey == "" || b.APISecret == "" {
 		t.Skip()
 	}
 

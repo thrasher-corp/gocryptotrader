@@ -1,6 +1,7 @@
 package bitflyer
 
 import (
+	"encoding/json"
 	"log"
 	"testing"
 
@@ -12,10 +13,8 @@ import (
 	"github.com/thrasher-/gocryptotrader/currency/pair"
 )
 
-// Please supply your own keys here for due diligence testing
+// Set API data in "../../testdata/apikeys.json"
 const (
-	testAPIKey              = ""
-	testAPISecret           = ""
 	canManipulateRealOrders = false
 )
 
@@ -28,16 +27,30 @@ func TestSetDefaults(t *testing.T) {
 func TestSetup(t *testing.T) {
 	cfg := config.GetConfig()
 	cfg.LoadConfig("../../testdata/configtest.json")
-	bitflyerConfig, err := cfg.GetExchangeConfig("Bitflyer")
+	exchangeConfig, err := cfg.GetExchangeConfig("Bitflyer")
 	if err != nil {
 		t.Error("Test Failed - bitflyer Setup() init error")
 	}
 
-	bitflyerConfig.AuthenticatedAPISupport = true
-	bitflyerConfig.APIKey = testAPIKey
-	bitflyerConfig.APISecret = testAPISecret
+	exchangeConfig.AuthenticatedAPISupport = true
+	apiKeyFile, err := common.ReadFile("../../testdata/apikeys.json")
+	if err != nil {
+		t.Error(err)
+	}
+	var exchangesAPIKeys []config.ExchangeConfig
+	err = json.Unmarshal(apiKeyFile, &exchangesAPIKeys)
+	if err != nil {
+		t.Error(err)
+	}
+	for _, exchangeAPIKeys := range exchangesAPIKeys {
+		if exchangeAPIKeys.Name == exchangeConfig.Name {
+			exchangeConfig.APIKey = exchangeAPIKeys.APIKey
+			exchangeConfig.APISecret = exchangeAPIKeys.APISecret
+			exchangeConfig.Verbose = exchangeAPIKeys.Verbose
+		}
+	}
 
-	b.Setup(bitflyerConfig)
+	b.Setup(exchangeConfig)
 }
 
 func TestGetLatestBlockCA(t *testing.T) {
@@ -169,7 +182,7 @@ func TestGetFee(t *testing.T) {
 	TestSetup(t)
 	var feeBuilder = setFeeBuilder()
 
-	if testAPIKey != "" || testAPISecret != "" {
+	if b.APIKey != "" || b.APISecret != "" {
 		// CryptocurrencyTradeFee Basic
 		if resp, err := b.GetFee(feeBuilder); resp != float64(0) || err != nil {
 			t.Error(err)

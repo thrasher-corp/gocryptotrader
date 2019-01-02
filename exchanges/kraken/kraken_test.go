@@ -1,8 +1,10 @@
 package kraken
 
 import (
+	"encoding/json"
 	"testing"
 
+	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
 	"github.com/thrasher-/gocryptotrader/currency/symbol"
@@ -11,11 +13,8 @@ import (
 
 var k Kraken
 
-// Please add your own APIkeys to do correct due diligence testing.
+// Set API data in "../../testdata/apikeys.json"
 const (
-	apiKey                  = ""
-	apiSecret               = ""
-	clientID                = ""
 	canManipulateRealOrders = false
 )
 
@@ -26,17 +25,31 @@ func TestSetDefaults(t *testing.T) {
 func TestSetup(t *testing.T) {
 	cfg := config.GetConfig()
 	cfg.LoadConfig("../../testdata/configtest.json")
-	krakenConfig, err := cfg.GetExchangeConfig("Kraken")
+	exchangeConfig, err := cfg.GetExchangeConfig("Kraken")
 	if err != nil {
 		t.Error("Test Failed - kraken Setup() init error", err)
 	}
 
-	krakenConfig.AuthenticatedAPISupport = true
-	krakenConfig.APIKey = apiKey
-	krakenConfig.APISecret = apiSecret
-	krakenConfig.ClientID = clientID
+	exchangeConfig.AuthenticatedAPISupport = true
+	apiKeyFile, err := common.ReadFile("../../testdata/apikeys.json")
+	if err != nil {
+		t.Error(err)
+	}
+	var exchangesAPIKeys []config.ExchangeConfig
+	err = json.Unmarshal(apiKeyFile, &exchangesAPIKeys)
+	if err != nil {
+		t.Error(err)
+	}
+	for _, exchangeAPIKeys := range exchangesAPIKeys {
+		if exchangeAPIKeys.Name == exchangeConfig.Name {
+			exchangeConfig.APIKey = exchangeAPIKeys.APIKey
+			exchangeConfig.APISecret = exchangeAPIKeys.APISecret
+			exchangeConfig.Verbose = exchangeAPIKeys.Verbose
+			exchangeConfig.ClientID = exchangeAPIKeys.ClientID
+		}
+	}
 
-	k.Setup(krakenConfig)
+	k.Setup(exchangeConfig)
 }
 
 func TestGetServerTime(t *testing.T) {
@@ -426,7 +439,7 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 }
 
 func TestGetAccountInfo(t *testing.T) {
-	if apiKey != "" || apiSecret != "" || clientID != "" {
+	if k.APIKey != "" || k.APISecret != "" || k.ClientID != "" {
 		_, err := k.GetAccountInfo()
 		if err != nil {
 			t.Error("Test Failed - GetAccountInfo() error", err)

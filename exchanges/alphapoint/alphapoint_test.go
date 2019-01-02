@@ -1,18 +1,19 @@
 package alphapoint
 
 import (
+	"encoding/json"
 	"testing"
 
 	"github.com/thrasher-/gocryptotrader/common"
+	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
 	"github.com/thrasher-/gocryptotrader/currency/symbol"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 )
 
+// Set API data in "../../testdata/apikeys.json"
 const (
 	onlineTest              = false
-	testAPIKey              = ""
-	testAPISecret           = ""
 	canManipulateRealOrders = false
 )
 
@@ -29,18 +30,28 @@ func TestSetDefaults(t *testing.T) {
 	}
 }
 
-func testSetAPIKey(a *Alphapoint) {
-	a.APIKey = testAPIKey
-	a.APISecret = testAPISecret
+func testSetAPIKey(a *Alphapoint) error {
 	a.AuthenticatedAPISupport = true
+	apiKeyFile, err := common.ReadFile("../../testdata/apikeys.json")
+	if err != nil {
+		return err
+	}
+	var exchangesAPIKeys []config.ExchangeConfig
+	err = json.Unmarshal(apiKeyFile, &exchangesAPIKeys)
+	if err != nil {
+		return err
+	}
+	for _, exchangeAPIKeys := range exchangesAPIKeys {
+		if exchangeAPIKeys.Name == "alphapoint" {
+			a.APIKey = exchangeAPIKeys.APIKey
+			a.APISecret = exchangeAPIKeys.APISecret
+			a.Verbose = exchangeAPIKeys.Verbose
+		}
+	}
+
+	return nil
 }
 
-func testIsAPIKeysSet(a *Alphapoint) bool {
-	if testAPIKey != "" && testAPISecret != "" && a.AuthenticatedAPISupport {
-		return true
-	}
-	return false
-}
 func TestGetTicker(t *testing.T) {
 	alpha := Alphapoint{}
 	alpha.SetDefaults()
@@ -294,13 +305,12 @@ func TestGetProducts(t *testing.T) {
 func TestCreateAccount(t *testing.T) {
 	a := &Alphapoint{}
 	a.SetDefaults()
-	testSetAPIKey(a)
-
-	if !testIsAPIKeysSet(a) {
-		return
+	err := testSetAPIKey(a)
+	if err != nil {
+		t.Error(err)
 	}
 
-	err := a.CreateAccount("test", "account", "something@something.com", "0292383745", "lolcat123")
+	err = a.CreateAccount("test", "account", "something@something.com", "0292383745", "lolcat123")
 	if err != nil {
 		t.Errorf("Test Failed - Init error: %s", err)
 	}
@@ -317,13 +327,12 @@ func TestCreateAccount(t *testing.T) {
 func TestGetUserInfo(t *testing.T) {
 	a := &Alphapoint{}
 	a.SetDefaults()
-	testSetAPIKey(a)
-
-	if !testIsAPIKeysSet(a) {
-		return
+	err := testSetAPIKey(a)
+	if err != nil {
+		t.Error(err)
 	}
 
-	_, err := a.GetUserInfo()
+	_, err = a.GetUserInfo()
 	if err == nil {
 		t.Error("Test Failed - GetUserInfo() error")
 	}
@@ -332,13 +341,12 @@ func TestGetUserInfo(t *testing.T) {
 func TestSetUserInfo(t *testing.T) {
 	a := &Alphapoint{}
 	a.SetDefaults()
-	testSetAPIKey(a)
-
-	if !testIsAPIKeysSet(a) {
-		return
+	err := testSetAPIKey(a)
+	if err != nil {
+		t.Error(err)
 	}
 
-	_, err := a.SetUserInfo("bla", "bla", "1", "meh", true, true)
+	_, err = a.SetUserInfo("bla", "bla", "1", "meh", true, true)
 	if err == nil {
 		t.Error("Test Failed - GetUserInfo() error")
 	}
@@ -347,13 +355,12 @@ func TestSetUserInfo(t *testing.T) {
 func TestGetAccountInfo(t *testing.T) {
 	a := &Alphapoint{}
 	a.SetDefaults()
-	testSetAPIKey(a)
-
-	if !testIsAPIKeysSet(a) {
-		return
+	err := testSetAPIKey(a)
+	if err != nil {
+		t.Error(err)
 	}
 
-	_, err := a.GetAccountInfo()
+	_, err = a.GetAccountInfo()
 	if err == nil {
 		t.Error("Test Failed - GetUserInfo() error")
 	}
@@ -362,13 +369,12 @@ func TestGetAccountInfo(t *testing.T) {
 func TestGetAccountTrades(t *testing.T) {
 	a := &Alphapoint{}
 	a.SetDefaults()
-	testSetAPIKey(a)
-
-	if !testIsAPIKeysSet(a) {
-		return
+	err := testSetAPIKey(a)
+	if err != nil {
+		t.Error(err)
 	}
 
-	_, err := a.GetAccountTrades("", 1, 2)
+	_, err = a.GetAccountTrades("", 1, 2)
 	if err == nil {
 		t.Error("Test Failed - GetUserInfo() error")
 	}
@@ -377,13 +383,12 @@ func TestGetAccountTrades(t *testing.T) {
 func TestGetDepositAddresses(t *testing.T) {
 	a := &Alphapoint{}
 	a.SetDefaults()
-	testSetAPIKey(a)
-
-	if !testIsAPIKeysSet(a) {
-		return
+	err := testSetAPIKey(a)
+	if err != nil {
+		t.Error(err)
 	}
 
-	_, err := a.GetDepositAddresses()
+	_, err = a.GetDepositAddresses()
 	if err == nil {
 		t.Error("Test Failed - GetUserInfo() error")
 	}
@@ -392,13 +397,12 @@ func TestGetDepositAddresses(t *testing.T) {
 func TestWithdrawCoins(t *testing.T) {
 	a := &Alphapoint{}
 	a.SetDefaults()
-	testSetAPIKey(a)
-
-	if !testIsAPIKeysSet(a) {
-		return
+	err := testSetAPIKey(a)
+	if err != nil {
+		t.Error(err)
 	}
 
-	err := a.WithdrawCoins("", "", "", 0.01)
+	err = a.WithdrawCoins("", "", "", 0.01)
 	if err == nil {
 		t.Error("Test Failed - GetUserInfo() error")
 	}
@@ -407,13 +411,12 @@ func TestWithdrawCoins(t *testing.T) {
 func TestCreateOrder(t *testing.T) {
 	a := &Alphapoint{}
 	a.SetDefaults()
-	testSetAPIKey(a)
-
-	if !testIsAPIKeysSet(a) {
-		return
+	err := testSetAPIKey(a)
+	if err != nil {
+		t.Error(err)
 	}
 
-	_, err := a.CreateOrder("", "", exchange.Market.ToString(), 0.01, 0)
+	_, err = a.CreateOrder("", "", exchange.Market.ToString(), 0.01, 0)
 	if err == nil {
 		t.Error("Test Failed - GetUserInfo() error")
 	}
@@ -422,13 +425,12 @@ func TestCreateOrder(t *testing.T) {
 func TestModifyExistingOrder(t *testing.T) {
 	a := &Alphapoint{}
 	a.SetDefaults()
-	testSetAPIKey(a)
-
-	if !testIsAPIKeysSet(a) {
-		return
+	err := testSetAPIKey(a)
+	if err != nil {
+		t.Error(err)
 	}
 
-	_, err := a.ModifyExistingOrder("", 1, 1)
+	_, err = a.ModifyExistingOrder("", 1, 1)
 	if err == nil {
 		t.Error("Test Failed - GetUserInfo() error")
 	}
@@ -437,13 +439,12 @@ func TestModifyExistingOrder(t *testing.T) {
 func TestCancelAllExistingOrders(t *testing.T) {
 	a := &Alphapoint{}
 	a.SetDefaults()
-	testSetAPIKey(a)
-
-	if !testIsAPIKeysSet(a) {
-		return
+	err := testSetAPIKey(a)
+	if err != nil {
+		t.Error(err)
 	}
 
-	err := a.CancelAllExistingOrders("")
+	err = a.CancelAllExistingOrders("")
 	if err == nil {
 		t.Error("Test Failed - GetUserInfo() error")
 	}
@@ -452,13 +453,12 @@ func TestCancelAllExistingOrders(t *testing.T) {
 func TestGetOrders(t *testing.T) {
 	a := &Alphapoint{}
 	a.SetDefaults()
-	testSetAPIKey(a)
-
-	if !testIsAPIKeysSet(a) {
-		return
+	err := testSetAPIKey(a)
+	if err != nil {
+		t.Error(err)
 	}
 
-	_, err := a.GetOrders()
+	_, err = a.GetOrders()
 	if err == nil {
 		t.Error("Test Failed - GetUserInfo() error")
 	}
@@ -467,13 +467,12 @@ func TestGetOrders(t *testing.T) {
 func TestGetOrderFee(t *testing.T) {
 	a := &Alphapoint{}
 	a.SetDefaults()
-	testSetAPIKey(a)
-
-	if !testIsAPIKeysSet(a) {
-		return
+	err := testSetAPIKey(a)
+	if err != nil {
+		t.Error(err)
 	}
 
-	_, err := a.GetOrderFee("", "", 1, 1)
+	_, err = a.GetOrderFee("", "", 1, 1)
 	if err == nil {
 		t.Error("Test Failed - GetUserInfo() error")
 	}

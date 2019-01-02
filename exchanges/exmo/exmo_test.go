@@ -1,17 +1,18 @@
 package exmo
 
 import (
+	"encoding/json"
 	"testing"
 
 	"github.com/thrasher-/gocryptotrader/common"
+	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
 	"github.com/thrasher-/gocryptotrader/currency/symbol"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 )
 
+// Set API data in "../../testdata/apikeys.json"
 const (
-	APIKey                  = ""
-	APISecret               = ""
 	canManipulateRealOrders = false
 )
 
@@ -24,9 +25,32 @@ func TestDefault(t *testing.T) {
 }
 
 func TestSetup(t *testing.T) {
-	e.AuthenticatedAPISupport = true
-	e.APIKey = APIKey
-	e.APISecret = APISecret
+	cfg := config.GetConfig()
+	cfg.LoadConfig("../../testdata/configtest.json")
+	exchangeConfig, err := cfg.GetExchangeConfig("exmo")
+	if err != nil {
+		t.Error("Test Failed - Exmo Setup() init error")
+	}
+
+	exchangeConfig.AuthenticatedAPISupport = true
+	apiKeyFile, err := common.ReadFile("../../testdata/apikeys.json")
+	if err != nil {
+		t.Error(err)
+	}
+	var exchangesAPIKeys []config.ExchangeConfig
+	err = json.Unmarshal(apiKeyFile, &exchangesAPIKeys)
+	if err != nil {
+		t.Error(err)
+	}
+	for _, exchangeAPIKeys := range exchangesAPIKeys {
+		if exchangeAPIKeys.Name == exchangeConfig.Name {
+			exchangeConfig.APIKey = exchangeAPIKeys.APIKey
+			exchangeConfig.APISecret = exchangeAPIKeys.APISecret
+			exchangeConfig.Verbose = exchangeAPIKeys.Verbose
+		}
+	}
+
+	e.Setup(exchangeConfig)
 }
 
 func TestGetTrades(t *testing.T) {
@@ -71,7 +95,7 @@ func TestGetCurrency(t *testing.T) {
 
 func TestGetUserInfo(t *testing.T) {
 	t.Parallel()
-	if APIKey == "" || APISecret == "" {
+	if e.APIKey == "" || e.APISecret == "" {
 		t.Skip()
 	}
 	TestSetup(t)
@@ -83,12 +107,24 @@ func TestGetUserInfo(t *testing.T) {
 
 func TestGetRequiredAmount(t *testing.T) {
 	t.Parallel()
-	if APIKey == "" || APISecret == "" {
+	if e.APIKey == "" || e.APISecret == "" {
 		t.Skip()
 	}
 	TestSetup(t)
 	_, err := e.GetRequiredAmount("BTC_USD", 100)
 	if err != nil {
+		t.Errorf("Test failed. Err: %s", err)
+	}
+}
+
+func TestGetCryptoDepositAddress(t *testing.T) {
+	t.Parallel()
+	if e.APIKey == "" || e.APISecret == "" {
+		t.Skip()
+	}
+	TestSetup(t)
+	_, err := e.GetCryptoDepositAddress()
+	if err == nil {
 		t.Errorf("Test failed. Err: %s", err)
 	}
 }

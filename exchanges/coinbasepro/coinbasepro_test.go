@@ -1,9 +1,11 @@
 package coinbasepro
 
 import (
+	"encoding/json"
 	"testing"
 	"time"
 
+	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
 	"github.com/thrasher-/gocryptotrader/currency/symbol"
@@ -12,11 +14,8 @@ import (
 
 var c CoinbasePro
 
-// Please supply your APIKeys here for better testing
+// Set API data in "../../testdata/apikeys.json"
 const (
-	apiKey                  = ""
-	apiSecret               = ""
-	clientID                = "" //passphrase you made at API CREATION
 	canManipulateRealOrders = false
 )
 
@@ -28,14 +27,30 @@ func TestSetDefaults(t *testing.T) {
 func TestSetup(t *testing.T) {
 	cfg := config.GetConfig()
 	cfg.LoadConfig("../../testdata/configtest.json")
-	gdxConfig, err := cfg.GetExchangeConfig("CoinbasePro")
+	exchangeConfig, err := cfg.GetExchangeConfig("CoinbasePro")
 	if err != nil {
 		t.Error("Test Failed - coinbasepro Setup() init error")
 	}
-	gdxConfig.APIKey = apiKey
-	gdxConfig.APISecret = apiSecret
-	gdxConfig.AuthenticatedAPISupport = true
-	c.Setup(gdxConfig)
+	exchangeConfig.AuthenticatedAPISupport = true
+	apiKeyFile, err := common.ReadFile("../../testdata/apikeys.json")
+	if err != nil {
+		t.Error(err)
+	}
+	var exchangesAPIKeys []config.ExchangeConfig
+	err = json.Unmarshal(apiKeyFile, &exchangesAPIKeys)
+	if err != nil {
+		t.Error(err)
+	}
+	for _, exchangeAPIKeys := range exchangesAPIKeys {
+		if exchangeAPIKeys.Name == exchangeConfig.Name {
+			exchangeConfig.APIKey = exchangeAPIKeys.APIKey
+			exchangeConfig.APISecret = exchangeAPIKeys.APISecret
+			exchangeConfig.Verbose = exchangeAPIKeys.Verbose
+			exchangeConfig.ClientID = exchangeAPIKeys.ClientID
+		}
+	}
+
+	c.Setup(exchangeConfig)
 }
 
 func TestGetProducts(t *testing.T) {
@@ -240,7 +255,7 @@ func TestGetFee(t *testing.T) {
 
 	var feeBuilder = setFeeBuilder()
 
-	if apiKey != "" || apiSecret != "" {
+	if c.APIKey != "" || c.APISecret != "" {
 		// CryptocurrencyTradeFee Basic
 		if resp, err := c.GetFee(feeBuilder); resp != float64(0.003) || err != nil {
 			t.Error(err)

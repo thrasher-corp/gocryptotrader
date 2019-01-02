@@ -1,6 +1,7 @@
 package anx
 
 import (
+	"encoding/json"
 	"testing"
 
 	"github.com/thrasher-/gocryptotrader/common"
@@ -10,10 +11,8 @@ import (
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 )
 
-// Please supply your own keys here for due diligence testing
+// Set API data in "../../testdata/apikeys.json"
 const (
-	testAPIKey              = ""
-	testAPISecret           = ""
 	canManipulateRealOrders = false
 )
 
@@ -48,26 +47,34 @@ func TestSetDefaults(t *testing.T) {
 func TestSetup(t *testing.T) {
 	anxSetupConfig := config.GetConfig()
 	anxSetupConfig.LoadConfig("../../testdata/configtest.json")
-	anxConfig, err := anxSetupConfig.GetExchangeConfig("ANX")
-	anxConfig.AuthenticatedAPISupport = true
-
+	exchangeConfig, err := anxSetupConfig.GetExchangeConfig("ANX")
+	exchangeConfig.AuthenticatedAPISupport = true
 	if err != nil {
 		t.Error("Test Failed - ANX Setup() init error")
 	}
-	a.Setup(anxConfig)
-	if testAPIKey != "" && testAPISecret != "" {
-		a.APIKey = testAPIKey
-		a.APISecret = testAPISecret
-		a.AuthenticatedAPISupport = true
+
+	apiKeyFile, err := common.ReadFile("../../testdata/apikeys.json")
+	if err != nil {
+		t.Error(err)
+	}
+	var exchangesAPIKeys []config.ExchangeConfig
+	err = json.Unmarshal(apiKeyFile, &exchangesAPIKeys)
+	if err != nil {
+		t.Error(err)
+	}
+	for _, exchangeAPIKeys := range exchangesAPIKeys {
+		if exchangeAPIKeys.Name == exchangeConfig.Name {
+			exchangeConfig.APIKey = exchangeAPIKeys.APIKey
+			exchangeConfig.APISecret = exchangeAPIKeys.APISecret
+			exchangeConfig.Verbose = exchangeAPIKeys.Verbose
+		}
 	}
 
+	a.Setup(exchangeConfig)
 	if a.Enabled != true {
 		t.Error("Test Failed - ANX Setup() incorrect values set")
 	}
 	if a.RESTPollingDelay != 10 {
-		t.Error("Test Failed - ANX Setup() incorrect values set")
-	}
-	if a.Verbose != false {
 		t.Error("Test Failed - ANX Setup() incorrect values set")
 	}
 	if a.Websocket.IsEnabled() != false {
@@ -320,7 +327,7 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 }
 
 func TestGetAccountInfo(t *testing.T) {
-	if testAPIKey != "" || testAPISecret != "" {
+	if a.APIKey != "" || a.APISecret != "" {
 		_, err := a.GetAccountInfo()
 		if err != nil {
 			t.Error("test failed - GetAccountInfo() error:", err)

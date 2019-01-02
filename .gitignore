@@ -24,3 +24,6 @@ vendor/
 
 # Output of the go coverage tool, specifically when used with LiteIDE
 *.out
+
+# Test data file to prevent committing API keys to repository
+apikeys.json

@@ -1,6 +1,7 @@
 package lakebtc
 
 import (
+	"encoding/json"
 	"testing"
 
 	"github.com/thrasher-/gocryptotrader/common"
@@ -12,10 +13,8 @@ import (
 
 var l LakeBTC
 
-// Please add your own APIkeys to do correct due diligence testing.
+// Set API data in "../../testdata/apikeys.json"
 const (
-	apiKey                  = ""
-	apiSecret               = ""
 	canManipulateRealOrders = false
 )
 
@@ -26,16 +25,30 @@ func TestSetDefaults(t *testing.T) {
 func TestSetup(t *testing.T) {
 	cfg := config.GetConfig()
 	cfg.LoadConfig("../../testdata/configtest.json")
-	lakebtcConfig, err := cfg.GetExchangeConfig("LakeBTC")
+	exchangeConfig, err := cfg.GetExchangeConfig("LakeBTC")
 	if err != nil {
 		t.Error("Test Failed - LakeBTC Setup() init error")
 	}
 
-	lakebtcConfig.AuthenticatedAPISupport = true
-	lakebtcConfig.APIKey = apiKey
-	lakebtcConfig.APISecret = apiSecret
+	exchangeConfig.AuthenticatedAPISupport = true
+	apiKeyFile, err := common.ReadFile("../../testdata/apikeys.json")
+	if err != nil {
+		t.Error(err)
+	}
+	var exchangesAPIKeys []config.ExchangeConfig
+	err = json.Unmarshal(apiKeyFile, &exchangesAPIKeys)
+	if err != nil {
+		t.Error(err)
+	}
+	for _, exchangeAPIKeys := range exchangesAPIKeys {
+		if exchangeAPIKeys.Name == exchangeConfig.Name {
+			exchangeConfig.APIKey = exchangeAPIKeys.APIKey
+			exchangeConfig.APISecret = exchangeAPIKeys.APISecret
+			exchangeConfig.Verbose = exchangeAPIKeys.Verbose
+		}
+	}
 
-	l.Setup(lakebtcConfig)
+	l.Setup(exchangeConfig)
 }
 
 func TestGetTradablePairs(t *testing.T) {

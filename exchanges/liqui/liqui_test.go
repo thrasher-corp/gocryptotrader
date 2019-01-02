@@ -1,6 +1,7 @@
 package liqui
 
 import (
+	"encoding/json"
 	"net/url"
 	"testing"
 
@@ -13,9 +14,8 @@ import (
 
 var l Liqui
 
+// Set API data in "../../testdata/apikeys.json"
 const (
-	apiKey                  = ""
-	apiSecret               = ""
 	canManipulateRealOrders = false
 )
 
@@ -26,16 +26,30 @@ func TestSetDefaults(t *testing.T) {
 func TestSetup(t *testing.T) {
 	cfg := config.GetConfig()
 	cfg.LoadConfig("../../testdata/configtest.json")
-	liquiConfig, err := cfg.GetExchangeConfig("Liqui")
+	exchangeConfig, err := cfg.GetExchangeConfig("Liqui")
 	if err != nil {
 		t.Error("Test Failed - liqui Setup() init error")
 	}
 
-	liquiConfig.AuthenticatedAPISupport = true
-	liquiConfig.APIKey = apiKey
-	liquiConfig.APISecret = apiSecret
+	exchangeConfig.AuthenticatedAPISupport = true
+	apiKeyFile, err := common.ReadFile("../../testdata/apikeys.json")
+	if err != nil {
+		t.Error(err)
+	}
+	var exchangesAPIKeys []config.ExchangeConfig
+	err = json.Unmarshal(apiKeyFile, &exchangesAPIKeys)
+	if err != nil {
+		t.Error(err)
+	}
+	for _, exchangeAPIKeys := range exchangesAPIKeys {
+		if exchangeAPIKeys.Name == exchangeConfig.Name {
+			exchangeConfig.APIKey = exchangeAPIKeys.APIKey
+			exchangeConfig.APISecret = exchangeAPIKeys.APISecret
+			exchangeConfig.Verbose = exchangeAPIKeys.Verbose
+		}
+	}
 
-	l.Setup(liquiConfig)
+	l.Setup(exchangeConfig)
 }
 
 func TestGetAvailablePairs(t *testing.T) {

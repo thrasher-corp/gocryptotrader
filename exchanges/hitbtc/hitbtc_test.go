@@ -1,6 +1,7 @@
 package hitbtc
 
 import (
+	"encoding/json"
 	"testing"
 
 	"github.com/thrasher-/gocryptotrader/common"
@@ -12,10 +13,8 @@ import (
 
 var h HitBTC
 
-// Please supply your own APIKEYS here for due diligence testing
+// Set API data in "../../testdata/apikeys.json"
 const (
-	apiKey                  = ""
-	apiSecret               = ""
 	canManipulateRealOrders = false
 )
 
@@ -26,16 +25,30 @@ func TestSetDefaults(t *testing.T) {
 func TestSetup(t *testing.T) {
 	cfg := config.GetConfig()
 	cfg.LoadConfig("../../testdata/configtest.json")
-	hitbtcConfig, err := cfg.GetExchangeConfig("HitBTC")
+	exchangeConfig, err := cfg.GetExchangeConfig("HitBTC")
 	if err != nil {
 		t.Error("Test Failed - HitBTC Setup() init error")
 	}
 
-	hitbtcConfig.AuthenticatedAPISupport = true
-	hitbtcConfig.APIKey = apiKey
-	hitbtcConfig.APISecret = apiSecret
+	exchangeConfig.AuthenticatedAPISupport = true
+	apiKeyFile, err := common.ReadFile("../../testdata/apikeys.json")
+	if err != nil {
+		t.Error(err)
+	}
+	var exchangesAPIKeys []config.ExchangeConfig
+	err = json.Unmarshal(apiKeyFile, &exchangesAPIKeys)
+	if err != nil {
+		t.Error(err)
+	}
+	for _, exchangeAPIKeys := range exchangesAPIKeys {
+		if exchangeAPIKeys.Name == exchangeConfig.Name {
+			exchangeConfig.APIKey = exchangeAPIKeys.APIKey
+			exchangeConfig.APISecret = exchangeAPIKeys.APISecret
+			exchangeConfig.Verbose = exchangeAPIKeys.Verbose
+		}
+	}
 
-	h.Setup(hitbtcConfig)
+	h.Setup(exchangeConfig)
 }
 
 func TestGetOrderbook(t *testing.T) {

@@ -1,6 +1,7 @@
 package btcc
 
 import (
+	"encoding/json"
 	"testing"
 	"time"
 
@@ -11,10 +12,8 @@ import (
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 )
 
-// Please supply your own APIkeys here to do better tests
+// Set API data in "../../testdata/apikeys.json"
 const (
-	apiKey                  = ""
-	apiSecret               = ""
 	canManipulateRealOrders = false
 )
 
@@ -27,14 +26,32 @@ func TestSetDefaults(t *testing.T) {
 func TestSetup(t *testing.T) {
 	cfg := config.GetConfig()
 	cfg.LoadConfig("../../testdata/configtest.json")
-	bConfig, err := cfg.GetExchangeConfig("BTCC")
+	exchangeConfig, err := cfg.GetExchangeConfig("BTCC")
 	if err != nil {
 		t.Error("Test Failed - BTCC Setup() init error")
 	}
-	b.Setup(bConfig)
+
+	apiKeyFile, err := common.ReadFile("../../testdata/apikeys.json")
+	if err != nil {
+		t.Error(err)
+	}
+	var exchangesAPIKeys []config.ExchangeConfig
+	err = json.Unmarshal(apiKeyFile, &exchangesAPIKeys)
+	if err != nil {
+		t.Error(err)
+	}
+	for _, exchangeAPIKeys := range exchangesAPIKeys {
+		if exchangeAPIKeys.Name == exchangeConfig.Name {
+			exchangeConfig.APIKey = exchangeAPIKeys.APIKey
+			exchangeConfig.APISecret = exchangeAPIKeys.APISecret
+			exchangeConfig.Verbose = exchangeAPIKeys.Verbose
+		}
+	}
+
+	b.Setup(exchangeConfig)
 
 	if !b.IsEnabled() || b.AuthenticatedAPISupport ||
-		b.RESTPollingDelay != time.Duration(10) || b.Verbose ||
+		b.RESTPollingDelay != time.Duration(10) ||
 		b.Websocket.IsEnabled() || len(b.BaseCurrencies) < 1 ||
 		len(b.AvailablePairs) < 1 || len(b.EnabledPairs) < 1 {
 		t.Error("Test Failed - BTCC Setup values not set correctly")

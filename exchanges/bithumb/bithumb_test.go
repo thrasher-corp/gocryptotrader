@@ -1,6 +1,7 @@
 package bithumb
 
 import (
+	"encoding/json"
 	"testing"
 
 	"github.com/thrasher-/gocryptotrader/common"
@@ -10,10 +11,8 @@ import (
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 )
 
-// Please supply your own keys here for due diligence testing
+// Set API data in "../../testdata/apikeys.json"
 const (
-	testAPIKey              = ""
-	testAPISecret           = ""
 	canManipulateRealOrders = false
 )
 
@@ -26,16 +25,30 @@ func TestSetDefaults(t *testing.T) {
 func TestSetup(t *testing.T) {
 	cfg := config.GetConfig()
 	cfg.LoadConfig("../../testdata/configtest.json")
-	bitConfig, err := cfg.GetExchangeConfig("Bithumb")
+	exchangeConfig, err := cfg.GetExchangeConfig("Bithumb")
 	if err != nil {
 		t.Error("Test Failed - Bithumb Setup() init error")
 	}
 
-	bitConfig.AuthenticatedAPISupport = true
-	bitConfig.APIKey = testAPIKey
-	bitConfig.APISecret = testAPISecret
+	exchangeConfig.AuthenticatedAPISupport = true
+	apiKeyFile, err := common.ReadFile("../../testdata/apikeys.json")
+	if err != nil {
+		t.Error(err)
+	}
+	var exchangesAPIKeys []config.ExchangeConfig
+	err = json.Unmarshal(apiKeyFile, &exchangesAPIKeys)
+	if err != nil {
+		t.Error(err)
+	}
+	for _, exchangeAPIKeys := range exchangesAPIKeys {
+		if exchangeAPIKeys.Name == exchangeConfig.Name {
+			exchangeConfig.APIKey = exchangeAPIKeys.APIKey
+			exchangeConfig.APISecret = exchangeAPIKeys.APISecret
+			exchangeConfig.Verbose = exchangeAPIKeys.Verbose
+		}
+	}
 
-	b.Setup(bitConfig)
+	b.Setup(exchangeConfig)
 }
 
 func TestGetTradablePairs(t *testing.T) {
@@ -80,7 +93,7 @@ func TestGetTransactionHistory(t *testing.T) {
 
 func TestGetAccountBalance(t *testing.T) {
 	t.Parallel()
-	if testAPIKey == "" || testAPISecret == "" {
+	if b.APIKey == "" || b.APISecret == "" {
 		t.Skip()
 	}
 
@@ -91,7 +104,7 @@ func TestGetAccountBalance(t *testing.T) {
 }
 
 func TestGetWalletAddress(t *testing.T) {
-	if testAPIKey == "" || testAPISecret == "" {
+	if b.APIKey == "" || b.APISecret == "" {
 		t.Skip()
 	}
 
@@ -160,7 +173,7 @@ func TestWithdrawCrypto(t *testing.T) {
 
 func TestRequestKRWDepositDetails(t *testing.T) {
 	t.Parallel()
-	if testAPIKey == "" || testAPISecret == "" {
+	if b.APIKey == "" || b.APISecret == "" {
 		t.Skip()
 	}
 	_, err := b.RequestKRWDepositDetails()
@@ -385,7 +398,7 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 
 func TestGetAccountInfo(t *testing.T) {
 	t.Parallel()
-	if testAPIKey != "" || testAPISecret != "" {
+	if b.APIKey != "" || b.APISecret != "" {
 		_, err := b.GetAccountInfo()
 		if err != nil {
 			t.Error("test failed - Bithumb GetAccountInfo() error", err)

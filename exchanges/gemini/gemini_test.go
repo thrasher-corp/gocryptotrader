@@ -1,6 +1,7 @@
 package gemini
 
 import (
+	"encoding/json"
 	"net/url"
 	"testing"
 
@@ -11,16 +12,11 @@ import (
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 )
 
-// Please enter sandbox API keys & assigned roles for better testing procedures
-
+// Set API data in "../../testdata/apikeys.json"
 const (
-	apiKey1           = ""
-	apiSecret1        = ""
 	apiKeyRole1       = ""
 	sessionHeartBeat1 = false
 
-	apiKey2           = ""
-	apiSecret2        = ""
 	apiKeyRole2       = ""
 	sessionHeartBeat2 = false
 
@@ -29,15 +25,27 @@ const (
 
 func TestAddSession(t *testing.T) {
 	var g1 Gemini
-	if Session[1] == nil {
-		err := AddSession(&g1, 1, apiKey1, apiSecret1, apiKeyRole1, true, false)
-		if err != nil {
-			t.Error("Test failed - AddSession() error", err)
+	var apiKey1, apiSecret1, apiKey2, apiSecret2 string
+	apiKeyFile, err := common.ReadFile("../../testdata/apikeys.json")
+	if err != nil {
+		t.Error(err)
+	}
+	var exchangesAPIKeys []config.ExchangeConfig
+	err = json.Unmarshal(apiKeyFile, &exchangesAPIKeys)
+	if err != nil {
+		t.Error(err)
+	}
+	for _, exchangeAPIKeys := range exchangesAPIKeys {
+		if exchangeAPIKeys.Name == "gemini" {
+			apiKey1 = exchangeAPIKeys.APIKey
+			apiKey2 = exchangeAPIKeys.APIKey
+			apiSecret1 = exchangeAPIKeys.APISecret
+			apiSecret2 = exchangeAPIKeys.APISecret
 		}
-		err = AddSession(&g1, 1, apiKey1, apiSecret1, apiKeyRole1, true, false)
-		if err == nil {
-			t.Error("Test failed - AddSession() error", err)
-		}
+	}
+	err = AddSession(&g1, 1, apiKey1, apiSecret1, apiKeyRole1, true, false)
+	if err != nil {
+		t.Error("Test failed - AddSession() error")
 	}
 
 	if len(Session) <= 1 {
@@ -58,15 +66,31 @@ func TestSetup(t *testing.T) {
 
 	cfg := config.GetConfig()
 	cfg.LoadConfig("../../testdata/configtest.json")
-	geminiConfig, err := cfg.GetExchangeConfig("Gemini")
+	exchangeConfig, err := cfg.GetExchangeConfig("Gemini")
 	if err != nil {
 		t.Error("Test Failed - Gemini Setup() init error")
 	}
 
-	geminiConfig.AuthenticatedAPISupport = true
+	exchangeConfig.AuthenticatedAPISupport = true
+	apiKeyFile, err := common.ReadFile("../../testdata/apikeys.json")
+	if err != nil {
+		t.Error(err)
+	}
+	var exchangesAPIKeys []config.ExchangeConfig
+	err = json.Unmarshal(apiKeyFile, &exchangesAPIKeys)
+	if err != nil {
+		t.Error(err)
+	}
+	for _, exchangeAPIKeys := range exchangesAPIKeys {
+		if exchangeAPIKeys.Name == exchangeConfig.Name {
+			exchangeConfig.APIKey = exchangeAPIKeys.APIKey
+			exchangeConfig.APISecret = exchangeAPIKeys.APISecret
+			exchangeConfig.Verbose = exchangeAPIKeys.Verbose
+		}
+	}
 
-	Session[1].Setup(geminiConfig)
-	Session[2].Setup(geminiConfig)
+	Session[1].Setup(exchangeConfig)
+	Session[2].Setup(exchangeConfig)
 
 	Session[1].APIKey = apiKey1
 	Session[1].APISecret = apiSecret1
@@ -113,7 +137,7 @@ func TestGetTrades(t *testing.T) {
 }
 
 func TestGetNotionalVolume(t *testing.T) {
-	if apiKey2 != "" && apiSecret2 != "" {
+	if Session[2].APIKey != "" && Session[2].APISecret != "" {
 		t.Parallel()
 		_, err := Session[2].GetNotionalVolume()
 		if err != nil {
@@ -251,7 +275,7 @@ func setFeeBuilder() exchange.FeeBuilder {
 func TestGetFee(t *testing.T) {
 
 	var feeBuilder = setFeeBuilder()
-	if apiKey1 != "" && apiSecret1 != "" {
+	if Session[1].APIKey != "" && Session[1].APISecret != "" {
 		// CryptocurrencyTradeFee Basic
 		if resp, err := Session[1].GetFee(feeBuilder); resp != float64(0.01) || err != nil {
 			t.Error(err)

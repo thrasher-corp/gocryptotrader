@@ -1,6 +1,7 @@
 package btcmarkets
 
 import (
+	"encoding/json"
 	"net/url"
 	"testing"
 
@@ -13,10 +14,8 @@ import (
 
 var b BTCMarkets
 
-// Please supply your own keys here to do better tests
+// Set API data in "../../testdata/apikeys.json"
 const (
-	apiKey                  = ""
-	apiSecret               = ""
 	canManipulateRealOrders = false
 )
 
@@ -27,18 +26,30 @@ func TestSetDefaults(t *testing.T) {
 func TestSetup(t *testing.T) {
 	cfg := config.GetConfig()
 	cfg.LoadConfig("../../testdata/configtest.json")
-	bConfig, err := cfg.GetExchangeConfig("BTC Markets")
+	exchangeConfig, err := cfg.GetExchangeConfig("BTC Markets")
 	if err != nil {
 		t.Error("Test Failed - BTC Markets Setup() init error")
 	}
 
-	if areTestAPIKeysSet() {
-		bConfig.APIKey = apiKey
-		bConfig.APISecret = apiSecret
-		bConfig.AuthenticatedAPISupport = true
+	exchangeConfig.AuthenticatedAPISupport = true
+	apiKeyFile, err := common.ReadFile("../../testdata/apikeys.json")
+	if err != nil {
+		t.Error(err)
+	}
+	var exchangesAPIKeys []config.ExchangeConfig
+	err = json.Unmarshal(apiKeyFile, &exchangesAPIKeys)
+	if err != nil {
+		t.Error(err)
+	}
+	for _, exchangeAPIKeys := range exchangesAPIKeys {
+		if exchangeAPIKeys.Name == exchangeConfig.Name {
+			exchangeConfig.APIKey = exchangeAPIKeys.APIKey
+			exchangeConfig.APISecret = exchangeAPIKeys.APISecret
+			exchangeConfig.Verbose = exchangeAPIKeys.Verbose
+		}
 	}
 
-	b.Setup(bConfig)
+	b.Setup(exchangeConfig)
 }
 
 func TestGetMarkets(t *testing.T) {
@@ -188,7 +199,7 @@ func TestGetFee(t *testing.T) {
 
 	var feeBuilder = setFeeBuilder()
 
-	if apiKey != "" || apiSecret != "" {
+	if b.APIKey != "" || b.APISecret != "" {
 		// CryptocurrencyTradeFee Fiat
 		feeBuilder = setFeeBuilder()
 		feeBuilder.SecondCurrency = symbol.USD
