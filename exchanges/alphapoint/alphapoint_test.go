@@ -612,7 +612,7 @@ func TestWithdraw(t *testing.T) {
 	}
 
 	_, err := a.WithdrawCryptocurrencyFunds(withdrawCryptoRequest)
-	if err != common.ErrFunctionNotSupported {
-		t.Errorf("Expected 'Not supported', recieved %v", err)
+	if err != common.ErrNotYetImplemented {
+		t.Errorf("Expected 'Not implemented', recieved %v", err)
 	}
 }
