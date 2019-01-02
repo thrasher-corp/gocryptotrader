@@ -23,9 +23,11 @@ var (
 	fatalLogger *log.Logger
 
 	logFileHandle *os.File
-	logfileErr    error
-	logOutput     io.Writer
-	LogPath       string
+
+	logOutput io.Writer
+
+	// LogPath location to store logs in
+	LogPath string
 
 	// Logger create a pointer to Logging struct for holding data
 	Logger = &Logging{}

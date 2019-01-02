@@ -260,7 +260,7 @@ func WebsocketClientHandler(w http.ResponseWriter, r *http.Request) {
 	numClients := len(wsHub.Clients)
 
 	if numClients >= connectionLimit {
-		log.Printf("websocket: client rejected due to websocket client limit reached. Number of clients %d. Limit %d.",
+		log.Warnf("websocket: client rejected due to websocket client limit reached. Number of clients %d. Limit %d.",
 			numClients, connectionLimit)
 		w.WriteHeader(http.StatusForbidden)
 		return
@@ -279,13 +279,13 @@ func WebsocketClientHandler(w http.ResponseWriter, r *http.Request) {
 
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
-		log.Println(err)
+		log.Error(err)
 		return
 	}
 
 	client := &WebsocketClient{Hub: wsHub, Conn: conn, Send: make(chan []byte, 1024)}
 	client.Hub.Register <- client
-	log.Printf("websocket: client connected. Connected clients: %d. Limit %d.",
+	log.Debugf("websocket: client connected. Connected clients: %d. Limit %d.",
 		numClients+1, connectionLimit)
 
 	go client.read()
@@ -309,7 +309,7 @@ func wsAuth(client *WebsocketClient, data interface{}) error {
 	if auth.Username == bot.config.Webserver.AdminUsername && auth.Password == hashPW {
 		client.Authenticated = true
 		wsResp.Data = WebsocketResponseSuccess
-		log.Println("websocket: client authenticated successfully")
+		log.Debugf("websocket: client authenticated successfully")
 		return client.SendWebsocketMessage(wsResp)
 	}
 
@@ -317,13 +317,13 @@ func wsAuth(client *WebsocketClient, data interface{}) error {
 	client.authFailures++
 	client.SendWebsocketMessage(wsResp)
 	if client.authFailures >= bot.config.Webserver.WebsocketMaxAuthFailures {
-		log.Printf("websocket: disconnecting client, maximum auth failures threshold reached (failures: %d limit: %d)",
+		log.Debugf("websocket: disconnecting client, maximum auth failures threshold reached (failures: %d limit: %d)",
 			client.authFailures, bot.config.Webserver.WebsocketMaxAuthFailures)
 		wsHub.Unregister <- client
 		return nil
 	}
 
-	log.Printf("websocket: client sent wrong username/password (failures: %d limit: %d)",
+	log.Debugf("websocket: client sent wrong username/password (failures: %d limit: %d)",
 		client.authFailures, bot.config.Webserver.WebsocketMaxAuthFailures)
 	return nil
 }

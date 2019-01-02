@@ -391,7 +391,7 @@ func SendHTTPRequest(method, path string, headers map[string]string, body io.Rea
 // on failure.
 func SendHTTPGetRequest(url string, jsonDecode, isVerbose bool, result interface{}) error {
 	if isVerbose {
-		log.Debugf("Raw URL: ", url)
+		log.Debugf("Raw URL: %s", url)
 	}
 
 	initialiseHTTPClient()

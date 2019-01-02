@@ -3,16 +3,17 @@ package bitstamp
 import (
 	"errors"
 	"fmt"
-	"log"
+
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
-	"github.com/thrasher-/gocryptotrader/exchanges"
+	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
-	"github.com/toorop/go-pusher"
+	log "github.com/thrasher-/gocryptotrader/logger"
+	pusher "github.com/toorop/go-pusher"
 )
 
 // WebsocketConn defins a pusher websocket connection
@@ -78,7 +79,7 @@ func (b *Bitstamp) WsConnect() error {
 	var err error
 
 	if b.Websocket.GetProxyAddress() != "" {
-		log.Println("bistamp_websocket.go warning - set proxy address error: proxy not supported")
+		log.Warn("bitstamp_websocket.go warning - set proxy address error: proxy not supported")
 	}
 
 	b.WebsocketConn.Client, err = pusher.NewClient(BitstampPusherKey)
@@ -147,7 +148,7 @@ func (b *Bitstamp) WsConnect() error {
 			strings.ToLower(p.Pair().String())))
 
 		if err != nil {
-			log.Println(err)
+			log.Error(err)
 			return fmt.Errorf("%s Websocket Trade subscription error: %s",
 				b.GetName(),
 				err)
@@ -157,7 +158,7 @@ func (b *Bitstamp) WsConnect() error {
 			strings.ToLower(p.Pair().String())))
 
 		if err != nil {
-			log.Println(err)
+			log.Error(err)
 			return fmt.Errorf("%s Websocket Trade subscription error: %s",
 				b.GetName(),
 				err)

@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"log"
+
 	"strconv"
 	"time"
 
@@ -14,6 +14,7 @@ import (
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/request"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
+	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
 // Bitmex is the overarching type across this package

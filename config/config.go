@@ -523,7 +523,7 @@ func (c *Config) CheckPairConsistency(exchName string) error {
 
 	if len(pairs) == 0 {
 		exchCfg.EnabledPairs = pair.RandomPairFromPairs(availPairs).Pair().String()
-		log.Printf("Exchange %s: No enabled pairs found in available pairs, randomly added %v\n", exchName, exchCfg.EnabledPairs)
+		log.Debugf("Exchange %s: No enabled pairs found in available pairs, randomly added %v\n", exchName, exchCfg.EnabledPairs)
 	} else {
 		exchCfg.EnabledPairs = common.JoinStrings(pair.PairsToStringArray(pairs), ",")
 	}
@@ -533,7 +533,7 @@ func (c *Config) CheckPairConsistency(exchName string) error {
 		return err
 	}
 
-	log.Printf("Exchange %s: Removing enabled pair(s) %v from enabled pairs as it isn't an available pair", exchName, pair.PairsToStringArray(pairsRemoved))
+	log.Debugf("Exchange %s: Removing enabled pair(s) %v from enabled pairs as it isn't an available pair", exchName, pair.PairsToStringArray(pairsRemoved))
 	return nil
 }
 
@@ -732,11 +732,11 @@ func (c *Config) CheckExchangeConfigValues() error {
 			if exch.AuthenticatedAPISupport { // non-fatal error
 				if exch.APIKey == "" || exch.APISecret == "" || exch.APIKey == "Key" || exch.APISecret == "Secret" {
 					c.Exchanges[i].AuthenticatedAPISupport = false
-					log.Printf(WarningExchangeAuthAPIDefaultOrEmptyValues, exch.Name)
+					log.Warn(WarningExchangeAuthAPIDefaultOrEmptyValues, exch.Name)
 				} else if exch.Name == "ITBIT" || exch.Name == "Bitstamp" || exch.Name == "COINUT" || exch.Name == "CoinbasePro" {
 					if exch.ClientID == "" || exch.ClientID == "ClientID" {
 						c.Exchanges[i].AuthenticatedAPISupport = false
-						log.Printf(WarningExchangeAuthAPIDefaultOrEmptyValues, exch.Name)
+						log.Warn(WarningExchangeAuthAPIDefaultOrEmptyValues, exch.Name)
 					}
 				}
 			}
@@ -744,18 +744,18 @@ func (c *Config) CheckExchangeConfigValues() error {
 				lastUpdated := common.UnixTimestampToTime(exch.PairsLastUpdated)
 				lastUpdated = lastUpdated.AddDate(0, 0, configPairsLastUpdatedWarningThreshold)
 				if lastUpdated.Unix() <= time.Now().Unix() {
-					log.Printf(WarningPairsLastUpdatedThresholdExceeded, exch.Name, configPairsLastUpdatedWarningThreshold)
+					log.Warn(WarningPairsLastUpdatedThresholdExceeded, exch.Name, configPairsLastUpdatedWarningThreshold)
 				}
 			}
 
 			if exch.HTTPTimeout <= 0 {
-				log.Printf("Exchange %s HTTP Timeout value not set, defaulting to %v.", exch.Name, configDefaultHTTPTimeout)
+				log.Warnf("Exchange %s HTTP Timeout value not set, defaulting to %v.", exch.Name, configDefaultHTTPTimeout)
 				c.Exchanges[i].HTTPTimeout = configDefaultHTTPTimeout
 			}
 
 			err := c.CheckPairConsistency(exch.Name)
 			if err != nil {
-				log.Printf("Exchange %s: CheckPairConsistency error: %s", exch.Name, err)
+				log.Errorf("Exchange %s: CheckPairConsistency error: %s", exch.Name, err)
 			}
 
 			if len(exch.BankAccounts) == 0 {
@@ -855,13 +855,13 @@ func (c *Config) CheckCurrencyConfigValues() error {
 	for i := range c.Currency.ForexProviders {
 		if c.Currency.ForexProviders[i].Enabled == true {
 			if c.Currency.ForexProviders[i].APIKey == "Key" {
-				log.Printf("WARNING -- %s forex provider API key not set. Please set this in your config.json file", c.Currency.ForexProviders[i].Name)
+				log.Warnf("%s forex provider API key not set. Please set this in your config.json file", c.Currency.ForexProviders[i].Name)
 				c.Currency.ForexProviders[i].Enabled = false
 				c.Currency.ForexProviders[i].PrimaryProvider = false
 				continue
 			}
 			if c.Currency.ForexProviders[i].APIKeyLvl == -1 && c.Currency.ForexProviders[i].Name != "CurrencyConverter" {
-				log.Printf("WARNING -- %s APIKey Level not set, functions limited. Please set this in your config.json file",
+				log.Warnf("%s APIKey Level not set, functions limited. Please set this in your config.json file",
 					c.Currency.ForexProviders[i].Name)
 			}
 			count++
@@ -874,7 +874,7 @@ func (c *Config) CheckCurrencyConfigValues() error {
 				c.Currency.ForexProviders[x].Enabled = true
 				c.Currency.ForexProviders[x].APIKey = ""
 				c.Currency.ForexProviders[x].PrimaryProvider = true
-				log.Printf("WARNING -- No forex providers set, defaulting to free provider CurrencyConverterAPI.")
+				log.Warn("No forex providers set, defaulting to free provider CurrencyConverterAPI.")
 			}
 		}
 	}
@@ -998,13 +998,13 @@ func GetFilePath(file string) (string, error) {
 				if err != nil {
 					return "", err
 				}
-				log.Printf("Renamed old config file %s to %s", oldDirs[x], newDirs[0])
+				log.Debugf("Renamed old config file %s to %s", oldDirs[x], newDirs[0])
 			} else {
 				err = os.Rename(oldDirs[x], newDirs[1])
 				if err != nil {
 					return "", err
 				}
-				log.Printf("Renamed old config file %s to %s", oldDirs[x], newDirs[1])
+				log.Debugf("Renamed old config file %s to %s", oldDirs[x], newDirs[1])
 			}
 		}
 	}
@@ -1088,7 +1088,7 @@ func (c *Config) ReadConfig(configPath string) error {
 			}
 			key, err := PromptForConfigKey(IsInitialSetup)
 			if err != nil {
-				log.Printf("PromptForConfigKey err: %s", err)
+				log.Errorf("PromptForConfigKey err: %s", err)
 				errCounter++
 				continue
 			}
@@ -1097,7 +1097,7 @@ func (c *Config) ReadConfig(configPath string) error {
 			f = append(f, file...)
 			data, err := DecryptConfigFile(f, key)
 			if err != nil {
-				log.Printf("DecryptConfigFile err: %s", err)
+				log.Errorf("DecryptConfigFile err: %s", err)
 				errCounter++
 				continue
 			}
@@ -1105,7 +1105,7 @@ func (c *Config) ReadConfig(configPath string) error {
 			err = ConfirmConfigJSON(data, &c)
 			if err != nil {
 				if errCounter < configMaxAuthFailres {
-					log.Printf("Invalid password.")
+					log.Errorf("Invalid password.")
 				}
 				errCounter++
 				continue
@@ -1166,7 +1166,7 @@ func (c *Config) CheckConfig() error {
 	if c.Webserver.Enabled {
 		err = c.CheckWebserverConfigValues()
 		if err != nil {
-			log.Print(fmt.Errorf(ErrCheckingConfigValues, err))
+			log.Errorf(ErrCheckingConfigValues, err)
 			c.Webserver.Enabled = false
 		}
 	}
@@ -1177,7 +1177,7 @@ func (c *Config) CheckConfig() error {
 	}
 
 	if c.GlobalHTTPTimeout <= 0 {
-		log.Printf("Global HTTP Timeout value not set, defaulting to %v.", configDefaultHTTPTimeout)
+		log.Warnf("Global HTTP Timeout value not set, defaulting to %v.", configDefaultHTTPTimeout)
 		c.GlobalHTTPTimeout = configDefaultHTTPTimeout
 	}
 

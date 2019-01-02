@@ -345,7 +345,7 @@ func SeedExchangeAccountInfo(data []exchange.AccountInfo) {
 				)
 			} else {
 				if total <= 0 {
-					log.Printf("Portfolio: Removing %s %s entry.\n", exchangeName,
+					log.Debugf("Portfolio: Removing %s %s entry.\n", exchangeName,
 						currencyName)
 					port.RemoveExchangeAddress(exchangeName, currencyName)
 				} else {

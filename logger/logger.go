@@ -55,7 +55,7 @@ func setDefaultOutputs() {
 // TODO: add windows support
 
 func colourOutput() {
-	if runtime.GOOS == "win32" {
+	if runtime.GOOS == "windows" {
 	} else {
 		debugLogger.SetPrefix("\033[34m[DEBUG]\033[0m: ")
 		infoLogger.SetPrefix("\033[32m[INFO]\033[0m: ")
@@ -87,6 +87,7 @@ func clearAllLoggers() {
 func setupOutputs() {
 	if len(Logger.File) > 0 {
 		logFile := path.Join(LogPath, Logger.File)
+		var logfileErr error
 		if Logger.Rotate {
 			currentTime := time.Now()
 			newName := currentTime.Format("2006-01-02 15-04-05")
@@ -95,10 +96,8 @@ func setupOutputs() {
 			if err != nil {
 				Errorf("Failed to rename old log file %s", err)
 			}
-			logFileHandle, logfileErr = os.OpenFile(logFile, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
-		} else {
-			logFileHandle, logfileErr = os.OpenFile(logFile, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
 		}
+		logFileHandle, logfileErr = os.OpenFile(logFile, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
 		if logfileErr != nil {
 			Errorf("Failed to open log file: %s", logfileErr)
 		}

@@ -3,7 +3,7 @@ package bitstamp
 import (
 	"errors"
 	"fmt"
-	"log"
+
 	"strconv"
 	"strings"
 	"sync"
@@ -13,6 +13,7 @@ import (
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
+	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
 // Start starts the Bitstamp go routine
@@ -27,14 +28,14 @@ func (b *Bitstamp) Start(wg *sync.WaitGroup) {
 // Run implements the Bitstamp wrapper
 func (b *Bitstamp) Run() {
 	if b.Verbose {
-		log.Printf("%s Websocket: %s.", b.GetName(), common.IsEnabled(b.Websocket.IsEnabled()))
-		log.Printf("%s polling delay: %ds.\n", b.GetName(), b.RESTPollingDelay)
-		log.Printf("%s %d currencies enabled: %s.\n", b.GetName(), len(b.EnabledPairs), b.EnabledPairs)
+		log.Debugf("%s Websocket: %s.", b.GetName(), common.IsEnabled(b.Websocket.IsEnabled()))
+		log.Debugf("%s polling delay: %ds.\n", b.GetName(), b.RESTPollingDelay)
+		log.Debugf("%s %d currencies enabled: %s.\n", b.GetName(), len(b.EnabledPairs), b.EnabledPairs)
 	}
 
 	pairs, err := b.GetTradingPairs()
 	if err != nil {
-		log.Printf("%s failed to get trading pairs. Err: %s", b.Name, err)
+		log.Errorf("%s failed to get trading pairs. Err: %s", b.Name, err)
 	} else {
 		var currencies []string
 		for x := range pairs {
@@ -46,7 +47,7 @@ func (b *Bitstamp) Run() {
 		}
 		err = b.UpdateCurrencies(currencies, false, false)
 		if err != nil {
-			log.Printf("%s Failed to update available currencies.\n", b.Name)
+			log.Errorf("%s Failed to update available currencies.\n", b.Name)
 		}
 	}
 }

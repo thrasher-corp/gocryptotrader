@@ -435,7 +435,7 @@ func WebsocketDataHandler(ws *exchange.Websocket, verbose bool) {
 // WebsocketReconnect tries to reconnect to a websocket stream
 func WebsocketReconnect(ws *exchange.Websocket, verbose bool) {
 	if verbose {
-		log.Printf("Websocket reconnection requested for %s", ws.GetName())
+		log.Debugf("Websocket reconnection requested for %s", ws.GetName())
 	}
 
 	err := ws.Shutdown()
