@@ -7,6 +7,9 @@ lib
 testdata/dump
 testdata/writefiletest
 
+# Test data file to prevent committing API keys to repository
+testdata/apikeys.json
+
 # InteliJ
 .idea
 *.iml
@@ -25,5 +28,3 @@ vendor/
 # Output of the go coverage tool, specifically when used with LiteIDE
 *.out
 
-# Test data file to prevent committing API keys to repository
-apikeys.json

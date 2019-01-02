@@ -42,7 +42,7 @@ func testSetAPIKey(a *Alphapoint) error {
 		return err
 	}
 	for _, exchangeAPIKeys := range exchangesAPIKeys {
-		if exchangeAPIKeys.Name == "alphapoint" {
+		if exchangeAPIKeys.Name == "Alphapoint" {
 			a.APIKey = exchangeAPIKeys.APIKey
 			a.APISecret = exchangeAPIKeys.APISecret
 			a.Verbose = exchangeAPIKeys.Verbose

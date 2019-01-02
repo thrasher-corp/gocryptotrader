@@ -36,7 +36,7 @@ func TestAddSession(t *testing.T) {
 		t.Error(err)
 	}
 	for _, exchangeAPIKeys := range exchangesAPIKeys {
-		if exchangeAPIKeys.Name == "gemini" {
+		if exchangeAPIKeys.Name == "Gemini" {
 			apiKey1 = exchangeAPIKeys.APIKey
 			apiKey2 = exchangeAPIKeys.APIKey
 			apiSecret1 = exchangeAPIKeys.APISecret
