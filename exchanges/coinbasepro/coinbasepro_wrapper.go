@@ -2,14 +2,15 @@ package coinbasepro
 
 import (
 	"errors"
-	"log"
+
 	"sync"
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
-	"github.com/thrasher-/gocryptotrader/exchanges"
+	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
+	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
 // Start starts the coinbasepro go routine
@@ -24,14 +25,14 @@ func (c *CoinbasePro) Start(wg *sync.WaitGroup) {
 // Run implements the coinbasepro wrapper
 func (c *CoinbasePro) Run() {
 	if c.Verbose {
-		log.Printf("%s Websocket: %s. (url: %s).\n", c.GetName(), common.IsEnabled(c.Websocket.IsEnabled()), coinbaseproWebsocketURL)
-		log.Printf("%s polling delay: %ds.\n", c.GetName(), c.RESTPollingDelay)
-		log.Printf("%s %d currencies enabled: %s.\n", c.GetName(), len(c.EnabledPairs), c.EnabledPairs)
+		log.Debugf("%s Websocket: %s. (url: %s).\n", c.GetName(), common.IsEnabled(c.Websocket.IsEnabled()), coinbaseproWebsocketURL)
+		log.Debugf("%s polling delay: %ds.\n", c.GetName(), c.RESTPollingDelay)
+		log.Debugf("%s %d currencies enabled: %s.\n", c.GetName(), len(c.EnabledPairs), c.EnabledPairs)
 	}
 
 	exchangeProducts, err := c.GetProducts()
 	if err != nil {
-		log.Printf("%s Failed to get available products.\n", c.GetName())
+		log.Errorf("%s Failed to get available products.\n", c.GetName())
 	} else {
 		currencies := []string{}
 		for _, x := range exchangeProducts {
@@ -41,7 +42,7 @@ func (c *CoinbasePro) Run() {
 		}
 		err = c.UpdateCurrencies(currencies, false, false)
 		if err != nil {
-			log.Printf("%s Failed to update available currencies.\n", c.GetName())
+			log.Errorf("%s Failed to update available currencies.\n", c.GetName())
 		}
 	}
 }

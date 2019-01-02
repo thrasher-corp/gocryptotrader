@@ -3,7 +3,6 @@ package exmo
 import (
 	"errors"
 	"fmt"
-	"log"
 	"strconv"
 	"sync"
 
@@ -12,6 +11,7 @@ import (
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
+	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
 // Start starts the EXMO go routine
@@ -26,13 +26,13 @@ func (e *EXMO) Start(wg *sync.WaitGroup) {
 // Run implements the EXMO wrapper
 func (e *EXMO) Run() {
 	if e.Verbose {
-		log.Printf("%s polling delay: %ds.\n", e.GetName(), e.RESTPollingDelay)
-		log.Printf("%s %d currencies enabled: %s.\n", e.GetName(), len(e.EnabledPairs), e.EnabledPairs)
+		log.Debugf("%s polling delay: %ds.\n", e.GetName(), e.RESTPollingDelay)
+		log.Debugf("%s %d currencies enabled: %s.\n", e.GetName(), len(e.EnabledPairs), e.EnabledPairs)
 	}
 
 	exchangeProducts, err := e.GetPairSettings()
 	if err != nil {
-		log.Printf("%s Failed to get available products.\n", e.GetName())
+		log.Errorf("%s Failed to get available products.\n", e.GetName())
 	} else {
 		var currencies []string
 		for x := range exchangeProducts {
@@ -40,7 +40,7 @@ func (e *EXMO) Run() {
 		}
 		err = e.UpdateCurrencies(currencies, false, false)
 		if err != nil {
-			log.Printf("%s Failed to update available currencies.\n", e.GetName())
+			log.Errorf("%s Failed to update available currencies.\n", e.GetName())
 		}
 	}
 }

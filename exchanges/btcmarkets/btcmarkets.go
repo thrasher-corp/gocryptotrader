@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"log"
+
 	"net/url"
 	"time"
 
@@ -14,6 +14,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/request"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
+	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
 const (
@@ -442,7 +443,7 @@ func (b *BTCMarkets) SendAuthenticatedRequest(reqType, path string, data interfa
 	hmac := common.GetHMAC(common.HashSHA512, []byte(request), []byte(b.APISecret))
 
 	if b.Verbose {
-		log.Printf("Sending %s request to URL %s with params %s\n", reqType, b.APIUrl+path, request)
+		log.Debugf("Sending %s request to URL %s with params %s\n", reqType, b.APIUrl+path, request)
 	}
 
 	headers := make(map[string]string)

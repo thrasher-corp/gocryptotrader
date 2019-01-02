@@ -3,7 +3,7 @@ package coinut
 import (
 	"errors"
 	"fmt"
-	"log"
+
 	"strconv"
 	"sync"
 
@@ -11,9 +11,11 @@ import (
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
-	"github.com/thrasher-/gocryptotrader/exchanges"
+	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
+
+	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
 // Start starts the COINUT go routine
@@ -28,14 +30,14 @@ func (c *COINUT) Start(wg *sync.WaitGroup) {
 // Run implements the COINUT wrapper
 func (c *COINUT) Run() {
 	if c.Verbose {
-		log.Printf("%s Websocket: %s. (url: %s).\n", c.GetName(), common.IsEnabled(c.Websocket.IsEnabled()), coinutWebsocketURL)
-		log.Printf("%s polling delay: %ds.\n", c.GetName(), c.RESTPollingDelay)
-		log.Printf("%s %d currencies enabled: %s.\n", c.GetName(), len(c.EnabledPairs), c.EnabledPairs)
+		log.Debugf("%s Websocket: %s. (url: %s).\n", c.GetName(), common.IsEnabled(c.Websocket.IsEnabled()), coinutWebsocketURL)
+		log.Debugf("%s polling delay: %ds.\n", c.GetName(), c.RESTPollingDelay)
+		log.Debugf("%s %d currencies enabled: %s.\n", c.GetName(), len(c.EnabledPairs), c.EnabledPairs)
 	}
 
 	exchangeProducts, err := c.GetInstruments()
 	if err != nil {
-		log.Printf("%s Failed to get available products.\n", c.GetName())
+		log.Debugf("%s Failed to get available products.\n", c.GetName())
 		return
 	}
 
