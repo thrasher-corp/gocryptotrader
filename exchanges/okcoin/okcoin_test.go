@@ -256,7 +256,7 @@ func TestWithdraw(t *testing.T) {
 		Currency:      "btc_usd",
 		Address:       "1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB",
 		Description:   "WITHDRAW IT ALL",
-		TradePassword: "kA2BwU4FFpYm4g0Zu854",
+		TradePassword: "Password",
 		FeeAmount:     1,
 	}
 

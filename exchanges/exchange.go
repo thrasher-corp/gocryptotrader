@@ -293,6 +293,7 @@ type IBotExchange interface {
 
 	WithdrawCryptocurrencyFunds(wtihdrawRequest WithdrawRequest) (string, error)
 	WithdrawFiatFunds(wtihdrawRequest WithdrawRequest) (string, error)
+	WithdrawFiatFundsToInternationalBank(wtihdrawRequest WithdrawRequest) (string, error)
 
 	GetWebsocket() (*Websocket, error)
 }

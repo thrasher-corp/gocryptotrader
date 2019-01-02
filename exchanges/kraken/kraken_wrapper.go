@@ -241,9 +241,9 @@ func (k *Kraken) GetDepositAddress(cryptocurrency pair.CurrencyItem) (string, er
 }
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal
-// Populate exchange.WithdrawRequest.Description with withdrawal key name, as set up on your account
+// Populate exchange.WithdrawRequest.TradePassword with withdrawal key name, as set up on your account
 func (k *Kraken) WithdrawCryptocurrencyFunds(withdrawRequest exchange.WithdrawRequest) (string, error) {
-	return k.Withdraw(withdrawRequest.Currency.String(), withdrawRequest.Description, withdrawRequest.Amount)
+	return k.Withdraw(withdrawRequest.Currency.String(), withdrawRequest.TradePassword, withdrawRequest.Amount)
 }
 
 // WithdrawFiatFunds returns a withdrawal ID when a

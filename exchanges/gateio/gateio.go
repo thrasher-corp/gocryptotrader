@@ -510,7 +510,7 @@ func getCryptocurrencyWithdrawalFee(currency string) float64 {
 	return WithdrawalFees[currency]
 }
 
-// WithdrawCrypto deposits cryptocurrency to your selected wallet
+// WithdrawCrypto withdraws cryptocurrency to your selected wallet
 func (g *Gateio) WithdrawCrypto(currency, address string, amount float64) (string, error) {
 	type response struct {
 		Result  bool   `json:"result"`

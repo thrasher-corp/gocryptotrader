@@ -210,6 +210,12 @@ func (c *CoinbasePro) WithdrawFiatFunds(withdrawRequest exchange.WithdrawRequest
 	return "", common.ErrNotYetImplemented
 }
 
+// WithdrawFiatFundsToInternationalBank returns a withdrawal ID when a
+// withdrawal is submitted
+func (c *CoinbasePro) WithdrawFiatFundsToInternationalBank(withdrawRequest exchange.WithdrawRequest) (string, error) {
+	return "", common.ErrNotYetImplemented
+}
+
 // GetWebsocket returns a pointer to the exchange websocket
 func (c *CoinbasePro) GetWebsocket() (*exchange.Websocket, error) {
 	return c.Websocket, nil

@@ -450,10 +450,11 @@ func TestWithdraw(t *testing.T) {
 	k.SetDefaults()
 	TestSetup(t)
 	var withdrawCryptoRequest = exchange.WithdrawRequest{
-		Amount:      100,
-		Currency:    symbol.XXBT,
-		Address:     "1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB",
-		Description: "donation",
+		Amount:        100,
+		Currency:      symbol.XXBT,
+		Address:       "1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB",
+		Description:   "donation",
+		TradePassword: "Key",
 	}
 
 	if areTestAPIKeysSet() && !canManipulateRealOrders {

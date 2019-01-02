@@ -612,10 +612,7 @@ func TestWithdraw(t *testing.T) {
 	}
 
 	_, err := a.WithdrawCryptocurrencyFunds(withdrawCryptoRequest)
-	if !areTestAPIKeysSet(a) && err == nil {
-		t.Errorf("Expecting an error when no keys are set: %v", err)
-	}
-	if areTestAPIKeysSet(a) && err != nil {
-		t.Errorf("Withdraw failed to be placed: %v", err)
+	if err != common.ErrFunctionNotSupported {
+		t.Errorf("Expected 'Not supported', recieved %v", err)
 	}
 }

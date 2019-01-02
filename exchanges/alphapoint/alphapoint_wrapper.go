@@ -181,12 +181,18 @@ func (a *Alphapoint) GetDepositAddress(cryptocurrency pair.CurrencyItem) (string
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
 // submitted
 func (a *Alphapoint) WithdrawCryptocurrencyFunds(withdrawRequest exchange.WithdrawRequest) (string, error) {
-	return "", common.ErrNotYetImplemented
+	return "", common.ErrFunctionNotSupported
 }
 
 // WithdrawFiatFunds returns a withdrawal ID when a withdrawal is submitted
 func (a *Alphapoint) WithdrawFiatFunds(withdrawRequest exchange.WithdrawRequest) (string, error) {
-	return "", common.ErrNotYetImplemented
+	return "", common.ErrFunctionNotSupported
+}
+
+// WithdrawFiatFundsToInternationalBank returns a withdrawal ID when a withdrawal is
+// submitted
+func (a *Alphapoint) WithdrawFiatFundsToInternationalBank(withdrawRequest exchange.WithdrawRequest) (string, error) {
+	return "", common.ErrFunctionNotSupported
 }
 
 // GetWebsocket returns a pointer to the exchange websocket

@@ -281,9 +281,9 @@ func (b *Bitmex) WithdrawFiatFunds(withdrawRequest exchange.WithdrawRequest) (st
 	return "", common.ErrNotYetImplemented
 }
 
-// WithdrawExchangeFiatFundsToInternationalBank returns a withdrawal ID when a withdrawal is
+// WithdrawFiatFundsToInternationalBank returns a withdrawal ID when a withdrawal is
 // submitted
-func (b *Bitmex) WithdrawExchangeFiatFundsToInternationalBank(currency pair.CurrencyItem, amount float64) (string, error) {
+func (b *Bitmex) WithdrawFiatFundsToInternationalBank(withdrawRequest exchange.WithdrawRequest) (string, error) {
 	return "", common.ErrNotYetImplemented
 }
 
