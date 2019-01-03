@@ -1,219 +1,194 @@
 [
     {
-        "name":"Alphapoint",
+        "name":"alphapoint",
         "apiKey":"",
         "apiSecret":"",
-        "clientId":"", 
         "verbose":false
     },
     {
-        "name":"ANX",
+        "name":"anx",
         "apiKey":"",
         "apiSecret":"",
-        "clientId":"", 
         "verbose":false
     },
     { 
-        "name":"Binance",
+        "name":"binance",
+        "apiKey":"",
+        "apiSecret":"",
+        "verbose":false
+    },
+    {
+        "name":"bitfinex",
+        "apiKey":"",
+        "apiSecret":"",
+        "verbose":false
+    },
+    {
+        "name":"bitflyer",
+        "apiKey":"",
+        "apiSecret":"",
+        "verbose":false
+    },
+    {
+        "name":"bithumb",
+        "apiKey":"",
+        "apiSecret":"",
+        "verbose":false
+    },
+    {
+        "name":"bitstamp",
         "apiKey":"",
         "apiSecret":"",
         "clientId":"", 
         "verbose":false
     },
     {
-        "name":"Bitfinex",
+        "name":"bittrex",
+        "apiKey":"",
+        "apiSecret":"",
+        "verbose":false
+    },
+    {
+        "name":"btcc",
+        "apiKey":"",
+        "apiSecret":"",
+        "verbose":false
+    },
+    {
+        "name":"btc markets",
+        "apiKey":"",
+        "apiSecret":"",
+        "verbose":false
+    },
+    {
+        "name":"bitmex",
+        "apiKey":"",
+        "apiSecret":"",
+        "verbose":false
+    },
+    {
+        "name":"coinut",
         "apiKey":"",
         "apiSecret":"",
         "clientId":"", 
         "verbose":false
     },
     {
-        "name":"Bitflyer",
+        "name":"coinbasepro",
         "apiKey":"",
         "apiSecret":"",
         "clientId":"", 
         "verbose":false
     },
     {
-        "name":"Bithumb",
+        "name":"exmo",
+        "apiKey":"",
+        "apiSecret":"",
+        "verbose":false
+    },
+    {
+        "name":"gateio",
+        "apiKey":"",
+        "apiSecret":"",
+        "verbose":false
+    },
+    {
+        "name":"gemini",
+        "apiKey":"",
+        "apiSecret":"",
+        "verbose":false
+    },
+    {
+        "name":"hitbtc",
+        "apiKey":"",
+        "apiSecret":"",
+        "verbose":false
+    },
+    {
+        "name":"huobi",
+        "apiKey":"",
+        "apiSecret":"",
+        "verbose":false
+    },
+    {
+        "name":"huobihadax",
+        "apiKey":"",
+        "apiSecret":"",
+        "verbose":false
+    },
+    {
+        "name":"itbit",
         "apiKey":"",
         "apiSecret":"",
         "clientId":"", 
         "verbose":false
     },
     {
-        "name":"Bitstamp",
+        "name":"kraken",
         "apiKey":"",
         "apiSecret":"",
         "clientId":"", 
         "verbose":false
     },
     {
-        "name":"Bittrex",
+        "name":"lakebtc",
+        "apiKey":"",
+        "apiSecret":"",
+        "verbose":false
+    },
+    {
+        "name":"liqui",
+        "apiKey":"",
+        "apiSecret":"",
+        "verbose":false
+    },
+    {
+        "name":"localbitcoins",
+        "apiKey":"",
+        "apiSecret":"",
+        "verbose":false
+    },
+    {
+        "name":"okcoin china",
         "apiKey":"",
         "apiSecret":"",
         "clientId":"", 
         "verbose":false
     },
     {
-        "name":"BTCC",
+        "name":"okcoin international",
         "apiKey":"",
         "apiSecret":"",
-        "clientId":"", 
         "verbose":false
     },
     {
-        "name":"BTC Markets",
+        "name":"okex",
         "apiKey":"",
         "apiSecret":"",
-        "clientId":"", 
         "verbose":false
     },
     {
-        "name":"Bitmex",
+        "name":"poloniex",
         "apiKey":"",
         "apiSecret":"",
-        "clientId":"", 
         "verbose":false
     },
     {
-        "name":"COINUT",
+        "name":"wex",
         "apiKey":"",
         "apiSecret":"",
-        "clientId":"", 
         "verbose":false
     },
     {
-        "name":"CoinbasePro",
+        "name":"yobit",
         "apiKey":"",
         "apiSecret":"",
-        "clientId":"", 
         "verbose":false
     },
     {
-        "name":"EXMO",
+        "name":"zb",
         "apiKey":"",
         "apiSecret":"",
-        "clientId":"", 
-        "verbose":false
-    },
-    {
-        "name":"GeteIO",
-        "apiKey":"",
-        "apiSecret":"",
-        "clientId":"", 
-        "verbose":false
-    },
-    {
-        "name":"Gemini",
-        "apiKey":"",
-        "apiSecret":"",
-        "clientId":"", 
-        "verbose":false
-    },
-    {
-        "name":"HitBTC",
-        "apiKey":"",
-        "apiSecret":"",
-        "clientId":"", 
-        "verbose":false
-    },
-    {
-        "name":"Huobi",
-        "apiKey":"",
-        "apiSecret":"",
-        "clientId":"", 
-        "verbose":false
-    },
-    {
-        "name":"HuobiHadax",
-        "apiKey":"",
-        "apiSecret":"",
-        "clientId":"", 
-        "verbose":false
-    },
-    {
-        "name":"ITBIT",
-        "apiKey":"",
-        "apiSecret":"",
-        "clientId":"", 
-        "verbose":false
-    },
-    {
-        "name":"Kraken",
-        "apiKey":"",
-        "apiSecret":"",
-        "clientId":"", 
-        "verbose":false
-    },
-    {
-        "name":"LakeBTC",
-        "apiKey":"",
-        "apiSecret":"",
-        "clientId":"", 
-        "verbose":false
-    },
-    {
-        "name":"Liqui",
-        "apiKey":"",
-        "apiSecret":"",
-        "clientId":"", 
-        "verbose":false
-    },
-    {
-        "name":"LocalBitcoins",
-        "apiKey":"",
-        "apiSecret":"",
-        "clientId":"", 
-        "verbose":false
-    },
-    {
-        "name":"OKCOIN China",
-        "apiKey":"",
-        "apiSecret":"",
-        "clientId":"", 
-        "verbose":false
-    },
-    {
-        "name":"OKCOIN International",
-        "apiKey":"",
-        "apiSecret":"",
-        "clientId":"", 
-        "verbose":false
-    },
-    {
-        "name":"OKEX",
-        "apiKey":"",
-        "apiSecret":"",
-        "clientId":"", 
-        "verbose":false
-    },
-    {
-        "name":"Poloniex",
-        "apiKey":"",
-        "apiSecret":"",
-        "clientId":"", 
-        "verbose":false
-    },
-    {
-        "name":"WEX",
-        "apiKey":"",
-        "apiSecret":"",
-        "clientId":"", 
-        "verbose":false
-    },
-    {
-        "name":"Yobit",
-        "apiKey":"",
-        "apiSecret":"",
-        "clientId":"", 
-        "verbose":false
-    },
-    {
-        "name":"ZB",
-        "apiKey":"",
-        "apiSecret":"",
-        "clientId":"", 
         "verbose":false
     }
 ]

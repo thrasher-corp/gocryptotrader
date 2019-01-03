@@ -2,6 +2,7 @@ package gateio
 
 import (
 	"encoding/json"
+	"strings"
 	"testing"
 
 	"github.com/thrasher-/gocryptotrader/common"
@@ -12,6 +13,7 @@ import (
 )
 
 // Set API data in "../../testdata/apikeys.json"
+// Copy template from "../../testdata/apikeys.example.json"
 const (
 	canManipulateRealOrders = false
 )
@@ -32,19 +34,19 @@ func TestSetup(t *testing.T) {
 
 	exchangeConfig.AuthenticatedAPISupport = true
 	apiKeyFile, err := common.ReadFile("../../testdata/apikeys.json")
-	if err != nil {
-		t.Error(err)
-	}
-	var exchangesAPIKeys []config.ExchangeConfig
-	err = json.Unmarshal(apiKeyFile, &exchangesAPIKeys)
-	if err != nil {
-		t.Error(err)
-	}
-	for _, exchangeAPIKeys := range exchangesAPIKeys {
-		if exchangeAPIKeys.Name == exchangeConfig.Name {
-			exchangeConfig.APIKey = exchangeAPIKeys.APIKey
-			exchangeConfig.APISecret = exchangeAPIKeys.APISecret
-			exchangeConfig.Verbose = exchangeAPIKeys.Verbose
+	if err == nil {
+		var exchangesAPIKeys []config.ExchangeConfig
+		err = json.Unmarshal(apiKeyFile, &exchangesAPIKeys)
+		if err != nil {
+			t.Error(err)
+		}
+		for _, exchangeAPIKeys := range exchangesAPIKeys {
+			if strings.EqualFold(exchangeAPIKeys.Name, exchangeConfig.Name) {
+				exchangeConfig.APIKey = exchangeAPIKeys.APIKey
+				exchangeConfig.APISecret = exchangeAPIKeys.APISecret
+				exchangeConfig.Verbose = exchangeAPIKeys.Verbose
+				break
+			}
 		}
 	}
 
@@ -70,7 +72,7 @@ func TestGetMarketInfo(t *testing.T) {
 func TestSpotNewOrder(t *testing.T) {
 	t.Parallel()
 
-	if g.APIKey == "" || g.APISecret == "" {
+	if g.APIKey == "" || g.APISecret == "" || g.APIKey == "Key" || g.APISecret == "Secret" {
 		t.Skip()
 	}
 
@@ -88,7 +90,7 @@ func TestSpotNewOrder(t *testing.T) {
 func TestCancelExistingOrder(t *testing.T) {
 	t.Parallel()
 
-	if g.APIKey == "" || g.APISecret == "" {
+	if g.APIKey == "" || g.APISecret == "" || g.APIKey == "Key" || g.APISecret == "Secret" {
 		t.Skip()
 	}
 
@@ -101,7 +103,7 @@ func TestCancelExistingOrder(t *testing.T) {
 func TestGetBalances(t *testing.T) {
 	t.Parallel()
 
-	if g.APIKey == "" || g.APISecret == "" {
+	if g.APIKey == "" || g.APISecret == "" || g.APIKey == "Key" || g.APISecret == "Secret" {
 		t.Skip()
 	}
 
@@ -359,7 +361,7 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 }
 
 func TestGetAccountInfo(t *testing.T) {
-	if g.APISecret == "" || g.APIKey == "" {
+	if g.APISecret == "" || g.APIKey == "" || g.APIKey == "Key" || g.APISecret == "Secret" {
 		_, err := g.GetAccountInfo()
 		if err == nil {
 			t.Error("Test Failed - GetAccountInfo() error")

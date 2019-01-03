@@ -12,6 +12,7 @@ import (
 )
 
 // Set API data in "../../testdata/apikeys.json"
+// Copy template from "../../testdata/apikeys.example.json"
 const (
 	onlineTest              = false
 	canManipulateRealOrders = false
@@ -33,19 +34,19 @@ func TestSetDefaults(t *testing.T) {
 func testSetAPIKey(a *Alphapoint) error {
 	a.AuthenticatedAPISupport = true
 	apiKeyFile, err := common.ReadFile("../../testdata/apikeys.json")
-	if err != nil {
-		return err
-	}
-	var exchangesAPIKeys []config.ExchangeConfig
-	err = json.Unmarshal(apiKeyFile, &exchangesAPIKeys)
-	if err != nil {
-		return err
-	}
-	for _, exchangeAPIKeys := range exchangesAPIKeys {
-		if exchangeAPIKeys.Name == "Alphapoint" {
-			a.APIKey = exchangeAPIKeys.APIKey
-			a.APISecret = exchangeAPIKeys.APISecret
-			a.Verbose = exchangeAPIKeys.Verbose
+	if err == nil {
+		var exchangesAPIKeys []config.ExchangeConfig
+		err = json.Unmarshal(apiKeyFile, &exchangesAPIKeys)
+		if err != nil {
+			return err
+		}
+		for _, exchangeAPIKeys := range exchangesAPIKeys {
+			if exchangeAPIKeys.Name == "Alphapoint" {
+				a.APIKey = exchangeAPIKeys.APIKey
+				a.APISecret = exchangeAPIKeys.APISecret
+				a.Verbose = exchangeAPIKeys.Verbose
+				break
+			}
 		}
 	}
 
@@ -309,6 +310,9 @@ func TestCreateAccount(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+	if a.APIKey == "" || a.APISecret == "" || a.APIKey == "Key" || a.APISecret == "Secret" {
+		t.Skip()
+	}
 
 	err = a.CreateAccount("test", "account", "something@something.com", "0292383745", "lolcat123")
 	if err != nil {
@@ -331,6 +335,9 @@ func TestGetUserInfo(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+	if a.APIKey == "" || a.APISecret == "" || a.APIKey == "Key" || a.APISecret == "Secret" {
+		t.Skip()
+	}
 
 	_, err = a.GetUserInfo()
 	if err == nil {
@@ -344,6 +351,9 @@ func TestSetUserInfo(t *testing.T) {
 	err := testSetAPIKey(a)
 	if err != nil {
 		t.Error(err)
+	}
+	if a.APIKey == "" || a.APISecret == "" || a.APIKey == "Key" || a.APISecret == "Secret" {
+		t.Skip()
 	}
 
 	_, err = a.SetUserInfo("bla", "bla", "1", "meh", true, true)
@@ -359,6 +369,9 @@ func TestGetAccountInfo(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+	if a.APIKey == "" || a.APISecret == "" || a.APIKey == "Key" || a.APISecret == "Secret" {
+		t.Skip()
+	}
 
 	_, err = a.GetAccountInfo()
 	if err == nil {
@@ -372,6 +385,9 @@ func TestGetAccountTrades(t *testing.T) {
 	err := testSetAPIKey(a)
 	if err != nil {
 		t.Error(err)
+	}
+	if a.APIKey == "" || a.APISecret == "" || a.APIKey == "Key" || a.APISecret == "Secret" {
+		t.Skip()
 	}
 
 	_, err = a.GetAccountTrades("", 1, 2)
@@ -387,6 +403,9 @@ func TestGetDepositAddresses(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+	if a.APIKey == "" || a.APISecret == "" || a.APIKey == "Key" || a.APISecret == "Secret" {
+		t.Skip()
+	}
 
 	_, err = a.GetDepositAddresses()
 	if err == nil {
@@ -400,6 +419,9 @@ func TestWithdrawCoins(t *testing.T) {
 	err := testSetAPIKey(a)
 	if err != nil {
 		t.Error(err)
+	}
+	if a.APIKey == "" || a.APISecret == "" || a.APIKey == "Key" || a.APISecret == "Secret" {
+		t.Skip()
 	}
 
 	err = a.WithdrawCoins("", "", "", 0.01)
@@ -415,6 +437,9 @@ func TestCreateOrder(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+	if a.APIKey == "" || a.APISecret == "" || a.APIKey == "Key" || a.APISecret == "Secret" {
+		t.Skip()
+	}
 
 	_, err = a.CreateOrder("", "", exchange.Market.ToString(), 0.01, 0)
 	if err == nil {
@@ -428,6 +453,9 @@ func TestModifyExistingOrder(t *testing.T) {
 	err := testSetAPIKey(a)
 	if err != nil {
 		t.Error(err)
+	}
+	if a.APIKey == "" || a.APISecret == "" || a.APIKey == "Key" || a.APISecret == "Secret" {
+		t.Skip()
 	}
 
 	_, err = a.ModifyExistingOrder("", 1, 1)
@@ -443,6 +471,9 @@ func TestCancelAllExistingOrders(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+	if a.APIKey == "" || a.APISecret == "" || a.APIKey == "Key" || a.APISecret == "Secret" {
+		t.Skip()
+	}
 
 	err = a.CancelAllExistingOrders("")
 	if err == nil {
@@ -457,6 +488,9 @@ func TestGetOrders(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+	if a.APIKey == "" || a.APISecret == "" || a.APIKey == "Key" || a.APISecret == "Secret" {
+		t.Skip()
+	}
 
 	_, err = a.GetOrders()
 	if err == nil {
@@ -470,6 +504,9 @@ func TestGetOrderFee(t *testing.T) {
 	err := testSetAPIKey(a)
 	if err != nil {
 		t.Error(err)
+	}
+	if a.APIKey == "" || a.APISecret == "" || a.APIKey == "Key" || a.APISecret == "Secret" {
+		t.Skip()
 	}
 
 	_, err = a.GetOrderFee("", "", 1, 1)

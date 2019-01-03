@@ -2,6 +2,7 @@ package okex
 
 import (
 	"encoding/json"
+	"strings"
 	"testing"
 
 	"github.com/thrasher-/gocryptotrader/common"
@@ -14,6 +15,7 @@ import (
 var o OKEX
 
 // Set API data in "../../testdata/apikeys.json"
+// Copy template from "../../testdata/apikeys.example.json"
 const (
 	canManipulateRealOrders = false
 )
@@ -35,19 +37,19 @@ func TestSetup(t *testing.T) {
 
 	exchangeConfig.AuthenticatedAPISupport = true
 	apiKeyFile, err := common.ReadFile("../../testdata/apikeys.json")
-	if err != nil {
-		t.Error(err)
-	}
-	var exchangesAPIKeys []config.ExchangeConfig
-	err = json.Unmarshal(apiKeyFile, &exchangesAPIKeys)
-	if err != nil {
-		t.Error(err)
-	}
-	for _, exchangeAPIKeys := range exchangesAPIKeys {
-		if exchangeAPIKeys.Name == exchangeConfig.Name {
-			exchangeConfig.APIKey = exchangeAPIKeys.APIKey
-			exchangeConfig.APISecret = exchangeAPIKeys.APISecret
-			exchangeConfig.Verbose = exchangeAPIKeys.Verbose
+	if err == nil {
+		var exchangesAPIKeys []config.ExchangeConfig
+		err = json.Unmarshal(apiKeyFile, &exchangesAPIKeys)
+		if err != nil {
+			t.Error(err)
+		}
+		for _, exchangeAPIKeys := range exchangesAPIKeys {
+			if strings.EqualFold(exchangeAPIKeys.Name, exchangeConfig.Name) {
+				exchangeConfig.APIKey = exchangeAPIKeys.APIKey
+				exchangeConfig.APISecret = exchangeAPIKeys.APISecret
+				exchangeConfig.Verbose = exchangeAPIKeys.Verbose
+				break
+			}
 		}
 	}
 

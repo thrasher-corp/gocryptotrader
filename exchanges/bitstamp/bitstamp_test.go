@@ -3,6 +3,7 @@ package bitstamp
 import (
 	"encoding/json"
 	"net/url"
+	"strings"
 	"testing"
 	"time"
 
@@ -13,6 +14,7 @@ import (
 )
 
 // Set API data in "../../testdata/apikeys.json"
+// Copy template from "../../testdata/apikeys.example.json"
 const (
 	customerID              = ""	canManipulateRealOrders = false
 )
@@ -44,20 +46,20 @@ func TestSetup(t *testing.T) {
 		t.Error("Test Failed - Bitstamp Setup() init error")
 	}
 	apiKeyFile, err := common.ReadFile("../../testdata/apikeys.json")
-	if err != nil {
-		t.Error(err)
-	}
-	var exchangesAPIKeys []config.ExchangeConfig
-	err = json.Unmarshal(apiKeyFile, &exchangesAPIKeys)
-	if err != nil {
-		t.Error(err)
-	}
-	for _, exchangeAPIKeys := range exchangesAPIKeys {
-		if exchangeAPIKeys.Name == exchangeConfig.Name {
-			exchangeConfig.APIKey = exchangeAPIKeys.APIKey
-			exchangeConfig.APISecret = exchangeAPIKeys.APISecret
-			exchangeConfig.ClientID = exchangeAPIKeys.ClientID
-			exchangeConfig.Verbose = exchangeAPIKeys.Verbose
+	if err == nil {
+		var exchangesAPIKeys []config.ExchangeConfig
+		err = json.Unmarshal(apiKeyFile, &exchangesAPIKeys)
+		if err != nil {
+			t.Error(err)
+		}
+		for _, exchangeAPIKeys := range exchangesAPIKeys {
+			if strings.EqualFold(exchangeAPIKeys.Name, exchangeConfig.Name) {
+				exchangeConfig.APIKey = exchangeAPIKeys.APIKey
+				exchangeConfig.APISecret = exchangeAPIKeys.APISecret
+				exchangeConfig.ClientID = exchangeAPIKeys.ClientID
+				exchangeConfig.Verbose = exchangeAPIKeys.Verbose
+				break
+			}
 		}
 	}
 

@@ -9,6 +9,7 @@ import (
 	"path"
 	"runtime"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -645,7 +646,7 @@ func (c *Config) GetExchangeConfig(name string) (ExchangeConfig, error) {
 	m.Lock()
 	defer m.Unlock()
 	for i := range c.Exchanges {
-		if c.Exchanges[i].Name == name {
+		if strings.EqualFold(c.Exchanges[i].Name, name) {
 			return c.Exchanges[i], nil
 		}
 	}

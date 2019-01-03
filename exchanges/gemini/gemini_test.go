@@ -3,6 +3,7 @@ package gemini
 import (
 	"encoding/json"
 	"net/url"
+	"strings"
 	"testing"
 
 	"github.com/thrasher-/gocryptotrader/common"
@@ -13,6 +14,7 @@ import (
 )
 
 // Set API data in "../../testdata/apikeys.json"
+// Copy template from "../../testdata/apikeys.example.json"
 const (
 	apiKeyRole1       = ""
 	sessionHeartBeat1 = false
@@ -27,20 +29,20 @@ func TestAddSession(t *testing.T) {
 	var g1 Gemini
 	var apiKey1, apiSecret1, apiKey2, apiSecret2 string
 	apiKeyFile, err := common.ReadFile("../../testdata/apikeys.json")
-	if err != nil {
-		t.Error(err)
-	}
-	var exchangesAPIKeys []config.ExchangeConfig
-	err = json.Unmarshal(apiKeyFile, &exchangesAPIKeys)
-	if err != nil {
-		t.Error(err)
-	}
-	for _, exchangeAPIKeys := range exchangesAPIKeys {
-		if exchangeAPIKeys.Name == "Gemini" {
-			apiKey1 = exchangeAPIKeys.APIKey
-			apiKey2 = exchangeAPIKeys.APIKey
-			apiSecret1 = exchangeAPIKeys.APISecret
-			apiSecret2 = exchangeAPIKeys.APISecret
+	if err == nil {
+		var exchangesAPIKeys []config.ExchangeConfig
+		err = json.Unmarshal(apiKeyFile, &exchangesAPIKeys)
+		if err != nil {
+			t.Error(err)
+		}
+		for _, exchangeAPIKeys := range exchangesAPIKeys {
+			if exchangeAPIKeys.Name == "Gemini" {
+				apiKey1 = exchangeAPIKeys.APIKey
+				apiKey2 = exchangeAPIKeys.APIKey
+				apiSecret1 = exchangeAPIKeys.APISecret
+				apiSecret2 = exchangeAPIKeys.APISecret
+				break
+			}
 		}
 	}
 	err = AddSession(&g1, 1, apiKey1, apiSecret1, apiKeyRole1, true, false)
@@ -73,19 +75,19 @@ func TestSetup(t *testing.T) {
 
 	exchangeConfig.AuthenticatedAPISupport = true
 	apiKeyFile, err := common.ReadFile("../../testdata/apikeys.json")
-	if err != nil {
-		t.Error(err)
-	}
-	var exchangesAPIKeys []config.ExchangeConfig
-	err = json.Unmarshal(apiKeyFile, &exchangesAPIKeys)
-	if err != nil {
-		t.Error(err)
-	}
-	for _, exchangeAPIKeys := range exchangesAPIKeys {
-		if exchangeAPIKeys.Name == exchangeConfig.Name {
-			exchangeConfig.APIKey = exchangeAPIKeys.APIKey
-			exchangeConfig.APISecret = exchangeAPIKeys.APISecret
-			exchangeConfig.Verbose = exchangeAPIKeys.Verbose
+	if err == nil {
+		var exchangesAPIKeys []config.ExchangeConfig
+		err = json.Unmarshal(apiKeyFile, &exchangesAPIKeys)
+		if err != nil {
+			t.Error(err)
+		}
+		for _, exchangeAPIKeys := range exchangesAPIKeys {
+			if strings.EqualFold(exchangeAPIKeys.Name, exchangeConfig.Name) {
+				exchangeConfig.APIKey = exchangeAPIKeys.APIKey
+				exchangeConfig.APISecret = exchangeAPIKeys.APISecret
+				exchangeConfig.Verbose = exchangeAPIKeys.Verbose
+				break
+			}
 		}
 	}
 

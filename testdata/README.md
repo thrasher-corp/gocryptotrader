@@ -18,6 +18,9 @@ You can track ideas, planned features and what's in progresss on this Trello boa
 
 Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader Slack](https://gocryptotrader.herokuapp.com/)
 
+# Using custom API keys
+Copy file apikeys.example.json as apikeys.json and add any keys there. This will prevent any API keys from being committed to the repository while conducting testing.
+
 ## Current Features
 
 This folder contains a configuration test file for non-deployement test params.
