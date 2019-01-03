@@ -3,7 +3,7 @@ package yobit
 import (
 	"errors"
 	"fmt"
-	"log"
+
 	"strconv"
 	"sync"
 
@@ -12,6 +12,7 @@ import (
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
+	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
 // Start starts the WEX go routine
@@ -26,9 +27,9 @@ func (y *Yobit) Start(wg *sync.WaitGroup) {
 // Run implements the Yobit wrapper
 func (y *Yobit) Run() {
 	if y.Verbose {
-		log.Printf("%s Websocket: %s.", y.GetName(), common.IsEnabled(y.Websocket.IsEnabled()))
-		log.Printf("%s polling delay: %ds.\n", y.GetName(), y.RESTPollingDelay)
-		log.Printf("%s %d currencies enabled: %s.\n", y.GetName(), len(y.EnabledPairs), y.EnabledPairs)
+		log.Debugf("%s Websocket: %s.", y.GetName(), common.IsEnabled(y.Websocket.IsEnabled()))
+		log.Debugf("%s polling delay: %ds.\n", y.GetName(), y.RESTPollingDelay)
+		log.Debugf("%s %d currencies enabled: %s.\n", y.GetName(), len(y.EnabledPairs), y.EnabledPairs)
 	}
 }
 

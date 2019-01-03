@@ -932,7 +932,7 @@ func (k *Kraken) SendAuthenticatedHTTPRequest(method string, params url.Values, 
 	signature := common.Base64Encode(common.GetHMAC(common.HashSHA512, append([]byte(path), shasum...), secret))
 
 	if k.Verbose {
-		log.Printf("Sending POST request to %s, path: %s, params: %s", k.APIUrl, path, encoded)
+		log.Debugf("Sending POST request to %s, path: %s, params: %s", k.APIUrl, path, encoded)
 	}
 
 	headers := make(map[string]string)

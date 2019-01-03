@@ -2,15 +2,16 @@ package poloniex
 
 import (
 	"fmt"
-	"log"
+
 	"strconv"
 	"sync"
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
-	"github.com/thrasher-/gocryptotrader/exchanges"
+	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
+	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
 // Start starts the Poloniex go routine
@@ -25,24 +26,24 @@ func (p *Poloniex) Start(wg *sync.WaitGroup) {
 // Run implements the Poloniex wrapper
 func (p *Poloniex) Run() {
 	if p.Verbose {
-		log.Printf("%s Websocket: %s (url: %s).\n", p.GetName(), common.IsEnabled(p.Websocket.IsEnabled()), poloniexWebsocketAddress)
-		log.Printf("%s polling delay: %ds.\n", p.GetName(), p.RESTPollingDelay)
-		log.Printf("%s %d currencies enabled: %s.\n", p.GetName(), len(p.EnabledPairs), p.EnabledPairs)
+		log.Debugf("%s Websocket: %s (url: %s).\n", p.GetName(), common.IsEnabled(p.Websocket.IsEnabled()), poloniexWebsocketAddress)
+		log.Debugf("%s polling delay: %ds.\n", p.GetName(), p.RESTPollingDelay)
+		log.Debugf("%s %d currencies enabled: %s.\n", p.GetName(), len(p.EnabledPairs), p.EnabledPairs)
 	}
 
 	exchangeCurrencies, err := p.GetExchangeCurrencies()
 	if err != nil {
-		log.Printf("%s Failed to get available symbols.\n", p.GetName())
+		log.Errorf("%s Failed to get available symbols.\n", p.GetName())
 	} else {
 		forceUpdate := false
 		if common.StringDataCompare(p.AvailablePairs, "BTC_USDT") {
-			log.Printf("%s contains invalid pair, forcing upgrade of available currencies.\n",
+			log.Warnf("%s contains invalid pair, forcing upgrade of available currencies.\n",
 				p.GetName())
 			forceUpdate = true
 		}
 		err = p.UpdateCurrencies(exchangeCurrencies, false, forceUpdate)
 		if err != nil {
-			log.Printf("%s Failed to update available currencies %s.\n", p.GetName(), err)
+			log.Errorf("%s Failed to update available currencies %s.\n", p.GetName(), err)
 		}
 	}
 }

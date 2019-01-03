@@ -3,15 +3,16 @@ package localbitcoins
 import (
 	"errors"
 	"fmt"
-	"log"
 	"net/url"
 	"strconv"
 	"strings"
 	"time"
 
+	log "github.com/thrasher-/gocryptotrader/logger"
+
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
-	"github.com/thrasher-/gocryptotrader/exchanges"
+	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/request"
 )
 
@@ -677,12 +678,12 @@ func (l *LocalBitcoins) GetOrderbook(currency string) (Orderbook, error) {
 	for _, x := range resp.Bids {
 		price, err := strconv.ParseFloat(x[0], 64)
 		if err != nil {
-			log.Println(err)
+			log.Error(err)
 			continue
 		}
 		amount, err := strconv.ParseFloat(x[1], 64)
 		if err != nil {
-			log.Println(err)
+			log.Error(err)
 			continue
 		}
 		orderbook.Bids = append(orderbook.Bids, Price{price, amount})
@@ -691,12 +692,12 @@ func (l *LocalBitcoins) GetOrderbook(currency string) (Orderbook, error) {
 	for _, x := range resp.Asks {
 		price, err := strconv.ParseFloat(x[0], 64)
 		if err != nil {
-			log.Println(err)
+			log.Error(err)
 			continue
 		}
 		amount, err := strconv.ParseFloat(x[1], 64)
 		if err != nil {
-			log.Println(err)
+			log.Error(err)
 			continue
 		}
 		orderbook.Asks = append(orderbook.Asks, Price{price, amount})
@@ -734,7 +735,7 @@ func (l *LocalBitcoins) SendAuthenticatedHTTPRequest(method, path string, params
 	headers["Content-Type"] = "application/x-www-form-urlencoded"
 
 	if l.Verbose {
-		log.Printf("Sending POST request to `%s`, path: `%s`, params: `%s`.", l.APIUrl, path, encoded)
+		log.Debugf("Sending POST request to `%s`, path: `%s`, params: `%s`.", l.APIUrl, path, encoded)
 	}
 
 	if method == "GET" && len(encoded) > 0 {

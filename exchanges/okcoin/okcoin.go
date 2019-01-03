@@ -3,7 +3,7 @@ package okcoin
 import (
 	"errors"
 	"fmt"
-	"log"
+
 	"net/url"
 	"strconv"
 	"strings"
@@ -14,9 +14,10 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
-	"github.com/thrasher-/gocryptotrader/exchanges"
+	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/request"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
+	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
 const (
@@ -811,7 +812,7 @@ func (o *OKCoin) GetFuturesUserInfo() {
 	err := o.SendAuthenticatedHTTPRequest(okcoinFuturesUserInfo, url.Values{}, nil)
 
 	if err != nil {
-		log.Println(err)
+		log.Error(err)
 	}
 }
 
@@ -823,7 +824,7 @@ func (o *OKCoin) GetFuturesPosition(symbol, contractType string) {
 	err := o.SendAuthenticatedHTTPRequest(okcoinFuturesPosition, v, nil)
 
 	if err != nil {
-		log.Println(err)
+		log.Error(err)
 	}
 }
 
@@ -841,7 +842,7 @@ func (o *OKCoin) FuturesTrade(amount, price float64, matchPrice, leverage int64,
 	err := o.SendAuthenticatedHTTPRequest(okcoinFuturesTrade, v, nil)
 
 	if err != nil {
-		log.Println(err)
+		log.Error(err)
 	}
 }
 
@@ -856,7 +857,7 @@ func (o *OKCoin) FuturesBatchTrade(orderData, symbol, contractType string, lever
 	err := o.SendAuthenticatedHTTPRequest(okcoinFuturesTradeBatch, v, nil)
 
 	if err != nil {
-		log.Println(err)
+		log.Error(err)
 	}
 }
 
@@ -870,7 +871,7 @@ func (o *OKCoin) CancelFuturesOrder(orderID int64, symbol, contractType string) 
 	err := o.SendAuthenticatedHTTPRequest(okcoinFuturesCancel, v, nil)
 
 	if err != nil {
-		log.Println(err)
+		log.Error(err)
 	}
 }
 
@@ -887,7 +888,7 @@ func (o *OKCoin) GetFuturesOrderInfo(orderID, status, currentPage, pageLength in
 	err := o.SendAuthenticatedHTTPRequest(okcoinFuturesOrderInfo, v, nil)
 
 	if err != nil {
-		log.Println(err)
+		log.Error(err)
 	}
 }
 
@@ -901,7 +902,7 @@ func (o *OKCoin) GetFutureOrdersInfo(orderID int64, contractType, symbol string)
 	err := o.SendAuthenticatedHTTPRequest(okcoinFuturesOrdersInfo, v, nil)
 
 	if err != nil {
-		log.Println(err)
+		log.Error(err)
 	}
 }
 
@@ -912,7 +913,7 @@ func (o *OKCoin) GetFuturesUserInfo4Fix() {
 	err := o.SendAuthenticatedHTTPRequest(okcoinFuturesUserInfo4Fix, v, nil)
 
 	if err != nil {
-		log.Println(err)
+		log.Error(err)
 	}
 }
 
@@ -926,7 +927,7 @@ func (o *OKCoin) GetFuturesUserPosition4Fix(symbol, contractType string) {
 	err := o.SendAuthenticatedHTTPRequest(okcoinFuturesUserInfo4Fix, v, nil)
 
 	if err != nil {
-		log.Println(err)
+		log.Error(err)
 	}
 }
 
@@ -949,7 +950,7 @@ func (o *OKCoin) SendAuthenticatedHTTPRequest(method string, v url.Values, resul
 	path := o.APIUrl + method
 
 	if o.Verbose {
-		log.Printf("Sending POST request to %s with params %s\n", path, encoded)
+		log.Debugf("Sending POST request to %s with params %s\n", path, encoded)
 	}
 
 	headers := make(map[string]string)

@@ -3,15 +3,16 @@ package okcoin
 import (
 	"errors"
 	"fmt"
-	"log"
+
 	"strconv"
 	"sync"
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
-	"github.com/thrasher-/gocryptotrader/exchanges"
+	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
+	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
 // Start starts the OKCoin go routine
@@ -26,9 +27,9 @@ func (o *OKCoin) Start(wg *sync.WaitGroup) {
 // Run implements the OKCoin wrapper
 func (o *OKCoin) Run() {
 	if o.Verbose {
-		log.Printf("%s Websocket: %s. (url: %s).\n", o.GetName(), common.IsEnabled(o.Websocket.IsEnabled()), o.WebsocketURL)
-		log.Printf("%s polling delay: %ds.\n", o.GetName(), o.RESTPollingDelay)
-		log.Printf("%s %d currencies enabled: %s.\n", o.GetName(), len(o.EnabledPairs), o.EnabledPairs)
+		log.Debugf("%s Websocket: %s. (url: %s).\n", o.GetName(), common.IsEnabled(o.Websocket.IsEnabled()), o.WebsocketURL)
+		log.Debugf("%s polling delay: %ds.\n", o.GetName(), o.RESTPollingDelay)
+		log.Debugf("%s %d currencies enabled: %s.\n", o.GetName(), len(o.EnabledPairs), o.EnabledPairs)
 	}
 
 	if o.APIUrl == okcoinAPIURL {
@@ -40,7 +41,7 @@ func (o *OKCoin) Run() {
 
 		prods, err := o.GetSpotInstruments()
 		if err != nil {
-			log.Printf("OKEX failed to obtain available spot instruments. Err: %d", err)
+			log.Errorf("OKEX failed to obtain available spot instruments. Err: %d", err)
 		} else {
 			var pairs []string
 			for x := range prods {
@@ -49,17 +50,17 @@ func (o *OKCoin) Run() {
 
 			err = o.UpdateCurrencies(pairs, false, forceUpgrade)
 			if err != nil {
-				log.Printf("OKEX failed to update available currencies. Err: %s", err)
+				log.Errorf("OKEX failed to update available currencies. Err: %s", err)
 			}
 		}
 
 		if forceUpgrade {
 			enabledPairs := []string{"btc_usd"}
-			log.Println("WARNING: Available pairs for OKCoin International reset due to config upgrade, please enable the pairs you would like again.")
+			log.Warn("Available pairs for OKCoin International reset due to config upgrade, please enable the pairs you would like again.")
 
 			err := o.UpdateCurrencies(enabledPairs, true, true)
 			if err != nil {
-				log.Printf("%s failed to update currencies. Err: %s", o.Name, err)
+				log.Errorf("%s failed to update currencies. Err: %s", o.Name, err)
 			}
 		}
 	}

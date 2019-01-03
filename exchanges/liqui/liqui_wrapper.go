@@ -2,13 +2,14 @@ package liqui
 
 import (
 	"fmt"
-	"log"
 	"strconv"
 	"sync"
 
+	log "github.com/thrasher-/gocryptotrader/logger"
+
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
-	"github.com/thrasher-/gocryptotrader/exchanges"
+	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 )
@@ -25,19 +26,19 @@ func (l *Liqui) Start(wg *sync.WaitGroup) {
 // Run implements the Liqui wrapper
 func (l *Liqui) Run() {
 	if l.Verbose {
-		log.Printf("%s polling delay: %ds.\n", l.GetName(), l.RESTPollingDelay)
-		log.Printf("%s %d currencies enabled: %s.\n", l.GetName(), len(l.EnabledPairs), l.EnabledPairs)
+		log.Debugf("%s polling delay: %ds.\n", l.GetName(), l.RESTPollingDelay)
+		log.Debugf("%s %d currencies enabled: %s.\n", l.GetName(), len(l.EnabledPairs), l.EnabledPairs)
 	}
 
 	var err error
 	l.Info, err = l.GetInfo()
 	if err != nil {
-		log.Printf("%s Unable to fetch info.\n", l.GetName())
+		log.Errorf("%s Unable to fetch info.\n", l.GetName())
 	} else {
 		exchangeProducts := l.GetAvailablePairs(true)
 		err = l.UpdateCurrencies(exchangeProducts, false, false)
 		if err != nil {
-			log.Printf("%s Failed to get config.\n", l.GetName())
+			log.Errorf("%s Failed to get config.\n", l.GetName())
 		}
 	}
 }

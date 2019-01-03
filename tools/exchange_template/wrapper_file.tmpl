@@ -3,7 +3,6 @@ package {{.Name}}
 
 import (
 	"errors"
-	"log"
 	"sync"
 
 {{if .WS}} "github.com/thrasher-/gocryptotrader/common" {{end}}
@@ -11,6 +10,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
+	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
 // Start starts the {{.CapitalName}} go routine
@@ -25,9 +25,9 @@ func ({{.Variable}} *{{.CapitalName}}) Start(wg *sync.WaitGroup) {
 // Run implements the {{.CapitalName}} wrapper
 func ({{.Variable}} *{{.CapitalName}}) Run() {
 	if {{.Variable}}.Verbose {
-{{if .WS}} log.Printf("%s Websocket: %s. (url: %s).\n", {{.Variable}}.GetName(), common.IsEnabled({{.Variable}}.Websocket.IsEnabled()), {{.Variable}}.Websocket.GetWebsocketURL()) {{end}}
-		log.Printf("%s polling delay: %ds.\n", {{.Variable}}.GetName(), {{.Variable}}.RESTPollingDelay)
-		log.Printf("%s %d currencies enabled: %s.\n", {{.Variable}}.GetName(), len({{.Variable}}.EnabledPairs), {{.Variable}}.EnabledPairs)
+{{if .WS}} log.Debugf("%s Websocket: %s. (url: %s).\n", {{.Variable}}.GetName(), common.IsEnabled({{.Variable}}.Websocket.IsEnabled()), {{.Variable}}.Websocket.GetWebsocketURL()) {{end}}
+		log.Debugf("%s polling delay: %ds.\n", {{.Variable}}.GetName(), {{.Variable}}.RESTPollingDelay)
+		log.Debugf("%s %d currencies enabled: %s.\n", {{.Variable}}.GetName(), len({{.Variable}}.EnabledPairs), {{.Variable}}.EnabledPairs)
 	}
 }
 

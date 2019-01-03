@@ -50,7 +50,7 @@ func (c *COINUT) Run() {
 
 	err = c.UpdateCurrencies(currencies, false, false)
 	if err != nil {
-		log.Printf("%s Failed to update available currencies.\n", c.GetName())
+		log.Errorf("%s Failed to update available currencies.\n", c.GetName())
 	}
 }
 

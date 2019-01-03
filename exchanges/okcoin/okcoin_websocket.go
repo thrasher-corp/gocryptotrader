@@ -4,16 +4,17 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
 	"net/http"
 	"net/url"
 	"strconv"
 	"time"
 
+	log "github.com/thrasher-/gocryptotrader/logger"
+
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
-	"github.com/thrasher-/gocryptotrader/exchanges"
+	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 )
 
 const (
@@ -132,11 +133,11 @@ func (o *OKCoin) WsHandleData() {
 			var init []WsResponse
 			err := common.JSONDecode(resp.Raw, &init)
 			if err != nil {
-				log.Fatal(err)
+				log.Error(err)
 			}
 
 			if init[0].ErrorCode != "" {
-				log.Fatal(o.WebsocketErrors[init[0].ErrorCode])
+				log.Error(o.WebsocketErrors[init[0].ErrorCode])
 			}
 
 			if init[0].Success {
@@ -166,7 +167,7 @@ func (o *OKCoin) WsHandleData() {
 
 				err = common.JSONDecode(init[0].Data, &ticker)
 				if err != nil {
-					log.Fatal(err)
+					log.Error(err)
 
 				}
 
@@ -187,7 +188,7 @@ func (o *OKCoin) WsHandleData() {
 
 				err = common.JSONDecode(init[0].Data, &orderbook)
 				if err != nil {
-					log.Fatal(err)
+					log.Error(err)
 				}
 
 				o.Websocket.DataHandler <- exchange.WebsocketOrderbookUpdate{
@@ -201,7 +202,7 @@ func (o *OKCoin) WsHandleData() {
 
 				err = common.JSONDecode(init[0].Data, &klineData)
 				if err != nil {
-					log.Fatal(err)
+					log.Error(err)
 				}
 
 				var klines []WsKlines
@@ -237,7 +238,7 @@ func (o *OKCoin) WsHandleData() {
 				var dealsData [][]interface{}
 				err = common.JSONDecode(init[0].Data, &dealsData)
 				if err != nil {
-					log.Fatal(err)
+					log.Error(err)
 				}
 
 				var deals []WsDeals

@@ -2,7 +2,7 @@ package wex
 
 import (
 	"fmt"
-	"log"
+
 	"strconv"
 	"sync"
 
@@ -11,6 +11,7 @@ import (
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
+	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
 // Start starts the WEX go routine
@@ -25,14 +26,14 @@ func (w *WEX) Start(wg *sync.WaitGroup) {
 // Run implements the WEX wrapper
 func (w *WEX) Run() {
 	if w.Verbose {
-		log.Printf("%s Websocket: %s.", w.GetName(), common.IsEnabled(w.Websocket.IsEnabled()))
-		log.Printf("%s polling delay: %ds.\n", w.GetName(), w.RESTPollingDelay)
-		log.Printf("%s %d currencies enabled: %s.\n", w.GetName(), len(w.EnabledPairs), w.EnabledPairs)
+		log.Debugf("%s Websocket: %s.", w.GetName(), common.IsEnabled(w.Websocket.IsEnabled()))
+		log.Debugf("%s polling delay: %ds.\n", w.GetName(), w.RESTPollingDelay)
+		log.Debugf("%s %d currencies enabled: %s.\n", w.GetName(), len(w.EnabledPairs), w.EnabledPairs)
 	}
 
 	exchangeProducts, err := w.GetTradablePairs()
 	if err != nil {
-		log.Printf("%s Failed to get available symbols.\n", w.GetName())
+		log.Errorf("%s Failed to get available symbols.\n", w.GetName())
 	} else {
 		forceUpgrade := false
 		if !common.StringDataContains(w.EnabledPairs, "_") || !common.StringDataContains(w.AvailablePairs, "_") {
@@ -41,16 +42,16 @@ func (w *WEX) Run() {
 
 		if forceUpgrade {
 			enabledPairs := []string{"BTC_USD", "LTC_USD", "LTC_BTC", "ETH_USD"}
-			log.Println("WARNING: Enabled pairs for WEX reset due to config upgrade, please enable the ones you would like again.")
+			log.Warn("Enabled pairs for WEX reset due to config upgrade, please enable the ones you would like again.")
 
 			err = w.UpdateCurrencies(enabledPairs, true, true)
 			if err != nil {
-				log.Printf("%s Failed to get config.\n", w.GetName())
+				log.Errorf("%s Failed to get config.\n", w.GetName())
 			}
 		}
 		err = w.UpdateCurrencies(exchangeProducts, false, forceUpgrade)
 		if err != nil {
-			log.Printf("%s Failed to get config.\n", w.GetName())
+			log.Errorf("%s Failed to get config.\n", w.GetName())
 		}
 	}
 }

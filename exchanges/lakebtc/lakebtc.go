@@ -3,15 +3,16 @@ package lakebtc
 import (
 	"errors"
 	"fmt"
-	"log"
 	"strconv"
 	"strings"
 	"time"
 
+	log "github.com/thrasher-/gocryptotrader/logger"
+
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/currency/symbol"
-	"github.com/thrasher-/gocryptotrader/exchanges"
+	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/request"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 )
@@ -175,12 +176,12 @@ func (l *LakeBTC) GetOrderBook(currency string) (Orderbook, error) {
 	for _, x := range resp.Bids {
 		price, err := strconv.ParseFloat(x[0], 64)
 		if err != nil {
-			log.Println(err)
+			log.Error(err)
 			continue
 		}
 		amount, err := strconv.ParseFloat(x[1], 64)
 		if err != nil {
-			log.Println(err)
+			log.Error(err)
 			continue
 		}
 		orderbook.Bids = append(orderbook.Bids, OrderbookStructure{price, amount})
@@ -189,12 +190,12 @@ func (l *LakeBTC) GetOrderBook(currency string) (Orderbook, error) {
 	for _, x := range resp.Asks {
 		price, err := strconv.ParseFloat(x[0], 64)
 		if err != nil {
-			log.Println(err)
+			log.Error(err)
 			continue
 		}
 		amount, err := strconv.ParseFloat(x[1], 64)
 		if err != nil {
-			log.Println(err)
+			log.Error(err)
 			continue
 		}
 		orderbook.Asks = append(orderbook.Asks, OrderbookStructure{price, amount})
@@ -353,7 +354,7 @@ func (l *LakeBTC) SendAuthenticatedHTTPRequest(method, params string, result int
 	hmac := common.GetHMAC(common.HashSHA1, []byte(req), []byte(l.APISecret))
 
 	if l.Verbose {
-		log.Printf("Sending POST request to %s calling method %s with params %s\n", l.APIUrl, method, req)
+		log.Debugf("Sending POST request to %s calling method %s with params %s\n", l.APIUrl, method, req)
 	}
 
 	postData := make(map[string]interface{})

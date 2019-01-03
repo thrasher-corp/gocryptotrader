@@ -11,7 +11,7 @@ import (
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
-	"github.com/thrasher-/gocryptotrader/exchanges"
+	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/request"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 )
@@ -299,7 +299,7 @@ func (l *Liqui) SendAuthenticatedHTTPRequest(method string, values url.Values, r
 	hmac := common.GetHMAC(common.HashSHA512, []byte(encoded), []byte(l.APISecret))
 
 	if l.Verbose {
-		log.Printf("Sending POST request to %s calling method %s with params %s\n",
+		log.Debugf("Sending POST request to %s calling method %s with params %s\n",
 			l.APIUrlSecondary, method, encoded)
 	}
 

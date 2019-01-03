@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"log"
+
 	"net/url"
 	"strconv"
 	"time"
@@ -12,9 +12,10 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
-	"github.com/thrasher-/gocryptotrader/exchanges"
+	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/request"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
+	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
 const (
@@ -168,7 +169,7 @@ func (p *Poloniex) GetOrderbook(currencyPair string, depth int) (OrderbookAll, e
 			return oba, err
 		}
 		if len(resp.Error) != 0 {
-			log.Println(resp.Error)
+			log.Error(resp.Error)
 			return oba, fmt.Errorf("Poloniex GetOrderbook() error: %s", resp.Error)
 		}
 		ob := Orderbook{}

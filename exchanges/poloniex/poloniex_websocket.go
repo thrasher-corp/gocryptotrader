@@ -3,7 +3,7 @@ package poloniex
 import (
 	"errors"
 	"fmt"
-	"log"
+
 	"net/http"
 	"net/url"
 	"strconv"
@@ -12,8 +12,9 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
-	"github.com/thrasher-/gocryptotrader/exchanges"
+	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
+	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
 const (
@@ -132,7 +133,7 @@ func (p *Poloniex) WsHandleData() {
 			var check []interface{}
 			err := common.JSONDecode(resp.Raw, &check)
 			if err != nil {
-				log.Fatal("poloniex_websocket.go - ", err)
+				log.Errorf("poloniex websocket decode error - %s", err)
 			}
 
 			switch len(check) {
@@ -176,7 +177,7 @@ func (p *Poloniex) WsHandleData() {
 						err := p.WsProcessOrderbookUpdate(datalevel2,
 							CurrencyPairID[int64(check[0].(float64))])
 						if err != nil {
-							log.Fatal(err)
+							log.Error(err)
 						}
 
 						p.Websocket.DataHandler <- exchange.WebsocketOrderbookUpdate{
@@ -189,12 +190,12 @@ func (p *Poloniex) WsHandleData() {
 						datalevel3 := datalevel2[1].(map[string]interface{})
 						currencyPair, ok := datalevel3["currencyPair"].(string)
 						if !ok {
-							log.Fatal("poloniex.go error - could not find currency pair in map")
+							log.Error("poloniex.go error - could not find currency pair in map")
 						}
 
 						orderbookData, ok := datalevel3["orderBook"].([]interface{})
 						if !ok {
-							log.Fatal("poloniex.go error - could not find orderbook data in map")
+							log.Error("poloniex.go error - could not find orderbook data in map")
 						}
 
 						err := p.WsProcessOrderbookSnapshot(orderbookData, currencyPair)

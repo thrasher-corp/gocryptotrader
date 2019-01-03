@@ -2,15 +2,16 @@ package zb
 
 import (
 	"fmt"
-	"log"
+
 	"strconv"
 	"sync"
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
-	"github.com/thrasher-/gocryptotrader/exchanges"
+	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
+	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
 // Start starts the OKEX go routine
@@ -25,14 +26,14 @@ func (z *ZB) Start(wg *sync.WaitGroup) {
 // Run implements the OKEX wrapper
 func (z *ZB) Run() {
 	if z.Verbose {
-		log.Printf("%s Websocket: %s. (url: %s).\n", z.GetName(), common.IsEnabled(z.Websocket.IsEnabled()), z.WebsocketURL)
-		log.Printf("%s polling delay: %ds.\n", z.GetName(), z.RESTPollingDelay)
-		log.Printf("%s %d currencies enabled: %s.\n", z.GetName(), len(z.EnabledPairs), z.EnabledPairs)
+		log.Debugf("%s Websocket: %s. (url: %s).\n", z.GetName(), common.IsEnabled(z.Websocket.IsEnabled()), z.WebsocketURL)
+		log.Debugf("%s polling delay: %ds.\n", z.GetName(), z.RESTPollingDelay)
+		log.Debugf("%s %d currencies enabled: %s.\n", z.GetName(), len(z.EnabledPairs), z.EnabledPairs)
 	}
 
 	markets, err := z.GetMarkets()
 	if err != nil {
-		log.Printf("%s Unable to fetch symbols.\n", z.GetName())
+		log.Errorf("%s Unable to fetch symbols.\n", z.GetName())
 	} else {
 		var currencies []string
 		for x := range markets {
@@ -41,7 +42,7 @@ func (z *ZB) Run() {
 
 		err = z.UpdateCurrencies(currencies, false, false)
 		if err != nil {
-			log.Printf("%s Failed to update available currencies.\n", z.GetName())
+			log.Errorf("%s Failed to update available currencies.\n", z.GetName())
 		}
 	}
 }
