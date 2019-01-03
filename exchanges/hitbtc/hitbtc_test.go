@@ -177,21 +177,20 @@ func TestFormatWithdrawPermissions(t *testing.T) {
 
 // Any tests below this line have the ability to impact your orders on the exchange. Enable canManipulateRealOrders to run them
 // ----------------------------------------------------------------------------------------------------------------------------
-func isRealOrderTestEnabled() bool {
-	if h.APIKey == "" || h.APISecret == "" ||
-		h.APIKey == "Key" || h.APISecret == "Secret" ||
-		!canManipulateRealOrders {
-		return false
+func areTestAPIKeysSet() bool {
+	if h.APIKey != "" && h.APIKey != "Key" &&
+		h.APISecret != "" && h.APISecret != "Secret" {
+		return true
 	}
-	return true
+	return false
 }
 
 func TestSubmitOrder(t *testing.T) {
 	h.SetDefaults()
 	TestSetup(t)
 
-	if !isRealOrderTestEnabled() {
-		t.Skip()
+	if areTestAPIKeysSet() && !canManipulateRealOrders {
+		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 
 	var p = pair.CurrencyPair{
@@ -200,8 +199,10 @@ func TestSubmitOrder(t *testing.T) {
 		SecondCurrency: symbol.BTC,
 	}
 	response, err := h.SubmitOrder(p, exchange.Buy, exchange.Market, 1, 10, "1234234")
-	if err != nil || !response.IsOrderPlaced {
+	if areTestAPIKeysSet() && (err != nil || !response.IsOrderPlaced) {
 		t.Errorf("Order failed to be placed: %v", err)
+	} else if !areTestAPIKeysSet() && err == nil {
+		t.Error("Expecting an error when no keys are set")
 	}
 }
 
@@ -210,8 +211,8 @@ func TestCancelExchangeOrder(t *testing.T) {
 	h.SetDefaults()
 	TestSetup(t)
 
-	if !isRealOrderTestEnabled() {
-		t.Skip()
+	if areTestAPIKeysSet() && !canManipulateRealOrders {
+		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 
 	currencyPair := pair.NewCurrencyPair(symbol.LTC, symbol.BTC)
@@ -227,8 +228,11 @@ func TestCancelExchangeOrder(t *testing.T) {
 	err := h.CancelOrder(orderCancellation)
 
 	// Assert
-	if err != nil {
-		t.Errorf("Could not cancel order: %s", err)
+	if !areTestAPIKeysSet() && err == nil {
+		t.Errorf("Expecting an error when no keys are set: %v", err)
+	}
+	if areTestAPIKeysSet() && err != nil {
+		t.Errorf("Could not cancel orders: %v", err)
 	}
 }
 
@@ -237,8 +241,8 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 	h.SetDefaults()
 	TestSetup(t)
 
-	if !isRealOrderTestEnabled() {
-		t.Skip()
+	if areTestAPIKeysSet() && !canManipulateRealOrders {
+		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 
 	currencyPair := pair.NewCurrencyPair(symbol.LTC, symbol.BTC)
@@ -254,8 +258,11 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 	resp, err := h.CancelAllOrders(orderCancellation)
 
 	// Assert
-	if err != nil {
-		t.Errorf("Could not cancel order: %s", err)
+	if !areTestAPIKeysSet() && err == nil {
+		t.Errorf("Expecting an error when no keys are set: %v", err)
+	}
+	if areTestAPIKeysSet() && err != nil {
+		t.Errorf("Could not cancel orders: %v", err)
 	}
 
 	if len(resp.OrderStatus) > 0 {
@@ -267,5 +274,28 @@ func TestModifyOrder(t *testing.T) {
 	_, err := h.ModifyOrder(exchange.ModifyOrder{})
 	if err == nil {
 		t.Error("Test failed - ModifyOrder() error")
+	}
+}
+
+func TestWithdraw(t *testing.T) {
+	h.SetDefaults()
+	TestSetup(t)
+	var withdrawCryptoRequest = exchange.WithdrawRequest{
+		Amount:      100,
+		Currency:    symbol.LTC,
+		Address:     "1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB",
+		Description: "WITHDRAW IT ALL",
+	}
+
+	if areTestAPIKeysSet() && !canManipulateRealOrders {
+		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
+	}
+
+	_, err := h.WithdrawCryptocurrencyFunds(withdrawCryptoRequest)
+	if !areTestAPIKeysSet() && err == nil {
+		t.Errorf("Expecting an error when no keys are set: %v", err)
+	}
+	if areTestAPIKeysSet() && err != nil {
+		t.Errorf("Withdraw failed to be placed: %v", err)
 	}
 }

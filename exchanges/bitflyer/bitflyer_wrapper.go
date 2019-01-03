@@ -190,19 +190,19 @@ func (b *Bitflyer) GetDepositAddress(cryptocurrency pair.CurrencyItem) (string, 
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
 // submitted
-func (b *Bitflyer) WithdrawCryptocurrencyFunds(address string, cryptocurrency pair.CurrencyItem, amount float64) (string, error) {
+func (b *Bitflyer) WithdrawCryptocurrencyFunds(withdrawRequest exchange.WithdrawRequest) (string, error) {
 	return "", common.ErrNotYetImplemented
 }
 
 // WithdrawFiatFunds returns a withdrawal ID when a
 // withdrawal is submitted
-func (b *Bitflyer) WithdrawFiatFunds(currency pair.CurrencyItem, amount float64) (string, error) {
+func (b *Bitflyer) WithdrawFiatFunds(withdrawRequest exchange.WithdrawRequest) (string, error) {
 	return "", common.ErrNotYetImplemented
 }
 
 // WithdrawFiatFundsToInternationalBank returns a withdrawal ID when a
 // withdrawal is submitted
-func (b *Bitflyer) WithdrawFiatFundsToInternationalBank(currency pair.CurrencyItem, amount float64) (string, error) {
+func (b *Bitflyer) WithdrawFiatFundsToInternationalBank(withdrawRequest exchange.WithdrawRequest) (string, error) {
 	return "", common.ErrNotYetImplemented
 }
 

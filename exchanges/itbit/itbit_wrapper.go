@@ -168,7 +168,7 @@ func (i *ItBit) SubmitOrder(p pair.CurrencyPair, side exchange.OrderSide, orderT
 	var submitOrderResponse exchange.SubmitOrderResponse
 	var wallet string
 
-	wallets, err := i.GetWallets(nil)
+	wallets, err := i.GetWallets(url.Values{})
 	if err != nil {
 		return submitOrderResponse, err
 	}
@@ -243,20 +243,20 @@ func (i *ItBit) GetDepositAddress(cryptocurrency pair.CurrencyItem) (string, err
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
 // submitted
-func (i *ItBit) WithdrawCryptocurrencyFunds(address string, cryptocurrency pair.CurrencyItem, amount float64) (string, error) {
-	return "", common.ErrNotYetImplemented
+func (i *ItBit) WithdrawCryptocurrencyFunds(withdrawRequest exchange.WithdrawRequest) (string, error) {
+	return "", common.ErrFunctionNotSupported
 }
 
 // WithdrawFiatFunds returns a withdrawal ID when a
 // withdrawal is submitted
-func (i *ItBit) WithdrawFiatFunds(currency pair.CurrencyItem, amount float64) (string, error) {
-	return "", common.ErrNotYetImplemented
+func (i *ItBit) WithdrawFiatFunds(withdrawRequest exchange.WithdrawRequest) (string, error) {
+	return "", common.ErrFunctionNotSupported
 }
 
 // WithdrawFiatFundsToInternationalBank returns a withdrawal ID when a
 // withdrawal is submitted
-func (i *ItBit) WithdrawFiatFundsToInternationalBank(currency pair.CurrencyItem, amount float64) (string, error) {
-	return "", common.ErrNotYetImplemented
+func (i *ItBit) WithdrawFiatFundsToInternationalBank(withdrawRequest exchange.WithdrawRequest) (string, error) {
+	return "", common.ErrFunctionNotSupported
 }
 
 // GetWebsocket returns a pointer to the exchange websocket

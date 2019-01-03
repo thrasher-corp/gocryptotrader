@@ -558,10 +558,10 @@ func (o *OKCoin) Withdrawal(symbol string, fee float64, tradePWD, address string
 	v.Set("trade_pwd", tradePWD)
 	v.Set("withdraw_address", address)
 	v.Set("withdraw_amount", strconv.FormatFloat(amount, 'f', -1, 64))
+	v.Set("target", "address")
 	result := WithdrawalResponse{}
 
 	err := o.SendAuthenticatedHTTPRequest(okcoinWithdraw, v, &result)
-
 	if err != nil {
 		return 0, err
 	}

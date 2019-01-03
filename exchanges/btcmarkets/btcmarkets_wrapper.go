@@ -261,23 +261,23 @@ func (b *BTCMarkets) GetDepositAddress(cryptocurrency pair.CurrencyItem) (string
 }
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is submitted
-func (b *BTCMarkets) WithdrawCryptocurrencyFunds(address string, cryptocurrency pair.CurrencyItem, amount float64) (string, error) {
-	return b.WithdrawCrypto(amount, cryptocurrency.String(), address)
+func (b *BTCMarkets) WithdrawCryptocurrencyFunds(withdrawRequest exchange.WithdrawRequest) (string, error) {
+	return b.WithdrawCrypto(withdrawRequest.Amount, withdrawRequest.Currency.String(), withdrawRequest.Address)
 }
 
 // WithdrawFiatFunds returns a withdrawal ID when a
 // withdrawal is submitted
-func (b *BTCMarkets) WithdrawFiatFunds(currency pair.CurrencyItem, amount float64) (string, error) {
-	bd, err := b.GetClientBankAccounts(b.Name, currency.Upper().String())
+func (b *BTCMarkets) WithdrawFiatFunds(withdrawRequest exchange.WithdrawRequest) (string, error) {
+	bd, err := b.GetClientBankAccounts(b.Name, withdrawRequest.Currency.Upper().String())
 	if err != nil {
 		return "", err
 	}
-	return b.WithdrawAUD(bd.AccountName, bd.AccountNumber, bd.BankName, bd.BSBNumber, amount)
+	return b.WithdrawAUD(bd.AccountName, bd.AccountNumber, bd.BankName, bd.BSBNumber, withdrawRequest.Amount)
 }
 
 // WithdrawFiatFundsToInternationalBank returns a withdrawal ID when a
 // withdrawal is submitted
-func (b *BTCMarkets) WithdrawFiatFundsToInternationalBank(currency pair.CurrencyItem, amount float64) (string, error) {
+func (b *BTCMarkets) WithdrawFiatFundsToInternationalBank(withdrawRequest exchange.WithdrawRequest) (string, error) {
 	return "", common.ErrNotYetImplemented
 }
 

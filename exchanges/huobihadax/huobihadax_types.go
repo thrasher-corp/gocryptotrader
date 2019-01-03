@@ -53,7 +53,8 @@ type CancelOpenOrdersBatch struct {
 		NextID       int `json:"next-id"`
 		SuccessCount int `json:"success-count"`
 	} `json:"data"`
-	Status string `json:"status"`
+	Status       string `json:"status"`
+	ErrorMessage string `json:"err-msg"`
 }
 
 // TradeHistory stores the the trade history data

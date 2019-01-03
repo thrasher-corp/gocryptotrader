@@ -20,6 +20,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
+	"github.com/thrasher-/gocryptotrader/currency/symbol"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/request"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
@@ -778,19 +779,19 @@ func (h *HUOBI) Withdraw(address, currency, addrTag string, amount, fee float64)
 		Address  string `json:"address"`
 		Amount   string `json:"amount"`
 		Currency string `json:"currency"`
-		Fee      string `json:"fee"`
-		AddrTag  string `json:"addr-tag"`
+		Fee      string `json:"fee,omitempty"`
+		AddrTag  string `json:"addr-tag,omitempty"`
 	}{
 		Address:  address,
 		Currency: currency,
 		Amount:   strconv.FormatFloat(amount, 'f', -1, 64),
 	}
 
-	if fee != 0 {
+	if fee > 0 {
 		data.Fee = strconv.FormatFloat(fee, 'f', -1, 64)
 	}
 
-	if currency == "XRP" {
+	if currency == symbol.XRP {
 		data.AddrTag = addrTag
 	}
 

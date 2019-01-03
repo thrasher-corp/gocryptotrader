@@ -240,8 +240,10 @@ func (o *OKCoin) CancelOrder(order exchange.OrderCancellation) error {
 		return err
 	}
 
-	_, err = o.CancelExistingOrder(orders, exchange.FormatExchangeCurrency(o.Name, order.CurrencyPair).String())
-
+	resp, err := o.CancelExistingOrder(orders, exchange.FormatExchangeCurrency(o.Name, order.CurrencyPair).String())
+	if !resp.Result {
+		return errors.New(resp.ErrorCode)
+	}
 	return err
 }
 
@@ -266,7 +268,7 @@ func (o *OKCoin) CancelAllOrders(orderCancellation exchange.OrderCancellation) (
 			return cancelAllOrdersResponse, err
 		}
 
-		for _, order := range common.SplitStrings(resp.Error, ",") {
+		for _, order := range common.SplitStrings(resp.ErrorCode, ",") {
 			if err != nil {
 				cancelAllOrdersResponse.OrderStatus[order] = "Order could not be cancelled"
 			}
@@ -289,19 +291,20 @@ func (o *OKCoin) GetDepositAddress(cryptocurrency pair.CurrencyItem) (string, er
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
 // submitted
-func (o *OKCoin) WithdrawCryptocurrencyFunds(address string, cryptocurrency pair.CurrencyItem, amount float64) (string, error) {
-	return "", common.ErrNotYetImplemented
+func (o *OKCoin) WithdrawCryptocurrencyFunds(withdrawRequest exchange.WithdrawRequest) (string, error) {
+	resp, err := o.Withdrawal(withdrawRequest.Currency.String(), withdrawRequest.FeeAmount, withdrawRequest.TradePassword, withdrawRequest.Address, withdrawRequest.Amount)
+	return fmt.Sprintf("%v", resp), err
 }
 
 // WithdrawFiatFunds returns a withdrawal ID when a
 // withdrawal is submitted
-func (o *OKCoin) WithdrawFiatFunds(currency pair.CurrencyItem, amount float64) (string, error) {
+func (o *OKCoin) WithdrawFiatFunds(withdrawRequest exchange.WithdrawRequest) (string, error) {
 	return "", common.ErrNotYetImplemented
 }
 
 // WithdrawFiatFundsToInternationalBank returns a withdrawal ID when a
 // withdrawal is submitted
-func (o *OKCoin) WithdrawFiatFundsToInternationalBank(currency pair.CurrencyItem, amount float64) (string, error) {
+func (o *OKCoin) WithdrawFiatFundsToInternationalBank(withdrawRequest exchange.WithdrawRequest) (string, error) {
 	return "", common.ErrNotYetImplemented
 }
 

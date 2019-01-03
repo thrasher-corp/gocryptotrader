@@ -463,3 +463,9 @@ type Balance struct {
 		} `json:"funds"`
 	} `json:"info"`
 }
+
+// WithdrawalResponse is a response type for withdrawal
+type WithdrawalResponse struct {
+	WithdrawID int  `json:"withdraw_id"`
+	Result     bool `json:"result"`
+}

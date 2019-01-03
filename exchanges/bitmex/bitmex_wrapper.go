@@ -256,19 +256,34 @@ func (b *Bitmex) GetDepositAddress(cryptocurrency pair.CurrencyItem) (string, er
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
 // submitted
-func (b *Bitmex) WithdrawCryptocurrencyFunds(address string, cryptocurrency pair.CurrencyItem, amount float64) (string, error) {
-	return "", common.ErrNotYetImplemented
+func (b *Bitmex) WithdrawCryptocurrencyFunds(withdrawRequest exchange.WithdrawRequest) (string, error) {
+	var request = UserRequestWithdrawalParams{
+		Address:  withdrawRequest.Address,
+		Amount:   withdrawRequest.Amount,
+		Currency: withdrawRequest.Currency.String(),
+		OtpToken: withdrawRequest.OneTimePassword,
+	}
+	if withdrawRequest.FeeAmount > 0 {
+		request.Fee = withdrawRequest.FeeAmount
+	}
+
+	resp, err := b.UserRequestWithdrawal(request)
+	if err != nil {
+		return "", err
+	}
+
+	return resp.TransactID, nil
 }
 
 // WithdrawFiatFunds returns a withdrawal ID when a withdrawal is
 // submitted
-func (b *Bitmex) WithdrawFiatFunds(currency pair.CurrencyItem, amount float64) (string, error) {
+func (b *Bitmex) WithdrawFiatFunds(withdrawRequest exchange.WithdrawRequest) (string, error) {
 	return "", common.ErrNotYetImplemented
 }
 
-// WithdrawExchangeFiatFundsToInternationalBank returns a withdrawal ID when a withdrawal is
+// WithdrawFiatFundsToInternationalBank returns a withdrawal ID when a withdrawal is
 // submitted
-func (b *Bitmex) WithdrawExchangeFiatFundsToInternationalBank(currency pair.CurrencyItem, amount float64) (string, error) {
+func (b *Bitmex) WithdrawFiatFundsToInternationalBank(withdrawRequest exchange.WithdrawRequest) (string, error) {
 	return "", common.ErrNotYetImplemented
 }
 

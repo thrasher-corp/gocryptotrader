@@ -66,7 +66,7 @@ const (
 	spotCancelTrade    = "cancel_order"
 	spotOrderInfo      = "order_info"
 	spotMultiOrderInfo = "orders_info"
-	spotWithdraw       = "withdraw"
+	spotWithdraw       = "withdraw.do"
 	spotCancelWithdraw = "cancel_withdraw"
 	spotWithdrawInfo   = "withdraw_info"
 	spotAccountRecords = "account_records"
@@ -1224,4 +1224,30 @@ func (o *OKEX) GetBalance() ([]FullBalance, error) {
 	}
 
 	return balances, nil
+}
+
+// Withdrawal withdraws a cryptocurrency to a supplied address
+func (o *OKEX) Withdrawal(symbol string, fee float64, tradePWD, address string, amount float64) (int, error) {
+	v := url.Values{}
+	v.Set("symbol", symbol)
+
+	if fee != 0 {
+		v.Set("chargefee", strconv.FormatFloat(fee, 'f', -1, 64))
+	}
+	v.Set("trade_pwd", tradePWD)
+	v.Set("withdraw_address", address)
+	v.Set("withdraw_amount", strconv.FormatFloat(amount, 'f', -1, 64))
+	v.Set("target", "address")
+	resp := WithdrawalResponse{}
+
+	err := o.SendAuthenticatedHTTPRequest(spotWithdraw, v, &resp)
+	if err != nil {
+		return 0, err
+	}
+
+	if !resp.Result {
+		return 0, errors.New("unable to process withdrawal request")
+	}
+
+	return resp.WithdrawID, nil
 }

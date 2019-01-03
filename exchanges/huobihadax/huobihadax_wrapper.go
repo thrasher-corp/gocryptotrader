@@ -279,6 +279,10 @@ func (h *HUOBIHADAX) CancelAllOrders(orderCancellation exchange.OrderCancellatio
 		if resp.Data.FailedCount > 0 {
 			return cancelAllOrdersResponse, fmt.Errorf("%v orders failed to cancel", resp.Data.FailedCount)
 		}
+
+		if resp.Status == "error" {
+			return cancelAllOrdersResponse, errors.New(resp.ErrorMessage)
+		}
 	}
 
 	return cancelAllOrdersResponse, nil
@@ -297,19 +301,20 @@ func (h *HUOBIHADAX) GetDepositAddress(cryptocurrency pair.CurrencyItem) (string
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
 // submitted
-func (h *HUOBIHADAX) WithdrawCryptocurrencyFunds(address string, cryptocurrency pair.CurrencyItem, amount float64) (string, error) {
-	return "", common.ErrNotYetImplemented
+func (h *HUOBIHADAX) WithdrawCryptocurrencyFunds(withdrawRequest exchange.WithdrawRequest) (string, error) {
+	resp, err := h.Withdraw(withdrawRequest.Address, withdrawRequest.Currency.Lower().String(), withdrawRequest.AddressTag, withdrawRequest.Amount, withdrawRequest.FeeAmount)
+	return fmt.Sprintf("%v", resp), err
 }
 
 // WithdrawFiatFunds returns a withdrawal ID when a
 // withdrawal is submitted
-func (h *HUOBIHADAX) WithdrawFiatFunds(currency pair.CurrencyItem, amount float64) (string, error) {
+func (h *HUOBIHADAX) WithdrawFiatFunds(withdrawRequest exchange.WithdrawRequest) (string, error) {
 	return "", common.ErrNotYetImplemented
 }
 
 // WithdrawFiatFundsToInternationalBank returns a withdrawal ID when a
 // withdrawal is submitted
-func (h *HUOBIHADAX) WithdrawFiatFundsToInternationalBank(currency pair.CurrencyItem, amount float64) (string, error) {
+func (h *HUOBIHADAX) WithdrawFiatFundsToInternationalBank(withdrawRequest exchange.WithdrawRequest) (string, error) {
 	return "", common.ErrNotYetImplemented
 }
 

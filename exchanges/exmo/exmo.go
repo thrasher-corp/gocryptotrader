@@ -1,6 +1,7 @@
 package exmo
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"net/url"
@@ -171,7 +172,9 @@ func (e *EXMO) GetUserInfo() (UserInfo, error) {
 // Type can be buy, sell, market_buy, market_sell, market_buy_total and market_sell_total
 func (e *EXMO) CreateOrder(pair, orderType string, price, amount float64) (int64, error) {
 	type response struct {
-		OrderID int64 `json:"order_id"`
+		OrderID int64  `json:"order_id"`
+		Result  bool   `json:"result"`
+		Error   string `json:"error"`
 	}
 
 	v := url.Values{}
@@ -180,17 +183,28 @@ func (e *EXMO) CreateOrder(pair, orderType string, price, amount float64) (int64
 	v.Set("price", strconv.FormatFloat(price, 'f', -1, 64))
 	v.Set("quantity", strconv.FormatFloat(amount, 'f', -1, 64))
 
-	var result response
-	err := e.SendAuthenticatedHTTPRequest("POST", exmoOrderCreate, v, &result)
-	return result.OrderID, err
+	var resp response
+	err := e.SendAuthenticatedHTTPRequest("POST", exmoOrderCreate, v, &resp)
+	if !resp.Result {
+		return -1, errors.New(resp.Error)
+	}
+	return resp.OrderID, err
 }
 
 // CancelExistingOrder cancels an order by the orderID
 func (e *EXMO) CancelExistingOrder(orderID int64) error {
 	v := url.Values{}
 	v.Set("order_id", strconv.FormatInt(orderID, 10))
-	var result interface{}
-	return e.SendAuthenticatedHTTPRequest("POST", exmoOrderCancel, v, &result)
+	type response struct {
+		Result bool   `json:"result"`
+		Error  string `json:"error"`
+	}
+	var resp response
+	err := e.SendAuthenticatedHTTPRequest("POST", exmoOrderCancel, v, &resp)
+	if !resp.Result {
+		return errors.New(resp.Error)
+	}
+	return err
 }
 
 // GetOpenOrders returns the users open orders
@@ -268,7 +282,10 @@ func (e *EXMO) GetCryptoDepositAddress() (map[string]string, error) {
 // NOTE: This API function is available only after request to their tech support team
 func (e *EXMO) WithdrawCryptocurrency(currency, address, invoice string, amount float64) (int64, error) {
 	type response struct {
-		TaskID int64 `json:"task_id,string"`
+		TaskID  int64  `json:"task_id,string"`
+		Result  bool   `json:"result"`
+		Error   string `json:"error"`
+		Success int64  `json:"success"`
 	}
 
 	v := url.Values{}
@@ -280,9 +297,15 @@ func (e *EXMO) WithdrawCryptocurrency(currency, address, invoice string, amount 
 	}
 
 	v.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
-	var result response
-	err := e.SendAuthenticatedHTTPRequest("POST", exmoWithdrawCrypt, v, &result)
-	return result.TaskID, err
+	var resp response
+	err := e.SendAuthenticatedHTTPRequest("POST", exmoWithdrawCrypt, v, &resp)
+	if err != nil {
+		return -1, err
+	}
+	if resp.Success == 0 || !resp.Result {
+		return -1, errors.New(resp.Error)
+	}
+	return resp.TaskID, err
 }
 
 // GetWithdrawTXID gets the result of a withdrawal request

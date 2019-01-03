@@ -560,14 +560,14 @@ func (l *LocalBitcoins) GetWalletBalance() (WalletBalanceInfo, error) {
 // On success, the response returns a message indicating success. It is highly
 // recommended to minimize the lifetime of access tokens with the money
 // permission. Use Logout() to make the current token expire instantly.
-func (l *LocalBitcoins) WalletSend(address string, amount float64, pin int) (bool, error) {
+func (l *LocalBitcoins) WalletSend(address string, amount float64, pin int64) (bool, error) {
 	values := url.Values{}
 	values.Set("address", address)
 	values.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
 	path := localbitcoinsAPIWalletSend
 
 	if pin > 0 {
-		values.Set("pincode", strconv.Itoa(pin))
+		values.Set("pincode", fmt.Sprintf("%v", pin))
 		path = localbitcoinsAPIWalletSendPin
 	}
 
