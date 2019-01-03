@@ -41,6 +41,7 @@ const (
 	krakenOrderCancel    = "CancelOrder"
 	krakenOrderPlace     = "AddOrder"
 	krakenWithdrawInfo   = "WithdrawInfo"
+	krakenWithdraw       = "Withdraw"
 	krakenDepositMethods = "DepositMethods"
 
 	krakenAuthRate   = 0
@@ -468,6 +469,24 @@ func (k *Kraken) GetWithdrawInfo(currency string, amount float64) (WithdrawInfor
 	}
 
 	return response.Result, GetError(response.Error)
+}
+
+// Withdraw withdraws funds
+func (k *Kraken) Withdraw(asset, key string, amount float64) (string, error) {
+	var response struct {
+		Error       []string `json:"error"`
+		ReferenceID string   `json:"refid"`
+	}
+	params := url.Values{}
+	params.Set("asset", asset)
+	params.Set("key", key)
+	params.Set("amount", fmt.Sprintf("%f", amount))
+
+	if err := k.SendAuthenticatedHTTPRequest(krakenWithdraw, params, &response); err != nil {
+		return response.ReferenceID, err
+	}
+
+	return response.ReferenceID, GetError(response.Error)
 }
 
 // GetDepositMethods gets withdrawal fees

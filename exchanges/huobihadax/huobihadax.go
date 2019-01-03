@@ -13,6 +13,7 @@ import (
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
+	"github.com/thrasher-/gocryptotrader/currency/symbol"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/request"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
@@ -756,22 +757,30 @@ func (h *HUOBIHADAX) Withdraw(address, currency, addrTag string, amount, fee flo
 		Response
 		WithdrawID int64 `json:"data"`
 	}
-
-	vals := url.Values{}
-	vals.Set("address", address)
-	vals.Set("currency", currency)
-	vals.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
-
-	if fee != 0 {
-		vals.Set("fee", strconv.FormatFloat(fee, 'f', -1, 64))
+	data := struct {
+		Address  string `json:"address"`
+		Amount   string `json:"amount"`
+		Currency string `json:"currency"`
+		Fee      string `json:"fee,omitempty"`
+		AddrTag  string `json:"addr-tag,omitempty"`
+	}{
+		Address:  address,
+		Currency: currency,
+		Amount:   strconv.FormatFloat(amount, 'f', -1, 64),
 	}
 
-	if currency == "XRP" {
-		vals.Set("addr-tag", addrTag)
+	if fee > 0 {
+		data.Fee = strconv.FormatFloat(fee, 'f', -1, 64)
+	}
+
+	if currency == symbol.XRP {
+		data.AddrTag = addrTag
 	}
 
 	var result response
-	err := h.SendAuthenticatedHTTPRequest("POST", huobihadaxWithdrawCreate, vals, &result)
+	bytesParams, _ := common.JSONEncode(data)
+	postBodyParams := string(bytesParams)
+	err := h.SendAuthenticatedHTTPPostRequest("POST", huobihadaxWithdrawCreate, postBodyParams, &result)
 
 	if result.ErrorMessage != "" {
 		return 0, errors.New(result.ErrorMessage)

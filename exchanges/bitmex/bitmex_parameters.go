@@ -1089,7 +1089,7 @@ type UserRequestWithdrawalParams struct {
 	Address string `json:"address,omitempty"`
 
 	// Amount - Amount of withdrawal currency.
-	Amount int64 `json:"amount,omitempty"`
+	Amount float64 `json:"amount,omitempty"`
 
 	// Currency - Currency you're withdrawing. Options: `XBt`
 	Currency string `json:"currency,omitempty"`
@@ -1100,7 +1100,7 @@ type UserRequestWithdrawalParams struct {
 	Fee float64 `json:"fee,omitempty"`
 
 	// OtpToken - 2FA token. Required if 2FA is enabled on your account.
-	OtpToken string `json:"otpToken,omitempty"`
+	OtpToken int64 `json:"otpToken,omitempty"`
 }
 
 // VerifyData verifies outgoing data sets

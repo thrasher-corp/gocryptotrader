@@ -437,7 +437,7 @@ func (g *Gemini) WithdrawCrypto(address, currency string, amount float64) (Withd
 	request["address"] = address
 	request["amount"] = strconv.FormatFloat(amount, 'f', -1, 64)
 
-	err := g.SendAuthenticatedHTTPRequest("POST", geminiWithdraw+currency, nil, &response)
+	err := g.SendAuthenticatedHTTPRequest("POST", geminiWithdraw+common.StringToLower(currency), request, &response)
 	if err != nil {
 		return response, err
 	}

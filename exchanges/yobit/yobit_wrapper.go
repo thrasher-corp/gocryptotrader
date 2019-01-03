@@ -1,6 +1,7 @@
 package yobit
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"strconv"
@@ -219,19 +220,26 @@ func (y *Yobit) GetDepositAddress(cryptocurrency pair.CurrencyItem) (string, err
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
 // submitted
-func (y *Yobit) WithdrawCryptocurrencyFunds(address string, cryptocurrency pair.CurrencyItem, amount float64) (string, error) {
-	return "", common.ErrNotYetImplemented
+func (y *Yobit) WithdrawCryptocurrencyFunds(withdrawRequest exchange.WithdrawRequest) (string, error) {
+	resp, err := y.WithdrawCoinsToAddress(withdrawRequest.Currency.String(), withdrawRequest.Amount, withdrawRequest.Address)
+	if err != nil {
+		return "", err
+	}
+	if len(resp.Error) > 0 {
+		return "", errors.New(resp.Error)
+	}
+	return "", nil
 }
 
 // WithdrawFiatFunds returns a withdrawal ID when a
 // withdrawal is submitted
-func (y *Yobit) WithdrawFiatFunds(currency pair.CurrencyItem, amount float64) (string, error) {
+func (y *Yobit) WithdrawFiatFunds(withdrawRequest exchange.WithdrawRequest) (string, error) {
 	return "", common.ErrNotYetImplemented
 }
 
 // WithdrawFiatFundsToInternationalBank returns a withdrawal ID when a
 // withdrawal is submitted
-func (y *Yobit) WithdrawFiatFundsToInternationalBank(currency pair.CurrencyItem, amount float64) (string, error) {
+func (y *Yobit) WithdrawFiatFundsToInternationalBank(withdrawRequest exchange.WithdrawRequest) (string, error) {
 	return "", common.ErrNotYetImplemented
 }
 

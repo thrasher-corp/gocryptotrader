@@ -317,11 +317,19 @@ func (l *LakeBTC) GetExternalAccounts() ([]ExternalAccounts, error) {
 
 // CreateWithdraw allows your to withdraw to external account WARNING: Only for
 // BTC!
-func (l *LakeBTC) CreateWithdraw(amount float64, accountID int64) (Withdraw, error) {
+func (l *LakeBTC) CreateWithdraw(amount float64, accountID string) (Withdraw, error) {
 	resp := Withdraw{}
-	params := strconv.FormatFloat(amount, 'f', -1, 64) + ",btc," + strconv.FormatInt(accountID, 10)
+	params := strconv.FormatFloat(amount, 'f', -1, 64) + ",btc," + accountID
 
-	return resp, l.SendAuthenticatedHTTPRequest(lakeBTCCreateWithdraw, params, &resp)
+	err := l.SendAuthenticatedHTTPRequest(lakeBTCCreateWithdraw, params, &resp)
+	if err != nil {
+		return Withdraw{}, err
+	}
+	if len(resp.Error) > 0 {
+		return resp, errors.New(resp.Error)
+	}
+
+	return resp, nil
 }
 
 // SendHTTPRequest sends an unauthenticated http request

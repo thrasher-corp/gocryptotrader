@@ -197,8 +197,9 @@ type BatchTrade struct {
 
 // CancelOrderResponse is a response type for a cancelled order
 type CancelOrderResponse struct {
-	Success string
-	Error   string
+	Success   string
+	ErrorCode string `json:"error_code"`
+	Result    bool   `json:"result"`
 }
 
 // OrderInfo holds data on an order

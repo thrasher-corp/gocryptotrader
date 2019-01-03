@@ -179,6 +179,8 @@ type WithdrawalAddress struct {
 	Amount  float64 `json:"amount"`
 	TXHash  string  `json:"txHash"`
 	Message string  `json:"message"`
+	Result  string  `json:"result"`
+	Reason  string  `json:"reason"`
 }
 
 // ErrorCapture is a generlized error response from the server

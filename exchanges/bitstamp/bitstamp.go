@@ -484,15 +484,12 @@ func (b *Bitstamp) GetWithdrawalRequests(timedelta int64) ([]WithdrawalRequests,
 // symbol - the type of crypto ie "ltc", "btc", "eth"
 // destTag - only for XRP  default to ""
 // instant - only for bitcoins
-func (b *Bitstamp) CryptoWithdrawal(amount float64, address, symbol, destTag string, instant bool) (string, error) {
+func (b *Bitstamp) CryptoWithdrawal(amount float64, address, symbol, destTag string, instant bool) (CryptoWithdrawalResponse, error) {
 	var req = url.Values{}
 	req.Add("amount", strconv.FormatFloat(amount, 'f', -1, 64))
 	req.Add("address", address)
-
-	type response struct {
-		ID string `json:"id"`
-	}
-	resp := response{}
+	resp := CryptoWithdrawalResponse{}
+	var endpoint string
 
 	switch common.StringToLower(symbol) {
 	case "btc":
@@ -501,23 +498,21 @@ func (b *Bitstamp) CryptoWithdrawal(amount float64, address, symbol, destTag str
 		} else {
 			req.Add("instant", "0")
 		}
-		return resp.ID,
-			b.SendAuthenticatedHTTPRequest(bitstampAPIBitcoinWithdrawal, false, req, &resp)
+		endpoint = bitstampAPIBitcoinWithdrawal
 	case "ltc":
-		return resp.ID,
-			b.SendAuthenticatedHTTPRequest(bitstampAPILTCWithdrawal, true, req, &resp)
+		endpoint = bitstampAPILTCWithdrawal
 	case "eth":
-		return resp.ID,
-			b.SendAuthenticatedHTTPRequest(bitstampAPIETHWithdrawal, true, req, &resp)
+		endpoint = bitstampAPIETHWithdrawal
 	case "xrp":
 		if destTag != "" {
 			req.Add("destination_tag", destTag)
 		}
-		return resp.ID,
-			b.SendAuthenticatedHTTPRequest(bitstampAPIXrpWithdrawal, true, req, &resp)
+		endpoint = bitstampAPIXrpWithdrawal
+	default:
+		return resp, errors.New("incorrect symbol")
 	}
-	return resp.ID,
-		errors.New("incorrect symbol")
+
+	return resp, b.SendAuthenticatedHTTPRequest(endpoint, false, req, &resp)
 }
 
 // GetCryptoDepositAddress returns a depositing address by crypto

@@ -31,6 +31,7 @@ const (
 	zbTickers                         = "allTicker"
 	zbDepth                           = "depth"
 	zbUnfinishedOrdersIgnoreTradeType = "getUnfinishedOrdersIgnoreTradeType"
+	zbWithdraw                        = "withdraw"
 
 	zbAuthRate   = 100
 	zbUnauthRate = 100
@@ -439,4 +440,34 @@ var errorCode = map[int64]string{
 	3008: "Transaction history not found",
 	4001: "API interface is locked",
 	4002: "Request too frequently",
+}
+
+// Withdraw transfers funds
+func (z *ZB) Withdraw(currency, address, safepassword string, amount, fees float64, itransfer bool) (string, error) {
+	type response struct {
+		Code    int    `json:"code"`    // Result code
+		Message string `json:"message"` // Result Message
+		ID      string `json:"id"`      // Withdrawal ID
+	}
+
+	vals := url.Values{}
+	vals.Set("accesskey", z.APIKey)
+	vals.Set("amount", fmt.Sprintf("%v", amount))
+	vals.Set("currency", currency)
+	vals.Set("fees", fmt.Sprintf("%v", fees))
+	vals.Set("itransfer", fmt.Sprintf("%v", itransfer))
+	vals.Set("method", "withdraw")
+	vals.Set("recieveAddr", address)
+	vals.Set("safePwd", safepassword)
+
+	var resp response
+	err := z.SendAuthenticatedHTTPRequest("GET", zbWithdraw, vals, &resp)
+	if err != nil {
+		return "", err
+	}
+	if resp.Code != 1000 {
+		return "", errors.New(resp.Message)
+	}
+
+	return resp.ID, nil
 }

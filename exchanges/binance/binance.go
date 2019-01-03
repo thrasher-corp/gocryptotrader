@@ -51,6 +51,17 @@ const (
 	openOrders   = "/api/v3/openOrders"
 	allOrders    = "/api/v3/allOrders"
 
+	// Withdraw API endpoints
+	withdraw          = "/wapi/v3/withdraw.html"
+	depositHistory    = "/wapi/v3/depositHistory.html"
+	withdrawalHistory = "/wapi/v3/withdrawHistory.html"
+	depositAddress    = "/wapi/v3/depositAddress.html"
+	accountStatus     = "/wapi/v3/accountStatus.html"
+	systemStatus      = "/wapi/v3/systemStatus.html"
+	dustLog           = "/wapi/v3/userAssetDribbletLog.html"
+	tradeFee          = "/wapi/v3/tradeFee.html"
+	assetDetail       = "/wapi/v3/assetDetail.html"
+
 	// binance authenticated and unauthenticated limit rates
 	// to-do
 	binanceAuthRate   = 0
@@ -701,4 +712,46 @@ func calculateTradingFee(purchasePrice, amount, multiplier float64) float64 {
 // getCryptocurrencyWithdrawalFee returns the fee for withdrawing from the exchange
 func getCryptocurrencyWithdrawalFee(currency string, purchasePrice, amount float64) float64 {
 	return WithdrawalFees[currency]
+}
+
+// WithdrawCrypto sends cryptocurrency to the address of your choosing
+func (b *Binance) WithdrawCrypto(asset, address, addressTag, name, amount string) (int64, error) {
+	var resp WithdrawResponse
+	path := fmt.Sprintf("%s%s", b.APIUrl, withdraw)
+
+	params := url.Values{}
+	params.Set("asset", asset)
+	params.Set("address", string(address))
+	params.Set("amount", string(amount))
+	if len(name) > 0 {
+		params.Set("name", string(name))
+	}
+	if len(addressTag) > 0 {
+		params.Set("addressTag", string(addressTag))
+	}
+
+	if err := b.SendAuthHTTPRequest("POST", path, params, &resp); err != nil {
+		return -1, err
+	}
+
+	if !resp.Success {
+		return resp.ID, errors.New(resp.Msg)
+	}
+
+	return resp.ID, nil
+}
+
+
+//GetDepositAddressForCurrency retrieves the wallet address for a given currency
+func (b *Binance) GetDepositAddressForCurrency(currency string) error {
+	path := fmt.Sprintf("%s%s", b.APIUrl, depositAddress)
+	var resp interface{}
+	params := url.Values{}
+	params.Set("asset", currency)
+
+	if err := b.SendAuthHTTPRequest("GET", path, params, &resp); err != nil {
+		return err
+	}
+
+	return nil
 }

@@ -241,21 +241,21 @@ func (k *Kraken) GetDepositAddress(cryptocurrency pair.CurrencyItem) (string, er
 	return "", common.ErrNotYetImplemented
 }
 
-// WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
-// submitted
-func (k *Kraken) WithdrawCryptocurrencyFunds(address string, cryptocurrency pair.CurrencyItem, amount float64) (string, error) {
-	return "", common.ErrNotYetImplemented
+// WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal
+// Populate exchange.WithdrawRequest.TradePassword with withdrawal key name, as set up on your account
+func (k *Kraken) WithdrawCryptocurrencyFunds(withdrawRequest exchange.WithdrawRequest) (string, error) {
+	return k.Withdraw(withdrawRequest.Currency.String(), withdrawRequest.TradePassword, withdrawRequest.Amount)
 }
 
 // WithdrawFiatFunds returns a withdrawal ID when a
 // withdrawal is submitted
-func (k *Kraken) WithdrawFiatFunds(currency pair.CurrencyItem, amount float64) (string, error) {
+func (k *Kraken) WithdrawFiatFunds(withdrawRequest exchange.WithdrawRequest) (string, error) {
 	return "", common.ErrNotYetImplemented
 }
 
 // WithdrawFiatFundsToInternationalBank returns a withdrawal ID when a
 // withdrawal is submitted
-func (k *Kraken) WithdrawFiatFundsToInternationalBank(currency pair.CurrencyItem, amount float64) (string, error) {
+func (k *Kraken) WithdrawFiatFundsToInternationalBank(withdrawRequest exchange.WithdrawRequest) (string, error) {
 	return "", common.ErrNotYetImplemented
 }
 
