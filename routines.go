@@ -303,7 +303,7 @@ func WebsocketRoutine(verbose bool) {
 			if err != nil {
 				switch err.Error() {
 				case exchange.WebsocketNotEnabled:
-					// Store in memory if enabled in future
+					log.Warnf("%s - websocket disabled", bot.exchanges[i].GetName())
 				default:
 					log.Error(err)
 				}

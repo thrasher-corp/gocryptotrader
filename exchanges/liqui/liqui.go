@@ -3,7 +3,7 @@ package liqui
 import (
 	"errors"
 	"fmt"
-	"log"
+
 	"net/url"
 	"strconv"
 	"strings"
@@ -14,6 +14,7 @@ import (
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/request"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
+	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
 const (
