@@ -152,12 +152,12 @@ func (c *WebsocketClient) read() {
 			err := common.JSONDecode(message, &evt)
 			if err != nil {
 				log.Errorf("websocket: failed to decode JSON sent from client %s", err)
-				break
+				continue
 			}
 
 			if evt.Event == "" {
 				log.Warnf("websocket: client sent a blank event, disconnecting")
-				break
+				continue
 			}
 
 			dataJSON, err := common.JSONEncode(evt.Data)
@@ -306,6 +306,7 @@ func wsAuth(client *WebsocketClient, data interface{}) error {
 	}
 
 	hashPW := common.HexEncodeToString(common.GetSHA256([]byte(bot.config.Webserver.AdminPassword)))
+
 	if auth.Username == bot.config.Webserver.AdminUsername && auth.Password == hashPW {
 		client.Authenticated = true
 		wsResp.Data = WebsocketResponseSuccess
