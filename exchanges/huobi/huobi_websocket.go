@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"math/big"
 	"net/http"
 	"net/url"
@@ -15,8 +14,10 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
-	"github.com/thrasher-/gocryptotrader/exchanges"
+	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
+
+	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
 const (
@@ -81,7 +82,7 @@ func (h *HUOBI) WsReadData() {
 		default:
 			_, resp, err := h.WebsocketConn.ReadMessage()
 			if err != nil {
-				log.Fatal(err)
+				log.Error(err)
 			}
 
 			h.Websocket.TrafficAlert <- struct{}{}
@@ -89,12 +90,12 @@ func (h *HUOBI) WsReadData() {
 			b := bytes.NewReader(resp)
 			gReader, err := gzip.NewReader(b)
 			if err != nil {
-				log.Fatal(err)
+				log.Error(err)
 			}
 
 			unzipped, err := ioutil.ReadAll(gReader)
 			if err != nil {
-				log.Fatal(err)
+				log.Error(err)
 			}
 			gReader.Close()
 
@@ -115,7 +116,7 @@ func (h *HUOBI) WsHandleData() {
 			var init WsResponse
 			err := common.JSONDecode(resp.Raw, &init)
 			if err != nil {
-				log.Fatal(err)
+				log.Error(err)
 			}
 
 			if init.Status == "error" {
@@ -132,7 +133,7 @@ func (h *HUOBI) WsHandleData() {
 			if init.Ping != 0 {
 				err = h.WebsocketConn.WriteJSON(`{"pong":1337}`)
 				if err != nil {
-					log.Fatal(err)
+					log.Error(err)
 				}
 				continue
 			}
@@ -142,7 +143,7 @@ func (h *HUOBI) WsHandleData() {
 				var depth WsDepth
 				err := common.JSONDecode(resp.Raw, &depth)
 				if err != nil {
-					log.Fatal(err)
+					log.Error(err)
 				}
 
 				data := common.SplitStrings(depth.Channel, ".")
@@ -153,7 +154,7 @@ func (h *HUOBI) WsHandleData() {
 				var kline WsKline
 				err := common.JSONDecode(resp.Raw, &kline)
 				if err != nil {
-					log.Fatal(err)
+					log.Error(err)
 				}
 
 				data := common.SplitStrings(kline.Channel, ".")
@@ -174,7 +175,7 @@ func (h *HUOBI) WsHandleData() {
 				var trade WsTrade
 				err := common.JSONDecode(resp.Raw, &trade)
 				if err != nil {
-					log.Fatal(err)
+					log.Error(err)
 				}
 
 				data := common.SplitStrings(trade.Channel, ".")

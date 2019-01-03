@@ -2,14 +2,15 @@ package itbit
 
 import (
 	"fmt"
-	"log"
 	"net/url"
 	"strconv"
 	"sync"
 
+	log "github.com/thrasher-/gocryptotrader/logger"
+
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
-	"github.com/thrasher-/gocryptotrader/exchanges"
+	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 )
@@ -26,8 +27,8 @@ func (i *ItBit) Start(wg *sync.WaitGroup) {
 // Run implements the ItBit wrapper
 func (i *ItBit) Run() {
 	if i.Verbose {
-		log.Printf("%s polling delay: %ds.\n", i.GetName(), i.RESTPollingDelay)
-		log.Printf("%s %d currencies enabled: %s.\n", i.GetName(), len(i.EnabledPairs), i.EnabledPairs)
+		log.Debugf("%s polling delay: %ds.\n", i.GetName(), i.RESTPollingDelay)
+		log.Debugf("%s %d currencies enabled: %s.\n", i.GetName(), len(i.EnabledPairs), i.EnabledPairs)
 	}
 }
 
@@ -82,11 +83,11 @@ func (i *ItBit) UpdateOrderbook(p pair.CurrencyPair, assetType string) (orderboo
 		data := orderbookNew.Bids[x]
 		price, err := strconv.ParseFloat(data[0], 64)
 		if err != nil {
-			log.Println(err)
+			log.Error(err)
 		}
 		amount, err := strconv.ParseFloat(data[1], 64)
 		if err != nil {
-			log.Println(err)
+			log.Error(err)
 		}
 		orderBook.Bids = append(orderBook.Bids, orderbook.Item{Amount: amount, Price: price})
 	}
@@ -95,11 +96,11 @@ func (i *ItBit) UpdateOrderbook(p pair.CurrencyPair, assetType string) (orderboo
 		data := orderbookNew.Asks[x]
 		price, err := strconv.ParseFloat(data[0], 64)
 		if err != nil {
-			log.Println(err)
+			log.Error(err)
 		}
 		amount, err := strconv.ParseFloat(data[1], 64)
 		if err != nil {
-			log.Println(err)
+			log.Error(err)
 		}
 		orderBook.Asks = append(orderBook.Asks, orderbook.Item{Amount: amount, Price: price})
 	}

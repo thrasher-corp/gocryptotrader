@@ -2,15 +2,17 @@ package hitbtc
 
 import (
 	"fmt"
-	"log"
+
 	"strconv"
 	"sync"
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
-	"github.com/thrasher-/gocryptotrader/exchanges"
+	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
+
+	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
 // Start starts the HitBTC go routine
@@ -25,14 +27,14 @@ func (h *HitBTC) Start(wg *sync.WaitGroup) {
 // Run implements the HitBTC wrapper
 func (h *HitBTC) Run() {
 	if h.Verbose {
-		log.Printf("%s Websocket: %s (url: %s).\n", h.GetName(), common.IsEnabled(h.Websocket.IsEnabled()), hitbtcWebsocketAddress)
-		log.Printf("%s polling delay: %ds.\n", h.GetName(), h.RESTPollingDelay)
-		log.Printf("%s %d currencies enabled: %s.\n", h.GetName(), len(h.EnabledPairs), h.EnabledPairs)
+		log.Debugf("%s Websocket: %s (url: %s).\n", h.GetName(), common.IsEnabled(h.Websocket.IsEnabled()), hitbtcWebsocketAddress)
+		log.Debugf("%s polling delay: %ds.\n", h.GetName(), h.RESTPollingDelay)
+		log.Debugf("%s %d currencies enabled: %s.\n", h.GetName(), len(h.EnabledPairs), h.EnabledPairs)
 	}
 
 	exchangeProducts, err := h.GetSymbolsDetailed()
 	if err != nil {
-		log.Printf("%s Failed to get available symbols.\n", h.GetName())
+		log.Errorf("%s Failed to get available symbols.\n", h.GetName())
 	} else {
 		forceUpgrade := false
 		if !common.StringDataContains(h.EnabledPairs, "-") || !common.StringDataContains(h.AvailablePairs, "-") {
@@ -45,16 +47,16 @@ func (h *HitBTC) Run() {
 
 		if forceUpgrade {
 			enabledPairs := []string{"BTC-USD"}
-			log.Println("WARNING: Available pairs for HitBTC reset due to config upgrade, please enable the ones you would like again.")
+			log.Warn("Available pairs for HitBTC reset due to config upgrade, please enable the ones you would like again.")
 
 			err = h.UpdateCurrencies(enabledPairs, true, true)
 			if err != nil {
-				log.Printf("%s Failed to update enabled currencies.\n", h.GetName())
+				log.Errorf("%s Failed to update enabled currencies.\n", h.GetName())
 			}
 		}
 		err = h.UpdateCurrencies(currencies, false, forceUpgrade)
 		if err != nil {
-			log.Printf("%s Failed to update available currencies.\n", h.GetName())
+			log.Errorf("%s Failed to update available currencies.\n", h.GetName())
 		}
 	}
 }

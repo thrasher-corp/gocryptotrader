@@ -1,13 +1,14 @@
 package kraken
 
 import (
-	"log"
 	"strings"
 	"sync"
 
+	log "github.com/thrasher-/gocryptotrader/logger"
+
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
-	"github.com/thrasher-/gocryptotrader/exchanges"
+	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 )
@@ -24,13 +25,13 @@ func (k *Kraken) Start(wg *sync.WaitGroup) {
 // Run implements the Kraken wrapper
 func (k *Kraken) Run() {
 	if k.Verbose {
-		log.Printf("%s polling delay: %ds.\n", k.GetName(), k.RESTPollingDelay)
-		log.Printf("%s %d currencies enabled: %s.\n", k.GetName(), len(k.EnabledPairs), k.EnabledPairs)
+		log.Debugf("%s polling delay: %ds.\n", k.GetName(), k.RESTPollingDelay)
+		log.Debugf("%s %d currencies enabled: %s.\n", k.GetName(), len(k.EnabledPairs), k.EnabledPairs)
 	}
 
 	assetPairs, err := k.GetAssetPairs()
 	if err != nil {
-		log.Printf("%s Failed to get available symbols.\n", k.GetName())
+		log.Errorf("%s Failed to get available symbols.\n", k.GetName())
 	} else {
 		forceUpgrade := false
 		if !common.StringDataContains(k.EnabledPairs, "-") || !common.StringDataContains(k.AvailablePairs, "-") {
@@ -55,16 +56,16 @@ func (k *Kraken) Run() {
 
 		if forceUpgrade {
 			enabledPairs := []string{"XBT-USD"}
-			log.Println("WARNING: Available pairs for Kraken reset due to config upgrade, please enable the ones you would like again")
+			log.Warn("Available pairs for Kraken reset due to config upgrade, please enable the ones you would like again")
 
 			err = k.UpdateCurrencies(enabledPairs, true, true)
 			if err != nil {
-				log.Printf("%s Failed to get config.\n", k.GetName())
+				log.Errorf("%s Failed to get config.\n", k.GetName())
 			}
 		}
 		err = k.UpdateCurrencies(exchangeProducts, false, forceUpgrade)
 		if err != nil {
-			log.Printf("%s Failed to get config.\n", k.GetName())
+			log.Errorf("%s Failed to get config.\n", k.GetName())
 		}
 	}
 }

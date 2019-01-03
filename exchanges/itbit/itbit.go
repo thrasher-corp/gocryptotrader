@@ -5,15 +5,16 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
 	"net/url"
 	"strconv"
 	"time"
 
+	log "github.com/thrasher-/gocryptotrader/logger"
+
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/currency/symbol"
-	"github.com/thrasher-/gocryptotrader/exchanges"
+	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/request"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 )
@@ -379,7 +380,7 @@ func (i *ItBit) SendAuthenticatedHTTPRequest(method string, path string, params 
 		}
 
 		if i.Verbose {
-			log.Printf("Request JSON: %s\n", PayloadJSON)
+			log.Debugf("Request JSON: %s\n", PayloadJSON)
 		}
 	}
 

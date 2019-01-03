@@ -2,15 +2,16 @@ package kraken
 
 import (
 	"fmt"
-	"log"
 	"net/url"
 	"strconv"
 	"strings"
 	"time"
 
+	log "github.com/thrasher-/gocryptotrader/logger"
+
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
-	"github.com/thrasher-/gocryptotrader/exchanges"
+	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/request"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 )
@@ -873,7 +874,7 @@ func GetError(errors []string) error {
 	for _, e := range errors {
 		switch e[0] {
 		case 'W':
-			log.Printf("Kraken API warning: %v\n", e[1:])
+			log.Warnf("Kraken API warning: %v\n", e[1:])
 		default:
 			return fmt.Errorf("Kraken API error: %v", e[1:])
 		}
