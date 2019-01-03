@@ -18,7 +18,7 @@ func RESTLogger(inner http.Handler, name string) http.Handler {
 
 		inner.ServeHTTP(w, r)
 
-		log.Printf(
+		log.Debugf(
 			"%s\t%s\t%s\t%s",
 			r.Method,
 			r.RequestURI,
