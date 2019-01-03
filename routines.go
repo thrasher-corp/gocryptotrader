@@ -440,7 +440,8 @@ func WebsocketReconnect(ws *exchange.Websocket, verbose bool) {
 
 	err := ws.Shutdown()
 	if err != nil {
-		log.Fatal(err)
+		log.Error(err)
+		return
 	}
 
 	wg.Add(1)

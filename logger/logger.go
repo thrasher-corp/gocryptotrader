@@ -28,7 +28,9 @@ func SetupLogger() {
 
 }
 
-// setDefaultOutputs() this setups some defaults used by the logger that way it can be used without any user configuration
+// setDefaultOutputs() this setups defaults used by the logger
+// This allows it to be used without any user configuration
+
 func setDefaultOutputs() {
 	debugLogger = log.New(os.Stdout,
 		"[DEBUG]: ",
