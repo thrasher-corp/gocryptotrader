@@ -45,9 +45,16 @@ func TestAddSession(t *testing.T) {
 			}
 		}
 	}
-	err = AddSession(&g1, 1, apiKey1, apiSecret1, apiKeyRole1, true, false)
-	if err != nil {
-		t.Error("Test failed - AddSession() error")
+
+	if Session[1] == nil {
+		err := AddSession(&g1, 1, apiKey1, apiSecret1, apiKeyRole1, true, false)
+		if err != nil {
+			t.Error("Test failed - AddSession() error", err)
+		}
+		err = AddSession(&g1, 1, apiKey1, apiSecret1, apiKeyRole1, true, false)
+		if err == nil {
+			t.Error("Test failed - AddSession() error", err)
+		}
 	}
 
 	if len(Session) <= 1 {
@@ -65,7 +72,6 @@ func TestSetDefaults(t *testing.T) {
 }
 
 func TestSetup(t *testing.T) {
-
 	cfg := config.GetConfig()
 	cfg.LoadConfig("../../testdata/configtest.json")
 	exchangeConfig, err := cfg.GetExchangeConfig("Gemini")
@@ -93,13 +99,6 @@ func TestSetup(t *testing.T) {
 
 	Session[1].Setup(exchangeConfig)
 	Session[2].Setup(exchangeConfig)
-
-	Session[1].APIKey = apiKey1
-	Session[1].APISecret = apiSecret1
-
-	Session[2].APIKey = apiKey2
-	Session[2].APISecret = apiSecret2
-
 }
 
 func TestGetSymbols(t *testing.T) {
@@ -139,7 +138,7 @@ func TestGetTrades(t *testing.T) {
 }
 
 func TestGetNotionalVolume(t *testing.T) {
-	if Session[2].APIKey != "" && Session[2].APISecret != "" {
+	if areTestAPIKeysSet() {
 		t.Parallel()
 		_, err := Session[2].GetNotionalVolume()
 		if err != nil {
@@ -275,9 +274,11 @@ func setFeeBuilder() exchange.FeeBuilder {
 }
 
 func TestGetFee(t *testing.T) {
-
+	TestAddSession(t)
+	TestSetDefaults(t)
+	TestSetup(t)
 	var feeBuilder = setFeeBuilder()
-	if Session[1].APIKey != "" && Session[1].APISecret != "" {
+	if areTestAPIKeysSet() {
 		// CryptocurrencyTradeFee Basic
 		if resp, err := Session[1].GetFee(feeBuilder); resp != float64(0.01) || err != nil {
 			t.Error(err)
