@@ -87,7 +87,7 @@ func TestGetTradeHistory(t *testing.T) {
 
 func TestTrade(t *testing.T) {
 	t.Parallel()
-	if l.APIKey == "" || l.APISecret == "" {
+	if !areTestAPIKeysSet() {
 		t.Skip()
 	}
 	_, err := l.Trade(false, 0, 0, "USD")
@@ -98,7 +98,7 @@ func TestTrade(t *testing.T) {
 
 func TestGetOpenOrders(t *testing.T) {
 	t.Parallel()
-	if l.APIKey == "" || l.APISecret == "" {
+	if !areTestAPIKeysSet() {
 		t.Skip()
 	}
 	_, err := l.GetOpenOrders()
@@ -109,7 +109,7 @@ func TestGetOpenOrders(t *testing.T) {
 
 func TestGetOrders(t *testing.T) {
 	t.Parallel()
-	if l.APIKey == "" || l.APISecret == "" {
+	if !areTestAPIKeysSet() {
 		t.Skip()
 	}
 	_, err := l.GetOrders([]int64{1, 2})
@@ -120,7 +120,7 @@ func TestGetOrders(t *testing.T) {
 
 func TestCancelOrder(t *testing.T) {
 	t.Parallel()
-	if l.APIKey == "" || l.APISecret == "" {
+	if !areTestAPIKeysSet() {
 		t.Skip()
 	}
 	err := l.CancelExistingOrder(1337)
@@ -131,7 +131,7 @@ func TestCancelOrder(t *testing.T) {
 
 func TestGetTrades(t *testing.T) {
 	t.Parallel()
-	if l.APIKey == "" || l.APISecret == "" {
+	if !areTestAPIKeysSet() {
 		t.Skip()
 	}
 	_, err := l.GetTrades(1337)
@@ -142,7 +142,7 @@ func TestGetTrades(t *testing.T) {
 
 func TestGetExternalAccounts(t *testing.T) {
 	t.Parallel()
-	if l.APIKey == "" || l.APISecret == "" {
+	if !areTestAPIKeysSet() {
 		t.Skip()
 	}
 	_, err := l.GetExternalAccounts()

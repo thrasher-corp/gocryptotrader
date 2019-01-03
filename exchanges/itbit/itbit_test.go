@@ -354,7 +354,7 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 }
 
 func TestGetAccountInfo(t *testing.T) {
-	if i.APIKey != "" || i.APISecret != "" || i.ClientID != "" {
+	if areTestAPIKeysSet() || i.ClientID != "" {
 		_, err := i.GetAccountInfo()
 		if err == nil {
 			t.Error("Test Failed - GetAccountInfo() error")

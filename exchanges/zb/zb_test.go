@@ -57,7 +57,7 @@ func TestSetup(t *testing.T) {
 func TestSpotNewOrder(t *testing.T) {
 	t.Parallel()
 
-	if z.APIKey == "" || z.APISecret == "" {
+	if !areTestAPIKeysSet() {
 		t.Skip()
 	}
 
@@ -78,7 +78,7 @@ func TestSpotNewOrder(t *testing.T) {
 func TestCancelExistingOrder(t *testing.T) {
 	t.Parallel()
 
-	if z.APIKey == "" || z.APISecret == "" {
+	if !areTestAPIKeysSet() {
 		t.Skip()
 	}
 
@@ -341,7 +341,7 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 }
 
 func TestGetAccountInfo(t *testing.T) {
-	if z.APIKey != "" || z.APISecret != "" {
+	if areTestAPIKeysSet() {
 		_, err := z.GetAccountInfo()
 		if err != nil {
 			t.Error("Test Failed - GetAccountInfo() error", err)

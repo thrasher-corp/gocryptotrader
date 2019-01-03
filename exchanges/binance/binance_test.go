@@ -154,7 +154,7 @@ func TestGetBestPrice(t *testing.T) {
 func TestNewOrder(t *testing.T) {
 	t.Parallel()
 
-	if b.APIKey == "" || b.APISecret == "" {
+	if !areTestAPIKeysSet() {
 		t.Skip()
 	}
 	_, err := b.NewOrder(NewOrderRequest{
@@ -174,7 +174,7 @@ func TestNewOrder(t *testing.T) {
 func TestCancelExistingOrder(t *testing.T) {
 	t.Parallel()
 
-	if b.APIKey == "" || b.APISecret == "" {
+	if !areTestAPIKeysSet() {
 		t.Skip()
 	}
 
@@ -187,7 +187,7 @@ func TestCancelExistingOrder(t *testing.T) {
 func TestQueryOrder(t *testing.T) {
 	t.Parallel()
 
-	if b.APIKey == "" || b.APISecret == "" {
+	if !areTestAPIKeysSet() {
 		t.Skip()
 	}
 
@@ -200,7 +200,7 @@ func TestQueryOrder(t *testing.T) {
 func TestOpenOrders(t *testing.T) {
 	t.Parallel()
 
-	if b.APIKey == "" || b.APISecret == "" {
+	if !areTestAPIKeysSet() {
 		t.Skip()
 	}
 
@@ -213,7 +213,7 @@ func TestOpenOrders(t *testing.T) {
 func TestAllOrders(t *testing.T) {
 	t.Parallel()
 
-	if b.APIKey == "" || b.APISecret == "" {
+	if !areTestAPIKeysSet() {
 		t.Skip()
 	}
 
@@ -224,7 +224,7 @@ func TestAllOrders(t *testing.T) {
 }
 
 func TestGetAccount(t *testing.T) {
-	if b.APIKey == "" || b.APISecret == "" {
+	if !areTestAPIKeysSet() {
 		t.Skip()
 	}
 	t.Parallel()
@@ -263,7 +263,7 @@ func TestGetFee(t *testing.T) {
 
 	var feeBuilder = setFeeBuilder()
 
-	if b.APIKey != "" || b.APISecret != "" {
+	if areTestAPIKeysSet() {
 		// CryptocurrencyTradeFee Basic
 		if resp, err := b.GetFee(feeBuilder); resp != float64(0.1) || err != nil {
 			t.Error(err)
@@ -429,7 +429,7 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 }
 
 func TestGetAccountInfo(t *testing.T) {
-	if b.APIKey == "" || b.APISecret == "" {
+	if !areTestAPIKeysSet() {
 		t.Skip()
 	}
 

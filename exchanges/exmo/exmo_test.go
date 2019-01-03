@@ -97,7 +97,7 @@ func TestGetCurrency(t *testing.T) {
 
 func TestGetUserInfo(t *testing.T) {
 	t.Parallel()
-	if e.APIKey == "" || e.APISecret == "" {
+	if !areTestAPIKeysSet() {
 		t.Skip()
 	}
 	TestSetup(t)
@@ -109,7 +109,7 @@ func TestGetUserInfo(t *testing.T) {
 
 func TestGetRequiredAmount(t *testing.T) {
 	t.Parallel()
-	if e.APIKey == "" || e.APISecret == "" {
+	if !areTestAPIKeysSet() {
 		t.Skip()
 	}
 	TestSetup(t)
@@ -121,7 +121,7 @@ func TestGetRequiredAmount(t *testing.T) {
 
 func TestGetCryptoDepositAddress(t *testing.T) {
 	t.Parallel()
-	if e.APIKey == "" || e.APISecret == "" {
+	if !areTestAPIKeysSet() {
 		t.Skip()
 	}
 	TestSetup(t)

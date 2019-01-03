@@ -95,7 +95,7 @@ func TestGetTrades(t *testing.T) {
 }
 
 func TestAuthRequests(t *testing.T) {
-	if l.APIKey != "" && l.APISecret != "" {
+	if areTestAPIKeysSet() {
 		_, err := l.GetAccountInfo()
 		if err == nil {
 			t.Error("Test Failed - liqui GetAccountInfo() error", err)

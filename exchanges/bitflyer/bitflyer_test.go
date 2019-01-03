@@ -184,7 +184,7 @@ func TestGetFee(t *testing.T) {
 	TestSetup(t)
 	var feeBuilder = setFeeBuilder()
 
-	if b.APIKey != "" || b.APISecret != "" {
+	if areTestAPIKeysSet() {
 		// CryptocurrencyTradeFee Basic
 		if resp, err := b.GetFee(feeBuilder); resp != float64(0) || err != nil {
 			t.Error(err)

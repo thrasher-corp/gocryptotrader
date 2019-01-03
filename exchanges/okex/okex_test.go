@@ -270,7 +270,7 @@ func TestGetSpotKline(t *testing.T) {
 func TestSpotNewOrder(t *testing.T) {
 	t.Parallel()
 
-	if o.APIKey == "" || o.APISecret == "" {
+	if !areTestAPIKeysSet() {
 		t.Skip()
 	}
 
@@ -288,7 +288,7 @@ func TestSpotNewOrder(t *testing.T) {
 func TestSpotCancelOrder(t *testing.T) {
 	t.Parallel()
 
-	if o.APIKey == "" || o.APISecret == "" {
+	if !areTestAPIKeysSet() {
 		t.Skip()
 	}
 
@@ -301,7 +301,7 @@ func TestSpotCancelOrder(t *testing.T) {
 func TestGetUserInfo(t *testing.T) {
 	t.Parallel()
 
-	if o.APIKey == "" || o.APISecret == "" {
+	if !areTestAPIKeysSet() {
 		t.Skip()
 	}
 
@@ -509,7 +509,7 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 }
 
 func TestGetAccountInfo(t *testing.T) {
-	if o.APIKey != "" || o.APISecret != "" {
+	if areTestAPIKeysSet() {
 		_, err := o.GetAccountInfo()
 		if err != nil {
 			t.Error("Test Failed - GetAccountInfo() error", err)

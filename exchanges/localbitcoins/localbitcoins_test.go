@@ -71,7 +71,7 @@ func TestGetTradableCurrencies(t *testing.T) {
 
 func TestGetAccountInfo(t *testing.T) {
 	t.Parallel()
-	if l.APIKey == "" || l.APISecret == "" {
+	if !areTestAPIKeysSet() {
 		t.Skip()
 	}
 	_, err := l.GetAccountInformation("", true)
@@ -86,7 +86,7 @@ func TestGetAccountInfo(t *testing.T) {
 
 func TestGetads(t *testing.T) {
 	t.Parallel()
-	if l.APIKey == "" || l.APISecret == "" {
+	if !areTestAPIKeysSet() {
 		t.Skip()
 	}
 	_, err := l.Getads("")
@@ -101,7 +101,7 @@ func TestGetads(t *testing.T) {
 
 func TestEditAd(t *testing.T) {
 	t.Parallel()
-	if l.APIKey == "" || l.APISecret == "" {
+	if !areTestAPIKeysSet() {
 		t.Skip()
 	}
 	edit := AdEdit{}

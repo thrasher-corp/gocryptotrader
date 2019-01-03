@@ -171,7 +171,7 @@ func TestGetTimestamp(t *testing.T) {
 func TestGetAccounts(t *testing.T) {
 	t.Parallel()
 
-	if h.APIKey == "" || h.APISecret == "" || h.APIAuthPEMKey == "" {
+	if !areTestAPIKeysSet() || h.APIAuthPEMKey == "" {
 		t.Skip()
 	}
 
@@ -184,7 +184,7 @@ func TestGetAccounts(t *testing.T) {
 func TestGetAccountBalance(t *testing.T) {
 	t.Parallel()
 
-	if h.APIKey == "" || h.APISecret == "" || h.APIAuthPEMKey == "" {
+	if !areTestAPIKeysSet() || h.APIAuthPEMKey == "" {
 		t.Skip()
 	}
 
@@ -203,7 +203,7 @@ func TestGetAccountBalance(t *testing.T) {
 func TestSpotNewOrder(t *testing.T) {
 	t.Parallel()
 
-	if h.APIKey == "" || h.APISecret == "" || h.APIAuthPEMKey == "" {
+	if !areTestAPIKeysSet() || h.APIAuthPEMKey == "" {
 		t.Skip()
 	}
 
@@ -226,7 +226,7 @@ func TestSpotNewOrder(t *testing.T) {
 func TestCancelExistingOrder(t *testing.T) {
 	t.Parallel()
 
-	if h.APIKey == "" || h.APISecret == "" || h.APIAuthPEMKey == "" {
+	if !areTestAPIKeysSet() || h.APIAuthPEMKey == "" {
 		t.Skip()
 	}
 
@@ -239,7 +239,7 @@ func TestCancelExistingOrder(t *testing.T) {
 func TestGetOrder(t *testing.T) {
 	t.Parallel()
 
-	if h.APIKey == "" || h.APISecret == "" || h.APIAuthPEMKey == "" {
+	if !areTestAPIKeysSet() || h.APIAuthPEMKey == "" {
 		t.Skip()
 	}
 
@@ -252,7 +252,7 @@ func TestGetOrder(t *testing.T) {
 func TestGetMarginLoanOrders(t *testing.T) {
 	t.Parallel()
 
-	if h.APIKey == "" || h.APISecret == "" || h.APIAuthPEMKey == "" {
+	if !areTestAPIKeysSet() || h.APIAuthPEMKey == "" {
 		t.Skip()
 	}
 
@@ -265,7 +265,7 @@ func TestGetMarginLoanOrders(t *testing.T) {
 func TestGetMarginAccountBalance(t *testing.T) {
 	t.Parallel()
 
-	if h.APIKey == "" || h.APISecret == "" || h.APIAuthPEMKey == "" {
+	if !areTestAPIKeysSet() || h.APIAuthPEMKey == "" {
 		t.Skip()
 	}
 
@@ -278,7 +278,7 @@ func TestGetMarginAccountBalance(t *testing.T) {
 func TestCancelWithdraw(t *testing.T) {
 	t.Parallel()
 
-	if h.APIKey == "" || h.APISecret == "" || h.APIAuthPEMKey == "" {
+	if !areTestAPIKeysSet() || h.APIAuthPEMKey == "" {
 		t.Skip()
 	}
 
@@ -408,8 +408,7 @@ func TestSubmitOrder(t *testing.T) {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 
-	if (h.APIKey == "" || h.APIKey == "Key") &&
-		(h.APISecret == "" || h.APISecret == "Secret") {
+	if !areTestAPIKeysSet() {
 		t.Skip()
 	}
 
@@ -498,7 +497,7 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 }
 
 func TestGetAccountInfo(t *testing.T) {
-	if h.APIKey == "" || h.APISecret == "" {
+	if !areTestAPIKeysSet() {
 		_, err := h.GetAccountInfo()
 		if err == nil {
 			t.Error("Test Failed - GetAccountInfo() error")

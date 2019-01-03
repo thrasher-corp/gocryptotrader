@@ -95,7 +95,7 @@ func TestGetTransactionHistory(t *testing.T) {
 
 func TestGetAccountBalance(t *testing.T) {
 	t.Parallel()
-	if b.APIKey == "" || b.APISecret == "" {
+	if !areTestAPIKeysSet() {
 		t.Skip()
 	}
 
@@ -106,7 +106,7 @@ func TestGetAccountBalance(t *testing.T) {
 }
 
 func TestGetWalletAddress(t *testing.T) {
-	if b.APIKey == "" || b.APISecret == "" {
+	if !areTestAPIKeysSet() {
 		t.Skip()
 	}
 
@@ -175,7 +175,7 @@ func TestWithdrawCrypto(t *testing.T) {
 
 func TestRequestKRWDepositDetails(t *testing.T) {
 	t.Parallel()
-	if b.APIKey == "" || b.APISecret == "" {
+	if !areTestAPIKeysSet() {
 		t.Skip()
 	}
 	_, err := b.RequestKRWDepositDetails()
@@ -400,7 +400,7 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 
 func TestGetAccountInfo(t *testing.T) {
 	t.Parallel()
-	if b.APIKey != "" || b.APISecret != "" {
+	if areTestAPIKeysSet() {
 		_, err := b.GetAccountInfo()
 		if err != nil {
 			t.Error("test failed - Bithumb GetAccountInfo() error", err)

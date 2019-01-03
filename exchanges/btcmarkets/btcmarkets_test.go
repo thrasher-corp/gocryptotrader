@@ -201,7 +201,7 @@ func TestGetFee(t *testing.T) {
 
 	var feeBuilder = setFeeBuilder()
 
-	if b.APIKey != "" || b.APISecret != "" {
+	if areTestAPIKeysSet() {
 		// CryptocurrencyTradeFee Fiat
 		feeBuilder = setFeeBuilder()
 		feeBuilder.SecondCurrency = symbol.USD

@@ -105,9 +105,7 @@ func TestGetServerTime(t *testing.T) {
 }
 
 func TestAuthRequests(t *testing.T) {
-
-	if c.APIKey != "" && c.APISecret != "" && c.ClientID != "" {
-
+	if areTestAPIKeysSet() && c.ClientID != "" {
 		_, err := c.GetAccounts()
 		if err == nil {
 			t.Error("Test failed - GetAccounts() error", err)
@@ -257,7 +255,7 @@ func TestGetFee(t *testing.T) {
 
 	var feeBuilder = setFeeBuilder()
 
-	if c.APIKey != "" || c.APISecret != "" {
+	if areTestAPIKeysSet() {
 		// CryptocurrencyTradeFee Basic
 		if resp, err := c.GetFee(feeBuilder); resp != float64(0.003) || err != nil {
 			t.Error(err)

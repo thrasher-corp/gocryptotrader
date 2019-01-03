@@ -311,7 +311,7 @@ func TestCreateAccount(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if a.APIKey == "" || a.APISecret == "" || a.APIKey == "Key" || a.APISecret == "Secret" {
+	if !areTestAPIKeysSet(a) {
 		t.Skip()
 	}
 
@@ -336,7 +336,7 @@ func TestGetUserInfo(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if a.APIKey == "" || a.APISecret == "" || a.APIKey == "Key" || a.APISecret == "Secret" {
+	if !areTestAPIKeysSet(a) {
 		t.Skip()
 	}
 
@@ -353,7 +353,7 @@ func TestSetUserInfo(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if a.APIKey == "" || a.APISecret == "" || a.APIKey == "Key" || a.APISecret == "Secret" {
+	if !areTestAPIKeysSet(a) {
 		t.Skip()
 	}
 
@@ -370,7 +370,7 @@ func TestGetAccountInfo(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if a.APIKey == "" || a.APISecret == "" || a.APIKey == "Key" || a.APISecret == "Secret" {
+	if !areTestAPIKeysSet(a) {
 		t.Skip()
 	}
 
@@ -387,7 +387,7 @@ func TestGetAccountTrades(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if a.APIKey == "" || a.APISecret == "" || a.APIKey == "Key" || a.APISecret == "Secret" {
+	if !areTestAPIKeysSet(a) {
 		t.Skip()
 	}
 
@@ -404,7 +404,7 @@ func TestGetDepositAddresses(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if a.APIKey == "" || a.APISecret == "" || a.APIKey == "Key" || a.APISecret == "Secret" {
+	if !areTestAPIKeysSet(a) {
 		t.Skip()
 	}
 
@@ -421,7 +421,7 @@ func TestWithdrawCoins(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if a.APIKey == "" || a.APISecret == "" || a.APIKey == "Key" || a.APISecret == "Secret" {
+	if !areTestAPIKeysSet(a) {
 		t.Skip()
 	}
 
@@ -438,7 +438,7 @@ func TestCreateOrder(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if a.APIKey == "" || a.APISecret == "" || a.APIKey == "Key" || a.APISecret == "Secret" {
+	if !areTestAPIKeysSet(a) {
 		t.Skip()
 	}
 
@@ -455,7 +455,7 @@ func TestModifyExistingOrder(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if a.APIKey == "" || a.APISecret == "" || a.APIKey == "Key" || a.APISecret == "Secret" {
+	if !areTestAPIKeysSet(a) {
 		t.Skip()
 	}
 
@@ -472,7 +472,7 @@ func TestCancelAllExistingOrders(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if a.APIKey == "" || a.APISecret == "" || a.APIKey == "Key" || a.APISecret == "Secret" {
+	if !areTestAPIKeysSet(a) {
 		t.Skip()
 	}
 
@@ -489,7 +489,7 @@ func TestGetOrders(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if a.APIKey == "" || a.APISecret == "" || a.APIKey == "Key" || a.APISecret == "Secret" {
+	if !areTestAPIKeysSet(a) {
 		t.Skip()
 	}
 
@@ -506,7 +506,7 @@ func TestGetOrderFee(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if a.APIKey == "" || a.APISecret == "" || a.APIKey == "Key" || a.APISecret == "Secret" {
+	if !areTestAPIKeysSet(a) {
 		t.Skip()
 	}
 
