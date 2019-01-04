@@ -267,7 +267,7 @@ func (b *BTCMarkets) WithdrawCryptocurrencyFunds(withdrawRequest exchange.Withdr
 // WithdrawFiatFunds returns a withdrawal ID when a
 // withdrawal is submitted
 func (b *BTCMarkets) WithdrawFiatFunds(withdrawRequest exchange.WithdrawRequest) (string, error) {
-	bd, err := b.GetClientBankAccounts(b.Name, withdrawRequest.Currency.Upper().String())
+	bd, err := b.GetClientBankAccounts(b.Name, withdrawRequest.WireCurrency)
 	if err != nil {
 		return "", err
 	}

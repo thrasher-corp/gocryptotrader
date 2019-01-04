@@ -542,3 +542,55 @@ func TestWithdraw(t *testing.T) {
 		t.Errorf("Withdraw failed to be placed: %v", err)
 	}
 }
+
+func TestWithdrawFiat(t *testing.T) {
+	h.SetDefaults()
+	TestSetup(t)
+
+	if areTestAPIKeysSet() && !canManipulateRealOrders {
+		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
+	}
+
+	var withdrawFiatRequest = exchange.WithdrawRequest{
+		Amount:       100,
+		Currency:     symbol.BTC,
+		Description:  "WITHDRAW IT ALL",
+		BankAddress:  "123 Fake St",
+		BankCity:     "Tarry Town",
+		BankCountry:  "Hyrule",
+		BankName:     "Federal Reserve Bank",
+		WireCurrency: symbol.AUD,
+		SwiftCode:    "Taylor",
+	}
+
+	_, err := h.WithdrawFiatFunds(withdrawFiatRequest)
+	if err != common.ErrNotYetImplemented {
+		t.Errorf("Expected '%v', recieved: '%v'", common.ErrNotYetImplemented, err)
+	}
+}
+
+func TestWithdrawInternationalBank(t *testing.T) {
+	h.SetDefaults()
+	TestSetup(t)
+
+	if areTestAPIKeysSet() && !canManipulateRealOrders {
+		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
+	}
+
+	var withdrawFiatRequest = exchange.WithdrawRequest{
+		Amount:       100,
+		Currency:     symbol.BTC,
+		Description:  "WITHDRAW IT ALL",
+		BankAddress:  "123 Fake St",
+		BankCity:     "Tarry Town",
+		BankCountry:  "Hyrule",
+		BankName:     "Federal Reserve Bank",
+		WireCurrency: symbol.AUD,
+		SwiftCode:    "Taylor",
+	}
+
+	_, err := h.WithdrawFiatFundsToInternationalBank(withdrawFiatRequest)
+	if err != common.ErrNotYetImplemented {
+		t.Errorf("Expected '%v', recieved: '%v'", common.ErrNotYetImplemented, err)
+	}
+}

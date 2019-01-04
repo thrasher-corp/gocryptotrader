@@ -3,6 +3,7 @@ package anx
 import (
 	"testing"
 
+	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
 	"github.com/thrasher-/gocryptotrader/currency/symbol"
@@ -360,5 +361,57 @@ func TestWithdraw(t *testing.T) {
 		t.Errorf("Withdraw failed to be placed: %v", err)
 	} else if !areTestAPIKeysSet() && err == nil {
 		t.Error("Expecting an error when no keys are set")
+	}
+}
+
+func TestWithdrawFiat(t *testing.T) {
+	a.SetDefaults()
+	TestSetup(t)
+
+	if areTestAPIKeysSet() && !canManipulateRealOrders {
+		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
+	}
+
+	var withdrawFiatRequest = exchange.WithdrawRequest{
+		Amount:       100,
+		Currency:     symbol.BTC,
+		Description:  "WITHDRAW IT ALL",
+		BankAddress:  "123 Fake St",
+		BankCity:     "Tarry Town",
+		BankCountry:  "Hyrule",
+		BankName:     "Federal Reserve Bank",
+		WireCurrency: symbol.AUD,
+		SwiftCode:    "Taylor",
+	}
+
+	_, err := a.WithdrawFiatFunds(withdrawFiatRequest)
+	if err != common.ErrFunctionNotSupported {
+		t.Errorf("Expected '%v', recieved: '%v'", common.ErrFunctionNotSupported, err)
+	}
+}
+
+func TestWithdrawInternationalBank(t *testing.T) {
+	a.SetDefaults()
+	TestSetup(t)
+
+	if areTestAPIKeysSet() && !canManipulateRealOrders {
+		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
+	}
+
+	var withdrawFiatRequest = exchange.WithdrawRequest{
+		Amount:       100,
+		Currency:     symbol.BTC,
+		Description:  "WITHDRAW IT ALL",
+		BankAddress:  "123 Fake St",
+		BankCity:     "Tarry Town",
+		BankCountry:  "Hyrule",
+		BankName:     "Federal Reserve Bank",
+		WireCurrency: symbol.AUD,
+		SwiftCode:    "Taylor",
+	}
+
+	_, err := a.WithdrawFiatFundsToInternationalBank(withdrawFiatRequest)
+	if err != common.ErrFunctionNotSupported {
+		t.Errorf("Expected '%v', recieved: '%v'", common.ErrFunctionNotSupported, err)
 	}
 }

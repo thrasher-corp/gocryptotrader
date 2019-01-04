@@ -319,14 +319,14 @@ func (a *ANX) WithdrawCryptocurrencyFunds(withdrawRequest exchange.WithdrawReque
 // submitted
 func (a *ANX) WithdrawFiatFunds(withdrawRequest exchange.WithdrawRequest) (string, error) {
 	// Fiat withdrawals available via website
-	return "", common.ErrNotYetImplemented
+	return "", common.ErrFunctionNotSupported
 }
 
 // WithdrawFiatFundsToInternationalBank returns a withdrawal ID when a withdrawal is
 // submitted
 func (a *ANX) WithdrawFiatFundsToInternationalBank(withdrawRequest exchange.WithdrawRequest) (string, error) {
 	// Fiat withdrawals available via website
-	return "", common.ErrNotYetImplemented
+	return "", common.ErrFunctionNotSupported
 }
 
 // GetWebsocket returns a pointer to the exchange websocket
