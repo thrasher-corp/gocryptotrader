@@ -21,13 +21,13 @@ func Infoln(v ...interface{}) {
 	infoLogger.Println(v...)
 }
 
-// Print aliased to info
+// Print aliased to Standard log.Print
 var Print = log.Print
 
-// Printf alaised to Infof
+// Printf alaised to tandard log.Printf
 var Printf = log.Printf
 
-// Println aliased to Infoln
+// Println  alaised to tandard log.Println
 var Println = log.Println
 
 // Debug handler takes any input returns unformatted output to infoLogger writer
