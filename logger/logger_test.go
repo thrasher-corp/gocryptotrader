@@ -41,3 +41,22 @@ func TestSetupOutputsInValidPath(t *testing.T) {
 	}
 	os.Remove(path.Join(LogPath, Logger.File))
 }
+
+func BenchmarkDebugf(b *testing.B) {
+	Logger.Enabled = true
+	Logger.Level = "DEBUG"
+	SetupLogger()
+	b.ResetTimer()
+	for n := 0; n < b.N; n++ {
+		Debugf("This is a debug benchmark %d", n)
+	}
+}
+
+func BenchmarkDebugfLoggerDisabled(b *testing.B) {
+	//Logger.Enabled = false
+	clearAllLoggers()
+	b.ResetTimer()
+	for n := 0; n < b.N; n++ {
+		Debugf("this is a debug benchmark")
+	}
+}
