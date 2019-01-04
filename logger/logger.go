@@ -57,8 +57,7 @@ func setDefaultOutputs() {
 // TODO: add windows support
 
 func colourOutput() {
-	if runtime.GOOS == "windows" {
-	} else {
+	if runtime.GOOS != "windows" {
 		debugLogger.SetPrefix("\033[34m[DEBUG]\033[0m: ")
 		infoLogger.SetPrefix("\033[32m[INFO]\033[0m: ")
 		warnLogger.SetPrefix("\033[33m[WARN]\033[0m: ")
