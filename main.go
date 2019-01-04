@@ -99,7 +99,10 @@ func main() {
 		log.Error(err)
 	}
 	log.LogPath = logPath
-	log.SetupLogger()
+	err = log.SetupLogger()
+	if err != nil {
+		log.Error("Log interface failed will default back to standard logger")
+	}
 
 	AdjustGoMaxProcs()
 	log.Debugf("Bot '%s' started.\n", bot.config.Name)

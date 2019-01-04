@@ -741,7 +741,6 @@ func (b *Binance) WithdrawCrypto(asset, address, addressTag, name, amount string
 	return resp.ID, nil
 }
 
-
 //GetDepositAddressForCurrency retrieves the wallet address for a given currency
 func (b *Binance) GetDepositAddressForCurrency(currency string) error {
 	path := fmt.Sprintf("%s%s", b.APIUrl, depositAddress)

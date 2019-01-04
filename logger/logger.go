@@ -1,6 +1,7 @@
 package logger
 
 import (
+	"fmt"
 	"io"
 	"io/ioutil"
 	"log"
@@ -15,9 +16,12 @@ func init() {
 }
 
 // SetupLogger configure logger instance with user provided settings
-func SetupLogger() {
+func SetupLogger() (err error) {
 	if Logger.Enabled {
-		setupOutputs()
+		err = setupOutputs()
+		if err != nil {
+			return
+		}
 		logLevel()
 		if Logger.ColourOutput {
 			colourOutput()
@@ -25,7 +29,7 @@ func SetupLogger() {
 	} else {
 		clearAllLoggers()
 	}
-
+	return
 }
 
 // setDefaultOutputs() this setups defaults used by the logger
@@ -85,27 +89,30 @@ func clearAllLoggers() {
 // setupOutputs() sets up the io.writer to use for logging
 // TODO: Fix up rotating at the moment its a quick job
 
-func setupOutputs() {
+func setupOutputs() (err error) {
 	if len(Logger.File) > 0 {
 		logFile := path.Join(LogPath, Logger.File)
-		var logfileErr error
 		if Logger.Rotate {
-			currentTime := time.Now()
-			newName := currentTime.Format("2006-01-02 15-04-05")
-			newFile := newName + " " + Logger.File
-			err := os.Rename(logFile, path.Join(LogPath, newFile))
-			if err != nil {
-				Errorf("Failed to rename old log file %s", err)
+			if _, err = os.Stat(logFile); !os.IsNotExist(err) {
+				currentTime := time.Now()
+				newName := currentTime.Format("2006-01-02 15-04-05")
+				newFile := newName + " " + Logger.File
+				err = os.Rename(logFile, path.Join(LogPath, newFile))
+				if err != nil {
+					err = fmt.Errorf("Failed to rename old log file %s", err)
+					return
+				}
 			}
 		}
-		logFileHandle, logfileErr = os.OpenFile(logFile, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
-		if logfileErr != nil {
-			Errorf("Failed to open log file: %s", logfileErr)
+		logFileHandle, err = os.OpenFile(logFile, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+		if err != nil {
+			return
 		}
 		logOutput = io.MultiWriter(os.Stdout, logFileHandle)
 	} else {
 		logOutput = os.Stdout
 	}
+	return
 }
 
 // CloseLogFile close the handler for any open log files
@@ -113,5 +120,5 @@ func CloseLogFile() (err error) {
 	if logFileHandle != nil {
 		err = logFileHandle.Close()
 	}
-	return nil
+	return
 }
