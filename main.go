@@ -189,7 +189,7 @@ func AdjustGoMaxProcs() {
 		}
 	}
 	if i := runtime.GOMAXPROCS(maxProcs); i != maxProcs {
-		log.Fatal("Go Max Procs were not set correctly.")
+		log.Error("Go Max Procs were not set correctly.")
 	}
 	log.Debugln("Set GOMAXPROCS to:", maxProcs)
 }
