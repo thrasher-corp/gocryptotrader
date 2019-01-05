@@ -17,7 +17,7 @@ func init() {
 
 // SetupLogger configure logger instance with user provided settings
 func SetupLogger() (err error) {
-	if Logger.Enabled {
+	if *Logger.Enabled {
 		err = setupOutputs()
 		if err != nil {
 			return

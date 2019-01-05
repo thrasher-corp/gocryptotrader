@@ -7,7 +7,7 @@
   "file": "debug.txt",
   "colour": false,
   "level": "DEBUG|WARN|INFO|ERROR|FATAL",
-  "rotate": true
+  "rotate": false
  },
  "currencyConfig": {
   "forexProviders": [

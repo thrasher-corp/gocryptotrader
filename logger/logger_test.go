@@ -6,10 +6,19 @@ import (
 	"testing"
 )
 
+var (
+	trueptr  = func(b bool) *bool { return &b }(true)
+	falseptr = func(b bool) *bool { return &b }(false)
+)
+
 func TestCloseLogFile(t *testing.T) {
-	LogPath = "../testdata/"
-	Logger.Enabled = true
-	Logger.File = "testdebug.txt"
+	Logger = &Logging{
+		Enabled:      trueptr,
+		Level:        "DEBUG",
+		ColourOutput: false,
+		File:         "",
+		Rotate:       false,
+	}
 	SetupLogger()
 	err := CloseLogFile()
 	if err != nil {
@@ -19,7 +28,7 @@ func TestCloseLogFile(t *testing.T) {
 }
 
 func TestSetupOutputsValidPath(t *testing.T) {
-	Logger.Enabled = true
+	Logger.Enabled = trueptr
 	Logger.File = "debug.txt"
 	LogPath = "../testdata/"
 	err := setupOutputs()
@@ -30,7 +39,7 @@ func TestSetupOutputsValidPath(t *testing.T) {
 }
 
 func TestSetupOutputsInValidPath(t *testing.T) {
-	Logger.Enabled = true
+	Logger.Enabled = trueptr
 	Logger.File = "debug.txt"
 	LogPath = "../testdataa/"
 	err := setupOutputs()
@@ -43,8 +52,13 @@ func TestSetupOutputsInValidPath(t *testing.T) {
 }
 
 func BenchmarkDebugf(b *testing.B) {
-	Logger.Enabled = true
-	Logger.Level = "DEBUG"
+	Logger = &Logging{
+		Enabled:      trueptr,
+		Level:        "DEBUG",
+		ColourOutput: false,
+		File:         "",
+		Rotate:       false,
+	}
 	SetupLogger()
 	b.ResetTimer()
 	for n := 0; n < b.N; n++ {
@@ -53,7 +67,6 @@ func BenchmarkDebugf(b *testing.B) {
 }
 
 func BenchmarkDebugfLoggerDisabled(b *testing.B) {
-	//Logger.Enabled = false
 	clearAllLoggers()
 	b.ResetTimer()
 	for n := 0; n < b.N; n++ {

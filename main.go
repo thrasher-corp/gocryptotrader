@@ -6,12 +6,9 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	"path"
 	"runtime"
 	"strconv"
 	"syscall"
-
-	log "github.com/thrasher-/gocryptotrader/logger"
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/communications"
@@ -19,7 +16,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/currency"
 	"github.com/thrasher-/gocryptotrader/currency/forexprovider"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
-
+	log "github.com/thrasher-/gocryptotrader/logger"
 	"github.com/thrasher-/gocryptotrader/portfolio"
 )
 
@@ -34,7 +31,6 @@ type Bot struct {
 	dryRun     bool
 	configFile string
 	dataDir    string
-	logFile    string
 }
 
 const banner = `
@@ -91,16 +87,14 @@ func main() {
 	}
 	log.Debugf("Using data directory: %s.\n", bot.dataDir)
 
-	log.Logger = &bot.config.Logging
-	logPath := path.Join(common.GetDefaultDataDir(runtime.GOOS), "logs")
-	err = common.CheckDir(logPath, true)
+	err = bot.config.CheckLoggerConfig()
 	if err != nil {
-		log.Error(err)
+		log.Errorf("Failed to configure logger reason: %s", err)
 	}
-	log.LogPath = logPath
+
 	err = log.SetupLogger()
 	if err != nil {
-		log.Error("Log interface failed will default back to standard logger")
+		log.Errorf("Failed to setup logger reason: %s", err)
 	}
 
 	AdjustGoMaxProcs()

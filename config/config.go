@@ -960,6 +960,44 @@ func (c *Config) RetrieveConfigCurrencyPairs(enabledOnly bool) error {
 	return nil
 }
 
+// CheckLoggerConfig checks to see logger values are present and valid in config
+// if not creates a default instance of the logger
+func (c *Config) CheckLoggerConfig() (err error) {
+	m.Lock()
+	defer m.Unlock()
+
+	// check if enabled is nil or level is a blank string
+	if c.Logging.Enabled == nil || c.Logging.Level == "" {
+		// Creates a new pointer to bool and sets it as false
+		t := func(t bool) *bool { return &t }(true)
+
+		log.Warn("Missing or invalid config settings using safe defaults")
+
+		// Set logger to safe defaults
+
+		c.Logging = log.Logging{
+			Enabled:      t,
+			Level:        "DEBUG|INFO|WARN|ERROR|FATAL",
+			ColourOutput: false,
+			File:         "debug.txt",
+			Rotate:       false,
+		}
+		log.Logger = &c.Logging
+	} else {
+		log.Logger = &c.Logging
+	}
+
+	if len(c.Logging.File) > 0 {
+		logPath := path.Join(common.GetDefaultDataDir(runtime.GOOS), "logs")
+		err = common.CheckDir(logPath, true)
+		if err != nil {
+			return
+		}
+		log.LogPath = logPath
+	}
+	return
+}
+
 // GetFilePath returns the desired config file or the default config file name
 // based on if the application is being run under test or normal mode.
 func GetFilePath(file string) (string, error) {
