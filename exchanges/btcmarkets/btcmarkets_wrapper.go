@@ -7,7 +7,6 @@ import (
 	"sync"
 
 	"github.com/thrasher-/gocryptotrader/common"
-
 	"github.com/thrasher-/gocryptotrader/currency/pair"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"

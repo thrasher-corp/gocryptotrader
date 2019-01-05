@@ -3,7 +3,6 @@ package bitflyer
 import (
 	"errors"
 	"fmt"
-
 	"net/url"
 	"strconv"
 	"time"

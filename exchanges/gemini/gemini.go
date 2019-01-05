@@ -3,7 +3,6 @@ package gemini
 import (
 	"errors"
 	"fmt"
-
 	"net/url"
 	"strconv"
 	"strings"

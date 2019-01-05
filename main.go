@@ -3,11 +3,10 @@ package main
 import (
 	"flag"
 	"fmt"
-	"path"
-
 	"net/http"
 	"os"
 	"os/signal"
+	"path"
 	"runtime"
 	"strconv"
 	"syscall"

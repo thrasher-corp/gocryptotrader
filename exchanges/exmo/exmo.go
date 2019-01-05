@@ -3,7 +3,6 @@ package exmo
 import (
 	"errors"
 	"fmt"
-
 	"net/url"
 	"reflect"
 	"strconv"

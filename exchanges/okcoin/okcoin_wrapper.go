@@ -3,7 +3,6 @@ package okcoin
 import (
 	"errors"
 	"fmt"
-
 	"strconv"
 	"sync"
 

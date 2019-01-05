@@ -3,7 +3,6 @@ package coinbasepro
 import (
 	"errors"
 	"fmt"
-
 	"net/http"
 	"net/url"
 	"strconv"

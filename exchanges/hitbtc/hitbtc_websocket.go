@@ -3,7 +3,6 @@ package hitbtc
 import (
 	"errors"
 	"fmt"
-
 	"net/http"
 	"net/url"
 	"time"

@@ -2,7 +2,6 @@ package bithumb
 
 import (
 	"fmt"
-
 	"sync"
 
 	"github.com/thrasher-/gocryptotrader/common"

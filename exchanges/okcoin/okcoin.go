@@ -3,7 +3,6 @@ package okcoin
 import (
 	"errors"
 	"fmt"
-
 	"net/url"
 	"strconv"
 	"strings"

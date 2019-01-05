@@ -3,7 +3,6 @@ package bitstamp
 import (
 	"errors"
 	"fmt"
-
 	"net/url"
 	"reflect"
 	"strconv"

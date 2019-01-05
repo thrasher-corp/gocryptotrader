@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-
 	"time"
 
 	"github.com/gorilla/websocket"

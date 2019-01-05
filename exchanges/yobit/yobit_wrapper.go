@@ -3,7 +3,6 @@ package yobit
 import (
 	"errors"
 	"fmt"
-
 	"strconv"
 	"sync"
 

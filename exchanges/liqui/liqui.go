@@ -3,7 +3,6 @@ package liqui
 import (
 	"errors"
 	"fmt"
-
 	"net/url"
 	"strconv"
 	"strings"

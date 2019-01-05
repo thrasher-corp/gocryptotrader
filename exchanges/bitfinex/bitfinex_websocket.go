@@ -3,7 +3,6 @@ package bitfinex
 import (
 	"errors"
 	"fmt"
-
 	"net/http"
 	"net/url"
 	"reflect"

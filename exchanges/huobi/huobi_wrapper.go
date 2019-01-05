@@ -3,7 +3,6 @@ package huobi
 import (
 	"errors"
 	"fmt"
-
 	"strconv"
 	"sync"
 

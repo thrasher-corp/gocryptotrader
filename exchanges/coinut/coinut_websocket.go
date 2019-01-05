@@ -3,7 +3,6 @@ package coinut
 import (
 	"errors"
 	"fmt"
-
 	"net/http"
 	"net/url"
 	"time"

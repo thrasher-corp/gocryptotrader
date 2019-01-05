@@ -3,7 +3,6 @@ package bittrex
 import (
 	"errors"
 	"fmt"
-
 	"net/url"
 	"strconv"
 	"time"

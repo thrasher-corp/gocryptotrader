@@ -2,7 +2,6 @@ package main
 
 import (
 	"errors"
-
 	"sync"
 
 	"github.com/thrasher-/gocryptotrader/common"

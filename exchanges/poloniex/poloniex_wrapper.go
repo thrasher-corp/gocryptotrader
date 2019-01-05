@@ -2,7 +2,6 @@ package poloniex
 
 import (
 	"fmt"
-
 	"strconv"
 	"sync"
 

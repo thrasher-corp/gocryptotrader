@@ -9,12 +9,11 @@ import (
 	"strconv"
 	"time"
 
-	log "github.com/thrasher-/gocryptotrader/logger"
-
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
+	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
 const (

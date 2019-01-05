@@ -2,7 +2,6 @@ package hitbtc
 
 import (
 	"fmt"
-
 	"strconv"
 	"sync"
 

@@ -3,7 +3,6 @@ package events
 import (
 	"errors"
 	"fmt"
-
 	"strconv"
 
 	"github.com/thrasher-/gocryptotrader/common"

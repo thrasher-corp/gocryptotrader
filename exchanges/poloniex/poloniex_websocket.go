@@ -3,7 +3,6 @@ package poloniex
 import (
 	"errors"
 	"fmt"
-
 	"net/http"
 	"net/url"
 	"strconv"

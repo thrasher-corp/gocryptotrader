@@ -3,7 +3,6 @@ package currencyconverter
 import (
 	"errors"
 	"fmt"
-
 	"net/url"
 
 	"github.com/thrasher-/gocryptotrader/common"

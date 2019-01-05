@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-
 	"net"
 	"net/http"
 	"net/url"

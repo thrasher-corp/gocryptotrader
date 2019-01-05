@@ -2,7 +2,6 @@ package wex
 
 import (
 	"fmt"
-
 	"strconv"
 	"sync"
 

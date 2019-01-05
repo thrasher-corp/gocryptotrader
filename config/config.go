@@ -5,7 +5,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-
 	"os"
 	"path"
 	"runtime"

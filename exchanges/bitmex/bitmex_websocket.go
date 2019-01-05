@@ -8,12 +8,11 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
-
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
+	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
