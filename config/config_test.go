@@ -909,7 +909,8 @@ func TestUpdateConfig(t *testing.T) {
 
 func TestCheckLoggerConfig(t *testing.T) {
 	c := GetConfig()
-	c.EncryptConfig = -1
+	c.LoadConfig(ConfigTestFile)
+
 	c.Logging = log.Logging{}
 	err := c.CheckLoggerConfig()
 	if err != nil {
