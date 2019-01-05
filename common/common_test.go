@@ -527,28 +527,28 @@ func TestSendHTTPRequest(t *testing.T) {
 	headers["Content-Type"] = "application/x-www-form-urlencoded"
 
 	_, err := SendHTTPRequest(
-		methodGarbage, "https://query.yahooapis.com/v1/public/yql", headers,
+		methodGarbage, "https://www.google.com", headers,
 		strings.NewReader(""),
 	)
 	if err == nil {
 		t.Error("Test failed. ")
 	}
 	_, err = SendHTTPRequest(
-		methodPost, "https://query.yahooapis.com/v1/public/yql", headers,
+		methodPost, "https://www.google.com", headers,
 		strings.NewReader(""),
 	)
 	if err != nil {
 		t.Errorf("Test failed. %s ", err)
 	}
 	_, err = SendHTTPRequest(
-		methodGet, "https://query.yahooapis.com/v1/public/yql", headers,
+		methodGet, "https://www.google.com", headers,
 		strings.NewReader(""),
 	)
 	if err != nil {
 		t.Errorf("Test failed. %s ", err)
 	}
 	_, err = SendHTTPRequest(
-		methodDelete, "https://query.yahooapis.com/v1/public/yql", headers,
+		methodDelete, "https://www.google.com", headers,
 		strings.NewReader(""),
 	)
 	if err != nil {
