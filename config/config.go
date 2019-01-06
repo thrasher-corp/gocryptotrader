@@ -968,7 +968,7 @@ func (c *Config) CheckLoggerConfig() (err error) {
 
 	// check if enabled is nil or level is a blank string
 	if c.Logging.Enabled == nil || c.Logging.Level == "" {
-		// Creates a new pointer to bool and sets it as false
+		// Creates a new pointer to bool and sets it as true
 		t := func(t bool) *bool { return &t }(true)
 
 		log.Warn("Missing or invalid config settings using safe defaults")

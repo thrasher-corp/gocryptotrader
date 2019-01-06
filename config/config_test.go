@@ -909,12 +909,14 @@ func TestUpdateConfig(t *testing.T) {
 
 func TestCheckLoggerConfig(t *testing.T) {
 	c := GetConfig()
-	c.LoadConfig(ConfigTestFile)
-
-	c.Logging = log.Logging{}
-	err := c.CheckLoggerConfig()
+	err := c.LoadConfig(ConfigTestFile)
 	if err != nil {
-		t.Fatal("Config failed to init with default settings on invalid or incorrect config")
+		t.Fatal(err)
+	}
+	c.Logging = log.Logging{}
+	err = c.CheckLoggerConfig()
+	if err != nil {
+		t.Error("Config failed to init with default settings on invalid or incorrect config")
 	}
 	c.LoadConfig(ConfigTestFile)
 	err = c.CheckLoggerConfig()
