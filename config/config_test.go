@@ -916,11 +916,11 @@ func TestCheckLoggerConfig(t *testing.T) {
 	c.Logging = log.Logging{}
 	err = c.CheckLoggerConfig()
 	if err != nil {
-		t.Error("Config failed to init with default settings on invalid or incorrect config")
+		t.Errorf("Failed to create default logger reason: %v", err)
 	}
 	c.LoadConfig(ConfigTestFile)
 	err = c.CheckLoggerConfig()
 	if err != nil {
-		t.Error("Config failed to load settings from testconfig file")
+		t.Errorf("Failed to create logger with user settings: reason: %v", err)
 	}
 }

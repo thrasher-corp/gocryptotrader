@@ -641,7 +641,7 @@ func CheckDir(dir string, create bool) error {
 	}
 
 	log.Warnf("Directory %s does not exist.. creating.", dir)
-	err = os.Mkdir(dir, 0777)
+	err = os.MkdirAll(dir, 0777)
 	if err != nil {
 		return fmt.Errorf("failed to create dir. Err: %s", err)
 	}
