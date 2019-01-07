@@ -34,7 +34,6 @@ func SetupLogger() (err error) {
 
 // setDefaultOutputs() this setups defaults used by the logger
 // This allows it to be used without any user configuration
-
 func setDefaultOutputs() {
 	debugLogger = log.New(os.Stdout,
 		"[DEBUG]: ",
