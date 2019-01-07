@@ -600,6 +600,42 @@ func (b *Bitfinex) WithdrawCryptocurrency(withdrawType, wallet, address, currenc
 		b.SendAuthenticatedHTTPRequest("POST", bitfinexWithdrawal, request, &response)
 }
 
+// WithdrawFIAT requests a withdrawal from one of your wallets.
+// For Cryptocurrency, use WithdrawCryptocurrency
+func (b *Bitfinex) WithdrawFIAT(withdrawType, wallet, wireCurrency,
+	accountName, bankName, bankAddress, bankCity, bankCountry, swift, transactionMessage,
+	intermediaryBankName, intermediaryBankAddress, intermediaryBankCity, intermediaryBankCountry, intermediaryBankSwift string,
+	amount, accountNumber, intermediaryBankAccountNumber float64, isExpressWire, requiresIntermediaryBank bool) ([]Withdrawal, error) {
+	response := []Withdrawal{}
+	request := make(map[string]interface{})
+	request["withdraw_type"] = withdrawType
+	request["walletselected"] = wallet
+	request["amount"] = strconv.FormatFloat(amount, 'f', -1, 64)
+	request["account_name"] = accountName
+	request["account_number"] = strconv.FormatFloat(accountNumber, 'f', -1, 64)
+	request["bank_name"] = bankName
+	request["bank_address"] = bankAddress
+	request["bank_city"] = bankCity
+	request["bank_country"] = bankCountry
+	request["expressWire"] = isExpressWire
+	request["swift"] = swift
+	request["detail_payment"] = transactionMessage
+	request["currency"] = wireCurrency
+	request["account_address"] = bankAddress
+
+	if requiresIntermediaryBank {
+		request["intermediary_bank_name"] = intermediaryBankName
+		request["intermediary_bank_address"] = intermediaryBankAddress
+		request["intermediary_bank_city"] = intermediaryBankCity
+		request["intermediary_bank_country"] = intermediaryBankCountry
+		request["intermediary_bank_account"] = strconv.FormatFloat(intermediaryBankAccountNumber, 'f', -1, 64)
+		request["intermediary_bank_swift"] = intermediaryBankSwift
+	}
+
+	return response,
+		b.SendAuthenticatedHTTPRequest("POST", bitfinexWithdrawal, request, &response)
+}
+
 // NewOrder submits a new order and returns a order information
 // Major Upgrade needed on this function to include all query params
 func (b *Bitfinex) NewOrder(currencyPair string, amount float64, price float64, buy bool, Type string, hidden bool) (Order, error) {

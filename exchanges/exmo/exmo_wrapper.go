@@ -264,13 +264,13 @@ func (e *EXMO) WithdrawCryptocurrencyFunds(withdrawRequest exchange.WithdrawRequ
 // WithdrawFiatFunds returns a withdrawal ID when a
 // withdrawal is submitted
 func (e *EXMO) WithdrawFiatFunds(withdrawRequest exchange.WithdrawRequest) (string, error) {
-	return "", common.ErrNotYetImplemented
+	return "", common.ErrFunctionNotSupported
 }
 
 // WithdrawFiatFundsToInternationalBank returns a withdrawal ID when a
 // withdrawal is submitted
 func (e *EXMO) WithdrawFiatFundsToInternationalBank(withdrawRequest exchange.WithdrawRequest) (string, error) {
-	return "", common.ErrNotYetImplemented
+	return "", common.ErrFunctionNotSupported
 }
 
 // GetWebsocket returns a pointer to the exchange websocket

@@ -249,13 +249,13 @@ func (p *Poloniex) WithdrawCryptocurrencyFunds(withdrawRequest exchange.Withdraw
 // WithdrawFiatFunds returns a withdrawal ID when a
 // withdrawal is submitted
 func (p *Poloniex) WithdrawFiatFunds(withdrawRequest exchange.WithdrawRequest) (string, error) {
-	return "", common.ErrNotYetImplemented
+	return "", common.ErrFunctionNotSupported
 }
 
 // WithdrawFiatFundsToInternationalBank returns a withdrawal ID when a
 // withdrawal is submitted
 func (p *Poloniex) WithdrawFiatFundsToInternationalBank(withdrawRequest exchange.WithdrawRequest) (string, error) {
-	return "", common.ErrNotYetImplemented
+	return "", common.ErrFunctionNotSupported
 }
 
 // GetWebsocket returns a pointer to the exchange websocket

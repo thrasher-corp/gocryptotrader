@@ -344,13 +344,13 @@ func (h *HUOBI) WithdrawCryptocurrencyFunds(withdrawRequest exchange.WithdrawReq
 // WithdrawFiatFunds returns a withdrawal ID when a
 // withdrawal is submitted
 func (h *HUOBI) WithdrawFiatFunds(withdrawRequest exchange.WithdrawRequest) (string, error) {
-	return "", common.ErrNotYetImplemented
+	return "", common.ErrFunctionNotSupported
 }
 
 // WithdrawFiatFundsToInternationalBank returns a withdrawal ID when a
 // withdrawal is submitted
 func (h *HUOBI) WithdrawFiatFundsToInternationalBank(withdrawRequest exchange.WithdrawRequest) (string, error) {
-	return "", common.ErrNotYetImplemented
+	return "", common.ErrFunctionNotSupported
 }
 
 // GetWebsocket returns a pointer to the exchange websocket

@@ -256,13 +256,13 @@ func (z *ZB) WithdrawCryptocurrencyFunds(withdrawRequest exchange.WithdrawReques
 // WithdrawFiatFunds returns a withdrawal ID when a
 // withdrawal is submitted
 func (z *ZB) WithdrawFiatFunds(withdrawRequest exchange.WithdrawRequest) (string, error) {
-	return "", common.ErrNotYetImplemented
+	return "", common.ErrFunctionNotSupported
 }
 
 // WithdrawFiatFundsToInternationalBank returns a withdrawal ID when a
 // withdrawal is submitted
 func (z *ZB) WithdrawFiatFundsToInternationalBank(withdrawRequest exchange.WithdrawRequest) (string, error) {
-	return "", common.ErrNotYetImplemented
+	return "", common.ErrFunctionNotSupported
 }
 
 // GetWebsocket returns a pointer to the exchange websocket

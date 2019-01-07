@@ -167,7 +167,7 @@ func TestGetFee(t *testing.T) {
 func TestFormatWithdrawPermissions(t *testing.T) {
 	// Arrange
 	h.SetDefaults()
-	expectedResult := exchange.AutoWithdrawCryptoText
+	expectedResult := exchange.AutoWithdrawCryptoText + " & " + exchange.NoFiatWithdrawalsText
 	// Act
 	withdrawPermissions := h.FormatWithdrawPermissions()
 	// Assert
@@ -310,20 +310,24 @@ func TestWithdrawFiat(t *testing.T) {
 	}
 
 	var withdrawFiatRequest = exchange.WithdrawRequest{
-		Amount:       100,
-		Currency:     symbol.BTC,
-		Description:  "WITHDRAW IT ALL",
-		BankAddress:  "123 Fake St",
-		BankCity:     "Tarry Town",
-		BankCountry:  "Hyrule",
-		BankName:     "Federal Reserve Bank",
-		WireCurrency: symbol.AUD,
-		SwiftCode:    "Taylor",
+		Amount:                   100,
+		Currency:                 symbol.BTC,
+		Description:              "WITHDRAW IT ALL",
+		BankAccountName:          "Satoshi Nakamoto",
+		BankAccountNumber:        12345,
+		BankAddress:              "123 Fake St",
+		BankCity:                 "Tarry Town",
+		BankCountry:              "Hyrule",
+		BankName:                 "Federal Reserve Bank",
+		WireCurrency:             symbol.USD,
+		SwiftCode:                "Taylor",
+		RequiresIntermediaryBank: false,
+		IsExpressWire:            false,
 	}
 
 	_, err := h.WithdrawFiatFunds(withdrawFiatRequest)
-	if err != common.ErrNotYetImplemented {
-		t.Errorf("Expected '%v', recieved: '%v'", common.ErrNotYetImplemented, err)
+	if err != common.ErrFunctionNotSupported {
+		t.Errorf("Expected '%v', recieved: '%v'", common.ErrFunctionNotSupported, err)
 	}
 }
 
@@ -336,19 +340,23 @@ func TestWithdrawInternationalBank(t *testing.T) {
 	}
 
 	var withdrawFiatRequest = exchange.WithdrawRequest{
-		Amount:       100,
-		Currency:     symbol.BTC,
-		Description:  "WITHDRAW IT ALL",
-		BankAddress:  "123 Fake St",
-		BankCity:     "Tarry Town",
-		BankCountry:  "Hyrule",
-		BankName:     "Federal Reserve Bank",
-		WireCurrency: symbol.AUD,
-		SwiftCode:    "Taylor",
+		Amount:                   100,
+		Currency:                 symbol.BTC,
+		Description:              "WITHDRAW IT ALL",
+		BankAccountName:          "Satoshi Nakamoto",
+		BankAccountNumber:        12345,
+		BankAddress:              "123 Fake St",
+		BankCity:                 "Tarry Town",
+		BankCountry:              "Hyrule",
+		BankName:                 "Federal Reserve Bank",
+		WireCurrency:             symbol.USD,
+		SwiftCode:                "Taylor",
+		RequiresIntermediaryBank: false,
+		IsExpressWire:            false,
 	}
 
 	_, err := h.WithdrawFiatFundsToInternationalBank(withdrawFiatRequest)
-	if err != common.ErrNotYetImplemented {
-		t.Errorf("Expected '%v', recieved: '%v'", common.ErrNotYetImplemented, err)
+	if err != common.ErrFunctionNotSupported {
+		t.Errorf("Expected '%v', recieved: '%v'", common.ErrFunctionNotSupported, err)
 	}
 }

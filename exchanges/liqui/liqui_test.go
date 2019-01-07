@@ -363,15 +363,19 @@ func TestWithdrawFiat(t *testing.T) {
 	}
 
 	var withdrawFiatRequest = exchange.WithdrawRequest{
-		Amount:       100,
-		Currency:     symbol.BTC,
-		Description:  "WITHDRAW IT ALL",
-		BankAddress:  "123 Fake St",
-		BankCity:     "Tarry Town",
-		BankCountry:  "Hyrule",
-		BankName:     "Federal Reserve Bank",
-		WireCurrency: symbol.AUD,
-		SwiftCode:    "Taylor",
+		Amount:                   100,
+		Currency:                 symbol.BTC,
+		Description:              "WITHDRAW IT ALL",
+		BankAccountName:          "Satoshi Nakamoto",
+		BankAccountNumber:        12345,
+		BankAddress:              "123 Fake St",
+		BankCity:                 "Tarry Town",
+		BankCountry:              "Hyrule",
+		BankName:                 "Federal Reserve Bank",
+		WireCurrency:             symbol.USD,
+		SwiftCode:                "Taylor",
+		RequiresIntermediaryBank: false,
+		IsExpressWire:            false,
 	}
 
 	_, err := l.WithdrawFiatFunds(withdrawFiatRequest)
@@ -389,15 +393,19 @@ func TestWithdrawInternationalBank(t *testing.T) {
 	}
 
 	var withdrawFiatRequest = exchange.WithdrawRequest{
-		Amount:       100,
-		Currency:     symbol.BTC,
-		Description:  "WITHDRAW IT ALL",
-		BankAddress:  "123 Fake St",
-		BankCity:     "Tarry Town",
-		BankCountry:  "Hyrule",
-		BankName:     "Federal Reserve Bank",
-		WireCurrency: symbol.AUD,
-		SwiftCode:    "Taylor",
+		Amount:                   100,
+		Currency:                 symbol.BTC,
+		Description:              "WITHDRAW IT ALL",
+		BankAccountName:          "Satoshi Nakamoto",
+		BankAccountNumber:        12345,
+		BankAddress:              "123 Fake St",
+		BankCity:                 "Tarry Town",
+		BankCountry:              "Hyrule",
+		BankName:                 "Federal Reserve Bank",
+		WireCurrency:             symbol.USD,
+		SwiftCode:                "Taylor",
+		RequiresIntermediaryBank: false,
+		IsExpressWire:            false,
 	}
 
 	_, err := l.WithdrawFiatFundsToInternationalBank(withdrawFiatRequest)

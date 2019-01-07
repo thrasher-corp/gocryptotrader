@@ -254,13 +254,32 @@ func (b *Bitfinex) WithdrawCryptocurrencyFunds(withdrawRequest exchange.Withdraw
 // WithdrawFiatFunds returns a withdrawal ID when a
 // withdrawal is submitted
 func (b *Bitfinex) WithdrawFiatFunds(withdrawRequest exchange.WithdrawRequest) (string, error) {
-	return "", common.ErrNotYetImplemented
+	withdrawalType := "wire"
+	// Bitfinex has support for three types, exchange, margin and deposit
+	// As this is for trading, I've made the wrapper default 'exchange'
+	// TODO: Discover an automated way to make the decision for wallet type to withdraw from
+	walletType := "exchange"
+	resp, err := b.WithdrawFIAT(withdrawalType, walletType, withdrawRequest.WireCurrency,
+		withdrawRequest.BankAccountName, withdrawRequest.BankName, withdrawRequest.BankAddress,
+		withdrawRequest.BankCity, withdrawRequest.BankCountry, withdrawRequest.SwiftCode,
+		withdrawRequest.Description, withdrawRequest.IntermediaryBankName, withdrawRequest.IntermediaryBankAddress,
+		withdrawRequest.IntermediaryBankCity, withdrawRequest.IntermediaryBankCountry, withdrawRequest.IntermediarySwiftCode,
+		withdrawRequest.Amount, withdrawRequest.BankAccountNumber, withdrawRequest.IntermediaryBankAccountNumber,
+		withdrawRequest.IsExpressWire, withdrawRequest.RequiresIntermediaryBank)
+	if err != nil {
+		return "", err
+	}
+	if len(resp) == 0 {
+		return "", errors.New("No withdrawID returned. Check order status")
+	}
+
+	return fmt.Sprintf("%v", resp[0].WithdrawalID), err
 }
 
 // WithdrawFiatFundsToInternationalBank returns a withdrawal ID when a
 // withdrawal is submitted
 func (b *Bitfinex) WithdrawFiatFundsToInternationalBank(withdrawRequest exchange.WithdrawRequest) (string, error) {
-	return "", common.ErrNotYetImplemented
+	return b.WithdrawFiatFunds(withdrawRequest)
 }
 
 // GetWebsocket returns a pointer to the exchange websocket
