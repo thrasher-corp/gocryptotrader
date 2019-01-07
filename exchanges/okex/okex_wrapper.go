@@ -3,7 +3,6 @@ package okex
 import (
 	"errors"
 	"fmt"
-
 	"strconv"
 	"sync"
 

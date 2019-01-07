@@ -24,10 +24,10 @@ func Infoln(v ...interface{}) {
 // Print aliased to Standard log.Print
 var Print = log.Print
 
-// Printf alaised to tandard log.Printf
+// Printf aliased to Standard log.Printf
 var Printf = log.Printf
 
-// Println  alaised to tandard log.Println
+// Println aliased to Standard log.Println
 var Println = log.Println
 
 // Debug handler takes any input returns unformatted output to infoLogger writer
@@ -65,14 +65,14 @@ func Errorf(data string, v ...interface{}) {
 	errorLogger.Printf(data, v...)
 }
 
-// Fatal  handler takes any input returns unformatted output to fatalLogger writer
+// Fatal handler takes any input returns unformatted output to fatalLogger writer
 func Fatal(v ...interface{}) {
 	// Send to Output instead of Fatal to allow us to increase the output depth by 1 to make sure the correct file is displayed
 	fatalLogger.Output(2, fmt.Sprint(v...))
 	os.Exit(1)
 }
 
-// Fatalf  handler takes any input returns unformatted output to fatalLogger writer
+// Fatalf handler takes any input returns unformatted output to fatalLogger writer
 func Fatalf(data string, v ...interface{}) {
 	// Send to Output instead of Fatal to allow us to increase the output depth by 1 to make sure the correct file is displayed
 	fatalLogger.Output(2, fmt.Sprintf(data, v...))

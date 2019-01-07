@@ -59,7 +59,6 @@ func setDefaultOutputs() {
 
 // colorOutput() sets the prefix of each log type to matching colour
 // TODO: add windows support
-
 func colourOutput() {
 	if runtime.GOOS != "windows" {
 		debugLogger.SetPrefix("\033[34m[DEBUG]\033[0m: ")
@@ -71,7 +70,6 @@ func colourOutput() {
 }
 
 // clearAllLoggers() sets all logger flags to 0 and outputs to Discard
-
 func clearAllLoggers() {
 	debugLogger.SetFlags(0)
 	infoLogger.SetFlags(0)
@@ -88,7 +86,6 @@ func clearAllLoggers() {
 
 // setupOutputs() sets up the io.writer to use for logging
 // TODO: Fix up rotating at the moment its a quick job
-
 func setupOutputs() (err error) {
 	if len(Logger.File) > 0 {
 		logFile := path.Join(LogPath, Logger.File)

@@ -12,7 +12,6 @@ import (
 	"github.com/thrasher-/gocryptotrader/currency/pair"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
-
 	log "github.com/thrasher-/gocryptotrader/logger"
 )
 

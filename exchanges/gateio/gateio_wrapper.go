@@ -10,7 +10,6 @@ import (
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
-
 	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
