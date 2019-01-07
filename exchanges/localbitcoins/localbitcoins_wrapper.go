@@ -5,7 +5,10 @@ import (
 	"fmt"
 	"math"
 	"strconv"
+	"strings"
 	"sync"
+
+	"github.com/thrasher-/gocryptotrader/currency/symbol"
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
@@ -247,7 +250,12 @@ func (l *LocalBitcoins) GetOrderInfo(orderID int64) (exchange.OrderDetail, error
 
 // GetDepositAddress returns a deposit address for a specified currency
 func (l *LocalBitcoins) GetDepositAddress(cryptocurrency pair.CurrencyItem) (string, error) {
-	return "", common.ErrNotYetImplemented
+	if !strings.EqualFold(symbol.BTC, cryptocurrency.String()) {
+		return "", fmt.Errorf("Localbitcoins do not have support for currency %s just bitcoin",
+			cryptocurrency.String())
+	}
+
+	return l.GetWalletAddress()
 }
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
