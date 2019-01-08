@@ -3,7 +3,6 @@ package wex
 import (
 	"errors"
 	"fmt"
-	"log"
 	"net/url"
 	"strconv"
 	"strings"
@@ -15,6 +14,7 @@ import (
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/request"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
+	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
 const (
@@ -377,7 +377,7 @@ func (w *WEX) SendAuthenticatedHTTPRequest(method string, values url.Values, res
 	hmac := common.GetHMAC(common.HashSHA512, []byte(encoded), []byte(w.APISecret))
 
 	if w.Verbose {
-		log.Printf("Sending POST request to %s calling method %s with params %s\n",
+		log.Debugf("Sending POST request to %s calling method %s with params %s\n",
 			w.APIUrlSecondary,
 			method,
 			encoded)

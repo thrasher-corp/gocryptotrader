@@ -2,7 +2,6 @@ package bithumb
 
 import (
 	"fmt"
-	"log"
 	"sync"
 
 	"github.com/thrasher-/gocryptotrader/common"
@@ -10,6 +9,7 @@ import (
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
+	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
 // Start starts the OKEX go routine
@@ -24,18 +24,18 @@ func (b *Bithumb) Start(wg *sync.WaitGroup) {
 // Run implements the OKEX wrapper
 func (b *Bithumb) Run() {
 	if b.Verbose {
-		log.Printf("%s Websocket: %s. (url: %s).\n", b.GetName(), common.IsEnabled(b.Websocket.IsEnabled()), b.WebsocketURL)
-		log.Printf("%s polling delay: %ds.\n", b.GetName(), b.RESTPollingDelay)
-		log.Printf("%s %d currencies enabled: %s.\n", b.GetName(), len(b.EnabledPairs), b.EnabledPairs)
+		log.Debugf("%s Websocket: %s. (url: %s).\n", b.GetName(), common.IsEnabled(b.Websocket.IsEnabled()), b.WebsocketURL)
+		log.Debugf("%s polling delay: %ds.\n", b.GetName(), b.RESTPollingDelay)
+		log.Debugf("%s %d currencies enabled: %s.\n", b.GetName(), len(b.EnabledPairs), b.EnabledPairs)
 	}
 
 	exchangeProducts, err := b.GetTradingPairs()
 	if err != nil {
-		log.Printf("%s Failed to get available symbols.\n", b.GetName())
+		log.Errorf("%s Failed to get available symbols.\n", b.GetName())
 	} else {
 		err = b.UpdateCurrencies(exchangeProducts, false, false)
 		if err != nil {
-			log.Printf("%s Failed to update available symbols.\n", b.GetName())
+			log.Errorf("%s Failed to update available symbols.\n", b.GetName())
 		}
 	}
 }

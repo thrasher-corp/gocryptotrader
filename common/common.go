@@ -16,7 +16,6 @@ import (
 	"hash"
 	"io"
 	"io/ioutil"
-	"log"
 	"math"
 	"net/http"
 	"net/url"
@@ -29,6 +28,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
 // Vars for common.go operations
@@ -390,7 +391,7 @@ func SendHTTPRequest(method, path string, headers map[string]string, body io.Rea
 // on failure.
 func SendHTTPGetRequest(url string, jsonDecode, isVerbose bool, result interface{}) error {
 	if isVerbose {
-		log.Println("Raw URL: ", url)
+		log.Debugf("Raw URL: %s", url)
 	}
 
 	initialiseHTTPClient()
@@ -410,7 +411,7 @@ func SendHTTPGetRequest(url string, jsonDecode, isVerbose bool, result interface
 	}
 
 	if isVerbose {
-		log.Println("Raw Resp: ", string(contents[:]))
+		log.Debugf("Raw Resp: %s", string(contents[:]))
 	}
 
 	defer res.Body.Close()
@@ -639,8 +640,8 @@ func CheckDir(dir string, create bool) error {
 		return fmt.Errorf("directory %s does not exist. Err: %s", dir, err)
 	}
 
-	log.Printf("Directory %s does not exist.. creating.", dir)
-	err = os.Mkdir(dir, 0777)
+	log.Warnf("Directory %s does not exist.. creating.", dir)
+	err = os.MkdirAll(dir, 0777)
 	if err != nil {
 		return fmt.Errorf("failed to create dir. Err: %s", err)
 	}

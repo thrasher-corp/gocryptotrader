@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -16,7 +15,8 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
-	"github.com/thrasher-/gocryptotrader/exchanges"
+	exchange "github.com/thrasher-/gocryptotrader/exchanges"
+	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
 const (
@@ -203,7 +203,8 @@ func (o *OKEX) WsHandleData() {
 				if strings.Contains(string(resp.Raw), "pong") {
 					continue
 				} else {
-					log.Fatal("okex.go error -", err)
+					log.Error(err)
+					return
 				}
 			}
 
@@ -212,7 +213,7 @@ func (o *OKEX) WsHandleData() {
 				if common.StringContains(string(resp.Raw), "error_msg") {
 					err = common.JSONDecode(resp.Raw, &errResponse)
 					if err != nil {
-						log.Fatal(err)
+						log.Error(err)
 					}
 					o.Websocket.DataHandler <- fmt.Errorf("okex.go error - %s resp: %s ",
 						errResponse.ErrorMsg,
@@ -233,7 +234,8 @@ func (o *OKEX) WsHandleData() {
 
 					err = common.JSONDecode(multiStreamData.Data, &ticker)
 					if err != nil {
-						log.Fatal("OKEX Ticker Decode Error:", err)
+						log.Errorf("OKEX Ticker Decode Error: %s", err)
+						return
 					}
 
 					o.Websocket.DataHandler <- exchange.TickerData{
@@ -247,7 +249,8 @@ func (o *OKEX) WsHandleData() {
 
 					err = common.JSONDecode(multiStreamData.Data, &deals)
 					if err != nil {
-						log.Fatal("OKEX Deals Decode Error:", err)
+						log.Errorf("OKEX Deals Decode Error: %s", err)
+						return
 					}
 
 					for _, trade := range deals {
@@ -271,7 +274,8 @@ func (o *OKEX) WsHandleData() {
 
 					err := common.JSONDecode(multiStreamData.Data, &klines)
 					if err != nil {
-						log.Fatal("OKEX Klines Decode Error:", err)
+						log.Errorf("OKEX Klines Decode Error: %s", err)
+						return
 					}
 
 					for _, kline := range klines {
@@ -300,7 +304,8 @@ func (o *OKEX) WsHandleData() {
 
 					err := common.JSONDecode(multiStreamData.Data, &depth)
 					if err != nil {
-						log.Fatal("OKEX Depth Decode Error:", err)
+						log.Errorf("OKEX Depth Decode Error: %s", err)
+						return
 					}
 
 					o.Websocket.DataHandler <- exchange.WebsocketOrderbookUpdate{

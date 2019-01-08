@@ -5,6 +5,7 @@ import (
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
+	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
 func TestGetCurrencyConfig(t *testing.T) {
@@ -903,5 +904,23 @@ func TestUpdateConfig(t *testing.T) {
 	}
 	if len(c.Currency.Cryptocurrencies) == 0 {
 		t.Fatalf("Test failed. Cryptocurrencies should have been repopulated")
+	}
+}
+
+func TestCheckLoggerConfig(t *testing.T) {
+	c := GetConfig()
+	err := c.LoadConfig(ConfigTestFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	c.Logging = log.Logging{}
+	err = c.CheckLoggerConfig()
+	if err != nil {
+		t.Errorf("Failed to create default logger reason: %v", err)
+	}
+	c.LoadConfig(ConfigTestFile)
+	err = c.CheckLoggerConfig()
+	if err != nil {
+		t.Errorf("Failed to create logger with user settings: reason: %v", err)
 	}
 }

@@ -4,17 +4,16 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"log"
 	"strconv"
 	"time"
 
-	"github.com/thrasher-/gocryptotrader/currency/symbol"
-
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
-	"github.com/thrasher-/gocryptotrader/exchanges"
+	"github.com/thrasher-/gocryptotrader/currency/symbol"
+	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/request"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
+	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
 const (
@@ -274,7 +273,7 @@ func (a *ANX) GetOrderList(isActiveOrdersOnly bool) ([]OrderResponse, error) {
 	}
 
 	if response.ResultCode != "OK" {
-		log.Printf("Response code is not OK: %s\n", response.ResultCode)
+		log.Errorf("Response code is not OK: %s\n", response.ResultCode)
 		return nil, errors.New(response.ResultCode)
 	}
 
@@ -300,7 +299,7 @@ func (a *ANX) OrderInfo(orderID string) (OrderResponse, error) {
 	}
 
 	if response.ResultCode != "OK" {
-		log.Printf("Response code is not OK: %s\n", response.ResultCode)
+		log.Errorf("Response code is not OK: %s\n", response.ResultCode)
 		return OrderResponse{}, errors.New(response.ResultCode)
 	}
 	return response.Order, nil
@@ -331,7 +330,7 @@ func (a *ANX) Send(currency, address, otp, amount string) (string, error) {
 	}
 
 	if response.ResultCode != "OK" {
-		log.Printf("Response code is not OK: %s\n", response.ResultCode)
+		log.Errorf("Response code is not OK: %s\n", response.ResultCode)
 		return "", errors.New(response.ResultCode)
 	}
 	return response.TransactionID, nil
@@ -357,7 +356,7 @@ func (a *ANX) CreateNewSubAccount(currency, name string) (string, error) {
 	}
 
 	if response.ResultCode != "OK" {
-		log.Printf("Response code is not OK: %s\n", response.ResultCode)
+		log.Errorf("Response code is not OK: %s\n", response.ResultCode)
 		return "", errors.New(response.ResultCode)
 	}
 	return response.SubAccount, nil
@@ -392,7 +391,7 @@ func (a *ANX) GetDepositAddressByCurrency(currency, name string, new bool) (stri
 	}
 
 	if response.ResultCode != "OK" {
-		log.Printf("Response code is not OK: %s\n", response.ResultCode)
+		log.Errorf("Response code is not OK: %s\n", response.ResultCode)
 		return "", errors.New(response.ResultCode)
 	}
 
@@ -432,7 +431,7 @@ func (a *ANX) SendAuthenticatedHTTPRequest(path string, params map[string]interf
 	}
 
 	if a.Verbose {
-		log.Printf("Request JSON: %s\n", PayloadJSON)
+		log.Debugf("Request JSON: %s\n", PayloadJSON)
 	}
 
 	hmac := common.GetHMAC(common.HashSHA512, []byte(path+string("\x00")+string(PayloadJSON)), []byte(a.APISecret))
@@ -497,7 +496,7 @@ func (a *ANX) GetAccountInformation() (AccountInformation, error) {
 	}
 
 	if response.ResultCode != "OK" {
-		log.Printf("Response code is not OK: %s\n", response.ResultCode)
+		log.Errorf("Response code is not OK: %s\n", response.ResultCode)
 		return response, errors.New(response.ResultCode)
 	}
 	return response, nil
@@ -520,7 +519,7 @@ func (a *ANX) CheckAPIWithdrawPermission() (bool, error) {
 	}
 
 	if !apiAllowsWithdraw {
-		log.Printf("API key is missing withdrawal permissions")
+		log.Warn("API key is missing withdrawal permissions")
 	}
 
 	return apiAllowsWithdraw, nil

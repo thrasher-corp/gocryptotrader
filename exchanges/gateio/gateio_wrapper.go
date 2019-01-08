@@ -2,15 +2,15 @@ package gateio
 
 import (
 	"fmt"
-	"log"
 	"strconv"
 	"sync"
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
-	"github.com/thrasher-/gocryptotrader/exchanges"
+	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
+	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
 // Start starts the GateIO go routine
@@ -25,18 +25,18 @@ func (g *Gateio) Start(wg *sync.WaitGroup) {
 // Run implements the GateIO wrapper
 func (g *Gateio) Run() {
 	if g.Verbose {
-		log.Printf("%s Websocket: %s. (url: %s).\n", g.GetName(), common.IsEnabled(g.Websocket.IsEnabled()), g.WebsocketURL)
-		log.Printf("%s polling delay: %ds.\n", g.GetName(), g.RESTPollingDelay)
-		log.Printf("%s %d currencies enabled: %s.\n", g.GetName(), len(g.EnabledPairs), g.EnabledPairs)
+		log.Debugf("%s Websocket: %s. (url: %s).\n", g.GetName(), common.IsEnabled(g.Websocket.IsEnabled()), g.WebsocketURL)
+		log.Debugf("%s polling delay: %ds.\n", g.GetName(), g.RESTPollingDelay)
+		log.Debugf("%s %d currencies enabled: %s.\n", g.GetName(), len(g.EnabledPairs), g.EnabledPairs)
 	}
 
 	symbols, err := g.GetSymbols()
 	if err != nil {
-		log.Printf("%s Unable to fetch symbols.\n", g.GetName())
+		log.Errorf("%s Unable to fetch symbols.\n", g.GetName())
 	} else {
 		err = g.UpdateCurrencies(symbols, false, false)
 		if err != nil {
-			log.Printf("%s Failed to update available currencies.\n", g.GetName())
+			log.Errorf("%s Failed to update available currencies.\n", g.GetName())
 		}
 	}
 }

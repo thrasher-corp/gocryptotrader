@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"log"
 	"net/url"
 	"strconv"
 	"strings"
@@ -14,9 +13,10 @@ import (
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/currency/symbol"
-	"github.com/thrasher-/gocryptotrader/exchanges"
+	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/request"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
+	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
 const (
@@ -807,7 +807,7 @@ func (c *CoinbasePro) SendAuthenticatedHTTPRequest(method, path string, params m
 		}
 
 		if c.Verbose {
-			log.Printf("Request JSON: %s\n", payload)
+			log.Debugf("Request JSON: %s\n", payload)
 		}
 	}
 

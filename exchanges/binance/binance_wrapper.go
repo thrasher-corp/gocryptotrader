@@ -3,7 +3,6 @@ package binance
 import (
 	"errors"
 	"fmt"
-	"log"
 	"strconv"
 	"sync"
 
@@ -12,6 +11,7 @@ import (
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
+	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
 // Start starts the OKEX go routine
@@ -26,7 +26,7 @@ func (b *Binance) Start(wg *sync.WaitGroup) {
 // Run implements the OKEX wrapper
 func (b *Binance) Run() {
 	if b.Verbose {
-		log.Printf("%s Websocket: %s. (url: %s).\n%s polling delay: %ds.\n%s %d currencies enabled: %s.\n",
+		log.Debugf("%s Websocket: %s. (url: %s).\n%s polling delay: %ds.\n%s %d currencies enabled: %s.\n",
 			b.GetName(),
 			common.IsEnabled(b.Websocket.IsEnabled()),
 			b.Websocket.GetWebsocketURL(),
@@ -39,7 +39,7 @@ func (b *Binance) Run() {
 
 	symbols, err := b.GetExchangeValidCurrencyPairs()
 	if err != nil {
-		log.Printf("%s Failed to get exchange info.\n", b.GetName())
+		log.Errorf("%s Failed to get exchange info.\n", b.GetName())
 	} else {
 		forceUpgrade := false
 		if !common.StringDataContains(b.EnabledPairs, "-") ||
@@ -49,16 +49,16 @@ func (b *Binance) Run() {
 
 		if forceUpgrade {
 			enabledPairs := []string{"BTC-USDT"}
-			log.Println("WARNING: Available pairs for Binance reset due to config upgrade, please enable the ones you would like again")
+			log.Warn("Available pairs for Binance reset due to config upgrade, please enable the ones you would like again")
 
 			err = b.UpdateCurrencies(enabledPairs, true, true)
 			if err != nil {
-				log.Printf("%s Failed to get config.\n", b.GetName())
+				log.Errorf("%s Failed to get config.\n", b.GetName())
 			}
 		}
 		err = b.UpdateCurrencies(symbols, false, forceUpgrade)
 		if err != nil {
-			log.Printf("%s Failed to get config.\n", b.GetName())
+			log.Errorf("%s Failed to get config.\n", b.GetName())
 		}
 	}
 }

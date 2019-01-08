@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
 	"net/url"
 	"reflect"
 	"strconv"
@@ -18,6 +17,7 @@ import (
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/request"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
+	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
 const (
@@ -944,7 +944,7 @@ func (o *OKEX) SendAuthenticatedHTTPRequest(method string, values url.Values, re
 	path := o.APIUrl + apiVersion + method
 
 	if o.Verbose {
-		log.Printf("Sending POST request to %s with params %s\n", path, encoded)
+		log.Debugf("Sending POST request to %s with params %s\n", path, encoded)
 	}
 
 	headers := make(map[string]string)

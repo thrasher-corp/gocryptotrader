@@ -3,7 +3,6 @@ package bitfinex
 import (
 	"errors"
 	"fmt"
-	"log"
 	"net/url"
 	"strconv"
 	"time"
@@ -15,6 +14,7 @@ import (
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/request"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
+	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
 const (
@@ -906,7 +906,7 @@ func (b *Bitfinex) SendAuthenticatedHTTPRequest(method, path string, params map[
 	}
 
 	if b.Verbose {
-		log.Printf("Request JSON: %s\n", PayloadJSON)
+		log.Debugf("Request JSON: %s\n", PayloadJSON)
 	}
 
 	PayloadBase64 := common.Base64Encode(PayloadJSON)

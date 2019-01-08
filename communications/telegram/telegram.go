@@ -7,11 +7,11 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"log"
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/communications/base"
 	"github.com/thrasher-/gocryptotrader/config"
+	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
 const (
@@ -87,7 +87,7 @@ func (t *Telegram) PollerStart() {
 	for {
 		resp, err := t.GetUpdates()
 		if err != nil {
-			log.Fatal(err)
+			log.Error(err)
 		}
 
 		for i := range resp.Result {
@@ -95,7 +95,7 @@ func (t *Telegram) PollerStart() {
 				if string(resp.Result[i].Message.Text[0]) == "/" {
 					err = t.HandleMessages(resp.Result[i].Message.Text, resp.Result[i].Message.From.ID)
 					if err != nil {
-						log.Fatal(err)
+						log.Error(err)
 					}
 				}
 				t.Offset = resp.Result[i].UpdateID

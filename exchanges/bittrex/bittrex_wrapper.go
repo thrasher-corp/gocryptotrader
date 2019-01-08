@@ -3,7 +3,6 @@ package bittrex
 import (
 	"errors"
 	"fmt"
-	"log"
 	"sync"
 
 	"github.com/thrasher-/gocryptotrader/common"
@@ -11,6 +10,7 @@ import (
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
+	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
 // Start starts the Bittrex go routine
@@ -25,13 +25,13 @@ func (b *Bittrex) Start(wg *sync.WaitGroup) {
 // Run implements the Bittrex wrapper
 func (b *Bittrex) Run() {
 	if b.Verbose {
-		log.Printf("%s polling delay: %ds.\n", b.GetName(), b.RESTPollingDelay)
-		log.Printf("%s %d currencies enabled: %s.\n", b.GetName(), len(b.EnabledPairs), b.EnabledPairs)
+		log.Debugf("%s polling delay: %ds.\n", b.GetName(), b.RESTPollingDelay)
+		log.Debugf("%s %d currencies enabled: %s.\n", b.GetName(), len(b.EnabledPairs), b.EnabledPairs)
 	}
 
 	exchangeProducts, err := b.GetMarkets()
 	if err != nil {
-		log.Printf("%s Failed to get available symbols.\n", b.GetName())
+		log.Errorf("%s Failed to get available symbols.\n", b.GetName())
 	} else {
 		forceUpgrade := false
 		if !common.StringDataContains(b.EnabledPairs, "-") || !common.StringDataContains(b.AvailablePairs, "-") {
@@ -47,16 +47,16 @@ func (b *Bittrex) Run() {
 
 		if forceUpgrade {
 			enabledPairs := []string{"USDT-BTC"}
-			log.Println("WARNING: Available pairs for Bittrex reset due to config upgrade, please enable the ones you would like again")
+			log.Warn("Available pairs for Bittrex reset due to config upgrade, please enable the ones you would like again")
 
 			err = b.UpdateCurrencies(enabledPairs, true, true)
 			if err != nil {
-				log.Printf("%s Failed to get config.\n", b.GetName())
+				log.Errorf("%s Failed to get config.", b.GetName())
 			}
 		}
 		err = b.UpdateCurrencies(currencies, false, forceUpgrade)
 		if err != nil {
-			log.Printf("%s Failed to get config.\n", b.GetName())
+			log.Errorf("%s Failed to get config.", b.GetName())
 		}
 	}
 }

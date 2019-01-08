@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"log"
 	"net"
 	"net/http"
 	"net/url"
@@ -13,6 +12,7 @@ import (
 	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
+	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
 var supportedMethods = []string{"GET", "POST", "HEAD", "PUT", "DELETE", "OPTIONS", "CONNECT"}
@@ -257,11 +257,11 @@ func (r *Requester) checkRequest(method, path string, body io.Reader, headers ma
 // DoRequest performs a HTTP/HTTPS request with the supplied params
 func (r *Requester) DoRequest(req *http.Request, method, path string, headers map[string]string, body io.Reader, result interface{}, authRequest, verbose bool) error {
 	if verbose {
-		log.Printf("%s exchange request path: %s requires rate limiter: %v", r.Name, path, r.RequiresRateLimiter())
+		log.Debugf("%s exchange request path: %s requires rate limiter: %v", r.Name, path, r.RequiresRateLimiter())
 		for k, d := range headers {
-			log.Printf("%s exchange request header [%s]: %s", r.Name, k, d)
+			log.Debugf("%s exchange request header [%s]: %s", r.Name, k, d)
 		}
-		log.Println(body)
+		log.Debug(body)
 	}
 
 	var timeoutError error
@@ -270,7 +270,7 @@ func (r *Requester) DoRequest(req *http.Request, method, path string, headers ma
 		if err != nil {
 			if timeoutErr, ok := err.(net.Error); ok && timeoutErr.Timeout() {
 				if verbose {
-					log.Printf("%s request has timed-out retrying request, count %d",
+					log.Errorf("%s request has timed-out retrying request, count %d",
 						r.Name,
 						i)
 				}
@@ -308,8 +308,8 @@ func (r *Requester) DoRequest(req *http.Request, method, path string, headers ma
 
 		resp.Body.Close()
 		if verbose {
-			log.Printf("HTTP status: %s, Code: %v", resp.Status, resp.StatusCode)
-			log.Printf("%s exchange raw response: %s", r.Name, string(contents))
+			log.Debugf("HTTP status: %s, Code: %v", resp.Status, resp.StatusCode)
+			log.Debugf("%s exchange raw response: %s", r.Name, string(contents))
 		}
 
 		if result != nil {
@@ -337,7 +337,7 @@ func (r *Requester) worker() {
 				limit := r.GetRateLimit(x.AuthRequest)
 				diff := limit.GetDuration() - time.Since(r.Cycle)
 				if x.Verbose {
-					log.Printf("%s request. Rate limited! Sleeping for %v", r.Name, diff)
+					log.Debugf("%s request. Rate limited! Sleeping for %v", r.Name, diff)
 				}
 				time.Sleep(diff)
 
@@ -346,7 +346,7 @@ func (r *Requester) worker() {
 						r.IncrementRequests(x.AuthRequest)
 
 						if x.Verbose {
-							log.Printf("%s request. No longer rate limited! Doing request", r.Name)
+							log.Debugf("%s request. No longer rate limited! Doing request", r.Name)
 						}
 
 						err := r.DoRequest(x.Request, x.Method, x.Path, x.Headers, x.Body, x.Result, x.AuthRequest, x.Verbose)
@@ -412,17 +412,17 @@ func (r *Requester) SendPayload(method, path string, headers map[string]string, 
 	}
 
 	if verbose {
-		log.Printf("%s request. Attaching new job.", r.Name)
+		log.Debugf("%s request. Attaching new job.", r.Name)
 	}
 	r.Jobs <- newJob
 
 	if verbose {
-		log.Printf("%s request. Waiting for job to complete.", r.Name)
+		log.Debugf("%s request. Waiting for job to complete.", r.Name)
 	}
 	resp := <-newJob.JobResult
 
 	if verbose {
-		log.Printf("%s request. Job complete.", r.Name)
+		log.Debugf("%s request. Job complete.", r.Name)
 	}
 	return resp.Error
 }

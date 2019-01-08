@@ -2,7 +2,6 @@ package kraken
 
 import (
 	"fmt"
-	"log"
 	"net/url"
 	"strconv"
 	"strings"
@@ -10,9 +9,10 @@ import (
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
-	"github.com/thrasher-/gocryptotrader/exchanges"
+	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/request"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
+	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
 const (
@@ -892,7 +892,7 @@ func GetError(errors []string) error {
 	for _, e := range errors {
 		switch e[0] {
 		case 'W':
-			log.Printf("Kraken API warning: %v\n", e[1:])
+			log.Warnf("Kraken API warning: %v\n", e[1:])
 		default:
 			return fmt.Errorf("Kraken API error: %v", e[1:])
 		}
@@ -931,7 +931,7 @@ func (k *Kraken) SendAuthenticatedHTTPRequest(method string, params url.Values, 
 	signature := common.Base64Encode(common.GetHMAC(common.HashSHA512, append([]byte(path), shasum...), secret))
 
 	if k.Verbose {
-		log.Printf("Sending POST request to %s, path: %s, params: %s", k.APIUrl, path, encoded)
+		log.Debugf("Sending POST request to %s, path: %s, params: %s", k.APIUrl, path, encoded)
 	}
 
 	headers := make(map[string]string)

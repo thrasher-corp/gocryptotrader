@@ -3,7 +3,6 @@ package btcc
 import (
 	"errors"
 	"fmt"
-	"log"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -15,6 +14,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/currency/pair"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
+	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
 const (
@@ -132,48 +132,37 @@ func (b *BTCC) WsHandleData() {
 			case msgTypeHeartBeat:
 
 			case msgTypeGetActiveContracts:
-				log.Println("Active Contracts")
-				log.Fatal(string(resp.Raw))
+				log.Debugf("Active Contracts: %s", resp.Raw)
 
 			case msgTypeQuote:
-				log.Println("Quotes")
-				log.Fatal(string(resp.Raw))
+				log.Debugf("Quotes: %s", resp.Raw)
 
 			case msgTypeLogin:
-				log.Println("Login")
-				log.Fatal(string(resp.Raw))
+				log.Debugf("Login: %s", resp.Raw)
 
 			case msgTypeAccountInfo:
-				log.Println("Account info")
-				log.Fatal(string(resp.Raw))
+				log.Debugf("Account info: %s", resp.Raw)
 
 			case msgTypeExecReport:
-				log.Println("Exec Report")
-				log.Fatal(string(resp.Raw))
+				log.Debugf("Exec Report: %s", resp.Raw)
 
 			case msgTypePlaceOrder:
-				log.Println("Place order")
-				log.Fatal(string(resp.Raw))
+				log.Debugf("Place order: %s", resp.Raw)
 
 			case msgTypeCancelAllOrders:
-				log.Println("Cancel All orders")
-				log.Fatal(string(resp.Raw))
+				log.Debugf("Cancel All orders: %s", resp.Raw)
 
 			case msgTypeCancelOrder:
-				log.Println("Cancel order")
-				log.Fatal(string(resp.Raw))
+				log.Debugf("Cancel order: %s", resp.Raw)
 
 			case msgTypeCancelReplaceOrder:
-				log.Println("Replace order")
-				log.Fatal(string(resp.Raw))
+				log.Debugf("Replace order: %s", resp.Raw)
 
 			case msgTypeGetAccountInfo:
-				log.Println("Account info")
-				log.Fatal(string(resp.Raw))
+				log.Debugf("Account info: %s", resp.Raw)
 
 			case msgTypeRetrieveOrder:
-				log.Println("Retrieve order")
-				log.Fatal(string(resp.Raw))
+				log.Debugf("Retrieve order: %s", resp.Raw)
 
 			case msgTypeGetTrades:
 				var trades WsTrades

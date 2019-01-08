@@ -3,13 +3,12 @@
 package forexprovider
 
 import (
-	"log"
-
 	"github.com/thrasher-/gocryptotrader/currency/forexprovider/base"
 	currencyconverter "github.com/thrasher-/gocryptotrader/currency/forexprovider/currencyconverterapi"
 	"github.com/thrasher-/gocryptotrader/currency/forexprovider/currencylayer"
 	fixer "github.com/thrasher-/gocryptotrader/currency/forexprovider/fixer.io"
 	"github.com/thrasher-/gocryptotrader/currency/forexprovider/openexchangerates"
+	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
 // ForexProviders is an array of foreign exchange interfaces
@@ -61,7 +60,7 @@ func StartFXService(fxProviders []base.Settings) *ForexProviders {
 		}
 	}
 	if len(fxp.IFXProviders) == 0 {
-		log.Fatal("No foreign exchange providers enabled")
+		log.Error("No foreign exchange providers enabled")
 	}
 	return fxp
 }

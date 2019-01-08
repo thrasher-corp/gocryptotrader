@@ -3,7 +3,6 @@ package exmo
 import (
 	"errors"
 	"fmt"
-	"log"
 	"net/url"
 	"reflect"
 	"strconv"
@@ -16,6 +15,7 @@ import (
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/request"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
+	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
 const (
@@ -274,7 +274,7 @@ func (e *EXMO) GetRequiredAmount(pair string, amount float64) (RequiredAmount, e
 func (e *EXMO) GetCryptoDepositAddress() (map[string]string, error) {
 	result := make(map[string]string)
 	err := e.SendAuthenticatedHTTPRequest("POST", exmoDepositAddress, url.Values{}, &result)
-	log.Println(reflect.TypeOf(result).String())
+	log.Debug(reflect.TypeOf(result).String())
 	return result, err
 }
 
@@ -376,7 +376,7 @@ func (e *EXMO) SendAuthenticatedHTTPRequest(method, endpoint string, vals url.Va
 	hash := common.GetHMAC(common.HashSHA512, []byte(payload), []byte(e.APISecret))
 
 	if e.Verbose {
-		log.Printf("Sending %s request to %s with params %s\n", method, endpoint, payload)
+		log.Debugf("Sending %s request to %s with params %s\n", method, endpoint, payload)
 	}
 
 	headers := make(map[string]string)

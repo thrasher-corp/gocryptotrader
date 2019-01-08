@@ -3,7 +3,6 @@ package exchange
 import (
 	"errors"
 	"fmt"
-	"log"
 	"net/http"
 	"net/url"
 	"strings"
@@ -17,6 +16,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-/gocryptotrader/exchanges/request"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
+	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
 const (
@@ -654,7 +654,7 @@ func (e *Base) SetAPIKeys(APIKey, APISecret, ClientID string, b64Decode bool) {
 		result, err := common.Base64Decode(APISecret)
 		if err != nil {
 			e.AuthenticatedAPISupport = false
-			log.Printf(warningBase64DecryptSecretKeyFailed, e.Name)
+			log.Warn(warningBase64DecryptSecretKeyFailed, e.Name)
 		}
 		e.APISecret = string(result)
 	} else {
@@ -728,13 +728,13 @@ func (e *Base) UpdateCurrencies(exchangeProducts []string, enabled, force bool) 
 		}
 
 		if force {
-			log.Printf("%s forced update of %s pairs.", e.Name, updateType)
+			log.Debugf("%s forced update of %s pairs.", e.Name, updateType)
 		} else {
 			if len(newPairs) > 0 {
-				log.Printf("%s Updating pairs - New: %s.\n", e.Name, newPairs)
+				log.Debugf("%s Updating pairs - New: %s.\n", e.Name, newPairs)
 			}
 			if len(removedPairs) > 0 {
-				log.Printf("%s Updating pairs - Removed: %s.\n", e.Name, removedPairs)
+				log.Debugf("%s Updating pairs - Removed: %s.\n", e.Name, removedPairs)
 			}
 		}
 

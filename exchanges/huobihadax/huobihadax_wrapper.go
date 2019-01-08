@@ -3,15 +3,15 @@ package huobihadax
 import (
 	"errors"
 	"fmt"
-	"log"
 	"strconv"
 	"sync"
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
-	"github.com/thrasher-/gocryptotrader/exchanges"
+	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
+	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
 // Start starts the OKEX go routine
@@ -26,14 +26,14 @@ func (h *HUOBIHADAX) Start(wg *sync.WaitGroup) {
 // Run implements the OKEX wrapper
 func (h *HUOBIHADAX) Run() {
 	if h.Verbose {
-		log.Printf("%s Websocket: %s. (url: %s).\n", h.GetName(), common.IsEnabled(h.Websocket.IsEnabled()), h.WebsocketURL)
-		log.Printf("%s polling delay: %ds.\n", h.GetName(), h.RESTPollingDelay)
-		log.Printf("%s %d currencies enabled: %s.\n", h.GetName(), len(h.EnabledPairs), h.EnabledPairs)
+		log.Debugf("%s Websocket: %s. (url: %s).\n", h.GetName(), common.IsEnabled(h.Websocket.IsEnabled()), h.WebsocketURL)
+		log.Debugf("%s polling delay: %ds.\n", h.GetName(), h.RESTPollingDelay)
+		log.Debugf("%s %d currencies enabled: %s.\n", h.GetName(), len(h.EnabledPairs), h.EnabledPairs)
 	}
 
 	exchangeProducts, err := h.GetSymbols()
 	if err != nil {
-		log.Printf("%s Failed to get available symbols.\n", h.GetName())
+		log.Debugf("%s Failed to get available symbols.\n", h.GetName())
 	} else {
 		var currencies []string
 		for x := range exchangeProducts {
@@ -43,7 +43,7 @@ func (h *HUOBIHADAX) Run() {
 
 		err = h.UpdateCurrencies(currencies, false, false)
 		if err != nil {
-			log.Printf("%s Failed to update available currencies.\n", h.GetName())
+			log.Debugf("%s Failed to update available currencies.\n", h.GetName())
 		}
 	}
 }

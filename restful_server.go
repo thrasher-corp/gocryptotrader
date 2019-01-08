@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/json"
-	"log"
 	"net/http"
 
 	"github.com/gorilla/mux"
@@ -10,6 +9,7 @@ import (
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
+	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
 // AllEnabledExchangeOrderbooks holds the enabled exchange orderbooks
@@ -50,7 +50,7 @@ func RESTfulJSONResponse(w http.ResponseWriter, r *http.Request, response interf
 
 // RESTfulError prints the REST method and error
 func RESTfulError(method string, err error) {
-	log.Printf("RESTful %s: server failed to send JSON response. Error %s",
+	log.Errorf("RESTful %s: server failed to send JSON response. Error %s",
 		method, err)
 }
 
@@ -101,7 +101,7 @@ func RESTGetOrderbook(w http.ResponseWriter, r *http.Request) {
 
 	response, err := GetSpecificOrderbook(currency, exchange, assetType)
 	if err != nil {
-		log.Printf("Failed to fetch orderbook for %s currency: %s\n", exchange,
+		log.Errorf("Failed to fetch orderbook for %s currency: %s\n", exchange,
 			currency)
 		return
 	}
@@ -124,7 +124,7 @@ func GetAllActiveOrderbooks() []EnabledExchangeOrderbooks {
 			currencies := individualBot.GetEnabledCurrencies()
 			assetTypes, err := exchange.GetExchangeAssetTypes(exchangeName)
 			if err != nil {
-				log.Printf("failed to get %s exchange asset types. Error: %s",
+				log.Errorf("failed to get %s exchange asset types. Error: %s",
 					exchangeName, err)
 				continue
 			}
@@ -143,7 +143,7 @@ func GetAllActiveOrderbooks() []EnabledExchangeOrderbooks {
 				}
 
 				if err != nil {
-					log.Printf("failed to get %s %s orderbook. Error: %s",
+					log.Errorf("failed to get %s %s orderbook. Error: %s",
 						currency.Pair().String(),
 						exchangeName,
 						err)
@@ -193,7 +193,7 @@ func RESTGetTicker(w http.ResponseWriter, r *http.Request) {
 	}
 	response, err := GetSpecificTicker(currency, exchange, assetType)
 	if err != nil {
-		log.Printf("Failed to fetch ticker for %s currency: %s\n", exchange,
+		log.Errorf("Failed to fetch ticker for %s currency: %s\n", exchange,
 			currency)
 		return
 	}
@@ -217,7 +217,7 @@ func GetAllActiveTickers() []EnabledExchangeCurrencies {
 				currency := x
 				assetTypes, err := exchange.GetExchangeAssetTypes(exchangeName)
 				if err != nil {
-					log.Printf("failed to get %s exchange asset types. Error: %s",
+					log.Errorf("failed to get %s exchange asset types. Error: %s",
 						exchangeName, err)
 					continue
 				}
@@ -233,7 +233,7 @@ func GetAllActiveTickers() []EnabledExchangeCurrencies {
 				}
 
 				if err != nil {
-					log.Printf("failed to get %s %s ticker. Error: %s",
+					log.Errorf("failed to get %s %s ticker. Error: %s",
 						currency.Pair().String(),
 						exchangeName,
 						err)
@@ -267,12 +267,12 @@ func GetAllEnabledExchangeAccountInfo() AllEnabledExchangeAccounts {
 	for _, individualBot := range bot.exchanges {
 		if individualBot != nil && individualBot.IsEnabled() {
 			if !individualBot.GetAuthenticatedAPISupport() {
-				log.Printf("GetAllEnabledExchangeAccountInfo: Skippping %s due to disabled authenticated API support.", individualBot.GetName())
+				log.Warnf("GetAllEnabledExchangeAccountInfo: Skippping %s due to disabled authenticated API support.", individualBot.GetName())
 				continue
 			}
 			individualExchange, err := individualBot.GetAccountInfo()
 			if err != nil {
-				log.Printf("Error encountered retrieving exchange account info for %s. Error %s",
+				log.Errorf("Error encountered retrieving exchange account info for %s. Error %s",
 					individualBot.GetName(), err)
 				continue
 			}

@@ -2,7 +2,6 @@ package btcc
 
 import (
 	"errors"
-	"log"
 	"sync"
 
 	"github.com/thrasher-/gocryptotrader/common"
@@ -11,6 +10,7 @@ import (
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
+	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
 // Start starts the BTCC go routine
@@ -25,18 +25,18 @@ func (b *BTCC) Start(wg *sync.WaitGroup) {
 // Run implements the BTCC wrapper
 func (b *BTCC) Run() {
 	if b.Verbose {
-		log.Printf("%s Websocket: %s.", b.GetName(), common.IsEnabled(b.Websocket.IsEnabled()))
-		log.Printf("%s polling delay: %ds.\n", b.GetName(), b.RESTPollingDelay)
-		log.Printf("%s %d currencies enabled: %s.\n", b.GetName(), len(b.EnabledPairs), b.EnabledPairs)
+		log.Debugf("%s Websocket: %s.", b.GetName(), common.IsEnabled(b.Websocket.IsEnabled()))
+		log.Debugf("%s polling delay: %ds.\n", b.GetName(), b.RESTPollingDelay)
+		log.Debugf("%s %d currencies enabled: %s.\n", b.GetName(), len(b.EnabledPairs), b.EnabledPairs)
 	}
 
 	if common.StringDataContains(b.EnabledPairs, "CNY") || common.StringDataContains(b.AvailablePairs, "CNY") || common.StringDataContains(b.BaseCurrencies, "CNY") {
-		log.Println("WARNING: BTCC only supports BTCUSD now, upgrading available, enabled and base currencies to BTCUSD/USD")
+		log.Warn("BTCC only supports BTCUSD now, upgrading available, enabled and base currencies to BTCUSD/USD")
 		pairs := []string{"BTCUSD"}
 		cfg := config.GetConfig()
 		exchCfg, err := cfg.GetExchangeConfig(b.Name)
 		if err != nil {
-			log.Printf("%s failed to get exchange config. %s\n", b.Name, err)
+			log.Errorf("%s failed to get exchange config. %s\n", b.Name, err)
 			return
 		}
 
@@ -47,17 +47,17 @@ func (b *BTCC) Run() {
 
 		err = b.UpdateCurrencies(pairs, false, true)
 		if err != nil {
-			log.Printf("%s failed to update available currencies. %s\n", b.Name, err)
+			log.Errorf("%s failed to update available currencies. %s\n", b.Name, err)
 		}
 
 		err = b.UpdateCurrencies(pairs, true, true)
 		if err != nil {
-			log.Printf("%s failed to update enabled currencies. %s\n", b.Name, err)
+			log.Errorf("%s failed to update enabled currencies. %s\n", b.Name, err)
 		}
 
 		err = cfg.UpdateExchangeConfig(exchCfg)
 		if err != nil {
-			log.Printf("%s failed to update config. %s\n", b.Name, err)
+			log.Errorf("%s failed to update config. %s\n", b.Name, err)
 			return
 		}
 	}

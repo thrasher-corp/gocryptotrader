@@ -3,16 +3,16 @@ package huobi
 import (
 	"errors"
 	"fmt"
-	"log"
 	"strconv"
 	"sync"
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
-	"github.com/thrasher-/gocryptotrader/exchanges"
+	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
+	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
 // Start starts the HUOBI go routine
@@ -27,14 +27,14 @@ func (h *HUOBI) Start(wg *sync.WaitGroup) {
 // Run implements the HUOBI wrapper
 func (h *HUOBI) Run() {
 	if h.Verbose {
-		log.Printf("%s Websocket: %s (url: %s).\n", h.GetName(), common.IsEnabled(h.Websocket.IsEnabled()), huobiSocketIOAddress)
-		log.Printf("%s polling delay: %ds.\n", h.GetName(), h.RESTPollingDelay)
-		log.Printf("%s %d currencies enabled: %s.\n", h.GetName(), len(h.EnabledPairs), h.EnabledPairs)
+		log.Debugf("%s Websocket: %s (url: %s).\n", h.GetName(), common.IsEnabled(h.Websocket.IsEnabled()), huobiSocketIOAddress)
+		log.Debugf("%s polling delay: %ds.\n", h.GetName(), h.RESTPollingDelay)
+		log.Debugf("%s %d currencies enabled: %s.\n", h.GetName(), len(h.EnabledPairs), h.EnabledPairs)
 	}
 
 	exchangeProducts, err := h.GetSymbols()
 	if err != nil {
-		log.Printf("%s Failed to get available symbols.\n", h.GetName())
+		log.Errorf("%s Failed to get available symbols.\n", h.GetName())
 	} else {
 		forceUpgrade := false
 		if common.StringDataContains(h.EnabledPairs, "CNY") || common.StringDataContains(h.AvailablePairs, "CNY") {
@@ -45,7 +45,7 @@ func (h *HUOBI) Run() {
 			cfg := config.GetConfig()
 			exchCfg, errCNY := cfg.GetExchangeConfig(h.Name)
 			if err != nil {
-				log.Printf("%s failed to get exchange config. %s\n", h.Name, errCNY)
+				log.Errorf("%s failed to get exchange config. %s\n", h.Name, errCNY)
 				return
 			}
 			exchCfg.BaseCurrencies = "USD"
@@ -53,7 +53,7 @@ func (h *HUOBI) Run() {
 
 			errCNY = cfg.UpdateExchangeConfig(exchCfg)
 			if errCNY != nil {
-				log.Printf("%s failed to update config. %s\n", h.Name, errCNY)
+				log.Errorf("%s failed to update config. %s\n", h.Name, errCNY)
 				return
 			}
 		}
@@ -66,16 +66,16 @@ func (h *HUOBI) Run() {
 
 		if forceUpgrade {
 			enabledPairs := []string{"btc-usdt"}
-			log.Println("WARNING: Available and enabled pairs for Huobi reset due to config upgrade, please enable the ones you would like again")
+			log.Warn("Available and enabled pairs for Huobi reset due to config upgrade, please enable the ones you would like again")
 
 			err = h.UpdateCurrencies(enabledPairs, true, true)
 			if err != nil {
-				log.Printf("%s Failed to update enabled currencies.\n", h.GetName())
+				log.Errorf("%s Failed to update enabled currencies.\n", h.GetName())
 			}
 		}
 		err = h.UpdateCurrencies(currencies, false, forceUpgrade)
 		if err != nil {
-			log.Printf("%s Failed to update available currencies.\n", h.GetName())
+			log.Errorf("%s Failed to update available currencies.\n", h.GetName())
 		}
 	}
 }

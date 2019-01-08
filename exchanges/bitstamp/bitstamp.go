@@ -3,7 +3,6 @@ package bitstamp
 import (
 	"errors"
 	"fmt"
-	"log"
 	"net/url"
 	"reflect"
 	"strconv"
@@ -13,9 +12,10 @@ import (
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/currency/symbol"
-	"github.com/thrasher-/gocryptotrader/exchanges"
+	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/request"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
+	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
 const (
@@ -254,12 +254,12 @@ func (b *Bitstamp) GetOrderbook(currency string) (Orderbook, error) {
 	for _, x := range resp.Bids {
 		price, err := strconv.ParseFloat(x[0], 64)
 		if err != nil {
-			log.Println(err)
+			log.Error(err)
 			continue
 		}
 		amount, err := strconv.ParseFloat(x[1], 64)
 		if err != nil {
-			log.Println(err)
+			log.Error(err)
 			continue
 		}
 		orderbook.Bids = append(orderbook.Bids, OrderbookBase{price, amount})
@@ -268,12 +268,12 @@ func (b *Bitstamp) GetOrderbook(currency string) (Orderbook, error) {
 	for _, x := range resp.Asks {
 		price, err := strconv.ParseFloat(x[0], 64)
 		if err != nil {
-			log.Println(err)
+			log.Error(err)
 			continue
 		}
 		amount, err := strconv.ParseFloat(x[1], 64)
 		if err != nil {
-			log.Println(err)
+			log.Error(err)
 			continue
 		}
 		orderbook.Asks = append(orderbook.Asks, OrderbookBase{price, amount})
@@ -605,7 +605,7 @@ func (b *Bitstamp) SendAuthenticatedHTTPRequest(path string, v2 bool, values url
 	}
 
 	if b.Verbose {
-		log.Println("Sending POST request to " + path)
+		log.Debugf("Sending POST request to " + path)
 	}
 
 	headers := make(map[string]string)

@@ -3,16 +3,16 @@ package lakebtc
 import (
 	"errors"
 	"fmt"
-	"log"
 	"strconv"
 	"sync"
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
 	"github.com/thrasher-/gocryptotrader/currency/symbol"
-	"github.com/thrasher-/gocryptotrader/exchanges"
+	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
+	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
 // Start starts the LakeBTC go routine
@@ -27,17 +27,17 @@ func (l *LakeBTC) Start(wg *sync.WaitGroup) {
 // Run implements the LakeBTC wrapper
 func (l *LakeBTC) Run() {
 	if l.Verbose {
-		log.Printf("%s polling delay: %ds.\n", l.GetName(), l.RESTPollingDelay)
-		log.Printf("%s %d currencies enabled: %s.\n", l.GetName(), len(l.EnabledPairs), l.EnabledPairs)
+		log.Debugf("%s polling delay: %ds.\n", l.GetName(), l.RESTPollingDelay)
+		log.Debugf("%s %d currencies enabled: %s.\n", l.GetName(), len(l.EnabledPairs), l.EnabledPairs)
 	}
 
 	exchangeProducts, err := l.GetTradablePairs()
 	if err != nil {
-		log.Printf("%s Failed to get available products.\n", l.GetName())
+		log.Errorf("%s Failed to get available products.\n", l.GetName())
 	} else {
 		err = l.UpdateCurrencies(exchangeProducts, false, false)
 		if err != nil {
-			log.Printf("%s Failed to update available currencies.\n", l.GetName())
+			log.Errorf("%s Failed to update available currencies.\n", l.GetName())
 		}
 	}
 }

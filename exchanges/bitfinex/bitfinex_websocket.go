@@ -3,7 +3,6 @@ package bitfinex
 import (
 	"errors"
 	"fmt"
-	"log"
 	"net/http"
 	"net/url"
 	"reflect"
@@ -13,8 +12,9 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
-	"github.com/thrasher-/gocryptotrader/exchanges"
+	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
+	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
 const (
@@ -116,7 +116,7 @@ func (b *Bitfinex) WsAddSubscriptionChannel(chanID int, channel, pair string) {
 	b.WebsocketSubdChannels[chanID] = chanInfo
 
 	if b.Verbose {
-		log.Printf("%s Subscribed to Channel: %s Pair: %s ChannelID: %d\n",
+		log.Debugf("%s Subscribed to Channel: %s Pair: %s ChannelID: %d\n",
 			b.GetName(),
 			channel,
 			pair,
@@ -160,7 +160,7 @@ func (b *Bitfinex) WsConnect() error {
 
 	if hs.Event == "info" {
 		if b.Verbose {
-			log.Printf("%s Connected to Websocket.\n", b.GetName())
+			log.Debugf("%s Connected to Websocket.\n", b.GetName())
 		}
 	}
 

@@ -3,11 +3,7 @@ package main
 import (
 	"errors"
 	"fmt"
-	"io"
-	"log"
-	"os"
 
-	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
 	"github.com/thrasher-/gocryptotrader/currency/translation"
@@ -15,38 +11,9 @@ import (
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-/gocryptotrader/exchanges/stats"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
+	log "github.com/thrasher-/gocryptotrader/logger"
 	"github.com/thrasher-/gocryptotrader/portfolio"
 )
-
-const (
-	logFile = "debug.log"
-)
-
-var (
-	logFileHandle *os.File
-)
-
-// InitLogFile initialises the log file
-func InitLogFile(lFile string) error {
-	if logFileHandle != nil {
-		return nil
-	}
-
-	var err error
-	logFileHandle, err = os.OpenFile(lFile, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
-	if err != nil {
-		return err
-	}
-
-	wrt := io.MultiWriter(os.Stdout, logFileHandle)
-	log.SetOutput(wrt)
-	return nil
-}
-
-// GetLogFile returns the debug.log file
-func GetLogFile(dir string) string {
-	return dir + common.GetOSPathSlash() + logFile
-}
 
 // GetAllAvailablePairs returns a list of all available pairs on either enabled
 // or disabled exchanges
@@ -369,7 +336,7 @@ func SeedExchangeAccountInfo(data []exchange.AccountInfo) {
 				if total <= 0 {
 					continue
 				}
-				log.Printf("Portfolio: Adding new exchange address: %s, %s, %f, %s\n",
+				log.Debugf("Portfolio: Adding new exchange address: %s, %s, %f, %s\n",
 					exchangeName, currencyName, total, portfolio.PortfolioAddressExchange)
 				port.Addresses = append(
 					port.Addresses,
@@ -378,7 +345,7 @@ func SeedExchangeAccountInfo(data []exchange.AccountInfo) {
 				)
 			} else {
 				if total <= 0 {
-					log.Printf("Portfolio: Removing %s %s entry.\n", exchangeName,
+					log.Debugf("Portfolio: Removing %s %s entry.\n", exchangeName,
 						currencyName)
 					port.RemoveExchangeAddress(exchangeName, currencyName)
 				} else {
@@ -387,7 +354,7 @@ func SeedExchangeAccountInfo(data []exchange.AccountInfo) {
 						continue
 					}
 					if balance != total {
-						log.Printf("Portfolio: Updating %s %s entry with balance %f.\n",
+						log.Debugf("Portfolio: Updating %s %s entry with balance %f.\n",
 							exchangeName, currencyName, total)
 						port.UpdateExchangeAddressBalance(exchangeName, currencyName, total)
 					}

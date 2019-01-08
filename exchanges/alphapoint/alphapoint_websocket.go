@@ -1,11 +1,11 @@
 package alphapoint
 
 import (
-	"log"
 	"net/http"
 
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-/gocryptotrader/common"
+	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
 const (
@@ -20,25 +20,25 @@ func (a *Alphapoint) WebsocketClient() {
 		a.WebsocketConn, _, err = Dialer.Dial(a.WebsocketURL, http.Header{})
 
 		if err != nil {
-			log.Printf("%s Unable to connect to Websocket. Error: %s\n", a.Name, err)
+			log.Errorf("%s Unable to connect to Websocket. Error: %s\n", a.Name, err)
 			continue
 		}
 
 		if a.Verbose {
-			log.Printf("%s Connected to Websocket.\n", a.Name)
+			log.Debugf("%s Connected to Websocket.\n", a.Name)
 		}
 
 		err = a.WebsocketConn.WriteMessage(websocket.TextMessage, []byte(`{"messageType": "logon"}`))
 
 		if err != nil {
-			log.Println(err)
+			log.Error(err)
 			return
 		}
 
 		for a.Enabled {
 			msgType, resp, err := a.WebsocketConn.ReadMessage()
 			if err != nil {
-				log.Println(err)
+				log.Error(err)
 				break
 			}
 
@@ -51,7 +51,7 @@ func (a *Alphapoint) WebsocketClient() {
 				msgType := MsgType{}
 				err := common.JSONDecode(resp, &msgType)
 				if err != nil {
-					log.Println(err)
+					log.Error(err)
 					continue
 				}
 
@@ -60,13 +60,13 @@ func (a *Alphapoint) WebsocketClient() {
 					ticker := WebsocketTicker{}
 					err = common.JSONDecode(resp, &ticker)
 					if err != nil {
-						log.Println(err)
+						log.Error(err)
 						continue
 					}
 				}
 			}
 		}
 		a.WebsocketConn.Close()
-		log.Printf("%s Websocket client disconnected.", a.Name)
+		log.Debugf("%s Websocket client disconnected.", a.Name)
 	}
 }

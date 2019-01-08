@@ -2,12 +2,12 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"net/http"
 	"time"
 
 	"github.com/gorilla/mux"
-	"github.com/thrasher-/gocryptotrader/exchanges"
+	exchange "github.com/thrasher-/gocryptotrader/exchanges"
+	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
 // RESTLogger logs the requests internally
@@ -17,7 +17,7 @@ func RESTLogger(inner http.Handler, name string) http.Handler {
 
 		inner.ServeHTTP(w, r)
 
-		log.Printf(
+		log.Debugf(
 			"%s\t%s\t%s\t%s",
 			r.Method,
 			r.RequestURI,

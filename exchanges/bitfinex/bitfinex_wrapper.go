@@ -3,16 +3,16 @@ package bitfinex
 import (
 	"errors"
 	"fmt"
-	"log"
 	"net/url"
 	"strconv"
 	"sync"
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
-	"github.com/thrasher-/gocryptotrader/exchanges"
+	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
+	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
 // Start starts the Bitfinex go routine
@@ -27,18 +27,18 @@ func (b *Bitfinex) Start(wg *sync.WaitGroup) {
 // Run implements the Bitfinex wrapper
 func (b *Bitfinex) Run() {
 	if b.Verbose {
-		log.Printf("%s Websocket: %s.", b.GetName(), common.IsEnabled(b.Websocket.IsEnabled()))
-		log.Printf("%s polling delay: %ds.\n", b.GetName(), b.RESTPollingDelay)
-		log.Printf("%s %d currencies enabled: %s.\n", b.GetName(), len(b.EnabledPairs), b.EnabledPairs)
+		log.Debugf("%s Websocket: %s.", b.GetName(), common.IsEnabled(b.Websocket.IsEnabled()))
+		log.Debugf("%s polling delay: %ds.\n", b.GetName(), b.RESTPollingDelay)
+		log.Debugf("%s %d currencies enabled: %s.\n", b.GetName(), len(b.EnabledPairs), b.EnabledPairs)
 	}
 
 	exchangeProducts, err := b.GetSymbols()
 	if err != nil {
-		log.Printf("%s Failed to get available symbols.\n", b.GetName())
+		log.Errorf("%s Failed to get available symbols.\n", b.GetName())
 	} else {
 		err = b.UpdateCurrencies(exchangeProducts, false, false)
 		if err != nil {
-			log.Printf("%s Failed to update available symbols.\n", b.GetName())
+			log.Errorf("%s Failed to update available symbols.\n", b.GetName())
 		}
 	}
 }

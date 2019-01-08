@@ -3,16 +3,15 @@ package btcmarkets
 import (
 	"errors"
 	"fmt"
-	"log"
 	"strconv"
 	"sync"
 
 	"github.com/thrasher-/gocryptotrader/common"
-
 	"github.com/thrasher-/gocryptotrader/currency/pair"
-	"github.com/thrasher-/gocryptotrader/exchanges"
+	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
+	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
 // Start starts the BTC Markets go routine
@@ -27,13 +26,13 @@ func (b *BTCMarkets) Start(wg *sync.WaitGroup) {
 // Run implements the BTC Markets wrapper
 func (b *BTCMarkets) Run() {
 	if b.Verbose {
-		log.Printf("%s polling delay: %ds.\n", b.GetName(), b.RESTPollingDelay)
-		log.Printf("%s %d currencies enabled: %s.\n", b.GetName(), len(b.EnabledPairs), b.EnabledPairs)
+		log.Debugf("%s polling delay: %ds.\n", b.GetName(), b.RESTPollingDelay)
+		log.Debugf("%s %d currencies enabled: %s.\n", b.GetName(), len(b.EnabledPairs), b.EnabledPairs)
 	}
 
 	markets, err := b.GetMarkets()
 	if err != nil {
-		log.Printf("%s failed to get active market. Err: %s", b.Name, err)
+		log.Errorf("%s failed to get active market. Err: %s", b.Name, err)
 	} else {
 		forceUpgrade := false
 		if !common.StringDataContains(b.EnabledPairs, "-") || !common.StringDataContains(b.AvailablePairs, "-") {
@@ -47,16 +46,16 @@ func (b *BTCMarkets) Run() {
 
 		if forceUpgrade {
 			enabledPairs := []string{"BTC-AUD"}
-			log.Println("WARNING: Available pairs for BTC Makrets reset due to config upgrade, please enable the pairs you would like again.")
+			log.Warn("Available pairs for BTC Makrets reset due to config upgrade, please enable the pairs you would like again.")
 
 			err = b.UpdateCurrencies(enabledPairs, true, true)
 			if err != nil {
-				log.Printf("%s failed to update currencies. Err: %s", b.Name, err)
+				log.Errorf("%s failed to update currencies. Err: %s", b.Name, err)
 			}
 		}
 		err = b.UpdateCurrencies(currencies, false, forceUpgrade)
 		if err != nil {
-			log.Printf("%s failed to update currencies. Err: %s", b.Name, err)
+			log.Errorf("%s failed to update currencies. Err: %s", b.Name, err)
 		}
 	}
 }

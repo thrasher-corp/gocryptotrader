@@ -3,7 +3,6 @@ package yobit
 import (
 	"errors"
 	"fmt"
-	"log"
 	"net/url"
 	"strconv"
 	"strings"
@@ -12,9 +11,10 @@ import (
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/currency/symbol"
-	"github.com/thrasher-/gocryptotrader/exchanges"
+	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/request"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
+	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
 const (
@@ -345,7 +345,7 @@ func (y *Yobit) SendAuthenticatedHTTPRequest(path string, params url.Values, res
 	hmac := common.GetHMAC(common.HashSHA512, []byte(encoded), []byte(y.APISecret))
 
 	if y.Verbose {
-		log.Printf("Sending POST request to %s calling path %s with params %s\n", apiPrivateURL, path, encoded)
+		log.Debugf("Sending POST request to %s calling path %s with params %s\n", apiPrivateURL, path, encoded)
 	}
 
 	headers := make(map[string]string)

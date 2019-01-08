@@ -3,7 +3,6 @@ package okex
 import (
 	"errors"
 	"fmt"
-	"log"
 	"strconv"
 	"sync"
 
@@ -12,6 +11,7 @@ import (
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
+	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
 // Start starts the OKEX go routine
@@ -26,14 +26,14 @@ func (o *OKEX) Start(wg *sync.WaitGroup) {
 // Run implements the OKEX wrapper
 func (o *OKEX) Run() {
 	if o.Verbose {
-		log.Printf("%s Websocket: %s. (url: %s).\n", o.GetName(), common.IsEnabled(o.Websocket.IsEnabled()), o.WebsocketURL)
-		log.Printf("%s polling delay: %ds.\n", o.GetName(), o.RESTPollingDelay)
-		log.Printf("%s %d currencies enabled: %s.\n", o.GetName(), len(o.EnabledPairs), o.EnabledPairs)
+		log.Debugf("%s Websocket: %s. (url: %s).\n", o.GetName(), common.IsEnabled(o.Websocket.IsEnabled()), o.WebsocketURL)
+		log.Debugf("%s polling delay: %ds.\n", o.GetName(), o.RESTPollingDelay)
+		log.Debugf("%s %d currencies enabled: %s.\n", o.GetName(), len(o.EnabledPairs), o.EnabledPairs)
 	}
 
 	prods, err := o.GetSpotInstruments()
 	if err != nil {
-		log.Printf("OKEX failed to obtain available spot instruments. Err: %d", err)
+		log.Errorf("OKEX failed to obtain available spot instruments. Err: %d", err)
 		return
 	}
 
@@ -44,7 +44,8 @@ func (o *OKEX) Run() {
 
 	err = o.UpdateCurrencies(pairs, false, false)
 	if err != nil {
-		log.Printf("OKEX failed to update available currencies. Err: %s", err)
+		log.Errorf("OKEX failed to update available currencies. Err: %s", err)
+		return
 	}
 }
 

@@ -3,18 +3,17 @@ package bitmex
 import (
 	"errors"
 	"fmt"
-	"log"
 	"net/http"
 	"net/url"
 	"strconv"
 	"time"
 
-	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
-
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
-	"github.com/thrasher-/gocryptotrader/exchanges"
+	exchange "github.com/thrasher-/gocryptotrader/exchanges"
+	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
+	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
 const (
@@ -98,7 +97,7 @@ func (b *Bitmex) WsConnector() error {
 	}
 
 	if b.Verbose {
-		log.Printf("Successfully connected to Bitmex %s at time: %s Limit: %d",
+		log.Debugf("Successfully connected to Bitmex %s at time: %s Limit: %d",
 			welcomeResp.Info,
 			welcomeResp.Timestamp,
 			welcomeResp.Limit.Remaining)
@@ -187,14 +186,14 @@ func (b *Bitmex) wsHandleIncomingData() {
 			quickCapture := make(map[string]interface{})
 			err := common.JSONDecode(resp.Raw, &quickCapture)
 			if err != nil {
-				log.Fatal(err)
+				log.Error(err)
 			}
 
 			var respError WebsocketErrorResponse
 			if _, ok := quickCapture["status"]; ok {
 				err = common.JSONDecode(resp.Raw, &respError)
 				if err != nil {
-					log.Fatal(err)
+					log.Error(err)
 				}
 				b.Websocket.DataHandler <- errors.New(respError.Error)
 				continue
@@ -204,16 +203,16 @@ func (b *Bitmex) wsHandleIncomingData() {
 				var decodedResp WebsocketSubscribeResp
 				err := common.JSONDecode(resp.Raw, &decodedResp)
 				if err != nil {
-					log.Fatal(err)
+					log.Error(err)
 				}
 
 				if decodedResp.Success {
 					if b.Verbose {
 						if len(quickCapture) == 3 {
-							log.Printf("Bitmex Websocket: Successfully subscribed to %s",
+							log.Debugf("Bitmex Websocket: Successfully subscribed to %s",
 								decodedResp.Subscribe)
 						} else {
-							log.Println("Bitmex Websocket: Successfully authenticated websocket connection")
+							log.Debugf("Bitmex Websocket: Successfully authenticated websocket connection")
 						}
 					}
 					continue
@@ -226,7 +225,7 @@ func (b *Bitmex) wsHandleIncomingData() {
 				var decodedResp WebsocketMainResponse
 				err := common.JSONDecode(resp.Raw, &decodedResp)
 				if err != nil {
-					log.Fatal(err)
+					log.Error(err)
 				}
 
 				switch decodedResp.Table {
@@ -234,20 +233,20 @@ func (b *Bitmex) wsHandleIncomingData() {
 					var orderbooks OrderBookData
 					err = common.JSONDecode(resp.Raw, &orderbooks)
 					if err != nil {
-						log.Fatal(err)
+						log.Error(err)
 					}
 
 					p := pair.NewCurrencyPairFromString(orderbooks.Data[0].Symbol)
 					err = b.processOrderbook(orderbooks.Data, orderbooks.Action, p, "CONTRACT")
 					if err != nil {
-						log.Fatal(err)
+						log.Error(err)
 					}
 
 				case bitmexWSTrade:
 					var trades TradeData
 					err = common.JSONDecode(resp.Raw, &trades)
 					if err != nil {
-						log.Fatal(err)
+						log.Error(err)
 					}
 
 					if trades.Action == bitmexActionInitialData {
@@ -257,7 +256,7 @@ func (b *Bitmex) wsHandleIncomingData() {
 					for _, trade := range trades.Data {
 						timestamp, err := time.Parse(time.RFC3339, trade.Timestamp)
 						if err != nil {
-							log.Fatal(err)
+							log.Error(err)
 						}
 
 						b.Websocket.DataHandler <- exchange.TradeData{
@@ -276,7 +275,7 @@ func (b *Bitmex) wsHandleIncomingData() {
 
 					err = common.JSONDecode(resp.Raw, &announcement)
 					if err != nil {
-						log.Fatal(err)
+						log.Error(err)
 					}
 
 					if announcement.Action == bitmexActionInitialData {
@@ -286,7 +285,7 @@ func (b *Bitmex) wsHandleIncomingData() {
 					b.Websocket.DataHandler <- announcement.Data
 
 				default:
-					log.Fatal("Bitmex websocket error: Table unknown -", decodedResp.Table)
+					log.Errorf("Bitmex websocket error: Table unknown - %s", decodedResp.Table)
 				}
 			}
 		}

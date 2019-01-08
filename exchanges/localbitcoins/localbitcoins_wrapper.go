@@ -3,16 +3,16 @@ package localbitcoins
 import (
 	"errors"
 	"fmt"
-	"log"
 	"math"
 	"strconv"
 	"sync"
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
-	"github.com/thrasher-/gocryptotrader/exchanges"
+	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
+	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
 // Start starts the LocalBitcoins go routine
@@ -27,13 +27,13 @@ func (l *LocalBitcoins) Start(wg *sync.WaitGroup) {
 // Run implements the LocalBitcoins wrapper
 func (l *LocalBitcoins) Run() {
 	if l.Verbose {
-		log.Printf("%s polling delay: %ds.\n", l.GetName(), l.RESTPollingDelay)
-		log.Printf("%s %d currencies enabled: %s.\n", l.GetName(), len(l.EnabledPairs), l.EnabledPairs)
+		log.Debugf("%s polling delay: %ds.\n", l.GetName(), l.RESTPollingDelay)
+		log.Debugf("%s %d currencies enabled: %s.\n", l.GetName(), len(l.EnabledPairs), l.EnabledPairs)
 	}
 
 	currencies, err := l.GetTradableCurrencies()
 	if err != nil {
-		log.Printf("%s failed to obtain available tradable currencies. Err: %s", l.Name, err)
+		log.Errorf("%s failed to obtain available tradable currencies. Err: %s", l.Name, err)
 		return
 	}
 
@@ -44,7 +44,7 @@ func (l *LocalBitcoins) Run() {
 
 	err = l.UpdateCurrencies(pairs, false, false)
 	if err != nil {
-		log.Printf("%s failed to update available currencies. Err %s", l.Name, err)
+		log.Errorf("%s failed to update available currencies. Err %s", l.Name, err)
 	}
 
 }

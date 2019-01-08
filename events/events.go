@@ -3,7 +3,6 @@ package events
 import (
 	"errors"
 	"fmt"
-	"log"
 	"strconv"
 
 	"github.com/thrasher-/gocryptotrader/common"
@@ -12,6 +11,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
+	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
 const (
@@ -121,7 +121,7 @@ func (e *Event) ExecuteAction() bool {
 			}
 		}
 	} else {
-		log.Printf("Event triggered: %s", e.String())
+		log.Debugf("Event triggered: %s", e.String())
 	}
 	return true
 }
@@ -239,7 +239,7 @@ func CheckEvents() {
 				if !event.Executed {
 					success := event.CheckCondition()
 					if success {
-						log.Printf(
+						log.Debugf(
 							"Event %d triggered on %s successfully.\n", event.ID,
 							event.Exchange,
 						)

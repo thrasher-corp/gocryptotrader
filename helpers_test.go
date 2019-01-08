@@ -344,16 +344,16 @@ func TestGetExchangeHighestPriceByCurrencyPair(t *testing.T) {
 	stats.Add("Bitstamp", p, ticker.Spot, 1337, 10000)
 	exchange, err := GetExchangeHighestPriceByCurrencyPair(p, ticker.Spot)
 	if err != nil {
-		log.Fatal(err)
+		t.Error(err)
 	}
 
 	if exchange != "Bitstamp" {
-		log.Fatal("Unexpected result")
+		t.Error("Unexpected result")
 	}
 
 	_, err = GetExchangeHighestPriceByCurrencyPair(pair.NewCurrencyPair("BTC", "AUD"), ticker.Spot)
 	if err == nil {
-		log.Fatal("Unexpected reuslt")
+		t.Error("Unexpected result")
 	}
 }
 
@@ -365,15 +365,15 @@ func TestGetExchangeLowestPriceByCurrencyPair(t *testing.T) {
 	stats.Add("Bitstamp", p, ticker.Spot, 1337, 10000)
 	exchange, err := GetExchangeLowestPriceByCurrencyPair(p, ticker.Spot)
 	if err != nil {
-		log.Fatal(err)
+		t.Error(err)
 	}
 
 	if exchange != "Bitfinex" {
-		log.Fatal("Unexpected result")
+		t.Error("Unexpected result")
 	}
 
 	_, err = GetExchangeLowestPriceByCurrencyPair(pair.NewCurrencyPair("BTC", "AUD"), ticker.Spot)
 	if err == nil {
-		log.Fatal("Unexpected reuslt")
+		t.Error("Unexpected reuslt")
 	}
 }

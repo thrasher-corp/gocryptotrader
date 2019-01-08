@@ -4,13 +4,12 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"log"
 	"strconv"
 	"time"
 
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-/gocryptotrader/common"
-	"github.com/thrasher-/gocryptotrader/exchanges"
+	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/request"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 )
@@ -191,7 +190,7 @@ func (a *Alphapoint) CreateAccount(firstName, lastName, email, phone, password s
 
 	err := a.SendAuthenticatedHTTPRequest("POST", alphapointCreateAccount, request, &response)
 	if err != nil {
-		log.Println(err)
+		return fmt.Errorf("Alphapoint Error - CreateAccount HTTPRequest - reason: %s", err)
 	}
 	if !response.IsAccepted {
 		return errors.New(response.RejectReason)

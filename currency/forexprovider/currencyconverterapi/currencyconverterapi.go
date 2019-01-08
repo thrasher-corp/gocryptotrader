@@ -3,11 +3,11 @@ package currencyconverter
 import (
 	"errors"
 	"fmt"
-	"log"
 	"net/url"
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency/forexprovider/base"
+	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
 // const declarations consist of endpoints
@@ -61,7 +61,7 @@ func (c *CurrencyConverter) GetRates(baseCurrency, symbols string) (map[string]f
 			batch := completedStrings[i : i+2]
 			result, err := c.ConvertMany(batch)
 			if err != nil {
-				log.Printf("Failed to get batch err: %s", err)
+				log.Errorf("Failed to get batch err: %s", err)
 				continue
 			}
 			for k, v := range result {
