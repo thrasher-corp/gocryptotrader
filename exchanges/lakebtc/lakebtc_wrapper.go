@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"strings"
 	"sync"
 
 	"github.com/thrasher-/gocryptotrader/common"
@@ -202,7 +203,17 @@ func (l *LakeBTC) GetOrderInfo(orderID int64) (exchange.OrderDetail, error) {
 
 // GetDepositAddress returns a deposit address for a specified currency
 func (l *LakeBTC) GetDepositAddress(cryptocurrency pair.CurrencyItem) (string, error) {
-	return "", common.ErrNotYetImplemented
+	if !strings.EqualFold(cryptocurrency.String(), symbol.BTC) {
+		return "", fmt.Errorf("unsupported currency %s deposit address can only be BTC, manual deposit is required for other currencies",
+			cryptocurrency.String())
+	}
+
+	info, err := l.GetAccountInformation()
+	if err != nil {
+		return "", err
+	}
+
+	return info.Profile.BTCDepositAddress, nil
 }
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
