@@ -519,3 +519,17 @@ func TestWithdrawInternationalBank(t *testing.T) {
 		t.Errorf("Withdraw failed to be placed: %v", err)
 	}
 }
+
+func TestGetDepositAddress(t *testing.T) {
+	if apiKey != "" && apiSecret != "" {
+		_, err := k.GetDepositAddress(symbol.XBT)
+		if err != nil {
+			t.Error("Test Failed - GetDepositAddress() error", err)
+		}
+	} else {
+		_, err := k.GetDepositAddress(symbol.XBT)
+		if err == nil {
+			t.Error("Test Failed - GetDepositAddress() error can not be nil")
+		}
+	}
+}

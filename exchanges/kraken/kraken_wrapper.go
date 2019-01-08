@@ -1,6 +1,7 @@
 package kraken
 
 import (
+	"errors"
 	"strings"
 	"sync"
 
@@ -237,7 +238,21 @@ func (k *Kraken) GetOrderInfo(orderID int64) (exchange.OrderDetail, error) {
 
 // GetDepositAddress returns a deposit address for a specified currency
 func (k *Kraken) GetDepositAddress(cryptocurrency pair.CurrencyItem) (string, error) {
-	return "", common.ErrNotYetImplemented
+	methods, err := k.GetDepositMethods(cryptocurrency.String())
+	if err != nil {
+		return "", err
+	}
+
+	var method string
+	for _, m := range methods {
+		method = m.Method
+	}
+
+	if method == "" {
+		return "", errors.New("method not found")
+	}
+
+	return k.GetCryptoDepositAddress(method, cryptocurrency.String())
 }
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal
