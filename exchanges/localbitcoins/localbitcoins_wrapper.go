@@ -260,13 +260,13 @@ func (l *LocalBitcoins) WithdrawCryptocurrencyFunds(withdrawRequest exchange.Wit
 // WithdrawFiatFunds returns a withdrawal ID when a
 // withdrawal is submitted
 func (l *LocalBitcoins) WithdrawFiatFunds(withdrawRequest exchange.WithdrawRequest) (string, error) {
-	return "", common.ErrNotYetImplemented
+	return "", common.ErrFunctionNotSupported
 }
 
 // WithdrawFiatFundsToInternationalBank returns a withdrawal ID when a
 // withdrawal is submitted
 func (l *LocalBitcoins) WithdrawFiatFundsToInternationalBank(withdrawRequest exchange.WithdrawRequest) (string, error) {
-	return "", common.ErrNotYetImplemented
+	return "", common.ErrFunctionNotSupported
 }
 
 // GetWebsocket returns a pointer to the exchange websocket
