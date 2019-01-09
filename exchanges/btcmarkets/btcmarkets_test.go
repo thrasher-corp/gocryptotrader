@@ -412,23 +412,26 @@ func TestWithdrawFiat(t *testing.T) {
 
 	var withdrawFiatRequest = exchange.WithdrawRequest{
 		Amount:                   100,
-		Currency:                 symbol.BTC,
+		Currency:                 symbol.AUD,
 		Description:              "WITHDRAW IT ALL",
 		BankAccountName:          "Satoshi Nakamoto",
 		BankAccountNumber:        12345,
 		BankAddress:              "123 Fake St",
 		BankCity:                 "Tarry Town",
 		BankCountry:              "Hyrule",
-		BankName:                 "Federal Reserve Bank",
-		WireCurrency:             symbol.USD,
+		BankName:                 "Commonwealth Bank of Australia",
+		WireCurrency:             symbol.AUD,
 		SwiftCode:                "Taylor",
 		RequiresIntermediaryBank: false,
 		IsExpressWire:            false,
 	}
 
 	_, err := b.WithdrawFiatFunds(withdrawFiatRequest)
-	if err == nil {
-		t.Error("Expected an error")
+	if !areTestAPIKeysSet() && err == nil {
+		t.Errorf("Expecting an error when no keys are set: %v", err)
+	}
+	if areTestAPIKeysSet() && err != nil {
+		t.Errorf("Withdraw failed to be placed: %v", err)
 	}
 }
 
@@ -457,7 +460,7 @@ func TestWithdrawInternationalBank(t *testing.T) {
 	}
 
 	_, err := b.WithdrawFiatFundsToInternationalBank(withdrawFiatRequest)
-	if err != common.ErrNotYetImplemented {
-		t.Errorf("Expected '%v', recieved: '%v'", common.ErrNotYetImplemented, err)
+	if err != common.ErrFunctionNotSupported {
+		t.Errorf("Expected '%v', recieved: '%v'", common.ErrFunctionNotSupported, err)
 	}
 }
