@@ -119,7 +119,10 @@ type WithdrawRequest struct {
 	BankAddress       string
 	BankCity          string
 	BankCountry       string
+	BankPostalCode    string
 	SwiftCode         string
+	IBAN              string
+	BankCode          float64
 	WireCurrency      string
 	IsExpressWire     bool
 	// Intermediary bank information
@@ -129,7 +132,10 @@ type WithdrawRequest struct {
 	IntermediaryBankAddress       string
 	IntermediaryBankCity          string
 	IntermediaryBankCountry       string
+	IntermediaryBankPostalCode    string
 	IntermediarySwiftCode         string
+	IntermediaryBankCode          float64
+	IntermediaryIBAN              string
 }
 
 // Definitions for each type of withdrawal method for a given exchange

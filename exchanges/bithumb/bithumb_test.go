@@ -443,23 +443,27 @@ func TestWithdrawFiat(t *testing.T) {
 
 	var withdrawFiatRequest = exchange.WithdrawRequest{
 		Amount:                   100,
-		Currency:                 symbol.BTC,
+		Currency:                 symbol.KRW,
 		Description:              "WITHDRAW IT ALL",
 		BankAccountName:          "Satoshi Nakamoto",
 		BankAccountNumber:        12345,
+		BankCode:                 123,
 		BankAddress:              "123 Fake St",
 		BankCity:                 "Tarry Town",
 		BankCountry:              "Hyrule",
 		BankName:                 "Federal Reserve Bank",
-		WireCurrency:             symbol.USD,
+		WireCurrency:             symbol.KRW,
 		SwiftCode:                "Taylor",
 		RequiresIntermediaryBank: false,
 		IsExpressWire:            false,
 	}
 
 	_, err := b.WithdrawFiatFunds(withdrawFiatRequest)
-	if err != common.ErrNotYetImplemented {
-		t.Errorf("Expected '%v', recieved: '%v'", common.ErrNotYetImplemented, err)
+	if !areTestAPIKeysSet() && err == nil {
+		t.Errorf("Expecting an error when no keys are set: %v", err)
+	}
+	if areTestAPIKeysSet() && err != nil {
+		t.Errorf("Withdraw failed to be placed: %v", err)
 	}
 }
 
@@ -473,7 +477,7 @@ func TestWithdrawInternationalBank(t *testing.T) {
 
 	var withdrawFiatRequest = exchange.WithdrawRequest{
 		Amount:                   100,
-		Currency:                 symbol.BTC,
+		Currency:                 symbol.KRW,
 		Description:              "WITHDRAW IT ALL",
 		BankAccountName:          "Satoshi Nakamoto",
 		BankAccountNumber:        12345,
@@ -481,14 +485,14 @@ func TestWithdrawInternationalBank(t *testing.T) {
 		BankCity:                 "Tarry Town",
 		BankCountry:              "Hyrule",
 		BankName:                 "Federal Reserve Bank",
-		WireCurrency:             symbol.USD,
+		WireCurrency:             symbol.KRW,
 		SwiftCode:                "Taylor",
 		RequiresIntermediaryBank: false,
 		IsExpressWire:            false,
 	}
 
 	_, err := b.WithdrawFiatFundsToInternationalBank(withdrawFiatRequest)
-	if err != common.ErrNotYetImplemented {
-		t.Errorf("Expected '%v', recieved: '%v'", common.ErrNotYetImplemented, err)
+	if err != common.ErrFunctionNotSupported {
+		t.Errorf("Expected '%v', recieved: '%v'", common.ErrFunctionNotSupported, err)
 	}
 }

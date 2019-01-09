@@ -5,7 +5,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
 	"github.com/thrasher-/gocryptotrader/currency/symbol"
 	"github.com/thrasher-/gocryptotrader/exchanges"
@@ -17,7 +16,7 @@ import (
 const (
 	apiKey                  = ""
 	apiSecret               = ""
-	customerID              = ""
+	customerID              = "" // This is the customer id you use to log in
 	canManipulateRealOrders = false
 )
 
@@ -382,7 +381,6 @@ func areTestAPIKeysSet() bool {
 func TestSubmitOrder(t *testing.T) {
 	b.SetDefaults()
 	TestSetup(t)
-
 	if areTestAPIKeysSet() && !canManipulateRealOrders {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
@@ -504,23 +502,28 @@ func TestWithdrawFiat(t *testing.T) {
 
 	var withdrawFiatRequest = exchange.WithdrawRequest{
 		Amount:                   100,
-		Currency:                 symbol.BTC,
+		Currency:                 symbol.USD,
 		Description:              "WITHDRAW IT ALL",
 		BankAccountName:          "Satoshi Nakamoto",
 		BankAccountNumber:        12345,
 		BankAddress:              "123 Fake St",
 		BankCity:                 "Tarry Town",
-		BankCountry:              "Hyrule",
+		BankCountry:              "AU",
 		BankName:                 "Federal Reserve Bank",
 		WireCurrency:             symbol.USD,
-		SwiftCode:                "Taylor",
+		SwiftCode:                "CTBAAU2S",
 		RequiresIntermediaryBank: false,
 		IsExpressWire:            false,
+		BankPostalCode:           "2088",
+		IBAN:                     "IT60X0542811101000000123456",
 	}
 
 	_, err := b.WithdrawFiatFunds(withdrawFiatRequest)
-	if err != common.ErrNotYetImplemented {
-		t.Errorf("Expected '%v', recieved: '%v'", common.ErrNotYetImplemented, err)
+	if !areTestAPIKeysSet() && err == nil {
+		t.Errorf("Expecting an error when no keys are set: %v", err)
+	}
+	if areTestAPIKeysSet() && err != nil {
+		t.Errorf("Withdraw failed to be placed: %v", err)
 	}
 }
 
@@ -533,23 +536,34 @@ func TestWithdrawInternationalBank(t *testing.T) {
 	}
 
 	var withdrawFiatRequest = exchange.WithdrawRequest{
-		Amount:                   100,
-		Currency:                 symbol.BTC,
-		Description:              "WITHDRAW IT ALL",
-		BankAccountName:          "Satoshi Nakamoto",
-		BankAccountNumber:        12345,
-		BankAddress:              "123 Fake St",
-		BankCity:                 "Tarry Town",
-		BankCountry:              "Hyrule",
-		BankName:                 "Federal Reserve Bank",
-		WireCurrency:             symbol.USD,
-		SwiftCode:                "Taylor",
-		RequiresIntermediaryBank: false,
-		IsExpressWire:            false,
+		Amount:                        100,
+		Currency:                      symbol.USD,
+		Description:                   "WITHDRAW IT ALL",
+		BankAccountName:               "Satoshi Nakamoto",
+		BankAccountNumber:             12345,
+		BankAddress:                   "123 Fake St",
+		BankCity:                      "Tarry Town",
+		BankCountry:                   "AU",
+		BankName:                      "Federal Reserve Bank",
+		WireCurrency:                  symbol.USD,
+		SwiftCode:                     "CTBAAU2S",
+		RequiresIntermediaryBank:      false,
+		IsExpressWire:                 false,
+		BankPostalCode:                "2088",
+		IBAN:                          "IT60X0542811101000000123456",
+		IntermediaryBankAccountNumber: 12345,
+		IntermediaryBankAddress:       "123 Fake St",
+		IntermediaryBankCity:          "Tarry Town",
+		IntermediaryBankCountry:       "AU",
+		IntermediaryBankName:          "Federal Reserve Bank",
+		IntermediaryBankPostalCode:    "2088",
 	}
 
 	_, err := b.WithdrawFiatFundsToInternationalBank(withdrawFiatRequest)
-	if err != common.ErrNotYetImplemented {
-		t.Errorf("Expected '%v', recieved: '%v'", common.ErrNotYetImplemented, err)
+	if !areTestAPIKeysSet() && err == nil {
+		t.Errorf("Expecting an error when no keys are set: %v", err)
+	}
+	if areTestAPIKeysSet() && err != nil {
+		t.Errorf("Withdraw failed to be placed: %v", err)
 	}
 }
