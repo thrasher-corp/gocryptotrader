@@ -249,13 +249,13 @@ func (k *Kraken) WithdrawCryptocurrencyFunds(withdrawRequest exchange.WithdrawRe
 // WithdrawFiatFunds returns a withdrawal ID when a
 // withdrawal is submitted
 func (k *Kraken) WithdrawFiatFunds(withdrawRequest exchange.WithdrawRequest) (string, error) {
-	return "", common.ErrNotYetImplemented
+	return k.WithdrawCryptocurrencyFunds(withdrawRequest)
 }
 
 // WithdrawFiatFundsToInternationalBank returns a withdrawal ID when a
 // withdrawal is submitted
 func (k *Kraken) WithdrawFiatFundsToInternationalBank(withdrawRequest exchange.WithdrawRequest) (string, error) {
-	return "", common.ErrNotYetImplemented
+	return k.WithdrawCryptocurrencyFunds(withdrawRequest)
 }
 
 // GetWebsocket returns a pointer to the exchange websocket
