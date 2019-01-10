@@ -225,7 +225,7 @@ func TestGetFee(t *testing.T) {
 func TestFormatWithdrawPermissions(t *testing.T) {
 	// Arrange
 	l.SetDefaults()
-	expectedResult := exchange.NoAPIWithdrawalMethodsText
+	expectedResult := exchange.WithdrawCryptoWithAPIPermissionText + " & " + exchange.NoFiatWithdrawalsText
 	// Act
 	withdrawPermissions := l.FormatWithdrawPermissions()
 	// Assert

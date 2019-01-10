@@ -2,6 +2,7 @@ package coinbasepro
 
 import (
 	"errors"
+	"fmt"
 	"sync"
 
 	"github.com/thrasher-/gocryptotrader/common"
@@ -207,13 +208,34 @@ func (c *CoinbasePro) WithdrawCryptocurrencyFunds(withdrawRequest exchange.Withd
 // WithdrawFiatFunds returns a withdrawal ID when a withdrawal is
 // submitted
 func (c *CoinbasePro) WithdrawFiatFunds(withdrawRequest exchange.WithdrawRequest) (string, error) {
-	return "", common.ErrNotYetImplemented
+	paymentMethods, err := c.GetPayMethods()
+	if err != nil {
+		return "", err
+	}
+
+	selectedWithdrawalMethod := PaymentMethod{}
+	for _, paymentMethod := range paymentMethods {
+		if withdrawRequest.BankName == paymentMethod.Name {
+			selectedWithdrawalMethod = paymentMethod
+			break
+		}
+	}
+	if len(selectedWithdrawalMethod.ID) <= 0 {
+		return "", fmt.Errorf("Could not find payment method '%v'. Check the name via the website and try again", withdrawRequest.BankName)
+	}
+
+	resp, err := c.WithdrawViaPaymentMethod(withdrawRequest.Amount, withdrawRequest.Currency.String(), selectedWithdrawalMethod.ID)
+	if err != nil {
+		return "", err
+	}
+
+	return resp.ID, nil
 }
 
 // WithdrawFiatFundsToInternationalBank returns a withdrawal ID when a
 // withdrawal is submitted
 func (c *CoinbasePro) WithdrawFiatFundsToInternationalBank(withdrawRequest exchange.WithdrawRequest) (string, error) {
-	return "", common.ErrNotYetImplemented
+	return c.WithdrawFiatFunds(withdrawRequest)
 }
 
 // GetWebsocket returns a pointer to the exchange websocket

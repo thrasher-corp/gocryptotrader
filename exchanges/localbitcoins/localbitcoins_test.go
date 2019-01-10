@@ -190,7 +190,7 @@ func TestGetFee(t *testing.T) {
 func TestFormatWithdrawPermissions(t *testing.T) {
 	// Arrange
 	l.SetDefaults()
-	expectedResult := exchange.WithdrawCryptoViaWebsiteOnlyText + " & " + exchange.WithdrawFiatViaWebsiteOnlyText
+	expectedResult := exchange.AutoWithdrawCryptoText + " & " + exchange.WithdrawFiatViaWebsiteOnlyText
 	// Act
 	withdrawPermissions := l.FormatWithdrawPermissions()
 	// Assert
