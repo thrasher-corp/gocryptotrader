@@ -13,7 +13,6 @@ import (
 var h HitBTC
 
 // Please supply your own APIKEYS here for due diligence testing
-
 const (
 	apiKey                  = ""
 	apiSecret               = ""
@@ -330,5 +329,19 @@ func TestWithdrawInternationalBank(t *testing.T) {
 	_, err := h.WithdrawFiatFundsToInternationalBank(withdrawFiatRequest)
 	if err != common.ErrFunctionNotSupported {
 		t.Errorf("Expected '%v', recieved: '%v'", common.ErrFunctionNotSupported, err)
+	}
+}
+
+func TestGetDepositAddress(t *testing.T) {
+	if apiKey != "" && apiSecret != "" {
+		_, err := h.GetDepositAddress(symbol.BTC)
+		if err != nil {
+			t.Error("Test Failed - GetDepositAddress() error", err)
+		}
+	} else {
+		_, err := h.GetDepositAddress(symbol.BTC)
+		if err == nil {
+			t.Error("Test Failed - GetDepositAddress() error cannot be nil")
+		}
 	}
 }
