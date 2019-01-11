@@ -479,7 +479,7 @@ func (k *Kraken) Withdraw(asset, key string, amount float64) (string, error) {
 	params := url.Values{}
 	params.Set("asset", asset)
 	params.Set("key", key)
-	params.Set("amount", "1")
+	params.Set("amount", fmt.Sprintf("%f", amount))
 
 	if err := k.SendAuthenticatedHTTPRequest(krakenWithdraw, params, &response); err != nil {
 		return response.ReferenceID, err
