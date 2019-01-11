@@ -110,7 +110,7 @@ type Symbol struct {
 type Account struct {
 	ID     int64  `json:"id"`
 	Type   string `json:"type"`
-	State  string `json:"working"`
+	State  string `json:"state"`
 	UserID int64  `json:"user-id"`
 }
 
