@@ -1,6 +1,7 @@
 package alphapoint
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/thrasher-/gocryptotrader/common"
@@ -625,21 +626,7 @@ func TestWithdrawFiat(t *testing.T) {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 
-	var withdrawFiatRequest = exchange.WithdrawRequest{
-		Amount:                   100,
-		Currency:                 symbol.BTC,
-		Description:              "WITHDRAW IT ALL",
-		BankAccountName:          "Satoshi Nakamoto",
-		BankAccountNumber:        12345,
-		BankAddress:              "123 Fake St",
-		BankCity:                 "Tarry Town",
-		BankCountry:              "Hyrule",
-		BankName:                 "Federal Reserve Bank",
-		WireCurrency:             symbol.USD,
-		SwiftCode:                "Taylor",
-		RequiresIntermediaryBank: false,
-		IsExpressWire:            false,
-	}
+	var withdrawFiatRequest = exchange.WithdrawRequest{}
 
 	_, err := a.WithdrawFiatFunds(withdrawFiatRequest)
 	if err != common.ErrNotYetImplemented {
@@ -655,21 +642,7 @@ func TestWithdrawInternationalBank(t *testing.T) {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 
-	var withdrawFiatRequest = exchange.WithdrawRequest{
-		Amount:                   100,
-		Currency:                 symbol.BTC,
-		Description:              "WITHDRAW IT ALL",
-		BankAccountName:          "Satoshi Nakamoto",
-		BankAccountNumber:        12345,
-		BankAddress:              "123 Fake St",
-		BankCity:                 "Tarry Town",
-		BankCountry:              "Hyrule",
-		BankName:                 "Federal Reserve Bank",
-		WireCurrency:             symbol.USD,
-		SwiftCode:                "Taylor",
-		RequiresIntermediaryBank: false,
-		IsExpressWire:            false,
-	}
+	var withdrawFiatRequest = exchange.WithdrawRequest{}
 
 	_, err := a.WithdrawFiatFundsToInternationalBank(withdrawFiatRequest)
 	if err != common.ErrNotYetImplemented {

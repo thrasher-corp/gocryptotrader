@@ -475,21 +475,7 @@ func TestWithdrawInternationalBank(t *testing.T) {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 
-	var withdrawFiatRequest = exchange.WithdrawRequest{
-		Amount:                   100,
-		Currency:                 symbol.KRW,
-		Description:              "WITHDRAW IT ALL",
-		BankAccountName:          "Satoshi Nakamoto",
-		BankAccountNumber:        12345,
-		BankAddress:              "123 Fake St",
-		BankCity:                 "Tarry Town",
-		BankCountry:              "Hyrule",
-		BankName:                 "Federal Reserve Bank",
-		WireCurrency:             symbol.KRW,
-		SwiftCode:                "Taylor",
-		RequiresIntermediaryBank: false,
-		IsExpressWire:            false,
-	}
+	var withdrawFiatRequest = exchange.WithdrawRequest{}
 
 	_, err := b.WithdrawFiatFundsToInternationalBank(withdrawFiatRequest)
 	if err != common.ErrFunctionNotSupported {

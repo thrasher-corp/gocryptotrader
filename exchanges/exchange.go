@@ -107,8 +107,8 @@ type WithdrawRequest struct {
 	PIN             int64
 	TradePassword   string
 	Amount          float64
+	Currency        pair.CurrencyItem
 	// Crypto related information
-	Currency   pair.CurrencyItem
 	Address    string
 	AddressTag string
 	FeeAmount  float64
@@ -123,10 +123,8 @@ type WithdrawRequest struct {
 	SwiftCode         string
 	IBAN              string
 	BankCode          float64
-	WireCurrency      string
 	IsExpressWire     bool
 	// Intermediary bank information
-	RequiresIntermediaryBank      bool
 	IntermediaryBankAccountNumber float64
 	IntermediaryBankName          string
 	IntermediaryBankAddress       string
@@ -136,6 +134,7 @@ type WithdrawRequest struct {
 	IntermediarySwiftCode         string
 	IntermediaryBankCode          float64
 	IntermediaryIBAN              string
+	WireCurrency                  string
 }
 
 // Definitions for each type of withdrawal method for a given exchange
