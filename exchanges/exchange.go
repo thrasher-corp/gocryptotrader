@@ -125,6 +125,7 @@ type WithdrawRequest struct {
 	BankCode          float64
 	IsExpressWire     bool
 	// Intermediary bank information
+	RequiresIntermediaryBank      bool
 	IntermediaryBankAccountNumber float64
 	IntermediaryBankName          string
 	IntermediaryBankAddress       string
