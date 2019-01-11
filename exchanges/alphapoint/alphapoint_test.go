@@ -1,7 +1,6 @@
 package alphapoint
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/thrasher-/gocryptotrader/common"
