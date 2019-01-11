@@ -251,8 +251,8 @@ func (b *Bitfinex) WithdrawCryptocurrencyFunds(withdrawRequest exchange.Withdraw
 	return fmt.Sprintf("%v", resp[0].WithdrawalID), err
 }
 
-// WithdrawFiatFunds returns a withdrawal ID when a
-// withdrawal is submitted
+// WithdrawFiatFunds returns a withdrawal ID when a withdrawal is submitted
+// Returns comma delimited withdrawal IDs
 func (b *Bitfinex) WithdrawFiatFunds(withdrawRequest exchange.WithdrawRequest) (string, error) {
 	withdrawalType := "wire"
 	// Bitfinex has support for three types, exchange, margin and deposit
@@ -273,11 +273,25 @@ func (b *Bitfinex) WithdrawFiatFunds(withdrawRequest exchange.WithdrawRequest) (
 		return "", errors.New("No withdrawID returned. Check order status")
 	}
 
-	return fmt.Sprintf("%v", resp[0].WithdrawalID), err
+	var withdrawalSuccesses string
+	var withdrawalErrors string
+	for _, withdrawl := range resp {
+		if withdrawl.Status == "error" {
+			withdrawalErrors += fmt.Sprintf("%v ", withdrawl.Message)
+		}
+		if withdrawl.Status == "success" {
+			withdrawalSuccesses += fmt.Sprintf("%v,", withdrawl.WithdrawalID)
+		}
+	}
+	if len(withdrawalErrors) > 0 {
+		return withdrawalSuccesses, errors.New(withdrawalErrors)
+	}
+
+	return withdrawalSuccesses, nil
 }
 
-// WithdrawFiatFundsToInternationalBank returns a withdrawal ID when a
-// withdrawal is submitted
+// WithdrawFiatFundsToInternationalBank returns a withdrawal ID when a withdrawal is submitted
+// Returns comma delimited withdrawal IDs
 func (b *Bitfinex) WithdrawFiatFundsToInternationalBank(withdrawRequest exchange.WithdrawRequest) (string, error) {
 	return b.WithdrawFiatFunds(withdrawRequest)
 }

@@ -236,7 +236,8 @@ type WalletTransfer struct {
 type Withdrawal struct {
 	Status       string `json:"status"`
 	Message      string `json:"message"`
-	WithdrawalID int64  `json:"withdrawal_id,string"`
+	WithdrawalID int64  `json:"withdrawal_id,omitempty"`
+	Fees         string `json:"fees,omitempty"`
 }
 
 // Order holds order information when an order is in the market
