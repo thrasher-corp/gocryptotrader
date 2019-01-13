@@ -1,9 +1,11 @@
 package gateio
 
 import (
+	"errors"
 	"fmt"
 	"strconv"
 	"sync"
+	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
@@ -263,7 +265,23 @@ func (g *Gateio) GetOrderInfo(orderID int64) (exchange.OrderDetail, error) {
 
 // GetDepositAddress returns a deposit address for a specified currency
 func (g *Gateio) GetDepositAddress(cryptocurrency pair.CurrencyItem) (string, error) {
-	return "", common.ErrNotYetImplemented
+	addr, err := g.GetCryptoDepositAddress(cryptocurrency.String())
+	if err != nil {
+		return "", err
+	}
+
+	// Waits for new generated address if not created yet, its variable per
+	// currency
+	if addr == gateioGenerateAddress {
+		time.Sleep(10 * time.Second)
+		addr, err = g.GetCryptoDepositAddress(cryptocurrency.String())
+		if addr == gateioGenerateAddress {
+			return "", errors.New("address not generated in time")
+		}
+		return addr, nil
+	}
+
+	return addr, err
 }
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is

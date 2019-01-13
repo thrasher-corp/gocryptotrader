@@ -30,12 +30,15 @@ const (
 	gateioCancelAllOrders = "private/cancelAllOrders"
 	gateioWithdraw        = "private/withdraw"
 	gateioOpenOrders      = "private/openOrders"
+	gateioDepositAddress  = "private/depositAddress"
 	gateioTicker          = "ticker"
 	gateioTickers         = "tickers"
 	gateioOrderbook       = "orderBook"
 
 	gateioAuthRate   = 100
 	gateioUnauthRate = 100
+
+	gateioGenerateAddress = "New address is being generated for you, please wait a moment and refresh this page. "
 )
 
 // Gateio is the overarching type across this package
@@ -533,4 +536,29 @@ func (g *Gateio) WithdrawCrypto(currency, address string, amount float64) (strin
 	}
 
 	return "", nil
+}
+
+// GetCryptoDepositAddress returns a deposit address for a cryptocurrency
+func (g *Gateio) GetCryptoDepositAddress(currency string) (string, error) {
+	type response struct {
+		Result  bool   `json:"result,string"`
+		Code    int    `json:"code"`
+		Message string `json:"message"`
+		Address string `json:"addr"`
+	}
+
+	var result response
+	params := fmt.Sprintf("currency=%s",
+		currency)
+
+	err := g.SendAuthenticatedHTTPRequest("POST", gateioDepositAddress, params, &result)
+	if err != nil {
+		return "", err
+	}
+
+	if !result.Result {
+		return "", fmt.Errorf("code:%d message:%s", result.Code, result.Message)
+	}
+
+	return result.Address, nil
 }
