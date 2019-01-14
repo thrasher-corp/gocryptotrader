@@ -483,7 +483,7 @@ func TestFormatWithdrawPermissions(t *testing.T) {
 	// Arrange
 	a := &Alphapoint{}
 	a.SetDefaults()
-	expectedResult := exchange.AutoWithdrawCryptoWithAPIPermissionText + " & " + exchange.WithdrawCryptoWith2FAText
+	expectedResult := exchange.AutoWithdrawCryptoWithAPIPermissionText + " & " + exchange.WithdrawCryptoWith2FAText + " & " + exchange.NoFiatWithdrawalsText
 	// Act
 	withdrawPermissions := a.FormatWithdrawPermissions()
 	// Assert
@@ -614,5 +614,37 @@ func TestWithdraw(t *testing.T) {
 	_, err := a.WithdrawCryptocurrencyFunds(withdrawCryptoRequest)
 	if err != common.ErrNotYetImplemented {
 		t.Errorf("Expected 'Not implemented', recieved %v", err)
+	}
+}
+
+func TestWithdrawFiat(t *testing.T) {
+	a := &Alphapoint{}
+	a.SetDefaults()
+
+	if areTestAPIKeysSet(a) && !canManipulateRealOrders {
+		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
+	}
+
+	var withdrawFiatRequest = exchange.WithdrawRequest{}
+
+	_, err := a.WithdrawFiatFunds(withdrawFiatRequest)
+	if err != common.ErrNotYetImplemented {
+		t.Errorf("Expected '%v', recieved: '%v'", common.ErrNotYetImplemented, err)
+	}
+}
+
+func TestWithdrawInternationalBank(t *testing.T) {
+	a := &Alphapoint{}
+	a.SetDefaults()
+
+	if areTestAPIKeysSet(a) && !canManipulateRealOrders {
+		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
+	}
+
+	var withdrawFiatRequest = exchange.WithdrawRequest{}
+
+	_, err := a.WithdrawFiatFundsToInternationalBank(withdrawFiatRequest)
+	if err != common.ErrNotYetImplemented {
+		t.Errorf("Expected '%v', recieved: '%v'", common.ErrNotYetImplemented, err)
 	}
 }

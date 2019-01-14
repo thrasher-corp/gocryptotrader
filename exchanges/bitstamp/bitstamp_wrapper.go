@@ -240,13 +240,37 @@ func (b *Bitstamp) WithdrawCryptocurrencyFunds(withdrawRequest exchange.Withdraw
 // WithdrawFiatFunds returns a withdrawal ID when a
 // withdrawal is submitted
 func (b *Bitstamp) WithdrawFiatFunds(withdrawRequest exchange.WithdrawRequest) (string, error) {
-	return "", common.ErrNotYetImplemented
+	resp, err := b.OpenBankWithdrawal(withdrawRequest.Amount, withdrawRequest.Currency.String(),
+		withdrawRequest.BankAccountName, withdrawRequest.IBAN, withdrawRequest.SwiftCode, withdrawRequest.BankAddress,
+		withdrawRequest.BankPostalCode, withdrawRequest.BankCity, withdrawRequest.BankCountry,
+		withdrawRequest.Description, sepaWithdrawal)
+	if err != nil {
+		return "", err
+	}
+	if resp.Status == errStr {
+		return "", errors.New(resp.Reason)
+	}
+
+	return resp.ID, nil
 }
 
 // WithdrawFiatFundsToInternationalBank returns a withdrawal ID when a
 // withdrawal is submitted
 func (b *Bitstamp) WithdrawFiatFundsToInternationalBank(withdrawRequest exchange.WithdrawRequest) (string, error) {
-	return "", common.ErrNotYetImplemented
+	resp, err := b.OpenInternationalBankWithdrawal(withdrawRequest.Amount, withdrawRequest.Currency.String(),
+		withdrawRequest.BankAccountName, withdrawRequest.IBAN, withdrawRequest.SwiftCode, withdrawRequest.BankAddress,
+		withdrawRequest.BankPostalCode, withdrawRequest.BankCity, withdrawRequest.BankCountry,
+		withdrawRequest.IntermediaryBankName, withdrawRequest.IntermediaryBankAddress, withdrawRequest.IntermediaryBankPostalCode,
+		withdrawRequest.IntermediaryBankCity, withdrawRequest.IntermediaryBankCountry, withdrawRequest.WireCurrency,
+		withdrawRequest.Description, internationalWithdrawal)
+	if err != nil {
+		return "", err
+	}
+	if resp.Status == errStr {
+		return "", errors.New(resp.Reason)
+	}
+
+	return resp.ID, nil
 }
 
 // GetWebsocket returns a pointer to the exchange websocket

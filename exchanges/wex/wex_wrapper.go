@@ -246,13 +246,13 @@ func (w *WEX) WithdrawCryptocurrencyFunds(withdrawRequest exchange.WithdrawReque
 // WithdrawFiatFunds returns a withdrawal ID when a
 // withdrawal is submitted
 func (w *WEX) WithdrawFiatFunds(withdrawRequest exchange.WithdrawRequest) (string, error) {
-	return "", common.ErrNotYetImplemented
+	return "", common.ErrFunctionNotSupported
 }
 
 // WithdrawFiatFundsToInternationalBank returns a withdrawal ID when a
 // withdrawal is submitted
 func (w *WEX) WithdrawFiatFundsToInternationalBank(withdrawRequest exchange.WithdrawRequest) (string, error) {
-	return "", common.ErrNotYetImplemented
+	return "", common.ErrFunctionNotSupported
 }
 
 // GetWebsocket returns a pointer to the exchange websocket

@@ -66,7 +66,7 @@ func (p *Poloniex) SetDefaults() {
 	p.Fee = 0
 	p.Verbose = false
 	p.RESTPollingDelay = 10
-	p.APIWithdrawPermissions = exchange.AutoWithdrawCryptoWithAPIPermission
+	p.APIWithdrawPermissions = exchange.AutoWithdrawCryptoWithAPIPermission | exchange.NoFiatWithdrawals
 	p.RequestCurrencyPairFormat.Delimiter = "_"
 	p.RequestCurrencyPairFormat.Uppercase = true
 	p.ConfigCurrencyPairFormat.Delimiter = "_"

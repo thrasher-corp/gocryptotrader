@@ -56,7 +56,7 @@ func (w *WEX) SetDefaults() {
 	w.Verbose = false
 	w.RESTPollingDelay = 10
 	w.Ticker = make(map[string]Ticker)
-	w.APIWithdrawPermissions = exchange.AutoWithdrawCryptoWithAPIPermission
+	w.APIWithdrawPermissions = exchange.AutoWithdrawCryptoWithAPIPermission | exchange.NoFiatWithdrawals
 	w.RequestCurrencyPairFormat.Delimiter = "_"
 	w.RequestCurrencyPairFormat.Uppercase = false
 	w.RequestCurrencyPairFormat.Separator = "-"

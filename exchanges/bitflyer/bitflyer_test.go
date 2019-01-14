@@ -354,3 +354,35 @@ func TestModifyOrder(t *testing.T) {
 		t.Error("Test failed - ModifyOrder() error")
 	}
 }
+
+func TestWithdrawFiat(t *testing.T) {
+	b.SetDefaults()
+	TestSetup(t)
+
+	if areTestAPIKeysSet() && !canManipulateRealOrders {
+		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
+	}
+
+	var withdrawFiatRequest = exchange.WithdrawRequest{}
+
+	_, err := b.WithdrawFiatFunds(withdrawFiatRequest)
+	if err != common.ErrNotYetImplemented {
+		t.Errorf("Expected '%v', recieved: '%v'", common.ErrNotYetImplemented, err)
+	}
+}
+
+func TestWithdrawInternationalBank(t *testing.T) {
+	b.SetDefaults()
+	TestSetup(t)
+
+	if areTestAPIKeysSet() && !canManipulateRealOrders {
+		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
+	}
+
+	var withdrawFiatRequest = exchange.WithdrawRequest{}
+
+	_, err := b.WithdrawFiatFundsToInternationalBank(withdrawFiatRequest)
+	if err != common.ErrNotYetImplemented {
+		t.Errorf("Expected '%v', recieved: '%v'", common.ErrNotYetImplemented, err)
+	}
+}

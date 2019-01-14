@@ -100,25 +100,42 @@ type OrderCancellation struct {
 
 // WithdrawRequest used for wrapper crypto and FIAT withdraw methods
 type WithdrawRequest struct {
-	// Exchange related information
+	// General withdraw information
 	Description     string
 	OneTimePassword int64
 	AccountID       string
 	PIN             int64
 	TradePassword   string
+	Amount          float64
+	Currency        pair.CurrencyItem
 	// Crypto related information
-	Currency   pair.CurrencyItem
 	Address    string
 	AddressTag string
-	Amount     float64
 	FeeAmount  float64
 	// FIAT related information
-	BankName     string
-	BankAddress  string
-	BankCity     string
-	BankCountry  string
-	SwiftCode    string
-	WireCurrency string
+	BankAccountName   string
+	BankAccountNumber float64
+	BankName          string
+	BankAddress       string
+	BankCity          string
+	BankCountry       string
+	BankPostalCode    string
+	SwiftCode         string
+	IBAN              string
+	BankCode          float64
+	IsExpressWire     bool
+	// Intermediary bank information
+	RequiresIntermediaryBank      bool
+	IntermediaryBankAccountNumber float64
+	IntermediaryBankName          string
+	IntermediaryBankAddress       string
+	IntermediaryBankCity          string
+	IntermediaryBankCountry       string
+	IntermediaryBankPostalCode    string
+	IntermediarySwiftCode         string
+	IntermediaryBankCode          float64
+	IntermediaryIBAN              string
+	WireCurrency                  string
 }
 
 // Definitions for each type of withdrawal method for a given exchange
@@ -162,6 +179,8 @@ const (
 	WithdrawFiatViaWebsiteOnly              uint32 = (1 << 17)
 	WithdrawCryptoViaWebsiteOnlyText        string = "WITHDRAW CRYPTO VIA WEBSITE ONLY"
 	WithdrawFiatViaWebsiteOnlyText          string = "WITHDRAW FIAT VIA WEBSITE ONLY"
+	NoFiatWithdrawals                       uint32 = (1 << 18)
+	NoFiatWithdrawalsText                   string = "NO FIAT WITHDRAWAL"
 
 	UnknownWithdrawalTypeText string = "UNKNOWN"
 )
@@ -907,6 +926,8 @@ func (e *Base) FormatWithdrawPermissions() string {
 				services = append(services, WithdrawCryptoViaWebsiteOnlyText)
 			case WithdrawFiatViaWebsiteOnly:
 				services = append(services, WithdrawFiatViaWebsiteOnlyText)
+			case NoFiatWithdrawals:
+				services = append(services, NoFiatWithdrawalsText)
 			default:
 				services = append(services, fmt.Sprintf("%s[1<<%v]", UnknownWithdrawalTypeText, i))
 			}

@@ -270,8 +270,8 @@ func TestWithdraw(t *testing.T) {
 	}
 
 	_, err := b.WithdrawCryptocurrencyFunds(withdrawCryptoRequest)
-	if err != common.ErrNotYetImplemented {
-		t.Errorf("Expected 'Not Yet Implemented', recieved %v", err)
+	if err != common.ErrFunctionNotSupported {
+		t.Errorf("Expected '%v', recieved: '%v'", common.ErrFunctionNotSupported, err)
 	}
 }
 
@@ -279,5 +279,37 @@ func TestModifyOrder(t *testing.T) {
 	_, err := b.ModifyOrder(exchange.ModifyOrder{})
 	if err == nil {
 		t.Error("Test failed - ModifyOrder() error")
+	}
+}
+
+func TestWithdrawFiat(t *testing.T) {
+	b.SetDefaults()
+	TestSetup(t)
+
+	if areTestAPIKeysSet() && !canManipulateRealOrders {
+		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
+	}
+
+	var withdrawFiatRequest = exchange.WithdrawRequest{}
+
+	_, err := b.WithdrawFiatFunds(withdrawFiatRequest)
+	if err != common.ErrFunctionNotSupported {
+		t.Errorf("Expected '%v', recieved: '%v'", common.ErrFunctionNotSupported, err)
+	}
+}
+
+func TestWithdrawInternationalBank(t *testing.T) {
+	b.SetDefaults()
+	TestSetup(t)
+
+	if areTestAPIKeysSet() && !canManipulateRealOrders {
+		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
+	}
+
+	var withdrawFiatRequest = exchange.WithdrawRequest{}
+
+	_, err := b.WithdrawFiatFundsToInternationalBank(withdrawFiatRequest)
+	if err != common.ErrFunctionNotSupported {
+		t.Errorf("Expected '%v', recieved: '%v'", common.ErrFunctionNotSupported, err)
 	}
 }

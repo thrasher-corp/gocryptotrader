@@ -280,13 +280,13 @@ func (b *Binance) WithdrawCryptocurrencyFunds(withdrawRequest exchange.WithdrawR
 // WithdrawFiatFunds returns a withdrawal ID when a
 // withdrawal is submitted
 func (b *Binance) WithdrawFiatFunds(withdrawRequest exchange.WithdrawRequest) (string, error) {
-	return "", common.ErrNotYetImplemented
+	return "", common.ErrFunctionNotSupported
 }
 
 // WithdrawFiatFundsToInternationalBank returns a withdrawal ID when a
 // withdrawal is submitted
 func (b *Binance) WithdrawFiatFundsToInternationalBank(withdrawRequest exchange.WithdrawRequest) (string, error) {
-	return "", common.ErrNotYetImplemented
+	return "", common.ErrFunctionNotSupported
 }
 
 // GetWebsocket returns a pointer to the exchange websocket

@@ -122,9 +122,17 @@ type WithdrawalRequests struct {
 	TransactionID string `json:"transaction_id"` // Bitcoin withdrawals only
 }
 
+// CryptoWithdrawalResponse response from a crypto withdrawal request
 type CryptoWithdrawalResponse struct {
 	ID    string `json:"id"`
 	Error string `json:"error"`
+}
+
+// FIATWithdrawalResponse response from a fiat withdrawal request
+type FIATWithdrawalResponse struct {
+	ID     string `json:"id"`
+	Status string `json:"status"`
+	Reason string `json:"reason"`
 }
 
 // UnconfirmedBTCTransactions holds address information about unconfirmed
@@ -142,3 +150,9 @@ type CaptureError struct {
 	Code   interface{} `json:"code"`
 	Error  interface{} `json:"error"`
 }
+
+const (
+	sepaWithdrawal          string = "sepa"
+	internationalWithdrawal string = "international"
+	errStr                  string = "error"
+)

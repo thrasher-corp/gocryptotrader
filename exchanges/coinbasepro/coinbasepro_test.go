@@ -531,3 +531,49 @@ func TestWithdraw(t *testing.T) {
 		t.Errorf("Withdraw failed to be placed: %v", err)
 	}
 }
+
+func TestWithdrawFiat(t *testing.T) {
+	c.SetDefaults()
+	TestSetup(t)
+
+	if areTestAPIKeysSet() && !canManipulateRealOrders {
+		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
+	}
+
+	var withdrawFiatRequest = exchange.WithdrawRequest{
+		Amount:   100,
+		Currency: symbol.USD,
+		BankName: "Federal Reserve Bank",
+	}
+
+	_, err := c.WithdrawFiatFunds(withdrawFiatRequest)
+	if !areTestAPIKeysSet() && err == nil {
+		t.Errorf("Expecting an error when no keys are set: %v", err)
+	}
+	if areTestAPIKeysSet() && err != nil {
+		t.Errorf("Withdraw failed to be placed: %v", err)
+	}
+}
+
+func TestWithdrawInternationalBank(t *testing.T) {
+	c.SetDefaults()
+	TestSetup(t)
+
+	if areTestAPIKeysSet() && !canManipulateRealOrders {
+		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
+	}
+
+	var withdrawFiatRequest = exchange.WithdrawRequest{
+		Amount:   100,
+		Currency: symbol.USD,
+		BankName: "Federal Reserve Bank",
+	}
+
+	_, err := c.WithdrawFiatFundsToInternationalBank(withdrawFiatRequest)
+	if !areTestAPIKeysSet() && err == nil {
+		t.Errorf("Expecting an error when no keys are set: %v", err)
+	}
+	if areTestAPIKeysSet() && err != nil {
+		t.Errorf("Withdraw failed to be placed: %v", err)
+	}
+}

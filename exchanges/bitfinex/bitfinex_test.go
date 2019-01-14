@@ -831,3 +831,75 @@ func TestWithdraw(t *testing.T) {
 		t.Errorf("Withdraw failed to be placed: %v", err)
 	}
 }
+
+func TestWithdrawFiat(t *testing.T) {
+	b.SetDefaults()
+	TestSetup(t)
+
+	if areTestAPIKeysSet() && !canManipulateRealOrders {
+		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
+	}
+
+	var withdrawFiatRequest = exchange.WithdrawRequest{
+		Amount:                   100,
+		Currency:                 symbol.BTC,
+		Description:              "WITHDRAW IT ALL",
+		BankAccountName:          "Satoshi Nakamoto",
+		BankAccountNumber:        12345,
+		BankAddress:              "123 Fake St",
+		BankCity:                 "Tarry Town",
+		BankCountry:              "Hyrule",
+		BankName:                 "Federal Reserve Bank",
+		WireCurrency:             symbol.USD,
+		SwiftCode:                "Taylor",
+		RequiresIntermediaryBank: false,
+		IsExpressWire:            false,
+	}
+
+	_, err := b.WithdrawFiatFunds(withdrawFiatRequest)
+	if !areTestAPIKeysSet() && err == nil {
+		t.Errorf("Expecting an error when no keys are set: %v", err)
+	}
+	if areTestAPIKeysSet() && err != nil {
+		t.Errorf("Withdraw failed to be placed: %v", err)
+	}
+}
+
+func TestWithdrawInternationalBank(t *testing.T) {
+	b.SetDefaults()
+	TestSetup(t)
+
+	if areTestAPIKeysSet() && !canManipulateRealOrders {
+		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
+	}
+
+	var withdrawFiatRequest = exchange.WithdrawRequest{
+		Amount:                        100,
+		Currency:                      symbol.BTC,
+		Description:                   "WITHDRAW IT ALL",
+		BankAccountName:               "Satoshi Nakamoto",
+		BankAccountNumber:             12345,
+		BankAddress:                   "123 Fake St",
+		BankCity:                      "Tarry Town",
+		BankCountry:                   "Hyrule",
+		BankName:                      "Federal Reserve Bank",
+		WireCurrency:                  symbol.USD,
+		SwiftCode:                     "Taylor",
+		RequiresIntermediaryBank:      true,
+		IsExpressWire:                 false,
+		IntermediaryBankAccountNumber: 12345,
+		IntermediaryBankAddress:       "123 Fake St",
+		IntermediaryBankCity:          "Tarry Town",
+		IntermediaryBankCountry:       "Hyrule",
+		IntermediaryBankName:          "Federal Reserve Bank",
+		IntermediarySwiftCode:         "Taylor",
+	}
+
+	_, err := b.WithdrawFiatFundsToInternationalBank(withdrawFiatRequest)
+	if !areTestAPIKeysSet() && err == nil {
+		t.Errorf("Expecting an error when no keys are set: %v", err)
+	}
+	if areTestAPIKeysSet() && err != nil {
+		t.Errorf("Withdraw failed to be placed: %v", err)
+	}
+}

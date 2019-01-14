@@ -1,11 +1,15 @@
 package bithumb
 
 import (
+	"errors"
 	"fmt"
+	"math"
+	"strconv"
 	"sync"
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
+	"github.com/thrasher-/gocryptotrader/currency/symbol"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
@@ -258,13 +262,29 @@ func (b *Bithumb) WithdrawCryptocurrencyFunds(withdrawRequest exchange.WithdrawR
 // WithdrawFiatFunds returns a withdrawal ID when a
 // withdrawal is submitted
 func (b *Bithumb) WithdrawFiatFunds(withdrawRequest exchange.WithdrawRequest) (string, error) {
-	return "", common.ErrNotYetImplemented
+	if math.Mod(withdrawRequest.Amount, 1) != 0 {
+		return "", errors.New("KRW withdrawals do not support decimal places")
+	}
+	if withdrawRequest.Currency.String() != symbol.KRW {
+		return "", errors.New("Only KRW supported")
+	}
+	bankDetails := fmt.Sprintf("%v_%v", withdrawRequest.BankCode, withdrawRequest.BankName)
+	bankAccountNumber := strconv.FormatFloat(withdrawRequest.BankAccountNumber, 'f', -1, 64)
+	withdrawAmountInt := int64(withdrawRequest.Amount)
+	resp, err := b.RequestKRWWithdraw(bankDetails, bankAccountNumber, withdrawAmountInt)
+	if err != nil {
+		return "", err
+	}
+	if resp.Status != "0000" {
+		return "", errors.New(resp.Message)
+	}
+
+	return resp.Message, nil
 }
 
-// WithdrawFiatFundsToInternationalBank returns a withdrawal ID when a
-// withdrawal is submitted
+// WithdrawFiatFundsToInternationalBank is not supported as Bithumb only withdraws KRW to South Korean banks
 func (b *Bithumb) WithdrawFiatFundsToInternationalBank(withdrawRequest exchange.WithdrawRequest) (string, error) {
-	return "", common.ErrNotYetImplemented
+	return "", common.ErrFunctionNotSupported
 }
 
 // GetWebsocket returns a pointer to the exchange websocket

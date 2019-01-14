@@ -275,13 +275,13 @@ func (g *Gateio) WithdrawCryptocurrencyFunds(withdrawRequest exchange.WithdrawRe
 // WithdrawFiatFunds returns a withdrawal ID when a
 // withdrawal is submitted
 func (g *Gateio) WithdrawFiatFunds(withdrawRequest exchange.WithdrawRequest) (string, error) {
-	return "", common.ErrNotYetImplemented
+	return "", common.ErrFunctionNotSupported
 }
 
 // WithdrawFiatFundsToInternationalBank returns a withdrawal ID when a
 // withdrawal is submitted
 func (g *Gateio) WithdrawFiatFundsToInternationalBank(withdrawRequest exchange.WithdrawRequest) (string, error) {
-	return "", common.ErrNotYetImplemented
+	return "", common.ErrFunctionNotSupported
 }
 
 // GetWebsocket returns a pointer to the exchange websocket

@@ -36,6 +36,7 @@ const (
 	bitstampAPISell               = "sell"
 	bitstampAPIMarket             = "market"
 	bitstampAPIWithdrawalRequests = "withdrawal_requests"
+	bitstampAPIOpenWithdrawal     = "withdrawal/open"
 	bitstampAPIBitcoinWithdrawal  = "bitcoin_withdrawal"
 	bitstampAPILTCWithdrawal      = "ltc_withdrawal"
 	bitstampAPIETHWithdrawal      = "eth_withdrawal"
@@ -512,6 +513,55 @@ func (b *Bitstamp) CryptoWithdrawal(amount float64, address, symbol, destTag str
 	}
 
 	return resp, b.SendAuthenticatedHTTPRequest(endpoint, false, req, &resp)
+}
+
+// OpenBankWithdrawal Opens a bank withdrawal request (SEPA or international)
+func (b *Bitstamp) OpenBankWithdrawal(amount float64, currency,
+	name, iban, bic, address, postalCode, city, country,
+	comment, withdrawalType string) (FIATWithdrawalResponse, error) {
+	var req = url.Values{}
+	req.Add("amount", strconv.FormatFloat(amount, 'f', -1, 64))
+	req.Add("account_currency", currency)
+	req.Add("name", name)
+	req.Add("iban", iban)
+	req.Add("bic", bic)
+	req.Add("address", address)
+	req.Add("postal_code", postalCode)
+	req.Add("city", city)
+	req.Add("country", country)
+	req.Add("type", withdrawalType)
+	req.Add("comment", comment)
+
+	resp := FIATWithdrawalResponse{}
+	return resp, b.SendAuthenticatedHTTPRequest(bitstampAPIOpenWithdrawal, true, req, &resp)
+}
+
+// OpenInternationalBankWithdrawal Opens a bank withdrawal request (international)
+func (b *Bitstamp) OpenInternationalBankWithdrawal(amount float64, currency,
+	name, iban, bic, address, postalCode, city, country,
+	bankName, bankAddress, bankPostCode, bankCity, bankCountry, internationalCurrency,
+	comment, withdrawalType string) (FIATWithdrawalResponse, error) {
+	var req = url.Values{}
+	req.Add("amount", strconv.FormatFloat(amount, 'f', -1, 64))
+	req.Add("account_currency", currency)
+	req.Add("name", name)
+	req.Add("iban", iban)
+	req.Add("bic", bic)
+	req.Add("address", address)
+	req.Add("postal_code", postalCode)
+	req.Add("city", city)
+	req.Add("country", country)
+	req.Add("type", withdrawalType)
+	req.Add("comment", comment)
+	req.Add("currency", internationalCurrency)
+	req.Add("bank_name", bankName)
+	req.Add("bank_address", bankAddress)
+	req.Add("bank_postal_code", bankPostCode)
+	req.Add("bank_city", bankCity)
+	req.Add("bank_country", bankCountry)
+
+	resp := FIATWithdrawalResponse{}
+	return resp, b.SendAuthenticatedHTTPRequest(bitstampAPIOpenWithdrawal, true, req, &resp)
 }
 
 // GetCryptoDepositAddress returns a depositing address by crypto

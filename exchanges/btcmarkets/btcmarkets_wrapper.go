@@ -8,6 +8,7 @@ import (
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
+	"github.com/thrasher-/gocryptotrader/currency/symbol"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
@@ -267,17 +268,16 @@ func (b *BTCMarkets) WithdrawCryptocurrencyFunds(withdrawRequest exchange.Withdr
 // WithdrawFiatFunds returns a withdrawal ID when a
 // withdrawal is submitted
 func (b *BTCMarkets) WithdrawFiatFunds(withdrawRequest exchange.WithdrawRequest) (string, error) {
-	bd, err := b.GetClientBankAccounts(b.Name, withdrawRequest.Currency.Upper().String())
-	if err != nil {
-		return "", err
+	if withdrawRequest.Currency != symbol.AUD {
+		return "", errors.New("Only AUD supported for withdrawals")
 	}
-	return b.WithdrawAUD(bd.AccountName, bd.AccountNumber, bd.BankName, bd.BSBNumber, withdrawRequest.Amount)
+	return b.WithdrawAUD(withdrawRequest.BankAccountName, fmt.Sprintf("%v", withdrawRequest.BankAccountNumber), withdrawRequest.BankName, fmt.Sprintf("%v", withdrawRequest.BankCode), withdrawRequest.Amount)
 }
 
 // WithdrawFiatFundsToInternationalBank returns a withdrawal ID when a
 // withdrawal is submitted
 func (b *BTCMarkets) WithdrawFiatFundsToInternationalBank(withdrawRequest exchange.WithdrawRequest) (string, error) {
-	return "", common.ErrNotYetImplemented
+	return "", common.ErrFunctionNotSupported
 }
 
 // GetWebsocket returns a pointer to the exchange websocket
