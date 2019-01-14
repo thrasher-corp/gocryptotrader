@@ -306,3 +306,9 @@ func (b *Binance) GetFeeByType(feeBuilder exchange.FeeBuilder) (float64, error) 
 func (b *Binance) GetWithdrawCapabilities() uint32 {
 	return b.GetWithdrawPermissions()
 }
+
+// GetOrderHistory retrieves account order information
+// Can Limit response to specific order status
+func (b *Binance) GetOrderHistory(open, closed, cancelled bool, startDate, endDate string) ([]exchange.OrderDetail, error) {
+	return nil, common.ErrNotYetImplemented
+}

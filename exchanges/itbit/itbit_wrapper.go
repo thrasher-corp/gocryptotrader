@@ -280,3 +280,9 @@ func (i *ItBit) GetFeeByType(feeBuilder exchange.FeeBuilder) (float64, error) {
 func (i *ItBit) GetWithdrawCapabilities() uint32 {
 	return i.GetWithdrawPermissions()
 }
+
+// GetOrderHistory retrieves account order information
+// Can Limit response to specific order status
+func (i *ItBit) GetOrderHistory(open, closed, cancelled bool, startDate, endDate string) ([]exchange.OrderDetail, error) {
+	return nil, common.ErrNotYetImplemented
+}

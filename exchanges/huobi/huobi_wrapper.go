@@ -374,3 +374,9 @@ func (h *HUOBI) GetFeeByType(feeBuilder exchange.FeeBuilder) (float64, error) {
 func (h *HUOBI) GetWithdrawCapabilities() uint32 {
 	return h.GetWithdrawPermissions()
 }
+
+// GetOrderHistory retrieves account order information
+// Can Limit response to specific order status
+func (h *HUOBI) GetOrderHistory(open, closed, cancelled bool, startDate, endDate string) ([]exchange.OrderDetail, error) {
+	return nil, common.ErrNotYetImplemented
+}

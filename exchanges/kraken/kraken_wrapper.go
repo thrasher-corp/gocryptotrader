@@ -290,3 +290,9 @@ func (k *Kraken) GetFeeByType(feeBuilder exchange.FeeBuilder) (float64, error) {
 func (k *Kraken) GetWithdrawCapabilities() uint32 {
 	return k.GetWithdrawPermissions()
 }
+
+// GetOrderHistory retrieves account order information
+// Can Limit response to specific order status
+func (k *Kraken) GetOrderHistory(open, closed, cancelled bool, startDate, endDate string) ([]exchange.OrderDetail, error) {
+	return nil, common.ErrNotYetImplemented
+}

@@ -382,3 +382,9 @@ func (c *COINUT) GetFeeByType(feeBuilder exchange.FeeBuilder) (float64, error) {
 func (c *COINUT) GetWithdrawCapabilities() uint32 {
 	return c.GetWithdrawPermissions()
 }
+
+// GetOrderHistory retrieves account order information
+// Can Limit response to specific order status
+func (c *COINUT) GetOrderHistory(open, closed, cancelled bool, startDate, endDate string) ([]exchange.OrderDetail, error) {
+	return nil, common.ErrNotYetImplemented
+}

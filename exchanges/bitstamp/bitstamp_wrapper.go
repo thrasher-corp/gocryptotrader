@@ -289,3 +289,9 @@ func (b *Bitstamp) GetWebsocket() (*exchange.Websocket, error) {
 func (b *Bitstamp) GetWithdrawCapabilities() uint32 {
 	return b.GetWithdrawPermissions()
 }
+
+// GetOrderHistory retrieves account order information
+// Can Limit response to specific order status
+func (b *Bitstamp) GetOrderHistory(open, closed, cancelled bool, startDate, endDate string) ([]exchange.OrderDetail, error) {
+	return nil, common.ErrNotYetImplemented
+}

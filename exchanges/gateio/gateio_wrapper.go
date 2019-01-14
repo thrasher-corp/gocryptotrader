@@ -319,3 +319,9 @@ func (g *Gateio) GetFeeByType(feeBuilder exchange.FeeBuilder) (float64, error) {
 func (g *Gateio) GetWithdrawCapabilities() uint32 {
 	return g.GetWithdrawPermissions()
 }
+
+// GetOrderHistory retrieves account order information
+// Can Limit response to specific order status
+func (g *Gateio) GetOrderHistory(open, closed, cancelled bool, startDate, endDate string) ([]exchange.OrderDetail, error) {
+	return nil, common.ErrNotYetImplemented
+}

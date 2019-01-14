@@ -181,14 +181,14 @@ func TestGetOrder(t *testing.T) {
 	}
 }
 
-func TestGetOrderHistory(t *testing.T) {
+func TestGetOrderHistoryForCurrency(t *testing.T) {
 	t.Parallel()
 
-	_, err := b.GetOrderHistory("")
+	_, err := b.GetOrderHistoryForCurrency("")
 	if err == nil {
 		t.Error("Test Failed - Bittrex - GetOrderHistory() error")
 	}
-	_, err = b.GetOrderHistory("btc-ltc")
+	_, err = b.GetOrderHistoryForCurrency("btc-ltc")
 	if err == nil {
 		t.Error("Test Failed - Bittrex - GetOrderHistory() error")
 	}

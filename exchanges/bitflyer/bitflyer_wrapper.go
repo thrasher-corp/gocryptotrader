@@ -215,3 +215,9 @@ func (b *Bitflyer) GetWebsocket() (*exchange.Websocket, error) {
 func (b *Bitflyer) GetWithdrawCapabilities() uint32 {
 	return b.GetWithdrawPermissions()
 }
+
+// GetOrderHistory retrieves account order information
+// Can Limit response to specific order status
+func (b *Bitflyer) GetOrderHistory(open, closed, cancelled bool, startDate, endDate string) ([]exchange.OrderDetail, error) {
+	return nil, common.ErrNotYetImplemented
+}

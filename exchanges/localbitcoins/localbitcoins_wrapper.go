@@ -293,3 +293,9 @@ func (l *LocalBitcoins) GetFeeByType(feeBuilder exchange.FeeBuilder) (float64, e
 func (l *LocalBitcoins) GetWithdrawCapabilities() uint32 {
 	return l.GetWithdrawPermissions()
 }
+
+// GetOrderHistory retrieves account order information
+// Can Limit response to specific order status
+func (l *LocalBitcoins) GetOrderHistory(open, closed, cancelled bool, startDate, endDate string) ([]exchange.OrderDetail, error) {
+	return nil, common.ErrNotYetImplemented
+}

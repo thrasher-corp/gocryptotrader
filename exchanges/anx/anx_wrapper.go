@@ -345,3 +345,9 @@ func (a *ANX) GetFeeByType(feeBuilder exchange.FeeBuilder) (float64, error) {
 func (a *ANX) GetWithdrawCapabilities() uint32 {
 	return a.GetWithdrawPermissions()
 }
+
+// GetOrderHistory retrieves account order information
+// Can Limit response to specific order status
+func (a *ANX) GetOrderHistory(open, closed, cancelled bool, startDate, endDate string) ([]exchange.OrderDetail, error) {
+	return nil, common.ErrNotYetImplemented
+}

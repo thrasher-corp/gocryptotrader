@@ -533,8 +533,8 @@ func (o *OKCoin) GetOrderInfoBatch(orderID []int64, symbol string) ([]OrderInfo,
 	return result.Orders, nil
 }
 
-// GetOrderHistory returns a history of orders
-func (o *OKCoin) GetOrderHistory(pageLength, currentPage int64, status, symbol string) (OrderHistory, error) {
+// GetOrderHistoryForCurrency returns a history of orders
+func (o *OKCoin) GetOrderHistoryForCurrency(pageLength, currentPage int64, status, symbol string) (OrderHistory, error) {
 	v := url.Values{}
 	v.Set("symbol", symbol)
 	v.Set("status", status)

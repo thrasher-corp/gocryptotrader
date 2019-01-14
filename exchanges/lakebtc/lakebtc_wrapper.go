@@ -264,3 +264,9 @@ func (l *LakeBTC) GetFeeByType(feeBuilder exchange.FeeBuilder) (float64, error) 
 func (l *LakeBTC) GetWithdrawCapabilities() uint32 {
 	return l.GetWithdrawPermissions()
 }
+
+// GetOrderHistory retrieves account order information
+// Can Limit response to specific order status
+func (l *LakeBTC) GetOrderHistory(open, closed, cancelled bool, startDate, endDate string) ([]exchange.OrderDetail, error) {
+	return nil, common.ErrNotYetImplemented
+}

@@ -303,3 +303,9 @@ func (e *EXMO) GetFeeByType(feeBuilder exchange.FeeBuilder) (float64, error) {
 func (e *EXMO) GetWithdrawCapabilities() uint32 {
 	return e.GetWithdrawPermissions()
 }
+
+// GetOrderHistory retrieves account order information
+// Can Limit response to specific order status
+func (e *EXMO) GetOrderHistory(open, closed, cancelled bool, startDate, endDate string) ([]exchange.OrderDetail, error) {
+	return nil, common.ErrNotYetImplemented
+}

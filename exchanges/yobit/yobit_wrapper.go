@@ -267,3 +267,9 @@ func (y *Yobit) GetFeeByType(feeBuilder exchange.FeeBuilder) (float64, error) {
 func (y *Yobit) GetWithdrawCapabilities() uint32 {
 	return y.GetWithdrawPermissions()
 }
+
+// GetOrderHistory retrieves account order information
+// Can Limit response to specific order status
+func (y *Yobit) GetOrderHistory(open, closed, cancelled bool, startDate, endDate string) ([]exchange.OrderDetail, error) {
+	return nil, common.ErrNotYetImplemented
+}
