@@ -4,10 +4,9 @@ import (
 	"testing"
 
 	"github.com/thrasher-/gocryptotrader/common"
+	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
 	"github.com/thrasher-/gocryptotrader/currency/symbol"
-
-	"github.com/thrasher-/gocryptotrader/config"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 )
 
@@ -423,9 +422,11 @@ func TestGetAccountInfo(t *testing.T) {
 		t.Skip()
 	}
 
+	b.Verbose = true
+
 	_, err := b.GetAccountInfo()
 	if err != nil {
-		t.Error("test failed - GetAccountInfo() error:", err)
+		t.Error("test failed - GetAccountInfo() error", err)
 	}
 }
 
@@ -489,5 +490,20 @@ func TestWithdrawInternationalBank(t *testing.T) {
 	_, err := b.WithdrawFiatFundsToInternationalBank(withdrawFiatRequest)
 	if err != common.ErrFunctionNotSupported {
 		t.Errorf("Expected '%v', recieved: '%v'", common.ErrFunctionNotSupported, err)
+	}
+}
+
+func TestGetDepositAddress(t *testing.T) {
+	b.Verbose = true
+	if testAPIKey != "" && testAPISecret != "" {
+		_, err := b.GetDepositAddress(symbol.BTC)
+		if err != nil {
+			t.Error("Test Failed - GetDepositAddress() error", err)
+		}
+	} else {
+		_, err := b.GetDepositAddress(symbol.BTC)
+		if err == nil {
+			t.Error("Test Failed - GetDepositAddress() error cannot be nil")
+		}
 	}
 }
