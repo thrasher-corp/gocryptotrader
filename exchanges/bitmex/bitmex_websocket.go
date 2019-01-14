@@ -104,7 +104,6 @@ func (b *Bitmex) WsConnector() error {
 	}
 
 	go b.wsHandleIncomingData()
-	go b.wsReadData()
 
 	err = b.websocketSubscribe()
 	if err != nil {
@@ -125,7 +124,23 @@ func (b *Bitmex) WsConnector() error {
 	return nil
 }
 
-func (b *Bitmex) wsReadData() {
+func (b *Bitmex) wsReadData() (exchange.WebsocketResponse, error) {
+	_, resp, err := b.WebsocketConn.ReadMessage()
+	if err != nil {
+		return exchange.WebsocketResponse{},
+			fmt.Errorf("bitmex_websocket.go - websocket connection Error: %s",
+				err)
+	}
+
+	b.Websocket.TrafficAlert <- struct{}{}
+
+	return exchange.WebsocketResponse{
+		Raw: resp,
+	}, nil
+}
+
+// wsHandleIncomingData services incoming data from the websocket connection
+func (b *Bitmex) wsHandleIncomingData() {
 	b.Websocket.Wg.Add(1)
 
 	defer func() {
@@ -143,33 +158,12 @@ func (b *Bitmex) wsReadData() {
 			return
 
 		default:
-			_, resp, err := b.WebsocketConn.ReadMessage()
+			resp, err := b.wsReadData()
 			if err != nil {
-				b.Websocket.DataHandler <- fmt.Errorf("bitmex_websocket.go - websocket connection Error: %s",
-					err)
+				b.Websocket.DataHandler <- err
 				return
 			}
 
-			b.Websocket.TrafficAlert <- struct{}{}
-
-			b.Websocket.Intercomm <- exchange.WebsocketResponse{
-				Raw: resp,
-			}
-		}
-	}
-}
-
-// wsHandleIncomingData services incoming data from the websocket connection
-func (b *Bitmex) wsHandleIncomingData() {
-	b.Websocket.Wg.Add(1)
-	defer b.Websocket.Wg.Done()
-
-	for {
-		select {
-		case <-b.Websocket.ShutdownC:
-			return
-
-		case resp := <-b.Websocket.Intercomm:
 			message := string(resp.Raw)
 			if common.StringContains(message, "pong") {
 				pongChan <- 1
@@ -184,7 +178,7 @@ func (b *Bitmex) wsHandleIncomingData() {
 			}
 
 			quickCapture := make(map[string]interface{})
-			err := common.JSONDecode(resp.Raw, &quickCapture)
+			err = common.JSONDecode(resp.Raw, &quickCapture)
 			if err != nil {
 				log.Error(err)
 			}

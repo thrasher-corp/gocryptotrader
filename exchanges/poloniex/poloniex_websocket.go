@@ -64,7 +64,6 @@ func (p *Poloniex) WsConnect() error {
 		}
 	}
 
-	go p.WsReadData()
 	go p.WsHandleData()
 
 	return p.WsSubscribe()
@@ -105,34 +104,14 @@ func (p *Poloniex) WsSubscribe() error {
 }
 
 // WsReadData reads data from the websocket connection
-func (p *Poloniex) WsReadData() {
-	p.Websocket.Wg.Add(1)
-
-	defer func() {
-		err := p.WebsocketConn.Close()
-		if err != nil {
-			p.Websocket.DataHandler <- fmt.Errorf("poloniex_websocket.go - Unable to to close Websocket connection. Error: %s",
-				err)
-		}
-		p.Websocket.Wg.Done()
-	}()
-
-	for {
-		select {
-		case <-p.Websocket.ShutdownC:
-			return
-
-		default:
-			_, resp, err := p.WebsocketConn.ReadMessage()
-			if err != nil {
-				p.Websocket.DataHandler <- err
-				return
-			}
-
-			p.Websocket.TrafficAlert <- struct{}{}
-			p.Websocket.Intercomm <- exchange.WebsocketResponse{Raw: resp}
-		}
+func (p *Poloniex) WsReadData() (exchange.WebsocketResponse, error) {
+	_, resp, err := p.WebsocketConn.ReadMessage()
+	if err != nil {
+		return exchange.WebsocketResponse{}, err
 	}
+
+	p.Websocket.TrafficAlert <- struct{}{}
+	return exchange.WebsocketResponse{Raw: resp}, nil
 }
 
 func getWSDataType(data interface{}) string {
@@ -151,16 +130,29 @@ func checkSubscriptionSuccess(data []interface{}) bool {
 // WsHandleData handles data from the websocket connection
 func (p *Poloniex) WsHandleData() {
 	p.Websocket.Wg.Add(1)
-	defer p.Websocket.Wg.Done()
+
+	defer func() {
+		err := p.WebsocketConn.Close()
+		if err != nil {
+			p.Websocket.DataHandler <- fmt.Errorf("poloniex_websocket.go - Unable to to close Websocket connection. Error: %s",
+				err)
+		}
+		p.Websocket.Wg.Done()
+	}()
 
 	for {
 		select {
 		case <-p.Websocket.ShutdownC:
 			return
 
-		case resp := <-p.Websocket.Intercomm:
+		default:
+			resp, err := p.WsReadData()
+			if err != nil {
+				p.Websocket.DataHandler <- err
+			}
+
 			var result interface{}
-			err := common.JSONDecode(resp.Raw, &result)
+			err = common.JSONDecode(resp.Raw, &result)
 			if err != nil {
 				log.Errorf("poloniex websocket decode error - %s", err)
 			}

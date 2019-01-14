@@ -45,7 +45,6 @@ func (e *Base) WebsocketSetup(connector func() error,
 	e.Websocket.DataHandler = make(chan interface{}, 1)
 	e.Websocket.Connected = make(chan struct{}, 1)
 	e.Websocket.Disconnected = make(chan struct{}, 1)
-	e.Websocket.Intercomm = make(chan WebsocketResponse, 1)
 	e.Websocket.TrafficAlert = make(chan struct{}, 1)
 
 	err := e.Websocket.SetEnabled(wsEnabled)
@@ -81,9 +80,6 @@ type Websocket struct {
 
 	// Disconnected denotes a channel switch for diversion of request flow
 	Disconnected chan struct{}
-
-	// Intercomm denotes a channel from read data routine to handle data routine
-	Intercomm chan WebsocketResponse
 
 	// DataHandler pipes websocket data to an exchange websocket data handler
 	DataHandler chan interface{}

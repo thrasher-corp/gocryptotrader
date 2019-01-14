@@ -50,7 +50,6 @@ func (h *HUOBI) WsConnect() error {
 	}
 
 	go h.WsHandleData()
-	go h.WsReadData()
 
 	err = h.WsSubscribe()
 	if err != nil {
@@ -61,7 +60,31 @@ func (h *HUOBI) WsConnect() error {
 }
 
 // WsReadData reads data from the websocket connection
-func (h *HUOBI) WsReadData() {
+func (h *HUOBI) WsReadData() (exchange.WebsocketResponse, error) {
+	_, resp, err := h.WebsocketConn.ReadMessage()
+	if err != nil {
+		return exchange.WebsocketResponse{}, err
+	}
+
+	h.Websocket.TrafficAlert <- struct{}{}
+
+	b := bytes.NewReader(resp)
+	gReader, err := gzip.NewReader(b)
+	if err != nil {
+		return exchange.WebsocketResponse{}, err
+	}
+
+	unzipped, err := ioutil.ReadAll(gReader)
+	if err != nil {
+		return exchange.WebsocketResponse{}, err
+	}
+	gReader.Close()
+
+	return exchange.WebsocketResponse{Raw: unzipped}, nil
+}
+
+// WsHandleData handles data read from the websocket connection
+func (h *HUOBI) WsHandleData() {
 	h.Websocket.Wg.Add(1)
 
 	defer func() {
@@ -79,41 +102,14 @@ func (h *HUOBI) WsReadData() {
 			return
 
 		default:
-			_, resp, err := h.WebsocketConn.ReadMessage()
+			resp, err := h.WsReadData()
 			if err != nil {
-				log.Error(err)
+				h.Websocket.DataHandler <- err
+				return
 			}
 
-			h.Websocket.TrafficAlert <- struct{}{}
-
-			b := bytes.NewReader(resp)
-			gReader, err := gzip.NewReader(b)
-			if err != nil {
-				log.Error(err)
-			}
-
-			unzipped, err := ioutil.ReadAll(gReader)
-			if err != nil {
-				log.Error(err)
-			}
-			gReader.Close()
-
-			h.Websocket.Intercomm <- exchange.WebsocketResponse{Raw: unzipped}
-		}
-	}
-}
-
-// WsHandleData handles data read from the websocket connection
-func (h *HUOBI) WsHandleData() {
-	h.Websocket.Wg.Add(1)
-	defer h.Websocket.Wg.Done()
-
-	for {
-		select {
-		case <-h.Websocket.ShutdownC:
-		case resp := <-h.Websocket.Intercomm:
 			var init WsResponse
-			err := common.JSONDecode(resp.Raw, &init)
+			err = common.JSONDecode(resp.Raw, &init)
 			if err != nil {
 				log.Error(err)
 			}

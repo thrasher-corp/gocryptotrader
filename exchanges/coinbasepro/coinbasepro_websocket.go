@@ -85,14 +85,24 @@ func (c *CoinbasePro) WsConnect() error {
 		return err
 	}
 
-	go c.WsReadData()
 	go c.WsHandleData()
 
 	return nil
 }
 
 // WsReadData reads data from the websocket connection
-func (c *CoinbasePro) WsReadData() {
+func (c *CoinbasePro) WsReadData() (exchange.WebsocketResponse, error) {
+	_, resp, err := c.WebsocketConn.ReadMessage()
+	if err != nil {
+		return exchange.WebsocketResponse{}, err
+	}
+
+	c.Websocket.TrafficAlert <- struct{}{}
+	return exchange.WebsocketResponse{Raw: resp}, nil
+}
+
+// WsHandleData handles read data from websocket connection
+func (c *CoinbasePro) WsHandleData() {
 	c.Websocket.Wg.Add(1)
 
 	defer func() {
@@ -110,29 +120,11 @@ func (c *CoinbasePro) WsReadData() {
 			return
 
 		default:
-			_, resp, err := c.WebsocketConn.ReadMessage()
+			resp, err := c.WsReadData()
 			if err != nil {
 				c.Websocket.DataHandler <- err
-				return
 			}
 
-			c.Websocket.TrafficAlert <- struct{}{}
-			c.Websocket.Intercomm <- exchange.WebsocketResponse{Raw: resp}
-		}
-	}
-}
-
-// WsHandleData handles read data from websocket connection
-func (c *CoinbasePro) WsHandleData() {
-	c.Websocket.Wg.Add(1)
-	defer c.Websocket.Wg.Done()
-
-	for {
-		select {
-		case <-c.Websocket.ShutdownC:
-			return
-
-		case resp := <-c.Websocket.Intercomm:
 			type MsgType struct {
 				Type      string `json:"type"`
 				Sequence  int64  `json:"sequence"`
@@ -140,7 +132,7 @@ func (c *CoinbasePro) WsHandleData() {
 			}
 
 			msgType := MsgType{}
-			err := common.JSONDecode(resp.Raw, &msgType)
+			err = common.JSONDecode(resp.Raw, &msgType)
 			if err != nil {
 				c.Websocket.DataHandler <- err
 				continue

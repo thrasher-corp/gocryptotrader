@@ -68,7 +68,6 @@ func (b *BTCC) WsConnect() error {
 		return err
 	}
 
-	go b.WsReadData()
 	go b.WsHandleData()
 
 	err = b.WsSubscribeToOrderbook()
@@ -85,9 +84,33 @@ func (b *BTCC) WsConnect() error {
 }
 
 // WsReadData reads data from the websocket connection
-func (b *BTCC) WsReadData() {
+func (b *BTCC) WsReadData() (exchange.WebsocketResponse, error) {
+	mtx.Lock()
+	_, resp, err := b.Conn.ReadMessage()
+	mtx.Unlock()
+	if err != nil {
+		return exchange.WebsocketResponse{}, err
+	}
+
+	b.Websocket.TrafficAlert <- struct{}{}
+
+	return exchange.WebsocketResponse{
+		Raw: resp,
+	}, nil
+}
+
+// WsHandleData handles read data
+func (b *BTCC) WsHandleData() {
 	b.Websocket.Wg.Add(1)
-	defer b.Websocket.Wg.Done()
+
+	defer func() {
+		err := b.Conn.Close()
+		if err != nil {
+			b.Websocket.DataHandler <- fmt.Errorf("btcc_websocket.go - Unable to close Websocket connection. Error: %s",
+				err)
+		}
+		b.Websocket.Wg.Done()
+	}()
 
 	for {
 		select {
@@ -95,35 +118,13 @@ func (b *BTCC) WsReadData() {
 			return
 
 		default:
-			mtx.Lock()
-			_, resp, err := b.Conn.ReadMessage()
-			mtx.Unlock()
+			resp, err := b.WsReadData()
 			if err != nil {
 				b.Websocket.DataHandler <- err
 			}
 
-			b.Websocket.TrafficAlert <- struct{}{}
-
-			b.Websocket.Intercomm <- exchange.WebsocketResponse{
-				Raw: resp,
-			}
-		}
-	}
-}
-
-// WsHandleData handles read data
-func (b *BTCC) WsHandleData() {
-	b.Websocket.Wg.Add(1)
-	defer b.Websocket.Wg.Done()
-
-	for {
-		select {
-		case <-b.Websocket.ShutdownC:
-			return
-
-		case resp := <-b.Websocket.Intercomm:
 			var Result WsResponseMain
-			err := common.JSONDecode(resp.Raw, &Result)
+			err = common.JSONDecode(resp.Raw, &Result)
 			if err != nil {
 				b.Websocket.DataHandler <- err
 				continue

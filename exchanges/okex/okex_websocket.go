@@ -57,7 +57,6 @@ func (o *OKEX) WsConnect() error {
 	}
 
 	go o.WsHandleData()
-	go o.WsReadData()
 	go o.wsPingHandler()
 
 	err = o.WsSubscribe()
@@ -117,51 +116,30 @@ func (o *OKEX) WsSubscribe() error {
 }
 
 // WsReadData reads data from the websocket connection
-func (o *OKEX) WsReadData() {
-	o.Websocket.Wg.Add(1)
+func (o *OKEX) WsReadData() (exchange.WebsocketResponse, error) {
+	mType, resp, err := o.WebsocketConn.ReadMessage()
+	if err != nil {
+		return exchange.WebsocketResponse{}, err
+	}
 
-	defer func() {
-		err := o.WebsocketConn.Close()
+	o.Websocket.TrafficAlert <- struct{}{}
+
+	var standardMessage []byte
+
+	switch mType {
+	case websocket.TextMessage:
+		standardMessage = resp
+
+	case websocket.BinaryMessage:
+		reader := flate.NewReader(bytes.NewReader(resp))
+		standardMessage, err = ioutil.ReadAll(reader)
+		reader.Close()
 		if err != nil {
-			o.Websocket.DataHandler <- fmt.Errorf("okex_websocket.go - Unable to to close Websocket connection. Error: %s",
-				err)
-		}
-		o.Websocket.Wg.Done()
-	}()
-
-	for {
-		select {
-		case <-o.Websocket.ShutdownC:
-			return
-
-		default:
-			mType, resp, err := o.WebsocketConn.ReadMessage()
-			if err != nil {
-				o.Websocket.DataHandler <- err
-				return
-			}
-
-			o.Websocket.TrafficAlert <- struct{}{}
-
-			var standardMessage []byte
-
-			switch mType {
-			case websocket.TextMessage:
-				standardMessage = resp
-
-			case websocket.BinaryMessage:
-				reader := flate.NewReader(bytes.NewReader(resp))
-				standardMessage, err = ioutil.ReadAll(reader)
-				reader.Close()
-				if err != nil {
-					o.Websocket.DataHandler <- err
-					return
-				}
-			}
-
-			o.Websocket.Intercomm <- exchange.WebsocketResponse{Raw: standardMessage}
+			return exchange.WebsocketResponse{}, err
 		}
 	}
+
+	return exchange.WebsocketResponse{Raw: standardMessage}, nil
 }
 
 func (o *OKEX) wsPingHandler() {
@@ -188,17 +166,30 @@ func (o *OKEX) wsPingHandler() {
 // WsHandleData handles the read data from the websocket connection
 func (o *OKEX) WsHandleData() {
 	o.Websocket.Wg.Add(1)
-	defer o.Websocket.Wg.Done()
+
+	defer func() {
+		err := o.WebsocketConn.Close()
+		if err != nil {
+			o.Websocket.DataHandler <- fmt.Errorf("okex_websocket.go - Unable to to close Websocket connection. Error: %s",
+				err)
+		}
+		o.Websocket.Wg.Done()
+	}()
 
 	for {
 		select {
 		case <-o.Websocket.ShutdownC:
 			return
 
-		case resp := <-o.Websocket.Intercomm:
+		default:
+			resp, err := o.WsReadData()
+			if err != nil {
+				o.Websocket.DataHandler <- err
+			}
+
 			multiStreamDataArr := []MultiStreamData{}
 
-			err := common.JSONDecode(resp.Raw, &multiStreamDataArr)
+			err = common.JSONDecode(resp.Raw, &multiStreamDataArr)
 			if err != nil {
 				if strings.Contains(string(resp.Raw), "pong") {
 					continue
