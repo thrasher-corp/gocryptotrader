@@ -249,7 +249,12 @@ func (b *Bithumb) GetOrderInfo(orderID int64) (exchange.OrderDetail, error) {
 
 // GetDepositAddress returns a deposit address for a specified currency
 func (b *Bithumb) GetDepositAddress(cryptocurrency pair.CurrencyItem) (string, error) {
-	return "", common.ErrNotYetImplemented
+	addr, err := b.GetWalletAddress(cryptocurrency.String())
+	if err != nil {
+		return "", err
+	}
+
+	return addr.Data.WalletAddress, nil
 }
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is

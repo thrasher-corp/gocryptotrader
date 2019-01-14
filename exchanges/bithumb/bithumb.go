@@ -321,8 +321,18 @@ func (b *Bithumb) GetWalletAddress(currency string) (WalletAddressRes, error) {
 	params := url.Values{}
 	params.Set("currency", common.StringToUpper(currency))
 
-	return response,
-		b.SendAuthenticatedHTTPRequest(privateWalletAdd, params, &response)
+	err := b.SendAuthenticatedHTTPRequest(privateWalletAdd, params, &response)
+	if err != nil {
+		return response, err
+	}
+
+	if response.Data.WalletAddress == "" {
+		return response,
+			fmt.Errorf("deposit address needs to be created via the Bithumb website before retreival for currency %s",
+				currency)
+	}
+
+	return response, nil
 }
 
 // GetLastTransaction returns customer last transaction
