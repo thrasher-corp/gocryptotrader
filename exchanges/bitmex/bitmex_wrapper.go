@@ -307,6 +307,6 @@ func (b *Bitmex) GetWithdrawCapabilities() uint32 {
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
-func (b *Bitmex) GetOrderHistory(open, closed, cancelled bool, startDate, endDate string) ([]exchange.OrderDetail, error) {
+func (b *Bitmex) GetOrderHistory(orderHistoryRequest exchange.OrderHistoryRequest) ([]exchange.OrderDetail, error) {
 	return nil, common.ErrNotYetImplemented
 }

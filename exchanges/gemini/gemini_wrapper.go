@@ -244,6 +244,6 @@ func (g *Gemini) GetWithdrawCapabilities() uint32 {
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
-func (g *Gemini) GetOrderHistory(open, closed, cancelled bool, startDate, endDate string) ([]exchange.OrderDetail, error) {
+func (g *Gemini) GetOrderHistory(orderHistoryRequest exchange.OrderHistoryRequest) ([]exchange.OrderDetail, error) {
 	return nil, common.ErrNotYetImplemented
 }

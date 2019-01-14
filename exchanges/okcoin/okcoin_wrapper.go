@@ -332,6 +332,6 @@ func (o *OKCoin) GetWithdrawCapabilities() uint32 {
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
-func (o *OKCoin) GetOrderHistory(open, closed, cancelled bool, startDate, endDate string) ([]exchange.OrderDetail, error) {
+func (o *OKCoin) GetOrderHistory(orderHistoryRequest exchange.OrderHistoryRequest) ([]exchange.OrderDetail, error) {
 	return nil, common.ErrNotYetImplemented
 }

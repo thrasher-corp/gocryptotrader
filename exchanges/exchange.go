@@ -316,7 +316,7 @@ type IBotExchange interface {
 	GetOrderInfo(orderID int64) (OrderDetail, error)
 	GetDepositAddress(cryptocurrency pair.CurrencyItem, accountID string) (string, error)
 
-	GetOrderHistory(open, closed, cancelled bool, startDate, endDate string) ([]OrderDetail, error)
+	GetOrderHistory(orderHistoryRequest OrderHistoryRequest) ([]OrderDetail, error)
 
 	WithdrawCryptocurrencyFunds(wtihdrawRequest WithdrawRequest) (string, error)
 	WithdrawFiatFunds(wtihdrawRequest WithdrawRequest) (string, error)
@@ -819,6 +819,7 @@ type OrderType string
 
 // OrderType ...types
 const (
+	AnyOrderType      OrderType = "ANY"
 	Limit             OrderType = "Limit"
 	Market            OrderType = "Market"
 	ImmediateOrCancel OrderType = "IMMEDIATE_OR_CANCEL"
@@ -944,3 +945,26 @@ func (e *Base) FormatWithdrawPermissions() string {
 
 	return NoAPIWithdrawalMethodsText
 }
+
+// OrderHistoryRequest used for GetOrderHistory requests
+type OrderHistoryRequest struct {
+	OrderType   OrderType
+	OrderStatus OrderStatus
+	StartDate   string
+	EndDate     string
+}
+
+// OrderStatus defines order status types
+type OrderStatus string
+
+// All OrderStatus types
+const (
+	AnyOrderStatus             OrderStatus = "ANY"
+	NewOrderStatus             OrderStatus = "NEW"
+	PartiallyFilledOrderStatus OrderStatus = "PARTIALLY_FILLED"
+	FilledOrderStatus          OrderStatus = "FILLED"
+	CancelledOrderStatus       OrderStatus = "CANCELED"
+	PendingCancelOrderStatus   OrderStatus = "PENDING_CANCEL"
+	RejectedOrderStatus        OrderStatus = "REJECTED"
+	ExpiredOrderStatus         OrderStatus = "EXPIRED"
+)

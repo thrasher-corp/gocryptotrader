@@ -342,6 +342,6 @@ func (h *HUOBIHADAX) GetWithdrawCapabilities() uint32 {
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
-func (h *HUOBIHADAX) GetOrderHistory(open, closed, cancelled bool, startDate, endDate string) ([]exchange.OrderDetail, error) {
+func (h *HUOBIHADAX) GetOrderHistory(orderHistoryRequest exchange.OrderHistoryRequest) ([]exchange.OrderDetail, error) {
 	return nil, common.ErrNotYetImplemented
 }

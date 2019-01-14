@@ -498,8 +498,9 @@ func (b *Binance) CancelExistingOrder(symbol string, orderID int64, origClientOr
 	return resp, b.SendAuthHTTPRequest("DELETE", path, params, &resp)
 }
 
-// OpenOrders Current open orders
-// Get all open orders on a symbol. Careful when accessing this with no symbol.
+// OpenOrders Current open orders. Get all open orders on a symbol.
+// Careful when accessing this with no symbol: The number of requests counted against the rate limiter
+// is equal to the number of symbols currently trading on the exchange.
 func (b *Binance) OpenOrders(symbol string) ([]QueryOrderData, error) {
 	var resp []QueryOrderData
 	path := fmt.Sprintf("%s%s", b.APIUrl, openOrders)

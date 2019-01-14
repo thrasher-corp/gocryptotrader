@@ -348,6 +348,31 @@ func (a *ANX) GetWithdrawCapabilities() uint32 {
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
-func (a *ANX) GetOrderHistory(open, closed, cancelled bool, startDate, endDate string) ([]exchange.OrderDetail, error) {
-	return nil, common.ErrNotYetImplemented
+func (a *ANX) GetOrderHistory(orderHistoryRequest exchange.OrderHistoryRequest) ([]exchange.OrderDetail, error) {
+	var isActiveOrdersOnly bool
+	if orderHistoryRequest.OrderStatus == exchange.NewOrderStatus {
+		isActiveOrdersOnly = true
+	}
+	resp, err := a.GetOrderList(isActiveOrdersOnly)
+	if err != nil {
+		return nil, err
+	}
+
+	var orders []exchange.OrderDetail
+	for _, order := range resp {
+		orderDetail := exchange.OrderDetail{
+			Amount:        order.TradedCurrencyAmount,
+			BaseCurrency:  order.TradedCurrency,
+			CreationTime:  order.Timestamp,
+			Exchange:      a.Name,
+			ID:            order.OrderID,
+			OrderType:     order.OrderType,
+			Price:         order.SettlementCurrencyAmount,
+			QuoteCurrency: order.SettlementCurrency,
+			Status:        order.OrderStatus,
+		}
+		orders = append(orders, orderDetail)
+	}
+
+	return orders, nil
 }
