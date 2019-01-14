@@ -168,15 +168,6 @@ func TestGetAccountBalanceByCurrency(t *testing.T) {
 	}
 }
 
-func TestGetDepositAddress(t *testing.T) {
-	t.Parallel()
-
-	_, err := b.GetDepositAddress("btc")
-	if err == nil {
-		t.Error("Test Failed - Bittrex - GetDepositAddress() error")
-	}
-}
-
 func TestGetOrder(t *testing.T) {
 	t.Parallel()
 
@@ -479,5 +470,19 @@ func TestWithdrawInternationalBank(t *testing.T) {
 	_, err := b.WithdrawFiatFundsToInternationalBank(withdrawFiatRequest)
 	if err != common.ErrFunctionNotSupported {
 		t.Errorf("Expected '%v', recieved: '%v'", common.ErrFunctionNotSupported, err)
+	}
+}
+
+func TestGetDepositAddress(t *testing.T) {
+	if apiKey != "" && apiSecret != "" {
+		_, err := b.GetDepositAddress(symbol.BTC)
+		if err != nil {
+			t.Error("Test Failed - GetDepositAddress() error", err)
+		}
+	} else {
+		_, err := b.GetDepositAddress(symbol.BTC)
+		if err == nil {
+			t.Error("Test Failed - GetDepositAddress() error cannot be nil")
+		}
 	}
 }

@@ -238,7 +238,12 @@ func (b *Bittrex) GetOrderInfo(orderID int64) (exchange.OrderDetail, error) {
 
 // GetDepositAddress returns a deposit address for a specified currency
 func (b *Bittrex) GetDepositAddress(cryptocurrency pair.CurrencyItem) (string, error) {
-	return "", common.ErrNotYetImplemented
+	depositAddr, err := b.GetCryptoDepositAddress(cryptocurrency.String())
+	if err != nil {
+		return "", err
+	}
+
+	return depositAddr.Result.Address, nil
 }
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
