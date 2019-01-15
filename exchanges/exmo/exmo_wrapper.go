@@ -291,7 +291,7 @@ func (e *EXMO) WithdrawFiatFundsToInternationalBank(withdrawRequest exchange.Wit
 
 // GetWebsocket returns a pointer to the exchange websocket
 func (e *EXMO) GetWebsocket() (*exchange.Websocket, error) {
-	return nil, common.ErrNotYetImplemented
+	return nil, common.ErrFunctionNotSupported
 }
 
 // GetFeeByType returns an estimate of fee based on type of transaction
