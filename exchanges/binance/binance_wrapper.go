@@ -269,7 +269,7 @@ func (b *Binance) GetOrderInfo(orderID int64) (exchange.OrderDetail, error) {
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
-func (b *Binance) GetDepositAddress(cryptocurrency pair.CurrencyItem) (string, error) {
+func (b *Binance) GetDepositAddress(cryptocurrency pair.CurrencyItem, accountID string) (string, error) {
 	return b.GetDepositAddressForCurrency(cryptocurrency.String())
 }
 

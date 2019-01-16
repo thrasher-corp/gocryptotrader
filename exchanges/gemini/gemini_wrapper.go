@@ -195,7 +195,7 @@ func (g *Gemini) GetOrderInfo(orderID int64) (exchange.OrderDetail, error) {
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
-func (g *Gemini) GetDepositAddress(cryptocurrency pair.CurrencyItem) (string, error) {
+func (g *Gemini) GetDepositAddress(cryptocurrency pair.CurrencyItem, accountID string) (string, error) {
 	addr, err := g.GetCryptoDepositAddress("", cryptocurrency.String())
 	if err != nil {
 		return "", err

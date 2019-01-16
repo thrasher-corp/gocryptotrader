@@ -639,18 +639,13 @@ func TestWithdrawInternationalBank(t *testing.T) {
 }
 
 func TestGetDepositAddress(t *testing.T) {
-	_, err := b.GetDepositAddress("Bro")
-	if err == nil {
-		t.Error("Test Failed - GetDepositAddress() error cannot be nil")
-	}
-
-	if testAPIKey != "" && testAPISecret != "" {
-		_, err := b.GetDepositAddress(symbol.XBT)
+	if areTestAPIKeysSet() {
+		_, err := b.GetDepositAddress(symbol.BTC, "")
 		if err != nil {
 			t.Error("Test Failed - GetDepositAddress() error", err)
 		}
 	} else {
-		_, err := b.GetDepositAddress(symbol.XBT)
+		_, err := b.GetDepositAddress(symbol.BTC, "")
 		if err == nil {
 			t.Error("Test Failed - GetDepositAddress() error cannot be nil")
 		}

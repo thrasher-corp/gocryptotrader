@@ -341,7 +341,7 @@ func (h *HUOBI) GetOrderInfo(orderID int64) (exchange.OrderDetail, error) {
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
-func (h *HUOBI) GetDepositAddress(cryptocurrency pair.CurrencyItem) (string, error) {
+func (h *HUOBI) GetDepositAddress(cryptocurrency pair.CurrencyItem, accountID string) (string, error) {
 	return "", common.ErrFunctionNotSupported
 }
 

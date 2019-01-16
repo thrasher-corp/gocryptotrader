@@ -85,7 +85,7 @@ func TestGetFee(t *testing.T) {
 	TestSetup(t)
 
 	var feeBuilder = setFeeBuilder()
-	if apiKey != "" && apiSecret != "" {
+	if areTestAPIKeysSet() {
 		// CryptocurrencyTradeFee Basic
 		if resp, err := h.GetFee(feeBuilder); resp != float64(0.001) || err != nil {
 			t.Error(err)
@@ -333,13 +333,13 @@ func TestWithdrawInternationalBank(t *testing.T) {
 }
 
 func TestGetDepositAddress(t *testing.T) {
-	if apiKey != "" && apiSecret != "" {
-		_, err := h.GetDepositAddress(symbol.BTC)
+	if areTestAPIKeysSet() {
+		_, err := h.GetDepositAddress(symbol.BTC, "")
 		if err != nil {
 			t.Error("Test Failed - GetDepositAddress() error", err)
 		}
 	} else {
-		_, err := h.GetDepositAddress(symbol.BTC)
+		_, err := h.GetDepositAddress(symbol.BTC, "")
 		if err == nil {
 			t.Error("Test Failed - GetDepositAddress() error cannot be nil")
 		}

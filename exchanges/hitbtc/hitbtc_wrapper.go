@@ -223,7 +223,7 @@ func (h *HitBTC) GetOrderInfo(orderID int64) (exchange.OrderDetail, error) {
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
-func (h *HitBTC) GetDepositAddress(currency pair.CurrencyItem) (string, error) {
+func (h *HitBTC) GetDepositAddress(currency pair.CurrencyItem, accountID string) (string, error) {
 	resp, err := h.GetDepositAddresses(currency.String())
 	if err != nil {
 		return "", err

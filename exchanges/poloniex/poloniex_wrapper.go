@@ -243,7 +243,7 @@ func (p *Poloniex) GetOrderInfo(orderID int64) (exchange.OrderDetail, error) {
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
-func (p *Poloniex) GetDepositAddress(cryptocurrency pair.CurrencyItem) (string, error) {
+func (p *Poloniex) GetDepositAddress(cryptocurrency pair.CurrencyItem, accountID string) (string, error) {
 	a, err := p.GetDepositAddresses()
 	if err != nil {
 		return "", err

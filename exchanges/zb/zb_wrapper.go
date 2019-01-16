@@ -248,7 +248,7 @@ func (z *ZB) GetOrderInfo(orderID int64) (exchange.OrderDetail, error) {
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
-func (z *ZB) GetDepositAddress(cryptocurrency pair.CurrencyItem) (string, error) {
+func (z *ZB) GetDepositAddress(cryptocurrency pair.CurrencyItem, accountID string) (string, error) {
 	address, err := z.GetCryptoAddress(cryptocurrency)
 	if err != nil {
 		return "", err

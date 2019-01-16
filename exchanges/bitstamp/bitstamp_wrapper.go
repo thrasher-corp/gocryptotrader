@@ -228,7 +228,7 @@ func (b *Bitstamp) GetOrderInfo(orderID int64) (exchange.OrderDetail, error) {
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
-func (b *Bitstamp) GetDepositAddress(cryptocurrency pair.CurrencyItem) (string, error) {
+func (b *Bitstamp) GetDepositAddress(cryptocurrency pair.CurrencyItem, accountID string) (string, error) {
 	return b.GetCryptoDepositAddress(cryptocurrency.String())
 }
 

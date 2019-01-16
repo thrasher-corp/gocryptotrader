@@ -246,7 +246,7 @@ func (i *ItBit) GetOrderInfo(orderID int64) (exchange.OrderDetail, error) {
 // NOTE: This has not been implemented due to the fact you need to generate a
 // a specific wallet ID and they restrict the amount of deposit address you can
 // request limiting them to 2.
-func (i *ItBit) GetDepositAddress(cryptocurrency pair.CurrencyItem) (string, error) {
+func (i *ItBit) GetDepositAddress(cryptocurrency pair.CurrencyItem, accountID string) (string, error) {
 	return "", common.ErrNotYetImplemented
 }
 

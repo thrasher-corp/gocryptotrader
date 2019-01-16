@@ -221,7 +221,7 @@ func (l *Liqui) GetOrderInfo(orderID int64) (exchange.OrderDetail, error) {
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
-func (l *Liqui) GetDepositAddress(cryptocurrency pair.CurrencyItem) (string, error) {
+func (l *Liqui) GetDepositAddress(cryptocurrency pair.CurrencyItem, accountID string) (string, error) {
 	return "", common.ErrFunctionNotSupported
 }
 

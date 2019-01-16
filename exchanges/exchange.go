@@ -315,7 +315,7 @@ type IBotExchange interface {
 	CancelOrder(order OrderCancellation) error
 	CancelAllOrders(orders OrderCancellation) (CancelAllOrdersResponse, error)
 	GetOrderInfo(orderID int64) (OrderDetail, error)
-	GetDepositAddress(cryptocurrency pair.CurrencyItem) (string, error)
+	GetDepositAddress(cryptocurrency pair.CurrencyItem, accountID string) (string, error)
 
 	WithdrawCryptocurrencyFunds(wtihdrawRequest WithdrawRequest) (string, error)
 	WithdrawFiatFunds(wtihdrawRequest WithdrawRequest) (string, error)

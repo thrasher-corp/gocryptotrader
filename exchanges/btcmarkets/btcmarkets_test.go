@@ -32,7 +32,7 @@ func TestSetup(t *testing.T) {
 		t.Error("Test Failed - BTC Markets Setup() init error")
 	}
 
-	if apiKey != "" && apiSecret != "" {
+	if areTestAPIKeysSet() {
 		bConfig.APIKey = apiKey
 		bConfig.APISecret = apiSecret
 		bConfig.AuthenticatedAPISupport = true
@@ -452,7 +452,7 @@ func TestWithdrawInternationalBank(t *testing.T) {
 }
 
 func TestGetDepositAddress(t *testing.T) {
-	_, err := b.GetDepositAddress(symbol.BTC)
+	_, err := b.GetDepositAddress(symbol.BTC, "")
 	if err == nil {
 		t.Error("Test Failed - GetDepositAddress() error cannot be nil")
 	}

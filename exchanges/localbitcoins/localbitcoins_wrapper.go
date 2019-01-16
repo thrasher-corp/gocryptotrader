@@ -253,7 +253,7 @@ func (l *LocalBitcoins) GetOrderInfo(orderID int64) (exchange.OrderDetail, error
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
-func (l *LocalBitcoins) GetDepositAddress(cryptocurrency pair.CurrencyItem) (string, error) {
+func (l *LocalBitcoins) GetDepositAddress(cryptocurrency pair.CurrencyItem, accountID string) (string, error) {
 	if !strings.EqualFold(symbol.BTC, cryptocurrency.String()) {
 		return "", fmt.Errorf("Localbitcoins do not have support for currency %s just bitcoin",
 			cryptocurrency.String())

@@ -257,7 +257,7 @@ func (e *EXMO) GetOrderInfo(orderID int64) (exchange.OrderDetail, error) {
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
-func (e *EXMO) GetDepositAddress(cryptocurrency pair.CurrencyItem) (string, error) {
+func (e *EXMO) GetDepositAddress(cryptocurrency pair.CurrencyItem, accountID string) (string, error) {
 	fullAddr, err := e.GetCryptoDepositAddress()
 	if err != nil {
 		return "", err

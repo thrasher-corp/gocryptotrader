@@ -269,7 +269,7 @@ func (g *Gateio) GetOrderInfo(orderID int64) (exchange.OrderDetail, error) {
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
-func (g *Gateio) GetDepositAddress(cryptocurrency pair.CurrencyItem) (string, error) {
+func (g *Gateio) GetDepositAddress(cryptocurrency pair.CurrencyItem, accountID string) (string, error) {
 	addr, err := g.GetCryptoDepositAddress(cryptocurrency.String())
 	if err != nil {
 		return "", err

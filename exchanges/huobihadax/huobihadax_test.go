@@ -560,7 +560,7 @@ func TestWithdrawInternationalBank(t *testing.T) {
 }
 
 func TestGetDepositAddress(t *testing.T) {
-	_, err := h.GetDepositAddress(symbol.BTC)
+	_, err := h.GetDepositAddress(symbol.BTC, "")
 	if err == nil {
 		t.Error("Test Failed - GetDepositAddress() error cannot be nil")
 	}

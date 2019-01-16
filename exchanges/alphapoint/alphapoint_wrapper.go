@@ -173,7 +173,7 @@ func (a *Alphapoint) GetOrderInfo(orderID int64) (float64, error) {
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
-func (a *Alphapoint) GetDepositAddress(cryptocurrency pair.CurrencyItem) (string, error) {
+func (a *Alphapoint) GetDepositAddress(cryptocurrency pair.CurrencyItem, accountID string) (string, error) {
 	addreses, err := a.GetDepositAddresses()
 	if err != nil {
 		return "", err

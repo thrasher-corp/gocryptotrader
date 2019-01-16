@@ -203,7 +203,7 @@ func (c *CoinbasePro) GetOrderInfo(orderID int64) (exchange.OrderDetail, error) 
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
-func (c *CoinbasePro) GetDepositAddress(cryptocurrency pair.CurrencyItem) (string, error) {
+func (c *CoinbasePro) GetDepositAddress(cryptocurrency pair.CurrencyItem, accountID string) (string, error) {
 	return "", common.ErrFunctionNotSupported
 }
 
