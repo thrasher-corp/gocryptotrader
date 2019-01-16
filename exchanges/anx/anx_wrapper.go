@@ -310,7 +310,7 @@ func (a *ANX) GetOrderInfo(orderID int64) (exchange.OrderDetail, error) {
 
 // GetDepositAddress returns a deposit address for a specified currency
 func (a *ANX) GetDepositAddress(cryptocurrency pair.CurrencyItem, accountID string) (string, error) {
-	return "", common.ErrFunctionNotSupported
+	return a.GetDepositAddressByCurrency(cryptocurrency.String(), "", false)
 }
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is

@@ -385,7 +385,6 @@ func (a *ANX) GetDepositAddressByCurrency(currency, name string, new bool) (stri
 	}
 
 	err := a.SendAuthenticatedHTTPRequest(path, request, &response)
-
 	if err != nil {
 		return "", err
 	}
