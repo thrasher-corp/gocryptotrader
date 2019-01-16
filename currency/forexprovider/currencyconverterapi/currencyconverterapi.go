@@ -164,5 +164,11 @@ func (c *CurrencyConverter) SendHTTPRequest(endPoint string, values url.Values, 
 	}
 	path = path + values.Encode()
 
-	return common.SendHTTPGetRequest(path, true, c.Verbose, &result)
+	err := common.SendHTTPGetRequest(path, true, c.Verbose, &result)
+	if err != nil {
+		return fmt.Errorf("Currency converter API SendHTTPRequest error %s with path %s",
+			err,
+			path)
+	}
+	return nil
 }
