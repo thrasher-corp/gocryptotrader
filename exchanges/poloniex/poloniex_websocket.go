@@ -24,6 +24,11 @@ const (
 	wsHeartbeat              = 1010
 )
 
+var (
+	// CurrencyIDMap stores a map of currencies associated with their ID
+	CurrencyIDMap map[string]int
+)
+
 // WsConnect initiates a websocket connection
 func (p *Poloniex) WsConnect() error {
 	if !p.Websocket.IsEnabled() || !p.IsEnabled() {
@@ -45,6 +50,18 @@ func (p *Poloniex) WsConnect() error {
 		http.Header{})
 	if err != nil {
 		return err
+	}
+
+	if CurrencyIDMap == nil {
+		CurrencyIDMap = make(map[string]int)
+		resp, err := p.GetCurrencies()
+		if err != nil {
+			return err
+		}
+
+		for k, v := range resp {
+			CurrencyIDMap[k] = v.ID
+		}
 	}
 
 	go p.WsReadData()
@@ -118,6 +135,19 @@ func (p *Poloniex) WsReadData() {
 	}
 }
 
+func getWSDataType(data interface{}) string {
+	subData := data.([]interface{})
+	dataType := subData[0].(string)
+	return dataType
+}
+
+func checkSubscriptionSuccess(data []interface{}) bool {
+	if data[1].(float64) != 1 {
+		return false
+	}
+	return true
+}
+
 // WsHandleData handles data from the websocket connection
 func (p *Poloniex) WsHandleData() {
 	p.Websocket.Wg.Add(1)
@@ -129,138 +159,124 @@ func (p *Poloniex) WsHandleData() {
 			return
 
 		case resp := <-p.Websocket.Intercomm:
-			var check []interface{}
-			err := common.JSONDecode(resp.Raw, &check)
+			var result interface{}
+			err := common.JSONDecode(resp.Raw, &result)
 			if err != nil {
 				log.Errorf("poloniex websocket decode error - %s", err)
 			}
 
-			switch len(check) {
-			case 1:
-				if check[0].(float64) == wsHeartbeat {
-					continue
-				}
+			data := result.([]interface{})
+			chanID := int(data[0].(float64))
 
-			case 2:
-				switch check[0].(type) {
-				case float64:
-					subscriptionID := check[0].(float64)
-					if subscriptionID == ws24HourExchangeVolumeID ||
-						subscriptionID == wsAccountNotificationID ||
-						subscriptionID == wsTickerDataID {
-						if check[1].(float64) != 1 {
-							p.Websocket.DataHandler <- errors.New("poloniex.go error - Subcription failed")
-							continue
-						}
-						continue
+			if len(data) == 2 && chanID != wsHeartbeat {
+				if checkSubscriptionSuccess(data) {
+					if p.Verbose {
+						log.Debugf("poloniex websocket subscribed to channel successfully. %d", chanID)
 					}
-
-				case string:
-					orderbookSubscriptionID := check[0].(string)
-					if check[1].(float64) != 1 {
-						p.Websocket.DataHandler <- fmt.Errorf("poloniex.go error - orderbook subscription failed with symbol %s",
-							orderbookSubscriptionID)
-						continue
+				} else {
+					if p.Verbose {
+						log.Debugf("poloniex websocket subscription to channel failed. %d", chanID)
 					}
 				}
+				continue
+			}
 
-			case 3:
-				switch len(check[2].([]interface{})) {
-				case 1:
-					// Snapshot
-					datalevel1 := check[2].([]interface{})
-					datalevel2 := datalevel1[0].([]interface{})
+			switch chanID {
+			case wsAccountNotificationID:
+			case wsTickerDataID:
+				tickerData := data[2].([]interface{})
+				var t WsTicker
+				t.LastPrice, _ = strconv.ParseFloat(tickerData[1].(string), 64)
+				t.LowestAsk, _ = strconv.ParseFloat(tickerData[2].(string), 64)
+				t.HighestBid, _ = strconv.ParseFloat(tickerData[3].(string), 64)
+				t.PercentageChange, _ = strconv.ParseFloat(tickerData[4].(string), 64)
+				t.BaseCurrencyVolume24H, _ = strconv.ParseFloat(tickerData[5].(string), 64)
+				t.QuoteCurrencyVolume24H, _ = strconv.ParseFloat(tickerData[6].(string), 64)
+				isFrozen := false
+				if tickerData[7].(float64) == 1 {
+					isFrozen = true
+				}
+				t.IsFrozen = isFrozen
+				t.HighestTradeIn24H, _ = strconv.ParseFloat(tickerData[8].(string), 64)
+				t.LowestTradePrice24H, _ = strconv.ParseFloat(tickerData[9].(string), 64)
 
-					switch datalevel2[1].(type) {
-					case float64:
-						err := p.WsProcessOrderbookUpdate(datalevel2,
-							CurrencyPairID[int64(check[0].(float64))])
-						if err != nil {
-							log.Error(err)
-						}
+				p.Websocket.DataHandler <- exchange.TickerData{
+					Timestamp: time.Now(),
+					Exchange:  p.GetName(),
+					AssetType: "SPOT",
+					LowPrice:  t.LowestAsk,
+					HighPrice: t.HighestBid,
+				}
+			case ws24HourExchangeVolumeID:
+			case wsHeartbeat:
+			default:
+				if len(data) > 2 {
+					subData := data[2].([]interface{})
 
-						p.Websocket.DataHandler <- exchange.WebsocketOrderbookUpdate{
-							Exchange: p.GetName(),
-							Asset:    "SPOT",
-							// Pair: pair.NewCurrencyPairFromString(currencyPair),
-						}
+					for x := range subData {
+						dataL2 := subData[x]
+						dataL3 := dataL2.([]interface{})
 
-					case map[string]interface{}:
-						datalevel3 := datalevel2[1].(map[string]interface{})
-						currencyPair, ok := datalevel3["currencyPair"].(string)
-						if !ok {
-							log.Error("poloniex.go error - could not find currency pair in map")
-						}
-
-						orderbookData, ok := datalevel3["orderBook"].([]interface{})
-						if !ok {
-							log.Error("poloniex.go error - could not find orderbook data in map")
-						}
-
-						err := p.WsProcessOrderbookSnapshot(orderbookData, currencyPair)
-						if err != nil {
-							log.Fatal(err)
-						}
-
-						p.Websocket.DataHandler <- exchange.WebsocketOrderbookUpdate{
-							Exchange: p.GetName(),
-							Asset:    "SPOT",
-							Pair:     pair.NewCurrencyPairFromString(currencyPair),
-						}
-						continue
-					}
-
-				case 10:
-					tickerData := check[2].([]interface{})
-					var ticker WsTicker
-
-					ticker.LastPrice, _ = tickerData[0].(float64)
-					// ticker.LowestAsk, _ = strconv.ParseFloat(tickerData[1].(string), 64)
-					ticker.HighestBid, _ = strconv.ParseFloat(tickerData[2].(string), 64)
-					ticker.PercentageChange, _ = strconv.ParseFloat(tickerData[3].(string), 64)
-					ticker.BaseCurrencyVolume24H, _ = strconv.ParseFloat(tickerData[4].(string), 64)
-					ticker.QuoteCurrencyVolume24H, _ = strconv.ParseFloat(tickerData[5].(string), 64)
-					frozen, _ := strconv.ParseInt(tickerData[6].(string), 10, 64)
-					if frozen == 1 {
-						ticker.IsFrozen = true
-					}
-					ticker.HighestTradeIn24H, _ = tickerData[7].(float64)
-					ticker.LowestTradePrice24H, _ = strconv.ParseFloat(tickerData[8].(string), 64)
-
-					p.Websocket.DataHandler <- exchange.TickerData{
-						Timestamp: time.Now(),
-						Exchange:  p.GetName(),
-						AssetType: "SPOT",
-						LowPrice:  ticker.LowestAsk,
-						HighPrice: ticker.HighestBid,
-					}
-
-				default:
-					for _, element := range check[2].([]interface{}) {
-						switch element.(type) {
-						case []interface{}:
-							data := element.([]interface{})
-							if data[0].(string) == "o" {
-								p.WsProcessOrderbookUpdate(data, CurrencyPairID[int64(check[0].(float64))])
+						switch getWSDataType(dataL2) {
+						case "i":
+							dataL3map := dataL3[1].(map[string]interface{})
+							currencyPair, ok := dataL3map["currencyPair"].(string)
+							if !ok {
+								log.Error("poloniex.go error - could not find currency pair in map")
 								continue
 							}
 
-							var trade WsTrade
+							orderbookData, ok := dataL3map["orderBook"].([]interface{})
+							if !ok {
+								log.Error("poloniex.go error - could not find orderbook data in map")
+								continue
+							}
 
-							id, _ := strconv.ParseInt(data[0].(string), 10, 64)
-							trade.Symbol = CurrencyPairID[id]
-							trade.TradeID, _ = data[0].(int64)
-							trade.Side, _ = data[0].(string)
-							trade.Volume, _ = data[0].(float64)
-							trade.Price, _ = data[0].(float64)
-							trade.Timestamp, _ = data[0].(int64)
+							err := p.WsProcessOrderbookSnapshot(orderbookData, currencyPair)
+							if err != nil {
+								log.Error(err)
+								continue
+							}
+
+							p.Websocket.DataHandler <- exchange.WebsocketOrderbookUpdate{
+								Exchange: p.GetName(),
+								Asset:    "SPOT",
+								Pair:     pair.NewCurrencyPairFromString(currencyPair),
+							}
+						case "o":
+							currencyPair := CurrencyPairID[chanID]
+							err := p.WsProcessOrderbookUpdate(dataL3, currencyPair)
+							if err != nil {
+								log.Error(err)
+								continue
+							}
+
+							p.Websocket.DataHandler <- exchange.WebsocketOrderbookUpdate{
+								Exchange: p.GetName(),
+								Asset:    "SPOT",
+								Pair:     pair.NewCurrencyPairFromString(currencyPair),
+							}
+						case "t":
+							currencyPair := CurrencyPairID[chanID]
+							var trade WsTrade
+							trade.Symbol = CurrencyPairID[chanID]
+							trade.TradeID, _ = strconv.ParseInt(dataL3[1].(string), 10, 64)
+							// 1 for buy 0 for sell
+							side := "buy"
+							if dataL3[2].(float64) != 1 {
+								side = "sell"
+							}
+							trade.Side = side
+							trade.Volume, _ = strconv.ParseFloat(dataL3[3].(string), 64)
+							trade.Price, _ = strconv.ParseFloat(dataL3[4].(string), 64)
+							trade.Timestamp = int64(dataL3[5].(float64))
 
 							p.Websocket.DataHandler <- exchange.TradeData{
-								Timestamp: time.Unix(trade.Timestamp, 0),
-								// CurrencyPair: pair.NewCurrencyPairFromString(trade.Symbol),
-								Side:   trade.Side,
-								Amount: trade.Volume,
-								Price:  trade.Price,
+								Timestamp:    time.Unix(trade.Timestamp, 0),
+								CurrencyPair: pair.NewCurrencyPairFromString(currencyPair),
+								Side:         trade.Side,
+								Amount:       trade.Volume,
+								Price:        trade.Price,
 							}
 						}
 					}
@@ -356,7 +372,7 @@ func (p *Poloniex) WsProcessOrderbookUpdate(target []interface{}, symbol string)
 }
 
 // CurrencyPairID contains a list of IDS for currency pairs.
-var CurrencyPairID = map[int64]string{
+var CurrencyPairID = map[int]string{
 	7:   "BTC_BCN",
 	14:  "BTC_BTS",
 	15:  "BTC_BURST",
@@ -462,306 +478,4 @@ var CurrencyPairID = map[int64]string{
 	224: "USDC_BTC",
 	226: "USDC_USDT",
 	225: "USDC_ETH",
-}
-
-// CurrencyID defines IDs to a currency supported by the exchange
-var CurrencyID = map[int64]string{
-	1:   "1CR",
-	2:   "ABY",
-	3:   "AC",
-	4:   "ACH",
-	5:   "ADN",
-	6:   "AEON",
-	7:   "AERO",
-	8:   "AIR",
-	9:   "APH",
-	10:  "AUR",
-	11:  "AXIS",
-	12:  "BALLS",
-	13:  "BANK",
-	14:  "BBL",
-	15:  "BBR",
-	16:  "BCC",
-	17:  "BCN",
-	18:  "BDC",
-	19:  "BDG",
-	20:  "BELA",
-	21:  "BITS",
-	22:  "BLK",
-	23:  "BLOCK",
-	24:  "BLU",
-	25:  "BNS",
-	26:  "BONES",
-	27:  "BOST",
-	28:  "BTC",
-	29:  "BTCD",
-	30:  "BTCS",
-	31:  "BTM",
-	32:  "BTS",
-	33:  "BURN",
-	34:  "BURST",
-	35:  "C2",
-	36:  "CACH",
-	37:  "CAI",
-	38:  "CC",
-	39:  "CCN",
-	40:  "CGA",
-	41:  "CHA",
-	42:  "CINNI",
-	43:  "CLAM",
-	44:  "CNL",
-	45:  "CNMT",
-	46:  "CNOTE",
-	47:  "COMM",
-	48:  "CON",
-	49:  "CORG",
-	50:  "CRYPT",
-	51:  "CURE",
-	52:  "CYC",
-	53:  "DGB",
-	54:  "DICE",
-	55:  "DIEM",
-	56:  "DIME",
-	57:  "DIS",
-	58:  "DNS",
-	59:  "DOGE",
-	60:  "DASH",
-	61:  "DRKC",
-	62:  "DRM",
-	63:  "DSH",
-	64:  "DVK",
-	65:  "EAC",
-	66:  "EBT",
-	67:  "ECC",
-	68:  "EFL",
-	69:  "EMC2",
-	70:  "EMO",
-	71:  "ENC",
-	72:  "eTOK",
-	73:  "EXE",
-	74:  "FAC",
-	75:  "FCN",
-	76:  "FIBRE",
-	77:  "FLAP",
-	78:  "FLDC",
-	79:  "FLT",
-	80:  "FOX",
-	81:  "FRAC",
-	82:  "FRK",
-	83:  "FRQ",
-	84:  "FVZ",
-	85:  "FZ",
-	86:  "FZN",
-	87:  "GAP",
-	88:  "GDN",
-	89:  "GEMZ",
-	90:  "GEO",
-	91:  "GIAR",
-	92:  "GLB",
-	93:  "GAME",
-	94:  "GML",
-	95:  "GNS",
-	96:  "GOLD",
-	97:  "GPC",
-	98:  "GPUC",
-	99:  "GRCX",
-	100: "GRS",
-	101: "GUE",
-	102: "H2O",
-	103: "HIRO",
-	104: "HOT",
-	105: "HUC",
-	106: "HVC",
-	107: "HYP",
-	108: "HZ",
-	109: "IFC",
-	110: "ITC",
-	111: "IXC",
-	112: "JLH",
-	113: "JPC",
-	114: "JUG",
-	115: "KDC",
-	116: "KEY",
-	117: "LC",
-	118: "LCL",
-	119: "LEAF",
-	120: "LGC",
-	121: "LOL",
-	122: "LOVE",
-	123: "LQD",
-	124: "LTBC",
-	125: "LTC",
-	126: "LTCX",
-	127: "MAID",
-	128: "MAST",
-	129: "MAX",
-	130: "MCN",
-	131: "MEC",
-	132: "METH",
-	133: "MIL",
-	134: "MIN",
-	135: "MINT",
-	136: "MMC",
-	137: "MMNXT",
-	138: "MMXIV",
-	139: "MNTA",
-	140: "MON",
-	141: "MRC",
-	142: "MRS",
-	143: "OMNI",
-	144: "MTS",
-	145: "MUN",
-	146: "MYR",
-	147: "MZC",
-	148: "N5X",
-	149: "NAS",
-	150: "NAUT",
-	151: "NAV",
-	152: "NBT",
-	153: "NEOS",
-	154: "NL",
-	155: "NMC",
-	156: "NOBL",
-	157: "NOTE",
-	158: "NOXT",
-	159: "NRS",
-	160: "NSR",
-	161: "NTX",
-	162: "NXT",
-	163: "NXTI",
-	164: "OPAL",
-	165: "PAND",
-	166: "PAWN",
-	167: "PIGGY",
-	168: "PINK",
-	169: "PLX",
-	170: "PMC",
-	171: "POT",
-	172: "PPC",
-	173: "PRC",
-	174: "PRT",
-	175: "PTS",
-	176: "Q2C",
-	177: "QBK",
-	178: "QCN",
-	179: "QORA",
-	180: "QTL",
-	181: "RBY",
-	182: "RDD",
-	183: "RIC",
-	184: "RZR",
-	185: "SDC",
-	186: "SHIBE",
-	187: "SHOPX",
-	188: "SILK",
-	189: "SJCX",
-	190: "SLR",
-	191: "SMC",
-	192: "SOC",
-	193: "SPA",
-	194: "SQL",
-	195: "SRCC",
-	196: "SRG",
-	197: "SSD",
-	198: "STR",
-	199: "SUM",
-	200: "SUN",
-	201: "SWARM",
-	202: "SXC",
-	203: "SYNC",
-	204: "SYS",
-	205: "TAC",
-	206: "TOR",
-	207: "TRUST",
-	208: "TWE",
-	209: "UIS",
-	210: "ULTC",
-	211: "UNITY",
-	212: "URO",
-	213: "USDE",
-	214: "USDT",
-	215: "UTC",
-	216: "UTIL",
-	217: "UVC",
-	218: "VIA",
-	219: "VOOT",
-	220: "VRC",
-	221: "VTC",
-	222: "WC",
-	223: "WDC",
-	224: "WIKI",
-	225: "WOLF",
-	226: "X13",
-	227: "XAI",
-	228: "XAP",
-	229: "XBC",
-	230: "XC",
-	231: "XCH",
-	232: "XCN",
-	233: "XCP",
-	234: "XCR",
-	235: "XDN",
-	236: "XDP",
-	237: "XHC",
-	238: "XLB",
-	239: "XMG",
-	240: "XMR",
-	241: "XPB",
-	242: "XPM",
-	243: "XRP",
-	244: "XSI",
-	245: "XST",
-	246: "XSV",
-	247: "XUSD",
-	248: "XXC",
-	249: "YACC",
-	250: "YANG",
-	251: "YC",
-	252: "YIN",
-	253: "XVC",
-	254: "FLO",
-	256: "XEM",
-	258: "ARCH",
-	260: "HUGE",
-	261: "GRC",
-	263: "IOC",
-	265: "INDEX",
-	267: "ETH",
-	268: "SC",
-	269: "BCY",
-	270: "EXP",
-	271: "FCT",
-	272: "BITUSD",
-	273: "BITCNY",
-	274: "RADS",
-	275: "AMP",
-	276: "VOX",
-	277: "DCR",
-	278: "LSK",
-	279: "DAO",
-	280: "LBC",
-	281: "STEEM",
-	282: "SBD",
-	283: "ETC",
-	284: "REP",
-	285: "ARDR",
-	286: "ZEC",
-	287: "STRAT",
-	288: "NXC",
-	289: "PASC",
-	290: "GNT",
-	291: "GNO",
-	292: "BCH",
-	293: "ZRX",
-	294: "CVC",
-	295: "OMG",
-	296: "GAS",
-	297: "STORJ",
-	298: "EOS",
-	299: "USDC",
-	300: "SNT",
-	301: "KNC",
-	302: "BAT",
-	303: "LOOM",
-	304: "QTUM",
 }

@@ -76,6 +76,7 @@ type ChartData struct {
 
 // Currencies contains currency information
 type Currencies struct {
+	ID                 int         `json:"id"`
 	Name               string      `json:"name"`
 	MaxDailyWithdrawal string      `json:"maxDailyWithdrawal"`
 	TxFee              float64     `json:"txFee,string"`
