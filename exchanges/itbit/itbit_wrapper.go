@@ -147,8 +147,6 @@ func (i *ItBit) GetAccountInfo() (exchange.AccountInfo, error) {
 	}
 
 	info.Accounts = append(info.Accounts, exchange.Account{
-		ID:         "",
-		Working:    true,
 		Currencies: fullBalance,
 	})
 

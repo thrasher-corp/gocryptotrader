@@ -179,10 +179,6 @@ func (h *HUOBI) GetAccountInfo() (exchange.AccountInfo, error) {
 
 		acc.ID = strconv.FormatInt(account.ID, 10)
 
-		if account.State == "working" {
-			acc.Working = true
-		}
-
 		balances, err := h.GetAccountBalance(acc.ID)
 		if err != nil {
 			return info, err

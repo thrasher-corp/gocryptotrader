@@ -126,8 +126,6 @@ func (l *LocalBitcoins) GetAccountInfo() (exchange.AccountInfo, error) {
 	exchangeCurrency.TotalValue = accountBalance.Total.Balance
 
 	response.Accounts = append(response.Accounts, exchange.Account{
-		ID:         "",
-		Working:    true,
 		Currencies: []exchange.AccountCurrencyInfo{exchangeCurrency},
 	})
 	return response, nil

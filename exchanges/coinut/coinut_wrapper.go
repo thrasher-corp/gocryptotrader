@@ -133,8 +133,6 @@ func (c *COINUT) GetAccountInfo() (exchange.AccountInfo, error) {
 
 	info.Exchange = c.GetName()
 	info.Accounts = append(info.Accounts, exchange.Account{
-		ID:         "",
-		Working:    true,
 		Currencies: balances,
 	})
 

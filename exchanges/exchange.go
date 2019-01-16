@@ -195,7 +195,6 @@ type AccountInfo struct {
 // Account defines a singular account type with asocciated currencies
 type Account struct {
 	ID         string
-	Working    bool
 	Currencies []AccountCurrencyInfo
 }
 

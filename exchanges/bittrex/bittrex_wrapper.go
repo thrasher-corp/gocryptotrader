@@ -81,8 +81,6 @@ func (b *Bittrex) GetAccountInfo() (exchange.AccountInfo, error) {
 	}
 
 	response.Accounts = append(response.Accounts, exchange.Account{
-		ID:         "",
-		Working:    true,
 		Currencies: currencies,
 	})
 

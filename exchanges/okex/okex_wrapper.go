@@ -169,8 +169,6 @@ func (o *OKEX) GetAccountInfo() (exchange.AccountInfo, error) {
 
 	info.Exchange = o.GetName()
 	info.Accounts = append(info.Accounts, exchange.Account{
-		ID:         "",
-		Working:    true,
 		Currencies: balances,
 	})
 

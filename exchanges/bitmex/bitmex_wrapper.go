@@ -144,8 +144,6 @@ func (b *Bitmex) GetAccountInfo() (exchange.AccountInfo, error) {
 
 	info.Exchange = b.GetName()
 	info.Accounts = append(info.Accounts, exchange.Account{
-		ID:         "",
-		Working:    true,
 		Currencies: balances,
 	})
 

@@ -285,8 +285,6 @@ func TestGetCollatedExchangeAccountInfoByCoin(t *testing.T) {
 	info.Exchange = "Bitfinex"
 	info.Accounts = append(info.Accounts,
 		exchange.Account{
-			ID:      "",
-			Working: true,
 			Currencies: []exchange.AccountCurrencyInfo{
 				{
 					CurrencyName: "BTC",
@@ -301,8 +299,6 @@ func TestGetCollatedExchangeAccountInfoByCoin(t *testing.T) {
 	info.Exchange = "Bitstamp"
 	info.Accounts = append(info.Accounts,
 		exchange.Account{
-			ID:      "",
-			Working: true,
 			Currencies: []exchange.AccountCurrencyInfo{
 				{
 					CurrencyName: "LTC",
@@ -342,8 +338,6 @@ func TestGetAccountCurrencyInfoByExchangeName(t *testing.T) {
 	info.Exchange = "Bitfinex"
 	info.Accounts = append(info.Accounts,
 		exchange.Account{
-			ID:      "",
-			Working: true,
 			Currencies: []exchange.AccountCurrencyInfo{
 				{
 					CurrencyName: "BTC",

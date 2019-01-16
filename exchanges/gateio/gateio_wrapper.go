@@ -164,8 +164,6 @@ func (g *Gateio) GetAccountInfo() (exchange.AccountInfo, error) {
 	}
 
 	info.Accounts = append(info.Accounts, exchange.Account{
-		ID:         "",
-		Working:    true,
 		Currencies: balances,
 	})
 
