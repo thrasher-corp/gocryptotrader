@@ -251,7 +251,7 @@ func (p *Poloniex) GetDepositAddress(cryptocurrency pair.CurrencyItem, accountID
 
 	address, ok := a.Addresses[cryptocurrency.Upper().String()]
 	if !ok {
-		return "", fmt.Errorf("Cannot find deposit addres for %s",
+		return "", fmt.Errorf("Cannot find deposit address for %s",
 			cryptocurrency)
 	}
 
