@@ -211,7 +211,6 @@ func (c *COINUT) WsConnect() error {
 	channels = make(map[string]chan []byte)
 	channels["hb"] = make(chan []byte, 1)
 
-	go c.WsReadData()
 	go c.WsHandleData()
 
 	return nil
