@@ -143,7 +143,7 @@ func (k *Kraken) UpdateOrderbook(p pair.CurrencyPair, assetType string) (orderbo
 // Kraken exchange - to-do
 func (k *Kraken) GetAccountInfo() (exchange.AccountInfo, error) {
 	var info exchange.AccountInfo
-	info.ExchangeName = k.GetName()
+	info.Exchange = k.GetName()
 
 	bal, err := k.GetBalance()
 	if err != nil {
@@ -158,7 +158,12 @@ func (k *Kraken) GetAccountInfo() (exchange.AccountInfo, error) {
 		})
 	}
 
-	info.Currencies = balances
+	info.Accounts = append(info.Accounts, exchange.Account{
+		ID:         "",
+		Working:    true,
+		Currencies: balances,
+	})
+
 	return info, nil
 }
 

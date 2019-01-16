@@ -117,19 +117,26 @@ func (l *Liqui) UpdateOrderbook(p pair.CurrencyPair, assetType string) (orderboo
 // Liqui exchange
 func (l *Liqui) GetAccountInfo() (exchange.AccountInfo, error) {
 	var response exchange.AccountInfo
-	response.ExchangeName = l.GetName()
+	response.Exchange = l.GetName()
 	accountBalance, err := l.GetAccountInformation()
 	if err != nil {
 		return response, err
 	}
 
+	var currencies []exchange.AccountCurrencyInfo
 	for x, y := range accountBalance.Funds {
 		var exchangeCurrency exchange.AccountCurrencyInfo
 		exchangeCurrency.CurrencyName = common.StringToUpper(x)
 		exchangeCurrency.TotalValue = y
 		exchangeCurrency.Hold = 0
-		response.Currencies = append(response.Currencies, exchangeCurrency)
+		currencies = append(currencies, exchangeCurrency)
 	}
+
+	response.Accounts = append(response.Accounts, exchange.Account{
+		ID:         "",
+		Working:    true,
+		Currencies: currencies,
+	})
 
 	return response, nil
 }

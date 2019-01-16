@@ -124,7 +124,7 @@ func (b *Bitflyer) UpdateOrderbook(p pair.CurrencyPair, assetType string) (order
 // Bitflyer exchange
 func (b *Bitflyer) GetAccountInfo() (exchange.AccountInfo, error) {
 	var response exchange.AccountInfo
-	response.ExchangeName = b.GetName()
+	response.Exchange = b.GetName()
 	// accountBalance, err := b.GetAccountBalance()
 	// if err != nil {
 	// 	return response, err

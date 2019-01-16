@@ -122,21 +122,29 @@ func (b *BTCMarkets) UpdateOrderbook(p pair.CurrencyPair, assetType string) (ord
 // BTCMarkets exchange
 func (b *BTCMarkets) GetAccountInfo() (exchange.AccountInfo, error) {
 	var response exchange.AccountInfo
-	response.ExchangeName = b.GetName()
+	response.Exchange = b.GetName()
 
 	accountBalance, err := b.GetAccountBalance()
 	if err != nil {
 		return response, err
 	}
 
+	var currencies []exchange.AccountCurrencyInfo
 	for i := 0; i < len(accountBalance); i++ {
 		var exchangeCurrency exchange.AccountCurrencyInfo
 		exchangeCurrency.CurrencyName = accountBalance[i].Currency
 		exchangeCurrency.TotalValue = accountBalance[i].Balance
 		exchangeCurrency.Hold = accountBalance[i].PendingFunds
 
-		response.Currencies = append(response.Currencies, exchangeCurrency)
+		currencies = append(currencies, exchangeCurrency)
 	}
+
+	response.Accounts = append(response.Accounts, exchange.Account{
+		ID:         "",
+		Working:    true,
+		Currencies: currencies,
+	})
+
 	return response, nil
 }
 

@@ -127,19 +127,26 @@ func (w *WEX) UpdateOrderbook(p pair.CurrencyPair, assetType string) (orderbook.
 // WEX exchange
 func (w *WEX) GetAccountInfo() (exchange.AccountInfo, error) {
 	var response exchange.AccountInfo
-	response.ExchangeName = w.GetName()
+	response.Exchange = w.GetName()
 	accountBalance, err := w.GetAccountInformation()
 	if err != nil {
 		return response, err
 	}
 
+	var currencies []exchange.AccountCurrencyInfo
 	for x, y := range accountBalance.Funds {
 		var exchangeCurrency exchange.AccountCurrencyInfo
 		exchangeCurrency.CurrencyName = common.StringToUpper(x)
 		exchangeCurrency.TotalValue = y
 		exchangeCurrency.Hold = 0
-		response.Currencies = append(response.Currencies, exchangeCurrency)
+		currencies = append(currencies, exchangeCurrency)
 	}
+
+	response.Accounts = append(response.Accounts, exchange.Account{
+		ID:         "",
+		Working:    true,
+		Currencies: currencies,
+	})
 
 	return response, nil
 }

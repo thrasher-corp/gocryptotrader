@@ -140,12 +140,13 @@ func (e *EXMO) UpdateOrderbook(p pair.CurrencyPair, assetType string) (orderbook
 // Exmo exchange
 func (e *EXMO) GetAccountInfo() (exchange.AccountInfo, error) {
 	var response exchange.AccountInfo
-	response.ExchangeName = e.GetName()
+	response.Exchange = e.GetName()
 	result, err := e.GetUserInfo()
 	if err != nil {
 		return response, err
 	}
 
+	var currencies []exchange.AccountCurrencyInfo
 	for x, y := range result.Balances {
 		var exchangeCurrency exchange.AccountCurrencyInfo
 		exchangeCurrency.CurrencyName = common.StringToUpper(x)
@@ -157,8 +158,15 @@ func (e *EXMO) GetAccountInfo() (exchange.AccountInfo, error) {
 				exchangeCurrency.Hold = reserved
 			}
 		}
-		response.Currencies = append(response.Currencies, exchangeCurrency)
+		currencies = append(currencies, exchangeCurrency)
 	}
+
+	response.Accounts = append(response.Accounts, exchange.Account{
+		ID:         "",
+		Working:    true,
+		Currencies: currencies,
+	})
+
 	return response, nil
 }
 

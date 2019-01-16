@@ -146,8 +146,13 @@ func (b *Bithumb) GetAccountInfo() (exchange.AccountInfo, error) {
 		})
 	}
 
-	info.Currencies = exchangeBalances
-	info.ExchangeName = b.GetName()
+	info.Accounts = append(info.Accounts, exchange.Account{
+		ID:         "",
+		Working:    true,
+		Currencies: exchangeBalances,
+	})
+
+	info.Exchange = b.GetName()
 	return info, nil
 }
 

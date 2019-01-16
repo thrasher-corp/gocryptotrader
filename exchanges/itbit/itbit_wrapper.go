@@ -111,7 +111,7 @@ func (i *ItBit) UpdateOrderbook(p pair.CurrencyPair, assetType string) (orderboo
 // GetAccountInfo retrieves balances for all enabled currencies
 func (i *ItBit) GetAccountInfo() (exchange.AccountInfo, error) {
 	var info exchange.AccountInfo
-	info.ExchangeName = i.GetName()
+	info.Exchange = i.GetName()
 
 	wallets, err := i.GetWallets(url.Values{})
 	if err != nil {
@@ -145,6 +145,12 @@ func (i *ItBit) GetAccountInfo() (exchange.AccountInfo, error) {
 			Hold:         data.Hold,
 		})
 	}
+
+	info.Accounts = append(info.Accounts, exchange.Account{
+		ID:         "",
+		Working:    true,
+		Currencies: fullBalance,
+	})
 
 	return info, nil
 }

@@ -16,19 +16,28 @@ import (
 // Alphapoint exchange
 func (a *Alphapoint) GetAccountInfo() (exchange.AccountInfo, error) {
 	var response exchange.AccountInfo
-	response.ExchangeName = a.GetName()
+	response.Exchange = a.GetName()
 	account, err := a.GetAccountInformation()
 	if err != nil {
 		return response, err
 	}
+
+	var currencies []exchange.AccountCurrencyInfo
 	for i := 0; i < len(account.Currencies); i++ {
 		var exchangeCurrency exchange.AccountCurrencyInfo
 		exchangeCurrency.CurrencyName = account.Currencies[i].Name
 		exchangeCurrency.TotalValue = float64(account.Currencies[i].Balance)
 		exchangeCurrency.Hold = float64(account.Currencies[i].Hold)
 
-		response.Currencies = append(response.Currencies, exchangeCurrency)
+		currencies = append(currencies, exchangeCurrency)
 	}
+
+	response.Accounts = append(response.Accounts, exchange.Account{
+		ID:         "",
+		Working:    true,
+		Currencies: currencies,
+	})
+
 	return response, nil
 }
 

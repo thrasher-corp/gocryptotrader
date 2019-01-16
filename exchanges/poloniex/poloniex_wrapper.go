@@ -126,18 +126,26 @@ func (p *Poloniex) UpdateOrderbook(currencyPair pair.CurrencyPair, assetType str
 // Poloniex exchange
 func (p *Poloniex) GetAccountInfo() (exchange.AccountInfo, error) {
 	var response exchange.AccountInfo
-	response.ExchangeName = p.GetName()
+	response.Exchange = p.GetName()
 	accountBalance, err := p.GetBalances()
 	if err != nil {
 		return response, err
 	}
 
+	var currencies []exchange.AccountCurrencyInfo
 	for x, y := range accountBalance.Currency {
 		var exchangeCurrency exchange.AccountCurrencyInfo
 		exchangeCurrency.CurrencyName = x
 		exchangeCurrency.TotalValue = y
-		response.Currencies = append(response.Currencies, exchangeCurrency)
+		currencies = append(currencies, exchangeCurrency)
 	}
+
+	response.Accounts = append(response.Accounts, exchange.Account{
+		ID:         "",
+		Working:    true,
+		Currencies: currencies,
+	})
+
 	return response, nil
 }
 

@@ -163,8 +163,13 @@ func (g *Gateio) GetAccountInfo() (exchange.AccountInfo, error) {
 		}
 	}
 
-	info.Currencies = balances
-	info.ExchangeName = g.GetName()
+	info.Accounts = append(info.Accounts, exchange.Account{
+		ID:         "",
+		Working:    true,
+		Currencies: balances,
+	})
+
+	info.Exchange = g.GetName()
 
 	return info, nil
 }

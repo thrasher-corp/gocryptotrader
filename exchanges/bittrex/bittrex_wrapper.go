@@ -65,19 +65,27 @@ func (b *Bittrex) Run() {
 // Bittrex exchange
 func (b *Bittrex) GetAccountInfo() (exchange.AccountInfo, error) {
 	var response exchange.AccountInfo
-	response.ExchangeName = b.GetName()
+	response.Exchange = b.GetName()
 	accountBalance, err := b.GetAccountBalances()
 	if err != nil {
 		return response, err
 	}
 
+	var currencies []exchange.AccountCurrencyInfo
 	for i := 0; i < len(accountBalance.Result); i++ {
 		var exchangeCurrency exchange.AccountCurrencyInfo
 		exchangeCurrency.CurrencyName = accountBalance.Result[i].Currency
 		exchangeCurrency.TotalValue = accountBalance.Result[i].Balance
 		exchangeCurrency.Hold = accountBalance.Result[i].Balance - accountBalance.Result[i].Available
-		response.Currencies = append(response.Currencies, exchangeCurrency)
+		currencies = append(currencies, exchangeCurrency)
 	}
+
+	response.Accounts = append(response.Accounts, exchange.Account{
+		ID:         "",
+		Working:    true,
+		Currencies: currencies,
+	})
+
 	return response, nil
 }
 

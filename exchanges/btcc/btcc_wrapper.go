@@ -181,7 +181,7 @@ func (b *BTCC) GetOrderInfo(orderID int64) (exchange.OrderDetail, error) {
 
 // GetDepositAddress returns a deposit address for a specified currency
 func (b *BTCC) GetDepositAddress(cryptocurrency pair.CurrencyItem) (string, error) {
-	return "", common.ErrNotYetImplemented
+	return "", common.ErrFunctionNotSupported
 }
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is

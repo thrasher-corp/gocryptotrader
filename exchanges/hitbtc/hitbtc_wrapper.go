@@ -126,19 +126,27 @@ func (h *HitBTC) UpdateOrderbook(currencyPair pair.CurrencyPair, assetType strin
 // HitBTC exchange
 func (h *HitBTC) GetAccountInfo() (exchange.AccountInfo, error) {
 	var response exchange.AccountInfo
-	response.ExchangeName = h.GetName()
+	response.Exchange = h.GetName()
 	accountBalance, err := h.GetBalances()
 	if err != nil {
 		return response, err
 	}
 
+	var currencies []exchange.AccountCurrencyInfo
 	for _, item := range accountBalance {
 		var exchangeCurrency exchange.AccountCurrencyInfo
 		exchangeCurrency.CurrencyName = item.Currency
 		exchangeCurrency.TotalValue = item.Available
 		exchangeCurrency.Hold = item.Reserved
-		response.Currencies = append(response.Currencies, exchangeCurrency)
+		currencies = append(currencies, exchangeCurrency)
 	}
+
+	response.Accounts = append(response.Accounts, exchange.Account{
+		ID:         "",
+		Working:    true,
+		Currencies: currencies,
+	})
+
 	return response, nil
 }
 

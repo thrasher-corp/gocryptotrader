@@ -104,12 +104,13 @@ func (y *Yobit) UpdateOrderbook(p pair.CurrencyPair, assetType string) (orderboo
 // Yobit exchange
 func (y *Yobit) GetAccountInfo() (exchange.AccountInfo, error) {
 	var response exchange.AccountInfo
-	response.ExchangeName = y.GetName()
+	response.Exchange = y.GetName()
 	accountBalance, err := y.GetAccountInformation()
 	if err != nil {
 		return response, err
 	}
 
+	var currencies []exchange.AccountCurrencyInfo
 	for x, y := range accountBalance.FundsInclOrders {
 		var exchangeCurrency exchange.AccountCurrencyInfo
 		exchangeCurrency.CurrencyName = common.StringToUpper(x)
@@ -121,8 +122,14 @@ func (y *Yobit) GetAccountInfo() (exchange.AccountInfo, error) {
 			}
 		}
 
-		response.Currencies = append(response.Currencies, exchangeCurrency)
+		currencies = append(currencies, exchangeCurrency)
 	}
+
+	response.Accounts = append(response.Accounts, exchange.Account{
+		ID:         "",
+		Working:    true,
+		Currencies: currencies,
+	})
 
 	return response, nil
 }

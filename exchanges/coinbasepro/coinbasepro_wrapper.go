@@ -51,19 +51,28 @@ func (c *CoinbasePro) Run() {
 // coinbasepro exchange
 func (c *CoinbasePro) GetAccountInfo() (exchange.AccountInfo, error) {
 	var response exchange.AccountInfo
-	response.ExchangeName = c.GetName()
+	response.Exchange = c.GetName()
 	accountBalance, err := c.GetAccounts()
 	if err != nil {
 		return response, err
 	}
+
+	var currencies []exchange.AccountCurrencyInfo
 	for i := 0; i < len(accountBalance); i++ {
 		var exchangeCurrency exchange.AccountCurrencyInfo
 		exchangeCurrency.CurrencyName = accountBalance[i].Currency
 		exchangeCurrency.TotalValue = accountBalance[i].Available
 		exchangeCurrency.Hold = accountBalance[i].Hold
 
-		response.Currencies = append(response.Currencies, exchangeCurrency)
+		currencies = append(currencies, exchangeCurrency)
 	}
+
+	response.Accounts = append(response.Accounts, exchange.Account{
+		ID:         "",
+		Working:    true,
+		Currencies: currencies,
+	})
+
 	return response, nil
 }
 
@@ -195,7 +204,7 @@ func (c *CoinbasePro) GetOrderInfo(orderID int64) (exchange.OrderDetail, error) 
 
 // GetDepositAddress returns a deposit address for a specified currency
 func (c *CoinbasePro) GetDepositAddress(cryptocurrency pair.CurrencyItem) (string, error) {
-	return "", common.ErrNotYetImplemented
+	return "", common.ErrFunctionNotSupported
 }
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is

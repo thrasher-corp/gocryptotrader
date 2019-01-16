@@ -199,8 +199,12 @@ func (a *ANX) GetAccountInfo() (exchange.AccountInfo, error) {
 		})
 	}
 
-	info.ExchangeName = a.GetName()
-	info.Currencies = balance
+	info.Exchange = a.GetName()
+	info.Accounts = append(info.Accounts, exchange.Account{
+		ID:         "",
+		Working:    true,
+		Currencies: balance,
+	})
 
 	return info, nil
 }

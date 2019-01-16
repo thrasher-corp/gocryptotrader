@@ -118,7 +118,7 @@ func (b *Bitfinex) UpdateOrderbook(p pair.CurrencyPair, assetType string) (order
 // Bitfinex exchange
 func (b *Bitfinex) GetAccountInfo() (exchange.AccountInfo, error) {
 	var response exchange.AccountInfo
-	response.ExchangeName = b.GetName()
+	response.Exchange = b.GetName()
 	accountBalance, err := b.GetAccountBalance()
 	if err != nil {
 		return response, err
@@ -150,13 +150,20 @@ func (b *Bitfinex) GetAccountInfo() (exchange.AccountInfo, error) {
 		}
 	}
 
+	var currencies []exchange.AccountCurrencyInfo
 	for x, y := range accounts {
 		var exchangeCurrency exchange.AccountCurrencyInfo
 		exchangeCurrency.CurrencyName = common.StringToUpper(x)
 		exchangeCurrency.TotalValue = y.Available + y.OnHold
 		exchangeCurrency.Hold = y.OnHold
-		response.Currencies = append(response.Currencies, exchangeCurrency)
+		currencies = append(currencies, exchangeCurrency)
 	}
+
+	response.Accounts = append(response.Accounts, exchange.Account{
+		ID:         "",
+		Working:    true,
+		Currencies: currencies,
+	})
 
 	return response, nil
 }
@@ -230,7 +237,7 @@ func (b *Bitfinex) GetOrderInfo(orderID int64) (exchange.OrderDetail, error) {
 
 // GetDepositAddress returns a deposit address for a specified currency
 func (b *Bitfinex) GetDepositAddress(cryptocurrency pair.CurrencyItem) (string, error) {
-	return "", common.ErrNotYetImplemented
+	return "", common.ErrFunctionNotSupported
 }
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is submitted

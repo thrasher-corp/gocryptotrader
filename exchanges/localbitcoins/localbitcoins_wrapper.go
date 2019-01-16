@@ -116,7 +116,7 @@ func (l *LocalBitcoins) UpdateOrderbook(p pair.CurrencyPair, assetType string) (
 // LocalBitcoins exchange
 func (l *LocalBitcoins) GetAccountInfo() (exchange.AccountInfo, error) {
 	var response exchange.AccountInfo
-	response.ExchangeName = l.GetName()
+	response.Exchange = l.GetName()
 	accountBalance, err := l.GetWalletBalance()
 	if err != nil {
 		return response, err
@@ -125,7 +125,11 @@ func (l *LocalBitcoins) GetAccountInfo() (exchange.AccountInfo, error) {
 	exchangeCurrency.CurrencyName = "BTC"
 	exchangeCurrency.TotalValue = accountBalance.Total.Balance
 
-	response.Currencies = append(response.Currencies, exchangeCurrency)
+	response.Accounts = append(response.Accounts, exchange.Account{
+		ID:         "",
+		Working:    true,
+		Currencies: []exchange.AccountCurrencyInfo{exchangeCurrency},
+	})
 	return response, nil
 }
 

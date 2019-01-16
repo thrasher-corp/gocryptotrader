@@ -157,8 +157,13 @@ func (b *Binance) GetAccountInfo() (exchange.AccountInfo, error) {
 		})
 	}
 
-	info.ExchangeName = b.GetName()
-	info.Currencies = currencyBalance
+	info.Exchange = b.GetName()
+	info.Accounts = append(info.Accounts, exchange.Account{
+		ID:         "",
+		Working:    true,
+		Currencies: currencyBalance,
+	})
+
 	return info, nil
 }
 

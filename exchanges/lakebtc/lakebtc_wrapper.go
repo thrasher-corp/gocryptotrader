@@ -107,12 +107,13 @@ func (l *LakeBTC) UpdateOrderbook(p pair.CurrencyPair, assetType string) (orderb
 // LakeBTC exchange
 func (l *LakeBTC) GetAccountInfo() (exchange.AccountInfo, error) {
 	var response exchange.AccountInfo
-	response.ExchangeName = l.GetName()
+	response.Exchange = l.GetName()
 	accountInfo, err := l.GetAccountInformation()
 	if err != nil {
 		return response, err
 	}
 
+	var currencies []exchange.AccountCurrencyInfo
 	for x, y := range accountInfo.Balance {
 		for z, w := range accountInfo.Locked {
 			if z == x {
@@ -120,10 +121,17 @@ func (l *LakeBTC) GetAccountInfo() (exchange.AccountInfo, error) {
 				exchangeCurrency.CurrencyName = common.StringToUpper(x)
 				exchangeCurrency.TotalValue, _ = strconv.ParseFloat(y, 64)
 				exchangeCurrency.Hold, _ = strconv.ParseFloat(w, 64)
-				response.Currencies = append(response.Currencies, exchangeCurrency)
+				currencies = append(currencies, exchangeCurrency)
 			}
 		}
 	}
+
+	response.Accounts = append(response.Accounts, exchange.Account{
+		ID:         "",
+		Working:    true,
+		Currencies: currencies,
+	})
+
 	return response, nil
 }
 
