@@ -571,24 +571,24 @@ func (b *Bitstamp) OpenInternationalBankWithdrawal(amount float64, currency,
 func (b *Bitstamp) GetCryptoDepositAddress(crypto string) (string, error) {
 	var resp string
 
-	switch common.StringToLower(crypto) {
-	case "btc":
+	switch crypto {
+	case symbol.BTC:
 		return resp,
 			b.SendAuthenticatedHTTPRequest(bitstampAPIBitcoinDeposit, false, nil, &resp)
 
-	case "ltc":
+	case symbol.LTC:
 		return resp,
 			b.SendAuthenticatedHTTPRequest(bitstampAPILitecoinDeposit, true, nil, &resp)
 
-	case "eth":
+	case symbol.ETH:
 		return resp,
 			b.SendAuthenticatedHTTPRequest(bitstampAPIEthereumDeposit, true, nil, &resp)
 
-	case "xrp":
+	case symbol.XRP:
 		return resp,
 			b.SendAuthenticatedHTTPRequest(bitstampAPIXrpDeposit, true, nil, &resp)
 
-	case "bch":
+	case symbol.BCH:
 		return resp,
 			b.SendAuthenticatedHTTPRequest(bitstampAPIBitcoinCashDeposit, true, nil, &resp)
 
