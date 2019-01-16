@@ -40,11 +40,11 @@ func setDefaultOutputs() {
 		log.Ldate|log.Ltime)
 
 	infoLogger = log.New(os.Stdout,
-		"[INFO]: ",
+		"[INFO]:  ",
 		log.Ldate|log.Ltime)
 
 	warnLogger = log.New(os.Stdout,
-		"[WARN]: ",
+		"[WARN]:  ",
 		log.Ldate|log.Ltime)
 
 	errorLogger = log.New(os.Stdout,
