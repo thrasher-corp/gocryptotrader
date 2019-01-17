@@ -299,10 +299,10 @@ type WithdrawInformation struct {
 
 // DepositMethods Used to check deposit fees
 type DepositMethods struct {
-	Method          string  `json:"method"`
-	Limit           float64 `json:"limit,string"`
-	Fee             float64 `json:"fee,string"`
-	AddressSetupFee float64 `json:"address-setup-fee,string"`
+	Method          string      `json:"method"`
+	Limit           interface{} `json:"limit"` // If no limit amount, this comes back as boolean
+	Fee             float64     `json:"fee,string"`
+	AddressSetupFee float64     `json:"address-setup-fee,string"`
 }
 
 // OrderDescription represents an orders description
@@ -364,4 +364,11 @@ var WithdrawalFees = map[string]float64{
 	symbol.USDT: 5,
 	symbol.XTZ:  0.05,
 	symbol.ZEC:  0.0001,
+}
+
+// DepositAddress defines a deposit address
+type DepositAddress struct {
+	Address    string `json:"address"`
+	ExpireTime int64  `json:"expiretm,string"`
+	New        bool   `json:"new"`
 }

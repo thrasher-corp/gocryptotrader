@@ -120,35 +120,42 @@ func (b *Bitstamp) UpdateOrderbook(p pair.CurrencyPair, assetType string) (order
 // Bitstamp exchange
 func (b *Bitstamp) GetAccountInfo() (exchange.AccountInfo, error) {
 	var response exchange.AccountInfo
-	response.ExchangeName = b.GetName()
+	response.Exchange = b.GetName()
 	accountBalance, err := b.GetBalance()
 	if err != nil {
 		return response, err
 	}
 
-	response.Currencies = append(response.Currencies, exchange.AccountCurrencyInfo{
+	var currencies []exchange.AccountCurrencyInfo
+
+	currencies = append(currencies, exchange.AccountCurrencyInfo{
 		CurrencyName: "BTC",
 		TotalValue:   accountBalance.BTCAvailable,
 		Hold:         accountBalance.BTCReserved,
 	})
 
-	response.Currencies = append(response.Currencies, exchange.AccountCurrencyInfo{
+	currencies = append(currencies, exchange.AccountCurrencyInfo{
 		CurrencyName: "XRP",
 		TotalValue:   accountBalance.XRPAvailable,
 		Hold:         accountBalance.XRPReserved,
 	})
 
-	response.Currencies = append(response.Currencies, exchange.AccountCurrencyInfo{
+	currencies = append(currencies, exchange.AccountCurrencyInfo{
 		CurrencyName: "USD",
 		TotalValue:   accountBalance.USDAvailable,
 		Hold:         accountBalance.USDReserved,
 	})
 
-	response.Currencies = append(response.Currencies, exchange.AccountCurrencyInfo{
+	currencies = append(currencies, exchange.AccountCurrencyInfo{
 		CurrencyName: "EUR",
 		TotalValue:   accountBalance.EURAvailable,
 		Hold:         accountBalance.EURReserved,
 	})
+
+	response.Accounts = append(response.Accounts, exchange.Account{
+		Currencies: currencies,
+	})
+
 	return response, nil
 }
 
@@ -219,8 +226,8 @@ func (b *Bitstamp) GetOrderInfo(orderID int64) (exchange.OrderDetail, error) {
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
-func (b *Bitstamp) GetDepositAddress(cryptocurrency pair.CurrencyItem) (string, error) {
-	return "", common.ErrNotYetImplemented
+func (b *Bitstamp) GetDepositAddress(cryptocurrency pair.CurrencyItem, accountID string) (string, error) {
+	return b.GetCryptoDepositAddress(cryptocurrency.String())
 }
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is

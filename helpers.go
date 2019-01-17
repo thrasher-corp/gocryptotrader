@@ -262,22 +262,24 @@ func GetSpecificTicker(currency, exchangeName, assetType string) (ticker.Price, 
 // GetCollatedExchangeAccountInfoByCoin collates individual exchange account
 // information and turns into into a map string of
 // exchange.AccountCurrencyInfo
-func GetCollatedExchangeAccountInfoByCoin(accounts []exchange.AccountInfo) map[string]exchange.AccountCurrencyInfo {
+func GetCollatedExchangeAccountInfoByCoin(exchAccounts []exchange.AccountInfo) map[string]exchange.AccountCurrencyInfo {
 	result := make(map[string]exchange.AccountCurrencyInfo)
-	for i := 0; i < len(accounts); i++ {
-		for j := 0; j < len(accounts[i].Currencies); j++ {
-			currencyName := accounts[i].Currencies[j].CurrencyName
-			avail := accounts[i].Currencies[j].TotalValue
-			onHold := accounts[i].Currencies[j].Hold
+	for _, accounts := range exchAccounts {
+		for _, account := range accounts.Accounts {
+			for _, accountCurrencyInfo := range account.Currencies {
+				currencyName := accountCurrencyInfo.CurrencyName
+				avail := accountCurrencyInfo.TotalValue
+				onHold := accountCurrencyInfo.Hold
 
-			info, ok := result[currencyName]
-			if !ok {
-				accountInfo := exchange.AccountCurrencyInfo{CurrencyName: currencyName, Hold: onHold, TotalValue: avail}
-				result[currencyName] = accountInfo
-			} else {
-				info.Hold += onHold
-				info.TotalValue += avail
-				result[currencyName] = info
+				info, ok := result[currencyName]
+				if !ok {
+					accountInfo := exchange.AccountCurrencyInfo{CurrencyName: currencyName, Hold: onHold, TotalValue: avail}
+					result[currencyName] = accountInfo
+				} else {
+					info.Hold += onHold
+					info.TotalValue += avail
+					result[currencyName] = info
+				}
 			}
 		}
 	}
@@ -287,7 +289,7 @@ func GetCollatedExchangeAccountInfoByCoin(accounts []exchange.AccountInfo) map[s
 // GetAccountCurrencyInfoByExchangeName returns info for an exchange
 func GetAccountCurrencyInfoByExchangeName(accounts []exchange.AccountInfo, exchangeName string) (exchange.AccountInfo, error) {
 	for i := 0; i < len(accounts); i++ {
-		if accounts[i].ExchangeName == exchangeName {
+		if accounts[i].Exchange == exchangeName {
 			return accounts[i], nil
 		}
 	}
@@ -324,39 +326,81 @@ func SeedExchangeAccountInfo(data []exchange.AccountInfo) {
 
 	port := portfolio.GetPortfolio()
 
-	for i := 0; i < len(data); i++ {
-		exchangeName := data[i].ExchangeName
-		for j := 0; j < len(data[i].Currencies); j++ {
-			currencyName := data[i].Currencies[j].CurrencyName
-			onHold := data[i].Currencies[j].Hold
-			avail := data[i].Currencies[j].TotalValue
-			total := onHold + avail
+	for _, exchangeData := range data {
+		exchangeName := exchangeData.Exchange
+
+		var currencies []exchange.AccountCurrencyInfo
+		for _, account := range exchangeData.Accounts {
+			for _, info := range account.Currencies {
+
+				var update bool
+				for i := range currencies {
+					if info.CurrencyName == currencies[i].CurrencyName {
+						currencies[i].Hold += info.Hold
+						currencies[i].TotalValue += info.TotalValue
+						update = true
+					}
+				}
+
+				if update {
+					continue
+				}
+
+				currencies = append(currencies, exchange.AccountCurrencyInfo{
+					CurrencyName: info.CurrencyName,
+					TotalValue:   info.TotalValue,
+					Hold:         info.Hold,
+				})
+			}
+		}
+
+		for _, total := range currencies {
+			currencyName := total.CurrencyName
+			total := total.TotalValue
 
 			if !port.ExchangeAddressExists(exchangeName, currencyName) {
 				if total <= 0 {
 					continue
 				}
+
 				log.Debugf("Portfolio: Adding new exchange address: %s, %s, %f, %s\n",
-					exchangeName, currencyName, total, portfolio.PortfolioAddressExchange)
+					exchangeName,
+					currencyName,
+					total,
+					portfolio.PortfolioAddressExchange)
+
 				port.Addresses = append(
 					port.Addresses,
-					portfolio.Address{Address: exchangeName, CoinType: currencyName,
-						Balance: total, Description: portfolio.PortfolioAddressExchange},
-				)
+					portfolio.Address{Address: exchangeName,
+						CoinType:    currencyName,
+						Balance:     total,
+						Description: portfolio.PortfolioAddressExchange})
+
 			} else {
 				if total <= 0 {
-					log.Debugf("Portfolio: Removing %s %s entry.\n", exchangeName,
+					log.Debugf("Portfolio: Removing %s %s entry.\n",
+						exchangeName,
 						currencyName)
+
 					port.RemoveExchangeAddress(exchangeName, currencyName)
 				} else {
-					balance, ok := port.GetAddressBalance(exchangeName, currencyName, portfolio.PortfolioAddressExchange)
+					balance, ok := port.GetAddressBalance(exchangeName,
+						currencyName,
+						portfolio.PortfolioAddressExchange)
+
 					if !ok {
 						continue
 					}
+
 					if balance != total {
 						log.Debugf("Portfolio: Updating %s %s entry with balance %f.\n",
-							exchangeName, currencyName, total)
-						port.UpdateExchangeAddressBalance(exchangeName, currencyName, total)
+							exchangeName,
+							currencyName,
+							total)
+
+						port.UpdateExchangeAddressBalance(exchangeName,
+							currencyName,
+							total)
 					}
 				}
 			}

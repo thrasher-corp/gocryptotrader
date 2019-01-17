@@ -88,10 +88,10 @@ type Symbol struct {
 
 // Account stores the account data
 type Account struct {
-	ID     int64  `json:"id"`
-	Type   string `json:"type"`
-	State  string `json:"working"`
-	UserID int64  `json:"user-id"`
+	ID      int64  `json:"id"`
+	Type    string `json:"type"`
+	SubType string `json:"subtype"`
+	State   string `json:"state"`
 }
 
 // AccountBalance stores the user all account balance
@@ -234,3 +234,17 @@ var (
 	TimeIntervalMohth          = TimeInterval("1mon")
 	TimeIntervalYear           = TimeInterval("1year")
 )
+
+// History defines currency deposit or withdrawal data
+type History struct {
+	ID        int64   `json:"id"`
+	Type      string  `json:"type"`
+	Currency  string  `json:"currency"`
+	TxHash    string  `json:"tx-hash"`
+	Amount    float64 `json:"amount"`
+	Address   string  `json:"address"`
+	Fee       float64 `json:"fee"`
+	State     string  `json:"state"`
+	CreatedAt int64   `json:"created-at"`
+	UpdatedAt int64   `json:"Updated-at"`
+}

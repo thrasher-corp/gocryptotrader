@@ -355,3 +355,17 @@ func TestWithdrawInternationalBank(t *testing.T) {
 		t.Errorf("Expected '%v', recieved: '%v'", common.ErrFunctionNotSupported, err)
 	}
 }
+
+func TestGetDepositAddress(t *testing.T) {
+	if apiKey != "" || apiSecret != "" {
+		_, err := l.GetDepositAddress(symbol.BTC, "")
+		if err != nil {
+			t.Error("Test Failed - GetDepositAddress() error", err)
+		}
+	} else {
+		_, err := l.GetDepositAddress(symbol.BTC, "")
+		if err == nil {
+			t.Error("Test Failed - GetDepositAddress() error cannot be nil")
+		}
+	}
+}

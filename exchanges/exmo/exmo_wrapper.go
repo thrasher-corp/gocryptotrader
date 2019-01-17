@@ -140,12 +140,13 @@ func (e *EXMO) UpdateOrderbook(p pair.CurrencyPair, assetType string) (orderbook
 // Exmo exchange
 func (e *EXMO) GetAccountInfo() (exchange.AccountInfo, error) {
 	var response exchange.AccountInfo
-	response.ExchangeName = e.GetName()
+	response.Exchange = e.GetName()
 	result, err := e.GetUserInfo()
 	if err != nil {
 		return response, err
 	}
 
+	var currencies []exchange.AccountCurrencyInfo
 	for x, y := range result.Balances {
 		var exchangeCurrency exchange.AccountCurrencyInfo
 		exchangeCurrency.CurrencyName = common.StringToUpper(x)
@@ -157,8 +158,13 @@ func (e *EXMO) GetAccountInfo() (exchange.AccountInfo, error) {
 				exchangeCurrency.Hold = reserved
 			}
 		}
-		response.Currencies = append(response.Currencies, exchangeCurrency)
+		currencies = append(currencies, exchangeCurrency)
 	}
+
+	response.Accounts = append(response.Accounts, exchange.Account{
+		Currencies: currencies,
+	})
+
 	return response, nil
 }
 
@@ -249,8 +255,18 @@ func (e *EXMO) GetOrderInfo(orderID int64) (exchange.OrderDetail, error) {
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
-func (e *EXMO) GetDepositAddress(cryptocurrency pair.CurrencyItem) (string, error) {
-	return "", common.ErrNotYetImplemented
+func (e *EXMO) GetDepositAddress(cryptocurrency pair.CurrencyItem, accountID string) (string, error) {
+	fullAddr, err := e.GetCryptoDepositAddress()
+	if err != nil {
+		return "", err
+	}
+
+	addr, ok := fullAddr[cryptocurrency.String()]
+	if !ok {
+		return "", fmt.Errorf("currency %s could not be found, please generate via the exmo website", cryptocurrency.String())
+	}
+
+	return addr, nil
 }
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is

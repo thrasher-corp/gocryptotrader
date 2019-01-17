@@ -118,46 +118,32 @@ func (b *Bitfinex) UpdateOrderbook(p pair.CurrencyPair, assetType string) (order
 // Bitfinex exchange
 func (b *Bitfinex) GetAccountInfo() (exchange.AccountInfo, error) {
 	var response exchange.AccountInfo
-	response.ExchangeName = b.GetName()
+	response.Exchange = b.GetName()
 	accountBalance, err := b.GetAccountBalance()
 	if err != nil {
 		return response, err
 	}
-	if !b.Enabled {
-		return response, nil
+
+	var Accounts = []exchange.Account{
+		{ID: "deposit"},
+		{ID: "exchange"},
+		{ID: "trading"},
 	}
 
-	type bfxCoins struct {
-		OnHold    float64
-		Available float64
-	}
-
-	accounts := make(map[string]bfxCoins)
-
-	for i := range accountBalance {
-		onHold := accountBalance[i].Amount - accountBalance[i].Available
-		coins := bfxCoins{
-			OnHold:    onHold,
-			Available: accountBalance[i].Available,
-		}
-		result, ok := accounts[accountBalance[i].Currency]
-		if !ok {
-			accounts[accountBalance[i].Currency] = coins
-		} else {
-			result.Available += accountBalance[i].Available
-			result.OnHold += onHold
-			accounts[accountBalance[i].Currency] = result
+	for _, bal := range accountBalance {
+		for i := range Accounts {
+			if Accounts[i].ID == bal.Type {
+				Accounts[i].Currencies = append(Accounts[i].Currencies,
+					exchange.AccountCurrencyInfo{
+						CurrencyName: bal.Currency,
+						TotalValue:   bal.Amount,
+						Hold:         bal.Amount - bal.Available,
+					})
+			}
 		}
 	}
 
-	for x, y := range accounts {
-		var exchangeCurrency exchange.AccountCurrencyInfo
-		exchangeCurrency.CurrencyName = common.StringToUpper(x)
-		exchangeCurrency.TotalValue = y.Available + y.OnHold
-		exchangeCurrency.Hold = y.OnHold
-		response.Currencies = append(response.Currencies, exchangeCurrency)
-	}
-
+	response.Accounts = Accounts
 	return response, nil
 }
 
@@ -229,8 +215,18 @@ func (b *Bitfinex) GetOrderInfo(orderID int64) (exchange.OrderDetail, error) {
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
-func (b *Bitfinex) GetDepositAddress(cryptocurrency pair.CurrencyItem) (string, error) {
-	return "", common.ErrNotYetImplemented
+func (b *Bitfinex) GetDepositAddress(cryptocurrency pair.CurrencyItem, accountID string) (string, error) {
+	method, err := b.ConvertSymbolToDepositMethod(cryptocurrency.String())
+	if err != nil {
+		return "", err
+	}
+
+	resp, err := b.NewDeposit(method, accountID, 0)
+	if err != nil {
+		return "", err
+	}
+
+	return resp.Address, nil
 }
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is submitted

@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"strings"
 	"sync"
 
 	"github.com/thrasher-/gocryptotrader/common"
@@ -106,12 +107,13 @@ func (l *LakeBTC) UpdateOrderbook(p pair.CurrencyPair, assetType string) (orderb
 // LakeBTC exchange
 func (l *LakeBTC) GetAccountInfo() (exchange.AccountInfo, error) {
 	var response exchange.AccountInfo
-	response.ExchangeName = l.GetName()
+	response.Exchange = l.GetName()
 	accountInfo, err := l.GetAccountInformation()
 	if err != nil {
 		return response, err
 	}
 
+	var currencies []exchange.AccountCurrencyInfo
 	for x, y := range accountInfo.Balance {
 		for z, w := range accountInfo.Locked {
 			if z == x {
@@ -119,10 +121,15 @@ func (l *LakeBTC) GetAccountInfo() (exchange.AccountInfo, error) {
 				exchangeCurrency.CurrencyName = common.StringToUpper(x)
 				exchangeCurrency.TotalValue, _ = strconv.ParseFloat(y, 64)
 				exchangeCurrency.Hold, _ = strconv.ParseFloat(w, 64)
-				response.Currencies = append(response.Currencies, exchangeCurrency)
+				currencies = append(currencies, exchangeCurrency)
 			}
 		}
 	}
+
+	response.Accounts = append(response.Accounts, exchange.Account{
+		Currencies: currencies,
+	})
+
 	return response, nil
 }
 
@@ -201,8 +208,18 @@ func (l *LakeBTC) GetOrderInfo(orderID int64) (exchange.OrderDetail, error) {
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
-func (l *LakeBTC) GetDepositAddress(cryptocurrency pair.CurrencyItem) (string, error) {
-	return "", common.ErrNotYetImplemented
+func (l *LakeBTC) GetDepositAddress(cryptocurrency pair.CurrencyItem, accountID string) (string, error) {
+	if !strings.EqualFold(cryptocurrency.String(), symbol.BTC) {
+		return "", fmt.Errorf("unsupported currency %s deposit address can only be BTC, manual deposit is required for other currencies",
+			cryptocurrency.String())
+	}
+
+	info, err := l.GetAccountInformation()
+	if err != nil {
+		return "", err
+	}
+
+	return info.Profile.BTCDepositAddress, nil
 }
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is

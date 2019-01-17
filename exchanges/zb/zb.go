@@ -11,6 +11,7 @@ import (
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
+	"github.com/thrasher-/gocryptotrader/currency/pair"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/request"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
@@ -32,6 +33,7 @@ const (
 	zbDepth                           = "depth"
 	zbUnfinishedOrdersIgnoreTradeType = "getUnfinishedOrdersIgnoreTradeType"
 	zbWithdraw                        = "withdraw"
+	zbDepositAddress                  = "getUserAddress"
 
 	zbAuthRate   = 100
 	zbUnauthRate = 100
@@ -122,7 +124,7 @@ func (z *ZB) SpotNewOrder(arg SpotNewOrderRequestParams) (int64, error) {
 	vals.Set("price", strconv.FormatFloat(arg.Price, 'f', -1, 64))
 	vals.Set("tradeType", string(arg.Type))
 
-	err := z.SendAuthenticatedHTTPRequest("GET", zbOrder, vals, &result)
+	err := z.SendAuthenticatedHTTPRequest("GET", vals, &result)
 	if err != nil {
 		return 0, err
 	}
@@ -150,7 +152,7 @@ func (z *ZB) CancelExistingOrder(orderID int64, symbol string) error {
 	vals.Set("currency", symbol)
 
 	var result response
-	err := z.SendAuthenticatedHTTPRequest("GET", zbCancelOrder, vals, &result)
+	err := z.SendAuthenticatedHTTPRequest("GET", vals, &result)
 	if err != nil {
 		return err
 	}
@@ -170,7 +172,7 @@ func (z *ZB) GetAccountInformation() (AccountsResponse, error) {
 	vals.Set("accesskey", z.APIKey)
 	vals.Set("method", "getAccountInfo")
 
-	err := z.SendAuthenticatedHTTPRequest("GET", zbAccountInfo, vals, &result)
+	err := z.SendAuthenticatedHTTPRequest("GET", vals, &result)
 	if err != nil {
 		return result, err
 	}
@@ -187,7 +189,7 @@ func (z *ZB) GetUnfinishedOrdersIgnoreTradeType(currency, pageindex, pagesize st
 	vals.Set("pageIndex", pageindex)
 	vals.Set("pageSize", pagesize)
 
-	err := z.SendAuthenticatedHTTPRequest("GET", zbUnfinishedOrdersIgnoreTradeType, vals, &result)
+	err := z.SendAuthenticatedHTTPRequest("GET", vals, &result)
 	if err != nil {
 		return result, err
 	}
@@ -329,32 +331,45 @@ func (z *ZB) GetSpotKline(arg KlinesRequestParams) (KLineResponse, error) {
 	return res, nil
 }
 
+// GetCryptoAddress fetches and returns the deposit address
+// NOTE - PLEASE BE AWARE THAT YOU NEED TO GENERATE A DEPOSIT ADDRESS VIA
+// LOGGING IN AND NOT BY USING THIS ENDPOINT OTHERWISE THIS WILL GIVE YOU A
+// GENERAL ERROR RESPONSE.
+func (z *ZB) GetCryptoAddress(currency pair.CurrencyItem) (UserAddress, error) {
+	var resp UserAddress
+
+	vals := url.Values{}
+	vals.Set("method", zbDepositAddress)
+	vals.Set("currency", currency.Lower().String())
+
+	return resp,
+		z.SendAuthenticatedHTTPRequest("GET", vals, &resp)
+}
+
 // SendHTTPRequest sends an unauthenticated HTTP request
 func (z *ZB) SendHTTPRequest(path string, result interface{}) error {
 	return z.SendPayload("GET", path, nil, nil, result, false, z.Verbose)
 }
 
 // SendAuthenticatedHTTPRequest sends authenticated requests to the zb API
-func (z *ZB) SendAuthenticatedHTTPRequest(method, endpoint string, values url.Values, result interface{}) error {
+func (z *ZB) SendAuthenticatedHTTPRequest(httpMethod string, params url.Values, result interface{}) error {
 	if !z.AuthenticatedAPISupport {
 		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet, z.Name)
 	}
 
-	mapParams2Sign := url.Values{}
-	mapParams2Sign.Set("accesskey", z.APIKey)
-	mapParams2Sign.Set("method", values.Get("method"))
+	params.Set("accesskey", z.APIKey)
 
-	values.Set("sign",
-		common.HexEncodeToString(common.GetHMAC(common.HashMD5,
-			[]byte(values.Encode()),
-			[]byte(common.Sha1ToHex(z.APISecret)))))
+	hmac := common.GetHMAC(common.HashMD5,
+		[]byte(params.Encode()),
+		[]byte(common.Sha1ToHex(z.APISecret)))
 
-	values.Set("reqTime", fmt.Sprintf("%d", time.Now().UnixNano()/1e6))
+	params.Set("reqTime", fmt.Sprintf("%d", common.UnixMillis(time.Now())))
+	params.Set("sign", fmt.Sprintf("%x", hmac))
 
 	url := fmt.Sprintf("%s/%s?%s",
-		z.APIUrlSecondaryDefault,
-		endpoint,
-		values.Encode())
+		z.APIUrlSecondary,
+		params.Get("method"),
+		params.Encode())
 
 	var intermediary json.RawMessage
 
@@ -363,7 +378,7 @@ func (z *ZB) SendAuthenticatedHTTPRequest(method, endpoint string, values url.Va
 		Message string `json:"message"`
 	}{}
 
-	err := z.SendPayload(method,
+	err := z.SendPayload(httpMethod,
 		url,
 		nil,
 		strings.NewReader(""),
@@ -461,7 +476,7 @@ func (z *ZB) Withdraw(currency, address, safepassword string, amount, fees float
 	vals.Set("safePwd", safepassword)
 
 	var resp response
-	err := z.SendAuthenticatedHTTPRequest("GET", zbWithdraw, vals, &resp)
+	err := z.SendAuthenticatedHTTPRequest("GET", vals, &resp)
 	if err != nil {
 		return "", err
 	}

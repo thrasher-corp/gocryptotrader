@@ -148,7 +148,7 @@ func ({{.Variable}} *{{.CapitalName}}) GetOrderInfo(orderID int64) (exchange.Ord
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
-func ({{.Variable}} *{{.CapitalName}}) GetDepositAddress(cryptocurrency pair.CurrencyItem) (string, error) {
+func ({{.Variable}} *{{.CapitalName}}) GetDepositAddress(cryptocurrency pair.CurrencyItem, accountID string) (string, error) {
 	return "", common.ErrNotYetImplemented
 }
 

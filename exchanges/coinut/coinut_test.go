@@ -360,3 +360,10 @@ func TestWithdrawInternationalBank(t *testing.T) {
 		t.Errorf("Expected '%v', recieved: '%v'", common.ErrFunctionNotSupported, err)
 	}
 }
+
+func TestGetDepositAddress(t *testing.T) {
+	_, err := c.GetDepositAddress(symbol.BTC, "")
+	if err == nil {
+		t.Error("Test Failed - GetDepositAddress() function unsupported cannot be nil")
+	}
+}

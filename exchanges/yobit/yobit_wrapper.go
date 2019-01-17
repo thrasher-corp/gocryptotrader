@@ -104,12 +104,13 @@ func (y *Yobit) UpdateOrderbook(p pair.CurrencyPair, assetType string) (orderboo
 // Yobit exchange
 func (y *Yobit) GetAccountInfo() (exchange.AccountInfo, error) {
 	var response exchange.AccountInfo
-	response.ExchangeName = y.GetName()
+	response.Exchange = y.GetName()
 	accountBalance, err := y.GetAccountInformation()
 	if err != nil {
 		return response, err
 	}
 
+	var currencies []exchange.AccountCurrencyInfo
 	for x, y := range accountBalance.FundsInclOrders {
 		var exchangeCurrency exchange.AccountCurrencyInfo
 		exchangeCurrency.CurrencyName = common.StringToUpper(x)
@@ -121,8 +122,12 @@ func (y *Yobit) GetAccountInfo() (exchange.AccountInfo, error) {
 			}
 		}
 
-		response.Currencies = append(response.Currencies, exchangeCurrency)
+		currencies = append(currencies, exchangeCurrency)
 	}
+
+	response.Accounts = append(response.Accounts, exchange.Account{
+		Currencies: currencies,
+	})
 
 	return response, nil
 }
@@ -214,8 +219,13 @@ func (y *Yobit) GetOrderInfo(orderID int64) (exchange.OrderDetail, error) {
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
-func (y *Yobit) GetDepositAddress(cryptocurrency pair.CurrencyItem) (string, error) {
-	return "", common.ErrNotYetImplemented
+func (y *Yobit) GetDepositAddress(cryptocurrency pair.CurrencyItem, accountID string) (string, error) {
+	a, err := y.GetCryptoDepositAddress(cryptocurrency.String())
+	if err != nil {
+		return "", err
+	}
+
+	return a.Return.Address, nil
 }
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is

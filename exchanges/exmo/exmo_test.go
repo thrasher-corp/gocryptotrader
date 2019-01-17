@@ -93,18 +93,6 @@ func TestGetRequiredAmount(t *testing.T) {
 	}
 }
 
-func TestGetCryptoDepositAddress(t *testing.T) {
-	t.Parallel()
-	if APIKey == "" || APISecret == "" {
-		t.Skip()
-	}
-	TestSetup(t)
-	_, err := e.GetCryptoDepositAddress()
-	if err == nil {
-		t.Errorf("Test failed. Err: %s", err)
-	}
-}
-
 func setFeeBuilder() exchange.FeeBuilder {
 	return exchange.FeeBuilder{
 		Amount:              1,
@@ -398,5 +386,19 @@ func TestWithdrawInternationalBank(t *testing.T) {
 	_, err := e.WithdrawFiatFundsToInternationalBank(withdrawFiatRequest)
 	if err != common.ErrFunctionNotSupported {
 		t.Errorf("Expected '%v', recieved: '%v'", common.ErrFunctionNotSupported, err)
+	}
+}
+
+func TestGetDepositAddress(t *testing.T) {
+	if areTestAPIKeysSet() {
+		_, err := e.GetDepositAddress(symbol.LTC, "")
+		if err != nil {
+			t.Error("Test Failed - GetDepositAddress() error", err)
+		}
+	} else {
+		_, err := e.GetDepositAddress(symbol.LTC, "")
+		if err == nil {
+			t.Error("Test Failed - GetDepositAddress() error cannot be nil")
+		}
 	}
 }

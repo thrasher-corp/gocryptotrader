@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
-	"reflect"
 	"strconv"
 	"strings"
 	"time"
@@ -272,10 +271,26 @@ func (e *EXMO) GetRequiredAmount(pair string, amount float64) (RequiredAmount, e
 
 // GetCryptoDepositAddress returns a list of addresses for cryptocurrency deposits
 func (e *EXMO) GetCryptoDepositAddress() (map[string]string, error) {
-	result := make(map[string]string)
+	var result interface{}
 	err := e.SendAuthenticatedHTTPRequest("POST", exmoDepositAddress, url.Values{}, &result)
-	log.Debug(reflect.TypeOf(result).String())
-	return result, err
+	if err != nil {
+		return nil, err
+	}
+
+	switch result.(type) {
+	case map[string]interface{}:
+		mapString := make(map[string]string)
+
+		for key, value := range result.(map[string]interface{}) {
+			strValue := fmt.Sprintf("%v", value)
+			mapString[key] = strValue
+		}
+
+		return mapString, nil
+
+	default:
+		return nil, errors.New("no addresses found, generate required addresses via site")
+	}
 }
 
 // WithdrawCryptocurrency withdraws a cryptocurrency from the exchange to the desired address

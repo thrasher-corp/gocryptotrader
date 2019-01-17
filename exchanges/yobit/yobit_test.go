@@ -125,14 +125,6 @@ func TestWithdrawCoinsToAddress(t *testing.T) {
 	}
 }
 
-func TestGetDepositAddress(t *testing.T) {
-	t.Parallel()
-	_, err := y.GetDepositAddress("btc")
-	if err == nil {
-		t.Error("Test Failed - GetDepositAddress() error", err)
-	}
-}
-
 func TestCreateYobicode(t *testing.T) {
 	t.Parallel()
 	_, err := y.CreateCoupon("bla", 0)
@@ -467,5 +459,19 @@ func TestWithdrawInternationalBank(t *testing.T) {
 	_, err := y.WithdrawFiatFundsToInternationalBank(withdrawFiatRequest)
 	if err != common.ErrFunctionNotSupported {
 		t.Errorf("Expected '%v', recieved: '%v'", common.ErrFunctionNotSupported, err)
+	}
+}
+
+func TestGetDepositAddress(t *testing.T) {
+	if apiKey != "" || apiSecret != "" {
+		_, err := y.GetDepositAddress(symbol.BTC, "")
+		if err != nil {
+			t.Error("Test Failed - GetDepositAddress() error", err)
+		}
+	} else {
+		_, err := y.GetDepositAddress(symbol.BTC, "")
+		if err == nil {
+			t.Error("Test Failed - GetDepositAddress() error")
+		}
 	}
 }

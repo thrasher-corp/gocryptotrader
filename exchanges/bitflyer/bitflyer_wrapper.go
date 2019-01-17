@@ -124,7 +124,7 @@ func (b *Bitflyer) UpdateOrderbook(p pair.CurrencyPair, assetType string) (order
 // Bitflyer exchange
 func (b *Bitflyer) GetAccountInfo() (exchange.AccountInfo, error) {
 	var response exchange.AccountInfo
-	response.ExchangeName = b.GetName()
+	response.Exchange = b.GetName()
 	// accountBalance, err := b.GetAccountBalance()
 	// if err != nil {
 	// 	return response, err
@@ -184,7 +184,7 @@ func (b *Bitflyer) GetOrderInfo(orderID int64) (exchange.OrderDetail, error) {
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
-func (b *Bitflyer) GetDepositAddress(cryptocurrency pair.CurrencyItem) (string, error) {
+func (b *Bitflyer) GetDepositAddress(cryptocurrency pair.CurrencyItem, accountID string) (string, error) {
 	return "", common.ErrNotYetImplemented
 }
 

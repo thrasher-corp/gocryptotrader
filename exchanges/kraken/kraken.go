@@ -1,6 +1,7 @@
 package kraken
 
 import (
+	"errors"
 	"fmt"
 	"net/url"
 	"strconv"
@@ -16,32 +17,33 @@ import (
 )
 
 const (
-	krakenAPIURL         = "https://api.kraken.com"
-	krakenAPIVersion     = "0"
-	krakenServerTime     = "Time"
-	krakenAssets         = "Assets"
-	krakenAssetPairs     = "AssetPairs"
-	krakenTicker         = "Ticker"
-	krakenOHLC           = "OHLC"
-	krakenDepth          = "Depth"
-	krakenTrades         = "Trades"
-	krakenSpread         = "Spread"
-	krakenBalance        = "Balance"
-	krakenTradeBalance   = "TradeBalance"
-	krakenOpenOrders     = "OpenOrders"
-	krakenClosedOrders   = "ClosedOrders"
-	krakenQueryOrders    = "QueryOrders"
-	krakenTradeHistory   = "TradesHistory"
-	krakenQueryTrades    = "QueryTrades"
-	krakenOpenPositions  = "OpenPositions"
-	krakenLedgers        = "Ledgers"
-	krakenQueryLedgers   = "QueryLedgers"
-	krakenTradeVolume    = "TradeVolume"
-	krakenOrderCancel    = "CancelOrder"
-	krakenOrderPlace     = "AddOrder"
-	krakenWithdrawInfo   = "WithdrawInfo"
-	krakenWithdraw       = "Withdraw"
-	krakenDepositMethods = "DepositMethods"
+	krakenAPIURL           = "https://api.kraken.com"
+	krakenAPIVersion       = "0"
+	krakenServerTime       = "Time"
+	krakenAssets           = "Assets"
+	krakenAssetPairs       = "AssetPairs"
+	krakenTicker           = "Ticker"
+	krakenOHLC             = "OHLC"
+	krakenDepth            = "Depth"
+	krakenTrades           = "Trades"
+	krakenSpread           = "Spread"
+	krakenBalance          = "Balance"
+	krakenTradeBalance     = "TradeBalance"
+	krakenOpenOrders       = "OpenOrders"
+	krakenClosedOrders     = "ClosedOrders"
+	krakenQueryOrders      = "QueryOrders"
+	krakenTradeHistory     = "TradesHistory"
+	krakenQueryTrades      = "QueryTrades"
+	krakenOpenPositions    = "OpenPositions"
+	krakenLedgers          = "Ledgers"
+	krakenQueryLedgers     = "QueryLedgers"
+	krakenTradeVolume      = "TradeVolume"
+	krakenOrderCancel      = "CancelOrder"
+	krakenOrderPlace       = "AddOrder"
+	krakenWithdrawInfo     = "WithdrawInfo"
+	krakenWithdraw         = "Withdraw"
+	krakenDepositMethods   = "DepositMethods"
+	krakenDepositAddresses = "DepositAddresses"
 
 	krakenAuthRate   = 0
 	krakenUnauthRate = 0
@@ -495,9 +497,10 @@ func (k *Kraken) GetDepositMethods(currency string) ([]DepositMethods, error) {
 		Result []DepositMethods `json:"result"`
 	}
 	params := url.Values{}
-	params.Set("asset ", currency)
+	params.Set("asset", currency)
 
-	if err := k.SendAuthenticatedHTTPRequest(krakenDepositMethods, params, &response); err != nil {
+	err := k.SendAuthenticatedHTTPRequest(krakenDepositMethods, params, &response)
+	if err != nil {
 		return response.Result, err
 	}
 
@@ -997,4 +1000,27 @@ func getCryptocurrencyDepositFee(currency string) float64 {
 
 func calculateTradingFee(currency string, feePair map[string]TradeVolumeFee, purchasePrice, amount float64) float64 {
 	return (feePair[currency].Fee / 100) * purchasePrice * amount
+}
+
+// GetCryptoDepositAddress returns a deposit address for a cryptocurrency
+func (k *Kraken) GetCryptoDepositAddress(method, code string) (string, error) {
+	var resp = struct {
+		Error  []string         `json:"error"`
+		Result []DepositAddress `json:"result"`
+	}{}
+
+	values := url.Values{}
+	values.Set("asset", code)
+	values.Set("method", method)
+
+	err := k.SendAuthenticatedHTTPRequest(krakenDepositAddresses, values, &resp)
+	if err != nil {
+		return "", err
+	}
+
+	for _, a := range resp.Result {
+		return a.Address, nil
+	}
+
+	return "", errors.New("no addresses returned")
 }

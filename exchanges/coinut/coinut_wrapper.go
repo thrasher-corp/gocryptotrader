@@ -131,8 +131,11 @@ func (c *COINUT) GetAccountInfo() (exchange.AccountInfo, error) {
 		TotalValue:   bal.ZEC,
 	})
 
-	info.ExchangeName = c.GetName()
-	info.Currencies = balances
+	info.Exchange = c.GetName()
+	info.Accounts = append(info.Accounts, exchange.Account{
+		Currencies: balances,
+	})
+
 	return info, nil
 }
 
@@ -345,8 +348,8 @@ func (c *COINUT) GetOrderInfo(orderID int64) (exchange.OrderDetail, error) {
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
-func (c *COINUT) GetDepositAddress(cryptocurrency pair.CurrencyItem) (string, error) {
-	return "", common.ErrNotYetImplemented
+func (c *COINUT) GetDepositAddress(cryptocurrency pair.CurrencyItem, accountID string) (string, error) {
+	return "", common.ErrFunctionNotSupported
 }
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is

@@ -241,14 +241,14 @@ func TestGetSymbolsDetails(t *testing.T) {
 }
 
 func TestGetAccountInfo(t *testing.T) {
-	if b.APIKey == "" || b.APISecret == "" {
+	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
 	t.Parallel()
 
 	_, err := b.GetAccountInfo()
-	if err == nil {
-		t.Error("Test Failed - GetAccountInfo error")
+	if err != nil {
+		t.Error("Test Failed - GetAccountInfo error", err)
 	}
 }
 
@@ -901,5 +901,19 @@ func TestWithdrawInternationalBank(t *testing.T) {
 	}
 	if areTestAPIKeysSet() && err != nil {
 		t.Errorf("Withdraw failed to be placed: %v", err)
+	}
+}
+
+func TestGetDepositAddress(t *testing.T) {
+	if areTestAPIKeysSet() {
+		_, err := b.GetDepositAddress(symbol.BTC, "deposit")
+		if err != nil {
+			t.Error("Test Failed - GetDepositAddress() error", err)
+		}
+	} else {
+		_, err := b.GetDepositAddress(symbol.BTC, "deposit")
+		if err == nil {
+			t.Error("Test Failed - GetDepositAddress() error cannot be nil")
+		}
 	}
 }

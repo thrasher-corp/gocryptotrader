@@ -32,7 +32,7 @@ func TestSetup(t *testing.T) {
 		t.Error("Test Failed - BTC Markets Setup() init error")
 	}
 
-	if apiKey != "" && apiSecret != "" {
+	if areTestAPIKeysSet() {
 		bConfig.APIKey = apiKey
 		bConfig.APISecret = apiSecret
 		bConfig.AuthenticatedAPISupport = true
@@ -448,5 +448,12 @@ func TestWithdrawInternationalBank(t *testing.T) {
 	_, err := b.WithdrawFiatFundsToInternationalBank(withdrawFiatRequest)
 	if err != common.ErrFunctionNotSupported {
 		t.Errorf("Expected '%v', recieved: '%v'", common.ErrFunctionNotSupported, err)
+	}
+}
+
+func TestGetDepositAddress(t *testing.T) {
+	_, err := b.GetDepositAddress(symbol.BTC, "")
+	if err == nil {
+		t.Error("Test Failed - GetDepositAddress() error cannot be nil")
 	}
 }

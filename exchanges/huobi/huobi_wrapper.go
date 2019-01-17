@@ -149,76 +149,83 @@ func (h *HUOBI) UpdateOrderbook(p pair.CurrencyPair, assetType string) (orderboo
 	return orderbook.GetOrderbook(h.Name, p, assetType)
 }
 
-var mtx sync.Mutex
-
-// GetAccountID returns the account ID for trades NOTE interim implementation
-// does not account for multiple account IDs
-func (h *HUOBI) GetAccountID() (string, error) {
-	mtx.Lock()
-	defer mtx.Unlock()
-
-	if h.AccountID == "" {
-		acc, err := h.GetAccounts()
-		if err != nil {
-			return "", err
-		}
-
-		if len(acc) > 0 {
-			return strconv.FormatInt(acc[0].ID, 10), nil
-		}
-
-		return "", errors.New("no user ID fetched")
+// GetAccountID returns the account ID for trades
+func (h *HUOBI) GetAccountID() ([]Account, error) {
+	acc, err := h.GetAccounts()
+	if err != nil {
+		return nil, err
 	}
 
-	return h.AccountID, nil
+	if len(acc) < 1 {
+		return nil, errors.New("no account returned")
+	}
+
+	return acc, nil
 }
 
 //GetAccountInfo retrieves balances for all enabled currencies for the
 // HUOBI exchange - to-do
 func (h *HUOBI) GetAccountInfo() (exchange.AccountInfo, error) {
 	var info exchange.AccountInfo
-	info.ExchangeName = h.GetName()
+	info.Exchange = h.GetName()
 
-	accID, err := h.GetAccountID()
+	accounts, err := h.GetAccountID()
 	if err != nil {
 		return info, err
 	}
 
-	acc, err := h.GetAccountBalance(accID)
-	if err != nil {
-		return info, err
-	}
+	for _, account := range accounts {
+		var acc exchange.Account
 
-	type hold struct {
-		Avail float64
-		Hold  float64
-	}
+		acc.ID = strconv.FormatInt(account.ID, 10)
 
-	var currencyData = make(map[string]*hold)
-	for _, data := range acc {
-		_, ok := currencyData[data.Currency]
-		if !ok {
-			currencyData[data.Currency] = &hold{}
+		balances, err := h.GetAccountBalance(acc.ID)
+		if err != nil {
+			return info, err
 		}
 
-		if data.Type == "trade" {
-			currencyData[data.Currency].Avail = data.Balance
-		} else {
-			currencyData[data.Currency].Hold = data.Balance
+		var currencyDetails []exchange.AccountCurrencyInfo
+		for _, balance := range balances {
+			var frozen bool
+			if balance.Type == "frozen" {
+				frozen = true
+			}
+
+			var updated bool
+			for i := range currencyDetails {
+				if currencyDetails[i].CurrencyName == balance.Currency {
+					if frozen {
+						currencyDetails[i].Hold = balance.Balance
+					} else {
+						currencyDetails[i].TotalValue = balance.Balance
+					}
+					updated = true
+				}
+			}
+
+			if updated {
+				continue
+			}
+
+			if frozen {
+				currencyDetails = append(currencyDetails,
+					exchange.AccountCurrencyInfo{
+						CurrencyName: balance.Currency,
+						Hold:         balance.Balance,
+					})
+			} else {
+				currencyDetails = append(currencyDetails,
+					exchange.AccountCurrencyInfo{
+						CurrencyName: balance.Currency,
+						TotalValue:   balance.Balance,
+					})
+			}
 		}
+
+		acc.Currencies = currencyDetails
+		info.Accounts = append(info.Accounts, acc)
 	}
 
-	var balances []exchange.AccountCurrencyInfo
-
-	for key, data := range currencyData {
-		balances = append(balances, exchange.AccountCurrencyInfo{
-			CurrencyName: key,
-			TotalValue:   data.Avail + data.Hold,
-			Hold:         data.Hold,
-		})
-	}
-
-	info.Currencies = balances
 	return info, nil
 }
 
@@ -330,8 +337,8 @@ func (h *HUOBI) GetOrderInfo(orderID int64) (exchange.OrderDetail, error) {
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
-func (h *HUOBI) GetDepositAddress(cryptocurrency pair.CurrencyItem) (string, error) {
-	return "", common.ErrNotYetImplemented
+func (h *HUOBI) GetDepositAddress(cryptocurrency pair.CurrencyItem, accountID string) (string, error) {
+	return "", common.ErrFunctionNotSupported
 }
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is

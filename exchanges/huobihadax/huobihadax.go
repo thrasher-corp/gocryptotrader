@@ -51,6 +51,7 @@ const (
 	huobihadaxMarginAccountBalance  = "margin/accounts/balance"
 	huobihadaxWithdrawCreate        = "dw/withdraw/api/create"
 	huobihadaxWithdrawCancel        = "dw/withdraw-virtual/%s/cancel"
+	huobiHadaxDepositAddress        = "query/deposit-withdraw"
 
 	huobihadaxAuthRate   = 100
 	huobihadaxUnauthRate = 100
@@ -58,7 +59,6 @@ const (
 
 // HUOBIHADAX is the overarching type across this package
 type HUOBIHADAX struct {
-	AccountID string
 	exchange.Base
 }
 
@@ -885,4 +885,34 @@ func (h *HUOBIHADAX) GetFee(feeBuilder exchange.FeeBuilder) (float64, error) {
 func calculateTradingFee(purchasePrice, amount float64) float64 {
 	feePercent := 0.002
 	return feePercent * purchasePrice * amount
+}
+
+// GetDepositWithdrawalHistory returns deposit or withdrawal data
+func (h *HUOBIHADAX) GetDepositWithdrawalHistory(associatedID string, currency string, isDeposit bool, size int64) ([]History, error) {
+	var resp = struct {
+		Response
+		Data []History `json:"data"`
+	}{}
+
+	vals := url.Values{}
+
+	if isDeposit {
+		vals.Set("type", "deposit")
+	} else {
+		vals.Set("type", "withdraw")
+	}
+
+	vals.Set("from", associatedID)
+	vals.Set("size", strconv.FormatInt(size, 10))
+	vals.Set("currency", common.StringToLower(currency))
+
+	err := h.SendAuthenticatedHTTPRequest("GET",
+		huobiHadaxDepositAddress,
+		vals,
+		&resp)
+
+	if resp.ErrorMessage != "" {
+		return resp.Data, errors.New(resp.ErrorMessage)
+	}
+	return resp.Data, err
 }

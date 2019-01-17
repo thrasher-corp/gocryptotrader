@@ -282,13 +282,32 @@ func TestGetCollatedExchangeAccountInfoByCoin(t *testing.T) {
 	exchangeInfo := []exchange.AccountInfo{}
 	var info exchange.AccountInfo
 
-	info.ExchangeName = "Bitfinex"
-	info.Currencies = append(info.Currencies,
-		exchange.AccountCurrencyInfo{CurrencyName: "BTC", TotalValue: 100, Hold: 0})
+	info.Exchange = "Bitfinex"
+	info.Accounts = append(info.Accounts,
+		exchange.Account{
+			Currencies: []exchange.AccountCurrencyInfo{
+				{
+					CurrencyName: "BTC",
+					TotalValue:   100,
+					Hold:         0,
+				},
+			},
+		})
+
 	exchangeInfo = append(exchangeInfo, info)
 
-	info.ExchangeName = "Bitstamp"
-	info.Currencies = append(info.Currencies, exchange.AccountCurrencyInfo{CurrencyName: "LTC", TotalValue: 100, Hold: 0})
+	info.Exchange = "Bitstamp"
+	info.Accounts = append(info.Accounts,
+		exchange.Account{
+			Currencies: []exchange.AccountCurrencyInfo{
+				{
+					CurrencyName: "LTC",
+					TotalValue:   100,
+					Hold:         0,
+				},
+			},
+		})
+
 	exchangeInfo = append(exchangeInfo, info)
 
 	result := GetCollatedExchangeAccountInfoByCoin(exchangeInfo)
@@ -316,9 +335,18 @@ func TestGetAccountCurrencyInfoByExchangeName(t *testing.T) {
 
 	exchangeInfo := []exchange.AccountInfo{}
 	var info exchange.AccountInfo
-	info.ExchangeName = "Bitfinex"
-	info.Currencies = append(info.Currencies,
-		exchange.AccountCurrencyInfo{CurrencyName: "BTC", TotalValue: 100, Hold: 0})
+	info.Exchange = "Bitfinex"
+	info.Accounts = append(info.Accounts,
+		exchange.Account{
+			Currencies: []exchange.AccountCurrencyInfo{
+				{
+					CurrencyName: "BTC",
+					TotalValue:   100,
+					Hold:         0,
+				},
+			},
+		})
+
 	exchangeInfo = append(exchangeInfo, info)
 
 	result, err := GetAccountCurrencyInfoByExchangeName(exchangeInfo, "Bitfinex")
@@ -326,7 +354,7 @@ func TestGetAccountCurrencyInfoByExchangeName(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if result.ExchangeName != "Bitfinex" {
+	if result.Exchange != "Bitfinex" {
 		t.Fatal("Unexepcted result")
 	}
 

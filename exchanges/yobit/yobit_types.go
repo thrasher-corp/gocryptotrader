@@ -118,10 +118,13 @@ type TradeHistory struct {
 
 // DepositAddress stores a curency deposit address
 type DepositAddress struct {
-	Address         string  `json:"address"`
-	ProcessedAmount float64 `json:"processed_amount"`
-	ServerTime      int64   `json:"server_time"`
-	Error           string  `json:"error"`
+	Success int `json:"success"`
+	Return  struct {
+		Address         string  `json:"address"`
+		ProcessedAmount float64 `json:"processed_amount"`
+		ServerTime      int64   `json:"server_time"`
+	} `json:"return"`
+	Error string `json:"error"`
 }
 
 // WithdrawCoinsToAddress stores information for a withdrawcoins request

@@ -111,7 +111,7 @@ func (i *ItBit) UpdateOrderbook(p pair.CurrencyPair, assetType string) (orderboo
 // GetAccountInfo retrieves balances for all enabled currencies
 func (i *ItBit) GetAccountInfo() (exchange.AccountInfo, error) {
 	var info exchange.AccountInfo
-	info.ExchangeName = i.GetName()
+	info.Exchange = i.GetName()
 
 	wallets, err := i.GetWallets(url.Values{})
 	if err != nil {
@@ -145,6 +145,10 @@ func (i *ItBit) GetAccountInfo() (exchange.AccountInfo, error) {
 			Hold:         data.Hold,
 		})
 	}
+
+	info.Accounts = append(info.Accounts, exchange.Account{
+		Currencies: fullBalance,
+	})
 
 	return info, nil
 }
@@ -237,7 +241,10 @@ func (i *ItBit) GetOrderInfo(orderID int64) (exchange.OrderDetail, error) {
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
-func (i *ItBit) GetDepositAddress(cryptocurrency pair.CurrencyItem) (string, error) {
+// NOTE: This has not been implemented due to the fact you need to generate a
+// a specific wallet ID and they restrict the amount of deposit address you can
+// request limiting them to 2.
+func (i *ItBit) GetDepositAddress(cryptocurrency pair.CurrencyItem, accountID string) (string, error) {
 	return "", common.ErrNotYetImplemented
 }
 

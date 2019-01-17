@@ -2,6 +2,7 @@ package binance
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/url"
@@ -603,17 +604,36 @@ func (b *Binance) SendAuthHTTPRequest(method, path string, params url.Values, re
 	signature := params.Encode()
 	hmacSigned := common.GetHMAC(common.HashSHA256, []byte(signature), []byte(b.APISecret))
 	hmacSignedStr := common.HexEncodeToString(hmacSigned)
-	params.Set("signature", hmacSignedStr)
 
 	headers := make(map[string]string)
 	headers["X-MBX-APIKEY"] = b.APIKey
 
 	if b.Verbose {
-		log.Debugf("sent path: \n%s\n", path)
+		log.Debugf("sent path: %s", path)
 	}
-	path = common.EncodeURLValues(path, params)
 
-	return b.SendPayload(method, path, headers, bytes.NewBufferString(""), result, true, b.Verbose)
+	path = common.EncodeURLValues(path, params)
+	path += fmt.Sprintf("&signature=%s", hmacSignedStr)
+
+	interim := json.RawMessage{}
+
+	errCap := struct {
+		Success bool   `json:"success"`
+		Message string `json:"msg"`
+	}{}
+
+	err := b.SendPayload(method, path, headers, bytes.NewBuffer(nil), &interim, true, b.Verbose)
+	if err != nil {
+		return err
+	}
+
+	if err := common.JSONDecode(interim, &errCap); err == nil {
+		if !errCap.Success && errCap.Message != "" {
+			return errors.New(errCap.Message)
+		}
+	}
+
+	return common.JSONDecode(interim, result)
 }
 
 // CheckLimit checks value against a variable list
@@ -742,15 +762,19 @@ func (b *Binance) WithdrawCrypto(asset, address, addressTag, name, amount string
 }
 
 //GetDepositAddressForCurrency retrieves the wallet address for a given currency
-func (b *Binance) GetDepositAddressForCurrency(currency string) error {
+func (b *Binance) GetDepositAddressForCurrency(currency string) (string, error) {
 	path := fmt.Sprintf("%s%s", b.APIUrl, depositAddress)
-	var resp interface{}
+
+	resp := struct {
+		Address    string `json:"address"`
+		Success    bool   `json:"success"`
+		AddressTag string `json:"addressTag"`
+	}{}
+
 	params := url.Values{}
 	params.Set("asset", currency)
+	params.Set("status", "true")
 
-	if err := b.SendAuthHTTPRequest("GET", path, params, &resp); err != nil {
-		return err
-	}
-
-	return nil
+	return resp.Address,
+		b.SendAuthHTTPRequest("GET", path, params, &resp)
 }

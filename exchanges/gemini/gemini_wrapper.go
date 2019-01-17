@@ -46,18 +46,25 @@ func (g *Gemini) Run() {
 // Gemini exchange
 func (g *Gemini) GetAccountInfo() (exchange.AccountInfo, error) {
 	var response exchange.AccountInfo
-	response.ExchangeName = g.GetName()
+	response.Exchange = g.GetName()
 	accountBalance, err := g.GetBalances()
 	if err != nil {
 		return response, err
 	}
+
+	var currencies []exchange.AccountCurrencyInfo
 	for i := 0; i < len(accountBalance); i++ {
 		var exchangeCurrency exchange.AccountCurrencyInfo
 		exchangeCurrency.CurrencyName = accountBalance[i].Currency
 		exchangeCurrency.TotalValue = accountBalance[i].Amount
 		exchangeCurrency.Hold = accountBalance[i].Available
-		response.Currencies = append(response.Currencies, exchangeCurrency)
+		currencies = append(currencies, exchangeCurrency)
 	}
+
+	response.Accounts = append(response.Accounts, exchange.Account{
+		Currencies: currencies,
+	})
+
 	return response, nil
 }
 
@@ -186,8 +193,12 @@ func (g *Gemini) GetOrderInfo(orderID int64) (exchange.OrderDetail, error) {
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
-func (g *Gemini) GetDepositAddress(cryptocurrency pair.CurrencyItem) (string, error) {
-	return "", common.ErrNotYetImplemented
+func (g *Gemini) GetDepositAddress(cryptocurrency pair.CurrencyItem, accountID string) (string, error) {
+	addr, err := g.GetCryptoDepositAddress("", cryptocurrency.String())
+	if err != nil {
+		return "", err
+	}
+	return addr.Address, nil
 }
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is

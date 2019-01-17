@@ -126,18 +126,24 @@ func (p *Poloniex) UpdateOrderbook(currencyPair pair.CurrencyPair, assetType str
 // Poloniex exchange
 func (p *Poloniex) GetAccountInfo() (exchange.AccountInfo, error) {
 	var response exchange.AccountInfo
-	response.ExchangeName = p.GetName()
+	response.Exchange = p.GetName()
 	accountBalance, err := p.GetBalances()
 	if err != nil {
 		return response, err
 	}
 
+	var currencies []exchange.AccountCurrencyInfo
 	for x, y := range accountBalance.Currency {
 		var exchangeCurrency exchange.AccountCurrencyInfo
 		exchangeCurrency.CurrencyName = x
 		exchangeCurrency.TotalValue = y
-		response.Currencies = append(response.Currencies, exchangeCurrency)
+		currencies = append(currencies, exchangeCurrency)
 	}
+
+	response.Accounts = append(response.Accounts, exchange.Account{
+		Currencies: currencies,
+	})
+
 	return response, nil
 }
 
@@ -235,8 +241,19 @@ func (p *Poloniex) GetOrderInfo(orderID int64) (exchange.OrderDetail, error) {
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
-func (p *Poloniex) GetDepositAddress(cryptocurrency pair.CurrencyItem) (string, error) {
-	return "", common.ErrNotYetImplemented
+func (p *Poloniex) GetDepositAddress(cryptocurrency pair.CurrencyItem, accountID string) (string, error) {
+	a, err := p.GetDepositAddresses()
+	if err != nil {
+		return "", err
+	}
+
+	address, ok := a.Addresses[cryptocurrency.Upper().String()]
+	if !ok {
+		return "", fmt.Errorf("Cannot find deposit address for %s",
+			cryptocurrency)
+	}
+
+	return address, nil
 }
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is

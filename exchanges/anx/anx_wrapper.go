@@ -199,8 +199,10 @@ func (a *ANX) GetAccountInfo() (exchange.AccountInfo, error) {
 		})
 	}
 
-	info.ExchangeName = a.GetName()
-	info.Currencies = balance
+	info.Exchange = a.GetName()
+	info.Accounts = append(info.Accounts, exchange.Account{
+		Currencies: balance,
+	})
 
 	return info, nil
 }
@@ -305,8 +307,8 @@ func (a *ANX) GetOrderInfo(orderID int64) (exchange.OrderDetail, error) {
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
-func (a *ANX) GetDepositAddress(cryptocurrency pair.CurrencyItem) (string, error) {
-	return "", common.ErrNotYetImplemented
+func (a *ANX) GetDepositAddress(cryptocurrency pair.CurrencyItem, accountID string) (string, error) {
+	return a.GetDepositAddressByCurrency(cryptocurrency.String(), "", false)
 }
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is

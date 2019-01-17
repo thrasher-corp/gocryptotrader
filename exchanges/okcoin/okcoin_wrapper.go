@@ -145,34 +145,40 @@ func (o *OKCoin) UpdateOrderbook(currency pair.CurrencyPair, assetType string) (
 // OKCoin exchange
 func (o *OKCoin) GetAccountInfo() (exchange.AccountInfo, error) {
 	var response exchange.AccountInfo
-	response.ExchangeName = o.GetName()
+	response.Exchange = o.GetName()
 	assets, err := o.GetUserInfo()
 	if err != nil {
 		return response, err
 	}
 
-	response.Currencies = append(response.Currencies, exchange.AccountCurrencyInfo{
+	var currencies []exchange.AccountCurrencyInfo
+
+	currencies = append(currencies, exchange.AccountCurrencyInfo{
 		CurrencyName: "BTC",
 		TotalValue:   assets.Info.Funds.Free.BTC,
 		Hold:         assets.Info.Funds.Freezed.BTC,
 	})
 
-	response.Currencies = append(response.Currencies, exchange.AccountCurrencyInfo{
+	currencies = append(currencies, exchange.AccountCurrencyInfo{
 		CurrencyName: "LTC",
 		TotalValue:   assets.Info.Funds.Free.LTC,
 		Hold:         assets.Info.Funds.Freezed.LTC,
 	})
 
-	response.Currencies = append(response.Currencies, exchange.AccountCurrencyInfo{
+	currencies = append(currencies, exchange.AccountCurrencyInfo{
 		CurrencyName: "USD",
 		TotalValue:   assets.Info.Funds.Free.USD,
 		Hold:         assets.Info.Funds.Freezed.USD,
 	})
 
-	response.Currencies = append(response.Currencies, exchange.AccountCurrencyInfo{
+	currencies = append(currencies, exchange.AccountCurrencyInfo{
 		CurrencyName: "CNY",
 		TotalValue:   assets.Info.Funds.Free.CNY,
 		Hold:         assets.Info.Funds.Freezed.CNY,
+	})
+
+	response.Accounts = append(response.Accounts, exchange.Account{
+		Currencies: currencies,
 	})
 
 	return response, nil
@@ -285,7 +291,8 @@ func (o *OKCoin) GetOrderInfo(orderID int64) (exchange.OrderDetail, error) {
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
-func (o *OKCoin) GetDepositAddress(cryptocurrency pair.CurrencyItem) (string, error) {
+func (o *OKCoin) GetDepositAddress(cryptocurrency pair.CurrencyItem, accountID string) (string, error) {
+	// NOTE needs API version update to access
 	return "", common.ErrNotYetImplemented
 }
 

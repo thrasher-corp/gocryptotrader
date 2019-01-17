@@ -5,11 +5,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
 	"github.com/thrasher-/gocryptotrader/currency/symbol"
 	"github.com/thrasher-/gocryptotrader/exchanges"
-
-	"github.com/thrasher-/gocryptotrader/config"
 )
 
 // Please add your private keys and customerID for better tests
@@ -565,5 +564,19 @@ func TestWithdrawInternationalBank(t *testing.T) {
 	}
 	if areTestAPIKeysSet() && err != nil {
 		t.Errorf("Withdraw failed to be placed: %v", err)
+	}
+}
+
+func TestGetDepositAddress(t *testing.T) {
+	if areTestAPIKeysSet() && customerID != "" {
+		_, err := b.GetDepositAddress(symbol.BTC, "")
+		if err != nil {
+			t.Error("Test Failed - GetDepositAddress error", err)
+		}
+	} else {
+		_, err := b.GetDepositAddress(symbol.BTC, "")
+		if err == nil {
+			t.Error("Test Failed - GetDepositAddress error cannot be nil")
+		}
 	}
 }

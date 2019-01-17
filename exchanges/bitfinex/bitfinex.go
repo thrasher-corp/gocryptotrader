@@ -1087,3 +1087,31 @@ func (b *Bitfinex) ConvertSymbolToWithdrawalType(currency string) string {
 		return common.StringToLower(currency)
 	}
 }
+
+// ConvertSymbolToDepositMethod returns a converted currency deposit method
+func (b *Bitfinex) ConvertSymbolToDepositMethod(currency string) (method string, err error) {
+	switch currency {
+	case symbol.BTC:
+		method = "bitcoin"
+	case symbol.LTC:
+		method = "litecoin"
+	case symbol.ETH:
+		method = "ethereum"
+	case symbol.ETC:
+		method = "ethereumc"
+	case symbol.USDT:
+		method = "tetheruso"
+	case symbol.ZEC:
+		method = "zcash"
+	case symbol.XMR:
+		method = "monero"
+	case symbol.BCH:
+		method = "bcash"
+	case symbol.MIOTA:
+		method = "iota"
+	default:
+		err = fmt.Errorf("currency %s not supported in method list",
+			currency)
+	}
+	return
+}

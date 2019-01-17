@@ -122,21 +122,27 @@ func (b *BTCMarkets) UpdateOrderbook(p pair.CurrencyPair, assetType string) (ord
 // BTCMarkets exchange
 func (b *BTCMarkets) GetAccountInfo() (exchange.AccountInfo, error) {
 	var response exchange.AccountInfo
-	response.ExchangeName = b.GetName()
+	response.Exchange = b.GetName()
 
 	accountBalance, err := b.GetAccountBalance()
 	if err != nil {
 		return response, err
 	}
 
+	var currencies []exchange.AccountCurrencyInfo
 	for i := 0; i < len(accountBalance); i++ {
 		var exchangeCurrency exchange.AccountCurrencyInfo
 		exchangeCurrency.CurrencyName = accountBalance[i].Currency
 		exchangeCurrency.TotalValue = accountBalance[i].Balance
 		exchangeCurrency.Hold = accountBalance[i].PendingFunds
 
-		response.Currencies = append(response.Currencies, exchangeCurrency)
+		currencies = append(currencies, exchangeCurrency)
 	}
+
+	response.Accounts = append(response.Accounts, exchange.Account{
+		Currencies: currencies,
+	})
+
 	return response, nil
 }
 
@@ -256,7 +262,7 @@ func (b *BTCMarkets) GetOrderInfo(orderID int64) (exchange.OrderDetail, error) {
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
-func (b *BTCMarkets) GetDepositAddress(cryptocurrency pair.CurrencyItem) (string, error) {
+func (b *BTCMarkets) GetDepositAddress(cryptocurrency pair.CurrencyItem, accountID string) (string, error) {
 	return "", common.ErrFunctionNotSupported
 }
 

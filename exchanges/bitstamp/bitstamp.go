@@ -1,6 +1,7 @@
 package bitstamp
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/url"
@@ -43,6 +44,7 @@ const (
 	bitstampAPIBitcoinDeposit     = "bitcoin_deposit_address"
 	bitstampAPILitecoinDeposit    = "ltc_address"
 	bitstampAPIEthereumDeposit    = "eth_address"
+	bitstampAPIBitcoinCashDeposit = "bch_address"
 	bitstampAPIUnconfirmedBitcoin = "unconfirmed_btc"
 	bitstampAPITransferToMain     = "transfer-to-main"
 	bitstampAPITransferFromMain   = "transfer-from-main"
@@ -565,29 +567,34 @@ func (b *Bitstamp) OpenInternationalBankWithdrawal(amount float64, currency,
 }
 
 // GetCryptoDepositAddress returns a depositing address by crypto
-// crypto - example "btc", "ltc", "eth", or "xrp"
+// crypto - example "btc", "ltc", "eth", "xrp" or "bch"
 func (b *Bitstamp) GetCryptoDepositAddress(crypto string) (string, error) {
-	type response struct {
-		Address string `json:"address"`
-	}
-	resp := response{}
+	var resp string
 
-	switch common.StringToLower(crypto) {
-	case "btc":
-		return resp.Address,
-			b.SendAuthenticatedHTTPRequest(bitstampAPIBitcoinDeposit, false, nil, &resp.Address)
-	case "ltc":
-		return resp.Address,
+	switch crypto {
+	case symbol.BTC:
+		return resp,
+			b.SendAuthenticatedHTTPRequest(bitstampAPIBitcoinDeposit, false, nil, &resp)
+
+	case symbol.LTC:
+		return resp,
 			b.SendAuthenticatedHTTPRequest(bitstampAPILitecoinDeposit, true, nil, &resp)
-	case "eth":
-		return resp.Address,
-			b.SendAuthenticatedHTTPRequest(bitstampAPIEthereumDeposit, true, nil, &resp)
-	case "xrp":
-		return resp.Address,
-			b.SendAuthenticatedHTTPRequest(bitstampAPIXrpDeposit, true, nil, &resp)
-	}
 
-	return resp.Address, errors.New("incorrect cryptocurrency string")
+	case symbol.ETH:
+		return resp,
+			b.SendAuthenticatedHTTPRequest(bitstampAPIEthereumDeposit, true, nil, &resp)
+
+	case symbol.XRP:
+		return resp,
+			b.SendAuthenticatedHTTPRequest(bitstampAPIXrpDeposit, true, nil, &resp)
+
+	case symbol.BCH:
+		return resp,
+			b.SendAuthenticatedHTTPRequest(bitstampAPIBitcoinCashDeposit, true, nil, &resp)
+
+	default:
+		return resp, fmt.Errorf("unsupported cryptocurrency string %s", crypto)
+	}
 }
 
 // GetUnconfirmedBitcoinDeposits returns unconfirmed transactions
@@ -628,7 +635,7 @@ func (b *Bitstamp) SendHTTPRequest(path string, result interface{}) error {
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated request
-func (b *Bitstamp) SendAuthenticatedHTTPRequest(path string, v2 bool, values url.Values, result interface{}) (err error) {
+func (b *Bitstamp) SendAuthenticatedHTTPRequest(path string, v2 bool, values url.Values, result interface{}) error {
 	if !b.AuthenticatedAPISupport {
 		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet, b.Name)
 	}
@@ -663,5 +670,23 @@ func (b *Bitstamp) SendAuthenticatedHTTPRequest(path string, v2 bool, values url
 
 	encodedValues := values.Encode()
 	readerValues := strings.NewReader(encodedValues)
-	return b.SendPayload("POST", path, headers, readerValues, result, true, b.Verbose)
+
+	interim := json.RawMessage{}
+
+	errCap := struct {
+		Error string `json:"error"`
+	}{}
+
+	err := b.SendPayload("POST", path, headers, readerValues, &interim, true, b.Verbose)
+	if err != nil {
+		return err
+	}
+
+	if err := common.JSONDecode(interim, &errCap); err == nil {
+		if errCap.Error != "" {
+			return errors.New(errCap.Error)
+		}
+	}
+
+	return common.JSONDecode(interim, result)
 }

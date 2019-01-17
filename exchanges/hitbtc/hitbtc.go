@@ -364,10 +364,13 @@ func (h *HitBTC) GetBalances() (map[string]Balance, error) {
 
 // GetDepositAddresses returns a deposit address for a specific currency
 func (h *HitBTC) GetDepositAddresses(currency string) (DepositCryptoAddresses, error) {
-	resp := DepositCryptoAddresses{}
-	err := h.SendAuthenticatedHTTPRequest("GET", apiV2CryptoAddress+"/"+currency, url.Values{}, &resp)
+	var resp DepositCryptoAddresses
 
-	return resp, err
+	return resp,
+		h.SendAuthenticatedHTTPRequest("GET",
+			apiV2CryptoAddress+"/"+currency,
+			url.Values{},
+			&resp)
 }
 
 // GenerateNewAddress generates a new deposit address for a currency

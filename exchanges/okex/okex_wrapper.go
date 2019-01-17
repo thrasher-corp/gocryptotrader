@@ -167,8 +167,11 @@ func (o *OKEX) GetAccountInfo() (exchange.AccountInfo, error) {
 		})
 	}
 
-	info.ExchangeName = o.GetName()
-	info.Currencies = balances
+	info.Exchange = o.GetName()
+	info.Accounts = append(info.Accounts, exchange.Account{
+		Currencies: balances,
+	})
+
 	return info, nil
 }
 
@@ -283,7 +286,8 @@ func (o *OKEX) GetOrderInfo(orderID int64) (exchange.OrderDetail, error) {
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
-func (o *OKEX) GetDepositAddress(cryptocurrency pair.CurrencyItem) (string, error) {
+func (o *OKEX) GetDepositAddress(cryptocurrency pair.CurrencyItem, accountID string) (string, error) {
+	// NOTE needs API version update to access
 	return "", common.ErrNotYetImplemented
 }
 

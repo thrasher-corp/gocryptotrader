@@ -5,11 +5,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
+	"github.com/thrasher-/gocryptotrader/currency/symbol"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/request"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
@@ -700,9 +702,15 @@ func (b *Bitmex) ConfirmWithdrawal(token string) (TransactionInfo, error) {
 func (b *Bitmex) GetCryptoDepositAddress(currency string) (string, error) {
 	var address string
 
+	if !strings.EqualFold(currency, symbol.XBT) {
+		return "",
+			fmt.Errorf("cryptocurrency %s deposits are not supported by exchange only bitcoin",
+				currency)
+	}
+
 	return address, b.SendAuthenticatedHTTPRequest("GET",
 		bitmexEndpointUserDepositAddress,
-		UserCurrencyParams{Currency: currency},
+		UserCurrencyParams{Currency: "XBt"},
 		&address)
 }
 
