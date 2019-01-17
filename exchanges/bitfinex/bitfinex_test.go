@@ -708,14 +708,13 @@ func TestFormatWithdrawPermissions(t *testing.T) {
 	}
 }
 
-
 func TestGetOrderHistory(t *testing.T) {
 	b.SetDefaults()
 	TestSetup(t)
 	b.Verbose = true
 
 	var orderHistoryRequest = exchange.OrderHistoryRequest{
-		OrderStatus: exchange.AnyOrderStatus,
+		OrderStatus: exchange.ActiveOrderStatus,
 		OrderType:   exchange.AnyOrderType,
 	}
 

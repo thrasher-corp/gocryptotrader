@@ -209,13 +209,6 @@ func TestGetCurrentNotifications(t *testing.T) {
 	}
 }
 
-func TestGetOrders(t *testing.T) {
-	_, err := b.GetOrders(GenericRequestParams{})
-	if err == nil {
-		t.Error("test failed - GetOrders() error", err)
-	}
-}
-
 func TestAmendOrder(t *testing.T) {
 	_, err := b.AmendOrder(OrderAmendParams{})
 	if err == nil {
@@ -466,15 +459,15 @@ func TestFormatWithdrawPermissions(t *testing.T) {
 	}
 }
 
-
 func TestGetOrderHistory(t *testing.T) {
 	b.SetDefaults()
 	TestSetup(t)
 	b.Verbose = true
 
 	var orderHistoryRequest = exchange.OrderHistoryRequest{
-		OrderStatus: exchange.AnyOrderStatus,
+		OrderStatus: exchange.ActiveOrderStatus,
 		OrderType:   exchange.AnyOrderType,
+		Currencies:  []string{symbol.BTC},
 	}
 
 	_, err := b.GetOrderHistory(orderHistoryRequest)

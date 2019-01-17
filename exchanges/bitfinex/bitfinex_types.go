@@ -257,7 +257,7 @@ type Order struct {
 	OriginalAmount        float64 `json:"original_amount,string"`
 	RemainingAmount       float64 `json:"remaining_amount,string"`
 	ExecutedAmount        float64 `json:"executed_amount,string"`
-	OrderID               int64   `json:"order_id"`
+	OrderID               int64   `json:"order_id,omitempty"`
 }
 
 // OrderMultiResponse holds order information on the executed orders

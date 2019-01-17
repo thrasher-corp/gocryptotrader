@@ -288,7 +288,6 @@ func TestFormatWithdrawPermissions(t *testing.T) {
 	}
 }
 
-
 func TestGetOrderHistory(t *testing.T) {
 	b.SetDefaults()
 	TestSetup(t)

@@ -310,5 +310,38 @@ func (b *Bithumb) GetWithdrawCapabilities() uint32 {
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
 func (b *Bithumb) GetOrderHistory(orderHistoryRequest exchange.OrderHistoryRequest) ([]exchange.OrderDetail, error) {
-	return nil, common.ErrNotYetImplemented
+	var orders []exchange.OrderDetail
+	if orderHistoryRequest.OrderStatus == exchange.AnyOrderStatus ||
+		orderHistoryRequest.OrderStatus == exchange.ActiveOrderStatus {
+		resp, err := b.GetOrders("", "", "1000", "", "")
+		if err != nil {
+			return nil, err
+		}
+
+		for _, order := range resp.Data {
+			orderDetail := exchange.OrderDetail{
+				Amount:              order.Units,
+				BaseCurrency:        order.OrderCurrency,
+				QuoteCurrency:       order.PaymentCurrency,
+				Exchange:            b.Name,
+				ID:                  order.OrderID,
+				OrderPlacementTicks: order.OrderDate,
+				OrderType:           order.Type,
+				Price:               order.Price,
+				RemainingAmount:     order.UnitsRemaining,
+				Status:              order.Status,
+			}
+
+			if orderDetail.Status == "placed" {
+				orderDetail.Status = string(exchange.PartiallyFilledOrderStatus)
+			}
+			orders = append(orders, orderDetail)
+		}
+	}
+
+	b.FilterOrdersByStatusAndType(&orders, orderHistoryRequest.OrderType, orderHistoryRequest.OrderStatus)
+	b.FilterOrdersByTickRange(&orders, orderHistoryRequest.StartTicks, orderHistoryRequest.EndTicks)
+	b.FilterOrdersByCurrencies(&orders, orderHistoryRequest.Currencies)
+
+	return orders, nil
 }

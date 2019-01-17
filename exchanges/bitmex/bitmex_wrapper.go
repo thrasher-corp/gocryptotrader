@@ -308,5 +308,36 @@ func (b *Bitmex) GetWithdrawCapabilities() uint32 {
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
 func (b *Bitmex) GetOrderHistory(orderHistoryRequest exchange.OrderHistoryRequest) ([]exchange.OrderDetail, error) {
-	return nil, common.ErrNotYetImplemented
+	var orders []exchange.OrderDetail
+	params := OrdersRequest{}
+	if orderHistoryRequest.OrderStatus == exchange.ActiveOrderStatus {
+		params.Filter = "{\"open\":true}"
+	}
+
+	resp, err := b.GetOrders(params)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, order := range resp {
+		orderDetail := exchange.OrderDetail{
+			Price:         order.Price,
+			Amount:        float64(order.OrderQty),
+			BaseCurrency:  order.Symbol,
+			QuoteCurrency: order.SettlCurrency,
+			Exchange:      b.Name,
+			ID:            order.OrderID,
+			OrderSide:     order.Side,
+			OrderType:     order.OrdType,
+			Status:        order.OrdStatus,
+		}
+
+		orders = append(orders, orderDetail)
+	}
+
+	b.FilterOrdersByStatusAndType(&orders, orderHistoryRequest.OrderType, orderHistoryRequest.OrderStatus)
+	b.FilterOrdersByTickRange(&orders, orderHistoryRequest.StartTicks, orderHistoryRequest.EndTicks)
+	b.FilterOrdersByCurrencies(&orders, orderHistoryRequest.Currencies)
+
+	return orders, nil
 }

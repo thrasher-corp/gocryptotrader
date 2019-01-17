@@ -245,7 +245,6 @@ func TestFormatWithdrawPermissions(t *testing.T) {
 	}
 }
 
-
 func TestGetOrderHistory(t *testing.T) {
 	i.SetDefaults()
 	TestSetup(t)
@@ -256,8 +255,8 @@ func TestGetOrderHistory(t *testing.T) {
 		OrderType:   exchange.AnyOrderType,
 	}
 
-	_, err := a.GetOrderHistory(orderHistoryRequest)
-	if areTestiPIKeysSet() && err != nil {
+	_, err := i.GetOrderHistory(orderHistoryRequest)
+	if areTestAPIKeysSet() && err != nil {
 		t.Errorf("Could not get order history: %s", err)
 	} else if !areTestAPIKeysSet() && err == nil {
 		t.Errorf("Expecting an error when no keys are set: %v", err)

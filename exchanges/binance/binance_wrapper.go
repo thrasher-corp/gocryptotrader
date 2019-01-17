@@ -310,5 +310,38 @@ func (b *Binance) GetWithdrawCapabilities() uint32 {
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
 func (b *Binance) GetOrderHistory(orderHistoryRequest exchange.OrderHistoryRequest) ([]exchange.OrderDetail, error) {
-	return nil, common.ErrNotYetImplemented
+	if len(orderHistoryRequest.Currencies) <= 0 {
+		return nil, errors.New("At least one currency is required to fetch order history")
+	}
+
+	var orders []exchange.OrderDetail
+
+	for _, symbol := range orderHistoryRequest.Currencies {
+		resp, err := b.AllOrders(symbol, "", "1000")
+		if err != nil {
+			return nil, err
+		}
+
+		for _, openOrder := range resp {
+			orderDetail := exchange.OrderDetail{
+				Amount:              openOrder.OrigQty,
+				BaseCurrency:        openOrder.Symbol,
+				OrderPlacementTicks: int64(openOrder.Time),
+				Exchange:            b.Name,
+				ID:                  fmt.Sprintf("%v", openOrder.OrderID),
+				OrderSide:           openOrder.Side,
+				OrderType:           openOrder.Type,
+				Price:               openOrder.Price,
+				QuoteCurrency:       openOrder.Symbol,
+				Status:              openOrder.Status,
+			}
+
+			orders = append(orders, orderDetail)
+		}
+	}
+
+	b.FilterOrdersByStatusAndType(&orders, orderHistoryRequest.OrderType, orderHistoryRequest.OrderStatus)
+	b.FilterOrdersByTickRange(&orders, orderHistoryRequest.StartTicks, orderHistoryRequest.EndTicks)
+
+	return orders, nil
 }

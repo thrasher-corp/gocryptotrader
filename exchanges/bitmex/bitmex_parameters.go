@@ -1037,3 +1037,34 @@ func (p UserRequestWithdrawalParams) ToURLVals(path string) (string, error) {
 func (p UserRequestWithdrawalParams) IsNil() bool {
 	return p == (UserRequestWithdrawalParams{})
 }
+
+// OrdersRequest used for GetOrderHistory
+type OrdersRequest struct {
+	Symbol    string  `json:"symbol,omitempty"`
+	Filter    string  `json:"filter,omitempty"`
+	Columns   string  `json:"columns,omitempty"`
+	Count     float64 `json:"count,omitempty"`
+	Start     float64 `json:"start,omitempty"`
+	Reverse   bool    `json:"reverse,omitempty"`
+	StartTime string  `json:"startTime,omitempty"`
+	EndTime   string  `json:"endTime,omitempty"`
+}
+
+// VerifyData asdfa df
+func (p OrdersRequest) VerifyData() error {
+	return nil
+}
+
+// ToURLVals converts struct values to url.values and encodes it on the supplied
+// path
+func (p OrdersRequest) ToURLVals(path string) (string, error) {
+	return "", nil
+}
+
+// IsNil checks to see if any values has been set for the paramater
+func (p OrdersRequest) IsNil() bool {
+	if p == (OrdersRequest{}) {
+		return true
+	}
+	return false
+}

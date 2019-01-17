@@ -217,17 +217,19 @@ type TradeHistory struct {
 
 // OrderDetail holds order detail data
 type OrderDetail struct {
-	Exchange      string
-	ID            string
-	BaseCurrency  string
-	QuoteCurrency string
-	OrderSide     string
-	OrderType     string
-	CreationTime  int64
-	Status        string
-	Price         float64
-	Amount        float64
-	OpenVolume    float64
+	Exchange            string
+	ID                  string
+	BaseCurrency        string
+	QuoteCurrency       string
+	OrderSide           string
+	OrderType           string
+	OrderPlacementTicks int64
+	Status              string
+	Price               float64
+	Amount              float64
+	ExecutedAmount      float64
+	RemainingAmount     float64
+	OpenVolume          float64
 }
 
 // FundHistory holds exchange funding history data
@@ -819,10 +821,13 @@ type OrderType string
 
 // OrderType ...types
 const (
-	AnyOrderType      OrderType = "ANY"
-	Limit             OrderType = "Limit"
-	Market            OrderType = "Market"
-	ImmediateOrCancel OrderType = "IMMEDIATE_OR_CANCEL"
+	AnyOrderType          OrderType = "ANY"
+	Limit                 OrderType = "Limit"
+	Market                OrderType = "Market"
+	ImmediateOrCancel     OrderType = "IMMEDIATE_OR_CANCEL"
+	StopOrderType         OrderType = "STOP"
+	TrailingStopOrderType OrderType = "TRAILINGSTOP"
+	UnknownOrderType      OrderType = "UNKNOWN"
 )
 
 // ToString changes the ordertype to the exchange standard and returns a string
@@ -946,12 +951,14 @@ func (e *Base) FormatWithdrawPermissions() string {
 	return NoAPIWithdrawalMethodsText
 }
 
-// OrderHistoryRequest used for GetOrderHistory requests
+// OrderHistoryRequest used for GetOrder History requests
 type OrderHistoryRequest struct {
 	OrderType   OrderType
 	OrderStatus OrderStatus
-	StartDate   string
-	EndDate     string
+	StartTicks  int64
+	EndTicks    int64
+	// Currencies Empty array = all currencies. Some endpoints only support singular currency enquiries
+	Currencies []string
 }
 
 // OrderStatus defines order status types
@@ -961,10 +968,76 @@ type OrderStatus string
 const (
 	AnyOrderStatus             OrderStatus = "ANY"
 	NewOrderStatus             OrderStatus = "NEW"
+	ActiveOrderStatus          OrderStatus = "ACTIVE"
 	PartiallyFilledOrderStatus OrderStatus = "PARTIALLY_FILLED"
 	FilledOrderStatus          OrderStatus = "FILLED"
 	CancelledOrderStatus       OrderStatus = "CANCELED"
 	PendingCancelOrderStatus   OrderStatus = "PENDING_CANCEL"
 	RejectedOrderStatus        OrderStatus = "REJECTED"
 	ExpiredOrderStatus         OrderStatus = "EXPIRED"
+	HiddenOrderStatus          OrderStatus = "HIDDEN"
+	UnknownOrderStatus         OrderStatus = "UNKNOWN"
 )
+
+// FilterOrdersByStatusAndType removes any OrderDetails that don't match the orderType or orderStatus provided
+func (e *Base) FilterOrdersByStatusAndType(orders *[]OrderDetail, orderType OrderType, orderStatus OrderStatus) {
+	if orderType == AnyOrderType && orderStatus == AnyOrderStatus {
+		return
+	}
+
+	var filteredOrders []OrderDetail
+	for _, orderDetail := range *orders {
+		if !strings.EqualFold(orderDetail.Status, string(orderStatus)) &&
+			orderStatus != AnyOrderStatus {
+			continue
+		}
+		if !strings.EqualFold(orderDetail.OrderType, string(orderType)) &&
+			orderType != AnyOrderType {
+			continue
+		}
+
+		filteredOrders = append(filteredOrders, orderDetail)
+	}
+
+	*orders = filteredOrders
+}
+
+// FilterOrdersByTickRange removes any OrderDetails outside of the tick range
+func (e *Base) FilterOrdersByTickRange(orders *[]OrderDetail, startTicks, endTicks int64) {
+	if startTicks <= 0 || endTicks <= 0 || endTicks < startTicks {
+		return
+	}
+
+	var filteredOrders []OrderDetail
+	for _, orderDetail := range *orders {
+		if orderDetail.OrderPlacementTicks >= startTicks && orderDetail.OrderPlacementTicks <= endTicks {
+			filteredOrders = append(filteredOrders, orderDetail)
+		}
+	}
+
+	*orders = filteredOrders
+}
+
+// FilterOrdersByCurrencies removes any OrderDetails that do not match the provided currency list
+// It is forgiving in that the provided currencies can match quote or base currencies
+func (e *Base) FilterOrdersByCurrencies(orders *[]OrderDetail, currencies []string) {
+	if len(currencies) <= 0 {
+		return
+	}
+
+	var filteredOrders []OrderDetail
+	for _, orderDetail := range *orders {
+		matchFound := false
+		for _, currency := range currencies {
+			if !matchFound && strings.EqualFold(orderDetail.QuoteCurrency, currency) || strings.EqualFold(orderDetail.BaseCurrency, currency) {
+				matchFound = true
+			}
+		}
+
+		if matchFound {
+			filteredOrders = append(filteredOrders, orderDetail)
+		}
+	}
+
+	*orders = filteredOrders
+}

@@ -8,6 +8,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
+	"github.com/thrasher-/gocryptotrader/currency/symbol"
 	"github.com/thrasher-/gocryptotrader/exchanges/request"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 )
@@ -927,5 +928,121 @@ func TestOrderTypes(t *testing.T) {
 
 	if os.ToString() != "BUY" {
 		t.Errorf("test failed - unexpected string %s", os.ToString())
+	}
+}
+
+func TestFilterOrdersByStatusAndType(t *testing.T) {
+	tester := Base{Name: "test"}
+	var orders []OrderDetail
+
+	orders = append(orders, OrderDetail{
+		OrderType: string(ImmediateOrCancel),
+		Status:    string(ExpiredOrderStatus),
+	})
+	orders = append(orders, OrderDetail{
+		OrderType: string(Limit),
+		Status:    string(NewOrderStatus),
+	})
+	orders = append(orders, OrderDetail{
+		OrderType: string(Market),
+		Status:    string(ExpiredOrderStatus),
+	})
+
+	tester.FilterOrdersByStatusAndType(&orders, AnyOrderType, AnyOrderStatus)
+	if len(orders) != 3 {
+		t.Errorf("Orders failed to be filtered. Expected %v, Recieved %v", 3, len(orders))
+	}
+
+	tester.FilterOrdersByStatusAndType(&orders, AnyOrderType, ExpiredOrderStatus)
+	if len(orders) != 2 {
+		t.Errorf("Orders failed to be filtered. Expected %v, Recieved %v", 2, len(orders))
+	}
+
+	tester.FilterOrdersByStatusAndType(&orders, Limit, NewOrderStatus)
+	if len(orders) != 0 {
+		t.Errorf("Orders failed to be filtered. Expected %v, Recieved %v", 0, len(orders))
+	}
+}
+
+func TestFilterOrdersByTickRange(t *testing.T) {
+	tester := Base{Name: "test"}
+	var orders []OrderDetail
+
+	orders = append(orders, OrderDetail{
+		OrderPlacementTicks: 100,
+	})
+	orders = append(orders, OrderDetail{
+		OrderPlacementTicks: 110,
+	})
+	orders = append(orders, OrderDetail{
+		OrderPlacementTicks: 111,
+	})
+
+	tester.FilterOrdersByTickRange(&orders, 0, 0)
+	if len(orders) != 3 {
+		t.Errorf("Orders failed to be filtered. Expected %v, Recieved %v", 3, len(orders))
+	}
+
+	tester.FilterOrdersByTickRange(&orders, 100, 111)
+	if len(orders) != 3 {
+		t.Errorf("Orders failed to be filtered. Expected %v, Recieved %v", 3, len(orders))
+	}
+
+	tester.FilterOrdersByTickRange(&orders, 101, 111)
+	if len(orders) != 2 {
+		t.Errorf("Orders failed to be filtered. Expected %v, Recieved %v", 2, len(orders))
+	}
+
+	tester.FilterOrdersByTickRange(&orders, 200, 300)
+	if len(orders) != 0 {
+		t.Errorf("Orders failed to be filtered. Expected %v, Recieved %v", 0, len(orders))
+	}
+}
+
+func TestFilterOrdersByCurrencies(t *testing.T) {
+	tester := Base{Name: "test"}
+	var orders []OrderDetail
+
+	orders = append(orders, OrderDetail{
+		BaseCurrency:  symbol.BTC,
+		QuoteCurrency: symbol.USD,
+	})
+	orders = append(orders, OrderDetail{
+		BaseCurrency:  symbol.LTC,
+		QuoteCurrency: symbol.EUR,
+	})
+	orders = append(orders, OrderDetail{
+		BaseCurrency:  symbol.DOGE,
+		QuoteCurrency: symbol.RUB,
+	})
+
+	var currencies []string
+	tester.FilterOrdersByCurrencies(&orders, currencies)
+	if len(orders) != 3 {
+		t.Errorf("Orders failed to be filtered. Expected %v, Recieved %v", 3, len(orders))
+	}
+
+	currencies = []string{symbol.USD, symbol.BTC, symbol.LTC, symbol.DOGE, symbol.EUR, symbol.RUB}
+	tester.FilterOrdersByCurrencies(&orders, currencies)
+	if len(orders) != 3 {
+		t.Errorf("Orders failed to be filtered. Expected %v, Recieved %v", 3, len(orders))
+	}
+
+	currencies = []string{symbol.USD, symbol.BTC, symbol.LTC, symbol.DOGE, symbol.EUR}
+	tester.FilterOrdersByCurrencies(&orders, currencies)
+	if len(orders) != 3 {
+		t.Errorf("Orders failed to be filtered. Expected %v, Recieved %v", 3, len(orders))
+	}
+
+	currencies = []string{symbol.USD, symbol.BTC, symbol.LTC, symbol.EUR}
+	tester.FilterOrdersByCurrencies(&orders, currencies)
+	if len(orders) != 2 {
+		t.Errorf("Orders failed to be filtered. Expected %v, Recieved %v", 2, len(orders))
+	}
+
+	currencies = []string{symbol.RUR}
+	tester.FilterOrdersByCurrencies(&orders, currencies)
+	if len(orders) != 0 {
+		t.Errorf("Orders failed to be filtered. Expected %v, Recieved %v", 0, len(orders))
 	}
 }

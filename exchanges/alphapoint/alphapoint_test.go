@@ -503,9 +503,9 @@ func TestGetOrderHistory(t *testing.T) {
 	}
 
 	_, err := a.GetOrderHistory(orderHistoryRequest)
-	if areTestAPIKeysSet() && err != nil {
+	if areTestAPIKeysSet(a) && err != nil {
 		t.Errorf("Could not get order history: %s", err)
-	} else if !areTestAPIKeysSet() && err == nil {
+	} else if !areTestAPIKeysSet(a) && err == nil {
 		t.Errorf("Expecting an error when no keys are set: %v", err)
 	}
 }

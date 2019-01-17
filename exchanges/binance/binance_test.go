@@ -331,7 +331,6 @@ func TestFormatWithdrawPermissions(t *testing.T) {
 	}
 }
 
-
 func TestGetOrderHistory(t *testing.T) {
 	b.SetDefaults()
 	TestSetup(t)
@@ -340,6 +339,7 @@ func TestGetOrderHistory(t *testing.T) {
 	var orderHistoryRequest = exchange.OrderHistoryRequest{
 		OrderStatus: exchange.AnyOrderStatus,
 		OrderType:   exchange.AnyOrderType,
+		Currencies:  []string{symbol.LTC + symbol.BTC},
 	}
 
 	_, err := b.GetOrderHistory(orderHistoryRequest)
