@@ -367,7 +367,7 @@ func (c *Config) UpdateCommunicationsConfig(config CommunicationsConfig) {
 
 // CheckCommunicationsConfig checks to see if the variables are set correctly
 // from config.json
-func (c *Config) CheckCommunicationsConfig() error {
+func (c *Config) CheckCommunicationsConfig() {
 	m.Lock()
 	defer m.Unlock()
 
@@ -455,20 +455,22 @@ func (c *Config) CheckCommunicationsConfig() error {
 		c.Communications.SMSGlobalConfig.Name != "SMSGlobal" ||
 		c.Communications.SMTPConfig.Name != "SMTP" ||
 		c.Communications.TelegramConfig.Name != "Telegram" {
-		return errors.New("Communications config name/s not set correctly")
+		log.Warn("Communications config name/s not set correctly")
 	}
 	if c.Communications.SlackConfig.Enabled {
 		if c.Communications.SlackConfig.TargetChannel == "" ||
 			c.Communications.SlackConfig.VerificationToken == "" ||
 			c.Communications.SlackConfig.VerificationToken == "testtest" {
-			return errors.New("Slack enabled in config but variable data not set")
+			c.Communications.SlackConfig.Enabled = false
+			log.Warn("Slack enabled in config but variable data not set, disabling.")
 		}
 	}
 	if c.Communications.SMSGlobalConfig.Enabled {
 		if c.Communications.SMSGlobalConfig.Username == "" ||
 			c.Communications.SMSGlobalConfig.Password == "" ||
 			len(c.Communications.SMSGlobalConfig.Contacts) == 0 {
-			return errors.New("SMSGlobal enabled in config but variable data not set")
+			c.Communications.SMSGlobalConfig.Enabled = false
+			log.Warn("SMSGlobal enabled in config but variable data not set, disabling.")
 		}
 	}
 	if c.Communications.SMTPConfig.Enabled {
@@ -476,15 +478,16 @@ func (c *Config) CheckCommunicationsConfig() error {
 			c.Communications.SMTPConfig.Port == "" ||
 			c.Communications.SMTPConfig.AccountName == "" ||
 			c.Communications.SMTPConfig.AccountPassword == "" {
-			return errors.New("SMTP enabled in config but variable data not set")
+			c.Communications.SMTPConfig.Enabled = false
+			log.Warn("SMTP enabled in config but variable data not set, disabling.")
 		}
 	}
 	if c.Communications.TelegramConfig.Enabled {
 		if c.Communications.TelegramConfig.VerificationToken == "" {
-			return errors.New("Telegram enabled in config but variable data not set")
+			c.Communications.TelegramConfig.Enabled = false
+			log.Warn("Telegram enabled in config but variable data not set, disabling.")
 		}
 	}
-	return nil
 }
 
 // CheckPairConsistency checks to see if the enabled pair exists in the
@@ -1196,9 +1199,7 @@ func (c *Config) CheckConfig() error {
 		return fmt.Errorf(ErrCheckingConfigValues, err)
 	}
 
-	if err = c.CheckCommunicationsConfig(); err != nil {
-		log.Fatal(err)
-	}
+	c.CheckCommunicationsConfig()
 
 	if c.Webserver.Enabled {
 		err = c.CheckWebserverConfigValues()

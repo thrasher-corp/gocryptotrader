@@ -12,7 +12,6 @@ import (
 	"github.com/thrasher-/gocryptotrader/currency/pair"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
-	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
 const coinutWebsocketURL = "wss://wsapi.coinut.com"
@@ -73,7 +72,8 @@ func (c *COINUT) WsHandleData() {
 			var incoming wsResponse
 			err := common.JSONDecode(resp.Raw, &incoming)
 			if err != nil {
-				log.Fatal(err)
+				c.Websocket.DataHandler <- err
+				continue
 			}
 
 			switch incoming.Reply {
@@ -84,7 +84,8 @@ func (c *COINUT) WsHandleData() {
 				var ticker WsTicker
 				err := common.JSONDecode(resp.Raw, &ticker)
 				if err != nil {
-					log.Fatal(err)
+					c.Websocket.DataHandler <- err
+					continue
 				}
 
 				c.Websocket.DataHandler <- exchange.TickerData{
@@ -101,12 +102,14 @@ func (c *COINUT) WsHandleData() {
 				var orderbooksnapshot WsOrderbookSnapshot
 				err := common.JSONDecode(resp.Raw, &orderbooksnapshot)
 				if err != nil {
-					log.Fatal(err)
+					c.Websocket.DataHandler <- err
+					continue
 				}
 
 				err = c.WsProcessOrderbookSnapshot(orderbooksnapshot)
 				if err != nil {
-					log.Fatal(err)
+					c.Websocket.DataHandler <- err
+					continue
 				}
 
 				currencyPair := instrumentListByCode[orderbooksnapshot.InstID]
@@ -121,12 +124,14 @@ func (c *COINUT) WsHandleData() {
 				var orderbookUpdate WsOrderbookUpdate
 				err := common.JSONDecode(resp.Raw, &orderbookUpdate)
 				if err != nil {
-					log.Fatal(err)
+					c.Websocket.DataHandler <- err
+					continue
 				}
 
 				err = c.WsProcessOrderbookUpdate(orderbookUpdate)
 				if err != nil {
-					log.Fatal(err)
+					c.Websocket.DataHandler <- err
+					continue
 				}
 
 				currencyPair := instrumentListByCode[orderbookUpdate.InstID]
@@ -141,14 +146,16 @@ func (c *COINUT) WsHandleData() {
 				var tradeSnap WsTradeSnapshot
 				err := common.JSONDecode(resp.Raw, &tradeSnap)
 				if err != nil {
-					log.Fatal(err)
+					c.Websocket.DataHandler <- err
+					continue
 				}
 
 			case "inst_trade_update":
 				var tradeUpdate WsTradeUpdate
 				err := common.JSONDecode(resp.Raw, &tradeUpdate)
 				if err != nil {
-					log.Fatal(err)
+					c.Websocket.DataHandler <- err
+					continue
 				}
 
 				currencyPair := instrumentListByCode[tradeUpdate.InstID]

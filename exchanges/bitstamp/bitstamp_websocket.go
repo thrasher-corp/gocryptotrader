@@ -191,7 +191,8 @@ func (b *Bitstamp) WsReadData() {
 			result := PusherOrderbook{}
 			err := common.JSONDecode([]byte(data.Data), &result)
 			if err != nil {
-				log.Fatal(err)
+				b.Websocket.DataHandler <- err
+				continue
 			}
 
 			currencyPair := common.SplitStrings(data.Channel, "_")
@@ -200,6 +201,7 @@ func (b *Bitstamp) WsReadData() {
 			err = b.WsUpdateOrderbook(result, p, "SPOT")
 			if err != nil {
 				b.Websocket.DataHandler <- err
+				continue
 			}
 
 		case trade := <-b.WebsocketConn.Trade:
@@ -208,7 +210,8 @@ func (b *Bitstamp) WsReadData() {
 			result := PusherTrade{}
 			err := common.JSONDecode([]byte(trade.Data), &result)
 			if err != nil {
-				log.Fatal(err)
+				b.Websocket.DataHandler <- err
+				continue
 			}
 
 			currencyPair := common.SplitStrings(trade.Channel, "_")
@@ -235,12 +238,14 @@ func (b *Bitstamp) WsUpdateOrderbook(ob PusherOrderbook, p pair.CurrencyPair, as
 		for _, ask := range ob.Asks {
 			target, err := strconv.ParseFloat(ask[0], 64)
 			if err != nil {
-				log.Fatal(err)
+				b.Websocket.DataHandler <- err
+				continue
 			}
 
 			amount, err := strconv.ParseFloat(ask[1], 64)
 			if err != nil {
-				log.Fatal(err)
+				b.Websocket.DataHandler <- err
+				continue
 			}
 
 			asks = append(asks, orderbook.Item{Price: target, Amount: amount})
@@ -251,12 +256,14 @@ func (b *Bitstamp) WsUpdateOrderbook(ob PusherOrderbook, p pair.CurrencyPair, as
 		for _, bid := range ob.Bids {
 			target, err := strconv.ParseFloat(bid[0], 64)
 			if err != nil {
-				log.Fatal(err)
+				b.Websocket.DataHandler <- err
+				continue
 			}
 
 			amount, err := strconv.ParseFloat(bid[1], 64)
 			if err != nil {
-				log.Fatal(err)
+				b.Websocket.DataHandler <- err
+				continue
 			}
 
 			bids = append(bids, orderbook.Item{Price: target, Amount: amount})

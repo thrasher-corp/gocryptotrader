@@ -13,7 +13,6 @@ import (
 	"github.com/thrasher-/gocryptotrader/currency/pair"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
-	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
 const (
@@ -143,7 +142,8 @@ func (c *CoinbasePro) WsHandleData() {
 			msgType := MsgType{}
 			err := common.JSONDecode(resp.Raw, &msgType)
 			if err != nil {
-				log.Fatal(err)
+				c.Websocket.DataHandler <- err
+				continue
 			}
 
 			if msgType.Type == "subscriptions" || msgType.Type == "heartbeat" {
@@ -158,7 +158,8 @@ func (c *CoinbasePro) WsHandleData() {
 				ticker := WebsocketTicker{}
 				err := common.JSONDecode(resp.Raw, &ticker)
 				if err != nil {
-					log.Fatal(err)
+					c.Websocket.DataHandler <- err
+					continue
 				}
 
 				c.Websocket.DataHandler <- exchange.TickerData{
@@ -176,28 +177,29 @@ func (c *CoinbasePro) WsHandleData() {
 				snapshot := WebsocketOrderbookSnapshot{}
 				err := common.JSONDecode(resp.Raw, &snapshot)
 				if err != nil {
-					log.Fatal(err)
+					c.Websocket.DataHandler <- err
+					continue
 				}
 
 				err = c.ProcessSnapshot(snapshot)
 				if err != nil {
-					log.Fatal(err)
+					c.Websocket.DataHandler <- err
+					continue
 				}
 
 			case "l2update":
 				update := WebsocketL2Update{}
 				err := common.JSONDecode(resp.Raw, &update)
 				if err != nil {
-					log.Fatal(err)
+					c.Websocket.DataHandler <- err
+					continue
 				}
 
 				err = c.ProcessUpdate(update)
 				if err != nil {
-					log.Fatal(err)
+					c.Websocket.DataHandler <- err
+					continue
 				}
-
-			default:
-				log.Fatal("Edge test", string(resp.Raw))
 			}
 		}
 	}

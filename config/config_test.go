@@ -189,10 +189,7 @@ func TestCheckCommunicationsConfig(t *testing.T) {
 	}
 
 	cfg.Communications = CommunicationsConfig{}
-	err = cfg.CheckCommunicationsConfig()
-	if err != nil {
-		t.Error("Test failed. CheckCommunicationsConfig error:", err)
-	}
+	cfg.CheckCommunicationsConfig()
 	if cfg.Communications.SlackConfig.Name != "Slack" ||
 		cfg.Communications.SMSGlobalConfig.Name != "SMSGlobal" ||
 		cfg.Communications.SMTPConfig.Name != "SMTP" ||
@@ -203,8 +200,8 @@ func TestCheckCommunicationsConfig(t *testing.T) {
 
 	cfg.SMS = &SMSGlobalConfig{}
 	cfg.Communications.SMSGlobalConfig.Name = ""
-	err = cfg.CheckCommunicationsConfig()
-	if err != nil || cfg.Communications.SMSGlobalConfig.Password != "test" {
+	cfg.CheckCommunicationsConfig()
+	if cfg.Communications.SMSGlobalConfig.Password != "test" {
 		t.Error("Test failed. CheckCommunicationsConfig error:", err)
 	}
 
@@ -214,56 +211,50 @@ func TestCheckCommunicationsConfig(t *testing.T) {
 		Enabled: false,
 	})
 	cfg.Communications.SMSGlobalConfig.Name = ""
-	err = cfg.CheckCommunicationsConfig()
-	if err != nil || cfg.Communications.SMSGlobalConfig.Contacts[0].Name != "Bobby" {
+	cfg.CheckCommunicationsConfig()
+	if cfg.Communications.SMSGlobalConfig.Contacts[0].Name != "Bobby" {
 		t.Error("Test failed. CheckCommunicationsConfig error:", err)
 	}
 
 	cfg.SMS = &SMSGlobalConfig{}
-	err = cfg.CheckCommunicationsConfig()
-	if err != nil {
-		t.Error("Test failed. CheckCommunicationsConfig error:", err)
-	}
+	cfg.CheckCommunicationsConfig()
 	if cfg.SMS != nil {
 		t.Error("Test failed. CheckCommunicationsConfig unexpected data:",
 			cfg.SMS)
 	}
 
 	cfg.Communications.SlackConfig.Name = "NOT Slack"
-	err = cfg.CheckCommunicationsConfig()
-	if err.Error() != "Communications config name/s not set correctly" {
-		t.Error("Test failed. CheckCommunicationsConfig unexpected error:", err)
-	}
+	cfg.CheckCommunicationsConfig()
 
 	cfg.Communications.SlackConfig.Name = "Slack"
 	cfg.Communications.SlackConfig.Enabled = true
-	err = cfg.CheckCommunicationsConfig()
-	if err.Error() != "Slack enabled in config but variable data not set" {
-		t.Error("Test failed. CheckCommunicationsConfig unexpected error:", err)
+	cfg.CheckCommunicationsConfig()
+	if cfg.Communications.SlackConfig.Enabled {
+		t.Error("Test failed. CheckCommunicationsConfig Slack is enabled when it shouldn't be.")
 	}
 
 	cfg.Communications.SlackConfig.Enabled = false
 	cfg.Communications.SMSGlobalConfig.Enabled = true
 	cfg.Communications.SMSGlobalConfig.Password = ""
-	err = cfg.CheckCommunicationsConfig()
-	if err.Error() != "SMSGlobal enabled in config but variable data not set" {
-		t.Error("Test failed. CheckCommunicationsConfig unexpected error:", err)
+	cfg.CheckCommunicationsConfig()
+	if cfg.Communications.SlackConfig.Enabled {
+		t.Error("Test failed. CheckCommunicationsConfig SMSGlobal is enabled when it shouldn't be.")
 	}
 
 	cfg.Communications.SMSGlobalConfig.Enabled = false
 	cfg.Communications.SMTPConfig.Enabled = true
 	cfg.Communications.SMTPConfig.AccountPassword = ""
-	err = cfg.CheckCommunicationsConfig()
-	if err.Error() != "SMTP enabled in config but variable data not set" {
-		t.Error("Test failed. CheckCommunicationsConfig unexpected error:", err)
+	cfg.CheckCommunicationsConfig()
+	if cfg.Communications.SlackConfig.Enabled {
+		t.Error("Test failed. CheckCommunicationsConfig SMTPConfig is enabled when it shouldn't be.")
 	}
 
 	cfg.Communications.SMTPConfig.Enabled = false
 	cfg.Communications.TelegramConfig.Enabled = true
 	cfg.Communications.TelegramConfig.VerificationToken = ""
-	err = cfg.CheckCommunicationsConfig()
-	if err.Error() != "Telegram enabled in config but variable data not set" {
-		t.Error("Test failed. CheckCommunicationsConfig unexpected error:", err)
+	cfg.CheckCommunicationsConfig()
+	if cfg.Communications.TelegramConfig.Enabled {
+		t.Error("Test failed. CheckCommunicationsConfig TelegramConfig is enabled when it shouldn't be.")
 	}
 }
 

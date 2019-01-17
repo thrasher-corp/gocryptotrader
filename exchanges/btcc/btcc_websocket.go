@@ -125,7 +125,8 @@ func (b *BTCC) WsHandleData() {
 			var Result WsResponseMain
 			err := common.JSONDecode(resp.Raw, &Result)
 			if err != nil {
-				log.Fatal(err)
+				b.Websocket.DataHandler <- err
+				continue
 			}
 
 			switch Result.MsgType {
