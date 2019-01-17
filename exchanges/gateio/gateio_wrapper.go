@@ -320,8 +320,13 @@ func (g *Gateio) GetWithdrawCapabilities() uint32 {
 	return g.GetWithdrawPermissions()
 }
 
+// GetActiveOrders retrieves any orders that are active/open
+func (g *Gateio) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
+	return nil, common.ErrNotYetImplemented
+}
+
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
-func (g *Gateio) GetOrderHistory(orderHistoryRequest exchange.OrderHistoryRequest) ([]exchange.OrderDetail, error) {
+func (g *Gateio) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
 	return nil, common.ErrNotYetImplemented
 }

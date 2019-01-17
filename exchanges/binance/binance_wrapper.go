@@ -307,16 +307,21 @@ func (b *Binance) GetWithdrawCapabilities() uint32 {
 	return b.GetWithdrawPermissions()
 }
 
+// GetActiveOrders retrieves any orders that are active/open
+func (b *Binance) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
+	return nil, common.ErrNotYetImplemented
+}
+
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
-func (b *Binance) GetOrderHistory(orderHistoryRequest exchange.OrderHistoryRequest) ([]exchange.OrderDetail, error) {
-	if len(orderHistoryRequest.Currencies) <= 0 {
+func (b *Binance) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
+	if len(getOrdersRequest.Currencies) <= 0 {
 		return nil, errors.New("At least one currency is required to fetch order history")
 	}
 
 	var orders []exchange.OrderDetail
 
-	for _, symbol := range orderHistoryRequest.Currencies {
+	for _, symbol := range getOrdersRequest.Currencies {
 		resp, err := b.AllOrders(symbol, "", "1000")
 		if err != nil {
 			return nil, err
@@ -340,8 +345,8 @@ func (b *Binance) GetOrderHistory(orderHistoryRequest exchange.OrderHistoryReque
 		}
 	}
 
-	b.FilterOrdersByStatusAndType(&orders, orderHistoryRequest.OrderType, orderHistoryRequest.OrderStatus)
-	b.FilterOrdersByTickRange(&orders, orderHistoryRequest.StartTicks, orderHistoryRequest.EndTicks)
+	b.FilterOrdersByStatusAndType(&orders, getOrdersRequest.OrderType, getOrdersRequest.OrderStatus)
+	b.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
 
 	return orders, nil
 }

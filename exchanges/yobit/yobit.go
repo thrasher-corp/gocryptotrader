@@ -194,8 +194,8 @@ func (y *Yobit) Trade(pair, orderType string, amount, price float64) (int64, err
 	return int64(result.OrderID), nil
 }
 
-// GetActiveOrders returns the active orders for a specific currency
-func (y *Yobit) GetActiveOrders(pair string) (map[string]ActiveOrders, error) {
+// GetOpenOrders returns the active orders for a specific currency
+func (y *Yobit) GetOpenOrders(pair string) (map[string]ActiveOrders, error) {
 	req := url.Values{}
 	req.Add("pair", pair)
 

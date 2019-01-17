@@ -192,7 +192,7 @@ func (l *Liqui) CancelAllOrders(orderCancellation exchange.OrderCancellation) (e
 	cancelAllOrdersResponse := exchange.CancelAllOrdersResponse{
 		OrderStatus: make(map[string]string),
 	}
-	activeOrders, err := l.GetActiveOrders("")
+	activeOrders, err := l.GetOpenOrders("")
 	if err != nil {
 		return cancelAllOrdersResponse, err
 	}
@@ -261,8 +261,13 @@ func (l *Liqui) GetWithdrawCapabilities() uint32 {
 	return l.GetWithdrawPermissions()
 }
 
+// GetActiveOrders retrieves any orders that are active/open
+func (l *Liqui) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
+	return nil, common.ErrNotYetImplemented
+}
+
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
-func (l *Liqui) GetOrderHistory(orderHistoryRequest exchange.OrderHistoryRequest) ([]exchange.OrderDetail, error) {
+func (l *Liqui) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
 	return nil, common.ErrNotYetImplemented
 }

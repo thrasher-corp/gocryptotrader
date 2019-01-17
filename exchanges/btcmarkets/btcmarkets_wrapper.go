@@ -301,8 +301,13 @@ func (b *BTCMarkets) GetWithdrawCapabilities() uint32 {
 	return b.GetWithdrawPermissions()
 }
 
+// GetActiveOrders retrieves any orders that are active/open
+func (b *BTCMarkets) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
+	return nil, common.ErrNotYetImplemented
+}
+
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
-func (b *BTCMarkets) GetOrderHistory(orderHistoryRequest exchange.OrderHistoryRequest) ([]exchange.OrderDetail, error) {
+func (b *BTCMarkets) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
 	return nil, common.ErrNotYetImplemented
 }

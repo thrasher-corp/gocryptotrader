@@ -187,7 +187,7 @@ func (y *Yobit) CancelAllOrders(orderCancellation exchange.OrderCancellation) (e
 	var allActiveOrders []map[string]ActiveOrders
 
 	for _, pair := range y.EnabledPairs {
-		activeOrdersForPair, err := y.GetActiveOrders(pair)
+		activeOrdersForPair, err := y.GetOpenOrders(pair)
 		if err != nil {
 			return cancelAllOrdersResponse, err
 		}
@@ -268,8 +268,13 @@ func (y *Yobit) GetWithdrawCapabilities() uint32 {
 	return y.GetWithdrawPermissions()
 }
 
+// GetActiveOrders retrieves any orders that are active/open
+func (y *Yobit) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
+	return nil, common.ErrNotYetImplemented
+}
+
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
-func (y *Yobit) GetOrderHistory(orderHistoryRequest exchange.OrderHistoryRequest) ([]exchange.OrderDetail, error) {
+func (y *Yobit) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
 	return nil, common.ErrNotYetImplemented
 }

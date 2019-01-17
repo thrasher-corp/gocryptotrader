@@ -330,18 +330,35 @@ func TestFormatWithdrawPermissions(t *testing.T) {
 	}
 }
 
+func TestGetActiveOrders(t *testing.T) {
+	k.SetDefaults()
+	TestSetup(t)
+	k.Verbose = true
+
+	var getOrdersRequest = exchange.GetOrdersRequest{
+		OrderStatus: exchange.AnyOrderStatus,
+		OrderType:   exchange.AnyOrderType,
+	}
+
+	_, err := k.GetActiveOrders(getOrdersRequest)
+	if areTestAPIKeysSet() && err != nil {
+		t.Errorf("Could not get open orders: %s", err)
+	} else if !areTestAPIKeysSet() && err == nil {
+		t.Errorf("Expecting an error when no keys are set: %v", err)
+	}
+}
 
 func TestGetOrderHistory(t *testing.T) {
 	k.SetDefaults()
 	TestSetup(t)
 	k.Verbose = true
 
-	var orderHistoryRequest = exchange.OrderHistoryRequest{
+	var getOrdersRequest = exchange.GetOrdersRequest{
 		OrderStatus: exchange.AnyOrderStatus,
 		OrderType:   exchange.AnyOrderType,
 	}
 
-	_, err := k.GetOrderHistory(orderHistoryRequest)
+	_, err := k.GetOrderHistory(getOrdersRequest)
 	if areTestAPIKeysSet() && err != nil {
 		t.Errorf("Could not get order history: %s", err)
 	} else if !areTestAPIKeysSet() && err == nil {

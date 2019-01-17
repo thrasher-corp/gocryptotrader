@@ -346,11 +346,16 @@ func (a *ANX) GetWithdrawCapabilities() uint32 {
 	return a.GetWithdrawPermissions()
 }
 
+// GetActiveOrders retrieves any orders that are active/open
+func (a *ANX) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
+	return nil, common.ErrNotYetImplemented
+}
+
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
-func (a *ANX) GetOrderHistory(orderHistoryRequest exchange.OrderHistoryRequest) ([]exchange.OrderDetail, error) {
+func (a *ANX) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
 	var isActiveOrdersOnly bool
-	if orderHistoryRequest.OrderStatus == exchange.ActiveOrderStatus {
+	if getOrdersRequest.OrderStatus == exchange.ActiveOrderStatus {
 		isActiveOrdersOnly = true
 	}
 
@@ -358,7 +363,7 @@ func (a *ANX) GetOrderHistory(orderHistoryRequest exchange.OrderHistoryRequest) 
 	if err != nil {
 		return nil, err
 	}
-
+ 
 	var orders []exchange.OrderDetail
 	for _, order := range resp {
 		orderDetail := exchange.OrderDetail{
@@ -376,9 +381,9 @@ func (a *ANX) GetOrderHistory(orderHistoryRequest exchange.OrderHistoryRequest) 
 		orders = append(orders, orderDetail)
 	}
 
-	a.FilterOrdersByStatusAndType(&orders, orderHistoryRequest.OrderType, orderHistoryRequest.OrderStatus)
-	a.FilterOrdersByTickRange(&orders, orderHistoryRequest.StartTicks, orderHistoryRequest.EndTicks)
-	a.FilterOrdersByCurrencies(&orders, orderHistoryRequest.Currencies)
+	a.FilterOrdersByStatusAndType(&orders, getOrdersRequest.OrderType, getOrdersRequest.OrderStatus)
+	a.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
+	a.FilterOrdersByCurrencies(&orders, getOrdersRequest.Currencies)
 
 	return orders, nil
 }

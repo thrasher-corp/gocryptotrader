@@ -104,14 +104,14 @@ func TestGetAccountInfo(t *testing.T) {
 	}
 }
 
-func TestGetActiveOrders(t *testing.T) {
+func GetOpenOrders(t *testing.T) {
 	if isWexEncounteringIssues {
 		t.Skip()
 	}
 	t.Parallel()
-	_, err := w.GetActiveOrders("")
+	_, err := w.GetOpenOrders("")
 	if err == nil {
-		t.Error("Test Failed - GetActiveOrders() error", err)
+		t.Error("Test Failed - GetOpenOrders() error", err)
 	}
 }
 
@@ -324,18 +324,35 @@ func TestFormatWithdrawPermissions(t *testing.T) {
 	}
 }
 
+func TestGetActiveOrders(t *testing.T) {
+	w.SetDefaults()
+	TestSetup(t)
+	w.Verbose = true
+
+	var getOrdersRequest = exchange.GetOrdersRequest{
+		OrderStatus: exchange.AnyOrderStatus,
+		OrderType:   exchange.AnyOrderType,
+	}
+
+	_, err := w.GetActiveOrders(getOrdersRequest)
+	if areTestAPIKeysSet() && err != nil {
+		t.Errorf("Could not get open orders: %s", err)
+	} else if !areTestAPIKeysSet() && err == nil {
+		t.Errorf("Expecting an error when no keys are set: %v", err)
+	}
+}
 
 func TestGetOrderHistory(t *testing.T) {
 	w.SetDefaults()
 	TestSetup(t)
 	w.Verbose = true
 
-	var orderHistoryRequest = exchange.OrderHistoryRequest{
+	var getOrdersRequest = exchange.GetOrdersRequest{
 		OrderStatus: exchange.AnyOrderStatus,
 		OrderType:   exchange.AnyOrderType,
 	}
 
-	_, err := w.GetOrderHistory(orderHistoryRequest)
+	_, err := w.GetOrderHistory(getOrdersRequest)
 	if areTestAPIKeysSet() && err != nil {
 		t.Errorf("Could not get order history: %s", err)
 	} else if !areTestAPIKeysSet() && err == nil {

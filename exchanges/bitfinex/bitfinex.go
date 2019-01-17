@@ -743,8 +743,8 @@ func (b *Bitfinex) GetInactiveOrders() ([]Order, error) {
 		b.SendAuthenticatedHTTPRequest("POST", bitfinexInactiveOrders, request, &response)
 }
 
-// GetActiveOrders returns all active orders and statuses
-func (b *Bitfinex) GetActiveOrders() ([]Order, error) {
+// GetOpenOrders returns all active orders and statuses
+func (b *Bitfinex) GetOpenOrders() ([]Order, error) {
 	var response []Order
 
 	return response,

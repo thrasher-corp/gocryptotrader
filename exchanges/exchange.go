@@ -318,7 +318,8 @@ type IBotExchange interface {
 	GetOrderInfo(orderID int64) (OrderDetail, error)
 	GetDepositAddress(cryptocurrency pair.CurrencyItem, accountID string) (string, error)
 
-	GetOrderHistory(orderHistoryRequest OrderHistoryRequest) ([]OrderDetail, error)
+	GetOrderHistory(GetOrdersRequest GetOrdersRequest) ([]OrderDetail, error)
+	GetActiveOrders(getOrdersRequest GetOrdersRequest) ([]OrderDetail, error)
 
 	WithdrawCryptocurrencyFunds(wtihdrawRequest WithdrawRequest) (string, error)
 	WithdrawFiatFunds(wtihdrawRequest WithdrawRequest) (string, error)
@@ -951,9 +952,10 @@ func (e *Base) FormatWithdrawPermissions() string {
 	return NoAPIWithdrawalMethodsText
 }
 
-// OrderHistoryRequest used for GetOrder History requests
-type OrderHistoryRequest struct {
+// GetOrdersRequest used for GetOrderHistory and GetOpenOrders wrapper functions
+type GetOrdersRequest struct {
 	OrderType   OrderType
+	OrderSide
 	OrderStatus OrderStatus
 	StartTicks  int64
 	EndTicks    int64

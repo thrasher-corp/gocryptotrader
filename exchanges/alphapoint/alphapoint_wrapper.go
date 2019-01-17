@@ -217,8 +217,25 @@ func (a *Alphapoint) GetWithdrawCapabilities() uint32 {
 	return a.GetWithdrawPermissions()
 }
 
+// GetActiveOrders retrieves any orders that are active/open
+func (a *Alphapoint) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
+	return nil, common.ErrNotYetImplemented
+}
+
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
-func (a *Alphapoint) GetOrderHistory(orderHistoryRequest exchange.OrderHistoryRequest) ([]exchange.OrderDetail, error) {
+func (a *Alphapoint) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
+	/*orders, err := a.GetOrders()
+	if err != nil {
+		return 0, err
+	}
+
+	for x := range orders {
+		for y := range orders[x].Openorders {
+			if int64(orders[x].Openorders[y].Serverorderid) == orderID {
+				return float64(orders[x].Openorders[y].QtyRemaining), nil
+			}
+		}
+	}*/
 	return nil, common.ErrNotYetImplemented
 }

@@ -205,7 +205,7 @@ func (w *WEX) CancelAllOrders(orderCancellation exchange.OrderCancellation) (exc
 	var allActiveOrders map[string]ActiveOrders
 
 	for _, pair := range w.EnabledPairs {
-		activeOrders, err := w.GetActiveOrders(pair)
+		activeOrders, err := w.GetOpenOrders(pair)
 		if err != nil {
 			return cancelAllOrdersResponse, err
 		}
@@ -275,8 +275,13 @@ func (w *WEX) GetWithdrawCapabilities() uint32 {
 	return w.GetWithdrawPermissions()
 }
 
+// GetActiveOrders retrieves any orders that are active/open
+func (w *WEX) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
+	return nil, common.ErrNotYetImplemented
+}
+
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
-func (w *WEX) GetOrderHistory(orderHistoryRequest exchange.OrderHistoryRequest) ([]exchange.OrderDetail, error) {
+func (w *WEX) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
 	return nil, common.ErrNotYetImplemented
 }

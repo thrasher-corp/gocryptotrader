@@ -305,12 +305,17 @@ func (b *Bitmex) GetWithdrawCapabilities() uint32 {
 	return b.GetWithdrawPermissions()
 }
 
+// GetActiveOrders retrieves any orders that are active/open
+func (b *Bitmex) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
+	return nil, common.ErrNotYetImplemented
+}
+
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
-func (b *Bitmex) GetOrderHistory(orderHistoryRequest exchange.OrderHistoryRequest) ([]exchange.OrderDetail, error) {
+func (b *Bitmex) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
 	var orders []exchange.OrderDetail
 	params := OrdersRequest{}
-	if orderHistoryRequest.OrderStatus == exchange.ActiveOrderStatus {
+	if getOrdersRequest.OrderStatus == exchange.ActiveOrderStatus {
 		params.Filter = "{\"open\":true}"
 	}
 
@@ -335,9 +340,9 @@ func (b *Bitmex) GetOrderHistory(orderHistoryRequest exchange.OrderHistoryReques
 		orders = append(orders, orderDetail)
 	}
 
-	b.FilterOrdersByStatusAndType(&orders, orderHistoryRequest.OrderType, orderHistoryRequest.OrderStatus)
-	b.FilterOrdersByTickRange(&orders, orderHistoryRequest.StartTicks, orderHistoryRequest.EndTicks)
-	b.FilterOrdersByCurrencies(&orders, orderHistoryRequest.Currencies)
+	b.FilterOrdersByStatusAndType(&orders, getOrdersRequest.OrderType, getOrdersRequest.OrderStatus)
+	b.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
+	b.FilterOrdersByCurrencies(&orders, getOrdersRequest.Currencies)
 
 	return orders, nil
 }

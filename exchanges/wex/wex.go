@@ -189,8 +189,8 @@ func (w *WEX) GetAccountInformation() (AccountInfo, error) {
 	return result, nil
 }
 
-// GetActiveOrders returns the active orders for a specific currency
-func (w *WEX) GetActiveOrders(pair string) (map[string]ActiveOrders, error) {
+// GetOpenOrders returns the active orders for a specific currency
+func (w *WEX) GetOpenOrders(pair string) (map[string]ActiveOrders, error) {
 	req := url.Values{}
 	req.Add("pair", pair)
 
