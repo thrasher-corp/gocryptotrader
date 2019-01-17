@@ -339,7 +339,7 @@ func (b *Bitstamp) GetBalance() (Balances, error) {
 // GetUserTransactions returns an array of transactions
 func (b *Bitstamp) GetUserTransactions(currencyPair string) ([]UserTransactions, error) {
 	type Response struct {
-		Date    string      `json:"datetime"`
+		Date    int64       `json:"datetime"`
 		TransID int64       `json:"id"`
 		Type    int         `json:"type,string"`
 		USD     interface{} `json:"usd"`

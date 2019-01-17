@@ -77,7 +77,7 @@ type Balances struct {
 
 // UserTransactions holds user transaction information
 type UserTransactions struct {
-	Date    string  `json:"datetime"`
+	Date    int64   `json:"datetime"`
 	TransID int64   `json:"id"`
 	Type    int     `json:"type,string"`
 	USD     float64 `json:"usd"`
@@ -91,11 +91,12 @@ type UserTransactions struct {
 
 // Order holds current open order data
 type Order struct {
-	ID     int64   `json:"id"`
-	Date   string  `json:"datetime"`
-	Type   int     `json:"type"`
-	Price  float64 `json:"price"`
-	Amount float64 `json:"amount"`
+	ID       int64   `json:"id"`
+	Date     int64   `json:"datetime"`
+	Type     int     `json:"type"`
+	Price    float64 `json:"price"`
+	Amount   float64 `json:"amount"`
+	Currency string  `json:"currency_pair"`
 }
 
 // OrderStatus holds order status information

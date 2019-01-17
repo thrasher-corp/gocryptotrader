@@ -293,5 +293,63 @@ func (b *Bitstamp) GetWithdrawCapabilities() uint32 {
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
 func (b *Bitstamp) GetOrderHistory(orderHistoryRequest exchange.OrderHistoryRequest) ([]exchange.OrderDetail, error) {
-	return nil, common.ErrNotYetImplemented
+	var orders []exchange.OrderDetail
+	var currPair string
+	if orderHistoryRequest.OrderStatus == exchange.ActiveOrderStatus || orderHistoryRequest.OrderStatus == exchange.AnyOrderStatus {
+		if len(orderHistoryRequest.Currencies) > 1 || len(orderHistoryRequest.Currencies) <= 0 {
+			currPair = "all"
+		} else {
+			currPair = orderHistoryRequest.Currencies[0]
+		}
+
+		resp, err := b.GetOpenOrders(currPair)
+		if err != nil {
+			return nil, err
+		}
+
+		for _, order := range resp {
+			symbolOne := order.Currency[0:3]
+			symbolTwo := order.Currency[len(order.Currency)-3:]
+
+			orders = append(orders, exchange.OrderDetail{
+				Amount:              order.Amount,
+				ID:                  fmt.Sprintf("%v", order.ID),
+				Price:               order.Price,
+				OrderPlacementTicks: order.Date,
+				BaseCurrency:        symbolOne,
+				Status:              string(exchange.ActiveOrderStatus),
+				OrderType:           string(exchange.AnyOrderType),
+				QuoteCurrency:       symbolTwo,
+			})
+		}
+	}
+
+	if orderHistoryRequest.OrderStatus != exchange.ActiveOrderStatus {
+		if len(orderHistoryRequest.Currencies) > 1 || len(orderHistoryRequest.Currencies) <= 0 {
+			currPair = ""
+		} else {
+			currPair = orderHistoryRequest.Currencies[0]
+		}
+		resp, err := b.GetUserTransactions(currPair)
+		if err != nil {
+			return nil, err
+		}
+
+		for _, order := range resp {
+			if order.Type == 2 {
+				orders = append(orders, exchange.OrderDetail{
+					ID:                  fmt.Sprintf("%v", order.OrderID),
+					OrderPlacementTicks: order.Date,
+					Status:              string(exchange.FilledOrderStatus),
+					OrderType:           string(exchange.AnyOrderType),
+				})
+			}
+		}
+	}
+
+	b.FilterOrdersByStatusAndType(&orders, orderHistoryRequest.OrderType, orderHistoryRequest.OrderStatus)
+	b.FilterOrdersByTickRange(&orders, orderHistoryRequest.StartTicks, orderHistoryRequest.EndTicks)
+	b.FilterOrdersByCurrencies(&orders, orderHistoryRequest.Currencies)
+
+	return orders, nil
 }
