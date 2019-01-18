@@ -202,14 +202,14 @@ func (o *OKCoin) GetExchangeHistory(p pair.CurrencyPair, assetType string) ([]ex
 func (o *OKCoin) SubmitOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (exchange.SubmitOrderResponse, error) {
 	var submitOrderResponse exchange.SubmitOrderResponse
 	var oT string
-	if orderType == exchange.Limit {
-		if side == exchange.Buy {
+	if orderType == exchange.LimitOrderType {
+		if side == exchange.BuyOrderSide {
 			oT = "buy"
 		} else {
 			oT = "sell"
 		}
-	} else if orderType == exchange.Market {
-		if side == exchange.Buy {
+	} else if orderType == exchange.MarketOrderType {
+		if side == exchange.BuyOrderSide {
 			oT = "buy_market"
 		} else {
 			oT = "sell_market"

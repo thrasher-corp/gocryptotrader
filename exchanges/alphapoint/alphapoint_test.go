@@ -413,7 +413,7 @@ func TestCreateOrder(t *testing.T) {
 		return
 	}
 
-	_, err := a.CreateOrder("", "", exchange.Market.ToString(), 0.01, 0)
+	_, err := a.CreateOrder("", "", exchange.MarketOrderType.ToString(), 0.01, 0)
 	if err == nil {
 		t.Error("Test Failed - GetUserInfo() error")
 	}
@@ -498,8 +498,7 @@ func TestGetActiveOrders(t *testing.T) {
 	a.Verbose = true
 
 	var getOrdersRequest = exchange.GetOrdersRequest{
-		OrderStatus: exchange.AnyOrderStatus,
-		OrderType:   exchange.AnyOrderType,
+		OrderType: exchange.AnyOrderType,
 	}
 
 	_, err := a.GetActiveOrders(getOrdersRequest)
@@ -516,8 +515,7 @@ func TestGetOrderHistory(t *testing.T) {
 	a.Verbose = true
 
 	var getOrdersRequest = exchange.GetOrdersRequest{
-		OrderStatus: exchange.AnyOrderStatus,
-		OrderType:   exchange.AnyOrderType,
+		OrderType: exchange.AnyOrderType,
 	}
 
 	_, err := a.GetOrderHistory(getOrdersRequest)
@@ -551,7 +549,7 @@ func TestSubmitOrder(t *testing.T) {
 		FirstCurrency:  symbol.BTC,
 		SecondCurrency: symbol.USD,
 	}
-	response, err := a.SubmitOrder(p, exchange.Buy, exchange.Market, 1, 1, "clientId")
+	response, err := a.SubmitOrder(p, exchange.BuyOrderSide, exchange.MarketOrderType, 1, 1, "clientId")
 	if !areTestAPIKeysSet(a) && err == nil {
 		t.Errorf("Expecting an error when no keys are set: %v", err)
 	}

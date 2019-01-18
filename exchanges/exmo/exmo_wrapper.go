@@ -186,10 +186,10 @@ func (e *EXMO) GetExchangeHistory(p pair.CurrencyPair, assetType string) ([]exch
 func (e *EXMO) SubmitOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (exchange.SubmitOrderResponse, error) {
 	var submitOrderResponse exchange.SubmitOrderResponse
 	var oT string
-	if orderType == exchange.Limit {
+	if orderType == exchange.LimitOrderType {
 		return submitOrderResponse, errors.New("Unsupported order type")
-	} else if orderType == exchange.Market {
-		if side == exchange.Buy {
+	} else if orderType == exchange.MarketOrderType {
+		if side == exchange.BuyOrderSide {
 			oT = "market_buy"
 		} else {
 			oT = "market_sell"

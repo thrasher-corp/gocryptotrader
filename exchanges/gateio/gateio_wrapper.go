@@ -191,7 +191,7 @@ func (g *Gateio) SubmitOrder(p pair.CurrencyPair, side exchange.OrderSide, order
 	var submitOrderResponse exchange.SubmitOrderResponse
 	var orderTypeFormat SpotNewOrderRequestParamsType
 
-	if side == exchange.Buy {
+	if side == exchange.BuyOrderSide {
 		orderTypeFormat = SpotNewOrderRequestParamsTypeBuy
 	} else {
 		orderTypeFormat = SpotNewOrderRequestParamsTypeSell

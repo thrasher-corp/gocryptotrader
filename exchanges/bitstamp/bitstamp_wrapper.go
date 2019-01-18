@@ -176,8 +176,8 @@ func (b *Bitstamp) GetExchangeHistory(p pair.CurrencyPair, assetType string) ([]
 // SubmitOrder submits a new order
 func (b *Bitstamp) SubmitOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (exchange.SubmitOrderResponse, error) {
 	var submitOrderResponse exchange.SubmitOrderResponse
-	buy := side == exchange.Buy
-	market := orderType == exchange.Market
+	buy := side == exchange.BuyOrderSide
+	market := orderType == exchange.MarketOrderType
 	response, err := b.PlaceOrder(p.Pair().String(), price, amount, buy, market)
 
 	if response.ID > 0 {
@@ -291,8 +291,39 @@ func (b *Bitstamp) GetWithdrawCapabilities() uint32 {
 }
 
 // GetActiveOrders retrieves any orders that are active/open
-func (b *Bitstamp)  GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
-	return nil, common.ErrNotYetImplemented
+func (b *Bitstamp) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
+	var orders []exchange.OrderDetail
+	var currPair string
+	if len(getOrdersRequest.Currencies) > 1 || len(getOrdersRequest.Currencies) <= 0 {
+		currPair = "all"
+	} else {
+		currPair = getOrdersRequest.Currencies[0]
+	}
+
+	resp, err := b.GetOpenOrders(currPair)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, order := range resp {
+		symbolOne := order.Currency[0:3]
+		symbolTwo := order.Currency[len(order.Currency)-3:]
+
+		orders = append(orders, exchange.OrderDetail{
+			Amount:        order.Amount,
+			ID:            fmt.Sprintf("%v", order.ID),
+			Price:         order.Price,
+			OrderDate:     order.Date,
+			BaseCurrency:  symbolOne,
+			Status:        string(exchange.ActiveOrderStatus),
+			QuoteCurrency: symbolTwo,
+		})
+	}
+
+	b.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
+	b.FilterOrdersByCurrencies(&orders, getOrdersRequest.Currencies)
+
+	return orders, nil
 }
 
 // GetOrderHistory retrieves account order information
@@ -300,59 +331,26 @@ func (b *Bitstamp)  GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) 
 func (b *Bitstamp) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
 	var orders []exchange.OrderDetail
 	var currPair string
-	if getOrdersRequest.OrderStatus == exchange.ActiveOrderStatus || getOrdersRequest.OrderStatus == exchange.AnyOrderStatus {
-		if len(getOrdersRequest.Currencies) > 1 || len(getOrdersRequest.Currencies) <= 0 {
-			currPair = "all"
-		} else {
-			currPair = getOrdersRequest.Currencies[0]
-		}
+	if len(getOrdersRequest.Currencies) > 1 || len(getOrdersRequest.Currencies) <= 0 {
+		currPair = ""
+	} else {
+		currPair = getOrdersRequest.Currencies[0]
+	}
+	resp, err := b.GetUserTransactions(currPair)
+	if err != nil {
+		return nil, err
+	}
 
-		resp, err := b.GetOpenOrders(currPair)
-		if err != nil {
-			return nil, err
-		}
-
-		for _, order := range resp {
-			symbolOne := order.Currency[0:3]
-			symbolTwo := order.Currency[len(order.Currency)-3:]
-
+	for _, order := range resp {
+		if order.Type == 2 {
 			orders = append(orders, exchange.OrderDetail{
-				Amount:              order.Amount,
-				ID:                  fmt.Sprintf("%v", order.ID),
-				Price:               order.Price,
-				OrderPlacementTicks: order.Date,
-				BaseCurrency:        symbolOne,
-				Status:              string(exchange.ActiveOrderStatus),
-				OrderType:           string(exchange.AnyOrderType),
-				QuoteCurrency:       symbolTwo,
+				ID:        fmt.Sprintf("%v", order.OrderID),
+				OrderDate: order.Date,
+				Status:    string(exchange.FilledOrderStatus),
 			})
 		}
 	}
 
-	if getOrdersRequest.OrderStatus != exchange.ActiveOrderStatus {
-		if len(getOrdersRequest.Currencies) > 1 || len(getOrdersRequest.Currencies) <= 0 {
-			currPair = ""
-		} else {
-			currPair = getOrdersRequest.Currencies[0]
-		}
-		resp, err := b.GetUserTransactions(currPair)
-		if err != nil {
-			return nil, err
-		}
-
-		for _, order := range resp {
-			if order.Type == 2 {
-				orders = append(orders, exchange.OrderDetail{
-					ID:                  fmt.Sprintf("%v", order.OrderID),
-					OrderPlacementTicks: order.Date,
-					Status:              string(exchange.FilledOrderStatus),
-					OrderType:           string(exchange.AnyOrderType),
-				})
-			}
-		}
-	}
-
-	b.FilterOrdersByStatusAndType(&orders, getOrdersRequest.OrderType, getOrdersRequest.OrderStatus)
 	b.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
 	b.FilterOrdersByCurrencies(&orders, getOrdersRequest.Currencies)
 

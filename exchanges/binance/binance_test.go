@@ -337,11 +337,16 @@ func TestGetActiveOrders(t *testing.T) {
 	b.Verbose = true
 
 	var getOrdersRequest = exchange.GetOrdersRequest{
-		OrderStatus: exchange.AnyOrderStatus,
-		OrderType:   exchange.AnyOrderType,
+		OrderType: exchange.AnyOrderType,
+	}
+	_, err := b.GetActiveOrders(getOrdersRequest)
+	if err == nil {
+		t.Errorf("Expected '%v', recieved: No error", "At least one currency is required to fetch order history")
 	}
 
-	_, err := b.GetActiveOrders(getOrdersRequest)
+	getOrdersRequest.Currencies = []string{symbol.LTC + symbol.BTC}
+
+	_, err = b.GetActiveOrders(getOrdersRequest)
 	if areTestAPIKeysSet() && err != nil {
 		t.Errorf("Could not get open orders: %s", err)
 	} else if !areTestAPIKeysSet() && err == nil {
@@ -355,12 +360,17 @@ func TestGetOrderHistory(t *testing.T) {
 	b.Verbose = true
 
 	var getOrdersRequest = exchange.GetOrdersRequest{
-		OrderStatus: exchange.AnyOrderStatus,
-		OrderType:   exchange.AnyOrderType,
-		Currencies:  []string{symbol.LTC + symbol.BTC},
+		OrderType: exchange.AnyOrderType,
 	}
 
 	_, err := b.GetOrderHistory(getOrdersRequest)
+	if err == nil {
+		t.Errorf("Expected '%v', recieved: No error", "At least one currency is required to fetch order history")
+	}
+
+	getOrdersRequest.Currencies = []string{symbol.LTC + symbol.BTC}
+
+	_, err = b.GetOrderHistory(getOrdersRequest)
 	if areTestAPIKeysSet() && err != nil {
 		t.Errorf("Could not get order history: %s", err)
 	} else if !areTestAPIKeysSet() && err == nil {
@@ -388,7 +398,7 @@ func TestSubmitOrder(t *testing.T) {
 		FirstCurrency:  symbol.LTC,
 		SecondCurrency: symbol.BTC,
 	}
-	response, err := b.SubmitOrder(p, exchange.Buy, exchange.Market, 1, 1, "clientId")
+	response, err := b.SubmitOrder(p, exchange.BuyOrderSide, exchange.MarketOrderType, 1, 1, "clientId")
 	if areTestAPIKeysSet() && (err != nil || !response.IsOrderPlaced) {
 		t.Errorf("Order failed to be placed: %v", err)
 	} else if !areTestAPIKeysSet() && err == nil {

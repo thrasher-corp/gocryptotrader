@@ -243,7 +243,6 @@ func TestGetActiveOrders(t *testing.T) {
 	e.Verbose = true
 
 	var getOrdersRequest = exchange.GetOrdersRequest{
-		OrderStatus: exchange.AnyOrderStatus,
 		OrderType:   exchange.AnyOrderType,
 	}
 
@@ -261,7 +260,6 @@ func TestGetOrderHistory(t *testing.T) {
 	e.Verbose = true
 
 	var getOrdersRequest = exchange.GetOrdersRequest{
-		OrderStatus: exchange.AnyOrderStatus,
 		OrderType:   exchange.AnyOrderType,
 	}
 
@@ -295,7 +293,7 @@ func TestSubmitOrder(t *testing.T) {
 		FirstCurrency:  symbol.BTC,
 		SecondCurrency: symbol.USD,
 	}
-	response, err := e.SubmitOrder(p, exchange.Buy, exchange.Market, 1, 10, "1234234")
+	response, err := e.SubmitOrder(p, exchange.BuyOrderSide, exchange.MarketOrderType, 1, 10, "1234234")
 	if areTestAPIKeysSet() && (err != nil || !response.IsOrderPlaced) {
 		t.Errorf("Order failed to be placed: %v", err)
 	} else if !areTestAPIKeysSet() && err == nil {

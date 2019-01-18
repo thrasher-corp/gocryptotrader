@@ -247,7 +247,7 @@ func (b *BTCMarkets) GetOrderInfo(orderID int64) (exchange.OrderDetail, error) {
 	for _, order := range orders {
 		OrderDetail.Amount = order.Volume
 		OrderDetail.BaseCurrency = order.Currency
-		OrderDetail.OrderPlacementTicks = int64(order.CreationTime)
+		OrderDetail.OrderDate = int64(order.CreationTime)
 		OrderDetail.Exchange = b.GetName()
 		OrderDetail.ID = order.ID
 		OrderDetail.OpenVolume = order.OpenVolume

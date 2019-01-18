@@ -217,19 +217,19 @@ type TradeHistory struct {
 
 // OrderDetail holds order detail data
 type OrderDetail struct {
-	Exchange            string
-	ID                  string
-	BaseCurrency        string
-	QuoteCurrency       string
-	OrderSide           string
-	OrderType           string
-	OrderPlacementTicks int64
-	Status              string
-	Price               float64
-	Amount              float64
-	ExecutedAmount      float64
-	RemainingAmount     float64
-	OpenVolume          float64
+	Exchange        string
+	ID              string
+	BaseCurrency    string
+	QuoteCurrency   string
+	OrderSide       string
+	OrderType       string
+	OrderDate       int64
+	Status          string
+	Price           float64
+	Amount          float64
+	ExecutedAmount  float64
+	RemainingAmount float64
+	OpenVolume      float64
 }
 
 // FundHistory holds exchange funding history data
@@ -822,13 +822,13 @@ type OrderType string
 
 // OrderType ...types
 const (
-	AnyOrderType          OrderType = "ANY"
-	Limit                 OrderType = "Limit"
-	Market                OrderType = "Market"
-	ImmediateOrCancel     OrderType = "IMMEDIATE_OR_CANCEL"
-	StopOrderType         OrderType = "STOP"
-	TrailingStopOrderType OrderType = "TRAILINGSTOP"
-	UnknownOrderType      OrderType = "UNKNOWN"
+	AnyOrderType               OrderType = "ANY"
+	LimitOrderType             OrderType = "Limit"
+	MarketOrderType            OrderType = "Market"
+	ImmediateOrCancelOrderType OrderType = "IMMEDIATE_OR_CANCEL"
+	StopOrderType              OrderType = "STOP"
+	TrailingStopOrderType      OrderType = "TRAILINGSTOP"
+	UnknownOrderType           OrderType = "UNKNOWN"
 )
 
 // ToString changes the ordertype to the exchange standard and returns a string
@@ -841,8 +841,9 @@ type OrderSide string
 
 // OrderSide types
 const (
-	Buy  OrderSide = "Buy"
-	Sell OrderSide = "Sell"
+	AnyOrderSide  OrderSide = "ANY"
+	BuyOrderSide  OrderSide = "Buy"
+	SellOrderSide OrderSide = "Sell"
 )
 
 // ToString changes the ordertype to the exchange standard and returns a string
@@ -954,11 +955,10 @@ func (e *Base) FormatWithdrawPermissions() string {
 
 // GetOrdersRequest used for GetOrderHistory and GetOpenOrders wrapper functions
 type GetOrdersRequest struct {
-	OrderType   OrderType
-	OrderSide
-	OrderStatus OrderStatus
-	StartTicks  int64
-	EndTicks    int64
+	OrderType  OrderType
+	OrderSide  OrderSide
+	StartTicks int64
+	EndTicks   int64
 	// Currencies Empty array = all currencies. Some endpoints only support singular currency enquiries
 	Currencies []string
 }
@@ -981,18 +981,33 @@ const (
 	UnknownOrderStatus         OrderStatus = "UNKNOWN"
 )
 
-// FilterOrdersByStatusAndType removes any OrderDetails that don't match the orderType or orderStatus provided
-func (e *Base) FilterOrdersByStatusAndType(orders *[]OrderDetail, orderType OrderType, orderStatus OrderStatus) {
-	if orderType == AnyOrderType && orderStatus == AnyOrderStatus {
+// FilterOrdersBySide removes any OrderDetails that don't match the orderStatus provided
+func (e *Base) FilterOrdersBySide(orders *[]OrderDetail, orderSide OrderSide) {
+	if orderSide == AnyOrderSide {
 		return
 	}
 
 	var filteredOrders []OrderDetail
 	for _, orderDetail := range *orders {
-		if !strings.EqualFold(orderDetail.Status, string(orderStatus)) &&
-			orderStatus != AnyOrderStatus {
+		if !strings.EqualFold(orderDetail.OrderSide, string(orderSide)) &&
+			orderSide != AnyOrderSide {
 			continue
 		}
+
+		filteredOrders = append(filteredOrders, orderDetail)
+	}
+
+	*orders = filteredOrders
+}
+
+// FilterOrdersByType removes any OrderDetails that don't match the orderType provided
+func (e *Base) FilterOrdersByType(orders *[]OrderDetail, orderType OrderType) {
+	if orderType == "" || orderType == AnyOrderType {
+		return
+	}
+
+	var filteredOrders []OrderDetail
+	for _, orderDetail := range *orders {
 		if !strings.EqualFold(orderDetail.OrderType, string(orderType)) &&
 			orderType != AnyOrderType {
 			continue
@@ -1012,7 +1027,7 @@ func (e *Base) FilterOrdersByTickRange(orders *[]OrderDetail, startTicks, endTic
 
 	var filteredOrders []OrderDetail
 	for _, orderDetail := range *orders {
-		if orderDetail.OrderPlacementTicks >= startTicks && orderDetail.OrderPlacementTicks <= endTicks {
+		if orderDetail.OrderDate >= startTicks && orderDetail.OrderDate <= endTicks {
 			filteredOrders = append(filteredOrders, orderDetail)
 		}
 	}

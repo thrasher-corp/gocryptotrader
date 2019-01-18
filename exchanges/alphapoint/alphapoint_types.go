@@ -144,13 +144,15 @@ type AccountInfo struct {
 
 // Order is a generalised order type
 type Order struct {
-	Serverorderid int   `json:"ServerOrderId"`
-	AccountID     int   `json:"AccountId"`
-	Price         int   `json:"Price"`
-	QtyTotal      int   `json:"QtyTotal"`
-	QtyRemaining  int   `json:"QtyRemaining"`
-	ReceiveTime   int64 `json:"ReceiveTime"`
-	Side          int   `json:"Side"`
+	Serverorderid int     `json:"ServerOrderId"`
+	AccountID     int     `json:"AccountId"`
+	Price         float64 `json:"Price"`
+	QtyTotal      float64 `json:"QtyTotal"`
+	QtyRemaining  float64 `json:"QtyRemaining"`
+	ReceiveTime   int64   `json:"ReceiveTime"`
+	Side          int     `json:"Side"`
+	State         int     `json:"orderState"`
+	OrderType     int     `json:"orderType"`
 }
 
 // OpenOrders holds the full range of orders by instrument

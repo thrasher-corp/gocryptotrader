@@ -460,16 +460,15 @@ func TestFormatWithdrawPermissions(t *testing.T) {
 }
 
 func TestGetActiveOrders(t *testing.T) {
-	a.SetDefaults()
+	b.SetDefaults()
 	TestSetup(t)
-	a.Verbose = true
+	b.Verbose = true
 
 	var getOrdersRequest = exchange.GetOrdersRequest{
-		OrderStatus: exchange.AnyOrderStatus,
-		OrderType:   exchange.AnyOrderType,
+		OrderType: exchange.AnyOrderType,
 	}
 
-	_, err := a.GetActiveOrders(getOrdersRequest)
+	_, err := b.GetActiveOrders(getOrdersRequest)
 	if areTestAPIKeysSet() && err != nil {
 		t.Errorf("Could not get open orders: %s", err)
 	} else if !areTestAPIKeysSet() && err == nil {
@@ -483,9 +482,8 @@ func TestGetOrderHistory(t *testing.T) {
 	b.Verbose = true
 
 	var getOrdersRequest = exchange.GetOrdersRequest{
-		OrderStatus: exchange.ActiveOrderStatus,
-		OrderType:   exchange.AnyOrderType,
-		Currencies:  []string{symbol.BTC},
+		OrderType:  exchange.AnyOrderType,
+		Currencies: []string{symbol.BTC},
 	}
 
 	_, err := b.GetOrderHistory(getOrdersRequest)
@@ -519,7 +517,7 @@ func TestSubmitOrder(t *testing.T) {
 		FirstCurrency:  symbol.XBT,
 		SecondCurrency: symbol.USD,
 	}
-	response, err := b.SubmitOrder(p, exchange.Buy, exchange.Market, 1, 1, "clientId")
+	response, err := b.SubmitOrder(p, exchange.BuyOrderSide, exchange.MarketOrderType, 1, 1, "clientId")
 	if areTestAPIKeysSet() && (err != nil || !response.IsOrderPlaced) {
 		t.Errorf("Order failed to be placed: %v", err)
 	} else if !areTestAPIKeysSet() && err == nil {

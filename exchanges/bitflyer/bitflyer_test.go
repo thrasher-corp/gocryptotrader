@@ -255,8 +255,7 @@ func TestGetActiveOrders(t *testing.T) {
 	b.Verbose = true
 
 	var getOrdersRequest = exchange.GetOrdersRequest{
-		OrderStatus: exchange.AnyOrderStatus,
-		OrderType:   exchange.AnyOrderType,
+		OrderType: exchange.AnyOrderType,
 	}
 
 	_, err := b.GetActiveOrders(getOrdersRequest)
@@ -273,8 +272,7 @@ func TestGetOrderHistory(t *testing.T) {
 	b.Verbose = true
 
 	var getOrdersRequest = exchange.GetOrdersRequest{
-		OrderStatus: exchange.AnyOrderStatus,
-		OrderType:   exchange.AnyOrderType,
+		OrderType: exchange.AnyOrderType,
 	}
 
 	_, err := b.GetOrderHistory(getOrdersRequest)
@@ -306,7 +304,7 @@ func TestSubmitOrder(t *testing.T) {
 		FirstCurrency:  symbol.LTC,
 		SecondCurrency: symbol.BTC,
 	}
-	_, err := b.SubmitOrder(p, exchange.Buy, exchange.Market, 1, 1, "clientId")
+	_, err := b.SubmitOrder(p, exchange.BuyOrderSide, exchange.MarketOrderType, 1, 1, "clientId")
 	if err != common.ErrNotYetImplemented {
 		t.Errorf("Expected 'Not Yet Implemented', received %v", err)
 	}

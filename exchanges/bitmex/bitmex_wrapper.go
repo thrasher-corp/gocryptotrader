@@ -181,7 +181,7 @@ func (b *Bitmex) SubmitOrder(p pair.CurrencyPair, side exchange.OrderSide, order
 		Side:     side.ToString(),
 	}
 
-	if orderType == exchange.Limit {
+	if orderType == exchange.LimitOrderType {
 		orderNewParams.Price = price
 	}
 
@@ -307,17 +307,9 @@ func (b *Bitmex) GetWithdrawCapabilities() uint32 {
 
 // GetActiveOrders retrieves any orders that are active/open
 func (b *Bitmex) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
-	return nil, common.ErrNotYetImplemented
-}
-
-// GetOrderHistory retrieves account order information
-// Can Limit response to specific order status
-func (b *Bitmex) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
 	var orders []exchange.OrderDetail
 	params := OrdersRequest{}
-	if getOrdersRequest.OrderStatus == exchange.ActiveOrderStatus {
-		params.Filter = "{\"open\":true}"
-	}
+	params.Filter = "{\"open\":true}"
 
 	resp, err := b.GetOrders(params)
 	if err != nil {
@@ -325,6 +317,31 @@ func (b *Bitmex) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]
 	}
 
 	for _, order := range resp {
+		var orderType, orderSide string
+		switch order.OrdType {
+		case "1":
+			orderType = string(exchange.MarketOrderType)
+			break
+		case "2":
+			orderType = string(exchange.LimitOrderType)
+			break
+		case "3":
+			orderType = string(exchange.StopOrderType)
+			break
+		case "7":
+			orderType = string(exchange.TrailingStopOrderType)
+			break
+		default:
+			log.Warnf("Uknown order type: '%v' returned for orderID '%v'. Leaving blank", order.OrdType, order.OrderID)
+			orderType = string(exchange.UnknownOrderType)
+		}
+
+		if order.Side == "1" {
+			orderSide = string(exchange.BuyOrderSide)
+		} else if order.Side == "1" {
+			orderSide = string(exchange.SellOrderSide)
+		}
+
 		orderDetail := exchange.OrderDetail{
 			Price:         order.Price,
 			Amount:        float64(order.OrderQty),
@@ -332,15 +349,73 @@ func (b *Bitmex) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]
 			QuoteCurrency: order.SettlCurrency,
 			Exchange:      b.Name,
 			ID:            order.OrderID,
-			OrderSide:     order.Side,
-			OrderType:     order.OrdType,
+			OrderSide:     orderSide,
+			OrderType:     orderType,
 			Status:        order.OrdStatus,
 		}
 
 		orders = append(orders, orderDetail)
 	}
 
-	b.FilterOrdersByStatusAndType(&orders, getOrdersRequest.OrderType, getOrdersRequest.OrderStatus)
+	b.FilterOrdersByType(&orders, getOrdersRequest.OrderType)
+	b.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
+	b.FilterOrdersByCurrencies(&orders, getOrdersRequest.Currencies)
+
+	return orders, nil
+}
+
+// GetOrderHistory retrieves account order information
+// Can Limit response to specific order status
+func (b *Bitmex) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
+	var orders []exchange.OrderDetail
+	params := OrdersRequest{}
+	resp, err := b.GetOrders(params)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, order := range resp {
+		var orderType, orderSide string
+		switch order.OrdType {
+		case "1":
+			orderType = string(exchange.MarketOrderType)
+			break
+		case "2":
+			orderType = string(exchange.LimitOrderType)
+			break
+		case "3":
+			orderType = string(exchange.StopOrderType)
+			break
+		case "7":
+			orderType = string(exchange.TrailingStopOrderType)
+			break
+		default:
+			log.Warnf("Uknown order type: '%v' returned for orderID '%v'. Leaving blank", order.OrdType, order.OrderID)
+			orderType = string(exchange.UnknownOrderType)
+		}
+
+		if order.Side == "1" {
+			orderSide = string(exchange.BuyOrderSide)
+		} else if order.Side == "1" {
+			orderSide = string(exchange.SellOrderSide)
+		}
+
+		orderDetail := exchange.OrderDetail{
+			Price:         order.Price,
+			Amount:        float64(order.OrderQty),
+			BaseCurrency:  order.Symbol,
+			QuoteCurrency: order.SettlCurrency,
+			Exchange:      b.Name,
+			ID:            order.OrderID,
+			OrderSide:     orderSide,
+			OrderType:     orderType,
+			Status:        order.OrdStatus,
+		}
+
+		orders = append(orders, orderDetail)
+	}
+
+	b.FilterOrdersByType(&orders, getOrdersRequest.OrderType)
 	b.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
 	b.FilterOrdersByCurrencies(&orders, getOrdersRequest.Currencies)
 

@@ -931,34 +931,56 @@ func TestOrderTypes(t *testing.T) {
 	}
 }
 
-func TestFilterOrdersByStatusAndType(t *testing.T) {
+func TestFilterOrdersByType(t *testing.T) {
 	tester := Base{Name: "test"}
 	var orders []OrderDetail
 
 	orders = append(orders, OrderDetail{
-		OrderType: string(ImmediateOrCancel),
-		Status:    string(ExpiredOrderStatus),
+		OrderType: string(ImmediateOrCancelOrderType),
 	})
 	orders = append(orders, OrderDetail{
-		OrderType: string(Limit),
-		Status:    string(NewOrderStatus),
-	})
-	orders = append(orders, OrderDetail{
-		OrderType: string(Market),
-		Status:    string(ExpiredOrderStatus),
+		OrderType: string(LimitOrderType),
 	})
 
-	tester.FilterOrdersByStatusAndType(&orders, AnyOrderType, AnyOrderStatus)
-	if len(orders) != 3 {
-		t.Errorf("Orders failed to be filtered. Expected %v, Recieved %v", 3, len(orders))
-	}
-
-	tester.FilterOrdersByStatusAndType(&orders, AnyOrderType, ExpiredOrderStatus)
+	tester.FilterOrdersByType(&orders, AnyOrderType)
 	if len(orders) != 2 {
 		t.Errorf("Orders failed to be filtered. Expected %v, Recieved %v", 2, len(orders))
 	}
 
-	tester.FilterOrdersByStatusAndType(&orders, Limit, NewOrderStatus)
+	tester.FilterOrdersByType(&orders, AnyOrderType)
+	if len(orders) != 1 {
+		t.Errorf("Orders failed to be filtered. Expected %v, Recieved %v", 1, len(orders))
+	}
+
+	tester.FilterOrdersByType(&orders, LimitOrderType)
+	if len(orders) != 0 {
+		t.Errorf("Orders failed to be filtered. Expected %v, Recieved %v", 0, len(orders))
+	}
+}
+
+func TestFilterOrdersBySide(t *testing.T) {
+	tester := Base{Name: "test"}
+	var orders []OrderDetail
+
+	orders = append(orders, OrderDetail{
+		OrderSide: string(BuyOrderSide),
+	})
+	orders = append(orders, OrderDetail{
+		OrderSide: string(SellOrderSide),
+	})
+	orders = append(orders, OrderDetail{})
+
+	tester.FilterOrdersBySide(&orders, AnyOrderSide)
+	if len(orders) != 3 {
+		t.Errorf("Orders failed to be filtered. Expected %v, Recieved %v", 3, len(orders))
+	}
+
+	tester.FilterOrdersBySide(&orders, BuyOrderSide)
+	if len(orders) != 1 {
+		t.Errorf("Orders failed to be filtered. Expected %v, Recieved %v", 1, len(orders))
+	}
+
+	tester.FilterOrdersBySide(&orders, SellOrderSide)
 	if len(orders) != 0 {
 		t.Errorf("Orders failed to be filtered. Expected %v, Recieved %v", 0, len(orders))
 	}
@@ -969,13 +991,13 @@ func TestFilterOrdersByTickRange(t *testing.T) {
 	var orders []OrderDetail
 
 	orders = append(orders, OrderDetail{
-		OrderPlacementTicks: 100,
+		OrderDate: 100,
 	})
 	orders = append(orders, OrderDetail{
-		OrderPlacementTicks: 110,
+		OrderDate: 110,
 	})
 	orders = append(orders, OrderDetail{
-		OrderPlacementTicks: 111,
+		OrderDate: 111,
 	})
 
 	tester.FilterOrdersByTickRange(&orders, 0, 0)

@@ -402,7 +402,6 @@ func TestGetActiveOrders(t *testing.T) {
 	h.Verbose = true
 
 	var getOrdersRequest = exchange.GetOrdersRequest{
-		OrderStatus: exchange.AnyOrderStatus,
 		OrderType:   exchange.AnyOrderType,
 	}
 
@@ -420,7 +419,6 @@ func TestGetOrderHistory(t *testing.T) {
 	h.Verbose = true
 
 	var getOrdersRequest = exchange.GetOrdersRequest{
-		OrderStatus: exchange.AnyOrderStatus,
 		OrderType:   exchange.AnyOrderType,
 	}
 
@@ -466,7 +464,7 @@ func TestSubmitOrder(t *testing.T) {
 		t.Errorf("Failed to get accounts. Err: %s", err)
 	}
 
-	response, err := h.SubmitOrder(p, exchange.Buy, exchange.Limit, 1, 10, strconv.FormatInt(accounts[0].ID, 10))
+	response, err := h.SubmitOrder(p, exchange.BuyOrderSide, exchange.LimitOrderType, 1, 10, strconv.FormatInt(accounts[0].ID, 10))
 	if areTestAPIKeysSet() && (err != nil || !response.IsOrderPlaced) {
 		t.Errorf("Order failed to be placed: %v", err)
 	} else if !areTestAPIKeysSet() && err == nil {

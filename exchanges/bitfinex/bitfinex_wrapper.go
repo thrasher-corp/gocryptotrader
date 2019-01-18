@@ -167,7 +167,7 @@ func (b *Bitfinex) SubmitOrder(p pair.CurrencyPair, side exchange.OrderSide, ord
 	var submitOrderResponse exchange.SubmitOrderResponse
 	var isBuying bool
 
-	if side == exchange.Buy {
+	if side == exchange.BuyOrderSide {
 		isBuying = true
 	}
 
@@ -310,55 +310,30 @@ func (b *Bitfinex) GetWithdrawCapabilities() uint32 {
 
 // GetActiveOrders retrieves any orders that are active/open
 func (b *Bitfinex) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
-	return nil, common.ErrNotYetImplemented
-}
-
-// GetOrderHistory retrieves account order information
-// Can Limit response to specific order status
-func (b *Bitfinex) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
 	var orders []exchange.OrderDetail
-	var returnedOrders []Order
-	if getOrdersRequest.OrderStatus == exchange.AnyOrderStatus ||
-		getOrdersRequest.OrderStatus == exchange.ActiveOrderStatus {
-		resp, err := b.GetOpenOrders()
-		if err != nil {
-			return nil, err
-		}
-
-		for _, order := range resp {
-			returnedOrders = append(returnedOrders, order)
-		}
+	resp, err := b.GetOpenOrders()
+	if err != nil {
+		return nil, err
 	}
 
-	if getOrdersRequest.OrderStatus != exchange.ActiveOrderStatus {
-		resp, err := b.GetInactiveOrders()
-		if err != nil {
-			return nil, err
-		}
-
-		for _, order := range resp {
-			returnedOrders = append(returnedOrders, order)
-		}
-	}
-
-	for _, order := range returnedOrders {
+	for _, order := range resp {
 		timestamp, err := strconv.ParseInt(order.Timestamp, 10, 64)
 		if err != nil {
 			log.Warnf("Unable to convert timestamp '%v', leaving blank", order.Timestamp)
 		}
 
 		orderDetail := exchange.OrderDetail{
-			Amount:              order.OriginalAmount,
-			BaseCurrency:        order.Symbol,
-			OrderPlacementTicks: timestamp,
-			Exchange:            b.Name,
-			ID:                  fmt.Sprintf("%v", order.OrderID),
-			OrderSide:           order.Side,
-			OrderType:           order.Type,
-			Price:               order.Price,
-			QuoteCurrency:       order.Symbol,
-			RemainingAmount:     order.RemainingAmount,
-			ExecutedAmount:      order.ExecutedAmount,
+			Amount:          order.OriginalAmount,
+			BaseCurrency:    order.Symbol,
+			OrderDate:       timestamp,
+			Exchange:        b.Name,
+			ID:              fmt.Sprintf("%v", order.OrderID),
+			OrderSide:       order.Side,
+			OrderType:       order.Type,
+			Price:           order.Price,
+			QuoteCurrency:   order.Symbol,
+			RemainingAmount: order.RemainingAmount,
+			ExecutedAmount:  order.ExecutedAmount,
 		}
 
 		if order.IsLive {
@@ -383,7 +358,67 @@ func (b *Bitfinex) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) (
 		orders = append(orders, orderDetail)
 	}
 
-	b.FilterOrdersByStatusAndType(&orders, getOrdersRequest.OrderType, getOrdersRequest.OrderStatus)
+	b.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
+	b.FilterOrdersByType(&orders, getOrdersRequest.OrderType)
+	b.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
+	b.FilterOrdersByCurrencies(&orders, getOrdersRequest.Currencies)
+
+	return orders, nil
+}
+
+// GetOrderHistory retrieves account order information
+// Can Limit response to specific order status
+func (b *Bitfinex) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
+	var orders []exchange.OrderDetail
+	resp, err := b.GetInactiveOrders()
+	if err != nil {
+		return nil, err
+	}
+
+	for _, order := range resp {
+		timestamp, err := strconv.ParseInt(order.Timestamp, 10, 64)
+		if err != nil {
+			log.Warnf("Unable to convert timestamp '%v', leaving blank", order.Timestamp)
+		}
+
+		orderDetail := exchange.OrderDetail{
+			Amount:          order.OriginalAmount,
+			BaseCurrency:    order.Symbol,
+			OrderDate:       timestamp,
+			Exchange:        b.Name,
+			ID:              fmt.Sprintf("%v", order.OrderID),
+			OrderSide:       order.Side,
+			OrderType:       order.Type,
+			Price:           order.Price,
+			QuoteCurrency:   order.Symbol,
+			RemainingAmount: order.RemainingAmount,
+			ExecutedAmount:  order.ExecutedAmount,
+		}
+
+		if order.IsLive {
+			orderDetail.Status = string(exchange.ActiveOrderStatus)
+		} else if order.IsCancelled {
+			orderDetail.Status = string(exchange.CancelledOrderStatus)
+		} else if order.IsHidden {
+			orderDetail.Status = string(exchange.HiddenOrderStatus)
+		} else {
+			orderDetail.Status = string(exchange.UnknownOrderStatus)
+		}
+
+		// API docs discrepency. Example contains prefixed "exchange "
+		// Return type suggests “market” / “limit” / “stop” / “trailing-stop”
+		orderType := strings.Replace(orderDetail.OrderType, "exchange ", "", 1)
+		if orderType == "trailing-stop" {
+			orderDetail.OrderType = string(exchange.TrailingStopOrderType)
+		} else {
+			orderDetail.OrderType = strings.ToUpper(orderType)
+		}
+
+		orders = append(orders, orderDetail)
+	}
+
+	b.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
+	b.FilterOrdersByType(&orders, getOrdersRequest.OrderType)
 	b.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
 	b.FilterOrdersByCurrencies(&orders, getOrdersRequest.Currencies)
 

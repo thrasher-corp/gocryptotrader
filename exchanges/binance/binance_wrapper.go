@@ -183,16 +183,16 @@ func (b *Binance) SubmitOrder(p pair.CurrencyPair, side exchange.OrderSide, orde
 	var submitOrderResponse exchange.SubmitOrderResponse
 
 	var sideType RequestParamsSideType
-	if side == exchange.Buy {
+	if side == exchange.BuyOrderSide {
 		sideType = BinanceRequestParamsSideBuy
 	} else {
 		sideType = BinanceRequestParamsSideSell
 	}
 
 	var requestParamsOrderType RequestParamsOrderType
-	if orderType == exchange.Market {
+	if orderType == exchange.MarketOrderType {
 		requestParamsOrderType = BinanceRequestParamsOrderMarket
-	} else if orderType == exchange.Limit {
+	} else if orderType == exchange.LimitOrderType {
 		requestParamsOrderType = BinanceRequestParamsOrderLimit
 	} else {
 		submitOrderResponse.IsOrderPlaced = false
@@ -309,7 +309,38 @@ func (b *Binance) GetWithdrawCapabilities() uint32 {
 
 // GetActiveOrders retrieves any orders that are active/open
 func (b *Binance) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
-	return nil, common.ErrNotYetImplemented
+	if len(getOrdersRequest.Currencies) <= 0 {
+		return nil, errors.New("At least one currency is required to fetch order history")
+	}
+
+	var orders []exchange.OrderDetail
+	for _, symbol := range getOrdersRequest.Currencies {
+		resp, err := b.OpenOrders(symbol)
+		if err != nil {
+			return nil, err
+		}
+
+		for _, order := range resp {
+			orders = append(orders, exchange.OrderDetail{
+				Amount:        order.OrigQty,
+				BaseCurrency:  order.Symbol,
+				OrderDate:     int64(order.Time),
+				Exchange:      b.Name,
+				ID:            fmt.Sprintf("%v", order.OrderID),
+				OrderSide:     order.Side,
+				OrderType:     order.Type,
+				Price:         order.Price,
+				QuoteCurrency: order.Symbol,
+				Status:        order.Status,
+			})
+		}
+	}
+
+	b.FilterOrdersByType(&orders, getOrdersRequest.OrderType)
+	b.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
+	b.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
+
+	return orders, nil
 }
 
 // GetOrderHistory retrieves account order information
@@ -320,32 +351,35 @@ func (b *Binance) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([
 	}
 
 	var orders []exchange.OrderDetail
-
 	for _, symbol := range getOrdersRequest.Currencies {
 		resp, err := b.AllOrders(symbol, "", "1000")
 		if err != nil {
 			return nil, err
 		}
 
-		for _, openOrder := range resp {
-			orderDetail := exchange.OrderDetail{
-				Amount:              openOrder.OrigQty,
-				BaseCurrency:        openOrder.Symbol,
-				OrderPlacementTicks: int64(openOrder.Time),
-				Exchange:            b.Name,
-				ID:                  fmt.Sprintf("%v", openOrder.OrderID),
-				OrderSide:           openOrder.Side,
-				OrderType:           openOrder.Type,
-				Price:               openOrder.Price,
-				QuoteCurrency:       openOrder.Symbol,
-				Status:              openOrder.Status,
+		for _, order := range resp {
+			// New orders are covered in GetOpenOrders
+			if order.Status == "NEW" {
+				continue
 			}
 
-			orders = append(orders, orderDetail)
+			orders = append(orders, exchange.OrderDetail{
+				Amount:        order.OrigQty,
+				BaseCurrency:  order.Symbol,
+				OrderDate:     int64(order.Time),
+				Exchange:      b.Name,
+				ID:            fmt.Sprintf("%v", order.OrderID),
+				OrderSide:     order.Side,
+				OrderType:     order.Type,
+				Price:         order.Price,
+				QuoteCurrency: order.Symbol,
+				Status:        order.Status,
+			})
 		}
 	}
 
-	b.FilterOrdersByStatusAndType(&orders, getOrdersRequest.OrderType, getOrdersRequest.OrderStatus)
+	b.FilterOrdersByType(&orders, getOrdersRequest.OrderType)
+	b.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
 	b.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
 
 	return orders, nil

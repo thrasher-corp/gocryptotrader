@@ -156,10 +156,10 @@ func (c *CoinbasePro) SubmitOrder(p pair.CurrencyPair, side exchange.OrderSide, 
 	var submitOrderResponse exchange.SubmitOrderResponse
 	var response string
 	var err error
-	if orderType == exchange.Market {
+	if orderType == exchange.MarketOrderType {
 		response, err = c.PlaceMarginOrder("", amount, amount, side.ToString(), p.Pair().String(), "")
 
-	} else if orderType == exchange.Limit {
+	} else if orderType == exchange.LimitOrderType {
 		response, err = c.PlaceLimitOrder("", price, amount, side.ToString(), "", "", p.Pair().String(), "", false)
 	} else {
 		err = errors.New("not supported")

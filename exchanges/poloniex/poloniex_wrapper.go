@@ -164,8 +164,8 @@ func (p *Poloniex) GetExchangeHistory(currencyPair pair.CurrencyPair, assetType 
 // SubmitOrder submits a new order
 func (p *Poloniex) SubmitOrder(currencyPair pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (exchange.SubmitOrderResponse, error) {
 	var submitOrderResponse exchange.SubmitOrderResponse
-	fillOrKill := orderType == exchange.Market
-	isBuyOrder := side == exchange.Buy
+	fillOrKill := orderType == exchange.MarketOrderType
+	isBuyOrder := side == exchange.BuyOrderSide
 	response, err := p.PlaceOrder(currencyPair.Pair().String(), price, amount, false, fillOrKill, isBuyOrder)
 
 	if response.OrderNumber > 0 {

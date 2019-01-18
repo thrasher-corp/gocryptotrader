@@ -215,7 +215,7 @@ func (c *COINUT) SubmitOrder(p pair.CurrencyPair, side exchange.OrderSide, order
 	var submitOrderResponse exchange.SubmitOrderResponse
 	var err error
 	var APIresponse interface{}
-	isBuyOrder := side == exchange.Buy
+	isBuyOrder := side == exchange.BuyOrderSide
 	clientIDInt, err := strconv.ParseUint(clientID, 0, 32)
 	clientIDUint := uint32(clientIDInt)
 
@@ -231,9 +231,9 @@ func (c *COINUT) SubmitOrder(p pair.CurrencyPair, side exchange.OrderSide, order
 	currencyArray := instruments.Instruments[p.Pair().String()]
 	currencyID := currencyArray[0].InstID
 
-	if orderType == exchange.Limit {
+	if orderType == exchange.LimitOrderType {
 		APIresponse, err = c.NewOrder(currencyID, amount, price, isBuyOrder, clientIDUint)
-	} else if orderType == exchange.Market {
+	} else if orderType == exchange.MarketOrderType {
 		APIresponse, err = c.NewOrder(currencyID, amount, 0, isBuyOrder, clientIDUint)
 	} else {
 		return submitOrderResponse, errors.New("unsupported order type")

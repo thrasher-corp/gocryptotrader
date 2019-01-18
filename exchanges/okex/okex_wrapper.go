@@ -194,14 +194,14 @@ func (o *OKEX) SubmitOrder(p pair.CurrencyPair, side exchange.OrderSide, orderTy
 	var submitOrderResponse exchange.SubmitOrderResponse
 	var oT SpotNewOrderRequestType
 
-	if orderType == exchange.Limit {
-		if side == exchange.Buy {
+	if orderType == exchange.LimitOrderType {
+		if side == exchange.BuyOrderSide {
 			oT = SpotNewOrderRequestTypeBuy
 		} else {
 			oT = SpotNewOrderRequestTypeSell
 		}
-	} else if orderType == exchange.Market {
-		if side == exchange.Buy {
+	} else if orderType == exchange.MarketOrderType {
+		if side == exchange.BuyOrderSide {
 			oT = SpotNewOrderRequestTypeBuyMarket
 		} else {
 			oT = SpotNewOrderRequestTypeSellMarket

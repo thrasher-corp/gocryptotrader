@@ -178,11 +178,11 @@ func (b *Bittrex) GetExchangeHistory(p pair.CurrencyPair, assetType string) ([]e
 // SubmitOrder submits a new order
 func (b *Bittrex) SubmitOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (exchange.SubmitOrderResponse, error) {
 	var submitOrderResponse exchange.SubmitOrderResponse
-	buy := side == exchange.Buy
+	buy := side == exchange.BuyOrderSide
 	var response UUID
 	var err error
 
-	if orderType != exchange.Limit {
+	if orderType != exchange.LimitOrderType {
 		return submitOrderResponse, errors.New("not supported on exchange")
 	}
 

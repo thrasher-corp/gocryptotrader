@@ -219,23 +219,119 @@ func (a *Alphapoint) GetWithdrawCapabilities() uint32 {
 
 // GetActiveOrders retrieves any orders that are active/open
 func (a *Alphapoint) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
-	return nil, common.ErrNotYetImplemented
+	resp, err := a.GetOrders()
+	if err != nil {
+		return nil, err
+	}
+
+	var orders []exchange.OrderDetail
+	for x := range resp {
+		for _, order := range resp[x].Openorders {
+			if order.State != 1 {
+				continue
+			}
+
+			orderDetail := exchange.OrderDetail{
+				Amount:          float64(order.QtyTotal),
+				OrderDate:       order.ReceiveTime,
+				Exchange:        fmt.Sprintf("%v - %v", a.Name, order.AccountID),
+				ID:              fmt.Sprintf("%v", order.Serverorderid),
+				Price:           float64(order.Price),
+				RemainingAmount: float64(order.QtyRemaining),
+			}
+			if order.Side == 1 {
+				orderDetail.OrderSide = string(exchange.BuyOrderSide)
+			} else if order.Side == 2 {
+				orderDetail.OrderSide = string(exchange.SellOrderSide)
+			}
+
+			switch order.OrderType {
+			case 1:
+				orderDetail.OrderType = string(exchange.MarketOrderType)
+				break
+			case 2:
+				orderDetail.OrderType = string(exchange.LimitOrderType)
+				break
+			case 3:
+			case 4:
+				orderDetail.OrderType = string(exchange.StopOrderType)
+				break
+			case 5:
+			case 6:
+				orderDetail.OrderType = string(exchange.TrailingStopOrderType)
+				break
+			default:
+				orderDetail.OrderType = string(exchange.UnknownOrderType)
+				break
+			}
+
+			orders = append(orders, orderDetail)
+		}
+	}
+
+	a.FilterOrdersByType(&orders, getOrdersRequest.OrderType)
+	a.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
+	a.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
+
+	return orders, nil
 }
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
 func (a *Alphapoint) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
-	/*orders, err := a.GetOrders()
+	resp, err := a.GetOrders()
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
 
-	for x := range orders {
-		for y := range orders[x].Openorders {
-			if int64(orders[x].Openorders[y].Serverorderid) == orderID {
-				return float64(orders[x].Openorders[y].QtyRemaining), nil
+	var orders []exchange.OrderDetail
+	for x := range resp {
+		for _, order := range resp[x].Openorders {
+			if order.State == 1 {
+				continue
 			}
+
+			orderDetail := exchange.OrderDetail{
+				Amount:          float64(order.QtyTotal),
+				OrderDate:       order.ReceiveTime,
+				Exchange:        fmt.Sprintf("%v - %v", a.Name, order.AccountID),
+				ID:              fmt.Sprintf("%v", order.Serverorderid),
+				Price:           float64(order.Price),
+				RemainingAmount: float64(order.QtyRemaining),
+			}
+			if order.Side == 1 {
+				orderDetail.OrderSide = string(exchange.BuyOrderSide)
+			} else if order.Side == 2 {
+				orderDetail.OrderSide = string(exchange.SellOrderSide)
+			}
+
+			switch order.OrderType {
+			case 1:
+				orderDetail.OrderType = string(exchange.MarketOrderType)
+				break
+			case 2:
+				orderDetail.OrderType = string(exchange.LimitOrderType)
+				break
+			case 3:
+			case 4:
+				orderDetail.OrderType = string(exchange.StopOrderType)
+				break
+			case 5:
+			case 6:
+				orderDetail.OrderType = string(exchange.TrailingStopOrderType)
+				break
+			default:
+				orderDetail.OrderType = string(exchange.UnknownOrderType)
+				break
+			}
+
+			orders = append(orders, orderDetail)
 		}
-	}*/
-	return nil, common.ErrNotYetImplemented
+	}
+
+	a.FilterOrdersByType(&orders, getOrdersRequest.OrderType)
+	a.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
+	a.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
+
+	return orders, nil
 }

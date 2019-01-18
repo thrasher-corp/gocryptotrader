@@ -259,14 +259,14 @@ func (h *HUOBI) SubmitOrder(p pair.CurrencyPair, side exchange.OrderSide, orderT
 		AccountID: int(accountID),
 	}
 
-	if side == exchange.Buy && orderType == exchange.Market {
+	if side == exchange.BuyOrderSide && orderType == exchange.MarketOrderType {
 		formattedType = SpotNewOrderRequestTypeBuyMarket
-	} else if side == exchange.Sell && orderType == exchange.Market {
+	} else if side == exchange.SellOrderSide && orderType == exchange.MarketOrderType {
 		formattedType = SpotNewOrderRequestTypeSellMarket
-	} else if side == exchange.Buy && orderType == exchange.Limit {
+	} else if side == exchange.BuyOrderSide && orderType == exchange.LimitOrderType {
 		formattedType = SpotNewOrderRequestTypeBuyLimit
 		params.Price = price
-	} else if side == exchange.Sell && orderType == exchange.Limit {
+	} else if side == exchange.SellOrderSide && orderType == exchange.LimitOrderType {
 		formattedType = SpotNewOrderRequestTypeSellLimit
 		params.Price = price
 	} else {

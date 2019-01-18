@@ -228,11 +228,11 @@ func (a *ANX) SubmitOrder(p pair.CurrencyPair, side exchange.OrderSide, orderTyp
 	var isBuying bool
 	var limitPriceInSettlementCurrency float64
 
-	if side == exchange.Buy {
+	if side == exchange.BuyOrderSide {
 		isBuying = true
 	}
 
-	if orderType == exchange.Limit {
+	if orderType == exchange.LimitOrderType {
 		limitPriceInSettlementCurrency = price
 	}
 
@@ -348,40 +348,61 @@ func (a *ANX) GetWithdrawCapabilities() uint32 {
 
 // GetActiveOrders retrieves any orders that are active/open
 func (a *ANX) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
-	return nil, common.ErrNotYetImplemented
-}
-
-// GetOrderHistory retrieves account order information
-// Can Limit response to specific order status
-func (a *ANX) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
-	var isActiveOrdersOnly bool
-	if getOrdersRequest.OrderStatus == exchange.ActiveOrderStatus {
-		isActiveOrdersOnly = true
-	}
-
-	resp, err := a.GetOrderList(isActiveOrdersOnly)
+	resp, err := a.GetOrderList(true)
 	if err != nil {
 		return nil, err
 	}
- 
+
 	var orders []exchange.OrderDetail
 	for _, order := range resp {
 		orderDetail := exchange.OrderDetail{
-			Amount:              order.TradedCurrencyAmount,
-			BaseCurrency:        order.TradedCurrency,
-			OrderPlacementTicks: order.Timestamp,
-			Exchange:            a.Name,
-			ID:                  order.OrderID,
-			OrderType:           order.OrderType,
-			Price:               order.SettlementCurrencyAmount,
-			QuoteCurrency:       order.SettlementCurrency,
-			Status:              order.OrderStatus,
+			Amount:        order.TradedCurrencyAmount,
+			BaseCurrency:  order.TradedCurrency,
+			OrderDate:     order.Timestamp,
+			Exchange:      a.Name,
+			ID:            order.OrderID,
+			OrderType:     order.OrderType,
+			Price:         order.SettlementCurrencyAmount,
+			QuoteCurrency: order.SettlementCurrency,
+			Status:        order.OrderStatus,
 		}
 
 		orders = append(orders, orderDetail)
 	}
 
-	a.FilterOrdersByStatusAndType(&orders, getOrdersRequest.OrderType, getOrdersRequest.OrderStatus)
+	a.FilterOrdersByType(&orders, getOrdersRequest.OrderType)
+	a.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
+	a.FilterOrdersByCurrencies(&orders, getOrdersRequest.Currencies)
+
+	return orders, nil
+}
+
+// GetOrderHistory retrieves account order information
+// Can Limit response to specific order status
+func (a *ANX) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
+	resp, err := a.GetOrderList(false)
+	if err != nil {
+		return nil, err
+	}
+
+	var orders []exchange.OrderDetail
+	for _, order := range resp {
+		orderDetail := exchange.OrderDetail{
+			Amount:        order.TradedCurrencyAmount,
+			BaseCurrency:  order.TradedCurrency,
+			OrderDate:     order.Timestamp,
+			Exchange:      a.Name,
+			ID:            order.OrderID,
+			OrderType:     order.OrderType,
+			Price:         order.SettlementCurrencyAmount,
+			QuoteCurrency: order.SettlementCurrency,
+			Status:        order.OrderStatus,
+		}
+
+		orders = append(orders, orderDetail)
+	}
+
+	a.FilterOrdersByType(&orders, getOrdersRequest.OrderType)
 	a.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
 	a.FilterOrdersByCurrencies(&orders, getOrdersRequest.Currencies)
 

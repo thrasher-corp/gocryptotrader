@@ -170,7 +170,7 @@ func (z *ZB) SubmitOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType
 	var submitOrderResponse exchange.SubmitOrderResponse
 	var oT SpotNewOrderRequestParamsType
 
-	if side == exchange.Buy {
+	if side == exchange.BuyOrderSide {
 		oT = SpotNewOrderRequestParamsTypeBuy
 	} else {
 		oT = SpotNewOrderRequestParamsTypeSell

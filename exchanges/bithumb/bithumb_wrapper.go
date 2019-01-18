@@ -173,11 +173,11 @@ func (b *Bithumb) SubmitOrder(p pair.CurrencyPair, side exchange.OrderSide, orde
 	var submitOrderResponse exchange.SubmitOrderResponse
 	var err error
 	var orderID string
-	if side == exchange.Buy {
+	if side == exchange.BuyOrderSide {
 		var result MarketBuy
 		result, err = b.MarketBuyOrder(p.FirstCurrency.String(), amount)
 		orderID = result.OrderID
-	} else if side == exchange.Sell {
+	} else if side == exchange.SellOrderSide {
 		var result MarketSell
 		result, err = b.MarketSellOrder(p.FirstCurrency.String(), amount)
 		orderID = result.OrderID
@@ -309,42 +309,79 @@ func (b *Bithumb) GetWithdrawCapabilities() uint32 {
 
 // GetActiveOrders retrieves any orders that are active/open
 func (b *Bithumb) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
-	return nil, common.ErrNotYetImplemented
+	var orders []exchange.OrderDetail
+	resp, err := b.GetOrders("", "", "1000", "", "")
+	if err != nil {
+		return nil, err
+	}
+
+	for _, order := range resp.Data {
+		if order.Status != "placed" {
+			continue
+		}
+		orderDetail := exchange.OrderDetail{
+			Amount:          order.Units,
+			BaseCurrency:    order.OrderCurrency,
+			QuoteCurrency:   order.PaymentCurrency,
+			Exchange:        b.Name,
+			ID:              order.OrderID,
+			OrderDate:       order.OrderDate,
+			Price:           order.Price,
+			RemainingAmount: order.UnitsRemaining,
+			Status:          string(exchange.ActiveOrderStatus),
+		}
+
+		if order.Type == "bid" {
+			orderDetail.OrderSide = string(exchange.BuyOrderSide)
+		} else if order.Type == "ask" {
+			orderDetail.OrderSide = string(exchange.SellOrderSide)
+		}
+
+		orders = append(orders, orderDetail)
+	}
+
+	b.FilterOrdersByType(&orders, getOrdersRequest.OrderType)
+	b.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
+	b.FilterOrdersByCurrencies(&orders, getOrdersRequest.Currencies)
+
+	return orders, nil
 }
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
 func (b *Bithumb) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
 	var orders []exchange.OrderDetail
-	if getOrdersRequest.OrderStatus == exchange.AnyOrderStatus ||
-		getOrdersRequest.OrderStatus == exchange.ActiveOrderStatus {
-		resp, err := b.GetOrders("", "", "1000", "", "")
-		if err != nil {
-			return nil, err
-		}
-
-		for _, order := range resp.Data {
-			orderDetail := exchange.OrderDetail{
-				Amount:              order.Units,
-				BaseCurrency:        order.OrderCurrency,
-				QuoteCurrency:       order.PaymentCurrency,
-				Exchange:            b.Name,
-				ID:                  order.OrderID,
-				OrderPlacementTicks: order.OrderDate,
-				OrderType:           order.Type,
-				Price:               order.Price,
-				RemainingAmount:     order.UnitsRemaining,
-				Status:              order.Status,
-			}
-
-			if orderDetail.Status == "placed" {
-				orderDetail.Status = string(exchange.PartiallyFilledOrderStatus)
-			}
-			orders = append(orders, orderDetail)
-		}
+	resp, err := b.GetOrders("", "", "1000", "", "")
+	if err != nil {
+		return nil, err
 	}
 
-	b.FilterOrdersByStatusAndType(&orders, getOrdersRequest.OrderType, getOrdersRequest.OrderStatus)
+	for _, order := range resp.Data {
+		if order.Status == "placed" {
+			continue
+		}
+		orderDetail := exchange.OrderDetail{
+			Amount:          order.Units,
+			BaseCurrency:    order.OrderCurrency,
+			QuoteCurrency:   order.PaymentCurrency,
+			Exchange:        b.Name,
+			ID:              order.OrderID,
+			OrderDate:       order.OrderDate,
+			Price:           order.Price,
+			RemainingAmount: order.UnitsRemaining,
+			Status:          string(exchange.UnknownOrderStatus),
+		}
+
+		if order.Type == "bid" {
+			orderDetail.OrderSide = string(exchange.BuyOrderSide)
+		} else if order.Type == "ask" {
+			orderDetail.OrderSide = string(exchange.SellOrderSide)
+		}
+
+		orders = append(orders, orderDetail)
+	}
+
+	b.FilterOrdersByType(&orders, getOrdersRequest.OrderType)
 	b.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
 	b.FilterOrdersByCurrencies(&orders, getOrdersRequest.Currencies)
 
