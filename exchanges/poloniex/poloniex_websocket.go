@@ -327,7 +327,7 @@ func (p *Poloniex) WsProcessOrderbookSnapshot(ob []interface{}, symbol string) e
 	newOrderbook.LastUpdated = time.Now()
 	newOrderbook.Pair = pair.NewCurrencyPairFromString(symbol)
 
-	return p.Websocket.Orderbook.LoadSnapshot(newOrderbook, p.GetName())
+	return p.Websocket.Orderbook.LoadSnapshot(newOrderbook, p.GetName(), false)
 }
 
 // WsProcessOrderbookUpdate processses new orderbook updates

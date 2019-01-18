@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gorilla/websocket"
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
@@ -43,6 +44,7 @@ const (
 // 47.91.169.147 api.zb.com
 // 47.52.55.212 trade.zb.com
 type ZB struct {
+	WebsocketConn *websocket.Conn
 	exchange.Base
 }
 
@@ -106,6 +108,14 @@ func (z *ZB) Setup(exch config.ExchangeConfig) {
 			log.Fatal(err)
 		}
 		err = z.SetClientProxyAddress(exch.ProxyAddress)
+		if err != nil {
+			log.Fatal(err)
+		}
+		err = z.WebsocketSetup(z.WsConnect,
+			exch.Name,
+			exch.Websocket,
+			zbWebsocketAPI,
+			exch.WebsocketURL)
 		if err != nil {
 			log.Fatal(err)
 		}

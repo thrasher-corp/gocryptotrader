@@ -335,7 +335,7 @@ func (b *Bitmex) processOrderbook(data []OrderBookL2, action string, currencyPai
 			newOrderbook.LastUpdated = time.Now()
 			newOrderbook.Pair = currencyPair
 
-			err := b.Websocket.Orderbook.LoadSnapshot(newOrderbook, b.GetName())
+			err := b.Websocket.Orderbook.LoadSnapshot(newOrderbook, b.GetName(), false)
 			if err != nil {
 				return fmt.Errorf("bitmex_websocket.go process orderbook error -  %s",
 					err)

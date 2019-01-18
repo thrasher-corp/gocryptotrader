@@ -245,7 +245,7 @@ func (h *HitBTC) WsProcessOrderbookSnapshot(ob WsOrderbook) error {
 	newOrderbook.LastUpdated = time.Now()
 	newOrderbook.Pair = p
 
-	err := h.Websocket.Orderbook.LoadSnapshot(newOrderbook, h.GetName())
+	err := h.Websocket.Orderbook.LoadSnapshot(newOrderbook, h.GetName(), false)
 	if err != nil {
 		return err
 	}

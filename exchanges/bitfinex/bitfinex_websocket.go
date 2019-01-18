@@ -531,7 +531,7 @@ func (b *Bitfinex) WsInsertSnapshot(p pair.CurrencyPair, assetType string, books
 	newOrderbook.LastUpdated = time.Now()
 	newOrderbook.Pair = p
 
-	err := b.Websocket.Orderbook.LoadSnapshot(newOrderbook, b.GetName())
+	err := b.Websocket.Orderbook.LoadSnapshot(newOrderbook, b.GetName(), false)
 	if err != nil {
 		return fmt.Errorf("bitfinex.go error - %s", err)
 	}

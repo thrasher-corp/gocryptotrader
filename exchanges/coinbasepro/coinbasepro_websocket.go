@@ -237,7 +237,7 @@ func (c *CoinbasePro) ProcessSnapshot(snapshot WebsocketOrderbookSnapshot) error
 	base.CurrencyPair = snapshot.ProductID
 	base.LastUpdated = time.Now()
 
-	err := c.Websocket.Orderbook.LoadSnapshot(base, c.GetName())
+	err := c.Websocket.Orderbook.LoadSnapshot(base, c.GetName(), false)
 	if err != nil {
 		return err
 	}

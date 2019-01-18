@@ -337,7 +337,7 @@ func (c *COINUT) WsProcessOrderbookSnapshot(ob WsOrderbookSnapshot) error {
 	newOrderbook.AssetType = "SPOT"
 	newOrderbook.LastUpdated = time.Now()
 
-	return c.Websocket.Orderbook.LoadSnapshot(newOrderbook, c.GetName())
+	return c.Websocket.Orderbook.LoadSnapshot(newOrderbook, c.GetName(), false)
 }
 
 // WsProcessOrderbookUpdate process an orderbook update

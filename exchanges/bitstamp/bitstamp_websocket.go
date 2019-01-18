@@ -132,7 +132,7 @@ func (b *Bitstamp) WsConnect() error {
 		newOrderbook.LastUpdated = time.Unix(0, orderbookSeed.Timestamp)
 		newOrderbook.AssetType = "SPOT"
 
-		err = b.Websocket.Orderbook.LoadSnapshot(newOrderbook, b.GetName())
+		err = b.Websocket.Orderbook.LoadSnapshot(newOrderbook, b.GetName(), false)
 		if err != nil {
 			return err
 		}

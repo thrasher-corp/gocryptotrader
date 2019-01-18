@@ -436,8 +436,10 @@ func (w *WebsocketOrderbookLocal) Update(bidTargets, askTargets []orderbook.Item
 	return nil
 }
 
-// LoadSnapshot loads initial snapshot of orderbook data
-func (w *WebsocketOrderbookLocal) LoadSnapshot(newOrderbook orderbook.Base, exchName string) error {
+// LoadSnapshot loads initial snapshot of orderbook data, overite allows full
+// orderbook to be completely rewritten because the exchange is a doing a full
+// update not an incremental one
+func (w *WebsocketOrderbookLocal) LoadSnapshot(newOrderbook orderbook.Base, exchName string, overwrite bool) error {
 	if len(newOrderbook.Asks) == 0 || len(newOrderbook.Bids) == 0 {
 		return errors.New("exchange.go websocket orderbook cache LoadSnapshot() error - snapshot ask and bids are nil")
 	}
@@ -447,6 +449,17 @@ func (w *WebsocketOrderbookLocal) LoadSnapshot(newOrderbook orderbook.Base, exch
 
 	for i := range w.ob {
 		if w.ob[i].Pair == newOrderbook.Pair && w.ob[i].AssetType == newOrderbook.AssetType {
+			if overwrite {
+				w.ob[i] = newOrderbook
+				w.lastUpdated = newOrderbook.LastUpdated
+
+				orderbook.ProcessOrderbook(exchName,
+					newOrderbook.Pair,
+					newOrderbook,
+					newOrderbook.AssetType)
+
+				return nil
+			}
 			return errors.New("exchange.go websocket orderbook cache LoadSnapshot() error - Snapshot instance already found")
 		}
 	}

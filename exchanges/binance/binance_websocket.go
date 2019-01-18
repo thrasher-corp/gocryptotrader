@@ -62,7 +62,7 @@ func (b *Binance) SeedLocalCache(p pair.CurrencyPair) error {
 	newOrderBook.LastUpdated = time.Now()
 	newOrderBook.AssetType = "SPOT"
 
-	return b.Websocket.Orderbook.LoadSnapshot(newOrderBook, b.GetName())
+	return b.Websocket.Orderbook.LoadSnapshot(newOrderBook, b.GetName(), false)
 }
 
 // UpdateLocalCache updates and returns the most recent iteration of the orderbook

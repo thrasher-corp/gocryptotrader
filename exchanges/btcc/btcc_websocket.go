@@ -409,7 +409,7 @@ func (b *BTCC) WsProcessOrderbookSnapshot(ob WsOrderbookSnapshot) error {
 	newOrderbook.LastUpdated = time.Now()
 	newOrderbook.Pair = pair.NewCurrencyPairFromString(ob.Symbol)
 
-	err := b.Websocket.Orderbook.LoadSnapshot(newOrderbook, b.GetName())
+	err := b.Websocket.Orderbook.LoadSnapshot(newOrderbook, b.GetName(), false)
 	if err != nil {
 		return err
 	}
