@@ -9,6 +9,8 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/gorilla/websocket"
+
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/currency/symbol"
@@ -59,6 +61,7 @@ const (
 
 // HUOBIHADAX is the overarching type across this package
 type HUOBIHADAX struct {
+	WebsocketConn *websocket.Conn
 	exchange.Base
 }
 
@@ -120,6 +123,14 @@ func (h *HUOBIHADAX) Setup(exch config.ExchangeConfig) {
 			log.Fatal(err)
 		}
 		err = h.SetClientProxyAddress(exch.ProxyAddress)
+		if err != nil {
+			log.Fatal(err)
+		}
+		err = h.WebsocketSetup(h.WsConnect,
+			exch.Name,
+			exch.Websocket,
+			huobiGlobalWebsocketEndpoint,
+			exch.WebsocketURL)
 		if err != nil {
 			log.Fatal(err)
 		}

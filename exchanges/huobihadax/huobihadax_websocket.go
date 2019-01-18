@@ -1,4 +1,4 @@
-package huobi
+package huobihadax
 
 import (
 	"bytes"
@@ -20,14 +20,16 @@ import (
 )
 
 const (
-	huobiSocketIOAddress = "wss://api.huobi.pro/hbus/ws"
-	wsMarketKline        = "market.%s.kline.1min"
-	wsMarketDepth        = "market.%s.depth.step0"
-	wsMarketTrade        = "market.%s.trade.detail"
+	huobiGlobalWebsocketEndpoint         = "wss://api.huobi.pro/ws"
+	huobiGlobalAssetWebsocketEndpoint    = "wss://api.huobi.pro/ws/v1"
+	huobiGlobalContractWebsocketEndpoint = "wss://www.hbdm.com/ws"
+	wsMarketKline                        = "market.%s.kline.1min"
+	wsMarketDepth                        = "market.%s.depth.step0"
+	wsMarketTrade                        = "market.%s.trade.detail"
 )
 
 // WsConnect initiates a new websocket connection
-func (h *HUOBI) WsConnect() error {
+func (h *HUOBIHADAX) WsConnect() error {
 	if !h.Websocket.IsEnabled() || !h.IsEnabled() {
 		return errors.New(exchange.WebsocketNotEnabled)
 	}
@@ -60,7 +62,7 @@ func (h *HUOBI) WsConnect() error {
 }
 
 // WsReadData reads data from the websocket connection
-func (h *HUOBI) WsReadData() (exchange.WebsocketResponse, error) {
+func (h *HUOBIHADAX) WsReadData() (exchange.WebsocketResponse, error) {
 	_, resp, err := h.WebsocketConn.ReadMessage()
 	if err != nil {
 		return exchange.WebsocketResponse{}, err
@@ -84,7 +86,7 @@ func (h *HUOBI) WsReadData() (exchange.WebsocketResponse, error) {
 }
 
 // WsHandleData handles data read from the websocket connection
-func (h *HUOBI) WsHandleData() {
+func (h *HUOBIHADAX) WsHandleData() {
 	h.Websocket.Wg.Add(1)
 
 	defer func() {
@@ -187,7 +189,7 @@ func (h *HUOBI) WsHandleData() {
 }
 
 // WsProcessOrderbook processes new orderbook data
-func (h *HUOBI) WsProcessOrderbook(ob WsDepth, symbol string) error {
+func (h *HUOBIHADAX) WsProcessOrderbook(ob WsDepth, symbol string) error {
 	var bids []orderbook.Item
 	for _, data := range ob.Tick.Bids {
 		bidLevel := data.([]interface{})
@@ -227,7 +229,7 @@ func (h *HUOBI) WsProcessOrderbook(ob WsDepth, symbol string) error {
 
 // WsSubscribe susbcribes to the current websocket streams based on the enabled
 // pair
-func (h *HUOBI) WsSubscribe() error {
+func (h *HUOBIHADAX) WsSubscribe() error {
 	pairs := h.GetEnabledCurrencies()
 
 	for _, p := range pairs {
