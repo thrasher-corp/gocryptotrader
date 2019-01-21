@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
@@ -262,11 +263,77 @@ func (c *CoinbasePro) GetWithdrawCapabilities() uint32 {
 
 // GetActiveOrders retrieves any orders that are active/open
 func (c *CoinbasePro) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
-	return nil, common.ErrNotYetImplemented
+	var respOrders []GeneralizedOrderResponse
+	for _, currencyPair := range getOrdersRequest.Currencies {
+		resp, err := c.GetOrders([]string{"open", "pending", "active"}, currencyPair.Pair().String())
+		if err != nil {
+			return nil, err
+		}
+
+		for _, order := range resp {
+			respOrders = append(respOrders, order)
+		}
+
+	}
+
+	var orders []exchange.OrderDetail
+	for _, order := range respOrders {
+		currencyPair := pair.NewCurrencyPairDelimiter(order.ProductID, c.ConfigCurrencyPairFormat.Delimiter)
+		t, err := time.Parse(time.RFC3339, order.CreatedAt)
+		if err != nil {
+			log.Errorf("Could not convert date '%v' to integer for exchange '%v' and order ID '%v'. Leaving blank", order.CreatedAt, c.Name, order.ID)
+		}
+
+		orders = append(orders, exchange.OrderDetail{
+			ID:             order.ID,
+			BaseCurrency:   currencyPair.FirstCurrency.String(),
+			QuoteCurrency:  currencyPair.SecondCurrency.String(),
+			Amount:         order.Size,
+			ExecutedAmount: order.FilledSize,
+			OrderType:      order.Type,
+			OrderDate:      t.Unix(),
+			OrderSide:      order.Side,
+		})
+	}
+
+	return orders, nil
 }
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
 func (c *CoinbasePro) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
-	return nil, common.ErrNotYetImplemented
+	var respOrders []GeneralizedOrderResponse
+	for _, currencyPair := range getOrdersRequest.Currencies {
+		resp, err := c.GetOrders([]string{"done", "settled"}, currencyPair.Pair().String())
+		if err != nil {
+			return nil, err
+		}
+
+		for _, order := range resp {
+			respOrders = append(respOrders, order)
+		}
+
+	}
+
+	var orders []exchange.OrderDetail
+	for _, order := range respOrders {
+		currencyPair := pair.NewCurrencyPairDelimiter(order.ProductID, c.ConfigCurrencyPairFormat.Delimiter)
+		t, err := time.Parse(time.RFC3339, order.CreatedAt)
+		if err != nil {
+			log.Errorf("Could not convert date '%v' to integer for exchange '%v' and order ID '%v'. Leaving blank", order.CreatedAt, c.Name, order.ID)
+		}
+
+		orders = append(orders, exchange.OrderDetail{
+			ID:             order.ID,
+			BaseCurrency:   currencyPair.FirstCurrency.String(),
+			QuoteCurrency:  currencyPair.SecondCurrency.String(),
+			Amount:         order.Size,
+			ExecutedAmount: order.FilledSize,
+			OrderType:      order.Type,
+			OrderDate:      t.Unix(),
+			OrderSide:      order.Side,
+		})
+	}
+
+	return orders, nil
 }

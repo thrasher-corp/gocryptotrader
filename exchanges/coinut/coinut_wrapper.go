@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"strings"
 	"sync"
 
 	"github.com/thrasher-/gocryptotrader/common"
@@ -385,11 +386,111 @@ func (c *COINUT) GetWithdrawCapabilities() uint32 {
 
 // GetActiveOrders retrieves any orders that are active/open
 func (c *COINUT) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
-	return nil, common.ErrNotYetImplemented
+	instruments, err := c.GetInstruments()
+	if err != nil {
+		return nil, err
+	}
+
+	var allTheOrders []OrderResponse
+	for instrument, allInstrumentData := range instruments.Instruments {
+		for _, instrumentData := range allInstrumentData {
+			for _, currency := range getOrdersRequest.Currencies {
+				currStr := fmt.Sprintf("%v%v%v", currency.FirstCurrency.String(), c.ConfigCurrencyPairFormat.Delimiter, currency.SecondCurrency.String())
+				if strings.EqualFold(currStr, instrument) {
+					openOrders, err := c.GetOpenOrders(instrumentData.InstID)
+					if err != nil {
+						return nil, err
+					}
+
+					for _, openOrder := range openOrders.Orders {
+						allTheOrders = append(allTheOrders, openOrder)
+					}
+
+					continue
+				}
+			}
+		}
+	}
+
+	var orders []exchange.OrderDetail
+	for _, order := range allTheOrders {
+		for instrument, allInstrumentData := range instruments.Instruments {
+			for _, instrumentData := range allInstrumentData {
+				if instrumentData.InstID == int(order.InstrumentID) {
+					currPair := pair.NewCurrencyPairDelimiter(instrument, "")
+					orders = append(orders, exchange.OrderDetail{
+						ID:            strconv.FormatInt(order.OrderID, 10),
+						Amount:        order.Quantity,
+						Price:         order.Price,
+						Exchange:      c.Name,
+						OrderSide:     order.Side,
+						OrderDate:     order.Timestamp,
+						BaseCurrency:  currPair.FirstCurrency.String(),
+						QuoteCurrency: currPair.SecondCurrency.String(),
+					})
+				}
+			}
+		}
+	}
+
+	c.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
+	c.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
+
+	return orders, nil
 }
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
 func (c *COINUT) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
-	return nil, common.ErrNotYetImplemented
+	instruments, err := c.GetInstruments()
+	if err != nil {
+		return nil, err
+	}
+
+	var allTheOrders []OrderFilledResponse
+	for instrument, allInstrumentData := range instruments.Instruments {
+		for _, instrumentData := range allInstrumentData {
+			for _, currency := range getOrdersRequest.Currencies {
+				currStr := fmt.Sprintf("%v%v%v", currency.FirstCurrency.String(), c.ConfigCurrencyPairFormat.Delimiter, currency.SecondCurrency.String())
+				if strings.EqualFold(currStr, instrument) {
+					orders, err := c.GetTradeHistory(instrumentData.InstID, -1, -1)
+					if err != nil {
+						return nil, err
+					}
+
+					for _, order := range orders.Trades {
+						allTheOrders = append(allTheOrders, order)
+					}
+
+					continue
+				}
+			}
+		}
+	}
+
+	var orders []exchange.OrderDetail
+	for _, order := range allTheOrders {
+		for instrument, allInstrumentData := range instruments.Instruments {
+			for _, instrumentData := range allInstrumentData {
+				if instrumentData.InstID == int(order.Order.InstrumentID) {
+					currPair := pair.NewCurrencyPairDelimiter(instrument, "")
+					orders = append(orders, exchange.OrderDetail{
+						ID:            strconv.FormatInt(order.Order.OrderID, 10),
+						Amount:        order.Order.Quantity,
+						Price:         order.Order.Price,
+						Exchange:      c.Name,
+						OrderSide:     order.Order.Side,
+						OrderDate:     order.Order.Timestamp,
+						BaseCurrency:  currPair.FirstCurrency.String(),
+						QuoteCurrency: currPair.SecondCurrency.String(),
+					})
+				}
+			}
+		}
+	}
+
+	c.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
+	c.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
+
+	return orders, nil
 }

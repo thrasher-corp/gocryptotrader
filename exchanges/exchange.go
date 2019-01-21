@@ -231,7 +231,6 @@ type OrderDetail struct {
 	Amount          float64
 	ExecutedAmount  float64
 	RemainingAmount float64
-	OpenVolume      float64
 	Fee             float64
 	Trades          []TradeHistory
 }

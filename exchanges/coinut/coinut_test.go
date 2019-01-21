@@ -199,7 +199,7 @@ func TestGetActiveOrders(t *testing.T) {
 	c.Verbose = true
 
 	var getOrdersRequest = exchange.GetOrdersRequest{
-		OrderType:   exchange.AnyOrderType,
+		OrderType: exchange.AnyOrderType,
 	}
 
 	_, err := c.GetActiveOrders(getOrdersRequest)
@@ -216,7 +216,8 @@ func TestGetOrderHistory(t *testing.T) {
 	c.Verbose = true
 
 	var getOrdersRequest = exchange.GetOrdersRequest{
-		OrderType:   exchange.AnyOrderType,
+		OrderType:  exchange.AnyOrderType,
+		Currencies: []pair.CurrencyPair{pair.NewCurrencyPair(symbol.BTC, symbol.LTC)},
 	}
 
 	_, err := c.GetOrderHistory(getOrdersRequest)
@@ -230,8 +231,7 @@ func TestGetOrderHistory(t *testing.T) {
 // Any tests below this line have the ability to impact your orders on the exchange. Enable canManipulateRealOrders to run them
 // ----------------------------------------------------------------------------------------------------------------------------
 func areTestAPIKeysSet() bool {
-	if c.APIKey != "" && c.APIKey != "Key" &&
-		c.APISecret != "" && c.APISecret != "Secret" {
+	if c.APIKey != "" && c.APIKey != "Key" {
 		return true
 	}
 	return false

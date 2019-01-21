@@ -250,7 +250,7 @@ func (b *BTCMarkets) GetOrderInfo(orderID int64) (exchange.OrderDetail, error) {
 		OrderDetail.OrderDate = int64(order.CreationTime)
 		OrderDetail.Exchange = b.GetName()
 		OrderDetail.ID = order.ID
-		OrderDetail.OpenVolume = order.OpenVolume
+		OrderDetail.RemainingAmount = order.OpenVolume
 		OrderDetail.OrderSide = order.OrderSide
 		OrderDetail.OrderType = order.OrderType
 		OrderDetail.Price = order.Price
@@ -319,17 +319,17 @@ func (b *BTCMarkets) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest)
 		}
 
 		openOrder := exchange.OrderDetail{
-			ID:            order.ID,
-			Amount:        order.Volume,
-			BaseCurrency:  order.Currency,
-			Exchange:      b.Name,
-			OpenVolume:    order.OpenVolume,
-			OrderDate:     int64(order.CreationTime),
-			OrderSide:     side,
-			OrderType:     order.OrderType,
-			Price:         order.Price,
-			QuoteCurrency: order.Instrument,
-			Status:        order.Status,
+			ID:              order.ID,
+			Amount:          order.Volume,
+			BaseCurrency:    order.Currency,
+			Exchange:        b.Name,
+			RemainingAmount: order.OpenVolume,
+			OrderDate:       int64(order.CreationTime),
+			OrderSide:       side,
+			OrderType:       order.OrderType,
+			Price:           order.Price,
+			QuoteCurrency:   order.Instrument,
+			Status:          order.Status,
 		}
 
 		for _, trade := range order.Trades {
@@ -381,17 +381,17 @@ func (b *BTCMarkets) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest)
 		}
 
 		openOrder := exchange.OrderDetail{
-			ID:            order.ID,
-			Amount:        order.Volume,
-			BaseCurrency:  order.Currency,
-			Exchange:      b.Name,
-			OpenVolume:    order.OpenVolume,
-			OrderDate:     int64(order.CreationTime),
-			OrderSide:     side,
-			OrderType:     order.OrderType,
-			Price:         order.Price,
-			QuoteCurrency: order.Instrument,
-			Status:        order.Status,
+			ID:              order.ID,
+			Amount:          order.Volume,
+			BaseCurrency:    order.Currency,
+			Exchange:        b.Name,
+			RemainingAmount: order.OpenVolume,
+			OrderDate:       int64(order.CreationTime),
+			OrderSide:       side,
+			OrderType:       order.OrderType,
+			Price:           order.Price,
+			QuoteCurrency:   order.Instrument,
+			Status:          order.Status,
 		}
 
 		for _, trade := range order.Trades {
