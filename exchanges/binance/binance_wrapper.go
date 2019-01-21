@@ -315,7 +315,7 @@ func (b *Binance) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([
 
 	var orders []exchange.OrderDetail
 	for _, symbol := range getOrdersRequest.Currencies {
-		resp, err := b.OpenOrders(symbol)
+		resp, err := b.OpenOrders(symbol.FirstCurrency.String())
 		if err != nil {
 			return nil, err
 		}
@@ -352,7 +352,7 @@ func (b *Binance) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([
 
 	var orders []exchange.OrderDetail
 	for _, symbol := range getOrdersRequest.Currencies {
-		resp, err := b.AllOrders(symbol, "", "1000")
+		resp, err := b.AllOrders(symbol.Pair().String(), "", "1000")
 		if err != nil {
 			return nil, err
 		}

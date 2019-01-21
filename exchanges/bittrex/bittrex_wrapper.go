@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
@@ -289,11 +290,82 @@ func (b *Bittrex) GetWithdrawCapabilities() uint32 {
 
 // GetActiveOrders retrieves any orders that are active/open
 func (b *Bittrex) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
-	return nil, common.ErrNotYetImplemented
+	var currPair string
+	if len(getOrdersRequest.Currencies) == 1 {
+		currPair = getOrdersRequest.Currencies[0].Pair().String()
+	}
+
+	resp, err := b.GetOpenOrders(currPair)
+	if err != nil {
+		return nil, err
+	}
+
+	var orders []exchange.OrderDetail
+	for _, order := range resp.Result {
+		t, err := time.Parse(time.RFC3339, order.Opened)
+		if err != nil {
+			log.Errorf("Could not convert date '%v' to integer for exchange '%v' and order ID '%v'. Leaving blank", order.Opened, b.Name, order.OrderUUID)
+		}
+
+		currency := pair.NewCurrencyPairDelimiter(order.Exchange, b.ConfigCurrencyPairFormat.Delimiter)
+
+		orders = append(orders, exchange.OrderDetail{
+			Amount:          order.Quantity,
+			RemainingAmount: order.QuantityRemaining,
+			Price:           order.Price,
+			OrderDate:       t.Unix(),
+			ID:              order.OrderUUID,
+			BaseCurrency:    currency.SecondCurrency.String(),
+			QuoteCurrency:   currency.FirstCurrency.String(),
+			Exchange:        b.Name,
+			OrderType:       order.Type,
+		})
+	}
+
+	b.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
+	b.FilterOrdersByCurrencies(&orders, getOrdersRequest.Currencies)
+
+	return orders, nil
 }
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
 func (b *Bittrex) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
-	return nil, common.ErrNotYetImplemented
+	var currPair string
+	if len(getOrdersRequest.Currencies) == 1 {
+		currPair = getOrdersRequest.Currencies[0].Pair().String()
+	}
+
+	resp, err := b.GetOrderHistoryForCurrency(currPair)
+	if err != nil {
+		return nil, err
+	}
+
+	var orders []exchange.OrderDetail
+	for _, order := range resp.Result {
+		t, err := time.Parse(time.RFC3339, order.TimeStamp)
+		if err != nil {
+			log.Errorf("Could not convert date '%v' to integer for exchange '%v' and order ID '%v'. Leaving blank", order.Opened, b.Name, order.OrderUUID)
+		}
+
+		currency := pair.NewCurrencyPairDelimiter(order.Exchange, b.ConfigCurrencyPairFormat.Delimiter)
+
+		orders = append(orders, exchange.OrderDetail{
+			Amount:          order.Quantity,
+			RemainingAmount: order.QuantityRemaining,
+			Price:           order.Price,
+			OrderDate:       t.Unix(),
+			ID:              order.OrderUUID,
+			BaseCurrency:    currency.SecondCurrency.String(),
+			QuoteCurrency:   currency.FirstCurrency.String(),
+			Exchange:        b.Name,
+			OrderType:       order.Type,
+			Fee:             order.Commission,
+		})
+	}
+
+	b.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
+	b.FilterOrdersByCurrencies(&orders, getOrdersRequest.Currencies)
+
+	return orders, nil
 }

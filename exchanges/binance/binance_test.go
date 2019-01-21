@@ -344,7 +344,7 @@ func TestGetActiveOrders(t *testing.T) {
 		t.Errorf("Expected '%v', recieved: No error", "At least one currency is required to fetch order history")
 	}
 
-	getOrdersRequest.Currencies = []string{symbol.LTC + symbol.BTC}
+	getOrdersRequest.Currencies = []pair.CurrencyPair{pair.NewCurrencyPair(symbol.LTC, symbol.BTC)}
 
 	_, err = b.GetActiveOrders(getOrdersRequest)
 	if areTestAPIKeysSet() && err != nil {
@@ -368,7 +368,7 @@ func TestGetOrderHistory(t *testing.T) {
 		t.Errorf("Expected '%v', recieved: No error", "At least one currency is required to fetch order history")
 	}
 
-	getOrdersRequest.Currencies = []string{symbol.LTC + symbol.BTC}
+	getOrdersRequest.Currencies = []pair.CurrencyPair{pair.NewCurrencyPair(symbol.LTC, symbol.BTC)}
 
 	_, err = b.GetOrderHistory(getOrdersRequest)
 	if areTestAPIKeysSet() && err != nil {

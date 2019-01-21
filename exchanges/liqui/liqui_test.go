@@ -30,7 +30,6 @@ func TestSetup(t *testing.T) {
 	if err != nil {
 		t.Error("Test Failed - liqui Setup() init error")
 	}
-
 	liquiConfig.AuthenticatedAPISupport = true
 	liquiConfig.APIKey = apiKey
 	liquiConfig.APISecret = apiSecret
@@ -240,7 +239,7 @@ func TestGetActiveOrders(t *testing.T) {
 	l.Verbose = true
 
 	var getOrdersRequest = exchange.GetOrdersRequest{
-		OrderType:   exchange.AnyOrderType,
+		OrderType: exchange.AnyOrderType,
 	}
 
 	_, err := l.GetActiveOrders(getOrdersRequest)
@@ -257,7 +256,7 @@ func TestGetOrderHistory(t *testing.T) {
 	l.Verbose = true
 
 	var getOrdersRequest = exchange.GetOrdersRequest{
-		OrderType:   exchange.AnyOrderType,
+		OrderType: exchange.AnyOrderType,
 	}
 
 	_, err := l.GetOrderHistory(getOrdersRequest)

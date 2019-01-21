@@ -322,8 +322,11 @@ func TestGetActiveOrders(t *testing.T) {
 	b.Verbose = true
 
 	var getOrdersRequest = exchange.GetOrdersRequest{
-		OrderType: exchange.AnyOrderType,
+		OrderType:  exchange.AnyOrderType,
+		Currencies: []pair.CurrencyPair{pair.NewCurrencyPair(symbol.BTC, symbol.LTC)},
 	}
+
+	getOrdersRequest.Currencies[0].Delimiter = "-"
 
 	_, err := b.GetActiveOrders(getOrdersRequest)
 	if areTestAPIKeysSet() && err != nil {

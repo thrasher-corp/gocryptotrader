@@ -31,7 +31,6 @@ func TestSetup(t *testing.T) {
 	if err != nil {
 		t.Error("Test Failed - OKCoin Setup() init error")
 	}
-
 	okcoinConfig.AuthenticatedAPISupport = true
 	okcoinConfig.APIKey = apiKey
 	okcoinConfig.APISecret = apiSecret
@@ -155,7 +154,7 @@ func TestGetActiveOrders(t *testing.T) {
 	o.Verbose = true
 
 	var getOrdersRequest = exchange.GetOrdersRequest{
-		OrderType:   exchange.AnyOrderType,
+		OrderType: exchange.AnyOrderType,
 	}
 
 	_, err := o.GetActiveOrders(getOrdersRequest)
@@ -172,7 +171,7 @@ func TestGetOrderHistory(t *testing.T) {
 	o.Verbose = true
 
 	var getOrdersRequest = exchange.GetOrdersRequest{
-		OrderType:   exchange.AnyOrderType,
+		OrderType: exchange.AnyOrderType,
 	}
 
 	_, err := o.GetOrderHistory(getOrdersRequest)

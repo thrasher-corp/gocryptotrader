@@ -303,11 +303,114 @@ func (b *BTCMarkets) GetWithdrawCapabilities() uint32 {
 
 // GetActiveOrders retrieves any orders that are active/open
 func (b *BTCMarkets) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
-	return nil, common.ErrNotYetImplemented
+	// looks like it only deals with currency pairs
+	resp, err := b.GetOpenOrders()
+	if err != nil {
+		return nil, err
+	}
+
+	var orders []exchange.OrderDetail
+	for _, order := range resp {
+		side := ""
+		if order.OrderSide == "ask" {
+			side = string(exchange.SellOrderSide)
+		} else if order.OrderSide == "bid" {
+			side = string(exchange.BuyOrderSide)
+		}
+
+		openOrder := exchange.OrderDetail{
+			ID:            order.ID,
+			Amount:        order.Volume,
+			BaseCurrency:  order.Currency,
+			Exchange:      b.Name,
+			OpenVolume:    order.OpenVolume,
+			OrderDate:     int64(order.CreationTime),
+			OrderSide:     side,
+			OrderType:     order.OrderType,
+			Price:         order.Price,
+			QuoteCurrency: order.Instrument,
+			Status:        order.Status,
+		}
+
+		for _, trade := range order.Trades {
+			openOrder.Trades = append(openOrder.Trades, exchange.TradeHistory{
+				Amount:      trade.Volume,
+				Exchange:    b.Name,
+				Price:       trade.Price,
+				TID:         trade.ID,
+				Timestamp:   int64(trade.CreationTime),
+				Fee:         trade.Fee,
+				Description: trade.Description,
+			})
+		}
+
+		orders = append(orders, openOrder)
+	}
+
+	b.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
+	b.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
+
+	return orders, nil
 }
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
 func (b *BTCMarkets) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
-	return nil, common.ErrNotYetImplemented
+	if len(getOrdersRequest.Currencies) <= 0 {
+		return nil, errors.New("Requires at least one currency pair to retrieve history")
+	}
+
+	var respOrders []Order
+	for _, currencyPair := range getOrdersRequest.Currencies {
+		resp, err := b.GetOrders(currencyPair.FirstCurrency.String(), currencyPair.SecondCurrency.String(), 200, 0, true)
+		if err != nil {
+			return nil, err
+		}
+		for _, order := range resp {
+			respOrders = append(respOrders, order)
+		}
+	}
+
+	var orders []exchange.OrderDetail
+	for _, order := range respOrders {
+		side := ""
+		if order.OrderSide == "ask" {
+			side = string(exchange.SellOrderSide)
+		} else if order.OrderSide == "bid" {
+			side = string(exchange.BuyOrderSide)
+		}
+
+		openOrder := exchange.OrderDetail{
+			ID:            order.ID,
+			Amount:        order.Volume,
+			BaseCurrency:  order.Currency,
+			Exchange:      b.Name,
+			OpenVolume:    order.OpenVolume,
+			OrderDate:     int64(order.CreationTime),
+			OrderSide:     side,
+			OrderType:     order.OrderType,
+			Price:         order.Price,
+			QuoteCurrency: order.Instrument,
+			Status:        order.Status,
+		}
+
+		for _, trade := range order.Trades {
+			openOrder.Trades = append(openOrder.Trades, exchange.TradeHistory{
+				Amount:      trade.Volume,
+				Exchange:    b.Name,
+				Price:       trade.Price,
+				TID:         trade.ID,
+				Timestamp:   int64(trade.CreationTime),
+				Fee:         trade.Fee,
+				Description: trade.Description,
+			})
+		}
+
+		orders = append(orders, openOrder)
+	}
+
+	b.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
+	b.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
+
+	return orders, nil
 }

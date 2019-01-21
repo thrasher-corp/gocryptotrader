@@ -32,7 +32,6 @@ func TestSetup(t *testing.T) {
 	if err != nil {
 		t.Error("Test Failed - Gemini Setup() init error")
 	}
-
 	itbitConfig.AuthenticatedAPISupport = true
 	itbitConfig.APIKey = apiKey
 	itbitConfig.APISecret = apiSecret
@@ -251,7 +250,7 @@ func TestGetActiveOrders(t *testing.T) {
 	i.Verbose = true
 
 	var getOrdersRequest = exchange.GetOrdersRequest{
-		OrderType:   exchange.AnyOrderType,
+		OrderType: exchange.AnyOrderType,
 	}
 
 	_, err := i.GetActiveOrders(getOrdersRequest)
@@ -268,7 +267,7 @@ func TestGetOrderHistory(t *testing.T) {
 	i.Verbose = true
 
 	var getOrdersRequest = exchange.GetOrdersRequest{
-		OrderType:   exchange.AnyOrderType,
+		OrderType: exchange.AnyOrderType,
 	}
 
 	_, err := i.GetOrderHistory(getOrdersRequest)

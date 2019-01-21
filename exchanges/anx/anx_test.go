@@ -55,11 +55,9 @@ func TestSetup(t *testing.T) {
 		t.Error("Test Failed - ANX Setup() init error")
 	}
 	a.Setup(anxConfig)
-	if testAPIKey != "" && testAPISecret != "" {
-		a.APIKey = testAPIKey
-		a.APISecret = testAPISecret
-		a.AuthenticatedAPISupport = true
-	}
+	a.APIKey = testAPIKey
+	a.APISecret = testAPISecret
+	a.AuthenticatedAPISupport = true
 
 	if a.Enabled != true {
 		t.Error("Test Failed - ANX Setup() incorrect values set")
@@ -234,7 +232,7 @@ func TestGetActiveOrders(t *testing.T) {
 	a.Verbose = true
 
 	var getOrdersRequest = exchange.GetOrdersRequest{
-		OrderType:   exchange.AnyOrderType,
+		OrderType: exchange.AnyOrderType,
 	}
 
 	_, err := a.GetActiveOrders(getOrdersRequest)
@@ -249,9 +247,9 @@ func TestGetOrderHistory(t *testing.T) {
 	a.SetDefaults()
 	TestSetup(t)
 	a.Verbose = true
- 
+
 	var getOrdersRequest = exchange.GetOrdersRequest{
-		OrderType:   exchange.AnyOrderType,
+		OrderType: exchange.AnyOrderType,
 	}
 
 	_, err := a.GetOrderHistory(getOrdersRequest)

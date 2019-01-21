@@ -297,7 +297,7 @@ func (b *Bitstamp) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) (
 	if len(getOrdersRequest.Currencies) > 1 || len(getOrdersRequest.Currencies) <= 0 {
 		currPair = "all"
 	} else {
-		currPair = getOrdersRequest.Currencies[0]
+		currPair = getOrdersRequest.Currencies[0].Pair().String()
 	}
 
 	resp, err := b.GetOpenOrders(currPair)
@@ -329,18 +329,16 @@ func (b *Bitstamp) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) (
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
 func (b *Bitstamp) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
-	var orders []exchange.OrderDetail
 	var currPair string
-	if len(getOrdersRequest.Currencies) > 1 || len(getOrdersRequest.Currencies) <= 0 {
-		currPair = ""
-	} else {
-		currPair = getOrdersRequest.Currencies[0]
+	if len(getOrdersRequest.Currencies) == 1 {
+		currPair = getOrdersRequest.Currencies[0].Pair().String()
 	}
 	resp, err := b.GetUserTransactions(currPair)
 	if err != nil {
 		return nil, err
 	}
 
+	var orders []exchange.OrderDetail
 	for _, order := range resp {
 		if order.Type == 2 {
 			orders = append(orders, exchange.OrderDetail{

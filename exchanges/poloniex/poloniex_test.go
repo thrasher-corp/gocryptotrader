@@ -31,7 +31,6 @@ func TestSetup(t *testing.T) {
 	if err != nil {
 		t.Error("Test Failed - Poloniex Setup() init error")
 	}
-
 	poloniexConfig.AuthenticatedAPISupport = true
 	poloniexConfig.APIKey = apiKey
 	poloniexConfig.APISecret = apiSecret
@@ -200,7 +199,7 @@ func TestGetActiveOrders(t *testing.T) {
 	p.Verbose = true
 
 	var getOrdersRequest = exchange.GetOrdersRequest{
-		OrderType:   exchange.AnyOrderType,
+		OrderType: exchange.AnyOrderType,
 	}
 
 	_, err := p.GetActiveOrders(getOrdersRequest)
@@ -217,7 +216,7 @@ func TestGetOrderHistory(t *testing.T) {
 	p.Verbose = true
 
 	var getOrdersRequest = exchange.GetOrdersRequest{
-		OrderType:   exchange.AnyOrderType,
+		OrderType: exchange.AnyOrderType,
 	}
 
 	_, err := p.GetOrderHistory(getOrdersRequest)

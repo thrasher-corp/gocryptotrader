@@ -32,7 +32,6 @@ func TestSetup(t *testing.T) {
 	if err != nil {
 		t.Error("Test Failed - Bitmex Setup() init error")
 	}
-
 	bitmexConfig.AuthenticatedAPISupport = true
 	bitmexConfig.APIKey = testAPIKey
 	bitmexConfig.APISecret = testAPISecret
@@ -483,7 +482,7 @@ func TestGetOrderHistory(t *testing.T) {
 
 	var getOrdersRequest = exchange.GetOrdersRequest{
 		OrderType:  exchange.AnyOrderType,
-		Currencies: []string{symbol.BTC},
+		Currencies: []pair.CurrencyPair{pair.NewCurrencyPair(symbol.LTC, symbol.BTC)},
 	}
 
 	_, err := b.GetOrderHistory(getOrdersRequest)

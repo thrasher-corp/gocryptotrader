@@ -66,7 +66,6 @@ func TestSetup(t *testing.T) {
 	if err != nil {
 		t.Error("Test Failed - Huobi Setup() init error")
 	}
-
 	hConfig.AuthenticatedAPISupport = true
 	hConfig.APIKey = apiKey
 	hConfig.APISecret = apiSecret
@@ -402,7 +401,7 @@ func TestGetActiveOrders(t *testing.T) {
 	h.Verbose = true
 
 	var getOrdersRequest = exchange.GetOrdersRequest{
-		OrderType:   exchange.AnyOrderType,
+		OrderType: exchange.AnyOrderType,
 	}
 
 	_, err := h.GetActiveOrders(getOrdersRequest)
@@ -419,7 +418,7 @@ func TestGetOrderHistory(t *testing.T) {
 	h.Verbose = true
 
 	var getOrdersRequest = exchange.GetOrdersRequest{
-		OrderType:   exchange.AnyOrderType,
+		OrderType: exchange.AnyOrderType,
 	}
 
 	_, err := h.GetOrderHistory(getOrdersRequest)

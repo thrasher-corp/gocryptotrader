@@ -31,7 +31,6 @@ func TestSetup(t *testing.T) {
 	if err != nil {
 		t.Error("Test Failed - ZB Setup() init error")
 	}
-
 	zbConfig.AuthenticatedAPISupport = true
 	zbConfig.APIKey = apiKey
 	zbConfig.APISecret = apiSecret
@@ -237,7 +236,7 @@ func TestGetActiveOrders(t *testing.T) {
 	z.Verbose = true
 
 	var getOrdersRequest = exchange.GetOrdersRequest{
-		OrderType:   exchange.AnyOrderType,
+		OrderType: exchange.AnyOrderType,
 	}
 
 	_, err := z.GetActiveOrders(getOrdersRequest)
@@ -254,7 +253,7 @@ func TestGetOrderHistory(t *testing.T) {
 	z.Verbose = true
 
 	var getOrdersRequest = exchange.GetOrdersRequest{
-		OrderType:   exchange.AnyOrderType,
+		OrderType: exchange.AnyOrderType,
 	}
 
 	_, err := z.GetOrderHistory(getOrdersRequest)

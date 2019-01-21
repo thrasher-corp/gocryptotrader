@@ -33,7 +33,6 @@ func TestSetup(t *testing.T) {
 	if err != nil {
 		t.Error("Test Failed - Okex Setup() init error")
 	}
-
 	okexConfig.AuthenticatedAPISupport = true
 	okexConfig.APIKey = apiKey
 	okexConfig.APISecret = apiSecret
@@ -404,7 +403,7 @@ func TestGetActiveOrders(t *testing.T) {
 	o.Verbose = true
 
 	var getOrdersRequest = exchange.GetOrdersRequest{
-		OrderType:   exchange.AnyOrderType,
+		OrderType: exchange.AnyOrderType,
 	}
 
 	_, err := o.GetActiveOrders(getOrdersRequest)
@@ -421,7 +420,7 @@ func TestGetOrderHistory(t *testing.T) {
 	o.Verbose = true
 
 	var getOrdersRequest = exchange.GetOrdersRequest{
-		OrderType:   exchange.AnyOrderType,
+		OrderType: exchange.AnyOrderType,
 	}
 
 	_, err := o.GetOrderHistory(getOrdersRequest)

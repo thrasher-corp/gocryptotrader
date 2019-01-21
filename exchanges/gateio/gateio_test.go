@@ -31,7 +31,6 @@ func TestSetup(t *testing.T) {
 	if err != nil {
 		t.Error("Test Failed - GateIO Setup() init error")
 	}
-
 	gateioConfig.AuthenticatedAPISupport = true
 	gateioConfig.APIKey = apiKey
 	gateioConfig.APISecret = apiSecret
@@ -257,7 +256,7 @@ func TestGetActiveOrders(t *testing.T) {
 	g.Verbose = true
 
 	var getOrdersRequest = exchange.GetOrdersRequest{
-		OrderType:   exchange.AnyOrderType,
+		OrderType: exchange.AnyOrderType,
 	}
 
 	_, err := g.GetActiveOrders(getOrdersRequest)
@@ -274,7 +273,7 @@ func TestGetOrderHistory(t *testing.T) {
 	g.Verbose = true
 
 	var getOrdersRequest = exchange.GetOrdersRequest{
-		OrderType:   exchange.AnyOrderType,
+		OrderType: exchange.AnyOrderType,
 	}
 
 	_, err := g.GetOrderHistory(getOrdersRequest)

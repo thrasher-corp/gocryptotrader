@@ -31,12 +31,9 @@ func TestSetup(t *testing.T) {
 	if err != nil {
 		t.Error("Test Failed - BTC Markets Setup() init error")
 	}
-
-	if areTestAPIKeysSet() {
-		bConfig.APIKey = apiKey
-		bConfig.APISecret = apiSecret
-		bConfig.AuthenticatedAPISupport = true
-	}
+	bConfig.APIKey = apiKey
+	bConfig.APISecret = apiSecret
+	bConfig.AuthenticatedAPISupport = true
 
 	b.Setup(bConfig)
 }
@@ -283,7 +280,7 @@ func TestGetActiveOrders(t *testing.T) {
 	b.Verbose = true
 
 	var getOrdersRequest = exchange.GetOrdersRequest{
-		OrderType:   exchange.AnyOrderType,
+		OrderType: exchange.AnyOrderType,
 	}
 
 	_, err := b.GetActiveOrders(getOrdersRequest)
@@ -300,7 +297,8 @@ func TestGetOrderHistory(t *testing.T) {
 	b.Verbose = true
 
 	var getOrdersRequest = exchange.GetOrdersRequest{
-		OrderType:   exchange.AnyOrderType,
+		OrderType:  exchange.AnyOrderType,
+		Currencies: []pair.CurrencyPair{pair.NewCurrencyPair(symbol.BTC, symbol.LTC)},
 	}
 
 	_, err := b.GetOrderHistory(getOrdersRequest)

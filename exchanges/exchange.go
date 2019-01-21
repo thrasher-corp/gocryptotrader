@@ -207,12 +207,14 @@ type AccountCurrencyInfo struct {
 
 // TradeHistory holds exchange history data
 type TradeHistory struct {
-	Timestamp int64
-	TID       int64
-	Price     float64
-	Amount    float64
-	Exchange  string
-	Type      string
+	Timestamp   int64
+	TID         int64
+	Price       float64
+	Amount      float64
+	Exchange    string
+	Type        string
+	Fee         float64
+	Description string
 }
 
 // OrderDetail holds order detail data
@@ -230,6 +232,8 @@ type OrderDetail struct {
 	ExecutedAmount  float64
 	RemainingAmount float64
 	OpenVolume      float64
+	Fee             float64
+	Trades          []TradeHistory
 }
 
 // FundHistory holds exchange funding history data
@@ -960,7 +964,7 @@ type GetOrdersRequest struct {
 	StartTicks int64
 	EndTicks   int64
 	// Currencies Empty array = all currencies. Some endpoints only support singular currency enquiries
-	Currencies []string
+	Currencies []pair.CurrencyPair
 }
 
 // OrderStatus defines order status types
@@ -1037,7 +1041,7 @@ func (e *Base) FilterOrdersByTickRange(orders *[]OrderDetail, startTicks, endTic
 
 // FilterOrdersByCurrencies removes any OrderDetails that do not match the provided currency list
 // It is forgiving in that the provided currencies can match quote or base currencies
-func (e *Base) FilterOrdersByCurrencies(orders *[]OrderDetail, currencies []string) {
+func (e *Base) FilterOrdersByCurrencies(orders *[]OrderDetail, currencies []pair.CurrencyPair) {
 	if len(currencies) <= 0 {
 		return
 	}
@@ -1046,7 +1050,7 @@ func (e *Base) FilterOrdersByCurrencies(orders *[]OrderDetail, currencies []stri
 	for _, orderDetail := range *orders {
 		matchFound := false
 		for _, currency := range currencies {
-			if !matchFound && strings.EqualFold(orderDetail.QuoteCurrency, currency) || strings.EqualFold(orderDetail.BaseCurrency, currency) {
+			if !matchFound && strings.EqualFold(orderDetail.BaseCurrency, currency.FirstCurrency.String()) || strings.EqualFold(orderDetail.QuoteCurrency, currency.SecondCurrency.String()) {
 				matchFound = true
 			}
 		}

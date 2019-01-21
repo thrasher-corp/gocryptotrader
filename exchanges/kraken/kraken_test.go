@@ -30,7 +30,6 @@ func TestSetup(t *testing.T) {
 	if err != nil {
 		t.Error("Test Failed - kraken Setup() init error", err)
 	}
-
 	krakenConfig.AuthenticatedAPISupport = true
 	krakenConfig.APIKey = apiKey
 	krakenConfig.APISecret = apiSecret
@@ -336,7 +335,7 @@ func TestGetActiveOrders(t *testing.T) {
 	k.Verbose = true
 
 	var getOrdersRequest = exchange.GetOrdersRequest{
-		OrderType:   exchange.AnyOrderType,
+		OrderType: exchange.AnyOrderType,
 	}
 
 	_, err := k.GetActiveOrders(getOrdersRequest)
@@ -353,7 +352,7 @@ func TestGetOrderHistory(t *testing.T) {
 	k.Verbose = true
 
 	var getOrdersRequest = exchange.GetOrdersRequest{
-		OrderType:   exchange.AnyOrderType,
+		OrderType: exchange.AnyOrderType,
 	}
 
 	_, err := k.GetOrderHistory(getOrdersRequest)

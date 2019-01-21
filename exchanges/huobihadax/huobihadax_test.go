@@ -62,7 +62,6 @@ func TestSetup(t *testing.T) {
 	if err != nil {
 		t.Error("Test Failed - HuobiHadax Setup() init error")
 	}
-
 	hadaxConfig.AuthenticatedAPISupport = true
 	hadaxConfig.APIKey = apiKey
 	hadaxConfig.APISecret = apiSecret
@@ -382,7 +381,7 @@ func TestGetActiveOrders(t *testing.T) {
 	h.Verbose = true
 
 	var getOrdersRequest = exchange.GetOrdersRequest{
-		OrderType:   exchange.AnyOrderType,
+		OrderType: exchange.AnyOrderType,
 	}
 
 	_, err := h.GetActiveOrders(getOrdersRequest)
@@ -399,7 +398,7 @@ func TestGetOrderHistory(t *testing.T) {
 	h.Verbose = true
 
 	var getOrdersRequest = exchange.GetOrdersRequest{
-		OrderType:   exchange.AnyOrderType,
+		OrderType: exchange.AnyOrderType,
 	}
 
 	_, err := h.GetOrderHistory(getOrdersRequest)
