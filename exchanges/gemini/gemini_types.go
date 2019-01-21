@@ -1,5 +1,7 @@
 package gemini
 
+import "github.com/thrasher-/gocryptotrader/currency/pair"
+
 // Ticker holds returned ticker data from the exchange
 type Ticker struct {
 	Ask    float64 `json:"ask,string"`
@@ -188,4 +190,33 @@ type ErrorCapture struct {
 	Result  string `json:"result"`
 	Reason  string `json:"reason"`
 	Message string `json:"message"`
+}
+
+// Response defines the main response type
+type Response struct {
+	Type           string  `json:"type"`
+	EventID        int64   `json:"eventId"`
+	Timestamp      int64   `json:"timestamp"`
+	TimestampMS    int64   `json:"timestampms"`
+	SocketSequence int64   `json:"socket_sequence"`
+	Events         []Event `json:"events"`
+}
+
+// Event defines orderbook and trade data
+type Event struct {
+	Type      string  `json:"change"`
+	Reason    string  `json:"reason"`
+	Price     float64 `json:"price,string"`
+	Delta     float64 `json:"delta,string"`
+	Remaining float64 `json:"remaining,string"`
+	Side      string  `json:"side"`
+	MakerSide string  `json:"makerSide"`
+	Amount    float64 `json:"amount"`
+}
+
+// ReadData defines read data from the websocket connection
+type ReadData struct {
+	Raw      []byte
+	Currency pair.CurrencyPair
+	FeedType string
 }
