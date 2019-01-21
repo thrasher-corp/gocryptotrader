@@ -1,6 +1,7 @@
 package gateio
 
 import (
+	"encoding/json"
 	"time"
 
 	"github.com/thrasher-/gocryptotrader/currency/symbol"
@@ -362,4 +363,52 @@ var WithdrawalFees = map[string]float64{
 	symbol.MET:      0.3,
 	symbol.TCT:      20,
 	symbol.EXC:      10,
+}
+
+// WebsocketRequest defines the initial request in JSON
+type WebsocketRequest struct {
+	ID     int64         `json:"id"`
+	Method string        `json:"method"`
+	Params []interface{} `json:"params"`
+}
+
+// WebsocketResponse defines a websocket response from gateio
+type WebsocketResponse struct {
+	Time    int64          `json:"time"`
+	Channel string         `json:"channel"`
+	Event   string         `json:""`
+	Error   WebsocketError `json:"error"`
+	Result  struct {
+		Status string `json:"status"`
+	} `json:"result"`
+	Method string            `json:"method"`
+	Params []json.RawMessage `json:"params"`
+}
+
+// WebsocketError defines a websocket error type
+type WebsocketError struct {
+	Code    int64  `json:"code"`
+	Message string `json:"message"`
+}
+
+// WebsocketTicker defines ticker data
+type WebsocketTicker struct {
+	Period      int64   `json:"period"`
+	Open        float64 `json:"open,string"`
+	Close       float64 `json:"close,string"`
+	High        float64 `json:"high,string"`
+	Low         float64 `json:"Low,string"`
+	Last        float64 `json:"last,string"`
+	Change      float64 `json:"change,string"`
+	QuoteVolume float64 `json:"quoteVolume,string"`
+	BaseVolume  float64 `json:"baseVolume,string"`
+}
+
+// WebsocketTrade defines trade data
+type WebsocketTrade struct {
+	ID     int64   `json:"id"`
+	Time   float64 `json:"time"`
+	Price  float64 `json:"price,string"`
+	Amount float64 `json:"amount,string"`
+	Type   string  `json:"type"`
 }

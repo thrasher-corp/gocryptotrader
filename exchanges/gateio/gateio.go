@@ -8,6 +8,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gorilla/websocket"
+
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
@@ -43,6 +45,7 @@ const (
 
 // Gateio is the overarching type across this package
 type Gateio struct {
+	WebsocketConn *websocket.Conn
 	exchange.Base
 }
 
@@ -104,6 +107,14 @@ func (g *Gateio) Setup(exch config.ExchangeConfig) {
 			log.Fatal(err)
 		}
 		err = g.SetClientProxyAddress(exch.ProxyAddress)
+		if err != nil {
+			log.Fatal(err)
+		}
+		err = g.WebsocketSetup(g.WsConnect,
+			exch.Name,
+			exch.Websocket,
+			gateioWebsocketEndpoint,
+			exch.WebsocketURL)
 		if err != nil {
 			log.Fatal(err)
 		}
