@@ -306,11 +306,60 @@ func (e *EXMO) GetWithdrawCapabilities() uint32 {
 
 // GetActiveOrders retrieves any orders that are active/open
 func (e *EXMO) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
-	return nil, common.ErrNotYetImplemented
+	resp, err := e.GetOpenOrders()
+	if err != nil {
+		return nil, err
+	}
+	var orders []exchange.OrderDetail
+	for _, order := range resp {
+		symbol := pair.NewCurrencyPairDelimiter(order.Pair, "_")
+		orders = append(orders, exchange.OrderDetail{
+			ID:            fmt.Sprintf("%v", order.OrderID),
+			Amount:        order.Quantity,
+			OrderDate:     order.Created,
+			Price:         order.Price,
+			OrderSide:     order.Type,
+			BaseCurrency:  symbol.FirstCurrency.String(),
+			QuoteCurrency: symbol.SecondCurrency.String(),
+		})
+	}
+
+	return orders, nil
 }
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
 func (e *EXMO) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
-	return nil, common.ErrNotYetImplemented
+	if len(getOrdersRequest.Currencies) <= 0 {
+		return nil, errors.New("Currency must be supplied")
+	}
+
+	var allTrades []UserTrades
+	for _, currencyPair := range getOrdersRequest.Currencies {
+		resp, err := e.GetUserTrades(currencyPair.Pair().String(), "", "10000")
+		if err != nil {
+			return nil, err
+		}
+		for _, order := range resp {
+			for _, trade := range order {
+				allTrades = append(allTrades, trade)
+			}
+		}
+	}
+
+	var orders []exchange.OrderDetail
+	for _, order := range allTrades {
+		symbol := pair.NewCurrencyPairDelimiter(order.Pair, "_")
+		orders = append(orders, exchange.OrderDetail{
+			ID:            fmt.Sprintf("%v", order.TradeID),
+			Amount:        order.Quantity,
+			OrderDate:     order.Date,
+			Price:         order.Price,
+			OrderSide:     order.Type,
+			BaseCurrency:  symbol.FirstCurrency.String(),
+			QuoteCurrency: symbol.SecondCurrency.String(),
+		})
+	}
+
+	return orders, nil
 }
