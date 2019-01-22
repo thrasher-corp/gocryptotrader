@@ -125,7 +125,11 @@ func (g *Gemini) WsHandleData() {
 
 			case geminiWsMarketData:
 				var result Response
-				common.JSONDecode(resp.Raw, &result)
+				err := common.JSONDecode(resp.Raw, &result)
+				if err != nil {
+					g.Websocket.DataHandler <- err
+					continue
+				}
 
 				switch result.Type {
 				case "update":
