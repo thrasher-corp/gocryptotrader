@@ -8,14 +8,11 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
-
-	"github.com/thrasher-/gocryptotrader/currency/pair"
-
-	"github.com/thrasher-/gocryptotrader/common"
-
 	"github.com/gorilla/websocket"
+	"github.com/thrasher-/gocryptotrader/common"
+	"github.com/thrasher-/gocryptotrader/currency/pair"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
+	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 )
 
 const (
@@ -233,31 +230,40 @@ func (g *Gateio) WsHandleData() {
 				}
 
 				var asks, bids []orderbook.Item
-				askData, ok := data["asks"]
-				if ok {
-					for _, ask := range askData {
-						amount, _ := strconv.ParseFloat(ask[1], 64)
-						price, _ := strconv.ParseFloat(ask[0], 64)
-						asks = append(asks, orderbook.Item{
-							Amount: amount,
-							Price:  price,
-						})
-					}
+
+				askData, askOk := data["asks"]
+				for _, ask := range askData {
+					amount, _ := strconv.ParseFloat(ask[1], 64)
+					price, _ := strconv.ParseFloat(ask[0], 64)
+					asks = append(asks, orderbook.Item{
+						Amount: amount,
+						Price:  price,
+					})
 				}
 
-				bidData, ok := data["bids"]
-				if ok {
-					for _, bid := range bidData {
-						amount, _ := strconv.ParseFloat(bid[1], 64)
-						price, _ := strconv.ParseFloat(bid[0], 64)
-						bids = append(bids, orderbook.Item{
-							Amount: amount,
-							Price:  price,
-						})
-					}
+				bidData, bidOk := data["bids"]
+				for _, bid := range bidData {
+					amount, _ := strconv.ParseFloat(bid[1], 64)
+					price, _ := strconv.ParseFloat(bid[0], 64)
+					bids = append(bids, orderbook.Item{
+						Amount: amount,
+						Price:  price,
+					})
+				}
+
+				if !askOk && !bidOk {
+					g.Websocket.DataHandler <- errors.New("gatio websocket error - cannot access ask or bid data")
 				}
 
 				if IsSnapshot {
+					if !askOk {
+						g.Websocket.DataHandler <- errors.New("gatio websocket error - cannot access ask data")
+					}
+
+					if !bidOk {
+						g.Websocket.DataHandler <- errors.New("gatio websocket error - cannot access bid data")
+					}
+
 					var newOrderbook orderbook.Base
 					newOrderbook.Asks = asks
 					newOrderbook.Bids = bids
