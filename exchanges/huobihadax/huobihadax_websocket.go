@@ -16,7 +16,6 @@ import (
 	"github.com/thrasher-/gocryptotrader/currency/pair"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
-	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
 const (
@@ -113,7 +112,8 @@ func (h *HUOBIHADAX) WsHandleData() {
 			var init WsResponse
 			err = common.JSONDecode(resp.Raw, &init)
 			if err != nil {
-				log.Error(err)
+				h.Websocket.DataHandler <- err
+				continue
 			}
 
 			if init.Status == "error" {
@@ -130,7 +130,8 @@ func (h *HUOBIHADAX) WsHandleData() {
 			if init.Ping != 0 {
 				err = h.WebsocketConn.WriteJSON(`{"pong":1337}`)
 				if err != nil {
-					log.Error(err)
+					h.Websocket.DataHandler <- err
+					continue
 				}
 				continue
 			}
@@ -140,7 +141,8 @@ func (h *HUOBIHADAX) WsHandleData() {
 				var depth WsDepth
 				err := common.JSONDecode(resp.Raw, &depth)
 				if err != nil {
-					log.Error(err)
+					h.Websocket.DataHandler <- err
+					continue
 				}
 
 				data := common.SplitStrings(depth.Channel, ".")
@@ -151,7 +153,8 @@ func (h *HUOBIHADAX) WsHandleData() {
 				var kline WsKline
 				err := common.JSONDecode(resp.Raw, &kline)
 				if err != nil {
-					log.Error(err)
+					h.Websocket.DataHandler <- err
+					continue
 				}
 
 				data := common.SplitStrings(kline.Channel, ".")
@@ -172,7 +175,8 @@ func (h *HUOBIHADAX) WsHandleData() {
 				var trade WsTrade
 				err := common.JSONDecode(resp.Raw, &trade)
 				if err != nil {
-					log.Error(err)
+					h.Websocket.DataHandler <- err
+					continue
 				}
 
 				data := common.SplitStrings(trade.Channel, ".")
