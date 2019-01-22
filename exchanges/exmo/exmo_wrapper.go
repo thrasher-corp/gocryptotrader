@@ -321,6 +321,7 @@ func (e *EXMO) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]ex
 			OrderSide:     order.Type,
 			BaseCurrency:  symbol.FirstCurrency.String(),
 			QuoteCurrency: symbol.SecondCurrency.String(),
+			Exchange:      e.Name,
 		})
 	}
 
@@ -361,6 +362,7 @@ func (e *EXMO) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]ex
 			OrderSide:     order.Type,
 			BaseCurrency:  symbol.FirstCurrency.String(),
 			QuoteCurrency: symbol.SecondCurrency.String(),
+			Exchange:      e.Name,
 		})
 	}
 

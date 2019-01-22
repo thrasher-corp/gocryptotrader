@@ -355,6 +355,7 @@ func (g *Gateio) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]
 			RemainingAmount: order.FilledAmount,
 			OrderDate:       order.Timestamp,
 			OrderSide:       side,
+			Exchange:        g.Name,
 		})
 	}
 
@@ -397,6 +398,7 @@ func (g *Gateio) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]
 			Price:         trade.Rate,
 			OrderDate:     trade.TimeUnix,
 			OrderSide:     side,
+			Exchange:      g.Name,
 		})
 	}
 

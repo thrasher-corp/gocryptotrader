@@ -244,11 +244,88 @@ func (g *Gemini) GetWithdrawCapabilities() uint32 {
 
 // GetActiveOrders retrieves any orders that are active/open
 func (g *Gemini) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
-	return nil, common.ErrNotYetImplemented
+	resp, err := g.GetOrders()
+	if err != nil {
+		return nil, err
+	}
+
+	var orders []exchange.OrderDetail
+	for _, order := range resp {
+		symbol := pair.NewCurrencyPairDelimiter(order.Symbol, g.ConfigCurrencyPairFormat.Delimiter)
+
+		orderType := ""
+		switch order.Type {
+		case "exchange limit":
+			orderType = string(exchange.LimitOrderType)
+			break
+		case "market buy":
+		case "market sell":
+			orderType = string(exchange.MarketOrderType)
+			break
+		}
+
+		side := ""
+		if order.Type == "buy" {
+			side = string(exchange.BuyOrderSide)
+		} else if order.Type == "sell" {
+			side = string(exchange.SellOrderSide)
+		}
+
+		orders = append(orders, exchange.OrderDetail{
+			Amount:          order.OriginalAmount,
+			RemainingAmount: order.RemainingAmount,
+			ID:              fmt.Sprintf("%v", order.OrderID),
+			ExecutedAmount:  order.ExecutedAmount,
+			Exchange:        g.Name,
+			OrderType:       orderType,
+			OrderSide:       side,
+			Price:           order.Price,
+			BaseCurrency:    symbol.FirstCurrency.String(),
+			QuoteCurrency:   symbol.SecondCurrency.String(),
+		})
+	}
+
+	return orders, nil
 }
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
 func (g *Gemini) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
-	return nil, common.ErrNotYetImplemented
+	var trades []TradeHistory
+	for _, currency := range getOrdersRequest.Currencies {
+		resp, err := g.GetTradeHistory(currency.Pair().String(), -1)
+		if err != nil {
+			return nil, err
+		}
+
+		for _, trade := range resp {
+			trade.BaseCurrency = currency.FirstCurrency.String()
+			trade.QuoteCurrency = currency.SecondCurrency.String()
+			trades = append(trades, trade)
+		}
+	}
+
+	var orders []exchange.OrderDetail
+	for _, trade := range trades {
+		side := ""
+		if trade.Type == "buy" {
+			side = string(exchange.BuyOrderSide)
+		} else if trade.Type == "sell" {
+			side = string(exchange.SellOrderSide)
+		}
+
+		orders = append(orders, exchange.OrderDetail{
+			Amount:        trade.Amount,
+			ID:            fmt.Sprintf("%v", trade.OrderID),
+			Exchange:      g.Name,
+			BaseCurrency:  trade.BaseCurrency,
+			QuoteCurrency: trade.QuoteCurrency,
+			OrderDate:     trade.Timestamp,
+			OrderSide:     side,
+			Fee:           trade.FeeAmount,
+			Price:         trade.Price,
+		})
+	}
+
+	return orders, nil
 }

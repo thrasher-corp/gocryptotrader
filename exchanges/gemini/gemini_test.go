@@ -24,7 +24,7 @@ const (
 	apiKeyRole2       = ""
 	sessionHeartBeat2 = false
 
-	canManipulateRealOrders = !false
+	canManipulateRealOrders = false
 )
 
 func TestAddSession(t *testing.T) {
@@ -341,12 +341,14 @@ func TestFormatWithdrawPermissions(t *testing.T) {
 }
 
 func TestGetActiveOrders(t *testing.T) {
-	Session[1].SetDefaults()
+	TestAddSession(t)
+	TestSetDefaults(t)
 	TestSetup(t)
 	Session[1].Verbose = true
 
 	var getOrdersRequest = exchange.GetOrdersRequest{
-		OrderType:   exchange.AnyOrderType,
+		OrderType:  exchange.AnyOrderType,
+		Currencies: []pair.CurrencyPair{pair.NewCurrencyPair(symbol.LTC, symbol.BTC)},
 	}
 
 	_, err := Session[1].GetActiveOrders(getOrdersRequest)
@@ -358,15 +360,18 @@ func TestGetActiveOrders(t *testing.T) {
 }
 
 func TestGetOrderHistory(t *testing.T) {
-	Session[1].SetDefaults()
+	TestAddSession(t)
+	TestSetDefaults(t)
 	TestSetup(t)
 	Session[1].Verbose = true
 
 	var getOrdersRequest = exchange.GetOrdersRequest{
-		OrderType:   exchange.AnyOrderType,
+		OrderType:  exchange.AnyOrderType,
+		Currencies: []pair.CurrencyPair{pair.NewCurrencyPair(symbol.LTC, symbol.BTC)},
 	}
 
-	_, err := Session[1].GetOrderHistory(getOrdersRequest)
+	butts, err := Session[1].GetOrderHistory(getOrdersRequest)
+	t.Log(butts)
 	if areTestAPIKeysSet() && err != nil {
 		t.Errorf("Could not get order history: %s", err)
 	} else if !areTestAPIKeysSet() && err == nil {
