@@ -121,6 +121,7 @@ func (b *BTCC) WsHandleData() {
 			resp, err := b.WsReadData()
 			if err != nil {
 				b.Websocket.DataHandler <- err
+				return
 			}
 
 			var Result WsResponseMain
