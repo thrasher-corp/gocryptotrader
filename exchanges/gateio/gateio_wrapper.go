@@ -322,11 +322,83 @@ func (g *Gateio) GetWithdrawCapabilities() uint32 {
 
 // GetActiveOrders retrieves any orders that are active/open
 func (g *Gateio) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
-	return nil, common.ErrNotYetImplemented
+	var currPair string
+	if len(getOrdersRequest.Currencies) == 1 {
+		currPair = getOrdersRequest.Currencies[0].Pair().String()
+	}
+
+	resp, err := g.GetOpenOrders(currPair)
+	if err != nil {
+		return nil, err
+	}
+
+	var orders []exchange.OrderDetail
+	for _, order := range resp.Orders {
+		if order.Status != "open" {
+			continue
+		}
+
+		symbol := pair.NewCurrencyPairDelimiter(order.CurrencyPair, g.ConfigCurrencyPairFormat.Delimiter)
+		side := ""
+		if order.Type == "buy" {
+			side = string(exchange.BuyOrderSide)
+		} else if order.Type == "sell" {
+			side = string(exchange.SellOrderSide)
+		}
+
+		orders = append(orders, exchange.OrderDetail{
+			ID:              order.OrderNumber,
+			Amount:          order.Amount,
+			BaseCurrency:    symbol.FirstCurrency.String(),
+			QuoteCurrency:   symbol.SecondCurrency.String(),
+			Price:           order.Rate,
+			RemainingAmount: order.FilledAmount,
+			OrderDate:       order.Timestamp,
+			OrderSide:       side,
+		})
+	}
+
+	g.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
+	g.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
+
+	return orders, nil
 }
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
 func (g *Gateio) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
-	return nil, common.ErrNotYetImplemented
+	var trades []TradesResponse
+	for _, currency := range getOrdersRequest.Currencies {
+		resp, err := g.GetTradeHistory(currency.Pair().String())
+		if err != nil {
+			return nil, err
+		}
+
+		for _, trade := range resp.Trades {
+			trades = append(trades, trade)
+		}
+	}
+
+	var orders []exchange.OrderDetail
+	for _, trade := range trades {
+		symbol := pair.NewCurrencyPairDelimiter(trade.Pair, g.ConfigCurrencyPairFormat.Delimiter)
+		side := ""
+		if trade.Type == "buy" {
+			side = string(exchange.BuyOrderSide)
+		} else if trade.Type == "sell" {
+			side = string(exchange.SellOrderSide)
+		}
+
+		orders = append(orders, exchange.OrderDetail{
+			ID:            trade.OrderID,
+			Amount:        trade.Amount,
+			BaseCurrency:  symbol.FirstCurrency.String(),
+			QuoteCurrency: symbol.SecondCurrency.String(),
+			Price:         trade.Rate,
+			OrderDate:     trade.TimeUnix,
+			OrderSide:     side,
+		})
+	}
+
+	return orders, nil
 }

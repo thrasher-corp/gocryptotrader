@@ -276,6 +276,10 @@ func TestGetOrderHistory(t *testing.T) {
 		OrderType: exchange.AnyOrderType,
 	}
 
+	currPair := pair.NewCurrencyPair(symbol.LTC, symbol.BTC)
+	currPair.Delimiter = "_"
+	getOrdersRequest.Currencies = []pair.CurrencyPair{currPair}
+
 	_, err := g.GetOrderHistory(getOrdersRequest)
 	if areTestAPIKeysSet() && err != nil {
 		t.Errorf("Could not get order history: %s", err)

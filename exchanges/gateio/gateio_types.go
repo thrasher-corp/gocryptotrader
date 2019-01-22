@@ -142,18 +142,39 @@ type OpenOrdersResponse struct {
 
 // OpenOrder details each open order
 type OpenOrder struct {
-	Amount        string  `json:"amount"`
+	Amount        float64 `json:"amount,string"`
 	CurrencyPair  string  `json:"currencyPair"`
-	FilledAmount  int     `json:"filledAmount"`
-	FilledRate    int     `json:"filledRate"`
-	InitialAmount string  `json:"initialAmount"`
+	FilledAmount  float64 `json:"filledAmount,string"`
+	FilledRate    float64 `json:"filledRate"`
+	InitialAmount float64 `json:"initialAmount"`
 	InitialRate   float64 `json:"initialRate"`
 	OrderNumber   string  `json:"orderNumber"`
 	Rate          float64 `json:"rate"`
 	Status        string  `json:"status"`
-	Timestamp     string  `json:"timestamp"`
-	Total         string  `json:"total"`
+	Timestamp     int64   `json:"timestamp"`
+	Total         float64 `json:"total,string"`
 	Type          string  `json:"type"`
+}
+
+// TradHistoryResponse The full response for retrieving all user trade history
+type TradHistoryResponse struct {
+	Code    int              `json:"code,omitempty"`
+	Elapsed string           `json:"elapsed,omitempty"`
+	Message string           `json:"message"`
+	Trades  []TradesResponse `json:"trades"`
+	Result  string           `json:"result"`
+}
+
+// TradesResponse details trade history
+type TradesResponse struct {
+	ID       string  `json:"id"`
+	OrderID  string  `json:"orderid"`
+	Pair     string  `json:"pair"`
+	Type     string  `json:"type"`
+	Rate     float64 `json:"rate,string"`
+	Amount   float64 `json:"amount,string"`
+	Time     string  `json:"time"`
+	TimeUnix int64   `json:"time_unix,string"`
 }
 
 // WithdrawalFees the large list of predefined withdrawal fees

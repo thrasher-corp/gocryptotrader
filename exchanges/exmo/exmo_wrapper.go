@@ -324,6 +324,9 @@ func (e *EXMO) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]ex
 		})
 	}
 
+	e.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
+	e.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
+
 	return orders, nil
 }
 
@@ -360,6 +363,9 @@ func (e *EXMO) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]ex
 			QuoteCurrency: symbol.SecondCurrency.String(),
 		})
 	}
+
+	e.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
+	e.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
 
 	return orders, nil
 }

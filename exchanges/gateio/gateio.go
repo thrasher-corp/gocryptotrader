@@ -31,6 +31,7 @@ const (
 	gateioCancelAllOrders = "private/cancelAllOrders"
 	gateioWithdraw        = "private/withdraw"
 	gateioOpenOrders      = "private/openOrders"
+	gateioTradeHistory    = "private/tradeHistory"
 	gateioDepositAddress  = "private/depositAddress"
 	gateioTicker          = "ticker"
 	gateioTickers         = "tickers"
@@ -428,7 +429,6 @@ func (g *Gateio) CancelAllExistingOrders(orderType int64, symbol string) error {
 	return nil
 }
 
-//
 // GetOpenOrders retrieves all orders with an optional symbol filter
 func (g *Gateio) GetOpenOrders(symbol string) (OpenOrdersResponse, error) {
 	var params string
@@ -439,6 +439,24 @@ func (g *Gateio) GetOpenOrders(symbol string) (OpenOrdersResponse, error) {
 	}
 
 	err := g.SendAuthenticatedHTTPRequest("POST", gateioOpenOrders, params, &result)
+	if err != nil {
+		return result, err
+	}
+
+	if result.Code > 0 {
+		return result, fmt.Errorf("code:%d message:%s", result.Code, result.Message)
+	}
+
+	return result, nil
+}
+
+// GetOpenOrders retrieves all orders with an optional symbol filter
+func (g *Gateio) GetTradeHistory(symbol string) (TradHistoryResponse, error) {
+	var params string
+	var result TradHistoryResponse
+	params = fmt.Sprintf("currencyPair=%s", symbol)
+
+	err := g.SendAuthenticatedHTTPRequest("POST", gateioTradeHistory, params, &result)
 	if err != nil {
 		return result, err
 	}
