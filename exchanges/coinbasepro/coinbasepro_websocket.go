@@ -123,6 +123,7 @@ func (c *CoinbasePro) WsHandleData() {
 			resp, err := c.WsReadData()
 			if err != nil {
 				c.Websocket.DataHandler <- err
+				return
 			}
 
 			type MsgType struct {
