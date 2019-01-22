@@ -149,12 +149,14 @@ func (p *Poloniex) WsHandleData() {
 			resp, err := p.WsReadData()
 			if err != nil {
 				p.Websocket.DataHandler <- err
+				return
 			}
 
 			var result interface{}
 			err = common.JSONDecode(resp.Raw, &result)
 			if err != nil {
-				log.Errorf("poloniex websocket decode error - %s", err)
+				p.Websocket.DataHandler <- err
+				continue
 			}
 
 			data := result.([]interface{})
@@ -214,19 +216,19 @@ func (p *Poloniex) WsHandleData() {
 							dataL3map := dataL3[1].(map[string]interface{})
 							currencyPair, ok := dataL3map["currencyPair"].(string)
 							if !ok {
-								log.Error("poloniex.go error - could not find currency pair in map")
+								p.Websocket.DataHandler <- errors.New("poloniex.go error - could not find currency pair in map")
 								continue
 							}
 
 							orderbookData, ok := dataL3map["orderBook"].([]interface{})
 							if !ok {
-								log.Error("poloniex.go error - could not find orderbook data in map")
+								p.Websocket.DataHandler <- errors.New("poloniex.go error - could not find orderbook data in map")
 								continue
 							}
 
 							err := p.WsProcessOrderbookSnapshot(orderbookData, currencyPair)
 							if err != nil {
-								log.Error(err)
+								p.Websocket.DataHandler <- err
 								continue
 							}
 
@@ -239,7 +241,7 @@ func (p *Poloniex) WsHandleData() {
 							currencyPair := CurrencyPairID[chanID]
 							err := p.WsProcessOrderbookUpdate(dataL3, currencyPair)
 							if err != nil {
-								log.Error(err)
+								p.Websocket.DataHandler <- err
 								continue
 							}
 
