@@ -111,7 +111,8 @@ func (h *HUOBI) WsHandleData() {
 			var init WsResponse
 			err = common.JSONDecode(resp.Raw, &init)
 			if err != nil {
-				log.Error(err)
+				h.Websocket.DataHandler <- err
+				continue
 			}
 
 			if init.Status == "error" {
