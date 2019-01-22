@@ -123,7 +123,8 @@ func (o *OKCoin) WsHandleData() {
 			var init []WsResponse
 			err = common.JSONDecode(resp.Raw, &init)
 			if err != nil {
-				log.Error(err)
+				o.Websocket.DataHandler <- err
+				continue
 			}
 
 			if init[0].ErrorCode != "" {
