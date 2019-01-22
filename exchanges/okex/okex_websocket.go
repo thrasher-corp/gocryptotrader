@@ -185,6 +185,7 @@ func (o *OKEX) WsHandleData() {
 			resp, err := o.WsReadData()
 			if err != nil {
 				o.Websocket.DataHandler <- err
+				return
 			}
 
 			multiStreamDataArr := []MultiStreamData{}
@@ -194,8 +195,8 @@ func (o *OKEX) WsHandleData() {
 				if strings.Contains(string(resp.Raw), "pong") {
 					continue
 				} else {
-					log.Error(err)
-					return
+					o.Websocket.DataHandler <- err
+					continue
 				}
 			}
 
@@ -225,8 +226,8 @@ func (o *OKEX) WsHandleData() {
 
 					err = common.JSONDecode(multiStreamData.Data, &ticker)
 					if err != nil {
-						log.Errorf("OKEX Ticker Decode Error: %s", err)
-						return
+						o.Websocket.DataHandler <- err
+						continue
 					}
 
 					o.Websocket.DataHandler <- exchange.TickerData{
@@ -240,8 +241,8 @@ func (o *OKEX) WsHandleData() {
 
 					err = common.JSONDecode(multiStreamData.Data, &deals)
 					if err != nil {
-						log.Errorf("OKEX Deals Decode Error: %s", err)
-						return
+						o.Websocket.DataHandler <- err
+						continue
 					}
 
 					for _, trade := range deals {
@@ -265,8 +266,8 @@ func (o *OKEX) WsHandleData() {
 
 					err := common.JSONDecode(multiStreamData.Data, &klines)
 					if err != nil {
-						log.Errorf("OKEX Klines Decode Error: %s", err)
-						return
+						o.Websocket.DataHandler <- err
+						continue
 					}
 
 					for _, kline := range klines {
@@ -295,8 +296,8 @@ func (o *OKEX) WsHandleData() {
 
 					err := common.JSONDecode(multiStreamData.Data, &depth)
 					if err != nil {
-						log.Errorf("OKEX Depth Decode Error: %s", err)
-						return
+						o.Websocket.DataHandler <- err
+						continue
 					}
 
 					o.Websocket.DataHandler <- exchange.WebsocketOrderbookUpdate{
