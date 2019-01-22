@@ -60,6 +60,7 @@ func (c *COINUT) WsHandleData() {
 			resp, err := c.WsReadData()
 			if err != nil {
 				c.Websocket.DataHandler <- err
+				return
 			}
 
 			var incoming wsResponse
