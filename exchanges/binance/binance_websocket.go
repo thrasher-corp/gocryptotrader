@@ -186,9 +186,7 @@ func (b *Binance) WSConnect() error {
 func (b *Binance) WSReadData() (exchange.WebsocketResponse, error) {
 	msgType, resp, err := b.WebsocketConn.ReadMessage()
 	if err != nil {
-		return exchange.WebsocketResponse{},
-			fmt.Errorf("binance_websocket.go - Websocket Read Data. Error: %s",
-				err)
+		return exchange.WebsocketResponse{}, err
 	}
 
 	b.Websocket.TrafficAlert <- struct{}{}

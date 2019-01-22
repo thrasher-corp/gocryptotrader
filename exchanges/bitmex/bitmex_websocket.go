@@ -127,9 +127,7 @@ func (b *Bitmex) WsConnector() error {
 func (b *Bitmex) wsReadData() (exchange.WebsocketResponse, error) {
 	_, resp, err := b.WebsocketConn.ReadMessage()
 	if err != nil {
-		return exchange.WebsocketResponse{},
-			fmt.Errorf("bitmex_websocket.go - websocket connection Error: %s",
-				err)
+		return exchange.WebsocketResponse{}, err
 	}
 
 	b.Websocket.TrafficAlert <- struct{}{}
