@@ -172,17 +172,7 @@ func (z *ZB) WsHandleData() {
 		case common.StringContains(result.Channel, "ticker"):
 			cPair := common.SplitStrings(result.Channel, "_")
 
-			ticker := struct {
-				Date int64 `json:"date,string"`
-				Data struct {
-					Volume24Hr float64 `json:"vol,string"`
-					High       float64 `json:"high,string"`
-					Low        float64 `json:"low,string"`
-					Last       float64 `json:"last,string"`
-					Buy        float64 `json:"buy,string"`
-					Sell       float64 `json:"sell,string"`
-				} `json:"ticker"`
-			}{}
+			var ticker WsTicker
 
 			err := common.JSONDecode(resp.Raw, &ticker)
 			if err != nil {
@@ -201,12 +191,7 @@ func (z *ZB) WsHandleData() {
 			}
 
 		case common.StringContains(result.Channel, "depth"):
-			depth := struct {
-				Timestamp int64         `json:"timestamp"`
-				Asks      []interface{} `json:"asks"`
-				Bids      []interface{} `json:"bids"`
-			}{}
-
+			var depth WsDepth
 			err := common.JSONDecode(resp.Raw, &depth)
 			if err != nil {
 				z.Websocket.DataHandler <- err
@@ -255,17 +240,7 @@ func (z *ZB) WsHandleData() {
 			}
 
 		case common.StringContains(result.Channel, "trades"):
-			trades := struct {
-				Data []struct {
-					Amount    float64 `json:"amount,string"`
-					Price     float64 `json:"price,string"`
-					TID       int64   `json:"tid"`
-					Date      int64   `json:"date"`
-					Type      string  `json:"type"`
-					TradeType string  `json:"trade_type"`
-				} `json:"data"`
-			}{}
-
+			var trades WsTrades
 			err := common.JSONDecode(resp.Raw, &trades)
 			if err != nil {
 				z.Websocket.DataHandler <- err
