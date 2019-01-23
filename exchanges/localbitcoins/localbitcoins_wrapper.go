@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/thrasher-/gocryptotrader/currency/symbol"
 
@@ -296,11 +297,111 @@ func (l *LocalBitcoins) GetWithdrawCapabilities() uint32 {
 
 // GetActiveOrders retrieves any orders that are active/open
 func (l *LocalBitcoins) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
-	return nil, common.ErrNotYetImplemented
+	resp, err := l.GetDashboardInfo()
+	if err != nil {
+		return nil, err
+	}
+
+	var orders []exchange.OrderDetail
+	for _, trade := range resp {
+		t, err := time.Parse(time.RFC3339, trade.Data.CreatedAt)
+		if err != nil {
+			log.Errorf("Exchange %v Func %v Order %v Could not parse date to unix with value of %v",
+				l.Name, "GetActiveOrders", trade.Data.Advertisement.ID, trade.Data.CreatedAt)
+		}
+
+		side := ""
+		if trade.Data.IsBuying {
+			side = string(exchange.BuyOrderSide)
+		} else if trade.Data.IsSelling {
+			side = string(exchange.SellOrderSide)
+		}
+
+		orders = append(orders, exchange.OrderDetail{
+			Amount:        trade.Data.AmountBTC,
+			Price:         trade.Data.Amount,
+			ID:            fmt.Sprintf("%v", trade.Data.Advertisement.ID),
+			OrderDate:     t.Unix(),
+			Fee:           trade.Data.FeeBTC,
+			OrderSide:     side,
+			BaseCurrency:  symbol.BTC,
+			QuoteCurrency: trade.Data.Currency,
+		})
+	}
+
+	l.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
+	l.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
+
+	return orders, nil
 }
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
 func (l *LocalBitcoins) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
-	return nil, common.ErrNotYetImplemented
+	var allTrades []DashBoardInfo
+	resp, err := l.GetDashboardCancelledTrades()
+	if err != nil {
+		return nil, err
+	}
+	for _, trade := range resp {
+		allTrades = append(allTrades, trade)
+	}
+
+	resp, err = l.GetDashboardClosedTrades()
+	if err != nil {
+		return nil, err
+	}
+	for _, trade := range resp {
+		allTrades = append(allTrades, trade)
+	}
+
+	resp, err = l.GetDashboardReleasedTrades()
+	if err != nil {
+		return nil, err
+	}
+	for _, trade := range resp {
+		allTrades = append(allTrades, trade)
+	}
+
+	var orders []exchange.OrderDetail
+	for _, trade := range resp {
+		t, err := time.Parse(time.RFC3339, trade.Data.CreatedAt)
+		if err != nil {
+			log.Errorf("Exchange %v Func %v Order %v Could not parse date to unix with value of %v",
+				l.Name, "GetActiveOrders", trade.Data.Advertisement.ID, trade.Data.CreatedAt)
+		}
+
+		side := ""
+		if trade.Data.IsBuying {
+			side = string(exchange.BuyOrderSide)
+		} else if trade.Data.IsSelling {
+			side = string(exchange.SellOrderSide)
+		}
+
+		status := ""
+		if trade.Data.ReleasedAt != "" && trade.Data.ReleasedAt != "null" {
+			status = "Released"
+		} else if trade.Data.CanceledAt != "" && trade.Data.CanceledAt != "null" {
+			status = "Cancelled"
+		} else if trade.Data.ClosedAt != "" && trade.Data.ClosedAt != "null" {
+			status = "Closed"
+		}
+
+		orders = append(orders, exchange.OrderDetail{
+			Amount:        trade.Data.AmountBTC,
+			Price:         trade.Data.Amount,
+			ID:            fmt.Sprintf("%v", trade.Data.Advertisement.ID),
+			OrderDate:     t.Unix(),
+			Fee:           trade.Data.FeeBTC,
+			OrderSide:     side,
+			Status:        status,
+			BaseCurrency:  symbol.BTC,
+			QuoteCurrency: trade.Data.Currency,
+		})
+	}
+
+	l.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
+	l.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
+
+	return orders, nil
 }

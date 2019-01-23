@@ -239,7 +239,8 @@ func TestGetActiveOrders(t *testing.T) {
 	l.Verbose = true
 
 	var getOrdersRequest = exchange.GetOrdersRequest{
-		OrderType: exchange.AnyOrderType,
+		OrderType:  exchange.AnyOrderType,
+		Currencies: []pair.CurrencyPair{pair.NewCurrencyPair(symbol.BTC, symbol.USDT)},
 	}
 
 	_, err := l.GetActiveOrders(getOrdersRequest)
@@ -260,10 +261,8 @@ func TestGetOrderHistory(t *testing.T) {
 	}
 
 	_, err := l.GetOrderHistory(getOrdersRequest)
-	if areTestAPIKeysSet() && err != nil {
-		t.Errorf("Could not get order history: %s", err)
-	} else if !areTestAPIKeysSet() && err == nil {
-		t.Errorf("Expecting an error when no keys are set: %v", err)
+	if err != common.ErrFunctionNotSupported {
+		t.Errorf("Expected '%v', recieved: '%v'", common.ErrFunctionNotSupported, err)
 	}
 }
 

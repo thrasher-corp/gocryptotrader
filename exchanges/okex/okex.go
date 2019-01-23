@@ -64,7 +64,8 @@ const (
 	spotTrade          = "trade"
 	spotBatchTrade     = "batch_trade"
 	spotCancelTrade    = "cancel_order"
-	spotOrderInfo      = "order_info"
+	spotOrderInfo      = "order_info.do"
+	spotOrderHistory   = "order_history.do"
 	spotMultiOrderInfo = "orders_info"
 	spotWithdraw       = "withdraw.do"
 	spotCancelWithdraw = "cancel_withdraw"
@@ -1255,4 +1256,47 @@ func (o *OKEX) Withdrawal(symbol string, fee float64, tradePWD, address string, 
 	}
 
 	return resp.WithdrawID, nil
+}
+
+// GetOrderInformation withdraws a cryptocurrency to a supplied address
+func (o *OKEX) GetOrderInformation(orderID int64, symbol string) ([]OrderInfo, error) {
+	type Response struct {
+		Result bool        `json:"result"`
+		Orders []OrderInfo `json:"orders"`
+	}
+
+	v := url.Values{}
+	v.Set("symbol", symbol)
+	v.Set("order_id", strconv.FormatInt(orderID, 10))
+	result := Response{}
+
+	err := o.SendAuthenticatedHTTPRequest(spotOrderInfo, v, &result)
+
+	if err != nil {
+		return nil, err
+	}
+
+	if result.Result != true {
+		return nil, errors.New("unable to retrieve order info")
+	}
+
+	return result.Orders, nil
+}
+
+// GetOrderHistoryForCurrency returns a history of orders
+func (o *OKEX) GetOrderHistoryForCurrency(pageLength, currentPage, status int64, symbol string) (OrderHistory, error) {
+	v := url.Values{}
+	v.Set("symbol", symbol)
+	v.Set("status", strconv.FormatInt(status, 10))
+	v.Set("current_page", strconv.FormatInt(currentPage, 10))
+	v.Set("page_length", strconv.FormatInt(pageLength, 10))
+	result := OrderHistory{}
+
+	err := o.SendAuthenticatedHTTPRequest(spotOrderHistory, v, &result)
+
+	if err != nil {
+		return result, err
+	}
+
+	return result, nil
 }

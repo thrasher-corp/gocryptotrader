@@ -1,6 +1,7 @@
 package liqui
 
 import (
+	"errors"
 	"fmt"
 	"strconv"
 	"sync"
@@ -263,11 +264,46 @@ func (l *Liqui) GetWithdrawCapabilities() uint32 {
 
 // GetActiveOrders retrieves any orders that are active/open
 func (l *Liqui) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
-	return nil, common.ErrNotYetImplemented
+	if len(getOrdersRequest.Currencies) <= 0 {
+		return nil, errors.New("Currency must be supplied")
+	}
+
+	var allOrders []ActiveOrders
+	for _, currency := range getOrdersRequest.Currencies {
+		resp, err := l.GetOpenOrders(exchange.FormatExchangeCurrency(l.Name, currency).String())
+		if err != nil {
+			return nil, err
+		}
+
+		for ID, order := range resp {
+			order.ID = ID
+			allOrders = append(allOrders, order)
+		}
+
+	}
+	var orders []exchange.OrderDetail
+	for _, order := range allOrders {
+		symbol := pair.NewCurrencyPairDelimiter(order.Pair, l.ConfigCurrencyPairFormat.Delimiter)
+
+		orders = append(orders, exchange.OrderDetail{
+			Amount:        order.Amount,
+			ID:            order.ID,
+			Price:         order.Rate,
+			OrderSide:     order.Type,
+			OrderDate:     int64(order.TimestampCreated),
+			BaseCurrency:  symbol.FirstCurrency.String(),
+			QuoteCurrency: symbol.SecondCurrency.String(),
+		})
+	}
+
+	l.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
+	l.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
+
+	return orders, nil
 }
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
 func (l *Liqui) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
-	return nil, common.ErrNotYetImplemented
+	return nil, common.ErrFunctionNotSupported
 }

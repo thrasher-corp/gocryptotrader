@@ -154,7 +154,8 @@ func TestGetActiveOrders(t *testing.T) {
 	o.Verbose = true
 
 	var getOrdersRequest = exchange.GetOrdersRequest{
-		OrderType: exchange.AnyOrderType,
+		OrderType:  exchange.AnyOrderType,
+		Currencies: []pair.CurrencyPair{pair.NewCurrencyPair(symbol.LTC, symbol.BTC)},
 	}
 
 	_, err := o.GetActiveOrders(getOrdersRequest)
@@ -171,7 +172,8 @@ func TestGetOrderHistory(t *testing.T) {
 	o.Verbose = true
 
 	var getOrdersRequest = exchange.GetOrdersRequest{
-		OrderType: exchange.AnyOrderType,
+		OrderType:  exchange.AnyOrderType,
+		Currencies: []pair.CurrencyPair{pair.NewCurrencyPair(symbol.LTC, symbol.BTC)},
 	}
 
 	_, err := o.GetOrderHistory(getOrdersRequest)

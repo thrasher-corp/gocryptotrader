@@ -73,6 +73,7 @@ type ActiveOrders struct {
 	Status           int     `json:"status"`
 	Success          int     `json:"success"`
 	Error            string  `json:"error"`
+	ID               string
 }
 
 // OrderInfo holds specific order information

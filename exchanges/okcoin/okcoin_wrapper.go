@@ -332,11 +332,74 @@ func (o *OKCoin) GetWithdrawCapabilities() uint32 {
 
 // GetActiveOrders retrieves any orders that are active/open
 func (o *OKCoin) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
-	return nil, common.ErrNotYetImplemented
+	var allOrders []OrderInfo
+	for _, currency := range getOrdersRequest.Currencies {
+		resp, err := o.GetOrderHistoryForCurrency(200, 0, 0, exchange.FormatExchangeCurrency(o.Name, currency).String())
+		if err != nil {
+			return nil, err
+		}
+
+		for _, order := range resp.Orders {
+			allOrders = append(allOrders, order)
+		}
+	}
+
+	var orders []exchange.OrderDetail
+	for _, order := range allOrders {
+		// Status 2 == Filled, -1 == Cancelled.
+		if order.Status == 2 || order.Status == -1 {
+			continue
+		}
+
+		symbol := pair.NewCurrencyPairDelimiter(order.Symbol, o.ConfigCurrencyPairFormat.Delimiter)
+
+		orders = append(orders, exchange.OrderDetail{
+			ID:            fmt.Sprintf("%v", order.OrderID),
+			BaseCurrency:  symbol.FirstCurrency.String(),
+			QuoteCurrency: symbol.SecondCurrency.String(),
+			Amount:        order.Amount,
+			OrderDate:     order.Created,
+			Price:         order.Price,
+			OrderSide:     order.Type,
+		})
+	}
+
+	o.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
+	o.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
+
+	return orders, nil
 }
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
 func (o *OKCoin) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
-	return nil, common.ErrNotYetImplemented
+	var allOrders []OrderInfo
+	for _, currency := range getOrdersRequest.Currencies {
+		resp, err := o.GetOrderInformation(-1, exchange.FormatExchangeCurrency(o.Name, currency).String())
+		if err != nil {
+			return nil, err
+		}
+		for _, order := range resp {
+			allOrders = append(allOrders, order)
+		}
+	}
+	var orders []exchange.OrderDetail
+	for _, order := range allOrders {
+		symbol := pair.NewCurrencyPairDelimiter(order.Symbol, o.ConfigCurrencyPairFormat.Delimiter)
+
+		orders = append(orders, exchange.OrderDetail{
+			ID:            fmt.Sprintf("%v", order.OrderID),
+			BaseCurrency:  symbol.FirstCurrency.String(),
+			QuoteCurrency: symbol.SecondCurrency.String(),
+			Amount:        order.Amount,
+			OrderDate:     order.Created,
+			Price:         order.Price,
+			OrderSide:     order.Type,
+		})
+	}
+
+	o.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
+	o.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
+
+	return orders, nil
 }

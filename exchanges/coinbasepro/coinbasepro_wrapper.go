@@ -273,7 +273,6 @@ func (c *CoinbasePro) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest
 		for _, order := range resp {
 			respOrders = append(respOrders, order)
 		}
-
 	}
 
 	var orders []exchange.OrderDetail
@@ -312,7 +311,6 @@ func (c *CoinbasePro) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest
 		for _, order := range resp {
 			respOrders = append(respOrders, order)
 		}
-
 	}
 
 	var orders []exchange.OrderDetail

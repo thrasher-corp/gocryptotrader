@@ -267,11 +267,63 @@ func (l *LakeBTC) GetWithdrawCapabilities() uint32 {
 
 // GetActiveOrders retrieves any orders that are active/open
 func (l *LakeBTC) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
-	return nil, common.ErrNotYetImplemented
+	resp, err := l.GetOpenOrders()
+	if err != nil {
+		return nil, err
+	}
+
+	var orders []exchange.OrderDetail
+	for _, order := range resp {
+		symbol := pair.NewCurrencyPairDelimiter(order.Symbol, l.ConfigCurrencyPairFormat.Delimiter)
+
+		orders = append(orders, exchange.OrderDetail{
+			Amount:        order.Amount,
+			ID:            fmt.Sprintf("%v", order.ID),
+			Price:         order.Price,
+			OrderSide:     order.Type,
+			OrderDate:     order.At,
+			BaseCurrency:  symbol.FirstCurrency.String(),
+			QuoteCurrency: symbol.SecondCurrency.String(),
+		})
+	}
+
+	l.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
+	l.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
+	l.FilterOrdersByCurrencies(&orders, getOrdersRequest.Currencies)
+
+	return orders, nil
 }
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
 func (l *LakeBTC) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
-	return nil, common.ErrNotYetImplemented
+	resp, err := l.GetOrders([]int64{})
+	if err != nil {
+		return nil, err
+	}
+
+	var orders []exchange.OrderDetail
+	for _, order := range resp {
+		if order.State == "active" {
+			continue
+		}
+
+		symbol := pair.NewCurrencyPairDelimiter(order.Symbol, l.ConfigCurrencyPairFormat.Delimiter)
+
+		orders = append(orders, exchange.OrderDetail{
+			Amount:        order.Amount,
+			ID:            fmt.Sprintf("%v", order.ID),
+			Price:         order.Price,
+			OrderSide:     order.Type,
+			OrderDate:     order.At,
+			BaseCurrency:  symbol.FirstCurrency.String(),
+			QuoteCurrency: symbol.SecondCurrency.String(),
+		})
+	}
+
+	l.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
+	l.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
+	l.FilterOrdersByCurrencies(&orders, getOrdersRequest.Currencies)
+
+	return orders, nil
 }

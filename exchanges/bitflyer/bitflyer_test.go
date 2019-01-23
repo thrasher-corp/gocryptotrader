@@ -277,7 +277,7 @@ func TestGetOrderHistory(t *testing.T) {
 
 	_, err := b.GetOrderHistory(getOrdersRequest)
 	if err != common.ErrNotYetImplemented {
-		t.Errorf("Expected 'Not Yet Implemented', recieved %v", err)
+		t.Errorf("Expected '%v', recieved '%v'", common.ErrNotYetImplemented, err)
 	}
 }
 
