@@ -187,14 +187,29 @@ func (b *Bitfinex) WsConnect() error {
 
 	pongReceive = make(chan struct{}, 1)
 
-	go b.WsReadData()
 	go b.WsDataHandler()
 
 	return nil
 }
 
 // WsReadData reads and handles websocket stream data
-func (b *Bitfinex) WsReadData() {
+func (b *Bitfinex) WsReadData() (exchange.WebsocketResponse, error) {
+	msgType, resp, err := b.WebsocketConn.ReadMessage()
+	if err != nil {
+		return exchange.WebsocketResponse{}, err
+	}
+
+	b.Websocket.TrafficAlert <- struct{}{}
+
+	return exchange.WebsocketResponse{
+		Type: msgType,
+		Raw:  resp,
+	}, nil
+
+}
+
+// WsDataHandler handles data from WsReadData
+func (b *Bitfinex) WsDataHandler() {
 	b.Websocket.Wg.Add(1)
 
 	defer func() {
@@ -210,34 +225,13 @@ func (b *Bitfinex) WsReadData() {
 		select {
 		case <-b.Websocket.ShutdownC:
 			return
+
 		default:
-			msgType, resp, err := b.WebsocketConn.ReadMessage()
+			stream, err := b.WsReadData()
 			if err != nil {
 				b.Websocket.DataHandler <- err
 				return
 			}
-
-			b.Websocket.TrafficAlert <- struct{}{}
-
-			b.Websocket.Intercomm <- exchange.WebsocketResponse{
-				Type: msgType,
-				Raw:  resp,
-			}
-		}
-	}
-}
-
-// WsDataHandler handles data from WsReadData
-func (b *Bitfinex) WsDataHandler() {
-	b.Websocket.Wg.Add(1)
-	defer b.Websocket.Wg.Done()
-
-	for {
-		select {
-		case <-b.Websocket.ShutdownC:
-			return
-
-		case stream := <-b.Websocket.Intercomm:
 
 			switch stream.Type {
 			case websocket.TextMessage:
@@ -320,7 +314,6 @@ func (b *Bitfinex) WsDataHandler() {
 									b.Websocket.DataHandler <- fmt.Errorf("bitfinex_websocket.go inserting snapshot error: %s",
 										err)
 								}
-
 								continue
 							}
 
@@ -537,7 +530,7 @@ func (b *Bitfinex) WsInsertSnapshot(p pair.CurrencyPair, assetType string, books
 	newOrderbook.LastUpdated = time.Now()
 	newOrderbook.Pair = p
 
-	err := b.Websocket.Orderbook.LoadSnapshot(newOrderbook, b.GetName())
+	err := b.Websocket.Orderbook.LoadSnapshot(newOrderbook, b.GetName(), false)
 	if err != nil {
 		return fmt.Errorf("bitfinex.go error - %s", err)
 	}

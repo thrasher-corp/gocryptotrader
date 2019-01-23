@@ -70,7 +70,8 @@ func (b *Bitstamp) SetDefaults() {
 	b.Enabled = false
 	b.Verbose = false
 	b.RESTPollingDelay = 10
-	b.APIWithdrawPermissions = exchange.AutoWithdrawCrypto | exchange.AutoWithdrawFiat
+	b.APIWithdrawPermissions = exchange.AutoWithdrawCrypto |
+		exchange.AutoWithdrawFiat
 	b.RequestCurrencyPairFormat.Delimiter = ""
 	b.RequestCurrencyPairFormat.Uppercase = true
 	b.ConfigCurrencyPairFormat.Delimiter = ""
@@ -85,6 +86,8 @@ func (b *Bitstamp) SetDefaults() {
 	b.APIUrlDefault = bitstampAPIURL
 	b.APIUrl = b.APIUrlDefault
 	b.WebsocketInit()
+	b.Websocket.Functionality = exchange.WebsocketOrderbookSupported |
+		exchange.WebsocketTradeDataSupported
 }
 
 // Setup sets configuration values to bitstamp

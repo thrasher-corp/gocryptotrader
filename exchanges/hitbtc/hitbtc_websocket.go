@@ -12,7 +12,6 @@ import (
 	"github.com/thrasher-/gocryptotrader/currency/pair"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
-	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
 const (
@@ -43,7 +42,6 @@ func (h *HitBTC) WsConnect() error {
 		return err
 	}
 
-	go h.WsReadData()
 	go h.WsHandleData()
 
 	err = h.WsSubscribe()
@@ -106,7 +104,18 @@ func (h *HitBTC) WsSubscribe() error {
 }
 
 // WsReadData reads from the websocket connection
-func (h *HitBTC) WsReadData() {
+func (h *HitBTC) WsReadData() (exchange.WebsocketResponse, error) {
+	_, resp, err := h.WebsocketConn.ReadMessage()
+	if err != nil {
+		return exchange.WebsocketResponse{}, err
+	}
+
+	h.Websocket.TrafficAlert <- struct{}{}
+	return exchange.WebsocketResponse{Raw: resp}, nil
+}
+
+// WsHandleData handles websocket data
+func (h *HitBTC) WsHandleData() {
 	h.Websocket.Wg.Add(1)
 
 	defer func() {
@@ -124,32 +133,17 @@ func (h *HitBTC) WsReadData() {
 			return
 
 		default:
-			_, resp, err := h.WebsocketConn.ReadMessage()
+			resp, err := h.WsReadData()
 			if err != nil {
 				h.Websocket.DataHandler <- err
 				return
 			}
 
-			h.Websocket.TrafficAlert <- struct{}{}
-			h.Websocket.Intercomm <- exchange.WebsocketResponse{Raw: resp}
-		}
-	}
-}
-
-// WsHandleData handles websocket data
-func (h *HitBTC) WsHandleData() {
-	h.Websocket.Wg.Add(1)
-	defer h.Websocket.Wg.Done()
-
-	for {
-		select {
-		case <-h.Websocket.ShutdownC:
-
-		case resp := <-h.Websocket.Intercomm:
 			var init capture
-			err := common.JSONDecode(resp.Raw, &init)
+			err = common.JSONDecode(resp.Raw, &init)
 			if err != nil {
-				log.Error(err)
+				h.Websocket.DataHandler <- err
+				continue
 			}
 
 			if init.Error.Message != "" || init.Error.Code != 0 {
@@ -168,12 +162,14 @@ func (h *HitBTC) WsHandleData() {
 				var ticker WsTicker
 				err := common.JSONDecode(resp.Raw, &ticker)
 				if err != nil {
-					log.Error(err)
+					h.Websocket.DataHandler <- err
+					continue
 				}
 
 				ts, err := time.Parse(time.RFC3339, ticker.Params.Timestamp)
 				if err != nil {
-					log.Error(err)
+					h.Websocket.DataHandler <- err
+					continue
 				}
 
 				h.Websocket.DataHandler <- exchange.TickerData{
@@ -191,19 +187,22 @@ func (h *HitBTC) WsHandleData() {
 				var obSnapshot WsOrderbook
 				err := common.JSONDecode(resp.Raw, &obSnapshot)
 				if err != nil {
-					log.Error(err)
+					h.Websocket.DataHandler <- err
+					continue
 				}
 
 				err = h.WsProcessOrderbookSnapshot(obSnapshot)
 				if err != nil {
-					log.Error(err)
+					h.Websocket.DataHandler <- err
+					continue
 				}
 
 			case "updateOrderbook":
 				var obUpdate WsOrderbook
 				err := common.JSONDecode(resp.Raw, &obUpdate)
 				if err != nil {
-					log.Error(err)
+					h.Websocket.DataHandler <- err
+					continue
 				}
 
 				h.WsProcessOrderbookUpdate(obUpdate)
@@ -212,14 +211,16 @@ func (h *HitBTC) WsHandleData() {
 				var tradeSnapshot WsTrade
 				err := common.JSONDecode(resp.Raw, &tradeSnapshot)
 				if err != nil {
-					log.Error(err)
+					h.Websocket.DataHandler <- err
+					continue
 				}
 
 			case "updateTrades":
 				var tradeUpdates WsTrade
 				err := common.JSONDecode(resp.Raw, &tradeUpdates)
 				if err != nil {
-					log.Error(err)
+					h.Websocket.DataHandler <- err
+					continue
 				}
 			}
 		}
@@ -252,7 +253,7 @@ func (h *HitBTC) WsProcessOrderbookSnapshot(ob WsOrderbook) error {
 	newOrderbook.LastUpdated = time.Now()
 	newOrderbook.Pair = p
 
-	err := h.Websocket.Orderbook.LoadSnapshot(newOrderbook, h.GetName())
+	err := h.Websocket.Orderbook.LoadSnapshot(newOrderbook, h.GetName(), false)
 	if err != nil {
 		return err
 	}

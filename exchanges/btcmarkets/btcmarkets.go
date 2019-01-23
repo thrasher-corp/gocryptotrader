@@ -58,7 +58,8 @@ func (b *BTCMarkets) SetDefaults() {
 	b.Verbose = false
 	b.RESTPollingDelay = 10
 	b.Ticker = make(map[string]Ticker)
-	b.APIWithdrawPermissions = exchange.AutoWithdrawCrypto | exchange.AutoWithdrawFiat
+	b.APIWithdrawPermissions = exchange.AutoWithdrawCrypto |
+		exchange.AutoWithdrawFiat
 	b.RequestCurrencyPairFormat.Delimiter = ""
 	b.RequestCurrencyPairFormat.Uppercase = true
 	b.ConfigCurrencyPairFormat.Delimiter = "-"

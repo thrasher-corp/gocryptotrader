@@ -307,7 +307,7 @@ func (g *Gateio) WithdrawFiatFundsToInternationalBank(withdrawRequest exchange.W
 
 // GetWebsocket returns a pointer to the exchange websocket
 func (g *Gateio) GetWebsocket() (*exchange.Websocket, error) {
-	return nil, common.ErrNotYetImplemented
+	return g.Websocket, nil
 }
 
 // GetFeeByType returns an estimate of fee based on type of transaction

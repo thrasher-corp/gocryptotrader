@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gorilla/websocket"
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
@@ -43,6 +44,7 @@ const (
 
 // Gateio is the overarching type across this package
 type Gateio struct {
+	WebsocketConn *websocket.Conn
 	exchange.Base
 }
 
@@ -52,7 +54,8 @@ func (g *Gateio) SetDefaults() {
 	g.Enabled = false
 	g.Verbose = false
 	g.RESTPollingDelay = 10
-	g.APIWithdrawPermissions = exchange.AutoWithdrawCrypto | exchange.NoFiatWithdrawals
+	g.APIWithdrawPermissions = exchange.AutoWithdrawCrypto |
+		exchange.NoFiatWithdrawals
 	g.RequestCurrencyPairFormat.Delimiter = "_"
 	g.RequestCurrencyPairFormat.Uppercase = false
 	g.ConfigCurrencyPairFormat.Delimiter = "_"
@@ -69,6 +72,10 @@ func (g *Gateio) SetDefaults() {
 	g.APIUrlSecondaryDefault = gateioMarketURL
 	g.APIUrlSecondary = g.APIUrlSecondaryDefault
 	g.WebsocketInit()
+	g.Websocket.Functionality = exchange.WebsocketTickerSupported |
+		exchange.WebsocketTradeDataSupported |
+		exchange.WebsocketOrderbookSupported |
+		exchange.WebsocketKlineSupported
 }
 
 // Setup sets user configuration
@@ -104,6 +111,14 @@ func (g *Gateio) Setup(exch config.ExchangeConfig) {
 			log.Fatal(err)
 		}
 		err = g.SetClientProxyAddress(exch.ProxyAddress)
+		if err != nil {
+			log.Fatal(err)
+		}
+		err = g.WebsocketSetup(g.WsConnect,
+			exch.Name,
+			exch.Websocket,
+			gateioWebsocketEndpoint,
+			exch.WebsocketURL)
 		if err != nil {
 			log.Fatal(err)
 		}

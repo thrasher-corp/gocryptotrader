@@ -1,4 +1,4 @@
-package huobi
+package huobihadax
 
 import (
 	"bytes"
@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
-	"math/big"
 	"net/http"
 	"net/url"
 	"time"
@@ -16,18 +15,19 @@ import (
 	"github.com/thrasher-/gocryptotrader/currency/pair"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
-	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
 const (
-	huobiSocketIOAddress = "wss://api.huobi.pro/hbus/ws"
-	wsMarketKline        = "market.%s.kline.1min"
-	wsMarketDepth        = "market.%s.depth.step0"
-	wsMarketTrade        = "market.%s.trade.detail"
+	huobiGlobalWebsocketEndpoint         = "wss://api.huobi.pro/ws"
+	huobiGlobalAssetWebsocketEndpoint    = "wss://api.huobi.pro/ws/v1"
+	huobiGlobalContractWebsocketEndpoint = "wss://www.hbdm.com/ws"
+	wsMarketKline                        = "market.%s.kline.1min"
+	wsMarketDepth                        = "market.%s.depth.step0"
+	wsMarketTrade                        = "market.%s.trade.detail"
 )
 
 // WsConnect initiates a new websocket connection
-func (h *HUOBI) WsConnect() error {
+func (h *HUOBIHADAX) WsConnect() error {
 	if !h.Websocket.IsEnabled() || !h.IsEnabled() {
 		return errors.New(exchange.WebsocketNotEnabled)
 	}
@@ -60,7 +60,7 @@ func (h *HUOBI) WsConnect() error {
 }
 
 // WsReadData reads data from the websocket connection
-func (h *HUOBI) WsReadData() (exchange.WebsocketResponse, error) {
+func (h *HUOBIHADAX) WsReadData() (exchange.WebsocketResponse, error) {
 	_, resp, err := h.WebsocketConn.ReadMessage()
 	if err != nil {
 		return exchange.WebsocketResponse{}, err
@@ -84,7 +84,7 @@ func (h *HUOBI) WsReadData() (exchange.WebsocketResponse, error) {
 }
 
 // WsHandleData handles data read from the websocket connection
-func (h *HUOBI) WsHandleData() {
+func (h *HUOBIHADAX) WsHandleData() {
 	h.Websocket.Wg.Add(1)
 
 	defer func() {
@@ -129,7 +129,8 @@ func (h *HUOBI) WsHandleData() {
 			if init.Ping != 0 {
 				err = h.WebsocketConn.WriteJSON(`{"pong":1337}`)
 				if err != nil {
-					log.Error(err)
+					h.Websocket.DataHandler <- err
+					continue
 				}
 				continue
 			}
@@ -191,7 +192,7 @@ func (h *HUOBI) WsHandleData() {
 }
 
 // WsProcessOrderbook processes new orderbook data
-func (h *HUOBI) WsProcessOrderbook(ob WsDepth, symbol string) error {
+func (h *HUOBIHADAX) WsProcessOrderbook(ob WsDepth, symbol string) error {
 	var bids []orderbook.Item
 	for _, data := range ob.Tick.Bids {
 		bidLevel := data.([]interface{})
@@ -231,7 +232,7 @@ func (h *HUOBI) WsProcessOrderbook(ob WsDepth, symbol string) error {
 
 // WsSubscribe susbcribes to the current websocket streams based on the enabled
 // pair
-func (h *HUOBI) WsSubscribe() error {
+func (h *HUOBIHADAX) WsSubscribe() error {
 	pairs := h.GetEnabledCurrencies()
 
 	for _, p := range pairs {
@@ -271,73 +272,4 @@ func (h *HUOBI) WsSubscribe() error {
 		}
 	}
 	return nil
-}
-
-// WsRequest defines a request data structure
-type WsRequest struct {
-	Topic             string `json:"req,omitempty"`
-	Subscribe         string `json:"sub,omitempty"`
-	ClientGeneratedID string `json:"id,omitempty"`
-}
-
-// WsResponse defines a response from the websocket connection when there
-// is an error
-type WsResponse struct {
-	TS           int64  `json:"ts"`
-	Status       string `json:"status"`
-	ErrorCode    string `json:"err-code"`
-	ErrorMessage string `json:"err-msg"`
-	Ping         int64  `json:"ping"`
-	Channel      string `json:"ch"`
-	Subscribed   string `json:"subbed"`
-}
-
-// WsHeartBeat defines a heartbeat request
-type WsHeartBeat struct {
-	ClientNonce int64 `json:"ping"`
-}
-
-// WsDepth defines market depth websocket response
-type WsDepth struct {
-	Channel   string `json:"ch"`
-	Timestamp int64  `json:"ts"`
-	Tick      struct {
-		Bids      []interface{} `json:"bids"`
-		Asks      []interface{} `json:"asks"`
-		Timestamp int64         `json:"ts"`
-		Version   int64         `json:"version"`
-	} `json:"tick"`
-}
-
-// WsKline defines market kline websocket response
-type WsKline struct {
-	Channel   string `json:"ch"`
-	Timestamp int64  `json:"ts"`
-	Tick      struct {
-		ID     int64   `json:"id"`
-		Open   float64 `json:"open"`
-		Close  float64 `json:"close"`
-		Low    float64 `json:"low"`
-		High   float64 `json:"high"`
-		Amount float64 `json:"amount"`
-		Volume float64 `json:"vol"`
-		Count  int64   `json:"count"`
-	}
-}
-
-// WsTrade defines market trade websocket response
-type WsTrade struct {
-	Channel   string `json:"ch"`
-	Timestamp int64  `json:"ts"`
-	Tick      struct {
-		ID        int64 `json:"id"`
-		Timestamp int64 `json:"ts"`
-		Data      []struct {
-			Amount    float64 `json:"amount"`
-			Timestamp int64   `json:"ts"`
-			ID        big.Int `json:"id,number"`
-			Price     float64 `json:"price"`
-			Direction string  `json:"direction"`
-		} `json:"data"`
-	}
 }

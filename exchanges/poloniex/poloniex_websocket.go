@@ -64,7 +64,6 @@ func (p *Poloniex) WsConnect() error {
 		}
 	}
 
-	go p.WsReadData()
 	go p.WsHandleData()
 
 	return p.WsSubscribe()
@@ -105,34 +104,14 @@ func (p *Poloniex) WsSubscribe() error {
 }
 
 // WsReadData reads data from the websocket connection
-func (p *Poloniex) WsReadData() {
-	p.Websocket.Wg.Add(1)
-
-	defer func() {
-		err := p.WebsocketConn.Close()
-		if err != nil {
-			p.Websocket.DataHandler <- fmt.Errorf("poloniex_websocket.go - Unable to to close Websocket connection. Error: %s",
-				err)
-		}
-		p.Websocket.Wg.Done()
-	}()
-
-	for {
-		select {
-		case <-p.Websocket.ShutdownC:
-			return
-
-		default:
-			_, resp, err := p.WebsocketConn.ReadMessage()
-			if err != nil {
-				p.Websocket.DataHandler <- err
-				return
-			}
-
-			p.Websocket.TrafficAlert <- struct{}{}
-			p.Websocket.Intercomm <- exchange.WebsocketResponse{Raw: resp}
-		}
+func (p *Poloniex) WsReadData() (exchange.WebsocketResponse, error) {
+	_, resp, err := p.WebsocketConn.ReadMessage()
+	if err != nil {
+		return exchange.WebsocketResponse{}, err
 	}
+
+	p.Websocket.TrafficAlert <- struct{}{}
+	return exchange.WebsocketResponse{Raw: resp}, nil
 }
 
 func getWSDataType(data interface{}) string {
@@ -151,18 +130,33 @@ func checkSubscriptionSuccess(data []interface{}) bool {
 // WsHandleData handles data from the websocket connection
 func (p *Poloniex) WsHandleData() {
 	p.Websocket.Wg.Add(1)
-	defer p.Websocket.Wg.Done()
+
+	defer func() {
+		err := p.WebsocketConn.Close()
+		if err != nil {
+			p.Websocket.DataHandler <- fmt.Errorf("poloniex_websocket.go - Unable to to close Websocket connection. Error: %s",
+				err)
+		}
+		p.Websocket.Wg.Done()
+	}()
 
 	for {
 		select {
 		case <-p.Websocket.ShutdownC:
 			return
 
-		case resp := <-p.Websocket.Intercomm:
-			var result interface{}
-			err := common.JSONDecode(resp.Raw, &result)
+		default:
+			resp, err := p.WsReadData()
 			if err != nil {
-				log.Errorf("poloniex websocket decode error - %s", err)
+				p.Websocket.DataHandler <- err
+				return
+			}
+
+			var result interface{}
+			err = common.JSONDecode(resp.Raw, &result)
+			if err != nil {
+				p.Websocket.DataHandler <- err
+				continue
 			}
 
 			data := result.([]interface{})
@@ -222,19 +216,19 @@ func (p *Poloniex) WsHandleData() {
 							dataL3map := dataL3[1].(map[string]interface{})
 							currencyPair, ok := dataL3map["currencyPair"].(string)
 							if !ok {
-								log.Error("poloniex.go error - could not find currency pair in map")
+								p.Websocket.DataHandler <- errors.New("poloniex.go error - could not find currency pair in map")
 								continue
 							}
 
 							orderbookData, ok := dataL3map["orderBook"].([]interface{})
 							if !ok {
-								log.Error("poloniex.go error - could not find orderbook data in map")
+								p.Websocket.DataHandler <- errors.New("poloniex.go error - could not find orderbook data in map")
 								continue
 							}
 
 							err := p.WsProcessOrderbookSnapshot(orderbookData, currencyPair)
 							if err != nil {
-								log.Error(err)
+								p.Websocket.DataHandler <- err
 								continue
 							}
 
@@ -247,7 +241,7 @@ func (p *Poloniex) WsHandleData() {
 							currencyPair := CurrencyPairID[chanID]
 							err := p.WsProcessOrderbookUpdate(dataL3, currencyPair)
 							if err != nil {
-								log.Error(err)
+								p.Websocket.DataHandler <- err
 								continue
 							}
 
@@ -335,7 +329,7 @@ func (p *Poloniex) WsProcessOrderbookSnapshot(ob []interface{}, symbol string) e
 	newOrderbook.LastUpdated = time.Now()
 	newOrderbook.Pair = pair.NewCurrencyPairFromString(symbol)
 
-	return p.Websocket.Orderbook.LoadSnapshot(newOrderbook, p.GetName())
+	return p.Websocket.Orderbook.LoadSnapshot(newOrderbook, p.GetName(), false)
 }
 
 // WsProcessOrderbookUpdate processses new orderbook updates

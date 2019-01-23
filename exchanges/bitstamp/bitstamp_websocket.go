@@ -132,7 +132,7 @@ func (b *Bitstamp) WsConnect() error {
 		newOrderbook.LastUpdated = time.Unix(0, orderbookSeed.Timestamp)
 		newOrderbook.AssetType = "SPOT"
 
-		err = b.Websocket.Orderbook.LoadSnapshot(newOrderbook, b.GetName())
+		err = b.Websocket.Orderbook.LoadSnapshot(newOrderbook, b.GetName(), false)
 		if err != nil {
 			return err
 		}
@@ -147,7 +147,6 @@ func (b *Bitstamp) WsConnect() error {
 			strings.ToLower(p.Pair().String())))
 
 		if err != nil {
-			log.Error(err)
 			return fmt.Errorf("%s Websocket Trade subscription error: %s",
 				b.GetName(),
 				err)
@@ -157,7 +156,6 @@ func (b *Bitstamp) WsConnect() error {
 			strings.ToLower(p.Pair().String())))
 
 		if err != nil {
-			log.Error(err)
 			return fmt.Errorf("%s Websocket Trade subscription error: %s",
 				b.GetName(),
 				err)

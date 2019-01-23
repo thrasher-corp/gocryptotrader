@@ -116,7 +116,10 @@ func (b *Bitmex) SetDefaults() {
 	b.Enabled = false
 	b.Verbose = false
 	b.RESTPollingDelay = 10
-	b.APIWithdrawPermissions = exchange.AutoWithdrawCryptoWithAPIPermission | exchange.WithdrawCryptoWithEmail | exchange.WithdrawCryptoWith2FA | exchange.NoFiatWithdrawals
+	b.APIWithdrawPermissions = exchange.AutoWithdrawCryptoWithAPIPermission |
+		exchange.WithdrawCryptoWithEmail |
+		exchange.WithdrawCryptoWith2FA |
+		exchange.NoFiatWithdrawals
 	b.RequestCurrencyPairFormat.Delimiter = ""
 	b.RequestCurrencyPairFormat.Uppercase = true
 	b.ConfigCurrencyPairFormat.Delimiter = ""
@@ -130,6 +133,8 @@ func (b *Bitmex) SetDefaults() {
 	b.APIUrl = b.APIUrlDefault
 	b.SupportsAutoPairUpdating = true
 	b.WebsocketInit()
+	b.Websocket.Functionality = exchange.WebsocketTradeDataSupported |
+		exchange.WebsocketOrderbookSupported
 }
 
 // Setup takes in the supplied exchange configuration details and sets params

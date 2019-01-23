@@ -275,7 +275,7 @@ func (z *ZB) WithdrawFiatFundsToInternationalBank(withdrawRequest exchange.Withd
 
 // GetWebsocket returns a pointer to the exchange websocket
 func (z *ZB) GetWebsocket() (*exchange.Websocket, error) {
-	return nil, common.ErrNotYetImplemented
+	return z.Websocket, nil
 }
 
 // GetFeeByType returns an estimate of fee based on type of transaction

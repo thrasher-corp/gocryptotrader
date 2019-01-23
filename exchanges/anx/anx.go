@@ -58,8 +58,10 @@ func (a *ANX) SetDefaults() {
 	a.ConfigCurrencyPairFormat.Delimiter = "_"
 	a.ConfigCurrencyPairFormat.Uppercase = true
 	a.ConfigCurrencyPairFormat.Index = ""
-	a.APIWithdrawPermissions = exchange.WithdrawCryptoWithEmail | exchange.AutoWithdrawCryptoWithSetup |
-		exchange.WithdrawCryptoWith2FA | exchange.WithdrawFiatViaWebsiteOnly
+	a.APIWithdrawPermissions = exchange.WithdrawCryptoWithEmail |
+		exchange.AutoWithdrawCryptoWithSetup |
+		exchange.WithdrawCryptoWith2FA |
+		exchange.WithdrawFiatViaWebsiteOnly
 	a.AssetTypes = []string{ticker.Spot}
 	a.SupportsAutoPairUpdating = true
 	a.SupportsRESTTickerBatching = false

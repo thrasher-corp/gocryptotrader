@@ -161,7 +161,7 @@ func TestInsertingSnapShots(t *testing.T) {
 	snapShot1.LastUpdated = time.Now()
 	snapShot1.Pair = pair.NewCurrencyPairFromString("BTCUSD")
 
-	wsTest.Websocket.Orderbook.LoadSnapshot(snapShot1, "ExchangeTest")
+	wsTest.Websocket.Orderbook.LoadSnapshot(snapShot1, "ExchangeTest", false)
 
 	var snapShot2 orderbook.Base
 	asks = []orderbook.Item{
@@ -199,7 +199,7 @@ func TestInsertingSnapShots(t *testing.T) {
 	snapShot2.LastUpdated = time.Now()
 	snapShot2.Pair = pair.NewCurrencyPairFromString("LTCUSD")
 
-	wsTest.Websocket.Orderbook.LoadSnapshot(snapShot2, "ExchangeTest")
+	wsTest.Websocket.Orderbook.LoadSnapshot(snapShot2, "ExchangeTest", false)
 
 	var snapShot3 orderbook.Base
 	asks = []orderbook.Item{
@@ -237,7 +237,7 @@ func TestInsertingSnapShots(t *testing.T) {
 	snapShot3.LastUpdated = time.Now()
 	snapShot3.Pair = pair.NewCurrencyPairFromString("LTCUSD")
 
-	wsTest.Websocket.Orderbook.LoadSnapshot(snapShot3, "ExchangeTest")
+	wsTest.Websocket.Orderbook.LoadSnapshot(snapShot3, "ExchangeTest", false)
 
 	if len(wsTest.Websocket.Orderbook.ob) != 3 {
 		t.Error("test failed - inserting orderbook data")
@@ -307,5 +307,30 @@ func TestUpdate(t *testing.T) {
 
 	if err != nil {
 		t.Error("test failed - OrderbookUpdate error", err)
+	}
+}
+
+func TestFunctionality(t *testing.T) {
+	var w Websocket
+
+	if w.FormatFunctionality() != NoWebsocketSupportText {
+		t.Fatalf("Test Failed - FormatFunctionality error expected %s but recieved %s",
+			NoWebsocketSupportText, w.FormatFunctionality())
+	}
+
+	w.Functionality = 1 << 31
+
+	if w.FormatFunctionality() != UnknownWebsocketFunctionality+"[1<<31]" {
+		t.Fatal("Test Failed - GetFunctionality error incorrect error returned")
+	}
+
+	w.Functionality = WebsocketOrderbookSupported
+
+	if w.GetFunctionality() != WebsocketOrderbookSupported {
+		t.Fatal("Test Failed - GetFunctionality error incorrect bitmask returned")
+	}
+
+	if !w.SupportsFunctionality(WebsocketOrderbookSupported) {
+		t.Fatal("Test Failed - SupportsFunctionality error should be true")
 	}
 }

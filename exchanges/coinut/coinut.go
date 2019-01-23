@@ -56,7 +56,8 @@ func (c *COINUT) SetDefaults() {
 	c.MakerFee = 0
 	c.Verbose = false
 	c.RESTPollingDelay = 10
-	c.APIWithdrawPermissions = exchange.WithdrawCryptoViaWebsiteOnly | exchange.WithdrawFiatViaWebsiteOnly
+	c.APIWithdrawPermissions = exchange.WithdrawCryptoViaWebsiteOnly |
+		exchange.WithdrawFiatViaWebsiteOnly
 	c.RequestCurrencyPairFormat.Delimiter = ""
 	c.RequestCurrencyPairFormat.Uppercase = true
 	c.ConfigCurrencyPairFormat.Delimiter = ""
@@ -71,6 +72,9 @@ func (c *COINUT) SetDefaults() {
 	c.APIUrlDefault = coinutAPIURL
 	c.APIUrl = c.APIUrlDefault
 	c.WebsocketInit()
+	c.Websocket.Functionality = exchange.WebsocketTickerSupported |
+		exchange.WebsocketOrderbookSupported |
+		exchange.WebsocketTradeDataSupported
 }
 
 // Setup sets the current exchange configuration

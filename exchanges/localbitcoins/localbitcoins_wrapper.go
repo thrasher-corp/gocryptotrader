@@ -281,7 +281,7 @@ func (l *LocalBitcoins) WithdrawFiatFundsToInternationalBank(withdrawRequest exc
 
 // GetWebsocket returns a pointer to the exchange websocket
 func (l *LocalBitcoins) GetWebsocket() (*exchange.Websocket, error) {
-	return nil, common.ErrNotYetImplemented
+	return nil, common.ErrFunctionNotSupported
 }
 
 // GetFeeByType returns an estimate of fee based on type of transaction

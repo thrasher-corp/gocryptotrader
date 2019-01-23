@@ -94,7 +94,8 @@ func (b *Bitfinex) SetDefaults() {
 	b.Verbose = false
 	b.RESTPollingDelay = 10
 	b.WebsocketSubdChannels = make(map[int]WebsocketChanInfo)
-	b.APIWithdrawPermissions = exchange.AutoWithdrawCryptoWithAPIPermission | exchange.AutoWithdrawFiatWithAPIPermission
+	b.APIWithdrawPermissions = exchange.AutoWithdrawCryptoWithAPIPermission |
+		exchange.AutoWithdrawFiatWithAPIPermission
 	b.RequestCurrencyPairFormat.Delimiter = ""
 	b.RequestCurrencyPairFormat.Uppercase = true
 	b.ConfigCurrencyPairFormat.Delimiter = ""
@@ -109,6 +110,9 @@ func (b *Bitfinex) SetDefaults() {
 	b.APIUrlDefault = bitfinexAPIURLBase
 	b.APIUrl = b.APIUrlDefault
 	b.WebsocketInit()
+	b.Websocket.Functionality = exchange.WebsocketTickerSupported |
+		exchange.WebsocketTradeDataSupported |
+		exchange.WebsocketOrderbookSupported
 }
 
 // Setup takes in the supplied exchange configuration details and sets params

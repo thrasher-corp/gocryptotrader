@@ -104,7 +104,6 @@ func (b *Bitmex) WsConnector() error {
 	}
 
 	go b.wsHandleIncomingData()
-	go b.wsReadData()
 
 	err = b.websocketSubscribe()
 	if err != nil {
@@ -125,7 +124,21 @@ func (b *Bitmex) WsConnector() error {
 	return nil
 }
 
-func (b *Bitmex) wsReadData() {
+func (b *Bitmex) wsReadData() (exchange.WebsocketResponse, error) {
+	_, resp, err := b.WebsocketConn.ReadMessage()
+	if err != nil {
+		return exchange.WebsocketResponse{}, err
+	}
+
+	b.Websocket.TrafficAlert <- struct{}{}
+
+	return exchange.WebsocketResponse{
+		Raw: resp,
+	}, nil
+}
+
+// wsHandleIncomingData services incoming data from the websocket connection
+func (b *Bitmex) wsHandleIncomingData() {
 	b.Websocket.Wg.Add(1)
 
 	defer func() {
@@ -143,33 +156,12 @@ func (b *Bitmex) wsReadData() {
 			return
 
 		default:
-			_, resp, err := b.WebsocketConn.ReadMessage()
+			resp, err := b.wsReadData()
 			if err != nil {
-				b.Websocket.DataHandler <- fmt.Errorf("bitmex_websocket.go - websocket connection Error: %s",
-					err)
+				b.Websocket.DataHandler <- err
 				return
 			}
 
-			b.Websocket.TrafficAlert <- struct{}{}
-
-			b.Websocket.Intercomm <- exchange.WebsocketResponse{
-				Raw: resp,
-			}
-		}
-	}
-}
-
-// wsHandleIncomingData services incoming data from the websocket connection
-func (b *Bitmex) wsHandleIncomingData() {
-	b.Websocket.Wg.Add(1)
-	defer b.Websocket.Wg.Done()
-
-	for {
-		select {
-		case <-b.Websocket.ShutdownC:
-			return
-
-		case resp := <-b.Websocket.Intercomm:
 			message := string(resp.Raw)
 			if common.StringContains(message, "pong") {
 				pongChan <- 1
@@ -180,20 +172,23 @@ func (b *Bitmex) wsHandleIncomingData() {
 				err := b.WebsocketConn.WriteJSON("pong")
 				if err != nil {
 					b.Websocket.DataHandler <- err
+					continue
 				}
 			}
 
 			quickCapture := make(map[string]interface{})
-			err := common.JSONDecode(resp.Raw, &quickCapture)
+			err = common.JSONDecode(resp.Raw, &quickCapture)
 			if err != nil {
-				log.Error(err)
+				b.Websocket.DataHandler <- err
+				continue
 			}
 
 			var respError WebsocketErrorResponse
 			if _, ok := quickCapture["status"]; ok {
 				err = common.JSONDecode(resp.Raw, &respError)
 				if err != nil {
-					log.Error(err)
+					b.Websocket.DataHandler <- err
+					continue
 				}
 				b.Websocket.DataHandler <- errors.New(respError.Error)
 				continue
@@ -203,7 +198,8 @@ func (b *Bitmex) wsHandleIncomingData() {
 				var decodedResp WebsocketSubscribeResp
 				err := common.JSONDecode(resp.Raw, &decodedResp)
 				if err != nil {
-					log.Error(err)
+					b.Websocket.DataHandler <- err
+					continue
 				}
 
 				if decodedResp.Success {
@@ -225,7 +221,8 @@ func (b *Bitmex) wsHandleIncomingData() {
 				var decodedResp WebsocketMainResponse
 				err := common.JSONDecode(resp.Raw, &decodedResp)
 				if err != nil {
-					log.Error(err)
+					b.Websocket.DataHandler <- err
+					continue
 				}
 
 				switch decodedResp.Table {
@@ -233,20 +230,23 @@ func (b *Bitmex) wsHandleIncomingData() {
 					var orderbooks OrderBookData
 					err = common.JSONDecode(resp.Raw, &orderbooks)
 					if err != nil {
-						log.Error(err)
+						b.Websocket.DataHandler <- err
+						continue
 					}
 
 					p := pair.NewCurrencyPairFromString(orderbooks.Data[0].Symbol)
 					err = b.processOrderbook(orderbooks.Data, orderbooks.Action, p, "CONTRACT")
 					if err != nil {
-						log.Error(err)
+						b.Websocket.DataHandler <- err
+						continue
 					}
 
 				case bitmexWSTrade:
 					var trades TradeData
 					err = common.JSONDecode(resp.Raw, &trades)
 					if err != nil {
-						log.Error(err)
+						b.Websocket.DataHandler <- err
+						continue
 					}
 
 					if trades.Action == bitmexActionInitialData {
@@ -256,7 +256,8 @@ func (b *Bitmex) wsHandleIncomingData() {
 					for _, trade := range trades.Data {
 						timestamp, err := time.Parse(time.RFC3339, trade.Timestamp)
 						if err != nil {
-							log.Error(err)
+							b.Websocket.DataHandler <- err
+							continue
 						}
 
 						b.Websocket.DataHandler <- exchange.TradeData{
@@ -275,7 +276,8 @@ func (b *Bitmex) wsHandleIncomingData() {
 
 					err = common.JSONDecode(resp.Raw, &announcement)
 					if err != nil {
-						log.Error(err)
+						b.Websocket.DataHandler <- err
+						continue
 					}
 
 					if announcement.Action == bitmexActionInitialData {
@@ -285,7 +287,8 @@ func (b *Bitmex) wsHandleIncomingData() {
 					b.Websocket.DataHandler <- announcement.Data
 
 				default:
-					log.Errorf("Bitmex websocket error: Table unknown - %s", decodedResp.Table)
+					b.Websocket.DataHandler <- fmt.Errorf("Bitmex websocket error: Table unknown - %s",
+						decodedResp.Table)
 				}
 			}
 		}
@@ -341,7 +344,7 @@ func (b *Bitmex) processOrderbook(data []OrderBookL2, action string, currencyPai
 			newOrderbook.LastUpdated = time.Now()
 			newOrderbook.Pair = currencyPair
 
-			err := b.Websocket.Orderbook.LoadSnapshot(newOrderbook, b.GetName())
+			err := b.Websocket.Orderbook.LoadSnapshot(newOrderbook, b.GetName(), false)
 			if err != nil {
 				return fmt.Errorf("bitmex_websocket.go process orderbook error -  %s",
 					err)

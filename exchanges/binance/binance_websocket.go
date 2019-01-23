@@ -62,7 +62,7 @@ func (b *Binance) SeedLocalCache(p pair.CurrencyPair) error {
 	newOrderBook.LastUpdated = time.Now()
 	newOrderBook.AssetType = "SPOT"
 
-	return b.Websocket.Orderbook.LoadSnapshot(newOrderBook, b.GetName())
+	return b.Websocket.Orderbook.LoadSnapshot(newOrderBook, b.GetName(), false)
 }
 
 // UpdateLocalCache updates and returns the most recent iteration of the orderbook
@@ -182,8 +182,19 @@ func (b *Binance) WSConnect() error {
 	return nil
 }
 
-// WSReadData reads from the websocket connection
-func (b *Binance) WSReadData() {
+// WSReadData reads from the websocket connection and returns the response
+func (b *Binance) WSReadData() (exchange.WebsocketResponse, error) {
+	msgType, resp, err := b.WebsocketConn.ReadMessage()
+	if err != nil {
+		return exchange.WebsocketResponse{}, err
+	}
+
+	b.Websocket.TrafficAlert <- struct{}{}
+	return exchange.WebsocketResponse{Type: msgType, Raw: resp}, nil
+}
+
+// WsHandleData handles websocket data from WsReadData
+func (b *Binance) WsHandleData() {
 	b.Websocket.Wg.Add(1)
 
 	defer func() {
@@ -201,37 +212,16 @@ func (b *Binance) WSReadData() {
 			return
 
 		default:
-			msgType, resp, err := b.WebsocketConn.ReadMessage()
+			read, err := b.WSReadData()
 			if err != nil {
-				b.Websocket.DataHandler <- fmt.Errorf("binance_websocket.go - Websocket Read Data. Error: %s",
-					err)
+				b.Websocket.DataHandler <- err
 				return
 			}
 
-			b.Websocket.TrafficAlert <- struct{}{}
-			b.Websocket.Intercomm <- exchange.WebsocketResponse{Type: msgType, Raw: resp}
-		}
-	}
-}
-
-// WsHandleData handles websocket data from WsReadData
-func (b *Binance) WsHandleData() {
-	b.Websocket.Wg.Add(1)
-	defer b.Websocket.Wg.Done()
-
-	go b.WSReadData()
-
-	for {
-		select {
-		case <-b.Websocket.ShutdownC:
-			return
-
-		case read := <-b.Websocket.Intercomm:
 			switch read.Type {
 			case websocket.TextMessage:
 				multiStreamData := MultiStreamData{}
-
-				err := common.JSONDecode(read.Raw, &multiStreamData)
+				err = common.JSONDecode(read.Raw, &multiStreamData)
 				if err != nil {
 					b.Websocket.DataHandler <- fmt.Errorf("binance_websocket.go - Could not load multi stream data: %s",
 						string(read.Raw))

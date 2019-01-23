@@ -278,7 +278,7 @@ func (k *Kraken) WithdrawFiatFundsToInternationalBank(withdrawRequest exchange.W
 
 // GetWebsocket returns a pointer to the exchange websocket
 func (k *Kraken) GetWebsocket() (*exchange.Websocket, error) {
-	return nil, common.ErrNotYetImplemented
+	return nil, common.ErrFunctionNotSupported
 }
 
 // GetFeeByType returns an estimate of fee based on type of transaction

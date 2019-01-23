@@ -746,7 +746,7 @@ func (c *Config) CheckExchangeConfigValues() error {
 				lastUpdated := common.UnixTimestampToTime(exch.PairsLastUpdated)
 				lastUpdated = lastUpdated.AddDate(0, 0, configPairsLastUpdatedWarningThreshold)
 				if lastUpdated.Unix() <= time.Now().Unix() {
-					log.Warn(WarningPairsLastUpdatedThresholdExceeded, exch.Name, configPairsLastUpdatedWarningThreshold)
+					log.Warnf(WarningPairsLastUpdatedThresholdExceeded, exch.Name, configPairsLastUpdatedWarningThreshold)
 				}
 			}
 

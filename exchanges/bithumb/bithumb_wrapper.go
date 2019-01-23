@@ -297,7 +297,7 @@ func (b *Bithumb) WithdrawFiatFundsToInternationalBank(withdrawRequest exchange.
 
 // GetWebsocket returns a pointer to the exchange websocket
 func (b *Bithumb) GetWebsocket() (*exchange.Websocket, error) {
-	return nil, common.ErrNotYetImplemented
+	return nil, common.ErrFunctionNotSupported
 }
 
 // GetFeeByType returns an estimate of fee based on type of transaction

@@ -3,6 +3,7 @@ package exchange
 import (
 	"errors"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -11,7 +12,25 @@ import (
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 )
 
+// Websocket functionality list and state consts
 const (
+	NoWebsocketSupport       uint32 = 0
+	WebsocketTickerSupported uint32 = 1 << (iota - 1)
+	WebsocketOrderbookSupported
+	WebsocketKlineSupported
+	WebsocketTradeDataSupported
+	WebsocketAccountSupported
+	WebsocketAllowsRequests
+
+	WebsocketTickerSupportedText    = "TICKER STREAMING SUPPORTED"
+	WebsocketOrderbookSupportedText = "ORDERBOOK STREAMING SUPPORTED"
+	WebsocketKlineSupportedText     = "KLINE STREAMING SUPPORTED"
+	WebsocketTradeDataSupportedText = "TRADE STREAMING SUPPORTED"
+	WebsocketAccountSupportedText   = "ACCOUNT STREAMING SUPPORTED"
+	WebsocketAllowsRequestsText     = "WEBSOCKET REQUESTS SUPPORTED"
+	NoWebsocketSupportText          = "WEBSOCKET NOT SUPPORTED"
+	UnknownWebsocketFunctionality   = "UNKNOWN FUNCTIONALITY BITMASK"
+
 	// WebsocketNotEnabled alerts of a disabled websocket
 	WebsocketNotEnabled = "exchange_websocket_not_enabled"
 	// WebsocketTrafficLimitTime defines a standard time for no traffic from the
@@ -45,7 +64,6 @@ func (e *Base) WebsocketSetup(connector func() error,
 	e.Websocket.DataHandler = make(chan interface{}, 1)
 	e.Websocket.Connected = make(chan struct{}, 1)
 	e.Websocket.Disconnected = make(chan struct{}, 1)
-	e.Websocket.Intercomm = make(chan WebsocketResponse, 1)
 	e.Websocket.TrafficAlert = make(chan struct{}, 1)
 
 	err := e.Websocket.SetEnabled(wsEnabled)
@@ -82,9 +100,6 @@ type Websocket struct {
 	// Disconnected denotes a channel switch for diversion of request flow
 	Disconnected chan struct{}
 
-	// Intercomm denotes a channel from read data routine to handle data routine
-	Intercomm chan WebsocketResponse
-
 	// DataHandler pipes websocket data to an exchange websocket data handler
 	DataHandler chan interface{}
 
@@ -101,6 +116,9 @@ type Websocket struct {
 
 	// TrafficAlert monitors if there is a halt in traffic throughput
 	TrafficAlert chan struct{}
+
+	// Functionality defines websocket stream capabilities
+	Functionality uint32
 }
 
 // trafficMonitor monitors traffic and switches connection modes for websocket
@@ -440,8 +458,10 @@ func (w *WebsocketOrderbookLocal) Update(bidTargets, askTargets []orderbook.Item
 	return nil
 }
 
-// LoadSnapshot loads initial snapshot of orderbook data
-func (w *WebsocketOrderbookLocal) LoadSnapshot(newOrderbook orderbook.Base, exchName string) error {
+// LoadSnapshot loads initial snapshot of orderbook data, overite allows full
+// orderbook to be completely rewritten because the exchange is a doing a full
+// update not an incremental one
+func (w *WebsocketOrderbookLocal) LoadSnapshot(newOrderbook orderbook.Base, exchName string, overwrite bool) error {
 	if len(newOrderbook.Asks) == 0 || len(newOrderbook.Bids) == 0 {
 		return errors.New("exchange.go websocket orderbook cache LoadSnapshot() error - snapshot ask and bids are nil")
 	}
@@ -451,6 +471,17 @@ func (w *WebsocketOrderbookLocal) LoadSnapshot(newOrderbook orderbook.Base, exch
 
 	for i := range w.ob {
 		if w.ob[i].Pair == newOrderbook.Pair && w.ob[i].AssetType == newOrderbook.AssetType {
+			if overwrite {
+				w.ob[i] = newOrderbook
+				w.lastUpdated = newOrderbook.LastUpdated
+
+				orderbook.ProcessOrderbook(exchName,
+					newOrderbook.Pair,
+					newOrderbook,
+					newOrderbook.AssetType)
+
+				return nil
+			}
 			return errors.New("exchange.go websocket orderbook cache LoadSnapshot() error - Snapshot instance already found")
 		}
 	}
@@ -614,4 +645,58 @@ type WebsocketPositionUpdated struct {
 	Pair      pair.CurrencyPair
 	AssetType string
 	Exchange  string
+}
+
+// GetFunctionality returns a functionality bitmask for the websocket
+// connection
+func (w *Websocket) GetFunctionality() uint32 {
+	return w.Functionality
+}
+
+// SupportsFunctionality returns if the functionality is supported as a boolean
+func (w *Websocket) SupportsFunctionality(f uint32) bool {
+	if w.GetFunctionality()&f == f {
+		return true
+	}
+	return false
+}
+
+// FormatFunctionality will return each of the websocket connection compatible
+// stream methods as a string
+func (w *Websocket) FormatFunctionality() string {
+	functionality := []string{}
+	for i := 0; i < 32; i++ {
+		var check uint32 = 1 << uint32(i)
+		if w.GetFunctionality()&check != 0 {
+			switch check {
+			case WebsocketTickerSupported:
+				functionality = append(functionality, WebsocketTickerSupportedText)
+
+			case WebsocketOrderbookSupported:
+				functionality = append(functionality, WebsocketOrderbookSupportedText)
+
+			case WebsocketKlineSupported:
+				functionality = append(functionality, WebsocketKlineSupportedText)
+
+			case WebsocketTradeDataSupported:
+				functionality = append(functionality, WebsocketTradeDataSupportedText)
+
+			case WebsocketAccountSupported:
+				functionality = append(functionality, WebsocketAccountSupportedText)
+
+			case WebsocketAllowsRequests:
+				functionality = append(functionality, WebsocketAllowsRequestsText)
+
+			default:
+				functionality = append(functionality,
+					fmt.Sprintf("%s[1<<%v]", UnknownWebsocketFunctionality, i))
+			}
+		}
+	}
+
+	if len(functionality) > 0 {
+		return strings.Join(functionality, " & ")
+	}
+
+	return NoWebsocketSupportText
 }

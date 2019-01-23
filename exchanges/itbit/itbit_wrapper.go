@@ -268,7 +268,7 @@ func (i *ItBit) WithdrawFiatFundsToInternationalBank(withdrawRequest exchange.Wi
 
 // GetWebsocket returns a pointer to the exchange websocket
 func (i *ItBit) GetWebsocket() (*exchange.Websocket, error) {
-	return nil, common.ErrNotYetImplemented
+	return nil, common.ErrFunctionNotSupported
 }
 
 // GetFeeByType returns an estimate of fee based on type of transaction

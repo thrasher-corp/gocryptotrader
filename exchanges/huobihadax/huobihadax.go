@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/gorilla/websocket"
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/currency/symbol"
@@ -59,6 +60,7 @@ const (
 
 // HUOBIHADAX is the overarching type across this package
 type HUOBIHADAX struct {
+	WebsocketConn *websocket.Conn
 	exchange.Base
 }
 
@@ -69,7 +71,8 @@ func (h *HUOBIHADAX) SetDefaults() {
 	h.Fee = 0
 	h.Verbose = false
 	h.RESTPollingDelay = 10
-	h.APIWithdrawPermissions = exchange.AutoWithdrawCryptoWithSetup | exchange.NoFiatWithdrawals
+	h.APIWithdrawPermissions = exchange.AutoWithdrawCryptoWithSetup |
+		exchange.NoFiatWithdrawals
 	h.RequestCurrencyPairFormat.Delimiter = ""
 	h.RequestCurrencyPairFormat.Uppercase = false
 	h.ConfigCurrencyPairFormat.Delimiter = "-"
@@ -84,6 +87,9 @@ func (h *HUOBIHADAX) SetDefaults() {
 	h.APIUrlDefault = huobihadaxAPIURL
 	h.APIUrl = h.APIUrlDefault
 	h.WebsocketInit()
+	h.Websocket.Functionality = exchange.WebsocketKlineSupported |
+		exchange.WebsocketTradeDataSupported |
+		exchange.WebsocketOrderbookSupported
 }
 
 // Setup sets user configuration
@@ -120,6 +126,14 @@ func (h *HUOBIHADAX) Setup(exch config.ExchangeConfig) {
 			log.Fatal(err)
 		}
 		err = h.SetClientProxyAddress(exch.ProxyAddress)
+		if err != nil {
+			log.Fatal(err)
+		}
+		err = h.WebsocketSetup(h.WsConnect,
+			exch.Name,
+			exch.Websocket,
+			huobiGlobalWebsocketEndpoint,
+			exch.WebsocketURL)
 		if err != nil {
 			log.Fatal(err)
 		}

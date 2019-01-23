@@ -71,7 +71,6 @@ func (o *OKCoin) WsConnect() error {
 
 	o.WebsocketConn.SetPingHandler(o.PingHandler)
 
-	go o.WsReadData()
 	go o.WsHandleData()
 
 	for _, p := range o.GetEnabledCurrencies() {
@@ -87,7 +86,18 @@ func (o *OKCoin) WsConnect() error {
 }
 
 // WsReadData reads from the websocket connection
-func (o *OKCoin) WsReadData() {
+func (o *OKCoin) WsReadData() (exchange.WebsocketResponse, error) {
+	_, resp, err := o.WebsocketConn.ReadMessage()
+	if err != nil {
+		return exchange.WebsocketResponse{}, err
+	}
+
+	o.Websocket.TrafficAlert <- struct{}{}
+	return exchange.WebsocketResponse{Raw: resp}, nil
+}
+
+// WsHandleData handles stream data from the websocket connection
+func (o *OKCoin) WsHandleData() {
 	o.Websocket.Wg.Add(1)
 
 	defer func() {
@@ -105,34 +115,16 @@ func (o *OKCoin) WsReadData() {
 			return
 
 		default:
-			_, resp, err := o.WebsocketConn.ReadMessage()
+			resp, err := o.WsReadData()
 			if err != nil {
 				o.Websocket.DataHandler <- err
-				return
 			}
 
-			o.Websocket.TrafficAlert <- struct{}{}
-			o.Websocket.Intercomm <- exchange.WebsocketResponse{Raw: resp}
-		}
-	}
-
-}
-
-// WsHandleData handles stream data from the websocket connection
-func (o *OKCoin) WsHandleData() {
-	o.Websocket.Wg.Add(1)
-	defer o.Websocket.Wg.Done()
-
-	for {
-		select {
-		case <-o.Websocket.ShutdownC:
-			return
-
-		case resp := <-o.Websocket.Intercomm:
 			var init []WsResponse
-			err := common.JSONDecode(resp.Raw, &init)
+			err = common.JSONDecode(resp.Raw, &init)
 			if err != nil {
-				log.Error(err)
+				o.Websocket.DataHandler <- err
+				continue
 			}
 
 			if init[0].ErrorCode != "" {
@@ -166,8 +158,8 @@ func (o *OKCoin) WsHandleData() {
 
 				err = common.JSONDecode(init[0].Data, &ticker)
 				if err != nil {
-					log.Error(err)
-
+					o.Websocket.DataHandler <- err
+					continue
 				}
 
 				o.Websocket.DataHandler <- exchange.TickerData{
@@ -187,7 +179,8 @@ func (o *OKCoin) WsHandleData() {
 
 				err = common.JSONDecode(init[0].Data, &orderbook)
 				if err != nil {
-					log.Error(err)
+					o.Websocket.DataHandler <- err
+					continue
 				}
 
 				o.Websocket.DataHandler <- exchange.WebsocketOrderbookUpdate{
@@ -201,7 +194,8 @@ func (o *OKCoin) WsHandleData() {
 
 				err = common.JSONDecode(init[0].Data, &klineData)
 				if err != nil {
-					log.Error(err)
+					o.Websocket.DataHandler <- err
+					continue
 				}
 
 				var klines []WsKlines
@@ -237,7 +231,8 @@ func (o *OKCoin) WsHandleData() {
 				var dealsData [][]interface{}
 				err = common.JSONDecode(init[0].Data, &dealsData)
 				if err != nil {
-					log.Error(err)
+					o.Websocket.DataHandler <- err
+					continue
 				}
 
 				var deals []WsDeals

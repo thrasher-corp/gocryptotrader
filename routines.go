@@ -293,6 +293,8 @@ func WebsocketRoutine(verbose bool) {
 
 			ws, err := bot.exchanges[i].GetWebsocket()
 			if err != nil {
+				log.Debugf("Websocket not enabled for %s",
+					bot.exchanges[i].GetName())
 				return
 			}
 

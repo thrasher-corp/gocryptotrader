@@ -24,19 +24,19 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 | Bitfinex | Yes  | Yes        | NA  |
 | Bitflyer | Yes  | No      | NA  |
 | Bithumb | Yes  | NA       | NA  |
-| BitMEX | Yes | No | NA |
+| BitMEX | Yes | Yes | NA |
 | Bitstamp | Yes  | Yes       | No  |
 | Bittrex | Yes | No | NA |
 | BTCC | Yes  | Yes     | No  |
 | BTCMarkets | Yes | No       | NA  |
-| COINUT | Yes | No | NA |
+| COINUT | Yes | Yes | NA |
 | Exmo | Yes | NA | NA |
 | CoinbasePro | Yes | Yes | No|
-| GateIO | Yes | No | NA |
-| Gemini | Yes | No | No |
+| GateIO | Yes | Yes | NA |
+| Gemini | Yes | Yes | No |
 | HitBTC | Yes | Yes | No |
-| Huobi.Pro | Yes | No | NA |
-| Huobi.Hadax | Yes | No | NA |
+| Huobi.Pro | Yes | Yes | NA |
+| Huobi.Hadax | Yes | Yes | NA |
 | ItBit | Yes | NA | No |
 | Kraken | Yes | NA | NA |
 | LakeBTC | Yes | No | NA |
@@ -44,11 +44,11 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 | LocalBitcoins | Yes | NA | NA |
 | OKCoin China | Yes | Yes | No |
 | OKCoin International | Yes | Yes | No |
-| OKEX | Yes | No | No |
+| OKEX | Yes | Yes | No |
 | Poloniex | Yes | Yes | NA |
 | WEX     | Yes  | NA        | NA  |
 | Yobit | Yes | NA | NA |
-| ZB.COM | Yes | No | NA |
+| ZB.COM | Yes | Yes | NA |
 
 We are aiming to support the top 20 highest volume exchanges based off the [CoinMarketCap exchange data](https://coinmarketcap.com/exchanges/volume/24-hour/).
 
@@ -133,14 +133,15 @@ Binaries will be published once the codebase reaches a stable condition.
 
 |User|Github|Contribution Amount|
 |--|--|--|
-| thrasher- | https://github.com/thrasher- | 489 |
-| shazbert | https://github.com/shazbert | 156 |
-| gloriousCode | https://github.com/gloriousCode | 139 |
+| thrasher- | https://github.com/thrasher- | 496 |
+| shazbert | https://github.com/shazbert | 158 |
+| gloriousCode | https://github.com/gloriousCode | 141 |
 | ermalguni | https://github.com/ermalguni | 14 |
 | 140am | https://github.com/140am | 8 |
 | marcofranssen | https://github.com/marcofranssen | 8 |
 | cranktakular | https://github.com/cranktakular | 5 |
 | crackcomm | https://github.com/crackcomm | 3 |
+| xtda | https://github.com/xtda | 2 |
 | andreygrehov | https://github.com/andreygrehov | 2 |
 | bretep | https://github.com/bretep | 2 |
 | gam-phon | https://github.com/gam-phon | 2 |
@@ -148,11 +149,12 @@ Binaries will be published once the codebase reaches a stable condition.
 | if1live | https://github.com/if1live | 2 |
 | soxipy | https://github.com/soxipy | 2 |
 | herenow | https://github.com/herenow | 2 |
-| xtda | https://github.com/xtda | 1 |
 | blombard | https://github.com/blombard | 1 |
 | CodeLingoBot | https://github.com/CodeLingoBot | 1 |
+| Daanikus | https://github.com/Daanikus | 1 |
 | daniel-cohen | https://github.com/daniel-cohen | 1 |
 | frankzougc | https://github.com/frankzougc | 1 |
+| woshidama323 | https://github.com/woshidama323 | 1 |
 | starit | https://github.com/starit | 1 |
 | Jimexist | https://github.com/Jimexist | 1 |
 | lookfirst | https://github.com/lookfirst | 1 |
@@ -161,8 +163,6 @@ Binaries will be published once the codebase reaches a stable condition.
 | mKurrels | https://github.com/mKurrels | 1 |
 | m1kola | https://github.com/m1kola | 1 |
 | cavapoo2 | https://github.com/cavapoo2 | 1 |
-| tongxiaofeng | https://github.com/tongxiaofeng | 1 |
-| idealhack | https://github.com/idealhack | 1 |
 
 
 
