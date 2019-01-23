@@ -37,7 +37,7 @@ const (
 	huobihadaxAccountBalance        = "account/accounts/%s/balance"
 	huobihadaxOrderPlace            = "order/orders/place"
 	huobihadaxOrderCancel           = "order/orders/%s/submitcancel"
-	huobihadaxGetOpenOrders         = "order/order/openOrders"
+	huobihadaxGetOpenOrders         = "order/openOrders"
 	huobihadaxOrderCancelBatch      = "order/orders/batchcancel"
 	huobiHadaxBatchCancelOpenOrders = "order/orders/batchCancelOpenOrders"
 	huobihadaxGetOrder              = "order/orders/%s"
@@ -497,7 +497,9 @@ func (h *HUOBIHADAX) GetOpenOrders(accountID, symbol, side string, size int) ([]
 	vals := url.Values{}
 	vals.Set("symbol", symbol)
 	vals.Set("accountID", accountID)
-	vals.Set("side", side)
+	if len(side) > 0 {
+		vals.Set("side", side)
+	}
 	vals.Set("size", fmt.Sprintf("%v", size))
 
 	var result response

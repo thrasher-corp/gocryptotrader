@@ -257,11 +257,10 @@ func (g *Gemini) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]
 		switch order.Type {
 		case "exchange limit":
 			orderType = string(exchange.LimitOrderType)
-			break
 		case "market buy":
+			fallthrough
 		case "market sell":
 			orderType = string(exchange.MarketOrderType)
-			break
 		}
 
 		side := ""
@@ -285,12 +284,21 @@ func (g *Gemini) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]
 		})
 	}
 
+	g.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
+	g.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
+	g.FilterOrdersByType(&orders, getOrdersRequest.OrderType)
+	g.FilterOrdersByCurrencies(&orders, getOrdersRequest.Currencies)
+
 	return orders, nil
 }
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
 func (g *Gemini) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
+	if len(getOrdersRequest.Currencies) <= 0 {
+		return nil, errors.New("Currency must be supplied")
+	}
+
 	var trades []TradeHistory
 	for _, currency := range getOrdersRequest.Currencies {
 		resp, err := g.GetTradeHistory(currency.Pair().String(), -1)
@@ -326,6 +334,9 @@ func (g *Gemini) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]
 			Price:         trade.Price,
 		})
 	}
+
+	g.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
+	g.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
 
 	return orders, nil
 }

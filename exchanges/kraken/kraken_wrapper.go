@@ -2,6 +2,7 @@ package kraken
 
 import (
 	"errors"
+	"fmt"
 	"strings"
 	"sync"
 
@@ -293,11 +294,73 @@ func (k *Kraken) GetWithdrawCapabilities() uint32 {
 
 // GetActiveOrders retrieves any orders that are active/open
 func (k *Kraken) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
-	return nil, common.ErrNotYetImplemented
+	resp, err := k.GetOpenOrders(OrderInfoOptions{})
+	if err != nil {
+		return nil, err
+	}
+
+	var orders []exchange.OrderDetail
+	for ID, order := range resp.Open {
+		symbol := pair.NewCurrencyPairDelimiter(order.Descr.Pair, k.ConfigCurrencyPairFormat.Delimiter)
+
+		orders = append(orders, exchange.OrderDetail{
+			ID:              ID,
+			Amount:          order.Vol,
+			RemainingAmount: (order.Vol - order.VolExec),
+			ExecutedAmount:  order.VolExec,
+			Exchange:        k.Name,
+			OrderDate:       int64(order.StartTm),
+			Price:           order.Price,
+			OrderSide:       order.Descr.Type,
+			BaseCurrency:    symbol.FirstCurrency.String(),
+			QuoteCurrency:   symbol.SecondCurrency.String(),
+		})
+	}
+
+	k.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
+	k.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
+	k.FilterOrdersByCurrencies(&orders, getOrdersRequest.Currencies)
+
+	return orders, nil
 }
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
 func (k *Kraken) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
-	return nil, common.ErrNotYetImplemented
+
+	request := GetClosedOrdersOptions{}
+	if getOrdersRequest.StartTicks > 0 {
+		request.Start = fmt.Sprintf("%v", getOrdersRequest.StartTicks)
+	}
+	if getOrdersRequest.EndTicks > 0 {
+		request.End = fmt.Sprintf("%v", getOrdersRequest.EndTicks)
+	}
+
+	resp, err := k.GetClosedOrders(request)
+	if err != nil {
+		return nil, err
+	}
+
+	var orders []exchange.OrderDetail
+	for ID, order := range resp.Closed {
+		symbol := pair.NewCurrencyPairDelimiter(order.Descr.Pair, k.ConfigCurrencyPairFormat.Delimiter)
+
+		orders = append(orders, exchange.OrderDetail{
+			ID:              ID,
+			Amount:          order.Vol,
+			RemainingAmount: (order.Vol - order.VolExec),
+			ExecutedAmount:  order.VolExec,
+			Exchange:        k.Name,
+			OrderDate:       int64(order.StartTm),
+			Price:           order.Price,
+			OrderSide:       order.Descr.Type,
+			BaseCurrency:    symbol.FirstCurrency.String(),
+			QuoteCurrency:   symbol.SecondCurrency.String(),
+		})
+	}
+
+	k.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
+	k.FilterOrdersByCurrencies(&orders, getOrdersRequest.Currencies)
+
+	return orders, nil
 }

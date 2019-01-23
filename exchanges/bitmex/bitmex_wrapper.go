@@ -321,16 +321,12 @@ func (b *Bitmex) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]
 		switch order.OrdType {
 		case "1":
 			orderType = string(exchange.MarketOrderType)
-			break
 		case "2":
 			orderType = string(exchange.LimitOrderType)
-			break
 		case "3":
 			orderType = string(exchange.StopOrderType)
-			break
 		case "7":
 			orderType = string(exchange.TrailingStopOrderType)
-			break
 		default:
 			log.Warnf("Uknown order type: '%v' returned for orderID '%v'. Leaving blank", order.OrdType, order.OrderID)
 			orderType = string(exchange.UnknownOrderType)
@@ -379,16 +375,12 @@ func (b *Bitmex) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]
 		switch order.OrdType {
 		case "1":
 			orderType = string(exchange.MarketOrderType)
-			break
 		case "2":
 			orderType = string(exchange.LimitOrderType)
-			break
 		case "3":
 			orderType = string(exchange.StopOrderType)
-			break
 		case "7":
 			orderType = string(exchange.TrailingStopOrderType)
-			break
 		default:
 			log.Warnf("Uknown order type: '%v' returned for orderID '%v'. Leaving blank", order.OrdType, order.OrderID)
 			orderType = string(exchange.UnknownOrderType)

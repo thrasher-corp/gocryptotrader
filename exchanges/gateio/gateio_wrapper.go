@@ -402,5 +402,8 @@ func (g *Gateio) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]
 		})
 	}
 
+	e.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
+	e.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
+
 	return orders, nil
 }

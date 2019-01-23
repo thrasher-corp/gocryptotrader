@@ -35,6 +35,8 @@ const (
 	apiV2CryptoAddress  = "api/2/account/crypto/address"
 	apiV2CryptoWithdraw = "api/2/account/crypto/withdraw"
 	apiV2TradeHistory   = "api/2/history/trades"
+	apiV2OrderHistory   = "api/2/history/order"
+	apiv2OpenOrders     = "api/2/order"
 	apiV2FeeInfo        = "api/2/trading/fee"
 	orders              = "order"
 	orderBuy            = "api/2/order"
@@ -387,8 +389,8 @@ func (h *HitBTC) GetActiveorders(currency string) ([]Order, error) {
 	return resp, err
 }
 
-// GetAuthenticatedTradeHistory returns your trade history
-func (h *HitBTC) GetAuthenticatedTradeHistory(currency, start, end string) (interface{}, error) {
+// GetTradeHistoryForCurrency returns your trade history
+func (h *HitBTC) GetTradeHistoryForCurrency(currency, start, end string) (AuthenticatedTradeHistoryResponse, error) {
 	values := url.Values{}
 
 	if start != "" {
@@ -399,17 +401,46 @@ func (h *HitBTC) GetAuthenticatedTradeHistory(currency, start, end string) (inte
 		values.Set("end", end)
 	}
 
-	if currency != "" && currency != "all" {
-		values.Set("currencyPair", currency)
-		result := AuthenticatedTradeHistoryResponse{}
+	values.Set("currencyPair", currency)
+	result := AuthenticatedTradeHistoryResponse{}
 
-		return result, h.SendAuthenticatedHTTPRequest("POST", apiV2TradeHistory, values, &result.Data)
+	return result, h.SendAuthenticatedHTTPRequest("POST", apiV2TradeHistory, values, &result.Data)
+}
+
+// GetTradeHistoryForAllCurrencies returns your trade history
+func (h *HitBTC) GetTradeHistoryForAllCurrencies(currency, start, end string) (AuthenticatedTradeHistoryAll, error) {
+	values := url.Values{}
+
+	if start != "" {
+		values.Set("start", start)
+	}
+
+	if end != "" {
+		values.Set("end", end)
 	}
 
 	values.Set("currencyPair", "all")
 	result := AuthenticatedTradeHistoryAll{}
 
 	return result, h.SendAuthenticatedHTTPRequest("POST", apiV2TradeHistory, values, &result.Data)
+}
+
+// GetOrders List of your order history.
+func (h *HitBTC) GetOrders(currency string) ([]OrderHistoryResponse, error) {
+	values := url.Values{}
+	values.Set("symbol", currency)
+	var result []OrderHistoryResponse
+
+	return result, h.SendAuthenticatedHTTPRequest("GET", apiV2OrderHistory, values, &result)
+}
+
+// GetOpenOrders List of your currently open orders.
+func (h *HitBTC) GetOpenOrders(currency string) ([]OrderHistoryResponse, error) {
+	values := url.Values{}
+	values.Set("symbol", currency)
+	var result []OrderHistoryResponse
+
+	return result, h.SendAuthenticatedHTTPRequest("GET", apiv2OpenOrders, values, &result)
 }
 
 // PlaceOrder places an order on the exchange

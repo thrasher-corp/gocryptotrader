@@ -184,6 +184,23 @@ type AuthenticatedTradeHistoryResponse struct {
 	Data []AuthentictedTradeHistory
 }
 
+// OrderHistoryResponse used for GetOrderHistory
+type OrderHistoryResponse struct {
+	ID            string  `json:"id"`
+	ClientOrderID string  `json:"clientOrderId"`
+	Symbol        string  `json:"symbol"`
+	Side          string  `json:"side"`
+	Status        string  `json:"status"`
+	Type          string  `json:"type"`
+	TimeInForce   string  `json:"timeInForce"`
+	Price         float64 `json:"price,string"`
+	Quantity      float64 `json:"quantity,string"`
+	PostOnly      bool    `json:"postOnly"`
+	CumQuantity   float64 `json:"cumQuantity,string"`
+	CreatedAt     string  `json:"createdAt"`
+	UpdatedAt     string  `json:"updatedAt"`
+}
+
 // ResultingTrades holds resulting trade information
 type ResultingTrades struct {
 	Amount  float64 `json:"amount,string"`

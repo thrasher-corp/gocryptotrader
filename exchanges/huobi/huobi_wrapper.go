@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"strings"
 	"sync"
 
 	"github.com/thrasher-/gocryptotrader/common"
@@ -377,11 +378,87 @@ func (h *HUOBI) GetWithdrawCapabilities() uint32 {
 
 // GetActiveOrders retrieves any orders that are active/open
 func (h *HUOBI) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
-	return nil, common.ErrNotYetImplemented
+	if len(getOrdersRequest.Currencies) <= 0 {
+		return nil, errors.New("Currency must be supplied")
+	}
+
+	side := ""
+	if getOrdersRequest.OrderSide == exchange.AnyOrderSide || getOrdersRequest.OrderSide == "" {
+		side = ""
+	} else if getOrdersRequest.OrderSide == exchange.SellOrderSide {
+		side = strings.ToLower(string(getOrdersRequest.OrderSide))
+	}
+
+	var allOrders []OrderInfo
+	for _, currency := range getOrdersRequest.Currencies {
+		resp, err := h.GetOpenOrders(h.ClientID, currency.Pair().Lower().String(), side, 500)
+		if err != nil {
+			return nil, err
+		}
+
+		for _, order := range resp {
+			allOrders = append(allOrders, order)
+		}
+	}
+
+	var orders []exchange.OrderDetail
+	for _, order := range allOrders {
+		symbol := pair.NewCurrencyPairDelimiter(order.Symbol, h.ConfigCurrencyPairFormat.Delimiter)
+
+		orders = append(orders, exchange.OrderDetail{
+			ID:              fmt.Sprintf("%v", order.ID),
+			BaseCurrency:    symbol.FirstCurrency.String(),
+			QuoteCurrency:   symbol.SecondCurrency.String(),
+			Exchange:        h.Name,
+			Amount:          order.Amount,
+			Price:           order.Price,
+			OrderDate:       order.CreatedAt,
+			ExecutedAmount:  order.FilledAmount,
+			RemainingAmount: (order.Amount - order.FilledAmount),
+		})
+	}
+
+	h.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
+
+	return orders, nil
 }
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
 func (h *HUOBI) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
-	return nil, common.ErrNotYetImplemented
+	if len(getOrdersRequest.Currencies) <= 0 {
+		return nil, errors.New("Currency must be supplied")
+	}
+
+	states := "partial-canceled,filled,canceled"
+	var allOrders []OrderInfo
+	for _, currency := range getOrdersRequest.Currencies {
+		resp, err := h.GetOrders(currency.Pair().Lower().String(), "", "", "", states, "", "", "")
+		if err != nil {
+			return nil, err
+		}
+
+		for _, order := range resp {
+			allOrders = append(allOrders, order)
+		}
+	}
+
+	var orders []exchange.OrderDetail
+	for _, order := range allOrders {
+		symbol := pair.NewCurrencyPairDelimiter(order.Symbol, h.ConfigCurrencyPairFormat.Delimiter)
+
+		orders = append(orders, exchange.OrderDetail{
+			ID:            fmt.Sprintf("%v", order.ID),
+			BaseCurrency:  symbol.FirstCurrency.String(),
+			QuoteCurrency: symbol.SecondCurrency.String(),
+			Exchange:      h.Name,
+			Amount:        order.Amount,
+			Price:         order.Price,
+			OrderDate:     order.CreatedAt,
+		})
+	}
+
+	h.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
+
+	return orders, nil
 }

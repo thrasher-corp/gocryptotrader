@@ -1,9 +1,11 @@
 package hitbtc
 
 import (
+	"errors"
 	"fmt"
 	"strconv"
 	"sync"
+	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
@@ -267,11 +269,103 @@ func (h *HitBTC) GetWithdrawCapabilities() uint32 {
 
 // GetActiveOrders retrieves any orders that are active/open
 func (h *HitBTC) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
-	return nil, common.ErrNotYetImplemented
+	if len(getOrdersRequest.Currencies) <= 0 {
+		return nil, errors.New("Currency must be supplied")
+	}
+
+	var allOrders []OrderHistoryResponse
+	for _, currency := range getOrdersRequest.Currencies {
+		resp, err := h.GetOpenOrders(currency.Pair().String())
+		if err != nil {
+			return nil, err
+		}
+		for _, order := range resp {
+			allOrders = append(allOrders, order)
+		}
+	}
+
+	var orders []exchange.OrderDetail
+	for _, order := range allOrders {
+		t, err := time.Parse(time.RFC3339, order.CreatedAt)
+		if err != nil {
+			log.Errorf("Exchange %v Func %v Order %v Could not parse date to unix with value of %v",
+				h.Name, "GetActiveOrders", order.ID, order.CreatedAt)
+		}
+
+		symbol := pair.NewCurrencyPairDelimiter(order.Symbol, h.ConfigCurrencyPairFormat.Delimiter)
+		side := ""
+		if order.Side == "buy" {
+			side = string(exchange.BuyOrderSide)
+		} else if order.Side == "sell" {
+			side = string(exchange.SellOrderSide)
+		}
+
+		orders = append(orders, exchange.OrderDetail{
+			ID:            order.ID,
+			Amount:        order.Quantity,
+			Exchange:      h.Name,
+			Price:         order.Price,
+			OrderDate:     t.Unix(),
+			BaseCurrency:  symbol.FirstCurrency.String(),
+			QuoteCurrency: symbol.SecondCurrency.String(),
+			OrderSide:     side,
+		})
+	}
+
+	h.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
+	h.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
+
+	return orders, nil
 }
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
 func (h *HitBTC) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
-	return nil, common.ErrNotYetImplemented
+	if len(getOrdersRequest.Currencies) <= 0 {
+		return nil, errors.New("Currency must be supplied")
+	}
+
+	var allOrders []OrderHistoryResponse
+	for _, currency := range getOrdersRequest.Currencies {
+		resp, err := h.GetOrders(currency.Pair().String())
+		if err != nil {
+			return nil, err
+		}
+		for _, order := range resp {
+			allOrders = append(allOrders, order)
+		}
+	}
+
+	var orders []exchange.OrderDetail
+	for _, order := range allOrders {
+		t, err := time.Parse(time.RFC3339, order.CreatedAt)
+		if err != nil {
+			log.Errorf("Exchange %v Func %v Order %v Could not parse date to unix with value of %v",
+				h.Name, "GetOrderHistory", order.ID, order.CreatedAt)
+		}
+
+		symbol := pair.NewCurrencyPairDelimiter(order.Symbol, h.ConfigCurrencyPairFormat.Delimiter)
+		side := ""
+		if order.Side == "buy" {
+			side = string(exchange.BuyOrderSide)
+		} else if order.Side == "sell" {
+			side = string(exchange.SellOrderSide)
+		}
+
+		orders = append(orders, exchange.OrderDetail{
+			ID:            order.ID,
+			Amount:        order.Quantity,
+			Exchange:      h.Name,
+			Price:         order.Price,
+			OrderDate:     t.Unix(),
+			BaseCurrency:  symbol.FirstCurrency.String(),
+			QuoteCurrency: symbol.SecondCurrency.String(),
+			OrderSide:     side,
+		})
+	}
+
+	h.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
+	h.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
+
+	return orders, nil
 }

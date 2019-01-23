@@ -248,21 +248,18 @@ func (a *Alphapoint) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest)
 			switch order.OrderType {
 			case 1:
 				orderDetail.OrderType = string(exchange.MarketOrderType)
-				break
 			case 2:
 				orderDetail.OrderType = string(exchange.LimitOrderType)
-				break
 			case 3:
+				fallthrough
 			case 4:
 				orderDetail.OrderType = string(exchange.StopOrderType)
-				break
 			case 5:
+				fallthrough
 			case 6:
 				orderDetail.OrderType = string(exchange.TrailingStopOrderType)
-				break
 			default:
 				orderDetail.OrderType = string(exchange.UnknownOrderType)
-				break
 			}
 
 			orders = append(orders, orderDetail)
@@ -308,21 +305,18 @@ func (a *Alphapoint) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest)
 			switch order.OrderType {
 			case 1:
 				orderDetail.OrderType = string(exchange.MarketOrderType)
-				break
 			case 2:
 				orderDetail.OrderType = string(exchange.LimitOrderType)
-				break
 			case 3:
+				fallthrough
 			case 4:
 				orderDetail.OrderType = string(exchange.StopOrderType)
-				break
 			case 5:
+				fallthrough
 			case 6:
 				orderDetail.OrderType = string(exchange.TrailingStopOrderType)
-				break
 			default:
 				orderDetail.OrderType = string(exchange.UnknownOrderType)
-				break
 			}
 
 			orders = append(orders, orderDetail)
