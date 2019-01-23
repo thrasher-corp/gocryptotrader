@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strconv"
 	"sync"
+	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
@@ -292,11 +293,74 @@ func (p *Poloniex) GetWithdrawCapabilities() uint32 {
 
 // GetActiveOrders retrieves any orders that are active/open
 func (p *Poloniex) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
-	return nil, common.ErrNotYetImplemented
+	resp, err := p.GetOpenOrdersForAllCurrencies()
+	if err != nil {
+		return nil, err
+	}
+
+	var orders []exchange.OrderDetail
+	for currencyPair, openOrders := range resp.Data {
+		symbol := pair.NewCurrencyPairDelimiter(currencyPair, p.ConfigCurrencyPairFormat.Delimiter)
+
+		for _, order := range openOrders {
+			t, err := time.Parse(time.RFC3339, order.Date)
+			if err != nil {
+				log.Errorf("Exchange %v Func %v Order %v Could not parse date to unix with value of %v",
+					p.Name, "GetActiveOrders", order.OrderNumber, order.Date)
+			}
+
+			orders = append(orders, exchange.OrderDetail{
+				ID:            fmt.Sprintf("%v", order.OrderNumber),
+				BaseCurrency:  symbol.FirstCurrency.String(),
+				QuoteCurrency: symbol.SecondCurrency.String(),
+				OrderSide:     order.Type,
+				Amount:        order.Amount,
+				OrderDate:     t.Unix(),
+				Price:         order.Rate,
+			})
+		}
+	}
+
+	p.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
+	p.FilterOrdersByCurrencies(&orders, getOrdersRequest.Currencies)
+	p.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
+
+	return orders, nil
 }
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
 func (p *Poloniex) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
-	return nil, common.ErrNotYetImplemented
+	resp, err := p.GetAuthenticatedTradeHistory(getOrdersRequest.StartTicks, getOrdersRequest.EndTicks, 10000)
+	if err != nil {
+		return nil, err
+	}
+
+	var orders []exchange.OrderDetail
+	for currencyPair, historicOrders := range resp.Data {
+		symbol := pair.NewCurrencyPairDelimiter(currencyPair, p.ConfigCurrencyPairFormat.Delimiter)
+
+		for _, order := range historicOrders {
+			t, err := time.Parse(time.RFC3339, order.Date)
+			if err != nil {
+				log.Errorf("Exchange %v Func %v Order %v Could not parse date to unix with value of %v",
+					p.Name, "GetActiveOrders", order.OrderNumber, order.Date)
+			}
+
+			orders = append(orders, exchange.OrderDetail{
+				ID:            fmt.Sprintf("%v", order.GlobalTradeID),
+				BaseCurrency:  symbol.FirstCurrency.String(),
+				QuoteCurrency: symbol.SecondCurrency.String(),
+				OrderSide:     order.Type,
+				Amount:        order.Amount,
+				OrderDate:     t.Unix(),
+				Price:         order.Rate,
+			})
+		}
+	}
+
+	p.FilterOrdersByCurrencies(&orders, getOrdersRequest.Currencies)
+	p.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
+
+	return orders, nil
 }

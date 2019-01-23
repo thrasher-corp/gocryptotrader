@@ -456,35 +456,24 @@ func (p *Poloniex) GetOpenOrdersForAllCurrencies() (OpenOrdersResponseAll, error
 	return result, nil
 }
 
-// GetAuthenticatedTradeHistory returns account trade history
-func (p *Poloniex) GetAuthenticatedTradeHistory(currency, start, end, limit string) (interface{}, error) {
+// GetAuthenticatedTradeHistoryForCurrency returns account trade history
+func (p *Poloniex) GetAuthenticatedTradeHistoryForCurrency(currency string, start, end, limit int64) (AuthenticatedTradeHistoryResponse, error) {
 	values := url.Values{}
 
-	if start != "" {
-		values.Set("start", start)
+	if start > 0 {
+		values.Set("start", strconv.FormatInt(start, 10))
 	}
 
-	if limit != "" {
-		values.Set("limit", limit)
+	if limit > 0 {
+		values.Set("limit", strconv.FormatInt(limit, 10))
 	}
 
-	if end != "" {
-		values.Set("end", end)
+	if end > 0 {
+		values.Set("end", strconv.FormatInt(end, 10))
 	}
 
-	if currency != "" && currency != "all" {
-		values.Set("currencyPair", currency)
-		result := AuthenticatedTradeHistoryResponse{}
-
-		err := p.SendAuthenticatedHTTPRequest("POST", poloniexTradeHistory, values, &result.Data)
-		if err != nil {
-			return result, err
-		}
-
-		return result, nil
-	}
-	values.Set("currencyPair", "all")
-	result := AuthenticatedTradeHistoryAll{}
+	values.Set("currencyPair", currency)
+	result := AuthenticatedTradeHistoryResponse{}
 
 	err := p.SendAuthenticatedHTTPRequest("POST", poloniexTradeHistory, values, &result.Data)
 	if err != nil {
@@ -492,6 +481,39 @@ func (p *Poloniex) GetAuthenticatedTradeHistory(currency, start, end, limit stri
 	}
 
 	return result, nil
+}
+
+// GetAuthenticatedTradeHistory returns account trade history
+func (p *Poloniex) GetAuthenticatedTradeHistory(start, end, limit int64) (AuthenticatedTradeHistoryAll, error) {
+	values := url.Values{}
+
+	if start > 0 {
+		values.Set("start", strconv.FormatInt(start, 10))
+	}
+
+	if limit > 0 {
+		values.Set("limit", strconv.FormatInt(limit, 10))
+	}
+
+	if end > 0 {
+		values.Set("end", strconv.FormatInt(end, 10))
+	}
+
+	values.Set("currencyPair", "all")
+	var result interface{}
+
+	err := p.SendAuthenticatedHTTPRequest("POST", poloniexTradeHistory, values, &result)
+	if err != nil {
+		return AuthenticatedTradeHistoryAll{}, err
+	}
+
+	// If there are no orders, Poloniex returns an empty array
+	switch result.(type) {
+	case AuthenticatedTradeHistoryAll:
+		return result.(AuthenticatedTradeHistoryAll), nil
+	default:
+		return AuthenticatedTradeHistoryAll{}, nil
+	}
 }
 
 // PlaceOrder places a new order on the exchange
