@@ -35,7 +35,16 @@ func TestSetupOutputsValidPath(t *testing.T) {
 	if err != nil {
 		t.Fatalf("SetupOutputs failed expected nil got %v", err)
 	}
-	os.Remove(path.Join(LogPath, Logger.File))
+
+	err = CloseLogFile()
+	if err != nil {
+		t.Fatalf("CloseLogFile failed with %v", err)
+	}
+
+	err = os.Remove(path.Join(LogPath, Logger.File))
+	if err != nil {
+		t.Fatal("Test Failed - SetupOutputsValidPath() error could not remove test file", err)
+	}
 }
 
 func TestSetupOutputsInValidPath(t *testing.T) {
@@ -48,7 +57,10 @@ func TestSetupOutputsInValidPath(t *testing.T) {
 			t.Fatalf("SetupOutputs failed expected %v got %v", os.ErrNotExist, err)
 		}
 	}
-	os.Remove(path.Join(LogPath, Logger.File))
+	err = os.Remove(path.Join(LogPath, Logger.File))
+	if err == nil {
+		t.Fatal("Test Failed - SetupOutputsInValidPath() error cannot be nil")
+	}
 }
 
 func BenchmarkDebugf(b *testing.B) {
