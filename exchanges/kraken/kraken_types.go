@@ -372,3 +372,24 @@ type DepositAddress struct {
 	ExpireTime int64  `json:"expiretm,string"`
 	New        bool   `json:"new"`
 }
+
+// WithdrawStatusResponse defines a withdrawal status response
+type WithdrawStatusResponse struct {
+	Method string  `json:"method"`
+	Aclass string  `json:"aclass"`
+	Asset  string  `json:"asset"`
+	Refid  string  `json:"refid"`
+	TxID   string  `json:"txid"`
+	Info   string  `json:"info"`
+	Amount float64 `json:"amount,string"`
+	Fee    float64 `json:"fee,string"`
+	Time   float64 `json:"time"`
+	Status string  `json:"status"`
+}
+
+// WithdrawCancelResponse defines a withdraw cancellation response type
+type WithdrawCancelResponse struct {
+	Aclass string `json:"aclass"`
+	Asset  string `json:"asset"`
+	Refid  string `json:"refid"`
+}

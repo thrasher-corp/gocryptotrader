@@ -533,3 +533,37 @@ func TestGetDepositAddress(t *testing.T) {
 		}
 	}
 }
+
+func TestWithdrawStatus(t *testing.T) {
+	k.SetDefaults()
+	TestSetup(t)
+
+	if areTestAPIKeysSet() {
+		_, err := k.WithdrawStatus(symbol.BTC, "")
+		if err == nil {
+			t.Error("Test Failed - WithdrawStatus() error", err)
+		}
+	} else {
+		_, err := k.WithdrawStatus(symbol.BTC, "")
+		if err == nil {
+			t.Error("Test Failed - WithdrawStatus() error", err)
+		}
+	}
+}
+
+func TestWithdrawCancel(t *testing.T) {
+	k.SetDefaults()
+	TestSetup(t)
+
+	if areTestAPIKeysSet() {
+		_, err := k.WithdrawCancel(symbol.BTC, 0)
+		if err == nil {
+			t.Error("Test Failed - WithdrawCancel() error", err)
+		}
+	} else {
+		_, err := k.WithdrawCancel(symbol.BTC, 0)
+		if err == nil {
+			t.Error("Test Failed - WithdrawCancel() error", err)
+		}
+	}
+}
