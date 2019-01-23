@@ -314,7 +314,6 @@ func (b *Bitfinex) WsDataHandler() {
 									b.Websocket.DataHandler <- fmt.Errorf("bitfinex_websocket.go inserting snapshot error: %s",
 										err)
 								}
-
 								continue
 							}
 

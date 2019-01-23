@@ -70,7 +70,8 @@ func (c *CoinbasePro) SetDefaults() {
 	c.TakerFee = 0.25
 	c.MakerFee = 0
 	c.RESTPollingDelay = 10
-	c.APIWithdrawPermissions = exchange.AutoWithdrawCryptoWithAPIPermission | exchange.AutoWithdrawFiatWithAPIPermission
+	c.APIWithdrawPermissions = exchange.AutoWithdrawCryptoWithAPIPermission |
+		exchange.AutoWithdrawFiatWithAPIPermission
 	c.RequestCurrencyPairFormat.Delimiter = "-"
 	c.RequestCurrencyPairFormat.Uppercase = true
 	c.ConfigCurrencyPairFormat.Delimiter = ""
@@ -85,6 +86,8 @@ func (c *CoinbasePro) SetDefaults() {
 	c.APIUrlDefault = coinbaseproAPIURL
 	c.APIUrl = c.APIUrlDefault
 	c.WebsocketInit()
+	c.Websocket.Functionality = exchange.WebsocketTickerSupported |
+		exchange.WebsocketOrderbookSupported
 }
 
 // Setup initialises the exchange parameters with the current configuration

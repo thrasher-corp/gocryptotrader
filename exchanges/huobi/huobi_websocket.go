@@ -139,7 +139,8 @@ func (h *HUOBI) WsHandleData() {
 				var depth WsDepth
 				err := common.JSONDecode(resp.Raw, &depth)
 				if err != nil {
-					log.Error(err)
+					h.Websocket.DataHandler <- err
+					continue
 				}
 
 				data := common.SplitStrings(depth.Channel, ".")
@@ -150,7 +151,8 @@ func (h *HUOBI) WsHandleData() {
 				var kline WsKline
 				err := common.JSONDecode(resp.Raw, &kline)
 				if err != nil {
-					log.Error(err)
+					h.Websocket.DataHandler <- err
+					continue
 				}
 
 				data := common.SplitStrings(kline.Channel, ".")
@@ -171,7 +173,8 @@ func (h *HUOBI) WsHandleData() {
 				var trade WsTrade
 				err := common.JSONDecode(resp.Raw, &trade)
 				if err != nil {
-					log.Error(err)
+					h.Websocket.DataHandler <- err
+					continue
 				}
 
 				data := common.SplitStrings(trade.Channel, ".")

@@ -55,7 +55,8 @@ func (y *Yobit) SetDefaults() {
 	y.RESTPollingDelay = 10
 	y.AuthenticatedAPISupport = true
 	y.Ticker = make(map[string]Ticker)
-	y.APIWithdrawPermissions = exchange.AutoWithdrawCryptoWithAPIPermission | exchange.WithdrawFiatViaWebsiteOnly
+	y.APIWithdrawPermissions = exchange.AutoWithdrawCryptoWithAPIPermission |
+		exchange.WithdrawFiatViaWebsiteOnly
 	y.RequestCurrencyPairFormat.Delimiter = "_"
 	y.RequestCurrencyPairFormat.Uppercase = false
 	y.RequestCurrencyPairFormat.Separator = "-"

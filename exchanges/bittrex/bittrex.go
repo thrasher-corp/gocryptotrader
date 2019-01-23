@@ -68,7 +68,8 @@ func (b *Bittrex) SetDefaults() {
 	b.Enabled = false
 	b.Verbose = false
 	b.RESTPollingDelay = 10
-	b.APIWithdrawPermissions = exchange.AutoWithdrawCryptoWithAPIPermission | exchange.NoFiatWithdrawals
+	b.APIWithdrawPermissions = exchange.AutoWithdrawCryptoWithAPIPermission |
+		exchange.NoFiatWithdrawals
 	b.RequestCurrencyPairFormat.Delimiter = "-"
 	b.RequestCurrencyPairFormat.Uppercase = true
 	b.ConfigCurrencyPairFormat.Delimiter = "-"

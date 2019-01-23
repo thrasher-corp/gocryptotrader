@@ -55,7 +55,8 @@ func (z *ZB) SetDefaults() {
 	z.Fee = 0
 	z.Verbose = false
 	z.RESTPollingDelay = 10
-	z.APIWithdrawPermissions = exchange.AutoWithdrawCrypto | exchange.NoFiatWithdrawals
+	z.APIWithdrawPermissions = exchange.AutoWithdrawCrypto |
+		exchange.NoFiatWithdrawals
 	z.RequestCurrencyPairFormat.Delimiter = "_"
 	z.RequestCurrencyPairFormat.Uppercase = false
 	z.ConfigCurrencyPairFormat.Delimiter = "_"
@@ -72,6 +73,9 @@ func (z *ZB) SetDefaults() {
 	z.APIUrlSecondaryDefault = zbMarketURL
 	z.APIUrlSecondary = z.APIUrlSecondaryDefault
 	z.WebsocketInit()
+	z.Websocket.Functionality = exchange.WebsocketTickerSupported |
+		exchange.WebsocketOrderbookSupported |
+		exchange.WebsocketTradeDataSupported
 }
 
 // Setup sets user configuration

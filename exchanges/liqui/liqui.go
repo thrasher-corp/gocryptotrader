@@ -52,7 +52,8 @@ func (l *Liqui) SetDefaults() {
 	l.Verbose = false
 	l.RESTPollingDelay = 10
 	l.Ticker = make(map[string]Ticker)
-	l.APIWithdrawPermissions = exchange.WithdrawCryptoWithAPIPermission | exchange.NoFiatWithdrawals
+	l.APIWithdrawPermissions = exchange.WithdrawCryptoWithAPIPermission |
+		exchange.NoFiatWithdrawals
 	l.RequestCurrencyPairFormat.Delimiter = "_"
 	l.RequestCurrencyPairFormat.Uppercase = false
 	l.RequestCurrencyPairFormat.Separator = "-"

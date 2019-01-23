@@ -66,7 +66,8 @@ func (p *Poloniex) SetDefaults() {
 	p.Fee = 0
 	p.Verbose = false
 	p.RESTPollingDelay = 10
-	p.APIWithdrawPermissions = exchange.AutoWithdrawCryptoWithAPIPermission | exchange.NoFiatWithdrawals
+	p.APIWithdrawPermissions = exchange.AutoWithdrawCryptoWithAPIPermission |
+		exchange.NoFiatWithdrawals
 	p.RequestCurrencyPairFormat.Delimiter = "_"
 	p.RequestCurrencyPairFormat.Uppercase = true
 	p.ConfigCurrencyPairFormat.Delimiter = "_"
@@ -81,6 +82,9 @@ func (p *Poloniex) SetDefaults() {
 	p.APIUrlDefault = poloniexAPIURL
 	p.APIUrl = p.APIUrlDefault
 	p.WebsocketInit()
+	p.Websocket.Functionality = exchange.WebsocketTradeDataSupported |
+		exchange.WebsocketOrderbookSupported |
+		exchange.WebsocketTickerSupported
 }
 
 // Setup sets user exchange configuration settings

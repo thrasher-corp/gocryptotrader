@@ -81,7 +81,8 @@ func (b *Bitflyer) SetDefaults() {
 	b.Enabled = false
 	b.Verbose = false
 	b.RESTPollingDelay = 10
-	b.APIWithdrawPermissions = exchange.WithdrawCryptoViaWebsiteOnly | exchange.AutoWithdrawFiat
+	b.APIWithdrawPermissions = exchange.WithdrawCryptoViaWebsiteOnly |
+		exchange.AutoWithdrawFiat
 	b.RequestCurrencyPairFormat.Delimiter = "_"
 	b.RequestCurrencyPairFormat.Uppercase = true
 	b.ConfigCurrencyPairFormat.Delimiter = "_"

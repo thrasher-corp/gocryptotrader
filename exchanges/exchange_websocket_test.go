@@ -309,3 +309,28 @@ func TestUpdate(t *testing.T) {
 		t.Error("test failed - OrderbookUpdate error", err)
 	}
 }
+
+func TestFunctionality(t *testing.T) {
+	var w Websocket
+
+	if w.FormatFunctionality() != NoWebsocketSupportText {
+		t.Fatalf("Test Failed - FormatFunctionality error expected %s but recieved %s",
+			NoWebsocketSupportText, w.FormatFunctionality())
+	}
+
+	w.Functionality = 1 << 31
+
+	if w.FormatFunctionality() != UnknownWebsocketFunctionality+"[1<<31]" {
+		t.Fatal("Test Failed - GetFunctionality error incorrect error returned")
+	}
+
+	w.Functionality = WebsocketOrderbookSupported
+
+	if w.GetFunctionality() != WebsocketOrderbookSupported {
+		t.Fatal("Test Failed - GetFunctionality error incorrect bitmask returned")
+	}
+
+	if !w.SupportsFunctionality(WebsocketOrderbookSupported) {
+		t.Fatal("Test Failed - SupportsFunctionality error should be true")
+	}
+}

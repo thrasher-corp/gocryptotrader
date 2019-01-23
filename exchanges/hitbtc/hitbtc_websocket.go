@@ -12,7 +12,6 @@ import (
 	"github.com/thrasher-/gocryptotrader/currency/pair"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
-	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
 const (
@@ -139,10 +138,12 @@ func (h *HitBTC) WsHandleData() {
 				h.Websocket.DataHandler <- err
 				return
 			}
+
 			var init capture
 			err = common.JSONDecode(resp.Raw, &init)
 			if err != nil {
-				log.Error(err)
+				h.Websocket.DataHandler <- err
+				continue
 			}
 
 			if init.Error.Message != "" || init.Error.Code != 0 {
@@ -161,12 +162,14 @@ func (h *HitBTC) WsHandleData() {
 				var ticker WsTicker
 				err := common.JSONDecode(resp.Raw, &ticker)
 				if err != nil {
-					log.Error(err)
+					h.Websocket.DataHandler <- err
+					continue
 				}
 
 				ts, err := time.Parse(time.RFC3339, ticker.Params.Timestamp)
 				if err != nil {
-					log.Error(err)
+					h.Websocket.DataHandler <- err
+					continue
 				}
 
 				h.Websocket.DataHandler <- exchange.TickerData{
@@ -184,19 +187,22 @@ func (h *HitBTC) WsHandleData() {
 				var obSnapshot WsOrderbook
 				err := common.JSONDecode(resp.Raw, &obSnapshot)
 				if err != nil {
-					log.Error(err)
+					h.Websocket.DataHandler <- err
+					continue
 				}
 
 				err = h.WsProcessOrderbookSnapshot(obSnapshot)
 				if err != nil {
-					log.Error(err)
+					h.Websocket.DataHandler <- err
+					continue
 				}
 
 			case "updateOrderbook":
 				var obUpdate WsOrderbook
 				err := common.JSONDecode(resp.Raw, &obUpdate)
 				if err != nil {
-					log.Error(err)
+					h.Websocket.DataHandler <- err
+					continue
 				}
 
 				h.WsProcessOrderbookUpdate(obUpdate)
@@ -205,14 +211,16 @@ func (h *HitBTC) WsHandleData() {
 				var tradeSnapshot WsTrade
 				err := common.JSONDecode(resp.Raw, &tradeSnapshot)
 				if err != nil {
-					log.Error(err)
+					h.Websocket.DataHandler <- err
+					continue
 				}
 
 			case "updateTrades":
 				var tradeUpdates WsTrade
 				err := common.JSONDecode(resp.Raw, &tradeUpdates)
 				if err != nil {
-					log.Error(err)
+					h.Websocket.DataHandler <- err
+					continue
 				}
 			}
 		}

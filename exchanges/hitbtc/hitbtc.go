@@ -60,7 +60,8 @@ func (h *HitBTC) SetDefaults() {
 	h.Fee = 0
 	h.Verbose = false
 	h.RESTPollingDelay = 10
-	h.APIWithdrawPermissions = exchange.AutoWithdrawCrypto | exchange.NoFiatWithdrawals
+	h.APIWithdrawPermissions = exchange.AutoWithdrawCrypto |
+		exchange.NoFiatWithdrawals
 	h.RequestCurrencyPairFormat.Delimiter = ""
 	h.RequestCurrencyPairFormat.Uppercase = true
 	h.ConfigCurrencyPairFormat.Delimiter = "-"
@@ -75,6 +76,8 @@ func (h *HitBTC) SetDefaults() {
 	h.APIUrlDefault = apiURL
 	h.APIUrl = h.APIUrlDefault
 	h.WebsocketInit()
+	h.Websocket.Functionality = exchange.WebsocketTickerSupported |
+		exchange.WebsocketOrderbookSupported
 }
 
 // Setup sets user exchange configuration settings

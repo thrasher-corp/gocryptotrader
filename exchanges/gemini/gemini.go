@@ -104,7 +104,9 @@ func (g *Gemini) SetDefaults() {
 	g.Enabled = false
 	g.Verbose = false
 	g.RESTPollingDelay = 10
-	g.APIWithdrawPermissions = exchange.AutoWithdrawCryptoWithAPIPermission | exchange.AutoWithdrawCryptoWithSetup | exchange.WithdrawFiatViaWebsiteOnly
+	g.APIWithdrawPermissions = exchange.AutoWithdrawCryptoWithAPIPermission |
+		exchange.AutoWithdrawCryptoWithSetup |
+		exchange.WithdrawFiatViaWebsiteOnly
 	g.RequestCurrencyPairFormat.Delimiter = ""
 	g.RequestCurrencyPairFormat.Uppercase = true
 	g.ConfigCurrencyPairFormat.Delimiter = ""
@@ -119,6 +121,8 @@ func (g *Gemini) SetDefaults() {
 	g.APIUrlDefault = geminiAPIURL
 	g.APIUrl = g.APIUrlDefault
 	g.WebsocketInit()
+	g.Websocket.Functionality = exchange.WebsocketOrderbookSupported |
+		exchange.WebsocketTradeDataSupported
 }
 
 // Setup sets exchange configuration parameters

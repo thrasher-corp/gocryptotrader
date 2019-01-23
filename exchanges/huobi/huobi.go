@@ -77,7 +77,8 @@ func (h *HUOBI) SetDefaults() {
 	h.Fee = 0
 	h.Verbose = false
 	h.RESTPollingDelay = 10
-	h.APIWithdrawPermissions = exchange.AutoWithdrawCryptoWithSetup | exchange.NoFiatWithdrawals
+	h.APIWithdrawPermissions = exchange.AutoWithdrawCryptoWithSetup |
+		exchange.NoFiatWithdrawals
 	h.RequestCurrencyPairFormat.Delimiter = ""
 	h.RequestCurrencyPairFormat.Uppercase = false
 	h.ConfigCurrencyPairFormat.Delimiter = "-"
@@ -92,6 +93,9 @@ func (h *HUOBI) SetDefaults() {
 	h.APIUrlDefault = huobiAPIURL
 	h.APIUrl = h.APIUrlDefault
 	h.WebsocketInit()
+	h.Websocket.Functionality = exchange.WebsocketKlineSupported |
+		exchange.WebsocketOrderbookSupported |
+		exchange.WebsocketTradeDataSupported
 }
 
 // Setup sets user configuration

@@ -158,8 +158,8 @@ func (o *OKCoin) WsHandleData() {
 
 				err = common.JSONDecode(init[0].Data, &ticker)
 				if err != nil {
-					log.Error(err)
-
+					o.Websocket.DataHandler <- err
+					continue
 				}
 
 				o.Websocket.DataHandler <- exchange.TickerData{
@@ -179,7 +179,8 @@ func (o *OKCoin) WsHandleData() {
 
 				err = common.JSONDecode(init[0].Data, &orderbook)
 				if err != nil {
-					log.Error(err)
+					o.Websocket.DataHandler <- err
+					continue
 				}
 
 				o.Websocket.DataHandler <- exchange.WebsocketOrderbookUpdate{
@@ -193,7 +194,8 @@ func (o *OKCoin) WsHandleData() {
 
 				err = common.JSONDecode(init[0].Data, &klineData)
 				if err != nil {
-					log.Error(err)
+					o.Websocket.DataHandler <- err
+					continue
 				}
 
 				var klines []WsKlines
@@ -229,7 +231,8 @@ func (o *OKCoin) WsHandleData() {
 				var dealsData [][]interface{}
 				err = common.JSONDecode(init[0].Data, &dealsData)
 				if err != nil {
-					log.Error(err)
+					o.Websocket.DataHandler <- err
+					continue
 				}
 
 				var deals []WsDeals

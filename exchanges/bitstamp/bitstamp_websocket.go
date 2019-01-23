@@ -147,7 +147,6 @@ func (b *Bitstamp) WsConnect() error {
 			strings.ToLower(p.Pair().String())))
 
 		if err != nil {
-			log.Error(err)
 			return fmt.Errorf("%s Websocket Trade subscription error: %s",
 				b.GetName(),
 				err)
@@ -157,7 +156,6 @@ func (b *Bitstamp) WsConnect() error {
 			strings.ToLower(p.Pair().String())))
 
 		if err != nil {
-			log.Error(err)
 			return fmt.Errorf("%s Websocket Trade subscription error: %s",
 				b.GetName(),
 				err)

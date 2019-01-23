@@ -82,7 +82,8 @@ func (b *Binance) SetDefaults() {
 	b.AssetTypes = []string{ticker.Spot}
 	b.SupportsAutoPairUpdating = true
 	b.SupportsRESTTickerBatching = true
-	b.APIWithdrawPermissions = exchange.AutoWithdrawCrypto | exchange.NoFiatWithdrawals
+	b.APIWithdrawPermissions = exchange.AutoWithdrawCrypto |
+		exchange.NoFiatWithdrawals
 	b.SetValues()
 	b.Requester = request.New(b.Name,
 		request.NewRateLimit(time.Second, binanceAuthRate),
@@ -91,6 +92,10 @@ func (b *Binance) SetDefaults() {
 	b.APIUrlDefault = apiURL
 	b.APIUrl = b.APIUrlDefault
 	b.WebsocketInit()
+	b.Websocket.Functionality = exchange.WebsocketTradeDataSupported |
+		exchange.WebsocketTickerSupported |
+		exchange.WebsocketKlineSupported |
+		exchange.WebsocketOrderbookSupported
 }
 
 // Setup takes in the supplied exchange configuration details and sets params

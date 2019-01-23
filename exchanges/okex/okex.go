@@ -106,7 +106,8 @@ func (o *OKEX) SetDefaults() {
 	o.Enabled = false
 	o.Verbose = false
 	o.RESTPollingDelay = 10
-	o.APIWithdrawPermissions = exchange.AutoWithdrawCrypto | exchange.NoFiatWithdrawals
+	o.APIWithdrawPermissions = exchange.AutoWithdrawCrypto |
+		exchange.NoFiatWithdrawals
 	o.RequestCurrencyPairFormat.Delimiter = "_"
 	o.RequestCurrencyPairFormat.Uppercase = false
 	o.ConfigCurrencyPairFormat.Delimiter = "_"
@@ -121,6 +122,10 @@ func (o *OKEX) SetDefaults() {
 	o.APIUrl = o.APIUrlDefault
 	o.AssetTypes = []string{ticker.Spot}
 	o.WebsocketInit()
+	o.Websocket.Functionality = exchange.WebsocketTickerSupported |
+		exchange.WebsocketTradeDataSupported |
+		exchange.WebsocketKlineSupported |
+		exchange.WebsocketOrderbookSupported
 }
 
 // Setup method sets current configuration details if enabled

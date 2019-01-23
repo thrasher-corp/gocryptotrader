@@ -3,6 +3,7 @@ package exchange
 import (
 	"errors"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -11,7 +12,25 @@ import (
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 )
 
+// Websocket functionality list and state consts
 const (
+	NoWebsocketSupport       uint32 = 0
+	WebsocketTickerSupported uint32 = 1 << (iota - 1)
+	WebsocketOrderbookSupported
+	WebsocketKlineSupported
+	WebsocketTradeDataSupported
+	WebsocketAccountSupported
+	WebsocketAllowsRequests
+
+	WebsocketTickerSupportedText    = "TICKER STREAMING SUPPORTED"
+	WebsocketOrderbookSupportedText = "ORDERBOOK STREAMING SUPPORTED"
+	WebsocketKlineSupportedText     = "KLINE STREAMING SUPPORTED"
+	WebsocketTradeDataSupportedText = "TRADE STREAMING SUPPORTED"
+	WebsocketAccountSupportedText   = "ACCOUNT STREAMING SUPPORTED"
+	WebsocketAllowsRequestsText     = "WEBSOCKET REQUESTS SUPPORTED"
+	NoWebsocketSupportText          = "WEBSOCKET NOT SUPPORTED"
+	UnknownWebsocketFunctionality   = "UNKNOWN FUNCTIONALITY BITMASK"
+
 	// WebsocketNotEnabled alerts of a disabled websocket
 	WebsocketNotEnabled = "exchange_websocket_not_enabled"
 	// WebsocketTrafficLimitTime defines a standard time for no traffic from the
@@ -97,6 +116,9 @@ type Websocket struct {
 
 	// TrafficAlert monitors if there is a halt in traffic throughput
 	TrafficAlert chan struct{}
+
+	// Functionality defines websocket stream capabilities
+	Functionality uint32
 }
 
 // trafficMonitor monitors traffic and switches connection modes for websocket
@@ -623,4 +645,58 @@ type WebsocketPositionUpdated struct {
 	Pair      pair.CurrencyPair
 	AssetType string
 	Exchange  string
+}
+
+// GetFunctionality returns a functionality bitmask for the websocket
+// connection
+func (w *Websocket) GetFunctionality() uint32 {
+	return w.Functionality
+}
+
+// SupportsFunctionality returns if the functionality is supported as a boolean
+func (w *Websocket) SupportsFunctionality(f uint32) bool {
+	if w.GetFunctionality()&f == f {
+		return true
+	}
+	return false
+}
+
+// FormatFunctionality will return each of the websocket connection compatible
+// stream methods as a string
+func (w *Websocket) FormatFunctionality() string {
+	functionality := []string{}
+	for i := 0; i < 32; i++ {
+		var check uint32 = 1 << uint32(i)
+		if w.GetFunctionality()&check != 0 {
+			switch check {
+			case WebsocketTickerSupported:
+				functionality = append(functionality, WebsocketTickerSupportedText)
+
+			case WebsocketOrderbookSupported:
+				functionality = append(functionality, WebsocketOrderbookSupportedText)
+
+			case WebsocketKlineSupported:
+				functionality = append(functionality, WebsocketKlineSupportedText)
+
+			case WebsocketTradeDataSupported:
+				functionality = append(functionality, WebsocketTradeDataSupportedText)
+
+			case WebsocketAccountSupported:
+				functionality = append(functionality, WebsocketAccountSupportedText)
+
+			case WebsocketAllowsRequests:
+				functionality = append(functionality, WebsocketAllowsRequestsText)
+
+			default:
+				functionality = append(functionality,
+					fmt.Sprintf("%s[1<<%v]", UnknownWebsocketFunctionality, i))
+			}
+		}
+	}
+
+	if len(functionality) > 0 {
+		return strings.Join(functionality, " & ")
+	}
+
+	return NoWebsocketSupportText
 }

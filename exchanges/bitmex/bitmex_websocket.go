@@ -172,6 +172,7 @@ func (b *Bitmex) wsHandleIncomingData() {
 				err := b.WebsocketConn.WriteJSON("pong")
 				if err != nil {
 					b.Websocket.DataHandler <- err
+					continue
 				}
 			}
 
