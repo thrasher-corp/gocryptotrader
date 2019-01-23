@@ -386,10 +386,3 @@ type WithdrawStatusResponse struct {
 	Time   float64 `json:"time"`
 	Status string  `json:"status"`
 }
-
-// WithdrawCancelResponse defines a withdraw cancellation response type
-type WithdrawCancelResponse struct {
-	Aclass string `json:"aclass"`
-	Asset  string `json:"asset"`
-	Refid  string `json:"refid"`
-}

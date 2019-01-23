@@ -1051,15 +1051,15 @@ func (k *Kraken) WithdrawStatus(currency, method string) ([]WithdrawStatusRespon
 }
 
 // WithdrawCancel sends a withdrawal cancelation request
-func (k *Kraken) WithdrawCancel(currency string, amount float64) (WithdrawCancelResponse, error) {
+func (k *Kraken) WithdrawCancel(currency, refID string) (bool, error) {
 	var response struct {
-		Error  []string               `json:"error"`
-		Result WithdrawCancelResponse `json:"result"`
+		Error  []string `json:"error"`
+		Result bool     `json:"result"`
 	}
+
 	params := url.Values{}
 	params.Set("asset ", currency)
-	params.Set("key ", "")
-	params.Set("amount ", fmt.Sprintf("%f", amount))
+	params.Set("refid", refID)
 
 	if err := k.SendAuthenticatedHTTPRequest(krakenWithdrawCancel, params, &response); err != nil {
 		return response.Result, err

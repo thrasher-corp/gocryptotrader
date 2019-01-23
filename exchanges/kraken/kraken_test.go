@@ -555,15 +555,10 @@ func TestWithdrawCancel(t *testing.T) {
 	k.SetDefaults()
 	TestSetup(t)
 
-	if areTestAPIKeysSet() {
-		_, err := k.WithdrawCancel(symbol.BTC, 0)
-		if err == nil {
-			t.Error("Test Failed - WithdrawCancel() error", err)
-		}
-	} else {
-		_, err := k.WithdrawCancel(symbol.BTC, 0)
-		if err == nil {
-			t.Error("Test Failed - WithdrawCancel() error", err)
-		}
+	_, err := k.WithdrawCancel(symbol.BTC, "")
+	if areTestAPIKeysSet() && err == nil {
+		t.Error("Test Failed - WithdrawCancel() error cannot be nil")
+	} else if !areTestAPIKeysSet() && err == nil {
+		t.Errorf("Test Failed - WithdrawCancel() error - expecting an error when no keys are set but recieved nil")
 	}
 }
