@@ -44,6 +44,8 @@ const (
 	krakenWithdraw         = "Withdraw"
 	krakenDepositMethods   = "DepositMethods"
 	krakenDepositAddresses = "DepositAddresses"
+	krakenWithdrawStatus   = "WithdrawStatus"
+	krakenWithdrawCancel   = "WithdrawCancel"
 
 	krakenAuthRate   = 0
 	krakenUnauthRate = 0
@@ -1026,4 +1028,42 @@ func (k *Kraken) GetCryptoDepositAddress(method, code string) (string, error) {
 	}
 
 	return "", errors.New("no addresses returned")
+}
+
+// WithdrawStatus gets the status of recent withdrawals
+func (k *Kraken) WithdrawStatus(currency, method string) ([]WithdrawStatusResponse, error) {
+	var response struct {
+		Error  []string                 `json:"error"`
+		Result []WithdrawStatusResponse `json:"result"`
+	}
+
+	params := url.Values{}
+	params.Set("asset ", currency)
+	if len(method) != 0 {
+		params.Set("method", method)
+	}
+
+	if err := k.SendAuthenticatedHTTPRequest(krakenWithdrawStatus, params, &response); err != nil {
+		return response.Result, err
+	}
+
+	return response.Result, GetError(response.Error)
+}
+
+// WithdrawCancel sends a withdrawal cancelation request
+func (k *Kraken) WithdrawCancel(currency, refID string) (bool, error) {
+	var response struct {
+		Error  []string `json:"error"`
+		Result bool     `json:"result"`
+	}
+
+	params := url.Values{}
+	params.Set("asset ", currency)
+	params.Set("refid", refID)
+
+	if err := k.SendAuthenticatedHTTPRequest(krakenWithdrawCancel, params, &response); err != nil {
+		return response.Result, err
+	}
+
+	return response.Result, GetError(response.Error)
 }
