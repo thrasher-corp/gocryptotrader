@@ -373,19 +373,22 @@ func (g *Gemini) GetOrderStatus(orderID int64) (Order, error) {
 
 // GetOrders returns active orders in the market
 func (g *Gemini) GetOrders() ([]Order, error) {
-	var response struct {
-		orders  []Order
-		Message string `json:"message"`
+	var response interface{}
+
+	type orders struct {
+		orders []Order
 	}
 
 	err := g.SendAuthenticatedHTTPRequest("POST", geminiOrders, nil, &response)
 	if err != nil {
-		return response.orders, err
+		return nil, err
 	}
-	if response.Message != "" {
-		return response.orders, errors.New(response.Message)
+	switch response.(type) {
+	case orders:
+		return response.(orders).orders, nil
+	default:
+		return []Order{}, nil
 	}
-	return response.orders, nil
 }
 
 // GetTradeHistory returns an array of trades that have been on the exchange
@@ -512,9 +515,12 @@ func (g *Gemini) SendAuthenticatedHTTPRequest(method, path string, params map[st
 	PayloadBase64 := common.Base64Encode(PayloadJSON)
 	hmac := common.GetHMAC(common.HashSHA512_384, []byte(PayloadBase64), []byte(g.APISecret))
 
+	headers["Content-Length"] = "0"
+	headers["Content-Type"] = "text/plain"
 	headers["X-GEMINI-APIKEY"] = g.APIKey
 	headers["X-GEMINI-PAYLOAD"] = PayloadBase64
 	headers["X-GEMINI-SIGNATURE"] = common.HexEncodeToString(hmac)
+	headers["Cache-Control"] = "no-cache"
 
 	return g.SendPayload(method, g.APIUrl+"/v1/"+path, headers, strings.NewReader(""), result, true, g.Verbose)
 }

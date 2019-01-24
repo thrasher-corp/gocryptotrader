@@ -300,7 +300,7 @@ func (g *Gemini) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]
 
 	var trades []TradeHistory
 	for _, currency := range getOrdersRequest.Currencies {
-		resp, err := g.GetTradeHistory(currency.Pair().String(), -1)
+		resp, err := g.GetTradeHistory(currency.Pair().String(), getOrdersRequest.StartTicks)
 		if err != nil {
 			return nil, err
 		}
