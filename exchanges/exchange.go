@@ -985,7 +985,7 @@ const (
 
 // FilterOrdersBySide removes any OrderDetails that don't match the orderStatus provided
 func (e *Base) FilterOrdersBySide(orders *[]OrderDetail, orderSide OrderSide) {
-	if orderSide == AnyOrderSide {
+	if orderSide == "" || orderSide == AnyOrderSide {
 		return
 	}
 
