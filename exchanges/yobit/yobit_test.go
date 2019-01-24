@@ -17,7 +17,7 @@ var y Yobit
 // Set API data in "../../testdata/apikeys.json"
 // Copy template from "../../testdata/apikeys.example.json"
 const (
-	canManipulateRealOrders = false
+	canManipulateRealOrders = !false
 )
 
 func TestSetDefaults(t *testing.T) {
@@ -479,7 +479,7 @@ func TestWithdrawInternationalBank(t *testing.T) {
 }
 
 func TestGetDepositAddress(t *testing.T) {
-	if apiKey != "" || apiSecret != "" {
+	if areTestAPIKeysSet() {
 		_, err := y.GetDepositAddress(symbol.BTC, "")
 		if err != nil {
 			t.Error("Test Failed - GetDepositAddress() error", err)

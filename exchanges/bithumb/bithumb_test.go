@@ -499,7 +499,7 @@ func TestWithdrawInternationalBank(t *testing.T) {
 }
 
 func TestGetDepositAddress(t *testing.T) {
-	if testAPIKey != "" && testAPISecret != "" {
+	if areTestAPIKeysSet() {
 		_, err := b.GetDepositAddress(symbol.BTC, "")
 		if err != nil {
 			t.Error("Test Failed - GetDepositAddress() error", err)

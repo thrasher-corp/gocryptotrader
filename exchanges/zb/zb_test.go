@@ -418,7 +418,7 @@ func TestWithdrawInternationalBank(t *testing.T) {
 }
 
 func TestGetDepositAddress(t *testing.T) {
-	if apiKey != "" || apiSecret != "" {
+	if areTestAPIKeysSet() {
 		_, err := z.GetDepositAddress(symbol.BTC, "")
 		if err != nil {
 			t.Error("Test Failed - GetDepositAddress() error PLEASE MAKE SURE YOU CREATE DEPOSIT ADDRESSES VIA ZB.COM",

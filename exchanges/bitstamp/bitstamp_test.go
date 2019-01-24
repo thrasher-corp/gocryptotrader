@@ -7,16 +7,18 @@ import (
 	"testing"
 	"time"
 
+	"github.com/thrasher-/gocryptotrader/common"
+	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
 	"github.com/thrasher-/gocryptotrader/currency/symbol"
 	"github.com/thrasher-/gocryptotrader/exchanges"
-	"github.com/thrasher-/gocryptotrader/config"
 )
 
 // Set API data in "../../testdata/apikeys.json"
 // Copy template from "../../testdata/apikeys.example.json"
 const (
-	customerID              = ""	canManipulateRealOrders = false
+	customerID              = ""
+	canManipulateRealOrders = false
 )
 
 var b Bitstamp
