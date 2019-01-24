@@ -299,7 +299,8 @@ func (z *ZB) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]exch
 	var allOrders []Order
 	for _, currency := range getOrdersRequest.Currencies {
 		var pageNumber int64
-		for {
+		// Limiting to 10 pages
+		for i := 0; i < 10; i++ {
 			resp, err := z.GetUnfinishedOrdersIgnoreTradeType(exchange.FormatExchangeCurrency(z.Name, currency).String(), pageNumber, 10)
 			if err != nil {
 				return nil, err
@@ -361,7 +362,8 @@ func (z *ZB) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]exch
 
 	for _, currency := range getOrdersRequest.Currencies {
 		var pageNumber int64
-		for {
+		// Limiting to 10 pages
+		for i := 0; i < 10; i++ {
 			resp, err := z.GetOrders(exchange.FormatExchangeCurrency(z.Name, currency).String(), pageNumber, side)
 			if err != nil {
 				return nil, err

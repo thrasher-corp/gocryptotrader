@@ -339,7 +339,6 @@ func TestGetUnconfirmedBitcoinDeposits(t *testing.T) {
 }
 
 func TestTransferAccountBalance(t *testing.T) {
-
 	t.Parallel()
 	if b.APIKey == "" || b.APISecret == "" ||
 		b.APIKey == "Key" || b.APISecret == "Secret" {
@@ -356,12 +355,11 @@ func TestTransferAccountBalance(t *testing.T) {
 }
 
 func TestFormatWithdrawPermissions(t *testing.T) {
-	
 	b.SetDefaults()
 	expectedResult := exchange.AutoWithdrawCryptoText + " & " + exchange.AutoWithdrawFiatText
-	
+
 	withdrawPermissions := b.FormatWithdrawPermissions()
-	
+
 	if withdrawPermissions != expectedResult {
 		t.Errorf("Expected: %s, Received: %s", expectedResult, withdrawPermissions)
 	}
@@ -430,7 +428,6 @@ func TestSubmitOrder(t *testing.T) {
 }
 
 func TestCancelExchangeOrder(t *testing.T) {
-	
 	b.SetDefaults()
 	TestSetup(t)
 
@@ -447,10 +444,7 @@ func TestCancelExchangeOrder(t *testing.T) {
 		CurrencyPair:  currencyPair,
 	}
 
-	
 	err := b.CancelOrder(orderCancellation)
-
-	
 	if !areTestAPIKeysSet() && err == nil {
 		t.Errorf("Expecting an error when no keys are set: %v", err)
 	}
@@ -460,7 +454,6 @@ func TestCancelExchangeOrder(t *testing.T) {
 }
 
 func TestCancelAllExchangeOrders(t *testing.T) {
-	
 	b.SetDefaults()
 	TestSetup(t)
 
@@ -477,10 +470,8 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 		CurrencyPair:  currencyPair,
 	}
 
-	
 	resp, err := b.CancelAllOrders(orderCancellation)
 
-	
 	if !areTestAPIKeysSet() && err == nil {
 		t.Errorf("Expecting an error when no keys are set: %v", err)
 	}

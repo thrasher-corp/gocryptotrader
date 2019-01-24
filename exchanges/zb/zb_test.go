@@ -219,7 +219,6 @@ func TestGetFee(t *testing.T) {
 }
 
 func TestFormatWithdrawPermissions(t *testing.T) {
-
 	z.SetDefaults()
 	expectedResult := exchange.AutoWithdrawCryptoText + " & " + exchange.NoFiatWithdrawalsText
 
@@ -296,7 +295,6 @@ func TestSubmitOrder(t *testing.T) {
 }
 
 func TestCancelExchangeOrder(t *testing.T) {
-
 	z.SetDefaults()
 	TestSetup(t)
 
@@ -314,7 +312,6 @@ func TestCancelExchangeOrder(t *testing.T) {
 	}
 
 	err := z.CancelOrder(orderCancellation)
-
 	if !areTestAPIKeysSet() && err == nil {
 		t.Errorf("Expecting an error when no keys are set: %v", err)
 	}
@@ -324,7 +321,6 @@ func TestCancelExchangeOrder(t *testing.T) {
 }
 
 func TestCancelAllExchangeOrders(t *testing.T) {
-
 	z.SetDefaults()
 	TestSetup(t)
 

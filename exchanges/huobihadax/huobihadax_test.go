@@ -451,7 +451,6 @@ func TestSubmitOrder(t *testing.T) {
 }
 
 func TestCancelExchangeOrder(t *testing.T) {
-
 	h.SetDefaults()
 	TestSetup(t)
 
@@ -469,7 +468,6 @@ func TestCancelExchangeOrder(t *testing.T) {
 	}
 
 	err := h.CancelOrder(orderCancellation)
-
 	if !areTestAPIKeysSet() && err == nil {
 		t.Errorf("Expecting an error when no keys are set: %v", err)
 	}

@@ -250,7 +250,6 @@ func setFeeBuilder() exchange.FeeBuilder {
 }
 
 func TestGetFee(t *testing.T) {
-
 	var feeBuilder = setFeeBuilder()
 	if apiKey1 != "" && apiSecret1 != "" {
 		// CryptocurrencyTradeFee Basic
@@ -413,7 +412,6 @@ func TestSubmitOrder(t *testing.T) {
 }
 
 func TestCancelExchangeOrder(t *testing.T) {
-
 	TestAddSession(t)
 	TestSetDefaults(t)
 	TestSetup(t)
@@ -432,7 +430,6 @@ func TestCancelExchangeOrder(t *testing.T) {
 	}
 
 	err := Session[1].CancelOrder(orderCancellation)
-
 	if !areTestAPIKeysSet() && err == nil {
 		t.Errorf("Expecting an error when no keys are set: %v", err)
 	}
@@ -442,7 +439,6 @@ func TestCancelExchangeOrder(t *testing.T) {
 }
 
 func TestCancelAllExchangeOrders(t *testing.T) {
-
 	TestAddSession(t)
 	TestSetDefaults(t)
 	TestSetup(t)

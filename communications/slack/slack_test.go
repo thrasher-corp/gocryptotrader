@@ -71,7 +71,6 @@ func TestBuildURL(t *testing.T) {
 }
 
 func TestGetChannelsString(t *testing.T) {
-
 	s.Details.Channels = append(s.Details.Channels, struct {
 		Created        int      `json:"created"`
 		Creator        string   `json:"creator"`
@@ -315,7 +314,6 @@ func TestHandleHelloResponse(t *testing.T) {
 }
 
 func TestHandleReconnectResponse(t *testing.T) {
-
 	err := s.handleReconnectResponse([]byte(`{"malformedjson}`))
 	if err == nil {
 		t.Error("test failed - slack handleReconnectResponse(), unmarshalled malformed json")

@@ -161,12 +161,11 @@ func TestGetFee(t *testing.T) {
 }
 
 func TestFormatWithdrawPermissions(t *testing.T) {
-	
 	b.SetDefaults()
 	expectedResult := exchange.NoAPIWithdrawalMethodsText
-	
+
 	withdrawPermissions := b.FormatWithdrawPermissions()
-	
+
 	if withdrawPermissions != expectedResult {
 		t.Errorf("Expected: %s, Received: %s", expectedResult, withdrawPermissions)
 	}
@@ -177,7 +176,7 @@ func TestGetActiveOrders(t *testing.T) {
 	TestSetup(t)
 
 	var getOrdersRequest = exchange.GetOrdersRequest{
-		OrderType:   exchange.AnyOrderType,
+		OrderType: exchange.AnyOrderType,
 	}
 
 	_, err := b.GetActiveOrders(getOrdersRequest)
@@ -193,7 +192,7 @@ func TestGetOrderHistory(t *testing.T) {
 	TestSetup(t)
 
 	var getOrdersRequest = exchange.GetOrdersRequest{
-		OrderType:   exchange.AnyOrderType,
+		OrderType: exchange.AnyOrderType,
 	}
 
 	_, err := b.GetOrderHistory(getOrdersRequest)
@@ -234,7 +233,6 @@ func TestSubmitOrder(t *testing.T) {
 }
 
 func TestCancelExchangeOrder(t *testing.T) {
-	
 	b.SetDefaults()
 	TestSetup(t)
 
@@ -251,17 +249,13 @@ func TestCancelExchangeOrder(t *testing.T) {
 		CurrencyPair:  currencyPair,
 	}
 
-	
 	err := b.CancelOrder(orderCancellation)
-
-	
 	if err != common.ErrNotYetImplemented {
 		t.Errorf("Expected 'Not Yet Implemented', received %v", err)
 	}
 }
 
 func TestCancelAllExchangeOrders(t *testing.T) {
-	
 	b.SetDefaults()
 	TestSetup(t)
 
@@ -278,10 +272,8 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 		CurrencyPair:  currencyPair,
 	}
 
-	
 	_, err := b.CancelAllOrders(orderCancellation)
 
-	
 	if err != common.ErrNotYetImplemented {
 		t.Errorf("Expected 'Not Yet Implemented', received %v", err)
 	}

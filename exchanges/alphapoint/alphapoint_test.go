@@ -577,7 +577,6 @@ func TestCancelExchangeOrder(t *testing.T) {
 	}
 
 	err := a.CancelOrder(orderCancellation)
-
 	if !areTestAPIKeysSet(a) && err == nil {
 		t.Errorf("Expecting an error when no keys are set: %v", err)
 	}
