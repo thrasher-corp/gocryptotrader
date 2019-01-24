@@ -29,8 +29,8 @@ type AccountsBaseResponse struct {
 	AuthMobileEnabled    bool   `json:"auth_mobile_enabled"`    //是否开通手机验证
 }
 
-// UnfinishedOpenOrder is the order details for retrieving all open orders
-type UnfinishedOpenOrder struct {
+// Order is the order details for retrieving all orders
+type Order struct {
 	Currency    string  `json:"currency"`
 	ID          int64   `json:"id"`
 	Price       int     `json:"price"`

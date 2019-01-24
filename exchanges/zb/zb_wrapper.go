@@ -1,6 +1,7 @@
 package zb
 
 import (
+	"errors"
 	"fmt"
 	"strconv"
 	"sync"
@@ -217,15 +218,22 @@ func (z *ZB) CancelAllOrders(orderCancellation exchange.OrderCancellation) (exch
 	cancelAllOrdersResponse := exchange.CancelAllOrdersResponse{
 		OrderStatus: make(map[string]string),
 	}
-	var allOpenOrders []UnfinishedOpenOrder
+	var allOpenOrders []Order
 	for _, currency := range z.GetEnabledCurrencies() {
-		openOrders, err := z.GetUnfinishedOrdersIgnoreTradeType(exchange.FormatExchangeCurrency(z.Name, currency).String(), "1", "10")
-		if err != nil {
-			return cancelAllOrdersResponse, err
-		}
+		var pageNumber int64
+		for {
+			openOrders, err := z.GetUnfinishedOrdersIgnoreTradeType(exchange.FormatExchangeCurrency(z.Name, currency).String(), 1, 10)
+			if err != nil {
+				return cancelAllOrdersResponse, err
+			}
 
-		allOpenOrders = append(allOpenOrders, openOrders...)
-	}
+			if len(openOrders) == 0 {
+				break
+			}
+
+			allOpenOrders = append(allOpenOrders, openOrders...)
+
+			pageNumber++	}
 
 	for _, openOrder := range allOpenOrders {
 		err := z.CancelExistingOrder(openOrder.ID, openOrder.Currency)
@@ -288,11 +296,104 @@ func (z *ZB) GetWithdrawCapabilities() uint32 {
 
 // GetActiveOrders retrieves any orders that are active/open
 func (z *ZB) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
-	return nil, common.ErrNotYetImplemented
+	var allOrders []Order
+	for _, currency := range getOrdersRequest.Currencies {
+		var pageNumber int64
+		for {
+			resp, err := z.GetUnfinishedOrdersIgnoreTradeType(exchange.FormatExchangeCurrency(z.Name, currency).String(), pageNumber, 10)
+			if err != nil {
+				return nil, err
+			}
+
+			if len(resp) == 0 {
+				break
+			}
+
+			for _, order := range resp {
+				allOrders = append(allOrders, order)
+			}
+
+			pageNumber++
+		}
+	}
+
+	var orders []exchange.OrderDetail
+	for _, order := range allOrders {
+		symbol := pair.NewCurrencyPairDelimiter(order.Currency, z.ConfigCurrencyPairFormat.Delimiter)
+		side := ""
+		if order.Type == 0 {
+			side = string(exchange.SellOrderSide)
+		} else if order.Type == 1 {
+			side = string(exchange.BuyOrderSide)
+		}
+		orders = append(orders, exchange.OrderDetail{
+			ID:            fmt.Sprintf("%v", order.ID),
+			Amount:        order.TotalAmount,
+			BaseCurrency:  symbol.FirstCurrency.String(),
+			QuoteCurrency: symbol.SecondCurrency.String(),
+			Exchange:      z.Name,
+			OrderDate:     int64(order.TradeDate),
+			Price:         float64(order.Price),
+			OrderSide:     side,
+		})
+	}
+
+	z.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
+
+	return orders, nil
 }
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
 func (z *ZB) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
-	return nil, common.ErrNotYetImplemented
+	if getOrdersRequest.OrderSide == exchange.AnyOrderSide || getOrdersRequest.OrderSide == "" {
+		return nil, errors.New("Specific order side is required")
+	}
+
+	var allOrders []Order
+
+	var side int64
+	if getOrdersRequest.OrderSide == exchange.SellOrderSide {
+		side = 0
+	} else if getOrdersRequest.OrderSide == exchange.BuyOrderSide {
+		side = 1
+	}
+
+	for _, currency := range getOrdersRequest.Currencies {
+		var pageNumber int64
+		for {
+			resp, err := z.GetOrders(exchange.FormatExchangeCurrency(z.Name, currency).String(), pageNumber, side)
+			if err != nil {
+				return nil, err
+			}
+
+			if len(resp) == 0 {
+				break
+			}
+
+			for _, order := range resp {
+				allOrders = append(allOrders, order)
+			}
+
+			pageNumber++
+		}
+	}
+
+	var orders []exchange.OrderDetail
+	for _, order := range allOrders {
+		symbol := pair.NewCurrencyPairDelimiter(order.Currency, z.ConfigCurrencyPairFormat.Delimiter)
+
+		orders = append(orders, exchange.OrderDetail{
+			ID:            fmt.Sprintf("%v", order.ID),
+			Amount:        order.TotalAmount,
+			BaseCurrency:  symbol.FirstCurrency.String(),
+			QuoteCurrency: symbol.SecondCurrency.String(),
+			Exchange:      z.Name,
+			OrderDate:     int64(order.TradeDate),
+			Price:         float64(order.Price),
+			OrderSide:     string(getOrdersRequest.OrderSide),
+		})
+	}
+
+	return orders, nil
 }

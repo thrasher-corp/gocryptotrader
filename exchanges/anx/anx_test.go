@@ -214,13 +214,13 @@ func TestGetFee(t *testing.T) {
 }
 
 func TestFormatWithdrawPermissions(t *testing.T) {
-	// Arrange
+	
 	a.SetDefaults()
 	expectedResult := exchange.AutoWithdrawCryptoWithSetupText + " & " + exchange.WithdrawCryptoWith2FAText + " & " +
 		exchange.WithdrawCryptoWithEmailText + " & " + exchange.WithdrawFiatViaWebsiteOnlyText
-	// Act
+	
 	withdrawPermissions := a.FormatWithdrawPermissions()
-	// Assert
+	
 	if withdrawPermissions != expectedResult {
 		t.Errorf("Expected: %s, Received: %s", expectedResult, withdrawPermissions)
 	}
@@ -292,7 +292,7 @@ func TestSubmitOrder(t *testing.T) {
 }
 
 func TestCancelExchangeOrder(t *testing.T) {
-	// Arrange
+	
 	a.SetDefaults()
 	TestSetup(t)
 
@@ -308,10 +308,10 @@ func TestCancelExchangeOrder(t *testing.T) {
 		AccountID:     "1",
 		CurrencyPair:  currencyPair,
 	}
-	// Act
+	
 	err := a.CancelOrder(orderCancellation)
 
-	// Assert
+	
 	if areTestAPIKeysSet() && err != nil {
 		t.Errorf("Could not cancel order: %s", err)
 	} else if !areTestAPIKeysSet() && err == nil {
@@ -320,7 +320,7 @@ func TestCancelExchangeOrder(t *testing.T) {
 }
 
 func TestCancelAllExchangeOrders(t *testing.T) {
-	// Arrange
+	
 	a.SetDefaults()
 	TestSetup(t)
 
@@ -336,10 +336,10 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 		AccountID:     "1",
 		CurrencyPair:  currencyPair,
 	}
-	// Act
+	
 	resp, err := a.CancelAllOrders(orderCancellation)
 
-	// Assert
+	
 	if areTestAPIKeysSet() && err != nil {
 		t.Errorf("Could not cancel order: %s", err)
 	} else if !areTestAPIKeysSet() && err == nil {

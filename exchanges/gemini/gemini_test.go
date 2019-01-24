@@ -330,11 +330,11 @@ func TestFormatWithdrawPermissions(t *testing.T) {
 	TestAddSession(t)
 	TestSetDefaults(t)
 	TestSetup(t)
-	// Arrange
+	
 	expectedResult := exchange.AutoWithdrawCryptoWithAPIPermissionText + " & " + exchange.AutoWithdrawCryptoWithSetupText + " & " + exchange.WithdrawFiatViaWebsiteOnlyText
-	// Act
+	
 	withdrawPermissions := Session[1].FormatWithdrawPermissions()
-	// Assert
+	
 	if withdrawPermissions != expectedResult {
 		t.Errorf("Expected: %s, Received: %s", expectedResult, withdrawPermissions)
 	}
@@ -412,7 +412,7 @@ func TestSubmitOrder(t *testing.T) {
 }
 
 func TestCancelExchangeOrder(t *testing.T) {
-	// Arrange
+	
 	TestAddSession(t)
 	TestSetDefaults(t)
 	TestSetup(t)
@@ -430,10 +430,10 @@ func TestCancelExchangeOrder(t *testing.T) {
 		CurrencyPair:  currencyPair,
 	}
 
-	// Act
+	
 	err := Session[1].CancelOrder(orderCancellation)
 
-	// Assert
+	
 	if !areTestAPIKeysSet() && err == nil {
 		t.Errorf("Expecting an error when no keys are set: %v", err)
 	}
@@ -443,7 +443,7 @@ func TestCancelExchangeOrder(t *testing.T) {
 }
 
 func TestCancelAllExchangeOrders(t *testing.T) {
-	// Arrange
+	
 	TestAddSession(t)
 	TestSetDefaults(t)
 	TestSetup(t)
@@ -461,10 +461,10 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 		CurrencyPair:  currencyPair,
 	}
 
-	// Act
+	
 	resp, err := Session[1].CancelAllOrders(orderCancellation)
 
-	// Assert
+	
 	if !areTestAPIKeysSet() && err == nil {
 		t.Errorf("Expecting an error when no keys are set: %v", err)
 	}
