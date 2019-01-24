@@ -51,6 +51,7 @@ type ActiveOrders struct {
 	Rate             float64 `json:"rate"`
 	TimestampCreated float64 `json:"time_created"`
 	Status           int     `json:"status"`
+	ID               string
 }
 
 // Pair holds pair information

@@ -1,6 +1,7 @@
 package wex
 
 import (
+	"math"
 	"testing"
 
 	"github.com/thrasher-/gocryptotrader/common"
@@ -156,17 +157,6 @@ func TestGetTransactionHistory(t *testing.T) {
 	_, err := w.GetTransactionHistory(0, 0, 0, "", "", "")
 	if err == nil {
 		t.Error("Test Failed - GetTransactionHistory() error", err)
-	}
-}
-
-func TestGetTradeHistory(t *testing.T) {
-	if isWexEncounteringIssues {
-		t.Skip()
-	}
-	t.Parallel()
-	_, err := w.GetTradeHistory(0, 0, 0, "", "", "", "")
-	if err == nil {
-		t.Error("Test Failed - GetTradeHistory() error", err)
 	}
 }
 
@@ -330,7 +320,8 @@ func TestGetActiveOrders(t *testing.T) {
 	w.Verbose = true
 
 	var getOrdersRequest = exchange.GetOrdersRequest{
-		OrderType:   exchange.AnyOrderType,
+		OrderType:  exchange.AnyOrderType,
+		Currencies: []pair.CurrencyPair{pair.NewCurrencyPair(symbol.LTC, symbol.BTC)},
 	}
 
 	_, err := w.GetActiveOrders(getOrdersRequest)
@@ -347,7 +338,10 @@ func TestGetOrderHistory(t *testing.T) {
 	w.Verbose = true
 
 	var getOrdersRequest = exchange.GetOrdersRequest{
-		OrderType:   exchange.AnyOrderType,
+		OrderType:  exchange.AnyOrderType,
+		Currencies: []pair.CurrencyPair{pair.NewCurrencyPair(symbol.LTC, symbol.BTC)},
+		StartTicks: 0,
+		EndTicks:   math.MaxInt64,
 	}
 
 	_, err := w.GetOrderHistory(getOrdersRequest)

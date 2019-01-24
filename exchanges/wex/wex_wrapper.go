@@ -2,6 +2,7 @@ package wex
 
 import (
 	"fmt"
+	"math"
 	"strconv"
 	"sync"
 
@@ -277,11 +278,71 @@ func (w *WEX) GetWithdrawCapabilities() uint32 {
 
 // GetActiveOrders retrieves any orders that are active/open
 func (w *WEX) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
-	return nil, common.ErrNotYetImplemented
+	var allOrders []ActiveOrders
+	for _, currency := range getOrdersRequest.Currencies {
+		resp, err := w.GetOpenOrders(exchange.FormatExchangeCurrency(w.Name, currency).String())
+		if err != nil {
+			return nil, err
+		}
+
+		for ID, order := range resp {
+			order.ID = ID
+			allOrders = append(allOrders, order)
+		}
+	}
+
+	var orders []exchange.OrderDetail
+	for _, order := range allOrders {
+		symbol := pair.NewCurrencyPairDelimiter(order.Pair, w.ConfigCurrencyPairFormat.Delimiter)
+
+		orders = append(orders, exchange.OrderDetail{
+			ID:            order.ID,
+			BaseCurrency:  symbol.FirstCurrency.String(),
+			QuoteCurrency: symbol.SecondCurrency.String(),
+			Amount:        order.Amount,
+			Price:         order.Rate,
+			OrderSide:     order.Type,
+			OrderDate:     int64(order.TimestampCreated),
+		})
+	}
+
+	w.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
+
+	return orders, nil
 }
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
 func (w *WEX) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
-	return nil, common.ErrNotYetImplemented
+	// method=TradeHistory&from=12345&count=1&from_id=1234&end_id=1234&order=desc&since=1234&end=1234&pair=btc_usd&nonce=0
+	var allOrders []TradeHistory
+	for _, currency := range getOrdersRequest.Currencies {
+		resp, err := w.GetTradeHistory(0, 10000, math.MaxInt64, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks, "desc", exchange.FormatExchangeCurrency(w.Name, currency).String())
+		if err != nil {
+			return nil, err
+		}
+
+		for _, order := range resp {
+			allOrders = append(allOrders, order)
+		}
+	}
+
+	var orders []exchange.OrderDetail
+	for _, order := range allOrders {
+		symbol := pair.NewCurrencyPairDelimiter(order.Pair, w.ConfigCurrencyPairFormat.Delimiter)
+
+		orders = append(orders, exchange.OrderDetail{
+			ID:            fmt.Sprintf("%v", order.OrderID),
+			BaseCurrency:  symbol.FirstCurrency.String(),
+			QuoteCurrency: symbol.SecondCurrency.String(),
+			Amount:        order.Amount,
+			Price:         order.Rate,
+			OrderSide:     order.Type,
+			OrderDate:     int64(order.Timestamp),
+		})
+	}
+
+	w.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
+
+	return orders, nil
 }
