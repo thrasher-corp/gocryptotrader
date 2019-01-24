@@ -3,6 +3,7 @@ package yobit
 import (
 	"errors"
 	"fmt"
+	"math"
 	"strconv"
 	"sync"
 
@@ -270,11 +271,71 @@ func (y *Yobit) GetWithdrawCapabilities() uint32 {
 
 // GetActiveOrders retrieves any orders that are active/open
 func (y *Yobit) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
-	return nil, common.ErrNotYetImplemented
+	var allOrders []ActiveOrders
+	for _, currency := range getOrdersRequest.Currencies {
+		resp, err := y.GetOpenOrders(exchange.FormatExchangeCurrency(y.Name, currency).String())
+		if err != nil {
+			return nil, err
+		}
+
+		for ID, order := range resp {
+			order.ID = ID
+			allOrders = append(allOrders, order)
+		}
+	}
+
+	var orders []exchange.OrderDetail
+	for _, order := range allOrders {
+		symbol := pair.NewCurrencyPairDelimiter(order.Pair, y.ConfigCurrencyPairFormat.Delimiter)
+
+		orders = append(orders, exchange.OrderDetail{
+			ID:            order.ID,
+			BaseCurrency:  symbol.FirstCurrency.String(),
+			QuoteCurrency: symbol.SecondCurrency.String(),
+			Amount:        order.Amount,
+			Price:         order.Rate,
+			OrderSide:     order.Type,
+			OrderDate:     int64(order.TimestampCreated),
+		})
+	}
+
+	y.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
+	y.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
+
+	return orders, nil
 }
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
 func (y *Yobit) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
-	return nil, common.ErrNotYetImplemented
+	var allOrders []TradeHistory
+	for _, currency := range getOrdersRequest.Currencies {
+		resp, err := y.GetTradeHistory(0, 10000, math.MaxInt64, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks, "DESC", exchange.FormatExchangeCurrency(y.Name, currency).String())
+		if err != nil {
+			return nil, err
+		}
+
+		for _, order := range resp {
+			allOrders = append(allOrders, order)
+		}
+	}
+
+	var orders []exchange.OrderDetail
+	for _, order := range allOrders {
+		symbol := pair.NewCurrencyPairDelimiter(order.Pair, y.ConfigCurrencyPairFormat.Delimiter)
+
+		orders = append(orders, exchange.OrderDetail{
+			ID:            fmt.Sprintf("%v", order.OrderID),
+			BaseCurrency:  symbol.FirstCurrency.String(),
+			QuoteCurrency: symbol.SecondCurrency.String(),
+			Amount:        order.Amount,
+			Price:         order.Rate,
+			OrderSide:     order.Type,
+			OrderDate:     int64(order.Timestamp),
+		})
+	}
+
+	y.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
+
+	return orders, nil
 }

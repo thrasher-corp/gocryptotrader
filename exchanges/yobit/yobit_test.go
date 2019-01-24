@@ -1,6 +1,7 @@
 package yobit
 
 import (
+	"math"
 	"testing"
 
 	"github.com/thrasher-/gocryptotrader/common"
@@ -35,6 +36,7 @@ func TestSetup(t *testing.T) {
 	conf.AuthenticatedAPISupport = true
 
 	y.Setup(conf)
+
 }
 
 func TestGetInfo(t *testing.T) {
@@ -106,14 +108,6 @@ func TestTrade(t *testing.T) {
 	_, err := y.Trade("", "buy", 0, 0)
 	if err == nil {
 		t.Error("Test Failed - Trade() error", err)
-	}
-}
-
-func TestGetTradeHistory(t *testing.T) {
-	t.Parallel()
-	_, err := y.GetTradeHistory(0, 0, 0, "", "", "", "")
-	if err == nil {
-		t.Error("Test Failed - GetTradeHistory() error", err)
 	}
 }
 
@@ -311,7 +305,8 @@ func TestGetActiveOrders(t *testing.T) {
 	y.Verbose = true
 
 	var getOrdersRequest = exchange.GetOrdersRequest{
-		OrderType:   exchange.AnyOrderType,
+		OrderType:  exchange.AnyOrderType,
+		Currencies: []pair.CurrencyPair{pair.NewCurrencyPair(symbol.LTC, symbol.BTC)},
 	}
 
 	_, err := y.GetActiveOrders(getOrdersRequest)
@@ -328,7 +323,10 @@ func TestGetOrderHistory(t *testing.T) {
 	y.Verbose = true
 
 	var getOrdersRequest = exchange.GetOrdersRequest{
-		OrderType:   exchange.AnyOrderType,
+		OrderType:  exchange.AnyOrderType,
+		Currencies: []pair.CurrencyPair{pair.NewCurrencyPair(symbol.LTC, symbol.BTC)},
+		StartTicks: 0,
+		EndTicks:   math.MaxInt64,
 	}
 
 	_, err := y.GetOrderHistory(getOrdersRequest)

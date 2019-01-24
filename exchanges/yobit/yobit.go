@@ -232,20 +232,20 @@ func (y *Yobit) CancelExistingOrder(OrderID int64) (bool, error) {
 }
 
 // GetTradeHistory returns the trade history
-func (y *Yobit) GetTradeHistory(TIDFrom, Count, TIDEnd int64, order, since, end, pair string) (map[string]TradeHistory, error) {
+func (y *Yobit) GetTradeHistory(TIDFrom, Count, TIDEnd, since, end int64, order, pair string) (map[string]TradeHistory, error) {
 	req := url.Values{}
 	req.Add("from", strconv.FormatInt(TIDFrom, 10))
 	req.Add("count", strconv.FormatInt(Count, 10))
 	req.Add("from_id", strconv.FormatInt(TIDFrom, 10))
 	req.Add("end_id", strconv.FormatInt(TIDEnd, 10))
 	req.Add("order", order)
-	req.Add("since", since)
-	req.Add("end", end)
+	req.Add("since", strconv.FormatInt(since, 10))
+	req.Add("end", strconv.FormatInt(end, 10))
 	req.Add("pair", pair)
 
-	result := map[string]TradeHistory{}
+	result := TradeHistoryResponse{}
 
-	return result, y.SendAuthenticatedHTTPRequest(privateTradeHistory, req, &result)
+	return result.Data, y.SendAuthenticatedHTTPRequest(privateTradeHistory, req, &result)
 }
 
 // GetCryptoDepositAddress returns the deposit address for a specific currency

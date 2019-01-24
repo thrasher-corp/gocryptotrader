@@ -307,6 +307,7 @@ func (w *WEX) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]exc
 	}
 
 	w.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
+	w.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
 
 	return orders, nil
 }
@@ -317,7 +318,7 @@ func (w *WEX) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]exc
 	// method=TradeHistory&from=12345&count=1&from_id=1234&end_id=1234&order=desc&since=1234&end=1234&pair=btc_usd&nonce=0
 	var allOrders []TradeHistory
 	for _, currency := range getOrdersRequest.Currencies {
-		resp, err := w.GetTradeHistory(0, 10000, math.MaxInt64, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks, "desc", exchange.FormatExchangeCurrency(w.Name, currency).String())
+		resp, err := w.GetTradeHistory(0, 10000, math.MaxInt64, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks, "DESC", exchange.FormatExchangeCurrency(w.Name, currency).String())
 		if err != nil {
 			return nil, err
 		}
@@ -342,7 +343,7 @@ func (w *WEX) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]exc
 		})
 	}
 
-	w.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
+	w.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
 
 	return orders, nil
 }

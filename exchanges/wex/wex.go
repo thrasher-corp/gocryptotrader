@@ -277,9 +277,9 @@ func (w *WEX) GetTradeHistory(TIDFrom, Count, TIDEnd, since, end int64, order, p
 	req.Add("end", strconv.FormatInt(end, 10))
 	req.Add("pair", pair)
 
-	var result map[string]TradeHistory
+	result := TradeHistoryResponse{}
 
-	return result, w.SendAuthenticatedHTTPRequest(wexTradeHistory, req, &result)
+	return result.Data, w.SendAuthenticatedHTTPRequest(wexTradeHistory, req, &result)
 }
 
 // WithdrawCoins withdraws coins for a specific coin
