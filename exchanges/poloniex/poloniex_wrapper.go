@@ -310,13 +310,13 @@ func (p *Poloniex) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) (
 			}
 
 			orders = append(orders, exchange.OrderDetail{
-				ID:            fmt.Sprintf("%v", order.OrderNumber),
-				BaseCurrency:  symbol.FirstCurrency.String(),
-				QuoteCurrency: symbol.SecondCurrency.String(),
-				OrderSide:     order.Type,
-				Amount:        order.Amount,
-				OrderDate:     t.Unix(),
-				Price:         order.Rate,
+				ID:           fmt.Sprintf("%v", order.OrderNumber),
+				OrderSide:    order.Type,
+				Amount:       order.Amount,
+				OrderDate:    t.Unix(),
+				Price:        order.Rate,
+				CurrencyPair: symbol,
+				Exchange:     p.Name,
 			})
 		}
 	}
@@ -348,13 +348,13 @@ func (p *Poloniex) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) (
 			}
 
 			orders = append(orders, exchange.OrderDetail{
-				ID:            fmt.Sprintf("%v", order.GlobalTradeID),
-				BaseCurrency:  symbol.FirstCurrency.String(),
-				QuoteCurrency: symbol.SecondCurrency.String(),
-				OrderSide:     order.Type,
-				Amount:        order.Amount,
-				OrderDate:     t.Unix(),
-				Price:         order.Rate,
+				ID:           fmt.Sprintf("%v", order.GlobalTradeID),
+				OrderSide:    order.Type,
+				Amount:       order.Amount,
+				OrderDate:    t.Unix(),
+				Price:        order.Rate,
+				CurrencyPair: symbol,
+				Exchange:     p.Name,
 			})
 		}
 	}

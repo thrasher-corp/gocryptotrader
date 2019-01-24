@@ -239,6 +239,7 @@ func (a *Alphapoint) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest)
 				Price:           float64(order.Price),
 				RemainingAmount: float64(order.QtyRemaining),
 			}
+
 			if order.Side == 1 {
 				orderDetail.OrderSide = string(exchange.BuyOrderSide)
 			} else if order.Side == 2 {

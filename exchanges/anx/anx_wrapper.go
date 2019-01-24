@@ -356,15 +356,14 @@ func (a *ANX) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]exc
 	var orders []exchange.OrderDetail
 	for _, order := range resp {
 		orderDetail := exchange.OrderDetail{
-			Amount:        order.TradedCurrencyAmount,
-			BaseCurrency:  order.TradedCurrency,
-			OrderDate:     order.Timestamp,
-			Exchange:      a.Name,
-			ID:            order.OrderID,
-			OrderType:     order.OrderType,
-			Price:         order.SettlementCurrencyAmount,
-			QuoteCurrency: order.SettlementCurrency,
-			Status:        order.OrderStatus,
+			Amount:       order.TradedCurrencyAmount,
+			CurrencyPair: pair.NewCurrencyPairWithDelimiter(order.TradedCurrency, order.SettlementCurrency, a.ConfigCurrencyPairFormat.Delimiter),
+			OrderDate:    order.Timestamp,
+			Exchange:     a.Name,
+			ID:           order.OrderID,
+			OrderType:    order.OrderType,
+			Price:        order.SettlementCurrencyAmount,
+			Status:       order.OrderStatus,
 		}
 
 		orders = append(orders, orderDetail)
@@ -388,15 +387,14 @@ func (a *ANX) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]exc
 	var orders []exchange.OrderDetail
 	for _, order := range resp {
 		orderDetail := exchange.OrderDetail{
-			Amount:        order.TradedCurrencyAmount,
-			BaseCurrency:  order.TradedCurrency,
-			OrderDate:     order.Timestamp,
-			Exchange:      a.Name,
-			ID:            order.OrderID,
-			OrderType:     order.OrderType,
-			Price:         order.SettlementCurrencyAmount,
-			QuoteCurrency: order.SettlementCurrency,
-			Status:        order.OrderStatus,
+			Amount:       order.TradedCurrencyAmount,
+			OrderDate:    order.Timestamp,
+			Exchange:     a.Name,
+			ID:           order.OrderID,
+			OrderType:    order.OrderType,
+			Price:        order.SettlementCurrencyAmount,
+			Status:       order.OrderStatus,
+			CurrencyPair: pair.NewCurrencyPairWithDelimiter(order.TradedCurrency, order.SettlementCurrency, a.ConfigCurrencyPairFormat.Delimiter),
 		}
 
 		orders = append(orders, orderDetail)

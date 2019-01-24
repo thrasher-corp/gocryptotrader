@@ -296,13 +296,13 @@ func (w *WEX) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]exc
 		symbol := pair.NewCurrencyPairDelimiter(order.Pair, w.ConfigCurrencyPairFormat.Delimiter)
 
 		orders = append(orders, exchange.OrderDetail{
-			ID:            order.ID,
-			BaseCurrency:  symbol.FirstCurrency.String(),
-			QuoteCurrency: symbol.SecondCurrency.String(),
-			Amount:        order.Amount,
-			Price:         order.Rate,
-			OrderSide:     order.Type,
-			OrderDate:     int64(order.TimestampCreated),
+			ID:           order.ID,
+			Amount:       order.Amount,
+			Price:        order.Rate,
+			OrderSide:    order.Type,
+			OrderDate:    int64(order.TimestampCreated),
+			CurrencyPair: symbol,
+			Exchange:     w.Name,
 		})
 	}
 
@@ -333,13 +333,13 @@ func (w *WEX) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]exc
 		symbol := pair.NewCurrencyPairDelimiter(order.Pair, w.ConfigCurrencyPairFormat.Delimiter)
 
 		orders = append(orders, exchange.OrderDetail{
-			ID:            fmt.Sprintf("%v", order.OrderID),
-			BaseCurrency:  symbol.FirstCurrency.String(),
-			QuoteCurrency: symbol.SecondCurrency.String(),
-			Amount:        order.Amount,
-			Price:         order.Rate,
-			OrderSide:     order.Type,
-			OrderDate:     int64(order.Timestamp),
+			ID:           fmt.Sprintf("%v", order.OrderID),
+			Amount:       order.Amount,
+			Price:        order.Rate,
+			OrderSide:    order.Type,
+			OrderDate:    int64(order.Timestamp),
+			CurrencyPair: symbol,
+			Exchange:     w.Name,
 		})
 	}
 

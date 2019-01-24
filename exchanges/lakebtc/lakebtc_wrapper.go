@@ -277,13 +277,13 @@ func (l *LakeBTC) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([
 		symbol := pair.NewCurrencyPairDelimiter(order.Symbol, l.ConfigCurrencyPairFormat.Delimiter)
 
 		orders = append(orders, exchange.OrderDetail{
-			Amount:        order.Amount,
-			ID:            fmt.Sprintf("%v", order.ID),
-			Price:         order.Price,
-			OrderSide:     order.Type,
-			OrderDate:     order.At,
-			BaseCurrency:  symbol.FirstCurrency.String(),
-			QuoteCurrency: symbol.SecondCurrency.String(),
+			Amount:       order.Amount,
+			ID:           fmt.Sprintf("%v", order.ID),
+			Price:        order.Price,
+			OrderSide:    order.Type,
+			OrderDate:    order.At,
+			CurrencyPair: symbol,
+			Exchange:     l.Name,
 		})
 	}
 
@@ -311,13 +311,13 @@ func (l *LakeBTC) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([
 		symbol := pair.NewCurrencyPairDelimiter(order.Symbol, l.ConfigCurrencyPairFormat.Delimiter)
 
 		orders = append(orders, exchange.OrderDetail{
-			Amount:        order.Amount,
-			ID:            fmt.Sprintf("%v", order.ID),
-			Price:         order.Price,
-			OrderSide:     order.Type,
-			OrderDate:     order.At,
-			BaseCurrency:  symbol.FirstCurrency.String(),
-			QuoteCurrency: symbol.SecondCurrency.String(),
+			Amount:       order.Amount,
+			ID:           fmt.Sprintf("%v", order.ID),
+			Price:        order.Price,
+			OrderSide:    order.Type,
+			OrderDate:    order.At,
+			CurrencyPair: symbol,
+			Exchange:     l.Name,
 		})
 	}
 

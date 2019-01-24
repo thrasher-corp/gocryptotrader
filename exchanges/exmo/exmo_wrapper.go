@@ -314,14 +314,13 @@ func (e *EXMO) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]ex
 	for _, order := range resp {
 		symbol := pair.NewCurrencyPairDelimiter(order.Pair, "_")
 		orders = append(orders, exchange.OrderDetail{
-			ID:            fmt.Sprintf("%v", order.OrderID),
-			Amount:        order.Quantity,
-			OrderDate:     order.Created,
-			Price:         order.Price,
-			OrderSide:     order.Type,
-			BaseCurrency:  symbol.FirstCurrency.String(),
-			QuoteCurrency: symbol.SecondCurrency.String(),
-			Exchange:      e.Name,
+			ID:           fmt.Sprintf("%v", order.OrderID),
+			Amount:       order.Quantity,
+			OrderDate:    order.Created,
+			Price:        order.Price,
+			OrderSide:    order.Type,
+			Exchange:     e.Name,
+			CurrencyPair: symbol,
 		})
 	}
 
@@ -339,8 +338,8 @@ func (e *EXMO) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]ex
 	}
 
 	var allTrades []UserTrades
-	for _, currencyPair := range getOrdersRequest.Currencies {
-		resp, err := e.GetUserTrades(currencyPair.Pair().String(), "", "10000")
+	for _, currency := range getOrdersRequest.Currencies {
+		resp, err := e.GetUserTrades(exchange.FormatExchangeCurrency(e.Name, currency).String(), "", "10000")
 		if err != nil {
 			return nil, err
 		}
@@ -355,14 +354,13 @@ func (e *EXMO) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]ex
 	for _, order := range allTrades {
 		symbol := pair.NewCurrencyPairDelimiter(order.Pair, "_")
 		orders = append(orders, exchange.OrderDetail{
-			ID:            fmt.Sprintf("%v", order.TradeID),
-			Amount:        order.Quantity,
-			OrderDate:     order.Date,
-			Price:         order.Price,
-			OrderSide:     order.Type,
-			BaseCurrency:  symbol.FirstCurrency.String(),
-			QuoteCurrency: symbol.SecondCurrency.String(),
-			Exchange:      e.Name,
+			ID:           fmt.Sprintf("%v", order.TradeID),
+			Amount:       order.Quantity,
+			OrderDate:    order.Date,
+			Price:        order.Price,
+			OrderSide:    order.Type,
+			Exchange:     e.Name,
+			CurrencyPair: symbol,
 		})
 	}
 

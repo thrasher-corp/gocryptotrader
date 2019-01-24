@@ -372,14 +372,13 @@ func (h *HUOBIHADAX) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest)
 
 		orders = append(orders, exchange.OrderDetail{
 			ID:              fmt.Sprintf("%v", order.ID),
-			BaseCurrency:    symbol.FirstCurrency.String(),
-			QuoteCurrency:   symbol.SecondCurrency.String(),
 			Exchange:        h.Name,
 			Amount:          order.Amount,
 			Price:           order.Price,
 			OrderDate:       order.CreatedAt,
 			ExecutedAmount:  order.FilledAmount,
 			RemainingAmount: (order.Amount - order.FilledAmount),
+			CurrencyPair:    symbol,
 		})
 	}
 
@@ -413,13 +412,12 @@ func (h *HUOBIHADAX) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest)
 		symbol := pair.NewCurrencyPairDelimiter(order.Symbol, h.ConfigCurrencyPairFormat.Delimiter)
 
 		orders = append(orders, exchange.OrderDetail{
-			ID:            fmt.Sprintf("%v", order.ID),
-			BaseCurrency:  symbol.FirstCurrency.String(),
-			QuoteCurrency: symbol.SecondCurrency.String(),
-			Exchange:      h.Name,
-			Amount:        order.Amount,
-			Price:         order.Price,
-			OrderDate:     order.CreatedAt,
+			ID:           fmt.Sprintf("%v", order.ID),
+			Exchange:     h.Name,
+			Amount:       order.Amount,
+			Price:        order.Price,
+			OrderDate:    order.CreatedAt,
+			CurrencyPair: symbol,
 		})
 	}
 

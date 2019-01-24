@@ -264,8 +264,8 @@ func (c *CoinbasePro) GetWithdrawCapabilities() uint32 {
 // GetActiveOrders retrieves any orders that are active/open
 func (c *CoinbasePro) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
 	var respOrders []GeneralizedOrderResponse
-	for _, currencyPair := range getOrdersRequest.Currencies {
-		resp, err := c.GetOrders([]string{"open", "pending", "active"}, currencyPair.Pair().String())
+	for _, currency := range getOrdersRequest.Currencies {
+		resp, err := c.GetOrders([]string{"open", "pending", "active"}, exchange.FormatExchangeCurrency(c.Name, currency).String())
 		if err != nil {
 			return nil, err
 		}
@@ -277,7 +277,7 @@ func (c *CoinbasePro) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest
 
 	var orders []exchange.OrderDetail
 	for _, order := range respOrders {
-		currencyPair := pair.NewCurrencyPairDelimiter(order.ProductID, c.ConfigCurrencyPairFormat.Delimiter)
+		currency := pair.NewCurrencyPairDelimiter(order.ProductID, c.ConfigCurrencyPairFormat.Delimiter)
 		t, err := time.Parse(time.RFC3339, order.CreatedAt)
 		if err != nil {
 			log.Errorf("Could not convert date '%v' to integer for exchange '%v' and order ID '%v'. Leaving blank", order.CreatedAt, c.Name, order.ID)
@@ -285,15 +285,18 @@ func (c *CoinbasePro) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest
 
 		orders = append(orders, exchange.OrderDetail{
 			ID:             order.ID,
-			BaseCurrency:   currencyPair.FirstCurrency.String(),
-			QuoteCurrency:  currencyPair.SecondCurrency.String(),
 			Amount:         order.Size,
 			ExecutedAmount: order.FilledSize,
 			OrderType:      order.Type,
 			OrderDate:      t.Unix(),
 			OrderSide:      order.Side,
+			CurrencyPair:   currency,
+			Exchange:       c.Name,
 		})
 	}
+
+	c.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
+	c.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
 
 	return orders, nil
 }
@@ -302,8 +305,8 @@ func (c *CoinbasePro) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest
 // Can Limit response to specific order status
 func (c *CoinbasePro) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
 	var respOrders []GeneralizedOrderResponse
-	for _, currencyPair := range getOrdersRequest.Currencies {
-		resp, err := c.GetOrders([]string{"done", "settled"}, currencyPair.Pair().String())
+	for _, currency := range getOrdersRequest.Currencies {
+		resp, err := c.GetOrders([]string{"done", "settled"}, exchange.FormatExchangeCurrency(c.Name, currency).String())
 		if err != nil {
 			return nil, err
 		}
@@ -315,7 +318,7 @@ func (c *CoinbasePro) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest
 
 	var orders []exchange.OrderDetail
 	for _, order := range respOrders {
-		currencyPair := pair.NewCurrencyPairDelimiter(order.ProductID, c.ConfigCurrencyPairFormat.Delimiter)
+		currency := pair.NewCurrencyPairDelimiter(order.ProductID, c.ConfigCurrencyPairFormat.Delimiter)
 		t, err := time.Parse(time.RFC3339, order.CreatedAt)
 		if err != nil {
 			log.Errorf("Could not convert date '%v' to integer for exchange '%v' and order ID '%v'. Leaving blank", order.CreatedAt, c.Name, order.ID)
@@ -323,15 +326,18 @@ func (c *CoinbasePro) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest
 
 		orders = append(orders, exchange.OrderDetail{
 			ID:             order.ID,
-			BaseCurrency:   currencyPair.FirstCurrency.String(),
-			QuoteCurrency:  currencyPair.SecondCurrency.String(),
 			Amount:         order.Size,
 			ExecutedAmount: order.FilledSize,
 			OrderType:      order.Type,
 			OrderDate:      t.Unix(),
 			OrderSide:      order.Side,
+			CurrencyPair:   currency,
+			Exchange:       c.Name,
 		})
 	}
+
+	c.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
+	c.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
 
 	return orders, nil
 }

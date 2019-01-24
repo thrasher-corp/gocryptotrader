@@ -312,8 +312,7 @@ func (k *Kraken) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]
 			OrderDate:       int64(order.StartTm),
 			Price:           order.Price,
 			OrderSide:       order.Descr.Type,
-			BaseCurrency:    symbol.FirstCurrency.String(),
-			QuoteCurrency:   symbol.SecondCurrency.String(),
+			CurrencyPair:    symbol,
 		})
 	}
 
@@ -354,8 +353,7 @@ func (k *Kraken) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]
 			OrderDate:       int64(order.StartTm),
 			Price:           order.Price,
 			OrderSide:       order.Descr.Type,
-			BaseCurrency:    symbol.FirstCurrency.String(),
-			QuoteCurrency:   symbol.SecondCurrency.String(),
+			CurrencyPair:    symbol,
 		})
 	}
 

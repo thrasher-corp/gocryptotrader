@@ -947,12 +947,12 @@ func TestFilterOrdersByType(t *testing.T) {
 		t.Errorf("Orders failed to be filtered. Expected %v, Recieved %v", 2, len(orders))
 	}
 
-	tester.FilterOrdersByType(&orders, AnyOrderType)
+	tester.FilterOrdersByType(&orders, LimitOrderType)
 	if len(orders) != 1 {
 		t.Errorf("Orders failed to be filtered. Expected %v, Recieved %v", 1, len(orders))
 	}
 
-	tester.FilterOrdersByType(&orders, LimitOrderType)
+	tester.FilterOrdersByType(&orders, StopOrderType)
 	if len(orders) != 0 {
 		t.Errorf("Orders failed to be filtered. Expected %v, Recieved %v", 0, len(orders))
 	}
@@ -1026,45 +1026,37 @@ func TestFilterOrdersByCurrencies(t *testing.T) {
 	var orders []OrderDetail
 
 	orders = append(orders, OrderDetail{
-		BaseCurrency:  symbol.BTC,
-		QuoteCurrency: symbol.USD,
+		CurrencyPair: pair.NewCurrencyPair(symbol.BTC, symbol.USD),
 	})
 	orders = append(orders, OrderDetail{
-		BaseCurrency:  symbol.LTC,
-		QuoteCurrency: symbol.EUR,
+		CurrencyPair: pair.NewCurrencyPair(symbol.LTC, symbol.EUR),
 	})
 	orders = append(orders, OrderDetail{
-		BaseCurrency:  symbol.DOGE,
-		QuoteCurrency: symbol.RUB,
+		CurrencyPair: pair.NewCurrencyPair(symbol.DOGE, symbol.RUB),
 	})
 
-	var currencies []string
+	var currencies []pair.CurrencyPair
+	currencies = []pair.CurrencyPair{pair.NewCurrencyPair(symbol.BTC, symbol.USD), pair.NewCurrencyPair(symbol.LTC, symbol.EUR), pair.NewCurrencyPair(symbol.DOGE, symbol.RUB)}
 	tester.FilterOrdersByCurrencies(&orders, currencies)
 	if len(orders) != 3 {
 		t.Errorf("Orders failed to be filtered. Expected %v, Recieved %v", 3, len(orders))
 	}
 
-	currencies = []string{symbol.USD, symbol.BTC, symbol.LTC, symbol.DOGE, symbol.EUR, symbol.RUB}
-	tester.FilterOrdersByCurrencies(&orders, currencies)
-	if len(orders) != 3 {
-		t.Errorf("Orders failed to be filtered. Expected %v, Recieved %v", 3, len(orders))
-	}
-
-	currencies = []string{symbol.USD, symbol.BTC, symbol.LTC, symbol.DOGE, symbol.EUR}
-	tester.FilterOrdersByCurrencies(&orders, currencies)
-	if len(orders) != 3 {
-		t.Errorf("Orders failed to be filtered. Expected %v, Recieved %v", 3, len(orders))
-	}
-
-	currencies = []string{symbol.USD, symbol.BTC, symbol.LTC, symbol.EUR}
+	currencies = []pair.CurrencyPair{pair.NewCurrencyPair(symbol.BTC, symbol.USD), pair.NewCurrencyPair(symbol.LTC, symbol.EUR)}
 	tester.FilterOrdersByCurrencies(&orders, currencies)
 	if len(orders) != 2 {
 		t.Errorf("Orders failed to be filtered. Expected %v, Recieved %v", 2, len(orders))
 	}
 
-	currencies = []string{symbol.RUR}
+	currencies = []pair.CurrencyPair{pair.NewCurrencyPair(symbol.BTC, symbol.USD)}
 	tester.FilterOrdersByCurrencies(&orders, currencies)
-	if len(orders) != 0 {
-		t.Errorf("Orders failed to be filtered. Expected %v, Recieved %v", 0, len(orders))
+	if len(orders) != 1 {
+		t.Errorf("Orders failed to be filtered. Expected %v, Recieved %v", 1, len(orders))
+	}
+
+	currencies = []pair.CurrencyPair{}
+	tester.FilterOrdersByCurrencies(&orders, currencies)
+	if len(orders) != 1 {
+		t.Errorf("Orders failed to be filtered. Expected %v, Recieved %v", 1, len(orders))
 	}
 }

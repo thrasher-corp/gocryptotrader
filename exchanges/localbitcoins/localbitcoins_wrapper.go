@@ -318,14 +318,14 @@ func (l *LocalBitcoins) GetActiveOrders(getOrdersRequest exchange.GetOrdersReque
 		}
 
 		orders = append(orders, exchange.OrderDetail{
-			Amount:        trade.Data.AmountBTC,
-			Price:         trade.Data.Amount,
-			ID:            fmt.Sprintf("%v", trade.Data.Advertisement.ID),
-			OrderDate:     t.Unix(),
-			Fee:           trade.Data.FeeBTC,
-			OrderSide:     side,
-			BaseCurrency:  symbol.BTC,
-			QuoteCurrency: trade.Data.Currency,
+			Amount:       trade.Data.AmountBTC,
+			Price:        trade.Data.Amount,
+			ID:           fmt.Sprintf("%v", trade.Data.Advertisement.ID),
+			OrderDate:    t.Unix(),
+			Fee:          trade.Data.FeeBTC,
+			OrderSide:    side,
+			CurrencyPair: pair.NewCurrencyPairWithDelimiter(symbol.BTC, trade.Data.Currency, l.ConfigCurrencyPairFormat.Delimiter),
+			Exchange:     l.Name,
 		})
 	}
 
@@ -388,15 +388,15 @@ func (l *LocalBitcoins) GetOrderHistory(getOrdersRequest exchange.GetOrdersReque
 		}
 
 		orders = append(orders, exchange.OrderDetail{
-			Amount:        trade.Data.AmountBTC,
-			Price:         trade.Data.Amount,
-			ID:            fmt.Sprintf("%v", trade.Data.Advertisement.ID),
-			OrderDate:     t.Unix(),
-			Fee:           trade.Data.FeeBTC,
-			OrderSide:     side,
-			Status:        status,
-			BaseCurrency:  symbol.BTC,
-			QuoteCurrency: trade.Data.Currency,
+			Amount:       trade.Data.AmountBTC,
+			Price:        trade.Data.Amount,
+			ID:           fmt.Sprintf("%v", trade.Data.Advertisement.ID),
+			OrderDate:    t.Unix(),
+			Fee:          trade.Data.FeeBTC,
+			OrderSide:    side,
+			Status:       status,
+			CurrencyPair: pair.NewCurrencyPairWithDelimiter(symbol.BTC, trade.Data.Currency, l.ConfigCurrencyPairFormat.Delimiter),
+			Exchange:     l.Name,
 		})
 	}
 

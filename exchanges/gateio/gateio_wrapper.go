@@ -349,13 +349,12 @@ func (g *Gateio) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]
 		orders = append(orders, exchange.OrderDetail{
 			ID:              order.OrderNumber,
 			Amount:          order.Amount,
-			BaseCurrency:    symbol.FirstCurrency.String(),
-			QuoteCurrency:   symbol.SecondCurrency.String(),
 			Price:           order.Rate,
 			RemainingAmount: order.FilledAmount,
 			OrderDate:       order.Timestamp,
 			OrderSide:       side,
 			Exchange:        g.Name,
+			CurrencyPair:    symbol,
 		})
 	}
 
@@ -391,19 +390,18 @@ func (g *Gateio) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]
 		}
 
 		orders = append(orders, exchange.OrderDetail{
-			ID:            trade.OrderID,
-			Amount:        trade.Amount,
-			BaseCurrency:  symbol.FirstCurrency.String(),
-			QuoteCurrency: symbol.SecondCurrency.String(),
-			Price:         trade.Rate,
-			OrderDate:     trade.TimeUnix,
-			OrderSide:     side,
-			Exchange:      g.Name,
+			ID:           trade.OrderID,
+			Amount:       trade.Amount,
+			Price:        trade.Rate,
+			OrderDate:    trade.TimeUnix,
+			OrderSide:    side,
+			Exchange:     g.Name,
+			CurrencyPair: symbol,
 		})
 	}
 
-	e.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
-	e.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
+	g.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
+	g.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
 
 	return orders, nil
 }

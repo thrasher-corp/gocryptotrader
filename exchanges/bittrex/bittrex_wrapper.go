@@ -315,10 +315,9 @@ func (b *Bittrex) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([
 			Price:           order.Price,
 			OrderDate:       t.Unix(),
 			ID:              order.OrderUUID,
-			BaseCurrency:    currency.SecondCurrency.String(),
-			QuoteCurrency:   currency.FirstCurrency.String(),
 			Exchange:        b.Name,
 			OrderType:       order.Type,
+			CurrencyPair:    currency,
 		})
 	}
 
@@ -356,11 +355,10 @@ func (b *Bittrex) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([
 			Price:           order.Price,
 			OrderDate:       t.Unix(),
 			ID:              order.OrderUUID,
-			BaseCurrency:    currency.SecondCurrency.String(),
-			QuoteCurrency:   currency.FirstCurrency.String(),
 			Exchange:        b.Name,
 			OrderType:       order.Type,
 			Fee:             order.Commission,
+			CurrencyPair:    currency,
 		})
 	}
 

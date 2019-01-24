@@ -407,14 +407,13 @@ func (h *HUOBI) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]e
 
 		orders = append(orders, exchange.OrderDetail{
 			ID:              fmt.Sprintf("%v", order.ID),
-			BaseCurrency:    symbol.FirstCurrency.String(),
-			QuoteCurrency:   symbol.SecondCurrency.String(),
 			Exchange:        h.Name,
 			Amount:          order.Amount,
 			Price:           order.Price,
 			OrderDate:       order.CreatedAt,
 			ExecutedAmount:  order.FilledAmount,
 			RemainingAmount: (order.Amount - order.FilledAmount),
+			CurrencyPair:    symbol,
 		})
 	}
 
@@ -448,13 +447,12 @@ func (h *HUOBI) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]e
 		symbol := pair.NewCurrencyPairDelimiter(order.Symbol, h.ConfigCurrencyPairFormat.Delimiter)
 
 		orders = append(orders, exchange.OrderDetail{
-			ID:            fmt.Sprintf("%v", order.ID),
-			BaseCurrency:  symbol.FirstCurrency.String(),
-			QuoteCurrency: symbol.SecondCurrency.String(),
-			Exchange:      h.Name,
-			Amount:        order.Amount,
-			Price:         order.Price,
-			OrderDate:     order.CreatedAt,
+			ID:           fmt.Sprintf("%v", order.ID),
+			Exchange:     h.Name,
+			Amount:       order.Amount,
+			Price:        order.Price,
+			OrderDate:    order.CreatedAt,
+			CurrencyPair: symbol,
 		})
 	}
 

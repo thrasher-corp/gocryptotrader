@@ -289,13 +289,13 @@ func (y *Yobit) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]e
 		symbol := pair.NewCurrencyPairDelimiter(order.Pair, y.ConfigCurrencyPairFormat.Delimiter)
 
 		orders = append(orders, exchange.OrderDetail{
-			ID:            order.ID,
-			BaseCurrency:  symbol.FirstCurrency.String(),
-			QuoteCurrency: symbol.SecondCurrency.String(),
-			Amount:        order.Amount,
-			Price:         order.Rate,
-			OrderSide:     order.Type,
-			OrderDate:     int64(order.TimestampCreated),
+			ID:           order.ID,
+			Amount:       order.Amount,
+			Price:        order.Rate,
+			OrderSide:    order.Type,
+			OrderDate:    int64(order.TimestampCreated),
+			CurrencyPair: symbol,
+			Exchange:     y.Name,
 		})
 	}
 
@@ -325,13 +325,13 @@ func (y *Yobit) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]e
 		symbol := pair.NewCurrencyPairDelimiter(order.Pair, y.ConfigCurrencyPairFormat.Delimiter)
 
 		orders = append(orders, exchange.OrderDetail{
-			ID:            fmt.Sprintf("%v", order.OrderID),
-			BaseCurrency:  symbol.FirstCurrency.String(),
-			QuoteCurrency: symbol.SecondCurrency.String(),
-			Amount:        order.Amount,
-			Price:         order.Rate,
-			OrderSide:     order.Type,
-			OrderDate:     int64(order.Timestamp),
+			ID:           fmt.Sprintf("%v", order.OrderID),
+			Amount:       order.Amount,
+			Price:        order.Rate,
+			OrderSide:    order.Type,
+			OrderDate:    int64(order.Timestamp),
+			CurrencyPair: symbol,
+			Exchange:     y.Name,
 		})
 	}
 

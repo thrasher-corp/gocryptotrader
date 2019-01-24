@@ -324,15 +324,14 @@ func (b *Bitfinex) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) (
 
 		orderDetail := exchange.OrderDetail{
 			Amount:          order.OriginalAmount,
-			BaseCurrency:    order.Symbol,
 			OrderDate:       timestamp,
 			Exchange:        b.Name,
 			ID:              fmt.Sprintf("%v", order.OrderID),
 			OrderSide:       order.Side,
 			OrderType:       order.Type,
 			Price:           order.Price,
-			QuoteCurrency:   order.Symbol,
 			RemainingAmount: order.RemainingAmount,
+			CurrencyPair:    pair.NewCurrencyPairFromString(order.Symbol),
 			ExecutedAmount:  order.ExecutedAmount,
 		}
 
@@ -383,16 +382,15 @@ func (b *Bitfinex) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) (
 
 		orderDetail := exchange.OrderDetail{
 			Amount:          order.OriginalAmount,
-			BaseCurrency:    order.Symbol,
 			OrderDate:       timestamp,
 			Exchange:        b.Name,
 			ID:              fmt.Sprintf("%v", order.OrderID),
 			OrderSide:       order.Side,
 			OrderType:       order.Type,
 			Price:           order.Price,
-			QuoteCurrency:   order.Symbol,
 			RemainingAmount: order.RemainingAmount,
 			ExecutedAmount:  order.ExecutedAmount,
+			CurrencyPair:    pair.NewCurrencyPairFromString(order.Symbol),
 		}
 
 		if order.IsLive {

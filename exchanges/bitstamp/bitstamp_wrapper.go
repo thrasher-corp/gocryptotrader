@@ -9,6 +9,7 @@ import (
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
+	"github.com/thrasher-/gocryptotrader/currency/symbol"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
@@ -310,13 +311,13 @@ func (b *Bitstamp) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) (
 		symbolTwo := order.Currency[len(order.Currency)-3:]
 
 		orders = append(orders, exchange.OrderDetail{
-			Amount:        order.Amount,
-			ID:            fmt.Sprintf("%v", order.ID),
-			Price:         order.Price,
-			OrderDate:     order.Date,
-			BaseCurrency:  symbolOne,
-			Status:        string(exchange.ActiveOrderStatus),
-			QuoteCurrency: symbolTwo,
+			Amount:       order.Amount,
+			ID:           fmt.Sprintf("%v", order.ID),
+			Price:        order.Price,
+			OrderDate:    order.Date,
+			Status:       string(exchange.ActiveOrderStatus),
+			CurrencyPair: pair.NewCurrencyPair(symbolOne, symbolTwo),
+			Exchange:     b.Name,
 		})
 	}
 
@@ -341,11 +342,37 @@ func (b *Bitstamp) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) (
 	var orders []exchange.OrderDetail
 	for _, order := range resp {
 		if order.Type == 2 {
+			quoteCurrency := ""
+			baseCurrency := ""
+			if order.BTC > 0 {
+				baseCurrency = symbol.BTC
+			} else if order.XRP > 0 {
+				baseCurrency = symbol.XRP
+			} else {
+				log.Warnf("No quote currency found for OrderID '%v'", order.OrderID)
+			}
+
+			if order.USD > 0 {
+				quoteCurrency = symbol.USD
+			} else if order.EUR > 0 {
+				quoteCurrency = symbol.EUR
+			} else {
+				log.Warnf("No quote currency found for OrderID '%v'", order.OrderID)
+			}
+
+			var currPair pair.CurrencyPair
+			if quoteCurrency != "" && baseCurrency != "" {
+				currPair = pair.NewCurrencyPairWithDelimiter(baseCurrency, quoteCurrency, b.ConfigCurrencyPairFormat.Delimiter)
+			}
+
 			orders = append(orders, exchange.OrderDetail{
-				ID:        fmt.Sprintf("%v", order.OrderID),
-				OrderDate: order.Date,
-				Status:    string(exchange.FilledOrderStatus),
+				ID:           fmt.Sprintf("%v", order.OrderID),
+				OrderDate:    order.Date,
+				Status:       string(exchange.FilledOrderStatus),
+				Exchange:     b.Name,
+				CurrencyPair: currPair,
 			})
+
 		}
 	}
 

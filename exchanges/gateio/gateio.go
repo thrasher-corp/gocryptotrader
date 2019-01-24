@@ -429,7 +429,7 @@ func (g *Gateio) CancelAllExistingOrders(orderType int64, symbol string) error {
 	return nil
 }
 
-// GetOpenOrders retrieves all orders with an optional symbol filter
+// GetOpenOrders retrieves all open orders with an optional symbol filter
 func (g *Gateio) GetOpenOrders(symbol string) (OpenOrdersResponse, error) {
 	var params string
 	var result OpenOrdersResponse
@@ -450,7 +450,7 @@ func (g *Gateio) GetOpenOrders(symbol string) (OpenOrdersResponse, error) {
 	return result, nil
 }
 
-// GetOpenOrders retrieves all orders with an optional symbol filter
+// GetTradeHistory retrieves all orders with an optional symbol filter
 func (g *Gateio) GetTradeHistory(symbol string) (TradHistoryResponse, error) {
 	var params string
 	var result TradHistoryResponse

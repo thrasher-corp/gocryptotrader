@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/thrasher-/gocryptotrader/common"
+	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
 	"github.com/thrasher-/gocryptotrader/currency/symbol"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
@@ -24,6 +25,18 @@ func TestDefault(t *testing.T) {
 }
 
 func TestSetup(t *testing.T) {
+	cfg := config.GetConfig()
+	cfg.LoadConfig("../../testdata/configtest.json")
+	exmoConf, err := cfg.GetExchangeConfig("EXMO")
+	if err != nil {
+		t.Error("Test Failed - OKCoin Setup() init error")
+	}
+	exmoConf.AuthenticatedAPISupport = true
+	exmoConf.APIKey = APIKey
+	exmoConf.APISecret = APISecret
+
+	e.Setup(exmoConf)
+
 	e.AuthenticatedAPISupport = true
 	e.APIKey = APIKey
 	e.APISecret = APISecret
@@ -226,12 +239,12 @@ func TestGetFee(t *testing.T) {
 }
 
 func TestFormatWithdrawPermissions(t *testing.T) {
-	
+
 	e.SetDefaults()
 	expectedResult := exchange.AutoWithdrawCryptoWithSetupText + " & " + exchange.NoFiatWithdrawalsText
-	
+
 	withdrawPermissions := e.FormatWithdrawPermissions()
-	
+
 	if withdrawPermissions != expectedResult {
 		t.Errorf("Expected: %s, Received: %s", expectedResult, withdrawPermissions)
 	}
@@ -305,7 +318,7 @@ func TestSubmitOrder(t *testing.T) {
 }
 
 func TestCancelExchangeOrder(t *testing.T) {
-	
+
 	e.SetDefaults()
 	TestSetup(t)
 	if areTestAPIKeysSet() && !canManipulateRealOrders {
@@ -321,9 +334,8 @@ func TestCancelExchangeOrder(t *testing.T) {
 		CurrencyPair:  currencyPair,
 	}
 
-	
 	err := e.CancelOrder(orderCancellation)
-	
+
 	if !areTestAPIKeysSet() && err == nil {
 		t.Errorf("Expecting an error when no keys are set: %v", err)
 	}
@@ -333,7 +345,7 @@ func TestCancelExchangeOrder(t *testing.T) {
 }
 
 func TestCancelAllExchangeOrders(t *testing.T) {
-	
+
 	e.SetDefaults()
 	TestSetup(t)
 
@@ -349,9 +361,8 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 		CurrencyPair:  currencyPair,
 	}
 
-	
 	resp, err := e.CancelAllOrders(orderCancellation)
-	
+
 	if !areTestAPIKeysSet() && err == nil {
 		t.Errorf("Expecting an error when no keys are set: %v", err)
 	}

@@ -419,14 +419,13 @@ func (c *COINUT) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]
 				if instrumentData.InstID == int(order.InstrumentID) {
 					currPair := pair.NewCurrencyPairDelimiter(instrument, "")
 					orders = append(orders, exchange.OrderDetail{
-						ID:            strconv.FormatInt(order.OrderID, 10),
-						Amount:        order.Quantity,
-						Price:         order.Price,
-						Exchange:      c.Name,
-						OrderSide:     order.Side,
-						OrderDate:     order.Timestamp,
-						BaseCurrency:  currPair.FirstCurrency.String(),
-						QuoteCurrency: currPair.SecondCurrency.String(),
+						ID:           strconv.FormatInt(order.OrderID, 10),
+						Amount:       order.Quantity,
+						Price:        order.Price,
+						Exchange:     c.Name,
+						OrderSide:    order.Side,
+						OrderDate:    order.Timestamp,
+						CurrencyPair: currPair,
 					})
 				}
 			}
@@ -475,14 +474,13 @@ func (c *COINUT) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]
 				if instrumentData.InstID == int(order.Order.InstrumentID) {
 					currPair := pair.NewCurrencyPairDelimiter(instrument, "")
 					orders = append(orders, exchange.OrderDetail{
-						ID:            strconv.FormatInt(order.Order.OrderID, 10),
-						Amount:        order.Order.Quantity,
-						Price:         order.Order.Price,
-						Exchange:      c.Name,
-						OrderSide:     order.Order.Side,
-						OrderDate:     order.Order.Timestamp,
-						BaseCurrency:  currPair.FirstCurrency.String(),
-						QuoteCurrency: currPair.SecondCurrency.String(),
+						ID:           strconv.FormatInt(order.Order.OrderID, 10),
+						Amount:       order.Order.Quantity,
+						Price:        order.Order.Price,
+						Exchange:     c.Name,
+						OrderSide:    order.Order.Side,
+						OrderDate:    order.Order.Timestamp,
+						CurrencyPair: currPair,
 					})
 				}
 			}

@@ -279,8 +279,7 @@ func (g *Gemini) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]
 			OrderType:       orderType,
 			OrderSide:       side,
 			Price:           order.Price,
-			BaseCurrency:    symbol.FirstCurrency.String(),
-			QuoteCurrency:   symbol.SecondCurrency.String(),
+			CurrencyPair:    symbol,
 		})
 	}
 
@@ -323,15 +322,14 @@ func (g *Gemini) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]
 		}
 
 		orders = append(orders, exchange.OrderDetail{
-			Amount:        trade.Amount,
-			ID:            fmt.Sprintf("%v", trade.OrderID),
-			Exchange:      g.Name,
-			BaseCurrency:  trade.BaseCurrency,
-			QuoteCurrency: trade.QuoteCurrency,
-			OrderDate:     trade.Timestamp,
-			OrderSide:     side,
-			Fee:           trade.FeeAmount,
-			Price:         trade.Price,
+			Amount:       trade.Amount,
+			ID:           fmt.Sprintf("%v", trade.OrderID),
+			Exchange:     g.Name,
+			OrderDate:    trade.Timestamp,
+			OrderSide:    side,
+			Fee:          trade.FeeAmount,
+			Price:        trade.Price,
+			CurrencyPair: pair.NewCurrencyPairWithDelimiter(trade.BaseCurrency, trade.QuoteCurrency, g.ConfigCurrencyPairFormat.Delimiter),
 		})
 	}
 

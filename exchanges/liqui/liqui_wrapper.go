@@ -286,13 +286,13 @@ func (l *Liqui) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]e
 		symbol := pair.NewCurrencyPairDelimiter(order.Pair, l.ConfigCurrencyPairFormat.Delimiter)
 
 		orders = append(orders, exchange.OrderDetail{
-			Amount:        order.Amount,
-			ID:            order.ID,
-			Price:         order.Rate,
-			OrderSide:     order.Type,
-			OrderDate:     int64(order.TimestampCreated),
-			BaseCurrency:  symbol.FirstCurrency.String(),
-			QuoteCurrency: symbol.SecondCurrency.String(),
+			Amount:       order.Amount,
+			ID:           order.ID,
+			Price:        order.Rate,
+			OrderSide:    order.Type,
+			OrderDate:    int64(order.TimestampCreated),
+			Exchange:     l.Name,
+			CurrencyPair: symbol,
 		})
 	}
 

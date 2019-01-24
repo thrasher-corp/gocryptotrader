@@ -339,15 +339,14 @@ func (b *Bitmex) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]
 		}
 
 		orderDetail := exchange.OrderDetail{
-			Price:         order.Price,
-			Amount:        float64(order.OrderQty),
-			BaseCurrency:  order.Symbol,
-			QuoteCurrency: order.SettlCurrency,
-			Exchange:      b.Name,
-			ID:            order.OrderID,
-			OrderSide:     orderSide,
-			OrderType:     orderType,
-			Status:        order.OrdStatus,
+			Price:        order.Price,
+			Amount:       float64(order.OrderQty),
+			Exchange:     b.Name,
+			ID:           order.OrderID,
+			OrderSide:    orderSide,
+			OrderType:    orderType,
+			Status:       order.OrdStatus,
+			CurrencyPair: pair.NewCurrencyPairWithDelimiter(order.Symbol, order.SettlCurrency, b.ConfigCurrencyPairFormat.Delimiter),
 		}
 
 		orders = append(orders, orderDetail)
@@ -393,15 +392,14 @@ func (b *Bitmex) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]
 		}
 
 		orderDetail := exchange.OrderDetail{
-			Price:         order.Price,
-			Amount:        float64(order.OrderQty),
-			BaseCurrency:  order.Symbol,
-			QuoteCurrency: order.SettlCurrency,
-			Exchange:      b.Name,
-			ID:            order.OrderID,
-			OrderSide:     orderSide,
-			OrderType:     orderType,
-			Status:        order.OrdStatus,
+			Price:        order.Price,
+			Amount:       float64(order.OrderQty),
+			Exchange:     b.Name,
+			ID:           order.OrderID,
+			OrderSide:    orderSide,
+			OrderType:    orderType,
+			Status:       order.OrdStatus,
+			CurrencyPair: pair.NewCurrencyPairWithDelimiter(order.Symbol, order.SettlCurrency, b.ConfigCurrencyPairFormat.Delimiter),
 		}
 
 		orders = append(orders, orderDetail)

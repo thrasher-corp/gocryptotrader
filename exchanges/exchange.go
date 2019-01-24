@@ -221,8 +221,7 @@ type TradeHistory struct {
 type OrderDetail struct {
 	Exchange        string
 	ID              string
-	BaseCurrency    string
-	QuoteCurrency   string
+	CurrencyPair    pair.CurrencyPair
 	OrderSide       string
 	OrderType       string
 	OrderDate       int64
@@ -1049,7 +1048,7 @@ func (e *Base) FilterOrdersByCurrencies(orders *[]OrderDetail, currencies []pair
 	for _, orderDetail := range *orders {
 		matchFound := false
 		for _, currency := range currencies {
-			if !matchFound && strings.EqualFold(orderDetail.BaseCurrency, currency.FirstCurrency.String()) || strings.EqualFold(orderDetail.QuoteCurrency, currency.SecondCurrency.String()) {
+			if !matchFound && strings.EqualFold(orderDetail.CurrencyPair.FirstCurrency.String(), currency.FirstCurrency.String()) || strings.EqualFold(orderDetail.CurrencyPair.SecondCurrency.String(), currency.SecondCurrency.String()) {
 				matchFound = true
 			}
 		}

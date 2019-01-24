@@ -314,24 +314,23 @@ func (b *Binance) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([
 	}
 
 	var orders []exchange.OrderDetail
-	for _, symbol := range getOrdersRequest.Currencies {
-		resp, err := b.OpenOrders(symbol.FirstCurrency.String())
+	for _, currency := range getOrdersRequest.Currencies {
+		resp, err := b.OpenOrders(exchange.FormatExchangeCurrency(b.Name, currency).String())
 		if err != nil {
 			return nil, err
 		}
 
 		for _, order := range resp {
 			orders = append(orders, exchange.OrderDetail{
-				Amount:        order.OrigQty,
-				BaseCurrency:  order.Symbol,
-				OrderDate:     int64(order.Time),
-				Exchange:      b.Name,
-				ID:            fmt.Sprintf("%v", order.OrderID),
-				OrderSide:     order.Side,
-				OrderType:     order.Type,
-				Price:         order.Price,
-				QuoteCurrency: order.Symbol,
-				Status:        order.Status,
+				Amount:       order.OrigQty,
+				OrderDate:    int64(order.Time),
+				Exchange:     b.Name,
+				ID:           fmt.Sprintf("%v", order.OrderID),
+				OrderSide:    order.Side,
+				OrderType:    order.Type,
+				Price:        order.Price,
+				Status:       order.Status,
+				CurrencyPair: pair.NewCurrencyPairFromString(order.Symbol),
 			})
 		}
 	}
@@ -351,8 +350,8 @@ func (b *Binance) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([
 	}
 
 	var orders []exchange.OrderDetail
-	for _, symbol := range getOrdersRequest.Currencies {
-		resp, err := b.AllOrders(exchange.FormatExchangeCurrency(b.Name, symbol).String(), "", "1000")
+	for _, currency := range getOrdersRequest.Currencies {
+		resp, err := b.AllOrders(exchange.FormatExchangeCurrency(b.Name, currency).String(), "", "1000")
 		if err != nil {
 			return nil, err
 		}
@@ -364,16 +363,15 @@ func (b *Binance) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([
 			}
 
 			orders = append(orders, exchange.OrderDetail{
-				Amount:        order.OrigQty,
-				BaseCurrency:  order.Symbol,
-				OrderDate:     int64(order.Time),
-				Exchange:      b.Name,
-				ID:            fmt.Sprintf("%v", order.OrderID),
-				OrderSide:     order.Side,
-				OrderType:     order.Type,
-				Price:         order.Price,
-				QuoteCurrency: order.Symbol,
-				Status:        order.Status,
+				Amount:       order.OrigQty,
+				OrderDate:    int64(order.Time),
+				Exchange:     b.Name,
+				ID:           fmt.Sprintf("%v", order.OrderID),
+				OrderSide:    order.Side,
+				OrderType:    order.Type,
+				Price:        order.Price,
+				CurrencyPair: pair.NewCurrencyPairFromString(order.Symbol),
+				Status:       order.Status,
 			})
 		}
 	}

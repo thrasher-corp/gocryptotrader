@@ -110,6 +110,7 @@ type Trade struct {
 type TradeHistoryResponse struct {
 	Success int64                   `json:"success"`
 	Data    map[string]TradeHistory `json:"return,omitemtpy"`
+	Error   string                  `json:"error,omitemtpy"`
 }
 
 // TradeHistory stores trade history

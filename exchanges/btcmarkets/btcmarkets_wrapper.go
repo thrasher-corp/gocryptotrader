@@ -246,7 +246,6 @@ func (b *BTCMarkets) GetOrderInfo(orderID int64) (exchange.OrderDetail, error) {
 
 	for _, order := range orders {
 		OrderDetail.Amount = order.Volume
-		OrderDetail.BaseCurrency = order.Currency
 		OrderDetail.OrderDate = int64(order.CreationTime)
 		OrderDetail.Exchange = b.GetName()
 		OrderDetail.ID = order.ID
@@ -254,8 +253,8 @@ func (b *BTCMarkets) GetOrderInfo(orderID int64) (exchange.OrderDetail, error) {
 		OrderDetail.OrderSide = order.OrderSide
 		OrderDetail.OrderType = order.OrderType
 		OrderDetail.Price = order.Price
-		OrderDetail.QuoteCurrency = order.Instrument
 		OrderDetail.Status = order.Status
+		OrderDetail.CurrencyPair = pair.NewCurrencyPairWithDelimiter(order.Instrument, order.Currency, b.ConfigCurrencyPairFormat.Delimiter)
 	}
 
 	return OrderDetail, nil
@@ -303,7 +302,6 @@ func (b *BTCMarkets) GetWithdrawCapabilities() uint32 {
 
 // GetActiveOrders retrieves any orders that are active/open
 func (b *BTCMarkets) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
-	// looks like it only deals with currency pairs
 	resp, err := b.GetOpenOrders()
 	if err != nil {
 		return nil, err
@@ -321,15 +319,14 @@ func (b *BTCMarkets) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest)
 		openOrder := exchange.OrderDetail{
 			ID:              order.ID,
 			Amount:          order.Volume,
-			BaseCurrency:    order.Currency,
 			Exchange:        b.Name,
 			RemainingAmount: order.OpenVolume,
 			OrderDate:       int64(order.CreationTime),
 			OrderSide:       side,
 			OrderType:       order.OrderType,
 			Price:           order.Price,
-			QuoteCurrency:   order.Instrument,
 			Status:          order.Status,
+			CurrencyPair:    pair.NewCurrencyPairWithDelimiter(order.Instrument, order.Currency, b.ConfigCurrencyPairFormat.Delimiter),
 		}
 
 		for _, trade := range order.Trades {
@@ -361,8 +358,8 @@ func (b *BTCMarkets) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest)
 	}
 
 	var respOrders []Order
-	for _, currencyPair := range getOrdersRequest.Currencies {
-		resp, err := b.GetOrders(currencyPair.FirstCurrency.String(), currencyPair.SecondCurrency.String(), 200, 0, true)
+	for _, currency := range getOrdersRequest.Currencies {
+		resp, err := b.GetOrders(currency.FirstCurrency.String(), currency.SecondCurrency.String(), 200, 0, true)
 		if err != nil {
 			return nil, err
 		}
@@ -383,15 +380,14 @@ func (b *BTCMarkets) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest)
 		openOrder := exchange.OrderDetail{
 			ID:              order.ID,
 			Amount:          order.Volume,
-			BaseCurrency:    order.Currency,
 			Exchange:        b.Name,
 			RemainingAmount: order.OpenVolume,
 			OrderDate:       int64(order.CreationTime),
 			OrderSide:       side,
 			OrderType:       order.OrderType,
 			Price:           order.Price,
-			QuoteCurrency:   order.Instrument,
 			Status:          order.Status,
+			CurrencyPair:    pair.NewCurrencyPairWithDelimiter(order.Instrument, order.Currency, b.ConfigCurrencyPairFormat.Delimiter),
 		}
 
 		for _, trade := range order.Trades {

@@ -301,14 +301,13 @@ func (h *HitBTC) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]
 		}
 
 		orders = append(orders, exchange.OrderDetail{
-			ID:            order.ID,
-			Amount:        order.Quantity,
-			Exchange:      h.Name,
-			Price:         order.Price,
-			OrderDate:     t.Unix(),
-			BaseCurrency:  symbol.FirstCurrency.String(),
-			QuoteCurrency: symbol.SecondCurrency.String(),
-			OrderSide:     side,
+			ID:           order.ID,
+			Amount:       order.Quantity,
+			Exchange:     h.Name,
+			Price:        order.Price,
+			OrderDate:    t.Unix(),
+			OrderSide:    side,
+			CurrencyPair: symbol,
 		})
 	}
 
@@ -353,14 +352,13 @@ func (h *HitBTC) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]
 		}
 
 		orders = append(orders, exchange.OrderDetail{
-			ID:            order.ID,
-			Amount:        order.Quantity,
-			Exchange:      h.Name,
-			Price:         order.Price,
-			OrderDate:     t.Unix(),
-			BaseCurrency:  symbol.FirstCurrency.String(),
-			QuoteCurrency: symbol.SecondCurrency.String(),
-			OrderSide:     side,
+			ID:           order.ID,
+			Amount:       order.Quantity,
+			Exchange:     h.Name,
+			Price:        order.Price,
+			OrderDate:    t.Unix(),
+			OrderSide:    side,
+			CurrencyPair: symbol,
 		})
 	}
 

@@ -327,17 +327,17 @@ func (z *ZB) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]exch
 			side = string(exchange.BuyOrderSide)
 		}
 		orders = append(orders, exchange.OrderDetail{
-			ID:            fmt.Sprintf("%v", order.ID),
-			Amount:        order.TotalAmount,
-			BaseCurrency:  symbol.FirstCurrency.String(),
-			QuoteCurrency: symbol.SecondCurrency.String(),
-			Exchange:      z.Name,
-			OrderDate:     int64(order.TradeDate),
-			Price:         float64(order.Price),
-			OrderSide:     side,
+			ID:           fmt.Sprintf("%v", order.ID),
+			Amount:       order.TotalAmount,
+			Exchange:     z.Name,
+			OrderDate:    int64(order.TradeDate),
+			Price:        float64(order.Price),
+			OrderSide:    side,
+			CurrencyPair: symbol,
 		})
 	}
 
+	z.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
 	z.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
 
 	return orders, nil
@@ -384,16 +384,17 @@ func (z *ZB) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]exch
 		symbol := pair.NewCurrencyPairDelimiter(order.Currency, z.ConfigCurrencyPairFormat.Delimiter)
 
 		orders = append(orders, exchange.OrderDetail{
-			ID:            fmt.Sprintf("%v", order.ID),
-			Amount:        order.TotalAmount,
-			BaseCurrency:  symbol.FirstCurrency.String(),
-			QuoteCurrency: symbol.SecondCurrency.String(),
-			Exchange:      z.Name,
-			OrderDate:     int64(order.TradeDate),
-			Price:         float64(order.Price),
-			OrderSide:     string(getOrdersRequest.OrderSide),
+			ID:           fmt.Sprintf("%v", order.ID),
+			Amount:       order.TotalAmount,
+			Exchange:     z.Name,
+			OrderDate:    int64(order.TradeDate),
+			Price:        float64(order.Price),
+			OrderSide:    string(getOrdersRequest.OrderSide),
+			CurrencyPair: symbol,
 		})
 	}
+
+	z.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
 
 	return orders, nil
 }

@@ -318,8 +318,7 @@ func (i *ItBit) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]e
 			RemainingAmount: (order.Amount - order.AmountFilled),
 			Exchange:        i.Name,
 			OrderDate:       t.Unix(),
-			BaseCurrency:    symbol.FirstCurrency.String(),
-			QuoteCurrency:   symbol.SecondCurrency.String(),
+			CurrencyPair:    symbol,
 		})
 	}
 
@@ -371,8 +370,7 @@ func (i *ItBit) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]e
 			RemainingAmount: (order.Amount - order.AmountFilled),
 			Exchange:        i.Name,
 			OrderDate:       t.Unix(),
-			BaseCurrency:    symbol.FirstCurrency.String(),
-			QuoteCurrency:   symbol.SecondCurrency.String(),
+			CurrencyPair:    symbol,
 		})
 	}
 

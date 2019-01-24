@@ -245,7 +245,15 @@ func (y *Yobit) GetTradeHistory(TIDFrom, Count, TIDEnd, since, end int64, order,
 
 	result := TradeHistoryResponse{}
 
-	return result.Data, y.SendAuthenticatedHTTPRequest(privateTradeHistory, req, &result)
+	err := y.SendAuthenticatedHTTPRequest(privateTradeHistory, req, &result)
+	if err != nil {
+		return nil, err
+	}
+	if result.Success == 0 {
+		return nil, errors.New(result.Error)
+	}
+
+	return result.Data, nil
 }
 
 // GetCryptoDepositAddress returns the deposit address for a specific currency
