@@ -354,9 +354,7 @@ func (z *ZB) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]exch
 	var allOrders []Order
 
 	var side int64
-	if getOrdersRequest.OrderSide == exchange.SellOrderSide {
-		side = 0
-	} else if getOrdersRequest.OrderSide == exchange.BuyOrderSide {
+	if getOrdersRequest.OrderSide == exchange.BuyOrderSide {
 		side = 1
 	}
 

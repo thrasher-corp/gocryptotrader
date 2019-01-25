@@ -161,9 +161,9 @@ func (a *Alphapoint) GetOrderInfo(orderID int64) (float64, error) {
 	}
 
 	for x := range orders {
-		for y := range orders[x].Openorders {
-			if int64(orders[x].Openorders[y].Serverorderid) == orderID {
-				return float64(orders[x].Openorders[y].QtyRemaining), nil
+		for y := range orders[x].OpenOrders {
+			if int64(orders[x].OpenOrders[y].ServerOrderID) == orderID {
+				return float64(orders[x].OpenOrders[y].QtyRemaining), nil
 			}
 		}
 	}
@@ -226,7 +226,7 @@ func (a *Alphapoint) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest)
 
 	var orders []exchange.OrderDetail
 	for x := range resp {
-		for _, order := range resp[x].Openorders {
+		for _, order := range resp[x].OpenOrders {
 			if order.State != 1 {
 				continue
 			}
@@ -235,7 +235,7 @@ func (a *Alphapoint) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest)
 				Amount:          float64(order.QtyTotal),
 				OrderDate:       order.ReceiveTime,
 				Exchange:        fmt.Sprintf("%v - %v", a.Name, order.AccountID),
-				ID:              fmt.Sprintf("%v", order.Serverorderid),
+				ID:              fmt.Sprintf("%v", order.ServerOrderID),
 				Price:           float64(order.Price),
 				RemainingAmount: float64(order.QtyRemaining),
 			}
@@ -284,7 +284,7 @@ func (a *Alphapoint) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest)
 
 	var orders []exchange.OrderDetail
 	for x := range resp {
-		for _, order := range resp[x].Openorders {
+		for _, order := range resp[x].OpenOrders {
 			if order.State == 1 {
 				continue
 			}
@@ -293,7 +293,7 @@ func (a *Alphapoint) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest)
 				Amount:          float64(order.QtyTotal),
 				OrderDate:       order.ReceiveTime,
 				Exchange:        fmt.Sprintf("%v - %v", a.Name, order.AccountID),
-				ID:              fmt.Sprintf("%v", order.Serverorderid),
+				ID:              fmt.Sprintf("%v", order.ServerOrderID),
 				Price:           float64(order.Price),
 				RemainingAmount: float64(order.QtyRemaining),
 			}

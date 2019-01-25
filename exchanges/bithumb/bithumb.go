@@ -434,7 +434,7 @@ func (b *Bithumb) GetOrderDetails(orderID, transactionType, currency string) (Or
 	response := OrderDetails{}
 
 	params := url.Values{}
-	//params.Set("order_id", common.StringToUpper(orderID))
+	params.Set("order_id", common.StringToUpper(orderID))
 	params.Set("type", transactionType)
 	params.Set("currency", common.StringToUpper(currency))
 

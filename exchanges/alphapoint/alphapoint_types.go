@@ -144,7 +144,7 @@ type AccountInfo struct {
 
 // Order is a generalised order type
 type Order struct {
-	Serverorderid int     `json:"ServerOrderId"`
+	ServerOrderID int     `json:"ServerOrderId"`
 	AccountID     int     `json:"AccountId"`
 	Price         float64 `json:"Price"`
 	QtyTotal      float64 `json:"QtyTotal"`
@@ -158,7 +158,7 @@ type Order struct {
 // OpenOrders holds the full range of orders by instrument
 type OpenOrders struct {
 	Instrument string  `json:"ins"`
-	Openorders []Order `json:"openOrders"`
+	OpenOrders []Order `json:"openOrders"`
 }
 
 // OrderInfo holds all open orders across the entire range of all instruments
