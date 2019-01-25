@@ -2,6 +2,7 @@ package coinut
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"time"
@@ -38,6 +39,8 @@ const (
 
 	coinutAuthRate   = 0
 	coinutUnauthRate = 0
+
+	coinutStatusOK = "OK"
 )
 
 // COINUT is the overarching type across the coinut package
@@ -367,7 +370,24 @@ func (c *COINUT) SendHTTPRequest(apiRequest string, params map[string]interface{
 	}
 	headers["Content-Type"] = "application/json"
 
-	return c.SendPayload("POST", c.APIUrl, headers, bytes.NewBuffer(payload), result, authenticated, c.Verbose)
+	var rawMsg json.RawMessage
+	err = c.SendPayload("POST", c.APIUrl, headers, bytes.NewBuffer(payload), &rawMsg, authenticated, c.Verbose)
+	if err != nil {
+		return err
+	}
+
+	var genResp GenericResponse
+	err = common.JSONDecode(rawMsg, &genResp)
+	if err != nil {
+		return err
+	}
+
+	if genResp.Status[0] != coinutStatusOK {
+		return fmt.Errorf("%s SendHTTPRequest error: %s", c.Name,
+			genResp.Status[0])
+	}
+
+	return common.JSONDecode(rawMsg, result)
 }
 
 // GetFee returns an estimate of fee based on type of transaction
