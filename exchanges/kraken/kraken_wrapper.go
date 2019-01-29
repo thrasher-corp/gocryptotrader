@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
@@ -302,6 +303,8 @@ func (k *Kraken) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]
 	var orders []exchange.OrderDetail
 	for ID, order := range resp.Open {
 		symbol := pair.NewCurrencyPairDelimiter(order.Descr.Pair, k.ConfigCurrencyPairFormat.Delimiter)
+		orderDate := time.Unix(int64(order.StartTm), 0)
+		side := exchange.OrderSide(strings.ToUpper(order.Descr.Type))
 
 		orders = append(orders, exchange.OrderDetail{
 			ID:              ID,
@@ -309,9 +312,9 @@ func (k *Kraken) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]
 			RemainingAmount: (order.Vol - order.VolExec),
 			ExecutedAmount:  order.VolExec,
 			Exchange:        k.Name,
-			OrderDate:       int64(order.StartTm),
+			OrderDate:       orderDate,
 			Price:           order.Price,
-			OrderSide:       order.Descr.Type,
+			OrderSide:       side,
 			CurrencyPair:    symbol,
 		})
 	}
@@ -326,13 +329,12 @@ func (k *Kraken) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
 func (k *Kraken) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
-
 	request := GetClosedOrdersOptions{}
-	if getOrdersRequest.StartTicks > 0 {
-		request.Start = fmt.Sprintf("%v", getOrdersRequest.StartTicks)
+	if getOrdersRequest.StartTicks.Unix() > 0 {
+		request.Start = fmt.Sprintf("%v", getOrdersRequest.StartTicks.Unix())
 	}
-	if getOrdersRequest.EndTicks > 0 {
-		request.End = fmt.Sprintf("%v", getOrdersRequest.EndTicks)
+	if getOrdersRequest.EndTicks.Unix() > 0 {
+		request.End = fmt.Sprintf("%v", getOrdersRequest.EndTicks.Unix())
 	}
 
 	resp, err := k.GetClosedOrders(request)
@@ -343,6 +345,8 @@ func (k *Kraken) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]
 	var orders []exchange.OrderDetail
 	for ID, order := range resp.Closed {
 		symbol := pair.NewCurrencyPairDelimiter(order.Descr.Pair, k.ConfigCurrencyPairFormat.Delimiter)
+		orderDate := time.Unix(int64(order.StartTm), 0)
+		side := exchange.OrderSide(strings.ToUpper(order.Descr.Type))
 
 		orders = append(orders, exchange.OrderDetail{
 			ID:              ID,
@@ -350,9 +354,9 @@ func (k *Kraken) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]
 			RemainingAmount: (order.Vol - order.VolExec),
 			ExecutedAmount:  order.VolExec,
 			Exchange:        k.Name,
-			OrderDate:       int64(order.StartTm),
+			OrderDate:       orderDate,
 			Price:           order.Price,
-			OrderSide:       order.Descr.Type,
+			OrderSide:       side,
 			CurrencyPair:    symbol,
 		})
 	}

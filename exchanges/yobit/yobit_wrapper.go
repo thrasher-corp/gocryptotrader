@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"math"
 	"strconv"
+	"strings"
 	"sync"
+	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
@@ -271,7 +273,7 @@ func (y *Yobit) GetWithdrawCapabilities() uint32 {
 
 // GetActiveOrders retrieves any orders that are active/open
 func (y *Yobit) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
-	var allOrders []ActiveOrders
+	var orders []exchange.OrderDetail
 	for _, currency := range getOrdersRequest.Currencies {
 		resp, err := y.GetOpenOrders(exchange.FormatExchangeCurrency(y.Name, currency).String())
 		if err != nil {
@@ -279,24 +281,19 @@ func (y *Yobit) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]e
 		}
 
 		for ID, order := range resp {
-			order.ID = ID
-			allOrders = append(allOrders, order)
+			symbol := pair.NewCurrencyPairDelimiter(order.Pair, y.ConfigCurrencyPairFormat.Delimiter)
+			orderDate := time.Unix(int64(order.TimestampCreated), 0)
+			side := exchange.OrderSide(strings.ToUpper(order.Type))
+			orders = append(orders, exchange.OrderDetail{
+				ID:           ID,
+				Amount:       order.Amount,
+				Price:        order.Rate,
+				OrderSide:    side,
+				OrderDate:    orderDate,
+				CurrencyPair: symbol,
+				Exchange:     y.Name,
+			})
 		}
-	}
-
-	var orders []exchange.OrderDetail
-	for _, order := range allOrders {
-		symbol := pair.NewCurrencyPairDelimiter(order.Pair, y.ConfigCurrencyPairFormat.Delimiter)
-
-		orders = append(orders, exchange.OrderDetail{
-			ID:           order.ID,
-			Amount:       order.Amount,
-			Price:        order.Rate,
-			OrderSide:    order.Type,
-			OrderDate:    int64(order.TimestampCreated),
-			CurrencyPair: symbol,
-			Exchange:     y.Name,
-		})
 	}
 
 	y.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
@@ -310,7 +307,7 @@ func (y *Yobit) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]e
 func (y *Yobit) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
 	var allOrders []TradeHistory
 	for _, currency := range getOrdersRequest.Currencies {
-		resp, err := y.GetTradeHistory(0, 10000, math.MaxInt64, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks, "DESC", exchange.FormatExchangeCurrency(y.Name, currency).String())
+		resp, err := y.GetTradeHistory(0, 10000, math.MaxInt64, getOrdersRequest.StartTicks.Unix(), getOrdersRequest.EndTicks.Unix(), "DESC", exchange.FormatExchangeCurrency(y.Name, currency).String())
 		if err != nil {
 			return nil, err
 		}
@@ -323,13 +320,14 @@ func (y *Yobit) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]e
 	var orders []exchange.OrderDetail
 	for _, order := range allOrders {
 		symbol := pair.NewCurrencyPairDelimiter(order.Pair, y.ConfigCurrencyPairFormat.Delimiter)
-
+		orderDate := time.Unix(int64(order.Timestamp), 0)
+		side := exchange.OrderSide(strings.ToUpper(order.Type))
 		orders = append(orders, exchange.OrderDetail{
 			ID:           fmt.Sprintf("%v", order.OrderID),
 			Amount:       order.Amount,
 			Price:        order.Rate,
-			OrderSide:    order.Type,
-			OrderDate:    int64(order.Timestamp),
+			OrderSide:    side,
+			OrderDate:    orderDate,
 			CurrencyPair: symbol,
 			Exchange:     y.Name,
 		})

@@ -1,7 +1,11 @@
 package zb
 
-import "time"
-import "github.com/thrasher-/gocryptotrader/currency/symbol"
+import (
+	"time"
+
+	"github.com/thrasher-/gocryptotrader/currency/symbol"
+	exchange "github.com/thrasher-/gocryptotrader/exchanges"
+)
 
 // OrderbookResponse holds the orderbook data for a symbol
 type OrderbookResponse struct {
@@ -39,7 +43,7 @@ type Order struct {
 	TradeAmount int     `json:"trade_amount"`
 	TradeDate   int     `json:"trade_date"`
 	TradeMoney  int     `json:"trade_money"`
-	Type        int     `json:"type"`
+	Type        int64   `json:"type"`
 }
 
 // AccountsResponse 用户基本信息
@@ -234,4 +238,10 @@ var WithdrawalFees = map[string]float64{
 	symbol.HPY:    100,
 	symbol.PAX:    5,
 	symbol.XTZ:    0.1,
+}
+
+// orderSideMap holds order type info based on Alphapoint data
+var orderSideMap = map[int64]exchange.OrderSide{
+	0: exchange.BuyOrderSide,
+	1: exchange.SellOrderSide,
 }

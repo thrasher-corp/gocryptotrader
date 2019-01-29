@@ -936,10 +936,10 @@ func TestFilterOrdersByType(t *testing.T) {
 	var orders []OrderDetail
 
 	orders = append(orders, OrderDetail{
-		OrderType: string(ImmediateOrCancelOrderType),
+		OrderType: ImmediateOrCancelOrderType,
 	})
 	orders = append(orders, OrderDetail{
-		OrderType: string(LimitOrderType),
+		OrderType: LimitOrderType,
 	})
 
 	tester.FilterOrdersByType(&orders, AnyOrderType)
@@ -963,10 +963,10 @@ func TestFilterOrdersBySide(t *testing.T) {
 	var orders []OrderDetail
 
 	orders = append(orders, OrderDetail{
-		OrderSide: string(BuyOrderSide),
+		OrderSide: BuyOrderSide,
 	})
 	orders = append(orders, OrderDetail{
-		OrderSide: string(SellOrderSide),
+		OrderSide: SellOrderSide,
 	})
 	orders = append(orders, OrderDetail{})
 
@@ -991,31 +991,31 @@ func TestFilterOrdersByTickRange(t *testing.T) {
 	var orders []OrderDetail
 
 	orders = append(orders, OrderDetail{
-		OrderDate: 100,
+		OrderDate: time.Unix(100, 0),
 	})
 	orders = append(orders, OrderDetail{
-		OrderDate: 110,
+		OrderDate: time.Unix(110, 0),
 	})
 	orders = append(orders, OrderDetail{
-		OrderDate: 111,
+		OrderDate: time.Unix(111, 0),
 	})
 
-	tester.FilterOrdersByTickRange(&orders, 0, 0)
+	tester.FilterOrdersByTickRange(&orders, time.Unix(0, 0), time.Unix(0, 0))
 	if len(orders) != 3 {
 		t.Errorf("Orders failed to be filtered. Expected %v, Recieved %v", 3, len(orders))
 	}
 
-	tester.FilterOrdersByTickRange(&orders, 100, 111)
+	tester.FilterOrdersByTickRange(&orders, time.Unix(100, 0), time.Unix(111, 0))
 	if len(orders) != 3 {
 		t.Errorf("Orders failed to be filtered. Expected %v, Recieved %v", 3, len(orders))
 	}
 
-	tester.FilterOrdersByTickRange(&orders, 101, 111)
+	tester.FilterOrdersByTickRange(&orders, time.Unix(101, 0), time.Unix(111, 0))
 	if len(orders) != 2 {
 		t.Errorf("Orders failed to be filtered. Expected %v, Recieved %v", 2, len(orders))
 	}
 
-	tester.FilterOrdersByTickRange(&orders, 200, 300)
+	tester.FilterOrdersByTickRange(&orders, time.Unix(200, 0), time.Unix(300, 0))
 	if len(orders) != 0 {
 		t.Errorf("Orders failed to be filtered. Expected %v, Recieved %v", 0, len(orders))
 	}

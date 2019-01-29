@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
@@ -275,13 +276,15 @@ func (l *LakeBTC) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([
 	var orders []exchange.OrderDetail
 	for _, order := range resp {
 		symbol := pair.NewCurrencyPairDelimiter(order.Symbol, l.ConfigCurrencyPairFormat.Delimiter)
+		orderDate := time.Unix(order.At, 0)
+		side := exchange.OrderSide(strings.ToUpper(order.Type))
 
 		orders = append(orders, exchange.OrderDetail{
 			Amount:       order.Amount,
 			ID:           fmt.Sprintf("%v", order.ID),
 			Price:        order.Price,
-			OrderSide:    order.Type,
-			OrderDate:    order.At,
+			OrderSide:    side,
+			OrderDate:    orderDate,
 			CurrencyPair: symbol,
 			Exchange:     l.Name,
 		})
@@ -309,13 +312,15 @@ func (l *LakeBTC) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([
 		}
 
 		symbol := pair.NewCurrencyPairDelimiter(order.Symbol, l.ConfigCurrencyPairFormat.Delimiter)
+		orderDate := time.Unix(order.At, 0)
+		side := exchange.OrderSide(strings.ToUpper(order.Type))
 
 		orders = append(orders, exchange.OrderDetail{
 			Amount:       order.Amount,
 			ID:           fmt.Sprintf("%v", order.ID),
 			Price:        order.Price,
-			OrderSide:    order.Type,
-			OrderDate:    order.At,
+			OrderSide:    side,
+			OrderDate:    orderDate,
 			CurrencyPair: symbol,
 			Exchange:     l.Name,
 		})

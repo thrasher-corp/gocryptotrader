@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strconv"
 	"sync"
+	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
@@ -321,19 +322,16 @@ func (z *ZB) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]exch
 	var orders []exchange.OrderDetail
 	for _, order := range allOrders {
 		symbol := pair.NewCurrencyPairDelimiter(order.Currency, z.ConfigCurrencyPairFormat.Delimiter)
-		side := ""
-		if order.Type == 0 {
-			side = string(exchange.SellOrderSide)
-		} else if order.Type == 1 {
-			side = string(exchange.BuyOrderSide)
-		}
+		orderDate := time.Unix(int64(order.TradeDate), 0)
+		orderSide := orderSideMap[order.Type]
+
 		orders = append(orders, exchange.OrderDetail{
 			ID:           fmt.Sprintf("%v", order.ID),
 			Amount:       order.TotalAmount,
 			Exchange:     z.Name,
-			OrderDate:    int64(order.TradeDate),
+			OrderDate:    orderDate,
 			Price:        float64(order.Price),
-			OrderSide:    side,
+			OrderSide:    orderSide,
 			CurrencyPair: symbol,
 		})
 	}
@@ -382,14 +380,15 @@ func (z *ZB) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]exch
 	var orders []exchange.OrderDetail
 	for _, order := range allOrders {
 		symbol := pair.NewCurrencyPairDelimiter(order.Currency, z.ConfigCurrencyPairFormat.Delimiter)
-
+		orderDate := time.Unix(int64(order.TradeDate), 0)
+		orderSide := orderSideMap[order.Type]
 		orders = append(orders, exchange.OrderDetail{
 			ID:           fmt.Sprintf("%v", order.ID),
 			Amount:       order.TotalAmount,
 			Exchange:     z.Name,
-			OrderDate:    int64(order.TradeDate),
+			OrderDate:    orderDate,
 			Price:        float64(order.Price),
-			OrderSide:    string(getOrdersRequest.OrderSide),
+			OrderSide:    orderSide,
 			CurrencyPair: symbol,
 		})
 	}

@@ -4,7 +4,9 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"strings"
 	"sync"
+	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
@@ -345,13 +347,14 @@ func (o *OKEX) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]ex
 		}
 
 		symbol := pair.NewCurrencyPairDelimiter(order.Symbol, o.ConfigCurrencyPairFormat.Delimiter)
-
+		orderDate := time.Unix(order.Created, 0)
+		side := exchange.OrderSide(strings.ToUpper(order.Type))
 		orders = append(orders, exchange.OrderDetail{
 			ID:           fmt.Sprintf("%v", order.OrderID),
 			Amount:       order.Amount,
-			OrderDate:    order.Created,
+			OrderDate:    orderDate,
 			Price:        order.Price,
-			OrderSide:    order.Type,
+			OrderSide:    side,
 			CurrencyPair: symbol,
 			Exchange:     o.Name,
 		})
@@ -380,13 +383,14 @@ func (o *OKEX) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]ex
 	var orders []exchange.OrderDetail
 	for _, order := range allOrders {
 		symbol := pair.NewCurrencyPairDelimiter(order.Symbol, o.ConfigCurrencyPairFormat.Delimiter)
-
+		orderDate := time.Unix(order.Created, 0)
+		side := exchange.OrderSide(strings.ToUpper(order.Type))
 		orders = append(orders, exchange.OrderDetail{
 			ID:           fmt.Sprintf("%v", order.OrderID),
 			Amount:       order.Amount,
-			OrderDate:    order.Created,
+			OrderDate:    orderDate,
 			Price:        order.Price,
-			OrderSide:    order.Type,
+			OrderSide:    side,
 			CurrencyPair: symbol,
 			Exchange:     o.Name,
 		})

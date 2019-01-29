@@ -4,7 +4,9 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"strings"
 	"sync"
+	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
@@ -268,7 +270,7 @@ func (l *Liqui) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]e
 		return nil, errors.New("Currency must be supplied")
 	}
 
-	var allOrders []ActiveOrders
+	var orders []exchange.OrderDetail
 	for _, currency := range getOrdersRequest.Currencies {
 		resp, err := l.GetOpenOrders(exchange.FormatExchangeCurrency(l.Name, currency).String())
 		if err != nil {
@@ -276,24 +278,20 @@ func (l *Liqui) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]e
 		}
 
 		for ID, order := range resp {
-			order.ID = ID
-			allOrders = append(allOrders, order)
+			symbol := pair.NewCurrencyPairDelimiter(order.Pair, l.ConfigCurrencyPairFormat.Delimiter)
+			orderDate := time.Unix(int64(order.TimestampCreated), 0)
+			side := exchange.OrderSide(strings.ToUpper(order.Type))
+
+			orders = append(orders, exchange.OrderDetail{
+				Amount:       order.Amount,
+				ID:           ID,
+				Price:        order.Rate,
+				OrderSide:    side,
+				OrderDate:    orderDate,
+				Exchange:     l.Name,
+				CurrencyPair: symbol,
+			})
 		}
-
-	}
-	var orders []exchange.OrderDetail
-	for _, order := range allOrders {
-		symbol := pair.NewCurrencyPairDelimiter(order.Pair, l.ConfigCurrencyPairFormat.Delimiter)
-
-		orders = append(orders, exchange.OrderDetail{
-			Amount:       order.Amount,
-			ID:           order.ID,
-			Price:        order.Rate,
-			OrderSide:    order.Type,
-			OrderDate:    int64(order.TimestampCreated),
-			Exchange:     l.Name,
-			CurrencyPair: symbol,
-		})
 	}
 
 	l.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
