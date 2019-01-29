@@ -37,7 +37,6 @@ func TestSetup(t *testing.T) {
 	conf.AuthenticatedAPISupport = true
 
 	y.Setup(conf)
-
 }
 
 func TestGetInfo(t *testing.T) {
