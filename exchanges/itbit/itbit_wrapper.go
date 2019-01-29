@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/url"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -304,20 +305,21 @@ func (i *ItBit) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]e
 	var orders []exchange.OrderDetail
 	for _, order := range allOrders {
 		symbol := pair.NewCurrencyPairDelimiter(order.Instrument, i.ConfigCurrencyPairFormat.Delimiter)
-		t, err := time.Parse(time.RFC3339, order.CreatedTime)
+		side := exchange.OrderSide(strings.ToUpper(order.Side))
+		orderDate, err := time.Parse(time.RFC3339, order.CreatedTime)
 		if err != nil {
-			log.Errorf("Exchange %v Func %v Order %v Could not parse date to unix with value of %v",
+			log.Warnf("Exchange %v Func %v Order %v Could not parse date to unix with value of %v",
 				i.Name, "GetActiveOrders", order.ID, order.CreatedTime)
 		}
 
 		orders = append(orders, exchange.OrderDetail{
 			ID:              order.ID,
-			OrderSide:       order.Side,
+			OrderSide:       side,
 			Amount:          order.Amount,
 			ExecutedAmount:  order.AmountFilled,
 			RemainingAmount: (order.Amount - order.AmountFilled),
 			Exchange:        i.Name,
-			OrderDate:       t.Unix(),
+			OrderDate:       orderDate,
 			CurrencyPair:    symbol,
 		})
 	}
@@ -356,20 +358,21 @@ func (i *ItBit) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]e
 		}
 
 		symbol := pair.NewCurrencyPairDelimiter(order.Instrument, i.ConfigCurrencyPairFormat.Delimiter)
-		t, err := time.Parse(time.RFC3339, order.CreatedTime)
+		side := exchange.OrderSide(strings.ToUpper(order.Side))
+		orderDate, err := time.Parse(time.RFC3339, order.CreatedTime)
 		if err != nil {
-			log.Errorf("Exchange %v Func %v Order %v Could not parse date to unix with value of %v",
+			log.Warnf("Exchange %v Func %v Order %v Could not parse date to unix with value of %v",
 				i.Name, "GetActiveOrders", order.ID, order.CreatedTime)
 		}
 
 		orders = append(orders, exchange.OrderDetail{
 			ID:              order.ID,
-			OrderSide:       order.Side,
+			OrderSide:       side,
 			Amount:          order.Amount,
 			ExecutedAmount:  order.AmountFilled,
 			RemainingAmount: (order.Amount - order.AmountFilled),
 			Exchange:        i.Name,
-			OrderDate:       t.Unix(),
+			OrderDate:       orderDate,
 			CurrencyPair:    symbol,
 		})
 	}

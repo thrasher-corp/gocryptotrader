@@ -51,7 +51,6 @@ type ActiveOrders struct {
 	Rate             float64 `json:"rate"`
 	TimestampCreated float64 `json:"timestamp_created"`
 	Status           int     `json:"status"`
-	ID               string
 }
 
 // Pair holds pair information
@@ -109,8 +108,8 @@ type Trade struct {
 //TradeHistoryResponse returns all your trade history
 type TradeHistoryResponse struct {
 	Success int64                   `json:"success"`
-	Data    map[string]TradeHistory `json:"return,omitemtpy"`
-	Error   string                  `json:"error,omitemtpy"`
+	Data    map[string]TradeHistory `json:"return,omitempty"`
+	Error   string                  `json:"error,omitempty"`
 }
 
 // TradeHistory stores trade history

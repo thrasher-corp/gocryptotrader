@@ -4,7 +4,9 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"strings"
 	"sync"
+	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
@@ -321,13 +323,17 @@ func (b *Binance) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([
 		}
 
 		for _, order := range resp {
+			orderSide := exchange.OrderSide(strings.ToUpper(order.Side))
+			orderType := exchange.OrderType(strings.ToUpper(order.Type))
+			orderDate := time.Unix(int64(order.Time), 0)
+
 			orders = append(orders, exchange.OrderDetail{
 				Amount:       order.OrigQty,
-				OrderDate:    int64(order.Time),
+				OrderDate:    orderDate,
 				Exchange:     b.Name,
 				ID:           fmt.Sprintf("%v", order.OrderID),
-				OrderSide:    order.Side,
-				OrderType:    order.Type,
+				OrderSide:    orderSide,
+				OrderType:    orderType,
 				Price:        order.Price,
 				Status:       order.Status,
 				CurrencyPair: pair.NewCurrencyPairFromString(order.Symbol),
@@ -357,6 +363,9 @@ func (b *Binance) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([
 		}
 
 		for _, order := range resp {
+			orderSide := exchange.OrderSide(strings.ToUpper(order.Side))
+			orderType := exchange.OrderType(strings.ToUpper(order.Type))
+			orderDate := time.Unix(int64(order.Time), 0)
 			// New orders are covered in GetOpenOrders
 			if order.Status == "NEW" {
 				continue
@@ -364,11 +373,11 @@ func (b *Binance) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([
 
 			orders = append(orders, exchange.OrderDetail{
 				Amount:       order.OrigQty,
-				OrderDate:    int64(order.Time),
+				OrderDate:    orderDate,
 				Exchange:     b.Name,
 				ID:           fmt.Sprintf("%v", order.OrderID),
-				OrderSide:    order.Side,
-				OrderType:    order.Type,
+				OrderSide:    orderSide,
+				OrderType:    orderType,
 				Price:        order.Price,
 				CurrencyPair: pair.NewCurrencyPairFromString(order.Symbol),
 				Status:       order.Status,

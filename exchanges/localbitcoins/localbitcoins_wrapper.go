@@ -304,24 +304,24 @@ func (l *LocalBitcoins) GetActiveOrders(getOrdersRequest exchange.GetOrdersReque
 
 	var orders []exchange.OrderDetail
 	for _, trade := range resp {
-		t, err := time.Parse(time.RFC3339, trade.Data.CreatedAt)
+		orderDate, err := time.Parse(time.RFC3339, trade.Data.CreatedAt)
 		if err != nil {
-			log.Errorf("Exchange %v Func %v Order %v Could not parse date to unix with value of %v",
+			log.Warnf("Exchange %v Func %v Order %v Could not parse date to unix with value of %v",
 				l.Name, "GetActiveOrders", trade.Data.Advertisement.ID, trade.Data.CreatedAt)
 		}
 
-		side := ""
+		var side exchange.OrderSide
 		if trade.Data.IsBuying {
-			side = string(exchange.BuyOrderSide)
+			side = exchange.BuyOrderSide
 		} else if trade.Data.IsSelling {
-			side = string(exchange.SellOrderSide)
+			side = exchange.SellOrderSide
 		}
 
 		orders = append(orders, exchange.OrderDetail{
 			Amount:       trade.Data.AmountBTC,
 			Price:        trade.Data.Amount,
 			ID:           fmt.Sprintf("%v", trade.Data.Advertisement.ID),
-			OrderDate:    t.Unix(),
+			OrderDate:    orderDate,
 			Fee:          trade.Data.FeeBTC,
 			OrderSide:    side,
 			CurrencyPair: pair.NewCurrencyPairWithDelimiter(symbol.BTC, trade.Data.Currency, l.ConfigCurrencyPairFormat.Delimiter),
@@ -365,17 +365,17 @@ func (l *LocalBitcoins) GetOrderHistory(getOrdersRequest exchange.GetOrdersReque
 
 	var orders []exchange.OrderDetail
 	for _, trade := range resp {
-		t, err := time.Parse(time.RFC3339, trade.Data.CreatedAt)
+		orderDate, err := time.Parse(time.RFC3339, trade.Data.CreatedAt)
 		if err != nil {
-			log.Errorf("Exchange %v Func %v Order %v Could not parse date to unix with value of %v",
+			log.Warnf("Exchange %v Func %v Order %v Could not parse date to unix with value of %v",
 				l.Name, "GetActiveOrders", trade.Data.Advertisement.ID, trade.Data.CreatedAt)
 		}
 
-		side := ""
+		var side exchange.OrderSide
 		if trade.Data.IsBuying {
-			side = string(exchange.BuyOrderSide)
+			side = exchange.BuyOrderSide
 		} else if trade.Data.IsSelling {
-			side = string(exchange.SellOrderSide)
+			side = exchange.SellOrderSide
 		}
 
 		status := ""
@@ -391,7 +391,7 @@ func (l *LocalBitcoins) GetOrderHistory(getOrdersRequest exchange.GetOrdersReque
 			Amount:       trade.Data.AmountBTC,
 			Price:        trade.Data.Amount,
 			ID:           fmt.Sprintf("%v", trade.Data.Advertisement.ID),
-			OrderDate:    t.Unix(),
+			OrderDate:    orderDate,
 			Fee:          trade.Data.FeeBTC,
 			OrderSide:    side,
 			Status:       status,

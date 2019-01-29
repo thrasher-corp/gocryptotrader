@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
@@ -418,13 +419,15 @@ func (c *COINUT) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]
 			for _, instrumentData := range allInstrumentData {
 				if instrumentData.InstID == int(order.InstrumentID) {
 					currPair := pair.NewCurrencyPairDelimiter(instrument, "")
+					orderSide := exchange.OrderSide(strings.ToUpper(order.Side))
+					orderDate := time.Unix(order.Timestamp, 0)
 					orders = append(orders, exchange.OrderDetail{
 						ID:           strconv.FormatInt(order.OrderID, 10),
 						Amount:       order.Quantity,
 						Price:        order.Price,
 						Exchange:     c.Name,
-						OrderSide:    order.Side,
-						OrderDate:    order.Timestamp,
+						OrderSide:    orderSide,
+						OrderDate:    orderDate,
 						CurrencyPair: currPair,
 					})
 				}
@@ -473,13 +476,15 @@ func (c *COINUT) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]
 			for _, instrumentData := range allInstrumentData {
 				if instrumentData.InstID == int(order.Order.InstrumentID) {
 					currPair := pair.NewCurrencyPairDelimiter(instrument, "")
+					orderSide := exchange.OrderSide(strings.ToUpper(order.Order.Side))
+					orderDate := time.Unix(order.Order.Timestamp, 0)
 					orders = append(orders, exchange.OrderDetail{
 						ID:           strconv.FormatInt(order.Order.OrderID, 10),
 						Amount:       order.Order.Quantity,
 						Price:        order.Order.Price,
 						Exchange:     c.Name,
-						OrderSide:    order.Order.Side,
-						OrderDate:    order.Order.Timestamp,
+						OrderSide:    orderSide,
+						OrderDate:    orderDate,
 						CurrencyPair: currPair,
 					})
 				}

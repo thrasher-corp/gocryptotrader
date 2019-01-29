@@ -4,7 +4,9 @@ import (
 	"fmt"
 	"math"
 	"strconv"
+	"strings"
 	"sync"
+	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
@@ -278,7 +280,7 @@ func (w *WEX) GetWithdrawCapabilities() uint32 {
 
 // GetActiveOrders retrieves any orders that are active/open
 func (w *WEX) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
-	var allOrders []ActiveOrders
+	var orders []exchange.OrderDetail
 	for _, currency := range getOrdersRequest.Currencies {
 		resp, err := w.GetOpenOrders(exchange.FormatExchangeCurrency(w.Name, currency).String())
 		if err != nil {
@@ -286,24 +288,19 @@ func (w *WEX) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]exc
 		}
 
 		for ID, order := range resp {
-			order.ID = ID
-			allOrders = append(allOrders, order)
+			symbol := pair.NewCurrencyPairDelimiter(order.Pair, w.ConfigCurrencyPairFormat.Delimiter)
+			orderDate := time.Unix(int64(order.TimestampCreated), 0)
+			side := exchange.OrderSide(strings.ToUpper(order.Type))
+			orders = append(orders, exchange.OrderDetail{
+				ID:           ID,
+				Amount:       order.Amount,
+				Price:        order.Rate,
+				OrderSide:    side,
+				OrderDate:    orderDate,
+				CurrencyPair: symbol,
+				Exchange:     w.Name,
+			})
 		}
-	}
-
-	var orders []exchange.OrderDetail
-	for _, order := range allOrders {
-		symbol := pair.NewCurrencyPairDelimiter(order.Pair, w.ConfigCurrencyPairFormat.Delimiter)
-
-		orders = append(orders, exchange.OrderDetail{
-			ID:           order.ID,
-			Amount:       order.Amount,
-			Price:        order.Rate,
-			OrderSide:    order.Type,
-			OrderDate:    int64(order.TimestampCreated),
-			CurrencyPair: symbol,
-			Exchange:     w.Name,
-		})
 	}
 
 	w.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
@@ -315,10 +312,9 @@ func (w *WEX) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]exc
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
 func (w *WEX) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
-	// method=TradeHistory&from=12345&count=1&from_id=1234&end_id=1234&order=desc&since=1234&end=1234&pair=btc_usd&nonce=0
 	var allOrders []TradeHistory
 	for _, currency := range getOrdersRequest.Currencies {
-		resp, err := w.GetTradeHistory(0, 10000, math.MaxInt64, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks, "DESC", exchange.FormatExchangeCurrency(w.Name, currency).String())
+		resp, err := w.GetTradeHistory(0, 10000, math.MaxInt64, getOrdersRequest.StartTicks.Unix(), getOrdersRequest.EndTicks.Unix(), "DESC", exchange.FormatExchangeCurrency(w.Name, currency).String())
 		if err != nil {
 			return nil, err
 		}
@@ -331,13 +327,14 @@ func (w *WEX) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]exc
 	var orders []exchange.OrderDetail
 	for _, order := range allOrders {
 		symbol := pair.NewCurrencyPairDelimiter(order.Pair, w.ConfigCurrencyPairFormat.Delimiter)
-
+		orderDate := time.Unix(int64(order.Timestamp), 0)
+		side := exchange.OrderSide(strings.ToUpper(order.Type))
 		orders = append(orders, exchange.OrderDetail{
 			ID:           fmt.Sprintf("%v", order.OrderID),
 			Amount:       order.Amount,
 			Price:        order.Rate,
-			OrderSide:    order.Type,
-			OrderDate:    int64(order.Timestamp),
+			OrderSide:    side,
+			OrderDate:    orderDate,
 			CurrencyPair: symbol,
 			Exchange:     w.Name,
 		})

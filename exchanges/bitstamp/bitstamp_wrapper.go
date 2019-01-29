@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
@@ -295,7 +296,7 @@ func (b *Bitstamp) GetWithdrawCapabilities() uint32 {
 func (b *Bitstamp) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
 	var orders []exchange.OrderDetail
 	var currPair string
-	if len(getOrdersRequest.Currencies) > 1 || len(getOrdersRequest.Currencies) <= 0 {
+	if len(getOrdersRequest.Currencies) != 1 {
 		currPair = "all"
 	} else {
 		currPair = getOrdersRequest.Currencies[0].Pair().String()
@@ -309,13 +310,13 @@ func (b *Bitstamp) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) (
 	for _, order := range resp {
 		symbolOne := order.Currency[0:3]
 		symbolTwo := order.Currency[len(order.Currency)-3:]
+		orderDate := time.Unix(order.Date, 0)
 
 		orders = append(orders, exchange.OrderDetail{
 			Amount:       order.Amount,
 			ID:           fmt.Sprintf("%v", order.ID),
 			Price:        order.Price,
-			OrderDate:    order.Date,
-			Status:       string(exchange.ActiveOrderStatus),
+			OrderDate:    orderDate,
 			CurrencyPair: pair.NewCurrencyPair(symbolOne, symbolTwo),
 			Exchange:     b.Name,
 		})
@@ -364,11 +365,11 @@ func (b *Bitstamp) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) (
 			if quoteCurrency != "" && baseCurrency != "" {
 				currPair = pair.NewCurrencyPairWithDelimiter(baseCurrency, quoteCurrency, b.ConfigCurrencyPairFormat.Delimiter)
 			}
+			orderDate := time.Unix(order.Date, 0)
 
 			orders = append(orders, exchange.OrderDetail{
 				ID:           fmt.Sprintf("%v", order.OrderID),
-				OrderDate:    order.Date,
-				Status:       string(exchange.FilledOrderStatus),
+				OrderDate:    orderDate,
 				Exchange:     b.Name,
 				CurrencyPair: currPair,
 			})

@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
@@ -317,18 +318,19 @@ func (b *Bitfinex) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) (
 	}
 
 	for _, order := range resp {
+		orderSide := exchange.OrderSide(strings.ToUpper(order.Side))
 		timestamp, err := strconv.ParseInt(order.Timestamp, 10, 64)
 		if err != nil {
 			log.Warnf("Unable to convert timestamp '%v', leaving blank", order.Timestamp)
 		}
+		orderDate := time.Unix(timestamp, 0)
 
 		orderDetail := exchange.OrderDetail{
 			Amount:          order.OriginalAmount,
-			OrderDate:       timestamp,
+			OrderDate:       orderDate,
 			Exchange:        b.Name,
 			ID:              fmt.Sprintf("%v", order.OrderID),
-			OrderSide:       order.Side,
-			OrderType:       order.Type,
+			OrderSide:       orderSide,
 			Price:           order.Price,
 			RemainingAmount: order.RemainingAmount,
 			CurrencyPair:    pair.NewCurrencyPairFromString(order.Symbol),
@@ -347,11 +349,11 @@ func (b *Bitfinex) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) (
 
 		// API docs discrepency. Example contains prefixed "exchange "
 		// Return type suggests “market” / “limit” / “stop” / “trailing-stop”
-		orderType := strings.Replace(orderDetail.OrderType, "exchange ", "", 1)
+		orderType := strings.Replace(order.Type, "exchange ", "", 1)
 		if orderType == "trailing-stop" {
-			orderDetail.OrderType = string(exchange.TrailingStopOrderType)
+			orderDetail.OrderType = exchange.TrailingStopOrderType
 		} else {
-			orderDetail.OrderType = strings.ToUpper(orderType)
+			orderDetail.OrderType = exchange.OrderType(strings.ToUpper(orderType))
 		}
 
 		orders = append(orders, orderDetail)
@@ -375,18 +377,19 @@ func (b *Bitfinex) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) (
 	}
 
 	for _, order := range resp {
+		orderSide := exchange.OrderSide(strings.ToUpper(order.Side))
 		timestamp, err := strconv.ParseInt(order.Timestamp, 10, 64)
 		if err != nil {
 			log.Warnf("Unable to convert timestamp '%v', leaving blank", order.Timestamp)
 		}
+		orderDate := time.Unix(timestamp, 0)
 
 		orderDetail := exchange.OrderDetail{
 			Amount:          order.OriginalAmount,
-			OrderDate:       timestamp,
+			OrderDate:       orderDate,
 			Exchange:        b.Name,
 			ID:              fmt.Sprintf("%v", order.OrderID),
-			OrderSide:       order.Side,
-			OrderType:       order.Type,
+			OrderSide:       orderSide,
 			Price:           order.Price,
 			RemainingAmount: order.RemainingAmount,
 			ExecutedAmount:  order.ExecutedAmount,
@@ -405,11 +408,11 @@ func (b *Bitfinex) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) (
 
 		// API docs discrepency. Example contains prefixed "exchange "
 		// Return type suggests “market” / “limit” / “stop” / “trailing-stop”
-		orderType := strings.Replace(orderDetail.OrderType, "exchange ", "", 1)
+		orderType := strings.Replace(order.Type, "exchange ", "", 1)
 		if orderType == "trailing-stop" {
-			orderDetail.OrderType = string(exchange.TrailingStopOrderType)
+			orderDetail.OrderType = exchange.TrailingStopOrderType
 		} else {
-			orderDetail.OrderType = strings.ToUpper(orderType)
+			orderDetail.OrderType = exchange.OrderType(strings.ToUpper(orderType))
 		}
 
 		orders = append(orders, orderDetail)

@@ -207,7 +207,7 @@ type AccountCurrencyInfo struct {
 
 // TradeHistory holds exchange history data
 type TradeHistory struct {
-	Timestamp   int64
+	Timestamp   time.Time
 	TID         int64
 	Price       float64
 	Amount      float64
@@ -220,11 +220,12 @@ type TradeHistory struct {
 // OrderDetail holds order detail data
 type OrderDetail struct {
 	Exchange        string
+	AccountID       string
 	ID              string
 	CurrencyPair    pair.CurrencyPair
-	OrderSide       string
-	OrderType       string
-	OrderDate       int64
+	OrderSide       OrderSide
+	OrderType       OrderType
+	OrderDate       time.Time
 	Status          string
 	Price           float64
 	Amount          float64
@@ -825,8 +826,8 @@ type OrderType string
 // OrderType ...types
 const (
 	AnyOrderType               OrderType = "ANY"
-	LimitOrderType             OrderType = "Limit"
-	MarketOrderType            OrderType = "Market"
+	LimitOrderType             OrderType = "LIMIT"
+	MarketOrderType            OrderType = "MARKET"
 	ImmediateOrCancelOrderType OrderType = "IMMEDIATE_OR_CANCEL"
 	StopOrderType              OrderType = "STOP"
 	TrailingStopOrderType      OrderType = "TRAILINGSTOP"
@@ -844,8 +845,8 @@ type OrderSide string
 // OrderSide types
 const (
 	AnyOrderSide  OrderSide = "ANY"
-	BuyOrderSide  OrderSide = "Buy"
-	SellOrderSide OrderSide = "Sell"
+	BuyOrderSide  OrderSide = "BUY"
+	SellOrderSide OrderSide = "SELL"
 )
 
 // ToString changes the ordertype to the exchange standard and returns a string
@@ -959,8 +960,8 @@ func (e *Base) FormatWithdrawPermissions() string {
 type GetOrdersRequest struct {
 	OrderType  OrderType
 	OrderSide  OrderSide
-	StartTicks int64
-	EndTicks   int64
+	StartTicks time.Time
+	EndTicks   time.Time
 	// Currencies Empty array = all currencies. Some endpoints only support singular currency enquiries
 	Currencies []pair.CurrencyPair
 }
@@ -991,7 +992,7 @@ func (e *Base) FilterOrdersBySide(orders *[]OrderDetail, orderSide OrderSide) {
 
 	var filteredOrders []OrderDetail
 	for _, orderDetail := range *orders {
-		if !strings.EqualFold(orderDetail.OrderSide, string(orderSide)) &&
+		if !strings.EqualFold(string(orderDetail.OrderSide), string(orderSide)) &&
 			orderSide != AnyOrderSide {
 			continue
 		}
@@ -1010,7 +1011,7 @@ func (e *Base) FilterOrdersByType(orders *[]OrderDetail, orderType OrderType) {
 
 	var filteredOrders []OrderDetail
 	for _, orderDetail := range *orders {
-		if !strings.EqualFold(orderDetail.OrderType, string(orderType)) &&
+		if !strings.EqualFold(string(orderDetail.OrderType), string(orderType)) &&
 			orderType != AnyOrderType {
 			continue
 		}
@@ -1022,14 +1023,15 @@ func (e *Base) FilterOrdersByType(orders *[]OrderDetail, orderType OrderType) {
 }
 
 // FilterOrdersByTickRange removes any OrderDetails outside of the tick range
-func (e *Base) FilterOrdersByTickRange(orders *[]OrderDetail, startTicks, endTicks int64) {
-	if startTicks <= 0 || endTicks <= 0 || endTicks < startTicks {
+func (e *Base) FilterOrdersByTickRange(orders *[]OrderDetail, startTicks, endTicks time.Time) {
+	if startTicks.IsZero() || endTicks.IsZero() ||
+		startTicks.Unix() == 0 || endTicks.Unix() == 0 || endTicks.Before(startTicks) {
 		return
 	}
 
 	var filteredOrders []OrderDetail
 	for _, orderDetail := range *orders {
-		if orderDetail.OrderDate >= startTicks && orderDetail.OrderDate <= endTicks {
+		if orderDetail.OrderDate.Unix() >= startTicks.Unix() && orderDetail.OrderDate.Unix() <= endTicks.Unix() {
 			filteredOrders = append(filteredOrders, orderDetail)
 		}
 	}

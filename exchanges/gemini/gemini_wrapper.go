@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"net/url"
 	"strconv"
+	"strings"
 	"sync"
+	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
@@ -252,23 +254,15 @@ func (g *Gemini) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]
 	var orders []exchange.OrderDetail
 	for _, order := range resp {
 		symbol := pair.NewCurrencyPairDelimiter(order.Symbol, g.ConfigCurrencyPairFormat.Delimiter)
-
-		orderType := ""
-		switch order.Type {
-		case "exchange limit":
-			orderType = string(exchange.LimitOrderType)
-		case "market buy":
-			fallthrough
-		case "market sell":
-			orderType = string(exchange.MarketOrderType)
+		var orderType exchange.OrderType
+		if order.Type == "exchange limit" {
+			orderType = exchange.LimitOrderType
+		} else if order.Type == "market buy" || order.Type == "market sell" {
+			orderType = exchange.MarketOrderType
 		}
 
-		side := ""
-		if order.Type == "buy" {
-			side = string(exchange.BuyOrderSide)
-		} else if order.Type == "sell" {
-			side = string(exchange.SellOrderSide)
-		}
+		side := exchange.OrderSide(strings.ToUpper(order.Type))
+		orderDate := time.Unix(order.Timestamp, 0)
 
 		orders = append(orders, exchange.OrderDetail{
 			Amount:          order.OriginalAmount,
@@ -280,6 +274,7 @@ func (g *Gemini) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]
 			OrderSide:       side,
 			Price:           order.Price,
 			CurrencyPair:    symbol,
+			OrderDate:       orderDate,
 		})
 	}
 
@@ -300,7 +295,7 @@ func (g *Gemini) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]
 
 	var trades []TradeHistory
 	for _, currency := range getOrdersRequest.Currencies {
-		resp, err := g.GetTradeHistory(currency.Pair().String(), getOrdersRequest.StartTicks)
+		resp, err := g.GetTradeHistory(exchange.FormatExchangeCurrency(g.Name, currency).String(), getOrdersRequest.StartTicks.Unix())
 		if err != nil {
 			return nil, err
 		}
@@ -314,18 +309,14 @@ func (g *Gemini) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]
 
 	var orders []exchange.OrderDetail
 	for _, trade := range trades {
-		side := ""
-		if trade.Type == "buy" {
-			side = string(exchange.BuyOrderSide)
-		} else if trade.Type == "sell" {
-			side = string(exchange.SellOrderSide)
-		}
+		side := exchange.OrderSide(strings.ToUpper(trade.Type))
+		orderDate := time.Unix(trade.Timestamp, 0)
 
 		orders = append(orders, exchange.OrderDetail{
 			Amount:       trade.Amount,
 			ID:           fmt.Sprintf("%v", trade.OrderID),
 			Exchange:     g.Name,
-			OrderDate:    trade.Timestamp,
+			OrderDate:    orderDate,
 			OrderSide:    side,
 			Fee:          trade.FeeAmount,
 			Price:        trade.Price,

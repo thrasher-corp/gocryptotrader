@@ -3,6 +3,7 @@ package bittrex
 import (
 	"errors"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -302,25 +303,28 @@ func (b *Bittrex) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([
 
 	var orders []exchange.OrderDetail
 	for _, order := range resp.Result {
-		t, err := time.Parse(time.RFC3339, order.Opened)
+		orderDate, err := time.Parse(time.RFC3339, order.Opened)
 		if err != nil {
-			log.Errorf("Could not convert date '%v' to integer for exchange '%v' and order ID '%v'. Leaving blank", order.Opened, b.Name, order.OrderUUID)
+			log.Warnf("Exchange %v Func %v Order %v Could not parse date to unix with value of %v",
+				b.Name, "GetActiveOrders", order.OrderUUID, order.Opened)
 		}
 
 		currency := pair.NewCurrencyPairDelimiter(order.Exchange, b.ConfigCurrencyPairFormat.Delimiter)
+		orderType := exchange.OrderType(strings.ToUpper(order.Type))
 
 		orders = append(orders, exchange.OrderDetail{
 			Amount:          order.Quantity,
 			RemainingAmount: order.QuantityRemaining,
 			Price:           order.Price,
-			OrderDate:       t.Unix(),
+			OrderDate:       orderDate,
 			ID:              order.OrderUUID,
 			Exchange:        b.Name,
-			OrderType:       order.Type,
+			OrderType:       orderType,
 			CurrencyPair:    currency,
 		})
 	}
 
+	b.FilterOrdersByType(&orders, getOrdersRequest.OrderType)
 	b.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
 	b.FilterOrdersByCurrencies(&orders, getOrdersRequest.Currencies)
 
@@ -342,26 +346,29 @@ func (b *Bittrex) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([
 
 	var orders []exchange.OrderDetail
 	for _, order := range resp.Result {
-		t, err := time.Parse(time.RFC3339, order.TimeStamp)
+		orderDate, err := time.Parse(time.RFC3339, order.TimeStamp)
 		if err != nil {
-			log.Errorf("Could not convert date '%v' to integer for exchange '%v' and order ID '%v'. Leaving blank", order.Opened, b.Name, order.OrderUUID)
+			log.Warnf("Exchange %v Func %v Order %v Could not parse date to unix with value of %v",
+				b.Name, "GetActiveOrders", order.OrderUUID, order.Opened)
 		}
 
 		currency := pair.NewCurrencyPairDelimiter(order.Exchange, b.ConfigCurrencyPairFormat.Delimiter)
+		orderType := exchange.OrderType(strings.ToUpper(order.Type))
 
 		orders = append(orders, exchange.OrderDetail{
 			Amount:          order.Quantity,
 			RemainingAmount: order.QuantityRemaining,
 			Price:           order.Price,
-			OrderDate:       t.Unix(),
+			OrderDate:       orderDate,
 			ID:              order.OrderUUID,
 			Exchange:        b.Name,
-			OrderType:       order.Type,
+			OrderType:       orderType,
 			Fee:             order.Commission,
 			CurrencyPair:    currency,
 		})
 	}
 
+	b.FilterOrdersByType(&orders, getOrdersRequest.OrderType)
 	b.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
 	b.FilterOrdersByCurrencies(&orders, getOrdersRequest.Currencies)
 

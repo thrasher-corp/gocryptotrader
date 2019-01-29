@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -339,19 +340,15 @@ func (g *Gateio) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]
 		}
 
 		symbol := pair.NewCurrencyPairDelimiter(order.CurrencyPair, g.ConfigCurrencyPairFormat.Delimiter)
-		side := ""
-		if order.Type == "buy" {
-			side = string(exchange.BuyOrderSide)
-		} else if order.Type == "sell" {
-			side = string(exchange.SellOrderSide)
-		}
+		side := exchange.OrderSide(strings.ToUpper(order.Type))
+		orderDate := time.Unix(order.Timestamp, 0)
 
 		orders = append(orders, exchange.OrderDetail{
 			ID:              order.OrderNumber,
 			Amount:          order.Amount,
 			Price:           order.Rate,
 			RemainingAmount: order.FilledAmount,
-			OrderDate:       order.Timestamp,
+			OrderDate:       orderDate,
 			OrderSide:       side,
 			Exchange:        g.Name,
 			CurrencyPair:    symbol,
@@ -382,18 +379,13 @@ func (g *Gateio) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]
 	var orders []exchange.OrderDetail
 	for _, trade := range trades {
 		symbol := pair.NewCurrencyPairDelimiter(trade.Pair, g.ConfigCurrencyPairFormat.Delimiter)
-		side := ""
-		if trade.Type == "buy" {
-			side = string(exchange.BuyOrderSide)
-		} else if trade.Type == "sell" {
-			side = string(exchange.SellOrderSide)
-		}
-
+		side := exchange.OrderSide(strings.ToUpper(trade.Type))
+		orderDate := time.Unix(trade.TimeUnix, 0)
 		orders = append(orders, exchange.OrderDetail{
 			ID:           trade.OrderID,
 			Amount:       trade.Amount,
 			Price:        trade.Rate,
-			OrderDate:    trade.TimeUnix,
+			OrderDate:    orderDate,
 			OrderSide:    side,
 			Exchange:     g.Name,
 			CurrencyPair: symbol,

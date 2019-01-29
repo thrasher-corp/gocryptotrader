@@ -4,7 +4,9 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"strings"
 	"sync"
+	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
@@ -245,13 +247,22 @@ func (b *BTCMarkets) GetOrderInfo(orderID int64) (exchange.OrderDetail, error) {
 	}
 
 	for _, order := range orders {
+		var side exchange.OrderSide
+		if order.OrderSide == "ask" {
+			side = exchange.SellOrderSide
+		} else if order.OrderSide == "bid" {
+			side = exchange.BuyOrderSide
+		}
+		orderDate := time.Unix(int64(order.CreationTime), 0)
+		orderType := exchange.OrderType(strings.ToUpper(order.OrderType))
+
 		OrderDetail.Amount = order.Volume
-		OrderDetail.OrderDate = int64(order.CreationTime)
+		OrderDetail.OrderDate = orderDate
 		OrderDetail.Exchange = b.GetName()
 		OrderDetail.ID = order.ID
 		OrderDetail.RemainingAmount = order.OpenVolume
-		OrderDetail.OrderSide = order.OrderSide
-		OrderDetail.OrderType = order.OrderType
+		OrderDetail.OrderSide = side
+		OrderDetail.OrderType = orderType
 		OrderDetail.Price = order.Price
 		OrderDetail.Status = order.Status
 		OrderDetail.CurrencyPair = pair.NewCurrencyPairWithDelimiter(order.Instrument, order.Currency, b.ConfigCurrencyPairFormat.Delimiter)
@@ -309,33 +320,36 @@ func (b *BTCMarkets) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest)
 
 	var orders []exchange.OrderDetail
 	for _, order := range resp {
-		side := ""
+		var side exchange.OrderSide
 		if order.OrderSide == "ask" {
-			side = string(exchange.SellOrderSide)
+			side = exchange.SellOrderSide
 		} else if order.OrderSide == "bid" {
-			side = string(exchange.BuyOrderSide)
+			side = exchange.BuyOrderSide
 		}
+		orderDate := time.Unix(int64(order.CreationTime), 0)
+		orderType := exchange.OrderType(strings.ToUpper(order.OrderType))
 
 		openOrder := exchange.OrderDetail{
 			ID:              order.ID,
 			Amount:          order.Volume,
 			Exchange:        b.Name,
 			RemainingAmount: order.OpenVolume,
-			OrderDate:       int64(order.CreationTime),
+			OrderDate:       orderDate,
 			OrderSide:       side,
-			OrderType:       order.OrderType,
+			OrderType:       orderType,
 			Price:           order.Price,
 			Status:          order.Status,
 			CurrencyPair:    pair.NewCurrencyPairWithDelimiter(order.Instrument, order.Currency, b.ConfigCurrencyPairFormat.Delimiter),
 		}
 
 		for _, trade := range order.Trades {
+			tradeDate := time.Unix(int64(trade.CreationTime), 0)
 			openOrder.Trades = append(openOrder.Trades, exchange.TradeHistory{
 				Amount:      trade.Volume,
 				Exchange:    b.Name,
 				Price:       trade.Price,
 				TID:         trade.ID,
-				Timestamp:   int64(trade.CreationTime),
+				Timestamp:   tradeDate,
 				Fee:         trade.Fee,
 				Description: trade.Description,
 			})
@@ -344,6 +358,7 @@ func (b *BTCMarkets) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest)
 		orders = append(orders, openOrder)
 	}
 
+	b.FilterOrdersByType(&orders, getOrdersRequest.OrderType)
 	b.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
 	b.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
 
@@ -370,33 +385,36 @@ func (b *BTCMarkets) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest)
 
 	var orders []exchange.OrderDetail
 	for _, order := range respOrders {
-		side := ""
+		var side exchange.OrderSide
 		if order.OrderSide == "ask" {
-			side = string(exchange.SellOrderSide)
+			side = exchange.SellOrderSide
 		} else if order.OrderSide == "bid" {
-			side = string(exchange.BuyOrderSide)
+			side = exchange.BuyOrderSide
 		}
+		orderDate := time.Unix(int64(order.CreationTime), 0)
+		orderType := exchange.OrderType(strings.ToUpper(order.OrderType))
 
 		openOrder := exchange.OrderDetail{
 			ID:              order.ID,
 			Amount:          order.Volume,
 			Exchange:        b.Name,
 			RemainingAmount: order.OpenVolume,
-			OrderDate:       int64(order.CreationTime),
+			OrderDate:       orderDate,
 			OrderSide:       side,
-			OrderType:       order.OrderType,
+			OrderType:       orderType,
 			Price:           order.Price,
 			Status:          order.Status,
 			CurrencyPair:    pair.NewCurrencyPairWithDelimiter(order.Instrument, order.Currency, b.ConfigCurrencyPairFormat.Delimiter),
 		}
 
 		for _, trade := range order.Trades {
+			tradeDate := time.Unix(int64(trade.CreationTime), 0)
 			openOrder.Trades = append(openOrder.Trades, exchange.TradeHistory{
 				Amount:      trade.Volume,
 				Exchange:    b.Name,
 				Price:       trade.Price,
 				TID:         trade.ID,
-				Timestamp:   int64(trade.CreationTime),
+				Timestamp:   tradeDate,
 				Fee:         trade.Fee,
 				Description: trade.Description,
 			})
@@ -405,6 +423,7 @@ func (b *BTCMarkets) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest)
 		orders = append(orders, openOrder)
 	}
 
+	b.FilterOrdersByType(&orders, getOrdersRequest.OrderType)
 	b.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
 	b.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
 

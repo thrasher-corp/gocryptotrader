@@ -3,6 +3,7 @@ package coinbasepro
 import (
 	"errors"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -278,23 +279,27 @@ func (c *CoinbasePro) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest
 	var orders []exchange.OrderDetail
 	for _, order := range respOrders {
 		currency := pair.NewCurrencyPairDelimiter(order.ProductID, c.ConfigCurrencyPairFormat.Delimiter)
-		t, err := time.Parse(time.RFC3339, order.CreatedAt)
+		orderSide := exchange.OrderSide(strings.ToUpper(order.Side))
+		orderType := exchange.OrderType(strings.ToUpper(order.Type))
+		orderDate, err := time.Parse(time.RFC3339, order.CreatedAt)
 		if err != nil {
-			log.Errorf("Could not convert date '%v' to integer for exchange '%v' and order ID '%v'. Leaving blank", order.CreatedAt, c.Name, order.ID)
+			log.Warnf("Exchange %v Func %v Order %v Could not parse date to unix with value of %v",
+				c.Name, "GetActiveOrders", order.ID, order.CreatedAt)
 		}
 
 		orders = append(orders, exchange.OrderDetail{
 			ID:             order.ID,
 			Amount:         order.Size,
 			ExecutedAmount: order.FilledSize,
-			OrderType:      order.Type,
-			OrderDate:      t.Unix(),
-			OrderSide:      order.Side,
+			OrderType:      orderType,
+			OrderDate:      orderDate,
+			OrderSide:      orderSide,
 			CurrencyPair:   currency,
 			Exchange:       c.Name,
 		})
 	}
 
+	c.FilterOrdersByType(&orders, getOrdersRequest.OrderType)
 	c.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
 	c.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
 
@@ -319,23 +324,27 @@ func (c *CoinbasePro) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest
 	var orders []exchange.OrderDetail
 	for _, order := range respOrders {
 		currency := pair.NewCurrencyPairDelimiter(order.ProductID, c.ConfigCurrencyPairFormat.Delimiter)
-		t, err := time.Parse(time.RFC3339, order.CreatedAt)
+		orderSide := exchange.OrderSide(strings.ToUpper(order.Side))
+		orderType := exchange.OrderType(strings.ToUpper(order.Type))
+		orderDate, err := time.Parse(time.RFC3339, order.CreatedAt)
 		if err != nil {
-			log.Errorf("Could not convert date '%v' to integer for exchange '%v' and order ID '%v'. Leaving blank", order.CreatedAt, c.Name, order.ID)
+			log.Warnf("Exchange %v Func %v Order %v Could not parse date to unix with value of %v",
+				c.Name, "GetActiveOrders", order.ID, order.CreatedAt)
 		}
 
 		orders = append(orders, exchange.OrderDetail{
 			ID:             order.ID,
 			Amount:         order.Size,
 			ExecutedAmount: order.FilledSize,
-			OrderType:      order.Type,
-			OrderDate:      t.Unix(),
-			OrderSide:      order.Side,
+			OrderType:      orderType,
+			OrderDate:      orderDate,
+			OrderSide:      orderSide,
 			CurrencyPair:   currency,
 			Exchange:       c.Name,
 		})
 	}
 
+	c.FilterOrdersByType(&orders, getOrdersRequest.OrderType)
 	c.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
 	c.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
 

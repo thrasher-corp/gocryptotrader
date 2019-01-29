@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
@@ -369,13 +370,14 @@ func (h *HUOBIHADAX) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest)
 	var orders []exchange.OrderDetail
 	for _, order := range allOrders {
 		symbol := pair.NewCurrencyPairDelimiter(order.Symbol, h.ConfigCurrencyPairFormat.Delimiter)
+		orderDate := time.Unix(order.CreatedAt, 0)
 
 		orders = append(orders, exchange.OrderDetail{
 			ID:              fmt.Sprintf("%v", order.ID),
 			Exchange:        h.Name,
 			Amount:          order.Amount,
 			Price:           order.Price,
-			OrderDate:       order.CreatedAt,
+			OrderDate:       orderDate,
 			ExecutedAmount:  order.FilledAmount,
 			RemainingAmount: (order.Amount - order.FilledAmount),
 			CurrencyPair:    symbol,
@@ -410,13 +412,14 @@ func (h *HUOBIHADAX) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest)
 	var orders []exchange.OrderDetail
 	for _, order := range allOrders {
 		symbol := pair.NewCurrencyPairDelimiter(order.Symbol, h.ConfigCurrencyPairFormat.Delimiter)
+		orderDate := time.Unix(order.CreatedAt, 0)
 
 		orders = append(orders, exchange.OrderDetail{
 			ID:           fmt.Sprintf("%v", order.ID),
 			Exchange:     h.Name,
 			Amount:       order.Amount,
 			Price:        order.Price,
-			OrderDate:    order.CreatedAt,
+			OrderDate:    orderDate,
 			CurrencyPair: symbol,
 		})
 	}

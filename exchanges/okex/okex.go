@@ -1271,7 +1271,6 @@ func (o *OKEX) GetOrderInformation(orderID int64, symbol string) ([]OrderInfo, e
 	result := Response{}
 
 	err := o.SendAuthenticatedHTTPRequest(spotOrderInfo, v, &result)
-
 	if err != nil {
 		return nil, err
 	}
@@ -1293,7 +1292,6 @@ func (o *OKEX) GetOrderHistoryForCurrency(pageLength, currentPage, status int64,
 	result := OrderHistory{}
 
 	err := o.SendAuthenticatedHTTPRequest(spotOrderHistory, v, &result)
-
 	if err != nil {
 		return result, err
 	}

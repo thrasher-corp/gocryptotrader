@@ -317,25 +317,10 @@ func (b *Bitmex) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]
 	}
 
 	for _, order := range resp {
-		var orderType, orderSide string
-		switch order.OrdType {
-		case "1":
-			orderType = string(exchange.MarketOrderType)
-		case "2":
-			orderType = string(exchange.LimitOrderType)
-		case "3":
-			orderType = string(exchange.StopOrderType)
-		case "7":
-			orderType = string(exchange.TrailingStopOrderType)
-		default:
-			log.Warnf("Uknown order type: '%v' returned for orderID '%v'. Leaving blank", order.OrdType, order.OrderID)
-			orderType = string(exchange.UnknownOrderType)
-		}
-
-		if order.Side == "1" {
-			orderSide = string(exchange.BuyOrderSide)
-		} else if order.Side == "1" {
-			orderSide = string(exchange.SellOrderSide)
+		orderSide := orderSideMap[order.Side]
+		orderType := orderTypeMap[order.OrdType]
+		if orderType == "" {
+			orderType = exchange.UnknownOrderType
 		}
 
 		orderDetail := exchange.OrderDetail{
@@ -352,6 +337,7 @@ func (b *Bitmex) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]
 		orders = append(orders, orderDetail)
 	}
 
+	b.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
 	b.FilterOrdersByType(&orders, getOrdersRequest.OrderType)
 	b.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
 	b.FilterOrdersByCurrencies(&orders, getOrdersRequest.Currencies)
@@ -370,25 +356,10 @@ func (b *Bitmex) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]
 	}
 
 	for _, order := range resp {
-		var orderType, orderSide string
-		switch order.OrdType {
-		case "1":
-			orderType = string(exchange.MarketOrderType)
-		case "2":
-			orderType = string(exchange.LimitOrderType)
-		case "3":
-			orderType = string(exchange.StopOrderType)
-		case "7":
-			orderType = string(exchange.TrailingStopOrderType)
-		default:
-			log.Warnf("Uknown order type: '%v' returned for orderID '%v'. Leaving blank", order.OrdType, order.OrderID)
-			orderType = string(exchange.UnknownOrderType)
-		}
-
-		if order.Side == "1" {
-			orderSide = string(exchange.BuyOrderSide)
-		} else if order.Side == "1" {
-			orderSide = string(exchange.SellOrderSide)
+		orderSide := orderSideMap[order.Side]
+		orderType := orderTypeMap[order.OrdType]
+		if orderType == "" {
+			orderType = exchange.UnknownOrderType
 		}
 
 		orderDetail := exchange.OrderDetail{
@@ -405,6 +376,7 @@ func (b *Bitmex) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]
 		orders = append(orders, orderDetail)
 	}
 
+	b.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
 	b.FilterOrdersByType(&orders, getOrdersRequest.OrderType)
 	b.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
 	b.FilterOrdersByCurrencies(&orders, getOrdersRequest.Currencies)

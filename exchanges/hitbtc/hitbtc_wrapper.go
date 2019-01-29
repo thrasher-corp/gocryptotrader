@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -286,18 +287,12 @@ func (h *HitBTC) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]
 
 	var orders []exchange.OrderDetail
 	for _, order := range allOrders {
-		t, err := time.Parse(time.RFC3339, order.CreatedAt)
-		if err != nil {
-			log.Errorf("Exchange %v Func %v Order %v Could not parse date to unix with value of %v",
-				h.Name, "GetActiveOrders", order.ID, order.CreatedAt)
-		}
-
 		symbol := pair.NewCurrencyPairDelimiter(order.Symbol, h.ConfigCurrencyPairFormat.Delimiter)
-		side := ""
-		if order.Side == "buy" {
-			side = string(exchange.BuyOrderSide)
-		} else if order.Side == "sell" {
-			side = string(exchange.SellOrderSide)
+		side := exchange.OrderSide(strings.ToUpper(order.Side))
+		orderDate, err := time.Parse(time.RFC3339, order.CreatedAt)
+		if err != nil {
+			log.Warnf("Exchange %v Func %v Order %v Could not parse date to unix with value of %v",
+				h.Name, "GetActiveOrders", order.ID, order.CreatedAt)
 		}
 
 		orders = append(orders, exchange.OrderDetail{
@@ -305,7 +300,7 @@ func (h *HitBTC) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]
 			Amount:       order.Quantity,
 			Exchange:     h.Name,
 			Price:        order.Price,
-			OrderDate:    t.Unix(),
+			OrderDate:    orderDate,
 			OrderSide:    side,
 			CurrencyPair: symbol,
 		})
@@ -337,18 +332,12 @@ func (h *HitBTC) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]
 
 	var orders []exchange.OrderDetail
 	for _, order := range allOrders {
-		t, err := time.Parse(time.RFC3339, order.CreatedAt)
-		if err != nil {
-			log.Errorf("Exchange %v Func %v Order %v Could not parse date to unix with value of %v",
-				h.Name, "GetOrderHistory", order.ID, order.CreatedAt)
-		}
-
 		symbol := pair.NewCurrencyPairDelimiter(order.Symbol, h.ConfigCurrencyPairFormat.Delimiter)
-		side := ""
-		if order.Side == "buy" {
-			side = string(exchange.BuyOrderSide)
-		} else if order.Side == "sell" {
-			side = string(exchange.SellOrderSide)
+		side := exchange.OrderSide(strings.ToUpper(order.Side))
+		orderDate, err := time.Parse(time.RFC3339, order.CreatedAt)
+		if err != nil {
+			log.Warnf("Exchange %v Func %v Order %v Could not parse date to unix with value of %v",
+				h.Name, "GetOrderHistory", order.ID, order.CreatedAt)
 		}
 
 		orders = append(orders, exchange.OrderDetail{
@@ -356,7 +345,7 @@ func (h *HitBTC) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]
 			Amount:       order.Quantity,
 			Exchange:     h.Name,
 			Price:        order.Price,
-			OrderDate:    t.Unix(),
+			OrderDate:    orderDate,
 			OrderSide:    side,
 			CurrencyPair: symbol,
 		})

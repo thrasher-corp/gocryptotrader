@@ -1,5 +1,7 @@
 package alphapoint
 
+import exchange "github.com/thrasher-/gocryptotrader/exchanges"
+
 // Response contains general responses from the exchange
 type Response struct {
 	IsAccepted    bool    `json:"isAccepted"`
@@ -150,7 +152,7 @@ type Order struct {
 	QtyTotal      float64 `json:"QtyTotal"`
 	QtyRemaining  float64 `json:"QtyRemaining"`
 	ReceiveTime   int64   `json:"ReceiveTime"`
-	Side          int     `json:"Side"`
+	Side          int64   `json:"Side"`
 	State         int     `json:"orderState"`
 	OrderType     int     `json:"orderType"`
 }
@@ -193,4 +195,18 @@ type WebsocketTicker struct {
 	Ask                     float64 `json:"ask"`
 	BuyOrderCount           int     `json:"buyOrderCount"`
 	SellOrderCount          int     `json:"sellOrderCount"`
+}
+
+// orderSideMap holds order type info based on Alphapoint data
+var orderSideMap = map[int64]exchange.OrderSide{
+	1: exchange.BuyOrderSide,
+	2: exchange.SellOrderSide,
+}
+
+// orderTypeMap holds order type info based on Alphapoint data
+var orderTypeMap = map[int]exchange.OrderType{
+	1: exchange.MarketOrderType,
+	2: exchange.LimitOrderType,
+	3: exchange.StopOrderType,
+	6: exchange.TrailingStopOrderType,
 }

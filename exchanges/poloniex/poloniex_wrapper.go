@@ -3,6 +3,7 @@ package poloniex
 import (
 	"fmt"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -303,17 +304,18 @@ func (p *Poloniex) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) (
 		symbol := pair.NewCurrencyPairDelimiter(currencyPair, p.ConfigCurrencyPairFormat.Delimiter)
 
 		for _, order := range openOrders {
-			t, err := time.Parse(time.RFC3339, order.Date)
+			orderSide := exchange.OrderSide(strings.ToUpper(order.Type))
+			orderDate, err := time.Parse(time.RFC3339, order.Date)
 			if err != nil {
-				log.Errorf("Exchange %v Func %v Order %v Could not parse date to unix with value of %v",
+				log.Warnf("Exchange %v Func %v Order %v Could not parse date to unix with value of %v",
 					p.Name, "GetActiveOrders", order.OrderNumber, order.Date)
 			}
 
 			orders = append(orders, exchange.OrderDetail{
 				ID:           fmt.Sprintf("%v", order.OrderNumber),
-				OrderSide:    order.Type,
+				OrderSide:    orderSide,
 				Amount:       order.Amount,
-				OrderDate:    t.Unix(),
+				OrderDate:    orderDate,
 				Price:        order.Rate,
 				CurrencyPair: symbol,
 				Exchange:     p.Name,
@@ -331,7 +333,7 @@ func (p *Poloniex) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) (
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
 func (p *Poloniex) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
-	resp, err := p.GetAuthenticatedTradeHistory(getOrdersRequest.StartTicks, getOrdersRequest.EndTicks, 10000)
+	resp, err := p.GetAuthenticatedTradeHistory(getOrdersRequest.StartTicks.Unix(), getOrdersRequest.EndTicks.Unix(), 10000)
 	if err != nil {
 		return nil, err
 	}
@@ -341,17 +343,18 @@ func (p *Poloniex) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) (
 		symbol := pair.NewCurrencyPairDelimiter(currencyPair, p.ConfigCurrencyPairFormat.Delimiter)
 
 		for _, order := range historicOrders {
-			t, err := time.Parse(time.RFC3339, order.Date)
+			orderSide := exchange.OrderSide(strings.ToUpper(order.Type))
+			orderDate, err := time.Parse(time.RFC3339, order.Date)
 			if err != nil {
-				log.Errorf("Exchange %v Func %v Order %v Could not parse date to unix with value of %v",
+				log.Warnf("Exchange %v Func %v Order %v Could not parse date to unix with value of %v",
 					p.Name, "GetActiveOrders", order.OrderNumber, order.Date)
 			}
 
 			orders = append(orders, exchange.OrderDetail{
 				ID:           fmt.Sprintf("%v", order.GlobalTradeID),
-				OrderSide:    order.Type,
+				OrderSide:    orderSide,
 				Amount:       order.Amount,
-				OrderDate:    t.Unix(),
+				OrderDate:    orderDate,
 				Price:        order.Rate,
 				CurrencyPair: symbol,
 				Exchange:     p.Name,

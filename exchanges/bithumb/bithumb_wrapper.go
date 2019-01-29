@@ -6,6 +6,7 @@ import (
 	"math"
 	"strconv"
 	"sync"
+	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
@@ -319,11 +320,13 @@ func (b *Bithumb) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([
 		if order.Status != "placed" {
 			continue
 		}
+
+		orderDate := time.Unix(order.OrderDate, 0)
 		orderDetail := exchange.OrderDetail{
 			Amount:          order.Units,
 			Exchange:        b.Name,
 			ID:              order.OrderID,
-			OrderDate:       order.OrderDate,
+			OrderDate:       orderDate,
 			Price:           order.Price,
 			RemainingAmount: order.UnitsRemaining,
 			Status:          string(exchange.ActiveOrderStatus),
@@ -331,15 +334,15 @@ func (b *Bithumb) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([
 		}
 
 		if order.Type == "bid" {
-			orderDetail.OrderSide = string(exchange.BuyOrderSide)
+			orderDetail.OrderSide = exchange.BuyOrderSide
 		} else if order.Type == "ask" {
-			orderDetail.OrderSide = string(exchange.SellOrderSide)
+			orderDetail.OrderSide = exchange.SellOrderSide
 		}
 
 		orders = append(orders, orderDetail)
 	}
 
-	b.FilterOrdersByType(&orders, getOrdersRequest.OrderType)
+	b.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
 	b.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
 	b.FilterOrdersByCurrencies(&orders, getOrdersRequest.Currencies)
 
@@ -359,26 +362,28 @@ func (b *Bithumb) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([
 		if order.Status == "placed" {
 			continue
 		}
+
+		orderDate := time.Unix(order.OrderDate, 0)
 		orderDetail := exchange.OrderDetail{
 			Amount:          order.Units,
 			Exchange:        b.Name,
 			ID:              order.OrderID,
-			OrderDate:       order.OrderDate,
+			OrderDate:       orderDate,
 			Price:           order.Price,
 			RemainingAmount: order.UnitsRemaining,
 			CurrencyPair:    pair.NewCurrencyPairWithDelimiter(order.OrderCurrency, order.PaymentCurrency, b.ConfigCurrencyPairFormat.Delimiter),
 		}
 
 		if order.Type == "bid" {
-			orderDetail.OrderSide = string(exchange.BuyOrderSide)
+			orderDetail.OrderSide = exchange.BuyOrderSide
 		} else if order.Type == "ask" {
-			orderDetail.OrderSide = string(exchange.SellOrderSide)
+			orderDetail.OrderSide = exchange.SellOrderSide
 		}
 
 		orders = append(orders, orderDetail)
 	}
 
-	b.FilterOrdersByType(&orders, getOrdersRequest.OrderType)
+	b.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
 	b.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
 	b.FilterOrdersByCurrencies(&orders, getOrdersRequest.Currencies)
 

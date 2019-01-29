@@ -3,7 +3,9 @@ package anx
 import (
 	"fmt"
 	"strconv"
+	"strings"
 	"sync"
+	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
@@ -355,13 +357,16 @@ func (a *ANX) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]exc
 
 	var orders []exchange.OrderDetail
 	for _, order := range resp {
+		orderDate := time.Unix(int64(order.Timestamp), 0)
+		orderType := exchange.OrderType(strings.ToUpper(order.OrderType))
+
 		orderDetail := exchange.OrderDetail{
 			Amount:       order.TradedCurrencyAmount,
 			CurrencyPair: pair.NewCurrencyPairWithDelimiter(order.TradedCurrency, order.SettlementCurrency, a.ConfigCurrencyPairFormat.Delimiter),
-			OrderDate:    order.Timestamp,
+			OrderDate:    orderDate,
 			Exchange:     a.Name,
 			ID:           order.OrderID,
-			OrderType:    order.OrderType,
+			OrderType:    orderType,
 			Price:        order.SettlementCurrencyAmount,
 			Status:       order.OrderStatus,
 		}
@@ -386,12 +391,15 @@ func (a *ANX) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]exc
 
 	var orders []exchange.OrderDetail
 	for _, order := range resp {
+		orderDate := time.Unix(int64(order.Timestamp), 0)
+		orderType := exchange.OrderType(strings.ToUpper(order.OrderType))
+
 		orderDetail := exchange.OrderDetail{
 			Amount:       order.TradedCurrencyAmount,
-			OrderDate:    order.Timestamp,
+			OrderDate:    orderDate,
 			Exchange:     a.Name,
 			ID:           order.OrderID,
-			OrderType:    order.OrderType,
+			OrderType:    orderType,
 			Price:        order.SettlementCurrencyAmount,
 			Status:       order.OrderStatus,
 			CurrencyPair: pair.NewCurrencyPairWithDelimiter(order.TradedCurrency, order.SettlementCurrency, a.ConfigCurrencyPairFormat.Delimiter),

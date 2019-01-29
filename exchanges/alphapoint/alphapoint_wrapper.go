@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
@@ -233,34 +234,18 @@ func (a *Alphapoint) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest)
 
 			orderDetail := exchange.OrderDetail{
 				Amount:          float64(order.QtyTotal),
-				OrderDate:       order.ReceiveTime,
-				Exchange:        fmt.Sprintf("%v - %v", a.Name, order.AccountID),
+				Exchange:        a.Name,
+				AccountID:       fmt.Sprintf("%v", order.AccountID),
 				ID:              fmt.Sprintf("%v", order.ServerOrderID),
 				Price:           float64(order.Price),
 				RemainingAmount: float64(order.QtyRemaining),
 			}
 
-			if order.Side == 1 {
-				orderDetail.OrderSide = string(exchange.BuyOrderSide)
-			} else if order.Side == 2 {
-				orderDetail.OrderSide = string(exchange.SellOrderSide)
-			}
-
-			switch order.OrderType {
-			case 1:
-				orderDetail.OrderType = string(exchange.MarketOrderType)
-			case 2:
-				orderDetail.OrderType = string(exchange.LimitOrderType)
-			case 3:
-				fallthrough
-			case 4:
-				orderDetail.OrderType = string(exchange.StopOrderType)
-			case 5:
-				fallthrough
-			case 6:
-				orderDetail.OrderType = string(exchange.TrailingStopOrderType)
-			default:
-				orderDetail.OrderType = string(exchange.UnknownOrderType)
+			orderDetail.OrderSide = orderSideMap[order.Side]
+			orderDetail.OrderDate = time.Unix(int64(order.ReceiveTime), 0)
+			orderDetail.OrderType = orderTypeMap[order.OrderType]
+			if orderDetail.OrderType == "" {
+				orderDetail.OrderType = exchange.UnknownOrderType
 			}
 
 			orders = append(orders, orderDetail)
@@ -291,33 +276,18 @@ func (a *Alphapoint) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest)
 
 			orderDetail := exchange.OrderDetail{
 				Amount:          float64(order.QtyTotal),
-				OrderDate:       order.ReceiveTime,
-				Exchange:        fmt.Sprintf("%v - %v", a.Name, order.AccountID),
+				AccountID:       fmt.Sprintf("%v", order.AccountID),
+				Exchange:        a.Name,
 				ID:              fmt.Sprintf("%v", order.ServerOrderID),
 				Price:           float64(order.Price),
 				RemainingAmount: float64(order.QtyRemaining),
 			}
-			if order.Side == 1 {
-				orderDetail.OrderSide = string(exchange.BuyOrderSide)
-			} else if order.Side == 2 {
-				orderDetail.OrderSide = string(exchange.SellOrderSide)
-			}
 
-			switch order.OrderType {
-			case 1:
-				orderDetail.OrderType = string(exchange.MarketOrderType)
-			case 2:
-				orderDetail.OrderType = string(exchange.LimitOrderType)
-			case 3:
-				fallthrough
-			case 4:
-				orderDetail.OrderType = string(exchange.StopOrderType)
-			case 5:
-				fallthrough
-			case 6:
-				orderDetail.OrderType = string(exchange.TrailingStopOrderType)
-			default:
-				orderDetail.OrderType = string(exchange.UnknownOrderType)
+			orderDetail.OrderSide = orderSideMap[order.Side]
+			orderDetail.OrderDate = time.Unix(int64(order.ReceiveTime), 0)
+			orderDetail.OrderType = orderTypeMap[order.OrderType]
+			if orderDetail.OrderType == "" {
+				orderDetail.OrderType = exchange.UnknownOrderType
 			}
 
 			orders = append(orders, orderDetail)
