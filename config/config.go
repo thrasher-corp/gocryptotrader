@@ -169,15 +169,15 @@ type BankTransaction struct {
 
 // CurrencyConfig holds all the information needed for currency related manipulation
 type CurrencyConfig struct {
-	ForexProviders      []base.Settings           `json:"forexProviders"`
-	CurrencyProvider    CurrencyProvider          `json:"currencyProvider"`
-	Cryptocurrencies    string                    `json:"cryptocurrencies"`
-	CurrencyPairFormat  *CurrencyPairFormatConfig `json:"currencyPairFormat"`
-	FiatDisplayCurrency string                    `json:"fiatDisplayCurrency"`
+	ForexProviders         []base.Settings           `json:"forexProviders"`
+	CryptocurrencyProvider CryptocurrencyProvider    `json:"cryptocurrencyProvider"`
+	Cryptocurrencies       string                    `json:"cryptocurrencies"`
+	CurrencyPairFormat     *CurrencyPairFormatConfig `json:"currencyPairFormat"`
+	FiatDisplayCurrency    string                    `json:"fiatDisplayCurrency"`
 }
 
-// CurrencyProvider defines coinmarketcap tools
-type CurrencyProvider struct {
+// CryptocurrencyProvider defines coinmarketcap tools
+type CryptocurrencyProvider struct {
 	Name        string `json:"name"`
 	Enabled     bool   `json:"enabled"`
 	Verbose     bool   `json:"verbose"`
@@ -375,17 +375,17 @@ func (c *Config) UpdateCommunicationsConfig(config CommunicationsConfig) {
 	m.Unlock()
 }
 
-// GetCurrencyProviderConfig returns the communications configuration
-func (c *Config) GetCurrencyProviderConfig() CurrencyProvider {
+// GetCryptocurrencyProviderConfig returns the communications configuration
+func (c *Config) GetCryptocurrencyProviderConfig() CryptocurrencyProvider {
 	m.Lock()
 	defer m.Unlock()
-	return c.Currency.CurrencyProvider
+	return c.Currency.CryptocurrencyProvider
 }
 
-// UpdateCurrencyProviderConfig returns the communications configuration
-func (c *Config) UpdateCurrencyProviderConfig(config CurrencyProvider) {
+// UpdateCryptocurrencyProviderConfig returns the communications configuration
+func (c *Config) UpdateCryptocurrencyProviderConfig(config CryptocurrencyProvider) {
 	m.Lock()
-	c.Currency.CurrencyProvider = config
+	c.Currency.CryptocurrencyProvider = config
 	m.Unlock()
 }
 
@@ -905,27 +905,29 @@ func (c *Config) CheckCurrencyConfigValues() error {
 		}
 	}
 
-	if c.Currency.CurrencyProvider == (CurrencyProvider{}) {
-		c.Currency.CurrencyProvider.Name = "CoinMarketCap"
-		c.Currency.CurrencyProvider.Enabled = false
-		c.Currency.CurrencyProvider.Verbose = false
-		c.Currency.CurrencyProvider.AccountPlan = "accountPlan"
-		c.Currency.CurrencyProvider.APIkey = "key"
+	if c.Currency.CryptocurrencyProvider == (CryptocurrencyProvider{}) {
+		c.Currency.CryptocurrencyProvider.Name = "CoinMarketCap"
+		c.Currency.CryptocurrencyProvider.Enabled = false
+		c.Currency.CryptocurrencyProvider.Verbose = false
+		c.Currency.CryptocurrencyProvider.AccountPlan = "accountPlan"
+		c.Currency.CryptocurrencyProvider.APIkey = "key"
 	}
 
-	if c.Currency.CurrencyProvider.Enabled {
-		if c.Currency.CurrencyProvider.APIkey == "" || c.Currency.CurrencyProvider.APIkey == "key" {
-			log.Warnf("CurrencyProvider enabled but api key is unset please set this in your config.json file")
+	if c.Currency.CryptocurrencyProvider.Enabled {
+		if c.Currency.CryptocurrencyProvider.APIkey == "" ||
+			c.Currency.CryptocurrencyProvider.APIkey == "key" {
+			log.Warnf("CryptocurrencyProvider enabled but api key is unset please set this in your config.json file")
 		}
-		if c.Currency.CurrencyProvider.AccountPlan == "" || c.Currency.CurrencyProvider.AccountPlan == "accountPlan" {
-			log.Warnf("CurrencyProvider enabled but account plan is unset please set this in your config.json file")
+		if c.Currency.CryptocurrencyProvider.AccountPlan == "" ||
+			c.Currency.CryptocurrencyProvider.AccountPlan == "accountPlan" {
+			log.Warnf("CryptocurrencyProvider enabled but account plan is unset please set this in your config.json file")
 		}
 	} else {
-		if c.Currency.CurrencyProvider.APIkey == "" {
-			c.Currency.CurrencyProvider.APIkey = "key"
+		if c.Currency.CryptocurrencyProvider.APIkey == "" {
+			c.Currency.CryptocurrencyProvider.APIkey = "key"
 		}
-		if c.Currency.CurrencyProvider.AccountPlan == "" {
-			c.Currency.CurrencyProvider.AccountPlan = "accountPlan"
+		if c.Currency.CryptocurrencyProvider.AccountPlan == "" {
+			c.Currency.CryptocurrencyProvider.AccountPlan = "accountPlan"
 		}
 	}
 

@@ -181,23 +181,23 @@ func TestUpdateCommunicationsConfig(t *testing.T) {
 	}
 }
 
-func TestGetCurrencyProviderConfig(t *testing.T) {
+func TestGetCryptocurrencyProviderConfig(t *testing.T) {
 	cfg := GetConfig()
 	err := cfg.LoadConfig(ConfigTestFile)
 	if err != nil {
-		t.Error("Test failed. GetCurrencyProviderConfig LoadConfig error", err)
+		t.Error("Test failed. GetCryptocurrencyProviderConfig LoadConfig error", err)
 	}
-	_ = cfg.GetCurrencyProviderConfig()
+	_ = cfg.GetCryptocurrencyProviderConfig()
 }
 
-func TestUpdateCurrencyProviderConfig(t *testing.T) {
+func TestUpdateCryptocurrencyProviderConfig(t *testing.T) {
 	cfg := GetConfig()
 	err := cfg.LoadConfig(ConfigTestFile)
 	if err != nil {
-		t.Error("Test failed. UpdateCurrencyProviderConfig LoadConfig error", err)
+		t.Error("Test failed. UpdateCryptocurrencyProviderConfig LoadConfig error", err)
 	}
-	cfg.UpdateCurrencyProviderConfig(CurrencyProvider{Name: "SERIOUS TESTING PROCEDURE!"})
-	if cfg.Currency.CurrencyProvider.Name != "SERIOUS TESTING PROCEDURE!" {
+	cfg.UpdateCryptocurrencyProviderConfig(CryptocurrencyProvider{Name: "SERIOUS TESTING PROCEDURE!"})
+	if cfg.Currency.CryptocurrencyProvider.Name != "SERIOUS TESTING PROCEDURE!" {
 		t.Error("Test failed. UpdateCurrencyProviderConfig LoadConfig error")
 	}
 }
