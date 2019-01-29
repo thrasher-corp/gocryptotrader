@@ -304,8 +304,15 @@ func (r *Requester) DoRequest(req *http.Request, method, path string, headers ma
 			reader = resp.Body
 
 		default:
-			log.Warn("encoding is not JSON for request response")
-			reader = resp.Body
+			switch {
+			case common.StringContains(resp.Header.Get("Content-Type"), "application/json"):
+				reader = resp.Body
+
+			default:
+				log.Warnf("encoding is not JSON for request response but receieved %v",
+					resp.Header.Get("Content-Type"))
+				reader = resp.Body
+			}
 		}
 
 		contents, err := ioutil.ReadAll(reader)

@@ -21,8 +21,8 @@ import (
 // Coinmarketcap account plan bitmasks, url and enpoint consts
 const (
 	Basic uint8 = 1 << iota
-	Startup
 	Hobbyist
+	Startup
 	Standard
 	Professional
 	Enterprise
@@ -747,10 +747,10 @@ func (c *Coinmarketcap) SetAccountPlan(s string) error {
 	switch s {
 	case "basic":
 		c.Plan = Basic
-	case "startup":
-		c.Plan = Startup
 	case "hobbyist":
 		c.Plan = Hobbyist
+	case "startup":
+		c.Plan = Startup
 	case "standard":
 		c.Plan = Standard
 	case "professional":
