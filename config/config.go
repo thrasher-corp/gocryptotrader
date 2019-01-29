@@ -170,9 +170,19 @@ type BankTransaction struct {
 // CurrencyConfig holds all the information needed for currency related manipulation
 type CurrencyConfig struct {
 	ForexProviders      []base.Settings           `json:"forexProviders"`
+	CurrencyProvider    CurrencyProvider          `json:"currencyProvider"`
 	Cryptocurrencies    string                    `json:"cryptocurrencies"`
 	CurrencyPairFormat  *CurrencyPairFormatConfig `json:"currencyPairFormat"`
 	FiatDisplayCurrency string                    `json:"fiatDisplayCurrency"`
+}
+
+// CurrencyProvider defines coinmarketcap tools
+type CurrencyProvider struct {
+	Name        string `json:"name"`
+	Enabled     bool   `json:"enabled"`
+	Verbose     bool   `json:"verbose"`
+	APIkey      string `json:"apiKey"`
+	AccountPlan string `json:"accountPlan"`
 }
 
 // CommunicationsConfig holds all the information needed for each
@@ -362,6 +372,20 @@ func (c *Config) GetCommunicationsConfig() CommunicationsConfig {
 func (c *Config) UpdateCommunicationsConfig(config CommunicationsConfig) {
 	m.Lock()
 	c.Communications = config
+	m.Unlock()
+}
+
+// GetCurrencyProviderConfig returns the communications configuration
+func (c *Config) GetCurrencyProviderConfig() CurrencyProvider {
+	m.Lock()
+	defer m.Unlock()
+	return c.Currency.CurrencyProvider
+}
+
+// UpdateCurrencyProviderConfig returns the communications configuration
+func (c *Config) UpdateCurrencyProviderConfig(config CurrencyProvider) {
+	m.Lock()
+	c.Currency.CurrencyProvider = config
 	m.Unlock()
 }
 
@@ -878,6 +902,30 @@ func (c *Config) CheckCurrencyConfigValues() error {
 				c.Currency.ForexProviders[x].PrimaryProvider = true
 				log.Warn("No forex providers set, defaulting to free provider CurrencyConverterAPI.")
 			}
+		}
+	}
+
+	if c.Currency.CurrencyProvider == (CurrencyProvider{}) {
+		c.Currency.CurrencyProvider.Name = "CoinMarketCap"
+		c.Currency.CurrencyProvider.Enabled = false
+		c.Currency.CurrencyProvider.Verbose = false
+		c.Currency.CurrencyProvider.AccountPlan = "accountPlan"
+		c.Currency.CurrencyProvider.APIkey = "key"
+	}
+
+	if c.Currency.CurrencyProvider.Enabled {
+		if c.Currency.CurrencyProvider.APIkey == "" || c.Currency.CurrencyProvider.APIkey == "key" {
+			log.Warnf("CurrencyProvider enabled but api key is unset please set this in your config.json file")
+		}
+		if c.Currency.CurrencyProvider.AccountPlan == "" || c.Currency.CurrencyProvider.AccountPlan == "accountPlan" {
+			log.Warnf("CurrencyProvider enabled but account plan is unset please set this in your config.json file")
+		}
+	} else {
+		if c.Currency.CurrencyProvider.APIkey == "" {
+			c.Currency.CurrencyProvider.APIkey = "key"
+		}
+		if c.Currency.CurrencyProvider.AccountPlan == "" {
+			c.Currency.CurrencyProvider.AccountPlan = "accountPlan"
 		}
 	}
 

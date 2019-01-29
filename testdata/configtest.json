@@ -48,6 +48,13 @@
     "primaryProvider": false
    }
   ],
+  "currencyProvider": {
+   "name": "CoinMarketCap",
+   "enabled": false,
+   "verbose": false,
+   "apiKey": "key",
+   "accountPlan": "accountPlan"
+  },
   "cryptocurrencies": "BTC,LTC,ETH,DOGE,DASH,XRP,XMR",
   "currencyPairFormat": {
    "uppercase": true,

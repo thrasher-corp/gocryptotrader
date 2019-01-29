@@ -1,9 +1,12 @@
 package currency
 
 import (
+	"errors"
 	"fmt"
+	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
+	"github.com/thrasher-/gocryptotrader/currency/coinmarketcap"
 	"github.com/thrasher-/gocryptotrader/currency/forexprovider"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
 	log "github.com/thrasher-/gocryptotrader/logger"
@@ -27,6 +30,10 @@ var (
 
 	BaseCurrency string
 	FXProviders  *forexprovider.ForexProviders
+
+	CryptocurrencyProvider *coinmarketcap.Coinmarketcap
+	TotalCryptocurrencies  []Data
+	TotalExchanges         []Data
 )
 
 // SetDefaults sets the default currency provider and settings for
@@ -200,4 +207,114 @@ func ConvertCurrency(amount float64, from, to string) (float64, error) {
 	}
 
 	return converted * resultTo, nil
+}
+
+// Data defines information pertaining to exchange or a cryptocurrency from
+// coinmarketcap
+type Data struct {
+	ID          int
+	Name        string
+	Symbol      string `json:",omitempty"`
+	Slug        string
+	Active      bool
+	LastUpdated time.Time
+}
+
+// SeedCryptocurrencyMarketData seeds cryptocurrency market data
+func SeedCryptocurrencyMarketData(settings coinmarketcap.Settings) error {
+	if !settings.Enabled {
+		return errors.New("not enabled please set in config.json with apikey and account levels")
+	}
+
+	if CryptocurrencyProvider == nil {
+		err := setupCryptoProvider(settings)
+		if err != nil {
+			return err
+		}
+	}
+
+	cryptoData, err := CryptocurrencyProvider.GetCryptocurrencyIDMap()
+	if err != nil {
+		return err
+	}
+
+	for _, data := range cryptoData {
+		var active bool
+		if data.IsActive == 1 {
+			active = true
+		}
+
+		TotalCryptocurrencies = append(TotalCryptocurrencies, Data{
+			ID:          data.ID,
+			Name:        data.Name,
+			Symbol:      data.Symbol,
+			Slug:        data.Slug,
+			Active:      active,
+			LastUpdated: time.Now(),
+		})
+	}
+
+	return nil
+}
+
+// SeedExchangeMarketData seeds exchange market data
+func SeedExchangeMarketData(settings coinmarketcap.Settings) error {
+	if !settings.Enabled {
+		return errors.New("not enabled please set in config.json with apikey and account levels")
+	}
+
+	if CryptocurrencyProvider == nil {
+		err := setupCryptoProvider(settings)
+		if err != nil {
+			return err
+		}
+	}
+
+	exchangeData, err := CryptocurrencyProvider.GetExchangeMap(0, 0)
+	if err != nil {
+		return err
+	}
+
+	for _, data := range exchangeData {
+		var active bool
+		if data.IsActive == 1 {
+			active = true
+		}
+
+		TotalExchanges = append(TotalExchanges, Data{
+			ID:          data.ID,
+			Name:        data.Name,
+			Slug:        data.Slug,
+			Active:      active,
+			LastUpdated: time.Now(),
+		})
+	}
+
+	return nil
+}
+
+func setupCryptoProvider(settings coinmarketcap.Settings) error {
+	if settings.APIkey == "" ||
+		settings.APIkey == "key" ||
+		settings.AccountPlan == "" ||
+		settings.AccountPlan == "accountPlan" {
+		return errors.New("currencyprovider error api key or plan not set in config.json")
+	}
+
+	CryptocurrencyProvider = new(coinmarketcap.Coinmarketcap)
+	CryptocurrencyProvider.SetDefaults()
+	CryptocurrencyProvider.Setup(settings)
+
+	return nil
+}
+
+// GetTotalMarketCryptocurrencies returns the total seeded market
+// cryptocurrencies
+func GetTotalMarketCryptocurrencies() []Data {
+	return TotalCryptocurrencies
+}
+
+// GetTotalMarketExchanges returns the total seeded market exchanges
+func GetTotalMarketExchanges() []Data {
+	return TotalExchanges
 }

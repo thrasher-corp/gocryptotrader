@@ -181,6 +181,27 @@ func TestUpdateCommunicationsConfig(t *testing.T) {
 	}
 }
 
+func TestGetCurrencyProviderConfig(t *testing.T) {
+	cfg := GetConfig()
+	err := cfg.LoadConfig(ConfigTestFile)
+	if err != nil {
+		t.Error("Test failed. GetCurrencyProviderConfig LoadConfig error", err)
+	}
+	_ = cfg.GetCurrencyProviderConfig()
+}
+
+func TestUpdateCurrencyProviderConfig(t *testing.T) {
+	cfg := GetConfig()
+	err := cfg.LoadConfig(ConfigTestFile)
+	if err != nil {
+		t.Error("Test failed. UpdateCurrencyProviderConfig LoadConfig error", err)
+	}
+	cfg.UpdateCurrencyProviderConfig(CurrencyProvider{Name: "SERIOUS TESTING PROCEDURE!"})
+	if cfg.Currency.CurrencyProvider.Name != "SERIOUS TESTING PROCEDURE!" {
+		t.Error("Test failed. UpdateCurrencyProviderConfig LoadConfig error")
+	}
+}
+
 func TestCheckCommunicationsConfig(t *testing.T) {
 	cfg := GetConfig()
 	err := cfg.LoadConfig(ConfigTestFile)
