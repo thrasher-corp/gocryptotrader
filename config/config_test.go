@@ -196,10 +196,14 @@ func TestUpdateCryptocurrencyProviderConfig(t *testing.T) {
 	if err != nil {
 		t.Error("Test failed. UpdateCryptocurrencyProviderConfig LoadConfig error", err)
 	}
+
+	orig := cfg.GetCryptocurrencyProviderConfig()
 	cfg.UpdateCryptocurrencyProviderConfig(CryptocurrencyProvider{Name: "SERIOUS TESTING PROCEDURE!"})
 	if cfg.Currency.CryptocurrencyProvider.Name != "SERIOUS TESTING PROCEDURE!" {
 		t.Error("Test failed. UpdateCurrencyProviderConfig LoadConfig error")
 	}
+
+	cfg.UpdateCryptocurrencyProviderConfig(orig)
 }
 
 func TestCheckCommunicationsConfig(t *testing.T) {

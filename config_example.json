@@ -48,7 +48,7 @@
     "primaryProvider": false
    }
   ],
-  "currencyProvider": {
+  "cryptocurrencyProvider": {
     "name": "CoinMarketCap",
     "enabled": false,
     "verbose": false,
