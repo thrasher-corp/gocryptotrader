@@ -21,6 +21,6 @@ matrix:
       install: true
       
       script:
-        - go test -race -coverprofile=coverage.txt -covermode=atomic  ./...
+        - make check
       after_success:
         - bash <(curl -s https://codecov.io/bash)
