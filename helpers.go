@@ -195,7 +195,8 @@ func GetRelatableCurrencies(p pair.CurrencyPair, incOrig, incUSDT bool) []pair.C
 			addPair(pair.NewCurrencyPair(first.String(),
 				p.SecondCurrency.String()))
 
-			second, err := translation.GetTranslation(p.SecondCurrency)
+			var second pair.CurrencyItem
+			second, err = translation.GetTranslation(p.SecondCurrency)
 			if err == nil {
 				addPair(pair.NewCurrencyPair(first.String(),
 					second.String()))

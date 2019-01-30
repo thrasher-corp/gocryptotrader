@@ -51,11 +51,12 @@ func (b *BTCC) WsConnect() error {
 	var err error
 
 	if b.Websocket.GetProxyAddress() != "" {
-		prxy, err := url.Parse(b.Websocket.GetProxyAddress())
+		var proxy *url.URL
+		proxy, err = url.Parse(b.Websocket.GetProxyAddress())
 		if err != nil {
 			return err
 		}
-		dialer.Proxy = http.ProxyURL(prxy)
+		dialer.Proxy = http.ProxyURL(proxy)
 	}
 
 	b.Conn, _, err = dialer.Dial(b.Websocket.GetWebsocketURL(), http.Header{})
@@ -170,7 +171,7 @@ func (b *BTCC) WsHandleData() {
 			case msgTypeGetTrades:
 				var trades WsTrades
 
-				err := common.JSONDecode(resp.Raw, &trades)
+				err = common.JSONDecode(resp.Raw, &trades)
 				if err != nil {
 					b.Websocket.DataHandler <- err
 					continue
@@ -182,7 +183,7 @@ func (b *BTCC) WsHandleData() {
 				// orderbook feeds
 				var orderbook WsOrderbookSnapshot
 
-				err := common.JSONDecode(resp.Raw, &orderbook)
+				err = common.JSONDecode(resp.Raw, &orderbook)
 				if err != nil {
 					b.Websocket.DataHandler <- err
 					continue

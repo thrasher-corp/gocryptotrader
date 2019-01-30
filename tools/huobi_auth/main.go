@@ -97,7 +97,8 @@ func main() {
 	}
 
 	if genKeys {
-		pKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+		var pKey *ecdsa.PrivateKey
+		pKey, err = ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -115,13 +116,15 @@ func main() {
 		}
 
 	} else {
-		pubKeyData, err := common.ReadFile("publickey.pem")
+		var pubKeyData []byte
+		pubKeyData, err = common.ReadFile("publickey.pem")
 		if err != nil {
 			log.Fatal(err)
 		}
 		log.Println("Successfully read PEM files.")
 
-		priv, _, err := decodePEM(privKeyData, pubKeyData)
+		var priv *ecdsa.PrivateKey
+		priv, _, err = decodePEM(privKeyData, pubKeyData)
 		if err != nil {
 			log.Fatal(err)
 		}

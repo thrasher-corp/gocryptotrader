@@ -156,17 +156,18 @@ func (b *Binance) WSConnect() error {
 		depth
 
 	if b.Websocket.GetProxyAddress() != "" {
-		url, err := url.Parse(b.Websocket.GetProxyAddress())
+		var u *url.URL
+		u, err = url.Parse(b.Websocket.GetProxyAddress())
 		if err != nil {
 			return fmt.Errorf("binance_websocket.go - Unable to connect to parse proxy address. Error: %s",
 				err)
 		}
 
-		Dialer.Proxy = http.ProxyURL(url)
+		Dialer.Proxy = http.ProxyURL(u)
 	}
 
 	for _, ePair := range b.GetEnabledCurrencies() {
-		err := b.SeedLocalCache(ePair)
+		err = b.SeedLocalCache(ePair)
 		if err != nil {
 			return err
 		}
