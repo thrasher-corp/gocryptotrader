@@ -314,7 +314,7 @@ func TestFunctionality(t *testing.T) {
 	var w Websocket
 
 	if w.FormatFunctionality() != NoWebsocketSupportText {
-		t.Fatalf("Test Failed - FormatFunctionality error expected %s but recieved %s",
+		t.Fatalf("Test Failed - FormatFunctionality error expected %s but received %s",
 			NoWebsocketSupportText, w.FormatFunctionality())
 	}
 

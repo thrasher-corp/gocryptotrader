@@ -271,12 +271,12 @@ func (b *Bitfinex) WithdrawFiatFunds(withdrawRequest exchange.WithdrawRequest) (
 
 	var withdrawalSuccesses string
 	var withdrawalErrors string
-	for _, withdrawl := range resp {
-		if withdrawl.Status == "error" {
-			withdrawalErrors += fmt.Sprintf("%v ", withdrawl.Message)
+	for _, withdrawal := range resp {
+		if withdrawal.Status == "error" {
+			withdrawalErrors += fmt.Sprintf("%v ", withdrawal.Message)
 		}
-		if withdrawl.Status == "success" {
-			withdrawalSuccesses += fmt.Sprintf("%v,", withdrawl.WithdrawalID)
+		if withdrawal.Status == "success" {
+			withdrawalSuccesses += fmt.Sprintf("%v,", withdrawal.WithdrawalID)
 		}
 	}
 	if len(withdrawalErrors) > 0 {

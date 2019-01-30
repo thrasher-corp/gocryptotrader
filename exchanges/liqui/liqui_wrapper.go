@@ -156,7 +156,7 @@ func (l *Liqui) GetExchangeHistory(p pair.CurrencyPair, assetType string) ([]exc
 // SubmitOrder submits a new order
 func (l *Liqui) SubmitOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (exchange.SubmitOrderResponse, error) {
 	var submitOrderResponse exchange.SubmitOrderResponse
-	response, err := l.Trade(p.Pair().String(), fmt.Sprintf("%s", orderType), amount, price)
+	response, err := l.Trade(p.Pair().String(), orderType.ToString(), amount, price)
 
 	if response > 0 {
 		submitOrderResponse.OrderID = fmt.Sprintf("%v", response)

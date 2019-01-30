@@ -420,10 +420,8 @@ func (a *ANX) SendAuthenticatedHTTPRequest(path string, params map[string]interf
 	request["nonce"] = a.Nonce.String()[0:13]
 	path = fmt.Sprintf("api/%s/%s", anxAPIVersion, path)
 
-	if params != nil {
-		for key, value := range params {
-			request[key] = value
-		}
+	for key, value := range params {
+		request[key] = value
 	}
 
 	PayloadJSON, err := common.JSONEncode(request)
@@ -438,7 +436,7 @@ func (a *ANX) SendAuthenticatedHTTPRequest(path string, params map[string]interf
 	hmac := common.GetHMAC(common.HashSHA512, []byte(path+string("\x00")+string(PayloadJSON)), []byte(a.APISecret))
 	headers := make(map[string]string)
 	headers["Rest-Key"] = a.APIKey
-	headers["Rest-Sign"] = common.Base64Encode([]byte(hmac))
+	headers["Rest-Sign"] = common.Base64Encode(hmac)
 	headers["Content-Type"] = "application/json"
 
 	return a.SendPayload("POST", a.APIUrl+path, headers, bytes.NewBuffer(PayloadJSON), result, true, a.Verbose)

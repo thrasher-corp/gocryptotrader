@@ -143,7 +143,7 @@ func main() {
 			common.ExtractHost(listenAddr), common.ExtractPort(listenAddr),
 		)
 
-		router := NewRouter(bot.exchanges)
+		router := NewRouter()
 		go func() {
 			err = http.ListenAndServe(listenAddr, router)
 			if err != nil {

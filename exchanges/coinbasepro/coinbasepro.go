@@ -818,7 +818,7 @@ func (c *CoinbasePro) SendAuthenticatedHTTPRequest(method, path string, params m
 	message := nonce + method + "/" + path + string(payload)
 	hmac := common.GetHMAC(common.HashSHA256, []byte(message), []byte(c.APISecret))
 	headers := make(map[string]string)
-	headers["CB-ACCESS-SIGN"] = common.Base64Encode([]byte(hmac))
+	headers["CB-ACCESS-SIGN"] = common.Base64Encode(hmac)
 	headers["CB-ACCESS-TIMESTAMP"] = nonce
 	headers["CB-ACCESS-KEY"] = c.APIKey
 	headers["CB-ACCESS-PASSPHRASE"] = c.ClientID
@@ -838,9 +838,9 @@ func (c *CoinbasePro) GetFee(feeBuilder exchange.FeeBuilder) (float64, error) {
 		}
 		fee = c.calculateTradingFee(trailingVolume, feeBuilder.FirstCurrency, feeBuilder.Delimiter, feeBuilder.SecondCurrency, feeBuilder.PurchasePrice, feeBuilder.Amount, feeBuilder.IsMaker)
 	case exchange.InternationalBankWithdrawalFee:
-		fee = getInternationalBankWithdrawalFee(feeBuilder.CurrencyItem, feeBuilder.Amount)
+		fee = getInternationalBankWithdrawalFee(feeBuilder.CurrencyItem)
 	case exchange.InternationalBankDepositFee:
-		fee = getInternationalBankDepositFee(feeBuilder.CurrencyItem, feeBuilder.Amount)
+		fee = getInternationalBankDepositFee(feeBuilder.CurrencyItem)
 	}
 
 	if fee < 0 {
@@ -870,7 +870,7 @@ func (c *CoinbasePro) calculateTradingFee(trailingVolume []Volume, firstCurrency
 	return fee * amount * purchasePrice
 }
 
-func getInternationalBankWithdrawalFee(currency string, amount float64) float64 {
+func getInternationalBankWithdrawalFee(currency string) float64 {
 	var fee float64
 
 	if currency == symbol.USD {
@@ -882,7 +882,7 @@ func getInternationalBankWithdrawalFee(currency string, amount float64) float64 
 	return fee
 }
 
-func getInternationalBankDepositFee(currency string, amount float64) float64 {
+func getInternationalBankDepositFee(currency string) float64 {
 	var fee float64
 
 	if currency == symbol.USD {

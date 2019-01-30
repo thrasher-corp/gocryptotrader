@@ -42,7 +42,7 @@ type AllEnabledExchangeAccounts struct {
 }
 
 // RESTfulJSONResponse outputs a JSON response of the response interface
-func RESTfulJSONResponse(w http.ResponseWriter, r *http.Request, response interface{}) error {
+func RESTfulJSONResponse(w http.ResponseWriter, response interface{}) error {
 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 	w.WriteHeader(http.StatusOK)
 	return json.NewEncoder(w).Encode(response)
@@ -57,7 +57,7 @@ func RESTfulError(method string, err error) {
 // RESTGetAllSettings replies to a request with an encoded JSON response about the
 // trading bots configuration.
 func RESTGetAllSettings(w http.ResponseWriter, r *http.Request) {
-	err := RESTfulJSONResponse(w, r, bot.config)
+	err := RESTfulJSONResponse(w, bot.config)
 	if err != nil {
 		RESTfulError(r.Method, err)
 	}
@@ -79,7 +79,7 @@ func RESTSaveAllSettings(w http.ResponseWriter, r *http.Request) {
 		RESTfulError(r.Method, err)
 	}
 
-	err = RESTfulJSONResponse(w, r, bot.config)
+	err = RESTfulJSONResponse(w, bot.config)
 	if err != nil {
 		RESTfulError(r.Method, err)
 	}
@@ -106,7 +106,7 @@ func RESTGetOrderbook(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = RESTfulJSONResponse(w, r, response)
+	err = RESTfulJSONResponse(w, response)
 	if err != nil {
 		RESTfulError(r.Method, err)
 	}
@@ -165,7 +165,7 @@ func RESTGetAllActiveOrderbooks(w http.ResponseWriter, r *http.Request) {
 	var response AllEnabledExchangeOrderbooks
 	response.Data = GetAllActiveOrderbooks()
 
-	err := RESTfulJSONResponse(w, r, response)
+	err := RESTfulJSONResponse(w, response)
 	if err != nil {
 		RESTfulError(r.Method, err)
 	}
@@ -174,7 +174,7 @@ func RESTGetAllActiveOrderbooks(w http.ResponseWriter, r *http.Request) {
 // RESTGetPortfolio returns the bot portfolio
 func RESTGetPortfolio(w http.ResponseWriter, r *http.Request) {
 	result := bot.portfolio.GetPortfolioSummary()
-	err := RESTfulJSONResponse(w, r, result)
+	err := RESTfulJSONResponse(w, result)
 	if err != nil {
 		RESTfulError(r.Method, err)
 	}
@@ -197,7 +197,7 @@ func RESTGetTicker(w http.ResponseWriter, r *http.Request) {
 			currency)
 		return
 	}
-	err = RESTfulJSONResponse(w, r, response)
+	err = RESTfulJSONResponse(w, response)
 	if err != nil {
 		RESTfulError(r.Method, err)
 	}
@@ -255,7 +255,7 @@ func RESTGetAllActiveTickers(w http.ResponseWriter, r *http.Request) {
 	var response AllEnabledExchangeCurrencies
 	response.Data = GetAllActiveTickers()
 
-	err := RESTfulJSONResponse(w, r, response)
+	err := RESTfulJSONResponse(w, response)
 	if err != nil {
 		RESTfulError(r.Method, err)
 	}
@@ -286,7 +286,7 @@ func GetAllEnabledExchangeAccountInfo() AllEnabledExchangeAccounts {
 // info
 func RESTGetAllEnabledAccountInfo(w http.ResponseWriter, r *http.Request) {
 	response := GetAllEnabledExchangeAccountInfo()
-	err := RESTfulJSONResponse(w, r, response)
+	err := RESTfulJSONResponse(w, response)
 	if err != nil {
 		RESTfulError(r.Method, err)
 	}

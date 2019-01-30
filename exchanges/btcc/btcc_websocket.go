@@ -477,8 +477,8 @@ func (b *BTCC) WsProcessOrderbookUpdate(ob WsOrderbookSnapshot) error {
 func (b *BTCC) WsProcessOldOrderbookSnapshot(ob WsOrderbookSnapshotOld, symbol string) error {
 	var asks, bids []orderbook.Item
 
-	askData, _ := ob.Data["Asks"]
-	bidData, _ := ob.Data["Bids"]
+	askData := ob.Data["Asks"]
+	bidData := ob.Data["Bids"]
 
 	for _, ask := range askData {
 		data := ask.([]interface{})

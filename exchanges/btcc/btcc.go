@@ -115,8 +115,5 @@ func getCryptocurrencyWithdrawalFee(currency string) float64 {
 }
 
 func getInternationalBankWithdrawalFee(currency string, amount float64) float64 {
-	var fee float64
-
-	fee = WithdrawalFees[currency] * amount
-	return fee
+	return WithdrawalFees[currency] * amount
 }

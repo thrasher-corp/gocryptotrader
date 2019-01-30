@@ -30,8 +30,5 @@ func GetTranslation(currency pair.CurrencyItem) (pair.CurrencyItem, error) {
 // HasTranslation returns whether or not a particular currency has a translation
 func HasTranslation(currency pair.CurrencyItem) bool {
 	_, err := GetTranslation(currency)
-	if err != nil {
-		return false
-	}
-	return true
+	return (err == nil)
 }

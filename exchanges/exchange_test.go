@@ -25,7 +25,7 @@ func TestSupportsRESTTickerBatchUpdates(t *testing.T) {
 
 func TestHTTPClient(t *testing.T) {
 	r := Base{Name: "asdf"}
-	r.SetHTTPClientTimeout(time.Duration(time.Second * 5))
+	r.SetHTTPClientTimeout(time.Second * 5)
 
 	if r.GetHTTPClient().Timeout != time.Second*5 {
 		t.Fatalf("Test failed. TestHTTPClient unexpected value")
@@ -33,7 +33,7 @@ func TestHTTPClient(t *testing.T) {
 
 	r.Requester = nil
 	newClient := new(http.Client)
-	newClient.Timeout = time.Duration(time.Second * 10)
+	newClient.Timeout = time.Second * 10
 
 	r.SetHTTPClient(newClient)
 	if r.GetHTTPClient().Timeout != time.Second*10 {
@@ -57,7 +57,7 @@ func TestHTTPClient(t *testing.T) {
 	}
 
 	newClient = new(http.Client)
-	newClient.Timeout = time.Duration(time.Second * 10)
+	newClient.Timeout = time.Second * 10
 
 	b.SetHTTPClient(newClient)
 	if b.GetHTTPClient().Timeout != time.Second*10 {

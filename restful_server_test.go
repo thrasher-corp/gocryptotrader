@@ -22,10 +22,9 @@ func loadConfig(t *testing.T) *config.Config {
 }
 
 func makeHTTPGetRequest(t *testing.T, url string, response interface{}) *http.Response {
-	req := httptest.NewRequest("GET", "http://localhost:9050/config/all", nil)
 	w := httptest.NewRecorder()
 
-	err := RESTfulJSONResponse(w, req, response)
+	err := RESTfulJSONResponse(w, response)
 	if err != nil {
 		t.Error("Test failed. Failed to make response.", err)
 	}

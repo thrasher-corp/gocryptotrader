@@ -31,7 +31,7 @@ const (
 	configFileEncryptionEnabled            = 1
 	configFileEncryptionDisabled           = -1
 	configPairsLastUpdatedWarningThreshold = 30 // 30 days
-	configDefaultHTTPTimeout               = time.Duration(time.Second * 15)
+	configDefaultHTTPTimeout               = time.Second * 15
 	configMaxAuthFailres                   = 3
 )
 
@@ -326,7 +326,7 @@ func (c *Config) CheckClientBankAccounts() error {
 	}
 
 	for i := range c.BankAccounts {
-		if c.BankAccounts[i].Enabled == true {
+		if c.BankAccounts[i].Enabled {
 			if c.BankAccounts[i].BankName == "" || c.BankAccounts[i].BankAddress == "" {
 				return fmt.Errorf("banking details for %s is enabled but variables not set correctly",
 					c.BankAccounts[i].BankName)
@@ -764,7 +764,7 @@ func (c *Config) CheckExchangeConfigValues() error {
 				c.Exchanges[i].BankAccounts = append(c.Exchanges[i].BankAccounts, BankAccount{})
 			} else {
 				for _, bankAccount := range exch.BankAccounts {
-					if bankAccount.Enabled == true {
+					if bankAccount.Enabled {
 						if bankAccount.BankName == "" || bankAccount.BankAddress == "" {
 							return fmt.Errorf("banking details for %s is enabled but variables not set",
 								exch.Name)
@@ -855,7 +855,7 @@ func (c *Config) CheckCurrencyConfigValues() error {
 
 	count := 0
 	for i := range c.Currency.ForexProviders {
-		if c.Currency.ForexProviders[i].Enabled == true {
+		if c.Currency.ForexProviders[i].Enabled {
 			if c.Currency.ForexProviders[i].APIKey == "Key" {
 				log.Warnf("%s forex provider API key not set. Please set this in your config.json file", c.Currency.ForexProviders[i].Name)
 				c.Currency.ForexProviders[i].Enabled = false

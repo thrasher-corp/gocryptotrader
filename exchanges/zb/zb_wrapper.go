@@ -224,9 +224,7 @@ func (z *ZB) CancelAllOrders(orderCancellation exchange.OrderCancellation) (exch
 			return cancelAllOrdersResponse, err
 		}
 
-		for _, openOrder := range openOrders {
-			allOpenOrders = append(allOpenOrders, openOrder)
-		}
+		allOpenOrders = append(allOpenOrders, openOrders...)
 	}
 
 	for _, openOrder := range allOpenOrders {

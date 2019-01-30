@@ -20,6 +20,8 @@ const (
 	APIEndpointCurrencies = "currencies"
 	APIEndpointCountries  = "countries"
 	APIEndpointUsage      = "usage"
+
+	defaultAPIKey = "Key"
 )
 
 // CurrencyConverter stores the struct for the CurrencyConverter API
@@ -93,7 +95,7 @@ func (c *CurrencyConverter) GetRates(baseCurrency, symbols string) (map[string]f
 // ConvertMany takes 2 or more currencies depending on if using the free
 // or paid API
 func (c *CurrencyConverter) ConvertMany(currencies []string) (map[string]float64, error) {
-	if len(currencies) > 2 && (c.APIKey == "" || c.APIKey == "Key") {
+	if len(currencies) > 2 && (c.APIKey == "" || c.APIKey == defaultAPIKey) {
 		return nil, errors.New("currency fetching is limited to two currencies per request")
 	}
 
@@ -156,7 +158,7 @@ func (c *CurrencyConverter) GetCountries() (map[string]CountryItem, error) {
 func (c *CurrencyConverter) SendHTTPRequest(endPoint string, values url.Values, result interface{}) error {
 	var path string
 
-	if c.APIKey == "" || c.APIKey == "Key" {
+	if c.APIKey == "" || c.APIKey == defaultAPIKey {
 		path = fmt.Sprintf("%s%s/%s?", APIEndpointFreeURL, APIEndpointVersion, endPoint)
 	} else {
 		path = fmt.Sprintf("%s%s%s?", APIEndpointURL, APIEndpointVersion, endPoint)

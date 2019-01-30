@@ -6,7 +6,16 @@ ENABLELLL = false
 LINTOPTS = --disable-all \
            --enable=gofmt \
 		   --enable=vet \
-		   --enable=golint
+		   --enable=misspell \
+		   --enable=golint \
+		   --enable=ineffassign \
+		   --enable=goconst \
+		   --enable=structcheck \
+		   --enable=unparam \
+		   --enable=gotype \
+		   --enable=gotypex \
+		   --enable=gosimple \
+		   --enable=unconvert
 ifeq ($(ENABLELLL), true)
 LINTOPTS += --enable=lll \
 			--line-length=80

@@ -863,7 +863,7 @@ func (h *HUOBI) SendAuthenticatedHTTPRequest(method, endpoint string, values url
 	signature := common.Base64Encode(hmac)
 	values.Set("Signature", signature)
 
-	if h.APIAuthPEMKeySupport == true {
+	if h.APIAuthPEMKeySupport {
 		pemKey := strings.NewReader(h.APIAuthPEMKey)
 		pemBytes, err := ioutil.ReadAll(pemKey)
 		if err != nil {

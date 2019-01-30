@@ -208,7 +208,6 @@ func (b *Binance) GetOrderBook(obd OrderBookDataRequestParams) (OrderBook, error
 			case 1:
 				ASK.Quantity, _ = strconv.ParseFloat(ask.(string), 64)
 				orderbook.Asks = append(orderbook.Asks, ASK)
-				break
 			}
 		}
 	}
@@ -225,7 +224,6 @@ func (b *Binance) GetOrderBook(obd OrderBookDataRequestParams) (OrderBook, error
 			case 1:
 				BID.Quantity, _ = strconv.ParseFloat(bid.(string), 64)
 				orderbook.Bids = append(orderbook.Bids, BID)
-				break
 			}
 		}
 	}
@@ -706,7 +704,7 @@ func (b *Binance) GetFee(feeBuilder exchange.FeeBuilder) (float64, error) {
 		}
 		fee = calculateTradingFee(feeBuilder.PurchasePrice, feeBuilder.Amount, multiplier)
 	case exchange.CryptocurrencyWithdrawalFee:
-		fee = getCryptocurrencyWithdrawalFee(feeBuilder.FirstCurrency, feeBuilder.PurchasePrice, feeBuilder.Amount)
+		fee = getCryptocurrencyWithdrawalFee(feeBuilder.FirstCurrency)
 	}
 	if fee < 0 {
 		fee = 0
@@ -735,7 +733,7 @@ func calculateTradingFee(purchasePrice, amount, multiplier float64) float64 {
 }
 
 // getCryptocurrencyWithdrawalFee returns the fee for withdrawing from the exchange
-func getCryptocurrencyWithdrawalFee(currency string, purchasePrice, amount float64) float64 {
+func getCryptocurrencyWithdrawalFee(currency string) float64 {
 	return WithdrawalFees[currency]
 }
 
@@ -746,13 +744,13 @@ func (b *Binance) WithdrawCrypto(asset, address, addressTag, name, amount string
 
 	params := url.Values{}
 	params.Set("asset", asset)
-	params.Set("address", string(address))
-	params.Set("amount", string(amount))
+	params.Set("address", address)
+	params.Set("amount", amount)
 	if len(name) > 0 {
-		params.Set("name", string(name))
+		params.Set("name", name)
 	}
 	if len(addressTag) > 0 {
-		params.Set("addressTag", string(addressTag))
+		params.Set("addressTag", addressTag)
 	}
 
 	if err := b.SendAuthHTTPRequest("POST", path, params, &resp); err != nil {

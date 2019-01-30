@@ -311,8 +311,7 @@ func TestHandleErrorResponse(t *testing.T) {
 }
 
 func TestHandleHelloResponse(t *testing.T) {
-	var data WebsocketResponse
-	s.handleHelloResponse(data)
+	s.handleHelloResponse()
 }
 
 func TestHandleReconnectResponse(t *testing.T) {

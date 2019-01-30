@@ -228,10 +228,7 @@ func (b *Bithumb) CancelAllOrders(orderCancellation exchange.OrderCancellation) 
 		if err != nil {
 			return cancelAllOrdersResponse, err
 		}
-
-		for _, order := range orders.Data {
-			allOrders = append(allOrders, order)
-		}
+		allOrders = append(allOrders, orders.Data...)
 	}
 
 	for _, order := range allOrders {

@@ -470,7 +470,7 @@ func TestWithdrawFiat(t *testing.T) {
 
 	_, err := w.WithdrawFiatFunds(withdrawFiatRequest)
 	if err != common.ErrFunctionNotSupported {
-		t.Errorf("Expected '%v', recieved: '%v'", common.ErrFunctionNotSupported, err)
+		t.Errorf("Expected '%v', received: '%v'", common.ErrFunctionNotSupported, err)
 	}
 }
 
@@ -486,6 +486,6 @@ func TestWithdrawInternationalBank(t *testing.T) {
 
 	_, err := w.WithdrawFiatFundsToInternationalBank(withdrawFiatRequest)
 	if err != common.ErrFunctionNotSupported {
-		t.Errorf("Expected '%v', recieved: '%v'", common.ErrFunctionNotSupported, err)
+		t.Errorf("Expected '%v', received: '%v'", common.ErrFunctionNotSupported, err)
 	}
 }

@@ -264,9 +264,7 @@ func (o *OKEX) CancelAllOrders(orderCancellation exchange.OrderCancellation) (ex
 			return cancelAllOrdersResponse, fmt.Errorf("Something went wrong for currency %s", formattedCurrency)
 		}
 
-		for _, openOrder := range openOrders.Orders {
-			allOpenOrders = append(allOpenOrders, openOrder)
-		}
+		allOpenOrders = append(allOpenOrders, openOrders.Orders...)
 	}
 
 	for _, openOrder := range allOpenOrders {

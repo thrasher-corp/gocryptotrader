@@ -496,7 +496,7 @@ func (o *OKCoin) GetOrderInformation(orderID int64, symbol string) ([]OrderInfo,
 		return nil, err
 	}
 
-	if result.Result != true {
+	if !result.Result {
 		return nil, errors.New("unable to retrieve order info")
 	}
 
@@ -526,7 +526,7 @@ func (o *OKCoin) GetOrderInfoBatch(orderID []int64, symbol string) ([]OrderInfo,
 		return nil, err
 	}
 
-	if result.Result != true {
+	if !result.Result {
 		return nil, errors.New("unable to retrieve order info")
 	}
 

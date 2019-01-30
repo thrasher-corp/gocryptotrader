@@ -363,17 +363,14 @@ func (i *ItBit) SendAuthenticatedHTTPRequest(method string, path string, params 
 	request := make(map[string]interface{})
 	url := i.APIUrl + path
 
-	if params != nil {
-		for key, value := range params {
-			request[key] = value
-		}
+	for key, value := range params {
+		request[key] = value
 	}
 
 	PayloadJSON := []byte("")
 	var err error
 
 	if params != nil {
-
 		PayloadJSON, err = common.JSONEncode(request)
 		if err != nil {
 			return err
@@ -410,7 +407,7 @@ func (i *ItBit) SendAuthenticatedHTTPRequest(method string, path string, params 
 		RequestID   string `json:"requestId"`
 	}{}
 
-	err = i.SendPayload(method, url, headers, bytes.NewBuffer([]byte(PayloadJSON)), &intermediary, true, i.Verbose)
+	err = i.SendPayload(method, url, headers, bytes.NewBuffer(PayloadJSON), &intermediary, true, i.Verbose)
 	if err != nil {
 		return err
 	}
@@ -434,7 +431,7 @@ func (i *ItBit) GetFee(feeBuilder exchange.FeeBuilder) (float64, error) {
 	case exchange.CryptocurrencyTradeFee:
 		fee = calculateTradingFee(feeBuilder.PurchasePrice, feeBuilder.Amount, feeBuilder.IsMaker)
 	case exchange.InternationalBankWithdrawalFee:
-		fee = getInternationalBankWithdrawalFee(feeBuilder.CurrencyItem, feeBuilder.Amount, feeBuilder.BankTransactionType)
+		fee = getInternationalBankWithdrawalFee(feeBuilder.CurrencyItem, feeBuilder.BankTransactionType)
 	}
 
 	if fee < 0 {
@@ -454,7 +451,7 @@ func calculateTradingFee(purchasePrice, amount float64, isMaker bool) float64 {
 	return feePercent * purchasePrice * amount
 }
 
-func getInternationalBankWithdrawalFee(currency string, amount float64, bankTransactionType exchange.InternationalBankTransactionType) float64 {
+func getInternationalBankWithdrawalFee(currency string, bankTransactionType exchange.InternationalBankTransactionType) float64 {
 	var fee float64
 	if (bankTransactionType == exchange.Swift || bankTransactionType == exchange.WireTransfer) && currency == symbol.USD {
 		fee = 40

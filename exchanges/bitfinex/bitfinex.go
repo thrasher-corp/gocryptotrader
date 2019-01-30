@@ -934,10 +934,8 @@ func (b *Bitfinex) SendAuthenticatedHTTPRequest(method, path string, params map[
 	request["request"] = fmt.Sprintf("%s%s", bitfinexAPIVersion, path)
 	request["nonce"] = b.Nonce.String()
 
-	if params != nil {
-		for key, value := range params {
-			request[key] = value
-		}
+	for key, value := range params {
+		request[key] = value
 	}
 
 	PayloadJSON, err := common.JSONEncode(request)

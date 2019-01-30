@@ -43,7 +43,7 @@ func encodePEM(privKey *ecdsa.PrivateKey, pubKey bool) ([]byte, error) {
 }
 
 func decodePEM(PEMPrivKey, PEMPubKey []byte) (*ecdsa.PrivateKey, *ecdsa.PublicKey, error) {
-	block, _ := pem.Decode([]byte(PEMPrivKey))
+	block, _ := pem.Decode(PEMPrivKey)
 	if block == nil {
 		return nil, nil, errors.New("priv block data is nil")
 	}
@@ -54,7 +54,7 @@ func decodePEM(PEMPrivKey, PEMPubKey []byte) (*ecdsa.PrivateKey, *ecdsa.PublicKe
 		return nil, nil, err
 	}
 
-	blockPub, _ := pem.Decode([]byte(PEMPubKey))
+	blockPub, _ := pem.Decode(PEMPubKey)
 	if block == nil {
 		return nil, nil, errors.New("pub block data is nil")
 	}

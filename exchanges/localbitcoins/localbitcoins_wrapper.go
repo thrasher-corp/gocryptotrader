@@ -160,7 +160,7 @@ func (l *LocalBitcoins) SubmitOrder(p pair.CurrencyPair, side exchange.OrderSide
 		Currency:                   p.SecondCurrency.String(),
 		AccountInfo:                "-",
 		BankName:                   "Bank",
-		MSG:                        fmt.Sprintf("%s", side.ToString()),
+		MSG:                        side.ToString(),
 		SMSVerficationRequired:     true,
 		TrackMaxAmount:             true,
 		RequireTrustedByAdvertiser: true,

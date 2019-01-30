@@ -217,7 +217,7 @@ func (s *Slack) WebsocketReader() {
 			}
 
 		case "hello":
-			s.handleHelloResponse(data)
+			s.handleHelloResponse()
 
 		case "reconnect_url":
 			err = s.handleReconnectResponse(resp)
@@ -301,7 +301,7 @@ func (s *Slack) handleErrorResponse(data WebsocketResponse) error {
 	return fmt.Errorf("Unknown error '%s'", data.Error.Msg)
 }
 
-func (s *Slack) handleHelloResponse(data WebsocketResponse) {
+func (s *Slack) handleHelloResponse() {
 	if s.Verbose {
 		log.Debugln("Websocket connected successfully.")
 	}

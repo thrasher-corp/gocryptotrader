@@ -314,13 +314,8 @@ func (h *HitBTC) GetOrderbook(currencyPair string, limit int) (Orderbook, error)
 	}
 
 	ob := Orderbook{}
-	for _, x := range resp.Asks {
-		ob.Asks = append(ob.Asks, x)
-	}
-
-	for _, x := range resp.Bids {
-		ob.Bids = append(ob.Bids, x)
-	}
+	ob.Asks = append(ob.Asks, resp.Asks...)
+	ob.Bids = append(ob.Bids, resp.Bids...)
 	return ob, nil
 }
 
