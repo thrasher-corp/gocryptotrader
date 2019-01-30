@@ -359,10 +359,10 @@ func (b *Bitfinex) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) (
 		orders = append(orders, orderDetail)
 	}
 
-	b.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
-	b.FilterOrdersByType(&orders, getOrdersRequest.OrderType)
-	b.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
-	b.FilterOrdersByCurrencies(&orders, getOrdersRequest.Currencies)
+	exchange.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
+	exchange.FilterOrdersByType(&orders, getOrdersRequest.OrderType)
+	exchange.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
+	exchange.FilterOrdersByCurrencies(&orders, getOrdersRequest.Currencies)
 
 	return orders, nil
 }
@@ -418,10 +418,10 @@ func (b *Bitfinex) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) (
 		orders = append(orders, orderDetail)
 	}
 
-	b.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
-	b.FilterOrdersByType(&orders, getOrdersRequest.OrderType)
-	b.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
-	b.FilterOrdersByCurrencies(&orders, getOrdersRequest.Currencies)
+	exchange.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
+	exchange.FilterOrdersByType(&orders, getOrdersRequest.OrderType)
+	exchange.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
+	exchange.FilterOrdersByCurrencies(&orders, getOrdersRequest.Currencies)
 
 	return orders, nil
 }

@@ -2,6 +2,7 @@ package exchange
 
 import (
 	"net/http"
+	"strings"
 	"testing"
 	"time"
 
@@ -932,7 +933,6 @@ func TestOrderTypes(t *testing.T) {
 }
 
 func TestFilterOrdersByType(t *testing.T) {
-	tester := Base{Name: "test"}
 	var orders []OrderDetail
 
 	orders = append(orders, OrderDetail{
@@ -942,24 +942,23 @@ func TestFilterOrdersByType(t *testing.T) {
 		OrderType: LimitOrderType,
 	})
 
-	tester.FilterOrdersByType(&orders, AnyOrderType)
+	FilterOrdersByType(&orders, AnyOrderType)
 	if len(orders) != 2 {
 		t.Errorf("Orders failed to be filtered. Expected %v, Recieved %v", 2, len(orders))
 	}
 
-	tester.FilterOrdersByType(&orders, LimitOrderType)
+	FilterOrdersByType(&orders, LimitOrderType)
 	if len(orders) != 1 {
 		t.Errorf("Orders failed to be filtered. Expected %v, Recieved %v", 1, len(orders))
 	}
 
-	tester.FilterOrdersByType(&orders, StopOrderType)
+	FilterOrdersByType(&orders, StopOrderType)
 	if len(orders) != 0 {
 		t.Errorf("Orders failed to be filtered. Expected %v, Recieved %v", 0, len(orders))
 	}
 }
 
 func TestFilterOrdersBySide(t *testing.T) {
-	tester := Base{Name: "test"}
 	var orders []OrderDetail
 
 	orders = append(orders, OrderDetail{
@@ -970,24 +969,23 @@ func TestFilterOrdersBySide(t *testing.T) {
 	})
 	orders = append(orders, OrderDetail{})
 
-	tester.FilterOrdersBySide(&orders, AnyOrderSide)
+	FilterOrdersBySide(&orders, AnyOrderSide)
 	if len(orders) != 3 {
 		t.Errorf("Orders failed to be filtered. Expected %v, Recieved %v", 3, len(orders))
 	}
 
-	tester.FilterOrdersBySide(&orders, BuyOrderSide)
+	FilterOrdersBySide(&orders, BuyOrderSide)
 	if len(orders) != 1 {
 		t.Errorf("Orders failed to be filtered. Expected %v, Recieved %v", 1, len(orders))
 	}
 
-	tester.FilterOrdersBySide(&orders, SellOrderSide)
+	FilterOrdersBySide(&orders, SellOrderSide)
 	if len(orders) != 0 {
 		t.Errorf("Orders failed to be filtered. Expected %v, Recieved %v", 0, len(orders))
 	}
 }
 
 func TestFilterOrdersByTickRange(t *testing.T) {
-	tester := Base{Name: "test"}
 	var orders []OrderDetail
 
 	orders = append(orders, OrderDetail{
@@ -1000,29 +998,28 @@ func TestFilterOrdersByTickRange(t *testing.T) {
 		OrderDate: time.Unix(111, 0),
 	})
 
-	tester.FilterOrdersByTickRange(&orders, time.Unix(0, 0), time.Unix(0, 0))
+	FilterOrdersByTickRange(&orders, time.Unix(0, 0), time.Unix(0, 0))
 	if len(orders) != 3 {
 		t.Errorf("Orders failed to be filtered. Expected %v, Recieved %v", 3, len(orders))
 	}
 
-	tester.FilterOrdersByTickRange(&orders, time.Unix(100, 0), time.Unix(111, 0))
+	FilterOrdersByTickRange(&orders, time.Unix(100, 0), time.Unix(111, 0))
 	if len(orders) != 3 {
 		t.Errorf("Orders failed to be filtered. Expected %v, Recieved %v", 3, len(orders))
 	}
 
-	tester.FilterOrdersByTickRange(&orders, time.Unix(101, 0), time.Unix(111, 0))
+	FilterOrdersByTickRange(&orders, time.Unix(101, 0), time.Unix(111, 0))
 	if len(orders) != 2 {
 		t.Errorf("Orders failed to be filtered. Expected %v, Recieved %v", 2, len(orders))
 	}
 
-	tester.FilterOrdersByTickRange(&orders, time.Unix(200, 0), time.Unix(300, 0))
+	FilterOrdersByTickRange(&orders, time.Unix(200, 0), time.Unix(300, 0))
 	if len(orders) != 0 {
 		t.Errorf("Orders failed to be filtered. Expected %v, Recieved %v", 0, len(orders))
 	}
 }
 
 func TestFilterOrdersByCurrencies(t *testing.T) {
-	tester := Base{Name: "test"}
 	var orders []OrderDetail
 
 	orders = append(orders, OrderDetail{
@@ -1037,26 +1034,146 @@ func TestFilterOrdersByCurrencies(t *testing.T) {
 
 	var currencies []pair.CurrencyPair
 	currencies = []pair.CurrencyPair{pair.NewCurrencyPair(symbol.BTC, symbol.USD), pair.NewCurrencyPair(symbol.LTC, symbol.EUR), pair.NewCurrencyPair(symbol.DOGE, symbol.RUB)}
-	tester.FilterOrdersByCurrencies(&orders, currencies)
+	FilterOrdersByCurrencies(&orders, currencies)
 	if len(orders) != 3 {
 		t.Errorf("Orders failed to be filtered. Expected %v, Recieved %v", 3, len(orders))
 	}
 
 	currencies = []pair.CurrencyPair{pair.NewCurrencyPair(symbol.BTC, symbol.USD), pair.NewCurrencyPair(symbol.LTC, symbol.EUR)}
-	tester.FilterOrdersByCurrencies(&orders, currencies)
+	FilterOrdersByCurrencies(&orders, currencies)
 	if len(orders) != 2 {
 		t.Errorf("Orders failed to be filtered. Expected %v, Recieved %v", 2, len(orders))
 	}
 
 	currencies = []pair.CurrencyPair{pair.NewCurrencyPair(symbol.BTC, symbol.USD)}
-	tester.FilterOrdersByCurrencies(&orders, currencies)
+	FilterOrdersByCurrencies(&orders, currencies)
 	if len(orders) != 1 {
 		t.Errorf("Orders failed to be filtered. Expected %v, Recieved %v", 1, len(orders))
 	}
 
 	currencies = []pair.CurrencyPair{}
-	tester.FilterOrdersByCurrencies(&orders, currencies)
+	FilterOrdersByCurrencies(&orders, currencies)
 	if len(orders) != 1 {
 		t.Errorf("Orders failed to be filtered. Expected %v, Recieved %v", 1, len(orders))
+	}
+}
+
+func TestSortOrdersByPrice(t *testing.T) {
+	orders := []OrderDetail{
+		OrderDetail{
+			Price: 100,
+		}, OrderDetail{
+			Price: 0,
+		}, OrderDetail{
+			Price: 50,
+		},
+	}
+
+	SortOrdersByPrice(&orders, false)
+	if orders[0].Price != 0 {
+		t.Errorf("Test failed. Expected: '%v', Recieved: '%v'", 0, orders[0].Price)
+	}
+
+	SortOrdersByPrice(&orders, true)
+	if orders[0].Price != 100 {
+		t.Errorf("Test failed. Expected: '%v', Recieved: '%v'", 100, orders[0].Price)
+	}
+}
+
+func TestSortOrdersByDate(t *testing.T) {
+	orders := []OrderDetail{
+		OrderDetail{
+			OrderDate: time.Unix(0, 0),
+		}, OrderDetail{
+			OrderDate: time.Unix(1, 0),
+		}, OrderDetail{
+			OrderDate: time.Unix(2, 0),
+		},
+	}
+
+	SortOrdersByDate(&orders, false)
+	if orders[0].OrderDate.Unix() != time.Unix(0, 0).Unix() {
+		t.Errorf("Test failed. Expected: '%v', Recieved: '%v'", time.Unix(0, 0).Unix(), orders[0].OrderDate.Unix())
+	}
+
+	SortOrdersByDate(&orders, true)
+	if orders[0].OrderDate.Unix() != time.Unix(2, 0).Unix() {
+		t.Errorf("Test failed. Expected: '%v', Recieved: '%v'", time.Unix(2, 0).Unix(), orders[0].OrderDate.Unix())
+	}
+}
+
+func TestSortOrdersByCurrency(t *testing.T) {
+	orders := []OrderDetail{
+		OrderDetail{
+			CurrencyPair: pair.NewCurrencyPairWithDelimiter(symbol.BTC, symbol.USD, "-"),
+		}, OrderDetail{
+			CurrencyPair: pair.NewCurrencyPairWithDelimiter(symbol.DOGE, symbol.USD, "-"),
+		}, OrderDetail{
+			CurrencyPair: pair.NewCurrencyPairWithDelimiter(symbol.BTC, symbol.RUB, "-"),
+		}, OrderDetail{
+			CurrencyPair: pair.NewCurrencyPairWithDelimiter(symbol.LTC, symbol.EUR, "-"),
+		}, OrderDetail{
+			CurrencyPair: pair.NewCurrencyPairWithDelimiter(symbol.LTC, symbol.AUD, "-"),
+		},
+	}
+
+	SortOrdersByCurrency(&orders, false)
+	if orders[0].CurrencyPair.Pair().String() != symbol.BTC+"-"+symbol.RUB {
+		t.Errorf("Test failed. Expected: '%v', Recieved: '%v'", symbol.BTC+"-"+symbol.RUB, orders[0].CurrencyPair.Pair().String())
+	}
+
+	SortOrdersByCurrency(&orders, true)
+	if orders[0].CurrencyPair.Pair().String() != symbol.LTC+"-"+symbol.EUR {
+		t.Errorf("Test failed. Expected: '%v', Recieved: '%v'", symbol.LTC+"-"+symbol.EUR, orders[0].CurrencyPair.Pair().String())
+	}
+}
+
+func TestSortOrdersByOrderSide(t *testing.T) {
+	orders := []OrderDetail{
+		OrderDetail{
+			OrderSide: BuyOrderSide,
+		}, OrderDetail{
+			OrderSide: SellOrderSide,
+		}, OrderDetail{
+			OrderSide: SellOrderSide,
+		}, OrderDetail{
+			OrderSide: BuyOrderSide,
+		},
+	}
+
+	SortOrdersBySide(&orders, false)
+	if !strings.EqualFold(orders[0].OrderSide.ToString(), BuyOrderSide.ToString()) {
+		t.Errorf("Test failed. Expected: '%v', Recieved: '%v'", BuyOrderSide, orders[0].OrderSide)
+	}
+
+	t.Log(orders)
+
+	SortOrdersBySide(&orders, true)
+	if !strings.EqualFold(orders[0].OrderSide.ToString(), SellOrderSide.ToString()) {
+		t.Errorf("Test failed. Expected: '%v', Recieved: '%v'", SellOrderSide, orders[0].OrderSide)
+	}
+}
+
+func TestSortOrdersByOrderType(t *testing.T) {
+	orders := []OrderDetail{
+		OrderDetail{
+			OrderType: MarketOrderType,
+		}, OrderDetail{
+			OrderType: LimitOrderType,
+		}, OrderDetail{
+			OrderType: ImmediateOrCancelOrderType,
+		}, OrderDetail{
+			OrderType: TrailingStopOrderType,
+		},
+	}
+
+	SortOrdersByType(&orders, false)
+	if !strings.EqualFold(orders[0].OrderType.ToString(), ImmediateOrCancelOrderType.ToString()) {
+		t.Errorf("Test failed. Expected: '%v', Recieved: '%v'", ImmediateOrCancelOrderType, orders[0].OrderType)
+	}
+
+	SortOrdersByType(&orders, true)
+	if !strings.EqualFold(orders[0].OrderType.ToString(), TrailingStopOrderType.ToString()) {
+		t.Errorf("Test failed. Expected: '%v', Recieved: '%v'", TrailingStopOrderType, orders[0].OrderType)
 	}
 }

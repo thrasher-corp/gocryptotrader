@@ -358,9 +358,9 @@ func (b *BTCMarkets) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest)
 		orders = append(orders, openOrder)
 	}
 
-	b.FilterOrdersByType(&orders, getOrdersRequest.OrderType)
-	b.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
-	b.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
+	exchange.FilterOrdersByType(&orders, getOrdersRequest.OrderType)
+	exchange.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
+	exchange.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
 
 	return orders, nil
 }
@@ -423,9 +423,9 @@ func (b *BTCMarkets) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest)
 		orders = append(orders, openOrder)
 	}
 
-	b.FilterOrdersByType(&orders, getOrdersRequest.OrderType)
-	b.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
-	b.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
+	exchange.FilterOrdersByType(&orders, getOrdersRequest.OrderType)
+	exchange.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
+	exchange.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
 
 	return orders, nil
 }

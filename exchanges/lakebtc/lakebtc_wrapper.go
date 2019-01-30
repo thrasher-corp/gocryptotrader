@@ -290,9 +290,9 @@ func (l *LakeBTC) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([
 		})
 	}
 
-	l.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
-	l.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
-	l.FilterOrdersByCurrencies(&orders, getOrdersRequest.Currencies)
+	exchange.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
+	exchange.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
+	exchange.FilterOrdersByCurrencies(&orders, getOrdersRequest.Currencies)
 
 	return orders, nil
 }
@@ -326,9 +326,9 @@ func (l *LakeBTC) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([
 		})
 	}
 
-	l.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
-	l.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
-	l.FilterOrdersByCurrencies(&orders, getOrdersRequest.Currencies)
+	exchange.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
+	exchange.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
+	exchange.FilterOrdersByCurrencies(&orders, getOrdersRequest.Currencies)
 
 	return orders, nil
 }

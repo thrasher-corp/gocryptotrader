@@ -296,6 +296,7 @@ func (z *ZB) GetWithdrawCapabilities() uint32 {
 }
 
 // GetActiveOrders retrieves any orders that are active/open
+// This function is not concurrency safe due to orderSide/orderType maps
 func (z *ZB) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
 	var allOrders []Order
 	for _, currency := range getOrdersRequest.Currencies {
@@ -336,14 +337,15 @@ func (z *ZB) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]exch
 		})
 	}
 
-	z.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
-	z.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
+	exchange.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
+	exchange.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
 
 	return orders, nil
 }
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
+// This function is not concurrency safe due to orderSide/orderType maps
 func (z *ZB) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
 	if getOrdersRequest.OrderSide == exchange.AnyOrderSide || getOrdersRequest.OrderSide == "" {
 		return nil, errors.New("Specific order side is required")
@@ -393,7 +395,7 @@ func (z *ZB) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]exch
 		})
 	}
 
-	z.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
+	exchange.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
 
 	return orders, nil
 }

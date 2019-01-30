@@ -219,6 +219,7 @@ func (a *Alphapoint) GetWithdrawCapabilities() uint32 {
 }
 
 // GetActiveOrders retrieves any orders that are active/open
+// This function is not concurrency safe due to orderSide/orderType maps
 func (a *Alphapoint) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
 	resp, err := a.GetOrders()
 	if err != nil {
@@ -252,15 +253,16 @@ func (a *Alphapoint) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest)
 		}
 	}
 
-	a.FilterOrdersByType(&orders, getOrdersRequest.OrderType)
-	a.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
-	a.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
+	exchange.FilterOrdersByType(&orders, getOrdersRequest.OrderType)
+	exchange.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
+	exchange.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
 
 	return orders, nil
 }
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
+// This function is not concurrency safe due to orderSide/orderType maps
 func (a *Alphapoint) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
 	resp, err := a.GetOrders()
 	if err != nil {
@@ -294,9 +296,9 @@ func (a *Alphapoint) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest)
 		}
 	}
 
-	a.FilterOrdersByType(&orders, getOrdersRequest.OrderType)
-	a.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
-	a.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
+	exchange.FilterOrdersByType(&orders, getOrdersRequest.OrderType)
+	exchange.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
+	exchange.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
 
 	return orders, nil
 }

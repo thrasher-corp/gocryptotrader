@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -985,45 +986,39 @@ const (
 )
 
 // FilterOrdersBySide removes any OrderDetails that don't match the orderStatus provided
-func (e *Base) FilterOrdersBySide(orders *[]OrderDetail, orderSide OrderSide) {
+func FilterOrdersBySide(orders *[]OrderDetail, orderSide OrderSide) {
 	if orderSide == "" || orderSide == AnyOrderSide {
 		return
 	}
 
 	var filteredOrders []OrderDetail
 	for _, orderDetail := range *orders {
-		if !strings.EqualFold(string(orderDetail.OrderSide), string(orderSide)) &&
-			orderSide != AnyOrderSide {
-			continue
+		if strings.EqualFold(string(orderDetail.OrderSide), string(orderSide)) {
+			filteredOrders = append(filteredOrders, orderDetail)
 		}
-
-		filteredOrders = append(filteredOrders, orderDetail)
 	}
 
 	*orders = filteredOrders
 }
 
 // FilterOrdersByType removes any OrderDetails that don't match the orderType provided
-func (e *Base) FilterOrdersByType(orders *[]OrderDetail, orderType OrderType) {
+func FilterOrdersByType(orders *[]OrderDetail, orderType OrderType) {
 	if orderType == "" || orderType == AnyOrderType {
 		return
 	}
 
 	var filteredOrders []OrderDetail
 	for _, orderDetail := range *orders {
-		if !strings.EqualFold(string(orderDetail.OrderType), string(orderType)) &&
-			orderType != AnyOrderType {
-			continue
+		if strings.EqualFold(string(orderDetail.OrderType), string(orderType)) {
+			filteredOrders = append(filteredOrders, orderDetail)
 		}
-
-		filteredOrders = append(filteredOrders, orderDetail)
 	}
 
 	*orders = filteredOrders
 }
 
 // FilterOrdersByTickRange removes any OrderDetails outside of the tick range
-func (e *Base) FilterOrdersByTickRange(orders *[]OrderDetail, startTicks, endTicks time.Time) {
+func FilterOrdersByTickRange(orders *[]OrderDetail, startTicks, endTicks time.Time) {
 	if startTicks.IsZero() || endTicks.IsZero() ||
 		startTicks.Unix() == 0 || endTicks.Unix() == 0 || endTicks.Before(startTicks) {
 		return
@@ -1041,7 +1036,7 @@ func (e *Base) FilterOrdersByTickRange(orders *[]OrderDetail, startTicks, endTic
 
 // FilterOrdersByCurrencies removes any OrderDetails that do not match the provided currency list
 // It is forgiving in that the provided currencies can match quote or base currencies
-func (e *Base) FilterOrdersByCurrencies(orders *[]OrderDetail, currencies []pair.CurrencyPair) {
+func FilterOrdersByCurrencies(orders *[]OrderDetail, currencies []pair.CurrencyPair) {
 	if len(currencies) <= 0 {
 		return
 	}
@@ -1050,7 +1045,7 @@ func (e *Base) FilterOrdersByCurrencies(orders *[]OrderDetail, currencies []pair
 	for _, orderDetail := range *orders {
 		matchFound := false
 		for _, currency := range currencies {
-			if !matchFound && strings.EqualFold(orderDetail.CurrencyPair.FirstCurrency.String(), currency.FirstCurrency.String()) || strings.EqualFold(orderDetail.CurrencyPair.SecondCurrency.String(), currency.SecondCurrency.String()) {
+			if !matchFound && orderDetail.CurrencyPair.Equal(currency, false) {
 				matchFound = true
 			}
 		}
@@ -1061,4 +1056,124 @@ func (e *Base) FilterOrdersByCurrencies(orders *[]OrderDetail, currencies []pair
 	}
 
 	*orders = filteredOrders
+}
+
+// ByPrice used for sorting orders by price
+type ByPrice []OrderDetail
+
+func (b ByPrice) Len() int {
+	return len(b)
+}
+
+func (b ByPrice) Less(i, j int) bool {
+	return b[i].Price < b[j].Price
+}
+
+func (b ByPrice) Swap(i, j int) {
+	b[i], b[j] = b[j], b[i]
+}
+
+// SortOrdersByPrice the caller function to sort orders
+func SortOrdersByPrice(orders *[]OrderDetail, reverse bool) {
+	if reverse {
+		sort.Sort(sort.Reverse(ByPrice(*orders)))
+	} else {
+		sort.Sort(ByPrice(*orders))
+	}
+}
+
+// ByOrderType used for sorting orders by order type
+type ByOrderType []OrderDetail
+
+func (b ByOrderType) Len() int {
+	return len(b)
+}
+
+func (b ByOrderType) Less(i, j int) bool {
+	return b[i].OrderType.ToString() < b[j].OrderType.ToString()
+}
+
+func (b ByOrderType) Swap(i, j int) {
+	b[i], b[j] = b[j], b[i]
+}
+
+// SortOrdersByType the caller function to sort orders
+func SortOrdersByType(orders *[]OrderDetail, reverse bool) {
+	if reverse {
+		sort.Sort(sort.Reverse(ByOrderType(*orders)))
+	} else {
+		sort.Sort(ByOrderType(*orders))
+	}
+}
+
+// ByCurrency used for sorting orders by order currency
+type ByCurrency []OrderDetail
+
+func (b ByCurrency) Len() int {
+	return len(b)
+}
+
+func (b ByCurrency) Less(i, j int) bool {
+	return b[i].CurrencyPair.Pair().String() < b[j].CurrencyPair.Pair().String()
+}
+
+func (b ByCurrency) Swap(i, j int) {
+	b[i], b[j] = b[j], b[i]
+}
+
+// SortOrdersByCurrency the caller function to sort orders
+func SortOrdersByCurrency(orders *[]OrderDetail, reverse bool) {
+	if reverse {
+		sort.Sort(sort.Reverse(ByCurrency(*orders)))
+	} else {
+		sort.Sort(ByCurrency(*orders))
+	}
+}
+
+// ByDate used for sorting orders by order date
+type ByDate []OrderDetail
+
+func (b ByDate) Len() int {
+	return len(b)
+}
+
+func (b ByDate) Less(i, j int) bool {
+	return b[i].OrderDate.Unix() < b[j].OrderDate.Unix()
+}
+
+func (b ByDate) Swap(i, j int) {
+	b[i], b[j] = b[j], b[i]
+}
+
+// SortOrdersByDate the caller function to sort orders
+func SortOrdersByDate(orders *[]OrderDetail, reverse bool) {
+	if reverse {
+		sort.Sort(sort.Reverse(ByDate(*orders)))
+	} else {
+		sort.Sort(ByDate(*orders))
+	}
+}
+
+// ByOrderSide used for sorting orders by order side (buy sell)
+type ByOrderSide []OrderDetail
+
+func (b ByOrderSide) Len() int {
+	return len(b)
+}
+
+func (b ByOrderSide) Less(i, j int) bool {
+	return b[i].OrderSide.ToString() < b[j].OrderSide.ToString()
+}
+
+func (b ByOrderSide) Swap(i, j int) {
+	b[i], b[j] = b[j], b[i]
+}
+
+// SortOrdersBySide the caller function to sort orders
+func SortOrdersBySide(orders *[]OrderDetail, reverse bool) {
+	if reverse {
+		sort.Sort(sort.Reverse(ByOrderSide(*orders)))
+	} else {
+		sort.Sort(ByOrderSide(*orders))
+	}
 }

@@ -296,8 +296,8 @@ func (y *Yobit) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]e
 		}
 	}
 
-	y.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
-	y.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
+	exchange.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
+	exchange.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
 
 	return orders, nil
 }
@@ -333,7 +333,7 @@ func (y *Yobit) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]e
 		})
 	}
 
-	y.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
+	exchange.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
 
 	return orders, nil
 }

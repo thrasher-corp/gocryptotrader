@@ -341,9 +341,9 @@ func (b *Binance) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([
 		}
 	}
 
-	b.FilterOrdersByType(&orders, getOrdersRequest.OrderType)
-	b.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
-	b.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
+	exchange.FilterOrdersByType(&orders, getOrdersRequest.OrderType)
+	exchange.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
+	exchange.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
 
 	return orders, nil
 }
@@ -385,9 +385,9 @@ func (b *Binance) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([
 		}
 	}
 
-	b.FilterOrdersByType(&orders, getOrdersRequest.OrderType)
-	b.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
-	b.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
+	exchange.FilterOrdersByType(&orders, getOrdersRequest.OrderType)
+	exchange.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
+	exchange.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
 
 	return orders, nil
 }

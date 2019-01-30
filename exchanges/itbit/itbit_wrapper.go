@@ -324,9 +324,9 @@ func (i *ItBit) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]e
 		})
 	}
 
-	i.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
-	i.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
-	i.FilterOrdersByCurrencies(&orders, getOrdersRequest.Currencies)
+	exchange.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
+	exchange.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
+	exchange.FilterOrdersByCurrencies(&orders, getOrdersRequest.Currencies)
 
 	return orders, nil
 }
@@ -377,9 +377,9 @@ func (i *ItBit) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]e
 		})
 	}
 
-	i.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
-	i.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
-	i.FilterOrdersByCurrencies(&orders, getOrdersRequest.Currencies)
+	exchange.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
+	exchange.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
+	exchange.FilterOrdersByCurrencies(&orders, getOrdersRequest.Currencies)
 
 	return orders, nil
 }

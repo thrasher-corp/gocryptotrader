@@ -278,10 +278,10 @@ func (g *Gemini) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]
 		})
 	}
 
-	g.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
-	g.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
-	g.FilterOrdersByType(&orders, getOrdersRequest.OrderType)
-	g.FilterOrdersByCurrencies(&orders, getOrdersRequest.Currencies)
+	exchange.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
+	exchange.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
+	exchange.FilterOrdersByType(&orders, getOrdersRequest.OrderType)
+	exchange.FilterOrdersByCurrencies(&orders, getOrdersRequest.Currencies)
 
 	return orders, nil
 }
@@ -324,8 +324,8 @@ func (g *Gemini) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]
 		})
 	}
 
-	g.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
-	g.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
+	exchange.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
+	exchange.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
 
 	return orders, nil
 }

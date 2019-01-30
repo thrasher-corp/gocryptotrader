@@ -299,9 +299,9 @@ func (c *CoinbasePro) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest
 		})
 	}
 
-	c.FilterOrdersByType(&orders, getOrdersRequest.OrderType)
-	c.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
-	c.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
+	exchange.FilterOrdersByType(&orders, getOrdersRequest.OrderType)
+	exchange.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
+	exchange.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
 
 	return orders, nil
 }
@@ -344,9 +344,9 @@ func (c *CoinbasePro) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest
 		})
 	}
 
-	c.FilterOrdersByType(&orders, getOrdersRequest.OrderType)
-	c.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
-	c.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
+	exchange.FilterOrdersByType(&orders, getOrdersRequest.OrderType)
+	exchange.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
+	exchange.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
 
 	return orders, nil
 }

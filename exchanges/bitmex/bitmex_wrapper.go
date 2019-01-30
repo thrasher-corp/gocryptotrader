@@ -306,6 +306,7 @@ func (b *Bitmex) GetWithdrawCapabilities() uint32 {
 }
 
 // GetActiveOrders retrieves any orders that are active/open
+// This function is not concurrency safe due to orderSide/orderType maps
 func (b *Bitmex) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
 	var orders []exchange.OrderDetail
 	params := OrdersRequest{}
@@ -337,16 +338,17 @@ func (b *Bitmex) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]
 		orders = append(orders, orderDetail)
 	}
 
-	b.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
-	b.FilterOrdersByType(&orders, getOrdersRequest.OrderType)
-	b.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
-	b.FilterOrdersByCurrencies(&orders, getOrdersRequest.Currencies)
+	exchange.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
+	exchange.FilterOrdersByType(&orders, getOrdersRequest.OrderType)
+	exchange.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
+	exchange.FilterOrdersByCurrencies(&orders, getOrdersRequest.Currencies)
 
 	return orders, nil
 }
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
+// This function is not concurrency safe due to orderSide/orderType maps
 func (b *Bitmex) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
 	var orders []exchange.OrderDetail
 	params := OrdersRequest{}
@@ -376,10 +378,10 @@ func (b *Bitmex) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]
 		orders = append(orders, orderDetail)
 	}
 
-	b.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
-	b.FilterOrdersByType(&orders, getOrdersRequest.OrderType)
-	b.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
-	b.FilterOrdersByCurrencies(&orders, getOrdersRequest.Currencies)
+	exchange.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
+	exchange.FilterOrdersByType(&orders, getOrdersRequest.OrderType)
+	exchange.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
+	exchange.FilterOrdersByCurrencies(&orders, getOrdersRequest.Currencies)
 
 	return orders, nil
 }

@@ -323,9 +323,9 @@ func (p *Poloniex) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) (
 		}
 	}
 
-	p.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
-	p.FilterOrdersByCurrencies(&orders, getOrdersRequest.Currencies)
-	p.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
+	exchange.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
+	exchange.FilterOrdersByCurrencies(&orders, getOrdersRequest.Currencies)
+	exchange.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
 
 	return orders, nil
 }
@@ -362,8 +362,8 @@ func (p *Poloniex) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) (
 		}
 	}
 
-	p.FilterOrdersByCurrencies(&orders, getOrdersRequest.Currencies)
-	p.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
+	exchange.FilterOrdersByCurrencies(&orders, getOrdersRequest.Currencies)
+	exchange.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
 
 	return orders, nil
 }

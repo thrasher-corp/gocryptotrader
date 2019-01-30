@@ -419,7 +419,7 @@ func (h *HUOBI) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]e
 		})
 	}
 
-	h.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
+	exchange.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
 
 	return orders, nil
 }
@@ -459,7 +459,7 @@ func (h *HUOBI) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]e
 		})
 	}
 
-	h.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
+	exchange.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
 
 	return orders, nil
 }

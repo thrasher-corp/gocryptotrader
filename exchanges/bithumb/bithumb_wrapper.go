@@ -342,9 +342,9 @@ func (b *Bithumb) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([
 		orders = append(orders, orderDetail)
 	}
 
-	b.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
-	b.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
-	b.FilterOrdersByCurrencies(&orders, getOrdersRequest.Currencies)
+	exchange.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
+	exchange.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
+	exchange.FilterOrdersByCurrencies(&orders, getOrdersRequest.Currencies)
 
 	return orders, nil
 }
@@ -383,9 +383,9 @@ func (b *Bithumb) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([
 		orders = append(orders, orderDetail)
 	}
 
-	b.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
-	b.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
-	b.FilterOrdersByCurrencies(&orders, getOrdersRequest.Currencies)
+	exchange.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
+	exchange.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
+	exchange.FilterOrdersByCurrencies(&orders, getOrdersRequest.Currencies)
 
 	return orders, nil
 }

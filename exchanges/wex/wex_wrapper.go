@@ -303,8 +303,8 @@ func (w *WEX) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]exc
 		}
 	}
 
-	w.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
-	w.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
+	exchange.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
+	exchange.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
 
 	return orders, nil
 }
@@ -340,7 +340,7 @@ func (w *WEX) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]exc
 		})
 	}
 
-	w.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
+	exchange.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
 
 	return orders, nil
 }

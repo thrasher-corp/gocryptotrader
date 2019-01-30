@@ -374,9 +374,9 @@ func (a *ANX) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]exc
 		orders = append(orders, orderDetail)
 	}
 
-	a.FilterOrdersByType(&orders, getOrdersRequest.OrderType)
-	a.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
-	a.FilterOrdersByCurrencies(&orders, getOrdersRequest.Currencies)
+	exchange.FilterOrdersByType(&orders, getOrdersRequest.OrderType)
+	exchange.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
+	exchange.FilterOrdersByCurrencies(&orders, getOrdersRequest.Currencies)
 
 	return orders, nil
 }
@@ -408,9 +408,9 @@ func (a *ANX) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]exc
 		orders = append(orders, orderDetail)
 	}
 
-	a.FilterOrdersByType(&orders, getOrdersRequest.OrderType)
-	a.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
-	a.FilterOrdersByCurrencies(&orders, getOrdersRequest.Currencies)
+	exchange.FilterOrdersByType(&orders, getOrdersRequest.OrderType)
+	exchange.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
+	exchange.FilterOrdersByCurrencies(&orders, getOrdersRequest.Currencies)
 
 	return orders, nil
 }

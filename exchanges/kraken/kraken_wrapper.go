@@ -319,9 +319,9 @@ func (k *Kraken) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]
 		})
 	}
 
-	k.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
-	k.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
-	k.FilterOrdersByCurrencies(&orders, getOrdersRequest.Currencies)
+	exchange.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
+	exchange.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
+	exchange.FilterOrdersByCurrencies(&orders, getOrdersRequest.Currencies)
 
 	return orders, nil
 }
@@ -361,8 +361,8 @@ func (k *Kraken) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]
 		})
 	}
 
-	k.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
-	k.FilterOrdersByCurrencies(&orders, getOrdersRequest.Currencies)
+	exchange.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
+	exchange.FilterOrdersByCurrencies(&orders, getOrdersRequest.Currencies)
 
 	return orders, nil
 }
