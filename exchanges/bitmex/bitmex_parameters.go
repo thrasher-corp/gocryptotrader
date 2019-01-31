@@ -1063,8 +1063,5 @@ func (p OrdersRequest) ToURLVals(path string) (string, error) {
 
 // IsNil checks to see if any values has been set for the paramater
 func (p OrdersRequest) IsNil() bool {
-	if p == (OrdersRequest{}) {
-		return true
-	}
-	return false
+	return p == (OrdersRequest{})
 }

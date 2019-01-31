@@ -357,7 +357,7 @@ func (a *ANX) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]exc
 
 	var orders []exchange.OrderDetail
 	for _, order := range resp {
-		orderDate := time.Unix(int64(order.Timestamp), 0)
+		orderDate := time.Unix(order.Timestamp, 0)
 		orderType := exchange.OrderType(strings.ToUpper(order.OrderType))
 
 		orderDetail := exchange.OrderDetail{
@@ -391,7 +391,7 @@ func (a *ANX) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]exc
 
 	var orders []exchange.OrderDetail
 	for _, order := range resp {
-		orderDate := time.Unix(int64(order.Timestamp), 0)
+		orderDate := time.Unix(order.Timestamp, 0)
 		orderType := exchange.OrderType(strings.ToUpper(order.OrderType))
 
 		orderDetail := exchange.OrderDetail{

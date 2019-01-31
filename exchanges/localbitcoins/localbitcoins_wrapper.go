@@ -358,7 +358,7 @@ func (l *LocalBitcoins) GetOrderHistory(getOrdersRequest exchange.GetOrdersReque
 	allTrades = append(allTrades, resp...)
 
 	var orders []exchange.OrderDetail
-	for _, trade := range resp {
+	for _, trade := range allTrades {
 		orderDate, err := time.Parse(time.RFC3339, trade.Data.CreatedAt)
 		if err != nil {
 			log.Warnf("Exchange %v Func %v Order %v Could not parse date to unix with value of %v",

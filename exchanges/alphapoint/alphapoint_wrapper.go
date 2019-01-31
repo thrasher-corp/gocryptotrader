@@ -243,7 +243,7 @@ func (a *Alphapoint) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest)
 			}
 
 			orderDetail.OrderSide = orderSideMap[order.Side]
-			orderDetail.OrderDate = time.Unix(int64(order.ReceiveTime), 0)
+			orderDetail.OrderDate = time.Unix(order.ReceiveTime, 0)
 			orderDetail.OrderType = orderTypeMap[order.OrderType]
 			if orderDetail.OrderType == "" {
 				orderDetail.OrderType = exchange.UnknownOrderType
@@ -286,7 +286,7 @@ func (a *Alphapoint) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest)
 			}
 
 			orderDetail.OrderSide = orderSideMap[order.Side]
-			orderDetail.OrderDate = time.Unix(int64(order.ReceiveTime), 0)
+			orderDetail.OrderDate = time.Unix(order.ReceiveTime, 0)
 			orderDetail.OrderType = orderTypeMap[order.OrderType]
 			if orderDetail.OrderType == "" {
 				orderDetail.OrderType = exchange.UnknownOrderType

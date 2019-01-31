@@ -508,9 +508,9 @@ func (p *Poloniex) GetAuthenticatedTradeHistory(start, end, limit int64) (Authen
 	}
 
 	// If there are no orders, Poloniex returns an empty array
-	switch result.(type) {
+	switch r := result.(type) {
 	case AuthenticatedTradeHistoryAll:
-		return result.(AuthenticatedTradeHistoryAll), nil
+		return r, nil
 	default:
 		return AuthenticatedTradeHistoryAll{}, nil
 	}

@@ -383,9 +383,9 @@ func (g *Gemini) GetOrders() ([]Order, error) {
 	if err != nil {
 		return nil, err
 	}
-	switch response.(type) {
+	switch r := response.(type) {
 	case orders:
-		return response.(orders).orders, nil
+		return r.orders, nil
 	default:
 		return []Order{}, nil
 	}

@@ -1275,7 +1275,7 @@ func (o *OKEX) GetOrderInformation(orderID int64, symbol string) ([]OrderInfo, e
 		return nil, err
 	}
 
-	if result.Result != true {
+	if !result.Result {
 		return nil, errors.New("unable to retrieve order info")
 	}
 
