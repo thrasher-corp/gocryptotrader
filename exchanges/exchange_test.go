@@ -1059,11 +1059,11 @@ func TestFilterOrdersByCurrencies(t *testing.T) {
 
 func TestSortOrdersByPrice(t *testing.T) {
 	orders := []OrderDetail{
-		OrderDetail{
+		{
 			Price: 100,
-		}, OrderDetail{
+		}, {
 			Price: 0,
-		}, OrderDetail{
+		}, {
 			Price: 50,
 		},
 	}
@@ -1081,11 +1081,11 @@ func TestSortOrdersByPrice(t *testing.T) {
 
 func TestSortOrdersByDate(t *testing.T) {
 	orders := []OrderDetail{
-		OrderDetail{
+		{
 			OrderDate: time.Unix(0, 0),
-		}, OrderDetail{
+		}, {
 			OrderDate: time.Unix(1, 0),
-		}, OrderDetail{
+		}, {
 			OrderDate: time.Unix(2, 0),
 		},
 	}
@@ -1103,15 +1103,15 @@ func TestSortOrdersByDate(t *testing.T) {
 
 func TestSortOrdersByCurrency(t *testing.T) {
 	orders := []OrderDetail{
-		OrderDetail{
+		{
 			CurrencyPair: pair.NewCurrencyPairWithDelimiter(symbol.BTC, symbol.USD, "-"),
-		}, OrderDetail{
+		}, {
 			CurrencyPair: pair.NewCurrencyPairWithDelimiter(symbol.DOGE, symbol.USD, "-"),
-		}, OrderDetail{
+		}, {
 			CurrencyPair: pair.NewCurrencyPairWithDelimiter(symbol.BTC, symbol.RUB, "-"),
-		}, OrderDetail{
+		}, {
 			CurrencyPair: pair.NewCurrencyPairWithDelimiter(symbol.LTC, symbol.EUR, "-"),
-		}, OrderDetail{
+		}, {
 			CurrencyPair: pair.NewCurrencyPairWithDelimiter(symbol.LTC, symbol.AUD, "-"),
 		},
 	}
@@ -1129,13 +1129,13 @@ func TestSortOrdersByCurrency(t *testing.T) {
 
 func TestSortOrdersByOrderSide(t *testing.T) {
 	orders := []OrderDetail{
-		OrderDetail{
+		{
 			OrderSide: BuyOrderSide,
-		}, OrderDetail{
+		}, {
 			OrderSide: SellOrderSide,
-		}, OrderDetail{
+		}, {
 			OrderSide: SellOrderSide,
-		}, OrderDetail{
+		}, {
 			OrderSide: BuyOrderSide,
 		},
 	}
@@ -1155,13 +1155,13 @@ func TestSortOrdersByOrderSide(t *testing.T) {
 
 func TestSortOrdersByOrderType(t *testing.T) {
 	orders := []OrderDetail{
-		OrderDetail{
+		{
 			OrderType: MarketOrderType,
-		}, OrderDetail{
+		}, {
 			OrderType: LimitOrderType,
-		}, OrderDetail{
+		}, {
 			OrderType: ImmediateOrCancelOrderType,
-		}, OrderDetail{
+		}, {
 			OrderType: TrailingStopOrderType,
 		},
 	}
