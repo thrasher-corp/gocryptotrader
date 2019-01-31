@@ -1,4 +1,4 @@
-package okex
+package okgroup
 
 import "encoding/json"
 import "github.com/thrasher-/gocryptotrader/currency/symbol"

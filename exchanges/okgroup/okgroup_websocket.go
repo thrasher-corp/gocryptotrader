@@ -1,4 +1,4 @@
-package okex
+package okgroup
 
 import (
 	"bytes"
@@ -23,7 +23,7 @@ const (
 	okexDefaultWebsocketURL = "wss://real.okex.com:10440/websocket/okexapi"
 )
 
-func (o *OKEX) writeToWebsocket(message string) error {
+func (o *OKGroup) writeToWebsocket(message string) error {
 	o.mu.Lock()
 	defer o.mu.Unlock()
 
@@ -31,7 +31,7 @@ func (o *OKEX) writeToWebsocket(message string) error {
 }
 
 // WsConnect initiates a websocket connection
-func (o *OKEX) WsConnect() error {
+func (o *OKGroup) WsConnect() error {
 	if !o.Websocket.IsEnabled() || !o.IsEnabled() {
 		return errors.New(exchange.WebsocketNotEnabled)
 	}
@@ -69,7 +69,7 @@ func (o *OKEX) WsConnect() error {
 }
 
 // WsSubscribe subscribes to the websocket channels
-func (o *OKEX) WsSubscribe() error {
+func (o *OKGroup) WsSubscribe() error {
 	myEnabledSubscriptionChannels := []string{}
 
 	for _, pair := range o.EnabledPairs {
@@ -116,7 +116,7 @@ func (o *OKEX) WsSubscribe() error {
 }
 
 // WsReadData reads data from the websocket connection
-func (o *OKEX) WsReadData() (exchange.WebsocketResponse, error) {
+func (o *OKGroup) WsReadData() (exchange.WebsocketResponse, error) {
 	mType, resp, err := o.WebsocketConn.ReadMessage()
 	if err != nil {
 		return exchange.WebsocketResponse{}, err
@@ -142,7 +142,7 @@ func (o *OKEX) WsReadData() (exchange.WebsocketResponse, error) {
 	return exchange.WebsocketResponse{Raw: standardMessage}, nil
 }
 
-func (o *OKEX) wsPingHandler() {
+func (o *OKGroup) wsPingHandler() {
 	o.Websocket.Wg.Add(1)
 	defer o.Websocket.Wg.Done()
 
@@ -164,7 +164,7 @@ func (o *OKEX) wsPingHandler() {
 }
 
 // WsHandleData handles the read data from the websocket connection
-func (o *OKEX) WsHandleData() {
+func (o *OKGroup) WsHandleData() {
 	o.Websocket.Wg.Add(1)
 
 	defer func() {

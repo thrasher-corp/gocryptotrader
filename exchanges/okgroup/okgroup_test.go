@@ -1,4 +1,4 @@
-package okex
+package okgroup
 
 import (
 	"testing"
@@ -10,18 +10,17 @@ import (
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 )
 
-var o OKEX
-
 // Please supply you own test keys here for due diligence testing.
 const (
 	apiKey                  = ""
 	apiSecret               = ""
+	passphrase              = ""
 	canManipulateRealOrders = false
 )
 
 func TestSetDefaults(t *testing.T) {
-	o.SetDefaults()
-	if o.GetName() != "OKEX" {
+	Okex.SetDefaults()
+	if Okex.GetName() != "OKEX" {
 		t.Error("Test Failed - Bittrex - SetDefaults() error")
 	}
 }
@@ -29,7 +28,7 @@ func TestSetDefaults(t *testing.T) {
 func TestSetup(t *testing.T) {
 	cfg := config.GetConfig()
 	cfg.LoadConfig("../../testdata/configtest.json")
-	okexConfig, err := cfg.GetExchangeConfig("OKEX")
+	okexConfig, err := cfg.GetExchangeConfig(Okex.Name)
 	if err != nil {
 		t.Error("Test Failed - Okex Setup() init error")
 	}
@@ -37,13 +36,28 @@ func TestSetup(t *testing.T) {
 	okexConfig.AuthenticatedAPISupport = true
 	okexConfig.APIKey = apiKey
 	okexConfig.APISecret = apiSecret
-
-	o.Setup(okexConfig)
+	okexConfig.ClientID = passphrase
+	okexConfig.Verbose = true
+	Okex.Setup(okexConfig)
 }
 
 func TestGetSpotInstruments(t *testing.T) {
 	t.Parallel()
-	_, err := o.GetSpotInstruments()
+	Okex.SetDefaults()
+	TestSetup(t)
+
+	_, err := Okex.GetSpotInstruments()
+	if err != nil {
+		t.Errorf("Test failed - okex GetSpotInstruments() failed: %s", err)
+	}
+}
+
+func TestGetCurrencies(t *testing.T) {
+	t.Parallel()
+	Okex.SetDefaults()
+	TestSetup(t)
+
+	_, err := Okex.GetCurrencies()
 	if err != nil {
 		t.Errorf("Test failed - okex GetSpotInstruments() failed: %s", err)
 	}
@@ -51,15 +65,17 @@ func TestGetSpotInstruments(t *testing.T) {
 
 func TestGetContractPrice(t *testing.T) {
 	t.Parallel()
-	_, err := o.GetContractPrice("btc_usd", "this_week")
+	Okex.SetDefaults()
+	TestSetup(t)
+	_, err := Okex.GetContractPrice("btc_usd", "this_week")
 	if err != nil {
 		t.Error("Test failed - okex GetContractPrice() error", err)
 	}
-	_, err = o.GetContractPrice("btc_bla", "123525")
+	_, err = Okex.GetContractPrice("btc_bla", "123525")
 	if err == nil {
 		t.Error("Test failed - okex GetContractPrice() error", err)
 	}
-	_, err = o.GetContractPrice("btc_bla", "this_week")
+	_, err = Okex.GetContractPrice("btc_bla", "this_week")
 	if err == nil {
 		t.Error("Test failed - okex GetContractPrice() error", err)
 	}
@@ -67,15 +83,17 @@ func TestGetContractPrice(t *testing.T) {
 
 func TestGetContractMarketDepth(t *testing.T) {
 	t.Parallel()
-	_, err := o.GetContractMarketDepth("btc_usd", "this_week")
+	Okex.SetDefaults()
+	TestSetup(t)
+	_, err := Okex.GetContractMarketDepth("btc_usd", "this_week")
 	if err != nil {
 		t.Error("Test failed - okex GetContractMarketDepth() error", err)
 	}
-	_, err = o.GetContractMarketDepth("btc_bla", "123525")
+	_, err = Okex.GetContractMarketDepth("btc_bla", "123525")
 	if err == nil {
 		t.Error("Test failed - okex GetContractMarketDepth() error", err)
 	}
-	_, err = o.GetContractMarketDepth("btc_bla", "this_week")
+	_, err = Okex.GetContractMarketDepth("btc_bla", "this_week")
 	if err == nil {
 		t.Error("Test failed - okex GetContractMarketDepth() error", err)
 	}
@@ -83,15 +101,17 @@ func TestGetContractMarketDepth(t *testing.T) {
 
 func TestGetContractTradeHistory(t *testing.T) {
 	t.Parallel()
-	_, err := o.GetContractTradeHistory("btc_usd", "this_week")
+	Okex.SetDefaults()
+	TestSetup(t)
+	_, err := Okex.GetContractTradeHistory("btc_usd", "this_week")
 	if err != nil {
 		t.Error("Test failed - okex GetContractTradeHistory() error", err)
 	}
-	_, err = o.GetContractTradeHistory("btc_bla", "123525")
+	_, err = Okex.GetContractTradeHistory("btc_bla", "123525")
 	if err == nil {
 		t.Error("Test failed - okex GetContractTradeHistory() error", err)
 	}
-	_, err = o.GetContractTradeHistory("btc_bla", "this_week")
+	_, err = Okex.GetContractTradeHistory("btc_bla", "this_week")
 	if err == nil {
 		t.Error("Test failed - okex GetContractTradeHistory() error", err)
 	}
@@ -99,11 +119,13 @@ func TestGetContractTradeHistory(t *testing.T) {
 
 func TestGetContractIndexPrice(t *testing.T) {
 	t.Parallel()
-	_, err := o.GetContractIndexPrice("btc_usd")
+	Okex.SetDefaults()
+	TestSetup(t)
+	_, err := Okex.GetContractIndexPrice("btc_usd")
 	if err != nil {
 		t.Error("Test failed - okex GetContractIndexPrice() error", err)
 	}
-	_, err = o.GetContractIndexPrice("lol123")
+	_, err = Okex.GetContractIndexPrice("lol123")
 	if err == nil {
 		t.Error("Test failed - okex GetContractTradeHistory() error", err)
 	}
@@ -111,7 +133,9 @@ func TestGetContractIndexPrice(t *testing.T) {
 
 func TestGetContractExchangeRate(t *testing.T) {
 	t.Parallel()
-	_, err := o.GetContractExchangeRate()
+	Okex.SetDefaults()
+	TestSetup(t)
+	_, err := Okex.GetContractExchangeRate()
 	if err != nil {
 		t.Error("Test failed - okex GetContractExchangeRate() error", err)
 	}
@@ -119,19 +143,21 @@ func TestGetContractExchangeRate(t *testing.T) {
 
 func TestGetContractCandlestickData(t *testing.T) {
 	t.Parallel()
-	_, err := o.GetContractCandlestickData("btc_usd", "1min", "this_week", 1, 2)
+	Okex.SetDefaults()
+	TestSetup(t)
+	_, err := Okex.GetContractCandlestickData("btc_usd", "1min", "this_week", 1, 2)
 	if err != nil {
 		t.Error("Test failed - okex GetContractCandlestickData() error", err)
 	}
-	_, err = o.GetContractCandlestickData("btc_bla", "1min", "this_week", 1, 2)
+	_, err = Okex.GetContractCandlestickData("btc_bla", "1min", "this_week", 1, 2)
 	if err == nil {
 		t.Error("Test failed - okex GetContractCandlestickData() error", err)
 	}
-	_, err = o.GetContractCandlestickData("btc_usd", "min", "this_week", 1, 2)
+	_, err = Okex.GetContractCandlestickData("btc_usd", "min", "this_week", 1, 2)
 	if err == nil {
 		t.Error("Test failed - okex GetContractCandlestickData() error", err)
 	}
-	_, err = o.GetContractCandlestickData("btc_usd", "1min", "this_wok", 1, 2)
+	_, err = Okex.GetContractCandlestickData("btc_usd", "1min", "this_wok", 1, 2)
 	if err == nil {
 		t.Error("Test failed - okex GetContractCandlestickData() error", err)
 	}
@@ -139,15 +165,17 @@ func TestGetContractCandlestickData(t *testing.T) {
 
 func TestGetContractHoldingsNumber(t *testing.T) {
 	t.Parallel()
-	_, _, err := o.GetContractHoldingsNumber("btc_usd", "this_week")
+	Okex.SetDefaults()
+	TestSetup(t)
+	_, _, err := Okex.GetContractHoldingsNumber("btc_usd", "this_week")
 	if err != nil {
 		t.Error("Test failed - okex GetContractHoldingsNumber() error", err)
 	}
-	_, _, err = o.GetContractHoldingsNumber("btc_bla", "this_week")
+	_, _, err = Okex.GetContractHoldingsNumber("btc_bla", "this_week")
 	if err == nil {
 		t.Error("Test failed - okex GetContractHoldingsNumber() error", err)
 	}
-	_, _, err = o.GetContractHoldingsNumber("btc_usd", "this_bla")
+	_, _, err = Okex.GetContractHoldingsNumber("btc_usd", "this_bla")
 	if err == nil {
 		t.Error("Test failed - okex GetContractHoldingsNumber() error", err)
 	}
@@ -155,15 +183,17 @@ func TestGetContractHoldingsNumber(t *testing.T) {
 
 func TestGetContractlimit(t *testing.T) {
 	t.Parallel()
-	_, err := o.GetContractlimit("btc_usd", "this_week")
+	Okex.SetDefaults()
+	TestSetup(t)
+	_, err := Okex.GetContractlimit("btc_usd", "this_week")
 	if err != nil {
 		t.Error("Test failed - okex GetContractlimit() error", err)
 	}
-	_, err = o.GetContractlimit("btc_bla", "this_week")
+	_, err = Okex.GetContractlimit("btc_bla", "this_week")
 	if err == nil {
 		t.Error("Test failed - okex GetContractlimit() error", err)
 	}
-	_, err = o.GetContractlimit("btc_usd", "this_bla")
+	_, err = Okex.GetContractlimit("btc_usd", "this_bla")
 	if err == nil {
 		t.Error("Test failed - okex GetContractlimit() error", err)
 	}
@@ -171,7 +201,9 @@ func TestGetContractlimit(t *testing.T) {
 
 func TestGetContractUserInfo(t *testing.T) {
 	t.Parallel()
-	err := o.GetContractUserInfo()
+	Okex.SetDefaults()
+	TestSetup(t)
+	err := Okex.GetContractUserInfo()
 	if err == nil {
 		t.Error("Test failed - okex GetContractUserInfo() error", err)
 	}
@@ -179,7 +211,9 @@ func TestGetContractUserInfo(t *testing.T) {
 
 func TestGetContractPosition(t *testing.T) {
 	t.Parallel()
-	err := o.GetContractPosition("btc_usd", "this_week")
+	Okex.SetDefaults()
+	TestSetup(t)
+	err := Okex.GetContractPosition("btc_usd", "this_week")
 	if err == nil {
 		t.Error("Test failed - okex GetContractPosition() error", err)
 	}
@@ -187,7 +221,9 @@ func TestGetContractPosition(t *testing.T) {
 
 func TestPlaceContractOrders(t *testing.T) {
 	t.Parallel()
-	_, err := o.PlaceContractOrders("btc_usd", "this_week", "1", 10, 1, 1, true)
+	Okex.SetDefaults()
+	TestSetup(t)
+	_, err := Okex.PlaceContractOrders("btc_usd", "this_week", "1", 10, 1, 1, true)
 	if err == nil {
 		t.Error("Test failed - okex PlaceContractOrders() error", err)
 	}
@@ -195,7 +231,9 @@ func TestPlaceContractOrders(t *testing.T) {
 
 func TestGetContractFuturesTradeHistory(t *testing.T) {
 	t.Parallel()
-	err := o.GetContractFuturesTradeHistory("btc_usd", "1972-01-01", 0)
+	Okex.SetDefaults()
+	TestSetup(t)
+	err := Okex.GetContractFuturesTradeHistory("btc_usd", "1972-01-01", 0)
 	if err == nil {
 		t.Error("Test failed - okex GetContractTradeHistory() error", err)
 	}
@@ -203,7 +241,9 @@ func TestGetContractFuturesTradeHistory(t *testing.T) {
 
 func TestGetLatestSpotPrice(t *testing.T) {
 	t.Parallel()
-	_, err := o.GetLatestSpotPrice("ltc_btc")
+	Okex.SetDefaults()
+	TestSetup(t)
+	_, err := Okex.GetLatestSpotPrice("ltc_btc")
 	if err != nil {
 		t.Error("Test failed - okex GetLatestSpotPrice() error", err)
 	}
@@ -211,7 +251,9 @@ func TestGetLatestSpotPrice(t *testing.T) {
 
 func TestGetSpotTicker(t *testing.T) {
 	t.Parallel()
-	_, err := o.GetSpotTicker("ltc_btc")
+	Okex.SetDefaults()
+	TestSetup(t)
+	_, err := Okex.GetSpotTicker("ltc_btc")
 	if err != nil {
 		t.Error("Test failed - okex GetSpotTicker() error", err)
 	}
@@ -219,7 +261,9 @@ func TestGetSpotTicker(t *testing.T) {
 
 func TestGetSpotMarketDepth(t *testing.T) {
 	t.Parallel()
-	_, err := o.GetSpotMarketDepth(ActualSpotDepthRequestParams{
+	Okex.SetDefaults()
+	TestSetup(t)
+	_, err := Okex.GetSpotMarketDepth(ActualSpotDepthRequestParams{
 		Symbol: "eth_btc",
 		Size:   2,
 	})
@@ -230,7 +274,9 @@ func TestGetSpotMarketDepth(t *testing.T) {
 
 func TestGetSpotRecentTrades(t *testing.T) {
 	t.Parallel()
-	_, err := o.GetSpotRecentTrades(ActualSpotTradeHistoryRequestParams{
+	Okex.SetDefaults()
+	TestSetup(t)
+	_, err := Okex.GetSpotRecentTrades(ActualSpotTradeHistoryRequestParams{
 		Symbol: "ltc_btc",
 		Since:  0,
 	})
@@ -241,12 +287,14 @@ func TestGetSpotRecentTrades(t *testing.T) {
 
 func TestGetSpotKline(t *testing.T) {
 	t.Parallel()
+	Okex.SetDefaults()
+	TestSetup(t)
 	arg := KlinesRequestParams{
 		Symbol: "ltc_btc",
 		Type:   TimeIntervalFiveMinutes,
 		Size:   100,
 	}
-	_, err := o.GetSpotKline(arg)
+	_, err := Okex.GetSpotKline(arg)
 	if err != nil {
 		t.Error("Test failed - okex GetSpotCandleStick() error", err)
 	}
@@ -254,45 +302,48 @@ func TestGetSpotKline(t *testing.T) {
 
 func TestSpotNewOrder(t *testing.T) {
 	t.Parallel()
+	Okex.SetDefaults()
+	TestSetup(t)
 
-	if o.APIKey == "" || o.APISecret == "" {
-		t.Skip()
-	}
-
-	_, err := o.SpotNewOrder(SpotNewOrderRequestParams{
+	_, err := Okex.SpotNewOrder(SpotNewOrderRequestParams{
 		Symbol: "ltc_btc",
 		Amount: 1.1,
 		Price:  10.1,
 		Type:   SpotNewOrderRequestTypeBuy,
 	})
-	if err != nil {
-		t.Error("Test failed - okex SpotNewOrder() error", err)
+	if areTestAPIKeysSet() && err != nil {
+		t.Errorf("Expected no errors, recieved '%v'", err)
+	}
+	if !areTestAPIKeysSet() && err == nil {
+		t.Error("Expected an error when no keys are set")
 	}
 }
 
 func TestSpotCancelOrder(t *testing.T) {
 	t.Parallel()
+	Okex.SetDefaults()
+	TestSetup(t)
 
-	if o.APIKey == "" || o.APISecret == "" {
-		t.Skip()
+	_, err := Okex.SpotCancelOrder("ltc_btc", 519158961)
+	if areTestAPIKeysSet() && err != nil {
+		t.Errorf("Expected no errors, recieved '%v'", err)
 	}
-
-	_, err := o.SpotCancelOrder("ltc_btc", 519158961)
-	if err != nil {
-		t.Error("Test failed - okex SpotCancelOrder() error", err)
+	if !areTestAPIKeysSet() && err == nil {
+		t.Error("Expected an error when no keys are set")
 	}
 }
 
 func TestGetUserInfo(t *testing.T) {
 	t.Parallel()
+	Okex.SetDefaults()
+	TestSetup(t)
 
-	if o.APIKey == "" || o.APISecret == "" {
-		t.Skip()
+	_, err := Okex.GetUserInfo()
+	if areTestAPIKeysSet() && err != nil {
+		t.Errorf("Expected no errors, recieved '%v'", err)
 	}
-
-	_, err := o.GetUserInfo()
-	if err != nil {
-		t.Error("Test failed - okex GetUserInfo() error", err)
+	if !areTestAPIKeysSet() && err == nil {
+		t.Error("Expected an error when no keys are set")
 	}
 }
 
@@ -311,10 +362,10 @@ func setFeeBuilder() exchange.FeeBuilder {
 }
 
 func TestGetFee(t *testing.T) {
-	o.SetDefaults()
+	Okex.SetDefaults()
 	var feeBuilder = setFeeBuilder()
 	// CryptocurrencyTradeFee Basic
-	if resp, err := o.GetFee(feeBuilder); resp != float64(0.0015) || err != nil {
+	if resp, err := Okex.GetFee(feeBuilder); resp != float64(0.0015) || err != nil {
 		t.Error(err)
 		t.Errorf("Test Failed - GetFee() error. Expected: %f, Received: %f", float64(0.0015), resp)
 	}
@@ -323,7 +374,7 @@ func TestGetFee(t *testing.T) {
 	feeBuilder = setFeeBuilder()
 	feeBuilder.Amount = 1000
 	feeBuilder.PurchasePrice = 1000
-	if resp, err := o.GetFee(feeBuilder); resp != float64(1500) || err != nil {
+	if resp, err := Okex.GetFee(feeBuilder); resp != float64(1500) || err != nil {
 		t.Errorf("Test Failed - GetFee() error. Expected: %f, Received: %f", float64(1500), resp)
 		t.Error(err)
 	}
@@ -331,7 +382,7 @@ func TestGetFee(t *testing.T) {
 	// CryptocurrencyTradeFee IsMaker
 	feeBuilder = setFeeBuilder()
 	feeBuilder.IsMaker = true
-	if resp, err := o.GetFee(feeBuilder); resp != float64(0.001) || err != nil {
+	if resp, err := Okex.GetFee(feeBuilder); resp != float64(0.001) || err != nil {
 		t.Errorf("Test Failed - GetFee() error. Expected: %f, Received: %f", float64(0.001), resp)
 		t.Error(err)
 	}
@@ -339,14 +390,14 @@ func TestGetFee(t *testing.T) {
 	// CryptocurrencyTradeFee Negative purchase price
 	feeBuilder = setFeeBuilder()
 	feeBuilder.PurchasePrice = -1000
-	if resp, err := o.GetFee(feeBuilder); resp != float64(0) || err != nil {
+	if resp, err := Okex.GetFee(feeBuilder); resp != float64(0) || err != nil {
 		t.Errorf("Test Failed - GetFee() error. Expected: %f, Received: %f", float64(0), resp)
 		t.Error(err)
 	}
 	// CryptocurrencyWithdrawalFee Basic
 	feeBuilder = setFeeBuilder()
 	feeBuilder.FeeType = exchange.CryptocurrencyWithdrawalFee
-	if resp, err := o.GetFee(feeBuilder); resp != float64(0.001) || err != nil {
+	if resp, err := Okex.GetFee(feeBuilder); resp != float64(0.001) || err != nil {
 		t.Errorf("Test Failed - GetFee() error. Expected: %f, Received: %f", float64(0.001), resp)
 		t.Error(err)
 	}
@@ -355,7 +406,7 @@ func TestGetFee(t *testing.T) {
 	feeBuilder = setFeeBuilder()
 	feeBuilder.FirstCurrency = "hello"
 	feeBuilder.FeeType = exchange.CryptocurrencyWithdrawalFee
-	if resp, err := o.GetFee(feeBuilder); resp != float64(0) || err != nil {
+	if resp, err := Okex.GetFee(feeBuilder); resp != float64(0) || err != nil {
 		t.Errorf("Test Failed - GetFee() error. Expected: %f, Received: %f", float64(0), resp)
 		t.Error(err)
 	}
@@ -363,7 +414,7 @@ func TestGetFee(t *testing.T) {
 	// CyptocurrencyDepositFee Basic
 	feeBuilder = setFeeBuilder()
 	feeBuilder.FeeType = exchange.CyptocurrencyDepositFee
-	if resp, err := o.GetFee(feeBuilder); resp != float64(0) || err != nil {
+	if resp, err := Okex.GetFee(feeBuilder); resp != float64(0) || err != nil {
 		t.Errorf("Test Failed - GetFee() error. Expected: %f, Received: %f", float64(0), resp)
 		t.Error(err)
 	}
@@ -371,7 +422,7 @@ func TestGetFee(t *testing.T) {
 	// InternationalBankDepositFee Basic
 	feeBuilder = setFeeBuilder()
 	feeBuilder.FeeType = exchange.InternationalBankDepositFee
-	if resp, err := o.GetFee(feeBuilder); resp != float64(0) || err != nil {
+	if resp, err := Okex.GetFee(feeBuilder); resp != float64(0) || err != nil {
 		t.Errorf("Test Failed - GetFee() error. Expected: %f, Received: %f", float64(0), resp)
 		t.Error(err)
 	}
@@ -380,7 +431,7 @@ func TestGetFee(t *testing.T) {
 	feeBuilder = setFeeBuilder()
 	feeBuilder.FeeType = exchange.InternationalBankWithdrawalFee
 	feeBuilder.CurrencyItem = symbol.USD
-	if resp, err := o.GetFee(feeBuilder); resp != float64(0) || err != nil {
+	if resp, err := Okex.GetFee(feeBuilder); resp != float64(0) || err != nil {
 		t.Errorf("Test Failed - GetFee() error. Expected: %f, Received: %f", float64(0), resp)
 		t.Error(err)
 	}
@@ -388,10 +439,10 @@ func TestGetFee(t *testing.T) {
 
 func TestFormatWithdrawPermissions(t *testing.T) {
 	// Arrange
-	o.SetDefaults()
+	Okex.SetDefaults()
 	expectedResult := exchange.AutoWithdrawCryptoText + " & " + exchange.NoFiatWithdrawalsText
 	// Act
-	withdrawPermissions := o.FormatWithdrawPermissions()
+	withdrawPermissions := Okex.FormatWithdrawPermissions()
 	// Assert
 	if withdrawPermissions != expectedResult {
 		t.Errorf("Expected: %s, Received: %s", expectedResult, withdrawPermissions)
@@ -401,15 +452,15 @@ func TestFormatWithdrawPermissions(t *testing.T) {
 // Any tests below this line have the ability to impact your orders on the exchange. Enable canManipulateRealOrders to run them
 // ----------------------------------------------------------------------------------------------------------------------------
 func areTestAPIKeysSet() bool {
-	if o.APIKey != "" && o.APIKey != "Key" &&
-		o.APISecret != "" && o.APISecret != "Secret" {
+	if Okex.APIKey != "" && Okex.APIKey != "Key" &&
+		Okex.APISecret != "" && Okex.APISecret != "Secret" {
 		return true
 	}
 	return false
 }
 
 func TestSubmitOrder(t *testing.T) {
-	o.SetDefaults()
+	Okex.SetDefaults()
 	TestSetup(t)
 
 	if areTestAPIKeysSet() && !canManipulateRealOrders {
@@ -421,7 +472,7 @@ func TestSubmitOrder(t *testing.T) {
 		FirstCurrency:  symbol.BTC,
 		SecondCurrency: symbol.EUR,
 	}
-	response, err := o.SubmitOrder(p, exchange.Buy, exchange.Market, 1, 10, "hi")
+	response, err := Okex.SubmitOrder(p, exchange.Buy, exchange.Market, 1, 10, "hi")
 	if areTestAPIKeysSet() && (err != nil || !response.IsOrderPlaced) {
 		t.Errorf("Order failed to be placed: %v", err)
 	} else if !areTestAPIKeysSet() && err == nil {
@@ -431,7 +482,7 @@ func TestSubmitOrder(t *testing.T) {
 
 func TestCancelExchangeOrder(t *testing.T) {
 	// Arrange
-	o.SetDefaults()
+	Okex.SetDefaults()
 	TestSetup(t)
 
 	if areTestAPIKeysSet() && !canManipulateRealOrders {
@@ -448,11 +499,11 @@ func TestCancelExchangeOrder(t *testing.T) {
 	}
 
 	// Act
-	err := o.CancelOrder(orderCancellation)
+	err := Okex.CancelOrder(orderCancellation)
 
 	// Assert
 	if !areTestAPIKeysSet() && err == nil {
-		t.Errorf("Expecting an error when no keys are set: %v", err)
+		t.Error("Expecting an error when no keys are set")
 	}
 	if areTestAPIKeysSet() && err != nil {
 		t.Errorf("Could not cancel orders: %v", err)
@@ -461,7 +512,7 @@ func TestCancelExchangeOrder(t *testing.T) {
 
 func TestCancelAllExchangeOrders(t *testing.T) {
 	// Arrange
-	o.SetDefaults()
+	Okex.SetDefaults()
 	TestSetup(t)
 
 	if areTestAPIKeysSet() && !canManipulateRealOrders {
@@ -478,11 +529,11 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 	}
 
 	// Act
-	resp, err := o.CancelAllOrders(orderCancellation)
+	resp, err := Okex.CancelAllOrders(orderCancellation)
 
 	// Assert
 	if !areTestAPIKeysSet() && err == nil {
-		t.Errorf("Expecting an error when no keys are set: %v", err)
+		t.Error("Expecting an error when no keys are set")
 	}
 	if areTestAPIKeysSet() && err != nil {
 		t.Errorf("Could not cancel orders: %v", err)
@@ -494,28 +545,26 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 }
 
 func TestGetAccountInfo(t *testing.T) {
-	if apiKey != "" || apiSecret != "" {
-		_, err := o.GetAccountInfo()
-		if err != nil {
-			t.Error("Test Failed - GetAccountInfo() error", err)
-		}
-	} else {
-		_, err := o.GetAccountInfo()
-		if err == nil {
-			t.Error("Test Failed - GetAccountInfo() error")
-		}
+	_, err := Okex.GetAccountInfo()
+	if !areTestAPIKeysSet() && err == nil {
+		t.Error("Expecting an error when no keys are set")
+	}
+	if areTestAPIKeysSet() && err != nil {
+		t.Errorf("Could not cancel orders: %v", err)
 	}
 }
 
 func TestModifyOrder(t *testing.T) {
-	_, err := o.ModifyOrder(exchange.ModifyOrder{})
+	Okex.SetDefaults()
+	TestSetup(t)
+	_, err := Okex.ModifyOrder(exchange.ModifyOrder{})
 	if err == nil {
 		t.Error("Test failed - ModifyOrder() error")
 	}
 }
 
 func TestWithdraw(t *testing.T) {
-	o.SetDefaults()
+	Okex.SetDefaults()
 	TestSetup(t)
 	var withdrawCryptoRequest = exchange.WithdrawRequest{
 		Amount:        100,
@@ -530,9 +579,9 @@ func TestWithdraw(t *testing.T) {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 
-	_, err := o.WithdrawCryptocurrencyFunds(withdrawCryptoRequest)
+	_, err := Okex.WithdrawCryptocurrencyFunds(withdrawCryptoRequest)
 	if !areTestAPIKeysSet() && err == nil {
-		t.Errorf("Expecting an error when no keys are set: %v", err)
+		t.Error("Expecting an error when no keys are set")
 	}
 	if areTestAPIKeysSet() && err != nil {
 		t.Errorf("Withdraw failed to be placed: %v", err)
@@ -540,7 +589,7 @@ func TestWithdraw(t *testing.T) {
 }
 
 func TestWithdrawFiat(t *testing.T) {
-	o.SetDefaults()
+	Okex.SetDefaults()
 	TestSetup(t)
 
 	if areTestAPIKeysSet() && !canManipulateRealOrders {
@@ -549,14 +598,14 @@ func TestWithdrawFiat(t *testing.T) {
 
 	var withdrawFiatRequest = exchange.WithdrawRequest{}
 
-	_, err := o.WithdrawFiatFunds(withdrawFiatRequest)
+	_, err := Okex.WithdrawFiatFunds(withdrawFiatRequest)
 	if err != common.ErrFunctionNotSupported {
 		t.Errorf("Expected '%v', recieved: '%v'", common.ErrFunctionNotSupported, err)
 	}
 }
 
 func TestWithdrawInternationalBank(t *testing.T) {
-	o.SetDefaults()
+	Okex.SetDefaults()
 	TestSetup(t)
 
 	if areTestAPIKeysSet() && !canManipulateRealOrders {
@@ -565,7 +614,7 @@ func TestWithdrawInternationalBank(t *testing.T) {
 
 	var withdrawFiatRequest = exchange.WithdrawRequest{}
 
-	_, err := o.WithdrawFiatFundsToInternationalBank(withdrawFiatRequest)
+	_, err := Okex.WithdrawFiatFundsToInternationalBank(withdrawFiatRequest)
 	if err != common.ErrFunctionNotSupported {
 		t.Errorf("Expected '%v', recieved: '%v'", common.ErrFunctionNotSupported, err)
 	}

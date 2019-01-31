@@ -1,4 +1,4 @@
-package okex
+package okgroup
 
 import (
 	"errors"
@@ -15,7 +15,7 @@ import (
 )
 
 // Start starts the OKEX go routine
-func (o *OKEX) Start(wg *sync.WaitGroup) {
+func (o *OKGroup) Start(wg *sync.WaitGroup) {
 	wg.Add(1)
 	go func() {
 		o.Run()
@@ -24,7 +24,7 @@ func (o *OKEX) Start(wg *sync.WaitGroup) {
 }
 
 // Run implements the OKEX wrapper
-func (o *OKEX) Run() {
+func (o *OKGroup) Run() {
 	if o.Verbose {
 		log.Debugf("%s Websocket: %s. (url: %s).\n", o.GetName(), common.IsEnabled(o.Websocket.IsEnabled()), o.WebsocketURL)
 		log.Debugf("%s polling delay: %ds.\n", o.GetName(), o.RESTPollingDelay)
@@ -50,7 +50,7 @@ func (o *OKEX) Run() {
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
-func (o *OKEX) UpdateTicker(p pair.CurrencyPair, assetType string) (ticker.Price, error) {
+func (o *OKGroup) UpdateTicker(p pair.CurrencyPair, assetType string) (ticker.Price, error) {
 	currency := exchange.FormatExchangeCurrency(o.Name, p).String()
 	var tickerPrice ticker.Price
 
@@ -87,7 +87,7 @@ func (o *OKEX) UpdateTicker(p pair.CurrencyPair, assetType string) (ticker.Price
 }
 
 // GetTickerPrice returns the ticker for a currency pair
-func (o *OKEX) GetTickerPrice(p pair.CurrencyPair, assetType string) (ticker.Price, error) {
+func (o *OKGroup) GetTickerPrice(p pair.CurrencyPair, assetType string) (ticker.Price, error) {
 	tickerNew, err := ticker.GetTicker(o.GetName(), p, assetType)
 	if err != nil {
 		return o.UpdateTicker(p, assetType)
@@ -96,7 +96,7 @@ func (o *OKEX) GetTickerPrice(p pair.CurrencyPair, assetType string) (ticker.Pri
 }
 
 // GetOrderbookEx returns orderbook base on the currency pair
-func (o *OKEX) GetOrderbookEx(currency pair.CurrencyPair, assetType string) (orderbook.Base, error) {
+func (o *OKGroup) GetOrderbookEx(currency pair.CurrencyPair, assetType string) (orderbook.Base, error) {
 	ob, err := orderbook.GetOrderbook(o.GetName(), currency, assetType)
 	if err != nil {
 		return o.UpdateOrderbook(currency, assetType)
@@ -105,7 +105,7 @@ func (o *OKEX) GetOrderbookEx(currency pair.CurrencyPair, assetType string) (ord
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (o *OKEX) UpdateOrderbook(p pair.CurrencyPair, assetType string) (orderbook.Base, error) {
+func (o *OKGroup) UpdateOrderbook(p pair.CurrencyPair, assetType string) (orderbook.Base, error) {
 	var orderBook orderbook.Base
 	currency := exchange.FormatExchangeCurrency(o.Name, p).String()
 
@@ -151,7 +151,7 @@ func (o *OKEX) UpdateOrderbook(p pair.CurrencyPair, assetType string) (orderbook
 
 // GetAccountInfo retrieves balances for all enabled currencies for the
 // OKEX exchange
-func (o *OKEX) GetAccountInfo() (exchange.AccountInfo, error) {
+func (o *OKGroup) GetAccountInfo() (exchange.AccountInfo, error) {
 	var info exchange.AccountInfo
 	bal, err := o.GetBalance()
 	if err != nil {
@@ -177,20 +177,20 @@ func (o *OKEX) GetAccountInfo() (exchange.AccountInfo, error) {
 
 // GetFundingHistory returns funding history, deposits and
 // withdrawals
-func (o *OKEX) GetFundingHistory() ([]exchange.FundHistory, error) {
+func (o *OKGroup) GetFundingHistory() ([]exchange.FundHistory, error) {
 	var fundHistory []exchange.FundHistory
 	return fundHistory, common.ErrFunctionNotSupported
 }
 
 // GetExchangeHistory returns historic trade data since exchange opening.
-func (o *OKEX) GetExchangeHistory(p pair.CurrencyPair, assetType string) ([]exchange.TradeHistory, error) {
+func (o *OKGroup) GetExchangeHistory(p pair.CurrencyPair, assetType string) ([]exchange.TradeHistory, error) {
 	var resp []exchange.TradeHistory
 
 	return resp, common.ErrNotYetImplemented
 }
 
 // SubmitOrder submits a new order
-func (o *OKEX) SubmitOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (exchange.SubmitOrderResponse, error) {
+func (o *OKGroup) SubmitOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (exchange.SubmitOrderResponse, error) {
 	var submitOrderResponse exchange.SubmitOrderResponse
 	var oT SpotNewOrderRequestType
 
@@ -232,12 +232,12 @@ func (o *OKEX) SubmitOrder(p pair.CurrencyPair, side exchange.OrderSide, orderTy
 
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
-func (o *OKEX) ModifyOrder(action exchange.ModifyOrder) (string, error) {
+func (o *OKGroup) ModifyOrder(action exchange.ModifyOrder) (string, error) {
 	return "", common.ErrFunctionNotSupported
 }
 
 // CancelOrder cancels an order by its corresponding ID number
-func (o *OKEX) CancelOrder(order exchange.OrderCancellation) error {
+func (o *OKGroup) CancelOrder(order exchange.OrderCancellation) error {
 	orderIDInt, err := strconv.ParseInt(order.OrderID, 10, 64)
 	if err != nil {
 		return err
@@ -248,7 +248,7 @@ func (o *OKEX) CancelOrder(order exchange.OrderCancellation) error {
 }
 
 // CancelAllOrders cancels all orders for all enabled currencies
-func (o *OKEX) CancelAllOrders(orderCancellation exchange.OrderCancellation) (exchange.CancelAllOrdersResponse, error) {
+func (o *OKGroup) CancelAllOrders(orderCancellation exchange.OrderCancellation) (exchange.CancelAllOrdersResponse, error) {
 	cancelAllOrdersResponse := exchange.CancelAllOrdersResponse{
 		OrderStatus: make(map[string]string),
 	}
@@ -280,47 +280,47 @@ func (o *OKEX) CancelAllOrders(orderCancellation exchange.OrderCancellation) (ex
 }
 
 // GetOrderInfo returns information on a current open order
-func (o *OKEX) GetOrderInfo(orderID int64) (exchange.OrderDetail, error) {
+func (o *OKGroup) GetOrderInfo(orderID int64) (exchange.OrderDetail, error) {
 	var orderDetail exchange.OrderDetail
 	return orderDetail, common.ErrNotYetImplemented
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
-func (o *OKEX) GetDepositAddress(cryptocurrency pair.CurrencyItem, accountID string) (string, error) {
+func (o *OKGroup) GetDepositAddress(cryptocurrency pair.CurrencyItem, accountID string) (string, error) {
 	// NOTE needs API version update to access
 	return "", common.ErrNotYetImplemented
 }
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
 // submitted
-func (o *OKEX) WithdrawCryptocurrencyFunds(withdrawRequest exchange.WithdrawRequest) (string, error) {
+func (o *OKGroup) WithdrawCryptocurrencyFunds(withdrawRequest exchange.WithdrawRequest) (string, error) {
 	resp, err := o.Withdrawal(withdrawRequest.Currency.String(), withdrawRequest.FeeAmount, withdrawRequest.TradePassword, withdrawRequest.Address, withdrawRequest.Amount)
 	return fmt.Sprintf("%v", resp), err
 }
 
 // WithdrawFiatFunds returns a withdrawal ID when a
 // withdrawal is submitted
-func (o *OKEX) WithdrawFiatFunds(withdrawRequest exchange.WithdrawRequest) (string, error) {
+func (o *OKGroup) WithdrawFiatFunds(withdrawRequest exchange.WithdrawRequest) (string, error) {
 	return "", common.ErrFunctionNotSupported
 }
 
 // WithdrawFiatFundsToInternationalBank returns a withdrawal ID when a
 // withdrawal is submitted
-func (o *OKEX) WithdrawFiatFundsToInternationalBank(withdrawRequest exchange.WithdrawRequest) (string, error) {
+func (o *OKGroup) WithdrawFiatFundsToInternationalBank(withdrawRequest exchange.WithdrawRequest) (string, error) {
 	return "", common.ErrFunctionNotSupported
 }
 
 // GetWebsocket returns a pointer to the exchange websocket
-func (o *OKEX) GetWebsocket() (*exchange.Websocket, error) {
+func (o *OKGroup) GetWebsocket() (*exchange.Websocket, error) {
 	return o.Websocket, nil
 }
 
 // GetFeeByType returns an estimate of fee based on type of transaction
-func (o *OKEX) GetFeeByType(feeBuilder exchange.FeeBuilder) (float64, error) {
+func (o *OKGroup) GetFeeByType(feeBuilder exchange.FeeBuilder) (float64, error) {
 	return o.GetFee(feeBuilder)
 }
 
 // GetWithdrawCapabilities returns the types of withdrawal methods permitted by the exchange
-func (o *OKEX) GetWithdrawCapabilities() uint32 {
+func (o *OKGroup) GetWithdrawCapabilities() uint32 {
 	return o.GetWithdrawPermissions()
 }
