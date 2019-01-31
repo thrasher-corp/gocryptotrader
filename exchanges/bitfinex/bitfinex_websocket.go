@@ -135,7 +135,8 @@ func (b *Bitfinex) WsConnect() error {
 	var err error
 
 	if b.Websocket.GetProxyAddress() != "" {
-		proxy, err := url.Parse(b.Websocket.GetProxyAddress())
+		var proxy *url.URL
+		proxy, err = url.Parse(b.Websocket.GetProxyAddress())
 		if err != nil {
 			return err
 		}
@@ -171,7 +172,7 @@ func (b *Bitfinex) WsConnect() error {
 				params["prec"] = "P0"
 			}
 			params["pair"] = y
-			err := b.WsSubscribe(x, params)
+			err = b.WsSubscribe(x, params)
 			if err != nil {
 				return err
 			}

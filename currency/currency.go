@@ -169,7 +169,8 @@ func ConvertCurrency(amount float64, from, to string) (float64, error) {
 
 	// check to see if we're converting from the base currency
 	if to == baseCurr {
-		resultFrom, ok := FXRates[baseCurr+from]
+		var ok bool
+		resultFrom, ok = FXRates[baseCurr+from]
 		if !ok {
 			return 0, fmt.Errorf("Currency conversion failed. Unable to find %s in currency map [%s -> %s]", from, from, to)
 		}
@@ -178,7 +179,8 @@ func ConvertCurrency(amount float64, from, to string) (float64, error) {
 
 	// Check to see if we're converting from the base currency
 	if from == baseCurr {
-		resultTo, ok := FXRates[baseCurr+to]
+		var ok bool
+		resultTo, ok = FXRates[baseCurr+to]
 		if !ok {
 			return 0, fmt.Errorf("Currency conversion failed. Unable to find %s in currency map [%s -> %s]", to, from, to)
 		}

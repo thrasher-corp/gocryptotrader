@@ -274,7 +274,7 @@ func TestSubmitOrder(t *testing.T) {
 	}
 	_, err := b.SubmitOrder(p, exchange.Buy, exchange.Market, 1, 1, "clientId")
 	if err != common.ErrNotYetImplemented {
-		t.Errorf("Expected 'Not Yet Implemented', recieved %v", err)
+		t.Errorf("Expected 'Not Yet Implemented', received %v", err)
 	}
 }
 
@@ -299,7 +299,7 @@ func TestCancelExchangeOrder(t *testing.T) {
 	err := b.CancelOrder(orderCancellation)
 	// Assert
 	if err != common.ErrNotYetImplemented {
-		t.Errorf("Expected 'Not Yet Implemented', recieved %v", err)
+		t.Errorf("Expected 'Not Yet Implemented', received %v", err)
 	}
 }
 
@@ -324,7 +324,7 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 	_, err := b.CancelAllOrders(orderCancellation)
 	// Assert
 	if err != common.ErrNotYetImplemented {
-		t.Errorf("Expected 'Not Yet Implemented', recieved %v", err)
+		t.Errorf("Expected 'Not Yet Implemented', received %v", err)
 	}
 }
 
@@ -344,7 +344,7 @@ func TestWithdraw(t *testing.T) {
 
 	_, err := b.WithdrawCryptocurrencyFunds(withdrawCryptoRequest)
 	if err != common.ErrNotYetImplemented {
-		t.Errorf("Expected 'Not Yet Implemented', recieved %v", err)
+		t.Errorf("Expected 'Not Yet Implemented', received %v", err)
 	}
 }
 
@@ -367,7 +367,7 @@ func TestWithdrawFiat(t *testing.T) {
 
 	_, err := b.WithdrawFiatFunds(withdrawFiatRequest)
 	if err != common.ErrNotYetImplemented {
-		t.Errorf("Expected '%v', recieved: '%v'", common.ErrNotYetImplemented, err)
+		t.Errorf("Expected '%v', received: '%v'", common.ErrNotYetImplemented, err)
 	}
 }
 
@@ -383,6 +383,6 @@ func TestWithdrawInternationalBank(t *testing.T) {
 
 	_, err := b.WithdrawFiatFundsToInternationalBank(withdrawFiatRequest)
 	if err != common.ErrNotYetImplemented {
-		t.Errorf("Expected '%v', recieved: '%v'", common.ErrNotYetImplemented, err)
+		t.Errorf("Expected '%v', received: '%v'", common.ErrNotYetImplemented, err)
 	}
 }

@@ -561,17 +561,11 @@ func (w *WebsocketOrderbookLocal) UpdateUsingID(bidTargets, askTargets []orderbo
 		}
 
 	case "insert":
-		for _, target := range bidTargets {
-			orderbookAddress.Bids = append(orderbookAddress.Bids, target)
-		}
-
-		for _, target := range askTargets {
-			orderbookAddress.Asks = append(orderbookAddress.Asks, target)
-		}
+		orderbookAddress.Bids = append(orderbookAddress.Bids, bidTargets...)
+		orderbookAddress.Asks = append(orderbookAddress.Asks, askTargets...)
 	}
 
 	orderbook.ProcessOrderbook(exchName, p, *orderbookAddress, assetType)
-
 	return nil
 }
 
@@ -655,10 +649,7 @@ func (w *Websocket) GetFunctionality() uint32 {
 
 // SupportsFunctionality returns if the functionality is supported as a boolean
 func (w *Websocket) SupportsFunctionality(f uint32) bool {
-	if w.GetFunctionality()&f == f {
-		return true
-	}
-	return false
+	return w.GetFunctionality()&f == f
 }
 
 // FormatFunctionality will return each of the websocket connection compatible

@@ -386,7 +386,7 @@ func (b *Bitflyer) SendHTTPRequest(path string, result interface{}) error {
 func (b *Bitflyer) SendAuthHTTPRequest(path string, params url.Values, result interface{}) {
 	headers := make(map[string]string)
 	headers["ACCESS-KEY"] = b.APIKey
-	headers["ACCESS-TIMESTAMP"] = strconv.FormatInt(int64(time.Now().UnixNano()), 10)
+	headers["ACCESS-TIMESTAMP"] = strconv.FormatInt(time.Now().UnixNano(), 10)
 }
 
 // GetFee returns an estimate of fee based on type of transaction
@@ -398,7 +398,7 @@ func (b *Bitflyer) GetFee(feeBuilder exchange.FeeBuilder) (float64, error) {
 	case exchange.CryptocurrencyTradeFee:
 		fee = calculateTradingFee(feeBuilder.PurchasePrice, feeBuilder.Amount)
 	case exchange.InternationalBankDepositFee:
-		fee = getDepositFee(feeBuilder.BankTransactionType, feeBuilder.CurrencyItem, feeBuilder.Amount)
+		fee = getDepositFee(feeBuilder.BankTransactionType, feeBuilder.CurrencyItem)
 	case exchange.InternationalBankWithdrawalFee:
 		fee = getWithdrawalFee(feeBuilder.BankTransactionType, feeBuilder.CurrencyItem, feeBuilder.Amount)
 	}
@@ -415,7 +415,7 @@ func calculateTradingFee(purchasePrice float64, amount float64) float64 {
 	return fee * amount * purchasePrice
 }
 
-func getDepositFee(bankTransactionType exchange.InternationalBankTransactionType, currency string, amount float64) (fee float64) {
+func getDepositFee(bankTransactionType exchange.InternationalBankTransactionType, currency string) (fee float64) {
 	switch bankTransactionType {
 	case exchange.WireTransfer:
 		switch currency {

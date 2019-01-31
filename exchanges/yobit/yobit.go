@@ -366,7 +366,7 @@ func (y *Yobit) GetFee(feeBuilder exchange.FeeBuilder) (float64, error) {
 	case exchange.CryptocurrencyWithdrawalFee:
 		fee = getWithdrawalFee(feeBuilder.FirstCurrency)
 	case exchange.InternationalBankDepositFee:
-		fee = getInternationalBankDepositFee(feeBuilder.CurrencyItem, feeBuilder.Amount, feeBuilder.BankTransactionType)
+		fee = getInternationalBankDepositFee(feeBuilder.CurrencyItem, feeBuilder.BankTransactionType)
 	case exchange.InternationalBankWithdrawalFee:
 		fee = getInternationalBankWithdrawalFee(feeBuilder.CurrencyItem, feeBuilder.Amount, feeBuilder.BankTransactionType)
 	}
@@ -425,7 +425,7 @@ func getInternationalBankWithdrawalFee(currency string, amount float64, bankTran
 }
 
 // getInternationalBankDepositFee; No real fees for yobit deposits, but want to be explicit on what each payment type supports
-func getInternationalBankDepositFee(currency string, amount float64, bankTransactionType exchange.InternationalBankTransactionType) float64 {
+func getInternationalBankDepositFee(currency string, bankTransactionType exchange.InternationalBankTransactionType) float64 {
 	var fee float64
 	switch bankTransactionType {
 	case exchange.PerfectMoney:

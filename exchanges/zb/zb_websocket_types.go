@@ -2,7 +2,7 @@ package zb
 
 import "encoding/json"
 
-// Subscription defines an intial subscription type to be sent
+// Subscription defines an initial subscription type to be sent
 type Subscription struct {
 	Event   string `json:"event"`
 	Channel string `json:"channel"`

@@ -382,9 +382,9 @@ func WebsocketDataHandler(ws *exchange.Websocket, verbose bool) {
 			return
 
 		case data := <-ws.DataHandler:
-			switch data.(type) {
+			switch d := data.(type) {
 			case string:
-				switch data.(string) {
+				switch d {
 				case exchange.WebsocketNotEnabled:
 					if verbose {
 						log.Warnf("routines.go warning - exchange %s weboscket not enabled",
@@ -392,12 +392,12 @@ func WebsocketDataHandler(ws *exchange.Websocket, verbose bool) {
 					}
 
 				default:
-					log.Infof(data.(string))
+					log.Infof(d)
 				}
 
 			case error:
 				switch {
-				case common.StringContains(data.(error).Error(), "close 1006"):
+				case common.StringContains(d.Error(), "close 1006"):
 					go WebsocketReconnect(ws, verbose)
 					continue
 				default:
@@ -407,27 +407,27 @@ func WebsocketDataHandler(ws *exchange.Websocket, verbose bool) {
 			case exchange.TradeData:
 				// Trade Data
 				if verbose {
-					log.Infoln("Websocket trades Updated:   ", data.(exchange.TradeData))
+					log.Infoln("Websocket trades Updated:   ", d)
 				}
 
 			case exchange.TickerData:
 				// Ticker data
 				if verbose {
-					log.Infoln("Websocket Ticker Updated:   ", data.(exchange.TickerData))
+					log.Infoln("Websocket Ticker Updated:   ", d)
 				}
 			case exchange.KlineData:
 				// Kline data
 				if verbose {
-					log.Infoln("Websocket Kline Updated:    ", data.(exchange.KlineData))
+					log.Infoln("Websocket Kline Updated:    ", d)
 				}
 			case exchange.WebsocketOrderbookUpdate:
 				// Orderbook data
 				if verbose {
-					log.Infoln("Websocket Orderbook Updated:", data.(exchange.WebsocketOrderbookUpdate))
+					log.Infoln("Websocket Orderbook Updated:", d)
 				}
 			default:
 				if verbose {
-					log.Warnf("Websocket Unknown type:     %s", data)
+					log.Warnf("Websocket Unknown type:     %s", d)
 				}
 			}
 		}

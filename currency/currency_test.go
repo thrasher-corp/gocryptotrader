@@ -34,7 +34,10 @@ func TestSeedCurrencyData(t *testing.T) {
 }
 
 func TestGetExchangeRates(t *testing.T) {
-	result := GetExchangeRates()
+	result := make(map[string]float64)
+	for k, v := range GetExchangeRates() {
+		result[k] = v
+	}
 	backup := FXRates
 
 	FXRates = nil

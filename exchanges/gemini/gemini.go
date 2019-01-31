@@ -496,10 +496,8 @@ func (g *Gemini) SendAuthenticatedHTTPRequest(method, path string, params map[st
 	request["request"] = fmt.Sprintf("/v%s/%s", geminiAPIVersion, path)
 	request["nonce"] = g.Nonce.GetValue(g.Name, false)
 
-	if params != nil {
-		for key, value := range params {
-			request[key] = value
-		}
+	for key, value := range params {
+		request[key] = value
 	}
 
 	PayloadJSON, err := common.JSONEncode(request)

@@ -239,15 +239,15 @@ func (c *COINUT) SubmitOrder(p pair.CurrencyPair, side exchange.OrderSide, order
 		return submitOrderResponse, errors.New("unsupported order type")
 	}
 
-	switch APIresponse.(type) {
+	switch apiResp := APIresponse.(type) {
 	case OrdersBase:
-		orderResult := APIresponse.(OrdersBase)
+		orderResult := apiResp
 		submitOrderResponse.OrderID = fmt.Sprintf("%v", orderResult.OrderID)
 	case OrderFilledResponse:
-		orderResult := APIresponse.(OrderFilledResponse)
+		orderResult := apiResp
 		submitOrderResponse.OrderID = fmt.Sprintf("%v", orderResult.Order.OrderID)
 	case OrderRejectResponse:
-		orderResult := APIresponse.(OrderRejectResponse)
+		orderResult := apiResp
 		submitOrderResponse.OrderID = fmt.Sprintf("%v", orderResult.OrderID)
 		err = fmt.Errorf("OrderID: %v was rejected: %v", orderResult.OrderID, orderResult.Reasons)
 	}
@@ -310,9 +310,7 @@ func (c *COINUT) CancelAllOrders(orderCancellation exchange.OrderCancellation) (
 				return cancelAllOrdersResponse, err
 			}
 
-			for _, openOrder := range openOrders.Orders {
-				allTheOrders = append(allTheOrders, openOrder)
-			}
+			allTheOrders = append(allTheOrders, openOrders.Orders...)
 		}
 	}
 

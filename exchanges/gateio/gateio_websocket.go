@@ -156,7 +156,7 @@ func (g *Gateio) WsHandleData() {
 			case common.StringContains(result.Method, "ticker"):
 				var ticker WebsocketTicker
 				var c string
-				err := common.JSONDecode(result.Params[1], &ticker)
+				err = common.JSONDecode(result.Params[1], &ticker)
 				if err != nil {
 					g.Websocket.DataHandler <- err
 					continue
@@ -183,7 +183,7 @@ func (g *Gateio) WsHandleData() {
 			case common.StringContains(result.Method, "trades"):
 				var trades []WebsocketTrade
 				var c string
-				err := common.JSONDecode(result.Params[1], &trades)
+				err = common.JSONDecode(result.Params[1], &trades)
 				if err != nil {
 					g.Websocket.DataHandler <- err
 					continue

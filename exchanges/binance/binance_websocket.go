@@ -15,6 +15,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/currency/pair"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
 )
 
 const (
@@ -60,7 +61,7 @@ func (b *Binance) SeedLocalCache(p pair.CurrencyPair) error {
 	newOrderBook.Pair = pair.NewCurrencyPairFromString(formattedPair.String())
 	newOrderBook.CurrencyPair = formattedPair.String()
 	newOrderBook.LastUpdated = time.Now()
-	newOrderBook.AssetType = "SPOT"
+	newOrderBook.AssetType = ticker.Spot
 
 	return b.Websocket.Orderbook.LoadSnapshot(newOrderBook, b.GetName(), false)
 }
@@ -155,17 +156,18 @@ func (b *Binance) WSConnect() error {
 		depth
 
 	if b.Websocket.GetProxyAddress() != "" {
-		url, err := url.Parse(b.Websocket.GetProxyAddress())
+		var u *url.URL
+		u, err = url.Parse(b.Websocket.GetProxyAddress())
 		if err != nil {
 			return fmt.Errorf("binance_websocket.go - Unable to connect to parse proxy address. Error: %s",
 				err)
 		}
 
-		Dialer.Proxy = http.ProxyURL(url)
+		Dialer.Proxy = http.ProxyURL(u)
 	}
 
 	for _, ePair := range b.GetEnabledCurrencies() {
-		err := b.SeedLocalCache(ePair)
+		err = b.SeedLocalCache(ePair)
 		if err != nil {
 			return err
 		}
@@ -264,9 +266,9 @@ func (b *Binance) WsHandleData() {
 					continue
 
 				} else if strings.Contains(multiStreamData.Stream, "ticker") {
-					ticker := TickerStream{}
+					t := TickerStream{}
 
-					err := common.JSONDecode(multiStreamData.Data, &ticker)
+					err := common.JSONDecode(multiStreamData.Data, &t)
 					if err != nil {
 						b.Websocket.DataHandler <- fmt.Errorf("binance_websocket.go - Could not convert to a TickerStream structure %s",
 							err.Error())
@@ -275,15 +277,15 @@ func (b *Binance) WsHandleData() {
 
 					var wsTicker exchange.TickerData
 
-					wsTicker.Timestamp = time.Unix(0, ticker.EventTime)
-					wsTicker.Pair = pair.NewCurrencyPairFromString(ticker.Symbol)
-					wsTicker.AssetType = "SPOT"
+					wsTicker.Timestamp = time.Unix(0, t.EventTime)
+					wsTicker.Pair = pair.NewCurrencyPairFromString(t.Symbol)
+					wsTicker.AssetType = ticker.Spot
 					wsTicker.Exchange = b.GetName()
-					wsTicker.ClosePrice, _ = strconv.ParseFloat(ticker.CurrDayClose, 64)
-					wsTicker.Quantity, _ = strconv.ParseFloat(ticker.TotalTradedVolume, 64)
-					wsTicker.OpenPrice, _ = strconv.ParseFloat(ticker.OpenPrice, 64)
-					wsTicker.HighPrice, _ = strconv.ParseFloat(ticker.HighPrice, 64)
-					wsTicker.LowPrice, _ = strconv.ParseFloat(ticker.LowPrice, 64)
+					wsTicker.ClosePrice, _ = strconv.ParseFloat(t.CurrDayClose, 64)
+					wsTicker.Quantity, _ = strconv.ParseFloat(t.TotalTradedVolume, 64)
+					wsTicker.OpenPrice, _ = strconv.ParseFloat(t.OpenPrice, 64)
+					wsTicker.HighPrice, _ = strconv.ParseFloat(t.HighPrice, 64)
+					wsTicker.LowPrice, _ = strconv.ParseFloat(t.LowPrice, 64)
 
 					b.Websocket.DataHandler <- wsTicker
 					continue
@@ -302,7 +304,7 @@ func (b *Binance) WsHandleData() {
 
 					wsKline.Timestamp = time.Unix(0, kline.EventTime)
 					wsKline.Pair = pair.NewCurrencyPairFromString(kline.Symbol)
-					wsKline.AssetType = "SPOT"
+					wsKline.AssetType = ticker.Spot
 					wsKline.Exchange = b.GetName()
 					wsKline.StartTime = time.Unix(0, kline.Kline.StartTime)
 					wsKline.CloseTime = time.Unix(0, kline.Kline.CloseTime)

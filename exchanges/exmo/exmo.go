@@ -277,11 +277,11 @@ func (e *EXMO) GetCryptoDepositAddress() (map[string]string, error) {
 		return nil, err
 	}
 
-	switch result.(type) {
+	switch r := result.(type) {
 	case map[string]interface{}:
 		mapString := make(map[string]string)
 
-		for key, value := range result.(map[string]interface{}) {
+		for key, value := range r {
 			strValue := fmt.Sprintf("%v", value)
 			mapString[key] = strValue
 		}

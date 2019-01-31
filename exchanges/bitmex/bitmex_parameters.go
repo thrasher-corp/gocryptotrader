@@ -110,10 +110,7 @@ func (p APIKeyParams) ToURLVals(path string) (string, error) {
 
 // IsNil checks to see if any values has been set for the paramater
 func (p APIKeyParams) IsNil() bool {
-	if p == (APIKeyParams{}) {
-		return true
-	}
-	return false
+	return p == (APIKeyParams{})
 }
 
 // ChatGetParams contains all the parameters to send to the API endpoint
@@ -148,10 +145,7 @@ func (p ChatGetParams) ToURLVals(path string) (string, error) {
 
 // IsNil checks to see if any values has been set for the paramater
 func (p ChatGetParams) IsNil() bool {
-	if p == (ChatGetParams{}) {
-		return true
-	}
-	return false
+	return p == (ChatGetParams{})
 }
 
 // ChatSendParams contains all the parameters to send to the API endpoint
@@ -179,10 +173,7 @@ func (p ChatSendParams) ToURLVals(path string) (string, error) {
 
 // IsNil checks to see if any values has been set for the paramater
 func (p ChatSendParams) IsNil() bool {
-	if p == (ChatSendParams{}) {
-		return true
-	}
-	return false
+	return p == (ChatSendParams{})
 }
 
 // GenericRequestParams contains all the parameters for some general functions
@@ -239,10 +230,7 @@ func (p GenericRequestParams) ToURLVals(path string) (string, error) {
 
 // IsNil checks to see if any values has been set for the paramater
 func (p GenericRequestParams) IsNil() bool {
-	if p == (GenericRequestParams{}) {
-		return true
-	}
-	return false
+	return p == (GenericRequestParams{})
 }
 
 // LeaderboardGetParams contains all the parameters to send to the API endpoint
@@ -264,10 +252,7 @@ func (p LeaderboardGetParams) ToURLVals(path string) (string, error) {
 
 // IsNil checks to see if any values has been set for the paramater
 func (p LeaderboardGetParams) IsNil() bool {
-	if p == (LeaderboardGetParams{}) {
-		return true
-	}
-	return false
+	return p == (LeaderboardGetParams{})
 }
 
 // OrderNewParams contains all the parameters to send to the API endpoint
@@ -359,10 +344,7 @@ func (p OrderNewParams) ToURLVals(path string) (string, error) {
 
 // IsNil checks to see if any values has been set for the paramater
 func (p OrderNewParams) IsNil() bool {
-	if p == (OrderNewParams{}) {
-		return true
-	}
-	return false
+	return p == (OrderNewParams{})
 }
 
 // OrderAmendParams contains all the parameters to send to the API endpoint
@@ -427,10 +409,7 @@ func (p OrderAmendParams) ToURLVals(path string) (string, error) {
 
 // IsNil checks to see if any values has been set for the paramater
 func (p OrderAmendParams) IsNil() bool {
-	if p == (OrderAmendParams{}) {
-		return true
-	}
-	return false
+	return p == (OrderAmendParams{})
 }
 
 // OrderCancelParams contains all the parameters to send to the API endpoint
@@ -458,10 +437,7 @@ func (p OrderCancelParams) ToURLVals(path string) (string, error) {
 
 // IsNil checks to see if any values has been set for the paramater
 func (p OrderCancelParams) IsNil() bool {
-	if p == (OrderCancelParams{}) {
-		return true
-	}
-	return false
+	return p == (OrderCancelParams{})
 }
 
 // OrderCancelAllParams contains all the parameters to send to the API endpoint
@@ -492,10 +468,7 @@ func (p OrderCancelAllParams) ToURLVals(path string) (string, error) {
 
 // IsNil checks to see if any values has been set for the paramater
 func (p OrderCancelAllParams) IsNil() bool {
-	if p == (OrderCancelAllParams{}) {
-		return true
-	}
-	return false
+	return p == (OrderCancelAllParams{})
 }
 
 // OrderAmendBulkParams contains all the parameters to send to the API endpoint
@@ -517,10 +490,7 @@ func (p OrderAmendBulkParams) ToURLVals(path string) (string, error) {
 
 // IsNil checks to see if any values has been set for the paramater
 func (p OrderAmendBulkParams) IsNil() bool {
-	if len(p.Orders) == 0 {
-		return true
-	}
-	return false
+	return len(p.Orders) == 0
 }
 
 // OrderNewBulkParams contains all the parameters to send to the API endpoint
@@ -542,10 +512,7 @@ func (p OrderNewBulkParams) ToURLVals(path string) (string, error) {
 
 // IsNil checks to see if any values has been set for the paramater
 func (p OrderNewBulkParams) IsNil() bool {
-	if len(p.Orders) == 0 {
-		return true
-	}
-	return false
+	return len(p.Orders) == 0
 }
 
 // OrderCancelAllAfterParams contains all the parameters to send to the API
@@ -568,10 +535,7 @@ func (p OrderCancelAllAfterParams) ToURLVals(path string) (string, error) {
 
 // IsNil checks to see if any values has been set for the paramater
 func (p OrderCancelAllAfterParams) IsNil() bool {
-	if p == (OrderCancelAllAfterParams{}) {
-		return true
-	}
-	return false
+	return p == (OrderCancelAllAfterParams{})
 }
 
 // OrderClosePositionParams contains all the parameters to send to the API
@@ -597,10 +561,7 @@ func (p OrderClosePositionParams) ToURLVals(path string) (string, error) {
 
 // IsNil checks to see if any values has been set for the paramater
 func (p OrderClosePositionParams) IsNil() bool {
-	if p == (OrderClosePositionParams{}) {
-		return true
-	}
-	return false
+	return p == (OrderClosePositionParams{})
 }
 
 // OrderBookGetL2Params contains all the parameters to send to the API endpoint
@@ -630,10 +591,7 @@ func (p OrderBookGetL2Params) ToURLVals(path string) (string, error) {
 
 // IsNil checks to see if any values has been set for the paramater
 func (p OrderBookGetL2Params) IsNil() bool {
-	if p == (OrderBookGetL2Params{}) {
-		return true
-	}
-	return false
+	return p == (OrderBookGetL2Params{})
 }
 
 // PositionGetParams contains all the parameters to send to the API endpoint
@@ -662,10 +620,7 @@ func (p PositionGetParams) ToURLVals(path string) (string, error) {
 
 // IsNil checks to see if any values has been set for the paramater
 func (p PositionGetParams) IsNil() bool {
-	if p == (PositionGetParams{}) {
-		return true
-	}
-	return false
+	return p == (PositionGetParams{})
 }
 
 // PositionIsolateMarginParams contains all the parameters to send to the API
@@ -691,10 +646,7 @@ func (p PositionIsolateMarginParams) ToURLVals(path string) (string, error) {
 
 // IsNil checks to see if any values has been set for the paramater
 func (p PositionIsolateMarginParams) IsNil() bool {
-	if p == (PositionIsolateMarginParams{}) {
-		return true
-	}
-	return false
+	return p == (PositionIsolateMarginParams{})
 }
 
 // PositionUpdateLeverageParams contains all the parameters to send to the API
@@ -721,10 +673,7 @@ func (p PositionUpdateLeverageParams) ToURLVals(path string) (string, error) {
 
 // IsNil checks to see if any values has been set for the paramater
 func (p PositionUpdateLeverageParams) IsNil() bool {
-	if p == (PositionUpdateLeverageParams{}) {
-		return true
-	}
-	return false
+	return p == (PositionUpdateLeverageParams{})
 }
 
 // PositionUpdateRiskLimitParams contains all the parameters to send to the API
@@ -750,10 +699,7 @@ func (p PositionUpdateRiskLimitParams) ToURLVals(path string) (string, error) {
 
 // IsNil checks to see if any values has been set for the paramater
 func (p PositionUpdateRiskLimitParams) IsNil() bool {
-	if p == (PositionUpdateRiskLimitParams{}) {
-		return true
-	}
-	return false
+	return p == (PositionUpdateRiskLimitParams{})
 }
 
 // PositionTransferIsolatedMarginParams contains all the parameters to send to
@@ -779,10 +725,7 @@ func (p PositionTransferIsolatedMarginParams) ToURLVals(path string) (string, er
 
 // IsNil checks to see if any values has been set for the paramater
 func (p PositionTransferIsolatedMarginParams) IsNil() bool {
-	if p == (PositionTransferIsolatedMarginParams{}) {
-		return true
-	}
-	return false
+	return p == (PositionTransferIsolatedMarginParams{})
 }
 
 // QuoteGetBucketedParams contains all the parameters to send to the API
@@ -842,10 +785,7 @@ func (p QuoteGetBucketedParams) ToURLVals(path string) (string, error) {
 
 // IsNil checks to see if any values has been set for the paramater
 func (p QuoteGetBucketedParams) IsNil() bool {
-	if p == (QuoteGetBucketedParams{}) {
-		return true
-	}
-	return false
+	return p == (QuoteGetBucketedParams{})
 }
 
 // TradeGetBucketedParams contains all the parameters to send to the API
@@ -906,10 +846,7 @@ func (p TradeGetBucketedParams) ToURLVals(path string) (string, error) {
 
 // IsNil checks to see if any values has been set for the paramater
 func (p TradeGetBucketedParams) IsNil() bool {
-	if p == (TradeGetBucketedParams{}) {
-		return true
-	}
-	return false
+	return p == (TradeGetBucketedParams{})
 }
 
 // UserUpdateParams contains all the parameters to send to the API endpoint
@@ -946,10 +883,7 @@ func (p UserUpdateParams) ToURLVals(path string) (string, error) {
 
 // IsNil checks to see if any values has been set for the paramater
 func (p UserUpdateParams) IsNil() bool {
-	if p == (UserUpdateParams{}) {
-		return true
-	}
-	return false
+	return p == (UserUpdateParams{})
 }
 
 // UserTokenParams contains all the parameters to send to the API endpoint
@@ -970,10 +904,7 @@ func (p UserTokenParams) ToURLVals(path string) (string, error) {
 
 // IsNil checks to see if any values has been set for the paramater
 func (p UserTokenParams) IsNil() bool {
-	if p == (UserTokenParams{}) {
-		return true
-	}
-	return false
+	return p == (UserTokenParams{})
 }
 
 // UserCheckReferralCodeParams contains all the parameters to send to the API
@@ -995,10 +926,7 @@ func (p UserCheckReferralCodeParams) ToURLVals(path string) (string, error) {
 
 // IsNil checks to see if any values has been set for the paramater
 func (p UserCheckReferralCodeParams) IsNil() bool {
-	if p == (UserCheckReferralCodeParams{}) {
-		return true
-	}
-	return false
+	return p == (UserCheckReferralCodeParams{})
 }
 
 // UserConfirmTFAParams contains all the parameters to send to the API endpoint
@@ -1024,10 +952,7 @@ func (p UserConfirmTFAParams) ToURLVals(path string) (string, error) {
 
 // IsNil checks to see if any values has been set for the paramater
 func (p UserConfirmTFAParams) IsNil() bool {
-	if p == (UserConfirmTFAParams{}) {
-		return true
-	}
-	return false
+	return p == (UserConfirmTFAParams{})
 }
 
 // UserCurrencyParams contains all the parameters to send to the API endpoint
@@ -1048,10 +973,7 @@ func (p UserCurrencyParams) ToURLVals(path string) (string, error) {
 
 // IsNil checks to see if any values has been set for the paramater
 func (p UserCurrencyParams) IsNil() bool {
-	if p == (UserCurrencyParams{}) {
-		return true
-	}
-	return false
+	return p == (UserCurrencyParams{})
 }
 
 // UserPreferencesParams contains all the parameters to send to the API
@@ -1076,10 +998,7 @@ func (p UserPreferencesParams) ToURLVals(path string) (string, error) {
 
 // IsNil checks to see if any values has been set for the paramater
 func (p UserPreferencesParams) IsNil() bool {
-	if p == (UserPreferencesParams{}) {
-		return true
-	}
-	return false
+	return p == (UserPreferencesParams{})
 }
 
 // UserRequestWithdrawalParams contains all the parameters to send to the API
@@ -1116,8 +1035,5 @@ func (p UserRequestWithdrawalParams) ToURLVals(path string) (string, error) {
 
 // IsNil checks to see if any values has been set for the paramater
 func (p UserRequestWithdrawalParams) IsNil() bool {
-	if p == (UserRequestWithdrawalParams{}) {
-		return true
-	}
-	return false
+	return p == (UserRequestWithdrawalParams{})
 }

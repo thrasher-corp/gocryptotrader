@@ -72,7 +72,8 @@ func (b *Bitmex) WsConnector() error {
 	var err error
 
 	if b.Websocket.GetProxyAddress() != "" {
-		proxy, err := url.Parse(b.Websocket.GetProxyAddress())
+		var proxy *url.URL
+		proxy, err = url.Parse(b.Websocket.GetProxyAddress())
 		if err != nil {
 			return err
 		}
@@ -169,7 +170,7 @@ func (b *Bitmex) wsHandleIncomingData() {
 			}
 
 			if common.StringContains(message, "ping") {
-				err := b.WebsocketConn.WriteJSON("pong")
+				err = b.WebsocketConn.WriteJSON("pong")
 				if err != nil {
 					b.Websocket.DataHandler <- err
 					continue
@@ -254,7 +255,8 @@ func (b *Bitmex) wsHandleIncomingData() {
 					}
 
 					for _, trade := range trades.Data {
-						timestamp, err := time.Parse(time.RFC3339, trade.Timestamp)
+						var timestamp time.Time
+						timestamp, err = time.Parse(time.RFC3339, trade.Timestamp)
 						if err != nil {
 							b.Websocket.DataHandler <- err
 							continue
@@ -320,7 +322,7 @@ func (b *Bitmex) processOrderbook(data []OrderBookL2, action string, currencyPai
 			var bids, asks []orderbook.Item
 
 			for _, orderbookItem := range data {
-				if orderbookItem.Side == "Sell" {
+				if orderbookItem.Side == exchange.Sell.ToString() {
 					asks = append(asks, orderbook.Item{
 						Price:  orderbookItem.Price,
 						Amount: float64(orderbookItem.Size),

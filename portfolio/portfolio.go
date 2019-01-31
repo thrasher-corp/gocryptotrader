@@ -198,10 +198,7 @@ func (p *Base) UpdatePortfolio(addresses []string, coinType string) bool {
 			}
 			p.AddAddress(addresses[x], coinType, PortfolioAddressPersonal, result.ETH.Balance)
 		}
-		if errors > 0 {
-			return false
-		}
-		return true
+		return errors == 0
 	}
 	for x := range addresses {
 		result, err := GetCryptoIDAddress(addresses[x], coinType)
@@ -261,8 +258,8 @@ func (p *Base) GetPersonalPortfolio() map[string]float64 {
 // getPercentage returns the percentage of the target coin amount against the
 // total coin amount.
 func getPercentage(input map[string]float64, target string, totals map[string]float64) float64 {
-	subtotal, _ := input[target]
-	total, _ := totals[target]
+	subtotal := input[target]
+	total := totals[target]
 	percentage := (subtotal / total) * 100 / 1
 	return percentage
 }
@@ -270,7 +267,7 @@ func getPercentage(input map[string]float64, target string, totals map[string]fl
 // getPercentageSpecific returns the percentage a specific value of a target coin amount
 // against the total coin amount.
 func getPercentageSpecific(input float64, target string, totals map[string]float64) float64 {
-	total, _ := totals[target]
+	total := totals[target]
 	percentage := (input / total) * 100 / 1
 	return percentage
 }

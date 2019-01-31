@@ -121,10 +121,7 @@ func getWSDataType(data interface{}) string {
 }
 
 func checkSubscriptionSuccess(data []interface{}) bool {
-	if data[1].(float64) != 1 {
-		return false
-	}
-	return true
+	return data[1].(float64) == 1
 }
 
 // WsHandleData handles data from the websocket connection
@@ -406,7 +403,7 @@ var CurrencyPairID = map[int]string{
 	174: "BTC_REP",
 	177: "BTC_ARDR",
 	178: "BTC_ZEC",
-	182: "BTC_STRAT",
+	182: "BTC_STRAT", // nolint: misspell
 	184: "BTC_PASC",
 	185: "BTC_GNT",
 	187: "BTC_GNO",

@@ -865,7 +865,7 @@ func (o *OKEX) GetSpotKline(arg KlinesRequestParams) ([]CandleStickData, error) 
 		values.Set("size", strconv.FormatInt(int64(arg.Size), 10))
 	}
 	if arg.Since != 0 {
-		values.Set("since", strconv.FormatInt(int64(arg.Since), 10))
+		values.Set("since", strconv.FormatInt(arg.Since, 10))
 	}
 
 	path := fmt.Sprintf("%s%s%s.do?%s", o.APIUrl, apiVersion, spotKline, values.Encode())

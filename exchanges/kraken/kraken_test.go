@@ -559,6 +559,6 @@ func TestWithdrawCancel(t *testing.T) {
 	if areTestAPIKeysSet() && err == nil {
 		t.Error("Test Failed - WithdrawCancel() error cannot be nil")
 	} else if !areTestAPIKeysSet() && err == nil {
-		t.Errorf("Test Failed - WithdrawCancel() error - expecting an error when no keys are set but recieved nil")
+		t.Errorf("Test Failed - WithdrawCancel() error - expecting an error when no keys are set but received nil")
 	}
 }

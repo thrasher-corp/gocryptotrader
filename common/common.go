@@ -60,7 +60,7 @@ const (
 func initialiseHTTPClient() {
 	// If the HTTPClient isn't set, start a new client with a default timeout of 15 seconds
 	if HTTPClient == nil {
-		HTTPClient = NewHTTPClientWithTimeout(time.Duration(time.Second * 15))
+		HTTPClient = NewHTTPClientWithTimeout(time.Second * 15)
 	}
 }
 
@@ -138,7 +138,7 @@ func GetHMAC(hashType int, input, key []byte) []byte {
 		}
 	}
 
-	hmac := hmac.New(hash, []byte(key))
+	hmac := hmac.New(hash, key)
 	hmac.Write(input)
 	return hmac.Sum(nil)
 }

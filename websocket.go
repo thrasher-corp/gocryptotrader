@@ -194,7 +194,7 @@ func (c *WebsocketClient) write() {
 	defer func() {
 		c.Conn.Close()
 	}()
-	for {
+	for { // nolint: gosimple
 		select {
 		case message, ok := <-c.Send:
 			if !ok {

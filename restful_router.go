@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
-	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
@@ -42,7 +41,7 @@ var routes = Routes{}
 
 // NewRouter takes in the exchange interfaces and returns a new multiplexor
 // router
-func NewRouter(exchanges []exchange.IBotExchange) *mux.Router {
+func NewRouter() *mux.Router {
 	router := mux.NewRouter().StrictSlash(true)
 
 	routes = Routes{
@@ -109,15 +108,11 @@ func NewRouter(exchanges []exchange.IBotExchange) *mux.Router {
 	}
 
 	for _, route := range routes {
-		var handler http.Handler
-		handler = route.HandlerFunc
-		handler = RESTLogger(handler, route.Name)
-
 		router.
 			Methods(route.Method).
 			Path(route.Pattern).
 			Name(route.Name).
-			Handler(handler)
+			Handler(RESTLogger(route.HandlerFunc, route.Name))
 	}
 	return router
 }

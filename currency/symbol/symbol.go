@@ -52,7 +52,7 @@ const (
 	BAT        = "BAT"
 	ETP        = "ETP"
 	HOT        = "HOT"
-	STRAT      = "STRAT"
+	STRAT      = "STRAT" // nolint: misspell
 	GNT        = "GNT"
 	REP        = "REP"
 	SNT        = "SNT"

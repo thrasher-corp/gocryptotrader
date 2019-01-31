@@ -253,10 +253,7 @@ func (c *COINUT) CancelOrders(orders []CancelOrders) (CancelOrdersResponse, erro
 	}
 
 	entries := []CancelOrders{}
-	for _, order := range orders {
-		entries = append(entries, order)
-	}
-
+	entries = append(entries, orders...)
 	params["entries"] = entries
 
 	return result, c.SendHTTPRequest(coinutOrdersCancel, params, true, &result)
@@ -365,7 +362,7 @@ func (c *COINUT) SendHTTPRequest(apiRequest string, params map[string]interface{
 	headers := make(map[string]string)
 	if authenticated {
 		headers["X-USER"] = c.ClientID
-		hmac := common.GetHMAC(common.HashSHA256, []byte(payload), []byte(c.APISecret))
+		hmac := common.GetHMAC(common.HashSHA256, payload, []byte(c.APISecret))
 		headers["X-SIGNATURE"] = common.HexEncodeToString(hmac)
 	}
 	headers["Content-Type"] = "application/json"
