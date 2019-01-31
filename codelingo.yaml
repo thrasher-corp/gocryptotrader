@@ -1,2 +1,33 @@
 tenets:
-  - import: codelingo/effective-go
+  # Import effective Go bundle manually
+  - import: codelingo/effective-go/avoid-annotations-in-comments
+  - import: codelingo/effective-go/comment-first-word-as-subject
+  - import: codelingo/effective-go/good-package-name
+  - import: codelingo/effective-go/single-method-interface-name
+  - import: codelingo/effective-go/underscores-in-name
+ 
+  # Overwrite one tenet with custom logic
+  # - import: codelingo/effective-go/comment-first-word-when-empty
+  - name: comment-first-word-when-empty
+    flows:
+      codelingo/review:
+        comment: |
+          Every exported function in a program should have a doc comment. The first sentence should be a summary that starts with the name ({{funcName}}) being declared.
+          From [effective go](https://golang.org/doc/effective_go.html#commentary).
+      codelingo/rewrite:
+        place: holder
+    query: |
+      import codelingo/ast/go
+      @review comment
+      @rewrite --prepend --line "// {{funcName}} is a function."
+      go.func_decl(depth = any):
+        # Customisation to exclude test packages
+        exclude:
+          go.ident:
+            name as funcname
+            regex(/_test/, funcname)
+        exclude:
+          go.comment_group
+        go.ident:
+          name as funcName
+          public == "true"
