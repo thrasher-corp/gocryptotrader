@@ -51,12 +51,7 @@ func (h *HUOBI) WsConnect() error {
 
 	go h.WsHandleData()
 
-	err = h.WsSubscribe()
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return h.WsSubscribe()
 }
 
 // WsReadData reads data from the websocket connection

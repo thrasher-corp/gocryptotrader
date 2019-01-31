@@ -8,7 +8,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
 	"github.com/thrasher-/gocryptotrader/currency/symbol"
-	"github.com/thrasher-/gocryptotrader/exchanges"
+	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 )
 
 // Please add your private keys and customerID for better tests
@@ -27,13 +27,13 @@ func TestSetDefaults(t *testing.T) {
 	if b.Name != "Bitstamp" {
 		t.Error("Test Failed - SetDefaults() error")
 	}
-	if b.Enabled != false {
+	if b.Enabled {
 		t.Error("Test Failed - SetDefaults() error")
 	}
-	if b.Verbose != false {
+	if b.Verbose {
 		t.Error("Test Failed - SetDefaults() error")
 	}
-	if b.Websocket.IsEnabled() != false {
+	if b.Websocket.IsEnabled() {
 		t.Error("Test Failed - SetDefaults() error")
 	}
 	if b.RESTPollingDelay != 10 {
@@ -268,7 +268,7 @@ func TestCancelExistingOrder(t *testing.T) {
 	t.Parallel()
 
 	resp, err := b.CancelExistingOrder(1337)
-	if err == nil || resp != false {
+	if err == nil || resp {
 		t.Error("Test Failed - CancelExistingOrder() error")
 	}
 }

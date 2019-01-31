@@ -52,7 +52,7 @@ func TestGetAddressBalance(t *testing.T) {
 	if addBalance != 0 {
 		t.Error("Test Failed - Portfolio GetAddressBalance() Error: Incorrect value")
 	}
-	if found != false {
+	if found {
 		t.Error("Test Failed - Portfolio GetAddressBalance() Error: Incorrect value")
 	}
 }

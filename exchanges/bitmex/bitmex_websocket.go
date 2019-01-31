@@ -421,12 +421,7 @@ func (b *Bitmex) websocketSubscribe() error {
 		// NOTE more added here in future
 	}
 
-	err := b.WebsocketConn.WriteJSON(subscriber)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return b.WebsocketConn.WriteJSON(subscriber)
 }
 
 // WebsocketSendAuth sends an authenticated subscription

@@ -25,7 +25,7 @@ func TestSetDefaults(t *testing.T) {
 	if a.Name != "ANX" {
 		t.Error("Test Failed - ANX SetDefaults() incorrect values set")
 	}
-	if a.Enabled != false {
+	if a.Enabled {
 		t.Error("Test Failed - ANX SetDefaults() incorrect values set")
 	}
 	if a.TakerFee != 0.02 {
@@ -34,10 +34,10 @@ func TestSetDefaults(t *testing.T) {
 	if a.MakerFee != 0.01 {
 		t.Error("Test Failed - ANX SetDefaults() incorrect values set")
 	}
-	if a.Verbose != false {
+	if a.Verbose {
 		t.Error("Test Failed - ANX SetDefaults() incorrect values set")
 	}
-	if a.Websocket.IsEnabled() != false {
+	if a.Websocket.IsEnabled() {
 		t.Error("Test Failed - ANX SetDefaults() incorrect values set")
 	}
 	if a.RESTPollingDelay != 10 {
@@ -59,16 +59,16 @@ func TestSetup(t *testing.T) {
 	a.APISecret = testAPISecret
 	a.AuthenticatedAPISupport = true
 
-	if a.Enabled != true {
+	if !a.Enabled {
 		t.Error("Test Failed - ANX Setup() incorrect values set")
 	}
 	if a.RESTPollingDelay != 10 {
 		t.Error("Test Failed - ANX Setup() incorrect values set")
 	}
-	if a.Verbose != false {
+	if a.Verbose {
 		t.Error("Test Failed - ANX Setup() incorrect values set")
 	}
-	if a.Websocket.IsEnabled() != false {
+	if a.Websocket.IsEnabled() {
 		t.Error("Test Failed - ANX Setup() incorrect values set")
 	}
 	if len(a.BaseCurrencies) <= 0 {

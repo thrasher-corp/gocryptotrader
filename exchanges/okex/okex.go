@@ -662,22 +662,13 @@ func (o *OKEX) GetTokenOrders(symbol string, orderID int64) (TokenOrdersResponse
 	values := url.Values{}
 	values.Set("symbol", symbol)
 	values.Set("order_id", strconv.FormatInt(orderID, 10))
-
-	if err := o.SendAuthenticatedHTTPRequest(contractFutureTradeHistory, values, &resp); err != nil {
-		return resp, err
-	}
-
-	return resp, nil
+	return resp, o.SendAuthenticatedHTTPRequest(contractFutureTradeHistory, values, &resp)
 }
 
 // GetUserInfo returns the user info
 func (o *OKEX) GetUserInfo() (SpotUserInfo, error) {
 	var resp SpotUserInfo
-	err := o.SendAuthenticatedHTTPRequest(spotUserInfo, url.Values{}, &resp)
-	if err != nil {
-		return resp, err
-	}
-	return resp, nil
+	return resp, o.SendAuthenticatedHTTPRequest(spotUserInfo, url.Values{}, &resp)
 }
 
 // SpotNewOrder creates a new spot order

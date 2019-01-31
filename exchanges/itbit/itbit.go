@@ -216,12 +216,7 @@ func (i *ItBit) GetOrders(walletID, symbol, status string, page, perPage int64) 
 		params["perPage"] = strconv.FormatInt(perPage, 10)
 	}
 
-	err := i.SendAuthenticatedHTTPRequest("GET", itbitOrders, params, &resp)
-	if err != nil {
-		return resp, err
-	}
-
-	return resp, nil
+	return resp, i.SendAuthenticatedHTTPRequest("GET", itbitOrders, params, &resp)
 }
 
 // GetWalletTrades returns all trades for a specified wallet.

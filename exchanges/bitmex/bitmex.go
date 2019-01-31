@@ -930,11 +930,7 @@ func (b *Bitmex) CaptureError(resp, reType interface{}) error {
 			Error.Error.Message)
 	}
 
-	err = common.JSONDecode(marshalled, reType)
-	if err != nil {
-		return err
-	}
-	return nil
+	return common.JSONDecode(marshalled, reType)
 }
 
 // GetFee returns an estimate of fee based on type of transaction

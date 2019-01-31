@@ -354,11 +354,7 @@ func (k *Kraken) GetDepth(symbol string) (Orderbook, error) {
 	}
 
 	orderBook.Asks, err = processOrderbook(asksData)
-	if err != nil {
-		return orderBook, err
-	}
-
-	return orderBook, nil
+	return orderBook, err
 }
 
 // GetTrades returns current trades on Kraken

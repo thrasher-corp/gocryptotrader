@@ -1244,12 +1244,7 @@ func (c *Config) SaveConfig(configPath string) error {
 			return err
 		}
 	}
-
-	err = common.WriteFile(defaultPath, payload)
-	if err != nil {
-		return err
-	}
-	return nil
+	return common.WriteFile(defaultPath, payload)
 }
 
 // CheckConfig checks all config settings
@@ -1279,12 +1274,7 @@ func (c *Config) CheckConfig() error {
 		c.GlobalHTTPTimeout = configDefaultHTTPTimeout
 	}
 
-	err = c.CheckClientBankAccounts()
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return c.CheckClientBankAccounts()
 }
 
 // LoadConfig loads your configuration file into your configuration object
@@ -1318,12 +1308,7 @@ func (c *Config) UpdateConfig(configPath string, newCfg Config) error {
 		return err
 	}
 
-	err = c.LoadConfig(configPath)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return c.LoadConfig(configPath)
 }
 
 // GetConfig returns a pointer to a configuration object

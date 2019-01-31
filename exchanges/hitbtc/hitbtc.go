@@ -454,13 +454,7 @@ func (h *HitBTC) PlaceOrder(currency string, rate, amount float64, orderType, si
 	values.Set("side", side)
 	values.Set("price", strconv.FormatFloat(rate, 'f', -1, 64))
 
-	err := h.SendAuthenticatedHTTPRequest("POST", orderBuy, values, &result)
-
-	if err != nil {
-		return result, err
-	}
-
-	return result, nil
+	return result, h.SendAuthenticatedHTTPRequest("POST", orderBuy, values, &result)
 }
 
 // CancelExistingOrder cancels a specific order by OrderID
@@ -485,13 +479,7 @@ func (h *HitBTC) CancelExistingOrder(orderID int64) (bool, error) {
 func (h *HitBTC) CancelAllExistingOrders() ([]Order, error) {
 	var result []Order
 	values := url.Values{}
-
-	err := h.SendAuthenticatedHTTPRequest("DELETE", orderBuy, values, &result)
-	if err != nil {
-		return result, err
-	}
-
-	return result, nil
+	return result, h.SendAuthenticatedHTTPRequest("DELETE", orderBuy, values, &result)
 }
 
 // MoveOrder generates a new move order

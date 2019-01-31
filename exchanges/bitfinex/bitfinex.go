@@ -497,26 +497,14 @@ func (b *Bitfinex) GetSymbolsDetails() ([]SymbolDetails, error) {
 
 // GetAccountInformation returns information about your account incl. trading fees
 func (b *Bitfinex) GetAccountInformation() ([]AccountInfo, error) {
-
 	var responses []AccountInfo
-	err := b.SendAuthenticatedHTTPRequest("POST", bitfinexAccountInfo, nil, &responses)
-
-	if err != nil {
-		return responses, err
-	}
-
-	return responses, nil
+	return responses, b.SendAuthenticatedHTTPRequest("POST", bitfinexAccountInfo, nil, &responses)
 }
 
 // GetAccountFees - Gets all fee rates for all currencies
 func (b *Bitfinex) GetAccountFees() (AccountFees, error) {
 	response := AccountFees{}
-
-	err := b.SendAuthenticatedHTTPRequest("POST", bitfinexAccountFees, nil, &response)
-	if err != nil {
-		return response, err
-	}
-	return response, nil
+	return response, b.SendAuthenticatedHTTPRequest("POST", bitfinexAccountFees, nil, &response)
 }
 
 // GetAccountSummary returns a 30-day summary of your trading volume and return
@@ -965,12 +953,7 @@ func (b *Bitfinex) SendAuthenticatedHTTPRequest(method, path string, params map[
 	headers["X-BFX-PAYLOAD"] = PayloadBase64
 	headers["X-BFX-SIGNATURE"] = common.HexEncodeToString(hmac)
 
-	err = b.SendPayload(method, b.APIUrl+bitfinexAPIVersion+path, headers, nil, result, true, b.Verbose)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return b.SendPayload(method, b.APIUrl+bitfinexAPIVersion+path, headers, nil, result, true, b.Verbose)
 }
 
 // GetFee returns an estimate of fee based on type of transaction

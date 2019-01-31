@@ -509,20 +509,12 @@ func UnixTimestampStrToTime(timeStr string) (time.Time, error) {
 
 // ReadFile reads a file and returns read data as byte array.
 func ReadFile(path string) ([]byte, error) {
-	file, err := ioutil.ReadFile(path)
-	if err != nil {
-		return nil, err
-	}
-	return file, nil
+	return ioutil.ReadFile(path)
 }
 
 // WriteFile writes selected data to a file and returns an error
 func WriteFile(file string, data []byte) error {
-	err := ioutil.WriteFile(file, data, 0644)
-	if err != nil {
-		return err
-	}
-	return nil
+	return ioutil.WriteFile(file, data, 0644)
 }
 
 // RemoveFile removes a file

@@ -96,7 +96,7 @@ func TestGetChannelsString(t *testing.T) {
 			testpassed = true
 		}
 	}
-	if testpassed == false {
+	if !testpassed {
 		t.Error("test failed - slack GetChannelsString() error")
 	}
 }

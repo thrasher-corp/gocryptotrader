@@ -189,13 +189,8 @@ func (g *Gateio) GetLatestSpotPrice(symbol string) (float64, error) {
 // updated every 10 seconds
 func (g *Gateio) GetTicker(symbol string) (TickerResponse, error) {
 	url := fmt.Sprintf("%s/%s/%s/%s", g.APIUrlSecondary, gateioAPIVersion, gateioTicker, symbol)
-
 	var res TickerResponse
-	err := g.SendHTTPRequest(url, &res)
-	if err != nil {
-		return res, err
-	}
-	return res, nil
+	return res, g.SendHTTPRequest(url, &res)
 }
 
 // GetTickers returns tickers for all symbols
@@ -362,13 +357,7 @@ func (g *Gateio) SpotNewOrder(arg SpotNewOrderRequestParams) (SpotNewOrderRespon
 	)
 
 	strRequestURL := fmt.Sprintf("%s/%s", gateioOrder, arg.Type)
-
-	err := g.SendAuthenticatedHTTPRequest("POST", strRequestURL, params, &result)
-	if err != nil {
-		return result, err
-	}
-
-	return result, nil
+	return result, g.SendAuthenticatedHTTPRequest("POST", strRequestURL, params, &result)
 }
 
 // CancelExistingOrder cancels an order given the supplied orderID and symbol
