@@ -14,6 +14,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/communications"
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/currency"
+	"github.com/thrasher-/gocryptotrader/currency/coinmarketcap"
 	"github.com/thrasher-/gocryptotrader/currency/forexprovider"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	log "github.com/thrasher-/gocryptotrader/logger"
@@ -116,6 +117,31 @@ func main() {
 	log.Debugf("Starting communication mediums..")
 	bot.comms = communications.NewComm(bot.config.GetCommunicationsConfig())
 	bot.comms.GetEnabledCommunicationMediums()
+
+	if bot.config.GetCryptocurrencyProviderConfig().Enabled {
+		log.Debug("Seeding full market data...")
+		err = currency.SeedCryptocurrencyMarketData(coinmarketcap.Settings(bot.config.GetCryptocurrencyProviderConfig()))
+		if err != nil {
+			log.Warnf("Failure seeding cryptocurrency market data %s", err)
+		} else {
+			if *verbosity {
+				log.Debugf("Total market cryptocurrencies: %d",
+					len(currency.GetTotalMarketCryptocurrencies()))
+			}
+		}
+
+		err = currency.SeedExchangeMarketData(coinmarketcap.Settings(bot.config.GetCryptocurrencyProviderConfig()))
+		if err != nil {
+			log.Warnf("Failure seeding exchange market data %s", err)
+		} else {
+			if *verbosity {
+				log.Debugf("Total market exchanges: %d",
+					len(currency.GetTotalMarketExchanges()))
+			}
+		}
+	} else {
+		log.Debug("Cryptocurrency provider not enabled.")
+	}
 
 	log.Debugf("Fiat display currency: %s.", bot.config.Currency.FiatDisplayCurrency)
 	currency.BaseCurrency = bot.config.Currency.FiatDisplayCurrency

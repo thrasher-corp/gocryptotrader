@@ -1,6 +1,7 @@
 package request
 
 import (
+	"compress/gzip"
 	"errors"
 	"fmt"
 	"io"
@@ -290,7 +291,31 @@ func (r *Requester) DoRequest(req *http.Request, method, path string, headers ma
 			return errors.New("resp is nil")
 		}
 
-		contents, err := ioutil.ReadAll(resp.Body)
+		var reader io.ReadCloser
+		switch resp.Header.Get("Content-Encoding") {
+		case "gzip":
+			reader, err = gzip.NewReader(resp.Body)
+			defer reader.Close()
+			if err != nil {
+				return err
+			}
+
+		case "json":
+			reader = resp.Body
+
+		default:
+			switch {
+			case common.StringContains(resp.Header.Get("Content-Type"), "application/json"):
+				reader = resp.Body
+
+			default:
+				log.Warnf("encoding is not JSON for request response but receieved %v",
+					resp.Header.Get("Content-Type"))
+				reader = resp.Body
+			}
+		}
+
+		contents, err := ioutil.ReadAll(reader)
 		if err != nil {
 			return err
 		}
