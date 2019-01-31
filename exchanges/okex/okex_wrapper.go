@@ -334,9 +334,7 @@ func (o *OKEX) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]ex
 			return nil, err
 		}
 
-		for _, order := range resp.Orders {
-			allOrders = append(allOrders, order)
-		}
+		allOrders = append(allOrders, resp.Orders...)
 	}
 
 	var orders []exchange.OrderDetail
@@ -375,9 +373,8 @@ func (o *OKEX) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]ex
 		if err != nil {
 			return nil, err
 		}
-		for _, order := range resp {
-			allOrders = append(allOrders, order)
-		}
+
+		allOrders = append(allOrders, resp...)
 	}
 
 	var orders []exchange.OrderDetail

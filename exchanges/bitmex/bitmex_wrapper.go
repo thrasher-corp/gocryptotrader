@@ -107,12 +107,12 @@ func (b *Bitmex) UpdateOrderbook(p pair.CurrencyPair, assetType string) (orderbo
 	}
 
 	for _, ob := range orderbookNew {
-		if ob.Side == exchange.Sell.ToString() {
+		if ob.Side == exchange.SellOrderSide.ToString() {
 			orderBook.Asks = append(orderBook.Asks,
 				orderbook.Item{Amount: float64(ob.Size), Price: ob.Price})
 			continue
 		}
-		if ob.Side == exchange.Buy.ToString() {
+		if ob.Side == exchange.BuyOrderSide.ToString() {
 			orderBook.Bids = append(orderBook.Bids,
 				orderbook.Item{Amount: float64(ob.Size), Price: ob.Price})
 			continue

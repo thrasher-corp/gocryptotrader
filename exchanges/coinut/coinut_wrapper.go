@@ -402,10 +402,7 @@ func (c *COINUT) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]
 					if err != nil {
 						return nil, err
 					}
-
-					for _, openOrder := range openOrders.Orders {
-						allTheOrders = append(allTheOrders, openOrder)
-					}
+					allTheOrders = append(allTheOrders, openOrders.Orders...)
 
 					continue
 				}
@@ -459,10 +456,7 @@ func (c *COINUT) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]
 					if err != nil {
 						return nil, err
 					}
-
-					for _, order := range orders.Trades {
-						allTheOrders = append(allTheOrders, order)
-					}
+					allTheOrders = append(allTheOrders, orders.Trades...)
 
 					continue
 				}

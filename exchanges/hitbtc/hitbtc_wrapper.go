@@ -280,9 +280,7 @@ func (h *HitBTC) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]
 		if err != nil {
 			return nil, err
 		}
-		for _, order := range resp {
-			allOrders = append(allOrders, order)
-		}
+		allOrders = append(allOrders, resp...)
 	}
 
 	var orders []exchange.OrderDetail
@@ -325,9 +323,7 @@ func (h *HitBTC) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]
 		if err != nil {
 			return nil, err
 		}
-		for _, order := range resp {
-			allOrders = append(allOrders, order)
-		}
+		allOrders = append(allOrders, resp...)
 	}
 
 	var orders []exchange.OrderDetail

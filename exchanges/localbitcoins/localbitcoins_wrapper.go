@@ -343,25 +343,19 @@ func (l *LocalBitcoins) GetOrderHistory(getOrdersRequest exchange.GetOrdersReque
 	if err != nil {
 		return nil, err
 	}
-	for _, trade := range resp {
-		allTrades = append(allTrades, trade)
-	}
+	allTrades = append(allTrades, resp...)
 
 	resp, err = l.GetDashboardClosedTrades()
 	if err != nil {
 		return nil, err
 	}
-	for _, trade := range resp {
-		allTrades = append(allTrades, trade)
-	}
+	allTrades = append(allTrades, resp...)
 
 	resp, err = l.GetDashboardReleasedTrades()
 	if err != nil {
 		return nil, err
 	}
-	for _, trade := range resp {
-		allTrades = append(allTrades, trade)
-	}
+	allTrades = append(allTrades, resp...)
 
 	var orders []exchange.OrderDetail
 	for _, trade := range resp {

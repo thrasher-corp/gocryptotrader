@@ -234,7 +234,9 @@ func (z *ZB) CancelAllOrders(orderCancellation exchange.OrderCancellation) (exch
 
 			allOpenOrders = append(allOpenOrders, openOrders...)
 
-			pageNumber++	}
+			pageNumber++
+		}
+	}
 
 	for _, openOrder := range allOpenOrders {
 		err := z.CancelExistingOrder(openOrder.ID, openOrder.Currency)
@@ -307,15 +309,11 @@ func (z *ZB) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]exch
 			if err != nil {
 				return nil, err
 			}
-
 			if len(resp) == 0 {
 				break
 			}
 
-			for _, order := range resp {
-				allOrders = append(allOrders, order)
-			}
-
+			allOrders = append(allOrders, resp...)
 			pageNumber++
 		}
 	}
@@ -325,7 +323,6 @@ func (z *ZB) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]exch
 		symbol := pair.NewCurrencyPairDelimiter(order.Currency, z.ConfigCurrencyPairFormat.Delimiter)
 		orderDate := time.Unix(int64(order.TradeDate), 0)
 		orderSide := orderSideMap[order.Type]
-
 		orders = append(orders, exchange.OrderDetail{
 			ID:           fmt.Sprintf("%v", order.ID),
 			Amount:       order.TotalAmount,
@@ -371,10 +368,7 @@ func (z *ZB) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]exch
 				break
 			}
 
-			for _, order := range resp {
-				allOrders = append(allOrders, order)
-			}
-
+			allOrders = append(allOrders, resp...)
 			pageNumber++
 		}
 	}

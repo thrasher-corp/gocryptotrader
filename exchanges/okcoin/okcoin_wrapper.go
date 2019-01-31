@@ -341,9 +341,7 @@ func (o *OKCoin) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]
 			return nil, err
 		}
 
-		for _, order := range resp.Orders {
-			allOrders = append(allOrders, order)
-		}
+		allOrders = append(allOrders, resp.Orders...)
 	}
 
 	var orders []exchange.OrderDetail
@@ -382,9 +380,7 @@ func (o *OKCoin) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]
 		if err != nil {
 			return nil, err
 		}
-		for _, order := range resp {
-			allOrders = append(allOrders, order)
-		}
+		allOrders = append(allOrders, resp...)
 	}
 	var orders []exchange.OrderDetail
 	for _, order := range allOrders {

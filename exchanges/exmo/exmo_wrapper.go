@@ -348,9 +348,7 @@ func (e *EXMO) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]ex
 			return nil, err
 		}
 		for _, order := range resp {
-			for _, trade := range order {
-				allTrades = append(allTrades, trade)
-			}
+			allTrades = append(allTrades, order...)
 		}
 	}
 

@@ -396,10 +396,7 @@ func (h *HUOBI) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]e
 		if err != nil {
 			return nil, err
 		}
-
-		for _, order := range resp {
-			allOrders = append(allOrders, order)
-		}
+		allOrders = append(allOrders, resp...)
 	}
 
 	var orders []exchange.OrderDetail
@@ -438,10 +435,7 @@ func (h *HUOBI) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]e
 		if err != nil {
 			return nil, err
 		}
-
-		for _, order := range resp {
-			allOrders = append(allOrders, order)
-		}
+		allOrders = append(allOrders, resp...)
 	}
 
 	var orders []exchange.OrderDetail

@@ -370,10 +370,7 @@ func (g *Gateio) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]
 		if err != nil {
 			return nil, err
 		}
-
-		for _, trade := range resp.Trades {
-			trades = append(trades, trade)
-		}
+		trades = append(trades, resp.Trades...)
 	}
 
 	var orders []exchange.OrderDetail

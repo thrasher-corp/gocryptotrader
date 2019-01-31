@@ -378,9 +378,7 @@ func (b *BTCMarkets) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest)
 		if err != nil {
 			return nil, err
 		}
-		for _, order := range resp {
-			respOrders = append(respOrders, order)
-		}
+		respOrders = append(respOrders, resp...)
 	}
 
 	var orders []exchange.OrderDetail
