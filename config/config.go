@@ -56,8 +56,16 @@ const (
 	WarningExchangeAuthAPIDefaultOrEmptyValues      = "WARNING -- Exchange %s: Authenticated API support disabled due to default/empty APIKey/Secret/ClientID values."
 	WarningCurrencyExchangeProvider                 = "WARNING -- Currency exchange provider invalid valid. Reset to Fixer."
 	WarningPairsLastUpdatedThresholdExceeded        = "WARNING -- Exchange %s: Last manual update of available currency pairs has exceeded %d days. Manual update required!"
-	APIURLNonDefaultMessage                         = "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API"
-	WebsocketURLNonDefaultMessage                   = "NON_DEFAULT_HTTP_LINK_TO_WEBSOCKET_EXCHANGE_API"
+)
+
+// Constants here define unset default values displayed in the config.json
+// file
+const (
+	APIURLNonDefaultMessage       = "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API"
+	WebsocketURLNonDefaultMessage = "NON_DEFAULT_HTTP_LINK_TO_WEBSOCKET_EXCHANGE_API"
+	DefaultUnsetAPIKey            = "Key"
+	DefaultUnsetAPISecret         = "Secret"
+	DefaultUnsetAccountPlan       = "accountPlan"
 )
 
 // Variables here are used for configuration
@@ -756,7 +764,9 @@ func (c *Config) CheckExchangeConfigValues() error {
 				return fmt.Errorf(ErrExchangeBaseCurrenciesEmpty, exch.Name)
 			}
 			if exch.AuthenticatedAPISupport { // non-fatal error
-				if exch.APIKey == "" || exch.APISecret == "" || exch.APIKey == "Key" || exch.APISecret == "Secret" {
+				if exch.APIKey == "" || exch.APISecret == "" ||
+					exch.APIKey == DefaultUnsetAPIKey ||
+					exch.APISecret == DefaultUnsetAPISecret {
 					c.Exchanges[i].AuthenticatedAPISupport = false
 					log.Warn(WarningExchangeAuthAPIDefaultOrEmptyValues, exch.Name)
 				} else if exch.Name == "ITBIT" || exch.Name == "Bitstamp" || exch.Name == "COINUT" || exch.Name == "CoinbasePro" {
@@ -868,7 +878,7 @@ func (c *Config) CheckCurrencyConfigValues() error {
 					Enabled:          false,
 					Verbose:          false,
 					RESTPollingDelay: 600,
-					APIKey:           "Key",
+					APIKey:           DefaultUnsetAPIKey,
 					APIKeyLvl:        -1,
 					PrimaryProvider:  false,
 				},
@@ -880,7 +890,7 @@ func (c *Config) CheckCurrencyConfigValues() error {
 	count := 0
 	for i := range c.Currency.ForexProviders {
 		if c.Currency.ForexProviders[i].Enabled {
-			if c.Currency.ForexProviders[i].APIKey == "Key" {
+			if c.Currency.ForexProviders[i].APIKey == DefaultUnsetAPIKey {
 				log.Warnf("%s forex provider API key not set. Please set this in your config.json file", c.Currency.ForexProviders[i].Name)
 				c.Currency.ForexProviders[i].Enabled = false
 				c.Currency.ForexProviders[i].PrimaryProvider = false
@@ -909,25 +919,25 @@ func (c *Config) CheckCurrencyConfigValues() error {
 		c.Currency.CryptocurrencyProvider.Name = "CoinMarketCap"
 		c.Currency.CryptocurrencyProvider.Enabled = false
 		c.Currency.CryptocurrencyProvider.Verbose = false
-		c.Currency.CryptocurrencyProvider.AccountPlan = "accountPlan"
-		c.Currency.CryptocurrencyProvider.APIkey = "key"
+		c.Currency.CryptocurrencyProvider.AccountPlan = DefaultUnsetAccountPlan
+		c.Currency.CryptocurrencyProvider.APIkey = DefaultUnsetAPIKey
 	}
 
 	if c.Currency.CryptocurrencyProvider.Enabled {
 		if c.Currency.CryptocurrencyProvider.APIkey == "" ||
-			c.Currency.CryptocurrencyProvider.APIkey == "key" {
+			c.Currency.CryptocurrencyProvider.APIkey == DefaultUnsetAPIKey {
 			log.Warnf("CryptocurrencyProvider enabled but api key is unset please set this in your config.json file")
 		}
 		if c.Currency.CryptocurrencyProvider.AccountPlan == "" ||
-			c.Currency.CryptocurrencyProvider.AccountPlan == "accountPlan" {
+			c.Currency.CryptocurrencyProvider.AccountPlan == DefaultUnsetAccountPlan {
 			log.Warnf("CryptocurrencyProvider enabled but account plan is unset please set this in your config.json file")
 		}
 	} else {
 		if c.Currency.CryptocurrencyProvider.APIkey == "" {
-			c.Currency.CryptocurrencyProvider.APIkey = "key"
+			c.Currency.CryptocurrencyProvider.APIkey = DefaultUnsetAPIKey
 		}
 		if c.Currency.CryptocurrencyProvider.AccountPlan == "" {
-			c.Currency.CryptocurrencyProvider.AccountPlan = "accountPlan"
+			c.Currency.CryptocurrencyProvider.AccountPlan = DefaultUnsetAccountPlan
 		}
 	}
 

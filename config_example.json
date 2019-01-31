@@ -52,7 +52,7 @@
     "name": "CoinMarketCap",
     "enabled": false,
     "verbose": false,
-    "apiKey": "key",
+    "apiKey": "Key",
     "accountPlan": "accountPlan"
    },
   "cryptocurrencies": "BTC,LTC,ETH,XRP,NMC,NVC,PPC,XBT,DOGE,DASH",
