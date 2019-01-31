@@ -198,7 +198,7 @@ func (p *Base) UpdatePortfolio(addresses []string, coinType string) bool {
 			}
 			p.AddAddress(addresses[x], coinType, PortfolioAddressPersonal, result.ETH.Balance)
 		}
-		return (errors == 0)
+		return errors == 0
 	}
 	for x := range addresses {
 		result, err := GetCryptoIDAddress(addresses[x], coinType)

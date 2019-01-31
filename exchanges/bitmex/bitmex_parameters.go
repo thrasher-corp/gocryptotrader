@@ -110,7 +110,7 @@ func (p APIKeyParams) ToURLVals(path string) (string, error) {
 
 // IsNil checks to see if any values has been set for the paramater
 func (p APIKeyParams) IsNil() bool {
-	return (p == (APIKeyParams{}))
+	return p == (APIKeyParams{})
 }
 
 // ChatGetParams contains all the parameters to send to the API endpoint
@@ -145,7 +145,7 @@ func (p ChatGetParams) ToURLVals(path string) (string, error) {
 
 // IsNil checks to see if any values has been set for the paramater
 func (p ChatGetParams) IsNil() bool {
-	return (p == (ChatGetParams{}))
+	return p == (ChatGetParams{})
 }
 
 // ChatSendParams contains all the parameters to send to the API endpoint
@@ -173,7 +173,7 @@ func (p ChatSendParams) ToURLVals(path string) (string, error) {
 
 // IsNil checks to see if any values has been set for the paramater
 func (p ChatSendParams) IsNil() bool {
-	return (p == (ChatSendParams{}))
+	return p == (ChatSendParams{})
 }
 
 // GenericRequestParams contains all the parameters for some general functions
@@ -230,7 +230,7 @@ func (p GenericRequestParams) ToURLVals(path string) (string, error) {
 
 // IsNil checks to see if any values has been set for the paramater
 func (p GenericRequestParams) IsNil() bool {
-	return (p == (GenericRequestParams{}))
+	return p == (GenericRequestParams{})
 }
 
 // LeaderboardGetParams contains all the parameters to send to the API endpoint
@@ -1035,5 +1035,5 @@ func (p UserRequestWithdrawalParams) ToURLVals(path string) (string, error) {
 
 // IsNil checks to see if any values has been set for the paramater
 func (p UserRequestWithdrawalParams) IsNil() bool {
-	return (p == (UserRequestWithdrawalParams{}))
+	return p == (UserRequestWithdrawalParams{})
 }
