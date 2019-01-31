@@ -222,7 +222,8 @@ func (z *ZB) CancelAllOrders(orderCancellation exchange.OrderCancellation) (exch
 	var allOpenOrders []Order
 	for _, currency := range z.GetEnabledCurrencies() {
 		var pageNumber int64
-		for {
+		// Limiting to 10 pages
+		for i := 0; i < 10; i++ {
 			openOrders, err := z.GetUnfinishedOrdersIgnoreTradeType(exchange.FormatExchangeCurrency(z.Name, currency).String(), 1, 10)
 			if err != nil {
 				return cancelAllOrdersResponse, err
@@ -233,7 +234,6 @@ func (z *ZB) CancelAllOrders(orderCancellation exchange.OrderCancellation) (exch
 			}
 
 			allOpenOrders = append(allOpenOrders, openOrders...)
-
 			pageNumber++
 		}
 	}

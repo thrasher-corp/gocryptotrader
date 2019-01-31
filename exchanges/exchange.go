@@ -848,6 +848,8 @@ const (
 	AnyOrderSide  OrderSide = "ANY"
 	BuyOrderSide  OrderSide = "BUY"
 	SellOrderSide OrderSide = "SELL"
+	BidOrderSide  OrderSide = "BID"
+	AskOrderSide  OrderSide = "ASK"
 )
 
 // ToString changes the ordertype to the exchange standard and returns a string

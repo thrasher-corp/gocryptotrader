@@ -98,6 +98,8 @@ const (
 
 	localbitcoinsAuthRate   = 0
 	localbitcoinsUnauthRate = 1
+	// String response used with order status
+	null = "null"
 )
 
 var (

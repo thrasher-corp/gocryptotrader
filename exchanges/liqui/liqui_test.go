@@ -259,7 +259,7 @@ func TestGetOrderHistory(t *testing.T) {
 
 	_, err := l.GetOrderHistory(getOrdersRequest)
 	if err != common.ErrFunctionNotSupported {
-		t.Errorf("Expected '%v', recieved: '%v'", common.ErrFunctionNotSupported, err)
+		t.Errorf("Expected '%v', received: '%v'", common.ErrFunctionNotSupported, err)
 	}
 }
 

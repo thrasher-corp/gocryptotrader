@@ -240,9 +240,9 @@ func TestGetFee(t *testing.T) {
 func TestFormatWithdrawPermissions(t *testing.T) {
 	b.SetDefaults()
 	expectedResult := exchange.AutoWithdrawFiatText + " & " + exchange.WithdrawCryptoViaWebsiteOnlyText
-	
+
 	withdrawPermissions := b.FormatWithdrawPermissions()
-	
+
 	if withdrawPermissions != expectedResult {
 		t.Errorf("Expected: %s, Received: %s", expectedResult, withdrawPermissions)
 	}
@@ -274,7 +274,7 @@ func TestGetOrderHistory(t *testing.T) {
 
 	_, err := b.GetOrderHistory(getOrdersRequest)
 	if err != common.ErrNotYetImplemented {
-		t.Errorf("Expected '%v', recieved '%v'", common.ErrNotYetImplemented, err)
+		t.Errorf("Expected '%v', received '%v'", common.ErrNotYetImplemented, err)
 	}
 }
 
@@ -323,9 +323,8 @@ func TestCancelExchangeOrder(t *testing.T) {
 		CurrencyPair:  currencyPair,
 	}
 
-	
 	err := b.CancelOrder(orderCancellation)
-	
+
 	if err != common.ErrNotYetImplemented {
 		t.Errorf("Expected 'Not Yet Implemented', received %v", err)
 	}
@@ -347,9 +346,8 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 		CurrencyPair:  currencyPair,
 	}
 
-	
 	_, err := b.CancelAllOrders(orderCancellation)
-	
+
 	if err != common.ErrNotYetImplemented {
 		t.Errorf("Expected 'Not Yet Implemented', received %v", err)
 	}

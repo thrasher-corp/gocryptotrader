@@ -339,7 +339,7 @@ func TestGetActiveOrders(t *testing.T) {
 	}
 	_, err := b.GetActiveOrders(getOrdersRequest)
 	if err == nil {
-		t.Error("Expected: 'At least one currency is required to fetch order history'. Recieved nil")
+		t.Error("Expected: 'At least one currency is required to fetch order history'. received nil")
 	}
 
 	getOrdersRequest.Currencies = []pair.CurrencyPair{pair.NewCurrencyPair(symbol.LTC, symbol.BTC)}
@@ -362,7 +362,7 @@ func TestGetOrderHistory(t *testing.T) {
 
 	_, err := b.GetOrderHistory(getOrdersRequest)
 	if err == nil {
-		t.Error("Expected: 'At least one currency is required to fetch order history'. Recieved nil")
+		t.Error("Expected: 'At least one currency is required to fetch order history'. received nil")
 	}
 
 	getOrdersRequest.Currencies = []pair.CurrencyPair{pair.NewCurrencyPair(symbol.LTC, symbol.BTC)}

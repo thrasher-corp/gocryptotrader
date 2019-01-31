@@ -248,9 +248,9 @@ func (b *BTCMarkets) GetOrderInfo(orderID int64) (exchange.OrderDetail, error) {
 
 	for _, order := range orders {
 		var side exchange.OrderSide
-		if order.OrderSide == "ask" {
+		if strings.EqualFold(order.OrderSide, exchange.AskOrderSide.ToString()) {
 			side = exchange.SellOrderSide
-		} else if order.OrderSide == "bid" {
+		} else if strings.EqualFold(order.OrderSide, exchange.BidOrderSide.ToString()) {
 			side = exchange.BuyOrderSide
 		}
 		orderDate := time.Unix(int64(order.CreationTime), 0)
@@ -321,9 +321,9 @@ func (b *BTCMarkets) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest)
 	var orders []exchange.OrderDetail
 	for _, order := range resp {
 		var side exchange.OrderSide
-		if order.OrderSide == "ask" {
+		if strings.EqualFold(order.OrderSide, exchange.AskOrderSide.ToString()) {
 			side = exchange.SellOrderSide
-		} else if order.OrderSide == "bid" {
+		} else if strings.EqualFold(order.OrderSide, exchange.BidOrderSide.ToString()) {
 			side = exchange.BuyOrderSide
 		}
 		orderDate := time.Unix(int64(order.CreationTime), 0)
@@ -384,9 +384,9 @@ func (b *BTCMarkets) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest)
 	var orders []exchange.OrderDetail
 	for _, order := range respOrders {
 		var side exchange.OrderSide
-		if order.OrderSide == "ask" {
+		if strings.EqualFold(order.OrderSide, exchange.AskOrderSide.ToString()) {
 			side = exchange.SellOrderSide
-		} else if order.OrderSide == "bid" {
+		} else if strings.EqualFold(order.OrderSide, exchange.BidOrderSide.ToString()) {
 			side = exchange.BuyOrderSide
 		}
 		orderDate := time.Unix(int64(order.CreationTime), 0)
