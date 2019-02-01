@@ -3,7 +3,116 @@ package okgroup
 import "encoding/json"
 import "github.com/thrasher-/gocryptotrader/currency/symbol"
 
-// SpotInstrument stores the spot instrument info
+// CurrencyResponse contains currency details from a GetCurrencies request
+type CurrencyResponse struct {
+	CanDeposit    int64   `json:"can_deposit"`
+	CanWithdraw   int64   `json:"can_withdraw"`
+	Currency      string  `json:"currency"`
+	MinWithdrawal float64 `json:"min_withdrawal"`
+	Name          string  `json:"name"`
+}
+
+// WalletInformationResponse contains wallet details from a GetWalletInformation request
+type WalletInformationResponse struct {
+	Available float64 `json:"available"`
+	Balance   float64 `json:"balance"`
+	Currency  string  `json:"currency"`
+	Hold      float64 `json:"hold"`
+}
+
+// FundTransferRequest used to request a fund transfer
+type FundTransferRequest struct {
+	Currency     string  `json:"currency"`
+	Amount       float64 `json:"amount"`
+	From         int64   `json:"from"`
+	To           int64   `json:"to"`
+	SubAccountID string  `json:"sub_account,omitempty"`
+	InstrumentID int64   `json:"instrument_id,omitempty"`
+}
+
+// FundTransferResponse the response after a FundTransferRequest
+type FundTransferResponse struct {
+	Amount     float64 `json:"amount"`
+	Currency   string  `json:"currency"`
+	From       int     `json:"from"`
+	Result     bool    `json:"result"`
+	To         int     `json:"to"`
+	TransferID int     `json:"transfer_id"`
+}
+
+// WithdrawRequest used to request a withdrawal
+type WithdrawRequest struct {
+	Amount      int     `json:"amount"`
+	Currency    string  `json:"currency"`
+	Destination int     `json:"destination"`
+	Fee         float64 `json:"fee"`
+	ToAddress   string  `json:"to_address"`
+	TradePwd    string  `json:"trade_pwd"`
+}
+
+// WithdrawResponse the response after a WithdrawRequest
+type WithdrawResponse struct {
+	Amount       float64 `json:"amount"`
+	Currency     string  `json:"currency"`
+	Result       bool    `json:"result"`
+	WithdrawalID int     `json:"withdrawal_id"`
+}
+
+// WithdrawalFeeResponse the response after requesting withdrawal fees
+type WithdrawalFeeResponse struct {
+	Available float64 `json:"available"`
+	Balance   float64 `json:"balance"`
+	Currency  string  `json:"currency"`
+	Hold      float64 `json:"hold"`
+}
+
+// WithdrawalHistoryResponse the response after requesting withdrawal history
+type WithdrawalHistoryResponse struct {
+	Amount    float64 `json:"amount"`
+	Currency  string  `json:"currency"`
+	Fee       string  `json:"fee"`
+	From      string  `json:"from"`
+	Status    int     `json:"status"`
+	Timestamp string  `json:"timestamp"`
+	To        string  `json:"to"`
+	Txid      string  `json:"txid"`
+	PaymentID string  `json:"payment_id"`
+	Tag       string  `json:"tag"`
+}
+
+// GetBillDetailsRequest used in GetBillDetails
+type GetBillDetailsRequest struct {
+	Currency string
+	Type     int64
+	From     int64
+	To       int64
+	Limit    int64
+}
+
+// GetBillDetailsResponse contains bill details from a GetBillDetailsRequest request
+type GetBillDetailsResponse struct {
+	Amount    float64 `json:"amount"`
+	Balance   int     `json:"balance"`
+	Currency  string  `json:"currency"`
+	Fee       int     `json:"fee"`
+	LedgerID  int     `json:"ledger_id"`
+	Timestamp string  `json:"timestamp"`
+	Typename  string  `json:"typename"`
+}
+
+// OrderStatus Holds OKGroup order status values
+var OrderStatus = map[int]string{
+	-3: "pending cancel",
+	-2: "cancelled",
+	-1: "failed",
+	0:  "pending",
+	1:  "sending",
+	2:  "sent",
+	3:  "email confirmation",
+	4:  "manual confirmation",
+	5:  "awaiting identity confirmation",
+}
+
 type SpotInstrument struct {
 	BaseCurrency   string  `json:"base_currency"`
 	BaseIncrement  float64 `json:"base_increment,string"`
@@ -18,44 +127,10 @@ type SpotInstrument struct {
 }
 
 // ContractPrice holds date and ticker price price for contracts.
-type ContractPrice struct {
-	Date   string `json:"date"`
-	Ticker struct {
-		Buy        float64 `json:"buy"`
-		ContractID float64 `json:"contract_id"`
-		High       float64 `json:"high"`
-		Low        float64 `json:"low"`
-		Last       float64 `json:"last"`
-		Sell       float64 `json:"sell"`
-		UnitAmount float64 `json:"unit_amount"`
-		Vol        float64 `json:"vol"`
-	} `json:"ticker"`
-	Result bool        `json:"result"`
-	Error  interface{} `json:"error_code"`
-}
-
 // MultiStreamData contains raw data from okex
 type MultiStreamData struct {
 	Channel string          `json:"channel"`
 	Data    json.RawMessage `json:"data"`
-}
-
-// TokenOrdersResponse is returned after a request for all Token Orders
-type TokenOrdersResponse struct {
-	Result bool         `json:"result"`
-	Orders []TokenOrder `json:"orders"`
-}
-
-// TokenOrder is the individual order details returned from TokenOrderResponse
-type TokenOrder struct {
-	Amount     float64 `json:"amount"`
-	AvgPrice   int64   `json:"avg_price"`
-	DealAmount int64   `json:"deal_amount"`
-	OrderID    int64   `json:"order_id"`
-	Price      int64   `json:"price"`
-	Status     int64   `json:"status"`
-	Symbol     string  `json:"symbol"`
-	Type       string  `json:"type"`
 }
 
 // TickerStreamData contains ticker stream data from okex
@@ -83,99 +158,6 @@ type DepthStreamData struct {
 	Asks      [][]string `json:"asks"`
 	Bids      [][]string `json:"bids"`
 	Timestamp float64    `json:"timestamp"`
-}
-
-// ContractDepth response depth
-type ContractDepth struct {
-	Asks   []interface{} `json:"asks"`
-	Bids   []interface{} `json:"bids"`
-	Result bool          `json:"result"`
-	Error  interface{}   `json:"error_code"`
-}
-
-// ActualContractDepth better manipulated structure to return
-type ActualContractDepth struct {
-	Asks []struct {
-		Price  float64
-		Volume float64
-	}
-	Bids []struct {
-		Price  float64
-		Volume float64
-	}
-}
-
-// ActualContractTradeHistory holds contract trade history
-type ActualContractTradeHistory struct {
-	Amount   float64 `json:"amount"`
-	DateInMS float64 `json:"date_ms"`
-	Date     float64 `json:"date"`
-	Price    float64 `json:"price"`
-	TID      float64 `json:"tid"`
-	Type     string  `json:"buy"`
-}
-
-// CandleStickData holds candlestick data
-type CandleStickData struct {
-	Timestamp float64 `json:"timestamp"`
-	Open      float64 `json:"open"`
-	High      float64 `json:"high"`
-	Low       float64 `json:"low"`
-	Close     float64 `json:"close"`
-	Volume    float64 `json:"volume"`
-	Amount    float64 `json:"amount"`
-}
-
-// Info holds individual information
-type Info struct {
-	AccountRights float64 `json:"account_rights"`
-	KeepDeposit   float64 `json:"keep_deposit"`
-	ProfitReal    float64 `json:"profit_real"`
-	ProfitUnreal  float64 `json:"profit_unreal"`
-	RiskRate      float64 `json:"risk_rate"`
-}
-
-// UserInfo holds a collection of user data
-type UserInfo struct {
-	Info struct {
-		BTC Info `json:"btc"`
-		LTC Info `json:"ltc"`
-	} `json:"info"`
-	Result bool `json:"result"`
-}
-
-// HoldData is a sub type for FuturePosition
-type HoldData struct {
-	BuyAmount      float64 `json:"buy_amount"`
-	BuyAvailable   float64 `json:"buy_available"`
-	BuyPriceAvg    float64 `json:"buy_price_avg"`
-	BuyPriceCost   float64 `json:"buy_price_cost"`
-	BuyProfitReal  float64 `json:"buy_profit_real"`
-	ContractID     float64 `json:"contract_id"`
-	ContractType   string  `json:"contract_type"`
-	CreateDate     int     `json:"create_date"`
-	LeverRate      float64 `json:"lever_rate"`
-	SellAmount     float64 `json:"sell_amount"`
-	SellAvailable  float64 `json:"sell_available"`
-	SellPriceAvg   float64 `json:"sell_price_avg"`
-	SellPriceCost  float64 `json:"sell_price_cost"`
-	SellProfitReal float64 `json:"sell_profit_real"`
-	Symbol         string  `json:"symbol"`
-}
-
-// FuturePosition contains an array of holding types
-type FuturePosition struct {
-	ForceLiquidationPrice float64    `json:"force_liqu_price"`
-	Holding               []HoldData `json:"holding"`
-}
-
-// FutureTradeHistory will contain futures trade data
-type FutureTradeHistory struct {
-	Amount float64 `json:"amount"`
-	Date   int     `json:"date"`
-	Price  float64 `json:"price"`
-	TID    float64 `json:"tid"`
-	Type   string  `json:"type"`
 }
 
 // SpotPrice holds date and ticker price price for contracts.
@@ -220,53 +202,6 @@ type ActualSpotDepth struct {
 		Volume float64
 	}
 }
-
-// ActualSpotTradeHistoryRequestParams represents Klines request data.
-type ActualSpotTradeHistoryRequestParams struct {
-	Symbol string `json:"symbol"` // Symbol; example ltc_btc
-	Since  int    `json:"since"`  // TID; transaction record ID (return data does not include the current TID value, returning up to 600 items)
-}
-
-// ActualSpotTradeHistory holds contract trade history
-type ActualSpotTradeHistory struct {
-	Amount   float64 `json:"amount"`
-	DateInMS float64 `json:"date_ms"`
-	Date     float64 `json:"date"`
-	Price    float64 `json:"price"`
-	TID      float64 `json:"tid"`
-	Type     string  `json:"buy"`
-}
-
-// SpotUserInfo holds the spot user info
-type SpotUserInfo struct {
-	Result bool                                    `json:"result"`
-	Info   map[string]map[string]map[string]string `json:"info"`
-}
-
-// SpotNewOrderRequestParams holds the params for making a new spot order
-type SpotNewOrderRequestParams struct {
-	Amount float64                 `json:"amount"` // Order quantity
-	Price  float64                 `json:"price"`  // Order price
-	Symbol string                  `json:"symbol"` // Symbol; example btc_usdt, eth_btc......
-	Type   SpotNewOrderRequestType `json:"type"`   // Order type (see below)
-}
-
-// SpotNewOrderRequestType order type
-type SpotNewOrderRequestType string
-
-var (
-	// SpotNewOrderRequestTypeBuy buy order
-	SpotNewOrderRequestTypeBuy = SpotNewOrderRequestType("buy")
-
-	// SpotNewOrderRequestTypeSell sell order
-	SpotNewOrderRequestTypeSell = SpotNewOrderRequestType("sell")
-
-	// SpotNewOrderRequestTypeBuyMarket buy market order
-	SpotNewOrderRequestTypeBuyMarket = SpotNewOrderRequestType("buy_market")
-
-	// SpotNewOrderRequestTypeSellMarket sell market order
-	SpotNewOrderRequestTypeSellMarket = SpotNewOrderRequestType("sell_market")
-)
 
 // KlinesRequestParams represents Klines request data.
 type KlinesRequestParams struct {
@@ -445,27 +380,4 @@ var WithdrawalFees = map[string]float64{
 	symbol.ZEN:   0.07,
 	symbol.ZIL:   20,
 	symbol.ZIP:   1000,
-}
-
-// FullBalance defines a structured return type with balance data
-type FullBalance struct {
-	Available float64
-	Currency  string
-	Hold      float64
-}
-
-// Balance defines returned balance data
-type Balance struct {
-	Info struct {
-		Funds struct {
-			Free  map[string]string `json:"free"`
-			Holds map[string]string `json:"holds"`
-		} `json:"funds"`
-	} `json:"info"`
-}
-
-// WithdrawalResponse is a response type for withdrawal
-type WithdrawalResponse struct {
-	WithdrawID int  `json:"withdraw_id"`
-	Result     bool `json:"result"`
 }

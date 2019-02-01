@@ -1,6 +1,7 @@
 package okgroup
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -27,22 +28,27 @@ const (
 	okexAuthRate   = 0
 	okexUnauthRate = 0
 
-	okGroupAPIPath       = "api/"
-	okGroupGetCurrencies = "currencies"
+	// OkGroupAPIPath const to help with api url formatting
+	OkGroupAPIPath = "api/"
+
+	// API subsections
+	okGroupAccountSubsection = "account"
+	// Account based endpoints
+	okGroupGetCurrencies        = "currencies"
+	okGroupGetWalletInformation = "wallet"
+	okGroupFundsTransfer        = "transfer"
+	okGroupWithdraw             = "withdrawal"
+	okGroupGetWithdrawalFees    = "withdrawal/fee"
+	okGroupGetWithdrawalHistory = "withdrawal/history"
+	okGroupGetBillDetails       = "ledger"
 )
 
 var errMissValue = errors.New("warning - resp value is missing from exchange")
 
-// Okex is okgroup implementation for OKEX
-var Okex = OKGroup{
-	APIURL:       fmt.Sprintf("%v%v", "https://www.okex.com/", okGroupAPIPath),
-	APIVersion:   "/v3/",
-	ExchangeName: "OKEX",
-}
-
 // Okcoin is okgroup implementation for OKEX
 var Okcoin = OKGroup{
-	APIURL:       fmt.Sprintf("%v%v", "https://www.okcoin.com/", okGroupAPIPath),
+	APIURL:       fmt.Sprintf("%v%v", "https://www.okcoin.com/", OkGroupAPIPath),
+	WebsocketURL: "",
 	APIVersion:   "/v3/",
 	ExchangeName: "OKCoin",
 }
@@ -64,8 +70,9 @@ type OKGroup struct {
 	Types            []string
 
 	// URLs to be overridden by implementations of OKGroup
-	APIURL     string
-	APIVersion string
+	APIURL       string
+	APIVersion   string
+	WebsocketURL string
 }
 
 // SetDefaults method assignes the default values for Bittrex
@@ -153,549 +160,13 @@ func (o *OKGroup) Setup(exch config.ExchangeConfig) {
 // GetSpotInstruments returns a list of tradable spot instruments and their properties
 func (o *OKGroup) GetSpotInstruments() ([]SpotInstrument, error) {
 	var resp []SpotInstrument
-
-	path := fmt.Sprintf("%sspot/v3/%s", o.APIUrl, "instruments")
+	path := fmt.Sprintf("%vspot%v%v", o.APIUrl, o.APIVersion, "instruments")
 	err := o.SendHTTPRequest(path, &resp)
-
 	if err != nil {
 		return nil, err
 	}
 
 	return resp, nil
-}
-
-// GetCurrencies returns a list of tradable spot instruments and their properties
-func (o *OKGroup) GetCurrencies() ([]SpotInstrument, error) {
-	var resp []SpotInstrument
-
-	err := o.SendAuthenticatedHTTPRequest("GET", "account", okGroupGetCurrencies, url.Values{}, &resp)
-
-	if err != nil {
-		return nil, err
-	}
-
-	return resp, nil
-}
-
-// GetContractPrice returns current contract prices
-//
-// symbol e.g. "btc_usd"
-// contractType e.g. "this_week" "next_week" "quarter"
-func (o *OKGroup) GetContractPrice(symbol, contractType string) (ContractPrice, error) {
-	resp := ContractPrice{}
-
-	if err := o.CheckContractType(contractType); err != nil {
-		return resp, err
-	}
-	if err := o.CheckSymbol(symbol); err != nil {
-		return resp, err
-	}
-
-	values := url.Values{}
-	values.Set("symbol", common.StringToLower(symbol))
-	values.Set("contract_type", common.StringToLower(contractType))
-
-	path := fmt.Sprintf("%s%s%s.do?%s", o.APIUrl, o.APIVersion, "contractPrice", values.Encode())
-
-	err := o.SendHTTPRequest(path, &resp)
-	if err != nil {
-		return resp, err
-	}
-
-	if !resp.Result {
-		if resp.Error != nil {
-			return resp, o.GetErrorCode(resp.Error)
-		}
-	}
-	return resp, nil
-}
-
-// GetContractMarketDepth returns contract market depth
-//
-// symbol e.g. "btc_usd"
-// contractType e.g. "this_week" "next_week" "quarter"
-func (o *OKGroup) GetContractMarketDepth(symbol, contractType string) (ActualContractDepth, error) {
-	resp := ContractDepth{}
-	fullDepth := ActualContractDepth{}
-
-	if err := o.CheckContractType(contractType); err != nil {
-		return fullDepth, err
-	}
-	if err := o.CheckSymbol(symbol); err != nil {
-		return fullDepth, err
-	}
-
-	values := url.Values{}
-	values.Set("symbol", common.StringToLower(symbol))
-	values.Set("contract_type", common.StringToLower(contractType))
-
-	path := fmt.Sprintf("%s%s%s.do?%s", o.APIUrl, o.APIVersion, "contractFutureDepth", values.Encode())
-
-	err := o.SendHTTPRequest(path, &resp)
-	if err != nil {
-		return fullDepth, err
-	}
-
-	if !resp.Result {
-		if resp.Error != nil {
-			return fullDepth, o.GetErrorCode(resp.Error)
-		}
-	}
-
-	for _, ask := range resp.Asks {
-		var askdepth struct {
-			Price  float64
-			Volume float64
-		}
-		for i, depth := range ask.([]interface{}) {
-			if i == 0 {
-				askdepth.Price = depth.(float64)
-			}
-			if i == 1 {
-				askdepth.Volume = depth.(float64)
-			}
-		}
-		fullDepth.Asks = append(fullDepth.Asks, askdepth)
-	}
-
-	for _, bid := range resp.Bids {
-		var bidDepth struct {
-			Price  float64
-			Volume float64
-		}
-		for i, depth := range bid.([]interface{}) {
-			if i == 0 {
-				bidDepth.Price = depth.(float64)
-			}
-			if i == 1 {
-				bidDepth.Volume = depth.(float64)
-			}
-		}
-		fullDepth.Bids = append(fullDepth.Bids, bidDepth)
-	}
-
-	return fullDepth, nil
-}
-
-// GetContractTradeHistory returns trade history for the contract market
-func (o *OKGroup) GetContractTradeHistory(symbol, contractType string) ([]ActualContractTradeHistory, error) {
-	actualTradeHistory := []ActualContractTradeHistory{}
-	var resp interface{}
-
-	if err := o.CheckContractType(contractType); err != nil {
-		return actualTradeHistory, err
-	}
-	if err := o.CheckSymbol(symbol); err != nil {
-		return actualTradeHistory, err
-	}
-
-	values := url.Values{}
-	values.Set("symbol", common.StringToLower(symbol))
-	values.Set("contract_type", common.StringToLower(contractType))
-
-	path := fmt.Sprintf("%s%s%s.do?%s", o.APIUrl, o.APIVersion, "contractTradeHistory", values.Encode())
-
-	err := o.SendHTTPRequest(path, &resp)
-	if err != nil {
-		return actualTradeHistory, err
-	}
-
-	if reflect.TypeOf(resp).String() == returnTypeOne {
-		errorMap := resp.(map[string]interface{})
-		return actualTradeHistory, o.GetErrorCode(errorMap["error_code"].(float64))
-	}
-
-	for _, tradeHistory := range resp.([]interface{}) {
-		quickHistory := ActualContractTradeHistory{}
-		tradeHistoryM := tradeHistory.(map[string]interface{})
-		quickHistory.Date = tradeHistoryM["date"].(float64)
-		quickHistory.DateInMS = tradeHistoryM["date_ms"].(float64)
-		quickHistory.Amount = tradeHistoryM["amount"].(float64)
-		quickHistory.Price = tradeHistoryM["price"].(float64)
-		quickHistory.Type = tradeHistoryM["type"].(string)
-		quickHistory.TID = tradeHistoryM["tid"].(float64)
-		actualTradeHistory = append(actualTradeHistory, quickHistory)
-	}
-	return actualTradeHistory, nil
-}
-
-// GetContractIndexPrice returns the current index price
-//
-// symbol e.g. btc_usd
-func (o *OKGroup) GetContractIndexPrice(symbol string) (float64, error) {
-	if err := o.CheckSymbol(symbol); err != nil {
-		return 0, err
-	}
-
-	values := url.Values{}
-	values.Set("symbol", common.StringToLower(symbol))
-	path := fmt.Sprintf("%s%s%s.do?%s", o.APIUrl, o.APIVersion, "contractFutureIndex", values.Encode())
-	var resp interface{}
-
-	err := o.SendHTTPRequest(path, &resp)
-	if err != nil {
-		return 0, err
-	}
-
-	futureIndex := resp.(map[string]interface{})
-	if i, ok := futureIndex["error_code"].(float64); ok {
-		return 0, o.GetErrorCode(i)
-	}
-
-	if _, ok := futureIndex["future_index"].(float64); ok {
-		return futureIndex["future_index"].(float64), nil
-	}
-	return 0, errMissValue
-}
-
-// GetContractExchangeRate returns the current exchange rate for the currency
-// pair
-// USD-CNY exchange rate used by OKGroup, updated weekly
-func (o *OKGroup) GetContractExchangeRate() (float64, error) {
-	path := fmt.Sprintf("%s%s%s.do?", o.APIUrl, o.APIVersion, "contractExchangeRate")
-	var resp interface{}
-
-	if err := o.SendHTTPRequest(path, &resp); err != nil {
-		return 0, err
-	}
-
-	exchangeRate := resp.(map[string]interface{})
-	if i, ok := exchangeRate["error_code"].(float64); ok {
-		return 0, o.GetErrorCode(i)
-	}
-
-	if _, ok := exchangeRate["rate"].(float64); ok {
-		return exchangeRate["rate"].(float64), nil
-	}
-	return 0, errMissValue
-}
-
-// GetContractFutureEstimatedPrice returns futures estimated price
-//
-// symbol e.g btc_usd
-func (o *OKGroup) GetContractFutureEstimatedPrice(symbol string) (float64, error) {
-	if err := o.CheckSymbol(symbol); err != nil {
-		return 0, err
-	}
-
-	values := url.Values{}
-	values.Set("symbol", symbol)
-	path := fmt.Sprintf("%s%s%s.do?%s", o.APIUrl, o.APIVersion, "contractFutureIndex", values.Encode())
-	var resp interface{}
-
-	if err := o.SendHTTPRequest(path, &resp); err != nil {
-		return 0, err
-	}
-
-	futuresEstPrice := resp.(map[string]interface{})
-	if i, ok := futuresEstPrice["error_code"].(float64); ok {
-		return 0, o.GetErrorCode(i)
-	}
-
-	if _, ok := futuresEstPrice["future_index"].(float64); ok {
-		return futuresEstPrice["future_index"].(float64), nil
-	}
-	return 0, errMissValue
-}
-
-// GetContractCandlestickData returns CandleStickData
-//
-// symbol e.g. btc_usd
-// type e.g. 1min or 1 minute candlestick data
-// contract_type e.g. this_week
-// size: specify data size to be acquired
-// since: timestamp(eg:1417536000000). data after the timestamp will be returned
-func (o *OKGroup) GetContractCandlestickData(symbol, typeInput, contractType string, size, since int) ([]CandleStickData, error) {
-	var candleData []CandleStickData
-	if err := o.CheckSymbol(symbol); err != nil {
-		return candleData, err
-	}
-	if err := o.CheckContractType(contractType); err != nil {
-		return candleData, err
-	}
-	if err := o.CheckType(typeInput); err != nil {
-		return candleData, err
-	}
-
-	values := url.Values{}
-	values.Set("symbol", symbol)
-	values.Set("type", typeInput)
-	values.Set("contract_type", contractType)
-	values.Set("size", strconv.FormatInt(int64(size), 10))
-	values.Set("since", strconv.FormatInt(int64(since), 10))
-
-	path := fmt.Sprintf("%s%s%s.do?%s", o.APIUrl, o.APIVersion, "contractCandleStick", values.Encode())
-	var resp interface{}
-
-	if err := o.SendHTTPRequest(path, &resp); err != nil {
-		return candleData, err
-	}
-
-	if reflect.TypeOf(resp).String() == returnTypeOne {
-		errorMap := resp.(map[string]interface{})
-		return candleData, o.GetErrorCode(errorMap["error_code"].(float64))
-	}
-
-	for _, candleStickData := range resp.([]interface{}) {
-		var quickCandle CandleStickData
-
-		for i, datum := range candleStickData.([]interface{}) {
-			switch i {
-			case 0:
-				quickCandle.Timestamp = datum.(float64)
-			case 1:
-				quickCandle.Open = datum.(float64)
-			case 2:
-				quickCandle.High = datum.(float64)
-			case 3:
-				quickCandle.Low = datum.(float64)
-			case 4:
-				quickCandle.Close = datum.(float64)
-			case 5:
-				quickCandle.Volume = datum.(float64)
-			case 6:
-				quickCandle.Amount = datum.(float64)
-			default:
-				return candleData, errors.New("incoming data out of range")
-			}
-		}
-		candleData = append(candleData, quickCandle)
-	}
-
-	return candleData, nil
-}
-
-// GetContractHoldingsNumber returns current number of holdings
-func (o *OKGroup) GetContractHoldingsNumber(symbol, contractType string) (number float64, contract string, err error) {
-	if err = o.CheckSymbol(symbol); err != nil {
-		return number, contract, err
-	}
-	if err = o.CheckContractType(contractType); err != nil {
-		return number, contract, err
-	}
-
-	values := url.Values{}
-	values.Set("symbol", symbol)
-	values.Set("contract_type", contractType)
-
-	path := fmt.Sprintf("%s%s%s.do?%s", o.APIUrl, o.APIVersion, "contractFutureHoldAmount", values.Encode())
-	var resp interface{}
-
-	if err = o.SendHTTPRequest(path, &resp); err != nil {
-		return number, contract, err
-	}
-
-	if reflect.TypeOf(resp).String() == returnTypeOne {
-		errorMap := resp.(map[string]interface{})
-		return number, contract, o.GetErrorCode(errorMap["error_code"].(float64))
-	}
-
-	for _, holdings := range resp.([]interface{}) {
-		if reflect.TypeOf(holdings).String() == returnTypeOne {
-			holdingMap := holdings.(map[string]interface{})
-			number = holdingMap["amount"].(float64)
-			contract = holdingMap["contract_name"].(string)
-		}
-	}
-	return
-}
-
-// GetContractlimit returns upper and lower price limit
-func (o *OKGroup) GetContractlimit(symbol, contractType string) (map[string]float64, error) {
-	contractLimits := make(map[string]float64)
-	if err := o.CheckSymbol(symbol); err != nil {
-		return contractLimits, err
-	}
-	if err := o.CheckContractType(contractType); err != nil {
-		return contractLimits, err
-	}
-
-	values := url.Values{}
-	values.Set("symbol", symbol)
-	values.Set("contract_type", contractType)
-
-	path := fmt.Sprintf("%s%s%s.do?%s", o.APIUrl, o.APIVersion, "contractFutureLimits", values.Encode())
-	var resp interface{}
-
-	if err := o.SendHTTPRequest(path, &resp); err != nil {
-		return contractLimits, err
-	}
-
-	contractLimitMap := resp.(map[string]interface{})
-	if i, ok := contractLimitMap["error_code"].(float64); ok {
-		return contractLimits, o.GetErrorCode(i)
-	}
-
-	contractLimits["high"] = contractLimitMap["high"].(float64)
-	contractLimits["usdCnyRate"] = contractLimitMap["usdCnyRate"].(float64)
-	contractLimits["low"] = contractLimitMap["low"].(float64)
-	return contractLimits, nil
-}
-
-// GetSpotTicker returns Price Ticker
-func (o *OKGroup) GetSpotTicker(symbol string) (SpotPrice, error) {
-	var resp SpotPrice
-
-	values := url.Values{}
-	values.Set("symbol", symbol)
-	path := fmt.Sprintf("%s%s%s.do?%s", o.APIUrl, o.APIVersion, "ticker", values.Encode())
-
-	err := o.SendHTTPRequest(path, &resp)
-	if err != nil {
-		return resp, err
-	}
-
-	if resp.Error != nil {
-		return resp, o.GetErrorCode(resp.Error.(float64))
-	}
-	return resp, nil
-}
-
-//GetSpotMarketDepth returns Market Depth
-func (o *OKGroup) GetSpotMarketDepth(asd ActualSpotDepthRequestParams) (ActualSpotDepth, error) {
-	resp := SpotDepth{}
-	fullDepth := ActualSpotDepth{}
-
-	values := url.Values{}
-	values.Set("symbol", asd.Symbol)
-	values.Set("size", fmt.Sprintf("%d", asd.Size))
-
-	path := fmt.Sprintf("%s%s%s.do?%s", o.APIUrl, o.APIVersion, "depth", values.Encode())
-
-	err := o.SendHTTPRequest(path, &resp)
-	if err != nil {
-		return fullDepth, err
-	}
-
-	if !resp.Result {
-		if resp.Error != nil {
-			return fullDepth, o.GetErrorCode(resp.Error)
-		}
-	}
-
-	for _, ask := range resp.Asks {
-		var askdepth struct {
-			Price  float64
-			Volume float64
-		}
-		for i, depth := range ask.([]interface{}) {
-			if i == 0 {
-				askdepth.Price = depth.(float64)
-			}
-			if i == 1 {
-				askdepth.Volume = depth.(float64)
-			}
-		}
-		fullDepth.Asks = append(fullDepth.Asks, askdepth)
-	}
-
-	for _, bid := range resp.Bids {
-		var bidDepth struct {
-			Price  float64
-			Volume float64
-		}
-		for i, depth := range bid.([]interface{}) {
-			if i == 0 {
-				bidDepth.Price = depth.(float64)
-			}
-			if i == 1 {
-				bidDepth.Volume = depth.(float64)
-			}
-		}
-		fullDepth.Bids = append(fullDepth.Bids, bidDepth)
-	}
-
-	return fullDepth, nil
-}
-
-// GetSpotRecentTrades returns recent trades
-func (o *OKGroup) GetSpotRecentTrades(ast ActualSpotTradeHistoryRequestParams) ([]ActualSpotTradeHistory, error) {
-	actualTradeHistory := []ActualSpotTradeHistory{}
-	var resp interface{}
-
-	values := url.Values{}
-	values.Set("symbol", ast.Symbol)
-	values.Set("since", fmt.Sprintf("%d", ast.Since))
-
-	path := fmt.Sprintf("%s%s%s.do?%s", o.APIUrl, o.APIVersion, "trades", values.Encode())
-
-	err := o.SendHTTPRequest(path, &resp)
-	if err != nil {
-		return actualTradeHistory, err
-	}
-
-	if reflect.TypeOf(resp).String() == returnTypeOne {
-		errorMap := resp.(map[string]interface{})
-		return actualTradeHistory, o.GetErrorCode(errorMap["error_code"].(float64))
-	}
-
-	for _, tradeHistory := range resp.([]interface{}) {
-		quickHistory := ActualSpotTradeHistory{}
-		tradeHistoryM := tradeHistory.(map[string]interface{})
-		quickHistory.Date = tradeHistoryM["date"].(float64)
-		quickHistory.DateInMS = tradeHistoryM["date_ms"].(float64)
-		quickHistory.Amount = tradeHistoryM["amount"].(float64)
-		quickHistory.Price = tradeHistoryM["price"].(float64)
-		quickHistory.Type = tradeHistoryM["type"].(string)
-		quickHistory.TID = tradeHistoryM["tid"].(float64)
-		actualTradeHistory = append(actualTradeHistory, quickHistory)
-	}
-	return actualTradeHistory, nil
-}
-
-// GetSpotKline returns candlestick data
-func (o *OKGroup) GetSpotKline(arg KlinesRequestParams) ([]CandleStickData, error) {
-	var candleData []CandleStickData
-
-	values := url.Values{}
-	values.Set("symbol", arg.Symbol)
-	values.Set("type", string(arg.Type))
-	if arg.Size != 0 {
-		values.Set("size", strconv.FormatInt(int64(arg.Size), 10))
-	}
-	if arg.Since != 0 {
-		values.Set("since", strconv.FormatInt(int64(arg.Since), 10))
-	}
-
-	path := fmt.Sprintf("%s%s%s.do?%s", o.APIUrl, o.APIVersion, "spotKline", values.Encode())
-	var resp interface{}
-
-	if err := o.SendHTTPRequest(path, &resp); err != nil {
-		return candleData, err
-	}
-
-	if reflect.TypeOf(resp).String() == returnTypeOne {
-		errorMap := resp.(map[string]interface{})
-		return candleData, o.GetErrorCode(errorMap["error_code"].(float64))
-	}
-
-	for _, candleStickData := range resp.([]interface{}) {
-		var quickCandle CandleStickData
-
-		for i, datum := range candleStickData.([]interface{}) {
-			switch i {
-			case 0:
-				quickCandle.Timestamp = datum.(float64)
-			case 1:
-				quickCandle.Open, _ = strconv.ParseFloat(datum.(string), 64)
-			case 2:
-				quickCandle.High, _ = strconv.ParseFloat(datum.(string), 64)
-			case 3:
-				quickCandle.Low, _ = strconv.ParseFloat(datum.(string), 64)
-			case 4:
-				quickCandle.Close, _ = strconv.ParseFloat(datum.(string), 64)
-			case 5:
-				quickCandle.Volume, _ = strconv.ParseFloat(datum.(string), 64)
-			case 6:
-				quickCandle.Amount, _ = strconv.ParseFloat(datum.(string), 64)
-			default:
-				return candleData, errors.New("incoming data out of range")
-			}
-		}
-		candleData = append(candleData, quickCandle)
-	}
-
-	return candleData, nil
 }
 
 // SendHTTPRequest sends an unauthenticated HTTP request
@@ -707,207 +178,88 @@ func (o *OKGroup) SendHTTPRequest(path string, result interface{}) error {
 // Private endpoints
 // -------------------------------------------------------------------------------------
 
-// GetContractUserInfo returns OKGroup Contract Account Info（Cross-Margin Mode）
-func (o *OKGroup) GetContractUserInfo() error {
-	var resp interface{}
-	if err := o.SendAuthenticatedHTTPRequest("POST", "", "contractFutureUserInfo", url.Values{}, &resp); err != nil {
-		return err
-	}
-
-	userInfoMap := resp.(map[string]interface{})
-	if code, ok := userInfoMap["error_code"]; ok {
-		return o.GetErrorCode(code)
-	}
-	return nil
+// GetCurrencies returns a list of tradable spot instruments and their properties
+func (o *OKGroup) GetCurrencies() ([]CurrencyResponse, error) {
+	var resp []CurrencyResponse
+	return resp, o.SendAuthenticatedHTTPRequest("GET", okGroupAccountSubsection, okGroupGetCurrencies, nil, &resp)
 }
 
-// GetContractPosition returns User Contract Positions （Cross-Margin Mode）
-func (o *OKGroup) GetContractPosition(symbol, contractType string) error {
-	var resp interface{}
-
-	if err := o.CheckSymbol(symbol); err != nil {
-		return err
-	}
-	if err := o.CheckContractType(contractType); err != nil {
-		return err
-	}
-
-	values := url.Values{}
-	values.Set("symbol", symbol)
-	values.Set("contract_type", contractType)
-
-	if err := o.SendAuthenticatedHTTPRequest("POST", "", "contractFuturePosition", values, &resp); err != nil {
-		return err
-	}
-
-	userInfoMap := resp.(map[string]interface{})
-	if code, ok := userInfoMap["error_code"]; ok {
-		return o.GetErrorCode(code)
-	}
-	return nil
-}
-
-// PlaceContractOrders places orders
-func (o *OKGroup) PlaceContractOrders(symbol, contractType, position string, leverageRate int, price, amount float64, matchPrice bool) (float64, error) {
-	var resp interface{}
-
-	if err := o.CheckSymbol(symbol); err != nil {
-		return 0, err
-	}
-	if err := o.CheckContractType(contractType); err != nil {
-		return 0, err
-	}
-	if err := o.CheckContractPosition(position); err != nil {
-		return 0, err
-	}
-
-	values := url.Values{}
-	values.Set("symbol", symbol)
-	values.Set("contract_type", contractType)
-	values.Set("price", strconv.FormatFloat(price, 'f', -1, 64))
-	values.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
-	values.Set("type", position)
-	if matchPrice {
-		values.Set("match_price", "1")
+// GetWalletInformation returns a list of wallets and their properties
+func (o *OKGroup) GetWalletInformation(currency string) ([]WalletInformationResponse, error) {
+	var resp []WalletInformationResponse
+	var requestURL string
+	if len(currency) > 0 {
+		requestURL = fmt.Sprintf("%v/%v", okGroupGetWalletInformation, currency)
 	} else {
-		values.Set("match_price", "0")
+		requestURL = okGroupGetWalletInformation
 	}
 
-	if leverageRate != 10 && leverageRate != 20 {
-		return 0, errors.New("leverage rate can only be 10 or 20")
-	}
-	values.Set("lever_rate", strconv.FormatInt(int64(leverageRate), 10))
-
-	if err := o.SendAuthenticatedHTTPRequest("POST", "", "contractFutureTrade", values, &resp); err != nil {
-		return 0, err
-	}
-
-	contractMap := resp.(map[string]interface{})
-	if code, ok := contractMap["error_code"]; ok {
-		return 0, o.GetErrorCode(code)
-	}
-
-	if orderID, ok := contractMap["order_id"]; ok {
-		return orderID.(float64), nil
-	}
-
-	return 0, errors.New("orderID returned nil")
+	return resp, o.SendAuthenticatedHTTPRequest("GET", okGroupAccountSubsection, requestURL, nil, &resp)
 }
 
-// GetContractFuturesTradeHistory returns OKGroup Contract Trade History (Not for Personal)
-func (o *OKGroup) GetContractFuturesTradeHistory(symbol, date string, since int) error {
-	var resp interface{}
-
-	if err := o.CheckSymbol(symbol); err != nil {
-		return err
-	}
-
-	values := url.Values{}
-	values.Set("symbol", symbol)
-	values.Set("date", date)
-	values.Set("since", strconv.FormatInt(int64(since), 10))
-
-	if err := o.SendAuthenticatedHTTPRequest("POST", "", "contractFutureTradeHistory", values, &resp); err != nil {
-		return err
-	}
-
-	respMap := resp.(map[string]interface{})
-	if code, ok := respMap["error_code"]; ok {
-		return o.GetErrorCode(code)
-	}
-	return nil
+// TransferFunds  the transfer of funds between wallet, trading accounts, main account and sub accounts.
+func (o *OKGroup) TransferFunds(request FundTransferRequest) (FundTransferResponse, error) {
+	var resp FundTransferResponse
+	return resp, o.SendAuthenticatedHTTPRequest("POST", okGroupAccountSubsection, okGroupFundsTransfer, request, &resp)
 }
 
-// GetTokenOrders returns details for a single orderID or all open orders when orderID == -1
-func (o *OKGroup) GetTokenOrders(symbol string, orderID int64) (TokenOrdersResponse, error) {
-	var resp TokenOrdersResponse
-	values := url.Values{}
-	values.Set("symbol", symbol)
-	values.Set("order_id", strconv.FormatInt(orderID, 10))
-
-	if err := o.SendAuthenticatedHTTPRequest("POST", "", "contractFutureTradeHistory", values, &resp); err != nil {
-		return resp, err
-	}
-
-	return resp, nil
+// Withdraw withdrawal of tokens to OKCoin International, other OKEx accounts or other addresses.
+func (o *OKGroup) Withdraw(request WithdrawRequest) (WithdrawResponse, error) {
+	var resp WithdrawResponse
+	return resp, o.SendAuthenticatedHTTPRequest("POST", okGroupAccountSubsection, okGroupWithdraw, request, &resp)
 }
 
-// GetUserInfo returns the user info
-func (o *OKGroup) GetUserInfo() (SpotUserInfo, error) {
-	var resp SpotUserInfo
-	err := o.SendAuthenticatedHTTPRequest("POST", "", "spotUserInfo", url.Values{}, &resp)
-	if err != nil {
-		return resp, err
+// GetWithdrawalFee retrieves the information about the recommended network transaction fee for withdrawals to digital asset addresses. The higher the fees are, the sooner the confirmations you will get.
+func (o *OKGroup) GetWithdrawalFee(currency string) ([]WithdrawalFeeResponse, error) {
+	var resp []WithdrawalFeeResponse
+	var requestURL string
+	if len(currency) > 0 {
+		requestURL = fmt.Sprintf("%v?currency=%v", okGroupGetWithdrawalFees, currency)
+	} else {
+		requestURL = okGroupGetWalletInformation
 	}
-	return resp, nil
+
+	return resp, o.SendAuthenticatedHTTPRequest("GET", okGroupAccountSubsection, requestURL, nil, &resp)
 }
 
-// SpotNewOrder creates a new spot order
-func (o *OKGroup) SpotNewOrder(arg SpotNewOrderRequestParams) (int64, error) {
-	type response struct {
-		Result  bool  `json:"result"`
-		OrderID int64 `json:"order_id"`
+// GetWithdrawalHistory retrieves all recent withdrawal records.
+func (o *OKGroup) GetWithdrawalHistory(currency string) ([]WithdrawalHistoryResponse, error) {
+	var resp []WithdrawalHistoryResponse
+	var requestURL string
+	if len(currency) > 0 {
+		requestURL = fmt.Sprintf("%v/%v", okGroupGetWithdrawalHistory, currency)
+	} else {
+		requestURL = okGroupGetWithdrawalHistory
 	}
-
-	var res response
-	params := url.Values{}
-	params.Set("symbol", arg.Symbol)
-	params.Set("type", string(arg.Type))
-	params.Set("price", strconv.FormatFloat(arg.Price, 'f', -1, 64))
-	params.Set("amount", strconv.FormatFloat(arg.Amount, 'f', -1, 64))
-
-	err := o.SendAuthenticatedHTTPRequest("POST", "", "spotTrade", params, &res)
-	if err != nil {
-		return res.OrderID, err
-	}
-
-	return res.OrderID, nil
+	return resp, o.SendAuthenticatedHTTPRequest("GET", okGroupAccountSubsection, requestURL, nil, &resp)
 }
 
-// SpotCancelOrder cancels a spot order
-// symbol such as ltc_btc
-// orderID orderID
-// returns orderID or an error
-func (o *OKGroup) SpotCancelOrder(symbol string, argOrderID int64) (int64, error) {
-	var res = struct {
-		Result    bool   `json:"result"`
-		OrderID   string `json:"order_id"`
-		ErrorCode int    `json:"error_code"`
-	}{}
-
-	params := url.Values{}
-	params.Set("symbol", symbol)
-	params.Set("order_id", strconv.FormatInt(argOrderID, 10))
-	var returnOrderID int64
-
-	err := o.SendAuthenticatedHTTPRequest("POST", "", "spotCancelTrade"+".do", params, &res)
-	if err != nil {
-		return returnOrderID, err
+// GetBillDetails retrieves the bill details of the wallet. All the information will be paged and sorted in reverse chronological order,
+// which means the latest will be at the top. Please refer to the pagination section for additional records after the first page.
+// 3 months recent records will be returned at maximum
+func (o *OKGroup) GetBillDetails(request GetBillDetailsRequest) ([]GetBillDetailsResponse, error) {
+	var resp []GetBillDetailsResponse
+	urlValues := url.Values{}
+	if request.Type > 0 {
+		urlValues.Set("type", strconv.FormatInt(request.Type, 10))
 	}
-
-	if res.ErrorCode != 0 {
-		return returnOrderID, fmt.Errorf("ErrCode:%d ErrMsg:%s", res.ErrorCode, o.ErrorCodes[strconv.Itoa(res.ErrorCode)])
+	if len(request.Currency) > 0 {
+		urlValues.Set("currency", request.Currency)
 	}
-
-	returnOrderID, _ = common.Int64FromString(res.OrderID)
-	return returnOrderID, nil
+	if request.From > 0 {
+		urlValues.Set("from", strconv.FormatInt(request.From, 10))
+	}
+	if request.To > 0 {
+		urlValues.Set("to", strconv.FormatInt(request.To, 10))
+	}
+	if request.Limit > 0 {
+		urlValues.Set("limit", strconv.FormatInt(request.Limit, 10))
+	}
+	requestURL := fmt.Sprintf("%v%v", okGroupGetBillDetails, urlValues.Encode())
+	return resp, o.SendAuthenticatedHTTPRequest("GET", okGroupAccountSubsection, requestURL, nil, &resp)
 }
 
-// GetLatestSpotPrice returns latest spot price of symbol
-//
-// symbol: string of currency pair
-func (o *OKGroup) GetLatestSpotPrice(symbol string) (float64, error) {
-	spotPrice, err := o.GetSpotTicker(symbol)
-
-	if err != nil {
-		return 0, err
-	}
-
-	return spotPrice.Ticker.Last, nil
-}
-
-// GetErrorCode finds the associated error code and returns its corresponding
-// string
+// GetErrorCode returns an error code
 func (o *OKGroup) GetErrorCode(code interface{}) error {
 	var assertedCode string
 
@@ -927,8 +279,9 @@ func (o *OKGroup) GetErrorCode(code interface{}) error {
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated http request to a desired
-// path
-func (o *OKGroup) SendAuthenticatedHTTPRequest(httpMethod, requestType, requestPath string, values url.Values, result interface{}) (err error) {
+// path with a JSON payload (of present)
+// URL arguments must be in the request path and not as url.URL values
+func (o *OKGroup) SendAuthenticatedHTTPRequest(httpMethod, requestType, requestPath string, data interface{}, result interface{}) (err error) {
 	if !o.AuthenticatedAPISupport {
 		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet, o.Name)
 	}
@@ -938,14 +291,26 @@ func (o *OKGroup) SendAuthenticatedHTTPRequest(httpMethod, requestType, requestP
 	isoBytes := []byte(iso)
 	iso = string(isoBytes[:10]) + "T" + string(isoBytes[11:23]) + "Z"
 
-	encoded := values.Encode()
+	payload := []byte("")
+
+	if data != nil {
+		payload, err = common.JSONEncode(data)
+		if err != nil {
+			return errors.New("SendAuthenticatedHTTPRequest: Unable to JSON request")
+		}
+
+		if o.Verbose {
+			log.Debugf("Request JSON: %s\n", payload)
+		}
+	}
+
 	path := o.APIUrl + requestType + o.APIVersion + requestPath
-	signPath := fmt.Sprintf("/%v%v%v%v", okGroupAPIPath, requestType, o.APIVersion, requestPath)
-	hmac := common.GetHMAC(common.HashSHA256, []byte(iso+httpMethod+signPath), []byte(o.APISecret))
+	signPath := fmt.Sprintf("/%v%v%v%v", OkGroupAPIPath, requestType, o.APIVersion, requestPath)
+	hmac := common.GetHMAC(common.HashSHA256, []byte(iso+httpMethod+signPath+string(payload)), []byte(o.APISecret))
 	base64 := common.Base64Encode(hmac)
 
 	if o.Verbose {
-		log.Debugf("Sending %v request to %s with params %s\n", requestType, path, encoded)
+		log.Debugf("Sending %v request to %s with params \n", requestType, path)
 	}
 
 	headers := make(map[string]string)
@@ -962,7 +327,7 @@ func (o *OKGroup) SendAuthenticatedHTTPRequest(httpMethod, requestType, requestP
 		Error  int64 `json:"error_code"`
 	}{}
 
-	err = o.SendPayload(strings.ToUpper(httpMethod), path, headers, strings.NewReader(encoded), &intermediary, true, o.Verbose)
+	err = o.SendPayload(strings.ToUpper(httpMethod), path, headers, bytes.NewBuffer(payload), &intermediary, true, o.Verbose)
 	if err != nil {
 		return err
 	}
@@ -1049,68 +414,6 @@ func calculateTradingFee(purchasePrice, amount float64, isMaker bool) (fee float
 
 func getWithdrawalFee(currency string) float64 {
 	return WithdrawalFees[currency]
-}
-
-// GetBalance returns the full balance across all wallets
-func (o *OKGroup) GetBalance() ([]FullBalance, error) {
-	var resp Balance
-	var balances []FullBalance
-
-	err := o.SendAuthenticatedHTTPRequest("POST", "", "myWalletInfo", url.Values{}, &resp)
-	if err != nil {
-		return balances, err
-	}
-
-	for key, available := range resp.Info.Funds.Free {
-		free, err := strconv.ParseFloat(available, 64)
-		if err != nil {
-			return balances, err
-		}
-
-		inUse, ok := resp.Info.Funds.Holds[key]
-		if !ok {
-			return balances, fmt.Errorf("hold currency %s not found in map", key)
-		}
-
-		hold, err := strconv.ParseFloat(inUse, 64)
-		if err != nil {
-			return balances, err
-		}
-
-		balances = append(balances, FullBalance{
-			Currency:  key,
-			Available: free,
-			Hold:      hold,
-		})
-	}
-
-	return balances, nil
-}
-
-// Withdrawal withdraws a cryptocurrency to a supplied address
-func (o *OKGroup) Withdrawal(symbol string, fee float64, tradePWD, address string, amount float64) (int, error) {
-	v := url.Values{}
-	v.Set("symbol", symbol)
-
-	if fee != 0 {
-		v.Set("chargefee", strconv.FormatFloat(fee, 'f', -1, 64))
-	}
-	v.Set("trade_pwd", tradePWD)
-	v.Set("withdraw_address", address)
-	v.Set("withdraw_amount", strconv.FormatFloat(amount, 'f', -1, 64))
-	v.Set("target", "address")
-	resp := WithdrawalResponse{}
-
-	err := o.SendAuthenticatedHTTPRequest("POST", "", "spotWithdraw", v, &resp)
-	if err != nil {
-		return 0, err
-	}
-
-	if !resp.Result {
-		return 0, errors.New("unable to process withdrawal request")
-	}
-
-	return resp.WithdrawID, nil
 }
 
 // SetErrorDefaults sets the full error default list
