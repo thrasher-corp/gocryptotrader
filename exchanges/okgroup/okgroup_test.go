@@ -235,6 +235,48 @@ func TestGetBillDetails(t *testing.T) {
 	}
 }
 
+func TestGetDepositAddressForCurrency(t *testing.T) {
+	t.Parallel()
+	o.SetDefaults()
+	TestSetup(t)
+
+	_, err := o.GetDepositAddressForCurrency(symbol.BTC)
+	if !areTestAPIKeysSet() && err == nil {
+		t.Error("Expecting an error when no keys are set")
+	}
+	if areTestAPIKeysSet() && err != nil {
+		t.Errorf("Encountered error: %v", err)
+	}
+}
+
+func TestGetDepositHistory(t *testing.T) {
+	t.Parallel()
+	o.SetDefaults()
+	TestSetup(t)
+
+	_, err := o.GetDepositHistory("")
+	if !areTestAPIKeysSet() && err == nil {
+		t.Error("Expecting an error when no keys are set")
+	}
+	if areTestAPIKeysSet() && err != nil {
+		t.Errorf("Encountered error: %v", err)
+	}
+}
+
+func TestGetDepositHistoryForCurrency(t *testing.T) {
+	t.Parallel()
+	o.SetDefaults()
+	TestSetup(t)
+
+	_, err := o.GetDepositHistory(symbol.BTC)
+	if !areTestAPIKeysSet() && err == nil {
+		t.Error("Expecting an error when no keys are set")
+	}
+	if areTestAPIKeysSet() && err != nil {
+		t.Errorf("Encountered error: %v", err)
+	}
+}
+
 func setFeeBuilder() exchange.FeeBuilder {
 	return exchange.FeeBuilder{
 		Amount:              1,
@@ -360,7 +402,7 @@ func TestSubmitOrder(t *testing.T) {
 		FirstCurrency:  symbol.BTC,
 		SecondCurrency: symbol.EUR,
 	}
-	response, err := o.SubmitOrder(p, exchange.Buy, exchange.Market, 1, 10, "hi")
+	response, err := o.SubmitOrder(p, exchange.BuyOrderSide, exchange.MarketOrderType, 1, 10, "hi")
 	if areTestAPIKeysSet() && (err != nil || !response.IsOrderPlaced) {
 		t.Errorf("Order failed to be placed: %v", err)
 	} else if !areTestAPIKeysSet() && err == nil {

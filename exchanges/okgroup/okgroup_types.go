@@ -100,6 +100,24 @@ type GetBillDetailsResponse struct {
 	Typename  string  `json:"typename"`
 }
 
+// GetDepositAddressRespoonse contains deposit address details from a GetDepositAddress request
+type GetDepositAddressRespoonse struct {
+	Address   string `json:"address"`
+	Tag       string `json:"tag"`
+	PaymentID string `json:"payment_id,omitempty"`
+	Currency  string `json:"currency"`
+}
+
+//GetDepositHistoryResponse contains deposit history details from a GetDepositHistory request
+type GetDepositHistoryResponse struct {
+	Amount        float64 `json:"amount"`
+	Currency      string  `json:"currency"`
+	Status        int     `json:"status"`
+	Timestamp     string  `json:"timestamp"`
+	To            string  `json:"to"`
+	TransactionID string  `json:"txid"`
+}
+
 // OrderStatus Holds OKGroup order status values
 var OrderStatus = map[int]string{
 	-3: "pending cancel",
@@ -113,6 +131,7 @@ var OrderStatus = map[int]string{
 	5:  "awaiting identity confirmation",
 }
 
+//SpotInstrument contains spot data
 type SpotInstrument struct {
 	BaseCurrency   string  `json:"base_currency"`
 	BaseIncrement  float64 `json:"base_increment,string"`
@@ -126,7 +145,6 @@ type SpotInstrument struct {
 	TickSize       float64 `json:"tick_size,string"`
 }
 
-// ContractPrice holds date and ticker price price for contracts.
 // MultiStreamData contains raw data from okex
 type MultiStreamData struct {
 	Channel string          `json:"channel"`
