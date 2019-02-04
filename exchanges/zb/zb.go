@@ -33,6 +33,7 @@ const (
 	zbTickers                         = "allTicker"
 	zbDepth                           = "depth"
 	zbUnfinishedOrdersIgnoreTradeType = "getUnfinishedOrdersIgnoreTradeType"
+	zbGetOrdersGet                    = "getOrders"
 	zbWithdraw                        = "withdraw"
 	zbDepositAddress                  = "getUserAddress"
 
@@ -194,14 +195,14 @@ func (z *ZB) GetAccountInformation() (AccountsResponse, error) {
 }
 
 // GetUnfinishedOrdersIgnoreTradeType returns unfinished orders
-func (z *ZB) GetUnfinishedOrdersIgnoreTradeType(currency, pageindex, pagesize string) ([]UnfinishedOpenOrder, error) {
-	var result []UnfinishedOpenOrder
+func (z *ZB) GetUnfinishedOrdersIgnoreTradeType(currency string, pageindex, pagesize int64) ([]Order, error) {
+	var result []Order
 	vals := url.Values{}
 	vals.Set("accesskey", z.APIKey)
 	vals.Set("method", zbUnfinishedOrdersIgnoreTradeType)
 	vals.Set("currency", currency)
-	vals.Set("pageIndex", pageindex)
-	vals.Set("pageSize", pagesize)
+	vals.Set("pageIndex", strconv.FormatInt(pageindex, 10))
+	vals.Set("pageSize", strconv.FormatInt(pagesize, 10))
 
 	err := z.SendAuthenticatedHTTPRequest("GET", vals, &result)
 	if err != nil {
@@ -209,6 +210,24 @@ func (z *ZB) GetUnfinishedOrdersIgnoreTradeType(currency, pageindex, pagesize st
 	}
 
 	return result, nil
+}
+
+// GetOrders returns finished orders
+func (z *ZB) GetOrders(currency string, pageindex, side int64) ([]Order, error) {
+	var response []Order
+	vals := url.Values{}
+	vals.Set("accesskey", z.APIKey)
+	vals.Set("method", zbGetOrdersGet)
+	vals.Set("currency", currency)
+	vals.Set("pageIndex", strconv.FormatInt(pageindex, 10))
+	vals.Set("tradeType", strconv.FormatInt(side, 10))
+
+	err := z.SendAuthenticatedHTTPRequest("GET", vals, &response)
+	if err != nil {
+		return response, err
+	}
+
+	return response, nil
 }
 
 // GetMarkets returns market information including pricing, symbols and

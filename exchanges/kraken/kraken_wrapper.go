@@ -2,8 +2,10 @@ package kraken
 
 import (
 	"errors"
+	"fmt"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
@@ -289,4 +291,78 @@ func (k *Kraken) GetFeeByType(feeBuilder exchange.FeeBuilder) (float64, error) {
 // GetWithdrawCapabilities returns the types of withdrawal methods permitted by the exchange
 func (k *Kraken) GetWithdrawCapabilities() uint32 {
 	return k.GetWithdrawPermissions()
+}
+
+// GetActiveOrders retrieves any orders that are active/open
+func (k *Kraken) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
+	resp, err := k.GetOpenOrders(OrderInfoOptions{})
+	if err != nil {
+		return nil, err
+	}
+
+	var orders []exchange.OrderDetail
+	for ID, order := range resp.Open {
+		symbol := pair.NewCurrencyPairDelimiter(order.Descr.Pair, k.ConfigCurrencyPairFormat.Delimiter)
+		orderDate := time.Unix(int64(order.StartTm), 0)
+		side := exchange.OrderSide(strings.ToUpper(order.Descr.Type))
+
+		orders = append(orders, exchange.OrderDetail{
+			ID:              ID,
+			Amount:          order.Vol,
+			RemainingAmount: (order.Vol - order.VolExec),
+			ExecutedAmount:  order.VolExec,
+			Exchange:        k.Name,
+			OrderDate:       orderDate,
+			Price:           order.Price,
+			OrderSide:       side,
+			CurrencyPair:    symbol,
+		})
+	}
+
+	exchange.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
+	exchange.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
+	exchange.FilterOrdersByCurrencies(&orders, getOrdersRequest.Currencies)
+
+	return orders, nil
+}
+
+// GetOrderHistory retrieves account order information
+// Can Limit response to specific order status
+func (k *Kraken) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
+	request := GetClosedOrdersOptions{}
+	if getOrdersRequest.StartTicks.Unix() > 0 {
+		request.Start = fmt.Sprintf("%v", getOrdersRequest.StartTicks.Unix())
+	}
+	if getOrdersRequest.EndTicks.Unix() > 0 {
+		request.End = fmt.Sprintf("%v", getOrdersRequest.EndTicks.Unix())
+	}
+
+	resp, err := k.GetClosedOrders(request)
+	if err != nil {
+		return nil, err
+	}
+
+	var orders []exchange.OrderDetail
+	for ID, order := range resp.Closed {
+		symbol := pair.NewCurrencyPairDelimiter(order.Descr.Pair, k.ConfigCurrencyPairFormat.Delimiter)
+		orderDate := time.Unix(int64(order.StartTm), 0)
+		side := exchange.OrderSide(strings.ToUpper(order.Descr.Type))
+
+		orders = append(orders, exchange.OrderDetail{
+			ID:              ID,
+			Amount:          order.Vol,
+			RemainingAmount: (order.Vol - order.VolExec),
+			ExecutedAmount:  order.VolExec,
+			Exchange:        k.Name,
+			OrderDate:       orderDate,
+			Price:           order.Price,
+			OrderSide:       side,
+			CurrencyPair:    symbol,
+		})
+	}
+
+	exchange.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
+	exchange.FilterOrdersByCurrencies(&orders, getOrdersRequest.Currencies)
+
+	return orders, nil
 }

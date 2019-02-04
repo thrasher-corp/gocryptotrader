@@ -4,7 +4,9 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"strings"
 	"sync"
+	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
@@ -202,14 +204,14 @@ func (o *OKCoin) GetExchangeHistory(p pair.CurrencyPair, assetType string) ([]ex
 func (o *OKCoin) SubmitOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (exchange.SubmitOrderResponse, error) {
 	var submitOrderResponse exchange.SubmitOrderResponse
 	var oT string
-	if orderType == exchange.Limit {
-		if side == exchange.Buy {
+	if orderType == exchange.LimitOrderType {
+		if side == exchange.BuyOrderSide {
 			oT = "buy"
 		} else {
 			oT = "sell"
 		}
-	} else if orderType == exchange.Market {
-		if side == exchange.Buy {
+	} else if orderType == exchange.MarketOrderType {
+		if side == exchange.BuyOrderSide {
 			oT = "buy_market"
 		} else {
 			oT = "sell_market"
@@ -328,4 +330,76 @@ func (o *OKCoin) GetFeeByType(feeBuilder exchange.FeeBuilder) (float64, error) {
 // GetWithdrawCapabilities returns the types of withdrawal methods permitted by the exchange
 func (o *OKCoin) GetWithdrawCapabilities() uint32 {
 	return o.GetWithdrawPermissions()
+}
+
+// GetActiveOrders retrieves any orders that are active/open
+func (o *OKCoin) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
+	var allOrders []OrderInfo
+	for _, currency := range getOrdersRequest.Currencies {
+		resp, err := o.GetOrderHistoryForCurrency(200, 0, 0, exchange.FormatExchangeCurrency(o.Name, currency).String())
+		if err != nil {
+			return nil, err
+		}
+
+		allOrders = append(allOrders, resp.Orders...)
+	}
+
+	var orders []exchange.OrderDetail
+	for _, order := range allOrders {
+		// Status 2 == Filled, -1 == Cancelled.
+		if order.Status == 2 || order.Status == -1 {
+			continue
+		}
+
+		symbol := pair.NewCurrencyPairDelimiter(order.Symbol, o.ConfigCurrencyPairFormat.Delimiter)
+		orderDate := time.Unix(order.Created, 0)
+		side := exchange.OrderSide(strings.ToUpper(order.Type))
+		orders = append(orders, exchange.OrderDetail{
+			ID:           fmt.Sprintf("%v", order.OrderID),
+			Amount:       order.Amount,
+			OrderDate:    orderDate,
+			Price:        order.Price,
+			OrderSide:    side,
+			CurrencyPair: symbol,
+			Exchange:     o.Name,
+		})
+	}
+
+	exchange.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
+	exchange.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
+
+	return orders, nil
+}
+
+// GetOrderHistory retrieves account order information
+// Can Limit response to specific order status
+func (o *OKCoin) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
+	var allOrders []OrderInfo
+	for _, currency := range getOrdersRequest.Currencies {
+		resp, err := o.GetOrderInformation(-1, exchange.FormatExchangeCurrency(o.Name, currency).String())
+		if err != nil {
+			return nil, err
+		}
+		allOrders = append(allOrders, resp...)
+	}
+	var orders []exchange.OrderDetail
+	for _, order := range allOrders {
+		symbol := pair.NewCurrencyPairDelimiter(order.Symbol, o.ConfigCurrencyPairFormat.Delimiter)
+		orderDate := time.Unix(order.Created, 0)
+		side := exchange.OrderSide(strings.ToUpper(order.Type))
+		orders = append(orders, exchange.OrderDetail{
+			ID:           fmt.Sprintf("%v", order.OrderID),
+			Amount:       order.Amount,
+			OrderDate:    orderDate,
+			Price:        order.Price,
+			OrderSide:    side,
+			CurrencyPair: symbol,
+			Exchange:     o.Name,
+		})
+	}
+
+	exchange.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
+	exchange.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
+
+	return orders, nil
 }

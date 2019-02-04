@@ -1,9 +1,12 @@
 package liqui
 
 import (
+	"errors"
 	"fmt"
 	"strconv"
+	"strings"
 	"sync"
+	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
@@ -192,7 +195,7 @@ func (l *Liqui) CancelAllOrders(orderCancellation exchange.OrderCancellation) (e
 	cancelAllOrdersResponse := exchange.CancelAllOrdersResponse{
 		OrderStatus: make(map[string]string),
 	}
-	activeOrders, err := l.GetActiveOrders("")
+	activeOrders, err := l.GetOpenOrders("")
 	if err != nil {
 		return cancelAllOrdersResponse, err
 	}
@@ -259,4 +262,46 @@ func (l *Liqui) GetFeeByType(feeBuilder exchange.FeeBuilder) (float64, error) {
 // GetWithdrawCapabilities returns the types of withdrawal methods permitted by the exchange
 func (l *Liqui) GetWithdrawCapabilities() uint32 {
 	return l.GetWithdrawPermissions()
+}
+
+// GetActiveOrders retrieves any orders that are active/open
+func (l *Liqui) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
+	if len(getOrdersRequest.Currencies) <= 0 {
+		return nil, errors.New("Currency must be supplied")
+	}
+
+	var orders []exchange.OrderDetail
+	for _, currency := range getOrdersRequest.Currencies {
+		resp, err := l.GetOpenOrders(exchange.FormatExchangeCurrency(l.Name, currency).String())
+		if err != nil {
+			return nil, err
+		}
+
+		for ID, order := range resp {
+			symbol := pair.NewCurrencyPairDelimiter(order.Pair, l.ConfigCurrencyPairFormat.Delimiter)
+			orderDate := time.Unix(int64(order.TimestampCreated), 0)
+			side := exchange.OrderSide(strings.ToUpper(order.Type))
+
+			orders = append(orders, exchange.OrderDetail{
+				Amount:       order.Amount,
+				ID:           ID,
+				Price:        order.Rate,
+				OrderSide:    side,
+				OrderDate:    orderDate,
+				Exchange:     l.Name,
+				CurrencyPair: symbol,
+			})
+		}
+	}
+
+	exchange.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
+	exchange.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
+
+	return orders, nil
+}
+
+// GetOrderHistory retrieves account order information
+// Can Limit response to specific order status
+func (l *Liqui) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
+	return nil, common.ErrFunctionNotSupported
 }

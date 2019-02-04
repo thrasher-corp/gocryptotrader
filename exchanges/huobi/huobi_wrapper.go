@@ -4,7 +4,9 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"strings"
 	"sync"
+	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
@@ -259,14 +261,14 @@ func (h *HUOBI) SubmitOrder(p pair.CurrencyPair, side exchange.OrderSide, orderT
 		AccountID: int(accountID),
 	}
 
-	if side == exchange.Buy && orderType == exchange.Market {
+	if side == exchange.BuyOrderSide && orderType == exchange.MarketOrderType {
 		formattedType = SpotNewOrderRequestTypeBuyMarket
-	} else if side == exchange.Sell && orderType == exchange.Market {
+	} else if side == exchange.SellOrderSide && orderType == exchange.MarketOrderType {
 		formattedType = SpotNewOrderRequestTypeSellMarket
-	} else if side == exchange.Buy && orderType == exchange.Limit {
+	} else if side == exchange.BuyOrderSide && orderType == exchange.LimitOrderType {
 		formattedType = SpotNewOrderRequestTypeBuyLimit
 		params.Price = price
-	} else if side == exchange.Sell && orderType == exchange.Limit {
+	} else if side == exchange.SellOrderSide && orderType == exchange.LimitOrderType {
 		formattedType = SpotNewOrderRequestTypeSellLimit
 		params.Price = price
 	} else {
@@ -373,4 +375,85 @@ func (h *HUOBI) GetFeeByType(feeBuilder exchange.FeeBuilder) (float64, error) {
 // GetWithdrawCapabilities returns the types of withdrawal methods permitted by the exchange
 func (h *HUOBI) GetWithdrawCapabilities() uint32 {
 	return h.GetWithdrawPermissions()
+}
+
+// GetActiveOrders retrieves any orders that are active/open
+func (h *HUOBI) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
+	if len(getOrdersRequest.Currencies) <= 0 {
+		return nil, errors.New("Currency must be supplied")
+	}
+
+	side := ""
+	if getOrdersRequest.OrderSide == exchange.AnyOrderSide || getOrdersRequest.OrderSide == "" {
+		side = ""
+	} else if getOrdersRequest.OrderSide == exchange.SellOrderSide {
+		side = strings.ToLower(string(getOrdersRequest.OrderSide))
+	}
+
+	var allOrders []OrderInfo
+	for _, currency := range getOrdersRequest.Currencies {
+		resp, err := h.GetOpenOrders(h.ClientID, currency.Pair().Lower().String(), side, 500)
+		if err != nil {
+			return nil, err
+		}
+		allOrders = append(allOrders, resp...)
+	}
+
+	var orders []exchange.OrderDetail
+	for _, order := range allOrders {
+		symbol := pair.NewCurrencyPairDelimiter(order.Symbol, h.ConfigCurrencyPairFormat.Delimiter)
+		orderDate := time.Unix(order.CreatedAt, 0)
+
+		orders = append(orders, exchange.OrderDetail{
+			ID:              fmt.Sprintf("%v", order.ID),
+			Exchange:        h.Name,
+			Amount:          order.Amount,
+			Price:           order.Price,
+			OrderDate:       orderDate,
+			ExecutedAmount:  order.FilledAmount,
+			RemainingAmount: (order.Amount - order.FilledAmount),
+			CurrencyPair:    symbol,
+		})
+	}
+
+	exchange.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
+
+	return orders, nil
+}
+
+// GetOrderHistory retrieves account order information
+// Can Limit response to specific order status
+func (h *HUOBI) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
+	if len(getOrdersRequest.Currencies) <= 0 {
+		return nil, errors.New("Currency must be supplied")
+	}
+
+	states := "partial-canceled,filled,canceled"
+	var allOrders []OrderInfo
+	for _, currency := range getOrdersRequest.Currencies {
+		resp, err := h.GetOrders(currency.Pair().Lower().String(), "", "", "", states, "", "", "")
+		if err != nil {
+			return nil, err
+		}
+		allOrders = append(allOrders, resp...)
+	}
+
+	var orders []exchange.OrderDetail
+	for _, order := range allOrders {
+		symbol := pair.NewCurrencyPairDelimiter(order.Symbol, h.ConfigCurrencyPairFormat.Delimiter)
+		orderDate := time.Unix(order.CreatedAt, 0)
+
+		orders = append(orders, exchange.OrderDetail{
+			ID:           fmt.Sprintf("%v", order.ID),
+			Exchange:     h.Name,
+			Amount:       order.Amount,
+			Price:        order.Price,
+			OrderDate:    orderDate,
+			CurrencyPair: symbol,
+		})
+	}
+
+	exchange.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
+
+	return orders, nil
 }

@@ -6,9 +6,11 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
+	"github.com/thrasher-/gocryptotrader/currency/symbol"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
@@ -176,8 +178,8 @@ func (b *Bitstamp) GetExchangeHistory(p pair.CurrencyPair, assetType string) ([]
 // SubmitOrder submits a new order
 func (b *Bitstamp) SubmitOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (exchange.SubmitOrderResponse, error) {
 	var submitOrderResponse exchange.SubmitOrderResponse
-	buy := side == exchange.Buy
-	market := orderType == exchange.Market
+	buy := side == exchange.BuyOrderSide
+	market := orderType == exchange.MarketOrderType
 	response, err := b.PlaceOrder(p.Pair().String(), price, amount, buy, market)
 
 	if response.ID > 0 {
@@ -288,4 +290,95 @@ func (b *Bitstamp) GetWebsocket() (*exchange.Websocket, error) {
 // GetWithdrawCapabilities returns the types of withdrawal methods permitted by the exchange
 func (b *Bitstamp) GetWithdrawCapabilities() uint32 {
 	return b.GetWithdrawPermissions()
+}
+
+// GetActiveOrders retrieves any orders that are active/open
+func (b *Bitstamp) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
+	var orders []exchange.OrderDetail
+	var currPair string
+	if len(getOrdersRequest.Currencies) != 1 {
+		currPair = "all"
+	} else {
+		currPair = getOrdersRequest.Currencies[0].Pair().String()
+	}
+
+	resp, err := b.GetOpenOrders(currPair)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, order := range resp {
+		symbolOne := order.Currency[0:3]
+		symbolTwo := order.Currency[len(order.Currency)-3:]
+		orderDate := time.Unix(order.Date, 0)
+
+		orders = append(orders, exchange.OrderDetail{
+			Amount:       order.Amount,
+			ID:           fmt.Sprintf("%v", order.ID),
+			Price:        order.Price,
+			OrderDate:    orderDate,
+			CurrencyPair: pair.NewCurrencyPair(symbolOne, symbolTwo),
+			Exchange:     b.Name,
+		})
+	}
+
+	exchange.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
+	exchange.FilterOrdersByCurrencies(&orders, getOrdersRequest.Currencies)
+
+	return orders, nil
+}
+
+// GetOrderHistory retrieves account order information
+// Can Limit response to specific order status
+func (b *Bitstamp) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
+	var currPair string
+	if len(getOrdersRequest.Currencies) == 1 {
+		currPair = getOrdersRequest.Currencies[0].Pair().String()
+	}
+	resp, err := b.GetUserTransactions(currPair)
+	if err != nil {
+		return nil, err
+	}
+
+	var orders []exchange.OrderDetail
+	for _, order := range resp {
+		if order.Type == 2 {
+			quoteCurrency := ""
+			baseCurrency := ""
+			if order.BTC > 0 {
+				baseCurrency = symbol.BTC
+			} else if order.XRP > 0 {
+				baseCurrency = symbol.XRP
+			} else {
+				log.Warnf("No quote currency found for OrderID '%v'", order.OrderID)
+			}
+
+			if order.USD > 0 {
+				quoteCurrency = symbol.USD
+			} else if order.EUR > 0 {
+				quoteCurrency = symbol.EUR
+			} else {
+				log.Warnf("No quote currency found for OrderID '%v'", order.OrderID)
+			}
+
+			var currPair pair.CurrencyPair
+			if quoteCurrency != "" && baseCurrency != "" {
+				currPair = pair.NewCurrencyPairWithDelimiter(baseCurrency, quoteCurrency, b.ConfigCurrencyPairFormat.Delimiter)
+			}
+			orderDate := time.Unix(order.Date, 0)
+
+			orders = append(orders, exchange.OrderDetail{
+				ID:           fmt.Sprintf("%v", order.OrderID),
+				OrderDate:    orderDate,
+				Exchange:     b.Name,
+				CurrencyPair: currPair,
+			})
+
+		}
+	}
+
+	exchange.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
+	exchange.FilterOrdersByCurrencies(&orders, getOrdersRequest.Currencies)
+
+	return orders, nil
 }

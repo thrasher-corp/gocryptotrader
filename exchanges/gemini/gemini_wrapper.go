@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"net/url"
 	"strconv"
+	"strings"
 	"sync"
+	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
@@ -240,4 +242,90 @@ func (g *Gemini) GetFeeByType(feeBuilder exchange.FeeBuilder) (float64, error) {
 // GetWithdrawCapabilities returns the types of withdrawal methods permitted by the exchange
 func (g *Gemini) GetWithdrawCapabilities() uint32 {
 	return g.GetWithdrawPermissions()
+}
+
+// GetActiveOrders retrieves any orders that are active/open
+func (g *Gemini) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
+	resp, err := g.GetOrders()
+	if err != nil {
+		return nil, err
+	}
+
+	var orders []exchange.OrderDetail
+	for _, order := range resp {
+		symbol := pair.NewCurrencyPairDelimiter(order.Symbol, g.ConfigCurrencyPairFormat.Delimiter)
+		var orderType exchange.OrderType
+		if order.Type == "exchange limit" {
+			orderType = exchange.LimitOrderType
+		} else if order.Type == "market buy" || order.Type == "market sell" {
+			orderType = exchange.MarketOrderType
+		}
+
+		side := exchange.OrderSide(strings.ToUpper(order.Type))
+		orderDate := time.Unix(order.Timestamp, 0)
+
+		orders = append(orders, exchange.OrderDetail{
+			Amount:          order.OriginalAmount,
+			RemainingAmount: order.RemainingAmount,
+			ID:              fmt.Sprintf("%v", order.OrderID),
+			ExecutedAmount:  order.ExecutedAmount,
+			Exchange:        g.Name,
+			OrderType:       orderType,
+			OrderSide:       side,
+			Price:           order.Price,
+			CurrencyPair:    symbol,
+			OrderDate:       orderDate,
+		})
+	}
+
+	exchange.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
+	exchange.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
+	exchange.FilterOrdersByType(&orders, getOrdersRequest.OrderType)
+	exchange.FilterOrdersByCurrencies(&orders, getOrdersRequest.Currencies)
+
+	return orders, nil
+}
+
+// GetOrderHistory retrieves account order information
+// Can Limit response to specific order status
+func (g *Gemini) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
+	if len(getOrdersRequest.Currencies) <= 0 {
+		return nil, errors.New("Currency must be supplied")
+	}
+
+	var trades []TradeHistory
+	for _, currency := range getOrdersRequest.Currencies {
+		resp, err := g.GetTradeHistory(exchange.FormatExchangeCurrency(g.Name, currency).String(), getOrdersRequest.StartTicks.Unix())
+		if err != nil {
+			return nil, err
+		}
+
+		for _, trade := range resp {
+			trade.BaseCurrency = currency.FirstCurrency.String()
+			trade.QuoteCurrency = currency.SecondCurrency.String()
+			trades = append(trades, trade)
+		}
+	}
+
+	var orders []exchange.OrderDetail
+	for _, trade := range trades {
+		side := exchange.OrderSide(strings.ToUpper(trade.Type))
+		orderDate := time.Unix(trade.Timestamp, 0)
+
+		orders = append(orders, exchange.OrderDetail{
+			Amount:       trade.Amount,
+			ID:           fmt.Sprintf("%v", trade.OrderID),
+			Exchange:     g.Name,
+			OrderDate:    orderDate,
+			OrderSide:    side,
+			Fee:          trade.FeeAmount,
+			Price:        trade.Price,
+			CurrencyPair: pair.NewCurrencyPairWithDelimiter(trade.BaseCurrency, trade.QuoteCurrency, g.ConfigCurrencyPairFormat.Delimiter),
+		})
+	}
+
+	exchange.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
+	exchange.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
+
+	return orders, nil
 }

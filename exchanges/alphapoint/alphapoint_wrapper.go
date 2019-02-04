@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
@@ -161,9 +162,9 @@ func (a *Alphapoint) GetOrderInfo(orderID int64) (float64, error) {
 	}
 
 	for x := range orders {
-		for y := range orders[x].Openorders {
-			if int64(orders[x].Openorders[y].Serverorderid) == orderID {
-				return float64(orders[x].Openorders[y].QtyRemaining), nil
+		for y := range orders[x].OpenOrders {
+			if int64(orders[x].OpenOrders[y].ServerOrderID) == orderID {
+				return float64(orders[x].OpenOrders[y].QtyRemaining), nil
 			}
 		}
 	}
@@ -215,4 +216,89 @@ func (a *Alphapoint) GetFeeByType(feeBuilder exchange.FeeBuilder) (float64, erro
 // GetWithdrawCapabilities returns the types of withdrawal methods permitted by the exchange
 func (a *Alphapoint) GetWithdrawCapabilities() uint32 {
 	return a.GetWithdrawPermissions()
+}
+
+// GetActiveOrders retrieves any orders that are active/open
+// This function is not concurrency safe due to orderSide/orderType maps
+func (a *Alphapoint) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
+	resp, err := a.GetOrders()
+	if err != nil {
+		return nil, err
+	}
+
+	var orders []exchange.OrderDetail
+	for x := range resp {
+		for _, order := range resp[x].OpenOrders {
+			if order.State != 1 {
+				continue
+			}
+
+			orderDetail := exchange.OrderDetail{
+				Amount:          float64(order.QtyTotal),
+				Exchange:        a.Name,
+				AccountID:       fmt.Sprintf("%v", order.AccountID),
+				ID:              fmt.Sprintf("%v", order.ServerOrderID),
+				Price:           float64(order.Price),
+				RemainingAmount: float64(order.QtyRemaining),
+			}
+
+			orderDetail.OrderSide = orderSideMap[order.Side]
+			orderDetail.OrderDate = time.Unix(order.ReceiveTime, 0)
+			orderDetail.OrderType = orderTypeMap[order.OrderType]
+			if orderDetail.OrderType == "" {
+				orderDetail.OrderType = exchange.UnknownOrderType
+			}
+
+			orders = append(orders, orderDetail)
+		}
+	}
+
+	exchange.FilterOrdersByType(&orders, getOrdersRequest.OrderType)
+	exchange.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
+	exchange.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
+
+	return orders, nil
+}
+
+// GetOrderHistory retrieves account order information
+// Can Limit response to specific order status
+// This function is not concurrency safe due to orderSide/orderType maps
+func (a *Alphapoint) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
+	resp, err := a.GetOrders()
+	if err != nil {
+		return nil, err
+	}
+
+	var orders []exchange.OrderDetail
+	for x := range resp {
+		for _, order := range resp[x].OpenOrders {
+			if order.State == 1 {
+				continue
+			}
+
+			orderDetail := exchange.OrderDetail{
+				Amount:          float64(order.QtyTotal),
+				AccountID:       fmt.Sprintf("%v", order.AccountID),
+				Exchange:        a.Name,
+				ID:              fmt.Sprintf("%v", order.ServerOrderID),
+				Price:           float64(order.Price),
+				RemainingAmount: float64(order.QtyRemaining),
+			}
+
+			orderDetail.OrderSide = orderSideMap[order.Side]
+			orderDetail.OrderDate = time.Unix(order.ReceiveTime, 0)
+			orderDetail.OrderType = orderTypeMap[order.OrderType]
+			if orderDetail.OrderType == "" {
+				orderDetail.OrderType = exchange.UnknownOrderType
+			}
+
+			orders = append(orders, orderDetail)
+		}
+	}
+
+	exchange.FilterOrdersByType(&orders, getOrdersRequest.OrderType)
+	exchange.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
+	exchange.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
+
+	return orders, nil
 }

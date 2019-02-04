@@ -422,9 +422,9 @@ func (b *Bittrex) GetOrder(uuid string) (Order, error) {
 	return order, nil
 }
 
-// GetOrderHistory is used to retrieve your order history. If currencyPair
+// GetOrderHistoryForCurrency is used to retrieve your order history. If currencyPair
 // omitted it will return the entire order History.
-func (b *Bittrex) GetOrderHistory(currencyPair string) (Order, error) {
+func (b *Bittrex) GetOrderHistoryForCurrency(currencyPair string) (Order, error) {
 	var orders Order
 	values := url.Values{}
 

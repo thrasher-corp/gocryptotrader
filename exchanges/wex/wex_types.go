@@ -114,6 +114,12 @@ type TransHistory struct {
 	Timestamp   float64 `json:"timestamp"`
 }
 
+//TradeHistoryResponse returns all your trade history
+type TradeHistoryResponse struct {
+	Success int64                   `json:"success"`
+	Data    map[string]TradeHistory `json:"return,omitempty"`
+}
+
 // TradeHistory stores trade history
 type TradeHistory struct {
 	Pair      string  `json:"pair"`

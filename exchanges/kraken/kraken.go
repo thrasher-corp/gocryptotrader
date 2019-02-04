@@ -540,15 +540,15 @@ func (k *Kraken) GetTradeBalance(args ...TradeBalanceOptions) (TradeBalanceInfo,
 }
 
 // GetOpenOrders returns all current open orders
-func (k *Kraken) GetOpenOrders(args ...OrderInfoOptions) (OpenOrders, error) {
+func (k *Kraken) GetOpenOrders(args OrderInfoOptions) (OpenOrders, error) {
 	params := url.Values{}
 
-	if args[0].Trades {
+	if args.Trades {
 		params.Set("trades", "true")
 	}
 
-	if args[0].UserRef != 0 {
-		params.Set("userref", strconv.FormatInt(int64(args[0].UserRef), 10))
+	if args.UserRef != 0 {
+		params.Set("userref", strconv.FormatInt(int64(args.UserRef), 10))
 	}
 
 	var response struct {
@@ -564,33 +564,31 @@ func (k *Kraken) GetOpenOrders(args ...OrderInfoOptions) (OpenOrders, error) {
 }
 
 // GetClosedOrders returns a list of closed orders
-func (k *Kraken) GetClosedOrders(args ...GetClosedOrdersOptions) (ClosedOrders, error) {
+func (k *Kraken) GetClosedOrders(args GetClosedOrdersOptions) (ClosedOrders, error) {
 	params := url.Values{}
 
-	if args != nil {
-		if args[0].Trades {
-			params.Set("trades", "true")
-		}
+	if args.Trades {
+		params.Set("trades", "true")
+	}
 
-		if args[0].UserRef != 0 {
-			params.Set("userref", strconv.FormatInt(int64(args[0].UserRef), 10))
-		}
+	if args.UserRef != 0 {
+		params.Set("userref", strconv.FormatInt(int64(args.UserRef), 10))
+	}
 
-		if len(args[0].Start) != 0 {
-			params.Set("start", args[0].Start)
-		}
+	if len(args.Start) != 0 {
+		params.Set("start", args.Start)
+	}
 
-		if len(args[0].End) != 0 {
-			params.Set("end", args[0].End)
-		}
+	if len(args.End) != 0 {
+		params.Set("end", args.End)
+	}
 
-		if args[0].Ofs != 0 {
-			params.Set("ofs", strconv.FormatInt(args[0].Ofs, 10))
-		}
+	if args.Ofs != 0 {
+		params.Set("ofs", strconv.FormatInt(args.Ofs, 10))
+	}
 
-		if len(args[0].CloseTime) != 0 {
-			params.Set("closetime", args[0].CloseTime)
-		}
+	if len(args.CloseTime) != 0 {
+		params.Set("closetime", args.CloseTime)
 	}
 
 	var response struct {

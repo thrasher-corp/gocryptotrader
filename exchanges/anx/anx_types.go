@@ -119,20 +119,20 @@ type Order struct {
 
 // OrderResponse holds order response data
 type OrderResponse struct {
-	BuyTradedCurrency              bool   `json:"buyTradedCurrency"`
-	ExecutedAverageRate            string `json:"executedAverageRate"`
-	LimitPriceInSettlementCurrency string `json:"limitPriceInSettlementCurrency"`
-	OrderID                        string `json:"orderId"`
-	OrderStatus                    string `json:"orderStatus"`
-	OrderType                      string `json:"orderType"`
-	ReplaceExistingOrderUUID       string `json:"replaceExistingOrderId"`
-	SettlementCurrency             string `json:"settlementCurrency"`
-	SettlementCurrencyAmount       string `json:"settlementCurrencyAmount"`
-	SettlementCurrencyOutstanding  string `json:"settlementCurrencyOutstanding"`
-	Timestamp                      int64  `json:"timestamp"`
-	TradedCurrency                 string `json:"tradedCurrency"`
-	TradedCurrencyAmount           string `json:"tradedCurrencyAmount"`
-	TradedCurrencyOutstanding      string `json:"tradedCurrencyOutstanding"`
+	BuyTradedCurrency              bool    `json:"buyTradedCurrency"`
+	ExecutedAverageRate            string  `json:"executedAverageRate"`
+	LimitPriceInSettlementCurrency string  `json:"limitPriceInSettlementCurrency"`
+	OrderID                        string  `json:"orderId"`
+	OrderStatus                    string  `json:"orderStatus"`
+	OrderType                      string  `json:"orderType"`
+	ReplaceExistingOrderUUID       string  `json:"replaceExistingOrderId"`
+	SettlementCurrency             string  `json:"settlementCurrency"`
+	SettlementCurrencyAmount       float64 `json:"settlementCurrencyAmount,string"`
+	SettlementCurrencyOutstanding  string  `json:"settlementCurrencyOutstanding"`
+	Timestamp                      int64   `json:"timestamp"`
+	TradedCurrency                 string  `json:"tradedCurrency"`
+	TradedCurrencyAmount           float64 `json:"tradedCurrencyAmount,string"`
+	TradedCurrencyOutstanding      string  `json:"tradedCurrencyOutstanding"`
 }
 
 // OrderCancelResponse returned when cancelling multiple orders

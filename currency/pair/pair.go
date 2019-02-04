@@ -108,6 +108,15 @@ func NewCurrencyPair(firstCurrency, secondCurrency string) CurrencyPair {
 	}
 }
 
+// NewCurrencyPairWithDelimiter returns a CurrencyPair with a delimiter
+func NewCurrencyPairWithDelimiter(firstCurrency, secondCurrency, delimiter string) CurrencyPair {
+	return CurrencyPair{
+		FirstCurrency:  CurrencyItem(firstCurrency),
+		SecondCurrency: CurrencyItem(secondCurrency),
+		Delimiter:      delimiter,
+	}
+}
+
 // NewCurrencyPairFromIndex returns a CurrencyPair via a currency string and
 // specific index
 func NewCurrencyPairFromIndex(currency, index string) CurrencyPair {

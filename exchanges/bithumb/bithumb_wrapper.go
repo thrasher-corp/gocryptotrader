@@ -6,6 +6,7 @@ import (
 	"math"
 	"strconv"
 	"sync"
+	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
@@ -173,11 +174,11 @@ func (b *Bithumb) SubmitOrder(p pair.CurrencyPair, side exchange.OrderSide, orde
 	var submitOrderResponse exchange.SubmitOrderResponse
 	var err error
 	var orderID string
-	if side == exchange.Buy {
+	if side == exchange.BuyOrderSide {
 		var result MarketBuy
 		result, err = b.MarketBuyOrder(p.FirstCurrency.String(), amount)
 		orderID = result.OrderID
-	} else if side == exchange.Sell {
+	} else if side == exchange.SellOrderSide {
 		var result MarketSell
 		result, err = b.MarketSellOrder(p.FirstCurrency.String(), amount)
 		orderID = result.OrderID
@@ -305,4 +306,86 @@ func (b *Bithumb) GetFeeByType(feeBuilder exchange.FeeBuilder) (float64, error) 
 // GetWithdrawCapabilities returns the types of withdrawal methods permitted by the exchange
 func (b *Bithumb) GetWithdrawCapabilities() uint32 {
 	return b.GetWithdrawPermissions()
+}
+
+// GetActiveOrders retrieves any orders that are active/open
+func (b *Bithumb) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
+	var orders []exchange.OrderDetail
+	resp, err := b.GetOrders("", "", "1000", "", "")
+	if err != nil {
+		return nil, err
+	}
+
+	for _, order := range resp.Data {
+		if order.Status != "placed" {
+			continue
+		}
+
+		orderDate := time.Unix(order.OrderDate, 0)
+		orderDetail := exchange.OrderDetail{
+			Amount:          order.Units,
+			Exchange:        b.Name,
+			ID:              order.OrderID,
+			OrderDate:       orderDate,
+			Price:           order.Price,
+			RemainingAmount: order.UnitsRemaining,
+			Status:          string(exchange.ActiveOrderStatus),
+			CurrencyPair:    pair.NewCurrencyPairWithDelimiter(order.OrderCurrency, order.PaymentCurrency, b.ConfigCurrencyPairFormat.Delimiter),
+		}
+
+		if order.Type == "bid" {
+			orderDetail.OrderSide = exchange.BuyOrderSide
+		} else if order.Type == "ask" {
+			orderDetail.OrderSide = exchange.SellOrderSide
+		}
+
+		orders = append(orders, orderDetail)
+	}
+
+	exchange.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
+	exchange.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
+	exchange.FilterOrdersByCurrencies(&orders, getOrdersRequest.Currencies)
+
+	return orders, nil
+}
+
+// GetOrderHistory retrieves account order information
+// Can Limit response to specific order status
+func (b *Bithumb) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
+	var orders []exchange.OrderDetail
+	resp, err := b.GetOrders("", "", "1000", "", "")
+	if err != nil {
+		return nil, err
+	}
+
+	for _, order := range resp.Data {
+		if order.Status == "placed" {
+			continue
+		}
+
+		orderDate := time.Unix(order.OrderDate, 0)
+		orderDetail := exchange.OrderDetail{
+			Amount:          order.Units,
+			Exchange:        b.Name,
+			ID:              order.OrderID,
+			OrderDate:       orderDate,
+			Price:           order.Price,
+			RemainingAmount: order.UnitsRemaining,
+			CurrencyPair:    pair.NewCurrencyPairWithDelimiter(order.OrderCurrency, order.PaymentCurrency, b.ConfigCurrencyPairFormat.Delimiter),
+		}
+
+		if order.Type == "bid" {
+			orderDetail.OrderSide = exchange.BuyOrderSide
+		} else if order.Type == "ask" {
+			orderDetail.OrderSide = exchange.SellOrderSide
+		}
+
+		orders = append(orders, orderDetail)
+	}
+
+	exchange.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
+	exchange.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
+	exchange.FilterOrdersByCurrencies(&orders, getOrdersRequest.Currencies)
+
+	return orders, nil
 }

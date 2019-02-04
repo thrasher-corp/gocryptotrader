@@ -4,7 +4,9 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"strings"
 	"sync"
+	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
@@ -183,16 +185,16 @@ func (b *Binance) SubmitOrder(p pair.CurrencyPair, side exchange.OrderSide, orde
 	var submitOrderResponse exchange.SubmitOrderResponse
 
 	var sideType RequestParamsSideType
-	if side == exchange.Buy {
+	if side == exchange.BuyOrderSide {
 		sideType = BinanceRequestParamsSideBuy
 	} else {
 		sideType = BinanceRequestParamsSideSell
 	}
 
 	var requestParamsOrderType RequestParamsOrderType
-	if orderType == exchange.Market {
+	if orderType == exchange.MarketOrderType {
 		requestParamsOrderType = BinanceRequestParamsOrderMarket
-	} else if orderType == exchange.Limit {
+	} else if orderType == exchange.LimitOrderType {
 		requestParamsOrderType = BinanceRequestParamsOrderLimit
 	} else {
 		submitOrderResponse.IsOrderPlaced = false
@@ -305,4 +307,87 @@ func (b *Binance) GetFeeByType(feeBuilder exchange.FeeBuilder) (float64, error) 
 // GetWithdrawCapabilities returns the types of withdrawal methods permitted by the exchange
 func (b *Binance) GetWithdrawCapabilities() uint32 {
 	return b.GetWithdrawPermissions()
+}
+
+// GetActiveOrders retrieves any orders that are active/open
+func (b *Binance) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
+	if len(getOrdersRequest.Currencies) <= 0 {
+		return nil, errors.New("At least one currency is required to fetch order history")
+	}
+
+	var orders []exchange.OrderDetail
+	for _, currency := range getOrdersRequest.Currencies {
+		resp, err := b.OpenOrders(exchange.FormatExchangeCurrency(b.Name, currency).String())
+		if err != nil {
+			return nil, err
+		}
+
+		for _, order := range resp {
+			orderSide := exchange.OrderSide(strings.ToUpper(order.Side))
+			orderType := exchange.OrderType(strings.ToUpper(order.Type))
+			orderDate := time.Unix(int64(order.Time), 0)
+
+			orders = append(orders, exchange.OrderDetail{
+				Amount:       order.OrigQty,
+				OrderDate:    orderDate,
+				Exchange:     b.Name,
+				ID:           fmt.Sprintf("%v", order.OrderID),
+				OrderSide:    orderSide,
+				OrderType:    orderType,
+				Price:        order.Price,
+				Status:       order.Status,
+				CurrencyPair: pair.NewCurrencyPairFromString(order.Symbol),
+			})
+		}
+	}
+
+	exchange.FilterOrdersByType(&orders, getOrdersRequest.OrderType)
+	exchange.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
+	exchange.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
+
+	return orders, nil
+}
+
+// GetOrderHistory retrieves account order information
+// Can Limit response to specific order status
+func (b *Binance) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
+	if len(getOrdersRequest.Currencies) <= 0 {
+		return nil, errors.New("At least one currency is required to fetch order history")
+	}
+
+	var orders []exchange.OrderDetail
+	for _, currency := range getOrdersRequest.Currencies {
+		resp, err := b.AllOrders(exchange.FormatExchangeCurrency(b.Name, currency).String(), "", "1000")
+		if err != nil {
+			return nil, err
+		}
+
+		for _, order := range resp {
+			orderSide := exchange.OrderSide(strings.ToUpper(order.Side))
+			orderType := exchange.OrderType(strings.ToUpper(order.Type))
+			orderDate := time.Unix(int64(order.Time), 0)
+			// New orders are covered in GetOpenOrders
+			if order.Status == "NEW" {
+				continue
+			}
+
+			orders = append(orders, exchange.OrderDetail{
+				Amount:       order.OrigQty,
+				OrderDate:    orderDate,
+				Exchange:     b.Name,
+				ID:           fmt.Sprintf("%v", order.OrderID),
+				OrderSide:    orderSide,
+				OrderType:    orderType,
+				Price:        order.Price,
+				CurrencyPair: pair.NewCurrencyPairFromString(order.Symbol),
+				Status:       order.Status,
+			})
+		}
+	}
+
+	exchange.FilterOrdersByType(&orders, getOrdersRequest.OrderType)
+	exchange.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
+	exchange.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
+
+	return orders, nil
 }

@@ -3,7 +3,9 @@ package anx
 import (
 	"fmt"
 	"strconv"
+	"strings"
 	"sync"
+	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
@@ -228,11 +230,11 @@ func (a *ANX) SubmitOrder(p pair.CurrencyPair, side exchange.OrderSide, orderTyp
 	var isBuying bool
 	var limitPriceInSettlementCurrency float64
 
-	if side == exchange.Buy {
+	if side == exchange.BuyOrderSide {
 		isBuying = true
 	}
 
-	if orderType == exchange.Limit {
+	if orderType == exchange.LimitOrderType {
 		limitPriceInSettlementCurrency = price
 	}
 
@@ -344,4 +346,71 @@ func (a *ANX) GetFeeByType(feeBuilder exchange.FeeBuilder) (float64, error) {
 // GetWithdrawCapabilities returns the types of withdrawal methods permitted by the exchange
 func (a *ANX) GetWithdrawCapabilities() uint32 {
 	return a.GetWithdrawPermissions()
+}
+
+// GetActiveOrders retrieves any orders that are active/open
+func (a *ANX) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
+	resp, err := a.GetOrderList(true)
+	if err != nil {
+		return nil, err
+	}
+
+	var orders []exchange.OrderDetail
+	for _, order := range resp {
+		orderDate := time.Unix(order.Timestamp, 0)
+		orderType := exchange.OrderType(strings.ToUpper(order.OrderType))
+
+		orderDetail := exchange.OrderDetail{
+			Amount:       order.TradedCurrencyAmount,
+			CurrencyPair: pair.NewCurrencyPairWithDelimiter(order.TradedCurrency, order.SettlementCurrency, a.ConfigCurrencyPairFormat.Delimiter),
+			OrderDate:    orderDate,
+			Exchange:     a.Name,
+			ID:           order.OrderID,
+			OrderType:    orderType,
+			Price:        order.SettlementCurrencyAmount,
+			Status:       order.OrderStatus,
+		}
+
+		orders = append(orders, orderDetail)
+	}
+
+	exchange.FilterOrdersByType(&orders, getOrdersRequest.OrderType)
+	exchange.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
+	exchange.FilterOrdersByCurrencies(&orders, getOrdersRequest.Currencies)
+
+	return orders, nil
+}
+
+// GetOrderHistory retrieves account order information
+// Can Limit response to specific order status
+func (a *ANX) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
+	resp, err := a.GetOrderList(false)
+	if err != nil {
+		return nil, err
+	}
+
+	var orders []exchange.OrderDetail
+	for _, order := range resp {
+		orderDate := time.Unix(order.Timestamp, 0)
+		orderType := exchange.OrderType(strings.ToUpper(order.OrderType))
+
+		orderDetail := exchange.OrderDetail{
+			Amount:       order.TradedCurrencyAmount,
+			OrderDate:    orderDate,
+			Exchange:     a.Name,
+			ID:           order.OrderID,
+			OrderType:    orderType,
+			Price:        order.SettlementCurrencyAmount,
+			Status:       order.OrderStatus,
+			CurrencyPair: pair.NewCurrencyPairWithDelimiter(order.TradedCurrency, order.SettlementCurrency, a.ConfigCurrencyPairFormat.Delimiter),
+		}
+
+		orders = append(orders, orderDetail)
+	}
+
+	exchange.FilterOrdersByType(&orders, getOrdersRequest.OrderType)
+	exchange.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
+	exchange.FilterOrdersByCurrencies(&orders, getOrdersRequest.Currencies)
+
+	return orders, nil
 }

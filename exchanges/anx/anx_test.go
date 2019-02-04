@@ -55,11 +55,9 @@ func TestSetup(t *testing.T) {
 		t.Error("Test Failed - ANX Setup() init error")
 	}
 	a.Setup(anxConfig)
-	if testAPIKey != "" && testAPISecret != "" {
-		a.APIKey = testAPIKey
-		a.APISecret = testAPISecret
-		a.AuthenticatedAPISupport = true
-	}
+	a.APIKey = testAPIKey
+	a.APISecret = testAPISecret
+	a.AuthenticatedAPISupport = true
 
 	if a.Enabled != true {
 		t.Error("Test Failed - ANX Setup() incorrect values set")
@@ -216,15 +214,46 @@ func TestGetFee(t *testing.T) {
 }
 
 func TestFormatWithdrawPermissions(t *testing.T) {
-	// Arrange
 	a.SetDefaults()
 	expectedResult := exchange.AutoWithdrawCryptoWithSetupText + " & " + exchange.WithdrawCryptoWith2FAText + " & " +
 		exchange.WithdrawCryptoWithEmailText + " & " + exchange.WithdrawFiatViaWebsiteOnlyText
-	// Act
+
 	withdrawPermissions := a.FormatWithdrawPermissions()
-	// Assert
+
 	if withdrawPermissions != expectedResult {
 		t.Errorf("Expected: %s, Received: %s", expectedResult, withdrawPermissions)
+	}
+}
+
+func TestGetActiveOrders(t *testing.T) {
+	a.SetDefaults()
+	TestSetup(t)
+
+	var getOrdersRequest = exchange.GetOrdersRequest{
+		OrderType: exchange.AnyOrderType,
+	}
+
+	_, err := a.GetActiveOrders(getOrdersRequest)
+	if areTestAPIKeysSet() && err != nil {
+		t.Errorf("Could not get open orders: %s", err)
+	} else if !areTestAPIKeysSet() && err == nil {
+		t.Error("Expecting an error when no keys are set")
+	}
+}
+
+func TestGetOrderHistory(t *testing.T) {
+	a.SetDefaults()
+	TestSetup(t)
+
+	var getOrdersRequest = exchange.GetOrdersRequest{
+		OrderType: exchange.AnyOrderType,
+	}
+
+	_, err := a.GetOrderHistory(getOrdersRequest)
+	if areTestAPIKeysSet() && err != nil {
+		t.Errorf("Could not get order history: %s", err)
+	} else if !areTestAPIKeysSet() && err == nil {
+		t.Error("Expecting an error when no keys are set")
 	}
 }
 
@@ -251,7 +280,7 @@ func TestSubmitOrder(t *testing.T) {
 		FirstCurrency:  symbol.BTC,
 		SecondCurrency: symbol.USD,
 	}
-	response, err := a.SubmitOrder(p, exchange.Buy, exchange.Market, 1, 1, "clientId")
+	response, err := a.SubmitOrder(p, exchange.BuyOrderSide, exchange.MarketOrderType, 1, 1, "clientId")
 	if areTestAPIKeysSet() && (err != nil || !response.IsOrderPlaced) {
 		t.Errorf("Order failed to be placed: %v", err)
 	} else if !areTestAPIKeysSet() && err == nil {
@@ -260,7 +289,6 @@ func TestSubmitOrder(t *testing.T) {
 }
 
 func TestCancelExchangeOrder(t *testing.T) {
-	// Arrange
 	a.SetDefaults()
 	TestSetup(t)
 
@@ -276,19 +304,16 @@ func TestCancelExchangeOrder(t *testing.T) {
 		AccountID:     "1",
 		CurrencyPair:  currencyPair,
 	}
-	// Act
-	err := a.CancelOrder(orderCancellation)
 
-	// Assert
+	err := a.CancelOrder(orderCancellation)
 	if areTestAPIKeysSet() && err != nil {
 		t.Errorf("Could not cancel order: %s", err)
 	} else if !areTestAPIKeysSet() && err == nil {
-		t.Errorf("Expecting an error when no keys are set: %v", err)
+		t.Error("Expecting an error when no keys are set")
 	}
 }
 
 func TestCancelAllExchangeOrders(t *testing.T) {
-	// Arrange
 	a.SetDefaults()
 	TestSetup(t)
 
@@ -304,14 +329,13 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 		AccountID:     "1",
 		CurrencyPair:  currencyPair,
 	}
-	// Act
+
 	resp, err := a.CancelAllOrders(orderCancellation)
 
-	// Assert
 	if areTestAPIKeysSet() && err != nil {
 		t.Errorf("Could not cancel order: %s", err)
 	} else if !areTestAPIKeysSet() && err == nil {
-		t.Errorf("Expecting an error when no keys are set: %v", err)
+		t.Error("Expecting an error when no keys are set")
 	}
 
 	if len(resp.OrderStatus) > 0 {

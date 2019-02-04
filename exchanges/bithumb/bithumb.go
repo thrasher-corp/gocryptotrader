@@ -355,11 +355,25 @@ func (b *Bithumb) GetOrders(orderID, transactionType, count, after, currency str
 	response := Orders{}
 
 	params := url.Values{}
-	params.Set("order_id", orderID)
-	params.Set("type", transactionType)
-	params.Set("count", count)
-	params.Set("after", after)
-	params.Set("currency", common.StringToUpper(currency))
+	if len(orderID) > 0 {
+		params.Set("order_id", orderID)
+	}
+
+	if len(transactionType) > 0 {
+		params.Set("type", transactionType)
+	}
+
+	if len(count) > 0 {
+		params.Set("count", count)
+	}
+
+	if len(after) > 0 {
+		params.Set("after", after)
+	}
+
+	if len(currency) > 0 {
+		params.Set("currency", common.StringToUpper(currency))
+	}
 
 	return response,
 		b.SendAuthenticatedHTTPRequest(privateOrders, params, &response)
@@ -421,7 +435,7 @@ func (b *Bithumb) GetOrderDetails(orderID, transactionType, currency string) (Or
 
 	params := url.Values{}
 	params.Set("order_id", common.StringToUpper(orderID))
-	params.Set("type", common.StringToUpper(transactionType))
+	params.Set("type", transactionType)
 	params.Set("currency", common.StringToUpper(currency))
 
 	return response,

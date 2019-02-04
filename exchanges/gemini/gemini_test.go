@@ -24,17 +24,17 @@ const (
 	apiKeyRole2       = ""
 	sessionHeartBeat2 = false
 
-	canManipulateRealOrders = !false
+	canManipulateRealOrders = false
 )
 
 func TestAddSession(t *testing.T) {
 	var g1 Gemini
 	if Session[1] == nil {
-		err := AddSession(&g1, 1, apiKey1, apiSecret1, apiKeyRole1, true, false)
+		err := AddSession(&g1, 1, apiKey1, apiSecret1, apiKeyRole1, true, true)
 		if err != nil {
 			t.Error("Test failed - AddSession() error", err)
 		}
-		err = AddSession(&g1, 1, apiKey1, apiSecret1, apiKeyRole1, true, false)
+		err = AddSession(&g1, 1, apiKey1, apiSecret1, apiKeyRole1, true, true)
 		if err == nil {
 			t.Error("Test failed - AddSession() error", err)
 		}
@@ -55,7 +55,6 @@ func TestSetDefaults(t *testing.T) {
 }
 
 func TestSetup(t *testing.T) {
-
 	cfg := config.GetConfig()
 	cfg.LoadConfig("../../testdata/configtest.json")
 	geminiConfig, err := cfg.GetExchangeConfig("Gemini")
@@ -74,6 +73,8 @@ func TestSetup(t *testing.T) {
 	Session[2].APIKey = apiKey2
 	Session[2].APISecret = apiSecret2
 
+	Session[1].APIUrl = geminiSandboxAPIURL
+	Session[2].APIUrl = geminiSandboxAPIURL
 }
 
 func TestGetSymbols(t *testing.T) {
@@ -249,7 +250,6 @@ func setFeeBuilder() exchange.FeeBuilder {
 }
 
 func TestGetFee(t *testing.T) {
-
 	var feeBuilder = setFeeBuilder()
 	if apiKey1 != "" && apiSecret1 != "" {
 		// CryptocurrencyTradeFee Basic
@@ -330,13 +330,51 @@ func TestFormatWithdrawPermissions(t *testing.T) {
 	TestAddSession(t)
 	TestSetDefaults(t)
 	TestSetup(t)
-	// Arrange
+
 	expectedResult := exchange.AutoWithdrawCryptoWithAPIPermissionText + " & " + exchange.AutoWithdrawCryptoWithSetupText + " & " + exchange.WithdrawFiatViaWebsiteOnlyText
-	// Act
+
 	withdrawPermissions := Session[1].FormatWithdrawPermissions()
-	// Assert
+
 	if withdrawPermissions != expectedResult {
 		t.Errorf("Expected: %s, Received: %s", expectedResult, withdrawPermissions)
+	}
+}
+
+func TestGetActiveOrders(t *testing.T) {
+	TestAddSession(t)
+	TestSetDefaults(t)
+	TestSetup(t)
+	Session[1].Verbose = true
+
+	var getOrdersRequest = exchange.GetOrdersRequest{
+		OrderType:  exchange.AnyOrderType,
+		Currencies: []pair.CurrencyPair{pair.NewCurrencyPair(symbol.LTC, symbol.BTC)},
+	}
+
+	_, err := Session[1].GetActiveOrders(getOrdersRequest)
+	if areTestAPIKeysSet() && err != nil {
+		t.Errorf("Could not get open orders: %s", err)
+	} else if !areTestAPIKeysSet() && err == nil {
+		t.Error("Expecting an error when no keys are set")
+	}
+}
+
+func TestGetOrderHistory(t *testing.T) {
+	TestAddSession(t)
+	TestSetDefaults(t)
+	TestSetup(t)
+	Session[1].Verbose = true
+
+	var getOrdersRequest = exchange.GetOrdersRequest{
+		OrderType:  exchange.AnyOrderType,
+		Currencies: []pair.CurrencyPair{pair.NewCurrencyPair(symbol.LTC, symbol.BTC)},
+	}
+
+	_, err := Session[1].GetOrderHistory(getOrdersRequest)
+	if areTestAPIKeysSet() && err != nil {
+		t.Errorf("Could not get order history: %s", err)
+	} else if !areTestAPIKeysSet() && err == nil {
+		t.Error("Expecting an error when no keys are set")
 	}
 }
 
@@ -364,7 +402,7 @@ func TestSubmitOrder(t *testing.T) {
 		FirstCurrency:  symbol.LTC,
 		SecondCurrency: symbol.BTC,
 	}
-	response, err := Session[1].SubmitOrder(p, exchange.Buy, exchange.Market, 1, 10, "1234234")
+	response, err := Session[1].SubmitOrder(p, exchange.BuyOrderSide, exchange.MarketOrderType, 1, 10, "1234234")
 	if areTestAPIKeysSet() && (err != nil || !response.IsOrderPlaced) {
 		t.Errorf("Order failed to be placed: %v", err)
 	} else if !areTestAPIKeysSet() && err == nil {
@@ -373,7 +411,6 @@ func TestSubmitOrder(t *testing.T) {
 }
 
 func TestCancelExchangeOrder(t *testing.T) {
-	// Arrange
 	TestAddSession(t)
 	TestSetDefaults(t)
 	TestSetup(t)
@@ -391,12 +428,9 @@ func TestCancelExchangeOrder(t *testing.T) {
 		CurrencyPair:  currencyPair,
 	}
 
-	// Act
 	err := Session[1].CancelOrder(orderCancellation)
-
-	// Assert
 	if !areTestAPIKeysSet() && err == nil {
-		t.Errorf("Expecting an error when no keys are set: %v", err)
+		t.Error("Expecting an error when no keys are set")
 	}
 	if areTestAPIKeysSet() && err != nil {
 		t.Errorf("Could not cancel orders: %v", err)
@@ -404,7 +438,6 @@ func TestCancelExchangeOrder(t *testing.T) {
 }
 
 func TestCancelAllExchangeOrders(t *testing.T) {
-	// Arrange
 	TestAddSession(t)
 	TestSetDefaults(t)
 	TestSetup(t)
@@ -422,12 +455,10 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 		CurrencyPair:  currencyPair,
 	}
 
-	// Act
 	resp, err := Session[1].CancelAllOrders(orderCancellation)
 
-	// Assert
 	if !areTestAPIKeysSet() && err == nil {
-		t.Errorf("Expecting an error when no keys are set: %v", err)
+		t.Error("Expecting an error when no keys are set")
 	}
 	if areTestAPIKeysSet() && err != nil {
 		t.Errorf("Could not cancel orders: %v", err)
@@ -462,7 +493,7 @@ func TestWithdraw(t *testing.T) {
 
 	_, err := Session[1].WithdrawCryptocurrencyFunds(withdrawCryptoRequest)
 	if !areTestAPIKeysSet() && err == nil {
-		t.Errorf("Expecting an error when no keys are set: %v", err)
+		t.Error("Expecting an error when no keys are set")
 	}
 	if areTestAPIKeysSet() && err != nil {
 		t.Errorf("Withdraw failed to be placed: %v", err)

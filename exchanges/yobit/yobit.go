@@ -194,8 +194,8 @@ func (y *Yobit) Trade(pair, orderType string, amount, price float64) (int64, err
 	return int64(result.OrderID), nil
 }
 
-// GetActiveOrders returns the active orders for a specific currency
-func (y *Yobit) GetActiveOrders(pair string) (map[string]ActiveOrders, error) {
+// GetOpenOrders returns the active orders for a specific currency
+func (y *Yobit) GetOpenOrders(pair string) (map[string]ActiveOrders, error) {
 	req := url.Values{}
 	req.Add("pair", pair)
 
@@ -232,20 +232,28 @@ func (y *Yobit) CancelExistingOrder(OrderID int64) (bool, error) {
 }
 
 // GetTradeHistory returns the trade history
-func (y *Yobit) GetTradeHistory(TIDFrom, Count, TIDEnd int64, order, since, end, pair string) (map[string]TradeHistory, error) {
+func (y *Yobit) GetTradeHistory(TIDFrom, Count, TIDEnd, since, end int64, order, pair string) (map[string]TradeHistory, error) {
 	req := url.Values{}
 	req.Add("from", strconv.FormatInt(TIDFrom, 10))
 	req.Add("count", strconv.FormatInt(Count, 10))
 	req.Add("from_id", strconv.FormatInt(TIDFrom, 10))
 	req.Add("end_id", strconv.FormatInt(TIDEnd, 10))
 	req.Add("order", order)
-	req.Add("since", since)
-	req.Add("end", end)
+	req.Add("since", strconv.FormatInt(since, 10))
+	req.Add("end", strconv.FormatInt(end, 10))
 	req.Add("pair", pair)
 
-	result := map[string]TradeHistory{}
+	result := TradeHistoryResponse{}
 
-	return result, y.SendAuthenticatedHTTPRequest(privateTradeHistory, req, &result)
+	err := y.SendAuthenticatedHTTPRequest(privateTradeHistory, req, &result)
+	if err != nil {
+		return nil, err
+	}
+	if result.Success == 0 {
+		return nil, errors.New(result.Error)
+	}
+
+	return result.Data, nil
 }
 
 // GetCryptoDepositAddress returns the deposit address for a specific currency

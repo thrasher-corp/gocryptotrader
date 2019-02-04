@@ -3,7 +3,9 @@ package bittrex
 import (
 	"errors"
 	"fmt"
+	"strings"
 	"sync"
+	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
@@ -178,11 +180,11 @@ func (b *Bittrex) GetExchangeHistory(p pair.CurrencyPair, assetType string) ([]e
 // SubmitOrder submits a new order
 func (b *Bittrex) SubmitOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (exchange.SubmitOrderResponse, error) {
 	var submitOrderResponse exchange.SubmitOrderResponse
-	buy := side == exchange.Buy
+	buy := side == exchange.BuyOrderSide
 	var response UUID
 	var err error
 
-	if orderType != exchange.Limit {
+	if orderType != exchange.LimitOrderType {
 		return submitOrderResponse, errors.New("not supported on exchange")
 	}
 
@@ -285,4 +287,90 @@ func (b *Bittrex) GetFeeByType(feeBuilder exchange.FeeBuilder) (float64, error) 
 // GetWithdrawCapabilities returns the types of withdrawal methods permitted by the exchange
 func (b *Bittrex) GetWithdrawCapabilities() uint32 {
 	return b.GetWithdrawPermissions()
+}
+
+// GetActiveOrders retrieves any orders that are active/open
+func (b *Bittrex) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
+	var currPair string
+	if len(getOrdersRequest.Currencies) == 1 {
+		currPair = getOrdersRequest.Currencies[0].Pair().String()
+	}
+
+	resp, err := b.GetOpenOrders(currPair)
+	if err != nil {
+		return nil, err
+	}
+
+	var orders []exchange.OrderDetail
+	for _, order := range resp.Result {
+		orderDate, err := time.Parse(time.RFC3339, order.Opened)
+		if err != nil {
+			log.Warnf("Exchange %v Func %v Order %v Could not parse date to unix with value of %v",
+				b.Name, "GetActiveOrders", order.OrderUUID, order.Opened)
+		}
+
+		currency := pair.NewCurrencyPairDelimiter(order.Exchange, b.ConfigCurrencyPairFormat.Delimiter)
+		orderType := exchange.OrderType(strings.ToUpper(order.Type))
+
+		orders = append(orders, exchange.OrderDetail{
+			Amount:          order.Quantity,
+			RemainingAmount: order.QuantityRemaining,
+			Price:           order.Price,
+			OrderDate:       orderDate,
+			ID:              order.OrderUUID,
+			Exchange:        b.Name,
+			OrderType:       orderType,
+			CurrencyPair:    currency,
+		})
+	}
+
+	exchange.FilterOrdersByType(&orders, getOrdersRequest.OrderType)
+	exchange.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
+	exchange.FilterOrdersByCurrencies(&orders, getOrdersRequest.Currencies)
+
+	return orders, nil
+}
+
+// GetOrderHistory retrieves account order information
+// Can Limit response to specific order status
+func (b *Bittrex) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
+	var currPair string
+	if len(getOrdersRequest.Currencies) == 1 {
+		currPair = getOrdersRequest.Currencies[0].Pair().String()
+	}
+
+	resp, err := b.GetOrderHistoryForCurrency(currPair)
+	if err != nil {
+		return nil, err
+	}
+
+	var orders []exchange.OrderDetail
+	for _, order := range resp.Result {
+		orderDate, err := time.Parse(time.RFC3339, order.TimeStamp)
+		if err != nil {
+			log.Warnf("Exchange %v Func %v Order %v Could not parse date to unix with value of %v",
+				b.Name, "GetActiveOrders", order.OrderUUID, order.Opened)
+		}
+
+		currency := pair.NewCurrencyPairDelimiter(order.Exchange, b.ConfigCurrencyPairFormat.Delimiter)
+		orderType := exchange.OrderType(strings.ToUpper(order.Type))
+
+		orders = append(orders, exchange.OrderDetail{
+			Amount:          order.Quantity,
+			RemainingAmount: order.QuantityRemaining,
+			Price:           order.Price,
+			OrderDate:       orderDate,
+			ID:              order.OrderUUID,
+			Exchange:        b.Name,
+			OrderType:       orderType,
+			Fee:             order.Commission,
+			CurrencyPair:    currency,
+		})
+	}
+
+	exchange.FilterOrdersByType(&orders, getOrdersRequest.OrderType)
+	exchange.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
+	exchange.FilterOrdersByCurrencies(&orders, getOrdersRequest.Currencies)
+
+	return orders, nil
 }

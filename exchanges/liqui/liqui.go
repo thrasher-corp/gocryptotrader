@@ -212,8 +212,8 @@ func (l *Liqui) Trade(pair, orderType string, amount, price float64) (float64, e
 	return result.OrderID, err
 }
 
-// GetActiveOrders returns the list of your active orders.
-func (l *Liqui) GetActiveOrders(pair string) (map[string]ActiveOrders, error) {
+// GetOpenOrders returns the list of your active orders.
+func (l *Liqui) GetOpenOrders(pair string) (map[string]ActiveOrders, error) {
 	result := make(map[string]ActiveOrders)
 
 	req := url.Values{}

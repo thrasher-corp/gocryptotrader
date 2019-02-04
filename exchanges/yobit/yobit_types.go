@@ -105,6 +105,13 @@ type Trade struct {
 	Error    string             `json:"error"`
 }
 
+//TradeHistoryResponse returns all your trade history
+type TradeHistoryResponse struct {
+	Success int64                   `json:"success"`
+	Data    map[string]TradeHistory `json:"return,omitempty"`
+	Error   string                  `json:"error,omitempty"`
+}
+
 // TradeHistory stores trade history
 type TradeHistory struct {
 	Pair      string  `json:"pair"`

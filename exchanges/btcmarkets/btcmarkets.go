@@ -267,17 +267,18 @@ func (b *BTCMarkets) GetOrders(currency, instrument string, limit, since int64, 
 		return nil, errors.New(resp.ErrorMessage)
 	}
 
-	for i := range resp.Orders {
-		resp.Orders[i].Price = resp.Orders[i].Price / common.SatoshisPerBTC
-		resp.Orders[i].OpenVolume = resp.Orders[i].OpenVolume / common.SatoshisPerBTC
-		resp.Orders[i].Volume = resp.Orders[i].Volume / common.SatoshisPerBTC
+	for _, order := range resp.Orders {
+		order.Price = order.Price / common.SatoshisPerBTC
+		order.OpenVolume = order.OpenVolume / common.SatoshisPerBTC
+		order.Volume = order.Volume / common.SatoshisPerBTC
 
-		for x := range resp.Orders[i].Trades {
-			resp.Orders[i].Trades[x].Fee = resp.Orders[i].Trades[x].Fee / common.SatoshisPerBTC
-			resp.Orders[i].Trades[x].Price = resp.Orders[i].Trades[x].Price / common.SatoshisPerBTC
-			resp.Orders[i].Trades[x].Volume = resp.Orders[i].Trades[x].Volume / common.SatoshisPerBTC
+		for _, trade := range order.Trades {
+			trade.Fee = trade.Fee / common.SatoshisPerBTC
+			trade.Price = trade.Price / common.SatoshisPerBTC
+			trade.Volume = trade.Volume / common.SatoshisPerBTC
 		}
 	}
+
 	return resp.Orders, nil
 }
 
@@ -298,6 +299,18 @@ func (b *BTCMarkets) GetOpenOrders() ([]Order, error) {
 
 	if !resp.Success {
 		return nil, errors.New(resp.ErrorMessage)
+	}
+
+	for _, order := range resp.Orders {
+		order.Price = order.Price / common.SatoshisPerBTC
+		order.OpenVolume = order.OpenVolume / common.SatoshisPerBTC
+		order.Volume = order.Volume / common.SatoshisPerBTC
+
+		for _, trade := range order.Trades {
+			trade.Fee = trade.Fee / common.SatoshisPerBTC
+			trade.Price = trade.Price / common.SatoshisPerBTC
+			trade.Volume = trade.Volume / common.SatoshisPerBTC
+		}
 	}
 
 	return resp.Orders, nil

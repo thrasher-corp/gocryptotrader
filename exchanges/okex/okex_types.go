@@ -469,3 +469,26 @@ type WithdrawalResponse struct {
 	WithdrawID int  `json:"withdraw_id"`
 	Result     bool `json:"result"`
 }
+
+// OrderInfo holds data on an order
+type OrderInfo struct {
+	Amount     float64 `json:"amount"`
+	AvgPrice   float64 `json:"avg_price"`
+	Created    int64   `json:"create_date"`
+	DealAmount float64 `json:"deal_amount"`
+	OrderID    int64   `json:"order_id"`
+	OrdersID   int64   `json:"orders_id"`
+	Price      float64 `json:"price"`
+	Status     int     `json:"status"`
+	Symbol     string  `json:"symbol"`
+	Type       string  `json:"type"`
+}
+
+// OrderHistory holds information on order history
+type OrderHistory struct {
+	CurrentPage int         `json:"current_page"`
+	Orders      []OrderInfo `json:"orders"`
+	PageLength  int         `json:"page_length"`
+	Result      bool        `json:"result"`
+	Total       int         `json:"total"`
+}

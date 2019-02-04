@@ -189,8 +189,8 @@ func (w *WEX) GetAccountInformation() (AccountInfo, error) {
 	return result, nil
 }
 
-// GetActiveOrders returns the active orders for a specific currency
-func (w *WEX) GetActiveOrders(pair string) (map[string]ActiveOrders, error) {
+// GetOpenOrders returns the active orders for a specific currency
+func (w *WEX) GetOpenOrders(pair string) (map[string]ActiveOrders, error) {
 	req := url.Values{}
 	req.Add("pair", pair)
 
@@ -266,20 +266,20 @@ func (w *WEX) GetTransactionHistory(TIDFrom, Count, TIDEnd int64, order, since, 
 }
 
 // GetTradeHistory returns the trade history
-func (w *WEX) GetTradeHistory(TIDFrom, Count, TIDEnd int64, order, since, end, pair string) (map[string]TradeHistory, error) {
+func (w *WEX) GetTradeHistory(TIDFrom, Count, TIDEnd, since, end int64, order, pair string) (map[string]TradeHistory, error) {
 	req := url.Values{}
 	req.Add("from", strconv.FormatInt(TIDFrom, 10))
 	req.Add("count", strconv.FormatInt(Count, 10))
 	req.Add("from_id", strconv.FormatInt(TIDFrom, 10))
 	req.Add("end_id", strconv.FormatInt(TIDEnd, 10))
 	req.Add("order", order)
-	req.Add("since", since)
-	req.Add("end", end)
+	req.Add("since", strconv.FormatInt(since, 10))
+	req.Add("end", strconv.FormatInt(end, 10))
 	req.Add("pair", pair)
 
-	var result map[string]TradeHistory
+	result := TradeHistoryResponse{}
 
-	return result, w.SendAuthenticatedHTTPRequest(wexTradeHistory, req, &result)
+	return result.Data, w.SendAuthenticatedHTTPRequest(wexTradeHistory, req, &result)
 }
 
 // WithdrawCoins withdraws coins for a specific coin

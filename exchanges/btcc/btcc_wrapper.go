@@ -216,3 +216,14 @@ func (b *BTCC) GetFeeByType(feeBuilder exchange.FeeBuilder) (float64, error) {
 func (b *BTCC) GetWithdrawCapabilities() uint32 {
 	return b.GetWithdrawPermissions()
 }
+
+// GetActiveOrders retrieves any orders that are active/open
+func (b *BTCC) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
+	return nil, common.ErrNotYetImplemented
+}
+
+// GetOrderHistory retrieves account order information
+// Can Limit response to specific order status
+func (b *BTCC) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
+	return nil, common.ErrNotYetImplemented
+}

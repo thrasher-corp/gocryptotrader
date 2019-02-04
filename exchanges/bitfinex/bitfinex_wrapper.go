@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"net/url"
 	"strconv"
+	"strings"
 	"sync"
+	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
@@ -166,7 +168,7 @@ func (b *Bitfinex) SubmitOrder(p pair.CurrencyPair, side exchange.OrderSide, ord
 	var submitOrderResponse exchange.SubmitOrderResponse
 	var isBuying bool
 
-	if side == exchange.Buy {
+	if side == exchange.BuyOrderSide {
 		isBuying = true
 	}
 
@@ -305,4 +307,121 @@ func (b *Bitfinex) GetFeeByType(feeBuilder exchange.FeeBuilder) (float64, error)
 // GetWithdrawCapabilities returns the types of withdrawal methods permitted by the exchange
 func (b *Bitfinex) GetWithdrawCapabilities() uint32 {
 	return b.GetWithdrawPermissions()
+}
+
+// GetActiveOrders retrieves any orders that are active/open
+func (b *Bitfinex) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
+	var orders []exchange.OrderDetail
+	resp, err := b.GetOpenOrders()
+	if err != nil {
+		return nil, err
+	}
+
+	for _, order := range resp {
+		orderSide := exchange.OrderSide(strings.ToUpper(order.Side))
+		timestamp, err := strconv.ParseInt(order.Timestamp, 10, 64)
+		if err != nil {
+			log.Warnf("Unable to convert timestamp '%v', leaving blank", order.Timestamp)
+		}
+		orderDate := time.Unix(timestamp, 0)
+
+		orderDetail := exchange.OrderDetail{
+			Amount:          order.OriginalAmount,
+			OrderDate:       orderDate,
+			Exchange:        b.Name,
+			ID:              fmt.Sprintf("%v", order.OrderID),
+			OrderSide:       orderSide,
+			Price:           order.Price,
+			RemainingAmount: order.RemainingAmount,
+			CurrencyPair:    pair.NewCurrencyPairFromString(order.Symbol),
+			ExecutedAmount:  order.ExecutedAmount,
+		}
+
+		if order.IsLive {
+			orderDetail.Status = string(exchange.ActiveOrderStatus)
+		} else if order.IsCancelled {
+			orderDetail.Status = string(exchange.CancelledOrderStatus)
+		} else if order.IsHidden {
+			orderDetail.Status = string(exchange.HiddenOrderStatus)
+		} else {
+			orderDetail.Status = string(exchange.UnknownOrderStatus)
+		}
+
+		// API docs discrepency. Example contains prefixed "exchange "
+		// Return type suggests “market” / “limit” / “stop” / “trailing-stop”
+		orderType := strings.Replace(order.Type, "exchange ", "", 1)
+		if orderType == "trailing-stop" {
+			orderDetail.OrderType = exchange.TrailingStopOrderType
+		} else {
+			orderDetail.OrderType = exchange.OrderType(strings.ToUpper(orderType))
+		}
+
+		orders = append(orders, orderDetail)
+	}
+
+	exchange.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
+	exchange.FilterOrdersByType(&orders, getOrdersRequest.OrderType)
+	exchange.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
+	exchange.FilterOrdersByCurrencies(&orders, getOrdersRequest.Currencies)
+
+	return orders, nil
+}
+
+// GetOrderHistory retrieves account order information
+// Can Limit response to specific order status
+func (b *Bitfinex) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
+	var orders []exchange.OrderDetail
+	resp, err := b.GetInactiveOrders()
+	if err != nil {
+		return nil, err
+	}
+
+	for _, order := range resp {
+		orderSide := exchange.OrderSide(strings.ToUpper(order.Side))
+		timestamp, err := strconv.ParseInt(order.Timestamp, 10, 64)
+		if err != nil {
+			log.Warnf("Unable to convert timestamp '%v', leaving blank", order.Timestamp)
+		}
+		orderDate := time.Unix(timestamp, 0)
+
+		orderDetail := exchange.OrderDetail{
+			Amount:          order.OriginalAmount,
+			OrderDate:       orderDate,
+			Exchange:        b.Name,
+			ID:              fmt.Sprintf("%v", order.OrderID),
+			OrderSide:       orderSide,
+			Price:           order.Price,
+			RemainingAmount: order.RemainingAmount,
+			ExecutedAmount:  order.ExecutedAmount,
+			CurrencyPair:    pair.NewCurrencyPairFromString(order.Symbol),
+		}
+
+		if order.IsLive {
+			orderDetail.Status = string(exchange.ActiveOrderStatus)
+		} else if order.IsCancelled {
+			orderDetail.Status = string(exchange.CancelledOrderStatus)
+		} else if order.IsHidden {
+			orderDetail.Status = string(exchange.HiddenOrderStatus)
+		} else {
+			orderDetail.Status = string(exchange.UnknownOrderStatus)
+		}
+
+		// API docs discrepency. Example contains prefixed "exchange "
+		// Return type suggests “market” / “limit” / “stop” / “trailing-stop”
+		orderType := strings.Replace(order.Type, "exchange ", "", 1)
+		if orderType == "trailing-stop" {
+			orderDetail.OrderType = exchange.TrailingStopOrderType
+		} else {
+			orderDetail.OrderType = exchange.OrderType(strings.ToUpper(orderType))
+		}
+
+		orders = append(orders, orderDetail)
+	}
+
+	exchange.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
+	exchange.FilterOrdersByType(&orders, getOrdersRequest.OrderType)
+	exchange.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
+	exchange.FilterOrdersByCurrencies(&orders, getOrdersRequest.Currencies)
+
+	return orders, nil
 }

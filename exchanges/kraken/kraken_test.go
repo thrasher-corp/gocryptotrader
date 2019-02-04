@@ -30,7 +30,6 @@ func TestSetup(t *testing.T) {
 	if err != nil {
 		t.Error("Test Failed - kraken Setup() init error", err)
 	}
-
 	krakenConfig.AuthenticatedAPISupport = true
 	krakenConfig.APIKey = apiKey
 	krakenConfig.APISecret = apiSecret
@@ -319,14 +318,45 @@ func TestGetFee(t *testing.T) {
 }
 
 func TestFormatWithdrawPermissions(t *testing.T) {
-	// Arrange
 	k.SetDefaults()
 	expectedResult := exchange.AutoWithdrawCryptoWithSetupText + " & " + exchange.WithdrawCryptoWith2FAText + " & " + exchange.AutoWithdrawFiatWithSetupText + " & " + exchange.WithdrawFiatWith2FAText
-	// Act
+
 	withdrawPermissions := k.FormatWithdrawPermissions()
-	// Assert
+
 	if withdrawPermissions != expectedResult {
 		t.Errorf("Expected: %s, Received: %s", expectedResult, withdrawPermissions)
+	}
+}
+
+func TestGetActiveOrders(t *testing.T) {
+	k.SetDefaults()
+	TestSetup(t)
+
+	var getOrdersRequest = exchange.GetOrdersRequest{
+		OrderType: exchange.AnyOrderType,
+	}
+
+	_, err := k.GetActiveOrders(getOrdersRequest)
+	if areTestAPIKeysSet() && err != nil {
+		t.Errorf("Could not get open orders: %s", err)
+	} else if !areTestAPIKeysSet() && err == nil {
+		t.Error("Expecting an error when no keys are set")
+	}
+}
+
+func TestGetOrderHistory(t *testing.T) {
+	k.SetDefaults()
+	TestSetup(t)
+
+	var getOrdersRequest = exchange.GetOrdersRequest{
+		OrderType: exchange.AnyOrderType,
+	}
+
+	_, err := k.GetOrderHistory(getOrdersRequest)
+	if areTestAPIKeysSet() && err != nil {
+		t.Errorf("Could not get order history: %s", err)
+	} else if !areTestAPIKeysSet() && err == nil {
+		t.Error("Expecting an error when no keys are set")
 	}
 }
 
@@ -353,7 +383,7 @@ func TestSubmitOrder(t *testing.T) {
 		FirstCurrency:  symbol.XBT,
 		SecondCurrency: symbol.CAD,
 	}
-	response, err := k.SubmitOrder(p, exchange.Buy, exchange.Market, 1, 10, "hi")
+	response, err := k.SubmitOrder(p, exchange.BuyOrderSide, exchange.MarketOrderType, 1, 10, "hi")
 	if areTestAPIKeysSet() && (err != nil || !response.IsOrderPlaced) {
 		t.Errorf("Order failed to be placed: %v", err)
 	} else if !areTestAPIKeysSet() && err == nil {
@@ -362,7 +392,6 @@ func TestSubmitOrder(t *testing.T) {
 }
 
 func TestCancelExchangeOrder(t *testing.T) {
-	// Arrange
 	k.SetDefaults()
 	TestSetup(t)
 
@@ -379,12 +408,9 @@ func TestCancelExchangeOrder(t *testing.T) {
 		CurrencyPair:  currencyPair,
 	}
 
-	// Act
 	err := k.CancelOrder(orderCancellation)
-
-	// Assert
 	if !areTestAPIKeysSet() && err == nil {
-		t.Errorf("Expecting an error when no keys are set: %v", err)
+		t.Error("Expecting an error when no keys are set")
 	}
 	if areTestAPIKeysSet() && err != nil {
 		t.Errorf("Could not cancel orders: %v", err)
@@ -392,7 +418,6 @@ func TestCancelExchangeOrder(t *testing.T) {
 }
 
 func TestCancelAllExchangeOrders(t *testing.T) {
-	// Arrange
 	k.SetDefaults()
 	TestSetup(t)
 
@@ -409,12 +434,10 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 		CurrencyPair:  currencyPair,
 	}
 
-	// Act
 	resp, err := k.CancelAllOrders(orderCancellation)
 
-	// Assert
 	if !areTestAPIKeysSet() && err == nil {
-		t.Errorf("Expecting an error when no keys are set: %v", err)
+		t.Error("Expecting an error when no keys are set")
 	}
 	if areTestAPIKeysSet() && err != nil {
 		t.Errorf("Could not cancel orders: %v", err)
@@ -463,7 +486,7 @@ func TestWithdraw(t *testing.T) {
 
 	_, err := k.WithdrawCryptocurrencyFunds(withdrawCryptoRequest)
 	if !areTestAPIKeysSet() && err == nil {
-		t.Errorf("Expecting an error when no keys are set: %v", err)
+		t.Error("Expecting an error when no keys are set")
 	}
 	if areTestAPIKeysSet() && err != nil {
 		t.Errorf("Withdraw failed to be placed: %v", err)
@@ -488,7 +511,7 @@ func TestWithdrawFiat(t *testing.T) {
 
 	_, err := k.WithdrawFiatFunds(withdrawFiatRequest)
 	if !areTestAPIKeysSet() && err == nil {
-		t.Errorf("Expecting an error when no keys are set: %v", err)
+		t.Error("Expecting an error when no keys are set")
 	}
 	if areTestAPIKeysSet() && err != nil {
 		t.Errorf("Withdraw failed to be placed: %v", err)
@@ -513,7 +536,7 @@ func TestWithdrawInternationalBank(t *testing.T) {
 
 	_, err := k.WithdrawFiatFundsToInternationalBank(withdrawFiatRequest)
 	if !areTestAPIKeysSet() && err == nil {
-		t.Errorf("Expecting an error when no keys are set: %v", err)
+		t.Error("Expecting an error when no keys are set")
 	}
 	if areTestAPIKeysSet() && err != nil {
 		t.Errorf("Withdraw failed to be placed: %v", err)

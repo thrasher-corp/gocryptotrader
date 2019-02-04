@@ -107,12 +107,12 @@ func (b *Bitmex) UpdateOrderbook(p pair.CurrencyPair, assetType string) (orderbo
 	}
 
 	for _, ob := range orderbookNew {
-		if ob.Side == exchange.Sell.ToString() {
+		if ob.Side == exchange.SellOrderSide.ToString() {
 			orderBook.Asks = append(orderBook.Asks,
 				orderbook.Item{Amount: float64(ob.Size), Price: ob.Price})
 			continue
 		}
-		if ob.Side == exchange.Buy.ToString() {
+		if ob.Side == exchange.BuyOrderSide.ToString() {
 			orderBook.Bids = append(orderBook.Bids,
 				orderbook.Item{Amount: float64(ob.Size), Price: ob.Price})
 			continue
@@ -181,7 +181,7 @@ func (b *Bitmex) SubmitOrder(p pair.CurrencyPair, side exchange.OrderSide, order
 		Side:     side.ToString(),
 	}
 
-	if orderType == exchange.Limit {
+	if orderType == exchange.LimitOrderType {
 		orderNewParams.Price = price
 	}
 
@@ -303,4 +303,85 @@ func (b *Bitmex) GetFeeByType(feeBuilder exchange.FeeBuilder) (float64, error) {
 // GetWithdrawCapabilities returns the types of withdrawal methods permitted by the exchange
 func (b *Bitmex) GetWithdrawCapabilities() uint32 {
 	return b.GetWithdrawPermissions()
+}
+
+// GetActiveOrders retrieves any orders that are active/open
+// This function is not concurrency safe due to orderSide/orderType maps
+func (b *Bitmex) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
+	var orders []exchange.OrderDetail
+	params := OrdersRequest{}
+	params.Filter = "{\"open\":true}"
+
+	resp, err := b.GetOrders(params)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, order := range resp {
+		orderSide := orderSideMap[order.Side]
+		orderType := orderTypeMap[order.OrdType]
+		if orderType == "" {
+			orderType = exchange.UnknownOrderType
+		}
+
+		orderDetail := exchange.OrderDetail{
+			Price:        order.Price,
+			Amount:       float64(order.OrderQty),
+			Exchange:     b.Name,
+			ID:           order.OrderID,
+			OrderSide:    orderSide,
+			OrderType:    orderType,
+			Status:       order.OrdStatus,
+			CurrencyPair: pair.NewCurrencyPairWithDelimiter(order.Symbol, order.SettlCurrency, b.ConfigCurrencyPairFormat.Delimiter),
+		}
+
+		orders = append(orders, orderDetail)
+	}
+
+	exchange.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
+	exchange.FilterOrdersByType(&orders, getOrdersRequest.OrderType)
+	exchange.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
+	exchange.FilterOrdersByCurrencies(&orders, getOrdersRequest.Currencies)
+
+	return orders, nil
+}
+
+// GetOrderHistory retrieves account order information
+// Can Limit response to specific order status
+// This function is not concurrency safe due to orderSide/orderType maps
+func (b *Bitmex) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
+	var orders []exchange.OrderDetail
+	params := OrdersRequest{}
+	resp, err := b.GetOrders(params)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, order := range resp {
+		orderSide := orderSideMap[order.Side]
+		orderType := orderTypeMap[order.OrdType]
+		if orderType == "" {
+			orderType = exchange.UnknownOrderType
+		}
+
+		orderDetail := exchange.OrderDetail{
+			Price:        order.Price,
+			Amount:       float64(order.OrderQty),
+			Exchange:     b.Name,
+			ID:           order.OrderID,
+			OrderSide:    orderSide,
+			OrderType:    orderType,
+			Status:       order.OrdStatus,
+			CurrencyPair: pair.NewCurrencyPairWithDelimiter(order.Symbol, order.SettlCurrency, b.ConfigCurrencyPairFormat.Delimiter),
+		}
+
+		orders = append(orders, orderDetail)
+	}
+
+	exchange.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
+	exchange.FilterOrdersByType(&orders, getOrdersRequest.OrderType)
+	exchange.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
+	exchange.FilterOrdersByCurrencies(&orders, getOrdersRequest.Currencies)
+
+	return orders, nil
 }

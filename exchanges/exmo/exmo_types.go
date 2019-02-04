@@ -10,6 +10,7 @@ type Trades struct {
 	Price    float64 `json:"price,string"`
 	Amount   float64 `json:"amount,string"`
 	Date     int64   `json:"date"`
+	Pair     string  `json:"pair"`
 }
 
 // Orderbook holds the orderbook data

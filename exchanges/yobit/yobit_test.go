@@ -1,7 +1,9 @@
 package yobit
 
 import (
+	"math"
 	"testing"
+	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
@@ -77,11 +79,11 @@ func TestGetAccountInfo(t *testing.T) {
 	}
 }
 
-func TestGetActiveOrders(t *testing.T) {
+func TestGetOpenOrders(t *testing.T) {
 	t.Parallel()
-	_, err := y.GetActiveOrders("")
+	_, err := y.GetOpenOrders("")
 	if err == nil {
-		t.Error("Test Failed - GetActiveOrders() error", err)
+		t.Error("Test Failed - GetOpenOrders() error", err)
 	}
 }
 
@@ -106,14 +108,6 @@ func TestTrade(t *testing.T) {
 	_, err := y.Trade("", "buy", 0, 0)
 	if err == nil {
 		t.Error("Test Failed - Trade() error", err)
-	}
-}
-
-func TestGetTradeHistory(t *testing.T) {
-	t.Parallel()
-	_, err := y.GetTradeHistory(0, 0, 0, "", "", "", "")
-	if err == nil {
-		t.Error("Test Failed - GetTradeHistory() error", err)
 	}
 }
 
@@ -294,14 +288,49 @@ func TestGetFee(t *testing.T) {
 }
 
 func TestFormatWithdrawPermissions(t *testing.T) {
-	// Arrange
 	y.SetDefaults()
 	expectedResult := exchange.AutoWithdrawCryptoWithAPIPermissionText + " & " + exchange.WithdrawFiatViaWebsiteOnlyText
-	// Act
+
 	withdrawPermissions := y.FormatWithdrawPermissions()
-	// Assert
+
 	if withdrawPermissions != expectedResult {
 		t.Errorf("Expected: %s, Received: %s", expectedResult, withdrawPermissions)
+	}
+}
+
+func TestGetActiveOrders(t *testing.T) {
+	y.SetDefaults()
+	TestSetup(t)
+
+	var getOrdersRequest = exchange.GetOrdersRequest{
+		OrderType:  exchange.AnyOrderType,
+		Currencies: []pair.CurrencyPair{pair.NewCurrencyPair(symbol.LTC, symbol.BTC)},
+	}
+
+	_, err := y.GetActiveOrders(getOrdersRequest)
+	if areTestAPIKeysSet() && err != nil {
+		t.Errorf("Could not get open orders: %s", err)
+	} else if !areTestAPIKeysSet() && err == nil {
+		t.Error("Expecting an error when no keys are set")
+	}
+}
+
+func TestGetOrderHistory(t *testing.T) {
+	y.SetDefaults()
+	TestSetup(t)
+
+	var getOrdersRequest = exchange.GetOrdersRequest{
+		OrderType:  exchange.AnyOrderType,
+		Currencies: []pair.CurrencyPair{pair.NewCurrencyPair(symbol.LTC, symbol.BTC)},
+		StartTicks: time.Unix(0, 0),
+		EndTicks:   time.Unix(math.MaxInt64, 0),
+	}
+
+	_, err := y.GetOrderHistory(getOrdersRequest)
+	if areTestAPIKeysSet() && err != nil {
+		t.Errorf("Could not get order history: %s", err)
+	} else if !areTestAPIKeysSet() && err == nil {
+		t.Error("Expecting an error when no keys are set")
 	}
 }
 
@@ -328,7 +357,7 @@ func TestSubmitOrder(t *testing.T) {
 		FirstCurrency:  symbol.BTC,
 		SecondCurrency: symbol.USD,
 	}
-	response, err := y.SubmitOrder(pair, exchange.Buy, exchange.Market, 1, 10, "hi")
+	response, err := y.SubmitOrder(pair, exchange.BuyOrderSide, exchange.MarketOrderType, 1, 10, "hi")
 	if areTestAPIKeysSet() && (err != nil || !response.IsOrderPlaced) {
 		t.Errorf("Order failed to be placed: %v", err)
 	} else if !areTestAPIKeysSet() && err == nil {
@@ -337,7 +366,6 @@ func TestSubmitOrder(t *testing.T) {
 }
 
 func TestCancelExchangeOrder(t *testing.T) {
-	// Arrange
 	y.SetDefaults()
 	TestSetup(t)
 
@@ -354,12 +382,9 @@ func TestCancelExchangeOrder(t *testing.T) {
 		CurrencyPair:  currencyPair,
 	}
 
-	// Act
 	err := y.CancelOrder(orderCancellation)
-
-	// Assert
 	if !areTestAPIKeysSet() && err == nil {
-		t.Errorf("Expecting an error when no keys are set: %v", err)
+		t.Error("Expecting an error when no keys are set")
 	}
 	if areTestAPIKeysSet() && err != nil {
 		t.Errorf("Could not cancel orders: %v", err)
@@ -367,7 +392,6 @@ func TestCancelExchangeOrder(t *testing.T) {
 }
 
 func TestCancelAllExchangeOrders(t *testing.T) {
-	// Arrange
 	y.SetDefaults()
 	TestSetup(t)
 
@@ -384,12 +408,10 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 		CurrencyPair:  currencyPair,
 	}
 
-	// Act
 	resp, err := y.CancelAllOrders(orderCancellation)
 
-	// Assert
 	if !areTestAPIKeysSet() && err == nil {
-		t.Errorf("Expecting an error when no keys are set: %v", err)
+		t.Error("Expecting an error when no keys are set")
 	}
 	if areTestAPIKeysSet() && err != nil {
 		t.Errorf("Could not cancel orders: %v", err)
@@ -423,7 +445,7 @@ func TestWithdraw(t *testing.T) {
 
 	_, err := y.WithdrawCryptocurrencyFunds(withdrawCryptoRequest)
 	if !areTestAPIKeysSet() && err == nil {
-		t.Errorf("Expecting an error when no keys are set: %v", err)
+		t.Error("Expecting an error when no keys are set")
 	}
 	if areTestAPIKeysSet() && err != nil {
 		t.Errorf("Withdraw failed to be placed: %v", err)

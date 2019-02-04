@@ -3,8 +3,11 @@ package yobit
 import (
 	"errors"
 	"fmt"
+	"math"
 	"strconv"
+	"strings"
 	"sync"
+	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
@@ -187,7 +190,7 @@ func (y *Yobit) CancelAllOrders(orderCancellation exchange.OrderCancellation) (e
 	var allActiveOrders []map[string]ActiveOrders
 
 	for _, pair := range y.EnabledPairs {
-		activeOrdersForPair, err := y.GetActiveOrders(pair)
+		activeOrdersForPair, err := y.GetOpenOrders(pair)
 		if err != nil {
 			return cancelAllOrdersResponse, err
 		}
@@ -266,4 +269,71 @@ func (y *Yobit) GetFeeByType(feeBuilder exchange.FeeBuilder) (float64, error) {
 // GetWithdrawCapabilities returns the types of withdrawal methods permitted by the exchange
 func (y *Yobit) GetWithdrawCapabilities() uint32 {
 	return y.GetWithdrawPermissions()
+}
+
+// GetActiveOrders retrieves any orders that are active/open
+func (y *Yobit) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
+	var orders []exchange.OrderDetail
+	for _, currency := range getOrdersRequest.Currencies {
+		resp, err := y.GetOpenOrders(exchange.FormatExchangeCurrency(y.Name, currency).String())
+		if err != nil {
+			return nil, err
+		}
+
+		for ID, order := range resp {
+			symbol := pair.NewCurrencyPairDelimiter(order.Pair, y.ConfigCurrencyPairFormat.Delimiter)
+			orderDate := time.Unix(int64(order.TimestampCreated), 0)
+			side := exchange.OrderSide(strings.ToUpper(order.Type))
+			orders = append(orders, exchange.OrderDetail{
+				ID:           ID,
+				Amount:       order.Amount,
+				Price:        order.Rate,
+				OrderSide:    side,
+				OrderDate:    orderDate,
+				CurrencyPair: symbol,
+				Exchange:     y.Name,
+			})
+		}
+	}
+
+	exchange.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
+	exchange.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
+
+	return orders, nil
+}
+
+// GetOrderHistory retrieves account order information
+// Can Limit response to specific order status
+func (y *Yobit) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
+	var allOrders []TradeHistory
+	for _, currency := range getOrdersRequest.Currencies {
+		resp, err := y.GetTradeHistory(0, 10000, math.MaxInt64, getOrdersRequest.StartTicks.Unix(), getOrdersRequest.EndTicks.Unix(), "DESC", exchange.FormatExchangeCurrency(y.Name, currency).String())
+		if err != nil {
+			return nil, err
+		}
+
+		for _, order := range resp {
+			allOrders = append(allOrders, order)
+		}
+	}
+
+	var orders []exchange.OrderDetail
+	for _, order := range allOrders {
+		symbol := pair.NewCurrencyPairDelimiter(order.Pair, y.ConfigCurrencyPairFormat.Delimiter)
+		orderDate := time.Unix(int64(order.Timestamp), 0)
+		side := exchange.OrderSide(strings.ToUpper(order.Type))
+		orders = append(orders, exchange.OrderDetail{
+			ID:           fmt.Sprintf("%v", order.OrderID),
+			Amount:       order.Amount,
+			Price:        order.Rate,
+			OrderSide:    side,
+			OrderDate:    orderDate,
+			CurrencyPair: symbol,
+			Exchange:     y.Name,
+		})
+	}
+
+	exchange.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
+
+	return orders, nil
 }

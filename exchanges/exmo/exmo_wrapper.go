@@ -4,7 +4,9 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"strings"
 	"sync"
+	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
@@ -186,10 +188,10 @@ func (e *EXMO) GetExchangeHistory(p pair.CurrencyPair, assetType string) ([]exch
 func (e *EXMO) SubmitOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (exchange.SubmitOrderResponse, error) {
 	var submitOrderResponse exchange.SubmitOrderResponse
 	var oT string
-	if orderType == exchange.Limit {
+	if orderType == exchange.LimitOrderType {
 		return submitOrderResponse, errors.New("Unsupported order type")
-	} else if orderType == exchange.Market {
-		if side == exchange.Buy {
+	} else if orderType == exchange.MarketOrderType {
+		if side == exchange.BuyOrderSide {
 			oT = "market_buy"
 		} else {
 			oT = "market_sell"
@@ -302,4 +304,72 @@ func (e *EXMO) GetFeeByType(feeBuilder exchange.FeeBuilder) (float64, error) {
 // GetWithdrawCapabilities returns the types of withdrawal methods permitted by the exchange
 func (e *EXMO) GetWithdrawCapabilities() uint32 {
 	return e.GetWithdrawPermissions()
+}
+
+// GetActiveOrders retrieves any orders that are active/open
+func (e *EXMO) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
+	resp, err := e.GetOpenOrders()
+	if err != nil {
+		return nil, err
+	}
+	var orders []exchange.OrderDetail
+	for _, order := range resp {
+		symbol := pair.NewCurrencyPairDelimiter(order.Pair, "_")
+		orderDate := time.Unix(order.Created, 0)
+		orderSide := exchange.OrderSide(strings.ToUpper(order.Type))
+		orders = append(orders, exchange.OrderDetail{
+			ID:           fmt.Sprintf("%v", order.OrderID),
+			Amount:       order.Quantity,
+			OrderDate:    orderDate,
+			Price:        order.Price,
+			OrderSide:    orderSide,
+			Exchange:     e.Name,
+			CurrencyPair: symbol,
+		})
+	}
+
+	exchange.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
+	exchange.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
+
+	return orders, nil
+}
+
+// GetOrderHistory retrieves account order information
+// Can Limit response to specific order status
+func (e *EXMO) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
+	if len(getOrdersRequest.Currencies) <= 0 {
+		return nil, errors.New("Currency must be supplied")
+	}
+
+	var allTrades []UserTrades
+	for _, currency := range getOrdersRequest.Currencies {
+		resp, err := e.GetUserTrades(exchange.FormatExchangeCurrency(e.Name, currency).String(), "", "10000")
+		if err != nil {
+			return nil, err
+		}
+		for _, order := range resp {
+			allTrades = append(allTrades, order...)
+		}
+	}
+
+	var orders []exchange.OrderDetail
+	for _, order := range allTrades {
+		symbol := pair.NewCurrencyPairDelimiter(order.Pair, "_")
+		orderDate := time.Unix(order.Date, 0)
+		orderSide := exchange.OrderSide(strings.ToUpper(order.Type))
+		orders = append(orders, exchange.OrderDetail{
+			ID:           fmt.Sprintf("%v", order.TradeID),
+			Amount:       order.Quantity,
+			OrderDate:    orderDate,
+			Price:        order.Price,
+			OrderSide:    orderSide,
+			Exchange:     e.Name,
+			CurrencyPair: symbol,
+		})
+	}
+
+	exchange.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
+	exchange.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
+
+	return orders, nil
 }

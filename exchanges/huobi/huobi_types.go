@@ -141,23 +141,26 @@ type CancelOrderBatch struct {
 
 // OrderInfo stores the order info
 type OrderInfo struct {
-	ID              int    `json:"id"`
-	Symbol          string `json:"symbol"`
-	AccountID       int    `json:"account-id"`
-	Amount          string `json:"amount"`
-	Price           string `json:"price"`
-	CreatedAt       int64  `json:"created-at"`
-	Type            string `json:"type"`
-	FieldAmount     string `json:"field-amount"`
-	FieldCashAmount string `json:"field-cash-amount"`
-	FieldFees       string `json:"field-fees"`
-	FinishedAt      int64  `json:"finished-at"`
-	UserID          int    `json:"user-id"`
-	Source          string `json:"source"`
-	State           string `json:"state"`
-	CanceledAt      int    `json:"canceled-at"`
-	Exchange        string `json:"exchange"`
-	Batch           string `json:"batch"`
+	ID               int     `json:"id"`
+	Symbol           string  `json:"symbol"`
+	AccountID        float64 `json:"account-id"`
+	Amount           float64 `json:"amount,string"`
+	Price            float64 `json:"price,string"`
+	CreatedAt        int64   `json:"created-at"`
+	Type             string  `json:"type"`
+	FieldAmount      float64 `json:"field-amount,string"`
+	FieldCashAmount  float64 `json:"field-cash-amount,string"`
+	Fieldees         float64 `json:"field-fees,string"`
+	FilledAmount     float64 `json:"filled-amount,string"`
+	FilledCashAmount float64 `json:"filled-cash-amount,string"`
+	FilledFees       float64 `json:"filled-fees,string"`
+	FinishedAt       int64   `json:"finished-at"`
+	UserID           int     `json:"user-id"`
+	Source           string  `json:"source"`
+	State            string  `json:"state"`
+	CanceledAt       int     `json:"canceled-at"`
+	Exchange         string  `json:"exchange"`
+	Batch            string  `json:"batch"`
 }
 
 // OrderMatchInfo stores the order match info

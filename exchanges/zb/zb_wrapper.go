@@ -1,9 +1,11 @@
 package zb
 
 import (
+	"errors"
 	"fmt"
 	"strconv"
 	"sync"
+	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
@@ -170,7 +172,7 @@ func (z *ZB) SubmitOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType
 	var submitOrderResponse exchange.SubmitOrderResponse
 	var oT SpotNewOrderRequestParamsType
 
-	if side == exchange.Buy {
+	if side == exchange.BuyOrderSide {
 		oT = SpotNewOrderRequestParamsTypeBuy
 	} else {
 		oT = SpotNewOrderRequestParamsTypeSell
@@ -217,14 +219,23 @@ func (z *ZB) CancelAllOrders(orderCancellation exchange.OrderCancellation) (exch
 	cancelAllOrdersResponse := exchange.CancelAllOrdersResponse{
 		OrderStatus: make(map[string]string),
 	}
-	var allOpenOrders []UnfinishedOpenOrder
+	var allOpenOrders []Order
 	for _, currency := range z.GetEnabledCurrencies() {
-		openOrders, err := z.GetUnfinishedOrdersIgnoreTradeType(exchange.FormatExchangeCurrency(z.Name, currency).String(), "1", "10")
-		if err != nil {
-			return cancelAllOrdersResponse, err
-		}
+		var pageNumber int64
+		// Limiting to 10 pages
+		for i := 0; i < 10; i++ {
+			openOrders, err := z.GetUnfinishedOrdersIgnoreTradeType(exchange.FormatExchangeCurrency(z.Name, currency).String(), 1, 10)
+			if err != nil {
+				return cancelAllOrdersResponse, err
+			}
 
-		allOpenOrders = append(allOpenOrders, openOrders...)
+			if len(openOrders) == 0 {
+				break
+			}
+
+			allOpenOrders = append(allOpenOrders, openOrders...)
+			pageNumber++
+		}
 	}
 
 	for _, openOrder := range allOpenOrders {
@@ -284,4 +295,101 @@ func (z *ZB) GetFeeByType(feeBuilder exchange.FeeBuilder) (float64, error) {
 // GetWithdrawCapabilities returns the types of withdrawal methods permitted by the exchange
 func (z *ZB) GetWithdrawCapabilities() uint32 {
 	return z.GetWithdrawPermissions()
+}
+
+// GetActiveOrders retrieves any orders that are active/open
+// This function is not concurrency safe due to orderSide/orderType maps
+func (z *ZB) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
+	var allOrders []Order
+	for _, currency := range getOrdersRequest.Currencies {
+		var pageNumber int64
+		// Limiting to 10 pages
+		for i := 0; i < 10; i++ {
+			resp, err := z.GetUnfinishedOrdersIgnoreTradeType(exchange.FormatExchangeCurrency(z.Name, currency).String(), pageNumber, 10)
+			if err != nil {
+				return nil, err
+			}
+			if len(resp) == 0 {
+				break
+			}
+
+			allOrders = append(allOrders, resp...)
+			pageNumber++
+		}
+	}
+
+	var orders []exchange.OrderDetail
+	for _, order := range allOrders {
+		symbol := pair.NewCurrencyPairDelimiter(order.Currency, z.ConfigCurrencyPairFormat.Delimiter)
+		orderDate := time.Unix(int64(order.TradeDate), 0)
+		orderSide := orderSideMap[order.Type]
+		orders = append(orders, exchange.OrderDetail{
+			ID:           fmt.Sprintf("%v", order.ID),
+			Amount:       order.TotalAmount,
+			Exchange:     z.Name,
+			OrderDate:    orderDate,
+			Price:        float64(order.Price),
+			OrderSide:    orderSide,
+			CurrencyPair: symbol,
+		})
+	}
+
+	exchange.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
+	exchange.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
+
+	return orders, nil
+}
+
+// GetOrderHistory retrieves account order information
+// Can Limit response to specific order status
+// This function is not concurrency safe due to orderSide/orderType maps
+func (z *ZB) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
+	if getOrdersRequest.OrderSide == exchange.AnyOrderSide || getOrdersRequest.OrderSide == "" {
+		return nil, errors.New("Specific order side is required")
+	}
+
+	var allOrders []Order
+
+	var side int64
+	if getOrdersRequest.OrderSide == exchange.BuyOrderSide {
+		side = 1
+	}
+
+	for _, currency := range getOrdersRequest.Currencies {
+		var pageNumber int64
+		// Limiting to 10 pages
+		for i := 0; i < 10; i++ {
+			resp, err := z.GetOrders(exchange.FormatExchangeCurrency(z.Name, currency).String(), pageNumber, side)
+			if err != nil {
+				return nil, err
+			}
+
+			if len(resp) == 0 {
+				break
+			}
+
+			allOrders = append(allOrders, resp...)
+			pageNumber++
+		}
+	}
+
+	var orders []exchange.OrderDetail
+	for _, order := range allOrders {
+		symbol := pair.NewCurrencyPairDelimiter(order.Currency, z.ConfigCurrencyPairFormat.Delimiter)
+		orderDate := time.Unix(int64(order.TradeDate), 0)
+		orderSide := orderSideMap[order.Type]
+		orders = append(orders, exchange.OrderDetail{
+			ID:           fmt.Sprintf("%v", order.ID),
+			Amount:       order.TotalAmount,
+			Exchange:     z.Name,
+			OrderDate:    orderDate,
+			Price:        float64(order.Price),
+			OrderSide:    orderSide,
+			CurrencyPair: symbol,
+		})
+	}
+
+	exchange.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
+
+	return orders, nil
 }

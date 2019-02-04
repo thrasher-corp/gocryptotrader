@@ -46,6 +46,7 @@ const (
 	bitfinexOrderCancelReplace = "order/cancel/replace"
 	bitfinexOrderStatus        = "order/status"
 	bitfinexOrders             = "orders"
+	bitfinexInactiveOrders     = "orders/hist"
 	bitfinexPositions          = "positions"
 	bitfinexClaimPosition      = "position/claim"
 	bitfinexHistory            = "history"
@@ -732,9 +733,19 @@ func (b *Bitfinex) GetOrderStatus(OrderID int64) (Order, error) {
 		b.SendAuthenticatedHTTPRequest("POST", bitfinexOrderStatus, request, &orderStatus)
 }
 
-// GetActiveOrders returns all active orders and statuses
-func (b *Bitfinex) GetActiveOrders() ([]Order, error) {
-	response := []Order{}
+// GetInactiveOrders returns order status information
+func (b *Bitfinex) GetInactiveOrders() ([]Order, error) {
+	var response []Order
+	request := make(map[string]interface{})
+	request["limit"] = "100"
+
+	return response,
+		b.SendAuthenticatedHTTPRequest("POST", bitfinexInactiveOrders, request, &response)
+}
+
+// GetOpenOrders returns all active orders and statuses
+func (b *Bitfinex) GetOpenOrders() ([]Order, error) {
+	var response []Order
 
 	return response,
 		b.SendAuthenticatedHTTPRequest("POST", bitfinexOrders, nil, &response)

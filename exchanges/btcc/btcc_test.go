@@ -161,14 +161,45 @@ func TestGetFee(t *testing.T) {
 }
 
 func TestFormatWithdrawPermissions(t *testing.T) {
-	// Arrange
 	b.SetDefaults()
 	expectedResult := exchange.NoAPIWithdrawalMethodsText
-	// Act
+
 	withdrawPermissions := b.FormatWithdrawPermissions()
-	// Assert
+
 	if withdrawPermissions != expectedResult {
 		t.Errorf("Expected: %s, Received: %s", expectedResult, withdrawPermissions)
+	}
+}
+
+func TestGetActiveOrders(t *testing.T) {
+	b.SetDefaults()
+	TestSetup(t)
+
+	var getOrdersRequest = exchange.GetOrdersRequest{
+		OrderType: exchange.AnyOrderType,
+	}
+
+	_, err := b.GetActiveOrders(getOrdersRequest)
+	if areTestAPIKeysSet() && err != nil {
+		t.Errorf("Could not get open orders: %s", err)
+	} else if !areTestAPIKeysSet() && err == nil {
+		t.Error("Expecting an error when no keys are set")
+	}
+}
+
+func TestGetOrderHistory(t *testing.T) {
+	b.SetDefaults()
+	TestSetup(t)
+
+	var getOrdersRequest = exchange.GetOrdersRequest{
+		OrderType: exchange.AnyOrderType,
+	}
+
+	_, err := b.GetOrderHistory(getOrdersRequest)
+	if areTestAPIKeysSet() && err != nil {
+		t.Errorf("Could not get order history: %s", err)
+	} else if !areTestAPIKeysSet() && err == nil {
+		t.Error("Expecting an error when no keys are set")
 	}
 }
 
@@ -195,14 +226,13 @@ func TestSubmitOrder(t *testing.T) {
 		FirstCurrency:  symbol.BTC,
 		SecondCurrency: symbol.LTC,
 	}
-	_, err := b.SubmitOrder(p, exchange.Buy, exchange.Limit, 1, 1, "clientId")
+	_, err := b.SubmitOrder(p, exchange.BuyOrderSide, exchange.LimitOrderType, 1, 1, "clientId")
 	if err != common.ErrNotYetImplemented {
 		t.Errorf("Expected 'Not Yet Implemented', received %v", err)
 	}
 }
 
 func TestCancelExchangeOrder(t *testing.T) {
-	// Arrange
 	b.SetDefaults()
 	TestSetup(t)
 
@@ -219,17 +249,13 @@ func TestCancelExchangeOrder(t *testing.T) {
 		CurrencyPair:  currencyPair,
 	}
 
-	// Act
 	err := b.CancelOrder(orderCancellation)
-
-	// Assert
 	if err != common.ErrNotYetImplemented {
 		t.Errorf("Expected 'Not Yet Implemented', received %v", err)
 	}
 }
 
 func TestCancelAllExchangeOrders(t *testing.T) {
-	// Arrange
 	b.SetDefaults()
 	TestSetup(t)
 
@@ -246,10 +272,8 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 		CurrencyPair:  currencyPair,
 	}
 
-	// Act
 	_, err := b.CancelAllOrders(orderCancellation)
 
-	// Assert
 	if err != common.ErrNotYetImplemented {
 		t.Errorf("Expected 'Not Yet Implemented', received %v", err)
 	}

@@ -1,7 +1,9 @@
 package wex
 
 import (
+	"math"
 	"testing"
+	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
@@ -104,14 +106,14 @@ func TestGetAccountInfo(t *testing.T) {
 	}
 }
 
-func TestGetActiveOrders(t *testing.T) {
+func GetOpenOrders(t *testing.T) {
 	if isWexEncounteringIssues {
 		t.Skip()
 	}
 	t.Parallel()
-	_, err := w.GetActiveOrders("")
+	_, err := w.GetOpenOrders("")
 	if err == nil {
-		t.Error("Test Failed - GetActiveOrders() error", err)
+		t.Error("Test Failed - GetOpenOrders() error", err)
 	}
 }
 
@@ -156,17 +158,6 @@ func TestGetTransactionHistory(t *testing.T) {
 	_, err := w.GetTransactionHistory(0, 0, 0, "", "", "")
 	if err == nil {
 		t.Error("Test Failed - GetTransactionHistory() error", err)
-	}
-}
-
-func TestGetTradeHistory(t *testing.T) {
-	if isWexEncounteringIssues {
-		t.Skip()
-	}
-	t.Parallel()
-	_, err := w.GetTradeHistory(0, 0, 0, "", "", "", "")
-	if err == nil {
-		t.Error("Test Failed - GetTradeHistory() error", err)
 	}
 }
 
@@ -313,14 +304,50 @@ func TestFormatWithdrawPermissions(t *testing.T) {
 	if isWexEncounteringIssues {
 		t.Skip()
 	}
-	// Arrange
+
 	w.SetDefaults()
 	expectedResult := exchange.AutoWithdrawCryptoWithAPIPermissionText + " & " + exchange.NoFiatWithdrawalsText
-	// Act
+
 	withdrawPermissions := w.FormatWithdrawPermissions()
-	// Assert
+
 	if withdrawPermissions != expectedResult {
 		t.Errorf("Expected: %s, Received: %s", expectedResult, withdrawPermissions)
+	}
+}
+
+func TestGetActiveOrders(t *testing.T) {
+	w.SetDefaults()
+	TestSetup(t)
+
+	var getOrdersRequest = exchange.GetOrdersRequest{
+		OrderType:  exchange.AnyOrderType,
+		Currencies: []pair.CurrencyPair{pair.NewCurrencyPair(symbol.LTC, symbol.BTC)},
+	}
+
+	_, err := w.GetActiveOrders(getOrdersRequest)
+	if areTestAPIKeysSet() && err != nil {
+		t.Errorf("Could not get open orders: %s", err)
+	} else if !areTestAPIKeysSet() && err == nil {
+		t.Error("Expecting an error when no keys are set")
+	}
+}
+
+func TestGetOrderHistory(t *testing.T) {
+	w.SetDefaults()
+	TestSetup(t)
+
+	var getOrdersRequest = exchange.GetOrdersRequest{
+		OrderType:  exchange.AnyOrderType,
+		Currencies: []pair.CurrencyPair{pair.NewCurrencyPair(symbol.LTC, symbol.BTC)},
+		StartTicks: time.Unix(0, 0),
+		EndTicks:   time.Unix(math.MaxInt64, 0),
+	}
+
+	_, err := w.GetOrderHistory(getOrdersRequest)
+	if areTestAPIKeysSet() && err != nil {
+		t.Errorf("Could not get order history: %s", err)
+	} else if !areTestAPIKeysSet() && err == nil {
+		t.Error("Expecting an error when no keys are set")
 	}
 }
 
@@ -350,7 +377,7 @@ func TestSubmitOrder(t *testing.T) {
 		FirstCurrency:  symbol.BTC,
 		SecondCurrency: symbol.USD,
 	}
-	response, err := w.SubmitOrder(pair, exchange.Buy, exchange.Market, 1, 10, "hi")
+	response, err := w.SubmitOrder(pair, exchange.BuyOrderSide, exchange.MarketOrderType, 1, 10, "hi")
 	if areTestAPIKeysSet() && (err != nil || !response.IsOrderPlaced) {
 		t.Errorf("Order failed to be placed: %v", err)
 	} else if !areTestAPIKeysSet() && err == nil {
@@ -362,7 +389,7 @@ func TestCancelExchangeOrder(t *testing.T) {
 	if isWexEncounteringIssues {
 		t.Skip()
 	}
-	// Arrange
+
 	w.SetDefaults()
 	TestSetup(t)
 
@@ -379,12 +406,10 @@ func TestCancelExchangeOrder(t *testing.T) {
 		CurrencyPair:  currencyPair,
 	}
 
-	// Act
 	err := w.CancelOrder(orderCancellation)
 
-	// Assert
 	if !areTestAPIKeysSet() && err == nil {
-		t.Errorf("Expecting an error when no keys are set: %v", err)
+		t.Error("Expecting an error when no keys are set")
 	}
 	if areTestAPIKeysSet() && err != nil {
 		t.Errorf("Could not cancel orders: %v", err)
@@ -395,7 +420,7 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 	if isWexEncounteringIssues {
 		t.Skip()
 	}
-	// Arrange
+
 	w.SetDefaults()
 	TestSetup(t)
 
@@ -412,12 +437,10 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 		CurrencyPair:  currencyPair,
 	}
 
-	// Act
 	resp, err := w.CancelAllOrders(orderCancellation)
 
-	// Assert
 	if !areTestAPIKeysSet() && err == nil {
-		t.Errorf("Expecting an error when no keys are set: %v", err)
+		t.Error("Expecting an error when no keys are set")
 	}
 	if areTestAPIKeysSet() && err != nil {
 		t.Errorf("Could not cancel orders: %v", err)
@@ -451,7 +474,7 @@ func TestWithdraw(t *testing.T) {
 
 	_, err := w.WithdrawCryptocurrencyFunds(withdrawCryptoRequest)
 	if !areTestAPIKeysSet() && err == nil {
-		t.Errorf("Expecting an error when no keys are set: %v", err)
+		t.Error("Expecting an error when no keys are set")
 	}
 	if areTestAPIKeysSet() && err != nil {
 		t.Errorf("Withdraw failed to be placed: %v", err)

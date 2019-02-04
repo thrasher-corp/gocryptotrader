@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
@@ -150,7 +151,7 @@ func (l *LakeBTC) GetExchangeHistory(p pair.CurrencyPair, assetType string) ([]e
 // SubmitOrder submits a new order
 func (l *LakeBTC) SubmitOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (exchange.SubmitOrderResponse, error) {
 	var submitOrderResponse exchange.SubmitOrderResponse
-	isBuyOrder := side == exchange.Buy
+	isBuyOrder := side == exchange.BuyOrderSide
 	response, err := l.Trade(isBuyOrder, amount, price, common.StringToLower(p.Pair().String()))
 
 	if response.ID > 0 {
@@ -263,4 +264,71 @@ func (l *LakeBTC) GetFeeByType(feeBuilder exchange.FeeBuilder) (float64, error) 
 // GetWithdrawCapabilities returns the types of withdrawal methods permitted by the exchange
 func (l *LakeBTC) GetWithdrawCapabilities() uint32 {
 	return l.GetWithdrawPermissions()
+}
+
+// GetActiveOrders retrieves any orders that are active/open
+func (l *LakeBTC) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
+	resp, err := l.GetOpenOrders()
+	if err != nil {
+		return nil, err
+	}
+
+	var orders []exchange.OrderDetail
+	for _, order := range resp {
+		symbol := pair.NewCurrencyPairDelimiter(order.Symbol, l.ConfigCurrencyPairFormat.Delimiter)
+		orderDate := time.Unix(order.At, 0)
+		side := exchange.OrderSide(strings.ToUpper(order.Type))
+
+		orders = append(orders, exchange.OrderDetail{
+			Amount:       order.Amount,
+			ID:           fmt.Sprintf("%v", order.ID),
+			Price:        order.Price,
+			OrderSide:    side,
+			OrderDate:    orderDate,
+			CurrencyPair: symbol,
+			Exchange:     l.Name,
+		})
+	}
+
+	exchange.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
+	exchange.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
+	exchange.FilterOrdersByCurrencies(&orders, getOrdersRequest.Currencies)
+
+	return orders, nil
+}
+
+// GetOrderHistory retrieves account order information
+// Can Limit response to specific order status
+func (l *LakeBTC) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
+	resp, err := l.GetOrders([]int64{})
+	if err != nil {
+		return nil, err
+	}
+
+	var orders []exchange.OrderDetail
+	for _, order := range resp {
+		if order.State == "active" {
+			continue
+		}
+
+		symbol := pair.NewCurrencyPairDelimiter(order.Symbol, l.ConfigCurrencyPairFormat.Delimiter)
+		orderDate := time.Unix(order.At, 0)
+		side := exchange.OrderSide(strings.ToUpper(order.Type))
+
+		orders = append(orders, exchange.OrderDetail{
+			Amount:       order.Amount,
+			ID:           fmt.Sprintf("%v", order.ID),
+			Price:        order.Price,
+			OrderSide:    side,
+			OrderDate:    orderDate,
+			CurrencyPair: symbol,
+			Exchange:     l.Name,
+		})
+	}
+
+	exchange.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
+	exchange.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
+	exchange.FilterOrdersByCurrencies(&orders, getOrdersRequest.Currencies)
+
+	return orders, nil
 }

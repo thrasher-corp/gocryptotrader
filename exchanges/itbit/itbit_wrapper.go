@@ -4,7 +4,9 @@ import (
 	"fmt"
 	"net/url"
 	"strconv"
+	"strings"
 	"sync"
+	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
@@ -279,4 +281,99 @@ func (i *ItBit) GetFeeByType(feeBuilder exchange.FeeBuilder) (float64, error) {
 // GetWithdrawCapabilities returns the types of withdrawal methods permitted by the exchange
 func (i *ItBit) GetWithdrawCapabilities() uint32 {
 	return i.GetWithdrawPermissions()
+}
+
+// GetActiveOrders retrieves any orders that are active/open
+func (i *ItBit) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
+	wallets, err := i.GetWallets(url.Values{})
+	if err != nil {
+		return nil, err
+	}
+
+	var allOrders []Order
+	for _, wallet := range wallets {
+		resp, err := i.GetOrders(wallet.ID, "", "open", 0, 0)
+		if err != nil {
+			return nil, err
+		}
+		allOrders = append(allOrders, resp...)
+	}
+
+	var orders []exchange.OrderDetail
+	for _, order := range allOrders {
+		symbol := pair.NewCurrencyPairDelimiter(order.Instrument, i.ConfigCurrencyPairFormat.Delimiter)
+		side := exchange.OrderSide(strings.ToUpper(order.Side))
+		orderDate, err := time.Parse(time.RFC3339, order.CreatedTime)
+		if err != nil {
+			log.Warnf("Exchange %v Func %v Order %v Could not parse date to unix with value of %v",
+				i.Name, "GetActiveOrders", order.ID, order.CreatedTime)
+		}
+
+		orders = append(orders, exchange.OrderDetail{
+			ID:              order.ID,
+			OrderSide:       side,
+			Amount:          order.Amount,
+			ExecutedAmount:  order.AmountFilled,
+			RemainingAmount: (order.Amount - order.AmountFilled),
+			Exchange:        i.Name,
+			OrderDate:       orderDate,
+			CurrencyPair:    symbol,
+		})
+	}
+
+	exchange.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
+	exchange.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
+	exchange.FilterOrdersByCurrencies(&orders, getOrdersRequest.Currencies)
+
+	return orders, nil
+}
+
+// GetOrderHistory retrieves account order information
+// Can Limit response to specific order status
+func (i *ItBit) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
+	wallets, err := i.GetWallets(url.Values{})
+	if err != nil {
+		return nil, err
+	}
+
+	var allOrders []Order
+	for _, wallet := range wallets {
+		resp, err := i.GetOrders(wallet.ID, "", "", 0, 0)
+		if err != nil {
+			return nil, err
+		}
+		allOrders = append(allOrders, resp...)
+	}
+
+	var orders []exchange.OrderDetail
+	for _, order := range allOrders {
+		if order.Type == "open" {
+			continue
+		}
+
+		symbol := pair.NewCurrencyPairDelimiter(order.Instrument, i.ConfigCurrencyPairFormat.Delimiter)
+		side := exchange.OrderSide(strings.ToUpper(order.Side))
+		orderDate, err := time.Parse(time.RFC3339, order.CreatedTime)
+		if err != nil {
+			log.Warnf("Exchange %v Func %v Order %v Could not parse date to unix with value of %v",
+				i.Name, "GetActiveOrders", order.ID, order.CreatedTime)
+		}
+
+		orders = append(orders, exchange.OrderDetail{
+			ID:              order.ID,
+			OrderSide:       side,
+			Amount:          order.Amount,
+			ExecutedAmount:  order.AmountFilled,
+			RemainingAmount: (order.Amount - order.AmountFilled),
+			Exchange:        i.Name,
+			OrderDate:       orderDate,
+			CurrencyPair:    symbol,
+		})
+	}
+
+	exchange.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
+	exchange.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
+	exchange.FilterOrdersByCurrencies(&orders, getOrdersRequest.Currencies)
+
+	return orders, nil
 }

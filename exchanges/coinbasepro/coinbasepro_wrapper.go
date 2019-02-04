@@ -3,7 +3,9 @@ package coinbasepro
 import (
 	"errors"
 	"fmt"
+	"strings"
 	"sync"
+	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
@@ -156,10 +158,10 @@ func (c *CoinbasePro) SubmitOrder(p pair.CurrencyPair, side exchange.OrderSide, 
 	var submitOrderResponse exchange.SubmitOrderResponse
 	var response string
 	var err error
-	if orderType == exchange.Market {
+	if orderType == exchange.MarketOrderType {
 		response, err = c.PlaceMarginOrder("", amount, amount, side.ToString(), p.Pair().String(), "")
 
-	} else if orderType == exchange.Limit {
+	} else if orderType == exchange.LimitOrderType {
 		response, err = c.PlaceLimitOrder("", price, amount, side.ToString(), "", "", p.Pair().String(), "", false)
 	} else {
 		err = errors.New("not supported")
@@ -258,4 +260,87 @@ func (c *CoinbasePro) GetFeeByType(feeBuilder exchange.FeeBuilder) (float64, err
 // GetWithdrawCapabilities returns the types of withdrawal methods permitted by the exchange
 func (c *CoinbasePro) GetWithdrawCapabilities() uint32 {
 	return c.GetWithdrawPermissions()
+}
+
+// GetActiveOrders retrieves any orders that are active/open
+func (c *CoinbasePro) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
+	var respOrders []GeneralizedOrderResponse
+	for _, currency := range getOrdersRequest.Currencies {
+		resp, err := c.GetOrders([]string{"open", "pending", "active"}, exchange.FormatExchangeCurrency(c.Name, currency).String())
+		if err != nil {
+			return nil, err
+		}
+		respOrders = append(respOrders, resp...)
+	}
+
+	var orders []exchange.OrderDetail
+	for _, order := range respOrders {
+		currency := pair.NewCurrencyPairDelimiter(order.ProductID, c.ConfigCurrencyPairFormat.Delimiter)
+		orderSide := exchange.OrderSide(strings.ToUpper(order.Side))
+		orderType := exchange.OrderType(strings.ToUpper(order.Type))
+		orderDate, err := time.Parse(time.RFC3339, order.CreatedAt)
+		if err != nil {
+			log.Warnf("Exchange %v Func %v Order %v Could not parse date to unix with value of %v",
+				c.Name, "GetActiveOrders", order.ID, order.CreatedAt)
+		}
+
+		orders = append(orders, exchange.OrderDetail{
+			ID:             order.ID,
+			Amount:         order.Size,
+			ExecutedAmount: order.FilledSize,
+			OrderType:      orderType,
+			OrderDate:      orderDate,
+			OrderSide:      orderSide,
+			CurrencyPair:   currency,
+			Exchange:       c.Name,
+		})
+	}
+
+	exchange.FilterOrdersByType(&orders, getOrdersRequest.OrderType)
+	exchange.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
+	exchange.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
+
+	return orders, nil
+}
+
+// GetOrderHistory retrieves account order information
+// Can Limit response to specific order status
+func (c *CoinbasePro) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
+	var respOrders []GeneralizedOrderResponse
+	for _, currency := range getOrdersRequest.Currencies {
+		resp, err := c.GetOrders([]string{"done", "settled"}, exchange.FormatExchangeCurrency(c.Name, currency).String())
+		if err != nil {
+			return nil, err
+		}
+		respOrders = append(respOrders, resp...)
+	}
+
+	var orders []exchange.OrderDetail
+	for _, order := range respOrders {
+		currency := pair.NewCurrencyPairDelimiter(order.ProductID, c.ConfigCurrencyPairFormat.Delimiter)
+		orderSide := exchange.OrderSide(strings.ToUpper(order.Side))
+		orderType := exchange.OrderType(strings.ToUpper(order.Type))
+		orderDate, err := time.Parse(time.RFC3339, order.CreatedAt)
+		if err != nil {
+			log.Warnf("Exchange %v Func %v Order %v Could not parse date to unix with value of %v",
+				c.Name, "GetActiveOrders", order.ID, order.CreatedAt)
+		}
+
+		orders = append(orders, exchange.OrderDetail{
+			ID:             order.ID,
+			Amount:         order.Size,
+			ExecutedAmount: order.FilledSize,
+			OrderType:      orderType,
+			OrderDate:      orderDate,
+			OrderSide:      orderSide,
+			CurrencyPair:   currency,
+			Exchange:       c.Name,
+		})
+	}
+
+	exchange.FilterOrdersByType(&orders, getOrdersRequest.OrderType)
+	exchange.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
+	exchange.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
+
+	return orders, nil
 }

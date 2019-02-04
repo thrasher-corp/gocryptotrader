@@ -4,7 +4,9 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"strings"
 	"sync"
+	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency/pair"
@@ -215,7 +217,7 @@ func (c *COINUT) SubmitOrder(p pair.CurrencyPair, side exchange.OrderSide, order
 	var submitOrderResponse exchange.SubmitOrderResponse
 	var err error
 	var APIresponse interface{}
-	isBuyOrder := side == exchange.Buy
+	isBuyOrder := side == exchange.BuyOrderSide
 	clientIDInt, err := strconv.ParseUint(clientID, 0, 32)
 	clientIDUint := uint32(clientIDInt)
 
@@ -231,9 +233,9 @@ func (c *COINUT) SubmitOrder(p pair.CurrencyPair, side exchange.OrderSide, order
 	currencyArray := instruments.Instruments[p.Pair().String()]
 	currencyID := currencyArray[0].InstID
 
-	if orderType == exchange.Limit {
+	if orderType == exchange.LimitOrderType {
 		APIresponse, err = c.NewOrder(currencyID, amount, price, isBuyOrder, clientIDUint)
-	} else if orderType == exchange.Market {
+	} else if orderType == exchange.MarketOrderType {
 		APIresponse, err = c.NewOrder(currencyID, amount, 0, isBuyOrder, clientIDUint)
 	} else {
 		return submitOrderResponse, errors.New("unsupported order type")
@@ -381,4 +383,111 @@ func (c *COINUT) GetFeeByType(feeBuilder exchange.FeeBuilder) (float64, error) {
 // GetWithdrawCapabilities returns the types of withdrawal methods permitted by the exchange
 func (c *COINUT) GetWithdrawCapabilities() uint32 {
 	return c.GetWithdrawPermissions()
+}
+
+// GetActiveOrders retrieves any orders that are active/open
+func (c *COINUT) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
+	instruments, err := c.GetInstruments()
+	if err != nil {
+		return nil, err
+	}
+
+	var allTheOrders []OrderResponse
+	for instrument, allInstrumentData := range instruments.Instruments {
+		for _, instrumentData := range allInstrumentData {
+			for _, currency := range getOrdersRequest.Currencies {
+				currStr := fmt.Sprintf("%v%v%v", currency.FirstCurrency.String(), c.ConfigCurrencyPairFormat.Delimiter, currency.SecondCurrency.String())
+				if strings.EqualFold(currStr, instrument) {
+					openOrders, err := c.GetOpenOrders(instrumentData.InstID)
+					if err != nil {
+						return nil, err
+					}
+					allTheOrders = append(allTheOrders, openOrders.Orders...)
+
+					continue
+				}
+			}
+		}
+	}
+
+	var orders []exchange.OrderDetail
+	for _, order := range allTheOrders {
+		for instrument, allInstrumentData := range instruments.Instruments {
+			for _, instrumentData := range allInstrumentData {
+				if instrumentData.InstID == int(order.InstrumentID) {
+					currPair := pair.NewCurrencyPairDelimiter(instrument, "")
+					orderSide := exchange.OrderSide(strings.ToUpper(order.Side))
+					orderDate := time.Unix(order.Timestamp, 0)
+					orders = append(orders, exchange.OrderDetail{
+						ID:           strconv.FormatInt(order.OrderID, 10),
+						Amount:       order.Quantity,
+						Price:        order.Price,
+						Exchange:     c.Name,
+						OrderSide:    orderSide,
+						OrderDate:    orderDate,
+						CurrencyPair: currPair,
+					})
+				}
+			}
+		}
+	}
+
+	exchange.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
+	exchange.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
+
+	return orders, nil
+}
+
+// GetOrderHistory retrieves account order information
+// Can Limit response to specific order status
+func (c *COINUT) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
+	instruments, err := c.GetInstruments()
+	if err != nil {
+		return nil, err
+	}
+
+	var allTheOrders []OrderFilledResponse
+	for instrument, allInstrumentData := range instruments.Instruments {
+		for _, instrumentData := range allInstrumentData {
+			for _, currency := range getOrdersRequest.Currencies {
+				currStr := fmt.Sprintf("%v%v%v", currency.FirstCurrency.String(), c.ConfigCurrencyPairFormat.Delimiter, currency.SecondCurrency.String())
+				if strings.EqualFold(currStr, instrument) {
+					orders, err := c.GetTradeHistory(instrumentData.InstID, -1, -1)
+					if err != nil {
+						return nil, err
+					}
+					allTheOrders = append(allTheOrders, orders.Trades...)
+
+					continue
+				}
+			}
+		}
+	}
+
+	var orders []exchange.OrderDetail
+	for _, order := range allTheOrders {
+		for instrument, allInstrumentData := range instruments.Instruments {
+			for _, instrumentData := range allInstrumentData {
+				if instrumentData.InstID == int(order.Order.InstrumentID) {
+					currPair := pair.NewCurrencyPairDelimiter(instrument, "")
+					orderSide := exchange.OrderSide(strings.ToUpper(order.Order.Side))
+					orderDate := time.Unix(order.Order.Timestamp, 0)
+					orders = append(orders, exchange.OrderDetail{
+						ID:           strconv.FormatInt(order.Order.OrderID, 10),
+						Amount:       order.Order.Quantity,
+						Price:        order.Order.Price,
+						Exchange:     c.Name,
+						OrderSide:    orderSide,
+						OrderDate:    orderDate,
+						CurrencyPair: currPair,
+					})
+				}
+			}
+		}
+	}
+
+	exchange.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
+	exchange.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
+
+	return orders, nil
 }

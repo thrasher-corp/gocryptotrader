@@ -215,3 +215,14 @@ func (b *Bitflyer) GetWebsocket() (*exchange.Websocket, error) {
 func (b *Bitflyer) GetWithdrawCapabilities() uint32 {
 	return b.GetWithdrawPermissions()
 }
+
+// GetActiveOrders retrieves any orders that are active/open
+func (b *Bitflyer) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
+	return nil, common.ErrNotYetImplemented
+}
+
+// GetOrderHistory retrieves account order information
+// Can Limit response to specific order status
+func (b *Bitflyer) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
+	return nil, common.ErrNotYetImplemented
+}

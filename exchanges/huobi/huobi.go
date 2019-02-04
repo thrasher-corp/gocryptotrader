@@ -48,7 +48,7 @@ const (
 	huobiGetOrder              = "order/orders/%s"
 	huobiGetOrderMatch         = "order/orders/%s/matchresults"
 	huobiGetOrders             = "order/orders"
-	huobiGetOpenOrders         = "order/order/openOrders"
+	huobiGetOpenOrders         = "order/openOrders"
 	huobiGetOrdersMatch        = "orders/matchresults"
 	huobiMarginTransferIn      = "dw/transfer-in/margin"
 	huobiMarginTransferOut     = "dw/transfer-out/margin"
@@ -570,7 +570,9 @@ func (h *HUOBI) GetOpenOrders(accountID, symbol, side string, size int) ([]Order
 	vals := url.Values{}
 	vals.Set("symbol", symbol)
 	vals.Set("accountID", accountID)
-	vals.Set("side", side)
+	if len(side) > 0 {
+		vals.Set("side", side)
+	}
 	vals.Set("size", fmt.Sprintf("%v", size))
 
 	var result response

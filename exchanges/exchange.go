@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -207,27 +208,32 @@ type AccountCurrencyInfo struct {
 
 // TradeHistory holds exchange history data
 type TradeHistory struct {
-	Timestamp int64
-	TID       int64
-	Price     float64
-	Amount    float64
-	Exchange  string
-	Type      string
+	Timestamp   time.Time
+	TID         int64
+	Price       float64
+	Amount      float64
+	Exchange    string
+	Type        string
+	Fee         float64
+	Description string
 }
 
 // OrderDetail holds order detail data
 type OrderDetail struct {
-	Exchange      string
-	ID            string
-	BaseCurrency  string
-	QuoteCurrency string
-	OrderSide     string
-	OrderType     string
-	CreationTime  int64
-	Status        string
-	Price         float64
-	Amount        float64
-	OpenVolume    float64
+	Exchange        string
+	AccountID       string
+	ID              string
+	CurrencyPair    pair.CurrencyPair
+	OrderSide       OrderSide
+	OrderType       OrderType
+	OrderDate       time.Time
+	Status          string
+	Price           float64
+	Amount          float64
+	ExecutedAmount  float64
+	RemainingAmount float64
+	Fee             float64
+	Trades          []TradeHistory
 }
 
 // FundHistory holds exchange funding history data
@@ -315,6 +321,9 @@ type IBotExchange interface {
 	CancelAllOrders(orders OrderCancellation) (CancelAllOrdersResponse, error)
 	GetOrderInfo(orderID int64) (OrderDetail, error)
 	GetDepositAddress(cryptocurrency pair.CurrencyItem, accountID string) (string, error)
+
+	GetOrderHistory(GetOrdersRequest GetOrdersRequest) ([]OrderDetail, error)
+	GetActiveOrders(getOrdersRequest GetOrdersRequest) ([]OrderDetail, error)
 
 	WithdrawCryptocurrencyFunds(wtihdrawRequest WithdrawRequest) (string, error)
 	WithdrawFiatFunds(wtihdrawRequest WithdrawRequest) (string, error)
@@ -817,9 +826,13 @@ type OrderType string
 
 // OrderType ...types
 const (
-	Limit             OrderType = "Limit"
-	Market            OrderType = "Market"
-	ImmediateOrCancel OrderType = "IMMEDIATE_OR_CANCEL"
+	AnyOrderType               OrderType = "ANY"
+	LimitOrderType             OrderType = "LIMIT"
+	MarketOrderType            OrderType = "MARKET"
+	ImmediateOrCancelOrderType OrderType = "IMMEDIATE_OR_CANCEL"
+	StopOrderType              OrderType = "STOP"
+	TrailingStopOrderType      OrderType = "TRAILINGSTOP"
+	UnknownOrderType           OrderType = "UNKNOWN"
 )
 
 // ToString changes the ordertype to the exchange standard and returns a string
@@ -832,8 +845,11 @@ type OrderSide string
 
 // OrderSide types
 const (
-	Buy  OrderSide = "Buy"
-	Sell OrderSide = "Sell"
+	AnyOrderSide  OrderSide = "ANY"
+	BuyOrderSide  OrderSide = "BUY"
+	SellOrderSide OrderSide = "SELL"
+	BidOrderSide  OrderSide = "BID"
+	AskOrderSide  OrderSide = "ASK"
 )
 
 // ToString changes the ordertype to the exchange standard and returns a string
@@ -941,4 +957,225 @@ func (e *Base) FormatWithdrawPermissions() string {
 	}
 
 	return NoAPIWithdrawalMethodsText
+}
+
+// GetOrdersRequest used for GetOrderHistory and GetOpenOrders wrapper functions
+type GetOrdersRequest struct {
+	OrderType  OrderType
+	OrderSide  OrderSide
+	StartTicks time.Time
+	EndTicks   time.Time
+	// Currencies Empty array = all currencies. Some endpoints only support singular currency enquiries
+	Currencies []pair.CurrencyPair
+}
+
+// OrderStatus defines order status types
+type OrderStatus string
+
+// All OrderStatus types
+const (
+	AnyOrderStatus             OrderStatus = "ANY"
+	NewOrderStatus             OrderStatus = "NEW"
+	ActiveOrderStatus          OrderStatus = "ACTIVE"
+	PartiallyFilledOrderStatus OrderStatus = "PARTIALLY_FILLED"
+	FilledOrderStatus          OrderStatus = "FILLED"
+	CancelledOrderStatus       OrderStatus = "CANCELED"
+	PendingCancelOrderStatus   OrderStatus = "PENDING_CANCEL"
+	RejectedOrderStatus        OrderStatus = "REJECTED"
+	ExpiredOrderStatus         OrderStatus = "EXPIRED"
+	HiddenOrderStatus          OrderStatus = "HIDDEN"
+	UnknownOrderStatus         OrderStatus = "UNKNOWN"
+)
+
+// FilterOrdersBySide removes any OrderDetails that don't match the orderStatus provided
+func FilterOrdersBySide(orders *[]OrderDetail, orderSide OrderSide) {
+	if orderSide == "" || orderSide == AnyOrderSide {
+		return
+	}
+
+	var filteredOrders []OrderDetail
+	for _, orderDetail := range *orders {
+		if strings.EqualFold(string(orderDetail.OrderSide), string(orderSide)) {
+			filteredOrders = append(filteredOrders, orderDetail)
+		}
+	}
+
+	*orders = filteredOrders
+}
+
+// FilterOrdersByType removes any OrderDetails that don't match the orderType provided
+func FilterOrdersByType(orders *[]OrderDetail, orderType OrderType) {
+	if orderType == "" || orderType == AnyOrderType {
+		return
+	}
+
+	var filteredOrders []OrderDetail
+	for _, orderDetail := range *orders {
+		if strings.EqualFold(string(orderDetail.OrderType), string(orderType)) {
+			filteredOrders = append(filteredOrders, orderDetail)
+		}
+	}
+
+	*orders = filteredOrders
+}
+
+// FilterOrdersByTickRange removes any OrderDetails outside of the tick range
+func FilterOrdersByTickRange(orders *[]OrderDetail, startTicks, endTicks time.Time) {
+	if startTicks.IsZero() || endTicks.IsZero() ||
+		startTicks.Unix() == 0 || endTicks.Unix() == 0 || endTicks.Before(startTicks) {
+		return
+	}
+
+	var filteredOrders []OrderDetail
+	for _, orderDetail := range *orders {
+		if orderDetail.OrderDate.Unix() >= startTicks.Unix() && orderDetail.OrderDate.Unix() <= endTicks.Unix() {
+			filteredOrders = append(filteredOrders, orderDetail)
+		}
+	}
+
+	*orders = filteredOrders
+}
+
+// FilterOrdersByCurrencies removes any OrderDetails that do not match the provided currency list
+// It is forgiving in that the provided currencies can match quote or base currencies
+func FilterOrdersByCurrencies(orders *[]OrderDetail, currencies []pair.CurrencyPair) {
+	if len(currencies) <= 0 {
+		return
+	}
+
+	var filteredOrders []OrderDetail
+	for _, orderDetail := range *orders {
+		matchFound := false
+		for _, currency := range currencies {
+			if !matchFound && orderDetail.CurrencyPair.Equal(currency, false) {
+				matchFound = true
+			}
+		}
+
+		if matchFound {
+			filteredOrders = append(filteredOrders, orderDetail)
+		}
+	}
+
+	*orders = filteredOrders
+}
+
+// ByPrice used for sorting orders by price
+type ByPrice []OrderDetail
+
+func (b ByPrice) Len() int {
+	return len(b)
+}
+
+func (b ByPrice) Less(i, j int) bool {
+	return b[i].Price < b[j].Price
+}
+
+func (b ByPrice) Swap(i, j int) {
+	b[i], b[j] = b[j], b[i]
+}
+
+// SortOrdersByPrice the caller function to sort orders
+func SortOrdersByPrice(orders *[]OrderDetail, reverse bool) {
+	if reverse {
+		sort.Sort(sort.Reverse(ByPrice(*orders)))
+	} else {
+		sort.Sort(ByPrice(*orders))
+	}
+}
+
+// ByOrderType used for sorting orders by order type
+type ByOrderType []OrderDetail
+
+func (b ByOrderType) Len() int {
+	return len(b)
+}
+
+func (b ByOrderType) Less(i, j int) bool {
+	return b[i].OrderType.ToString() < b[j].OrderType.ToString()
+}
+
+func (b ByOrderType) Swap(i, j int) {
+	b[i], b[j] = b[j], b[i]
+}
+
+// SortOrdersByType the caller function to sort orders
+func SortOrdersByType(orders *[]OrderDetail, reverse bool) {
+	if reverse {
+		sort.Sort(sort.Reverse(ByOrderType(*orders)))
+	} else {
+		sort.Sort(ByOrderType(*orders))
+	}
+}
+
+// ByCurrency used for sorting orders by order currency
+type ByCurrency []OrderDetail
+
+func (b ByCurrency) Len() int {
+	return len(b)
+}
+
+func (b ByCurrency) Less(i, j int) bool {
+	return b[i].CurrencyPair.Pair().String() < b[j].CurrencyPair.Pair().String()
+}
+
+func (b ByCurrency) Swap(i, j int) {
+	b[i], b[j] = b[j], b[i]
+}
+
+// SortOrdersByCurrency the caller function to sort orders
+func SortOrdersByCurrency(orders *[]OrderDetail, reverse bool) {
+	if reverse {
+		sort.Sort(sort.Reverse(ByCurrency(*orders)))
+	} else {
+		sort.Sort(ByCurrency(*orders))
+	}
+}
+
+// ByDate used for sorting orders by order date
+type ByDate []OrderDetail
+
+func (b ByDate) Len() int {
+	return len(b)
+}
+
+func (b ByDate) Less(i, j int) bool {
+	return b[i].OrderDate.Unix() < b[j].OrderDate.Unix()
+}
+
+func (b ByDate) Swap(i, j int) {
+	b[i], b[j] = b[j], b[i]
+}
+
+// SortOrdersByDate the caller function to sort orders
+func SortOrdersByDate(orders *[]OrderDetail, reverse bool) {
+	if reverse {
+		sort.Sort(sort.Reverse(ByDate(*orders)))
+	} else {
+		sort.Sort(ByDate(*orders))
+	}
+}
+
+// ByOrderSide used for sorting orders by order side (buy sell)
+type ByOrderSide []OrderDetail
+
+func (b ByOrderSide) Len() int {
+	return len(b)
+}
+
+func (b ByOrderSide) Less(i, j int) bool {
+	return b[i].OrderSide.ToString() < b[j].OrderSide.ToString()
+}
+
+func (b ByOrderSide) Swap(i, j int) {
+	b[i], b[j] = b[j], b[i]
+}
+
+// SortOrdersBySide the caller function to sort orders
+func SortOrdersBySide(orders *[]OrderDetail, reverse bool) {
+	if reverse {
+		sort.Sort(sort.Reverse(ByOrderSide(*orders)))
+	} else {
+		sort.Sort(ByOrderSide(*orders))
+	}
 }

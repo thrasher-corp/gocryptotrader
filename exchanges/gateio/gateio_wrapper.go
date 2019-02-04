@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -191,7 +192,7 @@ func (g *Gateio) SubmitOrder(p pair.CurrencyPair, side exchange.OrderSide, order
 	var submitOrderResponse exchange.SubmitOrderResponse
 	var orderTypeFormat SpotNewOrderRequestParamsType
 
-	if side == exchange.Buy {
+	if side == exchange.BuyOrderSide {
 		orderTypeFormat = SpotNewOrderRequestParamsTypeBuy
 	} else {
 		orderTypeFormat = SpotNewOrderRequestParamsTypeSell
@@ -318,4 +319,78 @@ func (g *Gateio) GetFeeByType(feeBuilder exchange.FeeBuilder) (float64, error) {
 // GetWithdrawCapabilities returns the types of withdrawal methods permitted by the exchange
 func (g *Gateio) GetWithdrawCapabilities() uint32 {
 	return g.GetWithdrawPermissions()
+}
+
+// GetActiveOrders retrieves any orders that are active/open
+func (g *Gateio) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
+	var currPair string
+	if len(getOrdersRequest.Currencies) == 1 {
+		currPair = getOrdersRequest.Currencies[0].Pair().String()
+	}
+
+	resp, err := g.GetOpenOrders(currPair)
+	if err != nil {
+		return nil, err
+	}
+
+	var orders []exchange.OrderDetail
+	for _, order := range resp.Orders {
+		if order.Status != "open" {
+			continue
+		}
+
+		symbol := pair.NewCurrencyPairDelimiter(order.CurrencyPair, g.ConfigCurrencyPairFormat.Delimiter)
+		side := exchange.OrderSide(strings.ToUpper(order.Type))
+		orderDate := time.Unix(order.Timestamp, 0)
+
+		orders = append(orders, exchange.OrderDetail{
+			ID:              order.OrderNumber,
+			Amount:          order.Amount,
+			Price:           order.Rate,
+			RemainingAmount: order.FilledAmount,
+			OrderDate:       orderDate,
+			OrderSide:       side,
+			Exchange:        g.Name,
+			CurrencyPair:    symbol,
+		})
+	}
+
+	exchange.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
+	exchange.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
+
+	return orders, nil
+}
+
+// GetOrderHistory retrieves account order information
+// Can Limit response to specific order status
+func (g *Gateio) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
+	var trades []TradesResponse
+	for _, currency := range getOrdersRequest.Currencies {
+		resp, err := g.GetTradeHistory(currency.Pair().String())
+		if err != nil {
+			return nil, err
+		}
+		trades = append(trades, resp.Trades...)
+	}
+
+	var orders []exchange.OrderDetail
+	for _, trade := range trades {
+		symbol := pair.NewCurrencyPairDelimiter(trade.Pair, g.ConfigCurrencyPairFormat.Delimiter)
+		side := exchange.OrderSide(strings.ToUpper(trade.Type))
+		orderDate := time.Unix(trade.TimeUnix, 0)
+		orders = append(orders, exchange.OrderDetail{
+			ID:           trade.OrderID,
+			Amount:       trade.Amount,
+			Price:        trade.Rate,
+			OrderDate:    orderDate,
+			OrderSide:    side,
+			Exchange:     g.Name,
+			CurrencyPair: symbol,
+		})
+	}
+
+	exchange.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
+	exchange.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
+
+	return orders, nil
 }

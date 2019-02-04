@@ -117,6 +117,9 @@ type TradeHistory struct {
 	Exchange        string  `json:"exchange"`
 	IsAuctionFilled bool    `json:"is_auction_fill"`
 	ClientOrderID   string  `json:"client_order_id"`
+	// Used to store values
+	BaseCurrency  string
+	QuoteCurrency string
 }
 
 // TradeVolume holds Volume information
