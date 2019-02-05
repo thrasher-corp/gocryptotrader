@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"net/http"
 	"strconv"
 	"time"
 
@@ -70,7 +71,7 @@ func (a *Alphapoint) GetTicker(currencyPair string) (Ticker, error) {
 	request["productPair"] = currencyPair
 	response := Ticker{}
 
-	err := a.SendHTTPRequest("POST", alphapointTicker, request, &response)
+	err := a.SendHTTPRequest(http.MethodPost, alphapointTicker, request, &response)
 	if err != nil {
 		return response, err
 	}
@@ -93,7 +94,7 @@ func (a *Alphapoint) GetTrades(currencyPair string, startIndex, count int) (Trad
 	request["Count"] = count
 	response := Trades{}
 
-	err := a.SendHTTPRequest("POST", alphapointTrades, request, &response)
+	err := a.SendHTTPRequest(http.MethodPost, alphapointTrades, request, &response)
 	if err != nil {
 		return response, err
 	}
@@ -114,7 +115,7 @@ func (a *Alphapoint) GetTradesByDate(currencyPair string, startDate, endDate int
 	request["endDate"] = endDate
 	response := Trades{}
 
-	err := a.SendHTTPRequest("POST", alphapointTradesByDate, request, &response)
+	err := a.SendHTTPRequest(http.MethodPost, alphapointTradesByDate, request, &response)
 	if err != nil {
 		return response, err
 	}
@@ -131,7 +132,7 @@ func (a *Alphapoint) GetOrderbook(currencyPair string) (Orderbook, error) {
 	request["productPair"] = currencyPair
 	response := Orderbook{}
 
-	err := a.SendHTTPRequest("POST", alphapointOrderbook, request, &response)
+	err := a.SendHTTPRequest(http.MethodPost, alphapointOrderbook, request, &response)
 	if err != nil {
 		return response, err
 	}
@@ -145,7 +146,7 @@ func (a *Alphapoint) GetOrderbook(currencyPair string) (Orderbook, error) {
 func (a *Alphapoint) GetProductPairs() (ProductPairs, error) {
 	response := ProductPairs{}
 
-	err := a.SendHTTPRequest("POST", alphapointProductPairs, nil, &response)
+	err := a.SendHTTPRequest(http.MethodPost, alphapointProductPairs, nil, &response)
 	if err != nil {
 		return response, err
 	}
@@ -159,7 +160,7 @@ func (a *Alphapoint) GetProductPairs() (ProductPairs, error) {
 func (a *Alphapoint) GetProducts() (Products, error) {
 	response := Products{}
 
-	err := a.SendHTTPRequest("POST", alphapointProducts, nil, &response)
+	err := a.SendHTTPRequest(http.MethodPost, alphapointProducts, nil, &response)
 	if err != nil {
 		return response, err
 	}
@@ -190,7 +191,7 @@ func (a *Alphapoint) CreateAccount(firstName, lastName, email, phone, password s
 	request["password"] = password
 	response := Response{}
 
-	err := a.SendAuthenticatedHTTPRequest("POST", alphapointCreateAccount, request, &response)
+	err := a.SendAuthenticatedHTTPRequest(http.MethodPost, alphapointCreateAccount, request, &response)
 	if err != nil {
 		return fmt.Errorf("Alphapoint Error - CreateAccount HTTPRequest - reason: %s", err)
 	}
@@ -204,7 +205,7 @@ func (a *Alphapoint) CreateAccount(firstName, lastName, email, phone, password s
 func (a *Alphapoint) GetUserInfo() (UserInfo, error) {
 	response := UserInfo{}
 
-	err := a.SendAuthenticatedHTTPRequest("POST", alphapointUserInfo, map[string]interface{}{}, &response)
+	err := a.SendAuthenticatedHTTPRequest(http.MethodPost, alphapointUserInfo, map[string]interface{}{}, &response)
 	if err != nil {
 		return UserInfo{}, err
 	}
@@ -257,7 +258,7 @@ func (a *Alphapoint) SetUserInfo(firstName, lastName, cell2FACountryCode, cell2F
 	request["userInfoKVP"] = userInfoKVPs
 
 	err := a.SendAuthenticatedHTTPRequest(
-		"POST",
+		http.MethodPost,
 		alphapointUserInfo,
 		request,
 		&response,
@@ -276,7 +277,7 @@ func (a *Alphapoint) GetAccountInformation() (AccountInfo, error) {
 	response := AccountInfo{}
 
 	err := a.SendAuthenticatedHTTPRequest(
-		"POST",
+		http.MethodPost,
 		alphapointAccountInfo,
 		map[string]interface{}{},
 		&response,
@@ -302,7 +303,7 @@ func (a *Alphapoint) GetAccountTrades(currencyPair string, startIndex, count int
 	response := Trades{}
 
 	err := a.SendAuthenticatedHTTPRequest(
-		"POST",
+		http.MethodPost,
 		alphapointAccountTrades,
 		request,
 		&response,
@@ -320,7 +321,7 @@ func (a *Alphapoint) GetAccountTrades(currencyPair string, startIndex, count int
 func (a *Alphapoint) GetDepositAddresses() ([]DepositAddresses, error) {
 	response := Response{}
 
-	err := a.SendAuthenticatedHTTPRequest("POST", alphapointDepositAddresses,
+	err := a.SendAuthenticatedHTTPRequest(http.MethodPost, alphapointDepositAddresses,
 		map[string]interface{}{}, &response,
 	)
 	if err != nil {
@@ -346,7 +347,7 @@ func (a *Alphapoint) WithdrawCoins(symbol, product, address string, amount float
 
 	response := Response{}
 	err := a.SendAuthenticatedHTTPRequest(
-		"POST",
+		http.MethodPost,
 		alphapointWithdraw,
 		request,
 		&response,
@@ -385,7 +386,7 @@ func (a *Alphapoint) CreateOrder(symbol, side, orderType string, quantity, price
 	response := Response{}
 
 	err := a.SendAuthenticatedHTTPRequest(
-		"POST",
+		http.MethodPost,
 		alphapointCreateOrder,
 		request,
 		&response,
@@ -415,7 +416,7 @@ func (a *Alphapoint) ModifyExistingOrder(symbol string, OrderID, action int64) (
 	response := Response{}
 
 	err := a.SendAuthenticatedHTTPRequest(
-		"POST",
+		http.MethodPost,
 		alphapointModifyOrder,
 		request,
 		&response,
@@ -439,7 +440,7 @@ func (a *Alphapoint) CancelExistingOrder(OrderID int64, OMSID string) (int64, er
 	response := Response{}
 
 	err := a.SendAuthenticatedHTTPRequest(
-		"POST",
+		http.MethodPost,
 		alphapointCancelOrder,
 		request,
 		&response,
@@ -461,7 +462,7 @@ func (a *Alphapoint) CancelAllExistingOrders(OMSID string) error {
 	response := Response{}
 
 	err := a.SendAuthenticatedHTTPRequest(
-		"POST",
+		http.MethodPost,
 		alphapointCancelAllOrders,
 		request,
 		&response,
@@ -480,7 +481,7 @@ func (a *Alphapoint) GetOrders() ([]OpenOrders, error) {
 	response := OrderInfo{}
 
 	err := a.SendAuthenticatedHTTPRequest(
-		"POST",
+		http.MethodPost,
 		alphapointOpenOrders,
 		map[string]interface{}{},
 		&response,
@@ -508,7 +509,7 @@ func (a *Alphapoint) GetOrderFee(symbol, side string, quantity, price float64) (
 	response := Response{}
 
 	err := a.SendAuthenticatedHTTPRequest(
-		"POST",
+		http.MethodPost,
 		alphapointOrderFee,
 		request,
 		&response,

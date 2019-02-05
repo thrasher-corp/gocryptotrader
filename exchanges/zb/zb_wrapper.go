@@ -168,7 +168,7 @@ func (z *ZB) GetExchangeHistory(p pair.CurrencyPair, assetType string) ([]exchan
 }
 
 // SubmitOrder submits a new order
-func (z *ZB) SubmitOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (exchange.SubmitOrderResponse, error) {
+func (z *ZB) SubmitOrder(p pair.CurrencyPair, side exchange.OrderSide, _ exchange.OrderType, amount, price float64, _ string) (exchange.SubmitOrderResponse, error) {
 	var submitOrderResponse exchange.SubmitOrderResponse
 	var oT SpotNewOrderRequestParamsType
 
@@ -215,7 +215,7 @@ func (z *ZB) CancelOrder(order exchange.OrderCancellation) error {
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
-func (z *ZB) CancelAllOrders(orderCancellation exchange.OrderCancellation) (exchange.CancelAllOrdersResponse, error) {
+func (z *ZB) CancelAllOrders(_ exchange.OrderCancellation) (exchange.CancelAllOrdersResponse, error) {
 	cancelAllOrdersResponse := exchange.CancelAllOrdersResponse{
 		OrderStatus: make(map[string]string),
 	}
@@ -255,7 +255,7 @@ func (z *ZB) GetOrderInfo(orderID int64) (exchange.OrderDetail, error) {
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
-func (z *ZB) GetDepositAddress(cryptocurrency pair.CurrencyItem, accountID string) (string, error) {
+func (z *ZB) GetDepositAddress(cryptocurrency pair.CurrencyItem, _ string) (string, error) {
 	address, err := z.GetCryptoAddress(cryptocurrency)
 	if err != nil {
 		return "", err

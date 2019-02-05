@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
 	"net/url"
 	"reflect"
 	"strconv"
@@ -634,7 +635,7 @@ func (b *Bitstamp) TransferAccountBalance(amount float64, currency, subAccount s
 
 // SendHTTPRequest sends an unauthenticated HTTP request
 func (b *Bitstamp) SendHTTPRequest(path string, result interface{}) error {
-	return b.SendPayload("GET", path, nil, nil, result, false, b.Verbose)
+	return b.SendPayload(http.MethodGet, path, nil, nil, result, false, b.Verbose)
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated request
@@ -680,7 +681,7 @@ func (b *Bitstamp) SendAuthenticatedHTTPRequest(path string, v2 bool, values url
 		Error string `json:"error"`
 	}{}
 
-	err := b.SendPayload("POST", path, headers, readerValues, &interim, true, b.Verbose)
+	err := b.SendPayload(http.MethodPost, path, headers, readerValues, &interim, true, b.Verbose)
 	if err != nil {
 		return err
 	}

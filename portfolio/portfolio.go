@@ -36,11 +36,7 @@ func GetEthereumBalance(address string) (EthplorerResponse, error) {
 		"%s/%s/%s?apiKey=freekey", ethplorerAPIURL, ethplorerAddressInfo, address,
 	)
 	result := EthplorerResponse{}
-	err := common.SendHTTPGetRequest(url, true, false, &result)
-	if err != nil {
-		return result, err
-	}
-	return result, nil
+	return result, common.SendHTTPGetRequest(url, true, false, &result)
 }
 
 // GetCryptoIDAddress queries CryptoID for an address balance for a

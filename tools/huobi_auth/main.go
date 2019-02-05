@@ -42,32 +42,14 @@ func encodePEM(privKey *ecdsa.PrivateKey, pubKey bool) ([]byte, error) {
 	), nil
 }
 
-func decodePEM(PEMPrivKey, PEMPubKey []byte) (*ecdsa.PrivateKey, *ecdsa.PublicKey, error) {
+func decodePEM(PEMPrivKey []byte) (*ecdsa.PrivateKey, error) {
 	block, _ := pem.Decode(PEMPrivKey)
 	if block == nil {
-		return nil, nil, errors.New("priv block data is nil")
+		return nil, errors.New("priv block data is nil")
 	}
 
 	x509Enc := block.Bytes
-	privateKey, err := x509.ParseECPrivateKey(x509Enc)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	blockPub, _ := pem.Decode(PEMPubKey)
-	if block == nil {
-		return nil, nil, errors.New("pub block data is nil")
-	}
-
-	x509EncPub := blockPub.Bytes
-	genPubkey, err := x509.ParsePKIXPublicKey(x509EncPub)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	publicKey := genPubkey.(*ecdsa.PublicKey)
-
-	return privateKey, publicKey, nil
+	return x509.ParseECPrivateKey(x509Enc)
 }
 
 func writeFile(file string, data []byte) error {
@@ -124,7 +106,7 @@ func main() {
 		log.Println("Successfully read PEM files.")
 
 		var priv *ecdsa.PrivateKey
-		priv, _, err = decodePEM(privKeyData, pubKeyData)
+		priv, err = decodePEM(privKeyData)
 		if err != nil {
 			log.Fatal(err)
 		}

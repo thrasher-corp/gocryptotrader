@@ -176,7 +176,7 @@ func (b *Bitstamp) GetExchangeHistory(p pair.CurrencyPair, assetType string) ([]
 }
 
 // SubmitOrder submits a new order
-func (b *Bitstamp) SubmitOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (exchange.SubmitOrderResponse, error) {
+func (b *Bitstamp) SubmitOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, _ string) (exchange.SubmitOrderResponse, error) {
 	var submitOrderResponse exchange.SubmitOrderResponse
 	buy := side == exchange.BuyOrderSide
 	market := orderType == exchange.MarketOrderType
@@ -212,7 +212,7 @@ func (b *Bitstamp) CancelOrder(order exchange.OrderCancellation) error {
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
-func (b *Bitstamp) CancelAllOrders(orderCancellation exchange.OrderCancellation) (exchange.CancelAllOrdersResponse, error) {
+func (b *Bitstamp) CancelAllOrders(_ exchange.OrderCancellation) (exchange.CancelAllOrdersResponse, error) {
 	isCancelAllSuccessful, err := b.CancelAllExistingOrders()
 	if !isCancelAllSuccessful {
 		err = errors.New("Cancel all failed. Bitstamp provides no further information. Check order status to verify")
@@ -228,7 +228,7 @@ func (b *Bitstamp) GetOrderInfo(orderID int64) (exchange.OrderDetail, error) {
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
-func (b *Bitstamp) GetDepositAddress(cryptocurrency pair.CurrencyItem, accountID string) (string, error) {
+func (b *Bitstamp) GetDepositAddress(cryptocurrency pair.CurrencyItem, _ string) (string, error) {
 	return b.GetCryptoDepositAddress(cryptocurrency.String())
 }
 

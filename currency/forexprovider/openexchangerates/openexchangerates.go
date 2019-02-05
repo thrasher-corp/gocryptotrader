@@ -11,6 +11,7 @@ package openexchangerates
 import (
 	"errors"
 	"fmt"
+	"net/http"
 	"net/url"
 	"strconv"
 
@@ -222,7 +223,7 @@ func (o *OXR) SendHTTPRequest(endpoint string, values url.Values, result interfa
 	headers["Authorization"] = "Token " + o.APIKey
 	path := APIURL + endpoint + "?" + values.Encode()
 
-	resp, err := common.SendHTTPRequest("GET", path, headers, nil)
+	resp, err := common.SendHTTPRequest(http.MethodGet, path, headers, nil)
 	if err != nil {
 		return err
 	}

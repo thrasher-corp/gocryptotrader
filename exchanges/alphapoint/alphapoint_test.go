@@ -155,7 +155,7 @@ func TestGetTradesByDate(t *testing.T) {
 	if trades.Instrument != "BTCUSD" {
 		t.Error("Test Failed - Alphapoint trades.Instrument value is incorrect")
 	}
-	if trades.IsAccepted != true {
+	if !trades.IsAccepted {
 		t.Error("Test Failed - Alphapoint trades.IsAccepted value is true")
 	}
 	if len(trades.RejectReason) > 0 {

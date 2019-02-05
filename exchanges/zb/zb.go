@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
@@ -139,7 +140,7 @@ func (z *ZB) SpotNewOrder(arg SpotNewOrderRequestParams) (int64, error) {
 	vals.Set("price", strconv.FormatFloat(arg.Price, 'f', -1, 64))
 	vals.Set("tradeType", string(arg.Type))
 
-	err := z.SendAuthenticatedHTTPRequest("GET", vals, &result)
+	err := z.SendAuthenticatedHTTPRequest(http.MethodGet, vals, &result)
 	if err != nil {
 		return 0, err
 	}
@@ -167,7 +168,7 @@ func (z *ZB) CancelExistingOrder(orderID int64, symbol string) error {
 	vals.Set("currency", symbol)
 
 	var result response
-	err := z.SendAuthenticatedHTTPRequest("GET", vals, &result)
+	err := z.SendAuthenticatedHTTPRequest(http.MethodGet, vals, &result)
 	if err != nil {
 		return err
 	}
@@ -187,11 +188,7 @@ func (z *ZB) GetAccountInformation() (AccountsResponse, error) {
 	vals.Set("accesskey", z.APIKey)
 	vals.Set("method", "getAccountInfo")
 
-	err := z.SendAuthenticatedHTTPRequest("GET", vals, &result)
-	if err != nil {
-		return result, err
-	}
-	return result, nil
+	return result, z.SendAuthenticatedHTTPRequest(http.MethodGet, vals, &result)
 }
 
 // GetUnfinishedOrdersIgnoreTradeType returns unfinished orders
@@ -204,12 +201,8 @@ func (z *ZB) GetUnfinishedOrdersIgnoreTradeType(currency string, pageindex, page
 	vals.Set("pageIndex", strconv.FormatInt(pageindex, 10))
 	vals.Set("pageSize", strconv.FormatInt(pagesize, 10))
 
-	err := z.SendAuthenticatedHTTPRequest("GET", vals, &result)
-	if err != nil {
-		return result, err
-	}
-
-	return result, nil
+	err := z.SendAuthenticatedHTTPRequest(http.MethodGet, vals, &result)
+	return result, err
 }
 
 // GetOrders returns finished orders
@@ -221,13 +214,7 @@ func (z *ZB) GetOrders(currency string, pageindex, side int64) ([]Order, error) 
 	vals.Set("currency", currency)
 	vals.Set("pageIndex", strconv.FormatInt(pageindex, 10))
 	vals.Set("tradeType", strconv.FormatInt(side, 10))
-
-	err := z.SendAuthenticatedHTTPRequest("GET", vals, &response)
-	if err != nil {
-		return response, err
-	}
-
-	return response, nil
+	return response, z.SendAuthenticatedHTTPRequest(http.MethodGet, vals, &response)
 }
 
 // GetMarkets returns market information including pricing, symbols and
@@ -273,11 +260,7 @@ func (z *ZB) GetTicker(symbol string) (TickerResponse, error) {
 	var res TickerResponse
 
 	err := z.SendHTTPRequest(url, &res)
-	if err != nil {
-		return res, err
-	}
-
-	return res, nil
+	return res, err
 }
 
 // GetTickers returns ticker data for all supported symbols
@@ -286,11 +269,7 @@ func (z *ZB) GetTickers() (map[string]TickerChildResponse, error) {
 	resp := make(map[string]TickerChildResponse)
 
 	err := z.SendHTTPRequest(url, &resp)
-	if err != nil {
-		return resp, err
-	}
-
-	return resp, nil
+	return resp, err
 }
 
 // GetOrderbook returns the orderbook for a given symbol
@@ -376,12 +355,12 @@ func (z *ZB) GetCryptoAddress(currency pair.CurrencyItem) (UserAddress, error) {
 	vals.Set("currency", currency.Lower().String())
 
 	return resp,
-		z.SendAuthenticatedHTTPRequest("GET", vals, &resp)
+		z.SendAuthenticatedHTTPRequest(http.MethodGet, vals, &resp)
 }
 
 // SendHTTPRequest sends an unauthenticated HTTP request
 func (z *ZB) SendHTTPRequest(path string, result interface{}) error {
-	return z.SendPayload("GET", path, nil, nil, result, false, z.Verbose)
+	return z.SendPayload(http.MethodGet, path, nil, nil, result, false, z.Verbose)
 }
 
 // SendAuthenticatedHTTPRequest sends authenticated requests to the zb API
@@ -509,7 +488,7 @@ func (z *ZB) Withdraw(currency, address, safepassword string, amount, fees float
 	vals.Set("safePwd", safepassword)
 
 	var resp response
-	err := z.SendAuthenticatedHTTPRequest("GET", vals, &resp)
+	err := z.SendAuthenticatedHTTPRequest(http.MethodGet, vals, &resp)
 	if err != nil {
 		return "", err
 	}

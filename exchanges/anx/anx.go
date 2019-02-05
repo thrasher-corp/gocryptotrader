@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"net/http"
 	"strconv"
 	"time"
 
@@ -401,7 +402,7 @@ func (a *ANX) GetDepositAddressByCurrency(currency, name string, new bool) (stri
 
 // SendHTTPRequest sends an unauthenticated HTTP request
 func (a *ANX) SendHTTPRequest(path string, result interface{}) error {
-	return a.SendPayload("GET", path, nil, nil, result, false, a.Verbose)
+	return a.SendPayload(http.MethodGet, path, nil, nil, result, false, a.Verbose)
 }
 
 // SendAuthenticatedHTTPRequest sends a authenticated HTTP request
@@ -439,7 +440,7 @@ func (a *ANX) SendAuthenticatedHTTPRequest(path string, params map[string]interf
 	headers["Rest-Sign"] = common.Base64Encode(hmac)
 	headers["Content-Type"] = "application/json"
 
-	return a.SendPayload("POST", a.APIUrl+path, headers, bytes.NewBuffer(PayloadJSON), result, true, a.Verbose)
+	return a.SendPayload(http.MethodPost, a.APIUrl+path, headers, bytes.NewBuffer(PayloadJSON), result, true, a.Verbose)
 }
 
 // GetFee returns an estimate of fee based on type of transaction

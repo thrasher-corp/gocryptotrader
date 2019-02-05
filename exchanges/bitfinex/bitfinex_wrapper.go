@@ -164,7 +164,7 @@ func (b *Bitfinex) GetExchangeHistory(p pair.CurrencyPair, assetType string) ([]
 }
 
 // SubmitOrder submits a new order
-func (b *Bitfinex) SubmitOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (exchange.SubmitOrderResponse, error) {
+func (b *Bitfinex) SubmitOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, _ string) (exchange.SubmitOrderResponse, error) {
 	var submitOrderResponse exchange.SubmitOrderResponse
 	var isBuying bool
 
@@ -205,7 +205,7 @@ func (b *Bitfinex) CancelOrder(order exchange.OrderCancellation) error {
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
-func (b *Bitfinex) CancelAllOrders(orderCancellation exchange.OrderCancellation) (exchange.CancelAllOrdersResponse, error) {
+func (b *Bitfinex) CancelAllOrders(_ exchange.OrderCancellation) (exchange.CancelAllOrdersResponse, error) {
 	_, err := b.CancelAllExistingOrders()
 	return exchange.CancelAllOrdersResponse{}, err
 }

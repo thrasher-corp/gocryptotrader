@@ -356,7 +356,7 @@ func CalculateNetProfit(amount, priceThen, priceNow, costs float64) float64 {
 func SendHTTPRequest(method, path string, headers map[string]string, body io.Reader) (string, error) {
 	result := strings.ToUpper(method)
 
-	if result != "POST" && result != "GET" && result != "DELETE" {
+	if result != http.MethodPost && result != http.MethodGet && result != http.MethodDelete {
 		return "", errors.New("invalid HTTP method specified")
 	}
 
@@ -509,20 +509,12 @@ func UnixTimestampStrToTime(timeStr string) (time.Time, error) {
 
 // ReadFile reads a file and returns read data as byte array.
 func ReadFile(path string) ([]byte, error) {
-	file, err := ioutil.ReadFile(path)
-	if err != nil {
-		return nil, err
-	}
-	return file, nil
+	return ioutil.ReadFile(path)
 }
 
 // WriteFile writes selected data to a file and returns an error
 func WriteFile(file string, data []byte) error {
-	err := ioutil.WriteFile(file, data, 0644)
-	if err != nil {
-		return err
-	}
-	return nil
+	return ioutil.WriteFile(file, data, 0644)
 }
 
 // RemoveFile removes a file

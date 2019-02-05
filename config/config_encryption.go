@@ -57,11 +57,7 @@ func PromptForConfigKey(initialSetup bool) ([]byte, error) {
 		log.Println("Please enter in your password: ")
 		pwPrompt := func(i *[]byte) error {
 			_, err := fmt.Scanln(i)
-			if err != nil {
-				return err
-			}
-
-			return nil
+			return err
 		}
 
 		var p1 []byte

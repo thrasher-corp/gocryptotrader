@@ -116,7 +116,7 @@ func (a *Alphapoint) GetExchangeHistory(p pair.CurrencyPair, assetType string) (
 
 // SubmitOrder submits a new order and returns a true value when
 // successfully submitted
-func (a *Alphapoint) SubmitOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (exchange.SubmitOrderResponse, error) {
+func (a *Alphapoint) SubmitOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, _ string) (exchange.SubmitOrderResponse, error) {
 	var submitOrderResponse exchange.SubmitOrderResponse
 
 	response, err := a.CreateOrder(p.Pair().String(), side.ToString(), orderType.ToString(), amount, price)
@@ -164,7 +164,7 @@ func (a *Alphapoint) GetOrderInfo(orderID int64) (float64, error) {
 	for x := range orders {
 		for y := range orders[x].OpenOrders {
 			if int64(orders[x].OpenOrders[y].ServerOrderID) == orderID {
-				return float64(orders[x].OpenOrders[y].QtyRemaining), nil
+				return orders[x].OpenOrders[y].QtyRemaining, nil
 			}
 		}
 	}
@@ -172,7 +172,7 @@ func (a *Alphapoint) GetOrderInfo(orderID int64) (float64, error) {
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
-func (a *Alphapoint) GetDepositAddress(cryptocurrency pair.CurrencyItem, accountID string) (string, error) {
+func (a *Alphapoint) GetDepositAddress(cryptocurrency pair.CurrencyItem, _ string) (string, error) {
 	addreses, err := a.GetDepositAddresses()
 	if err != nil {
 		return "", err
@@ -234,12 +234,12 @@ func (a *Alphapoint) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest)
 			}
 
 			orderDetail := exchange.OrderDetail{
-				Amount:          float64(order.QtyTotal),
+				Amount:          order.QtyTotal,
 				Exchange:        a.Name,
 				AccountID:       fmt.Sprintf("%v", order.AccountID),
 				ID:              fmt.Sprintf("%v", order.ServerOrderID),
-				Price:           float64(order.Price),
-				RemainingAmount: float64(order.QtyRemaining),
+				Price:           order.Price,
+				RemainingAmount: order.QtyRemaining,
 			}
 
 			orderDetail.OrderSide = orderSideMap[order.Side]
@@ -277,12 +277,12 @@ func (a *Alphapoint) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest)
 			}
 
 			orderDetail := exchange.OrderDetail{
-				Amount:          float64(order.QtyTotal),
+				Amount:          order.QtyTotal,
 				AccountID:       fmt.Sprintf("%v", order.AccountID),
 				Exchange:        a.Name,
 				ID:              fmt.Sprintf("%v", order.ServerOrderID),
-				Price:           float64(order.Price),
-				RemainingAmount: float64(order.QtyRemaining),
+				Price:           order.Price,
+				RemainingAmount: order.QtyRemaining,
 			}
 
 			orderDetail.OrderSide = orderSideMap[order.Side]

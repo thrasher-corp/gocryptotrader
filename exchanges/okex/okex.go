@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
 	"net/url"
 	"reflect"
 	"strconv"
@@ -662,22 +663,13 @@ func (o *OKEX) GetTokenOrders(symbol string, orderID int64) (TokenOrdersResponse
 	values := url.Values{}
 	values.Set("symbol", symbol)
 	values.Set("order_id", strconv.FormatInt(orderID, 10))
-
-	if err := o.SendAuthenticatedHTTPRequest(contractFutureTradeHistory, values, &resp); err != nil {
-		return resp, err
-	}
-
-	return resp, nil
+	return resp, o.SendAuthenticatedHTTPRequest(contractFutureTradeHistory, values, &resp)
 }
 
 // GetUserInfo returns the user info
 func (o *OKEX) GetUserInfo() (SpotUserInfo, error) {
 	var resp SpotUserInfo
-	err := o.SendAuthenticatedHTTPRequest(spotUserInfo, url.Values{}, &resp)
-	if err != nil {
-		return resp, err
-	}
-	return resp, nil
+	return resp, o.SendAuthenticatedHTTPRequest(spotUserInfo, url.Values{}, &resp)
 }
 
 // SpotNewOrder creates a new spot order
@@ -932,7 +924,7 @@ func (o *OKEX) GetErrorCode(code interface{}) error {
 
 // SendHTTPRequest sends an unauthenticated HTTP request
 func (o *OKEX) SendHTTPRequest(path string, result interface{}) error {
-	return o.SendPayload("GET", path, nil, nil, result, false, o.Verbose)
+	return o.SendPayload(http.MethodGet, path, nil, nil, result, false, o.Verbose)
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated http request to a desired
@@ -963,7 +955,7 @@ func (o *OKEX) SendAuthenticatedHTTPRequest(method string, values url.Values, re
 		Error  int64 `json:"error_code"`
 	}{}
 
-	err = o.SendPayload("POST", path, headers, strings.NewReader(encoded), &intermediary, true, o.Verbose)
+	err = o.SendPayload(http.MethodPost, path, headers, strings.NewReader(encoded), &intermediary, true, o.Verbose)
 	if err != nil {
 		return err
 	}
@@ -1290,11 +1282,5 @@ func (o *OKEX) GetOrderHistoryForCurrency(pageLength, currentPage, status int64,
 	v.Set("current_page", strconv.FormatInt(currentPage, 10))
 	v.Set("page_length", strconv.FormatInt(pageLength, 10))
 	result := OrderHistory{}
-
-	err := o.SendAuthenticatedHTTPRequest(spotOrderHistory, v, &result)
-	if err != nil {
-		return result, err
-	}
-
-	return result, nil
+	return result, o.SendAuthenticatedHTTPRequest(spotOrderHistory, v, &result)
 }

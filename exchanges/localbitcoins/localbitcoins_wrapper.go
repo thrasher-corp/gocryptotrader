@@ -147,7 +147,7 @@ func (l *LocalBitcoins) GetExchangeHistory(p pair.CurrencyPair, assetType string
 }
 
 // SubmitOrder submits a new order
-func (l *LocalBitcoins) SubmitOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (exchange.SubmitOrderResponse, error) {
+func (l *LocalBitcoins) SubmitOrder(p pair.CurrencyPair, side exchange.OrderSide, _ exchange.OrderType, amount, _ float64, _ string) (exchange.SubmitOrderResponse, error) {
 	var submitOrderResponse exchange.SubmitOrderResponse
 	// These are placeholder details
 	// TODO store a user's localbitcoin details to use here
@@ -225,7 +225,7 @@ func (l *LocalBitcoins) CancelOrder(order exchange.OrderCancellation) error {
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
-func (l *LocalBitcoins) CancelAllOrders(orderCancellation exchange.OrderCancellation) (exchange.CancelAllOrdersResponse, error) {
+func (l *LocalBitcoins) CancelAllOrders(_ exchange.OrderCancellation) (exchange.CancelAllOrdersResponse, error) {
 	cancelAllOrdersResponse := exchange.CancelAllOrdersResponse{
 		OrderStatus: make(map[string]string),
 	}
@@ -252,7 +252,7 @@ func (l *LocalBitcoins) GetOrderInfo(orderID int64) (exchange.OrderDetail, error
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
-func (l *LocalBitcoins) GetDepositAddress(cryptocurrency pair.CurrencyItem, accountID string) (string, error) {
+func (l *LocalBitcoins) GetDepositAddress(cryptocurrency pair.CurrencyItem, _ string) (string, error) {
 	if !strings.EqualFold(symbol.BTC, cryptocurrency.String()) {
 		return "", fmt.Errorf("Localbitcoins do not have support for currency %s just bitcoin",
 			cryptocurrency.String())

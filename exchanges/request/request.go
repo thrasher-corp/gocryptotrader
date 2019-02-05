@@ -16,7 +16,8 @@ import (
 	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
-var supportedMethods = []string{"GET", "POST", "HEAD", "PUT", "DELETE", "OPTIONS", "CONNECT"}
+var supportedMethods = []string{http.MethodGet, http.MethodPost, http.MethodHead,
+	http.MethodPut, http.MethodDelete, http.MethodOptions, http.MethodConnect}
 
 const (
 	maxRequestJobs              = 50
@@ -256,10 +257,10 @@ func (r *Requester) checkRequest(method, path string, body io.Reader, headers ma
 }
 
 // DoRequest performs a HTTP/HTTPS request with the supplied params
-func (r *Requester) DoRequest(req *http.Request, method, path string, headers map[string]string, body io.Reader, result interface{}, authRequest, verbose bool) error {
+func (r *Requester) DoRequest(req *http.Request, path string, body io.Reader, result interface{}, authRequest, verbose bool) error {
 	if verbose {
 		log.Debugf("%s exchange request path: %s requires rate limiter: %v", r.Name, path, r.RequiresRateLimiter())
-		for k, d := range headers {
+		for k, d := range req.Header {
 			log.Debugf("%s exchange request header [%s]: %s", r.Name, k, d)
 		}
 		log.Debug(body)
@@ -353,7 +354,7 @@ func (r *Requester) worker() {
 			if !r.IsRateLimited(x.AuthRequest) {
 				r.IncrementRequests(x.AuthRequest)
 
-				err := r.DoRequest(x.Request, x.Method, x.Path, x.Headers, x.Body, x.Result, x.AuthRequest, x.Verbose)
+				err := r.DoRequest(x.Request, x.Path, x.Body, x.Result, x.AuthRequest, x.Verbose)
 				x.JobResult <- &JobResult{
 					Error:  err,
 					Result: x.Result,
@@ -374,7 +375,7 @@ func (r *Requester) worker() {
 							log.Debugf("%s request. No longer rate limited! Doing request", r.Name)
 						}
 
-						err := r.DoRequest(x.Request, x.Method, x.Path, x.Headers, x.Body, x.Result, x.AuthRequest, x.Verbose)
+						err := r.DoRequest(x.Request, x.Path, x.Body, x.Result, x.AuthRequest, x.Verbose)
 						x.JobResult <- &JobResult{
 							Error:  err,
 							Result: x.Result,
@@ -407,7 +408,7 @@ func (r *Requester) SendPayload(method, path string, headers map[string]string, 
 	}
 
 	if !r.RequiresRateLimiter() {
-		return r.DoRequest(req, method, path, headers, body, result, authRequest, verbose)
+		return r.DoRequest(req, path, body, result, authRequest, verbose)
 	}
 
 	if len(r.Jobs) == maxRequestJobs {

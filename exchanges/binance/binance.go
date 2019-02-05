@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
 	"net/url"
 	"strconv"
 	"time"
@@ -468,7 +469,7 @@ func (b *Binance) NewOrder(o NewOrderRequest) (NewOrderResponse, error) {
 		params.Set("newOrderRespType", o.NewOrderRespType)
 	}
 
-	if err := b.SendAuthHTTPRequest("POST", path, params, &resp); err != nil {
+	if err := b.SendAuthHTTPRequest(http.MethodPost, path, params, &resp); err != nil {
 		return resp, err
 	}
 
@@ -495,7 +496,7 @@ func (b *Binance) CancelExistingOrder(symbol string, orderID int64, origClientOr
 		params.Set("origClientOrderId", origClientOrderID)
 	}
 
-	return resp, b.SendAuthHTTPRequest("DELETE", path, params, &resp)
+	return resp, b.SendAuthHTTPRequest(http.MethodDelete, path, params, &resp)
 }
 
 // OpenOrders Current open orders. Get all open orders on a symbol.
@@ -510,7 +511,7 @@ func (b *Binance) OpenOrders(symbol string) ([]QueryOrderData, error) {
 		params.Set("symbol", common.StringToUpper(symbol))
 	}
 
-	if err := b.SendAuthHTTPRequest("GET", path, params, &resp); err != nil {
+	if err := b.SendAuthHTTPRequest(http.MethodGet, path, params, &resp); err != nil {
 		return resp, err
 	}
 
@@ -533,7 +534,7 @@ func (b *Binance) AllOrders(symbol, orderID, limit string) ([]QueryOrderData, er
 	if limit != "" {
 		params.Set("limit", limit)
 	}
-	if err := b.SendAuthHTTPRequest("GET", path, params, &resp); err != nil {
+	if err := b.SendAuthHTTPRequest(http.MethodGet, path, params, &resp); err != nil {
 		return resp, err
 	}
 
@@ -555,7 +556,7 @@ func (b *Binance) QueryOrder(symbol, origClientOrderID string, orderID int64) (Q
 		params.Set("orderId", strconv.FormatInt(orderID, 10))
 	}
 
-	if err := b.SendAuthHTTPRequest("GET", path, params, &resp); err != nil {
+	if err := b.SendAuthHTTPRequest(http.MethodGet, path, params, &resp); err != nil {
 		return resp, err
 	}
 
@@ -577,7 +578,7 @@ func (b *Binance) GetAccount() (*Account, error) {
 	path := fmt.Sprintf("%s%s", b.APIUrl, accountInfo)
 	params := url.Values{}
 
-	if err := b.SendAuthHTTPRequest("GET", path, params, &resp); err != nil {
+	if err := b.SendAuthHTTPRequest(http.MethodGet, path, params, &resp); err != nil {
 		return &resp.Account, err
 	}
 
@@ -590,7 +591,7 @@ func (b *Binance) GetAccount() (*Account, error) {
 
 // SendHTTPRequest sends an unauthenticated request
 func (b *Binance) SendHTTPRequest(path string, result interface{}) error {
-	return b.SendPayload("GET", path, nil, nil, result, false, b.Verbose)
+	return b.SendPayload(http.MethodGet, path, nil, nil, result, false, b.Verbose)
 }
 
 // SendAuthHTTPRequest sends an authenticated HTTP request
@@ -754,7 +755,7 @@ func (b *Binance) WithdrawCrypto(asset, address, addressTag, name, amount string
 		params.Set("addressTag", addressTag)
 	}
 
-	if err := b.SendAuthHTTPRequest("POST", path, params, &resp); err != nil {
+	if err := b.SendAuthHTTPRequest(http.MethodPost, path, params, &resp); err != nil {
 		return -1, err
 	}
 
@@ -780,5 +781,5 @@ func (b *Binance) GetDepositAddressForCurrency(currency string) (string, error) 
 	params.Set("status", "true")
 
 	return resp.Address,
-		b.SendAuthHTTPRequest("GET", path, params, &resp)
+		b.SendAuthHTTPRequest(http.MethodGet, path, params, &resp)
 }

@@ -3,6 +3,7 @@ package bittrex
 import (
 	"errors"
 	"fmt"
+	"net/http"
 	"net/url"
 	"strconv"
 	"time"
@@ -393,6 +394,10 @@ func (b *Bittrex) Withdraw(currency, paymentID, address string, quantity float64
 	values.Set("currency", currency)
 	values.Set("quantity", fmt.Sprintf("%v", quantity))
 	values.Set("address", address)
+	if len(paymentID) > 0 {
+		values.Set("paymentid", paymentID)
+	}
+
 	path := fmt.Sprintf("%s/%s", b.APIUrl, bittrexAPIWithdraw)
 
 	if err := b.SendAuthenticatedHTTPRequest(path, values, &id); err != nil {
@@ -487,7 +492,7 @@ func (b *Bittrex) GetDepositHistory(currency string) (WithdrawalHistory, error) 
 
 // SendHTTPRequest sends an unauthenticated HTTP request
 func (b *Bittrex) SendHTTPRequest(path string, result interface{}) error {
-	return b.SendPayload("GET", path, nil, nil, result, false, b.Verbose)
+	return b.SendPayload(http.MethodGet, path, nil, nil, result, false, b.Verbose)
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated http request to a desired
@@ -511,7 +516,7 @@ func (b *Bittrex) SendAuthenticatedHTTPRequest(path string, values url.Values, r
 	headers := make(map[string]string)
 	headers["apisign"] = common.HexEncodeToString(hmac)
 
-	return b.SendPayload("GET", rawQuery, headers, nil, result, true, b.Verbose)
+	return b.SendPayload(http.MethodGet, rawQuery, headers, nil, result, true, b.Verbose)
 }
 
 // GetFee returns an estimate of fee based on type of transaction

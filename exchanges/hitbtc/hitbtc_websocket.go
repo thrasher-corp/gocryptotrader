@@ -44,12 +44,7 @@ func (h *HitBTC) WsConnect() error {
 
 	go h.WsHandleData()
 
-	err = h.WsSubscribe()
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return h.WsSubscribe()
 }
 
 // WsSubscribe subscribes to the relevant channels

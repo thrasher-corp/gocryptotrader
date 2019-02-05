@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -293,7 +294,7 @@ func (c *COINUT) GetDerivativeInstruments(secType string) (interface{}, error) {
 }
 
 // GetOptionChain returns option chain
-func (c *COINUT) GetOptionChain(asset, secType string, expiry int64) (OptionChainResponse, error) {
+func (c *COINUT) GetOptionChain(asset, secType string) (OptionChainResponse, error) {
 	var result OptionChainResponse
 	params := make(map[string]interface{})
 	params["asset"] = asset
@@ -368,7 +369,7 @@ func (c *COINUT) SendHTTPRequest(apiRequest string, params map[string]interface{
 	headers["Content-Type"] = "application/json"
 
 	var rawMsg json.RawMessage
-	err = c.SendPayload("POST", c.APIUrl, headers, bytes.NewBuffer(payload), &rawMsg, authenticated, c.Verbose)
+	err = c.SendPayload(http.MethodPost, c.APIUrl, headers, bytes.NewBuffer(payload), &rawMsg, authenticated, c.Verbose)
 	if err != nil {
 		return err
 	}

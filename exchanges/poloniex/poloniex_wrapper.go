@@ -164,7 +164,7 @@ func (p *Poloniex) GetExchangeHistory(currencyPair pair.CurrencyPair, assetType 
 }
 
 // SubmitOrder submits a new order
-func (p *Poloniex) SubmitOrder(currencyPair pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (exchange.SubmitOrderResponse, error) {
+func (p *Poloniex) SubmitOrder(currencyPair pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, _ string) (exchange.SubmitOrderResponse, error) {
 	var submitOrderResponse exchange.SubmitOrderResponse
 	fillOrKill := orderType == exchange.MarketOrderType
 	isBuyOrder := side == exchange.BuyOrderSide
@@ -215,7 +215,7 @@ func (p *Poloniex) CancelOrder(order exchange.OrderCancellation) error {
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
-func (p *Poloniex) CancelAllOrders(orderCancellation exchange.OrderCancellation) (exchange.CancelAllOrdersResponse, error) {
+func (p *Poloniex) CancelAllOrders(_ exchange.OrderCancellation) (exchange.CancelAllOrdersResponse, error) {
 	cancelAllOrdersResponse := exchange.CancelAllOrdersResponse{
 		OrderStatus: make(map[string]string),
 	}
@@ -243,7 +243,7 @@ func (p *Poloniex) GetOrderInfo(orderID int64) (exchange.OrderDetail, error) {
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
-func (p *Poloniex) GetDepositAddress(cryptocurrency pair.CurrencyItem, accountID string) (string, error) {
+func (p *Poloniex) GetDepositAddress(cryptocurrency pair.CurrencyItem, _ string) (string, error) {
 	a, err := p.GetDepositAddresses()
 	if err != nil {
 		return "", err

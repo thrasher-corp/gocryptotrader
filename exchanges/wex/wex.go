@@ -3,6 +3,7 @@ package wex
 import (
 	"errors"
 	"fmt"
+	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
@@ -356,7 +357,7 @@ func (w *WEX) RedeemCoupon(coupon string) (RedeemCoupon, error) {
 
 // SendHTTPRequest sends an unauthenticated HTTP request
 func (w *WEX) SendHTTPRequest(path string, result interface{}) error {
-	return w.SendPayload("GET", path, nil, nil, result, false, w.Verbose)
+	return w.SendPayload(http.MethodGet, path, nil, nil, result, false, w.Verbose)
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated HTTP request to WEX
@@ -389,7 +390,7 @@ func (w *WEX) SendAuthenticatedHTTPRequest(method string, values url.Values, res
 	headers["Sign"] = common.HexEncodeToString(hmac)
 	headers["Content-Type"] = "application/x-www-form-urlencoded"
 
-	return w.SendPayload("POST",
+	return w.SendPayload(http.MethodPost,
 		w.APIUrlSecondary,
 		headers,
 		strings.NewReader(encoded),

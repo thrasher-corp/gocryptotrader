@@ -7,6 +7,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"net/http"
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/communications/base"
@@ -221,7 +222,7 @@ func (t *Telegram) SendHTTPRequest(path string, json []byte, result interface{})
 	headers := make(map[string]string)
 	headers["content-type"] = "application/json"
 
-	resp, err := common.SendHTTPRequest("POST", path, headers, bytes.NewBuffer(json))
+	resp, err := common.SendHTTPRequest(http.MethodPost, path, headers, bytes.NewBuffer(json))
 	if err != nil {
 		return err
 	}

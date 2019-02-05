@@ -170,7 +170,8 @@ func (b *Bithumb) GetExchangeHistory(p pair.CurrencyPair, assetType string) ([]e
 }
 
 // SubmitOrder submits a new order
-func (b *Bithumb) SubmitOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (exchange.SubmitOrderResponse, error) {
+// TODO: Fill this out to support limit orders
+func (b *Bithumb) SubmitOrder(p pair.CurrencyPair, side exchange.OrderSide, _ exchange.OrderType, amount, _ float64, _ string) (exchange.SubmitOrderResponse, error) {
 	var submitOrderResponse exchange.SubmitOrderResponse
 	var err error
 	var orderID string
@@ -249,7 +250,7 @@ func (b *Bithumb) GetOrderInfo(orderID int64) (exchange.OrderDetail, error) {
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
-func (b *Bithumb) GetDepositAddress(cryptocurrency pair.CurrencyItem, accountID string) (string, error) {
+func (b *Bithumb) GetDepositAddress(cryptocurrency pair.CurrencyItem, _ string) (string, error) {
 	addr, err := b.GetWalletAddress(cryptocurrency.String())
 	if err != nil {
 		return "", err

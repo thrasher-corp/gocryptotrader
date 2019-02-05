@@ -3,6 +3,7 @@ package okcoin
 import (
 	"errors"
 	"fmt"
+	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
@@ -447,15 +448,9 @@ func (o *OKCoin) BatchTrade(orderData string, symbol, orderType string) (BatchTr
 	v.Set("orders_data", orderData)
 	v.Set("symbol", symbol)
 	v.Set("type", orderType)
+
 	result := BatchTrade{}
-
-	err := o.SendAuthenticatedHTTPRequest(okcoinTradeBatch, v, &result)
-
-	if err != nil {
-		return result, err
-	}
-
-	return result, nil
+	return result, o.SendAuthenticatedHTTPRequest(okcoinTradeBatch, v, &result)
 }
 
 // CancelExistingOrder cancels a specific order or list of orders by orderID
@@ -540,15 +535,9 @@ func (o *OKCoin) GetOrderHistoryForCurrency(pageLength, currentPage, status int6
 	v.Set("status", strconv.FormatInt(status, 10))
 	v.Set("current_page", strconv.FormatInt(currentPage, 10))
 	v.Set("page_length", strconv.FormatInt(pageLength, 10))
+
 	result := OrderHistory{}
-
-	err := o.SendAuthenticatedHTTPRequest(okcoinOrderHistory, v, &result)
-
-	if err != nil {
-		return result, err
-	}
-
-	return result, nil
+	return result, o.SendAuthenticatedHTTPRequest(okcoinOrderHistory, v, &result)
 }
 
 // Withdrawal withdraws a cryptocurrency to a supplied address
@@ -850,7 +839,7 @@ func (o *OKCoin) FuturesTrade(amount, price float64, matchPrice, leverage int64,
 }
 
 // FuturesBatchTrade initiates a batch of futures contract trades
-func (o *OKCoin) FuturesBatchTrade(orderData, symbol, contractType string, leverage int64, orderType string) {
+func (o *OKCoin) FuturesBatchTrade(orderData, symbol, contractType string, leverage int64, _ string) {
 	v := url.Values{} //to-do batch trade support for orders_data)
 	v.Set("symbol", symbol)
 	v.Set("contract_type", contractType)
@@ -936,7 +925,7 @@ func (o *OKCoin) GetFuturesUserPosition4Fix(symbol, contractType string) {
 
 // SendHTTPRequest sends an unauthenticated HTTP request
 func (o *OKCoin) SendHTTPRequest(path string, result interface{}) error {
-	return o.SendPayload("GET", path, nil, nil, result, false, o.Verbose)
+	return o.SendPayload(http.MethodGet, path, nil, nil, result, false, o.Verbose)
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated HTTP request
@@ -959,7 +948,7 @@ func (o *OKCoin) SendAuthenticatedHTTPRequest(method string, v url.Values, resul
 	headers := make(map[string]string)
 	headers["Content-Type"] = "application/x-www-form-urlencoded"
 
-	return o.SendPayload("POST", path, headers, strings.NewReader(encoded), result, true, o.Verbose)
+	return o.SendPayload(http.MethodPost, path, headers, strings.NewReader(encoded), result, true, o.Verbose)
 }
 
 // SetErrorDefaults sets default error map

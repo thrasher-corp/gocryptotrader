@@ -500,7 +500,6 @@ func (w *WebsocketOrderbookLocal) LoadSnapshot(newOrderbook orderbook.Base, exch
 // UpdateUsingID updates orderbooks using specified ID
 func (w *WebsocketOrderbookLocal) UpdateUsingID(bidTargets, askTargets []orderbook.Item,
 	p pair.CurrencyPair,
-	updated time.Time,
 	exchName, assetType, action string) error {
 	w.m.Lock()
 	defer w.m.Unlock()

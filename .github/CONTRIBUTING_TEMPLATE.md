@@ -21,7 +21,7 @@ Block style example:
 func SendHTTPRequest(method, path string, headers map[string]string, body io.Reader) (string, error) {
     result := strings.ToUpper(method)
 
-    if result != "POST" && result != "GET" && result != "DELETE" {
+    if result != http.MethodPost && result != http.MethodGet && result != http.MethodDelete {
         return "", errors.New("Invalid HTTP method specified.")
     }
 

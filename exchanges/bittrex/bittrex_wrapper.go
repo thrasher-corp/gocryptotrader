@@ -178,7 +178,7 @@ func (b *Bittrex) GetExchangeHistory(p pair.CurrencyPair, assetType string) ([]e
 }
 
 // SubmitOrder submits a new order
-func (b *Bittrex) SubmitOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (exchange.SubmitOrderResponse, error) {
+func (b *Bittrex) SubmitOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, _ string) (exchange.SubmitOrderResponse, error) {
 	var submitOrderResponse exchange.SubmitOrderResponse
 	buy := side == exchange.BuyOrderSide
 	var response UUID
@@ -219,7 +219,7 @@ func (b *Bittrex) CancelOrder(order exchange.OrderCancellation) error {
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
-func (b *Bittrex) CancelAllOrders(orderCancellation exchange.OrderCancellation) (exchange.CancelAllOrdersResponse, error) {
+func (b *Bittrex) CancelAllOrders(_ exchange.OrderCancellation) (exchange.CancelAllOrdersResponse, error) {
 	cancelAllOrdersResponse := exchange.CancelAllOrdersResponse{
 		OrderStatus: make(map[string]string),
 	}
@@ -245,7 +245,7 @@ func (b *Bittrex) GetOrderInfo(orderID int64) (exchange.OrderDetail, error) {
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
-func (b *Bittrex) GetDepositAddress(cryptocurrency pair.CurrencyItem, accountID string) (string, error) {
+func (b *Bittrex) GetDepositAddress(cryptocurrency pair.CurrencyItem, _ string) (string, error) {
 	depositAddr, err := b.GetCryptoDepositAddress(cryptocurrency.String())
 	if err != nil {
 		return "", err

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
@@ -317,7 +318,7 @@ func (c *CoinbasePro) GetAccounts() ([]AccountResponse, error) {
 	resp := []AccountResponse{}
 
 	return resp,
-		c.SendAuthenticatedHTTPRequest("GET", coinbaseproAccounts, nil, &resp)
+		c.SendAuthenticatedHTTPRequest(http.MethodGet, coinbaseproAccounts, nil, &resp)
 }
 
 // GetAccount returns information for a single account. Use this endpoint when
@@ -326,7 +327,7 @@ func (c *CoinbasePro) GetAccount(accountID string) (AccountResponse, error) {
 	resp := AccountResponse{}
 	path := fmt.Sprintf("%s/%s", coinbaseproAccounts, accountID)
 
-	return resp, c.SendAuthenticatedHTTPRequest("GET", path, nil, &resp)
+	return resp, c.SendAuthenticatedHTTPRequest(http.MethodGet, path, nil, &resp)
 }
 
 // GetAccountHistory returns a list of account activity. Account activity either
@@ -336,7 +337,7 @@ func (c *CoinbasePro) GetAccountHistory(accountID string) ([]AccountLedgerRespon
 	resp := []AccountLedgerResponse{}
 	path := fmt.Sprintf("%s/%s/%s", coinbaseproAccounts, accountID, coinbaseproLedger)
 
-	return resp, c.SendAuthenticatedHTTPRequest("GET", path, nil, &resp)
+	return resp, c.SendAuthenticatedHTTPRequest(http.MethodGet, path, nil, &resp)
 }
 
 // GetHolds returns the holds that are placed on an account for any active
@@ -347,7 +348,7 @@ func (c *CoinbasePro) GetHolds(accountID string) ([]AccountHolds, error) {
 	resp := []AccountHolds{}
 	path := fmt.Sprintf("%s/%s/%s", coinbaseproAccounts, accountID, coinbaseproHolds)
 
-	return resp, c.SendAuthenticatedHTTPRequest("GET", path, nil, &resp)
+	return resp, c.SendAuthenticatedHTTPRequest(http.MethodGet, path, nil, &resp)
 }
 
 // PlaceLimitOrder places a new limit order. Orders can only be placed if the
@@ -392,7 +393,7 @@ func (c *CoinbasePro) PlaceLimitOrder(clientRef string, price, amount float64, s
 		request["post_only"] = postOnly
 	}
 
-	err := c.SendAuthenticatedHTTPRequest("POST", coinbaseproOrders, request, &resp)
+	err := c.SendAuthenticatedHTTPRequest(http.MethodPost, coinbaseproOrders, request, &resp)
 	if err != nil {
 		return "", err
 	}
@@ -436,7 +437,7 @@ func (c *CoinbasePro) PlaceMarketOrder(clientRef string, size, funds float64, si
 		request["stp"] = stp
 	}
 
-	err := c.SendAuthenticatedHTTPRequest("POST", coinbaseproOrders, request, &resp)
+	err := c.SendAuthenticatedHTTPRequest(http.MethodPost, coinbaseproOrders, request, &resp)
 	if err != nil {
 		return "", err
 	}
@@ -479,7 +480,7 @@ func (c *CoinbasePro) PlaceMarginOrder(clientRef string, size, funds float64, si
 		request["stp"] = stp
 	}
 
-	err := c.SendAuthenticatedHTTPRequest("POST", coinbaseproOrders, request, &resp)
+	err := c.SendAuthenticatedHTTPRequest(http.MethodPost, coinbaseproOrders, request, &resp)
 	if err != nil {
 		return "", err
 	}
@@ -491,7 +492,7 @@ func (c *CoinbasePro) PlaceMarginOrder(clientRef string, size, funds float64, si
 func (c *CoinbasePro) CancelExistingOrder(orderID string) error {
 	path := fmt.Sprintf("%s/%s", coinbaseproOrders, orderID)
 
-	return c.SendAuthenticatedHTTPRequest("DELETE", path, nil, nil)
+	return c.SendAuthenticatedHTTPRequest(http.MethodDelete, path, nil, nil)
 }
 
 // CancelAllExistingOrders cancels all open orders on the exchange and returns
@@ -505,7 +506,7 @@ func (c *CoinbasePro) CancelAllExistingOrders(currencyPair string) ([]string, er
 	if len(currencyPair) > 0 {
 		request["product_id"] = currencyPair
 	}
-	return resp, c.SendAuthenticatedHTTPRequest("DELETE", coinbaseproOrders, request, &resp)
+	return resp, c.SendAuthenticatedHTTPRequest(http.MethodDelete, coinbaseproOrders, request, &resp)
 }
 
 // GetOrders lists current open orders. Only open or un-settled orders are
@@ -528,7 +529,7 @@ func (c *CoinbasePro) GetOrders(status []string, currencyPair string) ([]General
 	path = common.GetURIPath(path)
 
 	return resp,
-		c.SendAuthenticatedHTTPRequest("GET", path[1:], nil, &resp)
+		c.SendAuthenticatedHTTPRequest(http.MethodGet, path[1:], nil, &resp)
 }
 
 // GetOrder returns a single order by order id.
@@ -536,7 +537,7 @@ func (c *CoinbasePro) GetOrder(orderID string) (GeneralizedOrderResponse, error)
 	resp := GeneralizedOrderResponse{}
 	path := fmt.Sprintf("%s/%s", coinbaseproOrders, orderID)
 
-	return resp, c.SendAuthenticatedHTTPRequest("GET", path, nil, &resp)
+	return resp, c.SendAuthenticatedHTTPRequest(http.MethodGet, path, nil, &resp)
 }
 
 // GetFills returns a list of recent fills
@@ -558,7 +559,7 @@ func (c *CoinbasePro) GetFills(orderID, currencyPair string) ([]FillResponse, er
 	uri := common.GetURIPath(path)
 
 	return resp,
-		c.SendAuthenticatedHTTPRequest("GET", uri[1:], nil, &resp)
+		c.SendAuthenticatedHTTPRequest(http.MethodGet, uri[1:], nil, &resp)
 }
 
 // GetFundingRecords every order placed with a margin profile that draws funding
@@ -574,7 +575,7 @@ func (c *CoinbasePro) GetFundingRecords(status string) ([]Funding, error) {
 	uri := common.GetURIPath(path)
 
 	return resp,
-		c.SendAuthenticatedHTTPRequest("GET", uri[1:], nil, &resp)
+		c.SendAuthenticatedHTTPRequest(http.MethodGet, uri[1:], nil, &resp)
 }
 
 ////////////////////////// Not receiving reply from server /////////////////
@@ -589,7 +590,7 @@ func (c *CoinbasePro) GetFundingRecords(status string) ([]Funding, error) {
 // 	params["currency"] = currency
 //
 // 	return resp,
-// 		c.SendAuthenticatedHTTPRequest("POST", coinbaseproFundingRepay, params, &resp)
+// 		c.SendAuthenticatedHTTPRequest(http.MethodPost, coinbaseproFundingRepay, params, &resp)
 // }
 
 // MarginTransfer sends funds between a standard/default profile and a margin
@@ -612,7 +613,7 @@ func (c *CoinbasePro) MarginTransfer(amount float64, transferType, profileID, cu
 	request["margin_profile_id"] = profileID
 
 	return resp,
-		c.SendAuthenticatedHTTPRequest("POST", coinbaseproMarginTransfer, request, &resp)
+		c.SendAuthenticatedHTTPRequest(http.MethodPost, coinbaseproMarginTransfer, request, &resp)
 }
 
 // GetPosition returns an overview of account profile.
@@ -620,7 +621,7 @@ func (c *CoinbasePro) GetPosition() (AccountOverview, error) {
 	resp := AccountOverview{}
 
 	return resp,
-		c.SendAuthenticatedHTTPRequest("GET", coinbaseproPosition, nil, &resp)
+		c.SendAuthenticatedHTTPRequest(http.MethodGet, coinbaseproPosition, nil, &resp)
 }
 
 // ClosePosition closes a position and allowing you to repay position as well
@@ -631,7 +632,7 @@ func (c *CoinbasePro) ClosePosition(repayOnly bool) (AccountOverview, error) {
 	request["repay_only"] = repayOnly
 
 	return resp,
-		c.SendAuthenticatedHTTPRequest("POST", coinbaseproPositionClose, request, &resp)
+		c.SendAuthenticatedHTTPRequest(http.MethodPost, coinbaseproPositionClose, request, &resp)
 }
 
 // GetPayMethods returns a full list of payment methods
@@ -639,7 +640,7 @@ func (c *CoinbasePro) GetPayMethods() ([]PaymentMethod, error) {
 	resp := []PaymentMethod{}
 
 	return resp,
-		c.SendAuthenticatedHTTPRequest("GET", coinbaseproPaymentMethod, nil, &resp)
+		c.SendAuthenticatedHTTPRequest(http.MethodGet, coinbaseproPaymentMethod, nil, &resp)
 }
 
 // DepositViaPaymentMethod deposits funds from a payment method. See the Payment
@@ -656,7 +657,7 @@ func (c *CoinbasePro) DepositViaPaymentMethod(amount float64, currency, paymentI
 	req["payment_method_id"] = paymentID
 
 	return resp,
-		c.SendAuthenticatedHTTPRequest("POST", coinbaseproPaymentMethodDeposit, req, &resp)
+		c.SendAuthenticatedHTTPRequest(http.MethodPost, coinbaseproPaymentMethodDeposit, req, &resp)
 }
 
 // DepositViaCoinbase deposits funds from a coinbase account. Move funds between
@@ -675,7 +676,7 @@ func (c *CoinbasePro) DepositViaCoinbase(amount float64, currency, accountID str
 	req["coinbase_account_id"] = accountID
 
 	return resp,
-		c.SendAuthenticatedHTTPRequest("POST", coinbaseproDepositCoinbase, req, &resp)
+		c.SendAuthenticatedHTTPRequest(http.MethodPost, coinbaseproDepositCoinbase, req, &resp)
 }
 
 // WithdrawViaPaymentMethod withdraws funds to a payment method
@@ -691,7 +692,7 @@ func (c *CoinbasePro) WithdrawViaPaymentMethod(amount float64, currency, payment
 	req["payment_method_id"] = paymentID
 
 	return resp,
-		c.SendAuthenticatedHTTPRequest("POST", coinbaseproWithdrawalPaymentMethod, req, &resp)
+		c.SendAuthenticatedHTTPRequest(http.MethodPost, coinbaseproWithdrawalPaymentMethod, req, &resp)
 }
 
 ///////////////////////// NO ROUTE FOUND ERROR ////////////////////////////////
@@ -708,7 +709,7 @@ func (c *CoinbasePro) WithdrawViaPaymentMethod(amount float64, currency, payment
 // 	req["coinbase_account_id"] = accountID
 //
 // 	return resp,
-// 		c.SendAuthenticatedHTTPRequest("POST", coinbaseproWithdrawalCoinbase, req, &resp)
+// 		c.SendAuthenticatedHTTPRequest(http.MethodPost, coinbaseproWithdrawalCoinbase, req, &resp)
 // }
 
 // WithdrawCrypto withdraws funds to a crypto address
@@ -724,7 +725,7 @@ func (c *CoinbasePro) WithdrawCrypto(amount float64, currency, cryptoAddress str
 	req["crypto_address"] = cryptoAddress
 
 	return resp,
-		c.SendAuthenticatedHTTPRequest("POST", coinbaseproWithdrawalCrypto, req, &resp)
+		c.SendAuthenticatedHTTPRequest(http.MethodPost, coinbaseproWithdrawalCrypto, req, &resp)
 }
 
 // GetCoinbaseAccounts returns a list of coinbase accounts
@@ -732,7 +733,7 @@ func (c *CoinbasePro) GetCoinbaseAccounts() ([]CoinbaseAccounts, error) {
 	resp := []CoinbaseAccounts{}
 
 	return resp,
-		c.SendAuthenticatedHTTPRequest("GET", coinbaseproCoinbaseAccounts, nil, &resp)
+		c.SendAuthenticatedHTTPRequest(http.MethodGet, coinbaseproCoinbaseAccounts, nil, &resp)
 }
 
 // GetReport returns batches of historic information about your account in
@@ -769,7 +770,7 @@ func (c *CoinbasePro) GetReport(reportType, startDate, endDate, currencyPair, ac
 	}
 
 	return resp,
-		c.SendAuthenticatedHTTPRequest("POST", coinbaseproReports, request, &resp)
+		c.SendAuthenticatedHTTPRequest(http.MethodPost, coinbaseproReports, request, &resp)
 }
 
 // GetReportStatus once a report request has been accepted for processing, the
@@ -778,7 +779,7 @@ func (c *CoinbasePro) GetReportStatus(reportID string) (Report, error) {
 	resp := Report{}
 	path := fmt.Sprintf("%s/%s", coinbaseproReports, reportID)
 
-	return resp, c.SendAuthenticatedHTTPRequest("GET", path, nil, &resp)
+	return resp, c.SendAuthenticatedHTTPRequest(http.MethodGet, path, nil, &resp)
 }
 
 // GetTrailingVolume this request will return your 30-day trailing volume for
@@ -787,12 +788,12 @@ func (c *CoinbasePro) GetTrailingVolume() ([]Volume, error) {
 	resp := []Volume{}
 
 	return resp,
-		c.SendAuthenticatedHTTPRequest("GET", coinbaseproTrailingVolume, nil, &resp)
+		c.SendAuthenticatedHTTPRequest(http.MethodGet, coinbaseproTrailingVolume, nil, &resp)
 }
 
 // SendHTTPRequest sends an unauthenticated HTTP request
 func (c *CoinbasePro) SendHTTPRequest(path string, result interface{}) error {
-	return c.SendPayload("GET", path, nil, nil, result, false, c.Verbose)
+	return c.SendPayload(http.MethodGet, path, nil, nil, result, false, c.Verbose)
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated HTTP reque

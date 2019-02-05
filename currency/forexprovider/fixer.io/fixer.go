@@ -96,11 +96,17 @@ func (f *Fixer) GetLatestRates(base, symbols string) (map[string]float64, error)
 // GetHistoricalRates returns historical exchange rate data for all available or
 // a specific set of currencies.
 // date - YYYY-MM-DD	[required] A date in the past
+// base - USD 			[optional]
+// symbols - the desired symbols
 func (f *Fixer) GetHistoricalRates(date, base string, symbols []string) (map[string]float64, error) {
 	var resp Rates
 
 	v := url.Values{}
 	v.Set("symbols", common.JoinStrings(symbols, ","))
+
+	if len(base) > 0 {
+		v.Set("base", base)
+	}
 
 	err := f.SendOpenHTTPRequest(date, v, &resp)
 	if err != nil {

@@ -139,7 +139,7 @@ func (g *Gemini) GetExchangeHistory(p pair.CurrencyPair, assetType string) ([]ex
 }
 
 // SubmitOrder submits a new order
-func (g *Gemini) SubmitOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (exchange.SubmitOrderResponse, error) {
+func (g *Gemini) SubmitOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, _ string) (exchange.SubmitOrderResponse, error) {
 	var submitOrderResponse exchange.SubmitOrderResponse
 	response, err := g.NewOrder(p.Pair().String(), amount, price, side.ToString(), orderType.ToString())
 
@@ -172,7 +172,7 @@ func (g *Gemini) CancelOrder(order exchange.OrderCancellation) error {
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
-func (g *Gemini) CancelAllOrders(orderCancellation exchange.OrderCancellation) (exchange.CancelAllOrdersResponse, error) {
+func (g *Gemini) CancelAllOrders(_ exchange.OrderCancellation) (exchange.CancelAllOrdersResponse, error) {
 	cancelAllOrdersResponse := exchange.CancelAllOrdersResponse{
 		OrderStatus: make(map[string]string),
 	}
@@ -195,7 +195,7 @@ func (g *Gemini) GetOrderInfo(orderID int64) (exchange.OrderDetail, error) {
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
-func (g *Gemini) GetDepositAddress(cryptocurrency pair.CurrencyItem, accountID string) (string, error) {
+func (g *Gemini) GetDepositAddress(cryptocurrency pair.CurrencyItem, _ string) (string, error) {
 	addr, err := g.GetCryptoDepositAddress("", cryptocurrency.String())
 	if err != nil {
 		return "", err

@@ -3,6 +3,7 @@ package bitflyer
 import (
 	"errors"
 	"fmt"
+	"net/http"
 	"net/url"
 	"strconv"
 	"time"
@@ -377,16 +378,17 @@ func (b *Bitflyer) GetTradingCommission() {
 
 // SendHTTPRequest sends an unauthenticated request
 func (b *Bitflyer) SendHTTPRequest(path string, result interface{}) error {
-	return b.SendPayload("GET", path, nil, nil, result, false, b.Verbose)
+	return b.SendPayload(http.MethodGet, path, nil, nil, result, false, b.Verbose)
 }
 
 // SendAuthHTTPRequest sends an authenticated HTTP request
 // Note: HTTP not done due to incorrect account privileges, please open a PR
 // if you have access and update the authenticated requests
-func (b *Bitflyer) SendAuthHTTPRequest(path string, params url.Values, result interface{}) {
-	headers := make(map[string]string)
-	headers["ACCESS-KEY"] = b.APIKey
-	headers["ACCESS-TIMESTAMP"] = strconv.FormatInt(time.Now().UnixNano(), 10)
+// TODO: Fill out this function once API access is obtained
+func (b *Bitflyer) SendAuthHTTPRequest() {
+	//headers := make(map[string]string)
+	//headers["ACCESS-KEY"] = b.APIKey
+	//headers["ACCESS-TIMESTAMP"] = strconv.FormatInt(time.Now().UnixNano(), 10)
 }
 
 // GetFee returns an estimate of fee based on type of transaction
