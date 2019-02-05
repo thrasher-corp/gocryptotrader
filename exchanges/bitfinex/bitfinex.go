@@ -3,6 +3,7 @@ package bitfinex
 import (
 	"errors"
 	"fmt"
+	"net/http"
 	"net/url"
 	"strconv"
 	"time"
@@ -498,13 +499,13 @@ func (b *Bitfinex) GetSymbolsDetails() ([]SymbolDetails, error) {
 // GetAccountInformation returns information about your account incl. trading fees
 func (b *Bitfinex) GetAccountInformation() ([]AccountInfo, error) {
 	var responses []AccountInfo
-	return responses, b.SendAuthenticatedHTTPRequest("POST", bitfinexAccountInfo, nil, &responses)
+	return responses, b.SendAuthenticatedHTTPRequest(http.MethodPost, bitfinexAccountInfo, nil, &responses)
 }
 
 // GetAccountFees - Gets all fee rates for all currencies
 func (b *Bitfinex) GetAccountFees() (AccountFees, error) {
 	response := AccountFees{}
-	return response, b.SendAuthenticatedHTTPRequest("POST", bitfinexAccountFees, nil, &response)
+	return response, b.SendAuthenticatedHTTPRequest(http.MethodPost, bitfinexAccountFees, nil, &response)
 }
 
 // GetAccountSummary returns a 30-day summary of your trading volume and return
@@ -514,7 +515,7 @@ func (b *Bitfinex) GetAccountSummary() (AccountSummary, error) {
 
 	return response,
 		b.SendAuthenticatedHTTPRequest(
-			"POST", bitfinexAccountSummary, nil, &response,
+			http.MethodPost, bitfinexAccountSummary, nil, &response,
 		)
 }
 
@@ -531,7 +532,7 @@ func (b *Bitfinex) NewDeposit(method, walletName string, renew int) (DepositResp
 	request["renew"] = renew
 
 	return response,
-		b.SendAuthenticatedHTTPRequest("POST", bitfinexDeposit, request, &response)
+		b.SendAuthenticatedHTTPRequest(http.MethodPost, bitfinexDeposit, request, &response)
 }
 
 // GetKeyPermissions checks the permissions of the key being used to generate
@@ -540,7 +541,7 @@ func (b *Bitfinex) GetKeyPermissions() (KeyPermissions, error) {
 	response := KeyPermissions{}
 
 	return response,
-		b.SendAuthenticatedHTTPRequest("POST", bitfinexKeyPermissions, nil, &response)
+		b.SendAuthenticatedHTTPRequest(http.MethodPost, bitfinexKeyPermissions, nil, &response)
 }
 
 // GetMarginInfo shows your trading wallet information for margin trading
@@ -548,7 +549,7 @@ func (b *Bitfinex) GetMarginInfo() ([]MarginInfo, error) {
 	response := []MarginInfo{}
 
 	return response,
-		b.SendAuthenticatedHTTPRequest("POST", bitfinexMarginInfo, nil, &response)
+		b.SendAuthenticatedHTTPRequest(http.MethodPost, bitfinexMarginInfo, nil, &response)
 }
 
 // GetAccountBalance returns full wallet balance information
@@ -556,7 +557,7 @@ func (b *Bitfinex) GetAccountBalance() ([]Balance, error) {
 	response := []Balance{}
 
 	return response,
-		b.SendAuthenticatedHTTPRequest("POST", bitfinexBalances, nil, &response)
+		b.SendAuthenticatedHTTPRequest(http.MethodPost, bitfinexBalances, nil, &response)
 }
 
 // WalletTransfer move available balances between your wallets
@@ -573,7 +574,7 @@ func (b *Bitfinex) WalletTransfer(amount float64, currency, walletFrom, walletTo
 	request["walletTo"] = walletTo
 
 	return response,
-		b.SendAuthenticatedHTTPRequest("POST", bitfinexTransfer, request, &response)
+		b.SendAuthenticatedHTTPRequest(http.MethodPost, bitfinexTransfer, request, &response)
 }
 
 // WithdrawCryptocurrency requests a withdrawal from one of your wallets.
@@ -590,7 +591,7 @@ func (b *Bitfinex) WithdrawCryptocurrency(withdrawType, wallet, address, currenc
 	}
 
 	return response,
-		b.SendAuthenticatedHTTPRequest("POST", bitfinexWithdrawal, request, &response)
+		b.SendAuthenticatedHTTPRequest(http.MethodPost, bitfinexWithdrawal, request, &response)
 }
 
 // WithdrawFIAT requests a withdrawal from one of your wallets.
@@ -626,7 +627,7 @@ func (b *Bitfinex) WithdrawFIAT(withdrawType, wallet, wireCurrency,
 	}
 
 	return response,
-		b.SendAuthenticatedHTTPRequest("POST", bitfinexWithdrawal, request, &response)
+		b.SendAuthenticatedHTTPRequest(http.MethodPost, bitfinexWithdrawal, request, &response)
 }
 
 // NewOrder submits a new order and returns a order information
@@ -648,7 +649,7 @@ func (b *Bitfinex) NewOrder(currencyPair string, amount float64, price float64, 
 	}
 
 	return response,
-		b.SendAuthenticatedHTTPRequest("POST", bitfinexOrderNew, request, &response)
+		b.SendAuthenticatedHTTPRequest(http.MethodPost, bitfinexOrderNew, request, &response)
 }
 
 // NewOrderMulti allows several new orders at once
@@ -658,7 +659,7 @@ func (b *Bitfinex) NewOrderMulti(orders []PlaceOrder) (OrderMultiResponse, error
 	request["orders"] = orders
 
 	return response,
-		b.SendAuthenticatedHTTPRequest("POST", bitfinexOrderNewMulti, request, &response)
+		b.SendAuthenticatedHTTPRequest(http.MethodPost, bitfinexOrderNewMulti, request, &response)
 }
 
 // CancelExistingOrder cancels a single order by OrderID
@@ -668,7 +669,7 @@ func (b *Bitfinex) CancelExistingOrder(OrderID int64) (Order, error) {
 	request["order_id"] = OrderID
 
 	return response,
-		b.SendAuthenticatedHTTPRequest("POST", bitfinexOrderCancel, request, &response)
+		b.SendAuthenticatedHTTPRequest(http.MethodPost, bitfinexOrderCancel, request, &response)
 }
 
 // CancelMultipleOrders cancels multiple orders
@@ -678,7 +679,7 @@ func (b *Bitfinex) CancelMultipleOrders(OrderIDs []int64) (string, error) {
 	request["order_ids"] = OrderIDs
 
 	return response.Result,
-		b.SendAuthenticatedHTTPRequest("POST", bitfinexOrderCancelMulti, request, nil)
+		b.SendAuthenticatedHTTPRequest(http.MethodPost, bitfinexOrderCancelMulti, request, nil)
 }
 
 // CancelAllExistingOrders cancels all active and open orders
@@ -686,7 +687,7 @@ func (b *Bitfinex) CancelAllExistingOrders() (string, error) {
 	response := GenericResponse{}
 
 	return response.Result,
-		b.SendAuthenticatedHTTPRequest("POST", bitfinexOrderCancelAll, nil, nil)
+		b.SendAuthenticatedHTTPRequest(http.MethodPost, bitfinexOrderCancelAll, nil, nil)
 }
 
 // ReplaceOrder replaces an older order with a new order
@@ -708,7 +709,7 @@ func (b *Bitfinex) ReplaceOrder(OrderID int64, Symbol string, Amount float64, Pr
 	}
 
 	return response,
-		b.SendAuthenticatedHTTPRequest("POST", bitfinexOrderCancelReplace, request, &response)
+		b.SendAuthenticatedHTTPRequest(http.MethodPost, bitfinexOrderCancelReplace, request, &response)
 }
 
 // GetOrderStatus returns order status information
@@ -718,7 +719,7 @@ func (b *Bitfinex) GetOrderStatus(OrderID int64) (Order, error) {
 	request["order_id"] = OrderID
 
 	return orderStatus,
-		b.SendAuthenticatedHTTPRequest("POST", bitfinexOrderStatus, request, &orderStatus)
+		b.SendAuthenticatedHTTPRequest(http.MethodPost, bitfinexOrderStatus, request, &orderStatus)
 }
 
 // GetInactiveOrders returns order status information
@@ -728,7 +729,7 @@ func (b *Bitfinex) GetInactiveOrders() ([]Order, error) {
 	request["limit"] = "100"
 
 	return response,
-		b.SendAuthenticatedHTTPRequest("POST", bitfinexInactiveOrders, request, &response)
+		b.SendAuthenticatedHTTPRequest(http.MethodPost, bitfinexInactiveOrders, request, &response)
 }
 
 // GetOpenOrders returns all active orders and statuses
@@ -736,7 +737,7 @@ func (b *Bitfinex) GetOpenOrders() ([]Order, error) {
 	var response []Order
 
 	return response,
-		b.SendAuthenticatedHTTPRequest("POST", bitfinexOrders, nil, &response)
+		b.SendAuthenticatedHTTPRequest(http.MethodPost, bitfinexOrders, nil, &response)
 }
 
 // GetActivePositions returns an array of active positions
@@ -744,7 +745,7 @@ func (b *Bitfinex) GetActivePositions() ([]Position, error) {
 	response := []Position{}
 
 	return response,
-		b.SendAuthenticatedHTTPRequest("POST", bitfinexPositions, nil, &response)
+		b.SendAuthenticatedHTTPRequest(http.MethodPost, bitfinexPositions, nil, &response)
 }
 
 // ClaimPosition allows positions to be claimed
@@ -754,7 +755,7 @@ func (b *Bitfinex) ClaimPosition(PositionID int) (Position, error) {
 	request["position_id"] = PositionID
 
 	return response,
-		b.SendAuthenticatedHTTPRequest("POST", bitfinexClaimPosition, nil, nil)
+		b.SendAuthenticatedHTTPRequest(http.MethodPost, bitfinexClaimPosition, nil, nil)
 }
 
 // GetBalanceHistory returns balance history for the account
@@ -777,7 +778,7 @@ func (b *Bitfinex) GetBalanceHistory(symbol string, timeSince, timeUntil time.Ti
 	}
 
 	return response,
-		b.SendAuthenticatedHTTPRequest("POST", bitfinexHistory, request, &response)
+		b.SendAuthenticatedHTTPRequest(http.MethodPost, bitfinexHistory, request, &response)
 }
 
 // GetMovementHistory returns an array of past deposits and withdrawals
@@ -800,7 +801,7 @@ func (b *Bitfinex) GetMovementHistory(symbol, method string, timeSince, timeUnti
 	}
 
 	return response,
-		b.SendAuthenticatedHTTPRequest("POST", bitfinexHistoryMovements, request, &response)
+		b.SendAuthenticatedHTTPRequest(http.MethodPost, bitfinexHistoryMovements, request, &response)
 }
 
 // GetTradeHistory returns past executed trades
@@ -821,7 +822,7 @@ func (b *Bitfinex) GetTradeHistory(currencyPair string, timestamp, until time.Ti
 	}
 
 	return response,
-		b.SendAuthenticatedHTTPRequest("POST", bitfinexTradeHistory, request, &response)
+		b.SendAuthenticatedHTTPRequest(http.MethodPost, bitfinexTradeHistory, request, &response)
 }
 
 // NewOffer submits a new offer
@@ -835,7 +836,7 @@ func (b *Bitfinex) NewOffer(symbol string, amount, rate float64, period int64, d
 	request["direction"] = direction
 
 	return response,
-		b.SendAuthenticatedHTTPRequest("POST", bitfinexOfferNew, request, &response)
+		b.SendAuthenticatedHTTPRequest(http.MethodPost, bitfinexOfferNew, request, &response)
 }
 
 // CancelOffer cancels offer by offerID
@@ -845,7 +846,7 @@ func (b *Bitfinex) CancelOffer(OfferID int64) (Offer, error) {
 	request["offer_id"] = OfferID
 
 	return response,
-		b.SendAuthenticatedHTTPRequest("POST", bitfinexOfferCancel, request, &response)
+		b.SendAuthenticatedHTTPRequest(http.MethodPost, bitfinexOfferCancel, request, &response)
 }
 
 // GetOfferStatus checks offer status whether it has been cancelled, execute or
@@ -856,7 +857,7 @@ func (b *Bitfinex) GetOfferStatus(OfferID int64) (Offer, error) {
 	request["offer_id"] = OfferID
 
 	return response,
-		b.SendAuthenticatedHTTPRequest("POST", bitfinexOrderStatus, request, &response)
+		b.SendAuthenticatedHTTPRequest(http.MethodPost, bitfinexOrderStatus, request, &response)
 }
 
 // GetActiveCredits returns all available credits
@@ -864,7 +865,7 @@ func (b *Bitfinex) GetActiveCredits() ([]Offer, error) {
 	response := []Offer{}
 
 	return response,
-		b.SendAuthenticatedHTTPRequest("POST", bitfinexActiveCredits, nil, &response)
+		b.SendAuthenticatedHTTPRequest(http.MethodPost, bitfinexActiveCredits, nil, &response)
 }
 
 // GetActiveOffers returns all current active offers
@@ -872,7 +873,7 @@ func (b *Bitfinex) GetActiveOffers() ([]Offer, error) {
 	response := []Offer{}
 
 	return response,
-		b.SendAuthenticatedHTTPRequest("POST", bitfinexOffers, nil, &response)
+		b.SendAuthenticatedHTTPRequest(http.MethodPost, bitfinexOffers, nil, &response)
 }
 
 // GetActiveMarginFunding returns an array of active margin funds
@@ -880,7 +881,7 @@ func (b *Bitfinex) GetActiveMarginFunding() ([]MarginFunds, error) {
 	response := []MarginFunds{}
 
 	return response,
-		b.SendAuthenticatedHTTPRequest("POST", bitfinexMarginActiveFunds, nil, &response)
+		b.SendAuthenticatedHTTPRequest(http.MethodPost, bitfinexMarginActiveFunds, nil, &response)
 }
 
 // GetUnusedMarginFunds returns an array of funding borrowed but not currently
@@ -889,7 +890,7 @@ func (b *Bitfinex) GetUnusedMarginFunds() ([]MarginFunds, error) {
 	response := []MarginFunds{}
 
 	return response,
-		b.SendAuthenticatedHTTPRequest("POST", bitfinexMarginUnusedFunds, nil, &response)
+		b.SendAuthenticatedHTTPRequest(http.MethodPost, bitfinexMarginUnusedFunds, nil, &response)
 }
 
 // GetMarginTotalTakenFunds returns an array of active funding used in a
@@ -898,7 +899,7 @@ func (b *Bitfinex) GetMarginTotalTakenFunds() ([]MarginTotalTakenFunds, error) {
 	response := []MarginTotalTakenFunds{}
 
 	return response,
-		b.SendAuthenticatedHTTPRequest("POST", bitfinexMarginTotalFunds, nil, &response)
+		b.SendAuthenticatedHTTPRequest(http.MethodPost, bitfinexMarginTotalFunds, nil, &response)
 }
 
 // CloseMarginFunding closes an unused or used taken fund
@@ -908,12 +909,12 @@ func (b *Bitfinex) CloseMarginFunding(SwapID int64) (Offer, error) {
 	request["swap_id"] = SwapID
 
 	return response,
-		b.SendAuthenticatedHTTPRequest("POST", bitfinexMarginClose, request, &response)
+		b.SendAuthenticatedHTTPRequest(http.MethodPost, bitfinexMarginClose, request, &response)
 }
 
 // SendHTTPRequest sends an unauthenticated request
 func (b *Bitfinex) SendHTTPRequest(path string, result interface{}, verbose bool) error {
-	return b.SendPayload("GET", path, nil, nil, result, false, verbose)
+	return b.SendPayload(http.MethodGet, path, nil, nil, result, false, verbose)
 }
 
 // SendAuthenticatedHTTPRequest sends an autheticated http request and json

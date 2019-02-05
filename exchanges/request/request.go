@@ -16,7 +16,8 @@ import (
 	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
-var supportedMethods = []string{"GET", "POST", "HEAD", "PUT", "DELETE", "OPTIONS", "CONNECT"}
+var supportedMethods = []string{http.MethodGet, http.MethodPost, http.MethodHead,
+	http.MethodPut, http.MethodDelete, http.MethodOptions, http.MethodConnect}
 
 const (
 	maxRequestJobs              = 50

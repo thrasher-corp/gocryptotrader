@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
@@ -117,7 +118,7 @@ func (c *Coinmarketcap) GetCryptocurrencyInfo(currencyID ...int64) (CryptoCurren
 	val := url.Values{}
 	val.Set("id", strings.Join(currStr, ","))
 
-	err = c.SendHTTPRequest("GET", endpointCryptocurrencyInfo, val, &resp)
+	err = c.SendHTTPRequest(http.MethodGet, endpointCryptocurrencyInfo, val, &resp)
 	if err != nil {
 		return resp.Data, err
 	}
@@ -142,7 +143,7 @@ func (c *Coinmarketcap) GetCryptocurrencyIDMap() ([]CryptoCurrencyMap, error) {
 		return resp.Data, err
 	}
 
-	err = c.SendHTTPRequest("GET", endpointCryptocurrencyMap, nil, &resp)
+	err = c.SendHTTPRequest(http.MethodGet, endpointCryptocurrencyMap, nil, &resp)
 	if err != nil {
 		return resp.Data, err
 	}
@@ -169,7 +170,7 @@ func (c *Coinmarketcap) GetCryptocurrencyHistoricalListings() ([]CryptocurrencyH
 	// 	return resp.Data, err
 	// }
 
-	// err = c.SendHTTPRequest("GET", endpointCryptocurrencyHistoricalListings, nil, &resp)
+	// err = c.SendHTTPRequest(http.MethodGet, endpointCryptocurrencyHistoricalListings, nil, &resp)
 	// if err != nil {
 	// 	return resp.Data, err
 	// }
@@ -206,7 +207,7 @@ func (c *Coinmarketcap) GetCryptocurrencyLatestListing(start, limit int64) ([]Cr
 		val.Set("limit", strconv.FormatInt(limit, 10))
 	}
 
-	err = c.SendHTTPRequest("GET", endpointCryptocurrencyLatestListings, val, &resp)
+	err = c.SendHTTPRequest(http.MethodGet, endpointCryptocurrencyLatestListings, val, &resp)
 	if err != nil {
 		return resp.Data, err
 	}
@@ -246,7 +247,7 @@ func (c *Coinmarketcap) GetCryptocurrencyLatestMarketPairs(currencyID, start, li
 		val.Set("limit", strconv.FormatInt(limit, 10))
 	}
 
-	err = c.SendHTTPRequest("GET", endpointCryptocurrencyMarketPairs, val, &resp)
+	err = c.SendHTTPRequest(http.MethodGet, endpointCryptocurrencyMarketPairs, val, &resp)
 	if err != nil {
 		return resp.Data, err
 	}
@@ -284,7 +285,7 @@ func (c *Coinmarketcap) GetCryptocurrencyOHLCHistorical(currencyID int64, tStart
 		val.Set("time_end", strconv.FormatInt(tEnd.Unix(), 10))
 	}
 
-	err = c.SendHTTPRequest("GET", endpointOHLCVHistorical, val, &resp)
+	err = c.SendHTTPRequest(http.MethodGet, endpointOHLCVHistorical, val, &resp)
 	if err != nil {
 		return resp.Data, err
 	}
@@ -318,7 +319,7 @@ func (c *Coinmarketcap) GetCryptocurrencyOHLCLatest(currencyID int64) (Cryptocur
 	val := url.Values{}
 	val.Set("id", strconv.FormatInt(currencyID, 10))
 
-	err = c.SendHTTPRequest("GET", endpointOHLCVLatest, val, &resp)
+	err = c.SendHTTPRequest(http.MethodGet, endpointOHLCVLatest, val, &resp)
 	if err != nil {
 		return resp.Data, err
 	}
@@ -353,7 +354,7 @@ func (c *Coinmarketcap) GetCryptocurrencyLatestQuotes(currencyID ...int64) (Cryp
 	val := url.Values{}
 	val.Set("id", strings.Join(currStr, ","))
 
-	err = c.SendHTTPRequest("GET", endpointGetMarketQuotesLatest, val, &resp)
+	err = c.SendHTTPRequest(http.MethodGet, endpointGetMarketQuotesLatest, val, &resp)
 	if err != nil {
 		return resp.Data, err
 	}
@@ -390,7 +391,7 @@ func (c *Coinmarketcap) GetCryptocurrencyHistoricalQuotes(currencyID int64, tSta
 		val.Set("time_end", strconv.FormatInt(tEnd.Unix(), 10))
 	}
 
-	err = c.SendHTTPRequest("GET", endpointGetMarketQuotesHistorical, val, &resp)
+	err = c.SendHTTPRequest(http.MethodGet, endpointGetMarketQuotesHistorical, val, &resp)
 	if err != nil {
 		return resp.Data, err
 	}
@@ -425,7 +426,7 @@ func (c *Coinmarketcap) GetExchangeInfo(exchangeID ...int64) (ExchangeInfo, erro
 	val := url.Values{}
 	val.Set("id", strings.Join(exchStr, ","))
 
-	err = c.SendHTTPRequest("GET", endpointExchangeInfo, val, &resp)
+	err = c.SendHTTPRequest(http.MethodGet, endpointExchangeInfo, val, &resp)
 	if err != nil {
 		return resp.Data, err
 	}
@@ -465,7 +466,7 @@ func (c *Coinmarketcap) GetExchangeMap(start, limit int64) ([]ExchangeMap, error
 		val.Set("limit", strconv.FormatInt(start, 10))
 	}
 
-	err = c.SendHTTPRequest("GET", endpointExchangeMap, val, &resp)
+	err = c.SendHTTPRequest(http.MethodGet, endpointExchangeMap, val, &resp)
 	if err != nil {
 		return resp.Data, err
 	}
@@ -527,7 +528,7 @@ func (c *Coinmarketcap) GetExchangeLatestMarketPairs(exchangeID, start, limit in
 		val.Set("limit", strconv.FormatInt(start, 10))
 	}
 
-	err = c.SendHTTPRequest("GET", endpointExchangeMarketPairsLatest, val, &resp)
+	err = c.SendHTTPRequest(http.MethodGet, endpointExchangeMarketPairsLatest, val, &resp)
 	if err != nil {
 		return resp.Data, err
 	}
@@ -562,7 +563,7 @@ func (c *Coinmarketcap) GetExchangeLatestQuotes(exchangeID ...int64) (ExchangeLa
 	val := url.Values{}
 	val.Set("id", strings.Join(exchStr, ","))
 
-	err = c.SendHTTPRequest("GET", endpointExchangeMarketQuoteLatest, val, &resp)
+	err = c.SendHTTPRequest(http.MethodGet, endpointExchangeMarketQuoteLatest, val, &resp)
 	if err != nil {
 		return resp.Data, err
 	}
@@ -599,7 +600,7 @@ func (c *Coinmarketcap) GetExchangeHistoricalQuotes(exchangeID int64, tStart, tE
 		val.Set("time_end", strconv.FormatInt(tEnd.Unix(), 10))
 	}
 
-	err = c.SendHTTPRequest("GET", endpointExchangeMarketQuoteHistorical, val, &resp)
+	err = c.SendHTTPRequest(http.MethodGet, endpointExchangeMarketQuoteHistorical, val, &resp)
 	if err != nil {
 		return resp.Data, err
 	}
@@ -624,7 +625,7 @@ func (c *Coinmarketcap) GetGlobalMeticLatestQuotes() (GlobalMeticLatestQuotes, e
 		return resp.Data, err
 	}
 
-	err = c.SendHTTPRequest("GET", endpointGlobalQuoteLatest, nil, &resp)
+	err = c.SendHTTPRequest(http.MethodGet, endpointGlobalQuoteLatest, nil, &resp)
 	if err != nil {
 		return resp.Data, err
 	}
@@ -659,7 +660,7 @@ func (c *Coinmarketcap) GetGlobalMeticHistoricalQuotes(tStart, tEnd time.Time) (
 		val.Set("time_end", strconv.FormatInt(tEnd.Unix(), 10))
 	}
 
-	err = c.SendHTTPRequest("GET", endpointGlobalQuoteHistorical, val, &resp)
+	err = c.SendHTTPRequest(http.MethodGet, endpointGlobalQuoteHistorical, val, &resp)
 	if err != nil {
 		return resp.Data, err
 	}
@@ -699,7 +700,7 @@ func (c *Coinmarketcap) GetPriceConversion(amount float64, currencyID int64, atH
 		val.Set("time", strconv.FormatInt(atHistoricTime.Unix(), 10))
 	}
 
-	err = c.SendHTTPRequest("GET", endpointPriceConversion, val, &resp)
+	err = c.SendHTTPRequest(http.MethodGet, endpointPriceConversion, val, &resp)
 	if err != nil {
 		return resp.Data, err
 	}

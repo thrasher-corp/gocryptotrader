@@ -3,6 +3,7 @@ package lakebtc
 import (
 	"errors"
 	"fmt"
+	"net/http"
 	"strconv"
 	"strings"
 	"time"
@@ -335,7 +336,7 @@ func (l *LakeBTC) CreateWithdraw(amount float64, accountID string) (Withdraw, er
 
 // SendHTTPRequest sends an unauthenticated http request
 func (l *LakeBTC) SendHTTPRequest(path string, result interface{}) error {
-	return l.SendPayload("GET", path, nil, nil, result, false, l.Verbose)
+	return l.SendPayload(http.MethodGet, path, nil, nil, result, false, l.Verbose)
 }
 
 // SendAuthenticatedHTTPRequest sends an autheticated HTTP request to a LakeBTC
@@ -372,7 +373,7 @@ func (l *LakeBTC) SendAuthenticatedHTTPRequest(method, params string, result int
 	headers["Authorization"] = "Basic " + common.Base64Encode([]byte(l.APIKey+":"+common.HexEncodeToString(hmac)))
 	headers["Content-Type"] = "application/json-rpc"
 
-	return l.SendPayload("POST", l.APIUrl, headers, strings.NewReader(string(data)), result, true, l.Verbose)
+	return l.SendPayload(http.MethodPost, l.APIUrl, headers, strings.NewReader(string(data)), result, true, l.Verbose)
 }
 
 // GetFee returns an estimate of fee based on type of transaction

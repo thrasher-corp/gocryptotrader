@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"net/http"
 	"net/url"
 	"time"
 
@@ -196,7 +197,7 @@ func (b *BTCMarkets) NewOrder(currency, instrument string, price, amount float64
 
 	resp := Response{}
 
-	err := b.SendAuthenticatedRequest("POST", btcMarketsOrderCreate, order, &resp)
+	err := b.SendAuthenticatedRequest(http.MethodPost, btcMarketsOrderCreate, order, &resp)
 	if err != nil {
 		return 0, err
 	}
@@ -217,7 +218,7 @@ func (b *BTCMarkets) CancelExistingOrder(orderID []int64) ([]ResponseDetails, er
 	orders := CancelOrder{}
 	orders.OrderIDs = append(orders.OrderIDs, orderID...)
 
-	err := b.SendAuthenticatedRequest("POST", btcMarketsOrderCancel, orders, &resp)
+	err := b.SendAuthenticatedRequest(http.MethodPost, btcMarketsOrderCancel, orders, &resp)
 	if err != nil {
 		return resp.Responses, err
 	}
@@ -258,7 +259,7 @@ func (b *BTCMarkets) GetOrders(currency, instrument string, limit, since int64, 
 
 	resp := Response{}
 
-	err := b.SendAuthenticatedRequest("POST", path, request, &resp)
+	err := b.SendAuthenticatedRequest(http.MethodPost, path, request, &resp)
 	if err != nil {
 		return nil, err
 	}
@@ -292,7 +293,7 @@ func (b *BTCMarkets) GetOpenOrders() ([]Order, error) {
 	var resp marketsResp
 	path := fmt.Sprintf("/v2/order/open")
 
-	err := b.SendAuthenticatedRequest("GET", path, request, &resp)
+	err := b.SendAuthenticatedRequest(http.MethodGet, path, request, &resp)
 	if err != nil {
 		return nil, err
 	}
@@ -327,7 +328,7 @@ func (b *BTCMarkets) GetOrderDetail(orderID []int64) ([]Order, error) {
 
 	resp := Response{}
 
-	err := b.SendAuthenticatedRequest("POST", btcMarketsOrderDetail, orders, &resp)
+	err := b.SendAuthenticatedRequest(http.MethodPost, btcMarketsOrderDetail, orders, &resp)
 	if err != nil {
 		return nil, err
 	}
@@ -354,7 +355,7 @@ func (b *BTCMarkets) GetOrderDetail(orderID []int64) ([]Order, error) {
 func (b *BTCMarkets) GetAccountBalance() ([]AccountBalance, error) {
 	balance := []AccountBalance{}
 
-	err := b.SendAuthenticatedRequest("GET", btcMarketsAccountBalance, nil, &balance)
+	err := b.SendAuthenticatedRequest(http.MethodGet, btcMarketsAccountBalance, nil, &balance)
 	if err != nil {
 		return nil, err
 	}
@@ -371,7 +372,7 @@ func (b *BTCMarkets) GetAccountBalance() ([]AccountBalance, error) {
 func (b *BTCMarkets) GetTradingFee(firstPair, secondPair string) (TradingFee, error) {
 	var tradingFee TradingFee
 	path := fmt.Sprintf(btcMarketsTradingFee, firstPair, secondPair)
-	return tradingFee, b.SendAuthenticatedRequest("GET", path, nil, &tradingFee)
+	return tradingFee, b.SendAuthenticatedRequest(http.MethodGet, path, nil, &tradingFee)
 }
 
 // WithdrawCrypto withdraws cryptocurrency into a designated address
@@ -385,7 +386,7 @@ func (b *BTCMarkets) WithdrawCrypto(amount float64, currency, address string) (s
 	}
 
 	resp := Response{}
-	err := b.SendAuthenticatedRequest("POST", btcMarketsWithdrawCrypto, req, &resp)
+	err := b.SendAuthenticatedRequest(http.MethodPost, btcMarketsWithdrawCrypto, req, &resp)
 	if err != nil {
 		return "", err
 	}
@@ -412,7 +413,7 @@ func (b *BTCMarkets) WithdrawAUD(accountName, accountNumber, bankName, bsbNumber
 	}
 
 	resp := Response{}
-	err := b.SendAuthenticatedRequest("POST", btcMarketsWithdrawAud, req, &resp)
+	err := b.SendAuthenticatedRequest(http.MethodPost, btcMarketsWithdrawAud, req, &resp)
 	if err != nil {
 		return "", err
 	}
@@ -426,7 +427,7 @@ func (b *BTCMarkets) WithdrawAUD(accountName, accountNumber, bankName, bsbNumber
 
 // SendHTTPRequest sends an unauthenticated HTTP request
 func (b *BTCMarkets) SendHTTPRequest(path string, result interface{}) error {
-	return b.SendPayload("GET", path, nil, nil, result, false, b.Verbose)
+	return b.SendPayload(http.MethodGet, path, nil, nil, result, false, b.Verbose)
 }
 
 // SendAuthenticatedRequest sends an authenticated HTTP request

@@ -3,6 +3,7 @@ package kraken
 import (
 	"errors"
 	"fmt"
+	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
@@ -905,7 +906,7 @@ func GetError(errors []string) error {
 
 // SendHTTPRequest sends an unauthenticated HTTP requests
 func (k *Kraken) SendHTTPRequest(path string, result interface{}) error {
-	return k.SendPayload("GET", path, nil, nil, result, false, k.Verbose)
+	return k.SendPayload(http.MethodGet, path, nil, nil, result, false, k.Verbose)
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated HTTP request
@@ -940,7 +941,7 @@ func (k *Kraken) SendAuthenticatedHTTPRequest(method string, params url.Values, 
 	headers["API-Key"] = k.APIKey
 	headers["API-Sign"] = signature
 
-	return k.SendPayload("POST", k.APIUrl+path, headers, strings.NewReader(encoded), result, true, k.Verbose)
+	return k.SendPayload(http.MethodPost, k.APIUrl+path, headers, strings.NewReader(encoded), result, true, k.Verbose)
 }
 
 // GetFee returns an estimate of fee based on type of transaction

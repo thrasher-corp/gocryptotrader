@@ -358,7 +358,7 @@ func (h *HUOBI) GetAccounts() ([]Account, error) {
 	}
 
 	var result response
-	err := h.SendAuthenticatedHTTPRequest("GET", huobiAccounts, url.Values{}, nil, &result)
+	err := h.SendAuthenticatedHTTPRequest(http.MethodGet, huobiAccounts, url.Values{}, nil, &result)
 
 	if result.ErrorMessage != "" {
 		return nil, errors.New(result.ErrorMessage)
@@ -379,7 +379,7 @@ func (h *HUOBI) GetAccountBalance(accountID string) ([]AccountBalanceDetail, err
 	v := url.Values{}
 	v.Set("account-id", accountID)
 
-	err := h.SendAuthenticatedHTTPRequest("GET", endpoint, v, nil, &result)
+	err := h.SendAuthenticatedHTTPRequest(http.MethodGet, endpoint, v, nil, &result)
 
 	if result.ErrorMessage != "" {
 		return nil, errors.New(result.ErrorMessage)
@@ -418,7 +418,7 @@ func (h *HUOBI) SpotNewOrder(arg SpotNewOrderRequestParams) (int64, error) {
 	}
 
 	var result response
-	err := h.SendAuthenticatedHTTPRequest("POST", huobiOrderPlace, nil, data, &result)
+	err := h.SendAuthenticatedHTTPRequest(http.MethodPost, huobiOrderPlace, nil, data, &result)
 
 	if result.ErrorMessage != "" {
 		return 0, errors.New(result.ErrorMessage)
@@ -435,7 +435,7 @@ func (h *HUOBI) CancelExistingOrder(orderID int64) (int64, error) {
 
 	var result response
 	endpoint := fmt.Sprintf(huobiOrderCancel, strconv.FormatInt(orderID, 10))
-	err := h.SendAuthenticatedHTTPRequest("POST", endpoint, url.Values{}, nil, &result)
+	err := h.SendAuthenticatedHTTPRequest(http.MethodPost, endpoint, url.Values{}, nil, &result)
 
 	if result.ErrorMessage != "" {
 		return 0, errors.New(result.ErrorMessage)
@@ -451,7 +451,7 @@ func (h *HUOBI) CancelOrderBatch(_ []int64) ([]CancelOrderBatch, error) {
 	}
 
 	var result response
-	err := h.SendAuthenticatedHTTPRequest("POST", huobiOrderCancelBatch, url.Values{}, nil, &result)
+	err := h.SendAuthenticatedHTTPRequest(http.MethodPost, huobiOrderCancelBatch, url.Values{}, nil, &result)
 
 	if result.ErrorMessage != "" {
 		return nil, errors.New(result.ErrorMessage)
@@ -474,7 +474,7 @@ func (h *HUOBI) CancelOpenOrdersBatch(accountID, symbol string) (CancelOpenOrder
 		Symbol:    symbol,
 	}
 
-	err := h.SendAuthenticatedHTTPRequest("POST", huobiBatchCancelOpenOrders, url.Values{}, data, &result)
+	err := h.SendAuthenticatedHTTPRequest(http.MethodPost, huobiBatchCancelOpenOrders, url.Values{}, data, &result)
 	if result.Data.FailedCount > 0 {
 		return result, fmt.Errorf("There were %v failed order cancellations", result.Data.FailedCount)
 	}
@@ -491,7 +491,7 @@ func (h *HUOBI) GetOrder(orderID int64) (OrderInfo, error) {
 
 	var result response
 	endpoint := fmt.Sprintf(huobiGetOrder, strconv.FormatInt(orderID, 10))
-	err := h.SendAuthenticatedHTTPRequest("GET", endpoint, url.Values{}, nil, &result)
+	err := h.SendAuthenticatedHTTPRequest(http.MethodGet, endpoint, url.Values{}, nil, &result)
 
 	if result.ErrorMessage != "" {
 		return result.Order, errors.New(result.ErrorMessage)
@@ -508,7 +508,7 @@ func (h *HUOBI) GetOrderMatchResults(orderID int64) ([]OrderMatchInfo, error) {
 
 	var result response
 	endpoint := fmt.Sprintf(huobiGetOrderMatch, strconv.FormatInt(orderID, 10))
-	err := h.SendAuthenticatedHTTPRequest("GET", endpoint, url.Values{}, nil, &result)
+	err := h.SendAuthenticatedHTTPRequest(http.MethodGet, endpoint, url.Values{}, nil, &result)
 
 	if result.ErrorMessage != "" {
 		return nil, errors.New(result.ErrorMessage)
@@ -552,7 +552,7 @@ func (h *HUOBI) GetOrders(symbol, types, start, end, states, from, direct, size 
 	}
 
 	var result response
-	err := h.SendAuthenticatedHTTPRequest("GET", huobiGetOrders, vals, nil, &result)
+	err := h.SendAuthenticatedHTTPRequest(http.MethodGet, huobiGetOrders, vals, nil, &result)
 
 	if result.ErrorMessage != "" {
 		return nil, errors.New(result.ErrorMessage)
@@ -576,7 +576,7 @@ func (h *HUOBI) GetOpenOrders(accountID, symbol, side string, size int) ([]Order
 	vals.Set("size", fmt.Sprintf("%v", size))
 
 	var result response
-	err := h.SendAuthenticatedHTTPRequest("GET", huobiGetOpenOrders, vals, nil, &result)
+	err := h.SendAuthenticatedHTTPRequest(http.MethodGet, huobiGetOpenOrders, vals, nil, &result)
 
 	if result.ErrorMessage != "" {
 		return nil, errors.New(result.ErrorMessage)
@@ -620,7 +620,7 @@ func (h *HUOBI) GetOrdersMatch(symbol, types, start, end, from, direct, size str
 	}
 
 	var result response
-	err := h.SendAuthenticatedHTTPRequest("GET", huobiGetOrdersMatch, vals, nil, &result)
+	err := h.SendAuthenticatedHTTPRequest(http.MethodGet, huobiGetOrdersMatch, vals, nil, &result)
 
 	if result.ErrorMessage != "" {
 		return nil, errors.New(result.ErrorMessage)
@@ -651,7 +651,7 @@ func (h *HUOBI) MarginTransfer(symbol, currency string, amount float64, in bool)
 	}
 
 	var result response
-	err := h.SendAuthenticatedHTTPRequest("POST", path, nil, data, &result)
+	err := h.SendAuthenticatedHTTPRequest(http.MethodPost, path, nil, data, &result)
 
 	if result.ErrorMessage != "" {
 		return 0, errors.New(result.ErrorMessage)
@@ -677,7 +677,7 @@ func (h *HUOBI) MarginOrder(symbol, currency string, amount float64) (int64, err
 	}
 
 	var result response
-	err := h.SendAuthenticatedHTTPRequest("POST", huobiMarginOrders, nil, data, &result)
+	err := h.SendAuthenticatedHTTPRequest(http.MethodPost, huobiMarginOrders, nil, data, &result)
 
 	if result.ErrorMessage != "" {
 		return 0, errors.New(result.ErrorMessage)
@@ -700,7 +700,7 @@ func (h *HUOBI) MarginRepayment(orderID int64, amount float64) (int64, error) {
 
 	var result response
 	endpoint := fmt.Sprintf(huobiMarginRepay, strconv.FormatInt(orderID, 10))
-	err := h.SendAuthenticatedHTTPRequest("POST", endpoint, nil, data, &result)
+	err := h.SendAuthenticatedHTTPRequest(http.MethodPost, endpoint, nil, data, &result)
 
 	if result.ErrorMessage != "" {
 		return 0, errors.New(result.ErrorMessage)
@@ -744,7 +744,7 @@ func (h *HUOBI) GetMarginLoanOrders(symbol, currency, start, end, states, from, 
 	}
 
 	var result response
-	err := h.SendAuthenticatedHTTPRequest("GET", huobiMarginLoanOrders, vals, nil, &result)
+	err := h.SendAuthenticatedHTTPRequest(http.MethodGet, huobiMarginLoanOrders, vals, nil, &result)
 
 	if result.ErrorMessage != "" {
 		return nil, errors.New(result.ErrorMessage)
@@ -765,7 +765,7 @@ func (h *HUOBI) GetMarginAccountBalance(symbol string) ([]MarginAccountBalance, 
 	}
 
 	var result response
-	err := h.SendAuthenticatedHTTPRequest("GET", huobiMarginAccountBalance, vals, nil, &result)
+	err := h.SendAuthenticatedHTTPRequest(http.MethodGet, huobiMarginAccountBalance, vals, nil, &result)
 
 	if result.ErrorMessage != "" {
 		return nil, errors.New(result.ErrorMessage)
@@ -801,7 +801,7 @@ func (h *HUOBI) Withdraw(address, currency, addrTag string, amount, fee float64)
 	}
 
 	var result response
-	err := h.SendAuthenticatedHTTPRequest("POST", huobiWithdrawCreate, nil, data, &result)
+	err := h.SendAuthenticatedHTTPRequest(http.MethodPost, huobiWithdrawCreate, nil, data, &result)
 
 	if result.ErrorMessage != "" {
 		return 0, errors.New(result.ErrorMessage)
@@ -821,7 +821,7 @@ func (h *HUOBI) CancelWithdraw(withdrawID int64) (int64, error) {
 
 	var result response
 	endpoint := fmt.Sprintf(huobiWithdrawCancel, strconv.FormatInt(withdrawID, 10))
-	err := h.SendAuthenticatedHTTPRequest("POST", endpoint, vals, nil, &result)
+	err := h.SendAuthenticatedHTTPRequest(http.MethodPost, endpoint, vals, nil, &result)
 
 	if result.ErrorMessage != "" {
 		return 0, errors.New(result.ErrorMessage)
@@ -831,7 +831,7 @@ func (h *HUOBI) CancelWithdraw(withdrawID int64) (int64, error) {
 
 // SendHTTPRequest sends an unauthenticated HTTP request
 func (h *HUOBI) SendHTTPRequest(path string, result interface{}) error {
-	return h.SendPayload("GET", path, nil, nil, result, false, h.Verbose)
+	return h.SendPayload(http.MethodGet, path, nil, nil, result, false, h.Verbose)
 }
 
 // SendAuthenticatedHTTPRequest sends authenticated requests to the HUOBI API

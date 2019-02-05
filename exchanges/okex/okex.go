@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
 	"net/url"
 	"reflect"
 	"strconv"
@@ -923,7 +924,7 @@ func (o *OKEX) GetErrorCode(code interface{}) error {
 
 // SendHTTPRequest sends an unauthenticated HTTP request
 func (o *OKEX) SendHTTPRequest(path string, result interface{}) error {
-	return o.SendPayload("GET", path, nil, nil, result, false, o.Verbose)
+	return o.SendPayload(http.MethodGet, path, nil, nil, result, false, o.Verbose)
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated http request to a desired
@@ -954,7 +955,7 @@ func (o *OKEX) SendAuthenticatedHTTPRequest(method string, values url.Values, re
 		Error  int64 `json:"error_code"`
 	}{}
 
-	err = o.SendPayload("POST", path, headers, strings.NewReader(encoded), &intermediary, true, o.Verbose)
+	err = o.SendPayload(http.MethodPost, path, headers, strings.NewReader(encoded), &intermediary, true, o.Verbose)
 	if err != nil {
 		return err
 	}

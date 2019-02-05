@@ -3,6 +3,7 @@ package bittrex
 import (
 	"errors"
 	"fmt"
+	"net/http"
 	"net/url"
 	"strconv"
 	"time"
@@ -491,7 +492,7 @@ func (b *Bittrex) GetDepositHistory(currency string) (WithdrawalHistory, error) 
 
 // SendHTTPRequest sends an unauthenticated HTTP request
 func (b *Bittrex) SendHTTPRequest(path string, result interface{}) error {
-	return b.SendPayload("GET", path, nil, nil, result, false, b.Verbose)
+	return b.SendPayload(http.MethodGet, path, nil, nil, result, false, b.Verbose)
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated http request to a desired
@@ -515,7 +516,7 @@ func (b *Bittrex) SendAuthenticatedHTTPRequest(path string, values url.Values, r
 	headers := make(map[string]string)
 	headers["apisign"] = common.HexEncodeToString(hmac)
 
-	return b.SendPayload("GET", rawQuery, headers, nil, result, true, b.Verbose)
+	return b.SendPayload(http.MethodGet, rawQuery, headers, nil, result, true, b.Verbose)
 }
 
 // GetFee returns an estimate of fee based on type of transaction

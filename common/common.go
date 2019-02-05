@@ -356,7 +356,7 @@ func CalculateNetProfit(amount, priceThen, priceNow, costs float64) float64 {
 func SendHTTPRequest(method, path string, headers map[string]string, body io.Reader) (string, error) {
 	result := strings.ToUpper(method)
 
-	if result != "POST" && result != "GET" && result != "DELETE" {
+	if result != http.MethodPost && result != http.MethodGet && result != http.MethodDelete {
 		return "", errors.New("invalid HTTP method specified")
 	}
 

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
 	"net/url"
 	"reflect"
 	"strconv"
@@ -542,7 +543,7 @@ func (b *Bithumb) MarketSellOrder(currency string, units float64) (MarketSell, e
 
 // SendHTTPRequest sends an unauthenticated HTTP request
 func (b *Bithumb) SendHTTPRequest(path string, result interface{}) error {
-	return b.SendPayload("GET", path, nil, nil, result, false, b.Verbose)
+	return b.SendPayload(http.MethodGet, path, nil, nil, result, false, b.Verbose)
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated HTTP request to bithumb
@@ -582,7 +583,7 @@ func (b *Bithumb) SendAuthenticatedHTTPRequest(path string, params url.Values, r
 		Message string `json:"message"`
 	}{}
 
-	err := b.SendPayload("POST",
+	err := b.SendPayload(http.MethodPost,
 		b.APIUrl+path,
 		headers,
 		bytes.NewBufferString(payload),

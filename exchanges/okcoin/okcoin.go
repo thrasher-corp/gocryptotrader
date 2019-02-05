@@ -3,6 +3,7 @@ package okcoin
 import (
 	"errors"
 	"fmt"
+	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
@@ -924,7 +925,7 @@ func (o *OKCoin) GetFuturesUserPosition4Fix(symbol, contractType string) {
 
 // SendHTTPRequest sends an unauthenticated HTTP request
 func (o *OKCoin) SendHTTPRequest(path string, result interface{}) error {
-	return o.SendPayload("GET", path, nil, nil, result, false, o.Verbose)
+	return o.SendPayload(http.MethodGet, path, nil, nil, result, false, o.Verbose)
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated HTTP request
@@ -947,7 +948,7 @@ func (o *OKCoin) SendAuthenticatedHTTPRequest(method string, v url.Values, resul
 	headers := make(map[string]string)
 	headers["Content-Type"] = "application/x-www-form-urlencoded"
 
-	return o.SendPayload("POST", path, headers, strings.NewReader(encoded), result, true, o.Verbose)
+	return o.SendPayload(http.MethodPost, path, headers, strings.NewReader(encoded), result, true, o.Verbose)
 }
 
 // SetErrorDefaults sets default error map

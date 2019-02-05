@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
 	"net/url"
 	"strconv"
 	"time"
@@ -145,7 +146,7 @@ func (i *ItBit) GetWallets(params url.Values) ([]Wallet, error) {
 	params.Set("userId", i.ClientID)
 	path := fmt.Sprintf("/%s?%s", itbitWallets, params.Encode())
 
-	return resp, i.SendAuthenticatedHTTPRequest("GET", path, nil, &resp)
+	return resp, i.SendAuthenticatedHTTPRequest(http.MethodGet, path, nil, &resp)
 }
 
 // CreateWallet creates a new wallet with a specified name.
@@ -155,7 +156,7 @@ func (i *ItBit) CreateWallet(walletName string) (Wallet, error) {
 	params["userId"] = i.ClientID
 	params["name"] = walletName
 
-	err := i.SendAuthenticatedHTTPRequest("POST", "/"+itbitWallets, params, &resp)
+	err := i.SendAuthenticatedHTTPRequest(http.MethodPost, "/"+itbitWallets, params, &resp)
 	if err != nil {
 		return resp, err
 	}
@@ -170,7 +171,7 @@ func (i *ItBit) GetWallet(walletID string) (Wallet, error) {
 	resp := Wallet{}
 	path := fmt.Sprintf("/%s/%s", itbitWallets, walletID)
 
-	err := i.SendAuthenticatedHTTPRequest("GET", path, nil, &resp)
+	err := i.SendAuthenticatedHTTPRequest(http.MethodGet, path, nil, &resp)
 	if err != nil {
 		return resp, err
 	}
@@ -186,7 +187,7 @@ func (i *ItBit) GetWalletBalance(walletID, currency string) (Balance, error) {
 	resp := Balance{}
 	path := fmt.Sprintf("/%s/%s/%s/%s", itbitWallets, walletID, itbitBalances, currency)
 
-	err := i.SendAuthenticatedHTTPRequest("GET", path, nil, &resp)
+	err := i.SendAuthenticatedHTTPRequest(http.MethodGet, path, nil, &resp)
 	if err != nil {
 		return resp, err
 	}
@@ -216,7 +217,7 @@ func (i *ItBit) GetOrders(walletID, symbol, status string, page, perPage int64) 
 		params["perPage"] = strconv.FormatInt(perPage, 10)
 	}
 
-	return resp, i.SendAuthenticatedHTTPRequest("GET", itbitOrders, params, &resp)
+	return resp, i.SendAuthenticatedHTTPRequest(http.MethodGet, itbitOrders, params, &resp)
 }
 
 // GetWalletTrades returns all trades for a specified wallet.
@@ -225,7 +226,7 @@ func (i *ItBit) GetWalletTrades(walletID string, params url.Values) (Records, er
 	url := fmt.Sprintf("/%s/%s/%s", itbitWallets, walletID, itbitTrades)
 	path := common.EncodeURLValues(url, params)
 
-	err := i.SendAuthenticatedHTTPRequest("GET", path, nil, &resp)
+	err := i.SendAuthenticatedHTTPRequest(http.MethodGet, path, nil, &resp)
 	if err != nil {
 		return resp, err
 	}
@@ -241,7 +242,7 @@ func (i *ItBit) GetFundingHistoryForWallet(walletID string, params url.Values) (
 	url := fmt.Sprintf("/%s/%s/%s", itbitWallets, walletID, itbitFundingHistory)
 	path := common.EncodeURLValues(url, params)
 
-	err := i.SendAuthenticatedHTTPRequest("GET", path, nil, &resp)
+	err := i.SendAuthenticatedHTTPRequest(http.MethodGet, path, nil, &resp)
 	if err != nil {
 		return resp, err
 	}
@@ -268,7 +269,7 @@ func (i *ItBit) PlaceOrder(walletID, side, orderType, currency string, amount, p
 		params["clientOrderIdentifier"] = clientRef
 	}
 
-	err := i.SendAuthenticatedHTTPRequest("POST", path, params, &resp)
+	err := i.SendAuthenticatedHTTPRequest(http.MethodPost, path, params, &resp)
 	if err != nil {
 		return resp, err
 	}
@@ -284,7 +285,7 @@ func (i *ItBit) GetOrder(walletID string, params url.Values) (Order, error) {
 	url := fmt.Sprintf("/%s/%s/%s", itbitWallets, walletID, itbitOrders)
 	path := common.EncodeURLValues(url, params)
 
-	err := i.SendAuthenticatedHTTPRequest("GET", path, nil, &resp)
+	err := i.SendAuthenticatedHTTPRequest(http.MethodGet, path, nil, &resp)
 	if err != nil {
 		return resp, err
 	}
@@ -299,7 +300,7 @@ func (i *ItBit) GetOrder(walletID string, params url.Values) (Order, error) {
 func (i *ItBit) CancelExistingOrder(walletID, orderID string) error {
 	path := fmt.Sprintf("/%s/%s/%s/%s", itbitWallets, walletID, itbitOrders, orderID)
 
-	return i.SendAuthenticatedHTTPRequest("DELETE", path, nil, nil)
+	return i.SendAuthenticatedHTTPRequest(http.MethodDelete, path, nil, nil)
 }
 
 // GetCryptoDepositAddress returns a deposit address to send cryptocurrency to.
@@ -309,7 +310,7 @@ func (i *ItBit) GetCryptoDepositAddress(walletID, currency string) (CryptoCurren
 	params := make(map[string]interface{})
 	params["currency"] = currency
 
-	err := i.SendAuthenticatedHTTPRequest("POST", path, params, &resp)
+	err := i.SendAuthenticatedHTTPRequest(http.MethodPost, path, params, &resp)
 	if err != nil {
 		return resp, err
 	}
@@ -330,7 +331,7 @@ func (i *ItBit) WalletTransfer(walletID, sourceWallet, destWallet string, amount
 	params["amount"] = strconv.FormatFloat(amount, 'f', -1, 64)
 	params["currencyCode"] = currency
 
-	err := i.SendAuthenticatedHTTPRequest("POST", path, params, &resp)
+	err := i.SendAuthenticatedHTTPRequest(http.MethodPost, path, params, &resp)
 	if err != nil {
 		return resp, err
 	}
@@ -342,7 +343,7 @@ func (i *ItBit) WalletTransfer(walletID, sourceWallet, destWallet string, amount
 
 // SendHTTPRequest sends an unauthenticated HTTP request
 func (i *ItBit) SendHTTPRequest(path string, result interface{}) error {
-	return i.SendPayload("GET", path, nil, nil, result, false, i.Verbose)
+	return i.SendPayload(http.MethodGet, path, nil, nil, result, false, i.Verbose)
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated request to itBit

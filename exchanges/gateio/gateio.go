@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
 	"strconv"
 	"strings"
 	"time"
@@ -342,7 +343,7 @@ func (g *Gateio) GetBalances() (BalancesResponse, error) {
 	var result BalancesResponse
 
 	return result,
-		g.SendAuthenticatedHTTPRequest("POST", gateioBalances, "", &result)
+		g.SendAuthenticatedHTTPRequest(http.MethodPost, gateioBalances, "", &result)
 }
 
 // SpotNewOrder places a new order
@@ -357,7 +358,7 @@ func (g *Gateio) SpotNewOrder(arg SpotNewOrderRequestParams) (SpotNewOrderRespon
 	)
 
 	strRequestURL := fmt.Sprintf("%s/%s", gateioOrder, arg.Type)
-	return result, g.SendAuthenticatedHTTPRequest("POST", strRequestURL, params, &result)
+	return result, g.SendAuthenticatedHTTPRequest(http.MethodPost, strRequestURL, params, &result)
 }
 
 // CancelExistingOrder cancels an order given the supplied orderID and symbol
@@ -376,7 +377,7 @@ func (g *Gateio) CancelExistingOrder(orderID int64, symbol string) (bool, error)
 		orderID,
 		symbol,
 	)
-	err := g.SendAuthenticatedHTTPRequest("POST", gateioCancelOrder, params, &result)
+	err := g.SendAuthenticatedHTTPRequest(http.MethodPost, gateioCancelOrder, params, &result)
 	if err != nil {
 		return false, err
 	}
@@ -389,7 +390,7 @@ func (g *Gateio) CancelExistingOrder(orderID int64, symbol string) (bool, error)
 
 // SendHTTPRequest sends an unauthenticated HTTP request
 func (g *Gateio) SendHTTPRequest(path string, result interface{}) error {
-	return g.SendPayload("GET", path, nil, nil, result, false, g.Verbose)
+	return g.SendPayload(http.MethodGet, path, nil, nil, result, false, g.Verbose)
 }
 
 // CancelAllExistingOrders all orders for a given symbol and side
@@ -406,7 +407,7 @@ func (g *Gateio) CancelAllExistingOrders(orderType int64, symbol string) error {
 		orderType,
 		symbol,
 	)
-	err := g.SendAuthenticatedHTTPRequest("POST", gateioCancelAllOrders, params, &result)
+	err := g.SendAuthenticatedHTTPRequest(http.MethodPost, gateioCancelAllOrders, params, &result)
 	if err != nil {
 		return err
 	}
@@ -427,7 +428,7 @@ func (g *Gateio) GetOpenOrders(symbol string) (OpenOrdersResponse, error) {
 		params = fmt.Sprintf("currencyPair=%s", symbol)
 	}
 
-	err := g.SendAuthenticatedHTTPRequest("POST", gateioOpenOrders, params, &result)
+	err := g.SendAuthenticatedHTTPRequest(http.MethodPost, gateioOpenOrders, params, &result)
 	if err != nil {
 		return result, err
 	}
@@ -445,7 +446,7 @@ func (g *Gateio) GetTradeHistory(symbol string) (TradHistoryResponse, error) {
 	var result TradHistoryResponse
 	params = fmt.Sprintf("currencyPair=%s", symbol)
 
-	err := g.SendAuthenticatedHTTPRequest("POST", gateioTradeHistory, params, &result)
+	err := g.SendAuthenticatedHTTPRequest(http.MethodPost, gateioTradeHistory, params, &result)
 	if err != nil {
 		return result, err
 	}
@@ -549,7 +550,7 @@ func (g *Gateio) WithdrawCrypto(currency, address string, amount float64) (strin
 		address,
 		amount,
 	)
-	err := g.SendAuthenticatedHTTPRequest("POST", gateioWithdraw, params, &result)
+	err := g.SendAuthenticatedHTTPRequest(http.MethodPost, gateioWithdraw, params, &result)
 	if err != nil {
 		return "", err
 	}
@@ -573,7 +574,7 @@ func (g *Gateio) GetCryptoDepositAddress(currency string) (string, error) {
 	params := fmt.Sprintf("currency=%s",
 		currency)
 
-	err := g.SendAuthenticatedHTTPRequest("POST", gateioDepositAddress, params, &result)
+	err := g.SendAuthenticatedHTTPRequest(http.MethodPost, gateioDepositAddress, params, &result)
 	if err != nil {
 		return "", err
 	}

@@ -1,6 +1,8 @@
 package symbol
 
-import "errors"
+import (
+	"errors"
+)
 
 // Const declarations for individual currencies/tokens/fiat
 // An ever growing list. Cares not for equivalence, just is

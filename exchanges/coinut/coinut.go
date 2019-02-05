@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -368,7 +369,7 @@ func (c *COINUT) SendHTTPRequest(apiRequest string, params map[string]interface{
 	headers["Content-Type"] = "application/json"
 
 	var rawMsg json.RawMessage
-	err = c.SendPayload("POST", c.APIUrl, headers, bytes.NewBuffer(payload), &rawMsg, authenticated, c.Verbose)
+	err = c.SendPayload(http.MethodPost, c.APIUrl, headers, bytes.NewBuffer(payload), &rawMsg, authenticated, c.Verbose)
 	if err != nil {
 		return err
 	}

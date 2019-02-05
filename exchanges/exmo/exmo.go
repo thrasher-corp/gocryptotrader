@@ -3,6 +3,7 @@ package exmo
 import (
 	"errors"
 	"fmt"
+	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
@@ -162,7 +163,7 @@ func (e *EXMO) GetCurrency() ([]string, error) {
 // GetUserInfo returns the user info
 func (e *EXMO) GetUserInfo() (UserInfo, error) {
 	var result UserInfo
-	err := e.SendAuthenticatedHTTPRequest("POST", exmoUserInfo, url.Values{}, &result)
+	err := e.SendAuthenticatedHTTPRequest(http.MethodPost, exmoUserInfo, url.Values{}, &result)
 	return result, err
 }
 
@@ -183,7 +184,7 @@ func (e *EXMO) CreateOrder(pair, orderType string, price, amount float64) (int64
 	v.Set("quantity", strconv.FormatFloat(amount, 'f', -1, 64))
 
 	var resp response
-	err := e.SendAuthenticatedHTTPRequest("POST", exmoOrderCreate, v, &resp)
+	err := e.SendAuthenticatedHTTPRequest(http.MethodPost, exmoOrderCreate, v, &resp)
 	if !resp.Result {
 		return -1, errors.New(resp.Error)
 	}
@@ -199,7 +200,7 @@ func (e *EXMO) CancelExistingOrder(orderID int64) error {
 		Error  string `json:"error"`
 	}
 	var resp response
-	err := e.SendAuthenticatedHTTPRequest("POST", exmoOrderCancel, v, &resp)
+	err := e.SendAuthenticatedHTTPRequest(http.MethodPost, exmoOrderCancel, v, &resp)
 	if !resp.Result {
 		return errors.New(resp.Error)
 	}
@@ -209,7 +210,7 @@ func (e *EXMO) CancelExistingOrder(orderID int64) error {
 // GetOpenOrders returns the users open orders
 func (e *EXMO) GetOpenOrders() (map[string]OpenOrders, error) {
 	result := make(map[string]OpenOrders)
-	err := e.SendAuthenticatedHTTPRequest("POST", exmoOpenOrders, url.Values{}, &result)
+	err := e.SendAuthenticatedHTTPRequest(http.MethodPost, exmoOpenOrders, url.Values{}, &result)
 	return result, err
 }
 
@@ -227,7 +228,7 @@ func (e *EXMO) GetUserTrades(pair, offset, limit string) (map[string][]UserTrade
 		v.Set("limit", limit)
 	}
 
-	err := e.SendAuthenticatedHTTPRequest("POST", exmoUserTrades, v, &result)
+	err := e.SendAuthenticatedHTTPRequest(http.MethodPost, exmoUserTrades, v, &result)
 	return result, err
 }
 
@@ -244,7 +245,7 @@ func (e *EXMO) GetCancelledOrders(offset, limit string) ([]CancelledOrder, error
 		v.Set("limit", limit)
 	}
 
-	err := e.SendAuthenticatedHTTPRequest("POST", exmoCancelledOrders, v, &result)
+	err := e.SendAuthenticatedHTTPRequest(http.MethodPost, exmoCancelledOrders, v, &result)
 	return result, err
 }
 
@@ -254,7 +255,7 @@ func (e *EXMO) GetOrderTrades(orderID int64) (OrderTrades, error) {
 	v := url.Values{}
 	v.Set("order_id", strconv.FormatInt(orderID, 10))
 
-	err := e.SendAuthenticatedHTTPRequest("POST", exmoOrderTrades, v, &result)
+	err := e.SendAuthenticatedHTTPRequest(http.MethodPost, exmoOrderTrades, v, &result)
 	return result, err
 }
 
@@ -265,14 +266,14 @@ func (e *EXMO) GetRequiredAmount(pair string, amount float64) (RequiredAmount, e
 	v.Set("pair", pair)
 	v.Set("quantity", strconv.FormatFloat(amount, 'f', -1, 64))
 	var result RequiredAmount
-	err := e.SendAuthenticatedHTTPRequest("POST", exmoRequiredAmount, v, &result)
+	err := e.SendAuthenticatedHTTPRequest(http.MethodPost, exmoRequiredAmount, v, &result)
 	return result, err
 }
 
 // GetCryptoDepositAddress returns a list of addresses for cryptocurrency deposits
 func (e *EXMO) GetCryptoDepositAddress() (map[string]string, error) {
 	var result interface{}
-	err := e.SendAuthenticatedHTTPRequest("POST", exmoDepositAddress, url.Values{}, &result)
+	err := e.SendAuthenticatedHTTPRequest(http.MethodPost, exmoDepositAddress, url.Values{}, &result)
 	if err != nil {
 		return nil, err
 	}
@@ -313,7 +314,7 @@ func (e *EXMO) WithdrawCryptocurrency(currency, address, invoice string, amount 
 
 	v.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
 	var resp response
-	err := e.SendAuthenticatedHTTPRequest("POST", exmoWithdrawCrypt, v, &resp)
+	err := e.SendAuthenticatedHTTPRequest(http.MethodPost, exmoWithdrawCrypt, v, &resp)
 	if err != nil {
 		return -1, err
 	}
@@ -334,7 +335,7 @@ func (e *EXMO) GetWithdrawTXID(taskID int64) (string, error) {
 	v.Set("task_id", strconv.FormatInt(taskID, 10))
 
 	var result response
-	err := e.SendAuthenticatedHTTPRequest("POST", exmoGetWithdrawTXID, v, &result)
+	err := e.SendAuthenticatedHTTPRequest(http.MethodPost, exmoGetWithdrawTXID, v, &result)
 	return result.TXID, err
 }
 
@@ -345,7 +346,7 @@ func (e *EXMO) ExcodeCreate(currency string, amount float64) (ExcodeCreate, erro
 	v.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
 
 	var result ExcodeCreate
-	err := e.SendAuthenticatedHTTPRequest("POST", exmoExcodeCreate, v, &result)
+	err := e.SendAuthenticatedHTTPRequest(http.MethodPost, exmoExcodeCreate, v, &result)
 	return result, err
 }
 
@@ -355,7 +356,7 @@ func (e *EXMO) ExcodeLoad(excode string) (ExcodeLoad, error) {
 	v.Set("code", excode)
 
 	var result ExcodeLoad
-	err := e.SendAuthenticatedHTTPRequest("POST", exmoExcodeLoad, v, &result)
+	err := e.SendAuthenticatedHTTPRequest(http.MethodPost, exmoExcodeLoad, v, &result)
 	return result, err
 }
 
@@ -365,13 +366,13 @@ func (e *EXMO) GetWalletHistory(date int64) (WalletHistory, error) {
 	v.Set("date", strconv.FormatInt(date, 10))
 
 	var result WalletHistory
-	err := e.SendAuthenticatedHTTPRequest("POST", exmoWalletHistory, v, &result)
+	err := e.SendAuthenticatedHTTPRequest(http.MethodPost, exmoWalletHistory, v, &result)
 	return result, err
 }
 
 // SendHTTPRequest sends an unauthenticated HTTP request
 func (e *EXMO) SendHTTPRequest(path string, result interface{}) error {
-	return e.SendPayload("GET", path, nil, nil, result, false, e.Verbose)
+	return e.SendPayload(http.MethodGet, path, nil, nil, result, false, e.Verbose)
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated HTTP request

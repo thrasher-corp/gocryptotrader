@@ -3,6 +3,7 @@ package gemini
 import (
 	"errors"
 	"fmt"
+	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
@@ -307,7 +308,7 @@ func (g *Gemini) NewOrder(symbol string, amount, price float64, side, orderType 
 	request["type"] = orderType
 
 	response := Order{}
-	err := g.SendAuthenticatedHTTPRequest("POST", geminiOrderNew, request, &response)
+	err := g.SendAuthenticatedHTTPRequest(http.MethodPost, geminiOrderNew, request, &response)
 	if err != nil {
 		return 0, err
 	}
@@ -321,7 +322,7 @@ func (g *Gemini) CancelExistingOrder(OrderID int64) (Order, error) {
 	request["order_id"] = OrderID
 
 	response := Order{}
-	err := g.SendAuthenticatedHTTPRequest("POST", geminiOrderCancel, request, &response)
+	err := g.SendAuthenticatedHTTPRequest(http.MethodPost, geminiOrderCancel, request, &response)
 	if err != nil {
 		return Order{}, err
 	}
@@ -343,7 +344,7 @@ func (g *Gemini) CancelExistingOrders(CancelBySession bool) (OrderResult, error)
 		path = geminiOrderCancelSession
 	}
 
-	err := g.SendAuthenticatedHTTPRequest("POST", path, nil, &response)
+	err := g.SendAuthenticatedHTTPRequest(http.MethodPost, path, nil, &response)
 	if err != nil {
 		return response, err
 	}
@@ -360,7 +361,7 @@ func (g *Gemini) GetOrderStatus(orderID int64) (Order, error) {
 
 	response := Order{}
 
-	err := g.SendAuthenticatedHTTPRequest("POST", geminiOrderStatus, request, &response)
+	err := g.SendAuthenticatedHTTPRequest(http.MethodPost, geminiOrderStatus, request, &response)
 	if err != nil {
 		return response, err
 	}
@@ -379,7 +380,7 @@ func (g *Gemini) GetOrders() ([]Order, error) {
 		orders []Order
 	}
 
-	err := g.SendAuthenticatedHTTPRequest("POST", geminiOrders, nil, &response)
+	err := g.SendAuthenticatedHTTPRequest(http.MethodPost, geminiOrders, nil, &response)
 	if err != nil {
 		return nil, err
 	}
@@ -405,7 +406,7 @@ func (g *Gemini) GetTradeHistory(currencyPair string, timestamp int64) ([]TradeH
 	}
 
 	return response,
-		g.SendAuthenticatedHTTPRequest("POST", geminiMyTrades, request, &response)
+		g.SendAuthenticatedHTTPRequest(http.MethodPost, geminiMyTrades, request, &response)
 }
 
 // GetNotionalVolume returns  the volume in price currency that has been traded across all pairs over a period of 30 days
@@ -413,7 +414,7 @@ func (g *Gemini) GetNotionalVolume() (NotionalVolume, error) {
 	response := NotionalVolume{}
 
 	return response,
-		g.SendAuthenticatedHTTPRequest("POST", geminiVolume, nil, &response)
+		g.SendAuthenticatedHTTPRequest(http.MethodPost, geminiVolume, nil, &response)
 }
 
 // GetTradeVolume returns a multi-arrayed volume response
@@ -421,7 +422,7 @@ func (g *Gemini) GetTradeVolume() ([][]TradeVolume, error) {
 	response := [][]TradeVolume{}
 
 	return response,
-		g.SendAuthenticatedHTTPRequest("POST", geminiTradeVolume, nil, &response)
+		g.SendAuthenticatedHTTPRequest(http.MethodPost, geminiTradeVolume, nil, &response)
 }
 
 // GetBalances returns available balances in the supported currencies
@@ -429,7 +430,7 @@ func (g *Gemini) GetBalances() ([]Balance, error) {
 	response := []Balance{}
 
 	return response,
-		g.SendAuthenticatedHTTPRequest("POST", geminiBalances, nil, &response)
+		g.SendAuthenticatedHTTPRequest(http.MethodPost, geminiBalances, nil, &response)
 }
 
 // GetCryptoDepositAddress returns a deposit address
@@ -441,7 +442,7 @@ func (g *Gemini) GetCryptoDepositAddress(depositAddlabel, currency string) (Depo
 		request["label"] = depositAddlabel
 	}
 
-	err := g.SendAuthenticatedHTTPRequest("POST", geminiDeposit+"/"+currency+"/"+geminiNewAddress, request, &response)
+	err := g.SendAuthenticatedHTTPRequest(http.MethodPost, geminiDeposit+"/"+currency+"/"+geminiNewAddress, request, &response)
 	if err != nil {
 		return response, err
 	}
@@ -458,7 +459,7 @@ func (g *Gemini) WithdrawCrypto(address, currency string, amount float64) (Withd
 	request["address"] = address
 	request["amount"] = strconv.FormatFloat(amount, 'f', -1, 64)
 
-	err := g.SendAuthenticatedHTTPRequest("POST", geminiWithdraw+common.StringToLower(currency), request, &response)
+	err := g.SendAuthenticatedHTTPRequest(http.MethodPost, geminiWithdraw+common.StringToLower(currency), request, &response)
 	if err != nil {
 		return response, err
 	}
@@ -477,7 +478,7 @@ func (g *Gemini) PostHeartbeat() (string, error) {
 	}
 	response := Response{}
 
-	err := g.SendAuthenticatedHTTPRequest("POST", geminiHeartbeat, nil, &response)
+	err := g.SendAuthenticatedHTTPRequest(http.MethodPost, geminiHeartbeat, nil, &response)
 	if err != nil {
 		return response.Result, err
 	}
@@ -489,7 +490,7 @@ func (g *Gemini) PostHeartbeat() (string, error) {
 
 // SendHTTPRequest sends an unauthenticated request
 func (g *Gemini) SendHTTPRequest(path string, result interface{}) error {
-	return g.SendPayload("GET", path, nil, nil, result, false, g.Verbose)
+	return g.SendPayload(http.MethodGet, path, nil, nil, result, false, g.Verbose)
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated HTTP request to the

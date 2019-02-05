@@ -3,6 +3,7 @@ package yobit
 import (
 	"errors"
 	"fmt"
+	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
@@ -329,7 +330,7 @@ func (y *Yobit) RedeemCoupon(coupon string) (RedeemCoupon, error) {
 
 // SendHTTPRequest sends an unauthenticated HTTP request
 func (y *Yobit) SendHTTPRequest(path string, result interface{}) error {
-	return y.SendPayload("GET", path, nil, nil, result, false, y.Verbose)
+	return y.SendPayload(http.MethodGet, path, nil, nil, result, false, y.Verbose)
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated HTTP request to Yobit
@@ -362,7 +363,7 @@ func (y *Yobit) SendAuthenticatedHTTPRequest(path string, params url.Values, res
 	headers["Sign"] = common.HexEncodeToString(hmac)
 	headers["Content-Type"] = "application/x-www-form-urlencoded"
 
-	return y.SendPayload("POST", apiPrivateURL, headers, strings.NewReader(encoded), result, true, y.Verbose)
+	return y.SendPayload(http.MethodPost, apiPrivateURL, headers, strings.NewReader(encoded), result, true, y.Verbose)
 }
 
 // GetFee returns an estimate of fee based on type of transaction
