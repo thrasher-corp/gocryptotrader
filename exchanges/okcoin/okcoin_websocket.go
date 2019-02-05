@@ -25,7 +25,7 @@ const (
 )
 
 // PingHandler handles the keep alive
-func (o *OKCoin) PingHandler(message string) error {
+func (o *OKCoin) PingHandler(_ string) error {
 	return o.WebsocketConn.WriteControl(websocket.PingMessage,
 		[]byte("{'event':'ping'}"),
 		time.Now().Add(time.Second))

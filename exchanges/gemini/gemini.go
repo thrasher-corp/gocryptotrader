@@ -285,8 +285,8 @@ func (g *Gemini) GetAuctionHistory(currencyPair string, params url.Values) ([]Au
 	return auctionHist, g.SendHTTPRequest(path, &auctionHist)
 }
 
-func (g *Gemini) isCorrectSession(role string) error {
-	if g.Role != role {
+func (g *Gemini) isCorrectSession() error {
+	if g.Role != geminiRoleTrader {
 		return errors.New("incorrect role for APIKEY cannot use this function")
 	}
 	return nil
@@ -295,7 +295,7 @@ func (g *Gemini) isCorrectSession(role string) error {
 // NewOrder Only limit orders are supported through the API at present.
 // returns order ID if successful
 func (g *Gemini) NewOrder(symbol string, amount, price float64, side, orderType string) (int64, error) {
-	if err := g.isCorrectSession(geminiRoleTrader); err != nil {
+	if err := g.isCorrectSession(); err != nil {
 		return 0, err
 	}
 
@@ -435,8 +435,13 @@ func (g *Gemini) GetBalances() ([]Balance, error) {
 // GetCryptoDepositAddress returns a deposit address
 func (g *Gemini) GetCryptoDepositAddress(depositAddlabel, currency string) (DepositAddress, error) {
 	response := DepositAddress{}
+	request := make(map[string]interface{})
 
-	err := g.SendAuthenticatedHTTPRequest("POST", geminiDeposit+"/"+currency+"/"+geminiNewAddress, nil, &response)
+	if len(depositAddlabel) > 0 {
+		request["label"] = depositAddlabel
+	}
+
+	err := g.SendAuthenticatedHTTPRequest("POST", geminiDeposit+"/"+currency+"/"+geminiNewAddress, request, &response)
 	if err != nil {
 		return response, err
 	}

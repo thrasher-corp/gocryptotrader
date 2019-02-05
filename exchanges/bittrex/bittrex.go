@@ -393,6 +393,10 @@ func (b *Bittrex) Withdraw(currency, paymentID, address string, quantity float64
 	values.Set("currency", currency)
 	values.Set("quantity", fmt.Sprintf("%v", quantity))
 	values.Set("address", address)
+	if len(paymentID) > 0 {
+		values.Set("paymentid", paymentID)
+	}
+
 	path := fmt.Sprintf("%s/%s", b.APIUrl, bittrexAPIWithdraw)
 
 	if err := b.SendAuthenticatedHTTPRequest(path, values, &id); err != nil {

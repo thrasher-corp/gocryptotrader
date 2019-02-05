@@ -150,10 +150,15 @@ func (y *Yobit) GetExchangeHistory(p pair.CurrencyPair, assetType string) ([]exc
 }
 
 // SubmitOrder submits a new order
-func (y *Yobit) SubmitOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (exchange.SubmitOrderResponse, error) {
+// Yobit only supports limit orders
+func (y *Yobit) SubmitOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, _ string) (exchange.SubmitOrderResponse, error) {
 	var submitOrderResponse exchange.SubmitOrderResponse
-	response, err := y.Trade(p.Pair().String(), orderType.ToString(), amount, price)
 
+	if orderType != exchange.LimitOrderType {
+		return submitOrderResponse, errors.New("only limit orders are allowed")
+	}
+
+	response, err := y.Trade(p.Pair().String(), side.ToString(), amount, price)
 	if response > 0 {
 		submitOrderResponse.OrderID = fmt.Sprintf("%v", response)
 	}
@@ -183,7 +188,7 @@ func (y *Yobit) CancelOrder(order exchange.OrderCancellation) error {
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
-func (y *Yobit) CancelAllOrders(orderCancellation exchange.OrderCancellation) (exchange.CancelAllOrdersResponse, error) {
+func (y *Yobit) CancelAllOrders(_ exchange.OrderCancellation) (exchange.CancelAllOrdersResponse, error) {
 	cancelAllOrdersResponse := exchange.CancelAllOrdersResponse{
 		OrderStatus: make(map[string]string),
 	}
@@ -222,7 +227,7 @@ func (y *Yobit) GetOrderInfo(orderID int64) (exchange.OrderDetail, error) {
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
-func (y *Yobit) GetDepositAddress(cryptocurrency pair.CurrencyItem, accountID string) (string, error) {
+func (y *Yobit) GetDepositAddress(cryptocurrency pair.CurrencyItem, _ string) (string, error) {
 	a, err := y.GetCryptoDepositAddress(cryptocurrency.String())
 	if err != nil {
 		return "", err
@@ -241,7 +246,7 @@ func (y *Yobit) WithdrawCryptocurrencyFunds(withdrawRequest exchange.WithdrawReq
 	if len(resp.Error) > 0 {
 		return "", errors.New(resp.Error)
 	}
-	return "", nil
+	return "success", nil
 }
 
 // WithdrawFiatFunds returns a withdrawal ID when a

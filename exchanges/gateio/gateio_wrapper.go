@@ -188,7 +188,8 @@ func (g *Gateio) GetExchangeHistory(p pair.CurrencyPair, assetType string) ([]ex
 }
 
 // SubmitOrder submits a new order
-func (g *Gateio) SubmitOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (exchange.SubmitOrderResponse, error) {
+// TODO: support multiple order types (IOC)
+func (g *Gateio) SubmitOrder(p pair.CurrencyPair, side exchange.OrderSide, _ exchange.OrderType, amount, price float64, _ string) (exchange.SubmitOrderResponse, error) {
 	var submitOrderResponse exchange.SubmitOrderResponse
 	var orderTypeFormat SpotNewOrderRequestParamsType
 
@@ -237,7 +238,7 @@ func (g *Gateio) CancelOrder(order exchange.OrderCancellation) error {
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
-func (g *Gateio) CancelAllOrders(orderCancellation exchange.OrderCancellation) (exchange.CancelAllOrdersResponse, error) {
+func (g *Gateio) CancelAllOrders(_ exchange.OrderCancellation) (exchange.CancelAllOrdersResponse, error) {
 	cancelAllOrdersResponse := exchange.CancelAllOrdersResponse{
 		OrderStatus: make(map[string]string),
 	}
@@ -268,7 +269,7 @@ func (g *Gateio) GetOrderInfo(orderID int64) (exchange.OrderDetail, error) {
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
-func (g *Gateio) GetDepositAddress(cryptocurrency pair.CurrencyItem, accountID string) (string, error) {
+func (g *Gateio) GetDepositAddress(cryptocurrency pair.CurrencyItem, _ string) (string, error) {
 	addr, err := g.GetCryptoDepositAddress(cryptocurrency.String())
 	if err != nil {
 		return "", err

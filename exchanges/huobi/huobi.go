@@ -444,7 +444,7 @@ func (h *HUOBI) CancelExistingOrder(orderID int64) (int64, error) {
 }
 
 // CancelOrderBatch cancels a batch of orders -- to-do
-func (h *HUOBI) CancelOrderBatch(orderIDs []int64) ([]CancelOrderBatch, error) {
+func (h *HUOBI) CancelOrderBatch(_ []int64) ([]CancelOrderBatch, error) {
 	type response struct {
 		Response
 		Data []CancelOrderBatch `json:"data"`

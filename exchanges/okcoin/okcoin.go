@@ -838,7 +838,7 @@ func (o *OKCoin) FuturesTrade(amount, price float64, matchPrice, leverage int64,
 }
 
 // FuturesBatchTrade initiates a batch of futures contract trades
-func (o *OKCoin) FuturesBatchTrade(orderData, symbol, contractType string, leverage int64, orderType string) {
+func (o *OKCoin) FuturesBatchTrade(orderData, symbol, contractType string, leverage int64, _ string) {
 	v := url.Values{} //to-do batch trade support for orders_data)
 	v.Set("symbol", symbol)
 	v.Set("contract_type", contractType)

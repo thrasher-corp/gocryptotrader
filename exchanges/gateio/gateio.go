@@ -557,7 +557,7 @@ func (g *Gateio) WithdrawCrypto(currency, address string, amount float64) (strin
 		return "", fmt.Errorf("code:%d message:%s", result.Code, result.Message)
 	}
 
-	return "", nil
+	return result.Message, nil
 }
 
 // GetCryptoDepositAddress returns a deposit address for a cryptocurrency

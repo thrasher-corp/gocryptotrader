@@ -455,13 +455,7 @@ func (p *Poloniex) GetAuthenticatedTradeHistoryForCurrency(currency string, star
 
 	values.Set("currencyPair", currency)
 	result := AuthenticatedTradeHistoryResponse{}
-
-	err := p.SendAuthenticatedHTTPRequest("POST", poloniexTradeHistory, values, &result.Data)
-	if err != nil {
-		return result, err
-	}
-
-	return result, nil
+	return result, p.SendAuthenticatedHTTPRequest("POST", poloniexTradeHistory, values, &result.Data)
 }
 
 // GetAuthenticatedTradeHistory returns account trade history

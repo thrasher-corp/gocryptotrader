@@ -149,7 +149,7 @@ func (l *LakeBTC) GetExchangeHistory(p pair.CurrencyPair, assetType string) ([]e
 }
 
 // SubmitOrder submits a new order
-func (l *LakeBTC) SubmitOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (exchange.SubmitOrderResponse, error) {
+func (l *LakeBTC) SubmitOrder(p pair.CurrencyPair, side exchange.OrderSide, _ exchange.OrderType, amount, price float64, _ string) (exchange.SubmitOrderResponse, error) {
 	var submitOrderResponse exchange.SubmitOrderResponse
 	isBuyOrder := side == exchange.BuyOrderSide
 	response, err := l.Trade(isBuyOrder, amount, price, common.StringToLower(p.Pair().String()))
@@ -183,7 +183,7 @@ func (l *LakeBTC) CancelOrder(order exchange.OrderCancellation) error {
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
-func (l *LakeBTC) CancelAllOrders(orderCancellation exchange.OrderCancellation) (exchange.CancelAllOrdersResponse, error) {
+func (l *LakeBTC) CancelAllOrders(_ exchange.OrderCancellation) (exchange.CancelAllOrdersResponse, error) {
 	cancelAllOrdersResponse := exchange.CancelAllOrdersResponse{
 		OrderStatus: make(map[string]string),
 	}
@@ -209,7 +209,7 @@ func (l *LakeBTC) GetOrderInfo(orderID int64) (exchange.OrderDetail, error) {
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
-func (l *LakeBTC) GetDepositAddress(cryptocurrency pair.CurrencyItem, accountID string) (string, error) {
+func (l *LakeBTC) GetDepositAddress(cryptocurrency pair.CurrencyItem, _ string) (string, error) {
 	if !strings.EqualFold(cryptocurrency.String(), symbol.BTC) {
 		return "", fmt.Errorf("unsupported currency %s deposit address can only be BTC, manual deposit is required for other currencies",
 			cryptocurrency.String())

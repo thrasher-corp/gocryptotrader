@@ -154,7 +154,7 @@ func (c *CoinbasePro) GetExchangeHistory(p pair.CurrencyPair, assetType string) 
 }
 
 // SubmitOrder submits a new order
-func (c *CoinbasePro) SubmitOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (exchange.SubmitOrderResponse, error) {
+func (c *CoinbasePro) SubmitOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, _ string) (exchange.SubmitOrderResponse, error) {
 	var submitOrderResponse exchange.SubmitOrderResponse
 	var response string
 	var err error
@@ -190,7 +190,7 @@ func (c *CoinbasePro) CancelOrder(order exchange.OrderCancellation) error {
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
-func (c *CoinbasePro) CancelAllOrders(orderCancellation exchange.OrderCancellation) (exchange.CancelAllOrdersResponse, error) {
+func (c *CoinbasePro) CancelAllOrders(_ exchange.OrderCancellation) (exchange.CancelAllOrdersResponse, error) {
 	// CancellAllExisting orders returns a list of successful cancellations, we're only interested in failures
 	_, err := c.CancelAllExistingOrders("")
 	return exchange.CancelAllOrdersResponse{}, err

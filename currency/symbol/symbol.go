@@ -309,9 +309,9 @@ const (
 	STQ        = "STQ"
 	INK        = "INK"
 	HBZ        = "HBZ"
-	USDT_ETH   = "USDT_ETH"
-	QTUM_ETH   = "QTUM_ETH"
-	BTM_ETH    = "BTM_ETH"
+	USDT_ETH   = "USDT_ETH" // nolint: golint
+	QTUM_ETH   = "QTUM_ETH" // nolint: golint
+	BTM_ETH    = "BTM_ETH"  // nolint: golint
 	FIL        = "FIL"
 	STX        = "STX"
 	BOT        = "BOT"
@@ -324,7 +324,7 @@ const (
 	GOD        = "GOD"
 	SMT        = "SMT"
 	BTF        = "BTF"
-	NAS_ETH    = "NAS_ETH"
+	NAS_ETH    = "NAS_ETH" // nolint: golint
 	TSL        = "TSL"
 	BIFI       = "BIFI"
 	BNTY       = "BNTY"
@@ -350,7 +350,7 @@ const (
 	MOBI       = "MOBI"
 	LEDU       = "LEDU"
 	DBC        = "DBC"
-	MKR_OLD    = "MKR_OLD"
+	MKR_OLD    = "MKR_OLD" // nolint: golint
 	DPY        = "DPY"
 	BCDN       = "BCDN"
 	EOSDAC     = "EOSDAC"
@@ -359,7 +359,7 @@ const (
 	PPS        = "PPS"
 	BOE        = "BOE"
 	MEDX       = "MEDX"
-	SMT_ETH    = "SMT_ETH"
+	SMT_ETH    = "SMT_ETH" // nolint: golint
 	CS         = "CS"
 	MAN        = "MAN"
 	REM        = "REM"
@@ -379,7 +379,7 @@ const (
 	SWTH       = "SWTH"
 	NKN        = "NKN"
 	SOUL       = "SOUL"
-	GALA_NEO   = "GALA_NEO"
+	GALA_NEO   = "GALA_NEO" // nolint: golint
 	LRN        = "LRN"
 	GSE        = "GSE"
 	RATING     = "RATING"

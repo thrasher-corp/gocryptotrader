@@ -408,7 +408,7 @@ func (h *HitBTC) GetTradeHistoryForCurrency(currency, start, end string) (Authen
 }
 
 // GetTradeHistoryForAllCurrencies returns your trade history
-func (h *HitBTC) GetTradeHistoryForAllCurrencies(currency, start, end string) (AuthenticatedTradeHistoryAll, error) {
+func (h *HitBTC) GetTradeHistoryForAllCurrencies(start, end string) (AuthenticatedTradeHistoryAll, error) {
 	values := url.Values{}
 
 	if start != "" {
@@ -453,6 +453,7 @@ func (h *HitBTC) PlaceOrder(currency string, rate, amount float64, orderType, si
 	values.Set("quantity", strconv.FormatFloat(amount, 'f', -1, 64))
 	values.Set("side", side)
 	values.Set("price", strconv.FormatFloat(rate, 'f', -1, 64))
+	values.Set("type", orderType)
 
 	return result, h.SendAuthenticatedHTTPRequest("POST", orderBuy, values, &result)
 }

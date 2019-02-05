@@ -236,6 +236,7 @@ func (b *Bitmex) wsHandleIncomingData() {
 					}
 
 					p := pair.NewCurrencyPairFromString(orderbooks.Data[0].Symbol)
+					// TODO: update this to support multiple asset types
 					err = b.processOrderbook(orderbooks.Data, orderbooks.Action, p, "CONTRACT")
 					if err != nil {
 						b.Websocket.DataHandler <- err
@@ -262,6 +263,7 @@ func (b *Bitmex) wsHandleIncomingData() {
 							continue
 						}
 
+						// TODO: update this to support multiple asset types
 						b.Websocket.DataHandler <- exchange.TradeData{
 							Timestamp:    timestamp,
 							Price:        trade.Price,
@@ -300,7 +302,7 @@ func (b *Bitmex) wsHandleIncomingData() {
 var snapshotloaded = make(map[pair.CurrencyPair]map[string]bool)
 
 // ProcessOrderbook processes orderbook updates
-func (b *Bitmex) processOrderbook(data []OrderBookL2, action string, currencyPair pair.CurrencyPair, assetType string) error {
+func (b *Bitmex) processOrderbook(data []OrderBookL2, action string, currencyPair pair.CurrencyPair, assetType string) error { // nolint: unparam
 	if len(data) < 1 {
 		return errors.New("bitmex_websocket.go error - no orderbook data")
 	}
@@ -379,7 +381,6 @@ func (b *Bitmex) processOrderbook(data []OrderBookL2, action string, currencyPai
 			err := b.Websocket.Orderbook.UpdateUsingID(bids,
 				asks,
 				currencyPair,
-				time.Now(),
 				b.GetName(),
 				assetType,
 				action)

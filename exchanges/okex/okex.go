@@ -1281,11 +1281,5 @@ func (o *OKEX) GetOrderHistoryForCurrency(pageLength, currentPage, status int64,
 	v.Set("current_page", strconv.FormatInt(currentPage, 10))
 	v.Set("page_length", strconv.FormatInt(pageLength, 10))
 	result := OrderHistory{}
-
-	err := o.SendAuthenticatedHTTPRequest(spotOrderHistory, v, &result)
-	if err != nil {
-		return result, err
-	}
-
-	return result, nil
+	return result, o.SendAuthenticatedHTTPRequest(spotOrderHistory, v, &result)
 }

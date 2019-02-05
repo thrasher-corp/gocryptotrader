@@ -23,7 +23,6 @@ LINTOPTS += \
 endif
 LINTOPTS += \
 	--deadline=5m ./... | \
-	grep -v 'ALL_CAPS\|OP_' 2>&1 | \
 	tee /dev/stderr
 
 get:

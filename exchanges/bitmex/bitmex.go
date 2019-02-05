@@ -664,7 +664,7 @@ func (b *Bitmex) CheckReferalCode(referralCode string) (float64, error) {
 }
 
 // GetUserCommision returns your account's commission status.
-func (b *Bitmex) GetUserCommision(token string) (UserCommission, error) {
+func (b *Bitmex) GetUserCommision() (UserCommission, error) {
 	var commissionInfo UserCommission
 
 	return commissionInfo, b.SendAuthenticatedHTTPRequest("GET",

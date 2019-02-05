@@ -182,7 +182,7 @@ func (k *Kraken) GetExchangeHistory(p pair.CurrencyPair, assetType string) ([]ex
 }
 
 // SubmitOrder submits a new order
-func (k *Kraken) SubmitOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (exchange.SubmitOrderResponse, error) {
+func (k *Kraken) SubmitOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, _ string) (exchange.SubmitOrderResponse, error) {
 	var submitOrderResponse exchange.SubmitOrderResponse
 	var args = AddOrderOptions{}
 
@@ -213,7 +213,7 @@ func (k *Kraken) CancelOrder(order exchange.OrderCancellation) error {
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
-func (k *Kraken) CancelAllOrders(orderCancellation exchange.OrderCancellation) (exchange.CancelAllOrdersResponse, error) {
+func (k *Kraken) CancelAllOrders(_ exchange.OrderCancellation) (exchange.CancelAllOrdersResponse, error) {
 	cancelAllOrdersResponse := exchange.CancelAllOrdersResponse{
 		OrderStatus: make(map[string]string),
 	}
@@ -242,7 +242,7 @@ func (k *Kraken) GetOrderInfo(orderID int64) (exchange.OrderDetail, error) {
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
-func (k *Kraken) GetDepositAddress(cryptocurrency pair.CurrencyItem, accountID string) (string, error) {
+func (k *Kraken) GetDepositAddress(cryptocurrency pair.CurrencyItem, _ string) (string, error) {
 	methods, err := k.GetDepositMethods(cryptocurrency.String())
 	if err != nil {
 		return "", err

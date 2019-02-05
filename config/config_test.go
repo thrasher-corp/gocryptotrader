@@ -518,7 +518,7 @@ func TestGetRequestCurrencyPairFormat(t *testing.T) {
 		)
 	}
 
-	exchFmt, err := cfg.GetRequestCurrencyPairFormat("Bitfinex")
+	exchFmt, err := cfg.GetRequestCurrencyPairFormat("Yobit")
 	if exchFmt.Uppercase || exchFmt.Delimiter != "_" || exchFmt.Separator != "-" {
 		t.Errorf(
 			"Test failed. TestGetRequestCurrencyPairFormat. Invalid values",

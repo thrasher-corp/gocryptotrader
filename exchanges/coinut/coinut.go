@@ -293,7 +293,7 @@ func (c *COINUT) GetDerivativeInstruments(secType string) (interface{}, error) {
 }
 
 // GetOptionChain returns option chain
-func (c *COINUT) GetOptionChain(asset, secType string, expiry int64) (OptionChainResponse, error) {
+func (c *COINUT) GetOptionChain(asset, secType string) (OptionChainResponse, error) {
 	var result OptionChainResponse
 	params := make(map[string]interface{})
 	params["asset"] = asset

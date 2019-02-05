@@ -213,13 +213,7 @@ func (z *ZB) GetOrders(currency string, pageindex, side int64) ([]Order, error) 
 	vals.Set("currency", currency)
 	vals.Set("pageIndex", strconv.FormatInt(pageindex, 10))
 	vals.Set("tradeType", strconv.FormatInt(side, 10))
-
-	err := z.SendAuthenticatedHTTPRequest("GET", vals, &response)
-	if err != nil {
-		return response, err
-	}
-
-	return response, nil
+	return response, z.SendAuthenticatedHTTPRequest("GET", vals, &response)
 }
 
 // GetMarkets returns market information including pricing, symbols and
