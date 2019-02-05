@@ -88,7 +88,12 @@ func (g *Gemini) UpdateTicker(p currency.Pair, assetType string) (ticker.Price, 
 	tickerPrice.Bid = tick.Bid
 	tickerPrice.Last = tick.Last
 	tickerPrice.Volume = tick.Volume.USD
-	ticker.ProcessTicker(g.GetName(), p, tickerPrice, assetType)
+
+	err = ticker.ProcessTicker(g.GetName(), tickerPrice, assetType)
+	if err != nil {
+		return tickerPrice, err
+	}
+
 	return ticker.GetTicker(g.Name, p, assetType)
 }
 

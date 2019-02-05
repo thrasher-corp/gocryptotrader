@@ -71,7 +71,11 @@ func (l *LocalBitcoins) UpdateTicker(p currency.Pair, assetType string) (ticker.
 		tp.Pair = x
 		tp.Last = tick[currency].Avg24h
 		tp.Volume = tick[currency].VolumeBTC
-		ticker.ProcessTicker(l.GetName(), x, tp, assetType)
+
+		err = ticker.ProcessTicker(l.GetName(), tp, assetType)
+		if err != nil {
+			return tickerPrice, err
+		}
 	}
 
 	return ticker.GetTicker(l.GetName(), p, assetType)

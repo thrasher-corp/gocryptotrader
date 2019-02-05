@@ -102,7 +102,12 @@ func (c *CoinbasePro) UpdateTicker(p currency.Pair, assetType string) (ticker.Pr
 	tickerPrice.Last = tick.Price
 	tickerPrice.High = stats.High
 	tickerPrice.Low = stats.Low
-	ticker.ProcessTicker(c.GetName(), p, tickerPrice, assetType)
+
+	err = ticker.ProcessTicker(c.GetName(), tickerPrice, assetType)
+	if err != nil {
+		return tickerPrice, err
+	}
+
 	return ticker.GetTicker(c.Name, p, assetType)
 }
 

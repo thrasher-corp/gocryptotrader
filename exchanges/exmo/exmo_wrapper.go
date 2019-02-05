@@ -78,7 +78,11 @@ func (e *EXMO) UpdateTicker(p currency.Pair, assetType string) (ticker.Price, er
 		tickerPrice.Last = result[currency].Last
 		tickerPrice.Low = result[currency].Low
 		tickerPrice.Volume = result[currency].Volume
-		ticker.ProcessTicker(e.Name, x, tickerPrice, assetType)
+
+		err = ticker.ProcessTicker(e.Name, tickerPrice, assetType)
+		if err != nil {
+			return tickerPrice, err
+		}
 	}
 	return ticker.GetTicker(e.Name, p, assetType)
 }

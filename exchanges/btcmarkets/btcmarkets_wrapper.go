@@ -70,8 +70,7 @@ func (b *BTCMarkets) Run() {
 // UpdateTicker updates and returns the ticker for a currency pair
 func (b *BTCMarkets) UpdateTicker(p currency.Pair, assetType string) (ticker.Price, error) {
 	var tickerPrice ticker.Price
-	tick, err := b.GetTicker(p.Base.String(),
-		p.Quote.String())
+	tick, err := b.GetTicker(p.Base.String(), p.Quote.String())
 	if err != nil {
 		return tickerPrice, err
 	}
@@ -79,7 +78,12 @@ func (b *BTCMarkets) UpdateTicker(p currency.Pair, assetType string) (ticker.Pri
 	tickerPrice.Ask = tick.BestAsk
 	tickerPrice.Bid = tick.BestBID
 	tickerPrice.Last = tick.LastPrice
-	ticker.ProcessTicker(b.GetName(), p, tickerPrice, assetType)
+
+	err = ticker.ProcessTicker(b.GetName(), tickerPrice, assetType)
+	if err != nil {
+		return tickerPrice, err
+	}
+
 	return ticker.GetTicker(b.Name, p, assetType)
 }
 

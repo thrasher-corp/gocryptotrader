@@ -27,16 +27,15 @@ var (
 
 // Price struct stores the currency pair and pricing information
 type Price struct {
-	Pair         currency.Pair `json:"Pair"`
-	LastUpdated  time.Time     `json:"LastUpdated"`
-	CurrencyPair string        `json:"CurrencyPair"`
-	Last         float64       `json:"Last"`
-	High         float64       `json:"High"`
-	Low          float64       `json:"Low"`
-	Bid          float64       `json:"Bid"`
-	Ask          float64       `json:"Ask"`
-	Volume       float64       `json:"Volume"`
-	PriceATH     float64       `json:"PriceATH"`
+	Pair        currency.Pair `json:"Pair"`
+	Last        float64       `json:"Last"`
+	High        float64       `json:"High"`
+	Low         float64       `json:"Low"`
+	Bid         float64       `json:"Bid"`
+	Ask         float64       `json:"Ask"`
+	Volume      float64       `json:"Volume"`
+	PriceATH    float64       `json:"PriceATH"`
+	lastUpdated time.Time
 }
 
 // Ticker struct holds the ticker information for a currency pair and type
@@ -132,7 +131,7 @@ func SecondCurrencyExists(exchange string, p currency.Pair) bool {
 }
 
 // CreateNewTicker creates a new Ticker
-func CreateNewTicker(exchangeName string, p currency.Pair, tickerNew Price, tickerType string) Ticker {
+func CreateNewTicker(exchangeName string, tickerNew Price, tickerType string) Ticker {
 	m.Lock()
 	defer m.Unlock()
 	ticker := Ticker{}
@@ -141,43 +140,42 @@ func CreateNewTicker(exchangeName string, p currency.Pair, tickerNew Price, tick
 	a := make(map[currency.Code]map[string]Price)
 	b := make(map[string]Price)
 	b[tickerType] = tickerNew
-	a[p.Quote] = b
-	ticker.Price[p.Base] = a
+	a[tickerNew.Pair.Quote] = b
+	ticker.Price[tickerNew.Pair.Base] = a
 	Tickers = append(Tickers, ticker)
 	return ticker
 }
 
 // ProcessTicker processes incoming tickers, creating or updating the Tickers
 // list
-func ProcessTicker(exchangeName string, p currency.Pair, tickerNew Price, tickerType string) {
+func ProcessTicker(exchangeName string, tickerNew Price, tickerType string) error {
 	if tickerNew.Pair.String() == "" {
-		// set Pair if not set
-		tickerNew.Pair = p
+		return errors.New("")
 	}
 
-	tickerNew.CurrencyPair = p.String()
-	tickerNew.LastUpdated = time.Now()
+	tickerNew.lastUpdated = time.Now()
 
 	ticker, err := GetTickerByExchange(exchangeName)
 	if err != nil {
-		CreateNewTicker(exchangeName, p, tickerNew, tickerType)
-		return
+		CreateNewTicker(exchangeName, tickerNew, tickerType)
+		return nil
 	}
 
-	if FirstCurrencyExists(exchangeName, p.Base) {
+	if FirstCurrencyExists(exchangeName, tickerNew.Pair.Base) {
 		m.Lock()
 		a := make(map[string]Price)
 		a[tickerType] = tickerNew
-		ticker.Price[p.Base][p.Quote] = a
+		ticker.Price[tickerNew.Pair.Base][tickerNew.Pair.Quote] = a
 		m.Unlock()
-		return
+		return nil
 	}
 
 	m.Lock()
 	a := make(map[currency.Code]map[string]Price)
 	b := make(map[string]Price)
 	b[tickerType] = tickerNew
-	a[p.Quote] = b
-	ticker.Price[p.Base] = a
+	a[tickerNew.Pair.Quote] = b
+	ticker.Price[tickerNew.Pair.Base] = a
 	m.Unlock()
+	return nil
 }

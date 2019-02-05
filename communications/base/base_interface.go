@@ -80,7 +80,7 @@ func (c IComm) StageTickerData(exchangeName, assetType string, tickerPrice *tick
 		TickerStaged[exchangeName][assetType] = make(map[string]ticker.Price)
 	}
 
-	TickerStaged[exchangeName][assetType][tickerPrice.CurrencyPair] = *tickerPrice
+	TickerStaged[exchangeName][assetType][tickerPrice.Pair.String()] = *tickerPrice
 }
 
 // StageOrderbookData stages updated orderbook data for the communications

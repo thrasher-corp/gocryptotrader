@@ -66,7 +66,11 @@ func (b *Bitflyer) UpdateTicker(p currency.Pair, assetType string) (ticker.Price
 	tickerPrice.Last = tickerNew.Last
 	tickerPrice.Volume = tickerNew.Volume
 	// tickerPrice.High
-	ticker.ProcessTicker(b.GetName(), p, tickerPrice, assetType)
+	err = ticker.ProcessTicker(b.GetName(), tickerPrice, assetType)
+	if err != nil {
+		return tickerPrice, err
+	}
+
 	return ticker.GetTicker(b.Name, p, assetType)
 }
 

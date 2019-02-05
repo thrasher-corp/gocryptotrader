@@ -102,7 +102,7 @@ func (b *Base) GetTicker(exchangeName string) string {
 	for i := range tickerPrices {
 		packagedTickers = append(packagedTickers, fmt.Sprintf(
 			"Currency Pair: %s Ask: %f, Bid: %f High: %f Last: %f Low: %f ATH: %f Volume: %f",
-			tickerPrices[i].CurrencyPair,
+			tickerPrices[i].Pair,
 			tickerPrices[i].Ask,
 			tickerPrices[i].Bid,
 			tickerPrices[i].High,

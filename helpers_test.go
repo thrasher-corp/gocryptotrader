@@ -301,7 +301,13 @@ func TestGetSpecificTicker(t *testing.T) {
 
 	LoadExchange("Bitstamp", false, nil)
 	p := currency.NewCurrencyPair("BTC", "USD")
-	ticker.ProcessTicker("Bitstamp", p, ticker.Price{Last: 1000}, ticker.Spot)
+
+	err := ticker.ProcessTicker("Bitstamp",
+		ticker.Price{Pair: p, Last: 1000},
+		ticker.Spot)
+	if err != nil {
+		t.Fatal("Test failed. ProcessTicker error", err)
+	}
 
 	tick, err := GetSpecificTicker("BTCUSD", "Bitstamp", ticker.Spot)
 	if err != nil {

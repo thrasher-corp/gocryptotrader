@@ -146,7 +146,12 @@ func (c *COINUT) UpdateTicker(p currency.Pair, assetType string) (ticker.Price, 
 	tickerPrice.Last = tick.Last
 	tickerPrice.High = tick.HighestBuy
 	tickerPrice.Low = tick.LowestSell
-	ticker.ProcessTicker(c.GetName(), p, tickerPrice, assetType)
+
+	err = ticker.ProcessTicker(c.GetName(), tickerPrice, assetType)
+	if err != nil {
+		return tickerPrice, err
+	}
+
 	return ticker.GetTicker(c.Name, p, assetType)
 
 }

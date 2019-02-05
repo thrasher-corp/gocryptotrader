@@ -14,18 +14,17 @@ import (
 func TestPriceToString(t *testing.T) {
 	newPair := currency.NewCurrencyPair("BTC", "USD")
 	priceStruct := Price{
-		Pair:         newPair,
-		CurrencyPair: newPair.String(),
-		Last:         1200,
-		High:         1298,
-		Low:          1148,
-		Bid:          1195,
-		Ask:          1220,
-		Volume:       5,
-		PriceATH:     1337,
+		Pair:     newPair,
+		Last:     1200,
+		High:     1298,
+		Low:      1148,
+		Bid:      1195,
+		Ask:      1220,
+		Volume:   5,
+		PriceATH: 1337,
 	}
 
-	newTicker := CreateNewTicker("ANX", newPair, priceStruct, Spot)
+	newTicker := CreateNewTicker("ANX", priceStruct, Spot)
 
 	if newTicker.PriceToString(newPair, "last", Spot) != "1200" {
 		t.Error("Test Failed - ticker PriceToString last value is incorrect")
@@ -56,23 +55,26 @@ func TestPriceToString(t *testing.T) {
 func TestGetTicker(t *testing.T) {
 	newPair := currency.NewCurrencyPair("BTC", "USD")
 	priceStruct := Price{
-		Pair:         newPair,
-		CurrencyPair: newPair.String(),
-		Last:         1200,
-		High:         1298,
-		Low:          1148,
-		Bid:          1195,
-		Ask:          1220,
-		Volume:       5,
-		PriceATH:     1337,
+		Pair:     newPair,
+		Last:     1200,
+		High:     1298,
+		Low:      1148,
+		Bid:      1195,
+		Ask:      1220,
+		Volume:   5,
+		PriceATH: 1337,
 	}
 
-	ProcessTicker("bitfinex", newPair, priceStruct, Spot)
+	err := ProcessTicker("bitfinex", priceStruct, Spot)
+	if err != nil {
+		t.Fatal("Test failed. ProcessTicker error", err)
+	}
+
 	tickerPrice, err := GetTicker("bitfinex", newPair, Spot)
 	if err != nil {
 		t.Errorf("Test Failed - Ticker GetTicker init error: %s", err)
 	}
-	if tickerPrice.CurrencyPair != "BTCUSD" {
+	if tickerPrice.Pair.String() != "BTCUSD" {
 		t.Error("Test Failed - ticker tickerPrice.CurrencyPair value is incorrect")
 	}
 
@@ -94,7 +96,12 @@ func TestGetTicker(t *testing.T) {
 	}
 
 	priceStruct.PriceATH = 9001
-	ProcessTicker("bitfinex", newPair, priceStruct, "futures_3m")
+	priceStruct.Pair.Base = currency.Code("ETH")
+	err = ProcessTicker("bitfinex", priceStruct, "futures_3m")
+	if err != nil {
+		t.Fatal("Test failed. ProcessTicker error", err)
+	}
+
 	tickerPrice, err = GetTicker("bitfinex", newPair, "futures_3m")
 	if err != nil {
 		t.Errorf("Test Failed - Ticker GetTicker init error: %s", err)
@@ -108,18 +115,17 @@ func TestGetTicker(t *testing.T) {
 func TestGetTickerByExchange(t *testing.T) {
 	newPair := currency.NewCurrencyPair("BTC", "USD")
 	priceStruct := Price{
-		Pair:         newPair,
-		CurrencyPair: newPair.String(),
-		Last:         1200,
-		High:         1298,
-		Low:          1148,
-		Bid:          1195,
-		Ask:          1220,
-		Volume:       5,
-		PriceATH:     1337,
+		Pair:     newPair,
+		Last:     1200,
+		High:     1298,
+		Low:      1148,
+		Bid:      1195,
+		Ask:      1220,
+		Volume:   5,
+		PriceATH: 1337,
 	}
 
-	anxTicker := CreateNewTicker("ANX", newPair, priceStruct, Spot)
+	anxTicker := CreateNewTicker("ANX", priceStruct, Spot)
 	Tickers = append(Tickers, anxTicker)
 
 	tickerPtr, err := GetTickerByExchange("ANX")
@@ -134,18 +140,17 @@ func TestGetTickerByExchange(t *testing.T) {
 func TestFirstCurrencyExists(t *testing.T) {
 	newPair := currency.NewCurrencyPair("BTC", "USD")
 	priceStruct := Price{
-		Pair:         newPair,
-		CurrencyPair: newPair.String(),
-		Last:         1200,
-		High:         1298,
-		Low:          1148,
-		Bid:          1195,
-		Ask:          1220,
-		Volume:       5,
-		PriceATH:     1337,
+		Pair:     newPair,
+		Last:     1200,
+		High:     1298,
+		Low:      1148,
+		Bid:      1195,
+		Ask:      1220,
+		Volume:   5,
+		PriceATH: 1337,
 	}
 
-	alphaTicker := CreateNewTicker("alphapoint", newPair, priceStruct, Spot)
+	alphaTicker := CreateNewTicker("alphapoint", priceStruct, Spot)
 	Tickers = append(Tickers, alphaTicker)
 
 	if !FirstCurrencyExists("alphapoint", "BTC") {
@@ -161,18 +166,17 @@ func TestSecondCurrencyExists(t *testing.T) {
 
 	newPair := currency.NewCurrencyPair("BTC", "USD")
 	priceStruct := Price{
-		Pair:         newPair,
-		CurrencyPair: newPair.String(),
-		Last:         1200,
-		High:         1298,
-		Low:          1148,
-		Bid:          1195,
-		Ask:          1220,
-		Volume:       5,
-		PriceATH:     1337,
+		Pair:     newPair,
+		Last:     1200,
+		High:     1298,
+		Low:      1148,
+		Bid:      1195,
+		Ask:      1220,
+		Volume:   5,
+		PriceATH: 1337,
 	}
 
-	bitstampTicker := CreateNewTicker("bitstamp", newPair, priceStruct, "SPOT")
+	bitstampTicker := CreateNewTicker("bitstamp", priceStruct, "SPOT")
 	Tickers = append(Tickers, bitstampTicker)
 
 	if !SecondCurrencyExists("bitstamp", newPair) {
@@ -186,21 +190,20 @@ func TestSecondCurrencyExists(t *testing.T) {
 }
 
 func TestCreateNewTicker(t *testing.T) {
+	const float64Type = "float64"
 	newPair := currency.NewCurrencyPair("BTC", "USD")
 	priceStruct := Price{
-		Pair:         newPair,
-		CurrencyPair: newPair.String(),
-		Last:         1200,
-		High:         1298,
-		Low:          1148,
-		Bid:          1195,
-		Ask:          1220,
-		Volume:       5,
-		PriceATH:     1337,
+		Pair:     newPair,
+		Last:     1200,
+		High:     1298,
+		Low:      1148,
+		Bid:      1195,
+		Ask:      1220,
+		Volume:   5,
+		PriceATH: 1337,
 	}
 
-	newTicker := CreateNewTicker("ANX", newPair, priceStruct, Spot)
-	const float64Type = "float64"
+	newTicker := CreateNewTicker("ANX", priceStruct, Spot)
 
 	if reflect.ValueOf(newTicker).NumField() != 2 {
 		t.Error("Test Failed - ticker CreateNewTicker struct change/or updated")
@@ -221,7 +224,7 @@ func TestCreateNewTicker(t *testing.T) {
 	if reflect.TypeOf(newTicker.Price["BTC"]["USD"][Spot].Bid).String() != float64Type {
 		t.Error("Test Failed - ticker newTicker.Price[BTC][USD].Bid value is not a float64")
 	}
-	if reflect.TypeOf(newTicker.Price["BTC"]["USD"][Spot].CurrencyPair).String() != "string" {
+	if reflect.TypeOf(newTicker.Price["BTC"]["USD"][Spot].Pair).String() != "string" {
 		t.Error("Test Failed - ticker newTicker.Price[BTC][USD].CurrencyPair value is not a string")
 	}
 	if reflect.TypeOf(newTicker.Price["BTC"]["USD"][Spot].High).String() != float64Type {
@@ -245,18 +248,25 @@ func TestProcessTicker(t *testing.T) { // non-appending function to tickers
 	Tickers = []Ticker{}
 	newPair := currency.NewCurrencyPair("BTC", "USD")
 	priceStruct := Price{
-		Pair:         newPair,
-		CurrencyPair: newPair.String(),
-		Last:         1200,
-		High:         1298,
-		Low:          1148,
-		Bid:          1195,
-		Ask:          1220,
-		Volume:       5,
-		PriceATH:     1337,
+		Pair:     newPair,
+		Last:     1200,
+		High:     1298,
+		Low:      1148,
+		Bid:      1195,
+		Ask:      1220,
+		Volume:   5,
+		PriceATH: 1337,
 	}
 
-	ProcessTicker("btcc", newPair, priceStruct, Spot)
+	err := ProcessTicker("btcc", Price{}, Spot)
+	if err == nil {
+		t.Fatal("Test failed. ProcessTicker error cannot be nil")
+	}
+
+	err = ProcessTicker("btcc", priceStruct, Spot)
+	if err != nil {
+		t.Fatal("Test failed. ProcessTicker error", err)
+	}
 
 	result, err := GetTicker("btcc", newPair, Spot)
 	if err != nil {
@@ -269,7 +279,10 @@ func TestProcessTicker(t *testing.T) { // non-appending function to tickers
 
 	secondPair := currency.NewCurrencyPair("BTC", "AUD")
 	priceStruct.Pair = secondPair
-	ProcessTicker("btcc", secondPair, priceStruct, Spot)
+	err = ProcessTicker("btcc", priceStruct, Spot)
+	if err != nil {
+		t.Fatal("Test failed. ProcessTicker error", err)
+	}
 
 	result, err = GetTicker("btcc", secondPair, Spot)
 	if err != nil {
@@ -302,12 +315,14 @@ func TestProcessTicker(t *testing.T) { // non-appending function to tickers
 				currency.Code("USD"+strconv.FormatInt(rand.Int63(), 10)))
 
 			tp := Price{
-				Pair:         newPairs,
-				CurrencyPair: newPairs.String(),
-				Last:         rand.Float64(),
+				Pair: newPairs,
+				Last: rand.Float64(),
 			}
 
-			ProcessTicker(newName, newPairs, tp, Spot)
+			err = ProcessTicker(newName, tp, Spot)
+			if err != nil {
+				t.Fatal("Test failed. ProcessTicker error", err)
+			}
 			sm.Lock()
 			testArray = append(testArray, quick{Name: newName, P: newPairs, TP: tp})
 			sm.Unlock()
