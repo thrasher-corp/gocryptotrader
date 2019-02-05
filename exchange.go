@@ -27,7 +27,6 @@ import (
 	"github.com/thrasher-/gocryptotrader/exchanges/itbit"
 	"github.com/thrasher-/gocryptotrader/exchanges/kraken"
 	"github.com/thrasher-/gocryptotrader/exchanges/lakebtc"
-	"github.com/thrasher-/gocryptotrader/exchanges/liqui"
 	"github.com/thrasher-/gocryptotrader/exchanges/localbitcoins"
 	"github.com/thrasher-/gocryptotrader/exchanges/okcoin"
 	"github.com/thrasher-/gocryptotrader/exchanges/okex"
@@ -178,8 +177,6 @@ func LoadExchange(name string, useWG bool, wg *sync.WaitGroup) error {
 		exch = new(kraken.Kraken)
 	case "lakebtc":
 		exch = new(lakebtc.LakeBTC)
-	case "liqui":
-		exch = new(liqui.Liqui)
 	case "localbitcoins":
 		exch = new(localbitcoins.LocalBitcoins)
 	case "okcoin china":

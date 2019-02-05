@@ -999,48 +999,6 @@
    ]
   },
   {
-   "name": "Liqui",
-   "enabled": true,
-   "verbose": false,
-   "websocket": false,
-   "useSandbox": false,
-   "restPollingDelay": 10,
-   "httpTimeout": 15000000000,
-   "httpUserAgent": "",
-   "authenticatedApiSupport": false,
-   "apiKey": "Key",
-   "apiSecret": "Secret",
-   "apiUrl": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
-   "apiUrlSecondary": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
-   "proxyAddress": "",
-   "websocketUrl": "NON_DEFAULT_HTTP_LINK_TO_WEBSOCKET_EXCHANGE_API",
-   "availablePairs": "BMC_ETH,OAX_BTC,OMG_USDT,DGD_BTC,MANA_USDT,LTC_USDT,TRST_BTC,ETH_USDT,STORJ_BTC,KNC_BTC,STORJ_USDT,GNT_ETH,LTC_ETH,DASH_ETH,AST_BTC,WPR_BTC,PRO_USDT,ANT_USDT,SNGLS_USDT,OAX_ETH,MANA_ETH,IND_USDT,ENG_BTC,DASH_USDT,REP_BTC,BCHABC_ETH,MANA_BTC,WPR_ETH,GNO_ETH,DGD_USDT,BCHABC_BTC,BNT_BTC,HOT_ETH,CLN_USDT,HOT_USDT,GNO_BTC,KNC_ETH,AST_ETH,CLN_BTC,RLC_USDT,GUP_BTC,BNT_ETH,LDC_USDT,GNT_USDT,CVC_USDT,BMC_BTC,WPR_USDT,SALT_BTC,TTU_BTC,ANT_BTC,DGD_ETH,AION_USDT,GUP_USDT,ADX_USDT,AGI_BTC,GNT_BTC,IND_ETH,CLN_ETH,ENG_USDT,PRO_BTC,TRX_BTC,INS_ETH,LDC_ETH,RLC_ETH,SNT_BTC,TNT_ETH,SAN_USDT,PAY_USDT,REP_ETH,SNGLS_ETH,CVC_BTC,IND_BTC,HOT_BTC,LDC_BTC,AION_BTC,SAN_BTC,TNT_BTC,ENG_ETH,WINGS_ETH,SNT_ETH,ENJ_BTC,ENJ_ETH,SALT_USDT,SNT_USDT,WINGS_USDT,ENJ_USDT,SNGLS_BTC,SRN_ETH,BTC_USDT,ADX_ETH,BMC_USDT,TRX_USDT,OMG_BTC,TRST_USDT,TNT_USDT,BNT_USDT,REP_USDT,OMG_ETH,SAN_ETH,ADX_BTC,RLC_BTC,TTU_USDT,ANT_ETH,TRX_ETH,TTU_ETH,INS_USDT,AGI_USDT,GUP_ETH,PAY_ETH,ETH_BTC,KNC_USDT,CVC_ETH,BCHABC_USDT,INS_BTC,TRST_ETH,PAY_BTC,PRO_ETH,LTC_BTC,WINGS_BTC,STORJ_ETH,SALT_ETH,AION_ETH,AST_USDT,GNO_USDT,AGI_ETH,DASH_BTC,OAX_USDT",
-   "enabledPairs": "ETH_BTC,LTC_BTC,DASH_BTC",
-   "baseCurrencies": "USD",
-   "assetTypes": "SPOT",
-   "supportsAutoPairUpdates": true,
-   "configCurrencyPairFormat": {
-    "uppercase": true,
-    "delimiter": "_"
-   },
-   "requestCurrencyPairFormat": {
-    "uppercase": false,
-    "delimiter": "_",
-    "separator": "-"
-   },
-   "bankAccounts": [
-    {
-     "bankName": "",
-     "bankAddress": "",
-     "accountName": "",
-     "accountNumber": "",
-     "swiftCode": "",
-     "iban": "",
-     "supportedCurrencies": ""
-    }
-   ]
-  },
-  {
    "name": "LocalBitcoins",
    "enabled": true,
    "verbose": false,

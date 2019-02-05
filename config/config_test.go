@@ -8,6 +8,12 @@ import (
 	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
+const (
+	// Default number of enabled exchanges. Modify this whenever an exchange is
+	// added or removed
+	defaultEnabledExchanges = 29
+)
+
 func TestGetCurrencyConfig(t *testing.T) {
 	cfg := GetConfig()
 	err := cfg.LoadConfig(ConfigTestFile)
@@ -408,7 +414,7 @@ func TestGetEnabledExchanges(t *testing.T) {
 	}
 
 	exchanges := cfg.GetEnabledExchanges()
-	if len(exchanges) != 30 {
+	if len(exchanges) != defaultEnabledExchanges {
 		t.Error(
 			"Test failed. TestGetEnabledExchanges. Enabled exchanges value mismatch",
 		)
@@ -460,7 +466,6 @@ func TestGetDisabledExchanges(t *testing.T) {
 }
 
 func TestCountEnabledExchanges(t *testing.T) {
-	defaultEnabledExchanges := 30
 	GetConfigEnabledExchanges := GetConfig()
 	err := GetConfigEnabledExchanges.LoadConfig(ConfigTestFile)
 	if err != nil {
@@ -489,7 +494,7 @@ func TestGetConfigCurrencyPairFormat(t *testing.T) {
 		)
 	}
 
-	exchFmt, err := cfg.GetConfigCurrencyPairFormat("Liqui")
+	exchFmt, err := cfg.GetConfigCurrencyPairFormat("Yobit")
 	if !exchFmt.Uppercase || exchFmt.Delimiter != "_" {
 		t.Errorf(
 			"Test failed. TestGetConfigCurrencyPairFormat. Invalid values",
@@ -513,7 +518,7 @@ func TestGetRequestCurrencyPairFormat(t *testing.T) {
 		)
 	}
 
-	exchFmt, err := cfg.GetRequestCurrencyPairFormat("Liqui")
+	exchFmt, err := cfg.GetRequestCurrencyPairFormat("Bitfinex")
 	if exchFmt.Uppercase || exchFmt.Delimiter != "_" || exchFmt.Separator != "-" {
 		t.Errorf(
 			"Test failed. TestGetRequestCurrencyPairFormat. Invalid values",

@@ -589,7 +589,7 @@ func TestGetAndFormatExchangeCurrencies(t *testing.T) {
 	pairs = append(pairs, pair.NewCurrencyPairDelimiter("BTC_USD", "_"))
 	pairs = append(pairs, pair.NewCurrencyPairDelimiter("LTC_BTC", "_"))
 
-	actual, err := GetAndFormatExchangeCurrencies("Liqui", pairs)
+	actual, err := GetAndFormatExchangeCurrencies("Yobit", pairs)
 	if err != nil {
 		t.Errorf("Test failed - Exchange TestGetAndFormatExchangeCurrencies error %s", err)
 	}
