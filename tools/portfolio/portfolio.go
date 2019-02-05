@@ -8,26 +8,27 @@ import (
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/currency"
-	"github.com/thrasher-/gocryptotrader/currency/symbol"
 	"github.com/thrasher-/gocryptotrader/exchanges/bitfinex"
 	"github.com/thrasher-/gocryptotrader/portfolio"
 )
 
 var (
 	priceMap        map[string]float64
-	displayCurrency string
+	displayCurrency currency.Code
 )
 
 func printSummary(msg string, amount float64) {
 	log.Println()
 	log.Println(fmt.Sprintf("%s in USD: $%.2f", msg, amount))
 
-	if displayCurrency != "USD" {
-		conv, err := currency.ConvertCurrency(amount, "USD", displayCurrency)
+	if displayCurrency != currency.USD {
+		conv, err := currency.ConvertCurrency(amount,
+			currency.USD.String(),
+			displayCurrency.String())
 		if err != nil {
 			log.Println(err)
 		} else {
-			symb, err := symbol.GetSymbolByCurrencyName(displayCurrency)
+			symb, err := currency.GetSymbolByCurrencyName(displayCurrency)
 			if err != nil {
 				log.Println(fmt.Sprintf("%s in %s: %.2f", msg, displayCurrency, conv))
 			} else {
@@ -75,7 +76,7 @@ func main() {
 	}
 	log.Println("Loaded config file.")
 
-	displayCurrency = cfg.FiatDisplayCurrency
+	displayCurrency = currency.Code(cfg.FiatDisplayCurrency)
 	port := portfolio.Base{}
 	port.SeedPortfolio(cfg.Portfolio)
 	result := port.GetPortfolioSummary()

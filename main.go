@@ -141,7 +141,7 @@ func main() {
 	}
 
 	log.Debugf("Fiat display currency: %s.", bot.config.Currency.FiatDisplayCurrency)
-	currency.BaseCurrency = bot.config.Currency.FiatDisplayCurrency
+	currency.BaseCurrency = currency.Code(bot.config.Currency.FiatDisplayCurrency).Upper()
 	currency.FXProviders = forexprovider.StartFXService(bot.config.GetCurrencyConfig().ForexProviders)
 	log.Debugf("Primary forex conversion provider: %s.\n", bot.config.GetPrimaryForexProvider())
 	err = bot.config.RetrieveConfigCurrencyPairs(true)
@@ -150,7 +150,7 @@ func main() {
 	}
 	log.Debugf("Successfully retrieved config currencies.")
 	log.Debugf("Fetching currency data from forex provider..")
-	err = currency.SeedCurrencyData(common.JoinStrings(currency.FiatCurrencies, ","))
+	err = currency.SeedCurrencyData(currency.FiatCurrencies.Join())
 	if err != nil {
 		log.Fatalf("Unable to fetch forex data. Error: %s", err)
 	}

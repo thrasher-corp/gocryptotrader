@@ -15,9 +15,10 @@ import (
 	"sync"
 	"time"
 
+	"github.com/thrasher-/gocryptotrader/currency"
+
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-/gocryptotrader/common"
-	"github.com/thrasher-/gocryptotrader/currency/pair"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	log "github.com/thrasher-/gocryptotrader/logger"
@@ -204,7 +205,7 @@ func (o *OKGroup) WsConnect() error {
 func (o *OKGroup) WsSubscribeToDefaults() (err error) {
 	channelsToSubscribe := []string{okGroupWsSpotDepth, okGroupWsSpotCandle300s, okGroupWsSpotTicker, okGroupWsSpotTrade}
 	for _, pair := range o.EnabledPairs {
-		formattedPair := strings.ToUpper(strings.Replace(pair, "_", "-", 1))
+		formattedPair := strings.ToUpper(strings.Replace(pair.String(), "_", "-", 1))
 		for _, channel := range channelsToSubscribe {
 			err = o.WsSubscribeToChannel(fmt.Sprintf("%v:%s", channel, formattedPair))
 			if err != nil {
@@ -501,7 +502,7 @@ func logDataResponse(response *WebsocketDataResponse) {
 // wsProcessTickers converts ticker data and sends it to the datahandler
 func (o *OKGroup) wsProcessTickers(response *WebsocketDataResponse) {
 	for _, tickerData := range response.Data {
-		instrument := pair.NewCurrencyPairDelimiter(tickerData.InstrumentID, "-")
+		instrument := currency.NewCurrencyPairDelimiter(tickerData.InstrumentID, "-")
 		o.Websocket.DataHandler <- exchange.TickerData{
 			Timestamp:  tickerData.Timestamp,
 			Exchange:   o.GetName(),
@@ -517,7 +518,7 @@ func (o *OKGroup) wsProcessTickers(response *WebsocketDataResponse) {
 // wsProcessTrades converts trade data and sends it to the datahandler
 func (o *OKGroup) wsProcessTrades(response *WebsocketDataResponse) {
 	for _, trade := range response.Data {
-		instrument := pair.NewCurrencyPairDelimiter(trade.InstrumentID, "-")
+		instrument := currency.NewCurrencyPairDelimiter(trade.InstrumentID, "-")
 		o.Websocket.DataHandler <- exchange.TradeData{
 			Amount:       trade.Qty,
 			AssetType:    o.GetAssetTypeFromTableName(response.Table),
@@ -534,7 +535,7 @@ func (o *OKGroup) wsProcessTrades(response *WebsocketDataResponse) {
 // wsProcessCandles converts candle data and sends it to the data handler
 func (o *OKGroup) wsProcessCandles(response *WebsocketDataResponse) {
 	for _, candle := range response.Data {
-		instrument := pair.NewCurrencyPairDelimiter(candle.InstrumentID, "-")
+		instrument := currency.NewCurrencyPairDelimiter(candle.InstrumentID, "-")
 		timeData, err := time.Parse(time.RFC3339Nano, candle.WebsocketCandleResponse.Candle[0])
 		if err != nil {
 			log.Warnf("%v Time data could not be parsed: %v", o.GetName(), candle.Candle[0])
@@ -567,7 +568,7 @@ func (o *OKGroup) wsProcessCandles(response *WebsocketDataResponse) {
 // WsProcessOrderBook Validates the checksum and updates internal orderbook values
 func (o *OKGroup) WsProcessOrderBook(response *WebsocketDataResponse) (err error) {
 	for i := range response.Data {
-		instrument := pair.NewCurrencyPairDelimiter(response.Data[i].InstrumentID, "-")
+		instrument := currency.NewCurrencyPairDelimiter(response.Data[i].InstrumentID, "-")
 		if response.Action == okGroupWsOrderbookPartial {
 			err = o.WsProcessPartialOrderBook(&response.Data[i], instrument, response.Table)
 		} else if response.Action == okGroupWsOrderbookUpdate {
@@ -592,7 +593,7 @@ func (o *OKGroup) AppendWsOrderbookItems(entries [][]interface{}) (orderbookItem
 
 // WsProcessPartialOrderBook takes websocket orderbook data and creates an orderbook
 // Calculates checksum to ensure it is valid
-func (o *OKGroup) WsProcessPartialOrderBook(wsEventData *WebsocketDataWrapper, instrument pair.CurrencyPair, tableName string) error {
+func (o *OKGroup) WsProcessPartialOrderBook(wsEventData *WebsocketDataWrapper, instrument currency.Pair, tableName string) error {
 	signedChecksum := o.CalculatePartialOrderbookChecksum(wsEventData)
 	if signedChecksum != wsEventData.Checksum {
 		return fmt.Errorf("channel: %v. Orderbook partial for %v checksum invalid", tableName, instrument)
@@ -625,7 +626,7 @@ func (o *OKGroup) WsProcessPartialOrderBook(wsEventData *WebsocketDataWrapper, i
 
 // WsProcessUpdateOrderbook updates an existing orderbook using websocket data
 // After merging WS data, it will sort, validate and finally update the existing orderbook
-func (o *OKGroup) WsProcessUpdateOrderbook(wsEventData *WebsocketDataWrapper, instrument pair.CurrencyPair, tableName string) error {
+func (o *OKGroup) WsProcessUpdateOrderbook(wsEventData *WebsocketDataWrapper, instrument currency.Pair, tableName string) error {
 	internalOrderbook, err := o.GetOrderbookEx(instrument, o.GetAssetTypeFromTableName(tableName))
 	if err != nil {
 		return errors.New("orderbook nil, could not load existing orderbook")

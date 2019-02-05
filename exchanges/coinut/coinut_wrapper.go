@@ -9,8 +9,7 @@ import (
 	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
-	"github.com/thrasher-/gocryptotrader/currency/pair"
-	"github.com/thrasher-/gocryptotrader/currency/symbol"
+	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
@@ -47,7 +46,13 @@ func (c *COINUT) Run() {
 		currencies = append(currencies, x)
 	}
 
-	err = c.UpdateCurrencies(currencies, false, false)
+	var newCurrencies currency.Pairs
+	for _, p := range currencies {
+		newCurrencies = append(newCurrencies,
+			currency.NewCurrencyPairFromString(p))
+	}
+
+	err = c.UpdateCurrencies(newCurrencies, false, false)
 	if err != nil {
 		log.Errorf("%s Failed to update available currencies.\n", c.GetName())
 	}
@@ -64,59 +69,59 @@ func (c *COINUT) GetAccountInfo() (exchange.AccountInfo, error) {
 
 	var balances = []exchange.AccountCurrencyInfo{
 		{
-			CurrencyName: symbol.BCH,
+			CurrencyName: currency.BCH.String(),
 			TotalValue:   bal.BCH,
 		},
 		{
-			CurrencyName: symbol.BTC,
+			CurrencyName: currency.BTC.String(),
 			TotalValue:   bal.BTC,
 		},
 		{
-			CurrencyName: symbol.BTG,
+			CurrencyName: currency.BTG.String(),
 			TotalValue:   bal.BTG,
 		},
 		{
-			CurrencyName: symbol.CAD,
+			CurrencyName: currency.CAD.String(),
 			TotalValue:   bal.CAD,
 		},
 		{
-			CurrencyName: symbol.ETC,
+			CurrencyName: currency.ETC.String(),
 			TotalValue:   bal.ETC,
 		},
 		{
-			CurrencyName: symbol.ETH,
+			CurrencyName: currency.ETH.String(),
 			TotalValue:   bal.ETH,
 		},
 		{
-			CurrencyName: symbol.LCH,
+			CurrencyName: currency.LCH.String(),
 			TotalValue:   bal.LCH,
 		},
 		{
-			CurrencyName: symbol.LTC,
+			CurrencyName: currency.LTC.String(),
 			TotalValue:   bal.LTC,
 		},
 		{
-			CurrencyName: symbol.MYR,
+			CurrencyName: currency.MYR.String(),
 			TotalValue:   bal.MYR,
 		},
 		{
-			CurrencyName: symbol.SGD,
+			CurrencyName: currency.SGD.String(),
 			TotalValue:   bal.SGD,
 		},
 		{
-			CurrencyName: symbol.USD,
+			CurrencyName: currency.USD.String(),
 			TotalValue:   bal.USD,
 		},
 		{
-			CurrencyName: symbol.USDT,
+			CurrencyName: currency.USDT.String(),
 			TotalValue:   bal.USDT,
 		},
 		{
-			CurrencyName: symbol.XMR,
+			CurrencyName: currency.XMR.String(),
 			TotalValue:   bal.XMR,
 		},
 		{
-			CurrencyName: symbol.ZEC,
+			CurrencyName: currency.ZEC.String(),
 			TotalValue:   bal.ZEC,
 		},
 	}
@@ -129,9 +134,9 @@ func (c *COINUT) GetAccountInfo() (exchange.AccountInfo, error) {
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
-func (c *COINUT) UpdateTicker(p pair.CurrencyPair, assetType string) (ticker.Price, error) {
+func (c *COINUT) UpdateTicker(p currency.Pair, assetType string) (ticker.Price, error) {
 	var tickerPrice ticker.Price
-	tick, err := c.GetInstrumentTicker(c.InstrumentMap[p.Pair().String()])
+	tick, err := c.GetInstrumentTicker(c.InstrumentMap[p.String()])
 	if err != nil {
 		return ticker.Price{}, err
 	}
@@ -147,7 +152,7 @@ func (c *COINUT) UpdateTicker(p pair.CurrencyPair, assetType string) (ticker.Pri
 }
 
 // GetTickerPrice returns the ticker for a currency pair
-func (c *COINUT) GetTickerPrice(p pair.CurrencyPair, assetType string) (ticker.Price, error) {
+func (c *COINUT) GetTickerPrice(p currency.Pair, assetType string) (ticker.Price, error) {
 	tickerNew, err := ticker.GetTicker(c.GetName(), p, assetType)
 	if err != nil {
 		return c.UpdateTicker(p, assetType)
@@ -156,7 +161,7 @@ func (c *COINUT) GetTickerPrice(p pair.CurrencyPair, assetType string) (ticker.P
 }
 
 // GetOrderbookEx returns orderbook base on the currency pair
-func (c *COINUT) GetOrderbookEx(p pair.CurrencyPair, assetType string) (orderbook.Base, error) {
+func (c *COINUT) GetOrderbookEx(p currency.Pair, assetType string) (orderbook.Base, error) {
 	ob, err := orderbook.GetOrderbook(c.GetName(), p, assetType)
 	if err != nil {
 		return c.UpdateOrderbook(p, assetType)
@@ -165,9 +170,9 @@ func (c *COINUT) GetOrderbookEx(p pair.CurrencyPair, assetType string) (orderboo
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (c *COINUT) UpdateOrderbook(p pair.CurrencyPair, assetType string) (orderbook.Base, error) {
+func (c *COINUT) UpdateOrderbook(p currency.Pair, assetType string) (orderbook.Base, error) {
 	var orderBook orderbook.Base
-	orderbookNew, err := c.GetInstrumentOrderbook(c.InstrumentMap[p.Pair().String()], 200)
+	orderbookNew, err := c.GetInstrumentOrderbook(c.InstrumentMap[p.String()], 200)
 	if err != nil {
 		return orderBook, err
 	}
@@ -193,14 +198,14 @@ func (c *COINUT) GetFundingHistory() ([]exchange.FundHistory, error) {
 }
 
 // GetExchangeHistory returns historic trade data since exchange opening.
-func (c *COINUT) GetExchangeHistory(p pair.CurrencyPair, assetType string) ([]exchange.TradeHistory, error) {
+func (c *COINUT) GetExchangeHistory(p currency.Pair, assetType string) ([]exchange.TradeHistory, error) {
 	var resp []exchange.TradeHistory
 
 	return resp, common.ErrNotYetImplemented
 }
 
 // SubmitOrder submits a new order
-func (c *COINUT) SubmitOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (exchange.SubmitOrderResponse, error) {
+func (c *COINUT) SubmitOrder(p currency.Pair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (exchange.SubmitOrderResponse, error) {
 	var submitOrderResponse exchange.SubmitOrderResponse
 	var err error
 	var APIresponse interface{}
@@ -217,7 +222,7 @@ func (c *COINUT) SubmitOrder(p pair.CurrencyPair, side exchange.OrderSide, order
 		return submitOrderResponse, err
 	}
 
-	currencyArray := instruments.Instruments[p.Pair().String()]
+	currencyArray := instruments.Instruments[p.String()]
 	currencyID := currencyArray[0].InstID
 
 	switch orderType {
@@ -336,7 +341,7 @@ func (c *COINUT) GetOrderInfo(orderID string) (exchange.OrderDetail, error) {
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
-func (c *COINUT) GetDepositAddress(cryptocurrency pair.CurrencyItem, accountID string) (string, error) {
+func (c *COINUT) GetDepositAddress(cryptocurrency currency.Code, accountID string) (string, error) {
 	return "", common.ErrFunctionNotSupported
 }
 
@@ -379,7 +384,10 @@ func (c *COINUT) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]
 	for instrument, allInstrumentData := range instruments.Instruments {
 		for _, instrumentData := range allInstrumentData {
 			for _, currency := range getOrdersRequest.Currencies {
-				currStr := fmt.Sprintf("%v%v%v", currency.FirstCurrency.String(), c.ConfigCurrencyPairFormat.Delimiter, currency.SecondCurrency.String())
+				currStr := fmt.Sprintf("%v%v%v",
+					currency.Base.String(),
+					c.ConfigCurrencyPairFormat.Delimiter,
+					currency.Quote.String())
 				if strings.EqualFold(currStr, instrument) {
 					openOrders, err := c.GetOpenOrders(instrumentData.InstID)
 					if err != nil {
@@ -398,7 +406,7 @@ func (c *COINUT) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]
 		for instrument, allInstrumentData := range instruments.Instruments {
 			for _, instrumentData := range allInstrumentData {
 				if instrumentData.InstID == int(order.InstrumentID) {
-					currPair := pair.NewCurrencyPairDelimiter(instrument, "")
+					currPair := currency.NewCurrencyPairDelimiter(instrument, "")
 					orderSide := exchange.OrderSide(strings.ToUpper(order.Side))
 					orderDate := time.Unix(order.Timestamp, 0)
 					orders = append(orders, exchange.OrderDetail{
@@ -433,7 +441,10 @@ func (c *COINUT) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]
 	for instrument, allInstrumentData := range instruments.Instruments {
 		for _, instrumentData := range allInstrumentData {
 			for _, currency := range getOrdersRequest.Currencies {
-				currStr := fmt.Sprintf("%v%v%v", currency.FirstCurrency.String(), c.ConfigCurrencyPairFormat.Delimiter, currency.SecondCurrency.String())
+				currStr := fmt.Sprintf("%v%v%v",
+					currency.Base.String(),
+					c.ConfigCurrencyPairFormat.Delimiter,
+					currency.Quote.String())
 				if strings.EqualFold(currStr, instrument) {
 					orders, err := c.GetTradeHistory(instrumentData.InstID, -1, -1)
 					if err != nil {
@@ -452,7 +463,7 @@ func (c *COINUT) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]
 		for instrument, allInstrumentData := range instruments.Instruments {
 			for _, instrumentData := range allInstrumentData {
 				if instrumentData.InstID == int(order.Order.InstrumentID) {
-					currPair := pair.NewCurrencyPairDelimiter(instrument, "")
+					currPair := currency.NewCurrencyPairDelimiter(instrument, "")
 					orderSide := exchange.OrderSide(strings.ToUpper(order.Order.Side))
 					orderDate := time.Unix(order.Order.Timestamp, 0)
 					orders = append(orders, exchange.OrderDetail{
@@ -469,7 +480,8 @@ func (c *COINUT) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]
 		}
 	}
 
-	exchange.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
+	exchange.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks,
+		getOrdersRequest.EndTicks)
 	exchange.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
 
 	return orders, nil

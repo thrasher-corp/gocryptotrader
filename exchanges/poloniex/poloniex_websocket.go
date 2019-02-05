@@ -10,7 +10,7 @@ import (
 
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-/gocryptotrader/common"
-	"github.com/thrasher-/gocryptotrader/currency/pair"
+	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	log "github.com/thrasher-/gocryptotrader/logger"
@@ -232,7 +232,7 @@ func (p *Poloniex) WsHandleData() {
 							p.Websocket.DataHandler <- exchange.WebsocketOrderbookUpdate{
 								Exchange: p.GetName(),
 								Asset:    "SPOT",
-								Pair:     pair.NewCurrencyPairFromString(currencyPair),
+								Pair:     currency.NewCurrencyPairFromString(currencyPair),
 							}
 						case "o":
 							currencyPair := CurrencyPairID[chanID]
@@ -245,7 +245,7 @@ func (p *Poloniex) WsHandleData() {
 							p.Websocket.DataHandler <- exchange.WebsocketOrderbookUpdate{
 								Exchange: p.GetName(),
 								Asset:    "SPOT",
-								Pair:     pair.NewCurrencyPairFromString(currencyPair),
+								Pair:     currency.NewCurrencyPairFromString(currencyPair),
 							}
 						case "t":
 							currencyPair := CurrencyPairID[chanID]
@@ -264,7 +264,7 @@ func (p *Poloniex) WsHandleData() {
 
 							p.Websocket.DataHandler <- exchange.TradeData{
 								Timestamp:    time.Unix(trade.Timestamp, 0),
-								CurrencyPair: pair.NewCurrencyPairFromString(currencyPair),
+								CurrencyPair: currency.NewCurrencyPairFromString(currencyPair),
 								Side:         trade.Side,
 								Amount:       trade.Volume,
 								Price:        trade.Price,
@@ -324,7 +324,7 @@ func (p *Poloniex) WsProcessOrderbookSnapshot(ob []interface{}, symbol string) e
 	newOrderbook.AssetType = "SPOT"
 	newOrderbook.CurrencyPair = symbol
 	newOrderbook.LastUpdated = time.Now()
-	newOrderbook.Pair = pair.NewCurrencyPairFromString(symbol)
+	newOrderbook.Pair = currency.NewCurrencyPairFromString(symbol)
 
 	return p.Websocket.Orderbook.LoadSnapshot(newOrderbook, p.GetName(), false)
 }
@@ -333,7 +333,7 @@ func (p *Poloniex) WsProcessOrderbookSnapshot(ob []interface{}, symbol string) e
 func (p *Poloniex) WsProcessOrderbookUpdate(target []interface{}, symbol string) error {
 	sideCheck := target[1].(float64)
 
-	cP := pair.NewCurrencyPairFromString(symbol)
+	cP := currency.NewCurrencyPairFromString(symbol)
 
 	price, err := strconv.ParseFloat(target[2].(string), 64)
 	if err != nil {

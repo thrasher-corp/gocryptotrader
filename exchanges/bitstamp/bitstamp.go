@@ -13,7 +13,7 @@ import (
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
-	"github.com/thrasher-/gocryptotrader/currency/symbol"
+	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/request"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
@@ -104,9 +104,9 @@ func (b *Bitstamp) Setup(exch config.ExchangeConfig) {
 		b.RESTPollingDelay = exch.RESTPollingDelay
 		b.Verbose = exch.Verbose
 		b.Websocket.SetWsStatusAndConnection(exch.Websocket)
-		b.BaseCurrencies = common.SplitStrings(exch.BaseCurrencies, ",")
-		b.AvailablePairs = common.SplitStrings(exch.AvailablePairs, ",")
-		b.EnabledPairs = common.SplitStrings(exch.EnabledPairs, ",")
+		b.BaseCurrencies = exch.BaseCurrencies
+		b.AvailablePairs = exch.AvailablePairs
+		b.EnabledPairs = exch.EnabledPairs
 		b.APIKey = exch.APIKey
 		b.APISecret = exch.APISecret
 		b.SetAPIKeys(exch.APIKey, exch.APISecret, b.ClientID, false)
@@ -154,7 +154,7 @@ func (b *Bitstamp) GetFee(feeBuilder exchange.FeeBuilder) (float64, error) {
 		if err != nil {
 			return 0, err
 		}
-		fee = b.CalculateTradingFee(feeBuilder.FirstCurrency+feeBuilder.SecondCurrency, feeBuilder.PurchasePrice, feeBuilder.Amount)
+		fee = b.CalculateTradingFee(feeBuilder.BaseCurrency+feeBuilder.QuoteCurrency, feeBuilder.PurchasePrice, feeBuilder.Amount)
 	case exchange.CyptocurrencyDepositFee:
 		fee = 0
 	case exchange.InternationalBankDepositFee:
@@ -192,19 +192,19 @@ func getInternationalBankDepositFee(amount float64) float64 {
 }
 
 // CalculateTradingFee returns fee on a currency pair
-func (b *Bitstamp) CalculateTradingFee(currency string, purchasePrice, amount float64) float64 {
+func (b *Bitstamp) CalculateTradingFee(c currency.Code, purchasePrice, amount float64) float64 {
 	var fee float64
 
-	switch currency {
-	case symbol.BTC + symbol.USD:
+	switch c {
+	case currency.BTC + currency.USD:
 		fee = b.Balance.BTCUSDFee
-	case symbol.BTC + symbol.EUR:
+	case currency.BTC + currency.EUR:
 		fee = b.Balance.BTCEURFee
-	case symbol.XRP + symbol.EUR:
+	case currency.XRP + currency.EUR:
 		fee = b.Balance.XRPEURFee
-	case symbol.XRP + symbol.USD:
+	case currency.XRP + currency.USD:
 		fee = b.Balance.XRPUSDFee
-	case symbol.EUR + symbol.USD:
+	case currency.EUR + currency.USD:
 		fee = b.Balance.EURUSDFee
 	default:
 		fee = 0
@@ -572,27 +572,27 @@ func (b *Bitstamp) OpenInternationalBankWithdrawal(amount float64, currency,
 
 // GetCryptoDepositAddress returns a depositing address by crypto
 // crypto - example "btc", "ltc", "eth", "xrp" or "bch"
-func (b *Bitstamp) GetCryptoDepositAddress(crypto string) (string, error) {
+func (b *Bitstamp) GetCryptoDepositAddress(crypto currency.Code) (string, error) {
 	var resp string
 
 	switch crypto {
-	case symbol.BTC:
+	case currency.BTC:
 		return resp,
 			b.SendAuthenticatedHTTPRequest(bitstampAPIBitcoinDeposit, false, nil, &resp)
 
-	case symbol.LTC:
+	case currency.LTC:
 		return resp,
 			b.SendAuthenticatedHTTPRequest(bitstampAPILitecoinDeposit, true, nil, &resp)
 
-	case symbol.ETH:
+	case currency.ETH:
 		return resp,
 			b.SendAuthenticatedHTTPRequest(bitstampAPIEthereumDeposit, true, nil, &resp)
 
-	case symbol.XRP:
+	case currency.XRP:
 		return resp,
 			b.SendAuthenticatedHTTPRequest(bitstampAPIXrpDeposit, true, nil, &resp)
 
-	case symbol.BCH:
+	case currency.BCH:
 		return resp,
 			b.SendAuthenticatedHTTPRequest(bitstampAPIBitcoinCashDeposit, true, nil, &resp)
 

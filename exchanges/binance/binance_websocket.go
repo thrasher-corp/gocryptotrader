@@ -12,7 +12,7 @@ import (
 
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-/gocryptotrader/common"
-	"github.com/thrasher-/gocryptotrader/currency/pair"
+	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
@@ -26,7 +26,7 @@ var lastUpdateID map[string]int64
 var m sync.Mutex
 
 // SeedLocalCache seeds depth data
-func (b *Binance) SeedLocalCache(p pair.CurrencyPair) error {
+func (b *Binance) SeedLocalCache(p currency.Pair) error {
 	var newOrderBook orderbook.Base
 
 	formattedPair := exchange.FormatExchangeCurrency(b.Name, p)
@@ -58,7 +58,7 @@ func (b *Binance) SeedLocalCache(p pair.CurrencyPair) error {
 			orderbook.Item{Amount: Asks.Quantity, Price: Asks.Price})
 	}
 
-	newOrderBook.Pair = pair.NewCurrencyPairFromString(formattedPair.String())
+	newOrderBook.Pair = currency.NewCurrencyPairFromString(formattedPair.String())
 	newOrderBook.CurrencyPair = formattedPair.String()
 	newOrderBook.LastUpdated = time.Now()
 	newOrderBook.AssetType = ticker.Spot
@@ -113,7 +113,7 @@ func (b *Binance) UpdateLocalCache(ob WebsocketDepthStream) error {
 	}
 
 	updatedTime := time.Unix(ob.Timestamp, 0)
-	currencyPair := pair.NewCurrencyPairFromString(ob.Pair)
+	currencyPair := currency.NewCurrencyPairFromString(ob.Pair)
 
 	return b.Websocket.Orderbook.Update(updateBid,
 		updateAsk,
@@ -134,16 +134,16 @@ func (b *Binance) WSConnect() error {
 
 	tick := strings.ToLower(
 		strings.Replace(
-			strings.Join(b.EnabledPairs, "@ticker/"), "-", "", -1)) + "@ticker"
+			strings.Join(b.EnabledPairs.String(), "@ticker/"), "-", "", -1)) + "@ticker"
 	trade := strings.ToLower(
 		strings.Replace(
-			strings.Join(b.EnabledPairs, "@trade/"), "-", "", -1)) + "@trade"
+			strings.Join(b.EnabledPairs.String(), "@trade/"), "-", "", -1)) + "@trade"
 	kline := strings.ToLower(
 		strings.Replace(
-			strings.Join(b.EnabledPairs, "@kline_1m/"), "-", "", -1)) + "@kline_1m"
+			strings.Join(b.EnabledPairs.String(), "@kline_1m/"), "-", "", -1)) + "@kline_1m"
 	depth := strings.ToLower(
 		strings.Replace(
-			strings.Join(b.EnabledPairs, "@depth/"), "-", "", -1)) + "@depth"
+			strings.Join(b.EnabledPairs.String(), "@depth/"), "-", "", -1)) + "@depth"
 
 	wsurl := b.Websocket.GetWebsocketURL() +
 		"/stream?streams=" +
@@ -255,7 +255,7 @@ func (b *Binance) WsHandleData() {
 					}
 
 					b.Websocket.DataHandler <- exchange.TradeData{
-						CurrencyPair: pair.NewCurrencyPairFromString(trade.Symbol),
+						CurrencyPair: currency.NewCurrencyPairFromString(trade.Symbol),
 						Timestamp:    time.Unix(0, trade.TimeStamp),
 						Price:        price,
 						Amount:       amount,
@@ -277,7 +277,7 @@ func (b *Binance) WsHandleData() {
 					var wsTicker exchange.TickerData
 
 					wsTicker.Timestamp = time.Unix(0, t.EventTime)
-					wsTicker.Pair = pair.NewCurrencyPairFromString(t.Symbol)
+					wsTicker.Pair = currency.NewCurrencyPairFromString(t.Symbol)
 					wsTicker.AssetType = ticker.Spot
 					wsTicker.Exchange = b.GetName()
 					wsTicker.ClosePrice, _ = strconv.ParseFloat(t.CurrDayClose, 64)
@@ -301,7 +301,7 @@ func (b *Binance) WsHandleData() {
 					var wsKline exchange.KlineData
 
 					wsKline.Timestamp = time.Unix(0, kline.EventTime)
-					wsKline.Pair = pair.NewCurrencyPairFromString(kline.Symbol)
+					wsKline.Pair = currency.NewCurrencyPairFromString(kline.Symbol)
 					wsKline.AssetType = ticker.Spot
 					wsKline.Exchange = b.GetName()
 					wsKline.StartTime = time.Unix(0, kline.Kline.StartTime)
@@ -332,7 +332,7 @@ func (b *Binance) WsHandleData() {
 						continue
 					}
 
-					currencyPair := pair.NewCurrencyPairFromString(depth.Pair)
+					currencyPair := currency.NewCurrencyPairFromString(depth.Pair)
 
 					b.Websocket.DataHandler <- exchange.WebsocketOrderbookUpdate{
 						Pair:     currencyPair,

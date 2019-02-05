@@ -12,6 +12,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
+	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/request"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
@@ -101,9 +102,9 @@ func (p *Poloniex) Setup(exch config.ExchangeConfig) {
 		p.RESTPollingDelay = exch.RESTPollingDelay
 		p.Verbose = exch.Verbose
 		p.Websocket.SetWsStatusAndConnection(exch.Websocket)
-		p.BaseCurrencies = common.SplitStrings(exch.BaseCurrencies, ",")
-		p.AvailablePairs = common.SplitStrings(exch.AvailablePairs, ",")
-		p.EnabledPairs = common.SplitStrings(exch.EnabledPairs, ",")
+		p.BaseCurrencies = exch.BaseCurrencies
+		p.AvailablePairs = exch.AvailablePairs
+		p.EnabledPairs = exch.EnabledPairs
 		err := p.SetCurrencyPairFormat()
 		if err != nil {
 			log.Fatal(err)
@@ -886,7 +887,7 @@ func (p *Poloniex) GetFee(feeBuilder exchange.FeeBuilder) (float64, error) {
 		}
 		fee = calculateTradingFee(feeInfo, feeBuilder.PurchasePrice, feeBuilder.Amount, feeBuilder.IsMaker)
 	case exchange.CryptocurrencyWithdrawalFee:
-		fee = getWithdrawalFee(feeBuilder.FirstCurrency)
+		fee = getWithdrawalFee(feeBuilder.BaseCurrency)
 	}
 	if fee < 0 {
 		fee = 0
@@ -904,6 +905,6 @@ func calculateTradingFee(feeInfo Fee, purchasePrice, amount float64, isMaker boo
 	return fee * amount * purchasePrice
 }
 
-func getWithdrawalFee(currency string) float64 {
-	return WithdrawalFees[currency]
+func getWithdrawalFee(c currency.Code) float64 {
+	return WithdrawalFees[c]
 }

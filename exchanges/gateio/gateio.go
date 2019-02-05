@@ -12,6 +12,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
+	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/request"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
@@ -93,9 +94,9 @@ func (g *Gateio) Setup(exch config.ExchangeConfig) {
 		g.SetHTTPClientUserAgent(exch.HTTPUserAgent)
 		g.RESTPollingDelay = exch.RESTPollingDelay
 		g.Verbose = exch.Verbose
-		g.BaseCurrencies = common.SplitStrings(exch.BaseCurrencies, ",")
-		g.AvailablePairs = common.SplitStrings(exch.AvailablePairs, ",")
-		g.EnabledPairs = common.SplitStrings(exch.EnabledPairs, ",")
+		g.BaseCurrencies = exch.BaseCurrencies
+		g.AvailablePairs = exch.AvailablePairs
+		g.EnabledPairs = exch.EnabledPairs
 		err := g.SetCurrencyPairFormat()
 		if err != nil {
 			log.Fatal(err)
@@ -507,19 +508,29 @@ func (g *Gateio) GetFee(feeBuilder exchange.FeeBuilder) (fee float64, err error)
 		if err != nil {
 			return 0, err
 		}
-		currencyPair := feeBuilder.FirstCurrency + feeBuilder.Delimiter + feeBuilder.SecondCurrency
+
+		currencyPair := feeBuilder.BaseCurrency.String() +
+			feeBuilder.Delimiter +
+			feeBuilder.QuoteCurrency.String()
+
 		var feeForPair float64
 		for _, i := range feePairs.Pairs {
 			if strings.EqualFold(currencyPair, i.Symbol) {
 				feeForPair = i.Fee
 			}
 		}
+
 		if feeForPair == 0 {
-			return 0, fmt.Errorf("currency '%s' failed to find fee data", currencyPair)
+			return 0, fmt.Errorf("currency '%s' failed to find fee data",
+				currencyPair)
 		}
-		fee = calculateTradingFee(feeForPair, feeBuilder.PurchasePrice, feeBuilder.Amount)
+
+		fee = calculateTradingFee(feeForPair,
+			feeBuilder.PurchasePrice,
+			feeBuilder.Amount)
+
 	case exchange.CryptocurrencyWithdrawalFee:
-		fee = getCryptocurrencyWithdrawalFee(feeBuilder.FirstCurrency)
+		fee = getCryptocurrencyWithdrawalFee(feeBuilder.BaseCurrency)
 	}
 
 	if fee < 0 {
@@ -533,8 +544,8 @@ func calculateTradingFee(feeForPair, purchasePrice, amount float64) float64 {
 	return (feeForPair / 100) * purchasePrice * amount
 }
 
-func getCryptocurrencyWithdrawalFee(currency string) float64 {
-	return WithdrawalFees[currency]
+func getCryptocurrencyWithdrawalFee(c currency.Code) float64 {
+	return WithdrawalFees[c]
 }
 
 // WithdrawCrypto withdraws cryptocurrency to your selected wallet

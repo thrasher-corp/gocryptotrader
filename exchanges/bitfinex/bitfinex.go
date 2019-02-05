@@ -11,7 +11,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
-	"github.com/thrasher-/gocryptotrader/currency/symbol"
+	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/request"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
@@ -130,9 +130,9 @@ func (b *Bitfinex) Setup(exch config.ExchangeConfig) {
 		b.RESTPollingDelay = exch.RESTPollingDelay
 		b.Verbose = exch.Verbose
 		b.Websocket.SetWsStatusAndConnection(exch.Websocket)
-		b.BaseCurrencies = common.SplitStrings(exch.BaseCurrencies, ",")
-		b.AvailablePairs = common.SplitStrings(exch.AvailablePairs, ",")
-		b.EnabledPairs = common.SplitStrings(exch.EnabledPairs, ",")
+		b.BaseCurrencies = exch.BaseCurrencies
+		b.AvailablePairs = exch.AvailablePairs
+		b.EnabledPairs = exch.EnabledPairs
 		err := b.SetCurrencyPairFormat()
 		if err != nil {
 			log.Fatal(err)
@@ -579,14 +579,14 @@ func (b *Bitfinex) WalletTransfer(amount float64, currency, walletFrom, walletTo
 
 // WithdrawCryptocurrency requests a withdrawal from one of your wallets.
 // For FIAT, use WithdrawFIAT
-func (b *Bitfinex) WithdrawCryptocurrency(withdrawType, wallet, address, currency, paymentID string, amount float64) ([]Withdrawal, error) {
+func (b *Bitfinex) WithdrawCryptocurrency(withdrawType, wallet, address, paymentID string, amount float64, c currency.Code) ([]Withdrawal, error) {
 	response := []Withdrawal{}
 	req := make(map[string]interface{})
 	req["withdraw_type"] = withdrawType
 	req["walletselected"] = wallet
 	req["amount"] = strconv.FormatFloat(amount, 'f', -1, 64)
 	req["address"] = address
-	if currency == symbol.XMR {
+	if c == currency.XMR {
 		req["paymend_id"] = paymentID
 	}
 
@@ -967,7 +967,7 @@ func (b *Bitfinex) GetFee(feeBuilder exchange.FeeBuilder) (float64, error) {
 		if err != nil {
 			return 0, err
 		}
-		fee, err = b.CalculateTradingFee(accountInfos, feeBuilder.PurchasePrice, feeBuilder.Amount, feeBuilder.FirstCurrency, feeBuilder.IsMaker)
+		fee, err = b.CalculateTradingFee(accountInfos, feeBuilder.PurchasePrice, feeBuilder.Amount, feeBuilder.BaseCurrency, feeBuilder.IsMaker)
 		if err != nil {
 			return 0, err
 		}
@@ -979,7 +979,7 @@ func (b *Bitfinex) GetFee(feeBuilder exchange.FeeBuilder) (float64, error) {
 		if err != nil {
 			return 0, err
 		}
-		fee, err = b.GetCryptocurrencyWithdrawalFee(feeBuilder.FirstCurrency, accountFees)
+		fee, err = b.GetCryptocurrencyWithdrawalFee(feeBuilder.BaseCurrency, accountFees)
 		if err != nil {
 			return 0, err
 		}
@@ -995,8 +995,8 @@ func (b *Bitfinex) GetFee(feeBuilder exchange.FeeBuilder) (float64, error) {
 }
 
 // GetCryptocurrencyWithdrawalFee returns an estimate of fee based on type of transaction
-func (b *Bitfinex) GetCryptocurrencyWithdrawalFee(currency string, accountFees AccountFees) (fee float64, err error) {
-	switch result := accountFees.Withdraw[currency].(type) {
+func (b *Bitfinex) GetCryptocurrencyWithdrawalFee(c currency.Code, accountFees AccountFees) (fee float64, err error) {
+	switch result := accountFees.Withdraw[c.String()].(type) {
 	case string:
 		fee, err = strconv.ParseFloat(result, 64)
 		if err != nil {
@@ -1018,10 +1018,10 @@ func getInternationalBankWithdrawalFee(amount float64) float64 {
 }
 
 // CalculateTradingFee returns an estimate of fee based on type of whether is maker or taker fee
-func (b *Bitfinex) CalculateTradingFee(accountInfos []AccountInfo, purchasePrice, amount float64, currency string, isMaker bool) (fee float64, err error) {
+func (b *Bitfinex) CalculateTradingFee(accountInfos []AccountInfo, purchasePrice, amount float64, c currency.Code, isMaker bool) (fee float64, err error) {
 	for _, i := range accountInfos {
 		for _, j := range i.Fees {
-			if currency == j.Pairs {
+			if c.String() == j.Pairs {
 				if isMaker {
 					fee = j.MakerFees
 				} else {
@@ -1038,77 +1038,77 @@ func (b *Bitfinex) CalculateTradingFee(accountInfos []AccountInfo, purchasePrice
 }
 
 // ConvertSymbolToWithdrawalType You need to have specific withdrawal types to withdraw from Bitfinex
-func (b *Bitfinex) ConvertSymbolToWithdrawalType(currency string) string {
-	switch currency {
-	case symbol.BTC:
+func (b *Bitfinex) ConvertSymbolToWithdrawalType(c currency.Code) string {
+	switch c {
+	case currency.BTC:
 		return "bitcoin"
-	case symbol.LTC:
+	case currency.LTC:
 		return "litecoin"
-	case symbol.ETH:
+	case currency.ETH:
 		return "ethereum"
-	case symbol.ETC:
+	case currency.ETC:
 		return "ethereumc"
-	case symbol.USDT:
+	case currency.USDT:
 		return "tetheruso"
 	case "Wire":
 		return "wire"
-	case symbol.ZEC:
+	case currency.ZEC:
 		return "zcash"
-	case symbol.XMR:
+	case currency.XMR:
 		return "monero"
-	case symbol.DSH:
+	case currency.DSH:
 		return "dash"
-	case symbol.XRP:
+	case currency.XRP:
 		return "ripple"
-	case symbol.SAN:
+	case currency.SAN:
 		return "santiment"
-	case symbol.OMG:
+	case currency.OMG:
 		return "omisego"
-	case symbol.BCH:
+	case currency.BCH:
 		return "bcash"
-	case symbol.ETP:
+	case currency.ETP:
 		return "metaverse"
-	case symbol.AVT:
+	case currency.AVT:
 		return "aventus"
-	case symbol.EDO:
+	case currency.EDO:
 		return "eidoo"
-	case symbol.BTG:
+	case currency.BTG:
 		return "bgold"
-	case symbol.DATA:
+	case currency.DATA:
 		return "datacoin"
-	case symbol.GNT:
+	case currency.GNT:
 		return "golem"
-	case symbol.SNT:
+	case currency.SNT:
 		return "status"
 	default:
-		return common.StringToLower(currency)
+		return c.Lower().String()
 	}
 }
 
 // ConvertSymbolToDepositMethod returns a converted currency deposit method
-func (b *Bitfinex) ConvertSymbolToDepositMethod(currency string) (method string, err error) {
-	switch currency {
-	case symbol.BTC:
+func (b *Bitfinex) ConvertSymbolToDepositMethod(c currency.Code) (method string, err error) {
+	switch c {
+	case currency.BTC:
 		method = "bitcoin"
-	case symbol.LTC:
+	case currency.LTC:
 		method = "litecoin"
-	case symbol.ETH:
+	case currency.ETH:
 		method = "ethereum"
-	case symbol.ETC:
+	case currency.ETC:
 		method = "ethereumc"
-	case symbol.USDT:
+	case currency.USDT:
 		method = "tetheruso"
-	case symbol.ZEC:
+	case currency.ZEC:
 		method = "zcash"
-	case symbol.XMR:
+	case currency.XMR:
 		method = "monero"
-	case symbol.BCH:
+	case currency.BCH:
 		method = "bcash"
-	case symbol.MIOTA:
+	case currency.MIOTA:
 		method = "iota"
 	default:
 		err = fmt.Errorf("currency %s not supported in method list",
-			currency)
+			c)
 	}
 	return
 }

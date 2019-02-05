@@ -116,9 +116,9 @@ func (o *OKGroup) Setup(exch config.ExchangeConfig) {
 		o.RESTPollingDelay = exch.RESTPollingDelay
 		o.Verbose = exch.Verbose
 		o.Websocket.SetWsStatusAndConnection(exch.Websocket)
-		o.BaseCurrencies = common.SplitStrings(exch.BaseCurrencies, ",")
-		o.AvailablePairs = common.SplitStrings(exch.AvailablePairs, ",")
-		o.EnabledPairs = common.SplitStrings(exch.EnabledPairs, ",")
+		o.BaseCurrencies = exch.BaseCurrencies
+		o.AvailablePairs = exch.AvailablePairs
+		o.EnabledPairs = exch.EnabledPairs
 		err := o.SetCurrencyPairFormat()
 		if err != nil {
 			log.Fatal(err)
@@ -670,12 +670,12 @@ func (o *OKGroup) GetFee(feeBuilder exchange.FeeBuilder) (fee float64, _ error) 
 	case exchange.CryptocurrencyTradeFee:
 		fee = calculateTradingFee(feeBuilder.PurchasePrice, feeBuilder.Amount, feeBuilder.IsMaker)
 	case exchange.CryptocurrencyWithdrawalFee:
-		withdrawFees, err := o.GetAccountWithdrawalFee(feeBuilder.CurrencyItem)
+		withdrawFees, err := o.GetAccountWithdrawalFee(feeBuilder.FiatCurrency.String())
 		if err != nil {
 			return -1, err
 		}
 		for _, withdrawFee := range withdrawFees {
-			if withdrawFee.Currency == feeBuilder.CurrencyItem {
+			if withdrawFee.Currency == feeBuilder.FiatCurrency.String() {
 				fee = withdrawFee.MinFee
 				break
 			}

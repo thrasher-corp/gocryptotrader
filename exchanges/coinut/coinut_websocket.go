@@ -9,7 +9,7 @@ import (
 
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-/gocryptotrader/common"
-	"github.com/thrasher-/gocryptotrader/currency/pair"
+	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 )
@@ -111,7 +111,7 @@ func (c *COINUT) WsHandleData() {
 				c.Websocket.DataHandler <- exchange.WebsocketOrderbookUpdate{
 					Exchange: c.GetName(),
 					Asset:    "SPOT",
-					Pair:     pair.NewCurrencyPairFromString(currencyPair),
+					Pair:     currency.NewCurrencyPairFromString(currencyPair),
 				}
 
 			case "inst_order_book_update":
@@ -133,7 +133,7 @@ func (c *COINUT) WsHandleData() {
 				c.Websocket.DataHandler <- exchange.WebsocketOrderbookUpdate{
 					Exchange: c.GetName(),
 					Asset:    "SPOT",
-					Pair:     pair.NewCurrencyPairFromString(currencyPair),
+					Pair:     currency.NewCurrencyPairFromString(currencyPair),
 				}
 
 			case "inst_trade":
@@ -156,7 +156,7 @@ func (c *COINUT) WsHandleData() {
 
 				c.Websocket.DataHandler <- exchange.TradeData{
 					Timestamp:    time.Unix(tradeUpdate.Timestamp, 0),
-					CurrencyPair: pair.NewCurrencyPairFromString(currencyPair),
+					CurrencyPair: currency.NewCurrencyPairFromString(currencyPair),
 					AssetType:    "SPOT",
 					Exchange:     c.GetName(),
 					Price:        tradeUpdate.Price,
@@ -277,7 +277,7 @@ func (c *COINUT) WsSubscribe() error {
 	for _, p := range pairs {
 		ticker := wsRequest{
 			Request:   "inst_tick",
-			InstID:    instrumentListByString[p.Pair().String()],
+			InstID:    instrumentListByString[p.String()],
 			Subscribe: true,
 			Nonce:     c.GetNonce(),
 		}
@@ -294,7 +294,7 @@ func (c *COINUT) WsSubscribe() error {
 
 		ob := wsRequest{
 			Request:   "inst_order_book",
-			InstID:    instrumentListByString[p.Pair().String()],
+			InstID:    instrumentListByString[p.String()],
 			Subscribe: true,
 			Nonce:     c.GetNonce(),
 		}
@@ -334,7 +334,7 @@ func (c *COINUT) WsProcessOrderbookSnapshot(ob WsOrderbookSnapshot) error {
 	newOrderbook.Asks = asks
 	newOrderbook.Bids = bids
 	newOrderbook.CurrencyPair = instrumentListByCode[ob.InstID]
-	newOrderbook.Pair = pair.NewCurrencyPairFromString(instrumentListByCode[ob.InstID])
+	newOrderbook.Pair = currency.NewCurrencyPairFromString(instrumentListByCode[ob.InstID])
 	newOrderbook.AssetType = "SPOT"
 	newOrderbook.LastUpdated = time.Now()
 
@@ -343,7 +343,7 @@ func (c *COINUT) WsProcessOrderbookSnapshot(ob WsOrderbookSnapshot) error {
 
 // WsProcessOrderbookUpdate process an orderbook update
 func (c *COINUT) WsProcessOrderbookUpdate(ob WsOrderbookUpdate) error {
-	p := pair.NewCurrencyPairFromString(instrumentListByCode[ob.InstID])
+	p := currency.NewCurrencyPairFromString(instrumentListByCode[ob.InstID])
 
 	if ob.Side == "buy" {
 		return c.Websocket.Orderbook.Update([]orderbook.Item{

@@ -7,15 +7,15 @@ import (
 	"testing"
 	"time"
 
-	"github.com/thrasher-/gocryptotrader/currency/pair"
+	"github.com/thrasher-/gocryptotrader/currency"
 )
 
 func TestCalculateTotalBids(t *testing.T) {
 	t.Parallel()
-	currency := pair.NewCurrencyPair("BTC", "USD")
+	currency := currency.NewCurrencyPair("BTC", "USD")
 	base := Base{
 		Pair:         currency,
-		CurrencyPair: currency.Pair().String(),
+		CurrencyPair: currency.String(),
 		Bids:         []Item{{Price: 100, Amount: 10}},
 		LastUpdated:  time.Now(),
 	}
@@ -28,10 +28,10 @@ func TestCalculateTotalBids(t *testing.T) {
 
 func TestCalculateTotaAsks(t *testing.T) {
 	t.Parallel()
-	currency := pair.NewCurrencyPair("BTC", "USD")
+	currency := currency.NewCurrencyPair("BTC", "USD")
 	base := Base{
 		Pair:         currency,
-		CurrencyPair: currency.Pair().String(),
+		CurrencyPair: currency.String(),
 		Asks:         []Item{{Price: 100, Amount: 10}},
 		LastUpdated:  time.Now(),
 	}
@@ -44,11 +44,11 @@ func TestCalculateTotaAsks(t *testing.T) {
 
 func TestUpdate(t *testing.T) {
 	t.Parallel()
-	currency := pair.NewCurrencyPair("BTC", "USD")
+	currency := currency.NewCurrencyPair("BTC", "USD")
 	timeNow := time.Now()
 	base := Base{
 		Pair:         currency,
-		CurrencyPair: currency.Pair().String(),
+		CurrencyPair: currency.String(),
 		Asks:         []Item{{Price: 100, Amount: 10}},
 		Bids:         []Item{{Price: 200, Amount: 10}},
 		LastUpdated:  timeNow,
@@ -75,38 +75,38 @@ func TestUpdate(t *testing.T) {
 }
 
 func TestGetOrderbook(t *testing.T) {
-	currency := pair.NewCurrencyPair("BTC", "USD")
+	c := currency.NewCurrencyPair("BTC", "USD")
 	base := Base{
-		Pair:         currency,
-		CurrencyPair: currency.Pair().String(),
+		Pair:         c,
+		CurrencyPair: c.String(),
 		Asks:         []Item{{Price: 100, Amount: 10}},
 		Bids:         []Item{{Price: 200, Amount: 10}},
 	}
 
-	CreateNewOrderbook("Exchange", currency, base, Spot)
+	CreateNewOrderbook("Exchange", c, base, Spot)
 
-	result, err := GetOrderbook("Exchange", currency, Spot)
+	result, err := GetOrderbook("Exchange", c, Spot)
 	if err != nil {
 		t.Fatalf("Test failed. TestGetOrderbook failed to get orderbook. Error %s",
 			err)
 	}
 
-	if result.Pair.Pair() != currency.Pair() {
+	if result.Pair.String() != c.String() {
 		t.Fatal("Test failed. TestGetOrderbook failed. Mismatched pairs")
 	}
 
-	_, err = GetOrderbook("nonexistent", currency, Spot)
+	_, err = GetOrderbook("nonexistent", c, Spot)
 	if err == nil {
 		t.Fatal("Test failed. TestGetOrderbook retrieved non-existent orderbook")
 	}
 
-	currency.FirstCurrency = "blah"
-	_, err = GetOrderbook("Exchange", currency, Spot)
+	c.Base = "blah"
+	_, err = GetOrderbook("Exchange", c, Spot)
 	if err == nil {
 		t.Fatal("Test failed. TestGetOrderbook retrieved non-existent orderbook using invalid first currency")
 	}
 
-	newCurrency := pair.NewCurrencyPair("BTC", "AUD")
+	newCurrency := currency.NewCurrencyPair("BTC", "AUD")
 	_, err = GetOrderbook("Exchange", newCurrency, Spot)
 	if err == nil {
 		t.Fatal("Test failed. TestGetOrderbook retrieved non-existent orderbook using invalid second currency")
@@ -114,10 +114,10 @@ func TestGetOrderbook(t *testing.T) {
 }
 
 func TestGetOrderbookByExchange(t *testing.T) {
-	currency := pair.NewCurrencyPair("BTC", "USD")
+	currency := currency.NewCurrencyPair("BTC", "USD")
 	base := Base{
 		Pair:         currency,
-		CurrencyPair: currency.Pair().String(),
+		CurrencyPair: currency.String(),
 		Asks:         []Item{{Price: 100, Amount: 10}},
 		Bids:         []Item{{Price: 200, Amount: 10}},
 	}
@@ -137,64 +137,64 @@ func TestGetOrderbookByExchange(t *testing.T) {
 }
 
 func TestFirstCurrencyExists(t *testing.T) {
-	currency := pair.NewCurrencyPair("BTC", "AUD")
+	c := currency.NewCurrencyPair("BTC", "AUD")
 	base := Base{
-		Pair:         currency,
-		CurrencyPair: currency.Pair().String(),
+		Pair:         c,
+		CurrencyPair: c.String(),
 		Asks:         []Item{{Price: 100, Amount: 10}},
 		Bids:         []Item{{Price: 200, Amount: 10}},
 	}
 
-	CreateNewOrderbook("Exchange", currency, base, Spot)
+	CreateNewOrderbook("Exchange", c, base, Spot)
 
-	if !FirstCurrencyExists("Exchange", currency.FirstCurrency) {
+	if !FirstCurrencyExists("Exchange", c.Base) {
 		t.Fatal("Test failed. TestFirstCurrencyExists expected first currency doesn't exist")
 	}
 
-	var item pair.CurrencyItem = "blah"
+	var item = currency.Code("blah")
 	if FirstCurrencyExists("Exchange", item) {
 		t.Fatal("Test failed. TestFirstCurrencyExists unexpected first currency exists")
 	}
 }
 
 func TestSecondCurrencyExists(t *testing.T) {
-	currency := pair.NewCurrencyPair("BTC", "USD")
+	c := currency.NewCurrencyPair("BTC", "USD")
 	base := Base{
-		Pair:         currency,
-		CurrencyPair: currency.Pair().String(),
+		Pair:         c,
+		CurrencyPair: c.String(),
 		Asks:         []Item{{Price: 100, Amount: 10}},
 		Bids:         []Item{{Price: 200, Amount: 10}},
 	}
 
-	CreateNewOrderbook("Exchange", currency, base, Spot)
+	CreateNewOrderbook("Exchange", c, base, Spot)
 
-	if !SecondCurrencyExists("Exchange", currency) {
+	if !SecondCurrencyExists("Exchange", c) {
 		t.Fatal("Test failed. TestSecondCurrencyExists expected first currency doesn't exist")
 	}
 
-	currency.SecondCurrency = "blah"
-	if SecondCurrencyExists("Exchange", currency) {
+	c.Quote = currency.Code("blah")
+	if SecondCurrencyExists("Exchange", c) {
 		t.Fatal("Test failed. TestSecondCurrencyExists unexpected first currency exists")
 	}
 }
 
 func TestCreateNewOrderbook(t *testing.T) {
-	currency := pair.NewCurrencyPair("BTC", "USD")
+	c := currency.NewCurrencyPair("BTC", "USD")
 	base := Base{
-		Pair:         currency,
-		CurrencyPair: currency.Pair().String(),
+		Pair:         c,
+		CurrencyPair: c.String(),
 		Asks:         []Item{{Price: 100, Amount: 10}},
 		Bids:         []Item{{Price: 200, Amount: 10}},
 	}
 
-	CreateNewOrderbook("Exchange", currency, base, Spot)
+	CreateNewOrderbook("Exchange", c, base, Spot)
 
-	result, err := GetOrderbook("Exchange", currency, Spot)
+	result, err := GetOrderbook("Exchange", c, Spot)
 	if err != nil {
 		t.Fatal("Test failed. TestCreateNewOrderbook failed to create new orderbook")
 	}
 
-	if result.Pair.Pair() != currency.Pair() {
+	if result.Pair.String() != c.String() {
 		t.Fatal("Test failed. TestCreateNewOrderbook result pair is incorrect")
 	}
 
@@ -211,42 +211,42 @@ func TestCreateNewOrderbook(t *testing.T) {
 
 func TestProcessOrderbook(t *testing.T) {
 	Orderbooks = []Orderbook{}
-	currency := pair.NewCurrencyPair("BTC", "USD")
+	c := currency.NewCurrencyPair("BTC", "USD")
 	base := Base{
-		Pair:         currency,
-		CurrencyPair: currency.Pair().String(),
+		Pair:         c,
+		CurrencyPair: c.String(),
 		Asks:         []Item{{Price: 100, Amount: 10}},
 		Bids:         []Item{{Price: 200, Amount: 10}},
 	}
 
-	ProcessOrderbook("Exchange", currency, base, Spot)
+	ProcessOrderbook("Exchange", c, base, Spot)
 
-	result, err := GetOrderbook("Exchange", currency, Spot)
+	result, err := GetOrderbook("Exchange", c, Spot)
 	if err != nil {
 		t.Fatal("Test failed. TestProcessOrderbook failed to create new orderbook")
 	}
 
-	if result.Pair.Pair() != currency.Pair() {
+	if result.Pair.String() != c.String() {
 		t.Fatal("Test failed. TestProcessOrderbook result pair is incorrect")
 	}
 
-	currency = pair.NewCurrencyPair("BTC", "GBP")
-	base.Pair = currency
-	ProcessOrderbook("Exchange", currency, base, Spot)
+	c = currency.NewCurrencyPair("BTC", "GBP")
+	base.Pair = c
+	ProcessOrderbook("Exchange", c, base, Spot)
 
-	result, err = GetOrderbook("Exchange", currency, Spot)
+	result, err = GetOrderbook("Exchange", c, Spot)
 	if err != nil {
 		t.Fatal("Test failed. TestProcessOrderbook failed to retrieve new orderbook")
 	}
 
-	if result.Pair.Pair() != currency.Pair() {
+	if result.Pair.String() != c.String() {
 		t.Fatal("Test failed. TestProcessOrderbook result pair is incorrect")
 	}
 
 	base.Asks = []Item{{Price: 200, Amount: 200}}
-	ProcessOrderbook("Exchange", currency, base, "monthly")
+	ProcessOrderbook("Exchange", c, base, "monthly")
 
-	result, err = GetOrderbook("Exchange", currency, "monthly")
+	result, err = GetOrderbook("Exchange", c, "monthly")
 	if err != nil {
 		t.Fatal("Test failed. TestProcessOrderbook failed to retrieve new orderbook")
 	}
@@ -257,8 +257,8 @@ func TestProcessOrderbook(t *testing.T) {
 	}
 
 	base.Bids = []Item{{Price: 420, Amount: 200}}
-	ProcessOrderbook("Blah", currency, base, "quarterly")
-	result, err = GetOrderbook("Blah", currency, "quarterly")
+	ProcessOrderbook("Blah", c, base, "quarterly")
+	result, err = GetOrderbook("Blah", c, "quarterly")
 	if err != nil {
 		t.Fatal("Test failed. TestProcessOrderbook failed to create new orderbook")
 	}
@@ -269,7 +269,7 @@ func TestProcessOrderbook(t *testing.T) {
 
 	type quick struct {
 		Name string
-		P    pair.CurrencyPair
+		P    currency.Pair
 		Bids []Item
 		Asks []Item
 	}
@@ -285,14 +285,14 @@ func TestProcessOrderbook(t *testing.T) {
 		wg.Add(1)
 		go func() {
 			newName := "Exchange" + strconv.FormatInt(rand.Int63(), 10)
-			newPairs := pair.NewCurrencyPair("BTC"+strconv.FormatInt(rand.Int63(), 10),
-				"USD"+strconv.FormatInt(rand.Int63(), 10))
+			newPairs := currency.NewCurrencyPair(currency.Code("BTC"+strconv.FormatInt(rand.Int63(), 10)),
+				currency.Code("USD"+strconv.FormatInt(rand.Int63(), 10)))
 
 			asks := []Item{{Price: rand.Float64(), Amount: rand.Float64()}}
 			bids := []Item{{Price: rand.Float64(), Amount: rand.Float64()}}
 			base := Base{
 				Pair:         newPairs,
-				CurrencyPair: newPairs.Pair().String(),
+				CurrencyPair: newPairs.String(),
 				Asks:         asks,
 				Bids:         bids,
 			}

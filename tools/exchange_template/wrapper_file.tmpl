@@ -31,7 +31,7 @@ func ({{.Variable}} *{{.CapitalName}}) Run() {
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
-func ({{.Variable}} *{{.CapitalName}}) UpdateTicker(p pair.CurrencyPair, assetType string) (ticker.Price, error) {
+func ({{.Variable}} *{{.CapitalName}}) UpdateTicker(p currency.Pair, assetType string) (ticker.Price, error) {
 	var tickerPrice ticker.Price
   // NOTE EXAMPLE FOR GETTING TICKER PRICE
 	//tick, err := {{.Variable}}.GetTickers()
@@ -59,7 +59,7 @@ func ({{.Variable}} *{{.CapitalName}}) UpdateTicker(p pair.CurrencyPair, assetTy
 }
 
 // GetTickerPrice returns the ticker for a currency pair
-func ({{.Variable}} *{{.CapitalName}}) GetTickerPrice(p pair.CurrencyPair, assetType string) (ticker.Price, error) {
+func ({{.Variable}} *{{.CapitalName}}) GetTickerPrice(p currency.Pair, assetType string) (ticker.Price, error) {
 	tickerNew, err := ticker.GetTicker({{.Variable}}.GetName(), p, assetType)
 	if err != nil {
 		return {{.Variable}}.UpdateTicker(p, assetType)
@@ -68,7 +68,7 @@ func ({{.Variable}} *{{.CapitalName}}) GetTickerPrice(p pair.CurrencyPair, asset
 }
 
 // GetOrderbookEx returns orderbook base on the currency pair
-func ({{.Variable}} *{{.CapitalName}}) GetOrderbookEx(currency pair.CurrencyPair, assetType string) (orderbook.Base, error) {
+func ({{.Variable}} *{{.CapitalName}}) GetOrderbookEx(currency currency.Pair, assetType string) (orderbook.Base, error) {
 	ob, err := orderbook.GetOrderbook({{.Variable}}.GetName(), currency, assetType)
 	if err != nil {
 		return {{.Variable}}.UpdateOrderbook(currency, assetType)
@@ -77,7 +77,7 @@ func ({{.Variable}} *{{.CapitalName}}) GetOrderbookEx(currency pair.CurrencyPair
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func ({{.Variable}} *{{.CapitalName}}) UpdateOrderbook(p pair.CurrencyPair, assetType string) (orderbook.Base, error) {
+func ({{.Variable}} *{{.CapitalName}}) UpdateOrderbook(p currency.Pair, assetType string) (orderbook.Base, error) {
 	var orderBook orderbook.Base
   //NOTE UPDATE ORDERBOOK EXAMPLE
 	//orderbookNew, err := {{.Variable}}.GetOrderBook(exchange.FormatExchangeCurrency({{.Variable}}.Name, p).String(), 1000)
@@ -111,12 +111,12 @@ func ({{.Variable}} *{{.CapitalName}}) GetFundingHistory() ([]exchange.FundHisto
 }
 
 // GetExchangeHistory returns historic trade data since exchange opening.
-func ({{.Variable}} *{{.CapitalName}}) GetExchangeHistory(p pair.CurrencyPair, assetType string) ([]exchange.TradeHistory, error) {
+func ({{.Variable}} *{{.CapitalName}}) GetExchangeHistory(p currency.Pair, assetType string) ([]exchange.TradeHistory, error) {
 	return nil, common.ErrNotYetImplemented
 }
 
 // SubmitOrder submits a new order
-func ({{.Variable}} *{{.CapitalName}}) SubmitOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (exchange.SubmitOrderResponse, error) {
+func ({{.Variable}} *{{.CapitalName}}) SubmitOrder(p currency.Pair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (exchange.SubmitOrderResponse, error) {
 	return exchange.SubmitOrderResponse{}, common.ErrNotYetImplemented
 }
 

@@ -10,7 +10,7 @@ import (
 
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-/gocryptotrader/common"
-	"github.com/thrasher-/gocryptotrader/currency/pair"
+	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	log "github.com/thrasher-/gocryptotrader/logger"
@@ -236,7 +236,7 @@ func (b *Bitmex) wsHandleIncomingData() {
 						continue
 					}
 
-					p := pair.NewCurrencyPairFromString(orderbooks.Data[0].Symbol)
+					p := currency.NewCurrencyPairFromString(orderbooks.Data[0].Symbol)
 					// TODO: update this to support multiple asset types
 					err = b.processOrderbook(orderbooks.Data, orderbooks.Action, p, "CONTRACT")
 					if err != nil {
@@ -269,7 +269,7 @@ func (b *Bitmex) wsHandleIncomingData() {
 							Timestamp:    timestamp,
 							Price:        trade.Price,
 							Amount:       float64(trade.Size),
-							CurrencyPair: pair.NewCurrencyPairFromString(trade.Symbol),
+							CurrencyPair: currency.NewCurrencyPairFromString(trade.Symbol),
 							Exchange:     b.GetName(),
 							AssetType:    "CONTRACT",
 							Side:         trade.Side,
@@ -300,10 +300,10 @@ func (b *Bitmex) wsHandleIncomingData() {
 	}
 }
 
-var snapshotloaded = make(map[pair.CurrencyPair]map[string]bool)
+var snapshotloaded = make(map[currency.Pair]map[string]bool)
 
 // ProcessOrderbook processes orderbook updates
-func (b *Bitmex) processOrderbook(data []OrderBookL2, action string, currencyPair pair.CurrencyPair, assetType string) error { // nolint: unparam
+func (b *Bitmex) processOrderbook(data []OrderBookL2, action string, currencyPair currency.Pair, assetType string) error { // nolint: unparam
 	if len(data) < 1 {
 		return errors.New("bitmex_websocket.go error - no orderbook data")
 	}
@@ -345,7 +345,7 @@ func (b *Bitmex) processOrderbook(data []OrderBookL2, action string, currencyPai
 			newOrderbook.Asks = asks
 			newOrderbook.Bids = bids
 			newOrderbook.AssetType = assetType
-			newOrderbook.CurrencyPair = currencyPair.Pair().String()
+			newOrderbook.CurrencyPair = currencyPair.String()
 			newOrderbook.LastUpdated = time.Now()
 			newOrderbook.Pair = currencyPair
 
@@ -415,8 +415,8 @@ func (b *Bitmex) websocketSubscribe() error {
 		// Orderbook and Trade subscribe
 		// NOTE more added here in future
 		subscriber.Arguments = append(subscriber.Arguments,
-			bitmexWSOrderbookL2+":"+contract.Pair().String(),
-			bitmexWSTrade+":"+contract.Pair().String())
+			bitmexWSOrderbookL2+":"+contract.String(),
+			bitmexWSTrade+":"+contract.String())
 	}
 
 	return b.WebsocketConn.WriteJSON(subscriber)

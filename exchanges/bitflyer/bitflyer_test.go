@@ -6,8 +6,7 @@ import (
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
-	"github.com/thrasher-/gocryptotrader/currency/pair"
-	"github.com/thrasher-/gocryptotrader/currency/symbol"
+	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 )
 
@@ -124,20 +123,20 @@ func TestGetExchangeStatus(t *testing.T) {
 
 func TestCheckFXString(t *testing.T) {
 	t.Parallel()
-	p := pair.NewCurrencyPairDelimiter("FXBTC_JPY", "_")
+	p := currency.NewCurrencyPairDelimiter("FXBTC_JPY", "_")
 	p = b.CheckFXString(p)
-	if p.FirstCurrency.String() != "FX_BTC" {
+	if p.Base.String() != "FX_BTC" {
 		t.Error("test failed - Bitflyer - CheckFXString() error")
 	}
 }
 
 func TestGetTickerPrice(t *testing.T) {
 	t.Parallel()
-	var p pair.CurrencyPair
+	var p currency.Pair
 
 	currencies := b.GetAvailableCurrencies()
 	for _, pair := range currencies {
-		if pair.Pair().String() == "FXBTC_JPY" {
+		if pair.String() == "FXBTC_JPY" {
 			p = pair
 			break
 		}
@@ -154,11 +153,11 @@ func setFeeBuilder() exchange.FeeBuilder {
 		Amount:              1,
 		Delimiter:           "",
 		FeeType:             exchange.CryptocurrencyTradeFee,
-		FirstCurrency:       symbol.BTC,
-		SecondCurrency:      symbol.LTC,
+		BaseCurrency:        currency.BTC,
+		QuoteCurrency:       currency.LTC,
 		IsMaker:             false,
 		PurchasePrice:       1,
-		CurrencyItem:        symbol.JPY,
+		FiatCurrency:        currency.JPY,
 		BankTransactionType: exchange.WireTransfer,
 	}
 }
@@ -220,7 +219,7 @@ func TestGetFee(t *testing.T) {
 	// InternationalBankDepositFee Basic
 	feeBuilder = setFeeBuilder()
 	feeBuilder.FeeType = exchange.InternationalBankDepositFee
-	feeBuilder.CurrencyItem = symbol.JPY
+	feeBuilder.FiatCurrency = currency.JPY
 	if resp, err := b.GetFee(feeBuilder); resp != float64(324) || err != nil {
 		t.Errorf("Test Failed - GetFee() error. Expected: %f, Received: %f", float64(324), resp)
 		t.Error(err)
@@ -229,7 +228,7 @@ func TestGetFee(t *testing.T) {
 	// InternationalBankWithdrawalFee Basic
 	feeBuilder = setFeeBuilder()
 	feeBuilder.FeeType = exchange.InternationalBankWithdrawalFee
-	feeBuilder.CurrencyItem = symbol.JPY
+	feeBuilder.FiatCurrency = currency.JPY
 	if resp, err := b.GetFee(feeBuilder); resp != float64(540) || err != nil {
 		t.Errorf("Test Failed - GetFee() error. Expected: %f, Received: %f", float64(540), resp)
 		t.Error(err)
@@ -295,10 +294,10 @@ func TestSubmitOrder(t *testing.T) {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 
-	var p = pair.CurrencyPair{
-		Delimiter:      "",
-		FirstCurrency:  symbol.LTC,
-		SecondCurrency: symbol.BTC,
+	var p = currency.Pair{
+		Delimiter: "",
+		Base:      currency.LTC,
+		Quote:     currency.BTC,
 	}
 	_, err := b.SubmitOrder(p, exchange.BuyOrderSide, exchange.MarketOrderType, 1, 1, "clientId")
 	if err != common.ErrNotYetImplemented {
@@ -314,7 +313,7 @@ func TestCancelExchangeOrder(t *testing.T) {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 
-	currencyPair := pair.NewCurrencyPair(symbol.LTC, symbol.BTC)
+	currencyPair := currency.NewCurrencyPair(currency.LTC, currency.BTC)
 	var orderCancellation = exchange.OrderCancellation{
 		OrderID:       "1",
 		WalletAddress: "1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB",
@@ -337,7 +336,7 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 
-	currencyPair := pair.NewCurrencyPair(symbol.LTC, symbol.BTC)
+	currencyPair := currency.NewCurrencyPair(currency.LTC, currency.BTC)
 	var orderCancellation = exchange.OrderCancellation{
 		OrderID:       "1",
 		WalletAddress: "1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB",
@@ -357,7 +356,7 @@ func TestWithdraw(t *testing.T) {
 	TestSetup(t)
 	var withdrawCryptoRequest = exchange.WithdrawRequest{
 		Amount:      100,
-		Currency:    symbol.BTC,
+		Currency:    currency.BTC,
 		Address:     "1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB",
 		Description: "WITHDRAW IT ALL",
 	}

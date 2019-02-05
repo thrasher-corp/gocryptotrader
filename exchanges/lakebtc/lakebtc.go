@@ -10,7 +10,7 @@ import (
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
-	"github.com/thrasher-/gocryptotrader/currency/symbol"
+	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/request"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
@@ -80,9 +80,9 @@ func (l *LakeBTC) Setup(exch config.ExchangeConfig) {
 		l.SetHTTPClientUserAgent(exch.HTTPUserAgent)
 		l.RESTPollingDelay = exch.RESTPollingDelay
 		l.Verbose = exch.Verbose
-		l.BaseCurrencies = common.SplitStrings(exch.BaseCurrencies, ",")
-		l.AvailablePairs = common.SplitStrings(exch.AvailablePairs, ",")
-		l.EnabledPairs = common.SplitStrings(exch.EnabledPairs, ",")
+		l.BaseCurrencies = exch.BaseCurrencies
+		l.AvailablePairs = exch.AvailablePairs
+		l.EnabledPairs = exch.EnabledPairs
 		err := l.SetCurrencyPairFormat()
 		if err != nil {
 			log.Fatal(err)
@@ -381,7 +381,7 @@ func (l *LakeBTC) GetFee(feeBuilder exchange.FeeBuilder) (float64, error) {
 	case exchange.CryptocurrencyTradeFee:
 		fee = calculateTradingFee(feeBuilder.PurchasePrice, feeBuilder.Amount, feeBuilder.IsMaker)
 	case exchange.CyptocurrencyDepositFee:
-		fee = getCryptocurrencyWithdrawalFee(feeBuilder.FirstCurrency)
+		fee = getCryptocurrencyWithdrawalFee(feeBuilder.BaseCurrency)
 	case exchange.InternationalBankWithdrawalFee:
 		// fees for withdrawals are dynamic. They cannot be calculated in advance
 		// As they are manually performed via the website, it can only be determined when submitting the request
@@ -405,8 +405,8 @@ func calculateTradingFee(purchasePrice, amount float64, isMaker bool) (fee float
 	return fee * amount * purchasePrice
 }
 
-func getCryptocurrencyWithdrawalFee(currency string) (fee float64) {
-	if currency == symbol.BTC {
+func getCryptocurrencyWithdrawalFee(c currency.Code) (fee float64) {
+	if c == currency.BTC {
 		fee = 0.001
 	}
 	return fee

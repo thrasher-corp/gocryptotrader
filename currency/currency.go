@@ -8,33 +8,86 @@ import (
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/currency/coinmarketcap"
 	"github.com/thrasher-/gocryptotrader/currency/forexprovider"
-	"github.com/thrasher-/gocryptotrader/currency/pair"
 	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
 const (
 	// DefaultBaseCurrency is the base currency used for conversion
-	DefaultBaseCurrency = "USD"
-	// DefaultCurrencies has the default minimum of FIAT values
-	DefaultCurrencies = "USD,AUD,EUR,CNY"
-	// DefaultCryptoCurrencies has the default minimum of crytpocurrency values
-	DefaultCryptoCurrencies = "BTC,LTC,ETH,DOGE,DASH,XRP,XMR"
+	DefaultBaseCurrency = USD
 )
 
 // Manager is the overarching type across this package
 var (
+	// DefaultCurrencies has the default minimum of FIAT values
+	DefaultCurrencies = Currencies{USD, AUD, EUR, CNY}
+
+	// DefaultCryptoCurrencies has the default minimum of crytpocurrency values
+	DefaultCryptoCurrencies = Currencies{BTC, LTC, ETH, DOGE, DASH, XRP, XMR}
+
 	FXRates map[string]float64
 
-	FiatCurrencies   []string
-	CryptoCurrencies []string
+	FiatCurrencies   Currencies
+	CryptoCurrencies Currencies
 
-	BaseCurrency string
+	BaseCurrency Code
 	FXProviders  *forexprovider.ForexProviders
 
 	CryptocurrencyProvider *coinmarketcap.Coinmarketcap
 	TotalCryptocurrencies  []Data
 	TotalExchanges         []Data
 )
+
+// Currencies define a range of supported currency codes
+type Currencies []Code
+
+// NewCurrencyListFromCurrencies returns a Currencies object from strings
+// NOTE: need to add lookup table
+func NewCurrencyListFromCurrencies(currencies []string) Currencies {
+	var list Currencies
+	for _, c := range currencies {
+		if c == "" {
+			continue
+		}
+		list = append(list, Code(c))
+	}
+	return list
+}
+
+// String returns an array of currency strings
+func (c Currencies) String() []string {
+	var list []string
+	for _, d := range c {
+		list = append(list, d.String())
+	}
+	return list
+}
+
+// Join returns a comma serparated string
+func (c Currencies) Join() string {
+	return common.JoinStrings(c.String(), ",")
+}
+
+// UnmarshalJSON comforms type to the umarshaler interface
+func (c *Currencies) UnmarshalJSON(d []byte) error {
+	var configCurrencies string
+	err := common.JSONDecode(d, &configCurrencies)
+	if err != nil {
+		return err
+	}
+
+	var allTheCurrencies Currencies
+	for _, data := range common.SplitStrings(configCurrencies, ",") {
+		allTheCurrencies = append(allTheCurrencies, Code(data))
+	}
+
+	*c = allTheCurrencies
+	return nil
+}
+
+// MarshalJSON conforms type to the marshaler interface
+func (c Currencies) MarshalJSON() ([]byte, error) {
+	return common.JSONEncode(c.Join())
+}
 
 // SetDefaults sets the default currency provider and settings for
 // currency conversion used outside of the bot setting
@@ -43,7 +96,7 @@ func SetDefaults() {
 	BaseCurrency = DefaultBaseCurrency
 
 	FXProviders = forexprovider.NewDefaultFXProvider()
-	err := SeedCurrencyData(DefaultCurrencies)
+	err := SeedCurrencyData(DefaultCurrencies.Join())
 	if err != nil {
 		log.Errorf("Failed to seed currency data. Err: %s", err)
 		return
@@ -60,7 +113,7 @@ func SeedCurrencyData(currencies string) error {
 		FXProviders = forexprovider.NewDefaultFXProvider()
 	}
 
-	newRates, err := FXProviders.GetCurrencyData(BaseCurrency, currencies)
+	newRates, err := FXProviders.GetCurrencyData(BaseCurrency.String(), currencies)
 	if err != nil {
 		return err
 	}
@@ -80,55 +133,61 @@ func GetExchangeRates() map[string]float64 {
 // IsDefaultCurrency checks if the currency passed in matches the default fiat
 // currency
 func IsDefaultCurrency(currency string) bool {
-	defaultCurrencies := common.SplitStrings(DefaultCurrencies, ",")
-	return common.StringDataCompare(defaultCurrencies, common.StringToUpper(currency))
+	return common.StringDataCompare(DefaultCurrencies.String(),
+		common.StringToUpper(currency))
 }
 
 // IsDefaultCryptocurrency checks if the currency passed in matches the default
 // cryptocurrency
 func IsDefaultCryptocurrency(currency string) bool {
-	cryptoCurrencies := common.SplitStrings(DefaultCryptoCurrencies, ",")
-	return common.StringDataCompare(cryptoCurrencies, common.StringToUpper(currency))
+	return common.StringDataCompare(DefaultCryptoCurrencies.String(),
+		common.StringToUpper(currency))
 }
 
 // IsFiatCurrency checks if the currency passed is an enabled fiat currency
 func IsFiatCurrency(currency string) bool {
-	return common.StringDataCompare(FiatCurrencies, common.StringToUpper(currency))
+	return common.StringDataCompare(FiatCurrencies.String(),
+		common.StringToUpper(currency))
 }
 
 // IsCryptocurrency checks if the currency passed is an enabled CRYPTO currency.
 func IsCryptocurrency(currency string) bool {
-	return common.StringDataCompare(CryptoCurrencies, common.StringToUpper(currency))
+	return common.StringDataCompare(CryptoCurrencies.String(),
+		common.StringToUpper(currency))
 }
 
 // IsCryptoPair checks to see if the pair is a crypto pair e.g. BTCLTC
-func IsCryptoPair(p pair.CurrencyPair) bool {
-	return IsCryptocurrency(p.FirstCurrency.String()) &&
-		IsCryptocurrency(p.SecondCurrency.String())
+func IsCryptoPair(p Pair) bool {
+	return IsCryptocurrency(p.Base.String()) &&
+		IsCryptocurrency(p.Quote.String())
 }
 
 // IsCryptoFiatPair checks to see if the pair is a crypto fiat pair e.g. BTCUSD
-func IsCryptoFiatPair(p pair.CurrencyPair) bool {
-	return IsCryptocurrency(p.FirstCurrency.String()) && !IsCryptocurrency(p.SecondCurrency.String()) ||
-		!IsCryptocurrency(p.FirstCurrency.String()) && IsCryptocurrency(p.SecondCurrency.String())
+func IsCryptoFiatPair(p Pair) bool {
+	return IsCryptocurrency(p.Base.String()) &&
+		!IsCryptocurrency(p.Quote.String()) ||
+		!IsCryptocurrency(p.Base.String()) &&
+			IsCryptocurrency(p.Quote.String())
 }
 
 // IsFiatPair checks to see if the pair is a fiat pair e.g. EURUSD
-func IsFiatPair(p pair.CurrencyPair) bool {
-	return IsFiatCurrency(p.FirstCurrency.String()) &&
-		IsFiatCurrency(p.SecondCurrency.String())
+func IsFiatPair(p Pair) bool {
+	return IsFiatCurrency(p.Base.String()) &&
+		IsFiatCurrency(p.Quote.String())
 }
 
 // Update updates the local crypto currency or base currency store
 func Update(input []string, cryptos bool) {
 	for x := range input {
 		if cryptos {
-			if !common.StringDataCompare(CryptoCurrencies, input[x]) {
-				CryptoCurrencies = append(CryptoCurrencies, common.StringToUpper(input[x]))
+			if !common.StringDataCompare(CryptoCurrencies.String(), input[x]) {
+				CryptoCurrencies = append(CryptoCurrencies,
+					Code(common.StringToUpper(input[x])))
 			}
 		} else {
-			if !common.StringDataCompare(FiatCurrencies, input[x]) {
-				FiatCurrencies = append(FiatCurrencies, common.StringToUpper(input[x]))
+			if !common.StringDataCompare(FiatCurrencies.String(), input[x]) {
+				FiatCurrencies = append(FiatCurrencies,
+					Code(common.StringToUpper(input[x])))
 			}
 		}
 	}

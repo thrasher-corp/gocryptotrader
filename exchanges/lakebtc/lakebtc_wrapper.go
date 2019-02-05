@@ -9,8 +9,7 @@ import (
 	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
-	"github.com/thrasher-/gocryptotrader/currency/pair"
-	"github.com/thrasher-/gocryptotrader/currency/symbol"
+	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
@@ -37,7 +36,13 @@ func (l *LakeBTC) Run() {
 	if err != nil {
 		log.Errorf("%s Failed to get available products.\n", l.GetName())
 	} else {
-		err = l.UpdateCurrencies(exchangeProducts, false, false)
+		var newExchangeProducts currency.Pairs
+		for _, p := range exchangeProducts {
+			newExchangeProducts = append(newExchangeProducts,
+				currency.NewCurrencyPairFromString(p))
+		}
+
+		err = l.UpdateCurrencies(newExchangeProducts, false, false)
 		if err != nil {
 			log.Errorf("%s Failed to update available currencies.\n", l.GetName())
 		}
@@ -45,7 +50,7 @@ func (l *LakeBTC) Run() {
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
-func (l *LakeBTC) UpdateTicker(p pair.CurrencyPair, assetType string) (ticker.Price, error) {
+func (l *LakeBTC) UpdateTicker(p currency.Pair, assetType string) (ticker.Price, error) {
 	tick, err := l.GetTicker()
 	if err != nil {
 		return ticker.Price{}, err
@@ -67,7 +72,7 @@ func (l *LakeBTC) UpdateTicker(p pair.CurrencyPair, assetType string) (ticker.Pr
 }
 
 // GetTickerPrice returns the ticker for a currency pair
-func (l *LakeBTC) GetTickerPrice(p pair.CurrencyPair, assetType string) (ticker.Price, error) {
+func (l *LakeBTC) GetTickerPrice(p currency.Pair, assetType string) (ticker.Price, error) {
 	tickerNew, err := ticker.GetTicker(l.GetName(), p, assetType)
 	if err != nil {
 		return l.UpdateTicker(p, assetType)
@@ -76,7 +81,7 @@ func (l *LakeBTC) GetTickerPrice(p pair.CurrencyPair, assetType string) (ticker.
 }
 
 // GetOrderbookEx returns orderbook base on the currency pair
-func (l *LakeBTC) GetOrderbookEx(p pair.CurrencyPair, assetType string) (orderbook.Base, error) {
+func (l *LakeBTC) GetOrderbookEx(p currency.Pair, assetType string) (orderbook.Base, error) {
 	ob, err := orderbook.GetOrderbook(l.GetName(), p, assetType)
 	if err != nil {
 		return l.UpdateOrderbook(p, assetType)
@@ -85,9 +90,9 @@ func (l *LakeBTC) GetOrderbookEx(p pair.CurrencyPair, assetType string) (orderbo
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (l *LakeBTC) UpdateOrderbook(p pair.CurrencyPair, assetType string) (orderbook.Base, error) {
+func (l *LakeBTC) UpdateOrderbook(p currency.Pair, assetType string) (orderbook.Base, error) {
 	var orderBook orderbook.Base
-	orderbookNew, err := l.GetOrderBook(p.Pair().String())
+	orderbookNew, err := l.GetOrderBook(p.String())
 	if err != nil {
 		return orderBook, err
 	}
@@ -143,17 +148,17 @@ func (l *LakeBTC) GetFundingHistory() ([]exchange.FundHistory, error) {
 }
 
 // GetExchangeHistory returns historic trade data since exchange opening.
-func (l *LakeBTC) GetExchangeHistory(p pair.CurrencyPair, assetType string) ([]exchange.TradeHistory, error) {
+func (l *LakeBTC) GetExchangeHistory(p currency.Pair, assetType string) ([]exchange.TradeHistory, error) {
 	var resp []exchange.TradeHistory
 
 	return resp, common.ErrNotYetImplemented
 }
 
 // SubmitOrder submits a new order
-func (l *LakeBTC) SubmitOrder(p pair.CurrencyPair, side exchange.OrderSide, _ exchange.OrderType, amount, price float64, _ string) (exchange.SubmitOrderResponse, error) {
+func (l *LakeBTC) SubmitOrder(p currency.Pair, side exchange.OrderSide, _ exchange.OrderType, amount, price float64, _ string) (exchange.SubmitOrderResponse, error) {
 	var submitOrderResponse exchange.SubmitOrderResponse
 	isBuyOrder := side == exchange.BuyOrderSide
-	response, err := l.Trade(isBuyOrder, amount, price, common.StringToLower(p.Pair().String()))
+	response, err := l.Trade(isBuyOrder, amount, price, p.Lower().String())
 
 	if response.ID > 0 {
 		submitOrderResponse.OrderID = fmt.Sprintf("%v", response.ID)
@@ -210,8 +215,8 @@ func (l *LakeBTC) GetOrderInfo(orderID string) (exchange.OrderDetail, error) {
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
-func (l *LakeBTC) GetDepositAddress(cryptocurrency pair.CurrencyItem, _ string) (string, error) {
-	if !strings.EqualFold(cryptocurrency.String(), symbol.BTC) {
+func (l *LakeBTC) GetDepositAddress(cryptocurrency currency.Code, _ string) (string, error) {
+	if !strings.EqualFold(cryptocurrency.String(), currency.BTC.String()) {
 		return "", fmt.Errorf("unsupported currency %s deposit address can only be BTC, manual deposit is required for other currencies",
 			cryptocurrency.String())
 	}
@@ -227,8 +232,8 @@ func (l *LakeBTC) GetDepositAddress(cryptocurrency pair.CurrencyItem, _ string) 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
 // submitted
 func (l *LakeBTC) WithdrawCryptocurrencyFunds(withdrawRequest exchange.WithdrawRequest) (string, error) {
-	if withdrawRequest.Currency.String() != symbol.BTC {
-		return "", errors.New("only BTC is supported for withdrawals")
+	if withdrawRequest.Currency != currency.BTC {
+		return "", errors.New("only BTC supported for withdrawals")
 	}
 
 	resp, err := l.CreateWithdraw(withdrawRequest.Amount, withdrawRequest.Description)
@@ -271,7 +276,7 @@ func (l *LakeBTC) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([
 
 	var orders []exchange.OrderDetail
 	for _, order := range resp {
-		symbol := pair.NewCurrencyPairDelimiter(order.Symbol, l.ConfigCurrencyPairFormat.Delimiter)
+		symbol := currency.NewCurrencyPairDelimiter(order.Symbol, l.ConfigCurrencyPairFormat.Delimiter)
 		orderDate := time.Unix(order.At, 0)
 		side := exchange.OrderSide(strings.ToUpper(order.Type))
 
@@ -307,7 +312,8 @@ func (l *LakeBTC) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([
 			continue
 		}
 
-		symbol := pair.NewCurrencyPairDelimiter(order.Symbol, l.ConfigCurrencyPairFormat.Delimiter)
+		symbol := currency.NewCurrencyPairDelimiter(order.Symbol,
+			l.ConfigCurrencyPairFormat.Delimiter)
 		orderDate := time.Unix(order.At, 0)
 		side := exchange.OrderSide(strings.ToUpper(order.Type))
 
@@ -322,7 +328,8 @@ func (l *LakeBTC) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([
 		})
 	}
 
-	exchange.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
+	exchange.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks,
+		getOrdersRequest.EndTicks)
 	exchange.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
 	exchange.FilterOrdersByCurrencies(&orders, getOrdersRequest.Currencies)
 

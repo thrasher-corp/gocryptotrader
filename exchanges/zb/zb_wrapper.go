@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
-	"github.com/thrasher-/gocryptotrader/currency/pair"
+	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
@@ -41,7 +41,13 @@ func (z *ZB) Run() {
 			currencies = append(currencies, x)
 		}
 
-		err = z.UpdateCurrencies(currencies, false, false)
+		var newCurrencies currency.Pairs
+		for _, p := range currencies {
+			newCurrencies = append(newCurrencies,
+				currency.NewCurrencyPairFromString(p))
+		}
+
+		err = z.UpdateCurrencies(newCurrencies, false, false)
 		if err != nil {
 			log.Errorf("%s Failed to update available currencies.\n", z.GetName())
 		}
@@ -49,7 +55,7 @@ func (z *ZB) Run() {
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
-func (z *ZB) UpdateTicker(p pair.CurrencyPair, assetType string) (ticker.Price, error) {
+func (z *ZB) UpdateTicker(p currency.Pair, assetType string) (ticker.Price, error) {
 	var tickerPrice ticker.Price
 
 	result, err := z.GetTickers()
@@ -76,7 +82,7 @@ func (z *ZB) UpdateTicker(p pair.CurrencyPair, assetType string) (ticker.Price, 
 }
 
 // GetTickerPrice returns the ticker for a currency pair
-func (z *ZB) GetTickerPrice(p pair.CurrencyPair, assetType string) (ticker.Price, error) {
+func (z *ZB) GetTickerPrice(p currency.Pair, assetType string) (ticker.Price, error) {
 	tickerNew, err := ticker.GetTicker(z.GetName(), p, assetType)
 	if err != nil {
 		return z.UpdateTicker(p, assetType)
@@ -85,7 +91,7 @@ func (z *ZB) GetTickerPrice(p pair.CurrencyPair, assetType string) (ticker.Price
 }
 
 // GetOrderbookEx returns orderbook base on the currency pair
-func (z *ZB) GetOrderbookEx(currency pair.CurrencyPair, assetType string) (orderbook.Base, error) {
+func (z *ZB) GetOrderbookEx(currency currency.Pair, assetType string) (orderbook.Base, error) {
 	ob, err := orderbook.GetOrderbook(z.GetName(), currency, assetType)
 	if err != nil {
 		return z.UpdateOrderbook(currency, assetType)
@@ -94,7 +100,7 @@ func (z *ZB) GetOrderbookEx(currency pair.CurrencyPair, assetType string) (order
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (z *ZB) UpdateOrderbook(p pair.CurrencyPair, assetType string) (orderbook.Base, error) {
+func (z *ZB) UpdateOrderbook(p currency.Pair, assetType string) (orderbook.Base, error) {
 	var orderBook orderbook.Base
 	currency := exchange.FormatExchangeCurrency(z.Name, p).String()
 
@@ -161,14 +167,14 @@ func (z *ZB) GetFundingHistory() ([]exchange.FundHistory, error) {
 }
 
 // GetExchangeHistory returns historic trade data since exchange opening.
-func (z *ZB) GetExchangeHistory(p pair.CurrencyPair, assetType string) ([]exchange.TradeHistory, error) {
+func (z *ZB) GetExchangeHistory(p currency.Pair, assetType string) ([]exchange.TradeHistory, error) {
 	var resp []exchange.TradeHistory
 
 	return resp, common.ErrNotYetImplemented
 }
 
 // SubmitOrder submits a new order
-func (z *ZB) SubmitOrder(p pair.CurrencyPair, side exchange.OrderSide, _ exchange.OrderType, amount, price float64, _ string) (exchange.SubmitOrderResponse, error) {
+func (z *ZB) SubmitOrder(p currency.Pair, side exchange.OrderSide, _ exchange.OrderType, amount, price float64, _ string) (exchange.SubmitOrderResponse, error) {
 	var submitOrderResponse exchange.SubmitOrderResponse
 	var oT SpotNewOrderRequestParamsType
 
@@ -181,7 +187,7 @@ func (z *ZB) SubmitOrder(p pair.CurrencyPair, side exchange.OrderSide, _ exchang
 	var params = SpotNewOrderRequestParams{
 		Amount: amount,
 		Price:  price,
-		Symbol: common.StringToLower(p.Pair().String()),
+		Symbol: common.StringToLower(p.String()),
 		Type:   oT,
 	}
 	response, err := z.SpotNewOrder(params)
@@ -255,7 +261,7 @@ func (z *ZB) GetOrderInfo(orderID string) (exchange.OrderDetail, error) {
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
-func (z *ZB) GetDepositAddress(cryptocurrency pair.CurrencyItem, _ string) (string, error) {
+func (z *ZB) GetDepositAddress(cryptocurrency currency.Code, _ string) (string, error) {
 	address, err := z.GetCryptoAddress(cryptocurrency)
 	if err != nil {
 		return "", err
@@ -315,7 +321,8 @@ func (z *ZB) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]exch
 
 	var orders []exchange.OrderDetail
 	for _, order := range allOrders {
-		symbol := pair.NewCurrencyPairDelimiter(order.Currency, z.ConfigCurrencyPairFormat.Delimiter)
+		symbol := currency.NewCurrencyPairDelimiter(order.Currency,
+			z.ConfigCurrencyPairFormat.Delimiter)
 		orderDate := time.Unix(int64(order.TradeDate), 0)
 		orderSide := orderSideMap[order.Type]
 		orders = append(orders, exchange.OrderDetail{
@@ -329,7 +336,8 @@ func (z *ZB) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]exch
 		})
 	}
 
-	exchange.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
+	exchange.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks,
+		getOrdersRequest.EndTicks)
 	exchange.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
 
 	return orders, nil
@@ -370,7 +378,8 @@ func (z *ZB) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]exch
 
 	var orders []exchange.OrderDetail
 	for _, order := range allOrders {
-		symbol := pair.NewCurrencyPairDelimiter(order.Currency, z.ConfigCurrencyPairFormat.Delimiter)
+		symbol := currency.NewCurrencyPairDelimiter(order.Currency,
+			z.ConfigCurrencyPairFormat.Delimiter)
 		orderDate := time.Unix(int64(order.TradeDate), 0)
 		orderSide := orderSideMap[order.Type]
 		orders = append(orders, exchange.OrderDetail{

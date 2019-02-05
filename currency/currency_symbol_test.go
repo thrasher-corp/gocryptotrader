@@ -1,4 +1,4 @@
-package symbol
+package currency
 
 import "testing"
 

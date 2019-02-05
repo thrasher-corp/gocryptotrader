@@ -12,8 +12,6 @@ import (
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
 	"github.com/thrasher-/gocryptotrader/currency"
-	"github.com/thrasher-/gocryptotrader/currency/pair"
-	"github.com/thrasher-/gocryptotrader/currency/symbol"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/request"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
@@ -95,9 +93,9 @@ func (c *COINUT) Setup(exch config.ExchangeConfig) {
 		c.RESTPollingDelay = exch.RESTPollingDelay
 		c.Verbose = exch.Verbose
 		c.Websocket.SetWsStatusAndConnection(exch.Websocket)
-		c.BaseCurrencies = common.SplitStrings(exch.BaseCurrencies, ",")
-		c.AvailablePairs = common.SplitStrings(exch.AvailablePairs, ",")
-		c.EnabledPairs = common.SplitStrings(exch.EnabledPairs, ",")
+		c.BaseCurrencies = exch.BaseCurrencies
+		c.AvailablePairs = exch.AvailablePairs
+		c.EnabledPairs = exch.EnabledPairs
 		err := c.SetCurrencyPairFormat()
 		if err != nil {
 			log.Fatal(err)
@@ -394,11 +392,11 @@ func (c *COINUT) GetFee(feeBuilder exchange.FeeBuilder) (float64, error) {
 	var fee float64
 	switch feeBuilder.FeeType {
 	case exchange.CryptocurrencyTradeFee:
-		fee = c.calculateTradingFee(feeBuilder.FirstCurrency, feeBuilder.SecondCurrency, feeBuilder.PurchasePrice, feeBuilder.Amount, feeBuilder.IsMaker)
+		fee = c.calculateTradingFee(feeBuilder.BaseCurrency, feeBuilder.QuoteCurrency, feeBuilder.PurchasePrice, feeBuilder.Amount, feeBuilder.IsMaker)
 	case exchange.InternationalBankWithdrawalFee:
-		fee = getInternationalBankWithdrawalFee(feeBuilder.CurrencyItem, feeBuilder.Amount)
+		fee = getInternationalBankWithdrawalFee(feeBuilder.FiatCurrency, feeBuilder.Amount)
 	case exchange.InternationalBankDepositFee:
-		fee = getInternationalBankDepositFee(feeBuilder.CurrencyItem, feeBuilder.Amount)
+		fee = getInternationalBankDepositFee(feeBuilder.FiatCurrency, feeBuilder.Amount)
 	}
 
 	if fee < 0 {
@@ -408,13 +406,13 @@ func (c *COINUT) GetFee(feeBuilder exchange.FeeBuilder) (float64, error) {
 	return fee, nil
 }
 
-func (c *COINUT) calculateTradingFee(firstCurrency, secondCurrency string, purchasePrice, amount float64, isMaker bool) float64 {
+func (c *COINUT) calculateTradingFee(base, quote currency.Code, purchasePrice, amount float64, isMaker bool) float64 {
 	var fee float64
 
 	switch {
 	case isMaker:
 		fee = 0
-	case currency.IsCryptoFiatPair(pair.NewCurrencyPair(firstCurrency, secondCurrency)):
+	case currency.IsCryptoFiatPair(currency.NewCurrencyPair(base, quote)):
 		fee = 0.002
 	default:
 		fee = 0.001
@@ -423,23 +421,23 @@ func (c *COINUT) calculateTradingFee(firstCurrency, secondCurrency string, purch
 	return fee * amount * purchasePrice
 }
 
-func getInternationalBankWithdrawalFee(currency string, amount float64) float64 {
+func getInternationalBankWithdrawalFee(c currency.Code, amount float64) float64 {
 	var fee float64
 
-	switch currency {
-	case symbol.USD:
+	switch c {
+	case currency.USD:
 		if amount*0.001 < 10 {
 			fee = 10
 		} else {
 			fee = amount * 0.001
 		}
-	case symbol.CAD:
+	case currency.CAD:
 		if amount*0.005 < 10 {
 			fee = 2
 		} else {
 			fee = amount * 0.005
 		}
-	case symbol.SGD:
+	case currency.SGD:
 		if amount*0.001 < 10 {
 			fee = 10
 		} else {
@@ -450,16 +448,16 @@ func getInternationalBankWithdrawalFee(currency string, amount float64) float64 
 	return fee
 }
 
-func getInternationalBankDepositFee(currency string, amount float64) float64 {
+func getInternationalBankDepositFee(c currency.Code, amount float64) float64 {
 	var fee float64
 
-	if currency == symbol.USD {
+	if c == currency.USD {
 		if amount*0.001 < 10 {
 			fee = 10
 		} else {
 			fee = amount * 0.001
 		}
-	} else if currency == symbol.CAD {
+	} else if c == currency.CAD {
 		if amount*0.005 < 10 {
 			fee = 2
 		} else {

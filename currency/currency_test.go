@@ -3,8 +3,7 @@ package currency
 import (
 	"testing"
 
-	"github.com/thrasher-/gocryptotrader/currency/pair"
-	"github.com/thrasher-/gocryptotrader/currency/symbol"
+	"github.com/thrasher-/gocryptotrader/common"
 )
 
 func TestSetDefaults(t *testing.T) {
@@ -76,7 +75,7 @@ func TestIsDefaultCurrency(t *testing.T) {
 func TestIsDefaultCryptocurrency(t *testing.T) {
 	t.Parallel()
 
-	var str1, str2, str3 string = symbol.BTC, symbol.BTC, "dogs123"
+	var str1, str2, str3 string = BTC.String(), BTC.String(), "dogs123"
 
 	if !IsDefaultCryptocurrency(str1) {
 		t.Errorf(
@@ -103,8 +102,8 @@ func TestIsFiatCurrency(t *testing.T) {
 		t.Error("Test failed. TestIsFiatCurrency returned true on an empty string")
 	}
 
-	FiatCurrencies = []string{"USD", "AUD"}
-	var str1, str2, str3 string = symbol.BTC, "USD", "birds123"
+	FiatCurrencies = []Code{USD, AUD}
+	var str1, str2, str3 string = "BTC", "USD", "birds123"
 
 	if IsFiatCurrency(str1) {
 		t.Errorf(
@@ -128,8 +127,8 @@ func TestIsCryptocurrency(t *testing.T) {
 		t.Error("Test failed. TestIsCryptocurrency returned true on an empty string")
 	}
 
-	CryptoCurrencies = []string{symbol.BTC, symbol.LTC, symbol.DASH}
-	var str1, str2, str3 string = "USD", symbol.BTC, "pterodactyl123"
+	CryptoCurrencies = []Code{BTC, LTC, DASH}
+	var str1, str2, str3 string = "USD", "BTC", "pterodactyl123"
 
 	if IsCryptocurrency(str1) {
 		t.Errorf(
@@ -153,14 +152,14 @@ func TestIsCryptoPair(t *testing.T) {
 		t.Error("Test failed. TestIsCryptocurrency returned true on an empty string")
 	}
 
-	CryptoCurrencies = []string{symbol.BTC, symbol.LTC, symbol.DASH}
-	FiatCurrencies = []string{"USD"}
+	CryptoCurrencies = []Code{BTC, LTC, DASH}
+	FiatCurrencies = []Code{USD}
 
-	if !IsCryptoPair(pair.NewCurrencyPair(symbol.BTC, symbol.LTC)) {
+	if !IsCryptoPair(NewCurrencyPair("BTC", "LTC")) {
 		t.Error("Test Failed. TestIsCryptoPair. Expected true result")
 	}
 
-	if IsCryptoPair(pair.NewCurrencyPair(symbol.BTC, "USD")) {
+	if IsCryptoPair(NewCurrencyPair("BTC", "USD")) {
 		t.Error("Test Failed. TestIsCryptoPair. Expected false result")
 	}
 }
@@ -170,34 +169,34 @@ func TestIsCryptoFiatPair(t *testing.T) {
 		t.Error("Test failed. TestIsCryptocurrency returned true on an empty string")
 	}
 
-	CryptoCurrencies = []string{symbol.BTC, symbol.LTC, symbol.DASH}
-	FiatCurrencies = []string{"USD"}
+	CryptoCurrencies = []Code{BTC, LTC, DASH}
+	FiatCurrencies = []Code{USD}
 
-	if !IsCryptoFiatPair(pair.NewCurrencyPair(symbol.BTC, "USD")) {
+	if !IsCryptoFiatPair(NewCurrencyPair("BTC", "USD")) {
 		t.Error("Test Failed. TestIsCryptoPair. Expected true result")
 	}
 
-	if IsCryptoFiatPair(pair.NewCurrencyPair(symbol.BTC, symbol.LTC)) {
+	if IsCryptoFiatPair(NewCurrencyPair("BTC", "LTC")) {
 		t.Error("Test Failed. TestIsCryptoPair. Expected false result")
 	}
 }
 
 func TestIsFiatPair(t *testing.T) {
-	CryptoCurrencies = []string{symbol.BTC, symbol.LTC, symbol.DASH}
-	FiatCurrencies = []string{"USD", "AUD", "EUR"}
+	CryptoCurrencies = []Code{BTC, LTC, DASH}
+	FiatCurrencies = []Code{USD, AUD, EUR}
 
-	if !IsFiatPair(pair.NewCurrencyPair("AUD", "USD")) {
+	if !IsFiatPair(NewCurrencyPair("AUD", "USD")) {
 		t.Error("Test Failed. TestIsFiatPair. Expected true result")
 	}
 
-	if IsFiatPair(pair.NewCurrencyPair(symbol.BTC, "AUD")) {
+	if IsFiatPair(NewCurrencyPair("BTC", "AUD")) {
 		t.Error("Test Failed. TestIsFiatPair. Expected false result")
 	}
 }
 
 func TestUpdate(t *testing.T) {
-	CryptoCurrencies = []string{symbol.BTC, symbol.LTC, symbol.DASH}
-	FiatCurrencies = []string{"USD", "AUD"}
+	CryptoCurrencies = []Code{BTC, LTC, DASH}
+	FiatCurrencies = []Code{USD, AUD}
 
 	Update([]string{"ETH"}, true)
 	Update([]string{"JPY"}, false)
@@ -256,5 +255,47 @@ func TestConvertCurrency(t *testing.T) {
 	if err == nil {
 		t.Fatal("Expected err on non-existent currency")
 	}
+}
 
+func TestCurrenciesUnmarshalJSON(t *testing.T) {
+	var unmarshalHere Currencies
+	expected := "btc,usd,ltc,bro,things"
+	encoded, err := common.JSONEncode(expected)
+	if err != nil {
+		t.Fatal("Test Failed - Currencies UnmarshalJSON() error", err)
+	}
+
+	err = common.JSONDecode(encoded, &unmarshalHere)
+	if err != nil {
+		t.Fatal("Test Failed - Currencies UnmarshalJSON() error", err)
+	}
+
+	err = common.JSONDecode(encoded, &unmarshalHere)
+	if err != nil {
+		t.Fatal("Test Failed - Currencies UnmarshalJSON() error", err)
+	}
+
+	if unmarshalHere.Join() != expected {
+		t.Errorf("Test Failed - Currencies UnmarshalJSON() error expected %s but received %s",
+			expected, unmarshalHere.Join())
+	}
+}
+
+func TestCurrenciesMarshalJSON(t *testing.T) {
+	quickStruct := struct {
+		C Currencies `json:"amazingCurrencies"`
+	}{
+		C: NewCurrencyListFromCurrencies([]string{"btc", "usd", "ltc", "bro", "things"}),
+	}
+
+	encoded, err := common.JSONEncode(quickStruct)
+	if err != nil {
+		t.Fatal("Test Failed - Currencies MarshalJSON() error", err)
+	}
+
+	expected := `{"amazingCurrencies":"btc,usd,ltc,bro,things"}`
+	if string(encoded) != expected {
+		t.Errorf("Test Failed - Currencies MarshalJSON() error expected %s but received %s",
+			expected, string(encoded))
+	}
 }

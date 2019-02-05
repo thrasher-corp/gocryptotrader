@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
-	"github.com/thrasher-/gocryptotrader/currency/pair"
+	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
@@ -44,13 +44,18 @@ func (b *Binance) Run() {
 		log.Errorf("%s Failed to get exchange info.\n", b.GetName())
 	} else {
 		forceUpgrade := false
-		if !common.StringDataContains(b.EnabledPairs, "-") ||
-			!common.StringDataContains(b.AvailablePairs, "-") {
+		if !common.StringDataContains(b.EnabledPairs.String(), "-") ||
+			!common.StringDataContains(b.AvailablePairs.String(), "-") {
 			forceUpgrade = true
 		}
 
 		if forceUpgrade {
-			enabledPairs := []string{"BTC-USDT"}
+			enabledPairs := currency.Pairs{currency.Pair{
+				Base:      currency.BTC,
+				Quote:     currency.USDT,
+				Delimiter: "-",
+			}}
+
 			log.Warn("Available pairs for Binance reset due to config upgrade, please enable the ones you would like again")
 
 			err = b.UpdateCurrencies(enabledPairs, true, true)
@@ -58,7 +63,14 @@ func (b *Binance) Run() {
 				log.Errorf("%s Failed to get config.\n", b.GetName())
 			}
 		}
-		err = b.UpdateCurrencies(symbols, false, forceUpgrade)
+
+		var newSymbols currency.Pairs
+		for _, p := range symbols {
+			newSymbols = append(newSymbols,
+				currency.NewCurrencyPairFromString(p))
+		}
+
+		err = b.UpdateCurrencies(newSymbols, false, forceUpgrade)
 		if err != nil {
 			log.Errorf("%s Failed to get config.\n", b.GetName())
 		}
@@ -66,7 +78,7 @@ func (b *Binance) Run() {
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
-func (b *Binance) UpdateTicker(p pair.CurrencyPair, assetType string) (ticker.Price, error) {
+func (b *Binance) UpdateTicker(p currency.Pair, assetType string) (ticker.Price, error) {
 	var tickerPrice ticker.Price
 	tick, err := b.GetTickers()
 	if err != nil {
@@ -93,7 +105,7 @@ func (b *Binance) UpdateTicker(p pair.CurrencyPair, assetType string) (ticker.Pr
 }
 
 // GetTickerPrice returns the ticker for a currency pair
-func (b *Binance) GetTickerPrice(p pair.CurrencyPair, assetType string) (ticker.Price, error) {
+func (b *Binance) GetTickerPrice(p currency.Pair, assetType string) (ticker.Price, error) {
 	tickerNew, err := ticker.GetTicker(b.GetName(), p, assetType)
 	if err != nil {
 		return b.UpdateTicker(p, assetType)
@@ -102,7 +114,7 @@ func (b *Binance) GetTickerPrice(p pair.CurrencyPair, assetType string) (ticker.
 }
 
 // GetOrderbookEx returns orderbook base on the currency pair
-func (b *Binance) GetOrderbookEx(currency pair.CurrencyPair, assetType string) (orderbook.Base, error) {
+func (b *Binance) GetOrderbookEx(currency currency.Pair, assetType string) (orderbook.Base, error) {
 	ob, err := orderbook.GetOrderbook(b.GetName(), currency, assetType)
 	if err != nil {
 		return b.UpdateOrderbook(currency, assetType)
@@ -111,7 +123,7 @@ func (b *Binance) GetOrderbookEx(currency pair.CurrencyPair, assetType string) (
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (b *Binance) UpdateOrderbook(p pair.CurrencyPair, assetType string) (orderbook.Base, error) {
+func (b *Binance) UpdateOrderbook(p currency.Pair, assetType string) (orderbook.Base, error) {
 	var orderBook orderbook.Base
 	orderbookNew, err := b.GetOrderBook(OrderBookDataRequestParams{Symbol: exchange.FormatExchangeCurrency(b.Name, p).String(), Limit: 1000})
 	if err != nil {
@@ -176,13 +188,13 @@ func (b *Binance) GetFundingHistory() ([]exchange.FundHistory, error) {
 }
 
 // GetExchangeHistory returns historic trade data since exchange opening.
-func (b *Binance) GetExchangeHistory(p pair.CurrencyPair, assetType string) ([]exchange.TradeHistory, error) {
+func (b *Binance) GetExchangeHistory(p currency.Pair, assetType string) ([]exchange.TradeHistory, error) {
 	var resp []exchange.TradeHistory
 	return resp, common.ErrNotYetImplemented
 }
 
 // SubmitOrder submits a new order
-func (b *Binance) SubmitOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, _ string) (exchange.SubmitOrderResponse, error) {
+func (b *Binance) SubmitOrder(p currency.Pair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, _ string) (exchange.SubmitOrderResponse, error) {
 	var submitOrderResponse exchange.SubmitOrderResponse
 
 	var sideType RequestParamsSideType
@@ -204,7 +216,7 @@ func (b *Binance) SubmitOrder(p pair.CurrencyPair, side exchange.OrderSide, orde
 	}
 
 	var orderRequest = NewOrderRequest{
-		Symbol:    p.FirstCurrency.String() + p.SecondCurrency.String(),
+		Symbol:    p.Base.String() + p.Quote.String(),
 		Side:      sideType,
 		Price:     price,
 		Quantity:  amount,
@@ -271,7 +283,7 @@ func (b *Binance) GetOrderInfo(orderID string) (exchange.OrderDetail, error) {
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
-func (b *Binance) GetDepositAddress(cryptocurrency pair.CurrencyItem, _ string) (string, error) {
+func (b *Binance) GetDepositAddress(cryptocurrency currency.Code, _ string) (string, error) {
 	return b.GetDepositAddressForCurrency(cryptocurrency.String())
 }
 
@@ -313,8 +325,8 @@ func (b *Binance) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([
 	}
 
 	var orders []exchange.OrderDetail
-	for _, currency := range getOrdersRequest.Currencies {
-		resp, err := b.OpenOrders(exchange.FormatExchangeCurrency(b.Name, currency).String())
+	for _, c := range getOrdersRequest.Currencies {
+		resp, err := b.OpenOrders(exchange.FormatExchangeCurrency(b.Name, c).String())
 		if err != nil {
 			return nil, err
 		}
@@ -333,7 +345,7 @@ func (b *Binance) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([
 				OrderType:    orderType,
 				Price:        order.Price,
 				Status:       order.Status,
-				CurrencyPair: pair.NewCurrencyPairFromString(order.Symbol),
+				CurrencyPair: currency.NewCurrencyPairFromString(order.Symbol),
 			})
 		}
 	}
@@ -353,8 +365,8 @@ func (b *Binance) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([
 	}
 
 	var orders []exchange.OrderDetail
-	for _, currency := range getOrdersRequest.Currencies {
-		resp, err := b.AllOrders(exchange.FormatExchangeCurrency(b.Name, currency).String(), "", "1000")
+	for _, c := range getOrdersRequest.Currencies {
+		resp, err := b.AllOrders(exchange.FormatExchangeCurrency(b.Name, c).String(), "", "1000")
 		if err != nil {
 			return nil, err
 		}
@@ -376,7 +388,7 @@ func (b *Binance) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([
 				OrderSide:    orderSide,
 				OrderType:    orderType,
 				Price:        order.Price,
-				CurrencyPair: pair.NewCurrencyPairFromString(order.Symbol),
+				CurrencyPair: currency.NewCurrencyPairFromString(order.Symbol),
 				Status:       order.Status,
 			})
 		}

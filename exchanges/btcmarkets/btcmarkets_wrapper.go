@@ -9,8 +9,7 @@ import (
 	"time"
 
 	"github.com/thrasher-/gocryptotrader/common"
-	"github.com/thrasher-/gocryptotrader/currency/pair"
-	"github.com/thrasher-/gocryptotrader/currency/symbol"
+	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
@@ -38,17 +37,22 @@ func (b *BTCMarkets) Run() {
 		log.Errorf("%s failed to get active market. Err: %s", b.Name, err)
 	} else {
 		forceUpgrade := false
-		if !common.StringDataContains(b.EnabledPairs, "-") || !common.StringDataContains(b.AvailablePairs, "-") {
+		if !common.StringDataContains(b.EnabledPairs.String(), "-") ||
+			!common.StringDataContains(b.AvailablePairs.String(), "-") {
 			forceUpgrade = true
 		}
 
-		var currencies []string
+		var currencies currency.Pairs
 		for x := range markets {
-			currencies = append(currencies, markets[x].Instrument+"-"+markets[x].Currency)
+			currencies = append(currencies,
+				currency.Pair{Base: currency.Code(markets[x].Instrument),
+					Quote: currency.Code(markets[x].Currency), Delimiter: "-"})
 		}
 
 		if forceUpgrade {
-			enabledPairs := []string{"BTC-AUD"}
+			enabledPairs := currency.Pairs{currency.Pair{Base: currency.BTC,
+				Quote: currency.AUD, Delimiter: "-"}}
+
 			log.Warn("Available pairs for BTC Makrets reset due to config upgrade, please enable the pairs you would like again.")
 
 			err = b.UpdateCurrencies(enabledPairs, true, true)
@@ -64,10 +68,10 @@ func (b *BTCMarkets) Run() {
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
-func (b *BTCMarkets) UpdateTicker(p pair.CurrencyPair, assetType string) (ticker.Price, error) {
+func (b *BTCMarkets) UpdateTicker(p currency.Pair, assetType string) (ticker.Price, error) {
 	var tickerPrice ticker.Price
-	tick, err := b.GetTicker(p.FirstCurrency.String(),
-		p.SecondCurrency.String())
+	tick, err := b.GetTicker(p.Base.String(),
+		p.Quote.String())
 	if err != nil {
 		return tickerPrice, err
 	}
@@ -80,7 +84,7 @@ func (b *BTCMarkets) UpdateTicker(p pair.CurrencyPair, assetType string) (ticker
 }
 
 // GetTickerPrice returns the ticker for a currency pair
-func (b *BTCMarkets) GetTickerPrice(p pair.CurrencyPair, assetType string) (ticker.Price, error) {
+func (b *BTCMarkets) GetTickerPrice(p currency.Pair, assetType string) (ticker.Price, error) {
 	tickerNew, err := ticker.GetTicker(b.GetName(), p, assetType)
 	if err != nil {
 		return b.UpdateTicker(p, assetType)
@@ -89,7 +93,7 @@ func (b *BTCMarkets) GetTickerPrice(p pair.CurrencyPair, assetType string) (tick
 }
 
 // GetOrderbookEx returns orderbook base on the currency pair
-func (b *BTCMarkets) GetOrderbookEx(p pair.CurrencyPair, assetType string) (orderbook.Base, error) {
+func (b *BTCMarkets) GetOrderbookEx(p currency.Pair, assetType string) (orderbook.Base, error) {
 	ob, err := orderbook.GetOrderbook(b.GetName(), p, assetType)
 	if err != nil {
 		return b.UpdateOrderbook(p, assetType)
@@ -98,10 +102,10 @@ func (b *BTCMarkets) GetOrderbookEx(p pair.CurrencyPair, assetType string) (orde
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (b *BTCMarkets) UpdateOrderbook(p pair.CurrencyPair, assetType string) (orderbook.Base, error) {
+func (b *BTCMarkets) UpdateOrderbook(p currency.Pair, assetType string) (orderbook.Base, error) {
 	var orderBook orderbook.Base
-	orderbookNew, err := b.GetOrderbook(p.FirstCurrency.String(),
-		p.SecondCurrency.String())
+	orderbookNew, err := b.GetOrderbook(p.Base.String(),
+		p.Quote.String())
 	if err != nil {
 		return orderBook, err
 	}
@@ -156,16 +160,22 @@ func (b *BTCMarkets) GetFundingHistory() ([]exchange.FundHistory, error) {
 }
 
 // GetExchangeHistory returns historic trade data since exchange opening.
-func (b *BTCMarkets) GetExchangeHistory(p pair.CurrencyPair, assetType string) ([]exchange.TradeHistory, error) {
+func (b *BTCMarkets) GetExchangeHistory(p currency.Pair, assetType string) ([]exchange.TradeHistory, error) {
 	var resp []exchange.TradeHistory
 
 	return resp, common.ErrNotYetImplemented
 }
 
 // SubmitOrder submits a new order
-func (b *BTCMarkets) SubmitOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (exchange.SubmitOrderResponse, error) {
+func (b *BTCMarkets) SubmitOrder(p currency.Pair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (exchange.SubmitOrderResponse, error) {
 	var submitOrderResponse exchange.SubmitOrderResponse
-	response, err := b.NewOrder(p.FirstCurrency.Upper().String(), p.SecondCurrency.Upper().String(), price, amount, side.ToString(), orderType.ToString(), clientID)
+	response, err := b.NewOrder(p.Base.Upper().String(),
+		p.Quote.Upper().String(),
+		price,
+		amount,
+		side.ToString(),
+		orderType.ToString(),
+		clientID)
 
 	if response > 0 {
 		submitOrderResponse.OrderID = fmt.Sprintf("%v", response)
@@ -270,14 +280,16 @@ func (b *BTCMarkets) GetOrderInfo(orderID string) (exchange.OrderDetail, error) 
 		OrderDetail.OrderType = orderType
 		OrderDetail.Price = order.Price
 		OrderDetail.Status = order.Status
-		OrderDetail.CurrencyPair = pair.NewCurrencyPairWithDelimiter(order.Instrument, order.Currency, b.ConfigCurrencyPairFormat.Delimiter)
+		OrderDetail.CurrencyPair = currency.NewCurrencyPairWithDelimiter(order.Instrument,
+			order.Currency,
+			b.ConfigCurrencyPairFormat.Delimiter)
 	}
 
 	return OrderDetail, nil
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
-func (b *BTCMarkets) GetDepositAddress(cryptocurrency pair.CurrencyItem, accountID string) (string, error) {
+func (b *BTCMarkets) GetDepositAddress(cryptocurrency currency.Code, accountID string) (string, error) {
 	return "", common.ErrFunctionNotSupported
 }
 
@@ -289,7 +301,7 @@ func (b *BTCMarkets) WithdrawCryptocurrencyFunds(withdrawRequest exchange.Withdr
 // WithdrawFiatFunds returns a withdrawal ID when a
 // withdrawal is submitted
 func (b *BTCMarkets) WithdrawFiatFunds(withdrawRequest exchange.WithdrawRequest) (string, error) {
-	if withdrawRequest.Currency != symbol.AUD {
+	if withdrawRequest.Currency != currency.AUD {
 		return "", errors.New("only AUD is supported for withdrawals")
 	}
 	return b.WithdrawAUD(withdrawRequest.BankAccountName, fmt.Sprintf("%v", withdrawRequest.BankAccountNumber), withdrawRequest.BankName, fmt.Sprintf("%v", withdrawRequest.BankCode), withdrawRequest.Amount)
@@ -339,7 +351,9 @@ func (b *BTCMarkets) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest)
 			OrderType:       orderType,
 			Price:           order.Price,
 			Status:          order.Status,
-			CurrencyPair:    pair.NewCurrencyPairWithDelimiter(order.Instrument, order.Currency, b.ConfigCurrencyPairFormat.Delimiter),
+			CurrencyPair: currency.NewCurrencyPairWithDelimiter(order.Instrument,
+				order.Currency,
+				b.ConfigCurrencyPairFormat.Delimiter),
 		}
 
 		for _, trade := range order.Trades {
@@ -359,7 +373,8 @@ func (b *BTCMarkets) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest)
 	}
 
 	exchange.FilterOrdersByType(&orders, getOrdersRequest.OrderType)
-	exchange.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
+	exchange.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks,
+		getOrdersRequest.EndTicks)
 	exchange.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
 
 	return orders, nil
@@ -374,7 +389,11 @@ func (b *BTCMarkets) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest)
 
 	var respOrders []Order
 	for _, currency := range getOrdersRequest.Currencies {
-		resp, err := b.GetOrders(currency.FirstCurrency.String(), currency.SecondCurrency.String(), 200, 0, true)
+		resp, err := b.GetOrders(currency.Base.String(),
+			currency.Quote.String(),
+			200,
+			0,
+			true)
 		if err != nil {
 			return nil, err
 		}
@@ -402,7 +421,9 @@ func (b *BTCMarkets) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest)
 			OrderType:       orderType,
 			Price:           order.Price,
 			Status:          order.Status,
-			CurrencyPair:    pair.NewCurrencyPairWithDelimiter(order.Instrument, order.Currency, b.ConfigCurrencyPairFormat.Delimiter),
+			CurrencyPair: currency.NewCurrencyPairWithDelimiter(order.Instrument,
+				order.Currency,
+				b.ConfigCurrencyPairFormat.Delimiter),
 		}
 
 		for _, trade := range order.Trades {

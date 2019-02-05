@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/thrasher-/gocryptotrader/currency/pair"
+	"github.com/thrasher-/gocryptotrader/currency"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 )
 
@@ -159,7 +159,7 @@ func TestInsertingSnapShots(t *testing.T) {
 	snapShot1.AssetType = "SPOT"
 	snapShot1.CurrencyPair = "BTCUSD"
 	snapShot1.LastUpdated = time.Now()
-	snapShot1.Pair = pair.NewCurrencyPairFromString("BTCUSD")
+	snapShot1.Pair = currency.NewCurrencyPairFromString("BTCUSD")
 
 	wsTest.Websocket.Orderbook.LoadSnapshot(snapShot1, "ExchangeTest", false)
 
@@ -197,7 +197,7 @@ func TestInsertingSnapShots(t *testing.T) {
 	snapShot2.AssetType = "SPOT"
 	snapShot2.CurrencyPair = "LTCUSD"
 	snapShot2.LastUpdated = time.Now()
-	snapShot2.Pair = pair.NewCurrencyPairFromString("LTCUSD")
+	snapShot2.Pair = currency.NewCurrencyPairFromString("LTCUSD")
 
 	wsTest.Websocket.Orderbook.LoadSnapshot(snapShot2, "ExchangeTest", false)
 
@@ -235,7 +235,7 @@ func TestInsertingSnapShots(t *testing.T) {
 	snapShot3.AssetType = "FUTURES"
 	snapShot3.CurrencyPair = "LTCUSD"
 	snapShot3.LastUpdated = time.Now()
-	snapShot3.Pair = pair.NewCurrencyPairFromString("LTCUSD")
+	snapShot3.Pair = currency.NewCurrencyPairFromString("LTCUSD")
 
 	wsTest.Websocket.Orderbook.LoadSnapshot(snapShot3, "ExchangeTest", false)
 
@@ -245,8 +245,8 @@ func TestInsertingSnapShots(t *testing.T) {
 }
 
 func TestUpdate(t *testing.T) {
-	LTCUSDPAIR := pair.NewCurrencyPairFromString("LTCUSD")
-	BTCUSDPAIR := pair.NewCurrencyPairFromString("BTCUSD")
+	LTCUSDPAIR := currency.NewCurrencyPairFromString("LTCUSD")
+	BTCUSDPAIR := currency.NewCurrencyPairFromString("BTCUSD")
 
 	bidTargets := []orderbook.Item{
 		{Price: 49, Amount: 24},    // Amend

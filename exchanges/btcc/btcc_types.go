@@ -1,7 +1,10 @@
 package btcc
 
-import "encoding/json"
-import "github.com/thrasher-/gocryptotrader/currency/symbol"
+import (
+	"encoding/json"
+
+	"github.com/thrasher-/gocryptotrader/currency"
+)
 
 // WsAllTickerData defines multiple ticker data
 type WsAllTickerData []WsTicker
@@ -84,12 +87,12 @@ type WsTicker struct {
 
 // WithdrawalFees the large list of predefined withdrawal fees
 // Prone to change
-var WithdrawalFees = map[string]float64{
-	symbol.USD:  0.005,
-	symbol.USDT: 10,
-	symbol.BTC:  0.001,
-	symbol.ETH:  0.01,
-	symbol.BCH:  0.0001,
-	symbol.LTC:  0.001,
-	symbol.DASH: 0.002,
+var WithdrawalFees = map[currency.Code]float64{
+	currency.USD:  0.005,
+	currency.USDT: 10,
+	currency.BTC:  0.001,
+	currency.ETH:  0.01,
+	currency.BCH:  0.0001,
+	currency.LTC:  0.001,
+	currency.DASH: 0.002,
 }

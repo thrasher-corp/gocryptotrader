@@ -12,7 +12,7 @@ import (
 
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
-	"github.com/thrasher-/gocryptotrader/currency/pair"
+	"github.com/thrasher-/gocryptotrader/currency"
 	"github.com/thrasher-/gocryptotrader/exchanges/nonce"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-/gocryptotrader/exchanges/request"
@@ -78,12 +78,12 @@ type SubmitOrderResponse struct {
 type FeeBuilder struct {
 	FeeType FeeType
 	// Used for calculating crypto trading fees, deposits & withdrawals
-	FirstCurrency  string
-	SecondCurrency string
-	Delimiter      string
-	IsMaker        bool
+	BaseCurrency  currency.Code
+	QuoteCurrency currency.Code
+	Delimiter     string
+	IsMaker       bool
 	// Fiat currency used for bank deposits & withdrawals
-	CurrencyItem        string
+	FiatCurrency        currency.Code
 	BankTransactionType InternationalBankTransactionType
 	// Used to multiply for fee calculations
 	PurchasePrice float64
@@ -94,7 +94,7 @@ type FeeBuilder struct {
 type OrderCancellation struct {
 	AccountID     string
 	OrderID       string
-	CurrencyPair  pair.CurrencyPair
+	CurrencyPair  currency.Pair
 	WalletAddress string
 	Side          OrderSide
 }
@@ -108,7 +108,7 @@ type WithdrawRequest struct {
 	PIN             int64
 	TradePassword   string
 	Amount          float64
-	Currency        pair.CurrencyItem
+	Currency        currency.Code
 	// Crypto related information
 	Address    string
 	AddressTag string
@@ -223,7 +223,7 @@ type OrderDetail struct {
 	Exchange        string
 	AccountID       string
 	ID              string
-	CurrencyPair    pair.CurrencyPair
+	CurrencyPair    currency.Pair
 	OrderSide       OrderSide
 	OrderType       OrderType
 	OrderDate       time.Time
@@ -266,9 +266,9 @@ type Base struct {
 	APISecret, APIKey, APIAuthPEMKey, ClientID string
 	Nonce                                      nonce.Nonce
 	TakerFee, MakerFee, Fee                    float64
-	BaseCurrencies                             []string
-	AvailablePairs                             []string
-	EnabledPairs                               []string
+	BaseCurrencies                             currency.Currencies
+	AvailablePairs                             currency.Pairs
+	EnabledPairs                               currency.Pairs
 	AssetTypes                                 []string
 	PairsLastUpdated                           int64
 	SupportsAutoPairUpdating                   bool
@@ -295,17 +295,17 @@ type IBotExchange interface {
 	GetName() string
 	IsEnabled() bool
 	SetEnabled(bool)
-	GetTickerPrice(currency pair.CurrencyPair, assetType string) (ticker.Price, error)
-	UpdateTicker(currency pair.CurrencyPair, assetType string) (ticker.Price, error)
-	GetOrderbookEx(currency pair.CurrencyPair, assetType string) (orderbook.Base, error)
-	UpdateOrderbook(currency pair.CurrencyPair, assetType string) (orderbook.Base, error)
-	GetEnabledCurrencies() []pair.CurrencyPair
-	GetAvailableCurrencies() []pair.CurrencyPair
+	GetTickerPrice(currency currency.Pair, assetType string) (ticker.Price, error)
+	UpdateTicker(currency currency.Pair, assetType string) (ticker.Price, error)
+	GetOrderbookEx(currency currency.Pair, assetType string) (orderbook.Base, error)
+	UpdateOrderbook(currency currency.Pair, assetType string) (orderbook.Base, error)
+	GetEnabledCurrencies() currency.Pairs
+	GetAvailableCurrencies() currency.Pairs
 	GetAssetTypes() []string
 	GetAccountInfo() (AccountInfo, error)
 	GetAuthenticatedAPISupport() bool
-	SetCurrencies(pairs []pair.CurrencyPair, enabledPairs bool) error
-	GetExchangeHistory(pair.CurrencyPair, string) ([]TradeHistory, error)
+	SetCurrencies(pairs []currency.Pair, enabledPairs bool) error
+	GetExchangeHistory(currency.Pair, string) ([]TradeHistory, error)
 	SupportsAutoPairUpdates() bool
 	GetLastPairsUpdateTime() int64
 	SupportsRESTTickerBatchUpdates() bool
@@ -315,12 +315,12 @@ type IBotExchange interface {
 	SupportsWithdrawPermissions(permissions uint32) bool
 
 	GetFundingHistory() ([]FundHistory, error)
-	SubmitOrder(p pair.CurrencyPair, side OrderSide, orderType OrderType, amount, price float64, clientID string) (SubmitOrderResponse, error)
+	SubmitOrder(p currency.Pair, side OrderSide, orderType OrderType, amount, price float64, clientID string) (SubmitOrderResponse, error)
 	ModifyOrder(action ModifyOrder) (string, error)
 	CancelOrder(order OrderCancellation) error
 	CancelAllOrders(orders OrderCancellation) (CancelAllOrdersResponse, error)
 	GetOrderInfo(orderID string) (OrderDetail, error)
-	GetDepositAddress(cryptocurrency pair.CurrencyItem, accountID string) (string, error)
+	GetDepositAddress(cryptocurrency currency.Code, accountID string) (string, error)
 
 	GetOrderHistory(getOrdersRequest GetOrdersRequest) ([]OrderDetail, error)
 	GetActiveOrders(getOrdersRequest GetOrdersRequest) ([]OrderDetail, error)
@@ -589,27 +589,27 @@ func (e *Base) GetName() string {
 
 // GetEnabledCurrencies is a method that returns the enabled currency pairs of
 // the exchange base
-func (e *Base) GetEnabledCurrencies() []pair.CurrencyPair {
-	return pair.FormatPairs(e.EnabledPairs,
-		e.ConfigCurrencyPairFormat.Delimiter,
-		e.ConfigCurrencyPairFormat.Index)
+func (e *Base) GetEnabledCurrencies() currency.Pairs {
+	return e.EnabledPairs.Format(e.ConfigCurrencyPairFormat.Delimiter,
+		e.ConfigCurrencyPairFormat.Index,
+		e.ConfigCurrencyPairFormat.Uppercase)
 }
 
 // GetAvailableCurrencies is a method that returns the available currency pairs
 // of the exchange base
-func (e *Base) GetAvailableCurrencies() []pair.CurrencyPair {
-	return pair.FormatPairs(e.AvailablePairs,
-		e.ConfigCurrencyPairFormat.Delimiter,
-		e.ConfigCurrencyPairFormat.Index)
+func (e *Base) GetAvailableCurrencies() currency.Pairs {
+	return e.AvailablePairs.Format(e.ConfigCurrencyPairFormat.Delimiter,
+		e.ConfigCurrencyPairFormat.Index,
+		e.ConfigCurrencyPairFormat.Uppercase)
 }
 
 // SupportsCurrency returns true or not whether a currency pair exists in the
 // exchange available currencies or not
-func (e *Base) SupportsCurrency(p pair.CurrencyPair, enabledPairs bool) bool {
+func (e *Base) SupportsCurrency(p currency.Pair, enabledPairs bool) bool {
 	if enabledPairs {
-		return pair.Contains(e.GetEnabledCurrencies(), p, false)
+		return currency.PairsContain(e.GetEnabledCurrencies(), p, false)
 	}
-	return pair.Contains(e.GetAvailableCurrencies(), p, false)
+	return currency.PairsContain(e.GetAvailableCurrencies(), p, false)
 }
 
 // GetExchangeFormatCurrencySeperator returns whether or not a specific
@@ -629,8 +629,8 @@ func GetExchangeFormatCurrencySeperator(exchName string) bool {
 
 // GetAndFormatExchangeCurrencies returns a pair.CurrencyItem string containing
 // the exchanges formatted currency pairs
-func GetAndFormatExchangeCurrencies(exchName string, pairs []pair.CurrencyPair) (pair.CurrencyItem, error) {
-	var currencyItems pair.CurrencyItem
+func GetAndFormatExchangeCurrencies(exchName string, pairs []currency.Pair) (string, error) {
+	var currencyItems string
 	cfg := config.GetConfig()
 	exch, err := cfg.GetExchangeConfig(exchName)
 	if err != nil {
@@ -638,18 +638,18 @@ func GetAndFormatExchangeCurrencies(exchName string, pairs []pair.CurrencyPair) 
 	}
 
 	for x := range pairs {
-		currencyItems += FormatExchangeCurrency(exchName, pairs[x])
+		currencyItems += FormatExchangeCurrency(exchName, pairs[x]).String()
 		if x == len(pairs)-1 {
 			continue
 		}
-		currencyItems += pair.CurrencyItem(exch.RequestCurrencyPairFormat.Separator)
+		currencyItems += exch.RequestCurrencyPairFormat.Separator
 	}
 	return currencyItems, nil
 }
 
 // FormatExchangeCurrency is a method that formats and returns a currency pair
 // based on the user currency display preferences
-func FormatExchangeCurrency(exchName string, p pair.CurrencyPair) pair.CurrencyItem {
+func FormatExchangeCurrency(exchName string, p currency.Pair) currency.Pair {
 	cfg := config.GetConfig()
 	exch, _ := cfg.GetExchangeConfig(exchName)
 
@@ -659,7 +659,7 @@ func FormatExchangeCurrency(exchName string, p pair.CurrencyPair) pair.CurrencyI
 
 // FormatCurrency is a method that formats and returns a currency pair
 // based on the user currency display preferences
-func FormatCurrency(p pair.CurrencyPair) pair.CurrencyItem {
+func FormatCurrency(p currency.Pair) currency.Pair {
 	cfg := config.GetConfig()
 	return p.Display(cfg.Currency.CurrencyPairFormat.Delimiter,
 		cfg.Currency.CurrencyPairFormat.Uppercase)
@@ -698,7 +698,7 @@ func (e *Base) SetAPIKeys(apiKey, apiSecret, clientID string, b64Decode bool) {
 
 // SetCurrencies sets the exchange currency pairs for either enabledPairs or
 // availablePairs
-func (e *Base) SetCurrencies(pairs []pair.CurrencyPair, enabledPairs bool) error {
+func (e *Base) SetCurrencies(pairs []currency.Pair, enabledPairs bool) error {
 	if len(pairs) == 0 {
 		return fmt.Errorf("%s SetCurrencies error - pairs is empty", e.Name)
 	}
@@ -709,18 +709,18 @@ func (e *Base) SetCurrencies(pairs []pair.CurrencyPair, enabledPairs bool) error
 		return err
 	}
 
-	var pairsStr []string
+	var newPairs currency.Pairs
 	for x := range pairs {
-		pairsStr = append(pairsStr, pairs[x].Display(exchCfg.ConfigCurrencyPairFormat.Delimiter,
-			exchCfg.ConfigCurrencyPairFormat.Uppercase).String())
+		newPairs = append(newPairs, pairs[x].Display(exchCfg.ConfigCurrencyPairFormat.Delimiter,
+			exchCfg.ConfigCurrencyPairFormat.Uppercase))
 	}
 
 	if enabledPairs {
-		exchCfg.EnabledPairs = common.JoinStrings(pairsStr, ",")
-		e.EnabledPairs = pairsStr
+		exchCfg.EnabledPairs = newPairs
+		e.EnabledPairs = newPairs
 	} else {
-		exchCfg.AvailablePairs = common.JoinStrings(pairsStr, ",")
-		e.AvailablePairs = pairsStr
+		exchCfg.AvailablePairs = newPairs
+		e.AvailablePairs = newPairs
 	}
 
 	return cfg.UpdateExchangeConfig(&exchCfg)
@@ -728,29 +728,31 @@ func (e *Base) SetCurrencies(pairs []pair.CurrencyPair, enabledPairs bool) error
 
 // UpdateCurrencies updates the exchange currency pairs for either enabledPairs or
 // availablePairs
-func (e *Base) UpdateCurrencies(exchangeProducts []string, enabled, force bool) error {
+func (e *Base) UpdateCurrencies(exchangeProducts currency.Pairs, enabled, force bool) error {
 	if len(exchangeProducts) == 0 {
 		return fmt.Errorf("%s UpdateCurrencies error - exchangeProducts is empty", e.Name)
 	}
 
-	exchangeProducts = common.SplitStrings(common.StringToUpper(common.JoinStrings(exchangeProducts, ",")), ",")
-	var products []string
+	exchangeProducts = exchangeProducts.Upper()
 
+	var products currency.Pairs
 	for x := range exchangeProducts {
-		if exchangeProducts[x] == "" {
+		if exchangeProducts[x].String() == "" {
 			continue
 		}
 		products = append(products, exchangeProducts[x])
 	}
 
-	var newPairs, removedPairs []string
+	var newPairs, removedPairs currency.Pairs
 	var updateType string
 
 	if enabled {
-		newPairs, removedPairs = pair.FindPairDifferences(e.EnabledPairs, products)
+		newPairs, removedPairs = currency.FindPairDifferences(e.EnabledPairs,
+			products)
 		updateType = "enabled"
 	} else {
-		newPairs, removedPairs = pair.FindPairDifferences(e.AvailablePairs, products)
+		newPairs, removedPairs = currency.FindPairDifferences(e.AvailablePairs,
+			products)
 		updateType = "available"
 	}
 
@@ -773,10 +775,10 @@ func (e *Base) UpdateCurrencies(exchangeProducts []string, enabled, force bool) 
 		}
 
 		if enabled {
-			exch.EnabledPairs = common.JoinStrings(products, ",")
+			exch.EnabledPairs = products
 			e.EnabledPairs = products
 		} else {
-			exch.AvailablePairs = common.JoinStrings(products, ",")
+			exch.AvailablePairs = products
 			e.AvailablePairs = products
 		}
 		return cfg.UpdateExchangeConfig(&exch)
@@ -793,7 +795,7 @@ type ModifyOrder struct {
 	Amount          float64
 	LimitPriceUpper float64
 	LimitPriceLower float64
-	Currency        pair.CurrencyPair
+	Currency        currency.Pair
 
 	ImmediateOrCancel bool
 	HiddenOrder       bool
@@ -966,7 +968,7 @@ type GetOrdersRequest struct {
 	StartTicks time.Time
 	EndTicks   time.Time
 	// Currencies Empty array = all currencies. Some endpoints only support singular currency enquiries
-	Currencies []pair.CurrencyPair
+	Currencies []currency.Pair
 }
 
 // OrderStatus defines order status types
@@ -1038,7 +1040,7 @@ func FilterOrdersByTickRange(orders *[]OrderDetail, startTicks, endTicks time.Ti
 
 // FilterOrdersByCurrencies removes any OrderDetails that do not match the provided currency list
 // It is forgiving in that the provided currencies can match quote or base currencies
-func FilterOrdersByCurrencies(orders *[]OrderDetail, currencies []pair.CurrencyPair) {
+func FilterOrdersByCurrencies(orders *[]OrderDetail, currencies []currency.Pair) {
 	if len(currencies) == 0 {
 		return
 	}
@@ -1046,8 +1048,8 @@ func FilterOrdersByCurrencies(orders *[]OrderDetail, currencies []pair.CurrencyP
 	var filteredOrders []OrderDetail
 	for _, orderDetail := range *orders {
 		matchFound := false
-		for _, currency := range currencies {
-			if !matchFound && orderDetail.CurrencyPair.Equal(currency, false) {
+		for _, c := range currencies {
+			if !matchFound && orderDetail.CurrencyPair.EqualIncludeReciprocal(c) {
 				matchFound = true
 			}
 		}
@@ -1116,7 +1118,7 @@ func (b ByCurrency) Len() int {
 }
 
 func (b ByCurrency) Less(i, j int) bool {
-	return b[i].CurrencyPair.Pair().String() < b[j].CurrencyPair.Pair().String()
+	return b[i].CurrencyPair.String() < b[j].CurrencyPair.String()
 }
 
 func (b ByCurrency) Swap(i, j int) {

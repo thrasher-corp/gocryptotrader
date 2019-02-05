@@ -10,7 +10,7 @@ import (
 
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-/gocryptotrader/common"
-	"github.com/thrasher-/gocryptotrader/currency/pair"
+	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 )
@@ -56,7 +56,7 @@ func (g *Gateio) WsSubscribe() error {
 		ticker := WebsocketRequest{
 			ID:     1337,
 			Method: "ticker.subscribe",
-			Params: []interface{}{c.Pair().String()},
+			Params: []interface{}{c.String()},
 		}
 
 		err := g.WebsocketConn.WriteJSON(ticker)
@@ -67,7 +67,7 @@ func (g *Gateio) WsSubscribe() error {
 		trade := WebsocketRequest{
 			ID:     1337,
 			Method: "trades.subscribe",
-			Params: []interface{}{c.Pair().String()},
+			Params: []interface{}{c.String()},
 		}
 
 		err = g.WebsocketConn.WriteJSON(trade)
@@ -78,7 +78,7 @@ func (g *Gateio) WsSubscribe() error {
 		depth := WebsocketRequest{
 			ID:     1337,
 			Method: "depth.subscribe",
-			Params: []interface{}{c.Pair().String(), 30, "0.1"},
+			Params: []interface{}{c.String(), 30, "0.1"},
 		}
 
 		err = g.WebsocketConn.WriteJSON(depth)
@@ -89,7 +89,7 @@ func (g *Gateio) WsSubscribe() error {
 		kline := WebsocketRequest{
 			ID:     1337,
 			Method: "kline.subscribe",
-			Params: []interface{}{c.Pair().String(), 1800},
+			Params: []interface{}{c.String(), 1800},
 		}
 
 		err = g.WebsocketConn.WriteJSON(kline)
@@ -170,7 +170,7 @@ func (g *Gateio) WsHandleData() {
 
 				g.Websocket.DataHandler <- exchange.TickerData{
 					Timestamp:  time.Now(),
-					Pair:       pair.NewCurrencyPairFromString(c),
+					Pair:       currency.NewCurrencyPairFromString(c),
 					AssetType:  "SPOT",
 					Exchange:   g.GetName(),
 					ClosePrice: ticker.Close,
@@ -198,7 +198,7 @@ func (g *Gateio) WsHandleData() {
 				for _, trade := range trades {
 					g.Websocket.DataHandler <- exchange.TradeData{
 						Timestamp:    time.Now(),
-						CurrencyPair: pair.NewCurrencyPairFromString(c),
+						CurrencyPair: currency.NewCurrencyPairFromString(c),
 						AssetType:    "SPOT",
 						Exchange:     g.GetName(),
 						Price:        trade.Price,
@@ -270,7 +270,7 @@ func (g *Gateio) WsHandleData() {
 					newOrderbook.AssetType = "SPOT"
 					newOrderbook.CurrencyPair = c
 					newOrderbook.LastUpdated = time.Now()
-					newOrderbook.Pair = pair.NewCurrencyPairFromString(c)
+					newOrderbook.Pair = currency.NewCurrencyPairFromString(c)
 
 					err = g.Websocket.Orderbook.LoadSnapshot(newOrderbook,
 						g.GetName(),
@@ -281,7 +281,7 @@ func (g *Gateio) WsHandleData() {
 				} else {
 					err = g.Websocket.Orderbook.Update(asks,
 						bids,
-						pair.NewCurrencyPairFromString(c),
+						currency.NewCurrencyPairFromString(c),
 						time.Now(),
 						g.GetName(),
 						"SPOT")
@@ -291,7 +291,7 @@ func (g *Gateio) WsHandleData() {
 				}
 
 				g.Websocket.DataHandler <- exchange.WebsocketOrderbookUpdate{
-					Pair:     pair.NewCurrencyPairFromString(c),
+					Pair:     currency.NewCurrencyPairFromString(c),
 					Asset:    "SPOT",
 					Exchange: g.GetName(),
 				}
@@ -312,7 +312,7 @@ func (g *Gateio) WsHandleData() {
 
 				g.Websocket.DataHandler <- exchange.KlineData{
 					Timestamp:  time.Now(),
-					Pair:       pair.NewCurrencyPairFromString(data[7].(string)),
+					Pair:       currency.NewCurrencyPairFromString(data[7].(string)),
 					AssetType:  "SPOT",
 					Exchange:   g.GetName(),
 					OpenPrice:  open,

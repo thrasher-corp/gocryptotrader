@@ -11,7 +11,7 @@ import (
 
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-/gocryptotrader/common"
-	"github.com/thrasher-/gocryptotrader/currency/pair"
+	"github.com/thrasher-/gocryptotrader/currency"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/orderbook"
 	log "github.com/thrasher-/gocryptotrader/logger"
@@ -171,7 +171,7 @@ func (b *Bitfinex) WsConnect() error {
 			if x == "book" {
 				params["prec"] = "P0"
 			}
-			params["pair"] = y
+			params["pair"] = y.String()
 			err = b.WsSubscribe(x, params)
 			if err != nil {
 				return err
@@ -306,7 +306,7 @@ func (b *Bitfinex) WsDataHandler() {
 							}
 
 							if len(newOrderbook) > 1 {
-								err := b.WsInsertSnapshot(pair.NewCurrencyPairFromString(chanInfo.Pair),
+								err := b.WsInsertSnapshot(currency.NewCurrencyPairFromString(chanInfo.Pair),
 									"SPOT",
 									newOrderbook)
 
@@ -317,7 +317,7 @@ func (b *Bitfinex) WsDataHandler() {
 								continue
 							}
 
-							err := b.WsUpdateOrderbook(pair.NewCurrencyPairFromString(chanInfo.Pair),
+							err := b.WsUpdateOrderbook(currency.NewCurrencyPairFromString(chanInfo.Pair),
 								"SPOT",
 								newOrderbook[0])
 
@@ -332,7 +332,7 @@ func (b *Bitfinex) WsDataHandler() {
 								ClosePrice: chanData[7].(float64),
 								HighPrice:  chanData[9].(float64),
 								LowPrice:   chanData[10].(float64),
-								Pair:       pair.NewCurrencyPairFromString(chanInfo.Pair),
+								Pair:       currency.NewCurrencyPairFromString(chanInfo.Pair),
 								Exchange:   b.GetName(),
 								AssetType:  "SPOT",
 							}
@@ -485,7 +485,7 @@ func (b *Bitfinex) WsDataHandler() {
 								}
 
 								b.Websocket.DataHandler <- exchange.TradeData{
-									CurrencyPair: pair.NewCurrencyPairFromString(chanInfo.Pair),
+									CurrencyPair: currency.NewCurrencyPairFromString(chanInfo.Pair),
 									Timestamp:    time.Unix(trades[0].Timestamp, 0),
 									Price:        trades[0].Price,
 									Amount:       newAmount,
@@ -504,7 +504,7 @@ func (b *Bitfinex) WsDataHandler() {
 
 // WsInsertSnapshot add the initial orderbook snapshot when subscribed to a
 // channel
-func (b *Bitfinex) WsInsertSnapshot(p pair.CurrencyPair, assetType string, books []WebsocketBook) error {
+func (b *Bitfinex) WsInsertSnapshot(p currency.Pair, assetType string, books []WebsocketBook) error {
 	if len(books) == 0 {
 		return errors.New("bitfinex.go error - no orderbooks submitted")
 	}
@@ -526,7 +526,7 @@ func (b *Bitfinex) WsInsertSnapshot(p pair.CurrencyPair, assetType string, books
 	newOrderbook.Asks = ask
 	newOrderbook.AssetType = assetType
 	newOrderbook.Bids = bid
-	newOrderbook.CurrencyPair = p.Pair().String()
+	newOrderbook.CurrencyPair = p.String()
 	newOrderbook.LastUpdated = time.Now()
 	newOrderbook.Pair = p
 
@@ -543,7 +543,7 @@ func (b *Bitfinex) WsInsertSnapshot(p pair.CurrencyPair, assetType string, books
 
 // WsUpdateOrderbook updates the orderbook list, removing and adding to the
 // orderbook sides
-func (b *Bitfinex) WsUpdateOrderbook(p pair.CurrencyPair, assetType string, book WebsocketBook) error {
+func (b *Bitfinex) WsUpdateOrderbook(p currency.Pair, assetType string, book WebsocketBook) error {
 
 	if book.Count > 0 {
 		if book.Amount > 0 {

@@ -1,15 +1,11 @@
-package translation
+package currency
 
-import (
-	"testing"
-
-	"github.com/thrasher-/gocryptotrader/currency/pair"
-)
+import "testing"
 
 func TestGetTranslation(t *testing.T) {
-	currencyPair := pair.NewCurrencyPair("BTC", "USD")
-	expected := pair.CurrencyItem("XBT")
-	actual, err := GetTranslation(currencyPair.FirstCurrency)
+	currencyPair := NewCurrencyPair("BTC", "USD")
+	expected := Code("XBT")
+	actual, err := GetTranslation(currencyPair.Base)
 	if err != nil {
 		t.Error("GetTranslation: failed to retrieve translation for BTC")
 	}
@@ -18,16 +14,16 @@ func TestGetTranslation(t *testing.T) {
 		t.Error("GetTranslation: translation result was different to expected result")
 	}
 
-	currencyPair.FirstCurrency = "NEO"
-	_, err = GetTranslation(currencyPair.FirstCurrency)
+	currencyPair.Base = "NEO"
+	_, err = GetTranslation(currencyPair.Base)
 	if err == nil {
 		t.Error("GetTranslation: no error on non translatable currency")
 	}
 
 	expected = "BTC"
-	currencyPair.FirstCurrency = "XBT"
+	currencyPair.Base = "XBT"
 
-	actual, err = GetTranslation(currencyPair.FirstCurrency)
+	actual, err = GetTranslation(currencyPair.Base)
 	if err != nil {
 		t.Error("GetTranslation: failed to retrieve translation for BTC")
 	}
@@ -38,23 +34,23 @@ func TestGetTranslation(t *testing.T) {
 }
 
 func TestHasTranslation(t *testing.T) {
-	currencyPair := pair.NewCurrencyPair("BTC", "USD")
+	currencyPair := NewCurrencyPair("BTC", "USD")
 	expected := true
-	actual := HasTranslation(currencyPair.FirstCurrency)
+	actual := HasTranslation(currencyPair.Base)
 	if expected != actual {
 		t.Error("HasTranslation: translation result was different to expected result")
 	}
 
-	currencyPair.FirstCurrency = "XBT"
+	currencyPair.Base = "XBT"
 	expected = true
-	actual = HasTranslation(currencyPair.FirstCurrency)
+	actual = HasTranslation(currencyPair.Base)
 	if expected != actual {
 		t.Error("HasTranslation: translation result was different to expected result")
 	}
 
-	currencyPair.FirstCurrency = "NEO"
+	currencyPair.Base = "NEO"
 	expected = false
-	actual = HasTranslation(currencyPair.FirstCurrency)
+	actual = HasTranslation(currencyPair.Base)
 	if expected != actual {
 		t.Error("HasTranslation: translation result was different to expected result")
 	}
