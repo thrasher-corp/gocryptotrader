@@ -140,7 +140,11 @@ func (b *Binance) UpdateOrderbook(p currency.Pair, assetType string) (orderbook.
 			orderbook.Item{Amount: asks.Quantity, Price: asks.Price})
 	}
 
-	orderbook.ProcessOrderbook(b.GetName(), p, orderBook, assetType)
+	err = orderbook.ProcessOrderbook(b.GetName(), orderBook, assetType)
+	if err != nil {
+		return orderBook, err
+	}
+
 	return orderbook.GetOrderbook(b.Name, p, assetType)
 }
 

@@ -120,7 +120,11 @@ func (b *Bitstamp) UpdateOrderbook(p currency.Pair, assetType string) (orderbook
 		orderBook.Asks = append(orderBook.Asks, orderbook.Item{Amount: data.Amount, Price: data.Price})
 	}
 
-	orderbook.ProcessOrderbook(b.GetName(), p, orderBook, assetType)
+	err = orderbook.ProcessOrderbook(b.GetName(), orderBook, assetType)
+	if err != nil {
+		return orderBook, err
+	}
+
 	return orderbook.GetOrderbook(b.Name, p, assetType)
 }
 

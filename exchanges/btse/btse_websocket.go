@@ -209,9 +209,12 @@ func (b *BTSE) wsProcessSnapshot(snapshot websocketOrderbookSnapshot) error {
 	p := currency.NewCurrencyPairDelimiter(snapshot.ProductID, "-")
 	base.AssetType = "SPOT"
 	base.Pair = p
-	base.CurrencyPair = snapshot.ProductID
 	base.LastUpdated = time.Now()
-	orderbook.ProcessOrderbook(b.Name, p, base, "SPOT")
+
+	err := orderbook.ProcessOrderbook(b.Name, base, "SPOT")
+	if err != nil {
+		return err
+	}
 
 	b.Websocket.DataHandler <- exchange.WebsocketOrderbookUpdate{
 		Pair:     p,

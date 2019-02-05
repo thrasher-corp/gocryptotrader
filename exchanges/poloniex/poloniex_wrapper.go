@@ -116,17 +116,23 @@ func (p *Poloniex) UpdateOrderbook(currencyPair currency.Pair, assetType string)
 		var obItems []orderbook.Item
 		for y := range data.Bids {
 			obData := data.Bids[y]
-			obItems = append(obItems, orderbook.Item{Amount: obData.Amount, Price: obData.Price})
+			obItems = append(obItems,
+				orderbook.Item{Amount: obData.Amount, Price: obData.Price})
 		}
 
 		orderBook.Bids = obItems
 		obItems = []orderbook.Item{}
 		for y := range data.Asks {
 			obData := data.Asks[y]
-			obItems = append(obItems, orderbook.Item{Amount: obData.Amount, Price: obData.Price})
+			obItems = append(obItems,
+				orderbook.Item{Amount: obData.Amount, Price: obData.Price})
 		}
+
 		orderBook.Asks = obItems
-		orderbook.ProcessOrderbook(p.Name, x, orderBook, assetType)
+		err = orderbook.ProcessOrderbook(p.Name, orderBook, assetType)
+		if err != nil {
+			return orderBook, err
+		}
 	}
 	return orderbook.GetOrderbook(p.Name, currencyPair, assetType)
 }

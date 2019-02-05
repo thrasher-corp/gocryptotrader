@@ -268,8 +268,6 @@ func (g *Gateio) WsHandleData() {
 					newOrderbook.Asks = asks
 					newOrderbook.Bids = bids
 					newOrderbook.AssetType = "SPOT"
-					newOrderbook.CurrencyPair = c
-					newOrderbook.LastUpdated = time.Now()
 					newOrderbook.Pair = currency.NewCurrencyPairFromString(c)
 
 					err = g.Websocket.Orderbook.LoadSnapshot(newOrderbook,

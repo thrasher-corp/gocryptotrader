@@ -99,7 +99,11 @@ func (y *Yobit) UpdateOrderbook(p currency.Pair, assetType string) (orderbook.Ba
 		orderBook.Asks = append(orderBook.Asks, orderbook.Item{Price: data[0], Amount: data[1]})
 	}
 
-	orderbook.ProcessOrderbook(y.GetName(), p, orderBook, assetType)
+	err = orderbook.ProcessOrderbook(y.GetName(), orderBook, assetType)
+	if err != nil {
+		return orderBook, err
+	}
+
 	return orderbook.GetOrderbook(y.Name, p, assetType)
 }
 

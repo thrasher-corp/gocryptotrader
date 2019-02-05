@@ -127,9 +127,7 @@ func (b *Bitstamp) WsConnect() error {
 
 		newOrderbook.Asks = asks
 		newOrderbook.Bids = bids
-		newOrderbook.CurrencyPair = p.String()
 		newOrderbook.Pair = p
-		newOrderbook.LastUpdated = time.Unix(0, orderbookSeed.Timestamp)
 		newOrderbook.AssetType = "SPOT"
 
 		err = b.Websocket.Orderbook.LoadSnapshot(newOrderbook, b.GetName(), false)

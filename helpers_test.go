@@ -272,7 +272,13 @@ func TestGetSpecificOrderbook(t *testing.T) {
 	bids := []orderbook.Item{}
 	bids = append(bids, orderbook.Item{Price: 1000, Amount: 1})
 
-	orderbook.ProcessOrderbook("Bitstamp", p, orderbook.Base{Pair: p, Bids: bids}, ticker.Spot)
+	err := orderbook.ProcessOrderbook("Bitstamp",
+		orderbook.Base{Pair: p, Bids: bids},
+		ticker.Spot)
+	if err != nil {
+		t.Fatal("Unexpected result", err)
+	}
+
 	ob, err := GetSpecificOrderbook("BTCUSD", "Bitstamp", ticker.Spot)
 	if err != nil {
 		t.Fatal(err)

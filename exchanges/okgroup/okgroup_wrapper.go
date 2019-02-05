@@ -132,7 +132,12 @@ func (o *OKGroup) UpdateOrderbook(p currency.Pair, assetType string) (resp order
 		})
 	}
 
-	orderbook.ProcessOrderbook(o.GetName(), p, resp, assetType)
+	resp.Pair = p
+	err = orderbook.ProcessOrderbook(o.GetName(), resp, assetType)
+	if err != nil {
+		return
+	}
+
 	return orderbook.GetOrderbook(o.Name, p, assetType)
 }
 

@@ -100,9 +100,8 @@ func (c IComm) StageOrderbookData(exchangeName, assetType string, ob *orderbook.
 	_, totalAsks := ob.CalculateTotalAsks()
 	_, totalBids := ob.CalculateTotalBids()
 
-	OrderbookStaged[exchangeName][assetType][ob.CurrencyPair] = Orderbook{
-		CurrencyPair: ob.CurrencyPair,
+	OrderbookStaged[exchangeName][assetType][ob.Pair.String()] = Orderbook{
+		CurrencyPair: ob.Pair.String(),
 		TotalAsks:    totalAsks,
-		TotalBids:    totalBids,
-		LastUpdated:  ob.LastUpdated.String()}
+		TotalBids:    totalBids}
 }

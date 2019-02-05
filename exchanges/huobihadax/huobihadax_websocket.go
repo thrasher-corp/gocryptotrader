@@ -207,8 +207,6 @@ func (h *HUOBIHADAX) WsProcessOrderbook(ob WsDepth, symbol string) error {
 	var newOrderbook orderbook.Base
 	newOrderbook.Asks = asks
 	newOrderbook.Bids = bids
-	newOrderbook.CurrencyPair = symbol
-	newOrderbook.LastUpdated = time.Now()
 	newOrderbook.Pair = p
 
 	err := h.Websocket.Orderbook.LoadSnapshot(newOrderbook, h.GetName(), false)

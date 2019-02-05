@@ -345,8 +345,6 @@ func (b *Bitmex) processOrderbook(data []OrderBookL2, action string, currencyPai
 			newOrderbook.Asks = asks
 			newOrderbook.Bids = bids
 			newOrderbook.AssetType = assetType
-			newOrderbook.CurrencyPair = currencyPair.String()
-			newOrderbook.LastUpdated = time.Now()
 			newOrderbook.Pair = currencyPair
 
 			err := b.Websocket.Orderbook.LoadSnapshot(newOrderbook, b.GetName(), false)

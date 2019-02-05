@@ -333,10 +333,8 @@ func (c *COINUT) WsProcessOrderbookSnapshot(ob WsOrderbookSnapshot) error {
 	var newOrderbook orderbook.Base
 	newOrderbook.Asks = asks
 	newOrderbook.Bids = bids
-	newOrderbook.CurrencyPair = instrumentListByCode[ob.InstID]
 	newOrderbook.Pair = currency.NewCurrencyPairFromString(instrumentListByCode[ob.InstID])
 	newOrderbook.AssetType = "SPOT"
-	newOrderbook.LastUpdated = time.Now()
 
 	return c.Websocket.Orderbook.LoadSnapshot(newOrderbook, c.GetName(), false)
 }

@@ -526,8 +526,6 @@ func (b *Bitfinex) WsInsertSnapshot(p currency.Pair, assetType string, books []W
 	newOrderbook.Asks = ask
 	newOrderbook.AssetType = assetType
 	newOrderbook.Bids = bid
-	newOrderbook.CurrencyPair = p.String()
-	newOrderbook.LastUpdated = time.Now()
 	newOrderbook.Pair = p
 
 	err := b.Websocket.Orderbook.LoadSnapshot(newOrderbook, b.GetName(), false)

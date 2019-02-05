@@ -244,8 +244,6 @@ func (h *HitBTC) WsProcessOrderbookSnapshot(ob WsOrderbook) error {
 	newOrderbook.Asks = asks
 	newOrderbook.Bids = bids
 	newOrderbook.AssetType = "SPOT"
-	newOrderbook.CurrencyPair = ob.Params.Symbol
-	newOrderbook.LastUpdated = time.Now()
 	newOrderbook.Pair = p
 
 	err := h.Websocket.Orderbook.LoadSnapshot(newOrderbook, h.GetName(), false)

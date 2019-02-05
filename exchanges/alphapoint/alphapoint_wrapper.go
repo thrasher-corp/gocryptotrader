@@ -86,7 +86,11 @@ func (a *Alphapoint) UpdateOrderbook(p currency.Pair, assetType string) (orderbo
 		orderBook.Asks = append(orderBook.Asks, orderbook.Item{Amount: data.Quantity, Price: data.Price})
 	}
 
-	orderbook.ProcessOrderbook(a.GetName(), p, orderBook, assetType)
+	err = orderbook.ProcessOrderbook(a.GetName(), orderBook, assetType)
+	if err != nil {
+		return orderBook, err
+	}
+
 	return orderbook.GetOrderbook(a.Name, p, assetType)
 }
 

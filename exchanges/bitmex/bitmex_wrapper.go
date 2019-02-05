@@ -125,7 +125,11 @@ func (b *Bitmex) UpdateOrderbook(p currency.Pair, assetType string) (orderbook.B
 			continue
 		}
 	}
-	orderbook.ProcessOrderbook(b.GetName(), p, orderBook, assetType)
+
+	err = orderbook.ProcessOrderbook(b.GetName(), orderBook, assetType)
+	if err != nil {
+		return orderBook, err
+	}
 
 	return orderbook.GetOrderbook(b.Name, p, assetType)
 }

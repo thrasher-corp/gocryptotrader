@@ -106,7 +106,11 @@ func (i *ItBit) UpdateOrderbook(p currency.Pair, assetType string) (orderbook.Ba
 		orderBook.Asks = append(orderBook.Asks, orderbook.Item{Amount: amount, Price: price})
 	}
 
-	orderbook.ProcessOrderbook(i.GetName(), p, orderBook, assetType)
+	err = orderbook.ProcessOrderbook(i.GetName(), orderBook, assetType)
+	if err != nil {
+		return orderBook, err
+	}
+
 	return orderbook.GetOrderbook(i.Name, p, assetType)
 }
 

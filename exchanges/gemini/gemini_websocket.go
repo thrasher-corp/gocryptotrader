@@ -157,8 +157,6 @@ func (g *Gemini) WsHandleData() {
 						newOrderbook.Asks = asks
 						newOrderbook.Bids = bids
 						newOrderbook.AssetType = "SPOT"
-						newOrderbook.CurrencyPair = resp.Currency.String()
-						newOrderbook.LastUpdated = time.Now()
 						newOrderbook.Pair = resp.Currency
 
 						err := g.Websocket.Orderbook.LoadSnapshot(newOrderbook,

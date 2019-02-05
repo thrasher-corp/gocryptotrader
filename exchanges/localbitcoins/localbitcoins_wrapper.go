@@ -113,7 +113,11 @@ func (l *LocalBitcoins) UpdateOrderbook(p currency.Pair, assetType string) (orde
 		orderBook.Asks = append(orderBook.Asks, orderbook.Item{Amount: data.Amount / data.Price, Price: data.Price})
 	}
 
-	orderbook.ProcessOrderbook(l.GetName(), p, orderBook, assetType)
+	err = orderbook.ProcessOrderbook(l.GetName(), orderBook, assetType)
+	if err != nil {
+		return orderBook, err
+	}
+
 	return orderbook.GetOrderbook(l.Name, p, assetType)
 }
 

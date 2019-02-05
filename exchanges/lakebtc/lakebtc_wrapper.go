@@ -105,7 +105,11 @@ func (l *LakeBTC) UpdateOrderbook(p currency.Pair, assetType string) (orderbook.
 		orderBook.Asks = append(orderBook.Asks, orderbook.Item{Amount: orderbookNew.Asks[x].Amount, Price: orderbookNew.Asks[x].Price})
 	}
 
-	orderbook.ProcessOrderbook(l.GetName(), p, orderBook, assetType)
+	err = orderbook.ProcessOrderbook(l.GetName(), orderBook, assetType)
+	if err != nil {
+		return orderBook, err
+	}
+
 	return orderbook.GetOrderbook(l.Name, p, assetType)
 }
 

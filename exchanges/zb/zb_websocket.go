@@ -228,10 +228,10 @@ func (z *ZB) WsHandleData() {
 				newOrderbook.Bids = bids
 				newOrderbook.AssetType = "SPOT"
 				newOrderbook.Pair = cPair
-				newOrderbook.CurrencyPair = channelInfo[0]
-				newOrderbook.LastUpdated = time.Now()
 
-				err = z.Websocket.Orderbook.LoadSnapshot(newOrderbook, z.GetName(), true)
+				err = z.Websocket.Orderbook.LoadSnapshot(newOrderbook,
+					z.GetName(),
+					true)
 				if err != nil {
 					z.Websocket.DataHandler <- err
 					continue

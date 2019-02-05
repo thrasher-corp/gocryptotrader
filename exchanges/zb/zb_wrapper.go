@@ -119,7 +119,11 @@ func (z *ZB) UpdateOrderbook(p currency.Pair, assetType string) (orderbook.Base,
 		orderBook.Asks = append(orderBook.Asks, orderbook.Item{Amount: data[1], Price: data[0]})
 	}
 
-	orderbook.ProcessOrderbook(z.GetName(), p, orderBook, assetType)
+	err = orderbook.ProcessOrderbook(z.GetName(), orderBook, assetType)
+	if err != nil {
+		return orderBook, err
+	}
+
 	return orderbook.GetOrderbook(z.Name, p, assetType)
 }
 

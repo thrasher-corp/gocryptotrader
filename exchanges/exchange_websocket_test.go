@@ -157,8 +157,6 @@ func TestInsertingSnapShots(t *testing.T) {
 	snapShot1.Asks = asks
 	snapShot1.Bids = bids
 	snapShot1.AssetType = "SPOT"
-	snapShot1.CurrencyPair = "BTCUSD"
-	snapShot1.LastUpdated = time.Now()
 	snapShot1.Pair = currency.NewCurrencyPairFromString("BTCUSD")
 
 	wsTest.Websocket.Orderbook.LoadSnapshot(snapShot1, "ExchangeTest", false)
@@ -195,8 +193,6 @@ func TestInsertingSnapShots(t *testing.T) {
 	snapShot2.Asks = asks
 	snapShot2.Bids = bids
 	snapShot2.AssetType = "SPOT"
-	snapShot2.CurrencyPair = "LTCUSD"
-	snapShot2.LastUpdated = time.Now()
 	snapShot2.Pair = currency.NewCurrencyPairFromString("LTCUSD")
 
 	wsTest.Websocket.Orderbook.LoadSnapshot(snapShot2, "ExchangeTest", false)
@@ -233,8 +229,6 @@ func TestInsertingSnapShots(t *testing.T) {
 	snapShot3.Asks = asks
 	snapShot3.Bids = bids
 	snapShot3.AssetType = "FUTURES"
-	snapShot3.CurrencyPair = "LTCUSD"
-	snapShot3.LastUpdated = time.Now()
 	snapShot3.Pair = currency.NewCurrencyPairFromString("LTCUSD")
 
 	wsTest.Websocket.Orderbook.LoadSnapshot(snapShot3, "ExchangeTest", false)

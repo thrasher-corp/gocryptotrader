@@ -460,8 +460,8 @@ func (w *WebsocketOrderbookLocal) Update(bidTargets, askTargets []orderbook.Item
 		}()
 	}
 
-	orderbook.ProcessOrderbook(exchName, p, *orderbookAddress, assetType)
-	return nil
+	return orderbook.ProcessOrderbook(exchName, *orderbookAddress, assetType)
+
 }
 
 // LoadSnapshot loads initial snapshot of orderbook data, overite allows full
@@ -479,10 +479,8 @@ func (w *WebsocketOrderbookLocal) LoadSnapshot(newOrderbook orderbook.Base, exch
 		if w.ob[i].Pair == newOrderbook.Pair && w.ob[i].AssetType == newOrderbook.AssetType {
 			if overwrite {
 				w.ob[i] = newOrderbook
-				w.lastUpdated = newOrderbook.LastUpdated
 
 				orderbook.ProcessOrderbook(exchName,
-					newOrderbook.Pair,
 					newOrderbook,
 					newOrderbook.AssetType)
 
@@ -493,10 +491,8 @@ func (w *WebsocketOrderbookLocal) LoadSnapshot(newOrderbook orderbook.Base, exch
 	}
 
 	w.ob = append(w.ob, newOrderbook)
-	w.lastUpdated = newOrderbook.LastUpdated
 
 	orderbook.ProcessOrderbook(exchName,
-		newOrderbook.Pair,
 		newOrderbook,
 		newOrderbook.AssetType)
 
@@ -570,8 +566,7 @@ func (w *WebsocketOrderbookLocal) UpdateUsingID(bidTargets, askTargets []orderbo
 		orderbookAddress.Asks = append(orderbookAddress.Asks, askTargets...)
 	}
 
-	orderbook.ProcessOrderbook(exchName, p, *orderbookAddress, assetType)
-	return nil
+	return orderbook.ProcessOrderbook(exchName, *orderbookAddress, assetType)
 }
 
 // FlushCache flushes w.ob data to be garbage collected and refreshed when a

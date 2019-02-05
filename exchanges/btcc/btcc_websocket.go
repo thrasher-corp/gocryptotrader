@@ -408,8 +408,6 @@ func (b *BTCC) WsProcessOrderbookSnapshot(ob WsOrderbookSnapshot) error {
 	newOrderbook.Asks = asks
 	newOrderbook.AssetType = "SPOT"
 	newOrderbook.Bids = bids
-	newOrderbook.CurrencyPair = ob.Symbol
-	newOrderbook.LastUpdated = time.Now()
 	newOrderbook.Pair = currency.NewCurrencyPairFromString(ob.Symbol)
 
 	err := b.Websocket.Orderbook.LoadSnapshot(newOrderbook, b.GetName(), false)

@@ -193,7 +193,11 @@ func (a *ANX) UpdateOrderbook(p currency.Pair, assetType string) (orderbook.Base
 				Amount: orderbookNew.Data.Bids[x].Amount})
 	}
 
-	orderbook.ProcessOrderbook(a.GetName(), p, orderBook, assetType)
+	err = orderbook.ProcessOrderbook(a.GetName(), orderBook, assetType)
+	if err != nil {
+		return orderBook, err
+	}
+
 	return orderbook.GetOrderbook(a.Name, p, assetType)
 }
 

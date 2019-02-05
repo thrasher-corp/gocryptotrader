@@ -59,8 +59,6 @@ func (b *Binance) SeedLocalCache(p currency.Pair) error {
 	}
 
 	newOrderBook.Pair = currency.NewCurrencyPairFromString(formattedPair.String())
-	newOrderBook.CurrencyPair = formattedPair.String()
-	newOrderBook.LastUpdated = time.Now()
 	newOrderBook.AssetType = ticker.Spot
 
 	return b.Websocket.Orderbook.LoadSnapshot(newOrderBook, b.GetName(), false)
