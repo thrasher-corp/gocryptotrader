@@ -28,13 +28,21 @@ var o = OKGroup{
 }
 
 func TestSetDefaults(t *testing.T) {
-	o.SetDefaults()
+	if o.Name != "OKEX" {
+		o.SetDefaults()
+	}
 	if o.GetName() != "OKEX" {
 		t.Error("Test Failed - Bittrex - SetDefaults() error")
 	}
+	t.Parallel()
+	TestSetup(t)
 }
 
 func TestSetup(t *testing.T) {
+	if o.APIKey == apiKey && o.APISecret == apiSecret &&
+		o.ClientID == passphrase {
+		return
+	}
 	o.ExchangeName = OKGroupExchange
 	cfg := config.GetConfig()
 	cfg.LoadConfig("../../testdata/configtest.json")
@@ -52,11 +60,25 @@ func TestSetup(t *testing.T) {
 	o.Setup(okexConfig)
 }
 
-func TestGetSpotInstruments(t *testing.T) {
-	t.Parallel()
-	o.SetDefaults()
-	TestSetup(t)
+func areTestAPIKeysSet() bool {
+	if o.APIKey != "" && o.APIKey != "Key" &&
+		o.APISecret != "" && o.APISecret != "Secret" {
+		return true
+	}
+	return false
+}
 
+func testStandardErrorHandling(t *testing.T, err error) {
+	if !areTestAPIKeysSet() && err == nil {
+		t.Error("Expecting an error when no keys are set")
+	}
+	if areTestAPIKeysSet() && err != nil {
+		t.Errorf("Encountered error: %v", err)
+	}
+}
+
+func TestGetSpotInstruments(t *testing.T) {
+	TestSetDefaults(t)
 	_, err := o.GetSpotInstruments()
 	if err != nil {
 		t.Errorf("Test failed - okex GetSpotInstruments() failed: %s", err)
@@ -64,60 +86,33 @@ func TestGetSpotInstruments(t *testing.T) {
 }
 
 func TestGetCurrencies(t *testing.T) {
-	t.Parallel()
-	o.SetDefaults()
-	TestSetup(t)
-
+	TestSetDefaults(t)
 	_, err := o.GetCurrencies()
-	if !areTestAPIKeysSet() && err == nil {
-		t.Error("Expecting an error when no keys are set")
-	}
-	if areTestAPIKeysSet() && err != nil {
-		t.Errorf("Encountered error: %v", err)
-	}
+	testStandardErrorHandling(t, err)
 }
 
 func TestGetWalletInformation(t *testing.T) {
-	t.Parallel()
-	o.SetDefaults()
-	TestSetup(t)
-
+	TestSetDefaults(t)
 	resp, err := o.GetWalletInformation("")
-	if !areTestAPIKeysSet() && err == nil {
-		t.Error("Expecting an error when no keys are set")
-	}
-	if areTestAPIKeysSet() && err != nil {
-		t.Errorf("Encountered error: %v", err)
-	}
+	testStandardErrorHandling(t, err)
 
-	if len(resp) == 0 {
+	if areTestAPIKeysSet() && len(resp) == 0 {
 		t.Error("No wallets returned")
 	}
 }
 
 func TestGetWalletInformationForCurrency(t *testing.T) {
-	t.Parallel()
-	o.SetDefaults()
-	TestSetup(t)
-
+	TestSetDefaults(t)
 	resp, err := o.GetWalletInformation(symbol.BTC)
-	if !areTestAPIKeysSet() && err == nil {
-		t.Error("Expecting an error when no keys are set")
-	}
-	if areTestAPIKeysSet() && err != nil {
-		t.Errorf("Encountered error: %v", err)
-	}
+	testStandardErrorHandling(t, err)
 
-	if len(resp) != 1 {
+	if areTestAPIKeysSet() && len(resp) != 1 {
 		t.Errorf("Error recieving wallet information for currency: %v", symbol.BTC)
 	}
 }
 
 func TestTransferFunds(t *testing.T) {
-	t.Parallel()
-	o.SetDefaults()
-	TestSetup(t)
-
+	TestSetDefaults(t)
 	request := FundTransferRequest{
 		Amount:   10,
 		Currency: symbol.BTC,
@@ -126,19 +121,11 @@ func TestTransferFunds(t *testing.T) {
 	}
 
 	_, err := o.TransferFunds(request)
-	if !areTestAPIKeysSet() && err == nil {
-		t.Error("Expecting an error when no keys are set")
-	}
-	if areTestAPIKeysSet() && err != nil {
-		t.Errorf("Encountered error: %v", err)
-	}
+	testStandardErrorHandling(t, err)
 }
 
 func TestBaseWithdraw(t *testing.T) {
-	t.Parallel()
-	o.SetDefaults()
-	TestSetup(t)
-
+	TestSetDefaults(t)
 	request := WithdrawRequest{
 		Amount:      10,
 		Currency:    symbol.BTC,
@@ -149,132 +136,319 @@ func TestBaseWithdraw(t *testing.T) {
 	}
 
 	_, err := o.Withdraw(request)
-	if !areTestAPIKeysSet() && err == nil {
-		t.Error("Expecting an error when no keys are set")
-	}
-	if areTestAPIKeysSet() && err != nil {
-		t.Errorf("Encountered error: %v", err)
-	}
+	testStandardErrorHandling(t, err)
 }
 
 func TestGetWithdrawalFee(t *testing.T) {
-	t.Parallel()
-	o.SetDefaults()
-	TestSetup(t)
-
+	TestSetDefaults(t)
 	resp, err := o.GetWithdrawalFee("")
-	if !areTestAPIKeysSet() && err == nil {
-		t.Error("Expecting an error when no keys are set")
-	}
-	if areTestAPIKeysSet() && err != nil {
-		t.Errorf("Encountered error: %v", err)
-	}
+	testStandardErrorHandling(t, err)
 
-	if len(resp) == 0 {
+	if areTestAPIKeysSet() && len(resp) == 0 {
 		t.Error("Expected fees")
 	}
 }
 
 func TestGetWithdrawalFeeForCurrency(t *testing.T) {
-	t.Parallel()
-	o.SetDefaults()
-	TestSetup(t)
-
+	TestSetDefaults(t)
 	resp, err := o.GetWithdrawalFee(symbol.BTC)
-	if !areTestAPIKeysSet() && err == nil {
-		t.Error("Expecting an error when no keys are set")
-	}
-	if areTestAPIKeysSet() && err != nil {
-		t.Errorf("Encountered error: %v", err)
-	}
+	testStandardErrorHandling(t, err)
 
-	if len(resp) != 1 {
+	if areTestAPIKeysSet() && len(resp) != 1 {
 		t.Error("Expected fee for one currency")
 	}
 }
 
 func TestGetWithdrawalHistory(t *testing.T) {
-	t.Parallel()
-	o.SetDefaults()
-	TestSetup(t)
-
+	TestSetDefaults(t)
 	_, err := o.GetWithdrawalHistory("")
-	if !areTestAPIKeysSet() && err == nil {
-		t.Error("Expecting an error when no keys are set")
-	}
-	if areTestAPIKeysSet() && err != nil {
-		t.Errorf("Encountered error: %v", err)
-	}
+	testStandardErrorHandling(t, err)
 }
 
 func TestGetWithdrawalHistoryForCurrency(t *testing.T) {
-	t.Parallel()
-	o.SetDefaults()
-	TestSetup(t)
-
+	TestSetDefaults(t)
 	_, err := o.GetWithdrawalHistory(symbol.BTC)
-	if !areTestAPIKeysSet() && err == nil {
-		t.Error("Expecting an error when no keys are set")
-	}
-	if areTestAPIKeysSet() && err != nil {
-		t.Errorf("Encountered error: %v", err)
-	}
+	testStandardErrorHandling(t, err)
 }
 
 func TestGetBillDetails(t *testing.T) {
-	t.Parallel()
-	o.SetDefaults()
-	TestSetup(t)
-
+	TestSetDefaults(t)
 	_, err := o.GetBillDetails(GetBillDetailsRequest{})
-	if !areTestAPIKeysSet() && err == nil {
-		t.Error("Expecting an error when no keys are set")
-	}
-	if areTestAPIKeysSet() && err != nil {
-		t.Errorf("Encountered error: %v", err)
-	}
+	testStandardErrorHandling(t, err)
 }
 
 func TestGetDepositAddressForCurrency(t *testing.T) {
-	t.Parallel()
-	o.SetDefaults()
-	TestSetup(t)
-
+	TestSetDefaults(t)
 	_, err := o.GetDepositAddressForCurrency(symbol.BTC)
-	if !areTestAPIKeysSet() && err == nil {
-		t.Error("Expecting an error when no keys are set")
-	}
-	if areTestAPIKeysSet() && err != nil {
-		t.Errorf("Encountered error: %v", err)
-	}
+	testStandardErrorHandling(t, err)
 }
 
 func TestGetDepositHistory(t *testing.T) {
-	t.Parallel()
-	o.SetDefaults()
-	TestSetup(t)
-
+	TestSetDefaults(t)
 	_, err := o.GetDepositHistory("")
-	if !areTestAPIKeysSet() && err == nil {
-		t.Error("Expecting an error when no keys are set")
-	}
-	if areTestAPIKeysSet() && err != nil {
-		t.Errorf("Encountered error: %v", err)
-	}
+	testStandardErrorHandling(t, err)
 }
 
 func TestGetDepositHistoryForCurrency(t *testing.T) {
-	t.Parallel()
-	o.SetDefaults()
-	TestSetup(t)
-
+	TestSetDefaults(t)
 	_, err := o.GetDepositHistory(symbol.BTC)
-	if !areTestAPIKeysSet() && err == nil {
-		t.Error("Expecting an error when no keys are set")
+	testStandardErrorHandling(t, err)
+}
+
+func TestGetSpotTradingAccounts(t *testing.T) {
+	TestSetDefaults(t)
+	_, err := o.GetSpotTradingAccounts()
+	testStandardErrorHandling(t, err)
+}
+
+func TestGetSpotTradingAccountsForCurrency(t *testing.T) {
+	TestSetDefaults(t)
+	_, err := o.GetSpotTradingAccountForCurrency(symbol.BTC)
+	testStandardErrorHandling(t, err)
+}
+
+func TestGetSpotBillDetailsForCurrency(t *testing.T) {
+	TestSetDefaults(t)
+	request := GetSpotBillDetailsForCurrencyRequest{
+		Currency: symbol.BTC,
+		Limit:    100,
 	}
-	if areTestAPIKeysSet() && err != nil {
-		t.Errorf("Encountered error: %v", err)
+
+	_, err := o.GetSpotBillDetailsForCurrency(request)
+	testStandardErrorHandling(t, err)
+
+	request.Limit = -1
+	_, err = o.GetSpotBillDetailsForCurrency(request)
+	if areTestAPIKeysSet() && err == nil {
+		t.Errorf("Expecting an error when invalid request sent")
 	}
+
+}
+
+func TestPlaceSpotOrderLimit(t *testing.T) {
+	TestSetDefaults(t)
+	request := PlaceSpotOrderRequest{
+		InstrumentID:  pair.NewCurrencyPairWithDelimiter(symbol.BTC, symbol.USDT, "-").Pair().Lower().String(),
+		Type:          "limit",
+		Side:          "buy",
+		MarginTrading: "1",
+		Price:         "100",
+		Size:          "100",
+	}
+
+	_, err := o.PlaceSpotOrder(request)
+	testStandardErrorHandling(t, err)
+}
+
+func TestPlaceSpotOrderMarket(t *testing.T) {
+	TestSetDefaults(t)
+	request := PlaceSpotOrderRequest{
+		InstrumentID:  pair.NewCurrencyPairWithDelimiter(symbol.BTC, symbol.USDT, "-").Pair().Lower().String(),
+		Type:          "market",
+		Side:          "buy",
+		MarginTrading: "1",
+		Size:          "100",
+		Notional:      "100",
+	}
+
+	_, err := o.PlaceSpotOrder(request)
+	testStandardErrorHandling(t, err)
+}
+
+func TestPlaceMultipleSpotOrders(t *testing.T) {
+	TestSetDefaults(t)
+	order := PlaceSpotOrderRequest{
+		InstrumentID:  pair.NewCurrencyPairWithDelimiter(symbol.BTC, symbol.USDT, "-").Pair().Lower().String(),
+		Type:          "market",
+		Side:          "buy",
+		MarginTrading: "1",
+		Size:          "100",
+		Notional:      "100",
+	}
+
+	request := []PlaceSpotOrderRequest{
+		order,
+	}
+
+	_, errs := o.PlaceMultipleSpotOrders(request)
+	if len(errs) > 0 {
+		testStandardErrorHandling(t, errs[0])
+	}
+}
+
+func TestPlaceMultipleSpotOrdersOverCurrencyLimits(t *testing.T) {
+	TestSetDefaults(t)
+	order := PlaceSpotOrderRequest{
+		InstrumentID:  pair.NewCurrencyPairWithDelimiter(symbol.BTC, symbol.USDT, "-").Pair().Lower().String(),
+		Type:          "market",
+		Side:          "buy",
+		MarginTrading: "1",
+		Size:          "100",
+		Notional:      "100",
+	}
+
+	request := []PlaceSpotOrderRequest{
+		order,
+		order,
+		order,
+		order,
+		order,
+	}
+
+	_, errs := o.PlaceMultipleSpotOrders(request)
+	if errs[0].Error() != "maximum 4 orders for each pair" {
+		t.Error("Expecting an error when more than 4 orders for a pair supplied", errs[0])
+	}
+}
+
+func TestPlaceMultipleSpotOrdersOverPairLimits(t *testing.T) {
+	TestSetDefaults(t)
+	order := PlaceSpotOrderRequest{
+		InstrumentID:  pair.NewCurrencyPairWithDelimiter(symbol.BTC, symbol.USDT, "-").Pair().Lower().String(),
+		Type:          "market",
+		Side:          "buy",
+		MarginTrading: "1",
+		Size:          "100",
+		Notional:      "100",
+	}
+
+	request := []PlaceSpotOrderRequest{
+		order,
+	}
+
+	order.InstrumentID = pair.NewCurrencyPairWithDelimiter(symbol.LTC, symbol.USDT, "-").Pair().Lower().String()
+	request = append(request, order)
+	order.InstrumentID = pair.NewCurrencyPairWithDelimiter(symbol.DOGE, symbol.USDT, "-").Pair().Lower().String()
+	request = append(request, order)
+	order.InstrumentID = pair.NewCurrencyPairWithDelimiter(symbol.XMR, symbol.USDT, "-").Pair().Lower().String()
+	request = append(request, order)
+	order.InstrumentID = pair.NewCurrencyPairWithDelimiter(symbol.BCH, symbol.USDT, "-").Pair().Lower().String()
+	request = append(request, order)
+
+	_, errs := o.PlaceMultipleSpotOrders(request)
+	if errs[0].Error() != "up to 4 trading pairs" {
+		t.Error("Expecting an error when more than 4 trading pairs supplied", errs[0])
+	}
+}
+
+func TestCancelSpotOrder(t *testing.T) {
+	TestSetDefaults(t)
+	request := CancelSpotOrderRequest{
+		InstrumentID: pair.NewCurrencyPairWithDelimiter(symbol.BTC, symbol.USDT, "-").Pair().Lower().String(),
+		OrderID:      1234,
+	}
+
+	_, err := o.CancelSpotOrder(request)
+	testStandardErrorHandling(t, err)
+}
+
+func TestCancelMultipleSpotOrders(t *testing.T) {
+	TestSetDefaults(t)
+	request := CancelMultipleSpotOrdersRequest{
+		InstrumentID: pair.NewCurrencyPairWithDelimiter(symbol.BTC, symbol.USDT, "-").Pair().Lower().String(),
+		OrderIDs:     []int64{1, 2, 3, 4},
+	}
+
+	_, errs := o.CancelMultipleSpotOrders(request)
+	if len(errs) > 0 {
+		testStandardErrorHandling(t, errs[0])
+	}
+}
+
+func TestCancelMultipleSpotOrdersOverCurrencyLimits(t *testing.T) {
+	TestSetDefaults(t)
+	request := CancelMultipleSpotOrdersRequest{
+		InstrumentID: pair.NewCurrencyPairWithDelimiter(symbol.BTC, symbol.USDT, "-").Pair().Lower().String(),
+		OrderIDs:     []int64{1, 2, 3, 4, 5},
+	}
+
+	_, errs := o.CancelMultipleSpotOrders(request)
+	if errs[0].Error() != "maximum 4 order cancellations for each pair" {
+		t.Error("Expecting an error when more than 4 orders for a pair supplied", errs[0])
+	}
+}
+
+func TestGetSpotOrders(t *testing.T) {
+	TestSetDefaults(t)
+	request := GetSpotOrdersRequest{
+		InstrumentID: pair.NewCurrencyPairWithDelimiter(symbol.BTC, symbol.USDT, "-").Pair().Lower().String(),
+		Status:       "all",
+	}
+	_, err := o.GetSpotOrders(request)
+	testStandardErrorHandling(t, err)
+}
+
+func TestGetSpotOpenOrders(t *testing.T) {
+	TestSetDefaults(t)
+	request := GetSpotOpenOrdersRequest{}
+	_, err := o.GetSpotOpenOrders(request)
+	testStandardErrorHandling(t, err)
+}
+
+func TestGetSpotOrder(t *testing.T) {
+	TestSetDefaults(t)
+	request := GetSpotOrderRequest{
+		OrderID:      -1234,
+		InstrumentID: pair.NewCurrencyPairWithDelimiter(symbol.BTC, symbol.USDT, "-").Pair().Upper().String(),
+	}
+	_, err := o.GetSpotOrder(request)
+	testStandardErrorHandling(t, err)
+}
+
+func TestGetSpotTransactionDetails(t *testing.T) {
+	TestSetDefaults(t)
+	request := GetSpotTransactionDetailsRequest{
+		OrderID:      1234,
+		InstrumentID: pair.NewCurrencyPairWithDelimiter(symbol.BTC, symbol.USDT, "-").Pair().Lower().String(),
+	}
+	_, err := o.GetSpotTransactionDetails(request)
+	testStandardErrorHandling(t, err)
+}
+
+func TestGetSpotTokenPairDetails(t *testing.T) {
+	TestSetDefaults(t)
+	_, err := o.GetSpotTokenPairDetails()
+	testStandardErrorHandling(t, err)
+}
+
+func TestGetSpotOrderBook(t *testing.T) {
+	TestSetDefaults(t)
+	request := GetSpotOrderBookRequest{
+		InstrumentID: pair.NewCurrencyPairWithDelimiter(symbol.BTC, symbol.USDT, "-").Pair().Lower().String(),
+	}
+	_, err := o.GetSpotOrderBook(request)
+	testStandardErrorHandling(t, err)
+}
+
+func TestGetSpotAllTokenPairsInformation(t *testing.T) {
+	TestSetDefaults(t)
+	_, err := o.GetSpotAllTokenPairsInformation()
+	testStandardErrorHandling(t, err)
+}
+
+func TestGetSpotAllTokenPairsInformationForCurrency(t *testing.T) {
+	TestSetDefaults(t)
+	_, err := o.GetSpotAllTokenPairsInformationForCurrency(pair.NewCurrencyPairWithDelimiter(symbol.BTC, symbol.USDT, "-").Pair().Lower().String())
+	testStandardErrorHandling(t, err)
+}
+
+func TestGetSpotFilledOrdersInformation(t *testing.T) {
+	TestSetDefaults(t)
+	request := GetSpotFilledOrdersInformationRequest{
+		InstrumentID: pair.NewCurrencyPairWithDelimiter(symbol.BTC, symbol.USDT, "-").Pair().Lower().String(),
+	}
+	_, err := o.GetSpotFilledOrdersInformation(request)
+	testStandardErrorHandling(t, err)
+}
+
+func TestGetSpotMarketData(t *testing.T) {
+	TestSetDefaults(t)
+	request := GetSpotMarketDataRequest{
+		InstrumentID: pair.NewCurrencyPairWithDelimiter(symbol.BTC, symbol.USDT, "-").Pair().Lower().String(),
+		Granularity:  604800,
+	}
+	_, err := o.GetSpotMarketData(request)
+	testStandardErrorHandling(t, err)
 }
 
 func setFeeBuilder() exchange.FeeBuilder {
@@ -381,13 +555,6 @@ func TestFormatWithdrawPermissions(t *testing.T) {
 
 // Any tests below this line have the ability to impact your orders on the exchange. Enable canManipulateRealOrders to run them
 // ----------------------------------------------------------------------------------------------------------------------------
-func areTestAPIKeysSet() bool {
-	if o.APIKey != "" && o.APIKey != "Key" &&
-		o.APISecret != "" && o.APISecret != "Secret" {
-		return true
-	}
-	return false
-}
 
 func TestSubmitOrder(t *testing.T) {
 	o.SetDefaults()
