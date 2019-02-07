@@ -34,17 +34,17 @@ type FundTransferRequest struct {
 type FundTransferResponse struct {
 	Amount     float64 `json:"amount"`
 	Currency   string  `json:"currency"`
-	From       int     `json:"from"`
+	From       int64   `json:"from"`
 	Result     bool    `json:"result"`
-	To         int     `json:"to"`
-	TransferID int     `json:"transfer_id"`
+	To         int64   `json:"to"`
+	TransferID int64   `json:"transfer_id"`
 }
 
 // WithdrawRequest used to request a withdrawal
 type WithdrawRequest struct {
-	Amount      int     `json:"amount"`
+	Amount      int64   `json:"amount"`
 	Currency    string  `json:"currency"`
-	Destination int     `json:"destination"`
+	Destination int64   `json:"destination"`
 	Fee         float64 `json:"fee"`
 	ToAddress   string  `json:"to_address"`
 	TradePwd    string  `json:"trade_pwd"`
@@ -55,7 +55,7 @@ type WithdrawResponse struct {
 	Amount       float64 `json:"amount"`
 	Currency     string  `json:"currency"`
 	Result       bool    `json:"result"`
-	WithdrawalID int     `json:"withdrawal_id"`
+	WithdrawalID int64   `json:"withdrawal_id"`
 }
 
 // WithdrawalFeeResponse the response after requesting withdrawal fees
@@ -72,7 +72,7 @@ type WithdrawalHistoryResponse struct {
 	Currency  string  `json:"currency"`
 	Fee       string  `json:"fee"`
 	From      string  `json:"from"`
-	Status    int     `json:"status"`
+	Status    int64   `json:"status"`
 	Timestamp string  `json:"timestamp"`
 	To        string  `json:"to"`
 	Txid      string  `json:"txid"`
@@ -92,10 +92,10 @@ type GetBillDetailsRequest struct {
 // GetBillDetailsResponse contains bill details from a GetBillDetailsRequest request
 type GetBillDetailsResponse struct {
 	Amount    float64 `json:"amount"`
-	Balance   int     `json:"balance"`
+	Balance   int64   `json:"balance"`
 	Currency  string  `json:"currency"`
-	Fee       int     `json:"fee"`
-	LedgerID  int     `json:"ledger_id"`
+	Fee       int64   `json:"fee"`
+	LedgerID  int64   `json:"ledger_id"`
 	Timestamp string  `json:"timestamp"`
 	Typename  string  `json:"typename"`
 }
@@ -108,11 +108,11 @@ type GetDepositAddressRespoonse struct {
 	Currency  string `json:"currency"`
 }
 
-//GetDepositHistoryResponse contains deposit history details from a GetDepositHistory request
+// GetDepositHistoryResponse contains deposit history details from a GetDepositHistory request
 type GetDepositHistoryResponse struct {
 	Amount        float64 `json:"amount"`
 	Currency      string  `json:"currency"`
-	Status        int     `json:"status"`
+	Status        int64   `json:"status"`
 	Timestamp     string  `json:"timestamp"`
 	To            string  `json:"to"`
 	TransactionID string  `json:"txid"`
@@ -161,7 +161,7 @@ type PlaceSpotOrderRequest struct {
 	Type          string `json:"type"`                 // limit / market(default: limit)
 	Side          string `json:"side"`                 // buy or sell
 	InstrumentID  string `json:"instrument_id"`        // trading pair
-	MarginTrading string `json:"margin_trading"`       //order type (The request value is 1)
+	MarginTrading string `json:"margin_trading"`       // order type (The request value is 1)
 	Size          string `json:"size"`
 	Notional      string `json:"notional,omitempty"` //
 	Price         string `json:"price,omitempty"`    // price (Limit order only)
@@ -176,23 +176,23 @@ type PlaceSpotOrderResponse struct {
 
 // CancelSpotOrderRequest contains the details from an order cancellation request
 type CancelSpotOrderRequest struct {
-	ClientOID    string `json:"client_oid,omitempty"` //  	the order ID created by yourself
-	OrderID      int    `json:"order_id,string"`      // order ID
-	InstrumentID string `json:"instrument_id"`        //  	By providing this parameter, the corresponding order of a designated trading pair will be cancelled. If not providing this parameter, it will be back to error code.
+	ClientOID    string `json:"client_oid,omitempty"` // the order ID created by yourself
+	OrderID      int64  `json:"order_id,string"`      // order ID
+	InstrumentID string `json:"instrument_id"`        // By providing this parameter, the corresponding order of a designated trading pair will be cancelled. If not providing this parameter, it will be back to error code.
 }
 
 // CancelSpotOrderResponse contains the results from CancelSpotOrder
 type CancelSpotOrderResponse struct {
 	ClientOID string `json:"client_oid"`
-	OrderID   int    `json:"order_id"`
+	OrderID   int64  `json:"order_id"`
 	Result    bool   `json:"result"`
 }
 
 // CancelMultipleSpotOrdersRequest contains the details from multiple orders cancellation request
 // CancelMultipleSpotOrdersRequest contains specific currency/order data
 type CancelMultipleSpotOrdersRequest struct {
-	OrderIDs     []int64 `json:"order_ids,omitempty"` //  	order ID. You may cancel up to 4 orders of a trading pair
-	InstrumentID string  `json:"instrument_id"`       //  	by providing this parameter, the corresponding order of a designated trading pair will be cancelled. If not providing this parameter, it will be back to error code.
+	OrderIDs     []int64 `json:"order_ids,omitempty"` // order ID. You may cancel up to 4 orders of a trading pair
+	InstrumentID string  `json:"instrument_id"`       // by providing this parameter, the corresponding order of a designated trading pair will be cancelled. If not providing this parameter, it will be back to error code.
 }
 
 // CancelMultipleSpotOrdersResponse contains the results from CancelMultipleSpotOrders
@@ -206,10 +206,10 @@ type CancelMultipleSpotOrdersResponse struct {
 type GetSpotOrdersRequest struct {
 	Status string `json:"status"` // list the status of all orders (all, open, part_filled, canceling, filled, cancelled，ordering,failure)
 	// （Multiple status separated by '|'，and '|' need encode to ' %7C'）
-	InstrumentID string `json:"instrument_id"`          //  	trading pair ,information of all trading pair will be returned if the field is left blank
-	From         int64  `json:"from,string,omitempty"`  //  	[optional]request page after this id (latest information) (eg. 1, 2, 3, 4, 5. There is only a 5 "from 4", while there are 1, 2, 3 "to 4")
-	To           int64  `json:"to,string,omitempty"`    //  	[optional]request page after (older) this id.
-	Limit        int64  `json:"limit,string,omitempty"` //  	[optional]number of results per request. Maximum 100. (default 100)
+	InstrumentID string `json:"instrument_id"`          // trading pair ,information of all trading pair will be returned if the field is left blank
+	From         int64  `json:"from,string,omitempty"`  // [optional]request page after this id (latest information) (eg. 1, 2, 3, 4, 5. There is only a 5 "from 4", while there are 1, 2, 3 "to 4")
+	To           int64  `json:"to,string,omitempty"`    // [optional]request page after (older) this id.
+	Limit        int64  `json:"limit,string,omitempty"` // [optional]number of results per request. Maximum 100. (default 100)
 }
 
 // GetSpotOrderResponse contains individual order details
@@ -229,25 +229,25 @@ type GetSpotOrderResponse struct {
 
 // GetSpotOpenOrdersRequest using in GetSpotOpenOrders
 type GetSpotOpenOrdersRequest struct {
-	InstrumentID string `json:"instrument_id"`          //  	[optional]trading pair ,information of all trading pair will be returned if the field is left blank
-	From         int64  `json:"from,string,omitempty"`  //  	[optional]request page after this id (latest information) (eg. 1, 2, 3, 4, 5. There is only a 5 "from 4", while there are 1, 2, 3 "to 4")
-	To           int64  `json:"to,string,omitempty"`    //  	[optional]request page after (older) this id.
-	Limit        int64  `json:"limit,string,omitempty"` //  	[optional]number of results per request. Maximum 100. (default 100)
+	InstrumentID string `json:"instrument_id"`          // [optional]trading pair ,information of all trading pair will be returned if the field is left blank
+	From         int64  `json:"from,string,omitempty"`  // [optional]request page after this id (latest information) (eg. 1, 2, 3, 4, 5. There is only a 5 "from 4", while there are 1, 2, 3 "to 4")
+	To           int64  `json:"to,string,omitempty"`    // [optional]request page after (older) this id.
+	Limit        int64  `json:"limit,string,omitempty"` // [optional]number of results per request. Maximum 100. (default 100)
 }
 
 // GetSpotOrderRequest used when requesting details for a single order
 type GetSpotOrderRequest struct {
-	OrderID      int64  `json:"order_id,string"` //  	[required] order ID
-	InstrumentID string `json:"instrument_id"`   //  	[required]trading pair
+	OrderID      int64  `json:"order_id,string"` // [required] order ID
+	InstrumentID string `json:"instrument_id"`   // [required]trading pair
 }
 
 // GetSpotTransactionDetailsRequest using in GetSpotTransactionDetails
 type GetSpotTransactionDetailsRequest struct {
 	InstrumentID string `json:"instrument_id"`          // [required]list all transaction details of this instrument_id.
-	OrderID      int64  `json:"order_id,string"`        //  	[required]list all transaction details of this order_id.
-	From         int64  `json:"from,string,omitempty"`  //  	[optional]request page after this id (latest information) (eg. 1, 2, 3, 4, 5. There is only a 5 "from 4", while there are 1, 2, 3 "to 4")
-	To           int64  `json:"to,string,omitempty"`    //  	[optional]request page after (older) this id.
-	Limit        int64  `json:"limit,string,omitempty"` //  	[optional]number of results per request. Maximum 100. (default 100)
+	OrderID      int64  `json:"order_id,string"`        // [required]list all transaction details of this order_id.
+	From         int64  `json:"from,string,omitempty"`  // [optional]request page after this id (latest information) (eg. 1, 2, 3, 4, 5. There is only a 5 "from 4", while there are 1, 2, 3 "to 4")
+	To           int64  `json:"to,string,omitempty"`    // [optional]request page after (older) this id.
+	Limit        int64  `json:"limit,string,omitempty"` // [optional]number of results per request. Maximum 100. (default 100)
 }
 
 // GetSpotTransactionDetailsResponse response data from GetSpotTransactionDetails
@@ -275,9 +275,9 @@ type GetSpotTokenPairDetailsResponse struct {
 
 // GetSpotOrderBookRequest Order boook request
 type GetSpotOrderBookRequest struct {
-	Size         int64   `json:"size,string,omitempty"`  //[optional]number of results per request. Maximum 200
-	Depth        float64 `json:"depth,string,omitempty"` //[optional]the aggregation of the book. e.g . 0.1,0.001
-	InstrumentID string  `json:"instrument_id"`          //[required] trading pairs
+	Size         int64   `json:"size,string,omitempty"`  // [optional]number of results per request. Maximum 200
+	Depth        float64 `json:"depth,string,omitempty"` // [optional]the aggregation of the book. e.g . 0.1,0.001
+	InstrumentID string  `json:"instrument_id"`          // [required] trading pairs
 }
 
 // GetSpotOrderBookResponse Order book response
@@ -289,24 +289,24 @@ type GetSpotOrderBookResponse struct {
 
 // GetSpotTokenPairsInformationResponse Ticker data response
 type GetSpotTokenPairsInformationResponse struct {
-	BaseVolume24h  string `json:"base_volume_24h"`  //24 trading volume of the base currency
+	BaseVolume24h  string `json:"base_volume_24h"`  // 24 trading volume of the base currency
 	BestAsk        string `json:"best_ask"`         // best ask price
-	BestBid        string `json:"best_bid"`         //best bid price
-	High24h        string `json:"high_24h"`         //24 hour high
+	BestBid        string `json:"best_bid"`         // best bid price
+	High24h        string `json:"high_24h"`         // 24 hour high
 	InstrumentID   string `json:"instrument_id"`    // trading pair
-	Last           string `json:"last"`             //last traded price
-	Low24h         string `json:"low_24h"`          //24 hour low
+	Last           string `json:"last"`             // last traded price
+	Low24h         string `json:"low_24h"`          // 24 hour low
 	Open24h        string `json:"open_24h"`         // 24 hour open
-	QuoteVolume24h string `json:"quote_volume_24h"` //24 trading volume of the quote currency
+	QuoteVolume24h string `json:"quote_volume_24h"` // 24 trading volume of the quote currency
 	Timestamp      string `json:"timestamp"`
 }
 
 // GetSpotFilledOrdersInformationRequest Filed orders request data
 type GetSpotFilledOrdersInformationRequest struct {
-	InstrumentID string `json:"instrument_id"`          //  	[required] trading pairs
-	From         int64  `json:"from,string,omitempty"`  //  	[optional]number of results per request. Maximum 100. (default 100)
-	To           int64  `json:"to,string,omitempty"`    //  	[optional]request page after (older) this id.
-	Limit        int64  `json:"limit,string,omitempty"` //  	[optional]number of results per request. Maximum 100. (default 100)
+	InstrumentID string `json:"instrument_id"`          // [required] trading pairs
+	From         int64  `json:"from,string,omitempty"`  // [optional]number of results per request. Maximum 100. (default 100)
+	To           int64  `json:"to,string,omitempty"`    // [optional]request page after (older) this id.
+	Limit        int64  `json:"limit,string,omitempty"` // [optional]number of results per request. Maximum 100. (default 100)
 }
 
 // GetSpotFilledOrdersInformationResponse Filled orders response data
@@ -322,19 +322,109 @@ type GetSpotFilledOrdersInformationResponse struct {
 type GetSpotMarketDataRequest struct {
 	Start        string `json:"start,omitempty"` // [optional]start time in ISO 8601
 	End          string `json:"end,omitempty"`   // [optional] end time in ISO 8601
-	Granularity  int64  `json:"granularity"`     //The granularity field must be one of the following values: {60, 180, 300, 900, 1800, 3600, 7200, 14400, 43200, 86400, 604800}.
-	InstrumentID string `json:"instrument_id"`   //[required] trading pairs
+	Granularity  int64  `json:"granularity"`     // The granularity field must be one of the following values: {60, 180, 300, 900, 1800, 3600, 7200, 14400, 43200, 86400, 604800}.
+	InstrumentID string `json:"instrument_id"`   // [required] trading pairs
 }
 
 // GetSpotMarketDataResponse contains candle data from a GetSpotMarketDataRequest
-//Return Parameters
-//time 	string 	Start time
-//open 	string 	Open price
-//high 	string 	Highest price
-//low 	string 	Lowest price
-//close 	string 	Close price
-//volume 	string 	Trading volume
+// Return Parameters
+// time 	string 	Start time
+// open 	string 	Open price
+// high 	string 	Highest price
+// low 	string 	Lowest price
+// close 	string 	Close price
+// volume 	string 	Trading volume
 type GetSpotMarketDataResponse []interface{}
+
+// GetMarginAccountsResponse contains margin account data for each currency
+type GetMarginAccountsResponse struct {
+	InstrumentID     string `json:"instrument_id,omitempty"`
+	LiquidationPrice string `json:"liquidation_price"`
+	ProductID        string `json:"product_id,omitempty"`
+	RiskRate         string `json:"risk_rate"`
+	Currencies       map[string]MarginAccountInfo
+}
+
+// MarginAccountInfo contains individual currency information
+type MarginAccountInfo struct {
+	Available  float64 `json:"available,string"`
+	Balance    float64 `json:"balance,string"`
+	Borrowed   float64 `json:"borrowed,string"`
+	Frozen     float64 `json:"frozen,string"`
+	Hold       float64 `json:"hold,string"`
+	Holds      float64 `json:"holds,string"`
+	LendingFee float64 `json:"lending_fee,string"`
+}
+
+// GetMarginAccountSettingsResponse contains the results from GetMarginAccountSettings
+type GetMarginAccountSettingsResponse struct {
+	InstrumentID string `json:"instrument_id"`
+	ProductID    string `json:"product_id"`
+	Currencies   map[string]MarginAccountSettingsInfo
+}
+
+// MarginAccountSettingsInfo contains individual currency data
+type MarginAccountSettingsInfo struct {
+	Available     float64 `json:"available,string"`
+	Leverage      float64 `json:"leverage,string"`
+	LeverageRatio float64 `json:"leverage_ratio,string"`
+	Rate          float64 `json:"rate,string"`
+}
+
+// GetMarginLoanHistoryRequest optional parameters for a GetMarginAccountSettings
+type GetMarginLoanHistoryRequest struct {
+	InstrumentID string // [optional] Used when a specific currency response is desired
+	Status       int64  `json:"status,string,omitempty"` // [optional] status(0: outstanding 1: repaid)
+	From         int64  `json:"from,string,omitempty"`   // [optional]request page from(newer) this id.
+	To           int64  `json:"to,string,omitempty"`     // [optional]request page to(older) this id.
+	Limit        int64  `json:"limit,string,omitempty"`  // [optional]number of results per request. Maximum 100.(default 100)
+}
+
+// GetMarginLoanHistoryResponse loan history of the margin trading account
+type GetMarginLoanHistoryResponse struct {
+	Amount           float64 `json:"amount,string"`
+	BorrowID         int64   `json:"borrow_id"`
+	CreatedAt        string  `json:"created_at"`
+	Currency         string  `json:"currency"`
+	ForceRepayTime   string  `json:"force_repay_time"`
+	InstrumentID     string  `json:"instrument_id"`
+	Interest         float64 `json:"interest,string"`
+	LastInterestTime string  `json:"last_interest_time"`
+	PaidInterest     float64 `json:"paid_interest,string"`
+	ProductID        string  `json:"product_id"`
+	Rate             float64 `json:"rate,string"`
+	RepayAmount      string  `json:"repay_amount"`
+	RepayInterest    string  `json:"repay_interest"`
+	ReturnedAmount   float64 `json:"returned_amount,string"`
+	Timestamp        string  `json:"timestamp"`
+}
+
+// OpenMarginLoanRequest required to open a loan
+type OpenMarginLoanRequest struct {
+	QuoteCurrency string  `json:"currency"`      // [required] Second currency eg BTC-USDT: USDT is quote
+	InstrumentID  string  `json:"instrument_id"` // [required] Full pair BTC-USDT
+	Amount        float64 `json:"amount,string"` // [required] Amount wanting to borrow
+}
+
+// OpenMarginLoanResponse returned ID from a loan request
+type OpenMarginLoanResponse struct {
+	BorrowID int64 `json:"borrow_id"`
+	Result   bool  `json:"result"`
+}
+
+// RepayMarginLoanRequest required params for RepayMarginLoan
+type RepayMarginLoanRequest struct {
+	Amount        float64 `json:"amount,string"` // [required] amount repaid
+	BorrowID      float64 `json:"borrow_id"`     // [optional] borrow ID . all borrowed token under this trading pair will be repay if the field is left blank
+	QuoteCurrency string  `json:"currency"`      // [required] Second currency eg BTC-USDT: USDT is quote
+	InstrumentID  string  `json:"instrument_id"` // [required] Full pair BTC-USDT
+}
+
+// RepayMarginLoanResponse holds response for RepayMarginLoan
+type RepayMarginLoanResponse struct {
+	RepaymentID int64 `json:"repayment_id"`
+	Result      bool  `json:"result"`
+}
 
 // OrderStatus Holds OKGroup order status values
 var OrderStatus = map[int]string{
@@ -349,7 +439,7 @@ var OrderStatus = map[int]string{
 	5:  "awaiting identity confirmation",
 }
 
-//SpotInstrument contains spot data
+// SpotInstrument contains spot data
 type SpotInstrument struct {
 	BaseCurrency   string  `json:"base_currency"`
 	BaseIncrement  float64 `json:"base_increment,string"`
@@ -424,7 +514,7 @@ type SpotDepth struct {
 // ActualSpotDepthRequestParams represents Klines request data.
 type ActualSpotDepthRequestParams struct {
 	Symbol string `json:"symbol"` // Symbol; example ltc_btc
-	Size   int    `json:"size"`   // value: 1-200
+	Size   int64  `json:"size"`   // value: 1-200
 }
 
 // ActualSpotDepth better manipulated structure to return
@@ -443,7 +533,7 @@ type ActualSpotDepth struct {
 type KlinesRequestParams struct {
 	Symbol string       // Symbol; example btcusdt, bccbtc......
 	Type   TimeInterval // Kline data time interval; 1min, 5min, 15min......
-	Size   int          // Size; [1-2000]
+	Size   int64        // Size; [1-2000]
 	Since  int64        // Since timestamp, return data after the specified timestamp (for example, 1417536000000)
 }
 

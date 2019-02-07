@@ -28,10 +28,10 @@ var o = OKGroup{
 }
 
 func TestSetDefaults(t *testing.T) {
-	if o.Name != "OKEX" {
+	if o.Name != OKGroupExchange {
 		o.SetDefaults()
 	}
-	if o.GetName() != "OKEX" {
+	if o.GetName() != OKGroupExchange {
 		t.Error("Test Failed - Bittrex - SetDefaults() error")
 	}
 	t.Parallel()
@@ -450,6 +450,249 @@ func TestGetSpotMarketData(t *testing.T) {
 	_, err := o.GetSpotMarketData(request)
 	testStandardErrorHandling(t, err)
 }
+
+func TestGetMarginTradingAccounts(t *testing.T) {
+	TestSetDefaults(t)
+	_, err := o.GetMarginTradingAccounts()
+	testStandardErrorHandling(t, err)
+}
+
+func TestGetMarginTradingAccountsForCurrency(t *testing.T) {
+	TestSetDefaults(t)
+	_, err := o.GetMarginTradingAccountsForCurrency(pair.NewCurrencyPairWithDelimiter(symbol.BTC, symbol.USDT, "-").Pair().Lower().String())
+	testStandardErrorHandling(t, err)
+}
+
+func TestGetMarginBillDetails(t *testing.T) {
+	TestSetDefaults(t)
+
+	request := GetBillDetailsRequest{
+		Currency: pair.NewCurrencyPairWithDelimiter(symbol.BTC, symbol.USDT, "-").Pair().Lower().String(),
+		Limit:    100,
+	}
+
+	_, err := o.GetMarginBillDetails(request)
+	testStandardErrorHandling(t, err)
+}
+
+func TestGetMarginAccountSettings(t *testing.T) {
+	TestSetDefaults(t)
+	_, err := o.GetMarginAccountSettings("")
+	testStandardErrorHandling(t, err)
+}
+
+func TestGetMarginAccountSettingsForCurrency(t *testing.T) {
+	TestSetDefaults(t)
+	_, err := o.GetMarginAccountSettings(pair.NewCurrencyPairWithDelimiter(symbol.BTC, symbol.USDT, "-").Pair().Lower().String())
+	testStandardErrorHandling(t, err)
+}
+
+func TestOpenMarginLoan(t *testing.T) {
+	TestSetDefaults(t)
+	request := OpenMarginLoanRequest{
+		Amount:        100,
+		InstrumentID:  pair.NewCurrencyPairWithDelimiter(symbol.BTC, symbol.USDT, "-").Pair().Lower().String(),
+		QuoteCurrency: symbol.USDT,
+	}
+
+	_, err := o.OpenMarginLoan(request)
+	testStandardErrorHandling(t, err)
+}
+
+func TestRepayMarginLoan(t *testing.T) {
+	TestSetDefaults(t)
+	request := RepayMarginLoanRequest{
+		Amount:        100,
+		InstrumentID:  pair.NewCurrencyPairWithDelimiter(symbol.BTC, symbol.USDT, "-").Pair().Lower().String(),
+		QuoteCurrency: symbol.USDT,
+		BorrowID:      1,
+	}
+
+	_, err := o.RepayMarginLoan(request)
+	testStandardErrorHandling(t, err)
+}
+
+func TestPlaceMarginOrderLimit(t *testing.T) {
+	TestSetDefaults(t)
+	request := PlaceSpotOrderRequest{
+		InstrumentID:  pair.NewCurrencyPairWithDelimiter(symbol.BTC, symbol.USDT, "-").Pair().Lower().String(),
+		Type:          "limit",
+		Side:          "buy",
+		MarginTrading: "2",
+		Price:         "100",
+		Size:          "100",
+	}
+
+	_, err := o.PlaceMarginOrder(request)
+	testStandardErrorHandling(t, err)
+}
+
+func TestPlaceMarginOrderMarket(t *testing.T) {
+	TestSetDefaults(t)
+	request := PlaceSpotOrderRequest{
+		InstrumentID:  pair.NewCurrencyPairWithDelimiter(symbol.BTC, symbol.USDT, "-").Pair().Lower().String(),
+		Type:          "market",
+		Side:          "buy",
+		MarginTrading: "2",
+		Size:          "100",
+		Notional:      "100",
+	}
+
+	_, err := o.PlaceMarginOrder(request)
+	testStandardErrorHandling(t, err)
+}
+
+func TestPlaceMultipleMarginOrders(t *testing.T) {
+	TestSetDefaults(t)
+	order := PlaceSpotOrderRequest{
+		InstrumentID:  pair.NewCurrencyPairWithDelimiter(symbol.BTC, symbol.USDT, "-").Pair().Lower().String(),
+		Type:          "market",
+		Side:          "buy",
+		MarginTrading: "1",
+		Size:          "100",
+		Notional:      "100",
+	}
+
+	request := []PlaceSpotOrderRequest{
+		order,
+	}
+
+	_, errs := o.PlaceMultipleMarginOrders(request)
+	if len(errs) > 0 {
+		testStandardErrorHandling(t, errs[0])
+	}
+}
+
+func TestPlaceMultipleMarginOrdersOverCurrencyLimits(t *testing.T) {
+	TestSetDefaults(t)
+	order := PlaceSpotOrderRequest{
+		InstrumentID:  pair.NewCurrencyPairWithDelimiter(symbol.BTC, symbol.USDT, "-").Pair().Lower().String(),
+		Type:          "market",
+		Side:          "buy",
+		MarginTrading: "1",
+		Size:          "100",
+		Notional:      "100",
+	}
+
+	request := []PlaceSpotOrderRequest{
+		order,
+		order,
+		order,
+		order,
+		order,
+	}
+
+	_, errs := o.PlaceMultipleMarginOrders(request)
+	if errs[0].Error() != "maximum 4 orders for each pair" {
+		t.Error("Expecting an error when more than 4 orders for a pair supplied", errs[0])
+	}
+}
+
+func TestPlaceMultipleMarginOrdersOverPairLimits(t *testing.T) {
+	TestSetDefaults(t)
+	order := PlaceSpotOrderRequest{
+		InstrumentID:  pair.NewCurrencyPairWithDelimiter(symbol.BTC, symbol.USDT, "-").Pair().Lower().String(),
+		Type:          "market",
+		Side:          "buy",
+		MarginTrading: "1",
+		Size:          "100",
+		Notional:      "100",
+	}
+
+	request := []PlaceSpotOrderRequest{
+		order,
+	}
+
+	order.InstrumentID = pair.NewCurrencyPairWithDelimiter(symbol.LTC, symbol.USDT, "-").Pair().Lower().String()
+	request = append(request, order)
+	order.InstrumentID = pair.NewCurrencyPairWithDelimiter(symbol.DOGE, symbol.USDT, "-").Pair().Lower().String()
+	request = append(request, order)
+	order.InstrumentID = pair.NewCurrencyPairWithDelimiter(symbol.XMR, symbol.USDT, "-").Pair().Lower().String()
+	request = append(request, order)
+	order.InstrumentID = pair.NewCurrencyPairWithDelimiter(symbol.BCH, symbol.USDT, "-").Pair().Lower().String()
+	request = append(request, order)
+
+	_, errs := o.PlaceMultipleMarginOrders(request)
+	if errs[0].Error() != "up to 4 trading pairs" {
+		t.Error("Expecting an error when more than 4 trading pairs supplied", errs[0])
+	}
+}
+
+func TestCancelMarginOrder(t *testing.T) {
+	TestSetDefaults(t)
+	request := CancelSpotOrderRequest{
+		InstrumentID: pair.NewCurrencyPairWithDelimiter(symbol.BTC, symbol.USDT, "-").Pair().Lower().String(),
+		OrderID:      1234,
+	}
+
+	_, err := o.CancelMarginOrder(request)
+	testStandardErrorHandling(t, err)
+}
+
+func TestCancelMultipleMarginOrders(t *testing.T) {
+	TestSetDefaults(t)
+	request := CancelMultipleSpotOrdersRequest{
+		InstrumentID: pair.NewCurrencyPairWithDelimiter(symbol.BTC, symbol.USDT, "-").Pair().Lower().String(),
+		OrderIDs:     []int64{1, 2, 3, 4},
+	}
+
+	_, errs := o.CancelMultipleMarginOrders(request)
+	if len(errs) > 0 {
+		testStandardErrorHandling(t, errs[0])
+	}
+}
+
+func TestCancelMultipleMarginOrdersOverCurrencyLimits(t *testing.T) {
+	TestSetDefaults(t)
+	request := CancelMultipleSpotOrdersRequest{
+		InstrumentID: pair.NewCurrencyPairWithDelimiter(symbol.BTC, symbol.USDT, "-").Pair().Lower().String(),
+		OrderIDs:     []int64{1, 2, 3, 4, 5},
+	}
+
+	_, errs := o.CancelMultipleMarginOrders(request)
+	if errs[0].Error() != "maximum 4 order cancellations for each pair" {
+		t.Error("Expecting an error when more than 4 orders for a pair supplied", errs[0])
+	}
+}
+
+func TestGetMarginOrders(t *testing.T) {
+	TestSetDefaults(t)
+	request := GetSpotOrdersRequest{
+		InstrumentID: pair.NewCurrencyPairWithDelimiter(symbol.BTC, symbol.USDT, "-").Pair().Lower().String(),
+		Status:       "all",
+	}
+	_, err := o.GetMarginOrders(request)
+	testStandardErrorHandling(t, err)
+}
+
+func TestGetMarginOpenOrders(t *testing.T) {
+	TestSetDefaults(t)
+	request := GetSpotOpenOrdersRequest{}
+	_, err := o.GetMarginOpenOrders(request)
+	testStandardErrorHandling(t, err)
+}
+
+func TestGetMarginOrder(t *testing.T) {
+	TestSetDefaults(t)
+	request := GetSpotOrderRequest{
+		OrderID:      1234,
+		InstrumentID: pair.NewCurrencyPairWithDelimiter(symbol.BTC, symbol.USDT, "-").Pair().Upper().String(),
+	}
+	_, err := o.GetMarginOrder(request)
+	testStandardErrorHandling(t, err)
+}
+
+func TestGetMarginTransactionDetails(t *testing.T) {
+	TestSetDefaults(t)
+	request := GetSpotTransactionDetailsRequest{
+		OrderID:      1234,
+		InstrumentID: pair.NewCurrencyPairWithDelimiter(symbol.BTC, symbol.USDT, "-").Pair().Lower().String(),
+	}
+	_, err := o.GetMarginTransactionDetails(request)
+	testStandardErrorHandling(t, err)
+}
+
+// -------------------------------------------------------------------------------------------------------
 
 func setFeeBuilder() exchange.FeeBuilder {
 	return exchange.FeeBuilder{
