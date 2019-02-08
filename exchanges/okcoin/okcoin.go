@@ -9,11 +9,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/thrasher-/gocryptotrader/currency/symbol"
-
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-/gocryptotrader/common"
 	"github.com/thrasher-/gocryptotrader/config"
+	"github.com/thrasher-/gocryptotrader/currency/symbol"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
 	"github.com/thrasher-/gocryptotrader/exchanges/request"
 	"github.com/thrasher-/gocryptotrader/exchanges/ticker"
@@ -22,11 +21,9 @@ import (
 
 const (
 	okcoinAPIURL                = "https://www.okcoin.com/api/v1/"
-	okcoinAPIURLChina           = "https://www.okcoin.com/api/v1/"
 	okcoinAPIURLBase            = "https://www.okcoin.com/api/"
 	okcoinAPIVersion            = "1"
 	okcoinWebsocketURL          = "wss://real.okcoin.com:10440/websocket/okcoinapi"
-	okcoinWebsocketURLChina     = "wss://real.okcoin.cn:10440/websocket/okcoinapi"
 	okcoinInstruments           = "instruments"
 	okcoinTicker                = "ticker.do"
 	okcoinDepth                 = "depth.do"
@@ -86,14 +83,6 @@ type OKCoin struct {
 	WebsocketConn   *websocket.Conn
 }
 
-// setCurrencyPairFormats sets currency pair formatting for this package
-func (o *OKCoin) setCurrencyPairFormats() {
-	o.RequestCurrencyPairFormat.Delimiter = "_"
-	o.RequestCurrencyPairFormat.Uppercase = false
-	o.ConfigCurrencyPairFormat.Delimiter = ""
-	o.ConfigCurrencyPairFormat.Uppercase = true
-}
-
 // SetDefaults sets current default values for this package
 func (o *OKCoin) SetDefaults() {
 	o.SetErrorDefaults()
@@ -117,40 +106,22 @@ func (o *OKCoin) Setup(exch config.ExchangeConfig) {
 	if !exch.Enabled {
 		o.SetEnabled(false)
 	} else {
-		if exch.Name == "OKCOIN International" {
-			o.AssetTypes = append(o.AssetTypes, o.FuturesValues...)
-			o.APIUrlDefault = okcoinAPIURL
-			o.APIUrl = o.APIUrlDefault
-			o.Name = "OKCOIN International"
-			o.WebsocketURL = okcoinWebsocketURL
-			o.setCurrencyPairFormats()
-			o.Requester = request.New(o.Name,
-				request.NewRateLimit(time.Second, okcoinAuthRate),
-				request.NewRateLimit(time.Second, okcoinUnauthRate),
-				common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
-			o.ConfigCurrencyPairFormat.Delimiter = "_"
-			o.ConfigCurrencyPairFormat.Uppercase = true
-			o.RequestCurrencyPairFormat.Uppercase = false
-			o.RequestCurrencyPairFormat.Delimiter = "_"
-			o.SupportsAutoPairUpdating = true
-		} else {
-			o.APIUrlDefault = okcoinAPIURLChina
-			o.APIUrl = o.APIUrlDefault
-			o.Name = "OKCOIN China"
-			o.WebsocketURL = okcoinWebsocketURLChina
-			o.setCurrencyPairFormats()
-			o.Requester = request.New(o.Name,
-				request.NewRateLimit(time.Second, okcoinAuthRate),
-				request.NewRateLimit(time.Second, okcoinUnauthRate),
-				common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
-			o.ConfigCurrencyPairFormat.Delimiter = ""
-			o.ConfigCurrencyPairFormat.Uppercase = true
-			o.RequestCurrencyPairFormat.Uppercase = false
-			o.RequestCurrencyPairFormat.Delimiter = ""
-		}
-
+		o.Name = "OKCOIN International"
 		o.Enabled = true
 		o.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
+		o.AssetTypes = append(o.AssetTypes, o.FuturesValues...)
+		o.APIUrlDefault = okcoinAPIURL
+		o.APIUrl = o.APIUrlDefault
+		o.WebsocketURL = okcoinWebsocketURL
+		o.Requester = request.New(o.Name,
+			request.NewRateLimit(time.Second, okcoinAuthRate),
+			request.NewRateLimit(time.Second, okcoinUnauthRate),
+			common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
+		o.ConfigCurrencyPairFormat.Delimiter = "_"
+		o.ConfigCurrencyPairFormat.Uppercase = true
+		o.RequestCurrencyPairFormat.Uppercase = false
+		o.RequestCurrencyPairFormat.Delimiter = "_"
+		o.SupportsAutoPairUpdating = true
 		o.SetAPIKeys(exch.APIKey, exch.APISecret, "", false)
 		o.SetHTTPClientTimeout(exch.HTTPTimeout)
 		o.SetHTTPClientUserAgent(exch.HTTPUserAgent)

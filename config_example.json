@@ -1026,47 +1026,6 @@
    ]
   },
   {
-   "name": "OKCOIN China",
-   "enabled": true,
-   "verbose": false,
-   "websocket": false,
-   "useSandbox": false,
-   "restPollingDelay": 10,
-   "httpTimeout": 15000000000,
-   "httpUserAgent": "",
-   "authenticatedApiSupport": false,
-   "apiKey": "Key",
-   "apiSecret": "Secret",
-   "apiUrl": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
-   "apiUrlSecondary": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
-   "proxyAddress": "",
-   "websocketUrl": "NON_DEFAULT_HTTP_LINK_TO_WEBSOCKET_EXCHANGE_API",
-   "availablePairs": "BTCCNY,LTCCNY",
-   "enabledPairs": "BTCCNY,LTCCNY",
-   "baseCurrencies": "CNY",
-   "assetTypes": "SPOT",
-   "supportsAutoPairUpdates": false,
-   "pairsLastUpdated": 1545884823,
-   "configCurrencyPairFormat": {
-    "uppercase": true
-   },
-   "requestCurrencyPairFormat": {
-    "uppercase": false,
-    "delimiter": "_"
-   },
-   "bankAccounts": [
-    {
-     "bankName": "",
-     "bankAddress": "",
-     "accountName": "",
-     "accountNumber": "",
-     "swiftCode": "",
-     "iban": "",
-     "supportedCurrencies": ""
-    }
-   ]
-  },
-  {
    "name": "OKCOIN International",
    "enabled": true,
    "verbose": false,

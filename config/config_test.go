@@ -11,7 +11,7 @@ import (
 const (
 	// Default number of enabled exchanges. Modify this whenever an exchange is
 	// added or removed
-	defaultEnabledExchanges = 28
+	defaultEnabledExchanges = 27
 )
 
 func TestGetCurrencyConfig(t *testing.T) {
