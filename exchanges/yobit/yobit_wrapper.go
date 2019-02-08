@@ -17,7 +17,7 @@ import (
 	log "github.com/thrasher-/gocryptotrader/logger"
 )
 
-// Start starts the WEX go routine
+// Start starts the Yobit go routine
 func (y *Yobit) Start(wg *sync.WaitGroup) {
 	wg.Add(1)
 	go func() {

@@ -45,7 +45,6 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 | OKCoin International | Yes | Yes | No |
 | OKEX | Yes | Yes | No |
 | Poloniex | Yes | Yes | NA |
-| WEX     | Yes  | NA        | NA  |
 | Yobit | Yes | NA | NA |
 | ZB.COM | Yes | Yes | NA |
 

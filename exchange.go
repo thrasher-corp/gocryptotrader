@@ -31,7 +31,6 @@ import (
 	"github.com/thrasher-/gocryptotrader/exchanges/okcoin"
 	"github.com/thrasher-/gocryptotrader/exchanges/okex"
 	"github.com/thrasher-/gocryptotrader/exchanges/poloniex"
-	"github.com/thrasher-/gocryptotrader/exchanges/wex"
 	"github.com/thrasher-/gocryptotrader/exchanges/yobit"
 	"github.com/thrasher-/gocryptotrader/exchanges/zb"
 	log "github.com/thrasher-/gocryptotrader/logger"
@@ -187,8 +186,6 @@ func LoadExchange(name string, useWG bool, wg *sync.WaitGroup) error {
 		exch = new(okex.OKEX)
 	case "poloniex":
 		exch = new(poloniex.Poloniex)
-	case "wex":
-		exch = new(wex.WEX)
 	case "yobit":
 		exch = new(yobit.Yobit)
 	case "zb":

@@ -1190,48 +1190,6 @@
    ]
   },
   {
-   "name": "WEX",
-   "enabled": true,
-   "verbose": false,
-   "websocket": false,
-   "useSandbox": false,
-   "restPollingDelay": 10,
-   "httpTimeout": 15000000000,
-   "httpUserAgent": "",
-   "authenticatedApiSupport": false,
-   "apiKey": "Key",
-   "apiSecret": "Secret",
-   "apiUrl": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
-   "apiUrlSecondary": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
-   "proxyAddress": "",
-   "websocketUrl": "NON_DEFAULT_HTTP_LINK_TO_WEBSOCKET_EXCHANGE_API",
-   "availablePairs": "USD_RUR,BCH_DSH,BCHET_BCH,BCH_EUR,NMCET_NMC,EUR_RUR,DSH_EUR,BCH_BTC,USDET_USD,RURET_RUR,XMR_EUR,NMC_USD,DSH_BTC,DSH_ZEC,ZEC_BTC,LTCET_LTC,ETHET_ETH,XMR_USD,BTC_USD,NVC_BTC,ETH_ZEC,BCH_USD,BCH_ETH,ZEC_LTC,PPCET_PPC,LTC_BTC,LTC_USD,PPC_USD,DSH_LTC,DSH_ETH,ETH_LTC,BTCET_BTC,NVCET_NVC,PPC_BTC,ETH_BTC,ETH_RUR,DSHET_DSH,BTC_RUR,DSH_USD,NVC_USD,EUR_USD,ETH_EUR,ZEC_RUR,NMC_BTC,BCH_RUR,BCH_LTC,USDT_USD,XMR_ETH,XMR_RUR,LTC_EUR,ZEC_USD,ETH_USD,DSH_RUR,BTC_EUR,LTC_RUR,BCH_ZEC,EURET_EUR,BTC_USDT,XMR_BTC",
-   "enabledPairs": "BTC_USD,LTC_USD,LTC_BTC,ETH_USD",
-   "baseCurrencies": "USD,RUR,EUR",
-   "assetTypes": "SPOT",
-   "supportsAutoPairUpdates": true,
-   "configCurrencyPairFormat": {
-    "uppercase": true,
-    "delimiter": "_"
-   },
-   "requestCurrencyPairFormat": {
-    "uppercase": false,
-    "delimiter": "_",
-    "separator": "-"
-   },
-   "bankAccounts": [
-    {
-     "bankName": "",
-     "bankAddress": "",
-     "accountName": "",
-     "accountNumber": "",
-     "swiftCode": "",
-     "iban": "",
-     "supportedCurrencies": ""
-    }
-   ]
-  },
-  {
    "name": "Yobit",
    "enabled": true,
    "verbose": false,
