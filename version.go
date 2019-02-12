@@ -12,7 +12,7 @@ const (
 	Copyright       = "Copyright (c) 2019 The GoCryptoTrader Developers."
 	GitHub          = "GitHub: https://github.com/thrasher-/gocryptotrader"
 	Trello          = "Trello: https://trello.com/b/ZAhMhpOy/gocryptotrader"
-	Slack           = "Slack:  https://gocryptotrader.herokuapp.com"
+	Slack           = "Slack:  https://join.slack.com/t/gocryptotrader/shared_invite/enQtNTQ5NDAxMjA2Mjc5LTQyYjIxNGVhMWU5MDZlOGYzMmE0NTJmM2MzYWY5NGMzMmM4MzUwNTBjZTEzNjIwODM5NDcxODQwZDljMGQyNGY"
 	Issues          = "Issues: https://github.com/thrasher-/gocryptotrader/issues"
 )
 
