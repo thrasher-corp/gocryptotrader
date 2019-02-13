@@ -28,7 +28,7 @@ func (o *OKGroup) Run() {
 		log.Debugf("%s %d currencies enabled: %s.\n", o.GetName(), len(o.EnabledPairs), o.EnabledPairs)
 	}
 
-	prods, err := o.GetSpotInstruments()
+	prods, err := o.GetSpotTokenPairDetails()
 	if err != nil {
 		log.Errorf("OKEX failed to obtain available spot instruments. Err: %d", err)
 		return
