@@ -807,6 +807,376 @@ type GetFuturesTagPriceResponse struct {
 
 // ----------------------------------------------------------------------------------------------------------------------------
 
+// GetSwapPostionsResponse response data for GetSwapPostions
+type GetSwapPostionsResponse struct {
+	MarginMode string                           `json:"margin_mode"`
+	Holding    []GetSwapPostionsResponseHolding `json:"holding"`
+}
+
+// GetSwapPostionsResponseHolding response data for GetSwapPostions
+type GetSwapPostionsResponseHolding struct {
+	AvailPosition    string `json:"avail_position"`
+	AvgCost          string `json:"avg_cost"`
+	InstrumentID     string `json:"instrument_id"`
+	Leverage         string `json:"leverage"`
+	LiquidationPrice string `json:"liquidation_price"`
+	Margin           string `json:"margin"`
+	Position         string `json:"position"`
+	RealizedPnl      string `json:"realized_pnl"`
+	SettlementPrice  string `json:"settlement_price"`
+	Side             string `json:"side"`
+	Timestamp        string `json:"timestamp"`
+}
+
+// GetSwapAccountOfAllCurrencyResponse response data for GetSwapAccountOfAllCurrency
+type GetSwapAccountOfAllCurrencyResponse struct {
+	Info []GetSwapAccountOfAllCurrencyResponseInfo `json:"info"`
+}
+
+// GetSwapAccountOfAllCurrencyResponseInfo response data for GetSwapAccountOfAllCurrency
+type GetSwapAccountOfAllCurrencyResponseInfo struct {
+	Equity            string `json:"equity"`
+	FixedBalance      string `json:"fixed_balance"`
+	TotalAvailBalance string `json:"total_avail_balance"`
+	Margin            string `json:"margin"`
+	RealizedPnl       string `json:"realized_pnl"`
+	UnrealizedPnl     string `json:"unrealized_pnl"`
+	MarginRatio       string `json:"margin_ratio"`
+	InstrumentID      string `json:"instrument_id"`
+	MarginFrozen      string `json:"margin_frozen"`
+	Timestamp         string `json:"timestamp"`
+	MarginMode        string `json:"margin_mode"`
+}
+
+// GetSwapAccountSettingsOfAContractResponse response data for GetSwapAccountSettingsOfAContract
+type GetSwapAccountSettingsOfAContractResponse struct {
+	LongLeverage  float64 `json:"long_leverage,string"`
+	MarginMode    string  `json:"margin_mode"`
+	ShortLeverage float64 `json:"short_leverage,string"`
+	InstrumentID  string  `json:"instrument_id"`
+}
+
+// SetSwapLeverageLevelOfAContractRequest request data for SetSwapLeverageLevelOfAContract
+type SetSwapLeverageLevelOfAContractRequest struct {
+	InstrumentID string `json:"instrument_id,omitempty"` // [required] Contract ID, e.g. BTC-USD-SWAP
+	Leverage     int64  `json:"leverage,string"`         // [required] New leverage level from 1-100
+	Side         int64  `json:"side,string"`             // [required] Side: 1.FIXED-LONG 2.FIXED-SHORT 3.CROSSED
+}
+
+// SetSwapLeverageLevelOfAContractResponse response data for SetSwapLeverageLevelOfAContract
+type SetSwapLeverageLevelOfAContractResponse struct {
+	InstrumentID  string `json:"instrument_id"`
+	LongLeverage  int64  `json:"long_leverage,string"`
+	MarginMode    string `json:"margin_mode"`
+	ShortLeverage int64  `json:"short_leverage,string"`
+}
+
+// GetSwapBillDetailsResponse response data for GetSwapBillDetails
+type GetSwapBillDetailsResponse struct {
+	LedgerID     string `json:"ledger_id"`
+	Amount       string `json:"amount"`
+	Type         string `json:"type"`
+	Fee          string `json:"fee"`
+	Timestamp    string `json:"timestamp"`
+	InstrumentID string `json:"instrument_id"`
+}
+
+// PlaceSwapOrderRequest request data for PlaceSwapOrder
+type PlaceSwapOrderRequest struct {
+	ClientOID    string  `json:"client_oid,omitempty"`         // [optional] the order ID customized by yourself. 1-32 with digits and letter，The type of client_oid should be comprised of alphabets + numbers or only alphabets within 1 – 32 characters,Both uppercase and lowercase letters are supported
+	Size         float64 `json:"size,string"`                  // [required] The buying or selling quantity
+	Type         int64   `json:"type,string"`                  // [required] 1:open long 2:open short 3:close long 4:close short
+	MatchPrice   int64   `json:"match_price,string,omitempty"` // [optional] Order at best counter party price? (0:no 1:yes)
+	Price        float64 `json:"price,string"`                 // [required] Price of each contract
+	InstrumentID string  `json:"instrument_id"`                // [required] Contract ID, e.g. BTC-USD-SWAP
+}
+
+// PlaceSwapOrderResponse response data for PlaceSwapOrder
+type PlaceSwapOrderResponse struct {
+	OrderID      string `json:"order_id"`
+	ClientOID    int64  `json:"client_oid,string"`
+	ErrorCode    int64  `json:"error_code,string"`
+	ErrorMessage string `json:"error_message"`
+	Result       bool   `json:"result,string"`
+}
+
+// PlaceMultipleSwapOrdersRequest response data for PlaceMultipleSwapOrders
+type PlaceMultipleSwapOrdersRequest struct {
+	InstrumentID string                       `json:"instrument_id"` // [required] Contract ID, e.g. BTC-USD-SWAP
+	Leverage     int64                        `json:"leverage"`      // [required] 10x or 20x leverage
+	OrdersData   []PlaceMultipleSwapOrderData `json:"orders_data"`   // [required] the JSON word string for placing multiple orders, include：{client_oid type price size match_price}
+}
+
+// PlaceMultipleSwapOrderData response data for PlaceMultipleSwapOrders
+type PlaceMultipleSwapOrderData struct {
+	ClientOID  string `json:"client_oid"`  // [required] To identify your order with the order ID set by you
+	Type       string `json:"type"`        // Undocumented
+	Price      string `json:"price"`       // Undocumented
+	Size       string `json:"size"`        // Undocumented
+	MatchPrice string `json:"match_price"` // Undocumented
+}
+
+// PlaceMultipleSwapOrdersResponse response data for PlaceMultipleSwapOrders
+type PlaceMultipleSwapOrdersResponse struct {
+	Result    bool                                  `json:"result,string"`
+	OrderInfo []PlaceMultipleSwapOrdersResponseInfo `json:"order_info"`
+}
+
+// PlaceMultipleSwapOrdersResponseInfo response data for PlaceMultipleSwapOrders
+type PlaceMultipleSwapOrdersResponseInfo struct {
+	ErrorMessage string `json:"error_message"`
+	ErrorCode    int64  `json:"error_code"`
+	ClientOID    string `json:"client_oid"`
+	OrderID      string `json:"order_id"`
+}
+
+// CancelSwapOrderRequest request data for CancelSwapOrder
+type CancelSwapOrderRequest struct {
+	OrderID      string `json:"order_id"`      // [required] Order ID
+	InstrumentID string `json:"instrument_id"` // [required] Contract ID,e.g. BTC-USD-SWAP
+}
+
+// CancelSwapOrderResponse repsonse data for CancelSwapOrder
+type CancelSwapOrderResponse struct {
+	Result       bool   `json:"result,string"`
+	OrderID      string `json:"order_id"`
+	InstrumentID string `json:"instrument_id"`
+}
+
+// CancelMultipleSwapOrdersRequest request data for CancelMultipleSwapOrders
+type CancelMultipleSwapOrdersRequest struct {
+	InstrumentID string  `json:"instrument_id,omitempty"` // [required] The contract of the orders to be cancelled
+	OrderIDs     []int64 `json:"order_ids"`               // [required] ID's of the orders canceled
+}
+
+// CancelMultipleSwapOrdersResponse repsonse data for CancelMultipleSwapOrders
+type CancelMultipleSwapOrdersResponse struct {
+	Result       bool     `json:"result,string"`
+	OrderIDS     []string `json:"order_ids"`
+	InstrumentID string   `json:"instrument_id"`
+}
+
+// GetSwapOrderListRequest request data for GetSwapOrderList
+type GetSwapOrderListRequest struct {
+	InstrumentID string `json:"instrument_id"`          // [required] Contract ID, e.g. “BTC-USD-180213”
+	Status       int64  `json:"status,string"`          // [required] Order Status （-1 canceled; 0: pending, 1: partially filled, 2: fully filled, 6: open (pending partially + fully filled), 7: completed (canceled + fully filled))
+	From         int64  `json:"from,string,omitempty"`  // [optional] Request paging content for this page number.（Example: 1,2,3,4,5. From 4 we only have 4, to 4 we only have 3）
+	To           int64  `json:"to,string,omitempty"`    // [optional] Request page after (older) this pagination id. （Example: 1,2,3,4,5. From 4 we only have 4, to 4 we only have 3）
+	Limit        int64  `json:"limit,string,omitempty"` // [optional] Number of results per request. Maximum 100. (default 100)
+}
+
+// GetSwapOrderListResponse  response data for GetSwapOrderList
+type GetSwapOrderListResponse struct {
+	Result    bool                           `json:"result,string"`
+	OrderInfo []GetSwapOrderListResponseData `json:"order_info"`
+}
+
+// GetSwapOrderListResponseData individual order data from GetSwapOrderList
+type GetSwapOrderListResponseData struct {
+	ContractVal  float64 `json:"contract_val,string"`
+	Fee          float64 `json:"fee,string"`
+	FilledQty    float64 `json:"filled_qty,string"`
+	InstrumentID string  `json:"instrument_id"`
+	Leverage     int64   `json:"leverage,string"` //  	Leverage value:10\20 default:10
+	OrderID      int64   `json:"order_id,string"`
+	Price        float64 `json:"price,string"`
+	PriceAvg     float64 `json:"price_avg,string"`
+	Size         float64 `json:"size,string"`
+	Status       int64   `json:"status,string"` // Order Status （-1 canceled; 0: pending, 1: partially filled, 2: fully filled)
+	Timestamp    string  `json:"timestamp"`
+	Type         int64   `json:"type,string"` //  	Type (1: open long 2: open short 3: close long 4: close short)
+}
+
+// GetSwapOrderDetailsRequest request data for GetSwapOrderList
+type GetSwapOrderDetailsRequest struct {
+	InstrumentID string `json:"instrument_id"` // [required] Contract ID,e.g. BTC-USD-SWAP
+	OrderID      string `json:"order_id"`      // [required] Order ID
+}
+
+// GetSwapTransactionDetailsRequest request data for GetSwapTransactionDetails
+type GetSwapTransactionDetailsRequest struct {
+	InstrumentID string `json:"instrument_id"`          // [required] Contract ID, e.g. BTC-USD-SWAP
+	OrderID      string `json:"order_id"`               // [required] Order ID
+	From         int64  `json:"from,string,omitempty"`  // [optional] Request paging content for this page number.（Example: 1,2,3,4,5. From 4 we only have 4, to 4 we only have 3）
+	To           int64  `json:"to,string,omitempty"`    // [optional] Request page after (older) this pagination id. （Example: 1,2,3,4,5. From 4 we only have 4, to 4 we only have 3）
+	Limit        int64  `json:"limit,string,omitempty"` // [optional] number of results per request. Maximum 100. (default 100)
+}
+
+// GetSwapTransactionDetailsResponse response data for GetSwapTransactionDetails
+type GetSwapTransactionDetailsResponse struct {
+	TradeID      string `json:"trade_id"`
+	InstrumentID string `json:"instrument_id"`
+	OrderID      string `json:"order_id"`
+	Price        string `json:"price"`
+	OrderQty     string `json:"order_qty"`
+	Fee          string `json:"fee"`
+	Timestamp    string `json:"timestamp"`
+	ExecType     string `json:"exec_type"`
+	Side         string `json:"side"`
+}
+
+// GetSwapContractInformationResponse response data for GetSwapContractInformation
+type GetSwapContractInformationResponse struct {
+	InstrumentID    string  `json:"instrument_id"`
+	UnderlyingIndex string  `json:"underlying_index"`
+	QuoteCurrency   string  `json:"quote_currency"`
+	Coin            string  `json:"coin"`
+	ContractVal     float64 `json:"contract_val,string"`
+	Listing         string  `json:"listing"`
+	Delivery        string  `json:"delivery"`
+	SizeIncrement   float64 `json:"size_increment,string"`
+	TickSize        float64 `json:"tick_size,string"`
+}
+
+// GetSwapOrderBookRequest request data for GetSwapOrderBook
+type GetSwapOrderBookRequest struct {
+	InstrumentID string  `json:"instrument_id"`
+	Size         float64 `json:"size,string,omitempty"`
+}
+
+// GetSwapOrderBookResponse response data for GetSwapOrderBook
+type GetSwapOrderBookResponse struct {
+	Asks      [][]interface{} `json:"asks"` // eg [["411.3","16",5,4]] [[0: Price, 1: Size price, 2: number of force liquidated orders, 3: number of orders on the price]]
+	Bids      [][]interface{} `json:"bids"` // eg [["411.3","16",5,4]] [[0: Price, 1: Size price, 2: number of force liquidated orders, 3: number of orders on the price]]
+	Timestamp string          `json:"timestamp"`
+}
+
+// GetAllSwapTokensInformationResponse response data for GetAllSwapTokensInformation
+type GetAllSwapTokensInformationResponse struct {
+	InstrumentID string  `json:"instrument_id"`
+	Last         float64 `json:"last,string"`
+	High24H      float64 `json:"high_24h,string"`
+	Low24H       float64 `json:"low_24h,string"`
+	BestBid      float64 `json:"best_bid,string"`
+	BestAsk      float64 `json:"best_ask,string"`
+	Volume24H    float64 `json:"volume_24h,string"`
+	Timestamp    string  `json:"timestamp"`
+}
+
+// GetSwapFilledOrdersDataRequest request data for GetSwapFilledOrdersData
+type GetSwapFilledOrdersDataRequest struct {
+	InstrumentID string `json:"instrument_id"`          // [required] Contract ID, e.g. “BTC-USD-SWAP
+	From         int64  `json:"from,string,omitempty"`  // [optional] Request paging content for this page number.（Example: 1,2,3,4,5. From 4 we only have 4, to 4 we only have 3）
+	To           int64  `json:"to,string,omitempty"`    // [optional] Request page after (older) this pagination id. （Example: 1,2,3,4,5. From 4 we only have 4, to 4 we only have 3）
+	Limit        int64  `json:"limit,string,omitempty"` // [optional] Number of results per request. Maximum 100. (default 100)
+}
+
+// GetSwapFilledOrdersDataResponse response data for GetSwapFilledOrdersData
+type GetSwapFilledOrdersDataResponse struct {
+	TradeID   string  `json:"trade_id"`
+	Price     float64 `json:"price,string"`
+	Size      float64 `json:"size,string"`
+	Side      string  `json:"side"`
+	Timestamp string  `json:"timestamp"`
+}
+
+// GetSwapMarketDataRequest retrieves candle data information
+type GetSwapMarketDataRequest struct {
+	Start        string `json:"start,omitempty"` // [optional] start time in ISO 8601
+	End          string `json:"end,omitempty"`   // [optional] end time in ISO 8601
+	Granularity  int64  `json:"granularity"`     // The granularity field must be one of the following values: {60, 180, 300, 900, 1800, 3600, 7200, 14400, 43200, 86400, 604800}.
+	InstrumentID string `json:"instrument_id"`   // [required] trading pairs
+}
+
+// GetSwapMarketDataResponse response data for GetSwapMarketData
+// Return Parameters
+// time 			string 	Start time
+// open 			string 	Open price
+// high 			string 	Highest price
+// low 				string 	Lowest price
+// close 			string 	Close price
+// volume 			string 	Trading volume
+// currency_volume 	string 	Volume in a specific token
+type GetSwapMarketDataResponse []interface{}
+
+// GetSwapIndecesResponse response data for GetSwapIndeces
+type GetSwapIndecesResponse struct {
+	InstrumentID string  `json:"instrument_id"`
+	Index        float64 `json:"index,string"`
+	Timestamp    string  `json:"timestamp"`
+}
+
+// GetSwapExchangeRatesResponse response data for GetSwapExchangeRates
+type GetSwapExchangeRatesResponse struct {
+	InstrumentID string  `json:"instrument_id"`
+	Rate         float64 `json:"rate,string"`
+	Timestamp    string  `json:"timestamp"`
+}
+
+// GetSwapOpenInterestResponse response data for GetSwapOpenInterest
+type GetSwapOpenInterestResponse struct {
+	InstrumentID string  `json:"instrument_id"`
+	Amount       float64 `json:"amount,string"`
+	Timestamp    string  `json:"timestamp"`
+}
+
+// GetSwapCurrentPriceLimitsResponse response data for GetSwapCurrentPriceLimits
+type GetSwapCurrentPriceLimitsResponse struct {
+	InstrumentID string  `json:"instrument_id"`
+	Highest      float64 `json:"highest,string"`
+	Lowest       float64 `json:"lowest,string"`
+	Timestamp    string  `json:"timestamp"`
+}
+
+// GetSwapForceLiquidatedOrdersRequest request data for GetSwapForceLiquidatedOrders
+type GetSwapForceLiquidatedOrdersRequest struct {
+	InstrumentID string `json:"instrument_id"`          // [required] Contract ID, e.g. “BTC-USD-180213”
+	From         int64  `json:"from,string,omitempty"`  // [optional] Request paging content for this page number.（Example: 1,2,3,4,5. From 4 we only have 4, to 4 we only have 3）
+	To           int64  `json:"to,string,omitempty"`    // [optional] Request page after (older) this pagination id. （Example: 1,2,3,4,5. From 4 we only have 4, to 4 we only have 3）
+	Limit        int64  `json:"limit,string,omitempty"` // [optional]  	Number of results per request. Maximum 100. (default 100)
+	Status       string `json:"status,omitempty"`       // [optional] Status (0:unfilled orders in the recent 7 days 1:filled orders in the recent 7 days)
+}
+
+// GetSwapForceLiquidatedOrdersResponse response data for GetSwapForceLiquidatedOrders
+type GetSwapForceLiquidatedOrdersResponse struct {
+	Loss         float64 `json:"loss"`
+	Size         int64   `json:"size"`
+	Price        float64 `json:"price"`
+	CreatedAt    string  `json:"created_at"`
+	InstrumentID string  `json:"instrument_id"`
+	Type         int64   `json:"type"`
+}
+
+// GetSwapOnHoldAmountForOpenOrdersResponse response data for GetSwapOnHoldAmountForOpenOrders
+type GetSwapOnHoldAmountForOpenOrdersResponse struct {
+	InstrumentID string  `json:"instrument_id"`
+	Amount       float64 `json:"amount,string"`
+	Timestamp    string  `json:"timestamp"`
+}
+
+// GetSwapNextSettlementTimeResponse response data for GetSwapNextSettlementTime
+type GetSwapNextSettlementTimeResponse struct {
+	InstrumentID string `json:"instrument_id"`
+	FundingTime  string `json:"funding_time"`
+}
+
+// GetSwapMarkPriceResponse response data for GetSwapMarkPrice
+type GetSwapMarkPriceResponse struct {
+	InstrumentID string `json:"instrument_id"`
+	MarkPrice    string `json:"mark_price"`
+	Timstamp     string `json:"timstamp"`
+}
+
+// GetSwapFundingRateHistoryRequest request data for GetSwapFundingRateHistory
+type GetSwapFundingRateHistoryRequest struct {
+	InstrumentID string `json:"instrument_id"`          // [required] Contract ID, e.g. “BTC-USD-SWAP
+	From         int64  `json:"from,string,omitempty"`  // [optional] Request paging content for this page number.（Example: 1,2,3,4,5. From 4 we only have 4, to 4 we only have 3）
+	To           int64  `json:"to,string,omitempty"`    // [optional] Request page after (older) this pagination id. （Example: 1,2,3,4,5. From 4 we only have 4, to 4 we only have 3）
+	Limit        int64  `json:"limit,string,omitempty"` // [optional] Number of results per request. Maximum 100.
+}
+
+// GetSwapFundingRateHistoryResponse response data for GetSwapFundingRateHistory
+type GetSwapFundingRateHistoryResponse struct {
+	InstrumentID string  `json:"instrument_id"`
+	FundingRate  float64 `json:"funding_rate,string,omitempty"`
+	RealizedRate float64 `json:"realized_rate,string"`
+	InterestRate float64 `json:"interest_rate,string"`
+	FundingTime  string  `json:"funding_time"`
+	FundingFee   float64 `json:"funding_fee,string,omitempty"`
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------
+
 // OrderStatus Holds OKGroup order status values
 var OrderStatus = map[int]string{
 	-3: "pending cancel",

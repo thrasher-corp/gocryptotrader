@@ -1016,6 +1016,265 @@ func TestGetFuturesTagPrice(t *testing.T) {
 
 // -------------------------------------------------------------------------------------------------------
 
+// TestGetSwapPostions API endpoint test
+func TestGetSwapPostions(t *testing.T) {
+	TestSetDefaults(t)
+	_, err := o.GetSwapPostions()
+	testStandardErrorHandling(t, err)
+}
+
+func TestGetSwapPostionsForContract(t *testing.T) {
+	TestSetDefaults(t)
+	_, err := o.GetSwapPostionsForContract(fmt.Sprintf("%v-%v-SWAP", symbol.BTC, symbol.USD))
+	testStandardErrorHandling(t, err)
+}
+
+// TestGetSwapAccountOfAllCurrency API endpoint test
+func TestGetSwapAccountOfAllCurrency(t *testing.T) {
+	TestSetDefaults(t)
+	_, err := o.GetSwapAccountOfAllCurrency()
+	testStandardErrorHandling(t, err)
+}
+
+// TestGetSwapAccountSettingsOfAContract API endpoint test
+func TestGetSwapAccountSettingsOfAContract(t *testing.T) {
+	TestSetDefaults(t)
+	_, err := o.GetSwapAccountSettingsOfAContract(fmt.Sprintf("%v-%v-SWAP", symbol.BTC, symbol.USD))
+	testStandardErrorHandling(t, err)
+}
+
+// TestSetSwapLeverageLevelOfAContract API endpoint test
+func TestSetSwapLeverageLevelOfAContract(t *testing.T) {
+	TestSetDefaults(t)
+	_, err := o.SetSwapLeverageLevelOfAContract(SetSwapLeverageLevelOfAContractRequest{
+		InstrumentID: fmt.Sprintf("%v-%v-SWAP", symbol.BTC, symbol.USD),
+		Leverage:     10,
+		Side:         1,
+	})
+
+	testStandardErrorHandling(t, err)
+}
+
+// TestGetSwapAccountSettingsOfAContract API endpoint test
+func TestGetSwapBillDetails(t *testing.T) {
+	TestSetDefaults(t)
+	_, err := o.GetSwapBillDetails(GetSpotBillDetailsForCurrencyRequest{
+		Currency: fmt.Sprintf("%v-%v-SWAP", symbol.BTC, symbol.USD),
+		Limit:    100,
+	})
+	testStandardErrorHandling(t, err)
+}
+
+// TestPlaceSwapOrder API endpoint test
+func TestPlaceSwapOrder(t *testing.T) {
+	TestSetDefaults(t)
+	_, err := o.PlaceSwapOrder(PlaceSwapOrderRequest{
+		InstrumentID: fmt.Sprintf("%v-%v-SWAP", symbol.BTC, symbol.USD),
+		Size:         1,
+		Type:         1,
+		Price:        1,
+	})
+	testStandardErrorHandling(t, err)
+}
+
+// TestPlaceMultipleSwapOrders API endpoint test
+func TestPlaceMultipleSwapOrders(t *testing.T) {
+	TestSetDefaults(t)
+	_, err := o.PlaceMultipleSwapOrders(PlaceMultipleSwapOrdersRequest{
+		InstrumentID: fmt.Sprintf("%v-%v-SWAP", symbol.BTC, symbol.USD),
+		Leverage:     10,
+		OrdersData: []PlaceMultipleSwapOrderData{
+			PlaceMultipleSwapOrderData{
+				ClientOID:  "hello",
+				MatchPrice: "0",
+				Price:      "10",
+				Size:       "1",
+				Type:       "1",
+			}, PlaceMultipleSwapOrderData{
+				ClientOID:  "hello2",
+				MatchPrice: "0",
+				Price:      "10",
+				Size:       "1",
+				Type:       "1",
+			}},
+	})
+	testStandardErrorHandling(t, err)
+}
+
+// TestCancelSwapOrder API endpoint test
+func TestCancelSwapOrder(t *testing.T) {
+	TestSetDefaults(t)
+	_, err := o.CancelSwapOrder(CancelSwapOrderRequest{
+		InstrumentID: fmt.Sprintf("%v-%v-SWAP", symbol.BTC, symbol.USD),
+		OrderID:      "64-2a-26132f931-3",
+	})
+	testStandardErrorHandling(t, err)
+}
+
+// TestCancelMultipleSwapOrders API endpoint test
+func TestCancelMultipleSwapOrders(t *testing.T) {
+	TestSetDefaults(t)
+	_, err := o.CancelMultipleSwapOrders(CancelMultipleSwapOrdersRequest{
+		InstrumentID: fmt.Sprintf("%v-%v-SWAP", symbol.BTC, symbol.USD),
+		OrderIDs:     []int64{1, 2, 3, 4},
+	})
+	testStandardErrorHandling(t, err)
+}
+
+// TestGetSwapOrderList API endpoint test
+func TestGetSwapOrderList(t *testing.T) {
+	TestSetDefaults(t)
+	_, err := o.GetSwapOrderList(GetSwapOrderListRequest{
+		InstrumentID: fmt.Sprintf("%v-%v-SWAP", symbol.BTC, symbol.USD),
+		Status:       6,
+	})
+	testStandardErrorHandling(t, err)
+}
+
+// TestGetSwapOrderDetails API endpoint test
+func TestGetSwapOrderDetails(t *testing.T) {
+	TestSetDefaults(t)
+	_, err := o.GetSwapOrderDetails(GetSwapOrderDetailsRequest{
+		InstrumentID: fmt.Sprintf("%v-%v-SWAP", symbol.BTC, symbol.USD),
+		OrderID:      "64-2a-26132f931-3",
+	})
+	testStandardErrorHandling(t, err)
+}
+
+// TestGetSwapTransactionDetails API endpoint test
+func TestGetSwapTransactionDetails(t *testing.T) {
+	TestSetDefaults(t)
+	_, err := o.GetSwapTransactionDetails(GetSwapTransactionDetailsRequest{
+		InstrumentID: fmt.Sprintf("%v-%v-SWAP", symbol.BTC, symbol.USD),
+		OrderID:      "64-2a-26132f931-3",
+	})
+	testStandardErrorHandling(t, err)
+}
+
+// TestGetSwapContractInformation API endpoint test
+func TestGetSwapContractInformation(t *testing.T) {
+	TestSetDefaults(t)
+	_, err := o.GetSwapContractInformation()
+	testStandardErrorHandling(t, err)
+}
+
+// TestGetSwapOrderBook API endpoint test
+func TestGetSwapOrderBook(t *testing.T) {
+	TestSetDefaults(t)
+	_, err := o.GetSwapOrderBook(GetSwapOrderBookRequest{
+		InstrumentID: fmt.Sprintf("%v-%v-SWAP", symbol.BTC, symbol.USD),
+		Size:         200,
+	})
+
+	testStandardErrorHandling(t, err)
+}
+
+// TestGetAllSwapTokensInformation API endpoint test
+func TestGetAllSwapTokensInformation(t *testing.T) {
+	TestSetDefaults(t)
+	_, err := o.GetAllSwapTokensInformation()
+	testStandardErrorHandling(t, err)
+}
+
+// TestGetSwapTokensInformationForCurrency API endpoint test
+func TestGetSwapTokensInformationForCurrency(t *testing.T) {
+	TestSetDefaults(t)
+	_, err := o.GetSwapTokensInformationForCurrency(fmt.Sprintf("%v-%v-SWAP", symbol.BTC, symbol.USD))
+	testStandardErrorHandling(t, err)
+}
+
+// TestGetSwapFilledOrdersData API endpoint test
+func TestGetSwapFilledOrdersData(t *testing.T) {
+	TestSetDefaults(t)
+	_, err := o.GetSwapFilledOrdersData(&GetSwapFilledOrdersDataRequest{
+		InstrumentID: fmt.Sprintf("%v-%v-SWAP", symbol.BTC, symbol.USD),
+		Limit:        100,
+	})
+	testStandardErrorHandling(t, err)
+}
+
+// TestGetSwapMarketData API endpoint test
+func TestGetSwapMarketData(t *testing.T) {
+	TestSetDefaults(t)
+	request := GetSwapMarketDataRequest{
+		InstrumentID: fmt.Sprintf("%v-%v-SWAP", symbol.BTC, symbol.USD),
+		Granularity:  604800,
+	}
+	_, err := o.GetSwapMarketData(request)
+	testStandardErrorHandling(t, err)
+}
+
+// TestGetSwapIndeces API endpoint test
+func TestGetSwapIndeces(t *testing.T) {
+	TestSetDefaults(t)
+	_, err := o.GetSwapIndeces(fmt.Sprintf("%v-%v-SWAP", symbol.BTC, symbol.USD))
+	testStandardErrorHandling(t, err)
+}
+
+// TestGetSwapExchangeRates API endpoint test
+func TestGetSwapExchangeRates(t *testing.T) {
+	TestSetDefaults(t)
+	_, err := o.GetSwapExchangeRates()
+	testStandardErrorHandling(t, err)
+}
+
+// TestGetSwapOpenInterest API endpoint test
+func TestGetSwapOpenInterest(t *testing.T) {
+	TestSetDefaults(t)
+	_, err := o.GetSwapOpenInterest(fmt.Sprintf("%v-%v-SWAP", symbol.BTC, symbol.USD))
+	testStandardErrorHandling(t, err)
+}
+
+// TestGetSwapCurrentPriceLimits API endpoint test
+func TestGetSwapCurrentPriceLimits(t *testing.T) {
+	TestSetDefaults(t)
+	_, err := o.GetSwapCurrentPriceLimits(fmt.Sprintf("%v-%v-SWAP", symbol.BTC, symbol.USD))
+	testStandardErrorHandling(t, err)
+}
+
+// TestGetSwapForceLiquidatedOrders API endpoint test
+func TestGetSwapForceLiquidatedOrders(t *testing.T) {
+	TestSetDefaults(t)
+	_, err := o.GetSwapForceLiquidatedOrders(GetSwapForceLiquidatedOrdersRequest{
+		InstrumentID: fmt.Sprintf("%v-%v-SWAP", symbol.BTC, symbol.USD),
+		Status:       "0",
+	})
+	testStandardErrorHandling(t, err)
+}
+
+// TestGetSwapOnHoldAmountForOpenOrders API endpoint test
+func TestGetSwapOnHoldAmountForOpenOrders(t *testing.T) {
+	TestSetDefaults(t)
+	_, err := o.GetSwapOnHoldAmountForOpenOrders(fmt.Sprintf("%v-%v-SWAP", symbol.BTC, symbol.USD))
+	testStandardErrorHandling(t, err)
+}
+
+// TestGetSwapNextSettlementTime API endpoint test
+func TestGetSwapNextSettlementTime(t *testing.T) {
+	TestSetDefaults(t)
+	_, err := o.GetSwapNextSettlementTime(fmt.Sprintf("%v-%v-SWAP", symbol.BTC, symbol.USD))
+	testStandardErrorHandling(t, err)
+}
+
+// TestGetSwapMarkPrice API endpoint test
+func TestGetSwapMarkPrice(t *testing.T) {
+	TestSetDefaults(t)
+	_, err := o.GetSwapMarkPrice(fmt.Sprintf("%v-%v-SWAP", symbol.BTC, symbol.USD))
+	testStandardErrorHandling(t, err)
+}
+
+// TestGetSwapFundingRateHistory API endpoint test
+func TestGetSwapFundingRateHistory(t *testing.T) {
+	TestSetDefaults(t)
+	_, err := o.GetSwapFundingRateHistory(GetSwapFundingRateHistoryRequest{
+		InstrumentID: fmt.Sprintf("%v-%v-SWAP", symbol.BTC, symbol.USD),
+		Limit:        100,
+	})
+	testStandardErrorHandling(t, err)
+}
+
+// -------------------------------------------------------------------------------------------------------
+
 func setFeeBuilder() exchange.FeeBuilder {
 	return exchange.FeeBuilder{
 		Amount:              1,
