@@ -35,18 +35,22 @@ const (
 	okGroupMarginTradingSubsection = "margin"
 	okGroupFuturesSubsection       = "futures"
 	okGroupSwapSubsection          = "swap"
+	okGroupETTSubsection           = "ett"
 	// Common endpoints
-	okGroupTradingAccounts   = "accounts"
-	okGroupLedger            = "ledger"
-	okGroupOrders            = "orders"
-	okGroupBatchOrders       = "batch_orders"
-	okGroupCancelOrders      = "cancel_orders"
-	okGroupCancelOrder       = "cancel_order"
-	okGroupCancelBatchOrders = "cancel_batch_orders"
-	okGroupPendingOrders     = "orders_pending"
-	okGroupTrades            = "trades"
-	okGroupTicker            = "ticker"
-	okGroupInstruments       = "instruments"
+	okGroupAccounts                 = "accounts"
+	okGroupLedger                   = "ledger"
+	okGroupOrders                   = "orders"
+	okGroupBatchOrders              = "batch_orders"
+	okGroupCancelOrders             = "cancel_orders"
+	okGroupCancelOrder              = "cancel_order"
+	okGroupCancelBatchOrders        = "cancel_batch_orders"
+	okGroupPendingOrders            = "orders_pending"
+	okGroupTrades                   = "trades"
+	okGroupTicker                   = "ticker"
+	okGroupInstruments              = "instruments"
+	okGroupLiquidation              = "liquidation"
+	okGroupMarkPrice                = "mark_price"
+	okGroupGetAccountDepositHistory = "deposit/history"
 	// Account based endpoints
 	okGroupGetAccountCurrencies        = "currencies"
 	okGroupGetAccountWalletInformation = "wallet"
@@ -55,7 +59,7 @@ const (
 	okGroupGetWithdrawalFees           = "withdrawal/fee"
 	okGroupGetWithdrawalHistory        = "withdrawal/history"
 	okGroupGetDepositAddress           = "deposit/address"
-	okGroupGetAccountDepositHistory    = "deposit/history"
+	okGroupPriceLimit                  = "price_limit"
 	// Token based endpoints
 	okGroupGetSpotTransactionDetails = "fills"
 	okGroupGetSpotOrderBook          = "book"
@@ -74,15 +78,14 @@ const (
 	okGroupRate           = "rate"
 	okGroupEsimtatedPrice = "estimated_price"
 	okGroupOpenInterest   = "open_interest"
-	okGroupPriceLimit     = "price_limit"
-	okGroupMarkPrice      = "mark_price"
-	okGroupLiquidation    = "liquidation"
-	okGroupTagPrice       = "tag_price"
 	// Perpetual swap based endpoints
 	okGroupSettings              = "settings"
 	okGroupDepth                 = "depth"
 	okGroupFundingTime           = "funding_time"
 	okGroupHistoricalFundingRate = "historical_funding_rate"
+	// ETT endpoints
+	okGroupConstituents = "constituents"
+	okGroupDefinePrice  = "define-price"
 )
 
 var errMissValue = errors.New("warning - resp value is missing from exchange")
@@ -288,12 +291,12 @@ func (o *OKGroup) GetAccountDepositHistory(currency string) (resp []GetAccountDe
 
 // GetSpotTradingAccounts retrieves the list of assets(only show pairs with balance larger than 0), the balances, amount available/on hold in spot accounts.
 func (o *OKGroup) GetSpotTradingAccounts() (resp []GetSpotTradingAccountResponse, _ error) {
-	return resp, o.SendHTTPRequest(http.MethodGet, okGroupTokenSubsection, okGroupTradingAccounts, nil, &resp, true)
+	return resp, o.SendHTTPRequest(http.MethodGet, okGroupTokenSubsection, okGroupAccounts, nil, &resp, true)
 }
 
 // GetSpotTradingAccountForCurrency This endpoint supports getting the balance, amount available/on hold of a token in spot account.
 func (o *OKGroup) GetSpotTradingAccountForCurrency(currency string) (resp GetSpotTradingAccountResponse, _ error) {
-	requestURL := fmt.Sprintf("%v/%v", okGroupTradingAccounts, currency)
+	requestURL := fmt.Sprintf("%v/%v", okGroupAccounts, currency)
 	return resp, o.SendHTTPRequest(http.MethodGet, okGroupTokenSubsection, requestURL, nil, &resp, true)
 }
 
@@ -310,7 +313,7 @@ func (o *OKGroup) GetSpotBillDetailsForCurrency(request GetSpotBillDetailsForCur
 		urlValues.Set("limit", strconv.FormatInt(request.Limit, 10))
 	}
 
-	requestURL := fmt.Sprintf("%v/%v/%v?%v", okGroupTradingAccounts, request.Currency, okGroupLedger, urlValues.Encode())
+	requestURL := fmt.Sprintf("%v/%v/%v?%v", okGroupAccounts, request.Currency, okGroupLedger, urlValues.Encode())
 	return resp, o.SendHTTPRequest(http.MethodGet, okGroupTokenSubsection, requestURL, nil, &resp, true)
 }
 
@@ -530,12 +533,12 @@ func (o *OKGroup) GetSpotMarketData(request GetSpotMarketDataRequest) (resp GetS
 
 // GetMarginTradingAccounts List all assets under token margin trading account, including information such as balance, amount on hold and more.
 func (o *OKGroup) GetMarginTradingAccounts() (resp []GetMarginAccountsResponse, _ error) {
-	return resp, o.SendHTTPRequest(http.MethodGet, okGroupMarginTradingSubsection, okGroupTradingAccounts, nil, &resp, true)
+	return resp, o.SendHTTPRequest(http.MethodGet, okGroupMarginTradingSubsection, okGroupAccounts, nil, &resp, true)
 }
 
 // GetMarginTradingAccountsForCurrency Get the balance, amount on hold and more useful information.
 func (o *OKGroup) GetMarginTradingAccountsForCurrency(currency string) (resp GetMarginAccountsResponse, _ error) {
-	requestURL := fmt.Sprintf("%v/%v", okGroupTradingAccounts, currency)
+	requestURL := fmt.Sprintf("%v/%v", okGroupAccounts, currency)
 	return resp, o.SendHTTPRequest(http.MethodGet, okGroupMarginTradingSubsection, requestURL, nil, &resp, true)
 }
 
@@ -560,7 +563,7 @@ func (o *OKGroup) GetMarginBillDetails(request GetAccountBillDetailsRequest) (re
 	}
 
 	parameters := formatParameters(urlValues)
-	requestURL := fmt.Sprintf("%v/%v/%v%v", okGroupTradingAccounts, request.Currency, okGroupLedger, parameters)
+	requestURL := fmt.Sprintf("%v/%v/%v%v", okGroupAccounts, request.Currency, okGroupLedger, parameters)
 	return resp, o.SendHTTPRequest(http.MethodGet, okGroupMarginTradingSubsection, requestURL, nil, &resp, true)
 }
 
@@ -568,9 +571,9 @@ func (o *OKGroup) GetMarginBillDetails(request GetAccountBillDetailsRequest) (re
 func (o *OKGroup) GetMarginAccountSettings(currency string) (resp []GetMarginAccountSettingsResponse, _ error) {
 	var requestURL string
 	if len(currency) > 0 {
-		requestURL = fmt.Sprintf("%v/%v/%v", okGroupTradingAccounts, currency, okGroupGetMarketAvailability)
+		requestURL = fmt.Sprintf("%v/%v/%v", okGroupAccounts, currency, okGroupGetMarketAvailability)
 	} else {
-		requestURL = fmt.Sprintf("%v/%v", okGroupTradingAccounts, okGroupGetMarketAvailability)
+		requestURL = fmt.Sprintf("%v/%v", okGroupAccounts, okGroupGetMarketAvailability)
 	}
 	return resp, o.SendHTTPRequest(http.MethodGet, okGroupMarginTradingSubsection, requestURL, nil, &resp, true)
 }
@@ -580,22 +583,22 @@ func (o *OKGroup) GetMarginAccountSettings(currency string) (resp []GetMarginAcc
 func (o *OKGroup) GetMarginLoanHistory(request GetMarginLoanHistoryRequest) (resp []GetMarginLoanHistoryResponse, _ error) {
 	var requestURL string
 	if len(request.InstrumentID) > 0 {
-		requestURL = fmt.Sprintf("%v/%v/%v", okGroupTradingAccounts, request.InstrumentID, okGroupGetLoan)
+		requestURL = fmt.Sprintf("%v/%v/%v", okGroupAccounts, request.InstrumentID, okGroupGetLoan)
 	} else {
-		requestURL = fmt.Sprintf("%v/%v", okGroupTradingAccounts, okGroupGetLoan)
+		requestURL = fmt.Sprintf("%v/%v", okGroupAccounts, okGroupGetLoan)
 	}
 	return resp, o.SendHTTPRequest(http.MethodGet, okGroupMarginTradingSubsection, requestURL, nil, &resp, true)
 }
 
 // OpenMarginLoan Borrowing tokens in a margin trading account.
 func (o *OKGroup) OpenMarginLoan(request OpenMarginLoanRequest) (resp OpenMarginLoanResponse, _ error) {
-	requestURL := fmt.Sprintf("%v/%v", okGroupTradingAccounts, okGroupGetLoan)
+	requestURL := fmt.Sprintf("%v/%v", okGroupAccounts, okGroupGetLoan)
 	return resp, o.SendHTTPRequest(http.MethodPost, okGroupMarginTradingSubsection, requestURL, request, &resp, true)
 }
 
 // RepayMarginLoan Repaying tokens in a margin trading account.
 func (o *OKGroup) RepayMarginLoan(request RepayMarginLoanRequest) (resp RepayMarginLoanResponse, _ error) {
-	requestURL := fmt.Sprintf("%v/%v", okGroupTradingAccounts, okGroupGetRepayment)
+	requestURL := fmt.Sprintf("%v/%v", okGroupAccounts, okGroupGetRepayment)
 	return resp, o.SendHTTPRequest(http.MethodPost, okGroupMarginTradingSubsection, requestURL, request, &resp, true)
 }
 
@@ -756,18 +759,18 @@ func (o *OKGroup) GetFuturesPostionsForCurrency(instrumentID string) (resp GetFu
 
 // GetFuturesAccountOfAllCurrencies Get the futures account info of all token.Due to high energy consumption, you are advised to capture data with the "Futures Account of a Currency" API instead.
 func (o *OKGroup) GetFuturesAccountOfAllCurrencies() (resp FuturesAccountForAllCurrenciesResponse, _ error) {
-	return resp, o.SendHTTPRequest(http.MethodGet, okGroupFuturesSubsection, okGroupTradingAccounts, nil, &resp, true)
+	return resp, o.SendHTTPRequest(http.MethodGet, okGroupFuturesSubsection, okGroupAccounts, nil, &resp, true)
 }
 
 // GetFuturesAccountOfACurrency Get the futures account info of a token.
 func (o *OKGroup) GetFuturesAccountOfACurrency(instrumentID string) (resp FuturesCurrencyData, _ error) {
-	requestURL := fmt.Sprintf("%v/%v", okGroupTradingAccounts, instrumentID)
+	requestURL := fmt.Sprintf("%v/%v", okGroupAccounts, instrumentID)
 	return resp, o.SendHTTPRequest(http.MethodGet, okGroupFuturesSubsection, requestURL, nil, &resp, true)
 }
 
 // GetFuturesLeverage Get the leverage of the futures account
 func (o *OKGroup) GetFuturesLeverage(instrumentID string) (resp GetFuturesLeverageResponse, _ error) {
-	requestURL := fmt.Sprintf("%v/%v/%v", okGroupTradingAccounts, instrumentID, okGroupFutureLeverage)
+	requestURL := fmt.Sprintf("%v/%v/%v", okGroupAccounts, instrumentID, okGroupFutureLeverage)
 	return resp, o.SendHTTPRequest(http.MethodGet, okGroupFuturesSubsection, requestURL, nil, &resp, true)
 }
 
@@ -775,7 +778,7 @@ func (o *OKGroup) GetFuturesLeverage(instrumentID string) (resp GetFuturesLevera
 // Cross margin request requirements:  {"leverage":"10"}
 // Fixed margin request requirements: {"instrument_id":"BTC-USD-180213","direction":"long","leverage":"10"}
 func (o *OKGroup) SetFuturesLeverage(request SetFuturesLeverageRequest) (resp SetFuturesLeverageResponse, _ error) {
-	requestURL := fmt.Sprintf("%v/%v/%v", okGroupTradingAccounts, request.Currency, okGroupFutureLeverage)
+	requestURL := fmt.Sprintf("%v/%v/%v", okGroupAccounts, request.Currency, okGroupFutureLeverage)
 	return resp, o.SendHTTPRequest(http.MethodPost, okGroupFuturesSubsection, requestURL, request, &resp, true)
 }
 
@@ -794,7 +797,7 @@ func (o *OKGroup) GetFuturesBillDetails(request GetSpotBillDetailsForCurrencyReq
 	}
 
 	parameters := formatParameters(urlValues)
-	requestURL := fmt.Sprintf("%v/%v/%v%v", okGroupTradingAccounts, request.Currency, okGroupLedger, parameters)
+	requestURL := fmt.Sprintf("%v/%v/%v%v", okGroupAccounts, request.Currency, okGroupLedger, parameters)
 	return resp, o.SendHTTPRequest(http.MethodGet, okGroupFuturesSubsection, requestURL, nil, &resp, true)
 }
 
@@ -935,7 +938,7 @@ func (o *OKGroup) GetFuturesMarketData(request GetFuturesMarketDateRequest) (res
 
 // GetFuturesHoldAmount Get the number of futures with hold.
 func (o *OKGroup) GetFuturesHoldAmount(instrumentID string) (resp GetFuturesHoldAmountResponse, _ error) {
-	requestURL := fmt.Sprintf("%v/%v/%v", okGroupTradingAccounts, instrumentID, okGroupFutureHolds)
+	requestURL := fmt.Sprintf("%v/%v/%v", okGroupAccounts, instrumentID, okGroupFutureHolds)
 	return resp, o.SendHTTPRequest(http.MethodGet, okGroupFuturesSubsection, requestURL, nil, &resp, true)
 }
 
@@ -1021,19 +1024,19 @@ func (o *OKGroup) GetSwapPostionsForContract(instrumentID string) (resp GetSwapP
 // GetSwapAccountOfAllCurrency Get the perpetual swap account info of a token.
 // Margin ratio set as 10,000 when users have no open position.
 func (o *OKGroup) GetSwapAccountOfAllCurrency() (resp GetSwapAccountOfAllCurrencyResponse, _ error) {
-	return resp, o.SendHTTPRequest(http.MethodGet, okGroupSwapSubsection, okGroupTradingAccounts, nil, &resp, true)
+	return resp, o.SendHTTPRequest(http.MethodGet, okGroupSwapSubsection, okGroupAccounts, nil, &resp, true)
 }
 
 // GetSwapAccountSettingsOfAContract Get leverage level and margin mode of a contract.
 func (o *OKGroup) GetSwapAccountSettingsOfAContract(instrumentID string) (resp GetSwapAccountSettingsOfAContractResponse, _ error) {
-	requestURL := fmt.Sprintf("%v/%v/%v", okGroupTradingAccounts, instrumentID, okGroupSettings)
+	requestURL := fmt.Sprintf("%v/%v/%v", okGroupAccounts, instrumentID, okGroupSettings)
 	return resp, o.SendHTTPRequest(http.MethodGet, okGroupSwapSubsection, requestURL, nil, &resp, true)
 }
 
 // SetSwapLeverageLevelOfAContract Setting the leverage level of a contract
 // TODO this returns invalid parameters, but matches spec. Unsure how to fix
 func (o *OKGroup) SetSwapLeverageLevelOfAContract(request SetSwapLeverageLevelOfAContractRequest) (resp SetSwapLeverageLevelOfAContractResponse, _ error) {
-	requestURL := fmt.Sprintf("%v/%v/%v", okGroupTradingAccounts, request.InstrumentID, okGroupFutureLeverage)
+	requestURL := fmt.Sprintf("%v/%v/%v", okGroupAccounts, request.InstrumentID, okGroupFutureLeverage)
 	request.InstrumentID = ""
 	return resp, o.SendHTTPRequest(http.MethodPost, okGroupSwapSubsection, requestURL, request, &resp, true)
 }
@@ -1053,7 +1056,7 @@ func (o *OKGroup) GetSwapBillDetails(request GetSpotBillDetailsForCurrencyReques
 	}
 
 	parameters := formatParameters(urlValues)
-	requestURL := fmt.Sprintf("%v/%v/%v%v", okGroupTradingAccounts, request.Currency, okGroupLedger, parameters)
+	requestURL := fmt.Sprintf("%v/%v/%v%v", okGroupAccounts, request.Currency, okGroupLedger, parameters)
 	return resp, o.SendHTTPRequest(http.MethodGet, okGroupSwapSubsection, requestURL, nil, &resp, true)
 }
 
@@ -1099,7 +1102,6 @@ func (o *OKGroup) GetSwapOrderList(request GetSwapOrderListRequest) (resp GetSwa
 
 	requestURL := fmt.Sprintf("%v/%v?%v", okGroupOrders, request.InstrumentID, urlValues.Encode())
 	return resp, o.SendHTTPRequest(http.MethodGet, okGroupSwapSubsection, requestURL, nil, &resp, true)
-
 }
 
 // GetSwapOrderDetails Get order details by order ID.
@@ -1239,7 +1241,7 @@ func (o *OKGroup) GetSwapForceLiquidatedOrders(request GetSwapForceLiquidatedOrd
 
 // GetSwapOnHoldAmountForOpenOrders Get On Hold Amount for Open Orders.
 func (o *OKGroup) GetSwapOnHoldAmountForOpenOrders(instrumentID string) (resp GetSwapOnHoldAmountForOpenOrdersResponse, _ error) {
-	requestURL := fmt.Sprintf("%v/%v/%v", okGroupTradingAccounts, instrumentID, okGroupFutureHolds)
+	requestURL := fmt.Sprintf("%v/%v/%v", okGroupAccounts, instrumentID, okGroupFutureHolds)
 	return resp, o.SendHTTPRequest(http.MethodGet, okGroupSwapSubsection, requestURL, nil, &resp, true)
 }
 
@@ -1271,6 +1273,81 @@ func (o *OKGroup) GetSwapFundingRateHistory(request GetSwapFundingRateHistoryReq
 	parameters := formatParameters(urlValues)
 	requestURL := fmt.Sprintf("%v/%v/%v%v", okGroupInstruments, request.InstrumentID, okGroupHistoricalFundingRate, parameters)
 	return resp, o.SendHTTPRequest(http.MethodGet, okGroupSwapSubsection, requestURL, nil, &resp, false)
+}
+
+// ---------------------------------------ETT---------------------------------------
+
+// GetETT List the assets in ETT account. Get information such as balance, amount on hold/ available.
+func (o *OKGroup) GetETT() (resp []GetETTResponse, _ error) {
+	return resp, o.SendHTTPRequest(http.MethodGet, okGroupETTSubsection, okGroupAccounts, nil, &resp, true)
+}
+
+// GetETTAccountInformationForCurrency Getting the balance, amount available/on hold of a token in ETT account.
+func (o *OKGroup) GetETTAccountInformationForCurrency(currency string) (resp GetETTResponse, _ error) {
+	requestURL := fmt.Sprintf("%v/%v", okGroupAccounts, currency)
+	return resp, o.SendHTTPRequest(http.MethodGet, okGroupETTSubsection, requestURL, nil, &resp, true)
+}
+
+// GetETTBillsDetails Bills details. All paginated requests return the latest information (newest)
+// as the first page sorted by newest (in chronological time) first
+func (o *OKGroup) GetETTBillsDetails(currency string) (resp []GetETTBillsDetailsResponse, _ error) {
+	requestURL := fmt.Sprintf("%v/%v/%v", okGroupAccounts, currency, okGroupLedger)
+	return resp, o.SendHTTPRequest(http.MethodGet, okGroupETTSubsection, requestURL, nil, &resp, true)
+}
+
+// PlaceETTOrder You can place subscription or redemption orders under ETT trading.
+// You can place an order only if you have enough funds. Once your order is placed,
+// the amount will be put on hold in the order lifecycle.
+// The assets and amount on hold depends on the order's specific type and parameters.
+func (o *OKGroup) PlaceETTOrder(request PlaceETTOrderRequest) (resp PlaceETTOrderResponse, _ error) {
+	return resp, o.SendHTTPRequest(http.MethodPost, okGroupETTSubsection, okGroupOrders, nil, &resp, true)
+}
+
+// CancelETTOrder Cancel an unfilled order.
+func (o *OKGroup) CancelETTOrder(orderID string) (resp PlaceETTOrderResponse, _ error) {
+	requestURL := fmt.Sprintf("%v/%v", okGroupOrders, orderID)
+	return resp, o.SendHTTPRequest(http.MethodDelete, okGroupETTSubsection, requestURL, nil, &resp, true)
+}
+
+// GetETTOrderList List your orders. Cursor pagination is used. All paginated requests return the latest information
+// (newest) as the first page sorted by newest (in chronological time) first.
+func (o *OKGroup) GetETTOrderList(request GetETTOrderListRequest) (resp []GetETTOrderListResponse, _ error) {
+	urlValues := url.Values{}
+	urlValues.Set("ett", request.ETT)
+	urlValues.Set("type", strconv.FormatInt(request.Type, 10))
+	if request.Status > 0 {
+		urlValues.Set("status", strconv.FormatInt(request.Status, 10))
+	}
+	if request.From > 0 {
+		urlValues.Set("from", strconv.FormatInt(request.From, 10))
+	}
+	if request.To > 0 {
+		urlValues.Set("to", strconv.FormatInt(request.To, 10))
+	}
+	if request.Limit > 0 {
+		urlValues.Set("limit", strconv.FormatInt(request.Limit, 10))
+	}
+	parameters := formatParameters(urlValues)
+	requestURL := fmt.Sprintf("%v%v", okGroupOrders, parameters)
+	return resp, o.SendHTTPRequest(http.MethodGet, okGroupETTSubsection, requestURL, nil, &resp, true)
+}
+
+// GetETTOrderDetails Get order details by order ID.
+func (o *OKGroup) GetETTOrderDetails(orderID string) (resp GetETTOrderListResponse, _ error) {
+	requestURL := fmt.Sprintf("%v/%v", okGroupOrders, orderID)
+	return resp, o.SendHTTPRequest(http.MethodGet, okGroupETTSubsection, requestURL, nil, &resp, true)
+}
+
+// GetETTConstituents Get ETT Constituents.This is a public endpoint, no identity verification is needed.
+func (o *OKGroup) GetETTConstituents(ett string) (resp GetETTConstituentsResponse, _ error) {
+	requestURL := fmt.Sprintf("%v/%v", okGroupConstituents, ett)
+	return resp, o.SendHTTPRequest(http.MethodGet, okGroupETTSubsection, requestURL, nil, &resp, false)
+}
+
+// GetETTSettlementPriceHistory Get ETT settlement price history. This is a public endpoint, no identity verification is needed.
+func (o *OKGroup) GetETTSettlementPriceHistory(ett string) (resp []GetETTSettlementPriceHistoryResponse, _ error) {
+	requestURL := fmt.Sprintf("%v/%v", okGroupDefinePrice, ett)
+	return resp, o.SendHTTPRequest(http.MethodGet, okGroupETTSubsection, requestURL, nil, &resp, false)
 }
 
 // -------------------------------------------------------------------------------------------------------

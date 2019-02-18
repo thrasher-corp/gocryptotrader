@@ -1177,6 +1177,86 @@ type GetSwapFundingRateHistoryResponse struct {
 
 // ----------------------------------------------------------------------------------------------------------------------------
 
+// GetETTResponse response data for GetETT
+type GetETTResponse struct {
+	Currency  string  `json:"currency"`
+	Balance   float64 `json:"balance"`
+	Holds     float64 `json:"holds"`
+	Available float64 `json:"available"`
+}
+
+// GetETTBillsDetailsResponse response data for GetETTBillsDetails
+type GetETTBillsDetailsResponse struct {
+	LedgerID  int64   `json:"ledger_id"`
+	Currency  string  `json:"currency"`
+	Balance   float64 `json:"balance"`
+	Amount    float64 `json:"amount"`
+	Type      string  `json:"type"`
+	CreatedAt string  `json:"created_at"`
+	Details   int64   `json:"details"`
+}
+
+// PlaceETTOrderRequest  request data for PlaceETTOrder
+type PlaceETTOrderRequest struct {
+	ClientOID     string  `json:"client_oid"`     // [optional]the order ID customized by yourself
+	Type          int64   `json:"type"`           // Type of order (0:ETT subscription 1:subscribe with USDT 2:Redeem in USDT 3:Redeem in underlying)
+	QuoteCurrency string  `json:"quote_currency"` // Subscription/redemption currency
+	Amount        float64 `json:"amount"`         // Subscription amount. Required for usdt subscription
+	Size          string  `json:"size"`           // Redemption size. Required for ETT subscription and redemption
+	ETT           string  `json:"ett"`            // ETT name
+}
+
+// PlaceETTOrderResponse  response data for PlaceETTOrder
+type PlaceETTOrderResponse struct {
+	ClientOID string `json:"client_oid"`
+	OrderID   string `json:"type"`
+	Result    bool   `json:"quote_currency"`
+}
+
+// GetETTOrderListRequest request data for GetETTOrderList
+type GetETTOrderListRequest struct {
+	ETT    string `json:"ett"`                    //  	[required] list specific ETT order
+	Type   int64  `json:"type"`                   //  	[required]（1: subscription 2: redemption）
+	Status int64  `json:"status,omitempty"`       // [optional]  	List the orders of the status (0:All 1:Unfilled 2:Filled 3:Canceled)
+	From   int64  `json:"from,string,omitempty"`  // [optional] Request paging content for this page number.（Example: 1,2,3,4,5. From 4 we only have 4, to 4 we only have 3）
+	To     int64  `json:"to,string,omitempty"`    // [optional] Request page after (older) this pagination id. （Example: 1,2,3,4,5. From 4 we only have 4, to 4 we only have 3）
+	Limit  int64  `json:"limit,string,omitempty"` // [optional] Number of results per request. Maximum 100.
+}
+
+// GetETTOrderListResponse  response data for GetETTOrderList
+type GetETTOrderListResponse struct {
+	OrderID       string `json:"order_id"`
+	Price         string `json:"price"`
+	Size          string `json:"size"`
+	Amount        string `json:"amount"`
+	QuoteCurrency string `json:"quote_currency"`
+	Ett           string `json:"ett"`
+	Type          int64  `json:"type"`
+	CreatedAt     string `json:"created_at"`
+	Status        string `json:"status"`
+}
+
+// GetETTConstituentsResponse response data for GetETTConstituents
+type GetETTConstituentsResponse struct {
+	NetValue     float64           `json:"net_value"`
+	Ett          string            `json:"ett"`
+	Constituents []ConstituentData `json:"constituents"`
+}
+
+// ConstituentData response data for GetETTConstituents
+type ConstituentData struct {
+	Amount   float64 `json:"amount"`
+	Currency string  `json:"currency"`
+}
+
+// GetETTSettlementPriceHistoryResponse response data for GetETTSettlementPriceHistory
+type GetETTSettlementPriceHistoryResponse struct {
+	Date  string  `json:"date"`
+	Price float64 `json:"price"`
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------
+
 // OrderStatus Holds OKGroup order status values
 var OrderStatus = map[int]string{
 	-3: "pending cancel",

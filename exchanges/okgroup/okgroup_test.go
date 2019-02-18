@@ -1275,6 +1275,88 @@ func TestGetSwapFundingRateHistory(t *testing.T) {
 
 // -------------------------------------------------------------------------------------------------------
 
+// TestGetETT API endpoint test
+func TestGetETT(t *testing.T) {
+	TestSetDefaults(t)
+	_, err := o.GetETT()
+	testStandardErrorHandling(t, err)
+}
+
+// TestGetETTAccountInformationForCurrency API endpoint test
+func TestGetETTAccountInformationForCurrency(t *testing.T) {
+	TestSetDefaults(t)
+	_, err := o.GetETTBillsDetails(symbol.BTC)
+	testStandardErrorHandling(t, err)
+}
+
+// TestGetETTBillsDetails API endpoint test
+func TestGetETTBillsDetails(t *testing.T) {
+	TestSetDefaults(t)
+	_, err := o.GetETTBillsDetails(symbol.BTC)
+	testStandardErrorHandling(t, err)
+}
+
+// TestPlaceETTOrder API endpoint test
+func TestPlaceETTOrder(t *testing.T) {
+	TestSetRealOrderDefaults(t)
+	request := PlaceETTOrderRequest{
+		QuoteCurrency: pair.NewCurrencyPairWithDelimiter(symbol.BTC, symbol.USDT, "-").Pair().Lower().String(),
+		Type:          0,
+		Size:          "100",
+		Amount:        1,
+		ETT:           "OK06",
+	}
+
+	_, err := o.PlaceETTOrder(request)
+	testStandardErrorHandling(t, err)
+}
+
+// TestCancelETTOrder API endpoint test
+func TestCancelETTOrder(t *testing.T) {
+	TestSetDefaults(t)
+	_, err := o.CancelETTOrder("888845120785408")
+	testStandardErrorHandling(t, err)
+}
+
+// TestGetETTOrderList API endpoint test
+// This results in a 500 error when its a request object
+// Or when it is submitted as URL params
+// Unsure how to fix
+func TestGetETTOrderList(t *testing.T) {
+	TestSetDefaults(t)
+	request := GetETTOrderListRequest{
+		Type:   1,
+		ETT:    "OK06ETT",
+		Status: 0,
+	}
+
+	_, err := o.GetETTOrderList(request)
+	testStandardErrorHandling(t, err)
+}
+
+// TestGetETTOrderDetails API endpoint test
+func TestGetETTOrderDetails(t *testing.T) {
+	TestSetDefaults(t)
+	_, err := o.GetETTOrderDetails("888845020785408")
+	testStandardErrorHandling(t, err)
+}
+
+// TestGetETTConstituents API endpoint test
+func TestGetETTConstituents(t *testing.T) {
+	TestSetDefaults(t)
+	_, err := o.GetETTConstituents("OK06ETT")
+	testStandardErrorHandling(t, err)
+}
+
+// TestGetETTSettlementPriceHistory API endpoint test
+func TestGetETTSettlementPriceHistory(t *testing.T) {
+	TestSetDefaults(t)
+	_, err := o.GetETTSettlementPriceHistory("OK06ETT")
+	testStandardErrorHandling(t, err)
+}
+
+// -------------------------------------------------------------------------------------------------------
+
 func setFeeBuilder() exchange.FeeBuilder {
 	return exchange.FeeBuilder{
 		Amount:              1,
