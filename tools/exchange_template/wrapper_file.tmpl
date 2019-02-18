@@ -102,27 +102,23 @@ func ({{.Variable}} *{{.CapitalName}}) UpdateOrderbook(p pair.CurrencyPair, asse
 // GetAccountInfo retrieves balances for all enabled currencies for the
 // {{.CapitalName}} exchange
 func ({{.Variable}} *{{.CapitalName}}) GetAccountInfo() (exchange.AccountInfo, error) {
-	var response exchange.AccountInfo
-	return response, errors.New("not implemented")
+	return exchange.AccountInfo{}, errors.New("not implemented")
 }
 
 // GetFundingHistory returns funding history, deposits and
 // withdrawals
 func ({{.Variable}} *{{.CapitalName}}) GetFundingHistory() ([]exchange.FundHistory, error) {
-	var fundHistory []exchange.FundHistory
-	return fundHistory, common.ErrFunctionNotSupported
+	return nil, common.ErrFunctionNotSupported
 }
 
 // GetExchangeHistory returns historic trade data since exchange opening.
 func ({{.Variable}} *{{.CapitalName}}) GetExchangeHistory(p pair.CurrencyPair, assetType string) ([]exchange.TradeHistory, error) {
-	var resp []exchange.TradeHistory
-
-	return resp, common.ErrNotYetImplemented
+	return nil, common.ErrNotYetImplemented
 }
 
 // SubmitOrder submits a new order
 func ({{.Variable}} *{{.CapitalName}}) SubmitOrder(p pair.CurrencyPair, side exchange.OrderSide, orderType exchange.OrderType, amount, price float64, clientID string) (exchange.SubmitOrderResponse, error) {
-	return "", common.ErrNotYetImplemented
+	return exchange.SubmitOrderResponse{}, common.ErrNotYetImplemented
 }
 
 // ModifyOrder will allow of changing orderbook placement and limit to
@@ -138,13 +134,12 @@ func ({{.Variable}} *{{.CapitalName}}) CancelOrder(order exchange.OrderCancellat
 
 // CancelAllOrders cancels all orders associated with a currency pair
 func ({{.Variable}} *{{.CapitalName}}) CancelAllOrders(orderCancellation exchange.OrderCancellation) (exchange.CancelAllOrdersResponse, error) {
-	return common.ErrNotYetImplemented
+	return exchange.CancelAllOrdersResponse{}, common.ErrNotYetImplemented
 }
 
 // GetOrderInfo returns information on a current open order
 func ({{.Variable}} *{{.CapitalName}}) GetOrderInfo(orderID int64) (exchange.OrderDetail, error) {
-	var orderDetail exchange.OrderDetail
-	return orderDetail, common.ErrNotYetImplemented
+	return exchange.OrderDetail{}, common.ErrNotYetImplemented
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
