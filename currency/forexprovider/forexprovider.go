@@ -6,6 +6,7 @@ import (
 	"github.com/thrasher-/gocryptotrader/currency/forexprovider/base"
 	currencyconverter "github.com/thrasher-/gocryptotrader/currency/forexprovider/currencyconverterapi"
 	"github.com/thrasher-/gocryptotrader/currency/forexprovider/currencylayer"
+	exchangerates "github.com/thrasher-/gocryptotrader/currency/forexprovider/exchangeratesapi.io"
 	fixer "github.com/thrasher-/gocryptotrader/currency/forexprovider/fixer.io"
 	"github.com/thrasher-/gocryptotrader/currency/forexprovider/openexchangerates"
 	log "github.com/thrasher-/gocryptotrader/logger"
@@ -18,18 +19,16 @@ type ForexProviders struct {
 
 // GetAvailableForexProviders returns a list of supported forex providers
 func GetAvailableForexProviders() []string {
-	return []string{"CurrencyConverter", "CurrencyLayer", "Fixer", "OpenExchangeRates"}
+	return []string{"CurrencyConverter", "CurrencyLayer", "ExchangeRates", "Fixer", "OpenExchangeRates"}
 }
 
 // NewDefaultFXProvider returns the default forex provider (currencyconverterAPI)
 func NewDefaultFXProvider() *ForexProviders {
 	fxp := new(ForexProviders)
-	currencyC := new(currencyconverter.CurrencyConverter)
+	currencyC := new(exchangerates.ExchangeRates)
 	currencyC.PrimaryProvider = true
 	currencyC.Enabled = true
-	currencyC.Name = "CurrencyConverter"
-	currencyC.APIKeyLvl = 0
-	currencyC.Verbose = false
+	currencyC.Name = "ExchangeRates"
 	fxp.IFXProviders = append(fxp.IFXProviders, currencyC)
 	return fxp
 }
@@ -47,6 +46,11 @@ func StartFXService(fxProviders []base.Settings) *ForexProviders {
 			currencyLayerP := new(currencylayer.CurrencyLayer)
 			currencyLayerP.Setup(fxProviders[i])
 			fxp.IFXProviders = append(fxp.IFXProviders, currencyLayerP)
+		}
+		if fxProviders[i].Name == "ExchangeRates" && fxProviders[i].Enabled {
+			exchangeRatesP := new(exchangerates.ExchangeRates)
+			exchangeRatesP.Setup(fxProviders[i])
+			fxp.IFXProviders = append(fxp.IFXProviders, exchangeRatesP)
 		}
 		if fxProviders[i].Name == "Fixer" && fxProviders[i].Enabled {
 			fixerP := new(fixer.Fixer)
