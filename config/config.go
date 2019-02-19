@@ -61,11 +61,12 @@ const (
 // Constants here define unset default values displayed in the config.json
 // file
 const (
-	APIURLNonDefaultMessage       = "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API"
-	WebsocketURLNonDefaultMessage = "NON_DEFAULT_HTTP_LINK_TO_WEBSOCKET_EXCHANGE_API"
-	DefaultUnsetAPIKey            = "Key"
-	DefaultUnsetAPISecret         = "Secret"
-	DefaultUnsetAccountPlan       = "accountPlan"
+	APIURLNonDefaultMessage              = "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API"
+	WebsocketURLNonDefaultMessage        = "NON_DEFAULT_HTTP_LINK_TO_WEBSOCKET_EXCHANGE_API"
+	DefaultUnsetAPIKey                   = "Key"
+	DefaultUnsetAPISecret                = "Secret"
+	DefaultUnsetAccountPlan              = "accountPlan"
+	DefaultForexProviderExchangeRatesAPI = "ExchangeRates"
 )
 
 // Variables here are used for configuration
@@ -886,7 +887,7 @@ func (c *Config) CheckCurrencyConfigValues() error {
 	count := 0
 	for i := range c.Currency.ForexProviders {
 		if c.Currency.ForexProviders[i].Enabled {
-			if c.Currency.ForexProviders[i].APIKey == DefaultUnsetAPIKey && c.Currency.ForexProviders[i].Name != "ExchangeRates" {
+			if c.Currency.ForexProviders[i].APIKey == DefaultUnsetAPIKey && c.Currency.ForexProviders[i].Name != DefaultForexProviderExchangeRatesAPI {
 				log.Warnf("%s enabled forex provider API key not set. Please set this in your config.json file", c.Currency.ForexProviders[i].Name)
 				c.Currency.ForexProviders[i].Enabled = false
 				c.Currency.ForexProviders[i].PrimaryProvider = false
@@ -907,7 +908,7 @@ func (c *Config) CheckCurrencyConfigValues() error {
 				}
 			}
 
-			if c.Currency.ForexProviders[i].APIKeyLvl == -1 && c.Currency.ForexProviders[i].Name != "ExchangeRates" {
+			if c.Currency.ForexProviders[i].APIKeyLvl == -1 && c.Currency.ForexProviders[i].Name != DefaultForexProviderExchangeRatesAPI {
 				log.Warnf("%s APIKey Level not set, functions limited. Please set this in your config.json file",
 					c.Currency.ForexProviders[i].Name)
 			}
@@ -917,7 +918,7 @@ func (c *Config) CheckCurrencyConfigValues() error {
 
 	if count == 0 {
 		for x := range c.Currency.ForexProviders {
-			if c.Currency.ForexProviders[x].Name == "ExchangeRates" {
+			if c.Currency.ForexProviders[x].Name == DefaultForexProviderExchangeRatesAPI {
 				c.Currency.ForexProviders[x].Enabled = true
 				c.Currency.ForexProviders[x].PrimaryProvider = true
 				log.Warn("Using ExchangeRatesAPI for default forex provider.")
