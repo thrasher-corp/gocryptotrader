@@ -24,7 +24,7 @@ var o = OKGroup{
 	APIURL:       fmt.Sprintf("%v%v", "https://www.okex.com/", OkGroupAPIPath),
 	APIVersion:   "/v3/",
 	ExchangeName: OKGroupExchange,
-	WebsocketURL: "wss://real.okex.com:10440/websocket/okexapi",
+	WebsocketURL: "wss://real.okex.com:10442/ws/v3",
 }
 
 func TestSetDefaults(t *testing.T) {
@@ -82,6 +82,35 @@ func testStandardErrorHandling(t *testing.T, err error) {
 	if areTestAPIKeysSet() && err != nil {
 		t.Errorf("Encountered error: %v", err)
 	}
+}
+
+// setupWSConnection Connect to WS, but pass back error so test can handle it if needed
+func setupWSConnection(t *testing.T) error {
+	o.Enabled = true
+	err := o.WebsocketSetup(o.WsConnect,
+		o.Name,
+		true,
+		okexDefaultWebsocketURL,
+		o.WebsocketURL)
+	if err != nil {
+		return err
+	}
+	o.Websocket.SetEnabled(true)
+	err = o.Websocket.Connect()
+	if err != nil {
+		return err
+
+	}
+	return nil
+}
+
+// disconnectFromWS disconnect to WS, but pass back error so test can handle it if needed
+func disconnectFromWS() error {
+	err := o.Websocket.Shutdown()
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 // TestGetAccountCurrencies API endpoint test
@@ -585,7 +614,7 @@ func TestPlaceMarginOrderMarket(t *testing.T) {
 
 // TestPlaceMultipleMarginOrders API endpoint test
 func TestPlaceMultipleMarginOrders(t *testing.T) {
-	TestSetDefaults(t)
+	TestSetRealOrderDefaults(t)
 	order := PlaceSpotOrderRequest{
 		InstrumentID:  pair.NewCurrencyPairWithDelimiter(symbol.BTC, symbol.USDT, "-").Pair().Lower().String(),
 		Type:          "market",
@@ -1067,7 +1096,7 @@ func TestGetSwapBillDetails(t *testing.T) {
 
 // TestPlaceSwapOrder API endpoint test
 func TestPlaceSwapOrder(t *testing.T) {
-	TestSetDefaults(t)
+	TestSetRealOrderDefaults(t)
 	_, err := o.PlaceSwapOrder(PlaceSwapOrderRequest{
 		InstrumentID: fmt.Sprintf("%v-%v-SWAP", symbol.BTC, symbol.USD),
 		Size:         1,
@@ -1079,7 +1108,7 @@ func TestPlaceSwapOrder(t *testing.T) {
 
 // TestPlaceMultipleSwapOrders API endpoint test
 func TestPlaceMultipleSwapOrders(t *testing.T) {
-	TestSetDefaults(t)
+	TestSetRealOrderDefaults(t)
 	_, err := o.PlaceMultipleSwapOrders(PlaceMultipleSwapOrdersRequest{
 		InstrumentID: fmt.Sprintf("%v-%v-SWAP", symbol.BTC, symbol.USD),
 		Leverage:     10,
@@ -1103,7 +1132,7 @@ func TestPlaceMultipleSwapOrders(t *testing.T) {
 
 // TestCancelSwapOrder API endpoint test
 func TestCancelSwapOrder(t *testing.T) {
-	TestSetDefaults(t)
+	TestSetRealOrderDefaults(t)
 	_, err := o.CancelSwapOrder(CancelSwapOrderRequest{
 		InstrumentID: fmt.Sprintf("%v-%v-SWAP", symbol.BTC, symbol.USD),
 		OrderID:      "64-2a-26132f931-3",
@@ -1113,7 +1142,7 @@ func TestCancelSwapOrder(t *testing.T) {
 
 // TestCancelMultipleSwapOrders API endpoint test
 func TestCancelMultipleSwapOrders(t *testing.T) {
-	TestSetDefaults(t)
+	TestSetRealOrderDefaults(t)
 	_, err := o.CancelMultipleSwapOrders(CancelMultipleSwapOrdersRequest{
 		InstrumentID: fmt.Sprintf("%v-%v-SWAP", symbol.BTC, symbol.USD),
 		OrderIDs:     []int64{1, 2, 3, 4},
@@ -1313,7 +1342,7 @@ func TestPlaceETTOrder(t *testing.T) {
 
 // TestCancelETTOrder API endpoint test
 func TestCancelETTOrder(t *testing.T) {
-	TestSetDefaults(t)
+	TestSetRealOrderDefaults(t)
 	_, err := o.CancelETTOrder("888845120785408")
 	testStandardErrorHandling(t, err)
 }
@@ -1355,6 +1384,23 @@ func TestGetETTSettlementPriceHistory(t *testing.T) {
 	testStandardErrorHandling(t, err)
 }
 
+// TestSubscribeToPewDiePie API endpoint test
+func TestSubscribeToPewDiePie(t *testing.T) {
+	TestSetDefaults(t)
+	setupWSConnection(t)
+	err := o.SubscribeToChannel("Pewdiepie")
+	resp, err := o.WsReadData()
+	if err == nil {
+		t.Error("Expected error")
+	}
+	t.Log(resp)
+	err = o.UnsubscribeToChannel("T-Series")
+	if err == nil {
+		t.Error("Expected error")
+	}
+	disconnectFromWS()
+}
+
 // -------------------------------------------------------------------------------------------------------
 
 func setFeeBuilder() exchange.FeeBuilder {
@@ -1373,7 +1419,7 @@ func setFeeBuilder() exchange.FeeBuilder {
 
 // TestGetFee fee calcuation test
 func TestGetFee(t *testing.T) {
-	o.SetDefaults()
+	TestSetDefaults(t)
 	var feeBuilder = setFeeBuilder()
 	// CryptocurrencyTradeFee Basic
 	if resp, err := o.GetFee(feeBuilder); resp != float64(0.0015) || err != nil {
@@ -1450,12 +1496,9 @@ func TestGetFee(t *testing.T) {
 
 // TestFormatWithdrawPermissions helper test
 func TestFormatWithdrawPermissions(t *testing.T) {
-	// Arrange
-	o.SetDefaults()
+	TestSetDefaults(t)
 	expectedResult := exchange.AutoWithdrawCryptoText + " & " + exchange.NoFiatWithdrawalsText
-	// Act
 	withdrawPermissions := o.FormatWithdrawPermissions()
-	// Assert
 	if withdrawPermissions != expectedResult {
 		t.Errorf("Expected: %s, Received: %s", expectedResult, withdrawPermissions)
 	}
@@ -1466,13 +1509,7 @@ func TestFormatWithdrawPermissions(t *testing.T) {
 
 // TestSubmitOrder Wrapper test
 func TestSubmitOrder(t *testing.T) {
-	o.SetDefaults()
-	TestSetup(t)
-
-	if areTestAPIKeysSet() && !canManipulateRealOrders {
-		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
-	}
-
+	TestSetRealOrderDefaults(t)
 	var p = pair.CurrencyPair{
 		Delimiter:      "",
 		FirstCurrency:  symbol.BTC,
@@ -1488,13 +1525,7 @@ func TestSubmitOrder(t *testing.T) {
 
 // TestCancelExchangeOrder Wrapper test
 func TestCancelExchangeOrder(t *testing.T) {
-	o.SetDefaults()
-	TestSetup(t)
-
-	if areTestAPIKeysSet() && !canManipulateRealOrders {
-		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
-	}
-
+	TestSetRealOrderDefaults(t)
 	currencyPair := pair.NewCurrencyPair(symbol.LTC, symbol.BTC)
 	var orderCancellation = exchange.OrderCancellation{
 		OrderID:       "1",
@@ -1504,23 +1535,13 @@ func TestCancelExchangeOrder(t *testing.T) {
 	}
 
 	err := o.CancelOrder(orderCancellation)
-	if !areTestAPIKeysSet() && err == nil {
-		t.Error("Expecting an error when no keys are set")
-	}
-	if areTestAPIKeysSet() && err != nil {
-		t.Errorf("Could not cancel orders: %v", err)
-	}
+	testStandardErrorHandling(t, err)
+
 }
 
 // TestCancelAllExchangeOrders Wrapper test
 func TestCancelAllExchangeOrders(t *testing.T) {
-	o.SetDefaults()
-	TestSetup(t)
-
-	if areTestAPIKeysSet() && !canManipulateRealOrders {
-		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
-	}
-
+	TestSetRealOrderDefaults(t)
 	currencyPair := pair.NewCurrencyPair(symbol.LTC, symbol.BTC)
 	var orderCancellation = exchange.OrderCancellation{
 		OrderID:       "1",
@@ -1530,12 +1551,7 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 	}
 
 	resp, err := o.CancelAllOrders(orderCancellation)
-	if !areTestAPIKeysSet() && err == nil {
-		t.Error("Expecting an error when no keys are set")
-	}
-	if areTestAPIKeysSet() && err != nil {
-		t.Errorf("Could not cancel orders: %v", err)
-	}
+	testStandardErrorHandling(t, err)
 
 	if len(resp.OrderStatus) > 0 {
 		t.Errorf("%v orders failed to cancel", len(resp.OrderStatus))
@@ -1545,18 +1561,12 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 // TestGetAccountInfo Wrapper test
 func TestGetAccountInfo(t *testing.T) {
 	_, err := o.GetAccountInfo()
-	if !areTestAPIKeysSet() && err == nil {
-		t.Error("Expecting an error when no keys are set")
-	}
-	if areTestAPIKeysSet() && err != nil {
-		t.Errorf("Could not cancel orders: %v", err)
-	}
+	testStandardErrorHandling(t, err)
 }
 
 // TestModifyOrder Wrapper test
 func TestModifyOrder(t *testing.T) {
-	o.SetDefaults()
-	TestSetup(t)
+	TestSetRealOrderDefaults(t)
 	_, err := o.ModifyOrder(exchange.ModifyOrder{})
 	if err == nil {
 		t.Error("Test failed - ModifyOrder() error")
@@ -1565,8 +1575,7 @@ func TestModifyOrder(t *testing.T) {
 
 // TestWithdraw Wrapper test
 func TestWithdraw(t *testing.T) {
-	o.SetDefaults()
-	TestSetup(t)
+	TestSetRealOrderDefaults(t)
 	var withdrawCryptoRequest = exchange.WithdrawRequest{
 		Amount:        100,
 		Currency:      "btc_usd",
@@ -1575,31 +1584,14 @@ func TestWithdraw(t *testing.T) {
 		TradePassword: "Password",
 		FeeAmount:     1,
 	}
-
-	if areTestAPIKeysSet() && !canManipulateRealOrders {
-		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
-	}
-
 	_, err := o.WithdrawCryptocurrencyFunds(withdrawCryptoRequest)
-	if !areTestAPIKeysSet() && err == nil {
-		t.Error("Expecting an error when no keys are set")
-	}
-	if areTestAPIKeysSet() && err != nil {
-		t.Errorf("Withdraw failed to be placed: %v", err)
-	}
+	testStandardErrorHandling(t, err)
 }
 
 // TestWithdrawFiat Wrapper test
 func TestWithdrawFiat(t *testing.T) {
-	o.SetDefaults()
-	TestSetup(t)
-
-	if areTestAPIKeysSet() && !canManipulateRealOrders {
-		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
-	}
-
+	TestSetRealOrderDefaults(t)
 	var withdrawFiatRequest = exchange.WithdrawRequest{}
-
 	_, err := o.WithdrawFiatFunds(withdrawFiatRequest)
 	if err != common.ErrFunctionNotSupported {
 		t.Errorf("Expected '%v', received: '%v'", common.ErrFunctionNotSupported, err)
@@ -1608,15 +1600,8 @@ func TestWithdrawFiat(t *testing.T) {
 
 // TestSubmitOrder Wrapper test
 func TestWithdrawInternationalBank(t *testing.T) {
-	o.SetDefaults()
-	TestSetup(t)
-
-	if areTestAPIKeysSet() && !canManipulateRealOrders {
-		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
-	}
-
+	TestSetRealOrderDefaults(t)
 	var withdrawFiatRequest = exchange.WithdrawRequest{}
-
 	_, err := o.WithdrawFiatFundsToInternationalBank(withdrawFiatRequest)
 	if err != common.ErrFunctionNotSupported {
 		t.Errorf("Expected '%v', received: '%v'", common.ErrFunctionNotSupported, err)

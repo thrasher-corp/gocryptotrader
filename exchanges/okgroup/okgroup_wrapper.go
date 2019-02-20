@@ -91,7 +91,7 @@ func (o *OKGroup) SubmitOrder(p pair.CurrencyPair, side exchange.OrderSide, orde
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
 func (o *OKGroup) ModifyOrder(action exchange.ModifyOrder) (string, error) {
-	return "", common.ErrFunctionNotSupported
+	return "", common.ErrNotYetImplemented
 }
 
 // CancelOrder cancels an order by its corresponding ID number
@@ -99,7 +99,7 @@ func (o *OKGroup) CancelOrder(order exchange.OrderCancellation) error {
 	return common.ErrNotYetImplemented
 }
 
-// CancelAllOrders cancels all orders for all enabled currencies
+// CancelAllOrders cancels all orders associated with a currency pair
 func (o *OKGroup) CancelAllOrders(orderCancellation exchange.OrderCancellation) (exchange.CancelAllOrdersResponse, error) {
 	return exchange.CancelAllOrdersResponse{}, common.ErrNotYetImplemented
 }
@@ -123,13 +123,24 @@ func (o *OKGroup) WithdrawCryptocurrencyFunds(withdrawRequest exchange.WithdrawR
 // WithdrawFiatFunds returns a withdrawal ID when a
 // withdrawal is submitted
 func (o *OKGroup) WithdrawFiatFunds(withdrawRequest exchange.WithdrawRequest) (string, error) {
-	return "", common.ErrFunctionNotSupported
+	return "", common.ErrNotYetImplemented
 }
 
 // WithdrawFiatFundsToInternationalBank returns a withdrawal ID when a
 // withdrawal is submitted
 func (o *OKGroup) WithdrawFiatFundsToInternationalBank(withdrawRequest exchange.WithdrawRequest) (string, error) {
 	return "", common.ErrFunctionNotSupported
+}
+
+// GetActiveOrders retrieves any orders that are active/open
+func (o *OKGroup) GetActiveOrders(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
+	return nil, common.ErrNotYetImplemented
+}
+
+// GetOrderHistory retrieves account order information
+// Can Limit response to specific order status
+func (o *OKGroup) GetOrderHistory(getOrdersRequest exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
+	return nil, common.ErrNotYetImplemented
 }
 
 // GetWebsocket returns a pointer to the exchange websocket

@@ -8,34 +8,765 @@ import (
 	"github.com/thrasher-/gocryptotrader/currency/pair"
 	"github.com/thrasher-/gocryptotrader/currency/symbol"
 	exchange "github.com/thrasher-/gocryptotrader/exchanges"
+	"github.com/thrasher-/gocryptotrader/exchanges/okgroup"
 )
 
-var o OKCoin
-
-// Please supply your own APIKEYS here for due diligence testing
-
+// Please supply you own test keys here for due diligence testing.
 const (
 	apiKey                  = ""
 	apiSecret               = ""
+	passphrase              = ""
+	OKGroupExchange         = "OKCOIN"
 	canManipulateRealOrders = false
 )
 
+var o = OKCoin{}
+
 func TestSetDefaults(t *testing.T) {
-	o.SetDefaults()
+	if o.Name != OKGroupExchange {
+		o.SetDefaults()
+	}
+	if o.GetName() != OKGroupExchange {
+		t.Error("Test Failed - Bittrex - SetDefaults() error")
+	}
+	t.Parallel()
+	TestSetup(t)
+}
+
+func TestSetRealOrderDefaults(t *testing.T) {
+	TestSetDefaults(t)
+	if areTestAPIKeysSet() && !canManipulateRealOrders {
+		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
+	}
 }
 
 func TestSetup(t *testing.T) {
+	if o.APIKey == apiKey && o.APISecret == apiSecret &&
+		o.ClientID == passphrase {
+		return
+	}
+	o.ExchangeName = OKGroupExchange
 	cfg := config.GetConfig()
 	cfg.LoadConfig("../../testdata/configtest.json")
-	okcoinConfig, err := cfg.GetExchangeConfig("OKCOIN International")
-	if err != nil {
-		t.Error("Test Failed - OKCoin Setup() init error")
-	}
-	okcoinConfig.AuthenticatedAPISupport = true
-	okcoinConfig.APIKey = apiKey
-	okcoinConfig.APISecret = apiSecret
 
-	o.Setup(okcoinConfig)
+	okexConfig, err := cfg.GetExchangeConfig(OKGroupExchange)
+	if err != nil {
+		t.Errorf("Test Failed - %v Setup() init error", OKGroupExchange)
+	}
+
+	okexConfig.AuthenticatedAPISupport = true
+	okexConfig.APIKey = apiKey
+	okexConfig.APISecret = apiSecret
+	okexConfig.ClientID = passphrase
+	okexConfig.Verbose = true
+	o.Setup(okexConfig)
+}
+
+func areTestAPIKeysSet() bool {
+	if o.APIKey != "" && o.APIKey != "Key" &&
+		o.APISecret != "" && o.APISecret != "Secret" {
+		return true
+	}
+	return false
+}
+
+func testStandardErrorHandling(t *testing.T, err error) {
+	if !areTestAPIKeysSet() && err == nil {
+		t.Error("Expecting an error when no keys are set")
+	}
+	if areTestAPIKeysSet() && err != nil {
+		t.Errorf("Encountered error: %v", err)
+	}
+}
+
+/*
+// setupWSConnection Connect to WS, but pass back error so test can handle it if needed
+func setupWSConnection(t *testing.T) error {
+	o.Enabled = true
+	err := o.WebsocketSetup(o.WsConnect,
+		o.Name,
+		true,
+		okexDefaultWebsocketURL,
+		o.WebsocketURL)
+	if err != nil {
+		return err
+	}
+	o.Websocket.SetEnabled(true)
+	err = o.Websocket.Connect()
+	if err != nil {
+		return err
+
+	}
+	return nil
+}
+
+// disconnectFromWS disconnect to WS, but pass back error so test can handle it if needed
+func disconnectFromWS() error {
+	err := o.Websocket.Shutdown()
+	if err != nil {
+		return err
+	}
+	return nil
+}
+*/
+// TestGetAccountCurrencies API endpoint test
+func TestGetAccountCurrencies(t *testing.T) {
+	TestSetDefaults(t)
+	_, err := o.GetAccountCurrencies()
+	testStandardErrorHandling(t, err)
+}
+
+// TestGetAccountWalletInformation API endpoint test
+func TestGetAccountWalletInformation(t *testing.T) {
+	TestSetDefaults(t)
+	resp, err := o.GetAccountWalletInformation("")
+	testStandardErrorHandling(t, err)
+
+	if areTestAPIKeysSet() && len(resp) == 0 {
+		t.Error("No wallets returned")
+	}
+}
+
+// TestGetAccountWalletInformationForCurrency API endpoint test
+func TestGetAccountWalletInformationForCurrency(t *testing.T) {
+	TestSetDefaults(t)
+	resp, err := o.GetAccountWalletInformation(symbol.BTC)
+	testStandardErrorHandling(t, err)
+
+	if areTestAPIKeysSet() && len(resp) != 1 {
+		t.Errorf("Error recieving wallet information for currency: %v", symbol.BTC)
+	}
+}
+
+// TestTransferAccountFunds API endpoint test
+func TestTransferAccountFunds(t *testing.T) {
+	TestSetRealOrderDefaults(t)
+	request := okgroup.TransferAccountFundsRequest{
+		Amount:   10,
+		Currency: symbol.BTC,
+		From:     6,
+		To:       1,
+	}
+
+	_, err := o.TransferAccountFunds(request)
+	testStandardErrorHandling(t, err)
+}
+
+// TestBaseWithdraw API endpoint test
+func TestAccountWithdrawRequest(t *testing.T) {
+	TestSetRealOrderDefaults(t)
+	request := okgroup.AccountWithdrawRequest{
+		Amount:      10,
+		Currency:    symbol.BTC,
+		TradePwd:    "1234",
+		Destination: 4,
+		ToAddress:   "1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB",
+		Fee:         1,
+	}
+
+	_, err := o.AccountWithdraw(request)
+	testStandardErrorHandling(t, err)
+}
+
+// TestGetAccountWithdrawalFee API endpoint test
+func TestGetAccountWithdrawalFee(t *testing.T) {
+	TestSetDefaults(t)
+	resp, err := o.GetAccountWithdrawalFee("")
+	testStandardErrorHandling(t, err)
+
+	if areTestAPIKeysSet() && len(resp) == 0 {
+		t.Error("Expected fees")
+	}
+}
+
+// TestGetWithdrawalFeeForCurrency API endpoint test
+func TestGetAccountWithdrawalFeeForCurrency(t *testing.T) {
+	TestSetDefaults(t)
+	resp, err := o.GetAccountWithdrawalFee(symbol.BTC)
+	testStandardErrorHandling(t, err)
+
+	if areTestAPIKeysSet() && len(resp) != 1 {
+		t.Error("Expected fee for one currency")
+	}
+}
+
+// TestGetAccountWithdrawalHistory API endpoint test
+func TestGetAccountWithdrawalHistory(t *testing.T) {
+	TestSetDefaults(t)
+	_, err := o.GetAccountWithdrawalHistory("")
+	testStandardErrorHandling(t, err)
+}
+
+// TestGetAccountWithdrawalHistoryForCurrency API endpoint test
+func TestGetAccountWithdrawalHistoryForCurrency(t *testing.T) {
+	TestSetDefaults(t)
+	_, err := o.GetAccountWithdrawalHistory(symbol.BTC)
+	testStandardErrorHandling(t, err)
+}
+
+// TestGetAccountBillDetails API endpoint test
+func TestGetAccountBillDetails(t *testing.T) {
+	TestSetDefaults(t)
+	_, err := o.GetAccountBillDetails(okgroup.GetAccountBillDetailsRequest{})
+	testStandardErrorHandling(t, err)
+}
+
+// TestGetAccountDepositAddressForCurrency API endpoint test
+func TestGetAccountDepositAddressForCurrency(t *testing.T) {
+	TestSetDefaults(t)
+	_, err := o.GetAccountDepositAddressForCurrency(symbol.BTC)
+	testStandardErrorHandling(t, err)
+}
+
+// TestGetAccountDepositHistory API endpoint test
+func TestGetAccountDepositHistory(t *testing.T) {
+	TestSetDefaults(t)
+	_, err := o.GetAccountDepositHistory("")
+	testStandardErrorHandling(t, err)
+}
+
+// TestGetAccountDepositHistoryForCurrency API endpoint test
+func TestGetAccountDepositHistoryForCurrency(t *testing.T) {
+	TestSetDefaults(t)
+	_, err := o.GetAccountDepositHistory(symbol.BTC)
+	testStandardErrorHandling(t, err)
+}
+
+// TestGetSpotTradingAccounts API endpoint test
+func TestGetSpotTradingAccounts(t *testing.T) {
+	TestSetDefaults(t)
+	_, err := o.GetSpotTradingAccounts()
+	testStandardErrorHandling(t, err)
+}
+
+// TestGetSpotTradingAccountsForCurrency API endpoint test
+func TestGetSpotTradingAccountsForCurrency(t *testing.T) {
+	TestSetDefaults(t)
+	_, err := o.GetSpotTradingAccountForCurrency(symbol.BTC)
+	testStandardErrorHandling(t, err)
+}
+
+// TestGetSpotBillDetailsForCurrency API endpoint test
+func TestGetSpotBillDetailsForCurrency(t *testing.T) {
+	TestSetDefaults(t)
+	request := okgroup.GetSpotBillDetailsForCurrencyRequest{
+		Currency: symbol.BTC,
+		Limit:    100,
+	}
+
+	_, err := o.GetSpotBillDetailsForCurrency(request)
+	testStandardErrorHandling(t, err)
+
+	request.Limit = -1
+	_, err = o.GetSpotBillDetailsForCurrency(request)
+	if areTestAPIKeysSet() && err == nil {
+		t.Errorf("Expecting an error when invalid request sent")
+	}
+
+}
+
+// TestPlaceSpotOrderLimit API endpoint test
+func TestPlaceSpotOrderLimit(t *testing.T) {
+	TestSetRealOrderDefaults(t)
+	request := okgroup.PlaceSpotOrderRequest{
+		InstrumentID:  pair.NewCurrencyPairWithDelimiter(symbol.BTC, symbol.USDT, "-").Pair().Lower().String(),
+		Type:          "limit",
+		Side:          "buy",
+		MarginTrading: "1",
+		Price:         "100",
+		Size:          "100",
+	}
+
+	_, err := o.PlaceSpotOrder(request)
+	testStandardErrorHandling(t, err)
+}
+
+// TestPlaceSpotOrderMarket API endpoint test
+func TestPlaceSpotOrderMarket(t *testing.T) {
+	TestSetRealOrderDefaults(t)
+	request := okgroup.PlaceSpotOrderRequest{
+		InstrumentID:  pair.NewCurrencyPairWithDelimiter(symbol.BTC, symbol.USDT, "-").Pair().Lower().String(),
+		Type:          "market",
+		Side:          "buy",
+		MarginTrading: "1",
+		Size:          "100",
+		Notional:      "100",
+	}
+
+	_, err := o.PlaceSpotOrder(request)
+	testStandardErrorHandling(t, err)
+}
+
+// TestPlaceMultipleSpotOrders API endpoint test
+func TestPlaceMultipleSpotOrders(t *testing.T) {
+	TestSetRealOrderDefaults(t)
+	order := okgroup.PlaceSpotOrderRequest{
+		InstrumentID:  pair.NewCurrencyPairWithDelimiter(symbol.BTC, symbol.USDT, "-").Pair().Lower().String(),
+		Type:          "market",
+		Side:          "buy",
+		MarginTrading: "1",
+		Size:          "100",
+		Notional:      "100",
+	}
+
+	request := []okgroup.PlaceSpotOrderRequest{
+		order,
+	}
+
+	_, errs := o.PlaceMultipleSpotOrders(request)
+	if len(errs) > 0 {
+		testStandardErrorHandling(t, errs[0])
+	}
+}
+
+// TestPlaceMultipleSpotOrdersOverCurrencyLimits API logic test
+func TestPlaceMultipleSpotOrdersOverCurrencyLimits(t *testing.T) {
+	TestSetDefaults(t)
+	order := okgroup.PlaceSpotOrderRequest{
+		InstrumentID:  pair.NewCurrencyPairWithDelimiter(symbol.BTC, symbol.USDT, "-").Pair().Lower().String(),
+		Type:          "market",
+		Side:          "buy",
+		MarginTrading: "1",
+		Size:          "100",
+		Notional:      "100",
+	}
+
+	request := []okgroup.PlaceSpotOrderRequest{
+		order,
+		order,
+		order,
+		order,
+		order,
+	}
+
+	_, errs := o.PlaceMultipleSpotOrders(request)
+	if errs[0].Error() != "maximum 4 orders for each pair" {
+		t.Error("Expecting an error when more than 4 orders for a pair supplied", errs[0])
+	}
+}
+
+// TestPlaceMultipleSpotOrdersOverPairLimits API logic test
+func TestPlaceMultipleSpotOrdersOverPairLimits(t *testing.T) {
+	TestSetDefaults(t)
+	order := okgroup.PlaceSpotOrderRequest{
+		InstrumentID:  pair.NewCurrencyPairWithDelimiter(symbol.BTC, symbol.USDT, "-").Pair().Lower().String(),
+		Type:          "market",
+		Side:          "buy",
+		MarginTrading: "1",
+		Size:          "100",
+		Notional:      "100",
+	}
+
+	request := []okgroup.PlaceSpotOrderRequest{
+		order,
+	}
+
+	order.InstrumentID = pair.NewCurrencyPairWithDelimiter(symbol.LTC, symbol.USDT, "-").Pair().Lower().String()
+	request = append(request, order)
+	order.InstrumentID = pair.NewCurrencyPairWithDelimiter(symbol.DOGE, symbol.USDT, "-").Pair().Lower().String()
+	request = append(request, order)
+	order.InstrumentID = pair.NewCurrencyPairWithDelimiter(symbol.XMR, symbol.USDT, "-").Pair().Lower().String()
+	request = append(request, order)
+	order.InstrumentID = pair.NewCurrencyPairWithDelimiter(symbol.BCH, symbol.USDT, "-").Pair().Lower().String()
+	request = append(request, order)
+
+	_, errs := o.PlaceMultipleSpotOrders(request)
+	if errs[0].Error() != "up to 4 trading pairs" {
+		t.Error("Expecting an error when more than 4 trading pairs supplied", errs[0])
+	}
+}
+
+// TestCancelSpotOrder API endpoint test
+func TestCancelSpotOrder(t *testing.T) {
+	TestSetRealOrderDefaults(t)
+	request := okgroup.CancelSpotOrderRequest{
+		InstrumentID: pair.NewCurrencyPairWithDelimiter(symbol.BTC, symbol.USDT, "-").Pair().Lower().String(),
+		OrderID:      1234,
+	}
+
+	_, err := o.CancelSpotOrder(request)
+	testStandardErrorHandling(t, err)
+}
+
+// TestCancelMultipleSpotOrders API endpoint test
+func TestCancelMultipleSpotOrders(t *testing.T) {
+	TestSetRealOrderDefaults(t)
+	request := okgroup.CancelMultipleSpotOrdersRequest{
+		InstrumentID: pair.NewCurrencyPairWithDelimiter(symbol.BTC, symbol.USDT, "-").Pair().Lower().String(),
+		OrderIDs:     []int64{1, 2, 3, 4},
+	}
+
+	_, errs := o.CancelMultipleSpotOrders(request)
+	if len(errs) > 0 {
+		testStandardErrorHandling(t, errs[0])
+	}
+}
+
+// TestCancelMultipleSpotOrdersOverCurrencyLimits API logic test
+func TestCancelMultipleSpotOrdersOverCurrencyLimits(t *testing.T) {
+	TestSetRealOrderDefaults(t)
+	request := okgroup.CancelMultipleSpotOrdersRequest{
+		InstrumentID: pair.NewCurrencyPairWithDelimiter(symbol.BTC, symbol.USDT, "-").Pair().Lower().String(),
+		OrderIDs:     []int64{1, 2, 3, 4, 5},
+	}
+
+	_, errs := o.CancelMultipleSpotOrders(request)
+	if errs[0].Error() != "maximum 4 order cancellations for each pair" {
+		t.Error("Expecting an error when more than 4 orders for a pair supplied", errs[0])
+	}
+}
+
+// TestGetSpotOrders API endpoint test
+func TestGetSpotOrders(t *testing.T) {
+	TestSetDefaults(t)
+	request := okgroup.GetSpotOrdersRequest{
+		InstrumentID: pair.NewCurrencyPairWithDelimiter(symbol.BTC, symbol.USDT, "-").Pair().Lower().String(),
+		Status:       "all",
+	}
+	_, err := o.GetSpotOrders(request)
+	testStandardErrorHandling(t, err)
+}
+
+// TestGetSpotOpenOrders API endpoint test
+func TestGetSpotOpenOrders(t *testing.T) {
+	TestSetDefaults(t)
+	request := okgroup.GetSpotOpenOrdersRequest{}
+	_, err := o.GetSpotOpenOrders(request)
+	testStandardErrorHandling(t, err)
+}
+
+// TestGetSpotOrder API endpoint test
+func TestGetSpotOrder(t *testing.T) {
+	TestSetDefaults(t)
+	request := okgroup.GetSpotOrderRequest{
+		OrderID:      -1234,
+		InstrumentID: pair.NewCurrencyPairWithDelimiter(symbol.BTC, symbol.USDT, "-").Pair().Upper().String(),
+	}
+	_, err := o.GetSpotOrder(request)
+	testStandardErrorHandling(t, err)
+}
+
+// TestGetSpotTransactionDetails API endpoint test
+func TestGetSpotTransactionDetails(t *testing.T) {
+	TestSetDefaults(t)
+	request := okgroup.GetSpotTransactionDetailsRequest{
+		OrderID:      1234,
+		InstrumentID: pair.NewCurrencyPairWithDelimiter(symbol.BTC, symbol.USDT, "-").Pair().Lower().String(),
+	}
+	_, err := o.GetSpotTransactionDetails(request)
+	testStandardErrorHandling(t, err)
+}
+
+// TestGetSpotTokenPairDetails API endpoint test
+func TestGetSpotTokenPairDetails(t *testing.T) {
+	TestSetDefaults(t)
+	_, err := o.GetSpotTokenPairDetails()
+	testStandardErrorHandling(t, err)
+}
+
+// TestGetSpotOrderBook API endpoint test
+func TestGetSpotOrderBook(t *testing.T) {
+	TestSetDefaults(t)
+	request := okgroup.GetSpotOrderBookRequest{
+		InstrumentID: pair.NewCurrencyPairWithDelimiter(symbol.BTC, symbol.USDT, "-").Pair().Lower().String(),
+	}
+	_, err := o.GetSpotOrderBook(request)
+	testStandardErrorHandling(t, err)
+}
+
+// TestGetSpotAllTokenPairsInformation API endpoint test
+func TestGetSpotAllTokenPairsInformation(t *testing.T) {
+	TestSetDefaults(t)
+	_, err := o.GetSpotAllTokenPairsInformation()
+	testStandardErrorHandling(t, err)
+}
+
+// TestGetSpotAllTokenPairsInformationForCurrency API endpoint test
+func TestGetSpotAllTokenPairsInformationForCurrency(t *testing.T) {
+	TestSetDefaults(t)
+	_, err := o.GetSpotAllTokenPairsInformationForCurrency(pair.NewCurrencyPairWithDelimiter(symbol.BTC, symbol.USDT, "-").Pair().Lower().String())
+	testStandardErrorHandling(t, err)
+}
+
+// TestGetSpotFilledOrdersInformation API endpoint test
+func TestGetSpotFilledOrdersInformation(t *testing.T) {
+	TestSetDefaults(t)
+	request := okgroup.GetSpotFilledOrdersInformationRequest{
+		InstrumentID: pair.NewCurrencyPairWithDelimiter(symbol.BTC, symbol.USDT, "-").Pair().Lower().String(),
+	}
+	_, err := o.GetSpotFilledOrdersInformation(request)
+	testStandardErrorHandling(t, err)
+}
+
+// TestGetSpotMarketData API endpoint test
+func TestGetSpotMarketData(t *testing.T) {
+	TestSetDefaults(t)
+	request := okgroup.GetSpotMarketDataRequest{
+		InstrumentID: pair.NewCurrencyPairWithDelimiter(symbol.BTC, symbol.USDT, "-").Pair().Lower().String(),
+		Granularity:  604800,
+	}
+	_, err := o.GetSpotMarketData(request)
+	testStandardErrorHandling(t, err)
+}
+
+// TestGetMarginTradingAccounts API endpoint test
+func TestGetMarginTradingAccounts(t *testing.T) {
+	TestSetDefaults(t)
+	_, err := o.GetMarginTradingAccounts()
+	testStandardErrorHandling(t, err)
+}
+
+// TestGetMarginTradingAccountsForCurrency API endpoint test
+func TestGetMarginTradingAccountsForCurrency(t *testing.T) {
+	TestSetDefaults(t)
+	_, err := o.GetMarginTradingAccountsForCurrency(pair.NewCurrencyPairWithDelimiter(symbol.BTC, symbol.USDT, "-").Pair().Lower().String())
+	testStandardErrorHandling(t, err)
+}
+
+// TestGetMarginBillDetails API endpoint test
+func TestGetMarginBillDetails(t *testing.T) {
+	TestSetDefaults(t)
+	request := okgroup.GetAccountBillDetailsRequest{
+		Currency: pair.NewCurrencyPairWithDelimiter(symbol.BTC, symbol.USDT, "-").Pair().Lower().String(),
+		Limit:    100,
+	}
+
+	_, err := o.GetMarginBillDetails(request)
+	testStandardErrorHandling(t, err)
+}
+
+// TestGetMarginAccountSettings API endpoint test
+func TestGetMarginAccountSettings(t *testing.T) {
+	TestSetDefaults(t)
+	_, err := o.GetMarginAccountSettings("")
+	testStandardErrorHandling(t, err)
+}
+
+// TestGetMarginAccountSettingsForCurrency API endpoint test
+func TestGetMarginAccountSettingsForCurrency(t *testing.T) {
+	TestSetDefaults(t)
+	_, err := o.GetMarginAccountSettings(pair.NewCurrencyPairWithDelimiter(symbol.BTC, symbol.USDT, "-").Pair().Lower().String())
+	testStandardErrorHandling(t, err)
+}
+
+// TestOpenMarginLoan API endpoint test
+func TestOpenMarginLoan(t *testing.T) {
+	TestSetRealOrderDefaults(t)
+	request := okgroup.OpenMarginLoanRequest{
+		Amount:        100,
+		InstrumentID:  pair.NewCurrencyPairWithDelimiter(symbol.BTC, symbol.USDT, "-").Pair().Lower().String(),
+		QuoteCurrency: symbol.USDT,
+	}
+
+	_, err := o.OpenMarginLoan(request)
+	testStandardErrorHandling(t, err)
+}
+
+// TestRepayMarginLoan API endpoint test
+func TestRepayMarginLoan(t *testing.T) {
+	TestSetRealOrderDefaults(t)
+	request := okgroup.RepayMarginLoanRequest{
+		Amount:        100,
+		InstrumentID:  pair.NewCurrencyPairWithDelimiter(symbol.BTC, symbol.USDT, "-").Pair().Lower().String(),
+		QuoteCurrency: symbol.USDT,
+		BorrowID:      1,
+	}
+
+	_, err := o.RepayMarginLoan(request)
+	testStandardErrorHandling(t, err)
+}
+
+// TestPlaceMarginOrderLimit API endpoint test
+func TestPlaceMarginOrderLimit(t *testing.T) {
+	TestSetRealOrderDefaults(t)
+	request := okgroup.PlaceSpotOrderRequest{
+		InstrumentID:  pair.NewCurrencyPairWithDelimiter(symbol.BTC, symbol.USDT, "-").Pair().Lower().String(),
+		Type:          "limit",
+		Side:          "buy",
+		MarginTrading: "2",
+		Price:         "100",
+		Size:          "100",
+	}
+
+	_, err := o.PlaceMarginOrder(request)
+	testStandardErrorHandling(t, err)
+}
+
+// TestPlaceMarginOrderMarket API endpoint test
+func TestPlaceMarginOrderMarket(t *testing.T) {
+	TestSetRealOrderDefaults(t)
+	request := okgroup.PlaceSpotOrderRequest{
+		InstrumentID:  pair.NewCurrencyPairWithDelimiter(symbol.BTC, symbol.USDT, "-").Pair().Lower().String(),
+		Type:          "market",
+		Side:          "buy",
+		MarginTrading: "2",
+		Size:          "100",
+		Notional:      "100",
+	}
+
+	_, err := o.PlaceMarginOrder(request)
+	testStandardErrorHandling(t, err)
+}
+
+// TestPlaceMultipleMarginOrders API endpoint test
+func TestPlaceMultipleMarginOrders(t *testing.T) {
+	TestSetRealOrderDefaults(t)
+	order := okgroup.PlaceSpotOrderRequest{
+		InstrumentID:  pair.NewCurrencyPairWithDelimiter(symbol.BTC, symbol.USDT, "-").Pair().Lower().String(),
+		Type:          "market",
+		Side:          "buy",
+		MarginTrading: "1",
+		Size:          "100",
+		Notional:      "100",
+	}
+
+	request := []okgroup.PlaceSpotOrderRequest{
+		order,
+	}
+
+	_, errs := o.PlaceMultipleMarginOrders(request)
+	if len(errs) > 0 {
+		testStandardErrorHandling(t, errs[0])
+	}
+}
+
+// TestPlaceMultipleMarginOrdersOverCurrencyLimits API logic test
+
+func TestPlaceMultipleMarginOrdersOverCurrencyLimits(t *testing.T) {
+	TestSetDefaults(t)
+	order := okgroup.PlaceSpotOrderRequest{
+		InstrumentID:  pair.NewCurrencyPairWithDelimiter(symbol.BTC, symbol.USDT, "-").Pair().Lower().String(),
+		Type:          "market",
+		Side:          "buy",
+		MarginTrading: "1",
+		Size:          "100",
+		Notional:      "100",
+	}
+
+	request := []okgroup.PlaceSpotOrderRequest{
+		order,
+		order,
+		order,
+		order,
+		order,
+	}
+
+	_, errs := o.PlaceMultipleMarginOrders(request)
+	if errs[0].Error() != "maximum 4 orders for each pair" {
+		t.Error("Expecting an error when more than 4 orders for a pair supplied", errs[0])
+	}
+}
+
+// TestPlaceMultipleMarginOrdersOverPairLimits API logic test
+func TestPlaceMultipleMarginOrdersOverPairLimits(t *testing.T) {
+	TestSetDefaults(t)
+	order := okgroup.PlaceSpotOrderRequest{
+		InstrumentID:  pair.NewCurrencyPairWithDelimiter(symbol.BTC, symbol.USDT, "-").Pair().Lower().String(),
+		Type:          "market",
+		Side:          "buy",
+		MarginTrading: "1",
+		Size:          "100",
+		Notional:      "100",
+	}
+
+	request := []okgroup.PlaceSpotOrderRequest{
+		order,
+	}
+
+	order.InstrumentID = pair.NewCurrencyPairWithDelimiter(symbol.LTC, symbol.USDT, "-").Pair().Lower().String()
+	request = append(request, order)
+	order.InstrumentID = pair.NewCurrencyPairWithDelimiter(symbol.DOGE, symbol.USDT, "-").Pair().Lower().String()
+	request = append(request, order)
+	order.InstrumentID = pair.NewCurrencyPairWithDelimiter(symbol.XMR, symbol.USDT, "-").Pair().Lower().String()
+	request = append(request, order)
+	order.InstrumentID = pair.NewCurrencyPairWithDelimiter(symbol.BCH, symbol.USDT, "-").Pair().Lower().String()
+	request = append(request, order)
+
+	_, errs := o.PlaceMultipleMarginOrders(request)
+	if errs[0].Error() != "up to 4 trading pairs" {
+		t.Error("Expecting an error when more than 4 trading pairs supplied", errs[0])
+	}
+}
+
+// TestCancelMarginOrder API endpoint test
+func TestCancelMarginOrder(t *testing.T) {
+	TestSetRealOrderDefaults(t)
+	request := okgroup.CancelSpotOrderRequest{
+		InstrumentID: pair.NewCurrencyPairWithDelimiter(symbol.BTC, symbol.USDT, "-").Pair().Lower().String(),
+		OrderID:      1234,
+	}
+
+	_, err := o.CancelMarginOrder(request)
+	testStandardErrorHandling(t, err)
+}
+
+// TestCancelMultipleMarginOrders API endpoint test
+func TestCancelMultipleMarginOrders(t *testing.T) {
+	TestSetRealOrderDefaults(t)
+	request := okgroup.CancelMultipleSpotOrdersRequest{
+		InstrumentID: pair.NewCurrencyPairWithDelimiter(symbol.BTC, symbol.USDT, "-").Pair().Lower().String(),
+		OrderIDs:     []int64{1, 2, 3, 4},
+	}
+
+	_, errs := o.CancelMultipleMarginOrders(request)
+	if len(errs) > 0 {
+		testStandardErrorHandling(t, errs[0])
+	}
+}
+
+// TestCancelMultipleMarginOrdersOverCurrencyLimits API logic test
+func TestCancelMultipleMarginOrdersOverCurrencyLimits(t *testing.T) {
+	TestSetRealOrderDefaults(t)
+	request := okgroup.CancelMultipleSpotOrdersRequest{
+		InstrumentID: pair.NewCurrencyPairWithDelimiter(symbol.BTC, symbol.USDT, "-").Pair().Lower().String(),
+		OrderIDs:     []int64{1, 2, 3, 4, 5},
+	}
+
+	_, errs := o.CancelMultipleMarginOrders(request)
+	if errs[0].Error() != "maximum 4 order cancellations for each pair" {
+		t.Error("Expecting an error when more than 4 orders for a pair supplied", errs[0])
+	}
+}
+
+// TestGetMarginOrders API endpoint test
+func TestGetMarginOrders(t *testing.T) {
+	TestSetDefaults(t)
+	request := okgroup.GetSpotOrdersRequest{
+		InstrumentID: pair.NewCurrencyPairWithDelimiter(symbol.BTC, symbol.USDT, "-").Pair().Lower().String(),
+		Status:       "all",
+	}
+	_, err := o.GetMarginOrders(request)
+	testStandardErrorHandling(t, err)
+}
+
+// TestGetMarginOpenOrders API endpoint test
+func TestGetMarginOpenOrders(t *testing.T) {
+	TestSetDefaults(t)
+	request := okgroup.GetSpotOpenOrdersRequest{}
+	_, err := o.GetMarginOpenOrders(request)
+	testStandardErrorHandling(t, err)
+}
+
+// TestGetMarginOrder API endpoint test
+func TestGetMarginOrder(t *testing.T) {
+	TestSetDefaults(t)
+	request := okgroup.GetSpotOrderRequest{
+		OrderID:      1234,
+		InstrumentID: pair.NewCurrencyPairWithDelimiter(symbol.BTC, symbol.USDT, "-").Pair().Upper().String(),
+	}
+	_, err := o.GetMarginOrder(request)
+	testStandardErrorHandling(t, err)
+}
+
+// TestGetMarginTransactionDetails API endpoint test
+func TestGetMarginTransactionDetails(t *testing.T) {
+	TestSetDefaults(t)
+	request := okgroup.GetSpotTransactionDetailsRequest{
+		OrderID:      1234,
+		InstrumentID: pair.NewCurrencyPairWithDelimiter(symbol.BTC, symbol.USDT, "-").Pair().Lower().String(),
+	}
+	_, err := o.GetMarginTransactionDetails(request)
+	testStandardErrorHandling(t, err)
 }
 
 func setFeeBuilder() exchange.FeeBuilder {
@@ -49,14 +780,6 @@ func setFeeBuilder() exchange.FeeBuilder {
 		PurchasePrice:       1,
 		CurrencyItem:        symbol.USD,
 		BankTransactionType: exchange.WireTransfer,
-	}
-}
-
-func TestGetSpotInstruments(t *testing.T) {
-	t.Parallel()
-	_, err := o.GetSpotInstruments()
-	if err != nil {
-		t.Errorf("Test failed - okcoin GetSpotInstruments() failed: %s", err)
 	}
 }
 
@@ -183,14 +906,6 @@ func TestGetOrderHistory(t *testing.T) {
 
 // Any tests below this line have the ability to impact your orders on the exchange. Enable canManipulateRealOrders to run them
 // ----------------------------------------------------------------------------------------------------------------------------
-func areTestAPIKeysSet() bool {
-	if o.APIKey != "" && o.APIKey != "Key" &&
-		o.APISecret != "" && o.APISecret != "Secret" {
-		return true
-	}
-	return false
-}
-
 func TestSubmitOrder(t *testing.T) {
 	o.SetDefaults()
 	TestSetup(t)

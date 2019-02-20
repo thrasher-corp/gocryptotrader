@@ -20,13 +20,15 @@ import (
 )
 
 const (
-	okexDefaultWebsocketURL = "wss://real.okex.com:10440/websocket/okexapi"
+	okexDefaultWebsocketURL = "wss://real.okex.com:10442/ws/v3"
 )
 
 func (o *OKGroup) writeToWebsocket(message string) error {
 	o.mu.Lock()
 	defer o.mu.Unlock()
-
+	if o.Verbose {
+		log.Printf("Sending message to WS: %v", message)
+	}
 	return o.WebsocketConn.WriteMessage(websocket.TextMessage, []byte(message))
 }
 
@@ -48,6 +50,7 @@ func (o *OKGroup) WsConnect() error {
 	}
 
 	var err error
+	log.Printf("Attempting to connect to %v", o.Websocket.GetWebsocketURL())
 	o.WebsocketConn, _, err = dialer.Dial(o.Websocket.GetWebsocketURL(),
 		http.Header{})
 	if err != nil {
@@ -64,7 +67,7 @@ func (o *OKGroup) WsConnect() error {
 		return fmt.Errorf("Error: Could not subscribe to the OKEX websocket %s",
 			err)
 	}
-
+	log.Println("Success!")
 	return nil
 }
 
@@ -311,6 +314,40 @@ func (o *OKGroup) WsHandleData() {
 	}
 }
 
+// SubscribeToChannel sends a request to WS to subscribe to supplied channel
+func (o *OKGroup) SubscribeToChannel(topic string) error {
+	resp := v3RequestFormat{}
+	resp.Operation = "subscribe"
+	resp.Arguments = append(resp.Arguments, topic)
+	//Now do something
+	json, err := common.JSONEncode(resp)
+	if err != nil {
+		return err
+	}
+	err = o.writeToWebsocket(string(json))
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+// UnsubscribeToChannel sends a request to WS to unsubscribe to supplied channel
+func (o *OKGroup) UnsubscribeToChannel(topic string) error {
+	resp := v3RequestFormat{}
+	resp.Operation = "unsubscribe"
+	resp.Arguments = append(resp.Arguments, topic)
+	//Now do something
+	json, err := common.JSONEncode(resp)
+	if err != nil {
+		return err
+	}
+	err = o.writeToWebsocket(string(json))
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 // ErrorResponse defines an error response type from the websocket connection
 type ErrorResponse struct {
 	Result    bool   `json:"result"`
@@ -323,4 +360,31 @@ type Request struct {
 	Event      string `json:"event"`
 	Channel    string `json:"channel"`
 	Parameters string `json:"parameters,omitempty"`
+}
+
+type v3RequestFormat struct {
+	Operation string   `json:"event"` // 1--subscribe 2--unsubscribe 3--login
+	Arguments []string `json:"args"`  // args: the value is the channel name, which can be one or more channels
+}
+
+type v3SSuccessResponseFormat struct {
+	Event   string `json:"event"`
+	Channel string `json:"channel"`
+}
+
+type v3SSuccessTableResponseFormat struct {
+	Table string        `json:"table"`
+	Data  []interface{} `json:"data"`
+}
+
+type v3SuccessfulSwapDepthResponseFormat struct {
+	Table  string        `json:"table"`
+	Action string        `json:"action"`
+	Data   []interface{} `json:"data"`
+}
+
+type v3FailureResponseFormat struct {
+	Event     string `json:"event"`
+	Message   string `json:"error_message"`
+	ErrorCode string `json:"error_code"`
 }

@@ -1507,7 +1507,16 @@ func (o *OKGroup) GetFee(feeBuilder exchange.FeeBuilder) (fee float64, _ error) 
 	case exchange.CryptocurrencyTradeFee:
 		fee = calculateTradingFee(feeBuilder.PurchasePrice, feeBuilder.Amount, feeBuilder.IsMaker)
 	case exchange.CryptocurrencyWithdrawalFee:
-		fee = getWithdrawalFee(feeBuilder.FirstCurrency)
+		withdrawFees, err := o.GetAccountWithdrawalFee(feeBuilder.CurrencyItem)
+		if err != nil {
+			return -1, err
+		}
+		for _, withdrawFee := range withdrawFees {
+			if withdrawFee.Currency == feeBuilder.CurrencyItem {
+				fee = withdrawFee.MinFee
+				break
+			}
+		}
 	}
 	if fee < 0 {
 		fee = 0
@@ -1524,10 +1533,6 @@ func calculateTradingFee(purchasePrice, amount float64, isMaker bool) (fee float
 		fee = 0.0015
 	}
 	return fee * amount * purchasePrice
-}
-
-func getWithdrawalFee(currency string) float64 {
-	return WithdrawalFees[currency]
 }
 
 // SetErrorDefaults sets the full error default list
