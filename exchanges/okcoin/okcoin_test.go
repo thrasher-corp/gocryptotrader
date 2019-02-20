@@ -16,7 +16,7 @@ const (
 	apiKey                  = ""
 	apiSecret               = ""
 	passphrase              = ""
-	OKGroupExchange         = "OKCOIN"
+	OKGroupExchange         = "OKCOIN International"
 	canManipulateRealOrders = false
 )
 
@@ -27,7 +27,7 @@ func TestSetDefaults(t *testing.T) {
 		o.SetDefaults()
 	}
 	if o.GetName() != OKGroupExchange {
-		t.Error("Test Failed - Bittrex - SetDefaults() error")
+		t.Errorf("Test Failed - %v - SetDefaults() error", OKGroupExchange)
 	}
 	t.Parallel()
 	TestSetup(t)

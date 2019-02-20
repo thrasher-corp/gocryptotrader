@@ -16,7 +16,7 @@ const (
 	okCoinAPIPath      = "api/"
 	okCoinAPIURL       = "https://www.okcoin.com/" + okCoinAPIPath
 	okCoinAPIVersion   = "/v3/"
-	okCoinExchangeName = "OKCoin"
+	okCoinExchangeName = "OKCOIN International"
 	okCoinWebsocketURL = "wss://real.okcoin.com:10440/websocket/okcoinapi"
 )
 
