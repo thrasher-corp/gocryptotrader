@@ -1,6 +1,8 @@
 package exchangerates
 
-import "testing"
+import (
+	"testing"
+)
 
 var e ExchangeRates
 
@@ -51,11 +53,45 @@ func TestCleanCurrencies(t *testing.T) {
 	if cleanCurrencies("EUR", "RUR") != "RUB" {
 		t.Fatalf("unexpected result. RUB should be the only symbol")
 	}
+
+	if cleanCurrencies("EUR", "AUD,BLA") != "AUD" {
+		t.Fatalf("unexpected result. AUD should be the only symbol")
+	}
 }
 
 func TestGetRates(t *testing.T) {
 	_, err := e.GetRates("USD", "AUD")
 	if err != nil {
 		t.Fatalf("failed to GetRates. Err: %s", err)
+	}
+}
+
+func TestGetHistoricalRates(t *testing.T) {
+	e.Verbose = true
+	_, err := e.GetHistoricalRates("-1", "USD", []string{"AUD"})
+	if err == nil {
+		t.Fatalf("unexpected result. Invalid date should throw an error")
+	}
+
+	_, err = e.GetHistoricalRates("2010-01-12", "USD", []string{"EUR,USD"})
+	if err != nil {
+		t.Fatalf("failed to GetHistoricalRates. Err: %s", err)
+	}
+}
+
+func TestGetTimeSeriesRates(t *testing.T) {
+	_, err := e.GetTimeSeriesRates("", "", "USD", []string{"EUR", "USD"})
+	if err == nil {
+		t.Fatal("unexpected result. Empty startDate endDate params should throw an error")
+	}
+
+	_, err = e.GetTimeSeriesRates("2018-01-01", "2018-09-01", "USD", []string{"EUR,USD"})
+	if err != nil {
+		t.Fatalf("failed to TestGetTimeSeriesRates. Err: %s", err)
+	}
+
+	_, err = e.GetTimeSeriesRates("-1", "-1", "USD", []string{"EUR,USD"})
+	if err == nil {
+		t.Fatal("unexpected result. Invalid date params should throw an error")
 	}
 }

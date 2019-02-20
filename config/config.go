@@ -871,16 +871,18 @@ func (c *Config) CheckCurrencyConfigValues() error {
 		return errors.New("no forex providers available")
 	}
 
-	for x := range fxProviders {
-		_, err := c.GetForexProviderConfig(fxProviders[x])
-		if err != nil {
-			log.Warnf("%s forex provider not found, adding to config..", fxProviders[x])
-			c.Currency.ForexProviders = append(c.Currency.ForexProviders, base.Settings{
-				Name:             fxProviders[x],
-				RESTPollingDelay: 600,
-				APIKey:           DefaultUnsetAPIKey,
-				APIKeyLvl:        -1,
-			})
+	if len(fxProviders) != len(c.Currency.ForexProviders) {
+		for x := range fxProviders {
+			_, err := c.GetForexProviderConfig(fxProviders[x])
+			if err != nil {
+				log.Warnf("%s forex provider not found, adding to config..", fxProviders[x])
+				c.Currency.ForexProviders = append(c.Currency.ForexProviders, base.Settings{
+					Name:             fxProviders[x],
+					RESTPollingDelay: 600,
+					APIKey:           DefaultUnsetAPIKey,
+					APIKeyLvl:        -1,
+				})
+			}
 		}
 	}
 
