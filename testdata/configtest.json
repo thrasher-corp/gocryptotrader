@@ -13,12 +13,12 @@
   "forexProviders": [
    {
     "name": "CurrencyConverter",
-    "enabled": true,
+    "enabled": false,
     "verbose": false,
     "restPollingDelay": 600,
-    "apiKey": "",
-    "apiKeyLvl": 0,
-    "primaryProvider": true
+    "apiKey": "Key",
+    "apiKeyLvl": -1,
+    "primaryProvider": false
    },
    {
     "name": "CurrencyLayer",
@@ -46,6 +46,15 @@
     "apiKey": "Key",
     "apiKeyLvl": -1,
     "primaryProvider": false
+   },
+   {
+    "name": "ExchangeRates",
+    "enabled": true,
+    "verbose": false,
+    "restPollingDelay": 600,
+    "apiKey": "Key",
+    "apiKeyLvl": -1,
+    "primaryProvider": true
    }
   ],
   "cryptocurrencyProvider": {

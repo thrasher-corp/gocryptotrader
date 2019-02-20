@@ -61,11 +61,12 @@ const (
 // Constants here define unset default values displayed in the config.json
 // file
 const (
-	APIURLNonDefaultMessage       = "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API"
-	WebsocketURLNonDefaultMessage = "NON_DEFAULT_HTTP_LINK_TO_WEBSOCKET_EXCHANGE_API"
-	DefaultUnsetAPIKey            = "Key"
-	DefaultUnsetAPISecret         = "Secret"
-	DefaultUnsetAccountPlan       = "accountPlan"
+	APIURLNonDefaultMessage              = "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API"
+	WebsocketURLNonDefaultMessage        = "NON_DEFAULT_HTTP_LINK_TO_WEBSOCKET_EXCHANGE_API"
+	DefaultUnsetAPIKey                   = "Key"
+	DefaultUnsetAPISecret                = "Secret"
+	DefaultUnsetAccountPlan              = "accountPlan"
+	DefaultForexProviderExchangeRatesAPI = "ExchangeRates"
 )
 
 // Variables here are used for configuration
@@ -865,38 +866,51 @@ func (c *Config) CheckWebserverConfigValues() error {
 
 // CheckCurrencyConfigValues checks to see if the currency config values are correct or not
 func (c *Config) CheckCurrencyConfigValues() error {
-	if len(c.Currency.ForexProviders) == 0 {
-		if len(forexprovider.GetAvailableForexProviders()) == 0 {
-			return errors.New("no forex providers available")
-		}
-		var providers []base.Settings
-		availProviders := forexprovider.GetAvailableForexProviders()
-		for x := range availProviders {
-			providers = append(providers,
-				base.Settings{
-					Name:             availProviders[x],
-					Enabled:          false,
-					Verbose:          false,
+	fxProviders := forexprovider.GetAvailableForexProviders()
+	if len(fxProviders) == 0 {
+		return errors.New("no forex providers available")
+	}
+
+	if len(fxProviders) != len(c.Currency.ForexProviders) {
+		for x := range fxProviders {
+			_, err := c.GetForexProviderConfig(fxProviders[x])
+			if err != nil {
+				log.Warnf("%s forex provider not found, adding to config..", fxProviders[x])
+				c.Currency.ForexProviders = append(c.Currency.ForexProviders, base.Settings{
+					Name:             fxProviders[x],
 					RESTPollingDelay: 600,
 					APIKey:           DefaultUnsetAPIKey,
 					APIKeyLvl:        -1,
-					PrimaryProvider:  false,
-				},
-			)
+				})
+			}
 		}
-		c.Currency.ForexProviders = providers
 	}
 
 	count := 0
 	for i := range c.Currency.ForexProviders {
 		if c.Currency.ForexProviders[i].Enabled {
-			if c.Currency.ForexProviders[i].APIKey == DefaultUnsetAPIKey {
-				log.Warnf("%s forex provider API key not set. Please set this in your config.json file", c.Currency.ForexProviders[i].Name)
+			if c.Currency.ForexProviders[i].APIKey == DefaultUnsetAPIKey && c.Currency.ForexProviders[i].Name != DefaultForexProviderExchangeRatesAPI {
+				log.Warnf("%s enabled forex provider API key not set. Please set this in your config.json file", c.Currency.ForexProviders[i].Name)
 				c.Currency.ForexProviders[i].Enabled = false
 				c.Currency.ForexProviders[i].PrimaryProvider = false
 				continue
 			}
-			if c.Currency.ForexProviders[i].APIKeyLvl == -1 && c.Currency.ForexProviders[i].Name != "CurrencyConverter" {
+
+			if c.Currency.ForexProviders[i].Name == "CurrencyConverter" {
+				if c.Currency.ForexProviders[i].Enabled &&
+					c.Currency.ForexProviders[i].PrimaryProvider &&
+					(c.Currency.ForexProviders[i].APIKey == "" ||
+						c.Currency.ForexProviders[i].APIKey == DefaultUnsetAPIKey) {
+					log.Warnf("CurrencyConverter forex provider no longer supports unset API key requests. Switching to ExchangeRates FX provider..")
+					c.Currency.ForexProviders[i].Enabled = false
+					c.Currency.ForexProviders[i].PrimaryProvider = false
+					c.Currency.ForexProviders[i].APIKey = DefaultUnsetAPIKey
+					c.Currency.ForexProviders[i].APIKeyLvl = -1
+					continue
+				}
+			}
+
+			if c.Currency.ForexProviders[i].APIKeyLvl == -1 && c.Currency.ForexProviders[i].Name != DefaultForexProviderExchangeRatesAPI {
 				log.Warnf("%s APIKey Level not set, functions limited. Please set this in your config.json file",
 					c.Currency.ForexProviders[i].Name)
 			}
@@ -906,11 +920,10 @@ func (c *Config) CheckCurrencyConfigValues() error {
 
 	if count == 0 {
 		for x := range c.Currency.ForexProviders {
-			if c.Currency.ForexProviders[x].Name == "CurrencyConverter" {
+			if c.Currency.ForexProviders[x].Name == DefaultForexProviderExchangeRatesAPI {
 				c.Currency.ForexProviders[x].Enabled = true
-				c.Currency.ForexProviders[x].APIKey = ""
 				c.Currency.ForexProviders[x].PrimaryProvider = true
-				log.Warn("No forex providers set, defaulting to free provider CurrencyConverterAPI.")
+				log.Warn("Using ExchangeRatesAPI for default forex provider.")
 			}
 		}
 	}
